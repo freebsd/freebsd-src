@@ -1,11 +1,11 @@
 #
-# $Id: Makefile,v 1.8 1998/03/07 09:46:17 bde Exp $
+# $Id: Makefile,v 1.9 1998/03/19 15:12:05 bde Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} ${LIBEDIT} ${LIBTERMCAP}
+LDADD=	${LIBNTP} -ledit -ltermcap
 
 PROG= xntpdc
 MAN8= ${.CURDIR}/../doc/xntpdc.8

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1998/05/03 05:14:56 peter Exp $
+# $Id: Makefile,v 1.7 1998/05/04 20:00:14 bde Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 
@@ -10,8 +10,8 @@ SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.l
 MAN8=	nslookup.8
 
 CFLAGS+=-D_PATH_HELPFILE=\"${DESTHELP}/nslookup.help\"
-LDADD+=	-ll
-DPADD+=	${LIBL}
+LDADD+=	-ll -ledit -ltermcap
+DPADD+=	${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
