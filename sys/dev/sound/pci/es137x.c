@@ -3,7 +3,7 @@
  * boards based on the ES1370, ES1371 and ES1373 chips.
  *
  * Copyright (c) 1999 Russell Cattelan <cattelan@thebarn.com>
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Copyright (c) 1998 by Joachim Kuebart. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	b->bufsize = blkcnt * blksz;
 
 	tmpbuf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
-	if (tmpbuf == NULL) 
+	if (tmpbuf == NULL)
 		return ENOMEM;
 	free(b->tmpbuf, M_DEVBUF);
 	b->tmpbuf = tmpbuf;

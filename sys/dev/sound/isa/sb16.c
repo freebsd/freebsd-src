@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Copyright 1997,1998 Luigi Rizzo.
  *
  * Derived from files in the Voxware 3.5 distribution,
