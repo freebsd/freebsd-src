@@ -520,7 +520,9 @@ esac
 # Remove X lock files, since they will prevent you from restarting X11
 # after a system crash.
 #
-rm -f /tmp/.X*-lock /tmp/.X11-unix/*
+rm -f /tmp/.X*-lock
+rm -fr /tmp/.X11-unix
+mkdir -m 1777 /tmp/.X11-unix
 
 # Snapshot any kernel -c changes back to disk here <someday>.
 # This has changed with ELF and /kernel.config.
