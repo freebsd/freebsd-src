@@ -545,14 +545,14 @@ exit 0;
 
 # General report (no output flags)
 format STDOUT =
-@<<<<<<<<<<<<<<<<<<<<<<<<<  @<
+@<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  @<
 $packageName,              $versionCode
 .
   ;
 
 # Verbose report (-v flag)
 format STDOUT_VERBOSE =
-@<<<<<<<<<<<<<<<<<<<<<<<<<  @<  @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+@<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  @<  @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 $packageNameVer,           $versionCode, $Comment
 .
   ;
@@ -561,7 +561,7 @@ $packageNameVer,           $versionCode, $Comment
 format STDOUT_COMMANDS =
 @<
 $CommentChar  
-@< @<<<<<<<<<<<<<<<<<<<<<<<<
+@< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 $CommentChar, $packageName
 @< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 $CommentChar, $Comment  
