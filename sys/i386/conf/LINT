@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.538 1999/01/20 03:29:51 msmith Exp $
+#	$Id: LINT,v 1.539 1999/01/20 14:49:10 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -627,6 +627,15 @@ options		NFS_DEBUG		# Enable NFS Debugging
 # Coda stuff:
 options		CODA			#CODA filesystem.
 pseudo-device	vcoda	4		#coda minicache <-> venus comm.
+
+#
+# Add support for the EXT2FS filesystem of Linux fame.  Be a bit
+# careful with this - the ext2fs code has a tendency to lag behind
+# changes and not be exercised very much, so mounting read/write could
+# be dangerous (and even mounting read only could result in panics.)
+#
+options		"EXT2FS"
+
 
 
 #####################################################################
@@ -1845,10 +1854,12 @@ options         "PMAP_SHPGPERPROC=201"
 options		"NSFBUFS=1024"
 
 #
-# Enable extra debugging code for locks.  This include storing the
-# filename and line of whatever aquired the lock in the lock itself,
-# and changing a number of function calls to pass around the relevant
-# data.  This is not at all useful unless you are debugging lock code.
+# Enable extra debugging code for locks.  This stores the filename and
+# line of whatever aquired the lock in the lock itself, and change a
+# number of function calls to pass around the relevant data.  This is
+# not at all useful unless you are debugging lock code.  Also note
+# that it is likely to break e.g. fstat(1) unless you recompile your
+# userland with -DDEBUG_LOCKS as well.
 #
 options		DEBUG_LOCKS
 
@@ -1864,7 +1875,6 @@ options		DEBUG
 options		DEBUG_VFS_LOCKS
 options		"DEBUG_1284"
 #options	DISABLE_PSE
-options		"EXT2FS"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
 options		KEY
