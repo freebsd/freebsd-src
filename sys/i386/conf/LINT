@@ -71,9 +71,11 @@ options 	DFLDSIZ="(256*1024*1024)"
 #
 options 	BLKDEV_IOSIZE=8192
 
-# Options for the VM subsystem
+# Options for the VM subsystem.
+options		PQ_CACHESIZE=512	# color for 512k/16k cache
+# Deprecated options supported for backwards compatibility.
 #options 	PQ_NOOPT		# No coloring
-options 	PQ_LARGECACHE		# color for 512k/16k cache
+#options 	PQ_LARGECACHE		# color for 512k/16k cache
 #options 	PQ_HUGECACHE		# color for 1024k/16k cache
 #options 	PQ_MEDIUMCACHE		# color for 64k/16k cache
 #options 	PQ_NORMALCACHE		# color for 256k/16k cache

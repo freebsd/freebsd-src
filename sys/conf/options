@@ -352,6 +352,7 @@ PQ_NORMALCACHE		opt_vmpage.h
 PQ_MEDIUMCACHE		opt_vmpage.h
 PQ_LARGECACHE		opt_vmpage.h
 PQ_HUGECACHE		opt_vmpage.h
+PQ_CACHESIZE		opt_vmpage.h
 
 # Standard SMP options
 SMP			opt_global.h
