@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.64 1994/11/03 19:53:46 jkh Exp $
+# $Id: bsd.port.mk,v 1.65 1994/11/11 09:45:33 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -280,16 +280,8 @@ package: pre-package
 	fi
 .endif
 
-.if !target(pre-build)
-pre-build:
-	@${DO_NADA}
-.endif
-
-.if !target(build)
-build: configure pre-build ${BUILD_COOKIE}
-
-${BUILD_COOKIE}:
-	@echo "===>  Building for ${DISTNAME}"
+.if !target(depends)
+depends:
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
@@ -304,6 +296,18 @@ ${BUILD_COOKIE}:
 	@echo "===>  Returning to build of ${DISTNAME}"
 .endif
 .endif
+.endif
+
+.if !target(pre-build)
+pre-build:
+	@${DO_NADA}
+.endif
+
+.if !target(build)
+build: configure pre-build depends ${BUILD_COOKIE}
+
+${BUILD_COOKIE}:
+	@echo "===>  Building for ${DISTNAME}"
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
 .else defined(USE_GMAKE)
