@@ -1527,37 +1527,37 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 	tstr = rw_str + 2;
 
 	while (*tstr != '\0' && *tstr != endc && *tstr != ':') {
-	    if (*tstr == '$') {
-		size_t	rlen;
-		Boolean	rfree;
-		char	*rval;
+		if (*tstr == '$') {
+			size_t	rlen;
+			Boolean	rfree;
+			char	*rval;
 
-		rlen = 0;
-		rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
-		if (rval == var_Error) {
-			Fatal("Error expanding embedded variable.");
+			rlen = 0;
+			rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
+			if (rval == var_Error) {
+				Fatal("Error expanding embedded variable.");
+			}
+			if (rval != NULL) {
+				Buf_Append(buf, rval);
+				if (rfree)
+					free(rval);
+			}
+			tstr += rlen - 1;
+		} else {
+			Buf_AddByte(buf, (Byte)*tstr);
 		}
-		if (rval != NULL) {
-			Buf_Append(buf, rval);
-			if (rfree)
-				free(rval);
-		}
-		tstr += rlen - 1;
-	    } else {
-		Buf_AddByte(buf, (Byte)*tstr);
-	    }
-	    tstr++;
+		tstr++;
 	}
 
 	if (*tstr == '\0') {
-	    /*
-	     * If we never did find the end character, return NULL
-	     * right now, setting the length to be the distance to
-	     * the end of the string, since that's what make does.
-	     */
-	    *freePtr = FALSE;
-	    *lengthPtr = tstr - input;
-	    return (var_Error);
+		/*
+		 * If we never did find the end character, return NULL
+		 * right now, setting the length to be the distance to
+		 * the end of the string, since that's what make does.
+		 */
+		*freePtr = FALSE;
+		*lengthPtr = tstr - input;
+		return (var_Error);
 	}
 
 	haveModifier = (*tstr == ':');
