@@ -422,10 +422,13 @@
 #define BFE_AND(sc, name, val)                                              \
         CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) & val)
 
+#if __FreeBSD_version > 500000
 #define BFE_LOCK(scp)       mtx_lock(&sc->bfe_mtx)
 #define BFE_UNLOCK(scp)     mtx_unlock(&sc->bfe_mtx)
-
-#define BFE_INC(x, y)       (x) = ((x) == ((y)-1)) ? 0 : (x)+1
+#else
+#define BFE_LOCK(scp)       s=splimp()
+#define BFE_UNLOCK(scp)     splx(s)
+#endif
 
 struct bfe_data {
     struct mbuf     *bfe_mbuf;
@@ -484,7 +487,9 @@ struct bfe_softc
     struct bfe_desc         *bfe_tx_list, *bfe_rx_list;
     struct bfe_data         bfe_tx_ring[BFE_TX_LIST_CNT]; /* XXX */
     struct bfe_data         bfe_rx_ring[BFE_RX_LIST_CNT]; /* XXX */
+#if __FreeBSD_version > 500000
     struct mtx              bfe_mtx;
+#endif
     u_int32_t               bfe_flags;
     u_int32_t               bfe_imask;
     u_int32_t               bfe_dma_offset;
