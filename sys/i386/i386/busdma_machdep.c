@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.6 1998/05/06 01:45:55 gibbs Exp $
+ *      $Id: busdma_machdep.c,v 1.7 1998/07/11 07:45:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -346,7 +346,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 * dmamem does not need to be bounced, so the map should be
 	 * NULL
 	 */
-	if (map != NULL)
+	if (map != &nobounce_dmamap)
 		panic("bus_dmamem_free: Invalid map freed\n");
 	free(vaddr, M_DEVBUF);
 }
