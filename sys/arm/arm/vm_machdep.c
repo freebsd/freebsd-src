@@ -145,7 +145,6 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	struct trapframe *tf;
 	struct switchframe *sf;
 	struct mdproc *mdp2;
-	vm_offset_t uarea = td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE;
 
 	pcb1 = td1->td_pcb;
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
@@ -156,8 +155,8 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_und_sp = uarea + USPACE_UNDEF_STACK_TOP;
-	pcb2->un_32.pcb32_sp = uarea +
+	pcb2->un_32.pcb32_und_sp = td2->td_kstack + USPACE_UNDEF_STACK_TOP;
+	pcb2->un_32.pcb32_sp = td2->td_kstack +
 	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
 	pmap_activate(td2);
 	td2->td_frame = tf =
