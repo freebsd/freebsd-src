@@ -1,7 +1,0 @@
-#	from: @(#)Makefile.hp300	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile.hp300,v 1.4 1993/10/16 03:23:04 cgd Exp $
-
-CFLAGS+=	-Dm68851
-SRCS+=		tc-m68k.c atof-ieee.c
-
-gas_target=	m68k

@@ -1,1 +1,0 @@
-COMPILER= gcc -DUSE_PROTOTYPES -Wall -O2 -finline-functions -fdelayed-branch -fomit-frame-pointer

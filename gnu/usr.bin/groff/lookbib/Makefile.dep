@@ -1,2 +1,0 @@
-lookbib.o : lookbib.cc ../include/errarg.h ../include/error.h \
-  ../include/lib.h ../include/cset.h ../include/refid.h ../include/search.h

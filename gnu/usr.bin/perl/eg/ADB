@@ -1,8 +1,0 @@
-#!/usr/bin/perl
-
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/ADB,v 1.1.1.1 1993/08/23 21:29:43 nate Exp $
-
-# This script is only useful when used in your crash directory.
-
-$num = shift;
-exec 'adb', '-k', "vmunix.$num", "vmcore.$num";

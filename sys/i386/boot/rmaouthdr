@@ -1,6 +1,0 @@
-#!/bin/csh -f
-#
-#	from: Mach, Revision 2.2  92/04/04  11:36:01  rpd
-#	$Id$ 
-#
-dd if=$1 of=$2 ibs=32 skip=1 obs=1024b

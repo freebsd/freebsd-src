@@ -1,4 +1,0 @@
-log restarts if interrupted
-Still refreshes after exit
-Should ^Z be disabled?
-does not exit after hup
