@@ -445,6 +445,7 @@ pmap_bootstrap()
 	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
+	PCPU_SET(current_pmap, kernel_pmap);
 
 	/*
 	 * Region 5 is mapped via the vhpt.
