@@ -8,8 +8,8 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
-.if !defined(PROG_CXX)
 CSTD		?=	c99
+.if ${CSTD} != ""
 . if ${CSTD} == "k&r"
 CFLAGS		+=	-traditional
 . elif ${CSTD} == "c89" || ${CSTD} == "c90"
