@@ -16,7 +16,7 @@
   011   '0'    '='    nop    nop    '}'    '}'    nop    nop     O
   012   223    '?'    fs     fs     '\'    '\'    fs     fs      O
   013   '''    '`'    nop    nop    179    180    nop    nop     O
-  014   del    del    bs     bs     del    del    bs     bs      O
+  014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    '@'    '@'    nul    nul     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C

@@ -16,7 +16,7 @@
   011   '0'    ')'    nop    nop    '{'    '{'    nop    nop     O
   012   '-'    '_'    ns     ns     '|'    '|'    ns     ns      O
   013   '='    '+'    nop    nop    '}'    '}'    nop    nop     O
-  014   del    del    bs     bs     del    del    bs     bs      O
+  014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
