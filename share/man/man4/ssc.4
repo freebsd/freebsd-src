@@ -1,0 +1,110 @@
+.\"	$Id: su.4,v 1.10 1997/02/22 13:24:44 peter Exp $
+.\"
+.\" Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 29, 1997
+.Dt SSC 4
+.Os FreeBSD
+.Sh NAME
+.Nm ssc
+.Nd The `super scsi' driver
+.Sh SYNOPSIS
+.Cd "pseudo-device ssc"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an access point into the SCSI driver code that can
+be used when no SCSI devices have previously been detected.  This
+is useful for systems that contain only external SCSI devices that
+may be powered off at boot time.
+.Pp
+The
+.Sq scsi user ,
+or
+.Xr su 4
+pseudo-device is used by
+.Nm ssc ,
+and therefore must also be configured.
+.Sh KERNEL CONFIGURATION
+There are no configuration parameters for the ssc pseudo-device.
+.Pp
+.Sh IOCTLS
+The 
+.Nm
+driver has a single
+.Dv SCIOCADDR
+ioctl of it's own.  This ioctl must be used after opening
+.Pa /dev/ssc
+and before issuing any other ioctl calls:
+.Bd -literal -offset indent
+.Fd #include <sys/scsiio.h>
+
+.Ft int
+.Fn ioctl "int fd" "SCIOCADDR" "struct scsi_addr *data"
+.Ed
+.Pp
+.Ar Fd
+refers to the descriptor returned by
+.Xr open 2 ,
+and
+.Ar data
+must have the
+.Ar scbus ,
+.Ar target
+and
+.Ar lun
+fields set as required.  This ioctl may be used at will to change the
+device to which subsequent ioctls affect.
+.Pp
+All other ioctls are passed directly to the
+.Xr su 4
+pseudo-device driver, using the Bus, Target and Lun that were set
+with the last
+.Dv SCIOCADDR
+ioctl call.
+.Sh FILES
+.Bl -tag -width /dev/ssc -compact
+.It Pa /dev/ssc
+The device file used to access the
+.Sq super scsi
+driver.
+.El
+.Sh DIAGNOSTICS
+If any ioctl is attempted before issuing a
+.Dv SCIOCADDR
+ioctl,
+.Dv ENXIO
+is returned.  Otherwise, the ioctl is passed directly to the
+.Xr su 4
+driver.
+.Sh SEE ALSO
+.Xr open 2 ,
+.Xr scsi 8 ,
+.Xr su 4
+.Sh HISTORY
+The
+.Nm
+driver originally appeared in FreeBSD 2.0.5.
