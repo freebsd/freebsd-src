@@ -5,9 +5,8 @@
 .Nm getopt
 .Nd parse command options
 .Sh SYNOPSIS
-.Ic var=\`getopt Ar optstring
-.Qq $@
-\` ; set \-\- $var
+.Nm args=\`getopt Ar optstring $*\`
+; errcode=$?; set \-\- $args
 .Sh DESCRIPTION
 .Nm Getopt
 is used to break up options in command lines for easy parsing by
@@ -44,13 +43,18 @@ and the option
 which requires an argument.
 .Pp
 .Bd -literal -offset indent
-tmp=$(getopt abo: "$@")
+args=\`getopt abo: $*\`
+# you should not use \`getopt abo: "$@"\` since that would parse
+# the arguments differently from what the set command below does.
 if [ $? != 0 ]
 then
 	echo 'Usage: ...'
 	exit 2
 fi
-set \-\- $tmp
+set \-\- $args
+# You cannot use the set command with a backquoted getopt directly,
+# since the exit code from getopt would be shadowed by those of set, 
+# which is zero by definition.
 for i
 do
 	case "$i"
@@ -65,7 +69,7 @@ do
 			shift; break;;
 	esac
 done
-echo single-char flags: $sflags
+echo single-char flags: "'"$sflags"'"
 echo oarg is "'"$oarg"'"
 .Ed
 .Pp
@@ -88,7 +92,7 @@ status > 0 when it encounters an option letter not included in
 .Ar optstring .
 .Sh HISTORY
 Written by Henry Spencer, working from a Bell Labs manual page.
-Behavior believed identical to the Bell version. Example replaced in
+Behavior believed identical to the Bell version. Example changed in
 .Fx
 version 3.2 and 4.0.
 .Sh BUGS
@@ -97,7 +101,12 @@ Whatever
 has.
 .Pp
 Arguments containing white space or embedded shell metacharacters
-generally will not survive intact;  this looks easy to fix but isn't.
+generally will not survive intact;  this looks easy to fix but
+isn't. People trying to fix 
+.Nm getopt
+or the example in this manpage should check the history of this file
+in
+.Fx .
 .Pp
 The error message for an invalid option is identified as coming
 from
@@ -111,3 +120,8 @@ The precise best way to use the
 .Nm set
 command to set the arguments without disrupting the value(s) of
 shell options varies from one shell version to another.
+.Pp
+Each shellscript has to carry complex code to parse arguments halfway
+correcty (like the example presented here). A better getopt-like tool
+would move much of the complexity into the tool and keep the client
+shell scripts simpler.
