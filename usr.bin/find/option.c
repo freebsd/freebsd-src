@@ -74,6 +74,7 @@ static OPTION const options[] = {
 	{ "-empty",	c_empty,	f_empty,	0 },
 	{ "-exec",	c_exec,		f_exec,		0 },
 	{ "-execdir",	c_exec,		f_exec,		F_EXECDIR },
+	{ "-false",	c_simple,	f_not,		0 },
 	{ "-flags",	c_flags,	f_flags,	0 },
 	{ "-follow",	c_follow,	f_always_true,	0 },
 /*
