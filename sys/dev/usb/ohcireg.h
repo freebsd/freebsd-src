@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.13 2000/01/31 20:17:26 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.14 2000/01/31 22:35:14 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 
@@ -167,7 +167,6 @@ typedef struct {
 #define OHCI_ED_SET_MAXP(s)	((s) << 16)
 #define OHCI_ED_MAXPMASK	(0x7ff << 16)
 	ohci_physaddr_t	ed_tailp;
-#define OHCI_TAILMASK		0xfffffffc
 	ohci_physaddr_t	ed_headp;
 #define OHCI_HALTED		0x00000001
 #define OHCI_TOGGLECARRY	0x00000002
