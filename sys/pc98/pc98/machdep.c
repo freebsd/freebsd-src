@@ -1581,12 +1581,6 @@ getmemsize(int first)
 		pmap_kenter(KERNBASE + pa, pa);
 
 	/*
-	 * Map the page at address zero for the bios code to use.
-	 * Note that page zero is not in the general page pool.
-	 */
-	pmap_kenter(KERNBASE, 0);
-
-	/*
 	 * if basemem != 640, map pages r/w into vm86 page table so 
 	 * that the bios can scribble on it.
 	 */
