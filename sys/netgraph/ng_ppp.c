@@ -200,7 +200,6 @@ struct ng_ppp_private {
 	int32_t			mseq;			/* min links[i].seq */
 	u_char			vjCompHooked;		/* VJ comp hooked up? */
 	u_char			allLinksEqual;		/* all xmit the same? */
-	u_char			timerActive;		/* frag timer active? */
 	u_int			numActiveLinks;		/* how many links up */
 	int			activeLinks[NG_PPP_MAX_LINKS];	/* indicies */
 	u_int			lastLink;		/* for round robin */
@@ -208,7 +207,7 @@ struct ng_ppp_private {
 	TAILQ_HEAD(ng_ppp_fraglist, ng_ppp_frag)	/* fragment queue */
 				frags;
 	int			qlen;			/* fraq queue length */
-	struct callout_handle	fragTimer;		/* fraq queue check */
+	struct callout		fragTimer;		/* fraq queue check */
 };
 typedef struct ng_ppp_private *priv_p;
 
@@ -230,7 +229,8 @@ static int	ng_ppp_check_packet(node_p node);
 static void	ng_ppp_get_packet(node_p node, struct mbuf **mp);
 static int	ng_ppp_frag_process(node_p node);
 static int	ng_ppp_frag_trim(node_p node);
-static void	ng_ppp_frag_timeout(void *arg);
+static void	ng_ppp_frag_timeout(node_p node, hook_p hook, void *arg1,
+			int arg2);
 static void	ng_ppp_frag_checkstale(node_p node);
 static void	ng_ppp_frag_reset(node_p node);
 static int	ng_ppp_mp_output(node_p node, struct mbuf *m);
@@ -393,7 +393,7 @@ ng_ppp_constructor(node_p node)
 	TAILQ_INIT(&priv->frags);
 	for (i = 0; i < NG_PPP_MAX_LINKS; i++)
 		priv->links[i].seq = MP_NOSEQ;
-	callout_handle_init(&priv->fragTimer);
+	ng_callout_init(&priv->fragTimer);
 
 	/* Done */
 	return (0);
@@ -1469,31 +1469,17 @@ ng_ppp_frag_checkstale(node_p node)
  * Periodically call ng_ppp_frag_checkstale()
  */
 static void
-ng_ppp_frag_timeout(void *arg)
+ng_ppp_frag_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const node_p node = arg;
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	int s = splnet();
-
-	/* Handle the race where shutdown happens just before splnet() above */
-	if (NG_NODE_NOT_VALID(node)) {
-		NG_NODE_UNREF(node);
-		splx(s);
+	/* XXX: is this needed? */
+	if (NG_NODE_NOT_VALID(node))
 		return;
-	}
-
-	/* Reset timer state after timeout */
-	KASSERT(priv->timerActive, ("%s: !timerActive", __func__));
-	priv->timerActive = 0;
-	KASSERT(node->nd_refs > 1, ("%s: nd_refs=%d", __func__, node->nd_refs));
-	NG_NODE_UNREF(node);
-
-	/* Start timer again */
-	ng_ppp_start_frag_timer(node);
 
 	/* Scan the fragment queue */
 	ng_ppp_frag_checkstale(node);
-	splx(s);
+
+	/* Start timer again */
+	ng_ppp_start_frag_timer(node);
 }
 
 /*
@@ -2038,12 +2024,9 @@ ng_ppp_start_frag_timer(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (!priv->timerActive) {
-		priv->fragTimer = timeout(ng_ppp_frag_timeout,
-		    node, MP_FRAGTIMER_INTERVAL);
-		priv->timerActive = 1;
-		NG_NODE_REF(node);
-	}
+	if (!(callout_pending(&priv->fragTimer)))
+		ng_callout(&priv->fragTimer, node, NULL, MP_FRAGTIMER_INTERVAL,
+		    ng_ppp_frag_timeout, NULL, 0);
 }
 
 /*
@@ -2054,12 +2037,6 @@ ng_ppp_stop_frag_timer(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (priv->timerActive) {
-		untimeout(ng_ppp_frag_timeout, node, priv->fragTimer);
-		priv->timerActive = 0;
-		KASSERT(node->nd_refs > 1,
-		    ("%s: nd_refs=%d", __func__, node->nd_refs));
-		NG_NODE_UNREF(node);
-	}
+	if (callout_pending(&priv->fragTimer))
+		ng_uncallout(&priv->fragTimer, node);
 }
-
