@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/02/03 03:41:38 wpaul Exp $
+# $Id: Makefile,v 1.4 1995/02/03 22:01:17 wpaul Exp $
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	ypserv
@@ -7,7 +7,7 @@ SRCS=	dnslookup.c yp_svc.c yp_xdr.c server.c
 CFLAGS+=-Wall -DTCP_WRAPPER=0 -DTCPW_FACILITY=LOG_AUTH
 CFLAGS+=-DINSTDIR='"/usr/libexec"'
 
-MAN8=
+MAN8= ypserv.8
 
 afterinstall: /var/yp/Makefile /usr/libexec/mknetid
 
