@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys
 
 CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_ARCH}
 
@@ -24,6 +25,7 @@ ${SYSCALL_SRC}:
 LIBC_OBJS= sigsetops.So \
 	bcopy.So \
 	bzero.So \
+	cerror.So \
 	memcpy.So \
 	memset.So \
 	strcpy.So \
