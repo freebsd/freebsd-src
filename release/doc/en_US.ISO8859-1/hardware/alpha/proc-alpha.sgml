@@ -1344,11 +1344,13 @@ cpu	EV4</programlisting>
         </listitem>
       </itemizedlist>
 
-      <para>Using 8 SIMMs for a 256bit wide memory can yield interesting 
-      speedups over a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must 
-      be of the same type to make this work. The system must be explicitly 
-      setup to use the 8 SIMM memory arrangement. You must have 8 SIMMs, 
-      4 SIMMs distributed over 2 banks will not work.</para>
+      <para>Using 8 SIMMs for a 256bit wide memory can yield interesting
+      speedups over a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must
+      be of the same type to make this work. The system must be explicitly
+      setup to use the 8 SIMM memory arrangement. You must have 8 SIMMs,
+      4 SIMMs distributed over 2 banks will not work. For the AlphaPC164
+      you can have a maximum of 1Gbyte of RAM, using 8 128Mbyte 
+      SIMMs. The manual indicates the maximum is 512 Mbyte.</para>
 
       <para>The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A].
       Newer Symbios 810 revisions like the Symbios 810AE are not recognized by
