@@ -51,54 +51,9 @@
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct loadavg averunnable =
-	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
-
 struct vmmeter cnt;
 
 static int maxslp = MAXSLP;
-
-/*
- * Constants for averages over 1, 5, and 15 minutes
- * when sampling at 5 second intervals.
- */
-static fixpt_t cexp[3] = {
-	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
-	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
-	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
-};
-
-/*
- * Compute a tenex style load average of a quantity on
- * 1, 5 and 15 minute intervals.
- */
-static void
-loadav(struct loadavg *avg)
-{
-	register int i, nrun;
-	register struct proc *p;
-
-	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
-		switch (p->p_stat) {
-		case SRUN:
-		case SIDL:
-			nrun++;
-		}
-	}
-	for (i = 0; i < 3; i++)
-		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
-		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
-}
-
-void
-vmmeter()
-{
-
-	if (time_second % 5 == 0)
-		loadav(&averunnable);
-	if (proc0.p_slptime > maxslp / 2)
-		wakeup(&proc0);
-}
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &cnt.v_free_min, 0, "");
