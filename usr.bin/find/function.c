@@ -65,7 +65,11 @@ static const char rcsid[] =
 
 #include "find.h"
 
-time_t get_date __P((char *date, struct timeb *now));
+static PLAN *palloc __P((OPTION *));
+static long long find_parsenum __P((PLAN *, const char *, char *, char *));
+static long long find_parsetime __P((PLAN *, const char *, char *));
+static char *nextarg __P((OPTION *, char ***));
+time_t get_date __P((char *, struct timeb *));
 
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
@@ -101,7 +105,8 @@ palloc(option)
 static long long
 find_parsenum(plan, option, vp, endch)
 	PLAN *plan;
-	char *option, *vp, *endch;
+	const char *option;
+	char *vp, *endch;
 {
 	long long value;
 	char *endchar, *str;	/* Pointer to character ending conversion. */
@@ -144,7 +149,8 @@ find_parsenum(plan, option, vp, endch)
 static long long
 find_parsetime(plan, option, vp)
 	PLAN *plan;
-	char *option, *vp;
+	const char *option;
+	char *vp;
 {
 	long long secs, value;
 	char *str, *unit;	/* Pointer to character ending conversion. */
@@ -372,7 +378,7 @@ c_mXXdepth(option, argvp)
  */
 int
 f_delete(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	/* ignore these from fts */
@@ -415,7 +421,7 @@ f_delete(plan, entry)
 PLAN *
 c_delete(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 
 	ftsoptions &= ~FTS_NOSTAT;	/* no optimise */
@@ -437,8 +443,8 @@ c_delete(option, argvp)
  */
 int
 f_always_true(plan, entry)
-	PLAN *plan;
-	FTSENT *entry;
+	PLAN *plan __unused;
+	FTSENT *entry __unused;
 {
 	return 1;
 }
@@ -446,7 +452,7 @@ f_always_true(plan, entry)
 PLAN *
 c_depth(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	isdepth = 1;
 
@@ -460,7 +466,7 @@ c_depth(option, argvp)
  */
 int
 f_empty(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	if (S_ISREG(entry->fts_statp->st_mode) &&
@@ -491,7 +497,7 @@ f_empty(plan, entry)
 PLAN *
 c_empty(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions &= ~FTS_NOSTAT;
 
@@ -515,11 +521,11 @@ c_empty(option, argvp)
  */
 int
 f_exec(plan, entry)
-	register PLAN *plan;
+	PLAN *plan;
 	FTSENT *entry;
 {
 	extern int dotfd;
-	register int cnt;
+	int cnt;
 	pid_t pid;
 	int status;
 	char *file;
@@ -574,8 +580,8 @@ c_exec(option, argvp)
 	char ***argvp;
 {
 	PLAN *new;			/* node returned */
-	register int cnt;
-	register char **argv, **ap, *p;
+	int cnt;
+	char **argv, **ap, *p;
 
 	/* XXX - was in c_execdir, but seems unnecessary!?
 	ftsoptions &= ~FTS_NOSTAT;
@@ -679,7 +685,7 @@ c_flags(option, argvp)
 PLAN *
 c_follow(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions &= ~FTS_PHYSICAL;
 	ftsoptions |= FTS_LOGICAL;
@@ -761,7 +767,7 @@ c_fstype(option, argvp)
 	char ***argvp;
 {
 	char *fsname;
-	register PLAN *new;
+	PLAN *new;
 	struct vfsconf vfc;
 
 	fsname = nextarg(option, argvp);
@@ -911,7 +917,7 @@ c_links(option, argvp)
  */
 int
 f_ls(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	printlong(entry->fts_path, entry->fts_accpath, entry->fts_statp);
@@ -921,7 +927,7 @@ f_ls(plan, entry)
 PLAN *
 c_ls(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions &= ~FTS_NOSTAT;
 	isoutput = 1;
@@ -1017,7 +1023,7 @@ c_newer(option, argvp)
  */
 int
 f_nogroup(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	return group_from_gid(entry->fts_statp->st_gid, 1) == NULL;
@@ -1026,7 +1032,7 @@ f_nogroup(plan, entry)
 PLAN *
 c_nogroup(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions &= ~FTS_NOSTAT;
 
@@ -1041,7 +1047,7 @@ c_nogroup(option, argvp)
  */
 int
 f_nouser(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	return user_from_uid(entry->fts_statp->st_uid, 1) == NULL;
@@ -1050,7 +1056,7 @@ f_nouser(plan, entry)
 PLAN *
 c_nouser(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions &= ~FTS_NOSTAT;
 
@@ -1137,7 +1143,7 @@ c_perm(option, argvp)
  */
 int
 f_print(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	(void)puts(entry->fts_path);
@@ -1147,7 +1153,7 @@ f_print(plan, entry)
 PLAN *
 c_print(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	isoutput = 1;
 
@@ -1162,7 +1168,7 @@ c_print(option, argvp)
  */
 int
 f_print0(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	fputs(entry->fts_path, stdout);
@@ -1179,7 +1185,7 @@ f_print0(plan, entry)
  */
 int
 f_prune(plan, entry)
-	PLAN *plan;
+	PLAN *plan __unused;
 	FTSENT *entry;
 {
 	extern FTS *tree;
@@ -1267,7 +1273,7 @@ c_regex(option, argvp)
 PLAN *
 c_simple(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	return palloc(option);
 }
@@ -1428,7 +1434,7 @@ c_user(option, argvp)
 PLAN *
 c_xdev(option, argvp)
 	OPTION *option;
-	char ***argvp;
+	char ***argvp __unused;
 {
 	ftsoptions |= FTS_XDEV;
 
@@ -1445,8 +1451,8 @@ f_expr(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	register PLAN *p;
-	register int state = 0;
+	PLAN *p;
+	int state = 0;
 
 	for (p = plan->p_data[0];
 	    p && (state = (p->execute)(p, entry)); p = p->next);
@@ -1462,16 +1468,16 @@ f_expr(plan, entry)
 
 int
 f_openparen(plan, entry)
-	PLAN *plan;
-	FTSENT *entry;
+	PLAN *plan __unused;
+	FTSENT *entry __unused;
 {
 	abort();
 }
 
 int
 f_closeparen(plan, entry)
-	PLAN *plan;
-	FTSENT *entry;
+	PLAN *plan __unused;
+	FTSENT *entry __unused;
 {
 	abort();
 }
@@ -1484,8 +1490,8 @@ f_closeparen(plan, entry)
  */
 PLAN *
 c_and(option, argvp)
-	OPTION *option;
-	char ***argvp;
+	OPTION *option __unused;
+	char ***argvp __unused;
 {
 	return NULL;
 }
@@ -1500,8 +1506,8 @@ f_not(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	register PLAN *p;
-	register int state = 0;
+	PLAN *p;
+	int state = 0;
 
 	for (p = plan->p_data[0];
 	    p && (state = (p->execute)(p, entry)); p = p->next);
@@ -1521,8 +1527,8 @@ f_or(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	register PLAN *p;
-	register int state = 0;
+	PLAN *p;
+	int state = 0;
 
 	for (p = plan->p_data[0];
 	    p && (state = (p->execute)(p, entry)); p = p->next);

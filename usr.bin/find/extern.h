@@ -46,7 +46,7 @@ PLAN	*paren_squish __P((PLAN *));
 struct stat;
 void	 printlong __P((char *, char *, struct stat *));
 int	 queryuser __P((char **));
-OPTION	*option __P((char *));
+OPTION	*lookup_option __P((const char *));
 
 creat_f	c_Xmin;
 creat_f	c_Xtime;

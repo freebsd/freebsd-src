@@ -83,7 +83,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char **p, **start;
+	char **p, **start;
 	int Hflag, Lflag, ch;
 
 	(void)setlocale(LC_ALL, "");
