@@ -33,10 +33,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /home/joerg/src/kbdio/RCS/lex.l,v 1.2 1994/09/18 19:48:45 j Exp $"
+#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/kbdio/lex.l,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
 
 /*
  * $Log: lex.l,v $
+ * Revision 1.1.1.1  1995/02/05  13:49:24  jkh
+ * PCVT userland utilities.
+ * Submitted by:	hm
+ *
  * Revision 1.2  1994/09/18  19:48:45  j
  * Added the symbolic values for kbd cmd byte.
  *
@@ -77,6 +81,7 @@ reset		{ return RESET; }
 scan		{ return SCAN; }
 status		{ return STATUS; }
 typematic	{ return TYPEMATIC; }
+what		{ return WHAT; }
 
 		/* numeric values */
 clklow		{ yylval.num = 0x10; return NUM; }

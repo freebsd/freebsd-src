@@ -1,6 +1,6 @@
-List of known Bugs, ToDo's etc.
---------------------------------------------------------------------------------
-                                      Last Edit-Date: [Mon Feb 20 19:54:39 1995]
+
+List of known Bugs                    Last Edit-Date: [Sun Mar  5 13:03:51 1995]
+================================================================================
 
 
 Description:                                    Fixed/done by/date
@@ -28,15 +28,6 @@ PCVT_SW0CNOUTP and the screen is switched
 from an X-vt to screen 0, the video mem
 is irrecoverably destroyed - no data loss
 -------------------------------------------	--------------------------------
-kernel messages to the console transmitted
-while one of the screens is in x mode do
-not scroll up and/or not wrap at lower right	fixed 02/95
--------------------------------------------	--------------------------------
-Numlock repeats, so by keeping numlock
-pressed, the LED will blink. The other lock
-keys don't do this. This has shown up on
-several keyboards, including a Cherry.
--------------------------------------------	--------------------------------
 Altgr+Shift+key is not separately		They way the keyboard mapping
 mappable.					is done is subject to a sub-
 						stantial rewrite in a future
@@ -44,12 +35,6 @@ mappable.					is done is subject to a sub-
 -------------------------------------------	--------------------------------
 132 column mode not working with #9 GXE
 (S3-based) (sorry, i don't have one -hm)
-(see discussion of 132 column mode in the
- NotesAndHints file!)
--------------------------------------------	--------------------------------
-When entering/leaving X from/to a 132 col
-screen, it results in garbage. Does the
-X server save ALL vga registers ??????
 (see discussion of 132 column mode in the
  NotesAndHints file!)
 -------------------------------------------	--------------------------------

@@ -41,7 +41,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Sun Feb 26 12:58:03 1995]
+ * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Thu Mar 23 20:37:05 1995]
  *
  */
 
@@ -70,6 +70,8 @@
  *	-hm	patch from Rafael Boni/Lon Willett for NetBSD-current
  *	-hm	bell patch from Thomas Eberhardt for NetBSD
  *	-hm	multiple X server bugfixes from Lon Willett
+ *	-hm	patch from joerg - pcdevtotty for FreeBSD pre-2.1
+ *	-hm	delay patch from Martin Husemann after port-i386 ml-discussion
  *
  *---------------------------------------------------------------------------*/
 
@@ -297,7 +299,7 @@ pcattach(struct isa_device *dev)
 	vthand.ih_arg = 0;
 	vthand.ih_level = IPL_TTY;
 
-#if PCVT_NETBSD > 100
+#if (PCVT_NETBSD > 100) && defined(IST_EDGE)
 	intr_establish(ia->ia_irq, IST_EDGE, &vthand);
 #else /* PCVT_NETBSD > 100 */
 	intr_establish(ia->ia_irq, &vthand);
@@ -802,6 +804,12 @@ pcrint(void)
 	while (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)	/* check 8042 buffer */
 	{
 		ret = 1;				/* got something */
+
+#if PCVT_NETBSD > 9
+		delay(6);				/* Gateway 2000 fix */
+#elif PCVT_FREEBSD || (PCVT_NETBSD <= 9)
+		DELAY(6);				/* Gateway 2000 fix */
+#endif
 
 		dt = inb(CONTROLLER_DATA);		/* get it 8042 data */
 

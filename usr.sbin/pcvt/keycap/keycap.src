@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# @(#)keycap.src, 3.20, Last Edit-Date: [Tue Jan 17 19:35:09 1995]
+# @(#)keycap.src, 3.20, Last Edit-Date: [Wed Mar  8 20:53:01 1995]
 #
 #---------------------------------------------------------------------------
 #
@@ -52,6 +52,7 @@
 #---------------------------------------------------------------------------
 #
 #	-hm	patch from Thomas Gellekum
+#	-hm	renamed finnish "f8" entry to "f1"
 #
 #---------------------------------------------------------------------------
 
@@ -295,7 +296,7 @@ fi|finland|finland7b|finland-ascii|Finnish ASCII mapping:\
 # from codrv, untested
 # Finnish keyboard map with the Latin1 national chars in
 # their "right" place. --Petri.Wessman@hut.fi
-f8|finland8b|finland-latin1|Finnish Latin1 mapping:\
+f1|finland8b|finland-latin1|Finnish Latin1 mapping:\
 	:A8={:A9=[:A10=]:A11=}:A12=\\:\
 	:K40=\366:S40=\326:K41=\344:S41=\304:K27=\345:S27=\305:\
 	:tc=finland:

@@ -5,12 +5,11 @@
 |                                                                              |
 |                         NetBSD   0.9, 1.0                                    |
 |                         FreeBSD  1.0, 1.1, 1.1.5.1, 2.0                      |
-|                         386BSD   0.1                                         |
 |                                                                              |
-|                         Release 3.20   February 1995                         |
+|                          Release 3.20    March 1995                          |
 |                                                                              |
 |                         ----------------------------                         |
-|                         ========>> BETA 22 <<=======                         |
+|                         ========>> BETA 23 <<=======                         |
 |                         ----------------------------                         |
 |                                                                              |
 |                       (c) Copyright 1992,1993,1994,1995 by                   |
@@ -35,7 +34,7 @@ is without the help, the support and the code from Joerg:
                             wrote parts of the EGA/VGA hardware handling and
                             some of the more ugly aspects of the VT220.
 
-                            Joerg Wunsch             (joerg_wunsch@uriah.sax.de)
+                            Joerg Wunsch        (joerg_wunsch@uriah.heep.sax.de)
 
                             added ALL support for XFree86, the screensaver sub-
                             system and support for FreeBSD (and much more ...).
@@ -177,22 +176,19 @@ Tested Operating Systems
 
         NetBSD 0.9                      pcvt release 3.20-b2 tested
 
-        NetBSD 1.0                      pcvt release 3.20-b22 tested
+        NetBSD 1.0                      pcvt release 3.20-b23 tested
 
-        NetBSD-current (post 1.0)       reported to run (around Feb 20 '95)
+        NetBSD-current (post 1.0)       reported to run (end of March '95)
 
 
         FreeBSD 1.1R                    pcvt release 3.20-b7 tested
 
-        FreeBSD 1.1.5.1R                pcvt release 3.20-b22 tested
+        FreeBSD 1.1.5.1R                pcvt release 3.20-b23 tested
 
-        FreeBSD 2.0                     pcvt release 3.20-b22 tested
+        FreeBSD 2.0                     pcvt release 3.20-b23 tested
 
-        FreeBSD-current (post 2.0)      reported to run (around Feb 20 '95)
+        FreeBSD-current (post 2.0)      reported to run (end of March '95)
 
-
-        386BSD 0.1 + patchkit 0.2.4     pcvt release 3.00 tested
-					
 
 
 Installation / Upgrade
@@ -221,7 +217,7 @@ NOTE 2:
 -------
   You MUST copy or link the Util/Makefile.inc.X for your flavour of xxx(x)BSD
   to Util/Makefile.inc . This is because FreeBSD handles manual pages
-  different than NetBSD and 386BSD 0.1. Also you have to edit Doc/Makefile
+  in a differnet way than NetBSD. Also you have to edit Doc/Makefile
   to make this changes for the pcvt(4) manpage.
 
 NOTE 3:
@@ -289,9 +285,7 @@ s-mail:  Eggerstedtstr. 28, 22765 Hamburg, Europe
 @work
 -----
 e-mail:  hm@hcs.de
-   tel:  +49 / 40 / 55903-0 
-         +49 / 40 / 55903-170
+   tel:  +49 / 40 / 55903-170
    fax:  +49 / 40 / 5591486
 s-mail:  GFKT HCS Computertechnik GmbH, Oldesloer Str. 97-99,
          22457 Hamburg, Europe
-
