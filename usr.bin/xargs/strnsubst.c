@@ -61,6 +61,18 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 		strcat(s2, replstr);
 		s1 = this + strlen(match);
 	}
+
+	/*
+	 * Avoid buffer overflows while maintaining historical
+	 * behaviour.  This violates the IEEE STd 1003.1-2004
+	 * requirement that "Constructed arguments cannot grow larger
+	 * than 255 bytes".
+	 */
+	if (strlen(s2) + strlen(s1) + 1 >= maxsize) {
+		s2 = realloc(s2, strlen(s2) + strlen(s1) + 1);
+		if (s2 == NULL)
+			err(1, "realloc");
+	}
 	strcat(s2, s1);
 done:
 	*str = s2;
