@@ -3,5 +3,6 @@
 PROG=	scsi
 MAN8=	scsi.8
 LDADD=	-lscsi
+DPADD= ${LIBSCSI}
 
 .include <bsd.prog.mk>
