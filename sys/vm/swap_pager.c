@@ -527,8 +527,6 @@ swap_pager_dealloc(vm_object_t object)
 {
 	int s;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
@@ -788,7 +786,8 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	vm_pindex_t i;
 	int s;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(srcobject, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(dstobject, MA_OWNED);
 
 	s = splvm();
 	/*
@@ -841,9 +840,16 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 			);
 
 			if (srcaddr != SWAPBLK_NONE) {
-				VM_OBJECT_LOCK(dstobject);
+				/*
+				 * swp_pager_meta_build() can sleep.
+				 */
+				vm_object_pip_add(srcobject, 1);
+				VM_OBJECT_UNLOCK(srcobject);
+				vm_object_pip_add(dstobject, 1);
 				swp_pager_meta_build(dstobject, i, srcaddr);
-				VM_OBJECT_UNLOCK(dstobject);
+				vm_object_pip_wakeup(dstobject);
+				VM_OBJECT_LOCK(srcobject);
+				vm_object_pip_wakeup(srcobject);
 			}
 		} else {
 			/*
@@ -862,9 +868,7 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 * double-remove the object from the swap queues.
 	 */
 	if (destroysource) {
-		VM_OBJECT_LOCK(srcobject);
 		swp_pager_meta_free_all(srcobject);
-		VM_OBJECT_UNLOCK(srcobject);
 		/*
 		 * Reverting the type is not necessary, the caller is going
 		 * to destroy srcobject directly, but I'm doing it here
@@ -1800,7 +1804,6 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	struct swblock **pswap;
 	int idx;
 
-	GIANT_REQUIRED;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * Convert default object to swap object if necessary
@@ -2008,7 +2011,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int idx;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP 
 	 * and even then might not be allocated yet.

@@ -1227,24 +1227,19 @@ vm_object_split(vm_map_entry_t entry)
 		vm_page_busy(m);
 		vm_page_unlock_queues();
 	}
-	VM_OBJECT_UNLOCK(new_object);
 	if (orig_object->type == OBJT_SWAP) {
-		vm_object_pip_add(orig_object, 1);
-		VM_OBJECT_UNLOCK(orig_object);
 		/*
-		 * copy orig_object pages into new_object
-		 * and destroy unneeded pages in
-		 * shadow object.
+		 * swap_pager_copy() can sleep, in which case the orig_object's
+		 * and new_object's locks are released and reacquired. 
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
-		VM_OBJECT_LOCK(orig_object);
-		vm_object_pip_wakeup(orig_object);
 	}
 	VM_OBJECT_UNLOCK(orig_object);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &new_object->memq, listq)
 		vm_page_wakeup(m);
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(new_object);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
@@ -1547,27 +1542,15 @@ vm_object_collapse(vm_object_t object)
 			 * Move the pager from backing_object to object.
 			 */
 			if (backing_object->type == OBJT_SWAP) {
-				vm_object_pip_add(backing_object, 1);
-				VM_OBJECT_UNLOCK(backing_object);
 				/*
-				 * scrap the paging_offset junk and do a 
-				 * discrete copy.  This also removes major 
-				 * assumptions about how the swap-pager 
-				 * works from where it doesn't belong.  The
-				 * new swapper is able to optimize the
-				 * destroy-source case.
+				 * swap_pager_copy() can sleep, in which case
+				 * the backing_object's and object's locks are
+				 * released and reacquired.
 				 */
-				vm_object_pip_add(object, 1);
-				VM_OBJECT_UNLOCK(object);
 				swap_pager_copy(
 				    backing_object,
 				    object,
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
-				VM_OBJECT_LOCK(object);
-				vm_object_pip_wakeup(object);
-
-				VM_OBJECT_LOCK(backing_object);
-				vm_object_pip_wakeup(backing_object);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
