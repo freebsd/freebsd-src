@@ -56,6 +56,11 @@ hal.o				optional	ath_hal			\
 	compile-with	"uudecode < $S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu" \
 	no-implicit-rule
 #
+hptmvraid.o			optional	hptmv			\
+	dependency	"$S/contrib/dev/hptmv/i386-elf.raid.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/hptmv/i386-elf.raid.o.uu" \
+	no-implicit-rule
+#
 #
 compat/linux/linux_file.c	optional	compat_linux
 compat/linux/linux_getcwd.c	optional	compat_linux
@@ -96,6 +101,11 @@ contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
+contrib/dev/hptmv/gui_lib.c	optional	hptmv
+contrib/dev/hptmv/hptproc.c	optional	hptmv
+contrib/dev/hptmv/ioctl.c	optional	hptmv
+dev/hptmv/entry.c		optional	hptmv
+dev/hptmv/mv.c			optional	hptmv
 bf_enc.o			optional	ipsec ipsec_esp		\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
