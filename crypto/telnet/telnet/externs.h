@@ -146,6 +146,7 @@ extern int
     termdata,		/* Print out terminal data flow */
 #endif	/* defined(unix) */
     debug,		/* Debug level */
+    doaddrlookup,	/* do a reverse lookup? */
     clienteof;		/* Client received EOF */
 
 extern cc_t escape;	/* Escape to command mode */
