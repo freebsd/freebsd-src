@@ -1,8 +1,0 @@
-PROG   = systags
-BINDIR = /usr/bin
-
-all:
-install:
-	cp $(PROG).sh $(BINDIR)/$(PROG)
-	chmod 755 $(BINDIR)/$(PROG)
-clean:
