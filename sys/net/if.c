@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -308,7 +309,7 @@ if_findindex(struct ifnet *ifp)
 {
 	int i, unit;
 	char eaddr[18], devname[32];
-	char *name, *p;
+	const char *name, *p;
 
 	switch (ifp->if_type) {
 	case IFT_ETHER:			/* these types use struct arpcom */
@@ -343,7 +344,7 @@ found:
 		    name, unit, devname);
 	}
 	for (unit = 1; ; unit++) {
-		if (unit < if_index && ifaddr_byindex(i) != NULL)
+		if (unit < if_index && ifaddr_byindex(unit) != NULL)
 			continue;
 		if (resource_string_value(name, unit, "ether", &p) == 0 ||
 		    resource_string_value(name, unit, "dev", &p) == 0)
