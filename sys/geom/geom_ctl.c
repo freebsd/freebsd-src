@@ -173,14 +173,9 @@ gctl_copyin(struct gctl_req *req)
 		}
 		ap[i].name = p;
 		ap[i].flag |= GCTL_PARAM_NAMEKERNEL;
-		if (ap[i].len < 0) {
+		if (ap[i].len <= 0) {
 			error = gctl_error(req, "negative param length");
 			break;
-		}
-		if (ap[i].len == 0) {
-			ap[i].kvalue = ap[i].value;
-			ap[i].flag |= GCTL_PARAM_VALUEKERNEL;
-			continue;
 		}
 		p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
 		if (p == NULL)
