@@ -978,6 +978,11 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &cc, NULL);
 	DPRINTF(("ucomwritecb: cc = %d\n", cc));
+	if (cc <= sc->sc_opkthdrlen) {
+		printf("%s: sent size too small, cc = %d\n",
+		       USBDEVNAME(sc->sc_dev), cc);
+		goto error;
+	}
 
 	/* convert from USB bytes to tty bytes */
 	cc -= sc->sc_opkthdrlen;
@@ -1053,9 +1058,20 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	usbd_get_xfer_status(xfer, NULL, (void **)&cp, &cc, NULL);
 	DPRINTF(("ucomreadcb: got %d chars, tp = %p\n", cc, tp));
+	if (cc == 0)
+		goto resubmit;
+
 	if (sc->sc_callback->ucom_read != NULL)
 		sc->sc_callback->ucom_read(sc->sc_parent, sc->sc_portno,
 					   &cp, &cc);
+
+	if (cc > sc->sc_ibufsize) {
+		printf("%s: invalid receive data size, %d chars\n",
+		       USBDEVNAME(sc->sc_dev), cc);
+		goto resubmit;
+	}
+	if (cc < 1)
+		goto resubmit;
 
 	s = spltty();
 	if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
@@ -1079,18 +1095,21 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			       lostcc);
 	} else {
 		/* Give characters to tty layer. */
-		while (cc-- > 0) {
-			DPRINTFN(7,("ucomreadcb: char = 0x%02x\n", *cp));
-			if ((*rint)(*cp++, tp) == -1) {
+		while (cc > 0) {
+			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
+			if ((*rint)(*cp, tp) == -1) {
 				/* XXX what should we do? */
 				printf("%s: lost %d chars\n",
 				       USBDEVNAME(sc->sc_dev), cc);
 				break;
 			}
+			cc--;
+			cp++;
 		}
 	}
 	splx(s);
 
+    resubmit:
 	err = ucomstartread(sc);
 	if (err) {
 		printf("%s: read start failed\n", USBDEVNAME(sc->sc_dev));
@@ -1136,11 +1155,11 @@ ucomstopread(struct ucom_softc *sc)
 	DPRINTF(("ucomstopread: enter\n"));
 
 	if (!(sc->sc_state & UCS_RXSTOP)) {
+		sc->sc_state |= UCS_RXSTOP;
 		if (sc->sc_bulkin_pipe == NULL) {
 			DPRINTF(("ucomstopread: bulkin pipe NULL\n"));
 			return;
 		}
-		sc->sc_state |= UCS_RXSTOP;
 		err = usbd_abort_pipe(sc->sc_bulkin_pipe);
 		if (err) {
 			DPRINTF(("ucomstopread: err = %s\n",
