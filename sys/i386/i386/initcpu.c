@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.8 1997/10/06 08:08:41 kato Exp $
+ *		$Id: initcpu.c,v 1.9 1997/10/28 15:58:09 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -305,10 +305,10 @@ init_6x86(void)
 
 	/* Initialize CCR1. */
 #ifdef CPU_CYRIX_NO_LOCK
-	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR1_NO_LOCK);
+	write_cyrix_reg(CCR1, read_cyrix_reg(CCR1) | CCR1_NO_LOCK);
 #else
 #ifdef FAILSAFE
-	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) & ~CCR1_NO_LOCK);
+	write_cyrix_reg(CCR1, read_cyrix_reg(CCR1) & ~CCR1_NO_LOCK);
 #endif
 #endif
 
@@ -388,10 +388,10 @@ init_6x86MX(void)
 
 	/* Initialize CCR1. */
 #ifdef CPU_CYRIX_NO_LOCK
-	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR1_NO_LOCK);
+	write_cyrix_reg(CCR1, read_cyrix_reg(CCR1) | CCR1_NO_LOCK);
 #else
 #ifdef FAILSAFE
-	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) & ~CCR1_NO_LOCK);
+	write_cyrix_reg(CCR1, read_cyrix_reg(CCR1) & ~CCR1_NO_LOCK);
 #endif
 #endif
 
