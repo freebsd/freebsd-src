@@ -116,8 +116,8 @@ static __inline int
 unsupported_msg(struct thread *td, const char *fname)
 {
 
-	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
-	    fname, (long)td->td_proc->p_pid);
+	printf("linux: syscall %s is obsoleted or not implemented pid %ld "
+	    "(%s)\n", fname, (long)td->td_proc->p_pid, td->td_proc->p_comm);
 	return (ENOSYS);
 }
 
