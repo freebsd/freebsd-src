@@ -339,7 +339,7 @@ again:
 		 pp = "";
 		 plen = 1;
 		 unipp = &smb_unieol;
-		 uniplen = sizeof(smb_unieol);
+		 uniplen = 0 /* sizeof(smb_unieol) */;
 	}
 	smb_rq_wstart(rqp);
 	mbp = &rqp->sr_rq;
