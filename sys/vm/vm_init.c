@@ -185,12 +185,12 @@ again:
 		panic("startup: table size inconsistency");
 
 	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
+			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS));
 	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
 			&kmi->buffer_eva, (nbuf*BKVASIZE));
 	buffer_map->system_map = 1;
 	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
-				(nswbuf*MAXPHYS) + pager_map_size);
+				(nswbuf*MAXPHYS));
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));

@@ -176,9 +176,6 @@ int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-#define PAGER_MAP_SIZE	(8 * 1024 * 1024)
-
-int pager_map_size = PAGER_MAP_SIZE;
 vm_map_t pager_map;
 static int bswneeded;
 static vm_offset_t swapbkva;		/* swap buffers kva */
