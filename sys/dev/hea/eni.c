@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.6 1999/04/24 20:17:05 peter Exp $
+ *	@(#) $Id: eni.c,v 1.7 1999/05/09 17:07:27 peter Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: eni.c,v 1.6 1999/04/24 20:17:05 peter Exp $");
+__RCSID("@(#) $Id: eni.c,v 1.7 1999/05/09 17:07:27 peter Exp $");
 #endif
 
 /*
@@ -391,15 +391,27 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	eup->eu_vcc_pool = &eni_vcc_pool;
 	eup->eu_nif_pool = &eni_nif_pool;
 
+ 	/*
+	 * Enable Memory Mapping / Bus Mastering 
+	 */
+	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	val |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, val);
+
 	/*
 	 * Map in adapter RAM
 	 */
+	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	if ((val & PCIM_CMD_MEMEN) == 0) {
+		log(LOG_ERR, "%s%d: memory mapping not enabled\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
+	}
 	if ( ( pci_map_mem ( config_id, PCI_MAP_REG_START, &va, &pa ) ) == 0 )
 	{
-		/*
-		 * Nothing's happened yet that we need to undo.
-		 */
-		return;
+		log(LOG_ERR, "%s%d: unable to map memory\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
 	}
 	/*
 	 * Map okay - retain address assigned
@@ -432,10 +444,9 @@ eni_pci_attach ( pcici_t config_id, int unit )
 		 * Adapter memory test failed. Clean up and
 		 * return.
 		 */
-		/*
-		 * FreeBSD doesn't support unmapping PCI memory (yet?).
-		 */
-		return;
+		log(LOG_ERR, "%s%d: memory test failed\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
 	}
 
 	/*
@@ -467,14 +478,9 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	 */
 	if ( !pci_map_int ( config_id, eni_intr, (void *)eup, &net_imask ) )
 	{
-		/*
-		 * Finish by unmapping memory, etc.
-		 */
-		log ( LOG_ERR, "eni_pci_attach: Unable to map interrupt\n" );
-		/*
-		 * Can't unmap PCI memory (yet).
-		 */
-		return;
+		log(LOG_ERR, "%s%d: unable to map interrupt\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
 	}
 
 	/*
@@ -532,16 +538,9 @@ eni_pci_attach ( pcici_t config_id, int unit )
 		/*
 		 * Registration failed - back everything out
 		 */
-		/*
-		 * Can't unmap PCI memory (yet).
-		 */
-		/*
-		 * Unmap PCI interrupt
-		 */
-		(void) pci_unmap_int ( config_id );
-		log ( LOG_ERR,
-			"eni_pci_attach: atm_physif_register failed\n" );
-		return;
+		log(LOG_ERR, "%s%d: atm_physif_register failed\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
 	}
 
 	eni_units[unit] = eup;
@@ -557,21 +556,21 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	 * Initialize driver processing
 	 */
 	if ( eni_init ( eup ) ) {
-		log ( LOG_ERR, "eni_pci_attach: Failed eni_init()\n" );
-		/*
-		 * Can't unmap PCI memory (yet).
-		 */
-		/*
-		 * Unmap PCI interrupt
-		 */
-		(void) pci_unmap_int ( config_id );
-		/*
-		 * Fall through to return
-		 */
+		log(LOG_ERR, "%s%d: adapter init failed\n", 
+			ENI_DEV_NAME, unit);
+		goto failed;
 	}
 
 	return;
 
+failed:
+	/*
+	 * Attach failed - clean up
+	 */
+	eni_pci_reset(eup);
+	(void) pci_unmap_int(config_id);
+	atm_dev_free(eup);
+	return;
 }
 
 /*
@@ -595,15 +594,17 @@ eni_pci_reset ( eup )
 	 * we assume we're shutting the card down for good.
 	 */
 
-	/*
-	 * Issue RESET command to Midway chip
-	 */
-	eup->eu_midway[MIDWAY_ID] = MIDWAY_RESET;
+	if (eup->eu_midway) {
+		/*
+		 * Issue RESET command to Midway chip
+		 */
+		eup->eu_midway[MIDWAY_ID] = MIDWAY_RESET;
 
-	/*
-	 * Delay to allow everything to terminate
-	 */
-	DELAY ( MIDWAY_DELAY );
+		/*
+		 * Delay to allow everything to terminate
+		 */
+		DELAY ( MIDWAY_DELAY );
+	}
 
 	return;
 }
