@@ -37,7 +37,6 @@
 
 #include <netatm/kern_include.h>
 
-#include <netatm/ipatm/ipatm.h>
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 

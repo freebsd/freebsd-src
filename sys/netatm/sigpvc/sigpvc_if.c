@@ -42,7 +42,6 @@
 
 #include <netatm/kern_include.h>
 
-#include <netatm/sigpvc/sigpvc.h>
 #include <netatm/sigpvc/sigpvc_var.h>
 
 #ifndef lint

@@ -39,7 +39,6 @@
 
 #include <netatm/uni/uni.h>
 #include <netatm/uni/sscop.h>
-#include <netatm/uni/sscf_uni.h>
 #include <netatm/uni/sscf_uni_var.h>
 
 #ifndef lint
