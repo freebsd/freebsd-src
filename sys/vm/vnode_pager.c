@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.45 1995/09/04 00:21:16 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.46 1995/09/04 04:44:25 dyson Exp $
  */
 
 /*
@@ -207,6 +207,8 @@ vnode_pager_haspage(object, offset, before, after)
 		after, before);
 	if (err)
 		return TRUE;
+	if (((long) bn) < 0)
+		return FALSE;
 	poff = (offset - (reqblock * bsize)) / PAGE_SIZE;
 	if (before) {
 		*before *= pagesperblock;
@@ -216,7 +218,7 @@ vnode_pager_haspage(object, offset, before, after)
 		*after *= pagesperblock;
 		*after += (pagesperblock - (poff + 1));
 	}
-	return ((long) bn < 0 ? FALSE : TRUE);
+	return TRUE;
 }
 
 /*
