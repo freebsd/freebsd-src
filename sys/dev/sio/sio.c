@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.237 1999/05/09 13:00:44 phk Exp $
+ *	$Id: sio.c,v 1.238 1999/05/09 13:10:46 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -554,7 +554,6 @@ siounload(struct pccard_devinfo *devi)
 		ttwakeup(com->tp);
 		ttwwakeup(com->tp);
 	} else {
-		com_addr(com->unit) = NULL;
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		free(com, M_DEVBUF);
@@ -905,18 +904,12 @@ sioattach(dev)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
-#if 0
-	int		s;
-#endif
 	int		unit;
 	void		*ih;
 	struct resource *res;
 	int		zero = 0;
 	u_int		flags = isa_get_flags(dev);
 
-#if 0
-	isdp->id_ri_flags |= RI_FAST;
-#endif
 	iobase = isa_get_port(dev);
 	unit = device_get_unit(dev);
 	com = device_get_softc(dev);
@@ -1097,12 +1090,6 @@ determined_type: ;
 	if ( COM_IIR_TXRDYBUG(flags) )
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
-
-#if 0
-	s = spltty();
-	com_addr(unit) = com;
-	splx(s);
-#endif
 
 	if (!sio_registered) {
 		register_swi(SWI_TTY, siopoll);
@@ -1355,9 +1342,6 @@ sioclose(dev, flag, mode, p)
 	if (com->gone) {
 		printf("sio%d: gone\n", com->unit);
 		s = spltty();
-#if 0
-		com_addr(com->unit) = NULL;
-#endif
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		bzero(tp, sizeof *tp);
@@ -1428,17 +1412,15 @@ sioread(dev, uio, flag)
 	int		flag;
 {
 	int		mynor;
-	int		unit;
-	struct tty	*tp;
+	struct com_s	*com;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (ENODEV);
-	unit = MINOR_TO_UNIT(mynor);
-	if (com_addr(unit)->gone)
+	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (com->gone)
 		return (ENODEV);
-	tp = com_addr(unit)->tp;
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
+	return ((*linesw[com->tp->t_line].l_read)(com->tp, uio, flag));
 }
 
 static int
@@ -1448,7 +1430,7 @@ siowrite(dev, uio, flag)
 	int		flag;
 {
 	int		mynor;
-	struct tty	*tp;
+	struct com_s	*com;
 	int		unit;
 
 	mynor = minor(dev);
@@ -1456,9 +1438,9 @@ siowrite(dev, uio, flag)
 		return (ENODEV);
 
 	unit = MINOR_TO_UNIT(mynor);
-	if (com_addr(unit)->gone)
+	com = com_addr(unit);
+	if (com->gone)
 		return (ENODEV);
-	tp = com_addr(unit)->tp;
 	/*
 	 * (XXX) We disallow virtual consoles if the physical console is
 	 * a serial port.  This is in case there is a display attached that
@@ -1467,7 +1449,7 @@ siowrite(dev, uio, flag)
 	 */
 	if (constty != NULL && unit == comconsole)
 		constty = NULL;
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return ((*linesw[com->tp->t_line].l_write)(com->tp, uio, flag));
 }
 
 static void
