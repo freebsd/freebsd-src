@@ -179,7 +179,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 		switch (ntohs(gip->gi_ptype)) { /* ethertypes */
 		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
-			ifq = &ipintrq;          /* we are in ip_input */
+		case WCCP_PROTOCOL_TYPE: /* we are in ip_input */
+			ifq = &ipintrq;
 			break;
 #ifdef NS
 		case ETHERTYPE_NS:
