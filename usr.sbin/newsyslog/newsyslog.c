@@ -990,7 +990,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				working->trim_at = parseDWM(ep + 1);
 				working->flags |= CE_TRIMAT;
 			}
-			if (ent->flags & CE_TRIMAT) {
+			if (working->flags & CE_TRIMAT) {
 				if (working->trim_at == (time_t)-1)
 					errx(1, "malformed at:\n%s", errline);
 				if (working->trim_at == (time_t)-2)
