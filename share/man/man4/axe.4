@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2003
+.Dd August 25, 2004
 .Dt AXE 4
 .Os
 .Sh NAME
@@ -46,25 +46,12 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for USB ethernet adapters based on the ASIX
-Electronics AX88172 USB 2.0 chipset, including the following:
-.Pp
-.Bl -bullet -compact
-.It
-Buffalo(MELCO) LUA-U2-KTX
-.It
-D-Link DUBE100
-.It
-LinkSys USB200M
-.It
-Netgear FA120
-.It
-System TALKS Inc. SGC-X2UL
-.El
+driver provides support for USB Ethernet adapters based on the ASIX
+Electronics AX88172 USB 2.0 chipset.
 .Pp
 The AX88172 is a USB 2.0 device which contains a 10/100
-ethernet MAC with MII interface and is designed to work with both
-ethernet and HomePNA transceivers.
+Ethernet MAC with MII interface and is designed to work with both
+Ethernet and HomePNA transceivers.
 The AX88172 will operate with
 both USB 1.x and USB 2.0 controllers, however performance with 1.x
 controllers will be limited since the USB 1.x standard specifies a
@@ -100,7 +87,7 @@ implies
 .Cm half-duplex
 mode.
 .It Cm 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Cm mediaopt
 option can also be used to enable
@@ -125,6 +112,24 @@ half duplex mode if this media option is not specified.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports ASIX Electronics AX88172 based USB Ethernet
+adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Buffalo (Melco Inc.) LUA-U2-KTX
+.It
+D-Link DUBE100
+.It
+LinkSys USB200M
+.It
+Netgear FA120
+.It
+System TALKS Inc. SGC-X2UL
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "axe%d: watchdog timeout"
