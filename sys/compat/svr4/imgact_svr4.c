@@ -231,7 +231,7 @@ exec_svr4_imgact(imgp)
     
     imgp->proc->p_sysent = &svr4_sysvec;
 fail:
-    vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+    vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
     return (error);
 }
 
