@@ -1072,7 +1072,7 @@ int ch;
 {
 	static char pbuf[10];
 
-	if (isprint(ch) || ch == ' ')
+	if (isprint((uch)ch) || ch == ' ')
 		sprintf(pbuf, "%c", ch);
 	else
 		sprintf(pbuf, "\\%o", ch);
