@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/dvcfg.h>
+#include <compat/netbsd/dvcfg.h>
 
 #include <sys/device_port.h>
 

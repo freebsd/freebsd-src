@@ -78,8 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
+#include <compat/netbsd/dvcfg.h>
+#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
