@@ -89,13 +89,14 @@ typedef struct pmap_statistics *pmap_statistics_t;
 struct proc;
 struct thread;
 
+extern	int	 pmap_pagedaemon_waken;
+
 #ifdef __alpha__
 void		 pmap_page_is_free(vm_page_t m);
 #endif
 void		 pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
 void		 pmap_clear_modify(vm_page_t m);
 void		 pmap_clear_reference(vm_page_t m);
-void		 pmap_collect(void);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,

@@ -104,8 +104,6 @@ extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 
-extern	int pmap_pagedaemon_waken;
-
 extern	vm_offset_t msgbuf_phys;
 
 static __inline int

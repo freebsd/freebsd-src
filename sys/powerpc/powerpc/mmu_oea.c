@@ -871,12 +871,6 @@ pmap_clear_modify(vm_page_t m)
 }
 
 void
-pmap_collect(void)
-{
-	TODO;
-}
-
-void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	  vm_size_t len, vm_offset_t src_addr)
 {
