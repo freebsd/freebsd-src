@@ -482,6 +482,7 @@ install_zone_file(const char *filename)
 	else
 		copymode = 1;
 
+#ifdef VERBOSE
 	if (copymode)
 		asprintf(&msg, "Copying %s to " _PATH_LOCALTIME, filename);
 	else
@@ -490,6 +491,7 @@ install_zone_file(const char *filename)
 
 	dialog_notify(msg);
 	free(msg);
+#endif
 
 	if (reallydoit) {
 		if (copymode) {
@@ -550,6 +552,7 @@ install_zone_file(const char *filename)
 		}
 	}
 
+#ifdef VERBOSE
 	if (copymode)
 		asprintf(&msg, "Copied timezone file from %s to " 
 			 _PATH_LOCALTIME, filename);
@@ -559,6 +562,7 @@ install_zone_file(const char *filename)
 
 	dialog_mesgbox("Done", msg, 8, 72);
 	free(msg);
+#endif
 	return DITEM_LEAVE_MENU;
 }
 
