@@ -938,6 +938,7 @@ cbb_event_thread(void *arg)
 	struct cbb_softc *sc = arg;
 	uint32_t status;
 	int err;
+	int not_a_card = 0;
 
 	sc->flags |= CBB_KTHREAD_RUNNING;
 	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {
@@ -950,10 +951,27 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		if ((status & CBB_STATE_CD) == 0)
-			cbb_insert(sc);
-		else
-			cbb_removal(sc);
+		DPRINTF(("Status is 0x%x\n", status));
+		if (status & CBB_STATE_NOT_A_CARD) {
+			/*
+			 * Up to 20 times, try to rescan the card when we
+			 * see NOT_A_CARD.
+			 */
+			if (not_a_card++ < 20) {
+				DEVPRINTF((sc->dev,
+				    "Not a card bit set, rescanning\n"));
+				cbb_setb(sc, CBB_SOCKET_FORCE, CBB_FORCE_CV_TEST);
+			} else {
+				device_printf(sc->dev,
+				    "Can't determine card type\n");
+			}
+		} else {
+			not_a_card = 0;		/* We know card type */
+			if ((status & CBB_STATE_CD) == 0)
+				cbb_insert(sc);
+			else
+				cbb_removal(sc);
+		}
 		mtx_unlock(&Giant);
 
 		/*
@@ -1052,7 +1070,8 @@ cbb_intr(void *arg)
 	 * This ISR needs work XXX
 	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-	if (sockevent) {
+	if (sockevent != 0) {
+		DPRINTF(("CBB EVENT 0x%x\n", sockevent));
 		/* ack the interrupt */
 		cbb_setb(sc, CBB_SOCKET_EVENT, sockevent);
 
@@ -1073,19 +1092,28 @@ cbb_intr(void *arg)
 			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 			mtx_lock(&sc->mtx);
 			sc->flags &= ~CBB_CARD_OK;
+			DPRINTF(("Waking up thread\n"));
 			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
 		}
-		if (sockevent & CBB_SOCKET_EVENT_CSTS) {
-			DPRINTF((" cstsevent occured: 0x%08x\n",
-			    cbb_get(sc, CBB_SOCKET_STATE)));
-		}
-		if (sockevent & CBB_SOCKET_EVENT_POWER) {
-			DPRINTF((" pwrevent occured: 0x%08x\n",
-			    cbb_get(sc, CBB_SOCKET_STATE)));
-		}
-		/* Other bits? */
 	}
+	/*
+	 * Some chips also require us to read the old ExCA registe for
+	 * card status change when we route CSC vis PCI.  This isn't supposed
+	 * to be required, but it clears the interrupt state on some chipsets.
+	 * Maybe there's a setting that would obviate its need.  Maybe we
+	 * should test the status bits and deal with them, but so far we've
+	 * not found any machines that don't also give us the socket status
+	 * indication above.
+	 *
+	 * We have to call this unconditionally because some bridges deliver
+	 * the even independent of the CBB_SOCKET_EVENT_CD above.
+	 */
+	exca_getb(&sc->exca, EXCA_CSC);
+
+	/*
+	 * If the card is OK, call all the interrupt handlers.
+ 	 */
 	if (sc->flags & CBB_CARD_OK) {
 		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
 			if ((ih->flags & INTR_MPSAFE) != 0)
