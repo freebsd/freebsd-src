@@ -725,7 +725,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
     /* Maybe it's a floppy drive */
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1)
-	    errx(1, "Cannot get disk size, %s\n", strerror(errno));
+	    errx(1, "Cannot get disk size, %s", strerror(errno));
 	if (ioctl(fd, FD_GTYPE, &type) != -1) {
 	    dlp.d_secsize = 128 << type.secsize;
 	    dlp.d_nsectors = type.sectrac;
@@ -740,11 +740,11 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
 	    if (ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
-		errx(1, "Cannot get sector size, %s\n", strerror(errno));
+		errx(1, "Cannot get sector size, %s", strerror(errno));
 	    if (ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1)
-		errx(1, "Cannot get number of sectors, %s\n", strerror(errno));
+		errx(1, "Cannot get number of sectors, %s", strerror(errno));
 	    if (ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks)== -1)
-		errx(1, "Cannot get number of heads, %s\n", strerror(errno));
+		errx(1, "Cannot get number of heads, %s", strerror(errno));
 	    dlp.d_secperunit = ms / dlp.d_secsize;
 	}
 
