@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
  * scanning all of the ACPI namespace to find devices we're not currently
  * aware of, and this raises questions about whether they should be left 
  * on, turned off, etc.
- *
- * XXX locking
  */
 
 MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
@@ -95,6 +93,7 @@ static TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)
 	acpi_powerresources;
 static TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)
 	acpi_powerconsumers;
+ACPI_SERIAL_DECL(powerres, "ACPI power resources");
 
 static ACPI_STATUS	acpi_pwr_register_consumer(ACPI_HANDLE consumer);
 #ifdef notyet
@@ -137,6 +136,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     struct acpi_powerresource	*rp, *srp;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     rp = NULL;
     buf.Pointer = NULL;
@@ -207,6 +207,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
     struct acpi_powerresource	*rp;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     rp = NULL;
     
@@ -240,6 +241,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
     struct acpi_powerconsumer	*pc;
     
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     /* Check to see whether we know about this consumer already */
     if ((pc = acpi_pwr_find_consumer(consumer)) != NULL)
@@ -274,6 +276,7 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
     struct acpi_powerconsumer	*pc;
     
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     /* Find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
@@ -285,6 +288,7 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
 
     /* Pull the consumer off the list and free it */
     TAILQ_REMOVE(&acpi_powerconsumers, pc, ac_link);
+    free(pc, M_ACPIPWR);
 
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "deregistered power consumer %s\n",
 		     acpi_name(consumer)));
@@ -312,19 +316,22 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     /* It's never ok to switch a non-existent consumer. */
     if (consumer == NULL)
 	return_ACPI_STATUS (AE_NOT_FOUND);
+    reslist_buffer.Pointer = NULL;
+    reslist_object = NULL;
+    ACPI_SERIAL_BEGIN(powerres);
 
     /* Find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
 	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
-	    return_ACPI_STATUS (status);
-	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
-	    return_ACPI_STATUS (AE_ERROR);	/* something very wrong */
-	}
+	    goto out;
+	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
+	    panic("acpi added power consumer but can't find it");
     }
 
-    /* Check for valid transitions */
+    /* Check for valid transitions.  We can only go to D0 from D3. */
+    status = AE_BAD_PARAMETER;
     if (pc->ac_state == ACPI_STATE_D3 && state != ACPI_STATE_D0)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);	/* can only go to D0 from D3 */
+	goto out;
 
     /* Find transition mechanism(s) */
     switch (state) {
@@ -345,7 +352,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	reslist_name = "_PR3";
 	break;
     default:
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+	goto out;
     }
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "setup to switch %s D%d -> D%d\n",
 		     acpi_name(consumer), pc->ac_state, state));
@@ -360,9 +367,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * support D0 and D3.  It's never an error to try to go to
      * D0.
      */
-    status = AE_BAD_PARAMETER;
-    reslist_buffer.Pointer = NULL;
-    reslist_object = NULL;
     if (ACPI_FAILURE(AcpiGetHandle(consumer, method_name, &method_handle)))
 	method_handle = NULL;
     if (ACPI_FAILURE(AcpiGetHandle(consumer, reslist_name, &reslist_handle)))
@@ -370,10 +374,14 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     if (reslist_handle == NULL && method_handle == NULL) {
 	if (state == ACPI_STATE_D0) {
 	    pc->ac_state = ACPI_STATE_D0;
-	    return_ACPI_STATUS (AE_OK);
+	    status = AE_OK;
+	    goto out;
 	}
-	if (state != ACPI_STATE_D3)
-	    goto bad;
+	if (state != ACPI_STATE_D3) {
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
+		"attempt to set unsupported state D%d\n", state));
+	    goto out;
+	}
 
 	/*
 	 * Turn off the resources listed in _PR0 to go to D3.  If there is
@@ -381,16 +389,25 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	 */
 	if (ACPI_FAILURE(AcpiGetHandle(consumer, "_PR0", &pr0_handle))) {
 	    status = AE_NOT_FOUND;
-	    goto bad;
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
+		"device missing _PR0 (desired state was D%d)\n", state));
+	    goto out;
 	}
 	reslist_buffer.Length = ACPI_ALLOCATE_BUFFER;
 	status = AcpiEvaluateObject(pr0_handle, NULL, NULL, &reslist_buffer);
-	if (ACPI_FAILURE(status))
-	    goto bad;
+	if (ACPI_FAILURE(status)) {
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
+		"can't evaluate _PR0 for device %s, state D%d\n",
+		acpi_name(consumer), state));
+	    goto out;
+	}
 	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
-	if (reslist_object->Type != ACPI_TYPE_PACKAGE ||
-	    reslist_object->Package.Count == 0)
-	    goto bad;
+	if (!ACPI_PKG_VALID(reslist_object, 1)) {
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
+		"invalid package object for state D%d\n", state));
+	    status = AE_TYPE;
+	    goto out;
+	}
 	AcpiOsFree(reslist_buffer.Pointer);
 	reslist_buffer.Pointer = NULL;
 	reslist_object = NULL;
@@ -469,13 +486,10 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	
     /* Transition was successful */
     pc->ac_state = state;
-    return_ACPI_STATUS (AE_OK);
+    status = AE_OK;
 
- bad:
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
-		     "attempt to set unsupported state D%d\n", state));
-
- out:
+out:
+    ACPI_SERIAL_END(powerres);
     if (reslist_buffer.Pointer != NULL)
 	AcpiOsFree(reslist_buffer.Pointer);
     return_ACPI_STATUS (status);
@@ -495,16 +509,17 @@ acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable)
     if (consumer == NULL)
 	return (AE_BAD_PARAMETER);
 
+    ACPI_SERIAL_BEGIN(powerres);
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
 	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
-	    return_ACPI_STATUS (status);
-	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
-	    return_ACPI_STATUS (AE_ERROR);	/* something very wrong */
-	}
+	    goto out;
+	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
+	    panic("acpi wake added power consumer but can't find it");
     }
 
+    status = AE_OK;
     if (acpi_parse_prw(consumer, &prw) != 0)
-	return (AE_OK);
+	goto out;
     for (i = 0; i < prw.power_res_count; i++)
 	if (enable)
 	    acpi_pwr_reference_resource(&prw.power_res[i], pc);
@@ -514,7 +529,9 @@ acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable)
     if (prw.power_res_count > 0)
 	acpi_pwr_switch_power();
 
-    return (AE_OK);
+out:
+    ACPI_SERIAL_END(powerres);
+    return (status);
 }
 
 /*
@@ -531,6 +548,7 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
     ACPI_STATUS			status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     res = acpi_GetReference(NULL, obj);
     if (res == NULL) {
@@ -575,6 +593,7 @@ acpi_pwr_dereference_resource(struct acpi_powerconsumer *pc)
     int changed;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     changed = 0;
     while ((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
@@ -603,6 +622,7 @@ acpi_pwr_switch_power(void)
     int				cur;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     /*
      * Sweep the list forwards turning things on.
@@ -701,6 +721,7 @@ acpi_pwr_find_resource(ACPI_HANDLE res)
     struct acpi_powerresource	*rp;
     
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     TAILQ_FOREACH(rp, &acpi_powerresources, ap_link) {
 	if (rp->ap_resource == res)
@@ -719,6 +740,7 @@ acpi_pwr_find_consumer(ACPI_HANDLE consumer)
     struct acpi_powerconsumer	*pc;
     
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_SERIAL_ASSERT(powerres);
 
     TAILQ_FOREACH(pc, &acpi_powerconsumers, ac_link) {
 	if (pc->ac_consumer == consumer)
