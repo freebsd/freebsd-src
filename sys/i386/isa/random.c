@@ -1,7 +1,7 @@
 /*
  * random.c -- A strong random number generator
  *
- * $Id: random.c,v 1.2 1995/11/04 16:00:50 markm Exp $
+ * $Id: random.c,v 1.3 1995/11/20 12:12:02 phk Exp $
  *
  * Version 0.92, last modified 21-Sep-95
  * 
@@ -303,6 +303,7 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 {
 	int	delta, delta2;
 	int	nbits;
+	u_int8_t timer_high, timer_low;
 
 	/*
 	 * Calculate number of bits of randomness we probably
@@ -321,19 +322,21 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	
 	add_entropy(r, (u_int8_t *) &ticks, sizeof(ticks), nbits, delay);
 
-#if defined (__i386__)
 	/*
 	 * On a 386, read the high resolution timer.  We assume that
 	 * this gives us 2 bits of randomness.  XXX This needs
 	 * investigation.
 	 */ 
-	outb(TIMER_LATCH|TIMER_SEL0, TIMER_MODE); /* latch the count ASAP */
-	add_entropy_byte(r, inb(TIMER_CNTR0), 1);
-	add_entropy_byte(r, inb(TIMER_CNTR0), 1);
+	disable_intr();
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+	timer_low = inb(TIMER_CNTR0);
+	timer_high = inb(TIMER_CNTR0);
+	enable_intr();
+	add_entropy_byte(r, timer_low, 1);
+	add_entropy_byte(r, timer_high, 1);
 	r->entropy_count += 2;
 	if (r->entropy_count > r->bit_length)
 		r->entropy_count = r->bit_length;
-#endif
 }
 
 void
