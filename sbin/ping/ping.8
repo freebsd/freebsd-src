@@ -42,11 +42,11 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaDdfMnoQqRrv
+.Op Fl AaDdfnoQqRrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
-.Op Fl M Ar mask | time
+.Op Fl M Cm mask | time
 .Op Fl m Ar ttl
 .Op Fl P Ar policy
 .Op Fl p Ar pattern
@@ -54,10 +54,22 @@ packets to network hosts
 .Op Fl s Ar packetsize
 .Op Fl t Ar timeout
 .Op Fl z Ar tos
-.Ar host |
-.Op Fl L
-.Op Fl I Ar interface
+.Ar host
+.Nm
+.Op Fl AaDdfLnoQqRrv
+.Op Fl c Ar count
+.Op Fl I Ar iface
+.Op Fl i Ar wait
+.Op Fl l Ar preload
+.Op Fl M Cm mask | time
+.Op Fl m Ar ttl
+.Op Fl P Ar policy
+.Op Fl p Ar pattern
+.Op Fl S Ar src_addr
+.Op Fl s Ar packetsize
 .Op Fl T Ar ttl
+.Op Fl t Ar timeout
+.Op Fl z Ar tos
 .Ar mcast-group
 .Sh DESCRIPTION
 The
@@ -130,7 +142,7 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
-.It Fl I Ar interface
+.It Fl I Ar iface
 Source multicast packets with the given interface address.
 This flag only applies if the ping destination is a multicast address.
 .It Fl i Ar wait
@@ -155,14 +167,22 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
-.It Fl M Ar mask | time
-Use ICMP_MASKREQ or ICMP_TSTAMP instead of ICMP_ECHO.  For
-.Ar mask ,
-print the netmask of the remote machine.  Set the
-.Va net.inet.icmp.maskrepl
-MIB variable to enable ICMP_MASKREPLY.
+.It Fl M Cm mask | time
+Use
+.Dv ICMP_MASKREQ
+or
+.Dv ICMP_TSTAMP
+instead of
+.Dv ICMP_ECHO .
 For
-.Ar time ,
+.Cm mask ,
+print the netmask of the remote machine.
+Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable
+.Dv ICMP_MASKREPLY .
+For
+.Cm time ,
 print the origination, reception and transmission timestamps.
 .It Fl m Ar ttl
 Set the IP Time To Live for outgoing packets.
