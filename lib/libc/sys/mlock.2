@@ -137,9 +137,10 @@ The caller is not the super-user.
 The address given is not page aligned or the length is negative.
 .It Bq Er ENOMEM
 Some portion of the indicated address range is not allocated.
-Some portion of the indicated address range is not locked.
 .El
 .Sh "SEE ALSO"
+.Xr mlockall 2,
+.Xr munlockall 2,
 .Xr fork 2 ,
 .Xr mincore 2 ,
 .Xr minherit 2 ,
@@ -148,6 +149,9 @@ Some portion of the indicated address range is not locked.
 .Xr setrlimit 2 ,
 .Xr getpagesize 3
 .Sh BUGS
+Allocating too much wired memory can lead to a memory-allocation deadlock
+which requires a reboot to recover from.
+.Pp
 The per-process resource limit is a limit on the amount of virtual
 memory locked, while the system-wide limit is for the number of locked
 physical pages.
