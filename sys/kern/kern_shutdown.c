@@ -507,11 +507,16 @@ panic(const char *fmt, ...)
 	}
 
 	va_start(ap, fmt);
-	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
-	if (panicstr == fmt)
+	if (newpanic) {
+		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;
+		printf("panic: %s\n", buf);
+	} else {
+		printf("panic: ");
+		vprintf(fmt, ap);
+		printf("\n");
+	}
 	va_end(ap);
-	printf("panic: %s\n", buf);
 #ifdef SMP
 	/* two separate prints in case of an unmapped page and trap */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
