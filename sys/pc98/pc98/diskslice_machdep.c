@@ -247,8 +247,7 @@ reread_mbr:
 #endif
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, devtoname(bp->b_dev), 
-		    "error reading primary partition table",
+		diskerr(bp, "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;
@@ -538,7 +537,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, dname, "error reading extended partition table",
+		diskerr(bp, "error reading extended partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		goto done;
