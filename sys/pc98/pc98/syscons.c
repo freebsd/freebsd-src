@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.15 1997/05/21 10:01:31 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.16 1997/06/03 08:27:45 kato Exp $
  */
 
 #include "sc.h"
@@ -565,11 +565,9 @@ scattach(struct isa_device *dev)
 
     scp = console[0];
 
-#ifndef PC98
     if (crtc_vga) {
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
     }
-#endif
 
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 				     M_DEVBUF, M_NOWAIT);
@@ -1123,11 +1121,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(scp->scr_buf, M_DEVBUF); 
 	scp->scr_buf = (u_short *)
 	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-		scp->cursor_pos = scp->cursor_oldpos =
+	scp->cursor_pos = scp->cursor_oldpos =
 	    scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
-		scp->mouse_pos = scp->mouse_oldpos = 
+    	scp->mouse_pos = scp->mouse_oldpos = 
 	    scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-		scp->mouse_xpos/8);
+	    scp->mouse_xpos/8);
 	free(scp->atr_buf, M_DEVBUF); 
 	scp->atr_buf = (u_short *)
 		malloc(scp->xsize*scp->ysize*sizeof(u_short),M_DEVBUF, M_WAITOK);
@@ -3192,7 +3190,7 @@ scinit(void)
 	if (hw_cursor >= ROW*COL) {
 		hw_cursor = 0;
 	}
-	crtc_vga = 1;
+	crtc_vga = TRUE;
 #else /* IBM-PC */
     /*
      * Ensure a zero start address.  This is mainly to recover after
@@ -4596,7 +4594,6 @@ set_destructive_cursor(scr_stat *scp)
 static void
 set_mouse_pos(scr_stat *scp)
 {
-#ifndef PC98
     static int last_xpos = -1, last_ypos = -1;
     /* 
      * the margins imposed here are not ideal, we loose
@@ -4640,13 +4637,11 @@ set_mouse_pos(scr_stat *scp)
 	    cut_buffer[i] = 0x00;
         }
     }
-#endif
 }
 
 static void
 mouse_cut_start(scr_stat *scp) 
 {
-#ifndef PC98
     int i;
 
     if (scp->status & MOUSE_VISIBLE) {
@@ -4669,23 +4664,19 @@ mouse_cut_start(scr_stat *scp)
 	    remove_cutmarking(console[i]);
 	}
     }
-#endif
 }
 
 static void
 mouse_cut_end(scr_stat *scp) 
 {
-#ifndef PC98
     if (scp->status & MOUSE_VISIBLE) {
 	scp->status &= ~MOUSE_CUTTING;
     }
-#endif
 }
 
 static void
 mouse_paste(scr_stat *scp) 
 {
-#ifndef PC98
     if (scp->status & MOUSE_VISIBLE) {
 	struct tty *tp;
 	u_char *ptr = cut_buffer;
@@ -4694,13 +4685,14 @@ mouse_paste(scr_stat *scp)
 	while (*ptr)
 	    (*linesw[tp->t_line].l_rint)(scr_rmap[*ptr++], tp);
     }
-#endif
 }
 
 static void
 draw_mouse_image(scr_stat *scp)
 {
-#ifndef PC98
+#ifdef PC98
+    *(Atrat + (scp->mouse_pos - scp->scr_buf)) ^= 0x4;	/* reverse bit */
+#else
     caddr_t address;
     int i;
     char *font_buffer;
@@ -4750,9 +4742,9 @@ draw_mouse_image(scr_stat *scp)
 	scp->mouse_cursor[i+64] = (buffer[i+font_size] & 0xff00) >> 8;
 	scp->mouse_cursor[i+96] = buffer[i+font_size] & 0xff;
     }
-
+#endif
     scp->mouse_oldpos = scp->mouse_pos;
-
+#ifndef	PC98
     /* wait for vertical retrace to avoid jitter on some videocards */
 #if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
@@ -4766,7 +4758,9 @@ draw_mouse_image(scr_stat *scp)
     	*(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
     	*(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
     }
+#endif
     mark_for_update(scp, scp->mouse_oldpos - scp->scr_buf);
+#ifndef	PC98
     mark_for_update(scp, scp->mouse_oldpos + scp->xsize + 1 - scp->scr_buf);
 #endif
 }
@@ -4774,14 +4768,22 @@ draw_mouse_image(scr_stat *scp)
 static void
 remove_mouse_image(scr_stat *scp)
 {
-#ifndef PC98
+#ifdef PC98
+    u_short *crt_pos = Atrat + (scp->mouse_oldpos - scp->scr_buf);
+#else
     u_short *crt_pos = Crtat + (scp->mouse_oldpos - scp->scr_buf);
+#endif
 
+#ifdef PC98
+    *(crt_pos) = *(scp->atr_buf + (scp->mouse_oldpos - scp->scr_buf));
+#else
     *(crt_pos) = *(scp->mouse_oldpos);
     *(crt_pos+1) = *(scp->mouse_oldpos+1);
     *(crt_pos+scp->xsize) = *(scp->mouse_oldpos+scp->xsize);
     *(crt_pos+scp->xsize+1) = *(scp->mouse_oldpos+scp->xsize+1);
+#endif
     mark_for_update(scp, scp->mouse_oldpos - scp->scr_buf);
+#ifndef	PC98
     mark_for_update(scp, scp->mouse_oldpos + scp->xsize + 1 - scp->scr_buf);
 #endif
 }
@@ -4789,21 +4791,35 @@ remove_mouse_image(scr_stat *scp)
 static void
 draw_cutmarking(scr_stat *scp)
 {
-#ifndef PC98
     u_short *ptr;
     u_short och, nch;
 
     for (ptr=scp->scr_buf; ptr<=(scp->scr_buf+(scp->xsize*scp->ysize)); ptr++) {
+#ifdef	PC98
+	nch = och = *(Atrat + (ptr - scp->scr_buf));
+#else
 	nch = och = *(Crtat + (ptr - scp->scr_buf));
+#endif
 	/* are we outside the selected area ? */
 	if ( ptr < (scp->mouse_cut_start > scp->mouse_cut_end ? 
 	            scp->mouse_cut_end : scp->mouse_cut_start) ||
 	     ptr > (scp->mouse_cut_start > scp->mouse_cut_end ?
 	            scp->mouse_cut_start : scp->mouse_cut_end)) {
+#ifdef	PC98
+	    if (ptr != scp->mouse_pos)
+		nch = *(scp->atr_buf + (ptr - scp->scr_buf));
+	    else
+		nch = *(scp->atr_buf + (ptr - scp->scr_buf)) ^ 0x4;
+#else
 	    if (ptr != scp->cursor_pos)
 		nch = (och & 0xff) | (*ptr & 0xff00);
+#endif
 	}
 	else {
+#ifdef	PC98
+	    if (ptr != scp->mouse_pos)
+		nch = *(scp->atr_buf + (ptr - scp->scr_buf)) ^ 0x4;	/* reverse bit */
+#else
 	    /* are we clear of the cursor image ? */
 	    if (ptr != scp->cursor_pos)
 		nch = (och & 0x88ff) | (*ptr & 0x7000)>>4 | (*ptr & 0x0700)<<4;
@@ -4814,21 +4830,23 @@ draw_cutmarking(scr_stat *scp)
 		    if (!(flags & BLINK_CURSOR))
 		        nch = (och & 0xff) | (*ptr & 0xff00);
 	    }
+#endif
 	}
 	if (nch != och)
+#ifdef	PC98
+	    *(Atrat + (ptr - scp->scr_buf)) = nch;
+#else
 	    *(Crtat + (ptr - scp->scr_buf)) = nch;
-    }
 #endif
+    }
 }
 
 static void
 remove_cutmarking(scr_stat *scp)
 {
-#ifndef PC98
     scp->mouse_cut_start = scp->mouse_cut_end = NULL;
     scp->status &= ~MOUSE_CUTTING;
     mark_all(scp);
-#endif
 }
 
 static void
