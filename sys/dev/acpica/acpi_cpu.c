@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Nate Lawson (SDG)
+ * Copyright (c) 2003-2005 Nate Lawson (SDG)
  * Copyright (c) 2001 Michael Smith
  * All rights reserved.
  *
@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -71,13 +72,18 @@ struct acpi_cx {
 struct acpi_cpu_softc {
     device_t		 cpu_dev;
     ACPI_HANDLE		 cpu_handle;
-    uint32_t		 acpi_id;	/* ACPI processor id */
+    struct pcpu		*cpu_pcpu;
+    uint32_t		 cpu_acpi_id;	/* ACPI processor id */
     uint32_t		 cpu_p_blk;	/* ACPI P_BLK location */
     uint32_t		 cpu_p_blk_len;	/* P_BLK length (must be 6). */
     struct resource	*cpu_p_cnt;	/* Throttling control register */
     struct acpi_cx	 cpu_cx_states[MAX_CX_STATES];
     int			 cpu_cx_count;	/* Number of valid Cx states. */
     int			 cpu_prev_sleep;/* Last idle sleep duration. */
+};
+
+struct acpi_cpu_device {
+    struct resource_list        ad_rl;
 };
 
 #define CPU_GET_REG(reg, width) 					\
@@ -127,6 +133,8 @@ static int		 cpu_non_c3;	/* Index of lowest non-C3 state. */
 static u_int		 cpu_cx_stats[MAX_CX_STATES];/* Cx usage history. */
 
 /* Values for sysctl. */
+static struct sysctl_ctx_list acpi_cpu_sysctl_ctx;
+static struct sysctl_oid *acpi_cpu_sysctl_tree;
 static uint32_t		 cpu_throttle_state;
 static uint32_t		 cpu_throttle_max;
 static int		 cpu_cx_lowest;
@@ -137,13 +145,15 @@ static int		 cpu_ndevices;
 static struct acpi_cpu_softc **cpu_softc;
 ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
-static struct sysctl_ctx_list	acpi_cpu_sysctl_ctx;
-static struct sysctl_oid	*acpi_cpu_sysctl_tree;
-
 static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
 static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
-				 uint32_t *cpu_id);
+		    uint32_t *cpu_id);
+static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
+static device_t	acpi_cpu_add_child(device_t dev, int order, const char *name,
+		    int unit);
+static int	acpi_cpu_read_ivar(device_t dev, device_t child, int index,
+		    uintptr_t *result);
 static int	acpi_cpu_shutdown(device_t dev);
 static int	acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_probe(struct acpi_cpu_softc *sc);
@@ -163,7 +173,24 @@ static device_method_t acpi_cpu_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_cpu_probe),
     DEVMETHOD(device_attach,	acpi_cpu_attach),
+    DEVMETHOD(device_detach,	bus_generic_detach),
     DEVMETHOD(device_shutdown,	acpi_cpu_shutdown),
+    DEVMETHOD(device_suspend,	bus_generic_suspend),
+    DEVMETHOD(device_resume,	bus_generic_resume),
+
+    /* Bus interface */
+    DEVMETHOD(bus_add_child,	acpi_cpu_add_child),
+    DEVMETHOD(bus_read_ivar,	acpi_cpu_read_ivar),
+    DEVMETHOD(bus_get_resource_list, acpi_cpu_get_rlist),
+    DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+    DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+    DEVMETHOD(bus_alloc_resource, bus_generic_rl_alloc_resource),
+    DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
+    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+    DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+    DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
     {0, 0}
 };
@@ -174,8 +201,8 @@ static driver_t acpi_cpu_driver = {
     sizeof(struct acpi_cpu_softc),
 };
 
-static devclass_t acpi_cpu_devclass;
-DRIVER_MODULE(cpu, acpi, acpi_cpu_driver, acpi_cpu_devclass, 0, 0);
+extern devclass_t cpu_devclass;
+DRIVER_MODULE(cpu, acpi, acpi_cpu_driver, cpu_devclass, 0, 0);
 MODULE_DEPEND(cpu, acpi, 1, 1, 1);
 
 static int
@@ -265,17 +292,22 @@ acpi_cpu_attach(device_t dev)
 {
     ACPI_BUFFER		   buf;
     ACPI_OBJECT		   *obj;
+    struct pcpu		   *pcpu_data;
     struct acpi_cpu_softc *sc;
     struct acpi_softc	  *acpi_sc;
     ACPI_STATUS		   status;
-    int			   thr_ret, cx_ret;
+    int			   cx_ret, cpu_id, thr_ret;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
-    cpu_softc[acpi_get_magic(dev)] = sc;
+    cpu_id = acpi_get_magic(dev);
+    cpu_softc[cpu_id] = sc;
+    pcpu_data = pcpu_find(cpu_id);
+    pcpu_data->pc_device = dev;
+    sc->cpu_pcpu = pcpu_data;
 
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -288,7 +320,7 @@ acpi_cpu_attach(device_t dev)
     obj = (ACPI_OBJECT *)buf.Pointer;
     sc->cpu_p_blk = obj->Processor.PblkAddress;
     sc->cpu_p_blk_len = obj->Processor.PblkLength;
-    sc->acpi_id = obj->Processor.ProcId;
+    sc->cpu_acpi_id = obj->Processor.ProcId;
     AcpiOsFree(obj);
     ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_BLK at %#x/%d\n",
 		     device_get_unit(dev), sc->cpu_p_blk, sc->cpu_p_blk_len));
@@ -296,8 +328,8 @@ acpi_cpu_attach(device_t dev)
     acpi_sc = acpi_device_get_parent_softc(dev);
     sysctl_ctx_init(&acpi_cpu_sysctl_ctx);
     acpi_cpu_sysctl_tree = SYSCTL_ADD_NODE(&acpi_cpu_sysctl_ctx,
-				SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-				OID_AUTO, "cpu", CTLFLAG_RD, 0, "");
+	SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
+	CTLFLAG_RD, 0, "");
 
     /*
      * Probe for throttling and Cx state support.
@@ -314,7 +346,11 @@ acpi_cpu_attach(device_t dev)
 	sysctl_ctx_free(&acpi_cpu_sysctl_ctx);
     }
 
-    return_VALUE (0);
+    /* Call identify and then probe/attach for cpu child drivers. */
+    bus_generic_probe(dev);
+    bus_generic_attach(dev);
+
+    return (0);
 }
 
 /*
@@ -353,10 +389,60 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
     return (ESRCH);
 }
 
+static struct resource_list *
+acpi_cpu_get_rlist(device_t dev, device_t child)
+{
+    struct acpi_cpu_device *ad;
+
+    ad = device_get_ivars(child);
+    if (ad == NULL)
+	return (NULL);
+    return (&ad->ad_rl);
+}
+
+static device_t
+acpi_cpu_add_child(device_t dev, int order, const char *name, int unit)
+{
+    struct acpi_cpu_device  *ad;
+    device_t            child;
+
+    if ((ad = malloc(sizeof(*ad), M_TEMP, M_NOWAIT | M_ZERO)) == NULL)
+        return (NULL);
+
+    resource_list_init(&ad->ad_rl);
+    
+    child = device_add_child_ordered(dev, order, name, unit);
+    if (child != NULL)
+        device_set_ivars(child, ad);
+    return (child);
+}
+
+static int
+acpi_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
+{
+    struct acpi_cpu_softc *sc;
+
+    sc = device_get_softc(dev);
+    switch (index) {
+    case ACPI_IVAR_HANDLE:
+	*result = (uintptr_t)sc->cpu_handle;
+	break;
+    case CPU_IVAR_PCPU:
+	*result = (uintptr_t)sc->cpu_pcpu;
+	break;
+    default:
+	return (ENOENT);
+    }
+    return (0);
+}
+
 static int
 acpi_cpu_shutdown(device_t dev)
 {
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    /* Allow children to shutdown first. */
+    bus_generic_shutdown(dev);
 
     /* Disable any entry to the idle function. */
     cpu_cx_count = 0;
@@ -668,7 +754,7 @@ acpi_cpu_startup(void *arg)
     int count, i;
 
     /* Get set of CPU devices */
-    devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
+    devclass_get_devices(cpu_devclass, &cpu_devices, &cpu_ndevices);
 
     /* Check for quirks via the first CPU device. */
     sc = device_get_softc(cpu_devices[0]);
