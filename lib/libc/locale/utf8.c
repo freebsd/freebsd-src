@@ -143,7 +143,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 	if (pwc != NULL)
 		*pwc = wch;
-	return (wch == L'\0' ? 0 : i);
+	return (wch == L'\0' ? 0 : len);
 }
 
 size_t
