@@ -653,7 +653,7 @@ arc_ifattach(ifp, lla)
 #else
 	ifa = ifaddr_byindex(ifp->if_index);
 #endif
-	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __FUNCTION__));
+	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ARCNET;
 	sdl->sdl_alen = ifp->if_addrlen;
