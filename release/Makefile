@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.135 1995/04/13 02:11:31 phk Exp $
+#	$Id: Makefile,v 1.136 1995/04/13 09:05:25 phk Exp $
 #
 # How to roll a release:
 #
@@ -76,6 +76,8 @@ release:
 .endif
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	#temporary hack to disable slices
+	cp /tmp/sd.c ${CHROOTDIR}/usr/src/sys/scsi
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -377,7 +379,7 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9 release.10
+		release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
