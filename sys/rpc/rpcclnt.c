@@ -1039,7 +1039,7 @@ rpcclnt_reply(myrep, td)
 		if (*tl != rpc_reply) {
 			rpcstats.rpcinvalid++;
 			m_freem(mrep);
-	rpcmout:
+rpcmout:
 			if (myrep->r_flags & R_GETONEREP)
 				RPC_RETURN(0);
 			continue;
@@ -1308,48 +1308,50 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 		goto rpcmout;
 	} else if (reply->stat.type != RPC_MSGACCEPTED) {
 		error = EBADRPC;
+  		goto rpcmout;
+  	}
+
+	rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
+
+	reply->verf_md = md;
+	reply->verf_dpos = dpos;
+
+	reply->verf_type = fxdr_unsigned(u_int32_t, *tl++);
+	reply->verf_size = fxdr_unsigned(u_int32_t, *tl);
+
+	if (reply->verf_size != 0)
+		rpcm_adv(rpcm_rndup(reply->verf_size));
+
+	rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
+	reply->stat.status = fxdr_unsigned(u_int32_t, *tl);
+
+	if (reply->stat.status == RPC_SUCCESS) {
+		if ((uint32_t)(dpos - mtod(md, caddr_t)) >= md->m_len) {
+			RPCDEBUG("where is the next mbuf?");
+			RPCDEBUG("%d -> %d",
+			    (int)(dpos - mtod(md, caddr_t)), md->m_len);
+			if (md->m_next == NULL) {
+				error = EBADRPC;
+				goto rpcmout;
+			} else {
+				reply->result_md = md->m_next;
+				reply->result_dpos = mtod(reply->result_md,
+				    caddr_t);
+			}
+		} else {
+			reply->result_md = md;
+			reply->result_dpos = dpos;
+		}
+	} else if (reply->stat.status == RPC_PROGMISMATCH) {
+		rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
+		reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
+		reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
+		error = EOPNOTSUPP;
+		goto rpcmout;
+	} else {
+		error = EPROTONOSUPPORT;
 		goto rpcmout;
 	}
-
-		rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
-
-		reply->verf_md = md;
-		reply->verf_dpos = dpos;
-
-		reply->verf_type = fxdr_unsigned(u_int32_t, *tl++);
-		reply->verf_size = fxdr_unsigned(u_int32_t, *tl);
-
-		if (reply->verf_size != 0)
-			rpcm_adv(rpcm_rndup(reply->verf_size));
-
-		rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
-		reply->stat.status = fxdr_unsigned(u_int32_t, *tl);
-
-		if (reply->stat.status == RPC_SUCCESS) {
-			if ((uint32_t)(dpos - mtod(md, caddr_t)) >= md->m_len) {
-				RPCDEBUG("where is the next mbuf?");
-				RPCDEBUG("%d -> %d", (int)(dpos - mtod(md, caddr_t)), md->m_len);
-				if (md->m_next == NULL) {
-					error = EBADRPC;
-					goto rpcmout;
-				} else {
-					reply->result_md = md->m_next;
-					reply->result_dpos = mtod(reply->result_md, caddr_t);
-				}
-			} else {
-				reply->result_md = md;
-				reply->result_dpos = dpos;
-			}
-		} else if (reply->stat.status == RPC_PROGMISMATCH) {
-			rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
-			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
-			reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
-			error = EOPNOTSUPP;
-			goto rpcmout;
-		} else if (reply->stat.status > 5) {
-			error = EBADRPC;
-			goto rpcmout;
-		}
 	error = 0;
 
 rpcmout:
