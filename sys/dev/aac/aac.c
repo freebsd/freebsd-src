@@ -561,7 +561,6 @@ aac_start(struct aac_command *cm)
     cm->cm_fib->Header.SenderData = (u_int32_t)cm;	/* XXX 64-bit physical address issue */
 
     /* put the FIB on the outbound queue */
-    s = splbio();
     if (aac_enqueue_fib(sc, AAC_ADAP_NORM_CMD_QUEUE, cm->cm_fib->Header.Size, 
 			cm->cm_fib->Header.ReceiverFibAddress)) {
 	error = EBUSY;
