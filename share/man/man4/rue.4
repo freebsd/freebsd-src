@@ -25,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2003
+.Dd August 25, 2004
 .Dt RUE 4
 .Os
 .Sh NAME
 .Nm rue
-.Nd "RealTek RTL8150 USB To Fast Ethernet controller driver"
+.Nd "RealTek RTL8150 USB to Fast Ethernet controller driver"
 .Sh SYNOPSIS
 .Cd "device uhci"
 .Cd "device ohci"
@@ -41,18 +41,7 @@
 The
 .Nm
 driver provides support for USB Ethernet adapters based on the RealTek
-RTL8150 USB to Fast Ethernet controller chip, including the following:
-.Pp
-.Bl -bullet -compact
-.It
-Buffalo (Melco Inc.) LUA-KTX
-.It
-Green House GH-USB100B
-.It
-LinkSys USB100M
-.It
-Billionton 10/100 FastEthernet USBKR2
-.El
+RTL8150 USB to Fast Ethernet controller chip.
 .Pp
 The RTL8150 contains an integrated Fast Ethernet MAC, which supports
 both 10 and 100Mbps speeds in either full or half duplex.
@@ -104,6 +93,22 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports RealTek RTL8150 based USB Ethernet
+adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Buffalo (Melco Inc.) LUA-KTX
+.It
+Green House GH-USB100B
+.It
+LinkSys USB100M
+.It
+Billionton 10/100 FastEthernet USBKR2
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "rue%d: watchdog timeout"
