@@ -12,7 +12,7 @@
 #  3) If no label has been found, use MYADDR if it exists.
 #
 #
-# $Id: ppp.linkup.sample,v 1.11 1997/11/08 20:58:41 brian Exp $
+# $Id: ppp.linkup.sample,v 1.12 1997/11/18 18:59:57 brian Exp $
 #
 #########################################################################
 
@@ -53,28 +53,3 @@ pmdemand:
 # 
 min5minutes:
  !bg sh -c "sleep 240; pppctl -p mypassword 3000 set timeout 60"
-
-# If you want to test ppp, do it through a loopback:
-#
-# Requires a line in /etc/services:
-#   ppploop 6671/tcp # loopback ppp daemon
-#
-# and a line in /etc/inetd.conf:
-#   ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct loop-in
-#
-loop:
- set timeout 0
- set log phase chat connect lcp ipcp command
- set device localhost:ppploop
- set dial
- set login
- set escape 0xff
- set ifaddr 127.0.0.2 127.0.0.3
- set openmode passive
- set server /tmp/loop ""
- 
-loop-in:
- set timeout 0
- set log phase chat connect lcp ipcp command
- set escape 0xff
- allow mode direct

@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.23 1997/11/10 21:27:36 brian Exp $
+# $Id: ppp.conf.sample,v 1.24 1997/11/12 00:52:16 brian Exp $
 #
 #################################################################
 
@@ -288,3 +288,28 @@ tcp-client:
 tcp-server:
  set escape 0xff
  set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0
+
+# If you want to test ppp, do it through a loopback:
+#
+# Requires a line in /etc/services:
+#   ppploop 6671/tcp # loopback ppp daemon
+#
+# and a line in /etc/inetd.conf:
+#   ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct loop-in
+#
+loop:
+ set timeout 0
+ set log phase chat connect lcp ipcp command
+ set device localhost:ppploop
+ set dial
+ set login
+ set escape 0xff
+ set ifaddr 127.0.0.2 127.0.0.3
+ set openmode passive
+ set server /tmp/loop ""
+ 
+loop-in:
+ set timeout 0
+ set log phase chat connect lcp ipcp command
+ set escape 0xff
+ allow mode direct
