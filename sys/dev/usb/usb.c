@@ -404,14 +404,9 @@ usb_needs_explore(bus)
 int
 usb_detach(device_t self)
 {
-	char *devinfo = (char *) device_get_desc(self);
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
-	}
-
-	return (0);
+	return (1);
 }
 
 DRIVER_MODULE(usb, root, usb_driver, usb_devclass, 0, 0);

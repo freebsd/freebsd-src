@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.23 1999/01/07 02:06:05 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.27 1999/01/13 10:33:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -565,7 +565,7 @@ ohci_intr(p)
 	void *p;
 {
 	ohci_softc_t *sc = p;
-	u_int32_t intrs = 0, eintrs;
+	u_int32_t intrs, eintrs;
 	ohci_physaddr_t done;
 
 	/* In case the interrupt occurs before initialization has completed. */
@@ -576,6 +576,7 @@ ohci_intr(p)
 		return (0);
 	}
 
+	intrs = 0;
 	done = LE(sc->sc_hcca->hcca_done_head);
 	if (done != 0) {
 		sc->sc_hcca->hcca_done_head = 0;
@@ -672,7 +673,7 @@ ohci_process_done(sc, done)
 	ohci_softc_t *sc;
 	ohci_physaddr_t done;
 {
-	ohci_soft_td_t *std = NULL, *sdone;
+	ohci_soft_td_t *std, *sdone;
 	usbd_request_handle reqh;
 	int len, cc;
 

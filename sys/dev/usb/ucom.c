@@ -45,8 +45,8 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #if defined(__NetBSD__)
-#include <sys/device.h>
 #include <sys/ioctl.h>
+#include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -126,6 +126,7 @@ ucom_detach(device_t self)
 {       
 	char *devinfo = (char *) device_get_desc(self);
 
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
 		free(devinfo, M_USB);
