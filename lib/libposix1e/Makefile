@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+MAINTAINER=	rwatson@FreeBSD.org
 LIB=	posix1e
 SHLIB_MAJOR= 2 
 SHLIB_MINOR= 0
