@@ -54,6 +54,9 @@
 #include <machine/clock.h>
 
 #include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/advansys/adwlib.h>

@@ -49,11 +49,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h> 
+#include <sys/kernel.h> 
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h> 
+#include <sys/rman.h> 
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
 
 #include <dev/advansys/advansys.h>
 
@@ -91,26 +95,21 @@ static u_int16_t adv_isa_ioports[] =
 
 #define MAX_ISA_IOPORT_INDEX (sizeof(adv_isa_ioports)/sizeof(u_int16_t) - 1)
 
-static	int	advisaprobe(struct isa_device *id);
-static  int	advisaattach(struct isa_device *id);
+static	int	adv_isa_probe(device_t dev);
+static  int	adv_isa_attach(device_t dev);
 static	void	adv_set_isapnp_wait_for_key(void);
 static	int	adv_get_isa_dma_channel(struct adv_softc *adv);
 static	int	adv_set_isa_dma_settings(struct adv_softc *adv);
 
-static void	adv_isa_intr(void *unit);
-
-struct isa_driver advdriver =
-{
-	advisaprobe,
-	advisaattach,
-	"adv"
-};
-
 static int
-advisaprobe(struct isa_device *id)
+adv_isa_probe(device_t dev)
 {
 	int	port_index;
 	int	max_port_index;
+	u_long	iobase, irq;
+	int	rid = 0;
+	void	*ih;
+	struct resource	*iores, *irqres;
 
 	/*
 	 * Default to scanning all possible device locations.
@@ -118,19 +117,19 @@ advisaprobe(struct isa_device *id)
 	port_index = 0;
 	max_port_index = MAX_ISA_IOPORT_INDEX;
 
-	if (id->id_iobase > 0) {
+	if (bus_get_resource(dev, SYS_RES_IOPORT, 0, &iobase, NULL) == 0) {
 		for (;port_index <= max_port_index; port_index++)
-			if (id->id_iobase <= adv_isa_ioports[port_index])
+			if (iobase <= adv_isa_ioports[port_index])
 				break;
 		if ((port_index > max_port_index)
-		 || (id->id_iobase != adv_isa_ioports[port_index])) {
-			printf("adv%d: Invalid baseport of 0x%x specified. "
+		 || (iobase != adv_isa_ioports[port_index])) {
+			printf("adv%d: Invalid baseport of 0x%lx specified. "
 				"Neerest valid baseport is 0x%x.  Failing "
-				"probe.\n", id->id_unit, id->id_iobase,
+				"probe.\n", device_get_unit(dev), iobase,
 				(port_index <= max_port_index) ?
 					adv_isa_ioports[port_index] :
 					adv_isa_ioports[max_port_index]);
-			return 0;
+			return ENXIO;
 		}
 		max_port_index = port_index;
 	}
@@ -143,178 +142,198 @@ advisaprobe(struct isa_device *id)
 		bus_size_t maxsize;
 		bus_addr_t lowaddr;
 		int error;
+		struct adv_softc *adv;
 
 		if (port_addr == 0)
 			/* Already been attached */
 			continue;
-		id->id_iobase = port_addr;
-		if (haveseen_iobase(id, 1))	/* XXX real portsize? */
+		
+		if (bus_set_resource(dev, SYS_RES_IOPORT, 0, port_addr, 1))
 			continue;
 
-		if (adv_find_signature(I386_BUS_SPACE_IO, port_addr)) {
-			/*
-			 * Got one.  Now allocate our softc
-			 * and see if we can initialize the card.
-			 */
-			struct adv_softc *adv;
-			adv = adv_alloc(id->id_unit, I386_BUS_SPACE_IO,
-					port_addr);
-			if (adv == NULL)
-				return (0);
+		/* XXX what is the real portsize? */
+		iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+					   RF_ACTIVE);
+		if (iores == NULL)
+			continue;
 
-			adv_unit++;
+		if (adv_find_signature(rman_get_bustag(iores),
+				       rman_get_bushandle(iores)) == 0) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			continue;
+		}
 
-			id->id_iobase = adv->bsh;
+		/*
+		 * Got one.  Now allocate our softc
+		 * and see if we can initialize the card.
+		 */
+		adv = adv_alloc(dev, rman_get_bustag(iores),
+				rman_get_bushandle(iores));
+		if (adv == NULL) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
 
-			/*
-			 * Stop the chip.
-			 */
-			ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
-			ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
-			/*
-			 * Determine the chip version.
-			 */
-			adv->chip_version = ADV_INB(adv,
-						    ADV_NONEISA_CHIP_REVISION);
-			if ((adv->chip_version >= ADV_CHIP_MIN_VER_VL)
-			 && (adv->chip_version <= ADV_CHIP_MAX_VER_VL)) {
-				adv->type = ADV_VL;
-				maxsegsz = ADV_VL_MAX_DMA_COUNT;
-				maxsize = BUS_SPACE_MAXSIZE_32BIT;
-				lowaddr = ADV_VL_MAX_DMA_ADDR;
-				id->id_drq = -1;				
-			} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_ISA)
-				&& (adv->chip_version <= ADV_CHIP_MAX_VER_ISA)) {
-				if (adv->chip_version >= ADV_CHIP_MIN_VER_ISA_PNP) {
-					adv->type = ADV_ISAPNP;
-					ADV_OUTB(adv, ADV_REG_IFC,
-						 ADV_IFC_INIT_DEFAULT);
-				} else {
-					adv->type = ADV_ISA;
-				}
-				maxsegsz = ADV_ISA_MAX_DMA_COUNT;
-				maxsize = BUS_SPACE_MAXSIZE_24BIT;
-				lowaddr = ADV_ISA_MAX_DMA_ADDR;
-				adv->isa_dma_speed = ADV_DEF_ISA_DMA_SPEED;
-				adv->isa_dma_channel =
-				    adv_get_isa_dma_channel(adv);
-				id->id_drq = adv->isa_dma_channel;
+		/*
+		 * Stop the chip.
+		 */
+		ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
+		ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
+		/*
+		 * Determine the chip version.
+		 */
+		adv->chip_version = ADV_INB(adv, ADV_NONEISA_CHIP_REVISION);
+		if ((adv->chip_version >= ADV_CHIP_MIN_VER_VL)
+		    && (adv->chip_version <= ADV_CHIP_MAX_VER_VL)) {
+			adv->type = ADV_VL;
+			maxsegsz = ADV_VL_MAX_DMA_COUNT;
+			maxsize = BUS_SPACE_MAXSIZE_32BIT;
+			lowaddr = ADV_VL_MAX_DMA_ADDR;
+			bus_delete_resource(dev, SYS_RES_DRQ, 0);
+		} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_ISA)
+			   && (adv->chip_version <= ADV_CHIP_MAX_VER_ISA)) {
+			if (adv->chip_version >= ADV_CHIP_MIN_VER_ISA_PNP) {
+				adv->type = ADV_ISAPNP;
+				ADV_OUTB(adv, ADV_REG_IFC,
+					 ADV_IFC_INIT_DEFAULT);
 			} else {
-				panic("advisaprobe: Unknown card revision\n");
+				adv->type = ADV_ISA;
 			}
+			maxsegsz = ADV_ISA_MAX_DMA_COUNT;
+			maxsize = BUS_SPACE_MAXSIZE_24BIT;
+			lowaddr = ADV_ISA_MAX_DMA_ADDR;
+			adv->isa_dma_speed = ADV_DEF_ISA_DMA_SPEED;
+			adv->isa_dma_channel = adv_get_isa_dma_channel(adv);
+			bus_set_resource(dev, SYS_RES_DRQ, 0,
+					 adv->isa_dma_channel, 1);
+		} else {
+			panic("advisaprobe: Unknown card revision\n");
+		}
 
-			/*
-			 * Allocate a parent dmatag for all tags created
-			 * by the MI portions of the advansys driver
-			 */
-			/* XXX Should be a child of the ISA bus dma tag */ 
-			error =
-			    bus_dma_tag_create(/*parent*/NULL,
-					       /*alignemnt*/1,
+		/*
+		 * Allocate a parent dmatag for all tags created
+		 * by the MI portions of the advansys driver
+		 */
+		/* XXX Should be a child of the ISA bus dma tag */ 
+		error = bus_dma_tag_create(/*parent*/NULL,
+					   /*alignemnt*/1,
+					   /*boundary*/0,
+					   lowaddr,
+					   /*highaddr*/BUS_SPACE_MAXADDR,
+					   /*filter*/NULL,
+					   /*filterarg*/NULL,
+					   maxsize,
+					   /*nsegs*/BUS_SPACE_UNRESTRICTED,
+					   maxsegsz,
+					   /*flags*/0,
+					   &adv->parent_dmat); 
+
+		if (error != 0) {
+			printf("%s: Could not allocate DMA tag - error %d\n",
+			       adv_name(adv), error); 
+			adv_free(adv); 
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO; 
+		}
+
+		adv->init_level++;
+
+		if (overrun_buf == NULL) {
+			/* Need to allocate our overrun buffer */
+			if (bus_dma_tag_create(adv->parent_dmat,
+					       /*alignment*/8,
 					       /*boundary*/0,
-					       lowaddr,
-					       /*highaddr*/BUS_SPACE_MAXADDR,
+					       ADV_ISA_MAX_DMA_ADDR,
+					       BUS_SPACE_MAXADDR,
 					       /*filter*/NULL,
 					       /*filterarg*/NULL,
-					       maxsize,
-					       /*nsegs*/BUS_SPACE_UNRESTRICTED,
-					       maxsegsz,
+					       ADV_OVERRUN_BSIZE,
+					       /*nsegments*/1,
+					       BUS_SPACE_MAXSIZE_32BIT,
 					       /*flags*/0,
-					       &adv->parent_dmat); 
- 
-			if (error != 0) {
-				printf("%s: Could not allocate DMA tag - error %d\n",
-				       adv_name(adv), error); 
-				adv_free(adv); 
-				return (0); 
-			}
-
-			adv->init_level++;
-
-			if (overrun_buf == NULL) {
-				/* Need to allocate our overrun buffer */
-				if (bus_dma_tag_create(adv->parent_dmat,
-						       /*alignment*/8,
-						       /*boundary*/0,
-						       ADV_ISA_MAX_DMA_ADDR,
-						       BUS_SPACE_MAXADDR,
-						       /*filter*/NULL,
-						       /*filterarg*/NULL,
-						       ADV_OVERRUN_BSIZE,
-						       /*nsegments*/1,
-						       BUS_SPACE_MAXSIZE_32BIT,
-						       /*flags*/0,
-						       &overrun_dmat) != 0) {
-					adv_free(adv);
-					return (0);
-        			}
-				if (bus_dmamem_alloc(overrun_dmat,
-						     (void **)&overrun_buf,
-						     BUS_DMA_NOWAIT,
-						     &overrun_dmamap) != 0) {
-					bus_dma_tag_destroy(overrun_dmat);
-					adv_free(adv);
-					return (0);
-				}
-				/* And permanently map it in */  
-				bus_dmamap_load(overrun_dmat, overrun_dmamap,
-						overrun_buf, ADV_OVERRUN_BSIZE,
-                        			adv_map, &overrun_physbase,
-						/*flags*/0);
-			}
-
-			adv->overrun_physbase = overrun_physbase;
-			
-			if (adv_init(adv) != 0) {
+					       &overrun_dmat) != 0) {
 				adv_free(adv);
-				return (0);
+				bus_release_resource(dev, SYS_RES_IOPORT, 0,
+						     iores);
+				return ENXIO;
 			}
-
-			switch (adv->type) {
-			case ADV_ISAPNP:
-				if (adv->chip_version == ADV_CHIP_VER_ASYN_BUG){
-					adv->bug_fix_control
-					    |= ADV_BUG_FIX_ASYN_USE_SYN;
-					adv->fix_asyn_xfer = ~0;
-				}
-				/* Fall Through */
-			case ADV_ISA:
-				adv->max_dma_count = ADV_ISA_MAX_DMA_COUNT;
-				adv->max_dma_addr = ADV_ISA_MAX_DMA_ADDR;
-				adv_set_isa_dma_settings(adv);
-				break;
-
-			case ADV_VL:
-				adv->max_dma_count = ADV_VL_MAX_DMA_COUNT;
-				adv->max_dma_addr = ADV_VL_MAX_DMA_ADDR;
-				break;
-			default:
-				panic("advisaprobe: Invalid card type\n");
+			if (bus_dmamem_alloc(overrun_dmat,
+					     (void **)&overrun_buf,
+					     BUS_DMA_NOWAIT,
+					     &overrun_dmamap) != 0) {
+				bus_dma_tag_destroy(overrun_dmat);
+				adv_free(adv);
+				bus_release_resource(dev, SYS_RES_IOPORT, 0,
+						     iores);
+				return ENXIO;
 			}
-			
-			/* Determine our IRQ */
-			if (id->id_irq == 0 /* irq ? */)
-				id->id_irq = 1 << adv_get_chip_irq(adv);
-			else
-				adv_set_chip_irq(adv, ffs(id->id_irq) - 1);
-
-			id->id_intr = adv_isa_intr;
-			
-			/* Mark as probed */
-			adv_isa_ioports[port_index] = 0;
-			return 1;	/* XXX what is the real portsize? */
+			/* And permanently map it in */  
+			bus_dmamap_load(overrun_dmat, overrun_dmamap,
+					overrun_buf, ADV_OVERRUN_BSIZE,
+					adv_map, &overrun_physbase,
+					/*flags*/0);
 		}
+
+		adv->overrun_physbase = overrun_physbase;
+
+		if (adv_init(adv) != 0) {
+			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
+
+		switch (adv->type) {
+		case ADV_ISAPNP:
+			if (adv->chip_version == ADV_CHIP_VER_ASYN_BUG) {
+				adv->bug_fix_control
+				    |= ADV_BUG_FIX_ASYN_USE_SYN;
+				adv->fix_asyn_xfer = ~0;
+			}
+			/* Fall Through */
+		case ADV_ISA:
+			adv->max_dma_count = ADV_ISA_MAX_DMA_COUNT;
+			adv->max_dma_addr = ADV_ISA_MAX_DMA_ADDR;
+			adv_set_isa_dma_settings(adv);
+			break;
+
+		case ADV_VL:
+			adv->max_dma_count = ADV_VL_MAX_DMA_COUNT;
+			adv->max_dma_addr = ADV_VL_MAX_DMA_ADDR;
+			break;
+		default:
+			panic("advisaprobe: Invalid card type\n");
+		}
+			
+		/* Determine our IRQ */
+		if (bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, NULL))
+			bus_set_resource(dev, SYS_RES_IRQ, 0,
+					 adv_get_chip_irq(adv), 1);
+		else
+			adv_set_chip_irq(adv, irq);
+
+		irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					    RF_ACTIVE);
+		if (irqres == NULL ||
+		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, adv_intr, adv,
+				   &ih)) {
+			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
+
+		/* Mark as probed */
+		adv_isa_ioports[port_index] = 0;
+		return 0;
 	}
 
-	return 0;
+	return ENXIO;
 }
 
 static int
-advisaattach(struct isa_device *id)
+adv_isa_attach(device_t dev)
 {
-	struct adv_softc *adv;
+	struct adv_softc *adv = device_get_softc(dev);
 
-	adv = advsoftcs[id->id_unit];
 	return (adv_attach(adv));
 }
 
@@ -365,17 +384,18 @@ adv_set_isapnp_wait_for_key(void)
 		outb(ADV_ISA_PNP_PORT_WRITE, 0x02);
 		isapnp_wait_set++;
 	}
-	return;                 
 }
 
-/*
- * Handle an ISA interrupt.
- * XXX should go away as soon as ISA interrupt handlers
- * take a (void *) arg.
- */
-static void
-adv_isa_intr(void *unit)
-{
-	struct adv_softc *arg = advsoftcs[(int)unit];
-	adv_intr((void *)arg);
-}
+static device_method_t adv_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		adv_isa_probe),
+	DEVMETHOD(device_attach,	adv_isa_attach),
+	{ 0, 0 }
+};
+
+static driver_t adv_isa_driver = {
+	"adv", adv_isa_methods, sizeof(struct adv_softc)
+};
+
+static devclass_t adv_isa_devclass;
+DRIVER_MODULE(adv, isa, adv_isa_driver, adv_isa_devclass, 0, 0);

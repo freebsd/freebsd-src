@@ -238,18 +238,6 @@ static struct old_isa_driver old_drivers[] = {
 	{ INTR_TYPE_NET, &tinadriver },
 #endif
 
-/* CAM */
-
-#if NADV > 0
-	{ INTR_TYPE_CAM, &advdriver },
-#endif
-
-#ifdef PC98
-#if NBS > 0
-	{ INTR_TYPE_CAM, &bsdriver },
-#endif
-#endif
-
 /* MISC */
 
 #if NPAS > 0
