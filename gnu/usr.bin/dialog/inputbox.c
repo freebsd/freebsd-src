@@ -91,6 +91,26 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
         case KEY_UP:
         case KEY_DOWN:
           break;
+	case KEY_HOME:
+	  input_x = scroll = 0;
+	  wmove(dialog, box_y, box_x);
+	  for (i = 0; i < box_width; i++)
+	    waddch(dialog, instr[i] ? instr[i] : ' ');
+	  wmove(dialog, box_y, box_x);
+	  wrefresh(dialog);
+	  continue;
+	case KEY_END:
+	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
+	    instr[i] = '\0';
+	  i++;
+	  input_x = i % box_width;
+	  scroll = i - input_x;
+	  wmove(dialog, box_y, box_x);
+	  for (i = 0; i < box_width; i++)
+	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	  wmove(dialog, box_y, input_x + box_x);
+	  wrefresh(dialog);
+	  continue;
         case KEY_LEFT:
           if (input_x || scroll) {
             wattrset(dialog, inputbox_attr);
@@ -145,10 +165,10 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
             }
             else
               input_x--;
-            wmove(dialog, box_y, input_x + box_x);
+	    wmove(dialog, box_y, input_x + box_x);
 	    for (i = input_x; i < box_width; i++)
 	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-            wmove(dialog, box_y, input_x + box_x);
+	    wmove(dialog, box_y, input_x + box_x);
             wrefresh(dialog);
           }
           continue;
@@ -169,8 +189,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
               }
               else {
 		wmove(dialog, box_y, input_x + box_x);
-		for (i = input_x; i < box_width && instr[scroll+i]; i++)
-                  waddch(dialog, instr[scroll+i]);
+		for (i = input_x; i < box_width; i++)
+		  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 		wmove(dialog, box_y, ++input_x + box_x);
               }
               wrefresh(dialog);
