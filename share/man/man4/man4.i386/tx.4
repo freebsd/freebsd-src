@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998 Semen Ustimenko
+.\" Copyright (c) 1998-2001 Semen Ustimenko (semenu@FreeBSD.org)
 .\"
 .\" All rights reserved.
 .\"
@@ -25,31 +25,37 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 1997
+.Dd February 8, 2001
 .Dt TX 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm tx
-.Nd SMC9432TX Fast Ethernet device driver
+.Nd "SMC 83c17x Fast Ethernet device driver"
 .Sh SYNOPSIS
+.Cd "device miibus"
 .Cd "device tx"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the Ethernet adapters based on the
-SMC 83c170 (EPIC) chips.
+SMC 83c17x (EPIC) chips.
+These are mostly SMC 9432 series cards.
 .Pp
 The
 .Nm
-driver supports the following media types:
+driver supports the following media types (depending on card's capabilities):
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxx
 .It autoselect
 Enable autonegotiation (default)
+.It 100baseFX
+Set 100Mbps (fast ethernet) fiber optic operation
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation
+Set 100Mbps (fast ethernet) twisted pair operation
 .It 10baseT/UTP
 Set 10Mbps on 10baseT port
+.It 10base2/BNC
+Set 10Mbps on 10base2 port
 .El
 .Pp
 The
@@ -71,9 +77,6 @@ Device and driver reset follows this error.
 One of following errors occured: PCI Target Abort, PCI Master Abort, Data
 Parity Error or Address Parity Error.
 Device and driver reset follows this error.
-.It "tx%d: WARNING! no link established"
-No media connected.
-Displayed at startup only.
 .It "tx%d: cannot allocate mbuf header/cluster"
 Cannot allocate memory for received packet.
 Packet thrown away.
@@ -83,7 +86,6 @@ While reseting, driver failed to stop device correctly.
 .Sh BUGS
 .Pp
 The multicast packets filtering is not supported.
-Only one PHY was really tested (Quality Semiconductor QS6612).
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
