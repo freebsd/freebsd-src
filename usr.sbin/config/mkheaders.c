@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/param.h>
 #include "config.h"
 #include "y.tab.h"
 
@@ -189,10 +190,9 @@ do_header(char *dev, int count)
 static char *
 toheader(char *dev)
 {
-	static char hbuf[80];
+	static char hbuf[MAXPATHLEN];
 
-	(void) strcpy(hbuf, path(dev));
-	(void) strcat(hbuf, ".h");
+	snprintf(hbuf, sizeof(hbuf), "%s.h", path(dev));
 	return (hbuf);
 }
 
