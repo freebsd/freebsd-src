@@ -1,24 +1,23 @@
 .\" @(#)bindresvport.3n	2.2 88/08/02 4.0 RPCSRC; from 1.7 88/03/14 SMI
 .\" $FreeBSD$
 .\"
-.Dd November 22, 1987
+.Dd January 27, 2000
 .Dt BINDRESVPORT 3
 .Os
 .Sh NAME
 .Nm bindresvport ,
-.Nm bindresvport_sa ,
+.Nm bindresvport_sa
 .Ndbind a socket to a privileged IP port
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <netinet/in.h>
+.Fd #include <rpc/rpc.h>
 .Ft int
 .Fn bindresvport "int sd" "struct sockaddr_in *sin"
 .Ft int
 .Fn bindresvport_sa "int sd" "struct sockaddr *sa"
 .Sh DESCRIPTION
-.Nm Bindresvport
+.Fn bindresvport
 and
-.Nm Bindresvport_sa
+.Fn bindresvport_sa
 are used to bind a socket descriptor to a privileged
 .Tn IP
 port, that is, a
@@ -59,13 +58,17 @@ sockets as well as
 sockets.
 .Sh RETURN VALUES
 .Fn bindresvport
-returns 0 if it is successful, otherwise \-1 is returned and
+and
+.Fn bindresvport_sa
+return 0 if they are successful, otherwise \-1 is returned and
 .Va errno
 set to reflect the cause of the error.
 .Sh ERRORS
 The
 .Fn bindresvport
-function fails if:
+and
+.Fn bindresvport_sa
+functions fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa sd
