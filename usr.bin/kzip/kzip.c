@@ -13,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kzip.c,v 1.10 1997/07/18 06:40:46 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -200,9 +200,9 @@ main(int argc, char **argv)
 			base,
 			"-o",
 			out,
-			"/usr/lib/kzhead.o",
+			"/usr/lib/aout/kzhead.o",
 			obj,
-			"/usr/lib/kztail.o",
+			"/usr/lib/aout/kztail.o",
 			0);
 		exit(2);
 	}
