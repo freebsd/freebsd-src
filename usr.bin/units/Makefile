@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	units
-WARNS?=	2
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
