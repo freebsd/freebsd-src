@@ -1,11 +1,16 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 PROG=	rlogind
-#CFLAGS+=-DKERBEROS -DCRYPT
-SRCS=	rlogind.c #des_rw.c
+SRCS=	rlogind.c
 MAN8=	rlogind.8
-DPADD=	${LIBUTIL} #${LIBKRB} ${LIBDES}
-LDADD=	-lutil #-lkrb -ldes
-.PATH: ${.CURDIR}/../../usr.bin/rlogin
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
+	|| defined(MAKE_EBONES))
+CFLAGS+=-DKERBEROS -DCRYPT
+DPADD=	${LIBKRB} ${LIBDES}
+LDADD+=	-lkrb -ldes
+.endif
 
 .include <bsd.prog.mk>
