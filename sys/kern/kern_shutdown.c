@@ -339,16 +339,19 @@ boot(int howto)
 		for (bp = &buf[nbuf]; --bp >= buf; ) {
 			if (((bp->b_flags&B_INVAL) == 0 && BUF_REFCNT(bp)) ||
 			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI)) {
+#if 0
+/* XXX: This is bogus.  We should probably have a BO_REMOTE flag instead */
 				if (bp->b_dev == NULL) {
 					TAILQ_REMOVE(&mountlist,
 					    bp->b_vp->v_mount, mnt_list);
 					continue;
 				}
+#endif
 				nbusy++;
 #if defined(SHOW_BUSYBUFS) || defined(DIAGNOSTIC)
 				printf(
-			    "%d: dev:%s, flags:%0x, blkno:%ld, lblkno:%ld\n",
-				    nbusy, devtoname(bp->b_dev),
+			    "%d: bufobj:%p, flags:%0x, blkno:%ld, lblkno:%ld\n",
+				    nbusy, bp->b_bufobj,
 				    bp->b_flags, (long)bp->b_blkno,
 				    (long)bp->b_lblkno);
 #endif
