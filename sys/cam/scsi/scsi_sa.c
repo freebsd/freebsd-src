@@ -652,15 +652,16 @@ sastrategy(struct bio *bp)
 	u_int  unit;
 	int    s;
 	
+	bp->bio_resid = bp->bio_bcount;
 	if (SA_IS_CTRL(bp->bio_dev)) {
-		bp->bio_error = EINVAL;
-		goto bad;
+		biofinish(bp, NULL, EINVAL);
+		return;
 	}
 	unit = SAUNIT(bp->bio_dev);
 	periph = cam_extend_get(saperiphs, unit);
 	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	softc = (struct sa_softc *)periph->softc;
 
@@ -668,14 +669,14 @@ sastrategy(struct bio *bp)
 
 	if (softc->flags & SA_FLAG_INVALID) {
 		splx(s);
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 
 	if (softc->flags & SA_FLAG_TAPE_FROZEN) {
 		splx(s);
-		bp->bio_error = EPERM;
-		goto bad;
+		biofinish(bp, NULL, EPERM);
+		return;
 	}
 
 	splx(s);
@@ -683,8 +684,10 @@ sastrategy(struct bio *bp)
 	/*
 	 * If it's a null transfer, return immediatly
 	 */
-	if (bp->bio_bcount == 0)
-		goto done;
+	if (bp->bio_bcount == 0) {
+		biodone(bp);
+		return;
+	}
 
 	/* valid request?  */
 	if (softc->flags & SA_FLAG_FIXED) {
@@ -700,8 +703,8 @@ sastrategy(struct bio *bp)
 			printf("Invalid request.  Fixed block device "
 			       "requests must be a multiple "
 			       "of %d bytes\n", softc->min_blk);
-			bp->bio_error = EINVAL;
-			goto bad;
+			biofinish(bp, NULL, EINVAL);
+			return;
 		}
 	} else if ((bp->bio_bcount > softc->max_blk) ||
 		   (bp->bio_bcount < softc->min_blk) ||
@@ -715,8 +718,8 @@ sastrategy(struct bio *bp)
 		}
 		printf("between %d and %d bytes\n", softc->min_blk,
 		    softc->max_blk);
-		bp->bio_error = EINVAL;
-		goto bad;
+		biofinish(bp, NULL, EINVAL);
+		return;
         }
 	
 	/*
@@ -745,15 +748,6 @@ sastrategy(struct bio *bp)
 	xpt_schedule(periph, 1);
 
 	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-done:
-
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
 }
 
 static int

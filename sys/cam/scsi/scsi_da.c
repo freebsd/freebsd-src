@@ -555,8 +555,8 @@ dastrategy(struct bio *bp)
 	part = dkpart(bp->bio_dev);
 	periph = cam_extend_get(daperiphs, unit);
 	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;		
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	softc = (struct da_softc *)periph->softc;
 #if 0
@@ -578,8 +578,8 @@ dastrategy(struct bio *bp)
 	 */
 	if ((softc->flags & DA_FLAG_PACK_INVALID)) {
 		splx(s);
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	
 	/*
@@ -594,15 +594,6 @@ dastrategy(struct bio *bp)
 	 */
 	xpt_schedule(periph, /* XXX priority */1);
 
-	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
 	return;
 }
 
