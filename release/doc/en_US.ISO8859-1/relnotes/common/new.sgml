@@ -386,40 +386,6 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>Added support for PCI Ethernet adapters based on the
-      National Semiconductor DP83815 chipset, including the NetGear
-      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
-
-      <para>The &man.tap.4; driver, a virtual Ethernet device driver for
-      bridged configurations, has been added.  This device is
-      clonable.  &merged;</para>
-
-      <para>The &man.ti.4; driver now supports the Alteon AceNIC
-      1000baseT Gigabit Ethernet and Netgear GA620T 1000baseT Gigabit
-      cards. &merged;</para>
-
-      <para>The &man.xl.4; driver now supports the 3Com 3C556 and 3C556B
-      MiniPCI adapters used on some laptops. &merged;</para>
-
-      <para arch="alpha">The &man.ed.4; driver is now supported.</para>
-
-      <para>The &man.pcn.4; driver, which supports the AMD PCnet/FAST,
-      PCnet/FAST+, PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA
-      adapters, has been added.  Although these cards are already
-      supported by the &man.lnc.4; driver, the &man.pcn.4; driver runs
-      these chips in 32-bit mode and uses the RX alignment feature to
-      achieve zero-copy receive.  This driver is also
-      machine-independent, so it will work on both the i386 and Alpha
-      platforms.  The &man.lnc.4; driver is still needed to support non-PCI
-      cards. &merged;</para>
-
-      <para>Support for Fujitsu MB86960A/MB86965A based Ethernet
-      PC-Cards is back. &merged;</para>
-
-      <para arch="i386">The snc driver for the National Semiconductor
-      DP8393X (SONIC) Ethernet controller has been added.  Currently,
-      this driver is only used on the PC-98 architecture. &merged;</para>
-
       <para>The &man.an.4; driver for Cisco Aironet cards now supports
       Wired Equivalent Privacy (WEP) encryption, settable via
       &man.ancontrol.8;. &merged;</para>
@@ -431,16 +397,15 @@
       mode, settable via the <option>-M</option> option to
       &man.ancontrol.8;. &merged;</para>
 
-      <para arch="i386">The &man.el.4; driver can now be loaded as a
-      module.</para>
+      <para arch="i386">The &man.bge.4; driver has been added to
+      support the Broadcom BCM570x family of Gigabit Ethernet
+      controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
+      and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
+      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
+      and VLAN tag insertion/stripping are supported, as well as
+      interrupt moderation. &merged;</para>
 
-      <para>The &man.ray.4; driver, which supports the Webgear Aviator
-      wireless network cards, has been committed.  The operation of
-      &man.ray.4; interfaces can be modified by
-      &man.raycontrol.8;. &merged;</para>
-
-      <para arch="alpha">The &man.fpa.4; driver now supports Digital's
-      DEFPA FDDI adaptors on the Alpha.</para>
+      <para arch="alpha">The &man.ed.4; driver is now supported.</para>
 
       <para arch="i386">Linksys Fast Ethernet PCCARD cards supported by the
       &man.ed.4; driver now require the addition of flag
@@ -458,11 +423,26 @@
       required in kernel configurations using the &man.ed.4;
       driver. &merged;</para>
 
+      <para arch="i386">The &man.el.4; driver can now be loaded as a
+      module.</para>
+
+      <para>The &man.faith.4; device is now loadable, unloadable, and
+      clonable.</para>
+
+      <para>Support for Fujitsu MB86960A/MB86965A based Ethernet
+      PC-Cards is back. &merged;</para>
+
+      <para arch="alpha">The &man.fpa.4; driver now supports Digital's
+      DEFPA FDDI adaptors on the Alpha.</para>
+
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
 
-      <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
-      PRO1000-T (10/100/1000) adapters. &merged;</para>
+      <para>The &man.lge.4; driver has been added to support the Level
+      1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
+      device is used on some fiber optic GigE cards from SMC, D-Link
+      and Addtron.  Jumbograms and TCP/IP checksum offload on receive
+      are supported, although hardware VLAN filtering is not. &merged;</para>
 
       <para>Added the &man.nge.4; driver, which supports PCI Gigabit
       Ethernet adapters based on the National Semiconductor DP83820
@@ -472,36 +452,56 @@
       AEG320T.  This driver supports transmit and receive checksum
       offloading. &merged;</para>
 
-      <para>The &man.lge.4; driver has been added to support the Level
-      1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
-      device is used on some fiber optic GigE cards from SMC, D-Link
-      and Addtron.  Jumbograms and TCP/IP checksum offload on receive
-      are supported, although hardware VLAN filtering is not. &merged;</para>
+      <para>The &man.pcn.4; driver, which supports the AMD PCnet/FAST,
+      PCnet/FAST+, PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA
+      adapters, has been added.  Although these cards are already
+      supported by the &man.lnc.4; driver, the &man.pcn.4; driver runs
+      these chips in 32-bit mode and uses the RX alignment feature to
+      achieve zero-copy receive.  This driver is also
+      machine-independent, so it will work on both the i386 and Alpha
+      platforms.  The &man.lnc.4; driver is still needed to support non-PCI
+      cards. &merged;</para>
 
-      <para>The &man.xl.4; driver now supports reception of VLAN
-      tagged frames (on the <quote>Cyclone</quote> or newer
-      chipsets). &merged;</para>
+      <para>The &man.ray.4; driver, which supports the Webgear Aviator
+      wireless network cards, has been committed.  The operation of
+      &man.ray.4; interfaces can be modified by
+      &man.raycontrol.8;. &merged;</para>
+
+      <para>Added support for PCI Ethernet adapters based on the
+      National Semiconductor DP83815 chipset, including the NetGear
+      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
+
+      <para arch="i386">The snc driver for the National Semiconductor
+      DP8393X (SONIC) Ethernet controller has been added.  Currently,
+      this driver is only used on the PC-98 architecture. &merged;</para>
+
+      <para>The &man.stf.4; device is now clonable.</para>
+
+      <para>The &man.tap.4; driver, a virtual Ethernet device driver for
+      bridged configurations, has been added.  This device is
+      clonable.  &merged;</para>
+
+      <para>The &man.ti.4; driver now supports the Alteon AceNIC
+      1000baseT Gigabit Ethernet and Netgear GA620T 1000baseT Gigabit
+      cards. &merged;</para>
 
       <para>The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
 
-      <para>The &man.faith.4; device is now loadable, unloadable, and
-      clonable.</para>
-
-      <para>The &man.stf.4; device is now clonable.</para>
-
       <para>The &man.vlan.4; device is now loadable, unloadable, and
       clonable.</para>
 
-      <para arch="i386">The &man.bge.4; driver has been added to
-      support the Broadcom BCM570x family of Gigabit Ethernet
-      controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
-      and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
-      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
-      and VLAN tag insertion/stripping are supported, as well as
-      interrupt moderation. &merged;</para>
+      <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
+      PRO1000-T (10/100/1000) adapters. &merged;</para>
+
+      <para>The &man.xl.4; driver now supports the 3Com 3C556 and 3C556B
+      MiniPCI adapters used on some laptops. &merged;</para>
+
+      <para>The &man.xl.4; driver now supports reception of VLAN
+      tagged frames (on the <quote>Cyclone</quote> or newer
+      chipsets). &merged;</para>
 
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
