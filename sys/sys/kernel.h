@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.21 1996/09/03 22:52:26 bde Exp $
+ * $Id: kernel.h,v 1.22 1996/09/20 14:36:14 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -140,7 +140,10 @@ enum sysinit_sub_id {
 	SI_SUB_PROTO_END	= 0x8fffffff,	/* XXX: set splx (kludge)*/
 	SI_SUB_KPROF		= 0x90000000,	/* kernel profiling*/
 	SI_SUB_KICK_SCHEDULER	= 0xa0000000,	/* start the timeout events*/
-	SI_SUB_ROOT		= 0xb0000000,	/* root mount*/
+	SI_SUB_INT_CONFIG_HOOKS	= 0xa8000000,	/* Interrupts enabled config */
+	SI_SUB_ROOT_CONF	= 0xb0000000,	/* Find root devices */
+	SI_SUB_DUMP_CONF	= 0xb2000000,	/* Find dump devices */
+	SI_SUB_MOUNT_ROOT	= 0xb4000000,	/* root mount*/
 	SI_SUB_ROOT_FDTAB	= 0xb8000000,	/* root vnode in fd table...*/
 	SI_SUB_SWAP		= 0xc0000000,	/* swap*/
 	SI_SUB_INTRINSIC_POST	= 0xd0000000,	/* proc 0 cleanup*/

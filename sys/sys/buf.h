@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.34 1996/10/13 14:36:37 phk Exp $
+ * $Id: buf.h,v 1.34.2.1 1996/12/15 09:54:26 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -57,8 +57,6 @@ struct iodone_chain {
 		void	*ia_ptr;
 	}	ic_args[5];
 };
-
-typedef TAILQ_HEAD(buf_queue_head, buf) buf_queue_head, *buf_queue_head_t;
 
 /*
  * The buffer header describes an I/O operation in the kernel.
@@ -147,6 +145,60 @@ struct buf {
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
+
+typedef struct buf_queue_head {
+	TAILQ_HEAD(buf_queue, buf) queue;
+	struct	buf *insert_point;
+	struct	buf *switch_point;
+} buf_queue_head, *buf_queue_head_t;
+
+static __inline void bufq_init __P((buf_queue_head *head));
+
+static __inline void bufq_insert_tail __P((buf_queue_head *head,
+						struct buf *bp));
+
+static __inline void bufq_remove __P((buf_queue_head *head,
+					   struct buf *bp));
+
+static __inline struct buf *bufq_first __P((buf_queue_head *head));
+
+static __inline void
+bufq_init(buf_queue_head *head)
+{
+	TAILQ_INIT(&head->queue);
+	head->insert_point = NULL;
+	head->switch_point = NULL;
+}
+
+static __inline void
+bufq_insert_tail(buf_queue_head *head, struct buf *bp)
+{
+	if ((bp->b_flags & B_ORDERED) != 0) {
+		head->insert_point = bp;
+		head->switch_point = NULL;
+	}
+	TAILQ_INSERT_TAIL(&head->queue, bp, b_act);
+}
+
+static __inline void
+bufq_remove(buf_queue_head *head, struct buf *bp)
+{
+	if (bp == head->insert_point)
+		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
+	if (bp == head->switch_point) {
+		if (bp == TAILQ_FIRST(&head->queue))
+			head->switch_point = NULL;
+	} else {
+		head->switch_point = TAILQ_NEXT(bp, b_act);
+	}
+	TAILQ_REMOVE(&head->queue, bp, b_act);
+}
+
+static __inline struct buf *
+bufq_first(buf_queue_head *head)
+{
+	return (TAILQ_FIRST(&head->queue));
+}
 
 /*
  * number of buffer hash entries
