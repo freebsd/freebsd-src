@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.1 1998/12/04 18:01:21 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.15 1998/12/31 16:51:01 wpaul Exp $
  */
 
 /*
@@ -350,6 +350,7 @@ struct pn_desc {
 #define PN_TX_LIST_CNT		64
 #define PN_MIN_FRAMELEN		60
 #define PN_FRAMELEN		1536
+#define PN_RXLEN		1518
 
 /*
  * A tx 'super descriptor' is actually 16 regular descriptors
@@ -440,6 +441,12 @@ struct pn_softc {
 	u_int8_t		pn_want_auto;
 	u_int8_t		pn_autoneg;
 	caddr_t			pn_ldata_ptr;
+#ifdef PN_PROMISC_BUG_WAR
+#define PN_169B_REV	33
+	u_int8_t		pn_promisc_war;
+	struct pn_chain_onefrag	*pn_promisc_bug_save;
+	unsigned char           *pn_promisc_buf;
+#endif
 	struct pn_list_data	*pn_ldata;
 	struct pn_chain_data	pn_cdata;
 };
@@ -516,6 +523,7 @@ struct pn_softc {
 #define PN_PCI_DEVICE_ID	0x02
 #define PN_PCI_COMMAND		0x04
 #define PN_PCI_STATUS		0x06
+#define PN_PCI_REVISION		0x08
 #define PN_PCI_CLASSCODE	0x09
 #define PN_PCI_LATENCY_TIMER	0x0D
 #define PN_PCI_HEADER_TYPE	0x0E

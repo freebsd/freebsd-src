@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.3 1998/12/07 21:58:46 archie Exp $
+ *	$Id: if_pn.c,v 1.35 1998/12/31 16:51:01 wpaul Exp $
  */
 
 /*
@@ -91,11 +91,13 @@
 
 /* #define PN_BACKGROUND_AUTONEG */
 
+#define PN_PROMISC_BUG_WAR
+
 #include <pci/if_pnreg.h>
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.3 1998/12/07 21:58:46 archie Exp $";
+	"$Id: if_pn.c,v 1.35 1998/12/31 16:51:01 wpaul Exp $";
 #endif
 
 /*
@@ -132,6 +134,10 @@ static int pn_newbuf		__P((struct pn_softc *,
 static int pn_encap		__P((struct pn_softc *, struct pn_chain *,
 						struct mbuf *));
 
+#ifdef PN_PROMISC_BUG_WAR
+static void pn_promisc_bug_war	__P((struct pn_softc *,
+						struct pn_chain_onefrag *));
+#endif
 static void pn_rxeof		__P((struct pn_softc *));
 static void pn_rxeoc		__P((struct pn_softc *));
 static void pn_txeof		__P((struct pn_softc *));
@@ -785,6 +791,9 @@ pn_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct pn_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
+#ifdef PN_PROMISC_BUG_WAR
+	u_int32_t		revision = 0;
+#endif
 
 	s = splimp();
 
@@ -886,7 +895,7 @@ pn_attach(config_id, unit)
 	if (sc->pn_ldata_ptr == NULL) {
 		free(sc, M_DEVBUF);
 		printf("pn%d: no memory for list buffers!\n", unit);
-		return;
+		goto fail;
 	}
 
 	sc->pn_ldata = (struct pn_list_data *)sc->pn_ldata_ptr;
@@ -901,6 +910,20 @@ pn_attach(config_id, unit)
 	}
 	sc->pn_ldata = (struct pn_list_data *)roundptr;
 	bzero(sc->pn_ldata, sizeof(struct pn_list_data));
+
+#ifdef PN_PROMISC_BUG_WAR
+	revision = pci_conf_read(config_id, PN_PCI_REVISION) & 0x000000FF;
+	if (revision == PN_169B_REV) {
+		sc->pn_promisc_war = 1;
+		sc->pn_promisc_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
+		if (sc->pn_promisc_buf == NULL) {
+			printf("pn%d: no memory for workaround buffer\n", unit);
+			goto fail;
+		}
+	} else {
+		sc->pn_promisc_war = 0;
+	}
+#endif
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -1078,13 +1101,129 @@ static int pn_newbuf(sc, c)
 		return(ENOBUFS);
 	}
 
+	/*
+	 * Zero the buffer. This is part of the workaround for the
+	 * promiscuous mode bug in the revision 33 PNIC chips.
+	 */
+	bzero((char *)mtod(m_new, char *), MCLBYTES);
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+
 	c->pn_mbuf = m_new;
 	c->pn_ptr->pn_status = PN_RXSTAT;
 	c->pn_ptr->pn_data = vtophys(mtod(m_new, caddr_t));
-	c->pn_ptr->pn_ctl = PN_RXCTL_RLINK | (MCLBYTES - 1);
+	c->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
 
 	return(0);
 }
+
+#ifdef PN_PROMISC_BUG_WAR
+/*
+ * Grrrrr.
+ * Revision 33 of the PNIC chip has a terrible bug in it that manifests
+ * itself when you enable promiscuous mode. Sometimes instead of uploading
+ * one complete frame, it uploads its entire FIFO memory. The frame we
+ * want is at the end of this whole mess, but we never know exactly
+ * how much data has been uploaded, so finding it can be hard.
+ *
+ * There is only one way to do it reliably, and it's disgusting.
+ * Here's what we know:
+ *
+ * - We know there will always be somewhere between one and three extra
+ *   descriptors uploaded.
+ *
+ * - We know the desired received frame will always be at the end of the
+ *   total data upload.
+ *
+ * - We know the size of the desired received frame because it will be
+ *   provided in the length field of the status word in the last descriptor.
+ *
+ * Here's what we do:
+ *
+ * - When we allocate buffers for the receive ring, we bzero() them.
+ *   This means that we know that the buffer contents should be all
+ *   zeros, except for data uploaded by the chip.
+ *
+ * - We also force the PNIC chip to upload frames that include the
+ *   ethernet CRC at the end.
+ *
+ * - We gather all of the bogus frame data into a single buffer.
+ *
+ * - We then position a pointer at the end of this buffer and scan
+ *   backwards until we encounter the first non-zero byte of data.
+ *   This is the end of the received frame. We know we will encounter
+ *   some data at the end of the frame because the CRC will always be
+ *   there, so even if the sender transmits a packet of all zeros,
+ *   we won't be fooled.
+ *
+ * - We know the size of the actual received frame, so we subtract
+ *   that value from the current pointer location. This brings us
+ *   to the start of the actual received packet.
+ *
+ * - We copy this into an mbuf and pass it on, along with the actual
+ *   frame length.
+ *
+ * The performance hit is tremendous, but it beats dropping frames all
+ * the time.
+ */
+
+#define PN_WHOLEFRAME	(PN_RXSTAT_FIRSTFRAG|PN_RXSTAT_LASTFRAG)
+static void pn_promisc_bug_war(sc, cur_rx)
+	struct pn_softc		*sc;
+	struct pn_chain_onefrag	*cur_rx;
+{
+	struct pn_chain_onefrag	*c;
+	unsigned char		*ptr;
+	int			total_len;
+	u_int32_t		rxstat = 0;
+
+	c = sc->pn_promisc_bug_save;
+	ptr = sc->pn_promisc_buf;
+	bzero(ptr, sizeof(PN_RXLEN * 5));
+
+	/* Copy all the bytes from the bogus buffers. */
+	while ((c->pn_ptr->pn_status & PN_WHOLEFRAME) != PN_WHOLEFRAME) {
+		rxstat = c->pn_ptr->pn_status;
+		m_copydata(c->pn_mbuf, 0, PN_RXLEN, ptr);
+		ptr += PN_RXLEN - 2; /* round down to 32-bit boundary */
+		if (c == cur_rx)
+			break;
+		if (rxstat & PN_RXSTAT_LASTFRAG)
+			break;
+		c->pn_ptr->pn_status = PN_RXSTAT;
+		c->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
+		bzero((char *)mtod(c->pn_mbuf, char *), MCLBYTES);
+		c = c->pn_nextdesc;
+	}
+
+
+	/* Find the length of the actual receive frame. */
+	total_len = PN_RXBYTES(rxstat);
+
+	/* Scan backwards until we hit a non-zero byte. */
+	while(*ptr == 0x00) {
+		ptr--;
+	}
+
+	if ((u_int32_t)(ptr) & 0x3)
+		ptr -= 1;
+
+	/* Now find the start of the frame. */
+	ptr -= total_len;
+	if (ptr < sc->pn_promisc_buf)
+		ptr = sc->pn_promisc_buf;
+
+	/*
+	 * Now copy the salvaged frame to the last mbuf and fake up
+	 * the status word to make it look like a successful
+ 	 * frame reception.
+	 */
+	m_copyback(cur_rx->pn_mbuf, 0, total_len, ptr);
+	cur_rx->pn_mbuf->m_len = c->pn_mbuf->m_pkthdr.len = MCLBYTES;
+	cur_rx->pn_ptr->pn_status |= PN_RXSTAT_FIRSTFRAG;
+
+	return;
+}
+#endif
 
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
@@ -1107,6 +1246,24 @@ static void pn_rxeof(sc)
 		cur_rx = sc->pn_cdata.pn_rx_head;
 		sc->pn_cdata.pn_rx_head = cur_rx->pn_nextdesc;
 
+#ifdef PN_PROMISC_BUG_WAR
+		/*
+		 * XXX The PNIC seems to have a bug that manifests
+		 * when the promiscuous mode bit is set: we have to
+		 * watch for it and work around it.
+		 */
+		if (sc->pn_promisc_war && ifp->if_flags & IFF_PROMISC) {
+			if ((rxstat & PN_WHOLEFRAME) != PN_WHOLEFRAME) {
+				if (rxstat & PN_RXSTAT_FIRSTFRAG)
+					sc->pn_promisc_bug_save = cur_rx;
+				if ((rxstat & PN_RXSTAT_LASTFRAG) == 0)
+					continue;
+				pn_promisc_bug_war(sc, cur_rx);
+				rxstat = cur_rx->pn_ptr->pn_status;
+			}
+		}
+#endif
+
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -1118,14 +1275,17 @@ static void pn_rxeof(sc)
 			if (rxstat & PN_RXSTAT_COLLSEEN)
 				ifp->if_collisions++;
 			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
-			cur_rx->pn_ptr->pn_ctl =
-				PN_RXCTL_RLINK | (MCLBYTES - 1);
+			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
+			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
 			continue;
 		}
 
 		/* No errors; receive the packet. */	
 		m = cur_rx->pn_mbuf;
 		total_len = PN_RXBYTES(cur_rx->pn_ptr->pn_status);
+
+		/* Trim off the CRC. */
+		total_len -= ETHER_CRC_LEN;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
@@ -1136,10 +1296,9 @@ static void pn_rxeof(sc)
 		 */
 		if (pn_newbuf(sc, cur_rx) == ENOBUFS) {
 			ifp->if_ierrors++;
-			cur_rx->pn_ptr->pn_status =
-				PN_RXSTAT_FIRSTFRAG|PN_RXSTAT_LASTFRAG;
-			cur_rx->pn_ptr->pn_ctl =
-					PN_RXCTL_RLINK | (MCLBYTES - 1);
+			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
+			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
+			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
 			continue;
 		}
 
@@ -1299,7 +1458,6 @@ static void pn_intr(arg)
 
 		if ((status & PN_INTRS) == 0)
 			break;
-
 
 		if (status & PN_ISR_RX_OK)
 			pn_rxeof(sc);
@@ -1550,7 +1708,7 @@ static void pn_init(xsc)
 	CSR_WRITE_4(sc, PN_BUSCTL, PN_BUSCTL_CONFIG);
 
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_TX_IMMEDIATE);
-	PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_NO_RXCRC);
+	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_NO_RXCRC);
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_HEARTBEAT);
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_STORENFWD);
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_TX_BACKOFF);
