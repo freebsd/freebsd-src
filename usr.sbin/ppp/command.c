@@ -2047,12 +2047,14 @@ SetVariable(struct cmdargs const *arg)
                    &arg->bundle->ncp.ipcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
+#ifndef NOINET6
   case VAR_IPV6CPRETRY:
     res = SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
                    &arg->bundle->ncp.ipv6cp.cfg.fsm.timeout,
                    &arg->bundle->ncp.ipv6cp.cfg.fsm.maxreq,
                    &arg->bundle->ncp.ipv6cp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
+#endif
 
   case VAR_NBNS:
   case VAR_DNS:
