@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.1.1.1 1997/01/17 23:19:48 joerg Exp $
+ * $Id: pdq.c,v 1.2 1997/01/17 23:54:31 joerg Exp $
  *
  */
 
@@ -764,7 +764,7 @@ pdq_process_received_data(
 		       dataptr[PDQ_RX_FC_OFFSET+5],
 		       dataptr[PDQ_RX_FC_OFFSET+6]);
 		/* rx->rx_badcrc++; */
-	    } else if (status.rxs_fsc == 0 | status.rxs_fsb_e == 1) {
+	    } else if (status.rxs_fsc == 0 || status.rxs_fsb_e == 1) {
 		/* rx->rx_frame_status_errors++; */
 	    } else {
 		/* hardware fault */
