@@ -311,7 +311,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
-        {
+	{
 		/*
 		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
 		 */
@@ -332,7 +332,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E-*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
-        {
+	{
 		/*
 		 * KingByte Pen Drives
 		 */
@@ -397,7 +397,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Digital", "World   DMC","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
-        {
+	{
 		/*
 		 * Apacer HandyDrive
 		 * PR: kern/43627
@@ -407,7 +407,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * DaisyTechnology PhotoClip on Zoran chip
+		 * Daisy Technology PhotoClip on Zoran chip
 		 * PR: kern/43580
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH", "*"},
