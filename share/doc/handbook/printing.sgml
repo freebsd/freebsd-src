@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.13 1996/12/28 20:38:42 wosch Exp $
+     $Id: printing.sgml,v 1.14 1996/12/31 21:54:20 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -3018,7 +3018,7 @@ done
 [ "$login" ] || fail "No login name"
 [ "$host" ] || fail "No host name"
 
-( /u/kelly/freebsd/printing/filters/make-ps-header $login $host "DVI File"
+( /usr/local/libexec/make-ps-header $login $host "DVI File"
   /usr/local/bin/dvips -f ) | eval /usr/local/libexec/lprps $orig_args
 </code>
 	    Notice how the filter has to parse the argument list in
