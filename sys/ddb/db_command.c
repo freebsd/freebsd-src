@@ -414,6 +414,7 @@ static struct command db_command_table[] = {
 	{ "next",	db_trace_until_matching_cmd,0,	0 },
 	{ "match",	db_trace_until_matching_cmd,0,	0 },
 	{ "trace",	db_stack_trace_cmd,	0,	0 },
+	{ "where",	db_stack_trace_cmd,	0,	0 },
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
