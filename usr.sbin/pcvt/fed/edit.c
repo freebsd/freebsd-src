@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993, 1994 by Hellmuth Michaelis
+ * Copyright (c) 1992, 2000 Hellmuth Michaelis
  *
  * All rights reserved.
  *
@@ -11,12 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE DEVELOPER ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,8 +22,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * 	edit.c, 3.00, last edit-date: [Sun Jan  2 20:08:27 1994]
  */
 
 /*---------------------------------------------------------------------------
@@ -37,10 +29,9 @@
  *	edit.c		font editor edit character
  *	------------------------------------------
  *
- *	written by Hellmuth Michaelis, hm@hcshh.hcs.de
+ * 	edit.c, 3.00, last edit-date: [Mon Mar 27 16:35:47 2000]
  *
- *	-hm	first public release
- *	-hm	some debugging & cleanup
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
