@@ -116,6 +116,7 @@
 #define FD_360in5_25    16
 #define FD_640in5_25    17
 
+#define BIO_RDSECTID	BIO_FLAG1
 
 static struct fd_type fd_types[NUMTYPES] =
 {
@@ -142,6 +143,8 @@ static struct fd_type fd_types[NUMTYPES] =
 #define DRVS_PER_CTLR 2		/* 2 floppies */
 
 #define MAX_SEC_SIZE	(128 << 3)
+#define MAX_CYLINDER	79
+#define MAX_HEAD	1
 
 /***********************************************************************\
 * Per controller structure.						*
@@ -205,6 +208,7 @@ static timeout_t fd_pseudointr;
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
+static int fdreadid(dev_t, struct fdc_readid *);
 
 static int enable_fifo(fdc_p fdc);
 static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
@@ -1480,7 +1484,8 @@ fdstrategy(struct bio *bp)
 	};
 
 	fdblk = 128 << (fd->ft->secsize);
-	if (!(bp->bio_cmd & BIO_FORMAT)) {
+	if (!(bp->bio_cmd & BIO_FORMAT) &&
+	    !(bp->bio_flags & BIO_RDSECTID)) {
 		if (bp->bio_blkno < 0) {
 			printf(
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
@@ -1655,7 +1660,7 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 static int
 fdstate(fdc_p fdc)
 {
-	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
+	int read, format, rdsectid, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
@@ -1697,6 +1702,7 @@ fdstate(fdc_p fdc)
 	else
 		idf = ISADMA_WRITE;
 	format = bp->bio_cmd & BIO_FORMAT;
+	rdsectid = bp->bio_flags & BIO_RDSECTID;
 	if (format) {
 		finfo = (struct fd_formb *)bp->bio_data;
 		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
@@ -1841,7 +1847,7 @@ fdstate(fdc_p fdc)
 		}
 
 		fd->track = b_cylinder;
-		if (!(fdc->flags & FDC_NODMA))
+		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmastart(idf, bp->bio_data+fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
@@ -1850,7 +1856,7 @@ fdstate(fdc_p fdc)
 		sec = sec % sectrac + 1;
 		fd->hddrv = ((head&1)<<2)+fdu;
 
-		if(format || !read)
+		if(format || !(read || rdsectid))
 		{
 			/* make sure the drive is writable */
 			if(fd_sense_drive_status(fdc, &st3) != 0)
@@ -1921,7 +1927,14 @@ fdstate(fdc_p fdc)
 				fdc->retry = 6;
 				return (retrier(fdc));
 			}
+		} else if (rdsectid) {
+			if (fd_cmd(fdc, 2, NE7CMD_READID, head << 2 | fdu, 0)) {
+				/* controller jamming */
+				fdc->retry = 6;
+				return (retrier(fdc));
+			}
 		} else {
+			/* read or write operation */
 			if (fdc->flags & FDC_NODMA) {
 				/*
 				 * this seems to be necessary even when
@@ -1959,7 +1972,7 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		}
-		if (fdc->flags & FDC_NODMA)
+		if (!rdsectid && (fdc->flags & FDC_NODMA))
 			/*
 			 * if this is a read, then simply await interrupt
 			 * before performing PIO
@@ -1989,7 +2002,7 @@ fdstate(fdc_p fdc)
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
 
 		if (fd_read_status(fdc, fd->fdsu)) {
-			if (!(fdc->flags & FDC_NODMA))
+			if (!rdsectid && !(fdc->flags & FDC_NODMA))
 				isa_dmadone(idf, bp->bio_data + fd->skip,
 					    format ? bp->bio_bcount : fdblk,
 					    fdc->dmachan);
@@ -2003,7 +2016,7 @@ fdstate(fdc_p fdc)
 		/* FALLTHROUGH */
 
 	case IOTIMEDOUT:
-		if (!(fdc->flags & FDC_NODMA))
+		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmadone(idf, bp->bio_data + fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
 		if (fdc->status[0] & NE7_ST0_IC) {
@@ -2029,8 +2042,16 @@ fdstate(fdc_p fdc)
 			return (retrier(fdc));
 		}
 		/* All OK */
+		if (rdsectid) {
+			struct fdc_readid *idp = (struct fdc_readid *)bp->bio_data;
+			/* copy out ID field contents */
+			idp->cyl = fdc->status[3];
+			idp->head = fdc->status[4];
+			idp->sec = fdc->status[5];
+			idp->secshift = fdc->status[6];
+		}
 		fd->skip += fdblk;
-		if (!format && fd->skip < bp->bio_bcount - bp->bio_resid) {
+		if (!rdsectid && !format && fd->skip < bp->bio_bcount - bp->bio_resid) {
 			/* set up next transfer */
 			fdc->state = DOSEEK;
 		} else {
@@ -2284,6 +2305,61 @@ fdformat(dev_t dev, struct fd_formb *finfo, struct proc *p)
 	return rv;
 }
 
+static int
+fdreadid(dev_t dev, struct fdc_readid *idfield)
+{
+ 	fdu_t	fdu;
+ 	fd_p	fd;
+
+	struct bio *bp;
+	int rv = 0, s;
+	size_t fdblk;
+
+ 	fdu	= FDUNIT(minor(dev));
+	fd	= devclass_get_softc(fd_devclass, fdu);
+	fdblk = 128 << fd->ft->secsize;
+
+	/* set up a buffer header for fdstrategy() */
+	bp = (struct bio *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
+	if(bp == 0)
+		return ENOMEM;
+
+	bzero((void *)bp, sizeof(*bp));
+	bp->bio_cmd = BIO_READ;
+	bp->bio_flags |= BIO_RDSECTID;
+
+	/*
+	 * calculate a fake blkno, so fdstrategy() would initiate a
+	 * seek to the requested cylinder
+	 */
+	bp->bio_blkno = (idfield->cyl * (fd->ft->sectrac * fd->ft->heads)
+		+ idfield->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
+	bp->bio_bcount = sizeof(struct fdc_readid);
+	bp->bio_data = (caddr_t)idfield;
+	bp->bio_dev = dev;
+	bp->bio_done = fdbiodone;
+	fdstrategy(bp);
+
+	/* ...and wait for it to complete */
+	s = splbio();
+	while(!(bp->bio_flags & BIO_DONE)) {
+		rv = tsleep((caddr_t)bp, PRIBIO, "fdrdid", 10 * hz);
+		if (rv == EWOULDBLOCK)
+			break;
+	}
+	splx(s);
+
+	if (rv == EWOULDBLOCK) {
+		/* timed out */
+		rv = EIO;
+		device_unbusy(fd->dev);
+	}
+	if (bp->bio_flags & BIO_ERROR)
+		rv = bp->bio_error;
+	free(bp, M_TEMP);
+	return rv;
+}
+
 /*
  * TODO: don't allocate buffer on stack.
  */
@@ -2298,6 +2374,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct fd_type *fdt;
 	struct disklabel *dl;
 	struct fdc_status *fsp;
+	struct fdc_readid *rid;
 	char buffer[DEV_BSIZE];
 	int error = 0;
 
@@ -2385,6 +2462,13 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
 			return EINVAL;
 		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
+		break;
+
+	case FD_READID:
+		rid = (struct fdc_readid *)addr;
+		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
+			return EINVAL;
+		error = fdreadid(dev, rid);
 		break;
 
 	default:
