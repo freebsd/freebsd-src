@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $Id: nqnfs.h,v 1.16 1998/05/31 20:09:00 peter Exp $
+ * $Id: nqnfs.h,v 1.17 1998/06/01 07:23:26 peter Exp $
  */
 
 
@@ -189,7 +189,7 @@ extern CIRCLEQ_HEAD(nqtimerhead, nqlease) nqtimerhead;
  * List head for the file handle hash table.
  */
 #define	NQFHHASH(f) \
-	(&nqfhhashtbl[(*((u_long *)(f))) & nqfhhash])
+	(&nqfhhashtbl[(*((u_int32_t *)(f))) & nqfhhash])
 extern LIST_HEAD(nqfhhashhead, nqlease) *nqfhhashtbl;
 extern u_long nqfhhash;
 
