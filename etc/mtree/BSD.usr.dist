@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.31 1995/01/30 15:20:53 ache Exp $
+#	$Id: BSD.usr.dist,v 1.32 1995/02/15 00:41:23 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -22,6 +22,8 @@
         ..
         protocols      
         ..
+	readline
+	..
         rpc            
         ..
 	ss
@@ -179,6 +181,8 @@
         me             
         ..
         misc           
+	    pkg_manage
+	    ..
             fonts          
             ..
         ..
