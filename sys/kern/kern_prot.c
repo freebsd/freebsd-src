@@ -79,9 +79,9 @@ getpid(p, uap)
 
 	p->p_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	PROCTREE_LOCK(PT_SHARED);
+	PROC_LOCK(p);
 	p->p_retval[1] = p->p_pptr->p_pid;
-	PROCTREE_LOCK(PT_RELEASE);
+	PROC_UNLOCK(p);
 #endif
 	return (0);
 }
@@ -102,9 +102,9 @@ getppid(p, uap)
 	struct getppid_args *uap;
 {
 
-	PROCTREE_LOCK(PT_SHARED);
+	PROC_LOCK(p);
 	p->p_retval[0] = p->p_pptr->p_pid;
-	PROCTREE_LOCK(PT_RELEASE);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
