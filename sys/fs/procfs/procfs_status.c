@@ -71,7 +71,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	int i;
 	int xlen;
 	int error;
-	char psbuf[256];		/* XXX - conservative */
+	char psbuf[256+MAXHOSTNAMELEN];	/* XXX - conservative */
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
