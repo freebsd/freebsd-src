@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.34 1996/07/27 03:23:42 dyson Exp $
+ * $Id: kern_exit.c,v 1.35 1996/07/30 03:08:37 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -81,6 +81,16 @@
 static int wait1 __P((struct proc *, struct wait_args *, int [], int));
 
 /*
+ * callout list for things to do at exit time
+ */
+typedef struct exit_list_element {
+	struct exit_list_element *next;
+	exitlist_fn function;
+} *ele_p;
+
+static ele_p exit_list;
+
+/*
  * exit --
  *	Death of process.
  */
@@ -109,6 +119,7 @@ exit1(p, rv)
 {
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
+	ele_p ep = exit_list;
 
 	if (p->p_pid == 1) {
 		printf("init died (signal %d, exit %d)\n",
@@ -118,6 +129,16 @@ exit1(p, rv)
 #ifdef PGINPROF
 	vmsizmon();
 #endif
+	/* 
+	 * Check if any LKMs need anything done at process exit
+	 * e.g. SYSV IPC stuff
+	 * XXX what if one of these generates an error?
+	 */
+	while(ep) {
+		(*ep->function)(p);
+		ep = ep->next;
+	}
+
 	if (p->p_flag & P_PROFIL)
 		stopprofclock(p);
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
@@ -473,3 +494,52 @@ proc_reparent(child, parent)
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
 }
+
+/*********************************************************
+ * general routines to handle adding/deleting items on the
+ * exit callout list
+ *****
+ * Take the arguments given and put them onto the exit callout list.
+ * However first make sure that it's not already there.
+ * returns 0 on success.
+ */
+int
+at_exit(exitlist_fn function)
+{
+	ele_p ep;
+	if(rm_at_exit(function)) {
+		printf("exit callout entry already present\n");
+	}
+	ep = malloc(sizeof(*ep),M_TEMP,M_NOWAIT);
+	if(!ep) return ENOMEM;
+	ep->next = exit_list;
+	ep->function = function;
+	exit_list = ep;
+	return 0;
+}
+/*
+ * Scan the exit callout list for the given items and remove them.
+ * Returns the number of items removed.
+ */
+int
+rm_at_exit(exitlist_fn function)
+{
+	ele_p *epp,ep;
+	int count = 0;
+
+	epp = &exit_list;
+	ep = *epp;
+	while(ep) {
+		if(ep->function == function) {
+			*epp = ep->next;
+			free(ep,M_TEMP);
+			count++;
+		} else {
+			epp = &ep->next;
+		}
+		ep = *epp;
+	}
+	return count;
+}
+
+
