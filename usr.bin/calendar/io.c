@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -112,14 +114,16 @@ cal()
 		if (strncasecmp(buf, "Easter=", 7) == 0 && buf[7]) {
 			if (neaster.name != NULL)
 				free(neaster.name);
-			neaster.name = strdup(buf + 7);
+			if ((neaster.name = strdup(buf + 7)) == NULL)
+				errx(1, "cannot allocate memory");
 			neaster.len = strlen(buf + 7);
 			continue;
 		}
 		if (strncasecmp(buf, "Paskha=", 7) == 0 && buf[7]) {
 			if (npaskha.name != NULL)
 				free(npaskha.name);
-			npaskha.name = strdup(buf + 7);
+			if ((npaskha.name = strdup(buf + 7)) == NULL)
+				errx(1, "cannot allocate memory");
 			npaskha.len = strlen(buf + 7);
 			continue;
 		}
@@ -259,20 +263,19 @@ opencal()
 		(void)close(pdes[0]);
 		uid = geteuid();
 		if (setuid(getuid()) < 0) {
-			fprintf(stderr, "calendar: first setuid failed\n");
+			warnx("first setuid failed");
 			_exit(1);
 		};
 		if (setgid(getegid()) < 0) {
-			fprintf(stderr, "calendar: setgid failed\n");
+			warnx("setgid failed");
 			_exit(1);
 		}
 		if (setuid(uid) < 0) {
-			fprintf(stderr, "calendar: setuid failed\n");
+			warnx("setuid failed");
 			_exit(1);
 		}
 		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
-		(void)fprintf(stderr,
-		    "calendar: execl: %s: %s.\n", _PATH_CPP, strerror(errno));
+		warn(_PATH_CPP);
 		_exit(1);
 	}
 	/* parent -- set stdin to pipe output */
@@ -322,21 +325,20 @@ closecal(fp)
 		(void)close(pdes[1]);
 		uid = geteuid();
 		if (setuid(getuid()) < 0) {
-			fprintf(stderr, "calendar: setuid failed\n");
+			warnx("setuid failed");
 			_exit(1);
 		};
 		if (setgid(getegid()) < 0) {
-			fprintf(stderr, "calendar: setgid failed\n");
+			warnx("setgid failed");
 			_exit(1);
 		}
 		if (setuid(uid) < 0) {
-			fprintf(stderr, "calendar: setuid failed\n");
+			warnx("setuid failed");
 			_exit(1);
 		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
 		    "\"Reminder Service\"", NULL);
-		(void)fprintf(stderr,
-		    "calendar: %s: %s.\n", _PATH_SENDMAIL, strerror(errno));
+		warn(_PATH_SENDMAIL);
 		_exit(1);
 	}
 	/* parent -- write to pipe input */
@@ -352,4 +354,3 @@ done:	(void)fclose(fp);
 	(void)unlink(path);
 	while (wait(&status) >= 0);
 }
-
