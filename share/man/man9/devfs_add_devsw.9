@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: devfs_add_devsw.9,v 1.1 1995/12/31 00:08:17 joerg Exp $
+.\" $Id: devfs_add_devsw.9,v 1.2 1996/01/30 13:51:51 mpp Exp $
 .\"
 .Dd December 31, 1995
 .Os FreeBSD
@@ -34,7 +34,7 @@
 .Nm devfs_add_devsw
 .Nd wire device into devswitch table
 .Sh SYNOPSIS
-.Fd #include <devfsext.h>
+.Fd #include <sys/devfsext.h>
 .Ft void *
 .Fn devfs_add_devsw "char *path" "char *name" "void *devsw" "int minor" "int chrblk" "uid_t uid" "gid_t gid" "int perms"
 .Sh DESCRIPTION
