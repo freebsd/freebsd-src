@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.29 1995/10/22 17:39:09 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.31 1995/10/22 21:38:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,6 +57,7 @@ static FTP_t ftp;
 extern int FtpPort;
 
 static int reselectCount = 0;
+static char *lastRequest;
 
 static Boolean
 get_new_host(Device *dev, Boolean tentative)
@@ -73,8 +74,8 @@ get_new_host(Device *dev, Boolean tentative)
     ++reselectCount;
 
     dialog_clear();
-    msgConfirm("One of the distributions or packages you specified failed to load from\n"
-	       "the FTP site you selected.  Please select another one from the FTP menu.");
+    msgConfirm("The %s file failed to load from the FTP site you\n"
+	       "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
@@ -250,6 +251,8 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     fp = file;
     nretries = 0;
 
+    /* Kludge for init */
+    lastRequest = file;
     if (!dev->init(dev))
 	return -2;
 

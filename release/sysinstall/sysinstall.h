@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.34 1995/10/22 12:04:12 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.36 1995/10/22 21:38:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -379,6 +379,7 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 extern int	configFstab(void);
 extern void	configSysconfig(void);
 extern void	configResolv(void);
+extern int	configNetworking(char *str);
 extern int	configPorts(char *str);
 extern int	configPackages(char *str);
 extern int	configSaverTimeout(char *str);
@@ -471,10 +472,10 @@ int		index_extract(Device *dev, PkgNodePtr plist);
 extern int	installCommit(char *str);
 extern int	installExpress(char *str);
 extern int	installFixit(char *str);
+extern int	installFixup(char *str);
 extern int	installUpgrade(char *str);
 extern int	installPreconfig(char *str);
-extern int	installFixup(char *str);
-extern int	installFinal(char *str);
+extern int	installNetworking(char *str);
 extern int	installFilesystems(char *str);
 extern int	installVarDefaults(char *str);
 

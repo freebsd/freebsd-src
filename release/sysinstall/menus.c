@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.31 1995/10/22 12:04:08 jkh Exp $
+ * $Id: menus.c,v 1.42.2.32 1995/10/22 21:38:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -676,7 +676,7 @@ software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
     { { "Add User",		"Add users to the system",
-	DMENU_SYSTEM_COMMAND,	"adduser -config_create ; adduser -s", 0, 0			},
+	DMENU_SYSTEM_COMMAND,	"adduser -config_create ; adduser -s", 0, 0 },
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
@@ -684,7 +684,7 @@ software not provided in the base distributions.",
       { "Media",		"Change the installation media type",
 	DMENU_SUBMENU,		&MenuMedia, 0, 0			},
       { "Networking",		"Configure additional network services",
-	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
+	DMENU_CALL, 		configNetworking, 0, 0			},
       { "Options",		"Go to options editor.",
 	DMENU_CALL,		optionsEditor, 0, 0			},
       { "Packages",		"Install pre-packaged software for FreeBSD",
