@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.14 1994/08/22 13:11:32 jkh Exp $
+# $Id: bsd.port.mk,v 1.15 1994/08/22 13:25:33 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -30,8 +30,9 @@
 # Default targets and their behaviors:
 #
 # extract	- Unpacks ${DISTDIR}/${DISTNAME}.tar.gz into ${WRKDIR}.
-# configure	- Applys patches, if any, and runs either GNU configure, a
-#		  local configure or nothing, depending on settings.
+# configure	- Applys patches, if any, and runs either GNU configure, one
+#		  or more local configure scripts or nothing, depending on
+#		  what's available.
 # build		- Actually compile the sources.
 # install	- Install the results of a build.
 # package	- Create a package from a build.
@@ -71,13 +72,21 @@ BUNDLE_CMD?=	tar
 BUNDLE_ARGS?=	-C ${WRKDIR} -czf
 
 PKG_CMD?=	pkg_create
-PKG_ARGS?=	-c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
+PKG_ARGS?=	-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
 PKG_SUFX?=	.tgz
 
 HOME_LOCATION?=	<original site unknown>
 
 .MAIN: all
 all: extract configure build
+
+# Try to make whomever's install target maintain the same semantics.
+install:: pre-install
+
+.if !target(pre-install)
+pre-install:
+	@echo -n
+.endif
 
 .if !target(install)
 install:
@@ -89,19 +98,36 @@ install:
 .endif
 .endif
 
+# Try to make whomever's package target maintain the same semantics.
+package::	pre-package
+
+.if !target(pre-package)
+pre-package:
+	@echo -n
+.endif
+
 .if !target(package)
 package:
 # Makes some gross assumptions about a fairly simple package with no
 # install, require or deinstall scripts.  Override the arguments with
 # PKG_ARGS if your package is anything but run-of-the-mill.
 	@if [ -d ${PKGDIR} ]; then \
-	   echo "===>  Building package for ${DISTNAME}"; \
-	   @if [ -d ${PACKAGES} ]; then \
+	   if [ -d ${PACKAGES} ]; then \
+	   	echo "===>  Building package for ${DISTNAME} in ${PACKAGES}"; \
 		${PKG_CMD} ${PKG_ARGS} ${PACKAGES}/${DISTNAME}${PKG_SUFX}; \
 	   else \
+	   	echo "===>  Building package for ${DISTNAME} in ${.CURDIR}"; \
 	   	${PKG_CMD} ${PKG_ARGS} ${DISTNAME}${PKG_SUFX}; \
 	   fi; \
 	fi
+.endif
+
+# Try to make whomever's build target maintain the same semantics.
+build::	pre-build
+
+.if !target(pre-build)
+pre-build:
+	@echo -n
 .endif
 
 .if !target(build)
@@ -125,6 +151,11 @@ build: configure
 	@(cd ${WRKSRC}; ${MAKE} all)
 .endif
 .endif
+
+# No pre-configure stuff since that's handled differently.  We wrap
+# pre-configure and post-configure scripts around what is generally
+# an originally-provided script file, and easier to pre/post install for
+# than change.
 
 .if !target(configure)
 # This is done with a .configure because configures are often expensive,
@@ -159,6 +190,14 @@ ${CONFIGURE_COOKIE}:
 	@touch -f ${CONFIGURE_COOKIE}
 .endif
 
+# Try to make whomever's bundle target maintain the same semantics.
+bundle:: pre-bundle
+
+.if !target(pre-bundle)
+pre-bundle:
+	@echo -n
+.endif
+
 .if !target(bundle)
 bundle:
 	@echo "===>  Bundling for ${DISTNAME}"
@@ -168,11 +207,19 @@ bundle:
 	   exit 0; \
 	fi
 	@if [ -f ${CONFIGURE_COOKIE} ]; then \
-	   echo ">> WARNING:  This source has been configured and may be"; \
+	   echo ">> WARNING:  This source has been configured and may"; \
 	   echo ">> produce a tainted distfile!"; \
 	fi
 	${BUNDLE_CMD} ${BUNDLE_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} \
 		${DISTNAME}
+.endif
+
+# Try to make whomever's extract target maintain the same semantics.
+extract::	pre-extract
+
+.if !target(pre-extract)
+pre-extract:
+	@echo -n
 .endif
 
 .if !target(extract)
@@ -196,6 +243,8 @@ ${EXTRACT_COOKIE}:
 	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}
 	@touch -f ${EXTRACT_COOKIE}
 .endif
+
+# No pre-targets for clean, depend or tags.  It would be silly.
 
 .if !target(clean)
 clean:
