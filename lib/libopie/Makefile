@@ -24,9 +24,15 @@ INCS=	${OPIE_DIST}/opie.h
 CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 	-DKEY_FILE=${KEYFILE}
 
+.if defined(WANT_INSECURE_OPIE) && ${WANT_INSECURE_OPIE} == true
+CFLAGS+=-DINSECURE_OVERRIDE
+.endif
+
 LDADD+=	-lmd
 DPADD+=	${LIBMD}
 
 MAN=	${OPIE_DIST}/opie.4 ${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
+
+MLINKS=	opie.4 skey.4
 
 .include <bsd.lib.mk>
