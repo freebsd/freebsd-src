@@ -125,7 +125,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	struct	proc *p1;
 	struct	trapframe *tf;
 	struct	callframe *cf;
-	struct	switchframe *sf;
 	struct	pcb *pcb;
 
 	KASSERT(td1 == curthread || td1 == &thread0,
