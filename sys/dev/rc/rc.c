@@ -182,14 +182,14 @@ static int  rc_modctl(struct rc_chans *, int, int);
 static void rc_start(struct tty *);
 static void rc_stop(struct tty *, int rw);
 static int  rc_param(struct tty *, struct termios *);
-static void rcpoll		(void *);
+static void rcpoll(void *);
 static void rc_reinit(struct rc_softc *);
 #ifdef RCDEBUG
 static void printrcflags();
 #endif
 static timeout_t rc_dtrwakeup;
 static timeout_t rc_wakeup;
-static void disc_optim		(struct tty	*tp, struct termios *t,	struct rc_chans	*);
+static void disc_optim(struct tty *tp, struct termios *t, struct rc_chans *);
 static void rc_wait0(int nec, int unit, int chan, int line);
 
 /**********************************************/
