@@ -47,7 +47,7 @@
 #include <devstat.h>
 #include <sys/devicestat.h>
 
-static int flag_c;
+static int flag_c, flag_d;
 static int flag_I = 500000;
 
 static void usage(void);
@@ -66,13 +66,16 @@ main(int argc, char **argv)
 	struct gident *gid;
 	short cf, cb;
 	char *p;
-	long double ld[8];
+	long double ld[11];
 	uint64_t u64;
 
-	while ((i = getopt(argc, argv, "cI:")) != -1) {
+	while ((i = getopt(argc, argv, "dcI:")) != -1) {
 		switch (i) {
 		case 'c':
 			flag_c = 1;
+			break;
+		case 'd':
+			flag_d = 1;
 			break;
 		case 'I':
 			p = NULL;
@@ -136,7 +139,12 @@ main(int argc, char **argv)
 		move(0,0);
 		printw("dT: %5.3f  flag_I %dus  sizeof %d  i %d\n",
 		    dt, flag_I, sizeof(*gsp), i);
-		printw(" L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %%busy Name\n");
+		printw(" L(q)  ops/s   ");
+		printw(" r/s   kBps   ms/r   ");
+		printw(" w/s   kBps   ms/d   ");
+		if (flag_d)
+			printw(" d/s   kBps   ms/d   ");
+		printw("%%busy Name\n");
 		for (;;) {
 			gsp = geom_stats_snapshot_next(sp);
 			gsq = geom_stats_snapshot_next(sq);
@@ -163,13 +171,19 @@ main(int argc, char **argv)
 			devstat_compute_statistics(gsp, gsq, dt, 
 			    DSM_QUEUE_LENGTH, &u64,
 			    DSM_TRANSFERS_PER_SECOND, &ld[0],
+
 			    DSM_TRANSFERS_PER_SECOND_READ, &ld[1],
 			    DSM_MB_PER_SECOND_READ, &ld[2],
 			    DSM_MS_PER_TRANSACTION_READ, &ld[3],
+
 			    DSM_TRANSFERS_PER_SECOND_WRITE, &ld[4],
 			    DSM_MB_PER_SECOND_WRITE, &ld[5],
 			    DSM_MS_PER_TRANSACTION_WRITE, &ld[6],
+
 			    DSM_BUSY_PCT, &ld[7],
+			    DSM_TRANSFERS_PER_SECOND_FREE, &ld[8],
+			    DSM_MB_PER_SECOND_FREE, &ld[9],
+			    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
 			    DSM_NONE);
 
 			printw(" %4ju", (uintmax_t)u64);
@@ -180,6 +194,12 @@ main(int argc, char **argv)
 			printw(" %6.0f", (double)ld[4]);
 			printw(" %6.0f", (double)ld[5] * 1024);
 			printw(" %6.1f", (double)ld[6]);
+
+			if (flag_d) {
+				printw(" %6.0f", (double)ld[8]);
+				printw(" %6.0f", (double)ld[9] * 1024);
+				printw(" %6.1f", (double)ld[10]);
+			}
 
 			if (ld[7] > 80)
 				i = 3;
