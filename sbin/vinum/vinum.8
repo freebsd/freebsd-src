@@ -1093,6 +1093,30 @@ dependent on the context.
 The configuration file can contain the following entries:
 .Pp
 .Bl -hang -width 4n
+.It Nm drive Ar name option
+.Pp
+Define a drive.  The option must be:
+.Pp
+.Bl -hang -width 18n
+.It Nm device Ar devicename
+Specify the device on which the drive resides.  
+.Ar devicename
+must be the name of a disk compatibility partition, for example
+.Pa /dev/da1e
+or
+.Pa /dev/wd3h ,
+and it should be of type
+.Nm vinum .
+Do not use the
+.Nm c
+partition, which is reserved for the complete disk, and should be of type
+.Nm unused .
+It is currently possible to create drives on other disk devices, for example
+.Pa /dev/da0s1
+or 
+.Pa /dev/da0s1e ,
+but it will not be possible to start these drives after a reboot.
+.El
 .It Nm volume
 .Ar name
 .Op options
@@ -1254,14 +1278,6 @@ on the last drive specified.
 .br
 .fi
 .El
-.It Nm drive Ar name Op options
-.Pp
-Define a drive.  The option must be:
-.Pp
-.Bl -hang -width 18n
-.It Nm device Ar devicename
-Specify the device on which the drive resides.
-.El
 .El
 .Sh EXAMPLE CONFIGURATION FILE
 .Bd -literal
@@ -1389,23 +1405,28 @@ system.
 The first choice you need to make is where to put the data.  You need dedicated
 disk partitions for
 .Nm vinum .
-See the example under DRIVE LAYOUT CONSIDERATIONS above.  Choose partition type
+They should be compatibility partitions, not devices or partition
+.Nm c
+of a slice.  For example, good names are
+.Pa /dev/da0e
+or
+.Pa /dev/wd3a .
+Bad names are 
+.Pa /dev/da0
+and
+.Pa /dev/da0s1 ,
+both of which represent a device, not a partition,
+.Pa /dev/wd1c ,
+which represents a complete disk and should be of type
+.Nm unused ,
+and
+.Pa /dev/da3s0e ,
+which is not a compatibility partition.
 .Nm
-unless your version of
-.Xr disklabel 8
-does not understand this partition type, in which case you will need to use
-partition type
-.Nm unused
-until you update your version of
-.Xr disklabel 8 .
-Use the compatibility partition (for example,
-.Pa /dev/da0g )
-rather than the true partition name (such as
-.Pa /dev/da0s1g ).
-.Nm
-currently uses the compatibility partition only for the
+currently allows you to create drives with these names, but the
 .Nm start
-command, so this way you can avoid problems.
+command will not find them.  See the example under DRIVE LAYOUT CONSIDERATIONS
+above.
 .Ss Designing volumes
 The way you set up
 .Nm
