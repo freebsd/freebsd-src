@@ -10,6 +10,8 @@ INCS=	mmintrin.h xmmintrin.h
 INCS=	ia64intrin.h
 .endif
 
+NOOBJ=
+
 .include <bsd.init.mk>
 .include <bsd.incs.mk>
 .include <bsd.obj.mk>
