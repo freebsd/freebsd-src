@@ -879,7 +879,7 @@ sis_probe(device_t dev)
 		if ((pci_get_vendor(dev) == t->sis_vid) &&
 		    (pci_get_device(dev) == t->sis_did)) {
 			device_set_desc(dev, t->sis_name);
-			return(0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

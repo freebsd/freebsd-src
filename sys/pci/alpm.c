@@ -166,7 +166,7 @@ alpm_probe(device_t dev)
 			return (ENXIO);
 		}
 #endif
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);

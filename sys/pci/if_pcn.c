@@ -521,7 +521,7 @@ pcn_probe(dev)
 		return(ENXIO);
 	}
 	device_set_desc(dev, t->pcn_name);
-	return(0);
+	return(BUS_PROBE_DEFAULT);
 }
 
 /*
