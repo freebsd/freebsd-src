@@ -68,7 +68,7 @@ CTL_MSG msg;
 void
 open_sockt()
 {
-	int length;
+	socklen_t length;
 
 	(void)memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
@@ -76,7 +76,7 @@ open_sockt()
 	my_addr.sin_addr = my_machine_addr;
 	my_addr.sin_port = 0;
 	sockt = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockt <= 0)
+	if (sockt == -1)
 		p_error("Bad socket");
 	if (bind(sockt, (struct sockaddr *)&my_addr, sizeof(my_addr)) != 0)
 		p_error("Binding local socket");
@@ -89,7 +89,7 @@ open_sockt()
 void
 open_ctl()
 {
-	int length;
+	socklen_t length;
 
 	(void)memset(&ctl_addr, 0, sizeof(ctl_addr));
 	ctl_addr.sin_family = AF_INET;
@@ -97,7 +97,7 @@ open_ctl()
 	ctl_addr.sin_port = 0;
 	ctl_addr.sin_addr = my_machine_addr;
 	ctl_sockt = socket(AF_INET, SOCK_DGRAM, 0);
-	if (ctl_sockt <= 0)
+	if (ctl_sockt == -1)
 		p_error("Bad socket");
 	if (bind(ctl_sockt,
 	    (struct sockaddr *)&ctl_addr, sizeof(ctl_addr)) != 0)
