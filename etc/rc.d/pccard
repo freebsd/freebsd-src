@@ -1,4 +1,4 @@
-#!/bin/sh -
+#!/bin/sh
 #
 # Copyright (c) 1996  The FreeBSD Project
 # All rights reserved.
@@ -27,30 +27,42 @@
 # $FreeBSD$
 #
 
-#	PC-card startup script
+# PROVIDE: pccard
+# REQUIRE: mountcritlocal
+# KEYWORD: FreeBSD
 
-case ${pccard_enable} in
-[Yy][Ee][Ss])
-	echo -n 'Setup PC-CARD:'
+. /etc/rc.subr
 
-	case ${pccard_mem} in
-	[Dd][Ee][Ff][Aa][Uu][Ll][Tt])
-		pccardc pccardmem 0xd0000 1>/dev/null && echo -n ' memory'
-		;;
-	*)
-		pccardc pccardmem ${pccard_mem} 1>/dev/null && echo -n ' memory'
-		;;
-	esac
+name="pccard"
+start_cmd="pccard_start"
+stop_cmd=":"
 
-	if [ -n "${pccard_beep}" ] ; then
-		pccardc beep ${pccard_beep} && echo -n ' beep'
+pccard_start()
+{
+	if checkyesno pccard_enable ; then
+		echo -n 'Setup PC-CARD:'
+
+		case ${pccard_mem} in
+		[Dd][Ee][Ff][Aa][Uu][Ll][Tt])
+			pccardc pccardmem 0xd0000 1>/dev/null && echo -n ' memory'
+			;;
+		*)
+			pccardc pccardmem ${pccard_mem} 1>/dev/null && echo -n ' memory'
+			;;
+		esac
+
+		if [ -n "${pccard_beep}" ] ; then
+			pccardc beep ${pccard_beep} && echo -n ' beep'
+		fi
+
+		if [ -n "${pccard_conf}" ]; then
+			pccardd_flags="${pccardd_flags} -f ${pccard_conf}"
+		fi
+
+		pccardd ${pccardd_flags} && echo -n ' pccardd'
+		echo '.'
 	fi
+}
 
-	if [ -n "${pccard_conf}" ]; then
-		pccardd_flags="${pccardd_flags} -f ${pccard_conf}"
-	fi
-
-	pccardd ${pccardd_flags} && echo -n ' pccardd'
-	echo '.'
-	;;
-esac
+load_rc_config $name
+run_rc_command "$1"

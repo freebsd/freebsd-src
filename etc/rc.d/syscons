@@ -25,8 +25,16 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
-#	Do syscons configuration
 #
+
+# PROVIDE: syscons
+# REQUIRE: LOGIN usbd
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="syscons"
+load_rc_config $name
 
 # stdin must be redirected because it might be for a serial console
 #
@@ -154,23 +162,6 @@ case ${saver} in
 	;;
 esac
 
-# mouse daemon
-#
-case ${moused_enable} in
-[Yy][Ee][Ss])
-	echo -n ' moused'
-	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
-	case ${mousechar_start} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		echo -n ' mousechar_start';  vidcontrol < ${viddev} -M ${mousechar_start}
-		;;
-	esac
-	vidcontrol < ${viddev} -m on
-	;;
-esac
-
 # set this mode for all virtual screens
 #
 if [ -n "${allscreens_flags}" ]; then
@@ -188,5 +179,3 @@ if [ -n "${allscreens_kbdflags}" ]; then
 		kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
 	done
 fi
-
-echo '.'
