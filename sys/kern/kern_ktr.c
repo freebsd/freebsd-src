@@ -263,6 +263,7 @@ static	int db_mach_vtrace(void);
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	int	c, lines;
+	int	all = 0;
 
 	lines = NUM_LINES_PER_PAGE;
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
@@ -271,8 +272,13 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 		db_ktr_verbose = 1;
 	else
 		db_ktr_verbose = 0;
+	if (strcmp(modif, "a") == 0)
+		all = 1;
 	while (db_mach_vtrace())
-		if (--lines == 0) {
+		if (all) {
+			if (cncheckc() != -1)
+				return;
+		} else if (--lines == 0) {
 			db_printf("--More--");
 			c = cngetc();
 			db_printf("\r");
