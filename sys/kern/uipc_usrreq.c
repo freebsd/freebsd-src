@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.19 1997/02/22 09:39:29 peter Exp $
+ *	$Id: uipc_usrreq.c,v 1.20 1997/02/24 20:30:58 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -697,6 +697,10 @@ unp_externalize(rights)
 	return (0);
 }
 
+#ifndef MIN
+#define	MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+
 static int
 unp_internalize(control, p)
 	struct mbuf *control;
@@ -707,11 +711,29 @@ unp_internalize(control, p)
 	register struct file **rp;
 	register struct file *fp;
 	register int i, fd;
+	register struct cmsgcred *cmcred;
 	int oldfds;
 
-	if (cm->cmsg_type != SCM_RIGHTS || cm->cmsg_level != SOL_SOCKET ||
-	    cm->cmsg_len != control->m_len)
+	if ((cm->cmsg_type != SCM_RIGHTS && cm->cmsg_type != SCM_CREDS) ||
+	    cm->cmsg_level != SOL_SOCKET || cm->cmsg_len != control->m_len)
 		return (EINVAL);
+
+	/*
+	 * Fill in credential information.
+	 */
+	if (cm->cmsg_type == SCM_CREDS) {
+		cmcred = (struct cmsgcred *)(cm + 1);
+		cmcred->cmcred_pid = p->p_pid;
+		cmcred->cmcred_uid = p->p_cred->p_ruid;
+		cmcred->cmcred_gid = p->p_cred->p_rgid;
+		cmcred->cmcred_euid = p->p_ucred->cr_uid;
+		cmcred->cmcred_ngroups = MIN(p->p_ucred->cr_ngroups,
+							CMGROUP_MAX);
+		for (i = 0; i < cmcred->cmcred_ngroups; i++)
+			cmcred->cmcred_groups[i] = p->p_ucred->cr_groups[i];
+		return(0);
+	}
+
 	oldfds = (cm->cmsg_len - sizeof (*cm)) / sizeof (int);
 	/*
 	 * check that all the FDs passed in refer to legal OPEN files
