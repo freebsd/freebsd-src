@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)routed.h	8.1 (Berkeley) 6/2/93
+ *
+ *	$NetBSD$
  */
 
 #ifndef _ROUTED_H_
@@ -38,7 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 1.8 $"
+#ident "$Revision: 1.9 $"
 
 /*
  * Routing Information Protocol
@@ -55,48 +57,49 @@ extern "C" {
 #endif
 
 #define RIP_PORT	520
-	
+
 #if RIPVERSION == 1
 /* Note that this so called sockaddr has a 2-byte sa_family and no sa_len.
  * It is not a UNIX sockaddr, but the shape of an address as defined
- * in RIPv1.
+ * in RIPv1.  It is still defined to allow old versions of programs
+ * such as `gated` to use this file to define RIPv1.
  */
 struct netinfo {
 	struct	sockaddr rip_dst;	/* destination net/host */
-	int	rip_metric;		/* cost of route */
+	u_int32_t   rip_metric;		/* cost of route */
 };
 #else
 struct netinfo {
-	u_short	n_family;
+	u_int16_t   n_family;
 #define	    RIP_AF_INET	    htons(AF_INET)
 #define	    RIP_AF_UNSPEC   0
 #define	    RIP_AF_AUTH	    0xffff
-	u_short	n_tag;			/* optional in RIPv2 */
-	u_int	n_dst;			/* destination net or host */
+	u_int16_t   n_tag;		/* optional in RIPv2 */
+	u_int32_t   n_dst;		/* destination net or host */
 #define	    RIP_DEFAULT	    0
-	u_int	n_mask;			/* netmask in RIPv2 */
-	u_int	n_nhop;			/* optional next hop in RIPv2 */
-	u_int	n_metric;		/* cost of route */
+	u_int32_t   n_mask;		/* netmask in RIPv2 */
+	u_int32_t   n_nhop;		/* optional next hop in RIPv2 */
+	u_int32_t   n_metric;		/* cost of route */
 };
 #endif
 
 /* RIPv2 authentication */
 struct netauth {
-	u_short	a_type;
+	u_int16_t   a_type;
 #define	    RIP_AUTH_PW	    htons(2)	/* password type */
 	union {
 #define	    RIP_AUTH_PW_LEN 16
-	    char    au_pw[RIP_AUTH_PW_LEN];
+	    int8_t    au_pw[RIP_AUTH_PW_LEN];
 	} au;
 };
 
 struct rip {
-	u_char	rip_cmd;		/* request/response */
-	u_char	rip_vers;		/* protocol version # */
-	u_short	rip_res1;		/* pad to 32-bit boundary */
+	u_int8_t    rip_cmd;		/* request/response */
+	u_int8_t    rip_vers;		/* protocol version # */
+	u_int16_t   rip_res1;		/* pad to 32-bit boundary */
 	union {				/* variable length... */
 	    struct netinfo ru_nets[1];
-	    char    ru_tracefile[1];
+	    int8_t    ru_tracefile[1];
 	    struct netauth ru_auth[1];
 	} ripun;
 #define	rip_nets	ripun.ru_nets
@@ -129,7 +132,7 @@ char *ripcmds[RIPCMD_MAX] = {
 #define NETS_LEN ((MAXPACKETSIZE-sizeof(struct rip))	\
 		      / sizeof(struct netinfo) +1)
 
-#define INADDR_RIP_GROUP (u_long)0xe0000009 /* 224.0.0.9 */
+#define INADDR_RIP_GROUP (u_int32_t)0xe0000009	/* 224.0.0.9 */
 
 
 /* Timer values used in managing the routing table.
