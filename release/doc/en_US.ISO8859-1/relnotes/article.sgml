@@ -330,6 +330,16 @@
     better compatability with some BIOS implementations that do not
     completely implement the El Torito bootable CDROM standard.</para>
 
+    <para arch="i386">The pmc driver, which supports the power
+    management controller of the NEC PC-98NOTE, has been
+    added. &merged;</para>
+
+    <para>The kernel configuration parameters
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
+    all loader tunables. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -570,7 +580,8 @@
       <quote>proxy-only</quote> published entries.</para>
 
       <para>&man.bridge.4; and &man.dummynet.4; have received some
-      enhancements and bug fixes.</para>
+      enhancements and bug fixes, and are now loadable
+      modules. &merged;</para>
 
       <para>ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs
       generated due to packets sent to open and unopen ports are now
@@ -1568,6 +1579,10 @@
     <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
     allows for packet matching on interfaces with dynamically-changing
     IP addresses. &merged;</para>
+
+    <para>&man.ipfw.8; has a new <literal>limit</literal> type of
+    firewall rule, which limits the number of sessions between address
+    pairs. &merged;</para>
 
     <para>&man.ip6fw.8; now has the ability to use a preprocessor
     and use the <option>-q</option> (quiet) flag when reading from a
