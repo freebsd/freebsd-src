@@ -44,7 +44,7 @@
 struct tap_softc {
 	struct arpcom	arpcom;			/* ethernet common data      */
 #define tap_if		arpcom.ac_if
-	dev_t		tap_dev;		/* device                    */
+	struct resource	*tap_unit;		/* unit                      */
 
 	u_short		tap_flags;		/* misc flags                */
 #define	TAP_OPEN	(1 << 0)
@@ -59,6 +59,8 @@ struct tap_softc {
 	pid_t		 tap_pid;		/* PID of process to open    */
 	struct sigio	*tap_sigio;		/* information for async I/O */
 	struct selinfo	 tap_rsel;		/* read select               */
+
+	SLIST_ENTRY(tap_softc)	tap_next;	/* next device in chain      */
 };
 
 #endif /* !_NET_IF_TAPVAR_H_ */
