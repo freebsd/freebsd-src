@@ -218,21 +218,6 @@ CD_DISC2=		${CD}/disc2
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
-# ${BOOTSTRAPDIR} is for those utilities that refer to the hosting
-# environment, rather than the target environment.  This is specifically
-# intended for kernel-dependent utilities that are used during the build.
-#
-# ${BOOTSTRAPDIR} is actually being used by prepending it to the normal
-# ${PATH}.  Thus, it's also available to outside utilities like doFS.sh.
-BOOTSTRAPDIR=	/bootstrap
-#
-# The mount subsystem has been changed between 2.2 and 3.0 by the
-# Lite2 import.
-BOOTSTRAPUTILS=	/sbin/mount /sbin/umount
-#
-# 3.0 cpio tries to reference lchown(2) which is not available in 2.2
-BOOTSTRAPUTILS+= /usr/bin/cpio
-
 .if !defined(CRUNCH_TARGETS)
 CRUNCH_TARGETS=	boot fixit
 .endif
@@ -285,10 +270,6 @@ rerelease release:
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
-	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
-	for i in ${BOOTSTRAPUTILS} ; do \
-		cp -p ${CHROOTDIR}$$i ${CHROOTDIR}/${BOOTSTRAPDIR} ; \
-	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASESRCMODULE}
@@ -404,7 +385,7 @@ rerelease release:
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
-	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
+	echo "export PATH=$${PATH}:${LOCALDIR}"	>> ${CHROOTDIR}/mk
 	echo "export TMPDIR=/tmp"		>> ${CHROOTDIR}/mk
 	echo "export MAKEOBJDIRPREFIX=/usr/obj"	>> ${CHROOTDIR}/mk
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
