@@ -303,7 +303,7 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
-	case ISP_FC_RESCAN:
+	case ISP_RESCAN:
 		if (IS_FC(isp)) {
 			ISP_LOCK(isp);
 			if (isp_fc_runstate(isp, 5 * 1000000)) {
