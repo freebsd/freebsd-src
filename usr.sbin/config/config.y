@@ -126,10 +126,10 @@ struct	device *curp = 0;
 
 #define ns(s)	strdup(s)
 
-void init_dev __P((struct device *));
-int finddev __P((dev_t));
-void deverror __P((char *, char *));
 int alreadychecked __P((dev_t, dev_t[], dev_t *));
+void deverror __P((char *, char *));
+int finddev __P((dev_t));
+void init_dev __P((struct device *));
 void verifycomp __P((struct file_list *));
 
 %}
@@ -662,6 +662,7 @@ void
 yyerror(s)
 	char *s;
 {
+
 	warnx("line %d: %s", yyline + 1, s);
 }
 
@@ -1115,6 +1116,7 @@ void
 deverror(systemname, devtype)
 	char *systemname, *devtype;
 {
+
 	warnx("%s: %s device not configured", systemname, devtype);
 }
 
