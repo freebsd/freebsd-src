@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.88 1997/04/20 17:26:54 bde Exp $
+ *	$Id: mcd.c,v 1.89 1997/05/04 15:24:20 joerg Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -223,7 +223,7 @@ static	d_strategy_t	mcdstrategy;
 static struct cdevsw mcd_cdevsw;
 static struct bdevsw mcd_bdevsw = 
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
-	  nodump,	mcdsize,	0,	"mcd",	&mcd_cdevsw,	-1 };
+	  nodump,	mcdsize,	D_DISK,	"mcd",	&mcd_cdevsw,	-1 };
 
 #define mcd_put(port,byte)	outb(port,byte)
 

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.36 1997/04/04 22:12:55 jkh Exp $
+ *      $Id: worm.c,v 1.37 1997/05/05 13:35:01 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -155,7 +155,7 @@ static	d_strategy_t	wormstrategy;
 static struct cdevsw worm_cdevsw;
 static struct bdevsw worm_bdevsw = 
 	{ wormopen,	wormclose,	wormstrategy,	wormioctl,	/*23*/
-	  nodump,	nopsize,	0,	"worm",	&worm_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"worm",	&worm_cdevsw,	-1 };
 
 
 static int
