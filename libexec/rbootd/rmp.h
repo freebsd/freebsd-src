@@ -1,5 +1,3 @@
-/*	$NetBSD: rmp.h,v 1.4 1995/10/06 05:12:18 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
