@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_node.c,v 1.3 1994/08/02 07:41:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -562,7 +562,7 @@ cd9660_deftstamp(isodir,inop,bp)
 int
 cd9660_tstamp_conv7(pi,pu)
 char *pi;
-struct timeval *pu;
+struct timespec *pu;
 {
 	int i;
 	int crtime, days;
@@ -577,8 +577,8 @@ struct timeval *pu;
 	tz = pi[6];
 	
 	if (y < 1970) {
-		pu->tv_sec  = 0;
-		pu->tv_usec = 0;
+		pu->ts_sec  = 0;
+		pu->ts_nsec = 0;
 		return 0;
 	} else {
 #ifdef	ORIGINAL
@@ -598,8 +598,8 @@ struct timeval *pu;
 		if (-48 <= tz && tz <= 52)
 			crtime += tz * 15 * 60;
 	}
-	pu->tv_sec  = crtime;
-	pu->tv_usec = 0;
+	pu->ts_sec  = crtime;
+	pu->ts_nsec = 0;
 	return 1;
 }
 
@@ -620,7 +620,7 @@ cd9660_chars2ui(begin,len)
 int
 cd9660_tstamp_conv17(pi,pu)
 	unsigned char *pi;
-	struct timeval *pu;
+	struct timespec *pu;
 {
 	unsigned char buf[7];
 	
