@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1997 Charles Mott <cmott@srv.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alias_cmd.c,v 1.9 1997/12/21 12:11:04 brian Exp $
  */
 
 #include <sys/param.h>
