@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_group.c,v 1.1.1.3 1996/12/10 23:59:01 joerg Exp $
+ *	$Id: pw_group.c,v 1.2 1996/12/19 15:22:44 davidn Exp $
  */
 
 #include <unistd.h>
@@ -32,6 +32,7 @@
 
 #include "pw.h"
 #include "bitmap.h"
+#include "pwupd.h"
 
 
 static int      print_group(struct group * grp, int pretty);
@@ -44,7 +45,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	struct carg    *a_gid = getarg(args, 'g');
 	struct carg    *arg;
 	struct group   *grp = NULL;
-	char           *members[_UC_MAXGROUPS];
+	int	        grmembers = 0;
+	char          **members = NULL;
 
 	static struct group fakegroup =
 	{
@@ -93,8 +95,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 		if (grp == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
+				char	*fmems[1];
+				fmems[0] = NULL;
 				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
 				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : -1;
+				fakegroup.gr_mem = fmems;
 				return print_group(&fakegroup, getarg(args, 'P') != NULL);
 			}
 			cmderr(EX_DATAERR, "unknown group `%s'\n", a_name ? a_name->val : a_gid->val);
@@ -126,7 +131,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		else if (grp != NULL)	/* Exists */
 			cmderr(EX_DATAERR, "group name `%s' already exists\n", a_name->val);
 
-		memset(members, 0, sizeof members);
+		extendarray(&members, &grmembers, 200);
+		members[0] = NULL;
 		grp = &fakegroup;
 		grp->gr_name = pw_checkname((u_char *)a_name->val, 0);
 		grp->gr_passwd = "*";
@@ -188,13 +194,19 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		char   *p;
 		struct passwd	*pwd;
 
+		/* Make sure this is not stay NULL with -M "" */
+		extendarray(&members, &grmembers, 200);
 		if (arg->ch == 'm') {
-			while (i < _UC_MAXGROUPS && grp->gr_mem[i] != NULL) {
-				members[i] = grp->gr_mem[i];
-				i++;
+			int	k = 0;
+
+			while (grp->gr_mem[k] != NULL) {
+				if (extendarray(&members, &grmembers, i + 2) != -1) {
+					members[i++] = grp->gr_mem[k];
+				}
+				k++;
 			}
 		}
-		for (p = strtok(arg->val, ", \t"); i < _UC_MAXGROUPS && p != NULL; p = strtok(NULL, ", \t")) {
+		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			int     j;
 			if ((pwd = getpwnam(p)) == NULL) {
 				if (!isdigit(*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
@@ -205,10 +217,10 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			 */
 			for (j = 0; j < i && strcmp(members[j], pwd->pw_name)!=0; j++)
 				;
-			if (j == i)
+			if (j == i && extendarray(&members, &grmembers, i + 2) != -1)
 				members[i++] = newstr(pwd->pw_name);
 		}
-		while (i < _UC_MAXGROUPS)
+		while (i < grmembers)
 			members[i++] = NULL;
 		grp->gr_mem = members;
 	}
@@ -225,6 +237,9 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		cmderr(EX_SOFTWARE, "group disappeared during update\n");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
+
+	if (members)
+		free(members);
 
 	return EXIT_SUCCESS;
 }
@@ -296,17 +311,19 @@ static int
 print_group(struct group * grp, int pretty)
 {
 	if (!pretty) {
-		char            buf[_UC_MAXLINE];
+		int		buflen = 0;
+		char           *buf = NULL;
 
-		fmtgrent(buf, grp);
+		fmtgrent(&buf, &buflen, grp);
 		fputs(buf, stdout);
+		free(buf);
 	} else {
 		int             i;
 
-		printf("Group Name : %-10s   #%lu\n"
-		       "   Members : ",
+		printf("Group Name: %-10s   #%lu\n"
+		       "   Members: ",
 		       grp->gr_name, (long) grp->gr_gid);
-		for (i = 0; i < _UC_MAXGROUPS && grp->gr_mem[i]; i++)
+		for (i = 0; grp->gr_mem[i]; i++)
 			printf("%s%s", i ? "," : "", grp->gr_mem[i]);
 		fputs("\n\n", stdout);
 	}

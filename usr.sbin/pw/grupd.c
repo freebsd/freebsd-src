@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: grupd.c,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: grupd.c,v 1.1.1.2 1996/12/10 23:58:56 joerg Exp $
  */
 
 #include <stdio.h>
@@ -38,30 +38,51 @@
 #include "pwupd.h"
 
 int
-fmtgrentry(char *buf, struct group * grp, int type)
+fmtgrentry(char **buf, int * buflen, struct group * grp, int type)
 {
 	int             i, l;
 
-	if (type == PWF_STANDARD)
-		l = sprintf(buf, "%s:*:%ld:", grp->gr_name, (long) grp->gr_gid);
-	else
-		l = sprintf(buf, "%s:%s:%ld:", grp->gr_name, grp->gr_passwd, (long) grp->gr_gid);
-
 	/*
-	 * Now, list members
+	 * Since a group line is of arbitrary length,
+	 * we need to calculate up-front just how long
+	 * it will need to be...
 	 */
-	for (i = 0; i < 200 && grp->gr_mem[i]; i++)
-		l += sprintf(buf + l, "%s%s", i ? "," : "", grp->gr_mem[i]);
-	buf[l++] = '\n';
-	buf[l] = '\0';
+	/*  groupname              :   password                 :  gid  : */
+	l = strlen(grp->gr_name) + 1 + strlen(grp->gr_passwd) + 1 + 5 + 1;
+	/* group members + comma separator */
+	for (i = 0; grp->gr_mem[i] != NULL; i++) {
+		l += strlen(grp->gr_mem[i]) + 1;
+	}
+	l += 2; /* For newline & NUL */
+	if (extendline(buf, buflen, l) == -1)
+		l = -1;
+	else{
+		/*
+		 * Now we can safely format
+		 */
+		if (type == PWF_STANDARD)
+			l = sprintf(*buf, "%s:*:%ld:", grp->gr_name, (long) grp->gr_gid);
+		else
+			l = sprintf(*buf, "%s:%s:%ld:", grp->gr_name, grp->gr_passwd, (long) grp->gr_gid);
+
+		/*
+		 * List members
+		 */
+		for (i = 0; grp->gr_mem[i] != NULL; i++) {
+			l += sprintf(*buf + l, "%s%s", i ? "," : "", grp->gr_mem[i]);
+		}
+
+		(*buf)[l++] = '\n';
+		(*buf)[l] = '\0';
+	}
 	return l;
 }
 
 
 int
-fmtgrent(char *buf, struct group * grp)
+fmtgrent(char **buf, int * buflen, struct group * grp)
 {
-	return fmtgrentry(buf, grp, PWF_STANDARD);
+	return fmtgrentry(buf, buflen, grp, PWF_STANDARD);
 }
 
 
@@ -69,20 +90,23 @@ static int
 gr_update(struct group * grp, char const * group, int mode)
 {
 	int             l;
-	char            pfx[32];
-	char            grbuf[MAXPWLINE];
+	char            pfx[64];
+	int		grbuflen = 0;
+	char	       *grbuf = NULL;
 
 	endgrent();
-	l = sprintf(pfx, "%s:", group);
+	l = snprintf(pfx, sizeof pfx, "%s:", group);
 
 	/*
 	 * Update the group file
 	 */
-	if (grp == NULL)
-		*grbuf = '\0';
+	if (grp != NULL && fmtgrentry(&grbuf, &grbuflen, grp, PWF_PASSWD) == -1)
+		l = -1;
 	else
-		fmtgrentry(grbuf, grp, PWF_PASSWD);
-	return fileupdate(_PATH_GROUP, 0644, grbuf, pfx, l, mode);
+		l = fileupdate(_PATH_GROUP, 0644, grbuf, pfx, l, mode);
+	if (grbuf != NULL)
+		free(grbuf);
+	return l;
 }
 
 
