@@ -216,6 +216,13 @@ contains_dot_dot (char const *name)
 	    return 0;
 	}
       while (! ISSLASH (*p));
+
+      do
+	{
+	  if (! *p++)
+	    return 0;
+	}
+      while ( ISSLASH (*p));
     }
 }
 
