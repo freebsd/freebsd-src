@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.46 1998/09/14 05:36:49 jdp Exp $
+ * $Id: kern_sig.c,v 1.47 1998/09/14 23:25:18 jdp Exp $
  */
 
 #include "opt_compat.h"
@@ -1229,10 +1229,6 @@ sigexit(p, signum)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
-
-		/* Use the correct function to dump core, as stored in
-		   the sysentvec struct.  This way we can do ELF and a.out
-		   dumps without breaking a sweat. */
 		if (p->p_sysent->sv_coredump != NULL &&
 		    (*p->p_sysent->sv_coredump)(p) == 0)
 			signum |= WCOREFLAG;
