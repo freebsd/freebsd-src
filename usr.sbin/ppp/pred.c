@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.11 1997/06/01 11:35:04 brian Exp $
+ * $Id: pred.c,v 1.12 1997/06/09 03:27:35 brian Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -114,7 +114,7 @@ Pred1Output(int pri, u_short proto, struct mbuf *bp)
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
   int orglen, len;
-  u_char bufp[MAX_MTU];
+  u_char bufp[MAX_MTU+2];
   u_short fcs;
 
   orglen = plength(bp) + 2;	/* add count of proto */
@@ -158,7 +158,7 @@ struct mbuf *bp;
   u_char *bufp;
   u_short fcs, proto;
 
-  wp = mballoc(MAX_MTU, MB_IPIN);
+  wp = mballoc(MAX_MTU+2, MB_IPIN);
   cp = MBUF_CTOP(bp);
   olen = plength(bp);
   pp = bufp = MBUF_CTOP(wp);
