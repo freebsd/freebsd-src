@@ -38,6 +38,7 @@ LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
+LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX in secure dist, not base
 LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX in secure dist, not base
 LIBKEYCAP?=	${DESTDIR}${LIBDIR}/libkeycap.a
