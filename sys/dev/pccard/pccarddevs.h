@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.72 2003/09/22 05:27:03 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.73 2003/10/08 01:15:41 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -775,6 +775,9 @@
 #define	PCMCIA_STR_WORKBIT_ULTRA_NINJA_16	"WORKBIT Ultra Ninja-16 (16bit mode)"
 
 /* Xircom Products */
+#define	PCMCIA_CIS_XIRCOM_CWE1130	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_XIRCOM_CWE1130	0x0007
+#define	PCMCIA_STR_XIRCOM_CWE1130	"Xircom Wireless Ethernet Adapter"
 #define	PCMCIA_CIS_XIRCOM_CE	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_XIRCOM_CE	0x0108
 #define	PCMCIA_STR_XIRCOM_CE	"Xircom CreditCard Ethernet"
