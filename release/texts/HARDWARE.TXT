@@ -149,7 +149,7 @@ of these devices can be difficult to detect accurately, and for some,
 the process of detecting another can cause irreversible confusion.
 
 To make this process easier, FreeBSD provides UserConfig.  With this
-UserConfig, the user can configure and disable device drivers before
+tool the user can configure and disable device drivers before
 the kernel is loaded, avoiding potential conflicts, and eliminating
 the need to reconfigure hardware to suit the default driver settings.
 
@@ -180,7 +180,7 @@ Here is a sample UserConfig screen shot in 'visual' mode:
  Communications :
  Input :
  Multimedia :
- PCI :
+
 
 ---Parameters-for-device-ed0---------------------------------------------------
  Port address : 0x280      Memory address : 0xd8000
@@ -250,9 +250,7 @@ To finish configuring a driver, press 'Q'.
 
 Note that PCI, Microchannel and EISA devices can be probed reliably,
 therefore they are not shown in the table above nor can their settings
-be changed using UserConfig.  PCI drivers may be seen in the "PCI
-Devices" section in the Active Devices list, if you wish to check for
-their presence.
+be changed using UserConfig.
 
 
 3.      LINT - other possible configurations
