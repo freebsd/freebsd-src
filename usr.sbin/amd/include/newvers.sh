@@ -38,6 +38,6 @@ cat << __EOF
 #define USER_NAME "`whoami`"
 
 /* Define configuration date */
-#define CONFIG_DATE "`date`"
+#define CONFIG_DATE "`LC_ALL=C date`"
 
 __EOF
