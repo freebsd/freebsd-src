@@ -139,6 +139,7 @@ const char *trap_msg[] = {
 	"syscall",
 	"restore physical watchpoint",
 	"restore virtual watchpoint",
+	"kernel stack fault",
 };
 
 void
@@ -294,6 +295,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 	 */
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
+	case T_KSTACK_FAULT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
 			goto out;
 		break;
@@ -338,7 +340,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		tf->tf_tstate &= ~TSTATE_IE;
 		wrpr(pstate, rdpr(pstate), PSTATE_IE);
 		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
-		*((u_int *)tf->tf_tnpc) = 0x91d03003;	/* ta %xcc, 2 */
+		*((u_int *)tf->tf_tnpc) = 0x91d03003;	/* ta %xcc, 3 */
 		flush(tf->tf_tnpc);
 		PCPU_SET(wp_va, watch_virt_get(&mask));
 		PCPU_SET(wp_mask, mask);
