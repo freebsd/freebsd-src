@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.40 1997/03/02 17:53:28 bde Exp $
+ *	$Id: mount.h,v 1.41 1997/03/03 11:55:47 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -355,10 +355,13 @@ struct vfsops {
 		flags, \
 	}; \
 	extern struct linker_set MODVNOPS; \
-	MOD_VFS(#fsname,&MODVNOPS,&_fs_vfsconf); \
+	MOD_VFS(fsname,&MODVNOPS,&_fs_vfsconf); \
+	extern int \
+	fsname ## _mod __P((struct lkm_table *, int, int)); \
 	int \
 	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
-		DISPATCH(lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
+		MOD_DISPATCH(fsname, \
+		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
 #else
 
 #define VFS_SET(vfsops, fsname, index, flags) \

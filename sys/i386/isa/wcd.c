@@ -1179,14 +1179,16 @@ int wcd_mod (struct lkm_table *lkmtp, int cmd, int ver)
 	if (err)
 		return err;
 
+	/* XXX Poking around in the LKM internals like this is bad.
+	 */
 	/* Register the cdevsw entry. */
-	lkmtp->private.lkm_dev = &rwcd_module;
+	lkmtp->private.lkm_dev = & MOD_PRIVATE(rwcd);
 	err = lkmdispatch (lkmtp, cmd);
 	if (err)
 		return err;
 
 	/* Register the bdevsw entry. */
-	lkmtp->private.lkm_dev = &wcd_module;
+	lkmtp->private.lkm_dev = & MOD_PRIVATE(wcd);
 	return lkmdispatch (lkmtp, cmd);
 }
 #endif /* WCD_MODULE */

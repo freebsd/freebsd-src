@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id$
+ *	$Id: ip_fw.c,v 1.55 1997/02/22 09:41:32 peter Exp $
  */
 
 /*
@@ -823,6 +823,7 @@ ipfw_unload(struct lkm_table *lkmtp, int cmd)
 int
 ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, lkm_nullcmd);
+	MOD_DISPATCH(ipfw, lkmtp, cmd, ver,
+		ipfw_load, ipfw_unload, lkm_nullcmd);
 }
 #endif
