@@ -192,6 +192,7 @@ _mcleanup()
 	_write(log, buf, len);
 #endif
 	hdr = (struct gmonhdr *)&gmonhdr;
+	bzero(hdr, sizeof(*hdr));
 	hdr->lpc = p->lowpc;
 	hdr->hpc = p->highpc;
 	hdr->ncnt = p->kcountsize + sizeof(gmonhdr);
