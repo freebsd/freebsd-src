@@ -82,7 +82,7 @@ Do not display idle processes.
 By default, top displays both active and idle processes.
 .TP
 .B \-n
-Use \*(lqnon-interactive\*(rq mode.  This is indentical to \*(lqbatch\*(rq
+Use \*(lqnon-interactive\*(rq mode.  This is identical to \*(lqbatch\*(rq
 mode.
 .TP
 .B \-q
@@ -250,7 +250,7 @@ the number of processes in each state
 (sleeping, running, starting, zombies, and stopped),
 and a percentage of time spent in each of the processor states
 (user, nice, system, and idle).
-It also includes information about physial and virtual memory allocation.
+It also includes information about physical and virtual memory allocation.
 .PP
 The remainder of the screen displays information about individual
 processes.  This display is similar in spirit to
@@ -291,7 +291,7 @@ TOP	user-configurable defaults for options.
 .br
 /etc/passwd		used to map uid numbers to user names
 .br
-/vmunix		system image
+/kernel		system image
 .SH BUGS
 Don't shoot me, but the default for
 .B \-I
