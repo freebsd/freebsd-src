@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: exec.c,v 1.8 1998/10/14 18:53:36 des Exp $";
+	"$Id: exec.c,v 1.9 1998/10/14 20:23:40 des Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -105,8 +105,6 @@ execl(name, arg, va_alist)
 	char **argv;
 	int n;
 
-	/* The following code is ugly, but makes execl() vfork()-safe. */
-	
 #if __STDC__
 	va_start(ap, arg);
 #else
@@ -114,9 +112,9 @@ execl(name, arg, va_alist)
 #endif
 	n = 1;
 	while (va_arg(ap, char *) != NULL)
-		n++ ;
+		n++;
 	va_end(ap);
-	argv = (char **)alloca((n + 1) * sizeof(*argv));
+	argv = alloca((n + 1) * sizeof(*argv));
 	if (argv == NULL)
 		return (-1);
 #if __STDC__
@@ -125,7 +123,7 @@ execl(name, arg, va_alist)
 	va_start(ap);
 #endif
 	n = 1;
-	argv[0] = arg;
+	argv[0] = (char *)arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
@@ -143,21 +141,33 @@ execle(name, arg, va_alist)
 #endif
 {
 	va_list ap;
-	int sverrno;
 	char **argv, **envp;
+	int n;
 
 #if __STDC__
 	va_start(ap, arg);
 #else
 	va_start(ap);
 #endif
-	if ( (argv = buildargv(ap, arg, &envp)) )
-		(void)execve(name, argv, envp);
+	n = 1;
+	while (va_arg(ap, char *) != NULL)
+		n++;
 	va_end(ap);
-	sverrno = errno;
-	free(argv);
-	errno = sverrno;
-	return (-1);
+	argv = alloca((n + 1) * sizeof(*argv));
+	if (argv == NULL)
+		return (-1);
+#if __STDC__
+	va_start(ap, arg);
+#else
+	va_start(ap);
+#endif
+	n = 1;
+	argv[0] = (char *)arg;
+	while ((argv[n] = va_arg(ap, char *)) != NULL)
+		n++;
+	envp = va_arg(ap, char **);
+	va_end(ap);
+	return (execve(name, argv, envp));
 }
 
 int
