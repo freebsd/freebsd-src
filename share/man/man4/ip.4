@@ -165,10 +165,14 @@ use a low range of ports, which are normally restricted to
 privileged processes on
 .Ux
 systems.  The range is normally from
-.Dv IPPORT_RESERVED
+.Dv IPPORT_RESERVED - 1
 down to
-.Li 1
-in descending order.  This range is not sysctl configurable.
+.Li IPPORT_RESERVEDSTART
+in descending order. 
+This is adjustable through the sysctl setting:
+.Sy net.inet.ip.portrange.lowfirst
+and
+.Sy net.inet.ip.portrange.lowlast .
 .El
 .Ss "Multicast Options"
 .Pp
