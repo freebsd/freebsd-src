@@ -129,6 +129,7 @@ initialize_all_files (void)
   _initialize_ser_hardwire ();
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
+#ifndef CROSS_DEBUGGER
   _initialize_kernel_u_addr ();
   _initialize_infptrace ();
   _initialize_inftarg ();
@@ -138,6 +139,7 @@ initialize_all_files (void)
   _initialize_gcore ();
   _initialize_fbsd_proc ();
   _initialize_thread_db ();
+#endif
   _initialize_remote ();
   _initialize_dcache ();
   _initialize_sr_support ();

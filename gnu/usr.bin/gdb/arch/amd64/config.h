@@ -174,7 +174,9 @@
 #define GDB_TM_FILE config/i386/tm-fbsd.h
 
 /* nativefile */
+#ifndef CROSS_DEBUGGER
 #define GDB_NM_FILE config/i386/nm-fbsd64.h
+#endif
 
 /* Define to 1 so <sys/proc.h> gets a definition of anon_hdl.  Works
    around a <sys/proc.h> problem on IRIX 5.  */
