@@ -131,7 +131,7 @@ STNC_GEN(u_long, stxa);
 #define	stxa(va, asi, val)	ST_GENERIC(va, asi, val, stxa)
 
 #define	membar(mask) do {						\
-	__asm __volatile("membar %0" : : "n" (mask));			\
+	__asm __volatile("membar %0" : : "n" (mask) : "memory");	\
 } while (0)
 
 #define	rd(name) ({							\
