@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.84 1996/11/07 06:39:44 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.85 1996/11/11 05:24:44 gibbs Exp $
  */
 /*
  * TODO:
@@ -771,14 +771,19 @@ ahc_intr(arg)
 		} 
 
 		if ((ahc->flags & AHC_PAGESCBS) != 0) {
-			if ((ahc->type & AHC_AIC78X0) == 0)
-				pause_sequencer(ahc);
+			pause_sequencer(ahc);
 
-			/* We've emptied the Queue */
-			ahc_outb(ahc, QOUTQCNT, 0);
+			/*
+			 * We've emptied the Queue, so reset our
+			 * QOUTQCNT variable to the current QOUTCNT
+			 * setting while the sequencer is paused.
+			 * QOUTCNT will most likely be 0, be we have no
+			 * guarantee that the sequencer did not post
+			 * more work just after our last check.
+			 */
+			ahc_outb(ahc, QOUTQCNT, ahc_inb(ahc, QOUTCNT));
 
-			if ((ahc->type & AHC_AIC78X0) == 0)
-				unpause_sequencer(ahc, FALSE);
+			unpause_sequencer(ahc, /*unpause_always*/FALSE);
 		}
 
 		if (int_cleared == 0)
@@ -1206,21 +1211,37 @@ ahc_handle_seqint(ahc, intstat)
 			if (xs->error == XS_NOERROR)
 				xs->error = XS_DRIVER_STUFFUP;
 			break;
+		case SCSI_QUEUE_FULL:
+			if (scb->hscb->control & TAG_ENB) {
+				/*
+				 * The upper level SCSI code in 3.0
+				 * handles this properly...
+				 */
+				struct scsi_link *sc_link;
+
+				sc_link = xs->sc_link;
+				if (sc_link->active > 2
+				 && sc_link->opennings != 0) {
+					/* truncate the opennings */
+					sc_link->opennings = 0;
+					sc_print_addr(sc_link);
+					printf("Tagged openings reduced to "
+					       "%d\n", sc_link->active);
+				}
+				/*
+				 * XXX requeue this unconditionally.
+				 */
+				STAILQ_INSERT_TAIL(&ahc->waiting_scbs, scb,
+						   links);
+				break;
+			}
+			/* Else treat as if it is a BUSY condition */
+			scb->hscb->status = SCSI_BUSY;
+			/* Fall Through... */
 		case SCSI_BUSY:
 			xs->error = XS_BUSY;
 			sc_print_addr(xs->sc_link);
 			printf("Target Busy\n");
-			break;
-		case SCSI_QUEUE_FULL:
-			/*
-			 * The upper level SCSI code will someday
-			 * handle this properly.
-			 */
-			printf("Queue Full\n");
-			/*
-			 * XXX requeue this unconditionally.
-			 */
-			STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb, links);
 			break;
 		default:
 			sc_print_addr(xs->sc_link);
@@ -1370,6 +1391,46 @@ ahc_handle_seqint(ahc, intstat)
 		break;
 	case MSGIN_PHASEMIS:
 		break;
+#endif
+#if 0
+	case SCB_TRACE_POINT:
+	{
+		/*
+		 * Print out the bus phase
+		 */
+		char	 *phase;
+		u_int8_t scbindex = ahc_inb(ahc, SCB_TAG);
+		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
+
+		scb = ahc->scb_data->scbarray[scbindex];
+		sc_print_addr(scb->xs->sc_link);
+
+		switch (lastphase) {
+		case P_DATAOUT:
+			phase = "Data-Out";
+			break;
+		case P_DATAIN:
+			phase = "Data-In";
+			break;
+		case P_COMMAND:
+			phase = "Command";
+			break;
+		case P_MESGOUT:
+			phase = "Message-Out";
+			break;
+		case P_STATUS:
+			phase = "Status";
+			break;
+		case P_MESGIN:
+			phase = "Message-In";
+			break;
+		default:
+			phase = "busfree";
+			break;
+		}
+		printf("- %s\n", phase);
+		break;
+	}
 #endif
 	default:
 		printf("ahc_intr: seqint, "
@@ -1720,7 +1781,12 @@ ahc_init(ahc)
 
 	if ((ahc->scb_data->maxhscbs < AHC_SCB_MAX)
 	 && (ahc->flags & AHC_PAGESCBS)) {
-		ahc->scb_data->maxscbs = AHC_SCB_MAX;
+		u_int8_t max_scbid = 255;
+
+		/* Determine the number of valid bits in the FIFOs */
+		ahc_outb(ahc, QINFIFO, max_scbid);
+		max_scbid = ahc_inb(ahc, QINFIFO);
+		ahc->scb_data->maxscbs = MIN(AHC_SCB_MAX, max_scbid + 1);
 		printf("%d/%d SCBs\n", ahc->scb_data->maxhscbs,
 			ahc->scb_data->maxscbs);
 	} else {
@@ -2090,6 +2156,13 @@ ahc_scsi_cmd(xs)
 		if (ahc->tagenable & mask)
 			hscb->control |= TAG_ENB;
 	}
+
+#if 0
+	/* Set the trace flag if this is the target we want to trace */
+	if (ahc->unit == 2 && xs->sc_link->target == 3)
+		hscb->control |= TRACE_SCB;
+#endif
+
 	hscb->tcl = ((xs->sc_link->target << 4) & 0xF0)
 		  | (IS_SCSIBUS_B(ahc,xs->sc_link)? SELBUSB : 0)
 		  | (xs->sc_link->lun & 0x07);
@@ -2490,7 +2563,7 @@ ahc_timeout(arg)
 	 */
 	bus_state = ahc_inb(ahc, LASTPHASE);
 
-	switch(bus_state & PHASE_MASK)
+	switch(bus_state)
 	{
 	case P_DATAOUT:
 		printf("in dataout phase");
