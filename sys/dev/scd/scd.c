@@ -1,5 +1,3 @@
-#include "opt_geom.h"
-#ifndef GEOM
 /*-
  * Copyright (c) 1995 Mikael Hybsch
  * All rights reserved.
@@ -53,9 +51,10 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/bio.h>
 #include <sys/cdio.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/bus.h>
 
 #include <machine/stdarg.h>
@@ -69,11 +68,6 @@
 
 #include <dev/scd/scdreg.h>
 #include <dev/scd/scdvar.h>
-
-#define scd_part(dev)	((minor(dev)) & 7)
-#define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
-#define scd_phys(dev)	(((minor(dev)) & 0x40) >> 6)
-#define RAW_PART        2
 
 /* flags */
 #define SCDOPEN		0x0001	/* device opened */
@@ -197,15 +191,12 @@ static	int
 scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
-	int part,phys;
 	int rc;
 	struct scd_data *cd;
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
 	cd = &sc->data;
-	part = scd_part(dev);
-	phys = scd_phys(dev);
 
 	/* not initialized*/
 	if (!(cd->flags & SCDINIT))
@@ -250,14 +241,11 @@ static	int
 scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
-	int part,phys;
 	struct scd_data *cd;
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
 	cd = &sc->data;
-	part = scd_part(dev);
-	phys = scd_phys(dev);
 
 	if (!(cd->flags & SCDINIT) || !cd->openflag)
 		return ENXIO;
@@ -316,9 +304,6 @@ scdstrategy(struct bio *bp)
 		bp->bio_error = EIO;
 		goto bad;
 	}
-	/* adjust transfer if necessary */
-	if (bounds_check_with_label(bp,&cd->dlabel,1) <= 0)
-		goto done;
 
 	bp->bio_pblkno = bp->bio_blkno;
 	bp->bio_resid = 0;
@@ -345,7 +330,6 @@ scd_start(struct scd_softc *sc)
 {
 	struct scd_data *cd = &sc->data;
 	struct bio *bp;
-	struct partition *p;
 	int s = splbio();
 
 	if (cd->flags & SCDMBXBSY) {
@@ -365,11 +349,8 @@ scd_start(struct scd_softc *sc)
 		return;
 	}
 
-	p = cd->dlabel.d_partitions + scd_part(bp->bio_dev);
-
 	cd->mbx.retry = 3;
 	cd->mbx.bp = bp;
-	cd->mbx.p_offset = p->p_offset;
 	splx(s);
 
 	scd_doread(sc, SCD_S_BEGIN, &(cd->mbx));
@@ -381,10 +362,8 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct scd_data *cd;
 	struct scd_softc *sc;
-	int part;
 
 	sc = (struct scd_softc *)dev->si_drv1;
-	part = scd_part(dev);
 	cd = &sc->data;
 
 	XDEBUG(sc, 1, "ioctl: cmd=0x%lx\n", cmd);
@@ -393,9 +372,14 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		return EIO;
 
 	switch (cmd) {
-	case DIOCGDINFO:
-		*(struct disklabel *)addr = cd->dlabel;
-		return 0;
+	case DIOCGMEDIASIZE:
+		*(off_t *)addr = (off_t)cd->disksize * cd->blksize;
+		return (0);
+		break;
+	case DIOCGSECTORSIZE:
+		*(u_int *)addr = cd->blksize;
+		return (0);
+		break;
 	case CDIOCPLAYTRACKS:
 		return scd_playtracks(sc, (struct ioc_play_track *) addr);
 	case CDIOCPLAYBLOCKS:
@@ -795,7 +779,7 @@ nextblock:
 			goto changed;
 
 		blknum 	= (bp->bio_blkno / (mbx->sz/DEV_BSIZE))
-			+ mbx->p_offset + mbx->skip/mbx->sz;
+			+ mbx->skip/mbx->sz;
 
 		XDEBUG(sc, 2, "scd_doread: read blknum=%d\n", blknum);
 
@@ -1138,7 +1122,6 @@ static int
 read_toc(struct scd_softc *sc)
 {
 	struct scd_data *cd;
-	unsigned part = 0;	/* For now ... */
 	struct sony_toc toc;
 	struct sony_tracklist *tl;
 	int rc, i, j;
@@ -1197,31 +1180,6 @@ read_toc(struct scd_softc *sc)
 			bcd2bin(cd->toc[i].start_msf[2]));
 	}
 #endif
-
-	bzero(&cd->dlabel,sizeof(struct disklabel));
-	/* filled with spaces first */
-	strncpy(cd->dlabel.d_typename,"               ",
-		sizeof(cd->dlabel.d_typename));
-	strncpy(cd->dlabel.d_typename, cd->name,
-		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
-	strncpy(cd->dlabel.d_packname,"unknown        ",
-		sizeof(cd->dlabel.d_packname));
-	cd->dlabel.d_secsize 	= cd->blksize;
-	cd->dlabel.d_nsectors	= 100;
-	cd->dlabel.d_ntracks	= 1;
-	cd->dlabel.d_ncylinders	= (cd->disksize/100)+1;
-	cd->dlabel.d_secpercyl	= 100;
-	cd->dlabel.d_secperunit	= cd->disksize;
-	cd->dlabel.d_rpm	= 300;
-	cd->dlabel.d_interleave	= 1;
-	cd->dlabel.d_flags	= D_REMOVABLE;
-	cd->dlabel.d_npartitions= 1;
-	cd->dlabel.d_partitions[0].p_offset = 0;
-	cd->dlabel.d_partitions[0].p_size = cd->disksize;
-	cd->dlabel.d_partitions[0].p_fstype = 9;
-	cd->dlabel.d_magic	= DISKMAGIC;
-	cd->dlabel.d_magic2	= DISKMAGIC;
-	cd->dlabel.d_checksum	= dkcksum(&cd->dlabel);
 
 	cd->flags |= SCDTOC;
 
@@ -1495,4 +1453,3 @@ scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 
 	return 0;
 }
-#endif
