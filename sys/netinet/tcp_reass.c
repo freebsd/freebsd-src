@@ -2396,6 +2396,8 @@ tcp_pulloutofband(so, th, m, off)
 			tp->t_oobflags |= TCPOOB_HAVEDATA;
 			bcopy(cp+1, cp, (unsigned)(m->m_len - cnt - 1));
 			m->m_len--;
+			if (m->m_flags & M_PKTHDR)
+				m->m_pkthdr.len--;
 			return;
 		}
 		cnt -= m->m_len;
