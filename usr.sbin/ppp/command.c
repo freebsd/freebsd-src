@@ -151,7 +151,7 @@
 #define NEG_SHORTSEQ	52
 #define NEG_VJCOMP	53
 
-const char Version[] = "2.25";
+const char Version[] = "2.26";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
