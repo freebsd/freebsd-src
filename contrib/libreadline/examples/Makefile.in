@@ -50,7 +50,7 @@ TERMCAP_LIB = @TERMCAP_LIB@
 	$(CC) $(CCFLAGS) -c $<
 
 EXECUTABLES = fileman rltest rl rlcat rlversion histexamp 
-OBJECTS = fileman.o rltest.o rl.o rlversion.o histexamp.o
+OBJECTS = fileman.o rltest.o rl.o rlcat.o rlversion.o histexamp.o
 
 all: $(EXECUTABLES)
 everything: all rlfe

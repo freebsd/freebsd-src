@@ -1,7 +1,7 @@
 ## -*- text -*- ##
 # Makefile for the GNU readline library shared library support.
 #
-# Copyright (C) 1998 Free Software Foundation, Inc.
+# Copyright (C) 1998-2003 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
+
+PACKAGE = @PACKAGE_NAME@
+VERSION = @PACKAGE_VERSION@
+
+PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
+PACKAGE_NAME = @PACKAGE_NAME@
+PACKAGE_STRING = @PACKAGE_STRING@
+PACKAGE_VERSION = @PACKAGE_VERSION@
 
 RL_LIBRARY_VERSION = @LIBVERSION@
 RL_LIBRARY_NAME = readline
@@ -46,6 +54,8 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 includedir = @includedir@
 libdir = @libdir@
+datadir = @datadir@
+localedir = $(datadir)/locale
 
 # Support an alternate destination root directory for package building
 DESTDIR =
@@ -72,7 +82,7 @@ SHOBJ_LDFLAGS = @SHOBJ_LDFLAGS@
 SHOBJ_XLDFLAGS = @SHOBJ_XLDFLAGS@
 SHOBJ_LIBS = @SHOBJ_LIBS@
 
-SHLIB_XLDFLAGS = @SHLIB_XLDFLAGS@
+SHLIB_XLDFLAGS = @LDFLAGS@ @SHLIB_XLDFLAGS@
 SHLIB_LIBS = @SHLIB_LIBS@
 SHLIB_LIBSUFF = @SHLIB_LIBSUFF@
 
@@ -390,7 +400,7 @@ search.so: $(topdir)/search.c
 shell.so: $(topdir)/shell.c
 signals.so: $(topdir)/signals.c
 terminal.so: $(topdir)/terminal.c
-text.so: $(topdir)/terminal.c
+text.so: $(topdir)/text.c
 tilde.so: $(topdir)/tilde.c
 undo.so: $(topdir)/undo.c
 util.so: $(topdir)/util.c
@@ -424,7 +434,7 @@ search.so: search.c
 signals.so: signals.c
 shell.so: shell.c
 terminal.so: terminal.c
-text.so: terminal.c
+text.so: text.c
 tilde.so: tilde.c
 undo.so: undo.c
 util.so: util.c

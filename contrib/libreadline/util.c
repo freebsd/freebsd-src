@@ -250,7 +250,7 @@ _rl_strpbrk (string1, string2)
 	{
 	  v = _rl_get_char_len (string1, &ps);
 	  if (v > 1)
-	    string += v - 1;	/* -1 to account for auto-increment in loop */
+	    string1 += v - 1;	/* -1 to account for auto-increment in loop */
 	}
 #endif
     }

@@ -1,3 +1,183 @@
+This document details the changes between this version, readline-5.0,
+and the previous version, readline-4.3.
+
+1.  Changes to Readline
+
+a.  Fixes to avoid core dumps because of null pointer references in the
+    multibyte character code.
+
+b.  Fix to avoid infinite recursion caused by certain key combinations.
+
+c.  Fixed a bug that caused the vi-mode `last command' to be set incorrectly.
+
+d.  Readline no longer tries to read ahead more than one line of input, even
+    when more is available.
+
+e.  Fixed the code that adjusts the point to not mishandle null wide
+    characters.
+
+f.  Fixed a bug in the history expansion `g' modifier that caused it to skip
+    every other match.
+
+g.  Fixed a bug that caused the prompt to overwrite previous output when the
+    output doesn't contain a newline and the locale supports multibyte
+    characters.  This same change fixes the problem of readline redisplay
+    slowing down dramatically as the line gets longer in multibyte locales.
+
+h.  History traversal with arrow keys in vi insertion mode causes the cursor
+    to be placed at the end of the new line, like in emacs mode.
+
+i.  The locale initialization code does a better job of using the right
+    precedence and defaulting when checking the appropriate environment
+    variables.
+
+j.  Fixed the history word tokenizer to handle <( and >( better when used as
+    part of bash.
+
+k.  The overwrite mode code received several bug fixes to improve undo.
+
+l.  Many speedups to the multibyte character redisplay code.
+
+m.  The callback character reading interface should not hang waiting to read
+    keyboard input.
+
+n.  Fixed a bug with redoing vi-mode `s' command.
+
+o.  The code that initializes the terminal tracks changes made to the terminal
+    special characters with stty(1) (or equivalent), so that these changes
+    are reflected in the readline bindings.  New application-callable function
+    to make it work:  rl_tty_unset_default_bindings().
+
+p.  Fixed a bug that could cause garbage to be inserted in the buffer when
+    changing character case in vi mode when using a multibyte locale.
+
+q.  Fixed a bug in the redisplay code that caused problems on systems
+    supporting multibyte characters when moving between history lines when the
+    new line has more glyphs but fewer bytes.
+
+r.  Undo and redo now work better after exiting vi insertion mode.
+
+s.  Make sure system calls are restarted after a SIGWINCH is received using
+    SA_RESTART.
+
+t.  Improvements to the code that displays possible completions when using
+    multibyte characters.
+
+u.  Fixed a problem when parsing nested if statements in inputrc files.
+
+v.  The completer now takes multibyte characters into account when looking for
+    quoted substrings on which to perform completion.
+
+w.  The history search functions now perform better bounds checking on the
+    history list.
+
+x.  Change to history expansion functions to treat `^' as equivalent to word 
+    one, as the documention states.
+
+y.  Some changes to the display code to improve display and redisplay of
+    multibyte characters.
+
+z.  Changes to speed up the multibyte character redisplay code.
+
+aa. Fixed a bug in the vi-mode `E' command that caused it to skip over the
+    last character of a word if invoked while point was on the word's
+    next-to-last character.
+
+bb. Fixed a bug that could cause incorrect filename quoting when
+    case-insensitive completion was enabled and the word being completed
+    contained backslashes quoting word break characters.
+
+cc. Fixed a bug in redisplay triggered when the prompt string contains
+    invisible characters.
+
+dd. Fixed some display (and other) bugs encountered in multibyte locales
+    when a non-ascii character was the last character on a line.
+
+ee. Fixed some display bugs caused by multibyte characters in prompt strings.
+
+ff. Fixed a problem with history expansion caused by non-whitespace characters
+    used as history word delimiters.
+
+gg. Fixed a problem that could cause readline to refer to freed memory when
+    moving between history lines while doing searches.
+
+hh. Improvements to the code that expands and displays prompt strings
+    containing multibyte characters.
+
+ii. Fixed a problem with vi-mode not correctly remembering the numeric argument
+    to the last `c'hange command for later use with `.'.
+
+jj. Fixed a bug in vi-mode that caused multi-digit count arguments to work   
+    incorrectly.
+
+kk. Fixed a problem in vi-mode that caused the last text modification command
+    to not be remembered across different command lines.
+
+ll. Fixed problems with changing characters and changing case at the end of
+    the line.
+
+mm. Fixed a problem with readline saving the contents of the current line
+    before beginning a non-interactive search.
+
+nn. Fixed a problem with EOF detection when using rl_event_hook.
+
+oo. Fixed a problem with the vi mode `p' and `P' commands ignoring numeric
+    arguments.
+
+2.  New Features in Readline
+
+a.  History expansion has a new `a' modifier equivalent to the `g' modifier
+    for compatibility with the BSD csh.
+
+b.  History expansion has a new `G' modifier equivalent to the BSD csh `g'
+    modifier, which performs a substitution once per word.
+
+c.  All non-incremental search operations may now undo the operation of
+    replacing the current line with the history line.
+
+d.  The text inserted by an `a' command in vi mode can be reinserted with
+    `.'.
+
+e.  New bindable variable, `show-all-if-unmodified'.  If set, the readline
+    completer will list possible completions immediately if there is more
+    than one completion and partial completion cannot be performed.
+
+f.  There is a new application-callable `free_history_entry()' function.
+
+g.  History list entries now contain timestamp information; the history file
+    functions know how to read and write timestamp information associated
+    with each entry.
+
+h.  Four new key binding functions have been added:
+
+	rl_bind_key_if_unbound()
+	rl_bind_key_if_unbound_in_map()
+	rl_bind_keyseq_if_unbound()
+	rl_bind_keyseq_if_unbound_in_map()
+
+i.  New application variable, rl_completion_quote_character, set to any
+    quote character readline finds before it calls the application completion
+    function.
+
+j.  New application variable, rl_completion_suppress_quote, settable by an   
+    application completion function.  If set to non-zero, readline does not
+    attempt to append a closing quote to a completed word.
+    
+k.  New application variable, rl_completion_found_quote, set to a non-zero
+    value if readline determines that the word to be completed is quoted.
+    Set before readline calls any application completion function.
+
+l.  New function hook, rl_completion_word_break_hook, called when readline
+    needs to break a line into words when completion is attempted.  Allows
+    the word break characters to vary based on position in the line.
+
+m.  New bindable command: unix-filename-rubout.  Does the same thing as
+    unix-word-rubout, but adds `/' to the set of word delimiters.
+
+n.  When listing completions, directories have a `/' appended if the
+    `mark-directories' option has been enabled.
+
+-------------------------------------------------------------------------------
 This document details the changes between this version, readline-4.3,
 and the previous version, readline-4.2a.
 
