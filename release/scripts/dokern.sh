@@ -49,6 +49,7 @@ sed	-e '/	pci$/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
@@ -76,6 +77,7 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
@@ -104,6 +106,7 @@ sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
