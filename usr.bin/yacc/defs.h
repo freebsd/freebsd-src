@@ -34,12 +34,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	5.6 (Berkeley) 5/24/93
- *	$Id$
+ *	$Id: defs.h,v 1.5 1997/02/22 19:57:58 peter Exp $
  */
 
 #include <sys/cdefs.h>	/* for __P macro */
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 
 
