@@ -1168,25 +1168,9 @@ or, if you've loaded the doc distribution:
 
         file:/usr/share/doc/handbook/staff.html
 
-
-Special mention to:
-
-        The donors listed at http://www.freebsd.org/handbook/donors.html
-
-        Justin M. Seger <jseger@freebsd.org> for almost single-handedly
-        converting the ports collection to ELF.
-
-        Doug Rabson <dfr@freebsd.org> and John Birrell <jb@freebsd.org>
-        for making FreeBSD/alpha happen and to the NetBSD project for
-        substantial indirect aid.
-
-        Peter Wemm <peter@freebsd.org> for the new kernel module system
-        (with substantial aid from Doug Rabson).
-
-        And to the many thousands of FreeBSD users and testers all over the
-        world, without whom this release simply would not have been possible.
-
-We sincerely hope you enjoy this release of FreeBSD!
+Special thanks also go to the many thousands of FreeBSD users and testers
+all over the world, without whom this release simply would not have been
+possible.
 
                         The FreeBSD Project
 
