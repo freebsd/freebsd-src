@@ -596,6 +596,8 @@ DEV_MCA			opt_mca.h
 DEV_BPF			opt_bpf.h
 DEV_SPLASH		opt_splash.h
 
+EISA_SLOTS		opt_eisa.h
+
 # ed driver
 ED_NO_MIIBUS		opt_ed.h
 
