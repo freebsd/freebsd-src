@@ -947,7 +947,6 @@ void
 config(void)
 {
 	struct servtab *sep, *new, **sepp;
-	struct conninfo *conn;
 	long omask;
 	int new_nomapped;
 
@@ -1719,7 +1718,7 @@ more:
 		       sizeof(sep->se_ctrladdr4));
                 if ((versp = rindex(sep->se_service, '/'))) {
                         *versp++ = '\0';
-                        switch (sscanf(versp, "%d-%d",
+                        switch (sscanf(versp, "%u-%u",
                                        &sep->se_rpc_lowvers,
                                        &sep->se_rpc_highvers)) {
                         case 2:
@@ -2436,29 +2435,29 @@ reapchild_conn(pid_t pid)
 }
 
 static void
-resize_conn(struct servtab *sep, int maxperip)
+resize_conn(struct servtab *sep, int maxpip)
 {
 	struct conninfo *conn;
 	int i, j;
 
 	if (sep->se_maxperip <= 0)
 		return;
-	if (maxperip <= 0) {
+	if (maxpip <= 0) {
 		free_connlist(sep);
 		return;
 	}
 	for (i = 0; i < PERIPSIZE; ++i) {
 		LIST_FOREACH(conn, &sep->se_conn[i], co_link) {
-			for (j = maxperip; j < conn->co_numchild; ++j)
+			for (j = maxpip; j < conn->co_numchild; ++j)
 				free_proc(conn->co_proc[j]);
 			conn->co_proc = realloc(conn->co_proc,
-			    maxperip * sizeof(*conn->co_proc));
+			    maxpip * sizeof(*conn->co_proc));
 			if (conn->co_proc == NULL) {
 				syslog(LOG_ERR, "realloc: %m");
 				exit(EX_OSERR);
 			}
-			if (conn->co_numchild > maxperip)
-				conn->co_numchild = maxperip;
+			if (conn->co_numchild > maxpip)
+				conn->co_numchild = maxpip;
 		}
 	}
 }
