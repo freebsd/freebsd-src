@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1995/02/15 04:33:52 wpaul Exp $
+# $Id: Makefile,v 1.7 1995/07/12 16:28:10 wpaul Exp $
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	ypserv
@@ -10,10 +10,10 @@ CFLAGS+=-DMAX_CHILDREN=20 -DINSTDIR='"/usr/libexec"'
 MAN8= ypserv.8
 
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/Makefile.yp \
 		${DESTDIR}/var/yp/Makefile
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/mknetid \
 		${DESTDIR}/usr/libexec/mknetid
 

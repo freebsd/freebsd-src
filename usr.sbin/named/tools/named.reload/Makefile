@@ -7,7 +7,7 @@ PIDDIR=/var/run
 INDOT=
 
 beforeinstall:	named.reload
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    named.reload ${DESTDIR}${BINDIR}
 
 named.reload: named.reload.sh Makefile

@@ -12,7 +12,7 @@ LINKS+= ${BINDIR}/gzip ${BINDIR}/zcat
 NOSHARED=yes
 
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	   ${.CURDIR}/zforce ${.CURDIR}/gzexe ${.CURDIR}/znew \
 	   ${.CURDIR}/zmore ${.CURDIR}/zdiff ${.CURDIR}/zgrep \
 	   ${DESTDIR}${BINDIR}

@@ -10,7 +10,7 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/games/robots_roll
 
 .include <bsd.prog.mk>

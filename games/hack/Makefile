@@ -25,11 +25,11 @@ makedefs: makedefs.c
 	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${.PREFIX}.c
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
 	    ${.CURDIR}/hh ${.CURDIR}/data ${DESTDIR}/var/games/hackdir
 	rm -f ${DESTDIR}/var/games/hackdir/bones*
 

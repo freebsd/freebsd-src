@@ -3,7 +3,7 @@
 MAN1=	keyinfo.1
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/keyinfo.sh ${DESTDIR}${BINDIR}/keyinfo
 
 .include <bsd.prog.mk>
