@@ -61,14 +61,14 @@ void err __P((const char *, ...));
 void run __P((char **));
 void usage __P((void));
 
-main(argc, argv)
+main(argc, argv, env)
 	int argc;
-	char **argv;
+	char **argv, **env;
 {
 	register int ch;
 	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
 	int cnt, indouble, insingle, nargs, nflag, nline, xflag;
-	char **av, *argp;
+	char **av, *argp, **ep = env;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -85,6 +85,10 @@ main(argc, argv)
 	 */
 	nargs = 5000;
 	nline = ARG_MAX - 4 * 1024;
+	while (*ep) {
+		/* 1 byte for each '\0' */
+		nline -= strlen(*ep++) + 1 + sizeof(*ep);
+	}
 	nflag = xflag = 0;
 	while ((ch = getopt(argc, argv, "0n:s:tx")) != EOF)
 		switch(ch) {
