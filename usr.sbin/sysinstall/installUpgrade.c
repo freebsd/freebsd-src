@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.14 1995/11/04 08:47:30 jkh Exp $
+ * $Id: installUpgrade.c,v 1.15 1995/11/04 11:09:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,10 @@ doByHand(HitList *h)
     dialog_clear();
     msgConfirm("/etc/%s is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  You'll need to merge the old and\n"
-	       "new versions by hand when the option to do so is later presented.", h->name);
+	       "new versions by hand when the option to do so manually is later\n"
+	       "presented (in the meantime, you might want to write the name of\n"
+	       "this file down! - the holographic shell on VTY4 is a good place for\n"
+	       "this).", h->name);
 }
 
 /* These are the only meaningful files I know about */
@@ -249,6 +252,13 @@ installUpgrade(char *str)
 	return RET_FAIL;
     }
 
+    if (!copySelf()) {
+	dialog_clear();
+	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
+		   "Aborting.");
+	return RET_FAIL;
+    }
+
     if (chroot("/mnt") == RET_FAIL) {
 	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
@@ -256,8 +266,17 @@ installUpgrade(char *str)
 	variable_unset(DISK_PARTITIONED);
 	return RET_FAIL;
     }
+
     chdir("/");
     systemCreateHoloshell();
+
+    if (!rootExtract()) {
+	dialog_clear();
+	msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
+		   "this problem and try again (the system will now reboot).");
+	reboot(0);
+    }
+
     if (extractingBin) {
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
