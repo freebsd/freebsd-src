@@ -186,47 +186,51 @@ enum rcs_delta_op {RCS_ANNOTATE, RCS_FETCH};
  * exported interfaces
  */
 RCSNode *RCS_parse PROTO((const char *file, const char *repos));
-RCSNode *RCS_parsercsfile PROTO((char *rcsfile));
+RCSNode *RCS_parsercsfile PROTO((const char *rcsfile));
 void RCS_fully_parse PROTO((RCSNode *));
 void RCS_reparsercsfile PROTO((RCSNode *, FILE **, struct rcsbuffer *));
 extern int RCS_setattic PROTO ((RCSNode *, int));
 
 char *RCS_check_kflag PROTO((const char *arg));
-char *RCS_getdate PROTO((RCSNode * rcs, char *date, int force_tag_match));
-char *RCS_gettag PROTO((RCSNode * rcs, char *symtag, int force_tag_match,
-			int *simple_tag));
+char *RCS_getdate PROTO((RCSNode * rcs, const char *date,
+                         int force_tag_match));
+char *RCS_gettag PROTO((RCSNode * rcs, const char *symtag, int force_tag_match,
+                        int *simple_tag));
 int RCS_exist_rev PROTO((RCSNode *rcs, char *rev));
 int RCS_exist_tag PROTO((RCSNode *rcs, char *tag));
 char *RCS_tag2rev PROTO((RCSNode *rcs, char *tag));
-char *RCS_getversion PROTO((RCSNode * rcs, char *tag, char *date,
-		      int force_tag_match, int *simple_tag));
+char *RCS_getversion PROTO((RCSNode * rcs, const char *tag, const char *date,
+                            int force_tag_match, int *simple_tag));
 char *RCS_magicrev PROTO((RCSNode *rcs, char *rev));
 int RCS_isbranch PROTO((RCSNode *rcs, const char *rev));
 int RCS_nodeisbranch PROTO((RCSNode *rcs, const char *tag));
 char *RCS_whatbranch PROTO((RCSNode *rcs, const char *tag));
 char *RCS_head PROTO((RCSNode * rcs));
-int RCS_datecmp PROTO((char *date1, char *date2));
-time_t RCS_getrevtime PROTO((RCSNode * rcs, char *rev, char *date, int fudge));
+int RCS_datecmp PROTO((const char *date1, const char *date2));
+time_t RCS_getrevtime PROTO((RCSNode * rcs, const char *rev, char *date,
+                             int fudge));
 List *RCS_symbols PROTO((RCSNode *rcs));
 void RCS_check_tag PROTO((const char *tag));
 int RCS_valid_rev PROTO ((char *rev));
 List *RCS_getlocks PROTO((RCSNode *rcs));
 void freercsnode PROTO((RCSNode ** rnodep));
-char *RCS_getbranch PROTO((RCSNode * rcs, char *tag, int force_tag_match));
+char *RCS_getbranch PROTO((RCSNode * rcs, const char *tag,
+                           int force_tag_match));
 char *RCS_branch_head PROTO ((RCSNode *rcs, char *rev));
 
 int RCS_isdead PROTO((RCSNode *, const char *));
 char *RCS_getexpand PROTO ((RCSNode *));
-void RCS_setexpand PROTO ((RCSNode *, char *));
-int RCS_checkout PROTO ((RCSNode *, char *, char *, char *, char *, char *,
-			 RCSCHECKOUTPROC, void *));
-int RCS_checkin PROTO ((RCSNode *rcs, char *workfile, char *message,
-			char *rev, int flags));
-int RCS_cmp_file PROTO ((RCSNode *, char *, char *, const char *));
+void RCS_setexpand PROTO ((RCSNode *, const char *));
+int RCS_checkout PROTO ((RCSNode *, const char *, const char *, const char *,
+                         const char *, const char *, RCSCHECKOUTPROC, void *));
+int RCS_checkin PROTO ((RCSNode *rcs, const char *workfile,
+                        const char *message, const char *rev, int flags));
+int RCS_cmp_file PROTO((RCSNode *, const char *, char **, const char *,
+                        const char *, const char *));
 int RCS_settag PROTO ((RCSNode *, const char *, const char *));
 int RCS_deltag PROTO ((RCSNode *, const char *));
 int RCS_setbranch PROTO((RCSNode *, const char *));
-int RCS_lock PROTO ((RCSNode *, char *, int));
+int RCS_lock PROTO ((RCSNode *, const char *, int));
 int RCS_unlock PROTO ((RCSNode *, char *, int));
 int RCS_delete_revs PROTO ((RCSNode *, char *, char *, int));
 void RCS_addaccess PROTO ((RCSNode *, char *));
@@ -237,14 +241,15 @@ void RCS_rewrite PROTO ((RCSNode *, Deltatext *, char *));
 void RCS_abandon PROTO ((RCSNode *));
 int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 			    size_t, char **, size_t *));
-void RCS_deltas PROTO ((RCSNode *, FILE *, struct rcsbuffer *, char *,
+void RCS_deltas PROTO ((RCSNode *, FILE *, struct rcsbuffer *, const char *,
 			enum rcs_delta_op, char **, size_t *,
 			char **, size_t *));
-char *make_file_label PROTO ((char *, char *, RCSNode *));
+char *make_file_label PROTO ((const char *, const char *, RCSNode *));
 
 extern int preserve_perms;
 
 /* From import.c.  */
-extern int add_rcs_file PROTO ((char *, char *, char *, char *, char *,
-				char *, char *, int, char **,
-				char *, size_t, FILE *));
+extern int add_rcs_file PROTO ((const char *, const char *, const char *,
+                                const char *, const char *, const char *,
+                                const char *, int, char **, const char *,
+                                size_t, FILE *));

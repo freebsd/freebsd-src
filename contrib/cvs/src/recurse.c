@@ -12,6 +12,7 @@
 #include "savecwd.h"
 #include "fileattr.h"
 #include "edit.h"
+#include <assert.h>
 
 static int do_dir_proc PROTO((Node * p, void *closure));
 static int do_file_proc PROTO((Node * p, void *closure));
@@ -35,6 +36,7 @@ struct recursion_frame {
     int aflag;
     int locktype;
     int dosrcs;
+    char *repository;			/* Keep track of repository for rtag */
 };
 
 static int do_recursion PROTO ((struct recursion_frame *frame));
@@ -67,7 +69,7 @@ struct frame_and_entries {
 int
 start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		 argc, argv, local, which, aflag, locktype,
-		 update_preload, dosrcs)
+		 update_preload, dosrcs, repository_in)
     FILEPROC fileproc;
     FILESDONEPROC filesdoneproc;
     DIRENTPROC 	direntproc;
@@ -105,6 +107,15 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     int locktype;
     char *update_preload;
     int dosrcs;
+    /* Keep track of the repository string.  This is only for the remote mode,
+     * specifically, r* commands (rtag, rdiff, co, ...) where xgetwd() was
+     * used to locate the repository.  Things would break when xgetwd() was
+     * used with a symlinked repository because xgetwd() would return the true
+     * path and in some cases this would cause the path to be printed as other
+     * than the user specified in error messages and in other cases some of
+     * CVS's security assertions would fail.
+     */
+    char *repository_in;
 {
     int i, err = 0;
 #ifdef CLIENT_SUPPORT
@@ -123,6 +134,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     frame.aflag = aflag;
     frame.locktype = locktype;
     frame.dosrcs = dosrcs;
+    frame.repository = repository_in;
 
     expand_wild (argc, argv, &argc, &argv);
 
@@ -261,7 +273,10 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	    /* Now break out argv[i] into directory part (DIR) and file part (COMP).
 		   DIR and COMP will each point to a newly malloc'd string.  */
 	    dir = xstrdup (argv[i]);
-	    comp = last_component (dir);
+	    /* Its okay to discard the const below - we know we just allocated
+	     * dir ourselves.
+	     */
+	    comp = (char *)last_component (dir);
 	    if (comp == dir)
 	    {
 		/* no dir component.  What we have is an implied "./" */
@@ -502,7 +517,7 @@ do_recursion (frame)
 {
     int err = 0;
     int dodoneproc = 1;
-    char *srepository;
+    char *srepository = NULL;
     List *entries = NULL;
     int locktype;
     int process_this_directory = 1;
@@ -613,17 +628,19 @@ do_recursion (frame)
     if (frame->which & W_LOCAL)
     {
 	if (isdir (CVSADM))
+	{
 	    repository = Name_Repository ((char *) NULL, update_dir);
+	    srepository = repository;		/* remember what to free */
+	}
 	else
 	    repository = NULL;
     }
     else
     {
-	repository = xgetwd ();
-	if (repository == NULL)
-	    error (1, errno, "could not get working directory");
+	repository = frame->repository;
+	assert (repository != NULL);
+	assert (strstr (repository, "/./") == NULL);
     }
-    srepository = repository;		/* remember what to free */
 
     fileattr_startdir (repository);
 
@@ -662,7 +679,10 @@ do_recursion (frame)
 	       repository at this point.  Name_Repository will give a
 	       reasonable error message.  */
 	    if (repository == NULL)
-		repository = Name_Repository ((char *) NULL, update_dir);
+	    {
+		Name_Repository ((char *) NULL, update_dir);
+		assert (!"Not reached.  Please report this problem to <bug-cvs@gnu.org>");
+	    }
 
 	    /* find the files and fill in entries if appropriate */
 	    if (process_this_directory)
@@ -736,7 +756,10 @@ do_recursion (frame)
 	err += walklist (filelist, do_file_proc, &frfile);
 
 	/* unlock it */
-	if (locktype != CVS_LOCK_NONE)
+	if (/* We only lock the repository above when repository is set */
+	    repository
+	    /* and when asked for a read or write lock. */
+	    && locktype != CVS_LOCK_NONE)
 	    Lock_Cleanup ();
 
 	/* clean up */
@@ -778,11 +801,13 @@ do_recursion (frame)
     if (srepository)
     {
 	free (srepository);
-	repository = (char *) NULL;
     }
+    repository = (char *) NULL;
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * Process each of the files in the list with the callback proc
@@ -795,18 +820,19 @@ do_file_proc (p, closure)
     struct frame_and_file *frfile = (struct frame_and_file *)closure;
     struct file_info *finfo = frfile->finfo;
     int ret;
+    char *tmp;
 
     finfo->file = p->key;
-    finfo->fullname = xmalloc (strlen (finfo->file)
+    tmp = xmalloc (strlen (finfo->file)
 			       + strlen (finfo->update_dir)
 			       + 2);
-    finfo->fullname[0] = '\0';
+    tmp[0] = '\0';
     if (finfo->update_dir[0] != '\0')
     {
-	strcat (finfo->fullname, finfo->update_dir);
-	strcat (finfo->fullname, "/");
+	strcat (tmp, finfo->update_dir);
+	strcat (tmp, "/");
     }
-    strcat (finfo->fullname, finfo->file);
+    strcat (tmp, finfo->file);
 
     if (frfile->frame->dosrcs && repository)
     {
@@ -821,26 +847,29 @@ do_file_proc (p, closure)
 	if (finfo->rcs == NULL
 	    && !(frfile->frame->which & W_LOCAL))
 	{
-	    error (0, 0, "could not read RCS file for %s", finfo->fullname);
-	    free (finfo->fullname);
+	    error (0, 0, "could not read RCS file for %s", tmp);
+	    free (tmp);
 	    cvs_flushout ();
 	    return 0;
 	}
     }
     else 
         finfo->rcs = (RCSNode *) NULL;
+    finfo->fullname = tmp;
     ret = frfile->frame->fileproc (frfile->frame->callerdat, finfo);
 
     freercsnode(&finfo->rcs);
-    free (finfo->fullname);
+    free (tmp);
 
     /* Allow the user to monitor progress with tail -f.  Doing this once
        per file should be no big deal, but we don't want the performance
        hit of flushing on every line like previous versions of CVS.  */
     cvs_flushout ();
 
-    return (ret);
+    return ret;
 }
+
+
 
 /*
  * Process each of the directories in the list (recursing as we go)
@@ -1076,7 +1105,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	dirlist = NULL;
 
 	/* cd to the sub-directory */
-	if ( CVS_CHDIR (dir) < 0)
+	if (CVS_CHDIR (dir) < 0)
 	    error (1, errno, "could not chdir to %s", dir);
 
 	/* honor the global SKIP_DIRS (a.k.a. local) */
@@ -1093,7 +1122,30 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	/* make the recursive call */
 	xframe = *frame;
 	xframe.flags = dir_return;
+	/* Keep track of repository, really just for r* commands (rtag, rdiff,
+	 * co, ...) to tag_check_valid, since all the other commands use
+	 * CVS/Repository to figure it out per directory.
+	 */
+	if (repository)
+	{
+	    if (strcmp (dir, ".") == 0)
+		xframe.repository = xstrdup (repository);
+	    else
+	    {
+		xframe.repository = xmalloc (strlen (repository)
+					     + strlen (dir)
+					     + 2);
+		sprintf (xframe.repository, "%s/%s", repository, dir);
+	    }
+	}
+	else
+	    xframe.repository = NULL;
 	err += do_recursion (&xframe);
+	if (xframe.repository)
+	{
+	    free (xframe.repository);
+	    xframe.repository = NULL;
+	}
 
 	/* put the `.' back if necessary */
 	if (stripped_dot)
@@ -1115,7 +1167,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
     free (update_dir);
     update_dir = saved_update_dir;
 
-    return (err);
+    return err;
 }
 
 /*
@@ -1157,9 +1209,9 @@ addfile (listp, dir, file)
     }
 
     n->type = DIRS;
-    fl = (List *) n->data;
+    fl = n->data;
     addlist (&fl, file);
-    n->data = (char *) fl;
+    n->data = fl;
     return;
 }
 
@@ -1182,7 +1234,7 @@ unroll_files_proc (p, closure)
 	return (0);
 
     /* otherwise, call dorecusion for this list of files. */
-    filelist = (List *) p->data;
+    filelist = p->data;
     p->data = NULL;
     save_dirlist = dirlist;
     dirlist = NULL;

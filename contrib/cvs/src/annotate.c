@@ -54,7 +54,7 @@ annotate (argc, argv)
     int err = 0;
     int c;
 
-    is_rannotate = (strcmp(command_name, "rannotate") == 0);
+    is_rannotate = (strcmp(cvs_cmd_name, "rannotate") == 0);
 
     if (argc == -1)
 	usage (annotate_usage);
@@ -224,14 +224,12 @@ rannotate_proc (argc, argv, xwhere, mwhere, mfile, shorten, local, mname, msg)
 	    free (repository);
 	    return (1);
 	}
-	free (repository);
 	/* End section which is identical to patch_proc.  */
 
 	if (force_tag_match && tag != NULL)
 	    which = W_REPOS | W_ATTIC;
 	else
 	    which = W_REPOS;
-	repository = NULL;
     }
     else
     {
@@ -249,7 +247,11 @@ rannotate_proc (argc, argv, xwhere, mwhere, mfile, shorten, local, mname, msg)
     err = start_recursion (annotate_fileproc, (FILESDONEPROC) NULL,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc - 1, argv + 1, local, which, 0, CVS_LOCK_READ,
-			   where, 1);
+			   where, 1, repository);
+    if ( which & W_REPOS )
+	free ( repository );
+    if ( where != NULL )
+	free (where);
     return err;
 }
 

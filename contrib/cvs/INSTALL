@@ -123,6 +123,8 @@ HPPA:
 	HPPA running HP-UX 9.05 (1.9)
 	HPPA running HP-UX 10.01 (1.7)
 	HPPA running HP-UX 10.20 (1.10.7)
+	HPPA running HP-UX 11.11 (1.11.13) (footnote 12)
+	HPPA 2.0 running HP-UX 10.20 (1.10.9) (footnote 13)
 	NextSTEP 3.3 (1.7)
 i386 family:
 	Solaris 2.4 using gcc (about 1.4A2)
@@ -181,6 +183,9 @@ PowerPC or RS/6000:
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
 	Lynx 2.5 (1.9) (footnote 10)
 	MkLinux DR3 GENERIC #6 (1.10.5.1) (presumably LinuxPPC too)
+	Mac OS X Darwin 6.6 Darwin Kernel Version 6.6 (1.11.1p1)
+	Mac OS X Darwin 5.5 Darwin Kernel Version 5.5 (1.11.6) (footnote 12)
+	Mac OS X Darwin 5.5 Darwin Kernel Version 5.5 (1.12.1) (footnote 12)
 SPARC:
 	Sun SPARC running SunOS 4.1.x (1.10)
 	Sun SPARCstation 10 running Solaris 2.3 using gcc and cc (about 1.4A2)
@@ -238,21 +243,33 @@ VAX:
       ci:  RCS/loginfo,v: Invalid argument
       cvs [init aborted]: failed to checkin n:/safe/CVSROOT/loginfo
 
+(footnote 12)
+    Need to `configure --without-gssapi' unless you have installed Kerberos 5
+    libraries on the system yourself.  For some reason Apple ships OS X with
+    the Kerberos 5 headers installed and not the libraries, which confuses the
+    current configure script.  Some HP, BSD, & Sun boxes have similar problems.
+
+(footnote 13)
+    A build under HP PA-RISC 2.0 will probably not run under PA-RISC 1.1
+    unless "+DAportable" is added to the HP ANSI cc compiler flags.
+
 -------------------------------------------------------------------------------
 
 Building from source code under Unix:
 
-1)  Some combinations of Automake and Autoconf versions may break the CVS build
-    if file timestamps aren't set correctly, so you may wish to run
-    noautomake.sh to set the timestamps and avoid attempting to run the
-    autotools on your system, especially if you are building from source
-    checked out from CVS:
+1)  Some combinations of Automake and Autoconf versions may break the
+    CVS build if file timestamps aren't set correctly and people don't
+    have the same versions the developers do, so the rules to run them
+    automatically aren't included in the generated Makefiles unless you run
+    configure with --enable-maintainer-mode.
 
-	$ ./noautomake.sh --noautoconf
+    The CVS Makefiles and configure script were built using Automake 1.7.9 and
+    Autoconf 2.58, respectively.
 
-    The CVS Makefiles and configure script were built using Automake 1.6.3 and
-    Autoconf 2.53, respectively.  Other combinations of autotool versions may
-    or may not work.
+    There is a known bug in Autoconf 2.57 that will prevent the configure
+    scripts it generates from working on some platforms.  Other combinations of
+    autotool versions may or may not work.  If you get other versions to work,
+    please send a report to <bug-cvs@gnu.org>.
 
 2)  Run "configure":
 
@@ -368,10 +385,7 @@ Building from source code under Unix:
 
     END OF NOTE FOR NDBM GUNK.
 
-3)  Edit src/options.h.  The defaults should be reasonable, and in fact
-    if you are lazy you can safely skip this step.
-
-4)  Try to build it:
+3)  Try to build it:
 
 	$ make
 
@@ -382,7 +396,7 @@ Building from source code under Unix:
     compiler information, make output, and anything else you think
     will be helpful.
 
-4a)  Run the regression tests (optional).
+3a)  Run the regression tests (optional).
 
     You may also wish to validate the correctness of the new binary by
     running the regression tests.  If they succeed, that is nice to
@@ -394,7 +408,7 @@ Building from source code under Unix:
 
     If you want to run the tests, see the file TESTS for more information.
 
-5)  Install the binaries/documentation:
+4)  Install the binaries/documentation:
 
 	$ make install
 
@@ -442,7 +456,11 @@ Building from source code under Windows NT/95/98/2000:
 
 You may find interesting information in windows-NT/README.
 
-1) Using Microsoft Visual C++ 5.x, open the project `cvsnt.dsp',
+* Using Microsoft Visual C++ 5.x (this is currently broken - someone with
+  MVC++ 5.x needs to regenerate the project files, but the builds using `nmake'
+  below will work).
+
+1) Using Microsoft Visual C++ 5.x, open the project `cvsnt.dsw',
    in the top directory of the CVS distribution.  If you have an older
    version of Visual C++, take a look at windows-NT/README.
 2) Choose "Build cvs.exe" from the "Project" menu.
@@ -455,7 +473,12 @@ following also works:
 	C:\> vcvars32
 	C:\> nmake /f cvsnt.mak CFG="cvsnt - Win32 Debug"
 
-* You might also try http://cvsgui.org & http://www.cvsnt.org
+* Using the Cygwin development environment <http://cygwin.com>, Windows clients
+  and servers can be built using the instructions for building on UNIX.  For
+  deploying the CVS server on Windows NT, see the `cygrunsrv' executable that
+  comes with Cygwin.
+
+* You might also try <http://wincvs.org> & <http://www.cvsnt.org>.
 
 -------------------------------------------------------------------------------
 
@@ -467,24 +490,10 @@ For VMS, see README.VMS
 
 Mac OS X: Builds fine, just like UNIX.
 
-For older versions of Mac OS, you might try http://cvsgui.org .
+For older versions of Mac OS, you might try <http://wincvs.org>.
 
 For a Java client, see jCVS (which is a separate package from CVS
 itself, but which might be preferable to the Macintosh port mentioned
 above, for example).
-
-                                  **** ****
-
-Builds are breaking on some systems (notably,
-BSD/OS thor.sdrc.com 4.0.1 BSDI BSD/OS 4.0.1 Kernel #3: Thu Mar  9 11:29:16 EST 2000
-) due to Automake's dependency tracking code.  The work around for this is to
-comile without it by passing the '--disable-dependency-tracking' option to
-configure:
-
-	$ ./configure --disable-dependency-tracking
-
-This will allow a compile but make will no longer be tracking header
-dependencies.  This means that if you make any changes to header files you may
-have to run 'make clean' before running a 'make' to get everything to compile.
 
 -------------------------------------------------------------------------------

@@ -943,6 +943,16 @@ there are some situations it cannot handle (ignore patterns, or
 situations where the user specifies a filename and the client does not
 know about that file).
 
+Though this request will be supported into the forseeable future, it has been
+the source of numerous bug reports in the past due to the complexity of testing
+this functionality via the test suite and client developers are encouraged not
+to use it.  Instead, please consider munging conflicting names and maintaining
+a map for communicating with the server.  For example, suppose the server sends
+files @file{case}, @file{CASE}, and @file{CaSe}.  The client could write all
+three files to names such as, @file{case}, @file{case_prefix_case}, and
+@file{case_prefix_2_case} and maintain a mapping between the file names in, for
+instance a new @file{CVS/Map} file.
+
 @item Argument @var{text} \n
 Response expected: no.
 Save argument for use in a subsequent command.  Arguments

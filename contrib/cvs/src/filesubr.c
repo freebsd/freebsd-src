@@ -327,12 +327,13 @@ make_directories (name)
    existed.  */
 int
 mkdir_if_needed (name)
-    char *name;
+    const char *name;
 {
     if (mkdir (name, 0777) < 0)
     {
-	if (errno != EEXIST && !isdir (name))
-	    error (1, errno, "cannot make directory %s", name);
+	int save_errno = errno;
+	if (save_errno != EEXIST && !isdir (name))
+	    error (1, save_errno, "cannot make directory %s", name);
 	return 1;
     }
     return 0;
@@ -347,7 +348,7 @@ mkdir_if_needed (name)
  */
 void
 xchmod (fname, writable)
-    char *fname;
+    const char *fname;
     int writable;
 {
     struct stat sb;
@@ -609,6 +610,7 @@ xcmp (file1, file2)
 
     /* If FILE1 and FILE2 are symlinks, they are equal if they point to
        the same thing. */
+#ifdef S_ISLNK
     if (S_ISLNK (sb1.st_mode) && S_ISLNK (sb2.st_mode))
     {
 	int result;
@@ -619,6 +621,7 @@ xcmp (file1, file2)
 	free (buf2);
 	return result;
     }
+#endif
 
     /* If FILE1 and FILE2 are devices, they are equal if their device
        numbers match. */
@@ -766,8 +769,8 @@ FILE *cvs_temp_file (filename)
     if (fd == -1) fp = NULL;
     else if ((fp = CVS_FDOPEN (fd, "w+")) == NULL)
     {
-	/* attempt to close and unlink the file since mkstemp returned sucessfully and
-	 * we believe it's been created and opened
+	/* Attempt to close and unlink the file since mkstemp returned
+	 * sucessfully and we believe it's been created and opened.
 	 */
  	int save_errno = errno;
 	if (close (fd))
@@ -845,30 +848,32 @@ FILE *cvs_temp_file (filename)
     return fp;
 }
 
-/* Return non-zero iff FILENAME is absolute.
-   Trivial under Unix, but more complicated under other systems.  */
-int
-isabsolute (filename)
-    const char *filename;
-{
-    return filename[0] == '/';
-}
 
-/*
- * Return a string (dynamically allocated) with the name of the file to which
- * LINK is symlinked.
+
+#ifdef HAVE_READLINK
+/* char *
+ * xreadlink ( const char *link )
+ *
+ * Like the X/OPEN and 4.4BSD readlink() function, but allocates and returns
+ * its own buf.
+ *
+ * INPUTS
+ *  link	The original path.
+ *
+ * RETURNS
+ *  The resolution of the final symbolic link in the path.
+ *
+ * ERRORS
+ *  This function exits with a fatal error if it fails to read the link for
+ *  any reason.
  */
 char *
 xreadlink (link)
     const char *link;
 {
     char *file = NULL;
-    char *tfile;
     int buflen = 128;
     int link_name_len;
-
-    if (!islink (link))
-	return NULL;
 
     /* Get the name of the file to which `from' is linked.
        FIXME: what portability issues arise here?  Are readlink &
@@ -886,19 +891,59 @@ xreadlink (link)
 
     file[link_name_len] = '\0';
 
-    tfile = xstrdup (file);
-    free (file);
+    return file;
+}
+#endif /* HAVE_READLINK */
 
-    return tfile;
+
+
+/* char *
+ * xresolvepath ( const char *path )
+ *
+ * Like xreadlink(), but resolve all links in a path.
+ *
+ * INPUTS
+ *  path	The original path.
+ *
+ * RETURNS
+ *  The path with any symbolic links expanded.
+ *
+ * ERRORS
+ *  This function exits with a fatal error if it fails to read the link for
+ *  any reason.
+ */
+char *
+xresolvepath ( path )
+    const char *path;
+{
+    char *hardpath;
+    char *owd;
+
+    assert ( isdir ( path ) );
+
+    /* FIXME - If HAVE_READLINK is defined, we should probably walk the path
+     * bit by bit calling xreadlink().
+     */
+
+    owd = xgetwd();
+    if ( CVS_CHDIR ( path ) < 0)
+	error ( 1, errno, "cannot chdir to %s", path );
+    if ( ( hardpath = xgetwd() ) == NULL )
+	error (1, errno, "cannot getwd in %s", path);
+    if ( CVS_CHDIR ( owd ) < 0)
+	error ( 1, errno, "cannot chdir to %s", owd );
+    free (owd);
+    return hardpath;
 }
 
 
+
 /* Return a pointer into PATH's last component.  */
-char *
+const char *
 last_component (path)
-    char *path;
+    const char *path;
 {
-    char *last = strrchr (path, '/');
+    const char *last = strrchr (path, '/');
     
     if (last && (last != path))
         return last + 1;
@@ -990,6 +1035,8 @@ expand_wild (argc, argv, pargc, pargv)
 	(*pargv)[i] = xstrdup (argv[i]);
 }
 
+
+
 #ifdef SERVER_SUPPORT
 /* Case-insensitive string compare.  I know that some systems
    have such a routine, but I'm not sure I see any reasons for
@@ -998,11 +1045,11 @@ expand_wild (argc, argv, pargc, pargv)
    not).  */
 int
 cvs_casecmp (str1, str2)
-    char *str1;
-    char *str2;
+    const char *str1;
+    const char *str2;
 {
-    char *p;
-    char *q;
+    const char *p;
+    const char *q;
     int pqdiff;
 
     p = str1;
@@ -1016,107 +1063,4 @@ cvs_casecmp (str1, str2)
     }
     return pqdiff;
 }
-
-/* Case-insensitive file open.  As you can see, this is an expensive
-   call.  We don't regard it as our main strategy for dealing with
-   case-insensitivity.  Returns errno code or 0 for success.  Puts the
-   new file in *FP.  NAME and MODE are as for fopen.  If PATHP is not
-   NULL, then put a malloc'd string containing the pathname as found
-   into *PATHP.  *PATHP is only set if the return value is 0.
-
-   Might be cleaner to separate the file finding (which just gives
-   *PATHP) from the file opening (which the caller can do).  For one
-   thing, might make it easier to know whether to put NAME or *PATHP
-   into error messages.  */
-int
-fopen_case (name, mode, fp, pathp)
-    char *name;
-    char *mode;
-    FILE **fp;
-    char **pathp;
-{
-    struct dirent *dp;
-    DIR *dirp;
-    char *dir;
-    char *fname;
-    char *found_name;
-    int retval;
-
-    /* Separate NAME into directory DIR and filename within the directory
-       FNAME.  */
-    dir = xstrdup (name);
-    fname = strrchr (dir, '/');
-    if (fname == NULL)
-	error (1, 0, "internal error: relative pathname in fopen_case");
-    *fname++ = '\0';
-
-    found_name = NULL;
-    dirp = CVS_OPENDIR (dir);
-    if (dirp == NULL)
-    {
-	if (existence_error (errno))
-	{
-	    /* This can happen if we are looking in the Attic and the Attic
-	       directory does not exist.  Return the error to the caller;
-	       they know what to do with it.  */
-	    retval = errno;
-	    goto out;
-	}
-	else
-	{
-	    /* Give a fatal error; that way the error message can be
-	       more specific than if we returned the error to the caller.  */
-	    error (1, errno, "cannot read directory %s", dir);
-	}
-    }
-    errno = 0;
-    while ((dp = CVS_READDIR (dirp)) != NULL)
-    {
-	if (cvs_casecmp (dp->d_name, fname) == 0)
-	{
-	    if (found_name != NULL)
-		error (1, 0, "%s is ambiguous; could mean %s or %s",
-		       fname, dp->d_name, found_name);
-	    found_name = xstrdup (dp->d_name);
-	}
-    }
-    if (errno != 0)
-	error (1, errno, "cannot read directory %s", dir);
-    CVS_CLOSEDIR (dirp);
-
-    if (found_name == NULL)
-    {
-	*fp = NULL;
-	retval = ENOENT;
-    }
-    else
-    {
-	char *p;
-
-	/* Copy the found name back into DIR.  We are assuming that
-	   found_name is the same length as fname, which is true as
-	   long as the above code is just ignoring case and not other
-	   aspects of filename syntax.  */
-	p = dir + strlen (dir);
-	*p++ = '/';
-	strcpy (p, found_name);
-	*fp = fopen (dir, mode);
-	if (*fp == NULL)
-	    retval = errno;
-	else
-	    retval = 0;
-    }
-
-    if (pathp == NULL)
-	free (dir);
-    else if (retval != 0)
-	free (dir);
-    else
-	*pathp = dir;
-    free (found_name);
- out:
-    return retval;
-}
 #endif /* SERVER_SUPPORT */
-/* vim:tabstop=8:shiftwidth=4
- */
