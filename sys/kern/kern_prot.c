@@ -1379,6 +1379,10 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 
 	if ((error = prison_check(u1, u2)))
 		return (error);
+#ifdef MAC
+	if ((error = mac_check_cred_visible(u1, u2)))
+		return (error);
+#endif
 	if ((error = cr_seeotheruids(u1, u2)))
 		return (error);
 	return (0);
@@ -1420,6 +1424,10 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	error = prison_check(cred, proc->p_ucred);
 	if (error)
 		return (error);
+#ifdef MAC
+	if ((error = mac_check_proc_signal(cred, proc, signum)))
+		return (error);
+#endif
 	error = cr_seeotheruids(cred, proc->p_ucred);
 	if (error)
 		return (error);
@@ -1521,6 +1529,10 @@ p_cansched(struct thread *td, struct proc *p)
 		return (0);
 	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
+#ifdef MAC
+	if ((error = mac_check_proc_sched(td->td_ucred, p)))
+		return (error);
+#endif
 	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
 	if (td->td_ucred->cr_ruid == p->p_ucred->cr_ruid)
@@ -1578,6 +1590,10 @@ p_candebug(struct thread *td, struct proc *p)
 		return (0);
 	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
+#ifdef MAC
+	if ((error = mac_check_proc_debug(td->td_ucred, p)))
+		return (error);
+#endif
 	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
 
@@ -1652,11 +1668,13 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	error = prison_check(cred, so->so_cred);
 	if (error)
 		return (ENOENT);
+#ifdef MAC
+	error = mac_check_socket_visible(cred, so);
+	if (error)
+		return (error);
+#endif
 	if (cr_seeotheruids(cred, so->so_cred))
 		return (ENOENT);
-#ifdef MAC
-	/* XXX: error = mac_cred_check_seesocket() here. */
-#endif
 
 	return (0);
 }
