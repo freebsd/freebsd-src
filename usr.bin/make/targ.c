@@ -464,7 +464,7 @@ Targ_FmtTime (time)
 
     parts = localtime(&time);
 
-    strftime(buf, sizeof buf, "%k:%M:%S %b %d, %Y", parts);
+    strftime(buf, sizeof buf, "%H:%M:%S %b %d, %Y", parts);
     buf[sizeof(buf) - 1] = '\0';
     return(buf);
 }
