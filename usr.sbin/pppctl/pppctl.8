@@ -158,6 +158,27 @@ You can even make a generic script:
 exec pppctl /var/run/internet "$@"
 .Ed
 .Pp
+You could also use
+.Nm
+to control when dial-on-demand works.  Suppose you want
+.Nm ppp
+to run all the time, but you want to prevent dial-out between 8pm and 8am
+each day.  However, any connections active at 8pm should continue to remain
+active until they are closed or naturally time out.
+.Pp
+A
+.Xr cron 8
+entry for 8pm which runs
+.Bd -literal -offset indent
+pppctl /var/run/internet set filter dial 0 deny 0 0
+.Ed
+.Pp
+will block all further dial requests, and the corresponding 8am entry
+.Bd -literal -offset indent
+pppctl /var/run/internet set filter dial -1
+.Ed
+.Pp
+will allow them again.
 .Sh ENVIRONMENT
 The following environment variables are understood by
 .Nm
