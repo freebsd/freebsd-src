@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.43 1997/09/27 13:39:20 kato Exp $
+ * $Id: spec_vnops.c,v 1.44 1997/10/15 09:21:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -68,17 +68,17 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) spec_abortop },
 	{ &vop_access_desc,		(vop_t *) spec_access },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
-	{ &vop_blkatoff_desc,	(vop_t *) spec_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) spec_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
 	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) spec_create },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getattr_desc,		(vop_t *) spec_getattr },
-	{ &vop_getpages_desc,	(vop_t *) spec_getpages },
-	{ &vop_inactive_desc,	(vop_t *) spec_inactive },
+	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
+	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) spec_islocked },
+	{ &vop_islocked_desc,		(vop_t *) spec_islocked },
 	{ &vop_lease_desc,		(vop_t *) spec_lease_check },
 	{ &vop_link_desc,		(vop_t *) spec_link },
 	{ &vop_lock_desc,		(vop_t *) spec_lock },
@@ -87,12 +87,12 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) spec_mknod },
 	{ &vop_mmap_desc,		(vop_t *) spec_mmap },
 	{ &vop_open_desc,		(vop_t *) spec_open },
-	{ &vop_pathconf_desc,	(vop_t *) spec_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) spec_pathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
 	{ &vop_readdir_desc,		(vop_t *) spec_readdir },
-	{ &vop_readlink_desc,	(vop_t *) spec_readlink },
+	{ &vop_readlink_desc,		(vop_t *) spec_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) spec_reclaim },
 	{ &vop_remove_desc,		(vop_t *) spec_remove },
 	{ &vop_rename_desc,		(vop_t *) spec_rename },
@@ -100,9 +100,9 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) spec_rmdir },
 	{ &vop_seek_desc,		(vop_t *) spec_seek },
 	{ &vop_setattr_desc,		(vop_t *) spec_setattr },
-	{ &vop_strategy_desc,	(vop_t *) spec_strategy },
+	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_symlink },
-	{ &vop_truncate_desc,	(vop_t *) spec_truncate },
+	{ &vop_truncate_desc,		(vop_t *) spec_truncate },
 	{ &vop_unlock_desc,		(vop_t *) spec_unlock },
 	{ &vop_update_desc,		(vop_t *) spec_update },
 	{ &vop_valloc_desc,		(vop_t *) spec_valloc },

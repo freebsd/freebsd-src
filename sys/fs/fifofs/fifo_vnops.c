@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.28 1997/10/12 20:24:42 phk Exp $
+ * $Id: fifo_vnops.c,v 1.29 1997/10/15 09:21:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -69,16 +69,16 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) fifo_abortop },
 	{ &vop_access_desc,		(vop_t *) fifo_access },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
-	{ &vop_blkatoff_desc,	(vop_t *) fifo_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) fifo_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
 	{ &vop_bwrite_desc,		(vop_t *) fifo_bwrite },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) fifo_create },
 	{ &vop_fsync_desc,		(vop_t *) fifo_fsync },
 	{ &vop_getattr_desc,		(vop_t *) fifo_getattr },
-	{ &vop_inactive_desc,	(vop_t *) fifo_inactive },
+	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) fifo_islocked },
+	{ &vop_islocked_desc,		(vop_t *) fifo_islocked },
 	{ &vop_lease_desc,		(vop_t *) fifo_lease_check },
 	{ &vop_link_desc,		(vop_t *) fifo_link },
 	{ &vop_lock_desc,		(vop_t *) fifo_lock },
@@ -87,12 +87,12 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) fifo_mknod },
 	{ &vop_mmap_desc,		(vop_t *) fifo_mmap },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
-	{ &vop_pathconf_desc,	(vop_t *) fifo_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
 	{ &vop_readdir_desc,		(vop_t *) fifo_readdir },
-	{ &vop_readlink_desc,	(vop_t *) fifo_readlink },
+	{ &vop_readlink_desc,		(vop_t *) fifo_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) fifo_reclaim },
 	{ &vop_remove_desc,		(vop_t *) fifo_remove },
 	{ &vop_rename_desc,		(vop_t *) fifo_rename },
@@ -100,9 +100,9 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) fifo_rmdir },
 	{ &vop_seek_desc,		(vop_t *) fifo_seek },
 	{ &vop_setattr_desc,		(vop_t *) fifo_setattr },
-	{ &vop_strategy_desc,	(vop_t *) fifo_strategy },
+	{ &vop_strategy_desc,		(vop_t *) fifo_strategy },
 	{ &vop_symlink_desc,		(vop_t *) fifo_symlink },
-	{ &vop_truncate_desc,	(vop_t *) fifo_truncate },
+	{ &vop_truncate_desc,		(vop_t *) fifo_truncate },
 	{ &vop_unlock_desc,		(vop_t *) fifo_unlock },
 	{ &vop_update_desc,		(vop_t *) fifo_update },
 	{ &vop_valloc_desc,		(vop_t *) fifo_valloc },

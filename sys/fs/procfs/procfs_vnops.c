@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.33 1997/09/21 04:23:23 dyson Exp $
+ *	$Id: procfs_vnops.c,v 1.34 1997/10/15 09:21:19 phk Exp $
  */
 
 /*
@@ -972,15 +972,15 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) procfs_abortop },
 	{ &vop_access_desc,		(vop_t *) procfs_access },
 	{ &vop_advlock_desc,		(vop_t *) procfs_advlock },
-	{ &vop_blkatoff_desc,	(vop_t *) procfs_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) procfs_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) procfs_bmap },
 	{ &vop_close_desc,		(vop_t *) procfs_close },
 	{ &vop_create_desc,		(vop_t *) procfs_create },
 	{ &vop_fsync_desc,		(vop_t *) procfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },
-	{ &vop_inactive_desc,	(vop_t *) procfs_inactive },
+	{ &vop_inactive_desc,		(vop_t *) procfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) procfs_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) procfs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) procfs_islocked },
 	{ &vop_link_desc,		(vop_t *) procfs_link },
 	{ &vop_lock_desc,		(vop_t *) procfs_lock },
 	{ &vop_lookup_desc,		(vop_t *) procfs_lookup },
@@ -988,12 +988,12 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) procfs_mknod },
 	{ &vop_mmap_desc,		(vop_t *) procfs_mmap },
 	{ &vop_open_desc,		(vop_t *) procfs_open },
-	{ &vop_pathconf_desc,	(vop_t *) procfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) procfs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) procfs_poll },
 	{ &vop_print_desc,		(vop_t *) procfs_print },
 	{ &vop_read_desc,		(vop_t *) procfs_read },
 	{ &vop_readdir_desc,		(vop_t *) procfs_readdir },
-	{ &vop_readlink_desc,	(vop_t *) procfs_readlink },
+	{ &vop_readlink_desc,		(vop_t *) procfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) procfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) procfs_remove },
 	{ &vop_rename_desc,		(vop_t *) procfs_rename },
@@ -1001,9 +1001,9 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) procfs_rmdir },
 	{ &vop_seek_desc,		(vop_t *) procfs_seek },
 	{ &vop_setattr_desc,		(vop_t *) procfs_setattr },
-	{ &vop_strategy_desc,	(vop_t *) procfs_strategy },
+	{ &vop_strategy_desc,		(vop_t *) procfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) procfs_symlink },
-	{ &vop_truncate_desc,	(vop_t *) procfs_truncate },
+	{ &vop_truncate_desc,		(vop_t *) procfs_truncate },
 	{ &vop_unlock_desc,		(vop_t *) procfs_unlock },
 	{ &vop_update_desc,		(vop_t *) procfs_update },
 	{ &vop_valloc_desc,		(vop_t *) procfs_valloc },
