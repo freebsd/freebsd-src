@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.4 1998/12/07 21:58:46 archie Exp $
+ *	$Id: if_mx.c,v 1.5 1998/12/14 06:32:55 dillon Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.4 1998/12/07 21:58:46 archie Exp $";
+	"$Id: if_mx.c,v 1.5 1998/12/14 06:32:55 dillon Exp $";
 #endif
 
 /*
@@ -1652,6 +1652,15 @@ static void mx_rxeof(sc)
 		/* No errors; receive the packet. */	
 		m = cur_rx->mx_mbuf;
 		total_len = MX_RXBYTES(cur_rx->mx_ptr->mx_status);
+
+		/*
+		 * XXX The Macronix chips includes the CRC with every
+		 * received frame, and there's no way to turn this
+		 * behavior off (at least, I can't find anything in
+	 	 * the manual that explains how to do it) so we have
+		 * to trim off the CRC manually.
+		 */
+		total_len -= ETHER_CRC_LEN;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
