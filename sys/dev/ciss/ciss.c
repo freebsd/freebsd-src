@@ -1411,7 +1411,9 @@ ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld, int async)
     struct ciss_request		*cr;
     struct ciss_command		*cc;
     struct ciss_bmic_cdb	*cbc;
-    int				error;
+    int				error, ldrive;
+
+    ldrive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
 
     debug(0, "bringing logical drive %d back online %ssynchronously",
 	  ldrive, async ? "a" : "");
@@ -1425,7 +1427,7 @@ ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld, int async)
     cc = CISS_FIND_COMMAND(cr);
     cc->header.address = *ld->cl_controller;	/* target controller */
     cbc = (struct ciss_bmic_cdb *)&(cc->cdb.cdb[0]);
-    cbc->log_drive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
+    cbc->log_drive = ldrive;
 
     /*
      * Dispatch the request asynchronously if we can't sleep waiting
@@ -3568,7 +3570,7 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 static void
 ciss_print_adapter(struct ciss_softc *sc)
 {
-    int		i;
+    int		i, j;
 
     ciss_printf(sc, "ADAPTER:\n");
     for (i = 0; i < CISSQ_COUNT; i++) {
@@ -3579,14 +3581,14 @@ ciss_print_adapter(struct ciss_softc *sc)
 	    sc->ciss_qstat[i].q_max);
     }
     ciss_printf(sc, "max_requests %d\n", sc->ciss_max_requests);
-    ciss_printf(sc, "notify_head/tail %d/%d\n",
-	sc->ciss_notify_head, sc->ciss_notify_tail);
     ciss_printf(sc, "flags %b\n", sc->ciss_flags,
 	"\20\1notify_ok\2control_open\3aborting\4running\21fake_synch\22bmic_abort\n");
 
-    for (i = 0; i < CISS_MAX_LOGICAL; i++) {
-	ciss_printf(sc, "LOGICAL DRIVE %d:  ", i);
-	ciss_print_ldrive(sc, sc->ciss_logical + i);
+    for (i = 0; i < sc->ciss_max_bus_number; i++) {
+	for (j = 0; j < CISS_MAX_LOGICAL; j++) {
+	    ciss_printf(sc, "LOGICAL DRIVE %d:  ", i);
+	    ciss_print_ldrive(sc, &sc->ciss_logical[i][j]);
+	}
     }
 
     for (i = 1; i < sc->ciss_max_requests; i++)
