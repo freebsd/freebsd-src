@@ -184,7 +184,7 @@ parse(char *string)
 	}
 	len = name2oid(bufp, mib);
 
-	if (len < 0) 
+	if (len < 0)
 		errx(1, "unknown oid '%s'", bufp);
 
 	if (oidfmt(mib, len, fmt, &kind))
@@ -218,7 +218,7 @@ parse(char *string)
 			if (strlen(newval) == 0)
 				errx(1, "empty numeric value");
 		}
-	
+
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
 				intval = (int)strtol(newval, &endptr, 0);
@@ -277,13 +277,13 @@ parse(char *string)
 				putchar('\n');
 			switch (errno) {
 			case EOPNOTSUPP:
-				errx(1, "%s: value is not available", 
+				errx(1, "%s: value is not available",
 					string);
 			case ENOTDIR:
-				errx(1, "%s: specification is incomplete", 
+				errx(1, "%s: specification is incomplete",
 					string);
 			case ENOMEM:
-				errx(1, "%s: type is unknown to this program", 
+				errx(1, "%s: type is unknown to this program",
 					string);
 			default:
 				warn("%s", string);
@@ -382,13 +382,13 @@ S_vmtotal(int l2, void *p)
 	printf("Real Memory:\t\t(Total: %lldK Active %lldK)\n",
 	    (long long)v->t_rm * pageKilo, (long long)v->t_arm * pageKilo);
 	printf("Shared Virtual Memory:\t(Total: %lldK Active: %lldK)\n",
-	    (long long)v->t_vmshr * pageKilo, 
+	    (long long)v->t_vmshr * pageKilo,
 	    (long long)v->t_avmshr * pageKilo);
 	printf("Shared Real Memory:\t(Total: %lldK Active: %lldK)\n",
 	    (long long)v->t_rmshr * pageKilo,
 	    (long long)v->t_armshr * pageKilo);
 	printf("Free Memory Pages:\t%ldK\n", (long long)v->t_free * pageKilo);
-	
+
 	return (0);
 }
 
@@ -453,7 +453,7 @@ name2oid(char *name, int *oidp)
 
 	j = CTL_MAXNAME * sizeof(int);
 	i = sysctl(oid, 2, oidp, &j, name, strlen(name));
-	if (i < 0) 
+	if (i < 0)
 		return i;
 	j /= sizeof(int);
 	return (j);
@@ -556,7 +556,7 @@ show_var(int *oid, int nlen)
 			printf("%s%s", name, sep);
 		printf("%.*s", len, p);
 		return (0);
-		
+
 	case 'I':
 		if (!nflag)
 			printf("%s%s", name, sep);
