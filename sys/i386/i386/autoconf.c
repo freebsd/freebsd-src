@@ -53,6 +53,8 @@
 #include "opt_bus.h"
 #include "opt_rootdevname.h"
 
+#include "isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -74,9 +76,11 @@
 #include <i386/isa/icu.h>
 #endif /* APIC_IO */
 
-#include "isa.h"
+#if NISA > 0
 #include <isa/isavar.h>
+
 device_t isa_bus_device = 0;
+#endif
 
 static void	configure_first __P((void *));
 static void	configure __P((void *));

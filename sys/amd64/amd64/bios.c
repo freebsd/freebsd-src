@@ -33,6 +33,8 @@
 
 #include "opt_pnp.h"
 
+#include "isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -47,7 +49,9 @@
 #include <machine/pc/bios.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
+#if NISA > 0
 #include <isa/isavar.h>
+#endif
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
