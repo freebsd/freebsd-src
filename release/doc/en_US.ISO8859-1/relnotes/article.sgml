@@ -161,7 +161,7 @@
 
     <para>Linux emulation now supports the kernel functionality
       required by the
-      <filename role="package">emulators/linux_base-7</filename>
+      <filename role="package">emulators/linux_base</filename>
       (RedHat 7.X emulation) port. &merged;</para>
 
     <para>Linux emulation now requires <literal>options
@@ -3677,6 +3677,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <programlisting>XFREE86_VERSION=3</programlisting>
 
+      <para>The libraries installed by the <filename
+	role="package">emulators/linux_base</filename> port (required
+	for Linux emulation) have been updated; they now correspond to
+	those included with <application>Red Hat Linux</application>
+	7.1.</para>
     </sect3>
   </sect2>
 
