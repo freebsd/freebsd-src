@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.29 1996/05/16 23:18:01 mpp Exp $ -->
+<!-- $Id: install.sgml,v 1.30 1996/05/23 11:53:56 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -80,8 +80,8 @@ C:\> rawrite
 	computer.  You should get a boot prompt something like this:
 	<tscreen>
 &gt;&gt; FreeBSD BOOT ...<newline>
-Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.<newline>
-Usage: &lsqb;&lsqb;hd(1,a)&rsqb;/kernel&rsqb;&lsqb;-abcCdhrsv&rsqb;<newline>
+Usage: &lsqb;&lsqb;&lsqb;0:&rsqb;&lsqb;wd&rsqb;(0,a)&rsqb;/kernel&rsqb;&lsqb;-abcCdhrsv&rsqb;<newline>
+Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1<newline>
 Use ? for file list or press Enter for defaults<newline>
 Boot: 
 	</tscreen>
