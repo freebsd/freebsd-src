@@ -865,7 +865,6 @@ ascpoll(dev_t dev, int events, struct proc *p)
     int unit = UNIT(minor(dev));
     struct asc_unit *scu = unittab + unit;
     int sps;
-    struct proc *p1;
     int revents = 0;
 
     sps=spltty();
@@ -877,11 +876,7 @@ ascpoll(dev_t dev, int events, struct proc *p)
 	    if (!(scu->flags & DMA_ACTIVE))
 		dma_restart(scu);
 	    
-	    if (scu->selp.si_pid && (p1=pfind(scu->selp.si_pid))
-		    && p1->p_wchan == (caddr_t)&selwait)
-		scu->selp.si_flags = SI_COLL;
-	    else
-		scu->selp.si_pid = p->p_pid;
+	    selrecord(p, &scu->selp);
 	}
     }
     splx(sps);
