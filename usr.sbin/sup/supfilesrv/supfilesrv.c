@@ -42,6 +42,10 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.3.2.1  1996/02/11 07:17:00  jkh
+ * Disable use of setproctitle() in 2.1 until it arrives.
+ * Thanks to Rod Grimes for helping me get my cvs mess straightened out!
+ *
  * Revision 1.3  1996/02/06 18:48:03  pst
  * Setproctitle some useful information
  *
@@ -849,10 +853,7 @@ setup ()
 #endif
 	if (release == NULL)
 		release = salloc (DEFRELEASE);
-#ifdef notyet	/* XXX re-enable when setproctitle() makes it back in XXX */
-	setproctitle("supfilesrv: serving %s/%s to %s",
-		     collname, release, remotehost());
-#endif
+	setproctitle("%s/%s to %s", collname, release, remotehost());
 	if (basedir == NULL || *basedir == '\0') {
 		basedir = NULL;
 		(void) sprintf (buf,FILEDIRS,DEFDIR);
