@@ -202,7 +202,7 @@ genclass(s)
 		errx(1, "unknown class %s", s->str);
 
 	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 	bzero(p, (NCHARS + 1) * sizeof(int));
 	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
 		if ((func)(cnt))
