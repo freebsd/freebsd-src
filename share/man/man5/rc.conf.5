@@ -503,12 +503,19 @@ or other weird behavior.
 Some network devices are known
 to be broken with respect to these options.
 .It Va log_in_vain
-.Pq Vt bool
-Set to
-.Dq NO
-by default.
-Setting to YES will enable logging of connection attempts to ports that
-have no listening socket on them.
+.Pq Vt int
+Set to 0 by default.
+The
+.Xr sysctl 8
+variables,
+.Sy net.inet.tcp.log_in_vain
+and
+.Sy net.inet.udp.log_in_vain
+as described in
+.Xr tcp 4
+and
+.Xr udp 4 ,
+are set to the given value.
 .It Va tcp_keepalive
 .Pq Vt bool
 Set to
@@ -1876,6 +1883,8 @@ Flags for
 .Xr info 1 ,
 .Xr makewhatis 1 ,
 .Xr vidcontrol 1 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
 .Xr exports 5 ,
 .Xr motd 5 ,
 .Xr accton 8 ,
