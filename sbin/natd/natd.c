@@ -1246,7 +1246,7 @@ void ReadConfigFile (const char* fileName)
 {
 	FILE*	file;
 	char	buf[128];
-	char*	ptr;
+	char	*ptr, *p;
 	char*	option;
 
 	file = fopen (fileName, "r");
@@ -1263,18 +1263,20 @@ void ReadConfigFile (const char* fileName)
 			errx (1, "config line too long: %s", buf);
 
 		*ptr = '\0';
-		if (buf[0] == '#')
-			continue;
 
-		ptr = buf;
 /*
- * Skip white space at beginning of line.
+ * Check for comments, strip off trailing spaces.
  */
-		while (*ptr && isspace (*ptr))
-			++ptr;
-
+		if ((ptr = strchr(buf, '#')))
+			*ptr = '\0';
+		for (ptr = buf; isspace(*ptr); ++ptr)
+			continue;
 		if (*ptr == '\0')
 			continue;
+		for (p = strchr(buf, '\0'); isspace(*--p);)
+			continue;
+		*++p = '\0';
+
 /*
  * Extract option name.
  */
