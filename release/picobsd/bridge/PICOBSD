@@ -13,88 +13,99 @@ cpu		I686_CPU
 ident		PICOBSD
 maxusers	20
 
-options		MATH_EMULATE		#Support for x87 emulation
-options		INET			#InterNETworking
-options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT		#FFS usable as root device [keep this!]
-#options		NFS			#Network Filesystem
-options		NFS_NOSERVER		#Network Filesystem
-#options		BOOTP
-options		MFS			#Memory Filesystem
-options		MD_ROOT		#MFS as root
-options		MSDOSFS			#MSDOS Filesystem
-#options		CD9660		#ISO 9660 Filesystem
-options		PROCFS			#Process filesystem
-options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options		USERCONFIG		#boot -c editor
-#options		INTRO_USERCONFIG		#imply -c and parse info area
-options		VISUAL_USERCONFIG	#visual boot -c editor
+options 	MATH_EMULATE		#Support for x87 emulation
+options 	INET			#InterNETworking
+options 	FFS			#Berkeley Fast Filesystem
+options 	FFS_ROOT		#FFS usable as root device [keep this!]
+options 	MFS			#Memory Filesystem
+#options 	DEVFS			#Device Filesystem
+options 	MD_ROOT			#MD is a potential root device
+#options 	NFS			#Network Filesystem
+#options 	NFS_ROOT		#NFS usable as root device, NFS required
+options		NFS_NOSERVER		#Disable the NFS-server code.
+#options		BOOTP			#Use BOOTP to obtain IP address/hostname
+options 	MSDOSFS			#MSDOS Filesystem
+#options 	CD9660			#ISO 9660 Filesystem
+#options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
+options 	PROCFS			#Process filesystem
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+#options 	UCONSOLE		#Allow users to grab the console
+options 	USERCONFIG		#boot -c editor
+#options		INTRO_USERCONFIG	#imply -c and parse info area
+
+options 	VISUAL_USERCONFIG	#visual boot -c editor
+#options 	KTRACE			#ktrace(1) support
+#options 	SYSVSHM			#SYSV-style shared memory
+#options 	SYSVMSG			#SYSV-style message queues
+#options 	SYSVSEM			#SYSV-style semaphores
+#options 	P1003_1B		#Posix P1003_1B real-time extensions
+#options 	_KPOSIX_PRIORITY_SCHEDULING
+#options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT
-#options		DEVFS
-options		PCI_QUIET
-options         COMPAT_OLDISA   #Use ISA shims and glue for old drivers
-options         COMPAT_OLDPCI   #Use PCI shims and glue for old drivers
-#options		NO_LKM
+options		PCI_QUIET		#quiets PCI code on chipset settings
+
 # Support for bridging and bandwidth limiting
-options	DUMMYNET
-options	BRIDGE
-options	HZ=1000
-options NMBCLUSTERS=4096
-pseudo-device bpf 4
+options		DUMMYNET
+options		BRIDGE
+options		HZ=1000
+options		NMBCLUSTERS=4096
 
-#config		kernel	root on fd0a
+device		isa
+device		pci
+options 	COMPAT_OLDISA		# compatability shims for lnc, le
+options 	COMPAT_OLDPCI		# compatability shims for lnc, vx
 
-device	isa0
-device	pci0
+# Floppy drives
+device		fdc
 
-device		fdc0	at isa? port IO_FD1 irq 6 drq 2
-device		fd0	at fdc0 drive 0
-#device		fd1	at fdc0 drive 1
+# ATA and ATAPI devices
+device		ata
+device		atadisk			# ATA disk drives
+#device		atapicd			# ATAPI CDROM drives
 
-device ata0	at isa? port IO_WD1 irq 14
-device ata1	at isa? port IO_WD2 irq 15
-device ata
-device atadisk
-#device	atapicd
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device	atkbdc0	at isa? port IO_KBD
-device		atkbd0	at atkbdc? irq 1
-device          psm0    at atkbdc? irq 12
+device		atkbdc	1
+device		atkbd
+device		psm
 
-device		vga0	at isa?
+device		vga
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa?
+device		sc	1
 
-device		npx0	at nexus? port IO_NPX irq 13
+# Floating point support - do not disable.
+device		npx
 
-device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
-device		sio1	at isa? port IO_COM2 irq 3
+# Serial (COM) ports
+device		sio
 
-# device ppc0	at isa? port? flags 0x40 irq 7
-# device	ppbus0
-# device		nlpt0	at ppbus?
-# device		plip0	at ppbus?
-# device		ppi0	at ppbus?
+# Parallel port
+#device		ppc
+#device		ppbus		# Parallel port bus (required)
+#device		lpt		# Printer
+#device		plip		# TCP/IP over parallel
+#device		ppi		# Parallel port interface device
 
 #
 # The following Ethernet NICs are all PCI devices.
 #
 device	miibus 
-#device de0              # DEC/Intel DC21x4x (``Tulip'')
-device fxp0             # Intel EtherExpress PRO/100B (82557, 82558)
-device rl0
-device dc0
+#device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		rl		# RealTek 8129/8139
+device		dc		# DEC/Intel 21143 and various workalikes
+device		ed
 
-device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
-device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
+device		loop		# Network loopback
+device		ether		# Ethernet support
+device		tun		# Packet tunnel.
+device		vn		#Vnode driver (turns a file into a device)
+device		pty		# Pseudo-ttys (telnet etc)
+device		md		# Memory "disks"
 
-pseudo-device	loop
-pseudo-device	ether
-pseudo-device	tun	2
-pseudo-device	vn
-pseudo-device	pty	16
-pseudo-device	md
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+device		bpf		# Berkeley packet filter
