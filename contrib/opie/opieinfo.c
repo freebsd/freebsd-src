@@ -35,14 +35,17 @@ $FreeBSD$
 */
 
 #include "opie_cfg.h"
+#include <sys/param.h>
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 #include "opie.h"
 
 /* extern char *optarg; */
-extern int errno, optind;
+/* extern int errno, optind; */
 
 static char *getusername FUNCTION_NOARGS
 {
@@ -81,6 +84,11 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     username = argv[optind];
   } else
     username = getusername();
+
+  if (strlen(username) >= MAXLOGNAME) {
+    fprintf(stderr, "Username too long.\n");
+    exit(1);
+  }
 
   if ((i = opielookup(&opie, username)) && (i != 2)) {
     if (i < 0)
