@@ -156,7 +156,7 @@ at runtime.")
 (defconst send-pr::fields
   (` (("Category" send-pr::set-categories
        (, (or (gnats::get-config "DEFAULT_CATEGORY") nil)) enum)
-      ("Class" (("sw-bug") ("doc-bug") ("change-request"))
+      ("Class" (("sw-bug") ("doc-bug") ("change-request") ("update") ("maintainer-update"))
        (, (or (gnats::get-config "DEFAULT_CLASS") 0)) enum)
       ("Confidential" (("yes") ("no"))
        (, (or (gnats::get-config "DEFAULT_CONFIDENTIAL") 1)) enum)
