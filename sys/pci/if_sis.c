@@ -1454,7 +1454,8 @@ static poll_handler_t sis_poll;
 static void
 sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct  sis_softc *sc = ifp->if_softc;
+	struct	sis_softc *sc = ifp->if_softc;
+
 	SIS_LOCK(sc);
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 1);
