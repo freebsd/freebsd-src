@@ -783,7 +783,6 @@ dev/uart/uart_bus_pci.c		optional	uart pci
 dev/uart/uart_bus_puc.c		optional	uart puc
 dev/uart/uart_core.c		optional	uart
 dev/uart/uart_dbg.c		optional	uart gdb
-dev/uart/uart_dev_i8251.c	optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_sab82532.c	optional	uart
 dev/uart/uart_dev_z8530.c	optional	uart
