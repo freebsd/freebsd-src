@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.9 1998/12/28 19:22:25 mjacob Exp $ */
+/* $Id: isp.c,v 1.10 1999/01/10 02:55:10 mjacob Exp $ */
 /* release_12_28_98_A+ */
 /*
  * Machine and OS Independent (well, as best as possible)
@@ -1058,7 +1058,7 @@ ispscsicmd(xs)
 #endif
 
 	}
-	memcpy(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
+	MEMCPY(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
 
 	IDPRINTF(5, ("%s(%d.%d): START%d cmd 0x%x datalen %d\n", isp->isp_name,
 	    XS_TGT(xs), XS_LUN(xs), reqp->req_header.rqs_seqno,
@@ -1319,14 +1319,14 @@ isp_intr(arg)
 		XS_STS(xs) = sp->req_scsi_status & 0xff;
 		if (isp->isp_type & ISP_HA_SCSI) {
 			if (sp->req_state_flags & RQSF_GOT_SENSE) {
-				memcpy(XS_SNSP(xs), sp->req_sense_data,
+				MEMCPY(XS_SNSP(xs), sp->req_sense_data,
 					XS_SNSLEN(xs));
 				XS_SNS_IS_VALID(xs);
 			}
 		} else {
 			if (XS_STS(xs) == SCSI_CHECK) {
 				XS_SNS_IS_VALID(xs);
-				memcpy(XS_SNSP(xs), sp->req_sense_data,
+				MEMCPY(XS_SNSP(xs), sp->req_sense_data,
 					XS_SNSLEN(xs));
 				sp->req_state_flags |= RQSF_GOT_SENSE;
 			}
@@ -1718,7 +1718,7 @@ isp_handle_other_response(isp, sp, optrp)
 			ct2->req_seg_count = 1;
 			if (at2->req_cdb[0] == 0x12) {
 				s = sizeof(tgtiqd);
-				memcpy(fcp->isp_scratch, tgtiqd, s);
+				MEMCPY(fcp->isp_scratch, tgtiqd, s);
 			} else {
 				s = at2->req_datalen;
 				MEMZERO(fcp->isp_scratch, s);
@@ -1773,7 +1773,7 @@ isp_handle_other_response(isp, sp, optrp)
 				ct2->req_m.mode1.req_sense_len = 18;
 				ct2->req_m.mode1.req_scsi_status |=
 				    at2->req_scsi_status;
-				memcpy(ct2->req_m.mode1.req_response,
+				MEMCPY(ct2->req_m.mode1.req_response,
 				    at2->req_sense, sizeof (at2->req_sense));
 			}
 			break;
@@ -1826,7 +1826,7 @@ isp_handle_other_response(isp, sp, optrp)
 			PRINTF("%s: Request Queue Overflow other response\n",
 			    isp->isp_name);
 		} else {
-			memcpy(reqp, ireqp, reqsize);
+			MEMCPY(reqp, ireqp, reqsize);
 			ISP_WRITE(isp, INMAILBOX4, iptr);
 			isp->isp_reqidx = iptr;
 		}
@@ -1954,7 +1954,7 @@ isp_notify_ack(isp, ptrp)
 		PRINTF("%s: Request Queue Overflow For isp_notify_ack\n",
 		    isp->isp_name);
 	} else {
-		memcpy(reqp, ireqp, sizeof (un));
+		MEMCPY(reqp, ireqp, sizeof (un));
 		ISP_WRITE(isp, INMAILBOX4, iptr);
 		isp->isp_reqidx = iptr;
 	}
@@ -2009,7 +2009,7 @@ isp_handle_atio (isp, aep)
 
 
 		if (status & TGTSVALID) {
-			memcpy(&cdp->cd_sensedata, aep->at_sense,
+			MEMCPY(&cdp->cd_sensedata, aep->at_sense,
 			    sizeof (cdp->cd_sensedata));
 			PRINTF("%s: Bus Phase Sequence error key 0x%x\n",
 			    isp->isp_name, cdp->cd_sensedata[2] & 0xf);
@@ -2050,7 +2050,7 @@ isp_handle_atio (isp, aep)
 		cdp->cd_lun = aep->at_lun;
 		cdp->cd_tagtype = aep->at_tag_type;
 		cdp->cd_tagval = aep->at_tag_val;
-		memcpy(cdp->cd_cdb, aep->at_cdb, 16);
+		MEMCPY(cdp->cd_cdb, aep->at_cdb, 16);
 		PRINTF("%s: CDB 0x%x itl %d/%d/%d\n", isp->isp_name,
 		    cdp->cd_cdb[0], cdp->cd_iid, cdp->cd_tgt, cdp->cd_lun);
 		(*isp->isp_tmd_newcmd)(isp, cdp);
@@ -2126,7 +2126,7 @@ isp_handle_atio2(isp, aep)
 		cdp->cd_iid = aep->at_iid;
 		cdp->cd_tgt = 0;
 		cdp->cd_lun = aep->at_lun;
-		memcpy(cdp->cd_cdb, aep->at_cdb, 16);
+		MEMCPY(cdp->cd_cdb, aep->at_cdb, 16);
 		cdp->cd_rxid = aep->at_rxid;
 		cdp->cp_origdlen = aep->at_datalen;
 		cdp->cp_totbytes = 0;
