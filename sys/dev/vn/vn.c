@@ -316,7 +316,7 @@ vnstrategy(struct buf *bp)
 			}
 
 			IFOPT(vn,VN_IO)
-				printf("vnstrategy: vp %p/%p bn 0x%x/0x%lx sz 0x%x\n",
+				printf("vnstrategy: vp %p/%p bn 0x%lx/0x%lx sz 0x%x\n",
 				       vn->sc_vp, vp, bn, nbn, sz);
 
 			nbp->b_flags = flags;
