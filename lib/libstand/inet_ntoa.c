@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)inet_ntoa.c	8.1 (Berkeley) 6/4/93";
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stand.h>
+#include "stand.h"
 
 /*
  * Convert network-format internet address
