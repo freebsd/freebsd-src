@@ -198,8 +198,7 @@ SUBDIR+=aic \
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=pmc \
-	snc \
-	vinum
+	snc
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
