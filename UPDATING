@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020511:
+	The k5su utility installed as part of Kerberos 5 is no longer
+	installed with the set-user-ID bit set by default.  Add
+	ENABLE_SUID_K5SU=yes to /etc/make.conf to have it installed
+	with the set-user-ID bit set.
+
 20020510:
 	Due to the way CVS works, it may not properly update src/contrib/gcc
 	to the 3.1 sources.  The easiest fix is to `rm -rf' src/contrib/gcc
