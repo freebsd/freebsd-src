@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.70 1998/01/31 05:54:54 imp Exp $
+#	$Id: Makefile,v 1.71 1998/02/11 04:57:24 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -29,7 +29,7 @@ PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
 RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 		rpc.h rpc_com.h rpc_msg.h svc.h svc_auth.h types.h xdr.h \
-		auth_des.h des.h des_crypt.h key_prot.h
+		auth_des.h des.h des_crypt.h
 
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
