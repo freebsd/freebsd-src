@@ -289,7 +289,9 @@ static int	ahc_reset_device __P((struct ahc_softc *ahc, int target,
 				      char channel, int lun, u_int8_t tag,
 				      u_int32_t xs_error));
 static u_int8_t	ahc_rem_scb_from_disc_list __P((struct ahc_softc *ahc,
-						      u_int8_t scbptr));
+						u_int8_t scbptr));
+static void	ahc_add_curscb_to_free_list __P((struct ahc_softc *ahc));
+static void	ahc_clear_intstat __P((struct ahc_softc *ahc));
 static void	ahc_reset_current_bus __P((struct ahc_softc *ahc));
 static void	ahc_run_done_queue __P((struct ahc_softc *ahc));
 static void	ahc_scsirate __P((struct ahc_softc* ahc, u_int8_t *scsirate,
@@ -472,8 +474,8 @@ ahc_construct(ahc, bc, ioh, maddr, type, flags)
 
 	ahc->busreset_args.ahc = ahc;
 	ahc->busreset_args.bus = 'A';
-	ahc->busreset_args.ahc = ahc;
-	ahc->busreset_args.bus = 'B';
+	ahc->busreset_args_b.ahc = ahc;
+	ahc->busreset_args_b.bus = 'B';
 
 #if defined(__FreeBSD__)
 	return (ahc);
@@ -940,18 +942,25 @@ ahc_handle_seqint(ahc, intstat)
 		break; 
 	}
 	case NO_IDENT: 
+	{
 		/*
-		 * XXX - We probably need to do something very carefully to
-		 * make sure we don't lock up the bus or transfer data to a
-		 * bogus area of memory. Perhaps a bus reset is the best
-		 * alternative???
+		 * The reconnecting target either did not send an identify
+		 * message, or did, but we didn't find and SCB to match and
+		 * before it could respond to our ATN/abort, it hit a dataphase.
+		 * The only safe thing to do is to blow it away with a bus
+		 * reset.
 		 */
-		panic("%s:%c:%d: Target did not send an IDENTIFY message. "
-		      "LASTPHASE = 0x%x, SAVED_TCL == 0x%x\n",
-		      ahc_name(ahc), channel, target,
-		      ahc_inb(ahc, LASTPHASE),
-		      ahc_inb(ahc, SAVED_TCL));
-		break;
+		int found;
+
+		printf("%s:%c:%d: Target did not send an IDENTIFY message. "
+		       "LASTPHASE = 0x%x, SAVED_TCL == 0x%x\n",
+		       ahc_name(ahc), channel, target, ahc_inb(ahc, LASTPHASE),
+		       ahc_inb(ahc, SAVED_TCL));
+		found = ahc_reset_channel(ahc, channel, XS_TIMEOUT,
+					 /*initiate reset*/TRUE);
+		printf("%s: Issued Channel %c Bus Reset. "
+		       "%d SCBs aborted\n", ahc_name(ahc), channel, found);
+	}
 	case BAD_PHASE:
 		printf("%s:%c:%d: unknown scsi bus phase.  Attempting to "
 		       "continue\n", ahc_name(ahc), channel, target);	
@@ -1340,6 +1349,15 @@ ahc_handle_seqint(ahc, intstat)
 			ahc_outb(ahc, MSG_LEN, 1);
 			sc_print_addr(scb->xs->sc_link);
 			printf("Bus Device Reset Message Sent\n");
+		} else if (scb->flags & SCB_ABORT) {
+			if ((scb->hscb->control & TAG_ENB) != 0)
+				ahc_outb(ahc, MSG0 + message_offset,
+					 MSG_ABORT_TAG);
+			else
+				ahc_outb(ahc, MSG0 + message_offset, MSG_ABORT);
+			ahc_outb(ahc, MSG_LEN, message_offset + 1);
+			sc_print_addr(scb->xs->sc_link);
+			printf("Abort Message Sent\n");
 		} else if (scb->flags & SCB_MSGOUT_WDTR) {
 			ahc_construct_wdtr(ahc, message_offset, BUS_16_BIT);
 		} else if (scb->flags & SCB_MSGOUT_SDTR) {
@@ -1368,15 +1386,6 @@ ahc_handle_seqint(ahc, intstat)
 					   ahc_syncrates[i].period,
 					   (target_scratch & WIDEXFER) ?
 					   MAX_OFFSET_16BIT : MAX_OFFSET_8BIT);
-		} else if (scb->flags & SCB_ABORT) {
-			if ((scb->hscb->control & TAG_ENB) != 0)
-				ahc_outb(ahc, MSG0 + message_offset,
-					 MSG_ABORT_TAG);
-			else
-				ahc_outb(ahc, MSG0 + message_offset, MSG_ABORT);
-			ahc_outb(ahc, MSG_LEN, message_offset + 1);
-			sc_print_addr(scb->xs->sc_link);
-			printf("Abort Message Sent\n");
 		} else	
 			panic("ahc_intr: AWAITING_MSG for an SCB that "
 			      "does not have a waiting message");
@@ -1554,11 +1563,7 @@ ahc_handle_scsiint(ahc, intstat)
 				if ((scb_control & DISCONNECTED) != 0) 
 					ahc_rem_scb_from_disc_list(ahc, scbptr);
 				else {
-					/* Put us on the free list */
-					ahc_outb(ahc, SCB_NEXT,
-						 ahc_inb(ahc, FREE_SCBH));
-					ahc_outb(ahc, FREE_SCBH,
-						 ahc_inb(ahc, SCBPTR));
+					ahc_add_curscb_to_free_list(ahc);
 				}
 
 				/* Did we ask for this?? */
@@ -1734,10 +1739,8 @@ ahc_handle_scsiint(ahc, intstat)
 		nextscb = ahc_inb(ahc, SCB_NEXT);
 		ahc_outb(ahc, WAITING_SCBH, nextscb);
 
-		/* Put this SCB back on the free list */
-		nextscb = ahc_inb(ahc, FREE_SCBH);
-		ahc_outb(ahc, SCB_NEXT, nextscb);
-		ahc_outb(ahc, FREE_SCBH, scbptr);
+		ahc_add_curscb_to_free_list(ahc);
+
 		restart_sequencer(ahc);
 	} else {
 		sc_print_addr(scb->xs->sc_link);
@@ -1973,6 +1976,9 @@ ahc_init(ahc)
 
 			/* Set the next pointer */
 			ahc_outb(ahc, SCB_NEXT, i+1);
+
+			/* Make the tag number invalid */
+			ahc_outb(ahc, SCB_TAG, SCB_LIST_NULL);
 
 			/* No Busy non-tagged targets yet */
 			ahc_outb(ahc, SCB_ACTIVE0, SCB_LIST_NULL);
@@ -2975,9 +2981,14 @@ bus_reset:
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				/* ahc_run_waiting_queue will unpause us */
 				ahc_run_waiting_queue(ahc);
-			} else
+			} else {
 				/* Go "immediatly" to the bus reset */
+				sc_print_addr(scb->xs->sc_link);
+				printf("SCB %d: Immediate reset.  "
+					"Flags = 0x%x\n", scb->hscb->tag,
+					scb->flags);
 				goto bus_reset;
+			}
 		}
 	}
 	splx(s);
@@ -3257,9 +3268,7 @@ ahc_rem_scb_from_disc_list(ahc, scbptr)
 
 	ahc_outb(ahc, SCB_CONTROL, 0);
 
-	/* Add this SCB to the free list */
-	ahc_outb(ahc, SCB_NEXT, ahc_inb(ahc, FREE_SCBH));
-	ahc_outb(ahc, FREE_SCBH, scbptr);
+	ahc_add_curscb_to_free_list(ahc);
 
 	if (prev != SCB_LIST_NULL) {
 		ahc_outb(ahc, SCBPTR, prev);
@@ -3272,6 +3281,17 @@ ahc_rem_scb_from_disc_list(ahc, scbptr)
 		ahc_outb(ahc, SCB_PREV, prev);
 	}
 	return next;
+}
+
+static void
+ahc_add_curscb_to_free_list(ahc)
+	struct ahc_softc *ahc;
+{
+	/* Invalidate the tag so that ahc_find_scb doesn't think it's active */
+	ahc_outb(ahc, SCB_TAG, SCB_LIST_NULL);
+
+	ahc_outb(ahc, SCB_NEXT, ahc_inb(ahc, FREE_SCBH));
+	ahc_outb(ahc, FREE_SCBH, ahc_inb(ahc, SCBPTR));
 }
 
 /*
@@ -3301,9 +3321,7 @@ ahc_abort_wscb (ahc, scbp, scbpos, prev, xs_error)
 	ahc_outb(ahc, SCB_CONTROL, 0);
 	ahc_index_busy_target(ahc, target, channel, /*unbusy*/TRUE);
 
-	/* Add this SCB to the free list */
-	ahc_outb(ahc, SCB_NEXT, ahc_inb(ahc, FREE_SCBH));
-	ahc_outb(ahc, FREE_SCBH, scbpos);
+	ahc_add_curscb_to_free_list(ahc);
 
 	/* update the waiting list */
 	if (prev == SCB_LIST_NULL) 
@@ -3356,6 +3374,18 @@ ahc_index_busy_target(ahc, target, channel, unbusy)
 }
 
 static void
+ahc_clear_intstat(ahc)
+	struct ahc_softc *ahc;
+{
+	/* Clear any interrupt conditions this may have caused */
+	ahc_outb(ahc, CLRSINT0, CLRSELDO|CLRSELDI|CLRSELINGO);
+	ahc_outb(ahc, CLRSINT1, CLRSELTIMEO|CLRATNO|CLRSCSIRSTI
+				|CLRBUSFREE|CLRSCSIPERR|CLRPHASECHG|
+				CLRREQINIT);
+	ahc_outb(ahc, CLRINT, CLRSCSIINT);
+}
+
+static void
 ahc_reset_current_bus(ahc)
 	struct ahc_softc *ahc;
 {
@@ -3380,9 +3410,7 @@ ahc_reset_current_bus(ahc)
 		/* Turn off the bus reset */
 		ahc_outb(ahc, SCSISEQ, scsiseq & ~SCSIRSTO);
 
-		/* Clear any interrupt conditions this may have caused */
-		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
-		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		ahc_clear_intstat(ahc);
 
 		/* Re-enable reset interrupts */
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) | ENSCSIRST);
@@ -3422,9 +3450,7 @@ ahc_busreset_complete(arg)
 	scsiseq = ahc_inb(ahc, SCSISEQ);
 	ahc_outb(ahc, SCSISEQ, scsiseq & ~SCSIRSTO);
 
-	/* Clear any interrupt conditions this may have caused */
-	ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
-	ahc_outb(ahc, CLRINT, CLRSCSIINT);
+	ahc_clear_intstat(ahc);
 
 	/* Re-enable reset interrupts */
 	ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) | ENSCSIRST);
@@ -3484,11 +3510,13 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 	if (channel == 'B') {
 		ahc->needsdtr |= (ahc->needsdtr_orig & 0xff00);
 		ahc->sdtrpending &= 0x00ff;
+		ahc->orderedtag &= 0x00ff;
 		offset = TARG_SCRATCH + 8;
 		offset_max = TARG_SCRATCH + 16;
 	} else if (ahc->type & AHC_WIDE){
 		ahc->needsdtr = ahc->needsdtr_orig;
 		ahc->needwdtr = ahc->needwdtr_orig;
+		ahc->orderedtag = 0;
 		ahc->sdtrpending = 0;
 		ahc->wdtrpending = 0;
 		offset = TARG_SCRATCH;
@@ -3496,6 +3524,7 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 	} else {
 		ahc->needsdtr |= (ahc->needsdtr_orig & 0x00ff);
 		ahc->sdtrpending &= 0xff00;
+		ahc->orderedtag &= 0xff00;
 		offset = TARG_SCRATCH;
 		offset_max = TARG_SCRATCH + 8;
 	}
@@ -3527,17 +3556,15 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
 		if (initiate_reset)
 			ahc_reset_current_bus(ahc);
-		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
-		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		ahc_clear_intstat(ahc);
 		ahc_outb(ahc, SBLKCTL, sblkctl);
-		unpause_sequencer(ahc, /*unpause_always*/TRUE);
+		unpause_sequencer(ahc, /*unpause_always*/FALSE);
 	} else {
 		/* Case 2: A command from this bus is active or we're idle */ 
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
 		if (initiate_reset)
 			ahc_reset_current_bus(ahc);
-		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
-		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		ahc_clear_intstat(ahc);
 		restart_sequencer(ahc);
 	}
 	ahc_run_done_queue(ahc);
