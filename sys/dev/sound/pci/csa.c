@@ -128,10 +128,10 @@ csa_attach(device_t dev)
 	scp->dev = dev;
 
 	/* Wake up the device. */
-	stcmd = pci_read_config(dev, PCIR_COMMAND, 4);
+	stcmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((stcmd & PCIM_CMD_MEMEN) == 0 || (stcmd & PCIM_CMD_BUSMASTEREN) == 0) {
 		stcmd |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-		pci_write_config(dev, PCIR_COMMAND, 4, stcmd);
+		pci_write_config(dev, PCIR_COMMAND, stcmd, 2);
 	}
 
 	/* Allocate the resources. */
