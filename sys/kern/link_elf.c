@@ -49,6 +49,9 @@
 #endif
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#ifdef __AOUT__
+#include <nlist.h>
+#endif
 #include <link.h>
 
 #include "linker_if.h"
