@@ -2302,8 +2302,6 @@ comparam(tp, t)
 	if (sio_getreg(com, com_dlbh) != dlbh)
 		sio_setreg(com, com_dlbh, dlbh);
 
-	if (!(tp->t_state & TS_TTSTOP))
-		com->state |= CS_TTGO;
 	efr_flowbits = 0;
 
 	if (cflag & CRTS_IFLOW) {
@@ -2348,13 +2346,6 @@ comparam(tp, t)
 
 	/* XXX shouldn't call functions while intrs are disabled. */
 	disc_optim(tp, t, com);
-	/*
-	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
-	 * unconditionally, but that defeated the careful discarding of
-	 * stale input in sioopen().
-	 */
-	if (com->state >= (CS_BUSY | CS_TTGO))
-		siointr1(com);
 
 	mtx_unlock_spin(&sio_lock);
 	splx(s);
