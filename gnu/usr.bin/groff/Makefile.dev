@@ -1,0 +1,33 @@
+#	@(#)Makefile.dev	6.2 (Berkeley) 3/16/91
+# Client Makefiles define DEV and DEVFILES and provide rules for
+# individual font files
+#
+# $Id$
+
+.include "../Makefile.cfg"
+
+FONTDIR?=	/usr/share/groff_font
+DEVICEDIR?=	$(FONTDIR)/dev$(DEV)
+FONTOWN?=	bin
+FONTGRP?=	bin
+FONTMODE?=	444
+
+all:	$(DEVFILES)
+
+.for f in $(DEVFILES)
+.if exists(${.OBJDIR}/$f)
+beforeinstall:: ${.OBJDIR}/$f
+	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
+		${.OBJDIR}/$f $(DESTDIR)$(DEVICEDIR)
+.elif exists(${.CURDIR}/$f)
+beforeinstall:: ${.CURDIR}/$f
+	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
+		${.CURDIR}/$f $(DESTDIR)$(DEVICEDIR)
+.else
+beforeinstall:: $(DISTDIR)/$f
+	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
+		$(DISTDIR)/$f $(DESTDIR)$(DEVICEDIR)
+.endif
+.endfor
+
+.include <bsd.prog.mk>
