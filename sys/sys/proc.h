@@ -427,17 +427,9 @@ struct kse {
 	void		*ke_upcall;
 	struct thread	*ke_tdspare;	/* spare thread for upcalls */
 #define	ke_endzero ke_dummy
-
-#define	ke_startcopy ke_endzero
 	u_char		ke_dummy;
-#define	ke_endcopy ke_mdstorage
-
-	void 		*ke_mdstorage;	/* where we store the pcb and frame */
-	struct pcb	*ke_pcb;	/* the pcb saved for the upcalls */
-	struct trapframe *ke_frame;	/* the upcall trapframe */
-	void	*mdkse;			/* eventually you load from this in */
-					/* switch for our extension PCB x86 */
 };
+
 /* flags kept in ke_flags */
 #define	KEF_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
 #define	KEF_IDLEKSE	0x00004	/* A 'Per CPU idle process'.. has one thread */
