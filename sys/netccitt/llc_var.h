@@ -37,8 +37,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: llc_var.h,v 1.2 1994/08/02 07:47:25 davidg Exp $
  */
+
+#ifndef _NETCCITT_LLC_VAR_H_
+#define _NETCCITT_LLC_VAR_H_
 
 #ifdef __STDC__
 /*
@@ -657,4 +660,4 @@ int x25_llcglue __P((int, struct sockaddr *));
 
 #endif
 
-
+#endif

@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25acct.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: x25acct.h,v 1.2 1994/08/02 07:47:52 davidg Exp $
  */
+
+#ifndef _NETCCITT_X25ACCT_H_
+#define _NETCCITT_X25ACCT_H_
 
 /*
  * Format of X.25 accounting record written
@@ -69,3 +72,5 @@ struct	x25acct {
 	long	x25acct_txcnt;		/* packets transmitted */
 	long	x25acct_rxcnt;		/* packets received */
 };
+
+#endif

@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk.h,v 1.2 1994/08/02 07:47:27 davidg Exp $
  */
+
+#ifndef _NETCCITT_PK_H_
+#define _NETCITT_PK_H_
 
 /*
  *
@@ -206,3 +209,5 @@ struct mbuf *pk_template ();
 #define	DTE_PRETENDDTE		0x0020
 
 #define MAXRESTARTCOLLISIONS	10
+
+#endif
