@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.6 1997/07/08 11:04:17 charnier Exp $";
+	"$Id: gcore.c,v 1.7 1997/11/18 03:50:25 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -161,6 +161,14 @@ main(argc, argv)
 	if (cnt != sizeof(exec))
 		errx(1, "%s exec header: %s",
 		    argv[0], cnt > 0 ? strerror(EIO) : strerror(errno));
+
+	/* check the text segment size of the executable and the process */
+	if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
+		errx(1, 
+		     "The executable %s does not belong to process %d!\n"
+		     "Text segment size (in bytes): executable %d, process %d",
+		     argv[0], pid, exec.a_text, 
+		     ptoa(ki->kp_eproc.e_vm.vm_tsize));
 
 	data_offset = N_DATOFF(exec);
 
