@@ -17,5 +17,5 @@ targets		= update, world, generic, lint
 
 # Reporting
 sender		= FreeBSD Tinderbox <tinderbox@freebsd.org>
-recipient	= %%sender%%
+recipient	= %%SENDER%%
 subject		= [%%COMMENT%%] failure on %%arch%%/%%machine%%
