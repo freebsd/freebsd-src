@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.41 1997/09/16 11:44:02 bde Exp $
+ * $Id: buf.h,v 1.42 1997/09/21 22:08:58 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -197,10 +197,10 @@ bufq_remove(buf_queue_head *head, struct buf *bp)
 			 * ordering and is less expensive than
 			 * using a CIRCLEQ.
 			 */
-			head->insert_point == TAILQ_NEXT(bp, b_act);
+			head->insert_point = TAILQ_NEXT(bp, b_act);
 		}
 		if (bp == head->switch_point) {
-			head->switch_point == TAILQ_NEXT(bp, b_act);
+			head->switch_point = TAILQ_NEXT(bp, b_act);
 		}		
 	}
 	TAILQ_REMOVE(&head->queue, bp, b_act);
