@@ -1,4 +1,4 @@
-/* $RCSfile: eval.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:03 $
+/* $RCSfile: eval.c,v $$Revision: 1.3 $$Date: 1998/02/01 22:04:49 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,12 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: eval.c,v $
+ * Revision 1.3  1998/02/01 22:04:49  steve
+ * setpwent and endpwent have a return type of void, so change this
+ * to work like newer versions of perl.
+ *
+ * Reviewed by:	Bruce Evans
+ *
  * Revision 1.2  1995/05/30 05:03:03  rgrimes
  * Remove trailing whitespace.
  *
@@ -1680,7 +1686,7 @@ register int sp;
 	goto donumset;
     case O_TIME:
 #ifndef lint
-	value = (double) time(Null(long*));
+	value = (double) time(Null(time_t *));
 #endif
 	goto donumset;
     case O_TMS:
