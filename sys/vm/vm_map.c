@@ -1009,31 +1009,51 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	the vm_map_entry structure, or those effecting the underlying 
  *	objects.
  */
-void
+
+int
 vm_map_madvise(map, start, end, behav)
 	vm_map_t map;
 	vm_offset_t start, end;
 	int behav;
 {
 	vm_map_entry_t current, entry;
-	int modify_map;
+	int modify_map = 0;
 
-	modify_map = (behav == MADV_NORMAL || behav == MADV_SEQUENTIAL ||
-		      behav == MADV_RANDOM);
+	/*
+	 * Some madvise calls directly modify the vm_map_entry, in which case
+	 * we need to use an exclusive lock on the map and we need to perform 
+	 * various clipping operations.  Otherwise we only need a read-lock
+	 * on the map.
+	 */
 
-	if (modify_map) {
+	switch(behav) {
+	case MADV_NORMAL:
+	case MADV_SEQUENTIAL:
+	case MADV_RANDOM:
+		modify_map = 1;
 		vm_map_lock(map);
-	}
-	else
+		break;
+	case MADV_WILLNEED:
+	case MADV_DONTNEED:
+	case MADV_FREE:
 		vm_map_lock_read(map);
+		break;
+	default:
+		return (KERN_INVALID_ARGUMENT);
+	}
+
+	/*
+	 * Locate starting entry and clip if necessary.
+	 */
 
 	VM_MAP_RANGE_CHECK(map, start, end);
 
 	if (vm_map_lookup_entry(map, start, &entry)) {
 		if (modify_map)
 			vm_map_clip_start(map, entry, start);
-	} else
+	} else {
 		entry = entry->next;
+	}
 
 	if (modify_map) {
 		/*
@@ -1044,8 +1064,8 @@ vm_map_madvise(map, start, end, behav)
 		 */
 		for (current = entry;
 		     (current != &map->header) && (current->start < end);
-		     current = current->next) {
-
+		     current = current->next
+		) {
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
 
@@ -1067,51 +1087,53 @@ vm_map_madvise(map, start, end, behav)
 			vm_map_simplify_entry(map, current);
 		}
 		vm_map_unlock(map);
-	}
-	else {
-		if (behav == MADV_FREE || behav == MADV_DONTNEED ||
-		    behav == MADV_WILLNEED) {
-			vm_pindex_t pindex;
-			int count;
+	} else {
+		vm_pindex_t pindex;
+		int count;
 
-			/*
-			 * madvise behaviors that are implemented in the underlying
-			 * vm_object.
-			 *
-			 * Since we don't clip the vm_map_entry, we have to clip
-			 * the vm_object pindex and count.
-			 */
-			for (current = entry;
-			     (current != &map->header) && (current->start < end);
-			     current = current->next) {
+		/*
+		 * madvise behaviors that are implemented in the underlying
+		 * vm_object.
+		 *
+		 * Since we don't clip the vm_map_entry, we have to clip
+		 * the vm_object pindex and count.
+		 */
+		for (current = entry;
+		     (current != &map->header) && (current->start < end);
+		     current = current->next
+		) {
+			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
+				continue;
 
-				if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
-					continue;
+			pindex = OFF_TO_IDX(current->offset);
+			count = atop(current->end - current->start);
 
-				pindex = OFF_TO_IDX(current->offset);
-				count = atop(current->end - current->start);
+			if (current->start < start) {
+				pindex += atop(start - current->start);
+				count -= atop(start - current->start);
+			}
+			if (current->end > end)
+				count -= atop(current->end - end);
 
-				if (current->start < start) {
-					pindex += atop(start - current->start);
-					count -= atop(start - current->start);
-				}
-				if (current->end > end)
-					count -= atop(current->end - end);
+			if (count <= 0)
+				continue;
 
-				if (count <= 0)
-					continue;
-
-				vm_object_madvise(current->object.vm_object,
-						  pindex, count, behav);
-				if (behav == MADV_WILLNEED)
-					pmap_object_init_pt(map->pmap, current->start,
-							    current->object.vm_object,
-							    pindex, (count << PAGE_SHIFT),
-							    0);
+			vm_object_madvise(current->object.vm_object,
+					  pindex, count, behav);
+			if (behav == MADV_WILLNEED) {
+				pmap_object_init_pt(
+				    map->pmap, 
+				    current->start,
+				    current->object.vm_object,
+				    pindex, 
+				    (count << PAGE_SHIFT),
+				    0
+				);
 			}
 		}
 		vm_map_unlock_read(map);
 	}
+	return(0);
 }	
 
 
@@ -2764,12 +2786,14 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 						TAILQ_REMOVE(&oldobject->shadow_head,
 							first_object, shadow_list);
 						oldobject->shadow_count--;
+						/* XXX bump generation? */
 						vm_object_deallocate(oldobject);
 					}
 
 					TAILQ_INSERT_TAIL(&srcobject->shadow_head,
 						first_object, shadow_list);
 					srcobject->shadow_count++;
+					/* XXX bump generation? */
 
 					first_object->backing_object = srcobject;
 				}

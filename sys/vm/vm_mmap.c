@@ -136,6 +136,15 @@ ogetpagesize(p, uap)
  * modulo the PAGE_SIZE (POSIX 1003.1b).  If the address is not
  * page-aligned, the actual mapping starts at trunc_page(addr)
  * and the return value is adjusted up by the page offset.
+ *
+ * Generally speaking, only character devices which are themselves
+ * memory-based, such as a video framebuffer, can be mmap'd.  Otherwise
+ * there would be no cache coherency between a descriptor and a VM mapping
+ * both to the same character device.
+ *
+ * Block devices can be mmap'd no matter what they represent.  Cache coherency
+ * is maintained as long as you do not write directly to the underlying
+ * character device.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct mmap_args {
@@ -615,6 +624,12 @@ madvise(p, uap)
 	struct madvise_args *uap;
 {
 	vm_offset_t start, end;
+
+	/*
+	 * Check for illegal behavior
+	 */
+	if (uap->behav < 0 || uap->behav > MADV_FREE)
+		return (EINVAL);
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
@@ -636,8 +651,8 @@ madvise(p, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-	vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
-
+	if (vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav))
+		return (EINVAL);
 	return (0);
 }
 
