@@ -630,7 +630,8 @@ distExtract(char *parent, Distribution *me)
     getinfo:
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	intr = check_for_interrupt();
-	if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+	if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
+	    /* Hard error, can't continue */
 	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
 			  buf, !intr ? "I/O error." : "User interrupt.")) {
 		mediaDevice->shutdown(mediaDevice);
@@ -676,7 +677,8 @@ distExtract(char *parent, Distribution *me)
 	getsingle:
 	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	    intr = check_for_interrupt();
-	    if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+	    if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
+		/* Hard error, can't continue */
 		if (intr)	/* result of an interrupt */
 		    msgConfirm("Unable to open %s: User interrupt", buf);
 		else
