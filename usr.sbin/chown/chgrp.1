@@ -37,7 +37,7 @@
 .\"
 .Dd March 31, 1994
 .Dt CHGRP 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm chgrp
 .Nd change group
@@ -113,9 +113,7 @@ The user invoking
 must belong to the specified group and be the owner of the file,
 or be the super-user.
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh COMPATIBILITY
 In previous versions of this system, symbolic links did not have groups.
 .Pp

@@ -187,7 +187,8 @@ of larger FIFO buffers) is also supported.
 .Bl -tag -width Ds -compact
 .It Ar Teles S0/8, Dr. Neuhaus Niccy 1008, Creatix ISDN-S0/8
 .Pp
-The required (optional for NetBSD)
+The required (optional for
+.Nx )
 .Em flag
 value is 1.
 .Pp
@@ -202,7 +203,8 @@ be in the range 0xA0000 to 0xDF000 and uses 4kB of memory.
 .Pp
 .It Ar Teles S0/16, Creatix ISDN-S0, Dr. Neuhaus Niccy 1016
 .Pp
-The required (optional under NetBSD)
+The required (optional under
+.Nx )
 .Em flag
 value is 2.
 .Pp
@@ -222,7 +224,8 @@ also require i/o space at addresses 0x180, 0x280 or 0x380.
 .Pp
 .It Ar Teles S0/16.3
 .Pp
-The required (optional under NetBSD)
+The required (optional under
+.Nx )
 .Em flag
 value is 3.
 .Pp
@@ -237,7 +240,8 @@ the card is to be configured at 0xd80, 0xe80 or 0xf80 respectively!
 .Pp
 .It Ar AVM A1, AVM Fritz!Card
 .Pp
-The required (optional under NetBSD)
+The required (optional under
+.Nx )
 .Em flag
 value is 4.
 .Pp
@@ -271,7 +275,8 @@ The card is auto-configured by the PnP kernel subsystem.
 .Pp
 .It Ar "3Com USRobotics Sportster ISDN TA intern and Stollmann Tina pp"
 .Pp
-The required (optional for NetBSD)
+The required (optional for
+.Nx )
 .Em flag
 value is 7.
 .Pp
@@ -318,7 +323,8 @@ The card is auto-configured by the PCI kernel subsystem.
 .Pp
 .It Ar "ITK ix1 micro"
 .Pp
-The required (optional under NetBSD)
+The required (optional under
+.Nx )
 .Em flag
 value is 18.
 .Pp
@@ -339,7 +345,9 @@ Note that currently, you have to jumper the card interupt for
 instead of IPL 6 (which is used by most AmigaOS software).
 .Pp
 Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
-is no NetBSD problem, but general.
+is no
+.Nx
+problem, but general.
 .El
 .Sh CAVEATS
 Note that all of the boards with I/O ports actually use several ranges
@@ -374,5 +382,7 @@ The complete porting to and maintenance of
 was done by
 .An Martin Husemann Aq martin@rumolt.teuto.de .
 .Pp
-The NetBSD/Amiga ISDN Blaster/Master/MasterII driver was written by
+The
+.Nx Ns /Amiga
+ISDN Blaster/Master/MasterII driver was written by
 .An Ignatios Souvatzis Aq is@netbsd.org .

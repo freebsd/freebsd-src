@@ -93,10 +93,10 @@ below.
 .It Ar foreground Op Ar background
 Change colors when displaying text.
 Specify the foreground color
-(e.g.
+(e.g.\&
 .Dq vidcontrol white ) ,
 or both a foreground and background colors
-(e.g.
+(e.g.\&
 .Dq vidcontrol yellow blue ) .
 Use the
 .Cm show
@@ -233,12 +233,14 @@ option.
 The VESA BIOS support must be linked to the kernel
 or loaded as a KLD module if you wish to use VESA video modes
 or 132 column modes
-.Pq see Xr vga 4 .
+(see
+.Xr vga 4 ) .
 .Pp
 You need to compile your kernel with the
 .Ar VGA_WIDTH90
 option if you wish to use VGA 90 column modes
-.Pq see Xr vga 4 .
+(see
+.Xr vga 4 ) .
 .Pp
 Video modes other than 25 and 30 line modes may require specific size of font.
 Use
@@ -407,8 +409,8 @@ for more details.
 The video card driver may let you change default configuration
 options, such as the default font, so that you do not need to set up
 the options at boot time.
-See video card driver manuals,
-.Pq e.g. Xr vga 4
+See video card driver manuals, (e.g.\&
+.Xr vga 4 )
 for details.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/scrnmaps/foo-bar -compact

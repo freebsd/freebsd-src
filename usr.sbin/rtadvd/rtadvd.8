@@ -144,11 +144,9 @@ In this case,
 .Nm
 will transmit router advertisement with router lifetime 0
 to all the interfaces
-.Pq in accordance with RFC2461 6.2.5 .
-.Sh RETURN VALUES
-The
-.Nm
-program exits 0 on success, and >0 on failures.
+(in accordance with RFC2461 6.2.5).
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/rtadvd.conf
@@ -163,8 +161,8 @@ dumps its internal state.
 .El
 .Sh SEE ALSO
 .Xr rtadvd.conf 5 ,
-.Xr rtsol 8 ,
-.Xr rrenumd 8
+.Xr rrenumd 8 ,
+.Xr rtsol 8
 .Sh HISTORY
 The
 .Nm

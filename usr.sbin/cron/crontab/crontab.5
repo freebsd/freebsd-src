@@ -86,8 +86,10 @@ may not.
 .Ev LOGNAME
 variable is sometimes called
 .Ev USER
-on BSD systems...
-on these systems,
+on
+.Bx
+systems...
+On these systems,
 .Ev USER
 will be set also).
 .Pp
@@ -194,7 +196,7 @@ string		meaning
 ------		-------
 @reboot		Run once, at startup.
 @yearly		Run once a year, "0 0 1 1 *".
-@annually	(sames as @yearly)
+@annually	(same as @yearly)
 @monthly	Run once a month, "0 0 1 * *".
 @weekly		Run once a week, "0 0 * * 0".
 @daily		Run once a day, "0 0 * * *".
@@ -223,20 +225,33 @@ MAILTO=paul
 .Xr cron 8
 .Sh EXTENSIONS
 When specifying day of week, both day 0 and day 7 will be considered Sunday.
-BSD and ATT seem to disagree about this.
+.Bx
+and
+.Tn ATT
+seem to disagree about this.
 .Pp
 Lists and ranges are allowed to co-exist in the same field.  "1-3,7-9" would
-be rejected by ATT or BSD cron -- they want to see "1-3" or "7,8,9" ONLY.
+be rejected by
+.Tn ATT
+or
+.Bx
+cron -- they want to see "1-3" or "7,8,9" ONLY.
 .Pp
 Ranges can include "steps", so "1-9/2" is the same as "1,3,5,7,9".
 .Pp
 Names of months or days of the week can be specified by name.
 .Pp
-Environment variables can be set in the crontab.  In BSD or ATT, the
+Environment variables can be set in the crontab.  In
+.Bx
+or
+.Tn ATT ,
+the
 environment handed to child processes is basically the one from
 .Pa /etc/rc .
 .Pp
-Command output is mailed to the crontab owner (BSD can't do this), can be
+Command output is mailed to the crontab owner
+.No ( Bx
+can't do this), can be
 mailed to a person other than the crontab owner (SysV can't do this), or the
 feature can be turned off and no mail will be sent at all (SysV can't do this
 either).

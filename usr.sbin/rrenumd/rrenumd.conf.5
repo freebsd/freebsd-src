@@ -31,7 +31,7 @@
 .\"
 .Dd November 5, 1998
 .Dt RRENUMD.CONF 5
-.Os KAME
+.Os
 .Sh NAME
 .\"
 .Nm rrenumd.conf
@@ -123,6 +123,7 @@ specifies how many router renumbering messages are sent repeatedly.
 .Ek
 .Bk -words
 .Op Ar use-prefix-values ;
+.Ek
 .Pp
 Specifies contents of sending router renumbering message with seqnum 0.
 If
@@ -190,8 +191,8 @@ command, as decimal bit number.
 Specify the medium part of
 .Ar use-prefix-val
 just next to the starting part specified by
-.Ar use-prefix-len
-, as decimal bit number.
+.Ar use-prefix-len ,
+as decimal bit number.
 Contiguous bits part in the same bit position of an existent prefix
 matched with
 .Ar match-prefix-val
@@ -358,8 +359,8 @@ command is almost same with
 .Cm change
 command except that it deletes all pre-defined IPv6 global address.
 .Sh SEE ALSO
-.Xr rrenumd 8 ,
-.Xr prefix 8
+.Xr prefix 8 ,
+.Xr rrenumd 8
 .Sh HISTORY
 The
 .Nm

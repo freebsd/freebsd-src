@@ -61,16 +61,10 @@
 .Nm @INDOT@named.reload
 .Nd "cause the name server to synchronize its database"
 .Sh DESCRIPTION
-This command sends a
-.Dv SIGHUP
-to the running name server.
-This
-signal is documented in
-.Xr named @SYS_OPS_EXT@ .
-.Sh BUGS
-Does not check to see if the name server is actually running, and could
-use a stale PID cache file which may result in the death of an unrelated
-process.
+This command runs
+.Xr ndc @SYS_OPS_EXT@
+which reloads the running name server.
 .Sh SEE ALSO
 .Xr @INDOT@named @SYS_OPS_EXT@ ,
-.Xr @INDOT@named.restart @SYS_OPS_EXT@
+.Xr @INDOT@named.restart @SYS_OPS_EXT@ ,
+.Xr @INDOT@ndc @SYS_OPS_EXT@

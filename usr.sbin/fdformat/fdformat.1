@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2001
+.Dd July 2, 2001
 .Os
 .Dt FDFORMAT 1
 .Sh NAME
@@ -54,9 +54,11 @@ formats a floppy disk at device
 .Ar Device_name
 may be given either with a full path
 name of a device node for a floppy disk drive
-.Pq e.g. Pa /dev/fd0 ,
+(e.g.\&
+.Pa /dev/fd0 ) ,
 or a default name in an abbreviated form
-.Pq e.g. Em fd0 .
+(e.g.\&
+.Em fd0 ) .
 In the latter case, the name is constructed by prepending
 .Pa /dev/
 and appending a
@@ -64,7 +66,7 @@ and appending a
 to the
 .Ar device_name .
 Note that any geometry constraints of the device node
-.Pq minor device number
+(minor device number)
 are meaningless, since they're overridden by
 .Nm .
 .Pp
@@ -155,7 +157,8 @@ appropriate information written to diagnostic output).
 .Xr newfs_msdos 8
 .Sh HISTORY
 .Nm Fdformat
-has been developed for 386BSD 0.1
+has been developed for
+.Bx 386 0.1
 and upgraded to the new
 .Xr fdc 4
 floppy disk driver.

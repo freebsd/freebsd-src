@@ -62,7 +62,7 @@
 .\"
 .Dd December 22, 1997
 .Dt IOSTAT 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm iostat
 .Nd report
@@ -95,25 +95,32 @@ The options are as follows:
 .It Fl c
 Repeat the display
 .Ar count
-times.  If no
+times.
+If no
 .Ar wait
 interval is specified, the default is 1 second.
 .It Fl C
-Display CPU statistics.  This is on by default, unless
+Display CPU statistics.
+This is on by default, unless
 .Fl d
 is specified.
 .It Fl d
-Display only device statistics.  If this flag is turned on, only device
-statistics will be displayed, unless
+Display only device statistics.
+If this flag is turned on, only device statistics will be displayed, unless
 .Fl C
 or
 .Fl T
 is also specfied to enable the display of CPU or TTY statistics.
 .It Fl h
-Put iostat in
+Put
+.Nm
+in
 .Sq top
-mode.  In this mode, iostat will show devices in order from highest to
-lowest bytes per measurement cycle.
+mode.
+In this mode,
+.Nm
+will show devices in order from highest to lowest bytes
+per measurement cycle.
 .It Fl I
 Display total statstics for a given time period, rather than average
 statistics for each second during that time period.
@@ -138,14 +145,16 @@ Extract the name list from the specified system instead of the default
 .It Fl o
 Display old-style
 .Nm
-device statistics.  Sectors per second, transfers per second, and miliseconds
-per seek are displayed.  If
+device statistics.
+Sectors per second, transfers per second, and miliseconds per seek are
+displayed.
+If
 .Fl I
 is specified, total blocks/sectors, total transfers, and
 miliseconds per seek are displayed.
 .It Fl t
-Specify which types of devices to display.  There are three different
-categories of devices:
+Specify which types of devices to display.
+There are three different categories of devices:
 .Pp
 .Bl -tag -width indent -compact
 .It device type:
@@ -196,23 +205,26 @@ Passthrough devices
 .El
 .Pp
 The user must specify at least one device type, and may specify at most
-one device type from each category.  Multiple device types in a single
-device type statement must be separated by commas.
+one device type from each category.
+Multiple device types in a single device type statement must be separated by
+commas.
 .Pp
 Any number of
 .Fl t
-arguments may be specified on the command line.  All
+arguments may be specified on the command line.
+All
 .Fl t
 arguments are ORed together to form a matching expression against which
-all devices in the system are compared.  Any device that fully matches
-any
+all devices in the system are compared.
+Any device that fully matches any
 .Fl t
 argument will be included in the
 .Nm
 output, up to the number of devices that can be displayed in
 80 columns, or the maximum number of devices specified by the user.
 .It Fl T
-Display TTY statistics.  This is on by default, unless
+Display TTY statistics.
+This is on by default, unless
 .Fl d
 is specified.
 .It Fl w
@@ -237,12 +249,16 @@ characters read from terminals
 characters written to terminals
 .El
 .It devices
-Device operations.  The header of the field is the device name and unit number.
+Device operations.
+The header of the field is the device name and unit number.
 .Nm
 will display as many devices as will fit in a standard 80 column screen, or
-the maximum number of devices in the system, whichever is smaller.  If
+the maximum number of devices in the system, whichever is smaller.
+If
 .Fl n
-is specified on the command line, iostat will display the smaller of the
+is specified on the command line,
+.Nm
+will display the smaller of the
 requested number of devices, and the maximum number of devices in the system.
 To force
 .Nm
@@ -253,9 +269,11 @@ will not display more devices than will fit in an 80 column screen, unless
 the
 .Fl n
 argument is given on the command line to specify a maximum number of
-devices to display.  If fewer devices are specified on the command line
-than will fit in an 80 column screen, iostat will show only the specified
-devices.
+devices to display.
+If fewer devices are specified on the command line than will fit in an 80
+column screen,
+.Nm
+will show only the specified devices.
 .Pp
 The standard
 .Nm
@@ -372,7 +390,8 @@ Display total statistics every three seconds ad infinitum.
 .Dl iostat -odICTw 2 -c 9
 .Pp
 Display total statistics using the old-style output format 9 times, with
-a two second interval between each measurement/display.  The
+a two second interval between each measurement/display.
+The
 .Fl d
 flag generally disables the TTY and CPU displays, but since the
 .Fl T

@@ -25,12 +25,8 @@
 .Nd daemon to execute scheduled commands (Vixie Cron)
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Fl s
-.Oc
-.Oo
-.Fl o
-.Oc
+.Op Fl s
+.Op Fl o
 .Oo
 .Fl x
 .Ar debugflag Ns Op , Ns Ar ...
@@ -86,7 +82,8 @@ timezone changes, such as the switches between the standard time and
 daylight saving time.
 .Pp
 The jobs run during the GMT offset changes time as
-intuitively expected. If a job falls into a time interval that disappears
+intuitively expected.
+If a job falls into a time interval that disappears
 (for example, during the switch from
 standard time) to daylight saving time or is
 duplicated (for example, during the reverse switch), then it's handled
@@ -106,10 +103,12 @@ The second case is for the jobs that run less frequently.
 They are executed exactly once, they are not skipped nor
 executed twice (unless cron is restarted or the user's
 .Xr crontab 5
-is changed during such a time interval). If an interval disappears
-due to  the GMT offset change, such jobs are
+is changed during such a time interval).
+If an interval disappears
+due to the GMT offset change, such jobs are
 executed at the same absolute point of time as they would be in the
-old time zone. For example, if exactly one hour disappears, this
+old time zone.
+For example, if exactly one hour disappears, this
 point would be during the next hour at the first minute that is
 specified for them in
 .Xr crontab 5 .

@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .Dd January 24, 1996
 .Dt TZSETUP 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm tzsetup
 .Nd set local timezone
@@ -61,7 +61,9 @@ The contents of the timezone database are indexed by
 This file lists, for each timezone data file, the
 .Tn ISO
 3166 territory code, approximate geographical coordinates
-.Pq in Tn ISO No 6709 format ,
+(in
+.Tn ISO
+6709 format),
 and location within the territory.
 .Pp
 The maintainers of the database maintain the following policies:

@@ -10,7 +10,7 @@
 .\"
 .\"
 .Dd September 16, 1993
-.Os FreeBSD
+.Os
 .Dt FDWRITE 1
 .Sh NAME
 .Nm fdwrite
@@ -28,7 +28,8 @@ Any floppy disk device capable of formatting can be used.
 .Pp
 .Nm Fdwrite
 will ask the user
-.Pq on /dev/tty
+(on
+.Pa /dev/tty )
 to insert a new floppy and press return.
 The device will then be opened, and queried for its parameters,
 then each track will be formatted, written with data from the
