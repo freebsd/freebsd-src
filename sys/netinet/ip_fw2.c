@@ -2020,8 +2020,15 @@ flush_pipe_ptrs(struct dn_flow_set *match)
 
 		if (cmd->o.opcode != O_PIPE && cmd->o.opcode != O_QUEUE)
 			continue;
-		if (match == NULL || cmd->pipe_ptr == match)
-			cmd->pipe_ptr = NULL;
+		/*
+		 * XXX Use bcmp/bzero to handle pipe_ptr to overcome
+		 * possible alignment problems on 64-bit architectures.
+		 * This code is seldom used so we do not worry too
+		 * much about efficiency.
+		 */
+		if (match == NULL ||
+		    !bcmp(&cmd->pipe_ptr, &match, sizeof(match)) )
+			bzero(&cmd->pipe_ptr, sizeof(cmd->pipe_ptr));
 	}
 }
 
@@ -2562,7 +2569,8 @@ ipfw_ctl(struct sockopt *sopt)
 		for (rule = layer3_chain; rule ; rule = rule->next) {
 			int i = RULESIZE(rule);
 			bcopy(rule, bp, i);
-			((struct ip_fw *)bp)->set_disable = set_disable;
+			bcopy(&set_disable, &(bp->next_rule),
+			    sizeof(set_disable));
 			bp = (struct ip_fw *)((char *)bp + i);
 		}
 		if (ipfw_dyn_v) {
@@ -2574,21 +2582,22 @@ ipfw_ctl(struct sockopt *sopt)
 				for ( p = ipfw_dyn_v[i] ; p != NULL ;
 				    p = p->next, dst++ ) {
 					bcopy(p, dst, sizeof *p);
-					dst->rulenum = p->rule->rulenum;
+					bcopy(&(p->rule->rulenum), &(dst->rule),
+					    sizeof(p->rule->rulenum));
 					/*
 					 * store a non-null value in "next".
 					 * The userland code will interpret a
 					 * NULL here as a marker
 					 * for the last dynamic rule.
 					 */
-					dst->next = dst ;
+					bcopy(&dst, &dst->next, sizeof(dst));
 					last = dst ;
 					dst->expire =
 					    TIME_LEQ(dst->expire, time_second) ?
 						0 : dst->expire - time_second ;
 				}
 			if (last != NULL) /* mark last dynamic rule */
-				last->next = NULL;
+				bzero(&last->next, sizeof(last));
 		}
 		splx(s);
 
