@@ -9,7 +9,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\"     $Id$
+.\"     $Id: elf2exe.8,v 1.1.1.1 1999/07/28 20:09:52 se Exp $
 .\"
 .Dd July 26, 1999
 .Dt ELF2EXE 8
@@ -36,7 +36,7 @@ section sizes and offsets of the output file for diagnostic purposes.
 .Pp
 Given an object file 
 .B src.o
-the follwoing two commands will create a binary for ARCS:
+the following two commands will create a binary for ARCS:
 .Dl ld \-o a.out \-M \-N \-Ttext 0x80900000 src.o\c
 .Dl elf2exe a.out a.exe\c
 .Sh BUGS
@@ -46,4 +46,5 @@ for an ARC executable.
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 4.0.
+command appeared in
+.Fx 4.0 .
