@@ -389,14 +389,14 @@ gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg)
 	struct g_geom *gp;
 
 	p = gctl_get_asciiparam(req, arg);
-	if (p == NULL)
-		return (NULL);
-	LIST_FOREACH(mp, &g_classes, class) {
-		if (mpr != NULL && mpr != mp)
-			continue;
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(p, gp->name))
-				return (gp);
+	if (p != NULL) {
+		LIST_FOREACH(mp, &g_classes, class) {
+			if (mpr != NULL && mpr != mp)
+				continue;
+			LIST_FOREACH(gp, &mp->geom, geom) {
+				if (!strcmp(p, gp->name))
+					return (gp);
+			}
 		}
 	}
 	gctl_error(req, "Geom not found");
