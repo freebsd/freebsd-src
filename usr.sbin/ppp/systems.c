@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35 1998/01/21 02:15:28 brian Exp $
+ * $Id: systems.c,v 1.35.2.1 1998/02/02 19:32:15 brian Exp $
  *
  *  TODO:
  */
@@ -224,6 +224,48 @@ AllowModes(struct cmdargs const *arg)
   return 0;
 }
 
+static char *
+strip(char *line)
+{
+  int len;
+
+  len = strlen(line);
+  while (len && (line[len-1] == '\n' || line[len-1] == '\r' ||
+                 issep(line[len-1])))
+    line[--len] = '\0';
+
+  while (issep(*line))
+    line++;
+
+  if (*line == '#')
+    *line = '\0';
+
+  return line;
+}
+
+static int
+xgets(char *buf, int buflen, FILE *fp)
+{
+  int len, n;
+
+  n = 0;
+  while (fgets(buf, buflen-1, fp)) {
+    n++;
+    buf[buflen-1] = '\0';
+    len = strlen(buf);
+    while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+      buf[--len] = '\0';
+    if (len && buf[len-1] == '\\') {
+      buf += len - 1;
+      buflen -= len - 1;
+      if (!buflen)        /* No buffer space */
+        break;
+    } else
+      break;
+  }
+  return n;
+}
+
 static int
 ReadSystem(struct bundle *bundle, const char *name, const char *file,
            int doexec)
@@ -238,6 +280,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   int argc;
   char **argv;
   int allowcmd;
+  int indent;
+  char arg[LINE_LEN];
 
   if (*file == '/')
     snprintf(filename, sizeof filename, "%s", file);
@@ -251,67 +295,69 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   LogPrintf(LogDEBUG, "ReadSystem: Checking %s (%s).\n", name, filename);
 
   linenum = 0;
-  while (fgets(line, sizeof line, fp)) {
-    linenum++;
-    cp = line;
+  while ((n = xgets(line, sizeof line, fp))) {
+    linenum += n;
+    if (issep(*line))
+      continue;
+
+    cp = strip(line);
+
     switch (*cp) {
-    case '#':			/* comment */
+    case '\0':			/* empty/comment */
       break;
-    case ' ':
-    case '\t':
+
+    case '!':
+      switch (DecodeCtrlCommand(cp+1, arg)) {
+      case CTRL_INCLUDE:
+        LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
+        n = ReadSystem(bundle, name, arg, doexec);
+        LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
+        if (!n)
+          return 0;	/* got it */
+        break;
+      default:
+        LogPrintf(LogWARN, "%s: %s: Invalid command\n", filename, cp);
+        break;
+      }
       break;
+
     default:
-      wp = strpbrk(cp, ":\n");
-      if (wp == NULL) {
+      wp = strchr(cp, ':');
+      if (wp == NULL || wp[1] != '\0') {
 	LogPrintf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
 		  filename, linenum);
-	ServerClose();
-	exit(1);
+	continue;
       }
       *wp = '\0';
-      if (*cp == '!') {
-        char arg[LINE_LEN];
-        switch (DecodeCtrlCommand(cp+1, arg)) {
-        case CTRL_INCLUDE:
-          LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
-          n = ReadSystem(bundle, name, arg, doexec);
-          LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
-          if (!n)
-            return 0;	/* got it */
-          break;
-        default:
-          LogPrintf(LogWARN, "%s: %s: Invalid command\n", filename, cp);
-          break;
+      cp = strip(cp);  /* lose any spaces between the label and the ':' */
+
+      if (strcmp(cp, name) == 0) {
+        /* We're in business */
+	while ((n = xgets(line, sizeof line, fp))) {
+          linenum += n;
+          indent = issep(*line);
+          cp = strip(line);
+
+          if (*cp == '\0')  /* empty / comment */
+            continue;
+
+          if (!indent)      /* start of next section */
+            break;
+
+          len = strlen(cp);
+          InterpretCommand(cp, len, &argc, &argv);
+          allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
+          if ((!doexec && allowcmd) || (doexec && !allowcmd)) {
+	    olauth = VarLocalAuth;
+	    if (VarLocalAuth == LOCAL_NO_AUTH)
+	      VarLocalAuth = LOCAL_AUTH;
+	    RunCommand(bundle, argc, (char const *const *)argv, name);
+	    VarLocalAuth = olauth;
+	  }
         }
-      } else if (strcmp(cp, name) == 0) {
-	while (fgets(line, sizeof line, fp)) {
-	  cp = line;
-          if (issep(*cp)) {
-	    n = strspn(cp, " \t");
-	    cp += n;
-            len = strlen(cp);
-            if (!len || *cp == '#')
-              continue;
-            if (cp[len-1] == '\n')
-              cp[--len] = '\0';
-            if (!len)
-              continue;
-            InterpretCommand(cp, len, &argc, &argv);
-            allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
-            if ((!doexec && allowcmd) || (doexec && !allowcmd)) {
-	      olauth = VarLocalAuth;
-	      if (VarLocalAuth == LOCAL_NO_AUTH)
-	        VarLocalAuth = LOCAL_AUTH;
-	      RunCommand(bundle, argc, (char const *const *)argv, name);
-	      VarLocalAuth = olauth;
-	    }
-	  } else if (*cp == '#' || *cp == '\n' || *cp == '\0') {
-	    continue;
-	  } else
-	    break;
-	}
-	fclose(fp);
-	return (0);
+
+	fclose(fp);  /* everything read - get out */
+	return 0;
       }
       break;
     }
