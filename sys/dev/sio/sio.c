@@ -567,8 +567,10 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
 	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
 	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
-	{0x31307256, "USR3031"},	/* USR3031 */
-	{0x8024b04e, "SupraExpress 56i Sp V.90"},
+	{0x30207256, NULL},				/* USR2030 */
+	{0x31307256, NULL},				/* USR3031 */
+	{0x8020b04e, NULL},				/* SUP2080 */
+	{0x8024b04e, NULL},				/* SUP2480 */
 	{0}
 };
 
