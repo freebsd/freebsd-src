@@ -482,7 +482,7 @@ do {									\
 } while (0)
 
 #define	IFQ_HANDOFF(ifp, m, err)					\
-	IFQ_HANDOFF_ADJ(ifq, m, 0, err)
+	IFQ_HANDOFF_ADJ(ifp, m, 0, err)
 
 #define	IFQ_DRV_DEQUEUE(ifq, m)						\
 do {									\
