@@ -665,7 +665,7 @@ pmap_extract(pmap, va)
 	vm_offset_t pdirindex;
 
 	if (pmap == 0)
-		return;
+		return 0;
 	pdirindex = va >> PDRSHIFT;
 	rtval = pmap->pm_pdir[pdirindex];
 	if (rtval != 0) {
