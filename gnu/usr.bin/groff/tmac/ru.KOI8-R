@@ -62,6 +62,7 @@
 .\" ΜΟΛΑΜΙΪΑΓΙΡ .Sh
 .ds doc-section-name        ξαϊχαξιε
 .ds doc-section-synopsis    σιξταλσισ
+.ds doc-section-library     βιβμιοτελα
 .ds doc-section-description οπισαξιε
 .ds doc-section-see-also    σνοτςι
 .ds doc-section-files       ζακμω
