@@ -47,10 +47,6 @@
 
 #include <net/if.h>
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_rbch_ioctl.h>
 #include <machine/i4b_debug.h>
@@ -138,18 +134,6 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
  *===========================================================================*/
-
-/*---------------------------------------------------------------------------*
- *	initialization at kernel load time
- *---------------------------------------------------------------------------*/
-static void
-i4brbchinit(void *unused)
-{
-	cdevsw_add(&i4brbch_cdevsw);
-}
-
-SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
-	SI_ORDER_MIDDLE+CDEV_MAJOR, &i4brbchinit, NULL);
 
 /*---------------------------------------------------------------------------*
  *	interface attach routine

@@ -49,10 +49,6 @@
 #include <net/if.h>
 #include <sys/tty.h>
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_tel_ioctl.h>
 #include <machine/i4b_debug.h>
@@ -155,7 +151,6 @@ static struct cdevsw i4btel_cdevsw = {
 	/* flags */     0,
 };
 
-static void i4btelinit(void *unused);
 static void i4btelattach(void *);
 
 PSEUDO_SET(i4btelattach, i4b_tel);
@@ -163,18 +158,6 @@ PSEUDO_SET(i4btelattach, i4b_tel);
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
  *===========================================================================*/
-
-/*---------------------------------------------------------------------------*
- *	initialization at kernel load time
- *---------------------------------------------------------------------------*/
-static void
-i4btelinit(void *unused)
-{
-	cdevsw_add(&i4btel_cdevsw);
-}
-
-SYSINIT(i4bteldev, SI_SUB_DRIVERS,
-	SI_ORDER_MIDDLE+CDEV_MAJOR, &i4btelinit, NULL);
 
 /*---------------------------------------------------------------------------*
  *	interface attach routine
