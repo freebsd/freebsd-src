@@ -59,13 +59,16 @@
  */
 #define	MAP_SHARED	0x0001		/* share changes */
 #define	MAP_PRIVATE	0x0002		/* changes are private */
-#define	MAP_COPY	MAP_PRIVATE	/* Obsolete */
-
 #if __BSD_VISIBLE
+#define	MAP_COPY	MAP_PRIVATE	/* Obsolete */
+#endif
+
 /*
  * Other flags
  */
 #define	MAP_FIXED	 0x0010	/* map addr must be exactly as requested */
+
+#if __BSD_VISIBLE
 #define	MAP_RENAME	 0x0020	/* Sun: rename private pages to file */
 #define	MAP_NORESERVE	 0x0040	/* Sun: don't reserve needed swap area */
 #define	MAP_RESERVED0080 0x0080	/* previously misimplemented MAP_INHERIT */
@@ -106,15 +109,21 @@
 #define MS_ASYNC	0x0001	/* return immediately */
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
-#if __BSD_VISIBLE
 /*
  * Advice to madvise
  */
-#define	MADV_NORMAL	0	/* no further special treatment */
-#define	MADV_RANDOM	1	/* expect random page references */
-#define	MADV_SEQUENTIAL	2	/* expect sequential page references */
-#define	MADV_WILLNEED	3	/* will need these pages */
-#define	MADV_DONTNEED	4	/* dont need these pages */
+#define	_MADV_NORMAL	0	/* no further special treatment */
+#define	_MADV_RANDOM	1	/* expect random page references */
+#define	_MADV_SEQUENTIAL 2	/* expect sequential page references */
+#define	_MADV_WILLNEED	3	/* will need these pages */
+#define	_MADV_DONTNEED	4	/* dont need these pages */
+
+#if __BSD_VISIBLE
+#define	MADV_NORMAL	_MADV_NORMAL
+#define	MADV_RANDOM	_MADV_RANDOM
+#define	MADV_SEQUENTIAL _MADV_SEQUENTIAL
+#define	MADV_WILLNEED	_MADV_WILLNEED
+#define	MADV_DONTNEED	_MADV_DONTNEED
 #define	MADV_FREE	5	/* dont need these pages, and junk contents */
 #define	MADV_NOSYNC	6	/* try to avoid flushes to physical media */
 #define	MADV_AUTOSYNC	7	/* revert to default flushing strategy */
@@ -137,11 +146,11 @@
  * posix_typed_mem_info structure.
  */
 #if __POSIX_VISIBLE >= 200112
-#define	POSIX_MADV_NORMAL	MADV_NORMAL
-#define	POSIX_MADV_RANDOM	MADV_RANDOM
-#define	POSIX_MADV_SEQUENTIAL	MADV_SEQUENTIAL
-#define	POSIX_MADV_WILLNEED	MADV_WILLNEED
-#define	POSIX_MADV_DONTNEED	MADV_DONTNEED
+#define	POSIX_MADV_NORMAL	_MADV_NORMAL
+#define	POSIX_MADV_RANDOM	_MADV_RANDOM
+#define	POSIX_MADV_SEQUENTIAL	_MADV_SEQUENTIAL
+#define	POSIX_MADV_WILLNEED	_MADV_WILLNEED
+#define	POSIX_MADV_DONTNEED	_MADV_DONTNEED
 #endif
 
 #ifndef _MODE_T_DECLARED
