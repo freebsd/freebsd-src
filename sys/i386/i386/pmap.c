@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.45 1995/01/26 00:55:03 davidg Exp $
+ *	$Id: pmap.c,v 1.46 1995/01/26 01:45:02 davidg Exp $
  */
 
 /*
@@ -612,6 +612,7 @@ pmap_growkernel(vm_offset_t addr)
 				*pmap_pde(pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
 			}
 		}
+ 		*pmap_pde(kernel_pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
 		kernel_vm_end = (kernel_vm_end + NBPG * NPTEPG) & ~(NBPG * NPTEPG - 1);
 	}
 	splx(s);
