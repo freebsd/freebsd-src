@@ -30,11 +30,12 @@
 #
 
 use strict;
+use POSIX qw(tzset);
 
 my %CONFIGS	= (
     # Global settings
     'global' => {
-	'TBDIR'		=> '/home/des/tinderbox',
+	'LOGDIR'	=> '/home/des/public_html',
 	'OPTIONS'	=> [ '--update', '--verbose' ],
 	'EMAIL'		=> 'des',
     },
@@ -62,15 +63,17 @@ my %CONFIGS	= (
     },
     # Test setup
     '9ball' => {
+	'OPTIONS'	=> [ '--verbose' ],
 	'BRANCHES'	=> [ 'CURRENT' ],
 	'TARGETS'	=> [ 'world', 'generic' ],
 	'ARCHES'	=> {
-	    'i386'	=> [ 'i386' ],
+	    'powerpc'	=> [ 'powerpc' ],
 	},
 	'EMAIL'		=> 'des@ofug.org',
     },
 );
 my %CONFIG = ();
+my $TINDERBOX;
 
 sub report($$$) {
     my $recipient = shift;
@@ -88,63 +91,123 @@ sub report($$$) {
     }
 }
 
-sub tinderbox($$$$) {
-    my $tinderbox = shift;
+sub tinderbox($$$) {
     my $branch = shift;
     my $arch = shift;
     my $machine = shift;
 
-    my $logfile = "$CONFIG{'TBDIR'}/tinderbox-$branch-$arch-$machine.log";
+    # Open log files: one for the full log and one for the summary
+    my $logfile = "$CONFIG{'LOGDIR'}/tinderbox-$branch-$arch-$machine";
+    local (*FULL, *BRIEF);
+    if (!open(FULL, ">", "$logfile.full.$$")) {
+	warn("$logfile.full.$$: $!\n");
+	return undef;
+    }
+    select(FULL);
+    $| = 1;
+    select(STDOUT);
+    if (!open(BRIEF, ">", "$logfile.brief.$$")) {
+	warn("$logfile.brief.$$: $!\n");
+	return undef;
+    }
+    select(BRIEF);
+    $| = 1;
+    select(STDOUT);
 
-    my @args = ($tinderbox, @{$CONFIG{'OPTIONS'}});
+    # Open a pipe for the tinderbox process
+    local (*RPIPE, *WPIPE);
+    if (!pipe(RPIPE, WPIPE)) {
+	warn("pipe(): $!\n");
+	unlink("$logfile.brief.$$");
+	close(BRIEF);
+	unlink("$logfile.full.$$");
+	close(FULL);
+	return undef;
+    }
+
+    # Fork and start the tinderbox
+    my @args = @{$CONFIG{'OPTIONS'}};
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
-    push(@args, "--logfile=$logfile");
     push(@args, @{$CONFIG{'TARGETS'}});
-
-    rename($logfile, "$logfile.old");
-    if (system(@args) != 0) {
-	my $messages = "";
-	my @accumulate;
-	my $error = 0;
-	local *LOGFILE;
-
-	warn("$branch tinderbox failed for $arch/$machine\n");
-	if (open(LOGFILE, "<", $logfile)) {
-	    while (<LOGFILE>) {
-		if (m/^TB ---/) {
-		    if (@accumulate && $error) {
-			$messages .= join('', @accumulate);
-		    }
-		    $messages .= $_;
-		    @accumulate = ();
-		    $error = 0;
-		    next;
-		}
-		if (m/\bStop\b/) {
-		    $error = 1;
-		}
-		if (@accumulate > 20) {
-		    shift(@accumulate);
-		    $accumulate[0] = "[...]";
-		}
-		push(@accumulate, $_);
-	    }
-	    if (@accumulate && $error) {
-		$messages .= join('', @accumulate);
-	    }
-	    my $recipient = $CONFIG{'EMAIL'};
-	    $recipient =~ s/\%\%branch\%\%/$branch/gi;
-	    $recipient =~ s/\%\%arch\%\%/$arch/gi;
-	    $recipient =~ s/\%\%machine\%\%/$machine/gi;
-	    report($recipient,
-		"$branch tinderbox failure on $arch/$machine",
-		$messages);
-	} else {
-	    warn("$logfile: $!\n");
-	}
+    my $pid = fork();
+    if (!defined($pid)) {
+	warn("fork(): $!\n");
+	unlink("$logfile.brief.$$");
+	close(BRIEF);
+	unlink("$logfile.full.$$");
+	close(FULL);
+	return undef;
+    } elsif ($pid == 0) {
+	close(RPIPE);
+	open(STDOUT, ">&WPIPE");
+	open(STDERR, ">&WPIPE");
+	$| = 1;
+	exec($TINDERBOX, @args);
+	die("child: exec(): $!\n");
     }
+
+    # Process the output
+    close(WPIPE);
+    my @lines = ();
+    my $error = 0;
+    my $summary = "";
+    while (<RPIPE>) {
+	print(FULL $_);
+	if (/^TB ---/ || /^>>> /) {
+	    if ($error) {
+		$summary .= join('', @lines);
+		print(BRIEF join('', @lines));
+		@lines = ();
+		$error = 0;
+	    }
+	    $summary .= $_;
+	    print(BRIEF $_);
+	    @lines = ();
+	    next;
+	}
+	if (/\bStop\b/) {
+	    $error = 1;
+	}
+	if (@lines > 10 && !$error) {
+	    shift(@lines);
+	    $lines[0] = "[...]\n";
+	}
+	push(@lines, $_);
+    }
+    if ($error) {
+	$summary .= join('', @lines);
+	print(BRIEF join('', @lines));
+    }
+    close(BRIEF);
+    close(FULL);
+
+    # Done...
+    if (waitpid($pid, 0) == -1) {
+	warn("waitpid(): $!");
+    } elsif ($? & 0xff) {
+	warn("tinderbox caught signal ", $? & 0x7f);
+	$error = 1;
+    } elsif ($? >> 8) {
+	warn("tinderbox returned exit code ", $? >> 8);
+	$error = 1;
+    }
+
+    # Mail out error reports
+    if ($error) {
+	warn("$branch tinderbox failed for $arch/$machine\n");
+	my $recipient = $CONFIG{'EMAIL'};
+	$recipient =~ s/\%\%branch\%\%/$branch/gi;
+	$recipient =~ s/\%\%arch\%\%/$arch/gi;
+	$recipient =~ s/\%\%machine\%\%/$machine/gi;
+	report($recipient,
+	    "$branch tinderbox failure on $arch/$machine",
+	    $summary);
+    }
+
+    rename("$logfile.full.$$", "$logfile.full");
+    rename("$logfile.brief.$$", "$logfile.brief");
 }
 
 sub usage() {
@@ -170,19 +233,21 @@ MAIN:{
 	    unless (exists($CONFIG{$key}));
     }
 
-    $ENV{"PATH"} = "";
-    my $tinderbox = $0;
-    if ($tinderbox =~ m|(.*/)tbmaster(.*)$|) {
-	$tinderbox = "${1}tinderbox${2}";
+    $ENV{'TZ'} = "GMT";
+    tzset();
+    $ENV{'PATH'} = "";
+    $TINDERBOX = $0;
+    if ($TINDERBOX =~ m|(.*/)tbmaster(.*)$|) {
+	$TINDERBOX = "${1}tinderbox${2}";
     }
-    if ($tinderbox eq $0 || ! -x $tinderbox) {
+    if ($TINDERBOX eq $0 || ! -x $TINDERBOX) {
 	die("where is the tinderbox script?\n");
     }
 
     foreach my $branch (sort(@{$CONFIG{'BRANCHES'}})) {
 	foreach my $arch (sort(keys(%{$CONFIG{'ARCHES'}}))) {
 	    foreach my $machine (sort(@{$CONFIG{'ARCHES'}->{$arch}})) {
-		tinderbox($tinderbox, $branch, $arch, $machine);
+		tinderbox($branch, $arch, $machine);
 	    }
 	}
     }
