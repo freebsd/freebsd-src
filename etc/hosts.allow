@@ -26,7 +26,12 @@ ALL : ALL : allow
 # need to do it, here's how
 #sshd : .evil.cracker.example.com : deny 
 
-# Provide some protection against clients using a forged source IP address
+# Protect against simple DNS spoofing attacks by checking that the
+# forward and reverse records for the remote host match. If a mismatch
+# occurs, access is denied, and any positive ident response within
+# 20 seconds is logged. No protection is afforded against DNS poisoning,
+# IP spoofing or more complicated attacks. Hosts with no reverse DNS
+# pass this rule.
 ALL : PARANOID : RFC931 20 : deny
 
 # Allow anything from localhost.  Note that an IP address (not a host
