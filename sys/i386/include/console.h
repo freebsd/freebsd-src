@@ -61,6 +61,7 @@
 #define VT_RELDISP	_IO('v', 4)
 #define VT_ACTIVATE	_IO('v', 5)
 #define VT_WAITACTIVE	_IO('v', 6)
+#define VT_GETACTIVE	_IOR('v', 7, int)
 
 #define VT_FALSE	0	
 #define VT_TRUE		1
