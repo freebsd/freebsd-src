@@ -49,6 +49,7 @@ struct hostap_sta {
 #define HOSTAP_FLAGS_AUTHEN	0x0001
 #define HOSTAP_FLAGS_ASSOC	0x0002
 #define HOSTAP_FLAGS_PERM	0x0004
+#define	HOSTAP_FLAGS_BITS	"\20\01ASSOC\02AUTH\03PERM"
 
 #define SIOCHOSTAP_GET 		_IOWR('i', 210, struct ifreq)
 #define SIOCHOSTAP_ADD 		_IOWR('i', 211, struct ifreq)
