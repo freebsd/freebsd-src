@@ -226,10 +226,8 @@ acpi_pci_attach(device_t dev)
 	 * these devices.
 	 */
 	pci_add_children(dev, busno, sizeof(struct acpi_pci_devinfo));
-
 	(void) AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
 	    acpi_pci_save_handle, dev, NULL);
 
-	pci_load_vendor_data();
 	return (bus_generic_attach(dev));
 }
