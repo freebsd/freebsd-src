@@ -1,7 +1,7 @@
 /*-
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.23 1997/10/16 06:29:27 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.24 1997/10/16 07:28:50 julian Exp $
  *
  *
  */
@@ -153,7 +153,6 @@ devfs_unmount( struct mount *mp, int mntflags, struct proc *p)
 	int flags = 0;
 	int error;
 	
-printf("-devfs_unmount-");
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
