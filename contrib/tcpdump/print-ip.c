@@ -445,10 +445,10 @@ ip_print(register const u_char *bp, register u_int length)
 			igmp_print(cp, len, (const u_char *)ip);
 			break;
 
-#ifndef IPPROTO_ENCAP
-#define IPPROTO_ENCAP 4
+#ifndef IPPROTO_IPIP
+#define IPPROTO_IPIP 4
 #endif
-		case IPPROTO_ENCAP:
+		case IPPROTO_IPIP:
 			/* ip-in-ip encapsulation */
 			if (vflag)
 				(void)printf("%s > %s: ",
