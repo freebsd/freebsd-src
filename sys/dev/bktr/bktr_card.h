@@ -68,7 +68,7 @@
 #define CARD_AVER_MEDIA		6
 #define CARD_OSPREY		7
 #define CARD_NEC_PK		8
-#define CARD_IO_GV		9
+#define CARD_IO_BCTV2		9
 #define CARD_FLYVIDEO		10
 #define CARD_ZOLTRIX		11
 #define CARD_KISS		12
@@ -76,8 +76,10 @@
 #define CARD_ASKEY_DYNALINK_MAGIC_TVIEW	14
 #define CARD_LEADTEK		15
 #define CARD_TERRATVPLUS	16
-#define Bt848_MAX_CARD		17
+#define CARD_IO_BCTV3		17
+#define Bt848_MAX_CARD		18
 
+#define CARD_IO_GV		CARD_IO_BCTV2
 
 int	signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig );
 void	probeCard( bktr_ptr_t bktr, int verbose, int unit);

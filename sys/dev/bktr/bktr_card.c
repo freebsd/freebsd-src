@@ -245,7 +245,7 @@ static const struct CARDTYPE cards[] = {
            { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
 	   0x0f },				/* GPIO mask */
 
-        {  CARD_IO_GV,                          /* the card id */
+        {  CARD_IO_BCTV2,                       /* the card id */
           "I/O DATA GV-BCTV2/PCI",              /* the 'name' */
            NULL,                                /* the tuner */
            0,                                   /* the tuner i2c address */
@@ -341,6 +341,19 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* EEProm size */
            { 0x20000, 0x00000, 0x30000, 0x40000, 1 }, /* audio MUX values*/
            0x70000 },                           /* GPIO mask */
+
+        {  CARD_IO_BCTV3,                       /* the card id */
+          "I/O DATA GV-BCTV3/PCI",              /* the 'name' */
+           NULL,                                /* the tuner */
+           0,                                   /* the tuner i2c address */
+           0,                                   /* dbx is optional */
+           0,
+	   0,
+           0,                                   /* EEProm type */
+           0,                                   /* EEProm size */
+	   /* Tuner, Extern, Intern, Mute, Enabled */
+	   { 0x10000, 0, 0x10000, 0, 1 },	/* audio MUX values */
+	   0x10f00 },				/* GPIO mask */
 
 };
 
@@ -540,7 +553,9 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define PCI_VENDOR_FLYVIDEO	0x1851
 #define PCI_VENDOR_FLYVIDEO_2	0x1852
 #define PCI_VENDOR_PINNACLE_ALT	0xBD11
+#define PCI_VENDOR_IODATA	0x10fc
 
+#define MODEL_IODATA_GV_BCTV3_PCI	0x4020
 
 void
 probeCard( bktr_ptr_t bktr, int verbose, int unit )
@@ -673,6 +688,14 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                     goto checkTuner;
                 }
+
+		if (subsystem_vendor_id == 0x10fc &&
+		    subsystem_id == 0x4020) {
+		    bktr->card = cards[ (card = CARD_IO_BCTV3) ];
+		    bktr->card.eepromAddr = eeprom_i2c_address;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+		    goto checkTuner;
+		}
 
                 /* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
@@ -970,6 +993,7 @@ checkTuner:
 
                   case 0x12:
 	          case 0x17:
+		  case 0x21:
 		    select_tuner( bktr, PHILIPS_FR1236_NTSC );
 		    goto checkDBX;
 
@@ -1083,6 +1107,11 @@ checkTuner:
 	    select_tuner( bktr, PHILIPS_FR1236_NTSC );
 #endif
             goto checkDBX;
+	    break;
+
+	case CARD_IO_BCTV3:
+	    select_tuner( bktr, ALPS_TSCH5 ); /* ALPS_TSCH6, in fact. */
+	    goto checkDBX;
 	    break;
 
 	} /* end switch(card) */
