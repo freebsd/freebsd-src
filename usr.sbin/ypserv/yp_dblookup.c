@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.13 1996/06/04 04:08:21 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.13 1996/06/04 04:08:21 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp $";
 #endif
 
 int ypdb_debug = 0;
@@ -64,8 +64,13 @@ HASHINFO openinfo = {
 };
 
 #ifdef DB_CACHE
+#include <sys/queue.h>
+
+#ifndef MAXDBS
 #define MAXDBS 20
-#define LASTDB (MAXDBS - 1)
+#endif
+
+static int numdbs = 0;
 
 struct dbent {
 	DB *dbp;
@@ -74,51 +79,118 @@ struct dbent {
 	int size;
 };
 
-static struct dbent *dbs[MAXDBS];
-static int numdbs = 0;
+static CIRCLEQ_HEAD(circlehead, circleq_entry) qhead;
+
+struct circleq_entry {
+	struct dbent *dbptr;
+	CIRCLEQ_ENTRY(circleq_entry) links;
+};
 
 /*
- * Make sure all the DB entries are NULL to start with.
+ * Initialize the circular queue.
  */
 void yp_init_dbs()
 {
-	register int i;
-
-	for (i = 0; i < MAXDBS; i++);
-		dbs[i] = NULL;
+	CIRCLEQ_INIT(&qhead);
 	return;
 }
 
 /*
- * Zorch a single entry in the dbent table and release
- * all its resources.
+ * Dynamically allocate an entry for the circular queue.
+ * Return a NULL pointer on failure.
  */
-static void yp_flush(i)
-	register int i;
+static struct circleq_entry *yp_malloc_qent()
 {
-	(void)(dbs[i]->dbp->close)(dbs[i]->dbp);
-	dbs[i]->dbp = NULL;
-	free(dbs[i]->name);
-	dbs[i]->name = NULL;
-	dbs[i]->key = NULL;
-	dbs[i]->size = 0;
-	free(dbs[i]);
-	dbs[i] = NULL;
-	numdbs--;
+	register struct circleq_entry *q;
+
+	q = (struct circleq_entry *)malloc(sizeof(struct circleq_entry));
+	if (q == NULL) {
+		yp_error("failed to malloc() circleq entry: %s",
+							strerror(errno));
+		return(NULL);
+	}
+	bzero((char *)q, sizeof(struct circleq_entry));
+	q->dbptr = (struct dbent *)malloc(sizeof(struct dbent));
+	if (q->dbptr == NULL) {
+		yp_error("failed to malloc() circleq entry: %s",
+							strerror(errno));
+		free(q);
+		return(NULL);
+	}
+	bzero((char *)q->dbptr, sizeof(struct dbent));
+
+	return(q);
 }
 
 /*
- * Close all databases and erase all database names.
+ * Free a previously allocated circular queue
+ * entry.
+ */
+static void yp_free_qent(q)
+	struct circleq_entry *q;
+{
+	/*
+	 * First, close the database. In theory, this is also
+	 * supposed to free the resources allocated by the DB
+	 * package, including the memory pointed to by q->dbptr->key.
+	 * This means we don't have to free q->dbptr->key here.
+	 */
+	if (q->dbptr->dbp) {
+		(void)(q->dbptr->dbp->close)(q->dbptr->dbp);
+		q->dbptr->dbp = NULL;
+	}
+	/*
+	 * Then free the database name, which was strdup()'ed.
+	 */
+	free(q->dbptr->name);
+
+	/*
+	 * Free the rest of the dbent struct.
+	 */
+	free(q->dbptr);
+	q->dbptr = NULL;
+
+	/*
+	 * Free the circleq struct.
+	 */
+	free(q);
+	q = NULL;
+
+	return;
+}
+
+/*
+ * Zorch a single entry in the dbent queue and release
+ * all its resources. (This always removes the last entry
+ * in the queue.)
+ */
+static void yp_flush()
+{
+	register struct circleq_entry *qptr;
+
+	qptr = qhead.cqh_last;
+	CIRCLEQ_REMOVE(&qhead, qptr, links);
+	yp_free_qent(qptr);
+	numdbs--;
+
+	return;
+}
+
+/*
+ * Close all databases, erase all database names and empty the queue.
  */
 void yp_flush_all()
 {
-	register int i;
+	register struct circleq_entry *qptr;
 
-	for (i = 0; i < MAXDBS; i++) {
-		if (dbs[i] != NULL && dbs[i]->dbp != NULL) {
-			yp_flush(i);
-		}
+	while(qhead.cqh_first != (void *)&qhead) {
+		qptr = qhead.cqh_first; /* save this */
+		CIRCLEQ_REMOVE(&qhead, qhead.cqh_first, links);
+		yp_free_qent(qptr); 
 	}
+	numdbs = 0;
+
+	return;
 }
 
 
@@ -128,66 +200,63 @@ void yp_flush_all()
  * a new entry when all our slots are already filled, we have to kick
  * out the entry in the last slot to make room.
  */
-static void yp_add_db(dbp, name, size)
+static int yp_cache_db(dbp, name, size)
 	DB *dbp;
 	char *name;
 	int size;
 {
-	register int i;
-	register struct dbent *tmp;
+	register struct circleq_entry *qptr;
 
-	tmp = dbs[LASTDB];
-
-	/* Rotate */
-	for (i = LASTDB; i > 0; i--)
-		dbs[i] = dbs[i - 1];
-
-	dbs[0] = tmp;
-
-	if (dbs[0]) {
+	if (numdbs == MAXDBS) {
 		if (ypdb_debug)
-			yp_error("table overflow -- releasing last slot");
-		yp_flush(0);
+			yp_error("queue overflow -- releasing last slot");
+		yp_flush();
 	}
 
 	/*
-	 * Allocate a new entry.
+	 * Allocate a new queue entry.
 	 */
-	if (dbs[0] == NULL) {
-		dbs[0] = (struct dbent *)malloc(sizeof(struct dbent));
-		bzero((char *)dbs[0], sizeof(struct dbent));
+
+	if ((qptr = yp_malloc_qent()) == NULL) {
+		yp_error("failed to allocate a new cache entry");
+		return(1);
 	}
 
+	qptr->dbptr->dbp = dbp;
+	qptr->dbptr->name = strdup(name);
+	qptr->dbptr->size = size;
+	qptr->dbptr->key = NULL;
+
+	CIRCLEQ_INSERT_HEAD(&qhead, qptr, links);
 	numdbs++;
-	dbs[0]->dbp = dbp;
-	dbs[0]->name = strdup(name);
-	dbs[0]->size = size;
-	return;
+
+	return(0);
 }
 
 /*
  * Search the list for a database matching 'name.' If we find it,
  * move it to the head of the list and return its DB handle. If
  * not, just fail: yp_open_db_cache() will subsequently try to open
- * the database itself and call yp_add_db() to add it to the
+ * the database itself and call yp_cache_db() to add it to the
  * list.
  *
  * The search works like this:
  *
  * - The caller specifies the name of a database to locate. We try to
- *   find an entry in our list with a matching name.
+ *   find an entry in our queue with a matching name.
  *
  * - If the caller doesn't specify a key or size, we assume that the
  *   first entry that we encounter with a matching name is returned.
- *   This will result in matches regardless of the pointer index.
+ *   This will result in matches regardless of the key/size values
+ *   stored in the queue entry.
  *
- * - If the caller also specifies a key and length, we check name
- *   matches to see if their saved key indexes and lengths also match.
+ * - If the caller also specifies a key and length, we check to see
+ *   if the key and length saved in the queue entry also matches.
  *   This lets us return a DB handle that's already positioned at the
  *   correct location within a database.
  *
- * - Once we have a match, it gets migrated to the top of the list
- *   array so that it will be easier to find if another request for
+ * - Once we have a match, it gets migrated to the top of the queue
+ *   so that it will be easier to find if another request for
  *   the same database comes in later.
  */
 static DB *yp_find_db(name, key, size)
@@ -195,26 +264,24 @@ static DB *yp_find_db(name, key, size)
 	char *key;
 	int size;
 {
-	register int i, j;
-	register struct dbent *tmp;
+	register struct circleq_entry *qptr;
 
-	for (i = 0; i < numdbs; i++) {
-		if (dbs[i]->name != NULL && !strcmp(dbs[i]->name, name)) {
+	for (qptr = qhead.cqh_first; qptr != (void *)&qhead;
+						qptr = qptr->links.cqe_next) {
+		if (!strcmp(qptr->dbptr->name, name)) {
 			if (size) {
-				if (size != dbs[i]->size ||
-				   strncmp(dbs[i]->key, key, size))
+				if (size != qptr->dbptr->size ||
+				   strncmp(qptr->dbptr->key, key, size))
 					continue;
 			} else {
-				if (dbs[i]->size)
+				if (qptr->dbptr->size)
 					continue;
 			}
-			if (i > 0) {
-				tmp = dbs[i];
-				for (j = i; j > 0; j--)
-					dbs[j] = dbs[j - 1];
-				dbs[0] = tmp;
+			if (qptr != qhead.cqh_first) {
+				CIRCLEQ_REMOVE(&qhead, qptr, links);
+				CIRCLEQ_INSERT_HEAD(&qhead, qptr, links);
 			}
-			return(dbs[0]->dbp);
+			return(qptr->dbptr->dbp);
 		}
 	}
 
@@ -238,6 +305,7 @@ DB *yp_open_db_cache(domain, map, key, size)
 /*
 	snprintf(buf, sizeof(buf), "%s/%s", domain, map);
 */
+	yp_errno = YP_TRUE;
 
 	strcpy(buf, domain);
 	strcat(buf, "/");
@@ -246,8 +314,13 @@ DB *yp_open_db_cache(domain, map, key, size)
 	if ((dbp = yp_find_db((char *)&buf, key, size)) != NULL) {
 		return(dbp);
 	} else {
-		if ((dbp = yp_open_db(domain, map)) != NULL) 
-			yp_add_db(dbp, (char *)&buf, size);
+		if ((dbp = yp_open_db(domain, map)) != NULL) {
+			if (yp_cache_db(dbp, (char *)&buf, size)) {
+				(void)(dbp->close)(dbp);
+				yp_errno = YP_YPERR;
+				return(NULL);
+			}
+		}
 	}
 
 	return (dbp);
@@ -293,7 +366,7 @@ again:
 			 * open one and try again.
 			 */
 			yp_error("ran out of file descriptors");
-			yp_flush(numdbs - 1);
+			yp_flush();
 			goto again;
 			break;
 #endif
@@ -333,6 +406,9 @@ int yp_get_record(domain,map,key,data,allow)
 {
 	DB *dbp;
 	int rval = 0;
+#ifndef DB_CACHE
+	static unsigned char buf[YPMAXRECORD];
+#endif
 
 	if (ypdb_debug)
 		yp_error("Looking up key [%.*s] in map [%s]",
@@ -356,7 +432,7 @@ int yp_get_record(domain,map,key,data,allow)
 
 	if ((rval = (dbp->get)(dbp, key, data, 0)) != 0) {
 #ifdef DB_CACHE
-		dbs[0]->size = 0;
+		qhead.cqh_first->dbptr->size = 0;
 #else
 		(void)(dbp->close)(dbp);
 #endif
@@ -371,11 +447,13 @@ int yp_get_record(domain,map,key,data,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (dbs[0]->size) {
-		dbs[0]->key = key->data;
-		dbs[0]->size = key->size;
+	if (qhead.cqh_first->dbptr->size) {
+		qhead.cqh_first->dbptr->key = key->data;
+		qhead.cqh_first->dbptr->size = key->size;
 	}
 #else
+	bcopy((char *)data->data, (char *)&buf, data->size);
+	data->data = (void *)&buf;
 	(void)(dbp->close)(dbp);
 #endif
 
@@ -389,13 +467,16 @@ int yp_first_record(dbp,key,data,allow)
 	int allow;
 {
 	int rval;
+#ifndef DB_CACHE
+	static unsigned char buf[YPMAXRECORD];
+#endif
 
 	if (ypdb_debug)
 		yp_error("Retrieving first key in map.");
 
 	if ((rval = (dbp->seq)(dbp,key,data,R_FIRST)) != 0) {
 #ifdef DB_CACHE
-		dbs[0]->size = 0;
+		qhead.cqh_first->dbptr->size = 0;
 #endif
 		if (rval == 1)
 			return(YP_NOKEY);
@@ -407,7 +488,7 @@ int yp_first_record(dbp,key,data,allow)
 	while (!strncmp(key->data, "YP_", 3) && !allow) {
 		if ((rval = (dbp->seq)(dbp,key,data,R_NEXT)) != 0) {
 #ifdef DB_CACHE
-			dbs[0]->size = 0;
+			qhead.cqh_first->dbptr->size = 0;
 #endif
 			if (rval == 1)
 				return(YP_NOKEY);
@@ -421,10 +502,13 @@ int yp_first_record(dbp,key,data,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (dbs[0]->size) {
-		dbs[0]->key = key->data;
-		dbs[0]->size = key->size;
+	if (qhead.cqh_first->dbptr->size) {
+		qhead.cqh_first->dbptr->key = key->data;
+		qhead.cqh_first->dbptr->size = key->size;
 	}
+#else
+	bcopy((char *)data->data, (char *)&buf, data->size);
+	data->data = (void *)&buf;
 #endif
 
 	return(YP_TRUE);
@@ -440,6 +524,10 @@ int yp_next_record(dbp,key,data,all,allow)
 	static DBT lkey = { NULL, 0 };
 	static DBT ldata = { NULL, 0 };
 	int rval;
+#ifndef DB_CACHE
+	static unsigned char keybuf[YPMAXRECORD];
+	static unsigned char datbuf[YPMAXRECORD];
+#endif
 
 	if (key == NULL || key->data == NULL) {
 		rval = yp_first_record(dbp,key,data,allow);
@@ -455,14 +543,14 @@ int yp_next_record(dbp,key,data,all,allow)
 
 	if (!all) {
 #ifdef DB_CACHE
-		if (!dbs[0]->key) {
+		if (qhead.cqh_first->dbptr->key == NULL) {
 #endif
 			(dbp->seq)(dbp,&lkey,&ldata,R_FIRST);
 			while(strncmp((char *)key->data,lkey.data,
 				(int)key->size) || key->size != lkey.size)
 				if ((dbp->seq)(dbp,&lkey,&ldata,R_NEXT)) {
 #ifdef DB_CACHE
-					dbs[0]->size = 0;
+					qhead.cqh_first->dbptr->size = 0;
 #endif
 					return(YP_NOKEY);
 				}
@@ -474,7 +562,7 @@ int yp_next_record(dbp,key,data,all,allow)
 
 	if ((dbp->seq)(dbp,key,data,R_NEXT)) {
 #ifdef DB_CACHE
-		dbs[0]->size = 0;
+		qhead.cqh_first->dbptr->size = 0;
 #endif
 		return(YP_NOMORE);
 	}
@@ -483,7 +571,7 @@ int yp_next_record(dbp,key,data,all,allow)
 	while (!strncmp(key->data, "YP_", 3) && !allow)
 		if ((dbp->seq)(dbp,key,data,R_NEXT)) {
 #ifdef DB_CACHE
-			dbs[0]->size = 0;
+		qhead.cqh_first->dbptr->size = 0;
 #endif
 			return(YP_NOMORE);
 		}
@@ -493,13 +581,16 @@ int yp_next_record(dbp,key,data,all,allow)
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
-	if (dbs[0]->size) {
-		dbs[0]->key = key->data;
-		dbs[0]->size = key->size;
+	if (qhead.cqh_first->dbptr->size) {
+		qhead.cqh_first->dbptr->key = key->data;
+		qhead.cqh_first->dbptr->size = key->size;
 	}
 #else
-	lkey.data = key->data;
+	bcopy((char *)key->data, (char *)&keybuf, key->size);
+	lkey.data = (void *)&keybuf;
 	lkey.size = key->size;
+	bcopy((char *)data->data, (char *)&datbuf, data->size);
+	data->data = (void *)&datbuf;
 #endif
 
 	return(YP_TRUE);
