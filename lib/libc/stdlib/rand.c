@@ -119,7 +119,7 @@ sranddev()
 	int fd, done;
 
 	done = 0;
-	fd = _open("/dev/urandom", O_RDONLY, 0);
+	fd = _open("/dev/random", O_RDONLY, 0);
 	if (fd >= 0) {
 		if (_read(fd, (void *) &next, sizeof(next)) == sizeof(next))
 			done = 1;
