@@ -166,7 +166,7 @@ exec_Create(struct physical *p)
           close(fids[1]);
           p->fd = fids[0];
           waitpid(pid, &stat, 0);
-          log_Printf(LogDEBUG, "Using fdescriptor %d for child\n", p->fd);
+          log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
           physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
           if (p->cfg.cd.necessity != CD_DEFAULT)
             log_Printf(LogWARN, "Carrier settings ignored\n");
