@@ -455,7 +455,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 		ess_setmixer(sc, 0x76, (len & 0xff00) >> 8);
 		/* autoinit, 4 bytes/req */
 		ess_setmixer(sc, 0x78, 0x10);
-		fmtval = b16 | (stereo << 1) | (unsign << 2);
+		fmtval = b16 | (stereo << 1) | ((!unsign) << 2);
 		/* enable irq, set format */
 		ess_setmixer(sc, 0x7a, 0x40 | fmtval);
 		if (sc->newspeed) {
