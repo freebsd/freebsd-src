@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.12 1994/11/06 04:34:46 phk Exp $
+ * $Id: main.c,v 1.13 1994/11/08 18:44:14 jkh Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <dialog.h>
 
@@ -37,9 +38,22 @@ jmp_buf	jmp_restart;
 
 extern int alloc_memory();
 
+void
+handle_intr(int sig)
+{
+	dialog_clear();
+	dialog_update();
+	dialog_msgbox("User Interrupt",
+		      "User interrupted.  Aborting the installation",
+		      10, 72, 1);
+	ExitSysinstall();
+}
+
 int
 main(int argc, char **argv)
 {
+	signal(SIGINT, SIG_IGN);
+
 	/* Are we running as init? */
 	if (getpid() == 1) {
 		setsid();
@@ -63,6 +77,8 @@ main(int argc, char **argv)
 	init_dialog();
 	/* If we haven't crashed I guess dialog is running ! */
 	dialog_active = 1;
+
+	signal(SIGINT, handle_intr);
 
 	if (alloc_memory() < 0)
 		Fatal("No memory\n");
