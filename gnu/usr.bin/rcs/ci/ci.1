@@ -2,8 +2,10 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: ci.1,v 5.9 1991/10/07 17:32:46 eggert Exp $
+.Id $Id: ci.1,v 5.17 1995/06/16 06:19:24 eggert Exp $
+.ds i \&\s-1ISO\s0
 .ds r \&\s-1RCS\s0
+.ds u \&\s-1UTC\s0
 .if n .ds - \%--
 .if t .ds - \(em
 .TH CI 1 \*(Dt GNU
@@ -41,7 +43,7 @@ new branch can be created.  This restriction is not enforced
 for the owner of the file if non-strict locking is used
 (see
 .BR rcs (1)).
-A lock held by someone else may be broken with the
+A lock held by someone else can be broken with the
 .B rcs
 command.
 .PP
@@ -105,7 +107,9 @@ The number
 .I rev
 of the deposited revision can be given by any of the options
 .BR \-f ,
+.BR \-i ,
 .BR \-I ,
+.BR \-j ,
 .BR \-k ,
 .BR \-l ,
 .BR \-M ,
@@ -114,13 +118,30 @@ of the deposited revision can be given by any of the options
 or
 .BR \-u .
 .I rev
-may be symbolic, numeric, or mixed.
+can be symbolic, numeric, or mixed.
+Symbolic names in
+.I rev
+must already be defined;
+see the
+.B \-n
+and
+.B \-N
+options for assigning names during checkin.
 If
 .I rev
 is
 .BR $ ,
 .B ci
 determines the revision number from keyword values in the working file.
+.PP
+If
+.I rev
+begins with a period,
+then the default branch (normally the trunk) is prepended to it.
+If
+.I rev
+is a branch number followed by a period,
+then the latest revision on that branch is used.
 .PP
 If
 .I rev
@@ -172,25 +193,28 @@ Exception: On the trunk, revisions can be appended to the end, but
 not inserted.
 .SH OPTIONS
 .TP
-.BR \-r [\f2rev\fP]
-checks in a revision, releases the corresponding lock, and
-removes the working file.  This is the default.
-.RS
-.PP
-The
+.BI \-r rev
+Check in revision
+.IR rev .
+.TP
+.BR \-r
+The bare
 .B \-r
-option has an unusual meaning in
+option (without any revision) has an unusual meaning in
 .BR ci .
-In other \*r commands,
+With other \*r commands, a bare
 .B \-r
-merely specifies a revision number,
-but in
-.B ci
-it also releases a lock and removes the working file.
-See
+option specifies the most recent revision on the default branch,
+but with
+.BR ci ,
+a bare
+.B \-r
+option reestablishes the default behavior of releasing a lock and
+removing the working file, and is used to override any default
+.B \-l
+or
 .B \-u
-for a tricky example.
-.RE
+options established by shell aliases or scripts.
 .TP
 .BR \-l [\f2rev\fP]
 works like
@@ -213,6 +237,7 @@ immediately after checkin.
 .PP
 The
 .BR \-l ,
+bare
 .BR \-r ,
 and
 .B \-u
@@ -221,7 +246,7 @@ For example,
 .B "ci\ \-u\ \-r"
 is equivalent to
 .B "ci\ \-r"
-because
+because bare
 .B \-r
 overrides
 .BR \-u .
@@ -244,7 +269,7 @@ several sites should be checked in with the
 .B \-k
 option at these sites to
 preserve the original number, date, author, and state.
-The extracted keyword values and the default log message may be overridden
+The extracted keyword values and the default log message can be overridden
 with the options
 .BR \-d ,
 .BR \-m ,
@@ -258,6 +283,14 @@ A revision that is not different from the preceding one is not deposited,
 unless
 .B \-f
 is given.
+.TP
+.BR \-i [\f2rev\fP]
+initial checkin; report an error if the \*r file already exists.
+This avoids race conditions in certain applications.
+.TP
+.BR \-j [\f2rev\fP]
+just checkin and do not initialize;
+report an error if the \*r file does not already exist.
 .TP
 .BR \-I [\f2rev\fP]
 interactive mode;
@@ -296,6 +329,18 @@ Use this option with care; it can confuse
 uses the string
 .I msg
 as the log message for all revisions checked in.
+By convention, log messages that start with
+.B #
+are comments and are ignored by programs like GNU Emacs's
+.B vc
+package.
+Also, log messages that start with
+.BI { clumpname }
+(followed by white space) are meant to be clumped together if possible,
+even if they are associated with different files; the
+.BI { clumpname }
+label is used only for clumping,
+and is not considered to be part of the log message itself.
 .TP
 .BI \-n "name"
 assigns the symbolic name
@@ -326,7 +371,7 @@ into the \*r file,
 deleting the existing text.
 The
 .I file
-may not begin with
+cannot begin with
 .BR \- .
 .TP
 .BI \-t\- string
@@ -356,6 +401,41 @@ For backward compatibility with older versions of \*r, a bare
 option is ignored.
 .RE
 .TP
+.B \-T
+Set the \*r file's modification time to the new revision's time
+if the former precedes the latter and there is a new revision;
+preserve the \*r file's modification time otherwise.
+If you have locked a revision,
+.B ci
+usually updates the \*r file's modification time to the current time,
+because the lock is stored in the \*r file
+and removing the lock requires changing the \*r file.
+This can create an \*r file newer than the working file in one of two ways:
+first,
+.B "ci\ \-M"
+can create a working file with a date before the current time;
+second, when reverting to the previous revision
+the \*r file can change while the working file remains unchanged.
+These two cases can cause excessive recompilation caused by a
+.BR make (1)
+dependency of the working file on the \*r file.
+The
+.B \-T
+option inhibits this recompilation by lying about the \*r file's date.
+Use this option with care; it can suppress recompilation even when
+a checkin of one working file should affect
+another working file associated with the same \*r file.
+For example, suppose the \*r file's time is 01:00,
+the (changed) working file's time is 02:00,
+some other copy of the working file has a time of 03:00,
+and the current time is 04:00.
+Then
+.B "ci\ \-d\ \-T"
+sets the \*r file's time to 02:00 instead of the usual 04:00;
+this causes
+.BR make (1)
+to think (incorrectly) that the other copy is newer than the \*r file.
+.TP
 .BI \-w "login"
 uses
 .I login
@@ -363,6 +443,9 @@ for the author field of the deposited revision.
 Useful for lying about the author, and for
 .B \-k
 if no author is available.
+.TP
+.BI \-V
+Print \*r's version number.
 .TP
 .BI \-V n
 Emulate \*r version
@@ -375,9 +458,9 @@ for details.
 specifies the suffixes for \*r files.
 A nonempty suffix matches any pathname ending in the suffix.
 An empty suffix matches any pathname of the form
-.BI RCS/ file
+.BI RCS/ path
 or
-.IB path /RCS/ file.
+.IB path1 /RCS/ path2.
 The
 .B \-x
 option can specify a list of suffixes
@@ -398,10 +481,49 @@ The default for
 .IR suffixes
 is installation-dependent; normally it is
 .B ,v/
-for hosts like Unix that permit commas in file names,
+for hosts like Unix that permit commas in filenames,
 and is empty (i.e. just the empty suffix) for other hosts.
+.TP
+.BI \-z zone
+specifies the date output format in keyword substitution,
+and specifies the default time zone for
+.I date
+in the
+.BI \-d date
+option.
+The
+.I zone
+should be empty, a numeric \*u offset, or the special string
+.B LT
+for local time.
+The default is an empty
+.IR zone ,
+which uses the traditional \*r format of \*u without any time zone indication
+and with slashes separating the parts of the date;
+otherwise, times are output in \*i 8601 format with time zone indication.
+For example, if local time is January 11, 1990, 8pm Pacific Standard Time,
+eight hours west of \*u,
+then the time is output as follows:
+.RS
+.LP
+.RS
+.nf
+.ta \w'\f3\-z+05:30\fP  'u +\w'\f31990-01-11 09:30:00+05:30\fP  'u
+.ne 4
+\f2option\fP	\f2time output\fP
+\f3\-z\fP	\f31990/01/12 04:00:00\fP	\f2(default)\fP
+\f3\-zLT\fP	\f31990-01-11 20:00:00\-08\fP
+\f3\-z+05:30\fP	\f31990-01-12 09:30:00+05:30\fP
+.ta 4n +4n +4n +4n
+.fi
+.RE
+.LP
+The
+.B \-z
+option does not affect dates stored in \*r files,
+which are always \*u.
 .SH "FILE NAMING"
-Pairs of \*r files and working files may be specified in three ways
+Pairs of \*r files and working files can be specified in three ways
 (see also the
 example section).
 .PP
@@ -423,9 +545,9 @@ If
 .I X
 is empty,
 .IB path1 /
-must be
+must start with
 .B RCS/
-or must end in
+or must contain
 .BR /RCS/ .
 .PP
 2) Only the \*r file is given.  Then the working file is created in the current
@@ -516,7 +638,7 @@ preserves its read and execute permissions.
 .B ci
 always turns off all write permissions of \*r files.
 .SH FILES
-Several temporary files may be created in the directory containing
+Temporary files are created in the directory containing
 the working file, and also in the temporary directory (see
 .B \s-1TMPDIR\s0
 under
@@ -576,21 +698,23 @@ who can check in new revisions but cannot otherwise change the \*r files.
 .SH "SETUID USE"
 To prevent anybody but their \*r administrator from deleting revisions,
 a set of users can employ setuid privileges as follows.
-.nr n \w'\(bu '+1n-1/1n
-.IP \(bu \nn
+.nr n \w'\(bu'+2n-1/1n
+.ds n \nn
+.if \n(.g .if r an-tag-sep .ds n \w'\(bu'u+\n[an-tag-sep]u
+.IP \(bu \*n
 Check that the host supports \*r setuid use.
 Consult a trustworthy expert if there are any doubts.
 It is best if the
-.B seteuid()
+.B seteuid
 system call works as described in Posix 1003.1a Draft 5,
 because \*r can switch back and forth easily
 between real and effective users, even if the real user is
 .BR root .
 If not, the second best is if the
-.B setuid()
+.B setuid
 system call supports saved setuid
 (the {\s-1_POSIX_SAVED_IDS\s0} behavior of Posix 1003.1-1990);
-this fails only if the real user is
+this fails only if the real or effective user is
 .BR root .
 If \*r detects any failure in setuid, it quits immediately.
 .IP \(bu \nn
@@ -599,7 +723,7 @@ Choose a user
 to serve as \*r administrator for the set of users.
 Only
 .I A
-will be able to invoke the
+can invoke the
 .B rcs
 command on the users' \*r files.
 .I A
@@ -608,9 +732,9 @@ should not be
 or any other user with special powers.
 Mutually suspicious sets of users should use different administrators.
 .IP \(bu \nn
-Choose a path name
+Choose a pathname
 .I B
-that will be a directory of files to be executed by the users.
+to be a directory of files to be executed by the users.
 .IP \(bu \nn
 Have
 .I A
@@ -733,8 +857,9 @@ Useful
 options include
 .BR \-q ,
 .BR \-V ,
+.BR \-x ,
 and
-.BR \-x .
+.BR \-z .
 .TP
 .B \s-1TMPDIR\s0
 Name of the temporary directory.
@@ -755,14 +880,16 @@ The exit status is zero if and only if all operations were successful.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
 .SH "SEE ALSO"
-co(1), ident(1), make(1), rcs(1), rcsclean(1), rcsdiff(1),
-rcsintro(1), rcsmerge(1), rlog(1), rcsfile(5)
+co(1),
+emacs(1),
+ident(1), make(1), rcs(1), rcsclean(1), rcsdiff(1),
+rcsintro(1), rcsmerge(1), rlog(1), setuid(2), rcsfile(5)
 .br
 Walter F. Tichy,
 \*r\*-A System for Version Control,
