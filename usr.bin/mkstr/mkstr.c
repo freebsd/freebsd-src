@@ -246,7 +246,7 @@ copystr(void)
 	}
 out:
 	*cp = 0;
-	printf("%d", hashit(buf, 1, NULL));
+	printf("%d", hashit(buf, 1, 0));
 }
 
 int
