@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.12 2003/01/15 21:29:30 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.13 2003/05/24 19:11:45 ue Exp $
   basiert auf: 1.12
 
 	This file contains the comments of the old TROUBLE.TXT file.
@@ -255,7 +255,7 @@
             <literal>?</literal> angeben.</para>
 
           <para>Sie sollten entweder eine der festverdrahteten
-            Einstellungen benutzen (und ggfs. die Einstellungen des
+            Einstellungen benutzen (und gegebenenfalls die Einstellungen des
             Kernels anpassen), oder in UserConfig f&uuml;r den IRQ den
             Wert <literal>-1</literal> eingeben.  Damit teilen Sie dem
             Kernel mit, da&szlig; er die `soft' Konfiguration benutzen

@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.15 2003/01/13 20:30:51 ue Exp $
-  basiert auf: 1.22
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.18 2003/05/11 23:28:35 mheinen Exp $
+  basiert auf: 1.26
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -52,7 +52,7 @@
   <abstract>
     <para>Dieses Dokument enth&auml;lt eine kurze Einf&uuml;hrung zu &os;
       &release.current;.  Es enth&auml;lt einige Hinweise, wie Sie &os;
-      beziehen k&ouml;nnen; wie Kontakt zum &os; Project aufnehmen
+      beziehen k&ouml;nnen; wie Sie Kontakt zum &os; Project aufnehmen
       k&ouml;nnen, sowie Verweise auf zus&auml;tzliche
       Informationsquellen.</para>
   </abstract>
@@ -68,18 +68,21 @@
       <title>&Uuml;ber &os;</title>
 
       <para>&os; ist ein auf 4.4 BSD Lite basierendes Betriebssystem
-        f&uuml;r Intel, AMD, Cyrix oder NexGen
-        <quote>x86</quote>-basierte PCs, Compaq (ehemals DEC) Alpha
-        und UltraSPARC Systeme.  Versionen f&uuml;r die Plattformen IA64 und PowerPC
-        sind ebenfalls in der Entwicklung.  &os;
-        unterst&uuml;tzt viele verschiedene Ger&auml;te und Umgebungen
-        und f&uuml;r alle Anwendungen von der Software-Entwicklung bis
-        zur Anbietung von Diensten im Internet genutzt werden.</para>
+	f&uuml;r Intel, AMD, Cyrix oder NexGen
+	<quote>x86</quote>-basierte PCs (i386), NEC PC-9801/9821 und
+	kompatible Systeme (pc98), DEC/Compaq/HP Alpha Systeme (alpha)
+	und UltraSPARC Systeme (sparc64).  Versionen f&uuml;r die
+	Plattformen IA64 (ia64), PowerPC (powerpc) und AMD
+	<quote>Hammer</quote> (amd64) sind ebenfalls in der
+	Entwicklung.  &os;  unterst&uuml;tzt viele verschiedene
+	Ger&auml;te und Umgebungen und kann f&uuml;r alle Anwendungen von
+	der Software-Entwicklung &uuml;ber Spiele bis zur Anbietung
+	von Diensten im Internet genutzt werden.</para>
 
       <para>Diese Version von &os; stellt Ihnen alles zur
         Verf&uuml;gung, was Sie zum Betrieb eines derartigen Systems
         brauchen.  Dazu geh&ouml;rt der Quellcode f&uuml;r den Kernel
-        und alle Programme des Basissystem.  Wenn Sie
+        und alle Programme des Basissystems.  Wenn Sie die
         <quote>source</quote> Distribution installieren, k&ouml;nnen
         Sie das gesamte System mit einem einzigen Befehl neu
         kompilieren.  Diese Eigenschaft macht es ideal f&uuml;r
@@ -88,7 +91,7 @@
 
       <para>Die gro&szlig;e Sammlung von angepa&szlig;ter Software
         anderer Anbieter (die <quote>Ports Collection</quote>) macht
-        es Ihnen leicht, ihre Lieblingtools f&uuml;r Unix auch
+        es Ihnen leicht, ihre Lieblingtools f&uuml;r &unix; auch
         f&uuml;r &os; zu finden und zu installieren.  Jeder
         <quote>port</quote> besteht aus einer Reihe von Skripten, um
         eine gegebene Anwendung mit einem einzigen Kommando
@@ -96,7 +99,7 @@
         k&ouml;nnen.  Die &uuml;ber &os.numports; Ports (vom Editor
         &uuml;ber Programmiersprachen bis zu graphischen Anwendungen)
         machen FreeBSD zu einer leistungsstarken und umfassenden
-        Arbeitsumgebung, die viele kommerzielle Unix-Varianten weit
+        Arbeitsumgebung, die viele kommerzielle &unix;-Varianten weit
         hinter sich l&auml;&szlig;t.  Die meisten Ports sind auch als
         vorkompilierte Packages erh&auml;ltlich, die mit dem
         Installationsprogramm einfach und schnell installiert werden
@@ -202,7 +205,7 @@
         notwendigen Images der Bootdisketten und die Dateien der
         eigentlichen Distribution auf allen Servern.  Einige Server
         stellen auch die ISO-Images bereit, die Sie zur Erzeugung
-        einer (bootf&auml;hige) CDROM der &os;-Release
+        einer (bootf&auml;higen) CDROM der &os;-Release
         ben&ouml;tigen.</para>
     </sect2>
   </sect1>
@@ -239,24 +242,23 @@
         die Mailingliste &a.announce; konzentrieren.</para>
 
       <para>Alle Mailinglisten stehen f&uuml;r jeden offen, der sich
-        f&uuml;r das jeweilige Thema interessiert.  Senden Sie einfach
-        eine Mail an &a.majordomo;, die als Text nur das
-        Schl&uuml;sselwort <literal>help</literal> in einer Zeile
-        enth&auml;lt.  Dadurch erhalten Sie weitergehende
-        Informationen, wie Sie die diversen Mailinglisten abbonieren
-        k&ouml;nnen, wie Sie auf die Archive zugreifen
-        k&ouml;nnen, usw.  Es gibt viele Mailinglisten, die nur mit
-        einem ganz bestimmten Thema befassen und hier nicht
-        aufgef&uuml;hrt sind.  Weitergehende Informationen finden Sie
-        im Bereich <ulink
-        url="http://www.FreeBSD.org/support.html#mailing-list">Mailinglisten</ulink>
-        der &os; Webseite.</para>
+	f&uuml;r das jeweilige Thema interessiert.  Besuchen Sie
+	einfach mal auf der <ulink
+	url="http://www.FreeBSD.org/mailman/listinfo">FreeBSD Mailman
+	Info Page</ulink>.  Dort erhalten Sie weitergehende
+	Informationen, wie Sie die diversen Mailinglisten abonnieren
+	k&ouml;nnen, wie Sie auf die Archive zugreifen k&ouml;nnen,
+	usw.  Es gibt viele Mailinglisten, die nur mit einem ganz
+	bestimmten Thema befassen und hier nicht aufgef&uuml;hrt sind.
+	Weitergehende Informationen finden Sie auf den Mailman Seiten
+	und im Bereich <ulink
+	url="http://www.FreeBSD.org/support.html#mailing-list">Mailinglisten</ulink>
+	der &os; Webseite.</para>
 
       <important>
         <para>Senden Sie <emphasis>auf gar keinen Fall</emphasis> eine
           Mail an die Mailinglisten, um diese zu abonnieren.  Benutzen
-          Sie f&uuml;r diesen Zweck die Adresse &a.majordomo;
-          .</para>
+          Sie f&uuml;r diesen Zweck das Mailman Interface.</para>
       </important>
     </sect2>
 
@@ -270,18 +272,16 @@
         nat&uuml;rlich noch willkommener.</para>
 
       <para>Wenn Ihr System an das Internet angeschlossen ist, sollten
-        Sie &man.send-pr.1;  oder das Formular auf der Webseite <ulink
-        url="http://www.FreeBSD.org/send-pr.html">http://www.FreeBSD.org/send-pr.html</ulink>
-        benutzen.  Wenn Sie Ihren <quote>Problem Reports</quote> (PRs)
-        auf dieser Art und Weise absetzen, wird er automatisch
-        archiviert und weiterverfolgt.  Die Entwickler von &os;
-        bem&uuml;hen sich, so schnell wie m&ouml;glich auf alle
-        gemeldeten Fehler zu reagieren.  <ulink
-        url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">Eine
-        &Uuml;bersicht &uuml;ber alle offenen PRs</ulink> ist auf dem
-        Webserver von &os; verf&uuml;gbar.  Diese Liste ist sehr
-        n&uuml;tzlich, wenn Sie wissen wollen, welche m&ouml;glichen
-        Probleme schon von anderen Benutzern gefunden wurden.</para>
+	Sie &man.send-pr.1; benutzen.  Wenn Sie Ihren <quote>Problem
+	Report</quote> (PRs) auf dieser Art und Weise absetzen, wird
+	er automatisch archiviert und weiterverfolgt.  Die Entwickler
+	von &os;  bem&uuml;hen sich, so schnell wie m&ouml;glich auf
+	alle gemeldeten Fehler zu reagieren.  <ulink
+	url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">Eine
+	&Uuml;bersicht &uuml;ber alle offenen PRs</ulink> ist auf dem
+	Webserver von &os; verf&uuml;gbar.  Diese Liste ist sehr
+	n&uuml;tzlich, wenn Sie wissen wollen, welche m&ouml;glichen
+	Probleme schon von anderen Benutzern gefunden wurden.</para>
 
       <para>Bitte beachten Sie, da&szlig; &man.send-pr.1; nur ein
         Shell-Skript ist, da&szlig; man relativ einfach auch auf
@@ -330,9 +330,9 @@
 
 	<listitem>
 	  <para><filename>EARLY.TXT</filename>: Spezielle Hinweise
-	    f&uuml;r die ersten Anwender von &os; 5.0-RELEASE.  Wenn
-	    dies Ihre erste Begegnung mit &os; &release.branch; ist
-	    und/oder Sie noch eine 5.<replaceable>X</replaceable>
+	    f&uuml;r die ersten Anwender von &os; &release.current;.
+	    Wenn dies Ihre erste Begegnung mit &os; &release.branch;
+	    ist und/oder Sie noch eine 5.<replaceable>X</replaceable>
 	    Version benutzt haben, sollten Sie diesen Artikel auf
 	    jeden Fall lesen.</para>
 	</listitem>
@@ -384,12 +384,12 @@
       </note>
 
       <para>Auf den Plattformen, auf denen &man.sysinstall.8; zur
-	Verf&uuml;gung steht (zur Zeit i386 und alpha) finden Sie
-	diese Dokumente w&auml;hrend der Installation normalerweise
-	unter dem Men&uuml;punkt Dokumentation.  Um nach der
-	Installation des Systems dieses Men&uuml;  zugreifen zu
-	k&ouml;nnen, m&uuml;ssen Sie das Programm &man.sysinstall.8;
-	erneut aufrufen.</para>
+	Verf&uuml;gung steht (zur Zeit alpha, i386, ia64, pc98 und
+	sparc64) finden Sie diese Dokumente w&auml;hrend der
+	Installation normalerweise unter dem Men&uuml;punkt
+	Dokumentation.  Um nach der Installation des Systems dieses
+	Men&uuml;  zugreifen zu k&ouml;nnen, m&uuml;ssen Sie das
+	Programm &man.sysinstall.8;  erneut aufrufen.</para>
 
       <note>
         <para>Sie sollten auf jeden Fall die Errata zur jeweiligen
@@ -410,7 +410,7 @@
     <sect2>
       <title>Onlinehilfe (Manual Pages)</title>
 
-      <para>Wie bei fast jedem anderen UNIX-&auml;hnlichen System
+      <para>Wie bei fast jedem anderen &unix;-&auml;hnlichen System
         steht Ihnen auch bei &os; eine Onlinehilfe zur Verf&uuml;gung,
         die Sie &uuml;ber das Kommando &man.man.1; oder &uuml;ber das
         <ulink url="http://www.FreeBSD.org/cgi/man.cgi">hypertext
@@ -460,9 +460,9 @@
       <para>Eine Liste zus&auml;tzlicher B&uuml;cher und
         Dokumentationen zu &os;  finden Sie im Kapitel <ulink
         url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/bibliography.html">Bibliographie</ulink>
-        des Handbuchs.  Da &os; ganz klar aus der UNIX-Welt stammt,
+        des Handbuchs.  Da &os; ganz klar aus der &unix;-Welt stammt,
         enthalten auch andere Artikel und B&uuml;cher &uuml;ber
-        UNIX-Systeme n&uuml;tzliche Informationen.  Eine Auswahl
+        &unix;-Systeme n&uuml;tzliche Informationen.  Eine Auswahl
         dieser Dokumente finden Sie ebenfalls in der
         Bibliographie.</para>
     </sect2>
