@@ -293,7 +293,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		    p->p_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 	} else
 		fp = (struct l_rt_sigframe *)regs->tf_esp - 1;
-	PROC_UNLOCK(p);
 
 	/*
 	 * Build the argument list for the signal handler.
@@ -320,7 +319,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
-	PROC_LOCK(p);
 	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
 	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
 	frame.sf_sc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
