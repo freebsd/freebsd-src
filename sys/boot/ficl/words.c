@@ -4040,7 +4040,7 @@ static void fload(FICL_VM *pVM)
 
     if (pVM->state == COMPILE)
     {
-        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
+        dictAppendCell(dp, LVALUEtoCELL(fload));
         dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
         dictAlign(dp);
 	return;
@@ -4109,7 +4109,7 @@ static void fexists(FICL_VM *pVM)
 
     if (pVM->state == COMPILE)
     {
-        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
+        dictAppendCell(dp, LVALUEtoCELL(fexists));
         dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
         dictAlign(dp);
 	return;
