@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.4 1994/11/15 14:54:13 bde Exp $
+ * $Id: aic6360.c,v 1.5 1994/11/16 02:45:36 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -52,7 +52,9 @@
  */
 
 /* The SCSI ID of the host adapter/computer */
+#ifndef AIC_SCSI_HOSTID
 #define AIC_SCSI_HOSTID 7
+#endif
 
 /* Use doubleword transfers to/from SCSI chip.  Note: This requires 
  * motherboard support.  Basicly, some motherboard chipsets are able to
