@@ -70,14 +70,11 @@ static struct cdevsw acd_cdevsw = {
 };
 
 /* prototypes */
-int32_t acdattach(struct atapi_softc *);
-void acddetach(struct atapi_softc *);
 static struct acd_softc *acd_init_lun(struct atapi_softc *, struct devstat *);
 static void acd_make_dev(struct acd_softc *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
-static void acd_start(struct acd_softc *);
 static int32_t acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
 static void acd_construct_label(struct acd_softc *);
@@ -1087,13 +1084,14 @@ acdstrategy(struct buf *bp)
 
     s = splbio();
     bufqdisksort(&cdp->buf_queue, bp);
-    acd_start(cdp);
+    ata_start(cdp->atp->controller);
     splx(s);
 }
 
-static void 
-acd_start(struct acd_softc *cdp)
+void 
+acd_start(struct atapi_softc *atp)
 {
+    struct acd_softc *cdp = atp->driver;
     struct buf *bp = bufq_first(&cdp->buf_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
@@ -1112,16 +1110,7 @@ acd_start(struct acd_softc *cdp)
     }
 
     acd_select_slot(cdp);
-#ifdef NO_DVD_RAM_SUPPORT
-    if (!(bp->b_flags & B_READ) &&
-	(!(cdp->flags & F_DISK_OPEN) || !(cdp->flags & F_TRACK_OPEN))) {
-	printf("acd%d: sequence error (no open)\n", cdp->lun);
-	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
-	biodone(bp);
-	return;
-    }
-#endif
+
     bzero(ccb, sizeof(ccb));
     count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
     if (bp->b_flags & B_PHYS)
@@ -1143,7 +1132,7 @@ acd_start(struct acd_softc *cdp)
 	    ccb[0] = ATAPI_READ_BIG;
 	else {
 	    ccb[0] = ATAPI_READ_CD;
-	    ccb[9] = 0x10;
+	    ccb[9] = 0xf8;
 	}
     }
     else
@@ -1180,7 +1169,6 @@ acd_done(struct atapi_request *request)
     }
     devstat_end_transaction_buf(cdp->stats, bp);
     biodone(bp);
-    acd_start(cdp);
     return 0;
 }
 

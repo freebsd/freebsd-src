@@ -67,11 +67,8 @@ static struct cdevsw afd_cdevsw = {
 static struct cdevsw afddisk_cdevsw;
 
 /* prototypes */
-int32_t afdattach(struct atapi_softc *);
-void afddetach(struct atapi_softc *);
 static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
-static void afd_start(struct afd_softc *);
 static int32_t afd_partial_done(struct atapi_request *);
 static int32_t afd_done(struct atapi_request *);
 static int32_t afd_eject(struct afd_softc *, int32_t);
@@ -290,14 +287,15 @@ afdstrategy(struct buf *bp)
     }
 
     s = splbio();
-    bufq_insert_tail(&fdp->buf_queue, bp);
-    afd_start(fdp);
+    bufqdisksort(&fdp->buf_queue, bp);
+    ata_start(fdp->atp->controller);
     splx(s);
 }
 
-static void 
-afd_start(struct afd_softc *fdp)
+void 
+afd_start(struct atapi_softc *atp)
 {
+    struct afd_softc *fdp = atp->driver;
     struct buf *bp = bufq_first(&fdp->buf_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
@@ -386,7 +384,6 @@ afd_done(struct atapi_request *request)
 	bp->b_resid += (bp->b_bcount - request->donecount);
     devstat_end_transaction_buf(&fdp->stats, bp);
     biodone(bp);
-    afd_start(fdp);
     return 0;
 }
 

@@ -65,11 +65,8 @@ static struct cdevsw ast_cdevsw = {
 };
 
 /* prototypes */
-int32_t astattach(struct atapi_softc *);
-void astdetach(struct atapi_softc *);
 static int32_t ast_sense(struct ast_softc *);
 static void ast_describe(struct ast_softc *);
-static void ast_start(struct ast_softc *);
 static int32_t ast_done(struct atapi_request *);
 static int32_t ast_mode_sense(struct ast_softc *, u_int8_t, void *, int32_t); 
 static int32_t ast_mode_select(struct ast_softc *, void *, int32_t);
@@ -452,13 +449,14 @@ aststrategy(struct buf *bp)
 
     s = splbio();
     bufq_insert_tail(&stp->buf_queue, bp);
-    ast_start(stp);
+    ata_start(stp->atp->controller);
     splx(s);
 }
 
-static void 
-ast_start(struct ast_softc *stp)
+void 
+ast_start(struct atapi_softc *atp)
 {
+    struct ast_softc *stp = atp->driver;
     struct buf *bp = bufq_first(&stp->buf_queue);
     u_int32_t blkcount;
     int8_t ccb[16];
@@ -511,7 +509,6 @@ ast_done(struct atapi_request *request)
     }
     devstat_end_transaction_buf(&stp->stats, bp);
     biodone(bp);
-    ast_start(stp);
     return 0;
 }
 
