@@ -84,7 +84,7 @@ main(argc, argv)
 	if (argc - optind < 1)
 		usage(1);
 
-	srandom(time(NULL) ^ getpid());
+	srandomdev();
 
 	/* Increase our data size to the max */
 	if (getrlimit(RLIMIT_DATA, &rl) == 0) {
