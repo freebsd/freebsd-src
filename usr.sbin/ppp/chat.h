@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.h,v 1.9.2.2 1998/02/13 05:10:08 brian Exp $
+ *	$Id: chat.h,v 1.9.2.3 1998/02/26 17:54:43 brian Exp $
  */
 
 #define CHAT_EXPECT 0
@@ -56,6 +56,8 @@ struct chat {
   int TimeoutSec;			/* Expect timeout value */
   int TimedOut;				/* We timed out */
 
+  const char *phone;			/* Our phone number */
+
   struct {
     struct {
       char *data;			/* Abort the dial if we get one */
@@ -72,7 +74,8 @@ struct chat {
 #define descriptor2chat(d) \
   ((d)->type == CHAT_DESCRIPTOR ? (struct chat *)(d) : NULL)
 
-void chat_Init(struct chat *, struct physical *, const char *, int);
+void chat_Init(struct chat *, struct physical *, const char *, int,
+               const char *);
 void chat_Destroy(struct chat *);
 
 extern struct chat chat;

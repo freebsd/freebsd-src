@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.15 1998/02/27 01:22:20 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.16 1998/03/01 01:07:43 brian Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,7 @@ static void
 datalink_HangupDone(struct datalink *dl)
 {
   modem_Close(dl->physical);
+  dl->phone.chosen = "[N/A]";
 
   if (!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) {
     LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
@@ -117,12 +118,32 @@ datalink_HangupDone(struct datalink *dl)
       dl->reconnect_tries--;
     } else {
       dl->dial_tries--;
-      if (VarNextPhone == NULL)
+      if (dl->phone.next == NULL)
         datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
       else
         datalink_StartDialTimer(dl, dl->cfg.dial_next_timeout);
     }
   }
+}
+
+static const char *
+datalink_ChoosePhoneNumber(struct datalink *dl)
+{
+  char *phone;
+
+  if (dl->phone.alt == NULL) {
+    if (dl->phone.next == NULL) {
+      strncpy(dl->phone.list, dl->cfg.phone.list, sizeof dl->phone.list - 1);
+      dl->phone.list[sizeof dl->phone.list - 1] = '\0';
+      dl->phone.next = dl->phone.list;
+    }
+    dl->phone.alt = strsep(&dl->phone.next, ":");
+  }
+  phone = strsep(&dl->phone.alt, "|");
+  dl->phone.chosen = *phone ? phone : "[NONE]";
+  if (*phone)
+    LogPrintf(LogPHASE, "Phone: %s\n", phone);
+  return phone;
 }
 
 static void
@@ -139,7 +160,7 @@ datalink_LoginDone(struct datalink *dl)
       LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
       modem_Offline(dl->physical);
-      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
+      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else
       datalink_HangupDone(dl);
   } else {
@@ -175,7 +196,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (dl->script.run) {
             LogPrintf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
             dl->state = DATALINK_DIAL;
-            chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1);
+            chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
+                      datalink_ChoosePhoneNumber(dl));
             if (!(mode & MODE_DDIAL) && dl->cfg.max_dial)
               LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
                         dl->name, dl->cfg.max_dial - dl->dial_tries,
@@ -215,7 +237,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_DIAL:
               LogPrintf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
               dl->state = DATALINK_LOGIN;
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0);
+              chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
               break;
             case DATALINK_LOGIN:
               datalink_LoginDone(dl);
@@ -234,7 +256,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
               dl->state = DATALINK_HANGUP;
               modem_Offline(dl->physical);
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
+              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
               break;
           }
           break;
@@ -338,7 +360,7 @@ datalink_ComeDown(struct datalink *dl, int stay)
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
-      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
+      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else
       datalink_HangupDone(dl);
   }
@@ -449,6 +471,11 @@ datalink_Create(const char *name, struct bundle *bundle,
   *dl->cfg.script.dial = '\0';
   *dl->cfg.script.login = '\0';
   *dl->cfg.script.hangup = '\0';
+  *dl->cfg.phone.list = '\0';
+  *dl->phone.list = '\0';
+  dl->phone.next = NULL;
+  dl->phone.alt = NULL;
+  dl->phone.chosen = "N/A";
   dl->script.run = 1;
   dl->script.packetmode = 1;
 
@@ -472,7 +499,7 @@ datalink_Create(const char *name, struct bundle *bundle,
     free(dl);
     return NULL;
   }
-  chat_Init(&dl->chat, dl->physical, NULL, 1);
+  chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
   dl->parent = parent;
   dl->fsm.LayerStart = datalink_LayerStart;

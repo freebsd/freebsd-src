@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.30 1998/03/01 01:07:42 brian Exp $
+ * $Id: command.c,v 1.131.2.31 1998/03/06 00:34:42 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1337,12 +1337,8 @@ SetVariable(struct cmdargs const *arg)
     VarAccmap = map;
     break;
   case VAR_PHONE:
-    strncpy(VarPhoneList, argp, sizeof VarPhoneList - 1);
-    VarPhoneList[sizeof VarPhoneList - 1] = '\0';
-    strncpy(VarPhoneCopy, VarPhoneList, sizeof VarPhoneCopy - 1);
-    VarPhoneCopy[sizeof VarPhoneCopy - 1] = '\0';
-    VarNextPhone = VarPhoneCopy;
-    VarAltPhone = NULL;
+    strncpy(cx->cfg.phone.list, argp, sizeof cx->cfg.phone.list - 1);
+    cx->cfg.phone.list[sizeof cx->cfg.phone.list - 1] = '\0';
     break;
   case VAR_HANGUP:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
@@ -1447,7 +1443,7 @@ static struct cmdtab const SetCommands[] = {
   "Set open mode", "set openmode [active|passive]"},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "Set modem parity", "set parity [odd|even|none]"},
-  {"phone", NULL, SetVariable, LOCAL_AUTH, "Set telephone number(s)",
+  {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *) VAR_PHONE},
   {"reconnect", NULL, SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Set Reconnect timeout", "set reconnect value ntries"},

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.9 1998/02/27 01:22:21 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.10 1998/03/01 01:07:43 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -56,12 +56,22 @@ struct datalink {
       char login[SCRIPT_LEN];	/* login */
       char hangup[SCRIPT_LEN];	/* hangup */
     } script;
+    struct {
+      char list[SCRIPT_LEN];	/* Telephone Numbers */
+    } phone;
     int max_dial;		/* initially try again this number of times */
     int dial_timeout;		/* Redial timeout value */
     int dial_next_timeout;	/* Redial next timeout value */
     int max_reconnect;		/* initially try again this number of times */
     int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
   } cfg;			/* All our config data is in here */
+
+  struct {
+    char list[SCRIPT_LEN];	/* copy of cfg.list for strsep() */
+    char *next;			/* Next phone from the list */
+    char *alt;			/* Next phone from the list */
+    char *chosen;		/* Chosen phone number after DIAL */
+  } phone;
 
   int dial_tries;		/* currently try again this number of times */
   unsigned reconnect_tries;	/* currently try again this number of times */

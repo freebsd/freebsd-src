@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.11 1998/02/23 00:38:20 brian Exp $
+ *	$Id: chat.c,v 1.44.2.12 1998/02/26 17:54:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -502,7 +502,8 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 void
-chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
+chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
+          const char *phone)
 {
   c->desc.type = CHAT_DESCRIPTOR;
   c->desc.next = NULL;
@@ -532,6 +533,7 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
 
   c->TimeoutSec = 30;
   c->TimedOut = 0;
+  c->phone = phone;
   c->abort.num = 0;
 
   StopTimer(&c->pause);
@@ -620,7 +622,6 @@ chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
                   int sendmode)
 {
   int addcr = 0;
-  char *phone;
 
   result[--reslen] = '\0';
   if (sendmode)
@@ -664,19 +665,11 @@ chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	result += strlen(result);
 	break;
       case 'T':
-	if (VarAltPhone == NULL) {
-	  if (VarNextPhone == NULL) {
-	    strncpy(VarPhoneCopy, VarPhoneList, sizeof VarPhoneCopy - 1);
-	    VarPhoneCopy[sizeof VarPhoneCopy - 1] = '\0';
-	    VarNextPhone = VarPhoneCopy;
-	  }
-	  VarAltPhone = strsep(&VarNextPhone, ":");
-	}
-	phone = strsep(&VarAltPhone, "|");
-	strncpy(result, phone, reslen);
-	reslen -= strlen(result);
-	result += strlen(result);
-	LogPrintf(LogPHASE, "Phone: %s\n", phone);
+        if (c != NULL) {
+	  strncpy(result, c->phone, reslen);
+	  reslen -= strlen(result);
+	  result += strlen(result);
+        }
 	break;
       case 'U':
 	strncpy(result, VarAuthName, reslen);

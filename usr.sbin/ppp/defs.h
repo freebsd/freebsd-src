@@ -15,19 +15,19 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.3 1998/02/16 19:11:06 brian Exp $
+ * $Id: defs.h,v 1.29.2.4 1998/03/06 00:34:43 brian Exp $
  *
  *	TODO:
  */
 
 /* Check the following definitions for your machine environment */
 #ifdef __FreeBSD__
-# define  MODEM_LIST	"/dev/cuaa1,/dev/cuaa0"		/* name of tty device */
+# define  MODEM_LIST	"/dev/cuaa1, /dev/cuaa0"	/* name of tty device */
 #else
 # ifdef __OpenBSD__
-#  define MODEM_LIST	"/dev/cua01,/dev/cua00"		/* name of tty device */
+#  define MODEM_LIST	"/dev/cua01, /dev/cua00"	/* name of tty device */
 # else
-#  define MODEM_LIST	"/dev/tty01,/dev/tty00"		/* name of tty device */
+#  define MODEM_LIST	"/dev/tty01, /dev/tty00"	/* name of tty device */
 # endif
 #endif
 

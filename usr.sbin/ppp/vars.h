@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.9 1998/02/17 19:28:01 brian Exp $
+ * $Id: vars.h,v 1.42.2.10 1998/03/06 00:34:47 brian Exp $
  *
  *	TODO:
  */
@@ -80,10 +80,6 @@ struct pppvars {
 #ifdef HAVE_DES
   int use_MSChap;		/* Use MSCHAP encryption */
 #endif
-  char phone_numbers[200];	/* Telephone Numbers */
-  char phone_copy[200];		/* copy for strsep() */
-  char *next_phone;		/* Next phone from the list */
-  char *alt_phone;		/* Next phone from the list */
   char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
@@ -103,10 +99,6 @@ struct pppvars {
 #ifdef HAVE_DES
 #define	VarMSChap		pppVars.use_MSChap
 #endif
-#define VarPhoneList    	pppVars.phone_numbers
-#define VarPhoneCopy    	pppVars.phone_copy
-#define VarNextPhone    	pppVars.next_phone
-#define VarAltPhone     	pppVars.alt_phone
 #define	VarShortHost		pppVars.shostname
 #define VarLoopback		pppVars.loopback
 

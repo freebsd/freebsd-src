@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.27 1998/03/01 01:07:47 brian Exp $
+ * $Id: modem.c,v 1.77.2.28 1998/03/06 00:34:44 brian Exp $
  *
  *  TODO:
  */
@@ -910,31 +910,30 @@ modem_ShowStatus(struct cmdargs const *arg)
   dev = *arg->cx->physical->name.full ?
     arg->cx->physical->name.full : "stdin";
 
-  prompt_Printf(&prompt, "device configuration: %s\n",
-                arg->cx->physical->cfg.devlist);
-  prompt_Printf(&prompt, "device: %s  speed: ", dev);
+  prompt_Printf(&prompt, "device list:   %s\n", arg->cx->physical->cfg.devlist);
+  prompt_Printf(&prompt, "device:        %s\n               ", dev);
   if (Physical_IsSync(arg->cx->physical))
-    prompt_Printf(&prompt, "sync\n");
+    prompt_Printf(&prompt, "sync");
   else
-    prompt_Printf(&prompt, "%d\n", arg->cx->physical->cfg.speed);
+    prompt_Printf(&prompt, "%dbps", arg->cx->physical->cfg.speed);
 
   switch (arg->cx->physical->cfg.parity & CSIZE) {
   case CS7:
-    prompt_Printf(&prompt, "cs7, ");
+    prompt_Printf(&prompt, ", cs7");
     break;
   case CS8:
-    prompt_Printf(&prompt, "cs8, ");
+    prompt_Printf(&prompt, ", cs8");
     break;
   }
   if (arg->cx->physical->cfg.parity & PARENB) {
     if (arg->cx->physical->cfg.parity & PARODD)
-      prompt_Printf(&prompt, "odd parity, ");
+      prompt_Printf(&prompt, ", odd parity");
     else
-      prompt_Printf(&prompt, "even parity, ");
+      prompt_Printf(&prompt, ", even parity");
   } else
-    prompt_Printf(&prompt, "no parity, ");
+    prompt_Printf(&prompt, ", no parity");
 
-  prompt_Printf(&prompt, "CTS/RTS %s.\n",
+  prompt_Printf(&prompt, ", CTS/RTS %s\n",
                 (arg->cx->physical->cfg.rts_cts ? "on" : "off"));
 
   if (LogIsKept(LogDEBUG))
@@ -945,15 +944,16 @@ modem_ShowStatus(struct cmdargs const *arg)
 #ifdef TIOCOUTQ
   if (arg->cx->physical->fd >= 0)
     if (ioctl(arg->cx->physical->fd, TIOCOUTQ, &nb) >= 0)
-      prompt_Printf(&prompt, "outq: %d\n", nb);
+      prompt_Printf(&prompt, "outq:         %d\n", nb);
     else
       prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
-  prompt_Printf(&prompt, "outqlen: %d\n",
+  prompt_Printf(&prompt, "outq packets:  %d\n",
                 link_QueueLen(&arg->cx->physical->link));
-  prompt_Printf(&prompt, "DialScript  = %s\n", arg->cx->cfg.script.dial);
-  prompt_Printf(&prompt, "LoginScript = %s\n", arg->cx->cfg.script.login);
-  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", arg->cx->cfg.script.hangup);
+  prompt_Printf(&prompt, "DialScript:    %s\n", arg->cx->cfg.script.dial);
+  prompt_Printf(&prompt, "LoginScript:   %s\n", arg->cx->cfg.script.login);
+  prompt_Printf(&prompt, "Phone list:    %s\n", arg->cx->cfg.phone.list);
+  prompt_Printf(&prompt, "Phone Number:  %s\n", arg->cx->phone.chosen);
 
   prompt_Printf(&prompt, "\n");
   throughput_disp(&arg->cx->physical->link.throughput);
