@@ -138,6 +138,7 @@ extern int target_flags;
 #define MASK_64BIT		0x02000000	/* Produce 64bit code */
 /* ... overlap with subtarget options starts by 0x04000000.  */
 #define MASK_NO_RED_ZONE	0x04000000	/* Do not use red zone */
+#define MASK_NO_ALIGN_LONG_STRINGS 0x08000000	/* Do not align long strings specially */
 
 /* Use the floating point instructions */
 #define TARGET_80387 (target_flags & MASK_80387)
@@ -286,6 +287,8 @@ extern int x86_prefetch_sse;
 
 #define TARGET_RED_ZONE (!(target_flags & MASK_NO_RED_ZONE))
 
+#define TARGET_NO_ALIGN_LONG_STRINGS (target_flags & MASK_NO_ALIGN_LONG_STRINGS)
+
 /* WARNING: Do not mark empty strings for translation, as calling
             gettext on an empty string does NOT return an empty
             string. */
@@ -384,6 +387,10 @@ extern int x86_prefetch_sse;
     N_("Use red-zone in the x86-64 code") },				      \
   { "no-red-zone",		MASK_NO_RED_ZONE,			      \
     N_("Do not use red-zone in the x86-64 code") },			      \
+  { "no-align-long-strings",	 MASK_NO_ALIGN_LONG_STRINGS,		      \
+    N_("Do not align long strings specially") },			      \
+  { "align-long-strings",	-MASK_NO_ALIGN_LONG_STRINGS,		      \
+    N_("Align strings longer than 30 on a 32-byte boundary") },		      \
   SUBTARGET_SWITCHES							      \
   { "", TARGET_DEFAULT, 0 }}
 
