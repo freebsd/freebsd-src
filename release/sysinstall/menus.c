@@ -331,7 +331,7 @@ DMenu MenuDocumentation = {
 };
 
 DMenu MenuMouseType = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Select a protocol type for your mouse",
     "If your mouse is attached to the PS/2 mouse port or the bus mouse port,\n"
     "you should always choose \"Auto\", regardless of the model and the brand\n"
@@ -369,7 +369,7 @@ DMenu MenuMouseType = {
 };
 
 DMenu MenuMousePort = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Select your mouse port from the following menu",
     "The built-in pointing device of laptop/notebook computers is usually\n"
     "a PS/2 style device.",
@@ -1176,7 +1176,7 @@ DMenu MenuInstallCustom = {
 
 /* MBR type menu */
 DMenu MenuMBRType = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
     "FreeBSD comes with a boot selector that allows you to easily\n"
     "select between FreeBSD and any other operating systems on your machine\n"
@@ -1352,7 +1352,7 @@ DMenu MenuNetworking = {
 };
 
 DMenu MenuNTP = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "NTPDATE Server Selection",
     "There are a number of time synchronization servers available\n"
     "for public use around the Internet.  Please select one reasonably\n"
@@ -1435,7 +1435,7 @@ DMenu MenuSyscons = {
 
 #ifdef PC98
 DMenu MenuSysconsKeymap = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The default system console driver for FreeBSD (syscons) defaults\n"
     "to a standard \"PC-98x1\" keyboard map.  Users may wish to choose\n"
@@ -1451,7 +1451,7 @@ DMenu MenuSysconsKeymap = {
 };
 #else
 DMenu MenuSysconsKeymap = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The default system console driver for FreeBSD (syscons) defaults\n"
     "to a standard \"American\" keyboard map.  Users in other countries\n"
@@ -1517,7 +1517,7 @@ DMenu MenuSysconsKeymap = {
 #endif
 
 DMenu MenuSysconsKeyrate = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keyboard Repeat Rate",
     "This menu allows you to set the speed at which keys repeat\n"
     "when held down.",
@@ -1531,7 +1531,7 @@ DMenu MenuSysconsKeyrate = {
 };
 
 DMenu MenuSysconsSaver = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screen Saver",
     "By default, the console driver will not attempt to do anything\n"
     "special with your screen when it's idle.  If you expect to leave your\n"
@@ -1565,7 +1565,7 @@ DMenu MenuSysconsSaver = {
 };
 
 DMenu MenuSysconsScrnmap = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screenmap",
     "Unless you load a specific font, most PC hardware defaults to\n"
     "displaying characters in the IBM 437 character set.  However,\n"
@@ -1588,7 +1588,7 @@ DMenu MenuSysconsScrnmap = {
 };
 
 DMenu MenuSysconsFont = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Font",
     "Most PC hardware defaults to displaying characters in the\n"
     "IBM 437 character set.  However, in the Unix world, this\n"
