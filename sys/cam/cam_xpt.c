@@ -2546,7 +2546,7 @@ xptplistperiphfunc(struct cam_periph *periph, void *arg)
 					break;
 			}
 
-			if (pdrv == NULL) {
+			if (*pdrv == NULL) {
 				cdm->status = CAM_DEV_MATCH_ERROR;
 				return(0);
 			}
