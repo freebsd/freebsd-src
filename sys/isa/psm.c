@@ -237,6 +237,9 @@ static devclass_t psm_devclass;
 static int synaptics_support = 0;
 TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
 
+static int verbose = PSM_DEBUG;
+TUNABLE_INT("debug.psm.loglevel", &verbose);
+
 /* for backward compatibility */
 #define OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
 #define OLD_MOUSE_GETMODE	_IOR('M', 2, old_mousemode_t)
@@ -381,9 +384,6 @@ static struct cdevsw psm_cdevsw = {
 	.d_poll =	psmpoll,
 	.d_name =	PSM_DRIVER_NAME,
 };
-
-/* debug message level */
-static int verbose = PSM_DEBUG;
 
 /* device I/O routines */
 static int
@@ -2009,28 +2009,29 @@ psmtimeout(void *arg)
     sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz);
 }
 
+/* Add all sysctls under the debug.psm and hw.psm nodes */
+SYSCTL_NODE(_debug, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
+SYSCTL_NODE(_hw, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
+
+SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RW, &verbose, 0, "");
+
 static int psmhz = 20;
-SYSCTL_INT(_debug, OID_AUTO, psmhz, CTLFLAG_RW, &psmhz, 0, "");
-
-static int psm_soft_timeout = 500000; /* 0.5 sec */
-SYSCTL_INT(_debug, OID_AUTO, psm_soft_timeout, CTLFLAG_RW,
-    &psm_soft_timeout, 0, "");
-
+SYSCTL_INT(_debug_psm, OID_AUTO, hz, CTLFLAG_RW, &psmhz, 0, "");
 static int psmerrsecs = 2;
-SYSCTL_INT(_debug, OID_AUTO, psmerrsecs, CTLFLAG_RW, &psmerrsecs, 0, "");
+SYSCTL_INT(_debug_psm, OID_AUTO, errsecs, CTLFLAG_RW, &psmerrsecs, 0, "");
 static int psmerrusecs = 0;
-SYSCTL_INT(_debug, OID_AUTO, psmerrusecs, CTLFLAG_RW, &psmerrusecs, 0, "");
+SYSCTL_INT(_debug_psm, OID_AUTO, errusecs, CTLFLAG_RW, &psmerrusecs, 0, "");
 static int psmsecs = 0;
-SYSCTL_INT(_debug, OID_AUTO, psmsecs, CTLFLAG_RW, &psmsecs, 0, "");
+SYSCTL_INT(_debug_psm, OID_AUTO, secs, CTLFLAG_RW, &psmsecs, 0, "");
 static int psmusecs = 500000;
-SYSCTL_INT(_debug, OID_AUTO, psmusecs, CTLFLAG_RW, &psmusecs, 0, "");
+SYSCTL_INT(_debug_psm, OID_AUTO, usecs, CTLFLAG_RW, &psmusecs, 0, "");
+static int pkterrthresh = 2;
+SYSCTL_INT(_debug_psm, OID_AUTO, pkterrthresh, CTLFLAG_RW, &pkterrthresh, 0, "");
 
-static int psmpkterrthresh = 2;
-SYSCTL_INT(_debug, OID_AUTO, psmpkterrthresh, CTLFLAG_RW,
-    &psmpkterrthresh, 0, "");
-
-SYSCTL_INT(_debug, OID_AUTO, psmloglevel, CTLFLAG_RW, &verbose, 0, "");
-
+static int tap_threshold = PSM_TAP_THRESHOLD;
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0, "");
+static int tap_timeout = PSM_TAP_TIMEOUT;
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_timeout, CTLFLAG_RW, &tap_timeout, 0, "");
 
 static void
 psmintr(void *arg)
@@ -2095,7 +2096,7 @@ psmintr(void *arg)
 	    ++sc->syncerrors;
 	    sc->lastinputerr = now;
 	    if (sc->syncerrors >= sc->mode.packetsize * 2 ||
-	        sc->pkterrors >= psmpkterrthresh) {
+	        sc->pkterrors >= pkterrthresh) {
 
 		/*
 		 * If we've failed to find a single sync byte in 2
