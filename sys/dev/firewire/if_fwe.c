@@ -228,6 +228,7 @@ fwe_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
 
