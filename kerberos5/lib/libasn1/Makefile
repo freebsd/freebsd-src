@@ -1,14 +1,25 @@
 # $FreeBSD$
 
 LIB=	asn1
-CFLAGS+=-I${KRB5DIR}/include \
-	-I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken \
-	-I${INCLUDEOBJDIR} \
-	-I${.OBJDIR}
-SRCS=	der_get.c der_put.c der_free.c der_length.c der_copy.c \
-	timegm.c asn1_err.c asn1_err.h krb5_asn1.h roken.h \
+
+SRCS=	\
+	der_get.c				\
+	der_put.c				\
+	der_free.c				\
+	der_length.c				\
+	der_copy.c				\
+	timegm.c				\
+	asn1_err.c				\
+	${.OBJDIR}/asn1_err.h			\
+	${.OBJDIR}/krb5_asn1.h			\
+	${.OBJDIR}/roken.h			\
 	${GEN:S/.x/.c/g}
+
+CFLAGS+=-I${KRB5DIR}/include			\
+	-I${KRB5DIR}/lib/asn1			\
+	-I${KRB5DIR}/lib/roken			\
+	-I${INCLUDEOBJDIR}			\
+	-I${.OBJDIR}
 
 GEN=						\
 	asn1_APOptions.x			\
@@ -63,7 +74,7 @@ GEN=						\
 	asn1_TransitedEncoding.x		\
 	asn1_UNSIGNED.x
 
-INCS=	krb5_asn1.h asn1_err.h 
+INCS=	${.OBJDIR}/krb5_asn1.h ${.OBJDIR}/asn1_err.h 
 
 .include <bsd.lib.mk>
 
@@ -71,7 +82,7 @@ INCS=	krb5_asn1.h asn1_err.h
 .PATH:		${KRB5DIR}/lib/vers
 .PATH:		${KRB5DIR}/lib/roken
 
-beforedepend all: roken.h
+beforedepend all: ${.OBJDIR}/roken.h
 
 .for I in ${GEN}
 ${I:S/.x/.c/}:	${I}
@@ -80,7 +91,7 @@ ${I:S/.x/.c/}:	${I}
 
 CLEANFILES+=	${GEN:S/.x/.c/g} krb5_asn1.h asn1_files
 
-${GEN} krb5_asn1.h:		asn1_compile k5.asn1
+${GEN} ${.OBJDIR}/krb5_asn1.h:		asn1_compile k5.asn1
 	./asn1_compile ${KRB5DIR}/lib/asn1/k5.asn1 krb5_asn1
 
 build-tools:	make-print-version make-roken asn1_compile
@@ -101,25 +112,26 @@ asn1_compile:					\
 	symbol.c				\
 	getarg.c				\
 	warnerr.c				\
-	print_version.o				\
+	${.OBJDIR}/print_version.o		\
 	get_window_size.c			\
 	strupr.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
 
-parse.o:	parse.c roken.h
+${.OBJDIR}/parse.o:	${.OBJDIR}/parse.c ${.OBJDIR}/roken.h
 
-.ORDER: parse.c parse.h
-parse.h parse.c:	parse.y
+.ORDER: ${.OBJDIR}/parse.c ${.OBJDIR}/parse.h
+${.OBJDIR}/parse.h ${.OBJDIR}/parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c
 	cp y.tab.h parse.h
 
-lex.o:		lex.l parse.h roken.h
+lex.o:		lex.l ${.OBJDIR}/parse.h ${.OBJDIR}/roken.h
 
-print_version.o: print_version.h print_version.c roken.h
+${.OBJDIR}/print_version.o: ${.OBJDIR}/print_version.h print_version.c \
+				${.OBJDIR}/roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
 
-print_version.h: make-print-version
+${.OBJDIR}/print_version.h: make-print-version
 	./make-print-version print_version.h
 
 make-print-version: make-print-version.c
