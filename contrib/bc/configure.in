@@ -1,0 +1,69 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(doc/bc.1)
+AM_INIT_AUTOMAKE(bc, 1.04)
+AM_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AC_MINIX
+dnl AC_ISC_POSIX
+
+AC_PROG_YACC
+AC_DECL_YYTEXT
+AC_PROG_LEX
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_PROG_MAKE_SET
+
+
+AC_CHECK_HEADERS(stdarg.h stddef.h stdlib.h string.h limits.h unistd.h lib.h)
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_CHECK_TYPE(ptrdiff_t, size_t)
+
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(isgraph)
+
+
+AC_ARG_WITH(readline,[  --with-readline         support fancy command input editing], [
+if test "$with_readline" = "yes" ; then
+ echo Using the readline library.
+ AC_DEFINE(READLINE,1)
+ LIBS="$LIBS -lreadline -ltermcap"
+ bcrl=y
+else
+ bcrl=n
+fi
+], [
+bcrl=n
+])
+
+if test "$LEX" = "flex" ; then
+ LEX="flex -I8"
+else
+ if test "$bcrl" = "y" ; then
+  AC_MSG_WARN(readline works only with flex.)
+ fi
+fi
+
+
+SaveCFLAGS="$CFLAGS"
+CFLAGS="-g -O -I. -I$srcdir"
+AC_MSG_CHECKING(if long strings are accepted by the C compiler)
+AC_TRY_COMPILE([
+char libmath[] = 
+#include "bc/libmath.h"
+;
+],[],AC_MSG_RESULT(yes),
+AC_MSG_RESULT(no)
+AC_MSG_WARN(libmath.b will not be preloaded into the executable)
+if test "${prefix}" = "NONE" ; then 
+AC_DEFINE_UNQUOTED(BC_MATH_FILE,"/usr/local/lib/libmath.b")
+else
+AC_DEFINE_UNQUOTED(BC_MATH_FILE,"${prefix}/lib/libmath.b")
+fi)
+CFLAGS="$SaveCFLAGS"
+
+
+
+AC_ARG_PROGRAM
+AC_OUTPUT(Makefile bc/Makefile dc/Makefile doc/Makefile lib/Makefile)
