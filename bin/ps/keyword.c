@@ -57,15 +57,6 @@ __FBSDID("$FreeBSD$");
 static VAR *findvar(char *);
 static int  vcmp(const void *, const void *);
 
-#ifdef NOTINUSE
-int	utime(), stime(), ixrss(), idrss(), isrss();
-	{{"utime"}, "UTIME", USER, utime, NULL, 4},
-	{{"stime"}, "STIME", USER, stime, NULL, 4},
-	{{"ixrss"}, "IXRSS", USER, ixrss, NULL, 4},
-	{{"idrss"}, "IDRSS", USER, idrss, NULL, 4},
-	{{"isrss"}, "ISRSS", USER, isrss, NULL, 4},
-#endif
-
 /* Compute offset in common structures. */
 #define	KOFF(x)	offsetof(struct kinfo_proc, x)
 #define	ROFF(x)	offsetof(struct rusage, x)
