@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI mem.c,v 2.2 1996/04/08 19:32:57 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include "doscmd.h"

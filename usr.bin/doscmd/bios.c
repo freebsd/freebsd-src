@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 #include "mouse.h"
