@@ -287,7 +287,7 @@ ipxipoutput(ifp, m, dst, rt)
 	/*
 	 * Output final datagram.
 	 */
-	error =  (ip_output(m, (struct mbuf *)NULL, ro, SO_BROADCAST, NULL));
+	error =  (ip_output(m, (struct mbuf *)NULL, ro, SO_BROADCAST, NULL, NULL));
 	if (error) {
 		ifn->ifen_ifnet.if_oerrors++;
 		ifn->ifen_ifnet.if_ierrors = error;

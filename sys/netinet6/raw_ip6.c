@@ -445,15 +445,8 @@ rip6_output(m, va_alist)
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
 	}
 
-#ifdef IPSEC
-	if (ipsec_setsocket(m, so) != 0) {
-		error = ENOBUFS;
-		goto bad;
-	}
-#endif /*IPSEC*/
-
 	error = ip6_output(m, optp, &in6p->in6p_route, 0,
-			   in6p->in6p_moptions, &oifp);
+			   in6p->in6p_moptions, &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
