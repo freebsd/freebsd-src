@@ -36,28 +36,28 @@ function usage()
 
 function err(eval, fmt, what)
 {
-	printf "driver-copy2.awk: " fmt ": %s\n", what, ERRNO > "/dev/stderr";
-	exit eval;
-}
-
-function errx(eval, fmt, what)
-{
 	printf "driver-copy2.awk: " fmt "\n", what > "/dev/stderr";
 	exit eval;
 }
 
-function readconfig(config)
+function readconfig()
 {
-	while ((getline < config) > 0) {
+	while ((r = (getline < config)) > 0) {
 		sub("#.*$", "");
-		if (split(gensub(/^(\w+)[ \t]+(\w+)[ \t]+([0-9]+)[ \t]+(\w+)[ \t]+\"(.*)\"[ \t]*$/,
-		    "\\1#\\2#\\3#\\4#\\5", "g"), arg, "#") == 5) {
+		if (sub(/^[[:alnum:]_]+[ \t]+[[:alnum:]_]+[ \t]+[0-9]+[ \t]+[[:alnum:]_]+[ \t]+\".*\"[ \t]*$/, "&")) {
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/\"/, "");
+			sub(/\"/, "");
+			split($0, arg, "#");
 			flp[arg[2]] = arg[3];
 			dsc[arg[2]] = arg[5];
 		}
 	}
-	if (ERRNO)
-		err(1, "reading %s", config);
+	if (r == -1)
+		err(1, "error reading %s", config);
 	close(config);
 }
 
@@ -69,12 +69,12 @@ BEGIN {
 	srcdir = ARGV[2];
 	dstdir = ARGV[3];
 
-	readconfig(config);
+	readconfig();
 
 	if (system("test -d " srcdir) != 0)
-		errx(1, "cannot find %s directory", srcdir);
+		err(1, "cannot find %s directory", srcdir);
 	if (system("test -d " dstdir) != 0)
-		errx(1, "cannot find %s directory", dstdir);
+		err(1, "cannot find %s directory", dstdir);
 
 	for (f in flp) {
 		if (flp[f] == 1) {
@@ -90,7 +90,7 @@ BEGIN {
 			close(dscfile);
 		} else if (flp[f] == 3) {
 			# third driver floppy (not yet implemented)
-			errx(1, "%s: 3rd driver floppy support is not implemented", f);
+			err(1, "%s: 3rd driver floppy support is not implemented", f);
 		}
 	}
 }
