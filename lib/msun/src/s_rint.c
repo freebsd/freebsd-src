@@ -40,7 +40,8 @@ TWO52[2]={
  -4.50359962737049600000e+15, /* 0xC3300000, 0x00000000 */
 };
 
-	double __generic_rint(double x)
+double
+__generic_rint(double x)
 {
 	int32_t i0,j0,sx;
 	u_int32_t i,i1;

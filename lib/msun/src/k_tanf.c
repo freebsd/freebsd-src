@@ -39,7 +39,8 @@ T[] =  {
   2.5907305826e-05, /* 0x37d95384 */
 };
 
-	float __kernel_tanf(float x, float y, int iy)
+float
+__kernel_tanf(float x, float y, int iy)
 {
 	float z,r,v,w,s;
 	int32_t ix,hx;

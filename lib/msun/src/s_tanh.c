@@ -43,7 +43,8 @@ static char rcsid[] = "$FreeBSD$";
 
 static const double one=1.0, two=2.0, tiny = 1.0e-300;
 
-	double tanh(double x)
+double
+tanh(double x)
 {
 	double t,z;
 	int32_t jx,ix;

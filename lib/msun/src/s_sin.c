@@ -48,7 +48,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double __generic_sin(double x)
+double
+__generic_sin(double x)
 {
 	double y[2],z=0.0;
 	int32_t n, ix;

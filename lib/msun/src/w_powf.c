@@ -25,7 +25,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	float powf(float x, float y)	/* wrapper powf */
+float
+powf(float x, float y)	/* wrapper powf */
 {
 #ifdef _IEEE_LIBM
 	return  __ieee754_powf(x,y);

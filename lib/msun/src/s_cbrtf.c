@@ -34,7 +34,8 @@ E =  1.4142856598e+00, /* 99/70     = 0x3fb50750 */
 F =  1.6071428061e+00, /* 45/28     = 0x3fcdb6db */
 G =  3.5714286566e-01; /* 5/14      = 0x3eb6db6e */
 
-	float cbrtf(float x)
+float
+cbrtf(float x)
 {
 	float r,s,t;
 	int32_t hx;

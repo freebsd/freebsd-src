@@ -39,7 +39,8 @@ S04  =  1.1661400734e-09; /* 0x30a045e8 */
 
 static const float zero = 0.0;
 
-	float __ieee754_j0f(float x)
+float
+__ieee754_j0f(float x)
 {
 	float z, s,c,ss,cc,r,u,v;
 	int32_t hx,ix;
@@ -99,7 +100,8 @@ v02  =  7.6006865129e-05, /* 0x389f65e0 */
 v03  =  2.5915085189e-07, /* 0x348b216c */
 v04  =  4.4111031494e-10; /* 0x2ff280c2 */
 
-	float __ieee754_y0f(float x)
+float
+__ieee754_y0f(float x)
 {
 	float z, s,c,ss,cc,u,v;
 	int32_t hx,ix;

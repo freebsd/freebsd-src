@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	double hypot(double x, double y)/* wrapper hypot */
+double
+hypot(double x, double y)/* wrapper hypot */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_hypot(x,y);

@@ -26,9 +26,11 @@ static char rcsid[] = "$FreeBSD$";
 #include <errno.h>
 
 #ifdef _SCALB_INT
-	double scalb(double x, int fn)		/* wrapper scalb */
+double
+scalb(double x, int fn)		/* wrapper scalb */
 #else
-	double scalb(double x, double fn)	/* wrapper scalb */
+double
+scalb(double x, double fn)	/* wrapper scalb */
 #endif
 {
 #ifdef _IEEE_LIBM

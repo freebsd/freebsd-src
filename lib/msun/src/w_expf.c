@@ -28,7 +28,8 @@ static const float
 o_threshold=  8.8721679688e+01,  /* 0x42b17180 */
 u_threshold= -1.0397208405e+02;  /* 0xc2cff1b5 */
 
-	float expf(float x)		/* wrapper expf */
+float
+expf(float x)		/* wrapper expf */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_expf(x);

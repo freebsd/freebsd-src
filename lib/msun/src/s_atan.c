@@ -69,7 +69,8 @@ static const double aT[] = {
 one   = 1.0,
 huge   = 1.0e300;
 
-	double __generic_atan(double x)
+double
+__generic_atan(double x)
 {
 	double w,s1,s2,z;
 	int32_t ix,hx,id;

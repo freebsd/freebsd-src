@@ -24,7 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float remainderf(float x, float y)	/* wrapper remainder */
+float
+remainderf(float x, float y)	/* wrapper remainder */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_remainderf(x,y);

@@ -23,7 +23,8 @@ static char rcsid[] = "$FreeBSD$";
 static const float
 two25 =  3.3554432000e+07; /* 0x4c000000 */
 
-	float frexpf(float x, int *eptr)
+float
+frexpf(float x, int *eptr)
 {
 	int32_t hx,ix;
 	GET_FLOAT_WORD(hx,x);
