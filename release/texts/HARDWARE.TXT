@@ -951,14 +951,14 @@ Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 NCR WaveLAN/IEEE 802.11
 Cabletron RoamAbout 802.11 DS
 Compaq WL100
-Corega KK Wireless LAN PCC-11
+Corega KK Wireless LAN PCC-11, PCCA-11
 Laneed Wireless card
 ELECOM Air@Hawk/LD-WL11/PCC
 Farallon Skyline 11Mbps Wireless
 ICOM SL-1100
 IO Data WN-B11/PCM
 Melco Airconnect WLI-PCM-L11
-NEC Wireless Card CMZ-RT-WP
+NEC Wireless Card CMZ-RT-WP, PC-WL/11C, PK-WL001
 PLANEX GeoWave/GW-NS110
 TDK LAK-CD011WL
 Note: the ISA versions of these adapters are actually PCMCIA cards
