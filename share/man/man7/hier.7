@@ -101,16 +101,12 @@ contains the majority of user utilities and applications
 .Bl -tag -width "libdata/" -compact
 .It Li bin/
 common utilities, programming tools, and applications 
-.It Li contrib/
-large packages contributed to Berkeley by outside parties
 .It Li games/
 useful and semi-frivolous programs
 .It Li include/
 standard C include files
 .Pp
 .Bl -tag -width "kerberosIV/" -compact
-.It Li X11/
-C include files for X11 window system
 .It Li arpa/
 C include files for Internet service protocols
 .It Li kerberosIV/
@@ -162,6 +158,10 @@ misc. utility data files
 system daemons & system utilities (executed by other programs)
 .It Li local/
 local executables, libraries, etc.
+.It Li X11R6/
+X11R6 distribution executables, libraries, etc.
+.It Li ports
+The FreeBSD ports collection (optional).
 .It Li obj/
 architecture-specific target tree produced by building the /usr/src tree
 .It Li old/
@@ -250,8 +250,6 @@ BSD and/or local source files
 .Bl -tag -width "kerberosIV/" -compact
 .It Li bin/
 src for files in /bin 
-.It Li contrib/
-src for files in /usr/contrib
 .It Li etc/
 src for files in /etc
 .It Li games/
@@ -268,8 +266,6 @@ src for files in /usr/libexec
 src for files in /usr/local
 .It Li old/
 src for files in /usr/old
-.It Li pgrm/
-src for programming tools in /usr/bin
 .It Li sbin/
 src for files in /sbin
 .It Li share/
