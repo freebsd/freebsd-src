@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Where do we define these?
  */
-#define	UC_MC_OFFSET		16	/* offset to mcontext from ucontext */
 #define	MC_LEN_OFFSET		80	/* offset to mc_len from mcontext */
 #define	MC_LEN			640	/* mc_len <machine/ucontext.h> */
 #define	MC_FPFMT_OFFSET		84
@@ -45,27 +44,26 @@ __FBSDID("$FreeBSD$");
 #define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
 
 /*
- * int thr_setcontext(ucontext_t *ucp)
+ * int thr_setcontext(mcontext_t *mcp, intptr_t val, intptr_t *loc)
  *
- * Restores the context in ucp.
+ * Restores the context in mcp.
  *
  * Returns 0 if there are no errors; -1 otherwise
  */
 	.weak CNAME(_thr_setcontext)
 	.set CNAME(_thr_setcontext),CNAME(__thr_setcontext)
 ENTRY(__thr_setcontext)
-	movl	4(%esp), %eax		/* get address of context and sigset */
-	cmpl	$0, %eax		/* check for null pointer */
+	movl	4(%esp), %edx		/* get address of mcontext */
+	cmpl	$0, %edx		/* check for null pointer */
 	jne	1f
 	movl	$-1, %eax
-	jmp	7f
-1:	addl	$UC_MC_OFFSET, %eax	/* add offset to mcontext */
-	cmpl	$MC_LEN, MC_LEN_OFFSET(%eax)	/* is context valid? */
+	jmp	8f
+1:	cmpl	$MC_LEN, MC_LEN_OFFSET(%edx)	/* is context valid? */
 	je	2f
 	movl	$-1, %eax		/* bzzzt, invalid context */
-	jmp	7f
-/*2:	movl	4(%edx), %gs*/		/* we don't touch %gs */
-2:	movl	8(%edx), %fs
+	jmp	8f
+2:	/*movl	4(%edx), %gs*/		/* we don't touch %gs */
+	movl	8(%edx), %fs
 	movl	12(%edx), %es
 	movl	16(%edx), %ds
 	movl	76(%edx), %ss
@@ -74,12 +72,9 @@ ENTRY(__thr_setcontext)
 	movl	28(%edx), %ebp
 	movl	%esp, %ecx		/* save current stack in ecx */
 	movl	72(%edx), %esp		/* switch to context defined stack */
-	movl	60(%edx), %eax		/* put return address at top of stack */
-	pushl	%eax
-	movl	44(%edx), %eax		/* get ecx from context, */
-	pushl	%eax			/*   push on top of stack */
-	movl	48(%edx), %eax		/* get eax from context, */
-	pushl	%eax			/*   push on top of stack */
+	pushl	60(%edx)		/* push return address on stack */
+	pushl	44(%edx)		/* push ecx on stack */
+	push	48(%edx)		/* push eax on stack */
 	/*
 	 * if (mc_fpowned == MC_OWNEDFP_FPU || mc_fpowned == MC_OWNEDFP_PCB) {
 	 *    if (mc_fpformat == MC_FPFMT_387)
@@ -102,32 +97,36 @@ ENTRY(__thr_setcontext)
 	jmp	6f
 5:	fninit
 	fldcw	MC_FP_CW_OFFSET(%edx)
-6:	pushl	68(%edx)		/* restore flags register */
-	popf
+6:	pushl	68(%edx)		/* push flags register on stack*/
 	movl	36(%edx), %ebx		/* restore ebx and edx */
 	movl	40(%edx), %edx
+	movl	12(%ecx), %eax		/* get 3rd arg (loc) */
+	cmpl	$0, %eax		/* do nothing if loc == null */
+	je	7f
+	movl	8(%ecx), %ecx		/* get 2nd arg (val) */
+	movl	%ecx, (%eax)		/* set loc = val */
+7:	popfl				/* restore flags after test */
 	popl	%eax			/* restore eax and ecx last */
 	popl	%ecx
-7:	ret
+8:	ret
 
 /*
- * int thr_getcontext(ucontext_t *ucp);
+ * int thr_getcontext(mcontext_t *mcp);
  *
- * Returns 0 if there are no errors; -1 otherwise
+ * Returns -1 if there is an error, 0 no errors; 1 upon return
+ * from a setcontext().
  */
 	.weak CNAME(_thr_getcontext)
 	.set CNAME(_thr_getcontext),CNAME(__thr_getcontext)
 ENTRY(__thr_getcontext)
-	movl	4(%esp), %eax		/* get address of context */
-	cmpl	$0, %eax		/* check for null pointer */
+	pushl	%edx			/* save edx */
+	movl	8(%esp), %edx		/* get address of mcontext */
+	cmpl	$0, %edx		/* check for null pointer */
 	jne	1f
+	popl	%edx			/* restore edx and stack */
 	movl	$-1, %eax
 	jmp	2f
-	movl	4(%esp), %eax		/* get address of context and sigset */
-1:	pushl	%edx			/* save value of edx */
-	movl	8(%esp), %edx		/* get address of context */
-	addl	$UC_MC_OFFSET, %edx	/* add offset to mcontext */
-	/*movl	%gs, 4(%edx)*/		/* we don't touch %gs */
+1:	/*movl	%gs, 4(%edx)*/		/* we don't touch %gs */
 	movl	%fs, 8(%edx)
 	movl	%es, 12(%edx)
 	movl	%ds, 16(%edx)
@@ -136,7 +135,7 @@ ENTRY(__thr_getcontext)
 	movl	%esi, 24(%edx)
 	movl	%ebp, 28(%edx)
 	movl	%ebx, 36(%edx)
-	movl	$0, 48(%edx)		/* store successful return in eax */
+	movl	$1, 48(%edx)		/* store successful return in eax */
 	popl	%eax			/* get saved value of edx */
 	movl	%eax, 40(%edx)		/* save edx */
 	movl	%ecx, 44(%edx)
