@@ -31,9 +31,7 @@
 struct udf_node {
 	LIST_ENTRY(udf_node)	le;
 	struct vnode	*i_vnode;
-	struct vnode	*i_devvp;
 	struct udf_mnt	*udfmp;
-	struct cdev *i_dev;
 	ino_t		hash_id;
 	long		diroff;
 	struct file_entry *fentry;
