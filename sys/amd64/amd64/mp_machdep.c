@@ -209,9 +209,9 @@ static int cpu_apic_ids[MAXCPU];
 static u_int boot_address;
 
 static void	set_logical_apic_ids(void);
-static int	start_all_aps(u_int boot_addr);
-static void	install_ap_tramp(u_int boot_addr);
-static int	start_ap(int apic_id, u_int boot_addr);
+static int	start_all_aps(void);
+static void	install_ap_tramp(void);
+static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_cpus_mask;
@@ -226,9 +226,9 @@ mp_bootaddress(u_int basemem)
 {
 	POSTCODE(MP_BOOTADDRESS_POST);
 
-	boot_address = basemem & ~0xfff;	/* round down to 4k boundary */
+	boot_address = trunc_page(basemem);	/* round down to 4k boundary */
 	if ((basemem - boot_address) < bootMP_size)
-		boot_address -= 4096;	/* not enough, lower by 4k */
+		boot_address -= PAGE_SIZE;	/* not enough, lower by 4k */
 
 	return boot_address;
 }
@@ -360,7 +360,7 @@ cpu_mp_start(void)
 	cpu_apic_ids[0] = boot_cpu_id;
 
 	/* Start each Application Processor */
-	start_all_aps(boot_address);
+	start_all_aps();
 
 	/* Setup the initial logical CPUs info. */
 	logical_cpus = logical_cpus_mask = 0;
@@ -565,7 +565,7 @@ set_logical_apic_ids(void)
  * start each AP in our list
  */
 static int
-start_all_aps(u_int boot_addr)
+start_all_aps(void)
 {
 #ifndef PC98
 	u_char mpbiosreason;
@@ -581,7 +581,7 @@ start_all_aps(u_int boot_addr)
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* install the AP 1st level boot code */
-	install_ap_tramp(boot_addr);
+	install_ap_tramp();
 
 	/* save the current value of the warm-start vector */
 	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
@@ -629,7 +629,7 @@ start_all_aps(u_int boot_addr)
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
-		*((volatile u_short *) WARMBOOT_SEG) = (boot_addr >> 4);
+		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
 #ifndef PC98
 		outb(CMOS_REG, BIOS_RESET);
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
@@ -641,7 +641,7 @@ start_all_aps(u_int boot_addr)
 
 		/* attempt to start the Application Processor */
 		CHECK_INIT(99);	/* setup checkpoints */
-		if (!start_ap(apic_id, boot_addr)) {
+		if (!start_ap(apic_id)) {
 			printf("AP #%d (PHY# %d) failed!\n", cpu, apic_id);
 			CHECK_PRINT("trace");	/* show checkpoints */
 			/* better panic as the AP may be running loose */
@@ -698,12 +698,12 @@ extern u_int MP_GDT;
 extern u_int mp_gdtbase;
 
 static void
-install_ap_tramp(u_int boot_addr)
+install_ap_tramp(void)
 {
 	int     x;
 	int     size = *(int *) ((u_long) & bootMP_size);
 	u_char *src = (u_char *) ((u_long) bootMP);
-	u_char *dst = (u_char *) boot_addr + KERNBASE;
+	u_char *dst = (u_char *) boot_address + KERNBASE;
 	u_int   boot_base = (u_int) bootMP;
 	u_int8_t *dst8;
 	u_int16_t *dst16;
@@ -711,7 +711,7 @@ install_ap_tramp(u_int boot_addr)
 
 	POSTCODE(INSTALL_AP_TRAMP_POST);
 
-	pmap_kenter(boot_addr + KERNBASE, boot_addr);
+	pmap_kenter(boot_address + KERNBASE, boot_address);
 	for (x = 0; x < size; ++x)
 		*dst++ = *src++;
 
@@ -722,11 +722,11 @@ install_ap_tramp(u_int boot_addr)
 	 */
 
 	/* boot code is located in KERNEL space */
-	dst = (u_char *) boot_addr + KERNBASE;
+	dst = (u_char *) boot_address + KERNBASE;
 
 	/* modify the lgdt arg */
 	dst32 = (u_int32_t *) (dst + ((u_int) & mp_gdtbase - boot_base));
-	*dst32 = boot_addr + ((u_int) & MP_GDT - boot_base);
+	*dst32 = boot_address + ((u_int) & MP_GDT - boot_base);
 
 	/* modify the ljmp target for MPentry() */
 	dst32 = (u_int32_t *) (dst + ((u_int) bigJump - boot_base) + 1);
@@ -735,14 +735,14 @@ install_ap_tramp(u_int boot_addr)
 	/* modify the target for boot code segment */
 	dst16 = (u_int16_t *) (dst + ((u_int) bootCodeSeg - boot_base));
 	dst8 = (u_int8_t *) (dst16 + 1);
-	*dst16 = (u_int) boot_addr & 0xffff;
-	*dst8 = ((u_int) boot_addr >> 16) & 0xff;
+	*dst16 = (u_int) boot_address & 0xffff;
+	*dst8 = ((u_int) boot_address >> 16) & 0xff;
 
 	/* modify the target for boot data segment */
 	dst16 = (u_int16_t *) (dst + ((u_int) bootDataSeg - boot_base));
 	dst8 = (u_int8_t *) (dst16 + 1);
-	*dst16 = (u_int) boot_addr & 0xffff;
-	*dst8 = ((u_int) boot_addr >> 16) & 0xff;
+	*dst16 = (u_int) boot_address & 0xffff;
+	*dst8 = ((u_int) boot_address >> 16) & 0xff;
 }
 
 /*
@@ -753,7 +753,7 @@ install_ap_tramp(u_int boot_addr)
  * but it seems to work.
  */
 static int
-start_ap(int apic_id, u_int boot_addr)
+start_ap(int apic_id)
 {
 	int vector, ms;
 	int cpus;
@@ -761,7 +761,7 @@ start_ap(int apic_id, u_int boot_addr)
 	POSTCODE(START_AP_POST);
 
 	/* calculate the vector */
-	vector = (boot_addr >> 12) & 0xff;
+	vector = (boot_address >> 12) & 0xff;
 
 	/* used as a watchpoint to signal AP startup */
 	cpus = mp_naps;
