@@ -37,7 +37,6 @@
 
 #ifdef _KERNEL
 #include <sys/ktr.h>
-#include <sys/proc.h>	/* Needed for curproc. */
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
