@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.1 1998/01/11 04:46:02 jb Exp $
+# $Id: Makefile.alpha,v 1.2 1998/02/19 07:25:03 jb Exp $
 #
 # NOTE:
 #
@@ -25,7 +25,10 @@
 # =======  you would do if that happened.
 #
 SUBDIR	=	share/info lib bin gnu libexec sbin share sys usr.bin \
-		usr.sbin secure
+		usr.sbin
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+SUBDIR+=	secure
+.endif
 
 OBJDIR	=	obj
 
@@ -248,7 +251,8 @@ include-tools:
 # includes - possibly generate and install the include files.
 #
 includes:
-	cd ${.CURDIR}/include &&		${MAKE} -B all install
+	cd ${.CURDIR}/include &&		${MAKE} obj && \
+						${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
@@ -258,7 +262,7 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libgmp &&		${MAKE} beforeinstall
-.if exists(secure) && !defined(NOCRYPT)
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib/libdes &&	${MAKE} beforeinstall
 .endif
 .if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
@@ -307,51 +311,37 @@ includes:
 #
 # lib-tools - build tools to compile and install the libraries.
 #
-# XXX gperf is required for cc
-# XXX a new ld and tsort is required for cc
 lib-tools:
 	@echo "--------------------------------------------------------------"
-	@echo " Link to GNU binutils we haven't imported yet..."
+	@echo " Link to things we haven't fixed yet..."
 	@echo "--------------------------------------------------------------"
-	@-rm -f ${WORLDTMP}/usr/bin/ld
-	@-rm -f ${WORLDTMP}/usr/bin/as
-	@-rm -f ${WORLDTMP}/usr/bin/nm
-	@-rm -f ${WORLDTMP}/usr/bin/ranlib
-	@-rm -f ${WORLDTMP}/usr/bin/ar
-	@-rm -f ${WORLDTMP}/usr/bin/tsort
 	@-rm -f ${WORLDTMP}/usr/bin/lorder
 	@-rm -f ${WORLDTMP}/usr/bin/groff
 	@-rm -f ${WORLDTMP}/usr/bin/troff
 	@-rm -f ${WORLDTMP}/usr/bin/grotty
 	@-rm -f ${WORLDTMP}/usr/bin/pic
 	@-rm -f ${WORLDTMP}/usr/bin/tbl
-	ln -s /usr/local/bin/as      ${WORLDTMP}/usr/bin/as
-	ln -s /usr/local/bin/nm      ${WORLDTMP}/usr/bin/nm
-	ln -s /usr/local/bin/ranlib  ${WORLDTMP}/usr/bin/ranlib
-	ln -s /usr/local/bin/ar      ${WORLDTMP}/usr/bin/ar
 	ln -s /usr/bin/lorder        ${WORLDTMP}/usr/bin/lorder
-	ln -s /usr/bin/tsort         ${WORLDTMP}/usr/bin/tsort
 	ln -s /usr/bin/groff         ${WORLDTMP}/usr/bin/groff
 	ln -s /usr/bin/troff         ${WORLDTMP}/usr/bin/troff
 	ln -s /usr/bin/grotty        ${WORLDTMP}/usr/bin/grotty
 	ln -s /usr/bin/pic           ${WORLDTMP}/usr/bin/pic
 	ln -s /usr/bin/tbl           ${WORLDTMP}/usr/bin/tbl
-.if ${MACHINE} == "alpha"
-	ln -s /usr/local/bin/ld     ${WORLDTMP}/usr/bin/ld
-.else
-	cd ${.CURDIR}/gnu/usr.bin/ld && ${MAKE} obj depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
+	@echo "--------------------------------------------------------------"
+	@echo " Build tools to compile and install the libraries...."
+	@echo "--------------------------------------------------------------"
 .for d in				\
 		gnu/usr.bin/gperf	\
 		gnu/usr.bin/bison	\
+		gnu/usr.bin/binutils	\
+		usr.bin/tsort		\
 		gnu/usr.bin/cc		\
 		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
 		usr.bin/uudecode
-	cd ${.CURDIR}/$d && ${MAKE} depend && \
+	cd ${.CURDIR}/$d && ${MAKE} obj && \
+		${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
