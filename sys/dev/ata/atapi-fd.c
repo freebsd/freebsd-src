@@ -235,7 +235,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     label.d_secperunit = fdp->cap.heads * fdp->cap.sectors * fdp->cap.cylinders;
 
     /* initialize slice tables. */
-    return dsopen("afd", dev, fmt, 0, &fdp->slices, &label);
+    return dsopen(dev, fmt, 0, &fdp->slices, &label);
 }
 
 static int 
@@ -263,7 +263,7 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     if (lun >= afdnlun || !(fdp = afdtab[lun]))
         return ENXIO;
 
-    error = dsioctl("sd", dev, cmd, addr, flag, &fdp->slices);
+    error = dsioctl(dev, cmd, addr, flag, &fdp->slices);
 
     if (error != ENOIOCTL)
         return error;

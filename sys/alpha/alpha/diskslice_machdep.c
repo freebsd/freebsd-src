@@ -65,7 +65,7 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
-static void extended __P((char *dname, dev_t dev, struct disklabel *lp,
+static void mbr_extended __P((dev_t dev, struct disklabel *lp,
 			  struct diskslices *ssp, u_long ext_offset,
 			  u_long ext_size, u_long base_ext_offset,
 			  int nsectors, int ntracks, u_long mbr_offset));
@@ -151,8 +151,7 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 }
 
 int
-dsinit(dname, dev, lp, sspp)
-	char	*dname;
+dsinit(dev, lp, sspp)
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices **sspp;
@@ -184,7 +183,8 @@ reread_mbr:
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, dname, "error reading primary partition table",
+		diskerr(bp, devtoname(bp->b_dev),
+		    "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;
@@ -193,7 +193,7 @@ reread_mbr:
 
 	/* Weakly verify it. */
 	cp = bp->b_data;
-	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+	sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		if (bootverbose)
@@ -271,7 +271,7 @@ reread_mbr:
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		sname = dsname(dname, dkunit(dev), BASE_SLICE + dospart,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 			       RAW_PART, partname);
 
 		/*
@@ -334,7 +334,7 @@ reread_mbr:
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
 		if (sp->ds_type == DOSPTYP_EXTENDED || 
                     sp->ds_type == DOSPTYP_EXTENDEDX)
-			extended(dname, bp->b_dev, lp, ssp,
+			mbr_extended(bp->b_dev, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
 
@@ -347,9 +347,8 @@ done:
 }
 
 void
-extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
+mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	 nsectors, ntracks, mbr_offset)
-	char	*dname;
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices *ssp;
@@ -381,7 +380,8 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, dname, "error reading extended partition table",
+		diskerr(bp, devtoname(bp->b_dev),
+		    "error reading extended partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		goto done;
@@ -390,7 +390,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* Weakly verify it. */
 	cp = bp->b_data;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+		sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 			       partname);
 		if (bootverbose)
 			printf("%s: invalid extended partition table: no magic\n",
@@ -416,7 +416,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
                     dp->dp_typ == DOSPTYP_EXTENDEDX) {
 			char buf[32];
 
-			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
+			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
 			snprintf(buf, sizeof(buf), "%s", sname);
 			if (strlen(buf) < sizeof buf - 11)
@@ -426,7 +426,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			ext_offsets[dospart] = base_ext_offset + dp->dp_start;
 			ext_sizes[dospart] = dp->dp_size;
 		} else {
-			sname = dsname(dname, dkunit(dev), slice, RAW_PART,
+			sname = dsname(dev, dkunit(dev), slice, RAW_PART,
 				       partname);
 			check_part(sname, dp, ext_offset, nsectors, ntracks,
 				   mbr_offset);
@@ -447,7 +447,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			extended(dname, dev, lp, ssp,
+			mbr_extended(dev, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
 				 base_ext_offset, nsectors, ntracks,
 				 mbr_offset);

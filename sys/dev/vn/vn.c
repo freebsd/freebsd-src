@@ -237,8 +237,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 			label.d_secperunit = vn->sc_size;
 			label.d_partitions[RAW_PART].p_size = vn->sc_size;
 
-			return (dsopen("vn", dev, mode, 0, &vn->sc_slices,
-			    &label));
+			return (dsopen(dev, mode, 0, &vn->sc_slices, &label));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
@@ -393,8 +392,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	IFOPT(vn,VN_LABELS) {
 		if (vn->sc_slices != NULL) {
-			error = dsioctl("vn", dev, cmd, data, flag,
-					&vn->sc_slices);
+			error = dsioctl(dev, cmd, data, flag, &vn->sc_slices);
 			if (error != ENOIOCTL)
 				return (error);
 		}

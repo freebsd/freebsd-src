@@ -302,7 +302,7 @@ printf("adopen: lun=%d adnlun=%d\n", lun, adnlun);
     label.d_secpercyl = adp->sectors * adp->heads;
     label.d_secperunit = adp->total_secs;
 
-    error = dsopen("ad", dev, fmt, 0, &adp->slices, &label);
+    error = dsopen(dev, fmt, 0, &adp->slices, &label);
 
     adp->flags &= ~AD_F_LABELLING;
     ad_sleep(adp, "adop2");
@@ -336,7 +336,7 @@ adioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
         return ENXIO;
 
     ad_sleep(adp, "adioct");
-    error = dsioctl("sd", dev, cmd, addr, flags, &adp->slices);
+    error = dsioctl(dev, cmd, addr, flags, &adp->slices);
 
     if (error != ENOIOCTL)
         return error;

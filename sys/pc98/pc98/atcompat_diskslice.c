@@ -203,7 +203,7 @@ reread_mbr:
 
 	/* Weakly verify it. */
 	cp = bp->b_data;
-	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+	sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		if (bootverbose)
@@ -275,7 +275,7 @@ reread_mbr:
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		sname = dsname(dname, dkunit(dev), BASE_SLICE + dospart,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 			       RAW_PART, partname);
 
 		/*
@@ -397,7 +397,7 @@ atcompat_extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* Weakly verify it. */
 	cp = bp->b_data;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+		sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 			       partname);
 		if (bootverbose)
 			printf("%s: invalid extended partition table: no magic\n",
@@ -417,7 +417,7 @@ atcompat_extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
                     dp->dp_typ == DOSPTYP_EXTENDEDX) {
 			char buf[32];
 
-			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
+			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
 			snprintf(buf, sizeof(buf), "%s", sname);
 			if (strlen(buf) < sizeof buf - 11)
@@ -427,7 +427,7 @@ atcompat_extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			ext_offsets[dospart] = base_ext_offset + dp->dp_start;
 			ext_sizes[dospart] = dp->dp_size;
 		} else {
-			sname = dsname(dname, dkunit(dev), slice, RAW_PART,
+			sname = dsname(dev, dkunit(dev), slice, RAW_PART,
 				       partname);
 			check_part(sname, dp, ext_offset, nsectors, ntracks,
 				   mbr_offset);
