@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.79 1999/07/06 19:23:17 des Exp $
+#	$Id: GENERIC98,v 1.80 1999/07/26 12:10:33 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -251,6 +251,10 @@ pseudo-device	tun	1
 pseudo-device	pty	16
 pseudo-device	gzip		# Exec gzipped a.out's
 
+# The `bpf' pseudo-device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+pseudo-device	bpf	4	#Berkeley packet filter
+
 # KTRACE enables the system-call tracing facility ktrace(2).
 # This adds 4 KB bloat to your kernel, and slightly increases
 # the costs of each syscall.
@@ -261,10 +265,3 @@ options		KTRACE		#kernel tracing
 options         SYSVSHM
 options         SYSVMSG
 options         SYSVSEM
-
-
-#  The `bpf' pseudo-device enables the Berkeley Packet Filter.  Be
-#  aware of the legal and administrative consequences of enabling this
-#  option.  The number of devices determines the maximum number of
-#  simultaneous BPF clients programs runnable.
-#pseudo-device	bpf 4	#Berkeley packet filter
