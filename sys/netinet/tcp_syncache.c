@@ -384,7 +384,6 @@ syncache_timer(xslot)
 			break;
 		sc = nsc;
 		inp = sc->sc_tp->t_inpcb;
-		INP_LOCK(inp);
 		if (slot == SYNCACHE_MAXREXMTS ||
 		    slot >= tcp_syncache.rexmt_limit ||
 		    inp->inp_gencnt != sc->sc_inp_gencnt) {
@@ -400,7 +399,6 @@ syncache_timer(xslot)
 		 * entry on the timer chain until it has completed.
 		 */
 		(void) syncache_respond(sc, NULL);
-		INP_UNLOCK(inp);
 		nsc = TAILQ_NEXT(sc, sc_timerq);
 		tcpstat.tcps_sc_retransmitted++;
 		TAILQ_REMOVE(&tcp_syncache.timerq[slot], sc, sc_timerq);
