@@ -617,6 +617,7 @@ restore_check_point:
 		}
 
 		enslave();  /* Share open tape file descriptor with slaves */
+		signal(SIGINFO, infosch);
 
 		asize = 0;
 		blocksthisvol = 0;

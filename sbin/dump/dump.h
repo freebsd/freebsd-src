@@ -95,6 +95,7 @@ int	tp_bshift;	/* log2(TP_BSIZE) */
 
 /* operator interface functions */
 void	broadcast __P((char *message));
+void	infosch __P((int));
 void	lastdump __P((int arg));	/* int should be char */
 void	msg __P((const char *fmt, ...)) __printflike(1, 2);
 void	msgtail __P((const char *fmt, ...)) __printflike(1, 2);

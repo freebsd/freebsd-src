@@ -312,7 +312,8 @@ after the old tape has been rewound and removed,
 and a new tape has been mounted.
 .Pp
 .Nm Dump
-tells the operator what is going on at periodic intervals,
+tells the operator what is going on at periodic intervals --
+every 5 minutes, or promptly after receiving SIGINFO --
 including usually low estimates of the number of blocks to write,
 the number of tapes it will take, the time to completion, and
 the time to the tape change.
