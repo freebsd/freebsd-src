@@ -417,6 +417,11 @@ struct {								\
 	    (var) != (void *)(head);					\
 	    (var) = (var)->field.cqe_next)
 
+#define CIRCLEQ_FOREACH_REVERSE(var, head, field)			\
+	for((var) = (head)->cqh_last;					\
+	    (var) != (void *)(head);					\
+	    (var) = (var)->field.cqe_prev)
+
 #define	CIRCLEQ_INIT(head) do {						\
 	(head)->cqh_first = (void *)(head);				\
 	(head)->cqh_last = (void *)(head);				\
