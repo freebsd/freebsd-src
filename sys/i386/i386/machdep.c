@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128.4.6 1996/01/29 12:28:22 davidg Exp $
+ *	$Id: machdep.c,v 1.128.4.7 1996/02/13 10:33:12 phk Exp $
  */
 
 #include "npx.h"
@@ -124,6 +124,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
+#include <machine/random.h>
 
 static void identifycpu(void);
 
@@ -1363,6 +1364,7 @@ init386(first)
 #if	NISA >0
 	isa_defaultirq();
 #endif
+	rand_initialize();
 
 	r_gdt.rd_limit = sizeof(gdt) - 1;
 	r_gdt.rd_base =  (int) gdt;
