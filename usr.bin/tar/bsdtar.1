@@ -132,8 +132,7 @@ In create mode, note that
 .Fl C
 options are all processed before any files are read.
 To change directories between files, use
-.Cm C=
-instead.
+.Cm C= Ns Pa dir .
 .It Cm C= Ns Pa dir
 (c and r mode only)
 Change to the specified directory before adding the following files.
@@ -230,6 +229,15 @@ Attempt to restore the full permissions, including owner, file modes, file
 flags and ACLs, if available, for each item extracted from the archive.
 By default, newly-created regular files have the file mode restored and
 all other types of entries receive default permissions.
+.It Fl T Ar filename
+(c mode only)
+Read names to be archived from
+.Pa filename .
+Names are terminated by newlines.
+The special name
+.Dq -C
+will cause the current directory to be changed to the directory
+specified on the following line.
 .It Fl U
 (x mode only)
 Unlink files before creating them.
