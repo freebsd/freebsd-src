@@ -51,6 +51,7 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 #ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -192,6 +193,15 @@ static int
 ed_pccard_match(device_t dev)
 {
 	const struct ed_product *pp;
+	int		error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
