@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	calendar
-INTER=		de_DE.ISO8859-1
+INTER=		de_DE.ISO_8859-1
 SHAREDIR=	/usr/share/calendar
 TEXTMODE?=	444
 
