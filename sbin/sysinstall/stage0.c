@@ -24,45 +24,47 @@
 
 #include "sysinstall.h"
 
-static char *welcome[] = {
-    "View 'READ ME FIRST' File.",
+static unsigned char *welcome[] = {
+    "1. README",
+    "View `READ ME FIRST' File.",
+    "2. COPYRIGHT",
     "View FreeBSD Copyright Information.",
+    "3. Proceed",
     "Proceed with installation.",
-    "Repair existing installation ('fixit' mode).",
+    "4. Fixit",
+    "Repair existing installation (`fixit' mode).",
+    "5. Exit",
     "Exit to shell.",
 };
+
+void bailout(void);
 
 void 
 stage0()
 {
-    int valid = 0;
-
-	if (!access(README_FILE, R_OK)) {
-	    dialog_clear();
-	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
-	}
-    return;
-
-    do {
-	if (!dialog_menu("Welcome to FreeBSD!",
-			 "Please select one of the following options.\n",
-			 10, 75, 5, 5, welcome, selection))
-	    valid = 1;
-	dialog_clear();
-    } while (!valid);
+evil_goto:
+    if (dialog_menu("Welcome to FreeBSD!",
+		    "Please select one of the following options:",
+		    15, 75, 6, 5, welcome, selection)) {
+	bailout();
+    }
     switch (atoi(selection)) {
     case 1:	/* View readme */
 	if (!access(README_FILE, R_OK)) {
 	    dialog_clear();
 	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
+	    dialog_clear();
 	}
+	goto evil_goto;
 	break;
 
     case 2:	/* View copyrights */
 	if (!access(COPYRIGHT_FILE, R_OK)) {
 	    dialog_clear();
 	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 24, 80);
+	    dialog_clear();
 	}
+	goto evil_goto;
 	break;
 
     case 3:	/* Proceed (do nothing special, really) */
@@ -71,10 +73,19 @@ stage0()
     case 4:
 	dialog_msgbox("Sorry!", "This feature not currently implemented.",
 		      6, 75, 1);
+	goto evil_goto;
 	break;
 
     case 5:
-	exit(0);
+	bailout();
 	break;	/* hope not! :) */
     }
+}
+
+void
+bailout()
+{
+    dialog_clear();
+    end_dialog();
+    exit(0);
 }

@@ -762,66 +762,69 @@ stage2()
 void
 main(int argc, char **argv)
 {
-	int i;
+    int i;
 
-	/* phk's main */
-	if (argc > 1 && !strcmp(argv[1],"phk")) {
-		return Xmain(argc,argv);
-	}
+    /* phk's main */
+    if (argc > 1 && !strcmp(argv[1],"phk")) {
+	return Xmain(argc,argv);
+    }
 
-	/* paul's main */
-	/* Are we running as init? */
-	if (getpid() == 1) {
-		close(0); open("/dev/console",O_RDWR);
-		close(1); dup(0);
-		close(2); dup(0);
-		i = 1;
-		ioctl(0,TIOCSPGRP,&i);
-		setlogin("root");
-	}
+    /* paul's main */
+    /* Are we running as init? */
+    if (getpid() == 1) {
+	close(0); open("/dev/console", O_RDWR);
+	close(1); dup(0);
+	close(2); dup(0);
+	i = 1;
+	ioctl(0,TIOCSPGRP,&i);
+	setlogin("root");
+    }
 
-	if (set_termcap() == -1)
-		fatal("Can't find terminal entry\n");
+    if (set_termcap() == -1)
+	fatal("Can't find terminal entry\n");
 
-	if (alloc_memory() == -1)
-		fatal("Couldn't allocate memory\n");
+    if (alloc_memory() == -1)
+	fatal("Couldn't allocate memory\n");
 
-	if (uname(&utsname) == -1) {
-		/* Fake uname entry */
-		bcopy("FreeBSD", utsname.sysname, strlen("FreeBSD"));
-	}
+    if (uname(&utsname) == -1) {
+	/* Fake uname entry */
+	bcopy("FreeBSD", utsname.sysname, strlen("FreeBSD"));
+    }
 
-	/* XXX - libdialog has particularly bad return value checking */
-	init_dialog();
-	/* If we haven't crashed I guess dialog is running ! */
-	dialog_active = 1;
+    /* XXX - libdialog has particularly bad return value checking */
+    init_dialog();
+    /* If we haven't crashed I guess dialog is running ! */
+    dialog_active = 1;
 
-	strcpy(scratch, "/etc/");
-	strcat(scratch, STATUSFILE);
-	if (read_status(scratch, sysinstall) == -1) {
-		fatal(errmsg);
-	}
+    strcpy(scratch, "/etc/");
+    strcat(scratch, STATUSFILE);
+    if (read_status(scratch, sysinstall) == -1) {
+	fatal(errmsg);
+    }
 
-	switch(sysinstall->status) {
-		case NOT_INSTALLED:
-			stage1();
-			dialog_msgbox("Stage 1 complete",
-							  "Remove all floppy disks from the drives and hit return to reboot from the hard disk",
-								10, 75, 1);
-			if (reboot(RB_AUTOBOOT) == -1)
-				fatal("Reboot failed");
-			break;
-		case DISK_READY:
-			dialog_msgbox("Stage 2 install", "Hi!", 10, 75, 1);
-			stage2();
-			dialog_msgbox("Stage 2 complete",
-							  "Well, this is as far as it goes so far :-)\n",
-							  10, 75, 1);
-			break;
-		case INSTALLED_BASE:
-			break;
-		default:
-			fatal("Unknown installation status");
-	}
-	exit_sysinstall();
+    switch(sysinstall->status) {
+    case NOT_INSTALLED:
+	stage1();
+	dialog_msgbox("Stage 1 complete",
+		      "Remove all floppy disks from the drives and hit return to reboot from the hard disk",
+		      10, 75, 1);
+	if (reboot(RB_AUTOBOOT) == -1)
+	    fatal("Reboot failed");
+	break;
+
+    case DISK_READY:
+	dialog_msgbox("Stage 2 install", "Hi!", 10, 75, 1);
+	stage2();
+	dialog_msgbox("Stage 2 complete",
+		      "Well, this is as far as it goes so far :-)\n",
+		      10, 75, 1);
+	break;
+
+    case INSTALLED_BASE:
+	break;
+
+    default:
+	fatal("Unknown installation status");
+    }
+    exit_sysinstall();
 }
