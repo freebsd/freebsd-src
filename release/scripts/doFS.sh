@@ -35,16 +35,7 @@ do
 	    dd of=fs-image obs=1 seek=510 conv=notrunc 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
-
-	if [ "`uname -m`" = "alpha" ]; then
-		disklabel -Brw -b ${RD}/trees/bin/usr/mdec/boot1 \
-		  /dev/r${VNDEVICE} ${FSLABEL}
-	else
-		disklabel -Brw \
-		  -b ${RD}/trees/bin/usr/mdec/fdboot \
-		  -s ${RD}/trees/bin/usr/mdec/bootfd \
-		  /dev/r${VNDEVICE} ${FSLABEL}
-	fi
+	disklabel -Brw /dev/r${VNDEVICE} ${FSLABEL}
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} -o space /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
