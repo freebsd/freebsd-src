@@ -45,6 +45,8 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
+#define CMBAT_POLLRATE	(60 * hz)
+
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
@@ -71,6 +73,8 @@ struct acpi_cmbat_softc {
 	int		cap;
 	int		min;
 	int		full_charge_time;
+
+	struct callout_handle	cmbat_timeout;
 };
 
 static struct timespec	acpi_cmbat_info_lastupdated;
@@ -121,6 +125,22 @@ static int acpi_cmbat_units = 0;
 	}								\
 	dest[sizeof(dest)-1] = '\0';					\
 } while(0)
+
+/*
+ * Poll the battery info.
+ */
+static void
+acpi_cmbat_timeout(void *context)
+{
+	device_t	dev;
+	struct acpi_cmbat_softc	*sc;
+
+	dev = (device_t)context;
+	sc = device_get_softc(dev);
+
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
+}
 
 #define	BATTERY_INFO_EXPIRE	5
 static __inline int
@@ -223,19 +243,20 @@ acpi_cmbat_get_bif(void *context)
 		return;
 	}
 
+	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
 retry:
 	if (sc->bif_buffer.Length == 0) {
 		sc->bif_buffer.Pointer = NULL;
 		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 		if (as != AE_BUFFER_OVERFLOW){
 			device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
-			return;
+			goto end;
 		}
 
 		sc->bif_buffer.Pointer = malloc(sc->bif_buffer.Length, M_DEVBUF, M_NOWAIT);
 		if (sc->bif_buffer.Pointer == NULL) {
 			device_printf(dev,"malloc failed");
-			return;
+			goto end;
 		}
 	}
 
@@ -251,14 +272,14 @@ retry:
 		goto retry;
 	} else if (as != AE_OK){
 		device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
-		return;
+		goto end;
 	}
 
 	res = (ACPI_OBJECT *)sc->bif_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
 		device_printf(dev, "Battery info corrupted\n");
-		return;
+		goto end;
 	}
 
 	PKG_GETINT(res, tmp,  0, sc->bif.unit, end);
@@ -276,6 +297,7 @@ retry:
 	PKG_GETSTR(res, tmp, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN, end);
 	acpi_cmbat_info_updated(&sc->bif_lastupdated);
 end:
+	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
 static void
@@ -295,6 +317,7 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 		break;
 	case ACPI_BATTERY_BIF_CHANGE:
 		timespecclear(&sc->bif_lastupdated);
+		AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
 		break;
 	default:
 		break;
@@ -354,14 +377,24 @@ acpi_cmbat_attach(device_t dev)
 	acpi_cmbat_units++;
 	timespecclear(&acpi_cmbat_info_lastupdated);
 
-
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 	return(0);
 }
 
+static int
+acpi_cmbat_resume(device_t dev)
+{
+
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	return (0);
+}
+  
 static device_method_t acpi_cmbat_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_cmbat_probe),
 	DEVMETHOD(device_attach,	acpi_cmbat_attach),
+	DEVMETHOD(device_resume,	acpi_cmbat_resume),
 
 	{0, 0}
 };
@@ -479,7 +512,6 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 	/* Get battery status, valid rate and valid units */
 	batt_stat = valid_rate = valid_units = 0;
 	for (i = 0; i < acpi_cmbat_units; i++) {
-		acpi_cmbat_get_bif(bat[i]->dev);
 		acpi_cmbat_get_bst(bat[i]->dev);
 
 		/* If battey not installed, we get strange values */
