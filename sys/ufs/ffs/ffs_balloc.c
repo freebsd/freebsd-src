@@ -77,6 +77,7 @@ ffs_balloc(ap)
 	ufs_daddr_t newb, *bap, pref;
 	int deallocated, osize, nsize, num, i, error;
 	ufs_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
+	int unwindidx = -1;
 	struct proc *p = curproc;	/* XXX */
 
 	vp = ap->a_vp;
@@ -272,6 +273,8 @@ ffs_balloc(ap)
 			}
 		}
 		bap[indirs[i - 1].in_off] = nb;
+		if (allocib == NULL && unwindidx < 0)
+			unwindidx = i - 1;
 		/*
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
@@ -349,8 +352,28 @@ fail:
 		ffs_blkfree(ip, *blkp, fs->fs_bsize);
 		deallocated += fs->fs_bsize;
 	}
-	if (allocib != NULL)
+	if (allocib != NULL) {
 		*allocib = 0;
+	} else if (unwindidx >= 0) {
+		int r;
+
+		r = bread(vp, indirs[unwindidx].in_lbn, 
+		    (int)fs->fs_bsize, NOCRED, &bp);
+		if (r) {
+			panic("Could not unwind indirect block, error %d", r);
+			brelse(bp);
+		} else {
+			bap = (ufs_daddr_t *)bp->b_data;
+			bap[indirs[unwindidx].in_off] = 0;
+			if (flags & B_SYNC) {
+				bwrite(bp);
+			} else {
+				if (bp->b_bufsize == fs->fs_bsize)
+					bp->b_flags |= B_CLUSTEROK;
+				bdwrite(bp);
+			}
+		}
+	}
 	if (deallocated) {
 #ifdef QUOTA
 		/*
