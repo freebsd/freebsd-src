@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.26 1998/09/09 14:58:30 kato Exp $";
+	"$Id: main.c,v 1.27 1998/10/18 00:51:46 obrien Exp $";
 #endif /* not lint */
 
 /*-
@@ -133,6 +133,7 @@ Boolean			touchFlag;	/* -t flag */
 Boolean			usePipes;	/* !-P flag */
 Boolean			ignoreErrors;	/* -i flag */
 Boolean			beSilent;	/* -s flag */
+Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
@@ -171,9 +172,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrst"
+# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrst"
+# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -319,6 +320,10 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		case 't':
 			touchFlag = TRUE;
 			Var_Append(MAKEFLAGS, "-t", VAR_GLOBAL);
+			break;
+		case 'v':
+			beVerbose = TRUE;
+			Var_Append(MAKEFLAGS, "-v", VAR_GLOBAL);
 			break;
 		default:
 		case '?':

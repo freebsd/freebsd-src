@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.12 1998/05/25 03:28:37 steve Exp $
+.\"	$Id: make.1,v 1.13 1998/10/18 00:51:46 obrien Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -173,6 +173,8 @@ before each command line in the makefile.
 .It Fl t
 Rather than re-building a target as specified in the makefile, create it
 or update its modification time to make it appear up-to-date.
+.It Fl v
+Be extra verbose. For multi-job makes, this will cause file banners to be generated.
 .It Fl V Ar variable
 Print
 .Nm make Ns 's
