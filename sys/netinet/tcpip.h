@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcpip.h,v 1.2 1994/08/02 07:49:19 davidg Exp $
  */
+
+#ifndef _NETINET_TCPIP_H_
+#define _NETINET_TCPIP_H_
 
 /*
  * Tcp+ip header, after ip options removed.
@@ -58,3 +61,5 @@ struct tcpiphdr {
 #define	ti_win		ti_t.th_win
 #define	ti_sum		ti_t.th_sum
 #define	ti_urp		ti_t.th_urp
+
+#endif

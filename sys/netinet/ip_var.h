@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.2 1994/08/02 07:48:47 davidg Exp $
+ * $Id: ip_var.h,v 1.3 1994/08/18 22:35:31 wollman Exp $
  */
+
+#ifndef _NETINET_IP_VAR_H_
+#define _NETINET_IP_VAR_H_
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -185,4 +188,6 @@ void	 rip_input __P((struct mbuf *));
 int	 rip_output __P((struct mbuf *, struct socket *, u_long));
 int	 rip_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+#endif
+
 #endif

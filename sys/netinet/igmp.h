@@ -35,8 +35,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: igmp.h,v 1.2 1994/08/02 07:48:07 davidg Exp $
  */
+
+#ifndef _NETINET_IGMP_H_
+#define _NETINET_IGMP_H_
 
 /* Internet Group Management Protocol (IGMP) definitions. */
 
@@ -58,3 +61,5 @@ struct igmp {
 					   /*  routing protocol            */
 
 #define IGMP_MAX_HOST_REPORT_DELAY   10    /* max delay for response to    */
+
+#endif
