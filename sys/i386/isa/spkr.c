@@ -9,11 +9,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/malloc.h>
+#include <isa/isavar.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
@@ -594,5 +597,46 @@ spkr_drvinit(void *unused)
 
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
 
+/*
+ * Install placeholder to claim the resources owned by the
+ * AT tone generator.
+ */
+static struct isa_pnp_id atspeaker_ids[] = {
+	{ 0x0008d041 /* PNP0800 */, "AT speaker" },
+	{ 0 }
+};
+
+static int
+atspeaker_probe(device_t dev)
+{
+	return(ISA_PNP_PROBE(device_get_parent(dev), dev, atspeaker_ids));
+}
+
+static int
+atspeaker_attach(device_t dev)
+{
+	return(0);
+}
+
+static device_method_t atspeaker_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		atspeaker_probe),
+	DEVMETHOD(device_attach,	atspeaker_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	{ 0, 0 }
+};
+
+static driver_t atspeaker_driver = {
+	"atspeaker",
+	atspeaker_methods,
+	1,		/* no softc */
+};
+
+static devclass_t atspeaker_devclass;
+
+DRIVER_MODULE(atspeaker, isa, atspeaker_driver, atspeaker_devclass, 0, 0);
 
 /* spkr.c ends here */

@@ -49,13 +49,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa.h>
-#include <i386/isa/isa_dma.h>
 #include <i386/isa/ic/i8237.h>
+#include <isa/isavar.h>
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
@@ -494,3 +497,48 @@ isa_dmastop(int chan)
 	}
 	return(isa_dmastatus(chan));
 }
+
+/*
+ * Attach to the ISA PnP descriptor for the AT DMA controller
+ */
+static struct isa_pnp_id atdma_ids[] = {
+	{ 0x0002d041 /* PNP0200 */, "AT DMA controller" },
+	{ 0 }
+};
+
+static int
+atdma_probe(device_t dev)
+{
+	int result;
+	
+	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, atdma_ids)) <= 0)
+		device_quiet(dev);
+	return(result);
+}
+
+static int
+atdma_attach(device_t dev)
+{
+	return(0);
+}
+
+static device_method_t atdma_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		atdma_probe),
+	DEVMETHOD(device_attach,	atdma_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	{ 0, 0 }
+};
+
+static driver_t atdma_driver = {
+	"atdma",
+	atdma_methods,
+	1,		/* no softc */
+};
+
+static devclass_t atdma_devclass;
+
+DRIVER_MODULE(atdma, isa, atdma_driver, atdma_devclass, 0, 0);
