@@ -39,7 +39,7 @@
  *
  * 	virtual consoles, SYSV ioctl's, ANSI emulation 
  *
- *	@(#)syscons.c	0.2e 930924
+ *	@(#)syscons.c	1.0 930928
  * Derived from:
  *	@(#)pccons.c	5.11 (Berkeley) 5/21/91
  */
@@ -538,6 +538,10 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		set_mode(scp);
 		clear_screen(scp);
 		change_winsize(tp, scp->max_posx, scp->max_posy); 
+		return 0;
+
+	case CONS_GETVERS:	/* get version number */
+		*(int*)data = 0x100;	/* version 1.0 */
 		return 0;
 
 	case CONS_GETINFO:	/* get current (virtual) console info */
