@@ -344,7 +344,7 @@ Mount a 64 MB large memory file system on /tmp, with
 options nosuid and nodev.
 .Sh BUGS
 The boot code of
-.Bx Free
+.Fx
 assumes that the file system that carries the
 kernel has blocks of 8 kilobytes and fragments of 1 kilobyte.
 You will
@@ -353,12 +353,12 @@ not be able to boot from a file system that uses another size.
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
 .Xr fs 5 ,
+.Xr camcontrol 8 ,
 .Xr disklabel 8 ,
 .Xr diskpart 8 ,
 .Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
-.Xr scsiformat 8 ,
 .Xr tunefs 8 ,
 .Xr vinum 8
 .Rs
