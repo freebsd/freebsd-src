@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.6 1995/08/21 09:15:32 bde Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.7 1995/10/22 14:39:02 phk Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -76,10 +76,8 @@ static char rcsid[] = "$Id: gethostbydns.c,v 1.6 1995/08/21 09:15:32 bde Exp $";
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
-#define	MULTI_PTRS_ARE_ALIASES 1	/* XXX - experimental */
-
 static const char AskedForGot[] =
-		  "gethostby*.gethostanswer: asked for \"%s\", got \"%s\"";
+		"gethostby*.gethostanswer: asked for \"%s\", got \"%s\"";
 
 static char *h_addr_ptrs[MAXADDRS + 1];
 
@@ -89,6 +87,10 @@ static char hostbuf[8*1024];
 static struct in_addr host_addr;
 static FILE *hostf = NULL;
 static int stayopen = 0;
+
+#ifdef RESOLVSORT
+static void addrsort __P((char **, int));
+#endif
 
 #if PACKETSZ > 1024
 #define	MAXPACKET	PACKETSZ
@@ -126,51 +128,6 @@ dprintf(msg, num)
 #endif
 
 
-#ifdef RESOLVSORT
-static void
-addrsort(ap, num)
-	char **ap;
-	int num;
-{
-	int i, j;
-	char **p;
-	short aval[MAXADDRS];
-	int needsort = 0;
-
-	p = ap;
-	for (i = 0; i < num; i++, p++) {
-	    for (j = 0 ; (unsigned)j < _res.nsort; j++)
-		if (_res.sort_list[j].addr.s_addr ==
-		    (((struct in_addr *)(*p))->s_addr & _res.sort_list[j].mask))
-			break;
-	    aval[i] = j;
-	    if (needsort == 0 && i > 0 && j < aval[i-1])
-		needsort = i;
-	}
-	if (!needsort)
-	    return;
-
-	while (needsort < num) {
-	    for (j = needsort - 1; j >= 0; j--) {
-		if (aval[j] > aval[j+1]) {
-		    char *hp;
-
-		    i = aval[j];
-		    aval[j] = aval[j+1];
-		    aval[j+1] = i;
-
-		    hp = ap[j];
-		    ap[j] = ap[j+1];
-		    ap[j+1] = hp;
-
-		} else
-		    break;
-	    }
-	    needsort++;
-	}
-}
-#endif
-
 static struct hostent *
 gethostanswer(answer, anslen, qname, qclass, qtype)
 	const querybuf *answer;
@@ -187,7 +144,9 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 	int haveanswer, had_error;
 	int toobig = 0;
 	char tbuf[MAXDNAME+1];
+	const char *tname;
 
+	tname = qname;
 	host.h_name = NULL;
 	eom = answer->buf + anslen;
 	/*
@@ -225,7 +184,9 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 	host.h_aliases = host_aliases;
 	hap = h_addr_ptrs;
 	*hap = NULL;
+#if BSD >= 43 || defined(h_addr)	/* new-style hostent structure */
 	host.h_addr_list = h_addr_ptrs;
+#endif
 	haveanswer = 0;
 	had_error = 0;
 	while (ancount-- > 0 && cp < eom && !had_error) {
@@ -257,7 +218,7 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 			cp += n;
 			if (host.h_name && strcasecmp(host.h_name, bp) != 0) {
 				syslog(LOG_NOTICE|LOG_AUTH,
-		"gethostby*.gethostanswer: asked for \"%s\", got CNAME for \"%s\"",
+	"gethostby*.gethostanswer: asked for \"%s\", got CNAME for \"%s\"",
 				       host.h_name, bp);
 				continue;	/* XXX - had_error++ ? */
 			}
@@ -278,19 +239,36 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 			buflen -= n;
 			continue;
 		}
+		if (qtype == T_PTR && type == T_CNAME) {
+			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
+			if (n < 0) {
+				had_error++;
+				continue;
+			}
+			cp += n;
+			/* Get canonical name. */
+			n = strlen(tbuf) + 1;	/* for the \0 */
+			if (n > buflen) {
+				had_error++;
+				continue;
+			}
+			strcpy(bp, tbuf);
+			tname = bp;
+			bp += n;
+			buflen -= n;
+			continue;
+		}
 		if (type != qtype) {
-			/* CNAME->PTR should not cause a log message. */
-			if (!(qtype == T_PTR && type == T_CNAME))
 			syslog(LOG_NOTICE|LOG_AUTH,
-	       "gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
-				       qname, p_class(qclass), p_type(qtype),
-				       p_type(type));
+       "gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
+			       qname, p_class(qclass), p_type(qtype),
+			       p_type(type));
 			cp += n;
 			continue;		/* XXX - had_error++ ? */
 		}
 		switch (type) {
 		case T_PTR:
-			if (strcasecmp(qname, bp) != 0) {
+			if (strcasecmp(tname, bp) != 0) {
 				syslog(LOG_NOTICE|LOG_AUTH,
 				       AskedForGot, qname, bp);
 				cp += n;
@@ -301,7 +279,7 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 				had_error++;
 				break;
 			}
-#if MULTI_PTRS_ARE_ALIASES
+#ifdef MULTI_PTRS_ARE_ALIASES
 			cp += n;
 			if (!haveanswer)
 				host.h_name = bp;
@@ -355,7 +333,7 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 			if (hap >= &h_addr_ptrs[MAXADDRS-1]) {
 				if (!toobig++)
 					dprintf("Too many addresses (%d)\n",
-					       MAXADDRS);
+						MAXADDRS);
 				cp += n;
 				continue;
 			}
@@ -384,6 +362,11 @@ gethostanswer(answer, anslen, qname, qclass, qtype)
 		    qclass == C_IN && qtype == T_A)
 			addrsort(h_addr_ptrs, haveanswer);
 # endif /*RESOLVSORT*/
+#if BSD >= 43 || defined(h_addr)	/* new-style hostent structure */
+		/* nothing */
+#else
+		host.h_addr = h_addr_ptrs[0];
+#endif /*BSD*/
 		if (!host.h_name) {
 			n = strlen(qname) + 1;	/* for the \0 */
 			strcpy(bp, qname);
@@ -445,10 +428,15 @@ _gethostbydnsname(name)
 				host.h_length = INT32SZ;
 				h_addr_ptrs[0] = (char *)&host_addr;
 				h_addr_ptrs[1] = NULL;
+#if BSD >= 43 || defined(h_addr)	/* new-style hostent structure */
 				host.h_addr_list = h_addr_ptrs;
+#else
+				host.h_addr = h_addr_ptrs[0];
+#endif
+				h_errno = NETDB_SUCCESS;
 				return (&host);
 			}
-			if (!isdigit(*cp) && *cp != '.')
+			if (!isdigit(*cp) && *cp != '.') 
 				break;
 		}
 
@@ -474,7 +462,7 @@ _gethostbydnsaddr(addr, len, type)
 	u_long old_options;
 	char hname2[MAXDNAME+1];
 #endif /*SUNSECURITY*/
-
+	
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
 		return (NULL);
@@ -535,10 +523,56 @@ _gethostbydnsaddr(addr, len, type)
 	return (hp);
 }
 
+#ifdef RESOLVSORT
+static void
+addrsort(ap, num)
+	char **ap;
+	int num;
+{
+	int i, j;
+	char **p;
+	short aval[MAXADDRS];
+	int needsort = 0;
+
+	p = ap;
+	for (i = 0; i < num; i++, p++) {
+	    for (j = 0 ; (unsigned)j < _res.nsort; j++)
+		if (_res.sort_list[j].addr.s_addr == 
+		    (((struct in_addr *)(*p))->s_addr & _res.sort_list[j].mask))
+			break;
+	    aval[i] = j;
+	    if (needsort == 0 && i > 0 && j < aval[i-1])
+		needsort = i;
+	}
+	if (!needsort)
+	    return;
+
+	while (needsort < num) {
+	    for (j = needsort - 1; j >= 0; j--) {
+		if (aval[j] > aval[j+1]) {
+		    char *hp;
+
+		    i = aval[j];
+		    aval[j] = aval[j+1];
+		    aval[j+1] = i;
+
+		    hp = ap[j];
+		    ap[j] = ap[j+1];
+		    ap[j+1] = hp;
+
+		} else
+		    break;
+	    }
+	    needsort++;
+	}
+}
+#endif
 void
 _sethostdnsent(stayopen)
 	int stayopen;
 {
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+		return;
 	if (stayopen)
 		_res.options |= RES_STAYOPEN | RES_USEVC;
 }
