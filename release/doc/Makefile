@@ -6,7 +6,7 @@
 .if defined(RELNOTES_LANG) && !empty(RELNOTES_LANG)
 SUBDIR = 	${RELNOTES_LANG}
 .else
-SUBDIR =	en_US.ISO_8859-1
+SUBDIR =	en_US.ISO8859-1
 .endif
 
 RELN_ROOT?= ${.CURDIR}

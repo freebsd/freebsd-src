@@ -45,7 +45,7 @@ share/sgml/release.ent
 	this file when rolling new revisions; these should take effect
 	in all documents.
 
-en_US.ISO_8859-1/share/sgml/release.dsl
+en_US.ISO8859-1/share/sgml/release.dsl
 	Language-dependent stylesheet for en, but also the default for
 	translations if they don't override the settings here.  This
 	stylesheet sets the email footer at the bottom of HTML pages,
@@ -123,5 +123,5 @@ Release builders can set which language gets built with the
 RELNOTES_LANG variable; note that this is different from the 
 DOC_LANG variable because (at least intially) most languages
 will have localized DocProj files but not localized release notes.
-The default language, if none is specified, is en_US.ISO_8859-1.
+The default language, if none is specified, is en_US.ISO8859-1.
 
