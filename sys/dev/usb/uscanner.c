@@ -253,7 +253,7 @@ Static struct cdevsw uscanner_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-#if !defined(__FreeBSD__) || (__FreeBSD__ < 5)
+#if __FreeBSD_version < 500014
 	/* bmaj */	-1
 #endif
 };
