@@ -308,7 +308,8 @@ ed_pccard_attach(device_t dev)
 
 	error = ed_attach(dev);
 #ifndef ED_NO_MIIBUS
-	if (error == 0 && sc->chip_type == ED_CHIP_TYPE_DL100XX) {
+ 	if (error == 0 && (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
+		sc->chip_type == ED_CHIP_TYPE_DL10022)) {
 		/* Probe for an MII bus, but ignore errors. */
 		ed_pccard_dlink_mii_reset(sc);
 		sc->mii_readbits = ed_pccard_dlink_mii_readbits;
@@ -445,7 +446,8 @@ ed_pccard_Linksys(device_t dev)
 	sc->isa16bit = 1;
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->type = ED_TYPE_NE2000;
-	sc->chip_type = ED_CHIP_TYPE_DL100XX;
+	sc->chip_type = (id & 0x90) == 0x90 ?
+	    ED_CHIP_TYPE_DL10022 : ED_CHIP_TYPE_DL10019;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
 	return (0);
 }
@@ -503,16 +505,20 @@ static void
 ed_pccard_dlink_mii_reset(sc)
 	struct ed_softc *sc;
 {
+	if (sc->chip_type != ED_CHIP_TYPE_DL10022)
+		return;
+
+	ed_asic_outb(sc, ED_DLINK_MIIBUS, ED_DLINK_MII_RESET2);
+	DELAY(10);
+	ed_asic_outb(sc, ED_DLINK_MIIBUS,
+	    ED_DLINK_MII_RESET2 | ED_DLINK_MII_RESET1);
+	DELAY(10);
+	ed_asic_outb(sc, ED_DLINK_MIIBUS, ED_DLINK_MII_RESET2);
+	DELAY(10);
+	ed_asic_outb(sc, ED_DLINK_MIIBUS,
+	    ED_DLINK_MII_RESET2 | ED_DLINK_MII_RESET1);
+	DELAY(10);
 	ed_asic_outb(sc, ED_DLINK_MIIBUS, 0);
-	DELAY(10);
-	DLINK_MIISET(sc, ED_DLINK_MII_RESET2);
-	DELAY(10);
-	DLINK_MIISET(sc, ED_DLINK_MII_RESET1);
-	DELAY(10);
-	DLINK_MIICLR(sc, ED_DLINK_MII_RESET1);
-	DELAY(10);
-	DLINK_MIICLR(sc, ED_DLINK_MII_RESET2);
-	DELAY(10);
 }
 
 static void
@@ -523,7 +529,10 @@ ed_pccard_dlink_mii_writebits(sc, val, nbits)
 {
 	int i;
 
-	DLINK_MIISET(sc, ED_DLINK_MII_DIROUT);
+	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
+		DLINK_MIISET(sc, ED_DLINK_MII_DIROUT_22);
+	else
+		DLINK_MIISET(sc, ED_DLINK_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
 		if ((val >> i) & 1)
@@ -546,7 +555,10 @@ ed_pccard_dlink_mii_readbits(sc, nbits)
 	int i;
 	u_int val = 0;
 
-	DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT);
+	if (sc->chip_type == ED_CHIP_TYPE_DL10022)
+		DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT_22);
+	else
+		DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT_19);
 
 	for (i = nbits - 1; i >= 0; i--) {
 		DLINK_MIISET(sc, ED_DLINK_MII_CLK);
