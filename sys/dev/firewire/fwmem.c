@@ -229,7 +229,7 @@ fwmem_write_block(
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
-	fp->mode.wreqb.tcode = FWTCODE_RREQB;
+	fp->mode.wreqb.tcode = FWTCODE_WREQB;
 	fp->mode.wreqb.dst = htons(xfer->dst);
 	fp->mode.wreqb.dest_hi = htons(dst_hi);
 	fp->mode.wreqb.dest_lo = htonl(dst_lo);
@@ -297,9 +297,10 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", hz);
 			if (err !=0 || xfer->resp != 0 
 					|| xfer->recv.buf == NULL)
-				return EINVAL; /* XXX */
-			err = uiomove(xfer->recv.buf + xfer->recv.off + 4*3,
-								4, uio);
+				err = EIO;
+			else 
+				err = uiomove(xfer->recv.buf 
+					+ xfer->recv.off + 4*3, 4, uio);
 		} else {
 			if (len > MAXLEN)
 				len = MAXLEN;
@@ -310,9 +311,10 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", hz);
 			if (err != 0 || xfer->resp != 0
 					|| xfer->recv.buf == NULL)
-				return EINVAL; /* XXX */
-			err = uiomove(xfer->recv.buf + xfer->recv.off + 4*4,
-								len, uio);
+				err = EIO;
+			else
+				err = uiomove(xfer->recv.buf
+					+ xfer->recv.off + 4*4, len, uio);
 		}
 		fw_xfer_free(xfer);
 		if (err)
@@ -358,9 +360,8 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 			if (xfer == NULL)
 				return EINVAL;
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", hz);
-			if (err !=0 || xfer->resp != 0 
-					|| xfer->recv.buf == NULL)
-				return EINVAL; /* XXX */
+			if (err !=0 || xfer->resp != 0)
+				err = EIO;
 		} else {
 			if (len > MAXLEN)
 				len = MAXLEN;
@@ -372,11 +373,10 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 			if (xfer == NULL)
 				return EINVAL;
 			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", hz);
-			if (err != 0 || xfer->resp != 0
-					|| xfer->recv.buf == NULL)
-				return EINVAL; /* XXX */
-			fw_xfer_free(xfer);
+			if (err != 0 || xfer->resp != 0)
+				err = EIO;
 		}
+		fw_xfer_free(xfer);
 	}
 	return err;
 }
