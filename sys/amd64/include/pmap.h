@@ -145,13 +145,9 @@ typedef u_int64_t pml4_entry_t;
  * in the page tables and the evil overlapping.
  */
 #ifdef _KERNEL
-extern pt_entry_t	PTmap[];
-extern pd_entry_t	PDmap[];
-extern pdp_entry_t	PDPmap[];
-extern pml4_entry_t	PML4[];
-extern pdp_entry_t	PDP[];
-extern pd_entry_t	PTD[];
-extern pd_entry_t	PTDpde[];
+#define	PTmap	((pt_entry_t *)(VADDR(0, 0, PTDPTDI, 0)))
+#define	PTD	((pd_entry_t *)(VADDR(0, 0, PTDPTDI, PTDPTDI)))
+#define	PTDpde	((pd_entry_t *)(VADDR(0, 0, PTDPTDI, PTDPTDI) + (PTDPTDI * sizeof(pd_entry_t))))
 
 extern u_int64_t IdlePML4;	/* physical address of "Idle" state directory */
 extern u_int64_t IdlePDP;	/* physical address of "Idle" state directory */
