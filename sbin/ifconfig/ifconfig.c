@@ -1580,16 +1580,18 @@ link_status(s, info)
 	int s __unused;
 	struct rt_addrinfo *info;
 {
-	int n;
 	struct sockaddr_dl *sdl = (struct sockaddr_dl *)info;
 
-	if ((n = sdl->sdl_alen) > 0) {
+	if (sdl->sdl_alen > 0) {
 		if (sdl->sdl_type == IFT_ETHER &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
 			printf("\tether %s\n",
 			    ether_ntoa((struct ether_addr *)LLADDR(sdl)));
-		else
-			printf("\tlladdr %s\n", link_ntoa(sdl) + n + 1);
+		else {
+			int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+
+			printf("\tlladdr %s\n", link_ntoa(sdl) + n);
+		}
 	}
 }
 
