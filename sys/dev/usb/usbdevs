@@ -354,6 +354,7 @@ vendor SMC3		0x0d5c  Standard Microsystems
 vendor PNY		0x0d7d	PNY
 vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking Technologies
+vendor QUALCOMM		0x1004	Qualcomm
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
@@ -683,6 +684,9 @@ product FUJIPHOTO MASS0100	0x0100	Mass Storage
 /* Fujitsu protducts */
 product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
 
+/* Qualcomm products */
+product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
+
 /* General Instruments (Motorola) products */
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
 
@@ -774,6 +778,7 @@ product IODATA USBETT		0x0901	USB ETT
 product IODATA USBETTX		0x0904	USB ETTX
 product IODATA USBETTXS		0x0913	USB ETTX
 product	IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
+product	IODATA IU_CD2		0x0204	DVD Multi-plus unit iU-CD2
 
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
@@ -1009,6 +1014,7 @@ product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
+product	PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product	PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product	PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
@@ -1180,9 +1186,10 @@ product STSN STSN0001		0x0001	Internet Access Device
 
 /* SUN Corporation products */
 product	SUNTAC DS96L		0x0003	SUNTAC U-Cable type D2
-product	SUNTAC IS96U		0x000a	SUNTAC Ir-Trinity
 product SUNTAC PS64P1		0x0005	SUNTAC U-Cable type P1
 product SUNTAC VS10U		0x0009	SUNTAC Slipper U
+product	SUNTAC IS96U		0x000a	SUNTAC Ir-Trinity
+product	SUNTAC AS64LX		0x000b	SUNTAC U-Cable type A3
 
 /* Sun Microsystems products */
 product SUN KEYBOARD		0x0005	Type 6 USB keyboard
