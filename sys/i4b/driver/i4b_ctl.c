@@ -229,7 +229,7 @@ i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			break;
 	}
 	return(error);
-#endif DO_I4B_DEBUG
+#endif /* DO_I4B_DEBUG */
 }
 
 /*---------------------------------------------------------------------------*
