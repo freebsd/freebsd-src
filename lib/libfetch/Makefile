@@ -16,7 +16,7 @@ LDADD=		-lssl -lcrypto
 WARNS?=		2
 .endif
 
-WARNS?=		5
+WARNS?=		3
 
 SHLIB_MAJOR=    3
 
