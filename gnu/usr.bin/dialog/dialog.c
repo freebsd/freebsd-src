@@ -80,6 +80,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <dialog.h>
 
 void Usage(unsigned char *name);
@@ -189,7 +190,7 @@ int main(int argc, unsigned char *argv[])
     if (clear_screen)   /* clear screen before exit */
       dialog_clear();
     end_dialog();
-    return retval;
+    return WEXITSTATUS(retval);
   }
   else if (!strcmp(argv[offset+1], "--infobox")) {
     if (argc-offset != 5) {

@@ -7,6 +7,6 @@ $DIALOG --title "PROGRAM BOX: 'cal'" --clear \
 case $? in
   0)
     echo "OK";;
-  255)
-    echo "ESC pressed.";;
+  *)
+    echo "Exit code:" $?;;
 esac
