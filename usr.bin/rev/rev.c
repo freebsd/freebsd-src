@@ -50,20 +50,25 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 void usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	const char *filename, *p, *t;
+	const char *filename;
+	wchar_t *p, *t;
 	FILE *fp;
 	size_t len;
 	int ch, rval;
+
+	setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
@@ -88,13 +93,13 @@ main(int argc, char *argv[])
 			}
 			filename = *argv++;
 		}
-		while ((p = fgetln(fp, &len)) != NULL) {
+		while ((p = fgetwln(fp, &len)) != NULL) {
 			if (p[len - 1] == '\n')
 				--len;
 			t = p + len - 1;
 			for (t = p + len - 1; t >= p; --t)
-				putchar(*t);
-			putchar('\n');
+				putwchar(*t);
+			putwchar('\n');
 		}
 		if (ferror(fp)) {
 			warn("%s", filename);
