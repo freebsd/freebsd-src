@@ -402,6 +402,48 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 	return(0);	/* no match, fail ... */
 }
 
+/*
+ * The 'verrevpath' option checks that the interface that an IP packet
+ * arrives on is the same interface that traffic destined for the 
+ * packet's source address would be routed out of. This is a measure
+ * to block forged packets. This is also commonly known as "anti-spoofing"
+ * or Unicast Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The
+ * name of the knob is purposely reminisent of the Cisco IOS command,
+ *
+ *   ip verify unicast reverse-path
+ *
+ * which implements the same functionality. But note that syntax is
+ * misleading. The check may be performed on all IP packets whether unicast,
+ * multicast, or broadcast.
+ */
+static int
+verify_rev_path(struct in_addr src, struct ifnet *ifp)
+{
+	static struct route ro;
+	struct sockaddr_in *dst;
+
+	dst = (struct sockaddr_in *)&(ro.ro_dst);
+
+	/* Check if we've cached the route from the previous call. */
+	if (src.s_addr != dst->sin_addr.s_addr) {
+		ro.ro_rt = NULL;
+
+		bzero(dst, sizeof(*dst));
+		dst->sin_family = AF_INET;
+		dst->sin_len = sizeof(*dst);
+		dst->sin_addr = src;
+
+		rtalloc_ign(&ro, RTF_CLONING|RTF_PRCLONING);
+	}
+
+	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
+	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+		return 0;
+	
+    	return 1;
+}
+
+
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
@@ -1755,6 +1797,13 @@ check_body:
 				match = (random()<((ipfw_insn_u32 *)cmd)->d[0]);
 				break;
 
+			case O_VERREVPATH:
+				/* Outgoing packets automatically pass/match */
+				match = ((oif != NULL) ||
+				    (m->m_pkthdr.rcvif == NULL) ||	 
+				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
+				break;
+
 			/*
 			 * The second set of opcodes represents 'actions',
 			 * i.e. the terminal part of a rule once the packet
@@ -2322,6 +2371,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_TCPFLAGS:
 		case O_TCPOPTS:
 		case O_ESTAB:
+		case O_VERREVPATH:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
