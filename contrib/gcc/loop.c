@@ -6041,13 +6041,16 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 	{
 	  /* Can replace with any giv that was reduced and
 	     that has (MULT_VAL != 0) and (ADD_VAL == 0).
-	     Require a constant for MULT_VAL, so we know it's nonzero.  */
+	     Require a constant for MULT_VAL, so we know it's nonzero.
+	     ??? We disable this optimization to avoid potential
+	     overflows.  */
 
 	  for (v = bl->giv; v; v = v->next_iv)
 	    if (CONSTANT_P (v->mult_val) && v->mult_val != const0_rtx
 		&& v->add_val == const0_rtx
 		&& ! v->ignore && ! v->maybe_dead && v->always_computable
-		&& v->mode == mode)
+		&& v->mode == mode
+		&& 0)
 	      {
 		if (! eliminate_p)
 		  return 1;
@@ -6067,12 +6070,19 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 
 	  /* Look for a giv with (MULT_VAL != 0) and (ADD_VAL != 0);
 	     replace test insn with a compare insn (cmp REDUCED_GIV ADD_VAL).
-	     Require a constant for MULT_VAL, so we know it's nonzero.  */
+	     Require a constant for MULT_VAL, so we know it's nonzero.
+	     ??? Do this only if ADD_VAL is a pointer to avoid a potential
+	     overflow problem.  */
 
 	  for (v = bl->giv; v; v = v->next_iv)
 	    if (CONSTANT_P (v->mult_val) && v->mult_val != const0_rtx
 		&& ! v->ignore && ! v->maybe_dead && v->always_computable
-		&& v->mode == mode)
+		&& v->mode == mode
+		&& (GET_CODE (v->add_val) == SYMBOL_REF
+		    || GET_CODE (v->add_val) == LABEL_REF
+		    || GET_CODE (v->add_val) == CONST
+		    || (GET_CODE (v->add_val) == REG
+			&& REGNO_POINTER_FLAG (REGNO (v->add_val)))))
 	      {
 		if (! eliminate_p)
 		  return 1;
@@ -6127,7 +6137,11 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 
 	  for (v = bl->giv; v; v = v->next_iv)
 	    if (CONSTANT_P (v->mult_val) && INTVAL (v->mult_val) > 0
-		&& CONSTANT_P (v->add_val)
+		&& (GET_CODE (v->add_val) == SYMBOL_REF
+		    || GET_CODE (v->add_val) == LABEL_REF
+		    || GET_CODE (v->add_val) == CONST
+		    || (GET_CODE (v->add_val) == REG
+			&& REGNO_POINTER_FLAG (REGNO (v->add_val))))
 		&& ! v->ignore && ! v->maybe_dead && v->always_computable
 		&& v->mode == mode)
 	      {
@@ -6160,12 +6174,14 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 	      }
 	  
 	  /* Look for giv with positive constant mult_val and nonconst add_val.
-	     Insert insns to calculate new compare value.  */
+	     Insert insns to calculate new compare value.  
+	     ??? Turn this off due to possible overflow.  */
 
 	  for (v = bl->giv; v; v = v->next_iv)
 	    if (CONSTANT_P (v->mult_val) && INTVAL (v->mult_val) > 0
 		&& ! v->ignore && ! v->maybe_dead && v->always_computable
-		&& v->mode == mode)
+		&& v->mode == mode
+		&& 0)
 	      {
 		rtx tem;
 
@@ -6191,12 +6207,14 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 	  if (invariant_p (arg) == 1)
 	    {
 	      /* Look for giv with constant positive mult_val and nonconst
-		 add_val. Insert insns to compute new compare value.  */
+		 add_val. Insert insns to compute new compare value. 
+		 ??? Turn this off due to possible overflow.  */
 
 	      for (v = bl->giv; v; v = v->next_iv)
 		if (CONSTANT_P (v->mult_val) && INTVAL (v->mult_val) > 0
 		    && ! v->ignore && ! v->maybe_dead && v->always_computable
-		    && v->mode == mode)
+		    && v->mode == mode
+		    && 0)
 		  {
 		    rtx tem;
 
