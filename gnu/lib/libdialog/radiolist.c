@@ -38,14 +38,14 @@ static int list_width, check_x, item_x;
  */
 int
 dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height,
-		 int item_no, void *it, unsigned char *result)
+		 int cnt, void *it, unsigned char *result)
 {
     int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-	l, k, scroll = 0, max_choice, *status, was_on = 0;
+	l, k, scroll = 0, max_choice, *status, item_no = 0, was_on = 0;
     int redraw_menu = FALSE;
     char okButton, cancelButton;
     WINDOW *dialog, *list;
-    unsigned char **items;
+    unsigned char **items = NULL;
     dialogMenuItem *ditems;
     
     /* Allocate space for storing item on/off status */
@@ -55,11 +55,12 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
 	exit(-1);
     }
     
+draw:
     /* Previous calling syntax, e.g. just a list of strings? */
-    if (item_no >= 0) {
+    if (cnt >= 0) {
 	items = it;
 	ditems = NULL;
-	
+	item_no = cnt;
 	/* Initializes status */
 	for (i = 0; i < item_no; i++) {
 	    status[i] = !strcasecmp(items[i*3 + 2], "on");
@@ -73,9 +74,10 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
     }
     /* It's the new specification format - fake the rest of the code out */
     else {
-	item_no = abs(item_no);
+	item_no = abs(cnt);
 	ditems = it;
-	items = (unsigned char **)alloca((item_no * 3) * sizeof(unsigned char *));
+	if (!items)
+	    items = (unsigned char **)alloca((item_no * 3) * sizeof(unsigned char *));
 	/* Initializes status */
 	for (i = 0; i < item_no; i++) {
 	    status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
@@ -121,7 +123,6 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
     x = DialogX ? DialogX : (COLS - width)/2;
     y = DialogY ? DialogY : (LINES - height)/2;
 
-draw:
 #ifdef HAVE_NCURSES
     if (use_shadow)
 	draw_shadow(stdscr, y, x, height, width);
