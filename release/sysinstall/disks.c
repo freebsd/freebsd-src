@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.43 1996/04/28 00:37:28 jkh Exp $
+ * $Id: disks.c,v 1.44 1996/04/28 03:26:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -502,7 +502,7 @@ diskPartitionWrite(dialogMenuItem *self)
 
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
-	if (Write_Disk(d)) {
+	if (!Fake && Write_Disk(d)) {
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return DITEM_FAILURE;
 	}

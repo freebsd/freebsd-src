@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.54 1996/04/28 01:07:27 jkh Exp $
+ * $Id: system.c,v 1.55 1996/04/28 03:27:26 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -109,7 +109,12 @@ systemExecute(char *command)
 	foo.c_cc[VERASE] = '\010';
 	tcsetattr(0, TCSANOW, &foo);
     }
-    status = system(command);
+    if (!Fake)
+	status = system(command);
+    else {
+	status = 0;
+	msgDebug("systemExecute:  Faked execution of `%s'\n", command);
+    }
     DialogActive = TRUE;
     return status;
 }
@@ -199,6 +204,10 @@ vsystem(char *fmt, ...)
     va_end(args);
 
     omask = sigblock(sigmask(SIGCHLD));
+    if (Fake) {
+	msgDebug("vsystem:  Faked execution of `%s'\n", cmd);
+	return 0;
+    }
     if (isDebug())
 	msgDebug("Executing command `%s'\n", cmd);
     pid = fork();
