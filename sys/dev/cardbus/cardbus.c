@@ -60,8 +60,6 @@
 #include "card_if.h"
 #include "pcib_if.h"
 
-__FBSDID("$FreeBSD$");
-
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, cardbus, CTLFLAG_RD, 0, "CardBus parameters");
 
