@@ -155,7 +155,7 @@ populate_mfs() {
 do_kernel() {
     echo "-> Preparing kernel..."
     (cd ../${TYPE}; make -v -f ${BUILDDIR}/Makefile.conf )
-    cp -p ${SRC}/sys/compile/PICOBSD${suffix}/kernel kernel || \
+    cp -p ${OBJ}/${SRC}/sys/PICOBSD${suffix}/kernel kernel || \
 	fail $? missing_kernel
     strip kernel
     strip --remove-section=.note --remove-section=.comment kernel
