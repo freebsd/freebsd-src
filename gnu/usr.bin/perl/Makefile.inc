@@ -87,6 +87,8 @@ MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
 
+CFLAGS+=	'-DAPPLLIB_EXP="/usr/libdata/perl/BSDPAN"'
+
 .if defined(PERL_THREADED) && ${PERL_THREADED} == "true"
 CFLAGS+=        -pthread
 THREAD=		threads-
