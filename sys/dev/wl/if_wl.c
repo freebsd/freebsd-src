@@ -163,7 +163,11 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#if __FreeBSD__ >= 3
+#include <sys/sockio.h>
+#else
 #include <sys/ioctl.h>
+#endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -583,9 +587,15 @@ wlinit(void *xsc)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
+#if __FreeBSD__ >= 3
+    if (ifp->if_addrhead.tqh_first == (struct ifaddr *)0) {
+	return;
+    }
+#else
     if (ifp->if_addrlist == (struct ifaddr *)0) {
 	return;
     }
+#endif
     oldpri = splimp();
     if ((stat = wlhwrst(sc->unit)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
@@ -1127,6 +1137,12 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 #if	MULTICAST
     case SIOCADDMULTI:
     case SIOCDELMULTI:
+#if __FreeBSD__ >= 3
+	if(sc->flags & DSF_RUNNING) {
+	    sc->flags &= ~DSF_RUNNING;
+	    wlinit(sc);
+	}
+#else
 	error = (cmd == SIOCADDMULTI) ?
 	    ether_addmulti(ifr, &sc->wl_ac) :
 		ether_delmulti(ifr, &sc->wl_ac);
@@ -1137,6 +1153,7 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	    }
 	    error = 0;
 	}
+#endif
 	break;
 #endif	MULTICAST
 
@@ -1833,9 +1850,14 @@ wlconfig(int unit)
     short		base = sc->base;
 
 #if	MULTICAST
-    int cnt = 0;
+#if __FreeBSD__ >= 3
+    struct ifmultiaddr *ifma;
+    u_char *addrp;
+#else
     struct ether_multi *enm;
     struct ether_multistep step;
+#endif
+    int cnt;
 #endif	MULTICAST
 
 #ifdef WLDEBUG
@@ -1896,6 +1918,20 @@ wlconfig(int unit)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
+    cnt = 0;
+#if __FreeBSD__ >= 3
+    for (ifma = sc->wl_if.if_multiaddrs.lh_first; ifma;
+		ifma = ifma->ifma_link.le_next) {
+	if (ifma->ifma_addr->sa_family != AF_LINK)
+	    continue;
+
+	addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+	outw(PIOP1(base), addrp[0] + (addrp[1] << 8));
+	outw(PIOP1(base), addrp[2] + (addrp[3] << 8));
+	outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
+	++cnt;
+    }
+#else
     ETHER_FIRST_MULTI(step, &sc->wl_ac, enm);
     while (enm != NULL) {
 	unsigned int lo, hi;
@@ -1915,6 +1951,7 @@ wlconfig(int unit)
 	}
 	ETHER_NEXT_MULTI(step, enm);
     }
+#endif
     outw(PIOR1(base), OFFSET_CU + 6);		/* mc-cnt */
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
     if(wlcmd(unit, "config()-mcaddress") == 0)
