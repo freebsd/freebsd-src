@@ -36,7 +36,6 @@
 name="syscons"
 start_precmd="syscons_precmd"
 start_cmd="syscons_start"
-load_rc_config $name
 
 # stdin must be redirected because it might be for a serial console
 #
@@ -197,3 +196,6 @@ syscons_start()
 
 	echo '.'
 }
+
+load_rc_config $name
+run_rc_command "$1"
