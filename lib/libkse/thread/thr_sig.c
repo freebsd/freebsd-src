@@ -357,7 +357,6 @@ static void
 thread_sig_add(struct pthread *pthread, int sig, int has_args)
 {
 	int	suppress_handler = 0;
-	int	thread_is_active = 0;
 
 	/* Make sure this signal isn't still in the pending set: */
 	sigdelset(&pthread->sigpend, sig);
@@ -390,12 +389,6 @@ thread_sig_add(struct pthread *pthread, int sig, int has_args)
 		 */
 		if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0)
 			PTHREAD_PRIOQ_REMOVE(pthread);
-		else
-			/*
-			 * This thread is running; avoid placing it in
-			 * the run queue:
-			 */
-			thread_is_active = 1;
 		break;
 
 	case PS_SUSPENDED:
@@ -491,8 +484,7 @@ thread_sig_add(struct pthread *pthread, int sig, int has_args)
 		break;
 	}
 
-	DBG_MSG(">>> suppress_handler = %d, thread_is_active = %d\n",
-	    suppress_handler, thread_is_active);
+	DBG_MSG(">>> suppress_handler = %d\n", suppress_handler);
 
 	if (suppress_handler == 0) {
 		/* Setup a signal frame and save the current threads state: */
@@ -520,7 +512,7 @@ thread_sig_add(struct pthread *pthread, int sig, int has_args)
 		pthread->active_priority |= PTHREAD_SIGNAL_PRIORITY;
 		if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
-		else if (thread_is_active == 0)
+		else
 			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 	}
 }
@@ -757,20 +749,6 @@ thread_sigframe_add(struct pthread *thread, int sig, int has_args)
 	SIGSETOR(thread->mailbox.tm_context.uc_sigmask,
 	    _thread_sigact[sig - 1].sa_mask);
 	sigaddset(&thread->mailbox.tm_context.uc_sigmask, sig);
-#if 0
-	/* Set up the new frame. */
-	thread->curframe = psf;
-	thread->flags &= PTHREAD_FLAGS_PRIVATE | PTHREAD_FLAGS_TRACE |
-	    PTHREAD_FLAGS_IN_SYNCQ;
-
-	/*
-	 * Set up the context:
-	 */
-	stackp -= sizeof(double);
-	_setjmp(thread->ctx.jb);
-	SET_STACK_JB(thread->ctx.jb, stackp);
-	SET_RETURN_ADDR_JB(thread->ctx.jb, _thread_sig_wrapper);
-#endif
 }
 
 static void
