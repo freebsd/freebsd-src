@@ -648,9 +648,9 @@ sb_start(struct sb_chinfo *ch)
     	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	int l = ch->buffer->dl;
 	int dh = ch->buffer->chan > 3;
-	u_char i1, i2 = 0;
+	u_char i1, i2;
 
-	if (b16) l >>= 1;
+	if (b16 || dh) l >>= 1;
 	l--;
 	if (play) sb_cmd(sb, DSP_CMD_SPKON);
 	if (sb->bd_flags & BD_F_SB16) {
@@ -812,14 +812,18 @@ sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
+	int dch, dl, dh;
 
 	ch->parent = sb;
 	ch->channel = c;
 	ch->buffer = b;
 	ch->buffer->bufsize = DSP_BUFFSIZE;
 	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1) return NULL;
-	ch->buffer->chan = (dir == PCMDIR_PLAY)? rman_get_start(sb->drq2)
-					       : rman_get_start(sb->drq1);
+	dch = (dir == PCMDIR_PLAY)? 1 : 0;
+	if (sb->bd_flags & BD_F_SB16X) dch = !dch;
+	dl = rman_get_start(sb->drq1);
+	if (sb->drq2) dh = rman_get_start(sb->drq2); else dh = dl;
+	ch->buffer->chan = dch? dh : dl;
 	return ch;
 }
 
@@ -1078,7 +1082,7 @@ static int
 sbsbc_probe(device_t dev)
 {
     	char buf[64];
-	u_int32_t func, ver, r;
+	u_int32_t func, ver, r, f;
 
 	/* The parent device has already been probed. */
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
@@ -1086,8 +1090,10 @@ sbsbc_probe(device_t dev)
 		return (ENXIO);
 
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
+	f = (ver & 0xffff0000) >> 16;
 	ver &= 0x0000ffff;
-	snprintf(buf, sizeof buf, "SB DSP %d.%02d", ver >> 8, ver & 0xff);
+	snprintf(buf, sizeof buf, "SB DSP %d.%02d%s", ver >> 8, ver & 0xff,
+		(f & BD_F_ESS)? " (ESS mode)" : "");
     	device_set_desc_copy(dev, buf);
 
 	return 0;
