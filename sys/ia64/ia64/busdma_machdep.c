@@ -717,7 +717,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	M_ASSERTPKTHDR(m0);
 
 	flags |= BUS_DMA_NOWAIT;
-	nsegs = 0;
+	*nsegs = 0;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		int first = 1;
