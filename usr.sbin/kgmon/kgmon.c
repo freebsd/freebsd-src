@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)kgmon.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 #include <sys/file.h>
-#include <sys/user.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/gmon.h>
 #include <errno.h>
