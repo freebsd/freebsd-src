@@ -491,3 +491,14 @@
                   required for Josef Karthauser <joe@pavilion.net>
                   Change the structure of some of the #include files and
                   merge in more NetBSD changes.
+
+2.15  10 Sep 2000 Add support for bktr_mem, a module to hold onto the bktr
+                  drives's contiguous memory buffers even when it is unloaded
+                  and reloaded.
+                  Simplify the use of the optional SMBUS i2c code by using a new
+                  #define called BKTR_USE_FREEBSD_SMBUS.
+                  Poul-Henning Kamp <phk@freebsd.org> changed the DEVFS code.
+                  Peter Wemm <peter@freebsd.org> fixed an SMBUS warning.
+                  Alexander Langer <alex@cichlids.com> fixed some FreeBSD newbus
+                  resource allocation problems (FreeBSD PR kern/18744).
+
