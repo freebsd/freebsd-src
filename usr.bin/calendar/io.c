@@ -51,6 +51,7 @@ static const char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
 #include <unistd.h>
 #include <err.h>
 #include <errno.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <string.h>
 #include <sys/uio.h>
@@ -90,6 +91,7 @@ cal()
 	int month;
 	int day;
 	int var;
+	static int d_first = -1;
 	char buf[2048 + 1];
 
 	if ((fp = opencal()) == NULL)
@@ -108,6 +110,7 @@ cal()
 			continue;
 		if (strncmp(buf, "LANG=", 5) == 0) {
 			(void) setlocale(LC_ALL, buf + 5);
+			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 			setnnames();
 			continue;
 		}
@@ -135,8 +138,10 @@ cal()
 				var = 1;
 			if (printing) {
 				struct tm tm;
-				char dbuf[30];
+				char dbuf[80];
 
+				if (d_first < 0)
+					d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 				tm.tm_sec = 0;  /* unused */
 				tm.tm_min = 0;  /* unused */
 				tm.tm_hour = 0; /* unused */
@@ -144,10 +149,10 @@ cal()
 				tm.tm_mon = month - 1;
 				tm.tm_mday = day;
 				tm.tm_year = tp->tm_year; /* unused */
-				(void)strftime(dbuf, sizeof(dbuf), "%c", &tm);
-				dbuf[10] = '\0';
-				(void)fprintf(fp, "%s%c%s\n",
-				    dbuf + 4/* skip weekdays */,
+				(void)strftime(dbuf, sizeof(dbuf),
+					       d_first ? "%e %b" : "%b %e",
+					       &tm);
+				(void)fprintf(fp, "%s%c%s\n", dbuf,
 				    var ? '*' : ' ', p);
 			}
 		}
