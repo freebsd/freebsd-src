@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.65 1999/07/07 04:06:56 msmith Exp $
+ * $Id: conf.h,v 1.66 1999/07/17 19:58:51 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -118,7 +118,7 @@ struct cdevsw {
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
 	char		*d_name;	/* base device name, e.g. 'vn' */
-	d_parms_t	*d_parms;	/* populate/override specinfo */
+	d_parms_t	*d_bogoparms;	/* XXX not used */
 	int		d_maj;
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;

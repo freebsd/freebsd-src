@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id: specdev.h,v 1.16 1999/02/25 05:22:30 dillon Exp $
+ * $Id: specdev.h,v 1.17 1999/05/11 19:54:39 phk Exp $
  */
 
 /*
@@ -40,20 +40,19 @@
  * in vgone.
  */
 struct specinfo {
-	struct	vnode **si_hashchain;
-	struct	vnode *si_specnext;
 	struct	mount *si_mountpoint;
-	dev_t		si_rdev;
 	int		si_bsize_phys;	/* minimum physical block size */
 	int		si_bsize_best;	/* optimal block size / VBLK */
 	int		si_bsize_max;	/* maximum block size */
+
+	udev_t		si_udev;
+	SLIST_ENTRY(specinfo)	si_hash;
+	struct vnode *si_hlist;
 };
 /*
  * Exported shorthand
  */
-#define v_rdev v_specinfo->si_rdev
-#define v_hashchain v_specinfo->si_hashchain
-#define v_specnext v_specinfo->si_specnext
+#define v_hashchain v_specinfo->si_hlist
 #define v_specmountpoint v_specinfo->si_mountpoint
 
 /*
@@ -62,7 +61,6 @@ struct specinfo {
 #define	SPECHSZ	64
 #define	SPECHASH(rdev)	(((unsigned)(minor(rdev)))%SPECHSZ)
 
-extern	struct vnode *speclisth[SPECHSZ];
 
 /*
  * Prototypes for special file operations on vnodes.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.89 1999/06/28 10:35:07 phk Exp $
+ * $Id: vnode.h,v 1.90 1999/07/18 14:30:30 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -101,7 +101,10 @@ struct vnode {
 	union {
 		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
 		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
-		struct specinfo	*vu_specinfo;	/* device (VCHR, VBLK) */
+		struct {
+			struct specinfo	*vu_specinfo; /* device (VCHR, VBLK) */
+			struct vnode *vu_specnext;
+		} vu_spec;
 		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
 	} v_un;
 	struct	nqlease *v_lease;		/* Soft reference to lease */
@@ -132,7 +135,9 @@ struct vnode {
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
-#define	v_specinfo	v_un.vu_specinfo
+#define	v_specinfo	v_un.vu_spec.vu_specinfo
+#define	v_rdev		v_un.vu_spec.vu_specinfo
+#define	v_specnext	v_un.vu_spec.vu_specnext
 #define	v_fifoinfo	v_un.vu_fifoinfo
 
 #define	VN_POLLEVENT(vp, events)				\
