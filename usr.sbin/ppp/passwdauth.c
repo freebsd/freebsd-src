@@ -22,7 +22,11 @@
 #include <sys/types.h>
 #include <utmp.h>
 #include <time.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
 #include <libutil.h>
+#endif
 #include <pwd.h>
 #include "fsm.h"
 #include "passwdauth.h"

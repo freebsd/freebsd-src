@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.26 1997/09/07 01:01:23 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.27 1997/09/09 21:07:00 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -157,10 +157,10 @@ as the user id that invoked
 When you first run
 .Nm
 you may need to deal with some initial configuration details.  First,
-your kernel should include a tunnel device (the default in FreeBSD 2.0.5
-and later).  If it doesn't, or if you require more than one tun interface,
-you'll need to rebuild your kernel with the following line in your kernel
-configuration file:
+your kernel should include a tunnel device (the GENERIC kernel includes
+one by default).  If it doesn't, or if you require more than one tun
+interface, you'll need to rebuild your kernel with the following line in
+your kernel configuration file:
 
 .Dl pseudo-device tun N
 
@@ -1180,17 +1180,18 @@ Login scripts vary greatly between ISPs.
 Use
 .Dq set line
 and
-.Dq set sp
+.Dq set speed
 to specify your serial line and speed, for example:
 .Bd -literal -offset indent
 set line /dev/cuaa0
 set sp 115200
 .Ed
 .Pp
-Cuaa0 is the first serial port on FreeBSD.  Cuaa1 is the second etc.  A
-speed of 115200 should be specified if you have a modem capable of bit
-rates of 28800 or more.  In general, the serial speed should be about
-four times the modem speed.
+Cuaa0 is the first serial port on FreeBSD.  If you're running
+.Nm
+on OpenBSD, cua00 is the first.  A speed of 115200 should be specified
+if you have a modem capable of bit rates of 28800 or more.  In general,
+the serial speed should be about four times the modem speed.
 
 .It
 Use the
@@ -2127,4 +2128,4 @@ Get port number if port number is using service name.
 
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
 and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
-It's since had an enormous face lift and looks substantially different.
+It has since had an enormous face lift and looks substantially different.

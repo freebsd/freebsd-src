@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: pathnames.h,v 1.6 1997/02/22 16:10:43 peter Exp $
+ * $Id: pathnames.h,v 1.4.6.2 1997/08/25 00:34:35 brian Exp $
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */
@@ -40,18 +40,7 @@
 #include <paths.h>
 #endif
 
-#define	_PATH_ACULOG		"/var/log/aculog"
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-#define	_PATH_LOCKDIRNAME	"/var/spool/lock/LCK..%s"
-#else
-#define	_PATH_LOCKDIRNAME	"/var/spool/uucp/LCK..%s"
-#endif
-#ifdef notdef
-#define	_PATH_LOCKDIRNAME	"/var/spool/uucp/LCK/LCK..%s"
-#endif
-#define	_PATH_PHONES		"/etc/phones"
-#define	_PATH_REMOTE		"/etc/remote"
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 #define _PATH_PPP		"/etc/ppp"
 #else
 #define _PATH_PPP		"/etc"
