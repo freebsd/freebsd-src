@@ -32,7 +32,8 @@
 .Dt RTLD 1
 .Os FreeBSD
 .Sh NAME
-.Nm ld.so
+.Nm ld.so ,
+.Nm rtld
 .Nd run-time link-editor
 .Sh DESCRIPTION
 .Nm
