@@ -46,40 +46,40 @@ CLEANFILES+=${ASM} ${PSEUDO} ${POBJS} ${SOBJS}
 
 ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
-	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
 
 ${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
-	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
 
 ${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
-	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
 ${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
-	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
 
 ${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
-	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
 
 ${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
-	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
+	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
