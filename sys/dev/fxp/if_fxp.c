@@ -313,8 +313,8 @@ fxp_attach(device_t dev)
 	int error = 0;
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	u_long val;
-	int rid;
+	u_int32_t val;
+	int rid, m1, m2, ebitmap;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	callout_handle_init(&sc->stat_ch);
@@ -322,11 +322,13 @@ fxp_attach(device_t dev)
 	FXP_LOCK(sc);
 
 	/*
-	 * Enable bus mastering.
+	 * Enable bus mastering. Enable memory space too, in case
+	 * BIOS/Prom forgot about it.
 	 */
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
 	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, val, 2);
+	val = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		u_int32_t		iobase, membase, irq;
@@ -349,16 +351,44 @@ fxp_attach(device_t dev)
 	}
 
 	/*
-	 * Map control/status registers.
+	 * Figure out which we should try first - memory mapping or i/o mapping?
+	 * We default to memory mapping. Then we accept an override from the
+	 * command line. Then we check to see which one is enabled.
 	 */
-	rid = FXP_PCI_MMBA;
-	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				     0, ~0, 1, RF_ACTIVE);
+	m1 = PCIM_CMD_MEMEN;
+	m2 = PCIM_CMD_PORTEN;
+	ebitmap = 0;
+	if (getenv_int("fxp_iomap", &ebitmap)) {
+		if (ebitmap & (1 << device_get_unit(dev))) {
+			m1 = PCIM_CMD_PORTEN;
+			m2 = PCIM_CMD_MEMEN;
+		}
+	}
+
+	if (val & m1) {
+		sc->rtp =
+		    (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		sc->rgd = (m1 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
+		sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
+	                                     0, ~0, 1, RF_ACTIVE);
+	}
+	if (sc->mem == NULL && (val & m2)) {
+		sc->rtp =
+		    (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		sc->rgd = (m2 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
+		sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
+                                            0, ~0, 1, RF_ACTIVE);
+	}
+
 	if (!sc->mem) {
-		device_printf(dev, "could not map memory\n");
+		device_printf(dev, "could not map device registers\n");
 		error = ENXIO;
 		goto fail;
         }
+	if (bootverbose) {
+		device_printf(dev, "using %s space register mapping\n",
+		   sc->rtp == SYS_RES_MEMORY? "memory" : "I/O");
+	}
 
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
@@ -387,7 +417,7 @@ fxp_attach(device_t dev)
 		/* Failed! */
 		bus_teardown_intr(dev, sc->irq, sc->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, SYS_RES_MEMORY, FXP_PCI_MMBA, sc->mem);
+		bus_release_resource(dev, sc->rtp, sc->rgd, sc->mem);
 		error = ENXIO;
 		goto fail;
 	}
@@ -451,7 +481,7 @@ fxp_detach(device_t dev)
 	 */
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, FXP_PCI_MMBA, sc->mem);
+	bus_release_resource(dev, sc->rtp, sc->rgd, sc->mem);
 
 	/*
 	 * Free all the receive buffers.
