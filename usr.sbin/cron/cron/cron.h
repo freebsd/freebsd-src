@@ -269,6 +269,8 @@ char	*DowNames[] = {
 
 char	*ProgramName;
 int	LineNumber;
+unsigned Jitter,
+	RootJitter;
 time_t	TargetTime;
 
 # if DEBUGGING
@@ -284,6 +286,8 @@ extern	char	*copyright[],
 		*DowNames[],
 		*ProgramName;
 extern	int	LineNumber;
+extern unsigned	Jitter,
+		RootJitter;
 extern	time_t	TargetTime;
 # if DEBUGGING
 extern	int	DebugFlags;
