@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.5 1993/09/04 05:06:26 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.4 1993/09/06 23:26:21 jkh Exp $";
 #endif
 
 /*
@@ -40,6 +40,8 @@ extract_plist(char *home, Package *pkg)
 
     /* Do it */
     while (p) {
+	char cmd[FILENAME_MAX];
+
 	switch(p->type) {
 	case PLIST_NAME:
 	    PkgName = p->name;
@@ -75,11 +77,11 @@ extract_plist(char *home, Package *pkg)
 	    break;
 
 	case PLIST_CMD:
+	    format_cmd(cmd, p->name, Directory, last_file);
 	    if (Verbose)
-		printf("extract: exec cmd '%s' (lastfile = %s)\n", p->name,
-		       last_file);
-	    if (!Fake && vsystem(p->name, Directory, last_file))
-		whinge("Command '%s' failed.", p->name);
+		printf("extract: execute '%s'\n", cmd);
+	    if (!Fake && system(cmd))
+		whinge("Command '%s' failed.", cmd);
 	    break;
 
 	case PLIST_CHMOD:

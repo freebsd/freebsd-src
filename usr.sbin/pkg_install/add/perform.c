@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.8 1993/09/04 05:06:29 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.3 1993/09/05 04:53:50 jkh Exp $";
 #endif
 
 /*
@@ -168,6 +168,8 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto success;	/* close enough for government work */
 	}
+	/* Make sure pkg_info can read the entry */
+	vsystem("chmod a+rx %s", LogDir);
 	if (fexists(DEINSTALL_FNAME))
 	    copy_file(".", DEINSTALL_FNAME, LogDir);
 	if (fexists(REQUIRE_FNAME))
