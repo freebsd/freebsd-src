@@ -267,7 +267,7 @@ struct	proc {
 #define P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
 #define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
-#define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
+
 
 /*
  * MOVE TO ucred.h?
