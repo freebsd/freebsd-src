@@ -125,8 +125,8 @@ parse_disk(char *conftxt, const char *name)
 		disk->gpt_size = 128;
 		disk->lba_start = (disk->gpt_size * sizeof(struct gpt_ent)) /
 		    disk->sector_size + 2;
-		disk->lba_end = (disk->media_size * disk->sector_size) -
-		    disk->lba_start + 1;
+		disk->lba_end = (disk->media_size / disk->sector_size) -
+		    disk->lba_start;
 	} else {
 		disk->lba_start = gpt->hdr_lba_start;
 		disk->lba_end = gpt->hdr_lba_end;
