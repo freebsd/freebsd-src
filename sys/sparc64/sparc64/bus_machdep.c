@@ -630,11 +630,13 @@ nexus_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 		 * and handles multi-seg allocations.  Nobody is doing multi-seg
 		 * allocations yet though.
 		 */
+		mtx_lock(&Giant);
 		*vaddr = contigmalloc(size, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
 		    0ul, ddmat->dt_lowaddr,
 		    ddmat->dt_alignment ? ddmat->dt_alignment : 1UL,
 		    ddmat->dt_boundary);
+		mtx_unlock(&Giant);
 	}
 	if (*vaddr == NULL) {
 		free(*mapp, M_DEVBUF);
@@ -663,8 +665,11 @@ nexus_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
 	sparc64_dmamem_free_map(ddmat, map);
 	if ((size <= PAGE_SIZE))
 		free(vaddr, M_DEVBUF);
-	else
+	else {
+		mtx_lock(&Giant);
 		contigfree(vaddr, size, M_DEVBUF);
+		mtx_unlock(&Giant);
+	}
 }
 
 static void
