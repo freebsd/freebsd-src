@@ -20,7 +20,7 @@ index.so: ${SRCS} ${EXTRA}
 	    -e 's/DOUBLEQUOTE/""/' \
 	    -e "s/SQUOTE/'/" \
 	    -e 's/ /__SPACE/g' < index | \
-	sort -u '-t	' +0 -1 +1n | awk -f ${SRCDIR}/merge.awk | \
+	sort -u '-t	' -k 1,1 -k 2n | awk -f ${SRCDIR}/merge.awk | \
 	sed -e 's/__SPACE/ /g' \
 	    -e "s/^\\(['\\.]\\)/\\\\\&\\1/" > index.so 
 
