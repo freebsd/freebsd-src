@@ -1817,7 +1817,7 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 		bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
 		fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
 		if (fraglen + readlen > pktlen) {
-			RAY_RECERR(sc, "bad length current 0x%x pktlen 0x%x",
+			RAY_RECERR(sc, "bad length current 0x%zx pktlen 0x%zx",
 			    fraglen + readlen, pktlen);
 			ifp->if_ierrors++;
 			m_freem(m0);
@@ -3509,7 +3509,7 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 
 #if 1 | (RAY_DEBUG & RAY_DBG_CCS)
 	if (!sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)])
-		RAY_RECERR(sc, "freeing free ccs 0x%02x", RAY_CCS_INDEX(ccs));
+		RAY_RECERR(sc, "freeing free ccs 0x%02x", (uint8_t)RAY_CCS_INDEX(ccs));
 #endif /* RAY_DEBUG & RAY_DBG_CCS */
 	if (!sc->sc_gone)
 		RAY_CCS_FREE(sc, ccs);
