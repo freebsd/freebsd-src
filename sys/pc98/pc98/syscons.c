@@ -3197,13 +3197,6 @@ scinit(void)
     bcopyw(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
-    /* Save font and palette if VGA */
-    if (crtc_vga) {
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
-	save_palette();
-    }
-
     console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
     console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
 #ifdef PC98
@@ -4426,10 +4419,9 @@ set_destructive_cursor(scr_stat *scp)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
 	    (scp->cursor_start >= scp->font_size && i == scp->font_size - 1))
 	    cursor[i] |= 0xff;
-
-    /* wait for vertical retrace to avoid jitter on some videocards */
-    while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
-
+#if 1
+    while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
+#endif
     set_font_mode();
     bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
@@ -4597,8 +4589,9 @@ draw_mouse_image(scr_stat *scp)
     scp->mouse_oldpos = scp->mouse_pos;
 
     /* wait for vertical retrace to avoid jitter on some videocards */
+#if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
-
+#endif
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
@@ -4716,6 +4709,13 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	if (scp != cur_console)
 	    pitch *= 2;
 	sysbeep(pitch, duration);
+    }
+
+    /* Save font and palette if VGA */
+    if (crtc_vga) {
+	copy_font(SAVE, FONT_16, font_16);
+	fonts_loaded = FONT_16;
+	save_palette();
     }
 
 #ifdef SC_SPLASH_SCREEN
