@@ -1,5 +1,5 @@
-<!-- $Id: dialout.sgml,v 1.1 1996/12/02 07:23:46 max Exp $ -->
+<!-- $Id: kernelopts.sgml,v 1.1 1996/12/23 21:14:36 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 0 -->
 
-<chapt<eading>* Adding New Kernel Configuration Options<label id="kernelopts"></heading>
+<chapt><heading>* Adding New Kernel Configuration Options<label id="kernelopts"></heading>
