@@ -144,7 +144,7 @@ acpi_pcib_attach(device_t dev)
      * Get our segment number by evaluating _SEG
      * It's OK for this to not exist.
      */
-    if ((status = acpi_EvaluateNumber(sc->ap_handle, "_SEG", &sc->ap_segment)) != AE_OK) {
+    if ((status = acpi_EvaluateInteger(sc->ap_handle, "_SEG", &sc->ap_segment)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _SEG - %s\n", acpi_strerror(status));
 	    return_VALUE(ENXIO);
@@ -166,7 +166,7 @@ acpi_pcib_attach(device_t dev)
      *     we should attach our own handler.
      * XXX invoke _REG on this for the PCI config space address space?
      */
-    if ((status = acpi_EvaluateNumber(sc->ap_handle, "_BBN", &sc->ap_bus)) != AE_OK) {
+    if ((status = acpi_EvaluateInteger(sc->ap_handle, "_BBN", &sc->ap_bus)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n", acpi_strerror(status));
 	    return_VALUE(ENXIO);
