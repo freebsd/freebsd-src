@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.23 1997/02/22 14:11:40 peter Exp $
+ * $Id: floppy.c,v 1.24 1997/03/19 10:09:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,8 +49,10 @@
 
 #define MSDOSFS
 #include <sys/mount.h>
+#include <msdosfs/msdosfsmount.h>
 #undef MSDOSFS
 
+#include <ufs/ufs/ufsmount.h>
 static Device *floppyDev;
 static Boolean floppyMounted;
 
