@@ -1927,7 +1927,7 @@ aio_write(struct thread *td, struct aio_write_args *uap)
 	return aio_aqueue(td, uap->aiocbp, LIO_WRITE);
 }
 
-/* syscall - XXX undocumented */
+/* syscall - list directed I/O (REALTIME) */
 int
 lio_listio(struct thread *td, struct lio_listio_args *uap)
 {
