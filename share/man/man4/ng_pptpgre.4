@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
 .\"
-.Dd November 29, 1999
+.Dd December 7, 2001
 .Dt NG_PPTPGRE 4
 .Os
 .Sh NAME
@@ -47,44 +47,46 @@
 The
 .Nm pptpgre
 node type performs Generic Routing Encapsulation (GRE) over IP
-for the PPTP protocol as specified by RFC 2637.  This involves packet
+for the PPTP protocol as specified by RFC 2637.
+This involves packet
 encapsulation, sequencing, acknowlegement, and an adaptive timeout
-sliding window mechanism.  This node type does not handle any of
+sliding window mechanism.
+This node type does not handle any of
 the TCP control protocol or call negotiation defined by PPTP.
 .Pp
 This node type expects to receive complete IP packets,
 including the IP header, on the
-.Dv lower
+.Dq Li lower
 hook, but it transmits outgoing frames without any IP header.
 The typical use for this node type would be to connect the
-.Dv upper
+.Dq Li upper
 hook to one of the link hooks of a
 .Xr ng_ppp 4
 node, and the
-.Dv lower
+.Dq Li lower
 hook to the
-.Dv "inet/raw/gre"
+.Dq Li "inet/raw/gre"
 hook of a
 .Xr ng_ksocket 4
 node.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
-.Bl -tag -compact -width vjc_vjuncomp
-.It Dv upper
+.Bl -tag -compact -width ".Li upper"
+.It Li upper
 Connection to the upper protocol layers
-.It Dv lower
+.It Li lower
 Connection to the lower protocol layers
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv NGM_PPTPGRE_SET_CONFIG
 This command resets and configures the node for a session.
 This command takes a
-.Dv "struct ng_pptpgre_conf"
+.Vt "struct ng_pptpgre_conf"
 as an argument:
-.Bd -literal -offset 0n
+.Bd -literal
 /* Configuration for a session */
 struct ng_pptpgre_conf {
     u_char      enabled;          /* enables traffic flow */
@@ -96,30 +98,31 @@ struct ng_pptpgre_conf {
     u_int16_t   peerPpd;          /* peer packet processing delay
                                      (in 1/10 of a second) */
 };
-
 .Ed
+.Pp
 The
-.Dv enabled
-field enables traffic flow through the node.  The
-.Dv enableDelayedAck
+.Va enabled
+field enables traffic flow through the node.
+The
+.Va enableDelayedAck
 field enables delayed acknowledgement (maximum 250 miliseconds), which
 is a useful optimization and should generally be turned on.
-.Dv enableAlwaysAck
+.Va enableAlwaysAck
 field enables sending acknowledgements with every data packet, which
 is probably helpful as well.
 The remaining fields are as supplied by the PPTP virtual call setup process.
 .It Dv NGM_PPTPGRE_GET_CONFIG
 Returns the current configuration as a
-.Dv "struct ng_pptpgre_conf" .
+.Vt "struct ng_pptpgre_conf" .
 .It Dv NGM_PPTPGRE_GET_STATS
 This command returns a
-.Dv "struct ng_pptpgre_stats"
+.Vt "struct ng_pptpgre_stats"
 containing various node statistics.
 .It Dv NGM_PPTPGRE_CLR_STATS
 This command resets the node statistics.
 .It Dv NGM_PPTPGRE_GETCLR_STATS
 This command atomically gets and resets the node statistics, returning a
-.Dv "struct ng_pptpgre_stats" .
+.Vt "struct ng_pptpgre_stats" .
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
