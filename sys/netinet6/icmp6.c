@@ -65,7 +65,6 @@
  */
 
 #include "opt_inet.h"
-#include "opt_ipsec.h"
 #include "opt_key.h"
 
 #include <sys/param.h>
