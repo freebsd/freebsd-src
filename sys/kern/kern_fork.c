@@ -142,8 +142,37 @@ rfork(p, uap)
 int	nprocs = 1;		/* process 0 */
 static int nextpid = 0;
 
+/*
+ * Random component to nextpid generation.  We mix in a random factor to make
+ * it a little harder to predict.  We sanity check the modulus value to avoid
+ * doing it in critical paths.  Don't let it be too small or we pointlessly
+ * waste randomness entropy, and don't let it be impossibly large.  Using a
+ * modulus that is too big causes a LOT more process table scans and slows
+ * down fork processing as the pidchecked caching is defeated.
+ */
 static int randompid = 0;
-SYSCTL_INT(_kern, OID_AUTO, randompid, CTLFLAG_RW, &randompid, 0, "");
+
+static int
+sysctl_kern_randompid SYSCTL_HANDLER_ARGS
+{
+		int error, pid;
+
+		pid = randompid;
+		error = sysctl_handle_int(oidp, &pid, 0, req);
+		if (error || !req->newptr)
+			return (error);
+		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
+			pid = PID_MAX - 100;
+		else if (pid < 2)			/* NOP */
+			pid = 0;
+		else if (pid < 100)			/* Make it reasonable */
+			pid = 100;
+		randompid = pid;
+		return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
 int
 fork1(p1, flags, procp)
@@ -250,14 +279,18 @@ fork1(p1, flags, procp)
 	 * ready to use (from nextpid+1 through pidchecked-1).
 	 */
 	nextpid++;
+	if (randompid)
+		nextpid += arc4random() % randompid;
 retry:
 	/*
 	 * If the process ID prototype has wrapped around,
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (nextpid >= PID_MAX || randompid) {
-		nextpid = (randompid) ? arc4random() % PID_MAX : 100;
+	if (nextpid >= PID_MAX) {
+		nextpid = nextpid % PID_MAX;
+		if (nextpid < 100)
+			nextpid += 100;
 		pidchecked = 0;
 	}
 	if (nextpid >= pidchecked) {
