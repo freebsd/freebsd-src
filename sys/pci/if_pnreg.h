@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.16 1999/01/05 00:47:25 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.17 1999/02/26 07:49:31 wpaul Exp $
  */
 
 /*
@@ -482,6 +482,7 @@ struct pn_softc {
  * Lite-On PNIC PCI device ID.
  */
 #define	PN_DEVICEID_PNIC	0x0002
+#define PN_DEVICEID_PNIC_II	0xc115
 
 /*
  * Texas Instruments PHY identifiers
