@@ -16435,3 +16435,8 @@ some UNIX,
 
         Just Say No!
 %
+From a Tru64 patch description:
+
+        Fixes a bug that causes a panic due to software error
+%
+
