@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.12 1995/03/19 09:33:51 davidg Exp $
+ * $Id: vfs_cache.c,v 1.13 1995/04/04 02:01:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -271,7 +271,7 @@ cache_purge(vp)
 	vp->v_id = ++nextvnodeid;
 	if (nextvnodeid != 0)
 		return;
-	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl; ncpp--) {
+	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
 		while(ncpp->lh_first)
 			PURGE(ncpp->lh_first);
 	}
@@ -296,7 +296,7 @@ cache_purgevfs(mp)
 	struct namecache *ncp, *nxtcp;
 
 	/* Scan hash tables for applicable entries */
-	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl; ncpp--) {
+	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
 		ncp = ncpp->lh_first;
 		while(ncp) {
 			if (ncp->nc_dvpid != ncp->nc_dvp->v_id ||
