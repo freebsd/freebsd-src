@@ -46,8 +46,9 @@
 .Ft pid_t
 .Fn fork void
 .Sh DESCRIPTION
-.Fn Fork
-causes creation of a new process.
+The
+.Fn fork
+function causes creation of a new process.
 The new process (child process) is an exact copy of the
 calling process (parent process) except for the following:
 .Bl -bullet -offset indent
@@ -89,8 +90,9 @@ variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Fork
-will fail and no child process will be created if:
+The
+.Fn fork
+function will fail and no child process will be created if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The system-imposed limit on the total

@@ -159,7 +159,9 @@ at the expense of a degree of compatibility.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Chmod
+The
+.Fn chmod
+function
 will fail and the file mode will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -187,8 +189,9 @@ An I/O error occurred while reading from or writing to the file system.
 An attempt was made to set the sticky bit upon an executable.
 .El
 .Pp
-.Fn Fchmod
-will fail if:
+The
+.Fn fchmod
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is not valid.

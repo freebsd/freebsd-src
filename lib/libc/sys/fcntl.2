@@ -45,8 +45,9 @@
 .Ft int
 .Fn fcntl "int fd" "int cmd" "..."
 .Sh DESCRIPTION
-.Fn Fcntl
-provides for control over descriptors.
+The
+.Fn fcntl
+function provides for control over descriptors.
 The argument
 .Fa fd
 is a descriptor to be operated on by
@@ -387,8 +388,9 @@ Otherwise, a value of -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Fcntl
-will fail if:
+The
+.Fn fcntl
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The argument
