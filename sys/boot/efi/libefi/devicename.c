@@ -45,27 +45,27 @@ static int	efi_parsedev(struct efi_devdesc **dev, const char *devspec, const cha
 int
 efi_getdev(void **vdev, const char *devspec, const char **path)
 {
-    struct efi_devdesc **dev = (struct efi_devdesc **)vdev;
-    int				rv;
+	struct efi_devdesc **dev = (struct efi_devdesc **)vdev;
+	int		rv;
     
-    /*
-     * If it looks like this is just a path and no
-     * device, go with the current device.
-     */
-    if ((devspec == NULL) || 
-	(devspec[0] == '/') || 
-	(strchr(devspec, ':') == NULL)) {
+	/*
+	 * If it looks like this is just a path and no
+	 * device, go with the current device.
+	 */
+	if ((devspec == NULL) || 
+	    (devspec[0] == '/') || 
+	    (strchr(devspec, ':') == NULL)) {
 
-	if (((rv = efi_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
-	    (path != NULL))
-		*path = devspec;
-	return(rv);
-    }
+		if (((rv = efi_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+		    (path != NULL))
+			*path = devspec;
+		return(rv);
+	}
     
-    /*
-     * Try to parse the device name off the beginning of the devspec
-     */
-    return(efi_parsedev(dev, devspec, path));
+	/*
+	 * Try to parse the device name off the beginning of the devspec
+	 */
+	return(efi_parsedev(dev, devspec, path));
 }
 
 /*
@@ -85,139 +85,140 @@ efi_getdev(void **vdev, const char *devspec, const char **path)
 static int
 efi_parsedev(struct efi_devdesc **dev, const char *devspec, const char **path)
 {
-    struct efi_devdesc *idev;
-    struct devsw	*dv;
-    int			i, unit, slice, partition, err;
-    char		*cp;
-    const char		*np;
+	struct efi_devdesc *idev;
+	struct devsw	*dv;
+	int		i, unit, slice, partition, err;
+	char		*cp;
+	const char	*np;
 
-    /* minimum length check */
-    if (strlen(devspec) < 2)
-	return(EINVAL);
+	/* minimum length check */
+	if (strlen(devspec) < 2)
+		return(EINVAL);
 
-    /* look for a device that matches */
-    for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
-	if (!strncmp(devspec, devsw[i]->dv_name, strlen(devsw[i]->dv_name))) {
-	    dv = devsw[i];
-	    break;
+	/* look for a device that matches */
+	for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
+		if (!strncmp(devspec, devsw[i]->dv_name, strlen(devsw[i]->dv_name))) {
+			dv = devsw[i];
+			break;
+		}
 	}
-    }
 
-    if (dv == NULL)
-	return(ENOENT);
-    idev = malloc(sizeof(struct efi_devdesc));
-    err = 0;
-    np = (devspec + strlen(dv->dv_name));
+	if (dv == NULL)
+		return(ENOENT);
+	idev = malloc(sizeof(struct efi_devdesc));
+	err = 0;
+	np = (devspec + strlen(dv->dv_name));
         
-    switch(dv->dv_type) {
-    case DEVT_NONE:			/* XXX what to do here?  Do we care? */
-	break;
+	switch(dv->dv_type) {
+	case DEVT_NONE:			/* XXX what to do here?  Do we care? */
+		break;
 
-    case DEVT_DISK:
-	unit = -1;
-	slice = -1;
-	partition = -1;
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 10);	/* next comes the unit number */
-	    if (cp == np) {
-		err = EUNIT;
-		goto fail;
-	    }
-	    if (*cp == 's') {		/* got a slice number */
-		np = cp + 1;
-		slice = strtol(np, &cp, 10);
-		if (cp == np) {
-		    err = ESLICE;
-		    goto fail;
+	case DEVT_DISK:
+		unit = -1;
+		slice = -1;
+		partition = -1;
+		if (*np && (*np != ':')) {
+			unit = strtol(np, &cp, 10);	/* next comes the unit number */
+			if (cp == np) {
+				err = EUNIT;
+				goto fail;
+			}
+			if (*cp == 's') {		/* got a slice number */
+				np = cp + 1;
+				slice = strtol(np, &cp, 10);
+				if (cp == np) {
+					err = ESLICE;
+					goto fail;
+				}
+			}
+			if (*cp && (*cp != ':')) {
+				partition = *cp - 'a';		/* get a partition number */
+				if ((partition < 0) || (partition >= MAXPARTITIONS)) {
+					err = EPART;
+					goto fail;
+				}
+				cp++;
+			}
 		}
-	    }
-	    if (*cp && (*cp != ':')) {
-		partition = *cp - 'a';		/* get a partition number */
-		if ((partition < 0) || (partition >= MAXPARTITIONS)) {
-		    err = EPART;
-		    goto fail;
+		if (*cp && (*cp != ':')) {
+			err = EINVAL;
+			goto fail;
 		}
-		cp++;
-	    }
-	}
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
-	    goto fail;
-	}
 
-	idev->d_kind.efidisk.unit = unit;
-	idev->d_kind.efidisk.slice = slice;
-	idev->d_kind.efidisk.partition = partition;
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
-	break;
+		idev->d_kind.efidisk.unit = unit;
+		idev->d_kind.efidisk.slice = slice;
+		idev->d_kind.efidisk.partition = partition;
+
+		if (path != NULL)
+			*path = (*cp == 0) ? cp : cp + 1;
+		break;
 	
-    case DEVT_NET:
-	unit = 0;
+	case DEVT_NET:
+		unit = 0;
 	
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 0);	/* get unit number if present */
-	    if (cp == np) {
-		err = EUNIT;
+		if (*np && (*np != ':')) {
+			unit = strtol(np, &cp, 0);	/* get unit number if present */
+			if (cp == np) {
+				err = EUNIT;
+				goto fail;
+			}
+		}
+		if (*cp && (*cp != ':')) {
+			err = EINVAL;
+			goto fail;
+		}
+	
+		idev->d_kind.netif.unit = unit;
+		if (path != NULL)
+			*path = (*cp == 0) ? cp : cp + 1;
+		break;
+
+	default:
+		err = EINVAL;
 		goto fail;
-	    }
 	}
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
-	    goto fail;
+	idev->d_dev = dv;
+	idev->d_type = dv->dv_type;
+	if (dev == NULL) {
+		free(idev);
+	} else {
+		*dev = idev;
 	}
-	
-	idev->d_kind.netif.unit = unit;
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
-	break;
-
-    default:
-	err = EINVAL;
-	goto fail;
-    }
-    idev->d_dev = dv;
-    idev->d_type = dv->dv_type;
-    if (dev == NULL) {
-	free(idev);
-    } else {
-	*dev = idev;
-    }
-    return(0);
+	return(0);
 
  fail:
-    free(idev);
-    return(err);
+	free(idev);
+	return(err);
 }
 
 
 char *
 efi_fmtdev(void *vdev)
 {
-    struct efi_devdesc	*dev = (struct efi_devdesc *)vdev;
-    static char		buf[128];	/* XXX device length constant? */
-    char		*cp;
+	struct efi_devdesc *dev = (struct efi_devdesc *)vdev;
+	static char	buf[128];	/* XXX device length constant? */
+	char		*cp;
     
-    switch(dev->d_type) {
-    case DEVT_NONE:
-	strcpy(buf, "(no device)");
-	break;
+	switch(dev->d_type) {
+	case DEVT_NONE:
+		strcpy(buf, "(no device)");
+		break;
 
-    case DEVT_DISK:
-	cp = buf;
-	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.efidisk.unit);
-	if (dev->d_kind.efidisk.slice > 0)
-	    cp += sprintf(cp, "s%d", dev->d_kind.efidisk.slice);
-	if (dev->d_kind.efidisk.partition >= 0)
-	    cp += sprintf(cp, "%c", dev->d_kind.efidisk.partition + 'a');
-	strcat(cp, ":");
-	break;
+	case DEVT_DISK:
+		cp = buf;
+		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.efidisk.unit);
+		if (dev->d_kind.efidisk.slice > 0)
+			cp += sprintf(cp, "s%d", dev->d_kind.efidisk.slice);
+		if (dev->d_kind.efidisk.partition >= 0)
+			cp += sprintf(cp, "%c", dev->d_kind.efidisk.partition + 'a');
+		strcat(cp, ":");
+		break;
 
-    case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
-	break;
-    }
-    return(buf);
+	case DEVT_NET:
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
+		break;
+	}
+	return(buf);
 }
 
 
@@ -227,13 +228,13 @@ efi_fmtdev(void *vdev)
 int
 efi_setcurrdev(struct env_var *ev, int flags, void *value)
 {
-    struct efi_devdesc	*ncurr;
-    int			rv;
+	struct efi_devdesc *ncurr;
+	int		rv;
     
-    if ((rv = efi_parsedev(&ncurr, value, NULL)) != 0)
-	return(rv);
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(0);
+	if ((rv = efi_parsedev(&ncurr, value, NULL)) != 0)
+		return(rv);
+	free(ncurr);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	return(0);
 }
 
