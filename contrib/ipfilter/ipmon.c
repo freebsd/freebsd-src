@@ -8,7 +8,7 @@
 #define SOLARIS (defined(__SVR4) || defined(__svr4__)) && defined(sun)
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/types.h>
