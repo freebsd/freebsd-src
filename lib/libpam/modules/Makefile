@@ -35,7 +35,7 @@ SUBDIR+=	pam_kerberos5
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey
-.if exists({$.CURDIR}/../../../crypto/openssh) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_ssh
 .endif
 SUBDIR+=	pam_tacplus
