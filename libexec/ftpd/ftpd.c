@@ -80,6 +80,7 @@ static const char rcsid[] =
 #include <grp.h>
 #include <opie.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,8 +230,9 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 		    syslog(LOG_INFO,"%s %s%s", cmd, \
 			*(file) == '/' ? "" : curdir(), file); \
 		else \
-		    syslog(LOG_INFO, "%s %s%s = %qd bytes", \
-			cmd, (*(file) == '/') ? "" : curdir(), file, cnt); \
+		    syslog(LOG_INFO, "%s %s%s = %jd bytes", \
+			cmd, (*(file) == '/') ? "" : curdir(), file, \
+			(intmax_t)cnt); \
 	}
 
 #ifdef VIRTUAL_HOSTING
@@ -1882,7 +1884,8 @@ dataconn(char *name, off_t size, char *mode)
 	file_size = size;
 	byte_count = 0;
 	if (size != (off_t) -1)
-		(void) snprintf(sizebuf, sizeof(sizebuf), " (%qd bytes)", size);
+		(void) snprintf(sizebuf, sizeof(sizebuf),
+				" (%jd bytes)", (intmax_t)size);
 	else
 		*sizebuf = '\0';
 	if (pdata >= 0) {
@@ -2656,10 +2659,11 @@ myoob(void)
 	if (strcmp(cp, "STAT\r\n") == 0) {
 		tmpline[0] = '\0';
 		if (file_size != (off_t) -1)
-			reply(213, "Status: %qd of %qd bytes transferred",
-			    byte_count, file_size);
+			reply(213, "Status: %jd of %jd bytes transferred",
+				   (intmax_t)byte_count, (intmax_t)file_size);
 		else
-			reply(213, "Status: %qd bytes transferred", byte_count);
+			reply(213, "Status: %jd bytes transferred",
+				   (intmax_t)byte_count);
 	}
 }
 
