@@ -84,5 +84,5 @@ sigismember(set, signo)
 	const sigset_t *set;
 	int signo;
 {
-	return ((*set & ~sigmask(signo)) != 0);
+	return ((*set & sigmask(signo)) != 0);
 }
