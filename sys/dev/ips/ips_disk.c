@@ -36,6 +36,12 @@ static int ipsd_probe(device_t dev);
 static int ipsd_attach(device_t dev);
 static int ipsd_detach(device_t dev);
 
+static int ipsd_dump(void *arg, void *virtual, vm_offset_t physical,
+		     off_t offset, size_t length);
+static void ipsd_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs,
+			     int error);
+static void ipsd_dump_block_complete(ips_command_t *command);
+
 static disk_open_t ipsd_open;
 static disk_close_t ipsd_close;
 static disk_strategy_t ipsd_strategy;
@@ -46,7 +52,6 @@ static device_method_t ipsd_methods[] = {
 	DEVMETHOD(device_detach,	ipsd_detach),
 	{ 0, 0 }
 };
-
 
 static driver_t ipsd_driver = {
 	"ipsd",
@@ -136,6 +141,7 @@ static int ipsd_attach(device_t dev)
 	dsc->ipsd_disk->d_open = ipsd_open;
 	dsc->ipsd_disk->d_close = ipsd_close;
 	dsc->ipsd_disk->d_strategy = ipsd_strategy;
+	dsc->ipsd_disk->d_dump = ipsd_dump;
 
 	totalsectors = dsc->sc->drives[dsc->disk_number].sector_count;
    	if ((totalsectors > 0x400000) &&
@@ -167,4 +173,130 @@ static int ipsd_detach(device_t dev)
 		return (EBUSY);
 	disk_destroy(dsc->ipsd_disk);
 	return 0;
+}
+
+static int
+ipsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
+	  size_t length)
+{
+	ipsdisk_softc_t *dsc;
+	ips_softc_t *sc;
+	ips_command_t *command;
+	ips_io_cmd *command_struct;
+	struct disk *dp;
+	void *va;
+	off_t off;
+	size_t len;
+	int error = 0;
+
+	dp = arg;
+	dsc = dp->d_drv1;
+	sc = dsc->sc;
+
+	if (dsc == NULL)
+		return (EINVAL);
+
+	if (ips_get_free_cmd(sc, &command, 0) != 0) {
+		printf("ipsd: failed to get cmd for dump\n");
+		return (ENOMEM);
+	}
+
+	command->data_dmatag = sc->sg_dmatag;
+	command->callback = ipsd_dump_block_complete;
+
+	command_struct = (ips_io_cmd *)command->command_buffer;
+	command_struct->id = command->id;
+	command_struct->drivenum= sc->drives[dsc->disk_number].drivenum;
+
+	off = offset;
+	va = virtual;
+
+	while (length > 0) {
+		len =
+		    (length > IPS_MAX_IO_SIZE) ? IPS_MAX_IO_SIZE : length;
+
+		command_struct->lba = off / IPS_BLKSIZE;
+
+		if (bus_dmamap_load(command->data_dmatag, command->data_dmamap,
+		    va, len, ipsd_dump_map_sg, command, BUS_DMA_NOWAIT) != 0) {
+			error = EIO;
+			break;
+		}
+		if (COMMAND_ERROR(&command->status)) {
+			error = EIO;
+			break;
+		}
+
+		length -= len;
+		off += len;
+		va = (uint8_t *)va + len;
+	}
+
+	ips_insert_free_cmd(command->sc, command);
+	return (error);
+}
+
+static void
+ipsd_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	ips_softc_t *sc;
+	ips_command_t *command;
+	ips_sg_element_t *sg_list;
+	ips_io_cmd *command_struct;
+	int i, length;
+
+	command = (ips_command_t *)arg;
+	sc = command->sc;
+	length = 0;
+
+	if (error) {
+		printf("ipsd_dump_map_sg: error %d\n", error);
+		command->status.value = IPS_ERROR_STATUS;
+		return;
+	}
+
+	command_struct = (ips_io_cmd *)command->command_buffer;
+
+	if (nsegs != 1) {
+		command_struct->segnum = nsegs;
+		sg_list = (ips_sg_element_t *)((uint8_t *)
+		    command->command_buffer + IPS_COMMAND_LEN);
+		for (i = 0; i < nsegs; i++) {
+			sg_list[i].addr = segs[i].ds_addr;
+			sg_list[i].len = segs[i].ds_len;
+			length += segs[i].ds_len;
+		}
+		command_struct->buffaddr =
+		    (uint32_t)command->command_phys_addr + IPS_COMMAND_LEN;
+		command_struct->command = IPS_SG_WRITE_CMD;
+	} else {
+		command_struct->buffaddr = segs[0].ds_addr;
+		length = segs[0].ds_len;
+		command_struct->segnum = 0;
+		command_struct->command = IPS_WRITE_CMD;
+	}
+
+	length = (length + IPS_BLKSIZE - 1) / IPS_BLKSIZE;
+	command_struct->length = length;
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+
+	sc->ips_issue_cmd(command);
+	sc->ips_poll_cmd(command);
+	return;
+}
+
+static void 
+ipsd_dump_block_complete(ips_command_t *command)
+{
+
+	if (COMMAND_ERROR(&command->status))
+		printf("ipsd_dump completion error= 0x%x\n",
+		    command->status.value);
+
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
+	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
 }
