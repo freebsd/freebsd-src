@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 43 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -203,35 +203,13 @@ AcpiNsOneCompleteParse (
     UINT32                  PassNumber,
     ACPI_TABLE_DESC         *TableDesc)
 {
-    ACPI_PARSE_DOWNWARDS    DescendingCallback;
-    ACPI_PARSE_UPWARDS      AscendingCallback;
     ACPI_PARSE_OBJECT       *ParseRoot;
     ACPI_STATUS             Status;
+    ACPI_WALK_STATE         *WalkState;
 
 
     FUNCTION_TRACE ("NsOneCompleteParse");
 
-
-    switch (PassNumber)
-    {
-    case 1:
-        DescendingCallback = AcpiDsLoad1BeginOp;
-        AscendingCallback  = AcpiDsLoad1EndOp;
-        break;
-
-    case 2:
-        DescendingCallback = AcpiDsLoad2BeginOp;
-        AscendingCallback  = AcpiDsLoad2EndOp;
-        break;
-
-    case 3:
-        DescendingCallback = AcpiDsExecBeginOp;
-        AscendingCallback  = AcpiDsExecEndOp;
-        break;
-
-    default:
-        return (AE_BAD_PARAMETER);
-    }
 
     /* Create and init a Root Node */
 
@@ -244,15 +222,28 @@ AcpiNsOneCompleteParse (
     ((ACPI_PARSE2_OBJECT *) ParseRoot)->Name = ACPI_ROOT_NAME;
 
 
-    /* Pass 1:  Parse everything except control method bodies */
+    /* Create and initialize a new walk state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+                                    NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        AcpiPsFreeOp (ParseRoot);
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, ParseRoot, NULL, TableDesc->AmlStart, 
+                    TableDesc->AmlLength, NULL, NULL, PassNumber);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiDsDeleteWalkState (WalkState);
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Parse the AML */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %d parse\n", PassNumber));
-
-    Status = AcpiPsParseAml (ParseRoot, TableDesc->AmlPointer,
-                            TableDesc->AmlLength,
-                            ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE,
-                            NULL, NULL, NULL, DescendingCallback,
-                            AscendingCallback);
+    Status = AcpiPsParseAml (WalkState);
 
     AcpiPsDeleteParseTree (ParseRoot);
     return_ACPI_STATUS (Status);
@@ -323,8 +314,8 @@ AcpiNsParseTable (
  *
  * FUNCTION:    AcpiNsLoadTable
  *
- * PARAMETERS:  *PcodeAddr          - Address of pcode block
- *              PcodeLength         - Length of pcode block
+ * PARAMETERS:  TableDesc       - Descriptor for table to be loaded
+ *              Node            - Owning NS node 
  *
  * RETURN:      Status
  *
@@ -343,13 +334,13 @@ AcpiNsLoadTable (
     FUNCTION_TRACE ("NsLoadTable");
 
 
-    if (!TableDesc->AmlPointer)
+    if (!TableDesc->AmlStart)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null AML pointer\n"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "AML block at %p\n", TableDesc->AmlPointer));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "AML block at %p\n", TableDesc->AmlStart));
 
 
     if (!TableDesc->AmlLength)

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 106 $
+ *       $Revision: 107 $
  *
  *****************************************************************************/
 
@@ -255,7 +255,7 @@ AcpiNsLookup (
 
 ACPI_NAMESPACE_NODE *
 AcpiNsCreateNode (
-    UINT32                  AcpiName);
+    UINT32                  Name);
 
 void
 AcpiNsDeleteNode (

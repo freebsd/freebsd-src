@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 106 $
+ *       $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -271,26 +271,21 @@ AcpiExWriteDataToField (
 
 ACPI_STATUS
 AcpiExTriadic (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExHexadic (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExCreateBufferField (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExReconfiguration (
-    UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
@@ -309,9 +304,13 @@ AcpiExCreatePowerResource (
 
 ACPI_STATUS
 AcpiExCreateRegion (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     UINT8                   RegionSpace,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiExCreateTableRegion (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
@@ -324,7 +323,7 @@ AcpiExCreateAlias (
 
 ACPI_STATUS
 AcpiExCreateMethod (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     UINT32                  MethodFlags,
     ACPI_NAMESPACE_NODE     *Method);
@@ -444,20 +443,15 @@ AcpiExSystemWaitSemaphore (
 
 ACPI_STATUS
 AcpiExMonadic1 (
-    UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExMonadic2 (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExMonadic2R (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 
 /*
@@ -466,26 +460,19 @@ AcpiExMonadic2R (
 
 ACPI_STATUS
 AcpiExDyadic1 (
-    UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExDyadic2 (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExDyadic2R (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExDyadic2S (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc);
+    ACPI_WALK_STATE         *WalkState);
 
 
 /*
@@ -520,7 +507,7 @@ AcpiExGetBufferFieldValue (
 void
 AcpiExShowHexValue (
     UINT32                  ByteCount,
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  LeadSpace);
 
 
@@ -731,6 +718,24 @@ AcpiExSystemIoSpaceHandler (
 
 ACPI_STATUS
 AcpiExPciConfigSpaceHandler (
+    UINT32                  Function,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  BitWidth,
+    UINT32                  *Value,
+    void                    *HandlerContext,
+    void                    *RegionContext);
+
+ACPI_STATUS
+AcpiExCmosSpaceHandler (
+    UINT32                  Function,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  BitWidth,
+    UINT32                  *Value,
+    void                    *HandlerContext,
+    void                    *RegionContext);
+
+ACPI_STATUS
+AcpiExPciBarSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,

@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 97 $
+ *              $Revision: 99 $
  *
  ******************************************************************************/
 
@@ -488,17 +488,18 @@ AcpiNsExecuteControlMethod (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No attached method object\n"));
 
         AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
-        return_ACPI_STATUS (AE_ERROR);
+        return_ACPI_STATUS (AE_NULL_OBJECT);
     }
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Control method at Offset %x Length %lx]\n",
-        ObjDesc->Method.Pcode + 1, ObjDesc->Method.PcodeLength - 1));
+        ObjDesc->Method.AmlStart + 1, ObjDesc->Method.AmlLength - 1));
 
     DUMP_PATHNAME (MethodNode, "NsExecuteControlMethod: Executing",
         ACPI_LV_NAMES, _COMPONENT);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "At offset %8XH\n", ObjDesc->Method.Pcode + 1));
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "At offset %8XH\n", 
+            ObjDesc->Method.AmlStart + 1));
 
 
     /*

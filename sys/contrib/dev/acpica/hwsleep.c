@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 21 $
+ *              $Revision: 22 $
  *
  *****************************************************************************/
 
@@ -270,7 +270,7 @@ AcpiEnterSleepState (
 
     disable ();
 
-    /* TODO: disable all non-wake GPEs here */
+    AcpiHwDisableNonWakeupGpes();
 
     PM1AControl = (UINT16) AcpiHwRegisterRead (ACPI_MTX_LOCK, PM1_CONTROL);
 
@@ -324,6 +324,8 @@ AcpiEnterSleepState (
     }
     while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS));
 
+    AcpiHwEnableNonWakeupGpes();
+
     enable ();
 
     return_ACPI_STATUS (AE_OK);
@@ -365,7 +367,7 @@ AcpiLeaveSleepState (
 
     /* _WAK returns stuff - do we want to look at it? */
 
-    /* Re-enable GPEs */
+    AcpiHwEnableNonWakeupGpes();
 
     return_ACPI_STATUS (AE_OK);
 }

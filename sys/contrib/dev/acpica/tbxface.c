@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -151,15 +151,6 @@ AcpiLoadTables (void)
     FUNCTION_TRACE ("AcpiLoadTables");
 
 
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-
     /* Get the RSDP */
 
     Status = AcpiOsGetRootPointer (ACPI_LOGICAL_ADDRESSING,
@@ -252,14 +243,6 @@ AcpiLoadTable (
     FUNCTION_TRACE ("AcpiLoadTable");
 
 
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
     if (!TablePtr)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -316,19 +299,10 @@ AcpiUnloadTable (
     ACPI_TABLE_TYPE         TableType)
 {
     ACPI_TABLE_DESC         *ListHead;
-    ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("AcpiUnloadTable");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /* Parameter validation */
 
@@ -394,14 +368,6 @@ AcpiGetTableHeader (
 
     FUNCTION_TRACE ("AcpiGetTableHeader");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     if ((Instance == 0)                 ||
         (TableType == ACPI_TABLE_RSDP)  ||
@@ -482,14 +448,6 @@ AcpiGetTable (
 
     FUNCTION_TRACE ("AcpiGetTable");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /*
      *  If we have a buffer, we must have a length too
