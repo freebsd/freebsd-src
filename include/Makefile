@@ -38,7 +38,8 @@ PFILES=	mqueue.h sched.h semaphore.h # aio.h
 # Only for default SHARED=copies case
 SFILES=	soundcard.h
 
-LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
+LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
+	termios.h ucontext.h
 
 LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
 	pccard posix4 sys vm
