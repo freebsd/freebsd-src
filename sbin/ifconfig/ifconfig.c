@@ -94,6 +94,11 @@ static const char rcsid[] =
 #define	NI_WITHSCOPEID	0
 #endif
 
+/*
+ * Since "struct ifreq" is composed of various union members, callers
+ * should pay special attention to interprete the value.
+ * (.e.g. little/big endian difference in the structure.)
+ */
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
 #ifdef INET6
@@ -653,14 +658,15 @@ end:
 int
 ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 {
-	int s;
+	int af, s;
 
 	if (afp == NULL)
 		afp = &afs[0];
-	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
+	af = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
+	ifr.ifr_addr.sa_family = af;
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 
-	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(af, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 
 	while (argc > 0) {
@@ -690,7 +696,7 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 		argc--, argv++;
 	}
 #ifdef INET6
-	if (ifr.ifr_addr.sa_family == AF_INET6 && explicit_prefix == 0) {
+	if (af == AF_INET6 && explicit_prefix == 0) {
 		/* Aggregatable address architecture defines all prefixes
 		   are 64. So, it is convenient to set prefixlen to 64 if
 		   it is not specified. */
@@ -699,7 +705,7 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 	}
 #endif
 #ifndef NO_IPX
-	if (setipdst && ifr.ifr_addr.sa_family == AF_IPX) {
+	if (setipdst && af == AF_IPX) {
 		struct ipxip_req rq;
 		int size = sizeof(rq);
 
@@ -710,7 +716,7 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 			Perror("Encapsulation Routing");
 	}
 #endif
-	if (ifr.ifr_addr.sa_family == AF_APPLETALK)
+	if (af == AF_APPLETALK)
 		checkatrange((struct sockaddr_at *) &addreq.ifra_addr);
 	if (clearaddr) {
 		if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
