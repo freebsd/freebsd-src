@@ -41,9 +41,14 @@ Verstion 1.7: January 9, 1997 (cjm)
       from two hosts which are both running packet
       aliasing.
 
+    - Checksum error on FTP transfers.  Problem
+      in code located by Martin Renters and
+      Brian Somers.
+
 Version 1.8: January 14, 1997 (cjm)
     - Fixed data type error in function StartPoint()
       in alias_db.c (this bug did not exist before v1.7)
+      Problem in code located by Ari Suutari.
 
 Version 1.9: February 1, 1997 (Eivind Eklund <perhaps@yes.no>)
     - Added support for IRC DCC (ee)
@@ -108,5 +113,10 @@ Version 2.3: August 11, 1997 (cjm)
     - Problem associated with socket file descriptor
       accumulation in alias_db.c corrected.  The sockets
       had to be closed when a binding failed.  Problem 
-      identified by Gordon Burditt.
+      in code located by Gordon Burditt.
+
+Version 2.4: September 1, 1997 (cjm)
+    - PKT_ALIAS_UNREGISTERED_ONLY option repaired.
+      This part of the code was incorrectly re-implemented
+      in version 2.1.
 
