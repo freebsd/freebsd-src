@@ -102,7 +102,6 @@ SUBDIR=	3dfx \
 	usb \
 	uscanner \
 	uvscom \
-	vinum \
 	vpo \
 	vr \
 	vx \
@@ -161,6 +160,7 @@ SUBDIR+=aac \
 	stg \
 	streams \
 	vesa \
+	vinum \
 	wi \
 	xe
 .endif
@@ -189,7 +189,8 @@ SUBDIR+=aic \
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=pmc \
-	snc
+	snc \
+	vinum
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
@@ -200,7 +201,8 @@ SUBDIR+=cam \
 	lomac \
 	osf1 \
 	sound \
-	sppp
+	sppp \
+	vinum
 .endif
 
 .if defined(WANT_EXT2FS_MODULE)
