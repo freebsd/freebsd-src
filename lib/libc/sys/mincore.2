@@ -32,12 +32,12 @@
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd January 17, 2003
 .Dt MINCORE 2
 .Os
 .Sh NAME
 .Nm mincore
-.Nd get advice about use of memory
+.Nd determine residency of memory pages
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -47,17 +47,50 @@
 .Sh DESCRIPTION
 The
 .Fn mincore
-system call
-allows a process to obtain information about whether pages are
-core resident.
-Here the current core residency of the pages is returned
-in the character array
-.Fa vec ,
-with a value of 1 meaning
-that the page is in-core.
+system call determines whether each of the pages in the region beginning at
+.Fa addr
+and continuing for
+.Fa len
+bytes is resident.
+.\"The beginning address,
+.\".Fa addr ,
+.\"is first rounded down to a multiple of the page size (see
+.\".Xr getpagesize 3 Ns ).
+.\"The end address,
+.\".Fa addr No + Fa len ,
+.\"is rounded up to a multiple of the page size.
+The status is returned in the
+.Fa vec
+array, one character per page.
+Each character is either 0 if the page is not resident, or a combination of
+the following flags (defined in
+.Sy <sys/mman.h> Ns No ) Ns :
+.Bl -tag -width ".Dv MINCORE_REFERENCED_OTHER"
+.It Dv MINCORE_INCORE
+Page is in core (resident).
+.It Dv MINCORE_REFERENCED
+Page has been referenced by us.
+.It Dv MINCORE_MODIFIED
+Page has been modified by us.
+.It Dv MINCORE_REFERENCED_OTHER
+Page has been referenced.
+.It Dv MINCORE_MODIFIED_OTHER
+Page has been modified.
+.El
+.Pp
+The information returned by
+.Fn mincore
+may be out of date by the time the function returns.
+The only way to ensure that a page is resident is to lock it into memory
+with the
+.Xr mlock 2
+function.
 .Sh RETURN VALUES
 .Rv -std mincore
 .Sh ERRORS
+The
+.Fn mincore
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The virtual address range specified by the
@@ -70,14 +103,13 @@ The
 .Fa vec
 argument points to an illegal address.
 .El
-.Sh BUGS
-This man page is incorrect.
-The vector description is wrong.
 .Sh SEE ALSO
 .Xr madvise 2 ,
+.Xr mlock 2 ,
 .Xr mprotect 2 ,
 .Xr msync 2 ,
-.Xr munmap 2
+.Xr munmap 2 ,
+.Xr getpagesize 3
 .Sh HISTORY
 The
 .Fn mincore
