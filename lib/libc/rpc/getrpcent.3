@@ -1,16 +1,18 @@
 .\" @(#)getrpcent.3n	2.2 88/08/02 4.0 RPCSRC; from 1.11 88/03/14 SMI
 .Dd "December 14, 1987"
 .Dt GETRPCENT 3
-.Sh NAME
 .Os
+.Sh NAME
 .Nm getrpcent ,
 .Nm getrpcbyname ,
-.Nm getrpcbynumber
+.Nm getrpcbynumber ,
+.Nm endrpcent ,
+.Nm setrpcent
 .Nd get RPC entry
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
 .Ft struct rpcent *
-.Fn getrpcent
+.Fn getrpcent void
 .Ft struct rpcent *
 .Fn getrpcbyname "char *name"
 .Ft struct rpcent *
@@ -18,7 +20,7 @@
 .Ft void
 .Fn setrpcent "int stayopen"
 .Ft void
-.Fn endrpcent
+.Fn endrpcent void
 .Sh DESCRIPTION
 The
 .Fn getrpcent ,
