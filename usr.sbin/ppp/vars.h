@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.28 1997/09/22 23:59:16 brian Exp $
+ * $Id: vars.h,v 1.29 1997/09/25 00:52:37 brian Exp $
  *
  *	TODO:
  */
@@ -155,7 +155,7 @@ int ipConnectSecs, ipIdleSecs;
 #define RECON_TRUE (1)
 #define RECON_FALSE (2)
 #define RECON_UNKNOWN (3)
-#define RECON_ENVOKED (3)
+#define RECON_ENVOKED (4)
 #define reconnect(x)                          \
   do                                          \
     if (reconnectState == RECON_UNKNOWN) { \
