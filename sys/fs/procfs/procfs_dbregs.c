@@ -49,27 +49,22 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
 #include <machine/reg.h>
 
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#include <vm/vm.h>
-
 int
-procfs_dodbregs(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocdbregs(PFS_FILL_ARGS)
 {
 	int error;
 	struct dbreg r;
 	char *kv;
 	int kl;
 
-	if (p_candebug(curp, p))
+	if (p_candebug(td->td_proc, p) != 0)
 		return (EPERM);
 	kl = sizeof(r);
 	kv = (char *) &r;
@@ -78,8 +73,6 @@ procfs_dodbregs(curp, p, pfs, uio)
 	kl -= uio->uio_offset;
 	if (kl > uio->uio_resid)
 		kl = uio->uio_resid;
-
-	PHOLD(p);
 
 	if (kl < 0)
 		error = EINVAL;
@@ -93,15 +86,7 @@ procfs_dodbregs(curp, p, pfs, uio)
 		else
 			error = proc_write_dbregs(&p->p_thread, &r); /* XXXKSE */
 	}
-	PRELE(p);
 
 	uio->uio_offset = 0;
 	return (error);
-}
-
-int
-procfs_validdbregs(struct thread *td)
-{
-
-	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
 }

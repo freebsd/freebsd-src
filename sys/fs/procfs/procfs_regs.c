@@ -46,28 +46,22 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
 #include <machine/reg.h>
 
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 int
-procfs_doregs(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocregs(PFS_FILL_ARGS)
 {
 	int error;
 	struct reg r;
 	char *kv;
 	int kl;
 
-	if (p_candebug(curp, p))
+	if (p_candebug(td->td_proc, p))
 		return EPERM;
 	kl = sizeof(r);
 	kv = (char *) &r;
@@ -95,11 +89,4 @@ procfs_doregs(curp, p, pfs, uio)
 
 	uio->uio_offset = 0;
 	return (error);
-}
-
-int
-procfs_validregs(struct thread *td)
-{
-
-	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
 }

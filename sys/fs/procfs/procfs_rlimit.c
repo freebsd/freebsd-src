@@ -48,31 +48,18 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/resource.h>
-#include <sys/types.h>
+#include <sys/sbuf.h>
+
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 
 int
-procfs_dorlimit(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocrlimit(PFS_FILL_ARGS)
 {
-	char *ps;
 	int i;
-	int xlen;
-	int error;
-	char psbuf[512];		/* XXX - conservative */
-
-	if (uio->uio_rw != UIO_READ)
-		return (EOPNOTSUPP);
-
-
-	ps = psbuf;
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
 
@@ -80,7 +67,7 @@ procfs_dorlimit(curp, p, pfs, uio)
 		 * Add the rlimit ident
 		 */
 
-		ps += sprintf(ps, "%s ", rlimit_ident[i]);
+		sbuf_printf(sb, "%s ", rlimit_ident[i]);
 
 		/* 
 		 * Replace RLIM_INFINITY with -1 in the string
@@ -91,9 +78,9 @@ procfs_dorlimit(curp, p, pfs, uio)
 		 */
 
 		if (p->p_rlimit[i].rlim_cur == RLIM_INFINITY) {
-			ps += sprintf(ps, "-1 ");
+			sbuf_printf(sb, "-1 ");
 		} else {
-			ps += sprintf(ps, "%llu ",
+			sbuf_printf(sb, "%llu ",
 				(unsigned long long)p->p_rlimit[i].rlim_cur);
 		}
 
@@ -102,27 +89,13 @@ procfs_dorlimit(curp, p, pfs, uio)
 		 */
 
 		if (p->p_rlimit[i].rlim_max == RLIM_INFINITY) {
-			ps += sprintf(ps, "-1\n");
+			sbuf_printf(sb, "-1\n");
 		} else {
-			ps += sprintf(ps, "%llu\n",
+			sbuf_printf(sb, "%llu\n",
 				(unsigned long long)p->p_rlimit[i].rlim_max);
 		}
 	}
 
-	/*
-	 * This logic is rather tasty - but its from procfs_status.c, so
-	 * I guess I'll use it here.
-	 */
-
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-
-	return (error);
+	return (0);
 }
 

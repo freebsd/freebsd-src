@@ -44,10 +44,12 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/sbuf.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
@@ -67,7 +69,12 @@
 #define PROCFS_CTL_RUN		4
 #define PROCFS_CTL_WAIT		5
 
-static vfs_namemap_t ctlnames[] = {
+struct namemap {
+	const char *nm_name;
+	int nm_val;
+};
+
+static struct namemap ctlnames[] = {
 	/* special /proc commands */
 	{ "attach",	PROCFS_CTL_ATTACH },
 	{ "detach",	PROCFS_CTL_DETACH },
@@ -77,7 +84,7 @@ static vfs_namemap_t ctlnames[] = {
 	{ 0 },
 };
 
-static vfs_namemap_t signames[] = {
+static struct namemap signames[] = {
 	/* regular signal names */
 	{ "hup",	SIGHUP },	{ "int",	SIGINT },
 	{ "quit",	SIGQUIT },	{ "ill",	SIGILL },
@@ -101,10 +108,7 @@ static vfs_namemap_t signames[] = {
 static int	procfs_control __P((struct proc *curp, struct proc *p, int op));
 
 static int
-procfs_control(curp, p, op)
-	struct proc *curp;
-	struct proc *p;
-	int op;
+procfs_control(struct proc *curp, struct proc *p, int op)
 {
 	int error = 0;
 
@@ -240,7 +244,6 @@ out:
 	 * Step.  Let the target process execute a single instruction.
 	 */
 	case PROCFS_CTL_STEP:
-		_PHOLD(p);
 		PROC_UNLOCK(p);
 		error = proc_sstep(&p->p_thread); /* XXXKSE */
 		PRELE(p);
@@ -301,25 +304,25 @@ out:
 	return (0);
 }
 
-int
-procfs_doctl(curp, p, pfs, uio)
-	struct proc *curp;
-	struct pfsnode *pfs;
-	struct uio *uio;
-	struct proc *p;
+static struct namemap *
+findname(struct namemap *nm, char *buf, int buflen)
 {
-	int xlen;
+
+	for (; nm->nm_name; nm++)
+		if (bcmp(buf, nm->nm_name, buflen+1) == 0)
+			return (nm);
+
+	return (0);
+}
+
+int
+procfs_doprocctl(PFS_FILL_ARGS)
+{
 	int error;
-	char msg[PROCFS_CTLLEN+1];
-	vfs_namemap_t *nm;
+	struct namemap *nm;
 
-	if (uio->uio_rw != UIO_WRITE)
+	if (uio == NULL || uio->uio_rw != UIO_WRITE)
 		return (EOPNOTSUPP);
-
-	xlen = PROCFS_CTLLEN;
-	error = vfs_getuserstr(uio, msg, &xlen);
-	if (error)
-		return (error);
 
 	/*
 	 * Map signal names into signal generation
@@ -332,15 +335,19 @@ procfs_doctl(curp, p, pfs, uio)
 	 */
 	error = EOPNOTSUPP;
 
-	nm = vfs_findname(ctlnames, msg, xlen);
+	sbuf_trim(sb);
+	sbuf_finish(sb);
+	nm = findname(ctlnames, sbuf_data(sb), sbuf_len(sb));
 	if (nm) {
-		error = procfs_control(curp, p, nm->nm_val);
+		printf("procfs: got a %s command\n", sbuf_data(sb));
+		error = procfs_control(td->td_proc, p, nm->nm_val);
 	} else {
-		nm = vfs_findname(signames, msg, xlen);
+		nm = findname(signames, sbuf_data(sb), sbuf_len(sb));
 		if (nm) {
+			printf("procfs: got a sig%s\n", sbuf_data(sb));
 			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
-			if (TRACE_WAIT_P(curp, p)) {
+			if (TRACE_WAIT_P(td->td_proc, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
 				FIX_SSTEP(&p->p_thread);   /* XXXKSE */
