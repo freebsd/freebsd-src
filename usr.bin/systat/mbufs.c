@@ -34,7 +34,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
@@ -182,5 +183,5 @@ fetchmbufs()
 	len = sizeof *mb;
 
 	if (sysctl(name, 3, mb, &len, 0, 0) < 0)
-		return;
+		printw("sysctl: %s", strerror(errno));
 }

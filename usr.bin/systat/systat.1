@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\"
-.Dd December 30, 1993
+.Dd September 9, 1997
 .Dt SYSTAT 1
 .Os BSD 4.3
 .Sh NAME
@@ -65,7 +65,10 @@ statistics (a la
 .Xr iostat  8  ) ,
 virtual memory statistics (a la
 .Xr vmstat  8  ) ,
-network ``mbuf'' utilization, and network connections (a la
+network ``mbuf'' utilization,
+.Tn ICMP
+statistics, 
+and network connections (a la
 .Xr netstat  1  ) .
 .Pp
 Input is interpreted at two different levels.
@@ -83,6 +86,7 @@ flag expects
 .Ar display
 to be one of:
 .Ic pigs ,
+.Ic icmp ,
 .Ic iostat ,
 .Ic swap ,
 .Ic mbufs ,
@@ -153,6 +157,43 @@ largest portion of the processor (the default display).
 When less than 100% of the
 processor is scheduled to user processes, the remaining time
 is accounted to the ``idle'' process.
+.It Ic icmp
+Display, in the lower window, statistics about messages received and
+transmitted by the Internet Control Message Protocol
+.Pq Dq Tn ICMP .
+The left half of the screen displays information about received
+packets, and the right half displays information regarding transmitted
+packets.
+.Pp
+The
+.Ic icmp
+display understands two commands:
+.Ic mode
+and
+.Ic reset .
+The
+.Ic mode
+command is used to select one of four display modes, given as its argument:
+.Bl -tag -width absoluteXX -compact
+.It Ic rate :
+show the rate of change of each value in packets (the default)
+per second
+.It Ic delta :
+show the rate of change of each value in packets per refresh interval
+.It Ic since :
+show the total change of each value since the display was last reset
+.It Ic absolute :
+show the absolute value of each statistic
+.El
+.Pp
+The
+.Ic reset
+command resets the baseline for
+.Ic since
+mode.  The
+.Ic mode
+command with no argument will display the current mode in the command
+line.
 .It Ic iostat
 Display, in the lower window, statistics about processor use
 and disk throughput.  Statistics on processor use appear as
@@ -398,6 +439,11 @@ drives may be specified, separated by spaces.
 Display information about the drives indicated.  Multiple drives
 may be specified, separated by spaces.
 .El
+.Sh SEE ALSO
+.Xr iostat 1 ,
+.Xr netstat 1 ,
+.Xr vmstat 1 ,
+.Xr icmp 4
 .Sh FILES
 .Bl -tag -width /etc/networks -compact
 .It Pa /kernel
@@ -418,6 +464,19 @@ The
 .Nm
 program appeared in
 .Bx 4.3 .
+The
+.Ic icmp
+display appeared in
+.Fx 3.0 ;
+the notion of having different display modes for the
+.Tn ICMP
+statistics was stolen from the
+.Fl C
+option to
+.Xr netstat 1
+in Silicon Graphics'
+.Tn IRIX
+system.
 .Sh BUGS
 Takes 2-10 percent of the cpu.
 Certain displays presume a minimum of 80 characters per line.
