@@ -213,9 +213,10 @@ struct ata_channel {
     int				flags;		/* controller flags */
 #define		ATA_NO_SLAVE		0x01
 #define		ATA_USE_16BIT		0x02
-#define		ATA_ATAPI_DMA_RO	0x04
-#define		ATA_QUEUED		0x08
-#define		ATA_DMA_ACTIVE		0x10
+#define		ATA_USE_PC98GEOM	0x04
+#define		ATA_ATAPI_DMA_RO	0x08
+#define		ATA_QUEUED		0x10
+#define		ATA_DMA_ACTIVE		0x20
 
     struct ata_device		device[2];	/* devices on this channel */
 #define		MASTER			0x00
