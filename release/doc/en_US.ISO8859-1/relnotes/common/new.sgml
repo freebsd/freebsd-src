@@ -248,8 +248,17 @@
 
     <para>&man.su.1; now has support for Kerberos V authentication.</para>
 
+    <para>&man.tr.1; now has basic support for equivalence classes
+      for locales that support them.</para>
+
     <para>&man.unexpand.1; now supports a <option>-t</option> to
       specify tabstabs analogous to &man.expand.1;.</para>
+
+    <para>&man.who.1; now has a number of new options:
+      <option>-H</option> shows column headings; <option>-T</option>
+      shows &man.mesg.1; state; <option>-m</option> is an equivalent
+      to <option>am i</option>; <option>-u</option> shows idle time;
+      <option>-q</option> to list names in columns.</para>
 
     <para>&man.xargs.1; now supports a <option>-I</option>
       <replaceable>replstr</replaceable> option that allows the user
