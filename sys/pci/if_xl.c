@@ -277,7 +277,7 @@ static device_method_t xl_methods[] = {
 };
 
 static driver_t xl_driver = {
-	"xl",
+	"if_xl",
 	xl_methods,
 	sizeof(struct xl_softc)
 };
