@@ -47,6 +47,7 @@
 static char sccsid[] = "@(#)list.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "include.h"
 
 PLANE	*
