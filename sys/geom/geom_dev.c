@@ -48,6 +48,7 @@
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <geom/geom.h>
+#include <machine/limits.h>
 
 #define CDEV_MAJOR	4
 
@@ -239,7 +240,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	struct g_kerneldump kd;
 	int i, error;
+	u_int u;
 	struct g_ioctl *gio;
 
 	gp = dev->si_drv1;
@@ -264,6 +267,20 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 	case DIOCGFRONTSTUFF:
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
+		break;
+	case DIOCSKERNELDUMP:
+		u = *((u_int *)data);
+		if (!u) {
+			set_dumper(NULL);
+			error = 0;
+			break;
+		}
+		kd.offset = 0;
+		kd.length = OFF_MAX;
+		i = sizeof kd;
+		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
+		if (!error)
+			dev->si_flags |= SI_DUMPDEV;
 		break;
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);
@@ -378,6 +395,8 @@ g_dev_orphan(struct g_consumer *cp)
 	if (cp->biocount > 0)
 		return;
 	dev = gp->softc;
+	if (dev->si_flags & SI_DUMPDEV)
+		set_dumper(NULL);
 	destroy_dev(dev);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
