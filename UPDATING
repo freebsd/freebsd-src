@@ -854,7 +854,7 @@ versions of -stable/-current.
 	Changes to the pccardd kernel interface require that you recompile
 	pccardd for new kernel.
 
-19980725:
+19990725:
 	The ipfw interface to the kernel has changed.  You will need to
 	recompile ipfw programs for the new kernel.
 
