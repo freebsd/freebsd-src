@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 2.12 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "$Id: do_command.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $";
 #endif
 
 
@@ -94,6 +94,10 @@ child_process(e, u)
 	 */
 	usernm = env_get("LOGNAME", e->envp);
 	mailto = env_get("MAILTO", e->envp);
+	if (mailto && *mailto == '-') {
+		log_it("CRON",getpid(), usernm, "attempts to crack");
+		exit(ERROR_EXIT);
+	}
 
 #ifdef USE_SIGCHLD
 	/* our parent is watching for our death by catching SIGCHLD.  we
@@ -206,12 +210,12 @@ child_process(e, u)
 		/* set our directory, uid and gid.  Set gid first, since once
 		 * we set uid, we've lost root privledges.
 		 */
-		setgid(e->gid);
+		chdir(env_get("HOME", e->envp));
 # if defined(BSD)
 		initgroups(env_get("LOGNAME", e->envp), e->gid);
 # endif
+		setgid(e->gid);
 		setuid(e->uid);		/* we aren't root after this... */
-		chdir(env_get("HOME", e->envp));
 
 		/* exec the command.
 		 */
