@@ -206,6 +206,7 @@ dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scterm-sc.c		optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
+dev/syscons/scgfbrndr.c		optional	sc tga
 dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
@@ -222,3 +223,9 @@ libkern/alpha/bswap16.S		standard
 libkern/alpha/bswap32.S		standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
+dev/fb/tga.c			optional	tga
+dev/fb/boot_font.c		optional	tga
+dev/tga/tga_pci.c		optional	tga
+dev/fb/fb.c			optional	tga
+dev/fb/gfb.c			optional	tga
+dev/gfb/gfb_pci.c		optional	tga

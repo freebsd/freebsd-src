@@ -84,8 +84,9 @@
 #define	FBTYPE_VGA		24
 #define	FBTYPE_PC98		25
 #define	FBTYPE_TGA		26
+#define	FBTYPE_TGA2		27
 
-#define	FBTYPE_LASTPLUSONE	27	/* max number of fbs (change as add) */
+#define	FBTYPE_LASTPLUSONE	28	/* max number of fbs (change as add) */
 
 /*
  * Frame buffer descriptor as returned by FBIOGTYPE.
@@ -274,10 +275,10 @@ struct video_info {
     int			vi_cheight;
     int			vi_depth;
     int			vi_planes;
-    u_int		vi_window;	/* physical address */
+    vm_offset_t		vi_window;	/* physical address */
     size_t		vi_window_size;
     size_t		vi_window_gran;
-    u_int		vi_buffer;	/* physical address */
+    vm_offset_t		vi_buffer;	/* physical address */
     size_t		vi_buffer_size;
     int			vi_mem_model;
 #define V_INFO_MM_OTHER  (-1)
@@ -295,6 +296,8 @@ struct video_info {
     int			vi_pixel_fsizes[4];
     /* reserved */
     u_char		vi_reserved[64];
+    vm_offset_t		vi_registers;	/* physical address */
+    vm_offset_t		vi_registers_size;
 };
 typedef struct video_info video_info_t;
 
@@ -310,6 +313,7 @@ struct video_adapter {
 #define KD_VGA		5		/* video graphics adapter */
 #define KD_PC98		6		/* PC-98 display */
 #define KD_TGA		7		/* TGA */
+#define KD_TGA2		8		/* TGA2 */
     char		*va_name;
     int			va_unit;
     int			va_minor;
@@ -327,10 +331,10 @@ struct video_adapter {
 #define V_ADP_INITIALIZED (1 << 17)
 #define V_ADP_REGISTERED (1 << 18)
 #define V_ADP_ATTACHED	(1 << 19)
-    int			va_io_base;
+    vm_offset_t		va_io_base;
     int			va_io_size;
-    int			va_crtc_addr;
-    int			va_mem_base;
+    vm_offset_t		va_crtc_addr;
+    vm_offset_t		va_mem_base;
     int			va_mem_size;
     vm_offset_t		va_window;	/* virtual address */
     size_t		va_window_size;
@@ -348,6 +352,12 @@ struct video_adapter {
 	int		y;
     } 			va_disp_start;
     void		*va_token;
+    int			va_model;
+    int			va_little_bitian;
+    int			va_little_endian;
+    int			va_buffer_alias;
+    vm_offset_t		va_registers;	/* virtual address */
+    vm_offset_t		va_registers_size;
 };
 typedef struct video_adapter video_adapter_t;
 
@@ -357,15 +367,15 @@ struct video_adapter_info {
     char		va_name[16];
     int			va_unit;
     int			va_flags;
-    int			va_io_base;
+    vm_offset_t		va_io_base;
     int			va_io_size;
-    int			va_crtc_addr;
-    int			va_mem_base;
+    vm_offset_t		va_crtc_addr;
+    vm_offset_t		va_mem_base;
     int			va_mem_size;
-    u_int		va_window;	/* virtual address */
+    vm_offset_t		va_window;	/* virtual address */
     size_t		va_window_size;
     size_t		va_window_gran;
-    u_int		va_unused0;
+    vm_offset_t		va_unused0;
     size_t		va_buffer_size;
     int			va_initial_mode;
     int			va_initial_bios_mode;
