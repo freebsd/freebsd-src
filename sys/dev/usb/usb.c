@@ -958,12 +958,8 @@ usb_cold_explore(void *arg)
 {
 	struct usb_softc *sc;
 
-	/* XXX, on some archs this is called too late. */
-	if (!cold) {
-		printf("usb_cold_explore: skipping because !cold\n");
-		return;
-	}
-
+	KASSERT(cold || TAILQ_EMPTY(&usb_coldexplist),
+	    ("usb_cold_explore: busses to explore when !cold"));
 	while (!TAILQ_EMPTY(&usb_coldexplist)) {
 		sc = TAILQ_FIRST(&usb_coldexplist);
 		TAILQ_REMOVE(&usb_coldexplist, sc, sc_coldexplist);
