@@ -1,6 +1,5 @@
-#	$Id: options.i386,v 1.87 1998/09/15 18:16:37 sos Exp $
+#	$Id: options.i386,v 1.88 1998/09/24 13:20:40 yokota Exp $
 
-BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

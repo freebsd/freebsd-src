@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.24 1998/07/11 05:59:35 bde Exp $
+ *	$Id: md_var.h,v 1.25 1998/09/14 22:43:40 jdp Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -38,10 +38,6 @@
 
 extern	int	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
-#ifdef BOUNCE_BUFFERS
-extern	char	*bouncememory;
-extern	int	bouncepages;
-#endif
 extern	int	busdma_swi_pending;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_high;
@@ -49,9 +45,6 @@ extern	u_int	cpu_id;
 extern	char	cpu_vendor[];
 extern	u_int	cyrix_did;
 extern	char	kstack[];
-#ifdef BOUNCE_BUFFERS
-extern	int	maxbkva;
-#endif
 #ifdef PC98
 extern	int	need_pre_dma_flush;
 extern	int	need_post_dma_flush;
@@ -88,7 +81,6 @@ void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));
 void	swi_vm __P((void));
 void	userconfig __P((void));
-void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */
