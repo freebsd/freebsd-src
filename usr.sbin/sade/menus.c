@@ -764,6 +764,10 @@ DMenu MenuSubDistributions = {
       { " compat3x",	"FreeBSD 3.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
 #endif
+#if __FreeBSD__ > 4
+      { " compat4x",	"FreeBSD 4.x binary compatibility",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT4X },
+#endif
 #endif
       { " crypto",	"Basic encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
