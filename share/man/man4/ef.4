@@ -30,13 +30,13 @@
 .Os
 .Sh NAME
 .Nm ef
-.Nd "pseudo-device driver providing support for multiple ethernet frame types"
+.Nd "pseudo-device driver providing support for multiple Ethernet frame types"
 .Sh SYNOPSIS
 .Cd "device ef"
 .Sh DESCRIPTION
 The
 .Nm
-pseudo-device driver clones each ethernet type device with four
+pseudo-device driver clones each Ethernet type device with four
 additional interfaces.
 Each of them is capable to send or receive only
 one predefined frame type.
@@ -101,7 +101,7 @@ file:
 .Sh DIAGNOSTICS
 None.
 .Sh CAVEATS
-Avoid to configure the parent ethernet device for the IPX protocol, after the
+Avoid to configure the parent Ethernet device for the IPX protocol, after the
 .Nm
 driver is loaded.
 .Sh SEE ALSO
