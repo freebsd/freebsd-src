@@ -228,8 +228,6 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  *
  * mtx_owned(m) returns non-zero if the current thread owns the lock `m'
  *
- * mtx_ownedby(m, td) returns non-zero if the specified thread owns the lock `m'
- *
  * mtx_recursed(m) returns non-zero if the lock `m' is presently recursed.
  */ 
 #define mtx_lock(m)		mtx_lock_flags((m), 0)
@@ -295,10 +293,7 @@ extern struct mtx_pool *mtxpool_sleep;
 
 #define	mtx_initialized(m)	((m)->mtx_object.lo_flags & LO_INITIALIZED)
 
-#define mtx_owned(m)	(mtx_ownedby((m), curthread))
-
-#define	mtx_ownedby(m, td)						\
-	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)(td))
+#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curthread)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 
