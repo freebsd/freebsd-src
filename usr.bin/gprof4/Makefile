@@ -6,7 +6,7 @@
 
 PROG=	gprof4
 NOMAN=	noman
-SRCS=	gprof.c arcs.c dfn.c lookup.c ${MACHINE}.c hertz.c \
+SRCS=	gprof.c arcs.c dfn.c lookup.c ${MACHINE_ARCH}.c hertz.c \
 	printgprof.c printlist.c
 CFLAGS+=-DGPROF4
 .PATH:	${.CURDIR}/../../usr.bin/gprof

@@ -4,7 +4,7 @@ PROG=	bad144
 SRCS=	bad144.c dkcksum.c
 MAN8=	bad144.8
 MLINKS=	bad144.8 ../bad144.8
-MANSUBDIR=/${MACHINE}
+MANSUBDIR=/${MACHINE_ARCH}
 .PATH: ${.CURDIR}/../../sbin/disklabel
 
 .include <bsd.prog.mk>
