@@ -92,21 +92,21 @@ cs_pccard_probe(device_t dev)
 static int
 cs_pccard_attach(device_t dev)
 {
-        struct cs_softc *sc = device_get_softc(dev);
-        int error;
-        
+	struct cs_softc *sc = device_get_softc(dev);
+	int error;
+
 	error = cs_alloc_port(dev, sc->port_rid, CS_89x0_IO_PORTS);
 	if (error != 0)
 		goto bad;
-        error = cs_alloc_irq(dev, sc->irq_rid, 0);
+	error = cs_alloc_irq(dev, sc->irq_rid, 0);
 	if (error != 0)
 		goto bad;
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 	    csintr, sc, &sc->irq_handle);
-        if (error != 0)
+	if (error != 0)
 		goto bad;
 
-        return (cs_attach(dev));
+	return (cs_attach(dev));
 bad:
 	cs_release_resources(dev);
 	return (error);

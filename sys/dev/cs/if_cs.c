@@ -190,20 +190,20 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 static int
 cs_duplex_auto(struct cs_softc *sc)
 {
-        int i, error=0;
-        
+	int i, error=0;
+
 	cs_writereg(sc, PP_AutoNegCTL,
 	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
-        for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
-                if (i > 40000) {
-                        if_printf(&sc->arpcom.ac_if,
-                        	"full/half duplex auto negotiation timeout\n");
+	for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
+		if (i > 40000) {
+			if_printf(&sc->arpcom.ac_if,
+			    "full/half duplex auto negotiation timeout\n");
 			error = ETIMEDOUT;
-                        break;
-                }
-                DELAY(1000);
-        }
-        DELAY( 1000000 );
+			break;
+		}
+		DELAY(1000);
+	}
+	DELAY(1000000);
 	return error;
 }
 
@@ -217,7 +217,7 @@ enable_tp(struct cs_softc *sc)
 
 	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable TP\n");
-                return EINVAL;
+		return EINVAL;
 	}
 
 	return 0;
@@ -225,7 +225,7 @@ enable_tp(struct cs_softc *sc)
 
 /*
  * XXX This was rewritten from Linux driver without any tests.
- */             
+ */
 static int
 send_test_pkt(struct cs_softc *sc)
 {
@@ -279,13 +279,13 @@ enable_aui(struct cs_softc *sc)
 	if (!send_test_pkt(sc)) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable AUI\n");
 		return EINVAL;
-        }
-        return 0;
+	}
+	return 0;
 }
 
 /*
  * XXX This was rewritten from Linux driver without any tests.
- */             
+ */
 static int
 enable_bnc(struct cs_softc *sc)
 {
@@ -297,8 +297,8 @@ enable_bnc(struct cs_softc *sc)
 	if (!send_test_pkt(sc)) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable BNC\n");
 		return EINVAL;
-        }
-        return 0;
+	}
+	return 0;
 }
 
 int
@@ -356,13 +356,13 @@ cs_cs89x0_probe(device_t dev)
 		sc->send_cmd = TX_CS8920_AFTER_ALL;
 	}
 
-        /*
-         * Clear some fields so that fail of EEPROM will left them clean
-         */
-        sc->auto_neg_cnf = 0;
-        sc->adapter_cnf  = 0;
-        sc->isa_config   = 0;
-        
+	/*
+	 * Clear some fields so that fail of EEPROM will left them clean
+	 */
+	sc->auto_neg_cnf = 0;
+	sc->adapter_cnf  = 0;
+	sc->isa_config   = 0;
+
 	/*
 	 * If no interrupt specified (or "?"), use what the board tells us.
 	 */
@@ -382,48 +382,48 @@ cs_cs89x0_probe(device_t dev)
 				device_printf(dev, "EEPROM cheksum bad, "
 					"assuming defaults.\n");
 			} else {
-                                sc->auto_neg_cnf =
-                                        eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
-                                sc->adapter_cnf =
-                                        eeprom_buff[ADAPTER_CNF_OFFSET/2];
-                                sc->isa_config =
-                                        eeprom_buff[ISA_CNF_OFFSET/2];
+				sc->auto_neg_cnf =
+				    eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
+				sc->adapter_cnf =
+				    eeprom_buff[ADAPTER_CNF_OFFSET/2];
+				sc->isa_config =
+				    eeprom_buff[ISA_CNF_OFFSET/2];
+    
+				for (i=0; i<ETHER_ADDR_LEN/2; i++) {
+					sc->arpcom.ac_enaddr[i*2]=
+					    eeprom_buff[i];
+					sc->arpcom.ac_enaddr[i*2+1]=
+					    eeprom_buff[i] >> 8;
+				}
 
-                                for (i=0; i<ETHER_ADDR_LEN/2; i++) {
-                                        sc->arpcom.ac_enaddr[i*2]=
-                                                eeprom_buff[i];
-                                        sc->arpcom.ac_enaddr[i*2+1]=
-                                                eeprom_buff[i] >> 8;
-                                }
-
-                                /*
-                                 * If no interrupt specified (or "?"),
-                                 * use what the board tells us.
-                                 */
+				/*
+				 * If no interrupt specified,
+				 * use what the board tells us.
+				 */
 				if (error) {
 					irq = sc->isa_config & INT_NO_MASK;
-                                        if (chip_type==CS8900) {
-                                                switch(irq) {
-						 case 0:
+					if (chip_type==CS8900) {
+						switch(irq) {
+						case 0:
 							irq=10;
 							error=0;
 							break;
-						 case 1:
+						case 1:
 							irq=11;
 							error=0;
 							break;
-						 case 2:
+						case 2:
 							irq=12;
 							error=0;
 							break;
-						 case 3:
+						case 3:
 							irq=5;
 							error=0;
 							break;
 						 default:
 							device_printf(dev, "invalid irq in EEPROM.\n");
 							error=EINVAL;
-                                                }
+						}
 					} else {
 						if (irq>CS8920_NO_INTS) {
 							device_printf(dev, "invalid irq in EEPROM.\n");
@@ -438,11 +438,11 @@ cs_cs89x0_probe(device_t dev)
 								irq, 1);
 				}
 			}
-                }
-        }
+		}
+	}
 
 	if (!error) {
-                if (chip_type == CS8900) {
+		if (chip_type == CS8900) {
 			switch(irq) {
 				case  5:
 					irq = 3;
@@ -459,11 +459,11 @@ cs_cs89x0_probe(device_t dev)
 				default:
 					error=EINVAL;
 			}
-                } else {
-                        if (irq > CS8920_NO_INTS) {
-                                error = EINVAL;
-                        }
-                }
+		} else {
+			if (irq > CS8920_NO_INTS) {
+				error = EINVAL;
+			}
+		}
 	}
 
 	if (!error) {
@@ -471,19 +471,19 @@ cs_cs89x0_probe(device_t dev)
 			cs_writereg(sc, pp_isaint, irq);
 	} else {
 	       	device_printf(dev, "Unknown or invalid irq\n");
-                return (ENXIO);
-        }
-        
-        /*
-         * Temporary disabled
-         *
-        if (drq>0)
+		return (ENXIO);
+	}
+
+	/*
+	 * Temporary disabled
+	 *
+	if (drq>0)
 		cs_writereg(sc, pp_isadma, drq);
 	else {
 		device_printf(dev, "incorrect drq\n",);
 		return 0;
 	}
-        */
+	*/
 
 	if (bootverbose)
 		 device_printf(dev, "CS89%c0%s rev %c media%s%s%s\n",
@@ -494,13 +494,12 @@ cs_cs89x0_probe(device_t dev)
 			(sc->adapter_cnf & A_CNF_AUI)   ? " AUI" : "",
 			(sc->adapter_cnf & A_CNF_10B_2) ? " BNC" : "");
 
-        if ((sc->adapter_cnf & A_CNF_EXTND_10B_2) &&
-            (sc->adapter_cnf & A_CNF_LOW_RX_SQUELCH))
-                sc->line_ctl = LOW_RX_SQUELCH;
-        else
-                sc->line_ctl = 0;
+	if ((sc->adapter_cnf & A_CNF_EXTND_10B_2) &&
+	    (sc->adapter_cnf & A_CNF_LOW_RX_SQUELCH))
+		sc->line_ctl = LOW_RX_SQUELCH;
+	else
+		sc->line_ctl = 0;
 
-        
 	return 0;
 }
 
@@ -509,19 +508,19 @@ cs_cs89x0_probe(device_t dev)
  */
 int cs_alloc_port(device_t dev, int rid, int size)
 {
-        struct cs_softc *sc = device_get_softc(dev);
-        struct resource *res;
+	struct cs_softc *sc = device_get_softc(dev);
+	struct resource *res;
 
-        res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-                                 0ul, ~0ul, size, RF_ACTIVE);
-        if (res) {
-                sc->port_rid = rid;
-                sc->port_res = res;
-                sc->port_used = size;
-                return (0);
-        } else {
-                return (ENOENT);
-        }
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->port_rid = rid;
+		sc->port_res = res;
+		sc->port_used = size;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
 }
 
 /*
@@ -529,19 +528,19 @@ int cs_alloc_port(device_t dev, int rid, int size)
  */
 int cs_alloc_memory(device_t dev, int rid, int size)
 {
-        struct cs_softc *sc = device_get_softc(dev);
-        struct resource *res;
+	struct cs_softc *sc = device_get_softc(dev);
+	struct resource *res;
 
-        res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-                                 0ul, ~0ul, size, RF_ACTIVE);
-        if (res) {
-                sc->mem_rid = rid;
-                sc->mem_res = res;
-                sc->mem_used = size;
-                return (0);
-        } else {
-                return (ENOENT);
-        }
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->mem_rid = rid;
+		sc->mem_res = res;
+		sc->mem_used = size;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
 }
 
 /*
@@ -549,18 +548,18 @@ int cs_alloc_memory(device_t dev, int rid, int size)
  */
 int cs_alloc_irq(device_t dev, int rid, int flags)
 {
-        struct cs_softc *sc = device_get_softc(dev);
-        struct resource *res;
+	struct cs_softc *sc = device_get_softc(dev);
+	struct resource *res;
 
-        res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-                                     (RF_ACTIVE | flags));
-        if (res) {
-                sc->irq_rid = rid;
-                sc->irq_res = res;
-                return (0);
-        } else {
-                return (ENOENT);
-        }
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    (RF_ACTIVE | flags));
+	if (res) {
+		sc->irq_rid = rid;
+		sc->irq_res = res;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
 }
 
 /*
@@ -568,23 +567,23 @@ int cs_alloc_irq(device_t dev, int rid, int flags)
  */
 void cs_release_resources(device_t dev)
 {
-        struct cs_softc *sc = device_get_softc(dev);
+	struct cs_softc *sc = device_get_softc(dev);
 
-        if (sc->port_res) {
-                bus_release_resource(dev, SYS_RES_IOPORT,
-                                     sc->port_rid, sc->port_res);
-                sc->port_res = 0;
-        }
-        if (sc->mem_res) {
-                bus_release_resource(dev, SYS_RES_MEMORY,
-                                     sc->mem_rid, sc->mem_res);
-                sc->mem_res = 0;
-        }
-        if (sc->irq_res) {
-                bus_release_resource(dev, SYS_RES_IRQ,
-                                     sc->irq_rid, sc->irq_res);
-                sc->irq_res = 0;
-        }
+	if (sc->port_res) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+		    sc->port_rid, sc->port_res);
+		sc->port_res = 0;
+	}
+	if (sc->mem_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->mem_rid, sc->mem_res);
+		sc->mem_res = 0;
+	}
+	if (sc->irq_res) {
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->irq_rid, sc->irq_res);
+		sc->irq_res = 0;
+	}
 }
 
 /*
@@ -593,7 +592,7 @@ void cs_release_resources(device_t dev)
 int
 cs_attach(device_t dev)
 {
-        int media=0;
+	int media=0;
 	struct cs_softc *sc = device_get_softc(dev);;
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
 
@@ -740,7 +739,7 @@ cs_init(void *xsc)
 	 * Bad frames should generate interrupts so that the driver
 	 * could track statistics of discarded packets
 	 */
-        rx_cfg = RX_OK_ENBL | RX_CRC_ERROR_ENBL | RX_RUNT_ENBL |
+	rx_cfg = RX_OK_ENBL | RX_CRC_ERROR_ENBL | RX_RUNT_ENBL |
 		 RX_EXTRA_DATA_ENBL;
 	if (sc->isa_config & STREAM_TRANSFER)
 		rx_cfg |= RX_STREAM_ENBL;
@@ -752,9 +751,9 @@ cs_init(void *xsc)
 		    RX_MISS_COUNT_OVRFLOW_ENBL | TX_COL_COUNT_OVRFLOW_ENBL |
 		    TX_UNDERRUN_ENBL /*| RX_DMA_ENBL*/);
 
-        /* Write MAC address into IA filter */
-        for (i=0; i<ETHER_ADDR_LEN/2; i++)
-                cs_writereg(sc, PP_IA + i * 2,
+	/* Write MAC address into IA filter */
+	for (i=0; i<ETHER_ADDR_LEN/2; i++)
+		cs_writereg(sc, PP_IA + i * 2,
 		    sc->arpcom.ac_enaddr[i * 2] |
 		    (sc->arpcom.ac_enaddr[i * 2 + 1] << 8) );
 
@@ -765,7 +764,7 @@ cs_init(void *xsc)
 #ifdef	CS_USE_64K_DMA
 	cs_writereg(sc, PP_BusCTL, ENABLE_IRQ | RX_DMA_SIZE_64K);
 #else
-        cs_writereg(sc, PP_BusCTL, ENABLE_IRQ);
+	cs_writereg(sc, PP_BusCTL, ENABLE_IRQ);
 #endif
 */
 	cs_writereg(sc, PP_BusCTL, ENABLE_IRQ);
@@ -849,7 +848,7 @@ cs_get_packet(struct cs_softc *sc)
 		(*ifp->if_input)(ifp, m);
 		ifp->if_ipackets++;
 		if (length == ETHER_MAX_LEN-ETHER_CRC_LEN)
-                        DELAY(cs_recv_delay);
+			DELAY(cs_recv_delay);
 	} else {
 		m_freem(m);
 	}
@@ -878,45 +877,45 @@ csintr(void *arg)
 #endif
 
 		switch (status & ISQ_EVENT_MASK) {
-                case ISQ_RECEIVER_EVENT:
-                        cs_get_packet(sc);
-                        break;
+		case ISQ_RECEIVER_EVENT:
+			cs_get_packet(sc);
+			break;
 
-                case ISQ_TRANSMITTER_EVENT:
-                        if (status & TX_OK)
-                                ifp->if_opackets++;
-                        else
-                                ifp->if_oerrors++;
-                        ifp->if_flags &= ~IFF_OACTIVE;
-                        ifp->if_timer = 0;
-                        break;
+		case ISQ_TRANSMITTER_EVENT:
+			if (status & TX_OK)
+				ifp->if_opackets++;
+			else
+				ifp->if_oerrors++;
+			ifp->if_flags &= ~IFF_OACTIVE;
+			ifp->if_timer = 0;
+			break;
 
-                case ISQ_BUFFER_EVENT:
-                        if (status & READY_FOR_TX) {
-                                ifp->if_flags &= ~IFF_OACTIVE;
-                                ifp->if_timer = 0;
-                        }
+		case ISQ_BUFFER_EVENT:
+			if (status & READY_FOR_TX) {
+				ifp->if_flags &= ~IFF_OACTIVE;
+				ifp->if_timer = 0;
+			}
 
-                        if (status & TX_UNDERRUN) {
-                                ifp->if_flags &= ~IFF_OACTIVE;
-                                ifp->if_timer = 0;
-                                ifp->if_oerrors++;
-                        }
-                        break;
+			if (status & TX_UNDERRUN) {
+				ifp->if_flags &= ~IFF_OACTIVE;
+				ifp->if_timer = 0;
+				ifp->if_oerrors++;
+			}
+			break;
 
-                case ISQ_RX_MISS_EVENT:
-                        ifp->if_ierrors+=(status>>6);
-                        break;
+		case ISQ_RX_MISS_EVENT:
+			ifp->if_ierrors+=(status>>6);
+			break;
 
-                case ISQ_TX_COL_EVENT:
-                        ifp->if_collisions+=(status>>6);
-                        break;
-                }
-        }
+		case ISQ_TX_COL_EVENT:
+			ifp->if_collisions+=(status>>6);
+			break;
+		}
+	}
 
-        if (!(ifp->if_flags & IFF_OACTIVE)) {
-                cs_start(ifp);
-        }
+	if (!(ifp->if_flags & IFF_OACTIVE)) {
+		cs_start(ifp);
+	}
 }
 
 /*
@@ -1012,7 +1011,7 @@ cs_start(struct ifnet *ifp)
 			return;
 		}
 
-               	cs_xmit_buf(sc);
+		cs_xmit_buf(sc);
 
 		/*
 		 * Set the watchdog timer in case we never hear
@@ -1115,15 +1114,15 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		/*
 		 * Switch interface state between "running" and
 		 * "stopped", reflecting the UP flag.
-                 */
-                if (sc->arpcom.ac_if.if_flags & IFF_UP) {
-                        if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)==0) {
-                                cs_init(sc);
-                        }
-                } else {
-                        if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)!=0) {
-                                cs_stop(sc);
-                        }
+		 */
+		if (sc->arpcom.ac_if.if_flags & IFF_UP) {
+			if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)==0) {
+				cs_init(sc);
+			}
+		} else {
+			if ((sc->arpcom.ac_if.if_flags & IFF_RUNNING)!=0) {
+				cs_stop(sc);
+			}
 		}
 		/*
 		 * Promiscuous and/or multicast flags may have changed,
@@ -1146,15 +1145,15 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	    error = 0;
 	    break;
 
-        case SIOCSIFMEDIA:
-        case SIOCGIFMEDIA:
-                error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
-                break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
+		break;
 
-        default:
+	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
-        }
+	}
 
 	(void) splx(s);
 	return error;
@@ -1226,7 +1225,7 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 static int
 cs_mediaset(struct cs_softc *sc, int media)
 {
-        int error;
+	int error;
 
 	/* Stop the receiver & transmitter */
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) &
