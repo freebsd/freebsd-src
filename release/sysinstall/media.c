@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.10 1995/05/20 11:10:33 jkh Exp $
+ * $Id: media.c,v 1.11 1995/05/20 11:13:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,10 @@
  */
 
 #include <stdio.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "sysinstall.h"
 
 static int
@@ -77,7 +81,15 @@ mediaSetCDROM(char *str)
     int cnt;
 
     if (OnCDROM == TRUE) {
-	/* XXX point mediaDevice at something meaningful here - perhaps a static device structure */
+	static Device bootCD;
+
+	/* This may need to be extended a little, but the basic idea is sound */
+	strcpy(bootCD.name, "bootCD");
+	bootCD.type = DEVICE_TYPE_CDROM;
+	bootCD.init = NULL;
+	bootCD.get = mediaGetCDROM;
+	bootCD.close = NULL;
+	mediaDevice = &bootCD;
 	return 1;
     }
     else {
@@ -138,6 +150,12 @@ mediaSetFloppy(char *str)
     return mediaDevice ? 1 : 0;
 }
 
+static int
+DOSHook(char *str)
+{
+    return genericHook(str, DEVICE_TYPE_DOS);
+}
+
 /*
  * Return 1 if we successfully found and set the installation type to
  * be a DOS partition.
@@ -148,38 +166,53 @@ mediaSetDOS(char *str)
     Device **devs;
     Disk *d;
     Chunk *c1;
-    int i;
+    int i, cnt;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
-    if (devs) {
-	/* XXX If count > 1 then at some point then we should put up a menu and allow the user to choose XXX */
+    cnt = deviceCount(devs);
+    if (cnt > 1) {
+	DMenu *menu;
+
+	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook);
+	if (!menu)
+	    msgFatal("Unable to create DOS menu!  Something is seriously wrong.");
+	dmenuOpenSimple(menu);
+	free(menu);
+    }
+    else if (cnt) {
 	mediaDevice = devs[0];
 	return 1;
     }
-    else
+    else {
 	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs) {
-	msgConfirm("No disk devices found!");
-	return 0;
-    }
-
-    /* Now go chewing through looking for a DOS FAT partition */
-    for (i = 0; devs[i]; i++) {
-	d = (Disk *)devs[i]->private;
-	/* Now try to find a DOS partition */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == fat) {
-		/* Got one! */
-		mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
-					     mediaInitDOS, mediaGetDOS, mediaCloseDOS, NULL);
-		msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
-		break;
+	if (!devs) {
+	    msgConfirm("No disk devices found!");
+	    return 0;
+	}
+	/* Now go chewing through looking for a DOS FAT partition */
+	for (i = 0; devs[i]; i++) {
+	    d = (Disk *)devs[i]->private;
+	    /* Now try to find a DOS partition */
+	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
+		if (c1->type == fat) {
+		    /* Got one! */
+		    mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
+						 mediaInitDOS, mediaGetDOS, mediaCloseDOS, NULL);
+		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+		    break;
+		}
 	    }
 	}
     }
     if (!mediaDevice)
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
     return mediaDevice ? 1 : 0;
+}
+
+static int
+tapeHook(char *str)
+{
+    return genericHook(str, DEVICE_TYPE_TAPE);
 }
 
 /*
@@ -189,7 +222,27 @@ mediaSetDOS(char *str)
 int
 mediaSetTape(char *str)
 {
-    return 0;
+    Device **devs;
+    int cnt;
+
+    devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No tape drive devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
+	return 0;
+    }
+    else if (cnt > 1) {
+	DMenu *menu;
+
+	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook);
+	if (!menu)
+	    msgFatal("Unable to create tape drive menu!  Something is seriously wrong.");
+	dmenuOpenSimple(menu);
+	free(menu);
+    }
+    else
+	mediaDevice = devs[0];
+    return mediaDevice ? 1 : 0;
 }
 
 /*
@@ -199,8 +252,25 @@ mediaSetTape(char *str)
 int
 mediaSetFTP(char *str)
 {
+    static Device ftpDevice;
+    Device *devp;
+    char *cp;
+
+    devp = tcpDeviceSelect();
+    if (!devp)
+	return 0;
     dmenuOpenSimple(&MenuMediaFTP);
-    return 0;
+    cp = getenv("ftp");
+    if (!cp)
+	return 0;
+    strcpy(ftpDevice.name, cp);
+    ftpDevice.type = DEVICE_TYPE_NETWORK;
+    ftpDevice.init = mediaInitFTP;
+    ftpDevice.get = mediaGetFTP;
+    ftpDevice.close = mediaCloseFTP;
+    ftpDevice.private = devp;
+    mediaDevice = &ftpDevice;
+    return 1;
 }
 
 /*
@@ -213,25 +283,89 @@ mediaSetFS(char *str)
     return 0;
 }
 
-FILE *
+int
 mediaOpen(char *parent, char *me)
 {
-    char fname[FILENAME_MAX];
+    char distname[FILENAME_MAX];
+    int fd;
 
     if (parent)
-	snprintf(fname, FILENAME_MAX, "%s%s", parent, me);
+	snprintf(distname, FILENAME_MAX, "%s%s", parent, me);
     else
-	snprintf(fname, FILENAME_MAX, "%s/%s", me, me);
-#if 0
-	strncpy(fname, me, FILENAME_MAX);
-#endif
-    /* XXX mediaDevice points to where we want to get it from */
-    return NULL;
+	snprintf(distname, FILENAME_MAX, "%s/%s", me, me);
+    if (mediaDevice->init)
+	(*mediaDevice->init)(mediaDevice);
+    fd = (*mediaDevice->get)(distname);
+    return fd;
+}
+
+void
+mediaClose(void)
+{
+    if (mediaDevice->close)
+	(*mediaDevice->close)(mediaDevice);
+    mediaDevice = NULL;
 }
 
 Boolean
-mediaExtractDist(FILE *fp)
+mediaExtractDist(char *dir, int fd)
 {
+    int i, j, zpid, cpid, pfd[2];
+
+    if (!dir)
+	dir = "/";
+    j = fork();
+    if (!j) {
+	chdir(dir);
+	pipe(pfd);
+	zpid = fork();
+	if (!zpid) {
+	    dup2(fd, 0); close(fd);
+	    dup2(pfd[1], 1); close(pfd[1]);
+	    close(pfd[0]);
+	    i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	    msgDebug("/stand/gunzip command returns %d status\n", i);
+	    exit(i);
+	}
+	cpid = fork();
+	if (!cpid) {
+	    dup2(pfd[0], 0); close(pfd[0]);
+	    close(fd);
+	    close(pfd[1]);
+	    if (DebugFD != -1) {
+		dup2(DebugFD, 1);
+		dup2(DebugFD, 2);
+	    }
+	    else {
+		close(1); open("/dev/null", O_WRONLY);
+		dup2(1, 2);
+	    }
+	    i = execl("/stand/cpio", "/stand/cpio", "-iduvm", "-H", "tar", 0);
+	    msgDebug("/stand/cpio command returns %d status\n", i);
+	    exit(i);
+	}
+	close(pfd[0]);
+	close(pfd[1]);
+	close(fd);
+
+	i = waitpid(zpid, &j, 0);
+	if (i < 0 || _WSTATUS(j)) {
+	    dialog_clear();
+	    msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
+	    exit(1);
+	}
+	i = waitpid(cpid, &j, 0);
+	if (i < 0 || _WSTATUS(j)) {
+	    dialog_clear();
+	    msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
+	    exit(2);
+	}
+	exit(0);
+    }
+    else
+	i = wait(&j);
+    if (i < 0 || _WSTATUS(j))
+	return FALSE;
     return TRUE;
 }
 
@@ -251,9 +385,4 @@ mediaVerify(void)
 	return FALSE;
     }
     return TRUE;
-}
-
-void
-mediaClose(void)
-{
 }

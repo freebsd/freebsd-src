@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.21 1995/05/20 13:36:44 jkh Exp $
+ * $Id: menus.c,v 1.22 1995/05/20 20:30:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,8 +168,23 @@ procedure (available on the FreeBSD CDROM or the net under the\n\
 tools/dos directory) or have otherwise prepared a set of diskettes\n\
 for each distribution that properly contains all the components of\n\
 the distribution plus the extraction and checksumming scripts.",
-    "Please select which floppy drive you want to use",
-    NULL,
+    "Press F1 to read the installation guide",
+    "install.hlp",
+    { { NULL } },
+};
+
+DMenu MenuMediaDOS = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Choose a DOS partition",
+"FreeBSD can be installed directly from a DOS partition,\n\
+assuming of course that you've copied the relevant distributions\n\
+into your DOS partition before starting this installation.  If\n\
+such is not the case, then you should reboot DOS at this time\n\
+and copy the distributions you want to install into a subdirectory\n\
+on one of your DOS partitions.  Otherwise, please select the\n\
+DOS partition containing the FreeBSD distribution files.",
+    "Press F1 to read the installation guide",
+    "install.hlp",
     { { NULL } },
 };
 
@@ -184,62 +199,95 @@ available from the Primary site.\n\n\
 If the first site selected doesn't respond, try one of the alternates.\n\
 You may also wish to investigate the Ftp options menu in case of trouble.",
     "Select a site that's close!",
-    "media_ftp.hlp",
-    { { "Primary",  "ftp.freebsd.org",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "Secondary", "freefall.cdrom.com",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+    "install.hlp",
+    { { "Primary Site",  "ftp.freebsd.org",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+      { "Secondary Site", "freefall.cdrom.com",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Australia", "ftp.physics.usyd.edu.au",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Finland", "nic.funet.fi",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "France", "ftp.ibp.fr", 
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Germany", "ftp.uni-duisburg.de",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0,		},
       { "Israel", "orgchem.weizmann.ac.il",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-ALPHA", 0, 0		},
       { "Japan", "ftp.sra.co.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0.5-ALPHA", 0, 0 },
-      { "Japan-2", "ftp.mei.co.jp", 
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "Japan-3", "ftp.waseda.ac.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "Japan-4", "ftp.pu-toyama.ac.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "Japan-5", "ftpsv1.u-aizu.ac.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "Japan-6", "tutserver.tutcc.tut.ac.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0.5-ALPHA", 0, 0 },
-      { "Japan-7", "ftp.ee.uec.ac.jp",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0.5-ALPHA", 0, 0	},
+      { "Japan #2", "ftp.mei.co.jp", 
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "Japan #3", "ftp.waseda.ac.jp",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+      { "Japan #4", "ftp.pu-toyama.ac.jp",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "Japan #5", "ftpsv1.u-aizu.ac.jp",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "Japan #6", "tutserver.tutcc.tut.ac.jp",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0.5-ALPHA", 0, 0	},
+      { "Japan #7", "ftp.ee.uec.ac.jp",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-2.0.5-ALPHA", 0, 0	},
       { "Korea", "ftp.cau.ac.kr",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.cau.ac.kr/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Netherlands", "ftp.nl.net",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.nl.net/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Russia", "ftp.kiae.su",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.kiae.su/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.kiae.su/FreeBSD/2.0.5-ALPHA", 0, 0				},
       { "Sweden", "ftp.luth.se",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.luth.se/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.luth.se/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Taiwan", "netbsd.csie.nctu.edu.tw",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Thailand", "ftp.nectec.or.th",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.nectec.or.th/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "UK", "ftp.demon.co.uk",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "UK-2", "src.doc.ic.ac.uk",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "UK-3", "unix.hensa.ac.uk",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "UK #2", "src.doc.ic.ac.uk",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/2.0.5-ALPHA", 0, 0	},
+      { "UK #3", "unix.hensa.ac.uk",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/2.0.5-ALPHA", 0, 0	},
       { "USA", "ref.tfs.com",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ref.tfs.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "USA-2", "ftp.dataplex.net",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.dataplex.net/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "USA-3", "kryten.atinc.com",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://kryten.atinc.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0 },
-      { "USA-4", "ftp.neosoft.com",
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=ftp://ftp.neosoft.com/systems/FreeBSD/2.0.5-ALPHA", 0, 0 },
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ref.tfs.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+      { "USA #2", "ftp.dataplex.net",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+      { "USA #3", "kryten.atinc.com",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://kryten.atinc.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
+      { "USA #4", "ftp.neosoft.com",
+	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { NULL } }
+};
+
+DMenu MenuMediaTape = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Choose a tape drive type",
+    "FreeBSD can be installed from tape drive, though this installation\n\
+method requires a certain amount of temporary storage in addition\n\
+to the space required by the distribution itself (tape drives make\n\
+poor random-access devices, so we extract _everything_ on the tape\n\
+in one pass).  If you have sufficient space for this, then you should\n\
+select one of the following tape devices detected on your system.",
+    "Press F1 to read the installation guide",
+    "install.hlp",
+    { { NULL } },
+};
+
+DMenu MenuNetworkDevice = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Choose a network interface type",
+    "FreeBSD can be installed directly over a network, using NFS\n\
+or FTP.  If you're using an ethernet card to talk to the world\n\
+then setup is pretty straight-forward.  If you are using PPP over\n\
+a serial device (cuaa0 or cuaa1) then you may need to dial your service\n\
+provider using a special PPP utility we provide for that purpose.\n\
+You can also install over your parallel port using a special \"laplink\"\n\
+cable, though this only works if you have another FreeBSD machine running\n\
+a fairly recent (2.0R or later) release to talk to.\n\n\
+To use PPP, select one of the serial devices, otherwise select lp0\n\
+for the parallel port or one of the ethernet controllers (if you have one)\n\
+for an ethernet installation.",
+    "Press F1 to read PPP user manual",
+    "ppp.0",
+    { { NULL } },
 };
 
 /* The media selection menu */
@@ -533,8 +581,11 @@ When you're done setting options, please select Cancel.",
 DMenu MenuOptionsFTP = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose FTP Options",
-    "In case of ftp failure, how would you like this installation\n\
-to deal with it?  You have several choices:",
+    "Please indicate how you would like FTP to deal with potential error\n\
+conditions, the default behavior being to Abort on transfer errors.  If you\n\
+are behind an IP firewall, you will also probably wish to select passive\n\
+mode transfers (it's generally OK to set this in any case as almost all\n\
+servers support it, firewall or no).",
     NULL,
     NULL,
     { { "FTP Retry", "On transfer failure, retry same host",
