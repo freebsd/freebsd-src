@@ -3,13 +3,17 @@
 LIB=	md
 NOPIC=	true
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
-MAN3+=	mdX.3
-MLINKS+=mdX.3 MD2Init.3 mdX.3 MD2Update.3 mdX.3 MD2Final.3
-MLINKS+=mdX.3 MD2End.3  mdX.3 MD2File.3   mdX.3 MD2Data.3
-MLINKS+=mdX.3 MD4Init.3 mdX.3 MD4Update.3 mdX.3 MD4Final.3
-MLINKS+=mdX.3 MD4End.3  mdX.3 MD4File.3   mdX.3 MD4Data.3
-MLINKS+=mdX.3 MD5Init.3 mdX.3 MD5Update.3 mdX.3 MD5Final.3
-MLINKS+=mdX.3 MD5End.3  mdX.3 MD5File.3   mdX.3 MD5Data.3
+.if exists(obj)
+MAN3+=	obj/md2.3 obj/md4.3 obj/md5.3
+.else
+MAN3+=	md2.3 md4.3 md5.3
+.endif
+MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
+MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
+MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
+MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
+MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3
+MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver
 CFLAGS+= -I${.CURDIR}
 
