@@ -660,6 +660,7 @@ spec_getpages(ap)
 	int blksiz;
 	int gotreqpage;
 
+	mtx_assert(&Giant, MA_OWNED);
 	error = 0;
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 
@@ -732,7 +733,6 @@ spec_getpages(ap)
 	cnt.v_vnodepgsin += pcount;
 
 	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
 	/* Do the input. */
 	BUF_STRATEGY(bp);
 
@@ -743,7 +743,6 @@ spec_getpages(ap)
 		tsleep(bp, PVM, "spread", 0);
 
 	splx(s);
-	mtx_unlock(&Giant);
 	mtx_lock(&vm_mtx);
 
 	if ((bp->b_ioflags & BIO_ERROR) != 0) {
