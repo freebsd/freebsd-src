@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.28 1996/03/19 12:08:00 jkh Exp $
+ * $Id: options.c,v 1.29 1996/03/21 09:30:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,6 +104,7 @@ mediaCheck(Option opt)
 #define RELNAME_PROMPT	"Please specify the release you wish to load:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
+#define EDITOR_PROMPT	"Please specify the name of the text editor you wish to use:"
 #define RETRY_PROMPT	"Please specify the number of times to retry an FTP request:"
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 
@@ -122,6 +123,8 @@ static Option Options[] = {
       OPT_IS_VAR,	RETRY_PROMPT,		VAR_FTP_RETRIES,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
+{ "Editor",		"Which text editor to use during installation",
+      OPT_IS_VAR,	EDITOR_PROMPT,		VAR_EDITOR,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
       OPT_IS_VAR,	TAPE_PROMPT,		VAR_TAPE_BLOCKSIZE,	varCheck	},
 { "Extract Detail",	"How verbosely to display file name information during extractions",
