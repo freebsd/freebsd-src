@@ -1175,9 +1175,12 @@ swap_pager_getpages(object, m, count, reqpage)
 	 *
 	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 	 */
-
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	BUF_KERNPROC(bp);
 	BUF_STRATEGY(bp);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1190,7 +1193,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	while ((mreq->flags & PG_SWAPINPROG) != 0) {
 		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
 		cnt.v_intrans++;
-		if (tsleep(mreq, PSWP, "swread", hz*20)) {
+		if (msleep(mreq, &vm_mtx, PSWP, "swread", hz*20)) {
 			printf(
 			    "swap_pager: indefinite wait buffer: device:"
 				" %s, blkno: %ld, size: %ld\n",
