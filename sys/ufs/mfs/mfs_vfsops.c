@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.52 1998/12/07 21:58:49 archie Exp $
+ * $Id: mfs_vfsops.c,v 1.53 1999/01/01 04:14:11 dillon Exp $
  */
 
 
@@ -393,13 +393,13 @@ mfs_start(mp, flags, p)
 	base = mfsp->mfs_baseoff;
 
 	/*
-	 * Must set P_SYSTEM to prevent system from trying to kill
-	 * this process.  What happens is that the process is unkillable,
-	 * and the swapper loops trying to continuously kill it.  Nor
-	 * can we swap out this process - not unless you want a deadlock,
-	 * anyway.
+	 * We must set P_NOSWAP to prevent the system from trying to swap
+	 * out or kill ( when swap space is low, see vm/pageout.c ) the
+	 * process.  A deadlock can occur if the process is swapped out,
+	 * and the system can loop trying to kill the unkillable ( while
+	 * references exist ) MFS process when swap space is low.
 	 */
-	curproc->p_flag |= P_SYSTEM;
+	curproc->p_flag |= P_NOSWAP;
 
 	while (mfsp->mfs_active) {
 		while (bp = bufq_first(&mfsp->buf_queue)) {
