@@ -87,7 +87,7 @@ checkAccess(Boolean proxyCheckOnly)
     }
 
     msgNotify("Checking access to\n %s", variable_get(VAR_HTTP_PATH));
-    sprintf(req,"HEAD %s/ HTTP/1.0\r\n\r\n", variable_get(VAR_HTTP_PATH));
+    sprintf(req,"GET %s/ HTTP/1.0\r\n\r\n", variable_get(VAR_HTTP_PATH));
     write(s,req,strlen(req));
 /*
  *  scan the headers of the response
@@ -219,7 +219,7 @@ mediaGetHTTP(Device *dev, char *file, Boolean probe)
 	return NULL;
     }
 						   
-    sprintf(req,"HEAD %s/%s%s HTTP/1.0\r\n\r\n",
+    sprintf(req,"GET %s/%s%s HTTP/1.0\r\n\r\n",
 	    variable_get(VAR_HTTP_PATH), file, variable_get(VAR_HTTP_FTP_MODE));
 
     if (isDebug()) {
