@@ -1,14 +1,22 @@
-#include "lsdev.h"
-#include <stdio.h>
-#include <string.h>
-#include <machine/vmparam.h>
-#include <vm/pmap.h>
-#include <i386/isa/isa_device.h>
-#include <i386/eisa/eisaconf.h>
-#include <scsi/scsiconf.h>
+#include <sys/param.h>
+#include <sys/devconf.h>
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
+#include <scsi/scsiconf.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
+#include <i386/isa/isa_device.h>
+#include <i386/eisa/eisaconf.h>
+
+#include <stdio.h>
+#include <string.h>
+
+#include "lsdev.h"
 
 static void print_isa(struct devconf *);
 static void print_eisa(struct devconf *);
@@ -138,7 +146,7 @@ print_isa(struct devconf *dc)
 
 	if(id->id_msize) {
 		if(id->id_msize < 0) {
-			printf(" iosiz ?", id->id_msize);
+			printf(" iosiz ?");
 		} else {
 			printf(" iosiz %d", id->id_msize);
 		}
@@ -153,7 +161,7 @@ static void
 print_eisa(struct devconf *dc)
 {
 	struct eisa_device *e_dev = (struct eisa_device *)dc->dc_data;
-        printf("%s%ld\tat eisa0 slot %d # %#x-%#x",
+        printf("%s%d\tat eisa0 slot %d # %#lx-%#lx",
 		dc->dc_name,              
 		dc->dc_unit,              
 		e_dev->ioconf.slot,
@@ -176,8 +184,8 @@ print_pci(struct devconf *dc)
 
 	struct pci_externalize_buffer *pd =
 		(struct pci_externalize_buffer *)dc->dc_data;
-
-	u_long	data, pin, line;
+	u_long	data;
+	int	pin, line;
 
 	printf("%s%d\tat pci%d:%d",
 		dc->dc_name, dc->dc_unit,
