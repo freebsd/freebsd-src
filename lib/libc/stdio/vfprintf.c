@@ -611,7 +611,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	fmt = (char *)fmt0;
 	argtable = NULL;
 	nextarg = 1;
-	orgap = ap;
+	va_copy(orgap, ap);
 	uio.uio_iov = iovp = iov;
 	uio.uio_resid = 0;
 	uio.uio_iovcnt = 0;
