@@ -1608,8 +1608,8 @@ check_body:
 					u_int32_t *d = (u_int32_t *)(cmd+1);
 					u_int32_t addr =
 					    cmd->opcode == O_IP_DST_SET ?
-						args->f_id.src_ip :
-						args->f_id.dst_ip;
+						args->f_id.dst_ip :
+						args->f_id.src_ip;
 
 					    if (addr < d[0])
 						    break;
