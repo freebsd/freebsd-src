@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
-	"$Id: tcopy.c,v 1.2.2.1 1997/08/18 07:03:43 charnier Exp $";
+	"$Id: tcopy.c,v 1.2.2.2 1997/08/29 05:29:58 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -86,7 +86,7 @@ main(argc, argv)
 	char *buff, *inf;
 
 	guesslen = 1;
-	while ((ch = getopt(argc, argv, "cs:vx")) !=  -1)
+	while ((ch = getopt(argc, argv, "cs:vx")) != -1)
 		switch((char)ch) {
 		case 'c':
 			op = COPYVERIFY;
