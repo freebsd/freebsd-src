@@ -7,7 +7,7 @@
 PROG=	cc1obj
 SRCS=	objc-parse.c objc-parse.h objc-parse.h objc-act.c
 # Ugh, compiled twice...
-SRCS+=	c-lex.c
+SRCS+=	c-decl.c c-lex.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes

@@ -8,7 +8,7 @@ LIB=		cc_int
 NOPROFILE=	YES
 NOPIC=		YES
 
-SRCS=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c \
+SRCS=	c-aux-info.c c-common.c c-convert.c c-iterate.c \
 	c-pragma.c c-typeck.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
