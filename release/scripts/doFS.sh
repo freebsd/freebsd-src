@@ -22,13 +22,16 @@ FSLABEL=$1 ; shift
 
 deadlock=20
 
+u=`expr $VNDEVICE : 'vn\([0-9]*\)' || true`
+mknod /dev/vnn${u} b 15 `expr 65538 + $u '*' 8`
+mknod /dev/rvnn${u} c 43 `expr 65538 + $u '*' 8`
+mknod /dev/vnn${u}c b 15 `expr 2 + $u '*' 8`
+mknod /dev/rvnn${u}c c 43 `expr 2 + $u '*' 8`
+VNDEVICE=vnn$u
+
 while true 
 do
 	rm -f ${FSIMG}
-
-	if [ ! -b /dev/${VNDEVICE} -o ! -c /dev/r${VNDEVICE} ] ; then 
-		( cd /dev && sh MAKEDEV ${VNDEVICE} )
-	fi
 
 	umount /dev/${VNDEVICE} 2>/dev/null || true
 
@@ -67,3 +70,4 @@ do
 	fi
 	break;
 done
+rm -f /dev/*vnn*
