@@ -1,6 +1,8 @@
 #
-# $Id: Makefile.inc,v 1.27 1999/04/04 17:11:00 obrien Exp $
+# $Id: Makefile.inc,v 1.28 1999/04/08 15:43:36 peter Exp $
 #
+
+.include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
