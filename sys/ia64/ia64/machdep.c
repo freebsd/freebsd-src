@@ -82,6 +82,7 @@
 #include <machine/unwind.h>
 
 void ia64_probe_sapics(void);
+void map_pal_code(void);
 
 #ifdef SKI
 extern void ia64_ski_init(void);
@@ -106,6 +107,7 @@ extern u_int64_t _ia64_unwind_end[];
 
 FPSWA_INTERFACE *fpswa_interface;
 
+u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
 
 char machine[] = "ia64";
@@ -143,9 +145,6 @@ long dumplo;
 int	totalphysmem;		/* total amount of physical memory in system */
 int	physmem;		/* physical memory used by NetBSD + some rsvd */
 int	resvmem;		/* amount of memory reserved for PROM */
-int	unusedmem;		/* amount of memory for OS that we don't use */
-int	unknownmem;		/* amount of memory with an unknown use */
-int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[20];
 
@@ -231,7 +230,8 @@ cpu_startup(dummy)
 		printf("Warning: no FPSWA package supplied\n");
 	else
 		printf("FPSWA Revision = 0x%lx, Entry = %p\n",
-		    fpswa_interface->Revision, (void *)fpswa_interface->Fpswa);
+		    (long)fpswa_interface->Revision,
+		    (void *)fpswa_interface->Fpswa);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -249,6 +249,9 @@ cpu_startup(dummy)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+	KASSERT(size >= sizeof(struct pcpu) + sizeof(struct pcb),
+	    (__func__ ": too small an allocation for pcpu"));
+	pcpu->pc_pcb = (void*)(pcpu+1);
 }
 
 static void
@@ -308,42 +311,14 @@ add_kernel_unwind_tables(void *arg)
 }
 SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, add_kernel_unwind_tables, 0);
 
-static void
+void
 map_pal_code(void)
 {
-	EFI_MEMORY_DESCRIPTOR *md, *mdp;
-	int mdcount, i;
-	u_int64_t psr;
 	struct ia64_pte pte;
-	vm_offset_t addr;
+	u_int64_t psr;
 
-	if (!bootinfo.bi_systab)
+	if (ia64_pal_base == 0)
 		return;
-
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-
-	for (i = 0, mdp = md; i < mdcount; i++,
-		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
-		if (mdp->Type == EfiPalCode)
-			break;
-	}
-
-	if (i == mdcount) {
-		printf("Can't find PAL Code\n");
-		return;
-	}
-
-	/*
-	 * We use a TR to map the first 256M of memory - this might
-	 * cover the palcode too.
-	 */
-	if ((mdp->PhysicalStart & ~((1 << 28) - 1)) == 0) {
-		printf("PAL Code is mapped by the kernel's TR\n");
-		return;
-	}
-
-	addr = mdp->PhysicalStart & ~((1 << 28) - 1);
 
 	bzero(&pte, sizeof(pte));
 	pte.pte_p = 1;
@@ -352,15 +327,16 @@ map_pal_code(void)
 	pte.pte_d = 1;
 	pte.pte_pl = PTE_PL_KERN;
 	pte.pte_ar = PTE_AR_RWX;
-	pte.pte_ppn = addr >> 12;
+	pte.pte_ppn = ia64_pal_base >> 12;
 
 	__asm __volatile("mov %0=psr;;" : "=r" (psr));
 	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
-	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PHYS_TO_RR7(addr)));
+	__asm __volatile("mov cr.ifa=%0" ::
+	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)));
 	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
 	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;"
-			 :: "r"(2), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("itr.i itr[%0]=%1;;" ::
+	    "r"(2), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
 }
@@ -458,18 +434,33 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		ski_md[1].VirtualStart = 0;
 		ski_md[1].NumberOfPages = (64L*1024*1024)>>12;
 		ski_md[1].Attribute = EFI_MEMORY_UC;
-	
+
 		md = ski_md;
 		mdcount = 2;
 #endif
 	}
 
 	for (i = 0, mdp = md; i < mdcount; i++,
-		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
-		if (mdp->Type == EfiMemoryMappedIOPortSpace) {
+	    mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
+		if (mdp->Type == EfiMemoryMappedIOPortSpace)
 			ia64_port_base = IA64_PHYS_TO_RR6(mdp->PhysicalStart);
-		}
+		else if (mdp->Type == EfiPalCode)
+			ia64_pal_base = mdp->PhysicalStart;
 	}
+
+	KASSERT(ia64_port_base != 0,
+	    (__func__ ": no I/O memory region"));
+
+	if (ia64_pal_base != 0) {
+		ia64_pal_base &= ~((1 << 28) - 1);
+		/*
+		 * We use a TR to map the first 256M of memory - this might
+		 * cover the palcode too.
+		 */
+		if (ia64_pal_base == 0)
+			printf("PAL code mapped by the kernel's TR\n");
+	} else
+		printf("PAL code not found\n");
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
@@ -673,14 +664,9 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
-	{
-		/* This is not a 'struct user' */
-		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
-		pcpup = (struct pcpu *) pmap_steal_memory(sz);
-		pcpu_init(pcpup, 0, sz);
-		ia64_set_k4((u_int64_t) pcpup);
-		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
-	}
+	pcpup = (struct pcpu *) pmap_steal_memory(PAGE_SIZE);
+	pcpu_init(pcpup, 0, PAGE_SIZE);
+	ia64_set_k4((u_int64_t) pcpup);
 
 	/*
 	 * Initialize the virtual memory system.
