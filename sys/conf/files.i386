@@ -8,26 +8,26 @@
 # dependency lines other than the first are silently ignored.
 #
 linux_genassym.o		optional	compat_linux		   \
-	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
-	compile-with	"${CC} ${CFLAGS} ${PARAM} -UKERNEL -o $@ -c $<"	   \
+	dependency 	"$S/i386/linux/linux_genassym.c"		   \
+	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			   \
 	no-obj no-implicit-rule						   \
 	clean		"linux_genassym.o"
 #
 svr4_genassym.o			optional	compat_svr4		   \
-	dependency 	"$S/i386/svr4/svr4_genassym.c $S/svr4/svr4.h"	   \
-	compile-with	"${CC} ${CFLAGS} ${PARAM} -UKERNEL -o $@ -c $<"	   \
+	dependency 	"$S/i386/svr4/svr4_genassym.c"			   \
+	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			   \
 	no-obj no-implicit-rule						   \
 	clean		"svr4_genassym.o"
 #
 linux_assym.h			optional	compat_linux		   \
 	dependency 	"linux_genassym.o"				   \
-	compile-with	"genassym -o $@ linux_genassym.o"		   \
+	compile-with	"genassym linux_genassym.o > ${.TARGET}"	   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
 #
 svr4_assym.h			optional	compat_svr4		   \
 	dependency 	"svr4_genassym.o"			   	   \
-	compile-with	"genassym -o $@ svr4_genassym.o"		   \
+	compile-with	"genassym svr4_genassym.o > ${.TARGET}"		   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"svr4_assym.h"
 #
@@ -140,7 +140,7 @@ i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_fea.c		optional	fea
 i386/eisa/if_vx_eisa.c		optional	vx
 i386/i386/atomic.c		standard				\
-	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
+	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
@@ -232,7 +232,7 @@ i386/isa/if_wl.c		optional	wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
 i386/isa/ipl_funcs.c		standard				   \
-	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
+	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa
 i386/isa/isa_dma.c		optional	isa
