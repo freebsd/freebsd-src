@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.15 1998/10/03 19:17:11 nate Exp $
+ *	$Id: ffs_softdep.c,v 1.16 1998/10/28 10:37:54 jkh Exp $
  */
 
 /*
@@ -1664,8 +1664,8 @@ softdep_setup_freeblocks(ip, length)
 		tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "sdsetf", 0);
 		ACQUIRE_LOCK_INTERLOCKED(&lk);
 	}
-	while (getdirtybuf(&LIST_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
-		bp = LIST_FIRST(&vp->v_dirtyblkhd);
+	while (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
+		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
 		bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -3740,7 +3740,7 @@ softdep_sync_metadata(ap)
 	 */
 	waitfor = MNT_NOWAIT;
 top:
-	if (getdirtybuf(&LIST_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
+	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
 			FREE_LOCK_INTERLOCKED(&lk);
@@ -3751,7 +3751,7 @@ top:
 		FREE_LOCK(&lk);
 		return (0);
 	}
-	bp = LIST_FIRST(&vp->v_dirtyblkhd);
+	bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 loop:
 	/*
 	 * As we hold the buffer locked, none of its dependencies
@@ -3850,8 +3850,8 @@ loop:
 			/* NOTREACHED */
 		}
 	}
-	(void) getdirtybuf(&LIST_NEXT(bp, b_vnbufs), MNT_WAIT);
-	nbp = LIST_NEXT(bp, b_vnbufs);
+	(void) getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), MNT_WAIT);
+	nbp = TAILQ_NEXT(bp, b_vnbufs);
 	FREE_LOCK(&lk);
 	bawrite(bp);
 	ACQUIRE_LOCK(&lk);
@@ -3887,7 +3887,7 @@ loop:
 	 * then we are done. For certain directories and block
 	 * devices, we may need to do further work.
 	 */
-	if (LIST_FIRST(&vp->v_dirtyblkhd) == NULL) {
+	if (TAILQ_FIRST(&vp->v_dirtyblkhd) == NULL) {
 		FREE_LOCK(&lk);
 		return (0);
 	}
