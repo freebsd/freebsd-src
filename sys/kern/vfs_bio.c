@@ -1067,9 +1067,6 @@ brelse(struct buf * bp)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 	if (BUF_REFCNT(bp) > 1) {
-		/* Temporary panic to verify exclusive locking */
-		/* This panic goes away when we allow shared refs */
-		panic("brelse: multiple refs");
 		/* do not release to free list */
 		BUF_UNLOCK(bp);
 		splx(s);
@@ -1192,7 +1189,6 @@ bqrelse(struct buf * bp)
 		panic("bqrelse: free buffer onto another queue???");
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
-		panic("bqrelse: multiple refs");
 		BUF_UNLOCK(bp);
 		splx(s);
 		return;
