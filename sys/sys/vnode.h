@@ -175,6 +175,7 @@ struct vnode {
 /* open for business	0x100000 */
 #define	VONWORKLST	0x200000 /* On syncer work-list */
 #define	VMOUNT		0x400000 /* Mount in progress */
+#define	VOBJDIRTY	0x800000 /* object might be dirty */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -310,6 +311,10 @@ extern void	(*lease_updatetime) __P((int deltat));
 	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
 	 (!(vp)->v_object || \
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
+
+#define VMIGHTFREE(vp) \
+	(!((vp)->v_flag & (VFREE|VDOOMED)) &&	\
+	 !(vp)->v_holdcnt && !(vp)->v_usecount)
 
 #define	VSHOULDBUSY(vp)	\
 	(((vp)->v_flag & VFREE) && \
