@@ -653,3 +653,22 @@ ENTRY(longjmp)
 	incl	%eax
 	ret
 #endif
+
+/*
+ * Support for BB-profiling (gcc -a).  The kernbb program will extract
+ * the data from the kernel.
+ */
+
+	.data
+	ALIGN_DATA
+	.globl bbhead
+bbhead:
+	.quad 0
+
+	.text
+NON_GPROF_ENTRY(__bb_init_func)
+	movq	$1,(%rdi)
+	movq	bbhead,%rax
+	movq	%rax,32(%rdi)
+	movq	%rdi,bbhead
+	NON_GPROF_RET
