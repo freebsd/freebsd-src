@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/config.c,v 1.21 2004/08/06 08:47:10 brandt Exp $
+ * $Begemot: bsnmp/snmpd/config.c,v 1.22 2004/08/12 17:09:49 brandt Exp $
  *
  * Parse configuration file.
  */
@@ -1290,13 +1290,18 @@ read_config(const char *fname, struct lmodule *lodmod)
 	ignore = 0;
 
 	input_push = 0;
+
+	if (ERRPUSH())
+		return (-1);
 	if (input_open_file(fname, 0) == -1) {
 		syslog(LOG_ERR, "%s: %m", fname);
 		return (-1);
 	}
+	ERRPOP();
 	community = COMM_INITIALIZE;
 
 	if ((snmp_ctx = snmp_init_context()) == NULL) {
+		input_close_all();
 		syslog(LOG_ERR, "%m");
 		return (-1);
 	}
