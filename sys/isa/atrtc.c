@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.59 1996/06/11 16:02:55 pst Exp $
+ *	$Id: clock.c,v 1.60 1996/06/11 16:11:27 pst Exp $
  */
 
 /*
@@ -286,14 +286,19 @@ DDB_printrtc(void)
 static int
 getit(void)
 {
+	u_long ef;
 	int high, low;
 
+	ef = read_eflags();
 	disable_intr();
-	/* select timer0 and latch counter value */
+
+	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0);
+
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
-	enable_intr();
+
+	write_eflags(ef);
 	return ((high << 8) | low);
 }
 
