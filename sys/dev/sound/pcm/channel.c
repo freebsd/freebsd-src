@@ -700,7 +700,7 @@ chn_rdintr(pcm_channel *c)
 int
 chn_read(pcm_channel *c, struct uio *buf)
 {
-	int		ret = 0, timeout, limit, res;
+	int		ret = 0, timeout, limit, res, count;
 	long		s;
 	snd_dbuf       *b = &c->buffer;
 	snd_dbuf       *bs = &c->buffer2nd;
@@ -734,12 +734,18 @@ chn_read(pcm_channel *c, struct uio *buf)
 		chn_start(c);
 
   	if (!(c->flags & CHN_F_NBIO)) {
+		count = hz;
   		/* Wait until all samples are captured. */
-  		while (buf->uio_resid > 0) {
+  		while ((buf->uio_resid > 0) && (count > 0)) {
 			/* Suck up the DMA and secondary buffers. */
 			chn_dmaupdate(c);
+			res = buf->uio_resid;
 			while (chn_rdfeed(c) > 0);
  			while (chn_rdfeed2nd(c, buf) > 0);
+			if (buf->uio_resid < res)
+				count = hz;
+			else
+				count--;
 
 			/* Have we finished to feed the uio? */
 			if (buf->uio_resid == 0)
@@ -753,6 +759,10 @@ chn_read(pcm_channel *c, struct uio *buf)
 			/* if (ret == EINTR) chn_abort(c); */
 			if (ret == EINTR || ret == ERESTART)
 				break;
+		}
+		if (count == 0) {
+			c->flags |= CHN_F_DEAD;
+			device_printf(c->parent->dev, "record interrupt timeout, channel dead\n");
 		}
 	} else {
 		/* If no pcm data was read on nonblocking, return EAGAIN. */
