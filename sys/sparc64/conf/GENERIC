@@ -127,7 +127,7 @@ device		ofw_console	# Open Firmware console device
 device		auxio		# auxiliary I/O device
 device		genclock	# Generic clock interface
 device		eeprom		# eeprom (really a front-end for the MK48Txx)
-device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
+device		mk48txx		# Mostek MK48T02, MK48T08, MK48T59 clock
 
 # Serial (COM) ports
 device		sab		# Siemens SAB82532 based serial ports
