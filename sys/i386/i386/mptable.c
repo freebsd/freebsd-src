@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.34 1997/08/31 03:05:56 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.49 1997/08/31 03:17:47 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -241,6 +241,10 @@ extern pt_entry_t *KPTphys;
 
 /* Virtual address of per-cpu common_tss */
 extern struct i386tss common_tss;
+#ifdef VM86
+extern u_int private_tss;		/* flag indicating private tss */
+extern struct segment_descriptor common_tssd;
+#endif /* VM86 */
 
 /* IdlePTD per cpu */
 pd_entry_t *IdlePTDS[NCPU];
@@ -408,6 +412,10 @@ init_secondary(void)
 	common_tss.tss_esp0 = 0;	/* not used until after switch */
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
+#ifdef VM86
+	common_tssd = gdt[slot].sd;
+	private_tss = 0;
+#endif /* VM86 */
 	ltr(gsel_tss);
 
 	load_cr0(0x8005003b);		/* XXX! */
