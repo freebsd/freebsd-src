@@ -335,6 +335,7 @@ int	mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
 int	mac_pipe_label_set(struct ucred *cred, struct pipe *pipe,
 	    struct label *label);
+void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
 
 /*
  * Calls to help various file systems implement labeling functionality

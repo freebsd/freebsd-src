@@ -1856,7 +1856,7 @@ mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
  * memory space, and revoke access (in the least surprising ways we
  * know) when necessary.  The process lock is not held here.
  */
-static void
+void
 mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred)
 {
 
