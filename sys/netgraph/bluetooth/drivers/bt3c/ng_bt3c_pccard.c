@@ -1097,7 +1097,7 @@ bt3c_send(node_p node, hook_p hook, void *arg, int completed)
 		while (m != NULL) {
 			len = min((BT3C_FIFO_SIZE - wrote), m->m_len);
 
-			for (i = 0; i < m->m_len; i++)
+			for (i = 0; i < len; i++)
 				bt3c_write_data(sc, m->m_data[i]);
 
 			wrote += len;
