@@ -31,6 +31,9 @@
 #define	ORIP_NOINT	-1
 #define	ORIR_NOTFOUND	0xffffffff
 
-u_int32_t ofw_bus_route_intr(phandle_t, int);
+typedef int obr_callback_t(phandle_t, u_int8_t *, int, u_int8_t *, int,
+    u_int8_t **, int *);
+
+u_int32_t ofw_bus_route_intr(phandle_t, int, obr_callback_t *);
 
 #endif /* !_MACHINE_OFW_BUS_H_ */

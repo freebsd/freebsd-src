@@ -130,6 +130,8 @@ u_long ofw_tba;
 
 static struct timecounter tick_tc;
 
+char sparc64_model[32];
+
 static timecounter_get_t tick_get_timecount;
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
 		  ofw_vec_t *vec);
@@ -159,6 +161,7 @@ cpu_startup(void *arg)
 	tc_init(&tick_tc);
 
 	cpu_identify(rdpr(ver), tick_freq, PCPU_GET(cpuid));
+	printf("Model: %s\n", sparc64_model);
 
 	vm_ksubmap_init(&kmi);
 
@@ -348,6 +351,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
 	tick_init(clock);
+
+	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 }
 
 void

@@ -398,7 +398,7 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	for (i = 0; i < nintr; i++) {
-		intr = ofw_bus_route_intr(node, intrs[i]);
+		intr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback);
 		if (intr == ORIR_NOTFOUND) {
 			panic("ebus_setup_dinfo: could not map ebus "
 			    "interrupt %d", intrs[i]);

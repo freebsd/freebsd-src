@@ -34,6 +34,8 @@
 #ifndef _SPARC64_PCI_OFW_PCI_H_
 #define _SPARC64_PCI_OFW_PCI_H_
 
+#include <machine/ofw_bus.h>
+
 /* PCI range child spaces. XXX: are these MI? */
 #define	PCI_CS_CONFIG	0x00
 #define	PCI_CS_IO	0x01
@@ -69,10 +71,11 @@ struct ofw_pci_bdesc {
 	struct ofw_pci_bdesc	*obd_super;
 };
 
-u_int32_t ofw_pci_route_intr(phandle_t);
+u_int32_t ofw_pci_route_intr(phandle_t, u_int32_t);
+obr_callback_t ofw_pci_orb_callback;
 u_int8_t ofw_pci_alloc_busno(phandle_t);
 ofw_pci_binit_t ofw_pci_binit;
-void ofw_pci_init(device_t, phandle_t, struct ofw_pci_bdesc *);
+void ofw_pci_init(device_t, phandle_t, u_int32_t, struct ofw_pci_bdesc *);
 phandle_t ofw_pci_find_node(int, int, int);
 phandle_t ofw_pci_node(device_t);
 
