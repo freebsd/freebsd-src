@@ -216,12 +216,14 @@ pcic_activate(device_t dev)
 	    0, ~0, 1, RF_ACTIVE);
 	if (sc->irq_res) {
 		sc->irq = rman_get_start(sc->irq_res);
-		if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, 
+		if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC, 
 		    pcic_intr, sc, &sc->intrhand)) != 0) {
+			device_printf(dev, "Cannot setup intr\n");
 			pcic_deactivate(dev);
 			return err;
 		}
 	} else {
+		printf("Polling not supported\n");
 		/* XXX Do polling */
 		return (ENXIO);
 	}
@@ -279,8 +281,10 @@ pcic_attach(device_t dev)
 	sc->dev = dev;
 
 	/* Activate our resources */
-	if ((error = pcic_activate(dev)) != 0)
+	if ((error = pcic_activate(dev)) != 0) {
+		printf("pcic_attach (active) returns %d\n", error);
 		return error;
+	}
 
 	/* now check for each controller/socket */
 
