@@ -2553,7 +2553,7 @@ retry:
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
-			return;		  
+			return;
 		psize = object->size - pindex;
 	}
 
