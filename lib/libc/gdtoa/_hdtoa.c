@@ -326,7 +326,7 @@ __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
 		 */
 #ifdef	LDBL_IMPLICIT_NBIT
 		/* Don't trust the normalization bit to be off. */
-		u.bits.manh &= ~(~0UL << (LDBL_MANH_SIZE - 1));
+		u.bits.manh &= ~(~0ULL << (LDBL_MANH_SIZE - 1));
 #endif
 		if (u.bits.manh != 0) {
 #if LDBL_MANH_SIZE > 32
