@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.65 1996/11/12 22:32:27 jkh Exp $
+#	$Id: Makefile,v 1.193.2.66 1996/11/13 11:58:27 jkh Exp $
 #
 # How to roll a release:
 #
@@ -378,7 +378,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
-			${MFSINODE} minimum
+			${MFSINODE} auto
 		mv fs-image fs-image.4
 	mv fs-image.size fs-image.4.size
 	# add more stuff for the complete bootfd
@@ -388,7 +388,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
-		${MFSINODE} minimum
+		${MFSINODE} auto
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
