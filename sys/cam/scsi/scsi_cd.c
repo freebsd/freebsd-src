@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.7 1998/10/15 17:46:26 ken Exp $
+ *      $Id: scsi_cd.c,v 1.8 1998/10/22 22:16:56 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -890,15 +890,21 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct cd_softc *)periph->softc;
 
+	/*
+	 * Grab splsoftcam and hold it until we lock the peripheral.
+	 */
 	s = splsoftcam();
 	if (softc->flags & CD_FLAG_INVALID) {
 		splx(s);
 		return(ENXIO);
 	}
-	splx(s);
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
+		splx(s);
 		return (error);
+	}
+
+	splx(s);
 
 	if ((softc->flags & CD_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
