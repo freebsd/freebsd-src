@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1997/12/21 19:15:02 wosch Exp $
+#	$Id: Makefile,v 1.12 1998/03/07 16:13:57 wosch Exp $
 
 GREP_LIBZ= YES
 GREP_FTS=  YES
@@ -23,6 +23,7 @@ CFLAGS+= -DHAVE_LIBZ=1
 LINKS+= ${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
 	${BINDIR}/grep ${BINDIR}/zfgrep 
+MLINKS+= grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 .endif
 .if defined(GREP_FTS) && !empty(GREP_FTS)
 CFLAGS+= -DHAVE_FTS=1
