@@ -100,6 +100,7 @@ static	char		sc_malloc = FALSE;
 
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
+static	int		enable_bell = TRUE; /* enable beeper */
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
 #ifdef DEV_SPLASH
 static	int     	scrn_blanked;		/* # of blanked screen */
@@ -113,6 +114,8 @@ SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
 SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
+SYSCTL_INT(_hw_syscons, OID_AUTO, bell, CTLFLAG_RW, &enable_bell, 
+    0, "enable bell");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -3530,7 +3533,7 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 void
 sc_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold || shutdown_in_progress)
+    if (cold || shutdown_in_progress || !enable_bell)
 	return;
 
     if (scp != scp->sc->cur_scp && (scp->sc->flags & SC_QUIET_BELL))
