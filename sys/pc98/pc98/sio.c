@@ -175,6 +175,8 @@
 #define	COM_ISMULTIPORT(flags)	((flags) & 0x01)
 #define	COM_MPMASTER(flags)	(((flags) >> 8) & 0x0ff)
 #define	COM_NOTAST4(flags)	((flags) & 0x04)
+#else
+#define	COM_ISMULTIPORT(flags)	(0)
 #endif /* COM_MULTIPORT */
 
 #define	COM_CONSOLE(flags)	((flags) & 0x10)
@@ -188,6 +190,7 @@
 #define COM_NOPROBE(flags)	((flags) & COM_C_NOPROBE)
 #define COM_C_IIR_TXRDYBUG	(0x80000)
 #define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
+#define COM_NOSCR(flags)	((flags) & 0x100000)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
 
 #define	sio_getreg(com, off) \
@@ -1586,12 +1589,8 @@ sioattach(dev, xrid, rclk)
 
 
 #ifndef PC98
-#ifdef COM_MULTIPORT
-	if (!COM_ISMULTIPORT(flags) && !COM_IIR_TXRDYBUG(flags))
-#else
-	if (!COM_IIR_TXRDYBUG(flags))
-#endif
-	{
+	if (!COM_ISMULTIPORT(flags) &&
+	    !COM_IIR_TXRDYBUG(flags) && !COM_NOSCR(flags)) {
 		u_char	scr;
 		u_char	scr1;
 		u_char	scr2;
@@ -2454,7 +2453,7 @@ sioinput(com)
 #endif
 }
 
-void
+static void
 siointr(arg)
 	void		*arg;
 {
@@ -4380,7 +4379,7 @@ siocncheckc(dev)
 }
 
 
-int
+static int
 siocngetc(dev)
 	dev_t	dev;
 {
@@ -4407,7 +4406,7 @@ siocngetc(dev)
 	return (c);
 }
 
-void
+static void
 siocnputc(dev, c)
 	dev_t	dev;
 	int	c;
