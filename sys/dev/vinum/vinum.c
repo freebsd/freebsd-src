@@ -145,16 +145,19 @@ vinumattach(void *dummy)
 }
 
 /*
- * Check if we have anything open.  If so, return 0 (not inactive),
- * otherwise 1 (inactive) 
+ * Check if we have anything open.  If confopen is != 0,
+ * that goes for the super device as well, otherwise
+ * only for volumes.
+ *
+ * Return 0 if not inactive, 1 if inactive.
  */
 int 
-vinum_inactive(void)
+vinum_inactive(int confopen)
 {
     int i;
     int can_do = 1;					    /* assume we can do it */
 
-    if (vinum_conf.flags & VF_OPEN)			    /* open by vinum(8)? */
+    if (confopen && (vinum_conf.flags & VF_OPEN))	    /* open by vinum(8)? */
 	return 0;					    /* can't do it while we're open */
     lock_config();
     for (i = 0; i < vinum_conf.volumes_used; i++) {
@@ -223,7 +226,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	vinumattach(NULL);
 	return 0;					    /* OK */
     case MOD_UNLOAD:
-	if (!vinum_inactive())				    /* is anything open? */
+	if (!vinum_inactive(1))				    /* is anything open? */
 	    return EBUSY;				    /* yes, we can't do it */
 	vinum_conf.flags |= VF_STOPPING;		    /* note that we want to stop */
 	sync(curproc, &dummyarg);			    /* write out buffers */
