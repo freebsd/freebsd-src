@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_mod_misc.h>
 
 enum {
-	PAM_OPT_EVEN_ROOT	= PAM_OPT_STD_MAX,
+	PAM_OPT_ALLOW_ROOT	= PAM_OPT_STD_MAX,
 };
 
 static struct opttab other_options[] = {
-	{ "even_root",		PAM_OPT_EVEN_ROOT },
+	{ "allow_root",		PAM_OPT_ALLOW_ROOT },
 	{ NULL, 0 }
 };
 
@@ -81,7 +81,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		PAM_RETURN(PAM_AUTH_ERR);
 
 	uid = getuid();
-	if (uid == 0 && !pam_test_option(&options, PAM_OPT_EVEN_ROOT, NULL))
+	if (uid == 0 && !pam_test_option(&options, PAM_OPT_ALLOW_ROOT, NULL))
 		PAM_RETURN(PAM_AUTH_ERR);
 	
 	if (uid == (uid_t)pwd->pw_uid)
