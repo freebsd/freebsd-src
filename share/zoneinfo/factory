@@ -5,4 +5,4 @@
 # Also useful for the "comp.sources" version.
 
 # Zone	NAME	GMTOFF	RULES	FORMAT
-Zone	Factory	0	- "Local time zone must be set--see zic manual page"
+Zone	Factory	0	- "Local time zone must be set--use tzsetup"
