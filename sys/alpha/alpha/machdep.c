@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.19 1998/10/30 05:41:07 msmith Exp $
+ *	$Id: machdep.c,v 1.20 1998/11/02 00:14:50 alex Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -211,6 +211,17 @@ extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
+/*
+ * Hooked into the shutdown chain; if the system is to be halted,
+ * unconditionally drop back to the SRM console.
+ */
+static void
+alpha_srm_shutdown(int howto, void *junk)
+{
+	if (howto & RB_HALT)
+		alpha_pal_halt();
+}
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -394,7 +405,8 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
+	at_shutdown_pri(alpha_srm_shutdown, 0, SHUTDOWN_FINAL, 
+	    SHUTDOWN_PRI_LAST);
 }
 
 int
