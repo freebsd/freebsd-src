@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+.\" Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -37,7 +37,7 @@
 .\" From FreeBSD: src/lib/libc/locale/multibyte.3,v 1.22 2003/11/08 03:23:11 tjr Exp
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2003
+.Dd April 8, 2004
 .Dt WCTOMB 3
 .Os
 .Sh NAME
@@ -87,15 +87,18 @@ the number of bytes processed in
 .Fa mbchar ,
 or \-1 if no multibyte character
 could be recognized or converted.
+In this case,
+.Fn wctomb Ns No 's
+internal conversion state is undefined.
 .Sh ERRORS
 The
 .Fn wctomb
 function will fail if:
 .Bl -tag -width Er
-.\".It Bq Er EINVAL
-.\"Invalid argument.
 .It Bq Er EILSEQ
 An invalid multibyte sequence was detected.
+.It Bq Er EINVAL
+The internal conversion state is invalid.
 .El
 .Sh SEE ALSO
 .Xr mbtowc 3 ,
@@ -106,6 +109,4 @@ An invalid multibyte sequence was detected.
 The
 .Fn wctomb
 function conforms to
-.St -isoC .
-.Sh BUGS
-The current implementation does not support shift states.
+.St -isoC-99 .
