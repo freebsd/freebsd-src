@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.c,v 1.14 1999/03/25 22:52:44 mjacob Exp $ */
+/* $Id: isp_freebsd.c,v 1.15 1999/04/04 01:35:03 mjacob Exp $ */
 /* release_4_3_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
@@ -806,9 +806,8 @@ isp_attach(struct ispsoftc *isp)
 		isp->isp_osinfo._link.adapter_targ =
 			((sdparam *)isp->isp_param)->isp_initiator_id;
 		scbus->maxtarg = MAX_TARGETS-1;
+		(void) isp_control(isp, ISPCTL_RESET_BUS, NULL);
 	}
-
-	(void) isp_control(isp, ISPCTL_RESET_BUS, NULL);
 
 	/*
 	 * Prepare the scsibus_data area for the upperlevel scsi code.
