@@ -474,7 +474,8 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 				 * Send the version 2 packet also
 				 * for UDP/IP
 				 */
-				if (fdlist[i].proto == IPPROTO_UDP) {
+				if (pmap_flag &&
+				    fdlist[i].proto == IPPROTO_UDP) {
 					if (_sendto(fdlist[i].fd, outbuf_pmap,
 					    outlen_pmap, 0, addr,
 					    (size_t)fdlist[i].asize) !=
