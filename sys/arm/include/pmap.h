@@ -270,6 +270,8 @@ boolean_t pmap_get_pde_pte(pmap_t, vm_offset_t, pd_entry_t **, pt_entry_t **);
  * the corresponding pde that in turn maps it.
  */
 
+struct pcb;
+
 void	pmap_set_pcb_pagedir(pmap_t, struct pcb *);
 /* Virtual address to page table entry */
 static __inline pt_entry_t *
