@@ -1,0 +1,26 @@
+# ex:ts=8
+#
+# Makefile for amd
+# 	This file is under a "BSD" copyright (c) by David O'Brien 1998
+#
+# $Id$
+#
+
+.PATH:		${.CURDIR}/../../../contrib/amd/fixmount \
+		${.CURDIR}/../../../contrib/amd/conf/checkmount
+
+PROG=		fixmount
+MAN8=		fixmount.8
+
+SRCS=		fixmount.c 
+
+#		These are generated at compile time
+SRCS+=		mount.h nfs_prot.h
+
+#		These would be links created by the GNU-style configure
+SRCS+=		checkmount_bsd44.c
+
+DPDADD+=	${LIBAMU}
+LDADD+=		${LIBAMU} -lrpcsvc
+
+.include <bsd.prog.mk>
