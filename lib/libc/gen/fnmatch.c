@@ -52,7 +52,11 @@ static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
 
 #define	EOS	'\0'
 
-static const char *rangematch __P((const char *, char, int));
+#define RANGE_MATCH     1
+#define RANGE_NOMATCH   0
+#define RANGE_ERROR     (-1)
+
+static int rangematch __P((const char *, char, int, char **));
 
 int
 fnmatch(pattern, string, flags)
@@ -60,6 +64,7 @@ fnmatch(pattern, string, flags)
 	int flags;
 {
 	const char *stringstart;
+	char *newp;
 	char c, test;
 
 	for (stringstart = string;;)
@@ -118,9 +123,15 @@ fnmatch(pattern, string, flags)
 				return (FNM_NOMATCH);
 			if (*string == '/' && flags & FNM_PATHNAME)
 				return (FNM_NOMATCH);
-			if ((pattern =
-			    rangematch(pattern, *string, flags)) == NULL)
+			switch (rangematch(pattern, *string, flags, &newp)) {
+			case RANGE_ERROR:
+				goto norm;
+			case RANGE_MATCH:
+				pattern = newp;
+				break;
+			case RANGE_NOMATCH:
 				return (FNM_NOMATCH);
+			}
 			++string;
 			break;
 		case '\\':
@@ -132,6 +143,7 @@ fnmatch(pattern, string, flags)
 			}
 			/* FALLTHROUGH */
 		default:
+		norm:
 			if (c == *string)
 				;
 			else if ((flags & FNM_CASEFOLD) &&
@@ -146,14 +158,17 @@ fnmatch(pattern, string, flags)
 	/* NOTREACHED */
 }
 
-static const char *
-rangematch(pattern, test, flags)
+static int
+rangematch(pattern, test, flags, newp)
 	const char *pattern;
 	char test;
 	int flags;
+	char **newp;
 {
-	int negate, ok;
+	int negate, ok, first;
 	char c, c2;
+
+	first = 1;
 
 	/*
 	 * A bracket expression starting with an unquoted circumflex
@@ -162,17 +177,25 @@ rangematch(pattern, test, flags)
 	 * consistency with the regular expression syntax.
 	 * J.T. Conklin (conklin@ngai.kaleida.com)
 	 */
-	if ( (negate = (*pattern == '!' || *pattern == '^')) )
+	if ( (negate = (*pattern == '!' || *pattern == '^')) ) {
+		first = 0;
 		++pattern;
+	}
 
 	if (flags & FNM_CASEFOLD)
 		test = tolower((unsigned char)test);
 
-	for (ok = 0; (c = *pattern++) != ']';) {
+	/*
+	 * A right bracket shall lose its special meaning and represent
+	 * itself in a bracket expression if it occurs first in the list.
+	 * -- POSIX.2 2.8.3.2
+	 */
+	for (ok = 0, c = *pattern++; c != ']' || first; c = *pattern++) {
+		first = 0;
 		if (c == '\\' && !(flags & FNM_NOESCAPE))
 			c = *pattern++;
 		if (c == EOS)
-			return (NULL);
+			return (RANGE_ERROR);
 
 		if (flags & FNM_CASEFOLD)
 			c = tolower((unsigned char)c);
@@ -183,7 +206,7 @@ rangematch(pattern, test, flags)
 			if (c2 == '\\' && !(flags & FNM_NOESCAPE))
 				c2 = *pattern++;
 			if (c2 == EOS)
-				return (NULL);
+				return (RANGE_ERROR);
 
 			if (flags & FNM_CASEFOLD)
 				c2 = tolower((unsigned char)c2);
@@ -197,5 +220,6 @@ rangematch(pattern, test, flags)
 		} else if (c == test)
 			ok = 1;
 	}
-	return (ok == negate ? NULL : pattern);
+	*newp = (char *)pattern;
+	return (ok == negate ? RANGE_NOMATCH : RANGE_MATCH);
 }
