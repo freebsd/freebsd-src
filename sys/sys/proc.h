@@ -306,7 +306,8 @@ struct thread {
 		TDS_RUNNING,
 		TDS_SUSPENDED,		/* would have liked to have run */
 		TDS_IWAIT,
-		TDS_SURPLUS
+		TDS_SURPLUS,
+		TDS_SWAPPED
 	} td_state;
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
@@ -587,6 +588,7 @@ struct proc {
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 #define	PS_NEEDSIGCHK	0x02000	/* Process may need signal delivery. */
+#define	PS_SWAPPINGIN	0x04000	/* Swapin in progress. */
 
 /* used only in legacy conversion code */
 #define SIDL	1		/* Process being created by fork. */
@@ -711,8 +713,11 @@ sigonstack(size_t sp)
 } while (0)
 #define	_PHOLD(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
-	if ((p)->p_lock++ == 0)						\
+	if ((p)->p_lock++ == 0) {					\
+		mtx_lock_spin(&sched_lock);				\
 		faultin((p));						\
+		mtx_unlock_spin(&sched_lock);				\
+	}								\
 } while (0)
 
 #define	PRELE(p) do {							\
