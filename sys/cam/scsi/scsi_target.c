@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.2 1998/09/15 22:05:42 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -261,7 +261,7 @@ targasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 			break;
 		}
-		status = cam_periph_alloc(targctor, targdtor, targstart,
+		status = cam_periph_alloc(targctor, NULL, targdtor, targstart,
 					  "targ", CAM_PERIPH_BIO,
 					  new_path, targasync,
 					  AC_PATH_REGISTERED,
