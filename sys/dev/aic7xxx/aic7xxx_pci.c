@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#37 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#50 $
  *
  * $FreeBSD$
  */
@@ -667,6 +667,8 @@ static void ahc_scbram_config(struct ahc_softc *ahc, int enable,
 				  int pcheck, int fast, int large);
 static void ahc_probe_ext_scbram(struct ahc_softc *ahc);
 static void check_extport(struct ahc_softc *ahc, u_int *sxfrctl1);
+static void ahc_parse_pci_eeprom(struct ahc_softc *ahc,
+				 struct seeprom_config *sc);
 static void configure_termination(struct ahc_softc *ahc,
 				  struct seeprom_descriptor *sd,
 				  u_int adapter_control,
@@ -769,16 +771,16 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 int
 ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 {
-	struct scb_data *shared_scb_data;
-	u_int		 command;
-	u_int		 our_id = 0;
-	u_int		 sxfrctl1;
-	u_int		 scsiseq;
-	u_int		 dscommand0;
-	int		 error;
-	uint8_t		 sblkctl;
+	u_long	 l;
+	u_int	 command;
+	u_int	 our_id;
+	u_int	 sxfrctl1;
+	u_int	 scsiseq;
+	u_int	 dscommand0;
+	int	 error;
+	uint8_t	 sblkctl;
 
-	shared_scb_data = NULL;
+	our_id = 0;
 	error = entry->setup(ahc);
 	if (error != 0)
 		return (error);
@@ -975,19 +977,18 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 		return (error);
 
 	/*
-	 * Link this softc in with all other ahc instances.
-	 */
-	ahc_softc_insert(ahc);
-
-	/*
 	 * Allow interrupts now that we are completely setup.
 	 */
 	error = ahc_pci_map_int(ahc);
 	if (error != 0)
 		return (error);
 
-	ahc_intr_enable(ahc, TRUE);
-
+	ahc_list_lock(&l);
+	/*
+	 * Link this softc in with all other ahc instances.
+	 */
+	ahc_softc_insert(ahc);
+	ahc_list_unlock(&l);
 	return (0);
 }
 
@@ -1045,6 +1046,9 @@ ahc_scbram_config(struct ahc_softc *ahc, int enable, int pcheck,
 		ahc_outb(ahc, SCBBADDR, ahc_get_pci_function(ahc->dev_softc));
 	}
 
+	ahc->flags &= ~AHC_LSCBS_ENABLED;
+	if (large)
+		ahc->flags |= AHC_LSCBS_ENABLED;
 	devconfig = ahc_pci_read_config(ahc->dev_softc, DEVCONFIG, /*bytes*/4);
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		u_int dscommand0;
@@ -1191,9 +1195,7 @@ static void
 check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 {
 	struct	seeprom_descriptor sd;
-	struct	seeprom_config sc;
-	u_int	scsi_conf;
-	u_int	adapter_control;
+	struct	seeprom_config *sc;
 	int	have_seeprom;
 	int	have_autoterm;
 
@@ -1201,6 +1203,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	sd.sd_control_offset = SEECTL;		
 	sd.sd_status_offset = SEECTL;		
 	sd.sd_dataout_offset = SEECTL;		
+	sc = ahc->seep_config;
 
 	/*
 	 * For some multi-channel devices, the c46 is simply too
@@ -1231,12 +1234,12 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 
 			start_addr = 32 * (ahc->channel - 'A');
 
-			have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)&sc,
+			have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)sc,
 							start_addr,
-							sizeof(sc)/2);
+							sizeof(*sc)/2);
 
 			if (have_seeprom)
-				have_seeprom = ahc_verify_cksum(&sc);
+				have_seeprom = ahc_verify_cksum(sc);
 
 			if (have_seeprom != 0 || sd.sd_chip == C56_66) {
 				if (bootverbose) {
@@ -1268,16 +1271,17 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 			uint16_t *sc_data;
 			int	  i;
 
-			sc_data = (uint16_t *)&sc;
-			for (i = 0; i < 32; i++) {
-				uint16_t val;
-				int	 j;
+			sc_data = (uint16_t *)sc;
+			for (i = 0; i < 32; i++, sc_data++) {
+				int	j;
 
 				j = i * 2;
-				val = ahc_inb(ahc, SRAM_BASE + j)
-				    | ahc_inb(ahc, SRAM_BASE + j + 1) << 8;
+				*sc_data = ahc_inb(ahc, SRAM_BASE + j)
+					 | ahc_inb(ahc, SRAM_BASE + j + 1) << 8;
 			}
-			have_seeprom = ahc_verify_cksum(&sc);
+			have_seeprom = ahc_verify_cksum(sc);
+			if (have_seeprom)
+				ahc->flags |= AHC_SCB_CONFIG_USED;
 		}
 		/*
 		 * Clear any SCB parity errors in case this data and
@@ -1291,121 +1295,11 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		if (bootverbose)
 			printf("%s: No SEEPROM available.\n", ahc_name(ahc));
 		ahc->flags |= AHC_USEDEFAULTS;
+		free(ahc->seep_config, M_DEVBUF);
+		ahc->seep_config = NULL;
+		sc = NULL;
 	} else {
-		/*
-		 * Put the data we've collected down into SRAM
-		 * where ahc_init will find it.
-		 */
-		int i;
-		int max_targ = sc.max_targets & CFMAXTARG;
-		uint16_t discenable;
-		uint16_t ultraenb;
-
-		discenable = 0;
-		ultraenb = 0;
-		if ((sc.adapter_control & CFULTRAEN) != 0) {
-			/*
-			 * Determine if this adapter has a "newstyle"
-			 * SEEPROM format.
-			 */
-			for (i = 0; i < max_targ; i++) {
-				if ((sc.device_flags[i] & CFSYNCHISULTRA) != 0){
-					ahc->flags |= AHC_NEWEEPROM_FMT;
-					break;
-				}
-			}
-		}
-
-		for (i = 0; i < max_targ; i++) {
-			u_int     scsirate;
-			uint16_t target_mask;
-
-			target_mask = 0x01 << i;
-			if (sc.device_flags[i] & CFDISC)
-				discenable |= target_mask;
-			if ((ahc->flags & AHC_NEWEEPROM_FMT) != 0) {
-				if ((sc.device_flags[i] & CFSYNCHISULTRA) != 0)
-					ultraenb |= target_mask;
-			} else if ((sc.adapter_control & CFULTRAEN) != 0) {
-				ultraenb |= target_mask;
-			}
-			if ((sc.device_flags[i] & CFXFER) == 0x04
-			 && (ultraenb & target_mask) != 0) {
-				/* Treat 10MHz as a non-ultra speed */
-				sc.device_flags[i] &= ~CFXFER;
-			 	ultraenb &= ~target_mask;
-			}
-			if ((ahc->features & AHC_ULTRA2) != 0) {
-				u_int offset;
-
-				if (sc.device_flags[i] & CFSYNCH)
-					offset = MAX_OFFSET_ULTRA2;
-				else 
-					offset = 0;
-				ahc_outb(ahc, TARG_OFFSET + i, offset);
-
-				/*
-				 * The ultra enable bits contain the
-				 * high bit of the ultra2 sync rate
-				 * field.
-				 */
-				scsirate = (sc.device_flags[i] & CFXFER)
-					 | ((ultraenb & target_mask)
-					    ? 0x8 : 0x0);
-				if (sc.device_flags[i] & CFWIDEB)
-					scsirate |= WIDEXFER;
-			} else {
-				scsirate = (sc.device_flags[i] & CFXFER) << 4;
-				if (sc.device_flags[i] & CFSYNCH)
-					scsirate |= SOFS;
-				if (sc.device_flags[i] & CFWIDEB)
-					scsirate |= WIDEXFER;
-			}
-			ahc_outb(ahc, TARG_SCSIRATE + i, scsirate);
-		}
-		ahc->our_id = sc.brtime_id & CFSCSIID;
-
-		scsi_conf = (ahc->our_id & 0x7);
-		if (sc.adapter_control & CFSPARITY)
-			scsi_conf |= ENSPCHK;
-		if (sc.adapter_control & CFRESETB)
-			scsi_conf |= RESET_SCSI;
-
-		ahc->flags |=
-		    (sc.adapter_control & CFBOOTCHAN) >> CFBOOTCHANSHIFT;
-
-		if (sc.bios_control & CFEXTEND)
-			ahc->flags |= AHC_EXTENDED_TRANS_A;
-
-		if (sc.bios_control & CFBIOSEN)
-			ahc->flags |= AHC_BIOS_ENABLED;
-		if (ahc->features & AHC_ULTRA
-		 && (ahc->flags & AHC_NEWEEPROM_FMT) == 0) {
-			/* Should we enable Ultra mode? */
-			if (!(sc.adapter_control & CFULTRAEN))
-				/* Treat us as a non-ultra card */
-				ultraenb = 0;
-		}
-
-		if (sc.signature == CFSIGNATURE
-		 || sc.signature == CFSIGNATURE2) {
-			uint32_t devconfig;
-
-			/* Honor the STPWLEVEL settings */
-			devconfig = ahc_pci_read_config(ahc->dev_softc,
-							DEVCONFIG, /*bytes*/4);
-			devconfig &= ~STPWLEVEL;
-			if ((sc.bios_control & CFSTPWLEVEL) != 0)
-				devconfig |= STPWLEVEL;
-			ahc_pci_write_config(ahc->dev_softc, DEVCONFIG,
-					     devconfig, /*bytes*/4);
-		}
-		/* Set SCSICONF info */
-		ahc_outb(ahc, SCSICONF, scsi_conf);
-		ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
-		ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
-		ahc_outb(ahc, ULTRA_ENB, ultraenb & 0xff);
-		ahc_outb(ahc, ULTRA_ENB + 1, (ultraenb >> 8) & 0xff);
+		ahc_parse_pci_eeprom(ahc, sc);
 	}
 
 	/*
@@ -1415,10 +1309,6 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	 * hasn't failed yet...
 	 */
 	have_autoterm = have_seeprom;
-	if (have_seeprom)
-		adapter_control = sc.adapter_control;
-	else
-		adapter_control = CFAUTOTERM;
 
 	/*
 	 * Some low-cost chips have SEEPROM and auto-term control built
@@ -1426,17 +1316,141 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	 * if the termination logic is enabled.
 	 */
 	if ((ahc->features & AHC_SPIOCAP) != 0) {
-		if ((ahc_inb(ahc, SPIOCAP) & SSPIOCPS) != 0)
-			have_autoterm = TRUE;
-		else
+		if ((ahc_inb(ahc, SPIOCAP) & SSPIOCPS) == 0)
 			have_autoterm = FALSE;
 	}
 
 	if (have_autoterm) {
 		ahc_acquire_seeprom(ahc, &sd);
-		configure_termination(ahc, &sd, adapter_control, sxfrctl1);
+		configure_termination(ahc, &sd, sc->adapter_control, sxfrctl1);
 		ahc_release_seeprom(&sd);
+	} else if (have_seeprom) {
+		*sxfrctl1 &= ~STPWEN;
+		if ((sc->adapter_control & CFSTERM) != 0)
+			*sxfrctl1 |= STPWEN;
+		if (bootverbose)
+			printf("%s: Low byte termination %sabled\n",
+			       ahc_name(ahc),
+			       (*sxfrctl1 & STPWEN) ? "en" : "dis");
 	}
+}
+
+static void
+ahc_parse_pci_eeprom(struct ahc_softc *ahc, struct seeprom_config *sc)
+{
+	/*
+	 * Put the data we've collected down into SRAM
+	 * where ahc_init will find it.
+	 */
+	int	 i;
+	int	 max_targ = sc->max_targets & CFMAXTARG;
+	u_int	 scsi_conf;
+	uint16_t discenable;
+	uint16_t ultraenb;
+
+	discenable = 0;
+	ultraenb = 0;
+	if ((sc->adapter_control & CFULTRAEN) != 0) {
+		/*
+		 * Determine if this adapter has a "newstyle"
+		 * SEEPROM format.
+		 */
+		for (i = 0; i < max_targ; i++) {
+			if ((sc->device_flags[i] & CFSYNCHISULTRA) != 0) {
+				ahc->flags |= AHC_NEWEEPROM_FMT;
+				break;
+			}
+		}
+	}
+
+	for (i = 0; i < max_targ; i++) {
+		u_int     scsirate;
+		uint16_t target_mask;
+
+		target_mask = 0x01 << i;
+		if (sc->device_flags[i] & CFDISC)
+			discenable |= target_mask;
+		if ((ahc->flags & AHC_NEWEEPROM_FMT) != 0) {
+			if ((sc->device_flags[i] & CFSYNCHISULTRA) != 0)
+				ultraenb |= target_mask;
+		} else if ((sc->adapter_control & CFULTRAEN) != 0) {
+			ultraenb |= target_mask;
+		}
+		if ((sc->device_flags[i] & CFXFER) == 0x04
+		 && (ultraenb & target_mask) != 0) {
+			/* Treat 10MHz as a non-ultra speed */
+			sc->device_flags[i] &= ~CFXFER;
+		 	ultraenb &= ~target_mask;
+		}
+		if ((ahc->features & AHC_ULTRA2) != 0) {
+			u_int offset;
+
+			if (sc->device_flags[i] & CFSYNCH)
+				offset = MAX_OFFSET_ULTRA2;
+			else 
+				offset = 0;
+			ahc_outb(ahc, TARG_OFFSET + i, offset);
+
+			/*
+			 * The ultra enable bits contain the
+			 * high bit of the ultra2 sync rate
+			 * field.
+			 */
+			scsirate = (sc->device_flags[i] & CFXFER)
+				 | ((ultraenb & target_mask) ? 0x8 : 0x0);
+			if (sc->device_flags[i] & CFWIDEB)
+				scsirate |= WIDEXFER;
+		} else {
+			scsirate = (sc->device_flags[i] & CFXFER) << 4;
+			if (sc->device_flags[i] & CFSYNCH)
+				scsirate |= SOFS;
+			if (sc->device_flags[i] & CFWIDEB)
+				scsirate |= WIDEXFER;
+		}
+		ahc_outb(ahc, TARG_SCSIRATE + i, scsirate);
+	}
+	ahc->our_id = sc->brtime_id & CFSCSIID;
+
+	scsi_conf = (ahc->our_id & 0x7);
+	if (sc->adapter_control & CFSPARITY)
+		scsi_conf |= ENSPCHK;
+	if (sc->adapter_control & CFRESETB)
+		scsi_conf |= RESET_SCSI;
+
+	ahc->flags |= (sc->adapter_control & CFBOOTCHAN) >> CFBOOTCHANSHIFT;
+
+	if (sc->bios_control & CFEXTEND)
+		ahc->flags |= AHC_EXTENDED_TRANS_A;
+
+	if (sc->bios_control & CFBIOSEN)
+		ahc->flags |= AHC_BIOS_ENABLED;
+	if (ahc->features & AHC_ULTRA
+	 && (ahc->flags & AHC_NEWEEPROM_FMT) == 0) {
+		/* Should we enable Ultra mode? */
+		if (!(sc->adapter_control & CFULTRAEN))
+			/* Treat us as a non-ultra card */
+			ultraenb = 0;
+	}
+
+	if (sc->signature == CFSIGNATURE
+	 || sc->signature == CFSIGNATURE2) {
+		uint32_t devconfig;
+
+		/* Honor the STPWLEVEL settings */
+		devconfig = ahc_pci_read_config(ahc->dev_softc,
+						DEVCONFIG, /*bytes*/4);
+		devconfig &= ~STPWLEVEL;
+		if ((sc->bios_control & CFSTPWLEVEL) != 0)
+			devconfig |= STPWLEVEL;
+		ahc_pci_write_config(ahc->dev_softc, DEVCONFIG,
+				     devconfig, /*bytes*/4);
+	}
+	/* Set SCSICONF info */
+	ahc_outb(ahc, SCSICONF, scsi_conf);
+	ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
+	ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
+	ahc_outb(ahc, ULTRA_ENB, ultraenb & 0xff);
+	ahc_outb(ahc, ULTRA_ENB + 1, (ultraenb >> 8) & 0xff);
 }
 
 static void
@@ -1479,10 +1493,10 @@ configure_termination(struct ahc_softc *ahc,
 		enablePRI_high = 0;
 		if ((ahc->features & AHC_NEW_TERMCTL) != 0) {
 			ahc_new_term_detect(ahc, &enableSEC_low,
-					       &enableSEC_high,
-					       &enablePRI_low,
-					       &enablePRI_high,
-					       &eeprom_present);
+					    &enableSEC_high,
+					    &enablePRI_low,
+					    &enablePRI_high,
+					    &eeprom_present);
 			if ((adapter_control & CFSEAUTOTERM) == 0) {
 				if (bootverbose)
 					printf("%s: Manual SE Termination\n",
@@ -1506,6 +1520,8 @@ configure_termination(struct ahc_softc *ahc,
 			aic785X_cable_detect(ahc, &internal50_present,
 					     &externalcable_present,
 					     &eeprom_present);
+			/* Can never support a wide connector. */
+			internal68_present = 0;
 		} else {
 			aic787X_cable_detect(ahc, &internal50_present,
 					     &internal68_present,
@@ -1731,7 +1747,12 @@ aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 		     int *externalcable_present, int *eeprom_present)
 {
 	uint8_t brdctl;
+	uint8_t spiocap;
 
+	spiocap = ahc_inb(ahc, SPIOCAP);
+	spiocap &= ~SOFTCMDEN;
+	spiocap |= EXT_BRDCTL;
+	ahc_outb(ahc, SPIOCAP, spiocap);
 	ahc_outb(ahc, BRDCTL, BRDRW|BRDCS);
 	ahc_outb(ahc, BRDCTL, 0);
 	brdctl = ahc_inb(ahc, BRDCTL);
@@ -1927,10 +1948,8 @@ ahc_aic7860_setup(struct ahc_softc *ahc)
 static int
 ahc_apa1480_setup(struct ahc_softc *ahc)
 {
-	ahc_dev_softc_t pci;
 	int error;
 
-	pci = ahc->dev_softc;
 	error = ahc_aic7860_setup(ahc);
 	if (error != 0)
 		return (error);
@@ -1941,9 +1960,7 @@ ahc_apa1480_setup(struct ahc_softc *ahc)
 static int
 ahc_aic7870_setup(struct ahc_softc *ahc)
 {
-	ahc_dev_softc_t pci;
 
-	pci = ahc->dev_softc;
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7870;
 	ahc->features = AHC_AIC7870_FE;
@@ -2007,13 +2024,9 @@ ahc_aic7880_setup(struct ahc_softc *ahc)
 static int
 ahc_aha2940Pro_setup(struct ahc_softc *ahc)
 {
-	ahc_dev_softc_t pci;
-	int error;
 
-	pci = ahc->dev_softc;
 	ahc->flags |= AHC_INT50_SPEEDFLEX;
-	error = ahc_aic7880_setup(ahc);
-	return (0);
+	return (ahc_aic7880_setup(ahc));
 }
 
 static int
@@ -2058,9 +2071,7 @@ ahc_aic7890_setup(struct ahc_softc *ahc)
 static int
 ahc_aic7892_setup(struct ahc_softc *ahc)
 {
-	ahc_dev_softc_t pci;
 
-	pci = ahc->dev_softc;
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7892;
 	ahc->features = AHC_AIC7892_FE;
