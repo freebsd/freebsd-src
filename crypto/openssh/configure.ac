@@ -1,5 +1,19 @@
-# $Id: configure.ac,v 1.202 2004/02/24 05:47:04 tim Exp $
 # $FreeBSD$
+# $Id: configure.ac,v 1.202 2004/02/24 05:47:04 tim Exp $
+#
+# Copyright (c) 1999-2004 Damien Miller
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT
 AC_CONFIG_SRCDIR([ssh.c])
@@ -196,10 +210,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(DISABLE_UTMP)
 	AC_DEFINE(LOCKED_PASSWD_STRING, "*")
 	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	case "$host" in
-	*-*-hpux11.11*)
-		AC_DEFINE(BROKEN_GETADDRINFO);;
-	esac
+	check_for_hpux_broken_getaddrinfo=1
 	LIBS="$LIBS -lsec"
 	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	;;
@@ -222,6 +233,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
+	AC_DEFINE(BROKEN_UPDWTMPX)
 	AC_DEFINE(WITH_ABBREV_NO_TTY)
 	AC_DEFINE(LOCKED_PASSWD_STRING, "*LK*")
 	;;
@@ -231,7 +243,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	check_for_openpty_ctty_bug=1
 	AC_DEFINE(DONT_TRY_OTHER_AF)
 	AC_DEFINE(PAM_TTY_KLUDGE)
-	AC_DEFINE(LOCKED_PASSWD_PREFIX, "!!")
+	AC_DEFINE(LOCKED_PASSWD_PREFIX, "!")
 	AC_DEFINE(SPT_TYPE,SPT_REUSEARGV)
 	inet6_default_4in6=yes
 	case `uname -r` in
@@ -269,6 +281,9 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(BROKEN_SAVED_UIDS)
 	;;
 *-*-solaris*)
+	if test "x$withval" != "xno" ; then	
+		need_dash_r=1
+	fi
 	AC_DEFINE(PAM_SUN_CODEBASE)
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(LOGIN_NEEDS_TERM)
@@ -345,6 +360,9 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(HAVE_SECUREWARE)
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(BROKEN_SAVED_UIDS)
+	AC_DEFINE(SETEUID_BREAKS_SETUID)
+	AC_DEFINE(BROKEN_SETREUID)
+	AC_DEFINE(BROKEN_SETREGID)
 	AC_DEFINE(WITH_ABBREV_NO_TTY)
 	AC_CHECK_FUNCS(getluid setluid)
 	MANTYPE=man
@@ -492,10 +510,10 @@ AC_CHECK_HEADERS(bstring.h crypt.h endian.h features.h floatingpoint.h \
 	netinet/in_systm.h pam/pam_appl.h paths.h pty.h readpassphrase.h \
 	rpc/types.h security/pam_appl.h shadow.h stddef.h stdint.h \
 	strings.h sys/strtio.h sys/audit.h sys/bitypes.h sys/bsdtty.h \
-	sys/cdefs.h sys/mman.h sys/pstat.h sys/ptms.h sys/select.h sys/stat.h \
-	sys/stream.h sys/stropts.h sys/sysmacros.h sys/time.h sys/timers.h \
-	sys/un.h time.h tmpdir.h ttyent.h usersec.h \
-	util.h utime.h utmp.h utmpx.h vis.h)
+	sys/cdefs.h sys/mman.h sys/prctl.h sys/pstat.h sys/ptms.h \
+	sys/select.h sys/stat.h sys/stream.h sys/stropts.h \
+	sys/sysmacros.h sys/time.h sys/timers.h sys/un.h time.h tmpdir.h \
+	ttyent.h usersec.h util.h utime.h utmp.h utmpx.h vis.h)
 
 # Checks for libraries.
 AC_CHECK_FUNC(yp_match, , AC_CHECK_LIB(nsl, yp_match))
@@ -729,6 +747,15 @@ int main() { char *ff = skey_keyinfo(""); ff=""; exit(0); }
 					AC_MSG_RESULT(no)
 					AC_MSG_ERROR([** Incomplete or missing s/key libraries.])
 				])
+                 	AC_MSG_CHECKING(if skeychallenge takes 4 arguments)
+			AC_TRY_COMPILE(
+				[#include <stdio.h>
+				 #include <skey.h>],
+				[(void)skeychallenge(NULL,"name","",0);],
+				[AC_MSG_RESULT(yes)
+				 AC_DEFINE(SKEYCHALLENGE_4ARG)],
+				[AC_MSG_RESULT(no)]
+        		)
 		fi
 	]
 )
@@ -803,6 +830,9 @@ AC_ARG_WITH(tcp-wrappers,
 			AC_MSG_CHECKING(for libwrap)
 			AC_TRY_LINK(
 				[
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <tcpd.h>
 					int deny_severity = 0, allow_severity = 0;
 				],
@@ -830,12 +860,12 @@ AC_CHECK_FUNCS(\
 	getpeereid _getpty getrlimit getttyent glob inet_aton \
 	inet_ntoa inet_ntop innetgr login_getcapbool md5_crypt memmove \
 	mkdtemp mmap ngetaddrinfo nsleep ogetaddrinfo openlog_r openpty \
-	pstat readpassphrase realpath recvmsg rresvport_af sendmsg \
+	pstat prctl readpassphrase realpath recvmsg rresvport_af sendmsg \
 	setdtablesize setegid setenv seteuid setgroups setlogin setpcred \
 	setproctitle setregid setreuid setrlimit \
 	setsid setvbuf sigaction sigvec snprintf socketpair strerror \
 	strlcat strlcpy strmode strnvis strtoul sysconf tcgetpgrp \
-	truncate updwtmpx utimes vhangup vsnprintf waitpid \
+	truncate unsetenv updwtmpx utimes vhangup vsnprintf waitpid \
 )
 
 # IRIX has a const char return value for gai_strerror()
@@ -999,6 +1029,74 @@ main()
 		[
 			AC_MSG_RESULT(no)
 			AC_DEFINE(SSHD_ACQUIRES_CTTY)
+		]
+	)
+fi
+
+if test "x$ac_cv_func_getaddrinfo" = "xyes" -a "x$check_for_hpux_broken_getaddrinfo" = "x1"; then
+	AC_MSG_CHECKING(if getaddrinfo seems to work)
+	AC_TRY_RUN(
+		[
+#include <stdio.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <errno.h>
+#include <netinet/in.h>
+
+#define TEST_PORT "2222"
+
+int
+main(void)
+{
+	int err, sock;
+	struct addrinfo *gai_ai, *ai, hints;
+	char ntop[NI_MAXHOST], strport[NI_MAXSERV], *name = NULL;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+
+	err = getaddrinfo(name, TEST_PORT, &hints, &gai_ai);
+	if (err != 0) {
+		fprintf(stderr, "getaddrinfo failed (%s)", gai_strerror(err));
+		exit(1);
+	}
+
+	for (ai = gai_ai; ai != NULL; ai = ai->ai_next) {
+		if (ai->ai_family != AF_INET6)
+			continue;
+
+		err = getnameinfo(ai->ai_addr, ai->ai_addrlen, ntop,
+		    sizeof(ntop), strport, sizeof(strport),
+		    NI_NUMERICHOST|NI_NUMERICSERV);
+
+		if (err != 0) {
+			if (err == EAI_SYSTEM)
+				perror("getnameinfo EAI_SYSTEM");
+			else
+				fprintf(stderr, "getnameinfo failed: %s\n",
+				    gai_strerror(err));
+			exit(2);
+		}
+
+		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (sock < 0)
+			perror("socket");
+		if (bind(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
+			if (errno == EBADF)
+				exit(3);
+		}
+	}
+	exit(0);
+}
+		],
+		[
+			AC_MSG_RESULT(yes)
+		],
+		[
+			AC_MSG_RESULT(no)
+			AC_DEFINE(BROKEN_GETADDRINFO)
 		]
 	)
 fi
@@ -2197,6 +2295,7 @@ AC_ARG_WITH(kerberos5,
 
 	LIBS="$LIBS $K5LIBS"
 	AC_SEARCH_LIBS(k_hasafs, kafs, AC_DEFINE(USE_AFS))
+	AC_SEARCH_LIBS(krb5_init_ets, $K5LIBS, AC_DEFINE(KRB5_INIT_ETS))
 	]
 )
 

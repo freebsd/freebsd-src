@@ -1,5 +1,5 @@
-/* $Id: fake-rfc2553.h,v 1.8 2004/02/10 02:05:41 dtucker Exp $ */
 /* $FreeBSD$ */
+/* $Id: fake-rfc2553.h,v 1.8 2004/02/10 02:05:41 dtucker Exp $ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
@@ -134,6 +134,9 @@ struct addrinfo {
 #endif /* !HAVE_STRUCT_ADDRINFO */
 
 #ifndef HAVE_GETADDRINFO
+#ifdef getaddrinfo
+# undef getaddrinfo
+#endif
 #define getaddrinfo(a,b,c,d)	(ssh_getaddrinfo(a,b,c,d))
 int getaddrinfo(const char *, const char *, 
     const struct addrinfo *, struct addrinfo **);

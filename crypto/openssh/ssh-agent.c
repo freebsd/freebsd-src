@@ -58,6 +58,10 @@ RCSID("$FreeBSD$");
 #include "scard.h"
 #endif
 
+#if defined(HAVE_SYS_PRCTL_H)
+#include <sys/prctl.h>	/* For prctl() and PR_SET_DUMPABLE */
+#endif
+
 typedef enum {
 	AUTH_UNUSED,
 	AUTH_SOCKET,
@@ -1024,6 +1028,11 @@ main(int ac, char **av)
 	setegid(getgid());
 	setgid(getgid());
 	setuid(geteuid());
+
+#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+	/* Disable ptrace on Linux without sgid bit */
+	prctl(PR_SET_DUMPABLE, 0);
+#endif
 
 	SSLeay_add_all_algorithms();
 
