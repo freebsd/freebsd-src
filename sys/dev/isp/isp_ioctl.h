@@ -63,8 +63,8 @@
 #define ISP_SETROLE     _IOWR(ISP_IOC, 4, int)
 
 #define ISP_ROLE_NONE           0x0
-#define ISP_ROLE_INITIATOR      0x1
-#define ISP_ROLE_TARGET         0x2
+#define ISP_ROLE_TARGET         0x1
+#define ISP_ROLE_INITIATOR      0x2
 #define ISP_ROLE_BOTH           (ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #ifndef ISP_DEFAULT_ROLES
 #define ISP_DEFAULT_ROLES       ISP_ROLE_BOTH
@@ -115,8 +115,10 @@ typedef struct {
  * only), 24 bit Port ID and Node and Port WWNs.
  */
 struct isp_fc_device {
-	u_int32_t	loopid;	/* 0..255 */
-	u_int32_t	portid;	/* 24 bit Port ID */
+	u_int32_t	loopid;		/* 0..255 */
+	u_int32_t		: 6,
+			role 	: 2,
+			portid	: 24;	/* 24 bit Port ID */
 	u_int64_t	node_wwn;
 	u_int64_t	port_wwn;
 };
