@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SCRIPTS=generic.sh
-SCRIPTSNAME=cd
+SCRIPTSNAME=alias
 NOMAN=
 
 LINKS=	${BINDIR}/alias ${BINDIR}/bg \
