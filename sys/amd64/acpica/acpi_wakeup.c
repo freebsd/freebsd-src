@@ -253,13 +253,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #endif
 		icu_reinit();
 
-		pmap_remove(pm, sc->acpi_wakephys,
-			    sc->acpi_wakephys + PAGE_SIZE);
-		if (opage) {
-			pmap_enter(pm, sc->acpi_wakephys, page,
-				   VM_PROT_READ | VM_PROT_WRITE, 0);
-		}
-
 		if (debug_wakeup) {
 			acpi_savecpu();
 			acpi_printcpu();
@@ -267,6 +260,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	}
 
 out:
+	pmap_remove(pm, sc->acpi_wakephys, sc->acpi_wakephys + PAGE_SIZE);
+	if (opage) {
+		pmap_enter(pm, sc->acpi_wakephys, page,
+			   VM_PROT_READ | VM_PROT_WRITE, 0);
+	}
+
 	write_eflags(ef);
 
 	return (ret);
