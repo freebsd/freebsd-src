@@ -46,28 +46,27 @@ The
 driver supports the following media types (depending on card's capabilities):
 .Pp
 .Bl -tag -width ".Cm 10baseT/UTP"
-.It autoselect
-Enable autonegotiation (default)
+.It Cm autoselect
+Enable autonegotiation (default).
 .It Cm 100baseFX
-Set 100Mbps (fast ethernet) fiber optic operation
+Set 100Mbps (Fast Ethernet) fiber optic operation.
 .It Cm 100baseTX
-Set 100Mbps (fast ethernet) twisted pair operation
+Set 100Mbps (Fast Ethernet) twisted pair operation.
 .It Cm 10baseT/UTP
-Set 10Mbps on 10baseT port
+Set 10Mbps on 10baseT port.
 .It Cm 10base2/BNC
-Set 10Mbps on 10base2 port
+Set 10Mbps on 10base2 port.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
-Set full-duplex operation
+Set full-duplex operation.
 .El
 .Pp
-Driver supports oversized ethernet packets (up to 1600 bytes).
+Driver supports oversized Ethernet packets (up to 1600 bytes).
 Refer to the
 .Xr ifconfig 8
 man page on setting the interface's MTU.
