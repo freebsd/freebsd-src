@@ -61,7 +61,7 @@
 	.data
 
 	.globl	_hlt_vector
-_hlt_vector:	.long	_default_halt	/* pointer to halt routine */
+_hlt_vector:	.long	_cpu_idle	/* pointer to halt routine */
 
 	.globl	_panic
 
@@ -260,12 +260,16 @@ idle_loop:
 
 CROSSJUMPTARGET(_idle)
 
+#if 0
+
 ENTRY(default_halt)
 	sti
 #ifndef SMP
 	hlt					/* XXX:	 until a wakeup IPI */
 #endif
 	ret
+
+#endif
 
 /*
  * cpu_switch()
