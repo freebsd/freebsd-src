@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydev.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ttydev.h,v 1.2 1994/08/02 07:53:58 davidg Exp $
  */
 
 /* COMPATABILITY HEADER FILE */
@@ -56,6 +56,8 @@
 #define B9600	13
 #define EXTA	14
 #define EXTB	15
+#define B57600  16
+#define B115200 17
 #endif /* USE_OLD_TTY */
 
 #endif /* !_SYS_TTYDEV_H_ */
