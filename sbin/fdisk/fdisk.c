@@ -299,10 +299,11 @@ main(int argc, char *argv[])
 	}
 
 	/* (abu)use mboot.bootinst to probe for the sector size */
+	if (mboot.bootinst != NULL)
+		free(mboot.bootinst);
 	if ((mboot.bootinst = malloc(MAX_SEC_SIZE)) == NULL)
 		err(1, "cannot allocate buffer to determine disk sector size");
 	read_disk(0, mboot.bootinst);
-	free(mboot.bootinst);
 
 	if (s_flag)
 	{
@@ -494,6 +495,8 @@ init_boot(void)
 		err(1, "%s", fname);
 	if ((mboot.bootinst_size = sb.st_size) % secsize != 0)
 		errx(1, "%s: length must be a multiple of sector size", fname);
+	if (mboot.bootinst != NULL)
+		free(mboot.bootinst);
 	if ((mboot.bootinst = malloc(mboot.bootinst_size = sb.st_size)) == NULL)
 		errx(1, "%s: unable to allocate read buffer", fname);
 	if ((n = read(fd, mboot.bootinst, mboot.bootinst_size)) == -1 ||
@@ -779,14 +782,13 @@ get_params()
 static int
 read_s0()
 {
-	if (mboot.bootinst != NULL) {
+	mboot.bootinst_size = secsize;
+	if (mboot.bootinst != NULL)
 		free(mboot.bootinst);
-		mboot.bootinst_size = secsize;
-		if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL) {
-			warnx("unable to allocate buffer to read fdisk "
-			      "partition table");
-			return -1;
-		}
+	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL) {
+		warnx("unable to allocate buffer to read fdisk "
+		      "partition table");
+		return -1;
 	}
 	if (read_disk(0, mboot.bootinst) == -1) {
 		warnx("can't read fdisk partition table");
