@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.22 1995/12/17 21:23:24 phk Exp $
+ * $Id: vfs_vnops.c,v 1.23 1996/01/19 03:58:17 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@ static int vn_ioctl __P((struct file *fp, int com, caddr_t data,
 static int vn_read __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred));
 static int vn_select __P((struct file *fp, int which, struct proc *p));
-static int vn_vmio_open __P((struct vnode *vp, struct proc *p, 
+int vn_vmio_open __P((struct vnode *vp, struct proc *p, 
 		struct ucred *cred));
 static int vn_write __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred));
@@ -465,7 +465,7 @@ vn_closefile(fp, p)
 		fp->f_cred, p));
 }
 
-static int
+int
 vn_vmio_open(vp, p, cred)
 	struct vnode *vp;
 	struct proc *p;
@@ -476,7 +476,7 @@ vn_vmio_open(vp, p, cred)
 	/*
 	 * this is here for VMIO support
 	 */
-	if (vp->v_type == VREG /* || vp->v_type == VBLK */) {
+	if (vp->v_type == VREG || vp->v_type == VBLK) {
 retry:
 		if ((vp->v_flag & VVMIO) == 0) {
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
