@@ -335,7 +335,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	/*
 	 * We need these two options before the others,
 	 * and they are mandatory for any filesystem.
-	 * Ensure they are NULL terminated as well.
+	 * Ensure they are NUL terminated as well.
 	 */
 	fstypelen = 0;
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
