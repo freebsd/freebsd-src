@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	whois
+WARNS?=	2
 
-CFLAGS+=-Wall
 .if defined(SOCKS)
 CFLAGS+=-DSOCKS
 CFLAGS+=-Dconnect=Rconnect -Dgetsockname=Rgetsockname -Dlisten=Rlisten \
