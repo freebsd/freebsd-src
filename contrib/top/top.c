@@ -111,6 +111,8 @@ int i_cpustates();
 int u_cpustates();
 int i_memory();
 int u_memory();
+int i_swap();
+int u_swap();
 int i_message();
 int u_message();
 int i_header();
@@ -123,6 +125,7 @@ int (*d_loadave)() = i_loadave;
 int (*d_procstates)() = i_procstates;
 int (*d_cpustates)() = i_cpustates;
 int (*d_memory)() = i_memory;
+int (*d_swap)() = i_swap;
 int (*d_message)() = i_message;
 int (*d_header)() = i_header;
 int (*d_process)() = i_process;
@@ -568,6 +571,9 @@ Usage: %s [-ISbinqu] [-d x] [-s x] [-o field] [-U username] [number]\n",
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
 
+	/* display swap stats */
+	(*d_swap)(system_info.swap);
+
 	/* handle message area */
 	(*d_message)();
 
@@ -622,6 +628,7 @@ Usage: %s [-ISbinqu] [-d x] [-s x] [-o field] [-U username] [number]\n",
 		    d_procstates = u_procstates;
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
+		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
 		    d_process = u_process;
@@ -663,8 +670,11 @@ Usage: %s [-ISbinqu] [-d x] [-s x] [-o field] [-U username] [number]\n",
 		    (void) read(0, &ch, 1);
 		    if ((iptr = strchr(command_chars, ch)) == NULL)
 		    {
-			/* illegal command */
-			new_message(MT_standout, " Command not understood");
+			if (ch != '\r' && ch != '\n')
+			{
+			    /* illegal command */
+			    new_message(MT_standout, " Command not understood");
+			}
 			putchar('\r');
 			no_command = Yes;
 		    }
@@ -909,6 +919,7 @@ reset_display()
     d_procstates = i_procstates;
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
+    d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;
     d_process	 = i_process;
