@@ -405,11 +405,9 @@ aue_read_eeprom(struct aue_softc *sc, caddr_t dest, int off, int cnt, int swap)
 Static int
 aue_miibus_readreg(device_ptr_t dev, int phy, int reg)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = USBGETSOFTC(dev);
 	int			i;
 	u_int16_t		val = 0;
-
-	sc = device_get_softc(dev);
 
 	/*
 	 * The Am79C901 HomePNA PHY actually contains
@@ -451,13 +449,11 @@ aue_miibus_readreg(device_ptr_t dev, int phy, int reg)
 Static int
 aue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = USBGETSOFTC(dev);
 	int			i;
 
 	if (phy == 3)
 		return (0);
-
-	sc = device_get_softc(dev);
 
 	aue_csr_write_2(sc, AUE_PHY_DATA, data);
 	aue_csr_write_1(sc, AUE_PHY_ADDR, phy);
@@ -479,11 +475,8 @@ aue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 Static void
 aue_miibus_statchg(device_ptr_t dev)
 {
-	struct aue_softc	*sc;
-	struct mii_data		*mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->aue_miibus);
+	struct aue_softc	*sc = USBGETSOFTC(dev);
+	struct mii_data		*mii = GET_MII(sc);
 
 	AUE_CLRBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB | AUE_CTL0_TX_ENB);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
@@ -1097,7 +1090,7 @@ aue_tick(void *xsc)
 	AUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
-	mii = device_get_softc(sc->aue_miibus);
+	mii = GET_MII(sc);
 	if (mii == NULL) {
 		AUE_UNLOCK(sc);
 		return;
@@ -1215,7 +1208,7 @@ aue_init(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	struct mii_data		*mii;
+	struct mii_data		*mii = GET_MII(sc);
 	struct aue_chain	*c;
 	usbd_status		err;
 	int			i;
@@ -1231,8 +1224,6 @@ aue_init(void *xsc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	aue_reset(sc);
-
-	mii = device_get_softc(sc->aue_miibus);
 
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
@@ -1329,9 +1320,8 @@ Static int
 aue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct aue_softc	*sc = ifp->if_softc;
-	struct mii_data		*mii;
+	struct mii_data		*mii = GET_MII(sc);
 
-	mii = device_get_softc(sc->aue_miibus);
 	sc->aue_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc	*miisc;
@@ -1350,9 +1340,8 @@ Static void
 aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct aue_softc	*sc = ifp->if_softc;
-	struct mii_data		*mii;
+	struct mii_data		*mii = GET_MII(sc);
 
-	mii = device_get_softc(sc->aue_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -1402,7 +1391,7 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->aue_miibus);
+		mii = GET_MII(sc);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
