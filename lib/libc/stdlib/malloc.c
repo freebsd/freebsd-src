@@ -1114,6 +1114,7 @@ free(void *ptr)
     if (malloc_active++) {
 	wrtwarning("recursive call\n");
 	malloc_active--;
+        THREAD_UNLOCK();
 	return;
     }
     if (ptr != ZEROSIZEPTR)
@@ -1134,6 +1135,7 @@ realloc(void *ptr, size_t size)
     if (malloc_active++) {
 	wrtwarning("recursive call\n");
         malloc_active--;
+        THREAD_UNLOCK();
 	return (0);
     }
     if (ptr && !malloc_started) {
