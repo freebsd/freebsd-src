@@ -859,8 +859,8 @@ mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 static int
 mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 {
-	struct pthread	*curthread = _get_curthread();
-	int	ret = 0;
+	struct pthread *curthread = _get_curthread();
+	int ret = 0;
 
 	if (m == NULL || *m == NULL)
 		ret = EINVAL;
@@ -997,7 +997,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 */
 				THR_SCHED_LOCK(curthread, curthread);
 				curthread->inherited_priority =
-				    (*m)->m_saved_prio;
+					(*m)->m_saved_prio;
 				curthread->active_priority =
 				    MAX(curthread->inherited_priority,
 				    curthread->base_priority);
@@ -1006,7 +1006,6 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 * This thread now owns one less priority mutex.
 				 */
 				curthread->priority_mutex_count--;
-				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Remove the mutex from the threads queue. */
 				MUTEX_ASSERT_IS_OWNED(*m);
@@ -1464,7 +1463,7 @@ _mutex_lock_backout(struct pthread *curthread)
 static void
 mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 {
-	struct pthread	*pthread;
+	struct pthread *pthread;
 
 	/* Keep dequeueing until we find a valid thread: */
 	mutex->m_owner = NULL;
@@ -1566,8 +1565,13 @@ mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 
 		/* Make the thread runnable and unlock the scheduling queue: */
 		_thr_setrunnable_unlocked(pthread);
-		THR_SCHED_UNLOCK(curthread, pthread);
 
+		/* Add a preemption point. */
+		if ((curthread->kseg == pthread->kseg) &&
+		    (pthread->active_priority > curthread->active_priority))
+			curthread->critical_yield = 1;
+
+		THR_SCHED_UNLOCK(curthread, pthread);
 		if (mutex->m_owner == pthread)
 			/* We're done; a valid owner was found. */
 			break;

@@ -615,6 +615,10 @@ _pthread_cond_signal(pthread_cond_t * cond)
 			    != NULL) {
 				THR_SCHED_LOCK(curthread, pthread);
 				cond_queue_remove(*cond, pthread);
+				if ((pthread->kseg == curthread->kseg) &&
+				    (pthread->active_priority >
+				    curthread->active_priority))
+					curthread->critical_yield = 1;
 				_thr_setrunnable_unlocked(pthread);
 				THR_SCHED_UNLOCK(curthread, pthread);
 			}
@@ -674,6 +678,10 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 			    != NULL) {
 				THR_SCHED_LOCK(curthread, pthread);
 				cond_queue_remove(*cond, pthread);
+				if ((pthread->kseg == curthread->kseg) &&
+				    (pthread->active_priority >
+				    curthread->active_priority))
+					curthread->critical_yield = 1;
 				_thr_setrunnable_unlocked(pthread);
 				THR_SCHED_UNLOCK(curthread, pthread);
 			}
