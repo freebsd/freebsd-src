@@ -66,9 +66,10 @@
 #include <sys/dirent.h>
 #include <sys/extattr.h>
 #include <sys/jail.h>
+#include <sys/sysctl.h>
 
 #include <machine/limits.h>
-#include <sys/sysctl.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
