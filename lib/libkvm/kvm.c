@@ -72,7 +72,7 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #include "kvm_private.h"
 
 /* from src/lib/libc/gen/nlist.c */
-int __fdnlist		__P((int, struct nlist *));
+int __fdnlist(int, struct nlist *);
 
 char *
 kvm_geterr(kd)

@@ -51,20 +51,20 @@ __FBSDID("$FreeBSD$");
 
 #define CALLOC(size, cast) (cast)calloc(1, (size))
 
-static int findsupportedmap __P((int));
-static int setsupportedmap __P((struct sadb_supported *));
-static struct sadb_alg *findsupportedalg __P((u_int, u_int));
+static int findsupportedmap(int);
+static int setsupportedmap(struct sadb_supported *);
+static struct sadb_alg *findsupportedalg(u_int, u_int);
 static int pfkey_send_x1 __P((int, u_int, u_int, u_int, struct sockaddr *,
 	struct sockaddr *, u_int32_t, u_int32_t, u_int, caddr_t,
 	u_int, u_int, u_int, u_int, u_int, u_int32_t, u_int32_t,
 	u_int32_t, u_int32_t, u_int32_t));
 static int pfkey_send_x2 __P((int, u_int, u_int, u_int,
 	struct sockaddr *, struct sockaddr *, u_int32_t));
-static int pfkey_send_x3 __P((int, u_int, u_int));
+static int pfkey_send_x3(int, u_int, u_int);
 static int pfkey_send_x4 __P((int, u_int, struct sockaddr *, u_int,
 	struct sockaddr *, u_int, u_int, u_int64_t, u_int64_t,
 	char *, int, u_int32_t));
-static int pfkey_send_x5 __P((int, u_int, u_int32_t));
+static int pfkey_send_x5(int, u_int, u_int32_t);
 
 static caddr_t pfkey_setsadbmsg __P((caddr_t, caddr_t, u_int, u_int,
 	u_int, u_int32_t, pid_t));
@@ -72,10 +72,10 @@ static caddr_t pfkey_setsadbsa __P((caddr_t, caddr_t, u_int32_t, u_int,
 	u_int, u_int, u_int32_t));
 static caddr_t pfkey_setsadbaddr __P((caddr_t, caddr_t, u_int,
 	struct sockaddr *, u_int, u_int));
-static caddr_t pfkey_setsadbkey __P((caddr_t, caddr_t, u_int, caddr_t, u_int));
+static caddr_t pfkey_setsadbkey(caddr_t, caddr_t, u_int, caddr_t, u_int);
 static caddr_t pfkey_setsadblifetime __P((caddr_t, caddr_t, u_int, u_int32_t,
 	u_int32_t, u_int32_t, u_int32_t));
-static caddr_t pfkey_setsadbxsa2 __P((caddr_t, caddr_t, u_int32_t, u_int32_t));
+static caddr_t pfkey_setsadbxsa2(caddr_t, caddr_t, u_int32_t, u_int32_t);
 
 /*
  * make and search supported algorithm structure.

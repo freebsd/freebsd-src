@@ -48,33 +48,33 @@ struct utmp;
 struct in_addr;
 
 __BEGIN_DECLS
-int	extattr_namespace_to_string __P((int _attrnamespace, char **_string));
+int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace __P((const char *_string,
 					 int *_attrnamespace));
-void	login __P((struct utmp *_ut));
-int	login_tty __P((int _fd));
-int	logout __P((const char *_line));
-void	logwtmp __P((const char *_line, const char *_name, const char *_host));
-void	trimdomain __P((char *_fullhost, int _hostsize));
+void	login(struct utmp *_ut);
+int	login_tty(int _fd);
+int	logout(const char *_line);
+void	logwtmp(const char *_line, const char *_name, const char *_host);
+void	trimdomain(char *_fullhost, int _hostsize);
 int	openpty __P((int *_amaster, int *_aslave, char *_name,
 		     struct termios *_termp, struct winsize *_winp));
 int	forkpty __P((int *_amaster, char *_name,
 		     struct termios *_termp, struct winsize *_winp));
-const char *uu_lockerr __P((int _uu_lockresult));
-int	uu_lock __P((const char *_ttyname));
-int	uu_unlock __P((const char *_ttyname));
-int	uu_lock_txfr __P((const char *_ttyname, pid_t _pid));
-int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
-properties properties_read __P((int fd));
-void	properties_free __P((properties list));
-char	*property_find __P((properties list, const char *name));
-char	*auth_getval __P((const char *name));
-int	realhostname __P((char *host, size_t hsize, const struct in_addr *ip));
+const char *uu_lockerr(int _uu_lockresult);
+int	uu_lock(const char *_ttyname);
+int	uu_unlock(const char *_ttyname);
+int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
+int	_secure_path(const char *_path, uid_t _uid, gid_t _gid);
+properties properties_read(int fd);
+void	properties_free(properties list);
+char	*property_find(properties list, const char *name);
+char	*auth_getval(const char *name);
+int	realhostname(char *host, size_t hsize, const struct in_addr *ip);
 struct sockaddr;
 int	realhostname_sa __P((char *host, size_t hsize, struct sockaddr *addr,
 			     int addrlen));
 #ifdef _STDIO_H_	/* avoid adding new includes */
-char   *fparseln __P((FILE *, size_t *, size_t *, const char[3], int));
+char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 #endif
 __END_DECLS
 

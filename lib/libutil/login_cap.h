@@ -96,61 +96,61 @@ typedef struct login_time {
 __BEGIN_DECLS
 struct passwd;
 
-void login_close __P((login_cap_t *));
-login_cap_t *login_getclassbyname __P((const char *, const struct passwd *));
-login_cap_t *login_getclass __P((const char *));
-login_cap_t *login_getpwclass __P((const struct passwd *));
-login_cap_t *login_getuserclass __P((const struct passwd *));
+void login_close(login_cap_t *);
+login_cap_t *login_getclassbyname(const char *, const struct passwd *);
+login_cap_t *login_getclass(const char *);
+login_cap_t *login_getpwclass(const struct passwd *);
+login_cap_t *login_getuserclass(const struct passwd *);
 
-char *login_getcapstr __P((login_cap_t*, const char *, char *, char *));
-char **login_getcaplist __P((login_cap_t *, const char *, const char *));
-char *login_getstyle __P((login_cap_t *, char *, const char *));
-rlim_t login_getcaptime __P((login_cap_t *, const char *, rlim_t, rlim_t));
-rlim_t login_getcapnum __P((login_cap_t *, const char *, rlim_t, rlim_t));
-rlim_t login_getcapsize __P((login_cap_t *, const char *, rlim_t, rlim_t));
-char *login_getpath __P((login_cap_t *, const char *, char *));
-int login_getcapbool __P((login_cap_t *, const char *, int));
-const char *login_setcryptfmt __P((login_cap_t *, const char *, const char *));
+char *login_getcapstr(login_cap_t*, const char *, char *, char *);
+char **login_getcaplist(login_cap_t *, const char *, const char *);
+char *login_getstyle(login_cap_t *, char *, const char *);
+rlim_t login_getcaptime(login_cap_t *, const char *, rlim_t, rlim_t);
+rlim_t login_getcapnum(login_cap_t *, const char *, rlim_t, rlim_t);
+rlim_t login_getcapsize(login_cap_t *, const char *, rlim_t, rlim_t);
+char *login_getpath(login_cap_t *, const char *, char *);
+int login_getcapbool(login_cap_t *, const char *, int);
+const char *login_setcryptfmt(login_cap_t *, const char *, const char *);
 
-int setclasscontext __P((const char*, unsigned int));
-int setusercontext __P((login_cap_t*, const struct passwd*, uid_t, unsigned int));
-void setclassresources __P((login_cap_t *));
-void setclassenvironment __P((login_cap_t *, const struct passwd *, int));
+int setclasscontext(const char*, unsigned int);
+int setusercontext(login_cap_t*, const struct passwd*, uid_t, unsigned int);
+void setclassresources(login_cap_t *);
+void setclassenvironment(login_cap_t *, const struct passwd *, int);
 
 /* Most of these functions are deprecated */
-int auth_approve __P((login_cap_t*, const char*, const char*));
-int auth_check __P((const char *, const char *, const char *, const char *, int *));
-void auth_env __P((void));
-char *auth_mkvalue __P((const char *n));
-int auth_response __P((const char *, const char *, const char *, const char *, int *, const char *, const char *));
-void auth_rmfiles __P((void));
-int auth_scan __P((int));
-int auth_script __P((const char*, ...));
-int auth_script_data __P((const char *, int, const char *, ...));
-char *auth_valud __P((const char *));
-int auth_setopt __P((const char *, const char *));
-void auth_clropts __P((void));
+int auth_approve(login_cap_t*, const char*, const char*);
+int auth_check(const char *, const char *, const char *, const char *, int *);
+void auth_env(void);
+char *auth_mkvalue(const char *n);
+int auth_response(const char *, const char *, const char *, const char *, int *, const char *, const char *);
+void auth_rmfiles(void);
+int auth_scan(int);
+int auth_script(const char*, ...);
+int auth_script_data(const char *, int, const char *, ...);
+char *auth_valud(const char *);
+int auth_setopt(const char *, const char *);
+void auth_clropts(void);
 
-void auth_checknologin __P((login_cap_t*));
-int auth_cat __P((const char*));
+void auth_checknologin(login_cap_t*);
+int auth_cat(const char*);
 
-int auth_ttyok __P((login_cap_t*, const char *));
-int auth_hostok __P((login_cap_t*, const char *, char const *));
-int auth_timeok __P((login_cap_t*, time_t));
+int auth_ttyok(login_cap_t*, const char *);
+int auth_hostok(login_cap_t*, const char *, char const *);
+int auth_timeok(login_cap_t*, time_t);
 
 struct tm;
 
-login_time_t parse_lt __P((const char *));
-int in_ltm __P((const login_time_t *, struct tm *, time_t *));
-int in_ltms __P((const login_time_t *, struct tm *, time_t *));
+login_time_t parse_lt(const char *);
+int in_ltm(const login_time_t *, struct tm *, time_t *);
+int in_ltms(const login_time_t *, struct tm *, time_t *);
 
 /* helper functions */
 
-int login_strinlist __P((char **, char const *, int));
-int login_str2inlist __P((char **, const char *, const char *, int));
-login_time_t * login_timelist __P((login_cap_t *, char const *, int *, login_time_t **));
-int login_ttyok __P((login_cap_t *, const char *, const char *, const char *));
-int login_hostok __P((login_cap_t *, const char *, const char *, const char *, const char *));
+int login_strinlist(char **, char const *, int);
+int login_str2inlist(char **, const char *, const char *, int);
+login_time_t * login_timelist(login_cap_t *, char const *, int *, login_time_t **);
+int login_ttyok(login_cap_t *, const char *, const char *, const char *);
+int login_hostok(login_cap_t *, const char *, const char *, const char *, const char *);
 
 __END_DECLS
 

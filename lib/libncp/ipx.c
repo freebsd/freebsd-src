@@ -187,7 +187,7 @@ void ipx_assign_node(IPXNode *dest, IPXNode *src) {
 }
 
 
-static void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
+static void	rt_xaddrs(caddr_t, caddr_t, struct rt_addrinfo *);
 static int	if_ipxscan __P((int addrcount, struct sockaddr_dl *sdl, struct if_msghdr *ifm,
 		    struct ifa_msghdr *ifam,struct ipx_addr *addr));
 
