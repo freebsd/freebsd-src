@@ -29,18 +29,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)atol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#include <stddef.h>
+#include <errno.h>
 #include <stdlib.h>
 
 long
 atol(str)
 	const char *str;
 {
-	return(strtol(str, (char **)NULL, 10));
+	long r;
+	int saverr;
+
+	saverr = errno;
+	r = strtol(str, (char **)NULL, 10);
+	errno = saverr;
+	return r;
 }
