@@ -49,12 +49,12 @@ __FBSDID("$FreeBSD$");
  * in which case the path which caused trouble is left in (resolved).
  */
 char *
-realpath(const char *path, char resolved_path[MAXPATHLEN])
+realpath(const char *path, char resolved_path[PATH_MAX])
 {
 	unsigned num_symlinks = 0;
 	int saved_errno = errno;
 
-	char left[MAXPATHLEN];
+	char left[PATH_MAX];
 	size_t left_len, resolved_len;
 
 	if (path[0] == '/') {
@@ -63,23 +63,23 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 		if (path[1] == '\0')
 			return resolved_path;
 		resolved_len = 1;
-		left_len = strlcpy(left, path + 1, MAXPATHLEN);
+		left_len = strlcpy(left, path + 1, PATH_MAX);
 	} else {
-		if (getcwd(resolved_path, MAXPATHLEN) == NULL) {
-			strlcpy(resolved_path, ".", MAXPATHLEN);
+		if (getcwd(resolved_path, PATH_MAX) == NULL) {
+			strlcpy(resolved_path, ".", PATH_MAX);
 			return NULL;
 		}
 		resolved_len = strlen(resolved_path);
-		left_len = strlcpy(left, path, MAXPATHLEN);
+		left_len = strlcpy(left, path, PATH_MAX);
 	}
-	if (left_len >= MAXPATHLEN || resolved_len >= MAXPATHLEN) {
+	if (left_len >= PATH_MAX || resolved_len >= PATH_MAX) {
 		errno = ENAMETOOLONG;
 		return NULL;
 	}
 
 	while (left_len > 0) {
 		struct stat st;
-		char next_token[MAXPATHLEN];
+		char next_token[PATH_MAX];
 		char *p;
 		char *s = (p = strchr(left, '/')) ? p : left + left_len;
 
@@ -90,7 +90,7 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 
 		next_token[s - left] = '\0';
 		if (resolved_path[resolved_len - 1] != '/') {
-			if (resolved_len + 1 >= MAXPATHLEN) {
+			if (resolved_len + 1 >= PATH_MAX) {
 				errno = ENAMETOOLONG;
 				return NULL;
 			}
@@ -118,8 +118,8 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 		}
 
 		/* filename */
-		resolved_len = strlcat(resolved_path, next_token, MAXPATHLEN);
-		if (resolved_len >= MAXPATHLEN) {
+		resolved_len = strlcat(resolved_path, next_token, PATH_MAX);
+		if (resolved_len >= PATH_MAX) {
 			errno = ENAMETOOLONG;
 			return NULL;
 		}
@@ -134,14 +134,14 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 		}
 
 		if ((st.st_mode & S_IFLNK) == S_IFLNK) {
-			char symlink[MAXPATHLEN];
+			char symlink[PATH_MAX];
 			int slen;
 
 			if (num_symlinks++ > MAXSYMLINKS) {
 				errno = ELOOP;
 				return NULL;
 			}
-			slen = readlink(resolved_path, symlink, MAXPATHLEN);
+			slen = readlink(resolved_path, symlink, PATH_MAX - 1);
 			if (slen < 0)
 				return NULL;
 			symlink[slen] = '\0';
@@ -162,7 +162,7 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 			}
 
 			if (symlink[slen - 1] != '/' && p != NULL) {
-				if (slen >= MAXPATHLEN) {
+				if (slen >= PATH_MAX) {
 					errno = ENAMETOOLONG;
 					return NULL;
 				}
@@ -171,12 +171,12 @@ realpath(const char *path, char resolved_path[MAXPATHLEN])
 				symlink[slen + 1] = 0;
 			}
 			if (p != NULL)
-				left_len = strlcat(symlink, left, MAXPATHLEN);
-			if (left_len > MAXPATHLEN) {
+				left_len = strlcat(symlink, left, PATH_MAX);
+			if (left_len > PATH_MAX) {
 				errno = ENAMETOOLONG;
 				return NULL;
 			}
-			left_len = strlcpy(left, symlink, MAXPATHLEN);
+			left_len = strlcpy(left, symlink, PATH_MAX);
 		}
 	}
 
