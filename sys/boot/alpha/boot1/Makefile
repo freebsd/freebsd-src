@@ -7,7 +7,7 @@ PROG = boot1
 
 .PATH:		${.CURDIR}/../libalpha
 
-SRCS=		start.S boot1.c sys.c
+SRCS=		start.S boot1.c
 CFLAGS+=	-ffreestanding -mno-fp-regs
 CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 CFLAGS+=	-DBOOT1
