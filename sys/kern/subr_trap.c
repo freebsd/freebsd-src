@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.7 1993/11/13 02:25:08 davidg Exp $
+ *	$Id: trap.c,v 1.8 1993/11/25 01:31:01 wollman Exp $
  */
 
 /*
@@ -322,7 +322,7 @@ copyfault:
 		 */
 		nss = 0;
 		if ((caddr_t)va >= vm->vm_maxsaddr
-			&& (caddr_t)va < (caddr_t)VM_MAXUSER_ADDRESS
+			&& (caddr_t)va < (caddr_t)USRSTACK
 			&& map != kernel_map
 			&& dostacklimits) {
 			nss = clrnd(btoc((unsigned)vm->vm_maxsaddr
@@ -474,7 +474,9 @@ int trapwrite(addr)
 	nss = 0;
 	p = curproc;
 	vm = p->p_vmspace;
-	if ((caddr_t)va >= vm->vm_maxsaddr && dostacklimits) {
+	if ((caddr_t)va >= vm->vm_maxsaddr
+	    && (caddr_t)va < (caddr_t)USRSTACK  /* EWS 11/27/93 */
+	    && dostacklimits) {
 		nss = clrnd(btoc((unsigned)vm->vm_maxsaddr + MAXSSIZ
 				 - (unsigned)va));
 		if (nss > btoc(p->p_rlimit[RLIMIT_STACK].rlim_cur))
