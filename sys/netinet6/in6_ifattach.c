@@ -754,9 +754,6 @@ in6_ifdetach(ifp)
 	struct in6_multi *in6m;
 	struct in6_multi *in6m_next;
 
-	/* nuke prefix list.  this may try to remove some of ifaddrs as well */
-	in6_purgeprefix(ifp);
-
 	/* remove neighbor management table */
 	nd6_purge(ifp);
 
