@@ -1,0 +1,6 @@
+#
+# $Id: Makefile.i386,v 1.1 1998/03/12 02:55:32 jdp Exp $
+#
+
+SRCS+=		alpha-dis.c alpha-opc.c	i386-dis.c
+CFLAGS+=	-DARCH_alpha -DARCH_i386
