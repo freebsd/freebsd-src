@@ -280,6 +280,13 @@ filt_proc(struct knote *kn, long hint)
 	}
 
 	/*
+	 * Process will already be reported as gone.
+	 * Do not report anything else, as the knote will be destroyed soon.
+	 */
+	if (kn->kn_status & KN_DETACHED)
+		return (0);
+
+	/*
 	 * process forked, and user wants to track the new process,
 	 * so attach a new knote to it, and immediately report an
 	 * event with the parent's pid.
