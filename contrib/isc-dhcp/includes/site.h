@@ -26,11 +26,79 @@
 
 /* #define DEBUG_PACKET */
 
-/* Define this if you want to see dumps of tree evaluations.   The most
-   common reason for doing this is to watch what happens with DNS name
-   lookups. */
+/* Define this if you want to see dumps of expression evaluation. */
 
-/* #define DEBUG_EVAL */
+/* #define DEBUG_EXPRESSIONS */
+
+/* Define this if you want to see dumps of find_lease() in action. */
+
+/* #define DEBUG_FIND_LEASE */
+
+/* Define this if you want to see dumps of parsed expressions. */
+
+/* #define DEBUG_EXPRESSION_PARSE */
+
+/* Define this if you want to watch the class matching process. */
+
+/* #define DEBUG_CLASS_MATCHING */
+
+/* Define this if you want to track memory usage for the purpose of
+   noticing memory leaks quickly. */
+
+/* #define DEBUG_MEMORY_LEAKAGE */
+
+/* Define this if you want exhaustive (and very slow) checking of the
+   malloc pool for corruption. */
+
+/* #define DEBUG_MALLOC_POOL */
+
+/* Define this if you want to see a message every time a lease's state
+   changes. */
+/* #define DEBUG_LEASE_STATE_TRANSITIONS */
+
+/* Define this if you want to maintain a history of the last N operations
+   that changed reference counts on objects.   This can be used to debug
+   cases where an object is dereferenced too often, or not often enough. */
+
+/* #define DEBUG_RC_HISTORY */
+
+/* Define this if you want to see the history every cycle. */
+
+/* #define DEBUG_RC_HISTORY_EXHAUSTIVELY */
+
+/* This is the number of history entries to maintain - by default, 256. */
+
+/* #define RC_HISTORY_MAX 10240 */
+
+/* Define this if you want dhcpd to dump core when a non-fatal memory
+   allocation error is detected (i.e., something that would cause a
+   memory leak rather than a memory smash). */
+
+/* #define POINTER_DEBUG */
+
+/* Define this if you want debugging output for DHCP failover protocol
+   messages. */
+
+/* #define DEBUG_FAILOVER_MESSAGES */
+
+/* Define this if you want debugging output for DHCP failover protocol
+   lease assignment timing. */
+
+/* #define DEBUG_FAILOVER_TIMING */
+
+/* Define this if you want all leases written to the lease file, even if
+   they are free leases that have never been used. */
+
+#define DEBUG_DUMP_ALL_LEASES
+
+/* Define this if you want DHCP failover protocol support in the DHCP
+   server. */
+
+#define FAILOVER_PROTOCOL
+
+/* Define this if you want DNS update functionality to be available. */
+
+#define NSUPDATE
 
 /* Define this if you want the dhcpd.pid file to go somewhere other than
    the default (which varies from system to system, but is usually either
@@ -98,3 +166,14 @@
 /* Define this to change the logging facility used by dhcpd. */
 
 /* #define DHCPD_LOG_FACILITY LOG_DAEMON */
+
+/* Define this if you aren't debugging and you want to save memory
+   (potentially a _lot_ of memory) by allocating leases in chunks rather
+   than one at a time. */
+
+#define COMPACT_LEASES
+
+/* Define this if you want to be able to save and playback server operational
+   traces. */
+
+#define TRACING

@@ -4,7 +4,8 @@
    way... */
 
 /*
- * Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.
+ * Copyright (c) 1995-2001 Internet Software Consortium.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,15 +35,16 @@
  * SUCH DAMAGE.
  *
  * This software has been written for the Internet Software Consortium
- * by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
- * Enterprises.  To learn more about the Internet Software Consortium,
- * see ``http://www.vix.com/isc''.  To learn more about Vixie
- * Enterprises, see ``http://www.vix.com''.
+ * by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+ * To learn more about the Internet Software Consortium, see
+ * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+ * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+ * ``http://www.nominum.com''.
  */
 
 #ifndef lint
 static char copyright[] =
-"$Id: inet.c,v 1.5.2.2 1999/04/24 16:48:10 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: inet.c,v 1.8.2.3 2001/06/21 16:59:00 mellon Exp $ Copyright (c) 1995-1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -119,7 +121,7 @@ struct iaddr broadcast_addr (subnet, mask)
 	struct iaddr subnet;
 	struct iaddr mask;
 {
-	int i;
+	int i, j, k;
 	struct iaddr rv;
 
 	if (subnet.len != mask.len) {
@@ -181,3 +183,60 @@ char *piaddr (addr)
 	}
 	return pbuf;
 }
+
+char *piaddr1 (addr)
+	struct iaddr addr;
+{
+	static char pbuf [4 * 16];
+	char *s = pbuf;
+	int i;
+
+	if (addr.len == 0) {
+		strcpy (s, "<null address>");
+	}
+	for (i = 0; i < addr.len; i++) {
+		sprintf (s, "%s%d", i ? "." : "", addr.iabuf [i]);
+		s += strlen (s);
+	}
+	return pbuf;
+}
+
+char *piaddrmask (struct iaddr addr, struct iaddr mask,
+		  const char *file, int line)
+{
+	char *s, *t;
+	int i, mw;
+	unsigned len;
+
+	for (i = 0; i < 32; i++) {
+		if (!mask.iabuf [3 - i / 8])
+			i += 7;
+		else if (mask.iabuf [3 - i / 8] & (1 << (i % 8)))
+			break;
+	}
+	mw = 32 - i;
+	len = mw > 9 ? 2 : 1;
+	len += 4;	/* three dots and a slash. */
+	for (i = 0; i < (mw / 8) + 1; i++) {
+		if (addr.iabuf [i] > 99)
+			len += 3;
+		else if (addr.iabuf [i] > 9)
+			len += 2;
+		else
+			len++;
+	}
+	s = dmalloc (len + 1, file, line);
+	if (!s)
+		return s;
+	t = s;
+	sprintf (t, "%d", addr.iabuf [0]);
+	t += strlen (t);
+	for (i = 1; i < (mw / 8) + 1; i++) {
+		sprintf (t, ".%d", addr.iabuf [i]);
+		t += strlen (t);
+	}
+	*t++ = '/';
+	sprintf (t, "%d", mw);
+	return s;
+}
+

@@ -49,14 +49,7 @@
  * against negative integers quite easily, and fail in subtle ways.
  */
 struct ip {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	u_int8_t  ip_hl:4,		/* header length */
-		  ip_v:4;		/* version */
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t  ip_v:4,		/* version */
-		  ip_hl:4;		/* header length */
-#endif
+	u_int8_t  ip_fvhl;		/* header length, version */
 	u_int8_t  ip_tos;		/* type of service */
 	int16_t	  ip_len;		/* total length */
 	u_int16_t ip_id;		/* identification */
@@ -69,6 +62,12 @@ struct ip {
 	u_int16_t ip_sum;		/* checksum */
 	struct	  in_addr ip_src, ip_dst; /* source and dest address */
 };
+
+#define IP_V(iph)	((iph)->ip_fvhl >> 4)
+#define IP_HL(iph)	(((iph)->ip_fvhl & 0x0F) << 2)
+#define IP_V_SET(iph,x)	((iph)->ip_fvhl = ((iph)->ip_fvhl & 0x0F) | ((x) << 4))
+#define IP_HL_SET(iph,x) ((iph)->ip_fvhl = \
+			  ((iph)->ip_fvhl & 0xF0) | (((x) >> 2) & 0x0F))
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -129,14 +128,7 @@ struct	ip_timestamp {
 	u_int8_t ipt_code;		/* IPOPT_TS */
 	u_int8_t ipt_len;		/* size of structure (variable) */
 	u_int8_t ipt_ptr;		/* index of current entry */
-#if BYTE_ORDER == LITTLE_ENDIAN
-	u_int8_t ipt_flg:4,		/* flags, see below */
-		 ipt_oflw:4;		/* overflow counter */
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t ipt_oflw:4,		/* overflow counter */
-		 ipt_flg:4;		/* flags, see below */
-#endif
+	u_int8_t ipt_flg_oflw;		/* flags, see below, overflow counter */
 	union ipt_timestamp {
 		 u_int32_t ipt_time[1];
 		 struct	ipt_ta {

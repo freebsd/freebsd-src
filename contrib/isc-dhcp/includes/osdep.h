@@ -3,7 +3,7 @@
    Operating system dependencies... */
 
 /*
- * Copyright (c) 1996, 1997, 1998, 1999 The Internet Software Consortium.
+ * Copyright (c) 1996-1999 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,26 +15,34 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of The Internet Software Consortium nor the names of its
- *    contributors may be used to endorse or promote products derived
+ * 3. Neither the name of The Internet Software Consortium nor the names
+ *    of its contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
- * CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * THE INTERNET SOFTWARE CONSORTIUM OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * This software was written for the Internet Software Consortium by Ted Lemon
- * under a contract with Vixie Laboratories.
+ * This software has been written for the Internet Software Consortium
+ * by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+ * To learn more about the Internet Software Consortium, see
+ * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+ * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+ * ``http://www.nominum.com''.
  */
+
+#if !defined (__ISC_DHCP_OSDEP_H__)
+#define __ISC_DHCP_OSDEP_H__
 
 #include "site.h"
 
@@ -62,6 +70,9 @@
 #  define USE_DEFAULT_NETWORK
 #endif
 
+#if !defined (TIME_MAX)
+# define TIME_MAX 2147483647
+#endif
 
 /* Porting::
 
@@ -89,6 +100,10 @@
 
 #ifdef __FreeBSD__
 #  include "cf/freebsd.h"
+#endif
+
+#ifdef OpenBSD
+#  include "cf/openbsd.h"
 #endif
 
 #if defined (__osf__) && defined (__alpha)
@@ -125,14 +140,6 @@
 # if defined (NeXT)
 #  include "cf/nextstep.h"
 # endif
-#endif
-
-#if defined(IRIX) || defined(__sgi)
-# include "cf/irix.h"
-#endif
-
-#if !defined (TIME_MAX)
-# define TIME_MAX 2147483647
 #endif
 
 /* Porting::
@@ -185,7 +192,9 @@
    fallback. */
 
 #if defined (USE_BPF_SEND) || defined (USE_NIT_SEND) || \
-    defined (USE_DLPI_SEND) || defined (USE_UPF_SEND) || defined (USE_LPF_SEND)
+    defined (USE_DLPI_SEND) || defined (USE_UPF_SEND) || \
+    defined (USE_LPF_SEND) || \
+    (defined (USE_SOCKET_SEND) && defined (HAVE_SO_BINDTODEVICE))
 #  define USE_SOCKET_FALLBACK
 #  define USE_FALLBACK
 #endif
@@ -210,9 +219,7 @@
 
 #if defined (USE_RAW_RECEIVE) || defined (USE_BPF_SEND) || \
 		defined (USE_NIT_RECEIVE) || defined (USE_UPF_RECEIVE) || \
-		defined (USE_DLPI_RECEIVE) || \
-    defined (USE_LPF_SEND) || \
-    (defined (USE_SOCKET_SEND) && defined (SO_BINDTODEVICE))
+		defined (USE_DLPI_RECEIVE) || defined (USE_LPF_RECEIVE)
 #  define PACKET_DECODING
 #endif
 
@@ -239,6 +246,10 @@
 
 #ifndef BPF_FORMAT
 # define BPF_FORMAT "/dev/bpf%d"
+#endif
+
+#if defined (F_SETFD) && !defined (HAVE_SETFD)
+# define HAVE_SETFD
 #endif
 
 #if defined (IFF_POINTOPOINT) && !defined (HAVE_IFF_POINTOPOINT)
@@ -285,10 +296,17 @@
 # define HAVE_SO_BINDTODEVICE
 #endif
 
-#if defined (SIOCGIFHWADDR) && !defined (HAVE_SIOCGIFHWADDR)
-# define HAVE_SIOCGIFHWADDR
-#endif
-
 #if defined (AF_LINK) && !defined (HAVE_AF_LINK)
 # define HAVE_AF_LINK
 #endif
+
+/* Linux needs to define SHUT_* in /usr/include/sys/socket.h someday... */
+#if !defined (SHUT_RD)
+# define SHUT_RD 0
+#endif
+
+#if !defined (SOCKLEN_T)
+#define SOCKLEN_T socklen_t
+#endif
+
+#endif /* __ISC_DHCP_OSDEP_H__ */
