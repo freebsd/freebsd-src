@@ -85,8 +85,18 @@
 			stop and continue synchronous capture mode.
 			Change the tsleep/wakeup function to wait on mtr
 			rather than &read_intr_wait.
-			Add option (METEOR_FreeBSD_210) for FreeBSD 2.1
+	1/22/96		Add option (METEOR_FreeBSD_210) for FreeBSD 2.1
 			to compile.
+			Changed intr so it only printed errors every 50 times.
+			Added unit number to error messages.
+			Added get_meteor_mem and enabled range checking.
+	1/30/96		Added prelim test stuff for direct video dma transfers
+			from Amancio Hasty (hasty@rah.star-gate.com).  Until
+			we get some stuff sorted out, this will be ifdef'ed
+			with METEOR_DIRECT_VIDEO.  This is very dangerous to
+			use at present since we don't check the address that
+			is passed by the user!!!!!
+			
 */
 
 #include "meteor.h"
@@ -168,6 +178,7 @@ typedef struct {
     u_long	frames_captured;/* number of frames captured since open */
     u_long	even_fields_captured; /* number of even fields captured */
     u_long	odd_fields_captured; /* number of odd fields captured */
+    u_long	range_enable;	/* enable range checking ?? */
     unsigned	flags;
 #define	METEOR_INITALIZED	0x00000001
 #define	METEOR_OPEN		0x00000002 
@@ -205,9 +216,13 @@ typedef struct {
 #ifdef DEVFS
     void	*devfs_token;
 #endif
+#ifdef METEOR_TEST_VIDEO
+    struct meteor_video video;
+#endif
 } meteor_reg_t;
 
 static meteor_reg_t meteor[NMETEOR];
+#define METEOR_NUM(mtr)	((mtr - &meteor[0])/sizeof(meteor_reg_t))
 
 #define METPRI (PZERO+8)|PCATCH
 
@@ -512,7 +527,8 @@ register int		 err = 0;
 
 	/* 1ffff should be enough delay time for the i2c cycle to complete */
 	if(!wait_counter) {
-		printf("meteor: saa7116 i2c %s transfer timeout 0x%x",
+		printf("meteor%d: saa7116 i2c %s transfer timeout 0x%x",
+			METEOR_NUM(mtr),
 			rw ? "read" : "write", *iic_write_loc);
 			
 		err=1;
@@ -520,7 +536,8 @@ register int		 err = 0;
 
 	/* Check for error on direct write, clear if any */
 	if((*((volatile u_long *)mtr->stat_reg)) & IIC_DIRECT_TRANSFER_ABORTED){
-		printf("meteor: saa7116 i2c %s tranfer aborted",
+		printf("meteor%d: saa7116 i2c %s tranfer aborted",
+			METEOR_NUM(mtr),
 			rw ? "read" : "write" );
 		err= 1;
 	}
@@ -578,13 +595,13 @@ meteor_intr(void *arg)
 #define METEOR_MASTER_ABORT	0x20000000
 #define METEOR_TARGET_ABORT	0x10000000
 	if(pci_err & METEOR_MASTER_ABORT) {
-		printf("meteor_intr: pci bus master dma abort: 0x%x 0x%x.\n",
-			*base, *(base+3));
+		printf("meteor%d: intr: pci bus master dma abort: 0x%x 0x%x.\n",
+			METEOR_NUM(mtr), *base, *(base+3));
 		pci_conf_write(mtr->tag, PCI_COMMAND_STATUS_REG, pci_err);
 	}
 	if(pci_err & METEOR_TARGET_ABORT) {
-		printf("meteor_intr: pci bus target dma abort: 0x%x 0x%x.\n",
-			*base, *(base+3));
+		printf("meteor%d: intr: pci bus target dma abort: 0x%x 0x%x.\n",
+			METEOR_NUM(mtr), *base, *(base+3));
 		pci_conf_write(mtr->tag, PCI_COMMAND_STATUS_REG, pci_err);
 	}
 #endif
@@ -593,14 +610,20 @@ meteor_intr(void *arg)
 	 */
 	if (cap_err) {
 	   if (cap_err & 0x300) {
-		mtr->fifo_errors++ ;	/* incrememnt fifo capture errors cnt */
-	   	printf("meteor: capture error");
-		printf(":%s FIFO overflow.\n", cap_err&0x0100? "even" : "odd");
+		if(mtr->fifo_errors % 50 == 0) {
+	   		printf("meteor%d: capture error", METEOR_NUM(mtr));
+			printf(": %s FIFO overflow.\n",
+				cap_err&0x0100? "even" : "odd");
+		}
+		mtr->fifo_errors++ ;	/* increment fifo capture errors cnt */
 	   }
 	   if (cap_err & 0xc00) {
+		if(mtr->dma_errors % 50 == 0) {
+	   		printf("meteor%d: capture error", METEOR_NUM(mtr));
+			printf(": %s DMA address.\n",
+				cap_err&0x0400? "even" : "odd");
+		}
 		mtr->dma_errors++ ;	/* increment DMA capture errors cnt */
-	   	printf("meteor: capture error");
-		printf(":%s DMA address.\n", cap_err&0x0400? "even" : "odd");
 	   }
 	}
 	*cap |= 0x0f30;		/* clear error and field done */
@@ -737,6 +760,7 @@ meteor_intr(void *arg)
 	}
 
 	*stat |=  0x7;		/* clear interrupt status */
+	return;
 }
 
 static void
@@ -746,19 +770,56 @@ set_fps(meteor_reg_t *mtr, u_short fps)
 			(volatile u_long *)mtr->virt_baseaddr + 0x4c;
 	volatile u_long *field_mask_odd = field_mask_even + 1;
 	volatile u_long *field_mask_length = field_mask_odd + 1;
+	int	is_ntsc=1;	/* assume ntsc or 30fps */
+	unsigned status;
+
+	SAA7196_WRITE(mtr, 0x0d, SAA7196_REG(mtr, 0x0d) | 0x02);
+	SAA7196_READ(mtr);
+	status = ((*((volatile u_long *)mtr->stat_reg)) & 0xff000000L) >> 24;
+	if((status & 0x40) == 0)
+		is_ntsc = ((status & 0x20) != 0) ;
 
 	/*
-	 * A little sanity checking first...
+	 * A little sanity checking...
 	 */
-	if(fps < 1)  fps = 1;
-	if(fps > 30) fps = 30;
+	if(fps <  1)		 fps = 1;
+	if(!is_ntsc && fps > 25) fps = 25;
+	if( is_ntsc && fps > 30) fps = 30;
 	mtr->fps = fps;	
 	/*
 	 * Set the fps using the mask/length.
 	 */
 	/* XXX we need some code to actually do this here... */
+
 }
 
+/*
+ * There is also a problem with range checking on the 7116.
+ * It seems to only work for 22 bits, so the max size we can allocate
+ * is 22 bits long or 4194304 bytes assuming that we put the beginning
+ * of the buffer on a 2^24 bit boundary.  The range registers will use
+ * the top 8 bits of the dma start registers along with the bottom 22
+ * bits of the range register to determine if we go out of range.
+ * This makes getting memory a real kludge.
+ *
+ */
+#define RANGE_BOUNDARY	(1<<22)
+static vm_offset_t
+get_meteor_mem(int unit, unsigned size)
+{
+vm_offset_t	addr = NULL;
+
+	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
+	if(addr == NULL)
+		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
+								PAGE_SIZE);
+	if(addr == NULL) {
+		printf("meteor%d: Unable to allocate %d bytes of memory.\n",
+			unit, size);
+	}
+
+	return addr;
+}
 
 /*
  * Initialize the capture card to NTSC RGB 16 640x480
@@ -784,15 +845,15 @@ meteor_init ( meteor_reg_t *mtr )
 
 static	void	met_attach(pcici_t tag, int unit)
 {
-#ifdef METEOR_IRQ		/* from the meteor.h file */
-	u_long old_irq,new_irq;
-#endif METEOR_IRQ		/* from the meteor.h file */
+#ifdef METEOR_IRQ
+	u_long old_irq, new_irq;
+#endif METEOR_IRQ
 	meteor_reg_t *mtr;
 	vm_offset_t buf;
 	u_long latency;
 
 	if (unit >= NMETEOR) {
-		printf("meteor_attach: mx%d: invalid unit number\n");
+		printf("meteor%d: attach:  invalid unit number\n", unit);
         	return ;
 	}
 
@@ -804,23 +865,26 @@ static	void	met_attach(pcici_t tag, int unit)
 	mtr->stat_reg = mtr->virt_baseaddr + 0x60;
 	mtr->iic_virt_addr = mtr->virt_baseaddr + 0x64;
 
-#ifdef METEOR_IRQ		/* from the meteor.h file */
+#ifdef METEOR_IRQ		/* from the configuration file */
 	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
 	pci_conf_write(tag, PCI_INTERRUPT_REG, METEOR_IRQ);
 	new_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
-	printf("meteor_attach: irq changed from %d to %d\n", (old_irq & 0xff),
-							     (new_irq & 0xff));
+	printf("meteor%d: attach: irq changed from %d to %d\n",
+		unit, (old_irq & 0xff), (new_irq & 0xff));
 #endif METEOR_IRQ
 	/* set latency timer */
 #define PCI_LATENCY_TIMER	0x0c
+#ifndef DEF_LATENCY_VALUE
 #define DEF_LATENCY_VALUE	32		/* is this value ok? */
+#endif
 	latency = pci_conf_read(tag, PCI_LATENCY_TIMER);
 	latency = (latency >> 8) & 0xff;
 	if(bootverbose) {
 		if(latency)
-			printf("meteor0: PCI bus latency is");
+			printf("meteor%d: PCI bus latency is", unit);
 		else
-			printf("meteor0: PCI bus latency was 0 changing to");
+			printf("meteor%d: PCI bus latency was 0 changing to",
+				unit);
 	}
 	if(!latency) {
 		latency = DEF_LATENCY_VALUE;
@@ -830,20 +894,19 @@ static	void	met_attach(pcici_t tag, int unit)
 		printf(" %d.\n", latency);
 	}
 
-	meteor_init( mtr );	/* set up saa7116 and saa7196 chips */
+	meteor_init(mtr);	/* set up saa7116 and saa7196 chips */
 	mtr->tag = tag;
 				/* setup the interrupt handling routine */
 	pci_map_int (tag, meteor_intr, (void*) mtr, &net_imask); 
 
 				/* 640*240*3 round up to nearest pag e*/
 	if(METEOR_ALLOC)
-		buf = vm_page_alloc_contig(METEOR_ALLOC,
-				0x100000, 0xffffffff, PAGE_SIZE);
+		buf = get_meteor_mem(unit, METEOR_ALLOC);
 	else
 		buf = NULL;
 	if(bootverbose) {
-		printf("meteor0: buffer size %d, addr 0x%x\n", METEOR_ALLOC,
-			buf);
+		printf("meteor%d: buffer size %d, addr 0x%x\n",
+			unit, METEOR_ALLOC, vtophys(buf));
 	}
 
 	mtr->bigbuf = buf;
@@ -867,7 +930,7 @@ static	void	met_attach(pcici_t tag, int unit)
 	mtr->frames = 1;	/* one frame */
 #ifdef DEVFS
 	mtr->devfs_token = devfs_add_devsw( "/", "meteor", &meteor_cdevsw, unit,
-						DV_CHR, 0, 0, 0600);
+						DV_CHR, 0, 0, 0644);
 #endif
 }
 
@@ -920,6 +983,12 @@ meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
 	mtr->odd_fields_captured = 0;
 	mtr->proc = (struct proc *)0;
 	set_fps(mtr, 30);
+#ifdef METEOR_TEST_VIDEO
+	mtr->video.addr = 0;
+	mtr->video.width = 0;
+	mtr->video.banksize = 0;
+	mtr->video.ramsize = 0;
+#endif
 
 	return(0);
 }
@@ -976,33 +1045,28 @@ start_capture(meteor_reg_t *mtr, unsigned type)
 volatile u_long *cap = (volatile u_long *)mtr->capt_cntrl;
 volatile u_long *p   =(volatile u_long *)mtr->virt_baseaddr;
 
-#ifdef RANGE_BUG_FIXED
-#define RANGE_ENABLE 0x8000
-#else
-#define RANGE_ENABLE 0x0000
-#endif
 	mtr->flags |= type;
 	switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
 		mtr->flags |= METEOR_WANT_EVEN;
 		if(type == METEOR_SINGLE)
-			*cap = 0x0ff4 | RANGE_ENABLE ;
+			*cap = 0x0ff4 | mtr->range_enable;
 		else
-			*cap = 0x0ff1 | RANGE_ENABLE;
+			*cap = 0x0ff1 | mtr->range_enable;
 		break;
 	case METEOR_ONLY_ODD_FIELDS:
 		mtr->flags |= METEOR_WANT_ODD;
 		if(type == METEOR_SINGLE)
-			*cap = 0x0ff8 | RANGE_ENABLE;
+			*cap = 0x0ff8 | mtr->range_enable;
 		else
-			*cap = 0x0ff2 | RANGE_ENABLE;
+			*cap = 0x0ff2 | mtr->range_enable;
 		break;
 	default:
 		mtr->flags |= METEOR_WANT_MASK;
 		if(type == METEOR_SINGLE)
-			*cap = 0x0ffc | RANGE_ENABLE;
+			*cap = 0x0ffc | mtr->range_enable;
 		else
-			*cap = 0x0ff3 | RANGE_ENABLE;
+			*cap = 0x0ff3 | mtr->range_enable;
 		break;
 	}
 }
@@ -1037,7 +1101,7 @@ meteor_read(dev_t dev, struct uio *uio, int ioflag)
 	if (!status) 		/* successful capture */
 		status = uiomove((caddr_t)mtr->bigbuf, count, uio);
 	else
-		printf ("meteor_read: tsleep error %d\n", status);
+		printf ("meteor%d: read: tsleep error %d\n", unit, status);
 
 	mtr->flags &= ~(METEOR_SINGLE | METEOR_WANT_MASK);
 
@@ -1055,12 +1119,15 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 {
 	int	error;  
 	int	unit;   
-	int	temp;
+	unsigned int	temp;
 	meteor_reg_t *mtr;
 	struct meteor_counts *cnt;
 	struct meteor_geomet *geo;
 	struct meteor_mem *mem;
 	struct meteor_capframe *frame;
+#ifdef METEOR_TEST_VIDEO
+	struct meteor_video *video;
+#endif
 	volatile u_long *p;
 	vm_offset_t buf;
 
@@ -1074,6 +1141,22 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 	mtr = &(meteor[unit]);
 
 	switch (cmd) {
+#ifdef METEOR_TEST_VIDEO
+	case METEORGVIDEO:
+		video = (struct meteor_video *)arg;
+		video->addr = mtr->video.addr;
+		video->width = mtr->video.width;
+		video->banksize = mtr->video.banksize;
+		video->ramsize = mtr->video.ramsize;
+		break;
+	case METEORSVIDEO:
+		video = (struct meteor_video *)arg;
+		mtr->video.addr = video->addr;
+		mtr->video.width = video->width;
+		mtr->video.banksize = video->banksize;
+		mtr->video.ramsize = video->ramsize;
+		break;
+#endif
 	case METEORSFPS:
 		set_fps(mtr, *(u_short *)arg);
 		break;
@@ -1219,8 +1302,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			/* wait for capture to complete */
 			error=tsleep((caddr_t)mtr, METPRI, "capturing", 0);
 			if(error)
-				printf("meteor_ioctl: tsleep error %d\n",
-						error);
+				printf("meteor%d: ioctl: tsleep error %d\n",
+					unit, error);
 			mtr->flags &= ~(METEOR_SINGLE|METEOR_WANT_MASK);
 			break;
 		case METEOR_CAP_CONTINOUS:
@@ -1312,7 +1395,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		/* Either even or odd, if even & odd, then these a zero */
 		if((geo->oformat & METEOR_GEO_ODD_ONLY) &&
 			(geo->oformat & METEOR_GEO_EVEN_ONLY)) {
-			printf("meteor ioctl: Geometry odd or even only.\n");
+			printf("meteor%d: ioctl: Geometry odd or even only.\n",
+				unit);
 			return EINVAL;
 		}
 		/* set/clear even/odd flags */
@@ -1331,20 +1415,20 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 
 		if ((geo->columns & 0x3fe) != geo->columns) {
 			printf(
-			"meteor ioctl: %d: columns too large or not even.\n",
-				geo->columns);
+			"meteor%d: ioctl: %d: columns too large or not even.\n",
+				unit, geo->columns);
 			error = EINVAL;
 		}
 		if (((geo->rows & 0x7fe) != geo->rows) ||
 			((geo->oformat & METEOR_GEO_FIELD_MASK) &&
 				((geo->rows & 0x3fe) != geo->rows)) ) {
 			printf(
-			"meteor ioctl: %d: rows too large or not even.\n",
-				geo->rows);
+			"meteor%d: ioctl: %d: rows too large or not even.\n",
+				unit, geo->rows);
 			error = EINVAL;
 		}
 		if (geo->frames > 32) {
-			printf("meteor ioctl: too many frames.\n");
+			printf("meteor%d: ioctl: too many frames.\n", unit);
 			error = EINVAL;
 		}
 		if(error) return error;
@@ -1356,20 +1440,22 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		   	if (geo->frames > 1) temp += PAGE_SIZE;
 
 		   	temp = (temp + PAGE_SIZE -1)/PAGE_SIZE;
-		   	if (temp > mtr->alloc_pages) {
-				buf = vm_page_alloc_contig((temp*PAGE_SIZE),
-					0x100000, 0xffffffff, PAGE_SIZE);
+		   	if (temp > mtr->alloc_pages
+#ifdef METEOR_TEST_VIDEO
+			    && mtr->video.addr == 0
+#endif
+			) {
+				buf = get_meteor_mem(unit, temp*PAGE_SIZE);
 				if(buf != NULL) {
 					kmem_free(kernel_map, mtr->bigbuf,
 					  (mtr->alloc_pages * PAGE_SIZE));
 					mtr->bigbuf = buf;
 					mtr->alloc_pages = temp;
-					printf(
-			"meteor_ioctl: Allocating %d bytes\n", temp*PAGE_SIZE);
+					if(bootverbose)
+						printf(
+				"meteor%d: ioctl: Allocating %d bytes\n",
+							unit, temp*PAGE_SIZE);
 				} else {
-		     			printf(
-			"meteor_ioctl: couldn't allocate %d byte buffer.\n",
-					temp*PAGE_SIZE);
 					error = ENOMEM;
 				}
 		   	}
@@ -1381,7 +1467,12 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		mtr->frames = geo->frames;
 
 		p = (volatile u_long *) mtr->virt_baseaddr;
-		buf = vtophys(mtr->bigbuf);
+#ifdef METEOR_TEST_VIDEO
+		if(mtr->video.addr)
+			buf = mtr->video.addr;
+		else
+#endif
+			buf = vtophys(mtr->bigbuf);
 
 		/* set defaults and end of buffer locations */
 		*(p+0)  = buf;	/* DMA 1 even    */
@@ -1397,16 +1488,21 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		*(p+10) = 0;	/* Stride 2 odd  */
 		*(p+11) = 0;	/* Stride 3 odd  */
 				/* set end of DMA location, even/odd */
-#ifdef RANGE_BUG_FIXED
-		*(p+35) = *(p+36) = buf + mtr->alloc_pages * PAGE_SIZE;
-#else
+		if(mtr->range_enable)
+			*(p+35) = *(p+36) = buf + mtr->alloc_pages * PAGE_SIZE;
+		else
+			*(p+35) = *(p+36) = 0xffffffff;
+
 		/*
-		 * There is a bug with the range end on the current 
-		 * 7116 chip.  The 23rd bit is ignored and set to zero
-		 * for some reason which makes range checking useless.
+		 * Determine if we can use the hardware range detect.
 		 */
-		*(p+35) = *(p+36) = 0;
-#endif
+		if(mtr->alloc_pages * PAGE_SIZE < RANGE_BOUNDARY &&
+		  ((buf & 0xff000000) | *(p+35)) == (buf + mtr->alloc_pages *
+							PAGE_SIZE) )
+                        mtr->range_enable = 0x8000;
+		else
+			mtr->range_enable = 0x0;
+
 
 		switch (geo->oformat & METEOR_GEO_OUTPUT_MASK) {
 		case 0:			/* default */
@@ -1414,20 +1510,36 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			mtr->depth = 2;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_RGB16;
+			temp = mtr->cols * mtr->depth;
 		      	/* recal stride and starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
 				*(p+3) = buf;		/*dma 1 o */
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) 
+					*(p+9) = mtr->video.width - temp;
+#endif
 				SAA7196_WRITE(mtr, 0x20, 0xd0);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
 				*(p+0) = buf;		/*dma 1 e */
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) 
+					*(p+6) = mtr->video.width - temp;
+#endif
 				SAA7196_WRITE(mtr, 0x20, 0xf0);
 				break;
 			default: /* interlaced even/odd */
 				*(p+0) = buf;		
-				*(p+3) = buf + mtr->cols * mtr->depth;
-				*(p+6) = *(p+9) = mtr->cols * mtr->depth;
+				*(p+3) = buf + temp;
+				*(p+6) = *(p+9) = temp;
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) {
+					*(p+3) = buf + mtr->video.width;
+					*(p+6) = *(p+9) = mtr->video.width -
+						temp + mtr->video.width;
+				}
+#endif
 				SAA7196_WRITE(mtr, 0x20, 0x90);
 				break;
 			}
@@ -1437,20 +1549,36 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			mtr->depth = 4;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_RGB24;
+			temp = mtr->cols * mtr->depth;
 			/* recal stride and starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
 					*(p+3) = buf;		/*dma 1 o */
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) 
+					*(p+9) = mtr->video.width - temp;
+#endif
 					SAA7196_WRITE(mtr, 0x20, 0xd2);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
 					*(p+0) = buf;		/*dma 1 e */
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) 
+					*(p+6) = mtr->video.width - temp;
+#endif
 					SAA7196_WRITE(mtr, 0x20, 0xf2);
 				break;
 			default: /* interlaced even/odd */
 				*(p+0) = buf;
 				*(p+3) = buf + mtr->cols * mtr->depth;
 				*(p+6) = *(p+9) = mtr->cols * mtr->depth;
+#ifdef METEOR_TEST_VIDEO
+				if(mtr->video.addr && mtr->video.width) {
+					*(p+3) = buf + mtr->video.width;
+					*(p+6) = *(p+9) = mtr->video.width -
+						temp + mtr->video.width;
+				}
+#endif
 				SAA7196_WRITE(mtr, 0x20, 0x92);
 				break;
 			}
@@ -1550,7 +1678,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			break;
 		default:
 			error = EINVAL;	/* invalid argument */
-			printf("meteor_ioctl: invalid output format\n");
+			printf("meteor%d: ioctl: invalid output format\n",unit);
 			break;
 		}
 		/* set cols */
@@ -1601,7 +1729,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		cnt->odd_fields_captured = mtr->odd_fields_captured;
 		break;
 	default:
-		printf("meteor_ioctl: invalid ioctl request\n");
+		printf("meteor%d: ioctl: invalid ioctl request\n", unit);
 		error = ENOTTY;
 		break;
 	}

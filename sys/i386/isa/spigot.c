@@ -40,7 +40,7 @@
  *
  *	ftp.cs.uwm.edu://pub/FreeBSD/spigot/spigot.tar.gz
  *
- * Version 1.6, Novemeber 21, 1995.
+ * Version 1.7, December 1995.
  *
  */
 
@@ -181,7 +181,7 @@ spigot_attach(struct isa_device *devp)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	ss->devfs_token = devfs_add_devsw( "/", name,
 					&spigot_cdevsw, unit,
-					DV_CHR, 0, 0, 0600);
+					DV_CHR, 0, 0, 0644);
 #endif
 
 	return 1;
@@ -197,6 +197,12 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 
 	if(ss->flags & OPEN)
 		return EBUSY;
+
+#if !defined(SPIGOT_UNSECURE)
+	/* Since we can't map the i/o page, don't allow open unless suser */
+	if(suser(p->p_ucred, &p->p_acflag) != 0)
+		return EPERM;
+#endif
 
 	ss->flags |= OPEN;
 	ss->p = 0;

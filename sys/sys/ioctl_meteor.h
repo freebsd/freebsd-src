@@ -60,6 +60,14 @@ struct meteor_counts {
 	u_long odd_fields_captured; /* count of odd fields captured */
 } ;
 
+/* structure for getting and setting direct transfers to vram */
+struct meteor_video {
+	u_long	addr;	/* Address of location to dma to */
+	u_long	width;	/* Width of memory area */
+	u_long	banksize;	/* Size of Vram bank */
+	u_long	ramsize;	/* Size of Vram */
+};
+
 #define METEORCAPTUR _IOW('x', 1, int)			 /* capture a frame */
 #define METEORCAPFRM _IOW('x', 2, struct meteor_capframe)  /* sync capture */
 #define METEORSETGEO _IOW('x', 3, struct meteor_geomet)  /* set geometry */
@@ -79,6 +87,8 @@ struct meteor_counts {
 #define METEORGFPS   _IOR('x',11, unsigned short)	/* get fps */
 #define METEORSSIGNAL _IOW('x', 12, unsigned int)	/* set signal */
 #define METEORGSIGNAL _IOR('x', 12, unsigned int)	/* get signal */
+#define	METEORSVIDEO _IOW('x', 13, struct meteor_video)	/* set video */
+#define	METEORGVIDEO _IOR('x', 13, struct meteor_video)	/* get video */
 
 #define	METEOR_STATUS_ID_MASK	0xf000	/* ID of 7196 */
 #define	METEOR_STATUS_DIR	0x0800	/* Direction of Expansion port YUV */
