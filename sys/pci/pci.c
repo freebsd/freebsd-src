@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.16 1995/02/25 17:26:22 se Exp $
+**  $Id: pci.c,v 1.17 1995/02/27 17:17:13 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -715,19 +715,21 @@ domap:
 	**	only ones (0xffffffff) from all offsets.
 	*/
 
-	for (i=0; i<vsize; i+=4) {
-		u_long* addr = (u_long*) (vaddr+i);
-		data = *addr;
-		if (data != 0xffffffff)
-			break;
-	};
+	if (!oldmap) {
+		for (i=0; i<vsize; i+=4) {
+			u_long* addr = (u_long*) (vaddr+i);
+			data = *addr;
+			if (data != 0xffffffff)
+				break;
+		};
 
-	if ((data==0xffffffff) && !oldmap) {
-		printf ("\t(possible mapping problem: "
-			"at 0x%x read 0xffffffff)\n",
-			(unsigned) paddr);
-		pci_paddr = 0;
-		goto next_try;
+		if (data==0xffffffff) {
+			printf ("\t(possible mapping problem: "
+				"at 0x%x read 0xffffffff)\n",
+				(unsigned) paddr);
+			pci_paddr = 0;
+			goto next_try;
+		};
 	};
 
 	/*
