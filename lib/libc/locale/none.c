@@ -55,11 +55,12 @@ int	_none_init(_RuneLocale *);
 size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
 int	_none_mbsinit(const mbstate_t *);
-size_t	_none_mbsrtowcs(wchar_t * __restrict, const char ** __restrict,
-	    size_t, mbstate_t * __restrict);
+size_t	_none_mbsnrtowcs(wchar_t * __restrict dst,
+	    const char ** __restrict src, size_t nms, size_t len,
+	    mbstate_t * __restrict ps __unused);
 size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
-size_t	_none_wcsrtombs(char * __restrict, const wchar_t ** __restrict,
-	    size_t, mbstate_t * __restrict);
+size_t	_none_wcsnrtombs(char * __restrict, const wchar_t ** __restrict,
+	    size_t, size_t, mbstate_t * __restrict);
 
 int
 _none_init(_RuneLocale *rl)
@@ -67,9 +68,9 @@ _none_init(_RuneLocale *rl)
 
 	__mbrtowc = _none_mbrtowc;
 	__mbsinit = _none_mbsinit;
-	__mbsrtowcs = _none_mbsrtowcs;
+	__mbsnrtowcs = _none_mbsnrtowcs;
 	__wcrtomb = _none_wcrtomb;
-	__wcsrtombs = _none_wcsrtombs;
+	__wcsnrtombs = _none_wcsnrtombs;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 1;
 	return(0);
@@ -119,18 +120,20 @@ _none_wcrtomb(char * __restrict s, wchar_t wc,
 }
 
 size_t
-_none_mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
-    size_t len, mbstate_t * __restrict ps __unused)
+_none_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps __unused)
 {
 	const char *s;
 	size_t nchr;
 
-	if (dst == NULL)
-		return (strlen(*src));
+	if (dst == NULL) {
+		s = memchr(*src, '\0', nms);
+		return (s != NULL ? s - *src : nms);
+	}
 
 	s = *src;
 	nchr = 0;
-	while (len-- > 0) {
+	while (len-- > 0 && nms-- > 0) {
 		if ((*dst++ = (unsigned char)*s++) == L'\0') {
 			*src = NULL;
 			return (nchr);
@@ -142,14 +145,14 @@ _none_mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
 }
 
 size_t
-_none_wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src,
-    size_t len, mbstate_t * __restrict ps __unused)
+_none_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t nwc, size_t len, mbstate_t * __restrict ps __unused)
 {
 	const wchar_t *s;
 	size_t nchr;
 
 	if (dst == NULL) {
-		for (s = *src; *s != L'\0'; s++) {
+		for (s = *src; nwc > 0 && *s != L'\0'; s++, nwc--) {
 			if (*s < 0 || *s > UCHAR_MAX) {
 				errno = EILSEQ;
 				return ((size_t)-1);
@@ -160,7 +163,7 @@ _none_wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src,
 
 	s = *src;
 	nchr = 0;
-	while (len-- > 0) {
+	while (len-- > 0 && nwc-- > 0) {
 		if (*s < 0 || *s > UCHAR_MAX) {
 			errno = EILSEQ;
 			return ((size_t)-1);

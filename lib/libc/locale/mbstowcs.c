@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdlib.h>
 #include <wchar.h>
 #include "mblocal.h"
@@ -38,5 +39,5 @@ mbstowcs(wchar_t * __restrict pwcs, const char * __restrict s, size_t n)
 	mbstate_t mbs;
 
 	mbs = initial;
-	return (__mbsrtowcs(pwcs, &s, n, &mbs));
+	return (__mbsnrtowcs(pwcs, &s, SIZE_T_MAX, n, &mbs));
 }
