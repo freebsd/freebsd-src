@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.59 1996/01/29 03:19:23 gibbs Exp $
+ * $Id: st.c,v 1.60 1996/02/03 13:31:13 joerg Exp $
  */
 
 /*
@@ -1636,7 +1636,7 @@ st_space(unit, number, what, flags)
 		0,
 		0,
 		0,		/* no retries please , just fail */
-		600000,		/* 10 mins enough? */
+		3600000,	/* wait up to an hour for completion */
 		NULL,
 		flags));
 }
