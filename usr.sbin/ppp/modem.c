@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.36 1997/05/10 03:39:54 brian Exp $
+ * $Id: modem.c,v 1.37 1997/05/14 01:14:32 brian Exp $
  *
  *  TODO:
  */
@@ -44,7 +44,6 @@
 extern int DoChat();
 
 static int mbits;			/* Current DCD status */
-static int connect_time;		/* connection time */
 static int connect_count;
 static struct pppTimer ModemTimer;
 
@@ -217,8 +216,6 @@ DownConnection()
     CloseModem();
     LcpDown();
   }
-  lostCarrier++;
-  connect_time = 0;
 }
 
 /*
@@ -228,28 +225,21 @@ DownConnection()
 void
 ModemTimeout()
 {
-  static int waiting;
   int ombits = mbits;
   int change;
 
   StopTimer(&ModemTimer);
-  if (Online)
-    connect_time++;
   StartTimer(&ModemTimer);
 
   if (dev_is_modem) {
-    if (modem < 0) {
-      if (!waiting)
+    if (modem >= 0) {
+      if (ioctl(modem, TIOCMGET, &mbits) < 0) {
+        LogPrintf(LOG_PHASE_BIT, "ioctl error (%s)!\n", strerror(errno));
         DownConnection();
-      waiting = 1;
-      return;
-    }
-    waiting = 0;
-    if (ioctl(modem, TIOCMGET, &mbits) < 0) {
-      LogPrintf(LOG_PHASE_BIT, "ioctl error (%s)!\n", strerror(errno));
-      DownConnection();
-      return;
-    }
+        return;
+      }
+    } else
+      mbits = 0;
     change = ombits ^ mbits;
     if (change & TIOCM_CD) {
       if (Online) {
@@ -263,6 +253,7 @@ ModemTimeout()
         if (mode & MODE_DEDICATED)
 	  PacketMode();
       } else {
+        reconnectRequired = 1;
 	DownConnection();
       }
     }
@@ -272,7 +263,6 @@ ModemTimeout()
       LogPrintf(LOG_PHASE_BIT, "Connected!\n");
       mbits = TIOCM_CD;
       connect_count++;
-      connect_time = 0;
     } else if (uptime == 0) {
       time(&uptime);
     }
@@ -282,7 +272,6 @@ ModemTimeout()
 void
 StartModemTimer()
 {
-  connect_time = 0;
   StopTimer(&ModemTimer);
   ModemTimer.state = TIMER_STOPPED;
   ModemTimer.load = SECTICKS;
