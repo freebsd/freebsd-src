@@ -37,6 +37,7 @@ MAN=	aac.4 \
 	dc.4 \
 	ddb.4 \
 	de.4 \
+	devctl.4 \
 	disc.4 \
 	divert.4 \
 	dpt.4 \
