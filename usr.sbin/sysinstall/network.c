@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.15 1996/07/08 10:08:16 jkh Exp $
+ * $Id: network.c,v 1.16 1996/08/03 10:11:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,7 +106,7 @@ mediaInitNetwork(Device *dev)
 		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
-    msgNotify("Configuring network device %s.", dev->name);
+    msgNotify("ifconfig %s %s", dev->name, cp);
     i = vsystem("ifconfig %s %s", dev->name, cp);
     if (i) {
 	msgConfirm("Unable to configure the %s interface!\n"
@@ -123,7 +123,8 @@ mediaInitNetwork(Device *dev)
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route add default %s", rp);
     }
-    msgDebug("Network initialized successfully.\n");
+    if (isDebug())
+	msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;
     return TRUE;
 }
@@ -136,7 +137,8 @@ mediaShutdownNetwork(Device *dev)
     if (!RunningAsInit || !networkInitialized)
 	return;
 
-    msgDebug("Shutdown called for network device %s\n", dev->name);
+    if (isDebug())
+	msgDebug("Shutdown called for network device %s\n", dev->name);
     /* Not a serial device? */
     if (strncmp("sl", dev->name, 2) && strncmp("ppp", dev->name, 3)) {
 	int i;
@@ -146,7 +148,7 @@ mediaShutdownNetwork(Device *dev)
 	cp = variable_get(ifconfig);
 	if (!cp)
 	    return;
-	msgNotify("Shutting interface %s down.", dev->name);
+	msgNotify("ifconfig %s down", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
 	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
@@ -155,14 +157,13 @@ mediaShutdownNetwork(Device *dev)
 	    msgNotify("Deleting default route.");
 	    vsystem("route delete default");
 	}
-	networkInitialized = FALSE;
     }
     else if (dev->private) {	/* ppp sticks its PID there */
-	msgNotify("Killing PPP process %d.", (int)dev->private);
+	msgNotify("Killing previous PPP process %d.", (int)dev->private);
 	kill((pid_t)dev->private, SIGTERM);
 	dev->private = NULL;
-	networkInitialized = FALSE;
     }
+    networkInitialized = FALSE;
 }
 
 /* Start PPP on the 3rd screen */
