@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -50,6 +51,7 @@ void
 perror(s)
 	const char *s;
 {
+	char msgbuf[NL_TEXTMAX];
 	struct iovec *v;
 	struct iovec iov[4];
 
@@ -62,7 +64,8 @@ perror(s)
 		v->iov_len = 2;
 		v++;
 	}
-	v->iov_base = strerror(errno);
+	strerror_r(errno, msgbuf, sizeof(msgbuf));
+	v->iov_base = msgbuf;
 	v->iov_len = strlen(v->iov_base);
 	v++;
 	v->iov_base = "\n";
