@@ -1,37 +1,96 @@
-Index: rc.isdn
-===================================================================
-RCS file: /home/ncvs/src/etc/rc.isdn,v
-retrieving revision 1.6
-diff -u -r1.6 rc.isdn
---- rc.isdn	2000/10/08 19:18:24	1.6
-+++ rc.isdn	2001/04/21 21:00:34
-@@ -32,28 +32,14 @@
- #	/etc/rc.isdn - isdn4bsd startup script
- #	--------------------------------------
- #
--#	last edit-date: [Mon Mar  8 12:15:56 1999]
--#
- #---------------------------------------------------------------------------
- 
- case ${isdn_enable} in
- [Yy][Ee][Ss])
- 	echo -n 'ISDN subsystem setup:'
- 
--	# Terminal type for fullscreen mode, default to syscons driver
--	#
--	isdn_ttype=cons25
--
--	# Check for pcvt driver (VT100/VT220 emulator)
--	#
--	if [ -x /usr/sbin/ispcvt ]; then
--		if /usr/sbin/ispcvt; then
--			isdn_ttype=pcvt25
--		fi
--	fi
--
- 	case ${isdn_flags} in
--	[Nn][Oo] | '')
-+	[Nn][Oo])
- 		isdn_flags=''
- 		;;
- 	esac
+#!/bin/sh
+#
+# Copyright (c) 1999  Hellmuth Michaelis
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#---------------------------------------------------------------------------
+#
+#	/etc/rc.isdn - isdn4bsd startup script
+#	--------------------------------------
+#
+#---------------------------------------------------------------------------
+
+case ${isdn_enable} in
+[Yy][Ee][Ss])
+	echo -n 'ISDN subsystem setup:'
+
+	# Check for pcvt driver (VT100/VT220 emulator)
+	#
+	if [ -x /usr/sbin/ispcvt ]; then
+		if /usr/sbin/ispcvt; then
+			# No vidcontrol if we are using pcvt
+			#
+			isdn_screenflags=NO
+		fi
+	fi
+
+	case ${isdn_flags} in
+	[Nn][Oo])
+		isdn_flags=''
+		;;
+	esac
+
+	# Start the isdn daemon
+	#
+	if [ -x /usr/sbin/isdnd ]; then
+		echo -n ' isdnd'
+		case ${isdn_fsdev} in
+		[Nn][Oo] | '')
+			/usr/sbin/isdnd ${isdn_flags}
+			;;
+		*)
+			# Change vidmode of ${isdn_fsdev}
+			#
+			case ${isdn_screenflags} in
+			[Nn][Oo])
+				;;
+			*)
+				if [ -x /usr/sbin/vidcontrol ]; then
+					/usr/sbin/vidcontrol < ${isdn_fsdev} > ${isdn_fsdev} 2>&1 ${isdn_screenflags}
+				fi
+				;;
+			esac
+
+			/usr/sbin/isdnd ${isdn_flags} -f -r ${isdn_fsdev} -t ${isdn_ttype}
+			;;
+		esac
+	fi
+
+	# Start isdntrace
+	#
+	case ${isdn_trace} in
+	[Yy][Ee][Ss])
+		if [ -x /usr/sbin/isdntrace ]; then
+			echo -n ' isdntrace'
+			nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
+		fi
+		;;
+	esac
+
+	echo '.'
+	;;
+esac
