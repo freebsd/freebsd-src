@@ -48,7 +48,6 @@ static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
 
-#define CDEV_MAJOR	2
 #define NULL_MINOR	2
 #define ZERO_MINOR	12
 
@@ -58,7 +57,6 @@ static struct cdevsw null_cdevsw = {
 	.d_write =	null_write,
 	.d_ioctl =	null_ioctl,
 	.d_name =	"null",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static struct cdevsw zero_cdevsw = {
@@ -66,7 +64,6 @@ static struct cdevsw zero_cdevsw = {
 	.d_read =	zero_read,
 	.d_write =	null_write,
 	.d_name =	"zero",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_MMAP_ANON,
 };
 

@@ -23,7 +23,6 @@
 4	*geom		GEOMetry
 5	*pts		pseudo tty "tty" half
 6	*ptc		pseudo tty "master" half
-7	*log		system log
 19	*tw		X-10 power interface
 22	*fd		(/dev/stdin etc)
 30	*snd		sound driver system
