@@ -3,12 +3,22 @@
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY % output.html		"IGNORE">
 <!ENTITY % output.print 	"IGNORE">
+<!ENTITY % include.historic	"IGNORE">
+<!ENTITY % no.include.historic	"IGNORE">
 <!ENTITY freebsd.dsl PUBLIC "-//FreeBSD//DOCUMENT DocBook Stylesheet//EN" CDATA DSSSL>
 ]>
 
 <style-sheet>
   <style-specification use="docbook">
     <style-specification-body>
+
+; Configure behavior of this stylesheet
+<![ %include.historic; [
+      (define %include-historic% #t)
+]]>
+<![ %no.include.historic; [
+      (define %include-historic% #f)
+]]>
 
 ; String manipulation functions
 (define (split-string-to-list STR)
@@ -45,8 +55,16 @@
 ; Deal with conditional inclusion of text via entities.
 (default
   (let* ((arch (attribute-string (normalize "arch")))
+	 (role (attribute-string (normalize "role")))
 	 (for-arch (entity-text "arch")))
     (cond
+
+     ; If role=historic, and we're not printing historic things, then
+     ; don't output this element.
+     ((and (equal? role "historic")
+	   (not %include-historic%))
+      (empty-sosofo))
+      
 
      ; If arch= not specified, then print unconditionally.  This clause
      ; handles the majority of cases.
