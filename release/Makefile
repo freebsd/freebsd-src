@@ -57,7 +57,7 @@ OBJFORMAT?=		elf
 ALLLANG=	yes
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by ${DOCPORTS} live.
-DISTFILES?=	${.CURDIR}/../../ports/distfiles
+DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
@@ -209,8 +209,8 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 .endif
-	if [ -d ${DISTFILES}/ ]; then \
-		cp -rp ${DISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
+	if [ -d ${DOCDISTFILES}/ ]; then \
+		cp -rp ${DOCDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
 .endif
 .endif
