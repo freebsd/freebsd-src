@@ -77,14 +77,8 @@ __FBSDID("$FreeBSD$");
 #include "exec.h"
 #include "cd.h"
 
-#define PROFILE 0
-
 int rootpid;
 int rootshell;
-#if PROFILE
-short profile_buf[16384];
-extern int etext();
-#endif
 
 STATIC void read_profile(char *);
 STATIC char *find_dot_file(char *);
@@ -105,9 +99,6 @@ main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-#if PROFILE
-	monitor(4, etext, profile_buf, sizeof profile_buf, 50);
-#endif
 	(void) setlocale(LC_ALL, "");
 	state = 0;
 	if (setjmp(jmploc.loc)) {
@@ -195,9 +186,6 @@ state3:
 state4:	/* XXX ??? - why isn't this before the "if" statement */
 		cmdloop(1);
 	}
-#if PROFILE
-	monitor(0);
-#endif
 	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;
