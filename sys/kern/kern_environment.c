@@ -47,7 +47,7 @@ char	*kern_envp;
 static char	*kernenv_next(char *cp);
 
 char *
-getenv(char *name)
+getenv(const char *name)
 {
     char	*cp, *ep;
     int		len;
@@ -68,7 +68,7 @@ getenv(char *name)
  * Return an integer value from an environment variable.
  */
 int
-getenv_int(char *name, int *data)
+getenv_int(const char *name, int *data)
 {
     quad_t tmp;
     int rval;
@@ -84,7 +84,7 @@ getenv_int(char *name, int *data)
  * Return a quad_t value from an environment variable.
  */
 quad_t
-getenv_quad(char *name, quad_t *data)
+getenv_quad(const char *name, quad_t *data)
 {
     const char	*value;
     char	*vtp;
