@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wd.4,v 1.10 1998/10/22 14:12:55 bde Exp $
+.\"	$Id: wd.4,v 1.11 1999/05/19 02:30:13 obrien Exp $
 .\"
 .Dd August 31, 1994
 .Dt WD 4 i386
@@ -34,12 +34,12 @@
 .Nd
 Generic WD100x/IDE diskcontroller driver
 .Sh SYNOPSIS
-.Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 flags Ar flags
+.Cd "controller wdc0 at isa? port" IO_WD1 irq 14 Op flags Ar flags
 .Cd "disk wd0 at wdc0 drive 0"
-.Cd "disk wd1 at wdc0 drive 1" flags Ar flags
+.Cd "disk wd1 at wdc0 drive 1" Op flags Ar flags
 .Pp
 For the CMD640b IDE controller:
-.Cd "options"  \&"CMD640\&"
+.Cd "options"  CMD640
 .Sh DESCRIPTION
 This driver provides access to disks connected to controllers that emulate
 the Western Digital WD100x series. This range of controllers includes WD1003
