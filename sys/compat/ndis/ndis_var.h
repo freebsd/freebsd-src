@@ -829,7 +829,6 @@ struct ndis_packet {
 		} np_macrsvd;
 	} u;
 	uint32_t		*np_rsvd[2];
-	uint8_t			np_proto_rsvd[1];
 
 	/*
 	 * This next part is probably wrong, but we need some place
@@ -838,6 +837,13 @@ struct ndis_packet {
 	ndis_packet_oob		np_oob;
 	ndis_packet_extension	np_ext;
 	ndis_sc_list		np_sclist;
+
+	/* BSD-specific stuff which should be invisible to drivers. */
+
+	uint32_t		np_refcnt;
+	void			*np_softc;
+	void			*np_m0;
+	int			np_txidx;
 };
 
 typedef struct ndis_packet ndis_packet;
