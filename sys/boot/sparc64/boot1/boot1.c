@@ -27,9 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 
-#include <ufs/ffs/fs.h>
-#include <ufs/ufs/dinode.h>
-
 #define _PATH_LOADER	"/boot/loader"
 #define _PATH_KERNEL	"/boot/kernel/kernel"
 
