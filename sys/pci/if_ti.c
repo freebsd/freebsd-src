@@ -251,7 +251,7 @@ static void ti_handle_events	(struct ti_softc *);
 #ifdef TI_PRIVATE_JUMBOS
 static int ti_alloc_jumbo_mem	(struct ti_softc *);
 static void *ti_jalloc		(struct ti_softc *);
-static void ti_jfree		(caddr_t, void *);
+static void ti_jfree		(void *, void *);
 #endif /* TI_PRIVATE_JUMBOS */
 static int ti_newbuf_std	(struct ti_softc *, int, struct mbuf *);
 static int ti_newbuf_mini	(struct ti_softc *, int, struct mbuf *);
@@ -1077,7 +1077,7 @@ static void *ti_jalloc(sc)
  * Release a jumbo buffer.
  */
 static void ti_jfree(buf, args)
-	caddr_t			buf;
+	void			*buf;
 	void			*args;
 {
 	struct ti_softc		*sc;
