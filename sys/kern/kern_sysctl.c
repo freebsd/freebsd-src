@@ -970,13 +970,13 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_kernel;
 	req.newfunc = sysctl_new_kernel;
-	req.lock = 1;
+	req.lock = REQ_LOCKED;
 
 	SYSCTL_LOCK();
 
 	error = sysctl_root(0, name, namelen, &req);
 
-	if (req.lock == 2)
+	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
 
 	SYSCTL_UNLOCK();
@@ -1024,7 +1024,7 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	int error = 0;
 	size_t i = 0;
 
-	if (req->lock == 1 && req->oldptr)
+	if (req->lock == REQ_LOCKED && req->oldptr)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "sysctl_old_user()");
 	if (req->oldptr) {
@@ -1071,9 +1071,10 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 void
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 {
-	if (req->lock == 1 && req->oldptr && req->oldfunc == sysctl_old_user) {
+	if (req->lock == REQ_LOCKED && req->oldptr &&
+	    req->oldfunc == sysctl_old_user) {
 		vslock(req->oldptr, req->oldlen);
-		req->lock = 2;
+		req->lock = REQ_WIRED;
 	}
 }
 
@@ -1090,7 +1091,7 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 		if (oid->oid_number == name[indx]) {
 			indx++;
 			if (oid->oid_kind & CTLFLAG_NOLOCK)
-				req->lock = 0;
+				req->lock = REQ_UNLOCKED;
 			if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 				if (oid->oid_handler != NULL ||
 				    indx == namelen) {
@@ -1264,7 +1265,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_user;
 	req.newfunc = sysctl_new_user;
-	req.lock = 1;
+	req.lock = REQ_LOCKED;
 
 	SYSCTL_LOCK();
 
@@ -1283,7 +1284,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	} while (error == EAGAIN);
 
 	req = req2;
-	if (req.lock == 2)
+	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
 
 	SYSCTL_UNLOCK();
