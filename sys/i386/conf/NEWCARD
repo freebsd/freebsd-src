@@ -174,6 +174,7 @@ device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
 device		rl		# RealTek 8129/8139
+device		pcn		# AMD Am79C79x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
