@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.15 1996/01/21 09:43:31 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.16 1996/01/25 07:17:31 phk Exp $
  */
 
 #include "param.h"
@@ -908,7 +908,7 @@ void *devfs_add_devswf(
 		...)
 {
 	va_list ap;
-	char *p, buf[256]; /* XXX */
+	char *p, *q, buf[256]; /* XXX */
 	int i;
 
 	va_start(ap, fmt);
@@ -916,9 +916,13 @@ void *devfs_add_devswf(
 	va_end(ap);
 	buf[i] = '\0';
 	p = NULL;
-	for (i=0; buf[i]; i++)
-		if (buf[i] == '/')
-			p = buf + 1;
+	for (q=buf; *q == '/'; q++)
+		continue;
+
+	for (i=0; q[i]; i++)
+		if (q[i] == '/')
+			p = q;
+
 	if (p) {
 		*p++ = '\0';
 		return devfs_add_devsw(buf, p, devsw, minor, chrblk,
