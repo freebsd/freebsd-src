@@ -9,7 +9,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-SbiInqu
+.B \-SbiInqut
 ] [
 .BI \-d count
 ] [
@@ -80,6 +80,11 @@ intelligent terminal.
 .B \-I
 Do not display idle processes.
 By default, top displays both active and idle processes.
+.TP
+.B \-t
+Do not display the
+.I top
+process.
 .TP
 .B \-n
 Use \*(lqnon-interactive\*(rq mode.  This is identical to \*(lqbatch\*(rq
@@ -153,8 +158,9 @@ can also be specified in the environment variable
 The options
 .BR \-I ,
 .BR \-S ,
+.BR \-u ,
 and
-.B \-u
+.B \-t
 are actually toggles.  A second specification of any of these options
 will negate the first.  Thus a user who has the environment variable
 .B TOP
@@ -234,6 +240,10 @@ command.
 (or
 .BR I)
 Toggle the display of idle processes.
+.B t
+Toggle the display of the
+.I top
+process.
 .SH "THE DISPLAY"
 The actual display varies depending on the specific variant of Unix
 that the machine is running.  This description may not exactly match
