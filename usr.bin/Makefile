@@ -121,9 +121,11 @@ SUBDIR=	apply \
 	quota \
 	renice \
 	rev \
+	rlogin \
 	rpcgen \
 	rpcinfo \
 	rs \
+	rsh \
 	rup \
 	ruptime \
 	rusers \
@@ -226,11 +228,6 @@ SUBDIR+=ar \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=uac
-.endif
-
-.if !defined(NO_RCMNDS)
-SUBDIR+=rlogin \
-	rsh
 .endif
 
 # Things which don't compile on new platforms yet:
