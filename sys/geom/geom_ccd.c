@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.51 1999/07/18 14:30:57 phk Exp $ */
+/* $Id: ccd.c,v 1.52 1999/08/14 11:40:34 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -632,6 +632,10 @@ ccdopen(dev, flags, fmt, p)
 
 	part = ccdpart(dev);
 	pmask = (1 << part);
+
+	dev->si_bsize_phys = DEV_BSIZE;
+	dev->si_bsize_best = BLKDEV_IOSIZE;
+	dev->si_bsize_max = MAXBSIZE;
 
 	/*
 	 * If we're initialized, check to see if there are any other
