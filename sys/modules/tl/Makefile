@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1999/08/10 17:15:17 wpaul Exp $
+#	$Id: Makefile,v 1.3 1999/08/27 19:45:18 wpaul Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
@@ -27,7 +27,7 @@ bus_if.h: $S/kern/makedevops.pl $S/kern/bus_if.m
 pci_if.h: $S/kern/makedevops.pl $S/pci/pci_if.m
 	perl $S/kern/makedevops.pl -h $S/pci/pci_if.m
 
-miibus_if.h: $S/kern/makedevops.pl $S/mii/miibus_if.m
-	perl $S/kern/makedevops.pl -h $S/mii/miibus_if.m
+miibus_if.h: $S/kern/makedevops.pl $S/dev/mii/miibus_if.m
+	perl $S/kern/makedevops.pl -h $S/dev/mii/miibus_if.m
 
 .include <bsd.kmod.mk>
