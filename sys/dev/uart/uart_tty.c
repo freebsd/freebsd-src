@@ -251,14 +251,13 @@ uart_tty_modem(struct tty *tp, int biton, int bitoff)
 	return (sc->sc_hwsig);
 }
 
-static int
+static void
 uart_tty_break(struct tty *tp, int state)
 {
 	struct uart_softc *sc;
 
 	sc = tp->t_dev->si_drv1;
 	UART_IOCTL(sc, UART_IOCTL_BREAK, state);
-	return (0);
 }
 
 static void
