@@ -164,7 +164,8 @@
    the additional 4 can be used by the specific chipset is now done in the ppc
    code by ppc_probe()... */
 
-#define IO_LPTSIZE	4		/* LPT controllers, Alpha only uses 4 */
+#define IO_LPTSIZE_EXTENDED	8	/* "Extended" LPT controllers */
+#define IO_LPTSIZE_NORMAL	4	/* "Normal" LPT controllers */
 
 #define	IO_MDASIZE	12		/* Monochrome display controllers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
