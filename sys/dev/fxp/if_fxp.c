@@ -314,7 +314,7 @@ fxp_attach(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	u_int32_t val;
-	int rid, m1, m2, ebitmap;
+	int rid, m1, m2, prefer_iomap;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	callout_handle_init(&sc->stat_ch);
@@ -357,12 +357,11 @@ fxp_attach(device_t dev)
 	 */
 	m1 = PCIM_CMD_MEMEN;
 	m2 = PCIM_CMD_PORTEN;
-	ebitmap = 0;
-	if (getenv_int("fxp_iomap", &ebitmap)) {
-		if (ebitmap & (1 << device_get_unit(dev))) {
-			m1 = PCIM_CMD_PORTEN;
-			m2 = PCIM_CMD_MEMEN;
-		}
+	prefer_iomap = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "prefer_iomap", &prefer_iomap) == 0 && prefer_iomap != 0) {
+		m1 = PCIM_CMD_PORTEN;
+		m2 = PCIM_CMD_MEMEN;
 	}
 
 	if (val & m1) {
