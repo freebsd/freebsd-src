@@ -208,6 +208,22 @@ Output from the
 code follows the same format, but
 the module name is uppercased.
 .Pp
+For machines known not to work with
+.Nm
+enabled, there is a BIOS blacklist. Currently, the blacklist only controls 
+whether
+.Nm
+should be disabled or not. In the future, it will have more 
+granularity to control features (the infrastructure for that is already there).
+.Pp
+To enable
+.Nm
+(for debugging purposes, etc.) on machines that are on the 
+blacklist, set the kernel environment variable
+.Va hint.acpi.0.disabled
+to 0. Before trying this, consider updating your BIOS to a more recent version
+that may be compatible with ACPI.
+.Pp
 To disable the
 .Nm
 driver completely, set the kernel environment variable
@@ -330,7 +346,9 @@ Name of the DSDT table to load, if loading is enabled.
 .It Va debug.acpi.disabled
 Selectively disables portions of ACPI for debugging purposes.
 .It Va hint.acpi.0.disabled
-Disables all of ACPI.
+Set this to 1 to disable all of ACPI. If ACPI has been disabled on your
+system due to a blacklist entry for your BIOS, you can set this to 0 to
+re-enable ACPI for testing.
 .It Va hw.acpi.ec.poll_timeout
 Delay in milliseconds to wait for the EC to respond.
 Try increasing this number if you get the error
