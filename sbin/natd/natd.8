@@ -275,10 +275,10 @@ kernel.
 Ensure that your machine is acting as a gateway.  This can be done by
 specifying the line
 
-  gateway=YES
+  gateway_enable=YES
 
 in
-.Pa /etc/sysconfig ,
+.Pa /etc/rc.conf ,
 or using the command
 
   sysctl -w net.inet.ip.forwarding=1
@@ -349,7 +349,7 @@ Enable your firewall by setting
   firewall=YES
 
 in
-.Pa /etc/sysconfig .
+.Pa /etc/rc.conf .
 This tells the system startup scripts to run the
 .Pa /etc/rc.firewall
 script.  If you don't wish to reboot now, just run this by hand from the
