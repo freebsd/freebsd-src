@@ -220,7 +220,7 @@ dead_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t  a_bn;
-		struct vnode **a_vpp;
+		struct bufobj **a_bop;
 		daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
@@ -229,7 +229,7 @@ dead_bmap(ap)
 
 	if (!chkvnlock(ap->a_vp))
 		return (EIO);
-	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp, ap->a_runb));
+	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_bop, ap->a_bnp, ap->a_runp, ap->a_runb));
 }
 
 /*

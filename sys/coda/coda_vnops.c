@@ -1679,7 +1679,7 @@ coda_bmap(v)
     struct vop_bmap_args *ap = v;
     struct vnode *vp __attribute__((unused)) = ap->a_vp;	/* file's vnode */
     daddr_t bn __attribute__((unused)) = ap->a_bn;	/* fs block number */
-    struct vnode **vpp = ap->a_vpp;			/* RETURN vp of device */
+    struct bufobj **bop = ap->a_bop;			/* RETURN bufobj of device */
     daddr_t *bnp __attribute__((unused)) = ap->a_bnp;	/* RETURN device block number */
     struct thread *td __attribute__((unused)) = curthread;
 /* upcall decl */
@@ -1691,10 +1691,10 @@ coda_bmap(v)
 	cp = VTOC(vp);
 	if (cp->c_ovp) {
 		return EINVAL;
-		ret =  VOP_BMAP(cp->c_ovp, bn, vpp, bnp, ap->a_runp, ap->a_runb);
+		ret =  VOP_BMAP(cp->c_ovp, bn, bop, bnp, ap->a_runp, ap->a_runb);
 #if	0
-		printf("VOP_BMAP(cp->c_ovp %p, bn %p, vpp %p, bnp %lld, ap->a_runp %p, ap->a_runb %p) = %d\n",
-			cp->c_ovp, bn, vpp, bnp, ap->a_runp, ap->a_runb, ret);
+		printf("VOP_BMAP(cp->c_ovp %p, bn %p, bop %p, bnp %lld, ap->a_runp %p, ap->a_runb %p) = %d\n",
+			cp->c_ovp, bn, bop, bnp, ap->a_runp, ap->a_runb, ret);
 #endif
 		return ret;
 	} else {
