@@ -423,12 +423,18 @@ ffs_reload(mp, cred, p)
 	 */
 	newfs->fs_csp = fs->fs_csp;
 	newfs->fs_maxcluster = fs->fs_maxcluster;
+	newfs->fs_contigdirs = fs->fs_contigdirs;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	ffs_oldfscompat(fs);
+	/* An old fsck may have zeroed these fields, so recheck them. */
+	if (fs->fs_avgfilesize <= 0)		/* XXX */
+		fs->fs_avgfilesize = AVFILESIZ;	/* XXX */
+	if (fs->fs_avgfpdir <= 0)		/* XXX */
+		fs->fs_avgfpdir = AFPDIR;	/* XXX */
 
 	/*
 	 * Step 3: re-read summary information from disk.
