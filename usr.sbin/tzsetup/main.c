@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.2.2.1 1995/06/06 04:51:22 jkh Exp $";
+	"$Id: main.c,v 1.3 1995/06/11 19:33:05 rgrimes Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -208,6 +208,7 @@ setzone(const char *zone)
 	systime += time_adjust;
 	tm = localtime(&systime);
 
+#if 0	/* This never prints the right value! :( */
 	snprintf(msg, sizeof msg,
 		 "Does %02d:%02d:%02d %d.%d.%04d %s look reasonable?",
 		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday, tm->tm_mon,
@@ -217,6 +218,7 @@ setzone(const char *zone)
 			  msg, -1, -1);
 	if (rv)
 		return 1;
+#endif
 
 	snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
 	ifp = fopen(msg, "r");
