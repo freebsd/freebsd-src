@@ -47,10 +47,12 @@ static char sccsid[] = "@(#)colcrt.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 /*
  * colcrt - replaces col for crts with new nroff esp. when using tbl.
@@ -66,7 +68,7 @@ __FBSDID("$FreeBSD$");
  * Option -2 forces printing of all half lines.
  */
 
-char	page[267][132];
+wchar_t	page[267][132];
 
 int	outline = 1;
 int	outcol;
@@ -76,15 +78,17 @@ char	printall;
 
 static void	move(int, int);
 static void	pflush(int);
-static int	plus(char, char);
+static int	plus(wchar_t, wchar_t);
 static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	int c;
-	char *cp, *dp;
-	int ch;
+	wint_t c;
+	wchar_t *cp, *dp;
+	int ch, i, w;
+
+	setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "-2")) != -1)
 		switch (ch) {
@@ -110,8 +114,8 @@ main(int argc, char *argv[])
 			argv++;
 		}
 		for (;;) {
-			c = getc(stdin);
-			if (c == -1) {
+			c = getwc(stdin);
+			if (c == WEOF) {
 				pflush(outline);
 				fflush(stdout);
 				break;
@@ -127,7 +131,7 @@ main(int argc, char *argv[])
 			case '\017':
 				continue;
 			case 033:
-				c = getc(stdin);
+				c = getwc(stdin);
 				switch (c) {
 				case '9':
 					if (outline >= 266)
@@ -156,12 +160,14 @@ main(int argc, char *argv[])
 				outcol--;
 				c = ' ';
 			default:
-				if (outcol >= 132) {
-					outcol++;
+				if ((w = wcwidth(c)) <= 0)
+					w = 1;	/* XXX */
+				if (outcol + w > 132) {
+					outcol += w;
 					continue;
 				}
 				cp = &page[outline][outcol];
-				outcol++;
+				outcol += w;
 				if (c == '_') {
 					if (suppresul)
 						continue;
@@ -169,15 +175,24 @@ main(int argc, char *argv[])
 					c = '-';
 				}
 				if (*cp == 0) {
-					*cp = c;
-					dp = cp - outcol;
+					for (i = 0; i < w; i++)
+						cp[i] = c;
+					dp = cp - (outcol - w);
 					for (cp--; cp >= dp && *cp == 0; cp--)
 						*cp = ' ';
-				} else
+				} else {
 					if (plus(c, *cp) || plus(*cp, c))
 						*cp = '+';
-					else if (*cp == ' ' || *cp == 0)
-						*cp = c;
+					else if (*cp == ' ' || *cp == 0) {
+						for (i = 1; i < w; i++)
+							if (cp[i] != ' ' &&
+							    cp[i] != 0)
+								goto cont;
+						for (i = 0; i < w; i++)
+							cp[i] = c;
+					}
+				}
+cont:
 				continue;
 			}
 		}
@@ -194,7 +209,7 @@ usage(void)
 }
 
 static int
-plus(char c, char d)
+plus(wchar_t c, wchar_t d)
 {
 
 	return ((c == '|' && d == '-') || d == '_');
@@ -205,9 +220,9 @@ pflush(int ol)
 {
 	static int first;
 	int i;
-	char *cp;
+	wchar_t *cp;
 	char lastomit;
-	int l;
+	int l, w;
 
 	l = ol;
 	lastomit = 0;
@@ -226,10 +241,17 @@ pflush(int ol)
 			continue;
 		}
 		lastomit = 0;
-		printf("%s\n", cp);
+		while (*cp != L'\0') {
+			if ((w = wcwidth(*cp)) > 0) {
+				putwchar(*cp);
+				cp += w;
+			} else
+				cp++;
+		}
+		putwchar(L'\n');
 	}
-	bcopy(page[ol], page, (267 - ol) * 132);
-	bzero(page[267- ol], ol * 132);
+	wmemcpy(page[0], page[ol], (267 - ol) * 132);
+	wmemset(page[267- ol], L'\0', ol * 132);
 	outline -= ol;
 	outcol = 0;
 	first = 1;
@@ -238,7 +260,7 @@ pflush(int ol)
 static void
 move(int l, int m)
 {
-	char *cp, *dp;
+	wchar_t *cp, *dp;
 
 	for (cp = page[l], dp = page[m]; *cp; cp++, dp++) {
 		switch (*cp) {

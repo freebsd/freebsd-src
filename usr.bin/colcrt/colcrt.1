@@ -32,7 +32,7 @@
 .\"     @(#)colcrt.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2004
+.Dd July 31, 2004
 .Dt COLCRT 1
 .Os
 .Sh NAME
@@ -70,6 +70,15 @@ The
 option is useful for sending output to the line printer when the output
 contains superscripts and subscripts which would otherwise be invisible.
 .El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh EXAMPLES
 A typical use of
 .Nm
@@ -104,7 +113,8 @@ Lines are trimmed to 132 characters.
 Some provision should be made for processing superscripts and subscripts
 in documents which are already double-spaced.
 .Pp
-Multibyte characters are not handled correctly.
+Characters that take up more than one column position may not be
+underlined correctly.
 .Sh HISTORY
 The
 .Nm
