@@ -51,16 +51,16 @@
 /*
  * Trap and fault vector routines.
  *
- * Most traps are 'trap gates', SDT_SYS386TGT.  A trap gate pushes state on
- * the stack that mostly looks like an interrupt, but does not disable 
- * interrupts.  A few of the traps we are use are interrupt gates, 
- * SDT_SYS386IGT, which are nearly the same thing except interrupts are
- * disabled on entry.
+ * All traps are 'interrupt gates', SDT_SYSIGT.  An interrupt gate pushes
+ * state on the stack but also disables interrupts.  This is important for
+ * us for the use of the swapgs instruction.  We cannot be interrupted
+ * until the GS.base value is correct.  For most traps, we automatically
+ * then enable interrupts if the interrupted context had them enabled.
+ * This is equivalent to the i386 port's use of SDT_SYS386TGT.
  *
  * The cpu will push a certain amount of state onto the kernel stack for
- * the current process.  The amount of state depends on the type of trap 
- * and whether the trap crossed rings or not.  See i386/include/frame.h.  
- * At the very least the current EFLAGS (status register, which includes 
+ * the current process.  See amd64/include/frame.h.  
+ * This includes the current RFLAGS (status register, which includes 
  * the interrupt disable state prior to the trap), the code segment register,
  * and the return instruction pointer are pushed by the cpu.  The cpu 
  * will also push an 'error' code for certain traps.  We push a dummy 
@@ -75,6 +75,7 @@
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
 #define	TRAP(a)		pushq $(a) ; jmp alltraps
+#define	TRAP_NOEN(a)	pushq $(a) ; jmp alltraps_noen
 
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
@@ -82,11 +83,11 @@ MCOUNT_LABEL(btrap)
 IDTVEC(div)
 	pushq $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
-	pushq $0; TRAP(T_TRCTRAP)
+	pushq $0; TRAP_NOEN(T_TRCTRAP)
 IDTVEC(nmi)
 	pushq $0; TRAP(T_NMI)
 IDTVEC(bpt)
-	pushq $0; TRAP(T_BPTFLT)
+	pushq $0; TRAP_NOEN(T_BPTFLT)
 IDTVEC(ofl)
 	pushq $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
@@ -106,7 +107,7 @@ IDTVEC(stk)
 IDTVEC(prot)
 	TRAP(T_PROTFLT)
 IDTVEC(page)
-	TRAP(T_PAGEFLT)
+	TRAP_NOEN(T_PAGEFLT)
 IDTVEC(mchk)
 	pushq $0; TRAP(T_MCHK)
 IDTVEC(rsvd)
@@ -119,10 +120,9 @@ IDTVEC(xmm)
 	pushq $0; TRAP(T_XMMFLT)
 	
 	/*
-	 * alltraps entry point.  Interrupts are enabled if this was a trap
-	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
-	 * Note that int0x80_syscall is a trap gate.  Only page faults
-	 * use an interrupt gate.
+	 * alltraps entry point.  Use swapgs if this is the first time in the
+	 * kernel from userland.  Reenable interrupts if they were enabled
+	 * before the trap.  This approximates SDT_SYS386TGT on the i386 port.
 	 */
 
 	SUPERALIGN_TEXT
@@ -130,6 +130,14 @@ IDTVEC(xmm)
 	.type	alltraps,@function
 alltraps:
 	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	alltraps_testi		/* already running with kernel GS.base */
+	swapgs
+alltraps_testi:
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	alltraps_pushregs
+	sti
+alltraps_pushregs:
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
@@ -153,22 +161,43 @@ calltrap:
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 
+	/*
+	 * alltraps_noen entry point.  Unlike alltraps above, we want to
+	 * leave the interrupts disabled.  This corresponds to
+	 * SDT_SYS386IGT on the i386 port.
+	 */
+	SUPERALIGN_TEXT
+	.globl	alltraps_noen
+	.type	alltraps_noen,@function
+alltraps_noen:
+	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	alltraps_pushregs	/* already running with kernel GS.base */
+	swapgs
+	jmp	alltraps_pushregs
+
+IDTVEC(dblfault)
+	pushq	$T_DOUBLEFLT
+	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	1f			/* already running with kernel GS.base */
+	swapgs
+1:	call	dblfault_handler
+2:	hlt
+	jmp	2b
+
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
  *
- * Even though the name says 'int0x80', this is actually a TGT (trap gate)
- * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
- * entry just as they are for a normal syscall.
- *
- * This leaves a place to put eflags so that the call frame can be
- * converted to a trap frame. Note that the eflags is (semi-)bogusly
- * pushed into (what will be) tf_err and then copied later into the
- * final spot. It has to be done this way because esp can't be just
- * temporarily altered for the pushfl - an interrupt might come in
- * and clobber the saved cs/eip.
+ * This is a SDT_SYSIDT entry point (unlike the i386 port) so that we
+ * can do a swapgs before enabling interrupts.  This is critical because
+ * if we took an interrupt before swapgs, the interrupt code would see
+ * that it originated in supervisor mode and skip the swapgs.
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
+	swapgs
+	sti
 	pushq	$2			/* sizeof "int 0x80" */
 	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
 	movq	%rdi,TF_RDI(%rsp)
@@ -196,19 +225,21 @@ IDTVEC(int0x80_syscall)
  * and the new privilige level.  We are still running on the old user stack
  * pointer.  We have to juggle a few things around to find our stack etc.
  * swapgs gives us access to our PCPU space only.
- * XXX The PCPU stuff is stubbed out right now...
  */
 IDTVEC(fast_syscall)
-	/* XXX swapgs */
+	swapgs
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	common_tss+COMMON_TSS_RSP0,%rsp
 	/* Now emulate a trapframe. Ugh. */
 	subq	$TF_SIZE,%rsp
-	movq	$KUDSEL,TF_SS(%rsp)
 	/* defer TF_RSP till we have a spare register */
 	movq	%r11,TF_RFLAGS(%rsp)
-	movq	$KUCSEL,TF_CS(%rsp)
 	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
+	movq	PCPU(SCRATCH_RSP),%r11	/* %r11 already saved */
+	movq	%r11,TF_RSP(%rsp)	/* user stack pointer */
+	sti
+	movq	$KUDSEL,TF_SS(%rsp)
+	movq	$KUCSEL,TF_CS(%rsp)
 	movq	$2,TF_ERR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* arg 1 */
 	movq	%rsi,TF_RSI(%rsp)	/* arg 2 */
@@ -223,14 +254,10 @@ IDTVEC(fast_syscall)
 	movq	%r13,TF_R13(%rsp)	/* C preserved */
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
-	movq	PCPU(SCRATCH_RSP),%r12	/* %r12 already saved */
-	movq	%r12,TF_RSP(%rsp)	/* user stack pointer */
-	sti
 	call	syscall
 	movq	PCPU(CURPCB),%rax
 	testq	$PCB_FULLCTX,PCB_FLAGS(%rax)
 	jne	3f
-	/* simplified from doreti */
 1:	/* Check for and handle AST's on return to userland */
 	cli
 	movq	PCPU(CURTHREAD),%rax
@@ -255,7 +282,7 @@ IDTVEC(fast_syscall)
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
 	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
 	movq	%r9,%rsp		/* original %rsp */
-	/* XXX swapgs */
+	swapgs
 	sysretq
 3:	/* Requested full context restore, use doreti for that */
 	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
@@ -344,12 +371,16 @@ doreti_exit:
 	movq	TF_R13(%rsp),%r13
 	movq	TF_R14(%rsp),%r14
 	movq	TF_R15(%rsp),%r15
-	addq	$TF_RIP,%rsp		/* skip over tf_err, tf_trapno */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	1f			/* keep running with kernel GS.base */
+	cli
+	swapgs
+1:	addq	$TF_RIP,%rsp		/* skip over tf_err, tf_trapno */
 	.globl	doreti_iret
 doreti_iret:
 	iretq
 
-  	/*
+	/*
 	 * doreti_iret_fault and friends.  Alternative return code for
 	 * the case where we get a fault in the doreti_exit code
 	 * above.  trap() (i386/i386/trap.c) catches this specific
@@ -360,7 +391,13 @@ doreti_iret:
 	.globl	doreti_iret_fault
 doreti_iret_fault:
 	subq	$TF_RIP,%rsp		/* space including tf_err, tf_trapno */
-	movq	%rdi,TF_RDI(%rsp)
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	1f			/* already running with kernel GS.base */
+	swapgs
+1:	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	2f
+	sti
+2:	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)

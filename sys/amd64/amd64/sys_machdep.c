@@ -40,6 +40,9 @@
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
+#include <machine/specialreg.h>
+#include <machine/sysarch.h>
+#include <machine/pcb.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -53,9 +56,30 @@ sysarch(td, uap)
 	struct thread *td;
 	register struct sysarch_args *uap;
 {
-	int error;
+	int error = 0;
+	struct pcb *pcb = curthread->td_pcb;
 
 	switch(uap->op) {
+	case AMD64_GET_FSBASE:
+		error = copyout(&pcb->pcb_fsbase, uap->parms, sizeof(pcb->pcb_fsbase));
+		break;
+		
+	case AMD64_SET_FSBASE:
+		error = copyin(uap->parms, &pcb->pcb_fsbase, sizeof(pcb->pcb_fsbase));
+		if (!error)
+			wrmsr(MSR_FSBASE, pcb->pcb_fsbase);
+		break;
+
+	case AMD64_GET_GSBASE:
+		error = copyout(&pcb->pcb_gsbase, uap->parms, sizeof(pcb->pcb_gsbase));
+		break;
+
+	case AMD64_SET_GSBASE:
+		error = copyin(uap->parms, &pcb->pcb_gsbase, sizeof(pcb->pcb_gsbase));
+		if (!error)
+			wrmsr(MSR_KGSBASE, pcb->pcb_fsbase);
+		break;
+
 	default:
 		error = EINVAL;
 		break;
