@@ -39,9 +39,9 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-static int	elf_exec(struct loaded_module *amp);
+static int	elf_exec(struct preloaded_file *amp);
 
-struct module_format i386_elf = { elf_loadmodule, elf_exec };
+struct file_format i386_elf = { elf_loadfile, elf_exec };
 
 static struct bootinfo	bi;
 
@@ -51,27 +51,27 @@ static struct bootinfo	bi;
  * preparations as are required, and do so.
  */
 static int
-elf_exec(struct loaded_module *mp)
+elf_exec(struct preloaded_file *fp)
 {
-    struct module_metadata	*md;
+    struct file_metadata	*md;
     Elf_Ehdr 			*ehdr;
     vm_offset_t			entry, bootinfop;
     int				boothowto, err, bootdev;
     struct bootinfo		*bi;
     vm_offset_t			ssym, esym;
 
-    if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    if ((err = bi_load(mp->m_args, &boothowto, &bootdev, &bootinfop)) != 0)
+    if ((err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop)) != 0)
 	return(err);
     entry = ehdr->e_entry & 0xffffff;
 
     ssym = esym = 0;
-    if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = mod_findmetadata(mp, MODINFOMD_ESYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */

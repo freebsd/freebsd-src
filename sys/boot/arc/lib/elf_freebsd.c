@@ -90,37 +90,37 @@
 
 #define _KERNEL
 
-static int	elf_exec(struct loaded_module *amp);
+static int	elf_exec(struct preloaded_file *amp);
 int		bi_load(struct bootinfo_v1 *, vm_offset_t *,
-			struct loaded_module *);
+			struct preloaded_file *);
 
-struct module_format alpha_elf = { elf_loadmodule, elf_exec };
+struct file_format alpha_elf = { elf_loadfile, elf_exec };
 
 vm_offset_t ffp_save, ptbr_save;
 
 static int
-elf_exec(struct loaded_module *mp)
+elf_exec(struct preloaded_file *fp)
 {
 #if 0
     static struct bootinfo_v1	bootinfo_v1;
-    struct module_metadata	*md;
+    struct file_metadata	*md;
     Elf_Ehdr			*hdr;
     int				err;
 
-    if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     hdr = (Elf_Ehdr *)&(md->md_data);
 
     /* XXX ffp_save does not appear to be used in the kernel.. */
     bzero(&bootinfo_v1, sizeof(bootinfo_v1));
-    err = bi_load(&bootinfo_v1, &ffp_save, mp);
+    err = bi_load(&bootinfo_v1, &ffp_save, fp);
     if (err)
 	return(err);
 
     /*
      * Fill in the bootinfo for the kernel.
      */
-    strncpy(bootinfo_v1.booted_kernel, mp->m_name,
+    strncpy(bootinfo_v1.booted_kernel, fp->f_name,
 	    sizeof(bootinfo_v1.booted_kernel));
     prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
 		sizeof(bootinfo_v1.boot_flags));
@@ -130,7 +130,7 @@ elf_exec(struct loaded_module *mp)
     bootinfo_v1.cnputc = NULL;
     bootinfo_v1.cnpollc = NULL;
 
-    printf("Entering %s at 0x%lx...\n", mp->m_name, hdr->e_entry);
+    printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
     exit(0);
     closeall();
     alpha_pal_imb();

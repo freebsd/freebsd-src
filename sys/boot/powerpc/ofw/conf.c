@@ -81,9 +81,9 @@ struct netif_driver *netif_drivers[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
-extern struct module_format alpha_elf;
+extern struct file_format alpha_elf;
 
-struct module_format *module_formats[] = {
+struct file_format *file_formats[] = {
     &alpha_elf,
     NULL
 };

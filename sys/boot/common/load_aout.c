@@ -40,11 +40,11 @@
 
 #include "bootstrap.h"
 
-static int		aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel);
+static int		aout_loadimage(struct preloaded_file *fp, int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel);
 
 #if 0
-static vm_offset_t	aout_findkldident(struct loaded_module *mp, struct exec *ehdr);
-static int		aout_fixupkldmod(struct loaded_module *mp, struct exec *ehdr);
+static vm_offset_t	aout_findkldident(struct preloaded_file *fp, struct exec *ehdr);
+static int		aout_fixupkldmod(struct preloaded_file *fp, struct exec *ehdr);
 #endif
 
 char	*aout_kerneltype = "a.out kernel";
@@ -56,9 +56,9 @@ char	*aout_moduletype = "a.out module";
  * will be saved in (result).
  */
 int
-aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
+aout_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
 {
-    struct loaded_module	*mp, *kmp;
+    struct preloaded_file	*fp, *kfp;
     struct exec			ehdr;
     int				fd;
     vm_offset_t			addr;
@@ -66,7 +66,7 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     u_int			pad;
     char			*s;
 
-    mp = NULL;
+    fp = NULL;
     
     /*
      * Open the image, read and validate the a.out header 
@@ -89,16 +89,16 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
      *
      * XXX should check N_GETMID()
      */
-    kmp = mod_findmodule(NULL, NULL);
+    kfp = file_findfile(NULL, NULL);
     if ((N_GETFLAG(ehdr)) & EX_DYNAMIC) {
 	/* Looks like a kld module */
-	if (kmp == NULL) {
-	    printf("aout_loadmodule: can't load module before kernel\n");
+	if (kfp == NULL) {
+	    printf("aout_loadfile: can't load module before kernel\n");
 	    err = EPERM;
 	    goto oerr;
 	}
-	if (strcmp(aout_kerneltype, kmp->m_type)) {
-	    printf("aout_loadmodule: can't load module with kernel type '%s'\n", kmp->m_type);
+	if (strcmp(aout_kerneltype, kfp->f_type)) {
+	    printf("aout_loadfile: can't load module with kernel type '%s'\n", kfp->f_type);
 	    err = EPERM;
 	    goto oerr;
 	}
@@ -107,8 +107,8 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 
     } else if (N_GETFLAG(ehdr) == 0) {
 	/* Looks like a kernel */
-	if (kmp != NULL) {
-	    printf("aout_loadmodule: kernel already loaded\n");
+	if (kfp != NULL) {
+	    printf("aout_loadfile: kernel already loaded\n");
 	    err = EPERM;
 	    goto oerr;
 	}
@@ -118,7 +118,7 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	 */
 	dest = ehdr.a_entry & 0x100000;
 	if (dest == 0) {
-	    printf("aout_loadmodule: not a kernel (maybe static binary?)\n");
+	    printf("aout_loadfile: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
 	    goto oerr;
 	}
@@ -131,15 +131,15 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /* 
      * Ok, we think we should handle this.
      */
-    mp = mod_allocmodule();
+    fp = file_alloc();
     if (kernel)
 	setenv("kernelname", filename, 1);
     s = strrchr(filename, '/');
     if (s)
-	mp->m_name = strdup(s + 1); 
+	fp->f_name = strdup(s + 1); 
     else
-	mp->m_name = strdup(filename);
-    mp->m_type = strdup(kernel ? aout_kerneltype : aout_moduletype);
+	fp->f_name = strdup(filename);
+    fp->f_type = strdup(kernel ? aout_kerneltype : aout_moduletype);
 
     /* Page-align the load address */
     addr = dest;
@@ -148,32 +148,32 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	pad = PAGE_SIZE - pad;
 	addr += pad;
     }
-    mp->m_addr = addr;					/* save the aligned load address */
+    fp->f_addr = addr;					/* save the aligned load address */
     if (kernel)
 	printf("%s at %p\n", filename, (void *) addr);
 
-    mp->m_size = aout_loadimage(mp, fd, addr, &ehdr, kernel);
-    if (mp->m_size == 0)
+    fp->f_size = aout_loadimage(fp, fd, addr, &ehdr, kernel);
+    if (fp->f_size == 0)
 	goto ioerr;
 
 #if 0
     /* Handle KLD module data */
-    if (!kernel && ((err = aout_fixupkldmod(mp, &ehdr)) != 0))
+    if (!kernel && ((err = aout_fixupkldmod(fp, &ehdr)) != 0))
 	goto oerr;
 #endif
 
     /* save exec header as metadata */
-    mod_addmetadata(mp, MODINFOMD_AOUTEXEC, sizeof(struct exec), &ehdr);
+    file_addmetadata(fp, MODINFOMD_AOUTEXEC, sizeof(struct exec), &ehdr);
 
     /* Load OK, return module pointer */
-    *result = (struct loaded_module *)mp;
+    *result = fp;
     err = 0;
     goto out;
     
  ioerr:
     err = EIO;
  oerr:
-    mod_discard(mp);
+    file_discard(fp);
  out:
     close(fd);
     return(err);
@@ -187,7 +187,7 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  * align the symbol table.
  */
 static int
-aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel)
+aout_loadimage(struct preloaded_file *fp, int fd, vm_offset_t loadaddr, struct exec *ehdr, int kernel)
 {
     u_int		pad;
     vm_offset_t		addr;
@@ -227,7 +227,7 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
     	addr += sizeof(ehdr->a_syms);
 
     	/* symbol table */
-    	printf("symbols=[0x%lx+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
+    	printf("symbols=[0x%x+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
     	if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
 		return(0);
     	addr += ehdr->a_syms;
@@ -237,14 +237,14 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
     	archsw.arch_copyin(&ss, addr, sizeof(ss));
     	addr += sizeof(ss);
     	ss -= sizeof(ss);
-    	printf("+0x%lx+0x%x]", sizeof(ss), ss);
+    	printf("+0x%x+0x%x]", sizeof(ss), ss);
     	if (archsw.arch_readin(fd, addr, ss) != ss)
 		return(0);
     	addr += ss;
 	esym = addr;
 
-    	mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
-    	mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
+    	file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
+    	file_addmetadata(fp, MODINFOMD_ESYM, sizeof(esym), &esym);
     } else {
 	printf("symbols=[none]");
     }
