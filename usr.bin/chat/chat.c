@@ -31,7 +31,7 @@
  *
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.6 1997/02/22 19:54:23 peter Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.7 1997/04/02 09:55:26 jmg Exp $";
 
 #include <stdio.h>
 #include <time.h>
@@ -86,8 +86,6 @@ static char rcsid[] = "$Id: chat.c,v 1.6 1997/02/22 19:54:23 peter Exp $";
 static int _O = 0;		/* Internal state */
 /*************** Micro getopt() *********************************************/
 
-char *program_name;
-
 #define	MAX_ABORTS		50
 #define	MAX_REPORTS		50
 #define	DEFAULT_CHAT_TIMEOUT	45
@@ -127,7 +125,7 @@ int n_reports = 0, report_next = 0, report_gathering = 0 ;
 
 void *dup_mem __P((void *b, size_t c));
 void *copy_of __P((char *s));
-void usage __P((void));
+static void usage __P((void));
 void logf __P((const char *str));
 void logflush __P((void));
 void fatal __P((const char *msg));
@@ -188,7 +186,6 @@ char **argv;
     int option;
     char *arg;
 
-    program_name = *argv;
     tzset();
 
     while (option = OPTION(argc, argv))
@@ -394,11 +391,12 @@ char *chat_file;
 /*
  *	We got an error parsing the command line.
  */
-void usage()
+static void
+usage()
     {
-    fprintf(stderr, "\
-Usage: %s [-v] [-t timeout] [-r report-file] {-f chat-file | chat-script}\n",
-	    program_name);
+    fprintf(stderr, "%s %s\n",
+		"usage: chat [-v] [-t timeout] [-r report-file]",
+		"{-f chat-file | chat-script}");
     exit(1);
     }
 
