@@ -1,4 +1,4 @@
-/*	$NetBSD: humanize_number.c,v 1.5 2003/12/26 11:30:36 simonb Exp $	*/
+/*	$NetBSD: humanize_number.c,v 1.8 2004/07/27 01:56:24 enami Exp $	*/
 
 /*
  * Copyright (c) 1997, 1998, 1999, 2002 The NetBSD Foundation, Inc.
@@ -52,10 +52,10 @@ int
 humanize_number(char *buf, size_t len, int64_t bytes,
     const char *suffix, int scale, int flags)
 {
-	const char *prefixes;
-	int	i, r;
-	int64_t	divisor, max, s1, s2, sign;
-	size_t	baselen, suffixlen;
+	const char *prefixes, *sep;
+	int	b, i, r, maxscale, s1, s2, sign;
+	int64_t	divisor, max;
+	size_t	baselen;
 
 	assert(buf != NULL);
 	assert(suffix != NULL);
@@ -64,18 +64,27 @@ humanize_number(char *buf, size_t len, int64_t bytes,
 	if (flags & HN_DIVISOR_1000) {
 		/* SI for decimal multiplies */
 		divisor = 1000;
-		prefixes = " kMGTPE";
+		if (flags & HN_B)
+			prefixes = "B\0k\0M\0G\0T\0P\0E";
+		else
+			prefixes = "\0\0k\0M\0G\0T\0P\0E";
 	} else {
 		/*
 		 * binary multiplies
 		 * XXX IEC 60027-2 recommends Ki, Mi, Gi...
 		 */
 		divisor = 1024;
-		prefixes = " KMGTPE";
+		if (flags & HN_B)
+			prefixes = "B\0K\0M\0G\0T\0P\0E";
+		else
+			prefixes = "\0\0K\0M\0G\0T\0P\0E";
 	}
 
-	if ((size_t) scale >= strlen(prefixes) && scale != HN_AUTOSCALE &&
-	    scale != HN_GETSCALE)
+#define	SCALE2PREFIX(scale)	(&prefixes[(scale) << 1])
+	maxscale = 7;
+
+	if (scale >= maxscale &&
+	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0)
 		return (-1);
 
 	if (buf == NULL || suffix == NULL)
@@ -86,75 +95,54 @@ humanize_number(char *buf, size_t len, int64_t bytes,
 	if (bytes < 0) {
 		sign = -1;
 		bytes *= -100;
-		baselen = 4;
+		baselen = 3;		/* sign, digit, prefix */
 	} else {
 		sign = 1;
 		bytes *= 100;
-		baselen = 3;
+		baselen = 2;		/* digit, prefix */
 	}
+	if (flags & HN_NOSPACE)
+		sep = "";
+	else {
+		sep = " ";
+		baselen++;
+	}
+	baselen += strlen(suffix);
 
-	suffixlen = strlen(suffix);
-
-	/* check if enough room for `x y' + suffix + `\0' */
-	if (len < baselen + suffixlen + 1)
+	/* Check if enough room for `x y' + suffix + `\0' */
+	if (len < baselen + 1)
 		return (-1);
 
-	if (flags & HN_DIVISOR_1000)
-		divisor = 1000;
-	else
-		divisor = 1024;
+	if (scale & (HN_AUTOSCALE | HN_GETSCALE)) {
+		/* See if there is additional columns can be used. */
+		for (max = 100, i = len - baselen; i-- > 0;)
+			max *= 10;
 
-	max = 100;
-	for (i = 0;
-	     (size_t) i < len - suffixlen - baselen + ((flags & HN_NOSPACE) ?
-	     1 : 0); i++)
-		max *= 10;
-
-	if ((scale & HN_AUTOSCALE) || (scale & HN_GETSCALE)) {
-		for (i = 0; bytes >= max && prefixes[i + 1]; i++)
+		for (i = 0; bytes >= max && i < maxscale; i++)
 			bytes /= divisor;
-	} else {
-		for (i = 0; i < scale && prefixes[i + 1]; i++)
-			bytes /= divisor;
-	}
 
-	if (scale & HN_GETSCALE)
-		return (i);
-
-	if (bytes < 1000 && flags & HN_DECIMAL) {
-		if (len < (baselen + 2 + ((flags & HN_NOSPACE) || (i == 0 &&
-		    !(flags & HN_B)) ? 0 : 1)))
-			return (-1);
-		s1 = bytes / 100;
-		if ((s2 = (((bytes % 100) + 5) / 10)) == 10) {
-			s1++;
-			s2 = 0;
-		}
-		if (s1 < 10 && i == 0)
-			/* Don't ever use .0 for a number less than 10. */
-			r = snprintf(buf, len, "%lld%s%c%s",
-			    /* LONGLONG */
-			    (long long)(sign * s1),
-			    (i == 0 && !(flags & HN_B)) || flags & HN_NOSPACE ?
-			    "" : " ", (i == 0 && (flags & HN_B)) ? 'B' :
-			    prefixes[i], suffix);
-		else
-			r = snprintf(buf, len, "%lld%s%lld%s%c%s",
-			    /* LONGLONG */
-			    (long long)(sign * s1),
-			    localeconv()->decimal_point,
-			    /* LONGLONG */
-			    (long long)s2,
-			    (i == 0 && !(flags & HN_B)) || flags & HN_NOSPACE ?
-			    "" : " ", (i == 0 && (flags & HN_B)) ? 'B' :
-			    prefixes[i], suffix);
-
+		if (scale & HN_GETSCALE)
+			return (i);
 	} else
-		r = snprintf(buf, len, "%lld%s%c%s",
+		for (i = 0; i < scale && i < maxscale; i++)
+			bytes /= divisor;
+
+	/* If a value <= 9.9 after rounding and ... */
+	if (bytes < 995 && i > 0 && flags & HN_DECIMAL) {
+		/* baselen + \0 + .N */
+		if (len < baselen + 1 + 2)
+			return (-1);
+		b = ((int)bytes + 5) / 10;
+		s1 = b / 10;
+		s2 = b % 10;
+		r = snprintf(buf, len, "%d%s%d%s%s%s",
+		    sign * s1, localeconv()->decimal_point, s2,
+		    sep, SCALE2PREFIX(i), suffix);
+	} else
+		r = snprintf(buf, len, "%lld%s%s%s",
 		    /* LONGLONG */
 		    (long long)(sign * ((bytes + 50) / 100)),
-		    i == 0 || flags & HN_NOSPACE ? "" : " ", (i == 0 &&
-		    (flags & HN_B)) ? 'B' : prefixes[i], suffix);
+		    sep, SCALE2PREFIX(i), suffix);
 
 	return (r);
 }
