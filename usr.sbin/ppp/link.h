@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.11 1998/04/24 19:15:26 brian Exp $
+ *  $Id: link.h,v 1.2 1998/05/21 21:46:14 brian Exp $
  *
  */
 
@@ -39,7 +39,7 @@ struct prompt;
 
 struct link {
   int type;                               /* _LINK type */
-  const char *name;                       /* unique id per link type */
+  const char *name;                       /* Points to datalink::name */
   int len;                                /* full size of parent struct */
   struct pppThroughput throughput;        /* Link throughput statistics */
   struct mqueue Queue[LINK_QUEUES];       /* Our output queue of mbufs */
