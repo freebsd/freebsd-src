@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- *	$Id: asm.h,v 1.1 1997/03/09 10:39:15 bde Exp $
+ *	$Id: asm.h,v 1.2 1997/03/09 13:57:32 bde Exp $
  */
 
 #include <sys/cdefs.h>
@@ -119,13 +119,14 @@
 
 #endif
 
+#ifdef _ARCH_INDIRECT
 /*
- * This header is currently only used in lib/msun/i387.
- * Use it to generate code to select between the generic math functions 
- * and the i387 ones.
+ * Generate code to select between the generic functions and _ARCH_INDIRECT
+ * specific ones.
+ * XXX nested __CONCATs don't work with non-ANSI cpp's.
  */
 #undef ENTRY
-#define	ANAME(x)	CNAME(__CONCAT(__i387_,x))
+#define	ANAME(x)	CNAME(__CONCAT(__CONCAT(__,_ARCH_INDIRECT),x))
 #define	ASELNAME(x)	CNAME(__CONCAT(__arch_select_,x))
 #define	AVECNAME(x)	CNAME(__CONCAT(__arch_,x))
 #define	GNAME(x)	CNAME(__CONCAT(__generic_,x))
@@ -195,6 +196,8 @@
 			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):
 
 #endif /* PROF */
+
+#endif /* _ARCH_INDIRECT */
 
 #ifndef RCSID
 #define RCSID(a)
