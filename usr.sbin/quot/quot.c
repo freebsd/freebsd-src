@@ -330,7 +330,7 @@ dofsizes(fd,super,name)
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 #ifdef	COMPAT
 	if (!(fsizes = (struct fsizes *)malloc(sizeof(struct fsizes))))
-		errx(1, "alloc fsize structure");
+		errx(1, "allocate fsize structure");
 #endif	/* COMPAT */
 	for (inode = 0; inode < maxino; inode++) {
 		errno = 0;
@@ -361,7 +361,7 @@ dofsizes(fd,super,name)
 			if (!fp || ksz < fp->fsz_first) {
 				if (!(fp = (struct fsizes *)
 				    malloc(sizeof(struct fsizes))))
-					errx(1, "alloc fsize structure");
+					errx(1, "allocate fsize structure");
 				fp->fsz_next = *fsp;
 				*fsp = fp;
 				fp->fsz_first = (ksz / FSZCNT) * FSZCNT;
@@ -483,7 +483,7 @@ usage()
 #ifdef	COMPAT
 	fprintf(stderr,"usage: quot [-nfcvha] [filesystem ...]\n");
 #else	/* COMPAT */
-	fprintf(stderr,"usage: quot [-acfhknv] [ filesystem ... ]\n");
+	fprintf(stderr,"usage: quot [-acfhknv] [filesystem ...]\n");
 #endif	/* COMPAT */
 	exit(1);
 }
