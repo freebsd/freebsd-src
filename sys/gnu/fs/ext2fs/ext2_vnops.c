@@ -92,8 +92,6 @@ static int ext2_rmdir __P((struct vop_rmdir_args *));
 static int ext2_create __P((struct vop_create_args *));
 static int ext2_mknod __P((struct vop_mknod_args *));
 static int ext2_symlink __P((struct vop_symlink_args *));
-static int ext2_getpages __P((struct vop_getpages_args *));
-static int ext2_putpages __P((struct vop_putpages_args *));
 
 /* Global vfs data structures for ufs. */
 vop_t **ext2_vnodeop_p;
@@ -115,8 +113,6 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) ext2_create },
 	{ &vop_mknod_desc,		(vop_t *) ext2_mknod },
 	{ &vop_symlink_desc,		(vop_t *) ext2_symlink },
-	{ &vop_getpages_desc,		(vop_t *) ext2_getpages },
-	{ &vop_putpages_desc,		(vop_t *) ext2_putpages },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
@@ -1185,32 +1181,4 @@ bad:
 	ip->i_flag |= IN_CHANGE;
 	vput(tvp);
 	return (error);
-}
-
-/*
- * get page routine
- *
- * XXX By default, wimp out... note that a_offset is ignored (and always
- * XXX has been).
- */
-static int
-ext2_getpages(ap)
-	struct vop_getpages_args *ap;
-{
-	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage));
-}
-
-/*
- * put page routine
- *
- * XXX By default, wimp out... note that a_offset is ignored (and always
- * XXX has been).
- */
-static int
-ext2_putpages(ap)
-	struct vop_putpages_args *ap;
-{
-	return (vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals));
 }

@@ -114,10 +114,7 @@ coda_fbsd_getpages(v)
     int ret = 0;
 
 #if	1
-	/* ??? a_offset */
-	ret = vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage);
-	return ret;
+	return vop_stdgetpages(ap);
 #else
   {
     struct vnode *vp = ap->a_vp;
@@ -175,15 +172,4 @@ printf("error = %d\n", error);
     return(error);
   }
 #endif
-}
-
-int
-coda_fbsd_putpages(v)
-	void *v;
-{
-	struct vop_putpages_args *ap = v;
-
-	/*??? a_offset */
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
 }
