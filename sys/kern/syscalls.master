@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.27 1996/03/02 16:51:25 peter Exp $
+	$Id: syscalls.master,v 1.28 1996/08/20 07:17:49 smpatel Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -322,7 +322,7 @@
 ; here allows to avoid one in libc/sys/Makefile.inc.
 203	STD	BSD	{ int mlock(caddr_t addr, size_t len); }
 204	STD	BSD	{ int munlock(caddr_t addr, size_t len); }
-205	UNIMPL	NOHIDE	nosys
+205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
 206	UNIMPL	NOHIDE	nosys
 207	UNIMPL	NOHIDE	nosys
 208	UNIMPL	NOHIDE	nosys

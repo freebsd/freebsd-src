@@ -653,6 +653,10 @@ struct	munlock_args {
 	caddr_t addr;
 	size_t len;
 };
+struct	utrace_args {
+	caddr_t addr;
+	size_t len;
+};
 struct	__semctl_args {
 	int semid;
 	int semnum;
@@ -873,6 +877,7 @@ int	ftruncate __P((struct proc *, struct ftruncate_args *, int []));
 int	__sysctl __P((struct proc *, struct sysctl_args *, int []));
 int	mlock __P((struct proc *, struct mlock_args *, int []));
 int	munlock __P((struct proc *, struct munlock_args *, int []));
+int	utrace __P((struct proc *, struct utrace_args *, int []));
 int	lkmnosys __P((struct proc *, struct nosys_args *, int []));
 int	__semctl __P((struct proc *, struct __semctl_args *, int []));
 int	semget __P((struct proc *, struct semget_args *, int []));
