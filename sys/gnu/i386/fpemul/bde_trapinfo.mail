@@ -1,0 +1,35 @@
+From bde@kralizec.zeta.org.au  Sun Jun 27 01:18:32 1993
+Received: from ultima.socs.uts.EDU.AU by bsd.coe.montana.edu (5.67/KAOS-1)
+	id AA11952; Sun, 27 Jun 93 01:18:32 -0600
+Received: by ultima.socs.uts.EDU.AU (5.65+/SMI-3.3)
+	id AA03033; Sun, 27 Jun 93 17:10:22 +1000
+Received: by kralizec.zeta.org.au (4.0/SMI-4.0)
+	id AA15074; Sat, 26 Jun 93 02:32:58 EST
+Date: Sat, 26 Jun 93 02:32:58 EST
+From: bde@kralizec.zeta.org.au (Bruce Evans)
+Message-Id: <9306251632.AA15074@kralizec.zeta.org.au>
+To: nate@bsd.coe.montana.edu
+Subject: Re:  Trapframe information
+Status: OR
+
+tf_isp		original esp (probably spare - popal ignores it)
+tf_trapno	s/w trap no (may be spare - trap.c has already looked at it)
+tf_err		h/w error code (probably spare - gets discarded before iret)
+
+___fs		not stored in 386BSD pcb.  Constant anyway unless user has
+		screwed with it (?).
+___gs		ditto
+___orig_eip	in linux, this is on the stack just before the call to the
+		emulator.  The reason that it's not a local variable is to
+		avoid passing around pointers to it - current->frame (or
+		whatever) points to everything in the stack frame.  The
+		macros hide a lot of slow memory references
+		current->frame->var.
+
+>(And I need to see if I can map orig_eip to one of the three that I'm unsure of
+>in the BSD sources)
+
+tf_isp is the least evil.
+
+Bruce
+
