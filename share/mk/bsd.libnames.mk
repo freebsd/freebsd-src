@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.19 1998/11/18 01:53:56 jdp Exp $
+#	$Id: bsd.libnames.mk,v 1.20 1999/01/20 21:48:56 jdp Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -71,6 +71,7 @@ LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
+LIBDESCRYPT?=	"don't use LIBDESCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
 LIBSS?=		${DESTDIR}${LIBDIR}/libss.a
@@ -81,6 +82,7 @@ LIBTELNET?=	${DESTDIR}${LIBDIR}/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
+LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a
 LIBY?=		${DESTDIR}${LIBDIR}/liby.a
 LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
