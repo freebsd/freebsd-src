@@ -340,27 +340,24 @@ fifo_ioctl(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct file filetmp;
-	int error = 0;
+	struct file filetmp;	/* Local, so need not be locked. */
+	int error;
 
 	if (ap->a_command == FIONBIO)
 		return (0);
 	if (ap->a_fflag & FREAD) {
-		/* filetmp is local, hence not need be locked. */
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
 		if (error)
-			goto err;
+			return (error);
 	}
 	if (ap->a_fflag & FWRITE) {
-		/* filetmp is local, hence not need be locked. */
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
 		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
 		if (error)
-			goto err;
+			return (error);
 	}
-err:
-	return (error);
+	return (0);
 }
 
 /* ARGSUSED */
@@ -463,27 +460,28 @@ fifo_poll(ap)
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if (events) {
 		/*
-		 * Tell socket poll to ignore EOF so that we block if
-		 * there is no writer (and no data).
+		 * If POLLIN or POLLRDNORM is requested and POLLINIGNEOF is
+		 * not, then convert the first two to the last one.  This
+		 * tells the socket poll function to ignore EOF so that we
+		 * block if there is no writer (and no data).  Callers can
+		 * set POLLINIGNEOF to get non-blocking behavior.
 		 */
-		if (events & (POLLIN | POLLRDNORM)) {
+		if (events & (POLLIN | POLLRDNORM) &&
+		    !(events & POLLINIGNEOF)) {
 			events &= ~(POLLIN | POLLRDNORM);
 			events |= POLLINIGNEOF;
 		}
+
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
 		if (filetmp.f_data)
 			revents |= soo_poll(&filetmp, events, ap->a_cred,
 			    ap->a_td);
-		/*
-		 * If POLLIN or POLLRDNORM was requested and POLLINIGNEOF was
-		 * not then convert POLLINIGNEOF back to POLLIN.
-		 */
-		events = ap->a_events & (POLLIN | POLLRDNORM | POLLINIGNEOF);
-		if ((events & (POLLIN | POLLRDNORM)) &&
-		    !(events & POLLINIGNEOF) &&
-		    (revents & POLLINIGNEOF)) {
+
+		/* Reverse the above conversion. */
+		if ((revents & POLLINIGNEOF) &&
+		    !(ap->a_events & POLLINIGNEOF)) {
+			revents |= (ap->a_events & (POLLIN | POLLRDNORM));
 			revents &= ~POLLINIGNEOF;
-			revents |= (events & (POLLIN | POLLRDNORM));
 		}
 	}
 	events = ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND);
