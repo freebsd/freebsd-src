@@ -241,6 +241,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			acpi_printcpu();
 		}
 
+		wbinbd(); 
+
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios) {
 			status = AcpiEnterSleepStateS4Bios();
 		} else {
@@ -254,7 +256,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			ret = -1;
 			goto out;
 		}
-		wbinvd();
 
 		for (;;) ;
 	} else {
