@@ -62,6 +62,7 @@ COMPAT_SUNOS	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DDB
+DDB_NOKLDSYM	opt_ddb.h
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
 NODEVFS		opt_devfs.h
