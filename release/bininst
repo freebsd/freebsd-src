@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.33 1994/11/12 06:22:25 jkh Exp $
+# $Id: bininst,v 1.35 1994/11/13 03:48:55 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -109,7 +109,7 @@ expect it to be in the release.  Please press RETURN to go on." 10 60
 input()
 {
 	dialog --title "$title" $clear \
-	--inputbox "$*" 10 60 "$default_value" 2> ${TMP}/inputbox.tmp.$$
+	--inputbox "$*" 17 72 "$default_value" 2> ${TMP}/inputbox.tmp.$$
 	if ! handle_rval $?; then rm -f ${TMP}/inputbox.tmp.$$; return 1; fi
 	answer=`cat ${TMP}/inputbox.tmp.$$`
 	rm -f ${TMP}/inputbox.tmp.$$
@@ -298,10 +298,10 @@ set_tmpdir()
 {
 	title="Chose temporary directory"
 	default_value="/usr/tmp"
-	if input \
-"Please specify the name of a directory containing enough
-free space to hold the temporary files for this distribution.
-At minimum, a binary distribution will require around 21MB of
+	if ! input \
+"Please specify the name of a directory containing enough free
+space to hold the temporary files for this distribution.  At
+minimum, a binary distribution will require around 21MB of
 temporary space.  At maximum, a srcdist may take 40MB or more.
 If the directory you specify does not exist, it will be created
 for you.  If you do not have enough free space to hold both the
