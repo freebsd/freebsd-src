@@ -604,6 +604,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	struct componentname *cnp = &ndp->ni_cnd;
 
 	*retdirp = NULL;
+	cnp->cn_flags |= NOMACCHECK;
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 
 	/*
