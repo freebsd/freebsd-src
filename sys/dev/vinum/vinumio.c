@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.38 2003/05/07 03:29:30 grog Exp grog $
+ * $Id: vinumio.c,v 1.39 2003/05/23 00:59:53 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -676,55 +676,6 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
     lp->d_npartitions = LABEL_PART + 1;
     strncpy(lp->d_packname, name, min(sizeof(lp->d_packname), sizeof(name)));
     lp->d_checksum = dkcksum(lp);
-}
-
-/* Write a volume label.  This implements the VINUM_LABEL ioctl. */
-int
-write_volume_label(int volno)
-{
-    struct disklabel *lp;
-    struct buf *bp;
-    struct disklabel *dlp;
-    struct volume *vol;
-    int error;
-
-    lp = (struct disklabel *) Malloc((sizeof(struct disklabel) + (DEV_BSIZE - 1)) & (DEV_BSIZE - 1));
-    if (lp == 0)
-	return ENOMEM;
-
-    if ((unsigned) (volno) >= (unsigned) vinum_conf.volumes_allocated) /* invalid volume */
-	return ENOENT;
-
-    vol = &VOL[volno];					    /* volume in question */
-    if (vol->state <= volume_uninit)			    /* nothing there */
-	return ENXIO;
-    else if (vol->state < volume_up)			    /* not accessible */
-	return EIO;					    /* I/O error */
-
-    get_volume_label(vol->name, vol->plexes, vol->size, lp); /* get the label */
-
-    /*
-     * Now write to disk.  This code is derived from the
-     * system writedisklabel (), which does silly things
-     * like reading the label and refusing to write
-     * unless it's already there.
-     */
-    bp = geteblk((int) lp->d_secsize);			    /* get a buffer */
-    bp->b_dev = makedev(VINUM_CDEV_MAJOR, vol->volno);	    /* our own raw volume */
-    bp->b_blkno = LABELSECTOR * ((int) lp->d_secsize / DEV_BSIZE);
-    bp->b_bcount = lp->d_secsize;
-    bzero(bp->b_data, lp->d_secsize);
-    dlp = (struct disklabel *) bp->b_data;
-    *dlp = *lp;
-    bp->b_flags &= ~B_INVAL;
-    bp->b_iocmd = BIO_WRITE;
-    DEV_STRATEGY(bp);
-    error = bufwait(bp);
-    bp->b_flags |= B_INVAL | B_AGE;
-    bp->b_ioflags &= ~BIO_ERROR;
-
-    brelse(bp);
-    return error;
 }
 
 /*
