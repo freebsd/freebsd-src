@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-#	In my absence, bde and jdp have pre-approval for any commit they feel
-#	necessary.
-MAINTAINER=	obrien@FreeBSD.org
-
 SUBDIR=		libiberty libbfd libopcodes libbinutils \
 		addr2line ar as gasp ld nm objcopy objdump ranlib readelf \
 		size strings strip doc
