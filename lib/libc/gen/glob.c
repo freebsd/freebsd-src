@@ -358,11 +358,11 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
 
 	if (((char *) patbuf)[0] == EOS) {
 		/*
-		 * handle a plain ~ or ~/ by expanding $HOME
-		 * first and then trying the password file
+		 * handle a plain ~ or ~/ by expanding $HOME first (iff
+		 * we're not running setuid or setgid) and then trying
+		 * the password file
 		 */
-		if (getuid() != geteuid() || getgid() != getegid() ||
-		    (h = getenv("HOME")) == NULL) {
+		if (issetugid() != 0 || (h = getenv("HOME")) == NULL) {
 			if (((h = getlogin()) != NULL &&
 			     (pwd = getpwnam(h)) != NULL) ||
 			    (pwd = getpwuid(getuid())) != NULL)
@@ -713,7 +713,9 @@ match(name, pat, patend)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
-					if (   __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
+					if (__collate_load_error ?
+					    CHAR(c) <= CHAR(k) && CHAR(k) <= CHAR(pat[1]) :
+					       __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
 					    && __collate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;

@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Fd #include <glob.h>
 .Ft int
-.Fn glob "const char *pattern" "int flags" "const int (*errfunc)(const char *, int)" "glob_t *pglob"
+.Fn glob "const char *pattern" "int flags" "int (*errfunc)(const char *, int)" "glob_t *pglob"
 .Ft void 
 .Fn globfree "glob_t *pglob"
 .Sh DESCRIPTION
