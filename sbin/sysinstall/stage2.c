@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.16 1994/11/18 11:30:04 phk Exp $
+ * $Id: stage2.c,v 1.17 1994/11/19 00:17:55 ache Exp $
  *
  */
 
@@ -16,7 +16,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <fstab.h>
 #include <fcntl.h>
 #include <dialog.h>
 #include <errno.h>
@@ -35,45 +35,47 @@ stage2()
     char dbuf[90];
     FILE *f1;
     int i, j;
+    int fidx[MAX_NO_MOUNTS];
+    struct fstab *fp;
 
     if (dialog_yesno("Last Chance!", "Are you sure you want to proceed with the installation?\nLast chance before wiping your hard disk!", -1, -1))
 	exit(0);
     /* Sort in mountpoint order */
-    memset(Fsize, 0, sizeof Fsize);
-
-    for (i = 1; Fname[i]; i++)
-	Fsize[i] = i;
-    Fsize[i] = 0;
+    memset(fidx, 0, sizeof fidx);
 
     for (j = 1; j;)
-	for (j = 0, i = 1; Fsize[i+1]; i++) {
-	    if (strcmp(Fmount[Fsize[i]], Fmount[Fsize[i+1]]) > 0) {
-		j = Fsize[i];
-		Fsize[i] = Fsize[i+1];
-		Fsize[i + 1] = j;
+	for (j = 0, i = 0; i < no_mounts; i++) {
+	    if (strcmp(mounts[i]->fs_file, mounts[i+1]->fs_file) > 0) {
+		fp = mounts[i];
+		mounts[i] = mounts[i+1];
+		mounts[i+1] = fp;
+		j++;
 	    }
 	}
 
-    for (j = 1; Fsize[j]; j++) {
-	if (strcmp(Ftype[Fsize[j]], "ufs")) 
+    for (j = 0; j < no_mounts; j++) {
+	if (strcmp(mounts[j]->fs_vfstype, "ufs")) 
 	    continue;
-	p = Fname[Fsize[j]];
+	if (!strcmp(mounts[j]->fs_mntops, "YES")) 
+	    continue;
+	p = mounts[j]->fs_spec;
 	TellEm("newfs /dev/r%s",p); 
 	strcpy(pbuf, "/dev/r");
 	strcat(pbuf, p);
 	i = exec(0, "/stand/newfs", "/stand/newfs", "-n", "1", pbuf, 0);
 	if (i) 
 	    Fatal("Exec(/stand/newfs) failed, code=%d.",i);
-    }
+	}
 
-    for (j = 1; Fsize[j]; j++) {
-	if (strcmp(Ftype[Fsize[j]], "ufs"))
-	    continue;
+    for (j = 0; fidx[j]; j++) {
 	strcpy(dbuf, "/mnt");
-	p = Fname[Fsize[j]];
-	q = Fmount[Fsize[j]];
+	p = mounts[j]->fs_spec;
+	q = mounts[j]->fs_file;
 	if (strcmp(q, "/"))
 	    strcat(dbuf, q);
+	Mkdir(dbuf);
+	if (strcmp(mounts[j]->fs_vfstype, "ufs"))
+	    continue;
 	MountUfs(p, dbuf, 1, 0);
     }
 
@@ -84,9 +86,6 @@ stage2()
 
     TellEm("unzipping /stand/sysinstall onto hard disk");
     exec(4, "/stand/gzip", "zcat", 0 );
-/*
-    CopyFile("/stand/sysinstall","/mnt/stand/sysinstall");
-*/
     Link("/mnt/stand/sysinstall","/mnt/stand/cpio");
     Link("/mnt/stand/sysinstall","/mnt/stand/bad144");
     Link("/mnt/stand/sysinstall","/mnt/stand/gunzip");
@@ -108,12 +107,15 @@ stage2()
 	Fatal("Couldn't open /mnt/etc/fstab for writing.");
 
     TellEm("Writing filesystems");
-    for (j = 1; Fsize[j]; j++) {
-	if (!strcmp(Ftype[Fsize[j]],"swap"))
-	    fprintf(f1, "/dev/%s\t\tnone\tswap sw 0 0\n", Fname[Fsize[j]]);
+    for (j = 0; j < no_mounts; j++) {
+	if (!strcmp(mounts[j]->fs_vfstype,"swap"))
+	    fprintf(f1, "/dev/%s\t\tnone\tswap sw 0 0\n", 
+		mounts[j]->fs_spec);
 	else
 	    fprintf(f1, "/dev/%s\t\t%s\t%s rw 1 1\n",
-		    Fname[Fsize[j]], Fmount[Fsize[j]], Ftype[Fsize[j]]);
+		    mounts[j]->fs_spec,
+	 	    mounts[j]->fs_file,
+		    mounts[j]->fs_vfstype);
     }
     TellEm("Writing procfs");
     fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
@@ -125,15 +127,12 @@ stage2()
     close(i);
     
     TellEm("Unmount disks");
-    for (j = 1; Fsize[j]; j++) 
-	continue;
-	
-    for (j--; j > 0; j--) {
-	if (!strcmp(Ftype[Fsize[j]],"swap")) 
+    for (j = no_mounts-1; j >= 0; j--) {
+	if (strcmp(mounts[j]->fs_vfstype,"ufs")) 
 	    continue;
 	strcpy(dbuf,"/mnt");
-	if (strcmp(Fmount[Fsize[j]],"/"))
-	    strcat(dbuf, Fmount[Fsize[j]]);
+	if (strcmp(mounts[j]->fs_file,"/"))
+	    strcat(dbuf, mounts[j]->fs_file);
 	TellEm("unmount %s", dbuf);
 	/* Don't do error-check, we reboot anyway... */
 	unmount(dbuf, 0);

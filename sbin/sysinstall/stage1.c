@@ -54,11 +54,9 @@ char selection[30];
 char *device_names[] = {"wd", "sd", "cd", "mcd", 0};
 struct devconf *device_list[MAX_NO_DEVICES];
 struct disk disk_list[MAX_NO_DEVICES];
-struct fstab *mounts[MAX_NO_MOUNTS];
 
 int no_devices;
 int no_disks;
-int no_mounts;
 
 int
 alloc_memory()
@@ -247,4 +245,5 @@ stage1()
 			mounts[no_mounts++] = &disk_list[i].mounts[j];
 		}
 	}
+	return 0;
 }
