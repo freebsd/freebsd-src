@@ -1,7 +1,6 @@
-	    Internet Software Consortium DHCP Distribution
-			     Version 3.0.1
-			 Release Candidate 12
-			       June, 2002
+	      Internet Systems Consortium DHCP Distribution
+			   Version 3.0.1rc14
+			     June 09, 2004
 
 			     Release Notes
 
@@ -23,11 +22,9 @@ that are new since version 2.0:
      - Many bug fixes, performance enhancements, and minor new DHCP
        protocol features. 
 
-This is a release candidate for a minor bug fix release to follow ISC
-DHCP 3.0.   The main bug fixed here is a bug in the subclass allocation
-code that could result in a memory smash.   Any users of the ISC DHCP server
-who are using subclasses should seriously consider upgrading to 3.0.1
-either now or when the final 3.0.1 release comes out.
+The main bug fixed here is a bug in the subclass allocation code that
+could result in a memory smash.   Any users of the ISC DHCP server who
+are using subclasses should seriously consider upgrading to 3.0.1.
 
 If you are running 3.0 beta 1 and are doing dynamic DNS updates, the
 lease file is no longer forward-compatible to 3.0 final.   A script
@@ -45,6 +42,55 @@ Measurement Systems, Igor Sharfmesser at Kazakh Telecom, and Brian
 Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
+
+			Changes since 3.0.1rc13
+
+! CAN-2004-0460 - CERT VU#317350: Five stack overflow exploits were closed
+  in logging messages with excessively long hostnames provided by the
+  clients.  It is highly probable that these could have been used by
+  attackers to gain arbitrary root access on systems using ISC DHCP 3.0.1
+  release candidates 12 or 13.  Special thanks to Gregory Duchemin for
+  both finding and solving the problem.
+
+! CAN-2004-0461 - CERT VU#654390: Once the above was closed, an opening
+  in log_*() functions was evidented, on some specific platforms where
+  vsnprintf() was not believed to be available and calls were wrapped to
+  sprintf() instead.  Again, credit goes to Gregory Duchemin for finding
+  the problem.  Calls to snprintf() are now linked to a distribution-local
+  snprintf implementation, only in those cases where the architecture is
+  not known to provide one (see includes/cf/[arch].h).  If you experience
+  linking problems with snprintf/vsnprintf or 'isc_print_' functions, this
+  is where to look.  This vulnerability did not exist in any previously
+  published version of ISC DHCP.
+
+- Compilation on hpux 11.11 was repaired.
+
+- 'The cross-compile bug fix' was backed out.
+
+			Changes since 3.0.1rc12
+
+- Fixed a bug in omapi lease lookup function, to form the hardware
+  address for the hash lookup correctly, thanks to a patch from
+  Richard Hirst.
+
+- Fixed a bug where dhcrelay was sending relayed responses back to the
+  broadcast address, but with the source's unicast mac address.  Should
+  now conform to rfc2131 section 4.1.
+
+- Cross-compile bug fix; use $(AR) instead of ar.  Thanks to Morten Brorup.
+
+- Fixed a crash bug in dhclient where dhcpd servers that do not provide
+  renewal times results in an FPE.  As a side effect, dhclient can now
+  properly handle 0xFFFFFFFF (-1) expiry times supplied by servers.  Thanks
+  to a patch from Burt Silverman.
+
+- The 'ping timeout' debugs from rc12 were removed to -DDEBUG only,
+  and reformatted to correct a compilation error on solaris platforms.
+
+- A patch was applied which fixes a case where leases read from the
+  leases database do not properly over-ride previously read leases.
+
+- dhcpctl.3 manpage was tweaked.
 
 			Changes since 3.0.1rc11
 
@@ -92,6 +138,9 @@ and for prodding me into improving it.
   changed such that they do not contain # symbols, in case they should ever
   appear in a lease file.  An option that might have been named "#144" is
   now "unknown-144".
+
+- Another patch from Bill Stephens which allows the ping-check timeout to
+  be configured as 'ping-timeout'.  Defaults to 1.
 
 			Changes since 3.0.1rc10
 
