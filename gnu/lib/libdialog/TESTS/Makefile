@@ -1,6 +1,6 @@
 # Really quick and evil Makefile for building all the tests.  I wish that bmake was friendlier to
 # the concept of multiple progs/libs in the same directory.
-# $Id$
+# $Id: Makefile,v 1.2 1996/01/01 03:45:21 jkh Exp $
 
 PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
 	input1 check1 check2 check3 radio1 radio2 radio3
@@ -13,53 +13,55 @@ all: ${PROGS}
 clean:
 	rm -f ${PROGS}
 	
-msg:	msg.c
-	${CC} msg.c -o msg ${LDFLAGS}
+msg:	${.CURDIR}/msg.c
+	${CC} ${.CURDIR}/msg.c -o msg ${LDFLAGS}
 
-yesno:	yesno.c
-	${CC} yesno.c -o yesno ${LDFLAGS}
+yesno:	${.CURDIR}/yesno.c
+	${CC} ${.CURDIR}/yesno.c -o yesno ${LDFLAGS}
 
-prgbox:	prgbox.c
-	${CC} prgbox.c -o prgbox ${LDFLAGS}
+prgbox:	${.CURDIR}/prgbox.c
+	${CC} ${.CURDIR}/prgbox.c -o prgbox ${LDFLAGS}
 
-gauge:	gauge.c
-	${CC} gauge.c -o gauge ${LDFLAGS}
+gauge:	${.CURDIR}/gauge.c
+	${CC} ${.CURDIR}/gauge.c -o gauge ${LDFLAGS}
 
-dselect: dselect.c
-	${CC} dselect.c -o dselect ${LDFLAGS}
+dselect: ${.CURDIR}/dselect.c
+	${CC} ${.CURDIR}/dselect.c -o dselect ${LDFLAGS}
 
-fselect: fselect.c
-	${CC} fselect.c -o fselect ${LDFLAGS}
+fselect: ${.CURDIR}/fselect.c
+	${CC} ${.CURDIR}/fselect.c -o fselect ${LDFLAGS}
 
-text:	text.c
-	${CC} text.c -o text ${LDFLAGS}
+text:	${.CURDIR}/text.c
+	${CC} ${.CURDIR}/text.c -o text ${LDFLAGS}
 
-menu1:	menu1.c
-	${CC} menu1.c -o menu1 ${LDFLAGS}
+menu1:	${.CURDIR}/menu1.c
+	${CC} ${.CURDIR}/menu1.c -o menu1 ${LDFLAGS}
 
-menu2:	menu2.c
-	${CC} menu2.c -o menu2 ${LDFLAGS}
+menu2:	${.CURDIR}/menu2.c
+	${CC} ${.CURDIR}/menu2.c -o menu2 ${LDFLAGS}
 
-menu3:	menu3.c
-	${CC} menu3.c -o menu3 ${LDFLAGS}
+menu3:	${.CURDIR}/menu3.c
+	${CC} ${.CURDIR}/menu3.c -o menu3 ${LDFLAGS}
 
-input1:	input1.c
-	${CC} input1.c -o input1 ${LDFLAGS}
+input1:	${.CURDIR}/input1.c
+	${CC} ${.CURDIR}/input1.c -o input1 ${LDFLAGS}
 
-check1:	check1.c
-	${CC} check1.c -o check1 ${LDFLAGS}
+check1:	${.CURDIR}/check1.c
+	${CC} ${.CURDIR}/check1.c -o check1 ${LDFLAGS}
 
-check2:	check2.c
-	${CC} check2.c -o check2 ${LDFLAGS}
+check2:	${.CURDIR}/check2.c
+	${CC} ${.CURDIR}/check2.c -o check2 ${LDFLAGS}
 
-check3: check3.c
-	${CC} check3.c -o check3 ${LDFLAGS}
+check3: ${.CURDIR}/check3.c
+	${CC} ${.CURDIR}/check3.c -o check3 ${LDFLAGS}
 
-radio1: radio1.c
-	${CC} radio1.c -o radio1 ${LDFLAGS}
+radio1: ${.CURDIR}/radio1.c
+	${CC} ${.CURDIR}/radio1.c -o radio1 ${LDFLAGS}
 
-radio2: radio2.c
-	${CC} radio2.c -o radio2 ${LDFLAGS}
+radio2: ${.CURDIR}/radio2.c
+	${CC} ${.CURDIR}/radio2.c -o radio2 ${LDFLAGS}
 
-radio3: radio3.c
-	${CC} radio3.c -o radio3 ${LDFLAGS}
+radio3: ${.CURDIR}/radio3.c
+	${CC} ${.CURDIR}/radio3.c -o radio3 ${LDFLAGS}
+
+.include <bsd.prog.mk>
