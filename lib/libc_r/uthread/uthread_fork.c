@@ -183,9 +183,6 @@ _fork(void)
 			/* Don't queue signals yet: */
 			_queue_signals = 0;
 
-			/* Initialize signal handling: */
-			_thread_sig_init();
-
 			/* Initialize the scheduling switch hook routine: */
 			_sched_switch_hook = NULL;
 

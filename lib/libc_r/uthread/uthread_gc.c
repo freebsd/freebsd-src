@@ -57,8 +57,8 @@ _thread_gc(pthread_addr_t arg)
 	void		*p_stack;
 
 	/* Block all signals */
-	sigfillset (&mask);
-	sigprocmask (SIG_BLOCK, &mask, NULL);
+	sigfillset(&mask);
+	pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
 	/* Mark this thread as a library thread (not a user thread). */
 	_thread_run->flags |= PTHREAD_FLAGS_PRIVATE;

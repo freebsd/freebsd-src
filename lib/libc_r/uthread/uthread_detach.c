@@ -61,10 +61,16 @@ pthread_detach(pthread_t pthread)
 		/* Enter a loop to bring all threads off the join queue: */
 		while ((next_thread = TAILQ_FIRST(&pthread->join_queue)) != NULL) {
 			/* Remove the thread from the queue: */
-			TAILQ_REMOVE(&pthread->join_queue, next_thread, qe);
+			TAILQ_REMOVE(&pthread->join_queue, next_thread, sqe);
+			pthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 
-			/* Make the thread run: */
-			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
+			/* Make the thread runnable: */
+			PTHREAD_NEW_STATE(next_thread, PS_RUNNING);
+
+			/*
+			 * Set the return value for the woken thread:
+			 */
+			next_thread->error = ESRCH;
 		}
 
 		/*

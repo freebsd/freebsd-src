@@ -40,154 +40,72 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-/*
- * Offset into the jmp_buf.  This is highly machine-dependent, but is a
- * necessary evil in order to compare stack pointers and make decisions based on
- * where a *longjmp() is jumping to.
- */
-#if defined(__i386__)
-#define	JMP_BUF_SP_OFFSET 2
-#elif defined(__alpha)
-#define	JMP_BUF_SP_OFFSET (4 + R_SP)
-#else
-#error "Don't recognize this architecture!"
-#endif
+/* Prototypes: */
+static inline int	check_stack(pthread_t thread, void *stackp);
 
 void
 siglongjmp(sigjmp_buf env, int savemask)
 {
-	void	*jmp_stackp;
-	void	*stack_begin, *stack_end;
-
-	if (_thread_run->signal_nest_level == 0)
-		__siglongjmp(env, savemask);
-
-	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_sjb[JMP_BUF_SP_OFFSET];
-
-	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
-
-	/*
-	 * Make sure we aren't jumping to a different stack.  Make sure
-	 * jmp_stackp is between stack_begin and stack end, to correctly detect
-	 * this condition regardless of whether the stack grows up or down.
-	 */
-	if (((jmp_stackp < stack_begin) && (jmp_stackp < stack_end)) ||
-	    ((jmp_stackp > stack_begin) && (jmp_stackp > stack_end)))
+	if (check_stack(_thread_run, (void *) GET_STACK_SJB(env)))
 		PANIC("siglongjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
-	memcpy(_thread_run->nested_jmp.sigjmp, env,
-	    sizeof(_thread_run->nested_jmp.sigjmp));
-
 	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
+	 * The stack pointer is somewhere within the threads stack.
+	 * Jump to the users context.
 	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS_SIGLONGJMP;
-	_thread_run->longjmp_val = savemask;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	__siglongjmp(env, savemask);
 }
 
 void
 longjmp(jmp_buf env, int val)
 {
-	void	*jmp_stackp;
-	void	*stack_begin, *stack_end;
-
-	if (_thread_run->signal_nest_level == 0)
-		__longjmp(env, val);
-
-	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_jb[JMP_BUF_SP_OFFSET];
-
-	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
-
-	/*
-	 * Make sure we aren't jumping to a different stack.  Make sure
-	 * jmp_stackp is between stack_begin and stack end, to correctly detect
-	 * this condition regardless of whether the stack grows up or down.
-	 */
-	if (((jmp_stackp < stack_begin) && (jmp_stackp < stack_end)) ||
-	    ((jmp_stackp > stack_begin) && (jmp_stackp > stack_end)))
+	if (check_stack(_thread_run, (void *) GET_STACK_JB(env)))
 		PANIC("longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
-	memcpy(_thread_run->nested_jmp.jmp, env,
-	    sizeof(_thread_run->nested_jmp.jmp));
-
 	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
+	 * The stack pointer is somewhere within the threads stack.
+	 * Jump to the users context.
 	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS_LONGJMP;
-	_thread_run->longjmp_val = val;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	__longjmp(env, val);
 }
 
 void
 _longjmp(jmp_buf env, int val)
 {
-	void	*jmp_stackp;
+	if (check_stack(_thread_run, (void *) GET_STACK_JB(env)))
+		PANIC("_longjmp()ing between thread contexts is undefined by "
+		    "POSIX 1003.1");
+
+	/*
+	 * The stack pointer is somewhere within the threads stack.
+	 * Jump to the users context.
+	 */
+	___longjmp(env, val);
+}
+
+/* Returns 0 if stack check is OK, non-zero otherwise. */
+static inline int
+check_stack(pthread_t thread, void *stackp)
+{
 	void	*stack_begin, *stack_end;
 
-	if (_thread_run->signal_nest_level == 0)
-		___longjmp(env, val);
-
-	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_jb[JMP_BUF_SP_OFFSET];
-
 	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
+	PTHREAD_ASSERT(thread->stack != NULL,
+	    "Thread stack pointer is null");
+	stack_begin = thread->stack;
+	stack_end = stack_begin + thread->attr.stacksize_attr;
 
 	/*
 	 * Make sure we aren't jumping to a different stack.  Make sure
 	 * jmp_stackp is between stack_begin and stack end, to correctly detect
 	 * this condition regardless of whether the stack grows up or down.
 	 */
-	if (((jmp_stackp < stack_begin) && (jmp_stackp < stack_end)) ||
-	    ((jmp_stackp > stack_begin) && (jmp_stackp > stack_end)))
-		PANIC("_longjmp()ing between thread contexts is undefined by "
-		    "POSIX 1003.1");
-
-	memcpy(_thread_run->nested_jmp.jmp, env,
-	    sizeof(_thread_run->nested_jmp.jmp));
-
-	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
-	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS__LONGJMP;
-	_thread_run->longjmp_val = val;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	if (((stackp < stack_begin) && (stackp < stack_end)) ||
+	    ((stackp > stack_begin) && (stackp > stack_end)))
+		return (1);
+	else
+		return (0);
 }
 #endif

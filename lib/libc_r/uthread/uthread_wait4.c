@@ -31,6 +31,8 @@
  *
  * $FreeBSD$
  */
+#include <sys/types.h>
+
 #include <errno.h>
 #include <sys/wait.h>
 #ifdef _THREAD_SAFE

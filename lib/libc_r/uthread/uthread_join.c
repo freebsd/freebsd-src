@@ -40,7 +40,6 @@ int
 pthread_join(pthread_t pthread, void **thread_return)
 {
 	int ret = 0;
-	pthread_t pthread1 = NULL;
  
 	_thread_enter_cancellation_point();
 
@@ -62,11 +61,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 	 * Find the thread in the list of active threads or in the
 	 * list of dead threads:
 	 */
-	if (_find_thread(pthread) == 0 ||
-	    _find_dead_thread(pthread) == 0)
-		pthread1  = pthread;
-
-	if (pthread1 == NULL)
+	if ((_find_thread(pthread) != 0) && (_find_dead_thread(pthread) != 0))
 		/* Return an error: */
 		ret = ESRCH;
 
@@ -77,41 +72,76 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
-		/* Clear the interrupted flag: */
-		_thread_run->interrupted = 0;
+		PTHREAD_ASSERT_NOT_IN_SYNCQ(_thread_run);
 
 		/*
-		 * Protect against being context switched out while
-		 * adding this thread to the join queue.
+		 * Enter a loop in case this thread is woken prematurely
+		 * in order to invoke a signal handler:
 		 */
-		_thread_kern_sig_defer();
+		for (;;) {
+			/* Clear the interrupted flag: */
+			_thread_run->interrupted = 0;
 
-		/* Add the running thread to the join queue: */
-		TAILQ_INSERT_TAIL(&(pthread->join_queue), _thread_run, qe);
+			/*
+			 * Protect against being context switched out while
+			 * adding this thread to the join queue.
+			 */
+			_thread_kern_sig_defer();
 
-		/* Schedule the next thread: */
-		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
+			/* Add the running thread to the join queue: */
+			TAILQ_INSERT_TAIL(&(pthread->join_queue),
+			    _thread_run, sqe);
+			_thread_run->flags |= PTHREAD_FLAGS_IN_JOINQ;
+			_thread_run->data.thread = pthread;
 
-		if (_thread_run->interrupted != 0)
-			TAILQ_REMOVE(&(pthread->join_queue), _thread_run, qe);
+			/* Schedule the next thread: */
+			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
-		_thread_kern_sig_undefer();
+			if ((_thread_run->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
+				TAILQ_REMOVE(&(pthread->join_queue),
+				    _thread_run, sqe);
+				_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+			}
+			_thread_run->data.thread = NULL;
 
-		if (_thread_run->interrupted != 0 &&
-		    _thread_run->continuation != NULL)
-			_thread_run->continuation(_thread_run);
+			_thread_kern_sig_undefer();
 
-		/* Check if the thread is not detached: */
-		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
-			/* Check if the return value is required: */
-			if (thread_return)
-				/* Return the thread's return value: */
-				*thread_return = pthread->ret;
+			if (_thread_run->interrupted != 0) {
+				if (_thread_run->continuation != NULL)
+					_thread_run->continuation(_thread_run);
+				/*
+				 * This thread was interrupted, probably to
+				 * invoke a signal handler.  Make sure the
+				 * target thread is still joinable.
+				 */
+				if (((_find_thread(pthread) != 0) &&
+				    (_find_dead_thread(pthread) != 0)) ||
+				    ((pthread->attr.flags &
+				    PTHREAD_DETACHED) != 0)) {
+					/* Return an error: */
+					ret = ESRCH;
+
+					/* We're done; break out of the loop. */
+					break;
+				}
+				else if (pthread->state == PS_DEAD) {
+					/* We're done; break out of the loop. */
+					break;
+				}
+			} else {
+				/*
+				 * The thread return value and error are set
+				 * by the thread we're joining to when it
+				 * exits or detaches:
+				 */
+				ret = _thread_run->error;
+				if ((ret == 0) && (thread_return != NULL))
+					*thread_return = _thread_run->ret;
+
+				/* We're done; break out of the loop. */
+				break;
+			}
 		}
-		else
-			/* Return an error: */
-			ret = ESRCH;
-
 	/* Check if the return value is required: */
 	} else if (thread_return != NULL)
 		/* Return the thread's return value: */
@@ -121,5 +151,16 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Return the completion status: */
 	return (ret);
+}
+
+void
+_join_backout(pthread_t pthread)
+{
+	_thread_kern_sig_defer();
+	if ((pthread->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
+		TAILQ_REMOVE(&pthread->data.thread->join_queue, pthread, sqe);
+		_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+	}
+	_thread_kern_sig_undefer();
 }
 #endif

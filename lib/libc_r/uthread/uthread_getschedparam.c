@@ -49,7 +49,8 @@ pthread_getschedparam(pthread_t pthread, int *policy,
 	/* Find the thread in the list of active threads: */
 	else if ((ret = _find_thread(pthread)) == 0) {
 		/* Return the threads base priority and scheduling policy: */
-		param->sched_priority = pthread->base_priority;
+		param->sched_priority =
+		    PTHREAD_BASE_PRIORITY(pthread->base_priority);
 		*policy = pthread->attr.sched_policy;
 	}
 

@@ -53,18 +53,22 @@ int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_sig_saved_offset		= OFF(sig_saved);
-int _thread_saved_sigcontext_offset	= OFF(saved_sigcontext);
-int _thread_saved_jmp_buf_offset	= OFF(saved_jmp_buf);
+int _thread_ctxtype_offset		= OFF(ctxtype);
+int _thread_ctx_offset			= OFF(ctx);
 #undef OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
 int _thread_PS_DEAD_value		= PS_DEAD;
+int _thread_CTX_JB_NOSIG_value		= CTX_JB_NOSIG;
+int _thread_CTX_JB_value		= CTX_JB;
+int _thread_CTX_SJB_value		= CTX_SJB;
+int _thread_CTX_UC_value		= CTX_UC;
 
 int
 pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
+	struct itimerval itimer;
 	int		f_gc = 0;
 	int             ret = 0;
 	pthread_t       gc_thread;
@@ -120,7 +124,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			} else {
 				/* Allocate a new stack. */
 				stack = _next_stack + PTHREAD_STACK_GUARD;
-			    
+
 				/*
 				 * Even if stack allocation fails, we don't want
 				 * to try to use this location again, so
@@ -162,7 +166,6 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialise the thread structure: */
 			memset(new_thread, 0, sizeof(struct pthread));
 			new_thread->slice_usec = -1;
-			new_thread->sig_saved = 0;
 			new_thread->stack = stack;
 			new_thread->start_routine = start_routine;
 			new_thread->arg = arg;
@@ -178,87 +181,54 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* Initialise the thread for signals: */
 			new_thread->sigmask = _thread_run->sigmask;
+			new_thread->sigmask_seqno = 0;
+
+			/* Initialize the signal frame: */
+			new_thread->curframe = NULL;
 
 			/* Initialise the jump buffer: */
-			setjmp(new_thread->saved_jmp_buf);
+			_setjmp(new_thread->ctx.jb);
 
 			/*
 			 * Set up new stack frame so that it looks like it
 			 * returned from a longjmp() to the beginning of
 			 * _thread_start().
 			 */
-#if	defined(__FreeBSD__)
-#if	defined(__alpha__)
-			new_thread->saved_jmp_buf[0]._jb[2] =
-			    (long)_thread_start;
-			new_thread->saved_jmp_buf[0]._jb[4 + R_RA] =
-			    0;
-			new_thread->saved_jmp_buf[0]._jb[4 + R_T12] =
-			    (long)_thread_start;
-#else
-			new_thread->saved_jmp_buf[0]._jb[0] =
-			    (long)_thread_start;
-#endif
-#elif	defined(__NetBSD__)
-#if	defined(__alpha__)
-			new_thread->saved_jmp_buf[2] = (long)_thread_start;
-			new_thread->saved_jmp_buf[4 + R_RA] = 0;
-			new_thread->saved_jmp_buf[4 + R_T12] =
-			    (long)_thread_start;
-#else
-			new_thread->saved_jmp_buf[0] = (long)_thread_start;
-#endif
-#else
-#error	"Don't recognize this operating system!"
-#endif
+			SET_RETURN_ADDR_JB(new_thread->ctx.jb, _thread_start);
 
 			/* The stack starts high and builds down: */
-#if	defined(__FreeBSD__)
-#if	defined(__alpha__)
-			new_thread->saved_jmp_buf[0]._jb[4 + R_SP] =
-				(long)new_thread->stack + pattr->stacksize_attr
-				- sizeof(double);
-#else
-			new_thread->saved_jmp_buf[0]._jb[2] =
-			    (int)(new_thread->stack + pattr->stacksize_attr -
-			    sizeof(double));
-#endif
-#elif	defined(__NetBSD__)
-#if	defined(__alpha__)
-			new_thread->saved_jmp_buf[4 + R_SP] =
-			    (long)new_thread->stack + pattr->stacksize_attr -
-			    sizeof(double);
-#else
-			new_thread->saved_jmp_buf[2] = (long)new_thread->stack
-			    + pattr->stacksize_attr - sizeof(double);
-#endif
-#else
-#error	"Don't recognize this operating system!"
-#endif
+			SET_STACK_JB(new_thread->ctx.jb,
+			    (long)new_thread->stack + pattr->stacksize_attr
+			    - sizeof(double));
+
+			/* Initialize the rest of the frame: */
+			new_thread->ctxtype = CTX_JB_NOSIG;
 
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
 
 			/*
 			 * Check if this thread is to inherit the scheduling
-			 * attributes from its parent: 
+			 * attributes from its parent:
 			 */
 			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
 				/* Copy the scheduling attributes: */
-				new_thread->base_priority
-				    = _thread_run->base_priority;
-				new_thread->attr.prio
-				    = _thread_run->base_priority;
-				new_thread->attr.sched_policy
-				    = _thread_run->attr.sched_policy;
+				new_thread->base_priority =
+				    _thread_run->base_priority &
+				    ~PTHREAD_SIGNAL_PRIORITY;
+				new_thread->attr.prio =
+				    _thread_run->base_priority &
+				    ~PTHREAD_SIGNAL_PRIORITY;
+				new_thread->attr.sched_policy =
+				    _thread_run->attr.sched_policy;
 			} else {
 				/*
 				 * Use just the thread priority, leaving the
 				 * other scheduling attributes as their
-				 * default values: 
+				 * default values:
 				 */
-				new_thread->base_priority
-				    = new_thread->attr.prio;
+				new_thread->base_priority =
+				    new_thread->attr.prio;
 			}
 			new_thread->active_priority = new_thread->base_priority;
 			new_thread->inherited_priority = 0;
@@ -275,7 +245,6 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->flags = 0;
 			new_thread->poll_data.nfds = 0;
 			new_thread->poll_data.fds = NULL;
-			new_thread->jmpflags = 0;
 			new_thread->continuation = NULL;
 
 			/*
@@ -315,6 +284,16 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
 
+			if (f_gc != 0) {
+				/* Install the scheduling timer: */
+				itimer.it_interval.tv_sec = 0;
+				itimer.it_interval.tv_usec = _clock_res_usec;
+				itimer.it_value = itimer.it_interval;
+				if (setitimer(_ITIMER_SCHED_TIMER, &itimer,
+				    NULL) != 0)
+					PANIC("Cannot set interval timer");
+			}
+
 			/* Schedule the new user thread: */
 			_thread_kern_sched(NULL);
 
@@ -325,6 +304,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			if (f_gc && pthread_create(&gc_thread,NULL,
 				    _thread_gc,NULL) != 0)
 				PANIC("Can't create gc thread");
+
 		}
 	}
 
