@@ -97,6 +97,7 @@
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
+#include <machine/ofw_mem.h>
 #include <machine/smp.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
@@ -162,6 +163,8 @@ CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 static void
 cpu_startup(void *arg)
 {
+	vm_paddr_t physsz;
+	int i;
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
 	tick_tc.tc_poll_pps = NULL;
@@ -170,8 +173,11 @@ cpu_startup(void *arg)
 	tick_tc.tc_name = "tick";
 	tc_init(&tick_tc);
 
-	printf("real memory  = %lu (%lu MB)\n", physmem * PAGE_SIZE,
-	    physmem / ((1024 * 1024) / PAGE_SIZE));
+	physsz = 0;
+	for (i = 0; i < sparc64_nmemreg; i++)
+		physsz += sparc64_memreg[i].mr_size;
+	printf("real memory  = %lu (%lu MB)\n", physsz,
+	    physsz / (1024 * 1024));
 
 	vm_ksubmap_init(&kmi);
 

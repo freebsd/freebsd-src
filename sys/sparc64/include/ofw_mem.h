@@ -40,4 +40,7 @@ struct ofw_map {
 	u_long	om_tte;
 };
 
+extern	struct ofw_mem_region sparc64_memreg[];
+extern	int sparc64_nmemreg;
+
 #endif
