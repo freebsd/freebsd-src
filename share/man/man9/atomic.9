@@ -144,7 +144,7 @@ all of the protected operations are completed before the lock is released.
 The current set of atomic operations do not necessarily guarantee atomicity
 across multiple processors.
 To guarantee atomicity across processors, not only does the individual
-operation need to be atomic on the processor performing the operation, but the
+operation need to be atomic on the processor performing the operation, but
 the result of the operation needs to be pushed out to stable storage and the
 caches of all other processors on the system need to invalidate any cache
 lines that include the affected memory region.
