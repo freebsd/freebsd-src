@@ -56,8 +56,7 @@ MAN+=	pthread_attr.3 \
 	pthread_suspend_all_np.3 \
 	pthread_suspend_np.3 \
 	pthread_switch_add_np.3 \
-	pthread_testcancel.3 \
-	sigwait.3
+	pthread_testcancel.3
 
 MLINKS+= \
 	pthread_attr.3 pthread_attr_destroy.3 \

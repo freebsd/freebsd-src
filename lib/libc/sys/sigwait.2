@@ -27,13 +27,13 @@
 .\"
 .\" $FreeBSD$
 .Dd April 27, 2000
-.Dt SIGWAIT 3
+.Dt SIGWAIT 2
 .Os
 .Sh NAME
 .Nm sigwait
 .Nd select a set of signals
 .Sh LIBRARY
-.Lb libc_r
+.Lb libc
 .Sh SYNOPSIS
 .In signal.h
 .Ft int
@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn sigwait
-function selects a set of signals, specified by
+system call selects a set of signals, specified by
 .Fa set .
 If none of the selected signals are pending,
 .Fn sigwait
@@ -67,7 +67,7 @@ Otherwise, an error number is returned.
 .Sh ERRORS
 The
 .Fn sigwait
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa set
@@ -83,4 +83,4 @@ specifies one or more invalid signal numbers.
 The
 .Fn sigwait
 function conforms to
-.St -p1003.1-96
+.St -p1003.1-96 .
