@@ -35,6 +35,7 @@ static const char rcsid[] =
 
 static void sanity_check(void);
 static void make_dist(char *, char *, char *, Package *);
+static int create_from_installed(char *, char *);
 
 static char *home;
 
@@ -50,21 +51,10 @@ pkg_perform(char **pkgs)
     int compress = TRUE;	/* default is to compress packages */
 
     /* Preliminary setup */
-    sanity_check();
+    if (InstalledPkg == NULL)
+	sanity_check();
     if (Verbose && !PlistOnly)
 	printf("Creating package %s\n", pkg);
-    get_dash_string(&Comment);
-    get_dash_string(&Desc);
-    if (!strcmp(Contents, "-"))
-	pkg_in = stdin;
-    else {
-	pkg_in = fopen(Contents, "r");
-	if (!pkg_in) {
-	    cleanup(0);
-	    errx(2, __FUNCTION__ ": unable to open contents file '%s' for input", Contents);
-	}
-    }
-    plist.head = plist.tail = NULL;
 
     /* chop suffix off if already specified, remembering if we want to compress  */
     len = strlen(pkg);
@@ -91,6 +81,22 @@ pkg_perform(char **pkgs)
 	suf = "tgz";
     else
 	suf = "tar";
+
+    if (InstalledPkg != NULL)
+	return (create_from_installed(pkg, suf));
+
+    get_dash_string(&Comment);
+    get_dash_string(&Desc);
+    if (!strcmp(Contents, "-"))
+	pkg_in = stdin;
+    else {
+	pkg_in = fopen(Contents, "r");
+	if (!pkg_in) {
+	    cleanup(0);
+	    errx(2, __FUNCTION__ ": unable to open contents file '%s' for input", Contents);
+	}
+    }
+    plist.head = plist.tail = NULL;
 
     /* Add the origin if asked, at the top */
     if (Origin)
@@ -391,4 +397,38 @@ cleanup(int sig)
     }
     if (sig)
 	exit(1);
+}
+
+static int
+create_from_installed(char *pkg, char *suf)
+{
+    FILE *fp;
+    Package plist;
+    char home[MAXPATHLEN], log_dir[FILENAME_MAX];
+
+    snprintf(log_dir, sizeof(log_dir), "%s/%s", LOG_DIR, InstalledPkg);
+    if (!fexists(log_dir)) {
+	warnx("can't find package '%s' installed!", InstalledPkg);
+	return 1;
+    }
+    getcwd(home, sizeof(home));
+    if (chdir(log_dir) == FAIL) {
+	warnx("can't change directory to '%s'!", log_dir);
+	return 1;
+    }
+    /* Suck in the contents list */
+    plist.head = plist.tail = NULL;
+    fp = fopen(CONTENTS_FNAME, "r");
+    if (!fp) {
+	warnx("unable to open %s file", CONTENTS_FNAME);
+	return 1;
+    }
+    /* If we have a prefix, add it now */
+    read_plist(&plist, fp);
+    fclose(fp);
+
+    make_dist(home, pkg, suf, &plist);
+
+    free_plist(&plist);
+    return TRUE;
 }
