@@ -41,9 +41,10 @@
  * Declare weak definitions in case the application is not linked
  * with libpthread.
  */
-#pragma weak _atomic_lock=_atomic_lock_stub
-#pragma weak _spinlock=_spinlock_stub
-#pragma weak _spinlock_debug=_spinlock_debug_stub
+__weak_reference(_atomic_lock_stub, _atomic_lock);
+__weak_reference(_spinlock_stub, _spinlock);
+__weak_reference(_spinlock_debug_stub, _spinlock_debug);
+
 
 /*
  * This function is a stub for the _atomic_lock function in libpthread.
