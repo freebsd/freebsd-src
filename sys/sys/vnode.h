@@ -190,13 +190,6 @@ struct xvnode {
 #define xv_dev		xv_un.xv_uns.xvu_dev
 #define xv_ino		xv_un.xv_uns.xvu_ino
 
-#define	VN_POLLEVENT(vp, events)				\
-	do {							\
-		if ((vp)->v_pollinfo != NULL && 		\
-		    (vp)->v_pollinfo->vpi_events & (events))	\
-			vn_pollevent((vp), (events));		\
-	} while (0)
-
 #define VN_KNOTE(vp, b, a)						\
 	do {							\
 		if ((vp)->v_pollinfo != NULL)			\
@@ -599,7 +592,6 @@ int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
-void	vdropl(struct vnode *);
 int	vfinddev(struct cdev *dev, struct vnode **vpp);
 void	vfs_add_vnodeops(const void *);
 void	vfs_rm_vnodeops(const void *);
@@ -608,7 +600,6 @@ int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
 void	vgonel(struct vnode *vp, struct thread *td);
 void	vhold(struct vnode *);
-void	vholdl(struct vnode *);
 int	vinvalbuf(struct vnode *vp, int save,
 	    struct thread *td, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
@@ -629,8 +620,6 @@ int	debug_vn_lock(struct vnode *vp, int flags, struct thread *p,
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, int fdidx);
-void	vn_pollevent(struct vnode *vp, int events);
-void	vn_pollgone(struct vnode *vp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
@@ -680,7 +669,6 @@ void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
-void	vbusy(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
 int vnode_create_vobject(struct vnode *vp, size_t size, struct thread *td);
