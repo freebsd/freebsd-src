@@ -226,7 +226,6 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 				if (ioctl(fd, APMIO_GETPWSTATUS, &aps) == -1)
 					continue;
 				printf("Battery %d:\n", i);
-				printf("\tBattery status: ");
 				if (aps.ap_batt_flag <= 255 &&
 				    (aps.ap_batt_flag & APM_BATT_NOT_PRESENT)) {
 					printf("not present\n");
