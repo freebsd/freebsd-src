@@ -1563,12 +1563,12 @@ vm_object_collapse(vm_object_t object)
 			 * backing_object to within object.
 			 */
 			TAILQ_REMOVE(
-			    &object->backing_object->shadow_head, 
+			    &backing_object->shadow_head, 
 			    object,
 			    shadow_list
 			);
-			object->backing_object->shadow_count--;
-			object->backing_object->generation++;
+			backing_object->shadow_count--;
+			backing_object->generation++;
 			if (backing_object->backing_object) {
 				TAILQ_REMOVE(
 				    &backing_object->backing_object->shadow_head,
