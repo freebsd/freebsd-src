@@ -83,6 +83,7 @@ struct	__file_lock {
 static int
 init_lock(FILE *fp)
 {
+	static pthread_mutex_t init_lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 	struct __file_lock *p;
 	int	ret;
 
@@ -92,7 +93,16 @@ init_lock(FILE *fp)
 		p->fl_mutex = PTHREAD_MUTEX_INITIALIZER;
 		p->fl_owner = NULL;
 		p->fl_count = 0;
+		if (pthread_mutex_lock(&init_lock_mutex) != 0) {
+			free(p);
+			return (-1);
+		}
+		if (fp->_lock != NULL) {	/* lost the race */
+			free(p);
+			return (0);
+		}
 		fp->_lock = p;
+		pthread_mutex_unlock(&init_lock_mutex);
 		ret = 0;
 	}
 	return (ret);
@@ -142,8 +152,7 @@ _ftrylockfile(FILE *fp)
 	 * Check if this is a real file with a valid lock, creating
 	 * the lock if needed:
 	 */
-	if ((fp->_file >= 0) &&
-	    ((fp->_lock != NULL) || (init_lock(fp) == 0))) {
+	if (((fp->_lock != NULL) || (init_lock(fp) == 0))) {
 		if (fp->_lock->fl_owner == curthread)
 			fp->_lock->fl_count++;
 		/*
@@ -171,7 +180,7 @@ _funlockfile(FILE *fp)
 	 * Check if this is a real file with a valid lock owned
 	 * by the current thread:
 	 */
-	if ((fp->_file >= 0) && (fp->_lock != NULL) &&
+	if ((fp->_lock != NULL) &&
 	    (fp->_lock->fl_owner == curthread)) {
 		/*
 		 * Check if this thread has locked the FILE
