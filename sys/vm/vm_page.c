@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.79 1997/08/05 00:02:08 dyson Exp $
+ *	$Id: vm_page.c,v 1.80 1997/09/01 03:17:23 bde Exp $
  */
 
 /*
@@ -1266,11 +1266,11 @@ contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
 
 	size = round_page(size);
 	if (size == 0)
-		panic("vm_page_alloc_contig: size must not be 0");
+		panic("contigmalloc1: size must not be 0");
 	if ((alignment & (alignment - 1)) != 0)
-		panic("vm_page_alloc_contig: alignment must be a power of 2");
+		panic("contigmalloc1: alignment must be a power of 2");
 	if ((boundary & (boundary - 1)) != 0)
-		panic("vm_page_alloc_contig: boundary must be a power of 2");
+		panic("contigmalloc1: boundary must be a power of 2");
 
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
