@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.15 1994/11/06 09:55:31 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.16 1994/11/13 22:48:55 davidg Exp $
  */
 
 /*
@@ -804,8 +804,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (/* (vp->v_mount && vp->v_mount->mnt_stat.f_type == MOUNT_LFS) || */
-		VOP_BMAP(vp, foff, &dp, 0, 0)) {
+	if (VOP_BMAP(vp, foff, &dp, 0, 0)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vnode_pager_freepage(m[i]);
