@@ -385,8 +385,8 @@ physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
 
   if (p->out) {
     nw = physical_Write(p, MBUF_CTOP(p->out), p->out->m_len);
-    log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote %d(%d) to %d\n",
-               p->link.name, nw, p->out->m_len, p->fd);
+    log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote %d(%lu) to %d\n",
+               p->link.name, nw, (unsigned long)p->out->m_len, p->fd);
     if (nw > 0) {
       p->out->m_len -= nw;
       p->out->m_offset += nw;
