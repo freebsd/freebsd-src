@@ -1740,12 +1740,9 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	fdp = p->p_fd;
-
-	fp = fdp->fd_ofiles[uap->fd];
-
-	if (fp == NULL) {
-		return EBADF;
-	}
+	if ((u_int)uap->fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
+		return (EBADF);
 
         if (fp->f_type == DTYPE_VNODE) {
 		vp = (struct vnode *)fp->f_data;
@@ -1786,18 +1783,14 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 					break;
 			}
 		}
-	
 		splx(s);
 
 		if ((cancelled) && (uap->aiocbp)) {
 			td->td_retval[0] = AIO_CANCELED;
 			return 0;
 		}
-
 	}
-
 	ki=p->p_aioinfo;
-		
 	s = splnet();
 
 	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
@@ -1829,20 +1822,16 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 			}
 		}
 	}
-
 	splx(s);
-		
 
 	if (notcancelled) {
 		td->td_retval[0] = AIO_NOTCANCELED;
 		return 0;
 	}
-
 	if (cancelled) {
 		td->td_retval[0] = AIO_CANCELED;
 		return 0;
 	}
-
 	td->td_retval[0] = AIO_ALLDONE;
 
 	return 0;
