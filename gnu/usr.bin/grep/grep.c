@@ -66,7 +66,7 @@ static int filename_mask;
 
 /* Short options.  */
 static char const short_options[] =
-"0123456789A:B:C::EFGHUVX:abcd:e:f:hiLlnqrsuvwxyZz";
+"0123456789A:B:C::EFGHIUVX:abcd:e:f:hiLlnqrsuvwxyZz";
 
 /* Non-boolean long options that have no corresponding short equivalents.  */
 enum
@@ -169,9 +169,7 @@ static char *(*execute) PARAMS ((char *, size_t, char **));
 /* Print a message and possibly an error string.  Remember
    that something awful happened. */
 static void
-error (mesg, errnum)
-     const char *mesg;
-     int errnum;
+error (const char *mesg, int errnum)
 {
   if (errnum)
     fprintf (stderr, "%s: %s: %s\n", prog, mesg, strerror (errnum));
@@ -182,9 +180,7 @@ error (mesg, errnum)
 
 /* Like error (), but die horribly after printing. */
 void
-fatal (mesg, errnum)
-     const char *mesg;
-     int errnum;
+fatal (const char *mesg, int errnum)
 {
   error (mesg, errnum);
   exit (2);
@@ -192,8 +188,7 @@ fatal (mesg, errnum)
 
 /* Interface to handle errors and fix library lossage. */
 char *
-xmalloc (size)
-     size_t size;
+xmalloc (size_t size)
 {
   char *result;
 
@@ -205,9 +200,7 @@ xmalloc (size)
 
 /* Interface to handle errors and fix some library lossage. */
 char *
-xrealloc (ptr, size)
-     char *ptr;
-     size_t size;
+xrealloc (char *ptr, size_t size)
 {
   char *result;
 
@@ -223,9 +216,7 @@ xrealloc (ptr, size)
 /* Convert STR to a positive integer, storing the result in *OUT.
    If STR is not a valid integer, return -1 (otherwise 0). */
 static int
-ck_atoi (str, out)
-     char const *str;
-     int *out;
+ck_atoi (char const *str, int *out)
 {
   char const *p;
   for (p = str; *p; p++)
@@ -275,9 +266,7 @@ static int Zflag;		/* uncompress before searching. */
    possibly unaligned) buffer used to build the aligned buffer.  To
    free the buffer, free (*UP).  */
 static char *
-page_alloc (size, up)
-     size_t size;
-     char **up;
+page_alloc (size_t size, char **up)
 {
   size_t asize = size + pagesize - 1;
   if (size <= asize)
@@ -295,10 +284,7 @@ page_alloc (size, up)
 /* Reset the buffer for a new file, returning zero if we should skip it.
    Initialize on the first time through. */
 static int
-reset (fd, file, stats)
-     int fd;
-     char const *file;
-     struct stats *stats;
+reset (int fd, char const *file, struct stats *stats)
 {
   if (pagesize)
     bufsalloc = ALIGN_TO (bufalloc / PREFERRED_SAVE_FACTOR, pagesize);
@@ -379,9 +365,7 @@ reset (fd, file, stats)
    to the beginning of the buffer contents, and 'buflim'
    points just after the end.  Return zero if there's an error.  */
 static int
-fillbuf (save, stats)
-     size_t save;
-     struct stats *stats;
+fillbuf (size_t save, struct stats *stats)
 {
   size_t fillsize = 0;
   int cc = 1;
@@ -551,8 +535,7 @@ static int done_on_match;		/* Stop scanning file on first match */
 #endif
 
 static void
-nlscan (lim)
-     char *lim;
+nlscan (char *lim)
 {
   char *beg;
   for (beg = lastnl;  (beg = memchr (beg, eolbyte, lim - beg));  beg++)
@@ -561,9 +544,7 @@ nlscan (lim)
 }
 
 static void
-print_offset_sep (pos, sep)
-     off_t pos;
-     int sep;
+print_offset_sep (off_t pos, int sep)
 {
   /* Do not rely on printf to print pos, since off_t may be longer than long,
      and long long is not portable.  */
@@ -580,10 +561,7 @@ print_offset_sep (pos, sep)
 }
 
 static void
-prline (beg, lim, sep)
-     char *beg;
-     char *lim;
-     int sep;
+prline (char *beg, char *lim, int sep)
 {
   if (out_file)
     printf ("%s%c", filename, sep & filename_mask);
@@ -609,8 +587,7 @@ prline (beg, lim, sep)
 
 /* Print pending lines of trailing context prior to LIM. */
 static void
-prpending (lim)
-     char *lim;
+prpending (char *lim)
 {
   char *nl;
 
@@ -630,10 +607,7 @@ prpending (lim)
 /* Print the lines between BEG and LIM.  Deal with context crap.
    If NLINESP is non-null, store a count of lines between BEG and LIM. */
 static void
-prtext (beg, lim, nlinesp)
-     char *beg;
-     char *lim;
-     int *nlinesp;
+prtext (char *beg, char *lim, int *nlinesp)
 {
   static int used;		/* avoid printing "--" before any output */
   char *bp, *p, *nl;
@@ -696,9 +670,7 @@ prtext (beg, lim, nlinesp)
    between matching lines if OUT_INVERT is true).  Return a count of
    lines printed. */
 static int
-grepbuf (beg, lim)
-     char *beg;
-     char *lim;
+grepbuf (char *beg, char *lim)
 {
   int nlines, n;
   register char *p, *b;
@@ -738,10 +710,7 @@ grepbuf (beg, lim)
    but if the file is a directory and we search it recursively, then
    return -2 if there was a match, and -1 otherwise.  */
 static int
-grep (fd, file, stats)
-     int fd;
-     char const *file;
-     struct stats *stats;
+grep (int fd, char const *file, struct stats *stats)
 {
   int nlines, i;
   int not_text;
@@ -834,6 +803,7 @@ grep (fd, file, stats)
     }
   if (residue)
     {
+      *buflim++ = eol;
       nlines += grepbuf (bufbeg + save - residue, buflim);
       if (pending)
 	prpending (buflim);
@@ -848,9 +818,7 @@ grep (fd, file, stats)
 }
 
 static int
-grepfile (file, stats)
-     char const *file;
-     struct stats *stats;
+grepfile (char const *file, struct stats *stats)
 {
   int desc;
   int count;
@@ -949,9 +917,7 @@ grepfile (file, stats)
 }
 
 static int
-grepdir (dir, stats)
-     char const *dir;
-     struct stats *stats;
+grepdir (char const *dir, struct stats *stats)
 {
   int status = 1;
   struct stats *ancestor;
@@ -1009,8 +975,7 @@ grepdir (dir, stats)
 }
 
 static void
-usage(status)
-int status;
+usage (int status)
 {
   if (status != 0)
     {
@@ -1022,7 +987,7 @@ int status;
       printf (_("Usage: %s [OPTION]... PATTERN [FILE] ...\n"), prog);
       printf (_("\
 Search for PATTERN in each FILE or standard input.\n\
-Example: %s -i 'hello.*world' menu.h main.c\n\
+Example: %s -i 'hello world' menu.h main.c\n\
 \n\
 Regexp selection and interpretation:\n"), prog);
       printf (_("\
@@ -1053,9 +1018,10 @@ Output control:\n\
   -H, --with-filename       print the filename for each match\n\
   -h, --no-filename         suppress the prefixing filename on output\n\
   -q, --quiet, --silent     suppress all normal output\n\
-  -a, --text                equivalent to --binary-files=text\n\
       --binary-files=TYPE   assume that binary files are TYPE\n\
                             TYPE is 'binary', 'text', or 'without-match'.\n\
+  -a, --text                equivalent to --binary-files=text\n\
+  -I                        equivalent to --binary-files=without-match\n\
   -d, --directories=ACTION  how to handle directories\n\
                             ACTION is 'read', 'recurse', or 'skip'.\n\
   -r, --recursive           equivalent to --directories=recurse.\n\
@@ -1085,8 +1051,7 @@ and 2 if trouble.\n"));
 
 /* Set the matcher to M, reporting any conflicts.  */
 static void
-setmatcher (m)
-     char const *m;
+setmatcher (char const *m)
 {
   if (matcher && strcmp (matcher, m) != 0)
     fatal (_("conflicting matchers specified"), 0);
@@ -1096,8 +1061,7 @@ setmatcher (m)
 /* Go through the matchers vector and look for the specified matcher.
    If we find it, install it in compile and execute, and return 1.  */
 static int
-install_matcher (name)
-     char const *name;
+install_matcher (char const *name)
 {
   int i;
 #ifdef HAVE_SETRLIMIT
@@ -1145,10 +1109,7 @@ install_matcher (name)
    Do not set ARGV[N] to NULL.  If ARGV is NULL, do not store ARGV[0]
    etc.  Backslash can be used to escape whitespace (and backslashes).  */
 static int
-prepend_args (options, buf, argv)
-     char const *options;
-     char *buf;
-     char **argv;
+prepend_args (char const *options, char *buf, char **argv)
 {
   char const *o = options;
   char *b = buf;
@@ -1177,10 +1138,7 @@ prepend_args (options, buf, argv)
    vector of a main program with argument count *PARGC and argument
    vector *PARGV.  */
 static void
-prepend_default_options (options, pargc, pargv)
-     char const *options;
-     int *pargc;
-     char ***pargv;
+prepend_default_options (char const *options, int *pargc, char ***pargv)
 {
   if (options)
     {
@@ -1199,15 +1157,14 @@ prepend_default_options (options, pargc, pargv)
 }
 
 int
-main (argc, argv)
-     int argc;
-     char *argv[];
+main (int argc, char **argv)
 {
   char *keys;
   size_t keycc, oldcc, keyalloc;
   int with_filenames;
   int opt, cc, status;
-  unsigned digit_args_val, default_context;
+  int default_context;
+  unsigned digit_args_val;
   FILE *fp;
   extern char *optarg;
   extern int optind;
@@ -1327,6 +1284,9 @@ main (argc, argv)
 	break;
       case 'H':
 	with_filenames = 1;
+	break;
+      case 'I':
+	binary_files = WITHOUT_MATCH_BINARY_FILES;
 	break;
       case 'U':
 #if O_BINARY
