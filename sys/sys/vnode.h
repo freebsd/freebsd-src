@@ -220,6 +220,7 @@ struct vattr {
 #define	IO_VMIO		0x20		/* data already in VMIO space */
 #define	IO_INVAL	0x40		/* invalidate after I/O */
 #define	IO_ASYNC	0x80		/* bawrite rather then bdwrite */
+#define IO_DIRECT	0x100		/* attempt to bypass buffer cache */
 
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.

@@ -56,7 +56,7 @@ struct knote;
  */
 struct file {
 	LIST_ENTRY(file) f_list;/* list of active files */
-	short	f_flag;		/* see fcntl.h */
+	short	f_FILLER3;	/* (old f_flag) */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
@@ -93,6 +93,7 @@ struct file {
 				 */
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
+	u_int	f_flag;		/* see fcntl.h */
 };
 
 #ifdef MALLOC_DECLARE

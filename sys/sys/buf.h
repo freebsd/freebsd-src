@@ -187,13 +187,17 @@ struct buf {
  *			The buffer's data is always PAGE_SIZE aligned even
  *			if b_bufsize and b_bcount are not.  ( b_bufsize is 
  *			always at least DEV_BSIZE aligned, though ).
- *	
+ *
+ *	B_DIRECT	Hint that we should attempt to completely free
+ *			the pages underlying the buffer.  B_DIRECT is
+ *			sticky until the buffer is released and typically
+ *			only has an effect when B_RELBUF is also set.
  */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
-#define	B_UNUSED0	0x00000008	/* Old B_BAD */
+#define	B_DIRECT	0x00000008	/* direct I/O flag (pls free vmio) */
 #define	B_DEFERRED	0x00000010	/* Skipped over for cleaning */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
@@ -225,7 +229,7 @@ struct buf {
 	"\33paging\32xxx\31writeinprog\30want\27relbuf\26dirty" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
 	"\17locked\16inval\15scanned\14error\13eintr\12done\11freebuf" \
-	"\10delwri\7call\6cache\4bad\3async\2needcommit\1age"
+	"\10delwri\7call\6cache\4direct\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.
