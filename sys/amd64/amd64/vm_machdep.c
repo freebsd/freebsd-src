@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.8 1993/12/19 00:50:10 wollman Exp $
+ *	$Id: vm_machdep.c,v 1.9 1994/01/14 16:23:42 davidg Exp $
  */
 
 #include "npx.h"
@@ -251,98 +251,6 @@ kvtop(void *addr)
 		panic("kvtop: zero page frame");
 	return((int)va);
 }
-
-#ifdef notdef
-/*
- * The probe[rw] routines should probably be redone in assembler
- * for efficiency.
- */
-prober(addr)
-	register u_int addr;
-{
-	register int page;
-	register struct proc *p;
-
-	if (addr >= USRSTACK)
-		return(0);
-	p = u.u_procp;
-	page = btop(addr);
-	if (page < dptov(p, p->p_dsize) || page > sptov(p, p->p_ssize))
-		return(1);
-	return(0);
-}
-
-probew(addr)
-	register u_int addr;
-{
-	register int page;
-	register struct proc *p;
-
-	if (addr >= USRSTACK)
-		return(0);
-	p = u.u_procp;
-	page = btop(addr);
-	if (page < dptov(p, p->p_dsize) || page > sptov(p, p->p_ssize))
-		return((*(int *)vtopte(p, page) & PG_PROT) == PG_UW);
-	return(0);
-}
-
-/*
- * NB: assumes a physically contiguous kernel page table
- *     (makes life a LOT simpler).
- */
-int
-kernacc(addr, count, rw)
-	register u_int addr;
-	int count, rw;
-{
-	register struct pde *pde;
-	register struct pte *pte;
-	register int ix, cnt;
-	extern long Syssize;
-
-	if (count <= 0)
-		return(0);
-	pde = (struct pde *)((u_int)u.u_procp->p_p0br + u.u_procp->p_szpt * NBPG);
-	ix = (addr & PD_MASK) >> PD_SHIFT;
-	cnt = ((addr + count + (1 << PD_SHIFT) - 1) & PD_MASK) >> PD_SHIFT;
-	cnt -= ix;
-	for (pde += ix; cnt; cnt--, pde++)
-		if (pde->pd_v == 0)
-			return(0);
-	ix = btop(addr-KERNBASE);
-	cnt = btop(addr-KERNBASE+count+NBPG-1);
-	if (cnt > (int)&Syssize)
-		return(0);
-	cnt -= ix;
-	for (pte = &Sysmap[ix]; cnt; cnt--, pte++)
-		if (pte->pg_v == 0 /*|| (rw == B_WRITE && pte->pg_prot == 1)*/) 
-			return(0);
-	return(1);
-}
-
-int
-useracc(addr, count, rw)
-	register u_int addr;
-	int count, rw;
-{
-	register int (*func)();
-	register u_int addr2;
-	extern int prober(), probew();
-
-	if (count <= 0)
-		return(0);
-	addr2 = addr;
-	addr += count;
-	func = (rw == B_READ) ? prober : probew;
-	do {
-		if ((*func)(addr2) == 0)
-			return(0);
-		addr2 = (addr2 + NBPG) & ~PGOFSET;
-	} while (addr2 < addr);
-	return(1);
-}
-#endif
 
 extern vm_map_t phys_map;
 
