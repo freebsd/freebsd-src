@@ -73,7 +73,7 @@ struct ispmdvec {
 	void		(*dv_reset0) (struct ispsoftc *);
 	void		(*dv_reset1) (struct ispsoftc *);
 	void		(*dv_dregs) (struct ispsoftc *, const char *);
-	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
+	u_int16_t	*dv_ispfw;	/* ptr to f/w */
 	u_int16_t	dv_conf1;
 	u_int16_t	dv_clock;	/* clock frequency */
 };
@@ -396,6 +396,8 @@ typedef struct ispsoftc {
 	volatile u_int16_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile u_int16_t	isp_reqidx;	/* index of next request */
 	volatile u_int16_t	isp_residx;	/* index of next result */
+	volatile u_int16_t	isp_resodx;	/* index of next result */
+	volatile u_int16_t	isp_rspbsy;
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
 	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile u_int16_t	isp_lastmbxcmd;	/* last mbox command sent */
