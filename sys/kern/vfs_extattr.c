@@ -41,7 +41,6 @@
 
 /* For 4.3 integer FS ID compatibility */
 #include "opt_compat.h"
-#include "opt_ffs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -92,6 +91,7 @@ static int vfs_nmount(struct thread *td, int, struct uio *);
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 
 int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
+int (*softdep_fsync_hook)(struct vnode *);
 
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
 
@@ -3486,10 +3486,9 @@ fsync(td, uap)
 		vm_object_page_clean(obj, 0, 0, 0);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, td);
-#ifdef SOFTUPDATES
-	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))
-	    error = softdep_fsync(vp);
-#endif
+	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)
+	    && softdep_fsync_hook != NULL)
+		error = (*softdep_fsync_hook)(vp);
 
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
