@@ -36,10 +36,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Synonym for fgetwc(). The only difference is that getwc(), if it is a
- * macro, may evaluate `fp' more than once. Function call overhead is not
- * an issue here: wchar.h #define's getwc to fgetwc.
+ * macro, may evaluate `fp' more than once.
  */
-#undef getwc
 wint_t
 getwc(FILE *fp)
 {
