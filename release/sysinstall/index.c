@@ -124,6 +124,7 @@ static char *descrs[] = {
     "orphans", "Packages without a home elsewhere.",
     "palm", "Software support for the 3Com Palm Pilot(tm) series.",
     "perl5", "Utilities/modules for the PERL5 language.",
+    "picobsd", "Ports to support PicoBSD.",
     "pilot", "Software support for the 3Com Palm Pilot(tm) series.",
     "plan9", "Software from the Plan9 operating system.",
     "print", "Utilities for dealing with printing.",
