@@ -1,5 +1,5 @@
-/*	$Id: domacro.c,v 1.3 1997/06/27 09:30:09 ache Exp $ */
-/*	$NetBSD: domacro.c,v 1.9 1997/03/13 06:23:14 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: domacro.c,v 1.10 1997/07/20 09:45:45 lukem Exp $	*/
 
 /*
  * Copyright (c) 1985, 1993, 1994
@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)domacro.c	8.3 (Berkeley) 4/2/94";
 #else
-static char rcsid[] = "$Id: domacro.c,v 1.3 1997/06/27 09:30:09 ache Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: domacro.c,v 1.10 1997/07/20 09:45:45 lukem Exp $");
 #endif
 #endif /* not lint */
 
