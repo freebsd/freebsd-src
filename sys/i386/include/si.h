@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.3 1995/08/22 00:42:07 peter Exp $
+ *	$Id: si.h,v 1.4 1995/09/13 08:39:28 peter Exp $
  */
 
 /*
@@ -348,8 +348,8 @@ struct si_port {
 	int		sp_last_hi_ip;	/* cached DCD */
 	int		sp_state;
 	int		sp_active_out;	/* callout is open */
-	int		sp_flags;
 	int		sp_dtr_wait;	/* DTR holddown in hz */
+	int		sp_delta_overflows;
 	u_int		sp_wopeners;	/* # procs waiting DCD */
 	u_char		sp_hotchar;	/* ldisc specific ASAP char */
 	/* Initial state. */
@@ -380,27 +380,6 @@ struct si_port {
 #define	SS_WAITWRITE	0x1000
 #define	SS_BLOCKWRITE	0x2000
 #define	SS_DTR_OFF	0x4000	/* DTR held off				*/
-
-/* sp_flags */
-#define	SPF_COOKMODE		0x0003
-#define	 SPFC_WELL			0
-#define	 SPFC_MEDIUM			1
-#define	 SPFC_RAW			2
-#define	 spfc_clear(pp)		(pp)->sp_flags &= ~SPF_COOKMODE
-#define	 SPF_COOK_WELL(pp)	spfc_clear(pp)
-#define	 SPF_COOK_MEDIUM(pp)	{spfc_clear(pp);(pp)->sp_flags|=SPFC_MEDIUM;}
-#define	 SPF_COOK_RAW(pp)	{spfc_clear(pp);(pp)->sp_flags|=SPFC_RAW;}
-#define	 SPF_SETCOOK(pp, c)	{spfc_clear(pp);(pp)->sp_flags|=(c);}
-#define  SPF_ISCOOKWELL(pp)	(((pp)->sp_flags & SPF_COOKMODE) == SPFC_WELL)
-#define  SPF_ISCOOKMEDIUM(pp)	(((pp)->sp_flags & SPF_COOKMODE) == SPFC_MEDIUM)
-#define  SPF_ISCOOKRAW(pp)	(((pp)->sp_flags & SPF_COOKMODE) == SPFC_RAW)
-#define	SPF_COOKWELL_ALWAYS	0x0004	/* always use line disc */
-/*				0x0008	*/
-#define	SPF_IXANY		0x0020		/* IXANY enable/disable flag */
-#define	SPF_CTSOFLOW		0x0040		/* use CTS to handle o/p flow */
-#define	SPF_RTSIFLOW		0x0080		/* use RTS to handle i/p flow */
-#define	SPF_PPP			0x0100		/* special handling for upper
-						 * level protocol code */
 
 /*
  *	Command post flags
@@ -479,13 +458,10 @@ struct si_pstat {
 			/* 101 defunct */
 			/* 102 defunct */
 			/* 103 defunct */
-#define	TCSIIXANY	_IOW('S', 103, struct si_tcsi)	/* enable ixany */
 			/* 104 defunct */
 #define	TCSISTATE	_IOWR('S', 105, struct si_tcsi)	/* get current state of RTS
 						   DCD and DTR pins */
-		/* Set/reset/enquire cook mode, 1 = always use line disc
-		 * -1 = enquire current setting */
-#define	TCSICOOKMODE	_IOWR('S', 106, struct si_tcsi)
+			/* 106 defunct */
 #define	TCSIPORTS	_IOR('S', 107, int)	/* Number of ports found */
 #define	TCSISDBG_LEVEL	_IOW('S', 108, struct si_tcsi)	/* equivalent of TCSIDEBUG which sets a
 					 * particular debug level (DBG_??? bit
@@ -498,17 +474,15 @@ struct si_pstat {
 			/* 114 defunct */
 			/* 115 defunct */
 			/* 116 defunct */
-#define	TCSIMODEM	_IOWR('S', 117, struct si_tcsi)	/* set/clear/query the modem bit */
+			/* 117 defunct */
 
 #define	TCSISDBG_ALL	_IOW('S', 118, int)		/* set global debug level */
 #define	TCSIGDBG_ALL	_IOR('S', 119, int)		/* get global debug level */
 
-#define	TCSIFLOW	_IOWR('S', 120, struct si_tcsi)	/* set/get h/w flow state */
+			/* 120 defunct */
 			/* 121 defunct */
 			/* 122 defunct */
-
-
-#define	TCSIPPP		_IOWR('S', 123, struct si_tcsi)	/* set/get PPP flag bit */
+			/* 123 defunct */
 #define	TCSIMODULES	_IOR('S', 124, int)	/* Number of modules found */
 
 /* Various stats and monitoring hooks per tty device */
