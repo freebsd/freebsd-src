@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246 1996/10/14 13:29:40 jkh Exp $
+#	$Id: Makefile,v 1.247 1996/11/02 18:58:07 jkh Exp $
 #
 # How to roll a release:
 #
@@ -87,7 +87,7 @@ rerelease release:
 .endif
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs co -d ${CVSROOT} -P -r ${RELEASETAG} src
+		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
 .if defined(INTCVSROOT)
 	cd ${CHROOTDIR}/usr && \
 	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
