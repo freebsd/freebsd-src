@@ -39,9 +39,12 @@
 #include "common.h"
 
 FILE *
-fetchGetFile(struct url *u, char *flags)
+fetchXGetFile(struct url *u, struct url_stat *us, char *flags)
 {
     FILE *f;
+    
+    if (us && fetchStatFile(u, us, flags) == -1)
+	return NULL;
     
     f = fopen(u->doc, "r");
     
@@ -54,6 +57,12 @@ fetchGetFile(struct url *u, char *flags)
     }
     
     return f;
+}
+
+FILE *
+fetchGetFile(struct url *u, char *flags)
+{
+    return fetchXGetFile(u, NULL, flags);    
 }
 
 FILE *
