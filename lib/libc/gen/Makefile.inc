@@ -93,7 +93,9 @@ MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 innetgr.3 \
 	getnetgrent.3 setnetgrent.3
 MLINKS+=getprogname.3 setprogname.3
 MLINKS+=getpwent.3 endpwent.3 getpwent.3 getpwnam.3 getpwent.3 getpwuid.3 \
-	getpwent.3 setpassent.3 getpwent.3 setpwent.3 getpwent.3 setpwfile.3
+	getpwent.3 setpassent.3 getpwent.3 setpwent.3 getpwent.3 setpwfile.3 \
+	getpwent.3 getpwent_r.3 getpwent.3 getpwnam_r.3 \
+	getpwent.3 getpwuid_r.3
 MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
 	getttyent.3 isdialuptty.3 getttyent.3 isnettty.3 \
 	getttyent.3 setttyent.3

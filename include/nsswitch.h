@@ -41,20 +41,24 @@
 #define _NSSWITCH_H	1
 
 #include <sys/types.h>
-
 #include <stdarg.h>
+
+#define NSS_MODULE_INTERFACE_VERSION 1
 
 #ifndef _PATH_NS_CONF
 #define _PATH_NS_CONF	"/etc/nsswitch.conf"
 #endif
 
-#define	NS_CONTINUE	0
-#define	NS_RETURN	1
+/* NSS source actions */
+#define	NS_ACTION_CONTINUE	0	/* try the next source */
+#define	NS_ACTION_RETURN	1	/* look no further */
 
 #define	NS_SUCCESS	(1<<0)		/* entry was found */
 #define	NS_UNAVAIL	(1<<1)		/* source not responding, or corrupt */
 #define	NS_NOTFOUND	(1<<2)		/* source responded 'no such entry' */
-#define	NS_TRYAGAIN	(1<<3)		/* source busy, may respond to retrys */
+#define	NS_TRYAGAIN	(1<<3)		/* source busy, may respond to retry */
+#define NS_RETURN	(1<<4)		/* stop search, e.g. for ERANGE */
+#define NS_TERMINATE	(NS_SUCCESS|NS_RETURN) /* flags that end search */
 #define	NS_STATUSMASK	0x000000ff	/* bitmask to get the status flags */
 
 /*
@@ -98,13 +102,26 @@
 #define NSDB_TTYS		"ttys"
 
 /*
- * ns_dtab - `nsswitch dispatch table'
- * contains an entry for each source and the appropriate function to call
+ * ns_dtab `method' function signature.
+ */ 
+typedef int (*nss_method)(void *_retval, void *_mdata, va_list _ap);
+
+/*
+ * Macro for generating method prototypes.
  */
-typedef struct {
-	const char	 *src;
-	int		(*callback)(void *retval, void *cb_data, va_list ap);
-	void		 *cb_data;
+#define NSS_METHOD_PROTOTYPE(method) \
+	int method(void *, void *, va_list)
+
+/*
+ * ns_dtab - `nsswitch dispatch table'
+ * Contains an entry for each source and the appropriate function to
+ * call.  ns_dtabs are used in the nsdispatch() API in order to allow
+ * the application to override built-in actions.
+ */
+typedef struct _ns_dtab {
+	const char	 *src;		/* Source this entry implements */
+	nss_method	  method;	/* Method to be called */
+	void		 *mdata;	/* Data passed to method */
 } ns_dtab;
 
 /*
@@ -130,7 +147,7 @@ typedef struct {
  * used by the nsparser routines to store a mapping between a source
  * and its dispatch control flags for a given database.
  */
-typedef struct {
+typedef struct _ns_src {
 	const char	*name;
 	u_int32_t	 flags;
 } ns_src;
@@ -142,6 +159,38 @@ typedef struct {
  */
 extern const ns_src __nsdefaultsrc[];
 
+/*
+ * ns_mtab - NSS method table
+ * An NSS module provides a mapping from (database name, method name)
+ * tuples to the nss_method and associated data.
+ */
+typedef struct _ns_mtab {
+	const char	*database;
+	const char	*name;
+	nss_method	 method;
+	void		*mdata;
+} ns_mtab;
+
+/*
+ * NSS module de-registration, called at module unload.
+ */
+typedef void	 (*nss_module_unregister_fn)(ns_mtab *, unsigned int);
+
+/*
+ * NSS module registration, called at module load.
+ */
+typedef ns_mtab *(*nss_module_register_fn)(const char *, unsigned int *,
+		       nss_module_unregister_fn *);
+
+/* 
+ * Many NSS interfaces follow the getXXnam, getXXid, getXXent pattern.
+ * Developers are encouraged to use nss_lookup_type where approriate.
+ */
+enum nss_lookup_type {
+	nss_lt_name = 1,
+	nss_lt_id   = 2,
+	nss_lt_all  = 3
+};
 
 #ifdef _NS_PRIVATE
 
@@ -154,11 +203,22 @@ extern const ns_src __nsdefaultsrc[];
  * for each database in /etc/nsswitch.conf there is a ns_dbt, with its
  * name and a list of ns_src's containing the source information.
  */
-typedef struct {
+typedef struct _ns_dbt {
 	const char	*name;		/* name of database */
 	ns_src		*srclist;	/* list of sources */
 	int		 srclistsize;	/* size of srclist */
 } ns_dbt;
+
+/*
+ * ns_mod - NSS module
+ */
+typedef struct _ns_mod {
+	char		*name;		/* module name */
+	void		*handle;	/* handle from dlopen */
+	ns_mtab		*mtab;		/* method table */
+	unsigned int	 mtabsize;	/* count of entries in method table */
+	nss_module_unregister_fn unregister; /* called to unload module */
+} ns_mod;
 
 #endif /* _NS_PRIVATE */
 
@@ -171,12 +231,14 @@ extern	int	nsdispatch(void *, const ns_dtab [], const char *,
 
 #ifdef _NS_PRIVATE
 extern	void		 _nsdbtaddsrc(ns_dbt *, const ns_src *);
-extern	void		 _nsdbtdump(const ns_dbt *);
-extern	const ns_dbt	*_nsdbtget(const char *);
 extern	void		 _nsdbtput(const ns_dbt *);
 extern	void		 _nsyyerror(const char *);
 extern	int		 _nsyylex(void);
+extern	int		 _nsyyparse(void);
 extern	int		 _nsyylineno;
+#ifdef _NSS_DEBUG
+extern	void		 _nsdbtdump(const ns_dbt *);
+#endif
 #endif /* _NS_PRIVATE */
 
 __END_DECLS

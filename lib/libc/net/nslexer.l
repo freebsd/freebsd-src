@@ -45,10 +45,10 @@ static char *rcsid =
 
 #include "namespace.h"
 #include <ctype.h>
-#include <err.h>
 #define _NS_PRIVATE
 #include <nsswitch.h>
 #include <string.h>
+#include <syslog.h>
 #include "un-namespace.h"
 
 #include "nsparser.h"
@@ -85,10 +85,11 @@ STRING		[a-zA-Z][a-zA-Z0-9_]*
 			char *p;
 			int i;
 
-			if ((p = strdup(yytext)) == NULL)
-				_err(1,
-				    "nsdispatch: memory allocation failure");
-
+			if ((p = strdup(yytext)) == NULL) {
+				syslog(LOG_ERR,
+			       "NSSWITCH(nslexer): memory allocation failure");
+				return ERRORTOKEN;
+			}
 			for (i = 0; i < strlen(p); i++) {
 				if (isupper((unsigned char)p[i]))
 					p[i] = tolower((unsigned char)p[i]);
@@ -113,5 +114,6 @@ _nsyyerror(msg)
 	const char *msg;
 {
 
-	 warnx("%s line %d: %s at '%s'", _PATH_NS_CONF, yylineno, msg, yytext);
+	 syslog(LOG_ERR, "NSSWITCH(nslexer): %s line %d: %s at '%s'",
+	     _PATH_NS_CONF, yylineno, msg, yytext);
 } /* _nsyyerror */

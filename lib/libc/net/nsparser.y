@@ -38,17 +38,15 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid =
-  "$FreeBSD$";
-#endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
-#include <err.h>
+#include "namespace.h"
 #define _NS_PRIVATE
 #include <nsswitch.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <syslog.h>
+#include "un-namespace.h"
 
 static	void	_nsaddsrctomap(const char *);
 
@@ -64,6 +62,7 @@ static	ns_src		cursrc;
 %token	NL
 %token	SUCCESS UNAVAIL NOTFOUND TRYAGAIN
 %token	RETURN CONTINUE
+%token  ERRORTOKEN
 %token	<str> STRING
 
 %type	<mapval> Status Action
@@ -110,7 +109,7 @@ Srclist
 Item
 	: STRING
 		{
-			cursrc.flags = NS_SUCCESS;
+			cursrc.flags = NS_TERMINATE;
 			_nsaddsrctomap($1);
 		}
 	| STRING '[' { cursrc.flags = NS_SUCCESS; } Criteria ']'
@@ -127,9 +126,9 @@ Criteria
 Criterion
 	: Status '=' Action
 		{
-			if ($3)		/* if action == RETURN set RETURN bit */
+			if ($3)	     /* if action == RETURN set RETURN bit */
 				cursrc.flags |= $1;  
-			else		/* else unset it */
+			else	     /* else unset it */
 				cursrc.flags &= ~$1;
 		}
 	;
@@ -142,8 +141,8 @@ Status
 	;
 
 Action
-	: RETURN	{ $$ = 1L; }
-	| CONTINUE	{ $$ = 0L; }
+	: RETURN	{ $$ = NS_ACTION_RETURN; }
+	| CONTINUE	{ $$ = NS_ACTION_CONTINUE; }
 	;
 
 %%
@@ -160,16 +159,16 @@ _nsaddsrctomap(elem)
 	if (curdbt.srclistsize > 0) {
 		if ((strcasecmp(elem, NSSRC_COMPAT) == 0) ||
 		    (strcasecmp(curdbt.srclist[0].name, NSSRC_COMPAT) == 0)) {
-				/* XXX: syslog the following */
-			warnx("%s line %d: 'compat' used with other sources",
+			syslog(LOG_ERR,
+	    "NSSWITCH(nsparser): %s line %d: 'compat' used with other sources",
 			    _PATH_NS_CONF, lineno);
 			return;
 		}
 	}
 	for (i = 0; i < curdbt.srclistsize; i++) {
 		if (strcasecmp(curdbt.srclist[i].name, elem) == 0) {
-				/* XXX: syslog the following */
-			warnx("%s line %d: duplicate source '%s'",
+			syslog(LOG_ERR,
+		       "NSSWITCH(nsparser): %s line %d: duplicate source '%s'",
 			    _PATH_NS_CONF, lineno, elem);
 			return;
 		}

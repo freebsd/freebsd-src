@@ -148,5 +148,6 @@ int		_flock(int, int);
 
 #undef		err
 #undef		warn
+#undef		nsdispatch
 
 #endif	/* _UN_NAMESPACE_H_ */
