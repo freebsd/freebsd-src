@@ -3,7 +3,10 @@
 # 
 #
 # HISTORY
-# $Log:	rmaouthdr,v $
+# $Log: rmaouthdr,v $
+# Revision 1.1  1993/03/21  18:08:40  cgd
+# after 0.2.2 "stable" patches applied
+#
 # Revision 2.2  92/04/04  11:36:01  rpd
 # 	From 2.5 boot
 # 	[92/03/30            mg32]
