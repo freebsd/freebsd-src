@@ -33,8 +33,6 @@
 
 #include "opt_auto_eoi.h"
 
-#include "isa.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/rtprio.h>			/* change this name XXX */
@@ -56,33 +54,11 @@
 #include <machine/md_var.h>
 #include <machine/segments.h>
 
-#if defined(APIC_IO)
-#include <machine/smp.h>
-#include <machine/smptests.h>			/** FAST_HI */
-#include <machine/resource.h>
-#endif /* APIC_IO */
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
-#include <pc98/pc98/epsonio.h>
-#else
-#include <i386/isa/isa.h>
-#endif
 #include <i386/isa/icu.h>
 
-#if NISA > 0
 #include <isa/isavar.h>
-#endif
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
-#ifdef APIC_IO
-#include <machine/clock.h>
-#endif
-
-#include "mca.h"
-#if NMCA > 0
-#include <i386/isa/mca_machdep.h>
-#endif
 
 #include <sys/vmmeter.h>
 #include <sys/ktr.h>
@@ -227,8 +203,8 @@ ithd_loop(void *dummy)
 			INTREN (1 << me->irq); /* reset the mask bit */
 			me->it_proc->p_stat = SWAIT; /* we're idle */
 #ifdef APIC_IO
-			CTR1(KTR_INTR, "ithd_loop pid %d: done",
-				me->it_proc->p_pid);
+			CTR2(KTR_INTR, "ithd_loop pid %d: done, apic_imen=%x",
+				me->it_proc->p_pid, apic_imen);
 #else
 			CTR2(KTR_INTR, "ithd_loop pid %d: done, imen=%x",
 				me->it_proc->p_pid, imen);

@@ -47,8 +47,6 @@
 
 #ifndef	LOCORE
 
-#ifdef APIC_IO
-
 /*
 #define MP_SAFE
  * Note:
@@ -61,40 +59,13 @@
 void	INTREN			__P((u_int));
 void	INTRDIS			__P((u_int));
 
-#else /* APIC_IO */
-
-/*
- * Interrupt "level" mechanism variables, masks, and macros
- */
+#ifdef APIC_IO
+extern	unsigned apic_imen;	/* APIC interrupt mask enable */
+#define APIC_IMEN_BITS	32	/* number of bits in apic_imen */
+#else
 extern	unsigned imen;		/* interrupt mask enable */
-
-#define	INTREN(s)		(imen &= ~(s), SET_ICUS())
-#define	INTRDIS(s)		(imen |= (s), SET_ICUS())
-
-#if 0
-#ifdef PC98
-#define	SET_ICUS()	(outb(IO_ICU1 + 2, imen), outb(IU_ICU2 + 2, imen >> 8))
-#define INTRGET()	((inb(IO_ICU2) << 8 | inb(IO_ICU1)) & 0xffff)
-#else	/* IBM-PC */
-#define	SET_ICUS()	(outb(IO_ICU1 + 1, imen), outb(IU_ICU2 + 1, imen >> 8))
-#define INTRGET()	((inb(IO_ICU2) << 8 | inb(IO_ICU1)) & 0xffff)
-#endif	/* PC98 */
-#else
-/*
- * XXX - IO_ICU* are defined in isa.h, not icu.h, and nothing much bothers to
- * include isa.h, while too many things include icu.h.
- */
-#ifdef PC98
-#define	SET_ICUS()	(outb(0x02, imen), outb(0x0a, imen >> 8))
-/* XXX is this correct? */
-#define INTRGET()	((inb(0x0a) << 8 | inb(0x02)) & 0xffff)
-#else
-#define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
-#define INTRGET()	((inb(0xa1) << 8 | inb(0x21)) & 0xffff)
+#define IMEN_BITS	16	/* number of bits in imen */
 #endif
-#endif
-
-#endif /* APIC_IO */
 
 #endif /* LOCORE */
 
