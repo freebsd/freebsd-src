@@ -275,6 +275,10 @@ again:
 		p2->p_limit->p_refcnt++;
 	}
 
+	/*
+	 * Preserve some flags in subprocess.
+	 */
+	p2->p_flag |= p1->p_flag & P_SUGID;
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
 	if (flags & RFPPWAIT)
