@@ -133,7 +133,7 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
     + arpmsg.hwa.sdl_len;
 
 
-  if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0 &&
+  if (ID0write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0 &&
       !(!add && errno == ESRCH)) {
     log_Printf(LogERROR, "%s proxy arp entry %s: %s\n",
 	add ? "Add" : "Delete", inet_ntoa(addr), strerror(errno));
