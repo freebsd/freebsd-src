@@ -189,7 +189,8 @@ diskPartition(Device *dev, Disk *d)
 	char *val, geometry[80];
 	    
 	/* Now print our overall state */
-	print_chunks(d);
+	if (d)
+	    print_chunks(d);
 	print_command_summary();
 	if (msg) {
 	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
@@ -357,17 +358,18 @@ diskPartition(Device *dev, Disk *d)
 			   "can't undo it.");
 	    }
 	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
-		d = Open_Disk(d->name);
-		if (!d) {
-		    msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
-		    clear();
-		    break;
-		}
+		char cp[BUFSIZ];
+
+		sstrncpy(cp, d->name, sizeof cp);
 		Free_Disk(dev->private);
+		d = Open_Disk(cp);
+		if (!d)
+		    msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", cp);
 		dev->private = d;
 		variable_unset(DISK_PARTITIONED);
 		variable_unset(DISK_LABELLED);
-		record_chunks(d);
+		if (d)
+		    record_chunks(d);
 	    }
 	    clear();
 	    break;
