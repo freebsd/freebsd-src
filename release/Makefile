@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.148 1995/05/09 02:24:39 jkh Exp $
+#	$Id: Makefile,v 1.149 1995/05/10 17:20:20 jkh Exp $
 #
 # How to roll a release:
 #
@@ -73,9 +73,11 @@ release:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
-	echo "make obj all"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "make obj all"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
@@ -108,9 +110,11 @@ rerelease:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make all install"			>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
-	echo "make obj all"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "make obj all"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
