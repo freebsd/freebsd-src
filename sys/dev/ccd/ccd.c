@@ -146,6 +146,7 @@ SYSCTL_INT(_debug, OID_AUTO, ccddebug, CTLFLAG_RW, &ccddebug, 0, "");
 struct ccdbuf {
 	struct buf	cb_buf;		/* new I/O buf */
 	struct buf	*cb_obp;	/* ptr. to original I/O buf */
+	struct ccdbuf	*cb_freenext;	/* free list link */
 	int		cb_unit;	/* target unit */
 	int		cb_comp;	/* target component */
 	int		cb_pflags;	/* mirror/parity status flag */
@@ -154,11 +155,6 @@ struct ccdbuf {
 
 /* bits in cb_pflags */
 #define CCDPF_MIRROR_DONE 1	/* if set, mirror counterpart is done */
-
-#define	getccdbuf()		\
-	((struct ccdbuf *)malloc(sizeof(struct ccdbuf), M_DEVBUF, M_WAITOK))
-#define putccdbuf(cbp)		\
-	free((caddr_t)(cbp), M_DEVBUF)
 
 #define CCDLABELDEV(dev)	\
 	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
@@ -169,6 +165,8 @@ static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdioctl;
 static d_dump_t ccddump;
 static d_psize_t ccdsize;
+
+#define NCCDFREEHIWAT	16
 
 #define CDEV_MAJOR 74
 #define BDEV_MAJOR 21
@@ -221,7 +219,69 @@ static	void printiinfo __P((struct ccdiinfo *));
 /* Non-private for the benefit of libkvm. */
 struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
+struct	ccdbuf *ccdfreebufs;
+static	int numccdfreebufs;
 static	int numccd = 0;
+
+/*
+ * getccdbuf() -	Allocate and zero a ccd buffer.
+ *
+ *	This routine is called at splbio().
+ */
+
+static __inline
+struct ccdbuf *
+getccdbuf(struct ccdbuf *cpy)
+{
+	struct ccdbuf *cbp;
+
+	/*
+	 * Allocate from freelist or malloc as necessary
+	 */
+	if ((cbp = ccdfreebufs) != NULL) {
+		ccdfreebufs = cbp->cb_freenext;
+		--numccdfreebufs;
+	} else {
+		cbp = malloc(sizeof(struct ccdbuf), M_DEVBUF, M_WAITOK);
+	}
+
+	/*
+	 * Used by mirroring code
+	 */
+	if (cpy)
+		bcopy(cpy, cbp, sizeof(struct ccdbuf));
+	else
+		bzero(cbp, sizeof(struct ccdbuf));
+
+	/*
+	 * independant struct buf initialization
+	 */
+	LIST_INIT(&cbp->cb_buf.b_dep);
+	BUF_LOCKINIT(&cbp->cb_buf);
+	BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
+
+	return(cbp);
+}
+
+/*
+ * putccdbuf() -	Allocate and zero a ccd buffer.
+ *
+ *	This routine is called at splbio().
+ */
+
+static __inline
+void
+putccdbuf(struct ccdbuf *cbp)
+{
+	if (numccdfreebufs < NCCDFREEHIWAT) {
+		cbp->cb_freenext = ccdfreebufs;
+		ccdfreebufs = cbp;
+		++numccdfreebufs;
+	} else {
+		free((caddr_t)cbp, M_DEVBUF);
+	}
+}
+
 
 /*
  * Number of blocks to untouched in front of a component partition.
@@ -301,17 +361,17 @@ ccdinit(ccd, cpaths, p)
 	char **cpaths;
 	struct proc *p;
 {
-	register struct ccd_softc *cs = &ccd_softc[ccd->ccd_unit];
-	register struct ccdcinfo *ci = NULL;	/* XXX */
-	register size_t size;
-	register int ix;
+	struct ccd_softc *cs = &ccd_softc[ccd->ccd_unit];
+	struct ccdcinfo *ci = NULL;	/* XXX */
+	size_t size;
+	int ix;
 	struct vnode *vp;
 	size_t minsize;
 	int maxsecsize;
 	struct partinfo dpart;
 	struct ccdgeom *ccg = &cs->sc_geom;
 	char tmppath[MAXPATHLEN];
-	int error;
+	int error = 0;
 
 #ifdef DEBUG
 	if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
@@ -348,12 +408,7 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: can't copy path, error = %d\n",
 				    ccd->ccd_unit, error);
 #endif
-			while (ci > cs->sc_cinfo) {
-				ci--;
-				free(ci->ci_path, M_DEVBUF);
-			}
-			free(cs->sc_cinfo, M_DEVBUF);
-			return (error);
+			goto fail;
 		}
 		ci->ci_path = malloc(ci->ci_pathlen, M_DEVBUF, M_WAITOK);
 		bcopy(tmppath, ci->ci_path, ci->ci_pathlen);
@@ -370,12 +425,7 @@ ccdinit(ccd, cpaths, p)
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
 				     ccd->ccd_unit, ci->ci_path, error);
 #endif
-			while (ci >= cs->sc_cinfo) {
-				free(ci->ci_path, M_DEVBUF);
-				ci--;
-			}
-			free(cs->sc_cinfo, M_DEVBUF);
-			return (error);
+			goto fail;
 		}
 		if (dpart.part->p_fstype == FS_BSDFFS) {
 			maxsecsize =
@@ -388,12 +438,8 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: %s: incorrect partition type\n",
 				    ccd->ccd_unit, ci->ci_path);
 #endif
-			while (ci >= cs->sc_cinfo) {
-				free(ci->ci_path, M_DEVBUF);
-				ci--;
-			}
-			free(cs->sc_cinfo, M_DEVBUF);
-			return (EFTYPE);
+			error = EFTYPE;
+			goto fail;
 		}
 
 		/*
@@ -410,12 +456,8 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: %s: size == 0\n",
 				    ccd->ccd_unit, ci->ci_path);
 #endif
-			while (ci >= cs->sc_cinfo) {
-				free(ci->ci_path, M_DEVBUF);
-				ci--;
-			}
-			free(cs->sc_cinfo, M_DEVBUF);
-			return (ENODEV);
+			error = ENODEV;
+			goto fail;
 		}
 
 		if (minsize == 0 || size < minsize)
@@ -435,42 +477,52 @@ ccdinit(ccd, cpaths, p)
 			printf("ccd%d: interleave must be at least %d\n",
 			    ccd->ccd_unit, (maxsecsize / DEV_BSIZE));
 #endif
-		while (ci >= cs->sc_cinfo) {
-			free(ci->ci_path, M_DEVBUF);
-			ci--;
-		}
-		free(cs->sc_cinfo, M_DEVBUF);
-		return (EINVAL);
+		error = EINVAL;
+		goto fail;
 	}
 
 	/*
 	 * If uniform interleave is desired set all sizes to that of
-	 * the smallest component.
+	 * the smallest component.  This will guarentee that a single
+	 * interleave table is generated.
+	 *
+	 * Lost space must be taken into account when calculating the
+	 * overall size.  Half the space is lost when CCDF_MIRROR is
+	 * specified.  One disk is lost when CCDF_PARITY is specified.
 	 */
 	if (ccd->ccd_flags & CCDF_UNIFORM) {
 		for (ci = cs->sc_cinfo;
-		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
+		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++) {
 			ci->ci_size = minsize;
+		}
 		if (ccd->ccd_flags & CCDF_MIRROR) {
 			/*
 			 * Check to see if an even number of components
-			 * have been specified.
+			 * have been specified.  The interleave must also
+			 * be non-zero in order for us to be able to 
+			 * guarentee the topology.
 			 */
 			if (cs->sc_nccdisks % 2) {
 				printf("ccd%d: mirroring requires an even number of disks\n", ccd->ccd_unit );
-				while (ci > cs->sc_cinfo) {
-					ci--;
-					free(ci->ci_path, M_DEVBUF);
-				}
-				free(cs->sc_cinfo, M_DEVBUF);
-				return (EINVAL);
+				error = EINVAL;
+				goto fail;
+			}
+			if (cs->sc_ileave == 0) {
+				printf("ccd%d: an interleave must be specified when mirroring\n", ccd->ccd_unit);
+				error = EINVAL;
+				goto fail;
 			}
 			cs->sc_size = (cs->sc_nccdisks/2) * minsize;
-		}
-		else if (ccd->ccd_flags & CCDF_PARITY)
+		} else if (ccd->ccd_flags & CCDF_PARITY) {
 			cs->sc_size = (cs->sc_nccdisks-1) * minsize;
-		else
+		} else {
+			if (cs->sc_ileave == 0) {
+				printf("ccd%d: an interleave must be specified when using parity\n", ccd->ccd_unit);
+				error = EINVAL;
+				goto fail;
+			}
 			cs->sc_size = cs->sc_nccdisks * minsize;
+		}
 	}
 
 	/*
@@ -499,25 +551,36 @@ ccdinit(ccd, cpaths, p)
 	cs->sc_cflags = ccd->ccd_flags;	/* So we can find out later... */
 	cs->sc_unit = ccd->ccd_unit;
 	return (0);
+fail:
+	while (ci > cs->sc_cinfo) {
+		ci--;
+		free(ci->ci_path, M_DEVBUF);
+	}
+	free(cs->sc_cinfo, M_DEVBUF);
+	return (error);
 }
 
 static void
 ccdinterleave(cs, unit)
-	register struct ccd_softc *cs;
+	struct ccd_softc *cs;
 	int unit;
 {
-	register struct ccdcinfo *ci, *smallci;
-	register struct ccdiinfo *ii;
-	register daddr_t bn, lbn;
-	register int ix;
+	struct ccdcinfo *ci, *smallci;
+	struct ccdiinfo *ii;
+	daddr_t bn, lbn;
+	int ix;
 	u_long size;
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_INIT)
 		printf("ccdinterleave(%x): ileave %d\n", cs, cs->sc_ileave);
 #endif
+
 	/*
-	 * Allocate an interleave table.
+	 * Allocate an interleave table.  The worst case occurs when each
+	 * of N disks is of a different size, resulting in N interleave
+	 * tables.
+	 *
 	 * Chances are this is too big, but we don't care.
 	 */
 	size = (cs->sc_nccdisks + 1) * sizeof(struct ccdiinfo);
@@ -527,6 +590,8 @@ ccdinterleave(cs, unit)
 	/*
 	 * Trivial case: no interleave (actually interleave of disk size).
 	 * Each table entry represents a single component in its entirety.
+	 *
+	 * An interleave of 0 may not be used with a mirror or parity setup.
 	 */
 	if (cs->sc_ileave == 0) {
 		bn = 0;
@@ -556,7 +621,10 @@ ccdinterleave(cs, unit)
 	size = 0;
 	bn = lbn = 0;
 	for (ii = cs->sc_itable; ; ii++) {
-		/* Allocate space for ii_index. */
+		/*
+		 * Allocate space for ii_index.  We might allocate more then
+		 * we use.
+		 */
 		ii->ii_index = malloc((sizeof(int) * cs->sc_nccdisks),
 		    M_DEVBUF, M_WAITOK);
 
@@ -564,12 +632,14 @@ ccdinterleave(cs, unit)
 		 * Locate the smallest of the remaining components
 		 */
 		smallci = NULL;
-		for (ci = cs->sc_cinfo;
-		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
+		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_nccdisks]; 
+		    ci++) {
 			if (ci->ci_size > size &&
 			    (smallci == NULL ||
-			     ci->ci_size < smallci->ci_size))
+			     ci->ci_size < smallci->ci_size)) {
 				smallci = ci;
+			}
+		}
 
 		/*
 		 * Nobody left, all done
@@ -580,9 +650,15 @@ ccdinterleave(cs, unit)
 		}
 
 		/*
-		 * Record starting logical block and component offset
+		 * Record starting logical block using an sc_ileave blocksize.
 		 */
 		ii->ii_startblk = bn / cs->sc_ileave;
+
+		/*
+		 * Record starting comopnent block using an sc_ileave 
+		 * blocksize.  This value is relative to the beginning of
+		 * a component disk.
+		 */
 		ii->ii_startoff = lbn;
 
 		/*
@@ -590,10 +666,12 @@ ccdinterleave(cs, unit)
 		 * and record their indices.
 		 */
 		ix = 0;
-		for (ci = cs->sc_cinfo;
-		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
-			if (ci->ci_size >= smallci->ci_size)
+		for (ci = cs->sc_cinfo; 
+		    ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++) {
+			if (ci->ci_size >= smallci->ci_size) {
 				ii->ii_index[ix++] = ci - cs->sc_cinfo;
+			}
+		}
 		ii->ii_ndisk = ix;
 		bn += ix * (smallci->ci_size - size);
 		lbn = smallci->ci_size / cs->sc_ileave;
@@ -710,11 +788,11 @@ ccdclose(dev, flags, fmt, p)
 
 static void
 ccdstrategy(bp)
-	register struct buf *bp;
+	struct buf *bp;
 {
-	register int unit = ccdunit(bp->b_dev);
-	register struct ccd_softc *cs = &ccd_softc[unit];
-	register int s;
+	int unit = ccdunit(bp->b_dev);
+	struct ccd_softc *cs = &ccd_softc[unit];
+	int s;
 	int wlabel;
 	struct disklabel *lp;
 
@@ -758,10 +836,10 @@ done:
 
 static void
 ccdstart(cs, bp)
-	register struct ccd_softc *cs;
-	register struct buf *bp;
+	struct ccd_softc *cs;
+	struct buf *bp;
 {
-	register long bcount, rcount;
+	long bcount, rcount;
 	struct ccdbuf *cbp[4];
 	/* XXX! : 2 reads and 2 writes for RAID 4/5 */
 	caddr_t addr;
@@ -792,14 +870,44 @@ ccdstart(cs, bp)
 	for (bcount = bp->b_bcount; bcount > 0; bcount -= rcount) {
 		ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		rcount = cbp[0]->cb_buf.b_bcount;
-		if ((cbp[0]->cb_buf.b_flags & B_READ) == 0)
-			cbp[0]->cb_buf.b_vp->v_numoutput++;
-		VOP_STRATEGY(cbp[0]->cb_buf.b_vp, &cbp[0]->cb_buf);
-		if (cs->sc_cflags & CCDF_MIRROR &&
-		    (cbp[0]->cb_buf.b_flags & B_READ) == 0) {
-			/* mirror, start another write */
-			cbp[1]->cb_buf.b_vp->v_numoutput++;
-			VOP_STRATEGY(cbp[1]->cb_buf.b_vp, &cbp[1]->cb_buf);
+
+		if (cs->sc_cflags & CCDF_MIRROR) {
+			/*
+			 * Mirroring.  Writes go to both disks, reads are
+			 * taken from whichever disk seems most appropriate.
+			 *
+			 * We attempt to localize reads to the disk whos arm
+			 * is nearest the read request.  We ignore seeks due
+			 * to writes when making this determination and we
+			 * also try to avoid hogging.
+			 */
+			if ((cbp[0]->cb_buf.b_flags & B_READ) == 0) {
+				cbp[0]->cb_buf.b_vp->v_numoutput++;
+				cbp[1]->cb_buf.b_vp->v_numoutput++;
+				VOP_STRATEGY(cbp[0]->cb_buf.b_vp, 
+				    &cbp[0]->cb_buf);
+				VOP_STRATEGY(cbp[1]->cb_buf.b_vp, 
+				    &cbp[1]->cb_buf);
+			} else {
+				int pick = cs->sc_pick;
+				daddr_t range = cs->sc_size / 16;
+
+				if (bn < cs->sc_blk[pick] - range ||
+				    bn > cs->sc_blk[pick] + range
+				) {
+					cs->sc_pick = pick = 1 - pick;
+				}
+				cs->sc_blk[pick] = bn + btodb(rcount);
+				VOP_STRATEGY(cbp[pick]->cb_buf.b_vp, 
+				    &cbp[pick]->cb_buf);
+			}
+		} else {
+			/*
+			 * Not mirroring
+			 */
+			if ((cbp[0]->cb_buf.b_flags & B_READ) == 0)
+				cbp[0]->cb_buf.b_vp->v_numoutput++;
+			VOP_STRATEGY(cbp[0]->cb_buf.b_vp, &cbp[0]->cb_buf);
 		}
 		bn += btodb(rcount);
 		addr += rcount;
@@ -811,17 +919,17 @@ ccdstart(cs, bp)
  */
 static void
 ccdbuffer(cb, cs, bp, bn, addr, bcount)
-	register struct ccdbuf **cb;
-	register struct ccd_softc *cs;
+	struct ccdbuf **cb;
+	struct ccd_softc *cs;
 	struct buf *bp;
 	daddr_t bn;
 	caddr_t addr;
 	long bcount;
 {
-	register struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
-	register struct ccdbuf *cbp;
-	register daddr_t cbn, cboff;
-      register off_t cbc;
+	struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
+	struct ccdbuf *cbp;
+	daddr_t cbn, cboff;
+	off_t cbc;
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
@@ -834,61 +942,108 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbn = bn;
 	cboff = 0;
 
-	/*
-	 * Serially concatenated
-	 */
 	if (cs->sc_ileave == 0) {
-		register daddr_t sblk;
+		/*
+		 * Serially concatenated and neither a mirror nor a parity
+		 * config.  This is a special case.
+		 */
+		daddr_t sblk;
 
 		sblk = 0;
 		for (ci = cs->sc_cinfo; cbn >= sblk + ci->ci_size; ci++)
 			sblk += ci->ci_size;
 		cbn -= sblk;
-	}
-	/*
-	 * Interleaved
-	 */
-	else {
-		register struct ccdiinfo *ii;
+	} else {
+		struct ccdiinfo *ii;
 		int ccdisk, off;
 
-		cboff = cbn % cs->sc_ileave;
-		cbn /= cs->sc_ileave;
-		for (ii = cs->sc_itable; ii->ii_ndisk; ii++)
+		/*
+		 * Calculate cbn, the logical superblock (sc_ileave chunks),
+		 * and cboff, a normal block offset (DEV_BSIZE chunks) relative
+		 * to cbn.
+		 */
+		cboff = cbn % cs->sc_ileave;	/* DEV_BSIZE gran */
+		cbn = cbn / cs->sc_ileave;	/* DEV_BSIZE * ileave gran */
+
+		/*
+		 * Figure out which interleave table to use.
+		 */
+		for (ii = cs->sc_itable; ii->ii_ndisk; ii++) {
 			if (ii->ii_startblk > cbn)
 				break;
+		}
 		ii--;
+
+		/*
+		 * off is the logical superblock relative to the beginning 
+		 * of this interleave block.  
+		 */
 		off = cbn - ii->ii_startblk;
+
+		/*
+		 * We must calculate which disk component to use (ccdisk),
+		 * and recalculate cbn to be the superblock relative to
+		 * the beginning of the component.  This is typically done by
+		 * adding 'off' and ii->ii_startoff together.  However, 'off'
+		 * must typically be divided by the number of components in
+		 * this interleave array to be properly convert it from a
+		 * CCD-relative logical superblock number to a 
+		 * component-relative superblock number.
+		 */
 		if (ii->ii_ndisk == 1) {
+			/*
+			 * When we have just one disk, it can't be a mirror
+			 * or a parity config.
+			 */
 			ccdisk = ii->ii_index[0];
 			cbn = ii->ii_startoff + off;
 		} else {
 			if (cs->sc_cflags & CCDF_MIRROR) {
-				ccdisk = ii->ii_index[off % (ii->ii_ndisk/2)];
-				cbn = ii->ii_startoff + off / (ii->ii_ndisk/2);
-				/* mirrored data */
-				ci2 = &cs->sc_cinfo[ccdisk + ii->ii_ndisk/2];
-			}
-			else if (cs->sc_cflags & CCDF_PARITY) {
-				ccdisk = ii->ii_index[off % (ii->ii_ndisk-1)];
-				cbn = ii->ii_startoff + off / (ii->ii_ndisk-1);
+				/*
+				 * We have forced a uniform mapping, resulting
+				 * in a single interleave array.  We double
+				 * up on the first half of the available
+				 * components and our mirror is in the second
+				 * half.  This only works with a single 
+				 * interleave array because doubling up
+				 * doubles the number of sectors, so there
+				 * cannot be another interleave array because
+				 * the next interleave array's calculations
+				 * would be off.
+				 */
+				int ndisk2 = ii->ii_ndisk / 2;
+				ccdisk = ii->ii_index[off % ndisk2];
+				cbn = ii->ii_startoff + off / ndisk2;
+				ci2 = &cs->sc_cinfo[ccdisk + ndisk2];
+			} else if (cs->sc_cflags & CCDF_PARITY) {
+				/* 
+				 * XXX not implemented yet
+				 */
+				int ndisk2 = ii->ii_ndisk - 1;
+				ccdisk = ii->ii_index[off % ndisk2];
+				cbn = ii->ii_startoff + off / ndisk2;
 				if (cbn % ii->ii_ndisk <= ccdisk)
 					ccdisk++;
-			}
-			else {
+			} else {
 				ccdisk = ii->ii_index[off % ii->ii_ndisk];
 				cbn = ii->ii_startoff + off / ii->ii_ndisk;
 			}
 		}
-		cbn *= cs->sc_ileave;
+
 		ci = &cs->sc_cinfo[ccdisk];
+
+		/*
+		 * Convert cbn from a superblock to a normal block so it
+		 * can be used to calculate (along with cboff) the normal
+		 * block index into this particular disk.
+		 */
+		cbn *= cs->sc_ileave;
 	}
 
 	/*
 	 * Fill in the component buf structure.
 	 */
-	cbp = getccdbuf();
-	bzero(cbp, sizeof (struct ccdbuf));
+	cbp = getccdbuf(NULL);
 	cbp->cb_buf.b_flags = bp->b_flags | B_CALL;
 	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
@@ -896,10 +1051,6 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_offset = dbtob(cbn + cboff + CCD_OFFSET);
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
-	LIST_INIT(&cbp->cb_buf.b_dep);
-	BUF_LOCKINIT(&cbp->cb_buf);
-	BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
-	cbp->cb_buf.b_resid = 0;
 	if (cs->sc_ileave == 0)
               cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
@@ -921,17 +1072,16 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 		       cbp->cb_buf.b_data, cbp->cb_buf.b_bcount);
 #endif
 	cb[0] = cbp;
-	if (cs->sc_cflags & CCDF_MIRROR &&
-	    (cbp->cb_buf.b_flags & B_READ) == 0) {
-		/* mirror, start one more write */
-		cbp = getccdbuf();
-		bzero(cbp, sizeof (struct ccdbuf));
-		*cbp = *cb[0];
+
+	/*
+	 * Note: both I/O's setup when reading from mirror, but only one
+	 * will be executed.
+	 */
+	if (cs->sc_cflags & CCDF_MIRROR) {
+		/* mirror, setup second I/O */
+		cbp = getccdbuf(cb[0]);
 		cbp->cb_buf.b_dev = ci2->ci_dev;
 		cbp->cb_buf.b_vp = ci2->ci_vp;
-		LIST_INIT(&cbp->cb_buf.b_dep);
-		BUF_LOCKINIT(&cbp->cb_buf);
-		BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
 		/* link together the ccdbuf's and clear "mirror done" flag */
@@ -944,8 +1094,8 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 
 static void
 ccdintr(cs, bp)
-	register struct ccd_softc *cs;
-	register struct buf *bp;
+	struct ccd_softc *cs;
+	struct buf *bp;
 {
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
@@ -969,8 +1119,8 @@ static void
 ccdiodone(cbp)
 	struct ccdbuf *cbp;
 {
-	register struct buf *bp = cbp->cb_obp;
-	register int unit = cbp->cb_unit;
+	struct buf *bp = cbp->cb_obp;
+	int unit = cbp->cb_unit;
 	int count, s;
 
 	s = splbio();
@@ -986,27 +1136,87 @@ ccdiodone(cbp)
 		       cbp->cb_buf.b_bcount);
 	}
 #endif
+	/*
+	 * If an error occured, report it.  If this is a mirrored 
+	 * configuration and the first of two possible reads, do not
+	 * set the error in the bp yet because the second read may
+	 * succeed.
+	 */
 
 	if (cbp->cb_buf.b_flags & B_ERROR) {
-		bp->b_flags |= B_ERROR;
-		bp->b_error = cbp->cb_buf.b_error ? cbp->cb_buf.b_error : EIO;
-#ifdef DEBUG
-		printf("ccd%d: error %d on component %d\n",
-		       unit, bp->b_error, cbp->cb_comp);
-#endif
+		const char *msg = "";
+
+		if ((ccd_softc[unit].sc_cflags & CCDF_MIRROR) &&
+		    (cbp->cb_buf.b_flags & B_READ) &&
+		    (cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
+			/*
+			 * We will try our read on the other disk down
+			 * below, also reverse the default pick so if we 
+			 * are doing a scan we do not keep hitting the
+			 * bad disk first.
+			 */
+			struct ccd_softc *cs = &ccd_softc[unit];
+
+			msg = ", trying other disk";
+			cs->sc_pick = 1 - cs->sc_pick;
+			cs->sc_blk[cs->sc_pick] = bp->b_blkno;
+		} else {
+			bp->b_flags |= B_ERROR;
+			bp->b_error = cbp->cb_buf.b_error ? 
+			    cbp->cb_buf.b_error : EIO;
+		}
+		printf("ccd%d: error %d on component %d block %d (ccd block %d)%s\n",
+		       unit, bp->b_error, cbp->cb_comp, 
+		       (int)cbp->cb_buf.b_blkno, bp->b_blkno, msg);
 	}
 
-	if (ccd_softc[unit].sc_cflags & CCDF_MIRROR &&
-	    (cbp->cb_buf.b_flags & B_READ) == 0)
-		if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-			/* I'm done before my counterpart, so just set
-			   partner's flag and return */
-			cbp->cb_mirror->cb_pflags |= CCDPF_MIRROR_DONE;
-			putccdbuf(cbp);
-			splx(s);
-			return;
+	/*
+	 * Process mirror.  If we are writing, I/O has been initiated on both
+	 * buffers and we fall through only after both are finished.
+	 *
+	 * If we are reading only one I/O is initiated at a time.  If an
+	 * error occurs we initiate the second I/O and return, otherwise 
+	 * we free the second I/O without initiating it.
+	 */
+
+	if (ccd_softc[unit].sc_cflags & CCDF_MIRROR) {
+		if ((cbp->cb_buf.b_flags & B_READ) == 0) {
+			/*
+			 * When writing, handshake with the second buffer
+			 * to determine when both are done.  If both are not
+			 * done, return here.
+			 */
+			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
+				cbp->cb_mirror->cb_pflags |= CCDPF_MIRROR_DONE;
+				putccdbuf(cbp);
+				splx(s);
+				return;
+			}
+		} else {
+			/*
+			 * When reading, either dispose of the second buffer
+			 * or initiate I/O on the second buffer if an error 
+			 * occured with this one.
+			 */
+			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
+				if (cbp->cb_buf.b_flags & B_ERROR) {
+					cbp->cb_mirror->cb_pflags |= 
+					    CCDPF_MIRROR_DONE;
+					VOP_STRATEGY(
+					    cbp->cb_mirror->cb_buf.b_vp, 
+					    &cbp->cb_mirror->cb_buf
+					);
+					putccdbuf(cbp);
+					splx(s);
+					return;
+				} else {
+					putccdbuf(cbp->cb_mirror);
+					/* fall through */
+				}
+			}
 		}
-		
+	}
+
 	/*
 	 * use b_bufsize to determine how big the original request was rather
 	 * then b_bcount, because b_bcount may have been truncated for EOF.
@@ -1509,7 +1719,7 @@ static void
 printiinfo(ii)
 	struct ccdiinfo *ii;
 {
-	register int ix, i;
+	int ix, i;
 
 	for (ix = 0; ii->ii_ndisk; ix++, ii++) {
 		printf(" itab[%d]: #dk %d sblk %d soff %d",
