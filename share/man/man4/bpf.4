@@ -45,7 +45,7 @@ After opening the device, the file descriptor must be bound to a
 specific network interface with the
 .Dv BIOCSETIF
 ioctl.
-A given interface can be shared be multiple listeners, and the filter
+A given interface can be shared by multiple listeners, and the filter
 underlying each descriptor will see an identical packet stream.
 .Pp
 A separate device file is required for each minor device.
