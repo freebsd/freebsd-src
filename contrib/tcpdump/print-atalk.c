@@ -101,9 +101,16 @@ atalk_print(register const u_char *bp, u_int length)
 	register const struct atShortDDP *sdp;
 	u_short snet;
 
+#if 0
 	lp = (struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
+#else
+	{
+		static struct LAP lp_ = {0, 0, lapDDP};
+		lp = &lp_;
+	}
+#endif
 	switch (lp->type) {
 
 	case lapShortDDP:
@@ -161,9 +168,9 @@ aarp_print(register const u_char *bp, u_int length)
 
 	printf("aarp ");
 	ap = (const struct aarp *)bp;
-	if (ap->htype == 1 && ap->ptype == ETHERTYPE_ATALK &&
+	if (ntohs(ap->htype) == 1 && ntohs(ap->ptype) == ETHERTYPE_ATALK &&
 	    ap->halen == 6 && ap->palen == 4 )
-		switch (ap->op) {
+		switch (ntohs(ap->op)) {
 
 		case 1:				/* request */
 			(void)printf("who-has %s tell %s",
@@ -172,7 +179,7 @@ aarp_print(register const u_char *bp, u_int length)
 
 		case 2:				/* response */
 			(void)printf("reply %s is-at %s",
-			    AT(pdaddr), etheraddr_string(ap->hdaddr));
+			    AT(psaddr), etheraddr_string(ap->hsaddr));
 			return;
 
 		case 3:				/* probe (oy!) */
