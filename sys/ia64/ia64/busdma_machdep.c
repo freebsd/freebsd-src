@@ -225,11 +225,11 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (parent != NULL) {
 		newtag->lowaddr = MIN(parent->lowaddr, newtag->lowaddr);
 		newtag->highaddr = MAX(parent->highaddr, newtag->highaddr);
-		/*
-		 * XXX Not really correct??? Probably need to honor boundary
-		 *     all the way up the inheritence chain.
-		 */
-		newtag->boundary = MAX(parent->boundary, newtag->boundary);
+		if (newtag->boundary == 0)
+			newtag->boundary = parent->boundary;
+		else if (parent->boundary != 0)
+			newtag->boundary = MIN(parent->boundary,
+					       newtag->boundary);
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
