@@ -33,7 +33,8 @@
 IMPORT(_logname_valid, 4)			/* in getlogin() */
 
 SYSCALL(setlogin)
-	add	r14=@gprel(_logname_valid),gp ;;
+	add	r14=@ltoff(_logname_valid),gp ;;
+	ld8	r14=[r14] ;;
 	st4	[r14]=r0			/* clear it */
 	br.ret.sptk.few rp
 END(setlogin)
