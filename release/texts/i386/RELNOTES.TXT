@@ -107,8 +107,12 @@ The ata(4) driver now has support for ATA100 controllers.  In
 addition, it now supports the ServerWorks ROSB4 ATA33 chipset, the CMD
 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530. [MERGED]
 
+To provide more flexible configuration, the various options for the
+ata(4) driver are now boot loader tunables, rather than kernel
+configure-time options. [MERGED]
+
 The ata(4) driver now has support for tagged queuing, which is
-enabled by the ATA_ENABLE_TAGS option. [MERGED]
+enabled by the hw.ata.tags loader tunable. [MERGED]
 
 The ata(4) driver now has support for ATA "pseudo" RAID controllers as
 the Promise Fasttrak and HighPoint HPT370 controllers. [MERGED]
@@ -375,6 +379,9 @@ ipfw(8) has a new feature ("me") that allows for packet matching on
 interfaces with dynamically-changing IP addresses. [MERGED]
 
 The isp(4) driver has been updated. [MERGED]
+
+The isp(4) driver now supports target mode for Qlogic SCSI cards,
+including Ultra2 and Ultra3 and dual bus cards.
 
 The ida disk driver now has crashdump support. [MERGED]
 
@@ -1226,8 +1233,16 @@ TMC 18C30, 18C50 based ISA/PC-Card SCSI host adapters:
     Melco IFC-SC
     RATOC REX-5536, REX-5536AM, REX-5536M, REX-9836A
 
-QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
-QLogic 2100 Fibre Channel Adapters (private loop only).
+Qlogic Controllers and variants:
+    Qlogic 1020, 1040 SCSI and Ultra SCSI host adapters
+    Qlogic 1240 dual Ultra SCSI controllers
+    Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD controllers
+    Qlogic 12160 Ultra3 LVD controllers
+    Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI controllers
+    Performance Technology SBS440 ISP1000 variants
+    Performance Technology SBS450 ISP1040 variants
+    Performance Technology SBS470 ISP2100 variants
+    Antares Microsystems P-0033 ISP2100 variants
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
