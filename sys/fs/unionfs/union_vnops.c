@@ -1842,15 +1842,13 @@ union_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
-	struct vnode *othervp = OTHERVP(bp->b_vp);
+	struct vnode *othervp = OTHERVP(ap->a_vp);
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 #ifdef DIAGNOSTIC
 	if (othervp == NULLVP)
 		panic("union_strategy: nil vp");
 	if ((bp->b_iocmd == BIO_WRITE) &&
-	    (othervp == LOWERVP(bp->b_vp)))
+	    (othervp == LOWERVP(ap->a_vp)))
 		panic("union_strategy: writing to lowervp");
 #endif
 	return (VOP_STRATEGY(othervp, bp));
