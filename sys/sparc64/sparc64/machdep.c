@@ -243,7 +243,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (mdp != NULL) {
 		preload_metadata = mdp;
 		kmdp = preload_search_by_type("elf64 kernel");
-		if (kmdp != NULL)
+		if (kmdp == NULL)
 			kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
