@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.13 1995/11/14 09:37:15 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.14 1995/12/03 14:54:16 bde Exp $
  */
 
 /*
@@ -94,9 +94,9 @@ static struct kern_target {
 	{ "physmem",	&physmem,	KTT_INT,	VREAD,	VREG,	NULL },
 #if 0
 	{ "root",	0,		KTT_NULL,	VREAD,	VDIR, &rootdir},
-#endif
 	{ "rootdev",	0,		KTT_NULL,	VREAD,	VBLK, &rootvp },
 	{ "rrootdev",	0,		KTT_NULL,	VREAD,	VCHR, &rrootvp},
+#endif
 	{ "time",	0,		KTT_TIME,	VREAD,	VREG,	NULL },
 	{ "version",	version,	KTT_STRING,	VREAD,	VREG,	NULL },
 };
