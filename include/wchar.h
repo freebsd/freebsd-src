@@ -174,6 +174,9 @@ int	vfwscanf(struct __sFILE * __restrict, const wchar_t * __restrict,
 int	vswscanf(const wchar_t * __restrict, const wchar_t * __restrict,
 	    __va_list);
 int	vwscanf(const wchar_t * __restrict, __va_list);
+float	wcstof(const wchar_t * __restrict, wchar_t ** __restrict);
+long double
+	wcstold(const wchar_t * __restrict, wchar_t ** __restrict);
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 long long
