@@ -514,6 +514,7 @@ pnpbios_scan(void)
     
     if ((error = bios16(&args, PNP_COUNT_DEVNODES, &ndevs, &bigdev)) || (args.r.eax & 0xff))
 	printf("pnpbios: error %d/%x getting device count/size limit\n", error, args.r.eax);
+    ndevs &= 0xff;				/* clear high byte garbage */
     if (bootverbose)
 	printf("pnpbios: %d devices, largest %d bytes\n", ndevs, bigdev);
 
