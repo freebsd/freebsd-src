@@ -445,7 +445,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
-		(void)printf(" %*qd %*qd %*qd",
+		(void)printf(" %*jd %*jd %*jd",
 		  (u_int)mwp->total,
 		  (intmax_t)fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
 		  (u_int)mwp->used,
@@ -458,7 +458,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*qd %*qd %4.0f%% ",
+		(void)printf(" %*jd %*jd %4.0f%% ",
 		   (u_int)mwp->iused, (intmax_t)used,
 		   (u_int)mwp->ifree, (intmax_t)sfsp->f_ffree,
 		   inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
