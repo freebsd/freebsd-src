@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.14 1998/05/21 21:46:46 brian Exp $
+ * $Id: mbuf.c,v 1.15 1998/06/15 19:06:17 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -151,7 +151,6 @@ mbuf_Write(struct mbuf * bp, u_char * ptr, int cnt)
 int
 mbuf_Show(struct cmdargs const *arg)
 {
-  /* Watch it - ~m calls us with arg == NULL */
   int i;
   static const char *mbuftype[] = { 
     "async", "fsm", "hdlcout", "ipin", "echo", "lqr", "link", "vjcomp",
