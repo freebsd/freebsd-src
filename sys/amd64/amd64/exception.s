@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.3 1994/04/02 07:00:23 davidg Exp $
+ *	$Id: exception.s,v 1.4 1994/08/13 03:49:38 wollman Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -269,7 +269,21 @@ IDTVEC(syscall)
 	jmp	_doreti
 
 /*
- * include generated interrupt vectors and ISA intr code
+ * Include what was once config+isa-dependent code.
+ * XXX it should be in a stand-alone file.  It's still icu-dependent and
+ * belongs in i386/isa.
  */
 #include "i386/isa/vector.s"
+
+/*
+ * Include what was once icu-dependent code.
+ * XXX it should be merged into this file (also move the definition of
+ * imen to vector.s or isa.c).
+ * Before including it, set up a normal asm environment so that vector.s
+ * doesn't have to know that stuff is included after it.
+ */
+	.data
+	ALIGN_DATA
+	.text
+	SUPERALIGN_TEXT
 #include "i386/isa/icu.s"
