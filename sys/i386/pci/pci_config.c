@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_config.c,v 2.3 94/10/09 21:10:21 wolf Oct11 $
+**  $Id: pci_config.c,v 1.7 1994/10/12 02:33:22 se Exp $
 **
 **  @PCI@ this should be part of "ioconf.c".
 **
@@ -64,7 +64,7 @@ struct pci_device pci_devtab[] = {
 #endif
 
 	{&chipset_device, "chip",     0 },
-	{&vga_device,     "graphics", 0 },
+	/*{&vga_device,     "graphics", 0 }, causing problems XXX */
 	{&ign_device,     "ign",      0 },
 	{&lkm_device,     "lkm",      0 },
 	{0,               0,          0 }
