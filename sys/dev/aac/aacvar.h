@@ -58,7 +58,7 @@
  */
 #define AAC_FIB_COUNT		(PAGE_SIZE/sizeof(struct aac_fib))
 #define AAC_PREALLOCATE_FIBS	128
-#define AAC_MAX_FIBS		512
+#define AAC_MAX_FIBS		504
 
 /*
  * The controller reports status events in AIFs.  We hang on to a number of
