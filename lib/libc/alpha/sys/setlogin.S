@@ -37,4 +37,4 @@ IMPORT(_logname_valid, 4)			/* in _getlogin() */
 SYSCALL(setlogin)
 	stl	zero, _logname_valid		/* clear it */
 	RET
-END(setlogin)
+END(__sys_setlogin)

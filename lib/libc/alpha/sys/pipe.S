@@ -37,4 +37,4 @@ SYSCALL(pipe)
 	stl	a4, 4(a0)
 	mov	zero, v0
 	RET
-END(pipe)
+END(__sys_pipe)
