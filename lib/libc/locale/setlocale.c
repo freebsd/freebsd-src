@@ -98,7 +98,6 @@ static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
 static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale(void);
-static int	wrap_setrunelocale(const char *);
 static char	*loadlocale(int);
 
 char *
@@ -243,18 +242,6 @@ currentlocale()
 	return (current_locale_string);
 }
 
-static int
-wrap_setrunelocale(const char *locale)
-{
-	int ret = setrunelocale((char *)locale);
-
-	if (ret != 0) {
-		errno = ret;
-		return (_LDP_ERROR);
-	}
-	return (_LDP_LOADED);
-}
-
 static char *
 loadlocale(category)
 	int category;
@@ -279,7 +266,7 @@ loadlocale(category)
 
 	switch (category) {
 	case LC_CTYPE:
-		func = wrap_setrunelocale;
+		func = __wrap_setrunelocale;
 		break;
 	case LC_COLLATE:
 		func = __collate_load_tables;
