@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.12 1996/08/04 00:35:39 jmz Exp $ */
+/* $Id: main.c,v 1.13 1996/08/07 02:15:26 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -66,7 +66,6 @@ int mirror = 0;
 int newtime = 0;
 int restart = 0;
 time_t modtime;
-
 FILE *file = 0;
 
 void usage (), die (), rm (), t_out (), ftpget (), httpget (),
@@ -95,22 +94,29 @@ die ()
 }
 
 void
-rm ()
+adjmodtime()
 {
-	struct timeval tv[2];
-	if (file) {
-		fclose (file);
-		if (file != stdout) {
-			if (!restart && !mirror)
-			    remove (outputfile);
-			else if (!mirror && !newtime) {
-				tv[0].tv_usec = tv[1].tv_usec = 0;
-				tv[0].tv_sec = time(0);
-				tv[1].tv_sec = modtime;
-				utimes (outputfile, tv);
-			}
-		}
+    struct timeval tv[2];
+
+    if (!newtime) {
+	tv[0].tv_usec = tv[1].tv_usec = 0;
+	tv[0].tv_sec = time(0);
+	tv[1].tv_sec = modtime;
+	utimes (outputfile, tv);
+    }
+}
+
+void
+rm()
+{
+    if (file) {
+	fclose (file);
+	if (file != stdout) {
+	    if (!restart && !mirror)
+		remove (outputfile);
+	    adjmodtime();
 	}
+    }
 }
 
 int
@@ -248,7 +254,7 @@ ftpget ()
 	    restart = 0;
 	if (restart || mirror) {
 	    f_size (outputfile, &size0, &t);
-	    if (mirror && size0 == size && modtime < t) {
+	    if (mirror && size0 == size && modtime <= t) {
 		fclose(ftp);
 		return;
 	    }
@@ -304,6 +310,8 @@ ftpget ()
         fclose(fp);
         fclose(file);
 	display (size, -1);
+	if (file != stdout)
+	    adjmodtime();
 	exit (0);
 }
 
