@@ -250,8 +250,10 @@ The
 .Nm
 utility reads messages from the
 .Ux
-domain socket
-.Pa /var/run/log ,
+domain sockets
+.Pa /var/run/log
+and
+.Pa /var/run/logpriv ,
 from an Internet domain socket specified in
 .Pa /etc/services ,
 and from the special device
@@ -293,6 +295,9 @@ default process ID file
 name of the
 .Ux
 domain datagram log socket
+.It Pa /var/run/logpriv
+.Ux
+socket for priveleged applications
 .It Pa /dev/klog
 kernel log device
 .El

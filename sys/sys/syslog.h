@@ -34,6 +34,7 @@
 #define _SYS_SYSLOG_H_
 
 #define	_PATH_LOG	"/var/run/log"
+#define	_PATH_LOG_PRIV	"/var/run/logpriv"
 #define	_PATH_OLDLOG	"/dev/log"	/* backward compatibility */
 
 /*
