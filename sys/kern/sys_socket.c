@@ -170,6 +170,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 		return (0);
 
 	case FIONREAD:
+		/* Unlocked read. */
 		*(int *)data = so->so_rcv.sb_cc;
 		return (0);
 
@@ -188,6 +189,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 		return (0);
 
 	case SIOCATMARK:
+		/* Unlocked read. */
 		*(int *)data = (so->so_rcv.sb_state & SBS_RCVATMARK) != 0;
 		return (0);
 	}
@@ -229,7 +231,11 @@ soo_stat(fp, ub, active_cred, td)
 	/*
 	 * If SBS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.
+	 *
+	 * XXXRW: perhaps should lock socket buffer so st_size result
+	 * is consistent.
 	 */
+	/* Unlocked read. */
 	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0 ||
 	    so->so_rcv.sb_cc != 0)
 		ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
