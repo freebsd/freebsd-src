@@ -901,7 +901,7 @@ sched_clock(struct kse *ke)
 	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
 		sched_pctcpu_update(ke);
 
-	if (td->td_flags & TD_IDLETD)
+	if (td->td_flags & TDF_IDLETD)
 		return;
 
 	CTR4(KTR_ULE, "Tick kse %p (slice: %d, slptime: %d, runtime: %d)",
