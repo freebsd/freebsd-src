@@ -171,7 +171,13 @@ ata_generic_setmode(struct ata_device *atadev, int mode)
 static void
 ata_sata_setmode(struct ata_device *atadev, int mode)
 {
-    mode = ata_limit_mode(atadev, mode, ATA_DMA_MAX);
+    /*
+     * we limit the transfer mode to UDMA5/ATA100 as some chips/drive
+     * comboes that use the Marvell SATA->PATA converters has trouble
+     * with UDMA6/ATA133. This doesn't really matter as real SATA
+     * devices doesn't use this anyway.
+     */
+    mode = ata_limit_mode(atadev, mode, ATA_UDMA5);
     if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
 	atadev->mode = mode;
 }
@@ -436,7 +442,7 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 }
 
 /*
- * American Micro Devices (AMD) support function
+ * American Micro Devices (AMD) support functions
  */
 int
 ata_amd_ident(device_t dev)
@@ -1633,9 +1639,21 @@ ata_sii_chipinit(device_t dev)
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
+	/* setup chipset defaults as BIOS might not */
+	pci_write_config(dev, 0xa2, 0x328a, 2);
+	pci_write_config(dev, 0xa4, 0x328a328a, 4);
+	pci_write_config(dev, 0xa8, 0x22082208, 4);
+	pci_write_config(dev, 0xac, 0x40094009, 4);
+	pci_write_config(dev, 0xe2, 0x328a, 2);
+	pci_write_config(dev, 0xe4, 0x328a328a, 4);
+	pci_write_config(dev, 0xe8, 0x22082208, 4);
+	pci_write_config(dev, 0xec, 0x40094009, 4);
+
 	ctlr->allocate = ata_sii_mio_allocate;
-	if (ctlr->chip->max_dma >= ATA_SA150)
+	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->setmode = ata_sata_setmode;
+	    ctlr->locking = ata_serialize;
+	}
 	else
 	    ctlr->setmode = ata_sii_setmode;
     }
@@ -1912,6 +1930,7 @@ ata_sis_ident(device_t dev)
      { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" }, /* 1chip */
      { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" }, /* 1chip */
 
+     { ATA_SIS661,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 661" }, /* ext south */
      { ATA_SIS658,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 658" }, /* ext south */
      { ATA_SIS655,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 655" }, /* ext south */
      { ATA_SIS652,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 652" }, /* unknown */
@@ -2202,8 +2221,8 @@ ata_via_family_setmode(struct ata_device *atadev, int mode)
 {
     device_t parent = device_get_parent(atadev->channel->dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
-    u_int8_t timings[] = { 0xff, 0xff, 0xff, 0x55, 0x51, 0xff, 0x55, 0x51,
-			   0x51, 0x51, 0x51, 0x51, 0x51, 0x51 };
+    u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
+			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
     int modes[][7] = {
 	{ 0xc2, 0xc1, 0xc0, 0x00, 0x00, 0x00, 0x00 },	/* VIA ATA33 */
 	{ 0xee, 0xec, 0xea, 0xe9, 0xe8, 0x00, 0x00 },	/* VIA ATA66 */

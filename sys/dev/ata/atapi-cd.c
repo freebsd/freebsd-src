@@ -1369,7 +1369,7 @@ acd_fixate(struct acd_softc *cdp, int multisession)
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int timeout = 5*60*2;
-    int error;
+    int error, dummy;
     struct write_param param;
 
     if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
@@ -1397,9 +1397,11 @@ acd_fixate(struct acd_softc *cdp, int multisession)
     }
 
     while (timeout-- > 0) {
+	if ((error = acd_get_progress(cdp, &dummy)))
+	    return error;
 	if ((error = acd_test_ready(cdp->device)) != EBUSY)
 	    return error;
-	tsleep(&error, PRIBIO, "acdcld", hz/2);
+	tsleep(&error, PRIBIO, "acdcld", hz / 2);
     }
     return EIO;
 }

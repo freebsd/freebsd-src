@@ -247,11 +247,13 @@ ata_completed(void *context, int pending)
 			   request->error, "\20\10ICRC\7UNCORRECTABLE"
 			   "\6MEDIA_CHANGED\5NID_NOT_FOUND\4MEDIA_CHANGE_REQEST"
 			   "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
-		if (request->flags & ATA_R_DMA &&
-		    request->dmastat & ATA_BMSTAT_ERROR) 
-		    printf(" dma=0x%02x\n", request->dmastat);
-		else
-		    printf("\n");
+		if ((request->flags & ATA_R_DMA) &&
+		    (request->dmastat & ATA_BMSTAT_ERROR))
+		    printf(" dma=0x%02x", request->dmastat);
+		if (!(request->flags & ATA_R_ATAPI) &&
+		    !(request->flags & ATA_R_CONTROL))
+		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		printf("\n");
 	    }
 
 	    /* SOS this could be more precise ? XXX */
