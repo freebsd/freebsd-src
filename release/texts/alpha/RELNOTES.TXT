@@ -648,7 +648,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 4.0-RELEASE and 3.x-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
@@ -688,7 +688,7 @@ ways of upgrading FreeBSD distributions:
         o Using sources, via /usr/src
         o Using sysinstall's (binary) upgrade option.
 
-[insert other notes here]
+Please read the UPGRADE.TXT file for more information.
 
 
 5. Reporting problems, making suggestions, submitting code.
