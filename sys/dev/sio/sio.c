@@ -113,21 +113,20 @@ __FBSDID("$FreeBSD$");
 #define	COM_ISMULTIPORT(flags)	(0)
 #endif /* COM_MULTIPORT */
 
+#define	COM_C_IIR_TXRDYBUG	0x80000
 #define	COM_CONSOLE(flags)	((flags) & 0x10)
-#define	COM_FORCECONSOLE(flags)	((flags) & 0x20)
-#define	COM_LLCONSOLE(flags)	((flags) & 0x40)
 #define	COM_DEBUGGER(flags)	((flags) & 0x80)
-#define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
-#define	COM_NOFIFO(flags)		((flags) & 0x02)
-#define	COM_PPSCTS(flags)	((flags) & 0x10000)
-#define COM_ST16650A(flags)	((flags) & 0x20000)
-#define COM_C_NOPROBE		(0x40000)
-#define COM_NOPROBE(flags)	((flags) & COM_C_NOPROBE)
-#define COM_C_IIR_TXRDYBUG	(0x80000)
-#define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
-#define COM_NOSCR(flags)	((flags) & 0x100000)
-#define	COM_TI16754(flags)	((flags) & 0x200000)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
+#define	COM_FORCECONSOLE(flags)	((flags) & 0x20)
+#define	COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
+#define	COM_LLCONSOLE(flags)	((flags) & 0x40)
+#define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
+#define	COM_NOFIFO(flags)	((flags) & 0x02)
+#define	COM_NOPROBE(flags)	((flags) & 0x40000)
+#define	COM_NOSCR(flags)	((flags) & 0x100000)
+#define	COM_PPSCTS(flags)	((flags) & 0x10000)
+#define	COM_ST16650A(flags)	((flags) & 0x20000)
+#define	COM_TI16754(flags)	((flags) & 0x200000)
 
 #define	sio_getreg(com, off) \
 	(bus_space_read_1((com)->bst, (com)->bsh, (off)))
@@ -196,7 +195,6 @@ struct com_s {
 	u_char	extra_state;	/* more flag bits, separate for order trick */
 	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
-	bool_t	st16650a;	/* Is a Startech 16650A or RTS/CTS compat */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 	u_char	mcr_image;	/* copy of value written to MCR */
 #ifdef COM_MULTIPORT
@@ -206,6 +204,7 @@ struct com_s {
 	bool_t  gone;		/* hardware disappeared */
 	bool_t	poll;		/* nonzero if polling is required */
 	bool_t	poll_output;	/* nonzero if polling for output is required */
+	bool_t	st16650a;	/* nonzero if Startech 16650A compatible */
 	int	unit;		/* unit	number */
 	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	tx_fifo_size;
@@ -450,7 +449,7 @@ siodetach(dev)
 		device_printf(dev, "NULL com in siounload\n");
 		return (0);
 	}
-	com->gone = 1;
+	com->gone = TRUE;
 	for (i = 0 ; i < 6; i++)
 		destroy_dev(com->devs[i]);
 	if (com->irqres) {
@@ -1023,7 +1022,6 @@ sioattach(dev, xrid, rclk)
 	}
 	sio_setreg(com, com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
 	DELAY(100);
-	com->st16650a = 0;
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_RX_LOW:
 		printf(" 16450");
@@ -3158,7 +3156,6 @@ siocncheckc(struct consdev *cd)
 	splx(s);
 	return (c);
 }
-
 
 static int
 siocngetc(struct consdev *cd)
