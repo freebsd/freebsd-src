@@ -4,7 +4,6 @@ SRCS+=	cpu-i386.c elf64-x86-64.c elf64-target.h elf64-gen.c elf64.c \
 	elf32-i386.c elf32-target.h elf32.c efi-app-ia32.c elf32-gen.c elflink.c
 VECS+=	bfd_elf64_x86_64_vec bfd_elf32_i386_vec
 CFLAGS+= -DDEFAULT_VECTOR=bfd_elf64_x86_64_vec
-CFLAGS+= -DHAVE_bfd_elf64_x86_64_vec -DHAVE_bfd_elf32_i386_vec -DHAVE_bfd_efi_app_ia32_vec -DHAVE_bfd_elf64_little_generic_vec -DHAVE_bfd_elf64_big_generic_vec -DHAVE_bfd_elf32_little_generic_vec -DHAVE_bfd_elf32_big_generic_vec
 
 CLEANFILES+=	elf64-target.h elf32-target.h
 
