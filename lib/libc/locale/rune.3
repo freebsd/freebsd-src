@@ -217,16 +217,13 @@ function returns one of the following values:
 .It Er 0
 .Fn setrunelocale
 was successful.
-.It Bq Er EFAULT
+.It Bq Er EINVAL
 .Fa locale
-was
-.Dv NULL .
+name was incorrect.
 .It Bq Er ENOENT
 The locale could not be found.
 .It Bq Er EFTYPE
 The file found was not a valid file.
-.It Bq Er EINVAL
-The encoding indicated by the locale was unknown.
 .El
 .Pp
 The
