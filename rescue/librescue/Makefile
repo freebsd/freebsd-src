@@ -16,10 +16,8 @@ INTERNALLIB=	yes	# Don't install this library
 CFLAGS+=	-DRESCUE
 # Flags copied from src/lib/libc and src/lib/libutil
 CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
-CFLAGS+=	-I${.CURDIR}/../../include
 CFLAGS+=	-D__DBINTERFACE_PRIVATE
 CFLAGS+=	-DINET6
-CFLAGS+=	-I${.OBJDIR}/../../lib/libc
 CFLAGS+=	-DPOSIX_MISTAKE
 CFLAGS+=	-I${.CURDIR}/../../lib/libc/locale
 CFLAGS+=	-DBROKEN_DES
