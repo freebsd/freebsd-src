@@ -30,7 +30,6 @@ options 	MD_ROOT			#MD is a potential root device
 #options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
 #options	DEVFS			#Device Filesystem
 #options 	PROCFS			#Process filesystem
-#options 	USERCONFIG		#boot -c editor
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 
 options		DDB

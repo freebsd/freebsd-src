@@ -19,15 +19,11 @@ maxusers	10
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 #options		NFS			#Network Filesystem
-options		MFS			#Memory Filesystem
 options		MD_ROOT			#MFS as root
 #options		MSDOSFS			#MSDOS Filesystem
 #options		CD9660			#ISO 9660 Filesystem
 #options		PROCFS			#Process filesystem
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options		USERCONFIG		#boot -c editor
-#options		USERCONFIG_BOOT		#imply -c and parse info area
-#options		VISUAL_USERCONFIG	#visual boot -c editor
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT
