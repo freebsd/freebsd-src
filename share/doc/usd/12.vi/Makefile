@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.3 1995/07/30 08:04:50 bde Exp $
+#	$Id: Makefile,v 1.4 1996/11/01 07:57:07 peter Exp $
 
 VOLUME=	usd/12.vi
 SRCS=	vi.in vi.chars
@@ -11,11 +11,11 @@ USE_TBL=	yes
 .include <bsd.doc.mk>
 
 .if !defined(NODOCCOMPRESS)
-SFILE=	summary.${PRINTER}.gz
-VFILE=	viapwh.${PRINTER}.gz
+SFILE=	summary.${PRINTERDEVICE}.gz
+VFILE=	viapwh.${PRINTERDEVICE}.gz
 .else
-SFILE=	summary.${PRINTER}
-VFILE=	viapwh.${PRINTER}
+SFILE=	summary.${PRINTERDEVICE}
+VFILE=	viapwh.${PRINTERDEVICE}
 .endif
 
 all:	${DFILE} ${SFILE} ${VFILE}
