@@ -238,15 +238,12 @@ i386_linux_syscall_exit(int pid, int syscall) {
       }
     }
   }
-  print_syscall(outfile, lsc.name, lsc.nargs, lsc.s_args);
   if (errorp) {
     for (i = 0; i < sizeof(bsd_to_linux_errno) / sizeof(int); i++)
       if (retval == bsd_to_linux_errno[i])
       break;
-    fprintf(outfile, "errno %d '%s'\n", retval, strerror(i));
-  } else {
-    fprintf(outfile, "returns %d (0x%x)\n", retval, retval);
   }
+  print_syscall_ret(outfile, lsc.name, lsc.nargs, lsc.s_args, errorp, i);
   clear_lsc();
   return;
 }
