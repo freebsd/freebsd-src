@@ -190,6 +190,27 @@ movefd:
 			close(f);
 		}
 		break;
+	case NFROMTO:
+		fname = redir->nfile.expfname;
+#ifdef O_CREAT
+		if ((f = open(fname, O_RDWR|O_CREAT, 0666)) < 0)
+			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+#else
+		if ((f = open(fname, O_RDWR, 0666)) < 0) {
+			if (errno != ENOENT)
+				error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			else if ((f = creat(fname, 0666)) < 0)
+				error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			else {
+				close(f);
+				if ((f = open(fname, O_RDWR)) < 0) {
+					error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+					remove(fname);
+				}
+			}
+		}
+#endif
+		goto movefd;
 	case NTO:
 		fname = redir->nfile.expfname;
 #ifdef O_CREAT
