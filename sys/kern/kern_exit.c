@@ -657,17 +657,17 @@ loop:
 				mtx_unlock(&Giant);
 				return (0);
 			}
-			/*
-			 * Remove other references to this process to ensure
-			 * we have an exclusive reference.
-			 */
-			leavepgrp(p);
 
 			sx_xlock(&allproc_lock);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
 			sx_xunlock(&allproc_lock);
 
 			LIST_REMOVE(p, p_sibling);
+			/*
+			 * Remove other references to this process to ensure
+			 * we have an exclusive reference.
+			 */
+			leavepgrp(p);
 			sx_xunlock(&proctree_lock);
 
 			/*
