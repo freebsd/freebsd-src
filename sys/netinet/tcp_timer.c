@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.7.4.2 1996/04/15 03:49:53 davidg Exp $
+ * $Id: tcp_timer.c,v 1.7.4.3 1996/06/04 23:34:06 jdp Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -59,6 +59,9 @@
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPDEBUG
+#include <netinet/tcp_debug.h>
+#endif
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
@@ -102,6 +105,9 @@ tcp_slowtimo()
 	register struct tcpcb *tp;
 	register int i;
 	int s;
+#ifdef TCPDEBUG
+	int ostate;
+#endif
 
 	s = splnet();
 
@@ -122,10 +128,19 @@ tcp_slowtimo()
 			continue;
 		for (i = 0; i < TCPT_NTIMERS; i++) {
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
-				if (tcp_usrreq(tp->t_inpcb->inp_socket,
-				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0) == NULL)
+#ifdef TCPDEBUG
+				ostate = tp->t_state;
+#endif
+				tp = tcp_timers(tp, i);
+				if (tp == NULL)
 					goto tpgone;
+#ifdef TCPDEBUG
+				if (tp->t_inpcb->inp_socket->so_options
+				    & SO_DEBUG)
+					tcp_trace(TA_USER, ostate, tp,
+						  (struct tcpiphdr *)0,
+						  PRU_SLOWTIMO);
+#endif
 			}
 		}
 		tp->t_idle++;
