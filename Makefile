@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.73 1996/01/30 05:22:00 nate Exp $
+#	$Id: Makefile,v 1.74 1996/01/30 05:46:35 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -317,8 +317,6 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/des && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/eBones/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
