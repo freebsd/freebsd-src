@@ -63,8 +63,9 @@ static const char rcsid[] =
 #define YPPROC_DOMAIN_NONACK ((u_long) 2)
 #define MOUNTPROC_MNT	((u_long) 1)
 
-static void logit();
-static void toggle_verboselog();
+static void logit(int, struct sockaddr_in *, u_long, u_long, const char *);
+static void toggle_verboselog(int);
+
 int     verboselog = 0;
 int     allow_severity = LOG_INFO;
 int     deny_severity = LOG_WARNING;
@@ -93,7 +94,8 @@ int     deny_severity = LOG_WARNING;
 
 /* check_startup - additional startup code */
 
-void    check_startup()
+void
+check_startup()
 {
 
     /*
@@ -110,10 +112,7 @@ void    check_startup()
 /* check_default - additional checks for NULL, DUMP, GETPORT and unknown */
 
 int
-check_default(addr, proc, prog)
-struct sockaddr_in *addr;
-u_long  proc;
-u_long  prog;
+check_default(struct sockaddr_in *addr, u_long proc, u_long prog)
 {
 #ifdef HOSTS_ACCESS
     if (!(from_local(addr) || good_client(addr))) {
@@ -129,11 +128,8 @@ u_long  prog;
 /* check_privileged_port - additional checks for privileged-port updates */
 
 int
-check_privileged_port(addr, proc, prog, port)
-struct sockaddr_in *addr;
-u_long  proc;
-u_long  prog;
-u_long  port;
+check_privileged_port(struct sockaddr_in *addr, u_long proc, u_long prog,
+	u_long port)
 {
 #ifdef CHECK_PORT
     if (!legal_port(addr, port)) {
@@ -147,11 +143,7 @@ u_long  port;
 /* check_setunset - additional checks for update requests */
 
 int
-check_setunset(addr, proc, prog, port)
-struct sockaddr_in *addr;
-u_long  proc;
-u_long  prog;
-u_long  port;
+check_setunset(struct sockaddr_in *addr, u_long proc, u_long prog, u_long port)
 {
     if (!from_local(addr)) {
 #ifdef HOSTS_ACCESS
@@ -170,11 +162,7 @@ u_long  port;
 /* check_callit - additional checks for forwarded requests */
 
 int
-check_callit(addr, proc, prog, aproc)
-struct sockaddr_in *addr;
-u_long  proc;
-u_long  prog;
-u_long  aproc;
+check_callit(struct sockaddr_in *addr, u_long proc, u_long prog, u_long aproc)
 {
 #ifdef HOSTS_ACCESS
     if (!(from_local(addr) || good_client(addr))) {
@@ -195,8 +183,8 @@ u_long  aproc;
 
 /* toggle_verboselog - toggle verbose logging flag */
 
-static void toggle_verboselog(sig)
-int     sig;
+static void
+toggle_verboselog(int sig)
 {
     (void) signal(sig, toggle_verboselog);
     verboselog = !verboselog;
@@ -204,21 +192,18 @@ int     sig;
 
 /* logit - report events of interest via the syslog daemon */
 
-static void logit(severity, addr, procnum, prognum, text)
-int     severity;
-struct sockaddr_in *addr;
-u_long  procnum;
-u_long  prognum;
-char   *text;
+static void
+logit(int severity, struct sockaddr_in *addr, u_long procnum, u_long prognum,
+    const char *text)
 {
-    char   *procname;
+    const char *procname;
     char    procbuf[4 * sizeof(u_long)];
-    char   *progname;
+    const char *progname;
     char    progbuf[4 * sizeof(u_long)];
     struct rpcent *rpc;
     struct proc_map {
 	u_long  code;
-	char   *proc;
+	const char *proc;
     };
     struct proc_map *procp;
     static struct proc_map procmap[] = {
@@ -245,15 +230,18 @@ char   *text;
 	} else if ((rpc = getrpcbynumber((int) prognum))) {
 	    progname = rpc->r_name;
 	} else {
-	    sprintf(progname = progbuf, "%lu", prognum);
+	    sprintf(progbuf, "%lu", prognum);
+	    progname = progbuf;
 	}
 
 	/* Try to map procedure number to name. */
 
 	for (procp = procmap; procp->proc && procp->code != procnum; procp++)
 	     /* void */ ;
-	if ((procname = procp->proc) == 0)
-	    sprintf(procname = procbuf, "%lu", (u_long) procnum);
+	if ((procname = procp->proc) == 0) {
+	    sprintf(procbuf, "%lu", (u_long) procnum);
+	    procname = procbuf;
+	}
 
 	/* Write syslog record. */
 

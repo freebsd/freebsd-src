@@ -25,12 +25,10 @@ static const char rcsid[] =
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 
-static char *protoname();
+static const char *protoname(u_long);
 
 int
-main(argc, argv)
-int     argc;
-char  **argv;
+main(int argc, char **argv)
 {
     struct sockaddr_in addr;
     register struct pmaplist *list;
@@ -51,8 +49,8 @@ char  **argv;
     return (fclose(stdout) ? (perror(argv[0]), 1) : 0);
 }
 
-static char *protoname(proto)
-u_long  proto;
+static const char *
+protoname(u_long proto)
 {
     static char buf[BUFSIZ];
 
