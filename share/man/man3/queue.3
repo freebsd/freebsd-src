@@ -738,6 +738,8 @@ traverses the tail queue referenced by
 .Fa head
 in the forward direction, assigning each element in turn to
 .Fa var .
+.Fa Var 
+is set to NULL if the loop completes normally, or if there were no elements.
 .Pp
 The macro
 .Nm TAILQ_FOREACH_REVERSE
