@@ -1,3 +1,4 @@
+/*	$OpenBSD: mailwrapper.c,v 1.6 1999/12/17 05:06:28 mickey Exp $	*/
 /*	$NetBSD: mailwrapper.c,v 1.3 1999/05/29 18:18:15 christos Exp $	*/
 /* $FreeBSD$ */
 
@@ -38,6 +39,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <syslog.h>
+#include <stdarg.h>
 
 #include "pathnames.h"
 
@@ -70,11 +73,20 @@ addarg(al, arg, copy)
 	const char *arg;
 	int copy;
 {
+	char **argv2;
+
 	if (al->argc == al->maxc) {
-	    al->maxc <<= 1;
-	    if ((al->argv = realloc(al->argv,
-		al->maxc * sizeof(char *))) == NULL)
-		    err(1, "mailwrapper");
+		al->maxc <<= 1;
+
+		if ((argv2 = realloc(al->argv,
+		    al->maxc * sizeof(char *))) == NULL) {
+			if (al->argv)
+				free(al->argv);
+			al->argv = NULL;
+			err(1, "mailwrapper");
+		} else {
+			al->argv = argv2;
+		}
 	}
 	if (copy) {
 		if ((al->argv[al->argc++] = strdup(arg)) == NULL)
@@ -110,8 +122,18 @@ main(argc, argv, envp)
 	for (len = 0; len < argc; len++)
 		addarg(&al, argv[len], 0);
 
-	if ((config = fopen(_PATH_MAILERCONF, "r")) == NULL)
-		err(1, "mailwrapper: can't open %s", _PATH_MAILERCONF);
+	if ((config = fopen(_PATH_MAILERCONF, "r")) == NULL) {
+		addarg(&al, NULL, 0);
+		openlog("mailwrapper", LOG_PID, LOG_MAIL);
+		syslog(LOG_INFO, "can't open %s, using %s as default MTA",
+		    _PATH_MAILERCONF, _PATH_DEFAULTMTA);
+		closelog();
+		execve(_PATH_DEFAULTMTA, al.argv, envp);
+		freearg(&al, 0);
+		free(line);
+		err(1, "mailwrapper: execing %s", _PATH_DEFAULTMTA);
+		/*NOTREACHED*/
+	}
 
 	for (;;) {
 		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL) {
@@ -152,12 +174,11 @@ main(argc, argv, envp)
 
 	(void)fclose(config);
 
-	al.argv[al.argc] = NULL;
+	addarg(&al, NULL, 0);
 	execve(to, al.argv, envp);
-	warn("mailwrapper: execing %s", to);
 	freearg(&al, 0);
 	free(line);
-	exit(1);
+	err(1, "mailwrapper: execing %s", to);
 	/*NOTREACHED*/
 parse_error:
 	freearg(&al, 0);
