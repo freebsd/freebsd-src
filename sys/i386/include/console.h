@@ -14,7 +14,7 @@
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
  *	from:@(#)console.h	1.1 940105
- *	$Id: console.h,v 1.5 1993/10/28 06:11:38 rgrimes Exp $
+ *	$Id: console.h,v 1.6 1994/02/01 06:18:43 nate Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -47,6 +47,8 @@
 #define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
 
 #define CONS_BLANKTIME	_IOW('c', 4, long)
+#define CONS_SSAVER	_IOW('c', 5, ssaver_t)
+#define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
@@ -161,6 +163,14 @@ struct vid_info {
 	u_char	mk_keylock;
 };
 
+#define MAXSSAVER	16
+
+struct ssaver	{
+	char	name[MAXSSAVER];
+	int	num;
+	long	time;
+};
+
 typedef struct keymap keymap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
@@ -170,6 +180,7 @@ typedef struct {char scrmap[256];} scrmap_t;
 typedef struct {char fnt8x8[8*256];} fnt8_t;
 typedef struct {char fnt8x14[14*256];} fnt14_t;
 typedef struct {char fnt8x16[16*256];} fnt16_t;
+typedef struct ssaver ssaver_t;
 
 /* defines for "special" keys (spcl bit set in keymap) */
 #define NOP		0x00		/* nothing (dead key)		*/
