@@ -90,7 +90,7 @@ ipx_pcbbind(ipxp, nam, td)
 		int tport = sipx->sipx_port;
 
 		sipx->sipx_port = 0;		/* yech... */
-		if (ifa_ifwithaddr((struct sockaddr *)sipx) == 0)
+		if (ifa_ifwithaddr((struct sockaddr *)sipx) == NULL)
 			return (EADDRNOTAVAIL);
 		sipx->sipx_port = tport;
 	}
@@ -270,7 +270,7 @@ ipx_pcbdetach(ipxp)
 
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
-	so->so_pcb = 0;
+	so->so_pcb = NULL;
 	sotryfree(so);
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		RTFREE(ipxp->ipxp_route.ro_rt);
@@ -369,7 +369,7 @@ ipx_pcblookup(faddr, lport, wildp)
 	u_short lport;
 	int wildp;
 {
-	register struct ipxpcb *ipxp, *match = 0;
+	register struct ipxpcb *ipxp, *match = NULL;
 	int matchwild = 3, wildcard;
 	u_short fport;
 
