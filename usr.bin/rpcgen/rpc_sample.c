@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 
-#pragma ident	"@(#)rpc_sample.c	1.9	94/04/25 SMI" 
+/* #pragma ident	"@(#)rpc_sample.c	1.9	94/04/25 SMI" */
 
 /*
  * rpc_sample.c, Sample client-server code outputter for the RPC protocol compiler
