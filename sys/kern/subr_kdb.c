@@ -104,8 +104,11 @@ kdb_sysctl_current(SYSCTL_HANDLER_ARGS)
 	struct kdb_dbbe *be, **iter;
 	int error;
 
-	strncpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
-	buf[sizeof(buf) - 1] = '\0';
+	if (kdb_dbbe != NULL) {
+		strncpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
+		buf[sizeof(buf) - 1] = '\0';
+	} else
+		*buf = '\0';
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
