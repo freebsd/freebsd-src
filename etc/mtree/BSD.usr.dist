@@ -62,6 +62,10 @@
                 ..
                 I18N
                 ..
+                IO
+                    Socket
+                    ..
+                ..
                 IPC
                 ..
                 Math
@@ -89,13 +93,19 @@
                 User
                 ..
                 auto
+                    DB_File
+                    ..
                     File
                         Glob
                         ..
                     ..
+                    GDBM_File
+                    ..
                     Getopt
                         Long
                         ..
+                    ..
+                    POSIX
                     ..
                 ..
                 mach
