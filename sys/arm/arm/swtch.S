@@ -205,7 +205,7 @@ ENTRY(cpu_throw)
 	ldr	r6, .Lcurpcb
 	str	r7, [r6]
 
-	ldmfd	sp, {r4-r7, pc}
+	ldmfd	sp!, {r4-r7, pc}
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
