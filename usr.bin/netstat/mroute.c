@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mroute.c	8.1 (Berkeley) 6/6/93
+ *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
  */
 
 /*
