@@ -69,7 +69,7 @@
 #include <ddb/ddb.h>
 #endif
 
-static int unaligned_fixup(struct trapframe *framep, struct thread *td);
+extern int unaligned_fixup(struct trapframe *framep, struct thread *td);
 
 #ifdef WITNESS
 extern char *syscallnames[];
@@ -689,79 +689,4 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 #endif
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
-}
-
-extern int	ia64_unaligned_print, ia64_unaligned_fix;
-extern int	ia64_unaligned_sigbus;
-
-static int
-unaligned_fixup(struct trapframe *framep, struct thread *td)
-{
-	vm_offset_t va = framep->tf_cr_ifa;
-	int doprint, dofix, dosigbus;
-	int signal, size = 0;
-	unsigned long uac;
-	struct proc *p;
-
-	/*
-	 * Figure out what actions to take.
-	 */
-
-	if (td) {
-		uac = td->td_md.md_flags & MDP_UAC_MASK;
-		p = td->td_proc;
-	} else {
-		uac = 0;
-		p = NULL;
-	}
-
-	doprint = ia64_unaligned_print && !(uac & MDP_UAC_NOPRINT);
-	dofix = ia64_unaligned_fix && !(uac & MDP_UAC_NOFIX);
-	dosigbus = ia64_unaligned_sigbus | (uac & MDP_UAC_SIGBUS);
-
-	/*
-	 * See if the user can access the memory in question.
-	 * Even if it's an unknown opcode, SEGV if the access
-	 * should have failed.
-	 */
-	if (!useracc((caddr_t)va, size ? size : 1, VM_PROT_WRITE)) {
-		signal = SIGSEGV;
-		goto out;
-	}
-
-	/*
-	 * If we're supposed to be noisy, squawk now.
-	 */
-	if (doprint) {
-		uprintf("pid %d (%s): unaligned access: va=0x%lx pc=0x%lx\n",
-			p->p_pid, p->p_comm, va, td->td_frame->tf_cr_iip);
-	}
-
-	/*
-	 * If we should try to fix it and know how, give it a shot.
-	 *
-	 * We never allow bad data to be unknowingly used by the
-	 * user process.  That is, if we decide not to fix up an
-	 * access we cause a SIGBUS rather than letting the user
-	 * process go on without warning.
-	 *
-	 * If we're trying to do a fixup, we assume that things
-	 * will be botched.  If everything works out OK, 
-	 * unaligned_{load,store}_* clears the signal flag.
-	 */
-	signal = SIGBUS;
-	if (dofix && size != 0) {
-		/*
-		 * XXX not done yet.
-		 */
-	} 
-
-	/*
-	 * Force SIGBUS if requested.
-	 */
-	if (dosigbus)
-		signal = SIGBUS;
-
-out:
-	return (signal);
 }
