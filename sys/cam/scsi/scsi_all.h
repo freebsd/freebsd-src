@@ -477,7 +477,12 @@ struct scsi_start_stop_unit
 #define T_REMOV		1
 #define	T_FIXED		0
 
-
+/*
+ * This length is the initial inquiry length used by the probe code, as    
+ * well as the legnth necessary for scsi_print_inquiry() to function 
+ * correctly.  If either use requires a different length in the future, 
+ * the two values should be de-coupled.
+ */
 #define	SHORT_INQUIRY_LENGTH	36
 
 struct scsi_inquiry_data

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -645,12 +645,45 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	}
 	bzero(inq_buf, sizeof(*inq_buf));
 
+	/*
+	 * Note that although the size of the inquiry buffer is the full
+	 * 256 bytes specified in the SCSI spec, we only tell the device
+	 * that we have allocated SHORT_INQUIRY_LENGTH bytes.  There are
+	 * two reasons for this:
+	 *
+	 *  - The SCSI spec says that when a length field is only 1 byte,
+	 *    a value of 0 will be interpreted as 256.  Therefore
+	 *    scsi_inquiry() will convert an inq_len (which is passed in as
+	 *    a u_int32_t, but the field in the CDB is only 1 byte) of 256
+	 *    to 0.  Evidently, very few devices meet the spec in that
+	 *    regard.  Some devices, like many Seagate disks, take the 0 as 
+	 *    0, and don't return any data.  One Pioneer DVD-R drive
+	 *    returns more data than the command asked for.
+	 *
+	 *    So, since there are numerous devices that just don't work
+	 *    right with the full inquiry size, we don't send the full size.
+	 * 
+	 *  - The second reason not to use the full inquiry data length is
+	 *    that we don't need it here.  The only reason we issue a
+	 *    standard inquiry is to get the vendor name, device name,
+	 *    and revision so scsi_print_inquiry() can print them.
+	 *
+	 * If, at some point in the future, more inquiry data is needed for
+	 * some reason, this code should use a procedure similar to the
+	 * probe code.  i.e., issue a short inquiry, and determine from
+	 * the additional length passed back from the device how much
+	 * inquiry data the device supports.  Once the amount the device
+	 * supports is determined, issue an inquiry for that amount and no
+	 * more.
+	 *
+	 * KDM, 2/18/2000
+	 */
 	scsi_inquiry(&ccb->csio,
 		     /* retries */ retry_count,
 		     /* cbfcnp */ NULL,
 		     /* tag_action */ MSG_SIMPLE_Q_TAG,
 		     /* inq_buf */ (u_int8_t *)inq_buf,
-		     /* inq_len */ sizeof(struct scsi_inquiry_data),
+		     /* inq_len */ SHORT_INQUIRY_LENGTH,
 		     /* evpd */ 0,
 		     /* page_code */ 0,
 		     /* sense_len */ SSD_FULL_SIZE,
