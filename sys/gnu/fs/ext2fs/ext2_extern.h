@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
+ * $FreeBSD$
  */
 
 #ifndef _SYS_GNU_EXT2FS_EXT2_EXTERN_H_
@@ -78,6 +79,7 @@ int	ext2_dirempty __P((struct inode *, ino_t, struct ucred *));
 int	ext2_checkpath __P((struct inode *, struct inode *, struct ucred *));
 struct  ext2_group_desc * get_group_desc __P((struct mount * , 
 		unsigned int , struct buf ** ));
+int	ext2_group_sparse __P((int group));
 void	ext2_discard_prealloc __P((struct inode *));
 int	ext2_inactive __P((struct vop_inactive_args *));
 int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
