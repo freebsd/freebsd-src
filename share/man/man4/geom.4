@@ -126,10 +126,10 @@ A geom with attached consumers has a rank one higher than the
 highest rank of the geoms of the providers its consumers are
 attached to.
 .El
-.Sh "SPECIAL TOPOLOGICAL MANEUVRES"
+.Sh "SPECIAL TOPOLOGICAL MANEUVERS"
 In addition to the straightforward attach, which attaches a consumer
-to a provider, and dettach, which breaks the bond, a number of special
-toplogical maneuvres exists to facilitate configuration and to
+to a provider, and detach, which breaks the bond, a number of special
+topological maneuvers exists to facilitate configuration and to
 improve the overall flexibility.
 .Pp
 .Em TASTING
@@ -174,7 +174,7 @@ not loose quorum.
 When a provider is orphaned, this does not result in any immediate
 change in the topology, any attached consumers are still attached,
 any opened paths are still open, it is the responsibility of the
-geoms above to close and dettach as soon as this can happen.
+geoms above to close and detach as soon as this can happen.
 .Pp
 The typical scenario is that a device driver notices a disk has
 gone and orphans the provider for it.
@@ -184,11 +184,11 @@ Providers, which are not attached, are destroyed right away.
 Eventually at the toplevel the geom which interfaces
 to the DEVFS received an orphan event on its consumer and it
 calls destroy_dev(9) and does an explicit close if the
-device was open and then dettaches its consumer.
+device was open and then detaches its consumer.
 The provider below is now no longer attached to and can be
-destroyed, if the geom has no more providers it can dettach
+destroyed, if the geom has no more providers it can detach
 its consumer and selfdestruct and so the carnage passes back
-down the tree, until the original provider is dettached from
+down the tree, until the original provider is detached from
 and it can be destroyed by the geom serving the device driver.
 .Pp
 While this approach seems byzantine, it does provide the maximum
@@ -265,7 +265,7 @@ represented by struct bio, originate at a consumer,
 are scheduled on its attached provider, and when processed, returned
 to the consumer.
 It is important to realize that the struct bio which
-enters throuh the provider of a particular geom does not "come
+enters through the provider of a particular geom does not "come
 out on the other side".
 Even simple transformations like MBR and BSD will clone the
 struct bio, modify the clone, and schedule the clone on their

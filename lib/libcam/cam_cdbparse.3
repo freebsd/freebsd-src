@@ -233,17 +233,17 @@ typedef enum {
      CAM_MSG_BUF_PHYS      = 0x00080000,/* Message buffer ptr is physical*/
      CAM_SNS_BUF_PHYS      = 0x00100000,/* Autosense data ptr is physical*/
      CAM_DATA_PHYS         = 0x00200000,/* SG/Buffer data ptrs are phys. */
-     CAM_CDB_PHYS          = 0x00400000,/* CDB poiner is physical	 */
+     CAM_CDB_PHYS          = 0x00400000,/* CDB pointer is physical	 */
      CAM_ENG_SGLIST        = 0x00800000,/* SG list is for the HBA engine */
 
 /* Phase cognizant mode flags */
-     CAM_DIS_AUTOSRP       = 0x01000000,/* Diable autosave/restore ptrs	*/
-     CAM_DIS_AUTODISC      = 0x02000000,/* Disable auto disconnect	*/
-     CAM_TGT_CCB_AVAIL     = 0x04000000,/* Target CCB available		*/
-     CAM_TGT_PHASE_MODE    = 0x08000000,/* The SIM runs in phase mode	*/
-     CAM_MSGB_VALID        = 0x20000000,/* Message buffer valid		*/
-     CAM_STATUS_VALID      = 0x40000000,/* Status buffer valid		*/
-     CAM_DATAB_VALID       = 0x80000000,/* Data buffer valid		*/
+     CAM_DIS_AUTOSRP       = 0x01000000,/* Disable autosave/restore ptrs */
+     CAM_DIS_AUTODISC      = 0x02000000,/* Disable auto disconnect	 */
+     CAM_TGT_CCB_AVAIL     = 0x04000000,/* Target CCB available		 */
+     CAM_TGT_PHASE_MODE    = 0x08000000,/* The SIM runs in phase mode	 */
+     CAM_MSGB_VALID        = 0x20000000,/* Message buffer valid		 */
+     CAM_STATUS_VALID      = 0x40000000,/* Status buffer valid		 */
+     CAM_DATAB_VALID       = 0x80000000,/* Data buffer valid		 */
 
 /* Host target Mode flags */
      CAM_TERM_IO           = 0x20000000,/* Terminate I/O Message sup.    */
@@ -427,7 +427,7 @@ used as the seek value.
 operates like
 .Fn csio_decode
 except that instead of placing the decoded contents of the buffer in
-varardic arguments, the decoded buffer contents are returned to the user
+variadic arguments, the decoded buffer contents are returned to the user
 via the
 .Fn arg_put
 function that is passed in.
