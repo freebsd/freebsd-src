@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.13 1998/10/14 05:07:23 peter Exp $
+ *	$Id: bootinfo.c,v 1.14 1998/10/15 17:06:36 peter Exp $
  */
 
 #include <stand.h>
@@ -249,9 +249,7 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	printf("can't determine root device\n");
 	return(EINVAL);
     }
-    
-    /* Boot from whatever the current device is */
-    i386_getdev((void **)(&rootdev), NULL, NULL);
+
     switch(rootdev->d_type) {
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */
