@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.h,v 1.2 1995/09/05 23:52:00 gibbs Exp $
+ *      $Id: 93cx6.h,v 1.1.2.3 1996/06/08 07:10:44 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -30,7 +30,8 @@
 
 struct seeprom_descriptor {
 #if defined(__FreeBSD__)
-	u_long sd_iobase;
+	u_int32_t sd_iobase;
+	volatile u_int8_t *sd_maddr;
 #elif defined(__NetBSD__)
 	bus_chipset_tag_t sd_bc;
 	bus_io_handle_t sd_ioh;
@@ -61,8 +62,15 @@ struct seeprom_descriptor {
  */
 
 #if defined(__FreeBSD__)
-#define	SEEPROM_INB(sd)		inb(sd->sd_iobase)
-#define	SEEPROM_OUTB(sd, value)	outb(sd->sd_iobase, value)
+#define	SEEPROM_INB(sd)				\
+	(((sd)->sd_maddr != NULL) ?		\
+		*((sd)->sd_maddr) :		\
+		inb((sd)->sd_iobase))
+#define	SEEPROM_OUTB(sd, value)			\
+	(((sd)->sd_maddr != NULL) ?		\
+		*((sd)->sd_maddr) = (value) :	\
+		outb((sd)->sd_iobase, (value)))
+
 #elif defined(__NetBSD__)
 #define	SEEPROM_INB(sd) \
 	bus_io_read_1(sd->sd_bc, sd->sd_ioh, sd->sd_offset)
@@ -72,7 +80,7 @@ struct seeprom_descriptor {
 
 #if defined(__FreeBSD__)
 int read_seeprom __P((struct seeprom_descriptor *sd,
-    u_int16_t *buf, u_int start_addr, int count));
+    u_int16_t *buf, u_int start_addr, u_int count));
 #elif defined(__NetBSD__)
 int read_seeprom __P((struct seeprom_descriptor *sd,
     u_int16_t *buf, bus_io_size_t start_addr, bus_io_size_t count));
