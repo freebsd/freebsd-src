@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.53 1999/02/07 23:49:56 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.54 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include "opt_rlimit.h"
@@ -69,7 +69,7 @@
 __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
-static int elf_check_header __P((const Elf_Ehdr *hdr, int type));
+static int elf_check_header __P((const Elf_Ehdr *hdr));
 static int elf_freebsd_fixup __P((long **stack_base,
     struct image_params *imgp));
 static int elf_load_file __P((struct proc *p, char *file, u_long *addr,
@@ -165,7 +165,7 @@ elf_brand_inuse(Elf_Brandinfo *entry)
 }
 
 static int
-elf_check_header(const Elf_Ehdr *hdr, int type)
+elf_check_header(const Elf_Ehdr *hdr)
 {
 	if (!IS_ELF(*hdr) ||
 	    hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
@@ -176,7 +176,7 @@ elf_check_header(const Elf_Ehdr *hdr, int type)
 	if (!ELF_MACHINE_OK(hdr->e_machine))
 		return ENOEXEC;
 
-	if (hdr->e_type != type || hdr->e_version != ELF_TARG_VER)
+	if (hdr->e_version != ELF_TARG_VER)
 		return ENOEXEC;
 	
 	return 0;
@@ -295,6 +295,18 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	return error;
 }
 
+/*
+ * Load the file "file" into memory.  It may be either a shared object
+ * or an executable.
+ *
+ * The "addr" reference parameter is in/out.  On entry, it specifies
+ * the address where a shared object should be loaded.  If the file is
+ * an executable, this value is ignored.  On exit, "addr" specifies
+ * where the file was actually loaded.
+ *
+ * The "entry" reference parameter is out only.  On exit, it specifies
+ * the entry point for the loaded file.
+ */
 static int
 elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 {
@@ -305,9 +317,9 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	struct vattr attr;
 	struct image_params image_params, *imgp;
 	vm_prot_t prot;
-	unsigned long text_size = 0, data_size = 0;
-	unsigned long text_addr = 0, data_addr = 0;
-        int error, i;
+	u_long rbase;
+	u_long base_addr = 0;
+	int error, i, numsegs;
 
 	imgp = &image_params;
 	/*
@@ -349,8 +361,16 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
                 goto fail;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
-	if ((error = elf_check_header(hdr, ET_DYN)) != 0)
+	if ((error = elf_check_header(hdr)) != 0)
 		goto fail;
+	if (hdr->e_type == ET_DYN)
+		rbase = *addr;
+	else if (hdr->e_type == ET_EXEC)
+		rbase = 0;
+	else {
+		error = ENOEXEC;
+		goto fail;
+	}
 
 	/* Only support headers that fit within first page for now */
 	if ((hdr->e_phoff > PAGE_SIZE) ||
@@ -361,7 +381,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
-	for (i = 0; i < hdr->e_phnum; i++) {
+	for (i = 0, numsegs = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_LOAD) {	/* Loadable segment */
 			prot = 0;
 			if (phdr[i].p_flags & PF_X)
@@ -374,31 +394,21 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 			if ((error = elf_load_section(p, vmspace, nd.ni_vp,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr +
-							(*addr),
+							rbase,
   						     phdr[i].p_memsz,
   						     phdr[i].p_filesz, prot)) != 0)
 				goto fail;
-
 			/*
-			 * Is this .text or .data ??
-			 *
-			 * We only handle one each of those yet XXX
+			 * Establish the base address if this is the
+			 * first segment.
 			 */
-			if (hdr->e_entry >= phdr[i].p_vaddr &&
-			hdr->e_entry <(phdr[i].p_vaddr+phdr[i].p_memsz)) {
-  				text_addr = trunc_page(phdr[i].p_vaddr+(*addr));
-  				text_size = round_page(phdr[i].p_memsz +
-						       phdr[i].p_vaddr -
-						       trunc_page(phdr[i].p_vaddr));
-				*entry=(unsigned long)hdr->e_entry+(*addr);
-			} else {
-  				data_addr = trunc_page(phdr[i].p_vaddr+(*addr));
-  				data_size = round_page(phdr[i].p_memsz +
-						       phdr[i].p_vaddr -
-						       trunc_page(phdr[i].p_vaddr));
-			}
+			if (numsegs == 0)
+  				base_addr = trunc_page(phdr[i].p_vaddr + rbase);
+			numsegs++;
 		}
 	}
+	*addr = base_addr;
+	*entry=(unsigned long)hdr->e_entry + rbase;
 
 fail:
 	if (imgp->firstpage)
@@ -437,7 +447,7 @@ exec_elf_imgact(struct image_params *imgp)
 	/*
 	 * Do we have a valid ELF header ?
 	 */
-	if (elf_check_header(hdr, ET_EXEC))
+	if (elf_check_header(hdr) != 0 || hdr->e_type != ET_EXEC)
 		return -1;
 
 	/*
