@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,9 +47,11 @@ static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
 #include <ufs/ufs/dinode.h>
 #include <ufs/lfs/lfs.h>
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "clean.h"
+
+u_long cksum __P((void *, size_t));
 
 /*
  * Print out a summary block; return number of blocks in segment; 0

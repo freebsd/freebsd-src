@@ -32,49 +32,20 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
-extern char *special;
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const int fatal, const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "%s: ", special);
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	if (errno)
-		(void)fprintf(stderr, " %s", strerror(errno));
-	(void)fprintf(stderr, "\n");
-	if (fatal)
-		exit(1);
-}
+#include <unistd.h>
 
 void
 get(fd, off, p, len)
@@ -86,9 +57,9 @@ get(fd, off, p, len)
 	int rbytes;
 
 	if (lseek(fd, off, SEEK_SET) < 0)
-		err(1, "%s: %s", special, strerror(errno));
+		err(1, NULL);
 	if ((rbytes = read(fd, p, len)) < 0)
-		err(1, "%s: %s", special, strerror(errno));
+		err(1, NULL);
 	if (rbytes != len)
-		err(1, "%s: short read (%d, not %d)", special, rbytes, len);
+		errx(1, "short read (%d, not %d)", rbytes, len);
 }
