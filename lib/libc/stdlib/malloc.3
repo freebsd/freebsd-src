@@ -265,7 +265,7 @@ _malloc_options = "X";
 .Sh ENVIRONMENT
 The following environment variables affect the execution of the allocation
 functions:
-.Bl -tag -width MMM
+.Bl -tag -width ".Ev MALLOC_OPTIONS"
 .It Ev MALLOC_OPTIONS
 If the environment variable
 .Ev MALLOC_OPTIONS
@@ -389,58 +389,54 @@ this function will assure death of the process.
 The following is a brief description of possible error messages and
 their meanings:
 .Pp
-.Bl -tag -width indent
-.It "(ES): mumble mumble mumble
+.Bl -diag
+.It "(ES): mumble mumble mumble"
 The allocation functions were compiled with
 .Dq EXTRA_SANITY
 defined, and an error was found during the additional error checking.
 Consult the source code for further information.
-.It Xo
-.Xr mmap 2
-failed, check limits
-.Xc
+.It "mmap(2) failed, check limits"
 This most likely means that the system is dangerously overloaded or that
 the process' limits are incorrectly specified.
-.It "freelist is destroyed
+.It "freelist is destroyed"
 The internal free-list has been corrupted.
+.It "out of memory"
+The
+.Dq X
+option was specified and an allocation of memory failed.
 .El
 .Pp
-.Bl -tag -width indent
 The following is a brief description of possible warning messages and
 their meanings:
-.Pp
-.It "chunk/page is already free
+.Bl -diag
+.It "chunk/page is already free"
 The process attempted to
 .Fn free
 memory which had already been freed.
-.It "junk pointer ...
+.It "junk pointer, ..."
 A pointer specified to one of the allocation functions points outside the
 bounds of the memory of which they are aware.
-.It "malloc() has never been called
+.It "malloc() has never been called"
 No memory has been allocated,
 yet something is being freed or
 realloc'ed.
-.It "modified (chunk-/page-) pointer
+.It "modified (chunk-/page-) pointer"
 The pointer passed to
 .Fn free
 or
 .Fn realloc
 has been modified.
-.It "pointer to wrong page
+.It "pointer to wrong page"
 The pointer that
 .Fn malloc
 or
 .Fn calloc
 is trying to free does not reference a possible page.
-.It "recursive call
+.It "recursive call"
 A process has attempted to call an allocation function recursively.
 This is not permitted.  In particular, signal handlers should not
 attempt to allocate memory.
-.It "out of memory
-The
-.Dq X
-option was specified and an allocation of memory failed.
-.It "unknown char in MALLOC_OPTIONS
+.It "unknown char in MALLOC_OPTIONS"
 An unknown option was specified.
 Even with the
 .Dq A
