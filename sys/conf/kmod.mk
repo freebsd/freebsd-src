@@ -131,7 +131,7 @@ PROG=	${KMOD}.ko
 
 ${PROG}: ${KMOD}.kld
 .if ${OBJFORMAT} == elf
-	perl5 @/kern/gensetdefs.pl ${KMOD}.kld
+	gensetdefs ${KMOD}.kld
 	${CC} ${CFLAGS} -c setdef0.c
 	${CC} ${CFLAGS} -c setdef1.c
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${KMOD}.kld setdef1.o
