@@ -61,7 +61,8 @@ static char *
 shquote(argv)
 	char **argv;
 {
-	long arg_max;
+	static long arg_max = -1;
+	long len;
 	char **p, *dst, *src;
 	static char *buf = NULL;
 
@@ -80,13 +81,16 @@ shquote(argv)
 	for (p = argv; (src = *p++) != 0; ) {
 		if (*src == 0)
 			continue;
-		strvis(dst, src, VIS_NL | VIS_CSTYLE);
+		len = (4 * arg_max - (dst - buf)) / 4;
+		strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
+		    VIS_NL | VIS_CSTYLE);
 		while (*dst)
 			dst++;
-		*dst++ = ' ';
+		if ((4 * arg_max - (dst - buf)) / 4 > 0)
+			*dst++ = ' ';
 	}
 	/* Chop off trailing space */
-	if (dst != buf)
+	if (dst != buf && dst[-1] == ' ')
 		dst--;
 	*dst = '\0';
 	return (buf);
