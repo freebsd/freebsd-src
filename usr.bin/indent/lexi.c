@@ -234,14 +234,18 @@ lexi(void)
 	}
 	ps.its_a_keyword = false;
 	ps.sizeof_keyword = false;
-	if (l_struct) {		/* if last token was 'struct', then this token
+	if (l_struct && !ps.p_l_follow) {
+				/* if last token was 'struct' and we're not
+				 * in parentheses, then this token
 				 * should be treated as a declaration */
 	    l_struct = false;
 	    last_code = ident;
 	    ps.last_u_d = true;
 	    return (decl);
 	}
-	ps.last_u_d = false;	/* Operator after identifier is binary */
+	ps.last_u_d = l_struct;	/* Operator after identifier is binary
+				 * unless last token was 'struct' */
+	l_struct = false;
 	last_code = ident;	/* Remember that this is the code we will
 				 * return */
 
@@ -273,18 +277,17 @@ lexi(void)
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
-		if (ps.p_l_follow)
-		    break;	/* inside parens: cast */
-		l_struct = true;
-
 		/*
 		 * Next time around, we will want to know that we have had a
 		 * 'struct'
 		 */
+		l_struct = true;
+		/* FALLTHROUGH */
+
 	    case 4:		/* one of the declaration keywords */
 		if (ps.p_l_follow) {
-		    ps.cast_mask |= 1 << ps.p_l_follow;
-		    break;	/* inside parens: cast */
+		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.sizeof_mask;
+		    break;	/* inside parens: cast, param list or sizeof */
 		}
 		last_code = decl;
 		return (decl);
