@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.21 1997/06/22 02:19:52 brian Exp $ */
+/* $Id: ppp_tty.c,v 1.22 1997/08/19 14:10:47 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -383,7 +383,7 @@ pppread(tp, uio, flag)
 	    splx(s);
 	    return (EWOULDBLOCK);
 	}
-	error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH, "ttyin", 0);
+	error = ttysleep(tp, TSA_HUP_OR_INPUT(tp), TTIPRI | PCATCH, "pppin", 0);
 	if (error) {
 	    splx(s);
 	    return error;
@@ -597,6 +597,7 @@ pppasyncstart(sc)
     int s;
 
     idle = 0;
+    /* XXX assumes atomic access to *tp although we're not at spltty(). */
     while (CCOUNT(&tp->t_outq) < PPP_HIWAT) {
 	/*
 	 * See if we have an existing packet partly sent.
@@ -618,6 +619,7 @@ pppasyncstart(sc)
 	     * will flush any accumulated garbage.  We do this whenever
 	     * the line may have been idle for some time.
 	     */
+	    /* XXX as above. */
 	    if (CCOUNT(&tp->t_outq) == 0) {
 		++sc->sc_stats.ppp_obytes;
 		(void) putc(PPP_FLAG, &tp->t_outq);
@@ -625,7 +627,7 @@ pppasyncstart(sc)
 
 	    /* Calculate the FCS for the first mbuf's worth. */
 	    sc->sc_outfcs = pppfcs(PPP_INITFCS, mtod(m, u_char *), m->m_len);
-	    sc->sc_if.if_lastchange = time;
+	    gettime(&sc->sc_if.if_lastchange);
 	}
 
 	for (;;) {
@@ -795,7 +797,7 @@ pppstart(tp)
     register struct ppp_softc *sc = (struct ppp_softc *) tp->t_sc;
 
     /*
-     * If there is stuff in the output queue, send it now.
+     * Call output process whether or not there is any output.
      * We are being called in lieu of ttstart and must do what it would.
      */
     if (tp->t_oproc != NULL)
