@@ -149,7 +149,7 @@ struct hifn_softc {
 
 	u_int32_t		sc_dmaier;
 	u_int32_t		sc_drammodel;	/* 1=dram, 0=sram */
-
+	u_int32_t		sc_pllconfig;	/* 7954/7955/7956 PLL config */
 
 	struct hifn_dma		*sc_dma;
 	bus_dmamap_t		sc_dmamap;

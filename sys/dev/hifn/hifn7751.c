@@ -249,6 +249,84 @@ default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
 }
 
+static u_int
+checkmaxmin(device_t dev, const char *what, u_int v, u_int min, u_int max)
+{
+	if (v > max) {
+		device_printf(dev, "Warning, %s %u out of range, "
+			"using max %u\n", what, v, max);
+		v = max;
+	} else if (v < min) {
+		device_printf(dev, "Warning, %s %u out of range, "
+			"using min %u\n", what, v, min);
+		v = min;
+	}
+	return v;
+}
+
+/*
+ * Select PLL configuration for 795x parts.  This is complicated in
+ * that we cannot determine the optimal parameters without user input.
+ * The reference clock is derived from an external clock through a
+ * multiplier.  The external clock is either the host bus (i.e. PCI)
+ * or an external clock generator.  When using the PCI bus we assume
+ * the clock is either 33 or 66 MHz; for an external source we cannot
+ * tell the speed.
+ *
+ * PLL configuration is done with a string: "pci" for PCI bus, or "ext"
+ * for an external source, followed by the frequency.  We calculate
+ * the appropriate multiplier and PLL register contents accordingly.
+ * When no configuration is given we default to "pci66" since that
+ * always will allow the card to work.  If a card is using the PCI
+ * bus clock and in a 33MHz slot then it will be operating at half
+ * speed until the correct information is provided.
+ */
+static void
+hifn_getpllconfig(device_t dev, u_int *pll)
+{
+	const char *pllspec;
+	u_int freq, mul, fl, fh;
+	u_int32_t pllconfig;
+	char *nxt;
+
+	if (resource_string_value("hifn", device_get_unit(dev),
+	    "pllconfig", &pllspec))
+		pllspec = "pci66";
+	fl = 33, fh = 66;
+	pllconfig = 0;
+	if (strncmp(pllspec, "ext", 3) == 0) {
+		pllspec += 3;
+		pllconfig |= HIFN_PLL_REF_SEL;
+		switch (pci_get_device(dev)) {
+		case PCI_PRODUCT_HIFN_7955:
+		case PCI_PRODUCT_HIFN_7956:
+			fl = 20, fh = 100;
+			break;
+#ifdef notyet
+		case PCI_PRODUCT_HIFN_7954:
+			fl = 20, fh = 66;
+			break;
+#endif
+		}
+	} else if (strncmp(pllspec, "pci", 3) == 0)
+		pllspec += 3;
+	freq = strtoul(pllspec, &nxt, 10);
+	if (nxt == pllspec)
+		freq = 66;
+	else
+		freq = checkmaxmin(dev, "frequency", freq, fl, fh);
+	/*
+	 * Calculate multiplier.  We target a Fck of 266 MHz,
+	 * allowing only even values, possibly rounded down.
+	 * Multipliers > 8 must set the charge pump current.
+	 */
+	mul = checkmaxmin(dev, "PLL divisor", (266 / freq) &~ 1, 2, 12);
+	pllconfig |= (mul / 2 - 1) << HIFN_PLL_ND_SHIFT;
+	if (mul > 8)
+		pllconfig |= HIFN_PLL_IS;
+	*pll = pllconfig;
+}
+
 /*
  * Attach an interface that successfully probed.
  */
@@ -292,8 +370,15 @@ hifn_attach(device_t dev)
 	 */
 	if (pci_get_vendor(dev) == PCI_VENDOR_HIFN &&
 	    (pci_get_device(dev) == PCI_PRODUCT_HIFN_7955 ||
-	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7956))
+	     pci_get_device(dev) == PCI_PRODUCT_HIFN_7956)) {
 		sc->sc_flags |= HIFN_IS_7956 | HIFN_HAS_AES;
+		/*
+		 * Select PLL configuration.  This depends on the
+		 * bus and board design and must be manually configured
+		 * if the default setting is unacceptable.
+		 */
+		hifn_getpllconfig(dev, &sc->sc_pllconfig);
+	}
 
 	/*
 	 * Configure support for memory-mapped access to
@@ -465,9 +550,15 @@ hifn_attach(device_t dev)
 		rbase = 'M';
 		rseg /= 1024;
 	}
-	device_printf(sc->sc_dev, "%s, rev %u, %d%cB %cram\n",
+	device_printf(sc->sc_dev, "%s, rev %u, %d%cB %cram",
 		hifn_partname(sc), rev,
 		rseg, rbase, sc->sc_drammodel ? 'd' : 's');
+	if (sc->sc_flags & HIFN_IS_7956)
+		printf(", pll=0x%x<%s clk, %ux mult>",
+			sc->sc_pllconfig,
+			sc->sc_pllconfig & HIFN_PLL_REF_SEL ? "ext" : "pci",
+			2 + 2*((sc->sc_pllconfig & HIFN_PLL_ND) >> 11));
+	printf("\n");
 
 	sc->sc_cid = crypto_get_driverid(0);
 	if (sc->sc_cid < 0) {
@@ -1089,10 +1180,28 @@ hifn_init_pci_registers(struct hifn_softc *sc)
 
 
 	if (sc->sc_flags & HIFN_IS_7956) {
+		u_int32_t pll;
+
 		WRITE_REG_0(sc, HIFN_0_PUCNFG, HIFN_PUCNFG_COMPSING |
 		    HIFN_PUCNFG_TCALLPHASES |
 		    HIFN_PUCNFG_TCDRVTOTEM | HIFN_PUCNFG_BUS32);
-		WRITE_REG_1(sc, HIFN_1_PLL, HIFN_PLL_7956);
+
+		/* turn off the clocks and insure bypass is set */
+		pll = READ_REG_1(sc, HIFN_1_PLL);
+		pll = (pll &~ (HIFN_PLL_PK_CLK_SEL | HIFN_PLL_PE_CLK_SEL))
+		    | HIFN_PLL_BP;
+		WRITE_REG_1(sc, HIFN_1_PLL, pll);
+		DELAY(10*1000);		/* 10ms */
+		/* change configuration */
+		pll = (pll &~ HIFN_PLL_CONFIG) | sc->sc_pllconfig;
+		WRITE_REG_1(sc, HIFN_1_PLL, pll);
+		DELAY(10*1000);		/* 10ms */
+		/* disable bypass */
+		pll &= ~HIFN_PLL_BP;
+		WRITE_REG_1(sc, HIFN_1_PLL, pll);
+		/* enable clocks with new configuration */
+		pll |= HIFN_PLL_PK_CLK_SEL | HIFN_PLL_PE_CLK_SEL;
+		WRITE_REG_1(sc, HIFN_1_PLL, pll);
 	} else {
 		WRITE_REG_0(sc, HIFN_0_PUCNFG, HIFN_PUCNFG_COMPSING |
 		    HIFN_PUCNFG_DRFR_128 | HIFN_PUCNFG_TCALLPHASES |
