@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
 #include <sys/time.h>
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <errno.h>
 #include <netdb.h>
@@ -57,9 +58,22 @@ static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <syslog.h>
+#include <netdb.h>
 
 /*VARARGS1*/
 int error();
+
+char	username[20] = "USER=";
+char	homedir[64] = "HOME=";
+char	shell[64] = "SHELL=";
+char	path[sizeof(_PATH_DEFPATH) + sizeof("PATH=")] = "PATH=";
+char	*envinit[] =
+	    {homedir, shell, path, username, 0};
+char	**environ;
+char	*remote;
+
+struct	sockaddr_in asin = { AF_INET };
 
 /*
  * remote execute server:
@@ -75,30 +89,29 @@ main(argc, argv)
 {
 	struct sockaddr_in from;
 	int fromlen;
+	struct hostent *hp;
 
+	openlog(argv[0], LOG_PID, LOG_AUTH);
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		(void)fprintf(stderr,
 		    "rexecd: getpeername: %s\n", strerror(errno));
 		exit(1);
 	}
+
+	hp = gethostbyaddr((char *) &from.sin_addr, sizeof(from.sin_addr),
+			   from.sin_family);
+		remote = inet_ntoa(from.sin_addr);
+	remote = (hp != NULL) ? hp->h_name : inet_ntoa(from.sin_addr);
+
 	doit(0, &from);
 }
-
-char	username[20] = "USER=";
-char	homedir[64] = "HOME=";
-char	shell[64] = "SHELL=";
-char	path[sizeof(_PATH_DEFPATH) + sizeof("PATH=")] = "PATH=";
-char	*envinit[] =
-	    {homedir, shell, path, username, 0};
-char	**environ;
-
-struct	sockaddr_in asin = { AF_INET };
 
 doit(f, fromp)
 	int f;
 	struct sockaddr_in *fromp;
 {
+	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp, *namep;
 #ifdef SKEY
 	char *skey_crypt();
@@ -168,10 +181,35 @@ doit(f, fromp)
 		namep = crypt(pass, pwd->pw_passwd);
 #endif /* SKEY */
 		if (strcmp(namep, pwd->pw_passwd)) {
-			error("Password incorrect.\n");
+			syslog(LOG_ERR, "LOGIN FAILURE from %s, %s",
+			       remote, user);
+			error("Login incorrect.\n");
 			exit(1);
 		}
 	}
+	
+	if (pwd->pw_uid == 0 || *pwd->pw_passwd == '\0') {
+		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
+		error("Login incorrect.\n");
+		exit(1);
+	}
+
+	if ((fp = fopen(_PATH_FTPUSERS, "r")) != NULL) {
+		while (fgets(buf, sizeof(buf), fp) != NULL) {
+			if ((cp = index(buf, '\n')) != NULL)
+				*cp = '\0';
+			if (strcmp(buf, pwd->pw_name) == 0) {
+				syslog(LOG_ERR, "%s LOGIN REFUSED from %s",
+				       user, remote);
+				error("Login incorrect.\n");
+				exit(1);
+			}
+		}
+	}
+	(void) fclose(fp);
+
+	syslog(LOG_INFO, "login from %s as %s", remote, user);
+
 	if (chdir(pwd->pw_dir) < 0) {
 		error("No remote directory.\n");
 		exit(1);
