@@ -393,13 +393,12 @@ static void
 amd_action(struct cam_sim * psim, union ccb * pccb)
 {
 	struct amd_softc *    amd;
-	u_int   target_id, target_lun;
+	u_int   target_id;
 
 	CAM_DEBUG(pccb->ccb_h.path, CAM_DEBUG_TRACE, ("amd_action\n"));
 
 	amd = (struct amd_softc *) cam_sim_softc(psim);
 	target_id = pccb->ccb_h.target_id;
-	target_lun = pccb->ccb_h.target_lun;
 
 	switch (pccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
@@ -535,6 +534,7 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 	case XPT_TERM_IO:
 		pccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(pccb);
+		/* XXX: intentional fall-through ?? */
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts;
@@ -927,7 +927,6 @@ amdstart(struct amd_softc *amd, struct amd_srb *pSRB)
 	u_int command;
 	u_int target;
 	u_int lun;
-	int tagged;
 
 	pccb = pSRB->pccb;
 	pcsio = &pccb->csio;
@@ -952,7 +951,6 @@ amdstart(struct amd_softc *amd, struct amd_srb *pSRB)
 		identify_msg |= MSG_IDENTIFY_DISCFLAG;
 
 	amd_write8(amd, SCSIFIFOREG, identify_msg);
-	tagged = 0;
 	if ((targ_info->disc_tag & AMD_CUR_TAGENB) == 0
 	  || (identify_msg & MSG_IDENTIFY_DISCFLAG) == 0)
 		pccb->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
@@ -966,7 +964,6 @@ amdstart(struct amd_softc *amd, struct amd_srb *pSRB)
 		pSRB->SRBState = SRB_START;
 		amd_write8(amd, SCSIFIFOREG, pcsio->tag_action);
 		amd_write8(amd, SCSIFIFOREG, pSRB->TagNumber);
-		tagged++;
 	} else {
 		command = SEL_W_ATN;
 		pSRB->SRBState = SRB_START;
@@ -1213,7 +1210,6 @@ amd_MsgInPhase0(struct amd_softc *amd, struct amd_srb *pSRB, u_int scsistat)
 static int
 amdparsemsg(struct amd_softc *amd)
 {
-	struct	amd_target_info *targ_info;
 	int	reject;
 	int	done;
 	int	response;
@@ -1221,8 +1217,6 @@ amdparsemsg(struct amd_softc *amd)
 	done = FALSE;
 	response = FALSE;
 	reject = FALSE;
-
-	targ_info = &amd->tinfo[amd->cur_target];
 
 	/*
 	 * Parse as much of the message as is availible,
@@ -1877,12 +1871,9 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 	int	   intflag;
 	struct amd_sg *ptr2;
 	u_int32_t   swlval;
-	u_int   target_id, target_lun;
 
 	pccb = pSRB->pccb;
 	pcsio = &pccb->csio;
-	target_id = pSRB->pccb->ccb_h.target_id;
-	target_lun = pSRB->pccb->ccb_h.target_lun;
 
 	CAM_DEBUG(pccb->ccb_h.path, CAM_DEBUG_TRACE,
 		  ("SRBdone - TagNumber %d\n", pSRB->TagNumber));
