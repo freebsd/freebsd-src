@@ -68,6 +68,9 @@ section below):
 .Pp
 To enable DMA on an ATAPI device:
 .Cd options ATA_ENABLE_ATAPI_DMA
+.Pp
+To enable Tagged Queuing support (only IBM DPTA and DTLA drives support that)
+.Cd options ATA_ENABLE_TAGS
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
