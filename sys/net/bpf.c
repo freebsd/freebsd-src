@@ -40,7 +40,8 @@
  * $FreeBSD$
  */
 
-#include "bpf.h"
+#include "opt_bpf.h"
+#include "opt_netgraph.h"
 
 #ifndef __GNUC__
 #define inline
@@ -80,7 +81,7 @@
 
 static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
-#if NBPF > 0
+#if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
 /*
  * Older BSDs don't have kernel malloc.
@@ -1396,7 +1397,7 @@ bpf_drvinit(unused)
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
 
-#else /* !BPF */
+#else /* !DEV_BPF && !NETGRAPH_BPF */
 /*
  * NOP stubs to allow bpf-using drivers to load and function.
  *
@@ -1442,4 +1443,12 @@ bpf_filter(pc, p, wirelen, buflen)
 	return -1;	/* "no filter" behaviour */
 }
 
-#endif /* !BPF */
+int
+bpf_validate(f, len)
+	const struct bpf_insn *f;
+	int len;
+{
+	return 0;		/* false */
+}
+
+#endif /* !DEV_BPF && !NETGRAPH_BPF */

@@ -779,7 +779,10 @@ msdosfs/msdosfs_lookup.c	optional msdosfs
 msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		standard
-net/bpf_filter.c	count bpf
+net/bpf_filter.c	optional bpf
+bpf.h			standard			\
+	compile-with	"echo '#define NBPF 1' > bpf.h" \
+	no-obj no-implicit-rule before-depend
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard
