@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.48 1997/10/18 00:56:22 peter Exp $ */
+/* $Id: if_ppp.c,v 1.49 1997/10/18 01:20:23 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -80,13 +80,6 @@
 
 #define VJC
 #define PPP_COMPRESS
-
-#ifdef PPP_FILTER
-#include "bpfilter.h"
-#if NBPFILTER == 0
-#error "PPP_FILTER requires bpf"
-#endif
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -102,10 +95,6 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
-#ifdef PPP_FILTER
-#include <net/bpf.h>
-#endif
 
 #if INET
 #include <netinet/in.h>
@@ -124,14 +113,16 @@
 #include <net/bpf.h>
 #endif
 
+#if defined(PPP_FILTER) && NBPFILTER == 0
+#error "PPP_FILTER requires bpf"
+#endif
+
 #ifdef VJC
 #include <net/slcompress.h>
 #endif
 
-#include <net/ppp_defs.h>
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
-#include <machine/cpu.h>
 
 /* minimise diffs */
 #define splsoftnet	splnet
@@ -290,7 +281,7 @@ pppdealloc(sc)
 
     if_down(&sc->sc_if);
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
-    gettime(&sc->sc_if.if_lastchange);
+    microtime(&sc->sc_if.if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
     for (;;) {
