@@ -169,5 +169,6 @@ static moduledata_t bktr_mem_mod = {
         bktr_mem_modevent,
         0
 };
-DECLARE_MODULE(bktr_mem, bktr_mem_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+/* The load order is First so bktr_mem loads (and initialises) before bktr */
+DECLARE_MODULE(bktr_mem, bktr_mem_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
 MODULE_VERSION(bktr_mem, 1);
