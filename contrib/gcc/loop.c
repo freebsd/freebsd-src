@@ -1,5 +1,6 @@
 /* Perform various loop optimizations, including strength reduction.
-   Copyright (C) 1987, 88, 89, 91-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996,
+   1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -919,6 +920,7 @@ scan_loop (loop_start, end, loop_cont, unroll_p, bct_p)
 		  && VARRAY_INT (set_in_loop, regno) == 1
 		  && ! side_effects_p (SET_SRC (set))
 		  && ! find_reg_note (p, REG_RETVAL, NULL_RTX)
+		  && ! find_reg_note (p, REG_LABEL, NULL_RTX)
 		  && (! SMALL_REGISTER_CLASSES
 		      || (! (GET_CODE (SET_SRC (set)) == REG
 			     && REGNO (SET_SRC (set)) < FIRST_PSEUDO_REGISTER)))
