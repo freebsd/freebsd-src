@@ -495,7 +495,8 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
+	MALLOC(priv, priv_p, sizeof(*priv),
+	    M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -507,7 +508,7 @@ ng_ksocket_constructor(node_p node)
 
 /*
  * Give our OK for a hook to be added. The hook name is of the
- * form "<family>:<type>:<proto>" where the three components may
+ * form "<family>/<type>/<proto>" where the three components may
  * be decimal numbers or else aliases from the above lists.
  *
  * Connecting a hook amounts to opening the socket.  Disconnecting
@@ -824,7 +825,8 @@ static int
 ng_ksocket_disconnect(hook_p hook)
 {
 	KASSERT(NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0,
-	    ("%s: numhooks=%d?", __FUNCTION__, NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook))));
+	    ("%s: numhooks=%d?", __FUNCTION__,
+	    NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook))));
 	if (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
