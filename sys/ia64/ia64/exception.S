@@ -58,7 +58,7 @@
  *	p11	interrupts were enabled
  *	p10	interrupts were disabled
  */
-ENTRY(exception_save, 0)
+ENTRY_NOPROFILE(exception_save, 0)
 {	.mii
 	mov		r20=ar.unat
 	extr.u		r31=sp,61,3
@@ -358,7 +358,7 @@ END(exception_save)
  * Arguments:
  *	sp+16	trapframe pointer
  */
-ENTRY(exception_restore, 0)
+ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	rsm		psr.i
 	add		sp=16,sp
