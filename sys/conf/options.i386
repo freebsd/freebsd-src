@@ -169,6 +169,7 @@ ASUSCOM_IPAC		opt_i4b.h
 ELSA_QS1ISA		opt_i4b.h
 SIEMENS_ISURF2		opt_i4b.h
 EICON_DIVA		opt_i4b.h
+COMPAQ_M610		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive PCI cards
 # -------------------------------
