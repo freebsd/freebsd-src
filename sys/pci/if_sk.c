@@ -1376,7 +1376,7 @@ sk_detach_xmac(dev)
 	sc = device_get_softc(device_get_parent(dev));
 	sc_if = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc_if->sk_softc->sk_mtx),
-	    "sk mutex not initialized in sk_detach_xmac");
+	    ("sk mutex not initialized in sk_detach_xmac"));
 	SK_IF_LOCK(sc_if);
 
 	ifp = &sc_if->arpcom.ac_if;
@@ -1405,7 +1405,7 @@ sk_detach(dev)
 	struct sk_softc		*sc;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->sk_mtx), "sk mutex not initialized");
+	KASSERT(mtx_initialized(&sc->sk_mtx), ("sk mutex not initialized"));
 	SK_LOCK(sc);
 
 	if (device_is_alive(dev)) {
