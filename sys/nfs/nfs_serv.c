@@ -1693,8 +1693,6 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			nfsm_dissect(cp, caddr_t, NFSX_V3CREATEVERF);
 			bcopy(cp, cverf, NFSX_V3CREATEVERF);
 			exclusive_flag = 1;
-			if (nd.ni_vp == NULL)
-				vap->va_mode = 0;
 			break;
 		};
 		vap->va_type = VREG;
@@ -1729,6 +1727,8 @@ nfsrv_create(nfsd, slp, procp, mrq)
 	 * nd.ni_vp will also be non-NULL in that case.
 	 */
 	if (nd.ni_vp == NULL) {
+		if (vap->va_mode == (mode_t)VNOVAL)
+			vap->va_mode = 0;
 		if (vap->va_type == VREG || vap->va_type == VSOCK) {
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
@@ -1952,6 +1952,8 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		goto out;
 	}
 	vap->va_type = vtyp;
+	if (vap->va_mode == (mode_t)VNOVAL)
+		vap->va_mode = 0;
 	if (vtyp == VSOCK) {
 		vrele(nd.ni_startdir);
 		nd.ni_startdir = NULL;
@@ -2551,7 +2553,7 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	nfsm_mtouio(&io, len2);
 	if (!v3) {
 		nfsm_dissect(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
-		vap->va_mode = fxdr_unsigned(u_int16_t, sp->sa_mode);
+		vap->va_mode = nfstov_mode(sp->sa_mode);
 	}
 	*(pathcp + len2) = '\0';
 	if (nd.ni_vp) {
@@ -2563,6 +2565,8 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	 * issue symlink op.  SAVESTART is set so the underlying path component
 	 * is only freed by the VOP if an error occurs.
 	 */
+	if (vap->va_mode == (mode_t)VNOVAL)
+		vap->va_mode = 0;
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
 	if (error)
@@ -2739,6 +2743,8 @@ nfsrv_mkdir(nfsd, slp, procp, mrq)
 	 * component is freed by the VOP call.  This will fill-in
 	 * nd.ni_vp, reference, and exclusively lock it.
 	 */
+	if (vap->va_mode == (mode_t)VNOVAL)
+		vap->va_mode = 0;
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
