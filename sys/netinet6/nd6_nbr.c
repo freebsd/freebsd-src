@@ -1086,9 +1086,9 @@ nd6_dad_start(ifa, tick)
 		int ntick;
 
 		if (*tick == 0)
-			ntick = random() % (MAX_RTR_SOLICITATION_DELAY * hz);
+			ntick = arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz);
 		else
-			ntick = *tick + random() % (hz / 2);
+			ntick = *tick + arc4random() % (hz / 2);
 		*tick = ntick;
 		nd6_dad_starttimer(dp, ntick);
 	}
