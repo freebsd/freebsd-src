@@ -356,7 +356,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	int didktr = 0;
 #endif
 
-	aiov.iov_base = (void *)buf;
+	aiov.iov_base = (void *)(uintptr_t)buf;
 	aiov.iov_len = nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
