@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.49 1996/11/07 08:03:29 jkh Exp $
+ * $Id: tcpip.c,v 1.50 1996/12/09 06:37:46 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -168,61 +168,6 @@ verifySettings(void)
     return 0;
 }
 
-int
-tcpInstallDevice(char *str)
-{
-    Device **devs;
-    Device *dp = NULL;
-    
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return DITEM_FAILURE;
-    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
-    if (devs && (dp = devs[0])) {
-	char temp[512], ifn[255];
-
-	if (!dp->private) {
-	    DevInfo *di;
-	    char *ipaddr, *netmask, *extras;
-
-	    di = dp->private = (DevInfo *)malloc(sizeof(DevInfo));
-
-	    if ((ipaddr = variable_get(string_concat3(VAR_IPADDR, "_", dp->name))) == NULL)
-		ipaddr = variable_get(VAR_IPADDR);
-
-	    if ((netmask = variable_get(string_concat3(VAR_NETMASK, "_", dp->name))) == NULL)
-	        netmask = variable_get(VAR_NETMASK);
-
-	    if ((extras = variable_get(string_concat3(VAR_EXTRAS, "_", dp->name))) == NULL)
-		extras = variable_get(VAR_EXTRAS);
-
-	    string_copy(di->ipaddr, ipaddr);
-	    string_copy(di->netmask, netmask);
-	    string_copy(di->extras, extras);
-
-	    if (ipaddr) {
-		char *ifaces;
-
-		sprintf(temp, "inet %s %s netmask %s", ipaddr, extras ? extras : "", netmask);
-		sprintf(ifn, "%s%s", VAR_IFCONFIG, dp->name);
-		variable_set2(ifn, temp);
-		ifaces = variable_get(VAR_INTERFACES);
-		if (!ifaces)
-		    variable_set2(VAR_INTERFACES, ifaces = "lo0");
-		/* Only add it if it's not there already */
-		if (!strstr(ifaces, dp->name)) {
-		    sprintf(ifn, "%s %s", dp->name, ifaces);
-		    variable_set2(VAR_INTERFACES, ifn);
-		}
-	    }
-	}
-	mediaDevice = dp;
-    }
-    return dp ? DITEM_SUCCESS : DITEM_FAILURE;
-}
-    
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
