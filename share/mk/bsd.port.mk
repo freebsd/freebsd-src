@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.218 1996/08/07 08:25:08 asami Exp $
+# $Id: bsd.port.mk,v 1.219 1996/08/15 05:55:33 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -177,6 +177,8 @@
 #				  IS_DEPENDED_TARGET=fetch" will fetch all the distfiles,
 #				  including those of dependencies, without actually building
 #				  any of them).
+# PATCH_DEBUG	- If set, print out more information about the patches as
+#				  it attempts to apply them.
 #
 # Variables that serve as convenient "aliases" for your *-install targets:
 #
@@ -296,9 +298,11 @@ PATCH?=			/usr/bin/patch
 PATCH_STRIP?=	-p0
 PATCH_DIST_STRIP?=	-p0
 .if defined(PATCH_DEBUG)
+PATCH_DEBUG_TMP=	yes
 PATCH_ARGS?=	-d ${WRKSRC} -E ${PATCH_STRIP}
 PATCH_DIST_ARGS?=	-d ${WRKSRC} -E ${PATCH_DIST_STRIP}
 .else
+PATCH_DEBUG_TMP=	no
 PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
 PATCH_DIST_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_DIST_STRIP}
 .endif
@@ -647,22 +651,11 @@ do-extract:
 do-patch:
 .if defined(PATCHFILES)
 	@${ECHO_MSG} "===>  Applying distribution patches for ${PKGNAME}"
-.if defined(PATCH_DEBUG)
 	@(cd ${DISTDIR}; \
 	  for i in ${PATCHFILES}; do \
-		${ECHO_MSG} "===>   Applying distribution patch $$i" ; \
-		case $$i in \
-			*.Z|*.gz) \
-				${GZCAT} $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
-				;; \
-			*) \
-				${PATCH} ${PATCH_DIST_ARGS} < $$i; \
-				;; \
-		esac; \
-	  done)
-.else
-	@(cd ${DISTDIR}; \
-	  for i in ${PATCHFILES}; do \
+		if [ ${PATCH_DEBUG_TMP} = yes ]; then \
+			${ECHO_MSG} "===>   Applying distribution patch $$i" ; \
+		fi; \
 		case $$i in \
 			*.Z|*.gz) \
 				${GZCAT} $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
@@ -673,37 +666,29 @@ do-patch:
 		esac; \
 	  done)
 .endif
-.endif
-.if defined(PATCH_DEBUG)
 	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do \
-			case $$i in \
-				*.orig|*~) \
-					${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
-					;; \
-				*) \
-					${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
-					${PATCH} ${PATCH_ARGS} < $$i; \
-					;; \
-			esac; \
-		done; \
+		if [ "`echo ${PATCHDIR}/patch-*`" = "${PATCHDIR}/patch-*" ]; then \
+			${ECHO_MSG} "===>   Ignoring empty patch directory"; \
+			if [ -d ${PATCHDIR}/CVS ]; then \
+				${ECHO_MSG} "===>   Perhaps you forgot the -P flag to cvs co or update?"; \
+			fi; \
+		else \
+			${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
+			for i in ${PATCHDIR}/patch-*; do \
+				case $$i in \
+					*.orig|*~) \
+						${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
+						;; \
+					*) \
+						if [ ${PATCH_DEBUG_TMP} = yes ]; then \
+							${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
+						fi; \
+						${PATCH} ${PATCH_ARGS} < $$i; \
+						;; \
+				esac; \
+			done; \
+		fi; \
 	fi
-.else
-	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do \
-			case $$i in \
-				*.orig|*~) \
-					${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
-					;; \
-				*) \
-					${PATCH} ${PATCH_ARGS} < $$i; \
-					;; \
-			esac; \
-		done;\
-	fi
-.endif
 .endif
 
 # Configure
