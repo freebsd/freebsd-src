@@ -138,6 +138,15 @@ Config_spec:
 		    errx(1, "%s:%d: only one machine directive is allowed",
 			yyfile, yyline);
 		machinename = $2;
+		machinearch = $2;
+	      } |
+	ARCH Save_id Save_id
+	    = {
+		if (machinename != NULL)
+		    errx(1, "%s:%d: only one machine directive is allowed",
+			yyfile, yyline);
+		machinename = $2;
+		machinearch = $3;
 	      } |
 	CPU Save_id
 	      = {
