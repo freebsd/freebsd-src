@@ -254,16 +254,13 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 		printf("fp_emulate: unhandled opcode = 0x%x, fun = 0x%x\n",ins.common.opcode,ins.f_format.function);
 		return 0;
 	}
+
 	/*
 	 * Dump the float registers into the pcb so we can get at
-	 * them.
+	 * them. We are potentially going to modify the fp state, so
+	 * cancel fpcurproc too.
 	 */
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-		fpcurproc = NULL;
-	}
+	alpha_fpstate_save(p, 1);
 
 	/*
 	 * Decode and execute the instruction.
