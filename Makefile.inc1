@@ -114,12 +114,46 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+CVSUP_COLLECTION_BASE?=	src-all
+CVSUP_BRANCH_BASE?=	.
+CVSUP_COLLECTION_PORTS?=ports-all
+CVSUP_BRANCH_PORTS?=	.
+CVSUP_COLLECTION_DOC?=	doc-all
+CVSUP_BRANCH_DOC?=	.
+CVSUP_COMPRESS?=	yes
+CVSUP_BASE?=		/usr
+CVSUP_PREFIX?=		/usr
+
+CVSUP_HOST?=		cvsup.freebsd.org
+
 CVS?=		cvs
 SUP?=		/usr/local/bin/cvsup
 SUPFLAGS?=	-g -L 2 -P -
 .if defined(SUPHOST)
 SUPFLAGS+=	-h ${SUPHOST}
 .endif
+.if defined(CVSUP_COMPRESS)
+SUPFLAGS+=	-z
+.else
+SUPFLAGS+=	-Z
+.endif
+.if !defined(CVSUP_HOST)
+	echo "Please set CVSUP_HOST to your nearest cvsup mirror."
+	exit
+.endif
+
+SUPFILE?=	/usr/share/examples/cvsup/standard-supfile
+SUPFILE1?=	/usr/share/examples/cvsup/secure-supfile
+SUPFILE2?=	/usr/share/examples/cvsup/secure-supfile
+PORTSSUPFILE?=	/usr/share/examples/cvsup/ports-supfile
+DOCSUPFILE?=	/usr/share/examples/cvsup/doc-supfile
+
+foo:
+	echo "*default base=${CVSUP_BASE}"
+	echo "*default prefix=${CVSUP_PREFIX}"
+	echo "*default release=cvs tag=${CVSUP_BRANCH_FOO}"
+	echo "*default delete use-rel-suffix"
+	echo "${CVSUP_COLLECTION_FOO}"
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
@@ -475,6 +509,8 @@ kernel: buildkernel installkernel
 # Update the source tree, by running sup and/or running cvs to update to the
 # latest copy.
 #
+SUP_UPDATE=1
+SUP=echo
 update:
 .if defined(SUP_UPDATE)
 	@echo "--------------------------------------------------------------"
@@ -706,6 +742,7 @@ includes:
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libusbhid;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
