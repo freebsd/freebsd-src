@@ -457,6 +457,8 @@ const char *skel[] = {
   "	register char *yy_cp, *yy_bp;",
   "	register int yy_act;",
   "",
+  " yy_cp = yy_bp = NULL;",
+  "",
   "%% user's declarations go here",
   "",
   "	if ( yy_init )",
