@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.20.2.2 1997/02/02 18:52:09 joerg Exp $
+ * $Id: if_fe.c,v 1.20.2.3 1997/10/30 00:38:19 nate Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -429,7 +429,7 @@ static struct fe_probe_list const fe_probe_list [] =
 {
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
-#if NCRD > 0
+#if NCARD > 0
 	{ fe_probe_mbh, NULL },  /* PCMCIAs cannot be auto-detected.  */
 	{ fe_probe_tdk, NULL },
 #endif
@@ -1199,7 +1199,7 @@ fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 	return 32;
 }
 
-#if NCRD > 0
+#if NCARD > 0
 	/*
  * Probe and initialization for Fujitsu MBH10302 PCMCIA Ethernet interface.
  * Note that this is for 10302 only; MBH10304 is handled by fe_probe_tdk().
