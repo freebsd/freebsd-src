@@ -547,9 +547,9 @@ main(argc, argv)
 #ifdef IPSEC_POLICY_IPSEC
 	if (options & F_POLICY) {
 		if (setpolicy(s, policy_in) < 0)
-			errx(1, ipsec_strerror());
+			errx(1, "%s", ipsec_strerror());
 		if (setpolicy(s, policy_out) < 0)
-			errx(1, ipsec_strerror());
+			errx(1, "%s", ipsec_strerror());
 	}
 #else
 	if (options & F_AUTHHDR) {
@@ -727,7 +727,7 @@ main(argc, argv)
 			struct addrinfo *iaip;
 
 			if ((error = getaddrinfo(argv[hops], NULL, &hints, &iaip)))
-				errx(1, gai_strerror(error));
+				errx(1, "%s", gai_strerror(error));
 			if (SIN6(res->ai_addr)->sin6_family != AF_INET6)
 				errx(1,
 				     "bad addr family of an intermediate addr");
@@ -1901,7 +1901,7 @@ setpolicy(so, policy)
 
 	buf = ipsec_set_policy(policy, strlen(policy));
 	if (buf == NULL)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 	if (setsockopt(s, IPPROTO_IPV6, IPV6_IPSEC_POLICY,
 			buf, ipsec_get_policylen(buf)) < 0)
 		warnx("Unable to set IPSec policy");
