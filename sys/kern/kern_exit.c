@@ -523,7 +523,6 @@ exit1(struct thread *td, int rv)
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
-	cpu_sched_exit(td); /* XXXKSE check if this should be in thread_exit */
 	/*
 	 * Allow the scheduler to adjust the priority of the
 	 * parent when a kseg is exiting.
