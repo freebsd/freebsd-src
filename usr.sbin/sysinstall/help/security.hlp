@@ -5,12 +5,6 @@ profiles:
 
                Extreme        Medium
                -------        ------
-nfs_server     NO             *
 sendmail       NO             YES
 sshd           NO             YES
 securelevel    YES (2)        NO
-
-
-NOTES:
-*  If the machine has been configured as an NFS server, NFS will only run
-   on a reserved port.
