@@ -35,12 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: job.c,v 1.7 1997/02/22 19:27:11 peter Exp $
  */
 
 #ifndef lint
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #endif /* not lint */
+
+#ifndef OLD_JOKE
+#define OLD_JOKE 0
+#endif /* OLD_JOKE */
 
 /*-
  * job.c --
@@ -1125,7 +1129,12 @@ Job_CheckCommands(gn, abortProc)
 		(void) fflush(stdout);
   		return FALSE;
 	    } else {
-		(*abortProc)("%s %s. Stop", msg, gn->name);
+#if OLD_JOKE
+		if (strcmp(gn->name,"love") == 0)
+		    (*abortProc)("Not war.");
+		else
+#endif
+		    (*abortProc)("%s %s. Stop", msg, gn->name);
 		return FALSE;
 	    }
 	}
