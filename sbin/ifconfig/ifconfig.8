@@ -48,6 +48,8 @@
 .Nm ifconfig
 .Ar interface
 .Op Ar protocol_family
+.Nm ifconfig
+.Ar -a
 .Sh DESCRIPTION
 .Nm Ifconfig
 is used to assign an address
@@ -258,6 +260,11 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
+.Pp
+.Nm Ifconfig
+.Ar -a
+displays information on all interfaces.  When followed by a configuration
+parameter, will also set the configuration on all interfaces.
 .Pp
 .Nm Ifconfig
 displays the current configuration for a network interface
