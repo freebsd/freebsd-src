@@ -180,6 +180,7 @@ static int pipe_direct_write(struct pipe *wpipe, struct uio *uio);
 static void pipe_clone_write_buffer(struct pipe *wpipe);
 #endif
 static int pipespace(struct pipe *cpipe, int size);
+static int pipespace_new(struct pipe *cpipe, int size);
 
 static void	pipe_zone_ctor(void *mem, int size, void *arg);
 static void	pipe_zone_dtor(void *mem, int size, void *arg);
@@ -383,7 +384,7 @@ pipe(td, uap)
  * If it fails it will return ENOMEM.
  */
 static int
-pipespace(cpipe, size)
+pipespace_new(cpipe, size)
 	struct pipe *cpipe;
 	int size;
 {
@@ -422,6 +423,23 @@ pipespace(cpipe, size)
 	cpipe->pipe_buffer.cnt = 0;
 	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
+}
+
+/*
+ * Wrapper for pipespace_new() that performs locking assertions.
+ */
+static int
+pipespace(cpipe, size)
+	struct pipe *cpipe;
+	int size;
+{
+
+	/*
+	 * XXXRW: Seems like we should really assert PIPE_LOCKFL on the
+	 * pipe_state here.
+	 */
+
+	return (pipespace_new(cpipe, size));
 }
 
 /*
@@ -488,9 +506,6 @@ pipe_create(pipe)
 {
 	int error;
 
-	PIPE_LOCK(pipe);
-	pipelock(pipe, 0);
-	PIPE_UNLOCK(pipe);
 	/*
 	 * Reduce to 1/4th pipe size if we're over our global max.
 	 */
@@ -498,13 +513,7 @@ pipe_create(pipe)
 		error = pipespace(pipe, SMALL_PIPE_SIZE);
 	else
 		error = pipespace(pipe, PIPE_SIZE);
-	PIPE_LOCK(pipe);
-	pipeunlock(pipe);
-	PIPE_UNLOCK(pipe);
-	if (error)
-		return (error);
-
-	return (0);
+	return (error);
 }
 
 /* ARGSUSED */
