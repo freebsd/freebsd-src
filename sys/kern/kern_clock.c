@@ -172,14 +172,14 @@ hardclock(frame)
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
 			mtx_lock_spin(&sched_lock);
 			p->p_sflag |= PS_ALRMPEND;
-			aston();
+			aston(p);
 			mtx_unlock_spin(&sched_lock);
 		}
 		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
 			mtx_lock_spin(&sched_lock);
 			p->p_sflag |= PS_PROFPEND;
-			aston();
+			aston(p);
 			mtx_unlock_spin(&sched_lock);
 		}
 	}

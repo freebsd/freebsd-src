@@ -396,21 +396,25 @@ sigonstack(size_t sp)
 } while (0)
 
 /*
- * Notify the current process (p) that it has a signal pending,
- * process as soon as possible.
+ * Schedule an Asynchronous System Trap (AST) on return to user mode.
  */
-#define	aston()		signotify(CURPROC)
-#define	signotify(p) do {						\
+#define	aston(p) do {							\
 	mtx_assert(&sched_lock, MA_OWNED);				\
 	(p)->p_sflag |= PS_ASTPENDING;					\
 } while (0)
 
-#define	astpending()	(curproc->p_sflag & PS_ASTPENDING)
+#define	astpending(p)	((p)->p_sflag & PS_ASTPENDING)
 
-#define astoff() do {							\
+#define astoff(p) do {							\
 	mtx_assert(&sched_lock, MA_OWNED);				\
-	CURPROC->p_sflag &= ~PS_ASTPENDING;				\
+	(p)->p_sflag &= ~PS_ASTPENDING;					\
 } while (0)
+
+/*
+ * Notify the current process (p) that it has a signal pending,
+ * process as soon as possible.
+ */
+#define	signotify(p)	aston(p)
 
 /* Handy macro to determine if p1 can mangle p2. */
 #define	PRISON_CHECK(p1, p2) \

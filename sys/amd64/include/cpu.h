@@ -79,7 +79,7 @@
 #define	need_proftick(p) do {						\
 	mtx_lock_spin(&sched_lock);					\
 	(p)->p_sflag |= PS_OWEUPC;					\
-	aston();							\
+	aston(p);							\
 	mtx_unlock_spin(&sched_lock);					\
 } while (0)
 
