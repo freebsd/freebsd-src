@@ -507,10 +507,11 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		if (g_raid3_clear_metadata(disk) != 0) {
 			gctl_error(req, "Cannot clear metadata on %s.",
 			    g_raid3_get_diskname(disk));
-			sc->sc_bump_syncid = G_RAID3_BUMP_IMMEDIATELY;
+		} else {
+			g_raid3_event_send(disk,
+			    G_RAID3_DISK_STATE_DISCONNECTED,
+			    G_RAID3_EVENT_WAIT);
 		}
-		g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
-		    G_RAID3_EVENT_WAIT);
 		break;
 	case G_RAID3_DISK_STATE_NODISK:
 		break;

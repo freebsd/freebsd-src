@@ -40,8 +40,9 @@
  * 0 - Initial version number.
  * 1 - Added 'round-robin reading' algorithm.
  * 2 - Added 'verify reading' algorithm.
+ * 3 - Added md_genid field to metadata.
  */
-#define	G_RAID3_VERSION		2
+#define	G_RAID3_VERSION		3
 
 #define	G_RAID3_DISK_FLAG_DIRTY		0x0000000000000001ULL
 #define	G_RAID3_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
@@ -136,6 +137,7 @@ struct g_raid3_disk {
 	struct g_raid3_softc *d_softc;	/* Back-pointer to softc. */
 	int		 d_state;	/* Disk state. */
 	uint64_t	 d_flags;	/* Additional flags. */
+	u_int		 d_genid;	/* Disk's generation ID. */
 	struct g_raid3_disk_sync d_sync; /* Sync information. */
 	LIST_ENTRY(g_raid3_disk) d_next;
 };
@@ -160,8 +162,15 @@ struct g_raid3_event {
 #define	G_RAID3_DEVICE_STATE_DEGRADED		1
 #define	G_RAID3_DEVICE_STATE_COMPLETE		2
 
-#define	G_RAID3_BUMP_ON_FIRST_WRITE		1
-#define	G_RAID3_BUMP_IMMEDIATELY		2
+/* Bump syncid on first write. */
+#define	G_RAID3_BUMP_SYNCID_OFW	0x1
+/* Bump syncid immediately. */
+#define	G_RAID3_BUMP_SYNCID_IMM	0x2
+#define	G_RAID3_BUMP_SYNCID	(G_RAID3_BUMP_SYNCID_OFW | \
+				 G_RAID3_BUMP_SYNCID_IMM)
+/* Bump genid immediately. */
+#define	G_RAID3_BUMP_GENID_IMM	0x4
+#define	G_RAID3_BUMP_GENID	(G_RAID3_BUMP_GENID_IMM)
 
 struct g_raid3_softc {
 	u_int		sc_state;	/* Device state. */
@@ -187,9 +196,11 @@ struct g_raid3_softc {
 	uma_zone_t	sc_zone_16k;
 	uma_zone_t	sc_zone_4k;
 
+	u_int		sc_genid;	/* Generation ID. */
 	u_int		sc_syncid;	/* Synchronization ID. */
-	int		sc_bump_syncid;
+	int		sc_bump_id;
 	struct g_raid3_device_sync sc_sync;
+	int		sc_idle;	/* DIRTY flags removed. */
 
 	TAILQ_HEAD(, g_raid3_event) sc_events;
 	struct mtx	sc_events_mtx;
@@ -218,6 +229,7 @@ struct g_raid3_metadata {
 	uint32_t	md_id;		/* Device unique ID. */
 	uint16_t	md_no;		/* Component number. */
 	uint16_t	md_all;		/* Number of disks in device. */
+	uint32_t	md_genid;	/* Generation ID. */
 	uint32_t	md_syncid;	/* Synchronization ID. */
 	uint64_t	md_mediasize;	/* Size of whole device. */
 	uint32_t	md_sectorsize;	/* Sector size. */
@@ -238,25 +250,24 @@ raid3_metadata_encode(struct g_raid3_metadata *md, u_char *data)
 	le32enc(data + 36, md->md_id);
 	le16enc(data + 40, md->md_no);
 	le16enc(data + 42, md->md_all);
-	le32enc(data + 44, md->md_syncid);
-	le64enc(data + 48, md->md_mediasize);
-	le32enc(data + 56, md->md_sectorsize);
-	le64enc(data + 60, md->md_sync_offset);
-	le64enc(data + 68, md->md_mflags);
-	le64enc(data + 76, md->md_dflags);
-	bcopy(md->md_provider, data + 84, 16);
+	le32enc(data + 44, md->md_genid);
+	le32enc(data + 48, md->md_syncid);
+	le64enc(data + 52, md->md_mediasize);
+	le32enc(data + 60, md->md_sectorsize);
+	le64enc(data + 64, md->md_sync_offset);
+	le64enc(data + 72, md->md_mflags);
+	le64enc(data + 80, md->md_dflags);
+	bcopy(md->md_provider, data + 88, 16);
 	MD5Init(&ctx);
-	MD5Update(&ctx, data, 100);
+	MD5Update(&ctx, data, 104);
 	MD5Final(md->md_hash, &ctx);
-	bcopy(md->md_hash, data + 100, 16);
+	bcopy(md->md_hash, data + 104, 16);
 }
 static __inline int
-raid3_metadata_decode(const u_char *data, struct g_raid3_metadata *md)
+raid3_metadata_decode_v0v1v2(const u_char *data, struct g_raid3_metadata *md)
 {
 	MD5_CTX ctx;
 
-	bcopy(data, md->md_magic, 16);
-	md->md_version = le32dec(data + 16);
 	bcopy(data + 20, md->md_name, 16);
 	md->md_id = le32dec(data + 36);
 	md->md_no = le16dec(data + 40);
@@ -276,6 +287,53 @@ raid3_metadata_decode(const u_char *data, struct g_raid3_metadata *md)
 		return (EINVAL);
 	return (0);
 }
+static __inline int
+raid3_metadata_decode_v3(const u_char *data, struct g_raid3_metadata *md)
+{
+	MD5_CTX ctx;
+
+	bcopy(data + 20, md->md_name, 16);
+	md->md_id = le32dec(data + 36);
+	md->md_no = le16dec(data + 40);
+	md->md_all = le16dec(data + 42);
+	md->md_genid = le32dec(data + 44);
+	md->md_syncid = le32dec(data + 48);
+	md->md_mediasize = le64dec(data + 52);
+	md->md_sectorsize = le32dec(data + 60);
+	md->md_sync_offset = le64dec(data + 64);
+	md->md_mflags = le64dec(data + 72);
+	md->md_dflags = le64dec(data + 80);
+	bcopy(data + 88, md->md_provider, 16);
+	bcopy(data + 104, md->md_hash, 16);
+	MD5Init(&ctx);
+	MD5Update(&ctx, data, 104);
+	MD5Final(md->md_hash, &ctx);
+	if (bcmp(md->md_hash, data + 104, 16) != 0)
+		return (EINVAL);
+	return (0);
+}
+static __inline int
+raid3_metadata_decode(const u_char *data, struct g_raid3_metadata *md)
+{
+	int error;
+ 
+	bcopy(data, md->md_magic, 16);
+	md->md_version = le32dec(data + 16);
+	switch (md->md_version) {
+	case 0:
+	case 1:
+	case 2:
+		error = raid3_metadata_decode_v0v1v2(data, md);
+		break;
+	case 3:
+		error = raid3_metadata_decode_v3(data, md);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
 
 static __inline void
 raid3_metadata_dump(const struct g_raid3_metadata *md)
@@ -290,6 +348,7 @@ raid3_metadata_dump(const struct g_raid3_metadata *md)
 	printf("        id: %u\n", (u_int)md->md_id);
 	printf("        no: %u\n", (u_int)md->md_no);
 	printf("       all: %u\n", (u_int)md->md_all);
+	printf("     genid: %u\n", (u_int)md->md_genid);
 	printf("    syncid: %u\n", (u_int)md->md_syncid);
 	printf(" mediasize: %jd\n", (intmax_t)md->md_mediasize);
 	printf("sectorsize: %u\n", (u_int)md->md_sectorsize);
