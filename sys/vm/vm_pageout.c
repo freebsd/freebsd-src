@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.115 1998/02/23 08:22:37 dyson Exp $
+ * $Id: vm_pageout.c,v 1.116 1998/02/24 10:16:23 dyson Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_page_launder,
 	CTLFLAG_RW, &max_page_launder, 0, "");
 
 
-#define VM_PAGEOUT_PAGE_COUNT 8
+#define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
@@ -352,7 +352,7 @@ do_backward:
 	 * we allow reads during pageouts...
 	 */
 	for (i = page_base; i < (page_base + pageout_count); i++) {
-		mc[i]->flags |= PG_BUSY;
+		mc[i]->busy++;
 		vm_page_protect(mc[i], VM_PROT_READ);
 	}
 
@@ -409,7 +409,6 @@ vm_pageout_flush(mc, count, sync)
 			break;
 		}
 
-
 		/*
 		 * If the operation is still going, leave the page busy to
 		 * block all other accesses. Also, leave the paging in
@@ -418,6 +417,8 @@ vm_pageout_flush(mc, count, sync)
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
+			mt->flags |= PG_BUSY;
+			mt->busy--;
 			PAGE_WAKEUP(mt);
 		}
 	}

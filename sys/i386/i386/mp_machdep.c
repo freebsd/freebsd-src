@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.64 1997/12/15 02:18:20 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.65 1998/02/09 06:08:13 eivind Exp $
  */
 
 #include "opt_smp.h"
@@ -1991,7 +1991,7 @@ int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
 SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
 
 /* Warning: Do not staticize.  Used from swtch.s */
-int do_page_zero_idle = 0; /* bzero pages for fun and profit in idleloop */
+int do_page_zero_idle = 1; /* bzero pages for fun and profit in idleloop */
 SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
 	   &do_page_zero_idle, 0, "");
 
