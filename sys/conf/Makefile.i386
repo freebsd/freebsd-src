@@ -235,7 +235,7 @@ kernel-install kernel-install.debug:
 .endif
 	mv ${DESTDIR}/${KODIR} ${DESTDIR}/${KODIR}.old
 .endif
-	mkdir -p ${KODIR}
+	mkdir -p ${DESTDIR}/${KODIR}
 	@if [ -f ${DESTDIR}/${KODIR}/${KERNEL_KO} ] ; then \
 	    chflags noschg ${DESTDIR}/${KODIR}/${KERNEL_KO} ; \
 	fi
