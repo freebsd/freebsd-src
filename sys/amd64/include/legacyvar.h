@@ -26,18 +26,18 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_NEXUSVAR_H_
-#define	_MACHINE_NEXUSVAR_H_	1
+#ifndef _MACHINE_LEGACYVAR_H_
+#define	_MACHINE_LEGACYVAR_H_
 
-enum nexus_device_ivars {
-	NEXUS_IVAR_PCIBUS
+enum legacy_device_ivars {
+	LEGACY_IVAR_PCIBUS
 };
 
-#define NEXUS_ACCESSOR(var, ivar, type)					\
-    __BUS_ACCESSOR(nexus, var, NEXUS, ivar, type)
+#define LEGACY_ACCESSOR(var, ivar, type)				\
+    __BUS_ACCESSOR(legacy, var, LEGACY, ivar, type)
 
-NEXUS_ACCESSOR(pcibus,			PCIBUS,		u_int32_t)
+LEGACY_ACCESSOR(pcibus,			PCIBUS,		u_int32_t)
 
-#undef NEXUS_ACCESSOR
+#undef LEGACY_ACCESSOR
 
-#endif /* !_MACHINE_NEXUSVAR_H_ */
+#endif /* !_MACHINE_LEGACYVAR_H_ */
