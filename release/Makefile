@@ -128,6 +128,9 @@ NOPORTSATALL=	YES
 .endif
 .endif
 
+#
+# Doing 'make index' in /usr/ports requires Perl.
+MAKEINDEXPORTS=	lang/perl5.8
 # By default, documentation (Handbook, FAQ, etc.) is built for all
 # the languages.  To speed up building, set the DOC_LANG to just
 # the languages you need.  (The language for the release notes is
@@ -399,6 +402,8 @@ release rerelease:
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
 	    update ${CVSCMDARGS} -P -d
+	rm -f ${CHROOTDIR}/tmp/.skip_ports_index \
+	    ${CHROOTDIR}/tmp/.skip_ports_readmes
 .endif
 .if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 	for i in ${MINIMALDOCPORTS}; do \
@@ -479,11 +484,26 @@ release rerelease:
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${_MK}
 	echo "	touch /tmp/.world_done || exit 1" >> ${_MK}
 	echo "fi"				>> ${_MK}
-	echo "if [ ! -f /tmp/.skip_ports ]; then" >> ${_MK}
+	echo "if [ ! -f /tmp/.skip_ports_index ]; then" >> ${_MK}
+	echo "	echo \">>> make index started on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
+	echo "	for i in ${MAKEINDEXPORTS}"	>> ${_MK}
+	echo "	do"			>> ${_MK}
+	echo "		cd /usr/ports/\$${i}"	>> ${_MK}
+	echo "		env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \\" >> ${_MK}
+	echo "		make all install clean BATCH=yes FORCE_PKG_REGISTER=yes" >> ${_MK}
+	echo "	done"				>> ${_MK}
+	echo "	cd /usr/ports"			>> ${_MK}
+	echo "	rm -f INDEX*"			>> ${_MK}
+	echo "	make index -DINDEX_PRISTINE"	>> ${_MK}
+	echo "	rm -f INDEX.tmp"		>> ${_MK}
+	echo "	touch /tmp/.skip_ports_index"	>> ${_MK}
+	echo "	echo \">>> make index finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
+	echo "fi"				>> ${_MK}
+	echo "if [ ! -f /tmp/.skip_ports_readmes ]; then" >> ${_MK}
 	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	echo "	cd /usr/ports"			>> ${_MK}
 	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${_MK}
-	echo "	touch /tmp/.skip_ports"		>> ${_MK}
+	echo "	touch /tmp/.skip_ports_readmes"	>> ${_MK}
 	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	echo "fi"				>> ${_MK}
 	echo "cd /usr/src/release"		>> ${_MK}
@@ -491,8 +511,11 @@ release rerelease:
 	echo "make \$${_RELTARGET}"		>> ${_MK}
 	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	chmod 755 ${_MK}
+.if defined(NOPORTS)
+	touch ${CHROOTDIR}/tmp/.skip_ports_index
+.endif
 .if defined(NOPORTS) || defined(NOPORTREADMES)
-	touch ${CHROOTDIR}/tmp/.skip_ports
+	touch ${CHROOTDIR}/tmp/.skip_ports_readmes
 .endif
 	# Ensure md.ko is loaded if md(4) is not statically compiled into 
 	# the kernel
@@ -503,6 +526,11 @@ clean:
 	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-8] ${EXTRAS}
 
 fetch-distfiles:
+	@for i in ${MAKEINDEXPORTS}; do \
+		cd ${CHROOTDIR}/usr/ports/$$i && \
+			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
+			checksum-recursive ; \
+	done
 	@for i in ${DOCPORTS}; do \
 		cd ${CHROOTDIR}/usr/ports/$$i && \
 			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
@@ -619,8 +647,8 @@ release.6:
 	@rm -rf ${RD}/dists/ports/ports*
 	@mkdir -p ${RD}/dists/ports
 	@echo rolling ports/ports tarball
-	@tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
-	  ${RD}/dists/ports/ports.tgz -C /usr ports
+	@tar --exclude CVS --exclude 'ports/distfiles/*' \
+	  --exclude README.html -czf ${RD}/dists/ports/ports.tgz -C /usr ports
 	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
 	@(cd ${RD}/dists/ports; \
 	  rm -f CHECKSUM.MD5; \
@@ -878,6 +906,10 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+.if !defined(NOPORTS)
+	@tar --exclude CVS --exclude 'ports/distfiles/*' -czf - \
+	  -C /usr ports | (cd ${CD_DISC2}/usr; tar -xpBf -)
+.endif
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
