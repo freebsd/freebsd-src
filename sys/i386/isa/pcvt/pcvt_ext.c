@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Hellmuth Michaelis
+ * Copyright (c) 1999, 2002 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -42,7 +42,7 @@
  *	pcvt_ext.c	VT220 Driver Extended Support Routines
  *	------------------------------------------------------
  *
- * 	Last Edit-Date: [Wed Apr  5 18:18:54 2000]
+ * 	Last Edit-Date: [Fri Mar  8 19:57:55 2002]
  *
  * $FreeBSD$
  *
@@ -59,7 +59,10 @@ static int  tri9000_col( int );
 static int  v7_1024i_col( int );
 static int  s3_928_col( int );
 static int  cl_gd542x_col( int );
+
+#ifdef XSERVER
 static void fallback_to_auto(struct video_state *vsx);
+#endif
 
 /* storage to save video timing values of 80 columns text mode */
 static union {
