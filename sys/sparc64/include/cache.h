@@ -97,16 +97,25 @@ struct cacheinfo {
 
 #ifdef _KERNEL
 
+typedef void cache_enable_t(void);
+typedef void cache_flush_t(void);
 typedef void dcache_page_inval_t(vm_paddr_t pa);
 typedef void icache_page_inval_t(vm_paddr_t pa);
 
 void	cache_init(phandle_t node);
 
+cache_enable_t cheetah_cache_enable;
+cache_flush_t cheetah_cache_flush;
 dcache_page_inval_t cheetah_dcache_page_inval;
 icache_page_inval_t cheetah_icache_page_inval;
+
+cache_enable_t spitfire_cache_enable;
+cache_flush_t spitfire_cache_flush;
 dcache_page_inval_t spitfire_dcache_page_inval;
 icache_page_inval_t spitfire_icache_page_inval;
 
+extern cache_enable_t *cache_enable;
+extern cache_flush_t *cache_flush;
 extern dcache_page_inval_t *dcache_page_inval;
 extern icache_page_inval_t *icache_page_inval;
 
