@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.5 1997/05/31 08:45:24 kato Exp $
+ *		$Id: initcpu.c,v 1.5.2.1 1997/06/20 10:27:34 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -118,6 +118,9 @@ init_486dlc(void)
 	ccr0 |= CCR0_NC1 | CCR0_BARB;
 #else
 	ccr0 |= CCR0_NC1;
+#endif
+#ifdef CPU_DIRECT_MAPPED_CACHE
+	ccr0 |= CCR0_CO;			/* Direct mapped mode. */
 #endif
 	write_cyrix_reg(CCR0, ccr0);
 
