@@ -2437,6 +2437,8 @@ hifn_process(void *arg, struct cryptop *crp, int hint)
 			}
 		}
 
+		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
+			cmd->cry_masks |= HIFN_CRYPT_CMD_NEW_KEY;
 		cmd->ck = enccrd->crd_key;
 		cmd->cklen = enccrd->crd_klen >> 3;
 
