@@ -100,3 +100,6 @@ config files.
 .Xr devd.conf 5
 .Sh AUTHORS
 .An M. Warner Losh
+.Sh BUGS
+devd currently always runs "/etc/devd-generic $device $startstop" for
+all device events, reguardless of what the config file says to do.
