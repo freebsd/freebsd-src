@@ -311,7 +311,7 @@ struct hpfsmount {
 	struct sublock	hpm_su;
 	struct spblock	hpm_sp;
 	struct mount *	hpm_mp;
-	struct vnode *	hpm_devvp;
+	struct vnode *	hpm_devvp;	/* XXX: loose this, it's in hpfsmount */
 	struct g_consumer *hpm_cp;
 	struct bufobj *hpm_bo;
 	struct cdev *hpm_dev;
