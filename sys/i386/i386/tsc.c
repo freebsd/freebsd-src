@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.6 1994/02/06 22:48:13 davidg Exp $
+ *	$Id: clock.c,v 1.7 1994/04/21 14:19:16 sos Exp $
  */
 
 /*
@@ -85,6 +85,9 @@ timerintr(struct intrframe frame)
 int
 acquire_timer0(int rate, void (*function)() )
 {
+#ifndef INACCURATE_MICROTIME_IS_OK
+	return -1;
+#else
 	if (timer0_in_use) 	/*  XXX || (rate < 20000 && rate % hz)) */
 		return -1;
 	timer0_in_use = 1;
@@ -97,6 +100,7 @@ acquire_timer0(int rate, void (*function)() )
 	if (function)
 		timer_func = function;
 	return 0;
+#endif
 }
 
 
