@@ -1326,6 +1326,7 @@ mss_trigger(struct mss_chinfo *ch, int go)
 
 static struct isa_pnp_id pnpmss_ids[] = {
 	{0x0000630e, "CS423x"},				/* CSC0000 */
+	{0x0001630e, "CS423x-PCI"},			/* CSC0100 */
     	{0x01000000, "CMI8330"},			/* @@@0001 */
 	{0x2100a865, "Yamaha OPL-SAx"},			/* YMH0021 */
 	{0x1110d315, "ENSONIQ SoundscapeVIVO"},		/* ENS1011 */
@@ -1361,6 +1362,7 @@ pnpmss_attach(device_t dev)
 
 	switch (isa_get_logicalid(dev)) {
 	case 0x0000630e:			/* CSC0000 */
+	case 0x0001630e:			/* CSC0100 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
 	    mss->bd_id = MD_CS42XX;
 	    break;
