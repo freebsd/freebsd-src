@@ -55,9 +55,8 @@
 #include <i386/isa/elink.h>
 #endif
 
-static u_int16_t	get_eeprom_data	(int, int);
-
 #ifdef __i386__
+static u_int16_t	get_eeprom_data	(int, int);
 static void		ep_isa_identify	(driver_t *, device_t);
 #endif
 static int		ep_isa_probe	(device_t);
@@ -80,6 +79,7 @@ const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 #define ISA_ID_3C569B_TPO   0x506d5695
 #endif
 
+#ifdef __i386__
 static struct isa_ident ep_isa_devs[] = {
 	{ ISA_ID_3C509_TP,	"3Com 3C509-TP EtherLink III" },
 	{ ISA_ID_3C509_BNC,	"3Com 3C509-BNC EtherLink III" },
@@ -92,6 +92,7 @@ static struct isa_ident ep_isa_devs[] = {
 #endif
 	{ 0,			NULL },
 };
+#endif
 
 static struct isa_pnp_id ep_ids[] = {
 	{ 0x90506d50,	"3Com 3C509B-TP EtherLink III (PnP)" },	/* TCM5090 */
@@ -115,7 +116,7 @@ static struct isa_pnp_id ep_ids[] = {
  * the AX register which is conveniently returned to us by inb().  Hence; we
  * read 16 times getting one bit of data with each read.
  */
-
+#ifdef __i386__
 static u_int16_t
 get_eeprom_data(id_port, offset)
 	int	id_port;
@@ -132,6 +133,7 @@ get_eeprom_data(id_port, offset)
 	}
 	return (data);
 }
+#endif
 
 const char *
 ep_isa_match_id (id, isa_devs)
