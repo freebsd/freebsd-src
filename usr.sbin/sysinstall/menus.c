@@ -290,9 +290,6 @@ DMenu MenuIndex = {
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { " XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { " XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-#if !defined(X_AS_PKG) && defined(__i386__) && defined(PC98)
-      { " XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
-#endif
       { NULL } },
 };
 
@@ -1114,7 +1111,6 @@ DMenu MenuXF86Select = {
       { NULL } },
 };
 
-#ifdef X_AS_PKG
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 base distribution types",
@@ -1193,173 +1189,6 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VFB },
       { NULL } },
 };
-
-#else
-DMenu MenuXF86SelectCore = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 base distribution types",
-    "Please check off the basic XFree86 components you wish to install.\n"
-    "Bin, lib, and set are recommended for a minimum installaion.",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"Select all below",
-	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset all below",
-	NULL,		clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
-      { " bin",         "Client applications and shared libs",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_BIN },
-      { " lib",         "Data files needed at runtime",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
-      { " cfg",         "Configuration files",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CFG },
-      { " set",         "XFree86 Setup Utility",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
-      { " man",         "Manual pages",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
-      { " doc",         "READMEs and release notes",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_DOC },
-      { " html",        "HTML documentation files",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
-      { " lkit",        "Server link kit for all other machines",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
-      { " prog",        "Programmer's header and library files",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
-#if defined(__i386__) && defined(PC98)
-      { " 9set",	"XFree86 Setup Utility for PC98 machines",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-      { " lk98",	"Server link kit for PC98 machines",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
-#endif
-      { NULL } },
-};
-
-DMenu MenuXF86SelectFonts = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "Font distribution selection.",
-    "Please check off the individual font distributions you wish to\n\
-install.  At the minimum, you should install the standard\n\
-75 DPI and misc fonts if you're also installing a server\n\
-(these are selected by default).",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"All fonts",
-	NULL,		setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset font selections",
-	NULL,		clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
-      { " fnts",	"Standard 75 DPI and miscellaneous fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_MISC },
-      { " f100",	"100 DPI fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_100 },
-      { " fcyr",	"Cyrillic Fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_CYR },
-      { " fscl",	"Speedo and Type scalable fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SCALE },
-      { " non",		"Japanese, Chinese and other non-english fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_NON },
-      { " server",	"Font server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
-      { NULL } },
-};
-
-DMenu MenuXF86SelectServer = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "X Server selection.",
-    "Please check off the types of X servers you wish to install.\n"
-    "If you are unsure as to which server will work for your graphics card,\n"
-    "it is recommended that try the SVGA or VGA16 servers or, for PC98\n"
-    "machines, the 9EGC or 9840 servers.",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"Select all of the above",
-	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset all of the above",
-	NULL,		clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
-      { " SVGA",	"Standard VGA or Super VGA card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_SVGA },
-      { " VGA16",	"Standard 16 color VGA card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VGA16 },
-      { " Mono",	"Standard Monochrome card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_MONO },
-      { " 3DL",		"8, 16 and 24 bit color 3D Labs boards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_3DL },
-      { " 8514",	"8-bit (256 color) IBM 8514 or compatible card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_8514 },
-      { " AGX",		"8-bit AGX card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_AGX },
-      { " I128",	"8, 16 and 24-bit #9 Imagine I128 card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_I128 },
-      { " Ma8",		"8-bit ATI Mach8 card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_MACH8 },
-      { " Ma32",	"8 and 16-bit (65K color) ATI Mach32 card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_MACH32 },
-      { " Ma64",	"8 and 16-bit (65K color) ATI Mach64 card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_MACH64 },
-      { " P9K",		"8, 16, and 24-bit color Weitek P9000 based boards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_P9000 },
-      { " S3",		"8, 16 and 24-bit color S3 based boards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3 },
-      { " S3V",		"8, 16 and 24-bit color S3 Virge based boards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3V },
-      { " W32",		"8-bit ET4000/W32, /W32i and /W32p cards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
-#if defined(__i386__) && defined(PC98)
-      { " PC98",	"Select an X server for a NEC PC98 [Submenu]",
-	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
-#elif defined(__alpha__)
-      { " TGA",		"TGA cards (alpha architecture only)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_TGA },
-#endif
-      { NULL } },
-};
-
-#if defined(__i386__) && defined(PC98)
-DMenu MenuXF86SelectPC98Server = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "PC98 X Server selection.",
-    "Please check off the types of NEC PC98 X servers you wish to install.\n\
-If you are unsure as to which server will work for your graphics card,\n\
-it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
-Mono servers are particularly well-suited to most LCD displays).",
-    NULL,
-    NULL,
-    { { " 9480",	"PC98 8-bit (256 color) PEGC-480 card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9480 },
-      { " 9EGC",	"PC98 4-bit (16 color) EGC card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9EGC },
-      { " 9GA9",	"PC98 GA-968V4/PCI (S3 968) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9GA9 },
-      { " 9GAN",	"PC98 GANB-WAP (cirrus) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9GAN },
-      { " 9LPW",	"PC98 PowerWindowLB (S3) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9LPW },
-      { " 9MGA",	"PC98 MGA (Matrox) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9MGA },
-      { " 9NKV",	"PC98 NKV-NEC (cirrus) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9NKV },
-      { " 9NS3",	"PC98 NEC (S3) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9NS3 },
-      { " 9SPW",	"PC98 SKB-PowerWindow (S3) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9SPW },
-      { " 9SVG",	"PC98 generic SVGA card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9SVG },
-      { " 9TGU",	"PC98 Cyber9320 and TGUI9680 cards",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9TGU },
-      { " 9WEP",	"PC98 WAB-EP (cirrus) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9WEP },
-      { " 9WS",		"PC98 WABS (cirrus) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9WS },
-      { " 9WSN",	"PC98 WSN-A2F (cirrus) card",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9WSN },
-      { NULL } }
-};
-#endif
-#endif /* !X_AS_PKG */
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,

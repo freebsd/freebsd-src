@@ -14,7 +14,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 SRCS+=  pccard.c
 .endif
 
-CFLAGS+= -DX_AS_PKG -DUSE_GZIP=1
+CFLAGS+= -DUSE_GZIP=1
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
