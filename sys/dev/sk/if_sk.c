@@ -413,6 +413,8 @@ static int sk_miibus_readreg(dev, phy, reg)
 	if (sc_if->sk_phytype == SK_PHYTYPE_XMAC && phy != 0)
 		return(0);
 
+	SK_IF_LOCK(sc_if);
+
 	SK_XM_WRITE_2(sc_if, XM_PHY_ADDR, reg|(phy << 8));
 	SK_XM_READ_2(sc_if, XM_PHY_DATA);
 	if (sc_if->sk_phytype != SK_PHYTYPE_XMAC) {
@@ -430,7 +432,9 @@ static int sk_miibus_readreg(dev, phy, reg)
 		}
 	}
 	DELAY(1);
-	return(SK_XM_READ_2(sc_if, XM_PHY_DATA));
+	i = SK_XM_READ_2(sc_if, XM_PHY_DATA);
+	SK_IF_UNLOCK(sc_if);
+	return(i);
 }
 
 static int sk_miibus_writereg(dev, phy, reg, val)
@@ -441,6 +445,7 @@ static int sk_miibus_writereg(dev, phy, reg, val)
 	int			i;
 
 	sc_if = device_get_softc(dev);
+	SK_IF_LOCK(sc_if);
 
 	SK_XM_WRITE_2(sc_if, XM_PHY_ADDR, reg|(phy << 8));
 	for (i = 0; i < SK_TIMEOUT; i++) {
@@ -460,6 +465,8 @@ static int sk_miibus_writereg(dev, phy, reg, val)
 			break;
 	}
 
+	SK_IF_UNLOCK(sc_if);
+
 	if (i == SK_TIMEOUT)
 		printf("sk%d: phy write timed out\n", sc_if->sk_unit);
 
@@ -474,7 +481,7 @@ static void sk_miibus_statchg(dev)
 
 	sc_if = device_get_softc(dev);
 	mii = device_get_softc(sc_if->sk_miibus);
-
+	SK_IF_LOCK(sc_if);
 	/*
 	 * If this is a GMII PHY, manually set the XMAC's
 	 * duplex mode accordingly.
@@ -486,6 +493,7 @@ static void sk_miibus_statchg(dev)
 			SK_XM_CLRBIT_2(sc_if, XM_MMUCMD, XM_MMUCMD_GMIIFDX);
 		}
 	}
+	SK_IF_UNLOCK(sc_if);
 
 	return;
 }
@@ -872,10 +880,10 @@ static int sk_ioctl(ifp, command, data)
 {
 	struct sk_if_softc	*sc_if = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			s, error = 0;
+	int			error = 0;
 	struct mii_data		*mii;
 
-	s = splimp();
+	SK_IF_LOCK(sc_if);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -928,7 +936,7 @@ static int sk_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	SK_IF_UNLOCK(sc_if);
 
 	return(error);
 }
@@ -1025,6 +1033,7 @@ static int sk_attach_xmac(dev)
 
 	sc_if = device_get_softc(dev);
 	sc = device_get_softc(device_get_parent(dev));
+	SK_LOCK(sc);
 	port = *(int *)device_get_ivars(dev);
 	free(device_get_ivars(dev), M_DEVBUF);
 	device_set_ivars(dev, NULL);
@@ -1113,6 +1122,7 @@ static int sk_attach_xmac(dev)
 	if (sc_if->sk_rdata == NULL) {
 		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);
 		sc->sk_if[port] = NULL;
+		SK_UNLOCK(sc);
 		return(ENOMEM);
 	}
 
@@ -1125,6 +1135,7 @@ static int sk_attach_xmac(dev)
 		contigfree(sc_if->sk_rdata,
 		    sizeof(struct sk_ring_data), M_DEVBUF);
 		sc->sk_if[port] = NULL;
+		SK_UNLOCK(sc);
 		return(ENOMEM);
 	}
 
@@ -1151,6 +1162,7 @@ static int sk_attach_xmac(dev)
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
 		contigfree(sc_if->sk_rdata,
 		    sizeof(struct sk_ring_data), M_DEVBUF);
+		SK_UNLOCK(sc);
 		return(ENXIO);
 	}
 
@@ -1159,6 +1171,8 @@ static int sk_attach_xmac(dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc_if->sk_tick_ch);
+
+	SK_UNLOCK(sc);
 
 	return(0);
 }
@@ -1170,12 +1184,9 @@ static int sk_attach_xmac(dev)
 static int sk_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_int32_t		command;
 	struct sk_softc		*sc;
 	int			unit, error = 0, rid, *port;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1266,6 +1277,8 @@ static int sk_attach(dev)
 		goto fail;
 	}
 
+	mtx_init(&sc->sk_mtx, "skc", MTX_DEF);
+	SK_LOCK(sc);
 	/* Reset the adapter. */
 	sk_reset(sc);
 
@@ -1345,9 +1358,12 @@ static int sk_attach(dev)
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
 	bus_generic_attach(dev);
+	SK_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	SK_UNLOCK(sc);
+	mtx_destroy(&sc->sk_mtx);
 	return(error);
 }
 
@@ -1357,12 +1373,11 @@ static int sk_detach_xmac(dev)
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(device_get_parent(dev));
 	sc_if = device_get_softc(dev);
+	SK_IF_LOCK(sc_if);
+
 	ifp = &sc_if->arpcom.ac_if;
 	sk_stop(sc_if);
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
@@ -1371,6 +1386,7 @@ static int sk_detach_xmac(dev)
 		device_delete_child(dev, sc_if->sk_miibus);
 	contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
 	contigfree(sc_if->sk_rdata, sizeof(struct sk_ring_data), M_DEVBUF);
+	SK_IF_UNLOCK(sc_if);
 
 	return(0);
 }
@@ -1379,11 +1395,9 @@ static int sk_detach(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	SK_LOCK(sc);
 
 	bus_generic_detach(dev);
 	if (sc->sk_devs[SK_PORT_A] != NULL)
@@ -1395,7 +1409,8 @@ static int sk_detach(dev)
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
 	bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 
-	splx(s);
+	SK_UNLOCK(sc);
+	mtx_destroy(&sc->sk_mtx);
 
 	return(0);
 }
@@ -1460,6 +1475,8 @@ static void sk_start(ifp)
 	sc_if = ifp->if_softc;
 	sc = sc_if->sk_softc;
 
+	SK_IF_LOCK(sc_if);
+
 	idx = sc_if->sk_cdata.sk_tx_prod;
 
 	while(sc_if->sk_cdata.sk_tx_chain[idx].sk_mbuf == NULL) {
@@ -1492,6 +1509,7 @@ static void sk_start(ifp)
 
 	/* Set a timeout in case the chip goes out to lunch. */
 	ifp->if_timer = 5;
+	SK_IF_UNLOCK(sc_if);
 
 	return;
 }
@@ -1516,6 +1534,7 @@ static void sk_shutdown(dev)
 	struct sk_softc		*sc;
 
 	sc = device_get_softc(dev);
+	SK_LOCK(sc);
 
 	/* Turn off the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_OFF);
@@ -1525,6 +1544,7 @@ static void sk_shutdown(dev)
 	 * assert the resets on the attached XMAC(s).
 	 */
 	sk_reset(sc);
+	SK_UNLOCK(sc);
 
 	return;
 }
@@ -1644,14 +1664,18 @@ static void sk_tick(xsc_if)
 	int			i;
 
 	sc_if = xsc_if;
+	SK_IF_LOCK(sc_if);
 	ifp = &sc_if->arpcom.ac_if;
 	mii = device_get_softc(sc_if->sk_miibus);
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!(ifp->if_flags & IFF_UP)) {
+		SK_IF_UNLOCK(sc_if);
 		return;
+	}
 
 	if (sc_if->sk_phytype == SK_PHYTYPE_BCOM) {
 		sk_intr_bcom(sc_if);
+		SK_IF_UNLOCK(sc_if);
 		return;
 	}
 
@@ -1669,6 +1693,7 @@ static void sk_tick(xsc_if)
 
 	if (i != 3) {
 		sc_if->sk_tick_ch = timeout(sk_tick, sc_if, hz);
+		SK_IF_UNLOCK(sc_if);
 		return;
 	}
 
@@ -1679,6 +1704,7 @@ static void sk_tick(xsc_if)
 	mii_pollstat(mii);
 	untimeout(sk_tick, sc_if, sc_if->sk_tick_ch);
 
+	SK_IF_UNLOCK(sc_if);
 	return;
 }
 
@@ -1785,6 +1811,8 @@ static void sk_intr(xsc)
 	struct ifnet		*ifp0 = NULL, *ifp1 = NULL;
 	u_int32_t		status;
 
+	SK_LOCK(sc);
+
 	sc_if0 = sc->sk_if[SK_PORT_A];
 	sc_if1 = sc->sk_if[SK_PORT_B];
 
@@ -1845,6 +1873,8 @@ static void sk_intr(xsc)
 		sk_start(ifp0);
 	if (ifp1 != NULL && ifp1->if_snd.ifq_head != NULL)
 		sk_start(ifp1);
+
+	SK_UNLOCK(sc);
 
 	return;
 }
@@ -2028,9 +2058,8 @@ static void sk_init(xsc)
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-	int			s;
 
-	s = splimp();
+	SK_IF_LOCK(sc_if);
 
 	ifp = &sc_if->arpcom.ac_if;
 	sc = sc_if->sk_softc;
@@ -2100,7 +2129,7 @@ static void sk_init(xsc)
 		printf("sk%d: initialization failed: no "
 		    "memory for rx buffers\n", sc_if->sk_unit);
 		sk_stop(sc_if);
-		(void)splx(s);
+		SK_IF_UNLOCK(sc_if);
 		return;
 	}
 	sk_init_tx_ring(sc_if);
@@ -2126,7 +2155,7 @@ static void sk_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	splx(s);
+	SK_IF_UNLOCK(sc_if);
 
 	return;
 }
@@ -2138,6 +2167,7 @@ static void sk_stop(sc_if)
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
 
+	SK_IF_LOCK(sc_if);
 	sc = sc_if->sk_softc;
 	ifp = &sc_if->arpcom.ac_if;
 
@@ -2198,6 +2228,6 @@ static void sk_stop(sc_if)
 	}
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
-
+	SK_IF_UNLOCK(sc_if);
 	return;
 }

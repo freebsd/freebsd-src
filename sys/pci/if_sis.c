@@ -629,14 +629,11 @@ static int sis_probe(dev)
 static int sis_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -734,6 +731,9 @@ static int sis_attach(dev)
 		printf("sis%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
+
+	mtx_init(&sc->sis_mtx, "sis", MTX_DEF);
+	SIS_LOCK(sc);
 
 	/* Reset the adapter. */
 	sis_reset(sc);
@@ -837,9 +837,12 @@ static int sis_attach(dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->sis_stat_ch);
+	SIS_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	SIS_UNLOCK(sc);
+	mtx_destroy(&sc->sis_mtx);
 	return(error);
 }
 
@@ -848,11 +851,10 @@ static int sis_detach(dev)
 {
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
 
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	sis_reset(sc);
@@ -868,7 +870,8 @@ static int sis_detach(dev)
 
 	contigfree(sc->sis_ldata, sizeof(struct sis_list_data), M_DEVBUF);
 
-	splx(s);
+	SIS_UNLOCK(sc);
+	mtx_destroy(&sc->sis_mtx);
 
 	return(0);
 }
@@ -1129,11 +1132,9 @@ static void sis_tick(xsc)
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	mii = device_get_softc(sc->sis_miibus);
@@ -1150,7 +1151,7 @@ static void sis_tick(xsc)
 
 	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
 
-	splx(s);
+	SIS_UNLOCK(sc);
 
 	return;
 }
@@ -1163,11 +1164,13 @@ static void sis_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		sis_stop(sc);
+		SIS_UNLOCK(sc);
 		return;
 	}
 
@@ -1207,6 +1210,8 @@ static void sis_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		sis_start(ifp);
+
+	SIS_UNLOCK(sc);
 
 	return;
 }
@@ -1275,14 +1280,19 @@ static void sis_start(ifp)
 	u_int32_t		idx;
 
 	sc = ifp->if_softc;
+	SIS_LOCK(sc);
 
-	if (!sc->sis_link)
+	if (!sc->sis_link) {
+		SIS_UNLOCK(sc);
 		return;
+	}
 
 	idx = sc->sis_cdata.sis_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		SIS_UNLOCK(sc);
 		return;
+	}
 
 	while(sc->sis_ldata->sis_tx_list[idx].sis_mbuf == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -1313,6 +1323,8 @@ static void sis_start(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	SIS_UNLOCK(sc);
+
 	return;
 }
 
@@ -1322,9 +1334,8 @@ static void sis_init(xsc)
 	struct sis_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			s;
 
-	s = splimp();
+	SIS_LOCK(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1361,7 +1372,7 @@ static void sis_init(xsc)
 		printf("sis%d: initialization failed: no "
 			"memory for rx buffers\n", sc->sis_unit);
 		sis_stop(sc);
-		(void)splx(s);
+		SIS_UNLOCK(sc);
 		return;
 	}
 
@@ -1469,9 +1480,9 @@ static void sis_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
+
+	SIS_UNLOCK(sc);
 
 	return;
 }
@@ -1528,9 +1539,9 @@ static int sis_ioctl(ifp, command, data)
 	struct sis_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	SIS_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1565,7 +1576,7 @@ static int sis_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	SIS_UNLOCK(sc);
 
 	return(error);
 }
@@ -1577,6 +1588,8 @@ static void sis_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	SIS_LOCK(sc);
+
 	ifp->if_oerrors++;
 	printf("sis%d: watchdog timeout\n", sc->sis_unit);
 
@@ -1586,6 +1599,8 @@ static void sis_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		sis_start(ifp);
+
+	SIS_UNLOCK(sc);
 
 	return;
 }
@@ -1600,6 +1615,7 @@ static void sis_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1640,6 +1656,8 @@ static void sis_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
+	SIS_UNLOCK(sc);
+
 	return;
 }
 
@@ -1653,9 +1671,10 @@ static void sis_shutdown(dev)
 	struct sis_softc	*sc;
 
 	sc = device_get_softc(dev);
-
+	SIS_LOCK(sc);
 	sis_reset(sc);
 	sis_stop(sc);
+	SIS_UNLOCK(sc);
 
 	return;
 }

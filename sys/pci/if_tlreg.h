@@ -126,7 +126,11 @@ struct tl_softc {
 	u_int8_t		tl_bitrate;
 	int			tl_if_flags;
 	struct callout_handle	tl_stat_ch;
+	struct mtx		tl_mtx;
 };
+
+#define	TL_LOCK(_sc)		mtx_enter(&(_sc)->tl_mtx, MTX_DEF)
+#define	TL_UNLOCK(_sc)		mtx_exit(&(_sc)->tl_mtx, MTX_DEF)
 
 /*
  * Transmit interrupt threshold.

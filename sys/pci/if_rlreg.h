@@ -368,7 +368,11 @@ struct rl_softc {
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct callout_handle	rl_stat_ch;
+	struct mtx		rl_mtx;
 };
+
+#define	RL_LOCK(_sc)		mtx_enter(&(_sc)->rl_mtx, MTX_DEF)
+#define	RL_UNLOCK(_sc)		mtx_exit(&(_sc)->rl_mtx, MTX_DEF)
 
 /*
  * register space access macros

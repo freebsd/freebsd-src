@@ -285,9 +285,9 @@ static int vr_mii_readreg(sc, frame)
 	struct vr_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	VR_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -364,7 +364,7 @@ fail:
 	SIO_SET(VR_MIICMD_CLK);
 	DELAY(1);
 
-	splx(s);
+	VR_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -379,9 +379,7 @@ static int vr_mii_writereg(sc, frame)
 	struct vr_mii_frame	*frame;
 	
 {
-	int			s;
-
-	s = splimp();
+	VR_LOCK(sc);
 
 	CSR_WRITE_1(sc, VR_MIICMD, 0);
 	VR_SETBIT(sc, VR_MIICMD, VR_MIICMD_DIRECTPGM);
@@ -419,7 +417,7 @@ static int vr_mii_writereg(sc, frame)
 	 */
 	SIO_CLR(VR_MIICMD_DIR);
 
-	splx(s);
+	VR_UNLOCK(sc);
 
 	return(0);
 }
@@ -467,8 +465,10 @@ static void vr_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
+	VR_LOCK(sc);
 	mii = device_get_softc(sc->vr_miibus);
 	vr_setcfg(sc, mii->mii_media_active);
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -633,14 +633,12 @@ static int vr_probe(dev)
 static int vr_attach(dev)
 	device_t		dev;
 {
-	int			i, s;
+	int			i;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -731,6 +729,8 @@ static int vr_attach(dev)
 		goto fail;
 	}
 
+	mtx_init(&sc->vr_mtx, "vr", MTX_DEF);
+	VR_LOCK(sc);
 	/* Reset the adapter. */
 	vr_reset(sc);
 
@@ -803,9 +803,13 @@ static int vr_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	VR_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	VR_UNLOCK(sc);
+	mtx_destroy(&sc->vr_mtx);
+
 	return(error);
 }
 
@@ -814,11 +818,9 @@ static int vr_detach(dev)
 {
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	VR_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	vr_stop(sc);
@@ -833,7 +835,8 @@ static int vr_detach(dev)
 
 	contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
 
-	splx(s);
+	VR_UNLOCK(sc);
+	mtx_destroy(&sc->vr_mtx);
 
 	return(0);
 }
@@ -1146,17 +1149,15 @@ static void vr_tick(xsc)
 {
 	struct vr_softc		*sc;
 	struct mii_data		*mii;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+	VR_LOCK(sc);
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
 
 	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
 
-	splx(s);
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -1169,11 +1170,13 @@ static void vr_intr(arg)
 	u_int16_t		status;
 
 	sc = arg;
+	VR_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/* Supress unwanted interrupts. */
 	if (!(ifp->if_flags & IFF_UP)) {
 		vr_stop(sc);
+		VR_UNLOCK(sc);
 		return;
 	}
 
@@ -1225,6 +1228,8 @@ static void vr_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL) {
 		vr_start(ifp);
 	}
+
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -1314,8 +1319,11 @@ static void vr_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	VR_LOCK(sc);
+	if (ifp->if_flags & IFF_OACTIVE) {
+		VR_UNLOCK(sc);
 		return;
+	}
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -1357,8 +1365,10 @@ static void vr_start(ifp)
 	/*
 	 * If there are no frames queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		VR_UNLOCK(sc);
 		return;
+	}
 
 	sc->vr_cdata.vr_tx_tail = cur_tx;
 
@@ -1369,6 +1379,7 @@ static void vr_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -1379,9 +1390,8 @@ static void vr_init(xsc)
 	struct vr_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			s;
 
-	s = splimp();
+	VR_LOCK(sc);
 
 	mii = device_get_softc(sc->vr_miibus);
 
@@ -1402,7 +1412,7 @@ static void vr_init(xsc)
 		printf("vr%d: initialization failed: no "
 			"memory for rx buffers\n", sc->vr_unit);
 		vr_stop(sc);
-		(void)splx(s);
+		VR_UNLOCK(sc);
 		return;
 	}
 
@@ -1451,9 +1461,9 @@ static void vr_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->vr_stat_ch = timeout(vr_tick, sc, hz);
+
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -1501,9 +1511,9 @@ static int vr_ioctl(ifp, command, data)
 	struct vr_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	VR_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1535,7 +1545,7 @@ static int vr_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	VR_UNLOCK(sc);
 
 	return(error);
 }
@@ -1547,6 +1557,7 @@ static void vr_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	VR_LOCK(sc);
 	ifp->if_oerrors++;
 	printf("vr%d: watchdog timeout\n", sc->vr_unit);
 
@@ -1556,6 +1567,8 @@ static void vr_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		vr_start(ifp);
+
+	VR_UNLOCK(sc);
 
 	return;
 }
@@ -1569,6 +1582,8 @@ static void vr_stop(sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
+
+	VR_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -1607,6 +1622,7 @@ static void vr_stop(sc)
 		sizeof(sc->vr_ldata->vr_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	VR_UNLOCK(sc);
 
 	return;
 }

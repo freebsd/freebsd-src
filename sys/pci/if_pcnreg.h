@@ -448,7 +448,11 @@ struct pcn_softc {
 	struct pcn_list_data	*pcn_ldata;
 	struct pcn_ring_data	pcn_cdata;
 	struct callout_handle	pcn_stat_ch;
+	struct mtx		pcn_mtx;
 };
+
+#define	PCN_LOCK(_sc)		mtx_enter(&(_sc)->pcn_mtx, MTX_DEF)
+#define	PCN_UNLOCK(_sc)		mtx_exit(&(_sc)->pcn_mtx, MTX_DEF)
 
 /*
  * register space access macros
