@@ -491,7 +491,7 @@ main(argc, argv)
 					(void)snprintf(line, sizeof line,
 "syslogd: discarded %d unwanted packets in secure mode, last from %s", Vogons,
 						inet_ntoa(frominet.sin_addr));
-					logmsg(LOG_SYSLOG|LOG_AUTH, line,
+					logmsg(LOG_SYSLOG|LOG_NOTICE, line,
 					    LocalHostName, ADDDATE);
 				}
 			} else if (l > 0) {
