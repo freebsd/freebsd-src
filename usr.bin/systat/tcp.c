@@ -94,7 +94,8 @@ static struct tcpstat curstat, initstat, oldstat;
 WINDOW *
 opentcp(void)
 {
-	return (subwin(stdscr, LINES-5-1, 0, 5, 0));
+
+	return (stdscr);
 }
 
 void
@@ -105,7 +106,6 @@ closetcp(w)
 		return;
 	wclear(w);
 	wrefresh(w);
-	delwin(w);
 }
 
 void
