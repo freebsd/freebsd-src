@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,12 @@
 #define _NWFS_NODE_H_
 
 #define	NWFS_ROOT_INO	0x7ffffffd
-#define	NWFS_ROOTVOL	"#.ROOT"
 
 /* Bits for nwnode.n_flag */
 #define	NFLUSHINPROG	0x0001
 #define	NFLUSHWANT	0x0002		/* they should gone ... */
 #define	NMODIFIED	0x0004		/* bogus, until async IO implemented */
-#define	NNEW		0x0008		/* vnode has been allocated */
+#define	NREFPARENT	0x0008		/* vnode holds reference to a parent vnode */
 #define	NVOLUME		0x0010		/* vnode references a volume */
 #define	NSHOULDFREE	0x0020		/* vnode should be removed from hash */
 
@@ -56,7 +55,6 @@ struct nwnode {
 	int			n_flag;
 	ncpfid			n_parent;
 	ncpfid			n_fid;
-	int			n_refparent;
 	u_long			n_attr;		/* LH */
 	u_long			n_size;
 	u_long			n_dosfid;
@@ -85,13 +83,12 @@ struct uio;
 
 void nwfs_hash_init(void);
 void nwfs_hash_free(void);
-int  nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp);
 int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct proc *p,
 	struct nwnode **npp);
 int  nwfs_inactive(struct vop_inactive_args *);
 int  nwfs_reclaim(struct vop_reclaim_args *);
-int nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
-    struct vnode *dvp, struct vnode **vpp);
+int  nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
+	struct vnode *dvp, struct vnode **vpp);
 
 int  nwfs_getpages(struct vop_getpages_args *);
 int  nwfs_putpages(struct vop_putpages_args *);

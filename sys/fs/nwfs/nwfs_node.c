@@ -134,8 +134,9 @@ nwfs_hashlookup(struct nwmount *nmp, ncpfid fid, struct nwnode **npp)
  * Allocate new nwfsnode/vnode from given nwnode. 
  * Vnode referenced and not locked.
  */
-int
-nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp)
+static int
+nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
+	struct vnode *dvp, struct vnode **vpp)
 {
 	struct proc *p = curproc;	/* XXX */
 	struct nwnode *np;
@@ -153,11 +154,15 @@ rescan:
 		lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 			goto loop;
+		if (fap)
+			np->n_attr = fap->attributes;
 		*vpp = vp;
 		return(0);
 	}
 	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
 
+	if (fap == NULL || ((fap->attributes & aDIR) == 0 && dvp == NULL))
+		panic("nwfs_allocvp: fap = %p, dvp = %p\n", fap, dvp);
 	/*
 	 * Do the MALLOC before the getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
@@ -173,6 +178,13 @@ rescan:
 	vp->v_data = np;
 	np->n_vnode = vp;
 	np->n_mount = nmp;
+	np->n_attr = fap->attributes;
+	vp->v_type = np->n_attr & aDIR ? VDIR : VREG;
+	np->n_fid = fid;
+	if (dvp) {
+		np->n_parent = VTONW(dvp)->n_fid;
+	}
+	lockinit(&vp->v_lock, PINOD, "nwnode", 0, LK_CANRECURSE);
 	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, p);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
@@ -186,13 +198,32 @@ rescan:
 		goto rescan;
 	}
 	*vpp = vp;
-	np->n_fid = fid;
-	np->n_flag |= NNEW;
-	lockinit(&vp->v_lock, PINOD, "nwnode", 0, LK_CANRECURSE);
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
+
+	if (vp->v_type == VDIR && dvp && (dvp->v_flag & VROOT) == 0) {
+		np->n_flag |= NREFPARENT;
+		vref(dvp);
+	}
+	return 0;
+}
+
+int
+nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
+	  struct vnode *dvp, struct vnode **vpp)
+{
+	struct vnode *vp;
+	int error;
+
+	*vpp = NULL;
+	error = nwfs_allocvp(mp, fid, fap, dvp, &vp);
+	if (error)
+		return error;
+	if (fap)
+		nwfs_attr_cacheenter(vp, fap);
+	*vpp = vp;
 	return 0;
 }
 
@@ -224,8 +255,8 @@ nwfs_reclaim(ap)
 	struct proc *p = ap->a_p;
 	
 	NCPVNDEBUG("%s,%d\n", np->n_name, vp->v_usecount);
-	if (np->n_refparent) {
-		np->n_refparent = 0;
+	if (np->n_flag & NREFPARENT) {
+		np->n_flag &= ~NREFPARENT;
 		if (nwfs_lookupnp(nmp, np->n_parent, p, &dnp) == 0) {
 			dvp = dnp->n_vnode;
 		} else {

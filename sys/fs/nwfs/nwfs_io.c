@@ -56,6 +56,7 @@
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_subr.h>
+#include <netncp/ncp_ncp.h>
 
 #include <nwfs/nwfs.h>
 #include <nwfs/nwfs_node.h>
