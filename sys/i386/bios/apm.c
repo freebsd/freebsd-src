@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.29 1996/03/18 22:29:48 nate Exp $
+ *	$Id: apm.c,v 1.30 1996/03/18 22:40:57 nate Exp $
  */
 
 #include "apm.h"
@@ -39,6 +39,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 #include "apm_setup.h"
 
 static int apm_display_off __P((void));
