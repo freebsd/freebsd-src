@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -92,11 +92,12 @@ enum objecttype {
 /*
  * The state to set with VINUM_SETSTATE.  Since
  * each object has a different set of states, we
- * need to translate later 
+ * need to translate later
  */
 enum objectstate {
     object_down,
     object_initializing,
+    object_initialized,
     object_up
 };
 

@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -35,7 +35,7 @@
  *
  */
 
-/* Created by ./makestatetext on Thu Mar 25 12:50:46 CST 1999. Do not edit */
+/* Created by ./makestatetext on Sun Aug 15 10:34:15 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
@@ -55,6 +55,7 @@ char *sdstatetext[] =
     "init",
     "empty",
     "initializing",
+    "initialized",
     "obsolete",
     "stale",
     "crashed",
