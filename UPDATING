@@ -195,12 +195,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	is installed.
 
 20040817:
-	IPFW has been converted to use PFIL_HOOKS.  This change is
+	IPFW has been converted to use pfil(9).  This change is
 	transparent to userland and preserves the ipfw ABI.  The ipfw
 	core packet inspection and filtering functions have not been
-	changed, only how ipfw is invoked is different.  Note that
-	"option PFIL_HOOKS" is required to use IPFIREWALL compiled
-	into the kernel or as KLD.
+	changed, only how ipfw is invoked is different.
 
 20040814:
 	The RANDOM_IP_ID option has been replaced by the sysctl
@@ -423,8 +421,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	sure to run mergemaster -p before installworld to create required
 	user account ("proxy"). If you do not want to build pf with your
 	system you can use the NO_PF knob in make.conf.
-	Also note that pf requires "options PFIL_HOOKS" in the kernel. The
-	pf system consists of the following three devices:
+	The pf system consists of the following three devices:
 	device		pf		# required
 	device		pflog		# optional
 	device		pfsync		# optional
@@ -579,13 +576,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 20030926:
 	kiconv(3) has been added. mount_msdosfs(8), mount_ntfs(8) and
 	mount_cd9660(8) need to be in sync with kernel.
-
-20030925:
-	Configuring a system to use IPFILTER now requires that PFIL_HOOKS
-	also be explicitly configured.  Previously this dependency was
-	magically handled through some cruft in net/pfil.h; but that has
-	been removed.  Building a kernel with IPFILTER but not PFIL_HOOKS
-	will fail with obtuse errors in ip_fil.c.
 
 20030923:
 	Fix a bug in arplookup(), whereby a hostile party on a locally
