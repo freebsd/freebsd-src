@@ -20,6 +20,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
+
 #ifndef _LINUX_EXT2_FS_H
 #define _LINUX_EXT2_FS_H
 
@@ -88,7 +89,7 @@
 /*
  * Debug code
  */
-#ifdef EXT2FS_DEBUG 
+#ifdef EXT2FS_DEBUG
 #	define ext2_debug(f, a...)	{ \
 					printf ("EXT2-fs DEBUG (%s, %d): %s:", \
 						__FILE__, __LINE__, __FUNCTION__); \
@@ -121,21 +122,38 @@
 #define EXT2_LINK_MAX		32000
 
 /*
+ * Note: under FreeBSD, the "user" versions of the following macros are
+ * used (and must be used) in most cases, because ((s)->u.ext2_sb.s_es is
+ * not accessible.  This depends on __KERNEL__ not being defined for
+ * kernel builds under FreeBSD.
+ */
+
+/*
  * Macro-instructions used to manage several block sizes
  */
 #define EXT2_MIN_BLOCK_SIZE		1024
 #define	EXT2_MAX_BLOCK_SIZE		4096
 #define EXT2_MIN_BLOCK_LOG_SIZE		  10
-
-#define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
-#define EXT2_ACLE_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / \
-					sizeof (struct ext2_acl_entry))
+#if defined(__KERNEL__) || (defined(__FreeBSD__) && defined(_KERNEL))
+# define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
+#else
+# define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->s_log_block_size)
+#endif
+#define EXT2_ACLE_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_acl_entry))
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (__u32))
-#define EXT2_BLOCK_SIZE_BITS(s)		((s)->s_log_block_size + 10)
-
-#define EXT2_INODE_SIZE			128
-			/* ought to be  sizeof (struct ext2_inode)) */
+#ifdef __KERNEL__
+# define EXT2_BLOCK_SIZE_BITS(s)	((s)->u.ext2_sb.s_es->s_log_block_size + 10)
+#else
+# define EXT2_BLOCK_SIZE_BITS(s)	((s)->s_log_block_size + 10)
+#endif
+#if defined(__FreeBSD__) && defined(_KERNEL)
 #define	EXT2_INODES_PER_BLOCK(s)	((s)->s_inodes_per_block)
+#else
+#define	EXT2_INODES_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_inode))
+#endif
+
+/* Should be sizeof(struct ext2_inode): */
+#define EXT2_INODE_SIZE			128
 
 /*
  * Macro-instructions used to manage fragments
@@ -143,8 +161,17 @@
 #define EXT2_MIN_FRAG_SIZE		1024
 #define	EXT2_MAX_FRAG_SIZE		4096
 #define EXT2_MIN_FRAG_LOG_SIZE		  10
-#define EXT2_FRAG_SIZE(s)		((s)->s_frag_size)
-#define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / EXT2_FRAG_SIZE(s))
+#ifdef __KERNEL__
+# define EXT2_FRAG_SIZE(s)		((s)->u.ext2_sb.s_frag_size)
+# define EXT2_FRAGS_PER_BLOCK(s)	((s)->u.ext2_sb.s_frags_per_block)
+#else
+# if defined(_KERNEL) && defined(__FreeBSD__)
+# define EXT2_FRAG_SIZE(s)		((s)->s_frag_size)
+# else
+# define EXT2_FRAG_SIZE(s)		(EXT2_MIN_FRAG_SIZE << (s)->s_log_frag_size)
+# endif
+# define EXT2_FRAGS_PER_BLOCK(s)	(EXT2_BLOCK_SIZE(s) / EXT2_FRAG_SIZE(s))
+#endif
 
 /*
  * ACL structures
@@ -195,9 +222,15 @@ struct ext2_group_desc
 /*
  * Macro-instructions used to manage group descriptors
  */
-#define EXT2_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
-#define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_group_desc))
-#define EXT2_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
+#ifdef __KERNEL__
+# define EXT2_BLOCKS_PER_GROUP(s)	((s)->u.ext2_sb.s_blocks_per_group)
+# define EXT2_DESC_PER_BLOCK(s)		((s)->u.ext2_sb.s_desc_per_block)
+# define EXT2_INODES_PER_GROUP(s)	((s)->u.ext2_sb.s_inodes_per_group)
+#else
+# define EXT2_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_group_desc))
+# define EXT2_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
+#endif
 
 /*
  * Constants relative to the data blocks
@@ -240,56 +273,79 @@ struct ext2_group_desc
  * Structure of an inode on the disk
  */
 struct ext2_inode {
-        __u16   i_mode;         /* File mode */
-        __u16   i_uid;          /* Owner Uid */
-        __u32   i_size;         /* Size in bytes */
-        __u32   i_atime;        /* Access time */
-        __u32   i_ctime;        /* Creation time */
-        __u32   i_mtime;        /* Modification time */
-        __u32   i_dtime;        /* Deletion Time */
-        __u16   i_gid;          /* Group Id */
-        __u16   i_links_count;  /* Links count */
-        __u32   i_blocks;       /* Blocks count */
-        __u32   i_flags;        /* File flags */
-        union {
-                struct {
-                        __u32  l_i_reserved1;
-                } linux1;
-                struct {
-                        __u32  h_i_translator;
-                } hurd1;
-                struct {
-                        __u32  m_i_reserved1;
-                } masix1;
-        } osd1;                         /* OS dependent 1 */
-        __u32   i_block[EXT2_N_BLOCKS];/* Pointers to blocks */
-        __u32   i_version;      /* File version (for NFS) */
-        __u32   i_file_acl;     /* File ACL */
-        __u32   i_dir_acl;      /* Directory ACL */
-        __u32   i_faddr;        /* Fragment address */
-        union {
-                struct {
-                        __u8    l_i_frag;       /* Fragment number */
-                        __u8    l_i_fsize;      /* Fragment size */
-                        __u16   i_pad1;
-                        __u32   l_i_reserved2[2];
-                } linux2;
-                struct {
-                        __u8    h_i_frag;       /* Fragment number */
-                        __u8    h_i_fsize;      /* Fragment size */
-                        __u16   h_i_mode_high;
-                        __u16   h_i_uid_high;
-                        __u16   h_i_gid_high;
-                        __u32   h_i_author;
-                } hurd2;
-                struct {
-                        __u8    m_i_frag;       /* Fragment number */
-                        __u8    m_i_fsize;      /* Fragment size */
-                        __u16   m_pad1;
-                        __u32   m_i_reserved2[2];
-                } masix2;
-        } osd2;                         /* OS dependent 2 */
+	__u16 i_mode;		/* File mode */
+	__u16 i_uid;		/* Owner Uid */
+	__u32  i_size;		/* Size in bytes */
+	__u32  i_atime;		/* Access time */
+	__u32  i_ctime;		/* Creation time */
+	__u32  i_mtime;		/* Modification time */
+	__u32  i_dtime;		/* Deletion Time */
+	__u16 i_gid;		/* Group Id */
+	__u16 i_links_count;	/* Links count */
+	__u32  i_blocks;	/* Blocks count */
+	__u32  i_flags;		/* File flags */
+	union {
+		struct {
+			__u32  l_i_reserved1;
+		} linux1;
+		struct {
+			__u32  h_i_translator;
+		} hurd1;
+		struct {
+			__u32  m_i_reserved1;
+		} masix1;
+	} osd1;				/* OS dependent 1 */
+	__u32	i_block[EXT2_N_BLOCKS];/* Pointers to blocks */
+	__u32	i_version;	/* File version (for NFS) */
+	__u32	i_file_acl;	/* File ACL */
+	__u32	i_dir_acl;	/* Directory ACL */
+	__u32	i_faddr;		/* Fragment address */
+	union {
+		struct {
+			__u8	l_i_frag;	/* Fragment number */
+			__u8	l_i_fsize;	/* Fragment size */
+			__u16	i_pad1;
+			__u32	l_i_reserved2[2];
+		} linux2;
+		struct {
+			__u8	h_i_frag;	/* Fragment number */
+			__u8	h_i_fsize;	/* Fragment size */
+			__u16	h_i_mode_high;
+			__u16	h_i_uid_high;
+			__u16	h_i_gid_high;
+			__u32	h_i_author;
+		} hurd2;
+		struct {
+			__u8	m_i_frag;	/* Fragment number */
+			__u8	m_i_fsize;	/* Fragment size */
+			__u16	m_pad1;
+			__u32	m_i_reserved2[2];
+		} masix2;
+	} osd2;				/* OS dependent 2 */
 };
+
+#if defined(__KERNEL__) || defined(__linux__)
+#define i_reserved1	osd1.linux1.l_i_reserved1
+#define i_frag		osd2.linux2.l_i_frag
+#define i_fsize		osd2.linux2.l_i_fsize
+#define i_reserved2	osd2.linux2.l_i_reserved2
+#endif
+
+#ifdef	__hurd__
+#define i_translator	osd1.hurd1.h_i_translator
+#define i_frag		osd2.hurd2.h_i_frag;
+#define i_fsize		osd2.hurd2.h_i_fsize;
+#define i_uid_high	osd2.hurd2.h_i_uid_high
+#define i_gid_high	osd2.hurd2.h_i_gid_high
+#define i_author	osd2.hurd2.h_i_author
+#endif
+
+#ifdef	__masix__
+#define i_reserved1	osd1.masix1.m_i_reserved1
+#define i_frag		osd2.masix2.m_i_frag
+#define i_fsize		osd2.masix2.m_i_fsize
+#define i_reserved2	osd2.masix2.m_i_reserved2
+#endif
 
 #endif /* i_mode */
 
