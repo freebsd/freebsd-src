@@ -801,7 +801,12 @@ struct an_softc	{
 	int			an_nextitem;
 #endif
 	struct callout_handle	an_stat_ch;
+	struct mtx		an_mtx;
+	device_t		an_dev;
 };
+
+#define AN_LOCK(_sc)		mtx_enter(&(_sc)->an_mtx, MTX_DEF)
+#define AN_UNLOCK(_sc)		mtx_exit(&(_sc)->an_mtx, MTX_DEF)
 
 void	an_release_resources	__P((device_t));
 int	an_alloc_port		__P((device_t, int, int));

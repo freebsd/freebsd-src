@@ -69,6 +69,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <machine/mutex.h>
 #include <machine/resource.h>
 
 #include <net/if.h>
@@ -132,12 +133,9 @@ static int an_probe_pci(device_t dev)
 static int an_attach_pci(dev)
 	device_t		dev;
 {
-	int			s;
 	u_int32_t		command;
 	struct an_softc		*sc;
 	int 			unit, flags, error = 0;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -186,8 +184,6 @@ static int an_attach_pci(dev)
 	error = an_attach(sc, device_get_unit(dev), flags);
 
 fail:
-	splx(s);
-
 	return(error);
 }
 
