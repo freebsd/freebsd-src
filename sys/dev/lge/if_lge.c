@@ -791,12 +791,12 @@ static int lge_newbuf(sc, c, m)
 		}
 		/* Attach the buffer to the mbuf */
 		m_new->m_data = (void *)buf;
-		m_new->m_len = m_new->m_pkthdr.len = LGE_MCLBYTES;
-		MEXTADD(m_new, buf, LGE_MCLBYTES, lge_jfree,
+		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
+		MEXTADD(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree,
 		    (struct lge_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = LGE_MCLBYTES;
+		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
@@ -857,12 +857,10 @@ static int lge_alloc_jumbo_mem(sc)
 	ptr = sc->lge_cdata.lge_jumbo_buf;
 	for (i = 0; i < LGE_JSLOTS; i++) {
 		sc->lge_cdata.lge_jslots[i] = ptr;
-		ptr += LGE_MCLBYTES;
+		ptr += LGE_JLEN;
 		entry = malloc(sizeof(struct lge_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			free(sc->lge_cdata.lge_jumbo_buf, M_DEVBUF);
-			sc->lge_cdata.lge_jumbo_buf = NULL;
 			printf("lge%d: no memory for jumbo "
 			    "buffer queue!\n", sc->lge_unit);
 			return(ENOBUFS);
@@ -883,8 +881,8 @@ static void lge_free_jumbo_mem(sc)
 
 	for (i = 0; i < LGE_JSLOTS; i++) {
 		entry = SLIST_FIRST(&sc->lge_jfree_listhead);
-		free(entry, M_DEVBUF);
 		SLIST_REMOVE_HEAD(&sc->lge_jfree_listhead, jpool_entries);
+		free(entry, M_DEVBUF);
 	}
 
 	contigfree(sc->lge_cdata.lge_jumbo_buf, LGE_JMEM, M_DEVBUF);

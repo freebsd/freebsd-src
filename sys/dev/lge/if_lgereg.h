@@ -502,7 +502,6 @@ struct lge_mii_frame {
 #define LGE_JRAWLEN (LGE_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define LGE_JLEN (LGE_JRAWLEN + (sizeof(u_int64_t) - \
 	(LGE_JRAWLEN % sizeof(u_int64_t))))
-#define LGE_MCLBYTES (LGE_JLEN - sizeof(u_int64_t))
 #define LGE_JPAGESZ PAGE_SIZE
 #define LGE_RESID (LGE_JPAGESZ - (LGE_JLEN * LGE_JSLOTS) % LGE_JPAGESZ)
 #define LGE_JMEM ((LGE_JLEN * LGE_JSLOTS) + LGE_RESID)
