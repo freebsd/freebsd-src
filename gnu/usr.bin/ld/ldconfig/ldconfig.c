@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Paul Kranenburg.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.2 1993/11/09 04:19:22 paul Exp $
+ *	$Id: ldconfig.c,v 1.4 1993/12/02 01:03:16 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@ struct shlib_list {
 static struct shlib_list	*shlib_head = NULL, **shlib_tail = &shlib_head;
 
 static void	enter __P((char *, char *, char *, int *, int));
-static int	dodir __P((char *));
+static int	dodir __P((char *, int));
 static int	build_hints __P((void));
 
 int
@@ -114,10 +114,10 @@ char	*argv[];
 		std_search_dirs(NULL);
 
 	for (i = 0; i < n_search_dirs; i++)
-		rval |= dodir(search_dirs[i]);
+		rval |= dodir(search_dirs[i], 1);
 
 	for (i = optind; i < argc; i++)
-		rval |= dodir(argv[i]);
+		rval |= dodir(argv[i], 0);
 
 	rval |= build_hints();
 
@@ -125,8 +125,9 @@ char	*argv[];
 }
 
 int
-dodir(dir)
+dodir(dir, silent)
 char	*dir;
+int	silent;
 {
 	DIR		*dd;
 	struct dirent	*dp;
@@ -134,7 +135,8 @@ char	*dir;
 	int		dewey[MAXDEWEY], ndewey;
 
 	if ((dd = opendir(dir)) == NULL) {
-		perror(dir);
+		if (!silent || errno != ENOENT)
+			perror(dir);
 		return -1;
 	}
 
@@ -314,16 +316,26 @@ build_hints()
 		return -1;
 	}
 
-	mywrite(&hdr, 1, sizeof(struct hints_header), fd);
-	mywrite(blist, hdr.hh_nbucket, sizeof(struct hints_bucket), fd);
-	mywrite(strtab, strtab_sz, 1, fd);
-
+	if (write(fd, &hdr, sizeof(struct hints_header)) !=
+						sizeof(struct hints_header)) {
+		perror(_PATH_LD_HINTS);
+		return -1;
+	}
+	if (write(fd, blist, hdr.hh_nbucket * sizeof(struct hints_bucket)) !=
+				hdr.hh_nbucket * sizeof(struct hints_bucket)) {
+		perror(_PATH_LD_HINTS);
+		return -1;
+	}
+	if (write(fd, strtab, strtab_sz) != strtab_sz) {
+		perror(_PATH_LD_HINTS);
+		return -1;
+	}
 	if (close(fd) != 0) {
 		perror(_PATH_LD_HINTS);
 		return -1;
 	}
 
-	/* Now, install real file */
+	/* Install it */
 	if (unlink(_PATH_LD_HINTS) != 0 && errno != ENOENT) {
 		perror(_PATH_LD_HINTS);
 		return -1;

@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Paul Kranenburg.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.9 1993/12/04 00:53:00 jkh Exp $
+ *	$Id: rrs.c,v 1.10 1993/12/11 11:58:28 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -48,9 +48,9 @@
 
 #include "ld.h"
 
-static struct link_dynamic	rrs_dyn;		/* defined in link.h */
-static struct ld_debug		rrs_ld_debug;		/* defined in link.h */
-static struct link_dynamic_2	rrs_dyn2;		/* defined in link.h */
+static struct _dynamic		rrs_dyn;		/* defined in link.h */
+static struct so_debug		rrs_so_debug;		/* defined in link.h */
+static struct section_dispatch_table	rrs_sdt;	/* defined in link.h */
 static got_t			*rrs_got;
 static jmpslot_t		*rrs_plt;		/* defined in md.h */
 static struct relocation_info	*rrs_reloc;
@@ -73,7 +73,7 @@ static int	current_jmpslot_offset;
 static int	current_got_offset;
 static int	current_reloc_offset;
 static int	current_hash_index;
-static int	number_of_shobjs;
+int		number_of_shobjs;
 
 struct shobj {
 	struct shobj		*next;
@@ -82,29 +82,29 @@ struct shobj {
 
 /*
 RRS text segment:
-		+-------------------+  <-- ld_rel (rrs_text_start)
+		+-------------------+  <-- sdt_rel (rrs_text_start)
 		|                   |
 		|    relocation     |
 		|                   |
-		+-------------------+  <-- <link_dynamic_2>.ld_hash
+		+-------------------+  <-- <sdt>.sdt_hash
 		|                   |
 		|    hash buckets   |
 		|                   |
-		+-------------------+  <-- <link_dynamic_2>.ld_stab
+		+-------------------+  <-- <sdt>.sdt_nzlist
 		|                   |
 		|     symbols       |
 		|                   |
-		+-------------------+  <-- <link_dynamic_2>.ld_strings
+		+-------------------+  <-- <sdt>.sdt_strings
 		|                   |
 		|     strings       |
 		|                   |
-		+-------------------+  <-- <link_dynamic_2>.ld_need
+		+-------------------+  <-- <sdt>.sdt_sods
 		|                   |
 		|     shobjs        |
 		|                   |
 		+-------------------+
 		|                   |
-		|  shobjs strings   |  <-- <shobj>.lo_name
+		|  shobjs strings   |  <-- <shobj>.sod_name
 		|                   |
 		+-------------------+
 
@@ -113,21 +113,21 @@ RRS data segment:
 
 		+-------------------+  <-- __DYNAMIC (rrs_data_start)
 		|                   |
-		|   link_dymamic    |
+		|     _dymamic      |
 		|                   |
-		+-------------------+  <-- __DYNAMIC.ldd
+		+-------------------+  <-- __DYNAMIC.d_debug
 		|                   |
-		|   ld_debug        |
+		|    so_debug       |
 		|                   |
-		+-------------------+  <-- __DYNAMIC.ld_un.ld_2
+		+-------------------+  <-- __DYNAMIC.d_un.d_sdt
 		|                   |
-		|   link_dymamic_2  |
+		|       sdt         |
 		|                   |
-		+-------------------+  <-- _GLOBAL_OFFSET_TABLE_ (ld_got)
+		+-------------------+  <-- _GLOBAL_OFFSET_TABLE_ (sdt_got)
 		|                   |
 		|      _GOT_        |
 		|                   |
-		+-------------------+  <-- ld_plt
+		+-------------------+  <-- sdt_plt
 		|                   |
 		|       PLT         |
 		|                   |
@@ -280,12 +280,12 @@ alloc_rrs_cpy_reloc(entry, sp)
 struct file_entry	*entry;
 symbol *sp;
 {
-	if (sp->cpyreloc_reserved)
+	if (sp->flags & GS_CPYRELOCRESERVED)
 		return;
 #ifdef DEBUG
 printf("alloc_rrs_copy: %s in %s\n", sp->name, get_file_name(entry));
 #endif
-	sp->cpyreloc_reserved = 1;
+	sp->flags |= GS_CPYRELOCRESERVED;
 	reserved_rrs_relocs++;
 }
 
@@ -318,11 +318,11 @@ long	*relocation;
 {
 	struct relocation_info	*r = rrs_next_reloc();
 
-#ifdef DEBUG
 	if (rp->r_address < text_start + text_size)
 		error("%s: RRS text relocation at %#x for \"%s\"",
 			get_file_name(entry), rp->r_address, sp->name);
 
+#ifdef DEBUG
 printf("claim_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
 #endif
 	r->r_address = rp->r_address;
@@ -354,8 +354,8 @@ long			addend;
 {
 	struct relocation_info *r;
 
-	if (sp->jmpslot_claimed)
-		return rrs_dyn2.ld_plt + sp->jmpslot_offset;
+	if (sp->flags & GS_JMPSLOTCLAIMED)
+		return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 
 #ifdef DEBUG
 printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x (textreloc %#x)\n",
@@ -375,30 +375,30 @@ printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x (textreloc %#x)\n",
 				sp->name, get_file_name(entry));
 
 		md_fix_jmpslot( rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
-				rrs_dyn2.ld_plt + sp->jmpslot_offset,
+				rrs_sdt.sdt_plt + sp->jmpslot_offset,
 				sp->value);
 		if (!JMPSLOT_NEEDS_RELOC) {
-			return rrs_dyn2.ld_plt + sp->jmpslot_offset;
+			return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 		}
 	} else {
-		md_make_jmpslot( rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
+		md_make_jmpslot(rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
 				sp->jmpslot_offset,
 				claimed_rrs_relocs);
 	}
 
 	if (rrs_section_type == RRS_PARTIAL)
 		/* PLT is self-contained */
-		return rrs_dyn2.ld_plt + sp->jmpslot_offset;
+		return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 
 	/*
 	 * Install a run-time relocation for this PLT entry.
 	 */
 	r = rrs_next_reloc();
-	sp->jmpslot_claimed = 1;
+	sp->flags |= GS_JMPSLOTCLAIMED;
 
 	RELOC_SYMBOL(r) = sp->rrs_symbolnum;
 
-	r->r_address = (long)rrs_dyn2.ld_plt + sp->jmpslot_offset;
+	r->r_address = (long)rrs_sdt.sdt_plt + sp->jmpslot_offset;
 
 	if (link_mode & SYMBOLIC) {
 		RELOC_EXTERN_P(r) = 0;
@@ -408,7 +408,7 @@ printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x (textreloc %#x)\n",
 		md_make_jmpreloc(rp, r, 0);
 	}
 
-	return rrs_dyn2.ld_plt + sp->jmpslot_offset;
+	return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 }
 
 /*
@@ -443,7 +443,7 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 		"internal error: %s: claim_rrs_gotslot: %s: gotslot_offset == -1\n",
 			get_file_name(entry), sp->name);
 
-	if (sp->gotslot_claimed)
+	if (sp->flags & GS_GOTSLOTCLAIMED)
 		/* This symbol already passed here before. */
 		return sp->gotslot_offset;
 
@@ -497,8 +497,8 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 	 * as no symbol need be looked up at run-time.
 	 */
 	r = rrs_next_reloc();
-	sp->gotslot_claimed = 1;
-	r->r_address = rrs_dyn2.ld_got + sp->gotslot_offset;
+	sp->flags |= GS_GOTSLOTCLAIMED;
+	r->r_address = rrs_sdt.sdt_got + sp->gotslot_offset;
 	RELOC_SYMBOL(r) = sp->rrs_symbolnum;
 	RELOC_EXTERN_P(r) = !(reloc_type == RELTYPE_RELATIVE);
 	md_make_gotreloc(rp, r, reloc_type);
@@ -524,7 +524,7 @@ long			addend;
 	addend += lsp->nzlist.nz_value;
 
 	if (!RELOC_STATICS_THROUGH_GOT_P(r))
-		return addend - rrs_dyn2.ld_got;
+		return addend - rrs_sdt.sdt_got;
 
 #ifdef DEBUG
 printf("claim_rrs_internal_gotslot: %s: slot offset %#x, addend = %#x\n",
@@ -536,7 +536,7 @@ printf("claim_rrs_internal_gotslot: %s: slot offset %#x, addend = %#x\n",
 		"internal error: %s: claim_rrs_internal_gotslot at %#x: slot_offset == -1\n",
 			get_file_name(entry), RELOC_ADDRESS(rp));
 
-	if (lsp->gotslot_claimed)
+	if (lsp->flags & LS_GOTSLOTCLAIMED)
 		/* Already done */
 		return lsp->gotslot_offset;
 
@@ -549,8 +549,8 @@ printf("claim_rrs_internal_gotslot: %s: slot offset %#x, addend = %#x\n",
 	 * Relocation entry needed for this static GOT entry.
 	 */
 	r = rrs_next_reloc();
-	lsp->gotslot_claimed = 1;
-	r->r_address = rrs_dyn2.ld_got + lsp->gotslot_offset;
+	lsp->flags |= LS_GOTSLOTCLAIMED;
+	r->r_address = rrs_sdt.sdt_got + lsp->gotslot_offset;
 	RELOC_EXTERN_P(r) = 0;
 	md_make_gotreloc(rp, r, RELTYPE_RELATIVE);
 	return lsp->gotslot_offset;
@@ -564,10 +564,10 @@ symbol *sp;
 {
 	struct relocation_info	*r;
 
-	if (sp->cpyreloc_claimed)
+	if (sp->flags & GS_CPYRELOCCLAIMED)
 		return;
 
-	if (!sp->cpyreloc_reserved)
+	if (!(sp->flags & GS_CPYRELOCRESERVED))
 		fatal("internal error: %s: claim_cpy_reloc: %s: no reservation\n",
 			get_file_name(entry), sp->name);
 
@@ -577,7 +577,7 @@ printf("claim_rrs_copy: %s: %s -> %x\n",
 #endif
 
 	r = rrs_next_reloc();
-	sp->cpyreloc_claimed = 1;
+	sp->flags |= GS_CPYRELOCCLAIMED;
 	r->r_address = rp->r_address;
 	RELOC_SYMBOL(r) = sp->rrs_symbolnum;
 	RELOC_EXTERN_P(r) = RELOC_EXTERN_P(rp);
@@ -617,7 +617,7 @@ int	index;
 	for (; *cp; cp++)
 		hashval = (hashval << 1) + *cp;
 
-	hashval = (hashval & 0x7fffffff) % rrs_dyn2.ld_buckets;
+	hashval = (hashval & 0x7fffffff) % rrs_sdt.sdt_buckets;
 
 	/* Get to the bucket */
 	hp = rrs_hashtab + hashval;
@@ -651,11 +651,27 @@ void
 consider_rrs_section_lengths()
 {
 	int		n;
-	struct shobj	*shp;
+	struct shobj	*shp, **shpp;
 	int		symbolsize;
 
-	/* First, determine what of the RRS we want */
+#ifdef notyet
+/* We run into trouble with this as long as shared object symbols
+   are not checked for definitions */
+	/*
+	 * First, determine the real number of shared objects we need.
+	 */
+	for (shpp = &rrs_shobjs; *shpp; shpp = &(*shpp)->next) {
+		while (*shpp && !((*shpp)->entry->flags & E_SYMBOLS_USED)) {
+			if (--number_of_shobjs < 0)
+				fatal("internal error: number_of_shobjs < 0");
+			*shpp = (*shpp)->next;
+		}
+		if (*shpp == NULL)
+			break;
+	}
+#endif
 
+	/* First, determine what of the RRS we want */
 	if (relocatable_output)
 		rrs_section_type = RRS_NONE;
 	else if (link_mode & SHAREABLE)
@@ -685,13 +701,14 @@ consider_rrs_section_lengths()
 	 * from crt0), as this is the method used to determine whether the
 	 * run-time linker must be called.
 	 */
-	if (!(link_mode & SHAREABLE) && !dynamic_symbol->referenced)
+	if (!(link_mode & SHAREABLE) &&
+			!(dynamic_symbol->flags & GS_REFERENCED))
 		fatal("No reference to __DYNAMIC");
 
-	dynamic_symbol->referenced = 1;
+	dynamic_symbol->flags |= GS_REFERENCED;
 
 	if (number_of_gotslots > 1)
-		got_symbol->referenced = 1;
+		got_symbol->flags |= GS_REFERENCED;
 
 
 	/* Next, allocate relocs, got and plt */
@@ -722,7 +739,7 @@ consider_rrs_section_lengths()
 	 */
 	dynamic_symbol->rrs_symbolnum = number_of_rrs_symbols++;
 	FOR_EACH_SYMBOL(i ,sp) {
-		if (sp->referenced) {
+		if (sp->flags & GS_REFERENCED) {
 			rrs_strtab_size += 1 + strlen(sp->name);
 			if (sp != dynamic_symbol)
 				sp->rrs_symbolnum = number_of_rrs_symbols++;
@@ -743,16 +760,16 @@ consider_rrs_section_lengths()
 	 * Now that we know how many RRS symbols there are going to be,
 	 * allocate and initialize the RRS symbol hash table.
 	 */
-	rrs_dyn2.ld_buckets = number_of_rrs_symbols/4;
-	if (rrs_dyn2.ld_buckets < 4)
-		rrs_dyn2.ld_buckets = 4;
+	rrs_sdt.sdt_buckets = number_of_rrs_symbols/4;
+	if (rrs_sdt.sdt_buckets < 4)
+		rrs_sdt.sdt_buckets = 4;
 
-	number_of_rrs_hash_entries = rrs_dyn2.ld_buckets + number_of_rrs_symbols;
+	number_of_rrs_hash_entries = rrs_sdt.sdt_buckets + number_of_rrs_symbols;
 	rrs_hashtab = (struct rrs_hash *)xmalloc(
 			number_of_rrs_hash_entries * sizeof(struct rrs_hash));
-	for (n = 0; n < rrs_dyn2.ld_buckets; n++)
+	for (n = 0; n < rrs_sdt.sdt_buckets; n++)
 		rrs_hashtab[n].rh_symbolnum = -1;
-	current_hash_index = rrs_dyn2.ld_buckets;
+	current_hash_index = rrs_sdt.sdt_buckets;
 
 	/*
 	 * Get symbols into hash table now, so we can fine tune the size
@@ -760,7 +777,7 @@ consider_rrs_section_lengths()
 	 * to the number of hash link slots actually used.
 	 */
 	FOR_EACH_SYMBOL(i ,sp) {
-		if (sp->referenced)
+		if (sp->flags & GS_REFERENCED)
 			rrs_insert_hash(sp->name, sp->rrs_symbolnum);
 	} END_EACH_SYMBOL;
 	number_of_rrs_hash_entries = current_hash_index;
@@ -768,9 +785,9 @@ consider_rrs_section_lengths()
 	/*
 	 * Calculate RRS section sizes.
 	 */
-	rrs_data_size = sizeof(struct link_dynamic);
-	rrs_data_size += sizeof(struct ld_debug);
-	rrs_data_size += sizeof(struct link_dynamic_2);
+	rrs_data_size = sizeof(struct _dynamic);
+	rrs_data_size += sizeof(struct so_debug);
+	rrs_data_size += sizeof(struct section_dispatch_table);
 	rrs_data_size += number_of_gotslots * sizeof(got_t);
 	rrs_data_size += number_of_jmpslots * sizeof(jmpslot_t);
 	rrs_data_size = MALIGN(rrs_data_size);
@@ -790,7 +807,7 @@ consider_rrs_section_lengths()
 		if (*name == '-' && *(name+1) == 'l')
 			name += 2;
 
-		rrs_text_size += sizeof(struct link_object);
+		rrs_text_size += sizeof(struct sod);
 		rrs_text_size += 1 + strlen(name);
 	}
 
@@ -808,8 +825,8 @@ relocate_rrs_addresses()
 		return;
 
 	if (rrs_section_type == RRS_PARTIAL) {
-		got_symbol->value = rrs_dyn2.ld_got = rrs_data_start;
-		rrs_dyn2.ld_plt = rrs_dyn2.ld_got +
+		got_symbol->value = rrs_sdt.sdt_got = rrs_data_start;
+		rrs_sdt.sdt_plt = rrs_sdt.sdt_got +
 					number_of_gotslots * sizeof(got_t);
 		return;
 	}
@@ -817,48 +834,48 @@ relocate_rrs_addresses()
 	/*
 	 * RRS data relocations.
 	 */
-	rrs_dyn.ld_version = soversion;
-	rrs_dyn.ldd = (struct ld_debug *)
-			(rrs_data_start + sizeof(struct link_dynamic));
-	rrs_dyn.ld_un.ld_2 = (struct link_dynamic_2 *)
-				((long)rrs_dyn.ldd + sizeof(struct ld_debug));
+	rrs_dyn.d_version = soversion;
+	rrs_dyn.d_debug = (struct so_debug *)
+			(rrs_data_start + sizeof(struct _dynamic));
+	rrs_dyn.d_un.d_sdt = (struct section_dispatch_table *)
+			    ((long)rrs_dyn.d_debug + sizeof(struct so_debug));
 
-	rrs_dyn2.ld_got = (long)rrs_dyn.ld_un.ld_2 +
-					sizeof(struct link_dynamic_2);
-	rrs_dyn2.ld_plt = rrs_dyn2.ld_got + number_of_gotslots*sizeof(got_t);
+	rrs_sdt.sdt_got = (long)rrs_dyn.d_un.d_sdt +
+					sizeof(struct section_dispatch_table);
+	rrs_sdt.sdt_plt = rrs_sdt.sdt_got + number_of_gotslots*sizeof(got_t);
 
 	/*
 	 * RRS text relocations.
 	 */
-	rrs_dyn2.ld_rel = rrs_text_start;
+	rrs_sdt.sdt_rel = rrs_text_start;
 	/*
 	 * Sun BUG compatibility alert.
 	 * Main program's RRS text values are relative to TXTADDR? WHY??
 	 */
 #ifdef SUN_COMPAT
 	if (soversion == LD_VERSION_SUN && !(link_mode & SHAREABLE))
-		rrs_dyn2.ld_rel -= N_TXTADDR(outheader);
+		rrs_sdt.sdt_rel -= N_TXTADDR(outheader);
 #endif
 
-	rrs_dyn2.ld_hash = rrs_dyn2.ld_rel +
+	rrs_sdt.sdt_hash = rrs_sdt.sdt_rel +
 			reserved_rrs_relocs * sizeof(struct relocation_info);
-	rrs_dyn2.ld_symbols = rrs_dyn2.ld_hash +
+	rrs_sdt.sdt_nzlist = rrs_sdt.sdt_hash +
 			number_of_rrs_hash_entries * sizeof(struct rrs_hash);
-	rrs_dyn2.ld_strings = rrs_dyn2.ld_symbols +
+	rrs_sdt.sdt_strings = rrs_sdt.sdt_nzlist +
 			number_of_rrs_symbols * rrs_symbol_size;
-	rrs_dyn2.ld_str_sz = rrs_strtab_size;
-	rrs_dyn2.ld_text_sz = text_size;
-	rrs_dyn2.ld_plt_sz = number_of_jmpslots * sizeof(jmpslot_t);
+	rrs_sdt.sdt_str_sz = rrs_strtab_size;
+	rrs_sdt.sdt_text_sz = text_size;
+	rrs_sdt.sdt_plt_sz = number_of_jmpslots * sizeof(jmpslot_t);
 
-	rrs_dyn2.ld_need = rrs_shobjs ? rrs_dyn2.ld_strings+rrs_strtab_size : 0;
-	rrs_dyn2.ld_stab_hash = 0;
-	rrs_dyn2.ld_rules = 0;
+	rrs_sdt.sdt_sods = rrs_shobjs ? rrs_sdt.sdt_strings+rrs_strtab_size : 0;
+	rrs_sdt.sdt_filler1 = 0;
+	rrs_sdt.sdt_filler2 = 0;
 
 	/*
 	 * Assign addresses to _GLOBAL_OFFSET_TABLE_ and __DYNAMIC
 	 * &__DYNAMIC is also in the first GOT entry.
 	 */
-	got_symbol->value = rrs_dyn2.ld_got;
+	got_symbol->value = rrs_sdt.sdt_got;
 
 	*rrs_got = dynamic_symbol->value = rrs_data_start;
 
@@ -896,14 +913,14 @@ write_rrs_data()
 		return;
 	}
 
-	md_swapout_link_dynamic(&rrs_dyn);
-	mywrite(&rrs_dyn, 1, sizeof(struct link_dynamic), outdesc);
+	md_swapout__dynamic(&rrs_dyn);
+	mywrite(&rrs_dyn, 1, sizeof(struct _dynamic), outdesc);
 
-	md_swapout_ld_debug(&rrs_ld_debug);
-	mywrite(&rrs_ld_debug, 1, sizeof(struct ld_debug), outdesc);
+	md_swapout_so_debug(&rrs_so_debug);
+	mywrite(&rrs_so_debug, 1, sizeof(struct so_debug), outdesc);
 
-	md_swapout_link_dynamic_2(&rrs_dyn2);
-	mywrite(&rrs_dyn2, 1, sizeof(struct link_dynamic_2), outdesc);
+	md_swapout_section_dispatch_table(&rrs_sdt);
+	mywrite(&rrs_sdt, 1, sizeof(struct section_dispatch_table), outdesc);
 
 	md_swapout_got(rrs_got, number_of_gotslots);
 	mywrite(rrs_got, number_of_gotslots, sizeof(got_t), outdesc);
@@ -921,7 +938,7 @@ write_rrs_text()
 	struct nzlist		*nlp;
 	int			offset = 0;
 	struct shobj		*shp;
-	struct link_object	*lo;
+	struct sod		*sodp;
 
 	if (rrs_section_type == RRS_PARTIAL)
 		return;
@@ -967,7 +984,7 @@ write_rrs_text()
 	 */
 	FOR_EACH_SYMBOL(i, sp) {
 
-		if (!sp->referenced || sp == dynamic_symbol)
+		if (!(sp->flags & GS_REFERENCED) || sp == dynamic_symbol)
 			continue;
 
 		if ((long)nlp - (long)rrs_symbols >=
@@ -993,6 +1010,7 @@ write_rrs_text()
 				 */
 				nlp->nz_type = sp->alias->defined;
 				nlp->nz_value = sp->alias->value;
+				nlp->nz_other = N_OTHER(0, sp->alias->aux);
 			} else if (sp->defined == N_SIZE) {
 				/*
 				 * Make sure this symbol isn't going
@@ -1003,46 +1021,35 @@ write_rrs_text()
 			} else {
 				nlp->nz_type = sp->defined;
 				nlp->nz_value = sp->value;
+				nlp->nz_other = N_OTHER(0, sp->aux);
 			}
 			if (LD_VERSION_NZLIST_P(soversion))
 				nlp->nz_size = sp->size;
-		} else if (sp->max_common_size) {
+		} else if (sp->common_size) {
 			/*
 			 * a common definition
 			 */
 			nlp->nz_type = N_UNDF | N_EXT;
-			nlp->nz_value = sp->max_common_size;
+			nlp->nz_value = sp->common_size;
 		} else if (!sp->defined) {
 			/* undefined */
 			nlp->nz_type = N_UNDF | N_EXT;
 			nlp->nz_value = 0;
+			if (sp->so_defined && sp->jmpslot_offset != -1) {
+				/*
+				 * Define a "weak" function symbol.
+				 */
+				if (sp->aux != AUX_FUNC)
+					fatal("%s: non-function jmpslot",
+								sp->name);
+				nlp->nz_other = N_OTHER(0, sp->aux);
+				nlp->nz_value =
+					rrs_sdt.sdt_plt + sp->jmpslot_offset;
+			}
 		} else
 			fatal(
 			      "internal error: %s defined in mysterious way",
 			      sp->name);
-
-		/* Handle auxialiary type qualifiers */
-		switch (sp->aux) {
-		case 0:
-			break;
-		case RRS_FUNC:
-			if (sp->so_defined != (N_TEXT+N_EXT))
-				fatal("internal error: %s: other but not text",
-							      sp->name);
-			if (sp->jmpslot_offset == -1)
-				fatal(
-				  "internal error: %s has no jmpslot but other",
-				      sp->name);
-			nlp->nz_other = sp->aux;
-			nlp->nz_value =
-				rrs_dyn2.ld_plt + sp->jmpslot_offset;
-			break;
-		default:
-			fatal(
-			    "internal error: %s: unsupported other value: %x",
-				      sp->name, sp->aux);
-			break;
-		}
 
 		/* Set symbol's name */
 		nlp->nz_strx = offset;
@@ -1089,9 +1096,8 @@ write_rrs_text()
 	/*
 	 * Write the names of the shared objects needed at run-time
 	 */
-	pos = rrs_dyn2.ld_need + number_of_shobjs * sizeof(struct link_object);
-	lo = (struct link_object *)alloca(
-				number_of_shobjs * sizeof(struct link_object));
+	pos = rrs_sdt.sdt_sods + number_of_shobjs * sizeof(struct sod);
+	sodp = (struct sod *)alloca( number_of_shobjs * sizeof(struct sod));
 
 	for (i = 0, shp = rrs_shobjs; shp; i++, shp = shp->next) {
 		char	*name = shp->entry->local_sym_name;
@@ -1100,27 +1106,27 @@ write_rrs_text()
 			fatal("internal error: # of link objects exceeds %d",
 				number_of_shobjs);
 
-		lo[i].lo_name = pos;
-		lo[i].lo_major = shp->entry->lib_major;
-		lo[i].lo_minor = shp->entry->lib_minor;
+		sodp[i].sod_name = pos;
+		sodp[i].sod_major = shp->entry->lib_major;
+		sodp[i].sod_minor = shp->entry->lib_minor;
 
 		if (*name == '-' && *(name+1) == 'l') {
 			name += 2;
-			lo[i].lo_library = 1;
+			sodp[i].sod_library = 1;
 		} else
-			lo[i].lo_library = 0;
+			sodp[i].sod_library = 0;
 
 		pos += 1 + strlen(name);
-		lo[i].lo_next = (i == number_of_shobjs - 1) ? 0 :
-			(rrs_dyn2.ld_need + (i+1)*sizeof(struct link_object));
+		sodp[i].sod_next = (i == number_of_shobjs - 1) ? 0 :
+			(rrs_sdt.sdt_sods + (i+1)*sizeof(struct sod));
 	}
 
 	if (i < number_of_shobjs)
 		fatal("internal error: # of link objects less then expected %d",
 				number_of_shobjs);
 
-	md_swapout_link_object(lo, number_of_shobjs);
-	mywrite(lo, number_of_shobjs, sizeof(struct link_object), outdesc);
+	md_swapout_sod(sodp, number_of_shobjs);
+	mywrite(sodp, number_of_shobjs, sizeof(struct sod), outdesc);
 
 	for (i = 0, shp = rrs_shobjs; shp; i++, shp = shp->next) {
 		char	*name = shp->entry->local_sym_name;

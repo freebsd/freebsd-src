@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Paul Kranenburg.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: xbits.c,v 1.1 1993/10/16 21:52:37 pk Exp $
+ *	$Id: xbits.c,v 1.2 1993/11/09 04:19:08 paul Exp $
  */
 
 /*
@@ -96,60 +96,61 @@ int n;
 }
 
 void
-swap_link_dynamic(dp)
-struct link_dynamic *dp;
+swap__dynamic(dp)
+struct _dynamic *dp;
 {
-	dp->ld_version = md_swap_long(dp->ld_version);
-	dp->ldd = (struct ld_debug *)md_swap_long((long)dp->ldd);
-	dp->ld_un.ld_2 = (struct link_dynamic_2 *)md_swap_long((long)dp->ld_un.ld_2);
-	dp->ld_entry = (struct ld_entry *)md_swap_long((long)dp->ld_entry);
+	dp->d_version = md_swap_long(dp->d_version);
+	dp->d_debug = (struct so_debug *)md_swap_long((long)dp->d_debug);
+	dp->d_un.d_sdt = (struct section_dispatch_table *)
+				md_swap_long((long)dp->d_un.d_sdt);
+	dp->d_entry = (struct ld_entry *)md_swap_long((long)dp->d_entry);
 }
 
 void
-swap_link_dynamic_2(ldp)
-struct link_dynamic_2 *ldp;
+swap_section_dispatch_table(sdp)
+struct section_dispatch_table *sdp;
 {
-	swap_longs((long *)ldp, sizeof(*ldp)/sizeof(long));
+	swap_longs((long *)sdp, sizeof(*sdp)/sizeof(long));
 }
 
 void
-swap_ld_debug(lddp)
-struct ld_debug	*lddp;
+swap_so_debug(ddp)
+struct so_debug	*ddp;
 {
-	swap_longs((long *)lddp, sizeof(*lddp)/sizeof(long));
+	swap_longs((long *)ddp, sizeof(*ddp)/sizeof(long));
 }
 
 void
-swapin_link_object(lop, n)
-struct link_object *lop;
+swapin_sod(sodp, n)
+struct sod *sodp;
 int n;
 {
 	unsigned long	bits;
 
-	for (; n; n--, lop++) {
-		lop->lo_name = md_swap_long(lop->lo_name);
-		lop->lo_major = md_swap_short(lop->lo_major);
-		lop->lo_minor = md_swap_short(lop->lo_minor);
-		lop->lo_next = md_swap_long(lop->lo_next);
-		bits = ((unsigned long *)lop)[1];
-		lop->lo_library = ((bits >> 24) & 1);
+	for (; n; n--, sodp++) {
+		sodp->sod_name = md_swap_long(sodp->sod_name);
+		sodp->sod_major = md_swap_short(sodp->sod_major);
+		sodp->sod_minor = md_swap_short(sodp->sod_minor);
+		sodp->sod_next = md_swap_long(sodp->sod_next);
+		bits = ((unsigned long *)sodp)[1];
+		sodp->sod_library = ((bits >> 24) & 1);
 	}
 }
 
 void
-swapout_link_object(lop, n)
-struct link_object *lop;
+swapout_sod(sodp, n)
+struct sod *sodp;
 int n;
 {
 	unsigned long	bits;
 
-	for (; n; n--, lop++) {
-		lop->lo_name = md_swap_long(lop->lo_name);
-		lop->lo_major = md_swap_short(lop->lo_major);
-		lop->lo_minor = md_swap_short(lop->lo_minor);
-		lop->lo_next = md_swap_long(lop->lo_next);
-		bits = (unsigned long)(lop->lo_library) << 24;
-		((unsigned long *)lop)[1] = bits;
+	for (; n; n--, sodp++) {
+		sodp->sod_name = md_swap_long(sodp->sod_name);
+		sodp->sod_major = md_swap_short(sodp->sod_major);
+		sodp->sod_minor = md_swap_short(sodp->sod_minor);
+		sodp->sod_next = md_swap_long(sodp->sod_next);
+		bits = (unsigned long)(sodp->sod_library) << 24;
+		((unsigned long *)sodp)[1] = bits;
 	}
 }
 

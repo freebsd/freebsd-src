@@ -1,5 +1,5 @@
 /*
- * $Id: etc.c,v 1.5 1993/12/04 00:52:55 jkh Exp $
+ * $Id: etc.c,v 1.6 1993/12/11 11:58:22 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@ error(fmt, va_alist)
 	va_end(ap);
 }
 
+void	(*fatal_cleanup_hook)__P((void));
 /*
  * Report a fatal error.
  */
@@ -72,8 +73,8 @@ fatal(fmt, va_alist)
 	(void)fprintf(stderr, "\n");
 	va_end(ap);
 
-	if (outdesc >= 0)
-		unlink(output_filename);
+	if (fatal_cleanup_hook)
+		(*fatal_cleanup_hook)();
 	exit(1);
 }
 
@@ -148,50 +149,3 @@ xrealloc(ptr, size)
 
 	return result;
 }
-
-
-
-/* These must move */
-
-#ifndef RTLD
-/*
- * Output COUNT*ELTSIZE bytes of data at BUF to the descriptor DESC.
- */
-void
-mywrite (buf, count, eltsize, desc)
-     char *buf;
-     int count;
-     int eltsize;
-     int desc;
-{
-	register int val;
-	register int bytes = count * eltsize;
-
-	while (bytes > 0) {
-		val = write (desc, buf, bytes);
-		if (val <= 0)
-			perror(output_filename);
-		buf += val;
-		bytes -= val;
-	}
-}
-
-/*
- * Output PADDING zero-bytes to descriptor OUTDESC.
- * PADDING may be negative; in that case, do nothing.
- */
-
-void
-padfile (padding, outdesc)
-     int padding;
-     int outdesc;
-{
-	register char *buf;
-	if (padding <= 0)
-		return;
-
-	buf = (char *) alloca (padding);
-	bzero (buf, padding);
-	mywrite (buf, padding, 1, outdesc);
-}
-#endif
