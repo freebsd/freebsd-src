@@ -8,6 +8,9 @@ alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
 
+set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin /usr/X11R6/bin $HOME/bin)
+setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
+
 setenv	PAGER	more
 setenv	BLOCKSIZE	K
 
