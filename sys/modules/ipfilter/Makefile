@@ -7,7 +7,7 @@ SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \
 NOMAN=
 CFLAGS+= -DIPFILTER_LKM -DIPFILTER_LOG
 #
-# If you don't want long functionality remove -DIPFILTER_LOG
+# If you don't want log functionality remove -DIPFILTER_LOG
 #
 
 .include <bsd.kmod.mk>
