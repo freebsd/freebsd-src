@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.7
+    Original revision: 1.1.2.22.2.3
 -->
 
 <!-- 
@@ -33,10 +33,14 @@
 <article>
   <articleinfo>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <title>&os; &release.current; Errata</title>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
 
     <corpauthor>&os; プロジェクト</corpauthor>
 
@@ -51,43 +55,42 @@
 
   <abstract>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
-    <para>この文書は &os; &release.current; の公開後に
-      判明した重要な情報が書かれている errata リスト (正誤表) です.
+    <para>この文書は &os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+      の公開後に判明した重要な情報が書かれている errata リスト (正誤表) です.
       これにはセキュリティ勧告および,
       システムの運用・利用に影響を与えるような関連ソフトウェア,
       関連文書の更新情報も含まれています.
       このバージョンの &os; をインストールする前には必ず,
       最新の errata を参照するようにしてください.</para>
 
+    <para>この errata 文書は &os; 
 <![ %release.type.snapshot [
-    <para>この errata 文書は &os; &release.prev; 用です.
-      &os; &release.next; のリリースまでの期間、保守されます.</para>
+      &release.prev;
 ]]>
-
 <![ %release.type.release [
-    <para>この文書は &os; &release.prev; 用の最終版 errata 文書です.
-      &release.branch; ブランチにおける errata 文書はこれ以降,
-      &os; &release.current; および以降のリリースについて扱います.</para>
+      &release.current; 
 ]]>
-
-    <para>&release.branch;
-      ブランチは最新のブランチポイントであり,
-      ここからはまだリリース版が公開されていません.
-      そのため現時点の &release.current; には,
-      errata がありません.
-      (最初のリリースは &release.next; になる予定です)
-      このファイルは新たに作成されたブランチ用のひな型として用意されているものです.
-      (当然ながら, この注意書きは他のブランチにある errata
-      文書には存在しません)</para>
+      用です.
+      &os; &release.next; のリリースまでの期間, 保守されます.</para>
   </abstract>
 
   <sect1>
     <title>はじめに</title>
 
-    <para>この errata 文書には &os; &release.current; に関する
+    <para>この errata 文書には &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      に関する
       <quote>最新の障害情報</quote> が書かれています.
       この文書を読み,
       このバージョンのインストール前にリリース公開後に既に発見・修正された問題点について
@@ -116,12 +119,22 @@
   </sect1>
 
   <sect1>
-    <title>セキュリティ勧告</title>
-    <para></para>
+    <title>セキュリティ勧告とセキュリティに関するお知らせ</title>
+
+    <para>ローカル設定とグローバル設定の統合が正しく行なわれないため,
+      各ユーザの <filename>~/.login_conf</filename>
+      ファイル (詳細は &man.login.conf.5; 参照)
+      は無効化されました.
+      この問題は将来のリリースで修正される予定です.</para>
   </sect1>
 
   <sect1>
     <title>システム更新情報</title>
-    <para></para>
+
+    <para>&man.printcap.5; ファイルに含まれる,
+      ある形式のコメントが正しく扱われないという不具合があります.
+      コメント行が <literal>:\</literal> で終わっている場合 (この文字は通常,
+      一つのプリンタ定義が継続していることを示すのに使われます),
+      そのコメントの次の行は一つ前のプリンタ定義の一部として認識されます.</para>
   </sect1>
 </article>
