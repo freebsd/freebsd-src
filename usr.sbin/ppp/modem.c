@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.67 1997/11/22 03:37:41 brian Exp $
+ * $Id: modem.c,v 1.68 1997/12/18 01:10:13 brian Exp $
  *
  *  TODO:
  */
@@ -434,6 +434,8 @@ OpenModem()
   int oldflag;
   char *host, *port;
   char *cp;
+  char tmpDeviceList[sizeof(VarDeviceList)];
+  char *tmpDevice;
 
   if (modem >= 0)
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
@@ -464,44 +466,62 @@ OpenModem()
       return modem = 0;
     }
   } else {
-    if (strncmp(VarDevice, "/dev/", 5) == 0) {
-      if (LockModem() == -1)
-        return (-1);
-      modem = ID0open(VarDevice, O_RDWR | O_NONBLOCK);
-      if (modem < 0) {
-	LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
-		  strerror(errno));
-	UnlockModem();
-	return (-1);
-      }
-      HaveModem();
-      LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
-    } else {
-      /* PPP over TCP */
-      cp = strchr(VarDevice, ':');
-      if (cp) {
-	*cp = '\0';
-	host = VarDevice;
-	port = cp + 1;
-	if (*host && *port) {
-	  modem = OpenConnection(host, port);
-	  *cp = ':';		/* Don't destroy VarDevice */
-	  if (modem < 0)
-	    return (-1);
-          HaveModem();
-          LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
-	} else {
-	  *cp = ':';		/* Don't destroy VarDevice */
-	  LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
-	  return (-1);
+    strncpy(tmpDeviceList, VarDeviceList, sizeof(tmpDeviceList));
+    tmpDeviceList[sizeof(tmpDeviceList)-1] = '\0';
+
+    for(tmpDevice=strtok(tmpDeviceList, ","); tmpDevice && (modem < 0);
+	tmpDevice=strtok(NULL,",")) {
+      strncpy(VarDevice, tmpDevice, sizeof(VarDevice));
+      VarDevice[sizeof(VarDevice)-1]= '\0';
+      VarBaseDevice = strrchr(VarDevice, '/');
+      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
+
+      if (strncmp(VarDevice, "/dev/", 5) == 0) {
+	if (LockModem() == -1) {
+	  modem = -1;
+	}
+	else {
+	  modem = ID0open(VarDevice, O_RDWR | O_NONBLOCK);
+	  if (modem < 0) {
+	    LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
+		      strerror(errno));
+	    UnlockModem();
+	    modem = -1;
+	  }
+	  else {
+	    HaveModem();
+	    LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
+	  }
 	}
       } else {
-	LogPrintf(LogERROR,
-		  "Device (%s) must be in /dev or be a host:port pair\n",
-		  VarDevice);
-	return (-1);
+	/* PPP over TCP */
+	cp = strchr(VarDevice, ':');
+	if (cp) {
+	  *cp = '\0';
+	  host = VarDevice;
+	  port = cp + 1;
+	  if (*host && *port) {
+	    modem = OpenConnection(host, port);
+	    *cp = ':';		/* Don't destroy VarDevice */
+	    if (modem < 0)
+	      return (-1);
+	    HaveModem();
+	    LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
+	  } else {
+	    *cp = ':';		/* Don't destroy VarDevice */
+	    LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
+	    return (-1);
+	  }
+	} else {
+	  LogPrintf(LogERROR,
+		    "Device (%s) must be in /dev or be a host:port pair\n",
+		    VarDevice);
+	  return (-1);
+	}
       }
     }
+
+    if (modem < 0) return modem;
   }
 
   /*
