@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.86 1999/05/06 18:13:01 peter Exp $
+ *	$Id: tcp_input.c,v 1.87 1999/07/18 14:42:48 jmb Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -83,6 +83,10 @@ SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RD,
 static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
     &log_in_vain, 0, "Log all incoming TCP connections");
+
+static int blackhole = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
+	&blackhole, 0, "Do not send RST when dropping refused connections");
 
 int tcp_delack_enabled = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW, 
@@ -404,7 +408,10 @@ findpcb:
 		if (badport_bandlim(1) < 0)
 			goto drop;
 #endif
-		goto dropwithreset;
+		if(blackhole && tiflags & TH_SYN)
+			goto drop;
+		else
+			goto dropwithreset;
 	}
 	tp = intotcpcb(inp);
 	if (tp == 0)
