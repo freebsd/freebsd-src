@@ -291,10 +291,6 @@ SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## 
 	}; \
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
-extern struct linker_set execsw_set;
-
-
-
 
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
