@@ -180,7 +180,6 @@ static int SuffRemoveSrc(Lst *);
 static void SuffAddLevel(Lst *, Src *);
 static Src *SuffFindThem(Lst *, Lst *);
 static Src *SuffFindCmds(Src *, Lst *);
-static int SuffExpandChildren(void *, void *);
 static Boolean SuffApplyTransform(GNode *, GNode *, Suff *, Suff *);
 static void SuffFindDeps(GNode *, Lst *);
 static void SuffFindArchiveDeps(GNode *, Lst *);
@@ -1297,7 +1296,6 @@ SuffExpandChildren(void *cgnp, void *pgnp)
 	LstNode	*prevLN;	/* Node after which new source should be put */
 	LstNode	*ln;		/* List element for old source */
 	char	*cp;		/* Expanded value */
-	Buffer	*buf;
 
 	/*
 	 * New nodes effectively take the place of the child, so place them
@@ -1312,126 +1310,115 @@ SuffExpandChildren(void *cgnp, void *pgnp)
 	 * end of the children list.
 	 */
 	if (strchr(cgn->name, '$') != NULL) {
+		Buffer	*buf;
+
 		DEBUGF(SUFF, ("Expanding \"%s\"...", cgn->name));
 		buf = Var_Subst(NULL, cgn->name, pgn, TRUE);
 		cp = Buf_GetAll(buf, NULL);
-		Buf_Destroy(buf, FALSE);
 
-		if (cp != NULL) {
-			Lst members = Lst_Initializer(members);
+		Lst members = Lst_Initializer(members);
 
-			if (cgn->type & OP_ARCHV) {
-				/*
-				 * Node was an archive(member) target, so we
-				 * want to call on the Arch module to find the
-				 * nodes for us, expanding variables in the
-				 * parent's context.
-				 */
-				char	*sacrifice = cp;
+		if (cgn->type & OP_ARCHV) {
+			/*
+			 * Node was an archive(member) target, so we
+			 * want to call on the Arch module to find the
+			 * nodes for us, expanding variables in the
+			 * parent's context.
+			 */
+			Arch_ParseArchive(&cp, &members, pgn);
+		} else {
+			/*
+			 * Break the result into a vector of strings
+			 * whose nodes we can find, then add those
+			 * nodes to the members list. Unfortunately,
+			 * we can't use brk_string b/c it doesn't
+			 * understand about variable specifications with
+			 * spaces in them...
+			 */
+			char	*start;
 
-				Arch_ParseArchive(&sacrifice, &members, pgn);
-			} else {
-				/*
-				 * Break the result into a vector of strings
-				 * whose nodes we can find, then add those
-				 * nodes to the members list. Unfortunately,
-				 * we can't use brk_string b/c it doesn't
-				 * understand about variable specifications with
-				 * spaces in them...
-				 */
-				char	*start;
-				char	*initcp = cp;	/* For freeing... */
-
-				for (start = cp; *start == ' ' ||
-				    *start == '\t'; start++)
-					continue;
-				for (cp = start; *cp != '\0'; cp++) {
-					if (*cp == ' ' || *cp == '\t') {
-						/*
-						 * White-space -- terminate
-						 * element, find the node,
-						 * add it, skip any further
-						 * spaces.
-						 */
-						*cp++ = '\0';
-						gn = Targ_FindNode(start,
-						    TARG_CREATE);
-						Lst_AtEnd(&members, gn);
-						while (*cp == ' ' ||
-						    *cp == '\t') {
-							cp++;
-						}
-						/*
-						 * Adjust cp for increment at
-						 * start of loop, but set start
-						 * to first non-space.
-						 */
-						start = cp--;
-
-					} else if (*cp == '$') {
-						/*
-						 * Start of a variable spec --
-						 * contact variable module
-						 * to find the end so we can
-						 * skip over it.
-						 */
-						char	*junk;
-						size_t	len = 0;
-						Boolean	doFree;
-
-						junk = Var_Parse(cp, pgn, TRUE,
-						    &len, &doFree);
-						if (junk != var_Error) {
-							cp += len - 1;
-						}
-						if (doFree) {
-							free(junk);
-						}
-
-					} else if (*cp == '\\' && *cp != '\0') {
-						/*
-						 * Escaped something -- skip
-						 * over it
-						 */
-						cp++;
-					}
-				}
-
-				if (cp != start) {
+			for (start = cp; *start == ' ' ||
+			    *start == '\t'; start++)
+				continue;
+			for (cp = start; *cp != '\0'; cp++) {
+				if (*cp == ' ' || *cp == '\t') {
 					/*
-					 * Stuff left over -- add it to the
-					 * list too
+					 * White-space -- terminate element,
+					 * find the node, add it, skip any
+					 * further spaces.
 					 */
+					*cp++ = '\0';
 					gn = Targ_FindNode(start, TARG_CREATE);
 					Lst_AtEnd(&members, gn);
+					while (*cp == ' ' || *cp == '\t') {
+						cp++;
+					}
+					/*
+					 * Adjust cp for increment at
+					 * start of loop, but set start
+					 * to first non-space.
+					 */
+					start = cp--;
+
+				} else if (*cp == '$') {
+					/*
+					 * Start of a variable spec --
+					 * contact variable module
+					 * to find the end so we can
+					 * skip over it.
+					 */
+					char	*junk;
+					size_t	len = 0;
+					Boolean	doFree;
+
+					junk = Var_Parse(cp, pgn, TRUE,
+					    &len, &doFree);
+					if (junk != var_Error) {
+						cp += len - 1;
+					}
+					if (doFree) {
+						free(junk);
+					}
+
+				} else if (*cp == '\\' && *cp != '\0') {
+					/*
+					 * Escaped something -- skip over it
+					 */
+					cp++;
 				}
+			}
+
+			if (cp != start) {
 				/*
-				 * Point cp back at the beginning again so the
-				 * variable value can be freed.
+				 * Stuff left over -- add it to the
+				 * list too
 				 */
-				cp = initcp;
+				gn = Targ_FindNode(start, TARG_CREATE);
+				Lst_AtEnd(&members, gn);
 			}
-			/*
-			 * Add all elements of the members list to
-			 * the parent node.
-			 */
-			while(!Lst_IsEmpty(&members)) {
-				gn = Lst_DeQueue(&members);
-
-				DEBUGF(SUFF, ("%s...", gn->name));
-				if (Lst_Member(&pgn->children, gn) == NULL) {
-					Lst_Append(&pgn->children, prevLN, gn);
-					prevLN = Lst_Succ(prevLN);
-					Lst_AtEnd(&gn->parents, pgn);
-					pgn->unmade++;
-				}
-			}
-
-			/*
-			 * Free the result
-			 */
-			free(cp);
 		}
+
+		/*
+		 * Free the result of Var_Subst
+		 */
+		Buf_Destroy(buf, TRUE);
+
+		/*
+		 * Add all elements of the members list to
+		 * the parent node.
+		 */
+		while(!Lst_IsEmpty(&members)) {
+			gn = Lst_DeQueue(&members);
+
+			DEBUGF(SUFF, ("%s...", gn->name));
+			if (Lst_Member(&pgn->children, gn) == NULL) {
+				Lst_Append(&pgn->children, prevLN, gn);
+				prevLN = Lst_Succ(prevLN);
+				Lst_AtEnd(&gn->parents, pgn);
+				pgn->unmade++;
+			}
+		}
+
 		/*
 		 * Now the source is expanded, remove it from the list
 		 * of children to keep it from being processed.
