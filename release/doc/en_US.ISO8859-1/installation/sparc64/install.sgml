@@ -1,0 +1,409 @@
+<!--
+
+$FreeBSD$
+
+This file contains sparc64-specific installation instructions.
+
+-->
+
+<sect1>
+  <title>Installing &os;</title>
+
+  <para>This text describes how to install and boot the &arch;
+    port. Users of this port are encouraged to subscribe to the
+    freebsd-sparc mailing list.</para>
+
+  <warning><para>The kernel and userland binaries mentioned below are
+    highly experimental (for example, the kernel contains some ATA
+    changes and eeprom handling code which could potentially be
+    dangerous). Unless you know what you are doing and are willing to
+    cope with any damage that might arise, you should probably not be
+    trying this!  So, use at your own risk!</para></warning>
+
+  <sect2>
+    <title>Preparations.</title>
+
+    <sect3>
+      <title>Downloading Required Files</title>
+      <para>If you are not installing from a CD-ROM, you will need to
+        download some files via ftp (the URLs are given below).  The
+        links in this document point to the main &os; FTP server.
+        Please use a mirror instead if possible.</para>
+   </sect3>
+   <sect3>
+     <title>Getting to the PROM Prompt</title>
+     <para>Most &arch; systems are set up to boot automatically from
+       disk; to install &os;, you need to boot over the network or from
+       a CD-ROM, which requires you to break into the PROM.</para>
+
+     <para>To do this, reboot the system, and wait until the boot
+       message appears.  It depends on the model, but should look about
+       like: </para>
+     <screen>Sun Blade 100 (UltraSPARC-IIe), Keyboard Present
+Copyright 1998-2001 Sun Microsystems, Inc.  All rights reserved.
+OpenBoot 4.2, 128 MB memory installed, Serial #51090132.
+Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
+
+      <para>If your system proceeds to boot from disk at this point,
+        you need press L1-A or Stop-A on the keyboard, or send a
+        <command>BREAK</command> over the serial console (using for
+        example <command>~#</command> in
+        <application>tip</application> and
+        <application>cu</application>, refer to their manual pages for
+        more details) to get to the PROM prompt.  It 
+        looks like
+        <screen>ok </screen>
+        or
+        <screen>ok {0} </screen>
+        (on SMP systems).</para>
+    </sect3>
+  </sect2>
+    
+  <sect2>
+    <title>Installing from CD-ROM</title>
+    <para>Place the CD-ROM into your drive, and break into the PROM as
+      described above. On the PROM prompt, type <command>boot
+      cdrom</command>.  The system should boot into single-user mode
+      now, and you can create a root file system and install the base
+      system archive as described below.</para>
+  </sect2>
+  <sect2>
+    <title>Installing over the Network</title>
+    <sect3>
+      <title>Configuring the Netboot Server</title>
+
+      <para>A &arch; kernel is booted by having the firmware retrieve
+	and execute a <application>loader</application>, which in turn
+	fetches and executes the actual kernel.  For this boot process,
+	you need to set up <application>rarpd</application> and
+	<application>tftpd</application> (for the firmware) and
+	<application>bootpd</application> (for the
+	<application>loader</application>) on another networked
+	system.  The loader can fetch a kernel using TFTP or NFS. All
+	of this is covered in detail below.</para> 
+
+      <sect4>
+	<title>rarpd</title>
+
+	<para>You need to the Ethernet address of your &arch; system
+	  to <filename>/etc/ethers</filename> on the netboot server.
+	  An entry looks like:</para>
+
+	<programlisting>0:3:ba:b:92:d4 your.host.name</programlisting>
+
+	<para>The ethernet address is usually displayed in the boot
+	  message.</para>
+
+        <para>Make sure <hostid>your.host.name</hostid> is in
+	  <filename>/etc/hosts</filename> or has a valid DNS entry (or
+	  use an IP).  Then, start <application>rarpd</application> on
+	  a network interface that is on the same segment as the
+	  &arch; system. For example, if you were using a the first
+	  <devicename>xl</devicename> network card, you would type
+	  <command>rarpd xl0</command>.</para>
+
+      </sect4>
+
+      <sect4>
+	<title>tftpd</title>
+
+	<para>Activate <application>tftp</application> in your
+	  <application>inetd</application> configuration by uncommenting
+	  the following line in your
+	  <filename>/etc/inetd.conf</filename>:</para>
+
+	<programlisting>tftp dgram udp  wait nobody /usr/libexec/tftpd tftpd /tftpboot</programlisting>
+
+
+	<para>You will then need to download a &os;/&arch; loader for
+	  <application>tftpd</application> to serve to your &arch;
+	  client.  There are currently two loaders to choose from:</para>
+
+	<itemizedlist>
+	  <listitem><para><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-tftp.gz"></ulink> -
+          (<emphasis>for loading the kernel over
+          TFTP</emphasis>).</para></listitem>
+          <listitem><para><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-nfs.gz"></ulink> -
+          (<emphasis>for loading the kernel via NFS</emphasis>).</para></listitem>
+        </itemizedlist>
+
+        <para>Copy the unpacked loader to
+          <filename>/tftpboot</filename>, and name it after host IP in
+          upper-case hexadecimal notation without dots (or use symlinks). For
+          example, your setup may look like this, for an IP of
+	  <hostid>192.168.0.16</hostid>:</para>
+
+        <screen>  lrwx------  1 tmm users       9 Jul 24 17:05 /tftpboot/C0A80010 -> boot/loader
+  -rw-r--r--  1 tmm users 1643021 Oct 20 18:04 /tftpboot/boot/loader</screen>
+
+         <para>If you have trouble booting, it is very helpful to use
+           <application>tcpdump</application> to monitor the TFTP
+           requests. This will allow you to see the file name you need
+           to use for the loader. Error replies by the TFTP server are
+           most often due to incorrect file permissions.</para>
+      </sect4>
+
+      <sect4>
+        <title>Setting up bootpd/dhcpd</title>
+
+        <para>If you are going to use
+          <application>bootpd</application>, create entries for you
+          &arch; system in <filename>/etc/bootptab</filename>:</para>
+
+        <programlisting>  .default:\
+  	:bf="kernel":dn=local:ds=&lt;your name server>:\
+  	:gw=&lt;your gateway>:ht=ether:hd="/tftpboot/boot/kernel":hn:\
+	:sa="&lt;IP of the TFTP server>":\
+  	:rp="&lt;IP of the NFS server>:&lt;your NFS root directory>":\
+  	:sm=&lt;your netmask>
+
+  &lt;name of the entry>:\
+  	ha=&lt;ethernet address>:ip=&lt;IP of the &arch; system>:tc=.default</programlisting>
+
+        <para>The Ethernet address must be the same like the one in the
+          TFTP example above, but it is specified differently: also in
+          hexadecimal notation, but without colons (for the example
+          above, this would be 0003ba0b92d4). NFS/TFTP specific
+          entries can be ommitted if the given method is not used. The
+          strings given in the <command>bf</command> and
+          <command>hd</command> properties are assembled to the boot
+	  file name. If your kernel is named differently or you use 
+	  another directory, change these values as required.  If you
+	  are booting using NFS, remove the <command>bf</command> 
+          and <command>hd</command> settings (or change them to
+	  specify the directory and file inside the NFS root hierarchy
+	  in which the kernel will reside). The name of the host entry
+	  is conventionally the host name without the domain appended.</para>
+
+        <para>Note that <application>bootpd</application> conflicts with
+          <application>dhcpd</application>. <application>dhcpd</application>
+          can also be set up accordingly, with an entry like the
+          following (for <application>dhcpd</application> 2.x):</para>
+
+        <programlisting>host &lt;name of the entry> {
+         hardware ethernet &lt;ethernet address>;
+         option host-name "&lt;full domain name of the system>";
+         fixed-address &lt;IP of the &arch; system>;
+         always-reply-rfc1048 on;
+         filename "kernel";
+         option root-path "&lt;IP of the NFS server>:&lt;your NFS root directory>";
+}</programlisting>
+
+         <para>The <command>filename</command> option corresponds to
+           the concatenation of <command>bf</command> and
+           <command>hd</command> above. The ethernet address is
+           specified in hexadecimal with colons, just like in the
+           <application>rarpd</application> example
+           above. <command>options root-path</command> corresponds to
+           <command>rp</command>. If the name given in <command>option
+           host-name</command> is resolvable, i.e. has DNS entry or is
+           associated with an address in
+           <filename>/etc/hosts</filename>, the
+           <command>fixed-address</command> specification can be ommitted.
+      </sect4>
+
+      <sect4>
+        <title>Loading the Kernel over TFTP</title>
+
+        <para>Place the kernel in the directory specified using
+          <command>bf</command> and <command>hd</command> in the
+          <application>bootpd</application> propertiess or the
+          corresponding <application>dhcpd</application> options as
+          described above. That should be all that is needed.</para>
+      </sect4>
+
+      <sect4>
+        <title>Loading the kernel over NFS</title>
+
+        <para>Export the root directory that was specified in bootp over
+          NFS, and place the kernel as
+          <filename>boot/kernel/kernel</filename> inside it (or, if
+          you use <command>bf</command> and <command>hd</command> or
+          the <application>dhcpd</application> equivalent, the file
+          name you have specified this way).</para>
+      </sect4>
+    </sect3>
+
+    <sect3>
+      <title>Booting</title>
+
+      <para>If all goes well, you can now boot the kernel from the &arch;
+        by dropping into OpenFirmware as described above.  Now, just
+        type <command>boot net</command> and the system should
+        boot. Specifically, the loader is retrieved via TFTP, it
+        does then do a bootp request and will proceed to load the
+        kernel.  Then, it should wait 10 seconds for user input and
+        proceed to execute the kernel.</para>
+
+      <para>If something does not work in between, and you suspect
+        TFTP/NFS/bootp problems, <application>ethereal</application>
+        is usually a good help. The most common problems are bad file
+        permissions. Also note that <application>rarpd</application>
+        will not answer to packets under some circumstances, refer to
+        the manual page for details.</para> 
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Creating a Disk Label</title>
+
+    <para>The kernel supports the Sun disk label format, so you can
+      label the disks you want to use with &os; from Solaris.</para>
+
+    <para>&os; disk labels must currently be created by hand, as 
+      <application>sysinstall</application> is not yet available on
+      &arch;. Plese refer to the handbook for more information about
+      labels and special partitions.</para>
+
+    <para>On &arch;, a Sun compatability label is embedded in the
+      &os; label; this is needed for the PROM to boot from disk. This
+      imposes an additional restriction on the disk label format:
+      partitions are required to start on a cylinder boundary.</para>
+
+    <para>To create a disk label, the following procedure is the
+      easiest:</para>
+
+    <para>First, use:
+<screen>&prompt.root; <userinput>disklabel -w -r &lt;device&gt; auto</userinput></screen>
+      This will create a basic disk label. The third argument you need
+      specify here is just the name of the device, not the complete
+      path to the device node (e.g. <devicename>ad0</devicename> for
+      the first ATA disk).</para>
+
+    <para>
+      Now, use:
+<screen>&prompt.root; <userinput>disklabel -e &lt;device&gt; auto</userinput></screen>
+      This will open an editor in which you can edit the disk
+      label. The information presented to you should look like:
+
+<screen># /dev/ad6c:
+type: unknown
+disk: amnesiac
+label:
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 16
+sectors/cylinder: 1008
+cylinders: 79780
+sectors/unit: 80418240
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0           # milliseconds
+track-to-track seek: 0  # milliseconds
+drivedata: 0
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  c: 80418240        0    unused        0     0         # (Cyl.    0 - 79779)
+</screen>
+
+      You can now add new partitions in the same format as the already
+      present line. Using * in the offset field makes the procedure
+      easier; please refer to the manual page for more
+      information.</para>
+
+    <para>To make sure the restriction mentioned above is met, the
+      size of each partition must be a multiple of the number of
+      sectors per cylinder as shown in the information that is
+      presented in the editor (1008 in the example above).</para>
+
+    <para>When you are done, quit the editor. This will cause the disk
+      label to be written. </para>
+
+    <warning><para>This procedure will overwrite any disk label that
+      may be already present on the disk. This will make file
+      systems already existing on this disk unaccessible, unless the
+      respective partitions in the old and new label match
+      exactly!</para></warning>
+
+    <para>Use <command>disklabel -B</command> if you want to make
+      disk bootable for &os;/&arch;.</para>
+
+    <warning><para>Using <command>disklabel -B</command> on a disk
+      will overwrite any preexisting boot block, so it will likely
+      render any other operating system installed on the same disk
+      unbootable.</para></warning>
+
+    <para>If you do not want to overwrite the boot block, it is
+      possible to load the <application>loader</application> via TFTP
+      as described above, but have it boot the kernel from disk. This
+      requires a special loader binary, which is available at
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz"></ulink>
+    </para>
+
+  </sect2>
+   
+  <sect2>
+    <title>Root File Systems</title>
+
+    <para>If you do not want to boot over the network, you will need
+      to create a root file system to hold the base system binaries and
+      configuration files (and optionally other file systems mounted
+      in places like <filename>/usr</filename> and
+      <filename>/var</filename>).</para>
+
+    <para>The kernel contains support for Sun disklabels, so you can
+      use Solaris disks, which may even be newfs'ed from
+      Solaris. NetBSD disk labels and file systems are also usable
+      from &os;.</para>
+
+    <warning><para><emphasis>DO NOT</emphasis> run Solaris
+      <application>fsck</application> on file systems
+      modified by FreeBSD, it will damage the file
+      permissions!</para></warning>
+
+    <para>To create file systems and to install the base system, boot
+      from CD-ROM or via NFS and create a disk label as described
+      above.
+
+    <para>When booting the first time and you have not entered your
+      root parition into <filename>/etc/fstab</filename> yet, you may
+      need to specify your root partition partition on the mountroot
+      prompt when booting (use a format like
+      <command>ufs:&lt;disk>&lt;parition></command>, i.e. leave the
+      slice specification out). If the kernel does automatically
+      attempt to boot from another file system, press a key a key
+      other than enter on the <application>loader</application> prompt:
+<screen>Hit [Enter] to boot immediately, or any other key for command prompt.</screen>
+      Then, boot the kernel using <command>boot -a -s</command>, which
+      will cause the kernel to ask you for the root partition and
+      then boot into single-user mode. Once the root file system has
+      been entered into <filename>/etc/fstab</filename>, it should be
+      automatically mounted as <filename>/</filename>on the next
+      boot.</para>
+
+    <para>If you are booting over the network (via NFS), the above
+      bootp entries should suffice to have the kernel find and mount
+      the root file system via NFS.</para>
+
+  </sect2>
+
+  <sect2>
+    <title>Base System</title>
+
+    <para>A <application>tar</application> archive which contains
+      almost all binaries and configuration files from the base system
+      is available at
+      <ulink
+      url="ftp://ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/distrib.tar.gz"></ulink>.
+
+      Unpack it to the directory that will serve as root directory of
+      the &arch; system (on the NFS server when booting over the
+      network).</para>
+
+     <para>This should be sufficient to boot into multi-user mode. The
+       system can then be configured like any other &os;
+       system. You probably will want to edit
+       <filename>/etc/fstab</filename> and
+       <filename>/etc/rc.conf</filename> and to set a root password
+       first.</para>
+
+     <para>Note that some programs from the base system may not be
+       present in the archive, or may not work properly yet.</para>
+   </sect2>
+
+</sect1>
