@@ -78,7 +78,7 @@ main(argc, argv)
 	autologin = 1;
 
 	while ((ch = getopt(argc, argv, "dgintv")) != EOF) {
-		switch (*cp) {
+		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
 			debug++;
