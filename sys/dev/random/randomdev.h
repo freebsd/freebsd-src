@@ -70,7 +70,7 @@ u_int read_random_real(void *, u_int);
 /* If this was c++, this would be a template */
 #define RANDOM_CHECK_UINT(name, min, max)				\
 static int								\
-random_check_uint_##name##(SYSCTL_HANDLER_ARGS)				\
+random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 {									\
 	if (oidp->oid_arg1 != NULL) {					\
 		 if (*(u_int *)(oidp->oid_arg1) < min)			\
