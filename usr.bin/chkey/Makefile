@@ -5,6 +5,7 @@
 PROG=	chkey
 SRCS=	chkey.c generic.c update.c
 CFLAGS+=-DYP -I${.CURDIR}/../newkey
+DISTRIBUTION= crypto
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 
