@@ -40,7 +40,7 @@
 .Nd remote shell server
 .Sh SYNOPSIS
 .Nm
-.Op Fl alnDL
+.Op Fl \&?DLaln
 .Sh DESCRIPTION
 The
 .Nm
@@ -151,25 +151,30 @@ by
 .Nm .
 .El
 .Pp
-Transport-level keepalive messages are enabled unless the
-.Fl n
-option is present.
-The use of keepalive messages allows sessions to be timed out
-if the client crashes or becomes unreachable.
-.Pp
-The
-.Fl D
-option sets the TCP_NODELAY socket option which improves
-performance of small back-to-back
-writes at the expense of additional network traffic.
-.Pp
-The
-.Fl L
-option causes all successful accesses to be logged to
+The options are as follows:
+.Bl -tag -width indent
+.It Fl \&?
+Display the usage message, and exit.
+.It Fl D
+Sets the TCP_NODELAY socket option, which improves the performance
+of small back-to-back writes at the expense of additional network
+traffic.
+.It Fl L
+Causes all successful accesses to be logged to
 .Xr syslogd 8
 as
 .Li auth.info
 messages.
+.It Fl a
+This flag is ignored, and is present for compatability purposes.
+.It Fl l
+Do not use the user's
+.Pa .rhosts
+file for authentication, unless the user is the superuser.
+.It Fl n
+Turn off transport level keepalive messages.  This will prevent sessions
+from timing out if the client crashes or becomes unreachable.
+.El
 .Sh DIAGNOSTICS
 Except for the last one listed below,
 all diagnostic messages
