@@ -495,7 +495,10 @@ release.7:
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../crypto ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../crypto ; fi && \
 		if [ -f skrb4.aa ] ; then mv skrb4.* ../crypto ; fi && \
-		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; ) ; fi
+		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; \
+		cd ${RD}/dists/crypto; rm -f CHECKSUM.MD5; \
+		md5 * > CHECKSUM.MD5 ) ; fi
+	(cd ${RD}/dists/src; rm -f CHECKSUM.MD5; md5 * > CHECKSUM.MD5)
 	@echo "src distribution is finished."
 .endif
 	touch release.7
