@@ -172,7 +172,7 @@ procfs_rwmem(curp, p, uio)
 		/*
 		 * Fault the page on behalf of the process
 		 */
-		error = vm_fault(map, pageno, reqprot, FALSE);
+		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
 		if (error) {
 			error = EFAULT;
 			break;
