@@ -129,7 +129,7 @@ network6_pass1() {
 	network6_gif_setup
 
 	# setting up interfaces
-	network6_interface_setup
+	network6_interface_setup $ipv6_network_interfaces
 
 	# wait for DAD's completion (for global addrs)
 	sleep `sysctl -n net.inet6.ip6.dad_count`
@@ -251,6 +251,7 @@ network6_pass1() {
 }
 
 network6_interface_setup() {
+	interfaces=$*
 	rtsol_interfaces=''
 	case ${ipv6_gateway_enable} in
 	[Yy][Ee][Ss])
@@ -261,7 +262,7 @@ network6_interface_setup() {
 		prefixcmd_enable=NO
 		;;
 	esac
-	for i in $ipv6_network_interfaces; do
+	for i in $interfaces; do
 		rtsol_interface=yes
 		eval prefix=\$ipv6_prefix_$i
 		if [ -n "${prefix}" ]; then
