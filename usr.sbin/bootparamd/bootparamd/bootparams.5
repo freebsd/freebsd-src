@@ -25,7 +25,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	from: Id: bootparams.5,v 1.2 1994/10/03 19:26:13 gwr Exp
-.\"	$Id: bootparams.5,v 1.6 1997/02/22 16:04:23 peter Exp $
+.\"	$Id: bootparams.5,v 1.2.2.3 1997/03/06 07:59:21 mpp Exp $
 .\"
 .Dd October 2, 1994
 .Dt BOOTPARAMS 5
@@ -37,12 +37,12 @@
 .Nm /etc/bootparams
 .Sh DESCRIPTION
 The
-.Nm bootparams
+.Nm
 file specifies the boot parameters that
-.Xr diskless
+diskless
 clients may request when booting over the network.
 Each client supported by this server must have an entry in the
-.Nm bootparams
+.Nm
 file containing the pathnames for its
 .Nm root
 and (optionally)
@@ -74,6 +74,5 @@ request.  The "host:" component must be supplied.
 .It Pa /etc/bootparams
 default configuration file
 .El
-.Sh "SEE ALSO"
-.Xr bootparamd 8 ,
-.Xr diskless 8
+.Sh SEE ALSO
+.Xr bootparamd 8

@@ -5,19 +5,24 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id: callbootd.c,v 1.2 1995/03/26 03:15:39 wpaul Exp $
 */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "bootparam_prot.h"
 #include <rpc/rpc.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <err.h>
 #include <netdb.h>
 
 
 /* #define bp_address_u bp_address */
 #include <stdio.h>
+#include <string.h>
 
 int broadcast;
 
@@ -25,7 +30,11 @@ char cln[MAX_MACHINE_NAME+1];
 char dmn[MAX_MACHINE_NAME+1];
 char path[MAX_PATH_LEN+1];
 extern char *inet_ntoa();
+static void usage __P((void));
+int printgetfile __P((bp_getfile_res *));
+int printwhoami __P((bp_whoami_res *));
 
+int
 eachres_whoami(resultp, raddr)
 bp_whoami_res *resultp;
 struct sockaddr_in *raddr;
@@ -53,11 +62,11 @@ struct sockaddr_in *raddr;
 }
 
 
+int
 main(argc, argv)
 int argc;
 char **argv;
 {
-  int stat;
   char *server;
 
   bp_whoami_arg whoami_arg;
@@ -76,12 +85,8 @@ char **argv;
   stat_getfile_res.server_name = cln;
   stat_getfile_res.server_path = path;
 
-  if (argc < 3) {
-    fprintf(stderr,
-	    "Usage: %s server procnum (IP-addr | host fileid)\n", argv[0]);
-    exit(1);
-  }
-
+  if (argc < 3)
+    usage();
 
   server = argv[1];
   if ( ! strcmp(server , "all") ) broadcast = 1;
@@ -90,28 +95,22 @@ char **argv;
     clnt = clnt_create(server,BOOTPARAMPROG, BOOTPARAMVERS, "udp");
   }
 
-  if ( clnt == NULL ) {
-     fprintf (stderr, "%s: could not contact bootparam server on host %s\n",
-			argv[0], server);
-     exit (1);
-  }
+  if ( clnt == NULL )
+     errx(1, "could not contact bootparam server on host %s", server);
 
   switch (argc) {
   case 3:
     whoami_arg.client_address.address_type = IP_ADDR_TYPE;
     the_inet_addr = inet_addr(argv[2]);
-    if ( the_inet_addr == -1) {
-      fprintf(stderr, "bogus addr %s\n", argv[2]);
-      exit(1);
-    }
+    if ( the_inet_addr == -1)
+      errx(2, "bogus addr %s", argv[2]);
     bcopy(&the_inet_addr,&whoami_arg.client_address.bp_address_u.ip_addr,4);
 
     if (! broadcast ) {
       whoami_res = bootparamproc_whoami_1(&whoami_arg, clnt);
       printf("Whoami returning:\n");
       if (printwhoami(whoami_res)) {
-	fprintf(stderr, "Bad answer returned from server %s\n", server);
-	exit(1);
+	errx(1, "bad answer returned from server %s", server);
       } else
 	exit(0);
      } else {
@@ -131,8 +130,7 @@ char **argv;
       getfile_res = bootparamproc_getfile_1(&getfile_arg,clnt);
       printf("getfile returning:\n");
       if (printgetfile(getfile_res)) {
-	fprintf(stderr, "Bad answer returned from server %s\n", server);
-	exit(1);
+	errx(1, "bad answer returned from server %s", server);
       } else
 	exit(0);
     } else {
@@ -145,16 +143,22 @@ char **argv;
 
   default:
 
-    fprintf(stderr,
-	    "Usage: %s server procnum (IP-addr | host fileid)\n", argv[0]);
-    exit(1);
+    usage();
   }
 
 }
 
 
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: callbootd server procnum (IP-addr | host fileid)\n");
+    exit(1);
+}
 
-int printwhoami(res)
+int
+printwhoami(res)
 bp_whoami_res *res;
 {
       if ( res) {
@@ -167,7 +171,7 @@ bp_whoami_res *res;
 	     255 & res->router_address.bp_address_u.ip_addr.impno);
 	return(0);
       } else {
-	fprintf(stderr,"Null answer!!!\n");
+	warnx("null answer!!!");
 	return(1);
       }
     }
@@ -186,7 +190,7 @@ bp_getfile_res *res;
 	       res->server_path);
 	return(0);
       } else {
-	fprintf(stderr,"Null answer!!!\n");
+	warnx("null answer!!!");
 	return(1);
       }
     }
