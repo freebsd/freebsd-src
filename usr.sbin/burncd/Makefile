@@ -1,4 +1,4 @@
-$FreeBSD$
+# $FreeBSD$
 
 PROG=	burncd
 MAN8=	burncd.8
