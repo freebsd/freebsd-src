@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "pthread_md.h"
 
 struct tcb *
-_tcb_ctor(struct pthread *thread)
+_tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 	void *addr;

@@ -39,35 +39,35 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <ucontext.h>
 
+#include "rtld_tls.h"
 #include "pthread_md.h"
 
 struct tcb *
-_tcb_ctor(struct pthread *thread)
+_tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
-	void *addr;
+	void *oldtls;
 
-	addr = malloc(sizeof(struct tcb) + 15);
-	if (addr == NULL)
-		tcb = NULL;
-	else {
-		tcb = (struct tcb *)(((uintptr_t)(addr) + 15) & ~15);
-		bzero(tcb, sizeof(struct tcb));
-		tcb->tcb_addr = addr;
-		tcb->tcb_thread = thread;
-		/* XXX - Allocate tdv/tls */
+	if (initial) {
+		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
+	} else {
+		oldtls = NULL;
 	}
+
+	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+	if (tcb) {
+		tcb->tcb_thread = thread;
+		tcb->tcb_spare = 0;
+		bzero(&tcb->tcb_tmbx, sizeof(tcb->tcb_tmbx));
+	}
+
 	return (tcb);
 }
 
 void
 _tcb_dtor(struct tcb *tcb)
 {
-	void *addr;
-
-	addr = tcb->tcb_addr;
-	tcb->tcb_addr = NULL;
-	free(addr);
+	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }
 
 /*
