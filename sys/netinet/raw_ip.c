@@ -709,10 +709,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
-		if (inp->inp_gencnt <= gencnt) {
-			if (cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket))
-				continue;
+		if (inp->inp_gencnt <= gencnt &&
+		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0) {
 			/* XXX held references? */
 			inp_list[i++] = inp;
 		}
