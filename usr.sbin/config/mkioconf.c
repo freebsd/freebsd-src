@@ -62,7 +62,6 @@ vax_ioconf()
 	fprintf(fp, "#include \"vax/include/pte.h\"\n");
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"sys/buf.h\"\n");
-	fprintf(fp, "#include \"sys/map.h\"\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#include \"vax/mba/mbavar.h\"\n");
 	fprintf(fp, "#include \"vax/uba/ubavar.h\"\n\n");
@@ -306,7 +305,6 @@ tahoe_ioconf()
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"tahoe/include/pte.h\"\n");
 	fprintf(fp, "#include \"sys/buf.h\"\n");
-	fprintf(fp, "#include \"sys/map.h\"\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#include \"tahoe/vba/vbavar.h\"\n");
 	fprintf(fp, "\n");
@@ -480,7 +478,6 @@ hp300_ioconf()
 	}
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"sys/buf.h\"\n");
-	fprintf(fp, "#include \"sys/map.h\"\n");
 	fprintf(fp, "\n");
 	if (machine == MACHINE_HP300)
 		fprintf(fp, "#include \"hp/dev/device.h\"\n\n");
@@ -867,7 +864,6 @@ news_ioconf()
 	}
 	fprintf(fp, "#include \"sys/param.h\"\n");
 	fprintf(fp, "#include \"sys/buf.h\"\n");
-	fprintf(fp, "#include \"sys/map.h\"\n");
 	fprintf(fp, "#include \"vm/vm.h\"\n");
 	fprintf(fp, "#include \"iop.h\"\n");
 	fprintf(fp, "#include \"hb.h\"\n");
