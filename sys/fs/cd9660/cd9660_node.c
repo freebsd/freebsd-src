@@ -184,7 +184,6 @@ cd9660_inactive(ap)
 		vprint("cd9660_inactive: pushing active", vp);
 
 	ip->i_flag = 0;
-	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
