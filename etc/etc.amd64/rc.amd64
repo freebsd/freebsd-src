@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.23 1997/04/28 05:51:57 jkh Exp $
+#	$Id: rc.i386,v 1.18.2.3 1997/04/28 10:07:00 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -48,11 +48,6 @@ fi
 # keybell
 if [ "X${keybell}" != X"NO" ]; then
 	echo -n ' keybell';	kbdcontrol <${kbddev} -b ${keybell}
-fi
-
-# bell style
-if [ "X${keybell}" != X"NO" ]; then
-        echo -n ' keybell';     kbdcontrol <${kbddev} -b ${keybell}
 fi
 
 # change function keys
