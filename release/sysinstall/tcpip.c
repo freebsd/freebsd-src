@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.74 1998/11/15 09:06:20 jkh Exp $
+ * $Id: tcpip.c,v 1.75 1999/02/05 22:15:52 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -167,18 +167,33 @@ tcpOpenDialog(Device *devp)
     else { /* See if there are any defaults */
 	char *cp;
 
+	/* First try a DHCP scan */
+	msgNotify("Scanning for DHCP servers...");
+	Mkdir("/var/db");
+	vsystem("ifconfig %s inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up", devp->name);
+	if (!vsystem("dhclient")) {
+	    msgConfirm("Successful return from dhclient");
+	}
+	else
+	    msgConfirm("Unsuccessful return from dhclient");
+
+	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
 	    if ((cp = variable_get(VAR_IPADDR)) != NULL)
 		SAFE_STRCPY(ipaddr, cp);
 	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_IPADDR))) != NULL)
 		SAFE_STRCPY(ipaddr, cp);
 	}
+
+	/* Get old netmask from variable space, if available */
 	if (!netmask[0]) {
 	    if ((cp = variable_get(VAR_NETMASK)) != NULL)
 		SAFE_STRCPY(netmask, cp);
 	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_NETMASK))) != NULL)
 		SAFE_STRCPY(netmask, cp);
 	}
+
+	/* Get old extras string from variable space, if available */
 	if (!extras[0]) {
 	    if ((cp = variable_get(VAR_EXTRAS)) != NULL)
 		SAFE_STRCPY(extras, cp);
