@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.268
+    Original revision: 1.22.2.269
 -->
 
 <articleinfo>
@@ -255,9 +255,19 @@
 
     <para>&man.su.1; が、Kerberos V 認証に対応しました。</para>
 
+    <para>&man.tr.1; が、一部の等価クラス (equivalence class, 対応しているロケールのみ)
+      に対応しました。</para>
+
     <!-- 2002/07/27:hrs - tabstabs? -->
     <para>&man.unexpand.1; に、&man.expand.1; と同様のタブ位置を指定する
       <option>-t</option> オプションが追加されました。</para>
+
+    <para>&man.who.1; に数多くのオプションが追加されました。
+      <option>-H</option> はカラムヘッダを出力し、
+      <option>-T</option> は &man.mesg.1; の設定を表示します。
+      また、<option>-m</option> は <option>am i</option> と等価であり、
+      <option>-u</option> はアイドル時間の表示、
+      <option>-q</option> はログイン名を列で表示します。</para>
 
     <para>&man.xargs.1; に、標準入力からのデータの挿入を
       コマンドラインの最後ではなく、指定できるようにするための
