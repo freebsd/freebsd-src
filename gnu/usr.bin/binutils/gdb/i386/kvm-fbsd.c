@@ -702,7 +702,7 @@ struct proc *p;
 {
   struct proc lp;
 
-  for (; p != NULL; p = lp.p_list.le_next) {
+  for (; p != NULL; p = LIST_NEXT(&lp, p_list)) {
       if (!kvm_read(cfd, (CORE_ADDR)p, (char *)&lp, sizeof (lp)))
             return (0);
        if (lp.p_pid != pid)
