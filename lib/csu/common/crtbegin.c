@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,15 +25,16 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
+
+#define ABI_VENDOR	"FreeBSD"
+#define ABI_SECTION	".note.ABI-tag"
+#define ABI_NOTETYPE	1
 
 typedef void (*fptr)(void);
 
 static fptr ctor_list[1] __attribute__((section(".ctors"))) = { (fptr) -1 };
 static fptr dtor_list[1] __attribute__((section(".dtors"))) = { (fptr) -1 };
-
-static void do_ctors(void) __unused;
-static void do_dtors(void) __unused;
 
 static void
 do_ctors(void)
@@ -55,5 +56,47 @@ do_dtors(void)
 	(**fpp)();
 }
 
-__asm__(".section .init,\"ax\",@progbits; call do_ctors; .previous");
-__asm__(".section .fini,\"ax\",@progbits; call do_dtors; .previous");
+/*
+ * With very large programs on some architectures (e.g., the Alpha),
+ * it is possible to get relocation overflows on the limited
+ * displacements of call/bsr instructions.  It is particularly likely
+ * for the calls from _init() and _fini(), because they are in
+ * separate sections.  Avoid the problem by forcing indirect calls.
+ */
+static void (*p_do_ctors)(void) = do_ctors;
+static void (*p_do_dtors)(void) = do_dtors;
+
+extern void _init(void) __attribute__((section(".init")));
+
+void
+_init(void)
+{
+	(*p_do_ctors)();
+}
+
+extern void _fini(void) __attribute__((section(".fini")));
+
+void
+_fini(void)
+{
+	(*p_do_dtors)();
+}
+
+/*
+ * Special ".note" entry specifying the ABI version.  See
+ * http://www.netbsd.org/Documentation/kernel/elf-notes.html
+ * for more information.
+ */
+static const struct {
+    int32_t	namesz;
+    int32_t	descsz;
+    int32_t	type;
+    char	name[sizeof ABI_VENDOR];
+    int32_t	desc;
+} abitag __attribute__ ((section (ABI_SECTION))) = {
+    sizeof ABI_VENDOR,
+    sizeof(int32_t),
+    ABI_NOTETYPE,
+    ABI_VENDOR,
+    __FreeBSD_version
+};
