@@ -42,12 +42,11 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.42 1996/07/30 03:08:57 dyson Exp $
+ * 	$Id: pmap.h,v 1.43 1996/09/08 16:57:45 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
-
 
 /*
  * Page-directory and page-table entires follow this format, with a few
@@ -162,8 +161,6 @@ pmap_kextract(vm_offset_t va)
 }
 #endif
 
-struct vm_page;
-
 /*
  * Pmap stuff
  */
@@ -193,7 +190,6 @@ typedef struct pmap	*pmap_t;
 extern pmap_t		kernel_pmap;
 #endif
 
-
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
@@ -218,25 +214,17 @@ extern pt_entry_t *CMAP1;
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
 extern vm_offset_t phys_avail[];
-pv_table_t *pv_table;
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
-
-#define	pa_index(pa)		atop(pa - vm_first_phys)
-#define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
-
-#define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
-
-struct pcb;
 
 void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
 pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-unsigned * __pure pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-int	pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 
 #endif /* KERNEL */
+
 #endif /* !LOCORE */
 
 #endif /* !_MACHINE_PMAP_H_ */
