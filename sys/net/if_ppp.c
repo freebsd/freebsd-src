@@ -77,6 +77,7 @@
 
 #include "opt_inet.h"
 #include "opt_ipx.h"
+#include "opt_mac.h"
 #include "opt_ppp.h"
 
 #ifdef INET
@@ -93,6 +94,7 @@
 #include <sys/sockio.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 
@@ -714,6 +716,12 @@ pppoutput(ifp, m0, dst, rtp)
     int len;
     struct mbuf *m;
 
+#ifdef MAC
+    error = mac_check_ifnet_transmit(ifp, m0);
+    if (error)
+	goto bad;
+#endif
+
     if (sc->sc_devp == NULL || (ifp->if_flags & IFF_RUNNING) == 0
 	|| ((ifp->if_flags & IFF_UP) == 0 && dst->sa_family != AF_UNSPEC)) {
 	error = ENETDOWN;	/* sort of */
@@ -1104,6 +1112,9 @@ pppintr()
 	    splx(s);
 	    if (m == NULL)
 		break;
+#ifdef MAC
+	    mac_create_mbuf_from_ifnet(&sc->sc_if, m);
+#endif
 	    ppp_inproc(sc, m);
 	}
     }
@@ -1383,6 +1394,9 @@ ppp_inproc(sc, m)
 		goto bad;	/* lose if big headers and no clusters */
 	    }
 	}
+#ifdef MAC
+	mac_create_mbuf_from_mbuf(m, mp);
+#endif
 	cp = mtod(mp, u_char *);
 	cp[0] = adrs;
 	cp[1] = ctrl;
@@ -1435,6 +1449,9 @@ ppp_inproc(sc, m)
     if (ilen <= MHLEN && M_IS_CLUSTER(m)) {
 	MGETHDR(mp, M_DONTWAIT, MT_DATA);
 	if (mp != NULL) {
+#ifdef MAC
+	    mac_create_mbuf_from_mbuf(m, mp);
+#endif
 	    m_copydata(m, 0, ilen, mtod(mp, caddr_t));
 	    m_freem(m);
 	    m = mp;
