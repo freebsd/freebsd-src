@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.91 1997/06/04 10:51:09 asami Exp $
+#	$Id: BSD.usr.dist,v 1.92 1997/07/19 15:21:45 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -16,6 +16,8 @@
     lib
 	compat
 	..
+	tclpkg
+	..
     ..
     libdata
 	gcc
@@ -25,6 +27,8 @@
 	stallion
 	..
 	tcl
+		http1.0
+		..
 	..
     ..
     libexec
