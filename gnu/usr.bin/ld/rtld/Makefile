@@ -1,10 +1,11 @@
-#	$Id: Makefile,v 1.19 1996/05/07 23:15:58 wosch Exp $
+#	$Id: Makefile,v 1.20 1996/09/12 03:42:54 bde Exp $
 
 PROG=	ld.so
-SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
+SRCS=	mdprologue.S rtld.c malloc.c shlib.c md.c support.c sbrk.c
 MAN1=	rtld.1
 LDDIR?= $(.CURDIR)/..
-PICFLAG=-fpic
+# As there is relocation going on behind GCC's back, don't cache function addresses.
+PICFLAG=-fpic -fno-function-cse
 CFLAGS+=-I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE) $(PICFLAG) -DRTLD
 LDFLAGS+=-Bshareable -Bsymbolic -assert nosymbolic
 ASFLAGS+=-k
@@ -16,7 +17,12 @@ MLINKS= rtld.1 ld.so.1
 
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
-$(PROG): ${OBJS} ${DPADD}
+.if defined(DESTDIR)
+$(PROG):
+	$(LD) -o $(PROG) $(LDFLAGS) -nostdlib -L${DESTDIR}/usr/lib $(OBJS) $(LDADD)
+.else
+$(PROG):
 	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDADD)
+.endif
 
 .include <bsd.prog.mk>

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.33 1996/04/20 18:29:50 jdp Exp $
+ *	$Id: rtld.c,v 1.34 1996/05/22 06:34:12 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,12 @@
 #include <varargs.h>
 #endif
 
-#include "ld.h"
+#include <link.h>
+
+#include "md.h"
+#include "shlib.h"
+#include "support.h"
+#include "dynamic.h"
 
 #ifndef MAP_ANON
 #define MAP_ANON	0
@@ -96,7 +101,6 @@ struct somap_private {
 #define RTLD_RTLD	0x02
 #define RTLD_DL		0x04
 #define RTLD_INIT	0x08
-#define RTLD_TRACED	0x10
 	unsigned long	a_text;    /* text size, if known     */
 	unsigned long	a_data;    /* initialized data size   */
 	unsigned long	a_bss;     /* uninitialized data size */
@@ -138,6 +142,10 @@ struct somap_private {
 #define LM_STRINGS(smp)	((char *) \
 	((smp)->som_addr + LM_OFFSET(smp) + LD_STRINGS((smp)->som_dynamic)))
 
+/* Start of search paths */
+#define LM_PATHS(smp)	((char *) \
+	((smp)->som_addr + LM_OFFSET(smp) + LD_PATHS((smp)->som_dynamic)))
+
 /* End of text */
 #define LM_ETEXT(smp)	((char *) \
 	((smp)->som_addr + LM_TXTADDR(smp) + LD_TEXTSZ((smp)->som_dynamic)))
@@ -153,6 +161,10 @@ struct somap_private {
 /* Parent of link map */
 #define LM_PARENT(smp)	(LM_PRIVATE(smp)->spd_parent)
 
+static char		__main_progname[] = "main";
+static char		*main_progname = __main_progname;
+static char		us[] = "/usr/libexec/ld.so";
+
 char			**environ;
 char			*__progname;
 int			errno;
@@ -160,13 +172,13 @@ int			errno;
 static uid_t		uid, euid;
 static gid_t		gid, egid;
 static int		careful;
-static char		__main_progname[] = "main";
-static char		*main_progname = __main_progname;
-static char		us[] = "/usr/libexec/ld.so";
 static int		anon_fd = -1;
+
 static char		*ld_library_path;
 static char		*ld_preload;
-static int		tracing;
+static char		*ld_tracing;
+static char		*ld_suppress_warnings;
+static char		*ld_warn_non_pure_code;
 
 struct so_map		*link_map_head;
 struct so_map		*link_map_tail;
@@ -214,6 +226,10 @@ static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 static void		generror __P((char *, ...));
 static int		maphints __P((void));
 static void		unmaphints __P((void));
+static void		ld_trace __P((struct so_map *));
+static void		rt_readenv __P((void));
+static int		hinthash __P((char *, int));
+int			rtld __P((int, struct crt_ldso *, struct _dynamic *));
 
 static inline int
 strcmp (register const char *s1, register const char *s2)
@@ -241,10 +257,12 @@ struct _dynamic		*dp;
 	struct so_debug		*ddp;
 	struct so_map		*main_map;
 	struct so_map		*smp;
+	char			*add_paths;
 
 	/* Check version */
 	if (version != CRT_VERSION_BSD_2 &&
 	    version != CRT_VERSION_BSD_3 &&
+	    version != CRT_VERSION_BSD_4 &&
 	    version != CRT_VERSION_SUN)
 		return -1;
 
@@ -269,9 +287,16 @@ struct _dynamic		*dp;
 		++reloc;
 	}
 
-	__progname = "ld.so";
+	if (version >= CRT_VERSION_BSD_4)
+		__progname = crtp->crt_ldso;
 	if (version >= CRT_VERSION_BSD_3)
 		main_progname = crtp->crt_prog;
+
+	/* Fill in some fields in _DYNAMIC or crt structure */
+	if (version >= CRT_VERSION_BSD_4)
+		crtp->crt_ldentry = &ld_entry;		/* crt */
+	else
+		crtp->crt_dp->d_entry = &ld_entry;	/* _DYNAMIC */
 
 	/* Setup out (private) environ variable */
 	environ = crtp->crt_ep;
@@ -285,19 +310,9 @@ struct _dynamic		*dp;
 	if (careful) {
 		unsetenv("LD_LIBRARY_PATH");
 		unsetenv("LD_PRELOAD");
-	} else {
-		ld_library_path = getenv("LD_LIBRARY_PATH");
-	        ld_preload = getenv("LD_PRELOAD");
 	}
 
-	tracing = getenv("LD_TRACE_LOADED_OBJECTS") != NULL;
-
-	/*
-	 * Setup the directory search list for findshlib.  We use only
-	 * the standard search path.  Any extra directories from
-	 * LD_LIBRARY_PATH are searched explicitly, in rtfindlib.
-	 */
-	std_search_path();
+	rt_readenv();
 
 	anon_open();
 
@@ -315,9 +330,21 @@ struct _dynamic		*dp;
 	LM_PRIVATE(smp)->spd_refcount++;
 	LM_PRIVATE(smp)->spd_flags |= RTLD_RTLD;
 
-	/* Fill in some fields in main's __DYNAMIC structure */
-	crtp->crt_dp->d_entry = &ld_entry;
-	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
+	/*
+	 * Setup the executable's run path
+	 */
+	if (version >= CRT_VERSION_BSD_4) {
+		add_paths = LM_PATHS(main_map);
+		if (add_paths)
+			add_search_path(add_paths);
+	}
+
+	/*
+	 * Setup the directory search list for findshlib.  We use only
+	 * the standard search path.  Any extra directories from
+	 * LD_LIBRARY_PATH are searched explicitly, in rtfindlib.
+	 */
+	std_search_path();
 
 	/* Map in LD_PRELOADs before the main program's shared objects so we
 	   can intercept those calls */
@@ -330,8 +357,12 @@ struct _dynamic		*dp;
 	if(map_sods(main_map) == -1)
 		return -1;
 
-	if(tracing)	/* We're done */
+	if(ld_tracing) {	/* We're done */
+		ld_trace(link_map_head);
 		exit(0);
+	}
+
+	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
 	/* Relocate and initialize all mapped objects */
 	if(reloc_and_init(main_map) == -1)		/* Failed */
@@ -368,6 +399,90 @@ struct _dynamic		*dp;
 	return LDSO_VERSION_HAS_DLEXIT;
 }
 
+void
+ld_trace(smp)
+	struct so_map *smp;
+{
+	char	*fmt1, *fmt2, *fmt, *main_local;
+	int	c;
+
+	if ((main_local = getenv("LD_TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+		main_local = "";
+
+	if ((fmt1 = getenv("LD_TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+		fmt1 = "\t-l%o.%m => %p (%x)\n";
+
+	if ((fmt2 = getenv("LD_TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+		fmt2 = "\t%o (%x)\n";
+
+	for (; smp; smp = smp->som_next) {
+		struct sod	*sodp;
+		char		*name, *path;
+
+		if ((sodp = smp->som_sod) == NULL)
+			continue;
+
+		name = (char *)sodp->sod_name;
+		if (LM_PARENT(smp))
+			name += (long)LM_LDBASE(LM_PARENT(smp));
+
+		if ((path = smp->som_path) == NULL)
+			path = "not found";
+
+		fmt = sodp->sod_library ? fmt1 : fmt2;
+		while ((c = *fmt++) != '\0') {
+			switch (c) {
+			default:
+				putchar(c);
+				continue;
+			case '\\':
+				switch (c = *fmt) {
+				case '\0':
+					continue;
+				case 'n':
+					putchar('\n');
+					break;
+				case 't':
+					putchar('\t');
+					break;
+				}
+				break;
+			case '%':
+				switch (c = *fmt) {
+				case '\0':
+					continue;
+				case '%':
+				default:
+					putchar(c);
+					break;
+				case 'A':
+					printf("%s", main_local);
+					break;
+				case 'a':
+					printf("%s", main_progname);
+					break;
+				case 'o':
+					printf("%s", name);
+					break;
+				case 'm':
+					printf("%d", sodp->sod_major);
+					break;
+				case 'n':
+					printf("%d", sodp->sod_minor);
+					break;
+				case 'p':
+					printf("%s", path);
+					break;
+				case 'x':
+					printf("%p", smp->som_addr);
+					break;
+				}
+				break;
+			}
+			++fmt;
+		}
+	}
+}
 
 /*
  * Allocate a new link map and return a pointer to it.
@@ -420,7 +535,7 @@ alloc_link_map(path, sodp, parent, addr, dp)
 	}
 
 	smp->som_addr = addr;
-	smp->som_path = strdup(path);
+	smp->som_path = path ? strdup(path) : NULL;
 	smp->som_sod = sodp;
 	smp->som_dynamic = dp;
 	smp->som_spd = (caddr_t)smpp;
@@ -709,7 +824,7 @@ map_sods(parent)
 		if(sodp->sod_library) {
 			path = rtfindlib(name, sodp->sod_major,
 					 sodp->sod_minor);
-			if(path == NULL) {
+			if(path == NULL && !ld_tracing) {
 				generror ("Can't find shared library"
 					  " \"lib%s.so.%d.%d\"", name,
 					  sodp->sod_major, sodp->sod_minor);
@@ -724,23 +839,8 @@ map_sods(parent)
 
 		if(path != NULL)
 			smp = map_object(path, sodp, parent);
-
-		if(tracing &&
-		(smp == NULL || !(LM_PRIVATE(smp)->spd_flags & RTLD_TRACED))) {
-			if(sodp->sod_library)
-				printf("\t-l%s.%d => ", name, sodp->sod_major);
-			else
-				printf("\t%s => ", name);
-
-			if(path == NULL)
-				printf("not found\n");
-			else if(smp == NULL)
-				printf("can't load\n");
-			else {
-				printf("%s (%p)\n", path, smp->som_addr);
-				LM_PRIVATE(smp)->spd_flags |= RTLD_TRACED;
-			}
-		}
+		else if (ld_tracing)
+			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
 
 		if(path != NULL)
 			free(path);
@@ -752,7 +852,7 @@ map_sods(parent)
 			solp->sol_next = NULL;
 			*soltail = solp;
 			soltail = &solp->sol_next;
-		} else if(!tracing)
+		} else if(!ld_tracing)
 			break;
 
 		next = sodp->sod_next;
@@ -937,8 +1037,7 @@ caddr_t			addr;
 	else
 		sym = "";
 
-	if (getenv("LD_SUPPRESS_WARNINGS") == NULL &&
-	    getenv("LD_WARN_NON_PURE_CODE") != NULL)
+	if (!ld_suppress_warnings && ld_warn_non_pure_code)
 		warnx("warning: non pure code in %s at %x (%s)",
 				smp->som_path, r->r_address, sym);
 
@@ -1488,7 +1587,8 @@ maphints __P((void))
 
 	if (read(hfd, &hdr, sizeof hdr) != sizeof hdr ||
 	    HH_BADMAG(hdr) ||
-	    hdr.hh_version != LD_HINTS_VERSION_1) {
+	    (hdr.hh_version != LD_HINTS_VERSION_1 &&
+	     hdr.hh_version != LD_HINTS_VERSION_2)) {
 		close(hfd);
 		hints_bad = 1;
 		return -1;
@@ -1508,6 +1608,9 @@ maphints __P((void))
 	hheader = (struct hints_header *)addr;
 	hbuckets = (struct hints_bucket *)(addr + hheader->hh_hashtab);
 	hstrtab = (char *)(addr + hheader->hh_strtab);
+	/* pluck out the system ldconfig path */
+	if (hheader->hh_version >= LD_HINTS_VERSION_2)
+		add_search_path(hstrtab + hheader->hh_dirlist);
 
 	return 0;
 }
@@ -1630,9 +1733,7 @@ rtfindlib(name, major, minor)
 	if (path == NULL)	/* Search the standard directories */
 		path = findshlib(name, &major, &realminor, 0);
 
-	if (path != NULL &&
-	    realminor < minor &&
-	    getenv("LD_SUPPRESS_WARNINGS") == NULL) {
+	if (path != NULL && realminor < minor && !ld_suppress_warnings) {
 		warnx("warning: %s: minor version %d"
 		      " older than expected %d, using it anyway",
 		      path, realminor, minor);
@@ -1703,6 +1804,10 @@ __dlopen(path, mode)
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
 
+	/*
+	 * path == NULL is handled by map_object()
+	 */
+
 	anon_open();
 
 	/* Map the object, and the objects on which it depends */
@@ -1753,16 +1858,21 @@ __dlsym(fd, sym)
 	void	*fd;
 	char	*sym;
 {
-	struct so_map	*src_map = (struct so_map *)fd;
+	struct so_map	*smp = (struct so_map *)fd, *src_map = NULL;
 	struct nzlist	*np;
 	long		addr;
 
-	np = lookup(sym, &src_map, 1);
-	if (np == NULL) {
-		generror ("Symbol \"%s\" not found", sym);
-		return NULL;
-        }
+	/*
+	 * Restrict search to passed map if dlopen()ed.
+	 */
+	if (LM_PRIVATE(smp)->spd_flags & RTLD_DL)
+		src_map = smp;
 
+	np = lookup(sym, &src_map, 1);
+	if (np == NULL)
+		return NULL;
+
+	/* Fixup jmpslot so future calls transfer directly to target */
 	addr = np->nz_value;
 	if (src_map)
 		addr += (long)src_map->som_addr;
@@ -1830,7 +1940,64 @@ char	*fmt;
 	va_start(ap);
 #endif
 
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	(void)write(1, buf, strlen(buf));
 	va_end(ap);
+}
+
+/*
+ * rt_readenv() etc.
+ *
+ * Do a sweep over the environment once only, pick up what
+ * looks interesting.
+ *
+ * This is pretty obscure, but is relatively simple.  Simply
+ * look at each environment variable, if it starts with "LD_" then
+ * look closer at it.  If it's in our table, set the variable
+ * listed.  effectively, this is like:
+ *    ld_preload = careful ? NULL : getenv("LD_PRELOAD");
+ * except that the environment is scanned once only to pick up all
+ * known variables, rather than scanned multiple times for each
+ * variable.
+ */
+
+#define L(n, u, v) { n, sizeof(n) - 1, u, v },
+struct env_scan_tab {
+	char	*name;
+	int	len;
+	int	unsafe;
+	char	**value;
+} scan_tab[] = {
+	L("LD_LIBRARY_PATH=",		1, &ld_library_path)
+	L("LD_PRELOAD=",		1, &ld_preload)
+	L("LD_TRACE_LOADED_OBJECTS=",	0, &ld_tracing)
+	L("LD_SUPPRESS_WARNINGS=",	0, &ld_suppress_warnings)
+	L("LD_WARN_NON_PURE_CODE=",	0, &ld_warn_non_pure_code)
+	{ NULL, 0, NULL }
+};
+#undef L
+
+void
+rt_readenv()
+{
+	char **p = environ;
+	char *v;
+	struct env_scan_tab *t;
+
+	/* for each string in the environment... */
+	while ((v = *p++)) {
+
+		/* check for LD_xxx */
+		if (v[0] != 'L' || v[1] != 'D' || v[2] != '_')
+			continue;
+
+		for (t = scan_tab; t->name; t++) {
+			if (careful && t->unsafe)
+				continue;	/* skip for set[ug]id */
+			if (strncmp(t->name, v, t->len) == 0) {
+				*t->value = v + t->len;
+				break;
+			}
+		}
+	}
 }

@@ -1,4 +1,4 @@
-.\"	$Id: rtld.1,v 1.3 1996/04/20 18:29:48 jdp Exp $
+.\"	$Id: rtld.1,v 1.4 1996/09/23 22:22:03 wosch Exp $
 .\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.
@@ -106,7 +106,7 @@ library-name, major-version-number, minor-version-number
 recognises a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
-.Bl -tag -width "LD_TRACE_LOADED_OBJECTS"
+.Bl -tag -width "LD_TRACE_LOADED_OBJECTS_PROGNAME"
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
@@ -129,6 +129,54 @@ When set, causes
 .Nm
 to exit after loading the shared objects and printing a summary which includes
 the absolute pathnames of all objects, to standard output.
+.It Ev LD_TRACE_LOADED_OBJECTS_FMT1
+.It Ev LD_TRACE_LOADED_OBJECTS_FMT2
+When set, these variables are interpreted as format strings a la
+.Xr printf 3
+to customize the trace output and are used by
+.Xr ldd 1 's
+.Fl f
+option and allows
+.Xr ldd 1
+to be operated as a filter more conveniently.
+The following conversions can be used:
+.Bl -tag -indent "LD_TRACE_LOADED_OBJECTS_FMT1 " -width "xxxx"
+.It \&%a
+The main program's name
+.Po also known as
+.Dq __progname
+.Pc .
+.It \&%A
+The value of the environment variable
+.Ev LD_TRACE_LOADED_OBJECTS_PROGNAME
+.It \&%o
+The libary name.
+.It \&%m
+The library's major version numer.
+.It \&%n
+The library's minor version numer.
+.It \&%p
+The full pathname as determined by
+.Nm rtld Ns 's
+library search rules.
+.It \&%x
+The library's load address.
+.El
+.Pp
+Additionally,
+.Sy \en
+and
+.Sy \et
+are recognised and have their usual meaning.
+.\" .It Ev LD_NO_INTERN_SEARCH
+.\" When set,
+.\" .Nm
+.\" does not process any internal search paths that were recorded in the
+.\" executable.
+.\" .It Ev LD_NOSTD_PATH
+.\" When set, do not include a set of built-in standard directory paths for
+.\" searching. This might be useful when running on a system with a completely
+.\" non-standard filesystem layout.
 .El
 .Pp
 .Sh FILES
