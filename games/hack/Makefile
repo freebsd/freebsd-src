@@ -15,21 +15,25 @@ SRCS=	alloc.c hack.Decl.c hack.apply.c hack.bones.c hack.c hack.cmd.c \
 MAN6=	hack.6
 DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
-CFLAGS+= -fwritable-strings
+CFLAGS+= -fwritable-strings -I${.CURDIR} -I.
 HIDEGAME=hidegame
+DPSRCS+= hack.onames.h
+CLEANFILES+= hack.onames.h makedefs
+
+.depend: hack.onames.h
 
 hack.onames.h: makedefs def.objects.h
-	makedefs ${.CURDIR}/def.objects.h > hack.onames.h
+	./makedefs ${.CURDIR}/def.objects.h > hack.onames.h
 
 makedefs: makedefs.c
 	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${.PREFIX}.c
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
 	    ${.CURDIR}/hh ${.CURDIR}/data ${DESTDIR}/var/games/hackdir
 	rm -f ${DESTDIR}/var/games/hackdir/bones*
 
