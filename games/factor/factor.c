@@ -43,6 +43,7 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)factor.c	8.4 (Berkeley) 5/4/95";
+__RCSID("$NetBSD: factor.c,v 1.13 2002/06/18 23:07:36 simonb Exp $");
 #endif
 static const char rcsid[] =
  "$FreeBSD$";
@@ -77,17 +78,53 @@ static const char rcsid[] =
 
 #include "primes.h"
 
-static int	hflag;
+#ifdef HAVE_OPENSSL
 
-static void	pr_fact(ubig);		/* print factors of a value */
+#include <openssl/bn.h>
+
+#define	PRIME_CHECKS	5
+
+static void	pollard_pminus1(BIGNUM *); /* print factors for big numbers */
+
+#else
+
+typedef ubig	BIGNUM;
+typedef u_long	BN_ULONG;
+
+#define BN_CTX			int
+#define BN_CTX_new()		NULL
+#define BN_new()		((BIGNUM *)calloc(sizeof(BIGNUM), 1))
+#define BN_is_zero(v)		(*(v) == 0)
+#define BN_is_one(v)		(*(v) == 1)
+#define BN_mod_word(a, b)	(*(a) % (b))
+
+static int	BN_dec2bn(BIGNUM **a, const char *str);
+static int	BN_hex2bn(BIGNUM **a, const char *str);
+static BN_ULONG BN_div_word(BIGNUM *, BN_ULONG);
+static void	BN_print_fp(FILE *, const BIGNUM *);
+
+#endif
+
+static void	BN_print_dec_fp(FILE *, const BIGNUM *);
+
+static void	pr_fact(BIGNUM *);	/* print factors of a value */
+static void	pr_print(BIGNUM *);	/* print a prime */
 static void	usage(void);
+
+static BN_CTX	*ctx;			/* just use a global context */
+static int	hflag;
 
 int
 main(int argc, char *argv[])
 {
-	ubig val;
+	BIGNUM *val;
 	int ch;
 	char *p, buf[LINE_MAX];		/* > max number of digits. */
+
+	ctx = BN_CTX_new();
+	val = BN_new();
+	if (val == NULL)
+		errx(1, "can't initialise bignum");
 
 	while ((ch = getopt(argc, argv, "h")) != -1)
 		switch (ch) {
@@ -114,11 +151,8 @@ main(int argc, char *argv[])
 				continue;
 			if (*p == '-')
 				errx(1, "negative numbers aren't permitted.");
-			errno = 0;
-			val = strtoul(buf, &p, 0);
-			if (errno)
-				err(1, "%s", buf);
-			if (*p != '\n')
+			if (BN_dec2bn(&val, buf) == 0 &&
+			    BN_hex2bn(&val, buf) == 0)
 				errx(1, "%s: illegal numeric format.", buf);
 			pr_fact(val);
 		}
@@ -127,11 +161,8 @@ main(int argc, char *argv[])
 		for (; *argv != NULL; ++argv) {
 			if (argv[0][0] == '-')
 				errx(1, "negative numbers aren't permitted.");
-			errno = 0;
-			val = strtoul(argv[0], &p, 0);
-			if (errno)
-				err(1, "%s", argv[0]);
-			if (*p != '\0')
+			if (BN_dec2bn(&val, argv[0]) == 0 &&
+			    BN_hex2bn(&val, argv[0]) == 0)
 				errx(1, "%s: illegal numeric format.", argv[0]);
 			pr_fact(val);
 		}
@@ -148,38 +179,56 @@ main(int argc, char *argv[])
  * Factors are printed with leading tabs.
  */
 static void
-pr_fact(ubig val)
+pr_fact(BIGNUM *val)
 {
 	const ubig *fact;	/* The factor found. */
 
 	/* Firewall - catch 0 and 1. */
-	if (val == 0)		/* Historical practice; 0 just exits. */
+	if (BN_is_zero(val))	/* Historical practice; 0 just exits. */
 		exit(0);
-	if (val == 1) {
+	if (BN_is_one(val)) {
 		printf("1: 1\n");
 		return;
 	}
 
 	/* Factor value. */
-	printf(hflag ? "0x%lx:" : "%lu:", val);
-	for (fact = &prime[0]; val > 1; ++fact) {
+
+	if (hflag) {
+		fputs("0x", stdout);
+		BN_print_fp(stdout, val);
+	} else
+		BN_print_dec_fp(stdout, val);
+	putchar(':');
+	for (fact = &prime[0]; !BN_is_one(val); ++fact) {
 		/* Look for the smallest factor. */
 		do {
-			if (val % *fact == 0)
+			if (BN_mod_word(val, (BN_ULONG)*fact) == 0)
 				break;
 		} while (++fact <= pr_limit);
 
 		/* Watch for primes larger than the table. */
 		if (fact > pr_limit) {
-			printf(hflag ? " 0x%lx" : " %lu", val);
+#ifdef HAVE_OPENSSL
+			BIGNUM *bnfact;
+
+			bnfact = BN_new();
+			BN_set_word(bnfact, *(fact - 1));
+			BN_sqr(bnfact, bnfact, ctx);
+			if (BN_cmp(bnfact, val) > 0)
+				pr_print(val);
+			else
+				pollard_pminus1(val);
+#else
+			pr_print(val);
+#endif
 			break;
 		}
 
 		/* Divide factor out until none are left. */
 		do {
 			printf(hflag ? " 0x%lx" : " %lu", *fact);
-			val /= *fact;
-		} while ((val % *fact) == 0);
+			BN_div_word(val, (BN_ULONG)*fact);
+		} while (BN_mod_word(val, (BN_ULONG)*fact) == 0);
 
 		/* Let the user know we're doing something. */
 		fflush(stdout);
@@ -188,8 +237,127 @@ pr_fact(ubig val)
 }
 
 static void
+pr_print(BIGNUM *val)
+{
+	if (hflag) {
+		fputs(" 0x", stdout);
+		BN_print_fp(stdout, val);
+	} else {
+		putchar(' ');
+		BN_print_dec_fp(stdout, val);
+	}
+}
+
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: factor [-h] [value ...]\n");
 	exit(1);
 }
+
+#ifdef HAVE_OPENSSL
+
+/* pollard rho, algorithm from Jim Gillogly, May 2000 */
+static void
+pollard_pminus1(BIGNUM *val)
+{
+	BIGNUM *base, *num, *i, *x;
+
+	base = BN_new();
+	num = BN_new();
+	i = BN_new();
+	x = BN_new();
+
+	BN_set_word(i, 2);
+	BN_set_word(base, 2);
+
+	for (;;) {
+		BN_mod_exp(base, base, i, val, ctx);
+
+		BN_copy(x, base);
+		BN_sub_word(x, 1);
+		BN_gcd(x, x, val, ctx);
+
+		if (!BN_is_one(x)) {
+			if (BN_is_prime(x, PRIME_CHECKS, NULL, NULL,
+			    NULL) == 1)
+				pr_print(x);
+			else
+				pollard_pminus1(x);
+			fflush(stdout);
+
+			BN_div(num, NULL, val, x, ctx);
+			if (BN_is_one(num))
+				return;
+			if (BN_is_prime(num, PRIME_CHECKS, NULL, NULL,
+			    NULL) == 1) {
+				pr_print(num);
+				fflush(stdout);
+				return;
+			}
+			BN_copy(val, num);
+		}
+		BN_add_word(i, 1);
+	}
+}
+
+/*
+ * Sigh..  No _decimal_ output to file functions in BN.
+ */
+static void
+BN_print_dec_fp(FILE *fp, const BIGNUM *num)
+{
+	char *buf;
+
+	buf = BN_bn2dec(num);
+	if (buf == NULL)
+		return;	/* XXX do anything here? */
+	fprintf(fp, buf);
+	free(buf);
+}
+
+#else
+
+static void
+BN_print_fp(FILE *fp, const BIGNUM *num)
+{
+	fprintf(fp, "%lx", (unsigned long)*num);
+}
+
+static void
+BN_print_dec_fp(FILE *fp, const BIGNUM *num)
+{
+	fprintf(fp, "%lu", (unsigned long)*num);
+}
+
+static int
+BN_dec2bn(BIGNUM **a, const char *str)
+{
+	char *p;
+
+	errno = 0;
+	**a = strtoul(str, &p, 10);
+	return (errno == 0 && (*p == '\n' || *p == '\0'));
+}
+
+static int
+BN_hex2bn(BIGNUM **a, const char *str)
+{
+	char *p;
+
+	errno = 0;
+	**a = strtoul(str, &p, 16);
+	return (errno == 0 && (*p == '\n' || *p == '\0'));
+}
+
+static BN_ULONG
+BN_div_word(BIGNUM *a, BN_ULONG b)
+{
+	BN_ULONG mod;
+
+	mod = *a % b;
+	*a /= b;
+	return mod;
+}
+
+#endif
