@@ -754,10 +754,13 @@ void
 PacketAliasIn(pip)
 struct ip *pip;
 {
-    struct in_addr save_address;
+    int checksum_ok;
 
-/* Save initial destination address */
-    save_address = pip->ip_dst;
+/* Verify initial checksum */
+    if (IpChecksum(pip) == 0)
+        checksum_ok = 1;
+    else
+        checksum_ok = 0;
 
     if ( (ntohs(pip->ip_off) & IP_OFFMASK) == 0 )
     {
@@ -787,8 +790,8 @@ struct ip *pip;
         FragmentIn(pip);
     }
 
-/* If destination address has changed, adjust IP checksum */
-    if (pip->ip_dst.s_addr != save_address.s_addr)
+/*  adjust IP checksum, if original is correct */
+    if (checksum_ok == 1)
     {
         pip->ip_sum = 0;
         pip->ip_sum = IpChecksum(pip);
@@ -799,9 +802,13 @@ void
 PacketAliasOut(pip)
 struct ip *pip;
 {
-    struct in_addr save_address;
+    int checksum_ok;
 
-    save_address = pip->ip_src;
+    if (IpChecksum(pip) == 0)
+	checksum_ok = 1;
+    else
+        checksum_ok = 0;
+
     if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0)
     {
         switch (pip->ip_p)
@@ -819,14 +826,12 @@ struct ip *pip;
     }
     else
     {
-        if (pip->ip_src.s_addr != GetAliasAddress().s_addr)
-            FragmentOut(pip);
+        FragmentOut(pip);
     }
 
-/* Adjust IP checksum if source address has been aliased */
-    if (pip->ip_src.s_addr != save_address.s_addr)
+/* Adjust IP checksum, if original is correct */
+    if (checksum_ok == 1)
     {
-
         pip->ip_sum = 0;
         pip->ip_sum = IpChecksum(pip);
     }
