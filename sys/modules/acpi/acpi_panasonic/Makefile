@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../i386/acpica
+.PATH:	${.CURDIR}/../../../dev/acpi_support
 
 KMOD=	acpi_panasonic
 WARNS?=	2
