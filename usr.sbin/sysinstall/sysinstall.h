@@ -568,6 +568,7 @@ extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
+extern int	installX11package(dialogMenuItem *self);
 extern Boolean	copySelf(void);
 
 /* kget.c */
