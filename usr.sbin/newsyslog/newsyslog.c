@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.7.2.4 1998/03/09 12:20:44 jkh Exp $";
+	"$Id: newsyslog.c,v 1.7.2.5 1998/03/15 05:47:08 jkh Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -89,7 +89,7 @@ struct conf_entry {
 int     verbose = 0;            /* Print out what's going on */
 int     needroot = 1;           /* Root privs are necessary */
 int     noaction = 0;           /* Don't do anything, just show it */
-int     force = 0;		/* Force the time no matter what*/
+int     force = 0;		/* Force the trim no matter what*/
 char    *conf = CONF;           /* Configuration file to use */
 time_t  timenow;
 pid_t   syslog_pid;             /* read in from /etc/syslog.pid */
@@ -226,7 +226,7 @@ static void PRS(argc,argv)
 
 static void usage()
 {
-        fprintf(stderr, "usage: newsyslog [-nrv] [-f config-file]\n");
+        fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file]\n");
         exit(1);
 }
 
