@@ -618,7 +618,6 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 		    printf("ESS1868 (rev %d)\n", rev);
 		else
 		    printf("ESS688 (rev %d)\n", rev);
-		d->audio_fmt |= AFMT_S16_LE; /* in fact it is U16_LE */
 		break ; /* XXX */
 	    } else {
 		printf("Unknown card 0x%x 0x%x -- hope it is SBPRO\n",
