@@ -65,13 +65,16 @@ main (int argc, char **argv)
 	} else if (command ("getvol")) {
 	    int r, l;
 	    rc = getvol (&l, &r);
-	    if (rc > 0)
+	    if (rc > -1)
 		printf ("%d %d\n", l, r);
 	} else if (command ("tochdr")) {
 	    struct ioc_toc_header h;
 	    rc = read_toc_header (&h);
-	    if (rc > 0)
-		printf ("%d %d %d\n", h.len, h.starting_track, h.ending_track);
+	    if (rc > -1) {
+		if (standalone)
+			printf("start end length\n");
+		printf ("%d %d %d\n", h.starting_track, h.ending_track, h.len);
+	    }
 	} else if (command ("msfplay")) {
 	    int m1, m2, s1, s2, f1, f2;
 	    sscanf(cmd+7, "%d%d%d%d%d%d", &m1, &s1, &f1, &m2, &s2, &f2);
@@ -80,7 +83,7 @@ main (int argc, char **argv)
 	    struct ioc_toc_header h;
 	    int i, n;
 	    rc = read_toc_header (&h);
-	    if (rc > 0) {
+	    if (rc > -1) {
 		n =  h.ending_track - h.starting_track + 1;
 		rc = read_toc_entrys ((n+1)*sizeof(struct cd_toc_entry));
 		toc_buffer[n].track = 255;
@@ -108,7 +111,7 @@ tocentry, status, quit, help\n");
 	    printf("No such command, enter 'help' for commands list\n");
 	fflush (stdout);
 	if (rc < 0 && standalone)
-	    perror("cdplayer");
+	    perror("cdplay");
     }
     exit (0);
 }
