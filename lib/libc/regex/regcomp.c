@@ -816,13 +816,12 @@ p_b_cclass(p, cs)
 register struct parse *p;
 register cset *cs;
 {
+	register int c;
 	register char *sp = p->next;
 	register struct cclass *cp;
 	register size_t len;
-	register char *u;
-	register char c;
 
-	while (MORE() && isalpha((unsigned char)PEEK()))
+	while (MORE() && isalpha((uch)PEEK()))
 		NEXT();
 	len = p->next - sp;
 	for (cp = cclasses; cp->name != NULL; cp++)
@@ -834,11 +833,72 @@ register cset *cs;
 		return;
 	}
 
-	u = cp->chars;
-	while ((c = *u++) != '\0')
-		CHadd(cs, c);
+	switch (cp->fidx) {
+	case CALNUM:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isalnum((uch)c))
+				CHadd(cs, c);
+		break;
+	case CALPHA:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isalpha((uch)c))
+				CHadd(cs, c);
+		break;
+	case CBLANK:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isblank((uch)c))
+				CHadd(cs, c);
+		break;
+	case CCNTRL:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (iscntrl((uch)c))
+				CHadd(cs, c);
+		break;
+	case CDIGIT:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isdigit((uch)c))
+				CHadd(cs, c);
+		break;
+	case CGRAPH:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isgraph((uch)c))
+				CHadd(cs, c);
+		break;
+	case CLOWER:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (islower((uch)c))
+				CHadd(cs, c);
+		break;
+	case CPRINT:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isprint((uch)c))
+				CHadd(cs, c);
+		break;
+	case CPUNCT:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (ispunct((uch)c))
+				CHadd(cs, c);
+		break;
+	case CSPACE:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isspace((uch)c))
+				CHadd(cs, c);
+		break;
+	case CUPPER:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isupper((uch)c))
+				CHadd(cs, c);
+		break;
+	case CXDIGIT:
+		for (c = CHAR_MIN; c <= CHAR_MAX; c++)
+			if (isxdigit((uch)c))
+				CHadd(cs, c);
+		break;
+	}
+#if 0
 	for (u = cp->multis; *u != '\0'; u += strlen(u) + 1)
 		MCadd(p, cs, u);
+#endif
 }
 
 /*
