@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.21 1997/03/14 01:27:02 joerg Exp $";
+	"$Id: syslogd.c,v 1.22 1997/03/31 05:11:26 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -216,7 +216,6 @@ struct	filed consfile;
 int	Debug;			/* debug flag */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
-int	InetInuse = 0;		/* non-zero if INET sockets are being used */
 int	finet;			/* Internet datagram socket */
 int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
@@ -274,7 +273,6 @@ main(argc, argv)
 		case 'p':		/* path */
 			LogName = optarg;
 			break;
-		case 'I':		/* backwards compatible w/FreeBSD */
 		case 's':		/* no network mode */
 			SecureMode++;
 			break;
@@ -309,6 +307,8 @@ main(argc, argv)
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
 
+	TAILQ_INIT(&deadq_head);
+
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
@@ -327,14 +327,8 @@ main(argc, argv)
 	} else
 		created_lsock = 1;
 
-	if (!SecureMode)
-		finet = socket(AF_INET, SOCK_DGRAM, 0);
-	else
-		finet = -1;
-
-	TAILQ_INIT(&deadq_head);
-
 	inetm = 0;
+	finet = socket(AF_INET, SOCK_DGRAM, 0);
 	if (finet >= 0) {
 		struct servent *sp;
 
@@ -347,13 +341,15 @@ main(argc, argv)
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_port = LogPort = sp->s_port;
-		if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-			logerror("bind");
-			if (!Debug)
-				die(0);
-		} else {
-			inetm = FDMASK(finet);
-			InetInuse = 1;
+
+		if (!SecureMode) {
+		    if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+			    logerror("bind");
+			    if (!Debug)
+				    die(0);
+		    } else {
+			    inetm = FDMASK(finet);
+		    }
 		}
 	}
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
@@ -1282,8 +1278,6 @@ cfline(line, f, prog)
 	switch (*p)
 	{
 	case '@':
-		if (!InetInuse)
-			break;
 		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
 		hp = gethostbyname(p);
 		if (hp == NULL) {
