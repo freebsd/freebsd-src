@@ -1343,6 +1343,10 @@ pci_chip_match(device_t dev)
 	case 0x07011179:
 		return ("Toshiba Fast Infra Red controller");
 
+	/* Compaq -- vendor 0x0e11 */
+	case 0xa0f70e11:
+		return ("Compaq PCI Hotplug controller");
+
 	/* NEC -- vendor 0x1033 */
 
 	/* PCI to C-bus bridge */
@@ -1358,10 +1362,10 @@ pci_chip_match(device_t dev)
 		return NULL;
 	};
 
-	if (pci_get_class(dev) == PCIC_BRIDGE
-	    && pci_get_subclass(dev) != PCIS_BRIDGE_PCI
-	    && pci_get_subclass(dev) != PCIS_BRIDGE_ISA
-	    && pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
+	if (pci_get_class(dev) == PCIC_BRIDGE &&
+	    pci_get_subclass(dev) != PCIS_BRIDGE_PCI &&
+	    pci_get_subclass(dev) != PCIS_BRIDGE_ISA &&
+	    pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
 		return pci_bridge_type(dev);
 
 	return NULL;
@@ -1881,20 +1885,34 @@ const char* pci_vga_match(device_t dev)
 **---------------------------------------------------------
 */
 
-static int
-ign_probe (device_t dev)
+static const char *
+ign_match(device_t dev)
 {
 	switch (pci_get_devid(dev)) {
 
 	case 0x10001042ul:	/* wd */
-		return 0;
-/*		return ("SMC FDC 37c665");*/
+		return ("SMC FDC 37c665");
 	};
+
+	return NULL;
+}
+
+static int
+ign_probe(device_t dev)
+{
+	const char *s;
+
+	s = ign_match(dev);
+	if (s) {
+		device_set_desc(dev, s);
+		device_quiet(dev);
+		return -10000;
+	}
 	return ENXIO;
 }
 
 static int
-ign_attach (device_t dev)
+ign_attach(device_t dev)
 {
 	return 0;
 }
