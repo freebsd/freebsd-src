@@ -586,28 +586,10 @@ loadav(void)
 {
 	int i, nrun;
 	struct loadavg *avg;
-	struct proc *p;
-	struct thread *td;
 
+	nrun = sched_load();
 	avg = &averunnable;
-	sx_slock(&allproc_lock);
-	nrun = 0;
-	FOREACH_PROC_IN_SYSTEM(p) {
-		FOREACH_THREAD_IN_PROC(p, td) {
-			switch (td->td_state) {
-			case TDS_RUNQ:
-			case TDS_RUNNING:
-				if ((p->p_flag & P_NOLOAD) != 0)
-					goto nextproc;
-				nrun++; /* XXXKSE */
-			default:
-				break;
-			}
-nextproc:
-			continue;
-		}
-	}
-	sx_sunlock(&allproc_lock);
+
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
