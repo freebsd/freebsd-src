@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.1 1994/08/17 09:00:13 sos Exp $
+ *	$Id: vidcontrol.c,v 1.2 1994/09/15 07:28:06 sos Exp $
  */
 
 #include <ctype.h>
@@ -402,14 +402,13 @@ usage()
 "                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
 "                  -b color         (set border color)\n"
 "                  -c n.m           (set cursor start line n & end line m)\n"
-#if 0
 "                  -d               (dump screenmap to stdout)\n"
-#endif
 "                  -l filename      (load srceenmap file filename)\n"
 "                  -L               (load default screenmap)\n"
 "                  -f DxL filename  (load font, D dots wide & L lines high)\n"
 "                  -s saver | help  (set screensaver type or help for a list)\n"
 "                  -t N             (set screensaver timeout in seconds)\n"
+"                  -x               (use hex numbers for output)\n"
 	);
 }
 
