@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/1/94
- *	$Id$
+ *	$Id: extern.h,v 1.2 1994/09/24 02:53:41 davidg Exp $
  */
 
 typedef struct {
@@ -42,7 +42,7 @@ typedef struct {
 
 extern PATH_T to;
 extern uid_t myuid;
-extern int iflag, pflag, myumask;
+extern int iflag, pflag, fflag, myumask;
 
 #include <sys/cdefs.h>
 
