@@ -57,7 +57,7 @@ extern int first_time;
 %token APMEVENT
 %token APMBATT
 %token BATTCHARGE BATTDISCHARGE
-%token <str> BATTTIME BATTPERCENT
+%token <i> BATTTIME BATTPERCENT
 %token EXECCMD REJECTCMD
 %token <ev> EVENT
 %token <str> STRING UNKNOWN
