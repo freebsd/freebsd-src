@@ -1185,17 +1185,18 @@ vm_object_split(vm_map_entry_t entry)
 	source = orig_object->backing_object;
 	if (source != NULL) {
 		vm_object_reference(source);	/* Referenced by new_object */
+		VM_OBJECT_LOCK(source);
 		TAILQ_INSERT_TAIL(&source->shadow_head,
 				  new_object, shadow_list);
-		VM_OBJECT_LOCK(source);
+		source->shadow_count++;
+		source->generation++;
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		VM_OBJECT_UNLOCK(source);
 		new_object->backing_object_offset = 
 			orig_object->backing_object_offset + offset;
 		new_object->backing_object = source;
-		source->shadow_count++;
-		source->generation++;
 	}
+	VM_OBJECT_LOCK(orig_object);
 	for (idx = 0; idx < size; idx++) {
 	retry:
 		m = vm_page_lookup(orig_object, offidxstart + idx);
@@ -1219,7 +1220,6 @@ vm_object_split(vm_map_entry_t entry)
 		vm_page_busy(m);
 		vm_page_unlock_queues();
 	}
-	VM_OBJECT_LOCK(orig_object);
 	if (orig_object->type == OBJT_SWAP) {
 		vm_object_pip_add(orig_object, 1);
 		VM_OBJECT_UNLOCK(orig_object);
