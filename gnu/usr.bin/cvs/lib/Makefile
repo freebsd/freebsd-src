@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1997/02/22 15:45:20 peter Exp $
+#	$Id: Makefile,v 1.14 1997/05/15 23:00:07 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -12,13 +12,12 @@ NOPROFILE=	yes
 NOPIC=		yes
 
 CFLAGS+= -I${.CURDIR} -I${CVSDIR}/src -DHAVE_CONFIG_H
+YFLAGS=
 
 SRCS =	argmatch.c getdate.y getline.c \
 	getopt.c getopt1.c savecwd.c \
 	sighandle.c stripslash.c \
 	xgetwd.c yesno.c
-
-CLEANFILES+= getdate.c y.tab.h
 
 install:
 	@echo -n
