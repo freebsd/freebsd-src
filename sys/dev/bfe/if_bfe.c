@@ -1357,7 +1357,7 @@ bfe_start(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mbuf *m_head = NULL;
-	int idx;
+	int idx, queued = 0;
 
 	sc = ifp->if_softc;
 	idx = sc->bfe_tx_prod;
@@ -1393,6 +1393,8 @@ bfe_start(struct ifnet *ifp)
 			break;
 		}
 
+		queued++;
+
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
@@ -1400,15 +1402,18 @@ bfe_start(struct ifnet *ifp)
 		BPF_MTAP(ifp, m_head);
 	}
 
-	sc->bfe_tx_prod = idx;
-	/* Transmit - twice due to apparent hardware bug */
-	CSR_WRITE_4(sc, BFE_DMATX_PTR, idx * sizeof(struct bfe_desc));
-	CSR_WRITE_4(sc, BFE_DMATX_PTR, idx * sizeof(struct bfe_desc));
+	if (queued) {
+		sc->bfe_tx_prod = idx;
+		/* Transmit - twice due to apparent hardware bug */
+		CSR_WRITE_4(sc, BFE_DMATX_PTR, idx * sizeof(struct bfe_desc));
+		CSR_WRITE_4(sc, BFE_DMATX_PTR, idx * sizeof(struct bfe_desc));
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		ifp->if_timer = 5;
+	}
+
 	BFE_UNLOCK(sc);
 }
 
