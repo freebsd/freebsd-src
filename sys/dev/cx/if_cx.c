@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #       include <i386/isa/intr_machdep.h>
 #   endif
 #endif
-#if __FreeBSD_version >= 500000
+#if __FreeBSD_version >= 400000
 #   include <dev/cx/machdep.h>
 #   include <dev/cx/cxddk.h>
 #   include <dev/cx/cronyxfw.h>
@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #   include "opt_netgraph.h"
 #   include <netgraph/ng_message.h>
 #   include <netgraph/netgraph.h>
-#   if __FreeBSD_version >= 500000
+#   if __FreeBSD_version >= 400000
 #       include <dev/cx/ng_cx.h>
 #   else
 #       include <netgraph/ng_cx.h>
@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #   if __FreeBSD_version < 500000
 #   include "sppp.h"
 #   if NSPPP <= 0
-#	error The device cp requires sppp or netgraph.
+#	error The device cx requires sppp or netgraph.
 #   endif
 #   endif
 #   include <net/if_sppp.h>
