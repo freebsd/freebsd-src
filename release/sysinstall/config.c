@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.48 1997/05/26 05:33:03 jkh Exp $
+ * $Id: config.c,v 1.51.2.49 1997/05/26 18:27:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -543,7 +543,7 @@ configXFree86(dialogMenuItem *self)
     }
 
     if (!directory_exists("/dist/CDE/")) {
-	msgConfirm("Hmmm!  I can't find the CDE distribution.  Please please the 1st CD of your\n"
+	msgConfirm("Hmmm!  I can't find the CDE distribution.  Please place the 1st CD of your\n"
 		   "FreeBSD Desktop/Pro distribution in the drive and try this operation again.");
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
