@@ -88,4 +88,6 @@ struct mntopt {
 	MOPT_NOCLUSTERW
 
 void getmntopts __P((const char *, const struct mntopt *, int *, int *));
+void rmslashes __P((char *, char *));
+void checkpath __P((const char *, char resolved_path[]));
 extern int getmnt_silent;
