@@ -434,6 +434,7 @@ kern/subr_blist.c	standard
 kern/subr_bus.c		standard
 kern/subr_devstat.c	standard
 kern/subr_disk.c	standard
+kern/subr_disklabel.c	standard
 kern/subr_diskslice.c	standard
 kern/subr_eventhandler.c	standard
 kern/subr_kobj.c	standard
@@ -908,7 +909,6 @@ ufs/ffs/ffs_vnops.c	optional mfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
 ufs/ufs/ufs_bmap.c	standard
-ufs/ufs/ufs_disksubr.c	standard
 ufs/ufs/ufs_extattr.c	standard
 ufs/ufs/ufs_ihash.c	standard
 ufs/ufs/ufs_inode.c	standard
