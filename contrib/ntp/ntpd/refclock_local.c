@@ -252,6 +252,7 @@ local_poll(
 		ext_enable = 0;
 	}
 #endif /* KERNEL_PLL STA_CLK */
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	pp->fudgetime1 = 0;
 }

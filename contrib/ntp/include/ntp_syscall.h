@@ -14,6 +14,7 @@
 # include <sys/timex.h>
 #endif
 
+#ifndef NTP_SYSCALLS_LIBC
 #ifdef NTP_SYSCALLS_STD
 # define ntp_adjtime(t)		syscall(SYS_ntp_adjtime, (t))
 # define ntp_gettime(t)		syscall(SYS_ntp_gettime, (t))
@@ -49,5 +50,6 @@ ntp_gettime(
 #  endif
 # endif /* !HAVE_ADJTIMEX */
 #endif /* !NTP_SYSCALLS_STD */
+#endif /* !NTP_SYSCALLS_LIBC */
 
 #endif /* NTP_SYSCALL_H */
