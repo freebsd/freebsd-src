@@ -367,6 +367,11 @@ wi_attach(device_t dev)
 			sc->sc_flags |= WI_FLAGS_HAS_DBMADJUST;
 		if (sc->sc_sta_firmware_ver >= 800)
 			ic->ic_flags |= IEEE80211_F_HASIBSS;
+		/*
+		 * version 0.8.3 and newer are the only ones that are known
+		 * to currently work.  Earlier versions can be made to work,
+		 * at least according to the Linux driver.
+		 */
 		if (sc->sc_sta_firmware_ver >= 803)
 			ic->ic_flags |= IEEE80211_F_HASHOSTAP;
 		sc->sc_ibss_port = htole16(0);
