@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.3 1997/05/01 04:37:10 jkh Exp $
+#	$Id: rc.network,v 1.1.2.4 1997/05/01 20:02:58 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -76,7 +76,7 @@ network_pass1() {
 
     echo -n 'Additional routing options:'
     if [ "X$gateway_enable" = X"YES" ]; then
-	    echo -n ' IP gateway=1'
+	    echo -n ' IP gateway=YES'
 	    sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
     fi
     
@@ -85,7 +85,7 @@ network_pass1() {
     fi
     
     if [ "X$ipxgateway_enable" = X"YES" ]; then
-	    echo -n ' IPX gateway=1'
+	    echo -n ' IPX gateway=YES'
 	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
     fi
     
@@ -99,8 +99,8 @@ network_pass1() {
 
 network_pass2() {
     echo -n 'Doing additional network setup:'
-    if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
-	    echo -n ' tcp extentions=0'
+    if [ -n "$tcp_extentions" -a "x$tcp_extentions" != "xYES" ] ; then
+	    echo -n ' tcp extentions=NO'
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
 	    sysctl -w net.inet.tcp.rfc1644=0 >/dev/null 2>&1
     fi
@@ -162,7 +162,7 @@ network_pass3() {
 	    fi
 	    mountd ${mountd_flags}
 	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
-		    echo -n ' nfsprivport=1'
+		    echo -n ' nfsprivport=YES'
 		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
 	    fi
 	    echo -n ' nfsd';		nfsd -u -t 4
