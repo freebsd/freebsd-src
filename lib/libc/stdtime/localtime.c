@@ -1082,19 +1082,21 @@ struct tm * const	tmp;
 #endif /* defined TM_ZONE */
 }
 
-#ifdef	_THREAD_SAFE
 struct tm *
 localtime_r(timep, p_tm)
 const time_t * const	timep;
 struct tm *p_tm;
 {
+#ifdef _THREAD_SAFE
 	pthread_mutex_lock(&lcl_mutex);
+#endif
 	tzset();
 	localsub(timep, 0L, p_tm);
+#ifdef _THREAD_SAFE
 	pthread_mutex_unlock(&lcl_mutex);
+#endif
 	return(p_tm);
 }
-#endif
 
 struct tm *
 localtime(timep)
@@ -1214,14 +1216,12 @@ const time_t * const	timep;
 #endif
 }
 
-#ifdef	_THREAD_SAFE
 struct tm *
 gmtime_r(const time_t * timep, struct tm * tm)
 {
 	gmtsub(timep, 0L, tm);
 	return(tm);
 }
-#endif
 
 #ifdef STD_INSPIRED
 
@@ -1350,7 +1350,6 @@ const time_t * const	timep;
 	return asctime(localtime(timep));
 }
 
-#ifdef _THREAD_SAFE
 char *
 ctime_r(timep, buf)
 const time_t * const	timep;
@@ -1359,7 +1358,6 @@ char *buf;
         struct tm tm;
 	return asctime_r(localtime_r(timep, &tm), buf);
 }
-#endif
 
 /*
 ** Adapted from code provided by Robert Elz, who writes:
