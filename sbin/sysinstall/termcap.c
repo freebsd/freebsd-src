@@ -39,6 +39,7 @@ set_termcap()
 			if (setenv("TERMCAP", termcap_vt100, 1) < 0)
 				return -1;
 			debug_fd = dup(1);
+			on_serial++;
 		} else if (color_display) {
 			if (setenv("TERM", "cons25", 1) < 0)
 				return -1;

@@ -16,9 +16,6 @@
 #define MBR_MAGIC 0xAA55
 #define ACTIVE 0x80
 
-#define BOOT1 "/stand/sdboot"
-#define BOOT2 "/stand/bootsd"
-
 /* XXX -- calculate these, this is nasty */
 #define DEFFSIZE 1024
 #define DEFFRAG 8
