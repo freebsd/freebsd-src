@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.73 1996/10/03 21:44:47 peter Exp $
+#	$Id: BSD.usr.dist,v 1.74 1996/11/01 08:00:37 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -57,6 +57,10 @@
             ..
             handbook
             ..
+	    ja_JP.EUC
+		handbook
+		..
+	    ..
             papers
             ..
             psd
