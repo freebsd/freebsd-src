@@ -1898,7 +1898,7 @@ check_body:
 				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
 #endif
 #ifdef IPSEC
-				match = (ipsec_gethist(m, NULL) != NULL);
+				match = (ipsec_getnhist(m) != NULL);
 #endif
 				/* otherwise no match */
 				break;
