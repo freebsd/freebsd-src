@@ -165,12 +165,6 @@ kernel-clean:
 kernel-clobber:
 	find . -type f ! -name version -delete
 
-#lint: /tmp
-#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} | \
-#	    grep -v 'struct/union .* never defined' | \
-#	    grep -v 'possible pointer alignment problem'
-
 locore.o: $S/$M/$M/locore.s assym.s
 	${NORMAL_S}
 
