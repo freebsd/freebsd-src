@@ -17,10 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.68.2.4 1999/05/02 08:59:44 brian Exp $
+ * $Id: ipcp.c,v 1.68.2.5 1999/06/08 12:00:29 brian Exp $
  *
  *	TODO:
- *		o More RFC1772 backward compatibility
+ *		o Support IPADDRS properly
+ *		o Validate the length in IpcpDecodeConfig
  */
 #include <sys/param.h>
 #include <netinet/in_systm.h>
@@ -40,13 +41,14 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
+#ifndef NONAT
 #ifdef __FreeBSD__
 #include <alias.h>
 #else
 #include "alias.h"
 #endif
 #endif
+#include "layer.h"
 #include "ua.h"
 #include "defs.h"
 #include "command.h"
@@ -54,7 +56,7 @@
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
@@ -383,7 +385,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 
   memset(&ipcp->vj, '\0', sizeof ipcp->vj);
 
-  throughput_init(&ipcp->throughput);
+  throughput_init(&ipcp->throughput, SAMPLE_PERIOD);
   memset(ipcp->Queue, '\0', sizeof ipcp->Queue);
   ipcp_Setup(ipcp, INADDR_NONE);
 }
@@ -502,8 +504,7 @@ static int
 ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
                   struct in_addr hisaddr, int silent)
 {
-  static struct in_addr none = { INADDR_ANY };
-  struct in_addr mask, oaddr;
+  struct in_addr mask, oaddr, none = { INADDR_ANY };
 
   mask = addr2mask(myaddr);
 
@@ -638,7 +639,8 @@ IpcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
   }
 
-  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
+             MB_IPCPOUT);
 }
 
 static void
@@ -651,7 +653,7 @@ static void
 IpcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0, MB_IPCPOUT);
 }
 
 static void
@@ -743,8 +745,8 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
     return 0;
   }
 
-#ifndef NOALIAS
-  if (ipcp->fsm.bundle->AliasEnabled)
+#ifndef NONAT
+  if (ipcp->fsm.bundle->NatEnabled)
     PacketAliasSetAddress(ipcp->my_ip);
 #endif
 
@@ -797,7 +799,7 @@ AcceptableAddr(const struct in_range *prange, struct in_addr ipaddr)
 }
 
 static void
-IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
+IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                  struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPCP */
@@ -905,6 +907,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 		   inet_ntoa(ipcp->my_ip));
 	  log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  ipcp->my_ip = ipaddr;
+          bundle_AdjustFilters(fp->bundle, &ipcp->my_ip, NULL);
 	} else {
 	  log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
                     "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
@@ -1011,22 +1014,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	ipcp->peer_ip = ipaddr;
-	ipcp->my_ip = dstipaddr;
-	memcpy(dec->ackend, cp, length);
-	dec->ackend += length;
+	memcpy(dec->rejend, cp, length);
+	dec->rejend += length;
 	break;
 
       case MODE_NAK:
-        snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s", tbuff,
-		 inet_ntoa(ipcp->my_ip));
-	log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	ipcp->my_ip = ipaddr;
-	ipcp->peer_ip = dstipaddr;
-	break;
-
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
 	break;
       }
       break;
@@ -1151,18 +1144,20 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
   }
 }
 
-void
-ipcp_Input(struct ipcp *ipcp, struct bundle *bundle, struct mbuf *bp)
+extern struct mbuf *
+ipcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
+  mbuf_SetType(bp, MB_IPCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
-    fsm_Input(&ipcp->fsm, bp);
+    fsm_Input(&bundle->ncp.ipcp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogIPCP, "%s: Error: Unexpected IPCP in phase %s (ignored)\n",
-                 ipcp->fsm.link->name, bundle_PhaseName(bundle));
+                 l->name, bundle_PhaseName(bundle));
     mbuf_Free(bp);
   }
+  return NULL;
 }
 
 int
@@ -1197,7 +1192,7 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
       ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->my_ip);
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
         log_Printf(LogWARN, "%s: None available !\n", ipcp->cfg.peer_list.src);
-        return(0);
+        return 0;
       }
       ipcp->cfg.peer_range.ipaddr.s_addr = ipcp->peer_ip.s_addr;
       ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
@@ -1217,7 +1212,9 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
   } else
     return 0;
 
-  return 1;
+  bundle_AdjustFilters(bundle, NULL, &ipcp->peer_ip);
+
+  return 1;	/* Ok */
 }
 
 struct in_addr

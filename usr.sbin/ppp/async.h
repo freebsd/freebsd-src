@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: async.h,v 1.3 1998/05/21 21:43:57 brian Exp $
+ *	$Id: async.h,v 1.4 1998/06/27 12:03:48 brian Exp $
  */
 
 #define HDLCSIZE	(MAX_MRU*2+6)
@@ -48,5 +48,5 @@ struct bundle;
 
 extern void async_Init(struct async *);
 extern void async_SetLinkParams(struct async *, struct lcp *);
-extern void async_Output(int, struct mbuf *, int, struct physical *);
-extern void async_Input(struct bundle *, u_char *, int, struct physical *);
+
+extern struct layer asynclayer;

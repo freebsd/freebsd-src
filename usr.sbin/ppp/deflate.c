@@ -23,21 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.12 1999/03/11 01:49:15 brian Exp $
+ *	$Id: deflate.c,v 1.11.2.3 1999/05/02 08:59:40 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <zlib.h>
 
 #include "defs.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
-#include "lqr.h"
-#include "hdlc.h"
 #include "fsm.h"
 #include "lcp.h"
 #include "ccp.h"
@@ -54,7 +53,7 @@ struct deflate_state {
 static char garbage[10];
 static u_char EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
 
-#define DEFLATE_CHUNK_LEN 1024		/* Allocate mbufs this size */
+#define DEFLATE_CHUNK_LEN 1600		/* Allocate mbufs this size */
 
 static void
 DeflateResetOutput(void *v)
@@ -67,8 +66,8 @@ DeflateResetOutput(void *v)
   log_Printf(LogCCP, "Deflate: Output channel reset\n");
 }
 
-static int
-DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
+static struct mbuf *
+DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
               struct mbuf *mp)
 {
   struct deflate_state *state = (struct deflate_state *)v;
@@ -77,24 +76,24 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   struct mbuf *mo_head, *mo, *mi_head, *mi;
 
   ilen = mbuf_Length(mp);
-  log_Printf(LogDEBUG, "DeflateOutput: Proto %02x (%d bytes)\n", proto, ilen);
+  log_Printf(LogDEBUG, "DeflateOutput: Proto %02x (%d bytes)\n", *proto, ilen);
   log_DumpBp(LogDEBUG, "DeflateOutput: Compress packet:", mp);
 
   /* Stuff the protocol in front of the input */
-  mi_head = mi = mbuf_Alloc(2, MB_HDLCOUT);
+  mi_head = mi = mbuf_Alloc(2, MB_CCPOUT);
   mi->next = mp;
   rp = MBUF_CTOP(mi);
-  if (proto < 0x100) {			/* Compress the protocol */
-    rp[0] = proto & 0377;
+  if (*proto < 0x100) {			/* Compress the protocol */
+    rp[0] = *proto & 0377;
     mi->cnt = 1;
   } else {				/* Don't compress the protocol */
-    rp[0] = proto >> 8;
-    rp[1] = proto & 0377;
+    rp[0] = *proto >> 8;
+    rp[1] = *proto & 0377;
     mi->cnt = 2;
   }
 
   /* Allocate the initial output mbuf */
-  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
+  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_CCPOUT);
   mo->cnt = 2;
   wp = MBUF_CTOP(mo);
   *wp++ = state->seqno >> 8;
@@ -119,7 +118,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
       mbuf_Free(mo_head);
       mbuf_FreeSeg(mi_head);
       state->seqno--;
-      return 1;			/* packet dropped */
+      return mp;		/* Our dictionary's probably dead now :-( */
     }
 
     if (flush == Z_SYNC_FLUSH && state->cx.avail_out != 0)
@@ -134,7 +133,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     }
 
     if (state->cx.avail_out == 0) {
-      mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
+      mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_CCPOUT);
       olen += (mo->cnt = DEFLATE_CHUNK_LEN);
       mo = mo->next;
       mo->cnt = 0;
@@ -154,10 +153,10 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     mbuf_Free(mo_head);
     mbuf_FreeSeg(mi_head);
     log_Printf(LogDEBUG, "DeflateOutput: %d => %d: Uncompressible (0x%04x)\n",
-              ilen, olen, proto);
+              ilen, olen, *proto);
     ccp->uncompout += ilen;
     ccp->compout += ilen;	/* We measure this stuff too */
-    return 0;
+    return mp;
   }
 
   mbuf_Free(mi_head);
@@ -179,10 +178,10 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   ccp->compout += olen;
 
   log_Printf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
-            ilen, olen, proto);
+            ilen, olen, *proto);
 
-  hdlc_Output(l, PRI_NORMAL, ccp_Proto(ccp), mo_head);
-  return 1;
+  *proto = ccp_Proto(ccp);
+  return mo_head;
 }
 
 static void
@@ -233,7 +232,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
   state->uncomp_rec = 0;
 
   /* Allocate an output mbuf */
-  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_IPIN);
+  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_CCPIN);
 
   /* Our proto starts with 0 if it's compressed */
   wp = MBUF_CTOP(mo);
@@ -290,7 +289,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
         first = 0;
       } else {
         olen += (mo->cnt = DEFLATE_CHUNK_LEN);
-        mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_IPIN);
+        mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_CCPIN);
         mo = mo->next;
         state->cx.next_out = MBUF_CTOP(mo);
         state->cx.avail_out = DEFLATE_CHUNK_LEN;
@@ -349,7 +348,7 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
    * Stuff an ``uncompressed data'' block header followed by the
    * protocol in front of the input
    */
-  mi_head = mbuf_Alloc(7, MB_HDLCOUT);
+  mi_head = mbuf_Alloc(7, MB_CCPOUT);
   mi_head->next = mi;
   len = mbuf_Length(mi);
   mi = mi_head;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: acf.h,v 1.1 1999/05/08 11:05:58 brian Exp $
  */
 
 struct lcp;

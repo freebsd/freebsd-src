@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: udp.h,v 1.1 1999/05/12 09:49:11 brian Exp $
+ *	$Id: udp.h,v 1.2 1999/06/05 21:36:00 brian Exp $
  */
 
 struct physical;

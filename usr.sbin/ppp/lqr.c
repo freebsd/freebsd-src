@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.32 1999/03/29 08:21:28 brian Exp $
+ * $Id: lqr.c,v 1.30.2.3 1999/05/02 08:59:47 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -32,12 +32,14 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "acf.h"
+#include "proto.h"
 #include "lcp.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -73,52 +75,71 @@ SendEchoReq(struct lcp *lcp)
   echo.signature = htonl(SIGNATURE);
   echo.sequence = htonl(hdlc->lqm.echo.seq_sent);
   fsm_Output(&lcp->fsm, CODE_ECHOREQ, hdlc->lqm.echo.seq_sent++,
-            (u_char *)&echo, sizeof echo);
+            (u_char *)&echo, sizeof echo, MB_ECHOOUT);
 }
 
-void
-lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
+struct mbuf *
+lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
 {
   struct hdlc *hdlc = &link2physical(fp->link)->hdlc;
-  struct echolqr *lqr;
-  u_int32_t seq;
+  struct lcp *lcp = fsm2lcp(fp);
+  struct echolqr lqr;
 
-  if (mbuf_Length(bp) == sizeof(struct echolqr)) {
-    lqr = (struct echolqr *) MBUF_CTOP(bp);
-    if (ntohl(lqr->signature) == SIGNATURE) {
-      seq = ntohl(lqr->sequence);
+  if (mbuf_Length(bp) == sizeof lqr) {
+    bp = mbuf_Read(bp, &lqr, sizeof lqr);
+    lqr.magic = ntohl(lqr.magic);
+    lqr.signature = ntohl(lqr.signature);
+    lqr.sequence = ntohl(lqr.sequence);
+
+    /* Tolerate echo replies with either magic number */
+    if (lqr.magic != 0 && lqr.magic != lcp->his_magic &&
+        lqr.magic != lcp->want_magic) {
+      log_Printf(LogWARN, "%s: lqr_RecvEcho: Bad magic: expected 0x%08x,"
+                 " got 0x%08x\n", fp->link->name, lcp->his_magic, lqr.magic);
+      /*
+       * XXX: We should send a terminate request. But poor implementations may
+       *      die as a result.
+       */
+    }
+    if (lqr.signature == SIGNATURE) {
       /* careful not to update lqm.echo.seq_recv with older values */
-      if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && seq < 5) ||
+      if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && lqr.sequence < 5) ||
           (hdlc->lqm.echo.seq_recv <= (u_int32_t)0 - 5 &&
-           seq > hdlc->lqm.echo.seq_recv))
-        hdlc->lqm.echo.seq_recv = seq;
+           lqr.sequence > hdlc->lqm.echo.seq_recv))
+        hdlc->lqm.echo.seq_recv = lqr.sequence;
     } else
       log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
-                (u_long)ntohl(lqr->signature), (u_long)SIGNATURE);
+                (u_long)ntohl(lqr.signature), (u_long)SIGNATURE);
   } else
     log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %ld !\n",
               mbuf_Length(bp), (long)sizeof(struct echolqr));
+  return bp;
 }
 
 void
-lqr_ChangeOrder(struct lqrdata * src, struct lqrdata * dst)
+lqr_ChangeOrder(struct lqrdata *src, struct lqrdata *dst)
 {
   u_int32_t *sp, *dp;
   int n;
 
   sp = (u_int32_t *) src;
   dp = (u_int32_t *) dst;
-  for (n = 0; n < sizeof(struct lqrdata) / sizeof(u_int32_t); n++)
-    *dp++ = ntohl(*sp++);
+  for (n = 0; n < sizeof(struct lqrdata) / sizeof(u_int32_t); n++, sp++, dp++)
+    *dp = ntohl(*sp);
 }
 
 static void
 SendLqrData(struct lcp *lcp)
 {
   struct mbuf *bp;
+  int extra;
 
-  bp = mbuf_Alloc(sizeof(struct lqrdata), MB_LQR);
-  hdlc_Output(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
+  extra = proto_WrapperOctets(lcp, PROTO_LQR) +
+          acf_WrapperOctets(lcp, PROTO_LQR);
+  bp = mbuf_Alloc(sizeof(struct lqrdata) + extra, MB_LQROUT);
+  bp->cnt -= extra;
+  bp->offset += extra;
+  link_PushPacket(lcp->fsm.link, bp, lcp->fsm.bundle, PRI_LINK, PROTO_LQR);
 }
 
 static void
@@ -160,59 +181,65 @@ SendLqrReport(void *v)
     timer_Start(&p->hdlc.lqm.timer);
 }
 
-void
-lqr_Input(struct physical *physical, struct mbuf *bp)
+struct mbuf *
+lqr_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
+  struct physical *p = link2physical(l);
+  struct lcp *lcp = p->hdlc.lqm.owner;
   int len;
+
+  if (p == NULL) {
+    log_Printf(LogERROR, "lqr_Input: Not a physical link - dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  p->hdlc.lqm.lqr.SaveInLQRs++;
 
   len = mbuf_Length(bp);
   if (len != sizeof(struct lqrdata))
     log_Printf(LogWARN, "lqr_Input: Got packet size %d, expecting %ld !\n",
               len, (long)sizeof(struct lqrdata));
-  else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
-           !(physical->hdlc.lqm.method & LQM_LQR)) {
-    bp->offset -= 2;	/* XXX: We have a bit too much knowledge here ! */
-    bp->cnt += 2;
-    lcp_SendProtoRej(physical->hdlc.lqm.owner, MBUF_CTOP(bp), bp->cnt);
+  else if (!IsAccepted(l->lcp.cfg.lqr) && !(p->hdlc.lqm.method & LQM_LQR)) {
+    bp = mbuf_Contiguous(proto_Prepend(bp, PROTO_LQR, 0, 0));
+    lcp_SendProtoRej(lcp, MBUF_CTOP(bp), bp->cnt);
   } else {
     struct lqrdata *lqr;
-    struct lcp *lcp;
     u_int32_t lastLQR;
 
     bp = mbuf_Contiguous(bp);
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
-    lcp = physical->hdlc.lqm.owner;
-    if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
+    if (ntohl(lqr->MagicNumber) != lcp->his_magic)
       log_Printf(LogWARN, "lqr_Input: magic 0x%08lx is wrong,"
                  " expecting 0x%08lx\n",
-		 (u_long)ntohl(lqr->MagicNumber),
-                 (u_long)physical->hdlc.lqm.owner->his_magic);
+		 (u_long)ntohl(lqr->MagicNumber), (u_long)lcp->his_magic);
     else {
       /*
        * Remember our PeerInLQRs, then convert byte order and save
        */
-      lastLQR = physical->hdlc.lqm.lqr.peer.PeerInLQRs;
+      lastLQR = p->hdlc.lqm.lqr.peer.PeerInLQRs;
 
-      lqr_ChangeOrder(lqr, &physical->hdlc.lqm.lqr.peer);
-      lqr_Dump(physical->link.name, "Input", &physical->hdlc.lqm.lqr.peer);
+      lqr_ChangeOrder(lqr, &p->hdlc.lqm.lqr.peer);
+      lqr_Dump(l->name, "Input", &p->hdlc.lqm.lqr.peer);
       /* we have received an LQR from peer */
-      physical->hdlc.lqm.lqr.resent = 0;
+      p->hdlc.lqm.lqr.resent = 0;
 
       /*
        * Generate an LQR response if we're not running an LQR timer OR
        * two successive LQR's PeerInLQRs are the same OR we're not going to
        * send our next one before the peers max timeout.
        */
-      if (physical->hdlc.lqm.timer.load == 0 ||
-          !(physical->hdlc.lqm.method & LQM_LQR) ||
-          (lastLQR && lastLQR == physical->hdlc.lqm.lqr.peer.PeerInLQRs) ||
-          (physical->hdlc.lqm.lqr.peer_timeout && 
-           physical->hdlc.lqm.timer.rest * 100 / SECTICKS >
-           physical->hdlc.lqm.lqr.peer_timeout))
-        SendLqrData(physical->hdlc.lqm.owner);
+      if (p->hdlc.lqm.timer.load == 0 ||
+          !(p->hdlc.lqm.method & LQM_LQR) ||
+          (lastLQR && lastLQR == p->hdlc.lqm.lqr.peer.PeerInLQRs) ||
+          (p->hdlc.lqm.lqr.peer_timeout && 
+           p->hdlc.lqm.timer.rest * 100 / SECTICKS >
+           p->hdlc.lqm.lqr.peer_timeout))
+        SendLqrData(lcp);
     }
   }
   mbuf_Free(bp);
+  return NULL;
 }
 
 /*
@@ -319,3 +346,94 @@ lqr_Dump(const char *link, const char *message, const struct lqrdata *lqr)
 	      lqr->PeerOutPackets, lqr->PeerOutOctets);
   }
 }
+
+static struct mbuf *
+lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
+              int pri, u_short *proto)
+{
+  struct physical *p = link2physical(l);
+  int len;
+
+  if (!p) {
+    /* Oops - can't happen :-] */
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  /*
+   * From rfc1989:
+   *
+   *  All octets which are included in the FCS calculation MUST be counted,
+   *  including the packet header, the information field, and any padding.
+   *  The FCS octets MUST also be counted, and one flag octet per frame
+   *  MUST be counted.  All other octets (such as additional flag
+   *  sequences, and escape bits or octets) MUST NOT be counted.
+   *
+   * As we're stacked before the HDLC layer (otherwise HDLC wouldn't be
+   * able to calculate the FCS), we must not forget about these additional
+   * bytes when we're asynchronous.
+   *
+   * We're also expecting to be stacked *before* the proto and acf layers.
+   * If we were after these, it makes alignment more of a pain, and we
+   * don't do LQR without these layers.
+   */
+
+  bp = mbuf_Contiguous(bp);
+  len = mbuf_Length(bp);
+
+  if (!physical_IsSync(p))
+    p->hdlc.lqm.OutOctets += hdlc_WrapperOctets(&l->lcp, *proto);
+  p->hdlc.lqm.OutOctets += acf_WrapperOctets(&l->lcp, *proto) +
+                           proto_WrapperOctets(&l->lcp, *proto) + len + 1;
+  p->hdlc.lqm.OutPackets++;
+
+  if (*proto == PROTO_LQR) {
+    /* Overwrite the entire packet (created in SendLqrData()) */
+    struct lqrdata lqr;
+
+    lqr.MagicNumber = p->link.lcp.want_magic;
+    lqr.LastOutLQRs = p->hdlc.lqm.lqr.peer.PeerOutLQRs;
+    lqr.LastOutPackets = p->hdlc.lqm.lqr.peer.PeerOutPackets;
+    lqr.LastOutOctets = p->hdlc.lqm.lqr.peer.PeerOutOctets;
+    lqr.PeerInLQRs = p->hdlc.lqm.lqr.SaveInLQRs;
+    lqr.PeerInPackets = p->hdlc.lqm.SaveInPackets;
+    lqr.PeerInDiscards = p->hdlc.lqm.SaveInDiscards;
+    lqr.PeerInErrors = p->hdlc.lqm.SaveInErrors;
+    lqr.PeerInOctets = p->hdlc.lqm.SaveInOctets;
+    lqr.PeerOutPackets = p->hdlc.lqm.OutPackets;
+    lqr.PeerOutOctets = p->hdlc.lqm.OutOctets;
+    if (p->hdlc.lqm.lqr.peer.LastOutLQRs == p->hdlc.lqm.lqr.OutLQRs) {
+      /*
+       * only increment if it's the first time or we've got a reply
+       * from the last one
+       */
+      lqr.PeerOutLQRs = ++p->hdlc.lqm.lqr.OutLQRs;
+      lqr_Dump(l->name, "Output", &lqr);
+    } else {
+      lqr.PeerOutLQRs = p->hdlc.lqm.lqr.OutLQRs;
+      lqr_Dump(l->name, "Output (again)", &lqr);
+    }
+    lqr_ChangeOrder(&lqr, (struct lqrdata *)MBUF_CTOP(bp));
+  }
+
+  return bp;
+}
+
+static struct mbuf *
+lqr_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
+{
+  /*
+   * We mark the packet as ours but don't do anything 'till it's dispatched
+   * to lqr_Input()
+   */
+  if (*proto == PROTO_LQR)
+    mbuf_SetType(bp, MB_LQRIN);
+  return bp;
+}
+
+/*
+ * Statistics for pulled packets are recorded either in hdlc_PullPacket()
+ * or sync_PullPacket()
+ */
+
+struct layer lqrlayer = { LAYER_LQR, "lqr", lqr_LayerPush, lqr_LayerPull };

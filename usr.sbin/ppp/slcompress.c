@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.24 1999/03/31 13:44:07 brian Exp $
+ * $Id: slcompress.c,v 1.20.2.3 1999/05/02 08:59:54 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -34,6 +34,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -59,7 +60,7 @@
 #include "bundle.h"
 
 void
-sl_compress_init(struct slcompress * comp, int max_state)
+sl_compress_init(struct slcompress *comp, int max_state)
 {
   register u_int i;
   register struct cstate *tstate = comp->tstate;
@@ -459,9 +460,8 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
      */
-    if (*cp > max_state || comp->last_recv == 255) {
+    if (*cp > max_state || comp->last_recv == 255)
       goto bad;
-    }
 
     comp->flags &= ~SLF_TOSS;
     comp->last_recv = *cp++;
@@ -478,8 +478,6 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
   }
   cs = &comp->rstate[comp->last_recv];
   hlen = cs->cs_ip.ip_hl << 2;
-  if (hlen == 0)
-    goto bad;    /* We've been pointed at a not-yet-used slot ! */
   th = (struct tcphdr *) & ((u_char *) & cs->cs_ip)[hlen];
   th->th_sum = htons((*cp << 8) | cp[1]);
   cp += 2;
@@ -560,7 +558,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
 
     /* Watch out for alighment problems.... */
     sum = ~changes;
-    bp = &((struct ip *)cp)->ip_sum;
+    bp = (u_short *)(cp + (int)&((struct ip *)0)->ip_sum);
     memcpy(bp, &sum, sizeof *bp);
   }
   return (len);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.43 1999/03/31 14:21:44 brian Exp $
+ * $Id: auth.c,v 1.34.2.5 1999/05/02 08:59:34 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -34,6 +34,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "defs.h"
 #include "log.h"
@@ -52,7 +53,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "chat.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "filter.h"
 #include "mp.h"
 #ifndef NORADIUS
@@ -246,7 +247,7 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   FILE *fp;
   int n;
   char *vector[5];
-  static char buff[LINE_LEN];
+  static char buff[LINE_LEN];	/* vector[] will point here when returned */
 
   fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
@@ -255,7 +256,9 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   while (fgets(buff, sizeof buff, fp)) {
     if (buff[0] == '#')
       continue;
-    buff[strlen(buff) - 1] = 0;
+    n = strlen(buff) - 1;
+    if (buff[n] == '\n')
+      buff[n] = '\0';	/* Trim the '\n' */
     memset(vector, '\0', sizeof vector);
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)

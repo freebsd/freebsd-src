@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.27 1999/03/31 14:21:46 brian Exp $
+ * $Id: vjcomp.c,v 1.23.2.3 1999/05/02 08:59:55 brian Exp $
  *
  *  TODO:
  */
@@ -28,13 +28,15 @@
 #include <sys/un.h>
 
 #include <stdio.h>
-#include <string.h>
+#include <string.h>		/* strlen/memcpy */
+#include <termios.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -56,47 +58,50 @@
 
 #define MAX_VJHEADER 16		/* Maximum size of compressed header */
 
-void
-vj_SendFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
+static struct mbuf *
+vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
+             u_short *proto)
 {
   int type;
-  u_short proto;
   struct ip *pip;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
 
-  log_Printf(LogDEBUG, "vj_SendFrame: COMPPROTO = %x\n",
-            bundle->ncp.ipcp.peer_compproto);
   bp = mbuf_Contiguous(bp);
   pip = (struct ip *)MBUF_CTOP(bp);
-  if (pip->ip_p == IPPROTO_TCP && cproto == PROTO_VJCOMP) {
+  if (*proto == PROTO_IP && pip->ip_p == IPPROTO_TCP &&
+      cproto == PROTO_VJCOMP) {
     type = sl_compress_tcp(bp, pip, &bundle->ncp.ipcp.vj.cslc,
                            &bundle->ncp.ipcp.vj.slstat,
                            bundle->ncp.ipcp.peer_compproto & 0xff);
-    log_Printf(LogDEBUG, "vj_SendFrame: type = %x\n", type);
+    log_Printf(LogDEBUG, "vj_LayerWrite: type = %x\n", type);
     switch (type) {
     case TYPE_IP:
-      proto = PROTO_IP;
       break;
-    case TYPE_UNCOMPRESSED_TCP:
-      proto = PROTO_VJUNCOMP;
-      break;
-    case TYPE_COMPRESSED_TCP:
-      proto = PROTO_VJCOMP;
-      break;
-    default:
-      log_Printf(LogALERT, "Unknown frame type %x\n", type);
-      mbuf_Free(bp);
-      return;
-    }
-  } else
-    proto = PROTO_IP;
 
-  if (!ccp_Compress(&l->ccp, l, PRI_NORMAL, proto, bp))
-    hdlc_Output(l, PRI_NORMAL, proto, bp);
+    case TYPE_UNCOMPRESSED_TCP:
+      *proto = PROTO_VJUNCOMP;
+      log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
+      mbuf_SetType(bp, MB_VJOUT);
+      break;
+
+    case TYPE_COMPRESSED_TCP:
+      *proto = PROTO_VJCOMP;
+      log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
+      mbuf_SetType(bp, MB_VJOUT);
+      break;
+
+    default:
+      log_Printf(LogERROR, "vj_LayerPush: Unknown frame type %x\n", type);
+      mbuf_Free(bp);
+      return NULL;
+    }
+  }
+
+  return bp;
 }
 
 static struct mbuf *
-VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
+VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
 {
   u_char *bufp;
   int len, olen, rlen;
@@ -106,7 +111,6 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
   bp = mbuf_Contiguous(bp);
   olen = len = mbuf_Length(bp);
   if (type == TYPE_UNCOMPRESSED_TCP) {
-
     /*
      * Uncompressed packet does NOT change its size, so that we can use mbuf
      * space for uncompression job.
@@ -117,8 +121,9 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
     if (len <= 0) {
       mbuf_Free(bp);
       bp = NULL;
-    }
-    return (bp);
+    } else
+      mbuf_SetType(bp, MB_VJIN);
+    return bp;
   }
 
   /*
@@ -139,33 +144,34 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
   }
   len -= olen;
   len += rlen;
-  nbp = mbuf_Alloc(len, MB_VJCOMP);
+  nbp = mbuf_Alloc(len, MB_VJIN);
   memcpy(MBUF_CTOP(nbp), bufp, len);
+  mbuf_SetType(bp, MB_VJIN);
   nbp->next = bp;
-  return (nbp);
+  return nbp;
 }
 
-struct mbuf *
-vj_Input(struct ipcp *ipcp, struct mbuf *bp, int proto)
+static struct mbuf *
+vj_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
+             u_short *proto)
 {
   u_char type;
 
-  log_Printf(LogDEBUG, "vj_Input: proto %02x\n", proto);
-  log_DumpBp(LogDEBUG, "Raw packet info:", bp);
-
-  switch (proto) {
+  switch (*proto) {
   case PROTO_VJCOMP:
     type = TYPE_COMPRESSED_TCP;
+    log_Printf(LogDEBUG, "vj_LayerPull: PROTO_VJCOMP -> PROTO_IP\n");
     break;
   case PROTO_VJUNCOMP:
     type = TYPE_UNCOMPRESSED_TCP;
+    log_Printf(LogDEBUG, "vj_LayerPull: PROTO_VJUNCOMP -> PROTO_IP\n");
     break;
   default:
-    log_Printf(LogWARN, "vj_Input...???\n");
-    return (bp);
+    return bp;
   }
-  bp = VjUncompressTcp(ipcp, bp, type);
-  return (bp);
+
+  *proto = PROTO_IP;
+  return VjUncompressTcp(&bundle->ncp.ipcp, bp, type);
 }
 
 const char *
@@ -174,9 +180,11 @@ vj2asc(u_int32_t val)
   static char asc[50];		/* The return value is used immediately */
 
   if (val)
-    snprintf(asc, sizeof asc, "%d VJ slots %s slot compression",
-            (int)((val>>8)&15)+1, val & 1 ?  "with" : "without");
+    snprintf(asc, sizeof asc, "%d VJ slots with%s slot compression",
+            (int)((val>>8)&15)+1, val & 1 ?  "" : "out");
   else
     strcpy(asc, "VJ disabled");
   return asc;
 }
+
+struct layer vjlayer = { LAYER_VJ, "vj", vj_LayerPush, vj_LayerPull };
