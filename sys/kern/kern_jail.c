@@ -237,3 +237,14 @@ jailed(cred)
 
 	return (cred->cr_prison != NULL);
 }
+
+/*
+ * Return the correct hostname for the passed credential.
+ */
+const char *
+getcredhostname(cred)
+	struct ucred *cred;
+{
+
+	return (jailed(cred) ? cred->cr_prison->pr_host : hostname);
+}
