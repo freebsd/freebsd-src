@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: device_if.m,v 1.3 1998/11/14 21:58:51 wollman Exp $
+#	$Id: device_if.m,v 1.4 1999/05/10 17:06:13 dfr Exp $
 #
 
 INTERFACE device;
@@ -72,6 +72,14 @@ CODE {
 #
 METHOD int probe {
 	device_t dev;
+};
+
+#
+# Called by a parent bus to add new devices to the bus.
+#
+STATICMETHOD void identify {
+	driver_t *driver;
+	device_t parent;
 };
 
 #

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.11 1999/04/21 07:26:23 peter Exp $
+ *	$Id: isa.c,v 1.12 1999/05/08 21:58:37 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -65,119 +65,6 @@ struct isa_device {
 
 static devclass_t isa_devclass;
 static struct rman isa_irq_rman;
-
-/*
- * Device methods
- */
-static int isa_probe(device_t dev);
-static int isa_attach(device_t dev);
-static void isa_print_child(device_t dev, device_t child);
-static int isa_read_ivar(device_t dev, device_t child, int which, u_long *result);
-static int isa_write_ivar(device_t dev, device_t child, int which, u_long result);
-static struct resource *isa_alloc_resource(device_t bus, device_t child,
-					   int type, int *rid,
-					   u_long start, u_long end,
-					   u_long count, u_int flags);
-static int isa_release_resource(device_t bus, device_t child,
-				int type, int rid, struct resource *r);
-
-static device_method_t isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		isa_probe),
-	DEVMETHOD(device_attach,	isa_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	isa_print_child),
-	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
-	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
-	DEVMETHOD(bus_release_resource,	isa_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
-
-	{ 0, 0 }
-};
-
-static driver_t isa_driver = {
-	"isa",
-	isa_methods,
-	1,			/* no softc */
-};
-
-static void
-isa_add_device(device_t dev, const char *name, int unit)
-{
-	struct	isa_device *idev;
-	device_t	child;
-	int		sensitive, t;
-	static	device_t last_sensitive;
-
-	if (resource_int_value(name, unit, "sensitive", &sensitive) != 0)
-		sensitive = 0;
-
-	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
-	if (!idev)
-		return;
-	bzero(idev, sizeof *idev);
-
-	if (resource_int_value(name, unit, "port", &t) == 0)
-		idev->id_port[0] = t;
-	else
-		idev->id_port[0] = 0;
-	idev->id_port[1] = 0;
-
-	if (resource_int_value(name, unit, "portsize", &t) == 0)
-		idev->id_portsize[0] = t;
-	else
-		idev->id_portsize[0] = 0;
-	idev->id_portsize[1] = 0;
-
-	if (resource_int_value(name, unit, "maddr", &t) == 0)
-		idev->id_maddr[0] = t;
-	else
-		idev->id_maddr[0] = 0;
-	idev->id_maddr[1] = 0;
-
-	if (resource_int_value(name, unit, "msize", &t) == 0)
-		idev->id_msize[0] = t;
-	else
-		idev->id_msize[0] = 0;
-	idev->id_msize[1] = 0;
-
-	if (resource_int_value(name, unit, "flags", &t) == 0)
-		idev->id_flags = t;
-	else
-		idev->id_flags = 0;
-
-	if (resource_int_value(name, unit, "irq", &t) == 0)
-		idev->id_irq[0] = t;
-	else
-		idev->id_irq[0] = -1;
-	idev->id_irq[1] = -1;
-
-	if (resource_int_value(name, unit, "drq", &t) == 0)
-		idev->id_drq[0] = t;
-	else
-		idev->id_drq[0] = -1;
-	idev->id_drq[1] = -1;
-
-	if (sensitive)
-		child = device_add_child_after(dev, last_sensitive, name, 
-					       unit, idev);
-	else
-		child = device_add_child(dev, name, unit, idev);
-	if (child == 0)
-		return;
-	else if (sensitive)
-		last_sensitive = child;
-
-	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
-		device_disable(child);
-}
 
 static void
 isa_intr_enable(int irq)
@@ -231,33 +118,9 @@ isa_irq_mask(void)
 static int
 isa_probe(device_t dev)
 {
-	int i;
-
 	device_set_desc(dev, "ISA bus");
-
-	/*
-	 * Add all devices configured to be attached to isa0.
-	 */
-	for (i = resource_query_string(-1, "at", "isa0");
-	     i != -1;
-	     i = resource_query_string(i, "at", "isa0")) {
-		isa_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-	}
-
-	/*
-	 * and isa?
-	 */
-	for (i = resource_query_string(-1, "at", "isa");
-	     i != -1;
-	     i = resource_query_string(i, "at", "isa")) {
-		isa_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-	}
-
 	isa_init_intr();
-
-	return 0;
+	return bus_generic_probe(dev);
 }
 
 extern device_t isa_bus_device;
@@ -273,6 +136,39 @@ isa_attach(device_t dev)
 	 */
 	isa_bus_device = dev;
 	return 0;
+}
+
+/*
+ * Add a new child with default ivars.
+ */
+static device_t
+isa_add_child(device_t dev, device_t place, const char *name, int unit)
+{
+	struct	isa_device *idev;
+
+	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
+	if (!idev)
+		return 0;
+	bzero(idev, sizeof *idev);
+
+	idev->id_port[0] = -1;
+	idev->id_port[1] = -1;
+	idev->id_portsize[0] = 0;
+	idev->id_portsize[1] = 0;
+	idev->id_maddr[0] = 0;
+	idev->id_maddr[1] = 0;
+	idev->id_msize[0] = 0;
+	idev->id_msize[1] = 0;
+	idev->id_irq[0] = -1;
+	idev->id_irq[1] = -1;
+	idev->id_drq[0] = -1;
+	idev->id_drq[1] = -1;
+	idev->id_flags = 0;
+
+	if (place)
+		return device_add_child_after(dev, place, name, unit, idev);
+	else
+		return device_add_child(dev, name, unit, idev);
 }
 
 static void
@@ -725,5 +621,33 @@ isa_teardown_intr(device_t dev, device_t child,
 
 	return 0;
 }
+
+static device_method_t isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		isa_probe),
+	DEVMETHOD(device_attach,	isa_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,	isa_add_child),
+	DEVMETHOD(bus_print_child,	isa_print_child),
+	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
+	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
+	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
+	DEVMETHOD(bus_release_resource,	isa_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t isa_driver = {
+	"isa",
+	isa_methods,
+	1,			/* no softc */
+};
 
 DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.4 1999/04/21 07:26:28 peter Exp $
+ *	$Id: isavar.h,v 1.5 1999/05/08 18:11:04 peter Exp $
  */
 
 #define	ISA_NPORT_IVARS	2
@@ -79,9 +79,9 @@ static __inline void isa_set_ ## A(device_t dev, T t)			\
 
 ISA_ACCESSOR(port, PORT, int)
 ISA_ACCESSOR(portsize, PORTSIZE, int)
-ISA_ACCESSOR(flags, FLAGS, int)
 ISA_ACCESSOR(irq, IRQ, int)
 ISA_ACCESSOR(drq, DRQ, int)
 ISA_ACCESSOR(maddr, MADDR, int)
 ISA_ACCESSOR(msize, MSIZE, int)
+ISA_ACCESSOR(flags, FLAGS, int)
 

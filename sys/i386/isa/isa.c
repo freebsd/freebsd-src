@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.124 1999/05/08 21:28:39 peter Exp $
+ *	$Id: isa.c,v 1.125 1999/05/08 21:59:25 dfr Exp $
  */
 
 /*
@@ -92,79 +92,6 @@ struct isa_device {
 
 static devclass_t isa_devclass;
 
-static void
-isa_add_device(device_t dev, const char *name, int unit)
-{
-	struct	isa_device *idev;
-	device_t	child;
-	int		sensitive, t;
-	static	device_t last_sensitive;
-
-	/* device-specific flag overrides any wildcard */
-	sensitive = 0;
-	if (resource_int_value(name, unit, "sensitive", &sensitive) != 0)
-		resource_int_value(name, -1, "sensitive", &sensitive);
-
-	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
-	if (!idev)
-		return;
-	bzero(idev, sizeof *idev);
-
-	if (resource_int_value(name, unit, "port", &t) == 0)
-		idev->id_port[0] = t;
-	else
-		idev->id_port[0] = -1;
-	idev->id_port[1] = 0;
-
-	if (resource_int_value(name, unit, "portsize", &t) == 0)
-		idev->id_portsize[0] = t;
-	else
-		idev->id_portsize[0] = 0;
-	idev->id_portsize[1] = 0;
-
-	if (resource_int_value(name, unit, "maddr", &t) == 0)
-		idev->id_maddr[0] = t;
-	else
-		idev->id_maddr[0] = 0;
-	idev->id_maddr[1] = 0;
-
-	if (resource_int_value(name, unit, "msize", &t) == 0)
-		idev->id_msize[0] = t;
-	else
-		idev->id_msize[0] = 0;
-	idev->id_msize[1] = 0;
-
-	if (resource_int_value(name, unit, "flags", &t) == 0)
-		idev->id_flags = t;
-	else
-		idev->id_flags = 0;
-
-	if (resource_int_value(name, unit, "irq", &t) == 0)
-		idev->id_irq[0] = t;
-	else
-		idev->id_irq[0] = -1;
-	idev->id_irq[1] = -1;
-
-	if (resource_int_value(name, unit, "drq", &t) == 0)
-		idev->id_drq[0] = t;
-	else
-		idev->id_drq[0] = -1;
-	idev->id_drq[1] = -1;
-
-	if (sensitive)
-		child = device_add_child_after(dev, last_sensitive, name, 
-					       unit, idev);
-	else
-		child = device_add_child(dev, name, unit, idev);
-	if (child == 0)
-		return;
-	else if (sensitive)
-		last_sensitive = child;
-
-	if (resource_int_value(name, unit, "disabled", &t) == 0 && t != 0)
-		device_disable(child);
-}
-
 /*
  * At 'probe' time, we add all the devices which we know about to the
  * bus.  The generic attach routine will probe and attach them if they
@@ -173,39 +100,8 @@ isa_add_device(device_t dev, const char *name, int unit)
 static int
 isa_probe(device_t dev)
 {
-	int i;
-	static char buf[] = "isaXXX";
-
-	device_set_desc(dev, "ISA bus");
-
-	/*
-	 * Add all devices configured to be attached to isa0.
-	 */
-	sprintf(buf, "isa%d", device_get_unit(dev));
-	for (i = resource_query_string(-1, "at", buf);
-	     i != -1;
-	     i = resource_query_string(i, "at", buf)) {
-		if (strcmp(resource_query_name(i), "atkbd") == 0)
-			continue;	/* old GENERIC kludge */
-		isa_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-	}
-
-	/*
-	 * and isa?
-	 */
-	for (i = resource_query_string(-1, "at", "isa");
-	     i != -1;
-	     i = resource_query_string(i, "at", "isa")) {
-		if (strcmp(resource_query_name(i), "atkbd") == 0)
-			continue;	/* old GENERIC kludge */
-		isa_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-	}
-
 	isa_wrap_old_drivers();
-
-	return 0;
+	return bus_generic_probe(dev);
 }
 
 extern device_t isa_bus_device;
@@ -218,6 +114,39 @@ isa_attach(device_t dev)
 	 */
 	isa_bus_device = dev;
 	return 0;
+}
+
+/*
+ * Add a new child with default ivars.
+ */
+static device_t
+isa_add_child(device_t dev, device_t place, const char *name, int unit)
+{
+	struct	isa_device *idev;
+
+	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
+	if (!idev)
+		return 0;
+	bzero(idev, sizeof *idev);
+
+	idev->id_port[0] = -1;
+	idev->id_port[1] = -1;
+	idev->id_portsize[0] = 0;
+	idev->id_portsize[1] = 0;
+	idev->id_maddr[0] = 0;
+	idev->id_maddr[1] = 0;
+	idev->id_msize[0] = 0;
+	idev->id_msize[1] = 0;
+	idev->id_irq[0] = -1;
+	idev->id_irq[1] = -1;
+	idev->id_drq[0] = -1;
+	idev->id_drq[1] = -1;
+	idev->id_flags = 0;
+
+	if (place)
+		return device_add_child_after(dev, place, name, unit, idev);
+	else
+		return device_add_child(dev, name, unit, idev);
 }
 
 static void
@@ -588,6 +517,7 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_add_child,	isa_add_child),
 	DEVMETHOD(bus_print_child,	isa_print_child),
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
