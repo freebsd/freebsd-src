@@ -231,8 +231,9 @@ SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
 
-# Options used only in pci/isp_pci.c
+# Options used only in dev/isp/*
 ISP_TARGET_MODE		opt_isp.h
+ISP_FW_CRASH_DUMP	opt_isp.h
 
 # Options used in the 'ata' ATA/ATAPI driver
 ACD_DEBUG		opt_ata.h
