@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.91 1998/07/03 18:46:49 bde Exp $
+ * $Id: ufs_vnops.c,v 1.92 1998/07/03 22:17:03 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -406,7 +406,7 @@ ufs_getattr(ap)
 	else
 		vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
-	vap->va_type = vp->v_type;
+	vap->va_type = IFTOVT(ip->i_mode);
 	vap->va_filerev = ip->i_modrev;
 	return (0);
 }
@@ -1767,8 +1767,8 @@ ufs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip = VTOI(vp);
 
-	printf("tag VT_UFS, ino %ld, on dev %d, %d", ip->i_number,
-		major(ip->i_dev), minor(ip->i_dev));
+	printf("tag VT_UFS, ino %ld, on dev %x (%d, %d)", ip->i_number,
+		ip->i_dev, major(ip->i_dev), minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	lockmgr_printinfo(&ip->i_lock);
