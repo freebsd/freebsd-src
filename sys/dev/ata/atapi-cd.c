@@ -220,6 +220,7 @@ acddetach(struct ata_device *atadev)
 	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
 	free(entry, M_ACD);
     }
+    destroy_dev(cdp->dev);
     devstat_remove_entry(cdp->stats);
     free(cdp->stats, M_ACD);
     ata_free_name(atadev);
