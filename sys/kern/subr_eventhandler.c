@@ -154,6 +154,9 @@ struct eventhandler_list *
 eventhandler_find_list(char *name)
 {
     struct eventhandler_list	*list;
+
+    if (!eventhandler_lists_initted)
+	return(NULL);
     
     /* scan looking for the requested list */
     mtx_lock(&eventhandler_mutex);
