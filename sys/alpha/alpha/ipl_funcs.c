@@ -127,6 +127,7 @@ do_sir()
     u_int32_t pend;
     int i;
 
+    atomic_add_int(&intr_nesting_level, 1);
     splsoft();
     while ((pend = atomic_readandclear(&ipending)) != 0) {
 	for (i = 0; pend && i < 32; i++) {
@@ -139,6 +140,7 @@ do_sir()
 	    }
 	}
     }
+    atomic_subtract_int(&intr_nesting_level, 1);
 }
 
 #define GENSET(name, ptr, bit)			\
