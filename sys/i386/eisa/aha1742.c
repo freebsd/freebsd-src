@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.34 1995/05/30 08:01:07 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.35 1995/07/25 15:53:07 bde Exp $
  */
 
 #include <sys/types.h>
@@ -539,6 +539,7 @@ ahb_attach(dev)
 {
 	int     unit = dev->id_unit;
 	struct ahb_data *ahb = ahbdata[unit];
+	struct scsibus_data *scbus;
 
 	/*
 	 * fill in the prototype scsi_link.
@@ -548,11 +549,20 @@ ahb_attach(dev)
 	ahb->sc_link.adapter = &ahb_switch;
 	ahb->sc_link.device = &ahb_dev;
 
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+		return 0;
+	scbus->adapter_link = &ahb->sc_link;
+
 	kdc_ahb[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	scsi_attachdevs(&(ahb->sc_link));
+	scsi_attachdevs(scbus);
 
 	return 1;
 }

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.26 1995/05/30 08:13:47 rgrimes Exp $
+ *	$Id: scsiconf.h,v 1.27 1995/07/17 23:38:01 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -331,8 +331,10 @@ struct scsi_link
  * the others, before they have the rest of the fields filled in
  */
 struct scsibus_data {
-	struct scsi_link *adapter_link;		/* prototype supplied by adapter */
-	struct scsi_link *sc_link[16][8];
+	u_char		 maxtarg;
+	u_char		 maxlun;
+	struct scsi_link *adapter_link;	/* prototype supplied by adapter */
+	struct scsi_link *(*sc_link)[][8]; /* dynamically allocated */
 };
 
 /*
@@ -410,18 +412,19 @@ struct scsi_xfer
 
 #ifdef KERNEL
 void *extend_get(struct extend_array *ea, int index);
-void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
+void scsi_attachdevs __P((struct scsibus_data *scbus));
 struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
 void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
 u_int32 scsi_read_capacity __P(( struct scsi_link *sc_link,
 	u_int32 *blk_size, u_int32 flags));
-errval scsi_test_unit_ready( struct scsi_link *sc_link, u_int32 flags);
+errval scsi_test_unit_ready __P(( struct scsi_link *sc_link, u_int32 flags));
 errval scsi_reset_target __P((struct scsi_link *));
 errval scsi_target_mode __P((struct scsi_link *, int));
 errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
 			struct scsi_inquiry_data *inqbuf, u_int32 flags);
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
+struct scsibus_data *scsi_alloc_bus ();
 errval scsi_probe_bus __P((int, int, int));
 errval scsi_probe_busses __P(( int, int, int));
 errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
