@@ -136,6 +136,11 @@
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
 
+    <para arch="i386,pc98">The DRM kernel modules have been updated to
+      a snapshot from the DRI CVS repository, roughly equivalent to
+      XFree86 4.3.0 but also including some additional
+      bugfixes.</para>
+
     <para>A minor bug in the permissions handling of
       <filename>/dev/tty</filename> has been fixed.  As a result,
       &man.ssh.1; can now be used after &man.su.1;.</para>
@@ -161,6 +166,13 @@
       <literal>options&nbsp;SCHED_4BSD</literal>.  The newer
       (experimental) scheduler can be selected by using
       <literal>options&nbsp;SCHED_ULE</literal>.</para>
+
+    <para>Device major numbers are now allocated dynamically by
+      default.  This change greatly decreases the need for a static,
+      centralized table of major number assignments to device drivers
+      (a few drivers retain their old static major numbers for
+      compatability), and also reduces the possibility of running out
+      of device major numbers.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -561,6 +573,16 @@
 
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11. &merged;</para>
+
+      <para><application>Kerberos IV</application> support (in the
+	form of <application>KTH eBones</application>) has been
+	removed.  Users requiring this functionality can still get it
+	from the <filename role="port">security/krb4</filename> port
+	(or package).  Kerberos IV compatability mode for Kerberos 5
+	has been removed, and the
+	<literal>k5<replaceable>program</replaceable></literal>
+	userland utilities have been renamed to
+	<literal>k<replaceable>program</replaceable></literal>.</para>
 
       <para><application>libpcap</application> now has support for
 	selecting among multiple data link types on an
