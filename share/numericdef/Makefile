@@ -39,8 +39,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		sv_SE.ISO8859-1 \
 		tr_TR.ISO8859-9 \
 		uk_UA.KOI8-U \
-		zh_CN.eucCN \
-		zh_TW.Big5
+		zh_CN.eucCN
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
@@ -56,7 +55,7 @@ IT_LINKS=	it_CH
 BE_LINKS=	nl_BE
 RU_LINKS=       ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
 UA_LINKS=       uk_UA.ISO8859-5
-CN_LINKS=       zh_CN.GBK
+CN_LINKS=       zh_CN.GB18030 zh_CN.GBK zh_TW.Big5
 
 .SUFFIXES: .src .out
 
