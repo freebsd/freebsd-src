@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.132 1999/06/20 21:47:02 alc Exp $
+ *	$Id: vm_page.c,v 1.133 1999/06/22 07:18:17 alc Exp $
  */
 
 /*
@@ -1123,8 +1123,8 @@ vm_page_free_toq(vm_page_t m)
 	if (m->wire_count != 0) {
 #if !defined(MAX_PERF)
 		if (m->wire_count > 1) {
-			panic("vm_page_free: invalid wire count (%d), pindex: 0x%x",
-				m->wire_count, m->pindex);
+			panic("vm_page_free: invalid wire count (%d), pindex: 0x%lx",
+				m->wire_count, (long)m->pindex);
 		}
 #endif
 		printf("vm_page_free: freeing wired page\n");
@@ -1332,7 +1332,8 @@ vm_page_cache(m)
 	vm_page_protect(m, VM_PROT_NONE);
 #if !defined(MAX_PERF)
 	if (m->dirty != 0) {
-		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
+		panic("vm_page_cache: caching a dirty page, pindex: %ld",
+			(long)m->pindex);
 	}
 #endif
 	s = splvm();
