@@ -611,7 +611,15 @@ Efficient ENI-155p ATM PCI
 
 FORE PCA-200E ATM PCI
 
-Fujitsu MB86960A/MB86965A
+Fujitsu MB86960A/MB86965A, including the following:
+  CONTEC C-NET(PC)C Ethernet
+  Eiger Labs EPX-10BT
+  Fujitsu FMV-J182, FMV-J182A, MBH10302, MBH10303 Ethernet PCMCIA
+  Fujitsu Towa LA501 Ethernet
+  HITACHI HT-4840-11
+  NextCom J Link NC5310
+  RATOC REX-5588, REX-9822, REX-4886, REX-R280
+  TDK LAK-CD021, LAK-CD021A, LAK-CD021BX
 
 HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
@@ -670,6 +678,7 @@ including the following:
   Planex FNW-3600-T
   Socket LP-E
   Surecom EtherPerfect EP-427
+  TDK LAK-CD031
   Telecom Device SuperSocket RE450T
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
