@@ -56,7 +56,7 @@ static int	str_entry(int);
  *	read .c and .h files and call appropriate routines
  */
 void
-c_entries()
+c_entries(void)
 {
 	int	c;			/* current character */
 	int	level;			/* brace level */
@@ -259,7 +259,7 @@ c_entries()
  *	handle a function reference
  */
 static int
-func_entry()
+func_entry(void)
 {
 	int	c;			/* current character */
 	int	level = 0;		/* for matching '()' */
@@ -323,7 +323,7 @@ fnd:
  *	handle a line starting with a '#'
  */
 static void
-hash_entry()
+hash_entry(void)
 {
 	int	c;			/* character read */
 	int	curline;		/* line started on */
@@ -389,8 +389,7 @@ skip:	if (c == '\n') {		/* get rid of rest of define */
  *	handle a struct, union or enum entry
  */
 static int
-str_entry(c)
-	int	c;			/* current character */
+str_entry(int c) /* c is current character */
 {
 	int	curline;		/* line started on */
 	char	*sp;			/* buffer pointer */
@@ -439,8 +438,7 @@ str_entry(c)
  *	skip over comment
  */
 void
-skip_comment(t)
-	int	t;			/* comment character */
+skip_comment(int t) /* t is comment character */
 {
 	int	c;			/* character read */
 	int	star;			/* '*' flag */
@@ -471,8 +469,7 @@ skip_comment(t)
  *	skip to the end of a string or character constant.
  */
 void
-skip_string(key)
-	int	key;
+skip_string(int key)
 {
 	int	c,
 		skip;
@@ -497,8 +494,7 @@ skip_string(key)
  *	skip to next char "key"
  */
 int
-skip_key(key)
-	int	key;
+skip_key(int key)
 {
 	int	c,
 		skip,
