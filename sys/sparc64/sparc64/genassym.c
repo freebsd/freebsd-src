@@ -42,6 +42,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_zone.h>
 
 #include <machine/asi.h>
 #include <machine/vmparam.h>
@@ -50,6 +51,7 @@
 #include <machine/frame.h>
 #include <machine/fsr.h>
 #include <machine/intr_machdep.h>
+#include <machine/lsu.h>
 #include <machine/pcb.h>
 #include <machine/pstate.h>
 #include <machine/setjmp.h>
@@ -76,15 +78,14 @@ ASSYM(FPRS_DL, FPRS_DL);
 ASSYM(FPRS_DU, FPRS_DU);
 ASSYM(FPRS_FEF, FPRS_FEF);
 
+ASSYM(LSU_VW, LSU_VW);
+
 ASSYM(TLB_DAR_TSB_USER_PRIMARY, TLB_DAR_SLOT(TLB_SLOT_TSB_USER_PRIMARY));
 ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
+ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
 
-ASSYM(TSB_USER_MIN_ADDRESS, TSB_USER_MIN_ADDRESS);
-ASSYM(TSB_PRIMARY_BUCKET_SHIFT, TSB_PRIMARY_BUCKET_SHIFT);
-ASSYM(TSB_PRIMARY_MASK_WIDTH, TSB_MASK_WIDTH);
-ASSYM(TSB_PRIMARY_STTE_MASK, TSB_PRIMARY_STTE_MASK);
-ASSYM(TSB_PRIMARY_STTE_SHIFT, TSB_PRIMARY_STTE_SHIFT);
-ASSYM(TSB_KERNEL_MASK, TSB_KERNEL_MASK);
+ASSYM(TSB_BUCKET_ADDRESS_BITS, TSB_BUCKET_ADDRESS_BITS);
+ASSYM(TSB_BUCKET_SHIFT, TSB_BUCKET_SHIFT);
 ASSYM(TSB_KERNEL_VA_MASK, TSB_KERNEL_VA_MASK);
 
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
@@ -101,25 +102,25 @@ ASSYM(KTR_CT3, KTR_CT3);
 ASSYM(KTR_CT4, KTR_CT4);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
+ASSYM(KTR_TIMESTAMP, offsetof(struct ktr_entry, ktr_timestamp));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
 ASSYM(KTR_PARM1, offsetof(struct ktr_entry, ktr_parm1));
 ASSYM(KTR_PARM2, offsetof(struct ktr_entry, ktr_parm2));
 ASSYM(KTR_PARM3, offsetof(struct ktr_entry, ktr_parm3));
 ASSYM(KTR_PARM4, offsetof(struct ktr_entry, ktr_parm4));
 ASSYM(KTR_PARM5, offsetof(struct ktr_entry, ktr_parm5));
+ASSYM(KTR_PARM6, offsetof(struct ktr_entry, ktr_parm6));
 
 ASSYM(TTE_DATA, offsetof(struct tte, tte_data));
 ASSYM(TTE_TAG, offsetof(struct tte, tte_tag));
 ASSYM(TTE_SHIFT, TTE_SHIFT);
-ASSYM(ST_TTE, offsetof(struct stte, st_tte));
-ASSYM(STTE_SHIFT, STTE_SHIFT);
-ASSYM(STTE_SIZEOF, sizeof(struct stte));
 
 ASSYM(TD_VA_LOW_MASK, TD_VA_LOW_MASK);
 ASSYM(TD_VA_LOW_SHIFT, TD_VA_LOW_SHIFT);
 ASSYM(TD_EXEC, TD_EXEC);
-ASSYM(TD_INIT, TD_INIT);
 ASSYM(TD_REF, TD_REF);
+ASSYM(TD_SW, TD_SW);
+ASSYM(TD_L, TD_L);
 ASSYM(TD_W, TD_W);
 
 ASSYM(TT_VA_MASK, TT_VA_MASK);
@@ -133,7 +134,6 @@ ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
-ASSYM(IH_FUNC, offsetof(struct intr_handler, ih_func));
 
 ASSYM(IQ_MASK, IQ_MASK);
 ASSYM(IQ_HEAD, offsetof(struct intr_queue, iq_head));
@@ -157,8 +157,13 @@ ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
 ASSYM(P_COMM, offsetof(struct proc, p_comm));
+ASSYM(P_MD, offsetof(struct proc, p_md));
+ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+
+ASSYM(RW_SHIFT, RW_SHIFT);
+ASSYM(PTR_SHIFT, PTR_SHIFT);
 
 ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 
@@ -179,36 +184,26 @@ ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
+ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));
-ASSYM(PM_STTE, offsetof(struct pmap, pm_stte));
+ASSYM(PM_TSB, offsetof(struct pmap, pm_tsb));
+ASSYM(PM_TSB_TTE, offsetof(struct pmap, pm_tsb_tte));
 
 ASSYM(FP_FB0, offsetof(struct fpstate, fp_fb[0]));
 ASSYM(FP_FB1, offsetof(struct fpstate, fp_fb[1]));
 ASSYM(FP_FB2, offsetof(struct fpstate, fp_fb[2]));
 ASSYM(FP_FB3, offsetof(struct fpstate, fp_fb[3]));
-ASSYM(FP_FSR, offsetof(struct fpstate, fp_fsr));
-ASSYM(FP_FPRS, offsetof(struct fpstate, fp_fprs));
 
 ASSYM(CCFSZ, sizeof(struct frame));
 ASSYM(SPOFF, SPOFF);
 
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
-ASSYM(MF_SFAR, offsetof(struct mmuframe, mf_sfar));
-ASSYM(MF_SFSR, offsetof(struct mmuframe, mf_sfsr));
-ASSYM(MF_TAR, offsetof(struct mmuframe, mf_tar));
-ASSYM(MF_SIZEOF, sizeof(struct mmuframe));
-
-ASSYM(UC_SIZEOF, sizeof(ucontext_t));
-ASSYM(UC_SIGMASK, offsetof(ucontext_t, uc_sigmask));
-ASSYM(UC_MC, offsetof(ucontext_t, uc_mcontext));
-
-ASSYM(MC_G1, offsetof(mcontext_t, mc_global[1]));
-ASSYM(MC_O0, offsetof(mcontext_t, mc_out[0]));
-ASSYM(MC_O6, offsetof(mcontext_t, mc_out[6]));
-ASSYM(MC_O7, offsetof(mcontext_t, mc_out[7]));
-ASSYM(MC_TPC, offsetof(mcontext_t, mc_tpc));
-ASSYM(MC_TNPC, offsetof(mcontext_t, mc_tnpc));
+ASSYM(_JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
+ASSYM(_JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
+ASSYM(_JB_SP, offsetof(struct _jmp_buf, _jb[_JB_SP]));
+ASSYM(_JB_SIGFLAG, offsetof(struct _jmp_buf, _jb[_JB_SIGFLAG]));
+ASSYM(_JB_SIGMASK, offsetof(struct _jmp_buf, _jb[_JB_SIGMASK]));
 
 ASSYM(TF_G0, offsetof(struct trapframe, tf_global[0]));
 ASSYM(TF_G1, offsetof(struct trapframe, tf_global[1]));
@@ -226,12 +221,17 @@ ASSYM(TF_O4, offsetof(struct trapframe, tf_out[4]));
 ASSYM(TF_O5, offsetof(struct trapframe, tf_out[5]));
 ASSYM(TF_O6, offsetof(struct trapframe, tf_out[6]));
 ASSYM(TF_O7, offsetof(struct trapframe, tf_out[7]));
-ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));
-ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
-ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));
-ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
+ASSYM(TF_FSR, offsetof(struct trapframe, tf_fsr));
+ASSYM(TF_SFAR, offsetof(struct trapframe, tf_sfar));
+ASSYM(TF_LEVEL, offsetof(struct trapframe, tf_level));
+ASSYM(TF_TAR, offsetof(struct trapframe, tf_tar));
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
+ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
+ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));
+ASSYM(TF_SFSR, offsetof(struct trapframe, tf_sfsr));
 ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
+ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
+ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
+ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
-ASSYM(TF_ARG, offsetof(struct trapframe, tf_arg));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
