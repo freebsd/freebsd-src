@@ -30,8 +30,6 @@ static d_close_t diskclose;
 static d_ioctl_t diskioctl;
 static d_psize_t diskpsize;
 
-struct disk *disk_enumerate(struct disk *disk);
-
 static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
 
 static void
