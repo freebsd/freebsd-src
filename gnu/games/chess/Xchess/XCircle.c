@@ -20,7 +20,7 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:12 $
+/* RCS Info: $Revision: 1.2 $ on $Date: 1995/05/30 04:41:18 $
  *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/XCircle.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
@@ -104,7 +104,7 @@ XCircle(win, x, y, rad, start, end, width, height, pixel, func, planes)
 	return;
 }
 
-#ifdef notdef	VertexCurved is screwed up
+#ifdef notdef	/* VertexCurved is screwed up */
 
 void
 XCircle(win, x, y, rad, start, end, width, height, pixel, func, planes)
