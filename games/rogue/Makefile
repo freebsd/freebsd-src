@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	rogue
 CFLAGS+=-DUNIX -fwritable-strings
@@ -11,7 +12,9 @@ HIDEGAME=hidegame
 MAN6=	rogue.6
 
 beforeinstall:
+.if !exists(${DESTDIR}/var/games/rogue.scores)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/rogue.scores
+.endif
 
 .include <bsd.prog.mk>

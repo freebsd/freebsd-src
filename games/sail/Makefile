@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	sail
 SRCS=	main.c pl_main.c pl_1.c pl_2.c pl_3.c pl_4.c pl_5.c pl_6.c pl_7.c \
@@ -10,7 +11,9 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
 beforeinstall:
+.if !exists(${DESTDIR}/var/games/saillog)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/saillog
+.endif
 
 .include <bsd.prog.mk>
