@@ -109,13 +109,13 @@ msgcrd(c, brfrank, mid, brfsuit)
 	if (brfrank)
 		addmsg("%1.1s", rankchar[c.rank]);
 	else
-		addmsg(rankname[c.rank]);
+		addmsg("%s", rankname[c.rank]);
 	if (mid != NULL)
 		addmsg("%s", mid);
 	if (brfsuit)
 		addmsg("%1.1s", suitchar[c.suit]);
 	else
-		addmsg(suitname[c.suit]);
+		addmsg("%s", suitname[c.suit]);
 	return (TRUE);
 }
 
