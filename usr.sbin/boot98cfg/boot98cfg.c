@@ -59,6 +59,7 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/diskpc98.h>
 
 #include <err.h>
 #include <errno.h>
@@ -69,16 +70,19 @@
 #include <string.h>
 #include <unistd.h>
 
+#define	BOOTSIZE		0x2000
 #define	IPLSIZE			512		/* IPL size */
 #define	BOOTMENUSIZE		7168		/* Max HDD boot menu size */
 #define	BOOTMENUOFF		0x400
 
 static	char *mkrdev(char *);
 static	void usage(void);
+static	int read_boot(const char *, u_char *);
+static	int write_boot(const char *, u_char *);
 
-u_char	boot0buf[0x2000];
-char	ipl[IPLSIZE];
-char	menu[BOOTMENUSIZE];
+u_char	boot0buf[BOOTSIZE];
+u_char	ipl[IPLSIZE];
+u_char	menu[BOOTMENUSIZE];
 
 /*
  * Produce a device path for a "canonical" name, where appropriate.
@@ -110,6 +114,56 @@ usage(void)
 	exit(1);
 }
 
+static int
+read_boot(const char *disk, u_char *boot)
+{
+	int fd, n;
+
+	/* Read IPL, partition table and HDD boot menu. */
+	fd = open(disk, O_RDONLY);
+	if (fd < 0)
+		err(1, "%s", disk);
+	n = read(fd, boot, BOOTSIZE);
+	if (n != BOOTSIZE)
+		errx(1, "%s: short read", disk);
+	close(fd);
+
+	return 0;
+}
+
+static int
+write_boot(const char *disk, u_char *boot)
+{
+	int fd, n, i;
+	char buf[MAXPATHLEN];
+
+	fd = open(disk, O_RDWR);
+	if (fd != -1) {
+		if (lseek(fd, 0, SEEK_SET) == -1)
+			err(1, "%s", disk);
+		if ((n = write(fd, boot, BOOTSIZE)) < 0)
+			err(1, "%s", disk);
+		if (n != BOOTSIZE)
+			errx(1, "%s: short write", disk);
+		close(fd);
+		return 0;
+	}
+
+	for (i = 0; i < NDOSPART; i++) {
+		snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
+		fd = open(buf, O_RDONLY);
+		if (fd < 0)
+			continue;
+		n = ioctl(fd, DIOCGPC98, boot);
+		if (n != 0)
+			err(1, "%s: ioctl DIOCGPC98", disk);
+		close(fd);
+		return 0;
+	}
+
+	err(1, "%s", disk);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -119,7 +173,7 @@ main(int argc, char *argv[])
 	char	*disk;
 	int	B_flag = 0;
 	int	c;
-	int	fd, fd1;
+	int	fd1;
 	int	n;
 	int	secsize = 512;
 	int	v_flag = 0, version;
@@ -177,15 +231,7 @@ main(int argc, char *argv[])
 		usage();
 	disk = mkrdev(*argv);
 
-	/* Read IPL, partition table and HDD boot menu. */
-	fd = open(disk, O_RDWR);
-	if (fd < 0)
-		err(1, "%s", disk);
-	n = read(fd, boot0buf, 0x2000);
-	if (n != 0x2000)
-		errx(1, "%s: short read", disk);
-	if (!B_flag && !v_flag)
-		close(fd);
+	read_boot(disk, boot0buf);
 
 	if (iplbakpath != NULL) {
 		fd1 = open(iplbakpath, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -242,14 +288,8 @@ main(int argc, char *argv[])
 	if (v_flag)
 		*(boot0buf + secsize - 4) = (u_char)version;
 
-	if (B_flag || v_flag) {
-		if (lseek(fd, 0, SEEK_SET) == -1 ||
-		    (n = write(fd, boot0buf, 0x2000)) < 0 ||
-		    close(fd))
-			err(1, "%s", disk);
-		if (n != 0x2000)
-			errx(1, "%s: short write", disk);
-	}
-	
+	if (B_flag || v_flag)
+		write_boot(disk, boot0buf);
+
 	return 0;
 }
