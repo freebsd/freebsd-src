@@ -739,13 +739,17 @@ pmap_invalidate_all(pmap_t pmap)
 #endif /* !I386_CPU */
 
 /*
- * Are we current address space or kernel?
+ * Are we current address space or kernel?  N.B. We return FALSE when
+ * a pmap's page table is in use because a kernel thread is borrowing
+ * it.  The borrowed page table can change spontaneously, making any
+ * dependence on its continued use subject to a race condition.
  */
-static __inline int
+static int
 pmap_is_current(pmap_t pmap)
 {
 	return (pmap == kernel_pmap ||
-	    (pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME));
+		(pmap == vmspace_pmap(curthread->td_proc->p_vmspace) &&
+	    (pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)));
 }
 
 /*
@@ -958,7 +962,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 		 */
 		pmap->pm_pdir[m->pindex] = 0;
 		--pmap->pm_stats.resident_count;
-		if (pmap_is_current(pmap)) {
+		/*
+		 * We never unwire a kernel page table page, making a
+		 * check for the kernel_pmap unnecessary.
+		 */
+		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)) {
 			/*
 			 * Do an invltlb to make the invalidated mapping
 			 * take effect immediately.
