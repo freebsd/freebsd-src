@@ -35,9 +35,11 @@
  * with support for legacy ISA devices and drivers.
  */
 
-#define	SYS_RES_IRQ	1
-#define	SYS_RES_DRQ	2
-#define	SYS_RES_MEMORY	3
-#define	SYS_RES_IOPORT	4
+#define	SYS_RES_IRQ	1	/* interrupt lines */
+#define	SYS_RES_DRQ	2	/* isa dma lines */
+#define	SYS_RES_MEMORY	3	/* i/o memory */
+#define	SYS_RES_IOPORT	4	/* i/o ports */
+#define	SYS_RES_DENSE	SYS_RES_MEMORY
+#define	SYS_RES_BWX	SYS_RES_MEMORY
 
 #endif /* !_MACHINE_RESOURCE_H_ */
