@@ -211,7 +211,7 @@ pass2check(idesc)
 		dirp->d_type = typemap[dirp->d_ino];
 		ret |= ALTERED;
 	}
-	/* 
+	/*
 	 * check for "."
 	 */
 	if (idesc->id_entryno != 0)

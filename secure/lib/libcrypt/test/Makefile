@@ -2,19 +2,19 @@
 #	Hacked Makefile to compile and run the DES-certification program,
 #	but not install anything.
 #
-# $Id: Makefile,v 1.2 1994/08/08 17:29:02 csgr Exp $
+# $Id: Makefile,v 1.3 1994/08/12 21:55:04 csgr Exp $
 #
 .if exists (../obj)
 OBJDIR = obj
 .else
-OBJDIR = 
+OBJDIR =
 .endif
 
 LIBCRYPT= $(.CURDIR)/../$(OBJDIR)/libdescrypt.a
 
 #CFLAGS+= -DHAVE_CRYPT16
 
-TARGETS=cert speedcrypt 
+TARGETS=cert speedcrypt
 
 all: ${TARGETS}
 
@@ -23,7 +23,7 @@ test: all testcrypt testspeed
 testcrypt: cert
 	@./cert -c
 
-testspeed: cryptspeed 
+testspeed: cryptspeed
 
 cryptspeed: speedcrypt
 	@./speedcrypt 30 1

@@ -220,7 +220,7 @@ main(argc, argv)
 			conf_read(&q, conf);
 			continue;
 		}
-	
+
 		/*
 		 * Accept a new connection
 		 * Will get EINTR if a signal has arrived, so just

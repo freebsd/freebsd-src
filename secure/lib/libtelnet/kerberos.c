@@ -177,7 +177,7 @@ kerberos4_send(ap)
 	CREDENTIALS cred;
 	int r;
 
-	printf("[ Trying KERBEROS4 ... ]\n");	
+	printf("[ Trying KERBEROS4 ... ]\n");
 	if (!UserNameRequested) {
 		if (auth_debug_mode) {
 			printf("Kerberos V4: no user name supplied\r\n");
@@ -245,7 +245,7 @@ kerberos4_send(ap)
 		des_ecb_encrypt(challenge, challenge, sched, 1);
 	}
 #endif	/* ENCRYPTION */
-	
+
 	if (auth_debug_mode) {
 		printf("CK: %d:", kerberos4_cksum(auth.dat, auth.length));
 		printd(auth.dat, auth.length);

@@ -117,7 +117,7 @@ pass5()
 		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_link);
 		newcg->cg_boff =
 		    newcg->cg_btotoff + fs->fs_cpg * sizeof(long);
-		newcg->cg_iusedoff = newcg->cg_boff + 
+		newcg->cg_iusedoff = newcg->cg_boff +
 		    fs->fs_cpg * fs->fs_nrpos * sizeof(short);
 		newcg->cg_freeoff =
 		    newcg->cg_iusedoff + howmany(fs->fs_ipg, NBBY);

@@ -545,14 +545,14 @@ getino(inum)
  * Error recovery is attempted at most BREADEMAX times before seeking
  * consent from the operator to continue.
  */
-int	breaderrors = 0;		
+int	breaderrors = 0;
 #define	BREADEMAX 32
 
 void
 bread(blkno, buf, size)
 	daddr_t blkno;
 	char *buf;
-	int size;	
+	int size;
 {
 	int cnt, i;
 	extern int errno;

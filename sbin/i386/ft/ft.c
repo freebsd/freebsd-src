@@ -105,7 +105,7 @@ check_stat(int fd, int wr)
 		return(1);
 	}
   }
- 
+
   if ((s & QS_FMTOK) == 0) {
 	fprintf(stderr, "tape is not formatted\n");
 	return(2);

@@ -87,7 +87,7 @@ main(argc, argv)
 	struct fstab *fs;
 	char *chg[2], device[MAXPATHLEN];
 
-	argc--, argv++; 
+	argc--, argv++;
 	if (argc < 2)
 		usage();
 	special = argv[argc - 1];

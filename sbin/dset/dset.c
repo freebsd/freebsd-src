@@ -55,7 +55,7 @@ struct nlist    nlk[] = {
 
 int             quiet = FALSE;
 
-void 
+void
 fatal(name, str)
 	char           *name, *str;
 {
@@ -68,7 +68,7 @@ fatal(name, str)
 	exit(1);
 }
 
-void 
+void
 error(name, str)
 	char           *name, *str;
 {
@@ -186,7 +186,7 @@ main(ac, av)
 			fatal("kvmread", NULL);
 		dev_found = 0;
 
-		while(pos_t!=NULL) {	
+		while(pos_t!=NULL) {
 			if (kvm_read(kd, pos_t, &buf1, sizeof(struct isa_device)) < 0)
 				fatal("kvmread", NULL);
 
@@ -222,7 +222,7 @@ main(ac, av)
 			if (buf1.id_id != 0)
 				if (verbose)
 					printf(
-  "kernel: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n", 
+  "kernel: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
 	buf1.id_id, buf1.id_iobase, buf1.id_irq, buf1.id_drq,
 	buf1.id_maddr, buf1.id_msize, buf1.id_flags, buf1.id_enabled);
 

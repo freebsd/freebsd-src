@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.2 1995/03/30 15:10:20 sos Exp $
+ *	$Id: snake_saver.c,v 1.3 1995/05/16 19:10:11 sos Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ MOD_MISC("snake_saver")
 void (*current_saver)();
 void (*old_saver)();
 
-static void 
+static void
 snake_saver(int blank)
 {
 	const char	saves[] = {"FreeBSD-2.0.5"};
@@ -70,7 +70,7 @@ snake_saver(int blank)
 			outb(crtc_addr+1, f & 0xff);
 			scrn_blanked = 1;
 		}
-		if (scrn_blanked++ < 4) 
+		if (scrn_blanked++ < 4)
 			return;
 		scrn_blanked = 1;
 		*(savs[sizeof(saves)-2]) = scr_map[0x20];
