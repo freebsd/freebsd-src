@@ -60,7 +60,10 @@ sysctl_hw_snd_targetirqrate(SYSCTL_HANDLER_ARGS)
 	return err;
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, targetirqrate, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_snd_targetirqrate, "I", "");
+	0, sizeof(int), sysctl_hw_snd_targetirqrate, "I", "");
+static int report_soft_formats = 1;
+SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
+	&report_soft_formats, 1, "report software-emulated formats");
 
 static int chn_buildfeeder(struct pcm_channel *c);
 
@@ -1022,6 +1025,11 @@ chn_getformats(struct pcm_channel *c)
 	fmts = 0;
 	for (i = 0; fmtlist[i]; i++)
 		fmts |= fmtlist[i];
+
+	/* report software-supported formats */
+	if (report_soft_formats)
+		fmts |= AFMT_MU_LAW|AFMT_A_LAW|AFMT_U16_LE|AFMT_U16_BE|
+		    AFMT_S16_LE|AFMT_S16_BE|AFMT_U8|AFMT_S8;
 
 	return fmts;
 }
