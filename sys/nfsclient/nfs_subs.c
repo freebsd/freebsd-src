@@ -461,7 +461,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct nfsnode *np;
 	int32_t t1;
 	caddr_t cp2;
-	int error = 0, rdev;
+	int rdev;
 	struct mbuf *md;
 	enum vtype vtyp;
 	u_short vmode;
@@ -470,8 +470,9 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	if ((error = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, &cp2)) != 0)
-		return (error);
+	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1);
+	if (cp2 == NULL)
+		return EBADRPC;
 	fp = (struct nfs_fattr *)cp2;
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
@@ -819,9 +820,9 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 	int t1;
 
 	if (v3) {
-		t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
-		if (t1)
-			return (t1);
+		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (*tl == NULL)
+			return EBADRPC;
 		*f = fxdr_unsigned(int, **tl);
 	} else
 		*f = 1;
@@ -835,9 +836,9 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 		*v = NFSTOV(ttnp);
 	}
 	if (v3) {
-		t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
-		if (t1)
-			return t1;
+		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (*tl == NULL)
+			return EBADRPC;
 		if (*f)
 			*f = fxdr_unsigned(int, **tl);
 		else if (fxdr_unsigned(int, **tl))
@@ -857,20 +858,21 @@ int
 nfsm_getfh_xx(nfsfh_t **f, int *s, int v3,
     u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
 {
-	int t1;
 
 	if (v3) {
-		t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
-		if (t1)
-			return t1;
-		*s = fxdr_unsigned(int, **tl);
-		if (*s <= 0 || *s > NFSX_V3FHMAX) {
+		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (*tl == NULL)
 			return EBADRPC;
-		}
+		*s = fxdr_unsigned(int, **tl);
+		if (*s <= 0 || *s > NFSX_V3FHMAX)
+			return EBADRPC;
 	} else
 		*s = NFSX_V2FH;
-	t1 = nfsm_dissect_xx((void **)f, nfsm_rndup(*s), md, dpos);
-	return t1;
+	*f = nfsm_dissect_xx(nfsm_rndup(*s), md, dpos);
+	if (*f == NULL)
+		return EBADRPC;
+	else
+		return 0;
 }
 
 
@@ -895,9 +897,9 @@ nfsm_postop_attr_xx(struct vnode **v, int *f,
 	int t1;
 
 	struct vnode *ttvp = *v;
-	t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
-	if (t1 != 0)
-		return t1;
+	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	if (*tl == NULL)
+		return EBADRPC;
 	*f = fxdr_unsigned(int, **tl);
 	if (*f != 0) {
 		t1 = nfs_loadattrcache(&ttvp, md, dpos, (struct vattr *)0, 1);
@@ -917,13 +919,13 @@ nfsm_wcc_data_xx(struct vnode **v, int *f,
 	int ttattrf, ttretf = 0;
 	int t1;
 
-	t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
-	if (t1 != 0)
-		return t1;
+	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	if (*tl == NULL)
+		return EBADRPC;
 	if (**tl == nfs_true) {
-		t1 = nfsm_dissect_xx((void **)tl, 6 * NFSX_UNSIGNED, md, dpos);
-		if (t1 != 0)
-			return t1;
+		*tl = nfsm_dissect_xx(6 * NFSX_UNSIGNED, md, dpos);
+		if (*tl == NULL)
+			return EBADRPC;
 		if (*f)
 			ttretf = (VTONFS(*v)->n_mtime ==
 			    fxdr_unsigned(u_int32_t, *((*tl) + 2)));
