@@ -1,4 +1,5 @@
-# @(#)africa	7.33
+# @(#)africa	7.34
+
 # $FreeBSD$
 
 # This data is by no means authoritative; if you think you know better,
@@ -29,7 +30,7 @@
 #
 # Previous editions of this database used WAT, CAT, SAT, and EAT
 # for +0:00 through +3:00, respectively,
-# but Mark R V Murray <markm@iafrica.com> reports that
+# but Mark R V Murray <markm@grondar.za> reports that
 # `SAST' is the official abbreviation for +2:00 in the country of South Africa,
 # `CAT' is commonly used for +2:00 in countries north of South Africa, and
 # `WAT' is probably the best name for +1:00, as the common phrase for
