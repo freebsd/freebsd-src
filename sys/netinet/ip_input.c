@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-#define	_IP_VHL
-
 #include "opt_bootp.h"
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
@@ -335,7 +333,7 @@ ip_input(struct mbuf *m)
 
 	if (args.rule) {	/* dummynet already filtered us */
 		ip = mtod(m, struct ip *);
-		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+		hlen = ip->ip_hl << 2;
 		goto iphack ;
 	}
 
@@ -351,12 +349,12 @@ ip_input(struct mbuf *m)
 	}
 	ip = mtod(m, struct ip *);
 
-	if (IP_VHL_V(ip->ip_vhl) != IPVERSION) {
+	if (ip->ip_v != IPVERSION) {
 		ipstat.ips_badvers++;
 		goto bad;
 	}
 
-	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
 		ipstat.ips_badhlen++;
 		goto bad;
@@ -789,7 +787,7 @@ found:
 		ipstat.ips_reassembled++;
 		ip = mtod(m, struct ip *);
 		/* Get the header length of the reassembled packet */
-		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+		hlen = ip->ip_hl << 2;
 #ifdef IPDIVERT
 		/* Restore original checksum before diverting packet */
 		if (divert_info != 0) {
@@ -955,7 +953,7 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	struct ip *ip = mtod(m, struct ip *);
 	register struct mbuf *p, *q, *nq;
 	struct mbuf *t;
-	int hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+	int hlen = ip->ip_hl << 2;
 	int i, next;
 
 	/*
@@ -1093,7 +1091,7 @@ inserted:
 	 */
 	q = fp->ipq_frags;
 	ip = GETIP(q);
-	if (next + (IP_VHL_HL(ip->ip_vhl) << 2) > IP_MAXPACKET) {
+	if (next + (ip->ip_hl << 2) > IP_MAXPACKET) {
 		ipstat.ips_toolong++;
 		ip_freef(head, fp);
 		return (0);
@@ -1141,8 +1139,8 @@ inserted:
 	nipq--;
 	(void) m_free(dtom(fp));
 	ip_nfragpackets--;
-	m->m_len += (IP_VHL_HL(ip->ip_vhl) << 2);
-	m->m_data -= (IP_VHL_HL(ip->ip_vhl) << 2);
+	m->m_len += (ip->ip_hl << 2);
+	m->m_data -= (ip->ip_hl << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
 	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
 		m_fixhdr(m);
@@ -1266,7 +1264,7 @@ ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
-	cnt = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
+	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[IPOPT_OPTVAL];
 		if (opt == IPOPT_EOL)
@@ -1655,14 +1653,15 @@ ip_stripoptions(m, mopt)
 	register caddr_t opts;
 	int olen;
 
-	olen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
+	olen = (ip->ip_hl << 2) - sizeof (struct ip);
 	opts = (caddr_t)(ip + 1);
 	i = m->m_len - (sizeof (struct ip) + olen);
 	bcopy(opts + olen, opts, (unsigned)i);
 	m->m_len -= olen;
 	if (m->m_flags & M_PKTHDR)
 		m->m_pkthdr.len -= olen;
-	ip->ip_vhl = IP_MAKE_VHL(IPVERSION, sizeof(struct ip) >> 2);
+	ip->ip_v = IPVERSION;
+	ip->ip_hl = sizeof(struct ip) >> 2;
 }
 
 u_char inetctlerrmap[PRC_NCMDS] = {
@@ -1759,7 +1758,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	MGET(mcopy, M_DONTWAIT, m->m_type);
 	if (mcopy != NULL) {
 		M_COPY_PKTHDR(mcopy, m);
-		mcopy->m_len = imin((IP_VHL_HL(ip->ip_vhl) << 2) + 8,
+		mcopy->m_len = imin((ip->ip_hl << 2) + 8,
 		    (int)ip->ip_len);
 		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
 #ifdef MAC

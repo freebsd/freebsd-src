@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-#define _IP_VHL
-
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
@@ -202,7 +200,7 @@ ip_output(m0, opt, ro, flags, imo, inp)
 
 	if (args.rule != NULL) {	/* dummynet already saw us */
 		ip = mtod(m, struct ip *);
-		hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+		hlen = ip->ip_hl << 2 ;
 		if (ro->ro_rt)
 			ia = ifatoia(ro->ro_rt->rt_ifa);
 		goto sendit;
@@ -221,7 +219,8 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	 * Fill in IP header.
 	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
-		ip->ip_vhl = IP_MAKE_VHL(IPVERSION, hlen >> 2);
+		ip->ip_v = IPVERSION;
+		ip->ip_hl = hlen >> 2;
 		ip->ip_off &= IP_DF;
 #ifdef RANDOM_IP_ID
 		ip->ip_id = ip_randomid();
@@ -230,7 +229,7 @@ ip_output(m0, opt, ro, flags, imo, inp)
 #endif
 		ipstat.ips_localout++;
 	} else {
-		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
+		hlen = ip->ip_hl << 2;
 	}
 
 #ifdef FAST_IPSEC
@@ -570,11 +569,7 @@ sendit:
 
 	/* be sure to update variables that are affected by ipsec4_output() */
 	ip = mtod(m, struct ip *);
-#ifdef _IP_VHL
-	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
-#else
 	hlen = ip->ip_hl << 2;
-#endif
 	if (ro->ro_rt == NULL) {
 		if ((flags & IP_ROUTETOIF) == 0) {
 			printf("ip_output: "
@@ -992,13 +987,8 @@ pass:
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP) {
-			if (ip->ip_vhl == IP_VHL_BORING) {
-				ip->ip_sum = in_cksum_hdr(ip);
-			} else {
-				ip->ip_sum = in_cksum(m, hlen);
-			}
-		}
+		if (sw_csum & CSUM_DELAY_IP)
+			ip->ip_sum = in_cksum(m, hlen);
 
 		/* Record statistics for this interface address. */
 		if (!(flags & IP_FORWARDING) && ia) {
@@ -1118,7 +1108,8 @@ smart_frag_failure:
 		*mhip = *ip;
 		if (hlen > sizeof (struct ip)) {
 			mhlen = ip_optcopy(ip, mhip) + sizeof (struct ip);
-			mhip->ip_vhl = IP_MAKE_VHL(IPVERSION, mhlen >> 2);
+			mhip->ip_v = IPVERSION;
+			mhip->ip_hl = mhlen >> 2;
 		}
 		m->m_len = mhlen;
 		mhip->ip_off = ((off - hlen) >> 3) + ip->ip_off;
@@ -1142,13 +1133,8 @@ smart_frag_failure:
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP) {
-			if (mhip->ip_vhl == IP_VHL_BORING) {
-				mhip->ip_sum = in_cksum_hdr(mhip);
-			} else {
-				mhip->ip_sum = in_cksum(m, mhlen);
-			}
-		}
+		if (sw_csum & CSUM_DELAY_IP)
+			mhip->ip_sum = in_cksum(m, mhlen);
 		*mnext = m;
 		mnext = &m->m_nextpkt;
 		nfrags++;
@@ -1171,13 +1157,8 @@ smart_frag_failure:
 	ip->ip_off |= IP_MF;
 	ip->ip_off = htons(ip->ip_off);
 	ip->ip_sum = 0;
-	if (sw_csum & CSUM_DELAY_IP) {
-		if (ip->ip_vhl == IP_VHL_BORING) {
-			ip->ip_sum = in_cksum_hdr(ip);
-		} else {
-			ip->ip_sum = in_cksum(m, hlen);
-		}
-	}
+	if (sw_csum & CSUM_DELAY_IP)
+		ip->ip_sum = in_cksum(m, hlen);
 sendorfree:
 	for (m = m0; m; m = m0) {
 		m0 = m->m_nextpkt;
@@ -1235,7 +1216,7 @@ in_delayed_cksum(struct mbuf *m)
 	u_short csum, offset;
 
 	ip = mtod(m, struct ip *);
-	offset = IP_VHL_HL(ip->ip_vhl) << 2 ;
+	offset = ip->ip_hl << 2 ;
 	csum = in_cksum_skip(m, ip->ip_len, offset);
 	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
 		csum = 0xffff;
@@ -1307,7 +1288,8 @@ ip_insertoptions(m, opt, phlen)
 	ip = mtod(m, struct ip *);
 	bcopy(p->ipopt_list, ip + 1, optlen);
 	*phlen = sizeof(struct ip) + optlen;
-	ip->ip_vhl = IP_MAKE_VHL(IPVERSION, *phlen >> 2);
+	ip->ip_v = IPVERSION;
+	ip->ip_hl = *phlen >> 2;
 	ip->ip_len += optlen;
 	return (m);
 }
@@ -1325,7 +1307,7 @@ ip_optcopy(ip, jp)
 
 	cp = (u_char *)(ip + 1);
 	dp = (u_char *)(jp + 1);
-	cnt = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
+	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
 		if (opt == IPOPT_EOL)
@@ -2163,11 +2145,7 @@ ip_mloopback(ifp, m, dst, hlen)
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
-		if (ip->ip_vhl == IP_VHL_BORING) {
-			ip->ip_sum = in_cksum_hdr(ip);
-		} else {
-			ip->ip_sum = in_cksum(copym, hlen);
-		}
+		ip->ip_sum = in_cksum(copym, hlen);
 		/*
 		 * NB:
 		 * It's not clear whether there are any lingering
