@@ -84,7 +84,7 @@ main(int argc, char **argv)
 			err(EX_OSFILE, "%s", argv[0]);
 		}
 
-		if (!S_ISBLK(stab.st_mode)) {
+		if (!S_ISCHR(stab.st_mode)) {
 			errx(EX_USAGE, "%s: must specify a block device",
 			     argv[0]);
 		}
