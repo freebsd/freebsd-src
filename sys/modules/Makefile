@@ -21,6 +21,7 @@ SUBDIR=	3dfx \
 	de \
 	digi \
 	ed \
+	ext2fs \
 	fdescfs \
 	fdc \
 	fs \
