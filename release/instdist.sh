@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.7 1994/11/18 11:01:25 jkh Exp $
+# $Id: instdist.sh,v 1.8 1994/11/18 12:54:40 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -104,8 +104,7 @@ or unable to get a connection.  Please select the site closest \n\
 to you or select \"other\" if you'd like to specify your own \n\
 choice.  Also note that not all sites carry the optional package
 or XFree86 3.1 distributions!  These are only guaranteed to be
-available from the primary U.S. ftp site.\n\n" \
-"Please select one of the following:" -1 -1 8 \
+available from the primary U.S. ftp site.\n\n" -1 -1 8 \
    "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
    "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
    "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" "United States" \
@@ -234,8 +233,8 @@ of installation.  Depending on how much hard disk space you have \n\
 available, you may chose to load one or all of them.  Optional \n\
 and mandatory distributions are so noted.  Please also note that \n\
 the secrdist is NOT FOR EXPORT from the U.S., so please don't \n\
-endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n" \
-"Please select one of the following ${DISTNAME} distributions:" -1 -1 10 \
+endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n\
+ Please select one of the following ${DISTNAME} distributions:" -1 -1 10 \
   "?diskfree"  "Uh, first, how much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
@@ -291,7 +290,7 @@ one of the following options.  If none of the listed options works \n\
 for you then your best bet may be to simply hit ESC twice to get \n\
 a subshell and proceed manually on your own.  If you are already \n\
 finished with installation, select cancel to go on.\n\n\
-	Please choose one of the following:" -1 -1 7 \
+ Please choose one of the following:" -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
 	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
@@ -318,8 +317,7 @@ finished with installation, select cancel to go on.\n\n\
 	Tape)
 		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" -1 -1 3 \
+system?  FreeBSD supports the following types:\n\n" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
 		"floppy" "Floppy tape drive" \
@@ -345,8 +343,7 @@ system?  FreeBSD supports the following types:\n\n\
 	CDROM)
 		dialog $clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" -1 -1 2 \
+system?  FreeBSD supports the following types:\n\n" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
 			2> ${TMP}/menu.tmp.$$
