@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.14 1995/12/07 12:44:53 davidg Exp $
+ *	$Id: db_output.c,v 1.15 1995/12/10 19:08:03 bde Exp $
  */
 
 /*
@@ -155,7 +155,7 @@ db_printf(const char *fmt, ...)
 {
 	va_list	listp;
 	va_start(listp, fmt);
-	db_printf_guts (fmt, listp);
+	kvprintf (fmt, db_putchar, NULL, db_radix, listp);
 	va_end(listp);
 }
 
@@ -189,182 +189,4 @@ db_ksprintn(ul, base, lenp)
 	if (lenp)
 		*lenp = p - buf;
 	return (p);
-}
-
-static void
-db_printf_guts(fmt, ap)
-	register const char *fmt;
-	va_list ap;
-{
-	register char *p;
-	register int ch, n;
-	u_long ul;
-	int base, lflag, tmp, width;
-	char padc;
-	int ladjust;
-	int sharpflag;
-	int neg;
-
-	for (;;) {
-		padc = ' ';
-		width = 0;
-		while ((ch = *(u_char *)fmt++) != '%') {
-			if (ch == '\0')
-				return;
-			db_putchar(ch);
-		}
-		lflag = 0;
-		ladjust = 0;
-		sharpflag = 0;
-		neg = 0;
-reswitch:	switch (ch = *(u_char *)fmt++) {
-		case '0':
-			padc = '0';
-			goto reswitch;
-		case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			for (width = 0;; ++fmt) {
-				width = width * 10 + ch - '0';
-				ch = *fmt;
-				if (ch < '0' || ch > '9')
-					break;
-			}
-			goto reswitch;
-		case 'l':
-			lflag = 1;
-			goto reswitch;
-		case '-':
-			ladjust = 1;
-			goto reswitch;
-		case '#':
-			sharpflag = 1;
-			goto reswitch;
-		case 'b':
-			ul = va_arg(ap, int);
-			p = va_arg(ap, char *);
-			for (p = db_ksprintn(ul, *p++, NULL); *p;p--)
-				db_putchar(*p);
-
-			if (!ul)
-				break;
-
-			for (tmp = 0; *p;) {
-				n = *p++;
-				if (ul & (1 << (n - 1))) {
-					db_putchar(tmp ? ',' : '<');
-					for (; (n = *p) > ' '; ++p)
-						db_putchar(n);
-					tmp = 1;
-				} else
-					for (; *p > ' '; ++p);
-			}
-			if (tmp)
-				db_putchar('>');
-			break;
-		case '*':
-			width = va_arg (ap, int);
-			if (width < 0) {
-				ladjust = !ladjust;
-				width = -width;
-			}
-			goto reswitch;
-		case 'c':
-			db_putchar(va_arg(ap, int));
-			break;
-		case 's':
-			p = va_arg(ap, char *);
-			if (p == NULL)
-				p = "(null)";
-			width -= strlen (p);
-			if (!ladjust && width > 0)
-				while (width--)
-					db_putchar (padc);
-			for (;*p;p++)
-				db_putchar(*p);
-			if (ladjust && width > 0)
-				while (width--)
-					db_putchar (padc);
-			break;
-		case 'r':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			if ((long)ul < 0) {
-				neg = 1;
-				ul = -(long)ul;
-			}
-			base = db_radix;
-			if (base < 8 || base > 16)
-				base = 10;
-			goto number;
-		case 'n':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = db_radix;
-			if (base < 8 || base > 16)
-				base = 10;
-			goto number;
-		case 'd':
-			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
-			if ((long)ul < 0) {
-				neg = 1;
-				ul = -(long)ul;
-			}
-			base = 10;
-			goto number;
-		case 'o':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 8;
-			goto number;
-		case 'u':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 10;
-			goto number;
-		case 'z':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			if ((long)ul < 0) {
-				neg = 1;
-				ul = -(long)ul;
-			}
-			base = 16;
-			goto number;
-		case 'x':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 16;
-number:			p = (char *)db_ksprintn(ul, base, &tmp);
-			if (sharpflag && ul != 0) {
-				if (base == 8)
-					tmp++;
-				else if (base == 16)
-					tmp += 2;
-			}
-			if (neg)
-				tmp++;
-
-			if (!ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					db_putchar(padc);
-			if (neg)
-				db_putchar ('-');
-			if (sharpflag && ul != 0) {
-				if (base == 8) {
-					db_putchar ('0');
-				} else if (base == 16) {
-					db_putchar ('0');
-					db_putchar ('x');
-				}
-			}
-			if (ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					db_putchar(padc);
-
-			for (;*p;p--)
-				db_putchar(*p);
-			break;
-		default:
-			db_putchar('%');
-			if (lflag)
-				db_putchar('l');
-			/* FALLTHROUGH */
-		case '%':
-			db_putchar(ch);
-		}
-	}
 }

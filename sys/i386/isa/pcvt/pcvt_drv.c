@@ -1327,7 +1327,7 @@ dprintf(unsigned flgs, const char *fmt, ...)
 	{
 		__color = ffs(flgs&__debug)+1;
 		va_start(ap,fmt);
-		kprintf(fmt, 1, (struct tty *)0, ap);
+		vprintf(fmt, ap);
 		va_end(ap);
 
 		if (flgs & DPAUSE || nrow%24 == 23)
