@@ -32,7 +32,7 @@
 
   <para>The &release.type; distribution to which these release notes
   apply represents a point along the &release.branch; development
-  branch between &release.prev; and &release.next;.  Some pre-built,
+  branch between &release.prev; and the future &release.next;.  Some pre-built,
   binary &release.type; distributions along this branch can be found
   at <ulink url="&release.url;"></ulink>.</para>
 
