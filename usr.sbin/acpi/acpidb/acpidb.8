@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"      $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd August 7, 2003
 .Dt ACPIDB 8
@@ -39,55 +39,58 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is a debugger for the ACPI DSDT.  It can parse and execute various
+utility is a debugger for the ACPI DSDT.
+It can parse and execute various
 AML methods and display the result.
 .Sh COMMANDS
 .Ss General-Purpose Commands
 .Bl -tag -width indent
 .It Ic Allocations
 Display list of current memory allocations
-.It Ic Dump Ar Address|Namepath Op Byte|Word|Dword|Qword
+.It Ic Dump Ar Address | Namepath Op Cm Byte | Word | Dword | Qword
 Display ACPI objects or memory
 .It Ic EnableAcpi
 Enable ACPI (hardware) mode
 .It Ic Help
-Show various help screens.
+Show various help screens
 .It Ic History
 Display command history buffer
-.It Ic Level Ar DebugLevel Op console
+.It Ic Level Ar DebugLevel Op Cm console
 Get/Set debug level for file or console
 .It Ic Locks
 Current status of internal mutexes
-.It Ic Quit or Exit
+.It Ic Quit No or Ic Exit
 Exit the debugger
-.It Ic Stats Op Allocations|Memory|Misc|Objects|Tables
+.It Ic Stats Op Cm Allocations | Memory | Misc | Objects | Tables
 Display namespace and memory statistics
 .It Ic Tables
 Display info about loaded ACPI tables
-.It Ic Unload Ar TableSig Op Instance
+.It Ic Unload Ar TableSig Op Ar Instance
 Unload an ACPI table
-.It Ic ! Ar CommandNumber
+.It Ic !\& Ar CommandNumber
 Execute command from history buffer
 .It Ic !!
 Execute last command again
 .El
 .Ss Namespace Access Commands
 .Bl -tag -width indent
-.It Ic Event Ar F|G Ar Value
+.It Ic Event Cm F | G Ar Value
 Generate AcpiEvent (Fixed/GPE)
 .It Ic Find Ar Name
-Find ACPI name(s) with wildcards (? is wildcard).
+Find ACPI name(s) with wildcards
+.Ql ( ?\&
+is wildcard)
 .It Ic Method
 Display list of loaded control methods
-.It Ic Namespace Op <Addr>|<Path> Op Depth
+.It Ic Namespace Oo Ar Addr | Path Oc Op Ar Depth
 Display loaded namespace tree/subtree
-.It Ic Notify Ar NamePath Ar Value
+.It Ic Notify Ar NamePath Value
 Send a notification
 .It Ic Objects Ar ObjectType
 Display all objects of the given type
-.It Ic Owner Ar OwnerId Op Depth
+.It Ic Owner Ar OwnerId Op Ar Depth
 Display loaded namespace by object owner
-.It Ic Prefix Op NamePath
+.It Ic Prefix Op Ar NamePath
 Set or Get current execution prefix
 .It Ic References Ar Addr
 Find all references to object at addr
@@ -95,7 +98,7 @@ Find all references to object at addr
 Get and display resources
 .It Ic Terminate
 Delete namespace and all internal objects
-.It Ic Thread Ar Threads Ar Loops Ar NamePath
+.It Ic Thread Ar Threads Loops NamePath
 Spawn threads to execute method(s)
 .El
 .Ss Control Method Execution Commands
@@ -107,7 +110,7 @@ Display method arguments
 Set an AML execution breakpoint
 .It Ic Call
 Run to next control method invocation
-.It Ic Debug Ar Namepath Op Arguments
+.It Ic Debug Ar Namepath Op Ar Arguments
 Single Step a control method
 .It Ic Execute Ar Namepath Op Arguments
 Execute control method
@@ -123,7 +126,7 @@ Display method ASL statements
 Display method local variables
 .It Ic Results
 Display method result stack
-.It Ic Set Ar A|L Ar # Ar Value
+.It Ic Set Cm A | L Ar # Value
 Set method data (Arguments/Locals)
 .It Ic Stop
 Terminate control method
@@ -148,7 +151,9 @@ Load ACPI table from a file
 .Sh HISTORY
 The
 .Nm
-utility first appeared in the acpicatools port.
+utility first appeared in the
+.Nm acpicatools
+port.
 It was imported for
 .Fx 5.2 .
 .Sh AUTHORS
