@@ -644,6 +644,7 @@ union_freevp(vp)
 
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = 0;
+	vp->v_object = NULL;
 
 	return (0);
 }

@@ -75,7 +75,6 @@ static vop_close_t	union_close;
 static vop_closeextattr_t	union_closeextattr;
 static vop_create_t	union_create;
 static vop_deleteextattr_t	union_deleteextattr;
-static vop_destroyvobject_t	union_destroyvobject;
 static vop_fsync_t	union_fsync;
 static vop_getacl_t	union_getacl;
 static vop_getattr_t	union_getattr;
@@ -1691,19 +1690,6 @@ union_reclaim(ap)
 	return (0);
 }
 
-/*
- * We have nothing to destroy and this operation shouldn't be bypassed.
- */
-static int
-union_destroyvobject(ap)
-	struct vop_destroyvobject_args /* {
-		struct vnode *vp;
-	} */ *ap;
-{
-
-	return (0);
-}
-
 static int
 union_print(ap)
 	struct vop_print_args /* {
@@ -2017,7 +2003,6 @@ struct vop_vector union_vnodeops = {
 	.vop_closeextattr =	union_closeextattr,
 	.vop_create =		union_create,
 	.vop_deleteextattr =	union_deleteextattr,
-	.vop_destroyvobject =	union_destroyvobject,
 	.vop_fsync =		union_fsync,
 	.vop_getacl =		union_getacl,
 	.vop_getattr =		union_getattr,
