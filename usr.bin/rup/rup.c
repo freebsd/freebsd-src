@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rup.c,v 1.8 1997/08/07 06:50:02 charnier Exp $";
+	"$Id: rup.c,v 1.9 1997/09/15 09:46:42 jkh Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -137,7 +137,7 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 			hours_buf[0] = '\0';
 
 	printf(" %2d:%02d%cm  up %9.9s%9.9s load average: %.2f %.2f %.2f\n",
-		host_time.tm_hour % 12,
+		(host_time.tm_hour % 12) ? host_time.tm_hour % 12 : 12,
 		host_time.tm_min,
 		(host_time.tm_hour >= 12) ? 'p' : 'a',
 		days_buf,
