@@ -275,8 +275,8 @@ openrd(void)
 	switch(maj)
 	{
 #ifdef PC98
-	case 4: /* sd */
-		dosdev_copy = biosdrive | 0xa0;
+	case 4:	/* da */
+		dosdev_copy = biosdrive | 0xA0; /* SCSI HD or MO */
 #else	/* IBM-PC */
 	case 0:
 	case 4:
@@ -284,8 +284,8 @@ openrd(void)
 #endif
 		break;
 #ifdef PC98
-	case 0:
-	case 2:
+	case 0:	/* wd */
+	case 2:	/* 1200KB fd */
 		dosdev_copy = (maj << 3) | unit | 0x80;
 #else
 	case 2:
@@ -293,7 +293,7 @@ openrd(void)
 #endif
 		break;
 #ifdef PC98
-	case 6:/* 1.44MB FD */
+	case 6:	/* 1440KB fd */
 		dosdev_copy = (maj << 3) | unit;
 		break;
 #endif
