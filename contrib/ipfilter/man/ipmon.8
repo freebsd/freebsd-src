@@ -5,7 +5,7 @@ ipmon \- monitors /dev/ipl for logged packets
 .SH SYNOPSIS
 .B ipmon
 [
-.B \-aDFhnpstvxX
+.B \-abDFhnpstvxX
 ] [
 .B "\-N <device>"
 ] [
@@ -76,6 +76,10 @@ In order for \fBipmon\fP to properly work, the kernel option
 .B \-a
 Open all of the device logfiles for reading log entries from.  All entries
 are displayed to the same output 'device' (stderr or syslog).
+.TP
+.B \-b
+For rules which log the body of a packet, generate hex output representing
+the packet contents afte the headers.
 .TP
 .B \-D
 Cause ipmon to turn itself into a daemon.  Using subshells or backgrounding
