@@ -575,8 +575,7 @@ start_init(void *dummy)
 	p->p_vmspace->vm_ssize = 1;
 
 	if ((var = getenv("init_path")) != NULL) {
-		strncpy(init_path, var, sizeof init_path);
-		init_path[sizeof init_path - 1] = 0;
+		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
 	}
 	if ((var = getenv("kern.fallback_elf_brand")) != NULL) {

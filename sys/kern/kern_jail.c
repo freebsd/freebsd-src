@@ -249,10 +249,9 @@ getcredhostname(cred, buf, size)
 
 	if (jailed(cred)) {
 		mtx_lock(&cred->cr_prison->pr_mtx);
-		strncpy(buf, cred->cr_prison->pr_host, size);
+		strlcpy(buf, cred->cr_prison->pr_host, size);
 		mtx_unlock(&cred->cr_prison->pr_mtx);
 	}
 	else
-		strncpy(buf, hostname, size);
-	buf[size - 1] = '\0';
+		strlcpy(buf, hostname, size);
 }
