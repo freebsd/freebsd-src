@@ -27,6 +27,8 @@
  */
 /*
  * acl_get_file - syscall wrapper for retrieving ACL by filename
+ * acl_get_fd - syscall wrapper for retrieving access ACL by fd
+ * acl_get_fd_np - syscall wrapper for retrieving ACL by fd (non-POSIX)
  */
 
 #include <sys/types.h>
@@ -54,9 +56,28 @@ acl_get_file(const char *path_p, acl_type_t type)
 	return (aclp);
 }
 
+acl_t
+acl_get_fd(int fd)
+{
+	struct acl	*aclp;
+	int	error;
+
+	aclp = acl_init(ACL_MAX_ENTRIES);
+	if (!aclp) {
+		return (0);
+	}
+
+	error = __acl_get_fd(fd, ACL_TYPE_ACCESS, aclp);
+	if (error) {
+		acl_free(aclp);
+		return (0);
+	}
+
+	return (aclp);
+}
 
 acl_t
-acl_get_fd(int fd, acl_type_t type)
+acl_get_fd_np(int fd, acl_type_t type)
 {
 	struct acl	*aclp;
 	int	error;

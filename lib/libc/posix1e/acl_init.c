@@ -27,6 +27,7 @@
  */
 /*
  * acl_init -- return a fresh acl structure
+ * acl_dup -- duplicate an acl and return the new copy
  */
 
 #include <sys/types.h>
@@ -51,3 +52,16 @@ acl_init(int count)
 	return (acl);
 }
 
+acl_t
+acl_dup(acl_t acl)
+{
+	struct acl	*acl_new;
+
+	acl_new = acl_init(ACL_MAX_ENTRIES);
+	if (!acl_new)
+		return(NULL);
+
+	*acl_new = *acl;
+
+	return(acl_new);
+}

@@ -34,14 +34,6 @@
 #include <sys/errno.h>
 
 int
-acl_delete_def_fd(int filedes)
-{
-
-        return (__acl_delete_fd(filedes, ACL_TYPE_DEFAULT));
-}
-
-
-int
 acl_delete_def_file(const char *path_p)
 {
 
@@ -50,7 +42,7 @@ acl_delete_def_file(const char *path_p)
 
 
 int
-acl_delete_file(const char *path_p, acl_type_t type)
+acl_delete_file_np(const char *path_p, acl_type_t type)
 {
 
 	return (__acl_delete_file(path_p, type));
@@ -58,7 +50,7 @@ acl_delete_file(const char *path_p, acl_type_t type)
 
 
 int
-acl_delete_fd(int filedes, acl_type_t type)
+acl_delete_fd_np(int filedes, acl_type_t type)
 {
 
 	return (__acl_delete_fd(filedes, type));
