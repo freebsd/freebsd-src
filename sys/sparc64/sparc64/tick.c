@@ -110,6 +110,12 @@ tick_init(u_long clock)
 	tick_freq = clock;
 	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
+	/*
+	 * UltraSparc II[e,i] based systems come up with the tick interrupt
+	 * enabled and a handler that resets the tick counter, causing DELAY()
+	 * to not work properly when used early in boot.
+	 */
+	wr(asr23, 1L << 63, 0);
 }
 
 void
