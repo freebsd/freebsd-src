@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.125 1995/10/28 02:01:34 ache Exp $
+#	$Id: Makefile,v 1.126 1995/10/28 09:39:57 peter Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -175,6 +175,12 @@ distribution:
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 	(cd ${.CURDIR}/root; \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.fvwmrc \
+		    ${DESTDIR}/root/.fvwmrc; \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.Xdefaults \
+		    ${DESTDIR}/root/.Xdefaults; \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.xsession \
+		    ${DESTDIR}/root/.xsession; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
