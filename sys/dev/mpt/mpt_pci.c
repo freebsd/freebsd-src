@@ -519,8 +519,8 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	/* Allocate some DMA accessable memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
-		device_printf(dev, "cannot allocate %d bytes of reply memory\n",
-		     PAGE_SIZE);
+		device_printf(dev, "cannot allocate %lu bytes of reply memory\n",
+		     (u_long)PAGE_SIZE);
 		return (1);
 	}
 
