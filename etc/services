@@ -16,7 +16,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.53 1998/09/05 20:42:47 obrien Exp $
+#	$Id: services,v 1.54 1998/09/13 20:22:19 obrien Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1849,6 +1849,14 @@ pehelp		2307/tcp
 pehelp		2307/udp
 cvspserver	2401/tcp   #CVS network server
 cvspserver	2401/udp   #CVS network server
+venus           2430/tcp   #venus
+venus           2430/udp   #venus
+venus-se        2431/tcp   #venus-se
+venus-se        2431/udp   #venus-se
+codasrv         2432/tcp   #codasrv
+codasrv         2432/udp   #codasrv
+codasrv-se      2433/tcp   #codasrv-se
+codasrv-se      2433/udp   #codasrv-se
 rtsserv		2500/tcp   #Resource Tracking system server
 rtsserv		2500/udp   #Resource Tracking system server
 rtsclient	2501/tcp   #Resource Tracking system client
