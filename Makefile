@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.16 1994/09/09 20:29:20 csgr Exp $
+#	$Id: Makefile,v 1.17 1994/09/12 05:17:15 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -8,6 +8,7 @@
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCRYPT will prevent building of crypt versions
 # XXX2	-DNOKERBEROS do not build Kerberos
+#	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
@@ -53,9 +54,6 @@ SUBDIR+= libexec
 .if exists(sbin)
 SUBDIR+= sbin
 .endif
-.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-SUBDIR+= secure
-.endif
 .if exists(share)
 SUBDIR+= share
 .endif
@@ -67,6 +65,12 @@ SUBDIR+= usr.bin
 .endif
 .if exists(usr.sbin)
 SUBDIR+= usr.sbin
+.endif
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+SUBDIR+= secure
+.endif
+.if exists(lkm) && !defined(NOLKM)
+SUBDIR+= lkm
 .endif
 
 # These are last, since it is nice to at least get the base system
