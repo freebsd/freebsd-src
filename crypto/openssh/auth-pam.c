@@ -28,10 +28,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * Copyright (c) 2003,2004 Damien Miller <djm@mindrot.org>
+ * Copyright (c) 2003,2004 Darren Tucker <dtucker@zip.com.au>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
 /* Based on $xFreeBSD: src/crypto/openssh/auth2-pam-freebsd.c,v 1.11 2003/03/31 13:48:18 des Exp $ */
 #include "includes.h"
-RCSID("$Id: auth-pam.c,v 1.100 2004/04/18 01:00:26 dtucker Exp $");
+RCSID("$Id: auth-pam.c,v 1.114 2004/08/16 13:12:06 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef USE_PAM
@@ -50,7 +66,7 @@ RCSID("$FreeBSD$");
 #include "monitor_wrap.h"
 #include "msg.h"
 #include "packet.h"
-#include "readpass.h"
+#include "misc.h"
 #include "servconf.h"
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -94,10 +110,17 @@ static mysig_t sshpam_oldsig;
 static void 
 sshpam_sigchld_handler(int sig)
 {
+	signal(SIGCHLD, SIG_DFL);
 	if (cleanup_ctxt == NULL)
 		return;	/* handler called after PAM cleanup, shouldn't happen */
-	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, 0) == -1)
-		return;	/* couldn't wait for process */
+	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, WNOHANG)
+	     <= 0) {
+		/* PAM thread has not exitted, privsep slave must have */
+		kill(cleanup_ctxt->pam_thread, SIGTERM);
+		if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, 0)
+		    <= 0)
+			return; /* could not wait */
+	}
 	if (WIFSIGNALED(sshpam_thread_status) &&
 	    WTERMSIG(sshpam_thread_status) == SIGTERM)
 		return;	/* terminated by pthread_cancel */
@@ -163,6 +186,7 @@ static int sshpam_cred_established = 0;
 static int sshpam_account_status = -1;
 static char **sshpam_env = NULL;
 static Authctxt *sshpam_authctxt = NULL;
+static const char *sshpam_password = NULL;
 
 /* Some PAM implementations don't implement this */
 #ifndef HAVE_PAM_GETENVLIST
@@ -178,8 +202,33 @@ pam_getenvlist(pam_handle_t *pamh)
 }
 #endif
 
+/*
+ * Some platforms, notably Solaris, do not enforce password complexity
+ * rules during pam_chauthtok() if the real uid of the calling process
+ * is 0, on the assumption that it's being called by "passwd" run by root.
+ * This wraps pam_chauthtok and sets/restore the real uid so PAM will do
+ * the right thing.
+ */
+#ifdef SSHPAM_CHAUTHTOK_NEEDS_RUID
+static int
+sshpam_chauthtok_ruid(pam_handle_t *pamh, int flags)
+{
+	int result;
+
+	if (sshpam_authctxt == NULL)
+		fatal("PAM: sshpam_authctxt not initialized");
+	if (setreuid(sshpam_authctxt->pw->pw_uid, -1) == -1)
+		fatal("%s: setreuid failed: %s", __func__, strerror(errno));
+	result = pam_chauthtok(pamh, flags);
+	if (setreuid(0, -1) == -1)
+		fatal("%s: setreuid failed: %s", __func__, strerror(errno));
+	return result;
+}
+# define pam_chauthtok(a,b)	(sshpam_chauthtok_ruid((a), (b)))
+#endif
+
 void
-pam_password_change_required(int reqd)
+sshpam_password_change_required(int reqd)
 {
 	debug3("%s %d", __func__, reqd);
 	if (sshpam_authctxt == NULL)
@@ -209,7 +258,7 @@ import_environments(Buffer *b)
 #ifndef USE_POSIX_THREADS
 	/* Import variables set by do_pam_account */
 	sshpam_account_status = buffer_get_int(b);
-	pam_password_change_required(buffer_get_int(b));
+	sshpam_password_change_required(buffer_get_int(b));
 
 	/* Import environment from subprocess */
 	num_env = buffer_get_int(b);
@@ -241,7 +290,7 @@ import_environments(Buffer *b)
  * Conversation function for authentication thread.
  */
 static int
-sshpam_thread_conv(int n, const struct pam_message **msg,
+sshpam_thread_conv(int n, struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
 	Buffer buffer;
@@ -252,6 +301,10 @@ sshpam_thread_conv(int n, const struct pam_message **msg,
 	debug3("PAM: %s entering, %d messages", __func__, n);
 	*resp = NULL;
 
+	if (data == NULL) {
+		error("PAM: conversation function passed a null context");
+		return (PAM_CONV_ERR);
+	}
 	ctxt = data;
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		return (PAM_CONV_ERR);
@@ -329,15 +382,21 @@ sshpam_thread(void *ctxtp)
 	struct pam_ctxt *ctxt = ctxtp;
 	Buffer buffer;
 	struct pam_conv sshpam_conv;
+	int flags = (options.permit_empty_passwd == 0 ?
+	    PAM_DISALLOW_NULL_AUTHTOK : 0);
 #ifndef USE_POSIX_THREADS
 	extern char **environ;
 	char **env_from_pam;
 	u_int i;
 	const char *pam_user;
 
-	pam_get_item(sshpam_handle, PAM_USER, (const void **)&pam_user);
-	setproctitle("%s [pam]", pam_user);
+	pam_get_item(sshpam_handle, PAM_USER, (void **)&pam_user);
 	environ[0] = NULL;
+
+	if (sshpam_authctxt != NULL) {
+		setproctitle("%s [pam]",
+		    sshpam_authctxt->valid ? pam_user : "unknown");
+	}
 #endif
 
 	sshpam_conv.conv = sshpam_thread_conv;
@@ -351,7 +410,7 @@ sshpam_thread(void *ctxtp)
 	    (const void *)&sshpam_conv);
 	if (sshpam_err != PAM_SUCCESS)
 		goto auth_fail;
-	sshpam_err = pam_authenticate(sshpam_handle, 0);
+	sshpam_err = pam_authenticate(sshpam_handle, flags);
 	if (sshpam_err != PAM_SUCCESS)
 		goto auth_fail;
 
@@ -363,7 +422,7 @@ sshpam_thread(void *ctxtp)
 			    PAM_CHANGE_EXPIRED_AUTHTOK);
 			if (sshpam_err != PAM_SUCCESS)
 				goto auth_fail;
-			pam_password_change_required(0);
+			sshpam_password_change_required(0);
 		}
 	}
 
@@ -423,7 +482,7 @@ sshpam_thread_cleanup(void)
 }
 
 static int
-sshpam_null_conv(int n, const struct pam_message **msg,
+sshpam_null_conv(int n, struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
 	debug3("PAM: %s entering, %d messages", __func__, n);
@@ -461,7 +520,7 @@ sshpam_init(Authctxt *authctxt)
 	if (sshpam_handle != NULL) {
 		/* We already have a PAM context; check if the user matches */
 		sshpam_err = pam_get_item(sshpam_handle,
-		    PAM_USER, (const void **)&pam_user);
+		    PAM_USER, (void **)&pam_user);
 		if (sshpam_err == PAM_SUCCESS && strcmp(user, pam_user) == 0)
 			return (0);
 		pam_end(sshpam_handle, sshpam_err);
@@ -713,7 +772,7 @@ do_pam_account(void)
 	}
 
 	if (sshpam_err == PAM_NEW_AUTHTOK_REQD)
-		pam_password_change_required(1);
+		sshpam_password_change_required(1);
 
 	sshpam_account_status = 1;
 	return (sshpam_account_status);
@@ -759,7 +818,7 @@ do_pam_setcred(int init)
 }
 
 static int
-pam_tty_conv(int n, const struct pam_message **msg,
+sshpam_tty_conv(int n, struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
 	char input[PAM_MAX_MSG_SIZE];
@@ -788,7 +847,8 @@ pam_tty_conv(int n, const struct pam_message **msg,
 		case PAM_PROMPT_ECHO_ON:
 			fprintf(stderr, "%s\n", PAM_MSG_MEMBER(msg, i, msg));
 			fgets(input, sizeof input, stdin);
-			reply[i].resp = xstrdup(input);
+			if ((reply[i].resp = strdup(input)) == NULL)
+				goto fail;
 			reply[i].resp_retcode = PAM_SUCCESS;
 			break;
 		case PAM_ERROR_MSG:
@@ -812,7 +872,7 @@ pam_tty_conv(int n, const struct pam_message **msg,
 	return (PAM_CONV_ERR);
 }
 
-static struct pam_conv tty_conv = { pam_tty_conv, NULL };
+static struct pam_conv tty_conv = { sshpam_tty_conv, NULL };
 
 /*
  * XXX this should be done in the authentication phase, but ssh1 doesn't
@@ -836,7 +896,7 @@ do_pam_chauthtok(void)
 }
 
 static int
-pam_store_conv(int n, const struct pam_message **msg,
+sshpam_store_conv(int n, struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
 	struct pam_response *reply;
@@ -878,7 +938,7 @@ pam_store_conv(int n, const struct pam_message **msg,
 	return (PAM_CONV_ERR);
 }
 
-static struct pam_conv store_conv = { pam_store_conv, NULL };
+static struct pam_conv store_conv = { sshpam_store_conv, NULL };
 
 void
 do_pam_session(void)
@@ -945,4 +1005,112 @@ free_pam_environment(char **env)
 	xfree(env);
 }
 
+/*
+ * "Blind" conversation function for password authentication.  Assumes that
+ * echo-off prompts are for the password and stores messages for later
+ * display.
+ */
+static int
+sshpam_passwd_conv(int n, struct pam_message **msg,
+    struct pam_response **resp, void *data)
+{
+	struct pam_response *reply;
+	int i;
+	size_t len;
+
+	debug3("PAM: %s called with %d messages", __func__, n);
+
+	*resp = NULL;
+
+	if (n <= 0 || n > PAM_MAX_NUM_MSG)
+		return (PAM_CONV_ERR);
+
+	if ((reply = malloc(n * sizeof(*reply))) == NULL)
+		return (PAM_CONV_ERR);
+	memset(reply, 0, n * sizeof(*reply));
+
+	for (i = 0; i < n; ++i) {
+		switch (PAM_MSG_MEMBER(msg, i, msg_style)) {
+		case PAM_PROMPT_ECHO_OFF:
+			if (sshpam_password == NULL)
+				goto fail;
+			if ((reply[i].resp = strdup(sshpam_password)) == NULL)
+				goto fail;
+			reply[i].resp_retcode = PAM_SUCCESS;
+			break;
+		case PAM_ERROR_MSG:
+		case PAM_TEXT_INFO:
+			len = strlen(PAM_MSG_MEMBER(msg, i, msg));
+			if (len > 0) {
+				buffer_append(&loginmsg,
+				    PAM_MSG_MEMBER(msg, i, msg), len);
+				buffer_append(&loginmsg, "\n", 1);
+			}
+			if ((reply[i].resp = strdup("")) == NULL)
+				goto fail;
+			reply[i].resp_retcode = PAM_SUCCESS;
+			break;
+		default:
+			goto fail;
+		}
+	}
+	*resp = reply;
+	return (PAM_SUCCESS);
+
+ fail: 
+	for(i = 0; i < n; i++) {
+		if (reply[i].resp != NULL)
+			xfree(reply[i].resp);
+	}
+	xfree(reply);
+	return (PAM_CONV_ERR);
+}
+
+static struct pam_conv passwd_conv = { sshpam_passwd_conv, NULL };
+
+/*
+ * Attempt password authentication via PAM
+ */
+int
+sshpam_auth_passwd(Authctxt *authctxt, const char *password)
+{
+	int flags = (options.permit_empty_passwd == 0 ?
+	    PAM_DISALLOW_NULL_AUTHTOK : 0);
+	static char badpw[] = "\b\n\r\177INCORRECT";
+
+	if (!options.use_pam || sshpam_handle == NULL)
+		fatal("PAM: %s called when PAM disabled or failed to "
+		    "initialise.", __func__);
+
+	sshpam_password = password;
+	sshpam_authctxt = authctxt;
+
+	/*
+	 * If the user logging in is invalid, or is root but is not permitted
+	 * by PermitRootLogin, use an invalid password to prevent leaking
+	 * information via timing (eg if the PAM config has a delay on fail).
+	 */
+	if (!authctxt->valid || (authctxt->pw->pw_uid == 0 &&
+	     options.permit_root_login != PERMIT_YES))
+		sshpam_password = badpw;
+
+	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
+	    (const void *)&passwd_conv);
+	if (sshpam_err != PAM_SUCCESS)
+		fatal("PAM: %s: failed to set PAM_CONV: %s", __func__,
+		    pam_strerror(sshpam_handle, sshpam_err));
+
+	sshpam_err = pam_authenticate(sshpam_handle, flags);
+	sshpam_password = NULL;
+	if (sshpam_err == PAM_SUCCESS && authctxt->valid) {
+		debug("PAM: password authentication accepted for %.100s",
+		    authctxt->user);
+               return 1;
+	} else {
+		debug("PAM: password authentication failed for %.100s: %s",
+		    authctxt->valid ? authctxt->user : "an illegal user",
+		    pam_strerror(sshpam_handle, sshpam_err));
+		return 0;
+	}
+}
 #endif /* USE_PAM */

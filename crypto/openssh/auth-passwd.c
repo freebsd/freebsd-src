@@ -65,7 +65,9 @@ auth_password(Authctxt *authctxt, const char *password)
 {
 	struct passwd * pw = authctxt->pw;
 	int ok = authctxt->valid;
+#if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 	static int expire_checked = 0;
+#endif
 
 #ifndef HAVE_CYGWIN
 	if (pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
@@ -91,6 +93,10 @@ auth_password(Authctxt *authctxt, const char *password)
 		cygwin_set_impersonation_token(hToken);
 		return ok;
 	}
+#endif
+#ifdef USE_PAM
+	if (options.use_pam)
+		return (sshpam_auth_passwd(authctxt, password) && ok);
 #endif
 #if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 	if (!expire_checked) {

@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth.h,v 1.49 2004/01/30 09:48:57 markus Exp $	*/
+/*	$OpenBSD: auth.h,v 1.50 2004/05/23 23:59:53 dtucker Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -182,8 +182,6 @@ void	 auth_debug_reset(void);
 
 struct passwd *fakepw(void);
 
-#define AUTH_FAIL_MAX 6
-#define AUTH_FAIL_LOG (AUTH_FAIL_MAX/2)
 #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 
 #ifdef SKEY

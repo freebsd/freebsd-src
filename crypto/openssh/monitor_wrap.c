@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor_wrap.c,v 1.35 2003/11/17 11:06:07 markus Exp $");
+RCSID("$OpenBSD: monitor_wrap.c,v 1.39 2004/07/17 05:31:41 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -71,6 +71,7 @@ extern z_stream incoming_stream;
 extern z_stream outgoing_stream;
 extern struct monitor *pmonitor;
 extern Buffer input, output;
+extern Buffer loginmsg;
 extern ServerOptions options;
 
 int
@@ -84,7 +85,7 @@ mm_is_monitor(void)
 }
 
 void
-mm_request_send(int socket, enum monitor_reqtype type, Buffer *m)
+mm_request_send(int sock, enum monitor_reqtype type, Buffer *m)
 {
 	u_int mlen = buffer_len(m);
 	u_char buf[5];
@@ -93,14 +94,14 @@ mm_request_send(int socket, enum monitor_reqtype type, Buffer *m)
 
 	PUT_32BIT(buf, mlen + 1);
 	buf[4] = (u_char) type;		/* 1st byte of payload is mesg-type */
-	if (atomicio(vwrite, socket, buf, sizeof(buf)) != sizeof(buf))
+	if (atomicio(vwrite, sock, buf, sizeof(buf)) != sizeof(buf))
 		fatal("%s: write", __func__);
-	if (atomicio(vwrite, socket, buffer_ptr(m), mlen) != mlen)
+	if (atomicio(vwrite, sock, buffer_ptr(m), mlen) != mlen)
 		fatal("%s: write", __func__);
 }
 
 void
-mm_request_receive(int socket, Buffer *m)
+mm_request_receive(int sock, Buffer *m)
 {
 	u_char buf[4];
 	u_int msg_len;
@@ -108,7 +109,7 @@ mm_request_receive(int socket, Buffer *m)
 
 	debug3("%s entering", __func__);
 
-	res = atomicio(read, socket, buf, sizeof(buf));
+	res = atomicio(read, sock, buf, sizeof(buf));
 	if (res != sizeof(buf)) {
 		if (res == 0)
 			cleanup_exit(255);
@@ -119,19 +120,19 @@ mm_request_receive(int socket, Buffer *m)
 		fatal("%s: read: bad msg_len %d", __func__, msg_len);
 	buffer_clear(m);
 	buffer_append_space(m, msg_len);
-	res = atomicio(read, socket, buffer_ptr(m), msg_len);
+	res = atomicio(read, sock, buffer_ptr(m), msg_len);
 	if (res != msg_len)
 		fatal("%s: read: %ld != msg_len", __func__, (long)res);
 }
 
 void
-mm_request_receive_expect(int socket, enum monitor_reqtype type, Buffer *m)
+mm_request_receive_expect(int sock, enum monitor_reqtype type, Buffer *m)
 {
 	u_char rtype;
 
 	debug3("%s entering: type %d", __func__, type);
 
-	mm_request_receive(socket, m);
+	mm_request_receive(sock, m);
 	rtype = buffer_get_char(m);
 	if (rtype != type)
 		fatal("%s: read: rtype %d != type %d", __func__,
@@ -195,7 +196,7 @@ mm_key_sign(Key *key, u_char **sigp, u_int *lenp, u_char *data, u_int datalen)
 }
 
 struct passwd *
-mm_getpwnamallow(const char *login)
+mm_getpwnamallow(const char *username)
 {
 	Buffer m;
 	struct passwd *pw;
@@ -204,7 +205,7 @@ mm_getpwnamallow(const char *login)
 	debug3("%s entering", __func__);
 
 	buffer_init(&m);
-	buffer_put_cstring(&m, login);
+	buffer_put_cstring(&m, username);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_PWNAM, &m);
 
@@ -545,7 +546,7 @@ mm_send_kex(Buffer *m, Kex *kex)
 }
 
 void
-mm_send_keystate(struct monitor *pmonitor)
+mm_send_keystate(struct monitor *monitor)
 {
 	Buffer m;
 	u_char *blob, *p;
@@ -581,7 +582,7 @@ mm_send_keystate(struct monitor *pmonitor)
 		goto skip;
 	} else {
 		/* Kex for rekeying */
-		mm_send_kex(&m, *pmonitor->m_pkex);
+		mm_send_kex(&m, *monitor->m_pkex);
 	}
 
 	debug3("%s: Sending new keys: %p %p",
@@ -633,7 +634,7 @@ mm_send_keystate(struct monitor *pmonitor)
 	buffer_put_string(&m, buffer_ptr(&input), buffer_len(&input));
 	buffer_put_string(&m, buffer_ptr(&output), buffer_len(&output));
 
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYEXPORT, &m);
+	mm_request_send(monitor->m_recvfd, MONITOR_REQ_KEYEXPORT, &m);
 	debug3("%s: Finished sending state", __func__);
 
 	buffer_free(&m);
@@ -643,7 +644,7 @@ int
 mm_pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 {
 	Buffer m;
-	char *p;
+	char *p, *msg;
 	int success = 0;
 
 	buffer_init(&m);
@@ -659,10 +660,14 @@ mm_pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		return (0);
 	}
 	p = buffer_get_string(&m, NULL);
+	msg = buffer_get_string(&m, NULL);
 	buffer_free(&m);
 
 	strlcpy(namebuf, p, namebuflen); /* Possible truncation */
 	xfree(p);
+
+	buffer_append(&loginmsg, msg, strlen(msg));
+	xfree(msg);
 
 	*ptyfd = mm_receive_fd(pmonitor->m_recvfd);
 	*ttyfd = mm_receive_fd(pmonitor->m_recvfd);
@@ -979,7 +984,7 @@ mm_skey_respond(void *ctx, u_int numresponses, char **responses)
 
 	return ((authok == 0) ? -1 : 0);
 }
-#endif
+#endif /* SKEY */
 
 void
 mm_ssh1_session_id(u_char session_id[16])
@@ -1096,7 +1101,7 @@ mm_auth_rsa_verify_response(Key *key, BIGNUM *p, u_char response[16])
 
 #ifdef GSSAPI
 OM_uint32
-mm_ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
+mm_ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID goid)
 {
 	Buffer m;
 	OM_uint32 major;
@@ -1105,7 +1110,7 @@ mm_ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
 	*ctx = NULL;
 
 	buffer_init(&m);
-	buffer_put_string(&m, oid->elements, oid->length);
+	buffer_put_string(&m, goid->elements, goid->length);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_GSSSETUP, &m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_GSSSETUP, &m);

@@ -70,6 +70,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	krb5_principal server;
 	char ccname[40];
 	int tmpfd;
+	mode_t old_umask;
 #endif
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
@@ -148,7 +149,10 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 
 	snprintf(ccname,sizeof(ccname),"FILE:/tmp/krb5cc_%d_XXXXXX",geteuid());
 
-	if ((tmpfd = mkstemp(ccname+strlen("FILE:")))==-1) {
+	old_umask = umask(0177);
+	tmpfd = mkstemp(ccname + strlen("FILE:"));
+	umask(old_umask);
+	if (tmpfd == -1) {
 		logit("mkstemp(): %.100s", strerror(errno));
 		problem = errno;
 		goto out;

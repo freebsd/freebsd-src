@@ -12,8 +12,8 @@
  */
 
 #include "includes.h"
+RCSID("$OpenBSD: readconf.c,v 1.134 2004/07/11 17:48:47 deraadt Exp $");
 RCSID("$FreeBSD$");
-RCSID("$OpenBSD: readconf.c,v 1.127 2003/12/16 15:49:51 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -107,6 +107,7 @@ typedef enum {
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
 	oServerAliveInterval, oServerAliveCountMax, oIdentitiesOnly,
+	oSendEnv, oControlPath, oControlMaster,
 	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
@@ -195,6 +196,9 @@ static struct {
 	{ "addressfamily", oAddressFamily },
 	{ "serveraliveinterval", oServerAliveInterval },
 	{ "serveralivecountmax", oServerAliveCountMax },
+	{ "sendenv", oSendEnv },
+	{ "controlpath", oControlPath },
+	{ "controlmaster", oControlMaster },
 	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
@@ -752,6 +756,27 @@ parse_int:
 		intptr = &options->server_alive_count_max;
 		goto parse_int;
 
+	case oSendEnv:
+		while ((arg = strdelim(&s)) != NULL && *arg != '\0') {
+			if (strchr(arg, '=') != NULL)
+				fatal("%s line %d: Invalid environment name.",
+				    filename, linenum);
+			if (options->num_send_env >= MAX_SEND_ENV)
+				fatal("%s line %d: too many send env.",
+				    filename, linenum);
+			options->send_env[options->num_send_env++] =
+			    xstrdup(arg);
+		}
+		break;
+
+	case oControlPath:
+		charptr = &options->control_path;
+		goto parse_string;
+
+	case oControlMaster:
+		intptr = &options->control_master;
+		goto parse_yesnoask;
+
 	case oVersionAddendum:
 		ssh_version_set_addendum(strtok(s, "\n"));
 		do {
@@ -789,7 +814,8 @@ parse_int:
  */
 
 int
-read_config_file(const char *filename, const char *host, Options *options)
+read_config_file(const char *filename, const char *host, Options *options,
+    int checkperm)
 {
 	FILE *f;
 	char line[1024];
@@ -797,9 +823,18 @@ read_config_file(const char *filename, const char *host, Options *options)
 	int bad_options = 0;
 
 	/* Open the file. */
-	f = fopen(filename, "r");
-	if (!f)
+	if ((f = fopen(filename, "r")) == NULL)
 		return 0;
+
+	if (checkperm) {
+		struct stat sb;
+
+		if (fstat(fileno(f), &sb) == -1)
+			fatal("fstat %s: %s", filename, strerror(errno));
+		if (((sb.st_uid != 0 && sb.st_uid != getuid()) ||
+		    (sb.st_mode & 022) != 0))
+			fatal("Bad owner or permissions on %s", filename);
+	}
 
 	debug("Reading configuration data %.200s", filename);
 
@@ -889,6 +924,9 @@ initialize_options(Options * options)
 	options->verify_host_key_dns = -1;
 	options->server_alive_interval = -1;
 	options->server_alive_count_max = -1;
+	options->num_send_env = 0;
+	options->control_path = NULL;
+	options->control_master = -1;
 }
 
 /*
@@ -1009,6 +1047,8 @@ fill_default_options(Options * options)
 		options->server_alive_interval = 0;
 	if (options->server_alive_count_max == -1)
 		options->server_alive_count_max = 3;
+	if (options->control_master == -1)
+		options->control_master = 0;
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */
 	/* options->hostname will be set in the main program if appropriate */

@@ -39,9 +39,15 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshlogin.c,v 1.7 2003/06/12 07:57:38 markus Exp $");
+RCSID("$OpenBSD: sshlogin.c,v 1.13 2004/08/12 09:18:24 djm Exp $");
 
 #include "loginrec.h"
+#include "log.h"
+#include "buffer.h"
+#include "servconf.h"
+
+extern Buffer loginmsg;
+extern ServerOptions options;
 
 /*
  * Returns the time when the user last logged in.  Returns 0 if the
@@ -60,16 +66,51 @@ get_last_login_time(uid_t uid, const char *logname,
 }
 
 /*
+ * Generate and store last login message.  This must be done before
+ * login_login() is called and lastlog is updated.
+ */
+static void
+store_lastlog_message(const char *user, uid_t uid)
+{
+	char *time_string, hostname[MAXHOSTNAMELEN] = "", buf[512];
+	time_t last_login_time;
+
+#ifndef NO_SSH_LASTLOG
+	if (!options.print_lastlog)
+		return;
+
+	last_login_time = get_last_login_time(uid, user, hostname,
+	    sizeof(hostname));
+
+	if (last_login_time != 0) {
+		time_string = ctime(&last_login_time);
+		if (strchr(time_string, '\n'))
+		    *strchr(time_string, '\n') = '\0';
+		if (strcmp(hostname, "") == 0)
+			snprintf(buf, sizeof(buf), "Last login: %s\r\n",
+			    time_string);
+		else
+			snprintf(buf, sizeof(buf), "Last login: %s from %s\r\n",
+			    time_string, hostname);
+		buffer_append(&loginmsg, buf, strlen(buf));
+	}
+#endif /* NO_SSH_LASTLOG */
+}
+
+/*
  * Records that the user has logged in.  I wish these parts of operating
  * systems were more standardized.
  */
 void
-record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
+record_login(pid_t pid, const char *tty, const char *user, uid_t uid,
     const char *host, struct sockaddr * addr, socklen_t addrlen)
 {
 	struct logininfo *li;
 
-	li = login_alloc_entry(pid, user, host, ttyname);
+	/* save previous login details before writing new */
+	store_lastlog_message(user, uid);
+
+	li = login_alloc_entry(pid, user, host, tty);
 	login_set_addr(li, addr, addrlen);
 	login_login(li);
 	login_free_entry(li);
@@ -91,11 +132,11 @@ record_utmp_only(pid_t pid, const char *ttyname, const char *user,
 
 /* Records that the user has logged out. */
 void
-record_logout(pid_t pid, const char *ttyname, const char *user)
+record_logout(pid_t pid, const char *tty, const char *user)
 {
 	struct logininfo *li;
 
-	li = login_alloc_entry(pid, user, NULL, ttyname);
+	li = login_alloc_entry(pid, user, NULL, tty);
 	login_logout(li);
 	login_free_entry(li);
 }

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2.c,v 1.104 2003/11/04 08:54:09 djm Exp $");
+RCSID("$OpenBSD: auth2.c,v 1.107 2004/07/28 09:40:29 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "canohost.h"
@@ -168,14 +168,14 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 				PRIVSEP(start_pam(authctxt));
 #endif
 		} else {
-			logit("input_userauth_request: illegal user %s", user);
+			logit("input_userauth_request: invalid user %s", user);
 			authctxt->pw = fakepw();
 #ifdef USE_PAM
 			if (options.use_pam)
 				PRIVSEP(start_pam(authctxt));
 #endif
 		}
-		setproctitle("%s%s", authctxt->pw ? user : "unknown",
+		setproctitle("%s%s", authctxt->valid ? user : "unknown",
 		    use_privsep ? " [net]" : "");
 		authctxt->service = xstrdup(service);
 		authctxt->style = style ? xstrdup(style) : NULL;
@@ -273,7 +273,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > options.max_authtries)
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);

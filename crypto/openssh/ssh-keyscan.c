@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keyscan.c,v 1.47 2004/03/08 09:38:05 djm Exp $");
+RCSID("$OpenBSD: ssh-keyscan.c,v 1.50 2004/08/11 21:44:32 avsm Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -49,11 +49,7 @@ int timeout = 5;
 int maxfd;
 #define MAXCON (maxfd - 10)
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 fd_set *read_wait;
 size_t read_wait_size;
 int ncon;
@@ -349,6 +345,7 @@ keygrab_ssh2(con *c)
 	    "ssh-dss": "ssh-rsa";
 	c->c_kex = kex_setup(myproposal);
 	c->c_kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
+	c->c_kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	c->c_kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	c->c_kex->verify_host_key = hostjump;
 
@@ -396,8 +393,8 @@ tcpconnect(char *host)
 			error("socket: %s", strerror(errno));
 			continue;
 		}
-		if (fcntl(s, F_SETFL, O_NONBLOCK) < 0)
-			fatal("F_SETFL: %s", strerror(errno));
+		if (set_nonblock(s) == -1)
+			fatal("%s: set_nonblock(%d)", __func__, s);
 		if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0 &&
 		    errno != EINPROGRESS)
 			error("connect (`%s'): %s", host, strerror(errno));
@@ -497,7 +494,7 @@ congreet(int s)
 
 	bufsiz = sizeof(buf);
 	cp = buf;
-	while (bufsiz-- && (n = read(s, cp, 1)) == 1 && *cp != '\n') {
+	while (bufsiz-- && (n = atomicio(read, s, cp, 1)) == 1 && *cp != '\n') {
 		if (*cp == '\r')
 			*cp = '\n';
 		cp++;
@@ -563,7 +560,7 @@ conread(int s)
 		congreet(s);
 		return;
 	}
-	n = read(s, c->c_data + c->c_off, c->c_len - c->c_off);
+	n = atomicio(read, s, c->c_data + c->c_off, c->c_len - c->c_off);
 	if (n < 0) {
 		error("read (%s): %s", c->c_name, strerror(errno));
 		confree(s);
