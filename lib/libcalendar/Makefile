@@ -1,6 +1,4 @@
-...using script...
-CVS: up -A -p Makefile
-#	$Id: Makefile,v 1.2 1997/12/07 19:04:05 helbig Exp $
+#	$Id: Makefile,v 1.2.2.1 1998/01/12 05:11:13 obrien Exp $
 
 LIB=	calendar
 

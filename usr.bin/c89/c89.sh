@@ -1,5 +1,3 @@
-...using script...
-CVS: up -A -p c89.sh
 #!/bin/sh
 #
 # Copyright (c) 1997 Joerg Wunsch
@@ -26,7 +24,7 @@ CVS: up -A -p c89.sh
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id: c89.sh,v 1.3 1997/10/05 18:44:37 helbig Exp $
+#	$Id: c89.sh,v 1.3.2.1 1998/01/12 05:07:57 obrien Exp $
 #
 # This is the Posix.2 mandated C compiler.  Basically, a hook to the
 # cc(1) command.

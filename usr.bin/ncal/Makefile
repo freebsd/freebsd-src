@@ -1,6 +1,4 @@
-...using script...
-CVS: up -A -p Makefile
-#	$Id: Makefile,v 1.1.1.1 1997/12/15 20:35:22 helbig Exp $
+#	$Id: Makefile,v 1.1.1.1.2.1 1998/01/12 05:10:59 obrien Exp $
 PROG= ncal
 SRCS= ncal.c
 
