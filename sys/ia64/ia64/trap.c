@@ -125,7 +125,7 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 	 */
 	if (p->p_sflag & PS_PROFIL) {
 		mtx_exit(&sched_lock, MTX_SPIN);
-		if (!mtx_owned(Giant))
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
 		mtx_enter(&sched_lock, MTX_SPIN);
 		addupc_task(p, frame->tf_cr_iip,
