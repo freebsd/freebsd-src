@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.16 1998/02/04 21:56:35 eivind Exp $
+#	$Id: Makefile,v 1.17 1998/02/06 23:54:20 eivind Exp $
 
-.PATH:	${.CURDIR}/../../sys/i386/ibcs2
-KMOD=	ibcs2_mod
+.PATH:	${.CURDIR}/../../i386/ibcs2
+KMOD=	ibcs2
 SRCS=	ibcs2.c ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 	ibcs2_fcntl.c ibcs2_signal.c ibcs2_sysent.c ibcs2_ioctl.c \
 	ibcs2_socksys.c ibcs2_util.c ibcs2_xenix.c ibcs2_xenix_sysent.c \
@@ -10,7 +10,7 @@ SRCS=	ibcs2.c ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 	vnode_if.h opt_spx_hack.h
 MAN8=	ibcs2.8
 
-CFLAGS+= -DLKM -DCOMPAT_IBCS2
+CFLAGS+= -DCOMPAT_IBCS2
 CLEANFILES+= vnode_if.h vnode_if.c opt_spx_hack.h
 EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
 

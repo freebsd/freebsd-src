@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.c,v 1.10 1997/04/06 10:47:52 dufault Exp $
+ *	$Id: ibcs2.c,v 1.11 1997/05/01 06:09:01 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -36,25 +36,29 @@
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
-MOD_MISC(ibcs2);
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 static int
-ibcs2_load(struct lkm_table *lkmtp, int cmd)
+ibcs2_modevent(module_t mod, modeventtype_t type, void *unused)
 {
-	/* uprintf("ibcs2 emulator installed\n"); XXX - shut up, you! */
-	return 0;
+    switch (type) {
+    case MOD_LOAD:
+	printf("ibcs2 module loaded\n");
+	break;
+    case MOD_UNLOAD:
+	printf("ibcs2 module unloaded\n");
+	break;
+    default:
+	printf("ibcs2 module unknown event: 0x%x\n", type);
+    }
+    return 0;
 }
 
-static int
-ibcs2_unload(struct lkm_table *lkmtp, int cmd)
-{
-	uprintf("ibcs2 emulator removed\n");
-	return 0;
-}
+moduledata_t ibcs2mod = {
+    "ibcs2",
+    ibcs2_modevent,
+    0
+};
 
-int
-ibcs2_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(ibcs2, lkmtp, cmd, ver,
-		ibcs2_load, ibcs2_unload, lkm_nullcmd);
-}
+DECLARE_MODULE(ibcs2, ibcs2mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
