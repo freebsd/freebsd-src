@@ -282,10 +282,10 @@ acct_process(td)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, td, acctcred, LEASE_WRITE);
 	uc = crhold(acctcred);
 	vref(vp);
 	mtx_unlock(&acct_mtx);
+	VOP_LEASE(vp, td, uc, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, NOCRED,
 	    (int *)0, td);
