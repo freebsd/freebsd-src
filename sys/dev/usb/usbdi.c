@@ -557,6 +557,12 @@ usbd_abort_pipe(usbd_pipe_handle pipe)
 }
 
 usbd_status
+usbd_abort_default_pipe(usbd_device_handle dev)
+{
+	return (usbd_abort_pipe(dev->default_pipe));
+}
+
+usbd_status
 usbd_clear_endpoint_stall(usbd_pipe_handle pipe)
 {
 	usbd_device_handle dev = pipe->device;
