@@ -123,11 +123,12 @@ char   *use_it = _ncurses_copyright;
 
 	stolen = topstolen = 0;
 	for (rsp = rippedoff; rsp->line; rsp++) {
-		if (rsp->hook)
+		if (rsp->hook) {
 			if (rsp->line < 0)
 				rsp->hook(newwin(1,COLS, LINES-1,0), COLS);
 			else
 				rsp->hook(newwin(1,COLS, topstolen++,0), COLS);
+		}
 		--LINES;
 		stolen++;
 	}

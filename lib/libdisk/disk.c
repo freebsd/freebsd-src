@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.39 1998/12/19 18:48:33 phk Exp $
+ * $Id: disk.c,v 1.40 1999/01/29 11:39:24 jkh Exp $
  *
  */
 
@@ -48,16 +48,6 @@ Read_Int32(u_int32_t *p)
 {
     u_int8_t *bp = (u_int8_t *)p;
     return bp[0] | (bp[1] << 8) | (bp[2] << 16) | (bp[3] << 24);
-}
-
-static void
-Write_Int32(u_int32_t *p, u_int32_t v)
-{
-    u_int8_t *bp = (u_int8_t *)p;
-    bp[0] = (v >> 0) & 0xff;
-    bp[1] = (v >> 8) & 0xff;
-    bp[2] = (v >> 16) & 0xff;
-    bp[3] = (v >> 24) & 0xff;
 }
 
 struct disk *
