@@ -1,11 +1,11 @@
 .\" Copyright (c) 2001-2002 Packet Design, LLC.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty,
 .\" use and redistribution of this software, in source or object code
 .\" forms, with or without modifications are expressly permitted by
 .\" Packet Design; provided, however, that:
-.\" 
+.\"
 .\"    (i)  Any and all reproductions of the source or object code
 .\"         must include the copyright notice above and the following
 .\"         disclaimer of warranties; and
@@ -13,7 +13,7 @@
 .\"         Packet Design trademarks, including the mark "PACKET DESIGN"
 .\"         on advertising, endorsements, or otherwise except as such
 .\"         appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
@@ -33,7 +33,7 @@
 .\" THE USE OF THIS SOFTWARE, EVEN IF PACKET DESIGN IS ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" Author: Archie Cobbs <archie@freebsd.org>
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -47,7 +47,7 @@
 .In netgraph/ng_l2tp.h
 .Sh DESCRIPTION
 The
-.Nm ng_l2tp
+.Nm l2tp
 node type implements the encapsulation layer of the L2TP protocol
 as described in RFC 2661.
 This includes adding the L2TP packet header for outgoing packets
@@ -56,16 +56,16 @@ The node maintains the L2TP sequence number state and handles
 control session packet acknowledgment and retransmission.
 .Sh HOOKS
 The
-.Nm ng_l2tp
+.Nm l2tp
 node type supports the following hooks:
 .Pp
-.Bl -tag -compact -offset 3n -width session_hhhh
+.Bl -tag -compact -offset indent -width ".Dv session_hhhh"
 .It Dv lower
-L2TP frames
+L2TP frames.
 .It Dv ctrl
-Control packets
+Control packets.
 .It Dv session_hhhh
-Session 0xhhhh data packets
+Session 0xhhhh data packets.
 .El
 .Pp
 L2TP control and data packets are transmitted to, and received from,
@@ -103,13 +103,13 @@ the hook is named
 .Dv session_abcd .
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width xx
+.Bl -tag -width indent
 .It Dv NGM_L2TP_SET_CONFIG
 This command updates the configuration of the node.
 It takes a
-.Li "struct ng_l2tp_config"
+.Vt "struct ng_l2tp_config"
 as an argument:
-.Bd -literal -offset 0n
+.Bd -literal
 /* Configuration for a node */
 struct ng_l2tp_config {
     u_char      enabled;        /* enables traffic flow */
@@ -126,7 +126,8 @@ The
 .Va enabled
 field enables packet processing.
 Each time this field is changed back to zero the sequence
-number state is reset. In this way, reuse of a node is possible.
+number state is reset.
+In this way, reuse of a node is possible.
 .Pp
 The
 .Va tunnel_id
@@ -156,7 +157,7 @@ This value is copied into the L2TP header for outgoing packets.
 The
 .Va peer_win
 field should be set from the
-.Dq Receive Window Size
+.Dq "Receive Window Size"
 AVP received from the peer.
 The default value for this field is one; zero is an invalid value.
 As long as
@@ -178,7 +179,7 @@ sets the maximum number of times a packet will be retransmitted
 without being acknowledged before a failure condition is declared.
 Once a failure condition is declared, each additional retransmission
 will cause the
-.Nm ng_l2tp
+.Nm l2tp
 node to send a
 .Dv NGM_L2TP_ACK_FAILURE
 control message back to the node that sent the last
@@ -186,13 +187,13 @@ control message back to the node that sent the last
 Appropriate action should then be taken to shutdown the control connection.
 .It Dv NGM_L2TP_GET_CONFIG
 Returns the current configuration as a
-.Dv "struct ng_l2tp_config" .
+.Vt "struct ng_l2tp_config" .
 .It Dv NGM_L2TP_SET_SESS_CONFIG
 This control message configures a single data session.
 The corresponding hook must already be connected before sending this command.
 The argument is a
-.Li "struct ng_l2tp_sess_config" :
-.Bd -literal -offset 0n
+.Vt "struct ng_l2tp_sess_config" :
+.Bd -literal
 /* Configuration for a session hook */
 struct ng_l2tp_sess_config {
     u_int16_t   session_id;     /* local session id */
@@ -207,7 +208,7 @@ The
 .Va session_id
 and
 .Va peer_id
-fields configure the local and remote session ID's, respectively.
+fields configure the local and remote session IDs, respectively.
 .Pp
 The
 .Va control_dseq
@@ -257,11 +258,11 @@ For incoming packets, the L2TP length field is always checked when present.
 .It Dv NGM_L2TP_GET_SESS_CONFIG
 This command takes a two byte session ID as an argument and returns
 the current configuration for the corresponding data session as a
-.Dv "struct ng_l2tp_sess_config" .
+.Vt "struct ng_l2tp_sess_config" .
 The corresponding session hook must be connected.
 .It Dv NGM_L2TP_GET_STATS
 This command takes a two byte session ID as an argument and returns a
-.Dv "struct ng_l2tp_stats"
+.Vt "struct ng_l2tp_stats"
 containing statistics for the corresponding data session.
 The corresponding session hook must be connected.
 .It Dv NGM_L2TP_CLR_STATS
@@ -273,7 +274,6 @@ Same as
 .Dv NGM_L2TP_GET_STATS ,
 but also atomically clears the statistics as well.
 .El
-.Pp
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
@@ -296,8 +296,8 @@ control message, or when all hooks have been disconnected.
 .Re
 .Sh HISTORY
 The
-.Nm
-node type was developed at Packet Design, LLC.
-.Dv "http://www.packetdesign.com/"
+.Nm l2tp
+node type was developed at Packet Design, LLC,
+.Pa http://www.packetdesign.com/ .
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@packetdesign.com
