@@ -2462,8 +2462,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		if (ncpu < 1)
 			return;
 	} else {
-		/* XXX there should be a pcpu self mask */
-		mask &= ~(1 << PCPU_GET(cpuid));
+		mask &= ~PCPU_GET(cpumask);
 		if (mask == 0)
 			return;
 		ncpu = popcnt(mask);
