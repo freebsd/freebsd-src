@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.7.4.1 1995/10/09 11:16:18 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.7.4.2 1995/10/14 19:11:01 jkh Exp $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static char *rcsid = "$Id: main.c,v 1.7.4.1 1995/10/09 11:16:18 jkh Exp $";
  *
  */
 
+#include <sys/param.h>
 #include "lib.h"
 #include "add.h"
 
@@ -41,14 +42,18 @@ char	*Directory	= NULL;
 char	FirstPen[FILENAME_MAX];
 add_mode_t AddMode	= NORMAL;
 
+#define MAX_PKGS	10
+char	pkgnames[MAX_PKGS][MAXPATHLEN];
+char	*pkgs[MAX_PKGS];
+
 int
 main(int argc, char **argv)
 {
     int ch, err;
-    char **pkgs, **start;
-    char *prog_name = argv[0];
+    char **start;
+    char *prog_name = argv[0], *cp;
 
-    pkgs = start = argv;
+    start = argv;
     while ((ch = getopt(argc, argv, Options)) != EOF)
 	switch(ch) {
 	case 'v':
@@ -98,19 +103,43 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    if (argc > MAX_PKGS)
+    {
+	whinge("Too many packages (max 10).");
+	return(1);
+    }
+    for (ch = 0; ch < MAX_PKGS; pkgs[ch++] = NULL)
+	;
+
     /* Get all the remaining package names, if any */
-    while (*argv)
-	*pkgs++ = *argv++;
+    for (ch = 0; *argv; ch++,argv++)
+    {
+	if (isURL(*argv))	/* preserve URLs */
+	{
+	    pkgs[ch] = strcpy(pkgnames[ch],*argv);
+	}else{			/* expand all pathnames to fullnames */
+	    if (fexists(*argv))	/* refers to a file directly */
+	    {
+		pkgs[ch] = realpath(*argv,pkgnames[ch]);
+	    }else{		/* look for the file in the expected places */
+		if (!(cp = fileFindByPath(NULL,*argv)))
+		{
+		    whinge("Can't find package '%s'.",*argv);
+		    return(1);
+		}
+		pkgs[ch] = strcpy(pkgnames[ch],cp);
+	    }
+	}
+    }
 
     /* If no packages, yelp */
-    *pkgs = NULL;
-    if (pkgs == start && AddMode != SLAVE)
+    if (!ch && AddMode != SLAVE)
 	usage(prog_name, "Missing package name(s)");
-    else if (start[1] && AddMode == MASTER)
+    else if ((ch > 1) && AddMode == MASTER)
 	usage(prog_name, "Only one package name may be specified with master mode");
-    else if (pkgs != start && AddMode == SLAVE)
+    else if (ch && AddMode == SLAVE)
 	whinge("Package names ignored in slave mode.");
-    if ((err = pkg_perform(start)) != NULL) {
+    if ((err = pkg_perform(pkgs)) != NULL) {
 	if (Verbose)
 	    fprintf(stderr, "%d package addition(s) failed.\n", err);
 	return err;
