@@ -1143,17 +1143,6 @@ p_cansched(struct proc *p1, struct proc *p2, int *privused)
 		return (0);
 	if (p1->p_ucred->cr_uid == p2->p_cred->p_ruid)
 		return (0);
-#if 0
-	/*
-	 * XXX should a process be able to affect another process
-	 * acting as the same uid (i.e., sendmail delivery, lpd,
-	 * et al?)
-	 */
-	if (p1->p_cred->p_ruid == p2->p_ucred->cr_uid)
-		return (0);
-	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid)
-		return (0);
-#endif /* 0 */
 
 	if (!suser_xxx(0, p1, PRISON_ROOT)) {
 		if (privused != NULL)
