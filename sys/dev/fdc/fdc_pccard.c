@@ -99,6 +99,7 @@ fdc_pccard_probe(device_t dev)
 static int
 fdc_pccard_attach(device_t dev)
 {
+	int error;
 	struct	fdc_data *fdc;
 
 	return ENXIO;
@@ -107,8 +108,17 @@ fdc_pccard_attach(device_t dev)
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
 	fdc->flags = FDC_NODMA;
 	fdc->fdct = FDC_NE765;
-	fdc_pccard_alloc_resources(dev, fdc);
-	return (fdc_attach(dev));
+	error = fdc_pccard_alloc_resources(dev, fdc);
+	if (error)
+		goto out;
+	error = fdc_attach(dev);
+	if (error)
+		goto out;
+
+out:
+	if (error)
+		fdc_release_resources(fdc);
+	return (error);
 }
 
 static device_method_t fdc_pccard_methods[] = {
