@@ -186,6 +186,8 @@ struct filed {
 	int	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
+	int	f_flags;			/* file-specific flags */
+#define FFLAG_SYNC 0x01
 };
 
 /*
@@ -1150,7 +1152,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			f->f_type = F_UNUSED;
 			errno = e;
 			logerror(f->f_un.f_fname);
-		} else if (flags & SYNC_FILE)
+		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC))
 			(void)fsync(f->f_file);
 		break;
 
@@ -1635,7 +1637,7 @@ static void
 cfline(const char *line, struct filed *f, const char *prog, const char *host)
 {
 	struct addrinfo hints, *res;
-	int error, i, pri;
+	int error, i, pri, syncfile;
 	const char *p, *q;
 	char *bp;
 	char buf[MAXLINE], ebuf[100];
@@ -1783,6 +1785,12 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 	while (*p == '\t' || *p == ' ')
 		p++;
 
+	if (*p == '-') {
+		syncfile = 0;
+		p++;
+	} else
+		syncfile = 1;
+
 	switch (*p) {
 	case '@':
 		(void)strlcpy(f->f_un.f_forw.f_hname, ++p,
@@ -1806,6 +1814,8 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			logerror(p);
 			break;
 		}
+		if (syncfile)
+			f->f_flags |= FFLAG_SYNC;
 		if (isatty(f->f_file)) {
 			if (strcmp(p, ctty) == 0)
 				f->f_type = F_CONSOLE;
