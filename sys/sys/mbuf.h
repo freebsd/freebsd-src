@@ -410,6 +410,54 @@ struct mauxtag {
 	void	*p;
 };
 
+/*
+ * Some packet tags to identify different mbuf annotations.
+ *
+ * Eventually, these annotations will end up in an appropriate chain
+ * (struct m_tag or similar, e.g. as in NetBSD) properly managed by
+ * the mbuf handling routines.
+ *
+ * As a temporary and low impact solution to replace the even uglier
+ * approach used so far in some parts of the network stack (which relies
+ * on global variables), these annotations are stored in MT_CONTROL
+ * mbufs (or lookalikes) prepended to the actual mbuf chain.
+ *
+ *	m_type	= MT_CONTROL
+ *	m_flags = m_tag_id
+ *	m_next	= next buffer in chain.
+ *
+ * BE VERY CAREFUL not to pass these blocks to the mbuf handling routines.
+ *
+ */
+
+#define	m_tag_id	m_hdr.mh_flags
+
+/* Packet tag types -- first ones are from NetBSD */
+
+#define	PACKET_TAG_NONE				0  /* Nadda */
+#define	PACKET_TAG_IPSEC_IN_DONE		1  /* IPsec applied, in */
+#define	PACKET_TAG_IPSEC_OUT_DONE		2  /* IPsec applied, out */
+#define	PACKET_TAG_IPSEC_IN_CRYPTO_DONE		3  /* NIC IPsec crypto done */
+#define	PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED	4  /* NIC IPsec crypto req'ed */
+#define	PACKET_TAG_IPSEC_IN_COULD_DO_CRYPTO	5  /* NIC notifies IPsec */
+#define	PACKET_TAG_IPSEC_PENDING_TDB		6  /* Reminder to do IPsec */
+#define	PACKET_TAG_BRIDGE			7  /* Bridge processing done */
+#define	PACKET_TAG_GIF				8  /* GIF processing done */
+#define	PACKET_TAG_GRE				9  /* GRE processing done */
+#define	PACKET_TAG_IN_PACKET_CHECKSUM		10 /* NIC checksumming done */
+#define	PACKET_TAG_ENCAP			11 /* Encap.  processing */
+#define	PACKET_TAG_IPSEC_SOCKET			12 /* IPSEC socket ref */
+#define	PACKET_TAG_IPSEC_HISTORY		13 /* IPSEC history */
+#define	PACKET_TAG_IPV6_INPUT			14 /* IPV6 input processing */
+
+/* Packet tags used in the FreeBSD network stack */
+#define	PACKET_TAG_DUMMYNET			15 /* dummynet info */
+#define	PACKET_TAG_IPFW				16 /* ipfw classification */
+#define	PACKET_TAG_DIVERT			17 /* divert info */
+#define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
+
+#define	PACKET_TAG_MAX				19
+
 extern	int max_datalen;		/* MHLEN - max_hdr */
 extern	int max_hdr;			/* largest link + protocol header */
 extern	int max_linkhdr;		/* largest link-level header */
