@@ -90,7 +90,7 @@ main(int argc, char **argv)
 	struct iso_args args;
 	int ch, mntflags, opts;
 	char *dev, *dir, mntpath[MAXPATHLEN];
-	int error, verbose;
+	int verbose;
 
 	mntflags = opts = verbose = 0;
 	memset(&args, 0, sizeof args);
