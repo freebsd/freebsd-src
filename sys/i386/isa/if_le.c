@@ -560,8 +560,8 @@ le_multi_filter(
 
     sc->le_flags |= IFF_MULTICAST;
 
-    for (ifma = sc->le_ac.ac_if.if_multiaddrs.lh_first; ifma;
-	 ifma = ifma->ifma_link.le_next) {
+    for (ifma = LIST_FIRST(&sc->le_ac.ac_if.if_multiaddrs); ifma;
+	 ifma = LIST_NEXT(ifma, ifma_link)) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		    continue;
 

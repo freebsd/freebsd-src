@@ -631,7 +631,7 @@ icmp_reflect(m)
 	 * or anonymous), use the address which corresponds
 	 * to the incoming interface.
 	 */
-	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
+	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			break;
 		if (ia->ia_ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
@@ -647,7 +647,7 @@ icmp_reflect(m)
 	 * and was received on an interface with no IP address.
 	 */
 	if (ia == (struct in_ifaddr *)0)
-		ia = in_ifaddrhead.tqh_first;
+		ia = TAILQ_FIRST(&in_ifaddrhead);
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = MAXTTL;

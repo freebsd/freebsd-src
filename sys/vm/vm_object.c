@@ -536,7 +536,7 @@ vm_object_page_clean(object, start, end, flags)
 
 	clearobjflags = 1;
 
-	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq)) {
+	TAILQ_FOREACH(p, &object->memq, listq) {
 		vm_page_flag_set(p, PG_CLEANCHK);
 		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
 			clearobjflags = 0;
@@ -1620,7 +1620,7 @@ vm_object_in_map( object)
 {
 	struct proc *p;
 	ALLPROC_LOCK(AP_SHARED);
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
 		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
@@ -1707,7 +1707,7 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 
 	db_indent += 2;
 	count = 0;
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
+	TAILQ_FOREACH(p, &object->memq, listq) {
 		if (count == 0)
 			db_iprintf("memory:=");
 		else if (count == 6) {

@@ -560,8 +560,8 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = udbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}

@@ -539,12 +539,12 @@ eisa_add_resvaddr(struct eisa_device *e_dev, struct resvlist *head, u_long base,
 	reservation->size = size;
 	reservation->flags = flags;
 
-	if (!head->lh_first) {
+	if (!LIST_FIRST(head)) {
 		LIST_INSERT_HEAD(head, reservation, links);
 	}
 	else {
 		resvaddr_t *node;
-		for(node = head->lh_first; node; node = node->links.le_next) {
+		LIST_FOREACH(node, head, links) {
 			if (node->addr > reservation->addr) {
 				/*
 				 * List is sorted in increasing
@@ -564,7 +564,7 @@ eisa_add_resvaddr(struct eisa_device *e_dev, struct resvlist *head, u_long base,
 				return (EEXIST);
 			}
 
-			if (!node->links.le_next) {
+			if (!LIST_NEXT(node, links)) {
 				LIST_INSERT_AFTER(node, reservation, links);
 				break;
 			}

@@ -498,8 +498,8 @@ struct ifnet *ifp;
 				    ia->ia_addr.sipx_addr.x_host;
 
 			if (ifp != NULL && (ifp->if_flags & IFF_POINTOPOINT))
-			    for(ifa = ifp->if_addrhead.tqh_first; ifa != NULL;
-						ifa = ifa->ifa_link.tqe_next) {
+			    for(ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa != NULL;
+						ifa = TAILQ_NEXT(ifa, ifa_link)) {
 				if (ifa->ifa_addr->sa_family == AF_IPX) {
 				    ipx->ipx_sna = IA_SIPX(ifa)->sipx_addr;
 				    break;

@@ -116,9 +116,9 @@ ufs_extattr_find_attr(struct ufsmount *ump, const char *attrname)
 {
 	struct ufs_extattr_list_entry	*search_attribute;
 
-	for (search_attribute = ump->um_extattr.uepm_list.lh_first;
+	for (search_attribute = LIST_FIRST(&ump->um_extattr.uepm_list);
 	    search_attribute;
-	    search_attribute = search_attribute->uele_entries.le_next) {
+	    search_attribute = LIST_NEXT(search_attribute, uele_entries)) {
 		if (!(strncmp(attrname, search_attribute->uele_attrname,
 		    UFS_EXTATTR_MAXEXTATTRNAME))) {
 			return (search_attribute);
@@ -217,8 +217,8 @@ ufs_extattr_stop(struct mount *mp, struct proc *p)
 		goto unlock;
 	}
 
-	while (ump->um_extattr.uepm_list.lh_first != NULL) {
-		uele = ump->um_extattr.uepm_list.lh_first;
+	while (LIST_FIRST(&ump->um_extattr.uepm_list) != NULL) {
+		uele = LIST_FIRST(&ump->um_extattr.uepm_list);
 		ufs_extattr_disable(ump, uele->uele_attrname, p);
 	}
 
@@ -888,8 +888,8 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 		return;
 	}
 
-	for (uele = ump->um_extattr.uepm_list.lh_first; uele != NULL;
-	    uele = uele->uele_entries.le_next)
+	for (uele = LIST_FIRST(&ump->um_extattr.uepm_list); uele != NULL;
+	    uele = LIST_NEXT(uele, uele_entries))
 		ufs_extattr_rm(vp, uele->uele_attrname, NULL, p);
 
 	ufs_extattr_uepm_unlock(ump, p);

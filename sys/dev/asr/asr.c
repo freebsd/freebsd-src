@@ -2249,7 +2249,7 @@ ASR_sync (
          * issuing a shutdown or an adapter reset).
          */
         if ((sc != (Asr_softc_t *)NULL)
-         && (sc->ha_ccb.lh_first != (struct ccb_hdr *)NULL)
+         && (LIST_FIRST(&sc->ha_ccb) != (struct ccb_hdr *)NULL)
          && ((TID = ASR_getTid (sc, bus, target, lun)) != (tid_t)-1)
          && (TID != (tid_t)0)) {
                 defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);

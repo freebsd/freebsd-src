@@ -954,7 +954,7 @@ static void tl_setmulti(sc)
 		i = 1;
 		/* First find the tail of the list. */
 		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_link.le_next == NULL)
+			if (LIST_NEXT(ifma, ifma_link) == NULL)
 				break;
 		}
 		/* Now traverse the list backwards. */

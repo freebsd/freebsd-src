@@ -348,12 +348,12 @@ ipxip_route(so, sopt)
 		register struct in_ifaddr *ia;
 		struct ifnet *ifp = ro.ro_rt->rt_ifp;
 
-		for (ia = in_ifaddrhead.tqh_first; ia != NULL; 
-		     ia = ia->ia_link.tqe_next)
+		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia != NULL; 
+		     ia = TAILQ_NEXT(ia, ia_link))
 			if (ia->ia_ifp == ifp)
 				break;
 		if (ia == NULL)
-			ia = in_ifaddrhead.tqh_first;
+			ia = TAILQ_FIRST(&in_ifaddrhead);
 		if (ia == NULL) {
 			RTFREE(ro.ro_rt);
 			return (EADDRNOTAVAIL);

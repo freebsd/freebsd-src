@@ -337,9 +337,9 @@ union_unmount(mp, mntflags, p)
 		int n;
 
 		/* count #vnodes held on mount list */
-		for (n = 0, vp = mp->mnt_vnodelist.lh_first;
+		for (n = 0, vp = LIST_FIRST(&mp->mnt_vnodelist);
 				vp != NULLVP;
-				vp = vp->v_mntvnodes.le_next)
+				vp = LIST_NEXT(vp, v_mntvnodes))
 			n++;
 
 		/* if this is unchanged then stop */

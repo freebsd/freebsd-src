@@ -311,10 +311,10 @@ coda_checkunmounting(mp)
 	struct cnode *cp;
 	int count = 0, bad = 0;
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first; vp; vp = nvp) {
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
 		if (vp->v_mount != mp)
 			goto loop;
-		nvp = vp->v_mntvnodes.le_next;
+		nvp = LIST_NEXT(vp, v_mntvnodes);
 		cp = VTOC(vp);
 		count++;
 		if (!(cp->c_flags & C_UNMOUNTING)) {

@@ -2150,8 +2150,8 @@ ie_mc_reset(int unit)
 	 * Step through the list of addresses.
 	 */
 	ie->mcast_count = 0;
-	for (ifma = ie->arpcom.ac_if.if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next) {
+	for (ifma = LIST_FIRST(&ie->arpcom.ac_if.if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link)) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 

@@ -749,8 +749,8 @@ tcp_drain()
 	 * 	where we're really low on mbufs, this is potentially
 	 *  	usefull.	
 	 */
-		for (inpb = tcbinfo.listhead->lh_first; inpb;
-	    		inpb = inpb->inp_list.le_next) {
+		for (inpb = LIST_FIRST(tcbinfo.listhead); inpb;
+	    		inpb = LIST_NEXT(inpb, inp_list)) {
 				if ((tcpb = intotcpcb(inpb))) {
 					while ((te = LIST_FIRST(&tcpb->t_segq))
 					       != NULL) {
@@ -841,8 +841,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = tcbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}

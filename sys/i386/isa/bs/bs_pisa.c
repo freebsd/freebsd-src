@@ -26,6 +26,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <dev/isa/bs/bsif.h>
@@ -103,7 +105,7 @@ bs_activate(arg)
 
 	bsc->sc_irqmasks = (1 << ia->ia_irq);
 
-	while((ti = bsc->sc_titab.tqh_first) != NULL)
+	while((ti = TAILQ_FIRST(&bsc->sc_titab)) != NULL)
 		TAILQ_REMOVE(&bsc->sc_titab, ti, ti_tchain);
 
 	bsc->sc_openf = 0;
