@@ -12,14 +12,10 @@ MLINKS=	termcap.3 tgetent.3 termcap.3 tgetflag.3 termcap.3 tgetnum.3 \
 	termcap.3 tparm.3 termcap.3 __set_ospeed.3
 
 LINKS=	${LIBDIR}/libtermcap.a ${LIBDIR}/libtermlib.a
-.if !defined(NOPIC)
 .if ${OBJFORMAT} == aout
+.if !defined(NOPIC)
 LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	${SHLIBDIR}/libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-.else
-# no need for major at all, it's an ld-time redirection only
-LINKS+=	${SHLIBDIR}/libtermcap.so \
-	${SHLIBDIR}/libtermlib.so
 .endif
 .endif
 .if !defined(NOPROFILE)
@@ -30,17 +26,22 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/termcap.h \
 		${DESTDIR}/usr/include
 
-.if ${OBJFORMAT} == aout
 # This is a hack.. Work around a major number bump that should have been
 # done differently.  Back out this delta when it's time to go to 3.0 for real.
-.if !defined(NOPIC)
 afterinstall:
-.for lib in libtermcap.so libtermlib.so
-	rm -f ${DESTDIR}/usr/lib/compat/${lib}.3.0
-	ln -s ${SHLIBDIR}/${lib}.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-		${DESTDIR}/usr/lib/compat/${lib}.3.0
-	rm -f ${DESTDIR}${SHLIBDIR}/${lib}.3.0
+.if !defined(NOPIC)
+.if ${OBJFORMAT} == aout
+.for lib in libtermcap libtermlib
+	rm -f ${DESTDIR}/usr/lib/compat/${lib}.so.3.0
+	rm -f ${DESTDIR}/usr/lib/compat/aout/${lib}.so.3.0
+	ln -s ${SHLIBDIR}/${lib}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+		${DESTDIR}/usr/lib/compat/aout/${lib}.so.3.0
+	rm -f ${DESTDIR}${SHLIBDIR}/${lib}.so.3.0
 .endfor
+.endif
+.if ${OBJFORMAT} == elf
+	rm -f ${DESTDIR}${SHLIBDIR}/libtermlib.so
+	ln -s libtermcap.so.${SHLIB_MAJOR} ${DESTDIR}${SHLIBDIR}/libtermlib.so 
 .endif
 .endif
 
