@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.14 1997/06/14 11:52:36 bde Exp $
+ *	$Id: db_break.c,v 1.15 1998/06/07 17:09:36 dfr Exp $
  */
 
 /*
@@ -56,10 +56,6 @@ static db_breakpoint_t	db_find_breakpoint __P((vm_map_t map, db_addr_t addr));
 static void	db_list_breakpoints __P((void));
 static void	db_set_breakpoint __P((vm_map_t map, db_addr_t addr,
 				       int count));
-#ifdef notused
-static db_breakpoint_t	db_set_temp_breakpoint __P((db_addr_t addr));
-static void	db_delete_temp_breakpoint __P((db_breakpoint_t bkpt));
-#endif
 
 static db_breakpoint_t
 db_breakpoint_alloc()
@@ -244,8 +240,7 @@ db_delete_temp_breakpoint(bkpt)
 	db_put_value(bkpt->address, BKPT_SIZE, bkpt->bkpt_inst);
 	db_breakpoint_free(bkpt);
 }
-
-#endif
+#endif /* SOFTWARE_SSTEP */
 
 /*
  * List breakpoints.
