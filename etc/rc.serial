@@ -1,6 +1,6 @@
 # Change some defauls for serial devices.
 # Standard defaults are:
-#	dtrwait 300
+#       dtrwait 300 drainwait 0
 #	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl
 #	initial iflag, lflag and oflag all 0
 #	speed 9600
@@ -13,7 +13,7 @@ default() {
 	# Reset everything changed by the other functions to initial defaults.
 	for i in $*
 	do
-		comcontrol /dev/ttyd$i dtrwait 300
+		comcontrol /dev/ttyd$i dtrwait 300 drainwait 0
 		stty </dev/ttyid$i -clocal  crtscts  hupcl 9600 reprint ^R
 		stty </dev/ttyld$i -clocal -crtscts -hupcl 0
 		stty </dev/cuaia$i -clocal  crtscts  hupcl 9600 reprint ^R
@@ -41,7 +41,7 @@ modem() {
 	# Modem that supports CTS and perhaps RTS handshaking.
 	for i in $*
 	do
-		comcontrol /dev/ttyd$i dtrwait 100	# may depend on modem
+		comcontrol /dev/ttyd$i dtrwait 100 drainwait 180     # may depend on modem
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
 		stty </dev/ttyid$i crtscts 57600
