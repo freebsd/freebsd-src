@@ -321,9 +321,6 @@
     <para>Linker sets are now self-contained; &man.gensetdefs.8; is
       unnecessary and has been removed.</para>
 
-    <para>Numerous SMP-friendly changes have been made to the kernel's
-      mbuf allocator.</para>
-
     <para>Network device cloning has been implemented, and the
       &man.gif.4; device has been modified to take advantage of it.
       Thus, instead of specifying how many &man.gif.4; interfaces are
@@ -336,7 +333,7 @@
       <literal>ENV</literal> directive.</para>
 
     <para>Idle zeroing of pages can be enabled with the
-      <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
+      <varname>vm.idlezero_enable</varname> sysctl variable.</para>
 
     <para arch="i386">The load addresses of kernels are now exported
       to the symbol table and various hard-coded constants have been
@@ -347,9 +344,9 @@
       processes) no longer lock up the machine for long periods of
       time. &merged;</para>
 
-    <para>The kernel is now aware of the concept that there are
-      smaller units of scheduling than a process (but only one thread
-      per process is allowed at this time).</para>
+    <para>The Kernel-Scheduled Entity project has made changes to the
+      kernel scheduler to more efficiently handle multi-threaded
+      programs.</para>
 
     <para>The kernel now has support for multiple low-level console
       devices.  The new &man.conscontrol.8; utility helps to manage
@@ -402,15 +399,13 @@
       <para arch="i386">Support for the 80386 processor has been
 	removed from the <filename>GENERIC</filename> kernel, as this
 	code seriously pessimizes performance on other IA32
-	processors.</para>
-
-      <para arch="i386">The <literal>I386_CPU</literal> kernel option
+	processors.
+        The <literal>I386_CPU</literal> kernel option
 	to support the 80386 processor is now mutually exclusive with
 	support for other IA32 processors; this should slightly
 	improve performance on the 80386 due to the elimination of
-	runtime processor type checks.</para>
-
-      <para arch="i386">Custom kernels that will run on the 80386 can
+	runtime processor type checks.
+        Custom kernels that will run on the 80386 can
 	still be built by changing the cpu options in the kernel
 	configuration file to only include
 	<literal>I386_CPU</literal>.</para>
@@ -797,7 +792,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	now RST TCP connections in the <literal>SYN_SENT</literal>
 	state if the correct sequence numbers are sent back, as
 	controlled by the
-	<varname>net.inet.tcp.icmp_may_rst</varname> sysctl.</para>
+	<varname>net.inet.tcp.icmp_may_rst</varname> sysctl. &merged;</para>
 
       <para>IP multicast now works on VLAN devices.  Several other
 	bugs in the VLAN code have also been fixed.</para>
@@ -1002,6 +997,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	corruption problems on systems using the VIA 82C686B
 	Southbridge chip. &merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>The CAM error recovery code has been updated.</para>
 
       <para>The &man.cd.4; driver now has support for write
@@ -1067,6 +1063,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">The &man.twe.4; 3ware ATA RAID driver has
 	added. &merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>The &man.vinum.4; volume manager has received some bug
 	fixes and enhancements.</para>
 
@@ -1095,6 +1092,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Details can be found in
 	<filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>Softupdates for FFS have received some bug fixes and
 	enhancements.</para>
 
@@ -1112,7 +1110,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The ISO-9660 filesystem now has a hook that supports a
 	loadable character conversion routine.  The
 	<filename role="package">sysutils/cd9660_unicode</filename>
-	port contains a set of common conversions.</para>
+	port contains a set of common conversions. &merged;</para>
 
       <para>&man.kernfs.5; is obsolete and has been retired.</para>
 
@@ -1324,7 +1322,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  network interfaces. &merged;</para>
 
 	<para>The &man.ifpi.4; driver for supporting the AVM
-	  Fritz!Card PCI version 2 controller has been added.</para>
+	  Fritz!Card PCI version 2 controller has been added. &merged;</para>
 
 	<para>The &man.ihfc.4; driver for supporting Cologne Chip
 	  Designs HFC devices under
