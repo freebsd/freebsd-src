@@ -32,9 +32,11 @@
  */
 
 /*
- * $Id$
+ * $Id: dpt_eisa.c,v 1.1 1998/03/11 00:30:12 julian Exp $
  */
 
+#include "eisa.h"
+#if NEISA > 0
 #include "opt_dpt.h"
 
 #include <sys/param.h>
@@ -498,3 +500,4 @@ dpt_eisa_match(type)
 	return (NULL);
 }
 
+#endif /* NEISA > 0 */
