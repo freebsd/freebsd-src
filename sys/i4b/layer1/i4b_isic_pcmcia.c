@@ -45,6 +45,8 @@
 #include "isic.h"
 #include "opt_i4b.h"
 #include "card.h"
+#undef NCARD
+#define NCARD 0
 
 #if (NISIC > 0) && (NCARD > 0)
  
