@@ -574,6 +574,8 @@ wi_generic_attach(device_t dev)
 	sc->wi_create_ibss = WI_DEFAULT_CREATE_IBSS;
 	sc->wi_pm_enabled = WI_DEFAULT_PM_ENABLED;
 	sc->wi_max_sleep = WI_DEFAULT_MAX_SLEEP;
+	sc->wi_roaming = WI_DEFAULT_ROAMING;
+	sc->wi_authtype = WI_DEFAULT_AUTHTYPE;
 
 	/*
 	 * Read the default channel from the NIC. This may vary
@@ -1136,6 +1138,13 @@ wi_read_record(sc, ltv)
 			oltv->wi_len = 2;
 			oltv->wi_val = ltv->wi_val;
 			break;
+		case WI_RID_AUTH_CNTL:
+                        oltv->wi_len = 2;
+			if (le16toh(ltv->wi_val) & 0x01)
+				oltv->wi_val = htole16(1);
+			else if (le16toh(ltv->wi_val) & 0x02)
+				oltv->wi_val = htole16(2);
+			break;
 		}
 	}
 
@@ -1209,6 +1218,15 @@ wi_write_record(sc, ltv)
 			}
 			return 0;
 		    }
+		case WI_RID_AUTH_CNTL:
+			p2ltv.wi_type = WI_RID_AUTH_CNTL;
+			p2ltv.wi_len = 2;
+			if (le16toh(ltv->wi_val) == 1)
+				p2ltv.wi_val = htole16(0x01);
+			else if (le16toh(ltv->wi_val) == 2)
+				p2ltv.wi_val = htole16(0x02);
+			ltv = &p2ltv;
+			break;
 		}
 	}
 
@@ -1447,25 +1465,25 @@ wi_setdef(sc, wreq)
 		bcopy((char *)&wreq->wi_val, LLADDR(sdl), ETHER_ADDR_LEN);
 		break;
 	case WI_RID_PORTTYPE:
-		sc->wi_ptype = wreq->wi_val[0];
+		sc->wi_ptype = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_TX_RATE:
-		sc->wi_tx_rate = wreq->wi_val[0];
+		sc->wi_tx_rate = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_MAX_DATALEN:
-		sc->wi_max_data_len = wreq->wi_val[0];
+		sc->wi_max_data_len = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_RTS_THRESH:
-		sc->wi_rts_thresh = wreq->wi_val[0];
+		sc->wi_rts_thresh = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_SYSTEM_SCALE:
-		sc->wi_ap_density = wreq->wi_val[0];
+		sc->wi_ap_density = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_CREATE_IBSS:
-		sc->wi_create_ibss = wreq->wi_val[0];
+		sc->wi_create_ibss = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_OWN_CHNL:
-		sc->wi_channel = wreq->wi_val[0];
+		sc->wi_channel = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_NODENAME:
 		bzero(sc->wi_node_name, sizeof(sc->wi_node_name));
@@ -1480,16 +1498,25 @@ wi_setdef(sc, wreq)
 		bcopy((char *)&wreq->wi_val[1], sc->wi_ibss_name, 30);
 		break;
 	case WI_RID_PM_ENABLED:
-		sc->wi_pm_enabled = wreq->wi_val[0];
+		sc->wi_pm_enabled = le16toh(wreq->wi_val[0]);
+		break;
+	case WI_RID_MICROWAVE_OVEN:
+		sc->wi_mor_enabled = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_MAX_SLEEP:
-		sc->wi_max_sleep = wreq->wi_val[0];
+		sc->wi_max_sleep = le16toh(wreq->wi_val[0]);
+		break;
+	case WI_RID_AUTH_CNTL:
+		sc->wi_authtype = le16toh(wreq->wi_val[0]);
+		break;
+	case WI_RID_ROAMING_MODE:
+		sc->wi_roaming = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_ENCRYPTION:
-		sc->wi_use_wep = wreq->wi_val[0];
+		sc->wi_use_wep = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_TX_CRYPT_KEY:
-		sc->wi_tx_key = wreq->wi_val[0];
+		sc->wi_tx_key = le16toh(wreq->wi_val[0]);
 		break;
 	case WI_RID_DEFLT_CRYPT_KEYS:
 		bcopy((char *)wreq, (char *)&sc->wi_keys,
@@ -1874,6 +1901,9 @@ wi_init(xsc)
 	/* Power Managment Max Sleep */
 	WI_SETVAL(WI_RID_MAX_SLEEP, sc->wi_max_sleep);
 
+	/* Roaming type */
+	WI_SETVAL(WI_RID_ROAMING_MODE, sc->wi_roaming);
+
 	/* Specify the IBSS name */
 	WI_SETSTR(WI_RID_OWN_SSID, sc->wi_ibss_name);
 
@@ -1900,6 +1930,22 @@ wi_init(xsc)
 		sc->wi_keys.wi_len = (sizeof(struct wi_ltv_keys) / 2) + 1;
 		sc->wi_keys.wi_type = WI_RID_DEFLT_CRYPT_KEYS;
 		wi_write_record(sc, (struct wi_ltv_gen *)&sc->wi_keys);
+		if (sc->wi_prism2 && sc->wi_use_wep) {
+			/*
+			 * ONLY HWB3163 EVAL-CARD Firmware version
+			 * less than 0.8 variant3
+			 *
+			 *   If promiscuous mode disable, Prism2 chip
+			 *  does not work with WEP .
+			 * It is under investigation for details.
+			 * (ichiro@netbsd.org)
+			 */
+			if (sc->wi_prism2_ver < 83 ) {
+				/* firm ver < 0.8 variant 3 */
+				WI_SETVAL(WI_RID_PROMISC, 1);
+			}
+			WI_SETVAL(WI_RID_AUTH_CNTL, sc->wi_authtype);
+		}
 	}
 
 	/* Initialize promisc mode. */
@@ -1913,7 +1959,7 @@ wi_init(xsc)
 	wi_setmulti(sc);
 
 	/* Enable desired port */
-	wi_cmd(sc, WI_CMD_ENABLE|sc->wi_portnum, 0);
+	wi_cmd(sc, WI_CMD_ENABLE | sc->wi_portnum, 0);
 
 	if (wi_alloc_nicmem(sc, ETHER_MAX_LEN + sizeof(struct wi_frame) + 8, &id))
 		device_printf(sc->dev, "tx buffer allocation failed\n");
