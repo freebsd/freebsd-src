@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap-snoop.c,v 1.17 96/12/10 23:15:02 leres Exp $ (LBL)";
+    "@(#) $Header: pcap-snoop.c,v 1.20 97/04/08 21:06:17 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -167,14 +167,25 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	/*
 	 * XXX hack - map device name to link layer type
 	 */
-	if (strncmp("et", device, 2) == 0 ||
-	    strncmp("ec", device, 2) == 0) {
+	if (strncmp("et", device, 2) == 0 ||	/* Challenge 10 Mbit */
+	    strncmp("ec", device, 2) == 0 ||	/* Indigo/Indy 10 Mbit,
+						   O2 10/100 */
+	    strncmp("ef", device, 2) == 0 ||	/* O200/2000 10/100 Mbit */
+	    strncmp("gfe", device, 3) == 0 ||	/* GIO 100 Mbit */
+	    strncmp("fxp", device, 3) == 0 ||	/* Challenge VME Enet */
+	    strncmp("ep", device, 2) == 0 ||	/* Challenge 8x10 Mbit EPLEX */
+	    strncmp("vfe", device, 3) == 0 ||	/* Challenge VME 100Mbit */
+	    strncmp("fa", device, 2) == 0 ||
+	    strncmp("qaa", device, 3) == 0) {
 		p->linktype = DLT_EN10MB;
 		p->offset = RAW_HDRPAD(sizeof(struct ether_header));
 	} else if (strncmp("ipg", device, 3) == 0 ||
+		   strncmp("rns", device, 3) == 0 ||	/* O2/200/2000 FDDI */
 		   strncmp("xpi", device, 3) == 0) {
 		p->linktype = DLT_FDDI;
 		p->offset = 3;				/* XXX yeah? */
+	} else if (strncmp("ppp", device, 3) == 0) {
+		p->linktype = DLT_RAW;
 	} else if (strncmp("lo", device, 2) == 0) {
 		p->linktype = DLT_NULL;
 	} else {

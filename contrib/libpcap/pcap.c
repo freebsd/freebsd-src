@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1997, 1998
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap.c,v 1.27 96/11/27 18:43:25 leres Exp $ (LBL)";
+    "@(#) $Header: pcap.c,v 1.29 98/07/12 13:15:39 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -53,22 +53,29 @@ static const char rcsid[] =
 int
 pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
-	register int cc;
 
 	if (p->sf.rfile != NULL)
 		return (pcap_offline_read(p, cnt, callback, user));
-	/* XXX keep reading until we get something (or an error occurs) */
-	do {
-		cc = pcap_read(p, cnt, callback, user);
-	} while (cc == 0);
-	return (cc);
+	return (pcap_read(p, cnt, callback, user));
 }
 
 int
 pcap_loop(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
+	register int n;
+
 	for (;;) {
-		int n = pcap_dispatch(p, cnt, callback, user);
+		if (p->sf.rfile != NULL)
+			n = pcap_offline_read(p, cnt, callback, user);
+		else {
+			/*
+			 * XXX keep reading until we get something
+			 * (or an error occurs)
+			 */
+			do {
+				n = pcap_read(p, cnt, callback, user);
+			} while (n == 0);
+		}
 		if (n <= 0)
 			return (n);
 		if (cnt > 0) {
