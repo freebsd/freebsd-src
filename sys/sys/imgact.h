@@ -44,7 +44,8 @@ struct vm_object;
 
 struct image_params {
 	struct proc *proc;	/* our process struct */
-	struct execve_args *uap; /* syscall arguments */
+	char **userspace_argv;	/* system call argument */
+	char **userspace_envv;	/* system call argument */
 	struct vnode *vp;	/* pointer to vnode of file to exec */
 	struct vm_object *object;	/* The vm object for this vp */
 	struct vattr *attr;	/* attributes of file */

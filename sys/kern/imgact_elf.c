@@ -514,7 +514,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
-	imgp->uap = NULL;
+	imgp->userspace_argv = NULL;
+	imgp->userspace_envv = NULL;
 	imgp->attr = attr;
 	imgp->firstpage = NULL;
 	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
