@@ -909,8 +909,7 @@ check_type:
 	     * dec_ind = e_code - s_code + (ps.decl_indent>i ? ps.decl_indent
 	     * : i);
 	     */
-	    dec_ind = ps.decl_indent > 0 &&
-		(ps.ind_level == 0 || ps.dec_nest > 0) ? ps.decl_indent : i;
+	    dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
 	    goto copy_id;
 
 	case ident:		/* got an identifier or constant */
