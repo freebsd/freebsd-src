@@ -4,17 +4,17 @@
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
 
-if [ "x$apm_enable" = "xYES" ] ; then
+if [ "X$apm_enable" = X"YES" ] ; then
 	echo "Enable APM BIOS."
-	/usr/sbin/apmconf -e
+	apmconf -e
 fi
 
-if [ "x$pccard_enable" != "xNO" ] ; then
+if [ "X$pccard_enable" = X"YES" ] ; then
 	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
-		/usr/sbin/pccardc pccardmem $pccard_mem
+		pccardc pccardmem $pccard_mem
 	else
-		/usr/sbin/pccardc pccardmem 0xd0000
+		pccardc pccardmem 0xd0000
 	fi
 	echo "Enable PC-card." 
-	/usr/sbin/pccardd &
+	pccardd &
 fi

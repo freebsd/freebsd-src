@@ -1,16 +1,16 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id$
+#	$Id: Makefile,v 1.149 1997/02/23 09:20:39 peter Exp $
 
 # -rw-r--r--
 BINOWN= root
 BINGRP= wheel
 BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf login.conf login.access motd modems netstart networks \
+	inetd.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
-	rc rc.firewall rc.local rc.pccard rc.serial \
+	rc rc.conf rc.firewall rc.local rc.network rc.pccard rc.serial \
 	etc.${MACHINE}/rc.${MACHINE} \
-	remote security services sysconfig shells \
+	remote security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
