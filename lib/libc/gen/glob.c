@@ -80,7 +80,13 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 
 #include "collate.h"
 
-#define MAX_GLOBENTRIES	10000		/* limit number of entries */
+/*
+ * XXX
+ * Arbitrarily limit the number of pathnames that glob may
+ * return, to prevent DoS attacks.  This should probably be
+ * configurable by the user.
+ */
+#define MAX_GLOBENTRIES		16384
 
 #define	DOLLAR		'$'
 #define	DOT		'.'
