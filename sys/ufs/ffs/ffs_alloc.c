@@ -2144,11 +2144,11 @@ ffs_fserr(fs, inum, cp)
 	ino_t inum;
 	char *cp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
+	struct proc *p = td->td_proc;
 
 	log(LOG_ERR, "pid %d (%s), uid %d inumber %d on %s: %s\n",
-	    p ? p->p_pid : -1, p ? p->p_comm : "-",
-	    p ? p->p_ucred->cr_uid : 0, inum, fs->fs_fsmnt, cp);
+	    p->p_pid, p->p_comm, td->td_ucred->cr_uid, inum, fs->fs_fsmnt, cp);
 }
 
 /*
