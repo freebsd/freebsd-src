@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.77.2.2 1999/08/24 15:50:53 iwasaki Exp $
+ *	$Id: apm.c,v 1.77.2.3 1999/08/24 15:53:53 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -37,6 +37,7 @@
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
@@ -71,11 +72,13 @@ struct apm_softc {
 	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
+ 	int	standby_countdown, suspend_countdown;
 	u_int	minorversion, majorversion;
 	u_int	cs32_base, cs16_base, ds_base;
 	u_int	cs16_limit, cs32_limit, ds_limit;
 	u_int	cs_entry;
 	u_int	intversion;
+ 	u_int	standbys, suspends;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
 	struct selinfo sc_rsel;
@@ -161,6 +164,12 @@ struct addr48 {
 } apm_addr;
 
 static int apm_errno;
+
+static int apm_suspend_delay = 1;
+static int apm_standby_delay = 1;
+
+SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay, 1, "");
+SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
 
 /*
  * return  0 if the function successfull,
@@ -537,6 +546,49 @@ static void apm_processevent(void);
 static u_int apm_op_inprog = 0;
 
 static void
+apm_do_suspend(void)
+{
+	struct apm_softc *sc = &apm_softc;
+
+	if (!sc)
+		return;
+
+	apm_op_inprog = 0;
+	sc->suspends = sc->suspend_countdown = 0;
+
+	if (sc->initialized) {
+		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
+		if (apm_suspend_system(PMST_SUSPEND) == 0)
+			apm_processevent();
+		else
+			/* Failure, 'resume' the system again */
+			apm_execute_hook(hook[APM_HOOK_RESUME]);
+	}
+}
+
+static void
+apm_do_standby(void)
+{
+	struct apm_softc *sc = &apm_softc;
+
+	if (!sc)
+		return;
+
+	apm_op_inprog = 0;
+	sc->standbys = sc->standby_countdown = 0;
+
+	if (sc->initialized) {
+		/*
+		 * As far as standby, we don't need to execute 
+		 * all of suspend hooks.
+		 */
+		apm_default_suspend(&apm_softc);
+		if (apm_suspend_system(PMST_STANDBY) == 0)
+			apm_processevent();
+	}
+}
+
+static void
 apm_lastreq_notify(void)
 {
 	u_long eax, ebx, ecx, edx;
@@ -587,19 +639,26 @@ apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (!sc)
+	switch (state) {
+	case PMST_SUSPEND:
+		if (sc->suspends)
+			return;
+		sc->suspends++;
+		sc->suspend_countdown = apm_suspend_delay;
+		break;
+	case PMST_STANDBY:
+		if (sc->standbys)
+			return;
+		sc->standbys++;
+		sc->standby_countdown = apm_standby_delay;
+		break;
+	default:
+		printf("apm_suspend: Unknown Suspend state 0x%x\n", state);
 		return;
-
-	apm_op_inprog = 0;
-
-	if (sc->initialized) {
-		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-		if (apm_suspend_system(state) == 0)
-			apm_processevent();
-		else
-			/* Failure, 'resume' the system again */
-			apm_execute_hook(hook[APM_HOOK_RESUME]);
 	}
+
+	apm_op_inprog++;
+	apm_lastreq_notify();
 }
 
 void
@@ -725,9 +784,15 @@ apm_timeout(void *dummy)
 	if (apm_op_inprog)
 		apm_lastreq_notify();
 
-	if (!sc->bios_busy) 
-		apm_processevent();
+	if (sc->standbys && sc->standby_countdown-- <= 0)
+		apm_do_standby();
 
+	if (sc->suspends && sc->suspend_countdown-- <= 0)
+		apm_do_suspend();
+
+	if (!sc->bios_busy)
+		apm_processevent();
+  
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
 		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1 );
@@ -932,7 +997,7 @@ apm_processevent(void)
 			if (apm_op_inprog == 0) {
 			    apm_op_inprog++;
 			    if (apm_record_event(sc, apm_event)) {
-				apm_suspend(PMST_SUSPEND);
+				apm_do_suspend();
 			    }
 			}
 			return; /* XXX skip the rest */
@@ -941,12 +1006,12 @@ apm_processevent(void)
 			if (apm_op_inprog == 0) {
 			    apm_op_inprog++;
 			    if (apm_record_event(sc, apm_event)) {
-				apm_suspend(PMST_SUSPEND);
+				apm_do_suspend();
 			    }
 			}
 			return; /* XXX skip the rest */
 		    OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
-			apm_suspend(PMST_SUSPEND);
+			apm_do_suspend();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
 			apm_record_event(sc, apm_event);
