@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.10 1996/10/30 22:39:48 asami Exp $
+ *	$Id: clock.c,v 1.10.2.1 1997/01/05 05:12:06 kato Exp $
  */
 
 /*
@@ -169,8 +169,10 @@ static 	u_char	timer1_state;
 static	u_char	timer2_state;
 static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
 #ifdef PC98
-int rtc_inb __P((void));
-void rtc_outb __P((int));
+static void rtc_serialcombit __P((int));
+static void rtc_serialcom __P((int));
+static int rtc_inb __P((void));
+static void rtc_outb __P((int));
 #endif
 
 #if defined(I586_CPU) || defined(I686_CPU)
@@ -824,7 +826,7 @@ startrtclock()
 }
 
 #ifdef PC98
-void
+static void
 rtc_serialcombit(int i)
 {
 	outb(IO_RTC, ((i&0x01)<<5)|0x07);
@@ -835,7 +837,7 @@ rtc_serialcombit(int i)
 	DELAY(1);
 }
 
-void
+static void
 rtc_serialcom(int i)
 {
 	rtc_serialcombit(i&0x01);
@@ -850,7 +852,7 @@ rtc_serialcom(int i)
  	DELAY(1);
 }
 
-void
+static void
 rtc_outb(int val)
 {
 	int s;
@@ -866,7 +868,7 @@ rtc_outb(int val)
 	outb(IO_RTC, sa & 0xef);	/* CLK 0 */
 }
 
-int
+static int
 rtc_inb(void)
 {
 	int s;
