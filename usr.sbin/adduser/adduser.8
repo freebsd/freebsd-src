@@ -31,7 +31,7 @@
 .\" Bugs: sure (my english!)
 .\"   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: adduser.8,v 1.4 1995/01/08 17:40:20 w Exp w $
+.\" $Id: adduser.8,v 1.5 1995/01/09 11:26:30 jkh Exp $
 .\"
 
 .Dd Jan, 9, 1995
@@ -43,24 +43,24 @@
 
 .Sh DESCRIPTION
 .Nm Adduser 
-is a simple program for adding new users. Adduser check
-passwd, group and shell database. It create passwd/group entry,
-HOME-directory, dotfiles and send new user a welcome message.
+is a simple program for adding new users. Adduser checks
+the passwd, group and shell database files. It create a passwd/group entry,
+HOME directory, copies dotfiles and sends the new user a welcome message.
 
-.Sh RESTRICTION
+.Sh RESTRICTIONS
 .Bl -tag -width Ds -compact
 .It Sy username
-Login name. Only lowercase characters or digits.
+Login name may be only lowercase characters or digits.
 .It Sy fullname
-Firstname an surname. 
+First and last name.
 .Ql Pa \:
 not allowed.
 .It Sy shell
 Only valid shells from shell database. 
 .It Sy uid
-Automatic generated.
+Automatically generated.
 .It Sy gid
-Automatic generated. Gid and uid are equal (if possible). Groupname
+Automatically generated. Gid and uid are equal (if possible). Groupname
 is the same as username.
 .El
 
@@ -79,9 +79,9 @@ Parse command line options
 .It Fl help
 Print options and exit.
 .It Fl silent
-Few warnings, question, bugreports. 
+Few warnings, question, bug reports. 
 .It Fl verbose
-Many warning, question. Recommended for noivice users.
+Many warnings and questions.  Recommended for novice users.
 .It Fl debug
 Debuging.
 .It Fl noconfig
@@ -91,7 +91,7 @@ Default home partition where all users located.
 .It Fl shell Ar shell 
 Default shell for new users.
 .It Fl dotdir Ar directory
-Copy files from .Ar directory into the HOME-directory of new users.
+Copy files from .Ar directory into the HOME directory of new users.
 .Ql Pa dot.foo
 files renamed to 
 .Ql Pa .foo
