@@ -40,6 +40,13 @@
 #include <sys/_posix.h>
 
 /*
+ * Inheritance for minherit()
+ */
+#define INHERIT_SHARE	0
+#define INHERIT_COPY	1
+#define INHERIT_NONE	2
+
+/*
  * Protections are chosen from these bits, or-ed together
  */
 #define	PROT_NONE	0x00	/* no permissions */
@@ -61,7 +68,7 @@
 #define	MAP_FIXED	 0x0010	/* map addr must be exactly as requested */
 #define	MAP_RENAME	 0x0020	/* Sun: rename private pages to file */
 #define	MAP_NORESERVE	 0x0040	/* Sun: don't reserve needed swap area */
-#define	MAP_INHERIT	 0x0080	/* region is retained after exec */
+#define	MAP_RESERVED0080 0x0080	/* previously misimplemented MAP_INHERIT */
 #define	MAP_RESERVED0100 0x0100	/* previously unimplemented MAP_NOEXTEND */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
 #define	MAP_STACK	 0x0400	/* region grows down, like a stack */
