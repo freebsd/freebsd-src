@@ -1677,6 +1677,8 @@ mac_check_vnode_exec(struct ucred *cred, struct vnode *vp)
 {
 	int error;
 
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_exec");
+
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return (0);
 
