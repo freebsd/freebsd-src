@@ -441,7 +441,7 @@ filt_timerattach(struct knote *kn)
 	}
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
-	kn->kn_flags &= ~EV_DETACHED;		/* knlist_add usually sets it */
+	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
 	MALLOC(calloutp, struct callout *, sizeof(*calloutp),
 	    M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, 1);
@@ -462,7 +462,7 @@ filt_timerdetach(struct knote *kn)
 	callout_drain(calloutp);
 	FREE(calloutp, M_KQUEUE);
 	atomic_add_int(&kq_ncallouts, -1);
-	kn->kn_flags |= EV_DETACHED;	/* knlist_remove usually clears it */
+	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
 
 /* XXX - move to kern_timeout.c? */
