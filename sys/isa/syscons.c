@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.218 1997/06/29 15:11:39 yokota Exp $
+ *  $Id: syscons.c,v 1.219 1997/06/29 22:23:32 ache Exp $
  */
 
 #include "sc.h"
@@ -254,14 +254,30 @@ static inline void
 draw_cursor_image(scr_stat *scp)
 {
     u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
+    u_short prev_image;
 
     /* do we have a destructive cursor ? */
     if (flags & CHAR_CURSOR) {
-	cursor_image = *scp->cursor_pos;
+	prev_image = scp->cursor_saveunder;
+	cursor_image = *ptr & 0x00ff;
+	if (cursor_image == DEAD_CHAR) 
+	    cursor_image = prev_image & 0x00ff;
+	cursor_image |= *(scp->cursor_pos) & 0xff00;
 	scp->cursor_saveunder = cursor_image;
+	/* update the cursor bitmap if the char under the cursor has changed */
+	if (prev_image != cursor_image) 
+	    set_destructive_cursor(scp);
 	/* modify cursor_image */
 	if (!(flags & BLINK_CURSOR)||((flags & BLINK_CURSOR)&&(blinkrate & 4))){
-	    set_destructive_cursor(scp);
+	    /* 
+	     * When the mouse pointer is at the same position as the cursor,
+	     * the cursor bitmap needs to be updated even if the char under 
+	     * the cursor hasn't changed, because the mouse pionter may 
+	     * have moved by a few dots within the cursor cel.
+	     */
+	    if ((prev_image == cursor_image) 
+		    && (cursor_image != *(scp->cursor_pos)))
+	        set_destructive_cursor(scp);
 	    cursor_image &= 0xff00;
 	    cursor_image |= DEAD_CHAR;
 	}
@@ -593,6 +609,8 @@ scattach(struct isa_device *dev)
 
     scinit();
     flags = dev->id_flags;
+    if (!crtc_vga)
+	flags &= ~CHAR_CURSOR;
 
     scp = console[0];
 
@@ -619,11 +637,8 @@ scattach(struct isa_device *dev)
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
 
     /* initialize cursor stuff */
-    if (!(scp->status & UNKNOWN_MODE)) {
+    if (!(scp->status & UNKNOWN_MODE))
     	draw_cursor_image(scp);
-    	if (crtc_vga && (flags & CHAR_CURSOR))
-	    set_destructive_cursor(scp);
-    }
 
     /* get screen update going */
     scrn_timer(NULL);
@@ -919,9 +934,18 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    if (!crtc_vga)
 		return ENXIO;
 	    flags |= CHAR_CURSOR;
-	    set_destructive_cursor(scp);
 	} else
 	    flags &= ~CHAR_CURSOR;
+	/* 
+	 * The cursor shape is global property; all virtual consoles
+	 * are affected. Update the cursor in the current console...
+	 */
+	if (!(cur_console->status & UNKNOWN_MODE)) {
+            remove_cursor_image(cur_console);
+	    if (flags & CHAR_CURSOR)
+	        set_destructive_cursor(cur_console);
+	    draw_cursor_image(cur_console);
+	}
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
@@ -1310,8 +1334,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		    copy_font(LOAD, FONT_14, font_14);
 		if (fonts_loaded & FONT_16)
 		    copy_font(LOAD, FONT_16, font_16);
-		if (flags & CHAR_CURSOR)
-		    set_destructive_cursor(scp);
 		load_palette(palette);
 	    }
 	    /* FALL THROUGH */
@@ -1480,9 +1502,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_8, 8*256);
 	fonts_loaded |= FONT_8;
-	copy_font(LOAD, FONT_8, font_8);
-	if (flags & CHAR_CURSOR)
-	    set_destructive_cursor(scp);
+	if (!(cur_console->status & UNKNOWN_MODE)) {
+	    copy_font(LOAD, FONT_8, font_8);
+	    if (flags & CHAR_CURSOR)
+	        set_destructive_cursor(cur_console);
+	}
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
@@ -1500,9 +1524,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_14, 14*256);
 	fonts_loaded |= FONT_14;
-	copy_font(LOAD, FONT_14, font_14);
-	if (flags & CHAR_CURSOR)
-	    set_destructive_cursor(scp);
+	if (!(cur_console->status & UNKNOWN_MODE)) {
+	    copy_font(LOAD, FONT_14, font_14);
+	    if (flags & CHAR_CURSOR)
+	        set_destructive_cursor(cur_console);
+	}
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
@@ -1520,9 +1546,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
-	copy_font(LOAD, FONT_16, font_16);
-	if (flags & CHAR_CURSOR)
-	    set_destructive_cursor(scp);
+	if (!(cur_console->status & UNKNOWN_MODE)) {
+	    copy_font(LOAD, FONT_16, font_16);
+	    if (flags & CHAR_CURSOR)
+	        set_destructive_cursor(cur_console);
+	}
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
@@ -1881,11 +1909,10 @@ exchange_scr(void)
 	    set_mode(new_scp);
     }
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
-    if ((old_scp->status & UNKNOWN_MODE) && crtc_vga) {
-	if (flags & CHAR_CURSOR)
-	    set_destructive_cursor(new_scp);
+    if (!(new_scp->status & UNKNOWN_MODE) && (flags & CHAR_CURSOR))
+	set_destructive_cursor(new_scp);
+    if ((old_scp->status & UNKNOWN_MODE) && crtc_vga)
 	load_palette(palette);
-    }
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
 	shfts = ctls = alts = agrs = metas = 0;
     update_leds(new_scp->status);
@@ -2356,17 +2383,24 @@ scan_esc(scr_stat *scp, u_char c)
 		    flags |= BLINK_CURSOR;
 		else
 		    flags &= ~BLINK_CURSOR;
-		if ((scp->term.param[0] & 0x02) && crtc_vga) {
+		if ((scp->term.param[0] & 0x02) && crtc_vga)
 		    flags |= CHAR_CURSOR;
-		    set_destructive_cursor(scp);
-		} else
+		else
 		    flags &= ~CHAR_CURSOR;
 	    }
 	    else if (scp->term.num_param == 2) {
 		scp->cursor_start = scp->term.param[0] & 0x1F;
 		scp->cursor_end = scp->term.param[1] & 0x1F;
-		if (flags & CHAR_CURSOR)
-			set_destructive_cursor(scp);
+	    }
+	    /* 
+	     * The cursor shape is global property; all virtual consoles
+	     * are affected. Update the cursor in the current console...
+	     */
+	    if (!(cur_console->status & UNKNOWN_MODE)) {
+		remove_cursor_image(cur_console);
+		if (crtc_vga && (flags & CHAR_CURSOR))
+	            set_destructive_cursor(cur_console);
+		draw_cursor_image(cur_console);
 	    }
 	    break;
 
@@ -2597,6 +2631,7 @@ scinit(void)
 
     console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
     console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
+    console[0]->cursor_saveunder = *console[0]->cursor_pos;
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
     for (i=1; i<MAXCONS; i++)
@@ -2618,6 +2653,7 @@ scinit(void)
 	copy_font(SAVE, FONT_16, font_16);
 	fonts_loaded = FONT_16;
 	save_palette();
+	set_destructive_cursor(console[0]);
     }
 
 #ifdef SC_SPLASH_SCREEN
@@ -2651,6 +2687,7 @@ static scr_stat
 	set_mode(scp);
 */
     clear_screen(scp);
+    scp->cursor_saveunder = *scp->cursor_pos;
     return scp;
 }
 
