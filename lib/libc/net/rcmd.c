@@ -68,6 +68,7 @@ extern int innetgr __P(( const char *, const char *, const char *, const char * 
 
 #define max(a, b)	((a > b) ? a : b)
 
+static int __iruserok_af __P((void *, int, const char *, const char *, int));
 int	__ivaliduser __P((FILE *, u_int32_t, const char *, const char *));
 static int __icheckhost __P((void *, char *, int, int));
 
@@ -354,34 +355,25 @@ ruserok(rhost, superuser, ruser, luser)
 	const char *rhost, *ruser, *luser;
 	int superuser;
 {
-	return ruserok_af(rhost, superuser, ruser, luser, AF_INET);
-}
+	struct addrinfo hints, *res, *r;
+	int error;
 
-int
-ruserok_af(rhost, superuser, ruser, luser, af)
-	const char *rhost, *ruser, *luser;
-	int superuser, af;
-{
-	struct hostent *hp;
-	union {
-		struct in_addr addr_in;
-		struct in6_addr addr_in6;
-	} addr;
-	char **ap;
-	int ret, h_error;
-
-	if ((hp = getipnodebyname(rhost, af, AI_DEFAULT, &h_error)) == NULL)
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+	error = getaddrinfo(rhost, "0", &hints, &res);
+	if (error)
 		return (-1);
-	ret = -1;
-	for (ap = hp->h_addr_list; *ap; ++ap) {
-		bcopy(*ap, &addr, hp->h_length);
-		if (iruserok_af(&addr, superuser, ruser, luser, af) == 0) {
-			ret = 0;
-			break;
+
+	for (r = res; r; r = r->ai_next) {
+		if (iruserok_sa(r->ai_addr, r->ai_addrlen, superuser, ruser,
+		    luser) == 0) {
+			freeaddrinfo(res);
+			return (0);
 		}
 	}
-	freehostent(hp);
-	return (ret);
+	freeaddrinfo(res);
+	return (-1);
 }
 
 /*
@@ -399,11 +391,12 @@ iruserok(raddr, superuser, ruser, luser)
 	int superuser;
 	const char *ruser, *luser;
 {
-	return iruserok_af(&raddr, superuser, ruser, luser, AF_INET);
+	return __iruserok_af(&raddr, superuser, ruser, luser, AF_INET);
 }
 
-int
-iruserok_af(raddr, superuser, ruser, luser, af)
+/* Other AF support extension of iruserok. */
+static int
+__iruserok_af(raddr, superuser, ruser, luser, af)
 	void *raddr;
 	int superuser;
 	const char *ruser, *luser;
@@ -483,6 +476,37 @@ again:
 		goto again;
 	}
 	return (-1);
+}
+
+/*
+ * AF independent extension of iruserok. We are passed an sockaddr, and
+ * then call iruserok_af() as the type of sockaddr.
+ *
+ * Returns 0 if ok, -1 if not ok.
+ */
+int
+iruserok_sa(addr, addrlen, superuser, ruser, luser)
+	const void *addr;
+	int addrlen;
+	int superuser;
+	const char *ruser, *luser;
+{
+	struct sockaddr *sa;
+	void *raddr = NULL;
+
+	sa = (struct sockaddr *)addr;
+	switch (sa->sa_family) {
+	case AF_INET:
+		raddr = &((struct sockaddr_in *)sa)->sin_addr;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		raddr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+		break;
+#endif
+	}
+
+	__iruserok_af(raddr, superuser, ruser, luser, sa->sa_family);
 }
 
 /*
@@ -648,7 +672,8 @@ __icheckhost(raddr, lhost, af, len)
 	}
 
 	/* Better be a hostname. */
-	if ((hp = getipnodebyname(lhost, af, AI_DEFAULT, &h_error)) == NULL)
+	if ((hp = getipnodebyname(lhost, af, AI_ALL|AI_DEFAULT, &h_error))
+	    == NULL)
 		return (0);
 
 	/* Spin through ip addresses. */
