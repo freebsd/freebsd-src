@@ -1153,7 +1153,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     struct chunk *tmp_chunk = NULL;
     struct chunk *home_chunk = NULL;
     int mib[2];
-    unsigned int physmem;
+    unsigned long physmem;
     size_t size;
     Chunk *rootdev, *swapdev, *usrdev, *vardev;
     Chunk *tmpdev, *homedev;
