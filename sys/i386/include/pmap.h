@@ -340,7 +340,7 @@ void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
-pt_entry_t *pmap_pte_quick(pmap_t, vm_offset_t) __pure2;
+pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_pg(void);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
