@@ -32,17 +32,13 @@
 #else
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
+
 #if defined (HAVE_UNISTD_H)
 #  ifdef _MINIX
 #    include <sys/types.h>
 #  endif
 #  include <unistd.h>
 #endif
-#if defined (HAVE_STRING_H)
-#  include <string.h>
-#else
-#  include <strings.h>
-#endif /* !HAVE_STRING_H */
 
 #include "history.h"
 #include "histlib.h"
@@ -50,6 +46,8 @@
 /* The list of alternate characters that can delimit a history search
    string. */
 char *history_search_delimiter_chars = (char *)NULL;
+
+static int history_search_internal PARAMS((const char *, int, int));
 
 /* Search the history for STRING, starting at history_offset.
    If DIRECTION < 0, then the search is through previous entries, else

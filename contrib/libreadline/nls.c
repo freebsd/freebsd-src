@@ -71,8 +71,8 @@ static char *legal_lang_values[] =
   0
 };
 
-static char *normalize_codeset __P((char *));
-static char *find_codeset __P((char *, size_t *));
+static char *normalize_codeset PARAMS((char *));
+static char *find_codeset PARAMS((char *, size_t *));
 #endif /* !HAVE_SETLOCALE */
 
 /* Check for LC_ALL, LC_CTYPE, and LANG and use the first with a value
@@ -141,10 +141,10 @@ normalize_codeset (codeset)
   all_digits = 1;
   for (len = 0, i = 0; i < namelen; i++)
     {
-      if (isalnum (codeset[i]))
+      if (ISALNUM ((unsigned char)codeset[i]))
 	{
 	  len++;
-	  all_digits &= isdigit (codeset[i]);
+	  all_digits &= _rl_digit_p (codeset[i]);
 	}
     }
 
@@ -162,9 +162,9 @@ normalize_codeset (codeset)
     }
 
   for (i = 0; i < namelen; i++)
-    if (isalpha (codeset[i]))
-      *wp++ = (isupper (codeset[i])) ? tolower (codeset[i]) : codeset[i];
-    else if (isdigit (codeset[i]))
+    if (ISALPHA ((unsigned char)codeset[i]))
+      *wp++ = _rl_to_lower (codeset[i]);
+    else if (_rl_digit_p (codeset[i]))
       *wp++ = codeset[i];
   *wp = '\0';
 

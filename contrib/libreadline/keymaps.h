@@ -49,8 +49,9 @@ typedef struct _keymap_entry {
 
 /* This must be large enough to hold bindings for all of the characters
    in a desired character set (e.g, 128 for ASCII, 256 for ISO Latin-x,
-   and so on). */
-#define KEYMAP_SIZE 256
+   and so on) plus one for subsequence matching. */
+#define KEYMAP_SIZE 257
+#define ANYOTHERKEY KEYMAP_SIZE-1
 
 /* I wanted to make the above structure contain a union of:
    union { rl_command_func_t *function; struct _keymap_entry *keymap; } value;
@@ -70,30 +71,30 @@ extern KEYMAP_ENTRY_ARRAY vi_insertion_keymap, vi_movement_keymap;
 
 /* Return a new, empty keymap.
    Free it with free() when you are done. */
-extern Keymap rl_make_bare_keymap __P((void));
+extern Keymap rl_make_bare_keymap PARAMS((void));
 
 /* Return a new keymap which is a copy of MAP. */
-extern Keymap rl_copy_keymap __P((Keymap));
+extern Keymap rl_copy_keymap PARAMS((Keymap));
 
 /* Return a new keymap with the printing characters bound to rl_insert,
    the lowercase Meta characters bound to run their equivalents, and
    the Meta digits bound to produce numeric arguments. */
-extern Keymap rl_make_keymap __P((void));
+extern Keymap rl_make_keymap PARAMS((void));
 
 /* Free the storage associated with a keymap. */
-extern void rl_discard_keymap __P((Keymap));
+extern void rl_discard_keymap PARAMS((Keymap));
 
 /* These functions actually appear in bind.c */
 
 /* Return the keymap corresponding to a given name.  Names look like
    `emacs' or `emacs-meta' or `vi-insert'.  */
-extern Keymap rl_get_keymap_by_name __P((const char *));
+extern Keymap rl_get_keymap_by_name PARAMS((const char *));
 
 /* Return the current keymap. */
-extern Keymap rl_get_keymap __P((void));
+extern Keymap rl_get_keymap PARAMS((void));
 
 /* Set the current keymap to MAP. */
-extern void rl_set_keymap __P((Keymap));
+extern void rl_set_keymap PARAMS((Keymap));
 
 #ifdef __cplusplus
 }

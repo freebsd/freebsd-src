@@ -1,3 +1,23 @@
+/* Copyright (C) 1987-2002 Free Software Foundation, Inc.
+
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
+
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 2, or
+   (at your option) any later version.
+
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+
 /* fileman.c -- A tiny application which demonstrates how to use the
    GNU Readline library.  This application interactively allows users
    to manipulate files and their modes. */
@@ -41,15 +61,15 @@
 extern char *xmalloc ();
 
 /* The names of functions that actually do the manipulation. */
-int com_list __P((char *));
-int com_view __P((char *));
-int com_rename __P((char *));
-int com_stat __P((char *));
-int com_pwd __P((char *));
-int com_delete __P((char *));
-int com_help __P((char *));
-int com_cd __P((char *));
-int com_quit __P((char *));
+int com_list PARAMS((char *));
+int com_view PARAMS((char *));
+int com_rename PARAMS((char *));
+int com_stat PARAMS((char *));
+int com_pwd PARAMS((char *));
+int com_delete PARAMS((char *));
+int com_help PARAMS((char *));
+int com_cd PARAMS((char *));
+int com_quit PARAMS((char *));
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -212,8 +232,8 @@ stripwhite (string)
 /*                                                                  */
 /* **************************************************************** */
 
-char *command_generator __P((const char *, int));
-char **fileman_completion __P((const char *, int, int));
+char *command_generator PARAMS((const char *, int));
+char **fileman_completion PARAMS((const char *, int, int));
 
 /* Tell the GNU Readline library how to complete.  We want to try to complete
    on command names if this is the first word in the line, or on filenames
