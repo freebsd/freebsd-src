@@ -1693,7 +1693,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		 */ 
 		if (!((ic->ic_flags & IEEE80211_F_SCAN) ||
 		      (ic->ic_opmode == IEEE80211_M_STA && ni->ni_associd) ||
-		       ic->ic_opmode != IEEE80211_M_IBSS)) {
+		       ic->ic_opmode == IEEE80211_M_IBSS)) {
 			ic->ic_stats.is_rx_mgtdiscard++;
 			return;
 		}
