@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unix.c,v 1.6 1998/05/15 20:19:21 wollman Exp $";
+	"$Id: unix.c,v 1.7 1998/05/16 08:31:49 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <netinet/in.h>
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <kvm.h>
@@ -131,7 +132,6 @@ unixdomainpr(xunp, so)
 	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
-#define offsetof(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
 	unp = &xunp->xu_unp;
 	if (unp->unp_addr)
