@@ -103,6 +103,16 @@
         version of PacketAliasPermanentLink().  The second function
         implements static network address translation.
 
+    Version 3.2: July, 2000 (salander and satoh)
+        Added FindNewPortGroup to get contiguous range of port values.  
+
+        Added QueryUdpTcpIn and QueryUdpTcpOut to look for an aliasing
+	link but not actually add one.
+
+        Added FindRtspOut, which is closely derived from FindUdpTcpOut, 
+	except that the alias port (from FindNewPortGroup) is provided
+	as input.
+
     See HISTORY file for additional revisions.
 
     $FreeBSD$
@@ -500,6 +510,9 @@ Link creation and deletion:
 Link search:
     FindLinkOut()           - find link for outgoing packets
     FindLinkIn()            - find link for incoming packets
+
+Port search:
+    FindNewPortGroup()      - find an available group of ports 
 */
 
 /* Local prototypes */
@@ -531,10 +544,13 @@ FindLinkIn(struct in_addr, struct in_addr, u_short, u_short, int, int);
 
 #define ALIAS_PORT_BASE            0x08000
 #define ALIAS_PORT_MASK            0x07fff
+#define ALIAS_PORT_MASK_EVEN       0x07ffe
 #define GET_NEW_PORT_MAX_ATTEMPTS       20
 
 #define GET_ALIAS_PORT                  -1
 #define GET_ALIAS_ID        GET_ALIAS_PORT
+
+#define FIND_EVEN_ALIAS_BASE             1
 
 /* GetNewPort() allocates port numbers.  Note that if a port number
    is already in use, that does not mean that it cannot be used by
@@ -703,6 +719,102 @@ GetSocket(u_short port_net, int *sockfd, int link_type)
     }
 }
 
+
+/* FindNewPortGroup() returns a base port number for an available        
+   range of contiguous port numbers. Note that if a port number
+   is already in use, that does not mean that it cannot be used by
+   another link concurrently.  This is because FindNewPortGroup()
+   looks for unused triplets: (dest addr, dest port, alias port). */
+
+int
+FindNewPortGroup(struct in_addr  dst_addr,
+                 struct in_addr  alias_addr,
+                 u_short         src_port,
+                 u_short         dst_port,
+                 u_short         port_count, 
+		 u_char          proto, 
+		 u_char          align)
+{
+    int     i, j;
+    int     max_trials;
+    u_short port_sys;
+    int     link_type;
+
+    /*
+     * Get link_type from protocol
+     */
+
+    switch (proto)
+    {
+    case IPPROTO_UDP:
+        link_type = LINK_UDP;
+        break;
+    case IPPROTO_TCP:
+        link_type = LINK_TCP;
+        break;
+    default:
+        return (0);
+        break;
+    }
+
+    /*
+     * The aliasing port is automatically selected
+     * by one of two methods below:
+     */
+    max_trials = GET_NEW_PORT_MAX_ATTEMPTS;
+
+    if (packetAliasMode & PKT_ALIAS_SAME_PORTS) {
+      /*
+       * When the ALIAS_SAME_PORTS option is
+       * chosen, the first try will be the
+       * actual source port. If this is already
+       * in use, the remainder of the trials
+       * will be random.
+       */
+      port_sys = ntohs(src_port);
+
+    } else {
+
+      /* First trial and all subsequent are random. */
+      if (align == FIND_EVEN_ALIAS_BASE)
+        port_sys = random() & ALIAS_PORT_MASK_EVEN;
+      else
+        port_sys = random() & ALIAS_PORT_MASK;
+
+      port_sys += ALIAS_PORT_BASE;
+    }
+
+/* Port number search */
+    for (i = 0; i < max_trials; i++) {
+
+      struct alias_link *search_result;
+
+      for (j = 0; j < port_count; j++)  
+        if (0 != (search_result = FindLinkIn(dst_addr, alias_addr,
+                                        dst_port, htons(port_sys + j),
+                                        link_type, 0)))
+	  break;
+
+      /* Found a good range, return base */
+      if (j == port_count)
+	return (htons(port_sys));
+
+      /* Find a new base to try */
+      if (align == FIND_EVEN_ALIAS_BASE)
+        port_sys = random() & ALIAS_PORT_MASK_EVEN;
+      else
+        port_sys = random() & ALIAS_PORT_MASK;
+
+      port_sys += ALIAS_PORT_BASE;
+    }
+
+#ifdef DEBUG
+    fprintf(stderr, "PacketAlias/FindNewPortGroup(): ");
+    fprintf(stderr, "could not find free port(s)\n");
+#endif
+
+    return(0);
+}
 
 static void
 CleanupAliasData(void)
@@ -1594,6 +1706,107 @@ FindPptpOut(struct in_addr  src_addr,
         link = AddLink(src_addr, dst_addr, alias_addr,
                        call_id, NO_DEST_PORT, GET_ALIAS_PORT,
                        LINK_PPTP);
+    }
+
+    return(link);
+}
+
+
+struct alias_link *
+QueryUdpTcpIn(struct in_addr dst_addr,
+              struct in_addr alias_addr,
+              u_short        dst_port,
+              u_short        alias_port,
+              u_char         proto)
+{
+    int link_type;
+    struct alias_link *link;
+
+    switch (proto)
+    {
+    case IPPROTO_UDP:
+        link_type = LINK_UDP;
+        break;
+    case IPPROTO_TCP:
+        link_type = LINK_TCP;
+        break;
+    default:
+        return NULL;
+        break;
+    }
+
+    link = FindLinkIn(dst_addr, alias_addr,
+                      dst_port, alias_port,
+                      link_type, 0);
+
+    return(link);
+}
+
+
+struct alias_link * 
+QueryUdpTcpOut(struct in_addr  src_addr,
+               struct in_addr  dst_addr,
+               u_short         src_port,
+               u_short         dst_port,
+               u_char          proto)
+{
+    int link_type;
+    struct alias_link *link;
+
+    switch (proto)
+    {
+    case IPPROTO_UDP:
+        link_type = LINK_UDP;
+        break;
+    case IPPROTO_TCP:
+        link_type = LINK_TCP;
+        break;
+    default:
+        return NULL;
+        break;
+    }
+
+    link = FindLinkOut(src_addr, dst_addr,
+                       src_port, dst_port,
+		       link_type, 0);
+
+    return(link);
+}
+
+
+struct alias_link * 
+FindRtspOut(struct in_addr  src_addr,
+            struct in_addr  dst_addr,
+            u_short         src_port,
+            u_short         alias_port,
+            u_char          proto)
+{
+    int link_type;
+    struct alias_link *link;
+
+    switch (proto)
+    {
+    case IPPROTO_UDP:
+        link_type = LINK_UDP;
+        break;
+    case IPPROTO_TCP:
+        link_type = LINK_TCP;
+        break;
+    default:
+        return NULL;
+        break;
+    }
+
+    link = FindLinkOut(src_addr, dst_addr, src_port, 0, link_type, 1);
+
+    if (link == NULL)
+    {
+        struct in_addr alias_addr;
+
+        alias_addr = FindAliasAddress(src_addr);
+        link = AddLink(src_addr, dst_addr, alias_addr,
+                       src_port, 0, alias_port,
+                       link_type);
     }
 
     return(link);
