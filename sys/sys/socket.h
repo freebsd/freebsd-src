@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.23 1997/12/21 16:35:11 bde Exp $
+ * $Id: socket.h,v 1.24 1998/02/01 22:44:16 alex Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -353,6 +353,13 @@ struct omsghdr {
 	caddr_t	msg_accrights;		/* access rights sent/received */
 	int	msg_accrightslen;
 };
+
+/*
+ * howto arguments for shutdown(2), specified by Posix.1g.
+ */
+#define	SHUT_RD		0		/* shut down the reading side */
+#define	SHUT_WR		1		/* shut down the writing side */
+#define	SHUT_RDWR	2		/* shut down both sides */
 
 #ifndef	KERNEL
 
