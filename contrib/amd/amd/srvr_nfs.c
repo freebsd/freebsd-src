@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 1.2 1998/09/14 08:20:37 obrien Exp $
+ * $Id: srvr_nfs.c,v 1.3 1999/01/13 20:03:55 obrien Exp $
  *
  */
 
@@ -725,7 +725,10 @@ find_nfs_srvr(mntfs *mf)
       int proto_nfs_version;
       char **p;
 
-      for (p = protocols; *p; p ++) {
+      /*  Default to UDP protcol until FreeBSD's NFS/TCP gets stronger.  */
+      static char *default_protocols[] = { "udp", NULL };
+
+      for (p = default_protocols; *p; p ++) {
 	proto_nfs_version = get_nfs_version(host, ip, nfs_version, *p);
 
 	if (proto_nfs_version > best_nfs_version) {
