@@ -36,3 +36,4 @@
 #include <paths.h>
 
 #define	_PATH_RDIST	"rdist"
+#define	_PATH_RSH	"/usr/bin/rsh"

@@ -371,7 +371,7 @@ sendf(rname, opts)
 
 		otp = tp;
 		len = tp - target;
-		while (dp = readdir(d)) {
+		while ((dp = readdir(d))) {
 			if (!strcmp(dp->d_name, ".") ||
 			    !strcmp(dp->d_name, ".."))
 				continue;
@@ -383,7 +383,7 @@ sendf(rname, opts)
 			tp = otp;
 			*tp++ = '/';
 			cp = dp->d_name;
-			while (*tp++ = *cp++)
+			while ((*tp++ = *cp++))
 				;
 			tp--;
 			sendf(dp->d_name, opts);
@@ -498,7 +498,7 @@ done:
 	} else
 		ack();
 	f = response();
-	if (f < 0 || f == 0 && (opts & COMPARE))
+	if (f < 0 || (f == 0 && (opts & COMPARE)))
 		return;
 dospecial:
 	for (sc = subcmds; sc != NULL; sc = sc->sc_next) {
@@ -564,7 +564,7 @@ update(rname, opts, stp)
 	register time_t mtime;
 
 	if (debug)
-		printf("update(%s, %x, %x)\n", rname, opts, stp);
+		printf("update(%s, %x, %p)\n", rname, opts, stp);
 
 	/*
 	 * Check to see if the file exists on the remote machine.
@@ -697,7 +697,7 @@ recvf(cmd, type)
 	int type;
 {
 	register char *cp;
-	int f, mode, opts, wrerr, olderrno;
+	int f = -1, mode, opts, wrerr, olderrno;
 	off_t i, size;
 	time_t mtime;
 	struct stat stb;
@@ -761,7 +761,7 @@ recvf(cmd, type)
 		stp[catname] = tp;
 		if (catname++) {
 			*tp++ = '/';
-			while (*tp++ = *cp++)
+			while ((*tp++ = *cp++))
 				;
 			tp--;
 		}
@@ -783,8 +783,8 @@ recvf(cmd, type)
 				return;
 			}
 			errno = ENOTDIR;
-		} else if (errno == ENOENT && (mkdir(target, mode) == 0 ||
-		    chkparent(target) == 0 && mkdir(target, mode) == 0)) {
+		} else if ((errno == ENOENT && mkdir(target, mode) == 0) ||
+		    (chkparent(target) == 0 && mkdir(target, mode) == 0)) {
 			if (fchog(-1, target, owner, group, mode) == 0)
 				ack();
 			return;
@@ -922,7 +922,7 @@ differ:			buf[0] = '\0';
 		note("%s: utimes failed %s: %s\n", host, new, strerror(errno));
 
 	if (fchog(f, new, owner, group, mode) < 0) {
-badnew2:	(void) close(f);
+badnew2:	if (f != -1) (void) close(f);
 		(void) unlink(new);
 		return;
 	}
@@ -1084,10 +1084,10 @@ fchog(fd, file, owner, group, mode)
 		mode &= ~02000;
 		gid = -1;
 	}
-ok:	if (fd != -1 && fchown(fd, uid, gid) < 0 || chown(file, uid, gid) < 0)
+ok:	if ((fd != -1 && fchown(fd, uid, gid) < 0) || chown(file, uid, gid) < 0)
 		note("%s: %s chown: %s", host, file, strerror(errno));
 	else if (mode & 07000 &&
-	   (fd != -1 && fchmod(fd, mode) < 0 || chmod(file, mode) < 0))
+	   ((fd != -1 && fchmod(fd, mode) < 0) || chmod(file, mode) < 0))
 		note("%s: %s chmod: %s", host, file, strerror(errno));
 	return(0);
 }
@@ -1204,7 +1204,7 @@ clean(cp)
 
 	otp = tp;
 	len = tp - target;
-	while (dp = readdir(d)) {
+	while ((dp = readdir(d))) {
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
 			continue;
 		if (len + 1 + strlen(dp->d_name) >= BUFSIZ - 1) {
@@ -1215,7 +1215,7 @@ clean(cp)
 		tp = otp;
 		*tp++ = '/';
 		cp = dp->d_name;;
-		while (*tp++ = *cp++)
+		while ((*tp++ = *cp++))
 			;
 		tp--;
 		if (lstat(target, &stb) < 0) {
@@ -1284,7 +1284,7 @@ removeit(stp)
 
 	otp = tp;
 	len = tp - target;
-	while (dp = readdir(d)) {
+	while ((dp = readdir(d))) {
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
 			continue;
 		if (len + 1 + strlen(dp->d_name) >= BUFSIZ - 1) {
@@ -1295,7 +1295,7 @@ removeit(stp)
 		tp = otp;
 		*tp++ = '/';
 		cp = dp->d_name;;
-		while (*tp++ = *cp++)
+		while ((*tp++ = *cp++))
 			;
 		tp--;
 		if (lstat(target, &stb) < 0) {
