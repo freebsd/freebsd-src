@@ -23,21 +23,37 @@
 #include <sys/conf.h>	/* XXX: temporary to avoid breakage */
 #endif
 
+typedef	int	disk_open_t(struct disk *);
+typedef	int	disk_close_t(struct disk *);
+typedef	void	disk_strategy_t(struct bio *bp);
+typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
+			int fflag, struct thread *td);
+		/* NB: disk_ioctl_t SHALL be cast'able to d_ioctl_t */
+
 struct g_geom;
 
 struct disk {
-	u_int			d_flags;
+	/* Fields which are private to geom_disk */
 	struct cdevsw		*d_devsw;
-	d_open_t		*d_open;
-	d_close_t		*d_close;
-	d_strategy_t		*d_strategy;
-	d_ioctl_t		*d_ioctl;
-	dumper_t		*d_dump;
-	dev_t			d_dev;
-	u_int			d_unit;
-	const char		*d_name;
+	d_open_t		*d_copen;	/* Compat */
+	d_close_t		*d_cclose;	/* Compat */
+	d_ioctl_t		*d_cioctl;	/* Compat */
+	struct g_geom		*d_geom;
 
-	/* These four fields must be valid while opened */
+	/* Shared fields */
+	u_int			d_flags;
+	const char		*d_name;
+	u_int			d_unit;
+	dev_t			d_dev;		/* Compat */
+
+	/* Disk methods  */
+	disk_open_t		*d_open;
+	disk_close_t		*d_close;
+	disk_strategy_t		*d_strategy;
+	disk_ioctl_t		*d_ioctl;
+	dumper_t		*d_dump;
+
+	/* Info fields from driver to geom_disk.c. Valid when open */
 	u_int			d_sectorsize;
 	off_t			d_mediasize;
 	u_int			d_fwsectors;
@@ -46,7 +62,8 @@ struct disk {
 	u_int			d_stripe_width;
 	u_int			d_max_request;
 
-	struct g_geom		*d_softc;
+	/* Fields private to the driver */
+	void			*d_drv1;
 };
 
 #define DISKFLAG_NOGIANT	0x1
