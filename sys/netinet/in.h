@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.17 1996/04/03 13:52:11 phk Exp $
+ * $Id: in.h,v 1.18 1996/07/10 19:44:20 julian Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -88,7 +88,7 @@
  * if you trust the remote host to restrict these ports.
  *
  * The default range of ports and the high range can be changed by
- * sysctl(3).  (net.inet.ip.port{hi}{first,last}_auto)
+ * sysctl(3).  (net.inet.ip.port{hi,low}{first,last}_auto)
  *
  * Changing those values has bad security implications if you are
  * using a a stateless firewall that is allowing packets outside of that
@@ -113,6 +113,14 @@
  */
 #define	IPPORT_HIFIRSTAUTO	40000
 #define	IPPORT_HILASTAUTO	44999
+
+/*
+ * Scanning for a free reserved port return a value below IPPORT_RESERVED,
+ * but higher than IPPORT_RESERVEDSTART.  Traditionally the start value was
+ * 512, but that conflicts with some well-known-services that firewalls may
+ * have a fit if we use.
+ */
+#define IPPORT_RESERVEDSTART	600
 
 /*
  * Internet address (a structure for historical reasons)
