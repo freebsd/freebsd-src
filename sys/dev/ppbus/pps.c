@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.11 1998/08/24 16:31:27 phk Exp $
+ * $Id: pps.c,v 1.12 1998/12/07 21:58:16 archie Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -35,18 +35,8 @@
 static struct pps_data {
 	int	pps_unit;
 	struct	ppb_device pps_dev;	
-	pps_params_t	ppsparam;
-	pps_info_t	ppsinfo;
+	struct	pps_state pps;
 } *softc[NPPS];
-
-static int ppscap =
-	PPS_CAPTUREASSERT |
-#ifdef PPS_SYNC
-	PPS_HARDPPSONASSERT | 
-#endif /* PPS_SYNC */
-	PPS_OFFSETASSERT | 
-	PPS_ECHOASSERT |
-	PPS_TSFMT_TSPEC;
 
 static int npps;
 
@@ -76,6 +66,7 @@ static struct cdevsw pps_cdevsw =
 	  seltrue,	nommap,		nostrat,	PPS_NAME,
 	  NULL,		-1 };
 
+
 static struct ppb_device *
 ppsprobe(struct ppb_data *ppb)
 {
@@ -98,12 +89,16 @@ ppsprobe(struct ppb_data *ppb)
 	sc->pps_dev.name = ppsdriver.name;
 	sc->pps_dev.intr = ppsintr;
 
+	sc->pps.ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
+	pps_init(&sc->pps);
 	return (&sc->pps_dev);
 }
 
 static int
 ppsattach(struct ppb_device *dev)
 {
+	dev_t devt;
+
 	/*
 	 * Report ourselves
 	 */
@@ -115,7 +110,8 @@ ppsattach(struct ppb_device *dev)
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
 #endif
-
+	devt = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&devt, &pps_cdevsw, NULL);
 	return (1);
 }
 
@@ -133,6 +129,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
+	ppb_wctr(&sc->pps_dev, 0);
 	ppb_wctr(&sc->pps_dev, IRQENABLE);
 
 	return(0);
@@ -143,7 +140,11 @@ ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct pps_data *sc = softc[minor(dev)];
 
-	sc->ppsparam.mode = 0;
+	sc->pps.ppsparam.mode = 0;	/* PHK ??? */
+
+	ppb_wdtr(&sc->pps_dev, 0);
+	ppb_wctr(&sc->pps_dev, 0);
+
 	ppb_release_bus(&sc->pps_dev);
 	return(0);
 }
@@ -152,32 +153,17 @@ static void
 ppsintr(int unit)
 {
 	struct pps_data *sc = softc[unit];
-	struct timespec tc;
+	struct timecounter *tc;
+	unsigned count;
 
-	nanotime(&tc);
+	tc = timecounter;
+	count = timecounter->tc_get_timecount(tc);
 	if (!(ppb_rstr(&sc->pps_dev) & nACK))
 		return;
-	if (sc->ppsparam.mode & PPS_ECHOASSERT) 
+	if (sc->pps.ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(&sc->pps_dev, IRQENABLE | AUTOFEED);
-	if (sc->ppsparam.mode & PPS_OFFSETASSERT) {
-		timespecadd(&tc, &sc->ppsparam.assert_offset);
-		if (tc.tv_nsec < 0) {
-			tc.tv_sec--;
-			tc.tv_nsec += 1000000000;
-		}
-	}
-	sc->ppsinfo.assert_timestamp = tc;
-	sc->ppsinfo.assert_sequence++;
-#ifdef PPS_SYNC
-	if (sc->ppsparam.mode & PPS_HARDPPSONASSERT) {
-		struct timeval tv;
-
-		tv.tv_sec = tc.tv_sec;
-		tv.tv_usec = tc.tv_nsec / 1000;
-		hardpps(&tv, tv.tv_usec);
-	}
-#endif /* PPS_SYNC */
-	if (sc->ppsparam.mode & PPS_ECHOASSERT) 
+	pps_event(&sc->pps, tc, count, PPS_CAPTUREASSERT);
+	if (sc->pps.ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(&sc->pps_dev, IRQENABLE);
 }
 
@@ -186,21 +172,6 @@ ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	struct pps_data *sc = softc[minor(dev)];
 
-	return (std_pps_ioctl(cmd, data, &sc->ppsparam, &sc->ppsinfo, ppscap));
+	return (pps_ioctl(cmd, data, &sc->pps));
 }
 
-static pps_devsw_installed = 0;
-
-static void
-pps_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! pps_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &pps_cdevsw, NULL);
-		pps_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(ppsdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pps_drvinit,NULL)

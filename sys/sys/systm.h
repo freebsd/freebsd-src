@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.83 1999/01/15 00:03:39 msmith Exp $
+ * $Id: systm.h,v 1.84 1999/01/15 17:25:02 msmith Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -159,8 +159,6 @@ void	statclock __P((struct clockframe *frame));
 void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
-
-void	hardpps __P((struct timeval *tvp, long usec));
 
 char	*getenv __P((char *name));
 int	getenv_int __P((char *name, int *data));
