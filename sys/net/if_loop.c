@@ -86,7 +86,7 @@
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
-#endif NETATALK
+#endif
 
 int loioctl __P((struct ifnet *, u_long, caddr_t));
 static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
@@ -368,7 +368,7 @@ if_simloop(ifp, m, af, hlen)
 	        inq = &atintrq2;
 		isr = NETISR_ATALK;
 		break;
-#endif NETATALK
+#endif
 	default:
 		printf("if_simloop: can't handle af=%d\n", af);
 		m_freem(m);
