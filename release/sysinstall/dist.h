@@ -1,3 +1,5 @@
+/*  $Id:$  */
+
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE
 
