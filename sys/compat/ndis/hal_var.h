@@ -35,6 +35,14 @@
 #ifndef _HAL_VAR_H_
 #define _HAL_VAR_H_
 
+#ifdef __amd64__
+#define NDIS_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define NDIS_BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
+#else
+#define NDIS_BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define NDIS_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#endif
+
 extern image_patch_table hal_functbl[];
 
 #endif /* _HAL_VAR_H_ */
