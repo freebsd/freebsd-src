@@ -548,7 +548,7 @@ check_space()
 		syslog(LOG_ERR, "%s: %m", dirname);
 		exit(1);
 	}
- 	spacefree = (fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+ 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
 
 	(void)snprintf(path, sizeof(path), "%s/minfree", dirname);
 	if ((fp = fopen(path, "r")) == NULL)
