@@ -434,7 +434,7 @@ again:
 	 * Preserve some more flags in subprocess.  P_PROFIL has already
 	 * been preserved.
 	 */
-	p2->p_flag |= p1->p_flag & P_SUGID;
+	p2->p_flag |= p1->p_flag & (P_SUGID | P_ALTSTACK);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
 	if (flags & RFPPWAIT)

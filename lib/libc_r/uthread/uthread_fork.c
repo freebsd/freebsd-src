@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -109,16 +108,7 @@ _fork(void)
 		else if (_pq_init(&_readyq) != 0) {
 			/* Abort this application: */
 			PANIC("Cannot initialize priority ready queue.");
-		} else if ((_thread_sigstack.ss_sp == NULL) &&
-		    ((_thread_sigstack.ss_sp = malloc(SIGSTKSZ)) == NULL))
-			PANIC("Unable to allocate alternate signal stack");
-		else {
-			/* Install the alternate signal stack: */
-			_thread_sigstack.ss_size = SIGSTKSZ;
-			_thread_sigstack.ss_flags = 0;
-			if (_thread_sys_sigaltstack(&_thread_sigstack, NULL) != 0)
-				PANIC("Unable to install alternate signal stack");
-
+		} else {
 			/*
 			 * Enter a loop to remove all threads other than
 			 * the running thread from the thread list:
