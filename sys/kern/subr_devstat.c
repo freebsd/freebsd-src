@@ -33,6 +33,10 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
+#include <sys/conf.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <sys/devicestat.h>
 
@@ -42,6 +46,26 @@ static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 
 static struct devstatlist device_statq;
+static struct devstat *devstat_alloc(void);
+static void devstat_free(struct devstat *);
+
+/*
+ * Allocate a devstat and initialize it
+ */
+struct devstat *
+devstat_new_entry(const char *dev_name,
+		  int unit_number, u_int32_t block_size,
+		  devstat_support_flags flags,
+		  devstat_type_flags device_type,
+		  devstat_priority priority)
+{
+	struct devstat *ds;
+
+	ds = devstat_alloc();
+	devstat_add_entry(ds, dev_name, unit_number, block_size,
+			  flags, device_type, priority);
+	return (ds);
+}
 
 /*
  * Take a malloced and zeroed devstat structure given to us, fill it in 
@@ -148,6 +172,8 @@ devstat_remove_entry(struct devstat *ds)
 
 	/* Remove this entry from the devstat queue */
 	STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
+	if (ds->allocated)
+		devstat_free(ds);
 }
 
 /*
@@ -304,3 +330,89 @@ SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
     &devstat_generation, 0, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
     &devstat_version, 0, "Devstat list version number");
+
+#define statsperpage (PAGE_SIZE / sizeof(struct devstat))
+
+static d_mmap_t devstat_mmap;
+
+static struct cdevsw devstat_cdevsw = {
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_mmap =	devstat_mmap,
+	.d_name =	"devstat",
+	.d_maj =	MAJOR_AUTO,
+};
+
+struct statspage {
+	TAILQ_ENTRY(statspage)	list;
+	struct devstat		*stat;
+	u_int			nfree;
+};
+
+static TAILQ_HEAD(, statspage)	pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
+static MALLOC_DEFINE(M_DEVSTAT, "devstat", "Device statistics");
+
+static int
+devstat_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+{
+	struct statspage *spp;
+
+	if (nprot != VM_PROT_READ)
+		return (-1);
+	TAILQ_FOREACH(spp, &pagelist, list) {
+		if (offset == 0) {
+			*paddr = vtophys(spp->stat);
+			return (0);
+		}
+		offset -= PAGE_SIZE;
+	}
+	return (-1);
+}
+
+static struct devstat *
+devstat_alloc(void)
+{
+	struct devstat *dsp;
+	struct statspage *spp;
+	u_int u;
+	static int once;
+
+	if (!once) {
+		make_dev(&devstat_cdevsw, 0,
+		    UID_ROOT, GID_WHEEL, 0400, "devstat");
+		once++;
+	}
+	TAILQ_FOREACH(spp, &pagelist, list) {
+		if (spp->nfree > 0)
+			break;
+	}
+	if (spp == NULL) {
+		spp = malloc(sizeof *spp, M_DEVSTAT, M_ZERO | M_WAITOK);
+		TAILQ_INSERT_TAIL(&pagelist, spp, list);
+		spp->stat = malloc(PAGE_SIZE, M_DEVSTAT, M_ZERO | M_WAITOK);
+		spp->nfree = statsperpage;
+	}
+	dsp = spp->stat;
+	for (u = 0; u < statsperpage; u++) {
+		if (dsp->allocated == 0)
+			break;
+		dsp++;
+	}
+	spp->nfree--;
+	dsp->allocated = 1;
+	return (dsp);
+}
+
+static void
+devstat_free(struct devstat *dsp)
+{
+	struct statspage *spp;
+
+	bzero(dsp, sizeof *dsp);
+	TAILQ_FOREACH(spp, &pagelist, list) {
+		if (dsp >= spp->stat && dsp < (spp->stat + statsperpage)) {
+			spp->nfree++;
+			return;
+		}
+	}
+}
