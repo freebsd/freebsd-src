@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.50 1995/12/07 12:47:40 davidg Exp $
+**  $Id: ncr.c,v 1.51 1995/12/14 09:54:04 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -193,7 +193,6 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/ncrreg.h>
-extern PRINT_ADDR();
 #else
 #include <sys/device.h>
 #include <dev/pci/ncr_reg.h>
@@ -1203,11 +1202,7 @@ static	void	ncr_getclock	(ncb_p np);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  U_INT32 ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
-#ifdef __NetBSD__
-static	int     ncr_intr        (void *);
-#else	/* !__NetBSD__ */
-static	int	ncr_intr	(ncb_p np);
-#endif	/* __NetBSD__ */	
+static	int	ncr_intr	(void *vnp);
 static	void	ncr_int_ma	(ncb_p np);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
@@ -1254,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.50 1995/12/07 12:47:40 davidg Exp $\n";
+	"\n$Id: ncr.c,v 1.51 1995/12/14 09:54:04 phk Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3157,7 +3152,7 @@ ncr_probe(parent, match, aux)
 	struct cfdata *cf = match;
 	struct pci_attach_args *pa = aux;
 
-#ifdef 0
+#if 0
 	if (!pci_targmatch(cf, pa))
 		return 0;
 #endif
@@ -3500,18 +3495,11 @@ static	void ncr_attach (pcici_t config_id, int unit)
 **==========================================================
 */
 
-#ifdef __NetBSD__
-int
-ncr_intr(arg)
-        void *arg;
-{               
-        ncb_p np = arg;
-#else /* !__NetBSD__ */
 static int
-ncr_intr(np)
-	ncb_p np;
+ncr_intr(vnp)
+	void *vnp;
 {
-#endif /* __NetBSD__ */
+	ncb_p np = vnp;
 	int n = 0;
 	int oldspl = splbio();
 
