@@ -115,9 +115,9 @@ changes, this is the same procedure that is used for creating a new
 translation for DocProj files.
 
 RELNOTESng is now enabled by default in the FreeBSD release-build
-process.  It can be disabled by setting NORELNOTES=YES when building a
-release.  Note that RELNOTESng requires that NODOC *not* be set, as
-RELNOTESng require parts of the doc/ tree.
+process.  It can be disabled by setting NODOC=YES when building a
+release (note that this is the same variable that disables DocProj
+documentation builds).
 
 Release builders can set which language gets built with the 
 RELNOTES_LANG variable; note that this is different from the 
