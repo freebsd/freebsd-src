@@ -382,7 +382,7 @@ STATIC Asr_softc_t * Asr_softc;
 #if __FreeBSD_version >= 400000
 #define PROBE_ARGS  IN device_t tag
 #define PROBE_RET   int
-#define PROBE_SET() u_long id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
+#define PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
 #define PROBE_RETURN(retval) if(retval){device_set_desc(tag,retval);return(0);}else{return(ENXIO);}
 #define ATTACH_ARGS IN device_t tag
 #define ATTACH_RET  int
