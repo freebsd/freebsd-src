@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd June 22, 2004
 .Dt DEVICE_IDS 9
 .Os
 .Sh NAME
@@ -40,13 +40,13 @@
 .In sys/types.h
 .In sys/systm.h
 .Ft int
-.Fn major "dev_t dev"
+.Fn major "struct cdev *dev"
 .Ft int
-.Fn minor "dev_t dev"
+.Fn minor "struct cdev *dev"
 .Ft int
-.Fn umajor "udev_t id"
+.Fn umajor "dev_t id"
 .Ft int
-.Fn uminor "udev_t id"
+.Fn uminor "dev_t id"
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,7 +68,7 @@ An integer greater than zero and less than
 and
 .Fn minor
 will return
-.Dv NOUDEV
+.Dv NODEV
 if the device is invalid.
 .Sh AUTHORS
 This manual page was written by
