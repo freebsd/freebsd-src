@@ -1,6 +1,7 @@
 /*
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
+ * $FreeBSD$
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
