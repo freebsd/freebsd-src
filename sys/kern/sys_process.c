@@ -385,6 +385,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_CONTINUE:
 	case PT_TO_SCE:
 	case PT_TO_SCX:
+	case PT_SYSCALL:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -584,6 +585,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_CONTINUE:
 	case PT_TO_SCE:
 	case PT_TO_SCX:
+	case PT_SYSCALL:
 	case PT_DETACH:
 		/* Zero means do not send any signal */
 		if (data < 0 || data > _SIG_MAXSIG) {
