@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.187 1999/01/13 08:20:53 hm Exp $
+#	$Id: Makefile,v 1.187.2.1 1999/02/09 23:08:38 jkh Exp $
 
 SUBDIR=	sendmail
 
@@ -51,7 +51,7 @@ distribution:
 	(cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/* ${DESTDIR}/etc/defaults/; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/cron/log; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
