@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Id$
+.\"	$Id: bootptab.5,v 1.2 1998/02/03 07:30:22 charnier Exp $
 .\"
 .Dd October 31, 1991
 .Dt BOOTPTAB 5
@@ -14,7 +14,7 @@ The
 file is the configuration database file for
 .Xr bootpd 8 ,
 the Internet Bootstrap Protocol server.
-It's format is similar to that of
+Its format is similar to that of
 .Xr termcap 5
 in which two-character case-sensitive tag symbols are used to
 represent host parameters.  These parameter declarations are separated by
@@ -302,7 +302,7 @@ or
 The
 .Em hn
 tag is strictly a boolean tag; it does not take the usual equals-sign and
-value.  It's presence indicates that the hostname should be sent to RFC1084
+value.  Its presence indicates that the hostname should be sent to RFC1084
 clients.
 .Nm Bootpd
 attempts to send the entire hostname as it is specified in the configuration
