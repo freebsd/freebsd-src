@@ -132,8 +132,12 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	int s, error = 0;
 
 	/* first, ask the underlying layers if the request is ok */
-	error = SMBUS_CALLBACK(device_get_parent(bus), SMB_REQUEST_BUS,
-				(caddr_t)&how);
+	do {
+		error = SMBUS_CALLBACK(device_get_parent(bus),
+						SMB_REQUEST_BUS, (caddr_t)&how);
+		if (error)
+			error = smbus_poll(sc, how);
+	} while (error == EWOULDBLOCK);
 
 	while (!error) {
 		s = splhigh();	

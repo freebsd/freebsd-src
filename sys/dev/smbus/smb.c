@@ -171,7 +171,7 @@ smbwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	/* not supported */
 
-	return (ENODEV);
+	return (EINVAL);
 }
 
 static int
@@ -179,7 +179,7 @@ smbread(dev_t dev, struct uio * uio, int ioflag)
 {
 	/* not supported */
 
-	return (ENODEV);
+	return (EINVAL);
 }
 
 static int
