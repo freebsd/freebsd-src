@@ -87,125 +87,144 @@ main(int argc, char *argv[])
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
 	int evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
+	int ch, found_arg, i;
 	char *Lvalue = NULL, *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
 	const char *chg[2];
 	struct ufs_args args;
 	struct statfs stfs;
-	int found_arg, ch, i;
 
-        if (argc < 3)
-                usage();
-	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Aa:e:f:L:l:m:n:o:ps:")) != -1)
-	  switch (ch) {
-	  case 'A':
-		found_arg = 1;
-		Aflag++;
-		break;
-	  case 'a':
-		found_arg = 1;
-		name = "ACLs";
-		avalue = optarg;
-		if (strcmp(avalue, "enable") && strcmp(avalue, "disable")) {
-			errx(10, "bad %s (options are %s)", name,
-			    "`enable' or `disable'");
-		}
-		aflag = 1;
-		break;
-	  case 'e':
-		found_arg = 1;
-		name = "maximum blocks per file in a cylinder group";
-		evalue = atoi(optarg);
-		if (evalue < 1)
-			errx(10, "%s must be >= 1 (was %s)", name, optarg);
-		eflag = 1;
-		break;
-	  case 'f':
-		found_arg = 1;
-		name = "average file size";
-		fvalue = atoi(optarg);
-		if (fvalue < 1)
-			errx(10, "%s must be >= 1 (was %s)", name, optarg);
-		fflag = 1;
-		break;
-	  case 'L':
-		found_arg = 1;
-		name = "volume label";
-		Lvalue = optarg;
-		i = -1;
-		while (isalnum(Lvalue[++i]));
-		if (Lvalue[i] != '\0') {
-			errx(10, "bad %s. Valid characters are alphanumerics.",
-			    name);
-		}
-		if (strlen(Lvalue) >= MAXVOLLEN) {
-			errx(10, "bad %s. Length is longer than %d.",
-			    name, MAXVOLLEN - 1);
-		}
-		Lflag = 1;
-		break;
-	  case 'l':
-		found_arg = 1;
-		name = "multilabel MAC file system";
-		lvalue = optarg;
-		if (strcmp(lvalue, "enable") && strcmp(lvalue, "disable")) {
-			errx(10, "bad %s (options are %s)", name,
-			    "`enable' or `disable'");
-		}
-		lflag = 1;
-		break;
-	  case 'm':
-		found_arg = 1;
-		name = "minimum percentage of free space";
-		mvalue = atoi(optarg);
-		if (mvalue < 0 || mvalue > 99)
-			errx(10, "bad %s (%s)", name, optarg);
-		mflag = 1;
-		break;
-	  case 'n':
-		found_arg = 1;
- 		name = "soft updates";
- 		nvalue = optarg;
-                if (strcmp(nvalue, "enable") && strcmp(nvalue, "disable")) {
- 			errx(10, "bad %s (options are %s)",
- 			    name, "`enable' or `disable'");
- 		}
-		nflag = 1;
- 		break;
-	  case 'o':
-		found_arg = 1;
-		name = "optimization preference";
-		chg[FS_OPTSPACE] = "space";
-		chg[FS_OPTTIME] = "time";
-		if (strcmp(optarg, chg[FS_OPTSPACE]) == 0)
-			ovalue = FS_OPTSPACE;
-		else if (strcmp(optarg, chg[FS_OPTTIME]) == 0)
-			ovalue = FS_OPTTIME;
-		else
-			errx(10, "bad %s (options are `space' or `time')",
-					    name);
-		oflag = 1;
-		break;
-	  case 'p':
-		found_arg = 1;
-		pflag = 1;
-		break;
-	  case 's':
-		found_arg = 1;
-		name = "expected number of files per directory";
-		svalue = atoi(optarg);
-		if (svalue < 1)
-			errx(10, "%s must be >= 1 (was %s)", name, optarg);
-		sflag = 1;
-		break;
-	  default:
+	if (argc < 3)
 		usage();
-	  }
+	found_arg = 0;		/* At least one arg is required. */
+	while ((ch = getopt(argc, argv, "Aa:e:f:L:l:m:n:o:ps:")) != -1)
+		switch (ch) {
+
+		case 'A':
+			found_arg = 1;
+			Aflag++;
+			break;
+
+		case 'a':
+			found_arg = 1;
+			name = "ACLs";
+			avalue = optarg;
+			if (strcmp(avalue, "enable") &&
+			    strcmp(avalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			aflag = 1;
+			break;
+
+		case 'e':
+			found_arg = 1;
+			name = "maximum blocks per file in a cylinder group";
+			evalue = atoi(optarg);
+			if (evalue < 1)
+				errx(10, "%s must be >= 1 (was %s)",
+				    name, optarg);
+			eflag = 1;
+			break;
+
+		case 'f':
+			found_arg = 1;
+			name = "average file size";
+			fvalue = atoi(optarg);
+			if (fvalue < 1)
+				errx(10, "%s must be >= 1 (was %s)",
+				    name, optarg);
+			fflag = 1;
+			break;
+
+		case 'L':
+			found_arg = 1;
+			name = "volume label";
+			Lvalue = optarg;
+			i = -1;
+			while (isalnum(Lvalue[++i]));
+			if (Lvalue[i] != '\0') {
+				errx(10,
+				"bad %s. Valid characters are alphanumerics.",
+				    name);
+			}
+			if (strlen(Lvalue) >= MAXVOLLEN) {
+				errx(10, "bad %s. Length is longer than %d.",
+				    name, MAXVOLLEN - 1);
+			}
+			Lflag = 1;
+			break;
+
+		case 'l':
+			found_arg = 1;
+			name = "multilabel MAC file system";
+			lvalue = optarg;
+			if (strcmp(lvalue, "enable") &&
+			    strcmp(lvalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			lflag = 1;
+			break;
+
+		case 'm':
+			found_arg = 1;
+			name = "minimum percentage of free space";
+			mvalue = atoi(optarg);
+			if (mvalue < 0 || mvalue > 99)
+				errx(10, "bad %s (%s)", name, optarg);
+			mflag = 1;
+			break;
+
+		case 'n':
+			found_arg = 1;
+			name = "soft updates";
+			nvalue = optarg;
+			if (strcmp(nvalue, "enable") &&
+			    strcmp(nvalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			nflag = 1;
+			break;
+
+		case 'o':
+			found_arg = 1;
+			name = "optimization preference";
+			chg[FS_OPTSPACE] = "space";
+			chg[FS_OPTTIME] = "time";
+			if (strcmp(optarg, chg[FS_OPTSPACE]) == 0)
+				ovalue = FS_OPTSPACE;
+			else if (strcmp(optarg, chg[FS_OPTTIME]) == 0)
+				ovalue = FS_OPTTIME;
+			else
+				errx(10,
+				    "bad %s (options are `space' or `time')",
+				    name);
+			oflag = 1;
+			break;
+
+		case 'p':
+			found_arg = 1;
+			pflag = 1;
+			break;
+
+		case 's':
+			found_arg = 1;
+			name = "expected number of files per directory";
+			svalue = atoi(optarg);
+			if (svalue < 1)
+				errx(10, "%s must be >= 1 (was %s)",
+				    name, optarg);
+			sflag = 1;
+			break;
+
+		default:
+			usage();
+		}
 	argc -= optind;
 	argv += optind;
-
 	if (found_arg == 0 || argc != 1)
-	  usage();
+		usage();
 
 	on = special = argv[0];
 	if (ufs_disk_fillout(&disk, special) == -1)
