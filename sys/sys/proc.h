@@ -675,6 +675,16 @@ struct proc {
 
 #ifdef _KERNEL
 
+/* Flags for mi_switch(). */
+#define	SW_VOL		0x0001		/* Voluntary switch. */
+#define	SW_INVOL	0x0002		/* Involuntary switch. */
+
+/* How values for thread_single(). */
+#define	SINGLE_NO_EXIT	0
+#define	SINGLE_EXIT	1
+
+/* XXXKSE: Missing values for thread_signal_check(). */
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
 MALLOC_DECLARE(M_PGRP);
@@ -840,10 +850,7 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 int	leavepgrp(struct proc *p);
-void	mi_switch(int flags);
-/* Flags for mi_switch(). */
-#define	SW_VOL		0x0001		/* Voluntary switch. */
-#define	SW_INVOL	0x0002		/* Involuntary switch. */
+void	mi_switch(int flags, struct thread *newtd);
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
 int	p_cansched(struct thread *td, struct proc *p);
@@ -906,8 +913,6 @@ void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 int	thread_single(int how);
-#define	SINGLE_NO_EXIT 0			/* values for 'how' */
-#define	SINGLE_EXIT 1
 void	thread_single_end(void);
 void	thread_stash(struct thread *td);
 int	thread_suspend_check(int how);

@@ -430,7 +430,7 @@ uio_yield(void)
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT();
 	sched_prio(td, td->td_ksegrp->kg_user_pri); /* XXXKSE */
-	mi_switch(SW_INVOL);
+	mi_switch(SW_INVOL, NULL);
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 }

@@ -285,7 +285,7 @@ wakeup_one(ident)
  * The machine independent parts of context switching.
  */
 void
-mi_switch(int flags)
+mi_switch(int flags, struct thread *newtd)
 {
 	struct bintime new_switchtime;
 	struct thread *td;
@@ -349,7 +349,7 @@ mi_switch(int flags)
 	    (void *)td, (long)p->p_pid, p->p_comm);
 	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
-	sched_switch(td);
+	sched_switch(td, newtd);
 
 	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %ld, %s)",
 	    (void *)td, (long)p->p_pid, p->p_comm);
@@ -468,7 +468,7 @@ yield(struct thread *td, struct yield_args *uap)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
 	sched_prio(td, PRI_MAX_TIMESHARE);
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL, NULL);
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;
 	return (0);
