@@ -700,7 +700,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 static void
 tcp_hc_purge(void *arg)
 {
-	struct hc_metrics *hc_entry;
+	struct hc_metrics *hc_entry, *hc_next;
 	int all = (intptr_t)arg;
 	int i;
 
@@ -711,8 +711,8 @@ tcp_hc_purge(void *arg)
 
 	for (i = 0; i < tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&tcp_hostcache.hashbase[i].hch_mtx);
-		TAILQ_FOREACH(hc_entry, &tcp_hostcache.hashbase[i].hch_bucket,
-			      rmx_q) {
+		TAILQ_FOREACH_SAFE(hc_entry, &tcp_hostcache.hashbase[i].hch_bucket,
+			      rmx_q, hc_next) {
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&tcp_hostcache.hashbase[i].hch_bucket,
 					      hc_entry, rmx_q);
