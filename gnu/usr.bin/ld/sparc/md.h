@@ -14,7 +14,7 @@
  *    must display the following acknowledgement:
  *      This product includes software developed by Paul Kranenburg.
  * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.3 1993/11/22 19:05:31 jkh Exp $
+ *	$Id: md.h,v 1.5 1993/12/02 01:03:47 jkh Exp $
  */
 
 /*
@@ -44,6 +44,13 @@
 					MID_MACHINE, N_GETFLAG(ex)|(f))
 #define N_IS_DYNAMIC(ex)	((N_GETFLAG(ex) & EX_DYNAMIC))
 
+/*
+ * Should be handled by a.out.h ?
+ */
+#define N_ADJUST(ex)		(((ex).a_entry < PAGSIZ) ? -PAGSIZ : 0)
+#define TEXT_START(ex)		(N_TXTADDR(ex) + N_ADJUST(ex))
+#define DATA_START(ex)		(N_DATADDR(ex) + N_ADJUST(ex))
+
 #else
 
 /* Get the SunOS a.out and relocation nomenclature */
@@ -59,6 +66,10 @@
 #define relocation_info	                reloc_info_sparc
 #define r_symbolnum			r_index
 #endif /* NetBSD */
+
+#define N_BADMID(ex) \
+	(N_GETMID(ex) != 0 && N_GETMID(ex) != MID_MACHINE && \
+						!md_midcompat(&(ex)))
 
 /* Sparc (Sun 4) macros */
 #define RELOC_ADDRESS(r)		((r)->r_address)
@@ -139,16 +150,16 @@ typedef struct jmpslot {
 #define md_swapout_zsymbols(s,n)
 #define md_swapin_reloc(r,n)
 #define md_swapout_reloc(r,n)
-#define md_swapin_link_dynamic(l)
-#define md_swapout_link_dynamic(l)
-#define md_swapin_link_dynamic_2(l)
-#define md_swapout_link_dynamic_2(l)
-#define md_swapin_ld_debug(d)
-#define md_swapout_ld_debug(d)
+#define md_swapin__dynamic(l)
+#define md_swapout__dynamic(l)
+#define md_swapin_section_dispatch_table(l)
+#define md_swapout_section_dispatch_table(l)
+#define md_swapin_so_debug(d)
+#define md_swapout_so_debug(d)
 #define md_swapin_rrs_hash(f,n)
 #define md_swapout_rrs_hash(f,n)
-#define md_swapin_link_object(l,n)
-#define md_swapout_link_object(l,n)
+#define md_swapin_sod(l,n)
+#define md_swapout_sod(l,n)
 #define md_swapout_jmpslot(j,n)
 #define md_swapout_got(g,n)
 #define md_swapin_ranlib_hdr(h,n)
@@ -168,23 +179,23 @@ void	md_swapin_reloc __P((struct relocation_info *, int));
 void	md_swapout_reloc __P((struct relocation_info *, int));
 void	md_swapout_jmpslot __P((jmpslot_t *, int));
 
-#define md_swapin_symbols(s,n)		swap_symbols(s,n)
-#define md_swapout_symbols(s,n)		swap_symbols(s,n)
-#define md_swapin_zsymbols(s,n)		swap_zsymbols(s,n)
-#define md_swapout_zsymbols(s,n)	swap_zsymbols(s,n)
-#define md_swapin_link_dynamic(l)	swap_link_dynamic(l)
-#define md_swapout_link_dynamic(l)	swap_link_dynamic(l)
-#define md_swapin_link_dynamic_2(l)	swap_link_dynamic_2(l)
-#define md_swapout_link_dynamic_2(l)	swap_link_dynamic_2(l)
-#define md_swapin_ld_debug(d)		swap_ld_debug(d)
-#define md_swapout_ld_debug(d)		swap_ld_debug(d)
-#define md_swapin_rrs_hash(f,n)		swap_rrs_hash(f,n)
-#define md_swapout_rrs_hash(f,n)	swap_rrs_hash(f,n)
-#define md_swapin_link_object(l,n)	swapin_link_object(l,n)
-#define md_swapout_link_object(l,n)	swapout_link_object(l,n)
-#define md_swapout_got(g,n)		swap_longs((long*)(g),n)
-#define md_swapin_ranlib_hdr(h,n)	swap_ranlib_hdr(h,n)
-#define md_swapout_ranlib_hdr(h,n)	swap_ranlib_hdr(h,n)
+#define md_swapin_symbols(s,n)			swap_symbols(s,n)
+#define md_swapout_symbols(s,n)			swap_symbols(s,n)
+#define md_swapin_zsymbols(s,n)			swap_zsymbols(s,n)
+#define md_swapout_zsymbols(s,n)		swap_zsymbols(s,n)
+#define md_swapin__dynamic(l)			swap__dynamic(l)
+#define md_swapout__dynamic(l)			swap__dynamic(l)
+#define md_swapin_section_dispatch_table(l)	swap_section_dispatch_table(l)
+#define md_swapout_section_dispatch_table(l)	swap_section_dispatch_table(l)
+#define md_swapin_so_debug(d)			swap_so_debug(d)
+#define md_swapout_so_debug(d)			swap_so_debug(d)
+#define md_swapin_rrs_hash(f,n)			swap_rrs_hash(f,n)
+#define md_swapout_rrs_hash(f,n)		swap_rrs_hash(f,n)
+#define md_swapin_sod(l,n)			swapin_sod(l,n)
+#define md_swapout_sod(l,n)			swapout_sod(l,n)
+#define md_swapout_got(g,n)			swap_longs((long*)(g),n)
+#define md_swapin_ranlib_hdr(h,n)		swap_ranlib_hdr(h,n)
+#define md_swapout_ranlib_hdr(h,n)		swap_ranlib_hdr(h,n)
 
 #define md_swap_short(x) ( (((x) >> 8) & 0xff) | (((x) & 0xff) << 8) )
 

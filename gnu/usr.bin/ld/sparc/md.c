@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.6 1993/12/08 10:29:02 pk Exp $
+ *	$Id: md.c,v 1.6 1993/12/11 12:02:10 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -109,6 +109,7 @@ int			relocatable_output;
 {
 	register unsigned long	mask;
 
+#ifndef RTLD
 	if (relocatable_output) {
 		/*
 		 * Non-PC relative relocations which are absolute or
@@ -129,6 +130,7 @@ int			relocatable_output;
 			RELOC_ADD_EXTRA(r) -= pc_relocation;
 		return;
 	}
+#endif
 
 	relocation >>= RELOC_VALUE_RIGHTSHIFT(r);
 
@@ -167,33 +169,7 @@ int			relocatable_output;
 	}
 }
 
-/*
- * Initialize (output) exec header such that useful values are
- * obtained from subsequent N_*() macro evaluations.
- */
-void
-md_init_header(hp, magic, flags)
-struct exec	*hp;
-int		magic, flags;
-{
-#ifdef NetBSD
-	N_SETMAGIC((*hp), magic, MID_MACHINE, flags);
-
-	/* TEXT_START depends on the value of outheader.a_entry.  */
-	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
-		hp->a_entry = PAGSIZ;
-#else
-	hp->a_magic = magic;
-	hp->a_machtype = M_SPARC;
-	hp->a_toolversion = 1;
-	hp->a_dynamic = ((flags) & EX_DYNAMIC);
-
-	/* SunOS 4.1 N_TXTADDR depends on the value of outheader.a_entry.  */
-	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
-		hp->a_entry = N_PAGSIZ(*hp);
-#endif
-}
-
+#ifndef RTLD
 /*
  * Machine dependent part of claim_rrs_reloc().
  * On the Sparc the relocation offsets are stored in the r_addend member.
@@ -224,6 +200,7 @@ int			type;
 
 	return 1;
 }
+#endif
 
 /*
  * Set up a transfer from jmpslot at OFFSET (relative to the PLT table)
@@ -327,3 +304,46 @@ long	*savep;
 	*(long *)where = TRAP;
 }
 
+#ifndef RTLD
+/*
+ * Initialize (output) exec header such that useful values are
+ * obtained from subsequent N_*() macro evaluations.
+ */
+void
+md_init_header(hp, magic, flags)
+struct exec	*hp;
+int		magic, flags;
+{
+#ifdef NetBSD
+	N_SETMAGIC((*hp), magic, MID_MACHINE, flags);
+
+	/* TEXT_START depends on the value of outheader.a_entry.  */
+	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
+		hp->a_entry = PAGSIZ;
+#else
+	hp->a_magic = magic;
+	hp->a_machtype = M_SPARC;
+	hp->a_toolversion = 1;
+	hp->a_dynamic = ((flags) & EX_DYNAMIC);
+
+	/* SunOS 4.1 N_TXTADDR depends on the value of outheader.a_entry.  */
+	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
+		hp->a_entry = N_PAGSIZ(*hp);
+#endif
+}
+
+/*
+ * Check for acceptable foreign machine Ids
+ */
+int
+md_midcompat(hp)
+struct exec *hp;
+{
+#ifdef NetBSD
+#define SUN_M_SPARC	3
+	return (((md_swap_long(hp->a_midmag)&0x00ff0000) >> 16) == SUN_M_SPARC);
+#else
+	return hp->a_machtype == M_SPARC;
+#endif
+}
+#endif /* RTLD */

@@ -14,7 +14,7 @@
 .\"    must display the following acknowledgement:
 .\"      This product includes software developed by Paul Kranenburg.
 .\" 3. The name of the author may not be used to endorse or promote products
-.\"    derived from this software withough specific prior written permission
+.\"    derived from this software without specific prior written permission
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,11 +27,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.3 1994/01/03 23:52:35 jkh Exp $
+.\"	$Id: ld.1,v 1.5 1994/01/29 02:03:04 jtc Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 8
-.Os FreeBSD
+.Os FreeBSD 1.1
 .Sh NAME
 .Nm ld
 .Nd link editor
@@ -69,7 +69,7 @@ The options are as follows:
 .It Fl A Ar symbol-file
 The the symbol-file is taken as a base for link-editing the object files
 on the command line.
-.It \-assert Ar keyword
+.It Fl a\&ssert Ar keyword
 This option has currently no effect. It is here for compatibility with
 SunOS ld. All conditions which would cause a Sun assertion to fail will
 currently always cause error or warning messages from
@@ -85,7 +85,7 @@ found a traditional archive is looked for.
 This options can appear anywhere on the command line and is complementary
 to -Bstatic.
 .It Fl B Ar static
-The counterpart of -Bdynamic. This options turns off dynamic linking for
+The counterpart of -Bdynamic. This option turns off dynamic linking for
 all library specifiers until a -Bdynamic is once again given. Any explicitly
 mentioned shared object encountered on the command line while this option is
 in effect is flagged as an error.
@@ -170,27 +170,30 @@ Discard local symbols in the input files that start with the letter
 .Dq L
 .It Fl x
 Discard all local symbols in the input files.
-.It Fl y symbol
+.It Fl y Ar symbol
 Trace the manipulations inflicted on
 .Ar symbol
-.It Fl Z
-Make a NetBSD 0.9 ZMAGIC output file.
 .It Fl z
-Make a ZMAGIC output file. This is the older 386BSD / FreeBSD 1.0 format.
+Make a NetBSD 0.9 ZMAGIC output file.
 .Sh FILES
-
 .Sh SEE ALSO
 .Xr ldconfig 1 ,
 .Xr link 5
-.Sh BUGS
-Spurious
-.Dq undefined symbols errors
-may be reported for symbols originating in shared libraries. This occurs
-when there is also at least one genuine undefined symbol to report.
 .Sh CAVEATS
 An entry point must now explicitly be given if the output is intended to be
 a normal executable program. This was not the case for the previous version of
 .Nm ld\&.
+.Sh BUGS
+Shared objects are not properly checked for undefined symbols.
+.Pp
+Cascading of shared object defeats the
+.Dq -Bstatic
+option.
+.Pp
+All shared objects presented to
+.Nm ld
+are marked for run-time loading in the output file, even if no symbols
+are needed from them.
 .Sh HISTORY
 The shared library model employed by
 .Nm ld
