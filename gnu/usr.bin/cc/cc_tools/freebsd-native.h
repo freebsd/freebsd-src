@@ -10,8 +10,11 @@
 #undef LOCAL_INCLUDE_DIR		/* We don't wish to support one. */
 
 /* Look for the include files in the system-defined places.  */
-#define GPLUSPLUS_INCLUDE_DIR		"/usr/include/g++"
-#define GCC_INCLUDE_DIR			"/usr/include"
+#define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/g++"
+#define GCC_INCLUDE_DIR			PREFIX"/include"
+#ifdef CROSS_COMPILE
+#define CROSS_INCLUDE_DIR		PREFIX"/include"
+#endif
 
 /* Under FreeBSD, the normal location of the compiler back ends is the
    /usr/libexec directory.
@@ -30,8 +33,8 @@
 #undef TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
 #undef MD_EXEC_PREFIX
 
-#define STANDARD_EXEC_PREFIX		"/usr/libexec/"
-#define MD_EXEC_PREFIX			"/usr/libexec/"
+#define STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
+#define MD_EXEC_PREFIX			PREFIX"/libexec/"
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
@@ -39,7 +42,7 @@
 #undef STANDARD_STARTFILE_PREFIX
 #undef MD_STARTFILE_PREFIX		/* We don't need one for now. */
 
-#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
+#define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
