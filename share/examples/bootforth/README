@@ -1,0 +1,22 @@
+Here you can find some simple examples how to use BootFORTH (part of the
+new bootloader) together with terminal emulation code (available when
+compiling /sys/boot/i386/libi386 with -DTERM_EMU).
+
+Normally, you can place the files in /boot as they are here, and they will be
+automatically loaded by /boot/loader.
+
+The files are:
+
+boot.4th	example of file which is always loaded by /boot/loader, if
+		present in /boot/
+screen.4th	helpful words for screen manipulation.
+frames.4th	basic frame drawing primitives. Requires screen.4th.
+menu.4th	example of simple startup menu.
+
+You're encouraged to add more features to these files - I'm not a Forth
+hacker, unfortunately...
+
+Andrzej Bialecki
+<abial@freebsd.org>
+
+$Id$
