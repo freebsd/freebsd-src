@@ -39,3 +39,11 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs -ffixed-8 -Wa,-mev56
 .endif
+
+#
+# For IA-64, we use r13 for the kernel globals pointer and we only use
+# a very small subset of float registers for integer divides.
+#
+.if ${MACHINE_ARCH} == "ia64"
+CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127
+.endif
