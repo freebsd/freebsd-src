@@ -1344,10 +1344,6 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p->p_state == PRS_ZOMBIE) {
-				PROC_UNLOCK(p);
-				continue;
-			}
 			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
@@ -1384,15 +1380,8 @@ kill(td, uap)
 	if (uap->pid > 0) {
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL) {
-			if ((p = zpfind(uap->pid)) != NULL) {
-				/*
-				 * IEEE Std 1003.1-2001: return success
-				 * when killing a zombie.
-				 */
-				PROC_UNLOCK(p);
-				return (0);
-			}
-			return (ESRCH);
+			if ((p = zpfind(uap->pid)) == NULL)
+				return (ESRCH);
 		}
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
@@ -1628,6 +1617,11 @@ psignal(struct proc *p, int sig)
 		panic("psignal(): invalid signal");
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	/*
+	 * IEEE Std 1003.1-2001: return success when killing a zombie.
+	 */
+	if (p->p_state == PRS_ZOMBIE)
+		return;
 	prop = sigprop(sig);
 
 	/*
