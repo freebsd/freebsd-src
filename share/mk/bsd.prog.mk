@@ -35,7 +35,7 @@ PROG=	${PROG_CXX}
 
 # If there are Objective C sources, link with Objective C libraries.
 .if !empty(SRCS:M*.m)
-OBJCLIBS?= -lobjc
+OBJCLIBS?= -lobjc -lpthread
 LDADD+=	${OBJCLIBS}
 .endif
 
