@@ -569,6 +569,15 @@ fi
 # Use the umask/mode information to install the files
 # Create directories as needed
 #
+do_install_and_rm () {
+  install -m "${1}" "${2}" "${3}" &&
+    if [ -f "${2}" ]; then
+      rm "${2}"
+    else
+      return 0
+    fi
+}
+
 mm_install () {
   local INSTALL_DIR
   INSTALL_DIR=${1#.}
@@ -598,8 +607,7 @@ mm_install () {
       NEED_CAP_MKDB=yes
       ;;
     /etc/master.passwd)
-      install -m 600 "${1}" "${DESTDIR}${INSTALL_DIR}" &&
-        [ -f "${1}" ] && rm "${1}"
+      do_install_and_rm 600 "${1}" "${DESTDIR}${INSTALL_DIR}"
       NEED_PWD_MKDB=yes
       DONT_INSTALL=yes
       ;;
@@ -657,21 +665,19 @@ mm_install () {
 
     case "${DONT_INSTALL}" in
     '')
-      install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
-        [ -f "${1}" ] && rm "${1}"
+      do_install_and_rm "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
       ;;
     *)
       unset DONT_INSTALL
       ;;
     esac
-  else
+  else	# File matched -x
     case "${1#.}" in
     /dev/MAKEDEV)
       NEED_MAKEDEV=yes
       ;;
     esac
-    install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
-      [ -f "${1}" ] && rm "${1}"
+    do_install_and_rm "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
   fi
   return $?
 }
