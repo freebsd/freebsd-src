@@ -1610,13 +1610,14 @@ dgmioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	switch (cmd) {
 	case TIOCSBRK:
-/* Helg: commented */
-/*		error = dgmdrain(port);*/
+#if 0
+		error = dgmdrain(port);
 
 		if (error != 0) {
 			splx(s);
 			return error;
 		}
+#endif
 
 		cs = splclock();
 		setwin(sc, 0);
