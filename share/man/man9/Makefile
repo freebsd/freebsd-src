@@ -118,7 +118,6 @@ MAN=	accept_filter.9 \
 	inittodr.9 \
 	intro.9 \
 	ithread.9 \
-	jumbo.9 \
 	KASSERT.9 \
 	kernacc.9 \
 	kobj.9 \
@@ -535,12 +534,6 @@ MLINKS+=ithread.9 ithread_add_handler.9 \
 	ithread.9 ithread_priority.9 \
 	ithread.9 ithread_remove_handler.9 \
 	ithread.9 ithread_schedule.9
-MLINKS+=jumbo.9 jumbo_freem.9 \
-	jumbo.9 jumbo_pg_alloc.9 \
-	jumbo.9 jumbo_pg_free.9 \
-	jumbo.9 jumbo_pg_steal.9 \
-	jumbo.9 jumbo_phys_to_kva.9 \
-	jumbo.9 jumbo_vm_init.9
 MLINKS+=kernacc.9 useracc.9
 MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_compile.9 \
