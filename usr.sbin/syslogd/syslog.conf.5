@@ -218,20 +218,20 @@ Upon receipt of a
 .Dv SIGHUP ,
 .Nm syslogd 
 will close the pipe to the process.  If the process didn't exit
-voluntarily, it will be send a
+voluntarily, it will be sent a
 .Dv SIGTERM
 signal after a grace period of up to 40 seconds.
 .Pp
-The command will only be started once data arrive that should be piped
+The command will only be started once data arrives that should be piped
 to it.  If it exited later, it will be restarted as necessary.
 .Pp
 Unless the command is a full pipeline, it's probably useful to
 start the command with
 .Em exec
 so that the invoking shell process does not wait for the command to
-cmoplete.  Warning: the process is started under the UID invoking
+complete.  Warning: the process is started under the UID invoking
 .Xr syslogd 8 ,
-normally superuser.
+normally the superuser.
 .El
 .Pp
 Blank lines and lines whose first non-blank character is a hash (``#'')
