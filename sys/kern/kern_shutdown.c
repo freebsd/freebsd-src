@@ -370,7 +370,6 @@ boot(int howto)
 			printf("giving up on %d buffers\n", nbusy);
 			DELAY(5000000);	/* 5 seconds */
 		} else {
-			printf("done\n");
 			/*
 			 * Unmount filesystems
 			 */
@@ -597,14 +596,14 @@ kproc_shutdown(void *arg, int howto)
 
 	p = (struct proc *)arg;
 	strlcpy(procname, p->p_comm, sizeof(procname));
-	printf("Waiting (max %d seconds) for system process `%s' to stop...\n",
+	printf("Waiting (max %d seconds) for system process `%s' to stop...",
 	    kproc_shutdown_wait, procname);
 	error = kthread_suspend(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
-		printf("Stop of '%s' timed out.\n", procname);
+		printf("timed out\n");
 	else
-		printf("Process '%s' stopped.\n", procname);
+		printf("done\n");
 }
 
 /* Registration of dumpers */
