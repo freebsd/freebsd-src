@@ -3502,8 +3502,10 @@ ahc_softc_init(struct ahc_softc *ahc)
 {
 
 	/* The IRQMS bit is only valid on VL and EISA chips */
-	if ((ahc->chip & AHC_PCI) != 0)
-		ahc->unpause &= ~IRQMS;
+	if ((ahc->chip & AHC_PCI) == 0)
+		ahc->unpause = ahc_inb(ahc, HCNTRL) & IRQMS;
+	else
+		ahc->unpause = 0;
 	ahc->pause = ahc->unpause | PAUSE; 
 	/* XXX The shared scb data stuff should be deprecated */
 	if (ahc->scb_data == NULL) {
