@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fbreg.h,v 1.1 1999/01/09 02:44:49 yokota Exp $
+ * $Id: fbreg.h,v 1.2 1999/01/19 11:31:11 yokota Exp $
  */
 
 #ifndef _DEV_FB_FBREG_H_
@@ -98,6 +98,23 @@ typedef struct video_switch {
     vi_mmap_t		*mmap;
     vi_diag_t		*diag;
 } video_switch_t;
+
+#define save_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->save_palette)((adp), (pal))
+#define load_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->load_palette)((adp), (pal))
+#define get_mode_info(adp, mode, buf)			\
+	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (buf))
+#define set_video_mode(adp, mode)			\
+	(*vidsw[(adp)->va_index]->set_mode)((adp), (mode))
+#if 0 /* XXX conflicts with syscons' set_border() */
+#define set_border(adp, border)				\
+	(*vidsw[(adp)->va_index]->set_border)((adp), (border))
+#endif
+#define set_origin(adp, o)				\
+	(*vidsw[(adp)->va_index]->set_win_org)(adp, o)
+
+/* XXX - add more macros */
 
 /* video driver */
 typedef struct video_driver {
