@@ -1,4 +1,4 @@
-.\" 	$Id: ftp.1,v 1.6 1997/12/08 22:09:44 roberto Exp $
+.\" 	$Id: ftp.1,v 1.7 1997/12/13 20:38:17 pst Exp $
 .\" 	$NetBSD: ftp.1,v 1.21 1997/06/10 21:59:58 lukem Exp $
 .\"
 .\" Copyright (c) 1985, 1989, 1990, 1993
@@ -611,7 +611,7 @@ Spaces may be included in
 .Ar outpattern  ,
 as in the example: `nmap $1 sed "s/  *$//" > $1' .
 Use the `\e' character to prevent special treatment
-of the `$','[','[', and `,' characters.
+of the `$','[',']', and `,' characters.
 .It Ic ntrans Op Ar inchars Op Ar outchars
 Set or unset the filename character translation mechanism.
 If no arguments are specified, the filename character
@@ -728,7 +728,7 @@ to any remaining files for the current command.
 Answer
 .Sq yes
 to the current file, and turn off prompt mode
-(as is
+(as if
 .Dq prompt off
 had been given).
 .El
@@ -850,10 +850,10 @@ On
 .Ux
 systems, marker is usually a byte
 offset into the file.
-+.It Ic restrict
+.It Ic restrict
 Toggle data port range restrictions.
 When not operating in passive mode,  the
-.Nm ftp ,
+.Nm
 client program requests that the remote server open a connection back
 to the client host on a separate data port.  In previous versions, that
 remote port fell in the range 1024..4999.  However, most firewall setups
@@ -1145,8 +1145,8 @@ remainder of the argument is interpreted as a shell command.
 .Nm
 then forks a shell, using
 .Xr popen 3
-with the argument supplied, and reads (writes) from the stdout
-(stdin).
+with the argument supplied, and reads (writes) from the stdin
+(stdout).
 If the shell command includes spaces, the argument
 must be quoted; e.g.
 \*(Lq" ls -lt"\*(Rq.
