@@ -1,4 +1,4 @@
-/* $Id: kftxx.c,v 1.1 1998/06/10 10:55:49 dfr Exp $ */
+/* $Id: kftxx.c,v 1.2 1998/06/14 13:45:24 dfr Exp $ */
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
@@ -89,7 +89,8 @@ static device_method_t kft_methods[] = {
 	DEVMETHOD(bus_print_child,	kft_print_child),
 	DEVMETHOD(bus_read_ivar,	kft_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_map_intr,		bus_generic_map_intr),
+	DEVMETHOD(bus_create_intr,	bus_generic_create_intr),
+	DEVMETHOD(bus_connect_intr,	bus_generic_connect_intr),
 
 	{ 0, 0 }
 };

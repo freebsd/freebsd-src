@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.1 1998/06/10 10:55:41 dfr Exp $
+ *	$Id: dwlpx.c,v 1.2 1998/06/14 13:45:21 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -264,10 +264,12 @@ static int
 dwlpx_attach(device_t dev)
 {
 	struct dwlpx_softc* sc = DWLPX_SOFTC(dev);
+	device_t parent = device_get_parent(dev);
 	vm_offset_t regs;
 	dwlpx0 = dev;
 
 	chipset = dwlpx_chipset;
+	chipset.bridge = dev;
 
 	regs = KV(DWLPX_BASE(kft_get_node(dev), kft_get_hosenum(dev)));
 	sc->dmem_base	= regs + (0L << 32);
@@ -277,7 +279,9 @@ dwlpx_attach(device_t dev)
 
 	*(u_int32_t*) (regs + PCIA_CTL(0)) = 1;	/* Type1 config cycles */
 
-	BUS_MAP_INTR(device_get_parent(dev), dev, dwlpx_intr, 0);
+	BUS_CONNECT_INTR(parent,
+			 BUS_CREATE_INTR(parent, dev,
+					 0, dwlpx_intr, 0));
 
 	return 0;
 }
