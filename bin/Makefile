@@ -23,6 +23,7 @@ SUBDIR= cat \
 	ps \
 	pwd \
 	rcp \
+	realpath \
 	rm \
 	rmdir \
 	setfacl \
