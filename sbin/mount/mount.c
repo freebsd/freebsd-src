@@ -332,12 +332,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 			(void)snprintf(execname,
 			    sizeof(execname), "%s/mount_%s", *edir, vfstype);
 			execv(execname, (char * const *)argv);
-			if (errno != ENOENT)
-				warn("exec %s for %s", execname, name);
-		} while (*++edir != NULL);
-
-		if (errno == ENOENT)
 			warn("exec %s for %s", execname, name);
+		} while (*++edir != NULL);
 		exit(1);
 		/* NOTREACHED */
 	default:				/* Parent. */
