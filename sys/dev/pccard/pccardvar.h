@@ -35,8 +35,6 @@
 
 #include <machine/bus.h>
 
-#include <dev/pccard/pccardchip.h>
-
 extern int	pccard_verbose;
 
 /*
@@ -61,7 +59,6 @@ struct pccard_mem_handle {
 	bus_space_handle_t memh;	/* mapped space handle */
 	bus_addr_t      addr;		/* resulting address in bus space */
 	bus_size_t      size;		/* size of mem space */
-	pccard_mem_handle_t mhandle;	/* opaque memory handle */
 	bus_size_t      realsize;	/* how much we really allocated */
 	long		offset;
 	int		kind;
@@ -126,7 +123,6 @@ struct pccard_function {
 	struct pccard_mem_handle pf_pcmh;
 #define	pf_ccrt		pf_pcmh.memt
 #define	pf_ccrh		pf_pcmh.memh
-#define	pf_ccr_mhandle	pf_pcmh.mhandle
 #define	pf_ccr_realsize	pf_pcmh.realsize
 	bus_addr_t	pf_ccr_offset;
 	int		pf_ccr_window;
@@ -160,6 +156,13 @@ struct pccard_card {
 #define	PCCARD_CIS_INVALID		{ NULL, NULL, NULL, NULL }
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
+
+#define	PCCARD_MEM_ATTR		1
+#define	PCCARD_MEM_COMMON	2
+
+#define	PCCARD_WIDTH_AUTO	0
+#define	PCCARD_WIDTH_IO8	1
+#define	PCCARD_WIDTH_IO16	2
 
 /* More later? */
 struct pccard_ivar {

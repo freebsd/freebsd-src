@@ -49,7 +49,6 @@
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccardchip.h>
 
 #include <dev/pcic/i82365reg.h>
 #include <dev/pcic/i82365var.h>
