@@ -691,7 +691,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     }
 
     if (id && id->deps && strlen(id->deps)) {
-	char t[1024], *cp, *cp2;
+	char t[2048], *cp, *cp2;
 
 	SAFE_STRCPY(t, id->deps);
 	cp = t;
