@@ -27,12 +27,11 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
 #ifndef lint
 #if 0
 static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 
 /*
@@ -42,20 +41,26 @@ static const char rcsid[] =
 /*
  * Administrative tool to add a new user to the publickey database
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
+
 #ifdef YP
 #include <sys/wait.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <netdb.h>
 #endif	/* YP */
+
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pwd.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -79,14 +84,8 @@ static char *basename(char *path);
  * if there is no access violation.
  */
 int
-mapupdate(requester, mapname, op, keylen, key, datalen, data)
-	char *requester;
-	char *mapname;
-	u_int op;
-	u_int keylen;
-	char *key;
-	u_int datalen;
-	char *data;
+mapupdate(char *requester, char *mapname, u_int op, u_int keylen,
+    char *key, u_int datalen, char *data)
 {
 	char updater[MAXMAPNAMELEN + 40];
 	FILE *childargs;
@@ -144,10 +143,7 @@ mapupdate(requester, mapname, op, keylen, key, datalen, data)
  * returns pid, or -1 for failure
  */
 static pid_t
-_openchild(command, fto, ffrom)
-	char *command;
-	FILE **fto;
-	FILE **ffrom;
+_openchild(char *command, FILE **fto, FILE **ffrom)
 {
 	int i;
 	pid_t pid;
@@ -212,8 +208,7 @@ error1:
 }
 
 static char *
-basename(path)
-	char *path;
+basename(char *path)
 {
 	char *p;
 
@@ -234,7 +229,7 @@ basename(path)
 #define	ERR_DBASE	5
 #define	ERR_KEY		6
 
-static int match( char * , char * );
+static int match(char *, char *);
 
 /*
  * Determine if requester is allowed to update the given map,
@@ -242,14 +237,8 @@ static int match( char * , char * );
  * if there is no access violation. This function updates
  * the local file and then shuts up.
  */
-localupdate(name, filename, op, keylen, key, datalen, data)
-	char *name;	/* Name of the requestor */
-	char *filename;
-	u_int op;
-	u_int keylen;	/* Not used */
-	char *key;
-	u_int datalen;	/* Not used */
-	char *data;
+localupdate(char *name, char *filename, u_int op, u_int keylen,
+    char *key, u_int datalen, char *data)
 {
 	char line[256];
 	FILE *rf;
@@ -335,9 +324,7 @@ localupdate(name, filename, op, keylen, key, datalen, data)
 }
 
 static
-match(line, name)
-	char *line;
-	char *name;
+match(char *line, char *name)
 {
 	int len;
 
@@ -346,4 +333,3 @@ match(line, name)
 		(line[len] == ' ' || line[len] == '\t'));
 }
 #endif /* !YP */
-
