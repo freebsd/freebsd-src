@@ -226,6 +226,12 @@
 	fast recovery when NewReno was enabled, has been
 	fixed. &merged;</para>
 
+      <para>TCP connections in the <literal>TIME_WAIT</literal> state
+	now use a special protocol control block that uses less space
+	than a full-blown TCP PCB.  This allows some of the data
+	structures and resources used by such a connection to be freed
+	earlier.</para>
+
       <para>It is now possible to specify the range of
         <quote>privileged ports</quote> (TCP and UDP ports that
         require superuser access to &man.bind.2; to).  The range is
@@ -240,6 +246,9 @@
       <para>Some bugs in the non-blocking RPC code has been fixed.  As
 	a result, &man.amd.8; users are now able to mount volumes from
 	a &release.current; server.</para>
+
+      <para>Support for XNS networking, which has not worked
+	correctly for almost seven years, has been removed.</para>
 
     </sect3>
 
