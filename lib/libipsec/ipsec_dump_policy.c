@@ -196,6 +196,8 @@ ipsec_dump_ipsecrequest(buf, len, xisr, bound)
 	case IPPROTO_IPCOMP:
 		proto = "ipcomp";
 		break;
+	case IPPROTO_TCP:
+		proto = "tcp";
 	default:
 		__ipsec_errcode = EIPSEC_INVAL_PROTO;
 		return NULL;
