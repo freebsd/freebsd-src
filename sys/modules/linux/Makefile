@@ -47,10 +47,4 @@ ${GENSYSCALL}: @/kern/makesyscalls.sh \
 	    linux_sysent.c > linux_sysent.c.fixup
 	    mv -f linux_sysent.c.fixup linux_sysent.c
 
-.if exists(${DESTDIR}/usr/bin)
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/linux.sh ${DESTDIR}/usr/sbin/linux
-.endif
-
 .include <bsd.kmod.mk>
