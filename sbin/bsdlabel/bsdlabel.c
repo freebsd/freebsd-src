@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__i386__)
 #elif defined(__alpha__)
+#elif defined(__ia64__)
 #else
 #error	I do not know about this architecture, and shall probably not be compiled for it.
 #endif
