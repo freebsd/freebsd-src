@@ -358,7 +358,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	resbuf.Data.Irq.Interrupts[0] = Interrupts[0];
     } else {
 	resbuf.Id = ACPI_RSTYPE_EXT_IRQ;
-	resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
+	resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_EXT_IRQ);
 	resbuf.Data.ExtendedIrq = prsres->Data.ExtendedIrq;
 	resbuf.Data.ExtendedIrq.NumberOfInterrupts = 1;
 	resbuf.Data.ExtendedIrq.Interrupts[0] = Interrupts[0];
