@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.21 1997/02/22 16:09:42 peter Exp $";
+	"$Id: perform.c,v 1.22 1997/10/08 07:47:29 charnier Exp $";
 #endif
 
 /*
@@ -202,4 +202,5 @@ void
 cleanup(int sig)
 {
     leave_playpen(Home);
+    exit(1);
 }

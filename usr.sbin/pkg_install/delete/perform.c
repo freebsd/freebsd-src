@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.13 1997/03/06 10:21:57 jkh Exp $";
+	"$Id: perform.c,v 1.14 1997/10/08 07:46:52 charnier Exp $";
 #endif
 
 /*
@@ -162,6 +162,7 @@ void
 cleanup(int sig)
 {
     /* Nothing to do */
+    exit(1);
 }
 
 static void

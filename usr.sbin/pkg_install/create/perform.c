@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.36 1997/07/04 04:48:02 jkh Exp $";
+	"$Id: perform.c,v 1.37 1997/10/08 07:46:27 charnier Exp $";
 #endif
 
 /*
@@ -182,7 +182,7 @@ pkg_perform(char **pkgs)
     free(Comment);
     free(Desc);
     free_plist(&plist);
-    cleanup(0);
+    leave_playpen(home);
     return TRUE;	/* Success */
 }
 
@@ -293,4 +293,5 @@ void
 cleanup(int sig)
 {
     leave_playpen(home);
+    exit(1);
 }
