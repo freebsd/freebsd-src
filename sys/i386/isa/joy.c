@@ -287,7 +287,6 @@ joy_stat (struct lkm_table *lkmtp, int cmd)
 int
 joy_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
-#define _module joy_module
     DISPATCH(lkmtp, cmd, ver, joy_load, joy_unload, joy_stat);
 }
 
