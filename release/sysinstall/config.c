@@ -453,9 +453,15 @@ configUsers(dialogMenuItem *self)
 int
 configLinux(dialogMenuItem *self)
 {
+    WINDOW *w = savescr();
+    int i;
+
+    dialog_clear_norefresh();
     variable_set2(VAR_LINUX_ENABLE, "YES", 1);
     msgNotify("Installing Linux compatibility library...");
-    return package_add("linux_base");
+    i = package_add("linux_base");
+    restorescr(w);
+    return i;
 }
 
 static void
