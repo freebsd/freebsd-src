@@ -17,7 +17,7 @@ CFLAGS+= -Wall
 CFLAGS+=-DKERBEROS
 DPADD+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
 LDADD+=	-lkrb -ldes -lcom_err
-DISTRIBUTION=	krb
+DISTRIBUTION=	krb4
 .endif
 
 BINMODE=4555
