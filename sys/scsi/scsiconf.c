@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.94 1997/09/18 00:15:55 msmith Exp $
+ *      $Id: scsiconf.c,v 1.95 1997/10/05 13:38:17 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -303,6 +303,10 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "Quantum", "DLT*", "*",
+		"st", SC_MORE_LUS, 0
+	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "SUN", "DLT*", "*",
 		"st", SC_MORE_LUS, 0
 	},
 	{
