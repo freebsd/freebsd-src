@@ -48,7 +48,7 @@
 #include <machine/endian.h>
 #include <sys/_types.h>
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
 typedef	unsigned int	u_int;
@@ -106,34 +106,28 @@ typedef	__uintptr_t	uintptr_t;
 #define	_INTPTR_T_DECLARED
 #endif
 
-/*
- * Deprecated BSD unsigned integrals.
- */
-typedef __uint8_t	u_int8_t;
+typedef __uint8_t	u_int8_t;	/* unsigned integrals (deprecated) */
 typedef __uint16_t	u_int16_t;
 typedef __uint32_t	u_int32_t;
 typedef __uint64_t	u_int64_t;
 
-/*
- * Deprecated BSD 64-bit integrals.
- */
-typedef	u_int64_t	u_quad_t;	/* quads */
-typedef	int64_t		quad_t;
+typedef	__uint64_t	u_quad_t;	/* quads (deprecated) */
+typedef	__int64_t	quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
 typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
 typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 typedef	__critical_t	critical_t;	/* Critical section value */
-typedef	int64_t		daddr_t;	/* disk address */
-typedef	u_int32_t	fixpt_t;	/* fixed point number */
+typedef	__int64_t	daddr_t;	/* disk address */
+typedef	__uint32_t	fixpt_t;	/* fixed point number */
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;		/* group id */
 #define	_GID_T_DECLARED
 #endif
 
-typedef	u_int32_t	ino_t;		/* inode number */
+typedef	__uint32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
 
 #ifndef _MODE_T_DECLARED
@@ -141,7 +135,7 @@ typedef	__mode_t	mode_t;		/* permissions */
 #define	_MODE_T_DECLARED
 #endif
 
-typedef	u_int16_t	nlink_t;	/* link count */
+typedef	__uint16_t	nlink_t;	/* link count */
 
 #ifndef _OFF_T_DECLARED
 typedef	__off_t		off_t;		/* file offset */
@@ -154,9 +148,9 @@ typedef	__pid_t		pid_t;		/* process id */
 #endif
 
 typedef	__register_t	register_t;
-typedef	quad_t		rlim_t;		/* resource limit */
+typedef	__int64_t	rlim_t;		/* resource limit (XXX not unsigned) */
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
-typedef	int32_t		swblk_t;	/* swap offset */
+typedef	__int32_t	swblk_t;	/* swap offset */
 typedef	__u_register_t	u_register_t;
 
 #ifndef _UID_T_DECLARED
@@ -184,33 +178,20 @@ typedef	__intfptr_t	intfptr_t;
 typedef	__uint32_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
 
 typedef	__uintfptr_t	uintfptr_t;
-typedef	u_int64_t	uoff_t;
+typedef	__uint64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 
 struct cdev;
 
-typedef	u_int32_t	udev_t;		/* device number */
+typedef	__uint32_t	udev_t;		/* device number */
 typedef struct cdev	*dev_t;
 
 #define offsetof(type, field) __offsetof(type, field)
 
 #else /* !_KERNEL */
 
-typedef	u_int32_t	dev_t;		/* device number */
+typedef	__uint32_t	dev_t;		/* device number */
 #define udev_t dev_t
-
-#if __BSD_VISIBLE
-
-/*
- * minor() gives a cookie instead of an index since we don't want to
- * change the meanings of bits 0-15 or waste time and space shifting
- * bits 16-31 for devices that don't use them.
- */
-#define major(x)        ((int)(((u_int)(x) >> 8)&0xff)) /* major number */
-#define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
-#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
-
-#endif /* __BSD_VISIBLE */
 
 #endif /* !_KERNEL */
 
@@ -262,6 +243,17 @@ typedef	__timer_t	timer_t;
 #if __BSD_VISIBLE
 
 #include <sys/select.h>
+
+#ifndef _KERNEL
+/*
+ * minor() gives a cookie instead of an index since we don't want to
+ * change the meanings of bits 0-15 or waste time and space shifting
+ * bits 16-31 for devices that don't use them.
+ */
+#define major(x)        ((int)(((u_int)(x) >> 8)&0xff)) /* major number */
+#define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
+#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
+#endif /* !_KERNEL */
 
 /*
  * These declarations belong elsewhere, but are repeated here and in
