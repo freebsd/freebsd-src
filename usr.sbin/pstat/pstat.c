@@ -91,15 +91,11 @@ struct nlist nl[] = {
 #define FNL_MAXFILE	8
 	{"_maxfiles"},
 #define NLMANDATORY FNL_MAXFILE	/* names up to here are mandatory */
-#define VM_NISWAP	NLMANDATORY + 1
-	{ "_niswap" },
-#define VM_NISWDEV	NLMANDATORY + 2
-	{ "_niswdev" },
-#define	SCONS		NLMANDATORY + 3
+#define	SCONS		NLMANDATORY + 1
 	{ "_cons" },
-#define	SPTY		NLMANDATORY + 4
+#define	SPTY		NLMANDATORY + 2
 	{ "_pt_tty" },
-#define	SNPTY		NLMANDATORY + 5
+#define	SNPTY		NLMANDATORY + 3
 	{ "_npty" },
 
 #ifdef hp300
@@ -953,96 +949,57 @@ void
 swapmode()
 {
 	char *header;
-	int hlen, nswap, nswdev, dmmax, nswapmap, niswap, niswdev;
+	int hlen, nswap, nswdev, dmmax;
 	int s, e, div, i, l, avail, nfree, npfree, used;
 	struct swdevt *sw;
 	long blocksize, *perdev;
-	struct map *swapmap, *kswapmap;
-	struct mapent *mp;
+	struct rlist head;
+	struct rlist *swaplist;
 
-#if 0
 	KGET(VM_NSWAP, nswap);
 	KGET(VM_NSWDEV, nswdev);
 	KGET(VM_DMMAX, dmmax);
-	KGET(VM_NSWAPMAP, nswapmap);
-	KGET(VM_SWAPMAP, kswapmap);	/* kernel `swapmap' is a pointer */
+	KGET(VM_SWAPLIST, swaplist);
 	if ((sw = malloc(nswdev * sizeof(*sw))) == NULL ||
-	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL ||
-	    (mp = malloc(nswapmap * sizeof(*mp))) == NULL)
+	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL)
 		err(1, "malloc");
 	KGET1(VM_SWDEVT, sw, nswdev * sizeof(*sw), "swdevt");
-	KGET2((long)kswapmap, mp, nswapmap * sizeof(*mp), "swapmap");
-
-	/* Supports sequential swap */
-	if (nl[VM_NISWAP].n_value != 0) {
-		KGET(VM_NISWAP, niswap);
-		KGET(VM_NISWDEV, niswdev);
-	} else {
-		niswap = nswap;
-		niswdev = nswdev;
-	}
-
-	/* First entry in map is `struct map'; rest are mapent's. */
-	swapmap = (struct map *)mp;
-	if (nswapmap != swapmap->m_limit - (struct mapent *)kswapmap)
-		errx(1, "panic: nswapmap goof");
 
 	/* Count up swap space. */
 	nfree = 0;
 	memset(perdev, 0, nswdev * sizeof(*perdev));
-	for (mp++; mp->m_addr != 0; mp++) {
-		s = mp->m_addr;			/* start of swap region */
-		e = mp->m_addr + mp->m_size;	/* end of region */
-		nfree += mp->m_size;
+	while (swaplist) {
+		int	top, bottom, next_block;
+
+		KGET2(swaplist, &head, sizeof(struct rlist), "swaplist");
+
+		top = head.rl_end;
+		bottom = head.rl_start;
+
+		nfree += top - bottom + 1;
 
 		/*
 		 * Swap space is split up among the configured disks.
 		 *
 		 * For interleaved swap devices, the first dmmax blocks
 		 * of swap space some from the first disk, the next dmmax
-		 * blocks from the next, and so on up to niswap blocks.
-		 *
-		 * Sequential swap devices follow the interleaved devices
-		 * (i.e. blocks starting at niswap) in the order in which
-		 * they appear in the swdev table.  The size of each device
-		 * will be a multiple of dmmax.
+		 * blocks from the next, and so on up to nswap blocks.
 		 *
 		 * The list of free space joins adjacent free blocks,
 		 * ignoring device boundries.  If we want to keep track
 		 * of this information per device, we'll just have to
-		 * extract it ourselves.  We know that dmmax-sized chunks
-		 * cannot span device boundaries (interleaved or sequential)
-		 * so we loop over such chunks assigning them to devices.
+		 * extract it ourselves.
 		 */
-		i = -1;
-		while (s < e) {		/* XXX this is inefficient */
-			int bound = roundup(s+1, dmmax);
-
-			if (bound > e)
-				bound = e;
-			if (bound <= niswap) {
-				/* Interleaved swap chunk. */
-				if (i == -1)
-					i = (s / dmmax) % niswdev;
-				perdev[i] += bound - s;
-				if (++i >= niswdev)
-					i = 0;
-			} else {
-				/* Sequential swap chunk. */
-				if (i < niswdev) {
-					i = niswdev;
-					l = niswap + sw[i].sw_nblks;
-				}
-				while (s >= l) {
-					/* XXX don't die on bogus blocks */
-					if (i == nswdev-1)
-						break;
-					l += sw[++i].sw_nblks;
-				}
-				perdev[i] += bound - s;
-			}
-			s = bound;
+		while (top / dmmax != bottom / dmmax) {
+			next_block = ((bottom + dmmax) / dmmax);
+			perdev[(bottom / dmmax) % nswdev] +=
+				next_block * dmmax - bottom;
+			bottom = next_block * dmmax;
 		}
+		perdev[(bottom / dmmax) % nswdev] +=
+			top - bottom + 1;
+
+		swaplist = head.rl_next;
 	}
 
 	header = getbsize(&hlen, &blocksize);
@@ -1098,7 +1055,6 @@ swapmode()
 		    "Total", hlen, avail / div, used / div, nfree / div,
 		    (double)used / (double)avail * 100.0);
 	}
-#endif
 }
 
 void
