@@ -59,7 +59,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for setting up a device which contains a shared secret.
+utility is used for setting up a device which contains shared secret.
 The secret is shared between the given providers.
 To collect the secret, all providers are needed.
 If one of the components is missing, there is no way to get any useful data from
@@ -71,7 +71,7 @@ indicates an action to be performed:
 .It Cm label
 Set up a shared secret device from the given components with the specified
 .Ar name .
-Metadata are stored in the last sector of every component.
+Metadata are stored in every component's last sector.
 .It Cm stop
 Turn off an existing shared secret device by its
 .Ar name .
@@ -101,20 +101,20 @@ Hardcode providers' names in metadata.
 .It Fl v
 Be more verbose.
 .El
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
-The following example shows how to create a shared secret device.
-The secret will be split between a slice on a local disk and a USB Pen drive.
+The following example shows how to created a shared secret device.
+Secret will be split between a slice on the local disk and a USB Pen drive.
 .Bd -literal -offset indent
 gshsec label -v secret /dev/ad0s1 /dev/da0
 newfs /dev/shsec/secret
 .Ed
 .Pp
-From now on, when the USB Pen drive is inserted, it will be automatically
-detected and connected, making the secret available via the
+From now on, when USB Pen drive will be inserted, it will be automatically
+detected and connected making secret available via
 .Pa /dev/shsec/secret
 device.
+.Sh DIAGNOSTICS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr gbde 8 ,
