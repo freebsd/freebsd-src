@@ -152,6 +152,7 @@ MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DEBUG	opt_mac.h
 MAC_IFOFF	opt_dontuse.h
+MAC_LOMAC	opt_dontuse.h
 MAC_MLS		opt_dontuse.h
 MAC_NONE	opt_dontuse.h
 MAC_PARTITION	opt_dontuse.h
