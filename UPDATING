@@ -21,6 +21,29 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<xzp6667fyoa.fsf@flood.ping.uio.no>
 	networkfs_types, please note that it has changed
 http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<9744.1009655556@axl.seasidesoftware.co.za>
 
+20011220:
+	sys/i4b/driver/i4b_ispppsubr.c has been retired.  This file
+	started out its life in the ISDN4BSD project as an offspring
+	from sys/net/if_spppsubr.c, which eventually got a life of its
+	own.  All the accumulated features and bugfixes of the i4b
+	version have now been merged back into the base system's
+	version now.  The only user-visible change resulting from this
+	is that i4b's sppp(4) interfaces are to be managed with
+	spppcontrol(8) again, since ispppcontrol(8) has been retired
+	as well.  (There has never been rc file support for
+	ispppcontrol in -current, but only in -stable.  That will be
+	reverted by the time the changes are MFCed.)
+
+20011215:
+	The fdc(4) driver has been updated and now automatically
+	recognizes media in `standard' formats (like 1440 KB and
+	720 KB for a 3.5" high-density drive) when accessing the
+	default device node (e. g. /dev/fd0).  The old variety of
+	floppy device nodes /dev/fd*.* is no longer present by
+	default, devices can be created (in DEVFS) on demand.  They
+	will need to be customized then for `odd' densities using
+	fdcontrol(8).
+
 20011209:
 	The bugs in procfs' debugging support code have been fixed,
 	and truss(1) now works again.
