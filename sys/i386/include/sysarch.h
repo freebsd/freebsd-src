@@ -79,6 +79,7 @@ int i386_set_ioperm(unsigned int, unsigned int, int);
 int i386_vm86(int, void *);
 int i386_set_watch(int, unsigned int, int, int, struct dbreg *);
 int i386_clr_watch(int, struct dbreg *);
+int sysarch(int, void *);
 __END_DECLS
 #endif
 

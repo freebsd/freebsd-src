@@ -45,6 +45,7 @@ struct ia64_iodesc {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int	sysarch(int, void *);
 __END_DECLS
 #endif
 
