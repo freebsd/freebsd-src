@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pax.h"
@@ -109,6 +110,11 @@ wr_start()
 	if (wrblksz % BLKMULT) {
 		paxwarn(1, "Write block size of %d is not a %d byte multiple",
 		    wrblksz, BLKMULT);
+		return(-1);
+	}
+	if (wrblksz > MAXBLK_POSIX) {
+		paxwarn(0, "Write block size of %d larger than POSIX max %d, archive may not be portable",
+			wrblksz, MAXBLK_POSIX);
 		return(-1);
 	}
 

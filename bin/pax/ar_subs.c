@@ -130,7 +130,7 @@ list()
 			if ((res = mod_name(arcn)) < 0)
 				break;
 			if (res == 0)
-				ls_list(arcn, now);
+				ls_list(arcn, now, stdout);
 		}
 
 		/*
@@ -171,6 +171,7 @@ extract()
 	ARCHD archd;
 	struct stat sb;
 	int fd;
+	time_t now;
 
 	arcn = &archd;
 	/*
@@ -188,6 +189,8 @@ extract()
 	 */
 	if (iflag && (name_start() < 0))
 		return;
+
+	now = time(NULL);
 
 	/*
 	 * step through each entry on the archive until the format read routine
@@ -276,9 +279,21 @@ extract()
 		}
 
 		if (vflag) {
-			(void)fputs(arcn->name, stderr);
-			vfpart = 1;
+			if (vflag > 1)
+				ls_list(arcn, now, listf);
+			else {
+				(void)fputs(arcn->name, listf);
+				vfpart = 1;
+			}
 		}
+
+		/*
+		 * if required, chdir around.
+		 */
+		if ((arcn->pat != NULL) && (arcn->pat->chdname != NULL))
+			if (chdir(arcn->pat->chdname) != 0)
+				syswarn(1, errno, "Cannot chdir to %s",
+				    arcn->pat->chdname);
 
 		/*
 		 * all ok, extract this member based on type
@@ -299,7 +314,7 @@ extract()
 				purg_lnk(arcn);
 
 			if (vflag && vfpart) {
-				(void)putc('\n', stderr);
+				(void)putc('\n', listf);
 				vfpart = 0;
 			}
 			continue;
@@ -320,11 +335,19 @@ extract()
 		res = (*frmt->rd_data)(arcn, fd, &cnt);
 		file_close(arcn, fd);
 		if (vflag && vfpart) {
-			(void)putc('\n', stderr);
+			(void)putc('\n', listf);
 			vfpart = 0;
 		}
 		if (!res)
 			(void)rd_skip(cnt + arcn->pad);
+
+		/*
+		 * if required, chdir around.
+		 */
+		if ((arcn->pat != NULL) && (arcn->pat->chdname != NULL))
+			if (fchdir(cwdfd) != 0)
+				syswarn(1, errno,
+				    "Can't fchdir to starting directory");
 	}
 
 	/*
@@ -361,6 +384,7 @@ wr_archive(arcn, is_app)
 	off_t cnt;
 	int (*wrf)();
 	int fd = -1;
+	time_t now;
 
 	/*
 	 * if this format supports hard link storage, start up the database
@@ -387,6 +411,8 @@ wr_archive(arcn, is_app)
 	 * if this not append, and there are no files, we do no write a trailer
 	 */
 	wr_one = is_app;
+
+	now = time(NULL);
 
 	/*
 	 * while there are files to archive, process them one at at time
@@ -457,8 +483,12 @@ wr_archive(arcn, is_app)
 		}
 
 		if (vflag) {
-			(void)fputs(arcn->name, stderr);
-			vfpart = 1;
+			if (vflag > 1)
+				ls_list(arcn, now, listf);
+			else {
+				(void)fputs(arcn->name, listf);
+				vfpart = 1;
+			}
 		}
 		++flcnt;
 
@@ -477,7 +507,7 @@ wr_archive(arcn, is_app)
 			 * so we are done messing with this file
 			 */
 			if (vflag && vfpart) {
-				(void)putc('\n', stderr);
+				(void)putc('\n', listf);
 				vfpart = 0;
 			}
 			rdfile_close(arcn, &fd);
@@ -495,7 +525,7 @@ wr_archive(arcn, is_app)
 		res = (*frmt->wr_data)(arcn, fd, &cnt);
 		rdfile_close(arcn, &fd);
 		if (vflag && vfpart) {
-			(void)putc('\n', stderr);
+			(void)putc('\n', listf);
 			vfpart = 0;
 		}
 		if (res < 0)
@@ -612,7 +642,7 @@ append()
 	 * reading the archive may take a long time. If verbose tell the user
 	 */
 	if (vflag) {
-		(void)fprintf(stderr,
+		(void)fprintf(listf,
 			"%s: Reading archive to position at the end...", argv0);
 		vfpart = 1;
 	}
@@ -674,7 +704,7 @@ append()
 	 * tell the user we are done reading.
 	 */
 	if (vflag && vfpart) {
-		(void)fputs("done.\n", stderr);
+		(void)fputs("done.\n", listf);
 		vfpart = 0;
 	}
 
@@ -872,7 +902,7 @@ copy()
 		}
 
 		if (vflag) {
-			(void)fputs(arcn->name, stderr);
+			(void)fputs(arcn->name, listf);
 			vfpart = 1;
 		}
 		++flcnt;
@@ -887,7 +917,7 @@ copy()
 			res = chk_same(arcn);
 		if (res <= 0) {
 			if (vflag && vfpart) {
-				(void)putc('\n', stderr);
+				(void)putc('\n', listf);
 				vfpart = 0;
 			}
 			continue;
@@ -907,7 +937,7 @@ copy()
 			if (res < 0)
 				purg_lnk(arcn);
 			if (vflag && vfpart) {
-				(void)putc('\n', stderr);
+				(void)putc('\n', listf);
 				vfpart = 0;
 			}
 			continue;
@@ -937,7 +967,7 @@ copy()
 		rdfile_close(arcn, &fdsrc);
 
 		if (vflag && vfpart) {
-			(void)putc('\n', stderr);
+			(void)putc('\n', listf);
 			vfpart = 0;
 		}
 	}
@@ -988,6 +1018,7 @@ next_head(arcn)
 	register int hsz;
 	register int in_resync = 0; 	/* set when we are in resync mode */
 	int cnt = 0;			/* counter for trailer function */
+	int first = 1;			/* on 1st read, EOF isn't premature. */
 
 	/*
 	 * set up initial conditions, we want a whole frmt->hsz block as we
@@ -1004,6 +1035,17 @@ next_head(arcn)
 		for (;;) {
 			if ((ret = rd_wrbuf(hdend, res)) == res)
 				break;
+
+			/*
+			 * If we read 0 bytes (EOF) from an archive when we
+			 * expect to find a header, we have stepped upon
+			 * an archive without the customary block of zeroes
+			 * end marker.  It's just stupid to error out on
+			 * them, so exit gracefully.
+			 */
+			if (first && ret == 0)
+				return(-1);
+			first = 0;
 
 			/*
 			 * some kind of archive read problem, try to resync the

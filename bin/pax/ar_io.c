@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 #include "pax.h"
+#include "options.h"
 #include "extern.h"
 
 /*
@@ -159,6 +160,9 @@ ar_open(name)
 	if (arfd < 0)
 		return(-1);
 
+	if (chdname != NULL)
+		if (chdir(chdname) != 0)
+			syswarn(1, errno, "Failed chdir to %s", chdname);
 	/*
 	 * set up is based on device type
 	 */
@@ -307,17 +311,11 @@ void
 ar_close()
 #endif
 {
-	FILE *outf;
 
 	if (arfd < 0) {
 		did_io = io_ok = flcnt = 0;
 		return;
 	}
-
-	if (act == LIST)
-		outf = stdout;
-	else
-		outf = stderr;
 
 	/*
 	 * Close archive file. This may take a LONG while on tapes (we may be
@@ -327,11 +325,11 @@ ar_close()
 	 */
 	if (vflag && (artyp == ISTAPE)) {
 		if (vfpart)
-			(void)putc('\n', outf);
-		(void)fprintf(outf,
+			(void)putc('\n', listf);
+		(void)fprintf(listf,
 			"%s: Waiting for tape drive close to complete...",
 			argv0);
-		(void)fflush(outf);
+		(void)fflush(listf);
 	}
 
 	/*
@@ -357,9 +355,9 @@ ar_close()
 	(void)close(arfd);
 
 	if (vflag && (artyp == ISTAPE)) {
-		(void)fputs("done.\n", outf);
+		(void)fputs("done.\n", listf);
 		vfpart = 0;
-		(void)fflush(outf);
+		(void)fflush(listf);
 	}
 	arfd = -1;
 
@@ -385,7 +383,7 @@ ar_close()
 	 * Print out a summary of I/O for this archive volume.
 	 */
 	if (vfpart) {
-		(void)putc('\n', outf);
+		(void)putc('\n', listf);
 		vfpart = 0;
 	}
 
@@ -396,24 +394,27 @@ ar_close()
 	 */
 	if (frmt == NULL) {
 #	ifdef NET2_STAT
-		(void)fprintf(outf, "%s: unknown format, %lu bytes skipped.\n",
+		(void)fprintf(listf, "%s: unknown format, %lu bytes skipped.\n",
 #	else
-		(void)fprintf(outf, "%s: unknown format, %qu bytes skipped.\n",
+		(void)fprintf(listf, "%s: unknown format, %qu bytes skipped.\n",
 #	endif
 		    argv0, rdcnt);
-		(void)fflush(outf);
+		(void)fflush(listf);
 		flcnt = 0;
 		return;
 	}
 
-	(void)fprintf(outf,
+	if (strcmp(NM_CPIO, argv0) == 0)
+		(void)fprintf(listf, "%qu blocks\n", (rdcnt ? rdcnt : wrcnt) / 5120);
+	else if (strcmp(NM_TAR, argv0) != 0)
+		(void)fprintf(listf,
 #	ifdef NET2_STAT
 		    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
 #	else
 		    "%s: %s vol %d, %lu files, %qu bytes read, %qu bytes written.\n",
 #	endif
 		    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
-	(void)fflush(outf);
+	(void)fflush(listf);
 	flcnt = 0;
 }
 
@@ -1184,7 +1185,7 @@ ar_next()
 	if (sigprocmask(SIG_SETMASK, &o_mask, NULL) < 0)
 		syswarn(0, errno, "Unable to restore signal mask");
 
-	if (done || !wr_trail)
+	if (done || !wr_trail || strcmp(NM_TAR, argv0) == 0)
 		return(-1);
 
 	tty_prnt("\nATTENTION! %s archive volume change required.\n", argv0);

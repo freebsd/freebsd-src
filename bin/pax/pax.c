@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <paths.h>
 #include <signal.h>
@@ -75,6 +76,7 @@ static int gen_init __P((void));
 int	act = DEFOP;		/* read/write/append/copy */
 FSUB	*frmt = NULL;		/* archive format type */
 int	cflag;			/* match all EXCEPT pattern/file */
+int	cwdfd;			/* starting cwd */
 int	dflag;			/* directory member match only  */
 int	iflag;			/* interactive file/archive rename */
 int	kflag;			/* do not overwrite existing files */
@@ -92,15 +94,18 @@ int	Zflag;			/* same as uflg except after name mode */
 int	vfpart;			/* is partial verbose output in progress */
 int	patime = 1;		/* preserve file access time */
 int	pmtime = 1;		/* preserve file modification times */
+int	nodirs;			/* do not create directories as needed */
 int	pmode;			/* preserve file mode bits */
 int	pids;			/* preserve file uid/gid */
+int	rmleadslash = 0;	/* remove leading '/' from pathnames */
 int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
 char	*argv0;			/* root of argv[0] */
+sigset_t s_mask;		/* signal mask for cleanup critical sect */
+FILE	*listf = stderr;	/* file pointer to print file list to */
 char	*tempfile;		/* tempfile to use for mkstemp(3) */
 char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
-sigset_t s_mask;		/* signal mask for cleanup critical sect */
 
 /*
  *	PAX - Portable Archive Interchange
@@ -236,6 +241,14 @@ main(argc, argv)
 	size_t tdlen;
 
 	(void) setlocale(LC_ALL, "");
+	/*
+	 * Keep a reference to cwd, so we can always come back home.
+	 */
+	cwdfd = open(".", O_RDONLY);
+	if (cwdfd < 0) {
+		syswarn(0, errno, "Can't open current working directory.");
+		return(exit_val);
+	}
 
 	/*
 	 * Where should we put temporary files?
@@ -389,6 +402,7 @@ gen_init()
 		paxwarn(1, "Unable to set up signal mask");
 		return(-1);
 	}
+	memset(&n_hand, 0, sizeof n_hand);
 	n_hand.sa_mask = s_mask;
 	n_hand.sa_flags = 0;
 	n_hand.sa_handler = sig_cleanup;
