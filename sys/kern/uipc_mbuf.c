@@ -526,7 +526,7 @@ m_getm(struct mbuf *m, int len, int how, int type)
 
 	KASSERT(len >= 0, ("len is < 0 in m_getm"));
 
-	MGET(mp, type, how);
+	MGET(mp, how, type);
 	if (mp == NULL)
 		return (NULL);
 	else if (len > MINCLSIZE) {
@@ -546,7 +546,7 @@ m_getm(struct mbuf *m, int len, int how, int type)
 
 	top = tail = mp;
 	while (len > 0) {
-		MGET(mp, type, how);
+		MGET(mp, how, type);
 		if (mp == NULL)
 			goto failed;
 
