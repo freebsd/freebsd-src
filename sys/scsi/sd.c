@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.21 1994/03/23 09:15:59 davidg Exp $
+ *      $Id: sd.c,v 1.22 1994/04/05 03:23:32 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -415,6 +415,9 @@ sdstrategy(bp)
 		if (bounds_check_with_label(bp, &sd->disklabel, sd->wlabel) <= 0)
 			goto done;
 		/* otherwise, process transfer request */
+	} else {
+		bp->b_pblkno = bp->b_blkno;
+		bp->b_resid = 0;
 	}
 	opri = SPLSD();
 	dp = &sd->buf_queue;
@@ -430,11 +433,7 @@ sdstrategy(bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-#if 0
 	cldisksort(dp, bp, 64*1024);
-#else
-	disksort(dp, bp);
-#endif
 
 	/*
 	 * Tell the device to get going on the transfer if it's
