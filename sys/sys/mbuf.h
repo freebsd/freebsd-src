@@ -290,8 +290,12 @@ union mext_refcnt {
 	union mext_refcnt *__mcnt;					\
 									\
 	__mcnt = mext_refcnt_free;					\
-	if ((__mcnt == NULL) && (m_alloc_ref(1) == 0))			\
-		panic("mbuf subsystem: out of ref counts!");		\
+	if (__mcnt == NULL) {						\
+		if (m_alloc_ref(1) != 0)				\
+			__mcnt = mext_refcnt_free;			\
+		else							\
+			panic("mbuf subsystem: out of ref counts!");	\
+	}								\
 	mext_refcnt_free = __mcnt->next_ref;				\
 	__mcnt->next_ref = NULL;					\
 	(m_cnt) = __mcnt;						\
