@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.1 1993/11/13 02:25:05 davidg Exp $
+ *	$Id: support.s,v 1.2 1994/01/14 16:23:39 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -181,6 +181,19 @@ ENTRY(fillw)
 	cld
 	rep
 	stosw
+	popl	%edi
+	ret
+
+/* filli(pat, base, cnt) */
+ENTRY(filli)
+filli:
+	pushl	%edi
+	movl	8(%esp),%eax
+	movl	12(%esp),%edi
+	movl	16(%esp),%ecx
+	cld
+	rep
+	stosl
 	popl	%edi
 	ret
 
