@@ -30,6 +30,7 @@
 #define	_MACHINE_GLOBALS_H_
 
 #ifdef _KERNEL
+#include <machine/globaldata.h>
 
 register struct globaldata *globalp __asm__("r13");
 
@@ -49,6 +50,7 @@ register struct globaldata *globalp __asm__("r13");
  * portability between UP and SMP kernels.
  */
 #define	CURPROC		PCPU_GET(curproc)
+#define	CURTHD		PCPU_GET(curproc)	/* temporary */
 #define	curproc		PCPU_GET(curproc)
 #define	idleproc	PCPU_GET(idleproc)
 #define	curpcb		PCPU_GET(curpcb)
