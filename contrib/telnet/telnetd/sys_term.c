@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -183,6 +187,12 @@ struct termios termbuf, termbuf2;	/* pty control structure */
 int ttyfd = -1;
 # endif
 #endif	/* USE_TERMIO */
+
+#include <sys/types.h>
+#include <libutil.h>
+
+int cleanopen __P((char *));
+void scrub_env __P((void));
 
 /*
  * init_termbuf()
@@ -1000,7 +1010,7 @@ struct termspeeds {
 #endif
 	{ -1,     0 }
 };
-#endif	/* DECODE_BUAD */
+#endif	/* DECODE_BAUD */
 
 	void
 tty_tspeed(val)
@@ -1014,9 +1024,9 @@ tty_tspeed(val)
 	if (tp->speed == -1)	/* back up to last valid value */
 		--tp;
 	cfsetospeed(&termbuf, tp->value);
-#else	/* DECODE_BUAD */
+#else	/* DECODE_BAUD */
 	cfsetospeed(&termbuf, val);
-#endif	/* DECODE_BUAD */
+#endif	/* DECODE_BAUD */
 }
 
 	void
@@ -1075,8 +1085,7 @@ extern void utmp_sig_notify P((int));
  * getptyslave()
  *
  * Open the slave side of the pty, and do any initialization
- * that is necessary.  The return value is a file descriptor
- * for the slave side.
+ * that is necessary.
  */
 	void
 getptyslave()
@@ -1789,7 +1798,7 @@ start_login(host, autologin, name)
 	}
 	execv(altlogin, argv);
 
-	syslog(LOG_ERR, "%s: %m\n", altlogin);
+	syslog(LOG_ERR, "%s: %m", altlogin);
 	fatalperror(net, altlogin);
 	/*NOTREACHED*/
 }
@@ -2088,7 +2097,7 @@ cleantmp(wtp)
 
 	utp = getutid(wtp);
 	if (utp == 0) {
-		syslog(LOG_ERR, "Can't get /etc/utmp entry to clean TMPDIR");
+		syslog(LOG_ERR, "can't get /etc/utmp entry to clean TMPDIR");
 		return(-1);
 	}
 	/*
@@ -2176,12 +2185,12 @@ cleantmpdir(jid, tpath, user)
 {
 	switch(fork()) {
 	case -1:
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): fork() failed: %m\n",
+		syslog(LOG_ERR, "TMPDIR cleanup(%s): fork() failed: %m",
 							tpath);
 		break;
 	case 0:
 		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, 0);
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m\n",
+		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m",
 							tpath, CLEANTMPCMD);
 		exit(1);
 	default:
