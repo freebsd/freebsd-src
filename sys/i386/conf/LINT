@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.498 1998/11/05 14:36:37 dg Exp $
+#	$Id: LINT,v 1.499 1998/11/06 09:35:32 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1102,7 +1102,7 @@ device fe0 at isa? port 0x300 net irq ?
 device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000
 device ie1 at isa? port 0x360 net irq 7 iomem 0xd0000
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x300 net irq 10 drq 0
+device lnc0 at isa? port 0x280 net irq 10 drq 0
 device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
