@@ -401,8 +401,6 @@ struct cluster_save {
 #define BUF_WRITE(bp)					\
 	(bp)->b_op->bop_write(bp)
 
-#define BUF_STRATEGY(bp)	VOP_STRATEGY((bp)->b_vp, (bp))
-
 static __inline void
 buf_start(struct buf *bp)
 {
