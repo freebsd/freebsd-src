@@ -1,8 +1,8 @@
 /*
- * FreeBSD Connectix QuickCam parallel-port camera video capture driver.
+ * Connectix QuickCam parallel-port camera video capture driver.
  * Copyright (c) 1996, Paul Traina.
  *
- * This driver is based in part on the Linux QuickCam driver which is
+ * This driver is based in part on work
  * Copyright (c) 1996, Thomas Davis.
  *
  * QuickCam(TM) is a registered trademark of Connectix Inc.
@@ -42,6 +42,12 @@
 extern int qcam_debug;
 
 struct qcam_softc {
+
+#if defined(bsdi) && defined(KERNEL)
+						/* must be first in structure */
+	struct device   sc_dev;			/* kernel configuration */
+#endif	/* bsdi KERNEL */
+
 	u_char		*buffer;		/* frame buffer */
 	u_char		*buffer_end;		/* end of frame buffer */
 	u_int		flags;
@@ -62,14 +68,12 @@ struct qcam_softc {
 	u_char		brightness;
 	u_char		whitebalance;
 
-#ifdef	KERNEL
-#ifdef	__FreeBSD__
+#if defined(__FreeBSD__) && defined(KERNEL)
 	struct		kern_devconf kdc;	/* kernel config database */
 #ifdef	DEVFS
-	void		*devfs_token;
+	void		*devfs_token;		/* device filesystem handle */
 #endif	/* DEVFS */
-#endif	/* __FreeBSD__ */
-#endif	/* KERNEL */
+#endif	/* __FreeBSD__ KERNEL */
 };
 
 /* flags in softc */
@@ -89,6 +93,8 @@ struct qcam_softc {
 #define	write_status(P, V)	outb((V), (P)+1)
 #define write_control(P, V)	outb((V), (P)+2)
 
+#define	LONGDELAY(n)		tsleep((n)/1000)
+
 #else				/* FreeBSD/NetBSD/BSDI */
 
 #define	read_data(P)		inb((P))
@@ -97,6 +103,16 @@ struct qcam_softc {
 #define	write_data(P, V)	outb((P)+0, (V))
 #define	write_status(P, V)	outb((P)+1, (V))
 #define write_control(P, V)	outb((P)+2, (V))
+
+#define	LONGDELAY(n)		DELAY(n)
+
+#ifndef	KERNEL
+#define	DELAY(n)		usleep(n)
+#endif
+
+#ifndef	min
+#define	min(a, b)		((a) < (b) ? (a) : (b))
+#endif
 
 #endif
 
@@ -113,5 +129,8 @@ extern int  qcam_detect		__P((u_int  port));
 extern void qcam_reset		__P((struct qcam_softc *qs));
 extern int  qcam_scan		__P((struct qcam_softc *qs));
 extern void qcam_default	__P((struct qcam_softc *qs));
-
+extern int  qcam_ioctl_get	__P((struct qcam_softc *qs,
+				     struct qcam *info));
+extern int  qcam_ioctl_set	__P((struct qcam_softc *qs,
+				     struct qcam *info));
 #endif	/* _QCAM_DEFS_H */
