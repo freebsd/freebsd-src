@@ -1,29 +1,20 @@
 # $FreeBSD$ 
 
-MAINTAINER  =  grog@FreeBSD.org
+MAINTAINER=  grog@FreeBSD.org
 
-.PATH:  ${.CURDIR}/../../dev/vinum
-KMOD=   vinum
-SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
-	vinumhdr.h request.h vinumext.h vinumio.h vinumkw.h \
-	vinum.c vinumparser.c vinumconfig.c vinumio.c vinumutil.c \
-	vinumstate.c vinummemory.c vinumrequest.c vinumlock.c \
-	vinumrevive.c vinumioctl.c vinuminterrupt.c vinumdaemon.c vinumraid5.c
+.PATH: ${.CURDIR}/../../dev/vinum
+KMOD= vinum
+
+SRCS= opt_vinum.h request.h vinum.c vinumconfig.c vinumdaemon.c \
+	vinumext.h vinumhdr.h vinuminterrupt.c vinumio.c vinumio.h \
+	vinumioctl.c vinumkw.h vinumlock.c vinummemory.c vinumparser.c \
+	vinumraid5.c vinumrequest.c vinumrevive.c vinumstate.c \
+	vinumstate.h vinumutil.c vinumvar.h vnode_if.h
 
 NOMAN=
 
 # If you remove -DVINUMDEBUG here, you must also do it in src/sbin/Makefile.
 # Otherwise a number of ioctls will fail.
-CFLAGS+=	-DVINUMDEBUG -O
-
-all:
-
-state.h: vinumstate.h
-	./maketabs >state.h
-
-build-tools: maketabs
-
-maketabs: maketabs.c
-	${CC} -o maketabs maketabs.c
+CFLAGS+=	-DVINUMDEBUG -g -O
 
 .include <bsd.kmod.mk>
