@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbb.c,v 1.1 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iicbb.c,v 1.2 1998/11/04 22:07:24 nsouch Exp $
  *
  */
 
@@ -309,7 +309,7 @@ static int iicbb_read(device_t dev, char * buf, int len, int *read,
 	bytes = 0;
 	while (len) {
 		/* XXX should insert delay here */
-		*buf++ = (char)iicbb_readbyte(dev, (len == 1) ? 1 : 0);
+		*buf++ = (char)iicbb_readbyte(dev, (len == 1) ? last : 0);
 
 		bytes ++;
 		len --;
