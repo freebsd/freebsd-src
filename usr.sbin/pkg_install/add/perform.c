@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26.2.3 1995/10/14 19:11:02 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.4 1995/10/15 14:08:34 jkh Exp $";
 #endif
 
 /*
@@ -70,23 +70,23 @@ pkg_do(char *pkg)
     struct stat sb;
     char *isTMP = NULL;
     char *cp;
+    int inPlace;
 
     code = 0;
     LogDir[0] = '\0';
     strcpy(playpen, FirstPen);
-    where_to = NULL;
+    inPlace = 0;
 
     /* Are we coming in for a second pass, everything already extracted? */
     if (!pkg) {
-	char tmp_dir[FILENAME_MAX];
-
-	fgets(tmp_dir, FILENAME_MAX, stdin);
-	tmp_dir[strlen(tmp_dir) - 1] = '\0'; /* pesky newline! */
-	if (chdir(tmp_dir) == FAIL) {
-	    whinge("pkg_add in SLAVE mode can't chdir to %s.", tmp_dir);
+	fgets(playpen, FILENAME_MAX, stdin);
+	playpen[strlen(playpen) - 1] = '\0'; /* pesky newline! */
+	if (chdir(playpen) == FAIL) {
+	    whinge("pkg_add in SLAVE mode can't chdir to %s.", playpen);
 	    return 1;
 	}
 	read_plist(&Plist, stdin);
+	where_to = playpen;
     }
     /* Nope - do it now */
     else {
@@ -151,13 +151,14 @@ pkg_do(char *pkg)
 			if (Verbose)
 			    printf("Desired prefix of %s does not exist, creating..\n", p->name);
 			vsystem("mkdir -p %s", p->name);
-			if (chdir(p->name)) {
+			if (chdir(p->name) == -1) {
 			    whinge("Unable to change directory to `%s' - no permission?", p->name);
 			    perror("chdir");
 			    goto bomb;
 			}
 		    }
 		    where_to = p->name;
+		    inPlace = 1;
 		}
 		else {
 		    whinge("No prefix specified in `%s' - this is a bad package!", pkg_fullname);
@@ -180,7 +181,7 @@ pkg_do(char *pkg)
 	    }
 
 	    /* If this is a direct extract and we didn't want it, stop now */
-	    if (where_to != playpen && Fake)
+	    if (inPlace && Fake)
 		goto success;
 
 	    /* Finally unpack the whole mess */
@@ -188,7 +189,6 @@ pkg_do(char *pkg)
 		whinge("Unable to extract `%s'!", pkg_fullname);
 		goto bomb;
 	    }
-
 	}
 	/* Check for sanity and dependencies */
 	if (sanity_check(pkg))
@@ -240,13 +240,21 @@ pkg_do(char *pkg)
 		    cp = path;
 		else
 		    cp = fileFindByPath(pkg, p->name);
-		if (Verbose && cp)
-		    printf("Loading it from %s.\n", cp);
+		if (cp) {
+		    if (Verbose)
+			printf("Loading it from %s.\n", cp);
+		    if (vsystem("pkg_add %s", cp)) {
+			whinge("Autoload of dependency `%s' failed%s", cp, Force ? " (proceeding anyway)" : "!");
+			if (!Force)
+			    ++code;
+		    }
+		}
 	    }
 	    else if (!Fake && (cp = fileGetURL(pkg, p->name)) != NULL) {
 		if (Verbose)
 		    printf("Finished loading %s over FTP.\n", p->name);
-		if (!Fake && vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S"), Verbose ? "-v " : "") {
+		if (!Fake && (!fexists("+CONTENTS") || vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S"),
+			      Verbose ? "-v " : "")) {
 		    whinge("Autoload of dependency `%s' failed%s", p->name, Force ? " (proceeding anyway)" : "!");
 		    if (!Force)
 			++code;
@@ -299,7 +307,7 @@ pkg_do(char *pkg)
     }
 
     /* Now finally extract the entire show if we're not going direct */
-    if (where_to == playpen && !Fake)
+    if (!inPlace && !Fake)
 	extract_plist(".", &Plist);
 
     if (!Fake && fexists(MTREE_FNAME)) {
@@ -309,8 +317,7 @@ pkg_do(char *pkg)
 	if (Verbose)
 	    printf("mtree -U -f %s -d -e -p %s\n", MTREE_FNAME, p ? p->name : "/");
 	if (!Fake) {
-	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s",
-		        MTREE_FNAME, p ? p->name : "/"))
+	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s", MTREE_FNAME, p ? p->name : "/"))
 		whinge("mtree returned a non-zero status - continuing.");
 	}
 	unlink(MTREE_FNAME);
