@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.198 1995/09/01 20:53:41 jkh Exp $
+#	$Id: LINT,v 1.199 1995/09/03 19:53:03 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -673,6 +673,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
+# asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick
 # labpc: National Instrument's Lab-PC and Lab-PC+
@@ -722,6 +723,8 @@ device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
+device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
+
 
 #
 # PCI devices:
