@@ -1,4 +1,5 @@
-/* $NetBSD: am79c930.c,v 1.5 2000/03/23 13:57:58 onoe Exp $ */
+/* $NetBSD: am79c930.c,v 1.9 2004/01/15 09:33:48 onoe Exp $ */
+
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -35,9 +36,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * Am79c930 chip driver.
  *
@@ -62,8 +60,17 @@ __FBSDID("$FreeBSD$");
  * end isr
  */
 
+#include <sys/cdefs.h>
+#ifdef __NetBSD__
+__KERNEL_RCSID(0, "$NetBSD: am79c930.c,v 1.9 2004/01/15 09:33:48 onoe Exp $");
+#endif
+#ifdef __FreeBSD__
+__FBSDID("$FreeBSD$");
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #ifndef __FreeBSD__
 #include <sys/device.h>
 #endif
@@ -133,10 +140,8 @@ struct am79c930_ops memspace_ops = {
 	mem_read_bytes
 };
 
-static void io_write_1 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t val;
+static void
+io_write_1( struct am79c930_softc *sc, u_int32_t off, u_int8_t val)
 {
 	AM930_DELAY(1);
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_LMA_HI,
@@ -148,10 +153,8 @@ static void io_write_1 (sc, off, val)
 	AM930_DELAY(1);
 }
 
-static void io_write_2 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int16_t val;
+static void
+io_write_2(struct am79c930_softc *sc, u_int32_t off, u_int16_t val)
 {
 	AM930_DELAY(1);
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_LMA_HI,
@@ -165,10 +168,8 @@ static void io_write_2 (sc, off, val)
 	AM930_DELAY(1);
 }
 
-static void io_write_4 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int32_t val;
+static void
+io_write_4(struct am79c930_softc *sc, u_int32_t off, u_int32_t val)
 {
 	AM930_DELAY(1);
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_LMA_HI,
@@ -186,11 +187,9 @@ static void io_write_4 (sc, off, val)
 	AM930_DELAY(1);
 }
 
-static void io_write_bytes (sc, off, ptr, len)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t *ptr;
-	size_t len;
+static void
+io_write_bytes(struct am79c930_softc *sc, u_int32_t off, u_int8_t *ptr,
+    size_t len)
 {
 	int i;
 
@@ -204,12 +203,11 @@ static void io_write_bytes (sc, off, ptr, len)
 		bus_space_write_1(sc->sc_iot,sc->sc_ioh,AM79C930_IODPA,ptr[i]);
 }
 
-static u_int8_t io_read_1 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int8_t
+io_read_1(struct am79c930_softc *sc, u_int32_t off)
 {
 	u_int8_t val;
-	
+
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_LMA_HI,
 	    ((off>>8)& 0x7f));
 	AM930_DELAY(1);
@@ -220,9 +218,8 @@ static u_int8_t io_read_1 (sc, off)
 	return val;
 }
 
-static u_int16_t io_read_2 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int16_t
+io_read_2(struct am79c930_softc *sc, u_int32_t off)
 {
 	u_int16_t val;
 
@@ -238,9 +235,8 @@ static u_int16_t io_read_2 (sc, off)
 	return val;
 }
 
-static u_int32_t io_read_4 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int32_t
+io_read_4(struct am79c930_softc *sc, u_int32_t off)
 {
 	u_int32_t val;
 
@@ -260,11 +256,9 @@ static u_int32_t io_read_4 (sc, off)
 	return val;
 }
 
-static void io_read_bytes (sc, off, ptr, len)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t *ptr;
-	size_t len;
+static void
+io_read_bytes(struct am79c930_softc *sc, u_int32_t off, u_int8_t *ptr,
+    size_t len)
 {
 	int i;
 	
@@ -278,42 +272,36 @@ static void io_read_bytes (sc, off, ptr, len)
 		    AM79C930_IODPA);
 }
 
-static void mem_write_1 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t val;
+static void
+mem_write_1(struct am79c930_softc *sc, u_int32_t off, u_int8_t val)
 {
 	bus_space_write_1(sc->sc_memt, sc->sc_memh, off, val);
 }
 
-static void mem_write_2 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int16_t val;
+static
+void mem_write_2(struct am79c930_softc *sc, u_int32_t off, u_int16_t val)
 {
 	bus_space_tag_t t = sc->sc_memt;
 	bus_space_handle_t h = sc->sc_memh;
 
 	/* could be unaligned */
 	if ((off & 0x1) == 0)
-		bus_space_write_2(t, h, off,    val);
+		bus_space_write_2(t, h, off,    htole16(val));
 	else {
 		bus_space_write_1(t, h, off,    val        & 0xff);
 		bus_space_write_1(t, h, off+1, (val >>  8) & 0xff);
 	}
 }
 
-static void mem_write_4 (sc, off, val)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int32_t val;
+static void
+mem_write_4(struct am79c930_softc *sc, u_int32_t off, u_int32_t val)
 {
 	bus_space_tag_t t = sc->sc_memt;
 	bus_space_handle_t h = sc->sc_memh;
 
 	/* could be unaligned */
 	if ((off & 0x3) == 0)
-		bus_space_write_4(t, h, off,    val);
+		bus_space_write_4(t, h, off,    htole32(val));
 	else {
 		bus_space_write_1(t, h, off,    val        & 0xff);
 		bus_space_write_1(t, h, off+1, (val >>  8) & 0xff);
@@ -322,43 +310,37 @@ static void mem_write_4 (sc, off, val)
 	}
 }
 
-static void mem_write_bytes (sc, off, ptr, len)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t *ptr;
-	size_t len;
+static void
+mem_write_bytes(struct am79c930_softc *sc, u_int32_t off, u_int8_t *ptr,
+    size_t len)
 {
 	bus_space_write_region_1 (sc->sc_memt, sc->sc_memh, off, ptr, len);
 }
 
-
-static u_int8_t mem_read_1 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int8_t
+mem_read_1(struct am79c930_softc *sc, u_int32_t off)
 {
 	return bus_space_read_1(sc->sc_memt, sc->sc_memh, off);
 }
 
-static u_int16_t mem_read_2 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int16_t
+mem_read_2(struct am79c930_softc *sc, u_int32_t off)
 {
 	/* could be unaligned */
 	if ((off & 0x1) == 0)
-		return bus_space_read_2(sc->sc_memt, sc->sc_memh, off);
+		return le16toh(bus_space_read_2(sc->sc_memt, sc->sc_memh, off));
 	else
 		return
 		     bus_space_read_1(sc->sc_memt, sc->sc_memh, off  )       |
 		    (bus_space_read_1(sc->sc_memt, sc->sc_memh, off+1) << 8);
 }
 
-static u_int32_t mem_read_4 (sc, off)
-	struct am79c930_softc *sc;
-	u_int32_t off;
+static u_int32_t
+mem_read_4(struct am79c930_softc *sc, u_int32_t off)
 {
 	/* could be unaligned */
 	if ((off & 0x3) == 0)
-		return bus_space_read_4(sc->sc_memt, sc->sc_memh, off);
+		return le32toh(bus_space_read_4(sc->sc_memt, sc->sc_memh, off));
 	else
 		return
 		     bus_space_read_1(sc->sc_memt, sc->sc_memh, off  )       |
@@ -367,27 +349,20 @@ static u_int32_t mem_read_4 (sc, off)
 		    (bus_space_read_1(sc->sc_memt, sc->sc_memh, off+3) <<24);
 }
 
-
-
-static void mem_read_bytes (sc, off, ptr, len)
-	struct am79c930_softc *sc;
-	u_int32_t off;
-	u_int8_t *ptr;
-	size_t len;
+static void
+mem_read_bytes(struct am79c930_softc *sc, u_int32_t off, u_int8_t *ptr,
+    size_t len)
 {
 	bus_space_read_region_1 (sc->sc_memt, sc->sc_memh, off, ptr, len);
 }
-
-
 
 
 /*
  * Set bits in GCR.
  */
 
-void am79c930_gcr_setbits (sc, bits)
-	struct am79c930_softc *sc;
-	u_int8_t bits;
+void
+am79c930_gcr_setbits(struct am79c930_softc *sc, u_int8_t bits)
 {
 	u_int8_t gcr = bus_space_read_1 (sc->sc_iot, sc->sc_ioh, AM79C930_GCR);
 
@@ -400,9 +375,8 @@ void am79c930_gcr_setbits (sc, bits)
  * Clear bits in GCR.
  */
 
-void am79c930_gcr_clearbits (sc, bits)
-	struct am79c930_softc *sc;
-	u_int8_t bits;
+void
+am79c930_gcr_clearbits(struct am79c930_softc *sc, u_int8_t bits)
 {
 	u_int8_t gcr = bus_space_read_1 (sc->sc_iot, sc->sc_ioh, AM79C930_GCR);
 
@@ -411,15 +385,15 @@ void am79c930_gcr_clearbits (sc, bits)
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_GCR, gcr);
 }
 
-u_int8_t am79c930_gcr_read (sc)
-	struct am79c930_softc *sc;
+u_int8_t
+am79c930_gcr_read(struct am79c930_softc *sc)
 {
 	return bus_space_read_1 (sc->sc_iot, sc->sc_ioh, AM79C930_GCR);
 }
 
 #if 0 
-void am79c930_regdump (sc) 
-	struct am79c930_softc *sc;
+void
+am79c930_regdump(struct am79c930_softc *sc)
 {
 	u_int8_t buf[8];
 	int i;
@@ -437,9 +411,8 @@ void am79c930_regdump (sc)
 }
 #endif
 
-void am79c930_chip_init (sc, how)
-	struct am79c930_softc *sc;
-	int how;
+void
+am79c930_chip_init(struct am79c930_softc *sc, int how)
 {
 	/* zero the bank select register, and leave it that way.. */
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, AM79C930_BSS, 0);
@@ -448,5 +421,3 @@ void am79c930_chip_init (sc, how)
 	else
 	  	sc->sc_ops = &iospace_ops;
 }
-
-
