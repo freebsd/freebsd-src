@@ -4719,11 +4719,12 @@ check_repository_password (username, password, repository, host_user_ptr)
     if (found_it)
     {
 	char *found_password, *host_user_tmp = NULL;
+	char *linebufp = linebuf;
 
-	strtok (linebuf, ":");
-	found_password = strtok (NULL, ": \n");
+	strsep (&linebufp, ":");
+	found_password = strsep (&linebufp, ": \n");
 	if (found_password)
-	    host_user_tmp = strtok (NULL, ": \n");
+	    host_user_tmp = strsep (&linebufp, ": \n");
 	if (host_user_tmp == NULL)
             host_user_tmp = username;
 
