@@ -39,26 +39,3 @@
  */
 
 #include <machine/asm.h>
-
-/* Already defined in machine/asm.h. */
-#undef ENTRY
-
-#define	MCOUNT			call PIC_PLT(HIDENAME(mcount))
-#define	MEXITCOUNT		call PIC_PLT(HIDENAME(mexitcount))
-
-#ifdef PROF
-/*
- * XXX Looks good to me, but it sure looks different than the original...
- * (jasone)
- */
-#define	ENTRY(name)		_ENTRY(name) ; 9: ; MCOUNT
-/*  #define ENTRY(name)		_ENTRY(name) ; 9: \ */
-/*  				pushl %ebp; movl %esp,%ebp; \ */
-/*  				call PIC_PLT(HIDENAME(mcount)); \ */
-/*  				popl %ebp */
-				
-#define	ALTENTRY(name)		_ENTRY(name) ; MCOUNT ; MEXITCOUNT ; jmp 9f
-#else
-#define	ENTRY(name)		_ENTRY(name)
-#define	ALTENTRY(name)		_ENTRY(name)
-#endif
