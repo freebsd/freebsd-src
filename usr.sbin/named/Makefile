@@ -34,7 +34,7 @@ HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \
 	logging.html master.html options.html server.html trusted-keys.html \
 	zone.html
-FILES=	DynamicUpdate FAQ.1of2 FAQ.2of2 dns-setup style.txt
+FILES=	DynamicUpdate FAQ.1of2 FAQ.2of2 style.txt
 
 
 beforeinstall:
