@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.50 1998/08/06 08:33:19 dfr Exp $
+ * $Id: vm_object.h,v 1.51 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -93,14 +93,12 @@ struct vm_object {
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
-	int pg_color;			/* color of first page in obj */
 	int	id;					/* ID for no purpose, other than info */
 	u_short flags;			/* see below */
+	u_short pg_color;		/* color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
-	int cache_count;			/* number of cached pages */
-	int	wire_count;			/* number of wired pages */
 	vm_ooffset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.116 1999/01/10 01:58:29 eivind Exp $
+ *	$Id: vm_page.c,v 1.116.2.1 1999/03/23 04:38:33 alc Exp $
  */
 
 /*
@@ -416,12 +416,6 @@ vm_page_insert(m, object, pindex)
 	m->object->page_hint = m;
 	m->object->generation++;
 
-	if (m->wire_count)
-		object->wire_count++;
-
-	if ((m->queue - m->pc) == PQ_CACHE)
-		object->cache_count++;
-
 	/*
 	 * And show that the object has one more resident page.
 	 */
@@ -467,12 +461,6 @@ vm_page_remove(m)
 	object = m->object;
 	if (object->page_hint == m)
 		object->page_hint = NULL;
-
-	if (m->wire_count)
-		object->wire_count--;
-
-	if ((m->queue - m->pc) == PQ_CACHE) 
-		object->cache_count--;
 
 	/*
 	 * Remove from the object_object/offset hash table
@@ -588,10 +576,6 @@ vm_page_unqueue_nowakeup(m)
 		TAILQ_REMOVE(pq->pl, m, pageq);
 		(*pq->cnt)--;
 		(*pq->lcnt)--;
-		if ((queue - m->pc) == PQ_CACHE) {
-			if (m->object)
-				m->object->cache_count--;
-		}
 	}
 }
 
@@ -620,8 +604,6 @@ vm_page_unqueue(m)
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
 				pagedaemon_wakeup();
-			if (m->object)
-				m->object->cache_count--;
 		}
 	}
 }
@@ -1157,8 +1139,6 @@ vm_page_freechk_and_unqueue(m)
 #endif
 		printf("vm_page_free: freeing wired page\n");
 		m->wire_count = 0;
-		if (m->object)
-			m->object->wire_count--;
 		cnt.v_wire_count--;
 	}
 
@@ -1302,8 +1282,6 @@ vm_page_wire(m)
 	if (m->wire_count == 0) {
 		vm_page_unqueue(m);
 		cnt.v_wire_count++;
-		if (m->object)
-			m->object->wire_count++;
 	}
 	m->wire_count++;
 	splx(s);
@@ -1332,8 +1310,6 @@ vm_page_unwire(m, activate)
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
-			if (m->object)
-				m->object->wire_count--;
 			cnt.v_wire_count--;
 			if (activate) {
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
@@ -1419,7 +1395,6 @@ vm_page_cache(m)
 	(*vm_page_queues[m->queue].lcnt)++;
 	TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
 	cnt.v_cache_count++;
-	m->object->cache_count++;
 	vm_page_free_wakeup();
 	splx(s);
 }
