@@ -63,17 +63,20 @@ static int	_monetary_using_locale;
 static char	*_monetary_locale_buf;
 
 static char
-cnv(const char *str) {
+cnv(const char *str) 
+{
 	int i = strtol(str, NULL, 10);
+
 	if (i == -1)
 		i = CHAR_MAX;
-	return (char)i;
+	return ((char)i);
 }
 
 int
-__monetary_load_locale(const char *name) {
-
+__monetary_load_locale(const char *name)
+{
 	int ret;
+
 	__mlocale_changed = 1;
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		_monetary_locale_buf, "LC_MONETARY",
@@ -95,12 +98,12 @@ __monetary_load_locale(const char *name) {
 		M_ASSIGN_CHAR(p_sign_posn);
 		M_ASSIGN_CHAR(n_sign_posn);
 	}
-	return ret;
+	return (ret);
 }
 
 struct lc_monetary_T *
-__get_current_monetary_locale(void) {
-
+__get_current_monetary_locale(void) 
+{
 	return (_monetary_using_locale
 		? &_monetary_locale
 		: (struct lc_monetary_T *)&_C_monetary_locale);

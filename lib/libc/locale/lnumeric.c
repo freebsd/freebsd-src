@@ -49,8 +49,8 @@ static int	_numeric_using_locale;
 static char	*_numeric_locale_buf;
 
 int
-__numeric_load_locale(const char *name) {
-
+__numeric_load_locale(const char *name)
+{
 	int ret;
 
 	__nlocale_changed = 1;
@@ -61,12 +61,12 @@ __numeric_load_locale(const char *name) {
 	if (ret == 0 && _numeric_using_locale)
 		_numeric_locale.grouping =
 			__fix_locale_grouping_str(_numeric_locale.grouping);
-	return ret;
+	return (ret);
 }
 
 struct lc_numeric_T *
-__get_current_numeric_locale(void) {
-
+__get_current_numeric_locale(void)
+{
 	return (_numeric_using_locale
 		? &_numeric_locale
 		: (struct lc_numeric_T *)&_C_numeric_locale);
