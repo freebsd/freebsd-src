@@ -82,20 +82,20 @@ NEW2POBJS=	${NEW2FUNCS:S/$/.po/}
 OBJS=		${LIB1OBJS} ${LIB2OBJS} ${NEW1OBJS} ${NEW2OBJS}
 
 config.h:
-	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>' > ${.TARGET}
-	echo '#include <xm-freebsd.h>' >> ${.TARGET}
+	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>'	> ${.TARGET}
+	echo '#include <xm-freebsd.h>'				>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	> ${.TARGET}
 
 tm.h:
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"' > ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"' >> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
 .endif
-	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
 .endif
 
 ${OBJS}: ${COMMONHDRS}
