@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.45 1998/10/22 16:38:28 wpaul Exp $
+ *	$Id: if_xl.c,v 1.5.2.12 1998/10/22 16:47:25 wpaul Exp $
  */
 
 /*
@@ -156,7 +156,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.45 1998/10/22 16:38:28 wpaul Exp $";
+	"$Id: if_xl.c,v 1.5.2.12 1998/10/22 16:47:25 wpaul Exp $";
 #endif
 
 /*
@@ -1424,7 +1424,7 @@ xl_attach(config_id, unit)
 		if (round % 8) {
 			round++;
 			roundptr++;
-		}
+		} else
 			break;
 	}
 	sc->xl_ldata = (struct xl_list_data *)roundptr;
