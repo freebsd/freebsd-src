@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.34 1997/06/01 09:47:06 peter Exp $
+#	$Id: Makefile.inc,v 1.35 1997/08/19 06:23:45 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -129,6 +129,7 @@ MLINKS+=clock_gettime.2 clock_settime.2 clock_gettime.2 clock_getres.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 setlogin.2
+MLINKS+=getpgrp.2 getpgid.2
 MLINKS+=getpid.2 getppid.2
 MLINKS+=getpriority.2 setpriority.2
 MLINKS+=getrlimit.2 setrlimit.2
