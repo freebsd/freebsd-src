@@ -1,4 +1,4 @@
-/*	$NetBSD: popen.c,v 1.26 2001/04/25 01:46:26 lukem Exp $	*/
+/*	$NetBSD: popen.c,v 1.28 2003/01/16 09:41:38 kleink Exp $	*/
 
 /*-
  * Copyright (c) 1999-2001 The NetBSD Foundation, Inc.
@@ -78,7 +78,7 @@
 #if 0
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #else
-__RCSID("$NetBSD: popen.c,v 1.26 2001/04/25 01:46:26 lukem Exp $");
+__RCSID("$NetBSD: popen.c,v 1.28 2003/01/16 09:41:38 kleink Exp $");
 #endif
 #endif /* not lint */
 
@@ -229,7 +229,7 @@ ftpd_pclose(FILE *iop)
 {
 	int fdes, status;
 	pid_t pid;
-	sigset_t sigset, osigset;
+	sigset_t nsigset, osigset;
 
 	/*
 	 * pclose returns -1 if stream is not associated with a
@@ -238,11 +238,11 @@ ftpd_pclose(FILE *iop)
 	if (pids == 0 || pids[fdes = fileno(iop)] == 0)
 		return (-1);
 	(void)fclose(iop);
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	sigaddset(&sigset, SIGQUIT);
-	sigaddset(&sigset, SIGHUP);
-	sigprocmask(SIG_BLOCK, &sigset, &osigset);
+	sigemptyset(&nsigset);
+	sigaddset(&nsigset, SIGINT);
+	sigaddset(&nsigset, SIGQUIT);
+	sigaddset(&nsigset, SIGHUP);
+	sigprocmask(SIG_BLOCK, &nsigset, &osigset);
 	while ((pid = waitpid(pids[fdes], &status, 0)) < 0 && errno == EINTR)
 		continue;
 	sigprocmask(SIG_SETMASK, &osigset, NULL);
