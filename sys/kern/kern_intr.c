@@ -618,6 +618,10 @@ unregister_netisr(num)
 	return (0);
 }
 
+#ifdef DEVICE_POLLING
+	void netisr_pollmore(void);
+#endif
+
 static void
 swi_net(void *dummy)
 {
