@@ -46,9 +46,7 @@
 .Op command
 .Op Fl options
 .Sh COMMANDS
-.Cd create
-.Fl f
-.Ar description-file
+.Cd create Op Fl f Ar description-file
 .in +1i
 Create a volume as described in
 .Ar description-file
@@ -151,7 +149,7 @@ List information about plexes
 List information about volumes
 .in
 .Cd printconfig
-.Pa file
+.Op Pa file
 .in +1i
 Write a copy of the current configuration to
 .Pa file .
@@ -232,6 +230,10 @@ Set the state of the object to \fIstate\fP\|
 .Op value
 .in +1i
 Set dæmon configuration.
+.in
+.Cd start
+.in +1i
+Read configuration from all vinum drives.
 .in
 .Cd start
 .Op volume | plex | subdisk
@@ -379,15 +381,24 @@ multiplied by the stripe size.  For example, in a plex of block size 256k, the
 first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
 This calculation ignores parity blocks in RAID-5 plexes.
 .El
-.It Nm create Fl f Ar description-file
+.It Nm create Op Fl f Ar description-file
 .sp
 .Nm
 .Ar create
 is used to create any object.  In view of the relatively complicated
 relationship and the potential dangers involved in creating a
 .Nm
-object, there is no interactive interface to this function.  See the section
-CONFIGURATION FILE below for more information.
+object, there is no interactive interface to this function.  If you do not
+specify a file name,
+.Nm
+starts an editor on a temporary file.  If the environment variable
+.Ev EDITOR
+is set,
+.Nm
+starts this editor.  If not, it defaults to
+.Nm vi .
+See the section CONFIGURATION FILE below for more information on the format of
+this file.
 .Pp
 Note that the
 .Nm
@@ -459,6 +470,9 @@ Go into remote
 when the
 .Nm debug
 command is issued.
+.It DEBUG_WARNINGS (512)
+.br
+Print some warnings about minor problems in the implementation.
 .El
 .It Nm detach Op Fl f
 .Ar plex
@@ -733,13 +747,17 @@ program when running in interactive mode.  Normally this would be done by
 entering the
 .Ar EOF
 character.
-.It Nm printconfig Pa file
+.It Nm printconfig Op Pa file
 Write a copy of the current configuration to
 .Pa file
 in a format that can be used to recreate the
 .Nm
 configuration.  Unlike the configuration saved on disk, it includes definitions
-of the drives.
+of the drives.  If you omit
+.Pa file ,
+.Nm
+writes the list to
+.Pa stdout .
 .It Nm read
 .Ar disk Op disk...
 .Pp
@@ -1060,11 +1078,17 @@ entry must be on a single line.
 .Pp
 Some configuration file parameters specify a size (lengths, stripe sizes).
 These lengths can be specified as bytes, as sectors of 512 bytes (by appending
-the letter \f(CWb\fR), as kilobytes (by appending the letter \f(CWk\fR), as
+the letter \f(CWs\fR), as kilobytes (by appending the letter \f(CWk\fR), as
 megabytes (by appending the letter \f(CWm\fR) or as gigabytes (by appending the
 letter \f(CWg\fR).  These quantities represent the values 2**10, 2**20 and 2**30
 respectively.  For example, the value \f(CW16777216\fR bytes can also be written
 as \f(CW16m\fR, \f(CW16384k\fR or \f(CW32768b\fR.
+.Pp
+For reasons of compatibility, 
+.Nm
+takes the letter \f(CWb\fP (block) to be equivalent to \f(CWs\fP (sector).  The
+use of this abbreviation is deprecated, since the size of a block is very
+dependent on the context.
 .Pp
 The configuration file can contain the following entries:
 .Pp
@@ -1339,6 +1363,24 @@ represents the whole disk and should not be used for any other purpose.
 .Nm
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
+.Sh LOG FILE
+.Nm
+maintains a log file, by default
+.Pa /var/tmp/vinum.history ,
+in which it keeps track of the commands issued to
+.Nm vinum .
+You can override the name of this file by setting the environment variable
+.Ev VINUM_HISTORY 
+to the name of the file.  
+.Pp
+Each message in the log file is preceded by a date.  The default format is 
+.Li %e %b %Y %H:%M:%S
+See
+.Xr strftime 3
+for further details of the format string.  It can be overridden by the
+environment variable
+.Ev VINUM_DATEFORMAT .
+The date format in th
 .Sh HOW TO SET UP VINUM
 This section gives practical advice about how to implement a
 .Nm
@@ -2023,10 +2065,21 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
+.Sh ENVIRONMENT VARIABLES
+.Bl -hang
+.It VINUM_HISTORY
+The name of the log file, by default /var/log/vinum_history.
+.It VINUM_DATEFORMAT
+The format of dates in the log file, by default %e %b %Y %H:%M:%S.
+.It EDITOR
+The name of the editor to use for editing configuration files, by default
+.Nm vi .
+.El
 .Sh SEE ALSO
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
 .Xr newfs 8 ,
+.Xr strftime 3 ,
 .Pa http://www.lemis.com/vinum.html ,
 .Pa http://www.lemis.com/vinum-debugging.html .
 .Sh AUTHOR
