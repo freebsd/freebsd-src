@@ -201,7 +201,7 @@ url_get(origline, proxyenv)
 		if (portnum != NULL)
 			*portnum++ = '\0';
 	}
-	
+
 	if (debug)
 		printf("host %s, port %s, path %s, save as %s.\n",
 		    host, portnum, uri, savefile);
@@ -569,7 +569,7 @@ bad_ftp_url:
 				*portnum++ = '\0';
 		} else {			/* classic style `host:file' */
 			char *end_brace;
-			
+
 			if (*host == '[' &&
 			    (end_brace = strrchr(host, ']')) != NULL) {
 				/*IPv6 addr in []*/
