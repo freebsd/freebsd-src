@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.15 1996/10/28 06:01:08 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.16 1996/11/11 05:16:41 gibbs Exp $
  */
 
 /*
@@ -439,6 +439,7 @@
 						 * beyond the bounds of its
 						 * command.
 						 */
+
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -681,6 +682,8 @@
 #define MSG5			0x03a
 
 #define LASTPHASE		0x03b
+#define		P_BUSFREE	0x01
+
 #define ARG_1			0x03c
 #define RETURN_1		0x03c
 #define		SEND_MSG	0x80
