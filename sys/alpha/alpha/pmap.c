@@ -315,6 +315,8 @@ vm_offset_t kernel_vm_end;
  */
 static int pmap_maxasn;
 static pmap_t pmap_active[MAXCPU];
+static LIST_HEAD(,pmap) allpmaps;
+static struct mtx allpmaps_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -546,6 +548,12 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	nklev2 = 1;
 
 	/*
+	 * Initialize list of pmaps.
+	 */
+	LIST_INIT(&allpmaps);
+	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
+	
+	/*
 	 * Set up proc0's PCB such that the ptbr points to the right place
 	 * and has the kernel pmap's.
 	 */
@@ -698,52 +706,48 @@ pmap_invalidate_all_action(void *arg)
 static void
 pmap_get_asn(pmap_t pmap)
 {
-	if (pmap->pm_asn[PCPU_GET(cpuid)].gen != PCPU_GET(current_asngen)) {
-		if (PCPU_GET(next_asn) > pmap_maxasn) {
-			/*
-			 * Start a new ASN generation.
-			 *
-			 * Invalidate all per-process mappings and I-cache
-			 */
-			PCPU_GET(next_asn) = 0;
-			PCPU_GET(current_asngen)++;
-			PCPU_GET(current_asngen) &= (1 << 24) - 1;
 
-			if (PCPU_GET(current_asngen) == 0) {
-				/*
-				 * Clear the pm_asn[].gen of all pmaps.
-				 * This is safe since it is only called from
-				 * pmap_activate after it has deactivated
-				 * the old pmap and it only affects this cpu.
-				 */
-				struct proc *p;
-				pmap_t tpmap;
+	if (PCPU_GET(next_asn) > pmap_maxasn) {
+		/*
+		 * Start a new ASN generation.
+		 *
+		 * Invalidate all per-process mappings and I-cache
+		 */
+		PCPU_SET(next_asn, 0);
+		PCPU_SET(current_asngen, (PCPU_GET(current_asngen) + 1) &
+		    ASNGEN_MASK);
+
+		if (PCPU_GET(current_asngen) == 0) {
+			/*
+			 * Clear the pm_asn[].gen of all pmaps.
+			 * This is safe since it is only called from
+			 * pmap_activate after it has deactivated
+			 * the old pmap and it only affects this cpu.
+			 */
+			pmap_t tpmap;
 			       
 #ifdef PMAP_DIAGNOSTIC
-				printf("pmap_get_asn: generation rollover\n");
+			printf("pmap_get_asn: generation rollover\n");
 #endif
-				PCPU_GET(current_asngen) = 1;
-				sx_slock(&allproc_lock);
-				LIST_FOREACH(p, &allproc, p_list) {
-					if (p->p_vmspace) {
-						tpmap = vmspace_pmap(p->p_vmspace);
-						tpmap->pm_asn[PCPU_GET(cpuid)].gen = 0;
-					}
-				}
-				sx_sunlock(&allproc_lock);
+			PCPU_SET(current_asngen, 1);
+			mtx_lock_spin(&allpmaps_lock);
+			LIST_FOREACH(tpmap, &allpmaps, pm_list) {
+				tpmap->pm_asn[PCPU_GET(cpuid)].gen = 0;
 			}
-
-			/*
-			 * Since we are about to start re-using ASNs, we must
-			 * clear out the TLB and the I-cache since they are tagged
-			 * with the ASN.
-			 */
-			ALPHA_TBIAP();
-			alpha_pal_imb();	/* XXX overkill? */
+			mtx_unlock_spin(&allpmaps_lock);
 		}
-		pmap->pm_asn[PCPU_GET(cpuid)].asn = PCPU_GET(next_asn)++;
-		pmap->pm_asn[PCPU_GET(cpuid)].gen = PCPU_GET(current_asngen);
+
+		/*
+		 * Since we are about to start re-using ASNs, we must
+		 * clear out the TLB and the I-cache since they are tagged
+		 * with the ASN.
+		 */
+		ALPHA_TBIAP();
+		alpha_pal_imb();	/* XXX overkill? */
 	}
+	pmap->pm_asn[PCPU_GET(cpuid)].asn = PCPU_GET(next_asn);
+	PCPU_SET(next_asn, PCPU_GET(next_asn) + 1);
+	pmap->pm_asn[PCPU_GET(cpuid)].gen = PCPU_GET(current_asngen);
 }
 
 /***************************************************
@@ -1337,6 +1341,8 @@ pmap_pinit0(pmap)
 	}
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	mtx_init(&allpmaps_lock, "allpmaps", MTX_SPIN | MTX_QUIET);
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 }
 
 /*
@@ -1386,6 +1392,9 @@ pmap_pinit(pmap)
 	}
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	mtx_lock_spin(&allpmaps_lock);
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 }
 
 /*
@@ -1641,6 +1650,9 @@ retry:
 
 	if (lev1pg && !pmap_release_free_page(pmap, lev1pg))
 		goto retry;
+	mtx_lock_spin(&allpmaps_lock);
+	LIST_REMOVE(pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 }
 
 /*
@@ -1650,16 +1662,13 @@ void
 pmap_growkernel(vm_offset_t addr)
 {
 	/* XXX come back to this */
-	struct proc *p;
 	struct pmap *pmap;
-	int s;
 	pt_entry_t* pte;
 	pt_entry_t newlev1, newlev2;
 	vm_offset_t pa;
 	vm_page_t nkpg;
 
-	s = splhigh();
-
+	critical_enter();
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;;
 
@@ -1704,14 +1713,11 @@ pmap_growkernel(vm_offset_t addr)
 			newlev1 = pmap_phys_to_pte(pa)
 				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
-			sx_slock(&allproc_lock);
-			LIST_FOREACH(p, &allproc, p_list) {
-				if (p->p_vmspace) {
-					pmap = vmspace_pmap(p->p_vmspace);
-					*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
-				}
+			mtx_lock_spin(&allpmaps_lock);
+			LIST_FOREACH(pmap, &allpmaps, pm_list) {
+				*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
 			}
-			sx_sunlock(&allproc_lock);
+			mtx_unlock_spin(&allpmaps_lock);
 			*pte = newlev1;
 			pmap_invalidate_all(kernel_pmap);
 		}
@@ -1742,7 +1748,7 @@ pmap_growkernel(vm_offset_t addr)
 
 		kernel_vm_end = (kernel_vm_end + ALPHA_L2SIZE) & ~(ALPHA_L2SIZE - 1);
 	}
-	splx(s);
+	critical_exit();
 }
 
 /*
@@ -3244,6 +3250,7 @@ pmap_activate(struct thread *td)
 
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
+	critical_enter();
 	if (pmap_active[PCPU_GET(cpuid)] && pmap != pmap_active[PCPU_GET(cpuid)]) {
 		atomic_clear_32(&pmap_active[PCPU_GET(cpuid)]->pm_active,
 				PCPU_GET(cpumask));
@@ -3260,6 +3267,7 @@ pmap_activate(struct thread *td)
 	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
 
 	td->td_pcb->pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuid)].asn;
+	critical_exit();
 
 	if (td == curthread) {
 		alpha_pal_swpctx((u_long)td->td_md.md_pcbpaddr);
