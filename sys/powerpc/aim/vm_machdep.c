@@ -126,7 +126,7 @@ cpu_fork(p1, p2, flags)
 		return;
 
 	p2->p_md.md_tf = p1->p_md.md_tf;
-	p2->p_md.md_flags = p1->p_md.md_flags & MDP_FPUSED;
+	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
 	 * Cache the physical address of the pcb, so we can

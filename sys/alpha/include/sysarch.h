@@ -42,6 +42,8 @@
 #define ALPHA_SETHAE		0
 #define ALPHA_GET_FPMASK	1
 #define ALPHA_SET_FPMASK	2
+#define ALPHA_GET_UAC		3
+#define ALPHA_SET_UAC		4
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
