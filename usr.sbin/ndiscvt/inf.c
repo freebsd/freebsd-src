@@ -254,8 +254,8 @@ dump_addreg(const char *s, int devidx)
 				fprintf(ofp, "\n\t{ \"%s\" }, %d },",
 				    reg->value == NULL ? "" :
 				    stringcvt(reg->value), devidx);
-			} else if (strcasestr(reg->subkey,
-			    "Ndi\\params") != NULL &&
+			} else if (strncasecmp(reg->subkey,
+			    "Ndi\\params", strlen("Ndi\\params")-1) == 0 &&
 			    strcasecmp(reg->key, "ParamDesc") == 0)
 				dump_paramreg(sec, reg, devidx);
 		}
