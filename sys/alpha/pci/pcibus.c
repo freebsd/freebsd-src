@@ -27,6 +27,8 @@
  *
  */
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -47,7 +49,6 @@
 #include <alpha/isa/isavar.h>
 
 #include "alphapci_if.h"
-#include "isa.h"
 
 #define	ISA_IRQ_OFFSET	0xe0
 #define	ISA_IRQ_LEN	0x10
@@ -90,7 +91,7 @@ alpha_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	return(255);
 }
 
-#if	NISA > 0
+#ifdef DEV_ISA
 struct resource *
 alpha_platform_alloc_ide_intr(int chan)
 {
@@ -153,7 +154,7 @@ alpha_platform_pci_setup_intr(device_t dev, device_t child,
 			      driver_intr_t *intr, void *arg,
 			      void **cookiep)
 {
-#if	NISA > 0
+#ifdef DEV_ISA
 	/*
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
@@ -171,7 +172,7 @@ int
 alpha_platform_pci_teardown_intr(device_t dev, device_t child,
 				 struct resource *irq, void *cookie)
 {
-#if	NISA > 0
+#ifdef DEV_ISA
 	/*
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
@@ -225,7 +226,7 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-#if NISA > 0
+#ifdef DEV_ISA
 		if((start >= ISA_IRQ_OFFSET) &&
 		   (end < ISA_IRQ_OFFSET + ISA_IRQ_LEN)) {
 		  	return isa_alloc_intrs(bus, child,

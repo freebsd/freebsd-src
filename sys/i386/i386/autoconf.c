@@ -48,12 +48,11 @@
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
+#include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
 #include "opt_bus.h"
 #include "opt_rootdevname.h"
-
-#include "isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,7 +75,7 @@
 #include <i386/isa/icu.h>
 #endif /* APIC_IO */
 
-#if NISA > 0
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 
 device_t isa_bus_device = 0;
@@ -145,7 +144,7 @@ configure(dummy)
 	/* initialize new bus architecture */
 	root_bus_configure();
 
-#if NISA > 0
+#ifdef DEV_ISA
 	/*
 	 * Explicitly probe and attach ISA last.  The isa bus saves
 	 * it's device node at attach time for us here.

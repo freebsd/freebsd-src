@@ -47,6 +47,7 @@
 #include "opt_pc98.h"
 #endif
 #include "opt_reset.h"
+#include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -619,14 +620,12 @@ swi_vm(void *dummy)
  * or other unpredictable behaviour.
  */
 
-#include "isa.h"
-
 int
 is_physical_memory(addr)
 	vm_offset_t addr;
 {
 
-#if NISA > 0
+#ifdef DEV_ISA
 	/* The ISA ``memory hole''. */
 	if (addr >= 0xa0000 && addr < 0x100000)
 		return 0;
