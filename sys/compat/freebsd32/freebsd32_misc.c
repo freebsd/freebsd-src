@@ -79,6 +79,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
+CTASSERT(sizeof(struct timeval32) == 8);
+CTASSERT(sizeof(struct timespec32) == 8);
+CTASSERT(sizeof(struct statfs32) == 256);
+CTASSERT(sizeof(struct rusage32) == 72);
+
 /*
  * [ taken from the linux emulator ]
  * Search an alternate path before passing pathname arguments on
@@ -356,6 +361,8 @@ struct sigaltstack32 {
 	int		ss_flags;
 };
 
+CTASSERT(sizeof(struct sigaltstack32) == 12);
+
 int
 freebsd32_sigaltstack(struct thread *td,
 		      struct freebsd32_sigaltstack_args *uap)
@@ -589,6 +596,8 @@ struct itimerval32 {
 	struct timeval32 it_value;
 };
 
+CTASSERT(sizeof(struct itimerval32) == 16);
+
 int
 freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {
@@ -667,6 +676,8 @@ struct kevent32 {
 	int32_t		data;
 	u_int32_t	udata;		/* opaque user data identifier */
 };
+
+CTASSERT(sizeof(struct kevent32) == 20);
 
 int
 freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
@@ -818,6 +829,8 @@ struct iovec32 {
 	int	iov_len;
 };
 #define	STACKGAPLEN	400
+
+CTASSERT(sizeof(struct iovec32) == 8);
 
 int
 freebsd32_readv(struct thread *td, struct freebsd32_readv_args *uap)
@@ -1198,7 +1211,13 @@ struct stat32 {
 	u_int32_t st_blksize;
 	u_int32_t st_flags;
 	u_int32_t st_gen;
+	struct timespec32 st_birthtimespec;
+	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
+	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 };
+
+
+CTASSERT(sizeof(struct stat32) == 96);
 
 static void
 copy_stat( struct stat *in, struct stat32 *out)
@@ -1341,6 +1360,8 @@ struct sigaction32 {
 	int		sa_flags;
 	sigset_t	sa_mask;
 };
+
+CTASSERT(sizeof(struct sigaction32) == 24);
 
 int
 freebsd32_sigaction(struct thread *td, struct freebsd32_sigaction_args *uap)

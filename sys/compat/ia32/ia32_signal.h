@@ -35,7 +35,6 @@ struct ia32_sigaltstack {
 	int		ss_flags;	/* SS_DISABLE and/or SS_ONSTACK */
 };
 
-/* XXX should be 640 bytes long; check and see if __packed is needed */
 struct ia32_mcontext {
 	int	mc_onstack;		/* XXX - sigcontext compat. */
 	int	mc_gs;			/* machine state (struct trapframe) */
@@ -69,7 +68,6 @@ struct ia32_mcontext {
 	int	mc_spare2[8];
 };
 
-/* XXX should be 704 bytes long; check and see if __packed is needed */
 struct ia32_ucontext {
 	sigset_t		uc_sigmask;
 	struct ia32_mcontext	uc_mcontext;
