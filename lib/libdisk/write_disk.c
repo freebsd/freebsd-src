@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.6 1995/05/01 04:05:27 phk Exp $
+ * $Id: write_disk.c,v 1.7 1995/05/04 07:00:57 phk Exp $
  *
  */
 
@@ -55,7 +55,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type == unused) continue;
-		if (c2->type == reserved) continue;
 		if (!strcmp(c2->name,"X")) continue;
 		j = c2->name[5] - 'a';
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
@@ -132,7 +131,6 @@ Write_Disk(struct disk *d1)
 	free(mbr);
 	for (c1=d1->chunks->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
-		if (c1->type == reserved) continue;
 		if (!strcmp(c1->name,"X")) continue;
 		j = c1->name[4] - '1';
 		if (j < 0 || j > 3)
