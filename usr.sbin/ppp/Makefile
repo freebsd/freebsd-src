@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1996/10/18 03:47:51 jkh Exp $
+#	$Id: Makefile,v 1.10 1996/12/12 14:39:16 jkh Exp $
 
 PROG=	ppp
 SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
@@ -9,7 +9,7 @@ SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
 #CFLAGS+= -DHAVE_SHELL_CMD_WITH_ANY_MODE
 CFLAGS += -Wall -DUSE_PERROR -DMSEXT -DPASSWDAUTH
 LDADD += -lmd -lcrypt -lutil
-DPADD += ${LIBMD}
+DPADD += ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 MAN8=	ppp.8
 BINMODE=4555
 BINOWN=	root
