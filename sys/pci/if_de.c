@@ -49,6 +49,10 @@
 #include <sys/kernel.h>
 #include <sys/eventhandler.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include "opt_inet.h"
 #include "opt_ipx.h"
@@ -5069,131 +5073,118 @@ tulip_initring(
  * This is the PCI configuration support.
  */
 
-#define	PCI_CFID	0x00	/* Configuration ID */
-#define	PCI_CFCS	0x04	/* Configurtion Command/Status */
-#define	PCI_CFRV	0x08	/* Configuration Revision */
-#define	PCI_CFLT	0x0c	/* Configuration Latency Timer */
 #define	PCI_CBIO	0x10	/* Configuration Base IO Address */
 #define	PCI_CBMA	0x14	/* Configuration Base Memory Address */
-#define	PCI_CFIT	0x3c	/* Configuration Interrupt */
 #define	PCI_CFDA	0x40	/* Configuration Driver Area */
 
-static const char*
-tulip_pci_probe(
-    pcici_t config_id,
-    pcidi_t device_id)
+static int
+tulip_pci_probe(device_t dev)
 {
-    if (PCI_VENDORID(device_id) != DEC_VENDORID)
-	return NULL;
-    if (PCI_CHIPID(device_id) == CHIPID_21040)
-	return "Digital 21040 Ethernet";
-    if (PCI_CHIPID(device_id) == CHIPID_21041)
-	return "Digital 21041 Ethernet";
-    if (PCI_CHIPID(device_id) == CHIPID_21140) {
-	u_int32_t revinfo = pci_conf_read(config_id, PCI_CFRV) & 0xFF;
-	if (revinfo >= 0x20)
-	    return "Digital 21140A Fast Ethernet";
+    const char *name = NULL;
+
+    if (pci_get_vendor(dev) != DEC_VENDORID)
+	return ENXIO;
+
+    switch (pci_get_device(dev)) {
+    case CHIPID_21040:
+	name = "Digital 21040 Ethernet";
+	break;
+    case CHIPID_21041:
+	name = "Digital 21041 Ethernet";
+	break;
+    case CHIPID_21140:
+	if (pci_get_revid(dev) >= 0x20)
+	    name = "Digital 21140A Fast Ethernet";
 	else
-	    return "Digital 21140 Fast Ethernet";
-    }
-    if (PCI_CHIPID(device_id) == CHIPID_21142) {
-	u_int32_t revinfo = pci_conf_read(config_id, PCI_CFRV) & 0xFF;
-	if (revinfo >= 0x20)
-	    return "Digital 21143 Fast Ethernet";
+	    name = "Digital 21140 Fast Ethernet";
+	break;
+    case CHIPID_21142:
+	if (pci_get_revid(dev) >= 0x20)
+	    name = "Digital 21143 Fast Ethernet";
 	else
-	    return "Digital 21142 Fast Ethernet";
+	    name = "Digital 21142 Fast Ethernet";
+	break;
     }
-    return NULL;
+    if (name) {
+	device_set_desc(dev, name);
+	return -200;
+    }
+    return ENXIO;
 }
 
-static void  tulip_pci_attach(pcici_t config_id, int unit);
-static u_long tulip_pci_count;
-
-static struct pci_device dedevice = {
-    "de",
-    tulip_pci_probe,
-    tulip_pci_attach,
-   &tulip_pci_count,
-};
-
-COMPAT_PCI_DRIVER(de, dedevice);
-
-static void
-tulip_shutdown(void *arg, int howto)
+static int
+tulip_shutdown(device_t dev)
 {
-    tulip_softc_t * const sc = arg;
+    tulip_softc_t * const sc = device_get_softc(dev);
     TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
     DELAY(10);	/* Wait 10 microseconds (actually 50 PCI cycles but at 
 		   33MHz that comes to two microseconds but wait a
 		   bit longer anyways) */
+    return 0;
 }
 
-static void
-tulip_pci_attach(pcici_t config_id, int unit)
+static int
+tulip_pci_attach(device_t dev)
 {
     tulip_softc_t *sc;
 #if defined(__alpha__)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
     int retval, idx;
-    u_int32_t revinfo, cfdainfo, id, cfcsinfo;
-#if !defined(TULIP_IOMAPPED)
-    vm_offset_t pa_csrs;
-#endif
+    u_int32_t revinfo, cfdainfo, cfcsinfo;
     unsigned csroffset = TULIP_PCI_CSROFFSET;
     unsigned csrsize = TULIP_PCI_CSRSIZE;
     tulip_csrptr_t csr_base;
     tulip_chipid_t chipid = TULIP_CHIPID_UNKNOWN;
+    struct resource *res;
+    int rid, unit;
+
+    unit = device_get_unit(dev);
 
     if (unit >= TULIP_MAX_DEVICES) {
 	printf("de%d", unit);
 	printf(": not configured; limit of %d reached or exceeded\n",
 	       TULIP_MAX_DEVICES);
-	return;
+	return ENXIO;
     }
 
-    revinfo  = pci_conf_read(config_id, PCI_CFRV) & 0xFF;
-    id       = pci_conf_read(config_id, PCI_CFID);
-    cfdainfo = pci_conf_read(config_id, PCI_CFDA);
-    cfcsinfo = pci_conf_read(config_id, PCI_CFCS);
+    revinfo  = pci_get_revid(dev);
+    cfdainfo = pci_read_config(dev, PCI_CFDA, 4);
+    cfcsinfo = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
     /* turn busmaster on in case BIOS doesn't set it */
     if(!(cfcsinfo & PCIM_CMD_BUSMASTEREN)) {
 	 cfcsinfo |= PCIM_CMD_BUSMASTEREN;
-	 pci_conf_write(config_id, PCI_CFCS, cfcsinfo);
+	 pci_write_config(dev, PCI_COMMAND_STATUS_REG, cfcsinfo, 4);
     }
 
-    if (PCI_VENDORID(id) == DEC_VENDORID) {
-	if (PCI_CHIPID(id) == CHIPID_21040)
+    if (pci_get_vendor(dev) == DEC_VENDORID) {
+	if (pci_get_device(dev) == CHIPID_21040)
 		chipid = TULIP_21040;
-	else if (PCI_CHIPID(id) == CHIPID_21041)
+	else if (pci_get_device(dev) == CHIPID_21041)
 		chipid = TULIP_21041;
-	else if (PCI_CHIPID(id) == CHIPID_21140)
+	else if (pci_get_device(dev) == CHIPID_21140)
 		chipid = (revinfo >= 0x20) ? TULIP_21140A : TULIP_21140;
-	else if (PCI_CHIPID(id) == CHIPID_21142)
+	else if (pci_get_device(dev) == CHIPID_21142)
 		chipid = (revinfo >= 0x20) ? TULIP_21143 : TULIP_21142;
     }
     if (chipid == TULIP_CHIPID_UNKNOWN)
-	return;
+	return ENXIO;
 
     if (chipid == TULIP_21040 && revinfo < 0x20) {
 	printf("de%d", unit);
 	printf(": not configured; 21040 pass 2.0 required (%d.%d found)\n",
 	       revinfo >> 4, revinfo & 0x0f);
-	return;
+	return ENXIO;
     } else if (chipid == TULIP_21140 && revinfo < 0x11) {
 	printf("de%d: not configured; 21140 pass 1.1 required (%d.%d found)\n",
 	       unit, revinfo >> 4, revinfo & 0x0f);
-	return;
+	return ENXIO;
     }
 
-    sc = (tulip_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-    if (sc == NULL)
-	return;
-    bzero(sc, sizeof(*sc));				/* Zero out the softc*/
-
-    sc->tulip_pci_busno = config_id->bus;
-    sc->tulip_pci_devno = config_id->slot;
+    sc = device_get_softc(dev);
+    sc->tulip_pci_busno = pci_get_bus(dev);
+    sc->tulip_pci_devno = pci_get_slot(dev);
     sc->tulip_chipid = chipid;
     sc->tulip_flags |= TULIP_DEVICEPROBE;
     if (chipid == TULIP_21140 || chipid == TULIP_21140A)
@@ -5217,7 +5208,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
     if (sc->tulip_features & TULIP_HAVE_POWERMGMT
 	    && (cfdainfo & (TULIP_CFDA_SLEEP|TULIP_CFDA_SNOOZE))) {
 	cfdainfo &= ~(TULIP_CFDA_SLEEP|TULIP_CFDA_SNOOZE);
-	pci_conf_write(config_id, PCI_CFDA, cfdainfo);
+	pci_write_config(dev, PCI_CFDA, cfdainfo, 4);
 	DELAY(11*1000);
     }
 #if defined(__alpha__) 
@@ -5243,14 +5234,20 @@ tulip_pci_attach(pcici_t config_id, int unit)
     sc->tulip_revinfo = revinfo;
     sc->tulip_if.if_softc = sc;
 #if defined(TULIP_IOMAPPED)
-    retval = pci_map_port(config_id, PCI_CBIO, &csr_base);
+    rid = PCI_CBIO;
+    res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			     0, ~0, 1, RF_ACTIVE);
+    if (!res)
+	return ENXIO;
+    csr_base = rman_get_start(res);
 #else
-    retval = pci_map_mem(config_id, PCI_CBMA, (vm_offset_t *) &csr_base, &pa_csrs);
+    rid = PCI_CBMA;
+    res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+			     0, ~0, 1, RF_ACTIVE);
+    if (!res)
+	return ENXIO;
+    csr_base = (vm_offset_t) rman_get_virtual(res);
 #endif
-    if (!retval) {
-	free((caddr_t) sc, M_DEVBUF);
-	return;
-    }
     tulips[unit] = sc;
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);
@@ -5258,7 +5255,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
 #if defined(TULIP_BUS_DMA)
     if ((retval = tulip_busdma_init(sc)) != 0) {
 	printf("error initing bus_dma: %d\n", retval);
-	return;
+	return ENXIO;
     }
 #else
     sc->tulip_rxdescs = (tulip_desc_t *) malloc(sizeof(tulip_desc_t) * TULIP_RXDESCS, M_DEVBUF, M_NOWAIT);
@@ -5269,8 +5266,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
 	    free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
 	if (sc->tulip_txdescs)
 	    free((caddr_t) sc->tulip_txdescs, M_DEVBUF);
-	free((caddr_t) sc, M_DEVBUF);
-	return;
+	return ENXIO;
     }
 #endif
 
@@ -5304,17 +5300,20 @@ tulip_pci_attach(pcici_t config_id, int unit)
 	    intr_rtn = tulip_intr_shared;
 
 	if ((sc->tulip_features & TULIP_HAVE_SLAVEDINTR) == 0) {
-	    if (!pci_map_int (config_id, intr_rtn, (void*) sc, &net_imask)) {
+	    void *ih;
+
+	    rid = 0;
+	    res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				     0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	    if (res == 0 || bus_setup_intr(dev, res, INTR_TYPE_NET,
+					   intr_rtn, sc, &ih)) {
 		printf("%s%d: couldn't map interrupt\n",
 		       sc->tulip_name, sc->tulip_unit);
 		free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
 		free((caddr_t) sc->tulip_txdescs, M_DEVBUF);
-		free((caddr_t) sc, M_DEVBUF);
-		return;
+		return ENXIO;
 	    }
 	}
-	EVENTHANDLER_REGISTER(shutdown_post_sync, tulip_shutdown, sc,
-			      SHUTDOWN_PRI_DEFAULT);
 #if defined(TULIP_USE_SOFTINTR)
 	if (sc->tulip_unit > tulip_softintr_max_unit)
 	    tulip_softintr_max_unit = sc->tulip_unit;
@@ -5331,4 +5330,20 @@ tulip_pci_attach(pcici_t config_id, int unit)
 #endif
 	splx(s);
     }
+    return 0;
 }
+
+static device_method_t tulip_pci_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,	tulip_pci_probe),
+    DEVMETHOD(device_attach,	tulip_pci_attach),
+    DEVMETHOD(device_shutdown,	tulip_shutdown),
+    { 0, 0 }
+};
+static driver_t tulip_pci_driver = {
+    "de",
+    tulip_pci_methods,
+    sizeof(tulip_softc_t),
+};
+static devclass_t tulip_devclass;
+DRIVER_MODULE(if_de, pci, tulip_pci_driver, tulip_devclass, 0, 0);
