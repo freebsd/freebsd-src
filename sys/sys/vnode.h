@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.76 1998/10/29 09:51:28 peter Exp $
+ * $Id: vnode.h,v 1.77 1998/10/31 14:05:11 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -259,7 +259,8 @@ extern int		vttoif_tab[];
 #define	VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
 #else
 #define	VNODEOP_SET(f) \
-	SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_mod_opv_init, &f);
+	SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_add_vnodeops, &f); \
+	SYSUNINIT(f##uninit, SI_SUB_VFS, SI_ORDER_SECOND, vfs_rm_vnodeops, &f);
 #endif
 
 /*
@@ -487,8 +488,8 @@ void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
-void	vfs_opv_init __P((struct vnodeopv_desc *opv));
-void	vfs_mod_opv_init __P((void *handle));
+void	vfs_add_vnodeops __P((void *));
+void	vfs_rm_vnodeops __P((void *));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));
@@ -535,6 +536,7 @@ int	vop_einval __P((struct vop_generic_args *ap));
 int	vop_enotty __P((struct vop_generic_args *ap));
 int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
+int	vop_panic __P((struct vop_generic_args *ap));
 
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
