@@ -260,7 +260,8 @@ sis_dma_map_ring(arg, segs, nseg, error)
  * Routine to reverse the bits in a word. Stolen almost
  * verbatim from /usr/games/fortune.
  */
-static u_int16_t sis_reverse(n)
+static u_int16_t
+sis_reverse(n)
 	u_int16_t		n;
 {
 	n = ((n >>  1) & 0x5555) | ((n <<  1) & 0xaaaa);
@@ -271,7 +272,8 @@ static u_int16_t sis_reverse(n)
 	return(n);
 }
 
-static void sis_delay(sc)
+static void
+sis_delay(sc)
 	struct sis_softc	*sc;
 {
 	int			idx;
@@ -282,7 +284,8 @@ static void sis_delay(sc)
 	return;
 }
 
-static void sis_eeprom_idle(sc)
+static void
+sis_eeprom_idle(sc)
 	struct sis_softc	*sc;
 {
 	register int		i;
@@ -311,7 +314,8 @@ static void sis_eeprom_idle(sc)
 /*
  * Send a read command and address to the EEPROM, check for ACK.
  */
-static void sis_eeprom_putbyte(sc, addr)
+static void
+sis_eeprom_putbyte(sc, addr)
 	struct sis_softc	*sc;
 	int			addr;
 {
@@ -341,7 +345,8 @@ static void sis_eeprom_putbyte(sc, addr)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void sis_eeprom_getword(sc, addr, dest)
+static void
+sis_eeprom_getword(sc, addr, dest)
 	struct sis_softc	*sc;
 	int			addr;
 	u_int16_t		*dest;
@@ -388,7 +393,8 @@ static void sis_eeprom_getword(sc, addr, dest)
 /*
  * Read a sequence of words from the EEPROM.
  */
-static void sis_read_eeprom(sc, dest, off, cnt, swap)
+static void
+sis_read_eeprom(sc, dest, off, cnt, swap)
 	struct sis_softc	*sc;
 	caddr_t			dest;
 	int			off;
@@ -411,7 +417,8 @@ static void sis_read_eeprom(sc, dest, off, cnt, swap)
 }
 
 #ifdef __i386__
-static device_t sis_find_bridge(dev)
+static device_t
+sis_find_bridge(dev)
 	device_t		dev;
 {
 	devclass_t		pci_devclass;
@@ -447,7 +454,8 @@ done:
 	return(child);
 }
 
-static void sis_read_cmos(sc, dev, dest, off, cnt)
+static void
+sis_read_cmos(sc, dev, dest, off, cnt)
 	struct sis_softc	*sc;
 	device_t		dev;
 	caddr_t			dest;
@@ -477,7 +485,8 @@ static void sis_read_cmos(sc, dev, dest, off, cnt)
 	return;
 }
 
-static void sis_read_mac(sc, dev, dest)
+static void
+sis_read_mac(sc, dev, dest)
 	struct sis_softc	*sc;
 	device_t		dev;
 	caddr_t			dest;
@@ -505,7 +514,8 @@ static void sis_read_mac(sc, dev, dest)
 }
 #endif
 
-static int sis_miibus_readreg(dev, phy, reg)
+static int
+sis_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -558,7 +568,8 @@ static int sis_miibus_readreg(dev, phy, reg)
 	return(val);
 }
 
-static int sis_miibus_writereg(dev, phy, reg, data)
+static int
+sis_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -592,7 +603,8 @@ static int sis_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void sis_miibus_statchg(dev)
+static void
+sis_miibus_statchg(dev)
 	device_t		dev;
 {
 	struct sis_softc	*sc;
@@ -603,7 +615,8 @@ static void sis_miibus_statchg(dev)
 	return;
 }
 
-static u_int32_t sis_crc(sc, addr)
+static u_int32_t
+sis_crc(sc, addr)
 	struct sis_softc	*sc;
 	caddr_t			addr;
 {
@@ -637,7 +650,8 @@ static u_int32_t sis_crc(sc, addr)
 	return((crc >> 25) & 0x0000007F);
 }
 
-static void sis_setmulti_ns(sc)
+static void
+sis_setmulti_ns(sc)
 	struct sis_softc	*sc;
 {
 	struct ifnet		*ifp;
@@ -685,7 +699,8 @@ static void sis_setmulti_ns(sc)
 	return;
 }
 
-static void sis_setmulti_sis(sc)
+static void
+sis_setmulti_sis(sc)
 	struct sis_softc	*sc;
 {
 	struct ifnet		*ifp;
@@ -723,7 +738,8 @@ static void sis_setmulti_sis(sc)
 	return;
 }
 
-static void sis_reset(sc)
+static void
+sis_reset(sc)
 	struct sis_softc	*sc;
 {
 	register int		i;
@@ -757,7 +773,8 @@ static void sis_reset(sc)
  * Probe for an SiS chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int sis_probe(dev)
+static int
+sis_probe(dev)
 	device_t		dev;
 {
 	struct sis_type		*t;
@@ -780,7 +797,8 @@ static int sis_probe(dev)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int sis_attach(dev)
+static int
+sis_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -1122,7 +1140,8 @@ fail:
 	return(error);
 }
 
-static int sis_detach(dev)
+static int
+sis_detach(dev)
 	device_t		dev;
 {
 	struct sis_softc	*sc;
@@ -1165,7 +1184,8 @@ static int sis_detach(dev)
 /*
  * Initialize the transmit descriptors.
  */
-static int sis_list_tx_init(sc)
+static int
+sis_list_tx_init(sc)
 	struct sis_softc	*sc;
 {
 	struct sis_list_data	*ld;
@@ -1201,7 +1221,8 @@ static int sis_list_tx_init(sc)
  * we arrange the descriptors in a closed ring, so that the last descriptor
  * points back to the first.
  */
-static int sis_list_rx_init(sc)
+static int
+sis_list_rx_init(sc)
 	struct sis_softc	*sc;
 {
 	struct sis_list_data	*ld;
@@ -1235,7 +1256,8 @@ static int sis_list_rx_init(sc)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int sis_newbuf(sc, c, m)
+static int
+sis_newbuf(sc, c, m)
 	struct sis_softc	*sc;
 	struct sis_desc		*c;
 	struct mbuf		*m;
@@ -1267,7 +1289,8 @@ static int sis_newbuf(sc, c, m)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void sis_rxeof(sc)
+static void
+sis_rxeof(sc)
 	struct sis_softc	*sc;
 {
         struct mbuf		*m;
@@ -1349,7 +1372,8 @@ static void sis_rxeof(sc)
 	return;
 }
 
-void sis_rxeoc(sc)
+void
+sis_rxeoc(sc)
 	struct sis_softc	*sc;
 {
 	sis_rxeof(sc);
@@ -1362,7 +1386,8 @@ void sis_rxeoc(sc)
  * the list buffers.
  */
 
-static void sis_txeof(sc)
+static void
+sis_txeof(sc)
 	struct sis_softc	*sc;
 {
 	struct ifnet		*ifp;
@@ -1415,7 +1440,8 @@ static void sis_txeof(sc)
 	return;
 }
 
-static void sis_tick(xsc)
+static void
+sis_tick(xsc)
 	void			*xsc;
 {
 	struct sis_softc	*sc;
@@ -1493,7 +1519,8 @@ done:
 }
 #endif /* DEVICE_POLLING */
 
-static void sis_intr(arg)
+static void
+sis_intr(arg)
 	void			*arg;
 {
 	struct sis_softc	*sc;
@@ -1564,7 +1591,8 @@ done:
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int sis_encap(sc, m_head, txidx)
+static int
+sis_encap(sc, m_head, txidx)
 	struct sis_softc	*sc;
 	struct mbuf		*m_head;
 	u_int32_t		*txidx;
@@ -1621,7 +1649,8 @@ static int sis_encap(sc, m_head, txidx)
  * physical addresses.
  */
 
-static void sis_start(ifp)
+static void
+sis_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct sis_softc	*sc;
@@ -1677,7 +1706,8 @@ static void sis_start(ifp)
 	return;
 }
 
-static void sis_init(xsc)
+static void
+sis_init(xsc)
 	void			*xsc;
 {
 	struct sis_softc	*sc = xsc;
@@ -1849,7 +1879,8 @@ static void sis_init(xsc)
 /*
  * Set media options.
  */
-static int sis_ifmedia_upd(ifp)
+static int
+sis_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct sis_softc	*sc;
@@ -1872,7 +1903,8 @@ static int sis_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void sis_ifmedia_sts(ifp, ifmr)
+static void
+sis_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -1889,7 +1921,8 @@ static void sis_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int sis_ioctl(ifp, command, data)
+static int
+sis_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1939,7 +1972,8 @@ static int sis_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void sis_watchdog(ifp)
+static void
+sis_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct sis_softc	*sc;
@@ -1967,7 +2001,8 @@ static void sis_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void sis_stop(sc)
+static void
+sis_stop(sc)
 	struct sis_softc	*sc;
 {
 	register int		i;
@@ -2034,7 +2069,8 @@ static void sis_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void sis_shutdown(dev)
+static void
+sis_shutdown(dev)
 	device_t		dev;
 {
 	struct sis_softc	*sc;
