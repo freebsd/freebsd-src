@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.46 1997/05/26 15:08:35 se Exp $
+**  $Id: pcisupport.c,v 1.47 1997/05/30 21:01:47 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -732,10 +732,11 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x70308086:
 		writeconfig (config_id, conf82437vx);
 		break;
-	case 0x70108086:
+	case 0x70008086:
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
+	case 0x70108086:
 	case 0x12308086:
 		writeconfig (config_id, conf82371fb2);
 		break;
