@@ -20,10 +20,6 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ************************************************************************/
 
-#ifndef lint
-static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
-#endif
-
 /*
  * BOOTP (bootstrap protocol) server daemon.
  *
@@ -49,6 +45,7 @@ static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -57,6 +54,7 @@ static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
 #ifndef	NO_UNISTD
 #include <unistd.h>
 #endif
+
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
@@ -69,11 +67,6 @@ static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
 
 #ifdef	NO_SETSID
 # include <fcntl.h>		/* for O_RDONLY, etc */
-#endif
-
-#ifdef	SVR4
-/* Using sigset() avoids the need to re-arm each time. */
-#define signal sigset
 #endif
 
 #ifndef	USE_BFUNCS
@@ -164,8 +157,10 @@ char *pktbuf;					/* Receive packet buffer */
 int pktlen;
 char *progname;
 char *chdir_path;
-char hostname[MAXHOSTNAMELEN];	/* System host name */
 struct in_addr my_ip_addr;
+
+struct utsname my_uname;
+char *hostname;
 
 /* Flags set by signal catcher. */
 PRIVATE int do_readtab = 0;
@@ -198,6 +193,9 @@ main(argc, argv)
 	int n, ba_len, ra_len;
 	int nfound, readfds;
 	int standalone;
+#ifdef	SA_NOCLDSTOP	/* Have POSIX sigaction(2). */
+	struct sigaction sa;
+#endif
 
 	progname = strrchr(argv[0], '/');
 	if (progname) progname++;
@@ -254,6 +252,12 @@ main(argc, argv)
 	 */
 	stmp = NULL;
 	timeout = &actualtimeout;
+
+	if (uname(&my_uname) < 0) {
+		fprintf(stderr, "bootpd: can't get hostname\n");
+		exit(1);
+	}
+	hostname = my_uname.nodename;
 
 	/*
 	 * Read switches.
@@ -315,7 +319,7 @@ main(argc, argv)
 						"bootpd: missing hostname\n");
 				break;
 			}
-			strncpy(hostname, stmp, sizeof(hostname)-1);
+			hostname = stmp;
 			break;
 
 		case 'i':				/* inetd mode */
@@ -369,12 +373,7 @@ main(argc, argv)
 	/*
 	 * Get my hostname and IP address.
 	 */
-	if (hostname[0] == '\0') {
-		if (gethostname(hostname, sizeof(hostname)) == -1) {
-			fprintf(stderr, "bootpd: can't get hostname\n");
-			exit(1);
-		}
-	}
+
 	hep = gethostbyname(hostname);
 	if (!hep) {
 		fprintf(stderr, "Can not get my IP address\n");
@@ -481,6 +480,20 @@ main(argc, argv)
 	/*
 	 * Set up signals to read or dump the table.
 	 */
+#ifdef	SA_NOCLDSTOP	/* Have POSIX sigaction(2). */
+	sa.sa_handler = catcher;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	if (sigaction(SIGHUP, &sa, NULL) < 0) {
+		report(LOG_ERR, "sigaction: %s", get_errmsg());
+		exit(1);
+	}
+	if (sigaction(SIGUSR1, &sa, NULL) < 0) {
+		report(LOG_ERR, "sigaction: %s", get_errmsg());
+		exit(1);
+	}
+#else	/* SA_NOCLDSTOP */
+	/* Old-fashioned UNIX signals */
 	if ((int) signal(SIGHUP, catcher) < 0) {
 		report(LOG_ERR, "signal: %s", get_errmsg());
 		exit(1);
@@ -489,13 +502,20 @@ main(argc, argv)
 		report(LOG_ERR, "signal: %s", get_errmsg());
 		exit(1);
 	}
+#endif	/* SA_NOCLDSTOP */
 
 	/*
 	 * Process incoming requests.
 	 */
 	for (;;) {
+		struct timeval tv;
+
 		readfds = 1 << s;
-		nfound = select(s + 1, (fd_set *)&readfds, NULL, NULL, timeout);
+		if (timeout)
+			tv = *timeout;
+
+		nfound = select(s + 1, (fd_set *)&readfds, NULL, NULL,
+						(timeout) ? &tv : NULL);
 		if (nfound < 0) {
 			if (errno != EINTR) {
 				report(LOG_ERR, "select: %s", get_errmsg());
@@ -532,7 +552,7 @@ main(argc, argv)
 		}
 		if (n < sizeof(struct bootp)) {
 			if (debug) {
-				report(LOG_INFO, "received short packet");
+				report(LOG_NOTICE, "received short packet");
 			}
 			continue;
 		}
@@ -580,9 +600,8 @@ catcher(sig)
 		do_readtab = 1;
 	if (sig == SIGUSR1)
 		do_dumptab = 1;
-#ifdef	SYSV
-	/* For older "System V" derivatives with no sigset(). */
-	/* XXX - Should just do it the POSIX way (sigaction). */
+#if	!defined(SA_NOCLDSTOP) && defined(SYSV)
+	/* For older "System V" derivatives with no sigaction(). */
 	signal(sig, catcher);
 #endif
 }
@@ -676,8 +695,8 @@ HW addr type is IEEE 802.  convert to %s and check again\n",
 			/*
 			 * XXX - Add dynamic IP address assignment?
 			 */
-			if (debug > 1)
-				report(LOG_INFO, "unknown client %s address %s",
+			if (debug)
+				report(LOG_NOTICE, "unknown client %s address %s",
 					   netname(bp->bp_htype),
 					   haddrtoa(bp->bp_chaddr, bp->bp_hlen));
 			return; /* not found */
@@ -698,7 +717,7 @@ HW addr type is IEEE 802.  convert to %s and check again\n",
 		hp = (struct host *) hash_Lookup(iphashtable, hashcode, iplookcmp,
 										 &dummyhost);
 		if (hp == NULL) {
-			if (debug > 1) {
+			if (debug) {
 				report(LOG_NOTICE, "IP address not found: %s",
 					   inet_ntoa(bp->bp_ciaddr));
 			}
@@ -911,7 +930,9 @@ HW addr type is IEEE 802.  convert to %s and check again\n",
 	if (debug > 2)
 		report(LOG_INFO, "bootfile=\"%s\"", clntpath);
 
+#ifdef	CHECK_FILE_ACCESS
 null_file_name:
+#endif	/* CHECK_FILE_ACCESS */
 
 
 	/*
@@ -994,7 +1015,7 @@ sendreply(forward, dst_override)
 	struct in_addr dst;
 	u_short port = bootpc_port;
 	unsigned char *ha;
-	int len;
+	int len, haf;
 
 	/*
 	 * XXX - Should honor bp_flags "broadcast" bit here.
@@ -1033,11 +1054,14 @@ sendreply(forward, dst_override)
 		len = bp->bp_hlen;
 		if (len > MAXHADDRLEN)
 			len = MAXHADDRLEN;
+		haf = (int) bp->bp_htype;
+		if (haf == 0)
+			haf = HTYPE_ETHERNET;
 
 		if (debug > 1)
 			report(LOG_INFO, "setarp %s - %s",
 				   inet_ntoa(dst), haddrtoa(ha, len));
-		setarp(s, &dst, ha, len);
+		setarp(s, &dst, haf, ha, len);
 	}
 
 	if ((forward == 0) &&
@@ -1206,7 +1230,6 @@ dovend_rfc1048(bp, hp, bootsize)
 {
 	int bytesleft, len;
 	byte *vp;
-	char *tmpstr;
 
 	static char noroom[] = "%s: No room for \"%s\" option";
 
