@@ -2704,7 +2704,7 @@ Type
 is actually specified as
 .Dq PPP Magna-link Variable Resource Compression
 in
-.Pa rfc1975 Ns !
+.Pa rfc1975 !
 .Nm
 is capable of negotiating with
 .Nm pppd ,
