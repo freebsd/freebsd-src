@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: fortune.6,v 1.5 1997/02/22 14:46:50 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt FORTUNE 6
@@ -43,7 +43,7 @@
 .Nd "print a random, hopefully interesting, adage"
 .Sh SYNOPSIS
 .Nm fortune
-.Op Fl aefilosw
+.Op Fl aDefilosw
 .Op Fl m Ar pattern
 .Oo
 .Op Ar \&N%
@@ -63,6 +63,10 @@ Choose from all lists of maxims, both offensive and not.
 (See the
 .Fl o
 option for more information on offensive fortunes.)
+.It Fl D
+Enable additional debugging output.
+Specify this option multiple times for more verbose output.
+Only available if compiled with -DDEBUG.
 .It Fl e
 Consider all fortune files to be of equal size (see discussion below
 on multiple files).
