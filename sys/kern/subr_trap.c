@@ -211,11 +211,10 @@ userret(p, frame, oticks)
 		/* XXX - do we need Giant? */
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock);
 		addupc_task(p, TRAPF_PC(frame),
 			    (u_int)(p->p_sticks - oticks) * psratio);
-	}
-	mtx_unlock_spin(&sched_lock);
+	} else
+		mtx_unlock_spin(&sched_lock);
 }
 
 /*

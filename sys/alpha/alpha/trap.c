@@ -139,11 +139,10 @@ userret(p, frame, oticks)
 		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock);
-		addupc_task(p, frame->tf_regs[FRAME_PC],
+		addupc_task(p, TRAPF_PC(frame),
 		    (int)(p->p_sticks - oticks) * psratio);
-	}
-	mtx_unlock_spin(&sched_lock);
+	} else
+		mtx_unlock_spin(&sched_lock);
 }
 
 static void
