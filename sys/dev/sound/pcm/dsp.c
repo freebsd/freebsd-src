@@ -939,6 +939,15 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		}
 		break;
 
+	case SNDCTL_DSP_SETDUPLEX:
+		/*
+		 * switch to full-duplex mode if card is in half-duplex
+		 * mode and is able to work in full-duplex mode
+		 */
+		if (rdch && wrch && (dsp_get_flags(i_dev) & SD_F_SIMPLEX))
+			dsp_set_flags(i_dev, dsp_get_flags(i_dev)^SD_F_SIMPLEX);
+		break;
+
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
     	case SNDCTL_DSP_SETSYNCRO:
@@ -948,6 +957,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
     	case SOUND_PCM_WRITE_FILTER:
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
+
     	default:
 		DEB(printf("default ioctl fn 0x%08lx fail\n", cmd));
 		ret = EINVAL;
