@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.289 1997/04/12 21:55:53 joerg Exp $
+#	$Id: Makefile,v 1.290 1997/04/13 08:46:58 joerg Exp $
 #
 # How to roll a release:
 #
@@ -159,7 +159,7 @@ rerelease release:
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
-	echo "export PATH=${BOOTSTRAPDIR}:$${PATH} >> ${CHROOTDIR}/mk
+	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}" >> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
