@@ -1054,10 +1054,16 @@ getasciilabel(f, lp)
 			}
 			pp = &lp->d_partitions[part];
 #define NXTNUM(n) { \
-	cp = tp, tp = word(cp); \
-	if (tp == NULL) \
-		tp = cp; \
-	(n) = atoi(cp); \
+	if (tp == NULL) { \
+		fprintf(stderr, "line %d: too few numeric fields\n", lineno); \
+		errors++; \
+		break; \
+	} else { \
+		cp = tp, tp = word(cp); \
+		if (tp == NULL) \
+			tp = cp; \
+		(n) = atoi(cp); \
+	} \
      }
 
 			NXTNUM(v);
