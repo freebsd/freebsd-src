@@ -107,8 +107,8 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): execve(%s)\n", 
-	    p->p_pid, args->path);
+	if (ldebug(execve))
+		printf(ARGS(execve, "%s"), args->path);
 #endif
 
 	bsd.fname = args->path;
@@ -157,7 +157,8 @@ linux_select(struct proc *p, struct linux_select_args *args)
 	int error;
 
 #ifdef SELECT_DEBUG
-	printf("Linux-emul(%ld): select(%x)\n", (long)p->p_pid, args->ptr);
+	if (ldebug(select))
+		printf(ARGS(select, "%x"), args->ptr);
 #endif
 
 	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
@@ -178,7 +179,8 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
+	if (ldebug(fork))
+		printf(ARGS(fork, ""));
 #endif
 
 	if ((error = fork(p, (struct fork_args *)args)) != 0)
@@ -195,7 +197,8 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
+	if (ldebug(vfork))
+		printf(ARGS(vfork, ""));
 #endif
 
 	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
@@ -222,12 +225,12 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	struct rfork_args rf_args;
 
 #ifdef DEBUG
-	if (args->flags & CLONE_PID)
-		printf("linux_clone(%ld): CLONE_PID not yet supported\n",
-		    (long)p->p_pid);
-	printf("linux_clone(%ld): invoked with flags %x and stack %x\n",
-	    (long)p->p_pid, (unsigned int)args->flags,
-	    (unsigned int)args->stack);
+	if (ldebug(clone)) {
+		printf(ARGS(clone, "flags %x, stack %x"), 
+		    (unsigned int)args->flags, (unsigned int)args->stack);
+		if (args->flags & CLONE_PID)
+			printf(LMSG("CLONE_PID not yet supported"));
+	}
 #endif
 
 	if (!args->stack)
@@ -267,8 +270,9 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
-	printf ("linux_clone(%ld): successful rfork to %ld\n", (long)p->p_pid,
-	    (long)p2->p_pid);
+	if (ldebug(clone))
+		printf(LMSG("clone: successful rfork to %ld"),
+		    (long)p2->p_pid);
 #endif
 
 	return (0);
@@ -307,9 +311,10 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 		return (error);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mmap(%p, %d, %d, 0x%08x, %d, %d)",
-	    (long)p->p_pid, (void *)linux_args.addr, linux_args.len,
-	    linux_args.prot, linux_args.flags, linux_args.fd, linux_args.pos);
+	if (ldebug(mmap))
+		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
+		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
+		    linux_args.flags, linux_args.fd, linux_args.pos);
 #endif
 
 	bsd_args.flags = 0;
@@ -396,9 +401,10 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.pad = 0;
 
 #ifdef DEBUG
-	printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n", (void *)bsd_args.addr,
-	    bsd_args.len, bsd_args.prot, bsd_args.flags, bsd_args.fd,
-	    (int)bsd_args.pos);
+	if (ldebug(mmap))
+		printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n",
+		    (void *)bsd_args.addr, bsd_args.len, bsd_args.prot,
+		    bsd_args.flags, bsd_args.fd, (int)bsd_args.pos);
 #endif
 
 	return (mmap(p, &bsd_args));
@@ -411,7 +417,8 @@ linux_pipe(struct proc *p, struct linux_pipe_args *args)
 	int reg_edx;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): pipe(*)\n", (long)p->p_pid);
+	if (ldebug(pipe))
+		printf(ARGS(pipe, "*"));
 #endif
 
 	reg_edx = p->p_retval[1];
@@ -543,8 +550,9 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigaction(%d, %p, %p)\n", (long)p->p_pid,
-	       args->sig, (void *)args->nsa, (void *)args->osa);
+	if (ldebug(sigaction))
+		printf(ARGS(sigaction, "%d, %p, %p"),
+		    args->sig, (void *)args->nsa, (void *)args->osa);
 #endif
 
 	if (args->nsa != NULL) {
@@ -586,8 +594,8 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigsuspend(%08lx)\n",
-	       (long)p->p_pid, (unsigned long)args->mask);
+	if (ldebug(sigsuspend))
+		printf(ARGS(sigsuspend, "%08lx"), (unsigned long)args->mask);
 #endif
 
 	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
@@ -610,8 +618,9 @@ linux_rt_sigsuspend(p, uap)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
-	       (void *)uap->newset, uap->sigsetsize);
+	if (ldebug(rt_sigsuspend))
+		printf(ARGS(rt_sigsuspend, "%p, %d"),
+		    (void *)uap->newset, uap->sigsetsize);
 #endif
 
 	if (uap->sigsetsize != sizeof(linux_sigset_t))
@@ -635,7 +644,8 @@ linux_pause(struct proc *p, struct linux_pause_args *args)
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): pause()\n", p->p_pid);
+	if (ldebug(pause))
+		printf(ARGS(pause, ""));
 #endif
 
 	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
@@ -658,8 +668,8 @@ linux_sigaltstack(p, uap)
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
-	    (long)p->p_pid, uap->uss, uap->uoss);
+	if (ldebug(sigaltstack))
+		printf(ARGS(sigaltstack, "%p, %p"), uap->uss, uap->uoss);
 #endif
 
 	if (uap->uss == NULL) {

@@ -65,8 +65,8 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): execve(%s)\n", 
-	    p->p_pid, args->path);
+	if (ldebug(execve))
+		printf(ARGS(execve, "%s"), args->path);
 #endif
 	bsd.fname = args->path;
 	bsd.argv = args->argp;
@@ -80,7 +80,8 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
+	if (ldebug(fork))
+		printf(ARGS(fork, ""));
 #endif
 	if ((error = fork(p, (struct fork_args *)args)) != 0)
 		return (error);
@@ -97,7 +98,8 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
+	if (ldebug(vfork))
+		printf(ARGS(vfork, ""));
 #endif
 	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
 		return (error);
@@ -123,12 +125,12 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	struct rfork_args rf_args;
 
 #ifdef DEBUG
-	if (args->flags & CLONE_PID)
-		printf("linux_clone(%ld): CLONE_PID not yet supported\n",
-		    (long)p->p_pid);
-	uprintf("linux_clone(%ld): invoked with flags 0x%x and stack %p\n",
-	    (long)p->p_pid, (unsigned int)args->flags,
-	    args->stack);
+	if (ldebug(clone)) {
+		printf(ARGS(clone, "flags %x, stack %x"), 
+		    (unsigned int)args->flags, (unsigned int)args->stack);
+		if (args->flags & CLONE_PID)
+		    printf(LMSG("CLONE_PID not yet supported"));
+	}
 #endif
 
 	if (!args->stack)
@@ -168,8 +170,9 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	p2->p_addr->u_pcb.pcb_hw.apcb_usp = (unsigned long)args->stack;
 
 #ifdef DEBUG
-	uprintf ("linux_clone(%ld): successful rfork to %ld, stack %p, sig = %d\n", 
-(long)p->p_pid, (long)p2->p_pid, args->stack, exit_signal);
+	if (ldebug(clone))
+		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
+		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
 
 	return (0);
@@ -194,9 +197,11 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mmap(%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx)\n",
-	    (long)p->p_pid, (void *)linux_args->addr, linux_args->len,
-	    linux_args->prot, linux_args->flags, linux_args->fd, linux_args->pos);
+	if (ldebug(mmap))
+		printf(ARGS(mmap, "%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx"),
+		    (void *)linux_args->addr, linux_args->len,
+		    linux_args->prot, linux_args->flags, linux_args->fd,
+		    linux_args->pos);
 #endif
 	bsd_args.prot = linux_args->prot | PROT_READ;	/* always required */
 
@@ -265,21 +270,21 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 
 	bsd_args.pad = 0;
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mmap(%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx)\n",
-	    (long)p->p_pid,
-	    (void *)bsd_args.addr,
-	    bsd_args.len,
-	    bsd_args.prot,
-	    bsd_args.flags,
-	    bsd_args.fd,
-	    bsd_args.pos);
+	if (ldebug(mmap))
+		printf(ARGS(mmap, "%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx)",
+		    (void *)bsd_args.addr,
+		    bsd_args.len,
+		    bsd_args.prot,
+		    bsd_args.flags,
+		    bsd_args.fd,
+		    bsd_args.pos);
 #endif
 	if (bsd_args.addr == 0)
 		bsd_args.addr = (caddr_t)0x40000000UL;
 	error = mmap(p, &bsd_args);
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mmap returns %d, 0x%lx\n",
-	    (long)p->p_pid, error,  p->p_retval[0]);
+	if (ldebug(mmap))
+		printf(LMSG("mmap returns %d, 0x%lx", error, p->p_retval[0]);
 #endif
 	return (error);
 }
@@ -298,8 +303,9 @@ linux_rt_sigsuspend(p, uap)
 	sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
-	    (void *)uap->newset, uap->sigsetsize);
+	if (ldebug(rt_sigsuspend))
+		printf(ARGS(rt_sigsuspend, "%p, %d"),
+		    (void *)uap->newset, uap->sigsetsize);
 #endif
 	if (uap->sigsetsize != sizeof(linux_sigset_t))
 		return (EINVAL);
@@ -321,8 +327,9 @@ linux_mprotect(p, uap)
 {
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mprotect(%p, 0x%lx, 0x%x)\n",
-	    (long)p->p_pid, (void *)uap->addr, uap->len, uap->prot);
+	if (ldebug(mprotect))
+		printf(ARGS(mprotect, "%p, 0x%lx, 0x%x)",
+		    (void *)uap->addr, uap->len, uap->prot);
 #endif
 	return (mprotect(p, (void *)uap));
 }
@@ -334,8 +341,9 @@ linux_munmap(p, uap)
 {
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): munmap(%p, 0x%lx)\n",
-	    (long)p->p_pid, (void *)uap->addr, uap->len);
+	if (ldebug(munmap))
+		printf(ARGS(munmap, "%p, 0x%lx",
+		    (void *)uap->addr, uap->len);
 #endif
 	return (munmap(p, (void *)uap));
 }
@@ -373,8 +381,9 @@ linux_setrlimit(p, uap)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): setrlimit(%d, %p)\n",
-	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
+	if (ldebug(setrlimit))
+		printf(ARGS(setrlimit, "%d, %p"),
+		    uap->resource, (void *)uap->rlim);
 #endif
 	if (uap->resource >= LINUX_RLIM_NLIMITS)
 		return EINVAL;
@@ -398,8 +407,9 @@ linux_getrlimit(p, uap)
 	u_int which;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): getrlimit(%d, %p)\n",
-	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
+	if (ldebug(getrlimit))
+		printf(ARGS(getrlimit, "%d, %p"),
+		    uap->resource, (void *)uap->rlim);
 #endif
 	if (uap->resource >= LINUX_RLIM_NLIMITS)
 		return EINVAL;
