@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Marcel Moolenaar
  * Copyright (c) 2000,2001 Doug Rabson
  * All rights reserved.
  *
@@ -915,7 +916,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
-	get_mcontext(td, &sf.sf_uc.uc_mcontext, GET_MC_IA64_SCRATCH);
+	get_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
 
 	/* Copy the frame out to userland. */
 	if (copyout(&sf, sfp, sizeof(sf)) != 0) {
@@ -1067,24 +1068,13 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 	} else
 		mc->mc_special = tf->tf_special;
 	if (tf->tf_flags & FRAME_SYSCALL) {
-		if (flags & GET_MC_IA64_SCRATCH) {
-			mc->mc_flags |= _MC_FLAGS_SCRATCH_VALID;
-			mc->mc_scratch = tf->tf_scratch;
-		} else {
-			/*
-			 * Put the syscall return values in the context.  We
-			 * need this for swapcontext() to work.  Note that we
-			 * don't use gr11 in the kernel, but the runtime
-			 * specification defines it as a return register,
-			 * just like gr8-gr10.
-			 */
-			mc->mc_flags |= _MC_FLAGS_RETURN_VALID;
-			if ((flags & GET_MC_CLEAR_RET) == 0) {
-				mc->mc_scratch.gr8 = tf->tf_scratch.gr8;
-				mc->mc_scratch.gr9 = tf->tf_scratch.gr9;
-				mc->mc_scratch.gr10 = tf->tf_scratch.gr10;
-				mc->mc_scratch.gr11 = tf->tf_scratch.gr11;
-			}
+		mc->mc_flags |= _MC_FLAGS_SYSCALL_CONTEXT;
+		mc->mc_scratch = tf->tf_scratch;
+		if (flags & GET_MC_CLEAR_RET) {
+			mc->mc_scratch.gr8 = 0;
+			mc->mc_scratch.gr9 = 0;
+			mc->mc_scratch.gr10 = 0;
+			mc->mc_scratch.gr11 = 0;
 		}
 	} else {
 		mc->mc_flags |= _MC_FLAGS_ASYNC_CONTEXT;
@@ -1141,16 +1131,10 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 			td->td_pcb->pcb_high_fp = mc->mc_high_fp;
 	} else {
 		KASSERT((tf->tf_flags & FRAME_SYSCALL) != 0, ("foo"));
-		if ((mc->mc_flags & _MC_FLAGS_SCRATCH_VALID) == 0) {
+		if ((mc->mc_flags & _MC_FLAGS_SYSCALL_CONTEXT) == 0) {
 			s.cfm = tf->tf_special.cfm;
 			s.iip = tf->tf_special.iip;
 			tf->tf_scratch.gr15 = 0;	/* Clear syscall nr. */
-			if (mc->mc_flags & _MC_FLAGS_RETURN_VALID) {
-				tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
-				tf->tf_scratch.gr9 = mc->mc_scratch.gr9;
-				tf->tf_scratch.gr10 = mc->mc_scratch.gr10;
-				tf->tf_scratch.gr11 = mc->mc_scratch.gr11;
-			}
 		} else
 			tf->tf_scratch = mc->mc_scratch;
 	}
