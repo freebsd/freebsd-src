@@ -177,7 +177,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 1.7 1997/05/11 05:33:06 peter Exp $")
+libId(fnmsId, "$Id: rcsfnms.c,v 1.8 1997/08/19 11:17:37 peter Exp $")
 
 static char const *bindex P((char const*,int));
 static int fin2open P((char const*, size_t, char const*, size_t, char const*, size_t, RILE*(*)P((struct buf*,struct stat*,int)), int));
@@ -884,7 +884,7 @@ getfullCVSname()
 	int alen = strlen(ATTICDIR);
 
 	if ((c = strrchr(namebuf, '/')) != NULL) {
-	    if (alen >= namebuf - c) {
+	    if (namebuf - c >= alen) {
 		if (!strncmp(c - alen, ATTICDIR, alen)) {
 		    while(*c != '\0') {
 			*(c - alen) = *c;
