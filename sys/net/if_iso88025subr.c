@@ -412,17 +412,32 @@ iso88025_input(ifp, th, m)
 	int isr;
 	struct llc *l;
 
-	if ((ifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		return;
-	}
+	/*
+	 * Discard packet if interface is not up.
+	 */
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+		goto dropanyway;
 
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
 
-	getmicrotime(&ifp->if_lastchange);
+	/*
+	 * Update interface statistics.
+	 */
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
+	getmicrotime(&ifp->if_lastchange);
+
+	/*
+	 * Discard non local unicast packets when interface
+	 * is in promiscuous mode.
+	 */
+	if ((ifp->if_flags & IFF_PROMISC) &&
+	    ((th->iso88025_dhost[0] & 1) == 0) &&
+	     (bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t) th->iso88025_dhost,
+	     ISO88025_ADDR_LEN) != 0))
+		goto dropanyway;
+	}
 
 	/*
 	 * Set mbuf flags for bcast/mcast.
