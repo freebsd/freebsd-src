@@ -367,24 +367,29 @@ syncache_timer(xslot)
         callout_deactivate(&tcp_syncache.tt_timerq[slot]);
 
         nsc = TAILQ_FIRST(&tcp_syncache.timerq[slot]);
+	INP_INFO_RLOCK(&tcbinfo);
 	while (nsc != NULL) {
 		if (ticks < nsc->sc_rxttime)
 			break;
 		sc = nsc;
 		nsc = TAILQ_NEXT(sc, sc_timerq);
 		inp = sc->sc_tp->t_inpcb;
+		INP_LOCK(inp);
 		if (slot == SYNCACHE_MAXREXMTS ||
 		    slot >= tcp_syncache.rexmt_limit ||
 		    inp->inp_gencnt != sc->sc_inp_gencnt) {
 			syncache_drop(sc, NULL);
 			tcpstat.tcps_sc_stale++;
+			INP_UNLOCK(inp);
 			continue;
 		}
 		(void) syncache_respond(sc, NULL);
+		INP_UNLOCK(inp);
 		tcpstat.tcps_sc_retransmitted++;
 		TAILQ_REMOVE(&tcp_syncache.timerq[slot], sc, sc_timerq);
 		SYNCACHE_TIMEOUT(sc, slot + 1);
 	}
+	INP_INFO_RUNLOCK(&tcbinfo);
 	if (nsc != NULL)
 		callout_reset(&tcp_syncache.tt_timerq[slot],
 		    nsc->sc_rxttime - ticks, syncache_timer, (void *)(slot));

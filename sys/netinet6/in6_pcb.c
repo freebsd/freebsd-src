@@ -93,6 +93,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
+#include <netinet/tcp_var.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
@@ -719,7 +720,7 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 	if (inp == NULL)
 		return EINVAL;
 	if (inp->inp_vflag & INP_IPV4) {
-		error = in_setsockaddr(so, nam);
+		error = in_setsockaddr(so, nam, &tcbinfo);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
@@ -738,7 +739,7 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 	if (inp == NULL)
 		return EINVAL;
 	if (inp->inp_vflag & INP_IPV4) {
-		error = in_setpeeraddr(so, nam);
+		error = in_setpeeraddr(so, nam, &tcbinfo);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else

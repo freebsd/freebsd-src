@@ -144,7 +144,7 @@ in_pcballoc(so, pcbinfo, td)
 	int error;
 #endif
 
-	inp = uma_zalloc(pcbinfo->ipi_zone, M_WAITOK);
+	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
@@ -165,6 +165,7 @@ in_pcballoc(so, pcbinfo, td)
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
+	INP_LOCK_INIT(inp, "inp");
 #ifdef INET6
 	if (ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
@@ -572,23 +573,23 @@ in_pcbdetach(inp)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
+	INP_LOCK_DESTROY(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
 /*
- * The calling convention of in_setsockaddr() and in_setpeeraddr() was
- * modified to match the pru_sockaddr() and pru_peeraddr() entry points
- * in struct pr_usrreqs, so that protocols can just reference then directly
- * without the need for a wrapper function.  The socket must have a valid
+ * The wrapper function will pass down the pcbinfo for this function to lock.
+ * The socket must have a valid
  * (i.e., non-nil) PCB, but it should be impossible to get an invalid one
  * except through a kernel programming error, so it is acceptable to panic
  * (or in this case trap) if the PCB is invalid.  (Actually, we don't trap
  * because there actually /is/ a programming error somewhere... XXX)
  */
 int
-in_setsockaddr(so, nam)
+in_setsockaddr(so, nam, pcbinfo)
 	struct socket *so;
 	struct sockaddr **nam;
+	struct inpcbinfo *pcbinfo;
 {
 	int s;
 	register struct inpcb *inp;
@@ -603,27 +604,36 @@ in_setsockaddr(so, nam)
 	sin->sin_len = sizeof(*sin);
 
 	s = splnet();
+	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
+		INP_INFO_RUNLOCK(pcbinfo);
 		splx(s);
 		free(sin, M_SONAME);
 		return ECONNRESET;
 	}
+	INP_LOCK(inp);
 	sin->sin_port = inp->inp_lport;
 	sin->sin_addr = inp->inp_laddr;
+	INP_UNLOCK(inp);
+	INP_INFO_RUNLOCK(pcbinfo);
 	splx(s);
 
 	*nam = (struct sockaddr *)sin;
 	return 0;
 }
 
+/*
+ * The wrapper function will pass down the pcbinfo for this function to lock.
+ */
 int
-in_setpeeraddr(so, nam)
+in_setpeeraddr(so, nam, pcbinfo)
 	struct socket *so;
 	struct sockaddr **nam;
+	struct inpcbinfo *pcbinfo;
 {
 	int s;
-	struct inpcb *inp;
+	register struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
 	/*
@@ -635,14 +645,19 @@ in_setpeeraddr(so, nam)
 	sin->sin_len = sizeof(*sin);
 
 	s = splnet();
+	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
+		INP_INFO_RUNLOCK(pcbinfo);
 		splx(s);
 		free(sin, M_SONAME);
 		return ECONNRESET;
 	}
+	INP_LOCK(inp);
 	sin->sin_port = inp->inp_fport;
 	sin->sin_addr = inp->inp_faddr;
+	INP_UNLOCK(inp);
+	INP_INFO_RUNLOCK(pcbinfo);
 	splx(s);
 
 	*nam = (struct sockaddr *)sin;
@@ -650,40 +665,55 @@ in_setpeeraddr(so, nam)
 }
 
 void
-in_pcbnotifyall(head, faddr, errno, notify)
-	struct inpcbhead *head;
+in_pcbnotifyall(pcbinfo, faddr, errno, notify)
+	struct inpcbinfo *pcbinfo;
 	struct in_addr faddr;
 	int errno;
 	void (*notify)(struct inpcb *, int);
 {
 	struct inpcb *inp, *ninp;
+	struct inpcbhead *head;
 	int s;
 
 	s = splnet();
+	INP_INFO_RLOCK(pcbinfo);
+	head = pcbinfo->listhead;
 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+		INP_LOCK(inp);
 		ninp = LIST_NEXT(inp, inp_list);
 #ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == 0)
+		if ((inp->inp_vflag & INP_IPV4) == 0) {
+			INP_UNLOCK(inp);		
 			continue;
+		}
 #endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
-		    inp->inp_socket == NULL)
+		    inp->inp_socket == NULL) {
+				INP_UNLOCK(inp);		
 				continue;
+		}
 		(*notify)(inp, errno);
+		INP_UNLOCK(inp);		
 	}
+	INP_INFO_RUNLOCK(pcbinfo);
 	splx(s);
 }
 
 void
-in_pcbpurgeif0(head, ifp)
-	struct inpcb *head;
+in_pcbpurgeif0(pcbinfo, ifp)
+	struct inpcbinfo *pcbinfo;
 	struct ifnet *ifp;
 {
+	struct inpcb *head;
 	struct inpcb *inp;
 	struct ip_moptions *imo;
 	int i, gap;
 
+	/* why no splnet here? XXX */
+	INP_INFO_RLOCK(pcbinfo);
+	head = LIST_FIRST(pcbinfo->listhead);
 	for (inp = head; inp != NULL; inp = LIST_NEXT(inp, inp_list)) {
+		INP_LOCK(inp);
 		imo = inp->inp_moptions;
 		if ((inp->inp_vflag & INP_IPV4) &&
 		    imo != NULL) {
@@ -709,7 +739,9 @@ in_pcbpurgeif0(head, ifp)
 			}
 			imo->imo_num_memberships -= gap;
 		}
+		INP_UNLOCK(inp);
 	}
+	INP_INFO_RLOCK(pcbinfo);
 }
 
 /*

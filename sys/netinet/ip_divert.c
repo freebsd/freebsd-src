@@ -528,6 +528,27 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
+/*
+ * This is the wrapper function for in_setsockaddr.  We just pass down
+ * the pcbinfo for in_setpeeraddr to lock.
+ */
+static int
+dip_sockaddr(struct socket *so, struct sockaddr **nam)
+{
+	return (in_setsockaddr(so, nam, &divcbinfo));
+}
+
+/*
+ * This is the wrapper function for in_setpeeraddr. We just pass down
+ * the pcbinfo for in_setpeeraddr to lock.
+ */
+static int
+dip_peeraddr(struct socket *so, struct sockaddr **nam)
+{
+	return (in_setpeeraddr(so, nam, &divcbinfo));
+}
+
+
 SYSCTL_DECL(_net_inet_divert);
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 	    div_pcblist, "S,xinpcb", "List of active divert sockets");
@@ -535,7 +556,7 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 struct pr_usrreqs div_usrreqs = {
 	div_abort, pru_accept_notsupp, div_attach, div_bind,
 	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
-	div_disconnect, pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
+	div_disconnect, pru_listen_notsupp, div_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
-	in_setsockaddr, sosend, soreceive, sopoll
+	div_sockaddr, sosend, soreceive, sopoll
 };

@@ -130,6 +130,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
+struct mtx	*tcbinfo_mtx;
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_pulloutofband(struct socket *,
@@ -335,7 +336,7 @@ tcp_input(m, off0)
 	register struct tcphdr *th;
 	register struct ip *ip = NULL;
 	register struct ipovly *ipov;
-	register struct inpcb *inp;
+	register struct inpcb *inp = NULL;
 	u_char *optp = NULL;
 	int optlen = 0;
 	int len, tlen, off;
@@ -348,6 +349,8 @@ tcp_input(m, off0)
 	struct tcpopt to;		/* options in this segment */
 	struct rmxp_tao *taop;		/* pointer to our TAO cache entry */
 	struct rmxp_tao	tao_noncached;	/* in case there's no cached entry */
+	int headlocked = 0;
+
 #ifdef TCPDEBUG
 	short ostate = 0;
 #endif
@@ -506,6 +509,8 @@ tcp_input(m, off0)
 	/*
 	 * Locate pcb for segment.
 	 */
+	 INP_INFO_WLOCK(&tcbinfo);
+	 headlocked = 1;
 findpcb:
 #ifdef IPFIREWALL_FORWARD
 	if (ip_fw_fwd_addr != NULL
@@ -623,8 +628,10 @@ findpcb:
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
+	INP_LOCK(inp);
 	tp = intotcpcb(inp);
 	if (tp == 0) {
+		INP_UNLOCK(inp);
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
@@ -695,18 +702,23 @@ findpcb:
 					rstreason = BANDLIM_RST_OPENPORT;
 					goto dropwithreset;
 				}
-				if (so == NULL)
+				if (so == NULL) {
 					/*
 					 * Could not complete 3-way handshake,
 					 * connection is being closed down, and
 					 * syncache will free mbuf.
 					 */
+					INP_UNLOCK(inp);
+					INP_INFO_WUNLOCK(&tcbinfo);
 					return;
+				}
 				/*
 				 * Socket is created in state SYN_RECEIVED.
 				 * Continue processing segment.
 				 */
+				INP_UNLOCK(inp);
 				inp = sotoinpcb(so);
+				INP_LOCK(inp);
 				tp = intotcpcb(inp);
 				/*
 				 * This is what would have happened in
@@ -777,6 +789,7 @@ findpcb:
 
 			if ((ia6 = ip6_getdstifaddr(m)) &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+				INP_UNLOCK(inp);
 				tp = NULL;
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
@@ -827,16 +840,22 @@ findpcb:
 			tcp_dooptions(&to, optp, optlen, 1);
 			if (!syncache_add(&inc, &to, th, &so, m))
 				goto drop;
-			if (so == NULL)
+			if (so == NULL) {
 				/*
 				 * Entry added to syncache, mbuf used to
 				 * send SYN,ACK packet.
 				 */
+				KASSERT(headlocked, ("headlocked"));
+				INP_UNLOCK(inp);
+				INP_INFO_WUNLOCK(&tcbinfo);
 				return;
+			}
 			/*
 			 * Segment passed TAO tests.
 			 */
+			INP_UNLOCK(inp);
 			inp = sotoinpcb(so);
+			INP_LOCK(inp);
 			tp = intotcpcb(inp);
 			tp->snd_wnd = tiwin;
 			tp->t_starttime = ticks;
@@ -959,6 +978,9 @@ after_listen:
 			    SEQ_LEQ(th->th_ack, tp->snd_max) &&
 			    tp->snd_cwnd >= tp->snd_wnd &&
 			    tp->t_dupacks < tcprexmtthresh) {
+				KASSERT(headlocked, ("headlocked"));
+				INP_INFO_WUNLOCK(&tcbinfo);
+				headlocked = 0;
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
@@ -1007,11 +1029,15 @@ after_listen:
 				sowwakeup(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
+				INP_UNLOCK(inp);
 				return;
 			}
 		} else if (th->th_ack == tp->snd_una &&
 		    LIST_EMPTY(&tp->t_segq) &&
 		    tlen <= sbspace(&so->so_rcv)) {
+			KASSERT(headlocked, ("headlocked"));
+			INP_INFO_WUNLOCK(&tcbinfo);
+			headlocked = 0;
 			/*
 			 * this is a pure, in-sequence data packet
 			 * with nothing on the reassembly queue and
@@ -1035,6 +1061,7 @@ after_listen:
 				tp->t_flags |= TF_ACKNOW;
 				tcp_output(tp);
 			}
+			INP_UNLOCK(inp);
 			return;
 		}
 	}
@@ -1983,7 +2010,9 @@ step6:
 		if (SEQ_GT(tp->rcv_nxt, tp->rcv_up))
 			tp->rcv_up = tp->rcv_nxt;
 dodata:							/* XXX */
-
+	KASSERT(headlocked, ("headlocked"));
+	INP_INFO_WUNLOCK(&tcbinfo);
+	headlocked = 0;
 	/*
 	 * Process the segment text, merging it into the TCP sequencing queue,
 	 * and arranging for acknowledgment of receipt if necessary.
@@ -2121,6 +2150,7 @@ dodata:							/* XXX */
 	 */
 	if (needoutput || (tp->t_flags & TF_ACKNOW))
 		(void) tcp_output(tp);
+	INP_UNLOCK(inp);
 	return;
 
 dropafterack:
@@ -2150,9 +2180,12 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+	if (headlocked)
+	    INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
+	INP_UNLOCK(inp);
 	return;
 
 dropwithreset:
@@ -2177,6 +2210,8 @@ dropwithreset:
 		goto drop;
 	/* IPv6 anycast check is done at tcp6_input() */
 
+	if (tp)
+	    INP_UNLOCK(inp);
 	/*
 	 * Perform bandwidth limiting.
 	 */
@@ -2199,6 +2234,8 @@ dropwithreset:
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 			    (tcp_seq)0, TH_RST|TH_ACK);
 	}
+	if (headlocked)
+	    INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 
 drop:
@@ -2210,7 +2247,11 @@ drop:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+	if (tp)
+	    INP_UNLOCK(inp);
 	m_freem(m);
+	if (headlocked)
+	    INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 }
 
