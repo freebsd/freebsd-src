@@ -6,9 +6,14 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=	af_ZA.ISO_8859-1 \
 		da_DK.ISO_8859-1 \
 		de_DE.ISO_8859-1 \
+		en_AU.ISO_8859-1 \
+		en_CA.ISO_8859-1 \
+		en_GB.ISO_8859-1 \
+		en_NZ.ISO_8859-1 \
 		en_US.ISO_8859-1 \
 		fi_FI.ISO_8859-1 \
 		fr_FR.ISO_8859-1 \
+		fr_CA.ISO_8859-1 \
 		is_IS.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
@@ -25,9 +30,9 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-	for l in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
-			   ${LOCALEDIR}/$$l/LC_MONETARY; \
-	done
+.for lang in ${LOCALES}
+	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
+		${LOCALEDIR}/${lang}/LC_MONETARY
+.endfor
 
 .include <bsd.prog.mk>
