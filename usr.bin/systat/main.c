@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <nlist.h>
 #include <signal.h>
@@ -88,7 +89,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char errbuf[80];
+	char errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_TIME, "");
 

@@ -70,6 +70,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <limits.h>
 #include <netdb.h>
 #include <nlist.h>
 #include <paths.h>
@@ -137,7 +138,7 @@ main(argc, argv)
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	char *memf, *nlistf, *p, *x;
-	char buf[MAXHOSTNAMELEN], errbuf[256];
+	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
 
 	(void)setlocale(LC_ALL, "");
 
