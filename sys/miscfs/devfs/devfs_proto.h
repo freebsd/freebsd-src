@@ -1,5 +1,5 @@
 /* THIS FILE PRODUCED AUTOMATICALLY */
-void  devfs_sinit() /*proto*/;
+void  devfs_sinit(caddr_t junk) /*proto*/;
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/;
 int	dev_add_node(char *name, dn_p dirnode,devnm_p back, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/;
 int	dev_remove(devnm_p devnmp) /*proto*/;
@@ -28,6 +28,44 @@ int devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p) 
 int devfs_vget(struct mount *mp, ino_t ino,struct vnode **vpp) /*proto*/;
 int devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam, struct vnode **vpp, int *exflagsp, struct ucred **credanonp) /*proto*/;
 int devfs_vptofh (struct vnode *vp, struct fid *fhp) /*proto*/;
+int devfs_lookup(struct vop_lookup_args *ap) /*proto*/;
+int devfs_create(struct vop_mknod_args  *ap) /*proto*/;
+int devfs_mknod( struct vop_mknod_args *ap) /*proto*/;
+int devfs_open(struct vop_open_args *ap) /*proto*/;
+int devfs_close( struct vop_close_args *ap) /*proto*/;
+int devfs_access(struct vop_access_args *ap) /*proto*/;
+int devfs_getattr(struct vop_getattr_args *ap) /*proto*/;
+int devfs_setattr(struct vop_setattr_args *ap) /*proto*/;
+int devfs_read(struct vop_read_args *ap) /*proto*/;
+int devfs_write(struct vop_write_args *ap) /*proto*/;
+int devfs_ioctl(struct vop_ioctl_args *ap) /*proto*/;
+int devfs_select(struct vop_select_args *ap) /*proto*/;
+int devfs_mmap(struct vop_mmap_args *ap) /*proto*/;
+int devfs_fsync(struct vop_fsync_args *ap) /*proto*/;
+int devfs_seek(struct vop_seek_args *ap) /*proto*/;
+int devfs_remove(struct vop_remove_args *ap) /*proto*/;
+int devfs_link(struct vop_link_args *ap) /*proto*/;
+int devfs_rename(struct vop_rename_args *ap) /*proto*/;
+int devfs_mkdir(struct vop_mkdir_args *ap) /*proto*/;
+int devfs_rmdir(struct vop_rmdir_args *ap) /*proto*/;
+int devfs_symlink(struct vop_symlink_args *ap) /*proto*/;
+int devfs_readdir(struct vop_readdir_args *ap) /*proto*/;
+int devfs_readlink(struct vop_readlink_args *ap) /*proto*/;
+int devfs_abortop(struct vop_abortop_args *ap) /*proto*/;
+int devfs_inactive(struct vop_inactive_args *ap) /*proto*/;
+int devfs_lock(struct vop_lock_args *ap) /*proto*/;
+int devfs_unlock( struct vop_unlock_args *ap) /*proto*/;
+int devfs_islocked(struct vop_islocked_args *ap) /*proto*/;
+int devfs_bmap(struct vop_bmap_args *ap) /*proto*/;
+int devfs_strategy(struct vop_strategy_args *ap) /*proto*/;
+int devfs_advlock(struct vop_advlock_args *ap) /*proto*/;
+int	devfs_reclaim(struct vop_reclaim_args *ap) /*proto*/;
+int devfs_pathconf(struct vop_pathconf_args *ap) /*proto*/;
+int devfs_print(struct vop_print_args *ap) /*proto*/;
+int devfs_vfree(struct vop_vfree_args *ap) /*proto*/;
+int devfs_enotsupp(void *junk) /*proto*/;
+int devfs_badop(void *junk) /*proto*/;
+int devfs_nullop(void *junk) /*proto*/;
 void	devfs_dropvnode(dn_p dnp) /*proto*/;
 /* THIS FILE PRODUCED AUTOMATICALLY */
 /* DO NOT EDIT (see reproto.sh) */
