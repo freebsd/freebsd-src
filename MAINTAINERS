@@ -3,13 +3,6 @@ $FreeBSD$
 subsystem	login	notes
 -----------------------------
 mergemaster	dougb	Prefers to pre-approve commits
-binutils	obrien	Insists to keep BU blocked from other's unapproved
-			commits
-file		obrien	Insists to keep file blocked from other's unapproved
-			commits
-one-true-awk	obrien	Insists to keep one-true-awk blocked from other's
-			unapproved commits
-lukemftpd	obrien	Pre-commit review requested.
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
