@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.26 1998/05/31 18:32:23 peter Exp $
+ * $Id: nfsnode.h,v 1.27 1998/11/13 02:39:09 msmith Exp $
  */
 
 
@@ -94,7 +94,7 @@ struct nfsnode {
 	struct vattr		n_vattr;	/* Vnode attribute cache */
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	u_int32_t		n_mode;		/* ACCESS mode cache */
-	struct ucred		n_modecred;	/* credentials having mode */
+	uid_t			n_modeuid;	/* credentials having mode */
 	time_t			n_modestamp;	/* mode cache timestamp */
 	time_t			n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
