@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.3 1998/09/29 09:18:08 bde Exp $
+ *      $Id: cam_periph.c,v 1.4 1998/10/13 21:41:32 ken Exp $
  */
 
 #include <sys/param.h>
@@ -264,7 +264,6 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired)
 	struct	cam_periph *periph;
 	struct	cam_periph_config *periph_conf;
 	char	*periph_name;
-	u_int	i;
 	int	s;
 
 	s = splsoftcam();
@@ -441,7 +440,6 @@ int
 cam_periph_lock(struct cam_periph *periph, int priority)
 {
 	int error;
-	int s;
 
 	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
 		periph->flags |= CAM_PERIPH_LOCK_WANTED;
