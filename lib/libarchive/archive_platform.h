@@ -37,75 +37,137 @@
 #ifndef ARCHIVE_PLATFORM_H_INCLUDED
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
-/* FreeBSD-specific definitions. */
+#if HAVE_CONFIG_H
+#include "config.h"
+#else
+
+/* A default configuration for FreeBSD, used if there is no config.h. */
 #ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-/*
- * Note that SUSv3 says that inttypes.h includes stdint.h.
- * Since inttypes.h predates stdint.h, it's safest to always
- * use inttypes.h instead of stdint.h.
- */
-#include <inttypes.h>  /* For int64_t, etc. */
-
-#if __FreeBSD__ > 4
-#define	HAVE_POSIX_ACL 1
-#endif
-
+#define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
-#define	HAVE_LUTIMES 1
+#define	HAVE_DECL_STRERROR_R 1
+#define	HAVE_EFTYPE 1
+#define	HAVE_EILSEQ 1
+#define	HAVE_ERRNO_H 1
+#define	HAVE_FCHDIR 1
+#define	HAVE_FCNTL_H 1
+#define	HAVE_INT64_T 1
+#define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHMOD 1
 #define	HAVE_LCHOWN 1
+#define	HAVE_LIMITS_H 1
+#define	HAVE_LUTIMES 1
+#define	HAVE_MALLOC 1
+#define	HAVE_MEMMOVE 1
+#define	HAVE_MEMORY_H 1
+#define	HAVE_MEMSET 1
+#define	HAVE_MKDIR 1
+#define	HAVE_MKFIFO 1
+#define	HAVE_PATHS_H 1
+#define	HAVE_STDINT_H 1
+#define	HAVE_STDLIB_H 1
+#define	HAVE_STRCHR 1
+#define	HAVE_STRDUP 1
+#define	HAVE_STRERROR 1
 #define	HAVE_STRERROR_R 1
-#define	ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
-#define	ARCHIVE_ERRNO_PROGRAMMER EINVAL
-#define	ARCHIVE_ERRNO_MISC (-1)
+#define	HAVE_STRINGS_H 1
+#define	HAVE_STRING_H 1
+#define	HAVE_STRRCHR 1
+#define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+#define	HAVE_STRUCT_STAT_ST_RDEV 1
+#if __FreeBSD__ > 4
+#define	HAVE_SYS_ACL_H 1
+#endif
+#define	HAVE_SYS_IOCTL_H 1
+#define	HAVE_SYS_STAT_H 1
+#define	HAVE_SYS_TIME_H 1
+#define	HAVE_SYS_TYPES_H 1
+#define	HAVE_SYS_WAIT_H 1
+#define	HAVE_UINT64_T 1
+#define	HAVE_UNISTD_H 1
+#define	HAVE_U_INT64_T 1
+#define	HAVE_WCHAR_H 1
+#define	HAVE_ZLIB_H 1
+#define	STDC_HEADERS 1
+#define	TIME_WITH_SYS_TIME 1
+#else /* !__FreeBSD__ */
+/* Warn if the library hasn't been (automatically or manually) configured. */
+#error Oops: No config.h and no built-in configuration in archive_platform.h.
+#endif /* __FreeBSD__ */
 
-/* Fetch/set high-resolution time data through a struct stat pointer. */
+#endif /* HAVE_CONFIG_H */
+
+/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>  /* For __FBSDID */
+#else
+#define	__FBSDID(a)     /* null */
+#endif
+
+#if HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+
+/* Try to figure out which type on this system is a 64-bit int. */
+#ifndef HAVE_INT64_T
+#if HAVE_64_BIT_LONG_LONG
+#define	int64_t	long long
+#else
+#error No 64-bit integer type was found.
+#endif
+#endif
+
+/* Ditto for unsigned 64-bit types. */
+#ifndef HAVE_UINT64_T
+#if HAVE_U_INT64_T
+#define	uint64_t	u_int64_t
+#else
+#if HAVE_64_BIT_UNSIGNED_LONG_LONG
+#define	uint64_t	unsigned long long
+#else
+#error No 64-bit integer type was found.
+#endif
+#endif
+#endif
+
+/* TODO: Test for the functions we use as well... */
+#if HAVE_SYS_ACL_H
+#define	HAVE_POSIX_ACLS	1
+#endif
+
+/* Set up defaults for internal error codes. */
+#ifndef ARCHIVE_ERRNO_FILE_FORMAT
+#if HAVE_EFTYPE
+#define	ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
+#else
+#if HAVE_EILSEQ
+#define	ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
+#else
+#define	ARCHIVE_ERRNO_FILE_FORMAT EINVAL
+#endif
+#endif
+#endif
+
+#ifndef ARCHIVE_ERRNO_PROGRAMMER
+#define	ARCHIVE_ERRNO_PROGRAMMER EINVAL
+#endif
+
+#ifndef ARCHIVE_ERRNO_MISC
+#define	ARCHIVE_ERRNO_MISC (-1)
+#endif
+
+/* Select the best way to set/get hi-res timestamps. */
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+/* FreeBSD uses "timespec" members. */
 #define	ARCHIVE_STAT_ATIME_NANOS(st)	(st)->st_atimespec.tv_nsec
 #define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 #define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atimespec.tv_nsec = (n)
 #define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctimespec.tv_nsec = (n)
 #define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtimespec.tv_nsec = (n)
-
-/*
- * Older versions of inttypes.h don't have INT64_MAX, etc.  Since
- * SUSv3 requires them to be macros when they are defined, we can
- * easily test for and define them here if necessary.  Someday, we
- * won't have to worry about non-C99-compliant systems.
- */
-#ifndef INT64_MAX
-/* XXX Is this really necessary? XXX */
-#ifdef __i386__
-#define	INT64_MAX 0x7fffffffffffffffLL
-#define	UINT64_MAX 0xffffffffffffffffULL
-#else /* __alpha__ */
-#define	INT64_MAX 0x7fffffffffffffffL
-#define	UINT64_MAX 0xffffffffffffffffUL
-#endif
-#endif /* ! INT64_MAX */
-
-#endif /*  __FreeBSD__ */
-
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifndef __FreeBSD__
-#define	__FBSDID(a)     /* null */
-#endif
-
-/* Linux */
-#ifdef LINUX
-#define	_FILE_OFFSET_BITS	64  /* Needed for 64-bit file size handling. */
-#include <inttypes.h>
-#define	ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
-#define	ARCHIVE_ERRNO_PROGRAMMER EINVAL
-#define	ARCHIVE_ERRNO_MISC (-1)
-#define	HAVE_EXT2FS_EXT2_FS_H 1
-#define	HAVE_LCHOWN 1
-#define	HAVE_STRERROR_R 1
-#define	STRERROR_R_CHAR_P 1
-
-#ifdef HAVE_STRUCT_STAT_TIMESPEC
-/* Fetch the nanosecond portion of the timestamp from a struct stat pointer. */
+#else
+#if HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+/* Linux uses "tim" members. */
 #define	ARCHIVE_STAT_ATIME_NANOS(pstat)	(pstat)->st_atim.tv_nsec
 #define	ARCHIVE_STAT_CTIME_NANOS(pstat)	(pstat)->st_ctim.tv_nsec
 #define	ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
@@ -113,7 +175,7 @@
 #define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctim.tv_nsec = (n)
 #define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtim.tv_nsec = (n)
 #else
-/* High-res timestamps aren't available, so just use stubs here. */
+/* If we can't find a better way, just use stubs. */
 #define	ARCHIVE_STAT_ATIME_NANOS(pstat)	0
 #define	ARCHIVE_STAT_CTIME_NANOS(pstat)	0
 #define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
@@ -121,15 +183,6 @@
 #define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n)
 #define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n)
 #endif
-
 #endif
-
-/*
- * XXX TODO: Use autoconf to handle non-FreeBSD platforms.
- *
- * #if !defined(__FreeBSD__)
- *    #include "config.h"
- * #endif
- */
 
 #endif /* !ARCHIVE_H_INCLUDED */
