@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.43 1998/03/12 20:02:07 eivind Exp $
+#	$Id: bsd.doc.mk,v 1.44 1998/05/06 18:44:00 bde Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 #
@@ -143,26 +143,19 @@ BINMODE=        444
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
+_stamp.extraobjs: ${EXTRA} ${OBJS}
+	touch ${.TARGET}
+CLEANFILES+=	_stamp.extraobjs
+${DFILE}: ${SRCS} _stamp.extraobjs
 .if ${PRINTERDEVICE} == "html"
-${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
 	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
-		document=${DOC} ${SRCS}
+	    document=${DOC} ${SRCS}
+.elif defined(USE_SOELIMPP)
+	${SOELIMPP} ${.ALLSRC:N_stamp.extraobjs} | ${ROFF} | \
+	    ${DCOMPRESS_CMD} > ${.TARGET}
 .else
-
-${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
-# XXX ${.ALLSRC} doesn't work unless there are a lot of .PATH.foo statements.
-ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
-${DFILE}::	${SRCS}
-.if defined(USE_SOELIMPP)
-	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${DCOMPRESS_CMD} > ${.TARGET}
-.else
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${DCOMPRESS_CMD} > ${.TARGET}
-.endif
-.else
-.if !defined(NODOCCOMPRESS)
-${DFILE}:	${DOC}.${PRINTERDEVICE}
-	${DCOMPRESS_CMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
-.endif
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC:N_stamp.extraobjs}) | \
+	    ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endif
 
