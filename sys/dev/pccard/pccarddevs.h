@@ -809,7 +809,9 @@
 #define	PCMCIA_CIS_BILLIONTON_LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL }
 #define	PCMCIA_PRODUCT_BILLIONTON_LNT10TN	0xffffffff
 #define	PCMCIA_STR_BILLIONTON_LNT10TN	"Billionton Systems Inc. LNT-10TN NE2000 Compatible Card"
-+product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionproduct CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
+#define	PCMCIA_CIS_CNET_NE2000	{ "CNet", "CN40BC Ethernet", "D", "NE2000" }
+#define	PCMCIA_PRODUCT_CNET_NE2000	0xffffffff
+#define	PCMCIA_STR_CNET_NE2000	"CNet CN40BC NE2000 Compatible"
 #define	PCMCIA_CIS_COREGA_ETHER_PCC_T	{ "corega K.K.", "corega Ether PCC-T", NULL, NULL }
 #define	PCMCIA_PRODUCT_COREGA_ETHER_PCC_T	0xffffffff
 #define	PCMCIA_STR_COREGA_ETHER_PCC_T	"Corega Ether PCC-T"
@@ -1002,6 +1004,9 @@
 #define	PCMCIA_CIS_SMC_2632W	{ "SMC", "SMC2632W", "Version 01.02", NULL }
 #define	PCMCIA_PRODUCT_SMC_2632W	0xffffffff
 #define	PCMCIA_STR_SMC_2632W	"SMC 2632 EZ Connect Wireless PC Card"
+#define	PCMCIA_CIS_SMC_8041	{ "SMC", "8041TX-10/100-PC-Card-V2", NULL, NULL }
+#define	PCMCIA_PRODUCT_SMC_8041	0xffffffff
+#define	PCMCIA_STR_SMC_8041	"SMC 8041TX 10/100 PC Card"
 #define	PCMCIA_CIS_SVEC_COMBOCARD	{ "Ethernet", "Adapter", NULL, NULL }
 #define	PCMCIA_PRODUCT_SVEC_COMBOCARD	0xffffffff
 #define	PCMCIA_STR_SVEC_COMBOCARD	"SVEC/Hawking Tech. Combo Card"
