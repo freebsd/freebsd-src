@@ -38,7 +38,7 @@ int	brackcnt  = 0;
 int	parencnt = 0;
 
 typedef struct Keyword {
-	char	*word;
+	const char *word;
 	int	sub;
 	int	type;
 } Keyword;
@@ -499,7 +499,7 @@ int word(char *w)
 	}
 }
 
-void startreg(void)	/* next call to yyles will return a regular expression */
+void startreg(void)	/* next call to yylex will return a regular expression */
 {
 	reg = 1;
 }
@@ -574,7 +574,7 @@ void unput(int c)	/* put lexical character back on input */
 		ep = ebuf + sizeof(ebuf) - 1;
 }
 
-void unputstr(char *s)	/* put a string back on input */
+void unputstr(const char *s)	/* put a string back on input */
 {
 	int i;
 
