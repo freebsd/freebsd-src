@@ -2121,31 +2121,8 @@ register frentry_t *fr;
 
 void frsync()
 {
-# if !SOLARIS
-	register struct ifnet *ifp;
-
-#  if defined(__OpenBSD__) || ((NetBSD >= 199511) && (NetBSD < 1991011)) || \
-     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
-#   if (NetBSD >= 199905) || defined(__OpenBSD__)
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
-#   elif defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
-	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
-#   else
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-#   endif
-#  else
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
-#  endif
-	{
-		ip_natsync(ifp);
-		ip_statesync(ifp);
-	}
-	ip_natsync((struct ifnet *)-1);
-#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
-	IFNET_RUNLOCK();
-#  endif
-# endif /* !SOLARIS */
+	ip_natsync(NULL);
+	ip_statesync(NULL);
 
 	WRITE_ENTER(&ipf_mutex);
 	frsynclist(ipacct[0][fr_active]);
