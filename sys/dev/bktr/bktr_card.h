@@ -59,21 +59,23 @@
  * where <card type> is one of the following card defines.
  */
  
-#define CARD_UNKNOWN            0
-#define CARD_MIRO               1
-#define CARD_HAUPPAUGE          2
-#define CARD_STB                3
-#define CARD_INTEL              4   /* Also for VideoLogic Captivator PCI */
-#define CARD_IMS_TURBO          5
-#define CARD_AVER_MEDIA         6
-#define CARD_OSPREY             7
-#define CARD_NEC_PK             8
-#define CARD_IO_GV              9
-#define CARD_FLYVIDEO           10
-#define CARD_ZOLTRIX            11
-#define CARD_KISS               12
-#define CARD_VIDEO_HIGHWAY_XTREME       13
-#define Bt848_MAX_CARD          14
+#define CARD_UNKNOWN		0
+#define CARD_MIRO		1
+#define CARD_HAUPPAUGE		2
+#define CARD_STB		3
+#define CARD_INTEL		4   /* Also for VideoLogic Captivator PCI */
+#define CARD_IMS_TURBO		5
+#define CARD_AVER_MEDIA		6
+#define CARD_OSPREY		7
+#define CARD_NEC_PK		8
+#define CARD_IO_GV		9
+#define CARD_FLYVIDEO		10
+#define CARD_ZOLTRIX		11
+#define CARD_KISS		12
+#define CARD_VIDEO_HIGHWAY_XTREME	13
+#define CARD_ASKEY_DYNALINK_MAGIC_TVIEW	14
+#define CARD_LEADTEK		15
+#define Bt848_MAX_CARD		16
 
 
 int	signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig );

@@ -252,13 +252,35 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_VIDEO_HIGHWAY_XTREME,		/* the card id */
 	  "Video Highway Xtreme",		/* the 'name' */
            NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
+	   0,
+	   0,
+	   0,
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x00, 0x02, 0x01, 0x04, 1 },	/* audio MUX values */
 	   0x0f },				/* GPIO mask */
+
+	{  CARD_ASKEY_DYNALINK_MAGIC_TVIEW,	/* the card id */
+	  "Askey/Dynalink Magic TView",		/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,
+	   0,
+	   0,
+	   0,					/* EEProm type */
+	   0,					/* EEProm size */
+	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
+	   0x00 },				/* GPIO mask */
+
+	{  CARD_LEADTEK,			/* the card id */
+	  "Leadtek Winfast TV 2000",		/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,
+	   0,
+	   0,
+	   0,					/* EEProm type */
+	   0,					/* EEProm size */
+	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
+	   0x00 },				/* GPIO mask */
 
 };
 
@@ -446,10 +468,12 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
  * configuration EEPROM used on Bt878/879 cards. They should match the
  * number assigned to the company by the PCI Special Interest Group
  */
-#define VENDOR_AVER_MEDIA 0x1461
-#define VENDOR_HAUPPAUGE  0x0070
-#define VENDOR_FLYVIDEO   0x1851
-#define VENDOR_STB        0x10B4
+#define VENDOR_AVER_MEDIA	0x1461
+#define VENDOR_HAUPPAUGE	0x0070
+#define VENDOR_FLYVIDEO		0x1851
+#define VENDOR_STB		0x10B4
+#define VENDOR_ASKEY_COMP	0x144F
+#define VENDOR_LEADTEK		0x6606
 
 
 void
@@ -560,6 +584,20 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 
                 if (subsystem_vendor_id == VENDOR_STB) {
                     bktr->card = cards[ (card = CARD_STB) ];
+		    bktr->card.eepromAddr = eeprom_i2c_address;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+                    goto checkTuner;
+                }
+
+                if (subsystem_vendor_id == VENDOR_ASKEY_COMP) {
+                    bktr->card = cards[ (card = CARD_ASKEY_DYNALINK_MAGIC_TVIEW) ];
+		    bktr->card.eepromAddr = eeprom_i2c_address;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+                    goto checkTuner;
+                }
+
+                if (subsystem_vendor_id == VENDOR_LEADTEK) {
+                    bktr->card = cards[ (card = CARD_LEADTEK) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                     goto checkTuner;
@@ -1028,19 +1066,35 @@ checkMSPEnd:
 	/* Default is to use XTALS and not PLL mode */
 	bktr->xtal_pll_mode = BT848_USE_XTALS;
 
+	/* Enable PLL mode for OSPREY users */
+	if (card == CARD_OSPREY)
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+	/* Enable PLL mode for Video Highway Xtreme users */
+	if (card == CARD_VIDEO_HIGHWAY_XTREME)
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+
+	/* Most (perhaps all) Bt878 cards need to be switched to PLL mode */
+	/* as they only fit the NTSC crystal to their cards */
+
 	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
 	if ((card == CARD_HAUPPAUGE) &&
 	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
 
-
-	/* Enable PLL mode for OSPREY users */
-	if (card == CARD_OSPREY)
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-
 	/* Enable PLL mode for PAL/SECAM users on FlyVideo 878 cards */
 	if ((card == CARD_FLYVIDEO) &&
+	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+	/* Enable PLL mode for Askey Dynalink users */
+	if ((card == CARD_ASKEY_DYNALINK_MAGIC_TVIEW) &&
+	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+	/* Enable PLL mode for Leadtek users */
+	if ((card == CARD_LEADTEK) &&
 	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
 
