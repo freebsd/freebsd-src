@@ -140,16 +140,6 @@ which is intended to allow lookups in address families other than
 .Dv AF_INET ,
 for example
 .Dv AF_INET6 .
-Currently the
-.Fa af
-argument must be specified as
-.Dv AF_INET
-else the function will return
-.Dv NULL
-after having set
-.Va h_errno
-to
-.Dv NETDB_INTERNAL
 .Pp
 The
 .Fn sethostent
