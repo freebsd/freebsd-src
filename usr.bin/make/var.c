@@ -1350,15 +1350,16 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 		    }
 
 		    /*
-		     * Replacing the empty string for something else when
-		     * done globally causes an infinite loop. The only
-		     * meaningful substitution of the empty string would
-		     * be those anchored by '^' or '$'. Thus, we can
-		     * safely turn the substitution into a non-global one
-		     * if the LHS is the empty string.
+		     * Global substitution of the empty string causes an
+		     * infinite number of matches, unless anchored by '^'
+		     * (start of string) or '$' (end of string). Catch the
+		     * infinite substitution here.
+		     * Note that flags can only contain the 3 bits we're
+		     * interested in so we don't have to mask unrelated
+		     * bits. We can test for equality.
 		     */
-		    if (pattern.leftLen == 0)
-			pattern.flags &= ~VAR_SUB_GLOBAL;
+		    if (!pattern.leftLen && pattern.flags == VAR_SUB_GLOBAL)
+			Fatal("Global substitution of the empty string");
 
 		    termc = *cp;
 		    newStr = VarModify(str, VarSubstitute,
