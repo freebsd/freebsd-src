@@ -41,7 +41,12 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)unstr.c     8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 /*
@@ -72,7 +77,7 @@ FILE	*Inf, *Dataf;
 void getargs(), order_unstr();
 
 /* ARGSUSED */
-void main(ac, av)
+int main(ac, av)
 int	ac;
 char	**av;
 {

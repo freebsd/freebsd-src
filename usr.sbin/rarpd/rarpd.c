@@ -160,7 +160,7 @@ static	u_char zero[6];
 
 int sflag = 0;			/* ignore /tftpboot */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;

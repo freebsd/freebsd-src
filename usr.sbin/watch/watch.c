@@ -282,7 +282,7 @@ ask_dev(dev_name, msg)
 
 #define READB_LEN	5
 
-void
+int
 main(ac, av)
 	int             ac;
 	char          **av;
