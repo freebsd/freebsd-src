@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.146 1999/02/11 16:34:15 brian Exp $
+.\" $Id: ppp.8,v 1.147 1999/02/12 00:52:30 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -31,7 +31,7 @@ is done as a user process with the help of the
 tunnel device driver (tun).
 .Sh Major Features
 .Bl -diag
-.It Provides interactive user interface.
+.It Provides an interactive user interface.
 Using its command mode, the user can
 easily enter commands to establish the connection with the remote end, check
 the status of connection and close the connection.  All functions can
@@ -67,7 +67,7 @@ A third
 .Fl dedicated
 mode is also available.  This mode is targeted at a dedicated link
 between two machines.
-.Nm Ppp
+.Nm
 will never voluntarily quit from dedicated mode - you must send it the
 .Dq quit all
 command via its diagnostic socket.  A
@@ -76,7 +76,7 @@ will force an LCP renegotiation, and a
 .Dv SIGTERM
 will force it to exit.
 .It Supports client callback.
-.Nm Ppp
+.Nm
 can use either the standard LCP callback protocol or the Microsoft
 CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
 .It Supports packet aliasing.
@@ -99,7 +99,7 @@ In direct mode,
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
-.It Supports PAP and CHAP authentication.
+.It Supports PAP and CHAP (rfc 1994) authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
 procedure, and use the
@@ -109,7 +109,7 @@ CHAP authentication and
 .Nm
 is compiled with DES support, an appropriate MD4/DES response will be
 made.
-.It Supports RADIUS authentication.
+.It Supports RADIUS (rfc 2138) authentication.
 An extension to PAP and CHAP,
 .Em \&R Ns No emote
 .Em \&A Ns No ccess
@@ -154,7 +154,7 @@ If a device name is specified as
 .Nm
 will open a TCP connection for transporting data rather than using a
 conventional serial device.
-.It Supports IETF draft Predictor-1 and DEFLATE compression.
+.It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
 Normally, a modem has built-in compression (e.g. v42.bis) and the system
@@ -172,14 +172,14 @@ Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
 stack (ie. Win95, WinNT)
-.It Supports Multi-link PPP
+.It Supports Multi-link PPP (rfc 1990)
 It is possible to configure
 .Nm
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
 .El
 .Sh PERMISSIONS
-.Nm Ppp
+.Nm
 is installed as user
 .Dv root
 and group
@@ -209,7 +209,7 @@ The following command line switches are understood by
 .Nm ppp :
 .Bl -tag -width XXX -offset XXX
 .It Fl auto
-.Nm Ppp
+.Nm
 opens the tun interface, configures it then goes into the background.
 The link isn't brought up until outgoing data is detected on the tun
 interface at which point
@@ -246,7 +246,7 @@ of 0.  If it fails,
 exits with a non-zero result.
 .It Fl direct
 This is used for receiving incoming connections.
-.Nm Ppp
+.Nm
 ignores the ``set device'' line and uses descriptor 0 as the link.
 .Pp
 If callback is configured,
@@ -257,7 +257,7 @@ information when dialing back.
 .It Fl dedicated
 This option is designed for machines connected with a dedicated
 wire.
-.Nm Ppp
+.Nm
 will always keep the device open and will never use any configured
 chat scripts.
 .It Fl ddial
@@ -269,7 +269,7 @@ will bring the link back up any time it's dropped for any reason.
 .It Fl interactive
 This is a no-op, and gives the same behaviour as if none of the above
 flags have been specified.
-.Nm Ppp
+.Nm
 loads any systems specified on the command line then provides an
 interactive prompt.
 .It Fl alias
@@ -297,7 +297,7 @@ A
 .Sq system
 is a configuration entry in
 .Pa /etc/ppp/ppp.conf .
-.Nm Ppp
+.Nm
 will read the
 .Dq default
 system from
@@ -313,7 +313,7 @@ Only one of the
 and
 .Fl interactive
 switches may be specified.
-.Nm Ppp Ns No 's
+.Nm ppp Ns No 's
 .Sq mode
 may subsequently be changed with the
 .Dq set mode
@@ -365,7 +365,7 @@ command in
 .Pa /etc/ppp/ppp.conf .
 .It
 Create a log file.
-.Nm Ppp
+.Nm
 uses 
 .Xr syslog 3
 to log information.  A common log file name is
@@ -445,34 +445,79 @@ command.  This only ever happens if you connect to a running version of
 .Nm
 and have not authenticated yourself using the correct password.
 .Pp
-You can start by specifying the device name, speed and parity for your modem,
-and whether CTS/RTS signalling should be used (CTS/RTS is used by
-default).  If your hardware does not provide CTS/RTS lines (as
-may happen when you are connected directly to certain PPP-capable
-terminal servers),
-.Nm
-will never send any output through the port; it waits for a signal
-which never comes.  Thus, if you have a direct line and can't seem
-to make a connection, try turning CTS/RTS off:
+You can start by specifying the device name and speed:
 .Bd -literal -offset indent
 ppp ON awfulhak> set line /dev/cuaa0
 ppp ON awfulhak> set speed 38400
-ppp ON awfulhak> set parity even
-ppp ON awfulhak> set ctsrts on
-ppp ON awfulhak> show modem
-* Modem related information is shown here *
-ppp ON awfulhak>
 .Ed
 .Pp
-The term command can now be used to talk directly with your modem:
+Normally, hardware flow control (CTS/RTS) is used.  However, under
+certain circumstances (as may happen when you are connected directly
+to certain PPP-capable terminal servers), this may result in
+.Nm
+hanging as soon as it tries to write data to your communications link
+as it is waiting for the CTS (clear to send) signal - which will never
+come.  Thus, if you have a direct line and can't seem to make a
+connection, try turning CTS/RTS off with
+.Dq set ctsrts off .
+If you need to do this, check the
+.Dq set accmap
+description below too - you'll probably need to
+.Dq set accmap 000a0000 .
+.Pp
+Usually, parity is set to
+.Dq none ,
+and this is
+.Nm ppp Ns No s
+default.  Parity is a rather archaic error checking mechanism that is no
+longer used because modern modems do their own error checking, and most
+link-layer protocols (that's what
+.Nm
+is) use much more reliable checking mechanisms.  Parity has a relatively
+huge overhead (a 12.5% increase in traffic) and as a result, it is always
+disabled
+.Pq set to Dq none
+when
+.Dv PPP
+is opened.  However, some ISPs (Internet Service Providers) may use
+specific parity settings at connection time (before
+.Dv PPP
+is opened).  Notably, Compuserve insist
+on even parity when logging in:
+.Bd -literal -offset indent
+ppp ON awfulhak> set parity even
+.Ed
+.Pp
+You can now see what your current modem settings look like:
+.Bd -literal -offset indent
+ppp ON awfulhak> show modem
+Name: deflink
+ State:           closed
+ Device:          N/A
+ Link Type:       interactive
+ Connect Count:   0
+ Queued Packets:  0
+ Phone Number:    N/A
+
+Defaults:
+ Device List:     /dev/cuaa0
+ Characteristics: 38400bps, cs8, even parity, CTS/RTS on
+
+Connect time: 0 secs
+0 octets in, 0 octets out
+Overall 0 bytes/sec
+ppp ON awfulhak> 
+.Ed
+.Pp
+The term command can now be used to talk directly to your modem:
 .Bd -literal -offset indent
 ppp ON awfulhak> term
 at
 OK
 atdt123456
 CONNECT
-login: ppp
-Password:
+login: myispusername
+Password: myisppassword
 Protocol: ppp
 .Ed
 .Pp
@@ -487,18 +532,38 @@ PPp ON awfulhak>               # We've authenticated
 PPP ON awfulhak>               # We've agreed IP numbers
 .Ed
 .Pp
-If it does not, it's possible that the peer is waiting for your end to
-start negotiating or that
-.Nm ppp
-can't identify the incoming packets as being
-.Em PPP
-packets, perhaps due to your parity settings.  To force
+If it does not, it's probable that the peer is waiting for your end to
+start negotiating.  To force
 .Nm
 to start sending
 .Em PPP
 configuration packets to the peer, use the
 .Dq ~p
-command to enter packet mode.
+command to drop out of terminal mode and enter packet mode.
+.Pp
+If you never even receive a login prompt, it is quite likely that the
+peer wants to use PAP or CHAP authentication instead of using Unix-style
+login/password authentication.  To set things up properly, drop back to
+the prompt and set your authentication name and key, then reconnect:
+.Bd -literal -offset indent
+~.
+ppp ON awfulhak> set authname myispusername
+ppp ON awfulhak> set authkey myisppassword
+ppp ON awfulhak> term
+at
+OK
+atdt123456
+CONNECT
+.Ed
+.Pp
+You may need to tell ppp to initiate negotiations with the peer here too:
+.Bd -literal -offset indent
+~p
+ppp ON awfulhak>               # No link has been established
+Ppp ON awfulhak>               # We've connected & finished LCP
+PPp ON awfulhak>               # We've authenticated
+PPP ON awfulhak>               # We've agreed IP numbers
+.Ed
 .Pp
 You are now connected!  Note that
 .Sq PPP
@@ -507,13 +572,18 @@ a peer connection.  If only some of the three Ps go uppercase, wait 'till
 either everything is uppercase or lowercase.  If they revert to lowercase,
 it means that
 .Nm
-couldn't successfully negotiate with the peer.  This is probably because
-your PAP or CHAP authentication name or key is incorrect.  A good first step
+couldn't successfully negotiate with the peer.  A good first step
 for troubleshooting at this point would be to
-.Dq set log local phase .
-Refer to the
+.Bd -literal -offset indent
+ppp ON awfulhak> set log local phase lcp ipcp
+.Ed
+.Pp
+and try again.  Refer to the
 .Dq set log
-command description below for further details.
+command description below for further details.  If things fail at this point,
+it is quite important that you turn logging on and try again.  It is also
+important that you note any prompt changes and report them to anyone trying
+to help you.
 .Pp
 When the link is established, the show command can be used to see how
 things are going:
@@ -554,8 +624,18 @@ route using
 PPP ON awfulhak> add! default HISADDR
 .Ed
 .Pp
+This command can also be executed before actually making the connection.
+If a new IP address is negotiated at connection time,
+.Nm
+will update your default route accordingly.
+.Pp
 You can now use your network applications (ping, telnet, ftp etc.)
-in other windows on your machine.
+in other windows or terminals on your machine.  If you wish to reuse
+the current terminal, you can put
+.Nm
+into the background using your standard shell suspend and background
+commands (usually ^Z followed by ``bg'').
+.Pp
 Refer to the
 .Em PPP COMMAND LIST
 section for details on all available commands.
@@ -664,7 +744,7 @@ In previous versions of
 it was necessary to re-add routes such as the default route in the
 .Pa ppp.linkup
 file.
-.Nm Ppp
+.Nm
 now supports
 .Sq sticky routes ,
 where all routes that contain the
@@ -1346,7 +1426,7 @@ closed, the
 program itself remains running.  Another trigger packet will cause it to
 attempt to re-establish the link.
 .Sh PREDICTOR-1 and DEFLATE COMPRESSION
-.Nm Ppp
+.Nm
 supports both Predictor type 1 and deflate compression.
 By default,
 .Nm
@@ -1719,7 +1799,7 @@ and
 for some real examples.  The pmdemand label should be appropriate for most
 ISPs.
 .Sh LOGGING FACILITY
-.Nm Ppp
+.Nm
 is able to generate the following log info either via
 .Xr syslog 3
 or directly to the screen:
@@ -1816,7 +1896,7 @@ The
 level is special in that it will not be logged if it can be displayed
 locally.
 .Sh SIGNAL HANDLING
-.Nm Ppp
+.Nm
 deals with the following signals:
 .Bl -tag -width XX
 .It INT
@@ -2076,7 +2156,7 @@ capabilities with
 - a
 .Em PPP
 implementation available under many operating systems.
-.Nm Pppd
+.Nm pppd
 (version 2.3.1) incorrectly attempts to negotiate
 .Ar deflate
 compression using type
@@ -2091,7 +2171,7 @@ is actually specified as
 .Dq PPP Magna-link Variable Resource Compression
 in
 .Pa rfc1975 Ns No !
-.Nm Ppp
+.Nm
 is capable of negotiating with
 .Nm pppd ,
 but only if
@@ -3052,7 +3132,7 @@ A choked output queue occurs when
 .Nm
 has read a certain number of packets from the local network for transmission,
 but cannot send the data due to link failure (the peer is busy etc.).
-.Nm Ppp
+.Nm
 will not read packets indefinitely.  Instead, it reads up to
 .Em 20
 packets (or
@@ -3311,7 +3391,7 @@ This option is similar to the
 option above.  It allows the user to specify a set of characters that
 will be `escaped' as they travel across the link.
 .It set filter dial|alive|in|out rule-no permit|deny Ar "[src_addr/width] [dst_addr/width] [proto [src [lt|eq|gt port]] [dst [lt|eq|gt port]] [estab] [syn] [finrst]]"
-.Nm Ppp
+.Nm
 supports four filter sets.  The
 .Em alive
 filter specifies packets that keep the connection alive - reseting the
@@ -3675,7 +3755,7 @@ just over twice the MTU value.  If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
 .It set redial Ar seconds[.nseconds] [attempts]
-.Nm Ppp
+.Nm
 can be instructed to attempt to redial
 .Ar attempts
 times.  If more than one phone number is specified (see
@@ -3912,7 +3992,7 @@ http://www.FreeBSD.org/handbook/userppp.html
 .El
 .Pp
 .Sh FILES
-.Nm Ppp
+.Nm
 refers to four files:
 .Pa ppp.conf ,
 .Pa ppp.linkup ,
