@@ -437,7 +437,10 @@ pmap_bootstrap(vm_offset_t ekva)
 			va = translations[i].om_start + off;
 			tp = tsb_kvtotte(va);
 			tp->tte_vpn = TV_VPN(va, TS_8K);
-			tp->tte_data = translations[i].om_tte + off;
+			tp->tte_data =
+			    ((translations[i].om_tte &
+			      ~(TD_SOFT_MASK << TD_SOFT_SHIFT)) | TD_EXEC) +
+			    off;
 		}
 	}
 
