@@ -73,15 +73,13 @@ int	nofinalnl;		/* normally append \n to each output line */
 char	line[BIGBUFSIZ];
 char	*linep;
 
-char	*gatherline __P((struct openfile *));
-void	 getargs __P((char *[]));
-char	*pad __P((struct openfile *));
-static void usage __P((void));
+char	*gatherline (struct openfile *);
+void	 getargs (char **);
+char	*pad (struct openfile *);
+static void usage (void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	struct	openfile *ip;
 
@@ -102,8 +100,7 @@ main(argc, argv)
 }
 
 void
-getargs(av)
-	char *av[];
+getargs(char **av)
 {
 	struct	openfile *ip = input;
 	char *p, *c;
@@ -180,8 +177,7 @@ getargs(av)
 }
 
 char *
-pad(ip)
-	struct openfile *ip;
+pad(struct openfile *ip)
 {
 	char *lp = linep;
 
@@ -195,8 +191,7 @@ pad(ip)
 }
 
 char *
-gatherline(ip)
-	struct openfile *ip;
+gatherline(struct openfile *ip)
 {
 	char s[BUFSIZ];
 	int c;
