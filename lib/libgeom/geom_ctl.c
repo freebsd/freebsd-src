@@ -45,8 +45,6 @@
 #define GCTL_TABLE 1
 #include <libgeom.h>
 
-#include <geom/geom_ext.h>
-
 void
 gctl_dump(struct gctl_req *req, FILE *f)
 {
@@ -58,14 +56,14 @@ gctl_dump(struct gctl_req *req, FILE *f)
 		fprintf(f, "Dump of gctl request at NULL\n");
 		return;
 	}
-	fprintf(f, "Dump of gctl %s request at %p:\n", req->reqt->name, req);
+	fprintf(f, "Dump of gctl request at %p:\n", req);
 	if (req->error != NULL)
 		fprintf(f, "  error:\t\"%s\"\n", req->error);
 	else
 		fprintf(f, "  error:\tNULL\n");
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
-		fprintf(f, "  param:\t\"%s\"", ap->name);
+		fprintf(f, "  param:\t\"%s\" (%d)", ap->name, ap->nlen);
 		fprintf(f, " [%s%s",
 		    ap->flag & GCTL_PARAM_RD ? "R" : "",
 		    ap->flag & GCTL_PARAM_WR ? "W" : "");
@@ -119,22 +117,11 @@ gctl_check_alloc(struct gctl_req *req, void *ptr)
  * XXX: Why bother checking the type ?
  */
 struct gctl_req *
-gctl_get_handle(enum gctl_request req)
+gctl_get_handle(void)
 {
-	struct gctl_req_table *gtp;
 	struct gctl_req *rp;
 
 	rp = calloc(1, sizeof *rp);
-	if (rp == NULL)
-		return (NULL);
-	for (gtp = gcrt; gtp->request != req; gtp++)
-		if (gtp->request == GCTL_INVALID_REQUEST)
-			break;
-
-	rp->request = req;
-	rp->reqt = gtp;
-	if (rp->reqt->request == GCTL_INVALID_REQUEST)
-		gctl_set_error(rp, "Invalid request");
 	return (rp);
 }
 
