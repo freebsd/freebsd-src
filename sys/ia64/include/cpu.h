@@ -136,7 +136,7 @@ void	fork_trampoline(void);				/* MAGIC */
 void	syscall(int, u_int64_t *, struct trapframe *);
 void	trap(int vector, int imm, struct trapframe *framep);
 void	ia64_probe_sapics(void);
-int	ia64_count_aps(void);
+int	ia64_count_cpus(void);
 void	map_pal_code(void);
 void	cpu_mp_add(uint, uint, uint);
 
