@@ -243,7 +243,9 @@ _acpi=		acpi
 _apm=		apm
 _apmd=		apmd
 _asf=		asf
+.if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth
+.endif
 .if ${MACHINE} == "i386"
 _boot0cfg=	boot0cfg
 .endif

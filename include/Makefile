@@ -40,7 +40,9 @@ LSUBDIRS=	cam/scsi dev/an dev/bktr dev/firewire dev/ic dev/iicbus \
 	security/mac_lomac security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
+.if !defined(NO_BLUETOOTH)
 LSUBSUBDIRS=	netgraph/bluetooth/include
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
