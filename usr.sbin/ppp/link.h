@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.9 1998/04/18 01:01:22 brian Exp $
+ *  $Id: link.h,v 1.1.2.10 1998/04/20 00:20:35 brian Exp $
  *
  */
 
@@ -32,7 +32,7 @@
 #define MP_LINK       2
 
 #define LINK_QUEUES (PRI_MAX + 1)
-#define NPROTOSTAT 12
+#define NPROTOSTAT 13
 
 struct bundle;
 struct prompt;

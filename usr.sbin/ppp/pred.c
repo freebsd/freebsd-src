@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.8 1998/04/07 00:54:15 brian Exp $
+ *	$Id: pred.c,v 1.20.2.9 1998/04/16 00:26:17 brian Exp $
  */
 
 #include <sys/types.h>
@@ -204,7 +204,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  HdlcOutput(l, PRI_NORMAL, PROTO_COMPD, mwp);
+  HdlcOutput(l, PRI_NORMAL, ccp_Proto(ccp), mwp);
   return 1;
 }
 

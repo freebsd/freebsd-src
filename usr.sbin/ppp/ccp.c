@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.35 1998/04/19 02:23:15 brian Exp $
+ * $Id: ccp.c,v 1.30.2.36 1998/04/19 03:40:54 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -53,6 +53,8 @@
 #include "hdlc.h"
 #include "link.h"
 #include "mp.h"
+#include "async.h"
+#include "physical.h"
 #include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
@@ -528,11 +530,11 @@ struct mbuf *
 ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
   /*
-   * If proto isn't PROTO_COMPD, we still want to pass it to the
+   * If proto isn't PROTO_[I]COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
   if (ccp->fsm.state == ST_OPENED)
-    if (*proto == PROTO_COMPD) {
+    if (*proto == PROTO_COMPD || *proto == PROTO_ICOMPD) {
       /* Decompress incoming data */
       if (ccp->reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
@@ -548,4 +550,11 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
         (ccp->in.state, ccp, *proto, bp);
 
   return bp;
+}
+
+u_short
+ccp_Proto(struct ccp *ccp)
+{
+  return !link2physical(ccp->fsm.link) || !ccp->fsm.bundle->ncp.mp.active ?
+         PROTO_COMPD : PROTO_ICOMPD;
 }

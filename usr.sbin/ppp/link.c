@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.17 1998/04/06 09:12:31 brian Exp $
+ *  $Id: link.c,v 1.1.2.18 1998/04/07 00:53:57 brian Exp $
  *
  */
 
@@ -154,6 +154,7 @@ static struct protostatheader {
   { PROTO_VJUNCOMP, "VJ_UNCOMP" },
   { PROTO_VJCOMP, "VJ_COMP" },
   { PROTO_COMPD, "COMPD" },
+  { PROTO_ICOMPD, "ICOMPD" },
   { PROTO_LCP, "LCP" },
   { PROTO_IPCP, "IPCP" },
   { PROTO_CCP, "CCP" },

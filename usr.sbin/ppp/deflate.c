@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.10 1998/04/07 00:53:37 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.11 1998/04/16 00:25:57 brian Exp $
  */
 
 #include <sys/types.h>
@@ -182,7 +182,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   LogPrintf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, proto);
 
-  HdlcOutput(l, PRI_NORMAL, PROTO_COMPD, mo_head);
+  HdlcOutput(l, PRI_NORMAL, ccp_Proto(ccp), mo_head);
   return 1;
 }
 
