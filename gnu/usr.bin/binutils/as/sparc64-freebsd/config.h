@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 
+#define HAVE_DECL_GETOPT 1
+
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
