@@ -21,6 +21,8 @@
 .\"    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA
 .\"
 .\" ---------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
 .nh
 .TH SEND-PR 1 3.2 "February 1993"
 .SH NAME
@@ -50,7 +52,11 @@ send-pr \- send problem report (PR) to a central support site
 .B \-\-request-id
 ]
 [
-.B \-v
+.B \-V
+]
+.br
+[
+.B --version
 ]
 .SH DESCRIPTION
 .B send-pr
@@ -119,7 +125,7 @@ on standard output.  If
 .B PR_FORM
 is not set, print the standard blank PR template.  No mail is sent.
 .TP
-.B -L
+.B \-L
 print the list of available categories.  No mail is sent.
 .TP
 .B \-\-request\-id
@@ -135,10 +141,12 @@ use a
 of
 .BR net \|'.
 .TP
-.B \-v
+.B \-V
 Display the 
 .B send-pr
 version number.
+This may also be specified as
+.B \-\-version.
 .LP
 Note: use
 .B send-pr
