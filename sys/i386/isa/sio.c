@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.215 1998/09/13 22:15:44 eivind Exp $
+ *	$Id: sio.c,v 1.216 1998/10/22 05:58:40 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2112,8 +2112,8 @@ comparam(tp, t)
 	 * while the UART is doing output (they refuse to transmit anything
 	 * more until given a hard reset).  Fix this by stopping filling
 	 * the device buffers and waiting for them to drain.  Reading the
-	 * line status port outside of siointr1() might lose some receiver
-	 * error bits, but that is acceptable here.
+	 * line status port outside of siointr1() might lose an output
+	 * interrupt, but this will be fixed by (re)starting output.
 	 */
 	disable_intr();
 retry:
