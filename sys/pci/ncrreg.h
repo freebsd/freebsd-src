@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.9 1997/08/06 20:25:54 se Exp $
+**  $Id: ncrreg.h,v 1.10 1997/08/24 06:24:51 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -124,7 +124,7 @@ struct ncr_reg {
         #define   OLF1    0x20  /* sta: data in SODL register msb[W]*/
         #define   LDSC    0x02  /* sta: disconnect & reconnect      */
 
-/*10*/  u_long    nc_dsa;	/* --> Base page                    */
+/*10*/  u_int32_t nc_dsa;	/* --> Base page                    */
 
 /*14*/  u_char    nc_istat;	/* --> Main Command and status      */
         #define   CABRT   0x80  /* cmd: abort current operation     */
@@ -152,7 +152,7 @@ struct ncr_reg {
         #define   FM      0x02  /* mod: fetch pin mode              */
         #define   WRIE    0x01  /* mod: write and invalidate enable */
 
-/*1c*/  u_long    nc_temp;	/* ### Temporary stack              */
+/*1c*/  u_int32_t nc_temp;	/* ### Temporary stack              */
 
 /*20*/	u_char	  nc_dfifo;
 /*21*/  u_char    nc_ctest4;
@@ -163,11 +163,11 @@ struct ncr_reg {
 	#define   DFS     0x20  /* mod: dma fifo size               */
 /*23*/  u_char    nc_ctest6;
 
-/*24*/  u_long    nc_dbc;	/* ### Byte count and command       */
-/*28*/  u_long    nc_dnad;	/* ### Next command register        */
-/*2c*/  u_long    nc_dsp;	/* --> Script Pointer               */
-/*30*/  u_long    nc_dsps;	/* --> Script pointer save/opcode#2 */
-/*34*/  u_long    nc_scratcha;  /* ??? Temporary register a         */
+/*24*/  u_int32_t nc_dbc;	/* ### Byte count and command       */
+/*28*/  u_int32_t nc_dnad;	/* ### Next command register        */
+/*2c*/  u_int32_t nc_dsp;	/* --> Script Pointer               */
+/*30*/  u_int32_t nc_dsps;	/* --> Script pointer save/opcode#2 */
+/*34*/  u_int32_t nc_scratcha;  /* ??? Temporary register a         */
 
 /*38*/  u_char    nc_dmode;
         #define   BL_2    0x80  /* mod: burst length shift value +2 */
@@ -189,7 +189,7 @@ struct ncr_reg {
         #define   IRQD    0x02  /* mod: irq disable                 */
 	#define	  NOCOM   0x01	/* cmd: protect sfbr while reselect */
 
-/*3c*/  u_long    nc_adder;
+/*3c*/  u_int32_t nc_adder;
 
 /*40*/  u_short   nc_sien;	/* -->: interrupt enable            */
 /*42*/  u_short   nc_sist;	/* <--: interrupt status            */
@@ -262,7 +262,7 @@ struct ncr_reg {
 #define TARGET_MODE 0
 #endif
 
-typedef unsigned long ncrcmd;
+typedef u_int32_t ncrcmd;
 
 /*-----------------------------------------------------------
 **
@@ -303,8 +303,8 @@ typedef unsigned long ncrcmd;
 #define SCR_MOVE_TBL     (0x18000000 ^ (TARGET_MODE << 1ul))
 
 struct scr_tblmove {
-        u_long  size;
-        u_long  addr;
+        u_int32_t size;
+        u_int32_t addr;
 };
 
 /*-----------------------------------------------------------
@@ -335,7 +335,7 @@ struct scr_tblsel {
 };
 
 #define SCR_JMP_REL     0x04000000
-#define SCR_ID(id)	(((u_long)(id)) << 16)
+#define SCR_ID(id)	(((u_int32_t)(id)) << 16)
 
 /*-----------------------------------------------------------
 **
