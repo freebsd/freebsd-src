@@ -54,6 +54,12 @@
 
 #include <machine/md_var.h>
 
+#if __FreeBSD_version < 500000
+#define suser_td(a)	suser(a)
+#define thread	proc		/* Compat with new thread stuff */
+#include <sys/proc.h>
+#endif
+
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
 /* The following might now be obsolete */
@@ -236,6 +242,17 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	resource_list_init(&devi->resources);
 	child = device_add_child(pccarddev, devi->name, desc->unit);
+	if (child == NULL) {
+		if (desc->unit != -1)
+			device_printf(pccarddev,
+			    "Unit %d failed for %s, try a different unit\n",
+			    desc->unit, devi->name);
+		else
+			device_printf(pccarddev,
+			    "No units available for %s.  Impossible?\n",
+			    devi->name);
+		return (EIO);
+	}
 	device_set_flags(child, desc->flags);
 	device_set_ivars(child, devi);
 	if (bootverbose) {
@@ -288,7 +305,7 @@ inserted(void *arg)
 	/*
 	 *	Enable 5V to the card so that the CIS can be read.
 	 */
-	slt->pwr.vcc = 50;
+	slt->pwr.vcc = -1;
 	slt->pwr.vpp = 50;
 
 	/*
@@ -342,7 +359,7 @@ pccard_event(struct slot *slt, enum card_event event)
  *	Device driver interface.
  */
 static	int
-crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
+crdopen(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
@@ -358,7 +375,7 @@ crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
  *	slots may be assigned to drivers already.
  */
 static	int
-crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
+crdclose(dev_t dev, int fflag, int devtype, struct thread *td)
 {
 	return (0);
 }
@@ -459,7 +476,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
  *	descriptors, and assignment of drivers.
  */
 static	int
-crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
+crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	u_int32_t	addr;
 	int		err;
@@ -509,7 +526,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * At the very least, we only allow root to set the context.
 	 */
 	case PIOCSMEM:
-		if (suser(p))
+		if (suser_td(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -534,7 +551,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * Set I/O port context.
 	 */
 	case PIOCSIO:
-		if (suser(p))
+		if (suser_td(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -560,7 +577,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 			*(unsigned long *)data = pccard_mem;
 			break;
 		}
-		if (suser(p))
+		if (suser_td(td))
 			return (EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
@@ -592,7 +609,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
-		if (suser(p))
+		if (suser_td(td))
 			return (EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)
@@ -629,7 +646,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
  *	when a change in card status occurs.
  */
 static	int
-crdpoll(dev_t dev, int events, struct proc *p)
+crdpoll(dev_t dev, int events, struct thread *td)
 {
 	int	revents = 0;
 	int	s;
@@ -650,7 +667,7 @@ crdpoll(dev_t dev, int events, struct proc *p)
 			revents |= POLLRDBAND;
 
 	if (revents == 0)
-		selrecord(p, &slt->selp);
+		selrecord(td, &slt->selp);
 
 	splx(s);
 	return (revents);
