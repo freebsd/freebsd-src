@@ -318,10 +318,10 @@ __END_DECLS
 
 /*
  * This is a #define because the function is used internally and
- * (unlike vfscanf) the name __svfscanf is guaranteed not to collide
+ * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
  * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
  */
-#define	 vfscanf	__svfscanf
+#define	 vfscanf	__vfscanf
 
 /*
  * Stdio function-access interface.
@@ -342,6 +342,7 @@ __END_DECLS
  */
 __BEGIN_DECLS
 int	__srget __P((FILE *));
+int	__vfscanf __P((FILE *, const char *, _BSD_VA_LIST_));
 int	__svfscanf __P((FILE *, const char *, _BSD_VA_LIST_));
 int	__swbuf __P((int, FILE *));
 __END_DECLS
@@ -389,61 +390,10 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	fileno_unlocked(p)	__sfileno(p)
 #endif
 
-#ifndef  _THREAD_SAFE
-#define	feof(p)		feof_unlocked(p)
-#define	ferror(p)	ferror_unlocked(p)
-#define	clearerr(p)	clearerr_unlocked(p)
-
-#ifndef _ANSI_SOURCE
-#define	fileno(p)	fileno_unlocked(p)
-#endif
-#endif
-
-#ifndef lint
 #define	getc_unlocked(fp)	__sgetc(fp)
-#define putc_unlocked(x, fp)	__sputc(x, fp)
-#ifdef	_THREAD_SAFE
-void	_flockfile_debug __P((FILE *, char *, int));
-#ifdef	_FLOCK_DEBUG
-#define _FLOCKFILE(x)	_flockfile_debug(x, __FILE__, __LINE__)
-#else
-#define _FLOCKFILE(x)	flockfile(x)
-#endif
-static __inline int			\
-__getc_locked(FILE *_fp)		\
-{					\
-	extern int __isthreaded;	\
-	int _ret;			\
-	if (__isthreaded)		\
-		_FLOCKFILE(_fp);	\
-	_ret = getc_unlocked(_fp);	\
-	if (__isthreaded)		\
-		funlockfile(_fp);	\
-	return (_ret);			\
-}
-static __inline int			\
-__putc_locked(int _x, FILE *_fp)	\
-{					\
-	extern int __isthreaded;	\
-	int _ret;			\
-	if (__isthreaded)		\
-		_FLOCKFILE(_fp);	\
-	_ret = putc_unlocked(_x, _fp);	\
-	if (__isthreaded)		\
-		funlockfile(_fp);	\
-	return (_ret);			\
-}
-#define	getc(fp)	__getc_locked(fp)
-#define	putc(x, fp)	__putc_locked(x, fp)
-#else
-#define	getc(fp)	getc_unlocked(fp)
-#define putc(x, fp)	putc_unlocked(x, fp)
-#endif
-#endif /* lint */
+#define	putc_unlocked(x, fp)	__sputc(x, fp)
 
-#define	getchar()		getc(stdin)
 #define	getchar_unlocked()	getc_unlocked(stdin)
-#define	putchar(x)		putc(x, stdout)
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
 
 #endif /* !_STDIO_H_ */

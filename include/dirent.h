@@ -64,6 +64,7 @@ typedef struct _dirdesc {
 	long	dd_seek;	/* magic cookie returned by getdirentries */
 	long	dd_rewind;	/* magic cookie for rewinding */
 	int	dd_flags;	/* flags for readdir */
+	void	*dd_lock;	/* hack to avoid including <pthread.h> */
 	struct _telldir *dd_td;	/* telldir position recording */
 } DIR;
 
