@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.155 1995/05/04 18:53:26 adam Exp $
+# $Id: bsd.port.mk,v 1.156 1995/05/09 00:31:54 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -72,6 +72,8 @@
 # PKGDIR 		- A direction containing any package creation files.
 #				  (default: ${.CURDIR}/pkg)
 # PKG_DBDIR		- Where package installation is recorded (default: /var/db/pkg)
+# FORCE_PKG_REGISTER - If set, it will overwrite any existing package
+#				  registration information in ${PKG_DBDIR}/${PKGNAME}.
 #
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
@@ -1102,6 +1104,9 @@ describe:
 fake-pkg:
 	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then echo "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then rm -f ${PKG_DBDIR}; mkdir -p ${PKG_DBDIR}; fi
+.if defined(FORCE_PKG_REGISTER)
+	@rm -rf ${PKG_DBDIR}/${PKGNAME}
+.endif
 	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
 		${ECHO_MSG} "===> Registering installation for ${PKGNAME}"; \
 		mkdir -p ${PKG_DBDIR}/${PKGNAME}; \
