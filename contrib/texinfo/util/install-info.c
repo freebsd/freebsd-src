@@ -1,8 +1,8 @@
+/* $FreeBSD$ */
 /* install-info -- create Info directory entry(ies) for an Info file.
-   $Id: install-info.c,v 1.48 1999/08/06 18:13:32 karl Exp $
-   $FreeBSD$
+   $Id: install-info.c,v 1.52 2002/01/19 01:12:29 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ xmalloc (size)
   extern void *malloc ();
   void *result = malloc (size);
   if (result == NULL)
-    fatal (_("virtual memory exhausted"), 0);
+    fatal (_("virtual memory exhausted"), 0, 0);
   return result;
 }
 
@@ -190,7 +190,7 @@ xrealloc (obj, size)
   extern void *realloc ();
   void *result = realloc (obj, size);
   if (result == NULL)
-    fatal (_("virtual memory exhausted"), 0);
+    fatal (_("virtual memory exhausted"), 0, 0);
   return result;
 }
 
@@ -234,7 +234,7 @@ pfatal_with_name (name)
      char *name;
 {
   char *s = concat ("", strerror (errno), _(" for %s"));
-  fatal (s, name);
+  fatal (s, name, 0);
 }
 
 /* Given the full text of a menu entry, null terminated,
@@ -554,7 +554,7 @@ open_possibly_compressed_file (filename, create_callback,
       /* Empty files don't set errno, so we get something like
          "install-info: No error for foo", which is confusing.  */
       if (nread == 0)
-        fatal (_("%s: empty file"), *opened_filename);
+        fatal (_("%s: empty file"), *opened_filename, 0);
       pfatal_with_name (*opened_filename);
     }
 
@@ -870,7 +870,7 @@ parse_input (lines, nlines, sections, entries)
               reset_tail = 1;
 
               if (start_of_this_entry != 0)
-                fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"));
+                fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"), 0, 0);
               start_of_this_entry = lines[i + 1].start;
             }
           else if (start_of_this_entry)
@@ -905,12 +905,13 @@ parse_input (lines, nlines, sections, entries)
               else if (!strncmp ("END-INFO-DIR-ENTRY",
                                  lines[i].start, lines[i].size)
                        && sizeof ("END-INFO-DIR-ENTRY") - 1 == lines[i].size)
-                fatal (_("END-INFO-DIR-ENTRY without matching START-INFO-DIR-ENTRY"));
+                fatal (_("END-INFO-DIR-ENTRY without matching START-INFO-DIR-ENTRY"), 0, 0);
             }
         }
     }
   if (start_of_this_entry != 0)
-    fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"));
+    fatal (_("START-INFO-DIR-ENTRY without matching END-INFO-DIR-ENTRY"),
+	   0, 0);
 
   /* If we ignored the INFO-DIR-ENTRY directives, we need now go back
      and plug the names of all the sections we found into every
@@ -1247,7 +1248,7 @@ main (argc, argv)
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the files named COPYING.\n"),
-		  "1999");
+		  "2002");
           xexit (0);
 
         default:
@@ -1263,13 +1264,14 @@ For more information about these matters, see the files named COPYING.\n"),
       else if (dirfile == 0)
         dirfile = argv[optind];
       else
-        error (_("excess command line argument `%s'"), argv[optind]);
+        error (_("excess command line argument `%s'"), argv[optind], 0);
     }
 
   if (!infile)
-    fatal (_("No input file specified; try --help for more information."));
+    fatal (_("No input file specified; try --help for more information."),
+	   0, 0);
   if (!dirfile)
-    fatal (_("No dir file specified; try --help for more information."));
+    fatal (_("No dir file specified; try --help for more information."), 0, 0);
 
   /* Read the Info file and parse it into lines, unless we're deleting.  */
   if (!delete_flag)
@@ -1296,7 +1298,7 @@ For more information about these matters, see the files named COPYING.\n"),
              something an installer should have to correct (it's a
              problem for the maintainer), and there's no need to cause
              subsequent parts of `make install' to fail.  */
-          warning (_("no info dir entry in `%s'"), infile);
+          warning (_("no info dir entry in `%s'"), infile, 0);
           xexit (0);
         }
 
@@ -1440,7 +1442,7 @@ For more information about these matters, see the files named COPYING.\n"),
     }
 
   if (delete_flag && !something_deleted && !quiet_flag)
-    warning (_("no entries found for `%s'; nothing deleted"), infile);
+    warning (_("no entries found for `%s'; nothing deleted"), infile, 0);
 
   output_dirfile (opened_dirfilename, dir_nlines, dir_lines, n_entries_to_add,
                   entries_to_add, input_sections, compression_program);
