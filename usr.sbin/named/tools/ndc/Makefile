@@ -4,7 +4,7 @@ CLEANFILES+=ndc
 PIDDIR=/var/run
 INDOT=
 PS=ps
-IOT=IOT
+IOT=ABRT
 DESTSBIN=${DESTDIR}${BINDIR}
 
 beforeinstall:
