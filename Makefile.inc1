@@ -661,8 +661,9 @@ build-tools:
 _elf2exe=	usr.sbin/elf2exe
 .endif
 
-.if ${TARGET_ARCH} == "i386" && ${MACHINE_ARCH} != "i386"
+.if ${TARGET_ARCH} == "i386"
 _btxld=	usr.sbin/btxld
+_kgzip=	usr.sbin/kgzip
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
@@ -674,7 +675,7 @@ _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
 cross-tools:
 .for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
     gnu/usr.bin/binutils usr.sbin/crunch/crunchide \
-    gnu/usr.bin/cc ${_xlint}
+    gnu/usr.bin/cc ${_xlint} ${_kgzip}
 	${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \

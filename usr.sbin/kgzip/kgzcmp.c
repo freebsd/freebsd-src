@@ -36,10 +36,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <a.out.h>
+#include "i386_a.out.h"
 
 #include "aouthdr.h"
 #include "elfhdr.h"
+#include "endian.h"
 #include "kgzip.h"
 
 static void mk_data(const struct iodesc *i, const struct iodesc *,
@@ -47,7 +48,7 @@ static void mk_data(const struct iodesc *i, const struct iodesc *,
 static int ld_elf(const struct iodesc *, const struct iodesc *,
 		  struct kgz_hdr *, const Elf32_Ehdr *);
 static int ld_aout(const struct iodesc *, const struct iodesc *,
-		   struct kgz_hdr *, const struct exec *);
+		   struct kgz_hdr *, const struct i386_exec *);
 
 /*
  * Compress executable and output it in relocatable object format.
@@ -56,6 +57,7 @@ void
 kgzcmp(struct kgz_hdr *kh, const char *f1, const char *f2)
 {
     struct iodesc idi, ido;
+    struct kgz_hdr khle;
 
     if ((idi.fd = open(idi.fname = f1, O_RDONLY)) == -1)
 	err(1, "%s", idi.fname);
@@ -86,12 +88,19 @@ kgzcmp(struct kgz_hdr *kh, const char *f1, const char *f2)
 	xwrite(&ido, &ahdr0, sizeof(ahdr0));
     } else {
 	struct kgz_elfhdr ehdr = elfhdr;
-	ehdr.st[KGZ_ST_KGZ_NDATA].st_size = kh->nsize;
-	ehdr.sh[KGZ_SH_DATA].sh_size += kh->nsize;
+	ehdr.st[KGZ_ST_KGZ_NDATA].st_size = HTOLE32(kh->nsize);
+	ehdr.sh[KGZ_SH_DATA].sh_size =
+	    HTOLE32(LE32TOH(ehdr.sh[KGZ_SH_DATA].sh_size) + kh->nsize);
 	xseek(&ido, 0);
 	xwrite(&ido, &ehdr, sizeof(ehdr));
     }
-    xwrite(&ido, kh, sizeof(*kh));
+    khle = *kh;
+    khle.dload = HTOLE32(khle.dload);
+    khle.dsize = HTOLE32(khle.dsize);
+    khle.isize = HTOLE32(khle.isize);
+    khle.entry = HTOLE32(khle.entry);
+    khle.nsize = HTOLE32(khle.nsize);
+    xwrite(&ido, &khle, sizeof(khle));
     xclose(&ido);
     xclose(&idi);
 }
@@ -104,7 +113,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
 	struct kgz_hdr * kh, size_t off)
 {
     union {
-	struct exec ex;
+	struct i386_exec ex;
 	Elf32_Ehdr ee;
     } hdr;
     struct stat sb;
@@ -118,7 +127,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
     fmt = 0;
     if (n >= sizeof(hdr.ee) && IS_ELF(hdr.ee))
 	fmt = F_ELF;
-    else if (n >= sizeof(hdr.ex) && N_GETMAGIC(hdr.ex) == ZMAGIC)
+    else if (n >= sizeof(hdr.ex) && I386_N_GETMAGIC(hdr.ex) == ZMAGIC)
 	fmt = F_AOUT;
     if (!fmt)
 	errx(1, "%s: Format not supported", idi->fname);
@@ -207,20 +216,20 @@ ld_elf(const struct iodesc * idi, const struct iodesc * ido,
  */
 static int
 ld_aout(const struct iodesc * idi, const struct iodesc * ido,
-	struct kgz_hdr * kh, const struct exec * a)
+	struct kgz_hdr * kh, const struct i386_exec * a)
 {
     size_t load, addr;
 
-    load = addr = N_TXTADDR(*a);
-    xcopy(idi, ido, a->a_text, N_TXTOFF(*a));
-    addr += a->a_text;
-    if (N_DATADDR(*a) != addr)
+    load = addr = I386_N_TXTADDR(*a);
+    xcopy(idi, ido, LE32TOH(a->a_text), I386_N_TXTOFF(*a));
+    addr += LE32TOH(a->a_text);
+    if (I386_N_DATADDR(*a) != addr)
 	return -1;
-    xcopy(idi, ido, a->a_data, N_DATOFF(*a));
-    addr += a->a_data;
+    xcopy(idi, ido, LE32TOH(a->a_data), I386_N_DATOFF(*a));
+    addr += LE32TOH(a->a_data);
     kh->dload = load;
     kh->dsize = addr - load;
-    kh->isize = kh->dsize + a->a_bss;
-    kh->entry = a->a_entry;
+    kh->isize = kh->dsize + LE32TOH(a->a_bss);
+    kh->entry = LE32TOH(a->a_entry);
     return 0;
 }
