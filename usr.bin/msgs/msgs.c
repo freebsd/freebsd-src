@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -72,10 +76,12 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <locale.h>
 #include <pwd.h>
 #include <setjmp.h>
+#include <termcap.h>
 #include <termios.h>
 #include <signal.h>
 #include <stdio.h>
@@ -105,8 +111,8 @@ FILE	*msgsrc;
 FILE	*newmsg;
 char	*sep = "-";
 char	inbuf[BUFSIZ];
-char	fname[128];
-char	cmdbuf[128];
+char	fname[MAXPATHLEN];
+char	cmdbuf[MAXPATHLEN + MAXPATHLEN];
 char	subj[128];
 char	from[128];
 char	date[128];
@@ -132,11 +138,6 @@ int	Lpp = 0;
 time_t	t;
 time_t	keep;
 
-char	*mktemp();
-char	*nxtfld();
-void	onintr();
-void	onsusp();
-
 /* option initialization */
 bool	hdrs = NO;
 bool	qopt = NO;
@@ -148,6 +149,18 @@ bool	clean = NO;
 bool	lastcmd = NO;
 jmp_buf	tstpbuf;
 
+
+void ask __P((char *));
+void gfrsub __P((FILE *));
+int linecnt __P((FILE *));
+int next __P((char *));
+char *nxtfld __P((unsigned char *));
+void onsusp __P((int));
+void onintr __P((int));
+void prmesg __P((int));
+static void usage __P((void));
+
+int
 main(argc, argv)
 int argc; char *argv[];
 {
@@ -221,9 +234,7 @@ int argc; char *argv[];
 				break;
 
 			default:
-				fprintf(stderr,
-					"usage: msgs [fhlopq] [[-]number]\n");
-				exit(1);
+				usage();
 			}
 		}
 		argc--, argv++;
@@ -232,7 +243,7 @@ int argc; char *argv[];
 	/*
 	 * determine current message bounds
 	 */
-	sprintf(fname, "%s/%s", _PATH_MSGS, BOUNDS);
+	snprintf(fname, sizeof(fname), "%s/%s", _PATH_MSGS, BOUNDS);
 	bounds = fopen(fname, "r");
 
 	if (bounds != NULL) {
@@ -251,10 +262,8 @@ int argc; char *argv[];
 		DIR	*dirp;
 
 		dirp = opendir(_PATH_MSGS);
-		if (dirp == NULL) {
-			perror(_PATH_MSGS);
-			exit(errno);
-		}
+		if (dirp == NULL)
+			err(errno, "%s", _PATH_MSGS);
 
 		firstmsg = 32767;
 		lastmsg = 0;
@@ -269,7 +278,7 @@ int argc; char *argv[];
 				continue;
 
 			if (clean)
-				sprintf(inbuf, "%s/%s", _PATH_MSGS, cp);
+				snprintf(inbuf, sizeof(inbuf), "%s/%s", _PATH_MSGS, cp);
 
 			while (isdigit(*cp))
 				i = i * 10 + *cp++ - '0';
@@ -304,10 +313,8 @@ int argc; char *argv[];
 
 		if (!send_msg) {
 			bounds = fopen(fname, "w");
-			if (bounds == NULL) {
-				perror(fname);
-				exit(errno);
-			}
+			if (bounds == NULL)
+				err(errno, "%s", fname);
 			chmod(fname, CMODE);
 			fprintf(bounds, "%d %d\n", firstmsg, lastmsg);
 			fclose(bounds);
@@ -319,18 +326,14 @@ int argc; char *argv[];
 		 * Send mode - place msgs in _PATH_MSGS
 		 */
 		bounds = fopen(fname, "w");
-		if (bounds == NULL) {
-			perror(fname);
-			exit(errno);
-		}
+		if (bounds == NULL)
+			err(errno, "%s", fname);
 
 		nextmsg = lastmsg + 1;
-		sprintf(fname, "%s/%d", _PATH_MSGS, nextmsg);
+		snprintf(fname, sizeof(fname), "%s/%d", _PATH_MSGS, nextmsg);
 		newmsg = fopen(fname, "w");
-		if (newmsg == NULL) {
-			perror(fname);
-			exit(errno);
-		}
+		if (newmsg == NULL)
+			err(errno, "%s", fname);
 		chmod(fname, CMODE);
 
 		fprintf(bounds, "%d %d\n", firstmsg, nextmsg);
@@ -382,7 +385,7 @@ int argc; char *argv[];
 	totty = (isatty(fileno(stdout)) != 0);
 	use_pager = use_pager && totty;
 
-	sprintf(fname, "%s/%s", getenv("HOME"), MSGSRC);
+	snprintf(fname, sizeof(fname), "%s/%s", getenv("HOME"), MSGSRC);
 	msgsrc = fopen(fname, "r");
 	if (msgsrc) {
 		newrc = NO;
@@ -402,10 +405,8 @@ int argc; char *argv[];
 	msgsrc = fopen(fname, "r+");
 	if (msgsrc == NULL)
 		msgsrc = fopen(fname, "w");
-	if (msgsrc == NULL) {
-		perror(fname);
-		exit(errno);
-	}
+	if (msgsrc == NULL)
+		err(errno, "%s", fname);
 	if (rcfirst) {
 		if (rcfirst > lastmsg+1) {
 			printf("Warning: the last message is number %d.\n",
@@ -448,7 +449,7 @@ int argc; char *argv[];
 	 */
 	for (msg = firstmsg; msg <= lastmsg; msg++) {
 
-		sprintf(fname, "%s/%d", _PATH_MSGS, msg);
+		snprintf(fname, sizeof(fname), "%s/%d", _PATH_MSGS, msg);
 		newmsg = fopen(fname, "r");
 		if (newmsg == NULL)
 			continue;
@@ -594,6 +595,14 @@ cmnd:
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: msgs [fhlopq] [[-]number]\n");
+	exit(1);
+}
+
+void
 prmesg(length)
 int length;
 {
@@ -602,7 +611,7 @@ int length;
 	if (use_pager && length > Lpp) {
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
-		sprintf(cmdbuf, _PATH_PAGER, Lpp);
+		snprintf(cmdbuf, sizeof(cmdbuf), _PATH_PAGER, Lpp);
 		outf = popen(cmdbuf, "w");
 		if (!outf)
 			outf = stdout;
@@ -637,7 +646,8 @@ int length;
 }
 
 void
-onintr()
+onintr(unused)
+	int unused;
 {
 	signal(SIGINT, onintr);
 	if (mailing)
@@ -662,9 +672,9 @@ onintr()
  * We have just gotten a susp.  Suspend and prepare to resume.
  */
 void
-onsusp()
+onsusp(unused)
+	int unused;
 {
-
 	signal(SIGTSTP, SIG_DFL);
 	sigsetmask(0);
 	kill(0, SIGTSTP);
@@ -673,6 +683,7 @@ onsusp()
 		longjmp(tstpbuf, 0);
 }
 
+int
 linecnt(f)
 FILE *f;
 {
@@ -687,6 +698,7 @@ FILE *f;
 	return (l);
 }
 
+int
 next(buf)
 char *buf;
 {
@@ -696,6 +708,7 @@ char *buf;
 	return(--i);
 }
 
+void
 ask(prompt)
 char *prompt;
 {
@@ -723,7 +736,7 @@ char *prompt;
 			cmsg = atoi(&inbuf[1]);
 		else
 			cmsg = msg;
-		sprintf(fname, "%s/%d", _PATH_MSGS, cmsg);
+		snprintf(fname, sizeof(fname), "%s/%d", _PATH_MSGS, cmsg);
 
 		oldpos = ftell(newmsg);
 
@@ -748,19 +761,19 @@ char *prompt;
 		else {
 			strcpy(fname, _PATH_TMP);
 			mktemp(fname);
-			sprintf(cmdbuf, _PATH_MAIL, fname);
+			snprintf(cmdbuf, sizeof(cmdbuf), _PATH_MAIL, fname);
 			mailing = YES;
 		}
 		cpto = fopen(fname, "a");
 		if (!cpto) {
-			perror(fname);
+			warn("%s", fname);
 			mailing = NO;
 			fseek(newmsg, oldpos, 0);
 			ask(prompt);
 			return;
 		}
 
-		while (n = fread(inbuf, 1, sizeof inbuf, cpfrom))
+		while ((n = fread(inbuf, 1, sizeof inbuf, cpfrom)))
 			fwrite(inbuf, 1, n, cpto);
 
 		fclose(cpfrom);
@@ -777,6 +790,7 @@ char *prompt;
 	}
 }
 
+void
 gfrsub(infile)
 FILE *infile;
 {
