@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.18 1998/05/31 17:48:07 peter Exp $
+ * $Id: nfsm_subs.h,v 1.19 1998/05/31 18:19:43 peter Exp $
  */
 
 
@@ -235,13 +235,11 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			(f) = ttattrf; \
 		} }
 
-#define nfsm_v3sattr(s, a, u, g) \
+#define nfsm_v3sattr(s, a) \
 		{ (s)->sa_modetrue = nfs_true; \
 		(s)->sa_mode = vtonfsv3_mode((a)->va_mode); \
-		(s)->sa_uidtrue = nfs_true; \
-		(s)->sa_uid = txdr_unsigned(u); \
-		(s)->sa_gidtrue = nfs_true; \
-		(s)->sa_gid = txdr_unsigned(g); \
+		(s)->sa_uidfalse = nfs_false; \
+		(s)->sa_gidfalse = nfs_false; \
 		(s)->sa_sizefalse = nfs_false; \
 		(s)->sa_atimetype = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT); \
 		txdr_nfsv3time(&(a)->va_atime, &(s)->sa_atime); \
