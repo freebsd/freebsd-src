@@ -24,15 +24,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: vidcontrol.c,v 1.16 1997/03/07 01:34:47 brian Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <machine/console.h>
 #include <sys/errno.h>
 #include "path.h"
@@ -50,30 +54,14 @@ char 	letter;
 struct 	vid_info info;
 
 
-void
+static void
 usage()
 {
-	fprintf(stderr,
-"Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
-"                                                     VGA_80x50, VGA_320x200,\n"
-"                                                     EGA_80x25, EGA_80x43)\n"
-"                                   (experimental)    VGA_80x30, VGA_80x60)\n"
-"\n"
-"                  show             (show available colors)\n"
-"                  fgcol bgcol      (set fore- & background colors)\n"
-"                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
-"                  -b color         (set border color)\n"
-"                  -c normal        (set cursor to inverting block)\n"
-"                  -c blink         (set cursor to blinking inverted block)\n"
-"                  -c destructive   (set cursor to blinking destructive char)\n"
-"                  -d               (dump screenmap to stdout)\n"
-"                  -l filename      (load screenmap file filename)\n"
-"                  -m on|off        (switch mousepointer support on or off)\n"
-"                  -L               (load default screenmap)\n"
-"                  -f DxL filename  (load font, D dots wide & L lines high)\n"
-"                  -t N             (set screensaver timeout in seconds)\n"
-"                  -x               (use hex numbers for output)\n"
-	);
+	fprintf(stderr, "%s\n%s\n%s\n",
+"usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
+"                  [-L] [-m on|off] [-f size file] [-s number] [-t N|off]",
+"                  [-x] [mode] [fgcol [bgcol]] [show]");
+	exit(1);
 }
 
 char *
@@ -81,9 +69,7 @@ nextarg(int ac, char **av, int *indp, int oc)
 {
 	if (*indp < ac)
 		return(av[(*indp)++]);
-	fprintf(stderr, "%s: option requires two arguments -- %c\n", av[0], oc);
-	usage();
-	exit(1);
+	errx(1, "option requires two arguments -- %c", oc);
 	return("");
 }
 
@@ -129,20 +115,20 @@ load_scrnmap(char *filename)
 			break;
 	}
 	if (fd == NULL) {
-		perror("screenmap file not found");
+		warn("screenmap file not found");
 		return;
 	}
 	size = sizeof(scrnmap);
 	if (decode(fd, (char *)&scrnmap) != size) {
 		rewind(fd);
 		if (fread(&scrnmap, 1, size, fd) != size) {
-			fprintf(stderr, "bad scrnmap file\n");
+			warnx("bad screenmap file");
 			fclose(fd);
 			return;
 		}
 	}
 	if (ioctl(0, PIO_SCRNMAP, &scrnmap) < 0)
-		perror("can't load screenmap");
+		warn("can't load screenmap");
 	fclose(fd);
 }
 
@@ -155,7 +141,7 @@ load_default_scrnmap()
 	for (i=0; i<256; i++)
 		*((char*)&scrnmap + i) = i;
 	if (ioctl(0, PIO_SCRNMAP, &scrnmap) < 0)
-		perror("can't load default screenmap");
+		warn("can't load default screenmap");
 }
 
 void
@@ -165,7 +151,7 @@ print_scrnmap()
 	int i;
 
 	if (ioctl(0, GIO_SCRNMAP, &map) < 0) {
-		perror("getting scrnmap");
+		warn("getting screenmap");
 		return;
 	}
 	for (i=0; i<sizeof(map); i++) {
@@ -196,7 +182,7 @@ load_font(char *type, char *filename)
 			break;
 	}
 	if (fd == NULL) {
-		perror("font file not found");
+		warn("font file not found");
 		return;
 	}
 	if (!strcmp(type, "8x8")) {
@@ -212,7 +198,7 @@ load_font(char *type, char *filename)
 		io = PIO_FONT8x16;
 	}
 	else {
-		perror("bad font size specification");
+		warn("bad font size specification");
 		fclose(fd);
 		return;
 	}
@@ -220,14 +206,14 @@ load_font(char *type, char *filename)
 	if (decode(fd, fontmap) != size) {
 		rewind(fd);
 		if (fread(fontmap, 1, size, fd) != size) {
-			fprintf(stderr, "bad font file\n");
+			warnx("bad font file");
 			fclose(fd);
 			free(fontmap);
 			return;
 		}
 	}
 	if (ioctl(0, io, fontmap) < 0)
-		perror("can't load font");
+		warn("can't load font");
 	fclose(fd);
 	free(fontmap);
 }
@@ -242,12 +228,12 @@ set_screensaver_timeout(char *arg)
 	else {
 		nsec = atoi(arg);
 		if ((*arg == '\0') || (nsec < 1)) {
-			fprintf(stderr, "argument must be a positive number\n");
+			warnx("argument must be a positive number");
 			return;
 		}
 	}
 	if (ioctl(0, CONS_BLANKTIME, &nsec) == -1)
-		perror("setting screensaver period");
+		warn("setting screensaver period");
 }
 
 void
@@ -262,8 +248,7 @@ set_cursor_type(char *appearence)
 	else if (!strcmp(appearence, "destructive"))
 		type = 3;
 	else {
-		fprintf(stderr,
-		    "argument to -c must be normal, blink or destructive\n");
+		warnx("argument to -c must be normal, blink or destructive");
 		return;
 	}
 	ioctl(0, CONS_CURSORTYPE, &type);
@@ -294,7 +279,7 @@ video_mode(int argc, char **argv, int *index)
 		else
 			return;
 		if (ioctl(0, mode, NULL) < 0)
-			perror("Cannot set videomode");
+			warn("cannot set videomode");
 		(*index)++;
 	}
 	return;
@@ -350,17 +335,15 @@ set_console(char *arg)
 	int n;
 
 	if( !arg || strspn(arg,"0123456789") != strlen(arg)) {
-		fprintf(stderr,"vidcontrol: Bad console number\n");
-		usage();
+		warnx("bad console number");
 		return;
 	}
 
 	n = atoi(arg);
 	if (n < 1 || n > 12) {
-		fprintf(stderr,"vidcontrol: Console number out of range\n");
-		usage();
+		warnx("console number out of range");
 	} else if (ioctl(0,VT_ACTIVATE,(char *)n) == -1)
-		perror("ioctl(VT_ACTIVATE)");
+		warn("ioctl(VT_ACTIVATE)");
 }
 
 void
@@ -385,8 +368,7 @@ set_mouse(char *arg)
 	else if (!strcmp(arg, "off"))
 		mouse.operation = MOUSE_HIDE;
 	else {
-		fprintf(stderr,
-		    "argument to -m must either on or off\n");
+		warnx("argument to -m must either on or off");
 		return;
 	}
 	ioctl(0, CONS_MOUSECTL, &mouse);
@@ -413,16 +395,12 @@ test_frame()
 int
 main(int argc, char **argv)
 {
-	extern char	*optarg;
-	extern int	optind;
 	int		opt;
 
 
 	info.size = sizeof(info);
-	if (ioctl(0, CONS_GETINFO, &info) < 0) {
-		perror("Must be on a virtual console");
-		return 1;
-	}
+	if (ioctl(0, CONS_GETINFO, &info) < 0)
+		err(1, "must be on a virtual console");
 	while((opt = getopt(argc, argv, "b:c:df:l:Lm:r:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
@@ -461,7 +439,6 @@ main(int argc, char **argv)
 				break;
 			default:
 				usage();
-				return 1;
 		}
 	video_mode(argc, argv, &optind);
 	set_normal_colors(argc, argv, &optind);
@@ -469,10 +446,8 @@ main(int argc, char **argv)
 		test_frame();
 		optind++;
 	}
-	if ((optind != argc) || (argc == 1)) {
+	if ((optind != argc) || (argc == 1))
 		usage();
-		return 1;
-	}
 	return 0;
 }
 
