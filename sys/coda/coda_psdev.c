@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.8 1998/10/28 20:31:13 rvb Exp $
  * 
  */
 
@@ -53,6 +53,13 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.8  1998/10/28 20:31:13  rvb
+ * Change the way unmounting happens to guarantee that the
+ * client programs are allowed to finish up (coda_call is
+ * forced to complete) and release their locks.  Thus there
+ * is a reasonable chance that the vflush implicit in the
+ * unmount will not get hung on held locks.
+ *
  * Revision 1.7  1998/09/29 20:19:45  rvb
  * Fixes for lkm:
  * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
@@ -274,7 +281,7 @@ vc_nb_close (dev, flag, mode, p)
     struct proc *p;
 {
     register struct vcomm *vcp;
-    register struct vmsg *vmp;
+    register struct vmsg *vmp, *nvmp = NULL;
     struct coda_mntinfo *mi;
     int                 err;
 	
@@ -309,8 +316,9 @@ vc_nb_close (dev, flag, mode, p)
     /* Wakeup clients so they can return. */
     for (vmp = (struct vmsg *)GETNEXT(vcp->vc_requests);
 	 !EOQ(vmp, vcp->vc_requests);
-	 vmp = (struct vmsg *)GETNEXT(vmp->vm_chain))
-    {	    
+	 vmp = nvmp)
+    {
+    	nvmp = (struct vmsg *)GETNEXT(vmp->vm_chain);
 	/* Free signal request messages and don't wakeup cause
 	   no one is waiting. */
 	if (vmp->vm_opcode == CODA_SIGNAL) {
@@ -535,6 +543,22 @@ vc_nb_ioctl(dev, cmd, addr, flag, p)
 	    return(ENODEV);
 	}
 	break;
+    case CIOC_KERNEL_VERSION:
+	switch (*(u_int *)addr) {
+	case 0:
+		*(u_int *)addr = coda_kernel_version;
+		return 0;
+		break;
+	case 1:
+	case 2:
+		if (coda_kernel_version != *(u_int *)addr)
+		    return ENOENT;
+		else
+		    return 0;
+	default:
+		return ENOENT;
+	}
+    	break;
     default :
 	return(EINVAL);
 	break;
