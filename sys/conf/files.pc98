@@ -130,12 +130,6 @@ dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scvidctl.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
-fs/smbfs/smbfs_io.c		optional	smbfs
-fs/smbfs/smbfs_node.c		optional	smbfs
-fs/smbfs/smbfs_smb.c		optional	smbfs
-fs/smbfs/smbfs_subr.c		optional	smbfs
-fs/smbfs/smbfs_vfsops.c		optional	smbfs
-fs/smbfs/smbfs_vnops.c		optional	smbfs
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate \
 	warning "kernel contains GPL contaminated math emulator"
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate

@@ -161,13 +161,6 @@ DEV_NPX			opt_npx.h
 DEV_SPLASH		opt_splash.h
 DEV_MECIA		opt_mecia.h
 
-# SMB/CIFS requester
-NETSMB			opt_netsmb.h
-NETSMBCRYPTO		opt_netsmb.h
-
-# SMB/CIFS filesystem
-SMBFS
-
 # -------------------------------
 # EOF
 # -------------------------------

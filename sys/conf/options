@@ -143,6 +143,7 @@ PSEUDOFS	opt_dontuse.h
 UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 HPFS		opt_dontuse.h
+SMBFS		opt_dontuse.h
 UNIONFS		opt_dontuse.h
 UDF		opt_dontuse.h
 
@@ -181,6 +182,10 @@ UFS_DIRHASH	opt_ufs.h
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
+
+# SMB/CIFS requester
+NETSMB			opt_netsmb.h
+NETSMBCRYPTO		opt_netsmb.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
