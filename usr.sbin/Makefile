@@ -63,7 +63,6 @@ SUBDIR=	IPXrouted \
 	ngctl \
 	ntp \
 	nghook \
-	pccard \
 	pciconf \
 	periodic \
 	pkg_install \
@@ -174,6 +173,7 @@ SUBDIR+=acpi \
 	kgzip \
 	lptcontrol \
 	mptable \
+	pccard \
 	pcvt \
 	pnpinfo \
 	sgsc \
