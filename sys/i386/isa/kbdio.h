@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.h,v 1.1.2.1 1996/12/03 10:45:16 phk Exp $
+ * $Id: kbdio.h,v 1.1.2.2 1996/12/04 16:11:45 phk Exp $
  */
 
 #ifndef _I386_ISA_KBDIO_H_
@@ -93,6 +93,7 @@
 #define PSMC_RESET_DEV	     	0x00ff
 #define PSMC_ENABLE_DEV      	0x00f4
 #define PSMC_DISABLE_DEV     	0x00f5
+#define PSMC_SET_DEFAULTS	0x00f6
 #define PSMC_SEND_DEV_ID     	0x00f2
 #define PSMC_SEND_DEV_STATUS 	0x00e9
 #define PSMC_SEND_DEV_DATA	0x00eb

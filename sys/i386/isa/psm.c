@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.25.2.3 1996/12/03 10:47:24 phk Exp $
+ * $Id: psm.c,v 1.25.2.4 1997/01/05 06:34:11 nate Exp $
  */
 
 /*
@@ -435,6 +435,11 @@ reinitialize(dev_t dev, mousemode_t *mode)
     int i;
 
     switch((i = test_aux_port(port))) {
+    case 1:	/* ignore this error */
+	if (verbose)
+	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
+	        PSM_UNIT(dev), i);
+	/* fall though */
     case 0:	/* no error */
     	break;
     case -1: 	/* time out */
@@ -478,10 +483,14 @@ reinitialize(dev_t dev, mousemode_t *mode)
     }
 
     /* just check the status of the mouse */
+    i = get_mouse_status(port, stat);
     if (verbose) {
-        get_mouse_status(port, stat);
-        log(LOG_DEBUG, "psm%d: status %02x %02x %02x (reinitialized)\n",
-            PSM_UNIT(dev), stat[0], stat[1], stat[2]);
+	if (i)
+            log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
+                PSM_UNIT(dev), stat[0], stat[1], stat[2]);
+	else
+	    log(LOG_DEBUG, "psm%d: failed to get mouse status\n", 
+		PSM_UNIT(dev));
     }
 
     return TRUE;
@@ -558,6 +567,7 @@ psmprobe(struct isa_device *dvp)
      */
 
     /* save the current command byte; it will be used later */
+    empty_both_buffers(ioport, 20);	
     if (!write_controller_command(ioport,KBDC_GET_COMMAND_BYTE)) {
         /* CONTROLLER ERROR */
         printf("psm%d: failed to get the current command byte value.\n",
@@ -606,8 +616,18 @@ psmprobe(struct isa_device *dvp)
      * supporsed to return with an error code or simply time out. In any
      * case, we have to continue probing the port even when the controller
      * passes this test.
+     *
+     * XXX: some controllers erroneously return the error code 1 when
+     * it has the perfectly functional aux port. We have to ignore this
+     * error code. Even if the controller HAS error with the aux port,
+     * it will be detected later...
      */
     switch ((i = test_aux_port(ioport))) {
+    case 1:	   /* ignore this error */
+        if (verbose)
+	    printf("psm%d: strange result for test aux port (%d).\n",
+	        unit, i);
+	/* fall though */
     case 0:        /* no error */
         break;
     case -1:        /* time out */
@@ -695,6 +715,7 @@ psmprobe(struct isa_device *dvp)
 
     /* set mouse parameters */
     /* FIXME:XXX should we set them in `psmattach()' rather than here? */
+#if 0
     if (setparams) {
         if (sc->mode.rate > 0)
             sc->mode.rate = set_mouse_sampling_rate(ioport, sc->mode.rate);
@@ -705,12 +726,25 @@ psmprobe(struct isa_device *dvp)
     /* FIXME:XXX I don't know if these parameters are reasonable */
     set_mouse_scaling(ioport);    /* 1:1 scaling */
     set_mouse_mode(ioport);    /* stream mode */
+#else
+    i = send_aux_command(ioport, PSMC_SET_DEFAULTS);
+    if (verbose >= 2)
+	log(LOG_DEBUG, "psm%d: SET_DEFAULTS return code:%04x\n", unit, i);
+#endif
 
     /* just check the status of the mouse */
+    /* 
+     * XXX there are some arcane controller/mouse combinations out there,
+     * which hung the controller unless there is data transmission 
+     * after ACK from the mouse.
+     */
+    i = get_mouse_status(ioport, stat);
     if (verbose) {
-        get_mouse_status(ioport, stat);
-        log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
-            unit, stat[0], stat[1], stat[2]);
+	if (i)
+            log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
+                unit, stat[0], stat[1], stat[2]);
+	else
+	    log(LOG_DEBUG, "psm%d: failed to get mouse status\n", unit);
     }
 
     /* disable the aux port for now... */
@@ -768,8 +802,11 @@ psmattach(struct isa_device *dvp)
         DV_CHR, 0, 0, 0666, "npsm%d", unit);
 #endif
 
-    printf("psm%d: device ID %d, %d buttons?\n",
-        unit, sc->hw.hwid, sc->hw.buttons);
+    if (verbose)
+        printf("psm%d: device ID %d, %d buttons?\n",
+            unit, sc->hw.hwid, sc->hw.buttons);
+    else
+        printf("psm%d: device ID %d\n", unit, sc->hw.hwid);
 
     if (bootverbose)
         --verbose;
@@ -784,6 +821,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
     int ioport;
     struct psm_softc *sc;
     int stat[3];
+    int ret;
 
     /* Validate unit number */
     if (unit >= NPSM)
@@ -854,10 +892,14 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
         return (EIO);
     }
 
+    ret = get_mouse_status(ioport, stat);
     if (verbose >= 2) {
-        get_mouse_status(ioport, stat);
-        log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
-            unit, stat[0], stat[1], stat[2]);
+	if (ret)
+            log(LOG_DEBUG, "psm%d: status %02x %02x %02x (psmopen)\n",
+                unit, stat[0], stat[1], stat[2]);
+	else
+	    log(LOG_DEBUG, "psm%d: failed to get mouse status (psmopen).\n",
+		unit);
     }
 
     /* enable the aux port and interrupt */
@@ -882,6 +924,8 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
     struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
     int ioport = sc->addr;
+    int stat[3];
+    int ret;
 
     /* disable the aux interrupt */
     if (!set_controller_command_byte(ioport, sc->command_byte,
@@ -910,6 +954,17 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	log(LOG_ERR, "psm%d: failed to disable the device (psmclose).\n",
 	    PSM_UNIT(dev));
     }
+
+    ret = get_mouse_status(ioport, stat);
+    if (verbose >= 2) {
+	if (ret)
+            log(LOG_DEBUG, "psm%d: status %02x %02x %02x (psmclose)\n",
+                PSM_UNIT(dev), stat[0], stat[1], stat[2]);
+	else
+	    log(LOG_DEBUG, "psm%d: failed to get mouse status (psmclose).\n",
+		PSM_UNIT(dev));
+    }
+
     if (!set_controller_command_byte(ioport, sc->command_byte,
 	KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR; 
