@@ -432,7 +432,7 @@
 	<literal>ip_fastforward</literal> 機能で置き換えられました。
 	<literal>ip_fastforward</literal> 機能は、
 	送出インタフェースに向かうパケットをキューや netisr
-	を使わずに処理することで、単純なパケット回送のを高速化しようとするものです。
+	を使わずに処理することで、単純なパケットの回送を高速化しようというものです。
 	処理できないパケットがあった場合、通常の <literal>ip_input</literal>
 	ルーチンに渡されて処理されます。この機能は
 	sysctl 変数 <varname>net.inet.ip.fastforwarding</varname> を
