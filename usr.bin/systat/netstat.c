@@ -92,7 +92,7 @@ opennetstat()
 }
 
 struct netinfo {
-	struct	netinfo *ni_forw, *ni_prev;
+	TAILQ_ENTRY(netinfo) chain;
 	short	ni_line;		/* line on screen */
 	short	ni_seen;		/* 0 when not present in list */
 	short	ni_flags;
@@ -108,9 +108,7 @@ struct netinfo {
 	long	ni_sndcc;		/* snd buffer character count */
 };
 
-static struct {
-	struct	netinfo *ni_forw, *ni_prev;
-} netcb;
+TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
 
 static	int aflag = 0;
 static	int nflag = 0;
@@ -126,12 +124,10 @@ closenetstat(w)
 
 	endhostent();
 	endnetent();
-	p = (struct netinfo *)netcb.ni_forw;
-	while (p != (struct netinfo *)&netcb) {
+	TAILQ_FOREACH(p, *netcb, chain) {
 		if (p->ni_line != -1)
 			lastrow--;
 		p->ni_line = -1;
-		p = p->ni_forw;
 	}
         if (w != NULL) {
 		wclear(w);
@@ -159,7 +155,6 @@ initnetstat()
 		error("No symbols in namelist");
 		return(0);
 	}
-	netcb.ni_forw = netcb.ni_prev = (struct netinfo *)&netcb;
 	protos = TCP|UDP;
 	return(1);
 }
@@ -178,7 +173,7 @@ fetchnetstat()
 
 	if (namelist[X_TCB].n_value == 0)
 		return;
-	for (p = netcb.ni_forw; p != (struct netinfo *)&netcb; p = p->ni_forw)
+	TAILQ_FOREACH(p, &netcb, chain)
 		p->ni_seen = 0;
 	if (protos&TCP) {
 		off = NPTR(X_TCB);
@@ -194,7 +189,7 @@ fetchnetstat()
 	}
 again:
 	KREAD(off, &head, sizeof (struct inpcbhead));
-	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
+	LIST_FOREACH(next, &head, inp_list) {
 		KREAD(next, &inpcb, sizeof (inpcb));
 		if (!aflag && inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
 			continue;
@@ -232,7 +227,7 @@ enter(inp, so, state, proto)
 	 * will appear as ``not seen'' in the kernel
 	 * data structures.
 	 */
-	for (p = netcb.ni_forw; p != (struct netinfo *)&netcb; p = p->ni_forw) {
+	TAILQ_FOREACH(p, &netcb, chain) {
 		if (!streq(proto, p->ni_proto))
 			continue;
 		if (p->ni_lport != inp->inp_lport ||
@@ -242,15 +237,12 @@ enter(inp, so, state, proto)
 		    p->ni_fport == inp->inp_fport)
 			break;
 	}
-	if (p == (struct netinfo *)&netcb) {
+	if (p == NULL) {
 		if ((p = malloc(sizeof(*p))) == NULL) {
 			error("Out of memory");
 			return;
 		}
-		p->ni_prev = (struct netinfo *)&netcb;
-		p->ni_forw = netcb.ni_forw;
-		netcb.ni_forw->ni_prev = p;
-		netcb.ni_forw = p;
+		TAILQ_INSERT_HEAD(&netcb, p, chain);
 		p->ni_line = -1;
 		p->ni_laddr = inp->inp_laddr;
 		p->ni_lport = inp->inp_lport;
@@ -298,31 +290,26 @@ shownetstat()
 	 * away and adjust the position of connections
 	 * below to reflect the deleted line.
 	 */
-	p = netcb.ni_forw;
-	while (p != (struct netinfo *)&netcb) {
-		if (p->ni_line == -1 || p->ni_seen) {
-			p = p->ni_forw;
+	TAILQ_FOREACH(p, &netcb, chain) {
+		if (p->ni_line == -1 || p->ni_seen)
 			continue;
-		}
 		wmove(wnd, p->ni_line, 0); wdeleteln(wnd);
-		q = netcb.ni_forw;
-		for (; q != (struct netinfo *)&netcb; q = q->ni_forw)
+		TAILQ_FOREACH(q, &netcb, chain)
 			if (q != p && q->ni_line > p->ni_line) {
 				q->ni_line--;
 				/* this shouldn't be necessary */
 				q->ni_flags |= NIF_LACHG|NIF_FACHG;
 			}
 		lastrow--;
-		q = p->ni_forw;
-		p->ni_prev->ni_forw = p->ni_forw;
-		p->ni_forw->ni_prev = p->ni_prev;
+		q = TAILQ_PREV(p);
+		TAILQ_REMOVE(&netcb, p, chain);
 		free(p);
 		p = q;
 	}
 	/*
 	 * Update existing connections and add new ones.
 	 */
-	for (p = netcb.ni_forw; p != (struct netinfo *)&netcb; p = p->ni_forw) {
+	TAILQ_FOREACH(p, &netcb, chain) {
 		if (p->ni_line == -1) {
 			/*
 			 * Add a new entry if possible.
@@ -437,20 +424,18 @@ int
 cmdnetstat(cmd, args)
 	char *cmd, *args;
 {
-	register struct netinfo *p;
-
 	if (prefix(cmd, "all")) {
 		aflag = !aflag;
 		goto fixup;
 	}
 	if  (prefix(cmd, "numbers") || prefix(cmd, "names")) {
+		struct netinfo *p;
 		int new;
 
 		new = prefix(cmd, "numbers");
 		if (new == nflag)
 			return (1);
-		p = netcb.ni_forw;
-		for (; p != (struct netinfo *)&netcb; p = p->ni_forw) {
+		TAILQ_FOREACH(p, &netcb, chain) {
 			if (p->ni_line == -1)
 				continue;
 			p->ni_flags |= NIF_LACHG|NIF_FACHG;
