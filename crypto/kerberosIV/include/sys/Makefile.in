@@ -1,0 +1,53 @@
+# $Id: Makefile.in,v 1.18 1997/05/11 04:29:47 assar Exp $
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+LN_S		= @LN_S@
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
+
+prefix		= @prefix@
+includedir	= @includedir@
+HAVE_CDEFS	= @ac_cv_header_sys_cdefs_h@
+
+@SET_MAKE@
+
+HEADERS = cdefs.h
+
+all: stamp-headers
+
+Wall:
+	$(MAKE) CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
+
+install: all
+	$(MKINSTALLDIRS) $(includedir)/sys
+	-if test "$(HAVE_CDEFS)" != yes; then \
+	  $(INSTALL_DATA) cdefs.h $(includedir)/sys/cdefs.h ; \
+	fi
+
+uninstall:
+	-if test "$(HAVE_CDEFS)" != yes; then \
+	  rm -f $(includedir)/sys/cdefs.h ; \
+	fi
+
+clean:
+	rm -f $(HEADERS) stamp-headers
+
+mostlyclean:	clean
+distclean:	clean
+	rm -f Makefile config.status *~
+
+realclean:	clean
+
+cdefs.h:
+	if test "$(HAVE_CDEFS)" != yes; then \
+	  $(LN_S) ${srcdir}/cdefs.H cdefs.h; \
+	fi || true
+
+stamp-headers:
+	$(MAKE) $(HEADERS)
+	touch stamp-headers

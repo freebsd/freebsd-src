@@ -1,0 +1,65 @@
+-------------------------------------------------------------------------------
+Recent versions of 3.0-current have the bktr driver built in.  Older versions
+of 3.0 and all versions of 2.2 need to have the driver files installed by hand:
+
+cp ioctl_bt848.h /sys/i386/include/
+cp brktree_reg.h brooktree848.c /sys/pci/
+
+In /sys/conf/files add:
+pci/brooktree848.c        optional bktr device-driver
+
+-------------------------------------------------------------------------------
+In all cases you will need to add the driver to your kernel:
+
+In your kernel configuration file:
+controller      pci0     #if you already have this line don't add it.
+device          bktr0    
+
+There is no need to specify DMA channels nor interrupts for this
+driver.
+
+-------------------------------------------------------------------------------
+Finally you need to create nodes for the driver:
+
+Create a video device:
+mknod /dev/bktr0 c 79 0
+
+Create a tuner device:
+mknod /dev/tuner0 c 79 16
+
+-------------------------------------------------------------------------------
+The code attempts to auto-probe code to detect card/tuner types.
+The detected card is printed in the dmesg as the driver is loaded.  If
+this fails to detect the proper card you can override it in brooktree848.c:
+
+#define OVERRIDE_CARD	<card type>
+
+where <card type> is one of:
+	CARD_UNKNOWN
+	CARD_MIRO
+	CARD_HAUPPAUGE
+	CARD_STB
+	CARD_INTEL
+
+-------------------------------------------------------------------------------
+This model now separates the "tuner control" items into a minor device:
+
+minor device layout:  xxxxxxxx xxxT UUUU
+
+ UUUU:   the card (ie UNIT) identifier, 0 thru 15
+ T == 0: video device
+ T == 1: tuner device
+
+Access your tuner ioctl thru your tuner device handle and anything
+which controls the video capture process thru the video device handle.
+
+Certain ioctl()s such as video source are available thru both devices.
+
+-------------------------------------------------------------------------------
+The bt848 driver consists of:
+
+src/sys/i386/include/ioctl_bt848.h
+src/sys/pci/brktree_reg.h
+src/sys/pci/brooktree848.c
+
+

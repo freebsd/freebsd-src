@@ -1,0 +1,160 @@
+.\" $Id: krb_realmofhost.3,v 1.2 1996/06/12 21:29:23 bg Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KRB_REALMOFHOST 3 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+krb_realmofhost, krb_get_phost, krb_get_krbhst, krb_get_admhst,
+krb_get_lrealm \- additional Kerberos utility routines
+.SH SYNOPSIS
+.nf
+.nj
+.ft B
+#include <krb.h>
+#include <des.h>
+#include <netinet/in.h>
+.PP
+.ft B
+char *krb_realmofhost(host)
+char *host;
+.PP
+.ft B
+char *krb_get_phost(alias)
+char *alias;
+.PP
+.ft B
+krb_get_krbhst(host,realm,n)
+char *host;
+char *realm;
+int n;
+.PP
+.ft B
+krb_get_admhst(host,realm,n)
+char *host;
+char *realm;
+int n;
+.PP
+.ft B
+krb_get_lrealm(realm,n)
+char *realm;
+int n;
+.fi
+.ft R
+.SH DESCRIPTION
+.I krb_realmofhost
+returns the Kerberos realm of the host
+.IR host ,
+as determined by the translation table
+.IR /etc/krb.realms .
+.I host
+should be the fully-qualified domain-style primary host name of the host
+in question.  In order to prevent certain security attacks, this routine
+must either have 
+.I a priori
+knowledge of a host's realm, or obtain such information securely.
+.PP
+The format of the translation file is described by 
+.IR krb.realms (5).
+If
+.I host
+exactly matches a host_name line, the corresponding realm
+is returned.
+Otherwise, if the domain portion of
+.I host
+matches a domain_name line, the corresponding realm
+is returned.
+If
+.I host
+contains a domain, but no translation is found,
+.IR host 's
+domain is converted to upper-case and returned.
+If 
+.I host
+contains no discernable domain, or an error occurs,
+the local realm name, as supplied by 
+.IR krb_get_lrealm (3),
+is returned.
+.PP
+.I krb_get_phost
+converts the hostname
+.I alias
+(which can be either an official name or an alias) into the instance
+name to be used in obtaining Kerberos tickets for most services,
+including the Berkeley rcmd suite (rlogin, rcp, rsh).
+.br
+The current convention is to return the first segment of the official
+domain-style name after conversion to lower case.
+.PP
+.I krb_get_krbhst
+fills in
+.I host
+with the hostname of the
+.IR n th
+host running a Kerberos key distribution center (KDC)
+for realm
+.IR realm ,
+as specified in the configuration file (\fI/etc/krb.conf\fR).
+The configuration file is described by 
+.IR krb.conf (5).
+If the host is successfully filled in, the routine
+returns KSUCCESS.
+If the file cannot be opened, and
+.I n
+equals 1, then the value of KRB_HOST as defined in
+.I <krb.h>
+is filled in, and KSUCCESS is returned.  If there are fewer than
+.I n
+hosts running a Kerberos KDC for the requested realm, or the
+configuration file is malformed, the routine
+returns KFAILURE.
+.PP
+.I krb_get_admhst
+fills in
+.I host
+with the hostname of the
+.IR n th
+host running a Kerberos KDC database administration server
+for realm
+.IR realm ,
+as specified in the configuration file (\fI/etc/krb.conf\fR).
+If the file cannot be opened or is malformed, or there are fewer than
+.I n
+hosts running a Kerberos KDC database administration server,
+the routine returns KFAILURE.
+.PP
+The character arrays used as return values for
+.IR krb_get_krbhst ,
+.IR krb_get_admhst ,
+should be large enough to
+hold any hostname (MAXHOSTNAMELEN from <sys/param.h>).
+.PP
+.I krb_get_lrealm
+fills in
+.I realm
+with the
+.IR n th
+realm of the local host, as specified in the configuration file.
+.I realm
+should be at least REALM_SZ (from
+.IR <krb.h>) characters long.
+.PP
+.SH SEE ALSO
+kerberos(3), krb.conf(5), krb.realms(5)
+.SH FILES
+.TP 20n
+/etc/krb.realms
+translation file for host-to-realm mapping.
+.TP
+/etc/krb.conf
+local realm-name and realm/server configuration file.
+.SH BUGS
+The current convention for instance names is too limited; the full
+domain name should be used.
+.PP
+.I krb_get_lrealm
+currently only supports 
+.I n
+= 1.  It should really consult the user's ticket cache to determine the
+user's current realm, rather than consulting a file on the host.

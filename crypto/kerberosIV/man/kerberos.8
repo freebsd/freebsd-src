@@ -1,0 +1,44 @@
+.\" $Id: kerberos.8,v 1.1 1996/11/14 22:14:55 assar Exp $
+.\"
+.Dd November 14, 1996
+.Dt KERBEROS 8
+.Os KTH-KRB
+.Sh NAME
+.Nm kerberos
+.Nd The kerberos daemon
+.Sh SYNPOSIS
+.Nm
+.Op Fl snm
+.Op Fl p Ar pause
+.Op Fl a Ar max age
+.Op Fl l Ar log
+.Op Fl r Ar realm
+.Ar database
+.Sh DESCRIPTION
+This is the
+.Nm
+daemon.
+.Pp
+Options:
+.Bl -tag -width -ident
+.It Fl s
+Set slave parameters.  This will enable check to see if data is
+getting too stale relative to the master.
+.It Fl n
+Do not check max age. 
+.It Fl m
+Run manually and prompt for master key.
+.It Fl p
+Pause for
+.Ar pause
+before dying.
+.It Fl a
+Set the
+.Ar max age
+before the database is considered stale.
+.It Fl l
+Write the log to
+.Ar log
+.It Fl r
+Run as a server for realm
+.Ar realm
