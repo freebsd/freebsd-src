@@ -246,22 +246,22 @@ zextendPool(MemPool *mp, void *base, iaddr_t bytes)
 	mp->mp_Base = base;
 	mp->mp_Used = bytes;
 	mp->mp_End = (char *)base + bytes;
+	mp->mp_Size = bytes;
     } else {
 	void *pend = (char *)mp->mp_Base + mp->mp_Size;
 
 	if (base < mp->mp_Base) {
-	    /* mp->mp_Size += (char *)mp->mp_Base - (char *)base; */
+	    mp->mp_Size += (char *)mp->mp_Base - (char *)base;
 	    mp->mp_Used += (char *)mp->mp_Base - (char *)base;
 	    mp->mp_Base = base;
 	}
 	base = (char *)base + bytes;
 	if (base > pend) {
-	    /* mp->mp_Size += (char *)base - (char *)pend; */
+	    mp->mp_Size += (char *)base - (char *)pend;
 	    mp->mp_Used += (char *)base - (char *)pend;
 	    mp->mp_End = (char *)base;
 	}
     }
-    mp->mp_Size += bytes;
 }
 
 #ifdef ZALLOCDEBUG
