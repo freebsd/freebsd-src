@@ -57,7 +57,7 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
-options		ICMP_BANDLIM		#Rate limit bad replies
+options 	ICMP_BANDLIM		#Rate limit bad replies
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -92,7 +92,7 @@ device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
-options		SYM_SETUP_LP_PROBE_MAP=0x40
+options 	SYM_SETUP_LP_PROBE_MAP=0x40
 				# Allow ncr to attach legacy NCR devices when 
 				# both sym and ncr are configured
 
@@ -103,7 +103,7 @@ device	aic0	at isa? port 0x1840 irq 5 flags 0x10000
 # WD33C93 SCSI card (55/92 like board)
 #
 
-options	BS_TARG_SAFEMODE
+options 	BS_TARG_SAFEMODE
 
 # PC-9801-92
 device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
