@@ -342,38 +342,6 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_TDCR_128		0x0a
 #define APIC_TDCR_1		0x0b
 
-
-/*
- * fields in IRR
- * ISA INTerrupts are in bits 16-31 of the 1st IRR register.
- * these masks DON'T EQUAL the isa IRQs of the same name.
- */
-#define APIC_IRQ0		0x00000001
-#define APIC_IRQ1		0x00000002
-#define APIC_IRQ2		0x00000004
-#define APIC_IRQ3		0x00000008
-#define APIC_IRQ4		0x00000010
-#define APIC_IRQ5		0x00000020
-#define APIC_IRQ6		0x00000040
-#define APIC_IRQ7		0x00000080
-#define APIC_IRQ8		0x00000100
-#define APIC_IRQ9		0x00000200
-#define APIC_IRQ10		0x00000400
-#define APIC_IRQ11		0x00000800
-#define APIC_IRQ12		0x00001000
-#define APIC_IRQ13		0x00002000
-#define APIC_IRQ14		0x00004000
-#define APIC_IRQ15		0x00008000
-#define APIC_IRQ16		0x00010000
-#define APIC_IRQ17		0x00020000
-#define APIC_IRQ18		0x00040000
-#define APIC_IRQ19		0x00080000
-#define APIC_IRQ20		0x00100000
-#define APIC_IRQ21		0x00200000
-#define APIC_IRQ22		0x00400000
-#define APIC_IRQ23		0x00800000
-
-
 /******************************************************************************
  * I/O APIC defines
  */
