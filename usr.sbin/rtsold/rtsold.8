@@ -1,4 +1,4 @@
-.\"	$KAME: rtsold.8,v 1.16 2000/10/15 13:19:05 itojun Exp $
+.\"	$KAME: rtsold.8,v 1.20 2003/04/11 12:46:12 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -56,9 +56,8 @@
 .Fl a
 .\"
 .Sh DESCRIPTION
-The
 .Nm
-utility is the daemon program to send ICMPv6 Router Solicitation messages
+is the daemon program to send ICMPv6 Router Solicitation messages
 on the specified interfaces.
 If a node (re)attaches to a link,
 .Nm
@@ -66,10 +65,9 @@ sends some Router Solicitations on the link destined to the link-local scope
 all-routers multicast address to discover new routers
 and to get non link-local addresses.
 .Pp
-The
 .Nm
-utility should be used on IPv6 hosts
-(non-router nodes)
+should be used on IPv6 hosts
+.Pq non-router nodes
 only.
 .Pp
 If you invoke the program as
@@ -98,9 +96,8 @@ Just after invocation of
 daemon.
 .It
 The interface is up after a temporary interface failure.
-The
 .Nm
-utility detects such failures by periodically probing to see if the status
+detects such failures by periodically probing to see if the status
 of the interface is active or not.
 Note that some network cards and drivers do not allow the extraction
 of link state.
@@ -154,13 +151,12 @@ Upon receipt of signal
 will dump the current internal state into
 .Pa /var/run/rtsold.dump .
 .\"
-.Sh OPTIONS
+.Pp
+The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Autoprobe outgoing interface.
-The
 .Nm
-utility
 will try to find a non-loopback, non-point-to-point, IPv6-capable interface.
 If
 .Nm
@@ -173,7 +169,8 @@ Enable debugging.
 .It Fl D
 Enable more debugging including the printing of internal timer information.
 .It Fl f
-Prevent
+.Fl f
+prevents
 .Nm
 from becoming a daemon (foreground mode).
 Warning messages are generated to standard error
@@ -212,8 +209,10 @@ must be the absolute path from root to the script file, be a regular
 file, and be created by the same owner who runs
 .Nm .
 .El
-.Sh DIAGNOSTICS
-.Ex -std rtsold rtsol
+.Sh RETURN VALUES
+The
+.Nm
+program exits 0 on success, and >0 on failures.
 .\"
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact
@@ -231,13 +230,12 @@ dumps internal state on.
 .Sh HISTORY
 The
 .Nm
-utility is based on the
+command is based on the
 .Nm rtsol
-utility, which first appeared in WIDE/KAME IPv6 protocol stack kit.
-The
+command, which first appeared in WIDE/KAME IPv6 protocol stack kit.
 .Nm rtsol
-utility is now integrated into
-.Nm .
+is now integrated into
+.Xr rtsold 8 .
 .\"
 .Sh BUGS
 In some operating systems, when a PCMCIA network card is removed
