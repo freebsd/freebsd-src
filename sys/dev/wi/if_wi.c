@@ -614,10 +614,8 @@ wi_init(void *arg)
 		return;
 	}
 
-	/* Symbol firmware cannot be initialized more than once */
 	if ((wasenabled = sc->sc_enabled))
 		wi_stop(ifp, 0);
-	sc->sc_enabled = 1;
 	wi_reset(sc);
 
 	/* common 802.11 configuration */
@@ -705,6 +703,7 @@ wi_init(void *arg)
 	/* Set multicast filter. */
 	wi_write_multi(sc);
 
+	/* Allocate fids for the card */
 	if (sc->sc_firmware_type != WI_SYMBOL || !wasenabled) {
 		sc->sc_buflen = IEEE80211_MAX_LEN + sizeof(struct wi_frame);
 		if (sc->sc_firmware_type == WI_SYMBOL)
@@ -726,6 +725,7 @@ wi_init(void *arg)
 	/* Enable desired port */
 	wi_cmd(sc, WI_CMD_ENABLE | sc->sc_portnum, 0, 0, 0);
 
+	sc->sc_enabled = 1;
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
@@ -785,8 +785,8 @@ wi_stop(struct ifnet *ifp, int disable)
 			if (sc->sc_disable)
 				(*sc->sc_disable)(sc);
 #endif
-			sc->sc_enabled = 0;
 		}
+		sc->sc_enabled = 0;
 	}
 
 	sc->sc_tx_timer = 0;
@@ -937,31 +937,40 @@ wi_start(struct ifnet *ifp)
 static int
 wi_reset(struct wi_softc *sc)
 {
-#define WI_INIT_TRIES 5
-	int i, error;
-
-	/* Symbol firmware cannot be reset more than once. */
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
+#define WI_INIT_TRIES 3
+	int i;
+	int error;
+	int tries;
+	
+	/* Symbol firmware cannot be initialized more than once */
 	if (sc->sc_firmware_type == WI_SYMBOL && sc->sc_reset)
 		return (0);
-	sc->sc_reset = 1;
+	if (sc->sc_firmware_type == WI_SYMBOL)
+		tries = 1;
+	else
+		tries = WI_INIT_TRIES;
 
-	for (i = 0; i < WI_INIT_TRIES; i++) {
+	for (i = 0; i < tries; i++) {
 		if ((error = wi_cmd(sc, WI_CMD_INI, 0, 0, 0)) == 0)
 			break;
 		DELAY(WI_DELAY * 1000);
 	}
+	sc->sc_reset = 1;
 
-	if (error) {
-		device_printf(sc->sc_dev, "init failed\n");
-		return error;
+	if (i == tries) {
+		if_printf(ifp, "init failed\n");
+		return (error);
 	}
 
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
-	CSR_WRITE_2(sc, WI_EVENT_ACK, ~0);
+	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
 	/* Calibrate timer. */
-	wi_write_val(sc, WI_RID_TICK_TIME, 0);
-	return 0;
+	wi_write_val(sc, WI_RID_TICK_TIME, 8);
+
+	return (0);
 #undef WI_INIT_TRIES
 }
 
