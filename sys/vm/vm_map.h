@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.41 1999/05/17 00:53:55 alc Exp $
+ * $Id: vm_map.h,v 1.42 1999/06/19 18:42:51 alc Exp $
  */
 
 /*
@@ -304,10 +304,8 @@ vmspace_resident_count(struct vmspace *vmspace)
 
 #ifdef KERNEL
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
-int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
 struct pmap;
 vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t));
-void vm_map_deallocate __P((vm_map_t));
 int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int));
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
