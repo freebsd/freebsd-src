@@ -47,6 +47,23 @@
 				/* xxxxx */
 #define I386_VM86	6
 
+struct i386_ldt_args {
+	int	start;
+	union	descriptor *descs;
+	int	num;
+}; 
+
+struct i386_ioperm_args {
+	unsigned int start;
+	unsigned int length;
+	int	enable;
+};
+
+struct i386_vm86_args {
+	int	sub_op;			/* sub-operation to perform */
+	char	*sub_args;		/* args */
+};
+
 #ifndef KERNEL
 #include <sys/cdefs.h>
 
