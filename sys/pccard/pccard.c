@@ -514,13 +514,13 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 		ap = &s_hook[slt->slotnum];
 		ap->ah_fun = slot_suspend;
 		ap->ah_arg = (void *)slt;
-		ap->ah_name = ctrl->name;
+		ap->ah_name = "pcccard";
 		ap->ah_order = APM_MID_ORDER;
 		apm_hook_establish(APM_HOOK_SUSPEND, ap);
 		ap = &r_hook[slt->slotnum];
 		ap->ah_fun = slot_resume;
 		ap->ah_arg = (void *)slt;
-		ap->ah_name = ctrl->name;
+		ap->ah_name = "pccard";
 		ap->ah_order = APM_MID_ORDER;
 		apm_hook_establish(APM_HOOK_RESUME, ap);
 	}
