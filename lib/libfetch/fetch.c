@@ -314,6 +314,8 @@ fetchParseURL(char *URL)
 	 */
 	if (URL[1] == '/')
 	    URL = (p += 2);
+    } else {
+	p = URL;
     }
     if (!*URL || *URL == '/')
 	goto nohost;
