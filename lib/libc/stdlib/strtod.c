@@ -481,13 +481,13 @@ s2b
 	if (9 < nd0) {
 		s += 9;
 		do
-			b = multadd(b, 10, *s++ - '0');
+			b = multadd(b, 10, digittoint((unsigned char)*s++));
 		while (++i < nd0);
 		s++;
 	} else
 		s += 10;
 	for (; i < nd; i++)
-		b = multadd(b, 10, *s++ - '0');
+		b = multadd(b, 10, digittoint((unsigned char)*s++));
 	return b;
 }
 
@@ -1219,26 +1219,26 @@ strtod
 			goto break2;
 	}
  break2:
-	if (*s == '0') {
+	if (isdigit(c = (unsigned char)*s) && digittoint(c) == 0) {
 		nz0 = 1;
-		while (*++s == '0') ;
+		while (isdigit(c = (unsigned char)*++s) && digittoint(c) == 0) ;
 		if (!*s)
 			goto ret;
 	}
 	s0 = s;
 	y = z = 0;
-	for (nd = nf = 0; (c = *s) >= '0' && c <= '9'; nd++, s++)
+	for (nd = nf = 0; isdigit(c = (unsigned char)*s); nd++, s++)
 		if (nd < 9)
-			y = 10*y + c - '0';
+			y = 10*y + digittoint(c);
 		else if (nd < 16)
-			z = 10*z + c - '0';
+			z = 10*z + digittoint(c);
 	nd0 = nd;
 	if ((char)c == decimal_point) {
-		c = *++s;
+		c = (unsigned char)*++s;
 		if (!nd) {
-			for (; c == '0'; c = *++s)
+			for (; isdigit(c) && digittoint(c) == 0; c = (unsigned char)*++s)
 				nz++;
-			if (c > '0' && c <= '9') {
+			if (isdigit(c)) {
 				s0 = s;
 				nf += nz;
 				nz = 0;
@@ -1246,10 +1246,10 @@ strtod
 			}
 			goto dig_done;
 		}
-		for (; c >= '0' && c <= '9'; c = *++s) {
+		for (; isdigit(c); c = (unsigned char)*++s) {
  have_dig:
 			nz++;
-			if (c -= '0') {
+			if (digittoint(c) != 0) {
 				nf += nz;
 				for (i = 1; i < nz; i++)
 					if (nd++ < 9)
@@ -1257,9 +1257,9 @@ strtod
 					else if (nd <= DBL_DIG + 1)
 						z *= 10;
 				if (nd++ < 9)
-					y = 10*y + c;
+					y = 10*y + digittoint(c);
 				else if (nd <= DBL_DIG + 1)
-					z = 10*z + c;
+					z = 10*z + digittoint(c);
 				nz = 0;
 			}
 		}
@@ -1273,20 +1273,20 @@ strtod
 		}
 		s00 = s;
 		esign = 0;
-		switch(c = *++s) {
+		switch(c = (unsigned char)*++s) {
 			case '-':
 				esign = 1;
 			case '+':
-				c = *++s;
+				c = (unsigned char)*++s;
 		}
-		if (c >= '0' && c <= '9') {
-			while (c == '0')
-				c = *++s;
-			if (c > '0' && c <= '9') {
-				L = c - '0';
+		if (isdigit(c)) {
+			while (isdigit(c) && digittoint(c) == 0)
+				c = (unsigned char)*++s;
+			if (isdigit(c)) {
+				L = digittoint(c);
 				s1 = s;
-				while ((c = *++s) >= '0' && c <= '9')
-					L = 10*L + c - '0';
+				while (isdigit(c = (unsigned char)*++s))
+					L = 10*L + digittoint(c);
 				if (s - s1 > 8 || L > 19999)
 					/* Avoid confusion from exponents
 					 * so large that e might overflow.
