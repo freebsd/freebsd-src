@@ -249,6 +249,7 @@ ata_completed(void *context, int dummy)
 	    && request->device->param){
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
+	    request->donecount = 0;
 	    ATA_DEBUG_RQ(request, "completed reinject");
 	    ata_queue_request(request);
 	    return;
