@@ -269,10 +269,8 @@ wi_attach(device_t dev)
 #endif
 
 	/* Reset the NIC. */
-	if (wi_reset(sc) != 0) {
-		WI_UNLOCK(sc);
+	if (wi_reset(sc) != 0)
 		return ENXIO;		/* XXX */
-	}
 
 	/*
 	 * Read the station address.
