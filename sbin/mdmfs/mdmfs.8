@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2001
+.Dd August 5, 2001
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLMNSX
+.Op Fl DLMNSUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
@@ -51,6 +51,24 @@ driver
 .Op Fl p Ar permissions
 .Op Fl s Ar size
 .Op Fl w Ar user : Ns Ar group
+.Ar md-device
+.Ar mount-point
+.Nm
+.Fl C
+.Op Fl NU
+.Op Fl a Ar maxcontig
+.Op Fl b Ar block-size
+.Op Fl c Ar cylinders
+.Op Fl d Ar rotdelay
+.Op Fl e Ar maxbpg
+.Op Fl F Ar file
+.Op Fl f Ar frag-size
+.Op Fl i Ar bytes
+.Op Fl m Ar percent-free
+.Op Fl n Ar rotational-positions
+.Op Fl O Ar optimization
+.Op Fl o Ar mount-options
+.Op Fl s Ar size
 .Ar md-device
 .Ar mount-point
 .Sh DESCRIPTION
@@ -110,6 +128,13 @@ out before forcing a rotational delay
 option).
 .It Fl b Ar block-size
 The block size of the filesystem, in bytes.
+.It Fl C
+Enable full compatibility mode with
+.Xr mount_mfs 8 .
+See the
+.\" XXX link to another section?
+.Em COMPATIBILITY
+section for more information.
 .It Fl c Ar cylinders
 The number of cylinders per cylinder group in the filesystem.
 .It Fl D
@@ -192,6 +217,13 @@ and the optional
 .Xr malloc 9
 backed disks
 .Pq Dv MD_MALLOC .
+.It Fl U
+Enable soft-updates on the filesystem.
+This is the default, even in compatibility mode, and is accepted only
+for compatibility.
+It is only really useful to negate the
+.Fl S
+flag, should such a need occur.
 .It Fl w Ar user : Ns Ar group
 Set the owner and group to
 .Ar user
@@ -257,8 +289,46 @@ do not use soft-updates on it and mount it
 .Cm async :
 .Pp
 .Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
+.Sh COMPATIBILITY
+.Nm ,
+while designed to be fully compatible with
+.Xr mount_mfs 8 ,
+can be useful by itself.
+Since
+.Xr mount_mfs 8
+has some silly defaults, a
+.Dq full compatibility
+mode is provided for the case where bug-to-bug compatibility is desired.
+.Pp
+Full compatibility is enabled with the
+.Fl C
+flag,
+or by starting
+.Nm
+with
+.Li mount_
+at the beginning of its name
+(as returned by
+.Xr getprogname 3 ) .
+In this mode, only the options which would be accepted by
+.Xr mount_mfs 8
+are valid.
+Furthermore, the following behavior, as done by
+.Xr mount_mfs 8 ,
+is duplicated:
+.Bl -bullet -offset indent -compat
+.It
+The file mode of
+.Ar mount-point
+is set to
+.Li 01777
+as if
+.Fl p Ar 1777
+was given on the command line.
+.El
 .Sh SEE ALSO
 .Xr md 4 ,
+.Xr fstab 5 ,
 .Xr disklabel 8 ,
 .Xr mdconfig 8 ,
 .Xr mount 8 ,
