@@ -1,4 +1,4 @@
-#	$Id: README,v 1.9 1997/04/25 14:14:31 wosch Exp $
+#	$Id: README,v 1.10 1997/11/09 11:23:43 wosch Exp $
 
 This directory is for tools.
 
@@ -17,3 +17,4 @@ kdrv		KernelDriver; add/list/remove third-party kernel driver
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 portsinfo 	Generate list of new ports for last two weeks.
 html-mv         Rename HTML generated filenames to human readable filenames.
+mid	 	Create a Message-ID database for mailing lists.
