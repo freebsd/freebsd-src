@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -64,6 +66,7 @@ static char sccsid[] = "@(#)quotacheck.c	8.3 (Berkeley) 1/29/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -108,7 +111,6 @@ struct fileusage *
 char	*blockcheck __P((char *));
 void	 bread __P((daddr_t, char *, long));
 int	 chkquota __P((char *, char *, struct quotaname *));
-void	 err __P((const char *, ...));
 void	 freeinodebuf __P((void));
 struct dinode *
 	 getnextinode __P((ino_t));
@@ -180,7 +182,7 @@ main(argc, argv)
 	if (aflag)
 		exit(checkfstab(1, maxrun, needchk, chkquota));
 	if (setfsent() == 0)
-		err("%s: can't open", FSTAB);
+		errx(1, "%s: can't open", FSTAB);
 	while ((fs = getfsent()) != NULL) {
 		if (((argnum = oneof(fs->fs_file, argv, argc)) >= 0 ||
 		    (argnum = oneof(fs->fs_spec, argv, argc)) >= 0) &&
@@ -201,9 +203,9 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage:\t%s\n\t%s\n",
-		"quotacheck -a [-guv]",
-		"quotacheck [-guv] filesys ...");
+	(void)fprintf(stderr, "%s\n%s\n", 
+		"usage: quotacheck -a [-guv]",
+		"       quotacheck [-guv] filesys ...");
 	exit(1);
 }
 
@@ -218,7 +220,7 @@ needchk(fs)
 	    strcmp(fs->fs_type, FSTAB_RW))
 		return (NULL);
 	if ((qnp = malloc(sizeof(*qnp))) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	qnp->flags = 0;
 	if (gflag && hasquota(fs, GRPQUOTA, &qfnp)) {
 		strcpy(qnp->grpqfname, qfnp);
@@ -322,20 +324,17 @@ update(fsname, quotafile, type)
 		if (errno == ENOENT)
 			qfo = fopen(quotafile, "w+");
 		if (qfo) {
-			(void) fprintf(stderr,
-			    "quotacheck: creating quota file %s\n", quotafile);
+			warnx("creating quota file %s", quotafile);
 #define	MODE	(S_IRUSR|S_IWUSR|S_IRGRP)
 			(void) fchown(fileno(qfo), getuid(), getquotagid());
 			(void) fchmod(fileno(qfo), MODE);
 		} else {
-			(void) fprintf(stderr,
-			    "quotacheck: %s: %s\n", quotafile, strerror(errno));
+			warn("%s", quotafile);
 			return (1);
 		}
 	}
 	if ((qfi = fopen(quotafile, "r")) == NULL) {
-		(void) fprintf(stderr,
-		    "quotacheck: %s: %s\n", quotafile, strerror(errno));
+		warn("%s", quotafile);
 		(void) fclose(qfo);
 		return (1);
 	}
@@ -384,10 +383,8 @@ update(fsname, quotafile, type)
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
 		if (fseek(qfo, (long)offset, SEEK_SET) < 0) {
-			(void) fprintf(stderr,
-		    	    "quotacheck: %s: seek failed: %s\n",
-			    quotafile, strerror(errno));
-			    return(1);
+			warn("%s: seek failed", quotafile);
+			return(1);
 		}
 		fwrite((char *)&dqbuf, sizeof(struct dqblk), 1, qfo);
 		(void) quotactl(fsname, QCMD(Q_SETUSE, type), id,
@@ -511,7 +508,7 @@ addid(id, type, name)
 	else
 		len = 10;
 	if ((fup = calloc(1, sizeof(*fup) + len)) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	fhp = &fuhead[type][id & (FUHASH - 1)];
 	fup->fu_next = *fhp;
 	*fhp = fup;
@@ -547,7 +544,7 @@ getnextinode(inumber)
 	static struct dinode *dp;
 
 	if (inumber != nextino++ || inumber > maxino)
-		err("bad inode number %d to nextinode", inumber);
+		errx(1, "bad inode number %d to nextinode", inumber);
 	if (inumber >= lastinum) {
 		readcnt++;
 		dblk = fsbtodb(&sblock, ino_to_fsba(&sblock, lastinum));
@@ -587,7 +584,7 @@ resetinodebuf()
 	}
 	if (inodebuf == NULL &&
 	   (inodebuf = malloc((u_int)inobufsize)) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	while (nextino < ROOTINO)
 		getnextinode(nextino);
 }
@@ -616,9 +613,10 @@ bread(bno, buf, cnt)
 
 	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0 ||
 	    read(fi, buf, cnt) != cnt)
-		err("block %ld", bno);
+		errx(1, "block %ld", bno);
 }
 
+#ifdef 0
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -647,4 +645,4 @@ err(fmt, va_alist)
 	exit(1);
 	/* NOTREACHED */
 }
-
+#endif
