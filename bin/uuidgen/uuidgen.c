@@ -23,36 +23,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/endian.h>
-#include <sys/uuid.h>
-
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <uuid.h>
 
 static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: uuidgen [-1] [-n count]\n");
 	exit(1);
-}
-
-static void
-uuid_print(uuid_t *uuid)
-{
-	printf("%08x-%04x-%04x-%02x%02x-", uuid->time_low, uuid->time_mid,
-	    uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved,
-	    uuid->clock_seq_low);
-	printf("%02x%02x%02x%02x%02x%02x\n", uuid->node[0], uuid->node[1],
-	    uuid->node[2], uuid->node[3], uuid->node[4], uuid->node[5]);
 }
 
 int
@@ -105,8 +91,11 @@ main(int argc, char *argv[])
 	}
 
 	uuid = store;
-	while (count--)
-		uuid_print(uuid++);
+	while (count--) {
+		uuid_to_string(uuid++, &p, NULL);
+		printf("%s\n", p);
+		free(p);
+	}
 
 	free(store);
 	return (0);
