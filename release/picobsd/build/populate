@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.8.2.2 1999/02/15 00:29:51 abial Exp $
+#	$Id: populate,v 1.8.2.3 1999/02/21 22:04:24 abial Exp $
 #
 
 . ../Version
@@ -29,7 +29,7 @@ else
 	cat ../lang/mfs.rc.${LANGUAGE} | \
 		sed -e "s/@VER@/${VER}/g" > \
 		/mnt/etc/rc
-	cp ../../../dial/mfs.tree/login.conf /mnt/etc/login.conf
+	cp ../../dial/mfs.tree/login.conf /mnt/etc/login.conf
 	cat ../lang/README.${LANGUAGE} | \
 		sed -e "s/@VER@/${VER}/g" > \
 		/mnt/README
