@@ -65,7 +65,7 @@ MALLOC_DECLARE(M_DEVFS);
 struct devfs_dirent {
 	int	de_inode;
 	int	de_flags;
-#define	DE_ORPHAN	0x1
+#define	DE_WHITEOUT	0x1
 #define	DE_DOT		0x2
 #define	DE_DOTDOT	0x4
 	struct dirent *de_dirent;
