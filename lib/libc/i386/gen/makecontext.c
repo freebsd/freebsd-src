@@ -93,7 +93,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		 *
 		 *	_ctx_start()	- context start wrapper
 		 *	start()		- user start routine
-		 * 	arg1
+		 * 	arg1            - first argument, aligned(16)
 		 *	...
 		 *	argn
 		 *	ucp		- this context, %ebp points here
@@ -110,15 +110,17 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		 * (uc_link != 0) or exit the program (uc_link == 0).
 		 */
 		stack_top = (char *)(ucp->uc_stack.ss_sp +
-		    ucp->uc_stack.ss_size - sizeof(double));
-		stack_top = (char *)ALIGN(stack_top);
+		    ucp->uc_stack.ss_size - sizeof(intptr_t));
 
 		/*
 		 * Adjust top of stack to allow for 3 pointers (return
 		 * address, _ctx_start, and ucp) and argc arguments.
-		 * We allow the arguments to be pointers also.
+		 * We allow the arguments to be pointers also.  The first
+		 * argument to the user function must be properly aligned.
 		 */
-		stack_top = stack_top - (sizeof(intptr_t) * (3 + argc));
+		stack_top = stack_top - (sizeof(intptr_t) * (1 + argc));
+		stack_top = (char *)((unsigned)stack_top & ~15);
+		stack_top = stack_top - (2 * sizeof(intptr_t));
 		argp = (intptr_t *)stack_top;
 
 		/*
