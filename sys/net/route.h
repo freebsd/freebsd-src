@@ -252,6 +252,7 @@ struct rt_addrinfo {
 
 struct route_cb {
 	int	ip_count;
+	int	ip6_count;
 	int	ipx_count;
 	int	ns_count;
 	int	iso_count;
@@ -281,9 +282,10 @@ void	 rt_newmaddrmsg __P((int, struct ifmultiaddr *));
 int	 rt_setgate __P((struct rtentry *,
 	    struct sockaddr *, struct sockaddr *));
 void	 rtalloc __P((struct route *));
-void	 rtalloc_ign __P((struct route *, unsigned long));
+void	 rtalloc_ign __P((struct route *, u_long));
+void	 rtcalloc __P((struct route *)); /* for INET6 */
 struct rtentry *
-	 rtalloc1 __P((struct sockaddr *, int, unsigned long));
+	 rtalloc1 __P((struct sockaddr *, int, u_long));
 void	 rtfree __P((struct rtentry *));
 int	 rtinit __P((struct ifaddr *, int, int));
 int	 rtioctl __P((int, caddr_t, struct proc *));

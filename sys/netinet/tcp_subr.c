@@ -75,6 +75,12 @@ int 	tcp_mssdflt = TCP_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW, 
     &tcp_mssdflt , 0, "Default TCP Maximum Segment Size");
 
+#ifdef INET6
+int	tcp_v6mssdflt = TCP6_MSS;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+	CTLFLAG_RW, &tcp_v6mssdflt , 0, "");
+#endif
+
 #if 0
 static int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW, 

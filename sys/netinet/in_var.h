@@ -232,4 +232,7 @@ void	ipflow_slowtimo __P((void));
 
 #endif /* KERNEL */
 
+/* INET6 stuff */
+#include <netinet6/in6_var.h>
+
 #endif /* _NETINET_IN_VAR_H_ */

@@ -156,12 +156,30 @@ struct sockproto {
 };
 
 /*
+ * bsd-api-new-02a: protocol-independent placeholder for socket addresses
+ */
+#define	_SS_MAXSIZE	128
+#define	_SS_ALIGNSIZE	(sizeof(int64_t))
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) * 2)
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) * 2 - \
+				_SS_PAD1SIZE - _SS_ALIGNSIZE)
+
+struct sockaddr_storage {
+	u_char	__ss_len;		/* address length */
+	u_char	__ss_family;	/* address family */
+	char	__ss_pad1[_SS_PAD1SIZE];
+	int64_t	__ss_align;	/* force desired structure storage alignment */
+	char	__ss_pad2[_SS_PAD2SIZE];
+};
+
+/*
  * Protocol families, same as address families for now.
  */
 #define	PF_UNSPEC	AF_UNSPEC
 #define	PF_LOCAL	AF_LOCAL
 #define	PF_UNIX		PF_LOCAL	/* backward compatibility */
 #define	PF_INET		AF_INET
+#define	PF_INET6	AF_INET6
 #define	PF_IMPLINK	AF_IMPLINK
 #define	PF_PUP		AF_PUP
 #define	PF_CHAOS	AF_CHAOS
@@ -330,14 +348,24 @@ struct cmsgcred {
 /* given pointer to struct cmsghdr, return pointer to data */
 #define	CMSG_DATA(cmsg)		((u_char *)((cmsg) + 1))
 
+/*
+ * Alignment requirement for CMSG struct manipulation.
+ * This is different from ALIGN() defined in ARCH/include/param.h.
+ * XXX think again carefully about architecture dependencies.
+ */
+#define	CMSG_ALIGN(n)		(((n) + 3) & ~3)
+
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
 	(((caddr_t)(cmsg) + (cmsg)->cmsg_len + sizeof(struct cmsghdr) > \
 	    (mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)NULL : \
-	    (struct cmsghdr *)((caddr_t)(cmsg) + ALIGN((cmsg)->cmsg_len)))
+	    (struct cmsghdr *)((caddr_t)(cmsg) + CMSG_ALIGN((cmsg)->cmsg_len)))
 
 #define	CMSG_FIRSTHDR(mhdr)	((struct cmsghdr *)(mhdr)->msg_control)
+
+#define	CMSG_SPACE(l)		(CMSG_ALIGN(sizeof(struct cmsghdr)) + CMSG_ALIGN(l))
+#define	CMSG_LEN(l)		(CMSG_ALIGN(sizeof(struct cmsghdr)) + (l))
 
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
@@ -405,6 +433,8 @@ int	setsockopt __P((int, int, int, const void *, int));
 int	shutdown __P((int, int));
 int	socket __P((int, int, int));
 int	socketpair __P((int, int, int, int *));
+
+void	pfctlinput __P((int, struct sockaddr *));
 __END_DECLS
 
 #endif /* !KERNEL */

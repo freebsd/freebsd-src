@@ -168,6 +168,7 @@ void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
+void	in_pcbremlists __P((struct inpcb *inp));
 int	prison_xinpcb __P((struct proc *p, struct inpcb *inp));
 #endif /* KERNEL */
 
