@@ -570,6 +570,7 @@ nodisks:
 	(void)configLinux(self);
 #endif
 
+#ifdef notyet
     dialog_clear();
     if (USAResident) {
 	if (!msgYesNo("I see that you are \"USA_RESIDENT\" according to your earlier\n"
@@ -604,6 +605,7 @@ nodisks:
 	    }
 	}
     }
+#endif	/* notyet */
 
     dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?"))
