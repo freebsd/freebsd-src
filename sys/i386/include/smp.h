@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.6 1997/05/05 22:56:37 fsmp Exp $
+ * $Id: smp.h,v 1.7 1997/05/06 21:29:57 fsmp Exp $
  *
  */
 
@@ -14,8 +14,6 @@
 #define _MACHINE_SMP_H_
 
 #ifdef KERNEL
-
-#include "opt_smp.h"
 
 #if defined(SMP) && !defined(APIC_IO)
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
@@ -42,9 +40,6 @@ void	rel_mplock		__P((void));
 void	try_mplock		__P((void));
 
 /* global data in mp_machdep.c */
-extern struct proc*		SMPcurproc[NCPU];
-extern struct pcb*		SMPcurpcb[NCPU];
-extern struct timeval		SMPruntime[NCPU];
 extern int			mp_ncpus;
 extern int			mp_naps;
 extern int			mp_nbusses;
