@@ -1603,6 +1603,11 @@
         <para>The &man.wx.4; driver is deprecated.</para>
       </note>
 
+      <note>
+        <para>The &man.em.4; driver is officially supported by Intel, but
+        is only supported on the i386.</para>
+      </note>
+
     </para>
   </sect2>
 
