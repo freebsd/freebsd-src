@@ -1,5 +1,4 @@
 /**************************************************************************
-**************************************************************************
 
 Copyright (c) 2001 Intel Corporation
 All rights reserved.
@@ -32,32 +31,37 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-$FreeBSD$
-***************************************************************************
 ***************************************************************************/
+
+/*$FreeBSD$*/
 
 #ifndef _FREEBSD_OS_H_
 #define _FREEBSD_OS_H_
 
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/clock.h>
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
 
 #define ASSERT(x) if(!(x)) panic("EM: x")
 
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
-#define DelayInMicroseconds(x) DELAY(x)
-#define DelayInMilliseconds(x) DELAY(1000*(x))
-
-typedef u_int8_t   u8;
-typedef u_int16_t  u16;
-typedef u_int32_t  u32;
-typedef struct _E1000_64_BIT_PHYSICAL_ADDRESS {
-    u32 Lo32;
-    u32 Hi32;
-} E1000_64_BIT_PHYSICAL_ADDRESS, *PE1000_64_BIT_PHYSICAL_ADDRESS;
-
-#define IN
-#define OUT
-#define STATIC static
+#define usec_delay(x) DELAY(x)
+#define msec_delay(x) DELAY(1000*(x))
 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
@@ -75,21 +79,57 @@ typedef struct _E1000_64_BIT_PHYSICAL_ADDRESS {
     #define DEBUGOUT7(S,A,B,C,D,E,F,G)
 #endif
 
+#define FALSE               0
+#define TRUE                1
+#define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
+#define PCI_COMMAND_REGISTER            PCIR_COMMAND
 
-#define E1000_READ_REG(reg)  \
-        bus_space_read_4(Adapter->bus_space_tag, Adapter->bus_space_handle, \
-        (Adapter->MacType >= MAC_LIVENGOOD)?offsetof(E1000_REGISTERS, reg): \
-        offsetof(OLD_REGISTERS, reg))
+struct em_osdep
+{
+   bus_space_tag_t bus_space_tag;
+   bus_space_handle_t bus_space_handle;
+   struct device   *dev;
+};
 
-#define E1000_WRITE_REG(reg, value)  \
-        bus_space_write_4(Adapter->bus_space_tag, Adapter->bus_space_handle, \
-        (Adapter->MacType >= MAC_LIVENGOOD)?offsetof(E1000_REGISTERS, reg): \
-        offsetof(OLD_REGISTERS, reg), value)
+#define E1000_READ_REG(a, reg) (\
+ ((a)->mac_type >= em_82543) ? \
+   bus_space_read_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                     ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                     E1000_##reg): \
+   bus_space_read_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                      ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                       E1000_82542_##reg))
 
-#define WritePciConfigWord(Reg, PValue)  pci_write_config(Adapter->dev, Reg, *PValue, 2);
+
+#define E1000_WRITE_REG(a, reg, value) (\
+ ((a)->mac_type >= em_82543) ? \
+   bus_space_write_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                     ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                     E1000_##reg, value): \
+   bus_space_write_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                      ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                       E1000_82542_##reg, value))
 
 
-#include <dev/em/if_em.h>
+#define E1000_READ_REG_ARRAY(a, reg, offset) (\
+ ((a)->mac_type >= em_82543) ? \
+   bus_space_read_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                     ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                     (E1000_##reg + ((offset) << 2))): \
+   bus_space_read_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                      ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                       (E1000_82542_##reg + ((offset) << 2))))
+
+
+#define E1000_WRITE_REG_ARRAY(a, reg, offset, value) (\
+  ((a)->mac_type >= em_82543) ? \
+      bus_space_write_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                      ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                      (E1000_##reg + ((offset) << 2)), value): \
+      bus_space_write_4( ((struct em_osdep *)(a)->back)->bus_space_tag, \
+                      ((struct em_osdep *)(a)->back)->bus_space_handle, \
+                      (E1000_82542_##reg + ((offset) << 2)), value))
+
 
 #endif  /* _FREEBSD_OS_H_ */
 
