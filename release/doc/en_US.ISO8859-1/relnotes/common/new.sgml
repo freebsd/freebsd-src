@@ -195,7 +195,12 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported release of <application>GNOME</application>
+      has been updated to 2.2.1.</para>
+
+    <para>The supported release of <application>KDE</application>
+      has been updated to 3.1.1a.</para>
+
   </sect2>
 </sect1>
 
