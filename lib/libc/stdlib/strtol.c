@@ -59,7 +59,7 @@ strtol(nptr, endptr, base)
 	unsigned long acc;
 	unsigned char c;
 	unsigned long cutoff;
-	int neg, any, cutlim;
+	int neg, any, cutlim, n;
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
@@ -113,19 +113,19 @@ strtol(nptr, endptr, base)
 	cutoff /= base;
 	for ( ; ; c = *s++) {
 		if (isxdigit(c))
-			c = digittoint(c);
-		else if (isascii(c) && isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+			n = digittoint(c);
+		else if (isalpha(c))
+			n = (char)c - (isupper(c) ? 'A' - 10 : 'a' - 10);
 		else
 			break;
-		if (c >= base)
+		if (n < 0 || n >= base)
 			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+		if (any < 0 || acc > cutoff || (acc == cutoff && n > cutlim))
 			any = -1;
 		else {
 			any = 1;
 			acc *= base;
-			acc += c;
+			acc += n;
 		}
 	}
 	if (any < 0) {
