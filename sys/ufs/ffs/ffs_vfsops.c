@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.8 1994/10/08 06:20:06 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.9 1994/10/10 01:04:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -490,11 +490,14 @@ ffs_oldfscompat(fs)
 	if (fs->fs_inodefmt < FS_44INODEFMT) {			/* XXX */
 		quad_t sizepb = fs->fs_bsize;			/* XXX */
 								/* XXX */
+#if 0
 		fs->fs_maxfilesize = fs->fs_bsize * NDADDR - 1;	/* XXX */
 		for (i = 0; i < NIADDR; i++) {			/* XXX */
 			sizepb *= NINDIR(fs);			/* XXX */
 			fs->fs_maxfilesize += sizepb;		/* XXX */
 		}						/* XXX */
+#endif
+		fs->fs_maxfilesize = (u_quad_t) 1 << 39;
 		fs->fs_qbmask = ~fs->fs_bmask;			/* XXX */
 		fs->fs_qfmask = ~fs->fs_fmask;			/* XXX */
 	}							/* XXX */
