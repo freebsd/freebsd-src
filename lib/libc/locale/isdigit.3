@@ -40,7 +40,7 @@
 .Dt ISDIGIT 3
 .Os
 .Sh NAME
-.Nm isdigit
+.Nm isdigit, isnumber
 .Nd decimal-digit character test
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +48,8 @@
 .In ctype.h
 .Ft int
 .Fn isdigit "int c"
+.Ft int
+.Fn isnumber "int c"
 .Sh DESCRIPTION
 The
 .Fn isdigit
