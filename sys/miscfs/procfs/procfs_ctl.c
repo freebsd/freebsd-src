@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.2 1994/08/02 07:45:10 davidg Exp $
+ *	$Id: procfs_ctl.c,v 1.3 1994/12/31 12:26:50 ache Exp $
  */
 
 #include <sys/param.h>
@@ -137,6 +137,7 @@ procfs_control(curp, p, op)
 		 * Stop the target.
 		 */
 		p->p_flag |= P_TRACED;
+		faultin(p);
 		p->p_xstat = 0;		/* XXX ? */
 		if (p->p_pptr != curp) {
 			p->p_oppid = p->p_pptr->p_pid;
