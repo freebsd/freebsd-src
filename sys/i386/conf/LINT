@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.398 1998/01/31 03:33:51 eivind Exp $
+#	$Id: LINT,v 1.399 1998/01/31 07:23:07 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -483,6 +483,21 @@ options		QUOTA			#enable disk quotas
 #
 # The number is supposed to be in seconds.
 options		"CD9660_ROOTDELAY=20"
+
+# If you are running a machine just as a fileserver for PC and MAC users.
+# (using SAMBA or Netatalk), then you may consider setting this option
+# and keeping all those user's directories on a partition that is mounted
+# with the suiddir option. This gives new files the same ownership as
+# the directory (similiar to group). It's a security hole if you let
+# these users run programs so confine it to file-servers, (but it'll save you
+# lots of headaches in that case). Root owned directories are excempt and X bits
+# are cleared. the suid bit must be set on the directory as well. see chmod(1)
+# PC owners can't see/set ownerships so they keep getting their toes
+# trodden on. This saves you all the support calls as the filesystem
+# it's used on will act as they expect. ("It's my dir so it must be my file").
+#
+options		SUIDDIR
+
 
 # Add some error checking code to the null_bypass routine
 # in the NULL filesystem
