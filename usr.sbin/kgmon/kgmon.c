@@ -393,8 +393,8 @@ dumpstate(kvp)
 			i = 0;
 	}
 	if (i != kvp->gpm.kcountsize)
-		errx(6, "read ticks: read %u, got %d: %s",
-		    kvp->gpm.kcountsize, i,
+		errx(6, "read ticks: read %lu, got %ld: %s",
+		    kvp->gpm.kcountsize, (long)i,
 		    kflag ? kvm_geterr(kvp->kd) : strerror(errno));
 	if ((fwrite(tickbuf, kvp->gpm.kcountsize, 1, fp)) != 1)
 		err(7, "writing tocks to gmon.out");
@@ -415,8 +415,8 @@ dumpstate(kvp)
 			i = 0;
 	}
 	if (i != kvp->gpm.fromssize)
-		errx(9, "read froms: read %u, got %d: %s",
-		    kvp->gpm.fromssize, i,
+		errx(9, "read froms: read %lu, got %ld: %s",
+		    kvp->gpm.fromssize, (long)i,
 		    kflag ? kvm_geterr(kvp->kd) : strerror(errno));
 	if ((tos = (struct tostruct *)malloc(kvp->gpm.tossize)) == NULL)
 		errx(10, "cannot allocate tos space");
@@ -430,12 +430,12 @@ dumpstate(kvp)
 			i = 0;
 	}
 	if (i != kvp->gpm.tossize)
-		errx(11, "read tos: read %u, got %d: %s",
-		    kvp->gpm.tossize, i,
+		errx(11, "read tos: read %lu, got %ld: %s",
+		    kvp->gpm.tossize, (long)i,
 		    kflag ? kvm_geterr(kvp->kd) : strerror(errno));
 	if (debug)
-		warnx("lowpc 0x%x, textsize 0x%x",
-			      kvp->gpm.lowpc, kvp->gpm.textsize);
+		warnx("lowpc 0x%lx, textsize 0x%lx",
+		    (unsigned long)kvp->gpm.lowpc, kvp->gpm.textsize);
 	endfrom = kvp->gpm.fromssize / sizeof(*froms);
 	for (fromindex = 0; fromindex < endfrom; ++fromindex) {
 		if (froms[fromindex] == 0)
@@ -443,11 +443,11 @@ dumpstate(kvp)
 		frompc = (u_long)kvp->gpm.lowpc +
 		    (fromindex * kvp->gpm.hashfraction * sizeof(*froms));
 		for (toindex = froms[fromindex]; toindex != 0;
-		   toindex = tos[toindex].link) {
+		     toindex = tos[toindex].link) {
 			if (debug)
-			    warnx("[mcleanup] frompc 0x%x selfpc 0x%x count %d",
-			    frompc, tos[toindex].selfpc,
-			    tos[toindex].count);
+				warnx("[mcleanup] frompc 0x%lx selfpc 0x%lx "
+				    "count %ld", frompc, tos[toindex].selfpc,
+				    tos[toindex].count);
 			rawarc.raw_frompc = frompc;
 			rawarc.raw_selfpc = (u_long)tos[toindex].selfpc;
 			rawarc.raw_count = tos[toindex].count;
