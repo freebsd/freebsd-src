@@ -59,7 +59,7 @@ is still loaded and can be used as a screen saver later: see below.
 .Pp
 In order to display the bitmap, the bitmap file itself and the
 matching splash image decoder module must be loaded by the boot loader.
-Currently the following decoder module is available:
+Currently the following decoder modules are available:
 .Pp
 .Bl -tag -width splash_decoder -compact
 .It Pa splash_bmp.ko
@@ -88,7 +88,7 @@ BIOS and the amount of video memory on the video card.
 The screen saver will activate when the system is considered idle: i.e.
 when the user has not typed a key or moved the mouse for a specified period
 of time.  As the screen saver is an optional module, it must be explicitly
-loaded into memory. Currently the following screen saver modules are
+loaded into memory.  Currently the following screen saver modules are
 available:
 .Pp
 .Bl -tag -width splash_module.ko -compact
@@ -236,7 +236,7 @@ and
 The
 .Pa splash_pcx
 module was written by
-.An Dag-Erling Smørgrav Aq des@FreeBDS.org
+.An Dag-Erling Smørgrav Aq des@FreeBSD.org
 based on the
 .Pa splash_bmp
 code.
