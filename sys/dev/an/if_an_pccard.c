@@ -66,6 +66,10 @@
 #include <net/if_types.h>
 #include <net/if_media.h>
 
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+#include "card_if.h"
+
 #ifndef lint
 static const char rcsid[] =
  "$FreeBSD$";
@@ -77,16 +81,22 @@ static const char rcsid[] =
 /*
  * Support for PCMCIA cards.
  */
+static int  an_pccard_match(device_t);
 static int  an_pccard_probe(device_t);
 static int  an_pccard_attach(device_t);
 static int  an_pccard_detach(device_t);
 
 static device_method_t an_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		an_pccard_probe),
-	DEVMETHOD(device_attach,	an_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	an_pccard_detach),
 	DEVMETHOD(device_shutdown,	an_shutdown),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match, 	an_pccard_match),
+	DEVMETHOD(card_compat_probe,	an_pccard_probe),
+	DEVMETHOD(card_compat_attach,	an_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -100,6 +110,25 @@ static driver_t an_pccard_driver = {
 static devclass_t an_pccard_devclass;
 
 DRIVER_MODULE(if_an, pccard, an_pccard_driver, an_pccard_devclass, 0, 0);
+
+static const struct pccard_product an_pccard_products[] = {
+		{ PCMCIA_STR_AIRONET_PC4800,	PCMCIA_VENDOR_AIRONET,
+		  PCMCIA_PRODUCT_AIRONET_PC4800,	0, 
+		  PCMCIA_CIS_AIRONET_PC4800 },
+};
+
+static int
+an_pccard_match(device_t dev)
+{
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, an_pccard_products,
+		sizeof(an_pccard_products[0]), NULL)) != NULL) {
+			device_set_desc(dev, pp->pp_name);
+			return 0;
+	}
+	return ENXIO;
+}
 
 static int
 an_pccard_detach(device_t dev)
@@ -118,6 +147,7 @@ an_pccard_detach(device_t dev)
 	sc->an_gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);
+	mtx_destroy(&sc->an_mtx);
 	return (0);
 }
 
