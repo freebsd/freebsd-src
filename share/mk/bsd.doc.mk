@@ -1,16 +1,16 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.25 1996/06/24 04:23:54 jkh Exp $
+#	$Id: bsd.doc.mk,v 1.26 1996/09/03 15:14:44 bde Exp $
 
-PRINTER?=	ascii
+PRINTERDEVICE?=	ascii
 
 BIB?=		bib
-EQN?=		eqn -T${PRINTER}
+EQN?=		eqn -T${PRINTERDEVICE}
 GREMLIN?=	grn
 GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
-.if ${PRINTER} == "ascii"
+.if ${PRINTERDEVICE} == "ascii"
 ROFF?=          groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
 .else
 ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
@@ -25,7 +25,7 @@ TBL?=		tbl
 
 DOC?=		paper
 
-TRFLAGS+=	-T${PRINTER}
+TRFLAGS+=	-T${PRINTERDEVICE}
 .if defined(USE_EQN)
 TRFLAGS+=	-e
 .endif
@@ -43,10 +43,10 @@ TRFALGS+=	-R
 .endif
 
 .if defined(NODOCCOMPRESS)
-DFILE=	${DOC}.${PRINTER}
+DFILE=	${DOC}.${PRINTERDEVICE}
 GZIPCMD=	cat
 .else
-DFILE=	${DOC}.${PRINTER}.gz
+DFILE=	${DOC}.${PRINTERDEVICE}.gz
 GZIPCMD=	gzip -c
 .endif
 
@@ -64,14 +64,14 @@ all:	${DFILE}
 .if !target(print)
 print: ${DFILE}
 .if defined(NODOCCOMPRESS)
-	lpr -P${PRINTER} ${DFILE}
+	lpr -P${PRINTERDEVICE} ${DFILE}
 .else
-	${GZIPCMD} -d ${DFILE} | lpr -P${PRINTER}
+	${GZIPCMD} -d ${DFILE} | lpr -P${PRINTERDEVICE}
 .endif
 .endif
 
 clean:
-	rm -f ${DOC}.${PRINTER} ${DOC}.ps ${DOC}.ascii \
+	rm -f ${DOC}.${PRINTERDEVICE} ${DOC}.ps ${DOC}.ascii \
 		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
 
 FILES?=	${SRCS}
@@ -117,8 +117,8 @@ ${DFILE}::	${SRCS}
 .endif
 .else
 .if !defined(NODOCCOMPRESS)
-${DFILE}:	${DOC}.${PRINTER}
-	${GZIPCMD} ${DOC}.${PRINTER} > ${.TARGET}
+${DFILE}:	${DOC}.${PRINTERDEVICE}
+	${GZIPCMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
 .endif
 .endif
 
