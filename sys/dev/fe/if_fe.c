@@ -247,6 +247,7 @@ static int	fe_probe_ubn	( struct isa_device *, struct fe_softc * );
 #ifdef PC98
 static int	fe_probe_re1000	( struct isa_device *, struct fe_softc * );
 static int	fe_probe_cnet9ne( struct isa_device *, struct fe_softc * );
+static int	fe_probe_rex    ( struct isa_device *, struct fe_softc * );
 #endif
 #if NCARD > 0
 static int	fe_probe_mbh	( struct isa_device *, struct fe_softc * );
@@ -489,6 +490,7 @@ fe_probe (struct isa_device * dev)
 #ifdef PC98
 	if (!nports) nports = fe_probe_re1000(dev, sc);
 	if (!nports) nports = fe_probe_cnet9ne(dev, sc);
+	if (!nports) nports = fe_probe_rex(dev, sc);
 #endif
 	if (!nports) nports = fe_probe_ssi(dev, sc);
 	if (!nports) nports = fe_probe_jli(dev, sc);
@@ -1654,6 +1656,133 @@ fail_ubn:
 	return 0;
 }
 
+/*
+ * REX boards(non-JLI type) support routine.
+ */
+
+#define REX_EEPROM_SIZE	32
+#define REX_DAT	0x01
+
+static void
+fe_read_eeprom_rex (struct fe_softc *sc, u_char *data)
+{
+	int i;
+	u_char bit, val;
+	u_char save16;
+	u_short reg16 = sc->ioaddr[0x10];
+
+	save16 = inb(reg16);
+
+	/* Issue a start condition.  */
+	val = inb(reg16) & 0xf0;
+	outb(reg16, val);
+
+	(void)inb(reg16);
+	(void)inb(reg16);
+	(void)inb(reg16);
+	(void)inb(reg16);
+
+	/* Read bytes from EEPROM.  */
+	for (i = 0; i < REX_EEPROM_SIZE; i++) {
+		/* Read a byte and store it into the buffer.  */
+		val = 0x00;
+		for (bit = 0x01; bit != 0x00; bit <<= 1) {
+			if (inb(reg16) & REX_DAT) val |= bit;
+		}
+		*data++ = val;
+	}
+
+	outb(reg16, save16);
+	
+#if 1
+	/* Report what we got.  */
+	if (bootverbose) {
+		data -= REX_EEPROM_SIZE;
+		for (i = 0; i < REX_EEPROM_SIZE; i += 16) {
+			printf("fe%d: EEPROM(REX):%3x: %16D\n",
+			       sc->sc_unit, i, data + i, " ");
+		}
+	}
+#endif
+}
+
+static void
+fe_init_rex ( struct fe_softc * sc )
+{
+	/* Setup IRQ control register on the ASIC.  */
+	outb(sc->ioaddr[0x10], sc->priv_info);
+}
+
+/*
+ * Probe for RATOC REX-9880/81/82/83 series.
+ */
+static int
+fe_probe_rex (struct isa_device * dev, struct fe_softc * sc)
+{
+	int i;
+	u_char eeprom [REX_EEPROM_SIZE];
+
+	static struct fe_simple_probe_struct probe_table [] = {
+		{ FE_DLCR2, 0x58, 0x00 },
+		{ FE_DLCR4, 0x08, 0x00 },
+		{ 0 }
+	};
+
+	/* See if the specified I/O address is possible for REX-9880.  */
+	/* 6[46CE]D0 are allowed.  */ 
+	if ((sc->iobase & ~0xA00) != 0x64D0) return 0;
+
+	/* Setup an I/O address mapping table and some others.  */
+	fe_softc_defaults(sc);
+
+	/* Re-map ioaddr for REX-9880.  */
+	for (i = 16; i < MAXREGISTERS; i++)
+		sc->ioaddr[i] = sc->iobase + 0x100 - 16 + i;
+
+	/* See if the card is on its address.  */
+	if (!fe_simple_probe(sc, probe_table)) return 0;
+
+	/* We now have to read the config EEPROM.  We should be very
+           careful, since doing so destroys a register.  (Remember, we
+           are not yet sure we have a REX-9880 board here.)  */
+	fe_read_eeprom_rex(sc, eeprom);
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		sc->sc_enaddr[i] = eeprom[7 - i];
+
+	/* Make sure it is RATOC's.  */
+	if (!valid_Ether_p(sc->sc_enaddr, 0x00C0D0)) return 0;
+
+	/* Setup the board type.  */
+	sc->typestr = "REX-9880/9883";
+
+	/* This looks like a REX-9880 board.  It requires an
+	   explicit IRQ setting in config.  Make sure we have one,
+	   determining an appropriate value for the IRQ control
+	   register.  */
+	switch (dev->id_irq) {
+	  case IRQ3:  sc->priv_info = 0x10; break;
+	  case IRQ5:  sc->priv_info = 0x20; break;
+	  case IRQ6:  sc->priv_info = 0x40; break;
+	  case IRQ12: sc->priv_info = 0x80; break;
+	  default:
+		fe_irq_failure(sc->typestr,
+				sc->sc_unit, dev->id_irq, "3/5/6/12");
+		return 0;
+	}
+
+	/* Setup hooks.  We need a special initialization procedure.  */
+	sc->init = fe_init_rex;
+
+	/* REX-9880 has 64KB SRAM.  */
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_64KB | FE_D6_TXBSIZ_2x4KB
+			| FE_D6_BBW_WORD | FE_D6_SBW_WORD | FE_D6_SRAM;
+#if 1
+	sc->proto_dlcr7 |= FE_D7_EOPPOL;	/* XXX */
+#endif
+	/* The I/O address range is fragmented in the REX-9880.
+	   This is the number of regs at iobase.  */
+	return 16;
+}
 #else	/* !PC98 */
 /*
  * Probe and initialization for Fujitsu FMV-180 series boards
