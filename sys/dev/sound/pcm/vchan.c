@@ -337,7 +337,7 @@ vchan_initsys(device_t dev)
     	d = device_get_softc(dev);
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "vchans", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_hw_snd_vchans, "I", "")
+	    sysctl_hw_snd_vchans, "I", "");
 #endif
 
 	return 0;
