@@ -187,7 +187,7 @@ static int nge_miibus_writereg(device_t, int, int, int);
 static void nge_miibus_statchg(device_t);
 
 static void nge_setmulti(struct nge_softc *);
-static u_int32_t nge_crc(struct nge_softc *, caddr_t);
+static u_int32_t nge_mchash(caddr_t);
 static void nge_reset(struct nge_softc *);
 static int nge_list_rx_init(struct nge_softc *);
 static int nge_list_tx_init(struct nge_softc *);
@@ -675,23 +675,20 @@ nge_miibus_statchg(dev)
 }
 
 static u_int32_t
-nge_crc(sc, addr)
-	struct nge_softc	*sc;
-	caddr_t			addr;
+nge_mchash(addr)
+	caddr_t		addr;
 {
-	u_int32_t		crc, carry; 
-	int			i, j;
-	u_int8_t		c;
+	u_int32_t	crc, carry; 
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -749,7 +746,7 @@ nge_setmulti(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = nge_crc(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = nge_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		index = (h >> 4) & 0x7F;
 		bit = h & 0xF;
 		CSR_WRITE_4(sc, NGE_RXFILT_CTL,

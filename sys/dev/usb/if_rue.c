@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #ifdef USB_DEBUG
-static int	ruedebug = 0;
+Static int	ruedebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
 SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
 	   &ruedebug, 0, "rue debug level");
@@ -157,7 +157,7 @@ Static int rue_miibus_readreg(device_ptr_t, int, int);
 Static int rue_miibus_writereg(device_ptr_t, int, int, int);
 Static void rue_miibus_statchg(device_ptr_t);
 
-static u_int8_t rue_calchash(caddr_t);
+Static u_int32_t rue_mchash(caddr_t);
 Static void rue_setmulti(struct rue_softc *);
 Static void rue_reset(struct rue_softc *);
 
@@ -464,22 +464,20 @@ rue_miibus_statchg(device_ptr_t dev)
  * Calculate CRC of a multicast group address, return the upper 6 bits.
  */
 
-static u_int8_t
-rue_calchash(caddr_t addr)
+Static u_int32_t
+rue_mchash(caddr_t addr)
 {
 	u_int32_t	crc, carry;
-	int		i, j;
-	u_int8_t	c;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF;	/* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -529,7 +527,7 @@ rue_setmulti(struct rue_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = rue_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = rue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else

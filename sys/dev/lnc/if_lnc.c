@@ -190,22 +190,22 @@ lance_probe(struct lnc_softc *sc)
 		return (UNKNOWN);
 }
 
-static __inline u_long
-ether_crc(const u_char *ether_addr)
+static __inline u_int32_t
+lnc_mchash(caddr_t ether_addr)
 {
-#define POLYNOMIAL           0xEDB88320UL
-    u_char i, j, addr;
-    u_int crc = 0xFFFFFFFFUL;
+#define LNC_POLYNOMIAL		0xEDB88320UL
+    u_int32_t crc = 0xFFFFFFFFUL;
+    int idx, bit;
+    u_int8_t data;
 
-    for (i = 0; i < ETHER_ADDR_LEN; i++) {
-	addr = *ether_addr++;
-	for (j = 0; j < MULTICAST_FILTER_LEN; j++) {
-	    crc = (crc >> 1) ^ (((crc ^ addr) & 1) ? POLYNOMIAL : 0);   
-	    addr >>= 1;
+    for (idx = 0; idx < ETHER_ADDR_LEN; idx++) {
+	for (data = *ether_addr++, bit = 0; bit < MULTICAST_FILTER_LEN; bit++) {
+	    crc = (crc >> 1) ^ (((crc ^ data) & 1) ? LNC_POLYNOMIAL : 0);   
+	    data >>= 1;
 	}
     }
     return crc;
-#undef POLYNOMIAL
+#undef LNC_POLYNOMIAL
 }
 
 void
@@ -262,8 +262,8 @@ lnc_setladrf(struct lnc_softc *sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 
-		index = ether_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
-				>> 26;
+		index = lnc_mchash(
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) >> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
 	}
 }
