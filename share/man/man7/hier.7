@@ -113,7 +113,6 @@ scripts that are run daily, weekly, and monthly, via
 see
 .Xr periodic 8
 .It Li ppp/
-.Xr ppp 8 
 ppp configuration files;
 see 
 .Xr ppp 8
@@ -140,10 +139,7 @@ fundamental to both single-user and multi-user environments
 .It Li /stand/
 programs used in a standalone environment
 .It Li /tmp/ 
-temporary files, usually a
-.Xr mfs 8
-memory-based filesystem (the contents
-of /tmp are usually NOT preserved across a system reboot)
+temporary files
 .It Li /usr/
 contains the majority of user utilities and applications 
 .Pp
@@ -165,8 +161,15 @@ C include files for the Common Access Methods Layer
 The SCSI device on top of CAM
 .El
 .It Li dev/
+C include files for programming various
+.Fx
+devices
 .Bl -tag -width "kerberosIV/" -compact
-.It usb/
+.It Li ppbus/
+The parallel port bus;
+see
+.Xr ppbus 4
+.It Li usb/
 The USB subsystem
 .El
 .It Li g++/
@@ -187,7 +190,7 @@ C include files for kerberos authentication package;
 see
 .Xr kerberos 1
 .It Li machine/
-machine specific C include files
+machine-specific C include files
 .It Li msdosfs/
 MS-DOS file system
 .It Li net/
@@ -231,7 +234,7 @@ see
 .It Li protocols/
 C include files for Berkeley service protocols
 .It Li readline/
-get a line from a user with editing;
+get a line from a user, with editing;
 see
 .Xr readline 3
 .It Li rpc/
@@ -239,8 +242,8 @@ remote procedure calls;
 see
 .Xr rpc 3
 .It Li rpcsvc/
-defintion of RPC service structures; see
-.Xr rpc 3 .
+definition of RPC service structures; see
+.Xr rpc 3
 .It Li security/
 PAM; see
 .Xr pam 8
@@ -294,14 +297,26 @@ a.out backward compatibility libraries
 .It Li libdata/
 misc. utility data files
 .Bl -tag -width Fl -compact
+.It Li doscmd/
+files used by doscmd (drivers, fonts, etc.);
+see
+.Xr doscmd 1
+.Bl -tag -width 6n -compact
+.It Li fonts/
+fonts used by doscmd
+.El
 .It Li gcc/
 ???
+.It Li ldscripts/
+linker scripts;
+see
+.Xr ld 1
 .It Li lint/
 various prebuilt lint libraries;
 see 
 .Xr lint 1
 .It Li msdosfs/
-Chatacter set conversion tables
+Character set conversion tables
 .It Li perl/
 .Bl -tag -width Fl -compact
 .It Li 5.00503/
@@ -310,20 +325,16 @@ see
 .Xr perl 1
 .El
 .It Li stallion/
-holding the download firmware images
-.It Li tcl
-???;
-see
-.Xr Tcl n
+holds the download firmware images
 .El
 .Pp
 .It Li libexec/
 system daemons & system utilities (executed by other programs)
 .Bl -tag -width Fl -compact
 .It Li aout/
-utilities to manipulate a.out executables.
+utilities to manipulate a.out executables
 .It Li elf/
-utilities to manipulate ELF executables.
+utilities to manipulate ELF executables
 .It Li lpr/
 utilities and filters for LP print system;
 see
@@ -346,11 +357,12 @@ ports framework.
 Within local/, the general layout sketched out by
 .Xr hier 7
 for /usr
-should be used.  Exceptions are the man directory is directly under local/
-rather than under local/share/.  Ports documentation is in share/doc/<port>/
+should be used.  Exceptions are the man directory (directly under local/
+rather than under local/share/), ports documentation (in share/doc/<port>/),
+and /usr/local/etc (mimics /etc).
 .It Li obj/
 architecture-specific target tree produced by building the /usr/src tree
-.It Li ports
+.It Li ports/
 The
 .Fx
 ports collection (optional).
@@ -385,8 +397,8 @@ see
 .El
 .Pp
 .It Li doc/
-misc documentation;
-src for most of the printed
+miscellaneous documentation;
+source for most of the printed
 .Bx
 manuals (available
 from the
@@ -395,17 +407,38 @@ association)
 .Bl -tag -width Fl -compact
 .It Li FAQ/
 Frequently Asked Questions
+.It Li IPv6/
+implementation notes for IPv6
+.It Li bind/
+documents pertaining to BIND (the Berkeley Internet Name Domain)
+.It Li es/
+Spanish translations of documents in /usr/share/doc
 .It Li handbook/
 .Fx
 Handbook
+.It Li ja/
+Japanese translations of documents in /usr/share/doc
+.It Li ncurses/
+HTML documents pertaining to ncurses;
+see
+.Xr ncurses 3X
+.It Li ntp/
+HTML documents pertaining to the Network Time Protocol
 .It Li papers/
 UNIX Papers
 .It Li psd/
 UNIX Programmer's Supplementary Documents
+.It Li ru/
+Russian translations of documents in /usr/share/doc
 .It Li smm/
 UNIX System Manager's Manual
+.It Li tutorials/
+.Fx
+tutorials
 .It Li usd/
 UNIX User's Supplementary Documents
+.It Li zh/
+Chinese translations of documents in /usr/share/doc
 .El
 .Pp
 .It Li examples/
@@ -421,13 +454,15 @@ ISDN
 .It Li libg++/
 libg++'s genclass prototype/template class files
 .It Li locale/
-internationalization files;
+localization files;
 see
 .Xr setlocale 3
 .It Li man/
 manual pages 
 .It Li me/
-macros for use with the me macro package
+macros for use with the me macro package;
+see
+.Xr me 7
 .It Li misc/
 misc system-wide ASCII text files
 .Bl -tag -width Fl -compact
@@ -465,7 +500,7 @@ see
 .It Li skel/
 example . (dot) files for new accounts
 .It Li syscons/
-console staff;
+files used by syscons;
 see
 .Xr syscons 4
 .Bl -tag -width "scrnmaps/xx" -compact
@@ -497,55 +532,55 @@ and
 .Xr troff 1
 .It Li vi/
 localization support and utilities for
-.Xr vi 1 .
+.Xr vi 1
 .It Li zoneinfo/
 timezone configuration information;
 see
 .Xr tzfile 5
 .El
 .It Li src/
-BSD and/or local source files
+BSD, third-party, and/or local source files
 .Pp
 .Bl -tag -width "kerberosIV/" -compact
 .It Li bin/
-src for files in /bin 
+source code for files in /bin 
 .It Li contrib/
-src for files from contributed software
-.It Li crypto
-DES
+source code for contributed software
+.It Li crypto/
+source code for contributed cryptography software
 .It Li etc/
-src for files in /etc
+source code for files in /etc
 .It Li games/
-src for files in /usr/games
+source code for files in /usr/games
 .It Li gnu/
-Utilities covered by the GNU Public License
+Utilities covered by the GNU General Public License
 .It Li include/
-src for files in /usr/include
+source code for files in /usr/include
 .It Li kerberosIV/
-src for kerberos version IV
+source code for kerberos version IV
 .It Li lib/
-src for files in /usr/lib
+source code for files in /usr/lib
 .It Li libexec/
-src for files in /usr/libexec
+source code for files in /usr/libexec
 .It Li release/
 files required to produce a
 .Fx 
 release
 .It Li sbin/
-src for files in /sbin
-.It Li secure
-FreeSec sources
+source code for files in /sbin
+.It Li secure/
+build directory for files in /usr/src/crypto
 .It Li share/
-src for files in /usr/share
+source for files in /usr/share
 .It Li sys/
-kernel src files
+kernel source code
 .It Li tools/
 tools used for maintenance and testing of
 .Fx
 .It Li usr.bin/
-src for files in /usr/bin
+source code for files in /usr/bin
 .It Li usr.sbin/
-src for files in /usr/sbin
+source code for files in /usr/sbin
 .El
 .Pp
 .It Li X11R6/
@@ -562,7 +597,7 @@ X11R6 libraries.
 .It Li man/
 X11R6 manual pages.
 .It Li share/
-architecture independant files.
+architecture-independent files.
 .El
 .El
 .It Li /var/
@@ -593,16 +628,15 @@ directory containing output spool files
 .It Li backups/
 misc. backup files
 .It Li crash/
-default drectory to store kernel crash dumps; see
+default directory to store kernel crash dumps; see
 .Xr crash 8
 and
-.Xr savecore 8 .
+.Xr savecore 8
 .It Li cron/
-.Bl -tag -width "preserve/" -compact
-.It Li log
-cron log files;
+files used by cron;
 see
 .Xr cron 8
+.Bl -tag -width "preserve/" -compact
 .It Li tabs/
 crontab files;
 see
@@ -682,7 +716,7 @@ temporary files that are kept between system reboots
 .It Li vi.recover/
 the directory where recovery files are stored
 .El
-.It Li yp
+.It Li yp/
 the NIS maps
 .El
 .El
