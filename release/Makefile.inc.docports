@@ -25,7 +25,7 @@ MINIMALDOCPORTS= \
 	ports/graphics/scr2png \
 	ports/graphics/tiff \
 	ports/print/freetype2 \
-	ports/print/ghostscript6 \
+	ports/print/ghostscript-gnu \
 	ports/textproc/docbook \
 	ports/textproc/docbook-241 \
 	ports/textproc/docbook-300 \
