@@ -144,22 +144,9 @@ CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 static void
 cpu_startup(void *arg)
 {
-	phandle_t child;
-	phandle_t root;
-	char type[8];
 	u_int clock;
 
-	root = OF_peer(0);
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		OF_getprop(child, "device_type", type, sizeof(type));
-		if (strcmp(type, "cpu") == 0)
-			break;
-	}
-	if (child == 0)
-		panic("cpu_startup: no cpu\n");
-	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
-	OF_getprop(child, "#dtlb-entries", &tlb_slot_count,
-	    sizeof(tlb_slot_count));
+	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
 	tick_tc.tc_poll_pps = NULL;
@@ -169,7 +156,6 @@ cpu_startup(void *arg)
 	tc_init(&tick_tc);
 
 	cpu_identify(rdpr(ver), clock, PCPU_GET(cpuid));
-	cache_init(child);
 
 	vm_ksubmap_init(&kmi);
 
@@ -205,10 +191,13 @@ tick_get_timecount(struct timecounter *tc)
 void
 sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
+	phandle_t child;
+	phandle_t root;
 	struct pcpu *pc;
 	vm_offset_t end;
 	vm_offset_t va;
 	caddr_t kmdp;
+	char type[8];
 
 	end = 0;
 	kmdp = NULL;
@@ -259,6 +248,21 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		       "Attempting to continue anyway.\n");
 		end = (vm_offset_t)_end;
 	}
+
+	root = OF_peer(0);
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		OF_getprop(child, "device_type", type, sizeof(type));
+		if (strcmp(type, "cpu") == 0)
+			break;
+	}
+	if (child == 0)
+		panic("cpu_startup: no cpu\n");
+	OF_getprop(child, "#dtlb-entries", &tlb_dtlb_entries,
+	    sizeof(tlb_dtlb_entries));
+	OF_getprop(child, "#itlb-entries", &tlb_itlb_entries,
+	    sizeof(tlb_itlb_entries));
+
+	cache_init(child);
 
 #ifdef DDB
 	kdb_init();
@@ -314,6 +318,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc->pc_curpcb = thread0.td_pcb;
 	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
 	pc->pc_addr = (vm_offset_t)pcpu0;
+	pc->pc_node = child;
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;

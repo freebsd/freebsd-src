@@ -39,7 +39,8 @@
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
-int tlb_slot_count;
+int tlb_dtlb_entries;
+int tlb_itlb_entries;
 
 /*
  * Some tlb operations must be atomic, so no interrupt or trap can be allowed
@@ -144,7 +145,7 @@ tlb_dump(void)
 	u_long tag;
 	int slot;
 
-	for (slot = 0; slot < tlb_slot_count; slot++) {
+	for (slot = 0; slot < tlb_dtlb_entries; slot++) {
 		data = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
 		if ((data & TD_V) != 0) {
 			tag = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_TAG_READ_REG);

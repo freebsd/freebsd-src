@@ -52,6 +52,7 @@ struct vmspace;
 	struct	vmspace *pc_vmspace;					\
 	vm_offset_t pc_addr;						\
 	u_int 	pc_mid;							\
+	u_int	pc_node;						\
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
 	u_int	pc_tlb_ctx_min;						\
