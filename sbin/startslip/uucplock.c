@@ -64,7 +64,7 @@ int uu_lock (char *ttyname)
 	pid_t pid;
 	char tbuf[MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_LOCK LOCKFMT, ttyname);
+	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
 	if (fd < 0) {
 		/*
@@ -112,7 +112,7 @@ int uu_unlock (char *ttyname)
 {
 	char tbuf[MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_LOCK LOCKFMT, ttyname);
+	(void)sprintf(tbuf, _PATH_UUCPLOCK LOCKFMT, ttyname);
 	return(unlink(tbuf));
 }
 
