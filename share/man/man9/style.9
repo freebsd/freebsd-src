@@ -13,7 +13,7 @@ files in the FreeBSD source tree.
  *
  *	@(#)style	1.14 (Berkeley) 4/28/95
  *
- *	$Id: style.9,v 1.7 1996/04/07 08:37:54 mpp Exp $
+ *	$Id: style.9,v 1.8 1996/06/13 19:52:42 wollman Exp $
  *
  */
 
@@ -278,8 +278,16 @@ the declarations.  Use this feature only thoughtfully.
 .Ed
 .Pp
 Casts and sizeof's are not followed by a space.
-Also, test pointers
-against NULL, i.e. use:
+.Pp
+NULL is the preferred null pointer constant.  Use NULL instead of 
+(type *)0 or (type *)NULL in contexts where the compiler knows the
+type, e.g., in assignments.  Use (type *)NULL in other contexts,
+in particular for all function args.  (Casting is essential for
+varadic args and is necessary for other args if the function prototype
+might not be in scope; since we pretend to support K&R compilers,
+most prototypes might not be in scope.)
+Test pointers
+against NULL, e.g., use:
 .Bd -literal -offset 0i
 (p = f()) == NULL
 .Ed
@@ -309,7 +317,7 @@ or
 don't roll your own!
 .Bd -literal -offset 0i
 	if ((four = malloc(sizeof(struct foo))) == NULL)
-		err(1, NULL);
+		err(1, (char *)NULL);
 	if ((six = (int *)overflow()) == NULL)
 		errx(1, "Number overflowed.");
 	return (eight);
