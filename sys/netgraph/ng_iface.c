@@ -161,13 +161,13 @@ const static struct iffam gFamilies[] = {
 #define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
 
 /* Node private data */
-struct private {
+struct ng_iface_private {
 	struct	ifnet *ifp;		/* This interface */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
 	struct	private *next;		/* When hung on the free list */
 };
-typedef struct private *priv_p;
+typedef struct ng_iface_private *priv_p;
 
 /* Interface methods */
 static void	ng_iface_start(struct ifnet *ifp);
