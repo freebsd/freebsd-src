@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.41 1999/06/18 13:49:01 brian Exp $
+ *	$Id: datalink.c,v 1.42 1999/08/05 10:32:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -175,7 +175,7 @@ datalink_HangupDone(struct datalink *dl)
   }
 }
 
-static const char *
+const char *
 datalink_ChoosePhoneNumber(struct datalink *dl)
 {
   char *phone;
@@ -269,7 +269,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_DIAL);
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
-                      datalink_ChoosePhoneNumber(dl));
+                      *dl->cfg.script.dial ?
+                      datalink_ChoosePhoneNumber(dl) : "");
             if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
@@ -307,6 +308,25 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       }
       break;
 
+    case DATALINK_CARRIER:
+      /* Wait for carrier on the device */
+      switch (physical_AwaitCarrier(dl->physical)) {
+        case CARRIER_PENDING:
+          log_Printf(LogDEBUG, "Waiting for carrier\n");
+          return 0;	/* A device timer is running to wake us up again */
+
+        case CARRIER_OK:
+          datalink_NewState(dl, DATALINK_LOGIN);
+          chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
+          return datalink_UpdateSet(d, r, w, e, n);
+
+        case CARRIER_LOST:
+          datalink_NewState(dl, DATALINK_HANGUP);
+          physical_Offline(dl->physical);	/* Is this required ? */
+          chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
+          return datalink_UpdateSet(d, r, w, e, n);
+      }
+
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
@@ -320,8 +340,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               datalink_HangupDone(dl);
               break;
             case DATALINK_DIAL:
-              datalink_NewState(dl, DATALINK_LOGIN);
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
+              datalink_NewState(dl, DATALINK_CARRIER);
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
               dl->phone.alt = NULL;
@@ -341,7 +360,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);	/* Is this required ? */
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
+              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup,
+                        1, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
           }
           break;
@@ -1164,6 +1184,7 @@ static const char *states[] = {
   "opening",
   "hangup",
   "dial",
+  "carrier",
   "login",
   "ready",
   "lcp",

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.186 1999/08/03 16:14:38 brian Exp $
+.\" $Id: ppp.8,v 1.187 1999/08/05 10:32:14 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -249,6 +249,13 @@ will open a TCP or UDP connection for transporting data rather than using a
 conventional serial device.  UDP connections force
 .Nm
 into synchronous mode.
+.It Supports PPP over ISDN
+If
+.Nm
+is given a raw B-channel i4b device to open as a link, it's able to talk
+to the
+.Xr isdnd 8
+daemon to establish an ISDN connection.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -3531,16 +3538,24 @@ checks for the existence of carrier one second after the login script is
 complete.  If it's not set,
 .Nm
 assumes that this is because the device doesn't support carrier (which
-is true for most NULL-modem cables), logs the fact and stops checking
+is true for most
+.Dq laplink
+NULL-modem cables), logs the fact and stops checking
 for carrier.  However, some modems take some time to assert the carrier
 signal, resulting in
 .Nm ppp Ns No s
 inability to detect when the link is dropped.
-.Ar Seconds
+.Ar seconds
 specifies the number of seconds that
 .Nm
-should wait after the login script has finished before first checking for
-carrier.
+should wait after the dial script has finished before deciding if
+carrier is available or not.
+.Pp
+.Nm
+will not proceed to the login script until either carrier is detected
+or until
+.Ar seconds
+has elapsed.
 .Pp
 If
 .Ar seconds
@@ -3549,12 +3564,21 @@ is followed immediately by an exclaimation mark
 .Nm
 will
 .Em require
-carrier.  If carrier is not detected at the first check, the link will
-be considered disconnected.
+carrier.  If carrier is not detected after
+.Ar seconds
+seconds, the link will be disconnected.
+.Pp
+For ISDN devices,
+.Nm
+will always insist on carrier.  Carrier is raised by the i4brbchX device
+driver only after the call has connected.  It is therefore wise to set
+a reasonable value such as
+.Ar 6
+seconds.
 .Pp
 Carrier
 .Em require Ns No ment
-is ignored when the link is not a tty device.
+is ignored for all other device types.
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm
@@ -3620,8 +3644,14 @@ This sets the device(s) to which
 .Nm
 will talk to the given
 .Dq value .
-All serial device names are expected to begin with
+.Pp
+All ISDN and serial device names are expected to begin with
 .Pa /dev/ .
+ISDN devices are usually called
+.Pa i4brbchX
+and serial devices are usually called
+.Pa cuaaX .
+.Pp
 If
 .Dq value
 does not begin with
@@ -3629,7 +3659,7 @@ does not begin with
 it must either begin with an exclamation mark
 .Pq Dq \&!
 or be of the format
-.Dq host:port .
+.Dq host:port Ns Op Ns /proto .
 .Pp
 If it begins with an exclamation mark, the rest of the device name is
 treated as a program name, and that program is executed when the device
@@ -4645,6 +4675,7 @@ This socket is used to pass links between different instances of
 .Xr getty 8 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
+.Xr isdn 8 ,
 .Xr named 8 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
