@@ -711,6 +711,13 @@ ptrace_single_step(struct thread *td)
 	return (0);
 }
 
+int
+ptrace_clear_single_step(struct thread *td)
+{
+	/* TODO; */
+	return (0);
+}
+
 void
 exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
