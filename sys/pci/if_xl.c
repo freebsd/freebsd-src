@@ -1544,6 +1544,11 @@ xl_attach(dev)
 		goto fail_txmap;
 	}
 
+	/* We need a spare DMA map for the RX ring. */
+	error = bus_dmamap_create(sc->xl_mtag, 0, &sc->xl_tmpmap);
+	if (error)
+		return(error);
+
 	/*
 	 * Figure out the card type. 3c905B adapters have the
 	 * 'supportsNoTxLength' bit set in the capabilities
@@ -1781,6 +1786,7 @@ xl_detach(dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    XL_PCI_FUNCMEM, sc->xl_fres);
 	bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
+	bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
 	bus_dmamap_unload(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap);
 	bus_dmamap_unload(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap);
 	bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
@@ -1892,10 +1898,6 @@ xl_list_rx_init(sc)
 
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
-
-	error = bus_dmamap_create(sc->xl_mtag, 0, &sc->xl_tmpmap);
-	if (error)
-		return(error);
 
 	for (i = 0; i < XL_RX_LIST_CNT; i++) {
 		cd->xl_rx_chain[i].xl_ptr = &ld->xl_rx_list[i];
@@ -3201,7 +3203,6 @@ xl_stop(sc)
 			sc->xl_cdata.xl_rx_chain[i].xl_mbuf = NULL;
 		}
 	}
-	bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
 	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 	/*
 	 * Free the TX list buffers.
