@@ -35,7 +35,7 @@ chrdev	name		comments
 15	cd		SCSI "CDROM type"
 16	lpt		PC parallel printer port
 17	ch		SCSI changer
-18	??		was su
+18	nmdm		nullmodem back-to-back tty ports
 19	tw		X-10 power interface
 20	??		reserved for local use
 21	psm		PS/2 Mouse

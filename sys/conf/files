@@ -250,6 +250,7 @@ dev/musycc/musycc.c	optional musycc
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
 dev/nge/if_nge.c	optional nge
+dev/nmdm/nmdm.c		optional nmdm
 dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
 dev/pccard/pccard.c	optional pccard
