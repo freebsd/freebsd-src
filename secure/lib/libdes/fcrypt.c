@@ -1,5 +1,5 @@
-/* lib/des/fcrypt.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/fcrypt.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -54,41 +54,29 @@
  * eay@mincom.oz.au or eay@psych.psy.uq.oz.au
  */
 
-#if !defined(_LIBC) || defined(NOCONST)
+#ifndef HEADER_DES_LOCL_H
+
+#if defined(NOCONST)
 #define const
 #endif
 
-typedef unsigned char des_cblock[8];
-
-typedef struct des_ks_struct
-	{
-	union	{
-		des_cblock _;
-		/* make sure things are correct size on machines with
-		 * 8 byte longs */
-		unsigned long pad[2];
-		} ks;
-#define _	ks._
-	} des_key_schedule[16];
-
-#define DES_KEY_SZ 	(sizeof(des_cblock))
-#define DES_ENCRYPT	1
-#define DES_DECRYPT	0
+/* I now assume that you have des.h available */
+#include "des.h"
 
 #define ITERATIONS 16
 #define HALF_ITERATIONS 8
 
-#define c2l(c,l)	(l =((unsigned long)(*((c)++)))    , \
-			 l|=((unsigned long)(*((c)++)))<< 8, \
-			 l|=((unsigned long)(*((c)++)))<<16, \
-			 l|=((unsigned long)(*((c)++)))<<24)
+#define c2l(c,l)	(l =((DES_LONG)(*((c)++)))    , \
+			 l|=((DES_LONG)(*((c)++)))<< 8, \
+			 l|=((DES_LONG)(*((c)++)))<<16, \
+			 l|=((DES_LONG)(*((c)++)))<<24)
 
 #define l2c(l,c)	(*((c)++)=(unsigned char)(((l)    )&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>24)&0xff))
 
-static const unsigned long SPtrans[8][64]={
+static const DES_LONG des_SPtrans[8][64]={
 {
 /* nibble 0 */
 0x00820200L, 0x00020000L, 0x80800000L, 0x80820200L,
@@ -233,7 +221,7 @@ static const unsigned long SPtrans[8][64]={
 0x00208000L, 0x00008020L, 0x08008020L, 0x08200000L,
 0x00000020L, 0x08208000L, 0x00208020L, 0x00000000L,
 0x08000000L, 0x08200020L, 0x00008000L, 0x00208020L}};
-static const unsigned long skb[8][64]={
+static const DES_LONG skb[8][64]={
 {
 /* for C bits (numbered as per FIPS 46) 1 2 3 4 5 6 */
 0x00000000L,0x00000010L,0x20000000L,0x20000010L,
@@ -388,27 +376,37 @@ static const unsigned long skb[8][64]={
 #define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
 	(a)=(a)^(t)^(t>>(16-(n))))\
 
-static const int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
+#endif 
 
 #ifndef NOPROTO
-static int body(unsigned long *out0, unsigned long *out1,
-	des_key_schedule ks, unsigned long Eswap0, unsigned long Eswap1);
-static int des_set_key(des_cblock (*key), des_key_schedule schedule);
-#else
-static int body();
-static int des_set_key();
+static int body(DES_LONG *out0, DES_LONG *out1,
+	des_key_schedule ks, DES_LONG Eswap0, DES_LONG Eswap1);
+#ifndef HEADER_DES_LOCL_H
+static int fcrypt_set_key(des_cblock (*key), des_key_schedule schedule);
 #endif
 
-static int des_set_key(key, schedule)
+#else
+
+static int body();
+#ifndef HEADER_DES_LOCL_H
+static int fcrypt_set_key();
+#endif
+#endif
+
+#ifdef HEADER_DES_LOCL_H
+#define fcrypt_set_key(a,b)	des_set_key(a,b)
+#else
+static int fcrypt_set_key(key, schedule)
 des_cblock (*key);
 des_key_schedule schedule;
 	{
-	register unsigned long c,d,t,s;
+	static const int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
+	register DES_LONG c,d,t,s;
 	register unsigned char *in;
-	register unsigned long *k;
+	register DES_LONG *k;
 	register int i;
 
-	k=(unsigned long *)schedule;
+	k=(DES_LONG *)schedule;
 	in=(unsigned char *)key;
 
 	c2l(in,c);
@@ -456,6 +454,7 @@ des_key_schedule schedule;
 		}
 	return(0);
 	}
+#endif
 
 /******************************************************************
  * modified stuff for crypt.
@@ -466,8 +465,8 @@ des_key_schedule schedule;
  * Inspired by Dana How <how@isl.stanford.edu>
  * DO NOT use the alternative version on machines with 8 byte longs.
  */
-#ifdef DES_USE_PTR
-#define D_ENCRYPT(L,R,S) \
+#ifdef DES_PTR
+#define CR_ENCRYPT(L,R,S) \
 	t=(R^(R>>16)); \
 	u=(t&E0); \
 	t=(t&E1); \
@@ -475,39 +474,43 @@ des_key_schedule schedule;
 	t=(t^(t<<16))^R^s[S+1]; \
 	t=(t>>2)|(t<<30); \
 	L^= \
-	*(unsigned long *)(des_SP+0x0100+((t    )&0xfc))+ \
-	*(unsigned long *)(des_SP+0x0300+((t>> 8)&0xfc))+ \
-	*(unsigned long *)(des_SP+0x0500+((t>>16)&0xfc))+ \
-	*(unsigned long *)(des_SP+0x0700+((t>>24)&0xfc))+ \
-	*(unsigned long *)(des_SP+       ((u    )&0xfc))+ \
-  	*(unsigned long *)(des_SP+0x0200+((u>> 8)&0xfc))+ \
-  	*(unsigned long *)(des_SP+0x0400+((u>>16)&0xfc))+ \
- 	*(unsigned long *)(des_SP+0x0600+((u>>24)&0xfc));
+	*(DES_LONG *)((unsigned char *)des_SP+0x0100+((t    )&0xfc))+ \
+	*(DES_LONG *)((unsigned char *)des_SP+0x0300+((t>> 8)&0xfc))+ \
+	*(DES_LONG *)((unsigned char *)des_SP+0x0500+((t>>16)&0xfc))+ \
+	*(DES_LONG *)((unsigned char *)des_SP+0x0700+((t>>24)&0xfc))+ \
+	*(DES_LONG *)((unsigned char *)des_SP+       ((u    )&0xfc))+ \
+  	*(DES_LONG *)((unsigned char *)des_SP+0x0200+((u>> 8)&0xfc))+ \
+  	*(DES_LONG *)((unsigned char *)des_SP+0x0400+((u>>16)&0xfc))+ \
+ 	*(DES_LONG *)((unsigned char *)des_SP+0x0600+((u>>24)&0xfc));
 #else /* original version */
-#define D_ENCRYPT(L,R,S)	\
+#define CR_ENCRYPT(L,R,S)	\
 	t=(R^(R>>16)); \
 	u=(t&E0); \
 	t=(t&E1); \
 	u=(u^(u<<16))^R^s[S  ]; \
 	t=(t^(t<<16))^R^s[S+1]; \
 	t=(t>>4)|(t<<28); \
-	L^=	SPtrans[1][(t    )&0x3f]| \
-		SPtrans[3][(t>> 8)&0x3f]| \
-		SPtrans[5][(t>>16)&0x3f]| \
-		SPtrans[7][(t>>24)&0x3f]| \
-		SPtrans[0][(u    )&0x3f]| \
-		SPtrans[2][(u>> 8)&0x3f]| \
-		SPtrans[4][(u>>16)&0x3f]| \
-		SPtrans[6][(u>>24)&0x3f];
+	L^=	des_SPtrans[1][(t    )&0x3f]| \
+		des_SPtrans[3][(t>> 8)&0x3f]| \
+		des_SPtrans[5][(t>>16)&0x3f]| \
+		des_SPtrans[7][(t>>24)&0x3f]| \
+		des_SPtrans[0][(u    )&0x3f]| \
+		des_SPtrans[2][(u>> 8)&0x3f]| \
+		des_SPtrans[4][(u>>16)&0x3f]| \
+		des_SPtrans[6][(u>>24)&0x3f];
 #endif
 
+/* Added more values to handle illegal salt values the way normal
+ * crypt() implementations do.  The patch was sent by 
+ * Bjorn Gronvall <bg@sics.se>
+ */
 static unsigned const char con_salt[128]={
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
+0xD2,0xD3,0xD4,0xD5,0xD6,0xD7,0xD8,0xD9,
+0xDA,0xDB,0xDC,0xDD,0xDE,0xDF,0xE0,0xE1,
+0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,
+0xEA,0xEB,0xEC,0xED,0xEE,0xEF,0xF0,0xF1,
+0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,0xF8,0xF9,
+0xFA,0xFB,0xFC,0xFD,0xFE,0xFF,0x00,0x01,
 0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
 0x0A,0x0B,0x05,0x06,0x07,0x08,0x09,0x0A,
 0x0B,0x0C,0x0D,0x0E,0x0F,0x10,0x11,0x12,
@@ -517,7 +520,7 @@ static unsigned const char con_salt[128]={
 0x25,0x26,0x27,0x28,0x29,0x2A,0x2B,0x2C,
 0x2D,0x2E,0x2F,0x30,0x31,0x32,0x33,0x34,
 0x35,0x36,0x37,0x38,0x39,0x3A,0x3B,0x3C,
-0x3D,0x3E,0x3F,0x00,0x00,0x00,0x00,0x00,
+0x3D,0x3E,0x3F,0x40,0x41,0x42,0x43,0x44,
 };
 
 static unsigned const char cov_2char[64]={
@@ -535,7 +538,7 @@ static unsigned const char cov_2char[64]={
 #ifdef PERL5
 char *des_crypt(char *buf,char *salt);
 #else
-char *crypt(char *buf,char *salt);
+char *crypt(const char *buf,const char *salt);
 #endif
 #else
 #ifdef PERL5
@@ -550,12 +553,12 @@ char *des_crypt(buf,salt)
 #else
 char *crypt(buf,salt)
 #endif
-char *buf;
-char *salt;
+const char *buf;
+const char *salt;
 	{
 	unsigned int i,j,x,y;
-	unsigned long Eswap0=0,Eswap1=0;
-	unsigned long out[2],ll;
+	DES_LONG Eswap0,Eswap1;
+	DES_LONG out[2],ll;
 	des_cblock key;
 	des_key_schedule ks;
 	static unsigned char buff[20];
@@ -585,7 +588,7 @@ char *salt;
 	for (; i<8; i++)
 		key[i]=0;
 
-	des_set_key((des_cblock *)(key),ks);
+	fcrypt_set_key((des_cblock *)(key),ks);
 	body(&(out[0]),&(out[1]),ks,Eswap0,Eswap1);
 
 	ll=out[0]; l2c(ll,b);
@@ -614,24 +617,24 @@ char *salt;
 	}
 
 static int body(out0, out1, ks, Eswap0, Eswap1)
-unsigned long *out0;
-unsigned long *out1;
+DES_LONG *out0;
+DES_LONG *out1;
 des_key_schedule ks;
-unsigned long Eswap0;
-unsigned long Eswap1;
+DES_LONG Eswap0;
+DES_LONG Eswap1;
 	{
-	register unsigned long l,r,t,u;
-#ifdef DES_USE_PTR
-	register unsigned char *des_SP=(unsigned char *)SPtrans;
+	register DES_LONG l,r,t,u;
+#ifdef DES_PTR
+	register unsigned char *des_SP=(unsigned char *)des_SPtrans;
 #endif
-	register unsigned long *s;
+	register DES_LONG *s;
 	register int i,j;
-	register unsigned long E0,E1;
+	register DES_LONG E0,E1;
 
 	l=0;
 	r=0;
 
-	s=(unsigned long *)ks;
+	s=(DES_LONG *)ks;
 	E0=Eswap0;
 	E1=Eswap1;
 
@@ -639,8 +642,8 @@ unsigned long Eswap1;
 		{
 		for (i=0; i<(ITERATIONS*2); i+=4)
 			{
-			D_ENCRYPT(l,r,  i);	/*  1 */
-			D_ENCRYPT(r,l,  i+2);	/*  2 */
+			CR_ENCRYPT(l,r,  i);	/*  1 */
+			CR_ENCRYPT(r,l,  i+2);	/*  2 */
 			}
 		t=l;
 		l=r;

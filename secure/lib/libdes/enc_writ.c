@@ -1,5 +1,5 @@
-/* lib/des/enc_writ.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/enc_writ.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -65,11 +65,16 @@ des_cblock (*iv);
 
 	long rnum;
 	int i,j,k,outnum;
-	char outbuf[BSIZE+HDRSIZE];
+	char *outbuf=NULL;
 	char shortbuf[8];
 	char *p;
 	static int start=1;
 
+	if (outbuf == NULL)
+		{
+		outbuf=(char *)malloc(BSIZE+HDRSIZE);
+		if (outbuf == NULL) return(-1);
+		}
 	/* If we are sending less than 8 bytes, the same char will look
 	 * the same if we don't pad it out with random bytes */
 	if (start)
@@ -114,14 +119,16 @@ des_cblock (*iv);
 		}
 
 	if (des_rw_mode & DES_PCBC_MODE)
-		pcbc_encrypt((des_cblock *)p,(des_cblock *)&(outbuf[HDRSIZE]),
+		des_pcbc_encrypt((des_cblock *)p,
+			(des_cblock *)&(outbuf[HDRSIZE]),
 			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
 	else
-		cbc_encrypt((des_cblock *)p,(des_cblock *)&(outbuf[HDRSIZE]),
+		des_cbc_encrypt((des_cblock *)p,
+			(des_cblock *)&(outbuf[HDRSIZE]),
 			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
 
 	/* output */
-	outnum=rnum+HDRSIZE;
+	outnum=(int)rnum+HDRSIZE;
 
 	for (j=0; j<outnum; j+=i)
 		{

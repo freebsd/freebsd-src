@@ -1,5 +1,5 @@
-/* lib/des/des.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/des.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -55,7 +55,7 @@
 #endif
 
 #include <time.h>
-#include "version.h"
+#include "des_ver.h"
 
 #ifdef VMS
 #include <types.h>
@@ -247,7 +247,7 @@ char **argv;
 		if (vflag) 
 			{
 #ifndef _Windows			
-			fprintf(stderr,"des(1) built with %s\n",DES_version);
+			fprintf(stderr,"des(1) built with %s\n",libdes_version);
 #endif			
 			EXIT(1);
 			}
@@ -255,7 +255,7 @@ char **argv;
 		}
 
 #ifndef _Windows			
-	if (vflag) fprintf(stderr,"des(1) built with %s\n",DES_version);
+	if (vflag) fprintf(stderr,"des(1) built with %s\n",libdes_version);
 #endif			
 	if (	(in != NULL) &&
 		(out != NULL) &&
@@ -826,9 +826,9 @@ FILE *fp;
 	return(tot);
 	}
 
-#define ccc2l(c,l)      (l =((unsigned long)(*((c)++)))<<16, \
-			 l|=((unsigned long)(*((c)++)))<< 8, \
-		 	 l|=((unsigned long)(*((c)++))))
+#define ccc2l(c,l)      (l =((DES_LONG)(*((c)++)))<<16, \
+			 l|=((DES_LONG)(*((c)++)))<< 8, \
+		 	 l|=((DES_LONG)(*((c)++))))
 
 #define l2ccc(l,c)      (*((c)++)=(unsigned char)(((l)>>16)&0xff), \
                     *((c)++)=(unsigned char)(((l)>> 8)&0xff), \
@@ -841,7 +841,7 @@ int num;
 unsigned char *out;
 	{
 	int j,i,n,tot=0;
-	unsigned long l;
+	DES_LONG l;
 	register unsigned char *p;
 	p=out;
 
@@ -875,8 +875,8 @@ unsigned char *out;
 	{
 	int j,i,k;
 	unsigned int n=0,space=0;
-	unsigned long l;
-	unsigned long w,x,y,z;
+	DES_LONG l;
+	DES_LONG w,x,y,z;
 	unsigned int blank=(unsigned int)'\n'-' ';
 
 	for (j=0; j<num; )

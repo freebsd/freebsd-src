@@ -1,5 +1,5 @@
-/* lib/des/speed.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/speed.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -197,7 +197,7 @@ char **argv;
 	des_set_key((C_Block *)key3,sch3);
 
 #ifndef SIGALRM
-	printf("First we calculate the aproximate speed ...\n");
+	printf("First we calculate the approximate speed ...\n");
 	des_set_key((C_Block *)key,sch);
 	count=10;
 	do	{
@@ -257,7 +257,7 @@ char **argv;
 #endif
 	Time_F(START);
 	for (count=0,run=1; COND(cc); count++)
-		des_cbc_encrypt((C_Block *)buf,(C_Block *)buf,BUFSIZE,&(sch[0]),
+		des_ncbc_encrypt((C_Block *)buf,(C_Block *)buf,BUFSIZE,&(sch[0]),
 			(C_Block *)&(key[0]),DES_ENCRYPT);
 	d=Time_F(STOP);
 	printf("%ld des_cbc_encrypt's of %ld byte blocks in %.2f second\n",
