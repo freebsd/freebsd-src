@@ -42,6 +42,9 @@ struct disk {
 	off_t			d_mediasize;
 	u_int			d_fwsectors;
 	u_int			d_fwheads;
+	u_int			d_stripe_offset;
+	u_int			d_stripe_width;
+	u_int			d_max_request;
 
 	struct g_geom		*d_softc;
 };
