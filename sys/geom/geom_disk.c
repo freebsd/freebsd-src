@@ -123,6 +123,13 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
 		dp->d_flags |= DISKFLAG_OPEN;
+		if (dp->d_maxsize == 0 && dp->d_dev->si_iosize_max != 0)
+			dp->d_maxsize = dp->d_dev->si_iosize_max;
+		if (dp->d_maxsize == 0) {
+			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
+			    dp->d_name, dp->d_unit);
+			dp->d_maxsize = DFLTPHYS;
+		}
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL || dp->d_cclose != NULL) {
 			g_disk_lock_giant(dp);
@@ -195,16 +202,6 @@ g_disk_start(struct bio *bp)
 		/* fall-through */
 	case BIO_READ:
 	case BIO_WRITE:
-		if (dp->d_dev->si_iosize_max != 0)
-			dp->d_maxsize = dp->d_dev->si_iosize_max;
-#ifdef maybe
-		else
-			/*
-			 * XXX: Who knows how many drivers have undeclared
-			 * limitations ?
-			 */
-			dp->d_maxsize = DFLTPHYS;
-#endif
 		off = 0;
 		bp3 = NULL;
 		bp2 = g_clone_bio(bp);
