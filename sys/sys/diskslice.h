@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.7 1995/04/30 15:13:55 bde Exp $
+ *	$Id: diskslice.h,v 1.8 1995/05/01 00:07:17 julian Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
@@ -113,6 +113,8 @@ char	*dsname __P((char *dname, int unit, int slice, int part,
 int	dsopen __P((char *dname, dev_t dev, int mode, struct diskslices **sspp,
 		    struct disklabel *lp, d_strategy_t *strat,
 		    ds_setgeom_t *setgeom));
+int	dssize __P((dev_t dev, struct diskslices **sspp, d_open_t dopen,
+		    d_close_t dclose));
 
 #endif /* KERNEL */
 
