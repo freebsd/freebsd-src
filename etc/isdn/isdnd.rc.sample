@@ -5,7 +5,7 @@
 #
 # $FreeBSD$
 #
-#	last edit-date: [Tue Jan 19 16:30:12 1999]
+#	last edit-date: [Sun May 27 09:33:59 2001]
 #
 #	NOTICE:
 #	=======
@@ -74,10 +74,20 @@ ratesfile	= /etc/isdn/isdnd.rates	# name & location of rates file
 #regexpr	= "connected.*XXX"	# look for matches in log messages
 #regprog	= connectXXX		# execute program when match is found
 
+regexpr         = "<unknown> incoming call from"
+regprog         = unknown_incoming      # execute program whan match is found
+
 # realtime priority section
 # -------------------------
 
 rtprio		= 25			# modify isdnd's process priority
+
+#===========================================================================
+# controller section
+#===========================================================================
+controller
+
+firmware	= /etc/isdn/b1.t4	# microcode for an AVM B1 controller
 
 #==============================================================================
 # entry section: IP over ISDN example - i call back the remote end
@@ -95,7 +105,7 @@ usrdeviceunit		= 0		# unit number
 
 					# the ISDN controller number to be
 					# used for this entry:
-isdncontroller		= 0		# contoller to use or -1 to use any
+isdncontroller		= 0		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
 					# incoming only, outgoing only or both:
@@ -167,7 +177,7 @@ name        		= I4BIP1	# name for reference
 usrdevicename		= ipr		# ipr, tel, rbch
 usrdeviceunit		= 1		# unit number
 				
-isdncontroller		= 0		# contoller to use or -1 to use any
+isdncontroller		= 0		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
 					# numbers used to DIAL OUT
@@ -210,7 +220,7 @@ name        		= I4BTEL	# name for reference
 usrdevicename		= tel		# ipr, tel, rbch
 usrdeviceunit           = 0             # unit number
 				
-isdncontroller		= 0		# contoller to use or -1 to use any
+isdncontroller		= 0		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
 					# numbers used to verify at DIAL IN
@@ -225,33 +235,175 @@ b1protocol		= raw		# hdlc, raw
 
 idletime-incoming	= 5		# 5 seconds idle timeout
 
-#=======================================================================
-# entry section: PPP example
-#======================================================================
-entry
-name			= I4BPPP
-usrdevicename		= isp	
-usrdeviceunit		= 0
-isdncontroller  	= 0
-isdnchannel		= -1
-local-phone-incoming	= 1234	
-remote-phone-incoming	= 5678
-local-phone-dialout	= 1234
-remote-phone-dialout	= 5678	
-remdial-handling	= first
-dialin-reaction		= accept
-dialout-type		= normal
-b1protocol		= hdlc
-idletime-incoming	= 240
-idletime-outgoing	= 30
-ratetype		= 0  
-unitlength		= 90
-unitlengthsrc		= rate
-dialretries		= 3
-dialrandincr		= on
-recoverytime		= 25
-usedown			= off
-downtries		= 2
-downtime		= 30
+#==============================================================================
+# kernel PPP (with budget handling) - Sunday & Holidays, we call back
+#==============================================================================
+entry				
+
+valid			= "0,7"		# sundays & holidays
+
+name        		= KPPPs		# name for reference
+				
+usrdevicename		= isp		# ipr, tel, rbch
+usrdeviceunit		= 0		# unit number
+				
+isdncontroller		= 1		# controller to use or -1 to use any
+isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
+
+					# numbers used to verify at DIAL IN
+local-phone-incoming	= 29		# this is my number
+remote-phone-incoming	= 00401234567	# this one can call in
+
+					# numbers used to DIAL OUT
+local-phone-dialout	= 29		# this is my number
+remote-phone-dialout	= 00401234567	# i call this number
+
+remdial-handling	= first		# first, last or next
+				
+dialin-reaction		= callback	# accept, reject, ignore, answer, callback
+
+dialout-type		= normal	# normal / calledback
+
+b1protocol		= hdlc		# hdlc, raw
+
+idletime-incoming	= 30		# incoming call idle timeout
+idletime-outgoing	= 120		# outgoing call idle timeout
+
+unitlength		= 360		# unitlength to assume
+unitlengthsrc		= conf		# none, rate, cmdl, conf, aocd
+
+dialretries		= 5		# # of dial retries
+dialrandincr		= on		# random dial increment time
+recoverytime		= 3		# time to wait between 2 dial tries
+
+callbackwait		= 5		# time to wait to call back
+
+usedown			= off		# set i/f down
+downtries		= 5		# retry cycles before set down
+downtime		= 60		# time to be in down before going up
+
+budget-callbackperiod	= 10800		# 3 hours
+budget-callbackncalls	= 1000		# 2 callbacks in 3 hours
+budget-callbacksfile	= /var/log/isdn/callbacks.isp0
+budget-callbacksfile-rotate = yes
+
+budget-calloutperiod	= 3600		# 1 hour
+budget-calloutncalls	= 1000		# 3 calls in 1 hour
+budget-calloutsfile	= /var/log/isdn/callouts.isp0
+budget-calloutsfile-rotate = yes
+
+#==============================================================================
+# kernel PPP (with budget handling) - Monday-Saturday, 9:00-18:00: we call back
+#==============================================================================
+entry				
+
+valid			= "1,2,3,4,5,6,9:00-18:00" # Monday-Saturday, day
+
+name        		= KPPPd		# name for reference
+				
+usrdevicename		= isp		# ipr, tel, rbch
+usrdeviceunit		= 0		# unit number
+				
+isdncontroller		= 1		# controller to use or -1 to use any
+isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
+
+					# numbers used to verify at DIAL IN
+local-phone-incoming	= 29		# this is my number
+remote-phone-incoming	= 00401234567	# this one can call in
+
+					# numbers used to DIAL OUT
+local-phone-dialout	= 29		# this is my number
+remote-phone-dialout	= 00401234567	# i call this number
+
+remdial-handling	= first		# first, last or next
+				
+dialin-reaction		= callback	# accept, reject, ignore, answer, callback
+
+dialout-type		= normal	# normal / calledback
+
+b1protocol		= hdlc		# hdlc, raw
+
+idletime-incoming	= 30		# incoming call idle timeout
+idletime-outgoing	= 30		# outgoing call idle timeout
+
+unitlength		= 60		# unitlength to assume
+unitlengthsrc		= conf		# none, rate, cmdl, conf, aocd
+
+dialretries		= 5		# # of dial retries
+dialrandincr		= on		# random dial increment time
+recoverytime		= 3		# time to wait between 2 dial tries
+
+callbackwait		= 5		# time to wait to call back
+
+usedown			= off		# set i/f down
+downtries		= 5		# retry cycles before set down
+downtime		= 60		# time to be in down before going up
+
+budget-callbackperiod	= 10800		# 3 hours
+budget-callbackncalls	= 1		# 1 callbacks in 3 hours
+budget-callbacksfile	= /var/log/isdn/callbacks.isp0
+budget-callbacksfile-rotate = yes
+
+budget-calloutperiod	= 3600		# 1 hour
+budget-calloutncalls	= 3		# 3 calls in 1 hour
+budget-calloutsfile	= /var/log/isdn/callouts.isp0
+budget-calloutsfile-rotate = yes
+
+#==============================================================================
+# kernel PPP (with budget handling) - Monday-Saturday: we call back
+#==============================================================================
+entry				
+
+valid			= "1,2,3,4,5,6,18:00-9:00" # Monday-Saturday, night
+
+name        		= KPPPn		# name for reference
+				
+usrdevicename		= isp		# ipr, tel, rbch
+usrdeviceunit		= 0		# unit number
+				
+isdncontroller		= 1		# controller to use or -1 to use any
+isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
+
+					# numbers used to verify at DIAL IN
+local-phone-incoming	= 29		# this is my number
+remote-phone-incoming	= 00401234567	# this one can call in
+
+					# numbers used to DIAL OUT
+local-phone-dialout	= 29		# this is my number
+remote-phone-dialout	= 00401234567	# i call this number
+
+remdial-handling	= first		# first, last or next
+				
+dialin-reaction		= callback	# accept, reject, ignore, answer, callback
+
+dialout-type		= normal	# normal / calledback
+
+b1protocol		= hdlc		# hdlc, raw
+
+idletime-incoming	= 30		# incoming call idle timeout
+idletime-outgoing	= 30		# outgoing call idle timeout
+
+unitlength		= 60		# unitlength to assume
+unitlengthsrc		= conf		# none, rate, cmdl, conf, aocd
+
+dialretries		= 5		# # of dial retries
+dialrandincr		= on		# random dial increment time
+recoverytime		= 3		# time to wait between 2 dial tries
+
+callbackwait		= 5		# time to wait to call back
+
+usedown			= off		# set i/f down
+downtries		= 5		# retry cycles before set down
+downtime		= 60		# time to be in down before going up
+
+budget-callbackperiod	= 7200		# 2 hours
+budget-callbackncalls	= 2		# 2 callbacks in 2 hours
+budget-callbacksfile	= /var/log/isdn/callbacks.isp0
+budget-callbacksfile-rotate = yes
+
+budget-calloutperiod	= 3600		# 1 hour
+budget-calloutncalls	= 3		# 3 calls in 1 hour
+budget-calloutsfile	= /var/log/isdn/callouts.isp0
+budget-calloutsfile-rotate = yes
 
 # EOF #########################################################################
