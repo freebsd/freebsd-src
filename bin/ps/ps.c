@@ -152,9 +152,9 @@ main(argc, argv)
 	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv,
 #if defined(LAZY_PS)
-	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uv:wxZ")) != -1)
+	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvwxZ")) != -1)
 #else
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uv:wxZ")) != -1)
+	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvwxZ")) != -1)
 #endif
 		switch((char)ch) {
 		case 'a':
