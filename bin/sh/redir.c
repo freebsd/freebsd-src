@@ -179,7 +179,7 @@ openredirect(union node *redir, char memory[10])
 	case NFROM:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_RDONLY)) < 0)
-			error("cannot open %s: %s", fname, errmsg(errno, E_OPEN));
+			error("cannot open %s: %s", fname, strerror(errno));
 movefd:
 		if (f != fd) {
 			close(fd);
@@ -191,17 +191,17 @@ movefd:
 		fname = redir->nfile.expfname;
 #ifdef O_CREAT
 		if ((f = open(fname, O_RDWR|O_CREAT, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 #else
 		if ((f = open(fname, O_RDWR, 0666)) < 0) {
 			if (errno != ENOENT)
-				error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+				error("cannot create %s: %s", fname, strerror(errno));
 			else if ((f = creat(fname, 0666)) < 0)
-				error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+				error("cannot create %s: %s", fname, strerror(errno));
 			else {
 				close(f);
 				if ((f = open(fname, O_RDWR)) < 0) {
-					error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+					error("cannot create %s: %s", fname, strerror(errno));
 					remove(fname);
 				}
 			}
@@ -212,29 +212,29 @@ movefd:
 		fname = redir->nfile.expfname;
 		if (Cflag && stat(fname, &sb) != -1 && S_ISREG(sb.st_mode))
 			error("cannot create %s: %s", fname,
-			    errmsg(EEXIST, E_CREAT));
+			    strerror(EEXIST));
 #ifdef O_CREAT
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 #else
 		if ((f = creat(fname, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 #endif
 		goto movefd;
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 		goto movefd;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
 #ifdef O_APPEND
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 #else
 		if ((f = open(fname, O_WRONLY)) < 0
 		 && (f = creat(fname, 0666)) < 0)
-			error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+			error("cannot create %s: %s", fname, strerror(errno));
 		lseek(f, (off_t)0, 2);
 #endif
 		goto movefd;
