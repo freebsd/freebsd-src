@@ -53,7 +53,7 @@
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC \
  "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
-    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+    %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
 
 /* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
    the file which provides part of the support for getting C++
@@ -62,3 +62,10 @@
 #undef	ENDFILE_SPEC
 #define ENDFILE_SPEC \
   "%{!shared:crtend.o%s} %{shared:crtendS.o%s}"
+
+/* Handle #pragma weak and #pragma pack.  */
+
+#define HANDLE_SYSV_PRAGMA
+
+#undef SET_ASM_OP
+#define SET_ASM_OP	".set"
