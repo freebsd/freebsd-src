@@ -86,7 +86,7 @@ struct pipemapping {
 #define PIPE_WANT	0x020	/* Pipe is wanted to be run-down. */
 #define PIPE_SEL	0x040	/* Pipe has a select active. */
 #define PIPE_EOF	0x080	/* Pipe is in EOF condition. */
-#define PIPE_LOCK	0x100	/* Process has exclusive access to pointers/data. */
+#define PIPE_LOCKFL	0x100	/* Process has exclusive access to pointers/data. */
 #define PIPE_LWANT	0x200	/* Process wants exclusive access to pointers/data. */
 #define PIPE_DIRECTW	0x400	/* Pipe direct write active. */
 #define PIPE_DIRECTOK	0x800	/* Direct mode ok. */
@@ -106,6 +106,13 @@ struct pipe {
 	struct	pipe *pipe_peer;	/* link with other direction */
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
+	struct	mtx *pipe_mtxp;		/* shared mutex between both pipes */
 };
+
+#define PIPE_MTX(pipe)		(pipe)->pipe_mtxp
+#define PIPE_LOCK(pipe)		mtx_lock(PIPE_MTX(pipe))
+#define PIPE_UNLOCK(pipe)	mtx_unlock(PIPE_MTX(pipe))
+#define PIPE_LOCK_ASSERT(pipe, type)  mtx_assert(PIPE_MTX(pipe), (type))
+
 
 #endif /* !_SYS_PIPE_H_ */
