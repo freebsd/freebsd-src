@@ -120,26 +120,8 @@ struct	udpstat udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
     &udpstat, udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
-static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
-#ifdef INET6
-struct udp_in6 {
-	struct sockaddr_in6	uin6_sin;
-	u_char			uin6_init_done : 1;
-} udp_in6 = {
-	{ sizeof(udp_in6.uin6_sin), AF_INET6 },
-	0
-};
-struct udp_ip6 {
-	struct ip6_hdr		uip6_ip6;
-	u_char			uip6_init_done : 1;
-} udp_ip6;
-#endif /* INET6 */
-
 static void udp_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
-		int off);
-#ifdef INET6
-static void ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip);
-#endif
+		int off, struct sockaddr_in *udp_in);
 
 static int udp_detach(struct socket *so);
 static	int udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
@@ -171,6 +153,7 @@ udp_input(m, off)
 	struct mbuf *opts = 0;
 	int len;
 	struct ip save_ip;
+	struct sockaddr_in udp_in;
 
 	udpstat.udps_ipackets++;
 
@@ -206,11 +189,11 @@ udp_input(m, off)
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
 	 */
+	bzero(&udp_in, sizeof(udp_in));
+	udp_in.sin_len = sizeof(udp_in);
+	udp_in.sin_family = AF_INET;
 	udp_in.sin_port = uh->uh_sport;
 	udp_in.sin_addr = ip->ip_src;
-#ifdef INET6
-	udp_in6.uin6_init_done = udp_ip6.uip6_init_done = 0;
-#endif
 
 	/*
 	 * Make mbuf data length reflect UDP length.
@@ -338,7 +321,8 @@ udp_input(m, off)
 				if (n != NULL)
 					udp_append(last, ip, n,
 						   iphlen +
-						   sizeof(struct udphdr));
+						   sizeof(struct udphdr),
+						   &udp_in);
 				INP_UNLOCK(last);
 			}
 			last = inp;
@@ -363,7 +347,8 @@ udp_input(m, off)
 			udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-		udp_append(last, ip, m, iphlen + sizeof(struct udphdr));
+		udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
+		    &udp_in);
 		INP_UNLOCK(last);
 		INP_INFO_RUNLOCK(&udbinfo);
 		return;
@@ -399,7 +384,7 @@ udp_input(m, off)
 		return;
 	}
 	INP_LOCK(inp);
-	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr));
+	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return;
@@ -415,39 +400,25 @@ badunlocked:
 	return;
 }
 
-#ifdef INET6
-static void
-ip_2_ip6_hdr(ip6, ip)
-	struct ip6_hdr *ip6;
-	struct ip *ip;
-{
-	bzero(ip6, sizeof(*ip6));
-
-	ip6->ip6_vfc = IPV6_VERSION;
-	ip6->ip6_plen = ip->ip_len;
-	ip6->ip6_nxt = ip->ip_p;
-	ip6->ip6_hlim = ip->ip_ttl;
-	ip6->ip6_src.s6_addr32[2] = ip6->ip6_dst.s6_addr32[2] =
-		IPV6_ADDR_INT32_SMP;
-	ip6->ip6_src.s6_addr32[3] = ip->ip_src.s_addr;
-	ip6->ip6_dst.s6_addr32[3] = ip->ip_dst.s_addr;
-}
-#endif
-
 /*
- * subroutine of udp_input(), mainly for source code readability.
- * caller must properly init udp_ip6 and udp_in6 beforehand.
+ * Subroutine of udp_input(), which appends the provided mbuf chain to the
+ * passed pcb/socket.  The caller must provide a sockaddr_in via udp_in that
+ * contains the source address.  If the socket ends up being an IPv6 socket,
+ * udp_append() will convert to a sockaddr_in6 before passing the address
+ * into the socket code.
  */
 static void
-udp_append(last, ip, n, off)
+udp_append(last, ip, n, off, udp_in)
 	struct inpcb *last;
 	struct ip *ip;
 	struct mbuf *n;
 	int off;
+	struct sockaddr_in *udp_in;
 {
 	struct sockaddr *append_sa;
 	struct socket *so;
 	struct mbuf *opts = 0;
+	struct sockaddr_in6 udp_in6;
 
 	INP_LOCK_ASSERT(last);
 
@@ -473,10 +444,6 @@ udp_append(last, ip, n, off)
 		if (last->inp_vflag & INP_IPV6) {
 			int savedflags;
 
-			if (udp_ip6.uip6_init_done == 0) {
-				ip_2_ip6_hdr(&udp_ip6.uip6_ip6, ip);
-				udp_ip6.uip6_init_done = 1;
-			}
 			savedflags = last->inp_flags;
 			last->inp_flags &= ~INP_UNMAPPABLEOPTS;
 			ip6_savecontrol(last, n, &opts);
@@ -487,14 +454,14 @@ udp_append(last, ip, n, off)
 	}
 #ifdef INET6
 	if (last->inp_vflag & INP_IPV6) {
-		if (udp_in6.uin6_init_done == 0) {
-			in6_sin_2_v4mapsin6(&udp_in, &udp_in6.uin6_sin);
-			udp_in6.uin6_init_done = 1;
-		}
-		append_sa = (struct sockaddr *)&udp_in6.uin6_sin;
+		bzero(&udp_in6, sizeof(udp_in6));
+		udp_in6.sin6_len = sizeof(udp_in6);
+		udp_in6.sin6_family = AF_INET6;
+		in6_sin_2_v4mapsin6(udp_in, &udp_in6);
+		append_sa = (struct sockaddr *)&udp_in6;
 	} else
 #endif
-	append_sa = (struct sockaddr *)&udp_in;
+	append_sa = (struct sockaddr *)udp_in;
 	m_adj(n, off);
 
 	so = last->inp_socket;
