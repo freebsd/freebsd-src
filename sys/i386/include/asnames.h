@@ -242,6 +242,7 @@
 #define _ioapic				ioapic
 #define _ipending			ipending
 #define _isr_lock			isr_lock
+#define _kernbase			kernbase
 #define _kernelname			kernelname
 #define _lapic				lapic
 #define _linux_sigcode			linux_sigcode

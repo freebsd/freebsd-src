@@ -84,6 +84,12 @@
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
 
 /*
+ * Compiled KERNBASE location
+ */
+	.globl	_kernbase
+	.set	_kernbase,KERNBASE
+
+/*
  * Globals
  */
 	.data

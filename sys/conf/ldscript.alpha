@@ -3,11 +3,11 @@ OUTPUT_FORMAT("elf64-alpha", "elf64-alpha", "elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
-kernel_text = 0xfffffc0000300000;
+kernel_text = kernbase;
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0xfffffc0000300000 + SIZEOF_HEADERS;
+  . = kernbase + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}

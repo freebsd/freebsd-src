@@ -70,7 +70,10 @@
 	.equ	PTlev2,PTmap + (PTLEV1I << ALPHA_L2SHIFT)
 	.equ	PTlev1,PTlev2 + (PTLEV1I << ALPHA_L3SHIFT)
 	.equ	PTlev1pte,PTlev1 + (PTLEV1I * PTESIZE)
-	
+
+	.globl	kernbase
+	.equ	kernbase,KERNBASE
+
 /*
  * Perform actions necessary to switch to a new context.  The
  * hwpcb should be in a0.
