@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/socketvar.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
@@ -392,19 +392,15 @@ static void
 sf_buf_init(void *arg)
 {
 	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
 	int i;
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
+	for (i = 0; i < nsfbufs; i++)
 		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
-	}
 	sf_buf_alloc_want = 0;
 	mtx_unlock(&sf_freelist.sf_lock);
 }
@@ -434,7 +430,6 @@ sf_buf_alloc(struct vm_page *m)
 	if (sf != NULL) {
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 		sf->m = m;
-		pmap_qenter(sf->kva, &sf->m, 1);
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
@@ -450,7 +445,6 @@ sf_buf_free(void *addr, void *args)
 	struct vm_page *m;
 
 	sf = args;
-	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
 	vm_page_lock_queues();
 	vm_page_unwire(m, 0);
