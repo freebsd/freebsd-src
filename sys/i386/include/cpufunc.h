@@ -227,62 +227,6 @@ invd(void)
 	__asm __volatile("invd");
 }
 
-#if defined(SMP) && defined(_KERNEL)
-
-/*
- * When using APIC IPI's, invlpg() is not simply the invlpg instruction
- * (this is a bug) and the inlining cost is prohibitive since the call
- * executes into the IPI transmission system.
- */
-void	invlpg		__P((u_int addr));
-void	invltlb		__P((void));
-
-static __inline void
-cpu_invlpg(void *addr)
-{
-	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
-}
-
-static __inline void
-cpu_invltlb(void)
-{
-	u_int	temp;
-	/*
-	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
-	 * is inlined.
-	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
-			 : : "memory");
-#if defined(SWTCH_OPTIM_STATS)
-	++tlb_flush_count;
-#endif
-}
-
-#else /* !(SMP && _KERNEL) */
-
-static __inline void
-invlpg(u_int addr)
-{
-	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
-}
-
-static __inline void
-invltlb(void)
-{
-	u_int	temp;
-	/*
-	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
-	 * is inlined.
-	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
-			 : : "memory");
-#ifdef SWTCH_OPTIM_STATS
-	++tlb_flush_count;
-#endif
-}
-
-#endif /* SMP && _KERNEL */
-
 static __inline u_short
 inw(u_int port)
 {
@@ -348,15 +292,6 @@ outw(u_int port, u_short data)
 }
 
 static __inline u_int
-rcr2(void)
-{
-	u_int	data;
-
-	__asm __volatile("movl %%cr2,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline u_int
 read_eflags(void)
 {
 	u_int	ef;
@@ -418,6 +353,162 @@ static __inline void
 wrmsr(u_int msr, u_int64_t newval)
 {
 	__asm __volatile("wrmsr" : : "A" (newval), "c" (msr));
+}
+
+static __inline void
+load_cr0(u_int data)
+{
+
+	__asm __volatile("movl %0,%%cr0" : : "r" (data));
+}
+
+static __inline u_int
+rcr0(void)
+{
+	u_int	data;
+
+	__asm __volatile("movl %%cr0,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline u_int
+rcr2(void)
+{
+	u_int	data;
+
+	__asm __volatile("movl %%cr2,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_cr3(u_int data)
+{
+
+	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
+#if defined(SWTCH_OPTIM_STATS)
+	++tlb_flush_count;
+#endif
+}
+
+static __inline u_int
+rcr3(void)
+{
+	u_int	data;
+
+	__asm __volatile("movl %%cr3,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_cr4(u_int data)
+{
+	__asm __volatile("movl %0,%%cr4" : : "r" (data));
+}
+
+static __inline u_int
+rcr4(void)
+{
+	u_int	data;
+
+	__asm __volatile("movl %%cr4,%0" : "=r" (data));
+	return (data);
+}
+
+/*
+ * Global TLB flush (except for thise for pages marked PG_G)
+ */
+static __inline void
+cpu_invltlb(void)
+{
+
+	load_cr3(rcr3());
+}
+
+/*
+ * TLB flush for an individual page (even if it has PG_G).
+ * Only works on 486+ CPUs (i386 does not have PG_G).
+ */
+static __inline void
+cpu_invlpg(u_int addr)
+{
+
+#ifndef I386_CPU
+	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
+#else
+	cpu_invltlb();
+#endif
+}
+
+#ifdef PAGE_SIZE	/* Avoid this file depending on sys/param.h */
+/*
+ * Same as above but for a range of pages.
+ */
+static __inline void
+cpu_invlpg_range(u_int startva, u_int endva)
+{
+#ifndef I386_CPU
+	u_int addr;
+
+	for (addr = startva; addr < endva; addr += PAGE_SIZE)
+		__asm __volatile("invlpg %0" : : "m" (*(char *)addr));
+	__asm __volatile("" : : : "memory");
+#else
+	cpu_invltlb();
+#endif
+}
+#endif
+
+#ifdef SMP
+extern void	smp_invlpg(u_int addr);
+extern void	smp_masked_invlpg(u_int mask, u_int addr);
+#ifdef PAGE_SIZE	/* Avoid this file depending on sys/param.h */
+extern void	smp_invlpg_range(u_int startva, u_int endva);
+extern void	smp_masked_invlpg_range(u_int mask, u_int startva, u_int endva);
+#endif
+extern void	smp_invltlb(void);
+extern void	smp_masked_invltlb(u_int mask);
+#endif
+
+/*
+ * Generic page TLB flush.  Takes care of SMP.
+ */
+static __inline void
+invlpg(u_int addr)
+{
+
+	cpu_invlpg(addr);
+#ifdef SMP
+	smp_invlpg(addr);
+#endif
+}
+
+#ifdef PAGE_SIZE	/* Avoid this file depending on sys/param.h */
+/*
+ * Generic TLB flush for a range of pages. Takes care of SMP.
+ * Saves many IPIs for SMP mode.
+ */
+static __inline void
+invlpg_range(u_int startva, u_int endva)
+{
+
+	cpu_invlpg_range(startva, endva);
+#ifdef SMP
+	smp_invlpg_range(startva, endva);
+#endif
+}
+#endif
+
+/*
+ * Generic global TLB flush (except for thise for pages marked PG_G)
+ */
+static __inline void
+invltlb(void)
+{
+
+	cpu_invltlb();
+#ifdef SMP
+	smp_invltlb();
+#endif
 }
 
 static __inline u_int
@@ -581,6 +672,8 @@ cpu_critical_exit(critical_t eflags)
 int	breakpoint	__P((void));
 u_int	bsfl		__P((u_int mask));
 u_int	bsrl		__P((u_int mask));
+void	cpu_invlpg	__P((u_int addr));
+void	cpu_invlpg_range __P((u_int start, u_int end));
 void	disable_intr	__P((void));
 void	do_cpuid	__P((u_int ax, u_int *p));
 void	enable_intr	__P((void));
@@ -591,15 +684,26 @@ void	insl		__P((u_int port, void *addr, size_t cnt));
 void	insw		__P((u_int port, void *addr, size_t cnt));
 void	invd		__P((void));
 void	invlpg		__P((u_int addr));
+void	invlpg_range	__P((u_int start, u_int end));
 void	invltlb		__P((void));
 u_short	inw		__P((u_int port));
+void	load_cr0	__P((u_int cr0));
+void	load_cr3	__P((u_int cr3));
+void	load_cr4	__P((u_int cr4));
+void	load_fs		__P((u_int sel));
+void	load_gs		__P((u_int sel));
 void	outb		__P((u_int port, u_char data));
 void	outl		__P((u_int port, u_int data));
 void	outsb		__P((u_int port, void *addr, size_t cnt));
 void	outsl		__P((u_int port, void *addr, size_t cnt));
 void	outsw		__P((u_int port, void *addr, size_t cnt));
 void	outw		__P((u_int port, u_short data));
+u_int	rcr0		__P((void));
 u_int	rcr2		__P((void));
+u_int	rcr3		__P((void));
+u_int	rcr4		__P((void));
+u_int	rfs		__P((void));
+u_int	rgs		__P((void));
 u_int64_t rdmsr		__P((u_int msr));
 u_int64_t rdpmc		__P((u_int pmc));
 u_int64_t rdtsc		__P((void));
@@ -607,22 +711,12 @@ u_int	read_eflags	__P((void));
 void	wbinvd		__P((void));
 void	write_eflags	__P((u_int ef));
 void	wrmsr		__P((u_int msr, u_int64_t newval));
-u_int	rfs		__P((void));
-u_int	rgs		__P((void));
-void	load_fs		__P((u_int sel));
-void	load_gs		__P((u_int sel));
 critical_t cpu_critical_enter __P((void));
 void	cpu_critical_exit __P((critical_t eflags));
 
 #endif	/* __GNUC__ */
 
-void	load_cr0	__P((u_int cr0));
-void	load_cr3	__P((u_int cr3));
-void	load_cr4	__P((u_int cr4));
 void	ltr		__P((u_short sel));
-u_int	rcr0		__P((void));
-u_int	rcr3		__P((void));
-u_int	rcr4		__P((void));
 void    reset_dbregs    __P((void));
 __END_DECLS
 

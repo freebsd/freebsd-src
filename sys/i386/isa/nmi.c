@@ -499,14 +499,6 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	}
 	else {
 		vector = TPR_SLOW_INTS + intr;
-#ifdef APIC_INTR_REORDER
-#ifdef APIC_INTR_HIGHPRI_CLOCK
-		/* XXX: Hack (kludge?) for more accurate clock. */
-		if (intr == apic_8254_intr || intr == 8) {
-			vector = TPR_FAST_INTS + intr;
-		}
-#endif
-#endif
 		setidt(vector, slowintr[intr],
 		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	}

@@ -267,9 +267,7 @@ void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
 void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
 pt_entry_t *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
-#ifdef SMP
 void	pmap_set_opt __P((void));
-#endif
 
 #endif /* _KERNEL */
 
