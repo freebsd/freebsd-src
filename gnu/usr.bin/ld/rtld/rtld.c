@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.24 1995/05/30 05:01:49 rgrimes Exp $
+ *	$Id: rtld.c,v 1.24.4.1 1995/08/25 07:08:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -276,6 +276,10 @@ struct _dynamic		*dp;
 	/* Load required objects into the process address space */
 	load_objects(crtp, dp);
 
+	/* Fill in some fields in main's __DYNAMIC structure */
+	crtp->crt_dp->d_entry = &ld_entry;
+	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
+
 	/* Relocate all loaded objects according to their RRS segments */
 	for (smp = link_map_head; smp; smp = smp->som_next) {
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
@@ -297,10 +301,6 @@ struct _dynamic		*dp;
 			continue;
 		init_map(smp, ".init", 0);
 	}
-
-	/* Fill in some field in main's __DYNAMIC structure */
-	crtp->crt_dp->d_entry = &ld_entry;
-	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
 	ddp = crtp->crt_dp->d_debug;
 	ddp->dd_cc = rt_symbol_head;
@@ -371,14 +371,8 @@ struct _dynamic	*dp;
 			sodp = (struct sod *)(LM_LDBASE(smp) + next);
 			if ((newmap = map_object(sodp, smp)) == NULL) {
 				if (!tracing) {
-					char *name = (char *)
-					    (sodp->sod_name + LM_LDBASE(smp));
-					char *fmt = sodp->sod_library ?
-						"%s: lib%s.so.%d.%d" :
-						"%s: %s";
-					err(1, fmt, main_progname, name,
-						sodp->sod_major,
-						sodp->sod_minor);
+					errx(1, "%s: %s", main_progname,
+					     __dlerror());
 				}
 				newmap = alloc_link_map(NULL, sodp, smp, 0, 0);
 			}
@@ -502,8 +496,11 @@ again:
 }
 
 /*
- * Map object identified by link object LOP which was found
- * in link map LMP.
+ * Map object identified by link object sodp which was found in link
+ * map smp.  Returns a pointer to the link map for the requested object.
+ *
+ * On failure, it sets an error message that can be retrieved by __dlerror,
+ * and returns NULL.
  */
 	static struct so_map *
 map_object(sodp, smp)
@@ -525,8 +522,9 @@ again:
 		path = rtfindlib(name, sodp->sod_major,
 				 sodp->sod_minor, &usehints);
 		if (path == NULL) {
-			generror ("Can't find shared library \"%s\"",
-				  name);
+			generror ("Can't find shared library"
+				  " \"lib%s.so.%d.%d\"",
+				  name, sodp->sod_major, sodp->sod_minor);
 			return NULL;
 		}
 	} else {
