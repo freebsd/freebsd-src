@@ -2392,7 +2392,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_avail = firstaddr;
 	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_l1 = l1;
-/*
+	
+	/*
 	 * Scan the L1 translation table created by initarm() and create
 	 * the required metadata for all valid mappings found in it.
 	 */
@@ -2806,9 +2807,7 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	PDEBUG(1, printf("pmap_kenter: pte = %08x, opte = %08x, npte = %08x\n",
 	    (uint32_t) pte, opte, *pte));
 	if (l2pte_valid(opte)) {
-#if 0
 		cpu_dcache_wbinv_range(va, PAGE_SIZE);
-#endif
 		cpu_tlb_flushD_SE(va);
 		cpu_cpwait();
 	} else {
@@ -2833,7 +2832,14 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 void
 pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 {
+
 	pmap_kenter_internal(va, pa, KENTER_CACHE|KENTER_USER);
+	/*
+	 * Call pmap_fault_fixup now, to make sure we'll have no exception
+	 * at the first use of the new address, or bad things will happen,
+	 * as we use one of these addresses in the exception handlers.
+	 */
+	pmap_fault_fixup(pmap_kernel(), va, VM_PROT_READ|VM_PROT_WRITE, 1);
 }
 
 /*
