@@ -555,9 +555,9 @@ scan(sp)
 	 * Return TNUMBER when done.
 	 */
 
-	if (isdigit(c)) {
+	if (isdigit((unsigned char)c)) {
 		lexnumber = 0;
-		while (isdigit(c)) {
+		while (isdigit((unsigned char)c)) {
 			lexnumber = lexnumber*10 + c - '0';
 			*cp2++ = c;
 			c = *cp++;
@@ -678,7 +678,7 @@ matchsender(str, mesg)
 	while (*cp2 != '\0') {
 		if (*cp == '\0')
 			return (1);
-		if (toupper(*cp++) != toupper(*cp2++)) {
+		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}
@@ -717,7 +717,7 @@ matchto(str, mesg)
 			while (*cp2 != '\0') {
 				if (*cp == '\0')
 					return (1);
-				if (toupper(*cp++) != toupper(*cp2++)) {
+				if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
 					cp2 = ++backup;
 					cp = str;
 				}
@@ -775,7 +775,7 @@ matchsubj(str, mesg)
 	while (*cp2 != '\0') {
 		if (*cp == '\0')
 			return (1);
-		if (toupper(*cp++) != toupper(*cp2++)) {
+		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}

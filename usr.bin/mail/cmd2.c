@@ -249,7 +249,7 @@ snarf(linebuf, flag)
 	 * Strip away trailing blanks.
 	 */
 
-	while (cp > linebuf && isspace(*cp))
+	while (cp > linebuf && isspace((unsigned char)*cp))
 		cp--;
 	*++cp = '\0';
 
@@ -257,13 +257,13 @@ snarf(linebuf, flag)
 	 * Now search for the beginning of the file name.
 	 */
 
-	while (cp > linebuf && !isspace(*cp))
+	while (cp > linebuf && !isspace((unsigned char)*cp))
 		cp--;
 	if (*cp == '\0') {
 		printf("No file specified.\n");
 		return (NULL);
 	}
-	if (isspace(*cp))
+	if (isspace((unsigned char)*cp))
 		*cp++ = '\0';
 	else
 		*flag = 0;
