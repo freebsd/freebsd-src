@@ -79,7 +79,7 @@ __mvcur(ly, lx, y, x, in_refresh)
 	destline = y;
 	outcol = lx;
 	outline = ly;
-	if (destline != destcol || outline != outcol)
+	if (destline != outline || destcol != outcol)
 		fgoto(in_refresh);
 	return (OK);
 }	
