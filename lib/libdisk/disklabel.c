@@ -17,11 +17,11 @@
 #include "libdisk.h"
 
 struct disklabel *
-read_disklabel(int fd, daddr_t block)
+read_disklabel(int fd, daddr_t block, u_long sector_size)
 {
 	struct disklabel *dp;
 
-	dp = (struct disklabel *) read_block(fd, block);
+	dp = (struct disklabel *) read_block(fd, block, sector_size);
 	if (dp->d_magic != DISKMAGIC)
 		return 0;
 	if (dp->d_magic2 != DISKMAGIC)

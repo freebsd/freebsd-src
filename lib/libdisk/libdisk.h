@@ -10,16 +10,11 @@
 *
 */
 
-#ifdef __i386__
-#include <err.h>
-#define barfout(n, errstr) err(n, errstr)
-#else
-#include <stdio.h>
-#define barfout(n, errstr) fprintf(stderr, "\n\n\t***[ %s ]***\t\n\n", errstr)
-#endif
-
-#define MAX_NO_DISKS	20
+#define MAX_NO_DISKS	32
 /* Max # of disks Disk_Names() will return */
+
+#define MAX_SEC_SIZE    2048  /* maximum sector size that is supported */
+#define MIN_SEC_SIZE	512   /* the sector size to end sensing at */
 
 typedef enum {
 	whole,
@@ -53,6 +48,7 @@ struct disk {
 	u_char		*boot2;
 #endif
 	struct chunk	*chunks;
+	u_long		sector_size; /* media sector size, a power of 2 */
 };
 
 struct chunk {
@@ -190,10 +186,10 @@ Set_Boot_Mgr(struct disk *d, const u_char *bootmgr, const size_t bootmgr_size);
  * is called
  */
 
-void
+int
 Set_Boot_Blocks(struct disk *d, const u_char *_boot1, const u_char *_boot2);
 /* Use these boot-blocks on this disk.  Gets written when Write_Disk()
- * is called
+ * is called. Returns nonzero upon failure.
  */
 
 int
@@ -270,12 +266,12 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, c
 #else
 int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long);
 #endif
-void * read_block(int, daddr_t);
-void write_block(int fd, daddr_t block, void *foo);
-struct disklabel * read_disklabel(int, daddr_t);
+void * read_block(int, daddr_t, u_long);
+int write_block(int, daddr_t, void *, u_long);
+struct disklabel * read_disklabel(int, daddr_t, u_long);
 struct chunk * Find_Mother_Chunk(struct chunk *, u_long, u_long, chunk_e);
 struct disk * Int_Open_Disk(const char *name, u_long size);
-void Fixup_Names(struct disk *);
+int Fixup_Names(struct disk *);
 __END_DECLS
 
 #define dprintf	printf
