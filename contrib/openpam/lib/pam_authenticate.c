@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_authenticate.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_authenticate.c#9 $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@ pam_authenticate(pam_handle_t *pamh,
 {
 	int pam_err;
 
+	if (flags & ~(PAM_SILENT|PAM_DISALLOW_NULL_AUTHTOK))
+		return (PAM_SYMBOL_ERR);
 	pam_err = openpam_dispatch(pamh, PAM_SM_AUTHENTICATE, flags);
 	pam_set_item(pamh, PAM_AUTHTOK, NULL);
 	return (pam_err);
@@ -64,4 +66,21 @@ pam_authenticate(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_authenticate
  *	!PAM_IGNORE
+ */
+
+/**
+ * The =pam_authenticate function attempts to authenticate the user
+ * associated with the pam context specified by the =pamh argument.
+ *
+ * The application is free to call =pam_authenticate as many times as it
+ * wishes, but some modules may maintain an internal retry counter and
+ * return =PAM_MAXTRIES when it exceeds some preset or hardcoded limit.
+ *
+ * The =flags argument is the binary or of zero or more of the following
+ * values:
+ *
+ *	=PAM_SILENT
+ *		Do not emit any messages.
+ *	=PAM_DISALLOW_NULL_AUTHTOK
+ *		Fail if the user's authentication token is null.
  */
