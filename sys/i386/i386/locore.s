@@ -280,6 +280,9 @@ NON_GPROF_ENTRY(btext)
 	shrl	$17,%eax
 	movb	%al,R(_pc98_system_parameter)+1
 3:
+
+	movw	R(_pc98_system_parameter+0x86),%ax
+	movw	%ax,R(_cpu_id)
 #endif
 
 	call	identify_cpu
