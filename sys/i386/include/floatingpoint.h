@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
- *	$Id: floatingpoint.h,v 1.3 1993/10/16 14:39:18 rgrimes Exp $
+ *	$Id: floatingpoint.h,v 1.4 1993/11/07 17:42:55 wollman Exp $
  */
 
 /*
@@ -42,7 +42,7 @@
 #define _FLOATINGPOINT_H_
 
 #include <sys/cdefs.h>
-#include <sys/ieeefp.h>
+#include <machine/ieeefp.h>
 
 #ifdef __GNUC__
 
