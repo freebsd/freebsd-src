@@ -199,7 +199,7 @@ kmem_alloc(map, size)
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		if ((mem->flags & PG_ZERO) == 0)
-			vm_page_zero_fill(mem);
+			pmap_zero_page(mem);
 		mem->valid = VM_PAGE_BITS_ALL;
 		vm_page_flag_clear(mem, PG_ZERO);
 		vm_page_wakeup(mem);
@@ -395,7 +395,7 @@ retry:
 			goto bad;
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
-			vm_page_zero_fill(m);
+			pmap_zero_page(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}

@@ -325,8 +325,6 @@ void vm_page_io_finish(vm_page_t m);
 void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
 void vm_page_protect(vm_page_t mem, int prot);
-boolean_t vm_page_zero_fill(vm_page_t m);
-boolean_t vm_page_zero_fill_area(vm_page_t m, int off, int len);
 void vm_page_copy(vm_page_t src_m, vm_page_t dest_m);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
