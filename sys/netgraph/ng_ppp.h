@@ -2,7 +2,7 @@
 /*
  * ng_ppp.h
  *
- * Copyright (c) 1996-1999 Whistle Communications, Inc.
+ * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  * 
  * Subject to the following obligations and disclaimer of warranty, use and
@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPP_NODE_TYPE	"ppp"
-#define NGM_PPP_COOKIE		940897793
+#define NGM_PPP_COOKIE		940897794
 
 /* Maximum number of supported links */
 #define NG_PPP_MAX_LINKS	16
@@ -70,20 +70,21 @@
 #define NG_PPP_HOOK_INET	"inet"		/* IP packet data */
 #define NG_PPP_HOOK_ATALK	"atalk"		/* AppleTalk packet data */
 #define NG_PPP_HOOK_IPX		"ipx"		/* IPX packet data */
+#define NG_PPP_HOOK_IPV6	"ipv6"		/* IPv6 packet data */
 
 #define NG_PPP_HOOK_LINK_PREFIX	"link"		/* append decimal link number */
 
 /* Netgraph commands */
 enum {
-	NGM_PPP_SET_CONFIG = 1,		/* takes struct ng_ppp_bundle_config */
-	NGM_PPP_GET_CONFIG,		/* returns ng_ppp_bundle_config */
+	NGM_PPP_SET_CONFIG = 1,		/* takes struct ng_ppp_node_conf */
+	NGM_PPP_GET_CONFIG,		/* returns ng_ppp_node_conf */
 	NGM_PPP_GET_LINK_STATS,		/* takes link #, returns stats struct */
 	NGM_PPP_CLR_LINK_STATS,		/* takes link #, clears link stats */
 	NGM_PPP_GETCLR_LINK_STATS,	/* takes link #, returns & clrs stats */
 };
 
 /* Per-link config structure */
-struct ng_ppp_link_config {
+struct ng_ppp_link_conf {
 	u_char		enableLink;	/* enable this link */
 	u_char		enableProtoComp;/* enable protocol field compression */
 	u_char		enableACFComp;	/* enable addr/ctrl field compression */
@@ -95,9 +96,9 @@ struct ng_ppp_link_config {
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_LINK_TYPE_INFO	{				\
 	{							\
-	  { "enable",		&ng_parse_int8_type	},	\
-	  { "protocomp",	&ng_parse_int8_type	},	\
-	  { "acfcomp",		&ng_parse_int8_type	},	\
+	  { "enableLink",	&ng_parse_int8_type	},	\
+	  { "enableProtoComp",	&ng_parse_int8_type	},	\
+	  { "enableACFComp",	&ng_parse_int8_type	},	\
 	  { "mru",		&ng_parse_int16_type	},	\
 	  { "latency",		&ng_parse_int32_type	},	\
 	  { "bandwidth",	&ng_parse_int32_type	},	\
@@ -105,14 +106,15 @@ struct ng_ppp_link_config {
 	}							\
 }
 
-/* Node config structure */
-struct ng_ppp_node_config {
+/* Bundle config structure */
+struct ng_ppp_bund_conf {
 	u_int16_t	mrru;			/* multilink peer MRRU */
 	u_char		enableMultilink;	/* enable multilink */
 	u_char		recvShortSeq;		/* recv multilink short seq # */
 	u_char		xmitShortSeq;		/* xmit multilink short seq # */
 	u_char		enableRoundRobin;	/* xmit whole packets */
 	u_char		enableIP;		/* enable IP data flow */
+	u_char		enableIPv6;		/* enable IPv6 data flow */
 	u_char		enableAtalk;		/* enable AppleTalk data flow */
 	u_char		enableIPX;		/* enable IPX data flow */
 	u_char		enableCompression;	/* enable PPP compression */
@@ -121,29 +123,42 @@ struct ng_ppp_node_config {
 	u_char		enableDecryption;	/* enable PPP decryption */
 	u_char		enableVJCompression;	/* enable VJ compression */
 	u_char		enableVJDecompression;	/* enable VJ decompression */
-	struct ng_ppp_link_config		/* per link config params */
-			links[NG_PPP_MAX_LINKS];
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PPP_CONFIG_TYPE_INFO(arytype)	{		\
+#define NG_PPP_BUND_TYPE_INFO	{					\
+	{								\
+	  { "mrru",			&ng_parse_int16_type	},	\
+	  { "enableMultilink",		&ng_parse_int8_type	},	\
+	  { "recvShortSeq",		&ng_parse_int8_type	},	\
+	  { "xmitShortSeq",		&ng_parse_int8_type	},	\
+	  { "enableRoundRobin",		&ng_parse_int8_type	},	\
+	  { "enableIP",			&ng_parse_int8_type	},	\
+	  { "enableIPv6",		&ng_parse_int8_type	},	\
+	  { "enableAtalk",		&ng_parse_int8_type	},	\
+	  { "enableIPX",		&ng_parse_int8_type	},	\
+	  { "enableCompression",	&ng_parse_int8_type	},	\
+	  { "enableDecompression",	&ng_parse_int8_type	},	\
+	  { "enableEncryption",		&ng_parse_int8_type	},	\
+	  { "enableDecryption",		&ng_parse_int8_type	},	\
+	  { "enableVJCompression",	&ng_parse_int8_type	},	\
+	  { "enableVJDecompression",	&ng_parse_int8_type	},	\
+	  { NULL }							\
+	}								\
+}
+
+/* Total node config structure */
+struct ng_ppp_node_conf {
+	struct ng_ppp_bund_conf	bund;
+	struct ng_ppp_link_conf	links[NG_PPP_MAX_LINKS];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_CONFIG_TYPE_INFO(bctype, arytype)	{	\
 	{							\
-	  { "mrru",		&ng_parse_int16_type	},	\
-	  { "multilink",	&ng_parse_int8_type	},	\
-	  { "recvShortSeq",	&ng_parse_int8_type	},	\
-	  { "xmitShortSeq",	&ng_parse_int8_type	},	\
-	  { "roundRobin",	&ng_parse_int8_type	},	\
-	  { "ip",		&ng_parse_int8_type	},	\
-	  { "appletalk",	&ng_parse_int8_type	},	\
-	  { "ipx",		&ng_parse_int8_type	},	\
-	  { "comp",		&ng_parse_int8_type	},	\
-	  { "decomp",		&ng_parse_int8_type	},	\
-	  { "encryption",	&ng_parse_int8_type	},	\
-	  { "decryption",	&ng_parse_int8_type	},	\
-	  { "vjcomp",		&ng_parse_int8_type	},	\
-	  { "vjdecomp",		&ng_parse_int8_type	},	\
-	  { "links",		(arytype)		},	\
-	  { NULL },						\
+	  { "bund",		(bctype)	},		\
+	  { "links",		(arytype)	},		\
+	  { NULL }						\
 	}							\
 }
 
@@ -154,7 +169,9 @@ struct ng_ppp_link_stat {
 	u_int32_t recvFrames;		/* recv frames on link */
 	u_int32_t recvOctets;		/* recv octets on link */
 	u_int32_t badProtos;		/* frames rec'd with bogus protocol */
+	u_int32_t runts;		/* Too short MP fragments */
 	u_int32_t dupFragments;		/* MP frames with duplicate seq # */
+	u_int32_t dropFragments;	/* MP fragments we had to drop */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -165,8 +182,10 @@ struct ng_ppp_link_stat {
 	  { "recvFrames",	&ng_parse_int32_type	},	\
 	  { "recvOctets",	&ng_parse_int32_type	},	\
 	  { "badProtos",	&ng_parse_int32_type	},	\
+	  { "runts",		&ng_parse_int32_type	},	\
 	  { "dupFragments",	&ng_parse_int32_type	},	\
-	  { NULL },						\
+	  { "dropFragments",	&ng_parse_int32_type	},	\
+	  { NULL }						\
 	}							\
 }
 
