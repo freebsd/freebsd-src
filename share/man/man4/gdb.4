@@ -239,7 +239,7 @@ Finally, establish connection:
 .Bd -literal -offset 5m
 # \f(CBgdb kernel.debug\fP
 GNU gdb 5.2.1 (FreeBSD)
-\&\fI(politcal statements omitted)\fP\/
+\&\fI(political statements omitted)\fP\/
 Ready to go.  Enter 'tr' to connect to the remote target
 with /dev/cuaa0, 'tr /dev/cuaa1' to connect to a different port
 or 'trf portno' to connect to the remote target with the firewire
@@ -277,6 +277,53 @@ Then establish connection with:
 .Ed
 .Pp
 .El
+.Ss Non-cooperative debugging a live system with a remote firewire link
+In addition to the conventional debugging via firewire described in the previous
+section, it is possible to debug a remote system without its cooperation, once
+an initial connection has been established.
+This corresponds to debugging a local machine using
+.Pa /dev/mem .
+It can be very useful if a system crashes and the debugger no longer responds.
+To use this method, set the
+.Nm sysctl
+variables
+.Va hw.firewire.fwmem.eui64_hi
+and
+.Va hw.firewire.fwmem.eui64_lo
+to the upper and lower halves of the EUI64 ID of the remote system respectively.
+From the previous example, the remote machine shows:
+.Bd -literal -offset 5m
+# \f(CBfwcontrol\fP
+2 devices (info_len=2)
+node        EUI64        status
+   0  0x000199000003622b      0
+   1  0x00c04f3226e88061      1
+.Ed
+.Pp
+Enter:
+.Bd -literal -offset 5m
+# \f(CBsysctl -w hw.firewire.fwmem.eui64_hi=0x00019900\fP
+hw.firewire.fwmem.eui64_hi: 0 -> 104704
+# \f(CBsysctl -w hw.firewire.fwmem.eui64_lo=0x0003622b\fP
+hw.firewire.fwmem.eui64_lo: 0 -> 221739
+.Ed
+.Pp
+Note that the variables must be explicitly stated in hexadecimal.
+After this, you can examine the remote machine's state with the following input:
+.Bd -literal -offset 5m
+# \f(CBgdb -k kernel.debug /dev/fwmem0.0\fP
+GNU gdb 5.2.1 (FreeBSD)
+\&\fI(messages omitted)\fP\/
+Reading symbols from /boot/kernel/dcons.ko...done.
+Loaded symbols for /boot/kernel/dcons.ko
+Reading symbols from /boot/kernel/dcons_crom.ko...done.
+Loaded symbols for /boot/kernel/dcons_crom.ko
+#0  sched_switch (td=0xc0922fe0) at /usr/src/sys/kern/sched_4bsd.c:621
+0xc21bd378 in ?? ()
+.Ed
+.Pp
+In this case, it's not necessary to load the symbols explicitly.
+The remote system continues to run.
 .Sh COMMANDS
 The user interface to
 .Nm
