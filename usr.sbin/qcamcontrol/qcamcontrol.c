@@ -18,6 +18,15 @@ void print_data(struct qcam *data)
 			data->qc_contrast);
 }
 
+usage(void)
+{
+	fprintf(stderr, "usage: qcamcontrol [-p port] [-x xsize] [-y ysize] "
+			"[-z zoom] [-d depth]\n"
+			"                   [-b brightness] [-w whitebal] "
+			"[-c contrast]\n");
+	exit(2);
+}
+
 main(int argc, char **argv)
 {
 	struct qcam info;
@@ -99,6 +108,9 @@ main(int argc, char **argv)
 		    exit(2);
 		}
 		break;
+
+	    default:
+		usage();
 	    }
 	    argc--;
 	    argv++;
