@@ -1,12 +1,12 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)zic.c	7.77";
+static char	elsieid[] = "@(#)zic.c	7.96";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: zic.c,v 1.8 1999/01/21 17:12:49 wollman Exp $";
 #endif /* not lint */
 
 #include "private.h"
@@ -83,18 +83,6 @@ struct zone {
 	time_t		z_untiltime;
 };
 
-extern int	getopt P((int argc, char * const argv[],
-			const char * options));
-extern char *	icatalloc P((char * old, const char * new));
-extern char *	icpyalloc P((const char * string));
-extern void	ifree P((char * p));
-extern char *	imalloc P((int n));
-extern void *	irealloc P((void * old, int n));
-extern int	link P((const char * fromname, const char * toname));
-extern char *	optarg;
-extern int	optind;
-extern char *	scheck P((const char * string, const char * format));
-
 static void	addtt P((time_t starttime, int type));
 static int	addtype P((long gmtoff, const char * abbr, int isdst,
 				int ttisstd, int ttisgmt));
@@ -137,14 +125,16 @@ static void	rulesub P((struct rule * rp,
 			const char * typep, const char * monthp,
 			const char * dayp, const char * timep));
 static void	setboundaries P((void));
+static void	setgroup P((gid_t *flag, const char *name));
+static void	setuser P((uid_t *flag, const char *name));
 static time_t	tadd P((time_t t1, long t2));
 static void	usage P((void));
 static void	writezone P((const char * name));
 static int	yearistype P((int year, const char * type));
 
-#if !HAVE_STRERROR
+#if !(HAVE_STRERROR - 0)
 static char *	strerror P((int));
-#endif /* !HAVE_STRERROR */
+#endif /* !(HAVE_STRERROR - 0) */
 
 static int		charcnt;
 static int		errors;
@@ -153,8 +143,10 @@ static int		leapcnt;
 static int		linenum;
 static time_t		max_time;
 static int		max_year;
+static int		max_year_representable;
 static time_t		min_time;
 static int		min_year;
+static int		min_year_representable;
 static int		noise;
 static const char *	rfilename;
 static int		rlinenum;
@@ -376,19 +368,18 @@ char * const	ptr;
 ** Error handling.
 */
 
-#if ! HAVE_STRERROR
+#if !(HAVE_STRERROR - 0)
 static char *
 strerror(errnum)
 int	errnum;
 {
-	extern char *sys_errlist[];
-	extern int sys_nerr;
+	extern char *	sys_errlist[];
+	extern int	sys_nerr;
 
-	if (errnum > 0 && errnum <= sys_nerr)
-		return sys_errlist[errnum];
-	return "Unknown system error";
+	return (errnum > 0 && errnum <= sys_nerr) ?
+		sys_errlist[errnum] : _("Unknown system error");
 }
-#endif /* ! HAVE_STRERROR */
+#endif /* !(HAVE_STRERROR - 0) */
 
 static void
 eats(name, num, rname, rnum)
@@ -435,9 +426,9 @@ const char * const	string;
 {
 	char *	cp;
 
-	cp = ecpyalloc("warning: ");
+	cp = ecpyalloc(_("warning: "));
 	cp = ecatalloc(cp, string);
-	error(string);
+	error(cp);
 	ifree(cp);
 	--errors;
 }
@@ -457,6 +448,11 @@ static const char *	directory;
 static const char *	leapsec;
 static const char *	yitcommand;
 static int		sflag = FALSE;
+static int		Dflag;
+static uid_t		oflag = (uid_t)-1;
+static gid_t		gflag = (gid_t)-1;
+static mode_t		mflag = (S_IRUSR | S_IRGRP | S_IROTH
+				 | S_IWUSR);
 
 int
 main(argc, argv)
@@ -477,16 +473,22 @@ char *	argv[];
 #endif /* defined TEXTDOMAINDIR */
 	(void) textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT - 0 */
-	while ((c = getopt(argc, argv, "d:l:p:L:vsy:")) != -1)
+	while ((c = getopt(argc, argv, "Dd:g:l:m:p:L:u:vsy:")) != -1)
 		switch (c) {
 			default:
 				usage();
+			case 'D':
+				Dflag = 1;
+				break;
 			case 'd':
 				if (directory == NULL)
 					directory = optarg;
 				else
 					errx(EXIT_FAILURE,
 _("more than one -d option specified"));
+				break;
+			case 'g':
+				setgroup(&gflag, optarg);
 				break;
 			case 'l':
 				if (lcltime == NULL)
@@ -495,12 +497,21 @@ _("more than one -d option specified"));
 					errx(EXIT_FAILURE,
 _("more than one -l option specified"));
 				break;
+			case 'm':
+			{
+				void *set = setmode(optarg);
+				getmode(set, mflag);
+				break;
+			}
 			case 'p':
 				if (psxrules == NULL)
 					psxrules = optarg;
 				else
 					errx(EXIT_FAILURE,
 _("more than one -p option specified"));
+				break;
+			case 'u':
+				setuser(&uflag, optarg);
 				break;
 			case 'y':
 				if (yitcommand == NULL)
@@ -591,11 +602,23 @@ const char * const	tofile;
 	if (!itsdir(toname))
 		(void) remove(toname);
 	if (link(fromname, toname) != 0) {
+		int	result;
+
 		if (mkdirs(toname) != 0)
 			(void) exit(EXIT_FAILURE);
-		if (link(fromname, toname) != 0)
-			err(EXIT_FAILURE, _("can't link from %s to %s"),
-				fromname, toname);
+		result = link(fromname, toname);
+#if (HAVE_SYMLINK - 0) 
+		if (result != 0) {
+			result = symlink(fromname, toname);
+			if (result == 0)
+warning(_("hard link failed, symbolic link used"));
+		}
+#endif
+		if (result != 0) {
+			err(EXIT_FAILURE,
+			    _("%s: Can't link from %s to %s"),
+			    fromname, toname);
+		}
 	}
 	ifree(fromname);
 	ifree(toname);
@@ -636,6 +659,8 @@ setboundaries P((void))
 	}
 	min_year = TM_YEAR_BASE + gmtime(&min_time)->tm_year;
 	max_year = TM_YEAR_BASE + gmtime(&max_time)->tm_year;
+	min_year_representable = min_year;
+	max_year_representable = max_year;
 }
 
 static int
@@ -858,9 +883,10 @@ const int		signable;
 			error(errstring);
 			return 0;
 	}
-	if (hh < 0 || hh >= HOURSPERDAY ||
+	if ((hh < 0 || hh >= HOURSPERDAY ||
 		mm < 0 || mm >= MINSPERHOUR ||
-		ss < 0 || ss > SECSPERMIN) {
+		ss < 0 || ss > SECSPERMIN) &&
+		!(hh == HOURSPERDAY && mm == 0 && ss == 0)) {
 			error(errstring);
 			return 0;
 	}
@@ -987,7 +1013,7 @@ const int		iscont;
 	}
 	z.z_filename = filename;
 	z.z_linenum = linenum;
-	z.z_gmtoff = gethms(fields[i_gmtoff], _("invalid GMT offset"), TRUE);
+	z.z_gmtoff = gethms(fields[i_gmtoff], _("invalid UTC offset"), TRUE);
 	if ((cp = strchr(fields[i_format], '%')) != 0) {
 		if (*++cp != 's' || strchr(cp, '%') != 0) {
 			error(_("invalid abbreviation format"));
@@ -1189,6 +1215,7 @@ const char * const		timep;
 				rp->r_todisstd = FALSE;
 				rp->r_todisgmt = FALSE;
 				*ep = '\0';
+				break;
 			case 'g':	/* Greenwich */
 			case 'u':	/* Universal */
 			case 'z':	/* Zulu */
@@ -1218,6 +1245,11 @@ const char * const		timep;
 	} else if (sscanf(cp, scheck(cp, "%d"), &rp->r_loyear) != 1) {
 		error(_("invalid starting year"));
 		return;
+	} else if (noise) {
+		if (rp->r_loyear < min_year_representable)
+			warning(_("starting year too low to be represented"));
+		else if (rp->r_loyear > max_year_representable)
+			warning(_("starting year too high to be represented"));
 	}
 	cp = hiyearp;
 	if ((lp = byword(cp, end_years)) != NULL) switch ((int) lp->l_value) {
@@ -1236,6 +1268,11 @@ const char * const		timep;
 	} else if (sscanf(cp, scheck(cp, "%d"), &rp->r_hiyear) != 1) {
 		error(_("invalid ending year"));
 		return;
+	} else if (noise) {
+		if (rp->r_loyear < min_year_representable)
+			warning(_("starting year too low to be represented"));
+		else if (rp->r_loyear > max_year_representable)
+			warning(_("starting year too high to be represented"));
 	}
 	if (rp->r_loyear > rp->r_hiyear) {
 		error(_("starting year greater than ending year"));
@@ -1250,6 +1287,8 @@ const char * const		timep;
 		}
 		rp->r_yrtype = ecpyalloc(typep);
 	}
+	if (rp->r_loyear < min_year && rp->r_loyear > 0)
+		min_year = rp->r_loyear;
 	/*
 	** Day work.
 	** Accept things such as:
@@ -1358,8 +1397,10 @@ const char * const	name;
 
 		toi = 0;
 		fromi = 0;
+		while (fromi < timecnt && attypes[fromi].at < min_time)
+			++fromi;
 		if (isdsts[0] == 0)
-			while (attypes[fromi].type == 0)
+			while (fromi < timecnt && attypes[fromi].type == 0)
 				++fromi;	/* handled by default rule */
 		for ( ; fromi < timecnt; ++fromi) {
 			if (toi != 0
@@ -1406,7 +1447,9 @@ const char * const	name;
 	convert(eitol(timecnt), tzh.tzh_timecnt);
 	convert(eitol(typecnt), tzh.tzh_typecnt);
 	convert(eitol(charcnt), tzh.tzh_charcnt);
+	(void) strncpy(tzh.tzh_magic, TZ_MAGIC, sizeof tzh.tzh_magic);
 #define DO(field)	(void) fwrite((void *) tzh.field, (size_t) sizeof tzh.field, (size_t) 1, fp)
+	DO(tzh_magic);
 	DO(tzh_reserved);
 	DO(tzh_ttisgmtcnt);
 	DO(tzh_ttisstdcnt);
@@ -1460,6 +1503,13 @@ const char * const	name;
 		(void) putc(ttisgmts[i], fp);
 	if (ferror(fp) || fclose(fp))
 		errx(EXIT_FAILURE, _("error writing %s"), fullname);
+	if (chmod(fullname, mflag) < 0)
+		err(EXIT_FAILURE, _("cannot change mode of %s to %03o"),
+		    fullname, (unsigned)mflag);
+	if ((uflag != (uid_t)-1 || gflag != (gid_t)-1)
+	    && chown(fullname, uflag, gflag) < 0)
+		err(EXIT_FAILURE, _("cannot change ownership of %s"), 
+		    fullname);
 }
 
 static void
@@ -1567,7 +1617,7 @@ const int			zonecount;
 				INITIALIZE(ktime);
 				if (useuntil) {
 					/*
-					** Turn untiltime into GMT
+					** Turn untiltime into UTC
 					** assuming the current gmtoff and
 					** stdoff values.
 					*/
@@ -1647,7 +1697,7 @@ const int			zonecount;
 					(void) strcpy(startbuf, zp->z_format);
 			eat(zp->z_filename, zp->z_linenum);
 			if (*startbuf == '\0')
-error(_("can't determine time zone abbrevation to use just after until time"));
+error(_("can't determine time zone abbreviation to use just after until time"));
 			else	addtt(starttime,
 					addtype(startoff, startbuf,
 						startoff != zp->z_gmtoff,
@@ -1673,8 +1723,22 @@ error(_("can't determine time zone abbrevation to use just after until time"));
 static void
 addtt(starttime, type)
 const time_t	starttime;
-const int	type;
+int		type;
 {
+	if (starttime <= min_time ||
+		(timecnt == 1 && attypes[0].at < min_time)) {
+		gmtoffs[0] = gmtoffs[type];
+		isdsts[0] = isdsts[type];
+		ttisstds[0] = ttisstds[type];
+		ttisgmts[0] = ttisgmts[type];
+		if (abbrinds[type] != 0)
+			(void) strcpy(chars, &chars[abbrinds[type]]);
+		abbrinds[0] = 0;
+		charcnt = strlen(chars) + 1;
+		typecnt = 1;
+		timecnt = 0;
+		type = 0;
+	}
 	if (timecnt >= TZ_MAX_TIMES) {
 		error(_("too many transitions?!"));
 		(void) exit(EXIT_FAILURE);
@@ -1868,10 +1932,11 @@ register const struct lookup * const	table;
 	*/
 	foundlp = NULL;
 	for (lp = table; lp->l_word != NULL; ++lp)
-		if (itsabbr(word, lp->l_word))
+		if (itsabbr(word, lp->l_word)) {
 			if (foundlp == NULL)
 				foundlp = lp;
 			else	return NULL;	/* multiple inexact matches */
+		}
 	return foundlp;
 }
 
@@ -2057,7 +2122,7 @@ char * const	argname;
 	register char *	name;
 	register char *	cp;
 
-	if (argname == NULL || *argname == '\0')
+	if (argname == NULL || *argname == '\0' || Dflag)
 		return 0;
 	cp = name = ecpyalloc(argname);
 	while ((cp = strchr(cp + 1, '/')) != 0) {
@@ -2075,8 +2140,14 @@ char * const	argname;
 		if (!itsdir(name)) {
 			/*
 			** It doesn't seem to exist, so we try to create it.
+			** Creation may fail because of the directory being
+			** created by some other multiprocessor, so we get
+			** to do extra checking.
 			*/
-			if (mkdir(name, 0755) != 0) {
+			if (mkdir(name, (S_IRUSR | S_IWUSR | S_IXUSR 
+					 | S_IRGRP | S_IXGRP | S_IROTH
+					 | S_IXOTH)) != 0
+				&& (errno != EEXIST || !itsdir(name))) {
 				warn(_("can't create directory %s"), name);
 				ifree(name);
 				return -1;
@@ -2098,6 +2169,59 @@ const int	i;
 	if ((i < 0 && l >= 0) || (i == 0 && l != 0) || (i > 0 && l <= 0))
 		errx(EXIT_FAILURE, _("%d did not sign extend correctly"), i);
 	return l;
+}
+
+#include <grp.h>
+#include <pwd.h>
+
+static void
+setgroup(flag, name)
+	gid_t *flag;
+	const char *name;
+{
+	struct group *gr;
+
+	if (*flag != (gid_t)-1)
+		errx(EXIT_FAILURE, _("multiple -g flags specified"));
+
+	gr = getgrnam(name);
+	if (gr == 0) {
+		char *ep;
+		unsigned long ul;
+
+		ul = strtoul(name, &ep, 10);
+		if (ul == (unsigned long)(gid_t)ul && *ep == '\0') {
+			*flag = ul;
+			return;
+		}
+		errx(EXIT_FAILURE, _("group `%s' not found"), name);
+	}
+	*flag = gr->gr_gid;
+}
+
+static void
+setuser(flag, name)
+	uid_t *flag;
+	const char *name;
+{
+	struct passwd *pw;
+
+	if (*flag != (gid_t)-1)
+		errx(EXIT_FAILURE, _("multiple -u flags specified"));
+
+	pw = getpwnam(name);
+	if (pw == 0) {
+		char *ep;
+		unsigned long ul;
+
+		ul = strtoul(name, &ep, 10);
+		if (ul == (unsigned long)(gid_t)ul && *ep == '\0') {
+			*flag = ul;
+			return;
+		}
+		errx(EXIT_FAILURE, _("user `%s' not found"), name);
+	}
+	*flag = pw->pw_uid;
 }
 
 /*
