@@ -1,6 +1,8 @@
 /*
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
+ *
+ * $Id$
  */
 
 #define	isdigit(x)	((x) >= '0' && (x) <= '9')
