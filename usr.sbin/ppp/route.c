@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.28 1997/11/22 13:46:02 brian Exp $
+ * $Id: route.c,v 1.29 1997/12/04 18:49:39 brian Exp $
  *
  */
 
@@ -51,6 +51,7 @@
 #include "route.h"
 
 static int IfIndex;
+static const char *Index2Nam(int);
 
 struct rtmsg {
   struct rt_msghdr m_rtm;
@@ -69,7 +70,6 @@ OsSetRoute(int cmd,
   int s, nb, wb;
   char *cp;
   const char *cmdstr;
-  u_long *lp;
   struct sockaddr_in rtdata;
 
   cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
@@ -81,7 +81,7 @@ OsSetRoute(int cmd,
   memset(&rtmes, '\0', sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK;
+  rtmes.m_rtm.rtm_addrs = RTA_DST;
   rtmes.m_rtm.rtm_seq = ++seqno;
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
@@ -95,24 +95,43 @@ OsSetRoute(int cmd,
   cp = rtmes.m_space;
   memcpy(cp, &rtdata, 16);
   cp += 16;
-  if (gateway.s_addr) {
-    rtdata.sin_addr = gateway;
-    memcpy(cp, &rtdata, 16);
-    cp += 16;
-    rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-  }
+  if (cmd == RTM_ADD)
+    if (gateway.s_addr == INADDR_ANY) {
+      /* Add a route through the interface */
+      struct sockaddr_dl dl;
+      const char *iname;
+      int ilen;
+
+      iname = Index2Nam(IfIndex);
+      ilen = strlen(iname);
+      dl.sdl_len = sizeof(dl)-sizeof(dl.sdl_data)+ilen;
+      dl.sdl_family = AF_LINK;
+      dl.sdl_index = IfIndex;
+      dl.sdl_type = 0;
+      dl.sdl_nlen = ilen;
+      dl.sdl_alen = 0;
+      dl.sdl_slen = 0;
+      strcpy(dl.sdl_data, iname);
+
+      memcpy(cp, &dl, dl.sdl_len);
+      cp += dl.sdl_len;
+      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+    } else {
+      rtdata.sin_addr = gateway;
+      memcpy(cp, &rtdata, 16);
+      cp += 16;
+      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+    }
+
   if (dst.s_addr == INADDR_ANY)
     mask.s_addr = INADDR_ANY;
 
-  lp = (u_long *) cp;
-
-  if (mask.s_addr) {
-    *lp++ = 8;
-    cp += sizeof(int);
-    *lp = mask.s_addr;
-  } else
-    *lp = 0;
-  cp += sizeof(u_long);
+  if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
+    rtdata.sin_addr = mask;
+    memcpy(cp, &rtdata, 16);
+    cp += 16;
+    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
+  }
 
   nb = cp - (char *) &rtmes;
   rtmes.m_rtm.rtm_msglen = nb;
@@ -401,13 +420,13 @@ DeleteIfRoutes(int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
-  struct in_addr sa_dst, sa_gw, sa_mask;
+  struct in_addr sa_dst, sa_none;
   int needed;
   char *sp, *cp, *ep;
-  u_char *wp;
   int mib[6];
 
   LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", IfIndex);
+  sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
@@ -446,24 +465,15 @@ DeleteIfRoutes(int all)
 	rtm->rtm_index == IfIndex &&
 	(all || (rtm->rtm_flags & RTF_GATEWAY))) {
       sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-      wp = (u_char *) cp + rtm->rtm_msglen;
       sa = (struct sockaddr *)((char *)sa + sa->sa_len);
-      if (sa->sa_family == AF_INET) {
+      if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
         LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it\n");
-        sa_gw.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-        sa = (struct sockaddr *)((char *)sa + sa->sa_len);
-        if (rtm->rtm_addrs & RTA_NETMASK)
-          sa_mask.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-        else
-          sa_mask.s_addr = 0xffffffff;
-        if (sa_dst.s_addr == INADDR_ANY)
-	  sa_mask.s_addr = INADDR_ANY;
         LogPrintf(LogDEBUG, "DeleteIfRoutes: Dst: %s\n", inet_ntoa(sa_dst));
-        LogPrintf(LogDEBUG, "DeleteIfRoutes: Gw: %s\n", inet_ntoa(sa_gw));
-        LogPrintf(LogDEBUG, "DeleteIfRoutes: Index: %d\n", rtm->rtm_index);
-        OsSetRoute(RTM_DELETE, sa_dst, sa_gw, sa_mask);
+        OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none);
       } else
-        LogPrintf(LogDEBUG, "DeleteIfRoutes: Can't remove an AF_LINK !\n");
+        LogPrintf(LogDEBUG,
+                  "DeleteIfRoutes: Can't remove routes of %d family !\n",
+                  sa->sa_family);
     }
   }
   free(sp);
