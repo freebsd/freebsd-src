@@ -32,7 +32,7 @@
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd May 13, 1994
+.Dd May 23, 2002
 .Dt PSTAT 8
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Nd display system data structures
 .Sh SYNOPSIS
 .Nm
-.Op Fl Tfiknstv
+.Op Fl Tfknst
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Pp
@@ -225,139 +225,6 @@ or
 for
 PPPDISC.
 .El
-.It Fl v
-(This option is no longer supported.)
-.Pp
-Print the active vnodes.  Each group of vnodes corresponding
-to a particular filesystem is preceded by a two line header.  The
-first line consists of the following:
-.Bd -ragged -offset indent
-.No *** MOUNT Em fstype from
-on
-.Em on fsflags
-.Ed
-.Pp
-where
-.Em fstype
-is one of
-.Em ufs , nfs , or pc ;
-.Em from
-is the filesystem is mounted from;
-.Em on
-is the directory
-the filesystem is mounted on; and
-.Em fsflags
-is a list
-of optional flags applied to the mount (see
-.Xr mount 8 ) .
-The second line is a header for the individual fields,
-the first part of which are fixed, and the second part are filesystem
-type specific.  The headers common to all vnodes are:
-.Bl -tag -width indent
-.It ADDR
-Location of this vnode.
-.It TYP
-File type.
-.It VFLAG
-A list of letters representing vnode flags:
-.Pp
-.Bl -tag -width indent -compact
-.It R
-.Dv VROOT
-.It T
-.Dv VTEXT
-.It S
-.Dv VSYSTEM
-.It t
-.Dv VISTTY
-.It L
-.Dv VXLOCK
-.It W
-.Dv VXWANT
-.It B
-.Dv VBWAIT
-.It V
-.Dv VOBJBUF
-.It C
-.Dv VCOPYONWRITE
-.It a
-.Dv VAGE
-.It l
-.Dv VOLOCK
-.It w
-.Dv VOWANT
-.It D
-.Dv VDOOMED
-.It F
-.Dv VFREE
-.It O
-.Dv VONWORKLST
-.It M
-.Dv VMOUNT
-.El
-.It USE
-The number of references to this vnode.
-.It HOLD
-The number of I/O buffers held by this vnode.
-.It FILEID
-The vnode fileid.
-In the case of
-.Em ufs
-this is the inode number.
-.It IFLAG
-Miscellaneous filesystem specific state variables encoded thus:
-.Bl -tag -width indent
-.It "For ufs:"
-.Pp
-.Bl -tag -width indent -compact
-.It L
-locked
-.It U
-update time
-.Pq Xr fs 5
-must be corrected
-.It A
-access time must be corrected
-.It C
-changed time must be corrected
-.It U
-modification time most be corrected
-.It M
-contains modifications
-.It R
-has a rename in progress
-.It H
-inode is on hash list
-.It L
-modified, but don't write key
-.El
-.It "For nfs:"
-.Bl -tag -width indent -compact
-.Pp
-.It W
-waiting for I/O buffer flush to complete
-.It P
-I/O buffers being flushed
-.It M
-locally modified data exists
-.It E
-an earlier write failed
-.It A
-special file accessed
-.It U
-special file updated
-.It C
-special file times changed
-.El
-.El
-.It SIZ/RDEV
-Number of bytes in an ordinary file, or
-major and minor device of special file.
-.El
-.It Fl i
-Same as
-.Fl v ,
-present for backwards-compatibility.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
