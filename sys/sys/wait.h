@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1989, 1993
+ * Copyright (c) 1982, 1986, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)wait.h	8.1 (Berkeley) 6/2/93
- * $Id: wait.h,v 1.4 1995/05/30 08:14:54 rgrimes Exp $
+ *	@(#)wait.h	8.2 (Berkeley) 7/10/94
+ * $Id: wait.h,v 1.6 1996/02/24 03:16:25 hsu Exp $
  */
 
 #ifndef _SYS_WAIT_H_
@@ -77,7 +77,7 @@
  * this option is done, it is as though they were still running... nothing
  * about them is returned.
  */
-#define WNOHANG		1	/* dont hang in wait */
+#define WNOHANG		1	/* don't hang in wait */
 #define WUNTRACED	2	/* tell about stopped, untraced children */
 
 #ifndef _POSIX_SOURCE
