@@ -672,6 +672,7 @@ DMenu MenuMediaFTP = {
       { " Russia #4",    "ftp4.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp4.ru.freebsd.org") },
       { "Slovak Republic",	"ftp.sk.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH _AP("=ftp://ftp.sk.freebsd.org") },
       { "Slovenia",	"ftp.si.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp.si.freebsd.org") },
       { " South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
