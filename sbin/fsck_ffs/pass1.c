@@ -107,6 +107,11 @@ pass1(void)
 			    c * 100 / sblock.fs_ncg);
 			got_siginfo = 0;
 		}
+		if (got_sigalarm) {
+			setproctitle("%s p1 %d%%", cdevname,
+			     c * 100 / sblock.fs_ncg);
+			got_sigalarm = 0;
+		}
 		/*
 		 * If we are using soft updates, then we can trust the
 		 * cylinder group inode allocation maps to tell us which

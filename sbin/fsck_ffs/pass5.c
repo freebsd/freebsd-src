@@ -157,6 +157,11 @@ pass5(void)
 			    c * 100 / sblock.fs_ncg);
 			got_siginfo = 0;
 		}
+		if (got_sigalarm) {
+			setproctitle("%s p5 %d%%\n", cdevname,
+			    c * 100 / sblock.fs_ncg);
+			got_sigalarm = 0;
+		}
 		getblk(&cgblk, cgtod(fs, c), fs->fs_cgsize);
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
