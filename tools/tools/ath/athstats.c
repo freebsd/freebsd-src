@@ -59,6 +59,7 @@
 #include <nlist.h>
 
 #include "../../../sys/contrib/dev/ath/ah_desc.h"
+#include "../../../sys/net80211/ieee80211_radiotap.h"
 #include "../../../sys/dev/ath/if_athioctl.h"
 
 static const struct {
