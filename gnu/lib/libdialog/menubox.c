@@ -191,17 +191,19 @@ draw:
 	
 	/* Shortcut to OK? */
 	if (toupper(key) == okButton) {
-	    if (ditems && result && ditems[OK_BUTTON].fire) {
-		int status;
-		WINDOW *save;
+	    if (ditems) {
+		if (result && ditems[OK_BUTTON].fire) {
+		    int status;
+		    WINDOW *save;
 
-		save = dupwin(newscr);
-		status = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		if (status & DITEM_RESTORE) {
-		    touchwin(save);
-		    wrefresh(save);
+		    save = dupwin(newscr);
+		    status = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
+		    if (status & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		    delwin(save);
 		}
-		delwin(save);
 	    }
 	    else if (result)
 		strcpy(result, items[(scroll + choice) * 2]);
@@ -379,24 +381,26 @@ draw:
 	    if (!button) {
 		/* A fire routine can do just about anything to the screen, so be prepared
 		   to accept some hints as to what to do in the aftermath. */
-		if (ditems && ditems[scroll + choice].fire) {
-		    int status;
-		    WINDOW *save;
+		if (ditems) {
+		    if (ditems[scroll + choice].fire) {
+			int status;
+			WINDOW *save;
 
-		    save = dupwin(newscr);
-		    status = ditems[scroll + choice].fire(&ditems[scroll + choice]);
-		    if (status & DITEM_RESTORE) {
-			touchwin(save);
-			wrefresh(save);
-		    }
-		    delwin(save);
-		    if (status & DITEM_CONTINUE)
-			continue;
-		    else if (status & DITEM_RECREATE && !(status & DITEM_LEAVE_MENU)) {
-			delwin(menu);
-			delwin(dialog);
-			dialog_clear();
-			goto draw;
+			save = dupwin(newscr);
+			status = ditems[scroll + choice].fire(&ditems[scroll + choice]);
+			if (status & DITEM_RESTORE) {
+			    touchwin(save);
+			    wrefresh(save);
+			}
+			delwin(save);
+			if (status & DITEM_CONTINUE)
+			    continue;
+			else if (status & DITEM_RECREATE && !(status & DITEM_LEAVE_MENU)) {
+			    delwin(menu);
+			    delwin(dialog);
+			    dialog_clear();
+			    goto draw;
+			}
 		    }
 		}
 		else if (result)
