@@ -61,38 +61,38 @@ CLEANFILES+=	eelf32ppc.c		\
 		ers6000lynx.c
 
 eelf32ppc.c:	emulparams/elf32ppc.sh emultempl/elf32.em \
-		scripttempl/elfppc.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elfppc.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    ${_powerpc_path} ${HOST} powerpc-unknown-freebsd \
 	    powerpc-unknown-freebsd elf32ppc "" elf32ppc
 
 eppcmacos.c:	emulparams/ppcmacos.sh emultempl/aix.em \
-		scripttempl/aix.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/aix.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/powerpc_macos/usr/lib ${HOST} \
 	    powerpc-unknown-freebsdmacos \
 	    powerpc-unknown-freebsdmacos ppcmacos "" ppcmacos
 
 eppcnw.c:	emulparams/ppcnw.sh emultempl/elf32.em \
-		scripttempl/nw.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/nw.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/powerpc_nw/usr/lib ${HOST} powerpc-unknown-freebsdnw \
 	    powerpc-unknown-freebsdnw ppcnw "" ppcnw
 
 eppcpe.c:	emulparams/ppcpe.sh emultempl/pe.em \
-		scripttempl/ppcpe.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/ppcpe.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/powerpc_pe/usr/lib ${HOST} powerpc-unknown-freebsdpe \
 	    powerpc-unknown-freebsdpe ppcpe "" ppcpe
 
 eaixrs6.c:	emulparams/aixrs6.sh emultempl/aix.em \
-		scripttempl/aix.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/aix.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
 	    aixcoff-rs6000 aixrs6 "" aixrs6
 
 ers6000lynx.c:	emulparams/rs6000lynx.sh emultempl/aix.em \
-		scripttempl/aix.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/aix.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
 	    aixcoff-rs6000 rs6000lynx "" rs6000lynx

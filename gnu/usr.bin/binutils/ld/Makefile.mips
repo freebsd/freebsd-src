@@ -25,13 +25,13 @@ CLEANFILES+=	eelf32bmip.c
 CLEANFILES+=	eelf32lmip.c
 
 eelf32bmip.c:	emulparams/elf32ebmip.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_mips_path} \
 	    ${HOST} mipseb-unknown-freebsdelf mipseb-unknown-freebsdelf \
 	    elf32bmip "" elf32bmip mipseb-unknown-freebsdelf
 
 eelf32lmip.c:	emulparams/elf32elmip.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_mips_path} \
 	    ${HOST} mipsel-unknown-freebsdelf mipsel-unknown-freebsdelf \
 	    elf32lmip "" elf32lmip mipsel-unknown-freebsdelf
