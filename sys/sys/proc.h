@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.48 1997/11/24 15:15:20 bde Exp $
+ * $Id: proc.h,v 1.49 1997/11/25 07:07:48 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -151,6 +151,11 @@ struct	proc {
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
+	unsigned int	p_stops;	/* procfs event bitmask */
+	unsigned int	p_stype;	/* procfs stop event type */
+	char	p_step;			/* procfs stop *once* flag */
+	unsigned char	p_pfsflags;	/* procfs flags */
+	char	p_pad3[2];		/* padding for alignment */
 	register_t p_retval[2];		/* syscall aux returns */
 
 /* End area that is zeroed on creation. */
@@ -269,6 +274,10 @@ MALLOC_DECLARE(M_SUBPROC);
 	if (--(s)->s_count == 0)					\
 		FREE(s, M_SESSION);					\
 }
+
+extern void stopevent(struct proc*, unsigned int, unsigned int);
+#define	STOPEVENT(p,e,v)	do { \
+	if ((p)->p_stops & (e)) stopevent(p,e,v); } while (0)
 
 /* hold process U-area in memory, normally for ptrace/procfs work */
 #define PHOLD(p) {							\
