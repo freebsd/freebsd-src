@@ -455,6 +455,7 @@ extern int	configSecurityFascist(dialogMenuItem *self);
 extern int	configSecurityHigh(dialogMenuItem *self);
 extern int	configSecurityModerate(dialogMenuItem *self);
 extern int	configSecurityLiberal(dialogMenuItem *self);
+extern int	configTTYs(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
