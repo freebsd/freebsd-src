@@ -61,6 +61,8 @@ static struct
     {"boot_gdb",	RB_GDB},
     {"boot_single",	RB_SINGLE},
     {"boot_verbose",	RB_VERBOSE},
+    {"boot_multicons",	RB_MULTIPLE},
+    {"boot_serial",	RB_SERIAL},
     {NULL,	0}
 };
 
