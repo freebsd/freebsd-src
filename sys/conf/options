@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.1 1996/12/21 02:23:23 se Exp $
+#	$Id: options,v 1.18.2.2 1996/12/22 23:20:58 joerg Exp $
 
 # Option name	filename
 
@@ -66,8 +66,8 @@ OD_AUTO_TURNOFF		opt_od.h
 
 # Options used only in pci/ncr.c
 SCSI_NCR_MYADDR		opt_ncr.h
-SCSI_NCR_MAXSYNC	opt_ncr.h
-SCSI_NCR_MAXWIDE	opt_ncr.h
+SCSI_NCR_MAX_SYNC	opt_ncr.h
+SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_DFLT_TAGS	opt_ncr.h
 SCSI_NCR_DEBUG		opt_ncr.h
 
