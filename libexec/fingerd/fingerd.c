@@ -59,7 +59,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include "pathnames.h"
 
 void logerr(const char *, ...);
