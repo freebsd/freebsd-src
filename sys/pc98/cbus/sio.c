@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.64 1998/08/13 07:36:40 kato Exp $
+ *	$Id: sio.c,v 1.65 1998/08/19 11:48:38 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -437,12 +437,13 @@ static	d_ioctl_t	sioioctl;
 static	d_stop_t	siostop;
 static	d_devtotty_t	siodevtotty;
 
-#define CDEV_MAJOR 28
-static struct cdevsw sio_cdevsw = {
+#define	CDEV_MAJOR	28
+static	struct cdevsw	sio_cdevsw = {
 	sioopen,	sioclose,	sioread,	siowrite,
 	sioioctl,	siostop,	noreset,	siodevtotty,
 	ttpoll,		nommap,		NULL,		driver_name,
-	NULL,		-1,
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
 };
 
 static	int	comconsole = -1;
@@ -1427,6 +1428,12 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 
+	if (!sio_registered) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &sio_cdevsw, NULL);
+		register_swi(SWI_TTY, siopoll);
+		sio_registered = TRUE;
+	}
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
@@ -1447,12 +1454,6 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
-	if (!sio_registered) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &sio_cdevsw, NULL);
-		register_swi(SWI_TTY, siopoll);
-		sio_registered = TRUE;
-	}
 	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
 }
@@ -3727,7 +3728,7 @@ siopnp_probe(u_long csn, u_long vend_id)
 		struct pnp_cinfo d;
 		read_pnp_parms(&d, 0);
 		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %d is disabled.\n", csn);
+			printf("CSN %lu is disabled.\n", csn);
 			return (NULL);
 		}
 
