@@ -313,7 +313,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct gv_freelist *fl;
 	struct gv_hdr *vhdr;
 	int error;
-	char errstr[ERRBUFSIZ];
+	char *buf, errstr[ERRBUFSIZ];
 
 	vhdr = NULL;
 	d = NULL;
@@ -357,8 +357,19 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 		/*
 		 * We have found a valid vinum drive.  Let's see if it is
-		 * already known in the configuration.
+		 * already known in the configuration.  There's a chance that
+		 * the VINUMDRIVE class tastes before the VINUM class could
+		 * taste, so parse the configuration here too, just to be on
+		 * the safe side.
 		 */
+		buf = g_read_data(cp, GV_CFG_OFFSET, GV_CFG_LEN, &error);
+		if (buf == NULL || error != 0) {
+			g_free(vhdr);
+			break;
+		}
+		gv_parse_config(sc, buf, 1);
+		g_free(buf);
+
 		g_topology_lock();
 		g_access(cp, -1, 0, 0);
 		g_detach(cp);
