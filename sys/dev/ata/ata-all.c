@@ -832,14 +832,18 @@ ata_pmode(struct ata_params *ap)
 	if (ap->apiomodes & 0x01) 
 	    return ATA_PIO3;
     }	
-    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 2)
-	return ATA_PIO2;
-    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 1)
-	return ATA_PIO1;
-    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0)
-	return ATA_PIO0;
-    if (ap->capabilities1 & ATA_SUPPORT_DMA)
+    if (ap->mwdmamodes & 0x04)
 	return ATA_PIO4;
+    if (ap->mwdmamodes & 0x02)
+	return ATA_PIO3;
+    if (ap->mwdmamodes & 0x01)
+	return ATA_PIO2;
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x200)
+	return ATA_PIO2;
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x100)
+	return ATA_PIO1;
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x000)
+	return ATA_PIO0;
     return ATA_PIO0; 
 } 
 
@@ -852,8 +856,6 @@ ata_wmode(struct ata_params *ap)
 	return ATA_WDMA1;
     if (ap->mwdmamodes & 0x01)
 	return ATA_WDMA0;
-    if (ap->capabilities1 & ATA_SUPPORT_DMA)
-	return ATA_WDMA2;
     return -1;
 }
 
