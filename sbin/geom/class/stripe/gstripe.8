@@ -40,6 +40,11 @@
 .Ar dev2
 .Op Ar dev3 Op Ar ...
 .Nm
+.Cm destroy
+.Op Fl fv
+.Ar name
+.Op Ar name2 Op Ar ...
+.Nm
 .Cm label
 .Op Fl v
 .Op Fl s Ar stripesize
@@ -48,7 +53,7 @@
 .Ar dev2
 .Op Ar dev3 Op Ar ...
 .Nm
-.Cm destroy
+.Cm stop
 .Op Fl fv
 .Ar name
 .Op Ar name2 Op Ar ...
@@ -106,9 +111,13 @@ method, where metadata are stored in every device's last sector.
 The kernel module
 .Pa geom_stripe.ko
 will be loaded if it is not loaded already.
-.It Cm destroy
+.It Cm stop
 Turn off existing striped device by its
 .Ar name .
+This command doesn't touch on-disk metadata!
+.It Cm destroy
+Same as
+.Cm stop .
 .It Cm clear
 Clear metadata on the given devices.
 .It Cm list
@@ -139,6 +148,10 @@ for automatic configuration, create a file system on it, and mount it:
 gstripe label -v -s 65536 data /dev/da0 /dev/da1 /dev/da2 /dev/da3
 newfs /dev/data.stripe
 mount /dev/data.stripe /mnt
+[...]
+umount /mnt
+gstripe stop data
+gstripe unload
 .Ed
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
@@ -147,6 +160,7 @@ Exit status is 0 on success, and 1 if the command fails.
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
+.Xr umount 8 ,
 .Xr vinum 8
 .Sh HISTORY
 The

@@ -34,7 +34,7 @@
 #define	G_LABEL_CLASS_NAME	"LABEL"
 
 #define	G_LABEL_MAGIC		"GEOM::LABEL"
-#define	G_LABEL_VERSION		0
+#define	G_LABEL_VERSION		1
 #define	G_LABEL_DIR		"label"
 
 #ifdef _KERNEL
