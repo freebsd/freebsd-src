@@ -393,7 +393,7 @@ witness_destroy(struct lock_object *lock)
 	mtx_lock(&all_mtx);
 	lock_cur_cnt--;
 	STAILQ_REMOVE(&all_locks, lock, lock_object, lo_list);
-	lock->lo_flags &= LO_INITIALIZED;
+	lock->lo_flags &= ~LO_INITIALIZED;
 	mtx_unlock(&all_mtx);
 }
 
