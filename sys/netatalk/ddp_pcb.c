@@ -42,7 +42,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	return( EINVAL );
     }
 
-    if (addr != 0) {			/* validate passed address */
+    if (addr != NULL) {			/* validate passed address */
 	sat = (struct sockaddr_at *)addr;
 	if (sat->sat_family != AF_APPLETALK) {
 	    return(EAFNOSUPPORT);
@@ -95,7 +95,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
     if ( sat->sat_port == ATADDR_ANYPORT ) {
 	for ( sat->sat_port = ATPORT_RESERVED;
 		sat->sat_port < ATPORT_LAST; sat->sat_port++ ) {
-	    if ( ddp_ports[ sat->sat_port - 1 ] == 0 ) {
+	    if ( ddp_ports[ sat->sat_port - 1 ] == NULL ) {
 		break;
 	    }
 	}
@@ -130,7 +130,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 {
     struct sockaddr_at	*sat = (struct sockaddr_at *)addr;
     struct route	*ro;
-    struct at_ifaddr	*aa = 0;
+    struct at_ifaddr	*aa = NULL;
     struct ifnet	*ifp;
     u_short		hintnet = 0, net;
 
@@ -163,7 +163,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	} else {
 	    net = sat->sat_addr.s_net;
 	}
-	aa = 0;
+	aa = NULL;
 	if ((ifp = ro->ro_rt->rt_ifp) != NULL) {
 	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 		if ( aa->aa_ifp == ifp &&
@@ -178,15 +178,14 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 		satosat( &ro->ro_dst )->sat_addr.s_node !=
 		sat->sat_addr.s_node )) {
 	    RTFREE( ro->ro_rt );
-	    ro->ro_rt = (struct rtentry *)0;
+	    ro->ro_rt = NULL;
 	}
     }
 
     /*
      * If we've got no route for this interface, try to find one.
      */
-    if ( ro->ro_rt == (struct rtentry *)0 ||
-	 ro->ro_rt->rt_ifp == (struct ifnet *)0 ) {
+    if ( ro->ro_rt == NULL || ro->ro_rt->rt_ifp == NULL ) {
 	ro->ro_dst.sa_len = sizeof( struct sockaddr_at );
 	ro->ro_dst.sa_family = AF_APPLETALK;
 	if ( hintnet ) {
@@ -201,7 +200,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
     /*
      * Make sure any route that we have has a valid interface.
      */
-    aa = 0;
+    aa = NULL;
     if ( ro->ro_rt && ( ifp = ro->ro_rt->rt_ifp )) {
 	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 	    if ( aa->aa_ifp == ifp ) {
@@ -209,13 +208,13 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 	    }
 	}
     }
-    if ( aa == 0 ) {
+    if ( aa == NULL ) {
 	return( ENETUNREACH );
     }
 
     ddp->ddp_fsat = *sat;
     if ( ddp->ddp_lsat.sat_port == ATADDR_ANYPORT ) {
-	return(at_pcbsetaddr(ddp, (struct sockaddr *)0, td));
+	return(at_pcbsetaddr(ddp, NULL, td));
     }
     return( 0 );
 }
@@ -254,7 +253,7 @@ void
 at_pcbdetach( struct socket *so, struct ddpcb *ddp)
 {
     soisdisconnected( so );
-    so->so_pcb = 0;
+    so->so_pcb = NULL;
     sotryfree(so);
 
     /* remove ddp from ddp_ports list */
