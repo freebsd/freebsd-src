@@ -323,9 +323,9 @@ rip6_output(m, va_alist)
 	va_dcl
 #endif
 {
+	struct mbuf *control;
 	struct socket *so;
 	struct sockaddr_in6 *dstsock;
-	struct mbuf *control;
 	struct in6_addr *dst;
 	struct ip6_hdr *ip6;
 	struct inpcb *in6p;
@@ -403,13 +403,13 @@ rip6_output(m, va_alist)
 			ip6->ip6_dst.s6_addr16[1] = htons(oifp->if_index);
 		} else if (dstsock->sin6_scope_id) {
 			/* boundary check */
-			if (dstsock->sin6_scope_id < 0
-			 || if_index < dstsock->sin6_scope_id) {
+			if (dstsock->sin6_scope_id < 0 ||
+			    if_index < dstsock->sin6_scope_id) {
 				error = ENXIO;  /* XXX EINVAL? */
 				goto bad;
 			}
-			ip6->ip6_dst.s6_addr16[1]
-				= htons(dstsock->sin6_scope_id & 0xffff);/*XXX*/
+			ip6->ip6_dst.s6_addr16[1] =
+			    htons(dstsock->sin6_scope_id & 0xffff); /* XXX */
 		}
 	}
 
@@ -419,11 +419,8 @@ rip6_output(m, va_alist)
 	{
 		struct in6_addr *in6a;
 
-		if ((in6a = in6_selectsrc(dstsock, optp,
-					  in6p->in6p_moptions,
-					  &in6p->in6p_route,
-					  &in6p->in6p_laddr,
-					  &error)) == 0) {
+		if ((in6a = in6_selectsrc(dstsock, optp, in6p->in6p_moptions,
+		    &in6p->in6p_route, &in6p->in6p_laddr, &error)) == 0) {
 			if (error == 0)
 				error = EADDRNOTAVAIL;
 			goto bad;
@@ -632,7 +629,6 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
-
 	if (TAILQ_EMPTY(&ifnet) || addr->sin6_family != AF_INET6)
 		return EADDRNOTAVAIL;
 #ifdef ENABLE_DEFAULT_SCOPE

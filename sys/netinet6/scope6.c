@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -125,7 +125,7 @@ scope6_set(ifp, idlist)
 
 	/*
 	 * TODO(XXX): after setting, we should reflect the changes to
-	 * interface addresses, routing table entries, PCB entries... 
+	 * interface addresses, routing table entries, PCB entries...
 	 */
 
 	s = splnet();
@@ -178,7 +178,7 @@ scope6_get(ifp, idlist)
  */
 int
 in6_addrscope(addr)
-struct in6_addr *addr;
+	struct in6_addr *addr;
 {
 	int scope;
 
@@ -277,9 +277,9 @@ scope6_setdefault(ifp)
 	if (ifp) {
 		scope6_ids[0].s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
 			ifp->if_index;
-	}
-	else
+	} else {
 		scope6_ids[0].s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
+	}
 }
 
 int
