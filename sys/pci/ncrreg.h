@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.7 1997/02/22 09:44:10 peter Exp $
+**  $Id: ncrreg.h,v 1.8 1997/07/25 20:45:09 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -603,7 +603,8 @@ struct scr_tblsel {
 #define FE_CLK80	(1<<15)
 #define FE_DIFF		(1<<16)
 #define FE_BIOS		(1<<17)
-#define FE_CACHE_SET	(FE_ERL|FE_CLSE|FE_WRIE|FE_ERMP)
+/*#define FE_CACHE_SET	(FE_ERL|FE_CLSE|FE_WRIE|FE_ERMP)*/
+#define FE_CACHE_SET	(FE_ERL|FE_WRIE)
 #define FE_SCSI_SET	(FE_WIDE|FE_ULTRA|FE_ULTRA2|FE_DBLR|FE_QUAD|F_CLK80)
 #define FE_SPECIAL_SET	(FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM)
 
