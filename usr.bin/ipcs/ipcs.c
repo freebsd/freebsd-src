@@ -312,7 +312,7 @@ main(argc, argv)
 			if (option & PID)
 				printf(" LSPID LRPID");
 			if (option & TIME)
-				printf("   STIME    RTIME    CTIME");
+				printf("    STIME    RTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < msginfo.msgmni; i += 1) {
 				if (xmsqids[i].msg_qbytes != 0) {
@@ -351,7 +351,7 @@ main(argc, argv)
 						    msqptr->msg_lrpid);
 
 					if (option & TIME)
-						printf("%s %s %s",
+						printf(" %s %s %s",
 						    stime_buf,
 						    rtime_buf,
 						    ctime_buf);
@@ -401,7 +401,7 @@ main(argc, argv)
 			if (option & PID)
 				printf("  CPID  LPID");
 			if (option & TIME)
-				printf("   ATIME    DTIME    CTIME");
+				printf("    ATIME    DTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < shminfo.shmmni; i += 1) {
 				if (xshmids[i].shm_perm.mode & 0x0800) {
@@ -439,7 +439,7 @@ main(argc, argv)
 						    shmptr->shm_lpid);
 
 					if (option & TIME)
-						printf("%s %s %s",
+						printf(" %s %s %s",
 						    atime_buf,
 						    dtime_buf,
 						    ctime_buf);
@@ -495,7 +495,7 @@ main(argc, argv)
 			if (option & BIGGEST)
 				printf(" NSEMS");
 			if (option & TIME)
-				printf("   OTIME    CTIME");
+				printf("    OTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < seminfo.semmni; i += 1) {
 				if ((xsema[i].sem_perm.mode & SEM_ALLOC) != 0) {
@@ -522,7 +522,7 @@ main(argc, argv)
 						    semaptr->sem_nsems);
 
 					if (option & TIME)
-						printf("%s %s",
+						printf(" %s %s",
 						    otime_buf,
 						    ctime_buf);
 
