@@ -285,9 +285,11 @@ dev/ata/ata-raid.c	optional atadisk
 dev/ata/atapi-all.c	optional atapicd
 dev/ata/atapi-all.c	optional atapifd
 dev/ata/atapi-all.c	optional atapist
+dev/ata/atapi-all.c	optional atapicam
 dev/ata/atapi-cd.c	optional atapicd
 dev/ata/atapi-fd.c	optional atapifd
 dev/ata/atapi-tape.c	optional atapist
+dev/ata/atapi-cam.c	optional atapicam
 dev/awi/am79c930.c	optional awi
 dev/awi/awi.c		optional awi
 dev/awi/awi_wep.c	optional awi
