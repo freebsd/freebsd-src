@@ -112,7 +112,9 @@ interact(void)
      */
     printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
     if (getenv("prompt") == NULL)
-	setenv("prompt", "${currdev}>", 1);
+	setenv("prompt", "${interpret}\n", 1);
+    if (getenv("interpret") == NULL)
+        setenv("interpret", "ok", 1);
     
 
     for (;;) {
