@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 			ki->ki_login,
 			ki->ki_pid,
 			ki->ki_ppid,
-			ki->ki_priority - 22,
+			ki->ki_pri.pri_level, /* XXX check this */
 			ki->ki_nice,
 			vty,
 			pst,
