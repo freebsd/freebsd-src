@@ -80,9 +80,9 @@
  * the 8139 lets you directly access the on-board PHY registers. We need
  * to select which interface to use depending on the chip type.
  *
- * Fast forward a few years. RealTek how has a new chip called the
+ * Fast forward a few years. RealTek now has a new chip called the
  * 8139C+ which at long last implements descriptor-based DMA. Not
- * only that, in supports RX and TX TCP/IP checksum offload, VLAN
+ * only that, it supports RX and TX TCP/IP checksum offload, VLAN
  * tagging and insertion, TCP large send and 64-bit addressing.
  * Better still, it allows arbitrary byte alignments for RX and
  * TX buffers, meaning no copying is necessary on any architecture.
@@ -96,26 +96,36 @@
  * mode has to be enabled by setting the appropriate bits in the C+
  * command register. The PHY access mechanism appears to be unchanged.
  *
- * The 8169 is a 10/100/1000 ethernet MAC with built-in tri-speed
- * copper PHY. It has almost the same programming API as the C+ mode
- * of the 8139C+, with a couple of minor changes and additions: the
- * TX start register is located at a different offset, and there are
- * additional registers for GMII PHY status and control, as well as
- * TBI-mode status and control. There is also a maximum RX packet
- * size register to allow the chip to receive jumbo frames. The
- * 8169 can only be programmed in C+ mode: the old 8139 programming
+ * The 8169 is a 10/100/1000 ethernet MAC. It has almost the same
+ * programming API as the C+ mode of the 8139C+, with a couple of
+ * minor changes and additions: TX start register and timer interrupt
+ * register are located at different offsets, and there are additional
+ * registers for GMII PHY status and control, as well as TBI-mode
+ * status and control. There is also a maximum RX packet size
+ * register to allow the chip to receive jumbo frames. The 8169
+ * can only be programmed in C+ mode: the old 8139 programming
  * method isn't supported with this chip. Also, RealTek has a LOM
  * (LAN On Motherboard) gigabit MAC chip called the RTL8110S which
- * I believe to be register compatible with the 8169.
+ * I believe to be register compatible with the 8169. Unlike the
+ * 8139C+, the 8169 can have up to 1024 descriptors per DMA ring.
+ * The reference 8169 board design uses a Marvell 88E1000 'Alaska'
+ * copper PHY.
  *
- * Unfortunately, RealTek has not released a programming manual for
- * the 8169 or 8110 yet. The datasheet for the 8139C+ provides most
+ * The 8169S and 8110S are newer versions of the 8169. Available
+ * in both 32-bit and 64-bit forms, these devices have built-in
+ * copper 10/100/1000 PHYs. The 8110S is a lan-on-motherboard chip
+ * that is pin-for-pin compatible with the 8100. Unfortunately,
+ * RealTek has not released programming manuals for the 8169S and
+ * 8110S yet. The datasheet for the original 8169 provides most
  * of the information, but you must refer to RealTek's 8169 Linux
- * driver to fill in the gaps.
+ * driver to fill in the gaps. Mostly, it appears that the built-in
+ * PHY requires some special initialization. The original 8169
+ * datasheet and the 8139C+ datasheet can be obtained from
+ * http://www.freebsd.org/~wpaul/RealTek.
  *
  * This driver now supports both the old 8139 and new 8139C+
- * programming models. We detect the 8139C+ by looking for a PCI
- * revision ID of 0x20 or higher, and we detect the 8169 by its
+ * programming models. We detect the 8139C+ by looking for the
+ * corresponding hardware rev bits, and we detect the 8169 by its
  * PCI ID. Two new NIC type codes, RL_8139CPLUS and RL_8169 have
  * been added to distinguish the chips at runtime. Separate RX and
  * TX handling routines have been added to handle C+ mode, which
@@ -1122,8 +1132,8 @@ rl_dma_map_desc(arg, segs, nseg, mapsize, error)
 			return;
 		}
 		cmdstat = segs[i].ds_len;
-		d->rl_bufaddr_lo = htole32(segs[i].ds_addr);
-		d->rl_bufaddr_hi = 0;
+		d->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
+		d->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		if (i == 0)
 			cmdstat |= RL_TDESC_CMD_SOF;
 		else
@@ -1834,20 +1844,25 @@ rl_rxeofcplus(sc)
 		m->m_pkthdr.len = m->m_len = total_len;
 		m->m_pkthdr.rcvif = ifp;
 
-		/* Check IP header checksum */
-		if (rxstat & RL_RDESC_STAT_PROTOID)
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-		if (!(rxstat & RL_RDESC_STAT_IPSUMBAD))
-			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		/* Do RX checksumming if enabled */
 
-		/* Check TCP/UDP checksum */
-		if ((RL_TCPPKT(rxstat) &&
-		    !(rxstat & RL_RDESC_STAT_TCPSUMBAD)) ||
-		    (RL_UDPPKT(rxstat) &&
-		    !(rxstat & RL_RDESC_STAT_UDPSUMBAD))) {
-			m->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-			m->m_pkthdr.csum_data = 0xffff;
+		if (ifp->if_capenable & IFCAP_RXCSUM) {
+
+			/* Check IP header checksum */
+			if (rxstat & RL_RDESC_STAT_PROTOID)
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if (!(rxstat & RL_RDESC_STAT_IPSUMBAD))
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+
+			/* Check TCP/UDP checksum */
+			if ((RL_TCPPKT(rxstat) &&
+			    !(rxstat & RL_RDESC_STAT_TCPSUMBAD)) ||
+			    (RL_UDPPKT(rxstat) &&
+			    !(rxstat & RL_RDESC_STAT_UDPSUMBAD))) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
 		}
 
 		if (rxvlan & RL_RDESC_VLANCTL_TAG)
@@ -2734,13 +2749,15 @@ rl_init(xsc)
 		    (ifp->if_capenable & IFCAP_RXCSUM ?
 		    RL_CPLUSCMD_RXCSUM_ENB : 0));
 
-		CSR_WRITE_4(sc, RL_RXLIST_ADDR_HI, 0);
+		CSR_WRITE_4(sc, RL_RXLIST_ADDR_HI,
+		    RL_ADDR_HI(sc->rl_ldata.rl_rx_list_addr));
 		CSR_WRITE_4(sc, RL_RXLIST_ADDR_LO,
-		    sc->rl_ldata.rl_rx_list_addr);
+		    RL_ADDR_LO(sc->rl_ldata.rl_rx_list_addr));
 
-		CSR_WRITE_4(sc, RL_TXLIST_ADDR_HI, 0);
+		CSR_WRITE_4(sc, RL_TXLIST_ADDR_HI,
+		    RL_ADDR_HI(sc->rl_ldata.rl_tx_list_addr));
 		CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
-		    sc->rl_ldata.rl_tx_list_addr);
+		    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
 
 		CSR_WRITE_1(sc, RL_EARLY_TX_THRESH, RL_EARLYTXTHRESH_CNT);
 
@@ -2753,7 +2770,7 @@ rl_init(xsc)
 		 */
 
 		if (sc->rl_type == RL_8169)
-			CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x400);
+			CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x800);
 		else
 			CSR_WRITE_4(sc, RL_TIMERINT, 0x400);
 
