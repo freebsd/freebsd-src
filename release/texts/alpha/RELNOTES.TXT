@@ -459,6 +459,8 @@ PAM support for OpenSSH has been added.
 A long-standing bug in SSH, which sometimes resulted in a dropped
 session when an X11-forwarded client was closed, was fixed.
 
+Kerberos compatability has been added to OpenSSH. [MERGED]
+
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 SRM does not support USB devices at the moment, so you must still use
@@ -653,7 +655,7 @@ to their underlying physical paths. [MERGED]
 file(1) has been contribify-ed, and imported as version 3.33. [MERGED]
 
 stty(1) now has support for an "erase2" control character, so that
-both "delete" and "backspace" can be used to erase characters.
+both "delete" and "backspace" can be used to erase characters. [MERGED]
 
 The ibcs2(8), linux(8), osf1(8), and svr4(8) scripts, whose sole
 purpose was to load emulation kernel modules, have been removed.  The
@@ -864,6 +866,21 @@ verify the signatures on binary package files. [MERGED]
 
 /usr/src/share/examples/BSD_daemon/ now contains a scalable Beastie
 graphic. [MERGED]
+
+dump(8) now supports inheritance of the "nodump" flag down a
+hierarchy. [MERGED]
+
+The ISC DHCP client has been updated to 2.0pl5. [MERGED]
+
+split(1) now has the ability to split a file longer than 2GB. [MERGED]
+
+units(1) has received some updates and bugfixes. [MERGED]
+
+netstat(1) now keeps track of input and output packets on a
+per-address basis for each interface. [MERGED]
+
+As part of an ongoing process, many manual pages were improved, both
+in terms of their formatting markup and in their content. [MERGED]
 
 
 2. Supported Configurations
