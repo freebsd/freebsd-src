@@ -41,7 +41,7 @@
 # prefix=/usr
 #		This specifies where to place the requested files.  A
 #		setting of "/usr" will place all of the files requested
-#		in "/usr/doc" (e.g., "/usr/doc/en_US.ISO_8859-1").
+#		in "/usr/doc" (e.g., "/usr/doc/en_US.ISO8859-1").
 #		The prefix directory must exist in order to run CVSup.
 
 # Defaults that apply to all the collections
