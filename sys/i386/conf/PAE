@@ -31,7 +31,6 @@ makeoptions	NO_MODULES=yes
 nodevice	ahb
 nodevice	amd
 nodevice	isp
-nodevice	mpt
 nodevice	sym
 nodevice	trm
 
