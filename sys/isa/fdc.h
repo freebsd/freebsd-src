@@ -79,6 +79,7 @@ struct fdc_data
 	bus_space_handle_t ctlh;
 	void	*fdc_intr;
 	struct	device *fdc_dev;
+	int	fdc_ispnp;
 };
 
 /***********************************************************************\
@@ -98,3 +99,22 @@ typedef enum fdc_type fdc_t;
 
 #define FDUNIT(s)	(((s)>>6)&03)
 #define FDTYPE(s)	((s)&077)
+
+/*
+ * fdc maintains a set (1!) of ivars per child of each controller.
+ */
+enum fdc_device_ivars {
+	FDC_IVAR_FDUNIT,
+};
+
+/*
+ * Simple access macros for the ivars.
+ */
+#define FDC_ACCESSOR(A, B, T)						\
+static __inline T fdc_get_ ## A(device_t dev)				\
+{									\
+	uintptr_t v;							\
+	BUS_READ_IVAR(device_get_parent(dev), dev, FDC_IVAR_ ## B, &v);	\
+	return (T) v;							\
+}
+FDC_ACCESSOR(fdunit,	FDUNIT,	int)
