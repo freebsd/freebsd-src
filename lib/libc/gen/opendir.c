@@ -39,6 +39,8 @@ static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 
