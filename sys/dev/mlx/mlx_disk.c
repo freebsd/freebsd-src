@@ -35,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
-#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
@@ -44,6 +43,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
@@ -161,53 +161,51 @@ mlxd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-mlxd_strategy(struct bio *bp)
+mlxd_strategy(mlx_bio *bp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->bio_dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
 
     debug_called(1);
 
     /* bogus disk? */
     if (sc == NULL) {
-	bp->bio_error = EINVAL;
+	MLX_BIO_SET_ERROR(bp, EINVAL);
 	goto bad;
     }
 
     /* XXX may only be temporarily offline - sleep? */
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {
-	bp->bio_error = ENXIO;
+	MLX_BIO_SET_ERROR(bp, ENXIO);
 	goto bad;
     }
 
-    devstat_start_transaction(&sc->mlxd_stats);
+    MLX_BIO_STATS_START(bp);
     mlx_submit_buf(sc->mlxd_controller, bp);
     return;
 
  bad:
-    bp->bio_flags |= BIO_ERROR;
-
     /*
-     * Correctly set the buf to indicate a completed transfer
+     * Correctly set the bio to indicate a failed tranfer.
      */
-    bp->bio_resid = bp->bio_bcount;
-    biodone(bp);
+    MLX_BIO_RESID(bp) = MLX_BIO_LENGTH(bp);
+    MLX_BIO_DONE(bp);
     return;
 }
 
 void
 mlxd_intr(void *data)
 {
-    struct bio *bp = (struct bio *)data;
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->bio_dev->si_drv1;
+    mlx_bio 		*bp = (mlx_bio *)data;
 
     debug_called(1);
 	
-    if (bp->bio_flags & BIO_ERROR)
-	bp->bio_error = EIO;
+    if (MLX_BIO_HAS_ERROR(bp))
+	MLX_BIO_SET_ERROR(bp, EIO);
     else
-	bp->bio_resid = 0;
+	MLX_BIO_RESID(bp) = 0;
 
-    biofinish(bp, &sc->mlxd_stats, 0);
+    MLX_BIO_STATS_END(bp);
+    MLX_BIO_DONE(bp);
 }
 
 static int

@@ -135,7 +135,7 @@ struct mlx_softc
     struct mlx_command	*mlx_busycmd[MLX_NSLOTS];	/* busy commands */
     int			mlx_busycmds;			/* count of busy commands */
     struct mlx_sysdrive	mlx_sysdrive[MLX_MAXDRIVES];	/* system drives */
-    struct bio_queue_head mlx_bioq;			/* outstanding I/O operations */
+    mlx_bioq		mlx_bioq;			/* outstanding I/O operations */
     int			mlx_waitbufs;			/* number of bufs awaiting commands */
 
     /* controller status */
@@ -239,7 +239,7 @@ struct mlxd_softc
 /*
  * Interface between driver core and disk driver (should be using a bus?)
  */
-extern int	mlx_submit_buf(struct mlx_softc *sc, struct bio *bp);
+extern int	mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp);
 extern int	mlx_submit_ioctl(struct mlx_softc *sc, struct mlx_sysdrive *drive, u_long cmd, 
 				 caddr_t addr, int32_t flag, struct proc *p);
 extern void	mlxd_intr(void *data);
