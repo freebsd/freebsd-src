@@ -32,7 +32,7 @@
 
 #ident	"@(#)key_call.c	1.25	94/04/24 SMI"
 
-#ifndef lint
+#if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
@@ -379,8 +379,7 @@ int	vers;
 		endnetconfig(localhandle);
 		return ((CLIENT *) NULL);
         }
-
-	while (nconf = getnetconfig(localhandle)) {
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
 		if (strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0) {
 			/*
 			 * We use COTS_ORD here so that the caller can

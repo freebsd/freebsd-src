@@ -116,6 +116,7 @@ xdr_rpcblist_ptr(xdrs, rp)
 	rpcblist_ptr next;
 	rpcblist_ptr next_copy;
 
+	next = NULL;
 	for (;;) {
 		more_elements = (bool_t)(*rp != NULL);
 		if (! xdr_bool(xdrs, &more_elements)) {
@@ -204,6 +205,7 @@ xdr_rpcb_entry_list_ptr(xdrs, rp)
 	rpcb_entry_list_ptr next;
 	rpcb_entry_list_ptr next_copy;
 
+	next = NULL;
 	for (;;) {
 		more_elements = (bool_t)(*rp != NULL);
 		if (! xdr_bool(xdrs, &more_elements)) {

@@ -463,13 +463,13 @@ clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	u_int recvsz;
 {
 	struct netbuf *svcaddr;
-	void *localhandle;
 	struct netconfig *nconf;
 	CLIENT *cl;
 	int len;
 
-	nconf = NULL;
 	cl = NULL;
+	nconf = NULL;
+	svcaddr = NULL;
 	if ((raddr->sun_len == 0) ||
 	   ((svcaddr = malloc(sizeof(struct netbuf))) == NULL ) ||
 	   ((svcaddr->buf = malloc(sizeof(struct sockaddr_un))) == NULL)) {

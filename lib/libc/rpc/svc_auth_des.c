@@ -69,6 +69,8 @@
 static const char rcsid[] = "$FreeBSD$";
 #endif
 
+extern int key_decryptsession_pk(const char *, netobj *, des_block *);
+
 #define debug(msg)	 printf("svcauth_des: %s\n", msg) 
 
 #define USEC_PER_SEC ((u_long) 1000000L)

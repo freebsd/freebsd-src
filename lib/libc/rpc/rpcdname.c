@@ -71,7 +71,7 @@ get_default_domain()
  * get rejected elsewhere in the NIS client package.
  */
 int
-_rpc_get_default_domain(domain)
+__rpc_get_default_domain(domain)
 	char **domain;
 {
 	if ((*domain = get_default_domain()) != 0)

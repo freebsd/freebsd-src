@@ -106,6 +106,8 @@ xdr_cryptkeyres(register XDR *xdrs, cryptkeyres *objp)
 		if (!xdr_des_block(xdrs, &objp->cryptkeyres_u.deskey))
 			return (FALSE);
 		break;
+	default:
+		break;
 	}
 	return (TRUE);
 }
@@ -135,6 +137,8 @@ xdr_getcredres(register XDR *xdrs, getcredres *objp)
 		if (!xdr_unixcred(xdrs, &objp->getcredres_u.cred))
 			return (FALSE);
 		break;
+	default:
+		break;
 	}
 	return (TRUE);
 }
@@ -162,6 +166,8 @@ xdr_key_netstres(register XDR *xdrs, key_netstres *objp)
 	case KEY_SUCCESS:
 		if (!xdr_key_netstarg(xdrs, &objp->key_netstres_u.knet))
 			return (FALSE);
+		break;
+	default:
 		break;
 	}
 	return (TRUE);
