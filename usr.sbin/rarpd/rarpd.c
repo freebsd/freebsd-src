@@ -26,7 +26,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: rarpd.c,v 1.6 91/01/09 14:47:00 mccanne Exp $ (LBL)";
+    "@(#) $Header: /a/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.1.1.1 1995/03/02 06:41:39 wpaul Exp $ (LBL)";
 #endif
 
 
@@ -635,7 +635,7 @@ update_arptab(ep, ipaddr)
 	u_char *ep;
 	u_long ipaddr;
 {
-#ifdef SIOCSARP_IS_DEPRECATED_IN_4_4BSD
+#ifdef SIOCSARP
 	int s;
 	struct arpreq request;
 	struct sockaddr_in *sin;
@@ -651,18 +651,21 @@ update_arptab(ep, ipaddr)
 	if (ioctl(s, SIOCSARP, (caddr_t)&request) < 0)
 		syslog(LOG_ERR, "SIOCSARP: %m");
 	(void)close(s);
+#else
+	if (arptab_set(ep, ipaddr) > 0)
+		syslog(LOG_ERR, "couldn't update arp table");
 #endif
 }
 
 /*
  * Build a reverse ARP packet and sent it out on the interface.
- * 'ep' points to a valid REVARP_REQUEST.  The REVARP_REPLY is built 
+ * 'ep' points to a valid ARPOP_REVREQUEST.  The ARPOP_REVREPLY is built 
  * on top of the request, then written to the network.
  *
  * RFC 903 defines the ether_arp fields as follows.  The following comments
  * are taken (more or less) straight from this document.
  *
- * REVARP_REQUEST
+ * ARPOP_REVREQUEST
  *
  * arp_sha is the hardware address of the sender of the packet.
  * arp_spa is undefined.
@@ -672,7 +675,7 @@ update_arptab(ep, ipaddr)
  *   address of the sender.
  * arp_tpa is undefined.
  *
- * REVARP_REPLY
+ * ARPOP_REVREPLY
  *
  * arp_sha is the hardware address of the responder (the sender of the
  *   reply packet).
