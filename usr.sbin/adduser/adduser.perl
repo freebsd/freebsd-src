@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.20 1996/11/20 01:07:46 wosch Exp $
+# $Id: adduser.perl,v 1.21 1996/11/27 22:04:55 ache Exp $
 
 
 # read variables
@@ -307,9 +307,9 @@ sub new_users_name {
     local($name);
 
     while(1) {
-	$name = &confirm_list("Enter username", 1, "a-z0-9", "");
-	if (length($name) > 8) {
-	    warn "Username is longer than 8 chars\a\n";
+	$name = &confirm_list("Enter username", 1, "A-Za-z0-9_", "");
+	if (length($name) > 16) {
+	    warn "Username is longer than 16 chars\a\n";
 	    next;
 	}
 	last if (&new_users_name_valid($name) eq $name);
