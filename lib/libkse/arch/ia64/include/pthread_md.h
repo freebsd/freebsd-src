@@ -41,4 +41,34 @@ struct ksd {
 	int	ksd_size;
 };
 
+void _ia64_enter_uts(kse_func_t uts, struct kse_mailbox *km, void *stack,
+    size_t stacksz);
+int _ia64_restore_context(mcontext_t *mc, intptr_t val, intptr_t *loc);
+int _ia64_save_context(mcontext_t *mc);
+
+static __inline int
+_thread_enter_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km)
+{
+	if (tm == NULL)
+		return (-1);
+	if (!_ia64_save_context(&tm->tm_context.uc_mcontext)) {
+		_ia64_enter_uts(km->km_func, km, km->km_stack.ss_sp,
+		    km->km_stack.ss_size);
+		/* We should not reach here. */
+		return (-1);
+	}
+	return (0);
+}
+
+static __inline int
+_thread_switch(struct kse_thr_mailbox *tm, struct kse_thr_mailbox **thrp)
+{
+	if (tm == NULL)
+		return (-1);
+	_ia64_restore_context(&tm->tm_context.uc_mcontext, (intptr_t)tm,
+	    (intptr_t*)thrp);
+	/* We should not reach here. */
+	return (-1);
+}
+
 #endif /* _PTHREAD_MD_H_ */
