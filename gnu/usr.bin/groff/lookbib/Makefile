@@ -9,6 +9,5 @@ DPADD+=		$(LIBBIB) $(LIBGROFF) $(LIBMATH)
 MANDEPEND=	lookbib.1
 CLEANFILES+=	${MANDEPEND}
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
