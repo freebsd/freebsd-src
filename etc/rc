@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.14 1994/01/08 17:49:47 ache Exp $
+#	$Id: rc,v 1.15 1994/01/22 20:44:13 guido Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -127,17 +127,12 @@ then
 	'password file may be incorrect -- /etc/ptmp exists'
 fi
 
-echo preserving editor files
-(cd /var/tmp && /usr/libexec/elvispreserve "-the system rebooted" elvis* &&
-     rm -f elvis[0-9a-f][0-9a-f][0-9a-f][0-9a-f]* \
-	 elvis_[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
-
 echo clearing /tmp
 
 # prune quickly with one rm, then use find to clean up /tmp/[lq]*
 # (not needed with mfs /tmp, but doesn't hurt there...)
 (cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-    find . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
 
 # echo 'turning on accounting';	accton /var/account/acct
 
