@@ -220,6 +220,9 @@ cp1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16
 cp1251-8x16.fnt:ru:Шрифт cp1251 кириллица, 8x16
 cp1251-8x16.fnt:uk:Шрифт cp1251-кирилиця, 8x16
 
+swiss-1131-8x16.fnt:en:Codepage 1131 Belarusian, 8x16 (swiss)
+swiss-1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16 (swiss)
+
 haik8-8x16.fnt:hy:пЁш╩Я╩щ haik8 ╔Ш╥ОЁ╥АЯм╩и armscii8 М╩ЯЁоА╧╘ я╩О╓
 haik8-8x16.fnt:ru:Армянская haik8 (только для перекодировки с armscii8)
 haik8-8x16.fnt:en:haik8 codepage (use only with armscii8 screenmap)
