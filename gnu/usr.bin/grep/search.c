@@ -362,13 +362,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	      /* Find a possible match using the KWset matcher. */
 	      size_t offset = kwsexec (kwset, beg, buflim - beg, &kwsm);
 	      if (offset == (size_t) -1)
-		{
-#ifdef MBS_SUPPORT
-		  if (MB_CUR_MAX > 1)
-		    free(mb_properties);
-#endif
-		  return (size_t)-1;
-		}
+	        goto failure;
 	      beg += offset;
 	      /* Narrow down to the line containing the candidate, and
 		 run it through DFA. */
@@ -381,7 +375,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	      while (beg > buf && beg[-1] != eol)
 		--beg;
 	      if (kwsm.index < kwset_exact_matches)
-		goto success;
+		goto success_in_beg_and_end;
 	      if (dfaexec (&dfa, beg, end - beg, &backref) == (size_t) -1)
 		continue;
 	    }
@@ -400,7 +394,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	    }
 	  /* Successful, no backreferences encountered! */
 	  if (!backref)
-	    goto success;
+	    goto success_in_beg_and_end;
 	}
       else
 	end = beg + size;
@@ -415,14 +409,11 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 				       end - beg - 1, &(patterns[i].regs))))
 	    {
 	      len = patterns[i].regs.end[0] - start;
-	      if (exact)
-		{
-		  *match_size = len;
-		  return start;
-		}
+	      if (exact && !match_words)
+	        goto success_in_start_and_len;
 	      if ((!match_lines && !match_words)
 		  || (match_lines && len == end - beg - 1))
-		goto success;
+		goto success_in_beg_and_end;
 	      /* If -w, check if the match aligns with word boundaries.
 		 We do this iteratively because:
 		 (a) the line may contain more than one occurence of the
@@ -436,7 +427,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		    if ((start == 0 || !WCHAR ((unsigned char) beg[start - 1]))
 			&& (len == end - beg - 1
 			    || !WCHAR ((unsigned char) beg[start + len])))
-		      goto success;
+		      goto success_in_start_and_len;
 		    if (len > 0)
 		      {
 			/* Try a shorter length anchored at the same place. */
@@ -463,19 +454,26 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	    }
 	} /* for Regex patterns.  */
     } /* for (beg = end ..) */
+
+ failure:
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1 && mb_properties)
     free (mb_properties);
 #endif /* MBS_SUPPORT */
   return (size_t) -1;
 
- success:
+ success_in_beg_and_end:
+  len = end - beg;
+  start = beg - buf;
+  /* FALLTHROUGH */
+
+ success_in_start_and_len:
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1 && mb_properties)
     free (mb_properties);
 #endif /* MBS_SUPPORT */
-  *match_size = end - beg;
-  return beg - buf;
+  *match_size = len;
+  return start;
 }
 
 static void
@@ -518,28 +516,15 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
     {
       size_t offset = kwsexec (kwset, beg, buf + size - beg, &kwsmatch);
       if (offset == (size_t) -1)
-	{
-#ifdef MBS_SUPPORT
-	  if (MB_CUR_MAX > 1)
-	    free(mb_properties);
-#endif /* MBS_SUPPORT */
-	  return offset;
-	}
+	goto failure;
 #ifdef MBS_SUPPORT
       if (MB_CUR_MAX > 1 && mb_properties[offset+beg-buf] == 0)
 	continue; /* It is a part of multibyte character.  */
 #endif /* MBS_SUPPORT */
       beg += offset;
       len = kwsmatch.size[0];
-      if (exact)
-	{
-	  *match_size = len;
-#ifdef MBS_SUPPORT
-	  if (MB_CUR_MAX > 1)
-	    free (mb_properties);
-#endif /* MBS_SUPPORT */
-	  return beg - buf;
-	}
+      if (exact && !match_words)
+	goto success_in_beg_and_len;
       if (match_lines)
 	{
 	  if (beg > buf && beg[-1] != eol)
@@ -549,31 +534,37 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	  goto success;
 	}
       else if (match_words)
-	for (try = beg; len; )
-	  {
-	    if (try > buf && WCHAR((unsigned char) try[-1]))
-	      break;
-	    if (try + len < buf + size && WCHAR((unsigned char) try[len]))
-	      {
-		offset = kwsexec (kwset, beg, --len, &kwsmatch);
-		if (offset == (size_t) -1)
-		  {
-#ifdef MBS_SUPPORT
-		    if (MB_CUR_MAX > 1)
-		      free (mb_properties);
-#endif /* MBS_SUPPORT */
-		    return offset;
-		  }
-		try = beg + offset;
-		len = kwsmatch.size[0];
-	      }
-	    else
-	      goto success;
-	  }
+	{
+	  while (offset >= 0)
+	    {
+	      if ((offset == 0 || !WCHAR ((unsigned char) beg[-1]))
+	          && (len == end - beg - 1 || !WCHAR ((unsigned char) beg[len])))
+	        {
+	          if (!exact)
+	            /* Returns the whole line now we know there's a word match. */
+	            goto success;
+	          else
+	            /* Returns just this word match. */
+	            goto success_in_beg_and_len;
+	        }
+	      if (len > 0)
+	        {
+	          /* Try a shorter length anchored at the same place. */
+	          --len;
+	          offset = kwsexec (kwset, beg, len, &kwsmatch);
+	          if (offset == -1) {
+	            break; /* Try a different anchor. */
+	          }
+	          beg += offset;
+	          len = kwsmatch.size[0];
+	        }
+	    }
+	}
       else
 	goto success;
     }
 
+ failure:
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1)
     free (mb_properties);
@@ -585,7 +576,11 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
   end++;
   while (buf < beg && beg[-1] != eol)
     --beg;
-  *match_size = end - beg;
+  len = end - beg;
+  /* FALLTHROUGH */
+
+ success_in_beg_and_len:
+  *match_size = len;
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1)
     free (mb_properties);
