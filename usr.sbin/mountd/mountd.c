@@ -201,11 +201,6 @@ int	xdr_fhs __P((XDR *, caddr_t));
 int	xdr_mlist __P((XDR *, caddr_t));
 void	terminate __P((int));
 
-/* C library */
-int	getnetgrent();
-void	endnetgrent();
-void	setnetgrent();
-
 static int bitcmp __P((void *, void *, int));
 static int netpartcmp __P((struct sockaddr *, struct sockaddr *, int));
 static int sacmp __P((struct sockaddr *, struct sockaddr *));
