@@ -753,7 +753,6 @@ is_unique(name, as, ae)
 	return (1);
 }
 
-#ifdef	TERMCAP
 char termbuf[1024];
 
 	/*ARGSUSED*/
@@ -772,10 +771,6 @@ setupterm(tname, fd, errp)
 		*errp = 0;
 	return(-1);
 }
-#else
-#define	termbuf	ttytype
-extern char ttytype[];
-#endif
 
 int resettermname = 1;
 
