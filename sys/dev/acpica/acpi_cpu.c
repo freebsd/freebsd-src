@@ -203,8 +203,8 @@ static driver_t acpi_cpu_driver = {
     sizeof(struct acpi_cpu_softc),
 };
 
-static devclass_t cpu_devclass;
-DRIVER_MODULE(cpu, acpi, acpi_cpu_driver, cpu_devclass, 0, 0);
+static devclass_t acpi_cpu_devclass;
+DRIVER_MODULE(cpu, acpi, acpi_cpu_driver, acpi_cpu_devclass, 0, 0);
 MODULE_DEPEND(cpu, acpi, 1, 1, 1);
 
 static int
@@ -760,7 +760,7 @@ acpi_cpu_startup(void *arg)
     int count, i;
 
     /* Get set of CPU devices */
-    devclass_get_devices(cpu_devclass, &cpu_devices, &cpu_ndevices);
+    devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
 
     /* Check for quirks via the first CPU device. */
     sc = device_get_softc(cpu_devices[0]);
