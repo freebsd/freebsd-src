@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.42 1998/05/04 17:43:48 dyson Exp $
+ * $Id: ffs_inode.c,v 1.43 1998/06/14 19:31:28 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -52,6 +52,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
@@ -80,29 +81,13 @@ ffs_update(vp, access, modify, waitfor)
 	struct inode *ip;
 	int error;
 
+	ufs_itimes(vp);
 	ip = VTOI(vp);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
-		ip->i_flag &=
-		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
+	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor != MNT_WAIT)
 		return (0);
-	}
-	if (((ip->i_flag &
-	      (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-	    (waitfor != MNT_WAIT))
+	ip->i_flag &= ~IN_MODIFIED;
+	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
-	/*
-	 * XXX: Some callers make a copy too early (before the i/o has
-	 * completed)...
-	 */
-	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime = access->tv_sec;
-	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime = modify->tv_sec;
-		ip->i_modrev++;
-	}
-	if (ip->i_flag & IN_CHANGE)
-		ip->i_ctime = time_second;
-	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_fs;
 	/*
 	 * Ensure that uid and gid are correct. This is a temporary
