@@ -121,6 +121,7 @@ struct node_data root_dir[] = {
 	{ N("stat"),	VREG, 0444, 0,    A(dostat)		},
 	{ N("uptime"),	VREG, 0444, 0,    A(douptime)		},
 	{ N("version"),	VREG, 0444, 0,    A(doversion)		},
+	{ N("loadavg"),	VREG, 0444, 0,    A(doloadavg)		},
 	{ N(""),	VNON, 0000, 0,    NULL			},
 };
 
