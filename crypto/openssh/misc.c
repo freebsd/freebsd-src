@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: misc.c,v 1.22 2003/09/18 08:49:45 markus Exp $");
+RCSID("$OpenBSD: misc.c,v 1.23 2003/10/28 09:08:06 markus Exp $");
 
 #include "misc.h"
 #include "log.h"
@@ -97,7 +97,7 @@ set_nodelay(int fd)
 
 	optlen = sizeof opt;
 	if (getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, &optlen) == -1) {
-		error("getsockopt TCP_NODELAY: %.100s", strerror(errno));
+		debug("getsockopt TCP_NODELAY: %.100s", strerror(errno));
 		return;
 	}
 	if (opt == 1) {

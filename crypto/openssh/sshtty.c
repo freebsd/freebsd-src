@@ -35,19 +35,13 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshtty.c,v 1.4 2003/07/16 10:36:28 markus Exp $");
+RCSID("$OpenBSD: sshtty.c,v 1.5 2003/09/19 17:43:35 markus Exp $");
 
 #include "sshtty.h"
 #include "log.h"
 
 static struct termios _saved_tio;
 static int _in_raw_mode = 0;
-
-int
-in_raw_mode(void)
-{
-	return _in_raw_mode;
-}
 
 struct termios
 get_saved_tio(void)
@@ -64,8 +58,6 @@ leave_raw_mode(void)
 		perror("tcsetattr");
 	else
 		_in_raw_mode = 0;
-
-	fatal_remove_cleanup((void (*) (void *)) leave_raw_mode, NULL);
 }
 
 void
@@ -94,6 +86,4 @@ enter_raw_mode(void)
 		perror("tcsetattr");
 	else
 		_in_raw_mode = 1;
-
-	fatal_add_cleanup((void (*) (void *)) leave_raw_mode, NULL);
 }

@@ -1,0 +1,22 @@
+This file contains notes about OpenSSH on specific platforms.
+
+AIX
+---
+As of OpenSSH 3.8p1, sshd will now honour an accounts password expiry
+settings, where previously it did not.  Because of this, it's possible for
+sites that have used OpenSSH's sshd exclusively to have accounts which
+have passwords expired longer than the inactive time (ie the "Weeks between
+password EXPIRATION and LOCKOUT" setting in SMIT or the maxexpired
+chuser attribute).
+
+Accounts in this state must have their passwords reset manually by the
+administrator.  As a precaution, it is recommended that the administrative
+passwords be reset before upgrading from OpenSSH <3.8.
+
+Solaris
+-------
+Currently, sshd does not support BSM auditting.  This can show up as errors
+when editting cron entries via crontab.  See.
+http://bugzilla.mindrot.org/show_bug.cgi?id=125
+
+$Id: README.platform,v 1.1 2004/02/24 05:14:41 dtucker Exp $

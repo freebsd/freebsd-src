@@ -1,4 +1,4 @@
-/* $OpenBSD: sshtty.h,v 1.2 2001/06/26 17:27:25 markus Exp $ */
+/* $OpenBSD: sshtty.h,v 1.3 2003/09/19 17:43:35 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -40,7 +40,6 @@
 
 #include <termios.h>
 
-int	 in_raw_mode(void);
 struct termios get_saved_tio(void);
 void	 leave_raw_mode(void);
 void	 enter_raw_mode(void);

@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-common.c,v 1.9 2003/05/24 09:30:40 djm Exp $");
+RCSID("$OpenBSD: sftp-common.c,v 1.10 2003/11/10 16:23:41 jakob Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -49,7 +49,7 @@ attrib_clear(Attrib *a)
 
 /* Convert from struct stat to filexfer attribs */
 void
-stat_to_attrib(struct stat *st, Attrib *a)
+stat_to_attrib(const struct stat *st, Attrib *a)
 {
 	attrib_clear(a);
 	a->flags = 0;
@@ -67,7 +67,7 @@ stat_to_attrib(struct stat *st, Attrib *a)
 
 /* Convert from filexfer attribs to struct stat */
 void
-attrib_to_stat(Attrib *a, struct stat *st)
+attrib_to_stat(const Attrib *a, struct stat *st)
 {
 	memset(st, 0, sizeof(*st));
 
@@ -124,7 +124,7 @@ decode_attrib(Buffer *b)
 
 /* Encode attributes to buffer */
 void
-encode_attrib(Buffer *b, Attrib *a)
+encode_attrib(Buffer *b, const Attrib *a)
 {
 	buffer_put_int(b, a->flags);
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE)
@@ -174,7 +174,7 @@ fx2txt(int status)
  * drwxr-xr-x    5 markus   markus       1024 Jan 13 18:39 .ssh
  */
 char *
-ls_file(char *name, struct stat *st, int remote)
+ls_file(const char *name, const struct stat *st, int remote)
 {
 	int ulen, glen, sz = 0;
 	struct passwd *pw;

@@ -24,11 +24,13 @@
  *
  */
 #include "includes.h"
+#include "auth.h"
 #include "ssh.h"
 #include "log.h"
 #include "servconf.h"
 #include "canohost.h"
 #include "xmalloc.h"
+#include "buffer.h"
 
 #ifdef _AIX
 
@@ -36,6 +38,11 @@
 #include "port-aix.h"
 
 extern ServerOptions options;
+extern Buffer loginmsg;
+
+# ifdef HAVE_SETAUTHDB
+static char old_registry[REGISTRY_SIZE] = "";
+# endif
 
 /*
  * AIX has a "usrinfo" area where logname and other stuff is stored - 
@@ -63,7 +70,7 @@ aix_usrinfo(struct passwd *pw)
 	xfree(cp);
 }
 
-#ifdef WITH_AIXAUTHENTICATE
+# ifdef WITH_AIXAUTHENTICATE
 /*
  * Remove embedded newlines in string (if any).
  * Used before logging messages returned by AIX authentication functions
@@ -83,41 +90,113 @@ aix_remove_embedded_newlines(char *p)
 	if (*--p == ' ')
 		*p = '\0';
 }
-#endif /* WITH_AIXAUTHENTICATE */
+
+/*
+ * Do authentication via AIX's authenticate routine.  We loop until the
+ * reenter parameter is 0, but normally authenticate is called only once.
+ *
+ * Note: this function returns 1 on success, whereas AIX's authenticate()
+ * returns 0.
+ */
+int
+sys_auth_passwd(Authctxt *ctxt, const char *password)
+{
+	char *authmsg = NULL, *host, *msg, *name = ctxt->pw->pw_name;
+	int authsuccess = 0, expired, reenter, result;
+
+	do {
+		result = authenticate((char *)name, (char *)password, &reenter,
+		    &authmsg);
+		aix_remove_embedded_newlines(authmsg);	
+		debug3("AIX/authenticate result %d, msg %.100s", result,
+		    authmsg);
+	} while (reenter);
+
+	if (result == 0) {
+		authsuccess = 1;
+
+		host = (char *)get_canonical_hostname(options.use_dns);
+
+	       	/*
+		 * Record successful login.  We don't have a pty yet, so just
+		 * label the line as "ssh"
+		 */
+		aix_setauthdb(name);
+	       	if (loginsuccess((char *)name, (char *)host, "ssh", &msg) == 0) {
+			if (msg != NULL) {
+				debug("%s: msg %s", __func__, msg);
+				buffer_append(&loginmsg, msg, strlen(msg));
+				xfree(msg);
+			}
+		}
+
+		/*
+		 * Check if the user's password is expired.
+		 */
+                expired = passwdexpired(name, &msg);
+                if (msg && *msg) {
+                        buffer_append(&loginmsg, msg, strlen(msg));
+                        aix_remove_embedded_newlines(msg);
+                }
+                debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);
+
+		switch (expired) {
+		case 0: /* password not expired */
+			break;
+		case 1: /* expired, password change required */
+			ctxt->force_pwchange = 1;
+			disable_forwarding();
+			break;
+		default: /* user can't change(2) or other error (-1) */
+			logit("Password can't be changed for user %s: %.100s",
+			    name, msg);
+			if (msg)
+				xfree(msg);
+			authsuccess = 0;
+		}
+
+		aix_restoreauthdb();
+	}
+
+	if (authmsg != NULL)
+		xfree(authmsg);
+
+	return authsuccess;
+}
   
-# ifdef CUSTOM_FAILED_LOGIN
+#  ifdef CUSTOM_FAILED_LOGIN
 /*
  * record_failed_login: generic "login failed" interface function
  */
 void
 record_failed_login(const char *user, const char *ttyname)
 {
-	char *hostname = get_canonical_hostname(options.use_dns);
+	char *hostname = (char *)get_canonical_hostname(options.use_dns);
 
 	if (geteuid() != 0)
 		return;
 
 	aix_setauthdb(user);
-#  ifdef AIX_LOGINFAILED_4ARG
+#   ifdef AIX_LOGINFAILED_4ARG
 	loginfailed((char *)user, hostname, (char *)ttyname, AUDIT_FAIL_AUTH);
-#  else
+#   else
 	loginfailed((char *)user, hostname, (char *)ttyname);
-#  endif
+#   endif
+	aix_restoreauthdb();
 }
+#  endif /* CUSTOM_FAILED_LOGIN */
 
 /*
  * If we have setauthdb, retrieve the password registry for the user's
- * account then feed it to setauthdb.  This may load registry-specific method
- * code.  If we don't have setauthdb or have already called it this is a no-op.
+ * account then feed it to setauthdb.  This will mean that subsequent AIX auth
+ * functions will only use the specified loadable module.  If we don't have
+ * setauthdb this is a no-op.
  */
 void
 aix_setauthdb(const char *user)
 {
 #  ifdef HAVE_SETAUTHDB
-	static char *registry = NULL;
-
-	if (registry != NULL)	/* have already done setauthdb */
-		return;
+	char *registry;
 
 	if (setuserdb(S_READ) == -1) {
 		debug3("%s: Could not open userdb to read", __func__);
@@ -125,18 +204,37 @@ aix_setauthdb(const char *user)
 	}
 	
 	if (getuserattr((char *)user, S_REGISTRY, &registry, SEC_CHAR) == 0) {
-		if (setauthdb(registry, NULL) == 0)
-			debug3("%s: AIX/setauthdb set registry %s", __func__,
-			    registry);
+		if (setauthdb(registry, old_registry) == 0)
+			debug3("AIX/setauthdb set registry '%s'", registry);
 		else 
-			debug3("%s: AIX/setauthdb set registry %s failed: %s",
-			    __func__, registry, strerror(errno));
+			debug3("AIX/setauthdb set registry '%s' failed: %s",
+			    registry, strerror(errno));
 	} else
 		debug3("%s: Could not read S_REGISTRY for user: %s", __func__,
 		    strerror(errno));
 	enduserdb();
-#  endif
+#  endif /* HAVE_SETAUTHDB */
 }
-# endif /* CUSTOM_FAILED_LOGIN */
-#endif /* _AIX */
 
+/*
+ * Restore the user's registry settings from old_registry.
+ * Note that if the first aix_setauthdb fails, setauthdb("") is still safe
+ * (it restores the system default behaviour).  If we don't have setauthdb,
+ * this is a no-op.
+ */
+void
+aix_restoreauthdb(void)
+{
+#  ifdef HAVE_SETAUTHDB
+	if (setauthdb(old_registry, NULL) == 0)
+		debug3("%s: restoring old registry '%s'", __func__,
+		    old_registry);
+	else
+		debug3("%s: failed to restore old registry %s", __func__,
+		    old_registry);
+#  endif /* HAVE_SETAUTHDB */
+}
+
+# endif /* WITH_AIXAUTHENTICATE */
+
+#endif /* _AIX */

@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-cmds.sh,v 1.5 2003/07/19 00:46:31 djm Exp $
+#	$OpenBSD: sftp-cmds.sh,v 1.6 2003/10/07 07:04:52 djm Exp $
 #	Placed in the Public Domain.
 
 # XXX - TODO: 
@@ -78,6 +78,20 @@ verbose "$tid: get"
 echo "get $DATA $COPY" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "get failed"
 cmp $DATA ${COPY} || fail "corrupted copy after get"
+
+rm -f ${COPY}
+verbose "$tid: get quoted"
+echo "get \"$DATA\" $COPY" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "get failed"
+cmp $DATA ${COPY} || fail "corrupted copy after get"
+
+rm -f ${QUOTECOPY}
+cp $DATA ${QUOTECOPY}
+verbose "$tid: get filename with quotes"
+echo "get \"$QUOTECOPY_ARG\" ${COPY}" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+cmp ${COPY} ${QUOTECOPY} || fail "corrupted copy after get with quotes"
+rm -f ${QUOTECOPY} ${COPY}
 
 rm -f ${COPY}.dd/*
 verbose "$tid: get to directory"

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.60 2003/07/28 09:49:56 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.61 2003/12/22 09:16:58 djm Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -89,12 +89,14 @@
 .Op Fl g
 .Nm ssh-keygen
 .Fl G Ar output_file
+.Op Fl v
 .Op Fl b Ar bits
 .Op Fl M Ar memory
 .Op Fl S Ar start_point
 .Nm ssh-keygen
 .Fl T Ar output_file
 .Fl f Ar input_file
+.Op Fl v
 .Op Fl a Ar num_trials
 .Op Fl W Ar generator
 .Sh DESCRIPTION
@@ -263,6 +265,16 @@ Specify desired generator when testing candidate moduli for DH-GEX.
 .It Fl U Ar reader
 Upload an existing RSA private key into the smartcard in
 .Ar reader .
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful for debugging moduli generation.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
 .It Fl r Ar hostname
 Print DNS resource record with the specified
 .Ar hostname .

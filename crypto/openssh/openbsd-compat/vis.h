@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: include/vis.h */
+
 /*	$OpenBSD: vis.h,v 1.6 2003/06/02 19:34:12 millert Exp $	*/
 /*	$NetBSD: vis.h,v 1.4 1994/10/26 00:56:41 cgd Exp $	*/
 

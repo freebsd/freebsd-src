@@ -65,7 +65,7 @@ foreach (@infile) {
       ($null, $null, $rate) = split(/,/, $ent[0]);
       $est = $rate / $entscale;		# scale the estimate back
     }
-  }    
+  }
   print OUT "\"$cmd\" $path $est\n";
 }
 

@@ -8,7 +8,7 @@ Documentation:
 - Install FAQ?
 
 - General FAQ on S/Key, TIS, RSA, RSA2, DSA, etc and suggestions on when it
-  would be best to use them.  
+  would be best to use them.
 
 - Create a Documentation/ directory?
 
@@ -17,7 +17,7 @@ Programming:
 - Grep for 'XXX' comments and fix
 
 - Link order is incorrect for some systems using Kerberos 4 and AFS. Result
-  is multiple inclusion of DES symbols. Holger Trapp 
+  is multiple inclusion of DES symbols. Holger Trapp
   <holger.trapp@hrz.tu-chemnitz.de> reports that changing the configure
   generated link order from:
 	-lresolv -lkrb -lz -lnsl  -lutil -lkafs -lkrb -ldes -lcrypto
@@ -26,11 +26,9 @@ Programming:
   fixing the problem.
 
 - Write a test program that calls stat() to search for EGD/PRNGd socket
-  rather than use the (non-portable) "test -S". 
+  rather than use the (non-portable) "test -S".
 
 - More platforms for for setproctitle() emulation (testing needed)
-
-- Handle changing passwords for the non-PAM expired password case
 
 - Improve PAM support (a pam_lastlog module will cause sshd to exit)
   and maybe support alternate forms of authentications like OPIE via
@@ -70,7 +68,7 @@ Clean up configure/makefiles:
   to allow people to (right/wrongfully) link against Bind directly.
 
 - Consider splitting configure.ac into seperate files which do logically
-  similar tests. E.g move all the type detection stuff into one file, 
+  similar tests. E.g move all the type detection stuff into one file,
   entropy related stuff into another.
 
 Packaging:
@@ -86,7 +84,7 @@ PrivSep Issues:
   + /dev/zero solution (Solaris)
   + No/broken MAP_ANON (Irix)
   + broken /dev/zero parse (Linux)
-- PAM 
+- PAM
   + See above PAM notes
 - AIX
   + usrinfo() does not set TTY, but only required for legacy systems.  Works
@@ -96,4 +94,4 @@ PrivSep Issues:
 - Cygwin
   + Privsep for Pre-auth only (no fd passing)
 
-$Id: TODO,v 1.55 2003/06/11 13:56:41 dtucker Exp $
+$Id: TODO,v 1.57 2004/02/11 09:44:13 dtucker Exp $

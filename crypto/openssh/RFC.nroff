@@ -137,7 +137,7 @@ pseudo tty, starting X11 [X11] or TCP/IP port forwarding, starting
 authentication agent forwarding, and executing the shell or a command.
 
 When a shell or command is executed, the connection enters interactive
-session mode.  In this mode, data is passed in both directions, 
+session mode.  In this mode, data is passed in both directions,
 new forwarded connections may be opened, etc.  The interactive session
 normally terminates when the server sends the exit status of the
 program to the client.
@@ -372,7 +372,7 @@ previous versions keep the same major protocol version; changes that
 are not compatible increment the major version (which will hopefully
 never happen).  The version described in this document is 1.3.
 
-The client will 
+The client will
 
 .ti 0
 Key Exchange and Server Host Authentication

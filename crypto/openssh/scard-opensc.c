@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2002 Juha Yrjölä.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -81,7 +81,7 @@ sc_close(void)
 	}
 }
 
-static int 
+static int
 sc_init(void)
 {
 	int r;
@@ -91,7 +91,7 @@ sc_init(void)
 		goto err;
 	if (sc_reader_id >= ctx->reader_count) {
 		r = SC_ERROR_NO_READERS_FOUND;
-		error("Illegal reader number %d (max %d)", sc_reader_id, 
+		error("Illegal reader number %d (max %d)", sc_reader_id,
 		    ctx->reader_count -1);
 		goto err;
 	}
@@ -131,7 +131,7 @@ sc_prkey_op_init(RSA *rsa, struct sc_pkcs15_object **key_obj_out,
 			goto err;
 		}
 	}
-	r = sc_pkcs15_find_prkey_by_id_usage(p15card, &priv->cert_id, 
+	r = sc_pkcs15_find_prkey_by_id_usage(p15card, &priv->cert_id,
 		usage, &key_obj);
 	if (r) {
 		error("Unable to find private key from SmartCard: %s",
@@ -189,11 +189,11 @@ sc_private_decrypt(int flen, u_char *from, u_char *to, RSA *rsa,
 	int r;
 
 	if (padding != RSA_PKCS1_PADDING)
-		return -1;	
+		return -1;
 	r = sc_prkey_op_init(rsa, &key_obj, SC_USAGE_DECRYPT);
 	if (r)
 		return -1;
-	r = sc_pkcs15_decipher(p15card, key_obj, SC_ALGORITHM_RSA_PAD_PKCS1, 
+	r = sc_pkcs15_decipher(p15card, key_obj, SC_ALGORITHM_RSA_PAD_PKCS1,
 	    from, flen, to, flen);
 	sc_unlock(card);
 	if (r < 0) {
@@ -223,7 +223,7 @@ sc_sign(int type, u_char *m, unsigned int m_len,
 	 * the key will be rejected as using a non-repudiation key
 	 * for authentication is not recommended. Note: This does not
 	 * prevent the use of a non-repudiation key for authentication
-	 * if the sign or signrecover flag is set as well. 
+	 * if the sign or signrecover flag is set as well.
 	 */
 	r = sc_prkey_op_init(rsa, &key_obj, SC_USAGE_SIGN);
 	if (r)
@@ -325,7 +325,7 @@ static void
 convert_rsa_to_rsa1(Key * in, Key * out)
 {
 	struct sc_priv_data *priv;
-	
+
 	out->rsa->flags = in->rsa->flags;
 	out->flags = in->flags;
 	RSA_set_method(out->rsa, RSA_get_method(in->rsa));
@@ -337,7 +337,7 @@ convert_rsa_to_rsa1(Key * in, Key * out)
 	return;
 }
 
-static int 
+static int
 sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 {
 	int r;
@@ -349,7 +349,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	EVP_PKEY *pubkey = NULL;
 	u8 *p;
 	char *tmp;
-	
+
 	debug("sc_read_pubkey() with cert id %02X", cinfo->id.value[0]);
 	r = sc_pkcs15_read_certificate(p15card, cinfo, &cert);
 	if (r) {
@@ -358,7 +358,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	}
 	x509 = X509_new();
 	if (x509 == NULL) {
-		r = -1; 
+		r = -1;
 		goto err;
 	}
 	p = cert->data;
@@ -391,7 +391,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	tmp = key_fingerprint(k, SSH_FP_MD5, SSH_FP_HEX);
 	debug("fingerprint %d %s", key_size(k), tmp);
 	xfree(tmp);
-	
+
 	return 0;
 err:
 	if (cert)

@@ -30,7 +30,7 @@ if [ ! -f $SCRIPT ]; then
 	echo "not a file: $SCRIPT"
 	exit 2
 fi
-if sh -n $SCRIPT; then
+if $TEST_SHELL -n $SCRIPT; then
 	true
 else
 	echo "syntax error in $SCRIPT"
@@ -185,7 +185,6 @@ Host *
 	ChallengeResponseAuthentication	no
 	HostbasedAuthentication	no
 	PasswordAuthentication	no
-	RhostsAuthentication	no
 	RhostsRSAAuthentication	no
 	BatchMode		yes
 	StrictHostKeyChecking	yes
