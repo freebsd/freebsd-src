@@ -1966,12 +1966,12 @@ cons25|ansi|ansi80x25:\
 	:kb=^h:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:\
-        :mb=\E[5m:md=\E[1m:me=\E[m:
+	:mb=\E[5m:md=\E[1m:me=\E[m:bl=^G:
 cons50|ansil|ansi80x50:\
         :li#50:tc=cons25:
 # Syscons console with koi8-r russian code table.
 pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
-	:li#25:co#80:am:bs:bw:eo:cu=\222:\
+	:li#25:co#80:am:bs:bw:eo:bl=^G:\
 	:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:LE=\E[%dD:AL=\E[%dL:DL=\E[%dM:\
 	:IC=\E[%d@:DC=\E[%dP:le=^H:ic=\E[@:dc=\E[P:cd=\E[J:ce=\E[K:cl=\E[H\E[J:\
 	:cm=\E[%i%d;%dH:do=^J:ho=\E[H:al=\E[L:dl=\E[M:nd=\E[C:up=\E[A:\
