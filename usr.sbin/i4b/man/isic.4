@@ -114,7 +114,8 @@ To be able to use PnP cards under FreeBSD, you have to add
 .Pp
 .Cd controller pnp0
 .Pp
-to you kernel config file. More, it is recommended to add
+to you kernel config file.
+More, it is recommended to add
 .Pp
 .Cd options \&"USERCONFIG\&"
 .Pp
@@ -244,7 +245,8 @@ The required (optional under NetBSD)
 value is 2.
 .Pp
 These boards have a jumper which specifies an i/o base address of either
-0xd80, 0xe80 or 0xf80. The remaining necessary configuration values are then
+0xd80, 0xe80 or 0xf80.
+The remaining necessary configuration values are then
 programmed at run time by accessing this i/o port.
 .Pp
 Valid interrupts are 2, 3, 4, 5, 10, 11, 12 or 15. 
@@ -318,7 +320,8 @@ Valid i/o port values are 0x200, 0x208, 0x210, 0x218, 0x220, 0x228, 0x230,
 Valid interrupt configurations are 5, 7, 10, 11, 12, 14, 15.
 .Pp
 Notice: this card has a strange address decoding scheme resulting in 64
-windows of some bytes length. Anyway, support for this card is good because
+windows of some bytes length.
+Anyway, support for this card is good because
 the manufacturer gave out technical docs for this card!
 .Pp
 .Pp
@@ -332,7 +335,8 @@ The card is auto-configured by the PnP kernel subsystem.
 .Pp
 .It Ar "Sedlbauer Win Speed"
 .Pp
-Valid i/o port values must be in the range 0x100 ... 0x3f0. (alignment 0x8,
+Valid i/o port values must be in the range 0x100 ... 0x3f0.
+(alignment 0x8,
 len 0x8)
 .Pp
 Valid interrupt configurations are 3, 4, 5, 7, 10, 11, 12, 13, 15.
@@ -385,7 +389,8 @@ Note that currently, you have to jumper the card interupt for
 .Em IPL 2
 instead of IPL 6 (which is used by most AmigaOS software).
 .Pp
-Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
+Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus.
+This
 is no NetBSD problem, but general.
 .El
 .Pp

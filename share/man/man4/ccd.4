@@ -100,7 +100,8 @@ effect is achieved, which can increase sequential read/write
 performance.  The interleave factor is expressed in units of DEV_BSIZE
 (usually 512 bytes).  For large writes, the optimum interleave factor
 is typically the size of a track, while for large reads, it is about a
-quarter of a track. (Note that this changes greatly depending on the
+quarter of a track.
+(Note that this changes greatly depending on the
 number and speed of disks.)  For instance, with eight 7,200 RPM drives
 on two Fast-Wide SCSI buses, this translates to about 128 for writes
 and 32 for reads.  A larger interleave tends to work better when the

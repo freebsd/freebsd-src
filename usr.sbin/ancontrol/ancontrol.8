@@ -253,7 +253,8 @@ Set the station address for the specified interface.
 The
 .Ar mac address
 is specified as a series of six hexadecimal values separated by colons,
-e.g.: 00:60:1d:12:34:56. This programs the new address into the card
+e.g.: 00:60:1d:12:34:56.
+This programs the new address into the card
 and updates the interface as well.
 .It Fl i Ar iface Fl n Ar SSID "[-v 1|2|3]"
 Set the desired SSID (network name). There are three SSIDs which allows
@@ -282,7 +283,8 @@ Valid power settings
 vary depending on the actual NIC and can be viewed by dumping the
 device capabilities with the
 .Fl I
-flag. Typical values are 1, 5, 20, 50 and 100mW.
+flag.
+Typical values are 1, 5, 20, 50 and 100mW.
 Selecting 0 sets
 the factory default.
 .It Fl i Ar iface Fl c Ar channel
@@ -321,7 +323,8 @@ If an illegal channel is specified, the
 NIC will revert to its default channel.
 For NICs sold in the United States
 and Europe, the default channel is 3. For NICs sold in France, the default
-channel is 11. For NICs sold in Japan, the only available channel is 14.
+channel is 11.
+For NICs sold in Japan, the only available channel is 14.
 Note that two stations must be set to the same channel in order to
 communicate.
 .It Fl i Ar iface Fl f Ar fragmentation threshold
@@ -339,7 +342,8 @@ This controls the
 number of bytes used for the RTS/CTS handhake boundary.
 The
 .Ar RTS threshold
-can be any value between 0 and 2312. The default is 2312.
+can be any value between 0 and 2312.
+The default is 2312.
 .It Fl h
 Prints a list of available options and sample usage.
 .El
