@@ -44,7 +44,7 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
-.if !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 # STARTTLS support
 CFLAGS+=-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
 LDADD+=	-lssl -lcrypto
