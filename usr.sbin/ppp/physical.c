@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.32 1998/05/15 18:21:43 brian Exp $
+ *  $Id: physical.c,v 1.1.2.33 1998/05/15 23:58:25 brian Exp $
  *
  */
 
@@ -192,11 +192,15 @@ physical_Login(struct physical *phys, const char *name)
       log_Printf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
     else {
       struct utmp ut;
+      const char *connstr;
 
       memset(&ut, 0, sizeof ut);
       time(&ut.ut_time);
       strncpy(ut.ut_name, name, sizeof ut.ut_name);
-      strncpy(ut.ut_line, phys->name.base, sizeof ut.ut_line - 1);
+      strncpy(ut.ut_line, phys->name.base, sizeof ut.ut_line);
+      if ((connstr = getenv("CONNECT")))
+        /* mgetty sets this to the connection speed */
+        strncpy(ut.ut_host, connstr, sizeof ut.ut_host);
       ID0login(&ut);
       phys->Utmp = 1;
     }
