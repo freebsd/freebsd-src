@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.58 1994/08/31 06:17:31 davidg Exp $
+ *	$Id: machdep.c,v 1.59 1994/08/31 15:55:29 davidg Exp $
  */
 
 #include "npx.h"
@@ -1264,7 +1264,7 @@ init386(first)
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
 		*(int *)CMAP1 = PG_V | PG_KW | PG_N | ptoa(target_page);
-		tlbflush();
+		pmap_update();
 
 		/*
 		 * Test for alternating 1's and 0's
@@ -1309,7 +1309,7 @@ init386(first)
 	printf("done.\n");
 
 	*(int *)CMAP1 = 0;
-	tlbflush();
+	pmap_update();
 
 	avail_end = (Maxmem << PAGE_SHIFT)
 		    - i386_round_page(sizeof(struct msgbuf));
