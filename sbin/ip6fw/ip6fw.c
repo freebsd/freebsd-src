@@ -1,4 +1,4 @@
-/*	$KAME: ip6fw.c,v 1.13 2001/06/22 05:51:16 itojun Exp $	*/
+/*	$KAME: ip6fw.c,v 1.14 2003/10/02 19:36:25 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998, 1999, 2000 and 2001 WIDE Project.
@@ -90,6 +90,7 @@ int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
 int		do_quiet=0;			/* Be quiet in add and flush  */
 int		do_force=0;			/* Don't ask for confirmation */
+int		do_test=0;			/* Don't load into Kernel */
 
 struct icmpcode {
 	int	code;
@@ -445,7 +446,7 @@ list(ac, av)
 	int	ac;
 	char 	**av;
 {
-	struct ip6_fw *r, *rules;
+	struct ip6_fw *r, *rules, *n;
 	int l,i;
 	unsigned long rulenum;
 	int nalloc, bytes, maxbytes;
@@ -456,10 +457,10 @@ list(ac, av)
 	bytes = nalloc;
 	maxbytes = 65536 * sizeof *rules;
 	while (bytes >= nalloc) {
-		nalloc = nalloc * 2 + 200;
-		bytes = nalloc;
-		if ((rules = realloc(rules, bytes)) == NULL)
+		if ((n = realloc(rules, nalloc * 2 + 200)) == NULL)
 			err(EX_OSERR, "realloc");
+		bytes = nalloc = nalloc * 2 + 200;
+		rules = n;
 		i = getsockopt(s, IPPROTO_IPV6, IPV6_FW_GET, rules, &bytes);
 		if ((i < 0 && errno != EINVAL) || nalloc > maxbytes)
 			err(EX_OSERR, "getsockopt(IPV6_FW_GET)");
@@ -546,6 +547,7 @@ static int
 lookup_host (host, addr, family)
 	char *host;
 	u_char *addr;
+	int family;
 {
 	struct hostent *he;
 
@@ -577,7 +579,7 @@ fill_ip6(ipno, mask, acp, avp)
 			*p++ = '\0';
 		}
 
-		if (lookup_host(*av, ipno, AF_INET6) != 0)
+		if (lookup_host(*av, (u_char *)ipno, AF_INET6) != 0)
 			show_usage("hostname ``%s'' unknown", *av);
 		switch (md) {
 			case '/':
@@ -809,10 +811,12 @@ delete(ac,av)
 	/* Rule number */
 	while (ac && isdigit(**av)) {
 		rule.fw_number = atoi(*av); av++; ac--;
-		i = setsockopt(s, IPPROTO_IPV6, IPV6_FW_DEL, &rule, sizeof rule);
-		if (i) {
-			exitval = 1;
-			warn("rule %u: setsockopt(%s)", rule.fw_number, "IPV6_FW_DEL");
+		if (!do_test) {
+			i = setsockopt(s, IPPROTO_IPV6, IPV6_FW_DEL, &rule, sizeof rule);
+			if (i) {
+				exitval = 1;
+				warn("rule %u: setsockopt(%s)", rule.fw_number, "IPV6_FW_DEL");
+			}
 		}
 	}
 	if (exitval != 0)
@@ -1149,9 +1153,11 @@ badviacombo:
 
 	if (!do_quiet)
 		show_ip6fw(&rule);
-	i = setsockopt(s, IPPROTO_IPV6, IPV6_FW_ADD, &rule, sizeof rule);
-	if (i)
-		err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ADD");
+	if (!do_test) {
+		i = setsockopt(s, IPPROTO_IPV6, IPV6_FW_ADD, &rule, sizeof rule);
+		if (i)
+			err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ADD");
+	}
 }
 
 static void
@@ -1163,10 +1169,13 @@ zero (ac, av)
 
 	if (!ac) {
 		/* clear all entries */
-		if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_ZERO,NULL,0)<0)
-			err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ZERO");
-		if (!do_quiet)
-			printf("Accounting cleared.\n");
+		if (!do_test) {
+			if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_ZERO,NULL,0)<0)
+				err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ZERO");
+			if (!do_quiet)
+				printf("Accounting cleared.\n");
+		} else if (!do_quiet)
+			printf("Accounting not cleared.\n");
 	} else {
 		struct ip6_fw rule;
 		int failed = 0;
@@ -1176,15 +1185,19 @@ zero (ac, av)
 			/* Rule number */
 			if (isdigit(**av)) {
 				rule.fw_number = atoi(*av); av++; ac--;
-				if (setsockopt(s, IPPROTO_IPV6,
-				    IPV6_FW_ZERO, &rule, sizeof rule)) {
-					warn("rule %u: setsockopt(%s)", rule.fw_number,
-						 "IPV6_FW_ZERO");
-					failed = 1;
+				if (!do_test) {
+					if (setsockopt(s, IPPROTO_IPV6,
+				    		IPV6_FW_ZERO, &rule, sizeof rule)) {
+						warn("rule %u: setsockopt(%s)", rule.fw_number,"IPV6_FW_ZERO");
+						failed = 1;
+					}
+					if (!do_quiet)
+						printf("Entry %d cleared\n",
+					    		rule.fw_number);
 				}
 				else if (!do_quiet)
-					printf("Entry %d cleared\n",
-					    rule.fw_number);
+					printf("Entry %d not cleared\n",
+						rule.fw_number);
 			} else
 				show_usage("invalid rule number ``%s''", *av);
 		}
@@ -1199,7 +1212,6 @@ ip6fw_main(ac,av)
 	char 	**av;
 {
 	int 		ch;
-	extern int 	optind;
 
 	/* init optind to 1 */
 	optind = 1;
@@ -1211,13 +1223,16 @@ ip6fw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	while ((ch = getopt(ac, av ,"afqtN")) != -1)
+	while ((ch = getopt(ac, av ,"afnqtN")) != -1)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
 			break;
 		case 'f':
 			do_force=1;
+			break;
+		case 'n':
+			do_test=1;
 			break;
 		case 'q':
 			do_quiet=1;
@@ -1263,10 +1278,14 @@ ip6fw_main(ac,av)
 				do_flush = 1;
 		}
 		if ( do_flush ) {
-			if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_FLUSH,NULL,0) < 0)
-				err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_FLUSH");
-			if (!do_quiet)
-				printf("Flushed all rules.\n");
+			if (!do_test) {
+				if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_FLUSH,NULL,0) < 0)
+					err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_FLUSH");
+			
+				if (!do_quiet)
+					printf("Flushed all rules.\n");
+			} else if (!do_quiet)
+				printf("Rules not flushed.\n");
 		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
 		zero(ac,av);
@@ -1293,7 +1312,7 @@ main(ac, av)
 	char	buf[BUFSIZ];
 	char	*a, *p, *args[MAX_ARGS], *cmd = NULL;
 	char	linename[10];
-	int 	i, c, lineno, qflag, pflag, status;
+	int 	i, c, lineno, nflag, qflag, pflag, status;
 	FILE	*f = NULL;
 	pid_t	preproc = 0;
 
@@ -1309,10 +1328,10 @@ main(ac, av)
 	 */
 
 	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0) {
-		qflag = pflag = i = 0;
+		nflag = qflag = pflag = i = 0;
 		lineno = 0;
 
-		while ((c = getopt(ac, av, "D:U:p:q")) != -1)
+		while ((c = getopt(ac, av, "D:U:np:q")) != -1)
 			switch(c) {
 			case 'D':
 				if (!pflag)
@@ -1332,6 +1351,10 @@ main(ac, av)
 					     "too many -D or -U options");
 				args[i++] = "-U";
 				args[i++] = optarg;
+				break;
+
+			case 'n':
+				nflag = 1;
 				break;
 
 			case 'p':
@@ -1406,6 +1429,7 @@ main(ac, av)
 				*p = '\0';
 			i=1;
 			if (qflag) args[i++]="-q";
+			if (nflag) args[i++]="-n";
 			for (a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
