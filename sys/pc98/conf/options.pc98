@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.46 1997/12/29 16:17:59 kato Exp $
+#	$Id: options.pc98,v 1.47 1998/01/25 09:45:38 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -113,3 +113,12 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+DPT_VERIFY_HINTR        opt_dpt.h
+DPT_USE_SINTR           opt_dpt.h
+DPT_RESTRICTED_FREELIST opt_dpt.h
+DPT_MEASURE_PERFORMANCE opt_dpt.h
+DPT_FREELIST_IS_STACK   opt_dpt.h
+DPT_HANDLE_TIMEOUTS     opt_dpt.h
+DPT_TIMEOUT_FACTOR      opt_dpt.h
+DPT_INTR_DELAY		opt_dpt.h
+DPT_LOST_IRQ		opt_dpt.h
