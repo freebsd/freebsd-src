@@ -1,4 +1,4 @@
-# @(#)europe	7.84
+# @(#)europe	7.88
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -129,7 +129,7 @@
 # transition date for London, namely 1847-12-01.  We don't know as much
 # about Dublin, so we use 1880-08-02, the legal transition time.
 
-# From Paul Eggert (2003-07-29):
+# From Paul Eggert (2003-09-27):
 # Summer Time was first seriously proposed by William Willett (1857-1915),
 # a London builder and member of the Royal Astronomical Society
 # who circulated a pamphlet ``The Waste of Daylight'' (1907)
@@ -141,7 +141,7 @@
 # it was eventually adopted as a wartime measure in 1916.
 # See: Summer Time Arrives Early, The Times (2000-05-18).
 # A monument to Willett was unveiled on 1927-05-21, in an open space in
-# a 45-acre wood near Chiselhurst, Kent that was purchased by popular
+# a 45-acre wood near Chislehurst, Kent that was purchased by popular
 # subscription and open to the public.  On the south face of the monolith,
 # designed by G. W. Miller, is the the William Willett Memorial Sundial,
 # which is permanently set to Summer Time.
@@ -707,6 +707,9 @@ Zone	Europe/Sofia	1:33:16 -	LMT	1880
 # Croatia
 # see Serbia and Montenegro
 
+# Cyprus
+# See the `asia' file.
+
 # Czech Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Czech	1945	only	-	Apr	 8	2:00s	1:00	S
@@ -917,6 +920,10 @@ Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			1:39:52	-	HMT	1921 May    # Helsinki Mean Time
 			2:00	Finland	EE%sT	1981 Mar 29 2:00
 			2:00	EU	EE%sT
+
+# Aaland Is
+Link	Europe/Helsinki	Europe/Mariehamn
+
 
 # France
 
@@ -1831,7 +1838,7 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 #
 # From Andrey A. Chernov <ache@nagual.ru> (1996-10-04):
 # `MSK' and `MSD' were born and used initially on Moscow computers with
-# Unix-like OSes by several developer groups (e.g. Demos group, Kiae group)....
+# UNIX-like OSes by several developer groups (e.g. Demos group, Kiae group)....
 # The next step was the UUCP network, the Relcom predecessor
 # (used mainly for mail), and MSK/MSD was actively used there.
 #
@@ -1952,28 +1959,26 @@ Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
 			 7:00	Russia	IRK%sT	1992 Jan 19 2:00s
 			 8:00	Russia	IRK%sT
 #
-# From Oscar van Vlijmen (2001-08-25): [This region consists of]
+# From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Aginskij Buryatskij avtonomnyj okrug, Amurskaya oblast',
 # [parts of] Respublika Sakha (Yakutiya), Chitinskaya oblast'.
-#
-# From Alan Pritchard (2001-08-24): [The Sakha districts are:]
-# Aldansky, Amginsky, Anabarsky, Bulunsky, Churapchinsky,
-# Eveno-Bytantaisky, Gorny, Khangalassky, Kobyaisky, Lensky,
-# Megino-Kangalassky, Mirninsky, Namsky, Nyurbinsky, Olenyoksky,
-# Olyokminsky, Srednekolymsky, Suntarsky, Tattinsky, Ust-Aldansky,
-# Verkhnekolymsky, Verkhnevilyuisky, Vilyuisky, Zhigansky.
+# The Sakha districts are: Aldanskij, Amginskij, Anabarskij,
+# Bulunskij, Verkhnekolymskij, Verkhnevilyujskij, Vilyujskij, Gornyj,
+# Zhiganskij, Kobyajskij, Lenskij, Megino-Kangalasskij, Mirninskij,
+# Namskij, Nyurbinskij, Olenekskij, Olekminskij, Srednekolymskij,
+# Suntarskij, Tattinskij, Ust'-Aldanskij, Khangalasskij,
+# Churapchinskij, Eveno-Bytantajskij.
 Zone Asia/Yakutsk	 8:38:40 -	LMT	1919 Dec 15
 			 8:00	-	YAKT	1930 Jun 21 # Yakutsk Time
 			 9:00	Russia	YAK%sT	1991 Mar 31 2:00s
 			 8:00	Russia	YAK%sT	1992 Jan 19 2:00s
 			 9:00	Russia	YAK%sT
 #
-# From Oscar van Vlijmen (2001-08-25): [This region consists of]
+# From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Evrejskaya avtonomnaya oblast', Khabarovskij kraj, Primorskij kraj,
 # [parts of] Respublika Sakha (Yakutiya).
-#
-# From Alan Pritchard (2001-08-24): [The Sakha districts are:]
-# Tomponsky, Ust-Maisky, Ust-Yansky, Verkhoyansky.
+# The Sakha districts are: Verkhoyanskij, Tomponskij, Ust'-Majskij,
+# Ust'-Yanskij.
 Zone Asia/Vladivostok	 8:47:44 -	LMT	1922 Nov 15
 			 9:00	-	VLAT	1930 Jun 21 # Vladivostok Time
 			10:00	Russia	VLA%sT	1991 Mar 31 2:00s
@@ -1990,11 +1995,11 @@ Zone Asia/Sakhalin	 9:30:48 -	LMT	1905 Aug 23
 			11:00	Russia	SAK%sT	1997 Mar lastSun 2:00s
 			10:00	Russia	SAK%sT
 #
-# From Oscar van Vlijmen (2001-08-25): [This region consists of]
+# From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Magadanskaya oblast', Respublika Sakha (Yakutiya).
-#
-# From Alan Pritchard (2001-08-24): [The Sakha districts are:]
-# Abyisky, Allaikhovsky, Momsky, Nizhnekolymsky, Oimyakonsky.
+# Probably also: Kuril Islands.
+# The Sakha districts are: Abyjskij, Allaikhovskij, Momskij,
+# Nizhnekolymskij, Ojmyakonskij.
 Zone Asia/Magadan	10:03:12 -	LMT	1924 May  2
 			10:00	-	MAGT	1930 Jun 21 # Magadan Time
 			11:00	Russia	MAG%sT	1991 Mar 31 2:00s
