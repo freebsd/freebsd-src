@@ -522,7 +522,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
-	if (uio->uio_resid < 0 || uio->uio_resid > ifp->if_mtu) {
+	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
 		TUNDEBUG("%s%d: len=%d!\n", ifp->if_name, ifp->if_unit,
 		    uio->uio_resid);
 		return EIO;
