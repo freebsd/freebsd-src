@@ -284,6 +284,8 @@ isp_reset(struct ispsoftc *isp)
 			btype = "1280";
 		else if (IS_1080(isp))
 			btype = "1080";
+		else if (IS_10160(isp))
+			btype = "10160";
 		else if (IS_12160(isp))
 			btype = "12160";
 		else
@@ -5895,7 +5897,8 @@ isp_read_nvram(struct ispsoftc *isp)
 
 	if (IS_ULTRA3(isp)) {
 		isp_parse_nvram_12160(isp, 0, nvram_data);
-		isp_parse_nvram_12160(isp, 1, nvram_data);
+		if (IS_12160(isp))
+			isp_parse_nvram_12160(isp, 1, nvram_data);
 	} else if (IS_1080(isp)) {
 		isp_parse_nvram_1080(isp, 0, nvram_data);
 	} else if (IS_1280(isp) || IS_1240(isp)) {
