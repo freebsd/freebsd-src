@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eventhandler.h,v 1.1 1999/08/21 06:24:39 msmith Exp $
  */
 
 #include <sys/queue.h>
@@ -72,7 +72,7 @@ struct eventhandler_list Xeventhandler_list_ ## name = { #name };
 
 #define EVENTHANDLER_FAST_INVOKE(name, args...)				\
 do {									\
-    struct eventhandler_list *_el = &Xeventhandler_list ## name ;	\
+    struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
     struct eventhandler_entry *_ep = TAILQ_FIRST(&(_el->el_entries));	\
 									\
     while (_ep != NULL) {						\
