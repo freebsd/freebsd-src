@@ -463,7 +463,8 @@ nfssvc_nfsd(struct thread *td)
 			    procrastinate = nfsrvw_procrastinate_v3;
 			else
 			    procrastinate = nfsrvw_procrastinate;
-			if (writes_todo || (nd->nd_procnum == NFSPROC_WRITE &&
+			if (writes_todo || (!(nd->nd_flag & ND_NFSV3) &&
+			    nd->nd_procnum == NFSPROC_WRITE &&
 			    procrastinate > 0 && !notstarted))
 			    error = nfsrv_writegather(&nd, slp,
 				nfsd->nfsd_td, &mreq);
