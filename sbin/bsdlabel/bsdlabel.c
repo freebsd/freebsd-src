@@ -168,6 +168,10 @@ int	installboot;	/* non-zero if we should install a boot program */
 char	*xxboot;	/* primary boot */
 char	boot0[MAXPATHLEN];
 
+static int labeloffset;
+static int bbsize;
+static int alphacksum;
+
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
@@ -210,6 +214,14 @@ main(int argc, char *argv[])
 				xxboot = optarg;
 				break;
 			case 'm':
+				if (!strcmp(optarg, "i386")) {
+					labeloffset = 512;
+					bbsize = 8192;
+				} else if (!strcmp(optarg, "alpha")) {
+					labeloffset = 64;
+					bbsize = 8192;
+					alphacksum = 1;
+				}
 				for (i = 0; i < NARCHES &&
 				    strcmp(arches[i].name, optarg) != 0;
 				    i++);
@@ -409,19 +421,8 @@ writelabel(int f, void *boot, struct disklabel *lp)
 		return (0);
 	}
 
-	/*
-	 * First set the kernel disk label,
-	 * then write a label to the raw disk.
-	 * If the SDINFO ioctl fails because it is unimplemented,
-	 * keep going; otherwise, the kernel consistency checks
-	 * may prevent us from changing the current (in-core)
-	 * label.
-	 */
-	if (ioctl(f, DIOCSDINFO, lp) < 0 &&
-		errno != ENODEV && errno != ENOTTY) {
-		l_perror("ioctl DIOCSDINFO");
-		return (1);
-	}
+	bsd_disklabel_le_enc((u_char *)boot + labeloffset, lp);
+
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	
 	if (arch->arch == ARCH_ALPHA) {
@@ -434,7 +435,7 @@ writelabel(int f, void *boot, struct disklabel *lp)
 	}
 	if (ioctl(f, DIOCBSDBB, &boot) == 0)
 		return (0);
-	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
+	if (write(f, boot, bbsize) != bbsize) {
 		warn("write");
 		return (1);
 	}
@@ -478,30 +479,12 @@ l_perror(const char *s)
 struct disklabel *
 readlabel(int f)
 {
-	struct disklabel *lp;
 
-	if (rflag) {
-		if (read(f, bootarea, BBSIZE) < BBSIZE)
-			err(4, "%s", specname);
-		for (lp = (struct disklabel *)bootarea;
-		    lp <= (struct disklabel *)
-			((char *)bootarea + BBSIZE - sizeof(*lp));
-		    lp = (struct disklabel *)((char *)lp + 16))
-			if (lp->d_magic == DISKMAGIC &&
-			    lp->d_magic2 == DISKMAGIC)
-				break;
-		if (lp > (struct disklabel *)
-		    ((char *)bootarea + BBSIZE - sizeof(*lp)) ||
-		    lp->d_magic != DISKMAGIC || lp->d_magic2 != DISKMAGIC ||
-		    dkcksum(lp) != 0)
-			errx(1,
-	    "bad pack magic number (label is damaged, or pack is unlabeled)");
-	} else {
-		lp = &lab;
-		if (ioctl(f, DIOCGDINFO, lp) < 0)
-			err(4, "ioctl DIOCGDINFO");
-	}
-	return (lp);
+	(void)lseek(f, (off_t)0, SEEK_SET);
+	if (read(f, bootarea, BBSIZE) < BBSIZE)
+		err(4, "%s", specname);
+	bsd_disklabel_le_dec((u_char *)bootarea + labeloffset, &lab);
+	return (&lab);
 }
 
 /*
