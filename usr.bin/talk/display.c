@@ -142,7 +142,7 @@ display(win, text, size)
 			continue;
 		}
 		if (*text == '\7') {
-			_putchar(*text);
+			write(STDOUT_FILENO, text, 1);
 			text++;
 			continue;
 		}
