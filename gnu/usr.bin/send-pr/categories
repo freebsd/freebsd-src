@@ -10,6 +10,6 @@ ia64
 kern
 misc
 ports
-#powerpc
+powerpc
 sparc
 standards
