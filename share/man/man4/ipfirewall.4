@@ -61,119 +61,42 @@ When the kernel security level is greater than 2, only
 .Dv IP_FW_GET
 is allowed.
 .Ss Rule Structure
-Rules are described by the following structure:
-.Bd -literal
-/* Specify an interface */
-union ip_fw_if {
-    struct in_addr fu_via_ip;   /* Specified by IP address */
-    struct {                    /* Specified by interface name */
-#define FW_IFNLEN       6       /* To keep structure on 2^x boundary */
-            char  name[FW_IFNLEN];
-            short unit;         /* -1 means match any unit */
-    } fu_via_if;
-};
-
-/* One ipfw rule */
-struct ip_fw {
-    u_long fw_pcnt,fw_bcnt;         /* Packet and byte counters */
-    struct in_addr fw_src, fw_dst;  /* Source and destination IP addr */
-    struct in_addr fw_smsk, fw_dmsk;/* Mask for src and dest IP addr */
-    u_short fw_number;              /* Rule number */
-    u_short fw_flg;                 /* Flags word */
-#define IP_FW_MAX_PORTS 10          /* A reasonable maximum */
-    u_short fw_pts[IP_FW_MAX_PORTS];/* Array of port numbers to match */
-    u_char fw_ipopt,fw_ipnopt;      /* IP options set/unset */
-    u_char fw_tcpf,fw_tcpnf;        /* TCP flags set/unset */
-#define IP_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
-    unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
-    long timestamp;                 /* timestamp (tv_sec) of last match */
-    union ip_fw_if fw_in_if, fw_out_if;/* Incoming / outgoing interfaces */
-    union {
-        u_short fu_divert_port;     /* Divert/tee port */
-        u_short fu_skipto_rule;     /* SKIPTO command rule number */
-        u_short fu_reject_code;     /* REJECT response code */
-    } fw_un;
-    u_char fw_prot;                 /* IP protocol */
-    u_char fw_nports;               /* N'of src ports and # of dst ports */
-                                    /* in ports array (dst ports follow */
-                                    /* src ports; max of 10 ports in all */
-                                    /* count of 0 means match all ports) */
-};
-
-/* Encoding of number of source/dest ports from "fw_nports" */
-
-#define IP_FW_GETNSRCP(rule)            ((rule)->fw_nports & 0x0f)
-#define IP_FW_SETNSRCP(rule, n)         do {                            \\
-                                          (rule)->fw_nports &= ~0x0f;   \\
-                                          (rule)->fw_nports |= (n);     \\
-                                        } while (0)
-#define IP_FW_GETNDSTP(rule)            ((rule)->fw_nports >> 4)
-#define IP_FW_SETNDSTP(rule, n)         do {                            \\
-                                          (rule)->fw_nports &= ~0xf0;   \\
-                                          (rule)->fw_nports |= (n) << 4;\\
-                                        } while (0)
-
-/* Flags values for "flags" field */
-
-#define IP_FW_F_IN      0x0001  /* Check inbound packets                */
-#define IP_FW_F_OUT     0x0002  /* Check outbound packets               */
-#define IP_FW_F_IIFACE  0x0004  /* Apply inbound interface test         */
-#define IP_FW_F_OIFACE  0x0008  /* Apply outbound interface test        */
-
-#define IP_FW_F_COMMAND 0x0070  /* Mask for type of chain entry:        */
-#define IP_FW_F_DENY    0x0000  /* This is a deny rule                  */
-#define IP_FW_F_REJECT  0x0010  /* Deny and send a response packet      */
-#define IP_FW_F_ACCEPT  0x0020  /* This is an accept rule               */
-#define IP_FW_F_COUNT   0x0030  /* This is a count rule                 */
-#define IP_FW_F_DIVERT  0x0040  /* This is a divert rule                */
-#define IP_FW_F_TEE     0x0050  /* This is a tee rule                   */
-#define IP_FW_F_SKIPTO  0x0060  /* This is a skipto rule                */
-
-#define IP_FW_F_PRN     0x0080  /* Print if this rule matches           */
-
-#define IP_FW_F_SRNG    0x0100  /* The first two src ports are a min    *
-                                 * and max range (stored in host byte   *
-                                 * order).                              */
-
-#define IP_FW_F_DRNG    0x0200  /* The first two dst ports are a min    *
-                                 * and max range (stored in host byte   *
-                                 * order).                              */
-
-#define IP_FW_F_IIFNAME 0x0400  /* In interface by name/unit (not IP)   */
-#define IP_FW_F_OIFNAME 0x0800  /* Out interface by name/unit (not IP)  */
-
-#define IP_FW_F_INVSRC  0x1000  /* Invert sense of src check            */
-#define IP_FW_F_INVDST  0x2000  /* Invert sense of dst check            */
-
-#define IP_FW_F_FRAG    0x4000  /* Fragment                             */
-
-#define IP_FW_F_ICMPBIT 0x8000  /* ICMP type bitmap is valid            */
-
-#define IP_FW_F_MASK    0xFFFF  /* All possible flag bits mask          */
-.Ed
+Rules are described by the structures in ip_fw.h.
 .Ss Rule Actions
 Each rule has an action described by the IP_FW_F_COMMAND bits in the
 flags word:
 .Bl -tag -width "IP_FW_F_DIVERT"
 .It Dv IP_FW_F_DENY
-drop packet
+Drop packet and stop processing.
 .It Dv IP_FW_F_REJECT
-drop packet; send rejection via ICMP or TCP
+drop packet; send rejection via ICMP or TCP and stop processing.
 .It Dv IP_FW_F_ACCEPT
-accept packet
+accept packet and stop processing.
 .It Dv IP_FW_F_COUNT
 increment counters; continue matching
 .It Dv IP_FW_F_DIVERT
 divert packet to a
 .Xr divert 4
-socket
+socket and stop processing.
 .It Dv IP_FW_F_TEE
-copy packet to a
+Send a copy of this packet to a
 .Xr divert 4
-socket; continue
+socket and continue processing the original packet at the next rule.
 .It Dv IP_FW_F_SKIPTO
 skip to rule number
 .Va fu_skipto_rule
+At this time the target rule number must be greater than the active rule number.
+.It Dv IP_FW_F_PIPE
+The packet is marked for the use of
+.Xr dummynet 4 ,
+and processing stopped.
+.It Dv IP_FW_F_QUEUE
+The packet is marked for the use of
+.Xr dummynet 4 ,
+and processing stopped.
+.It Dv IP_FW_F_FWD
+The packet is accepted but the destination is hijacked. (see
+.Xr ipfw 8 )
 .El
 .Pp
 In the case of
@@ -251,7 +174,6 @@ An invalid rule number was used.
 .Xr ipfw 8 ,
 .Xr sysctl 8 .
 .Sh BUGS
-The ``tee'' rule is not yet implemented (currently it has no effect).
 .Pp
 This man page still needs work.
 .Sh HISTORY
