@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.27 1998/05/15 20:19:15 wollman Exp $";
+	"$Id: inet.c,v 1.28 1998/05/19 16:00:55 pb Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -559,7 +559,7 @@ inetname(inp)
 	struct in_addr *inp;
 {
 	register char *cp;
-	static char line[50];
+	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
 	struct netent *np;
 
@@ -583,9 +583,10 @@ inetname(inp)
 	}
 	if (inp->s_addr == INADDR_ANY)
 		strcpy(line, "*");
-	else if (cp)
-		strcpy(line, cp);
-	else {
+	else if (cp) {
+		strncpy(line, cp, sizeof(line) - 1);
+		line[sizeof(line) - 1] = '\0';
+	} else {
 		inp->s_addr = ntohl(inp->s_addr);
 #define C(x)	((x) & 0xff)
 		sprintf(line, "%lu.%lu.%lu.%lu", C(inp->s_addr >> 24),
