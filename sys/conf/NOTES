@@ -2877,6 +2877,11 @@ device		ums
 device		urio
 # USB scanners
 device		uscanner
+# USB serial support
+device		ucom
+device		uplcom
+# USB serial support for DDI pocket's PHS
+device		uvscom
 # USB Fm Radio
 device		ufm
 #

@@ -197,6 +197,7 @@ vendor BRAINBOXES	0x05d1	Brainboxes Limited
 vendor ULTIMA		0x05d8	Ultima
 vendor AXIOHM		0x05d9	Axiohm Transaction Solutions
 vendor MICROTEK		0x05da	Microtek
+vendor SUNTAC		0x05db	SUN Corporation
 vendor LEXAR		0x05dc	Lexar Media
 vendor SYMBOL		0x05e0	Symbol Technologies
 vendor GENESYS		0x05e3	Genesys Logic
@@ -900,6 +901,9 @@ product	ROLAND UM1		0x0009	UM-1 MIDI I/F
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
+/* RATOC Systems, Inc. */
+product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
+
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
@@ -956,6 +960,10 @@ product STSN STSN0001		0x0001	Internet Access Device
 product SUN KEYBOARD		0x0005	Type 6 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
+
+/* SUN Corporation */
+product SUNTAC PS64P1		0x0005	SUNTAC U-Cable type P1
+product SUNTAC VS10U		0x0009	SUNTAC Slipper U
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
