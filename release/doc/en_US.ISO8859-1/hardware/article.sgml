@@ -618,13 +618,9 @@
     (&man.sis.4; driver)
     </para>
 
-    <para arch="i386,pc98,amd64">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
-    NICs (&man.nge.4; driver)
-    </para>
+    &hwlist.nge;
 
-    <para arch="i386,pc98,alpha,amd64">Sundance Technologies ST201 PCI Fast Ethernet NICs
-    (&man.ste.4; driver)
-    </para>
+    &hwlist.ste;
 
     &hwlist.sk;
 
