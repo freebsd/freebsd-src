@@ -28,7 +28,7 @@ linux_locore.o:	linux_locore.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
-linux_genassym.o:	linux_genassym.c linux.h @ machine
+linux_genassym.o:	linux_genassym.c linux.h @ machine ${GENSYSCALL}
 	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 opt_compat.h:
