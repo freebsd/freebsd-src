@@ -259,6 +259,13 @@ pmap_kmem_choose(vm_offset_t addr)
 {
 	vm_offset_t newaddr = addr;
 
+#ifdef I686_CPU
+	/* Deal with un-resolved Pentium4 issues */
+	if (cpu_class == CPUCLASS_686 &&
+	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+	    (cpu_id & 0xf00) == 0xf00)
+		return newaddr;
+#endif
 #ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE)
 		newaddr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
@@ -370,6 +377,15 @@ pmap_bootstrap(firstaddr, loadaddr)
 	if (cpu_feature & CPUID_PGE)
 		pgeflag = PG_G;
 #endif
+#ifdef I686_CPU
+	/* Deal with un-resolved Pentium4 issues */
+	if (cpu_class == CPUCLASS_686 &&
+	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+	    (cpu_id & 0xf00) == 0xf00) {
+		printf("Warning: Pentium 4 cpu: PG_G disabled (global flag)\n");
+		pgeflag = 0;
+	}
+#endif
 	
 /*
  * Initialize the 4MB page size flag
@@ -382,12 +398,24 @@ pmap_bootstrap(firstaddr, loadaddr)
 	pdir4mb = 0;
 
 #ifndef DISABLE_PSE
-	if (cpu_feature & CPUID_PSE) {
+	if (cpu_feature & CPUID_PSE)
+		pseflag = PG_PS;
+#endif
+#ifdef I686_CPU
+	/* Deal with un-resolved Pentium4 issues */
+	if (cpu_class == CPUCLASS_686 &&
+	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+	    (cpu_id & 0xf00) == 0xf00) {
+		printf("Warning: Pentium 4 cpu: PG_PS disabled (4MB pages)\n");
+		pseflag = 0;
+	}
+#endif
+#ifndef DISABLE_PSE
+	if (pseflag) {
 		pd_entry_t ptditmp;
 		/*
 		 * Note that we have enabled PSE mode
 		 */
-		pseflag = PG_PS;
 		ptditmp = *(PTmap + i386_btop(KERNBASE));
 		ptditmp &= ~(NBPDR - 1);
 		ptditmp |= PG_V | PG_RW | PG_PS | PG_U | pgeflag;
