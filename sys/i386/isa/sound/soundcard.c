@@ -345,7 +345,7 @@ sound_mem_init (void)
 	  for (snd_raw_count[dev] = 0; snd_raw_count[dev] < sound_buffcounts[dev]; snd_raw_count[dev]++)
 	    {
 	      char           *tmpbuf = contigmalloc (sound_buffsizes[dev], M_DEVBUF, M_NOWAIT,
-						     0xFFFFFFul, 0ul, dma_pagesize <= 65536 ? 0xFFFFul : 0x1FFFFul);
+						     0xFFFFFFul, 0ul, dma_pagesize - 1);
 
 	      if (tmpbuf == NULL)
 		{
