@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: utils.c,v 1.13 1997/02/22 14:01:34 peter Exp $
  */
 
 #ifndef lint
@@ -81,13 +81,16 @@ copy_file(entp, dne)
 	 * modified by the umask.)
 	 */
 	if (!dne) {
+#define YESNO "(y/n [n]) "
 		if (iflag) {
-			(void)fprintf(stderr, "overwrite %s? ", to.p_path);
+			(void)fprintf(stderr, "overwrite %s? %s", 
+					to.p_path, YESNO);
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
+				(void)fprintf(stderr, "not overwritten\n");
 				return (0);
 			}
 		}
