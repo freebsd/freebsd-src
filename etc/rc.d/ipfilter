@@ -133,6 +133,7 @@ ipfilter_reload()
 			${ipfilter_program:-/sbin/ipf} -I -6 \
 			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
 		fi
+		${ipfilter_program:-/sbin/ipf} -s
 		;;
 	NetBSD)
 		/sbin/ipf -I -Fa
