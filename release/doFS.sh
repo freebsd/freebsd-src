@@ -34,11 +34,23 @@ do
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 
-	dd if=${RD}/trees/bin/usr/mdec/boot1 of=fs-image conv=notrunc
-	disklabel /dev/r${VNDEVICE} | disklabel -R -B \
+	sed '/^minimum:/,$d' /etc/disktab > /etc/disktab.tmp
+	cat /etc/disktab.tmp > /etc/disktab
+	rm -f /etc/disktab.tmp
+	(
+	a=`expr ${FSSIZE} \* 2`
+	echo 
+	echo "minimum:ty=mfs:se#512:nt#1:rm#300:\\"
+	echo "	:ns#$a:nc#1:\\"
+	echo "	:pa#$a:oa#0:ba#4096:fa#512:\\"
+	echo "	:pc#$a:oc#0:bc#4096:fc#512:"
+	echo
+	) >> /etc/disktab
+
+	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${VNDEVICE} /dev/stdin
+		/dev/r${VNDEVICE} minimum
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
