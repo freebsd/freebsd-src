@@ -131,6 +131,10 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 
 	/* Historical braindamage... */
 	rawoffset = (off_t)dl.d_partitions[RAW_PART].p_offset * dl.d_secsize;
+
+	if ((off_t)rawoffset * secsize != ms->mbroffset)
+		rawoffset = 0;
+
 	for (i = 0; i < dl.d_npartitions; i++) {
 		ppp = &dl.d_partitions[i];
 		if (ppp->p_size == 0)
