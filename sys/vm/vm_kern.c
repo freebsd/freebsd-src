@@ -101,10 +101,10 @@ int mb_map_full=0;
 vm_offset_t
 kmem_alloc_pageable(map, size)
 	vm_map_t map;
-	register vm_size_t size;
+	vm_size_t size;
 {
 	vm_offset_t addr;
-	register int result;
+	int result;
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -125,10 +125,10 @@ kmem_alloc_pageable(map, size)
 vm_offset_t
 kmem_alloc_nofault(map, size)
 	vm_map_t map;
-	register vm_size_t size;
+	vm_size_t size;
 {
 	vm_offset_t addr;
-	register int result;
+	int result;
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -146,11 +146,11 @@ kmem_alloc_nofault(map, size)
  */
 vm_offset_t
 kmem_alloc(map, size)
-	register vm_map_t map;
-	register vm_size_t size;
+	vm_map_t map;
+	vm_size_t size;
 {
 	vm_offset_t addr;
-	register vm_offset_t offset;
+	vm_offset_t offset;
 	vm_offset_t i;
 
 	size = round_page(size);
@@ -227,7 +227,7 @@ kmem_alloc(map, size)
 void
 kmem_free(map, addr, size)
 	vm_map_t map;
-	register vm_offset_t addr;
+	vm_offset_t addr;
 	vm_size_t size;
 {
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
@@ -242,9 +242,8 @@ kmem_free(map, addr, size)
  *	Arguments are as follows:
  *
  *	parent		Map to take range from
- *	size		Size of range to find
  *	min, max	Returned endpoints of map
- *	pageable	Can the region be paged
+ *	size		Size of range to find
  */
 vm_map_t
 kmem_suballoc(parent, min, max, size)
@@ -297,11 +296,11 @@ kmem_suballoc(parent, min, max, size)
  */
 vm_offset_t
 kmem_malloc(map, size, flags)
-	register vm_map_t map;
-	register vm_size_t size;
+	vm_map_t map;
+	vm_size_t size;
 	int flags;
 {
-	register vm_offset_t offset, i;
+	vm_offset_t offset, i;
 	vm_map_entry_t entry;
 	vm_offset_t addr;
 	vm_page_t m;
@@ -477,7 +476,7 @@ void
 kmem_init(start, end)
 	vm_offset_t start, end;
 {
-	register vm_map_t m;
+	vm_map_t m;
 
 	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
 	vm_map_lock(m);
