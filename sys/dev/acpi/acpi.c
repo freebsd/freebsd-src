@@ -831,7 +831,10 @@ acpi_attach(device_t dev)
 		acpi_powerres_debug(sc);
 	}
 
-	EVENTHANDLER_REGISTER(shutdown_final, acpi_soft_off, sc, SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, acpi_disable_events,
+			      sc, SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_final, acpi_soft_off,
+			      sc, SHUTDOWN_PRI_LAST);
 
 	sc->dev_t = make_dev(&acpi_cdevsw, 0, 0, 5, 0660, "acpi");
 	sc->dev_t->si_drv1 = sc;
@@ -962,3 +965,39 @@ acpi_attach_resource(acpi_softc_t *sc, int type, int *wantidx, u_long start, u_l
 		return(ENXIO);
 	}
 }
+
+/*
+ * System service interface
+ */
+
+#include <sys/proc.h>
+
+int
+acpi_sleep(u_int32_t micro)
+{
+	static u_int8_t	count = 0;
+	int		x, error;
+	u_int32_t	timo;
+
+	x = error = 0;
+
+	if (micro == 0) {
+		return (1);
+	}
+
+	if (curproc == NULL) {
+		return (2);
+	}
+
+	timo = ((hz * micro) / 1000000L) ? ((hz * micro) / 1000000L) : 1;
+	error = tsleep((caddr_t)acpi_sleep + count, PWAIT, "acpislp", timo);
+	if (error != 0 && error != EWOULDBLOCK) {
+		return (2);
+	}
+	x = splhigh();
+	count++;
+	splx(x);
+
+	return (0);
+}
+
