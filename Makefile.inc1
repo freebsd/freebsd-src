@@ -467,57 +467,6 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 SPECIAL_INSTALLCHECKS=
 
 #
-# The following install-time check will see if the installation will
-# change the type used for time_t, and if it will, the target makes
-# sure that the user is expecting to make that change.
-#
-.if ${TARGET_ARCH} == "sparc64"
-SPECIAL_INSTALLCHECKS+=sparc64_installcheck
-
-CUR_TIMET!=	grep __time_t /usr/include/machine/_types.h | awk '{print $$2}'
-SRC_TIMET!=	grep __time_t ${.CURDIR}/sys/sparc64/include/_types.h | \
-		awk '{print $$2}'
-NEWSPARC_TIMETYPE?=${CUR_TIMET}
-
-sparc64_installcheck:
-.if ${CUR_TIMET} != ${SRC_TIMET}
-	@echo
-.if ${NEWSPARC_TIMETYPE} != ${SRC_TIMET}
-	@echo "***  ERROR: This target would change the type used for time_t!"
-.else
-	@echo "* Note: This installation changes the type used for time_t."
-.endif
-	@echo "* "
-	@echo "* This host has time_t defined as ${CUR_TIMET},"
-	@echo "* and this installation would change that to type ${SRC_TIMET}."
-.if ${NEWSPARC_TIMETYPE} != ${SRC_TIMET}
-	@echo "* "
-	@echo "* If that is *NOT* what you wanted, then you need to change the"
-	@echo "* typedef of __time_t in ${.CURDIR}/sys/sparc64/include/_types.h"
-	@echo "* from '${SRC_TIMET}' to '${CUR_TIMET}'.  After that you *MUST*"
-	@echo "* do a complete cleanworld, buildworld, buildkernel before you"
-	@echo "* retry the 'make' command.  Also read /usr/src/UPDATING.64BTT."
-	@echo "* "
-	@echo "* If that *is* what you want, then enter the commands:"
-	@echo "      NEWSPARC_TIMETYPE=${SRC_TIMET}"
-	@echo "      export NEWSPARC_TIMETYPE"
-	@echo "* and repeat your 'make' command."
-	@echo
-	false
-.endif
-	@echo
-.elif ${NEWSPARC_TIMETYPE} != ${SRC_TIMET}
-	@echo
-	@echo "***  ERROR: NEWSPARC_TIMETYPE is set to '${NEWSPARC_TIMETYPE}'"
-	@echo "***         but ${.CURDIR}/sys/sparc64/include/_types.h"
-	@echo "***         has __time_t defined as '${SRC_TIMET}'."
-	false
-.else
-	@# in sparc64_installcheck, all TIMETYPEs == '${CUR_TIMET}'
-.endif
-.endif
-
-#
 # installcheck
 #
 # Checks to be sure system is ready for installworld
