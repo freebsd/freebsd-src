@@ -69,14 +69,10 @@ OBJFORMAT?=		elf
 # CPU cycles (some of the programs are C++, and things like ghostscript
 # belong to the required ports nevertheless).
 #
-# Setting this also disables doc.2 (RELNOTESng).
+# Setting this also disables building of release note documentation
+# (RELNOTESng).
 #NODOC=  YES
 #NOPORTS=  YES
-
-# RELNOTESng can be disabled by uncommenting the following variable
-# definition.  RELNOTESng depends on having ports enabled for this
-# release build.
-#NORELNOTES=	YES
 
 # Uncomment and modify this definition if you want the release notes 
 # and other release documentation in a language other than English.
@@ -109,7 +105,7 @@ DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 # on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
 AUTO_KEYBOARD_DETECT?= 0
 
-.if !defined(NORELNOTES)
+.if !defined(NODOC)
 DIST_DOCS_ARCH_INDEP=	readme errata
 DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 .endif
@@ -219,10 +215,7 @@ EXTRAS= cdrom.1 ftp.1
 .endif
 
 .if !defined(NODOC)
-DOCREL= doc.1
-.if !defined(NORELNOTES)
-DOCREL+= doc.2
-.endif
+DOCREL= doc.1 doc.2
 .endif
 
 .if !defined(NOPORTREADMES)
@@ -238,11 +231,6 @@ rerelease release:
 .if defined(NOPORTSATALL) && !defined(NODOC)
 	@echo "Ports are required for building the docs.  Either set NODOC or"
 	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
-	@exit 1
-.endif
-.if !defined(NORELNOTES) && defined(NODOC)
-	@echo "Docs are required for building the release notes.  Either"
-	@echo "set NORELNOTES or unset NODOC!"
 	@exit 1
 .endif
 .if make(release)
@@ -356,9 +344,6 @@ rerelease release:
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
-.endif
-.if defined(NORELNOTES)
-	echo "export NORELNOTES=${NORELNOTES}"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(RELNOTES_LANG)
 	echo "export RELNOTES_LANG=${RELNOTES_LANG}"	>> ${CHROOTDIR}/mk
@@ -617,7 +602,7 @@ release.8: write_mfs_in_kernel
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
-.if !defined(NORELNOTES)
+.if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  gzip -9c ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
@@ -694,7 +679,7 @@ release.9:
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
-.if !defined(NORELNOTES)
+.if !defined(NODOC)
 	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
@@ -712,7 +697,7 @@ ftp.1:
 	-@ln -s . ${FD}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-.if !defined(NORELNOTES)
+.if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
@@ -751,7 +736,7 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-.if !defined(NORELNOTES)
+.if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
