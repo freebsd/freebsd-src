@@ -145,7 +145,7 @@ COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
-CRYPTO_DISTS?=	crypto krb4 krb5
+CRYPTO_DISTS?=	crypto krb5
 BASE_DISTS?=	base
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 
@@ -220,9 +220,6 @@ MFSSIZE=		8192
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
 # Things that need to be recompiled with Kerberos support.
-.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-K4PROGS!=	cd ${.CURDIR}/../kerberosIV; ${MAKE} -V KPROGS
-.endif
 .if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
 .endif
@@ -512,19 +509,13 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
 	touch release.2
 
-# Build and install crypto, krb4 and krb5 distributions.
+# Build and install crypto and krb5 distributions.
 release.3:
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
 	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
 	    buildworld distributeworld DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS4 \
-	    SUBDIR_OVERRIDE="kerberosIV ${K4PROGS}" \
-	    buildworld distributeworld DISTDIR=${RD}/trees
-.endif
 .if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
@@ -611,12 +602,6 @@ release.7:
 	done
 	# More munition braindeadness.
 	( cd ${RD}/dists && \
-		if [ -f krb4/krb4.aa ] ; then \
-			mv krb4/krb4.* crypto && \
-			cat krb4/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
-			rm -r krb4; \
-		fi )
-	( cd ${RD}/dists && \
 		if [ -f krb5/krb5.aa ] ; then \
 			mv krb5/krb5.* crypto && \
 			cat krb5/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
@@ -637,7 +622,6 @@ release.8:
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				TN=`echo s$$i | tr -d '.' | \
 				    sed -e 's/usr/u/' \
-					-e 's/kerberosIV/krb4/' \
 					-e 's/kerberos5/krb5/'` \
 				SD=/usr/src TD=src ARG="$$i" ; \
 		fi ; \
@@ -654,7 +638,6 @@ release.8:
 	if [ -d ${RD}/dists/crypto ] ; then ( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../crypto ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../crypto ; fi && \
-		if [ -f skrb4.aa ] ; then mv skrb4.* ../crypto ; fi && \
 		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; \
 		cd ${RD}/dists/crypto; rm -f CHECKSUM.MD5; \
 		md5 * > CHECKSUM.MD5 ) ; fi
