@@ -81,7 +81,6 @@ MAN=	aac.4 \
 	geom.4 \
 	gif.4 \
 	gre.4 \
-	gx.4 \
 	harp.4 \
 	hatm.4 \
 	hfa.4 \
