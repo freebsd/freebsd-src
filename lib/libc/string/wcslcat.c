@@ -36,7 +36,6 @@ __RCSID("$NetBSD: wcslcat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <assert.h>
 #include <wchar.h>
 
 /*

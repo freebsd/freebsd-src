@@ -40,7 +40,6 @@ __RCSID("$NetBSD$");
 #endif
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <wchar.h>
 
 int

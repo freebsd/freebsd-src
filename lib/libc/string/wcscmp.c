@@ -43,7 +43,6 @@ __RCSID("$NetBSD$");
 #endif /* LIBC_SCCS and not lint */
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <wchar.h>
 
 /*
