@@ -202,6 +202,7 @@ wtmp()
 	char ct[80];
 	struct tm *tm;
 	int	 snapfound = 0;			/* found snapshot entry? */
+	time_t	t;
 
 	LIST_INIT(&ttylist);
 
@@ -209,7 +210,8 @@ wtmp()
 		err(1, "%s", file);
 	bl = (stb.st_size + sizeof(buf) - 1) / sizeof(buf);
 
-	(void)time(&buf[0].ut_time);
+	(void)time(&t);
+	buf[0].ut_time = time_to_int(t);
 	(void)signal(SIGINT, onintr);
 	(void)signal(SIGQUIT, onintr);
 
@@ -246,7 +248,8 @@ wtmp()
 				 * unless flagged for 
 				 */ 
 				if (!snaptime && want(bp)) {
-					tm = localtime(&bp->ut_time);
+					t = int_to_time(bp->ut_time);
+					tm = localtime(&t);
 					(void) strftime(ct, sizeof(ct),
 						     d_first ? "%a %e %b %R" :
 							       "%a %b %e %R",
@@ -269,7 +272,8 @@ wtmp()
 			if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|')
 			    && !bp->ut_line[1]) {
 				if (want(bp) && !snaptime) {
-					tm = localtime(&bp->ut_time);
+					t = int_to_time(bp->ut_time);
+					tm = localtime(&t);
 					(void) strftime(ct, sizeof(ct),
 						     d_first ? "%a %e %b %R" :
 							       "%a %b %e %R",
@@ -316,7 +320,8 @@ wtmp()
 					bp->ut_line[3] = '\0';
 				else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
 					bp->ut_line[4] = '\0';
-				tm = localtime(&bp->ut_time);
+				t = int_to_time(bp->ut_time);
+				tm = localtime(&t);
 				(void) strftime(ct, sizeof(ct),
 				    d_first ? "%a %e %b %R" :
 				    "%a %b %e %R",
@@ -361,7 +366,8 @@ wtmp()
 			tt->logout = bp->ut_time;
 		}
 	}
-	tm = localtime(&buf[0].ut_time);
+	t = int_to_time(buf[0].ut_time);
+	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
 	printf("%s", ct);
 }
@@ -560,8 +566,9 @@ onintr(signo)
 {
 	char ct[80];
 	struct tm *tm;
+	time_t t = int_to_time(buf[0].ut_time);
 
-	tm = localtime(&buf[0].ut_time);
+	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct),
 			d_first ? "%a %e %b %R" : "%a %b %e %R",
 			tm);
