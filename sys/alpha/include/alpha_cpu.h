@@ -288,44 +288,277 @@ typedef unsigned long alpha_pt_entry_t;
 
 
 /*
- * Stubs for Alpha instructions normally inaccessible from C.
+ * Inlines for Alpha instructions normally inaccessible from C.
  */
-unsigned long	alpha_amask __P((unsigned long));
-unsigned long	alpha_implver __P((void));
-unsigned long	alpha_rpcc __P((void));
-void		alpha_mb __P((void));
-void		alpha_wmb __P((void));
 
-u_int8_t	alpha_ldbu __P((volatile u_int8_t *));
-u_int16_t	alpha_ldwu __P((volatile u_int16_t *));
-void		alpha_stb __P((volatile u_int8_t *, u_int8_t));
-void		alpha_stw __P((volatile u_int16_t *, u_int16_t));
-u_int8_t	alpha_sextb __P((u_int8_t));
-u_int16_t	alpha_sextw __P((u_int16_t));
+static __inline u_int64_t
+alpha_amask(u_int64_t mask)
+{
+	u_int64_t result;
+	__asm__ __volatile__ (
+		"amask %1,%0"
+		: "=r" (result)
+		: "r" (mask));
+	return result;
+}
+
+static __inline unsigned long
+alpha_implver(void)
+{
+	u_int64_t result;
+	__asm__ __volatile__ (
+		"implver %0"
+		: "=r" (result));
+	return result;
+}
+
+static __inline unsigned long
+alpha_rpcc(void)
+{
+	u_int64_t result;
+	__asm__ __volatile__ (
+		"rpcc %0"
+		: "=r" (result));
+	return result;
+}
+
+static __inline void
+alpha_mb(void)
+{
+	__asm__ __volatile__ ("mb");
+}
+
+static __inline void
+alpha_wmb(void)
+{
+	/*
+	 * XXX dfr: NetBSD originally had mb instead of wmb for
+	 * alpha_wmb(). I'm not sure why so I'm leaving it alone. I
+	 * think it should be safe to use wmb though.
+	 */
+	__asm__ __volatile__ ("mb");
+}
 
 /*
- * Stubs for OSF/1 PALcode operations.
+ * Inlines for OSF/1 PALcode operations.
  */
-void		alpha_pal_imb __P((void));
-void		alpha_pal_cflush __P((unsigned long));
-void		alpha_pal_draina __P((void));
-void		alpha_pal_halt __P((void)) __attribute__((__noreturn__));
-unsigned long	alpha_pal_rdmces __P((void));
-unsigned long	alpha_pal_rdps __P((void));
-unsigned long	alpha_pal_rdusp __P((void));
-unsigned long	alpha_pal_rdval __P((void));
-unsigned long	alpha_pal_swpctx __P((unsigned long));
-unsigned long	alpha_pal_swpipl __P((unsigned long));
-unsigned long	_alpha_pal_swpipl __P((unsigned long));	/* for profiling */
-void		alpha_pal_tbi __P((unsigned long, vm_offset_t));
-unsigned long	alpha_pal_whami __P((void));
-void		alpha_pal_wrent __P((void *, unsigned long));
-void		alpha_pal_wrfen __P((unsigned long));
-void		alpha_pal_wripir __P((unsigned long));
-void		alpha_pal_wrusp __P((unsigned long));
-void		alpha_pal_wrvptptr __P((unsigned long));
-void		alpha_pal_wrmces __P((unsigned long));
-void		alpha_pal_wrval __P((unsigned long));
-unsigned long	alpha_pal_wrperfmon __P((unsigned long, unsigned long));
+
+static __inline void
+alpha_pal_halt(void)
+{
+	__asm__ __volatile__ ("call_pal 0x0 #PAL_halt");
+}
+
+static __inline void
+alpha_pal_cflush(u_int64_t pfn)
+{
+	register u_int64_t a0 __asm__("$16") = pfn;
+	__asm__ __volatile__ (
+		"call_pal 0x1 #PAL_cflush"
+		:
+		: "r" (a0));
+}
+
+static __inline void
+alpha_pal_draina(void)
+{
+	__asm__ __volatile__ ("call_pal 0x2 #PAL_draina" : : : "memory");
+}
+
+static __inline void
+alpha_pal_wripir(u_int64_t ipir)
+{
+	register u_int64_t a0 __asm__("$16") = ipir;
+	__asm__ __volatile__ (
+		"call_pal 0xd #PAL_ipir"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline u_int64_t
+alpha_pal_rdmces(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x10 #PAL_OSF1_rdmces"
+		: "=r" (v0)
+		:
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline void
+alpha_pal_wrmces(u_int64_t mces)
+{
+	register u_int64_t a0 __asm__("$16") = mces;
+	__asm__ __volatile__ (
+		"call_pal 0x11 #PAL_wrmces"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline void
+alpha_pal_wrfen(u_int64_t fen)
+{
+	register u_int64_t a0 __asm__("$16") = fen;
+	__asm__ __volatile__ (
+		"call_pal 0x2b #PAL_wrfen"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline void
+alpha_pal_wrvptptr(u_int64_t vptptr)
+{
+	register u_int64_t a0 __asm__("$16") = vptptr;
+	__asm__ __volatile__ (
+		"call_pal 0x2d #PAL_wrvptptr"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline u_int64_t
+alpha_pal_swpctx(u_int64_t pcb)
+{
+	register u_int64_t a0 __asm__("$16") = pcb;
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x30 #PAL_OSF1_swpctx"
+		: "=r" (v0), "=r" (a0)
+		: "1" (a0)
+		: "$1", "$22", "$23", "$24", "$25", "memory");
+	return v0;
+}
+
+static __inline void
+alpha_pal_wrval(u_int64_t sysvalue)
+{
+	register u_int64_t a0 __asm__("$16") = sysvalue;
+	__asm__ __volatile__ (
+		"call_pal 0x31 #PAL_wrval"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline u_int64_t
+alpha_pal_rdval(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x32 #PAL_OSF1_rdval"
+		: "=r" (v0)
+		:
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline void
+alpha_pal_tbi(u_int64_t op, u_int64_t va)
+{
+	register u_int64_t a0 __asm__("$16") = op;
+	register u_int64_t a1 __asm__("$17") = va;
+	__asm__ __volatile__ (
+		"call_pal 0x33 #PAL_OSF1_tbi"
+		: "=r" (a0), "=r" (a1)
+		: "0" (a0), "1" (a1)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline void
+alpha_pal_wrent(void *ent, u_int64_t which)
+{
+	register u_int64_t a0 __asm__("$16") = (u_int64_t) ent;
+	register u_int64_t a1 __asm__("$17") = which;
+	__asm__ __volatile__ (
+		"call_pal 0x34 #PAL_OSF1_wrent"
+		: "=r" (a0), "=r" (a1)
+		: "0" (a0), "1" (a1)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline u_int64_t
+alpha_pal_swpipl(u_int64_t newipl)
+{
+	register u_int64_t a0 __asm__("$16") = newipl;
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x35 #PAL_OSF1_swpipl"
+		: "=r" (v0), "=r" (a0)
+		: "1" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline u_int64_t
+alpha_pal_rdps(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x36 #PAL_OSF1_rdps"
+		: "=r" (v0)
+		:
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline void
+alpha_pal_wrusp(u_int64_t usp)
+{
+	register u_int64_t a0 __asm__("$16") = usp;
+	__asm__ __volatile__ (
+		"call_pal 0x38 #PAL_wrusp"
+		: "=r" (a0)
+		: "0" (a0)
+		: "$1", "$22", "$23", "$24", "$25");
+}
+
+static __inline u_int64_t
+alpha_pal_wrperfmon(u_int64_t arg0, u_int64_t arg1)
+{
+	register u_int64_t v0 __asm__("$0");
+	register u_int64_t a0 __asm__("$16") = arg0;
+	register u_int64_t a1 __asm__("$17") = arg1;
+	__asm__ __volatile__ (
+		"call_pal 0x39 #PAL_OSF1_wrperfmon"
+		: "=r" (a0), "=r" (a1), "=r" (v0)
+		: "0" (a0), "1" (a1)
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline u_int64_t
+alpha_pal_rdusp(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x3a #PAL_OSF1_rdusp"
+		: "=r" (v0)
+		:
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline u_int64_t
+alpha_pal_whami(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__ (
+		"call_pal 0x3c #PAL_OSF1_whami"
+		: "=r" (v0)
+		:
+		: "$1", "$22", "$23", "$24", "$25");
+	return v0;
+}
+
+static __inline void
+alpha_pal_imb(void)
+{
+	__asm__ __volatile__ ("call_pal 0x86 #PAL_imb");
+}
 
 #endif /* __ALPHA_ALPHA_CPU_H__ */
