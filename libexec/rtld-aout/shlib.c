@@ -62,14 +62,13 @@
 char	 **search_dirs;
 int	n_search_dirs;
 
-char	*standard_search_dirs[] = {
+const char	*standard_search_dirs[] = {
 	STANDARD_SEARCH_DIRS
 };
 
 
 void
-add_search_dir(name)
-	char	*name;
+add_search_dir(const char *name)
 {
 	int n;
 
@@ -269,7 +268,7 @@ search_lib_dir(dir, name, majorp, minorp, do_dot_a)
 	int		*minorp;
 	int		do_dot_a;
 {
-	int		namelen;
+	size_t		namelen;
 	DIR		*dd;
 	struct dirent	*dp;
 	int		best_dewey[MAXDEWEY];
