@@ -1017,6 +1017,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	if (namelen != 3)
 		return ((namelen < 3) ? EISDIR : ENOTDIR);
 	af = name[0];
+	if (af > AF_MAX)
+		return (EINVAL);
 	Bzero(&w, sizeof(w));
 	w.w_op = name[1];
 	w.w_arg = name[2];
