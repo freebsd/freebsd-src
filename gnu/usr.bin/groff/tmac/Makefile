@@ -15,7 +15,7 @@ CLEANFILES+=    temp ${MANDEPEND} tmac.groff_an
 
 FILES=          tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold\
 		tmac.pspic tmac.psatk tmac.dvi tmac.tty tmac.tty-char tmac.X\
-		tmac.Xps tmac.latin1 eqnrc troffrc
+		tmac.Xps tmac.latin1 tmac.lj4 eqnrc troffrc
 STRIPFILES=     tmac.e tmac.s tmac.doc
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 
