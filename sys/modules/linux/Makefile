@@ -12,7 +12,7 @@ SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
 OBJS=	linux_locore.o
 MAN8=	linux.8
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} != "alpha"
 SRCS+=  imgact_linux.c linux_ipc.c
 .endif
 
