@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1993, 1994 by Chris Provenzano, proven@mit.edu
- * Copyright (c) 1995 by John Birrell <jb@cimlogic.com.au>
+ * Copyright (c) 1995-1998 by John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,13 @@ struct pthread_once {
 #define PTHREAD_ONCE_INIT   { PTHREAD_NEEDS_INIT, NULL }
 
 /*
- * Default attribute arguments.
+ * Static initialization values. 
+ */
+#define PTHREAD_MUTEX_INITIALIZER	NULL
+#define PTHREAD_COND_INITIALIZER	NULL
+
+/*
+ * Default attribute arguments (draft 4, deprecated).
  */
 #ifndef PTHREAD_KERNEL
 #define pthread_condattr_default    NULL
