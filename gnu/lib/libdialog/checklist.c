@@ -567,6 +567,15 @@ draw:
 	if (redraw_menu) {
 	    getyx(list, old_y, old_x);
 	    wclear(list);
+
+    	    /*
+	     * Re-draw a box around the list items.  It is required
+	     * if amount of list items is smaller than height of listbox.
+	     * Otherwise un-redrawn field will be filled with default
+	     * screen attributes instead of dialog attributes.
+	     */
+	    draw_box(dialog, box_y, box_x, list_height + 2, list_width + 2, menubox_border_attr, menubox_attr);
+
 	    for (i = 0; i < max_choice; i++)
 		print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1], status[scroll + i], i, i == choice, DREF(ditems, scroll + i), list_width, item_x, check_x);
 	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
