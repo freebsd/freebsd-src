@@ -373,7 +373,7 @@ k_trap:
 trapagain:
 	addi	%r3,%r1,8
 	bl	CNAME(powerpc_interrupt)
-	.globl	CNAME(trapexit)
+	.globl	CNAME(trapexit)		/* backtrace code sentinel */
 CNAME(trapexit):
 
 /* Disable interrupts: */
@@ -403,12 +403,12 @@ CNAME(trapexit):
 	FRAME_LEAVE(PC_TEMPSAVE)
 	rfi
 
-#if defined(DDB)
+#if defined(KDB)
 /*
- * Deliberate entry to ddbtrap
+ * Deliberate entry to dbtrap
  */
-	.globl	CNAME(ddb_trap)
-CNAME(ddb_trap):
+	.globl	CNAME(ppc_db_trap)
+CNAME(ppc_db_trap):
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -416,33 +416,31 @@ CNAME(ddb_trap):
 	mtmsr	%r3			/* disable interrupts */
 	isync
 	GET_CPUINFO(%r3)
-	stw	%r28,(PC_DDBSAVE+CPUSAVE_R28)(%r3)
-	stw	%r29,(PC_DDBSAVE+CPUSAVE_R29)(%r3)
-	stw	%r30,(PC_DDBSAVE+CPUSAVE_R30)(%r3)
-	stw	%r31,(PC_DDBSAVE+CPUSAVE_R31)(%r3)
+	stw	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r3)
+	stw	%r29,(PC_DBSAVE+CPUSAVE_R29)(%r3)
+	stw	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r3)
+	stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r3)
 	mflr	%r28
 	li	%r29,EXC_BPT
 	mtlr	%r29
 	mfcr	%r29
 	mtsrr0	%r28
-#endif /* DDB */
 
-#if defined(DDB) || defined(KGDB)
 /*
- * Now the ddb trap catching code.
+ * Now the kdb trap catching code.
  */
-ddbtrap:
-	FRAME_SETUP(PC_DDBSAVE)
+dbtrap:
+	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
 	addi	%r3,%r1,8
-	bl	CNAME(ddb_trap_glue)
+	bl	CNAME(db_trap_glue)
 	or.	%r3,%r3,%r3
-	bne	ddbleave
-/* This wasn't for DDB, so switch to real trap: */
+	bne	dbleave
+/* This wasn't for KDB, so switch to real trap: */
 	lwz	%r3,FRAME_EXC+8(%r1)	/* save exception */
 	GET_CPUINFO(%r4)
-	stw	%r3,(PC_DDBSAVE+CPUSAVE_R31)(%r4)
-	FRAME_LEAVE(PC_DDBSAVE)
+	stw	%r3,(PC_DBSAVE+CPUSAVE_R31)(%r4)
+	FRAME_LEAVE(PC_DBSAVE)
 	mtsprg1	%r1			/* prepare for entrance to realtrap */
 	GET_CPUINFO(%r1)
 	stw	%r28,(PC_TEMPSAVE+CPUSAVE_R28)(%r1)
@@ -451,22 +449,24 @@ ddbtrap:
 	stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)
 	mflr	%r28
 	mfcr	%r29
-	lwz	%r31,(PC_DDBSAVE+CPUSAVE_R31)(%r1)
+	lwz	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)
 	mtlr	%r31
 	mfsprg1	%r1
 	b	realtrap
-ddbleave:
-	FRAME_LEAVE(PC_DDBSAVE)
+dbleave:
+	FRAME_LEAVE(PC_DBSAVE)
 	rfi
 
 /*
- * In case of DDB we want a separate trap catcher for it
+ * In case of KDB we want a separate trap catcher for it
  */
-	.local	ddbstk
-	.comm	ddbstk,INTSTK,8		/* ddb stack */
+	.data
+GLOBAL(dbstk)
+	.space INTSTK+8			/* kdb stack */
 
-	.globl	CNAME(ddblow),CNAME(ddbsize)
-CNAME(ddblow):
+	.text
+	.globl	CNAME(dblow),CNAME(dbsize)
+CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
 	mtsprg2	%r29			/* save r29 */
 	mfcr	%r29			/* save CR in r29 */
@@ -482,14 +482,14 @@ CNAME(ddblow):
         mflr	%r28					/* save LR */
         bla     u_trap
 1:
-	stw	%r28,(PC_DDBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */
+	stw	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */
         mfsprg2	%r28				/* r29 holds cr...  */
-        stw	%r28,(PC_DDBSAVE+CPUSAVE_R29)(%r1)	/* free r29 */
-        stw	%r30,(PC_DDBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
-        stw	%r31,(PC_DDBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
+        stw	%r28,(PC_DBSAVE+CPUSAVE_R29)(%r1)	/* free r29 */
+        stw	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
+        stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
-	lis	%r1,ddbstk+INTSTK@ha	/* get new SP */
-	addi	%r1,%r1,ddbstk+INTSTK@l
-	bla	ddbtrap
-CNAME(ddbsize) = .-CNAME(ddblow)
-#endif /* DDB || KGDB */
+	lis	%r1,dbstk+INTSTK@ha	/* get new SP */
+	addi	%r1,%r1,dbstk+INTSTK@l
+	bla	dbtrap
+CNAME(dbsize) = .-CNAME(dblow)
+#endif /* KDB */
