@@ -143,6 +143,12 @@
 #endif
 #endif
 
+#if (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) || __GNUC__ >= 4
+#define	__always_inline	__attribute__((__always_inline__))
+#else
+#define	__always_inline
+#endif
+
 #if (__GNUC__ == 3 && __GNUC_MINOR__ >= 3) || __GNUC__ >= 4
 #define __nonnull(x)	__attribute__((__nonnull__(x)))
 #else
