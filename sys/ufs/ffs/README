@@ -3,6 +3,9 @@ Introduction
 This package constitutes the alpha distribution of the soft update
 code updates for the fast filesystem.
 
+For More information on what Soft Updates is, see:
+http://www.ece.cmu.edu/~ganger/papers/CSE-TR-254-95/
+
 Status
 
 My `filesystem torture tests' (described below) run for days without
