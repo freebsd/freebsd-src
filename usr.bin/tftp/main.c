@@ -96,7 +96,7 @@ void	put(int, char **);
 void	quit(int, char **);
 void	setascii(int, char **);
 void	setbinary(int, char **);
-void	setpeer0(char *, char *);
+void	setpeer0(char *, const char *);
 void	setpeer(int, char **);
 void	setrexmt(int, char **);
 void	settimeout(int, char **);
@@ -177,12 +177,12 @@ char    hostname[MAXHOSTNAMELEN];
 void
 setpeer0(host, port)
 	char *host;
-	char *port;
+	const char *port;
 {
 	struct addrinfo hints, *res0, *res;
 	int error;
 	struct sockaddr_storage ss;
-	char *cause = "unknown";
+	const char *cause = "unknown";
 
 	if (connected) {
 		close(f);
