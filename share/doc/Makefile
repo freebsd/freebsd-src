@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.3 1995/01/14 09:48:14 bde Exp $
+#	$Id: Makefile,v 1.5 1995/09/27 15:45:45 jfieber Exp $
 
-SUBDIR=	psd smm usd papers
+SUBDIR=	FAQ handbook psd smm usd papers
 
 all-ps:
 	@${ECHO} ====\> Making PostScript documents
