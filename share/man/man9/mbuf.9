@@ -295,6 +295,14 @@ number of ticks.
 A number of other mbuf-related
 functions and macros have the same argument because they may
 at some point need to allocate new mbufs.
+.Pp
+Programmers should be careful not to confuse the mbuf allocation flag
+.Dv M_DONTWAIT
+with the
+.Xr malloc 9
+allocation flag,
+.Dv M_NOWAIT .
+They are not the same.
 .It Fn MGETHDR mbuf how type
 Allocate an mbuf and initialize it to contain a packet header
 and internal data.
