@@ -323,7 +323,7 @@ vlan_start(struct ifnet *ifp)
 			struct m_tag *mtag = m_tag_alloc(MTAG_VLAN,
 							 MTAG_VLAN_TAG,
 							 sizeof (u_int),
-							 M_DONTWAIT);
+							 M_NOWAIT);
 			if (mtag == NULL) {
 				ifp->if_oerrors++;
 				m_freem(m);
