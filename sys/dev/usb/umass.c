@@ -693,9 +693,29 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	    UGETW(dd->idProduct) == USB_PRODUCT_MELCO_DUBPXXG) {
 		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
 	}
-	
-	
-	
+	if (UGETW(dd->idVendor) == USB_VENDOR_MSYSTEMS &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_MSYSTEMS_DISKONKEY2) {
+		sc->proto = UMASS_PROTO_ATAPI | UMASS_PROTO_BBB;
+	}
+	/* Logitec DVD multi plus unit */
+	if (UGETW(dd->idVendor) == USB_VENDOR_LOGITEC &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_LOGITEC_LDR_H443U2) {
+		sc->proto = UMASS_PROTO_SCSI;
+	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_PANASONIC &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_PANASONIC_KXLCB20AN) {
+		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_PANASONIC &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_PANASONIC_KXLCB35AN) {
+		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_PNY &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_PNY_ATTACHE) {
+		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+		sc->quirks |= IGNORE_RESIDUE;
+	}
+
 	switch (id->bInterfaceSubClass) {
 	case UISUBCLASS_SCSI:
 		sc->proto |= UMASS_PROTO_SCSI;
