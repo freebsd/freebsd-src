@@ -108,10 +108,12 @@ sigwait(const sigset_t *set, int *sig)
 	 * mask because a subsequent sigaction could enable an
 	 * ignored signal.
 	 */
+	sigemptyset(&tempset);
 	for (i = 1; i < NSIG; i++) {
 		if (sigismember(&waitset, i) &&
 		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
 			_thread_dfl_count[i]++;
+			sigaddset(&tempset, i);
 			if (_thread_dfl_count[i] == 1) {
 				if (_thread_sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
@@ -151,10 +153,10 @@ sigwait(const sigset_t *set, int *sig)
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
 	for (i = 1; i < NSIG; i++) {
-		if (sigismember(&waitset, i) &&
-		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
+		if (sigismember(&tempset, i)) {
 			_thread_dfl_count[i]--;
-			if (_thread_dfl_count == 0) {
+			if ((_thread_sigact[i - 1].sa_handler == SIG_DFL) &&
+			    (_thread_dfl_count[i] == 0)) {
 				if (_thread_sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
