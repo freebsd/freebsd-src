@@ -393,7 +393,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int type;
 	uint8_t reg;
-	uint32_t bar;
+	uint32_t bar, pci_bar;
 
 	if (len != 6) {
 		device_printf(cbdev, "CIS BAR length not 6 (%d)\n", len);
@@ -416,14 +416,31 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 		/* XXX Should we try to map in Option ROMs? */
 		return (0);
 	}
-		
+
+	/* Convert from BAR type to BAR offset */
 	bar = CARDBUS_BASE0_REG + (bar - 1) * 4;
 
 	if (type == SYS_RES_MEMORY) {
-		if (bar & TPL_BAR_REG_PREFETCHABLE)
+		if (reg & TPL_BAR_REG_PREFETCHABLE)
 			dinfo->mprefetchable |= BARBIT(bar);
-		if (bar & TPL_BAR_REG_BELOW1MB)
+		if (reg & TPL_BAR_REG_BELOW1MB)
 			dinfo->mbelow1mb |= BARBIT(bar);
+	}
+
+	/*
+	 * Sanity check the BAR length reported in the CIS with the length
+	 * encoded in the PCI BAR.  The latter seems to be more reliable.
+	 * XXX - This probably belongs elsewhere.
+	 */
+	pci_write_config(child, bar, 0xffffffff, 4);
+	pci_bar = pci_read_config(child, bar, 4);
+	if ((pci_bar != 0x0) && (pci_bar != 0xffffffff)) {
+		if (type == SYS_RES_MEMORY) {
+			pci_bar &= ~0xf;
+		} else {
+			pci_bar &= ~0x3;
+		}
+		len = 1 << (ffs(pci_bar) - 1);
 	}
 
 	DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, len=%04x%s%s\n",
@@ -439,6 +456,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	 * device drivers will know which type of BARs can be used.
 	 */
 	pci_enable_io(child, type);
+
 	return (0);
 }
 
