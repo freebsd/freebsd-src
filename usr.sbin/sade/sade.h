@@ -404,7 +404,8 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
 extern int	configFstab(void);
-extern void	configEnvironment(char *config);
+extern void	configEnvironmentSysconfig(char *config);
+extern void	configEnvironmentResolv(char *config);
 extern void	configSysconfig(char *config);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
@@ -530,6 +531,7 @@ extern int	installFixup(dialogMenuItem *self);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
+extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
 
 /* keymap.c */
