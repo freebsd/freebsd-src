@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.55 1999/07/09 17:54:39 peter Exp $
+ * $Id: subr_prf.c,v 1.56 1999/07/10 15:27:05 peter Exp $
  */
 
 #include <sys/param.h>
@@ -696,7 +696,7 @@ number:
 					PCHAR(padc);
 			if (neg)
 				PCHAR('-');
-			if (sharpflag && qflag ? (uq != 0) : (ul != 0)) {
+			if (sharpflag && (qflag ? uq != 0 : ul != 0)) {
 				if (base == 8) {
 					PCHAR('0');
 				} else if (base == 16) {
