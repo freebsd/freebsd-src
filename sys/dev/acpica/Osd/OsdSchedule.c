@@ -192,7 +192,7 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
 #if __FreeBSD_version < 500000
-    taskqueue_enqueue(taskqueue_swi, (struct task *)at);
+    taskqueue_enqueue(taskqueue_thread, (struct task *)at);
 #else
     taskqueue_enqueue(taskqueue_acpi, (struct task *)at);
 #endif
