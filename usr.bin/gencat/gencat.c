@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -31,26 +32,14 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-/* Edit History
-
-01/18/91   3 hamilton	#if not reparsed
-01/12/91   2 schulert	conditionally use prototypes
-12/23/90   2 hamilton	Fix fd == NULL to fd < 0
-11/03/90   1 hamilton	Alphalpha->Alfalfa & OmegaMail->Poste
-08/13/90   1 schulert	move from ua to omu
-*/
-
-#include <err.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <unistd.h>
-#ifdef SYSV
-#include <sys/fcntl.h>
-#define L_SET SEEK_SET
-#define L_INCR SEEK_CUR
-#endif
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "gencat.h"
 
 /*
@@ -67,39 +56,25 @@ up-to-date.  Many thanks.
  * will be in C syntax, in bar.H in C++ syntax.
  */
 
-#if ANSI_C || defined(__cplusplus)
-# define P_(x) x
-#else
-# define P_(x) /**/
-#endif
-
-static void writeIfChanged P_((char *fname, int lang, int orConsts));
-
-#undef P_
+static void writeIfChanged(char *, int, int);
 
 static void
-usage()
+usage(void)
 {
-    fprintf(stderr, "usage: gencat [-new] [-or] [-lang C|C++|ANSIC]\n");
-    fprintf(stderr, "              catfile msgfile [-h <header-file>]...\n");
-	exit(1);
+    fprintf(stderr, "usage: gencat [-new] [-or] [-lang C|C++|ANSIC]\n"
+                    "              catfile msgfile [-h <header-file>]...\n");
+    exit(1);
 }
 
-int main(
-#if ANSI_C || defined(__cplusplus)
-		int argc, char *argv[])
-#else
-		argc, argv)
-int argc;
-char *argv[];
-#endif
+int
+main(int argc, char *argv[])
 {
     int		ofd, ifd, i;
     char	*catfile = NULL;
     char	*input = NULL;
     int		lang = MCLangC;
-    int		new = False;
-    int		orConsts = False;
+    int		new = FALSE;
+    int		orConsts = FALSE;
 
     for (i = 1; i < argc; ++i) {
 	if (argv[i][0] == '-') {
@@ -119,7 +94,7 @@ char *argv[];
 	    } else if (strcmp(argv[i], "-new") == 0) {
 		if (catfile)
 		    errx(1, "you must specify -new before the catalog file name");
-		new = True;
+		new = TRUE;
 	    } else if (strcmp(argv[i], "-or") == 0) {
 		orConsts = ~orConsts;
 	    } else {
@@ -158,20 +133,13 @@ char *argv[];
     return 0;
 }
 
-static void writeIfChanged(
-#if ANSI_C || defined(__cplusplus)
-		char *fname, int lang, int orConsts)
-#else
-		fname, lang, orConsts)
-char *fname;
-int lang;
-int orConsts;
-#endif
+static void
+writeIfChanged(char *fname, int lang, int orConsts)
 {
     char	tmpname[32];
     char	buf[BUFSIZ], tbuf[BUFSIZ], *cptr, *tptr;
     int		fd, tfd;
-    int		diff = False;
+    int		diff = FALSE;
     int		len, tlen;
     struct stat	sbuf;
 
@@ -198,32 +166,32 @@ int orConsts;
 		errx(1, "unable to read header file: %s", fname);
 
     /* Backup to the start of the temp file */
-    if (lseek(tfd, 0L, L_SET) < 0)
+    if (lseek(tfd, (off_t)0, L_SET) < 0)
 		errx(1, "unable to seek in tempfile: %s", tmpname);
 
     /* Now compare them */
     while ((tlen = read(tfd, tbuf, BUFSIZ)) > 0) {
 	if ((len = read(fd, buf, BUFSIZ)) != tlen) {
-	    diff = True;
+	    diff = TRUE;
 	    goto done;
 	}
 	for (cptr = buf, tptr = tbuf; cptr < buf+len; ++cptr, ++tptr) {
 	    if (*tptr != *cptr) {
-		diff = True;
+		diff = TRUE;
 		goto done;
 	    }
 	}
     }
 done:
     if (diff) {
-	if (lseek(tfd, 0L, L_SET) < 0)
+	if (lseek(tfd, (off_t)0, L_SET) < 0)
 	    errx(1, "unable to seek in tempfile: %s", tmpname);
 	close(fd);
 	if ((fd = open(fname, O_WRONLY|O_TRUNC)) < 0)
 	    errx(1, "unable to truncate header file: %s", fname);
 	while ((len = read(tfd, buf, BUFSIZ)) > 0) {
-	    if (write(fd, buf, len) != len)
-			warnx("error writing to header file: %s", fname);
+	    if (write(fd, buf, (size_t)len) != len)
+		warnx("error writing to header file: %s", fname);
 	}
     }
     close(fd);
