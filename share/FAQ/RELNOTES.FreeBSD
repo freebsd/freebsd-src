@@ -245,10 +245,11 @@ Sources involved:	sys/i386/ibcs2/* + misc kernel changes.
 2. Supported Configurations
 ---------------------------
 
-FreeBSD currently runs on a wide variety of ISA, EISA and PCI bus based
-PC's, ranging from 386sx to Pentium class machines (though the 386sx is
-not recommended).  Support for generic IDE or ESDI drive configurations,
-various SCSI controller, network and serial cards is also provided.
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
+based PC's, ranging from 386sx to Pentium class machines (though the
+386sx is not recommended).  Support for generic IDE or ESDI drive
+configurations, various SCSI controller, network and serial cards is
+also provided.
 
 Following is a list of all currently known disk controllers and
 ethernet cards known to work with FreeBSD.  Other configurations may
@@ -260,6 +261,8 @@ this.
 
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
+[Note: the new Extended IDE controllers in newer PC's work, although no
+extended features are used.]
 
 Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
@@ -281,22 +284,22 @@ Seagate ST01/02 SCSI controllers.
 
 Future Domain 8xx/950 series SCSI controllers.
 
-With all supported SCSI controllers, full support is provided for
-SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT) and CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM
-interface card) is the only way a CD ROM drive may be currently
-attached to a FreeBSD system; we do not support SoundBlaster (non-SCSI)
-CDROM interface, or other "non-SCSI" adapters.  The ProAudio Spectrum
-SCSI and SoundBlaster SCSI controllers are supported.
+With all supported SCSI controllers, full support is provided for SCSI-I
+& SCSI-II peripherals, including Disks, tape drives (including DAT) and
+CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM interface
+card) is the only way a CD ROM drive may be currently attached to a
+FreeBSD system; we do not support SoundBlaster (non-SCSI) CDROM
+interface, or other "non-SCSI" adapters.  The ProAudio Spectrum SCSI and
+SoundBlaster SCSI controllers are supported.
 
 Some controllers have limitations with the way they deal with >16MB of
-memory, due to the fact that the ISA bus only has a DMA address space
-of 24 bits.  If you do your arithmetic, you'll see that this makes it
+memory, due to the fact that the ISA bus only has a DMA address space of
+24 bits.  If you do your arithmetic, you'll see that this makes it
 impossible to do direct DMA to any address >16MB.  This limitation is
 even true of some EISA controllers (which are normally 32 bit) when
 they're configured to emulate an ISA card, which they then do in *all*
-respects.  This problem is avoided entirely by IDE controllers (which
-do not use DMA), true EISA controllers (like the UltraStor or Adaptec
+respects.  This problem is avoided entirely by IDE controllers (which do
+not use DMA), true EISA controllers (like the UltraStor or Adaptec
 1742A) and most VLB (local bus) controllers.  In the cases where it's
 necessary, the system will use "bounce buffers" to talk to the
 controller so that you can still use more than 16Mb of memory without
@@ -505,4 +508,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.8 1994/11/10 04:11:58 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.9 1994/11/11 07:39:40 jkh Exp $
