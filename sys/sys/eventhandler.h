@@ -180,12 +180,17 @@ void	eventhandler_prune_list(struct eventhandler_list *list);
  * Standard system event queues.
  */
 
+/* Generic priority levels */
+#define	EVENTHANDLER_PRI_FIRST	0
+#define	EVENTHANDLER_PRI_ANY	10000
+#define	EVENTHANDLER_PRI_LAST	20000
+
 /* Shutdown events */
 typedef void (*shutdown_fn)(void *, int);
 
-#define	SHUTDOWN_PRI_FIRST	0
-#define	SHUTDOWN_PRI_DEFAULT	10000
-#define	SHUTDOWN_PRI_LAST	20000
+#define	SHUTDOWN_PRI_FIRST	EVENTHANDLER_PRI_FIRST
+#define	SHUTDOWN_PRI_DEFAULT	EVENTHANDLER_PRI_ANY
+#define	SHUTDOWN_PRI_LAST	EVENTHANDLER_PRI_FIRST
 
 EVENTHANDLER_DECLARE(shutdown_pre_sync, shutdown_fn);	/* before fs sync */
 EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
@@ -194,13 +199,13 @@ EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 /* Idle process event */
 typedef void (*idle_eventhandler_t)(void *, int);
 
-#define IDLE_PRI_FIRST		10000
-#define IDLE_PRI_LAST		20000
+#define IDLE_PRI_FIRST		EVENTHANDLER_PRI_FIRST
+#define IDLE_PRI_LAST		EVENTHANDLER_PRI_LAST
 EVENTHANDLER_FAST_DECLARE(idle_event, idle_eventhandler_t);
 
 /* Low memory event */
 typedef void (*vm_lowmem_handler_t)(void *, int);
-#define	LOWMEM_PRI_DEFAULT	0
+#define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
 #endif /* SYS_EVENTHANDLER_H */
