@@ -667,6 +667,9 @@
 #define	LINUX_ASYNC_CALLOUT_NOHUP	0x0400
 #define	LINUX_ASYNC_FLAGS		0x0FFF
 
+#define	LINUX_IOCTL_DRM_MIN	0x6400
+#define	LINUX_IOCTL_DRM_MAX	0x64ff
+
 /*
  * This doesn't really belong here, but I can't think of a better
  * place to put it.
