@@ -407,19 +407,6 @@ mac_biba_copy_single(struct mac_biba *labelfrom, struct mac_biba *labelto)
 	labelto->mb_flags |= MAC_BIBA_FLAG_SINGLE;
 }
 
-static void
-mac_biba_copy_single_to_range(struct mac_biba *labelfrom,
-    struct mac_biba *labelto)
-{
-
-	KASSERT((labelfrom->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_copy_single_to_range: labelfrom not single"));
-
-	labelto->mb_rangelow = labelfrom->mb_single;
-	labelto->mb_rangehigh = labelfrom->mb_single;
-	labelto->mb_flags |= MAC_BIBA_FLAG_RANGE;
-}
-
 /*
  * Policy module operations.
  */
@@ -694,7 +681,6 @@ mac_biba_create_socket(struct ucred *cred, struct socket *socket,
 	dest = SLOT(socketlabel);
 
 	mac_biba_copy_single(source, dest);
-	mac_biba_copy_single_to_range(source, dest);
 }
 
 static void
@@ -720,7 +706,6 @@ mac_biba_create_socket_from_socket(struct socket *oldsocket,
 	dest = SLOT(newsocketlabel);
 
 	mac_biba_copy_single(source, dest);
-	mac_biba_copy_range(source, dest);
 }
 
 static void
@@ -733,7 +718,6 @@ mac_biba_relabel_socket(struct ucred *cred, struct socket *socket,
 	dest = SLOT(socketlabel);
 
 	mac_biba_copy_single(source, dest);
-	mac_biba_copy_range(source, dest);
 }
 
 static void
