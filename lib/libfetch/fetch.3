@@ -28,11 +28,13 @@
 .Dt FETCH 3
 .Os
 .Sh NAME
+.Nm fetchMakeURL ,
+.Nm fetchParseURL ,
+.Nm fetchFreeURL ,
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
 .Nm fetchStatURL ,
 .Nm fetchListURL ,
-.Nm fetchParseURL ,
 .Nm fetchGet ,
 .Nm fetchPut ,
 .Nm fetchStat ,
@@ -56,6 +58,12 @@
 .Fd #include <sys/param.h>
 .Fd #include <stdio.h>
 .Fd #include <fetch.h>
+.Ft struct url *
+.Fn fetchMakeURL "char *scheme" "char *host" "int port" "char *doc" "char *user" "char *pwd"
+.Ft struct url *
+.Fn fetchParseURL "char *URL"
+.Ft void
+.Fn fetchFreeURL "struct url *URL"
 .Ft FILE *
 .Fn fetchGetURL "char *URL" "char *flags"
 .Ft FILE *
@@ -64,8 +72,6 @@
 .Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
 .Ft struct url_ent *
 .Fn fetchListURL "char *URL" "char *flags"
-.Ft struct url *
-.Fn fetchParseURL "char *URL"
 .Ft FILE *
 .Fn fetchGet "struct url *URL" "char *flags"
 .Ft FILE *
@@ -103,6 +109,51 @@
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
 .Pp
+.Fn fetchParseURL
+takes a URL in the form of a null-terminated string and splits it into
+its components function according to the Common Internet Scheme Syntax
+detailed in RFC1738.
+A regular expression which produces this syntax is:
+.Bd -literal
+    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
+Note that some components of the URL are not necessarily relevant to
+all URL schemes.
+For instance, the file scheme only needs the <scheme>
+and <document> components.
+.Pp
+.Fn fetchMakeURL
+and
+.Fn fetchParseURL
+return a pointer to a
+.Fa url
+structure, which is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+#define URL_SCHEMELEN 16
+#define URL_USERLEN 256
+#define URL_PWDLEN 256
+
+struct url {
+    char	 scheme[URL_SCHEMELEN+1];
+    char	 user[URL_USERLEN+1];
+    char	 pwd[URL_PWDLEN+1];
+    char	 host[MAXHOSTNAMELEN+1];
+    int		 port;
+    char	*doc;
+    off_t	 offset;
+    size_t	 length;
+};
+.Ed
+.Pp
+The pointer returned by
+.Fn fetchMakeURL
+or
+.Fn fetchParseURL
+should be freed using
+.Fn fetchFreeURL .
+.Pp
 .Fn fetchGetURL
 and
 .Fn fetchPutURL
@@ -134,6 +185,16 @@ struct url_stat {
 };
 .Ed
 .Pp
+If the size could not be obtained from the server, the
+.Fa size
+field is set to -1.
+If the modification time could not be obtained from the server, the
+.Fa mtime
+field is set to the epoch.
+If the access time could not be obtained from the server, the
+.Fa atime
+field is set to the modification time.
+.Pp
 .Fn fetchListURL
 attempts to list the contents of the directory pointed to by the URL
 provided.
@@ -155,25 +216,6 @@ The list is terminated by an entry with an empty name.
 .Pp
 The pointer returned by
 .Fn fetchListURL
-should be freed using
-.Fn free .
-.Pp
-.Fn fetchParseURL
-takes a URL in the form of a null-terminated string and splits it into
-its components function according to the Common Internet Scheme Syntax
-detailed in RFC1738. A regular expression which produces this syntax
-is:
-.Bd -literal
-    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
-.Ed
-.Pp
-Note that some components of the URL are not necessarily relevant to
-all URL schemes.
-For instance, the file scheme only needs the <scheme>
-and <document> components.
-.Pp
-The pointer returned by
-.Fn fetchParseURL
 should be freed using
 .Fn free .
 .Pp
@@ -293,13 +335,8 @@ functions return 0 on success and -1 on failure.
 All other functions return a stream pointer which may be used to
 access the requested document, or NULL if an error occurred.
 .Pp
-.Nm Libfetch
-uses the Common Error Library
-.Nm ( libcom_err )
-to report errors.
-The error code passed to
-.Fn com_err
-is one of:
+The following error codes are defined in
+.Aq Pa fetch.h :
 .Bl -tag -width 18n
 .It Bq Er FETCH_ABORT
 Operation aborted    
@@ -349,7 +386,6 @@ and
 environment variables, respectively, as the address of a proxy server
 to use for transferring files.
 .Sh SEE ALSO
-.Xr com_err 3 ,
 .Xr fetch 1 ,
 .Xr ftpio 3 ,
 .Xr ip 4 .
@@ -378,14 +414,6 @@ to use for transferring files.
 .%B File Transfer Protocol
 .%O RFC959
 .Re
-.Sh NOTES
-The
-.Nm fetch
-library uses the Common Error library, and applications which link
-with
-.Nm libfetch
-must therefore also link with
-.Nm libcom_err .
 .Sh HISTORY
 The
 .Nm fetch
@@ -414,7 +442,6 @@ Some parts of the library are not yet implemented.
 The most notable
 examples of this are
 .Fn fetchPutHTTP ,
-.Fn fetchStatHTTP ,
 .Fn fetchListHTTP ,
 .Fn fetchListFTP
 and FTP proxy support.
@@ -458,5 +485,9 @@ does not check that the result of an MDTM command is a valid date.
 The HTTP code needs a complete rewrite, or at least a serious cleanup.
 .Pp
 The man page is poorly written and produces badly formatted text.
+.Pp
+The error reporting mechanism is unsatisfactory.
+.Pp
+Some parts of the code are not fully reentrant.
 .Pp
 Tons of other stuff.

@@ -33,9 +33,9 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
-#include <com_err.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -51,38 +51,25 @@
  * Error messages for resolver errors
  */
 static struct fetcherr _netdb_errlist[] = {
-    { HOST_NOT_FOUND,	FETCH_RESOLV,	"Host not found" },
-    { TRY_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
-    { NO_RECOVERY,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
-    { NO_DATA,		FETCH_RESOLV,	"No address record" },
+    { EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
+    { EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
+    { EAI_FAIL,		FETCH_RESOLV,	"Non-recoverable resolver failure" },
+    { EAI_NONAME,	FETCH_RESOLV,	"No address record" },
     { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
 
-static int com_err_initialized;
 
 /*** Error-reporting functions ***********************************************/
 
 /*
- * Initialize the common error library
- */
-static void
-_fetch_init_com_err(void)
-{
-    initialize_ftch_error_table();
-    com_err_initialized = 1;
-}
-
-/*
  * Map error code to string
  */
-static int
+static struct fetcherr *
 _fetch_finderr(struct fetcherr *p, int e)
 {
-    int i;
-    for (i = 0; p[i].num != -1; i++)
-	if (p[i].num == e)
-	    break;
-    return i;
+    while (p->num != -1 && p->num != e)
+	p++;
+    return p;
 }
 
 /*
@@ -91,14 +78,9 @@ _fetch_finderr(struct fetcherr *p, int e)
 void
 _fetch_seterr(struct fetcherr *p, int e)
 {
-    int n;
-    
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
-    n = _fetch_finderr(p, e);
-    fetchLastErrCode = p[n].cat;
-    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, p[n].string);
+    p = _fetch_finderr(p, e);
+    fetchLastErrCode = p->cat;
+    snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
 }
 
 /*
@@ -110,9 +92,6 @@ _fetch_syserr(void)
     int e;
     e = errno;
     
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
     switch (errno) {
     case 0:
 	fetchLastErrCode = FETCH_OK;
@@ -163,34 +142,22 @@ _fetch_syserr(void)
     default:
 	fetchLastErrCode = FETCH_UNKNOWN;
     }
-    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, strerror(e));
+    snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(e));
 }
 
 
 /*
  * Emit status message
  */
-int
+void
 _fetch_info(char *fmt, ...)
 {
     va_list ap;
-    char *s;
     
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
     va_start(ap, fmt);
-    vasprintf(&s, fmt, ap);
+    vfprintf(stderr, fmt, ap);
     va_end(ap);
-
-    if (s == NULL) {
-	com_err("libfetch", FETCH_MEMORY, "");
-	return -1;
-    } else {
-	com_err("libfetch", FETCH_VERBOSE, "%s", s);
-	free(s);
-	return 0;
-    }
+    fputc('\n', stderr);
 }
 
 
@@ -200,11 +167,11 @@ _fetch_info(char *fmt, ...)
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
-_fetch_connect(char *host, int port, int verbose)
+_fetch_connect(char *host, int port, int af, int verbose)
 {
-    struct sockaddr_in sin;
-    struct hostent *he;
-    int sd;
+    char pbuf[10];
+    struct addrinfo hints, *res, *res0;
+    int sd, err;
 
 #ifndef NDEBUG
     fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
@@ -213,29 +180,33 @@ _fetch_connect(char *host, int port, int verbose)
     if (verbose)
 	_fetch_info("looking up %s", host);
     
-    /* look up host name */
-    if ((he = gethostbyname(host)) == NULL) {
-	_netdb_seterr(h_errno);
+    /* look up host name and set up socket address structure */
+    snprintf(pbuf, sizeof(pbuf), "%d", port);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
+	_netdb_seterr(err);
 	return -1;
     }
 
     if (verbose)
 	_fetch_info("connecting to %s:%d", host, port);
     
-    /* set up socket address structure */
-    bzero(&sin, sizeof(sin));
-    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
-    sin.sin_family = he->h_addrtype;
-    sin.sin_port = htons(port);
-
     /* try to connect */
-    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-	_fetch_syserr();
-	return -1;
-    }
-    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1) {
-	_fetch_syserr();
+    sd = -1;
+    for (res = res0; res; res = res->ai_next) {
+	if ((sd = socket(res->ai_family, res->ai_socktype,
+			 res->ai_protocol)) < 0)
+	    continue;
+	if (connect(sd, res->ai_addr, res->ai_addrlen) >= 0)
+	    break;
 	close(sd);
+	sd = -1;
+    }
+    if (sd < 0) {
+	_fetch_syserr();
 	return -1;
     }
 

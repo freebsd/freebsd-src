@@ -40,8 +40,9 @@
 #include "common.h"
 
 
-int fetchLastErrCode;
-int fetchTimeout;
+int	 fetchLastErrCode;
+char	 fetchLastErrString[MAXERRSTRING];
+int	 fetchTimeout;
 
 
 /*** Local data **************************************************************/
@@ -69,13 +70,19 @@ static struct fetcherr _url_errlist[] = {
 FILE *
 fetchGet(struct url *URL, char *flags)
 {
+    int direct;
+
+    direct = (flags && strchr(flags, 'd'));
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchGetFile(URL, flags);
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchGetHTTP(URL, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0)
+    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+	if (!direct &&
+	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
+	    return fetchGetHTTP(URL, flags);
 	return fetchGetFTP(URL, flags);
-    else {
+    } else {
 	_url_seterr(URL_BAD_SCHEME);
 	return NULL;
     }
@@ -88,13 +95,19 @@ fetchGet(struct url *URL, char *flags)
 FILE *
 fetchPut(struct url *URL, char *flags)
 {
+    int direct;
+
+    direct = (flags && strchr(flags, 'd'));
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchPutFile(URL, flags);
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchPutHTTP(URL, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0)
+    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+	if (!direct &&
+	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
+	    return fetchPutHTTP(URL, flags);
 	return fetchPutFTP(URL, flags);
-    else {
+    } else {
 	_url_seterr(URL_BAD_SCHEME);
 	return NULL;
     }
@@ -107,13 +120,19 @@ fetchPut(struct url *URL, char *flags)
 int
 fetchStat(struct url *URL, struct url_stat *us, char *flags)
 {
+    int direct;
+
+    direct = (flags && strchr(flags, 'd'));
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchStatFile(URL, us, flags);
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchStatHTTP(URL, us, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0)
+    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+	if (!direct &&
+	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
+	    return fetchStatHTTP(URL, us, flags);
 	return fetchStatFTP(URL, us, flags);
-    else {
+    } else {
 	_url_seterr(URL_BAD_SCHEME);
 	return -1;
     }
@@ -126,13 +145,19 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
 struct url_ent *
 fetchList(struct url *URL, char *flags)
 {
+    int direct;
+
+    direct = (flags && strchr(flags, 'd'));
     if (strcasecmp(URL->scheme, "file") == 0)
 	return fetchListFile(URL, flags);
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchListHTTP(URL, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0)
+    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+	if (!direct &&
+	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
+	    return fetchListHTTP(URL, flags);
 	return fetchListFTP(URL, flags);
-    else {
+    } else {
 	_url_seterr(URL_BAD_SCHEME);
 	return NULL;
     }
@@ -152,7 +177,7 @@ fetchGetURL(char *URL, char *flags)
     
     f = fetchGet(u, flags);
     
-    free(u);
+    fetchFreeURL(u);
     return f;
 }
 
@@ -171,7 +196,7 @@ fetchPutURL(char *URL, char *flags)
     
     f = fetchPut(u, flags);
     
-    free(u);
+    fetchFreeURL(u);
     return f;
 }
 
@@ -189,7 +214,7 @@ fetchStatURL(char *URL, struct url_stat *us, char *flags)
 
     s = fetchStat(u, us, flags);
 
-    free(u);
+    fetchFreeURL(u);
     return s;
 }
 
@@ -207,8 +232,50 @@ fetchListURL(char *URL, char *flags)
 
     ue = fetchList(u, flags);
 
-    free(u);
+    fetchFreeURL(u);
     return ue;
+}
+
+/*
+ * Make a URL
+ */
+struct url *
+fetchMakeURL(char *scheme, char *host, int port, char *doc,
+    char *user, char *pwd)
+{
+    struct url *u;
+
+    if (!scheme || (!host && !doc)) {
+	_url_seterr(URL_MALFORMED);
+	return NULL;
+    }
+	
+    if (port < 0 || port > 65535) {
+	_url_seterr(URL_BAD_PORT);
+	return NULL;
+    }
+    
+    /* allocate struct url */
+    if ((u = calloc(1, sizeof *u)) == NULL) {
+	_fetch_syserr();
+	return NULL;
+    }
+
+    if ((u->doc = strdup(doc ? doc : "/")) == NULL) {
+	_fetch_syserr();
+	free(u);
+	return NULL;
+    }
+    
+#define seturl(x) snprintf(u->x, sizeof u->x, "%s", x)
+    seturl(scheme);
+    seturl(host);
+    seturl(user);
+    seturl(pwd);
+#undef seturl
+    u->port = port;
+
+    return u;
 }
 
 /*
@@ -224,8 +291,7 @@ fetchParseURL(char *URL)
     int i;
 
     /* allocate struct url */
-    if ((u = calloc(1, sizeof(struct url))) == NULL) {
-	errno = ENOMEM;
+    if ((u = calloc(1, sizeof *u)) == NULL) {
 	_fetch_syserr();
 	return NULL;
     }
@@ -262,9 +328,18 @@ fetchParseURL(char *URL)
     } else p = URL;
     
     /* hostname */
-    for (i = 0; *p && (*p != '/') && (*p != ':'); p++)
-	if (i < MAXHOSTNAMELEN)
-	    u->host[i++] = *p;
+#ifdef INET6
+    if (*p == '[' && (q = strchr(p + 1, ']')) != NULL &&
+	(*++q == '\0' || *q == '/' || *q == ':')) {
+	if ((i = q - p - 2) > MAXHOSTNAMELEN)
+	    i = MAXHOSTNAMELEN;
+	strncpy(u->host, ++p, i);
+	p = q;
+    } else
+#endif
+	for (i = 0; *p && (*p != '/') && (*p != ':'); p++)
+	    if (i < MAXHOSTNAMELEN)
+		u->host[i++] = *p;
 
     /* port */
     if (*p == ':') {
@@ -282,19 +357,12 @@ fetchParseURL(char *URL)
 
 nohost:
     /* document */
-    if (*p) {
-	struct url *t;
-	t = realloc(u, sizeof(*u)+strlen(p)-1);
-	if (t == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    goto ouch;
-	}
-	u = t;
-	strcpy(u->doc, p);
-    } else {
-	u->doc[0] = '/';
-	u->doc[1] = 0;
+    if (!*p)
+	p = "/";
+    
+    if ((u->doc = strdup(p)) == NULL) {
+	_fetch_syserr();
+	goto ouch;
     }
     
     DEBUG(fprintf(stderr,
@@ -312,4 +380,14 @@ nohost:
 ouch:
     free(u);
     return NULL;
+}
+
+/*
+ * Free a URL
+ */
+void
+fetchFreeURL(struct url *u)
+{
+    free(u->doc);
+    free(u);
 }

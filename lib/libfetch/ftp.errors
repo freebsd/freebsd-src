@@ -18,7 +18,8 @@
 221 OK		Service closing control connection
 225 OK		Data connection open; no transfer in progress
 226 OK		Requested file action successful
-227 OK		Entering Passive Mode 
+227 OK		Entering Passive Mode
+229 OK		Entering Extended Passive Mode
 230 OK		User logged in, proceed
 250 OK		Requested file action okay, completed
 257 OK		File/directory created
