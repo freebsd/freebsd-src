@@ -204,10 +204,10 @@ typedef struct nt_dispatch_header nt_dispatch_header;
 	((td)->td_proc->p_flag & P_KTHREAD == FALSE)
 
 #define AT_DISPATCH_LEVEL(td)		\
-	((td)->td_priority == PI_SOFT)
+	((td)->td_priority == PI_REALTIME)
 
 #define AT_DIRQL_LEVEL(td)		\
-	((td)->td_priority < PRI_MIN_KERN)
+	((td)->td_priority <= PI_NET)
 
 #define AT_HIGH_LEVEL(td)		\
 	((td)->td_critnest != 0)
