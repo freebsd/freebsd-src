@@ -107,10 +107,6 @@ struct digi_p {
 	struct termios lt_in;		/* should be in struct tty */
 	struct termios lt_out;
 
-	u_int do_timestamp;
-	u_int do_dcd_timestamp;
-	struct timeval dcd_timestamp;
-
 	u_long bytes_in, bytes_out;
 	u_int delta_error_counts[CE_NTYPES];
 	u_long error_counts;

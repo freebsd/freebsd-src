@@ -299,9 +299,7 @@ struct com_s {
 	struct termios	lt_out;
 
 	bool_t	do_timestamp;
-	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
-	struct timeval	dcd_timestamp;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -1283,11 +1281,6 @@ cont:
 			++com->mdm;
 			modem_status = cd_inb(iobase, CD1400_MSVR2, cy_align);
 		if (modem_status != com->last_modem_status) {
-			if (com->do_dcd_timestamp
-			    && !(com->last_modem_status & MSR_DCD)
-			    && modem_status & MSR_DCD)
-				microtime(&com->dcd_timestamp);
-
 			/*
 			 * Schedule high level to handle DCD changes.  Note
 			 * that we don't use the delta bits anywhere.  Some
@@ -1672,10 +1665,6 @@ sioioctl(dev, cmd, data, flag, td)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
-		break;
-	case TIOCDCDTIMESTAMP:
-		com->do_dcd_timestamp = TRUE;
-		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);

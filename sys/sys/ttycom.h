@@ -131,9 +131,7 @@ struct winsize {
 						/* 90-70 ppp; many conflicts */
 #define	TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* enable/get timestamp
 						 * of last input event */
-#define	TIOCDCDTIMESTAMP _IOR('t', 88, struct timeval)	/* enable/get timestamp
-						 * of last DCd rise */
-						/* 88 slip; conflicts */
+						/* 88 slip, ppp; conflicts */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
 						/* 84-80 slip */
