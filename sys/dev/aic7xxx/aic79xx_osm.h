@@ -38,9 +38,6 @@
 #define _AIC79XX_FREEBSD_H_
 
 #include <opt_aic79xx.h>	/* for config options */
-#ifndef NPCI
-#include <pci.h>
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +46,12 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+
+#if __FreeBSD_version < 500000
+#include <pci.h>
+#else
+#define NPCI 1
+#endif
 
 #define AHD_PCI_CONFIG 1
 #include <machine/bus_memio.h>
