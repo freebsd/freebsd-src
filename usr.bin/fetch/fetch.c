@@ -293,6 +293,8 @@ fetch(char *URL, char *path)
     /* start the transfer */
     if ((f = fetchGet(url, flags)) == NULL) {
 	warnx("%s", fetchLastErrString);
+	if (!R_flag && !r_flag && !o_stdout)
+	    unlink(path);
 	goto failure;
     }
     
@@ -358,7 +360,7 @@ fetch(char *URL, char *path)
     if (ferror(of))
 	warn("%s", path);
     if (ferror(f) || ferror(of)) {
-	if (!R_flag && !o_stdout)
+	if (!R_flag && !r_flag && !o_stdout)
 	    unlink(path);
 	goto failure;
     }
