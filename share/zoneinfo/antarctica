@@ -1,10 +1,12 @@
-# @(#)antarctica	7.5
+# @(#)antarctica	7.8
 
-# From Paul Eggert (1996-09-03):
+# From Paul Eggert (1997-03-28):
 # To keep things manageable, we list only locations occupied year-round;
-# see <URL:http://earth.agu.org/amen/nations.html> (1996-05-24).
+# see <URL:http://earth.agu.org/amen/nations.html> (1996-05-24)
+# and <URL:http://www.spri.cam.ac.uk/bob/periant.htm> (1996-09-05).
 # Unless otherwise specified, we have no time zone information.
 #
+# Except for the French entries,
 # I made up all time zone abbreviations mentioned here; corrections welcome!
 # FORMAT is `___' and GMTOFF is 0 for locations while uninhabited.
 
@@ -28,7 +30,7 @@ Rule	ChileAQ	1970	max	-	Mar	Sun>=9	0:00	0	-
 # 5 others
 
 # Australia - territories
-# Heard Island, McDonald Islands
+# Heard Island, McDonald Islands (uninhabited)
 #
 # year-round bases
 # Casey, Bailey Peninsula, since 1969
@@ -56,16 +58,42 @@ Zone Antarctica/Mawson	0	-	___	1954 Feb 13
 # Finland - year-round base
 # Aboa, Queen Maud Land, since 1988
 
-# France
+# France - year-round bases
+#
+# From Antoine Leca <Antoine.Leca@Renault.FR> (1997-01-20):
+# Time data are from Nicole Pailleau at the IFRTP
+# (French Institute for Polar Research and Technology).
+# She confirms that French Southern Territories and Terre Adelie bases
+# don't observe daylight saving time, even if Terre Adelie supplies came
+# from Tasmania.
 #
 # French Southern Territories with year-round inhabitants
-# Amsterdam Island
-# Crozet Islands
-# Kerguelen Islands
-# St Paul Island
 #
-# year-round base
-# Dumont d'Urville, Adelie Land, since IGY
+# Martin-de-Vivies Base, Amsterdam Island, -374105+0773155, since 1950
+# Alfred-Faure Base, Crozet Islands, -462551+0515152, since 1964
+# Port-aux-Francais, Kerguelen Islands, -492110+0701303, since 1951;
+#	a whaling and sealing station operated 1908-14, 1920-29, and 1951-56
+#
+# St Paul Island - near Amsterdam, uninhabited since 1931
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Indian/Kerguelen	0	-	___	1950	# Port-aux-Francais
+			5:00	-	TFT	# ISO code TF Time
+#
+# year-round base in the main continent
+# Dumont-d'Urville, Terre Adelie (Adelie Land), -6640+14001, since 1956-11
+#
+# Another base at Port-Martin, 50km east, began operation in 1947.
+# It was destroyed by fire on 1952-01-14.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/DumontDUrville 0 -	___	1947
+			10:00	-	PMT	1952 Jan 14 # Port-Martin Time
+			0	-	___	1956 Nov
+			10:00	-	DDUT	# Dumont-d'Urville Time
+# Reference:
+# <URL:http://www.icair.iac.org.nz/science/reports/fr/IFRTP.html> (1996-09-10)
+
 
 # Germany - year-round base
 # Georg von Neumayer
@@ -81,8 +109,8 @@ Zone Antarctica/Mawson	0	-	___	1954 Feb 13
 # King Sejong, King George Island, since 1988
 
 # New Zealand - claims
-# Balleny Islands
-# Scott Island
+# Balleny Islands (never inhabited)
+# Scott Island (never inhabited)
 #
 # year-round base
 # Scott, Ross Island, since 1957-01, is like Antarctica/McMurdo.
@@ -98,10 +126,10 @@ Rule	NZAQ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
 Rule	NZAQ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 
 # Norway - territories
-# Bouvet (uninhabited)
+# Bouvet (never inhabited)
 #
 # claims
-# Peter I Island (uninhabited)
+# Peter I Island (never inhabited)
 
 # Poland - year-round base
 # Arctowski, King George Island, since 1977
@@ -121,7 +149,11 @@ Rule	NZAQ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 #
 # British Antarctic Territories (BAT) claims
 # South Orkney Islands
+#	scientific station from 1903
+#	whaling station at Signy I 1920-1926
 # South Shetland Islands
+#	whaling station at Deception I 1912-1931
+#	scientific station from 1943
 #
 # year-round bases
 # Halley, Coates Land, -7535-2619, since 1956-01-06

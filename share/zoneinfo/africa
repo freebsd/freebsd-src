@@ -1,14 +1,14 @@
-# @(#)africa	7.16
+# @(#)africa	7.20
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (1996-11-22):
+# From Paul Eggert <eggert@twinsun.com> (1997-10-05):
 #
 # A good source for time zone historical data outside the U.S. is
-# Thomas G. Shanks, The International Atlas (3rd edition),
-# San Diego: ACS Publications, Inc. (1991).
+# Thomas G. Shanks, The International Atlas (4th edition),
+# San Diego: ACS Publications, Inc. (1995).
 #
 # Gwillim Law <LAW@encmail.encompass.com> writes that a good source
 # for recent time zone data is the International Air Transport
@@ -27,95 +27,40 @@
 # Derek Howse, Greenwich time and the discovery of the longitude,
 # Oxford University Press (1980).
 #
-# I added so many Zone names that the old, mostly flat name space was unwieldy.
-# So I renamed the Zones to have the form AREA/LOCATION, where
-# AREA is the name of a continent or ocean, and
-# LOCATION is the name of a specific location within that region.
-# For example, the old zone name `Egypt' is now `Africa/Cairo'.
+# Previous editions of this database used WAT, CAT, SAT, and EAT
+# for +0:00 through +3:00, respectively,
+# but Mark R V Murray <markm@iafrica.com> reports that
+# `SAST' is the official abbreviation for +2:00 in the country of South Africa,
+# `CAT' is commonly used for +2:00 in countries north of South Africa, and
+# `WAT' is probably the best name for +1:00, as the common phrase for
+# the area that includes Nigeria is ``West Africa''.
+# He has heard of ``Western Sahara Time'' for +0:00 but can find no reference.
 #
-# Here are the general rules I used for choosing location names,
-# in decreasing order of importance:
+# To make things confusing, `WAT' seems to have been used for -1:00 long ago;
+# I'd guess that this was because people needed _some_ name for -1:00,
+# and at the time, far west Africa was the only major land area in -1:00.
+# This usage is now obsolete, as the last use of -1:00 on the African
+# mainland seems to have been 1976 in Western Sahara.
 #
-#	Use only valid Posix file names.  Use only Ascii letters, digits, `.',
-#		`-' and `_'.  Do not exceed 14 characters or start with `-'.
-#		E.g. prefer `Brunei' to `Bandar_Seri_Begawan'.
-#	Include at least one location per time zone rule set per country.
-#		One such location is enough.
-#	If all the clocks in a country's region have agreed since 1970,
-#		don't bother to include more than one location
-#		even if subregions' clocks disagreed before 1970.
-#		Otherwise these tables would become annoyingly large.
-#	If a name is ambiguous, use a less ambiguous alternative;
-#		e.g. many cities are named San Jose and Georgetown, so
-#		prefer `Costa_Rica' to `San_Jose' and `Guyana' to `Georgetown'.
-#	Keep locations compact.  Use cities or small islands, not countries
-#		or regions, so that any future time zone changes do not split
-#		locations into different time zones.  E.g. prefer `Paris'
-#		to `France', since France has had multiple time zones.
-#	Use traditional English spelling, e.g. prefer `Rome' to `Roma', and
-#		prefer `Athens' to the true name (which uses Greek letters).
-#		The Posix file name restrictions encourage this rule.
-#	Use the most populous among locations in a country's time zone,
-#		e.g. prefer `Shanghai' to `Beijing'.  Among locations with
-#		similar populations, pick the best-known location,
-#		e.g. prefer `Rome' to `Milan'.
-#	Use the singular form, e.g. prefer `Canary' to `Canaries'.
-#	Omit common suffixes like `_Islands' and `_City', unless that
-#		would lead to ambiguity.  E.g. prefer `Cayman' to
-#		`Cayman_Islands' and `Guatemala' to `Guatemala_City',
-#		but prefer `Mexico_City' to `Mexico' because the country
-#		of Mexico has several time zones.
-#	Use `_' to represent a space.
-#	Omit `.' from abbreviations in names, e.g. prefer `St_Helena'
-#		to `St._Helena'.
+# To summarize, the following abbreviations seem to have some currency:
+#	-1:00	WAT	West Africa Time (no longer used)
+#	 0:00	GMT	Greenwich Mean Time
+#	 2:00	CAT	Central Africa Time
+#	 2:00	SAST	South Africa Standard Time
+# and Murray suggests the following abbreviation:
+#	 1:00	WAT	West Africa Time
+# I realize that this leads to `WAT' being used for both -1:00 and 1:00
+# for times before 1976, but this is the best I can think of
+# until we get more information.
 #
-# For time zone abbreviations like `EST' I used the following rules,
-# in decreasing order of importance:
-#
-#	Use abbreviations that consist of 3 or more upper-case Ascii letters,
-#		except use "___" for locations while uninhabited.
-#		Posix.1 requires at least 3 characters, and the restriction to
-#		upper-case Ascii letters follows most traditions.
-#		Previous editions of this database also used characters like
-#		' ' and '?', but these characters have a special meaning to
-#		the shell and cause commands like
-#			set `date`
-#		to have unexpected effects.  In theory, the character set could
-#		be !%./@A-Z^_a-z{}, but these tables use only upper-case
-#		Ascii letters (and "___").
-#	Use abbreviations that are in common use among English-speakers,
-#		e.g. `EST' for Eastern Standard Time in North America.
-#		We assume that applications translate them to other languages
-#		as part of the normal localization process; for example,
-#		a French application might translate `EST' to `HNE'.
-#	For zones whose times are taken from a city's longitude, use the
-#		traditional xMT notation, e.g. `PMT' for Paris Mean Time.
-#		The only name like this in current use is `GMT'.
-#	If there is no common English abbreviation, abbreviate the English
-#		translation of the usual phrase used by native speakers.
-#		If this is not available or is a phrase mentioning the country
-#		(e.g. ``Cape Verde Time''), then:
-#
-#		When a country has a single or principal time zone region,
-#			append `T' to the country's ISO	code, e.g. `CVT' for
-#			Cape Verde Time.  For summer time append `ST';
-#			for double summer time append `DST'; etc.
-#		When a country has multiple time zones, take the first three
-#			letters of an English place name identifying each zone
-#			and then append `T', `ST', etc. as before;
-#			e.g. `MOSST' for MOScow Summer Time.
-#
-#
-# For Africa I invented the following time zone abbreviations.
-#		LMT	Local Mean Time
-#	-1:00	AAT	Atlantic Africa Time (no longer used)
-#	 0:00	WAT	West Africa Time
-#	 1:00	CAT	Central Africa Time
-#	 2:00	SAT	South Africa Time
+# I invented the following abbreviations; corrections are welcome!
+#	 2:00	WAST	West Africa Summer Time
+#	 2:30	BEAT	British East Africa Time (no longer used)
+#	 2:45	BEAUT	British East Africa Unified Time (no longer used)
+#	 3:00	CAST	Central Africa Summer Time (no longer used)
+#	 3:00	SAST	South Africa Summer Time (no longer used)
 #	 3:00	EAT	East Africa Time
-# The final `T' is replaced by `ST' for summer time, e.g. `SAST'.
-# BEAT is British East Africa Time, which was 2:30 before 1948 and 2:45 after.
-
+#	 4:00	EAST	East Africa Summer Time (no longer used)
 
 # Algeria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -158,7 +103,7 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
 			0:52:04	-	LMT	1911 May 26 # Luanda Mean Time?
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Bassas da India
 # uninhabited
@@ -167,31 +112,31 @@ Zone	Africa/Luanda	0:52:56	-	LMT	1892
 # Whitman says they switched to 1:00 in 1946, not 1934; go with Shanks.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Porto-Novo	0:10:28	-	LMT	1912
-			0:00	-	WAT	1934 Feb 26
-			1:00	-	CAT
+			0:00	-	GMT	1934 Feb 26
+			1:00	-	WAT
 
 # Botswana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Gaborone	1:43:40 -	LMT	1885
-			2:00	-	SAT	1943 Sep 19 2:00
-			2:00	1:00	SAST	1944 Mar 19 2:00
-			2:00	-	SAT
+			2:00	-	CAT	1943 Sep 19 2:00
+			2:00	1:00	CAST	1944 Mar 19 2:00
+			2:00	-	CAT
 
 # Burkina Faso
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Ouagadougou	-0:06:04 -	LMT	1912
-			 0:00	-	WAT
+			 0:00	-	GMT
 
 # Burundi
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Bujumbura	1:57:28	-	LMT	1890
-			2:00	-	SAT
+			2:00	-	CAT
 
 # Cameroon
 # Whitman says they switched to 1:00 in 1920; go with Shanks.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Douala	0:38:48	-	LMT	1912
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Cape Verde
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -204,29 +149,36 @@ Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1907			# Praia
 # Central African Republic
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bangui	1:14:20	-	LMT	1912
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Chad
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Ndjamena	1:00:12 -	LMT	1912
-			1:00	-	CAT	1979 Oct 14
-			1:00	1:00	CAST	1980 Mar  8
-			1:00	-	CAT
+			1:00	-	WAT	1979 Oct 14
+			1:00	1:00	WAST	1980 Mar  8
+			1:00	-	WAT
 
 # Comoros
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Comoro	2:53:04 -	LMT	1911 Jul   # Moroni, Gran Comoro
 			3:00	-	EAT
 
-# Congo
+# Democratic Republic of Congo
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
+			1:00	-	WAT
+Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
+			2:00	-	CAT
+
+# Republic of the Congo
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Brazzaville	1:01:08 -	LMT	1912
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Cote D'Ivoire
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Abidjan	-0:16:08 -	LMT	1912
-			 0:00	-	WAT
+			 0:00	-	GMT
 
 # Djibouti
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -237,18 +189,6 @@ Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
 
 # Egypt
 
-# From Bob Devine (1988-01-28):
-# Egypt: DST from first day of May to first of October (ending may
-# also be on Sept 30th not 31st -- you might want to ask one of the
-# soc.* groups, you might hit someone who could ask an embassy).
-# DST since 1960 except for 1981-82.
-
-# From U. S. Naval Observatory (1989-01-19):
-# EGYPT               2 H  AHEAD OF UTC
-# EGYPT               3 H  AHEAD OF UTC  MAY 17 - SEP 30 (AFTER
-# EGYPT                                  RAMADAN)
-
-# From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Egypt	1940	only	-	Jul	15	0:00	1:00	S
 Rule	Egypt	1940	only	-	Oct	 1	0:00	0	-
@@ -263,16 +203,15 @@ Rule	Egypt	1957	1958	-	Oct	 1	0:00	0	-
 Rule	Egypt	1958	only	-	May	 1	0:00	1:00	S
 Rule	Egypt	1959	1981	-	May	 1	1:00	1:00	S
 Rule	Egypt	1959	1965	-	Sep	30	3:00	0	-
-Rule	Egypt	1966	1990	-	Oct	 1	3:00	0	-
+Rule	Egypt	1966	1994	-	Oct	 1	3:00	0	-
 Rule	Egypt	1982	only	-	Jul	25	1:00	1:00	S
 Rule	Egypt	1983	only	-	Jul	12	1:00	1:00	S
 Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
 Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
-Rule	Egypt	1990	only	-	May	 1	1:00	1:00	S
-Rule	Egypt	1991	1994	-	May	 1	0:00	1:00	S
-Rule	Egypt	1991	1994	-	Oct	 1	0:00	0	-
-Rule	Egypt	1995	max	-	Apr	lastFri	0:00	1:00	S
-Rule	Egypt	1995	max	-	Sep	lastFri	0:00	0	-
+Rule	Egypt	1990	1994	-	May	 1	1:00	1:00	S
+# IATA (after 1990) says transitions are at 0:00; go with Shanks.
+Rule	Egypt	1995	max	-	Apr	lastFri	1:00	1:00	S
+Rule	Egypt	1995	max	-	Sep	lastFri	3:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
@@ -281,20 +220,24 @@ Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
 # Equatorial Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Malabo	0:35:08 -	LMT	1912
-			0:00	-	WAT	1963 Dec 15
-			1:00	-	CAT
+			0:00	-	GMT	1963 Dec 15
+			1:00	-	WAT
 
 # Eritrea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Asmera	2:35:32 -	LMT	1870
 			2:35:32	-	AMT	1890	      # Asmera Mean Time
-			2:35:20	-	AAMT	1936 May 5    # Addis Ababa MT?
+			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
 			3:00	-	EAT
 
 # Ethiopia
+# From Paul Eggert (1997-10-05):
+# Shanks writes that Ethiopia had six narrowly-spaced time zones between
+# 1870 and 1890, and that they merged to 38E50 (2:35:20) in 1890.
+# We'll guess that 38E50 is for Adis Dera.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
-			2:35:20	-	AAMT	1936 May 5    # Addis Ababa MT?
+			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
 			3:00	-	EAT
 
 # Europa Island
@@ -303,23 +246,20 @@ Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
 # Gabon
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Libreville	0:37:48 -	LMT	1912
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Gambia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Banjul	-1:06:36 -	LMT	1912
 			-1:06:36 -	BMT	1935	# Banjul Mean Time
-			-1:00	-	AAT	1964
-			 0:00	-	WAT
+			-1:00	-	WAT	1964
+			 0:00	-	GMT
 
 # Ghana
-# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
-# WATST is my invention for ``West Africa one-Third Summer Time''.
-# From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Whitman says DST was observed from 1931 to ``the present''; go with Shanks.
-Rule	Ghana	1936	1942	-	Sep	 1	0:00	0:20	WATST
-Rule	Ghana	1936	1942	-	Dec	31	0:00	0	WAT
+Rule	Ghana	1936	1942	-	Sep	 1	0:00	0:20	GHST
+Rule	Ghana	1936	1942	-	Dec	31	0:00	0	GMT
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Accra	-0:00:52 -	LMT	1918
 			 0:00	Ghana	%s
@@ -330,35 +270,33 @@ Zone	Africa/Accra	-0:00:52 -	LMT	1918
 # Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Conakry	-0:54:52 -	LMT	1912
-			 0:00	-	WAT	1934 Feb 26
-			 1:00	-	CAT	1960
-			 0:00	-	WAT
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	WAT	1960
+			 0:00	-	GMT
 
 # Guinea-Bissau
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
-			 1:00	-	CAT	1975
-			 0:00	-	WAT
+			-1:00	-	WAT	1975
+			 0:00	-	GMT
 
 # Juan de Nova
 # uninhabited
 
 # Kenya
-# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
-# Shanks says the transition to 2:45 was in 1940, but it must have been 1948.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
 			3:00	-	EAT	1930
-			2:30	-	BEAT	1948
-			2:45	-	BEAT	1960
+			2:30	-	BEAT	1940
+			2:45	-	BEAUT	1960
 			3:00	-	EAT
 
 # Lesotho
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
-			2:00	-	SAT	1943 Sep 19 2:00
+			2:00	-	SAST	1943 Sep 19 2:00
 			2:00	1:00	SAST	1944 Mar 19 2:00
-			2:00	-	SAT
+			2:00	-	SAST
 
 # Liberia
 # From Paul Eggert <eggert@twinsun.com> (1993-11-18):
@@ -369,25 +307,17 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 # For Liberia before 1972, Shanks reports -0:44, whereas Howse and Whitman
 # each report -0:44:30; go with the more precise figure.
 #
-# From Shanks (1991), as corrected by Whitman:
+# From Shanks, as corrected by Whitman:
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 			-0:43:08 -	MMT	1919 Mar # Monrovia Mean Time
 			-0:44:30 -	LRT	1972 May # Liberia Time
-			 0:00	-	WAT
+			 0:00	-	GMT
 
 ###############################################################################
 
 # Libya
 
-# From Bob Devine (January 28 1988):
-# Libya: Since 1982 April 1st to September 30th (?)
-
-# From U. S. Naval Observatory (1989-01-19):
-# LIBYAN ARAB         1 H  AHEAD OF UTC  JAMAHIRIYA/LIBYA
-# LIBYAN ARAB         2 H  AHEAD OF UTC  APR 1 - SEP 30 JAMAHIRIYA/LIBYA
-
-# From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Libya	1951	only	-	Oct	14	2:00	1:00	S
 Rule	Libya	1952	only	-	Jan	 1	0:00	0	-
@@ -403,8 +333,10 @@ Rule	Libya	1986	only	-	Oct	 3	0:00	0	-
 Rule	Libya	1987	1989	-	Apr	 1	0:00	1:00	S
 Rule	Libya	1987	1990	-	Oct	 1	0:00	0	-
 Rule	Libya	1990	only	-	May	 4	0:00	1:00	S
-Rule	Libya	1996	max	-	Mar	30	2:00s	1:00	S
-Rule	Libya	1996	max	-	Sep	30	2:00s	0	-
+Rule	Libya	1996	only	-	Mar	30	2:00s	1:00	S
+Rule	Libya	1996	only	-	Sep	30	2:00s	0	-
+Rule	Libya	1997	max	-	Mar	lastThu	2:00s	1:00	S
+Rule	Libya	1997	max	-	Oct	Thu>=1	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			1:00	Libya	CE%sT	1959
@@ -423,24 +355,24 @@ Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
 # Malawi
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
-			2:00	-	SAT
+			2:00	-	CAT
 
 # Mali
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Bamako	-0:32:00 -	LMT	1912
-			 0:00	-	WAT	1934 Feb 26
-			-1:00	-	AAT	1960 Jun 20
-			 0:00	-	WAT
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	WAT	1960 Jun 20
+			 0:00	-	GMT
 # no longer different from Bamako, but too famous to omit
 Zone	Africa/Timbuktu	-0:12:04 -	LMT	1912
-			 0:00	-	WAT
+			 0:00	-	GMT
 
 # Mauritania
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
-			 0:00	-	WAT	1934 Feb 26
-			-1:00	-	AAT	1960 Jun 20
-			 0:00	-	WAT
+			 0:00	-	GMT	1934 Feb 26
+			-1:00	-	WAT	1960 Nov 28
+			 0:00	-	GMT
 
 # Mauritius
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -455,6 +387,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 			3:00	-	EAT
 
 # Morocco
+# See the `europe' file for Spanish Morocco (Africa/Ceuta).
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	S
 Rule	Morocco	1939	only	-	Nov	19	 0:00	0	-
@@ -478,36 +411,40 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 			 0:00	-	WET
 # Western Sahara
 Zone Africa/El_Aaiun	-0:52:48 -	LMT	1934 Jan
-			-1:00	-	AAT	1976 Apr 14
+			-1:00	-	WAT	1976 Apr 14
 			 0:00	-	WET
 
 # Mozambique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
-			2:00	-	SAT
+			2:00	-	CAT
 
 # Namibia
+# Shanks says DST transitions are at 0:00; go with IATA.
+# The 1994-04-03 transition is from Shanks.
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Namibia	1994	max	-	Sep	Sun>=1	2:00	1:00	S
 Rule	Namibia	1995	max	-	Apr	Sun>=1	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Windhoek	1:08:24 -	LMT	1892 Feb 8
 			1:30	-	SWAT	1903 Mar	# SW Africa Time
-			2:00	-	SAT	1942 Sep 20 2:00
+			2:00	-	SAST	1942 Sep 20 2:00
 			2:00	1:00	SAST	1943 Mar 21 2:00
-			2:00	Namibia	SA%sT
+			2:00	-	SAST	1990 Mar 21 # independence
+			2:00	-	CAT	1994 Apr  3
+			1:00	Namibia	WA%sT
 
 # Niger
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Niamey	0:08:28 -	LMT	1912
-			1:00	-	CAT	1934 Feb 26
-			0:00	-	WAT	1960
-			1:00	-	CAT
+Zone	Africa/Niamey	 0:08:28 -	LMT	1912
+			-1:00	-	WAT	1934 Feb 26
+			 0:00	-	GMT	1960
+			 1:00	-	WAT
 
 # Nigeria
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lagos	0:13:36 -	LMT	1919 Sep
-			1:00	-	CAT
+			1:00	-	WAT
 
 # Reunion
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -517,29 +454,33 @@ Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
 # Rwanda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
-			2:00	-	SAT
+			2:00	-	CAT
 
 # St Helena
+# From Paul Eggert (1997-10-05):
+# Shanks says St Helena was 1W26 (-0:05:44) from 1890 to 1951,
+# but this is most likely a typo for 5W42, the longitude of Jamestown.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
-			-0:06	-	SHT	1951	# St Helena Time (?)
+			-0:22:48 -	JMT	1951	# Jamestown Mean Time
 			 0:00	-	GMT
 # The other parts of the St Helena territory are similar:
-#	Tristan da Cunha: on GMT, says Whitman
-#	Ascension: on GMT, says usno1995
-#	Gough, Inaccessible, Nightingale: no information, but probably GMT
+#	Tristan da Cunha: on GMT, say Whitman and the CIA
+#	Ascension: on GMT, says usno1995 and the CIA
+#	Gough (scientific station since 1955): on GMT, says the CIA
+#	Inaccessible, Nightingale: no information, but probably GMT
 
 # Sao Tome and Principe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
 			-0:36:32 -	LMT	1912	# Lisbon Mean Time
-			 0:00	-	WAT
+			 0:00	-	GMT
 
 # Senegal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Dakar	-1:09:44 -	LMT	1912
-			-1:00	-	AAT	1941 Jun
-			 0:00	-	WAT
+			-1:00	-	WAT	1941 Jun
+			 0:00	-	GMT
 
 # Seychelles
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -549,35 +490,36 @@ Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Whitman gives Mar 31 - Aug 31 for 1931 on; go with Shanks.
-Rule	SL	1935	1942	-	Jun	 1	0:00	1:00	S
-Rule	SL	1935	1942	-	Oct	 1	0:00	0	-
-Rule	SL	1957	1962	-	Jun	 1	0:00	1:00	S
-Rule	SL	1957	1962	-	Sep	 1	0:00	0	-
+Rule	SL	1935	1942	-	Jun	 1	0:00	0:40	SLST
+Rule	SL	1935	1942	-	Oct	 1	0:00	0	WAT
+Rule	SL	1957	1962	-	Jun	 1	0:00	1:00	SLST
+Rule	SL	1957	1962	-	Sep	 1	0:00	0	GMT
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Freetown	-0:53:00 -	LMT	1882
 			-0:53:00 -	FMT	1913 Jun # Freetown Mean Time
-			-1:00	SL	AA%sT	1957
-			 0:00	SL	WA%sT
+			-1:00	SL	%s	1957
+			 0:00	SL	%s
 
 # Somalia
-# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
-# Shanks omits the 1948 transition to 2:45; this is probably a typo.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
 			3:00	-	EAT	1931
-			2:30	-	BEAT	1948
-			2:45	-	BEAT	1957	# not in Shanks
+			2:30	-	BEAT	1957
 			3:00	-	EAT
 
 # South Africa
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	SA	1942	1943	-	Sep	Sun>=15	2:00	1:00	S
+Rule	SA	1942	1943	-	Sep	Sun>=15	2:00	1:00	-
 Rule	SA	1943	1944	-	Mar	Sun>=15	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
-			1:30	-	SAT	1903 Mar
-			2:00	SA	SA%sT
-# Prince Edward Is
+			1:30	-	SAST	1903 Mar
+			2:00	SA	SAST
+# Shanks erroneously claims that most of South Africa switched to 1:00
+# on 1994-04-03 at 00:00.
+#
+# Marion and Prince Edward Is
+# weather station since 1947
 # no information
 
 # Sudan
@@ -592,24 +534,24 @@ Rule	Sudan	1971	only	-	Apr	30	0:00	1:00	S
 Rule	Sudan	1972	1985	-	Apr	lastSun	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Khartoum	2:10:08 -	LMT	1931
-			2:00	Sudan	EE%sT
+			2:00	Sudan	CA%sT
 
 # Swaziland
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
-			2:00	-	SAT
+			2:00	-	SAST
 
 # Tanzania
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 			3:00	-	EAT	1948
-			2:45	-	BEAT	1961
+			2:45	-	BEAUT	1961
 			3:00	-	EAT
 
 # Togo
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lome	0:04:52 -	LMT	1893
-			0:00	-	WAT
+			0:00	-	GMT
 
 # Tromelin
 # uninhabited
@@ -649,22 +591,15 @@ Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
 Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 			3:00	-	EAT	1930
 			2:30	-	BEAT	1948
-			2:45	-	BEAT	1957
+			2:45	-	BEAUT	1957
 			3:00	-	EAT
-
-# Zaire
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
-			1:00	-	CAT
-Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
-			2:00	-	SAT
 
 # Zambia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lusaka	1:53:08 -	LMT	1903 Mar
-			2:00	-	SAT
+			2:00	-	CAT
 
 # Zimbabwe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Harare	2:04:12 -	LMT	1903 Mar
-			2:00	-	SAT
+			2:00	-	CAT

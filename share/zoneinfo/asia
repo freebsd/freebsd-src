@@ -1,4 +1,4 @@
-# @(#)asia	7.26
+# @(#)asia	7.30
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -214,28 +214,6 @@ Zone	Asia/Kashgar	5:03:56	-	LMT	1928
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
 			8:00	PRC	C%sT
-
-###############################################################################
-
-# Republic of China
-
-# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Taiwan	1945	1951	-	May	1	0:00	1:00	D
-Rule	Taiwan	1945	1951	-	Oct	1	0:00	0	S
-Rule	Taiwan	1952	only	-	Mar	1	0:00	1:00	D
-Rule	Taiwan	1952	1954	-	Nov	1	0:00	0	S
-Rule	Taiwan	1953	1959	-	Apr	1	0:00	1:00	D
-Rule	Taiwan	1955	1961	-	Oct	1	0:00	0	S
-Rule	Taiwan	1960	1961	-	Jun	1	0:00	1:00	D
-Rule	Taiwan	1974	1975	-	Apr	1	0:00	1:00	D
-Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
-Rule	Taiwan	1980	only	-	Jun	30	0:00	1:00	D
-Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Taipei	8:06:00 -	LMT	1896
-			8:00	Taiwan	C%sT
-
-###############################################################################
 # Hong Kong
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
@@ -257,6 +235,27 @@ Rule	HK	1979	1980	-	Oct	Sun>=16	3:30	0	-
 Zone	Asia/Hong_Kong	7:36:36 -	LMT	1904 Oct 30
 			8:00	HK	HK%sT	1997 Jul  1 # return to China
 			8:00	PRC	C%sT
+
+
+###############################################################################
+
+# Republic of China
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Taiwan	1945	1951	-	May	1	0:00	1:00	D
+Rule	Taiwan	1945	1951	-	Oct	1	0:00	0	S
+Rule	Taiwan	1952	only	-	Mar	1	0:00	1:00	D
+Rule	Taiwan	1952	1954	-	Nov	1	0:00	0	S
+Rule	Taiwan	1953	1959	-	Apr	1	0:00	1:00	D
+Rule	Taiwan	1955	1961	-	Oct	1	0:00	0	S
+Rule	Taiwan	1960	1961	-	Jun	1	0:00	1:00	D
+Rule	Taiwan	1974	1975	-	Apr	1	0:00	1:00	D
+Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
+Rule	Taiwan	1980	only	-	Jun	30	0:00	1:00	D
+Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Asia/Taipei	8:06:00 -	LMT	1896
+			8:00	Taiwan	C%sT
 
 # Macao
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -354,6 +353,26 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 			9:00	-	JAYT
 
 # Iran
+# From Paul Eggert (1996-12-17), following up a suggestion by Rich Wales:
+# Ahmad Alavi <URL:http://tehran.stanford.edu/Iran_Lib/Calendar/taghveem.txt>
+# (1993-08-04) writes ``Daylight saving time in Iran starts from the first day
+# of Farvardin and ends the first day of Mehr.''  This disagrees with the SSIM:
+#
+#		   DST start	   DST end
+#	year	SSIM	Alavi	SSIM	Alavi
+#	1991	05-03!=	03-21	09-20!=	09-23
+#	1992	03-22!=	03-21	09-23	09-23
+#	1993	03-21	03-21	09-23	09-23
+#	1994	03-21	03-21	09-22!= 09-23
+#	1995	03-21	03-21	09-22!= 09-23
+#	1996	03-21!=	03-20	09-21!= 09-22
+#	1997	03-21	03-21	09-21!= 09-23
+#
+# Go with Alavi starting with 1992.
+# I used Ed Reingold's cal-persia in GNU Emacs 19.34 to compute Persian dates.
+# The Persian calendar is based on the sun, and dates after around 2050
+# are approximate; stop after 2037 when 32-bit time_t's overflow.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	S
 Rule	Iran	1978	only	-	Oct	21	0:00	0	-
@@ -361,11 +380,50 @@ Rule	Iran	1979	only	-	Sep	19	0:00	0	-
 Rule	Iran	1980	only	-	Sep	23	0:00	0	-
 Rule	Iran	1991	only	-	May	 3	0:00s	1:00	S
 Rule	Iran	1991	only	-	Sep	20	0:00s	0	-
-Rule	Iran	1992	only	-	Mar	22	0:00	1:00	S
-Rule	Iran	1992	1993	-	Sep	23	0:00	0	-
-Rule	Iran	1993	max	-	Mar	21	0:00	1:00	S
-Rule	Iran	1994	1995	-	Sep	22	0:00	0	-
-Rule	Iran	1996	max	-	Sep	21	0:00	0	-
+Rule	Iran	1992	1995	-	Mar	21	0:00	1:00	S
+Rule	Iran	1992	1995	-	Sep	23	0:00	0	-
+Rule	Iran	1996	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	1996	only	-	Sep	22	0:00	0	-
+Rule	Iran	1997	1999	-	Mar	21	0:00	1:00	S
+Rule	Iran	1997	1999	-	Sep	23	0:00	0	-
+Rule	Iran	2000	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2000	only	-	Sep	22	0:00	0	-
+Rule	Iran	2001	2003	-	Mar	21	0:00	1:00	S
+Rule	Iran	2001	2003	-	Sep	23	0:00	0	-
+Rule	Iran	2004	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2004	only	-	Sep	22	0:00	0	-
+Rule	Iran	2005	2007	-	Mar	21	0:00	1:00	S
+Rule	Iran	2005	2007	-	Sep	23	0:00	0	-
+Rule	Iran	2008	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2008	only	-	Sep	22	0:00	0	-
+Rule	Iran	2009	2011	-	Mar	21	0:00	1:00	S
+Rule	Iran	2009	2011	-	Sep	23	0:00	0	-
+Rule	Iran	2012	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2012	only	-	Sep	22	0:00	0	-
+Rule	Iran	2013	2015	-	Mar	21	0:00	1:00	S
+Rule	Iran	2013	2015	-	Sep	23	0:00	0	-
+Rule	Iran	2016	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2016	only	-	Sep	22	0:00	0	-
+Rule	Iran	2017	2019	-	Mar	21	0:00	1:00	S
+Rule	Iran	2017	2019	-	Sep	23	0:00	0	-
+Rule	Iran	2020	only	-	Mar	20	0:00	1:00	S
+Rule	Iran	2020	only	-	Sep	22	0:00	0	-
+Rule	Iran	2021	2023	-	Mar	21	0:00	1:00	S
+Rule	Iran	2021	2023	-	Sep	23	0:00	0	-
+Rule	Iran	2024	2025	-	Mar	20	0:00	1:00	S
+Rule	Iran	2024	2025	-	Sep	22	0:00	0	-
+Rule	Iran	2026	2027	-	Mar	21	0:00	1:00	S
+Rule	Iran	2026	2027	-	Sep	23	0:00	0	-
+Rule	Iran	2028	2029	-	Mar	20	0:00	1:00	S
+Rule	Iran	2028	2029	-	Sep	22	0:00	0	-
+Rule	Iran	2030	2031	-	Mar	21	0:00	1:00	S
+Rule	Iran	2030	2031	-	Sep	23	0:00	0	-
+Rule	Iran	2032	2033	-	Mar	20	0:00	1:00	S
+Rule	Iran	2032	2033	-	Sep	22	0:00	0	-
+Rule	Iran	2034	2035	-	Mar	21	0:00	1:00	S
+Rule	Iran	2034	2035	-	Sep	23	0:00	0	-
+Rule	Iran	2036	2037	-	Mar	20	0:00	1:00	S
+Rule	Iran	2036	2037	-	Sep	22	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1946	# Tehran Mean Time
@@ -447,8 +505,8 @@ Rule	Zion	1987	only	-	Sep	13	0:00	0	S
 Rule	Zion	1988	only	-	Apr	 9	0:00	1:00	D
 Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 
-# From Ephraim Silverberg (1996-01-02):
-#
+# From Ephraim Silverberg (ephraim@cs.huji.ac.il), 1997-03-04:
+
 # According to the Office of the Secretary General of the Ministry of
 # Interior, there is NO set rule for Daylight-Savings/Standard time changes.
 # Each year they decide anew what havoc to wreak on the country.  However,
@@ -457,11 +515,11 @@ Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 # government, the phase of the moon and the direction of the wind.  Hence,
 # changes may need to be made on a semi-annual basis.  One thing is entrenched
 # in law, however: that there must be at least 150 days of daylight savings
-# time annually.  Ever since 1993, the change to daylight savings time has
-# been from midnight Thursday night to 1 a.m. Friday morning and the change
-# back to standard time on Saturday night from midnight daylight savings time
+# time annually.  Ever since 1993, the change to daylight savings time is
+# on a Thursday night from midnight IST to 1 a.m IDT.  The change back to
+# standard time is on a Saturday night from midnight daylight savings time
 # to 11 p.m. standard time.  1996 is an exception to this rule where the
-# change back to standard time takes place on Sunday night instead of Saturday
+# change back to standard time took place on Sunday night instead of Saturday
 # night to avoid conflicts with the Jewish New Year.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -478,34 +536,41 @@ Rule	Zion	1993	only	-	Sep	 5	0:00	0	S
 
 # The dates for 1994-1995 were obtained from Office of the Spokeswoman for the
 # Ministry of Interior, Jerusalem, Israel.  The spokeswoman can be reached by
-# calling the switchboard at 972-2-701411 and asking for the spokeswoman.
+# calling the office directly at 972-2-6701447 or 972-2-6701448.
 
-# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
 Rule	Zion	1994	only	-	Apr	 1	0:00	1:00	D
 Rule	Zion	1994	only	-	Aug	28	0:00	0	S
 Rule	Zion	1995	only	-	Mar	31	0:00	1:00	D
 Rule	Zion	1995	only	-	Sep	 3	0:00	0	S
 
-# The dates for 1996-1998 were also obtained from Office of the Spokeswoman
-# for the Ministry of Interior, Jerusalem, Israel.  The official announcement
-# can be viewed (in Hebrew) at the following URL:
+# The dates for 1996 were determined by the Minister of Interior of the
+# time, Haim Ramon.  The official announcement regarding 1996-1998
+# (with the dates for 1997 no longer being relevant) can be viewed at:
 #
-#   ftp://ftp.huji.ac.il/pub/misc/timezones/announcements/1996-1998.ps.gz
+#   ftp://ftp.huji.ac.il/pub/tz/announcements/1996-1998.ramon.ps.gz
 #
-# Emptor Caveat: The dates for the years 1996-1998 were originally announced
-# on 1995-08-31, by the previous Minister of Interior.  The new Minister
-# of Interior changed the dates on 1996-01-01, to take into account the
-# desires of certain portions of Israeli society (the next election is in the
-# Fall of 1996).  After this (1996) year's Daylight Savings Time is over, the
-# new minister has announced that a study will be conducted as to the wishes of
-# the populace regarding the length of Daylight Savings Time and the Interior
-# Committee will meet to review the results of the study and make any necessary
-# changes to the 1997-1998 dates.  Never a dull moment in the State of Israel.
+# The dates for 1997 were altered by his successor, Rabbi Eli Suissa.
+# No changes have been made regarding 1998 as of yet.
+#
+# The official announcement for the year 1997 can be viewed at:
+#
+#   ftp://ftp.huji.ac.il/pub/tz/announcements/1997.ps.gz
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Zion	1996	1998	-	Mar	Fri>=14	0:00	1:00	D
+Rule	Zion	1996	only	-	Mar	15	0:00	1:00	D
 Rule	Zion	1996	only	-	Sep	16	0:00	0	S
-Rule	Zion	1997	1998	-	Oct	Sun>=14	0:00	0	S
+Rule	Zion	1997	only	-	Mar	21	0:00	1:00	D
+Rule	Zion	1997	only	-	Sep	14	0:00	0	S
+Rule	Zion	1998	only	-	Mar	20	0:00	1:00	D
+Rule	Zion	1998	only	-	Oct	18	0:00	0	S
+
+# From Paul Eggert (1997-03-15):
+# Here are guesses for rules after 1998.
+# They are probably wrong, but they are more likely than no DST at all.
+# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
+Rule	Zion	1999	max	-	Mar	Fri>=15	0:00	1:00	D
+Rule	Zion	1999	max	-	Sep	Sun>=15	0:00	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
@@ -722,7 +787,8 @@ Rule	Mongol	1985	1990	-	Mar	lastSun	2:00	1:00	S
 Rule	Mongol	1985	1990	-	Sep	lastSun	3:00	0	-
 Rule	Mongol	1991	max	-	Mar	lastSun	0:00	1:00	S
 Rule	Mongol	1991	1995	-	Sep	lastSun	0:00	0	-
-Rule	Mongol	1996	max	-	Oct	Fri>=22	0:00	0	-
+Rule	Mongol	1996	only	-	Oct	Fri>=22	0:00	0	-
+Rule	Mongol	1997	max	-	Sep	lastSun	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #Zone	Asia/Dariv	6:14:32 -	LMT	1905 Aug
 #			6:00	-	DART	1978	# Dariv Time
@@ -821,6 +887,11 @@ Zone	Asia/Singapore	6:55:24 -	LMT	1880
 # reported ``the country's standard time will be put forward by one hour at
 # midnight Friday (1830 GMT) `in the light of the present power crisis'.''
 # Transitions before 1996 are from Shanks (1991).
+#
+# From Dharmasiri Senanayake, Sri Lanka Media Minister (1996-10-24), as quoted
+# in <URL:news:54rka5$m5h@mtinsc01-mgt.ops.worldnet.att.net> (1996-10-26):
+# With effect from 12.30 a.m. on 26th October 1996
+# Sri Lanka will be six (06) hours ahead of GMT.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Colombo	5:19:24 -	LMT	1880
@@ -829,7 +900,8 @@ Zone	Asia/Colombo	5:19:24 -	LMT	1880
 			5:30	0:30	IHST	1942 Sep
 			5:30	1:00	IST	1945 Oct 16 2:00
 			5:30	-	IST	1996 May 25 0:00
-			6:30	-	LKT	# Sri Lanka Time
+			6:30	-	LKT	1996 Oct 26 0:30
+			6:00	-	LKT
 
 # Syria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
