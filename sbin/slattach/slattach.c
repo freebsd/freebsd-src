@@ -424,9 +424,6 @@ void configure_network()
                 syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
                 exit_handler(1);
         }
-	/* don't compare unit numbers if this is the first time to attach. */
-	if (unit < 0)
-		unit = new_unit;
 	/* iff the unit number changes either invoke config_cmd or punt. */
 	if (config_cmd) {
 		char *s;
@@ -438,6 +435,9 @@ void configure_network()
 		free (s);
 		unit = new_unit;
 	} else {
+		/* don't compare unit numbers if this is the first time to attach. */
+		if (unit < 0)
+			unit = new_unit;
 		if (new_unit != unit) {
 			syslog(LOG_ERR, "slip unit changed from sl%d to sl%d, but no -u CMD was specified!");
 			exit_handler(1);
