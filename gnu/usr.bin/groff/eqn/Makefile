@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1998/03/20 12:03:53 bde Exp $
 
 PROG=		eqn
 SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \
@@ -12,7 +12,7 @@ CLEANFILES=	eqn.cc eqn.tab.h ${MAN1} neqn y.tab.c y.tab.h
 
 all: neqn
 
-beforeinstall: neqn
+beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
 	    ${DESTDIR}${BINDIR}
 
