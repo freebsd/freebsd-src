@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.41 1994/09/09 22:12:36 csgr Exp $
+#	$Id: GENERICAH,v 1.42 1994/09/16 20:14:00 wollman Exp $
 #
 
 machine		"i386"
@@ -49,7 +49,6 @@ controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
 controller	scbus0
 
-#device		pci0	at isa? bio irq 9 vector pciintr
 device		pci0
 device		ncr0
 
