@@ -59,24 +59,14 @@ enum eisa_device_ivars {
 /*
  * Simplified accessors for isa devices
  */
-#define EISA_ACCESSOR(A, B, T)						 \
-									 \
-static __inline T eisa_get_ ## A(device_t dev)				 \
-{									 \
-	uintptr_t v;							 \
-	BUS_READ_IVAR(device_get_parent(dev), dev, EISA_IVAR_ ## B, &v); \
-	return (T) v;							 \
-}									 \
-									 \
-static __inline void eisa_set_ ## A(device_t dev, T t)			 \
-{									 \
-	u_long v = (u_long) t;						 \
-	BUS_WRITE_IVAR(device_get_parent(dev), dev, EISA_IVAR_ ## B, v); \
-}
+#define EISA_ACCESSOR(var, ivar, type)					 \
+	__BUS_ACCESSOR(eisa, var, EISA, ivar, type)
 
 EISA_ACCESSOR(slot, SLOT, int)
 EISA_ACCESSOR(id, ID, eisa_id_t)
 EISA_ACCESSOR(irq, IRQ, eisa_id_t)
+
+#undef EISA_ACCESSOR
 
 int eisa_add_intr(device_t, int, int);
 
