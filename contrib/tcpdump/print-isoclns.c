@@ -19,11 +19,17 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Original code by Matt Thomas, Digital Equipment Corporation
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-isoclns.c,v 1.15 96/12/31 21:27:41 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.16 1999/11/21 09:36:55 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>

@@ -19,6 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Hacked version of print-ether.c  Larry Lile <lile@stdio.com>
+ *
+ * $FreeBSD$
  */
 #ifndef lint
 static const char rcsid[] =
@@ -107,7 +109,7 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_int length = h->len;
 	struct token_header *tp;
 	u_short ether_type;
-	extern u_short extracted_ethertype;
+	u_short extracted_ethertype;
         u_int route_len = 0, seg;
         struct llc *lp;
 

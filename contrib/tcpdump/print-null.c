@@ -17,11 +17,17 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-null.c,v 1.24 97/05/28 12:52:47 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.30 1999/12/22 06:27:21 itojun Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -44,11 +50,14 @@ struct rtentry;
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -79,6 +88,12 @@ null_print(const u_char *p, const struct ip *ip, u_int length)
 	case AF_INET:
 		printf("ip: ");
 		break;
+
+#ifdef INET6
+	case AF_INET6:
+		printf("ip6: ");
+		break;
+#endif
 
 	case AF_NS:
 		printf("ns: ");
@@ -114,7 +129,19 @@ null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	if (eflag)
 		null_print(p, ip, length);
 
-	ip_print((const u_char *)ip, length);
+	switch (ip->ip_v) {
+	case 4:
+		ip_print((const u_char *)ip, length);
+		break;
+#ifdef INET6
+	case 6:
+		ip6_print((const u_char *)ip, length);
+		break;
+#endif /* INET6 */
+	default:
+		printf("ip v%d", ip->ip_v);
+		break;
+	}
 
 	if (xflag)
 		default_print((const u_char *)ip, caplen - NULL_HDRLEN);
