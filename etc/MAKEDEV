@@ -179,8 +179,11 @@ dkminor()
 # Override mknod(2) to add extra handling to it.
 mknod() {
 	rm -f "$1" || exit 1
-	/sbin/mknod "$@" || die 2 "/sbin/mknod $@ failed"
-	chown root:wheel "$1" || exit 1
+	case $# in 
+	4) /sbin/mknod "$@" root:wheel || die 2 "/sbin/mknod $@ failed";;
+	5) /sbin/mknod "$@"            || die 2 "/sbin/mknod $@ failed";;
+	*) die 2 "bad node: mknod $@";;
+	esac
 }
 
 # Convert tape (ctrl, unit, mode, access) to minor number
@@ -307,7 +310,6 @@ std)
 			i=$(($i + 1))
 		done
 	)
-	chown -R root:wheel fd
 	chmod 555 fd
 	chmod 666 fd/*
 	;;
@@ -631,8 +633,7 @@ xpt*)
 	while [ $i -lt $units ]; do
 		dname=$name$i
 		rm -rf $dname r$dname
-		mknod $dname c $chr $i
-		chown root:operator $dname
+		mknod $dname c $chr $i root:operator
 		i=$(($i + 1))
 	done	
 	;;
@@ -650,8 +651,7 @@ pass*|uk*)
 	while [ $i -lt $units ]; do
 		dname=$name$i
 		rm -rf $dname r$dname
-		mknod $dname c $chr $i
-		chown root:operator $dname
+		mknod $dname c $chr $i root:operator
 		i=$(($i + 1))
 	done	
 	;;
@@ -768,11 +768,10 @@ acd*|cd*|mcd*|scd*)
 		while [ $i -lt $units ]; do
 			dname=$name$i
 			rm -rf ${dname}* r${dname}*
-			mknod ${dname}a c $chr $(($i * 8))
-			mknod ${dname}c c $chr $(($i * 8 + 2))
-			mknod r${dname}a c $chr $(($i * 8))
-			mknod r${dname}c c $chr $(($i * 8 + 2))
-			chown root:operator ${dname}* r${dname}*
+			mknod ${dname}a c $chr $(($i * 8)) root:operator
+			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
+			mknod r${dname}a c $chr $(($i * 8)) root:operator
+			mknod r${dname}c c $chr $(($i * 8 + 2)) root:operator
 			i=$(($i + 1))
 		done
 	else
@@ -944,10 +943,9 @@ cuaa?|cua?)
 	umask 7
 	unit=`expr $i : 'cua.*\(.\)$'`
 	m=`ttyminor $unit`
-	mknod cuaa$unit c 28 `expr $m + 128`
-	mknod cuaia$unit c 28 `expr $m + 32 + 128`
-	mknod cuala$unit c 28 `expr $m + 64 + 128`
-	chown uucp:dialer cua*a$unit
+	mknod cuaa$unit c 28 `expr $m + 128` uucp:dialer
+	mknod cuaia$unit c 28 `expr $m + 32 + 128` uucp:dialer
+	mknod cuala$unit c 28 `expr $m + 64 + 128` uucp:dialer
 	umask 77
 	;;
 
@@ -970,10 +968,9 @@ cuac?)
 		minor=`ttyminor $unit`
 		minor=`expr $card \* 65536 + $minor`
 		name=$card$unit
-		mknod cuac$name c $major `expr $minor + 128`
-		mknod cuaic$name c $major `expr $minor + 32 + 128`
-		mknod cualc$name c $major `expr $minor + 64 + 128`
-		chown uucp:dialer cuac$name cuaic$name cualc$name
+		mknod cuac$name c $major `expr $minor + 128` uucp:dialer
+		mknod cuaic$name c $major `expr $minor + 32 + 128` uucp:dialer
+		mknod cualc$name c $major `expr $minor + 64 + 128` uucp:dialer
 	done
 	umask 77
 	;;
@@ -1000,8 +997,7 @@ cuam?)
 	umask 7
 	unit=`expr $i : 'cua.*\(.\)$'`
 	m=`ttyminor $unit`
-	mknod cuam$unit c 63 `expr $m + 128`
-	chown uucp:dialer cuam$unit
+	mknod cuam$unit c 63 `expr $m + 128` uucp:dialer
 	umask 77
 	;;
 
@@ -1038,10 +1034,9 @@ cuaA*)
 	while [ $port -le $nports ]; do
 		minor=`expr $port - 1`
 		name=`expr $port + 1000 | cut -c 3-4`
-		mknod cuaA$name c $major `expr $minor + 128`
-		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
-		mknod cualA$name c $major `expr $minor + 128 + 131072`
-		chown uucp:dialer cuaA$name cuaiA$name cualA$name
+		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
+		mknod cuaiA$name c $major `expr $minor + 128 + 65536` uucp:dialer
+		mknod cualA$name c $major `expr $minor + 128 + 131072` uucp:dialer
 		port=$(($port + 1))
 	done
 	umask 77
@@ -1081,10 +1076,9 @@ cuaD?)
 		minor=`ttyminor $unit`
 		minor=`expr $card \* 65536 + $minor`
 		name=$card$unit
-		mknod cuaD$name c $major `expr $minor + 128`
-		mknod cuaiD$name c $major `expr $minor + 32 + 128`
-		mknod cualD$name c $major `expr $minor + 64 + 128`
-		chown uucp:dialer cua*D$name
+		mknod cuaD$name c $major `expr $minor + 128` uucp:dialer
+		mknod cuaiD$name c $major `expr $minor + 32 + 128` uucp:dialer
+		mknod cualD$name c $major `expr $minor + 64 + 128` uucp:dialer
 	done
 	umask 77
 	;;
@@ -1109,7 +1103,6 @@ ttyM*)
 			mknod ttyM$name c $major $minor
 			mknod ttyiM$name c $major `expr $minor + 64`
 			mknod ttylM$name c $major `expr $minor + 128`
-			chown root:wheel tty*M$name
 		done
 	done
 	;;
@@ -1132,10 +1125,9 @@ cuaM?)
 			minor=`expr $card \* 65536 + $minor + $moduleminor`
 			name=$card$modulename$unit
 			rm -f cua*M$name
-			mknod cuaM$name c $major `expr $minor + 262144`
-			mknod cuaiM$name c $major `expr $minor + 64 + 262144`
-			mknod cualM$name c $major `expr $minor + 128 + 262144`
-			chown uucp:dialer cua*M$name
+			mknod cuaM$name c $major `expr $minor + 262144` uucp:dialer
+			mknod cuaiM$name c $major `expr $minor + 64 + 262144` uucp:dialer
+			mknod cualM$name c $major `expr $minor + 128 + 262144` uucp:dialer
 		done
 	done
 	umask 77
@@ -1208,9 +1200,9 @@ cuaR?)
 	   echo -n "Creating $ndevices devices for $i: "
 	   dev=0
 	   while [ $dev -lt $ndevices ]; do
-		   mknod /dev/cuaR$Rnum c  $major $(($MINOR + 128))
-		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 32))
-		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 64))
+		   mknod /dev/cuaR$Rnum c  $major $(($MINOR + 128)) uucp:dialer
+		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 32)) uucp:dialer
+		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 64)) uucp:dialer
 		   Rnum=$(($Rnum + 1))
 		   MINOR=$(($MINOR + 1))
 		   dev=$(($dev + 1))
@@ -1219,7 +1211,6 @@ cuaR?)
 		MINOR=$(($BOARD * 65536))
 	   echo " "
 	done
-	chown uucp:dialer /dev/cuaR*
 	;;
 
 mse*)
@@ -1337,7 +1328,6 @@ ttyx?|ttyy?|ttyz?)
 	ttyz?)  unit=`expr $unit \+ 32`;;
 	esac
 	mknod $i c 42 $unit
-	chown uucp:wheel $i
 	;;
 
 cronyx)
@@ -1380,8 +1370,7 @@ tun*)
 	ntun=`expr $i : 'tun\(.*\)$'`
 	unit=0
 	while [ $unit -le $ntun ]; do
-		mknod tun$unit c 52 $unit
-		chown uucp:dialer tun$unit
+		mknod tun$unit c 52 $unit uucp:dialer
 		unit=$(($unit + 1))
 	done
 	;;
@@ -1455,20 +1444,17 @@ kbd*)
 
 i4b)
 	mknod i4b c 60 0
-	chown root:wheel i4b
 	chmod 600 i4b
 	;;
 
 i4bctl)
 	mknod i4bctl c 55 0
-	chown root:wheel i4bctl
 	chmod 600 i4bctl
 	;;
 
 i4brbch*)
 	unit=`expr $i : 'i4brbch\(.*\)'`
 	mknod i4brbch$unit c 57 $unit
-	chown root:wheel i4brbch$unit
 	chmod 600 i4brbch$unit
 	;;
 
@@ -1476,28 +1462,24 @@ i4bteld*)
 	offset=64
 	unit=`expr $i : 'i4bteld\(.*\)'`
 	mknod i4bteld$unit c 56 `expr $offset + $unit `
-	chown root:wheel i4bteld$unit
 	chmod 600 i4bteld$unit
 	;;
 
 i4btel*)
 	unit=`expr $i : 'i4btel\(.*\)'`
 	mknod i4btel$unit c 56 $unit
-	chown root:wheel i4btel$unit
 	chmod 600 i4btel$unit
 	;;
 
 i4btrc*)
 	unit=`expr $i : 'i4btrc\(.*\)'`
 	mknod i4btrc$unit c 59 $unit
-	chown root:wheel i4btrc$unit
 	chmod 600 i4btrc$unit
 	;;
 
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 $unit
-	chown root:wheel mlx$unit
 	chmod 600 mlx$unit
 	;;
 
