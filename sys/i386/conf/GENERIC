@@ -55,6 +55,10 @@ options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options		ICMP_BANDLIM		#Rate limit bad replies
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options		AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
+options		AHD_REG_PRETTY_PRINT	# Print register bitfields in debug 
+					# output.  Adds ~215k to driver.
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -86,6 +90,7 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+device		ahd		# AHA39320/29320 and onboard AIC79xx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device 		mpt		# LSI-Logic MPT/Fusion
