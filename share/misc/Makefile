@@ -2,7 +2,7 @@
 
 FILES=	airport ascii birthtoken eqnchar flowers inter.phone \
 	ipfw.samp.filters ipfw.samp.scripts man.template \
-	mdoc.template na.phone operator zipcodes
+	mdoc.template na.phone operator scsi_modes zipcodes
 NOOBJ=	noobj
 
 all clean cleandir depend lint tags:
