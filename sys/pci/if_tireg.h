@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.2 1999/05/03 17:44:52 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.3 1999/05/26 23:01:50 gallatin Exp $
  */
 
 /*
@@ -1151,6 +1151,7 @@ struct ti_softc {
 	u_int32_t		ti_tx_max_coal_bds;
 	u_int32_t		ti_tx_buf_ratio;
 	int			ti_if_flags;
+	int			ti_txcnt;
 };
 
 /*
