@@ -34,25 +34,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.29 1998/03/28 10:32:59 bde Exp $
+ * $Id: asc.c,v 1.30 1998/06/07 17:10:13 dfr Exp $
  */
 
 #include "asc.h"
 #if NASC > 0
-#ifdef FREEBSD_1_X
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "buf.h"
-#include "malloc.h"
-#include "kernel.h"
-#include "ioctl.h"
-
-#include "i386/isa/isa_device.h"
-#include "i386/isa/ascreg.h"
-
-#include "machine/asc_ioctl.h"
-#else
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -74,8 +60,6 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ascreg.h>
-
-#endif /* FREEBSD_1_X */
 
 /***
  *** CONSTANTS & DEFINES
@@ -174,11 +158,7 @@ struct asc_unit {
   int     btime;          /* timeout of buffer in seconds/hz */
   struct  _sbuf sbuf;
   long	  icnt;		/* interrupt count XXX for debugging */
-#ifdef FREEBSD_1_X
-  pid_t	  selp;	/* select pointer... */
-#else
   struct selinfo selp;
-#endif
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
 #ifdef DEVFS
@@ -208,8 +188,6 @@ static int ascprobe (struct isa_device *isdp);
 static int ascattach(struct isa_device *isdp);
 struct isa_driver ascdriver = { ascprobe, ascattach, "asc" };
 
-#ifndef FREEBSD_1_X
-
 static d_open_t		ascopen;
 static d_close_t	ascclose;
 static d_read_t		ascread;
@@ -224,9 +202,6 @@ static struct cdevsw asc_cdevsw =
 	  ascpoll,	nommap,         NULL,	"asc",	NULL,	-1 };
 
 #define STATIC static
-#else
-#define STATIC
-#endif /* ! FREEBSD_1_X */
 
 /***
  *** LOCALLY USED SUBROUTINES
@@ -481,17 +456,8 @@ ascattach(struct isa_device *isdp)
    * XXX this must be done early to give a good chance of getting a
    * contiguous buffer.  This wastes memory.
    */
-#ifdef FREEBSD_1_X
-  /*
-   * The old contigmalloc() didn't have a `low/minpa' arg, and took masks
-   * instead of multipliers for the alignments.
-   */
-  scu->sbuf.base = contigmalloc((unsigned long)MAX_BUFSIZE, M_DEVBUF, M_NOWAIT,
-			        0xfffffful, 0ul, 0xfffful);
-#else
   scu->sbuf.base = contigmalloc((unsigned long)MAX_BUFSIZE, M_DEVBUF, M_NOWAIT,
 				0ul, 0xfffffful, 1ul, 0x10000ul);
-#endif
   if ( scu->sbuf.base == NULL )
     {
       lprintf("asc%d.attach: buffer allocation failed\n", unit);
@@ -504,12 +470,8 @@ ascattach(struct isa_device *isdp)
 /*  lprintf("asc%d.attach: ok\n", unit); */
   scu->flags &= ~FLAG_DEBUG;
 
-#ifdef FREEBSD_1_X
-  scu->selp = (pid_t)0;
-#else
     scu->selp.si_flags=0;
     scu->selp.si_pid=(pid_t)0;
-#endif
 #ifdef DEVFS
 #define ASC_UID 0
 #define ASC_GID 13
@@ -564,19 +526,11 @@ ascintr(int unit)
 	if (scu->sbuf.size - scu->sbuf.count >= scu->linesize) {
 	    dma_restart(scu);
 	}
-#ifdef FREEBSD_1_X
-	if (scu->selp) {
-	    selwakeup(&scu->selp, scu->flags & SEL_COLL );
-	    scu->selp=(pid_t)0;
-	    scu->flags &= ~SEL_COLL;
-	}
-#else
 	if (scu->selp.si_pid) {
 	    selwakeup(&scu->selp);
 	    scu->selp.si_pid=(pid_t)0;
 	    scu->selp.si_flags = 0;
 	}
-#endif
     }
 }
 
@@ -750,7 +704,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
   int sps, res;
   unsigned char *p;
   
-  lprintf("asc%d.read: minor %d icnt %d\n", unit, minor(dev), scu->icnt);
+  lprintf("asc%d.read: minor %d icnt %ld\n", unit, minor(dev), scu->icnt);
 
   if ( unit >= NASC || !( scu->flags & ATTACHED ) ) {
       lprintf("asc%d.read: unit was not attached successfully 0x%04x\n",
@@ -769,7 +723,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
   }
   
   lprintf("asc%d.read(before): "
-      "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %d\n",
+      "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %ld\n",
 	  unit, scu->sbuf.size, scu->sbuf.rptr,
 	  scu->sbuf.wptr, scu->sbuf.count, scu->bcount,scu->flags,
 	  scu->icnt);
@@ -786,7 +740,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
   if (scu->flags & FLAG_DEBUG)
       tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascdly",hz);
   lprintf("asc%d.read(after): "
-      "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %d\n",
+      "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %ld\n",
 	  unit, scu->sbuf.size, scu->sbuf.rptr,
 	  scu->sbuf.wptr, scu->sbuf.count, scu->bcount,scu->flags,scu->icnt);
 
