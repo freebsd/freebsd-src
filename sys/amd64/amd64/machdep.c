@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.334 1999/05/06 00:54:44 luoqi Exp $
+ *	$Id: machdep.c,v 1.335 1999/05/12 21:38:42 luoqi Exp $
  */
 
 #include "apm.h"
@@ -125,7 +125,7 @@
 #endif
 #include <i386/isa/intr_machdep.h>
 #ifndef VM86
-#include <i386/isa/rtc.h>
+#include <isa/rtc.h>
 #endif
 #include <machine/random.h>
 #include <sys/ptrace.h>
