@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.19 1995/09/26 08:57:45 phk Exp $
+ * $Id: if_edreg.h,v 1.20 1996/01/30 22:55:38 mpp Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions
@@ -569,6 +569,7 @@ struct ed_ring	{
 #define ED_VENDOR_3COM		0x01		/* 3Com */
 #define ED_VENDOR_NOVELL	0x02		/* Novell */
 #define ED_VENDOR_PCCARD	0x03		/* PCMCIA/PCCARD */
+#define ED_VENDOR_HP		0x04		/* Hewlett Packard */
 
 /*
  * Compile-time config flags
@@ -1001,3 +1002,86 @@ struct ed_ring	{
 #define ZE_MISC		0x18
 #define ZE_RESET	0x1F
 
+/*
+ * Definitions for HP PC LAN Adapter Plus; based on the CRYNWR packet
+ * driver for the card.
+ */
+
+#define	ED_HPP_ASIC_OFFSET	0x00	/* Offset to ASIC registers */
+#define	ED_HPP_NIC_OFFSET	0x10	/* Offset to 8390 registers */
+
+#define	ED_HPP_ID		0x00	/* ID register, always 0x4850 */
+#define	ED_HPP_PAGING		0x02	/* Page select register */
+#define	ED_HPP_OPTION		0x04	/* Bitmask of supported options */
+#define	ED_HPP_PAGE_0		0x08	/* Page 0 */
+#define	ED_HPP_PAGE_2		0x0A	/* Page 2 */
+#define ED_HPP_PAGE_4		0x0C	/* Page 4 */
+#define	ED_HPP_PAGE_6		0x0E	/* Page 6 */
+
+/* PERF PAGE */
+#define	ED_HPP_OUT_ADDR		ED_HPP_PAGE_0	/* I/O output location */
+#define	ED_HPP_IN_ADDR		ED_HPP_PAGE_2	/* I/O input location */
+#define	ED_HPP_DATAPORT		ED_HPP_PAGE_4	/* I/O data transfer */
+/* MAC PAGE */
+#define ED_HPP_MAC_ADDR		0x08	/* Offset of MAC address in MAC page */
+
+#define	ED_HPP_IO_PORTS		32	/* Number of IO ports */
+
+#define	ED_HPP_TX_PAGE_OFFSET	0x00	/* first page of TX buffer */
+#define ED_HPP_RX_PAGE_START	0x06	/* start at page 6 */
+#define	ED_HPP_RX_PAGE_STOP	0x80	/* end at page 128 */
+
+/*
+ * Register pages supported.
+ */
+
+#define	ED_HPP_PAGE_PERF	0	/* Normal operation */
+#define	ED_HPP_PAGE_MAC		1	/* The ethernet address and checksum */
+#define	ED_HPP_PAGE_HW		2	/* Hardware parameters in EEPROM */
+#define	ED_HPP_PAGE_LAN		4	/* Transciever selection etc */
+#define	ED_HPP_PAGE_ID		6	/* ID */
+
+/*
+ * Options supported.
+ */
+
+#define	ED_HPP_OPTION_NIC_RESET		0x0001	/* active low */
+#define	ED_HPP_OPTION_CHIP_RESET	0x0002	/* active low */
+#define	ED_HPP_OPTION_ENABLE_IRQ	0x0004
+#define	ED_HPP_OPTION_FAKE_INTR		0x0008
+#define	ED_HPP_OPTION_BOOT_ROM_ENB	0x0010
+#define	ED_HPP_OPTION_IO_ENB		0x0020
+#define	ED_HPP_OPTION_MEM_ENABLE	0x0040
+#define	ED_HPP_OPTION_ZERO_WAIT		0x0080
+#define	ED_HPP_OPTION_MEM_DISABLE	0x1000
+
+/*
+ * Page ID configuration.
+ */
+
+#define	ED_HPP_ID_REVISION_MASK		0x0300	/* revision id */
+#define ED_HPP_ID_SOFT_MODEL_MASK	0xFC00	/* soft model number */
+#define ED_HPP_ID_16_BIT_ACCESS		0x0010	/* if set use 16 bit accesses */
+#define	ED_HPP_ID_TWISTED_PAIR		0x0040	
+
+/*
+ * Hardware configuration.
+ */
+
+#define	ED_HPP_HW_MEM_MAP	0x09	/* low mem map location in HW page */
+#define ED_HPP_HW_ID		0x0C	/* revision number, capabilities */
+#define ED_HPP_HW_IRQ		0x0D	/* IRQ channel register in HW page */
+#define	ED_HPP_HW_WRAP		0x0E	/* mem wrap page for rcv */
+
+/*
+ * Lan configuration
+ */
+
+#define ED_HPP_LAN_AUI		0x01	/* Use AUI */
+#define ED_HPP_LAN_TL		0x40	/* Don't use AUI */
+
+/*
+ * Card types.
+ */
+
+#define ED_TYPE_HP_PCLANPLUS	0x00
