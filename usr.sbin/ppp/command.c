@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.38 1997/04/14 23:48:12 brian Exp $
+ * $Id: command.c,v 1.39 1997/04/21 01:01:40 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -41,8 +41,8 @@
 #include <net/route.h>
 #include "os.h"
 #include <paths.h>
+#include "chat.h"
 
-extern int  MakeArgs();
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
 extern int  AcceptCommand(), DenyCommand();
@@ -555,7 +555,7 @@ int prompt;
     if (cp)
       *cp = '\0';
     {
-      argc = MakeArgs(buff, &vector);
+      argc = MakeArgs(buff, vector, VECSIZE(vector));
       argv = vector;
 
       if (argc > 0)
