@@ -1,7 +1,7 @@
 # Makefile for GNU F77 compiler runtime.
 # Copyright 1990 - 1994 by AT&T Bell Laboratories and Bellcore (see the
 # file `Notice').
-# Portions of this file Copyright (C) 1995, 1996, 1998 Free Software Foundation, Inc.
+# Portions of this file Copyright (C) 1995, 1996, 1998, 2001 Free Software Foundation, Inc.
 #   Contributed by Dave Love (d.love@dl.ac.uk).
 #
 #This file is part of GNU Fortran.
@@ -81,6 +81,18 @@ ${srcdir}/configure: configure.in
 	rm -f config.cache
 	cd ${srcdir} && autoconf
 
+# autoheader might not change config.h.in, so touch a stamp file.
+${srcdir}/config.h.in: stamp-h.in; @true
+${srcdir}/stamp-h.in: configure.in
+	(cd ${srcdir} && autoheader)
+	@rm -f ${srcdir}/stamp-h.in
+	echo timestamp > ${srcdir}/stamp-h.in
+
+config.h: stamp-h; @true
+stamp-h: config.h.in config.status
+	CONFIG_FILES= CONFIG_HEADERS=config.h $(SHELL) config.status
+	echo timestamp > stamp-h
+
 VersionI.o: Version.c
 	$(CC) -c $(ALL_CFLAGS) -o $@ $(srcdir)/Version.c
 
@@ -90,7 +102,7 @@ dfe.o:		fio.h
 dfe.o:		dfe.c fmt.h
 dolio.o:	dolio.c
 due.o:		due.c fio.h
-endfile.o:	endfile.c fio.h rawio.h
+endfile.o:	endfile.c fio.h rawio.h config.h
 err.o:		err.c fio.h rawio.h
 fmt.o:		fio.h
 fmt.o:		fmt.c fmt.h
