@@ -459,7 +459,6 @@ main (argc, argv)
      char *argv[];
 {
   program_name = argv[0];
-  umask (0);
 
 #ifdef __FreeBSD__
   (void) setlocale (LC_ALL, "");
@@ -473,6 +472,7 @@ main (argc, argv)
 #endif
 
   process_args (argc, argv);
+  umask (0);
 
   initialize_buffers ();
 
