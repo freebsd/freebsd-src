@@ -1130,7 +1130,11 @@ acd_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    lba = bp->b_offset / cdp->block_size;
+    if (bp->b_flags & B_PHYS)
+	lba = bp->b_offset / cdp->block_size;
+    else
+	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+
     track = (bp->b_dev->si_udev & 0x00ff0000) >> 16;
 
     if (track) {
