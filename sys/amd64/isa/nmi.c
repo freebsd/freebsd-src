@@ -481,8 +481,10 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	if ((u_int)intr >= ICU_LEN || intr == ICU_SLAVEID)
 #endif /* APIC_IO */
 		return (EINVAL);
+#if 0
 	if (intr_handler[intr] != isa_strayintr)
 		return (EBUSY);
+#endif
 
 	ef = read_eflags();
 	disable_intr();
