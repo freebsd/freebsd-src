@@ -41,7 +41,6 @@
 .Nd expand tabs to spaces, and vice versa
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ns Ar tabstop
 .Oo
 .Fl t
 .Sm off
@@ -71,29 +70,33 @@ utility is useful for pre-processing character files
 (before sorting, looking at specific columns, etc.) that
 contain tabs.
 .Pp
-If a single
-.Ar tabstop
-argument is given, then tabs are set
-.Ar tabstop
-spaces apart instead of the default 8.
-If multiple tabstops are given then the tabs are set at those
-specific columns.
-.Pp
 The
 .Nm unexpand
 utility puts tabs back into the data from the standard input or the named
 files and writes the result on the standard output.
 .Pp
-Option (with
-.Nm unexpand
-only):
+The following options are available:
 .Bl -tag -width indent
 .It Fl a
+.Pq Nm unexpand No only
 By default, only leading blanks and tabs
 are reconverted to maximal strings of tabs.  If the
 .Fl a
 option is given, then tabs are inserted whenever they would compress the
 resultant file by replacing two or more characters.
+.It Xo
+.Fl t
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Xc
+Set tab stops at column positions
+.Ar tab1 ,
+.Ar tab2 ,
+\&...,
+.Ar tabn .
+If only a single number is given, tab stops are set that number of
+column positions apart instead of the default number of 8.
 .El
 .Sh ENVIRONMENT
 The
@@ -107,6 +110,8 @@ and
 .Nm unexpand
 as described in
 .Xr environ 7 .
+.Sh DIAGNOSTICS
+.Ex -std expand unexpand
 .Sh STANDARDS
 The
 .Nm expand
