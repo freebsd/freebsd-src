@@ -37,9 +37,6 @@
 /*
  * Some global constants
  */
-#define ETHER_MIN_LEN	     64
-#define ETHER_MAX_LEN	   1518
-#define ETHER_ADDR_LEN	      6
 
 #define TX_INIT_RATE         16
 #define TX_INIT_MAX_RATE     64
@@ -379,8 +376,6 @@
 #define BNC 				0x2
 #define UTP 				0x4
 
-#define ETHER_ADDR_LEN			6
-#define ETHER_MAX			1536
 #define RX_BYTES_MASK			(u_short) (0x07ff)
 
  /* EISA support */

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.20 1996/06/12 05:03:41 gpalmer Exp $
+ *	$Id: if_ix.c,v 1.21 1996/06/25 20:30:18 bde Exp $
  */
 
 #include "ix.h"
@@ -598,8 +598,8 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_ioctl = ixioctl;
 	ifp->if_watchdog = ixwatchdog;
 	ifp->if_type = IFT_ETHER;
-	ifp->if_addrlen = ETHER_ADDRESS_LENGTH;
-	ifp->if_hdrlen = ETHER_HEADER_LENGTH;
+	ifp->if_addrlen = ETHER_ADDR_LEN;
+	ifp->if_hdrlen = ETHER_HDR_LEN;
 #ifdef IXCOUNTERS
 	 /*
 	  * ZZZ more counters added, but bzero gets them
@@ -751,7 +751,7 @@ ixinit(int unit) {
 
 	cb_ias->common.status = 0;
 	cb_ias->common.command = CB_CMD_EL | CB_CMD_IAS;
-	bcopy(sc->arpcom.ac_enaddr, cb_ias->source, ETHER_ADDRESS_LENGTH);
+	bcopy(sc->arpcom.ac_enaddr, cb_ias->source, ETHER_ADDR_LEN);
 	scb->command = SCB_CUC_START;
 	ixchannel_attention(unit);
 	status |= ix_cb_wait((cb_t *)cb_ias, "IAS");
@@ -1385,9 +1385,9 @@ ixstart(struct ifnet *ifp) {
 			length += m_temp->m_len;
 		}
 		m_freem(m);
-		if (length < ETHER_MIN_LENGTH) length = ETHER_MIN_LENGTH;
+		if (length < ETHER_MIN_LEN) length = ETHER_MIN_LEN;
 #ifdef DIAGNOSTIC
-		if (length > ETHER_MAX_LENGTH) {
+		if (length > ETHER_MAX_LEN) {
 			/* XXX
  			 * This should never ever happen, if it does
 			 * we probable screwed up all sorts of board data
@@ -1396,7 +1396,7 @@ ixstart(struct ifnet *ifp) {
 			 * something is real wrong
 			 */
 			printf("ix%d: ixstart: Packet length=%d > MTU=%d\n",
-			        unit, length, ETHER_MAX_LENGTH);
+			        unit, length, ETHER_MAX_LEN);
 		}
 #endif /* DIAGNOSTIC */
 		tbd->act_count = TBD_STAT_EOF | length;

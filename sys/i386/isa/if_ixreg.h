@@ -28,21 +28,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.6 1995/05/30 08:02:17 rgrimes Exp $
+ *	$Id: if_ixreg.h,v 1.7 1996/01/30 22:55:52 mpp Exp $
  */
 
 /*
  * These really belong some place else, but I can't find them right
  * now.  I'll look again latter
  */
-#define	ETHER_ADDRESS_LENGTH	6	/* Length of an ethernet address */
-#define	ETHER_HEADER_LENGTH	14	/* Length of an ethernet header */
-#define	ETHER_DATA_LENGTH	ETHERMTU
-#define	ETHER_CRC_LENGTH	4
-#define	ETHER_MIN_LENGTH	64	/* Minimum length of an ethernet packet */
-#define ETHER_MAX_LENGTH	(ETHER_HEADER_LENGTH + \
-				 ETHERMTU + \
-				 ETHER_CRC_LENGTH)
 
 #define	IX_IO_PORTS	16	/* Number of I/O ports used, note
 				 * this is not true, due to shadow
@@ -134,14 +126,14 @@
 #define	SCB_ADDR	(ISCP_ADDR - sizeof(scb_t))
 
 #define	TB_COUNT	3	/* How many transfer buffers in the TFA */
-#define TB_SIZE		(ETHER_MAX_LENGTH)	/* size of transmit buffer */
+#define TB_SIZE		(ETHER_MAX_LEN)	/* size of transmit buffer */
 #define	TFA_START	0x0000	/* Start of the TFA */
 #define	TFA_SIZE	(TB_COUNT * \
 			(sizeof(cb_transmit_t) + sizeof(tbd_t) + TB_SIZE))
 
 #define	RFA_START	(TFA_SIZE)
 #define	RFA_SIZE	(SCP_ADDR - RFA_START)
-#define	RB_SIZE		(ETHER_MAX_LENGTH)	/* size of receive buffer */
+#define	RB_SIZE		(ETHER_MAX_LEN)	/* size of receive buffer */
 
 typedef struct /* System Configuration Pointer */
 	{
@@ -250,7 +242,7 @@ typedef struct /* command block - nop (also the common part of cb's */
 typedef	struct /* command block - individual address setup command */
 	{
 	cb_t	common;		/* common part of all command blocks */
-	u_char	source[ETHER_ADDRESS_LENGTH];
+	u_char	source[ETHER_ADDR_LEN];
 				/* ethernet hardware address */
 	}	cb_ias_t;
 
@@ -269,7 +261,7 @@ typedef	struct /* command block - transmit command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	u_short	tbd_offset;	/* transmit buffer descriptor offset */
-	u_char	destination[ETHER_ADDRESS_LENGTH];
+	u_char	destination[ETHER_ADDR_LEN];
 				/* ethernet destination address field */
 	u_short	length;		/* ethernet length field */
 	u_char	byte[16];	/* XXX stupid fill tell I fix the ixinit
