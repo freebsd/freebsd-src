@@ -60,8 +60,10 @@ utilties are used to control swap devices in the system.  At boot time all
 swap entries in 
 .Pa /etc/fstab
 are added automatically when the system goes multi-user.
-Swap devices are interleaved and kernels are typically configured
-to handle a maximum of 4 swap devices.  There is no priority mechanism.
+Swap devices use a fixed interleave; the maximum number of devices
+is specified by the kernel configuration option NSWAPDEV, which
+is typically set to 4.
+There is no priority mechanism.
 .Pp
 The
 .Nm swapon
@@ -131,6 +133,9 @@ Output values in kilobytes.
 The BLOCKSIZE environment variable is used if not specifically
 overridden.  512 byte blocks are used by default.
 .El
+.Sh DIAGNOSTICS
+These utilities may fail for the reasons described in
+.Xr swapon 2 .
 .Sh SEE ALSO
 .Xr swapon 2 ,
 .Xr fstab 5 ,
@@ -155,4 +160,4 @@ utility appeared in
 The
 .Nm swapoff
 utility appeared in
-.Fx 5.0 .
+.Fx 5.1 .
