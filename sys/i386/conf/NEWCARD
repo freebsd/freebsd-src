@@ -55,7 +55,7 @@ options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
 #options 	DEVFS			#Device Filesystem
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
+options 	SCSI_DELAY=1000		#Delay (in ms) before probing SCSI
 options 	UCONSOLE		#Allow users to grab the console
 options 	USERCONFIG		#boot -c editor
 options 	VISUAL_USERCONFIG	#visual boot -c editor
@@ -75,9 +75,9 @@ device		isa
 device		eisa
 device		pci
 device		pccard
+device		pmtimer
 device		cardbus
 options 	COMPAT_OLDISA		# compatability shims for lnc, le
-options 	COMPAT_OLDPCI		# compatability shims for lnc
 
 # Floppy drives
 device		fdc
@@ -209,7 +209,7 @@ device		xe		# Xircom pccard ethernet
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie
 device		le
-device		lnc
+#device		lnc
 
 # Wireless NIC cards
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
