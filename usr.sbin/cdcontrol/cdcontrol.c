@@ -447,7 +447,7 @@ void prtrack (struct cd_toc_entry *e, int lastflag)
 
 	/* Print duration, block, length, type */
 	printf ("%2d:%02d.%02d  %6d  %6d  %5s\n", m, s, f, block, len,
-		e->control & 4 ? "data" : "audio");
+		e->addr_type & 4 ? "data" : "audio");
 }
 
 int play_track (int tstart, int istart, int tend, int iend)
