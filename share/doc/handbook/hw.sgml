@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.20 1996/05/09 23:04:43 mpp Exp $ -->
+<!-- $Id: hw.sgml,v 1.21 1996/05/16 23:18:01 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -31,6 +31,45 @@
     question, please remember to specify exactly what version of
     FreeBSD you are using and include as many details of your
     hardware as possible.
+
+
+<sect><heading>FreeBSD on Laptop computers</heading>
+
+<p>Because laptop computers operate under a unique set of constraints,
+   they often behave differently or require more specialized knowledge
+   than their desktop and deskside PC siblings.  This section attempts to
+   list the most useful (and current) laptop specific information on the
+   net.
+
+<itemize>
+  <item>Tatsumi Hosokawa's <htmlurl
+    url="http://www.mt.cs.keio.ac.jp/person/hosokawa/freebsd-pcmcia/"
+    name="PCCARD driver"> page.
+
+    <p><htmlurl url="mailto:hosokawa@mt.cs.keio.ac.jp"
+    name="Tatsumi Hosokawa"> and the BSD Nomads have created a
+    complete subsystem for dealing with PCCARD (PCMCIA) peripherals,
+    from modems to ethernet cards to SCSI adaptors.  Much of this work
+    is now part of FreeBSD <htmlurl url="current.html" name="2.2-current">,
+    though more up-to-date experimental code snapshots may be found on
+    this page.
+  </item>
+
+  <item>FreeBSD on the <htmlurl url="http://www.cs.ruu.nl/people/edwin/FreeBSD/"
+    name="Toshiba Satellite Pro 410CDT Notebook">
+
+    <p>Here is <htmlurl url="mailto:edwin.kremer@cs.ruu.nl"
+    name="Edwin Kremer's"> report on using FreeBSD with his Toshiba 410CDT.
+  </item>
+
+  <item>FreeBSD on the <htmlurl url="http://www.kfu.com/~nsayer/zenith/"
+    name="Zenith Z-NoteFlex Laptop">
+
+    <p>Nick tells us about life with what he deems to be the ideal laptop
+    for FreeBSD.
+  </item>
+</itemize>
+</sect>
 
 <sect><heading>Sample Configurations<label id="hw:configs"></heading>
 <p>The following list of sample hardware configurations by no means
