@@ -75,10 +75,12 @@ _fmt(format, t, pt, ptlim)
 	char *pt;
 	const char *const ptlim;
 {
-	int alternative;
+	int Ealternative, Oalternative;
+
 	for ( ; *format; ++format) {
 		if (*format == '%') {
-			alternative = 0;
+			Ealternative = 0;
+			Oalternative = 0;
 label:
 			switch (*++format) {
 			case '\0':
@@ -96,7 +98,7 @@ label:
 				continue;
 			case 'B':
 				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ? 
-					"?" : (alternative ? Locale->alt_month :
+					"?" : (Oalternative ? Locale->alt_month :
 					Locale->month)[t->tm_mon],
 					pt, ptlim);
 				continue;
@@ -127,6 +129,8 @@ label:
 				pt = _conv(t->tm_mday, "%02d", pt, ptlim);
 				continue;
 			case 'E':
+				Ealternative++;
+				goto label;
 			case 'O':
 				/*
 				** POSIX locale extensions, a la
@@ -139,7 +143,7 @@ label:
 				** representations.
 				** (ado, 5/24/93)
 				*/
-				alternative = 1;
+				Oalternative++;
 				goto label;
 			case 'e':
 				pt = _conv(t->tm_mday, "%2d", pt, ptlim);
@@ -357,7 +361,7 @@ label:
 				pt = _fmt(Locale->X_fmt, t, pt, ptlim);
 				continue;
 			case 'x':
-				pt = _fmt(Locale->x_fmt, t, pt, ptlim);
+				pt = _fmt(Ealternative ? Locale->Ex_fmt : Locale->x_fmt, t, pt, ptlim);
 				continue;
 			case 'y':
 				pt = _conv((t->tm_year + TM_YEAR_BASE) % 100,

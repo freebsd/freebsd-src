@@ -46,6 +46,8 @@ int _time_using_locale;
 #define	LCTIME_SIZE_FULL (sizeof(struct lc_time_T) / sizeof(char *))
 #define	LCTIME_SIZE_1 \
 	(offsetof(struct lc_time_T, alt_month[0]) / sizeof(char *))
+#define LCTIME_SIZE_2 \
+	(offsetof(struct lc_time_T, Ex_fmt) / sizeof(char *))
 
 const struct lc_time_T	_C_time_locale = {
 	{
@@ -80,7 +82,7 @@ const struct lc_time_T	_C_time_locale = {
 	**	"%a %b %d %H:%M:%S %Y"
 	** is used by Solaris 2.3.
 	*/
-	"%a %b %e %X %Y",
+	"%a %Ex %X %Y",
 
 	/* am */
 	"AM",
@@ -89,12 +91,17 @@ const struct lc_time_T	_C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %b %e %X %Z %Y",
+	"%a %Ex %X %Z %Y",
 	
 	{
 		"January", "February", "March", "April", "May", "June",
 		"July", "August", "September", "October", "November", "December"
-	}
+	},
+
+	/* Ex_fmt
+	** To determine months / day order
+	*/
+	"%b %e"
 };
 
 
@@ -173,6 +180,8 @@ __time_load_locale(const char *name)
 	num_lines = split_lines(p, plim);
 	if (num_lines >= LCTIME_SIZE_FULL)
 		num_lines = LCTIME_SIZE_FULL;
+	else if (num_lines >= LCTIME_SIZE_2)
+		num_lines = LCTIME_SIZE_2;
 	else if (num_lines >= LCTIME_SIZE_1)
 		num_lines = LCTIME_SIZE_1;
 	else
