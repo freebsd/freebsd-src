@@ -272,14 +272,14 @@ reinstall reinstall.debug: modules-reinstall
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 
 modules:
-	find $S/modules -type d -a ! -name CVS \
-		| sed -e "s|$S/modules|modules|g" | xargs mkdir -p ; \
-	    cd $S/modules ; env ${MKMODULESENV} ${MAKE} all
+	@mkdir -p ${.OBJDIR}/modules
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} all
 
 modules-depend:
-	find $S/modules -type d -a ! -name CVS \
-		| sed -e "s|$S/modules|modules|g" | xargs mkdir -p ; \
-	    cd $S/modules ; env ${MKMODULESENV} ${MAKE} depend
+	@mkdir -p ${.OBJDIR}/modules
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} depend
 
 modules-clean:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} clean
