@@ -496,7 +496,10 @@ ioctl(p, uap)
 	caddr_t data, memp;
 	int tmp;
 #define STK_PARAMS	128
-	char stkbuf[STK_PARAMS];
+	union {
+	    char stkbuf[STK_PARAMS];
+	    long align;
+	} ubuf;
 
 	fdp = p->p_fd;
 	if ((u_int)uap->fd >= fdp->fd_nfiles ||
@@ -523,11 +526,11 @@ ioctl(p, uap)
 	if (size > IOCPARM_MAX)
 		return (ENOTTY);
 	memp = NULL;
-	if (size > sizeof (stkbuf)) {
+	if (size > sizeof (ubuf.stkbuf)) {
 		memp = (caddr_t)malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else
-		data = stkbuf;
+		data = ubuf.stkbuf;
 	if (com&IOC_IN) {
 		if (size) {
 			error = copyin(uap->data, data, (u_int)size);
