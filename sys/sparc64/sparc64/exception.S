@@ -222,13 +222,11 @@
 	 nop ; \
 	.align	16
 
-DATA(intrnames)
-	.asciz	"foo"
-DATA(eintrnames)
+	.comm	intrnames, NIV * 8
+	.comm	eintrnames, 0
 
-DATA(intrcnt)
-	.long	0
-DATA(eintrcnt)
+	.comm	intrcnt, NIV * 8
+	.comm	eintrcnt, 0
 
 /*
  * Trap table and associated macros
@@ -307,10 +305,9 @@ DATA(eintrcnt)
  * %canrestore is passed in %o0 and %wstate in (alternate) %g1.
  */
 ENTRY(tl0_kstack_fixup)
-	mov	%g1, %o3
-	and	%o3, WSTATE_MASK, %o1
-	sllx	%o0, WSTATE_USERSHIFT, %o1
-	wrpr	%o1, 0, %wstate
+	and	%g1, WSTATE_MASK, %g1
+	sllx	%g1, WSTATE_USERSHIFT, %g1
+	wrpr	%g1, WSTATE_KERNEL, %wstate
 	wrpr	%o0, 0, %otherwin
 	wrpr	%g0, 0, %canrestore
 	ldx	[PCPU(CURTHREAD)], %o0
@@ -382,6 +379,16 @@ ENTRY(tl0_sfsr_trap)
 	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFAR]
 	stx	%g4, [%sp + SPOFF + CCFSZ + MF_SFSR]
 	stx	%g5, [%sp + SPOFF + CCFSZ + MF_TAR]
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_sfsr_trap: sfar=%#lx sfsr=%#lx tar=%#lx"
+	   , %g3, %g4, %g5, 7, 8, 9)
+	ldx	[%sp + SPOFF + CCFSZ + MF_SFAR], %g4
+	stx	%g4, [%g3 + KTR_PARM1]
+	ldx	[%sp + SPOFF + CCFSZ + MF_SFSR], %g4
+	stx	%g4, [%g3 + KTR_PARM1]
+	ldx	[%sp + SPOFF + CCFSZ + MF_TAR], %g4
+	stx	%g4, [%g3 + KTR_PARM1]
+#endif
 	rdpr	%pil, %o2
 	add	%sp, SPOFF + CCFSZ, %o1
 	b	%xcc, tl0_trap
@@ -528,8 +535,8 @@ ENTRY(tl0_immu_miss_set_ref)
 	bne,a,pn %xcc, 1b
 	 mov	%g1, %g7
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_immu_miss: set ref"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_immu_miss: set ref"
 	    , %g2, %g3, %g4, 7, 8, 9)
 9:
 #endif
@@ -559,8 +566,8 @@ ENTRY(tl0_immu_miss_trap)
 	wr	%g0, ASI_IMMU, %asi
 	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_immu_miss: trap sp=%#lx tar=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_immu_miss: trap sp=%#lx tar=%#lx"
 	    , %g3, %g4, %g5, 7, 8, 9)
 	stx	%sp, [%g3 + KTR_PARM1]
 	stx	%g2, [%g3 + KTR_PARM2]
@@ -670,8 +677,8 @@ ENTRY(dmmu_miss_user_set_ref)
 	bne,a,pn %xcc, 1b
 	 mov	%g1, %g7
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_dmmu_miss: set ref"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_dmmu_miss: set ref"
 	    , %g2, %g3, %g4, 7, 8, 9)
 9:
 #endif
@@ -719,8 +726,8 @@ ENTRY(tl0_dmmu_miss_trap)
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_dmmu_miss: trap sp=%#lx tar=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_dmmu_miss: trap sp=%#lx tar=%#lx"
 	    , %g3, %g4, %g5, 7, 8, 9)
 	stx	%sp, [%g3 + KTR_PARM1]
 	stx	%g2, [%g3 + KTR_PARM2]
@@ -751,8 +758,8 @@ END(tl0_dmmu_miss_trap)
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g4
 	membar	#Sync
 
 	/*
@@ -761,9 +768,9 @@ END(tl0_dmmu_miss_trap)
 	 */
 	tl0_kstack
 	sub	%sp, MF_SIZEOF, %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_TAR]
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g4, [%sp + SPOFF + CCFSZ + MF_SFSR]
+	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
+	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
+	stx	%g4, [%sp + SPOFF + CCFSZ + MF_TAR]
 	rdpr	%pil, %o2
 	add	%sp, SPOFF + CCFSZ, %o1
 	b	%xcc, tl0_trap
@@ -1014,63 +1021,47 @@ END(tl1_align_trap)
 	.align	32
 	.endm
 
-ENTRY(intr_enqueue)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "intr_enqueue: td=%p (%s) tl=%#lx pc=%#lx sp=%#lx"
-	   , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	ldx	[%g2 + TD_PROC], %g2
-	add	%g2, P_COMM, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	rdpr	%tl, %g2
-	stx	%g2, [%g1 + KTR_PARM3]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%sp, [%g1 + KTR_PARM5]
-9:
-#endif
+/*
+ * Interrupt %g6 and %g7 are pre-loaded with pointers to the per-cpu interrupt
+ * queue and the interrupt vector table.
+ */
+#define	IQ_REG	%g6
+#define	IV_REG	%g7
 
+ENTRY(intr_enqueue)
 	/*
 	 * Find the head of the queue and advance it.
 	 */
-	ldx	[PCPU(IQ)], %g1
-	ldx	[%g1 + IQ_HEAD], %g2
-	add	%g2, 1, %g3
-	and	%g3, IQ_MASK, %g3
-	stx	%g3, [%g1 + IQ_HEAD]
-
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "intr_enqueue: cpu=%d head=%d tail=%d iqe=%d"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	lduw	[PCPU(CPUID)], %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	stx	%g3, [%g4 + KTR_PARM2]
-	ldx	[%g1 + IQ_TAIL], %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-	stx	%g2, [%g4 + KTR_PARM4]
-9:
-#endif
+	ldx	[IQ_REG + IQ_HEAD], %g1
+	add	%g1, 1, %g2
+	and	%g2, IQ_MASK, %g2
+	stx	%g2, [IQ_REG + IQ_HEAD]
 
 #ifdef INVARIANTS
 	/*
 	 * If the new head is the same as the tail, the next interrupt will
 	 * overwrite unserviced packets.  This is bad.
 	 */
-	ldx	[%g1 + IQ_TAIL], %g4
-	cmp	%g4, %g3
+	ldx	[IQ_REG + IQ_TAIL], %g3
+	cmp	%g3, %g2
 	be	%xcc, 3f
 	 nop
 #endif
 
 	/*
+	 * Find the iqe.
+	 */
+	sllx	%g1, IQE_SHIFT, %g1
+	add	%g1, IQ_REG, %g1
+
+	/*
 	 * Load the interrupt packet from the hardware.
 	 */
 	wr	%g0, ASI_SDB_INTR_R, %asi
-	ldxa	[%g0] ASI_INTR_RECEIVE, %g3
-	ldxa	[%g0 + AA_SDB_INTR_D0] %asi, %g4
-	ldxa	[%g0 + AA_SDB_INTR_D1] %asi, %g5
-	ldxa	[%g0 + AA_SDB_INTR_D2] %asi, %g6
+	ldxa	[%g0] ASI_INTR_RECEIVE, %g2
+	ldxa	[%g0 + AA_SDB_INTR_D0] %asi, %g3
+	ldxa	[%g0 + AA_SDB_INTR_D1] %asi, %g4
+	ldxa	[%g0 + AA_SDB_INTR_D2] %asi, %g5
 	stxa	%g0, [%g0] ASI_INTR_RECEIVE
 	membar	#Sync
 
@@ -1078,75 +1069,40 @@ ENTRY(intr_enqueue)
 	 * Store the tag and first data word in the iqe.  These are always
 	 * valid.
 	 */
-	sllx	%g2, IQE_SHIFT, %g2
-	add	%g2, %g1, %g2
-	stw	%g3, [%g2 + IQE_TAG]
-	stx	%g4, [%g2 + IQE_VEC]
+	stw	%g2, [%g1 + IQE_TAG]
+	stx	%g3, [%g1 + IQE_VEC]
 
 	/*
-	 * Find the interrupt vector associated with this source.
+	 * Load the function and argument, if not supplied in iqe.
 	 */
-	ldx	[PCPU(IVT)], %g3
-	sllx	%g4, IV_SHIFT, %g4
-
-	/*
-	 * If the 2nd data word, the function, is zero the actual function
-	 * and argument are in the interrupt vector table, so retrieve them.
-	 * The function is used as a lock on the vector data.  If it can be
-	 * read atomically as non-zero, the argument and priority are valid.
-	 * Otherwise this is either a true stray interrupt, or someone is
-	 * trying to deregister the source as we speak.  In either case,
-	 * bail and log a stray.
-	 */
-	brnz,pn %g5, 1f
-	 add	%g3, %g4, %g3
-	casxa	[%g3] ASI_N, %g0, %g5
-	brz,pn	%g5, 2f
-	 ldx	[%g3 + IV_ARG], %g6
+	sllx	%g3, IV_SHIFT, %g3
+	brnz,pn %g4, 1f
+	 add	%g3, IV_REG, %g3
+	ldx	[%g3 + IV_FUNC], %g4
+	ldx	[%g3 + IV_ARG], %g5
 
 	/*
 	 * Save the priority and the two remaining data words in the iqe.
 	 */
-1:	lduw	[%g3 + IV_PRI], %g4
-	stw	%g4, [%g2 + IQE_PRI]
-	stx	%g5, [%g2 + IQE_FUNC]
-	stx	%g6, [%g2 + IQE_ARG]
+1:	lduw	[%g3 + IV_PRI], %g3
+	stw	%g3, [%g1 + IQE_PRI]
+	stx	%g4, [%g1 + IQE_FUNC]
+	stx	%g5, [%g1 + IQE_ARG]
 
 	/*
 	 * Trigger a softint at the level indicated by the priority.
 	 */
-	mov	1, %g3
-	sllx	%g3, %g4, %g3
-	wr	%g3, 0, %asr20
-
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "intr_enqueue: tag=%#lx vec=%#lx pri=%d func=%p arg=%p"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	lduw	[%g2 + IQE_TAG], %g3
-	stx	%g3, [%g1 + KTR_PARM1]
-	ldx	[%g2 + IQE_VEC], %g3
-	stx	%g3, [%g1 + KTR_PARM2]
-	lduw	[%g2 + IQE_PRI], %g3
-	stx	%g3, [%g1 + KTR_PARM3]
-	stx	%g5, [%g1 + KTR_PARM4]
-	stx	%g6, [%g1 + KTR_PARM5]
-9:
-#endif
+	mov	1, %g2
+	sllx	%g2, %g3, %g2
+	wr	%g2, 0, %asr20
 
 	retry
-
-	/*
-	 * Either this is a true stray interrupt, or an interrupt occured
-	 * while the source was being deregistered.  In either case, just
-	 * log the stray and return.  XXX
-	 */
-2:	DEBUGGER()
 
 #ifdef INVARIANTS
 	/*
 	 * The interrupt queue is about to overflow.  We are in big trouble.
 	 */
-3:	DEBUGGER()
+3:	sir	42
 #endif
 END(intr_enqueue)
 
@@ -1160,24 +1116,16 @@ END(intr_enqueue)
 	.endm
 
 	.macro	tl1_dmmu_miss
-	/*
-	 * Load the target tte tag, and extract the context.  If the context
-	 * is non-zero handle as user space access.  In either case, load the
-	 * tsb 8k pointer.
-	 */
 	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
 	srlx	%g1, TT_CTX_SHIFT, %g2
 	brnz,pn	%g2, tl1_dmmu_miss_user
-	 EMPTY
+	 sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - STTE_SHIFT), %g2
 
-	set	TSB_KERNEL_MASK, %g3
-	set	TSB_KERNEL_MIN_ADDRESS, %g4
-
-	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-	srlx	%g2, PAGE_SHIFT, %g2
+	set	TSB_KERNEL_VA_MASK, %g3
 	and	%g2, %g3, %g2
-	sllx	%g2, STTE_SHIFT, %g2
+
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g4
+	sllx	%g4, STTE_SHIFT - TTE_SHIFT, %g4
 	add	%g2, %g4, %g2
 
 	/*
@@ -1192,7 +1140,7 @@ END(intr_enqueue)
 	/*
 	 * Set the refence bit, if its currently clear.
 	 */
-	andcc	%g5, TD_REF, %g0
+	 andcc	%g5, TD_REF, %g0
 	bnz	%xcc, 1f
 	 or	%g5, TD_REF, %g1
 	stx	%g1, [%g2 + ST_TTE + TTE_DATA]
@@ -1208,6 +1156,7 @@ END(intr_enqueue)
 	 */
 2:	wrpr	%g0, PSTATE_ALT, %pstate
 
+	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
 
 	tl1_kstack
@@ -1228,8 +1177,8 @@ ENTRY(tl1_dmmu_miss_user)
 
 	/* Handle faults during window spill/fill. */
 	RESUME_SPILLFILL_MAGIC(%g1, %g2, RSF_MMU, 1f)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl1_dmmu_miss_user: resume spillfill npc=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_dmmu_miss_user: resume spillfill npc=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	rdpr	%tnpc, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -1238,8 +1187,8 @@ ENTRY(tl1_dmmu_miss_user)
 	done
 1:
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl1_dmmu_miss_user: trap", %g1, %g2, %g3, 7, 8, 9)
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_dmmu_miss_user: trap", %g1, %g2, %g3, 7, 8, 9)
 9:
 #endif
 
@@ -1250,8 +1199,8 @@ ENTRY(tl1_dmmu_miss_user)
 
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl1_dmmu_miss: trap sp=%#lx tar=%#lx"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_dmmu_miss: trap sp=%#lx tar=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	stx	%sp, [%g2 + KTR_PARM1]
 	stx	%g1, [%g2 + KTR_PARM2]
@@ -1485,8 +1434,8 @@ ENTRY(tl1_spill_topcb)
 	inc	%g2
 	stx	%g2, [%g1 + PCB_NSAVED]
 
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl1_spill_topcb: pc=%lx sp=%#lx nsaved=%d"
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_spill_topcb: pc=%lx sp=%#lx nsaved=%d"
 	   , %g1, %g2, %g3, 7, 8, 9)
 	rdpr	%tpc, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -1733,7 +1682,7 @@ tl1_spill_2_o:
 	tl1_spill_2_o			! 0x2a8 spill 2 other
 tl1_spill_3_o:
 	tl1_spill_3_o			! 0x2ac spill 3 other
-	tl1_spill_bad	4		! 0x2a0-0x2bf spill other
+	tl1_spill_bad	4		! 0x2b0-0x2bf spill other
 tl1_fill_0_n:
 	tl1_fill_0_n			! 0x2c0 fill 0 normal
 	tl1_fill_bad	3		! 0x2c4-0x2cf fill normal
@@ -1749,8 +1698,9 @@ tl1_fill_7_n:
 	tl1_reserved	1		! 0x300 trap instruction
 tl1_breakpoint:
 	tl1_breakpoint			! 0x301 breakpoint
-	tl1_gen		T_RESTOREWP	! 0x302 restore watchpoint (debug)
-	tl1_soft	125		! 0x303-0x37f trap instruction
+	tl1_gen		T_RSTRWP_PHYS	! 0x302 restore physical watchpoint (debug)
+	tl1_gen		T_RSTRWP_VIRT	! 0x303 restore virtual watchpoint (debug)
+	tl1_soft	124		! 0x304-0x37f trap instruction
 	tl1_reserved	128		! 0x380-0x3ff reserved
 
 /*
@@ -1794,6 +1744,7 @@ ENTRY(tl0_trap)
 	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
 	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	rdpr	%wstate, %o3
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
 .Ltl0_trap_fill:
@@ -1857,6 +1808,7 @@ ENTRY(tl0_syscall)
 	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
 	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	rdpr	%wstate, %o3
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
 	mov	%g7, %l0
@@ -1873,14 +1825,14 @@ ENTRY(tl0_syscall)
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
 #if KTR_COMPILE & KTR_SYSC
-	CATR(KTR_SYSC, "tl0_syscall: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
+	CATR(KTR_SYSC, "tl0_syscall: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%o0, [%g1 + KTR_PARM2]
-	stx	%o1, [%g1 + KTR_PARM3]
-	stx	%o2, [%g1 + KTR_PARM4]
-	stx	%o3, [%g1 + KTR_PARM5]
+	stx	%o2, [%g1 + KTR_PARM3]
+	stx	%i7, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
 9:
 #endif
 
@@ -1922,6 +1874,7 @@ ENTRY(tl0_intr)
 	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
 	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	rdpr	%wstate, %o3
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
 	mov	%g7, %l0
@@ -1938,14 +1891,15 @@ ENTRY(tl0_intr)
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
 #if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl0_intr: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
+	CATR(KTR_INTR, "tl0_intr: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%o0, [%g1 + KTR_PARM2]
-	stx	%o1, [%g1 + KTR_PARM3]
-	stx	%o2, [%g1 + KTR_PARM4]
-	stx	%o3, [%g1 + KTR_PARM5]
+	stx	%o2, [%g1 + KTR_PARM3]
+	rdpr	%tpc, %g2
+	stx	%g2, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
 9:
 #endif
 
@@ -2027,29 +1981,29 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
 	ldx	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l4
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	wrpr	%l0, 0, %pil
+	mov	%l0, %g1
+	mov	%l1, %g2
+	mov	%l2, %g3
 
-	wrpr	%l1, 0, %tstate
-	wrpr	%l2, 0, %tpc
-	wrpr	%l3, 0, %tnpc
+	andn	%l3, TSTATE_CWP_MASK, %g4
 
 	/*
 	 * Restore the user window state.
 	 * NOTE: whenever we come here, it should be with %canrestore = 0.
 	 */
-	srlx	%l4, WSTATE_USERSHIFT, %g1
-	wrpr	%g1, WSTATE_TRANSITION, %wstate
-	rdpr	%otherwin, %g2
-	wrpr	%g2, 0, %canrestore
+	srlx	%l4, WSTATE_USERSHIFT, %g5
+	wrpr	%g5, WSTATE_TRANSITION, %wstate
+	rdpr	%otherwin, %g1
+	wrpr	%g1, 0, %canrestore
 	wrpr	%g0, 0, %otherwin
-	wrpr	%g2, 0, %cleanwin
+	wrpr	%g1, 0, %cleanwin
 
 	/*
 	 * If this instruction causes a fill trap which fails to fill a window
@@ -2059,12 +2013,21 @@ ENTRY(tl0_ret)
 	restore
 tl0_ret_fill:
 
+	wrpr	%g1, 0, %pil
+	wrpr	%g2, 0, %tpc
+	wrpr	%g3, 0, %tnpc
+	rdpr	%cwp, %g1
+	or	%g4, %g1, %g4
+	wrpr	%g4, 0, %tstate
+	wrpr	%g5, 0, %wstate
+
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl0_ret: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
-	stx	%l0, [%g2 + KTR_PARM2]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
 	rdpr	%tstate, %g3
 	stx	%g3, [%g2 + KTR_PARM3]
 	rdpr	%tpc, %g3
@@ -2073,7 +2036,6 @@ tl0_ret_fill:
 9:
 #endif
 
-	wrpr	%g1, 0, %wstate
 	retry
 tl0_ret_fill_end:
 
