@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.4 1994/10/17 21:11:31 phk Exp $
+**  $Id: pcisupport.c,v 1.5 1994/10/25 18:45:19 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -54,6 +54,9 @@
 #include <i386/pci/pcireg.h>
 
 extern	void	printf();
+
+extern	int	bootverbose;
+
 
 /*---------------------------------------------------------
 **
@@ -258,7 +261,7 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
 
 void chipset_attach(pcici_t config_id, int unit)
 {
-#ifdef PROBE_VERBOSE
+    if (bootverbose) {
 	switch (pci_conf_read (config_id, 0)) {
 
 	case 0x04838086:
@@ -275,7 +278,7 @@ void chipset_attach(pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x54));
 		break;
 	};
-#endif
+    }
 }
 
 /*---------------------------------------------------------
