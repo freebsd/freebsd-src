@@ -86,6 +86,7 @@ struct refclock refclock_palisade = {
 	NOFLAGS			/* not used */
 };
 
+int day_of_year P((char *dt));
 
 /*
  * palisade_start - open the devices and initialize data for processing

@@ -1,3 +1,18 @@
+* algorithmic improvements, bugfixes
+* Solaris dosynctodr info update
+* html/pic/* is *lots* smaller
+* New drivers: Forum Graphic GPS, WWV/H
+* Rewrite of the audio drivers
+* Driver updates: CHU, DCF, GPS/VME, Oncore, PCF, Ulink, WWVB, burst
+  If you use the ONCORE driver with a HARDPPS kernel module,
+  you *must* have a properly specified:
+	pps <filename> [assert/clear] [hardpps]
+  line in the /etc/ntp.conf file.
+* PARSE cleanup
+* PPS cleanup
+* ntpd, ntpq, ntpdate cleanup and fixes
+* NT port improvements
+* AIX, BSDI, DEC OSF, FreeBSD, NetBSD, Reliant, SCO, Solaris port improvements
 (4.0.98)
 * Solaris kernel FLL bug is fixed in 106541-07
 * Bug/lint cleanup

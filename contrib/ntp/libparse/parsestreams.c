@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/parsestreams.c,v 4.6 1998/12/20 23:45:31 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/parsestreams.c,v 4.7 1999/11/28 09:13:53 kardel RELEASE_19991128_A
  *  
- * parsestreams.c,v 4.6 1998/12/20 23:45:31 kardel RELEASE_19990228_A
+ * parsestreams.c,v 4.7 1999/11/28 09:13:53 kardel RELEASE_19991128_A
  *
  * STREAMS module for reference clocks
  * (SunOS4.x)
@@ -23,7 +23,7 @@
 #endif
 
 #ifndef lint
-static char rcsid[] = "parsestreams.c,v 4.6 1998/12/20 23:45:31 kardel RELEASE_19990228_A";
+static char rcsid[] = "parsestreams.c,v 4.7 1999/11/28 09:13:53 kardel RELEASE_19991128_A";
 #endif
 
 #ifndef KERNEL
@@ -239,7 +239,7 @@ xxxinit(
 		}
 		else
 		{
-			static char revision[] = "4.6";
+			static char revision[] = "4.7";
 			char *s, *S, *t;
 	  
 			s = rcsid;		/* NOOP - keep compilers happy */
@@ -522,7 +522,7 @@ parseopen(
 #ifdef VDDRV
 			printf("%s: Copyright (C) 1991-1998, Frank Kardel\n", parsesync_vd.Drv_name);
 #else
-			printf("%s: Copyright (C) 1991-1998, Frank Kardel\n", "parsestreams.c,v 4.6 1998/12/20 23:45:31 kardel RELEASE_19990228_A");
+			printf("%s: Copyright (C) 1991-1998, Frank Kardel\n", "parsestreams.c,v 4.7 1999/11/28 09:13:53 kardel RELEASE_19991128_A");
 #endif
 			notice = 1;
 		}
@@ -1307,6 +1307,9 @@ zs_xsisr(
  * History:
  *
  * parsestreams.c,v
+ * Revision 4.7  1999/11/28 09:13:53  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.6  1998/12/20 23:45:31  kardel
  * fix types and warnings
  *

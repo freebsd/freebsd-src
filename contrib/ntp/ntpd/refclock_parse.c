@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/ntpd/refclock_parse.c,v 4.29 1999/02/28 19:58:23 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/ntpd/refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A
  *
- * refclock_parse.c,v 4.29 1999/02/28 19:58:23 kardel RELEASE_19990228_A
+ * refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A
  *
  * generic reference clock driver for receivers
  *
@@ -134,7 +134,7 @@
 #include "ascii.h"
 #include "ieee754io.h"
 
-static char rcsid[]="refclock_parse.c,v 4.29 1999/02/28 19:58:23 kardel RELEASE_19990228_A";
+static char rcsid[]="refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A";
 
 /**===========================================================================
  ** external interface to ntp mechanism
@@ -341,7 +341,7 @@ struct parseunit
 	u_char	      flags;	        /* flags (leap_control) */
 	u_long	      lastchange;       /* time (ntp) when last state change accured */
 	u_long	      statetime[CEVNT_MAX+1]; /* accumulated time of clock states */
-	u_char        pollneeddata; 	/* 1 for receive sample expected in PPS mode */
+	u_long        pollneeddata; 	/* current_time(!=0) for receive sample expected in PPS mode */
 	u_short	      lastformat;       /* last format used */
 	u_long        lastsync;		/* time (ntp) when clock was last seen fully synchronized */
 	u_long        lastmissed;       /* time (ntp) when poll didn't get data (powerup heuristic) */
@@ -609,16 +609,17 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
  * RAWDCF receivers that need to be powered from DTR
  * (like Expert mouse clock)
  */
-static	int	rawdcfdtr_init	P((struct parseunit *));
-#define RAWDCFDTR_DESCRIPTION	"RAW DCF77 CODE (DTR OPTION)"
-#define RAWDCFDTR_INIT 		rawdcfdtr_init
+static	int	rawdcf_init_1	P((struct parseunit *));
+#define RAWDCFDTRSET_DESCRIPTION	"RAW DCF77 CODE (DTR SET/RTS CLR)"
+#define RAWDCFDTRSET_INIT 		rawdcf_init_1
 
 /*
- * RAWDCF receivers that need to be powered from RTS
+ * RAWDCF receivers that need to be powered from
+ * DTR CLR and RTS SET
  */
-static	int	rawdcfrts_init	P((struct parseunit *));
-#define RAWDCFRTS_DESCRIPTION	"RAW DCF77 CODE (RTS OPTION)"
-#define RAWDCFRTS_INIT 		rawdcfrts_init
+static	int	rawdcf_init_2	P((struct parseunit *));
+#define RAWDCFDTRCLRRTSSET_DESCRIPTION	"RAW DCF77 CODE (DTR CLR/RTS SET)"
+#define RAWDCFDTRCLRRTSSET_INIT	rawdcf_init_2
 
 /*
  * Trimble GPS receivers (TAIP and TSIP protocols)
@@ -765,6 +766,8 @@ static poll_info_t rcc8000_pollinfo = { RCC_POLLRATE, RCC_POLLCMD, RCC_CMDSIZE }
 #define COMPUTIME_LFLAG       0
 #define COMPUTIME_SAMPLES     5
 #define COMPUTIME_KEEP        3
+
+static poll_info_t we400a_pollinfo = { 60, "T", 1 };
 
 /*
  * Varitext Radio Clock Receiver
@@ -1144,7 +1147,7 @@ static struct parse_clockinfo
 	{				/* mode 14 */
 		RAWDCF_FLAGS,
 		NO_POLL,
-		RAWDCFDTR_INIT,
+		RAWDCFDTRSET_INIT,
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
@@ -1152,7 +1155,7 @@ static struct parse_clockinfo
 		RAWDCF_ROOTDELAY,
 		RAWDCF_BASEDELAY,
 		DCF_A_ID,
-		RAWDCFDTR_DESCRIPTION,
+		RAWDCFDTRSET_DESCRIPTION,
 		RAWDCF_FORMAT,
 		DCF_TYPE,
 		RAWDCF_MAXUNSYNC,
@@ -1165,31 +1168,54 @@ static struct parse_clockinfo
 		RAWDCF_KEEP
 	},
 	{				/* mode 15 */
-	0,				/* operation flags (io modes) */
-  	NO_POLL,			/* active poll routine */
-	NO_INIT,			/* active poll init routine */
-  	NO_EVENT,		/* special event handling (e.g. reset clock) */
-  	NO_END,				/* active poll end routine */
-  	NO_MESSAGE,			/* process a lower layer message */
-	NO_DATA,		/* local data area for "poll" mechanism */
-	0,				/* rootdelay */
-	11.0 /* bits */ / 9600,		/* current offset by which the RS232
-				time code is delayed from the actual time */
-	DCF_ID,				/* ID code */
-	"WHARTON 400A Series clock",	/* device name */
-	"WHARTON 400A Series clock Output Format 1",	/* fixed format */
-		/* Must match a format-name in a libparse/clk_xxx.c file */
-	DCF_TYPE,			/* clock type (ntp control) */
-	(1*60*60)/*?*/,	/* time to trust oscillator after loosing synch */
-	B9600,				/* terminal input & output baudrate */
-	(CS8|CREAD|PARENB|CLOCAL|HUPCL), /* terminal control flags */
-	0,				/* terminal input flags */
-	0,				/* terminal output flags */
-	0,				/* terminal local flags */
-	5/*?*/,				/* samples for median filter */
-	3/*?*/,				/* samples for median filter to keep */
+		0,				/* operation flags (io modes) */
+  		poll_dpoll,			/* active poll routine */
+		poll_init,			/* active poll init routine */
+  		NO_EVENT,		        /* special event handling (e.g. reset clock) */
+  		NO_END,				/* active poll end routine */
+  		NO_MESSAGE,			/* process a lower layer message */
+		((void *)(&we400a_pollinfo)),   /* local data area for "poll" mechanism */
+		0,				/* rootdelay */
+		1.0 / 960,			/* current offset by which the RS232
+				           	time code is delayed from the actual time */
+		DCF_ID,				/* ID code */
+		"WHARTON 400A Series clock",	/* device name */
+		"WHARTON 400A Series clock Output Format 5",	/* fixed format */
+			/* Must match a format-name in a libparse/clk_xxx.c file */
+		DCF_TYPE,			/* clock type (ntp control) */
+		(1*60*60),		        /* time to trust oscillator after loosing synch */
+		B9600,				/* terminal input & output baudrate */
+		(CS8|CREAD|PARENB|CLOCAL|HUPCL),/* terminal control flags */
+		0,				/* terminal input flags */
+		0,				/* terminal output flags */
+		0,				/* terminal local flags */
+		5,				/* samples for median filter */
+		3,				/* samples for median filter to keep */
 	},
-        {                            /* mode 16 */
+	{				/* mode 16 - RAWDCF RTS set, DTR clr */
+		RAWDCF_FLAGS,
+		NO_POLL,
+		RAWDCFDTRCLRRTSSET_INIT,
+		NO_EVENT,
+		NO_END,
+		NO_MESSAGE,
+		NO_DATA,
+		RAWDCF_ROOTDELAY,
+		RAWDCF_BASEDELAY,
+		DCF_A_ID,
+		RAWDCFDTRCLRRTSSET_DESCRIPTION,
+		RAWDCF_FORMAT,
+		DCF_TYPE,
+		RAWDCF_MAXUNSYNC,
+		RAWDCF_SPEED,
+		RAWDCF_CFLAG,
+		RAWDCF_IFLAG,
+		RAWDCF_OFLAG,
+		RAWDCF_LFLAG,
+		RAWDCF_SAMPLES,
+		RAWDCF_KEEP
+	},
+        {                            /* mode 17 */
                 VARITEXT_FLAGS,
                 NO_POLL,
                 NO_INIT,
@@ -1211,30 +1237,7 @@ static struct parse_clockinfo
                 VARITEXT_LFLAG,
                 VARITEXT_SAMPLES,
                 VARITEXT_KEEP
-        },
-	{				/* mode 17 */
-		RAWDCF_FLAGS,
-		NO_POLL,
-		RAWDCFRTS_INIT,
-		NO_EVENT,
-		NO_END,
-		NO_MESSAGE,
-		NO_DATA,
-		RAWDCF_ROOTDELAY,
-		RAWDCF_BASEDELAY,
-		DCF_A_ID,
-		RAWDCFRTS_DESCRIPTION,
-		RAWDCF_FORMAT,
-		DCF_TYPE,
-		RAWDCF_MAXUNSYNC,
-		RAWDCF_SPEED,
-		RAWDCF_CFLAG,
-		RAWDCF_IFLAG,
-		RAWDCF_OFLAG,
-		RAWDCF_LFLAG,
-		RAWDCF_SAMPLES,
-		RAWDCF_KEEP
-	},
+        }
 };
 
 static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
@@ -1554,9 +1557,9 @@ ppsclock_init(
 	    ioctl(parse->generic->io.fd, I_PUSH, (caddr_t)m2) == -1)
 	{
 		if (errno != EINVAL)
-	{
-		msyslog(LOG_ERR, "PARSE receiver #%d: ppsclock_init: ioctl(fd, I_PUSH, \"ppsclock\"): %m",
-			CLK_UNIT(parse->peer));
+		{
+			msyslog(LOG_ERR, "PARSE receiver #%d: ppsclock_init: ioctl(fd, I_PUSH, \"ppsclock\"): %m",
+				CLK_UNIT(parse->peer));
 		}
 		return 0;
 	}
@@ -1586,8 +1589,8 @@ stream_init(
 	if (ioctl(parse->generic->io.fd, I_PUSH, (caddr_t)m1) == -1)
 	{
 		if (errno != EINVAL) /* accept non-existence */
-	{
-		msyslog(LOG_ERR, "PARSE receiver #%d: stream_init: ioctl(fd, I_PUSH, \"parse\"): %m", CLK_UNIT(parse->peer));
+		{
+			msyslog(LOG_ERR, "PARSE receiver #%d: stream_init: ioctl(fd, I_PUSH, \"parse\"): %m", CLK_UNIT(parse->peer));
 		}
 		return 0;
 	}
@@ -2032,10 +2035,10 @@ local_input(
 			}
 			else
 			{
-			memmove((caddr_t)rbufp->recv_buffer,
-				(caddr_t)&parse->parseio.parse_dtime,
-				sizeof(parsetime_t));
-			parse_iodone(&parse->parseio);
+				memmove((caddr_t)rbufp->recv_buffer,
+					(caddr_t)&parse->parseio.parse_dtime,
+					sizeof(parsetime_t));
+				parse_iodone(&parse->parseio);
 				rbufp->recv_length = sizeof(parsetime_t);
 				return 1; /* got something & in place return */
 			}
@@ -2132,18 +2135,18 @@ parsestate(
 		const char *name;
 	} flagstrings[] =
 	  {
-		  { PARSEB_ANNOUNCE, "DST SWITCH WARNING" },
-		  { PARSEB_POWERUP,  "NOT SYNCHRONIZED" },
-		  { PARSEB_NOSYNC,   "TIME CODE NOT CONFIRMED" },
-		  { PARSEB_DST,      "DST" },
-		  { PARSEB_UTC,      "UTC DISPLAY" },
-		  { PARSEB_LEAPADD,  "LEAP ADD WARNING" },
-		  { PARSEB_LEAPDEL,  "LEAP DELETE WARNING" },
+		  { PARSEB_ANNOUNCE,   "DST SWITCH WARNING" },
+		  { PARSEB_POWERUP,    "NOT SYNCHRONIZED" },
+		  { PARSEB_NOSYNC,     "TIME CODE NOT CONFIRMED" },
+		  { PARSEB_DST,        "DST" },
+		  { PARSEB_UTC,        "UTC DISPLAY" },
+		  { PARSEB_LEAPADD,    "LEAP ADD WARNING" },
+		  { PARSEB_LEAPDEL,    "LEAP DELETE WARNING" },
 		  { PARSEB_LEAPSECOND, "LEAP SECOND" },
-		  { PARSEB_ALTERNATE,"ALTERNATE ANTENNA" },
-		  { PARSEB_TIMECODE, "TIME CODE" },
-		  { PARSEB_PPS,      "PPS" },
-		  { PARSEB_POSITION, "POSITION" },
+		  { PARSEB_ALTERNATE,  "ALTERNATE ANTENNA" },
+		  { PARSEB_TIMECODE,   "TIME CODE" },
+		  { PARSEB_PPS,        "PPS" },
+		  { PARSEB_POSITION,   "POSITION" },
 		  { 0 }
 	  };
 
@@ -2538,9 +2541,6 @@ parse_start(
 	peer->sstclktype      = parse->parse_type->cl_type;
 	peer->precision       = sys_precision;
 	
-	peer->burst           = NTP_SHIFT;
-	peer->flags          |= FLAG_BURST;
-	
 	peer->stratum         = STRATUM_REFCLOCK;
 	if (peer->stratum <= 1)
 	    memmove((char *)&parse->generic->refid, parse->parse_type->cl_id, 4);
@@ -2737,7 +2737,7 @@ parse_start(
 	}
 #endif
 #endif
-  
+
 	/*
 	 * try to do any special initializations
 	 */
@@ -2816,9 +2816,11 @@ parse_poll(
 	 */
 	parse->generic->polls++;
 
-	if (parse->pollneeddata)
+	if (parse->pollneeddata && 
+	    ((current_time - parse->pollneeddata) > (1<<(max(min(parse->peer->hpoll, parse->peer->ppoll), parse->peer->minpoll)))))
 	{
 		/*
+		 * start worrying when exceeding a poll inteval
 		 * bad news - didn't get a response last time
 		 */
 		parse->generic->noreply++;
@@ -2832,7 +2834,7 @@ parse_poll(
 	/*
 	 * we just mark that we want the next sample for the clock filter
 	 */
-	parse->pollneeddata = 1;
+	parse->pollneeddata = current_time;
 
 	if (parse->parse_type->cl_poll)
 	{
@@ -3380,7 +3382,7 @@ parse_process(
 					if (reftime.l_uf & (unsigned)0x80000000)
 						reftime.l_ui++;
 					reftime.l_uf = 0;
-					
+
 					
 					/*
 					 * implied on second offset
@@ -3535,7 +3537,7 @@ parse_process(
 
 	refclock_receive(parse->peer);
 }
-
+
 /**===========================================================================
  ** special code for special clocks
  **/
@@ -4149,7 +4151,7 @@ poll_init(
 
 	return 0;
 }
-
+
 /**===========================================================================
  ** Trimble support
  **/
@@ -4260,7 +4262,7 @@ trimbletaip_event(
  * of the PPS pulse for accurate timing. Where it is determined that
  * the offset is way off, when first starting up ntpd for example,
  * the timing of the data stream is used until the offset becomes low enough
- * (|offset| < clock_max), at which point the pps offset is used.
+ * (|offset| < CLOCK_MAX), at which point the pps offset is used.
  *
  * It can use either option for receiving PPS information - the 'ppsclock'
  * stream pushed onto the serial data interface to timestamp the Carrier
@@ -4349,6 +4351,12 @@ struct txbuf
 	u_char *txt;			/* pointer to actual data buffer */
 };
 
+void	sendcmd		P((struct txbuf *buf, int c)); 
+void	sendbyte	P((struct txbuf *buf, int b)); 
+void	sendetx		P((struct txbuf *buf, struct parseunit *parse)); 
+void	sendint		P((struct txbuf *buf, int a)); 
+void	sendflt		P((struct txbuf *buf, double a)); 
+ 
 void
 sendcmd(
 	struct txbuf *buf,
@@ -4441,7 +4449,7 @@ static int
 trimbletsip_setup(
 		  struct parseunit *parse,
 		  const char *reason
-	)
+		  )
 {
 	u_char buffer[256];
 	struct txbuf buf;
@@ -4449,34 +4457,34 @@ trimbletsip_setup(
 	buf.txt = buffer;
   
 	sendcmd(&buf, CMD_CVERSION);	/* request software versions */
-		sendetx(&buf, parse);
-
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_COPERPARAM);	/* set operating parameters */
-		sendbyte(&buf, 4);	/* static */
-		sendflt(&buf, 5.0*D2R);	/* elevation angle mask = 10 deg XXX */
-		sendflt(&buf, 4.0);	/* s/n ratio mask = 6 XXX */
-		sendflt(&buf, 12.0);	/* PDOP mask = 12 */
-		sendflt(&buf, 8.0);	/* PDOP switch level = 8 */
-		sendetx(&buf, parse);
-
+	sendbyte(&buf, 4);	/* static */
+	sendflt(&buf, 5.0*D2R);	/* elevation angle mask = 10 deg XXX */
+	sendflt(&buf, 4.0);	/* s/n ratio mask = 6 XXX */
+	sendflt(&buf, 12.0);	/* PDOP mask = 12 */
+	sendflt(&buf, 8.0);	/* PDOP switch level = 8 */
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_CMODESEL);	/* fix mode select */
-		sendbyte(&buf, 0);	/* automatic */
-		sendetx(&buf, parse);
-
+	sendbyte(&buf, 0);	/* automatic */
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_CMESSAGE);	/* request system message */
-		sendetx(&buf, parse);
-
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_CSUPER);	/* superpacket fix */
-		sendbyte(&buf, 0x2);	/* binary mode */
-		sendetx(&buf, parse);
-
+	sendbyte(&buf, 0x2);	/* binary mode */
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_CIOOPTIONS);	/* set I/O options */
 	sendbyte(&buf, TRIM_POS_OPT);	/* position output */
 	sendbyte(&buf, 0x00);	/* no velocity output */
 	sendbyte(&buf, TRIM_TIME_OPT);	/* UTC, compute on seconds */
 	sendbyte(&buf, 0x00);	/* no raw measurements */
-		sendetx(&buf, parse);
-
+	sendetx(&buf, parse);
+	
 	sendcmd(&buf, CMD_CUTCPARAM);	/* request UTC correction data */
 	sendetx(&buf, parse);
 
@@ -4605,7 +4613,7 @@ trimbletsip_init(
 #ifdef VEOL2
 			tio.c_cc[VEOL2]  = DLE;
 #endif
-}
+		}
 
 		if (TTY_SETATTR(parse->generic->io.fd, &tio) == -1)
 		{
@@ -5133,11 +5141,12 @@ trimbletsip_message(
  **/
 
 /*--------------------------------------------------
- * rawdcfdtr_init - set up modem lines for RAWDCF receivers
+ * rawdcf_init_1 - set up modem lines for RAWDCF receivers
+ * SET DTR line
  */
 #if defined(TIOCMSET) && (defined(TIOCM_DTR) || defined(CIOCM_DTR))
 static int
-rawdcfdtr_init(
+rawdcf_init_1(
 	struct parseunit *parse
 	)
 {
@@ -5155,7 +5164,7 @@ rawdcfdtr_init(
 
 	if (ioctl(parse->generic->io.fd, TIOCMSET, (caddr_t)&sl232) == -1)
 	{
-		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init: WARNING: ioctl(fd, TIOCMSET, [C|T]IOCM_DTR): %m", CLK_UNIT(parse->peer));
+		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_1: WARNING: ioctl(fd, TIOCMSET, [C|T]IOCM_DTR): %m", CLK_UNIT(parse->peer));
 	}
 	return 0;
 }
@@ -5165,47 +5174,49 @@ rawdcfdtr_init(
 	struct parseunit *parse
 	)
 {
-	msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init: WARNING: OS interface incapable of setting DTR to power DCF modules", CLK_UNIT(parse->peer));
+	msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_1: WARNING: OS interface incapable of setting DTR to power DCF modules", CLK_UNIT(parse->peer));
 	return 0;
 }
 #endif  /* DTR initialisation type */
 
 /*--------------------------------------------------
- * rawdcfrts_init - set up modem lines for RAWDCF receivers
+ * rawdcf_init_2 - set up modem lines for RAWDCF receivers
+ * CLR DTR line, SET RTS line
  */
-#if defined(TIOCMSET) && (defined(TIOCM_RTS) || defined(CIOCM_RTS))
+#if defined(TIOCMSET) &&  (defined(TIOCM_RTS) || defined(CIOCM_RTS))
 static int
-rawdcfrts_init(
+rawdcf_init_2(
 	struct parseunit *parse
 	)
 {
 	/*
 	 * You can use the RS232 to supply the power for a DCF77 receiver.
-	 * Here a voltage between the RTS and the DTR line is used.
+	 * Here a voltage between the DTR and the RTS line is used. Unfortunately
+	 * the name has changed from CIOCM_DTR to TIOCM_DTR recently.
 	 */
 	
 #ifdef TIOCM_RTS
-	int sl232 = TIOCM_RTS;	/* turn on RTS for power supply */
+	int sl232 = TIOCM_RTS;	/* turn on RTS, clear DTR for power supply */
 #else
-	int sl232 = CIOCM_RTS;	/* turn on RTS for power supply */
+	int sl232 = CIOCM_RTS;	/* turn on DTR for power supply */
 #endif
 
 	if (ioctl(parse->generic->io.fd, TIOCMSET, (caddr_t)&sl232) == -1)
 	{
-		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init: WARNING: ioctl(fd, TIOCMSET, [C|T]IOCM_RTS): %m", CLK_UNIT(parse->peer));
+		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_2: WARNING: ioctl(fd, TIOCMSET, [C|T]IOCM_RTS): %m", CLK_UNIT(parse->peer));
 	}
 	return 0;
 }
 #else
 static int
-rawdcfrts_init(
+rawdcf_init_2(
 	struct parseunit *parse
 	)
 {
-	msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init: WARNING: OS interface incapable of setting RTS to power DCF modules", CLK_UNIT(parse->peer));
+	msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_2: WARNING: OS interface incapable of setting RTS to power DCF modules", CLK_UNIT(parse->peer));
 	return 0;
 }
-#endif  /* RTS initialisation type */
+#endif  /* DTR initialisation type */
 
 #else	/* defined(REFCLOCK) && defined(PARSE) */
 int refclock_parse_bs;
@@ -5215,6 +5226,27 @@ int refclock_parse_bs;
  * History:
  *
  * refclock_parse.c,v
+ * Revision 4.36  1999/11/28 17:18:20  kardel
+ * disabled burst mode
+ *
+ * Revision 4.35  1999/11/28 09:14:14  kardel
+ * RECON_4_0_98F
+ *
+ * Revision 4.34  1999/05/14 06:08:05  kardel
+ * store current_time in a suitable container (u_long)
+ *
+ * Revision 4.33  1999/05/13 21:48:38  kardel
+ * double the no response timeout interval
+ *
+ * Revision 4.32  1999/05/13 20:09:13  kardel
+ * complain only about missing polls after a full poll interval
+ *
+ * Revision 4.31  1999/05/13 19:59:32  kardel
+ * add clock type 16 for RTS set DTR clr in RAWDCF
+ *
+ * Revision 4.30  1999/02/28 20:36:43  kardel
+ * fixed printf fmt
+ *
  * Revision 4.29  1999/02/28 19:58:23  kardel
  * updated copyright information
  *

@@ -41,6 +41,16 @@ signal_no_reset(
 	vec.sa_flags = 0;
 #endif
 
+#ifdef SA_RESTART
+/* Added for PPS clocks on Solaris 7 which get EINTR errors */
+# ifdef SIGPOLL
+	if (sig == SIGPOLL) vec.sa_flags = SA_RESTART;
+# endif
+# ifdef SIGIO
+	if (sig == SIGIO)   vec.sa_flags = SA_RESTART;
+# endif
+#endif
+
 	while (1)
 	{
 		struct sigaction ovec;

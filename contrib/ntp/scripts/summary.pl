@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
-# $Id: summary.pl,v 1.1.1.1 1999/05/26 00:48:25 stenn Exp $
+# $Id: summary.pl,v 1.2 1999/12/02 01:59:07 stenn Exp $
 # Perl version of (summary.sh, loop.awk, peer.awk):
 # Create summaries from xntpd's loop and peer statistics.
 #
-# Copyright (c) 1997, Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+# Copyright (c) 1997, 1999 by Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,13 +24,16 @@ use strict;
 
 use Getopt::Long;
 
-my $statsdir = ".";
+my $log_date_pattern = '[12]\d{3}[01]\d[0-3]\d';
+my $statsdir = "/var/log/ntp";		# directory with input files
+my $outputdir = "/tmp";			# directory for output files
 my $skip_time_steps = 3600.0;		# ignore time offsets larger that this
-my $startdate = "19700101";		# first data file to use
+my $startdate = "19700101";		# first data file to use (YYYYMMDD)
 my $enddate=`date -u +%Y%m%d`; chomp $enddate; --$enddate;
 my $peer_dist_limit = 400.0;
 
-my %options = ("directory=s" => \$statsdir,
+my %options = ("directory|input-directory=s" => \$statsdir,
+	       "output-directory=s" => \$outputdir,
 	       "skip-time-steps:f" => \$skip_time_steps,
 	       "start-date=s" => \$startdate,
 	       "end-date=s" => \$enddate,
@@ -41,24 +44,27 @@ if ( !GetOptions(%options) )
     print STDERR "valid options for $0 are:\n";
     my $opt;
     foreach $opt (sort(keys %options)) {
-	print STDERR "\t--$opt ";
+	print STDERR "\t--$opt\t(default is ";
 	if ( ref($options{$opt}) eq "ARRAY" ) {
-	    print STDERR "(" . join (" ", @{$options{$opt}}) . ")\n";
+	    print STDERR join(", ",  map { "'$_'" } @{$options{$opt}});
 	} else {
-	    print STDERR "(${$options{$opt}})\n";
-    }
+	    print STDERR "'${$options{$opt}}'";
+	}
+	print STDERR ")\n";
     }
     print STDERR "\n";
     die;
 }
 
+# check possibly current values of options
 die "$statsdir: no such directory" unless (-d $statsdir);
+die "$outputdir: no such directory" unless (-d $outputdir);
 die "$skip_time_steps: skip-time-steps must be positive"
     unless ($skip_time_steps >= 0.0);
-die "$startdate: invalid start date"
-    unless ($startdate =~ m/.*([12]\d{3}[01]\d[0-3]\d)$/);
+die "$startdate: invalid start date|$`|$&|$'"
+    unless ($startdate =~ m/.*$log_date_pattern$/);
 die "$enddate: invalid end date"
-    unless ($enddate =~ m/.*([12]\d{3}[01]\d[0-3]\d)$/);
+    unless ($enddate =~ m/.*$log_date_pattern$/);
 
 $skip_time_steps = 0.128 if ($skip_time_steps == 0);
 
@@ -81,7 +87,7 @@ sub do_loop
 {
     my ($directory, $fname, $out_file) = @_;
     print "$directory/$fname\n";
-    open INPUT, "$directory/$fname";
+    open INPUT, "$directory/$fname" or warn "can't open $directory/$fname: $!";
     open OUTPUT, ">>$out_file" or die "can't open $out_file: $!";
     print OUTPUT "$fname\n";
     my ($loop_tmax, $loop_fmax) = (-1e9, -1e9);
@@ -96,7 +102,10 @@ sub do_loop
 	chop;	# strip record separator
 	@Fld = split;
 	next if ($#Fld < 4);
-# 50529 74356.259 -0.000112 16.1230 8
+#NTPv3: 50529 74356.259 -0.000112 16.1230 8
+#NTPv3: day, sec.msec, offset, drift_comp, sys_poll
+#NTPv4: 51333 54734.582 0.000001648 16.981964 0.000001094 0.020938 6
+#NTPv4: day, sec.msec, offset, drift_comp, sys_error, clock_stabil, sys_poll
 	if ($Fld[2] > $skip_time_steps || $Fld[2] < -$skip_time_steps) {
 	    warn "ignoring loop offset $Fld[2] (file $fname, line $.)\n";
 	    next
@@ -147,7 +156,7 @@ sub do_peer
 {
     my ($directory, $fname, $out_file) = @_;
     print "$directory/$fname\n";
-    open INPUT, "$directory/$fname";
+    open INPUT, "$directory/$fname" or warn "can't open $directory/$fname: $!";
     open OUTPUT, ">>$out_file" or die "can't open $out_file: $!";
     print OUTPUT "$fname\n";
 # we toss out all distances greater than one second on the assumption the
@@ -169,7 +178,11 @@ sub do_peer
 	chop;	# strip record separator
 	@Fld = split;
 	next if ($#Fld < 6);
-# 50529 83316.249 127.127.8.1 9674 0.008628 0.00000 0.00700
+#NTPv3: 50529 83316.249 127.127.8.1 9674 0.008628 0.00000 0.00700
+#NTPv3: day, sec.msec, addr, status, offset, delay, dispersion
+#NTPv4: 51333 56042.037 127.127.8.1 94f5 -0.000014657 0.000000000 0.000000000 0.000013214
+#NTPv4: day, sec.msec, addr, status, offset, delay, dispersion, skew
+
 	$dist = $Fld[6] + $Fld[5] / 2;
 	next if ($dist > $MAXDISTANCE);
 	$offs = $Fld[4];
@@ -211,8 +224,9 @@ sub do_peer
     for ($i = 0; $i < $n; $i++) {
 	next if $peer_count{$i} < 2;
 	$peer_time{$i} /= $peer_count{$i};
-	$peer_time_rms{$i} = sqrt($peer_time_rms{$i} / $peer_count{$i} -
-				  $peer_time{$i} * $peer_time{$i});
+	eval { $peer_time_rms{$i} = sqrt($peer_time_rms{$i} / $peer_count{$i} -
+					 $peer_time{$i} * $peer_time{$i}); };
+	$peer_time_rms{$i} = 0, warn $@ if $@;
 	$peer_delay{$i} /= $peer_count{$i};
 	$peer_disp{$i} /= $peer_count{$i};
 	$peer_tmax{$i} = $peer_tmax{$i} - $peer_time{$i};
@@ -303,8 +317,9 @@ sub peer_summary
     for ($i = 0; $i < $n; $i++) {
 	next if ($peer_count{$i} < 2);
 	$peer_mean{$i} /= $peer_count{$i};
-	$peer_var{$i} = sqrt($peer_var{$i} / $peer_count{$i} -
-			     $peer_mean{$i} * $peer_mean{$i});
+	eval { $peer_var{$i} = sqrt($peer_var{$i} / $peer_count{$i} -
+				    $peer_mean{$i} * $peer_mean{$i}); };
+	$peer_var{$i} = 0, warn $@ if $@;
 	push @lines, sprintf
 	    "%-15s %3d %9.3f% 9.3f %9.3f %3d %3d %3d %3d\n",
 	    $peer_ident{$i}, $peer_count{$i}, $peer_mean{$i}, $peer_var{$i},
@@ -313,41 +328,42 @@ sub peer_summary
     print sort @lines;
 }
 
-my $loop_summary="/tmp/loop_summary";
-my $peer_summary="/tmp/peer_summary";
-my $clock_summary="/tmp/clock_summary";
+my $loop_summary="$outputdir/loop_summary";
+my $peer_summary="$outputdir/peer_summary";
+my $clock_summary="$outputdir/clock_summary";
 my (@loopfiles, @peerfiles, @clockfiles);
 
 print STDERR "Creating summaries from $statsdir ($startdate to $enddate)\n";
 
 opendir SDIR, $statsdir or die "directory ${statsdir}: $!";
 rewinddir SDIR;
-@loopfiles=sort grep /loop.*[12]\d{3}[01]\d[0-3]\d/, readdir SDIR;
+@loopfiles=sort grep /loop.*$log_date_pattern/, readdir SDIR;
 rewinddir SDIR;
-@peerfiles=sort grep /peer.*[12]\d{3}[01]\d[0-3]\d/, readdir SDIR;
+@peerfiles=sort grep /peer.*$log_date_pattern/, readdir SDIR;
 rewinddir SDIR;
-@clockfiles=sort grep /clock.*[12]\d{3}[01]\d[0-3]\d/, readdir SDIR;
+@clockfiles=sort grep /clock.*$log_date_pattern/, readdir SDIR;
 closedir SDIR;
 
+# remove old summary files
 map { unlink $_ if -f $_ } ($loop_summary, $peer_summary, $clock_summary);
 
 my $date;
 map {
-    $date = $_; $date =~ s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
+    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
     if ($date ge $startdate && $date le $enddate) {
 	do_loop $statsdir, $_, $loop_summary;
     }
 } @loopfiles;
 
 map {
-    $date = $_; $date =~ s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
+    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
     if ($date ge $startdate && $date le $enddate) {
 	do_peer $statsdir, $_, $peer_summary;
     }
 } @peerfiles;
 
 map {
-    $date = $_; $date =~ s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
+    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
     if ($date ge $startdate && $date le $enddate) {
 	do_clock $statsdir, $_, $clock_summary;
     }

@@ -336,7 +336,7 @@ struct xcmd builtins[] = {
 #define	DEFTIMEOUT	(5)		/* 5 second time out */
 #define	DEFSTIMEOUT	(2)		/* 2 second time out after first */
 #define	DEFDELAY	0x51EB852	/* 20 milliseconds, l_fp fraction */
-#define	DEFHOST		"localhost"	/* default host name */
+#define	DEFHOST		"127.0.0.1"	/* default host name */
 #define	LENHOSTNAME	256		/* host name is 256 characters long */
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	200		/* maximum hosts on cmd line */

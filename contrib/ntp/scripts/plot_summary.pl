@@ -1,10 +1,10 @@
 #!/usr/bin/perl -w
-# $Id: plot_summary.pl,v 1.1.1.1 1999/05/26 00:48:25 stenn Exp $
+# $Id: plot_summary.pl,v 1.2 1999/12/02 01:59:05 stenn Exp $
 #
 # Use Gnuplot to display data in summary files produced by summary.pl.
-# This script requires GNUPLOT 3.6 (pre 3.6 beta 319)!
+# This script requires GNUPLOT 3.7!
 #
-# Copyright (c) 1997, Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+# Copyright (c) 1997, 1999 by Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ use Getopt::Long;
 
 # parse command line
 my $summary_dir = "/tmp";
-my $identifier = `hostname`;		# origin of these data
+my $identifier = "host " . `hostname`;	# origin of these data
 chomp $identifier;			# remove newline
 my $offset_limit = 0.128;		# limit of absolute offset
 my $output_file = "";			# output file defaults to stdout
@@ -37,24 +37,27 @@ my $gnuplot_terminal = $ENV{DISPLAY} ? "x11" : "dumb";
 my $wait_after_plot = 1;
 my @peer_list = ();
 
-my %options = ("directory=s" => \$summary_dir,
+my %options = ("directory|input-directory=s" => \$summary_dir,
 	       "identifier=s" => \$identifier,
 	       "offset-limit=f" => \$offset_limit,
 	       "output-file=s" => \$output_file,
 	       "peer=s@" => \@peer_list,
-	       "plot-term=s" => \$gnuplot_terminal,
+	       "plot-term|gnuplot-term=s" => \$gnuplot_terminal,
 	       "wait-after-plot!" => \$wait_after_plot,
 	       );
-if ( !GetOptions(%options) ) {
-    print STDERR "usage: $0\n";
+
+if ( !GetOptions(%options) )
+{
+    print STDERR "valid options for $0 are:\n";
     my $opt;
     foreach $opt (sort(keys %options)) {
-	print STDERR "\t--$opt ";
+	print STDERR "\t--$opt\t(default is ";
 	if ( ref($options{$opt}) eq "ARRAY" ) {
-	    print STDERR "(" . join (" ", @{$options{$opt}}) . ")\n";
+	    print STDERR join(", ",  map { "'$_'" } @{$options{$opt}});
 	} else {
-	    print STDERR "(${$options{$opt}})\n";
-    }
+	    print STDERR "'${$options{$opt}}'";
+	}
+	print STDERR ")\n";
     }
     print STDERR "\n";
     die;
@@ -120,7 +123,7 @@ sub do_loop
 # loops.19960405
 	    $_ = $Fld[0]; s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
 	    m/(\d{4})(\d{2})(\d{2})/;
-	    $line = timegm (59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
+	    $line = timegm(59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
 	    $line = int $line / 86400;	# days relative to 1970
 	    $first_day = "$1-$2-$3 ($line)" unless $day_out;
 	    next;
@@ -163,6 +166,7 @@ sub do_loop
     } else {
 	$ylimit = "[] $ylimit]";
     }
+# build command file for GNUplot
     open OUTPUT, "> $cmd_file" or die "$cmd_file: $!";
     my $oldfh = select OUTPUT;
     print "set term $gnuplot_terminal\n";
@@ -199,7 +203,7 @@ sub do_loop
     print "set nomultiplot\n";
     maybe_add_pause;
 
-    my $ylimit = "[";
+    $ylimit = "[";
     if ($min_rms < -$offset_limit) {
 	$ylimit .= "-$offset_limit";
     }
@@ -208,7 +212,7 @@ sub do_loop
 	$ylimit .= "$offset_limit";
     }
     if ( $ylimit eq "[:" ) {
-	$ylimit = "";
+	$ylimit ="";
     } else {
 	$ylimit = "[] $ylimit]";
     }
@@ -261,7 +265,7 @@ sub do_peer
 # peers.19960405
 	    $_ = $Fld[0]; s/.*([12]\d{3}[01]\d[0-3]\d)$/$1/;
 	    m/(\d{4})(\d{2})(\d{2})/ or next;
-	    $line = timegm (59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
+	    $line = timegm(59, 59, 23, $3, $2 - 1, $1 - 1900, 0, 0, 0);
 	    $line = int $line / 86400;	# days relative to 1970
 	    $first_day = "$1-$2-$3 ($line)" unless $day_out;
 	    next;

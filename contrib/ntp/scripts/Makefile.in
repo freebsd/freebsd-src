@@ -63,15 +63,18 @@ host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+AMDEP = @AMDEP@
 AMTAR = @AMTAR@
-AMTARFLAGS = @AMTARFLAGS@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DCFD = @DCFD@
+DEPDIR = @DEPDIR@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -93,6 +96,7 @@ RSAREF = @RSAREF@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+install_sh = @install_sh@
 
 
 noinst_SCRIPTS = mkver ntpver
@@ -129,15 +133,10 @@ TAGS:
 distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
 
 distdir: $(DISTFILES)
-	here=`cd $(top_builddir) && pwd`; \
-	top_distdir=`cd $(top_distdir) && pwd`; \
-	distdir=`cd $(distdir) && pwd`; \
-	cd $(top_srcdir) \
-	  && $(AUTOMAKE) --include-deps --build-dir=$$here --srcdir-name=$(top_srcdir) --output-dir=$$top_distdir --gnu scripts/Makefile
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir); \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -179,6 +178,7 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-generic
 
 mostlyclean: mostlyclean-am

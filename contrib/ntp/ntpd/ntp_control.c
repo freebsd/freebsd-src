@@ -341,6 +341,9 @@ static u_char clocktypes[] = {
 	CTL_SST_TS_LF,		/* REFCLK_CHRONOLOG (32) */
 	CTL_SST_TS_LF,		/* REFCLK_DUMBCLOCK (32) */
 	CTL_SST_TS_LF,		/* REFCLK_ULINK (33) */
+	CTL_SST_TS_LF,		/* REFCLK_PCF (35) */
+	CTL_SST_TS_LF,		/* REFCLK_WWW (36) */
+	CTL_SST_TS_LF,		/* REFCLK_FG (37) */
 };
 
 

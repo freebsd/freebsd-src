@@ -6,6 +6,9 @@ files in the parent directory for directions on how to use these files.
 
 calc_tickadj	Calculates "optimal" value for tick given ntp.drift file
 
+freq_adj	Calculates and optionally sets the clock frequency
+		based on ntp.drift .  For FreeBSD systems.
+
 mkver.in	script to create new version numbers for all sources
 
 monitoring      directory containing perl scripts useful for monitoring
@@ -19,6 +22,10 @@ ntp-groper	script useful for reaching out and rattling the cages of
 		NTP peers to see if animals are inside the bars
 
 ntp-restart	script useful for killing and restarting the NTP daemon
+
+ntpsweep	prints per host given in <file> the NTP stratum level, the
+		clock offset in seconds, the daemon version, the operating
+		system and the processor.
 
 ntpver		What version of the NTP daemon is running?
 

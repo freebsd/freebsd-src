@@ -63,15 +63,18 @@ host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+AMDEP = @AMDEP@
 AMTAR = @AMTAR@
-AMTARFLAGS = @AMTARFLAGS@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DCFD = @DCFD@
+DEPDIR = @DEPDIR@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -93,6 +96,7 @@ RSAREF = @RSAREF@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
 
@@ -133,6 +137,8 @@ DIST_COMMON =  README Makefile.am Makefile.in
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
 GZIP_ENV = --best
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+DEP_FILES =  @AMDEP@ $(DEPDIR)/dcfd$U.Po $(DEPDIR)/testdcf$U.Po
 SOURCES = dcfd.c testdcf.c
 OBJECTS = dcfd$U.o testdcf$U.o
 
@@ -140,9 +146,9 @@ all: all-redirect
 .SUFFIXES:
 .SUFFIXES: .c .o
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps parseutil/Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu parseutil/Makefile
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
@@ -155,9 +161,6 @@ clean-noinstPROGRAMS:
 distclean-noinstPROGRAMS:
 
 maintainer-clean-noinstPROGRAMS:
-
-.c.o:
-	$(COMPILE) -c $<
 
 mostlyclean-compile:
 	-rm -f *.o core *.core
@@ -183,12 +186,10 @@ clean-kr:
 distclean-kr:
 
 maintainer-clean-kr:
-dcfd$U.o:
 
 dcfd: $(dcfd_OBJECTS) $(dcfd_DEPENDENCIES)
 	@rm -f dcfd
 	$(LINK) $(dcfd_LDFLAGS) $(dcfd_OBJECTS) $(dcfd_LDADD) $(LIBS)
-testdcf$U.o:
 
 testdcf: $(testdcf_OBJECTS) $(testdcf_DEPENDENCIES)
 	@rm -f testdcf
@@ -201,23 +202,27 @@ dcfd_.o testdcf_.o : $(ANSI2KNR)
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -f$$here/ID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -234,23 +239,33 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir); \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-dcfd.o dcfd.lo: dcfd.c ../config.h ../include/ntp_stdlib.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp_string.h \
-	../include/l_stdlib.h ../include/ntpd.h ../include/ntp_syslog.h \
-	../include/ntp_fp.h ../include/ntp.h ../include/ntp_malloc.h \
-	../include/ntp_refclock.h ../include/recvbuff.h
-testdcf.o testdcf.lo: testdcf.c ../include/ntp_stdlib.h \
-	../include/ntp_types.h ../include/ntp_machine.h ../config.h \
-	../include/ntp_proto.h ../include/ntp_string.h \
-	../include/l_stdlib.h
+
+@AMDEP@include $(DEPDIR)/dcfd$U.Po
+@AMDEP@include $(DEPDIR)/testdcf$U.Po
+
+mostlyclean-depend:
+
+clean-depend:
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+maintainer-clean-depend:
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ $<
 
 info-am:
 info: info-am
@@ -288,25 +303,28 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-noinstPROGRAMS mostlyclean-compile \
-		mostlyclean-kr mostlyclean-tags mostlyclean-generic
+		mostlyclean-kr mostlyclean-tags mostlyclean-depend \
+		mostlyclean-generic
 
 mostlyclean: mostlyclean-am
 
 clean-am:  clean-noinstPROGRAMS clean-compile clean-kr clean-tags \
-		clean-generic mostlyclean-am
+		clean-depend clean-generic mostlyclean-am
 
 clean: clean-am
 
 distclean-am:  distclean-noinstPROGRAMS distclean-compile distclean-kr \
-		distclean-tags distclean-generic clean-am
+		distclean-tags distclean-depend distclean-generic \
+		clean-am
 
 distclean: distclean-am
 
 maintainer-clean-am:  maintainer-clean-noinstPROGRAMS \
 		maintainer-clean-compile maintainer-clean-kr \
-		maintainer-clean-tags maintainer-clean-generic \
-		distclean-am
+		maintainer-clean-tags maintainer-clean-depend \
+		maintainer-clean-generic distclean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -317,12 +335,13 @@ clean-noinstPROGRAMS maintainer-clean-noinstPROGRAMS \
 mostlyclean-compile distclean-compile clean-compile \
 maintainer-clean-compile mostlyclean-kr distclean-kr clean-kr \
 maintainer-clean-kr tags mostlyclean-tags distclean-tags clean-tags \
-maintainer-clean-tags distdir info-am info dvi-am dvi check-local check \
-check-am installcheck-am installcheck install-exec-am install-exec \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-redirect all-am all install-strip installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+maintainer-clean-tags distdir mostlyclean-depend distclean-depend \
+clean-depend maintainer-clean-depend info-am info dvi-am dvi \
+check-local check check-am installcheck-am installcheck install-exec-am \
+install-exec install-data-am install-data install-am install \
+uninstall-am uninstall all-redirect all-am all install-strip \
+installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 #EXTRA_DIST= TAGS
 
