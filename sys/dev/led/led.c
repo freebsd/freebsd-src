@@ -61,6 +61,7 @@ led_timeout(void *p)
 			sc->func(sc->private, 1);
 		}
 		sc->count = *sc->ptr & 0xf;
+		sc->count--;
 		sc->ptr++;
 		if (*sc->ptr == '\0')
 			sc->ptr = sc->str;
