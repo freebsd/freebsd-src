@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1998/10/22 20:23:15 msmith Exp $
+# $Id: Makefile,v 1.11 1998/10/23 22:29:08 msmith Exp $
 #
 LIB=			i386
 NOPIC=
@@ -15,6 +15,9 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 
 # Make the disk code more talkative
 #CFLAGS+= -DDISK_DEBUG
+
+# Include simple terminal emulation (cons25-compatible)
+CFLAGS+= -DTERM_EMU
 
 # If it's not there, don't consider it a target
 .if exists(${.CURDIR}/../../../i386/include)
