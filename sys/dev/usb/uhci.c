@@ -600,6 +600,7 @@ uhci_power(int why, void *v)
 		UHCICMD(sc, cmd & ~UHCI_CMD_EGSM); /* back to normal */
 		UWRITE2(sc, UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_RIE | 
 			UHCI_INTR_IOCE | UHCI_INTR_SPIE); /* re-enable intrs */
+		UHCICMD(sc, UHCI_CMD_MAXP);
 		uhci_run(sc, 1); /* and start traffic again */
 		usb_delay_ms(&sc->sc_bus, USB_RESUME_RECOVERY);
 		sc->sc_bus.use_polling--;
