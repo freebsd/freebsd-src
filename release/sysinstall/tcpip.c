@@ -437,7 +437,6 @@ netconfig:
     if (!cancel) {
 	DevInfo *di;
 	char temp[512], ifn[255];
-	char *ifaces;
 	char *pccard;
 	int ipv4_enable = FALSE;
 
@@ -479,14 +478,6 @@ netconfig:
 	pccard = variable_get("_pccard_install");
 	if (pccard && strcmp(pccard, "YES") == 0 && ipv4_enable) {
 	    variable_set2("pccard_ifconfig", temp, 1);
-	}
-	ifaces = variable_get(VAR_INTERFACES);
-	if (!ifaces)
-	    variable_set2(VAR_INTERFACES, ifaces = "lo0", 1);
-	/* Only add it if it's not there already */
- 	if (strcmp(ifaces, "auto") && !strstr(ifaces, devp->name)) {
-	    sprintf(ifn, "%s %s", devp->name, ifaces);
-	    variable_set2(VAR_INTERFACES, ifn, 1);
 	}
 	if (use_rtsol)
 	    variable_set2(VAR_IPV6_ENABLE, "YES", 1);
