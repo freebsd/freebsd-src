@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.7 1995/03/16 20:23:41 wollman Exp $
+ * $Id: portal_vfsops.c,v 1.8 1995/05/30 08:07:05 rgrimes Exp $
  */
 
 /*
@@ -61,6 +61,26 @@
 #include <sys/domain.h>
 #include <sys/un.h>
 #include <miscfs/portal/portal.h>
+
+extern int	portal_init __P((void));
+extern int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p));
+extern int	portal_start __P((struct mount *mp, int flags, struct proc *p));
+extern int	portal_unmount __P((struct mount *mp, int mntflags,
+				    struct proc *p));
+extern int	portal_root __P((struct mount *mp, struct vnode **vpp));
+extern int	portal_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct proc *p));
+extern int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
+				   struct proc *p));
+extern int	portal_sync __P((struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p));
+extern int	portal_vget __P((struct mount *mp, ino_t ino,
+				 struct vnode **vpp));
+extern int	portal_fhtovp __P((struct mount *mp, struct fid *fhp,
+				   struct mbuf *nam, struct vnode **vpp,
+				   int *exflagsp, struct ucred **credanonp));
+extern int	portal_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 int
 portal_init()
@@ -264,9 +284,11 @@ portal_statfs(mp, sbp, p)
 }
 
 int
-portal_sync(mp, waitfor)
+portal_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
+	struct ucred *cred;
+	struct proc *p;
 {
 
 	return (0);
@@ -283,10 +305,13 @@ portal_vget(mp, ino, vpp)
 }
 
 int
-portal_fhtovp(mp, fhp, vpp)
+portal_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
+	struct mbuf *nam;
 	struct vnode **vpp;
+	int *exflagsp;
+	struct ucred **credanonp;
 {
 
 	return (EOPNOTSUPP);
