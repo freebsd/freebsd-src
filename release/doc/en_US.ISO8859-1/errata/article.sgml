@@ -150,6 +150,13 @@
       given up superuser privileges to regain them.  This bug has been
       fixed.  (See security advisory <ulink 
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink>.)</para>
+
+    <para>A race condition in the &man.exec.3; system call, which
+      could result in local users obtaining increased privileges, has
+      been fixed.  For more information, including bugfixes, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:08.exec.asc">FreeBSD-SA-02:08</ulink>.)</para>
+
 ]]>
   </sect1>
 
