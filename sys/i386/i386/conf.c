@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.107 1995/11/29 12:38:29 julian Exp $
+ *	$Id: conf.c,v 1.108 1995/11/29 14:39:22 julian Exp $
  */
 
 #include <sys/param.h>
@@ -470,10 +470,6 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define	sscopen		nxopen
 #define	sscclose	nxclose
 #define	sscioctl	nxioctl
-#define	sscread		nxread
-#define	sscwrite	nxwrite
-#define	sscselect	nxselect
-#define	sscstrategy	nxstrategy
 #endif
 
 #include "cx.h"
@@ -813,9 +809,9 @@ struct cdevsw	cdevsw[] =
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
 	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
 	  ttselect,	nxmmap,		NULL },
-	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
+	{ sscopen,	sscclose,	noread,		nowrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
-	  sscselect,	nxmmap,		sscstrategy },
+	  noselect,	nommap,		nostrategy },
 	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
 	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
 	  crdselect,	nommap,		NULL },
