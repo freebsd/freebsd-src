@@ -582,8 +582,10 @@ static void ste_setmulti(sc)
 	}
 
 	/* first, zot all the existing hash bits */
-	CSR_WRITE_4(sc, STE_MAR0, 0);
-	CSR_WRITE_4(sc, STE_MAR1, 0);
+	CSR_WRITE_2(sc, STE_MAR0, 0);
+	CSR_WRITE_2(sc, STE_MAR1, 0);
+	CSR_WRITE_2(sc, STE_MAR2, 0);
+	CSR_WRITE_2(sc, STE_MAR3, 0);
 
 	/* now program new ones */
 	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
@@ -597,8 +599,10 @@ static void ste_setmulti(sc)
 			hashes[1] |= (1 << (h - 32));
 	}
 
-	CSR_WRITE_4(sc, STE_MAR0, hashes[0]);
-	CSR_WRITE_4(sc, STE_MAR1, hashes[1]);
+	CSR_WRITE_2(sc, STE_MAR0, hashes[0] & 0xFFFF);
+	CSR_WRITE_2(sc, STE_MAR1, (hashes[0] >> 16) & 0xFFFF);
+	CSR_WRITE_2(sc, STE_MAR2, hashes[1] & 0xFFFF);
+	CSR_WRITE_2(sc, STE_MAR3, (hashes[1] >> 16) & 0xFFFF);
 	STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
 	STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
 
