@@ -224,7 +224,6 @@ struct xvnode {
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
 #define	VV_NOSYNC	0x0004	/* unlinked, stop syncing */
-#define	VV_OBJBUF	0x0008	/* Allocate buffers in VM object */
 #define	VV_CACHEDLABEL	0x0010	/* Vnode has valid cached MAC label */
 #define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */

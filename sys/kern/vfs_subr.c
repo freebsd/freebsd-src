@@ -2510,8 +2510,6 @@ vprint(label, vp)
 		strcat(buf, "|VI_DOOMED");
 	if (vp->v_iflag & VI_FREE)
 		strcat(buf, "|VI_FREE");
-	if (vp->v_vflag & VV_OBJBUF)
-		strcat(buf, "|VV_OBJBUF");
 	if (buf[0] != '\0')
 		printf("    flags (%s)", &buf[1]);
 	if (mtx_owned(VI_MTX(vp)))

@@ -1711,9 +1711,7 @@ union_createvobject(ap)
 		struct thread *td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
 
-	vp->v_vflag |= VV_OBJBUF;
 	return (0);
 }
 
@@ -1728,7 +1726,7 @@ union_destroyvobject(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	vp->v_vflag &= ~VV_OBJBUF;
+	vp->v_object = NULL;
 	return (0);
 }
 
