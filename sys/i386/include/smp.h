@@ -147,6 +147,11 @@ void	forward_roundrobin	__P((void));
 #ifdef	APIC_INTR_REORDER
 void	set_lapic_isrloc	__P((int, int));
 #endif /* APIC_INTR_REORDER */
+void	smp_rendezvous_action	__P((void));
+void	smp_rendezvous		__P((void (*)(void *), 
+				     void (*)(void *),
+				     void (*)(void *),
+				     void *arg));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
