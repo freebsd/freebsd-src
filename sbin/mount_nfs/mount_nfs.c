@@ -230,6 +230,10 @@ set_flags(int* altflags, int* nfsflags, int dir)
 	F(RDIRPLUS);
 	F(RESVPORT);
 	F(SOFT);
+	F(ACREGMIN);
+	F(ACREGMAX);
+	F(ACDIRMIN);
+	F(ACDIRMAX);
 	F(NOLOCKD);
 
 #undef F
