@@ -1952,6 +1952,14 @@ failed:
 		du->dk_dd.d_ncylinders =
 		    du->dk_dd.d_secperunit / du->dk_dd.d_secpercyl;
 	}
+	if (du->dk_dd.d_ncylinders > 0x10000 && !(du->cfg_flags & WDOPT_LBA)) {
+		du->dk_dd.d_ncylinders = 0x10000;
+		du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl *
+		    du->dk_dd.d_ncylinders;
+		printf(
+		    "wd%d: cannot handle %d total sectors; truncating to %lu\n",
+		    du->dk_lunit, wp->wdp_lbasize, du->dk_dd.d_secperunit);
+	}
 #if 0
 	du->dk_dd.d_partitions[RAW_PART].p_size = du->dk_dd.d_secperunit;
 	/* dubious ... */
