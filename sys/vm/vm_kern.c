@@ -354,9 +354,9 @@ kmem_malloc(map, size, flags)
 	 */
 
 	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT;
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
 	else
-		pflags = VM_ALLOC_SYSTEM;
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
 
 	if (flags & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
@@ -391,6 +391,7 @@ retry:
 				m = vm_page_lookup(kmem_object,
 						   OFF_TO_IDX(offset + i));
 				vm_page_lock_queues();
+				vm_page_unwire(m, 0);
 				vm_page_free(m);
 				vm_page_unlock_queues();
 			}
@@ -431,16 +432,13 @@ retry:
 		vm_object_lock(kmem_object);
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
 		vm_object_unlock(kmem_object);
-		vm_page_lock_queues();
-		vm_page_wire(m);
-		vm_page_wakeup(m);
-		vm_page_unlock_queues();
 		/*
 		 * Because this is kernel_pmap, this call will not block.
 		 */
 		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL, 1);
 		vm_page_lock_queues();
 		vm_page_flag_set(m, PG_WRITEABLE | PG_REFERENCED);
+		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
 	vm_map_unlock(map);
