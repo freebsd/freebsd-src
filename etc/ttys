@@ -3,7 +3,7 @@
 #
 # name	getty				type	status		comments
 #
-console	"/usr/libexec/getty Pc"	pc3	on secure
+vga	"/usr/libexec/getty Pc"	pc3	on secure
 com01	"/usr/libexec/getty std.9600"	unknown	off secure
 com02	"/usr/libexec/getty std.9600"	unknown	off secure
 ttyp0	none			network
