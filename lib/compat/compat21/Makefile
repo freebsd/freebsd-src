@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1999/05/21 18:40:48 obrien Exp $
+# $Id: Makefile,v 1.9.2.1 1999/05/24 16:55:21 obrien Exp $
 
 DISTRIBUTION=	compat21
 
@@ -17,7 +17,7 @@ beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
 		${DESTDIR}/usr/libexec
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
-		${DESTDIR}${LIBCOMPATDIR}
+		${DESTDIR}${LIBCOMPATDIR}/aout
 
 # Get all the fruit, even though we don't set PROG.
 # XXX bsd.lib.mk has fruitflies, e.g., it fails if LIBS is empty.
