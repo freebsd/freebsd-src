@@ -193,8 +193,12 @@ esp_sbus_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if (OF_getprop(node, "initiator-id", &sc->sc_id,
 		       sizeof(sc->sc_id)) == -1)
-		sc->sc_id = 7;;
-	sc->sc_freq = sbus_get_clockfreq(dev);
+		sc->sc_id = 7;
+	if (OF_getprop(node, "clock-frequency", &sc->sc_freq,
+	    sizeof(sc->sc_freq)) == -1) {
+		printf("failed to query OFW for clock-frequency\n");
+		sc->sc_freq = sbus_get_clockfreq(dev);
+	}
 
 #ifdef ESP_SBUS_DEBUG
 	device_printf(dev, "espattach_sbus: sc_id %d, freq %d\n",
