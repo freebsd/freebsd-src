@@ -262,7 +262,6 @@ struct smb_vc {
 	u_char 		vc_ch[SMB_MAXCHALLENGELEN];
 	u_short		vc_mid;		/* multiplex id */
 	struct smb_sopt	vc_sopt;	/* server options */
-	struct smb_cred*vc_scred;	/* used in reconnect procedure */
 	int		vc_txmax;	/* max tx/rx packet size */
 	struct smbiod *	vc_iod;
 	struct smb_slock vc_stlock;
@@ -295,7 +294,6 @@ struct smb_share {
 	int		ss_vcgenid;
 	char *		ss_pass;	/* password to a share, can be null */
 	struct smb_slock ss_stlock;
-	struct smb_cred *ss_cred;	/* used in reconnect procedure */
 };
 
 #define	ss_flags	obj.co_flags
@@ -354,12 +352,12 @@ int  smb_sm_lookup(struct smb_vcspec *vcspec,
 /*
  * Connection object
  */
-void smb_co_ref(struct smb_connobj *cp, struct proc *p);
+void smb_co_ref(struct smb_connobj *cp);
 void smb_co_rele(struct smb_connobj *cp, struct smb_cred *scred);
 int  smb_co_get(struct smb_connobj *cp, int flags, struct smb_cred *scred);
 void smb_co_put(struct smb_connobj *cp, struct smb_cred *scred);
-int  smb_co_lock(struct smb_connobj *cp, int flags, struct proc *p);
-void smb_co_unlock(struct smb_connobj *cp, int flags, struct proc *p);
+int  smb_co_lock(struct smb_connobj *cp, int flags, struct thread *td);
+void smb_co_unlock(struct smb_connobj *cp, int flags, struct thread *td);
 
 /*
  * session level functions
@@ -370,10 +368,10 @@ int  smb_vc_connect(struct smb_vc *vcp, struct smb_cred *scred);
 int  smb_vc_access(struct smb_vc *vcp, struct smb_cred *scred, mode_t mode);
 int  smb_vc_get(struct smb_vc *vcp, int flags, struct smb_cred *scred);
 void smb_vc_put(struct smb_vc *vcp, struct smb_cred *scred);
-void smb_vc_ref(struct smb_vc *vcp, struct proc *p);
+void smb_vc_ref(struct smb_vc *vcp);
 void smb_vc_rele(struct smb_vc *vcp, struct smb_cred *scred);
-int  smb_vc_lock(struct smb_vc *vcp, int flags, struct proc *p);
-void smb_vc_unlock(struct smb_vc *vcp, int flags, struct proc *p);
+int  smb_vc_lock(struct smb_vc *vcp, int flags, struct thread *td);
+void smb_vc_unlock(struct smb_vc *vcp, int flags, struct thread *td);
 int  smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	struct smb_cred *scred, struct smb_share **sspp);
 const char * smb_vc_getpass(struct smb_vc *vcp);
@@ -385,12 +383,12 @@ u_short smb_vc_nextmid(struct smb_vc *vcp);
 int  smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	struct smb_cred *scred, struct smb_share **sspp);
 int  smb_share_access(struct smb_share *ssp, struct smb_cred *scred, mode_t mode);
-void smb_share_ref(struct smb_share *ssp, struct proc *p);
+void smb_share_ref(struct smb_share *ssp);
 void smb_share_rele(struct smb_share *ssp, struct smb_cred *scred);
 int  smb_share_get(struct smb_share *ssp, int flags, struct smb_cred *scred);
 void smb_share_put(struct smb_share *ssp, struct smb_cred *scred);
-int  smb_share_lock(struct smb_share *ssp, int flags, struct proc *p);
-void smb_share_unlock(struct smb_share *ssp, int flags, struct proc *p);
+int  smb_share_lock(struct smb_share *ssp, int flags, struct thread *td);
+void smb_share_unlock(struct smb_share *ssp, int flags, struct thread *td);
 void smb_share_invalidate(struct smb_share *ssp);
 int  smb_share_valid(struct smb_share *ssp);
 const char * smb_share_getpass(struct smb_share *ssp);
@@ -442,6 +440,7 @@ struct smbiod {
 	struct smb_rqhead	iod_rqlist;	/* list of outstanding requests */
 	int			iod_muxwant;
 	struct proc *		iod_p;
+	struct thread *		iod_td;
 	struct smb_cred		iod_scred;
 	struct smb_slock	iod_evlock;	/* iod_evlist */
 	STAILQ_HEAD(,smbiod_event) iod_evlist;

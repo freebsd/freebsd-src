@@ -180,7 +180,7 @@ smb_rq_enqueue(struct smb_rq *rqp)
 		if (ssp->ss_flags & SMBS_RECONNECTING) {
 			msleep(&ssp->ss_vcgenid, SMBS_ST_LOCKPTR(ssp),
 			    PWAIT | PDROP, "90trcn", hz);
-			if (smb_proc_intr(rqp->sr_cred->scr_p))
+			if (smb_proc_intr(rqp->sr_cred->scr_td->td_proc))
 				return EINTR;
 			continue;
 		}
@@ -244,7 +244,7 @@ smb_rq_bend(struct smb_rq *rqp)
 int
 smb_rq_intr(struct smb_rq *rqp)
 {
-	struct proc *p = rqp->sr_cred->scr_p;
+	struct proc *p = rqp->sr_cred->scr_td->td_proc;
 
 	if (rqp->sr_flags & SMBR_INTR)
 		return EINTR;

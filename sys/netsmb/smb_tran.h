@@ -54,20 +54,20 @@ struct smb_tran_ops;
 
 struct smb_tran_desc {
 	sa_family_t	tr_type;
-	int	(*tr_create)(struct smb_vc *vcp, struct proc *p);
-	int	(*tr_done)(struct smb_vc *vcp, struct proc *p);
-	int	(*tr_bind)(struct smb_vc *vcp, struct sockaddr *sap, struct proc *p);
-	int	(*tr_connect)(struct smb_vc *vcp, struct sockaddr *sap, struct proc *p);
-	int	(*tr_disconnect)(struct smb_vc *vcp, struct proc *p);
-	int	(*tr_send)(struct smb_vc *vcp, struct mbuf *m0, struct proc *p);
-	int	(*tr_recv)(struct smb_vc *vcp, struct mbuf **mpp, struct proc *p);
+	int	(*tr_create)(struct smb_vc *vcp, struct thread *td);
+	int	(*tr_done)(struct smb_vc *vcp, struct thread *td);
+	int	(*tr_bind)(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td);
+	int	(*tr_connect)(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td);
+	int	(*tr_disconnect)(struct smb_vc *vcp, struct thread *td);
+	int	(*tr_send)(struct smb_vc *vcp, struct mbuf *m0, struct thread *td);
+	int	(*tr_recv)(struct smb_vc *vcp, struct mbuf **mpp, struct thread *td);
 	void	(*tr_timo)(struct smb_vc *vcp);
 	void	(*tr_intr)(struct smb_vc *vcp);
 	int	(*tr_getparam)(struct smb_vc *vcp, int param, void *data);
 	int	(*tr_setparam)(struct smb_vc *vcp, int param, void *data);
 	int	(*tr_fatal)(struct smb_vc *vcp, int error);
 #ifdef notyet
-	int	(*tr_poll)(struct smb_vc *vcp, struct proc *p);
+	int	(*tr_poll)(struct smb_vc *vcp, struct thread *td);
 	int	(*tr_cmpaddr)(void *addr1, void *addr2);
 #endif
 	LIST_ENTRY(smb_tran_desc)	tr_link;

@@ -130,7 +130,7 @@ typedef	smb_unichar	*smb_uniptr;
  * Crediantials of user/process being processing in the connection procedures
  */
 struct smb_cred {
-	struct proc *	scr_p;
+	struct thread *	scr_td;
 	struct ucred *	scr_cred;
 };
 
@@ -140,7 +140,7 @@ struct mbchain;
 struct smb_vc;
 struct smb_rq;
 
-void smb_makescred(struct smb_cred *scred, struct proc *p, struct ucred *cred);
+void smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred);
 int  smb_proc_intr(struct proc *);
 char *smb_strdup(const char *s);
 void *smb_memdup(const void *umem, int len);
