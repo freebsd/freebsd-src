@@ -150,5 +150,4 @@ const char *const sys_errlist[] = {
 /* General */
 	"Programming error",			/* 88 - EDOOFUS */
 };
-int errno;
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
