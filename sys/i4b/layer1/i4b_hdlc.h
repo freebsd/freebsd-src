@@ -33,6 +33,11 @@
  *
  *	last edit-date: [Wed Jul 19 09:41:13 2000]
  *
+ *	NOTE:
+ *	- October 19th: made minor changes to HDLC_ENCODE macro
+ *	  Please conform "ihfc/i4b_ihfc_drv.c" (ihfc_hdlc_Bwrite)
+ *	  for correct usage! (-hp)
+ *
  *---------------------------------------------------------------------------*/
 
 #ifndef _I4B_HDLC_H_
@@ -309,24 +314,27 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 			tmp2 = 0x7e;						\
 			goto j3##d;						\
 		  case 3:			/* get new frame  */		\
-			flag--;							\
 			gfrcmd;							\
-			flag++;							\
-			crc = -1;						\
-			ib  = 0;						\
-			if (!len--) { len++; flag++; goto j0##d; }		\
-			goto j1##d; 		/* first byte */		\
+			if (!len--)						\
+			{							\
+				len++;						\
+				flag--;		/* don't proceed */		\
+				tmp2 = 0x7e;					\
+				goto j3##d;	/* final FS */			\
+			}							\
+			else							\
+			{							\
+				crc = -1;					\
+				ib  = 0;					\
+				goto j1##d; 	/* first byte */		\
+			}							\
 		  case 4:			/* CRC (lsb's) */		\
-		   j0##d:							\
 			crc ^= -1;						\
 		  case 5:			/* CRC (msb's) */		\
 			tmp2  = (u_char)crc;					\
 			crc >>= 8;						\
+			flag  = 1;						\
 			goto j2##d;		/* CRC stuff */			\
-		  case 6:			/* frame done */		\
-			tmp2 = 0x7e;		/* end FS */			\
-			flag = 1;						\
-			goto j3##d;						\
 		}								\
 	}									\
  	else									\
