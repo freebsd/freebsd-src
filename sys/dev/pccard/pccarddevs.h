@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.31 2002/04/05 16:25:03 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.32 2002/04/11 21:18:17 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.163 2002/03/04 16:41:50 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.85 2002/03/29 18:54:07 millert Exp $ */
@@ -97,6 +97,7 @@
 #define	PCMCIA_VENDOR_NWN	0x0602	/* No Wires Needed */
 #define	PCMCIA_VENDOR_BREEZECOM	0x0a02	/* BreezeCOM */
 #define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
+#define	PCMCIA_VENDOR_ACTIONTEC	0x1668	/* ACTIONTEC */
 #define	PCMCIA_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
 #define	PCMCIA_VENDOR_BONDWELL	0x3b01	/* Bondwell */
 #define	PCMCIA_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
@@ -155,6 +156,11 @@
 #define	PCMCIA_CIS_3COM_3CRWE62092A	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_3COM_3CRWE62092A	0x2092
 #define	PCMCIA_STR_3COM_3CRWE62092A	"3Com 3CRWE62092A Wireless LAN"
+
+/* ACTIONTEC */
+#define	PCMCIA_CIS_ACTIONTEC_HWC01170	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_ACTIONTEC_HWC01170	0x0101
+#define	PCMCIA_STR_ACTIONTEC_HWC01170	"ACTIONTEC Wireless LAN PC CARD"
 
 /* Adaptec Products */
 #define	PCMCIA_CIS_ADAPTEC_APA1460	{ NULL, NULL, NULL, NULL }
