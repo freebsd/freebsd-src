@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.30 1997/04/26 11:45:54 peter Exp $
+ *	$Id: icu.s,v 1.31 1997/04/28 01:08:41 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -100,12 +100,9 @@ _mask8254:
 _maskRTC:
 	.long	0
 
-
-	/* this allows us to change ISA IRQ# vs APIC pin# assignments */
-	.globl _hwisrs
-_hwisrs:	
 #endif /* APIC_IO */
-vec:
+	.globl _vec
+_vec:
 	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
 	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15
 #if defined(APIC_IO)
@@ -294,7 +291,7 @@ splz_unpend:
 	 * We should change the interface so that the unit number is not
 	 * determined at config time.
 	 */
-	jmp	*vec(,%ecx,4)
+	jmp	*_vec(,%ecx,4)
 
 	ALIGN_TEXT
 splz_swi:
