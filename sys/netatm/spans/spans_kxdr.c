@@ -428,9 +428,9 @@ xdr_opaque(xdrs, cp, cnt)
 
 void		xdrmbuf_init __P((XDR *, KBuffer *, enum xdr_op));
 static bool_t	xdrmbuf_getlong __P((XDR *, long *));
-static bool_t	xdrmbuf_putlong __P((XDR *, long *));
-static bool_t	xdrmbuf_getbytes __P((XDR *, caddr_t, u_int));
-static bool_t	xdrmbuf_putbytes __P((XDR *, caddr_t, u_int));
+static bool_t	xdrmbuf_putlong __P((XDR *, const long *));
+static bool_t	xdrmbuf_getbytes __P((XDR *, char *, u_int));
+static bool_t	xdrmbuf_putbytes __P((XDR *, const char *, u_int));
 static u_int	xdrmbuf_getpos __P((XDR *));
 
 static struct	xdr_ops xdrmbuf_ops = {
@@ -514,14 +514,14 @@ xdrmbuf_getlong(xdrs, lp)
 	/*
 	 * Advance the data stream
 	 */
-	xdrs->x_private += sizeof(long);
+	((long *)xdrs->x_private)++;
 	return (TRUE);
 }
 
 static bool_t
 xdrmbuf_putlong(xdrs, lp)
 	register XDR *xdrs;
-	long *lp;
+	const long *lp;
 {
 
 	/*
@@ -570,7 +570,7 @@ xdrmbuf_putlong(xdrs, lp)
 	/*
 	 * Advance the data stream
 	 */
-	xdrs->x_private += sizeof(long);
+	((long *)xdrs->x_private)++;
 	return (TRUE);
 }
 
@@ -617,7 +617,7 @@ xdrmbuf_getbytes(xdrs, addr, len)
 		/*
 		 * Update data stream controls
 		 */
-		xdrs->x_private += copy;
+		((char *)xdrs->x_private) += copy;
 		xdrs->x_handy -= copy;
 		addr += copy;
 		len -= copy;
@@ -628,7 +628,7 @@ xdrmbuf_getbytes(xdrs, addr, len)
 static bool_t
 xdrmbuf_putbytes(xdrs, addr, len)
 	register XDR *xdrs;
-	caddr_t addr;
+	const char *addr;
 	register u_int len;
 {
 
@@ -668,7 +668,7 @@ xdrmbuf_putbytes(xdrs, addr, len)
 		/*
 		 * Update data stream controls
 		 */
-		xdrs->x_private += copy;
+		((char *)xdrs->x_private)++;
 		xdrs->x_handy -= copy;
 		addr += copy;
 		len -= copy;
