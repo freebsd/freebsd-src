@@ -52,9 +52,13 @@ static const char rcsid[] =
 void
 rewind(FILE *fp)
 {
+	/* make sure stdio is set up */
+	if (!__sdidinit)
+		__sinit();
+
 	FLOCKFILE(fp);
-	(void) _fseeko(fp, (off_t)0, SEEK_SET);
-	clearerr(fp);
+	if (_fseeko(fp, (off_t)0, SEEK_SET, 1) == 0)
+		clearerr_unlocked(fp);
 	FUNLOCKFILE(fp);
-	errno = 0;	/* not required, but seems reasonable */
+	/* errno required by POSIX to sense error, don't zero it here */
 }
