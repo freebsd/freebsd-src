@@ -106,12 +106,16 @@ void	*realloc __P((void *, size_t));
 void	 srand __P((unsigned));
 double	 strtod __P((const char *, char **));
 long	 strtol __P((const char *, char **, int));
+#ifdef __LONG_LONG_SUPPORTED
 long long	 
 	 strtoll __P((const char *, char **, int));
+#endif
 unsigned long
 	 strtoul __P((const char *, char **, int));
+#ifdef __LONG_LONG_SUPPORTED
 unsigned long long
 	 strtoull __P((const char *, char **, int));
+#endif
 int	 system __P((const char *));
 
 int	 mblen __P((const char *, size_t));
