@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.16 1998/12/09 01:27:29 eivind Exp $
+ * $Id: pci_compat.c,v 1.17 1998/12/14 05:47:28 dillon Exp $
  *
  */
 
@@ -209,9 +209,15 @@ pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	return (0);
 }
 
+int
+pci_map_int(pcici_t cfg, pci_inthand_t *handler, void *arg, intrmask_t *maskptr)
+{
+	return (pci_map_int_right(cfg, handler, arg, maskptr, 0));
+}
 
 int
-pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
+pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
+		  intrmask_t *maskptr, u_int flags)
 {
 	int error;
 #ifdef APIC_IO
@@ -222,7 +228,8 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
 		void *idesc;
 
-		idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
+		idesc = intr_create(dev_instance, irq, handler, arg, maskptr,
+				    flags);
 		error = intr_connect(idesc);
 		if (error != 0)
 			return 0;
@@ -255,8 +262,8 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 
 		nextpin = next_apic_irq(irq);
 		while (nextpin >= 0) {
-			idesc = intr_create(dev_instance, nextpin, func, arg,
-					    maskptr, 0);
+			idesc = intr_create(dev_instance, nextpin, handler,
+					    arg, maskptr, flags);
 			error = intr_connect(idesc);
 			if (error != 0)
 				return 0;
