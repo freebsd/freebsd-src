@@ -41,7 +41,7 @@
  * rknier 940331 Added fast transfer code 
  * rknier 940407 Added assembler coded data transfers 
  *
- * $Id: seagate.c,v 1.1 1994/10/24 22:14:34 sos Exp $
+ * $Id: seagate.c,v 1.2 1994/10/27 05:23:09 phk Exp $
  */
 
 /*
@@ -76,6 +76,7 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/kernel.h>
+#include <sys/devconf.h>
 #include <i386/isa/isa_device.h>
 #endif /* KERNEL */
 #include <scsi/scsi_all.h>
@@ -470,12 +471,14 @@ struct isa_device *dev;
     for(j = 0; ((char *)vtophys(dev->id_maddr) != seagate_bases[j]) && 
 		j<NUM_BASES; ++j);
     if(j == NUM_BASES) {
-      printf("sea: board not expected at address 0x%lx\n",dev->id_maddr);
+      printf("sea%d: board not expected at address 0x%lx\n",
+             unit, dev->id_maddr);
       seadata[unit]=NULL;
       free(sea, M_TEMP);
       return(0);
     } else if(sea_slot > j) {
-      printf("sea: board address 0x%lx already probed!\n", dev->id_maddr);
+      printf("sea%d: board address 0x%lx already probed!\n", 
+	     unit, dev->id_maddr);
       seadata[unit]=NULL;
       free(sea, M_TEMP);
       return(0);
@@ -534,6 +537,26 @@ struct isa_device *dev;
   return(1);
 }
 
+static struct kern_devconf kdc_sea[NSEA] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"sea", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adaptors are always busy */
+	"Seagate ST01/02 SCSI controller"
+} };
+
+static inline void
+sea_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_sea[id->id_unit] = kdc_sea[0];
+	kdc_sea[id->id_unit].kdc_unit = id->id_unit;
+	kdc_sea[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_sea[id->id_unit]);
+}
+
 /***********************************************\
 * Attach all sub-devices we can find		*
 \***********************************************/
@@ -558,6 +581,7 @@ sea_attach(dev)
   * ask the adapter what subunits are present		*
   \*****************************************************/
   scsi_attachdevs(&(sea->sc_link));
+  sea_registerdev(dev);
   return 1;
 }
 
