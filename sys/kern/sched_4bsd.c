@@ -65,7 +65,7 @@ struct ke_sched {
 	int	ske_cpticks;	/* (j) Ticks of cpu time. */
 };
 
-struct ke_sched ke_sched;
+static struct ke_sched ke_sched;
 
 struct ke_sched *kse0_sched = &ke_sched;
 struct kg_sched *ksegrp0_sched = NULL;

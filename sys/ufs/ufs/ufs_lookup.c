@@ -68,9 +68,9 @@
 #include <ufs/ufs/ufs_extern.h>
 
 #ifdef DIAGNOSTIC
-int	dirchk = 1;
+static int	dirchk = 1;
 #else
-int	dirchk = 0;
+static int	dirchk = 0;
 #endif
 
 SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
