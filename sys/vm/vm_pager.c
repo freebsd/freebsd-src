@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.11 1995/01/09 16:05:55 davidg Exp $
+ * $Id: vm_pager.c,v 1.12 1995/01/10 07:32:51 davidg Exp $
  */
 
 /*
@@ -317,8 +317,8 @@ vm_pager_lookup(pglist, handle)
 }
 
 /*
- * This routine gains a reference to the object.
- * Explicit deallocation is necessary.
+ * This routine loses a reference to the object -
+ * thus a reference must be gained before calling.
  */
 int
 pager_cache(object, should_cache)
