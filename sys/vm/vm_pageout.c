@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.142 1999/06/26 14:56:58 peter Exp $
+ * $Id: vm_pageout.c,v 1.143 1999/07/01 13:21:46 peter Exp $
  */
 
 /*
@@ -705,11 +705,9 @@ vm_pageout_scan()
 rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
-	for (
-	    m = TAILQ_FIRST(&vm_page_queue_inactive);
-	    m != NULL && maxscan-- > 0 && page_shortage > 0;
-	    m = next
-	) {
+	for (m = TAILQ_FIRST(&vm_page_queue_inactive);
+	     m != NULL && maxscan-- > 0 && page_shortage > 0;
+	     m = next) {
 
 		cnt.v_pdpages++;
 
@@ -845,14 +843,13 @@ rescan0:
 			 * solution, though.
 			 */
 
-			if (
-			    object->type != OBJT_DEFAULT &&
+			if (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
-			    cnt.v_free_count < cnt.v_free_reserved
-			) {
+			    cnt.v_free_count < cnt.v_free_reserved) {
 				s = splvm();
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m,
+				    pageq);
 				splx(s);
 				continue;
 			}
@@ -1349,6 +1346,7 @@ vm_pageout()
 
 	max_page_launder = (cnt.v_page_count > 1800 ? 32 : 16);
 
+	curproc->p_flag |= P_BUFEXHAUST;
 	swap_pager_swap_init();
 	/*
 	 * The pageout daemon is never done, so loop forever.

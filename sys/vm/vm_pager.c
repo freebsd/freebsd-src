@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.48 1999/06/26 02:46:48 mckusick Exp $
+ * $Id: vm_pager.c,v 1.49 1999/06/27 11:44:22 peter Exp $
  */
 
 /*
@@ -377,6 +377,7 @@ getpbuf(pfreecnt)
 
 	s = splvm();
 
+retry:
 	if (pfreecnt) {
 		while (*pfreecnt == 0) {
 			tsleep(pfreecnt, PVM, "wswbuf0", 0);
@@ -387,6 +388,7 @@ getpbuf(pfreecnt)
 	while ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		bswneeded = 1;
 		tsleep(&bswneeded, PVM, "wswbuf1", 0);
+		goto retry;	/* loop in case someone else grabbed one */
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	if (pfreecnt)
