@@ -2,8 +2,8 @@
 
 PROG=	tn3270
 CFLAGS+=-I${.CURDIR} -I.
-LDADD+=	-lcurses -ltermcap -ltelnet -lcrypt
-DPADD+=	${LIBCURSES} /usr/lib/libtermcap.a /usr/lib/libtelnet.a
+DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPT}
+LDADD=	-lcurses -ltermcap -ltelnet -lcrypt
 CLEANFILES+= asc_disp.OUT asc_disp.out disp_asc.OUT disp_asc.out TMPfunc.out
 .PATH:	${.CURDIR}/../api ${.CURDIR}/../ascii ${.CURDIR}/../ctlr
 .PATH:	${.CURDIR}/../general ${.CURDIR}/../sys_curses ${.CURDIR}/../../telnet

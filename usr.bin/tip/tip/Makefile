@@ -15,7 +15,8 @@ LIBACU=${.CURDIR}/../libacu/libacu.a
 
 PROG=	tip
 CFLAGS+=-DUSE_PERROR
-LDADD+=	$(LIBACU)
+DPADD=	$(LIBACU)
+LDADD=	$(LIBACU)
 LINKS=	${BINDIR}/tip
 MAN1=	tip.1
 MAN5=	modems.5

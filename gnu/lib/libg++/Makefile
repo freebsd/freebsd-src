@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1995/08/06 12:22:53 bde Exp $
+# $Id: Makefile,v 1.12 1996/08/30 02:09:09 peter Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
@@ -29,8 +29,8 @@ NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
 CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include \
 		-nostdinc++
-LDADD+= -lcurses -lcompat -lgcc_pic
-DPADD+=	${LIBCURSES} ${LIBCOMPAT}
+DPADD=	${LIBCURSES} ${LIBCOMPAT} ${LIBGCC_PIC}
+LDADD=	-lcurses -lcompat -lgcc_pic
 .PATH:	${.CURDIR}/libiberty ${.CURDIR}/libio ${.CURDIR}/libg++ ${.CURDIR}/librx
 
 beforeinstall:

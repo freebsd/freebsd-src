@@ -41,9 +41,10 @@ CFLAGS+=-I${.CURDIR}/../../lib
 
 #CFLAGS+= -DKRB4
 
+DPADD=	${LIBTERMCAP} ${LIBTELNET}
 LDADD=	-ltermcap -ltelnet
+#DPADD+=	${LIBKRB} ${LIBDES}
 #LDADD+=	-lkrb -ldes
-DPADD=	${LIBTERMCAP}
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 	terminal.c tn3270.c utilities.c

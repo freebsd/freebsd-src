@@ -4,11 +4,13 @@ BINOWN= man
 BINMODE=4555
 
 .if exists(${.OBJDIR}/../lib)
-LDADD=  -L${.OBJDIR}/../lib -lman
-CFLAGS+= -I${.OBJDIR}/../lib
+LIBDESTDIR=	${.OBJDIR}/../lib
 .else
-LDADD=  -L${.CURDIR}/../lib/ -lman
+LIBDESTDIR=	${.CURDIR}/../lib
 .endif
+CFLAGS+= -I${LIBDESTDIR}
+DPADD=	${LIBDESTDIR}/libman.a
+LDADD=	-L${LIBDESTDIR} -lman
 
 .if exists(${.OBJDIR})
 MAN1=   ${.OBJDIR}/man.1
@@ -16,7 +18,6 @@ MAN1=   ${.OBJDIR}/man.1
 MAN1=   ${.CURDIR}/man.1
 .endif
 
-DPADD+=  ${MAN1}
 CFLAGS+= -I${.CURDIR}/../lib -DSTDC_HEADERS -DPOSIX -DHAS_TROFF
 CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0664
 CLEANFILES+=	${MAN1}
