@@ -1897,7 +1897,6 @@ ctl_getitem(
 						*tp++ = *cp++;
 						if (tp >= buf + sizeof(buf)) 
 							return (0);
-						}
 					}
 					if (cp < reqend)
 						cp++;
