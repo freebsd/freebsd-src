@@ -85,5 +85,3 @@ METHOD int feed {
 	u_int32_t count;
 	void* source;
 };
-
-
