@@ -224,6 +224,7 @@ static void
 randomize(master)
 	des_block *master;
 {
+#ifndef __FreeBSD__
 	int i;
 	int seed;
 	struct timeval tv;
@@ -235,17 +236,24 @@ randomize(master)
 		shift = i % 8 * sizeof (int);
 		seed ^= (tv.tv_usec << shift) | (tv.tv_usec >> (32 - shift));
 	}
+#endif
 #ifdef KEYSERV_RANDOM
+#ifdef __FreeBSD__
+	srandomdev();
+#else
 	srandom(seed);
+#endif
 	master->key.low = random();
 	master->key.high = random();
-	srandom(seed);
 #else
 	/* use stupid dangerous bad rand() */
+#ifdef __FreeBSD__
+	sranddev();
+#else
 	srand(seed);
+#endif
 	master->key.low = rand();
 	master->key.high = rand();
-	srand(seed);
 #endif
 }
 
