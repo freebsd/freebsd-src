@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINAINER=	peter@FreeBSD.org
+
 .include "${.CURDIR}/../Makefile.inc"
 
 SRCDIR= ${CVSDIR}/doc

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINAINER=	peter@FreeBSD.org
+
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${CVSDIR}/diff
