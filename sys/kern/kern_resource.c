@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -728,16 +729,68 @@ uifind(uid)
 }
 
 /*
+ * place another refcount on a uidinfo struct
+ */
+void
+uihold(uip)
+struct uidinfo *uip;
+{
+
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	uip->ui_ref++;
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
+}
+
+/*
  * subtract one from the refcount in the struct uidinfo, if 0 free it
+ * since uidinfo structs have a long lifetime we use a
+ * opportunistic refcounting scheme to avoid locking the lookup hash
+ * for each release.
+ *
+ * if the refcount hits 0 we need to free the structure
+ * which means we need to lock the hash.
+ * optimal case:
+ *   After locking the struct and lowering the refcount, we find
+ *   that we don't need to free, simply unlock and return
+ * suboptimal case:
+ *   refcount lowering results in need to free, bump the count
+ *   back up, loose the lock and aquire the locks in the proper
+ *	 order to try again.
  */
 void
 uifree(uip)
 	struct	uidinfo *uip;
 {
 
+	/*
+	 * try for optimal, recucing the refcount doesn't make us free it.
+	 */
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	if (--uip->ui_ref != 0) {
+		mtx_exit(&uip->ui_mtx, MTX_DEF);
+		return;
+	}
+	/*
+	 * ok, we need to free, before we release the mutex to get
+	 * the lock ordering correct we need to
+	 * backout our change to the refcount so that no one else
+	 * races to free it.
+	 */
+	uip->ui_ref++;
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
+
+	/* get the locks in order */
 	mtx_enter(&uihashtbl_mtx, MTX_DEF);
 	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	/*
+	 * it's possible that someone has referenced it after we dropped the
+	 * initial lock, if so it's thier responsiblity to free it, but
+	 * we still must remove one from the count because we backed out
+	 * our change above.
+	 */
 	if (--uip->ui_ref == 0) {
+		LIST_REMOVE(uip, ui_hash);
+		mtx_exit(&uihashtbl_mtx, MTX_DEF);
 		if (uip->ui_sbsize != 0)
 			/* XXX no %qd in kernel.  Truncate. */
 			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
@@ -745,14 +798,12 @@ uifree(uip)
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
-		LIST_REMOVE(uip, ui_hash);
-		mtx_exit(&uihashtbl_mtx, MTX_DEF);
 		mtx_destroy(&uip->ui_mtx);
 		FREE(uip, M_UIDINFO);
 		return;
 	}
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
 	mtx_exit(&uihashtbl_mtx, MTX_DEF);
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
 	return;
 }
 
@@ -793,8 +844,8 @@ chgsbsize(uip, hiwat, to, max)
 	rlim_t new;
 	int s;
 
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
 	s = splnet();
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
 	new = uip->ui_sbsize + to - *hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
