@@ -260,6 +260,7 @@ struct ata_softc {
     struct resource		*r_altio;	/* altio addr resource handle */
     struct resource		*r_bmio;	/* bmio addr resource handle */
     struct resource		*r_irq;		/* interrupt of this channel */
+    void			*ih;		/* interrupt handle */
     int32_t			ioaddr;		/* physical port addr */
     int32_t			altioaddr;	/* physical alt port addr */
     int32_t			bmaddr;		/* physical bus master port */

@@ -75,7 +75,7 @@
 /* misc defines */
 #define IOMASK			0xfffffffc
 #define ATA_IOADDR_RID		0
-#define ATA_ALTIOADDR_RID	1
+#define ATA_ALTADDR_RID		1
 #define ATA_BMADDR_RID		2
 
 /* prototypes */
@@ -161,21 +161,23 @@ ata_pccard_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
     struct resource *port;
-    int rid;
-    u_long tmp;
+    int rid, len;
 
     /* allocate the port range */
     rid = ATA_IOADDR_RID;
-    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			      ATA_IOSIZE, RF_ACTIVE);
+    len = bus_get_resource_count(dev, SYS_RES_IOPORT, rid);
+    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, len, RF_ACTIVE);
     if (!port)
 	return ENOMEM;
 
-    /* alloctate the altport range */
-    if (bus_get_resource(dev, SYS_RES_IOPORT, 1, &tmp, &tmp)) {
-	bus_set_resource(dev, SYS_RES_IOPORT, 1,
-			 rman_get_start(port) + ATA_ALTPORT_PCCARD,
-			 ATA_ALTIOSIZE);
+    /* 
+     * if we got more than the default ATA_IOSIZE ports, this is likely
+     * a pccard system where the altio ports are located just after the
+     * normal io ports, so no need to allocate them.
+     */
+    if (len <= ATA_IOSIZE) {
+	bus_set_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, 
+			 rman_get_start(port) + ATA_ALTPORT, ATA_ALTIOSIZE);
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
     scp->unit = device_get_unit(dev);
@@ -188,7 +190,6 @@ static device_method_t ata_pccard_methods[] = {
     DEVMETHOD(device_probe,	ata_pccard_probe),
     DEVMETHOD(device_attach,	ata_attach),
     DEVMETHOD(device_detach,	ata_detach),
-    DEVMETHOD(device_resume,	ata_resume),
     { 0, 0 }
 };
 
@@ -276,6 +277,11 @@ ata_pci_match(device_t dev)
     case 0x06461095:
 	return "CMD 646 ATA controller";
 
+    case 0xc6931080:
+	if (pci_get_subclass(dev) == PCIS_STORAGE_IDE)
+	    return "Cypress 82C693 ATA controller";
+	break;
+
     case 0x74091022:
 	return "AMD 756 ATA66 controller";
 
@@ -295,11 +301,6 @@ ata_pci_match(device_t dev)
 
     case 0x06401095:
 	return "CMD 640 ATA controller !WARNING! buggy chip data loss possible";
-
-    case 0xc6931080:
-	if (pci_get_subclass(dev) == PCIS_STORAGE_IDE)
-	    return "Cypress 82C693 ATA controller (generic mode)";
-	break;
 
     case 0x01021078:
 	return "Cyrix 5530 ATA controller (generic mode)";
@@ -330,17 +331,16 @@ static int
 ata_pci_add_child(device_t dev, int unit)
 {
     device_t child;
-    int lun;
 
     /* check if this is located at one of the std addresses */
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV)
-	lun = unit;
-    else
-	lun = -1;
-
-    if (!(child = device_add_child(dev, "ata", lun)))
-	return ENOMEM;
-
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+	if (!(child = device_add_child(dev, "ata", unit)))
+	    return ENOMEM;
+    }
+    else {
+	if (!(child = device_add_child(dev, "ata", 2)))
+	    return ENOMEM;
+    }
     device_set_ivars(child, (void *)(uintptr_t) unit);
     return 0;
 }
@@ -436,6 +436,16 @@ ata_pci_attach(device_t dev)
 	break;
     }
 
+    /*
+     * the Cypress chip is a mess, it contains two ATA functions, but 
+     * both channels are visible on the first one.
+     * simply ignore the second function for now, as the right
+     * solution (ignoring the second channel on the first function)
+     * doesn't work with the crappy ATA interrupt setup on the alpha.
+     */
+    if (pci_get_devid(dev) == 0xc6931080 && pci_get_function(dev) > 1)
+	return 0;
+
     ata_pci_add_child(dev, 0);
 
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV ||
@@ -485,7 +495,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		myrid = 0x10 + 8 * unit;
 	    break;
 
-	case ATA_ALTIOADDR_RID:
+	case ATA_ALTADDR_RID:
 	    if (masterdev) {
 		myrid = 0;
 		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTPORT;
@@ -572,7 +582,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 		myrid = 0x10 + 8 * unit;
 	    break;
 
-	case ATA_ALTIOADDR_RID:
+	case ATA_ALTADDR_RID:
 	    if (masterdev)
 		myrid = 0;
 	    else
@@ -737,16 +747,19 @@ ata_probe(device_t dev)
     scp->devices = 0;
 
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
+    			    ATA_IOSIZE, RF_ACTIVE);
     if (!io)
 	goto failure;
     ioaddr = rman_get_start(io);
 
-    rid = ATA_ALTIOADDR_RID;
-    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
-    if (!altio)
-	goto failure;
-    altioaddr = rman_get_start(altio);
+    rid = ATA_ALTADDR_RID;
+    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			       ATA_ALTIOSIZE, RF_ACTIVE);
+    if (altio)
+	altioaddr = rman_get_start(altio);
+    else
+	altioaddr = ioaddr + ATA_IOSIZE;
 
     rid = ATA_BMADDR_RID;
     bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
@@ -836,7 +849,7 @@ failure:
     if (io)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
     if (altio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTIOADDR_RID, altio);
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, altio);
     if (bmio)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, bmio);
     if (bootverbose)
@@ -848,8 +861,7 @@ static int
 ata_attach(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
-    int rid = 0;
-    void *ih;
+    int error, rid = 0;
 
     if (!scp || scp->flags & ATA_ATTACHED)
 	return ENXIO;
@@ -860,7 +872,9 @@ ata_attach(device_t dev)
 	ata_printf(scp, -1, "unable to allocate interrupt\n");
 	return ENXIO;
     }
-    bus_setup_intr(dev, scp->r_irq, INTR_TYPE_BIO, ata_intr, scp, &ih);
+    if ((error = bus_setup_intr(dev, scp->r_irq, INTR_TYPE_BIO, ata_intr,
+				scp, &scp->ih)))
+	return error;
 
     /*
      * do not attach devices if we are in early boot, this is done later 
@@ -927,9 +941,12 @@ ata_detach(device_t dev)
     }
     scp->mode[ATA_DEV(ATA_MASTER)] = ATA_PIO;
     scp->mode[ATA_DEV(ATA_SLAVE)] = ATA_PIO;
+    bus_teardown_intr(dev, scp->r_irq, scp->ih);
     bus_release_resource(dev, SYS_RES_IRQ, 0, scp->r_irq);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, scp->r_bmio);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTIOADDR_RID, scp->r_altio);
+    if (scp->r_bmio)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, scp->r_bmio);
+    if (scp->r_altio)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,scp->r_altio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, scp->r_io);
     scp->flags &= ~ATA_ATTACHED;
     return 0;
