@@ -124,6 +124,7 @@ static void dofwd __P((struct parse *p, sopno pos, sop value));
 static void enlarge __P((struct parse *p, sopno size));
 static void stripsnug __P((struct parse *p, struct re_guts *g));
 static void findmust __P((struct parse *p, struct re_guts *g));
+static int altoffset __P((sop *scan, int offset, int mccs));
 static void computejumps __P((struct parse *p, struct re_guts *g));
 static void computematchjumps __P((struct parse *p, struct re_guts *g));
 static sopno pluscount __P((struct parse *p, struct re_guts *g));
@@ -246,6 +247,7 @@ int cflags;
 	g->nbol = 0;
 	g->neol = 0;
 	g->must = NULL;
+	g->moffset = -1;
 	g->charjump = NULL;
 	g->matchjump = NULL;
 	g->mlen = 0;
@@ -1695,13 +1697,23 @@ register struct re_guts *g;
 	register sop s;
 	register char *cp;
 	register sopno i;
+	int offset;
+	int cs, mccs;
 
 	/* avoid making error situations worse */
 	if (p->error != 0)
 		return;
 
+	/* Find out if we can handle OANYOF or not */
+	mccs = 0;
+	for (cs = 0; cs < g->ncsets; cs++)
+		if (g->sets[cs].multis != NULL)
+			mccs = 1;
+
 	/* find the longest OCHAR sequence in strip */
 	newlen = 0;
+	offset = 0;
+	g->moffset = 0;
 	scan = g->strip + 1;
 	do {
 		s = *scan++;
@@ -1717,6 +1729,7 @@ register struct re_guts *g;
 			break;
 		case OQUEST_:		/* things that must be skipped */
 		case OCH_:
+			offset = altoffset(scan, offset, mccs);
 			scan--;
 			do {
 				scan += OPND(s);
@@ -1729,23 +1742,97 @@ register struct re_guts *g;
 				}
 			} while (OP(s) != O_QUEST && OP(s) != O_CH);
 			/* fallthrough */
-		default:		/* things that break a sequence */
+		case OBOW:		/* things that break a sequence */
+		case OEOW:
+		case OBOL:
+		case OEOL:
+		case O_QUEST:
+		case O_CH:
+		case OEND:
 			if (newlen > g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
 			}
+			newlen = 0;
+			break;
+		case OANY:
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
+			}
+			if (offset > -1)
+				offset++;
+			newlen = 0;
+			break;
+		case OANYOF:		/* may or may not invalidate offset */
+			/* First, everything as OANY */
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1) {
+					g->moffset += offset;
+					offset = newlen;
+				} else
+					g->moffset = offset;
+			} else {
+				if (offset > -1)
+					offset += newlen;
+			}
+			if (offset > -1)
+				offset++;
+			newlen = 0;
+			/* And, now, if we found out we can't deal with
+			 * it, make offset = -1.
+			 */
+			if (mccs)
+				offset = -1;
+			break;
+		default:
+			/* Anything here makes it impossible or too hard
+			 * to calculate the offset -- so we give up;
+			 * save the last known good offset, in case the
+			 * must sequence doesn't occur later.
+			 */
+			if (newlen > g->mlen) {		/* ends one */
+				start = newstart;
+				g->mlen = newlen;
+				if (offset > -1)
+					g->moffset += offset;
+				else
+					g->moffset = offset;
+			}
+			offset = -1;
 			newlen = 0;
 			break;
 		}
 	} while (OP(s) != OEND);
 
-	if (g->mlen == 0)		/* there isn't one */
+	if (g->mlen == 0) {		/* there isn't one */
+		g->moffset = -1;
 		return;
+	}
 
 	/* turn it into a character string */
 	g->must = malloc((size_t)g->mlen + 1);
 	if (g->must == NULL) {		/* argh; just forget it */
 		g->mlen = 0;
+		g->moffset = -1;
 		return;
 	}
 	cp = g->must;
@@ -1758,6 +1845,78 @@ register struct re_guts *g;
 	}
 	assert(cp == g->must + g->mlen);
 	*cp++ = '\0';		/* just on general principles */
+}
+
+/*
+ - altoffset - choose biggest offset among multiple choices
+ = static int altoffset(sop *scan, int offset, int mccs);
+ *
+ * Compute, recursively if necessary, the largest offset among multiple
+ * re paths.
+ */
+static int
+altoffset(scan, offset, mccs)
+sop *scan;
+int offset;
+int mccs;
+{
+	int largest;
+	int try;
+	sop s;
+
+	/* If we gave up already on offsets, return */
+	if (offset == -1)
+		return -1;
+
+	largest = 0;
+	try = 0;
+	s = *scan++;
+	while (OP(s) != O_QUEST && OP(s) != O_CH) {
+		switch (OP(s)) {
+		case OOR1:
+			if (try > largest)
+				largest = try;
+			try = 0;
+			break;
+		case OQUEST_:
+		case OCH_:
+			try = altoffset(scan, try, mccs);
+			if (try == -1)
+				return -1;
+			scan--;
+			do {
+				scan += OPND(s);
+				s = *scan;
+				if (OP(s) != O_QUEST && OP(s) != O_CH &&
+							OP(s) != OOR2)
+					return -1;
+			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			break;
+		case OANYOF:
+			if (mccs)
+				return -1;
+		case OCHAR:
+		case OANY:
+			try++;
+		case OBOW:
+		case OEOW:
+		case OLPAREN:
+		case ORPAREN:
+		case OOR2:
+			break;
+		default:
+			try = -1;
+			break;
+		}
+		if (try == -1)
+			return -1;
+		s = *scan++;
+	}
+
+	if (try > largest)
+		largest = try;
+
+	return largest+offset;
 }
 
 /*
@@ -1783,7 +1942,7 @@ struct re_guts *g;
 	if (p->error != 0)
 		return;
 
-	g->charjump = malloc(256 * sizeof(int));
+	g->charjump = malloc((UCHAR_MAX+1) * sizeof(int));
 	if (g->charjump == NULL)	/* Not a fatal error */
 		return;
 
@@ -1874,8 +2033,8 @@ struct re_guts *g;
 		    g->mlen + suffix - mindex);
 
         ssuffix = pmatches[suffix];
-        while(suffix < g->mlen) {
-                while(suffix <= ssuffix) {
+        while (suffix < g->mlen) {
+                while (suffix <= ssuffix) {
                         g->matchjump[suffix] = MIN(g->matchjump[suffix],
 			    g->mlen + ssuffix - suffix);
                         suffix++;
