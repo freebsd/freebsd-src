@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.111 1999/05/11 07:55:31 peter Exp $
+**  $Id: pcisupport.c,v 1.112 1999/05/20 15:33:32 gallatin Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1179,6 +1179,10 @@ chip_match(device_t dev)
 		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
 	case 0x710110b9:
 		return ("AcerLabs M15x3 Power Management Unit");
+
+	/* OPTi -- vendor 0x1045 */
+	case 0xc8221045:
+		return ("OPTi 82C822 host to PCI Bridge");
 
 	/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
