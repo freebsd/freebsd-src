@@ -355,31 +355,7 @@ cia_init()
 	if (initted) return;
 	initted = 1;
 
-	cia_rev = REGVAL(CIA_CSR_REV) & REV_MASK;
-
-	/*
-	 * Determine if we have a Pyxis.  Only two systypes can
-	 * have this: the EB164 systype (AlphaPC164LX and AlphaPC164SX)
-	 * and the DEC_ST550 systype (Miata).
-	 */
-	if ((hwrpb->rpb_type == ST_EB164 &&
-	     (hwrpb->rpb_variation & SV_ST_MASK) >= SV_ST_ALPHAPC164LX_400) ||
-	    hwrpb->rpb_type == ST_DEC_550)
-		cia_ispyxis = TRUE;
-	else
-		cia_ispyxis = FALSE;
-	
-	/*
-	 * ALCOR/ALCOR2 Revisions >= 2 and Pyxis have the CNFG register.
-	 */
-	if (cia_rev >= 2 || cia_ispyxis)
-		cia_config = REGVAL(CIA_CSR_CNFG);
-	else
-		cia_config = 0;
-
-	if (alpha_implver() != ALPHA_IMPLVER_EV5
-	    || alpha_amask(ALPHA_AMASK_BWX)
-	    || !(cia_config & CNFG_BWEN)) {
+	if (chipset_bwx == 0) {
 		swiz_init_space(&io_space.swiz, KV(CIA_PCI_SIO1));
 		swiz_init_space_hae(&mem_space.swiz, KV(CIA_PCI_SMEM1),
 				    cia_swiz_set_hae_mem, 0);
@@ -414,16 +390,47 @@ cia_probe(device_t dev)
 	isa_init_intr();
 	cia_init_sgmap();
 
-	if (alpha_implver() != ALPHA_IMPLVER_EV5
-	    || alpha_amask(ALPHA_AMASK_BWX)
-	    || !(cia_config & CNFG_BWEN))
+	cia_rev = REGVAL(CIA_CSR_REV) & REV_MASK;
+
+	/*
+	 * Determine if we have a Pyxis.  Only two systypes can
+	 * have this: the EB164 systype (AlphaPC164LX and AlphaPC164SX)
+	 * and the DEC_ST550 systype (Miata).
+	 */
+	if ((hwrpb->rpb_type == ST_EB164 &&
+	     (hwrpb->rpb_variation & SV_ST_MASK) >= SV_ST_ALPHAPC164LX_400) ||
+	    hwrpb->rpb_type == ST_DEC_550)
+		cia_ispyxis = TRUE;
+	else
+		cia_ispyxis = FALSE;
+	
+
+
+	/*
+	 * ALCOR/ALCOR2 Revisions >= 2 and Pyxis have the CNFG register.
+	 */
+	if (cia_rev >= 2 || cia_ispyxis)
+		cia_config = REGVAL(CIA_CSR_CNFG);
+	else
+		cia_config = 0;
+
+	if ((alpha_implver() < ALPHA_IMPLVER_EV5) ||
+	    (alpha_amask(ALPHA_AMASK_BWX) != 0) ||
+	    (cia_config & CNFG_BWEN) == 0) {
 		use_bwx = 0;
+	} else {
+		use_bwx = 1;
+	}
+
+	if (cia_ispyxis) {
+		if (use_bwx == 0) {
+			printf("PYXIS but not BWX?\n");
+		}
+	}
 
 	device_add_child(dev, "pcib", 0);
 	device_set_ivars(dev, (void *)use_bwx);
-	
-	chipset_bwx = use_bwx;
-
+	chipset_bwx = use_bwx = (use_bwx == (uintptr_t) 1);
 	return 0;
 }
 
@@ -485,14 +492,14 @@ cia_attach(device_t dev)
 	if (!platform.iointr)	/* XXX */
 		set_iointr(alpha_dispatch_intr);
 
-	if (cia_ispyxis) {
-		snprintf(chipset_type, sizeof(chipset_type), "pyxis");
+	if (chipset_bwx) {
+		snprintf(chipset_type, sizeof(chipset_type), "cia/bwx");
 		chipset_bwx = 1;
 		chipset_ports = CIA_EV56_BWIO;
 		chipset_memory = CIA_EV56_BWMEM;
 		chipset_dense = CIA_PCI_DENSE;
 	} else {
-		snprintf(chipset_type, sizeof(chipset_type), "cia");
+		snprintf(chipset_type, sizeof(chipset_type), "cia/swiz");
 		chipset_bwx = 0;
 		chipset_ports = CIA_PCI_SIO1;
 		chipset_memory = CIA_PCI_SMEM1;
