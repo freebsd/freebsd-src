@@ -64,6 +64,7 @@ extern struct thread *kdb_thread;	/* Current thread. */
 
 int	kdb_alt_break(int, int *);
 void	kdb_backtrace(void);
+int	kdb_dbbe_select(const char *);
 void	kdb_enter(const char *);
 void	kdb_init(void);
 void *	kdb_jmpbuf(jmp_buf);
