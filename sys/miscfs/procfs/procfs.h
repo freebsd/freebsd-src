@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.2 1994/08/02 07:45:08 davidg Exp $
+ *	$Id: procfs.h,v 1.3 1995/03/16 18:13:45 bde Exp $
  */
 
 /*
@@ -79,6 +79,7 @@ struct pfsnode {
 	 ((cnp)->cn_namelen == (len) && \
 	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
 
+#define KMEM_GROUP 2
 /*
  * Format of a directory entry in /proc, ...
  * This must map onto struct dirent (see <dirent.h>)
