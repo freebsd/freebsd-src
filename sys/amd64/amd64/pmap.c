@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.149 1997/07/17 19:45:01 dyson Exp $
+ *	$Id: pmap.c,v 1.150 1997/07/20 08:37:22 bde Exp $
  */
 
 /*
@@ -3234,7 +3234,7 @@ pmap_activate(struct proc *p)
 vm_offset_t
 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size) {
 
-	if ((size < NBPDR) || (obj->type != OBJT_DEVICE)) {
+	if ((obj == NULL) || (size < NBPDR) || (obj->type != OBJT_DEVICE)) {
 		return addr;
 	}
 
