@@ -153,8 +153,8 @@ dumpfs(name)
 	printf("symlinklen %d\ttrackskew %d\tinterleave %d\tcontigsumsize %d\n",
 	    afs.fs_maxsymlinklen, afs.fs_trackskew, afs.fs_interleave,
 	    afs.fs_contigsumsize);
-	printf("nindir\t%d\tinopb\t%d\tnspf\t%d\n",
-	    afs.fs_nindir, afs.fs_inopb, afs.fs_nspf);
+	printf("nindir\t%d\tinopb\t%d\tnspf\t%d\tmaxfilesize\t%qu\n",
+	    afs.fs_nindir, afs.fs_inopb, afs.fs_nspf, afs.fs_maxfilesize);
 	printf("sblkno\t%d\tcblkno\t%d\tiblkno\t%d\tdblkno\t%d\n",
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
 	printf("sbsize\t%d\tcgsize\t%d\tcgoffset %d\tcgmask\t0x%08x\n",
