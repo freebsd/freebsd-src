@@ -880,9 +880,7 @@ ibwrite(struct buf *bp)
 	bp->b_flags |= B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
-	VI_LOCK(bp->b_vp);
-	bp->b_vp->v_numoutput++;
-	VI_UNLOCK(bp->b_vp);
+	bufobj_wref(&bp->b_vp->v_bufobj);
 	vfs_busy_pages(bp, 1);
 
 	/*
@@ -965,7 +963,7 @@ vfs_backgroundwritedone(struct buf *bp)
 	/*
 	 * This buffer is marked B_NOCACHE, so when it is released
 	 * by biodone, it will be tossed. We mark it with BIO_READ
-	 * to avoid biodone doing a second vwakeup.
+	 * to avoid biodone doing a second bufobj_wakeup.
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_iocmd = BIO_READ;
@@ -1020,7 +1018,7 @@ bdwrite(struct buf *bp)
 		/*
 		 * Try to find a buffer to flush.
 		 */
-		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_vnbufs) {
+		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_bobufs) {
 			if ((nbp->b_vflags & BV_BKGRDINPROG) ||
 			    buf_countdeps(nbp, 0) ||
 			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
@@ -3155,9 +3153,8 @@ bufdone(struct buf *bp)
 	bp->b_flags |= B_DONE;
 	runningbufwakeup(bp);
 
-	if (bp->b_iocmd == BIO_WRITE) {
-		vwakeup(bp);
-	}
+	if (bp->b_iocmd == BIO_WRITE && bp->b_vp != NULL)
+		bufobj_wdrop(&bp->b_vp->v_bufobj);
 
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
@@ -3794,6 +3791,67 @@ bwait(struct buf *bp, u_char pri, const char *wchan)
 		msleep(bp, &bdonelock, pri, wchan, 0);
 	mtx_unlock(&bdonelock);
 }
+
+#if 0	/* this is here to unconfuse p4 diff */
+
+void
+bufstrategy(struct bufobj *bo, struct buf *bp)
+{
+	int i = 0;
+	struct vnode *vp;
+
+	vp = bp->b_vp;
+	KASSERT(vp == bo->bo_vnode, ("Inconsistent vnode bufstrategy"));
+	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
+	i = VOP_STRATEGY(vp, bp);
+	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
+}
+
+#endif
+
+void
+bufobj_wref(struct bufobj *bo)
+{
+
+	KASSERT(bo != NULL, ("NULL bo in bufobj_wref"));
+	BO_LOCK(bo);
+	bo->bo_numoutput++;
+	BO_UNLOCK(bo);
+}
+
+void
+bufobj_wdrop(struct bufobj *bo)
+{
+
+	KASSERT(bo != NULL, ("NULL bo in bufobj_wdrop"));
+	BO_LOCK(bo);
+	KASSERT(bo->bo_numoutput > 0, ("bufobj_wdrop non-positive count"));
+	if ((--bo->bo_numoutput == 0) && (bo->bo_flag & BO_WWAIT)) {
+		bo->bo_flag &= ~BO_WWAIT;
+		wakeup(&bo->bo_numoutput);
+	}
+	BO_UNLOCK(bo);
+}
+
+int
+bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
+{
+	int error;
+
+	KASSERT(bo != NULL, ("NULL bo in bufobj_wwait"));
+	ASSERT_BO_LOCKED(bo);
+	error = 0;
+	while (bo->bo_numoutput) {
+		bo->bo_flag |= BO_WWAIT;
+		error = msleep(&bo->bo_numoutput, BO_MTX(bo),
+		    slpflag | (PRIBIO + 1), "bo_wwait", timeo);
+		if (error)
+			break;
+	}
+	return (error);
+}
+
 
 #include "opt_ddb.h"
 #ifdef DDB

@@ -965,9 +965,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp);		/* put on clean list */
-			VI_LOCK(tbp->b_vp);
-			++tbp->b_vp->v_numoutput;
-			VI_UNLOCK(tbp->b_vp);
+			bufobj_wref(&tbp->b_vp->v_bufobj);
 			splx(s);
 			BUF_KERNPROC(tbp);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,

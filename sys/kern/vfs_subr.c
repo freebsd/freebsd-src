@@ -904,28 +904,6 @@ insmntque(struct vnode *vp, struct mount *mp)
 }
 
 /*
- * Update outstanding I/O count and do wakeup if requested.
- */
-void
-vwakeup(bp)
-	register struct buf *bp;
-{
-	register struct vnode *vp;
-
-	if ((vp = bp->b_vp)) {
-		VI_LOCK(vp);
-		vp->v_numoutput--;
-		if (vp->v_numoutput < 0)
-			panic("vwakeup: neg numoutput");
-		if ((vp->v_numoutput == 0) && (vp->v_iflag & VI_BWAIT)) {
-			vp->v_iflag &= ~VI_BWAIT;
-			wakeup(&vp->v_numoutput);
-		}
-		VI_UNLOCK(vp);
-	}
-}
-
-/*
  * Flush out and invalidate all buffers associated with a vnode.
  * Called with the underlying object locked.
  */
@@ -940,23 +918,21 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	struct buf *blist;
 	int error;
 	vm_object_t object;
+	struct bufobj *bo;
 
 	GIANT_REQUIRED;
 
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
 
 	VI_LOCK(vp);
+	bo = &vp->v_bufobj;
 	if (flags & V_SAVE) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			error = msleep(&vp->v_numoutput, VI_MTX(vp),
-			    slpflag | (PRIBIO + 1), "vinvlbuf", slptimeo);
-			if (error) {
-				VI_UNLOCK(vp);
-				return (error);
-			}
+		error = bufobj_wwait(bo, slpflag, slptimeo);
+		if (error) {
+			VI_UNLOCK(vp);
+			return (error);
 		}
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (bo->bo_dirty.bv_cnt > 0) {
 			VI_UNLOCK(vp);
 			if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, td)) != 0)
 				return (error);
@@ -965,8 +941,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 			 * enabled under INVARIANTS
 			 */
 			VI_LOCK(vp);
-			if (vp->v_numoutput > 0 ||
-			    !TAILQ_EMPTY(&vp->v_dirtyblkhd))
+			if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)
 				panic("vinvalbuf: dirty bufs");
 		}
 	}
@@ -1001,10 +976,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	 * VM object can also have read-I/O in-progress.
 	 */
 	do {
-		while (vp->v_numoutput > 0) {
-			vp->v_iflag |= VI_BWAIT;
-			msleep(&vp->v_numoutput, VI_MTX(vp), PVM, "vnvlbv", 0);
-		}
+		bufobj_wwait(bo, 0, 0);
 		VI_UNLOCK(vp);
 		if (VOP_GETVOBJECT(vp, &object) == 0) {
 			VM_OBJECT_LOCK(object);
@@ -1054,7 +1026,7 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 	ASSERT_VI_LOCKED(vp, "flushbuflist");
 
 	for (found = 0, bp = blist; bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		nbp = TAILQ_NEXT(bp, b_bobufs);
 		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
 			continue;
@@ -1130,7 +1102,7 @@ restart:
 	anyfreed = 1;
 	for (;anyfreed;) {
 		anyfreed = 0;
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_vnbufs, nbp) {
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
 			if (bp->b_lblkno < trunclbn)
 				continue;
 			if (BUF_LOCK(bp,
@@ -1153,7 +1125,7 @@ restart:
 			VI_LOCK(vp);
 		}
 
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_vnbufs, nbp) {
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (bp->b_lblkno < trunclbn)
 				continue;
 			if (BUF_LOCK(bp,
@@ -1177,7 +1149,7 @@ restart:
 
 	if (length > 0) {
 restartsync:
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_vnbufs, nbp) {
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (bp->b_lblkno > 0)
 				continue;
 			/*
@@ -1199,10 +1171,7 @@ restartsync:
 		}
 	}
 
-	while (vp->v_numoutput > 0) {
-		vp->v_iflag |= VI_BWAIT;
-		msleep(&vp->v_numoutput, VI_MTX(vp), PVM, "vbtrunc", 0);
-	}
+	bufobj_wwait(bo, 0, 0);
 	VI_UNLOCK(vp);
 	vnode_pager_setsize(vp, length);
 
@@ -1302,7 +1271,7 @@ buf_vlist_remove(struct buf *bp)
 		root->b_right = bp->b_right;
 	}
 	bv->bv_root = root;
-	TAILQ_REMOVE(&bv->bv_hd, bp, b_vnbufs);
+	TAILQ_REMOVE(&bv->bv_hd, bp, b_bobufs);
 	bv->bv_cnt--;
 	bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
 }
@@ -1326,20 +1295,20 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 		if (root == NULL) {
 			bp->b_left = NULL;
 			bp->b_right = NULL;
-			TAILQ_INSERT_TAIL(&vp->v_dirtyblkhd, bp, b_vnbufs);
+			TAILQ_INSERT_TAIL(&vp->v_dirtyblkhd, bp, b_bobufs);
 		} else if (bp->b_lblkno < root->b_lblkno ||
 		    (bp->b_lblkno == root->b_lblkno &&
 		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
 			bp->b_left = root->b_left;
 			bp->b_right = root;
 			root->b_left = NULL;
-			TAILQ_INSERT_BEFORE(root, bp, b_vnbufs);
+			TAILQ_INSERT_BEFORE(root, bp, b_bobufs);
 		} else {
 			bp->b_right = root->b_right;
 			bp->b_left = root;
 			root->b_right = NULL;
 			TAILQ_INSERT_AFTER(&vp->v_dirtyblkhd,
-			    root, bp, b_vnbufs);
+			    root, bp, b_bobufs);
 		}
 		vp->v_dirtybufcnt++;
 		vp->v_dirtyblkroot = bp;
@@ -1349,20 +1318,20 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 		if (root == NULL) {
 			bp->b_left = NULL;
 			bp->b_right = NULL;
-			TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_vnbufs);
+			TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_bobufs);
 		} else if (bp->b_lblkno < root->b_lblkno ||
 		    (bp->b_lblkno == root->b_lblkno &&
 		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
 			bp->b_left = root->b_left;
 			bp->b_right = root;
 			root->b_left = NULL;
-			TAILQ_INSERT_BEFORE(root, bp, b_vnbufs);
+			TAILQ_INSERT_BEFORE(root, bp, b_bobufs);
 		} else {
 			bp->b_right = root->b_right;
 			bp->b_left = root;
 			root->b_right = NULL;
 			TAILQ_INSERT_AFTER(&vp->v_cleanblkhd,
-			    root, bp, b_vnbufs);
+			    root, bp, b_bobufs);
 		}
 		vp->v_cleanbufcnt++;
 		vp->v_cleanblkroot = bp;
@@ -1760,7 +1729,7 @@ pbrelvp(bp)
 
 	/* XXX REMOVE ME */
 	VI_LOCK(bp->b_vp);
-	if (TAILQ_NEXT(bp, b_vnbufs) != NULL) {
+	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
 		panic(
 		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
 		    bp,
@@ -2790,8 +2759,6 @@ vprint(label, vp)
 		strcat(buf, "|VI_XLOCK");
 	if (vp->v_iflag & VI_XWANT)
 		strcat(buf, "|VI_XWANT");
-	if (vp->v_iflag & VI_BWAIT)
-		strcat(buf, "|VI_BWAIT");
 	if (vp->v_iflag & VI_DOOMED)
 		strcat(buf, "|VI_DOOMED");
 	if (vp->v_iflag & VI_FREE)

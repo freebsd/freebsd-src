@@ -2545,18 +2545,9 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	s = splvm();
 	if (bp->b_iocmd == BIO_WRITE) {
 		vp = bp->b_vp;
-		if (vp) {
-			VI_LOCK(vp);
-			vp->v_numoutput--;
-			if ((vp->v_iflag & VI_BWAIT) && vp->v_numoutput <= 0) {
-				vp->v_iflag &= ~VI_BWAIT;
-				wakeup(&vp->v_numoutput);
-			}
-			VI_UNLOCK(vp);
-		}
-		VI_LOCK(vp2);
-		vp2->v_numoutput++;
-		VI_UNLOCK(vp2);
+		if (vp)
+			bufobj_wdrop(&vp->v_bufobj);
+		bufobj_wref(&vp2->v_bufobj);
 	}
 	bp->b_vp = vp2;
 	splx(s);
