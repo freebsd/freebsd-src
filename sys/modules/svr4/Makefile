@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	newton@FreeBSD.org
+
 .PATH:	${.CURDIR}/../../i386/svr4 ${.CURDIR}/../../svr4
 KMOD=	svr4
 SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h opt_vmpage.h \
@@ -8,9 +10,7 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h opt_vmpage.h \
 	svr4_stream.c svr4_socket.c svr4_sockio.c svr4_machdep.c \
 	svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
-NOMAN=1
 MAN8=	svr4.8
-MAINTAINER=	newton@freebsd.org
 
 EXPORT_SYMS=_svr4_mod
 CLEANFILES= svr4_assym.h svr4_genassym.o
