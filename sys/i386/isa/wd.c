@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.63 1994/12/24 09:43:12 bde Exp $
+ *	$Id: wd.c,v 1.64 1995/01/25 21:40:47 bde Exp $
  */
 
 /* TODO:
@@ -218,6 +218,7 @@ struct disk {
 #define	DKFL_BADSECT	0x00020	/* has a bad144 badsector table */
 #define	DKFL_WRITEPROT	0x00040	/* manual unit write protect */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
+#define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* number of statistics purposes */
 	struct disklabel dk_dd;	/* device configuration data */
@@ -397,14 +398,17 @@ wdattach(struct isa_device *dvp)
 		    char buf[sizeof(du->dk_params.wdp_model) + 1];
 		    bcopy(du->dk_params.wdp_model, buf, sizeof(buf)-1);
 		    buf[sizeof(buf)-1] = '\0';
-		    printf("wdc%d: unit %d (wd%d): <%s>\n",
+		    printf("wdc%d: unit %d (wd%d): <%s>",
 			dvp->id_unit, unit, lunit, buf);
+		    if (du->dk_flags & DKFL_32BIT)
+			printf(", 32-bit data path");
+		    printf("\n");
 		    if (du->dk_params.wdp_heads == 0 && 
 			du->dk_dd.d_secperunit > 100)
-			printf("wd%d: size unknown, using BIOS values\n",
+			printf("wd%d: size unknown, using BIOS values: ",
 			    lunit);
 		    else if (du->dk_params.wdp_heads == 0)
-			printf("wd%d: size unknown\n", lunit);
+			printf("wd%d: size unknown: ", lunit);
 		    else
 			printf("wd%d: %luMB (%lu total sec), ",
 				lunit,
@@ -759,9 +763,14 @@ loop:
 	}
 
 	/* then send it! */
-	outsw(du->dk_port + wd_data,
-	      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
-	      DEV_BSIZE / sizeof(short));
+	if (du->dk_flags & DKFL_32BIT)
+		outsl(du->dk_port + wd_data,
+		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      DEV_BSIZE / sizeof(long));
+	else
+		outsw(du->dk_port + wd_data,
+		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      DEV_BSIZE / sizeof(short));
 	du->dk_bc -= DEV_BSIZE;
 }
 
@@ -844,10 +853,6 @@ oops:
 	 */
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
 	    && wdtab[unit].b_active) {
-		int	chk, dummy;
-
-		chk = min(DEV_BSIZE / sizeof(short), du->dk_bc / sizeof(short));
-
 		/* ready to receive data? */
 		if ((du->dk_status & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
 		    != (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
@@ -858,14 +863,15 @@ oops:
 		}
 
 		/* suck in data */
-		insw(du->dk_port + wd_data,
-		     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
-				chk);
-		du->dk_bc -= chk * sizeof(short);
-
-		/* XXX for obsolete fractional sector reads. */
-		while (chk++ < DEV_BSIZE / sizeof(short))
-			insw(du->dk_port + wd_data, &dummy, 1);
+		if (du->dk_flags & DKFL_32BIT)
+			insl(du->dk_port + wd_data,
+				bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
+				DEV_BSIZE / sizeof(long));
+		else
+			insw(du->dk_port + wd_data,
+				bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
+				DEV_BSIZE / sizeof(short));
+		du->dk_bc -= DEV_BSIZE;
 	}
 
 	wdxfer[du->dk_lunit]++;
@@ -1247,9 +1253,9 @@ static int
 wdgetctlr(struct disk *du)
 {
 	int	i;
-	char	tb[DEV_BSIZE];
+	char    tb[DEV_BSIZE], tb2[DEV_BSIZE];
 	struct wdparams *wp;
-
+again:
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_READP) != 0
 	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
 		/* XXX need to check error status after final transfer. */
@@ -1329,7 +1335,25 @@ wdgetctlr(struct disk *du)
 
 	/* obtain parameters */
 	wp = &du->dk_params;
-	insw(du->dk_port + wd_data, tb, sizeof(tb) / sizeof(short));
+	if (du->dk_flags & DKFL_32BIT)
+		insl(du->dk_port + wd_data, tb, sizeof(tb) / sizeof(long));
+	else
+		insw(du->dk_port + wd_data, tb, sizeof(tb) / sizeof(short));
+
+	/* try 32-bit data path (VLB IDE controller) */
+	if (! (du->dk_flags & DKFL_32BIT)) {
+		bcopy(tb, tb2, sizeof(struct wdparams));
+		du->dk_flags |= DKFL_32BIT;
+		goto again;
+	}
+
+	/* check that we really have 32-bit controller */
+	if (bcmp (tb, tb2, sizeof(struct wdparams)) != 0) {
+		/* test failed, use 16-bit i/o mode */
+		bcopy(tb2, tb, sizeof(struct wdparams));
+		du->dk_flags &= ~DKFL_32BIT;
+	}
+
 	bcopy(tb, wp, sizeof(struct wdparams));
 
 	/* shuffle string byte order */
@@ -1746,9 +1770,14 @@ out:
 					"wddump: timeout waiting for DRQ");
 				return (EIO);
 			}
-			outsw(du->dk_port + wd_data,
-			      CADDR1 + ((int)addr & (NBPG - 1)),
-			      DEV_BSIZE / sizeof(short));
+			if (du->dk_flags & DKFL_32BIT)
+				outsl(du->dk_port + wd_data,
+				      CADDR1 + ((int)addr & (NBPG - 1)),
+				      DEV_BSIZE / sizeof(long));
+			else
+				outsw(du->dk_port + wd_data,
+				      CADDR1 + ((int)addr & (NBPG - 1)),
+				      DEV_BSIZE / sizeof(short));
 			addr += DEV_BSIZE;
 			if ((unsigned)addr % (1024 * 1024) == 0)
 				printf("%ld ", num / (1024 * 1024 / DEV_BSIZE));
