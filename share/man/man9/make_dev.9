@@ -36,6 +36,8 @@
 .Fd #include <sys/conf.h>
 .Ft dev_t
 .Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "char *fmt" ...
+.Ft dev_t
+.Fn make_dev_alias "dev_t pdev" "char *fmt" ...
 .Ft void
 .Fn destroy_dev "dev_t dev"
 .Sh DESCRIPTION
@@ -80,12 +82,26 @@ are defined in
 .Ed
 .Pp
 The
+.Fn make_dev_alias
+function takes the returned
+.Fa dev_t
+from
+.Fn make_dev
+and makes another (aliased) name for this device. It is an error to call
+.Fn make_dev_alias
+prior to calling
+.Fn make_dev .
+.Pp
+The
 .Fn destroy_dev
 function takes the returned
 .Fa dev_t
 from
 .Fn make_dev
-and destroys the registration for that device.
+and destroys the registration for that device. Do not call
+.Fn destroy_dev
+on devices that were created with
+.Fn make_dev_alias .
 .Sh HISTORY
 The
 .Fn make_dev
@@ -93,3 +109,7 @@ and
 .Fn destroy_dev
 functions first appeared in
 .Fx 4.0 .
+The function
+.Fn make_dev_alias
+first appeared in
+.Fx 4.1 .
