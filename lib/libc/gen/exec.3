@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
+.\"	$Id$
 .\"
 .Dd January 24, 1994
 .Dt EXEC 3
@@ -147,16 +148,30 @@ is
 used.
 In addition, certain errors are treated specially.
 .Pp
-If permission is denied for a file (the attempted
+If an error is ambiguous (for simplicity, we shall consider all
+errors except
+.Er ENOEXEC
+as being ambiguous here, although only the critical error
+.Er EACCES
+is really ambiguous), 
+then these functions will act as if they stat the file to determine
+whether the file exists and has suitable execute permissions.
+If it does, they will return immediately with the global variable
+.Va errno
+restored to the value set by
+.Fn execve .
+Otherwise, the search will be continued.
+If the search completes without performing a successful
 .Fn execve
-returned
-.Er EACCES ) ,
-these functions will continue searching the rest of
-the search path.
-If no other file is found, however, they will return with the global variable
+or terminating due to an error,
+these functions will return with the global variable
 .Va errno
 set to
-.Er EACCES .
+.Er EACCES
+or
+.Er ENOENT
+according to whether at least one file with suitable execute permissions
+was found.
 .Pp
 If the header of a file isn't recognized (the attempted
 .Fn execve
@@ -165,13 +180,6 @@ returned
 these functions will execute the shell with the path of
 the file as its first argument.
 (If this attempt fails, no further searching is done.)
-.Pp
-If the file is currently busy (the attempted
-.Fn execve
-returned
-.Er ETXTBUSY ) ,
-these functions will sleep for several seconds,
-periodically re-attempting to execute the file.
 .Pp
 The function
 .Fn exect
@@ -230,8 +238,8 @@ The behavior of
 .Fn execlp
 and
 .Fn execvp
-when errors occur while attempting to execute the file is historic
-practice, but has not traditionally been documented and is not specified
+when errors occur while attempting to execute the file is not quite historic
+practice, and has not traditionally been documented and is not specified
 by the
 .Tn POSIX
 standard.
@@ -241,11 +249,37 @@ Traditionally, the functions
 and
 .Fn execvp
 ignored all errors except for the ones described above and
+.Er ETXTBSY ,
+upon which they retried after sleeping for several seconds, and
 .Er ENOMEM
 and
 .Er E2BIG ,
 upon which they returned.
-They now return if any error other than the ones described above occurs.
+They now return for
+.Er ETXTBSY ,
+and determine existence and executability more carefully.
+In particular, 
+.Er EACCES
+for inaccessible directories in the path prefix is no longer
+confused with
+.Er EACCES
+for files with unsuitable execute permissions.
+In
+.Bx 4.4 ,
+they returned upon all errors except
+.Er EACCES ,
+.Er ENOENT ,
+.Er ENOEXEC
+and
+.Er ETXTBSY .
+This was inferior to the traditional error handling,
+since it it breaks the ignoring of errors for path prefixes
+and only improves the handling of the unusual ambiguous error
+.Er EFAULT
+and the unusual error
+.Er EIO .
+The behaviour was changed to match the behaviour of
+.Xr sh 1 .
 .Sh STANDARDS
 .Fn Execl ,
 .Fn execv ,

@@ -32,11 +32,16 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -187,10 +192,11 @@ execvp(name, argv)
 	char **memp;
 	register int cnt, lp, ln;
 	register char *p;
-	int eacces, etxtbsy;
+	int eacces, save_errno;
 	char *bp, *cur, *path, buf[MAXPATHLEN];
+	struct stat sb;
 
-	eacces = etxtbsy = 0;
+	eacces = 0;
 
 	/* If it's an absolute or relative path name, it's easy. */
 	if (index(name, '/')) {
@@ -241,9 +247,10 @@ execvp(name, argv)
 
 retry:		(void)execve(bp, argv, environ);
 		switch(errno) {
-		case EACCES:
-			eacces = 1;
-			break;
+		case E2BIG:
+			goto done;
+		case ELOOP:
+		case ENAMETOOLONG:
 		case ENOENT:
 			break;
 		case ENOEXEC:
@@ -258,17 +265,37 @@ retry:		(void)execve(bp, argv, environ);
 			(void)execve(_PATH_BSHELL, memp, environ);
 			free(memp);
 			goto done;
+		case ENOMEM:
+			goto done;
+		case ENOTDIR:
+			break;
 		case ETXTBSY:
-			if (etxtbsy < 3)
-				(void)sleep(++etxtbsy);
-			goto retry;
+			/*
+			 * We used to retry here, but sh(1) doesn't.
+			 */
+			goto done;
 		default:
+			/*
+			 * EACCES may be for an inaccessible directory or
+			 * a non-executable file.  Call stat() to decide
+			 * which.  This also handles ambiguities for EFAULT
+			 * and EIO, and undocumented errors like ESTALE.
+			 * We hope that the race for a stat() is unimportant.
+			 */
+			save_errno = errno;
+			if (stat(argv[0], &sb) != 0)
+				break;
+			if (save_errno == EACCES) {
+				eacces = 1;
+				continue;
+			}
+			errno = save_errno;
 			goto done;
 		}
 	}
 	if (eacces)
 		errno = EACCES;
-	else if (!errno)
+	else
 		errno = ENOENT;
 done:	if (path)
 		free(path);
