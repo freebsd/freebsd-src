@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: write_disk.c,v 1.20 1997/02/22 15:06:40 peter Exp $
  *
  */
 
@@ -87,7 +87,8 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	dl->d_npartitions = MAXPARTITIONS;
 
-	dl->d_type = new->name[0] == 's' ? DTYPE_SCSI : DTYPE_ESDI;
+	dl->d_type = new->name[0] == 's' || new->name[0] == 'd' ||
+	    new->name[0] == 'o' ? DTYPE_SCSI : DTYPE_ESDI;
 	dl->d_partitions[RAW_PART].p_size = c1->size;
 	dl->d_partitions[RAW_PART].p_offset = c1->offset;
 
