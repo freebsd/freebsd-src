@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.160 1995/05/20 13:52:53 jkh Exp $
+#	$Id: Makefile,v 1.161 1995/05/20 23:33:07 phk Exp $
 #
 # How to roll a release:
 #
@@ -447,6 +447,10 @@ floppies:
 boot.flp:
 	rm -f release.4 release.6
 	cd ${.CURDIR} && ${MAKE} release.4 release.6 WHICH_CRUNCH=boot
+
+fixit.flp:
+	rm -f release.4 release.10
+	cd ${.CURDIR} && ${MAKE} release.4 release.10 WHICH_CRUNCH=fixit
 
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
