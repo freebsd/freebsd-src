@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
@@ -46,24 +45,17 @@ static device_t	acpi_dev;
  * APM driver emulation 
  */
 
-#if __FreeBSD_version < 500000
-#include <sys/select.h>
-#else
 #include <sys/selinfo.h>
-#endif
 
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
 
-#if __FreeBSD_version < 500000
-#include <i386/apm/apm.h>
-#else
 #include <i386/bios/apm.h>
-#endif
 
-u_int32_t acpi_reset_video = 1;
+uint32_t acpi_reset_video = 1;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
 
+static int intr_model = ACPI_INTR_PIC;
 static struct apm_softc	apm_softc;
 
 static d_open_t apmopen;
@@ -82,8 +74,6 @@ static struct cdevsw apm_cdevsw = {
 	.d_poll =	apmpoll,
 	.d_name =	"apm",
 };
-
-static int intr_model = ACPI_INTR_PIC;
 
 static int
 acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
@@ -105,11 +95,10 @@ acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
 
 	/* If still unknown, determine it based on the battery capacity. */
 	if (state == 0xff) {
-		if (battp->cap >= 50) {
+		if (battp->cap >= 50)
 			state = 0;	/* high */
-		} else {
+		else
 			state = 1;	/* low */
-		}
 	}
 
 	return (state);
@@ -122,9 +111,9 @@ acpi_capm_convert_battflags(struct  acpi_battinfo *battp)
 
 	flags = 0;
 
-	if (battp->cap >= 50) {
+	if (battp->cap >= 50)
 		flags |= APM_BATT_HIGH;
-	} else {
+	else {
 		if (battp->state & ACPI_BATT_STAT_CRITICAL)
 			flags |= APM_BATT_CRITICAL;
 		else
@@ -178,9 +167,8 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	struct	acpi_battinfo batt;
 
 	if (app->ap_device != PMDV_ALLDEV &&
-	    (app->ap_device < PMDV_BATT0 || app->ap_device > PMDV_BATT_ALL)) {
+	    (app->ap_device < PMDV_BATT0 || app->ap_device > PMDV_BATT_ALL))
 		return (1);
-	}
 
 	if (app->ap_device == PMDV_ALLDEV)
 		batt_unit = -1;			/* all units */
