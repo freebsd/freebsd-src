@@ -258,7 +258,7 @@ parse_netgrp(group)
 		} else {
 			spos = strsep(&pos, ", \t");
 			if (parse_netgrp(spos))
-				return (1);
+				continue;
 		}
 		/* Watch for null pointer dereferences, dammit! */
 		if (pos != NULL)
