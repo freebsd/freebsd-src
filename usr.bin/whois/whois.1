@@ -59,11 +59,11 @@ It contains network numbers used in those parts of the world covered neither by
 .Tn APNIC
 nor by
 .Tn RIPE .
-Contact (handle) information should be looked up by appending
-.Qq Li -ARIN
-to the NIC handle:
 .Pp
-.Dl "$ whois -a foo3-ARIN"
+(Hint: All point of contact handles in the
+.Tn ARIN
+whois database end with
+.Qq Li -ARIN . )
 .Pp
 .It Fl c Ar country-code
 This is the equivalent of using the
@@ -90,7 +90,8 @@ constructs the name of a whois server to use from the top-level domain
 of the supplied (single) argument, and appending
 .Qq Li .whois-servers.net .
 This effectively allows a suitable whois server to be selected
-automatically for a large number of TLDs.
+automatically for a large number of
+.Tn TLDs .
 .Pp
 In the event that an IP
 address is specified, the whois server will default to the American
@@ -132,11 +133,13 @@ is no longer handled by Network Solutions, Inc.
 For details, see
 .Pa http://www.internic.net/ .
 .Pp
-Contact (handle) information should be looked up by prefixing
+(Hint: Contact information, identified by the term
+.Em handle ,
+can be looked up by prefixing
 .Qq Li "handle "
-to the NIC handle in the querry:
-.Pp
-.Dl "$ whois -i 'handle foo3'"
+to the
+.Tn NIC
+handle in the query.)
 .Pp
 .It Fl m
 Use the Route Arbiter Database
@@ -196,6 +199,46 @@ For more information as to what
 operands have special meaning, and how to guide the search, use
 the special name
 .Dq Li help .
+.Sh EXAMPLES
+Most types of data, such as domain names and
+.Tn IP
+addresses, can be used as arguments to
+.Nm
+without any options, and
+.Nm
+will choose the correct whois server to query.
+Some exceptions, where
+.Nm
+will not be able to handled data correctly, are detailed below.
+.Pp
+To obtain contact information about an
+administrator located in the Russian
+.Tn TLD
+domain
+.Qq Li RU ,
+use the
+.Fl c
+option as shown in the following example, where
+.Ar CONTACT-ID
+is substituted with the actual contact identifier.
+.Pp
+.Dl "whois -c RU CONTACT-ID"
+.Pp
+(Note: This example is specific to the
+.Tn TLD
+.Qq Li RU ,
+but other
+.Tn TLDs
+can be queried by using a similar syntax.)
+.Pp
+The following example demonstrates how to obtain information about an
+.Tn IPv6
+address or hostname using the
+.Fl 6
+option, which directs the query to
+.Tn 6bone .
+.Pp
+.Dl "whois -6 IPv6-IP-Address"
 .Sh SEE ALSO
 .Rs
 .%A Ken Harrenstien
