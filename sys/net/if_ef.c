@@ -370,7 +370,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	if (eifp->if_bpf) {
 		struct mbuf m0;
 		m0.m_next = m;
-		m0.m_len = sizeof(struct ether_header);
+		m0.m_len = ETHER_HDR_LEN;
 		m0.m_data = (char *)eh;
 		BPF_MTAP(eifp, &m0);
 	}

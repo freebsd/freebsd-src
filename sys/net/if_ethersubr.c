@@ -216,14 +216,14 @@ ether_output(ifp, m, dst, rt0)
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
 
-		M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_TRYWAIT);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
 		llc.llc_snap_ether_type = htons( ETHERTYPE_AT );
-		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
+		bcopy(&llc, mtod(m, caddr_t), LLC_SNAPFRAMELEN);
 		type = htons(m->m_pkthdr.len);
-		hlen = sizeof(struct llc) + ETHER_HDR_LEN;
+		hlen = LLC_SNAPFRAMELEN + ETHER_HDR_LEN;
 	    } else {
 		type = htons(ETHERTYPE_AT);
 	    }
@@ -292,7 +292,7 @@ ether_output(ifp, m, dst, rt0)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, sizeof (struct ether_header), M_DONTWAIT);
+	M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
@@ -515,7 +515,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
-	if (m->m_len < sizeof (struct ether_header)) {
+	if (m->m_len < ETHER_HDR_LEN) {
 		/* XXX maybe should pullup? */
 		if_printf(ifp, "discard frame w/o leading ethernet "
 				"header (len %u pkt len %u)\n",
@@ -742,7 +742,7 @@ post_stats:
 	}
 
 	/* Strip off Ethernet header. */
-	m_adj(m, sizeof (struct ether_header));
+	m_adj(m, ETHER_HDR_LEN);
 
 	/* If the CRC is still on the packet, trim it off. */
 	if (m->m_flags & M_HASFCS) {
@@ -835,7 +835,7 @@ post_stats:
 				   sizeof(at_org_code)) == 0 &&
 			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
 			    inq = &atintrq2;
-			    m_adj( m, sizeof( struct llc ));
+			    m_adj( m, LLC_SNAPFRAMELEN);
 			    schednetisr(NETISR_ATALK);
 			    break;
 			}
@@ -843,7 +843,7 @@ post_stats:
 			if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
 				   sizeof(aarp_org_code)) == 0 &&
 			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
-			    m_adj( m, sizeof( struct llc ));
+			    m_adj( m, LLC_SNAPFRAMELEN);
 			    aarpinput(IFP2AC(ifp), m); /* XXX */
 			    return;
 			}
@@ -873,7 +873,7 @@ discard:
 		 * Put back the ethernet header so netgraph has a
 		 * consistent view of inbound packets.
 		 */
-		M_PREPEND(m, sizeof (struct ether_header), M_DONTWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
 		(*ng_ether_input_orphan_p)(ifp, m);
 		return;
 	}
@@ -930,7 +930,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 	if (llc != IFP2AC(ifp)->ac_enaddr)
 		bcopy(llc, IFP2AC(ifp)->ac_enaddr, ifp->if_addrlen);
 
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
 	if (BDG_LOADED)
