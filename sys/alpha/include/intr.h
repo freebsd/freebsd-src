@@ -29,11 +29,10 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
-int alpha_setup_intr(const char *name, int vector,
-		     driver_intr_t *handle, void *arg, int pri, int flags,
-		     void **cookiep, volatile long *cntp, 
-		     void (*disable)(int), void (*enable)(int));
-int alpha_teardown_intr(void *cookie);
-void alpha_dispatch_intr(void *frame, unsigned long vector);
+int	alpha_setup_intr(const char *name, int vector, driver_intr_t handler,
+	    void *arg, enum intr_type flags, void **cookiep,
+	    volatile long *cntp, void (*disable)(int), void (*enable)(int));
+int	alpha_teardown_intr(void *cookie);
+void	alpha_dispatch_intr(void *frame, unsigned long vector);
 
 #endif /* !_MACHINE_INTR_H_ */
