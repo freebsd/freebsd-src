@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.81 1997/09/13 15:04:52 peter Exp $
+ *	$Id: vm_page.c,v 1.82 1997/10/10 18:18:47 phk Exp $
  */
 
 /*
@@ -574,22 +574,41 @@ vm_page_list_find(basequeue, index)
 	int i,j;
 	vm_page_t m;
 	int hindex;
+	struct vpgqueues *pq;
+
+	pq = &vm_page_queues[basequeue];
+
+	m = TAILQ_FIRST(pq[index].pl);
+	if (m)
+		return m;
 
 	for(j = 0; j < PQ_L1_SIZE; j++) {
-		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
-			i >= 0;
+		int ij;
+		for(i = (PQ_L2_SIZE / 2) - PQ_L1_SIZE;
+			(ij = i + j) > 0;
 			i -= PQ_L1_SIZE) {
-			hindex = (index + (i+j)) & PQ_L2_MASK;
-			m = TAILQ_FIRST(vm_page_queues[basequeue + hindex].pl);
-			if (m)
+
+			hindex = index + ij;
+			if (hindex >= PQ_L2_SIZE)
+				hindex -= PQ_L2_SIZE;
+			if (m = TAILQ_FIRST(pq[hindex].pl))
 				return m;
 
-			hindex = (index - (i+j)) & PQ_L2_MASK;
-			m = TAILQ_FIRST(vm_page_queues[basequeue + hindex].pl);
-			if (m)
+			hindex = index - ij;
+			if (hindex < 0)
+				hindex += PQ_L2_SIZE;
+			if (m = TAILQ_FIRST(pq[hindex].pl))
 				return m;
 		}
 	}
+
+	hindex = index + PQ_L2_SIZE / 2;
+	if (hindex >= PQ_L2_SIZE)
+		hindex -= PQ_L2_SIZE;
+	m = TAILQ_FIRST(pq[hindex].pl);
+	if (m)
+		return m;
+
 	return NULL;
 #else
 	return TAILQ_FIRST(vm_page_queues[basequeue].pl);
@@ -631,59 +650,81 @@ vm_page_select_free(object, pindex, prefqueue)
 	int i,j;
 	int index, hindex;
 #endif
-	vm_page_t m;
+	vm_page_t m, mh;
 	int oqueuediff;
+	struct vpgqueues *pq;
 
 	if (prefqueue == PQ_ZERO)
 		oqueuediff = PQ_FREE - PQ_ZERO;
 	else
 		oqueuediff = PQ_ZERO - PQ_FREE;
 
-	if (object->page_hint) {
-		 if (object->page_hint->pindex == (pindex - 1)) {
-			vm_offset_t last_phys;
-			if ((object->page_hint->flags & PG_FICTITIOUS) == 0) {
-				if ((object->page_hint < &vm_page_array[cnt.v_page_count-1]) &&
-					(object->page_hint >= &vm_page_array[0])) {
+	if (mh = object->page_hint) {
+		 if (mh->pindex == (pindex - 1)) {
+			if ((mh->flags & PG_FICTITIOUS) == 0) {
+				if ((mh < &vm_page_array[cnt.v_page_count-1]) &&
+					(mh >= &vm_page_array[0])) {
 					int queue;
-					last_phys = VM_PAGE_TO_PHYS(object->page_hint);
-					m = PHYS_TO_VM_PAGE(last_phys + PAGE_SIZE);
-					queue = m->queue - m->pc;
-					if (queue == PQ_FREE || queue == PQ_ZERO) {
-						return m;
+					m = mh + 1;
+					if (VM_PAGE_TO_PHYS(m) == (VM_PAGE_TO_PHYS(mh) + PAGE_SIZE)) {
+						queue = m->queue - m->pc;
+						if (queue == PQ_FREE || queue == PQ_ZERO) {
+							return m;
+						}
 					}
 				}
 			}
 		}
 	}
-			
+
+	pq = &vm_page_queues[prefqueue];
 
 #if PQ_L2_SIZE > 1
 
-	index = pindex + object->pg_color;
+	index = (pindex + object->pg_color) & PQ_L2_MASK;
+
+	if (m = TAILQ_FIRST(pq[index].pl))
+		return m;
+	if (m = TAILQ_FIRST(pq[index + oqueuediff].pl))
+		return m;
+
 	for(j = 0; j < PQ_L1_SIZE; j++) {
-		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
-			(i + j) >= 0;
+		int ij;
+		for(i = (PQ_L2_SIZE / 2) - PQ_L1_SIZE;
+			(ij = i + j) >= 0;
 			i -= PQ_L1_SIZE) {
 
-			hindex = prefqueue + ((index + (i+j)) & PQ_L2_MASK);
-			if (m = TAILQ_FIRST(vm_page_queues[hindex].pl)) 
+			hindex = index + ij;
+			if (hindex >= PQ_L2_SIZE)
+				hindex -= PQ_L2_SIZE;
+			if (m = TAILQ_FIRST(pq[hindex].pl)) 
 				return m;
-			if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
+			if (m = TAILQ_FIRST(pq[hindex + oqueuediff].pl))
 				return m;
 
-			hindex = prefqueue + ((index - (i+j)) & PQ_L2_MASK);
-			if (m = TAILQ_FIRST(vm_page_queues[hindex].pl)) 
+			hindex = index - ij;
+			if (hindex < 0)
+				hindex += PQ_L2_SIZE;
+			if (m = TAILQ_FIRST(pq[hindex].pl)) 
 				return m;
-			if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
+			if (m = TAILQ_FIRST(pq[hindex + oqueuediff].pl))
 				return m;
 		}
 	}
+
+	hindex = index + PQ_L2_SIZE / 2;
+	if (hindex >= PQ_L2_SIZE)
+		hindex -= PQ_L2_SIZE;
+	if (m = TAILQ_FIRST(pq[hindex].pl))
+		return m;
+	if (m = TAILQ_FIRST(pq[hindex+oqueuediff].pl))
+		return m;
+
 #else
-	if (m = TAILQ_FIRST(vm_page_queues[prefqueue].pl))
+	if (m = TAILQ_FIRST(pq[0].pl))
 		return m;
 	else
-		return TAILQ_FIRST(vm_page_queues[prefqueue + oqueuediff].pl);
+		return TAILQ_FIRST(pq[oqueuediff].pl);
 #endif
 
 	return NULL;
