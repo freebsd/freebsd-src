@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.56 1996/04/05 18:56:10 ache Exp $
+ *	$Id: clock.c,v 1.57 1996/04/22 19:40:28 nate Exp $
  */
 
 /*
@@ -53,8 +53,15 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <machine/clock.h>
+#ifdef CLK_CALIBRATION_LOOP
+#include <machine/cons.h>
+#endif
+#include <machine/cpu.h>
 #include <machine/frame.h>
+
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -68,11 +75,7 @@
 #define	LEAPYEAR(y) ((u_int)(y) % 4 == 0)
 #define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
 
-/* X-tals being what they are, it's nice to be able to fudge this one... */
-#ifndef TIMER_FREQ
-#define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
-#endif
-#define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
+#define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
 /*
  * Time in timer cycles that it takes for microtime() to disable interrupts
@@ -98,6 +101,7 @@ int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
+unsigned	i586_ctr_freq;
 unsigned	i586_ctr_rate;
 long long	i586_ctr_bias;
 long long	i586_last_tick;
@@ -125,6 +129,11 @@ static 	void	(*new_function) __P((struct clockframe *frame));
 static 	u_int	new_rate;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
+#ifdef TIMER_FREQ
+static	u_int	timer_freq = TIMER_FREQ;
+#else
+static	u_int	timer_freq = 1193182;
+#endif
 static 	char	timer0_state = 0;
 static	char	timer2_state = 0;
 static 	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
@@ -287,34 +296,9 @@ getit(void)
 	return ((high << 8) | low);
 }
 
-#if defined(I586_CPU) || defined(I686_CPU)
-/*
- * Figure out how fast the cyclecounter runs.  This must be run with
- * clock interrupts disabled, but with the timer/counter programmed
- * and running.
- */
-void
-calibrate_cyclecounter(void)
-{
-	/*
-	 * Don't need volatile; should always use unsigned if 2's
-	 * complement arithmetic is desired.
-	 */
-	unsigned long long count;
-
-#define howlong 131072UL
-	__asm __volatile(".byte 0x0f, 0x30" : : "A"(0LL), "c" (0x10));
-	DELAY(howlong);
-	__asm __volatile(".byte 0xf,0x31" : "=A" (count));
-
-	i586_ctr_rate = (count << I586_CTR_RATE_SHIFT) / howlong;
-#undef howlong
-}
-#endif
-
 /*
  * Wait "n" microseconds.
- * Relies on timer 1 counting down from (TIMER_FREQ / hz)
+ * Relies on timer 1 counting down from (timer_freq / hz)
  * Note: timer had better have been programmed before this is first used!
  */
 void
@@ -346,15 +330,17 @@ DELAY(int n)
 	prev_tick = getit();
 	n -= 20;
 	/*
-	 * Calculate (n * (TIMER_FREQ / 1e6)) without using floating point
+	 * Calculate (n * (timer_freq / 1e6)) without using floating point
 	 * and without any avoidable overflows.
 	 */
 	sec = n / 1000000;
 	usec = n - sec * 1000000;
-	ticks_left = sec * TIMER_FREQ
-		     + usec * (TIMER_FREQ / 1000000)
-		     + usec * ((TIMER_FREQ % 1000000) / 1000) / 1000
-		     + usec * (TIMER_FREQ % 1000) / 1000000;
+	ticks_left = sec * timer_freq
+		     + usec * (timer_freq / 1000000)
+		     + usec * ((timer_freq % 1000000) / 1000) / 1000
+		     + usec * (timer_freq % 1000) / 1000000;
+	if (n < 0)
+		ticks_left = 0;	/* XXX timer_freq is unsigned */
 
 	while (ticks_left > 0) {
 		tick = getit();
@@ -430,6 +416,116 @@ readrtc(int port)
 	return(bcd2bin(rtcin(port)));
 }
 
+static u_int
+calibrate_clocks(void)
+{
+	u_int count, prev_count, tot_count;
+	int sec, start_sec, timeout;
+
+	printf("Calibrating clock(s) relative to mc146818A clock ... ");
+	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
+		goto fail;
+	timeout = 100000000;
+
+	/* Read the mc146818A seconds counter. */
+	for (;;) {
+		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
+			sec = rtcin(RTC_SEC);
+			break;
+		}
+		if (--timeout == 0)
+			goto fail;
+	}
+
+	/* Wait for the mC146818A seconds counter to change. */
+	start_sec = sec;
+	for (;;) {
+		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
+			sec = rtcin(RTC_SEC);
+			if (sec != start_sec)
+				break;
+		}
+		if (--timeout == 0)
+			goto fail;
+	}
+
+	/* Start keeping track of the i8254 counter. */
+	prev_count = getit();
+	if (prev_count == 0 || prev_count > timer0_max_count)
+		goto fail;
+	tot_count = 0;
+
+#if defined(I586_CPU) || defined(I686_CPU)
+	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686)
+		wrmsr(0x10, 0LL);	/* XXX 0x10 is the MSR for the TSC */
+#endif
+
+	/*
+	 * Wait for the mc146818A seconds counter to change.  Read the i8254
+	 * counter for each iteration since this is convenient and only
+	 * costs a few usec of inaccuracy. The timing of the final reads
+	 * of the counters almost matches the timing of the initial reads,
+	 * so the main cause of inaccuracy is the varying latency from 
+	 * inside getit() or rtcin(RTC_STATUSA) to the beginning of the
+	 * rtcin(RTC_SEC) that returns a changed seconds count.  The
+	 * maximum inaccuracy from this cause is < 10 usec on 486's.
+	 */
+	start_sec = sec;
+	for (;;) {
+		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP))
+			sec = rtcin(RTC_SEC);
+		count = getit();
+		if (count == 0 || count > timer0_max_count)
+			goto fail;
+		if (count > prev_count)
+			tot_count += prev_count - (count - timer0_max_count);
+		else
+			tot_count += prev_count - count;
+		prev_count = count;
+		if (sec != start_sec)
+			break;
+		if (--timeout == 0)
+			goto fail;
+	}
+
+#if defined(I586_CPU) || defined(I686_CPU)
+	/*
+	 * Read the cpu cycle counter.  The timing considerations are
+	 * similar to those for the i8254 clock.
+	 */
+	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
+		unsigned long long i586_count;
+
+		i586_count = rdtsc();
+		i586_ctr_freq = i586_count;
+		i586_ctr_rate = (i586_count << I586_CTR_RATE_SHIFT) / 1000000;
+		printf("i586 clock: %u Hz, ", i586_ctr_freq);
+	}
+#endif
+
+	printf("i8254 clock: %u Hz\n", tot_count);
+	return (tot_count);
+
+fail:
+	printf("failed, using default i8254 clock of %u Hz\n", timer_freq);
+	return (timer_freq);
+}
+
+static void
+set_timer_freq(u_int freq, int intr_freq)
+{
+	u_long	ef;
+
+	ef = read_eflags();
+	timer_freq = freq;
+	timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
+	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, timer0_max_count & 0xff);
+	outb(TIMER_CNTR0, timer0_max_count >> 8);
+	write_eflags(ef);
+}
+
 /*
  * Initialize 8253 timer 0 early so that it can be used in DELAY().
  * XXX initialization of other timers is unintentionally left blank.
@@ -437,11 +533,75 @@ readrtc(int port)
 void
 startrtclock()
 {
-	timer0_max_count = hardclock_max_count = TIMER_DIV(hz);
-	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, timer0_max_count & 0xff);
-	outb(TIMER_CNTR0, timer0_max_count >> 8);
+	u_int delta, freq;
+
+	writertc(RTC_STATUSA, rtc_statusa);
+	writertc(RTC_STATUSB, RTCSB_24HR);
+
+	/*
+	 * Temporarily calibrate with a high intr_freq to get a low
+	 * timer0_max_count to help detect bogus i8254 counts.
+	 */
+	set_timer_freq(timer_freq, 20000);
+	freq = calibrate_clocks();
+#ifdef CLK_CALIBRATION_LOOP
+	if (bootverbose) {
+		printf(
+		"Press a key on the console to abort clock calibration\n");
+		while (!cncheckc())
+			calibrate_clocks();
+	}
+#endif
+
+	/*
+	 * Use the calibrated i8254 frequency if it seems reasonable.
+	 * Otherwise use the default, and don't use the calibrated i586
+	 * frequency.
+	 */
+	delta = freq > timer_freq ? freq - timer_freq : timer_freq - freq;
+	if (delta < timer_freq / 100) {
+#ifndef CLK_USE_I8254_CALIBRATION
+		printf(
+"CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
+		freq = timer_freq;
+#endif
+		timer_freq = freq;
+	} else {
+		printf("%d Hz differs from default of %d Hz by more than 1%%\n",
+		       freq, timer_freq);
+#if defined(I586_CPU) || defined(I686_CPU)
+		i586_ctr_freq = 0;
+		i586_ctr_rate = 0;
+#endif
+	}
+
+	set_timer_freq(timer_freq, hz);
+
+#if defined(I586_CPU) || defined(I686_CPU)
+#ifndef CLK_USE_I586_CALIBRATION
+	if (i586_ctr_rate != 0) {
+		printf(
+"CLK_USE_I586_CALIBRATION not specified - using old calibration method\n");
+		i586_ctr_freq = 0;
+		i586_ctr_rate = 0;
+	}
+#endif
+	if (i586_ctr_rate == 0 &&
+	    (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686)) {
+		/*
+		 * Calibration of the i586 clock relative to the mc146818A
+		 * clock failed.  Do a less accurate calibration relative
+		 * to the i8254 clock.
+		 */
+		unsigned long long i586_count;
+
+		wrmsr(0x10, 0LL);	/* XXX */
+		DELAY(1000000);
+		i586_count = rdtsc();
+		i586_ctr_rate = (i586_count << I586_CTR_RATE_SHIFT) / 1000000;
+		printf("i586 clock: %u Hz\n", i586_ctr_freq);
+	}
+#endif
 }
 
 /*
@@ -597,7 +757,7 @@ cpu_initclocks()
 	 * Finish setting up anti-jitter measures.
 	 */
 	if (i586_ctr_rate) {
-		I586_CYCLECTR(i586_last_tick);
+		i586_last_tick = rdtsc();
 		i586_ctr_bias = i586_last_tick;
 	}
 #endif
@@ -628,3 +788,49 @@ setstatclockrate(int newhz)
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 	writertc(RTC_STATUSA, rtc_statusa);
 }
+
+static int
+sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
+{
+	int error;
+	u_int freq;
+
+	/*
+	 * Use `i8254' instead of `timer' in external names because `timer'
+	 * is is too generic.  Should use it everywhere.
+	 */
+	freq = timer_freq;
+	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	if (error == 0 && freq != timer_freq) {
+		if (timer0_state != 0)
+			return (EBUSY);	/* too much trouble to handle */
+		set_timer_freq(freq, hz);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
+	    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
+
+#if defined(I586_CPU) || defined(I686_CPU)
+static int
+sysctl_machdep_i586_freq SYSCTL_HANDLER_ARGS
+{
+	int error;
+	u_int freq;
+
+	if (i586_ctr_rate == 0)
+		return (EOPNOTSUPP);
+	freq = i586_ctr_freq;
+	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	if (error == 0 && freq != i586_ctr_freq) {
+		i586_ctr_freq = freq;
+		i586_ctr_rate = ((unsigned long long)freq <<
+				 I586_CTR_RATE_SHIFT) / 1000000;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, i586_freq, CTLTYPE_INT | CTLFLAG_RW,
+	    0, sizeof(u_int), sysctl_machdep_i586_freq, "I", "");
+#endif /* defined(I586_CPU) || defined(I686_CPU) */
