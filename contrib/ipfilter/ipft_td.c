@@ -61,7 +61,7 @@ tcpdump -nqte
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.2 2002/02/22 15:32:54 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.3 2002/06/27 14:29:17 darrenr Exp $";
 #endif
 
 static	int	tcpd_open __P((char *));
@@ -120,7 +120,7 @@ int	cnt, *dir;
 	struct	protoent *p;
 	char	src[32], dst[32], misc[256], time[32], link1[32], link2[32];
 	char	lbuf[160], *s;
-	int	n, dots, slen, extra = 0;
+	int	n, slen, extra = 0;
 
 	if (!fgets(lbuf, sizeof(lbuf) - 1, tfp))
 		return 0;
@@ -142,7 +142,7 @@ int	cnt, *dir;
 					return -1;
 			}
 
-	if ((dots = count_dots(dst)) == 4) {
+	if (count_dots(dst) == 4) {
 		s = strrchr(src, '.');
 		*s++ = '\0';
 		(void) inet_aton(src, &ip->ip_src);

@@ -50,7 +50,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.16 2002/06/06 10:48:35 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.17 2002/06/27 14:29:17 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -389,7 +389,7 @@ int	*linenum;
 static void packetlogon(opt)
 char	*opt;
 {
-	int	flag, err;
+	int	flag;
 
 	flag = get_flags();
 	if (flag != 0) {
@@ -415,7 +415,7 @@ char	*opt;
 			printf("set log flag: block\n");
 	}
 
-	if (opendevice(ipfname) != -2 && (err = ioctl(fd, SIOCSETFF, &flag)))
+	if (opendevice(ipfname) != -2 && (ioctl(fd, SIOCSETFF, &flag) != 0))
 		perror("ioctl(SIOCSETFF)");
 
 	if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {

@@ -68,7 +68,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.35 2002/06/04 14:43:49 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.36 2002/08/22 15:12:23 darrenr Exp $";
 #endif
 
 
@@ -959,13 +959,13 @@ int	blen;
 		*t++ = 'S';
 		lvl = LOG_ERR;
 	} else if (ipf->fl_flags & FR_PASS) {
-		if (ipf->fl_flags & FR_LOGP)
+		if (ipf->fl_flags & FR_LOG)
 			*t++ = 'p';
 		else
 			*t++ = 'P';
 		lvl = LOG_NOTICE;
 	} else if (ipf->fl_flags & FR_BLOCK) {
-		if (ipf->fl_flags & FR_LOGB)
+		if (ipf->fl_flags & FR_LOG)
 			*t++ = 'b';
 		else
 			*t++ = 'B';
