@@ -334,7 +334,8 @@ _zget(vm_zone_t z)
 #ifdef SMP
 			simple_lock(&z->zlock);
 #endif
-			zone_kmem_pages += z->zalloc;
+			if (item != NULL)
+				zone_kmem_pages += z->zalloc;
 			splx(s);
 		} else {
 #ifdef SMP
@@ -344,9 +345,14 @@ _zget(vm_zone_t z)
 #ifdef SMP
 			simple_lock(&z->zlock);
 #endif
-			zone_kern_pages += z->zalloc;
+			if (item != NULL)
+				zone_kern_pages += z->zalloc;
 		}
-		bzero(item, nbytes);
+		if (item != NULL) {
+			bzero(item, nbytes);
+		} else {
+			nbytes = 0;
+		}
 		nitems = nbytes / z->zsize;
 	}
 	z->ztotal += nitems;
