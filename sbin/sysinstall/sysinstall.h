@@ -54,6 +54,10 @@
 #  define EXTERN extern
 #endif
 
+extern unsigned char boot0[];
+extern unsigned char boot1[];
+extern unsigned char boot2[];
+
 /* All this "disk" stuff */
 EXTERN int Ndisk;
 EXTERN struct disklabel *Dlbl[MAX_NO_DISKS];
@@ -75,6 +79,10 @@ EXTERN char selection[];
 EXTERN int debug_fd;
 EXTERN int dialog_active;
 EXTERN int fixit;
+
+EXTERN int on_serial;
+EXTERN int on_cdrom;
+EXTERN int cpio_fd;
 
 extern int no_disks;
 extern int inst_disk;
@@ -118,9 +126,6 @@ void	stage2 __P((void));
 /* stage3.c */
 void	stage3 __P((void));
 
-/* stage4.c */
-void	stage4 __P((void));
-
 /* stage5.c */
 void	stage5 __P((void));
 
@@ -137,6 +142,7 @@ void ShowFile __P((char *filename, char *header));
 /* mbr.c */
 int	build_bootblocks __P((int dfd,struct disklabel *label,struct dos_partition *dospart));
 void	Fdisk __P((void));
+void	read_dospart __P((int, struct dos_partition *));
 
 /* label.c */
 void	DiskLabel __P((void));

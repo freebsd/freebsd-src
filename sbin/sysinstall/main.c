@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.19 1995/01/29 02:31:35 phk Exp $
+ * $Id: main.c,v 1.20 1995/01/30 03:19:52 phk Exp $
  *
  */
 
@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <setjmp.h>
 #include <fcntl.h>
 #include <signal.h>
 
@@ -26,15 +25,6 @@
 #define EXTERN /* only in main.c */
 
 #include "sysinstall.h"
-
-jmp_buf	jmp_restart;
-
-/*
- * XXX: utils: Mkdir must do "-p".
- * XXX: stage2: do mkdir for msdos-mounts.
- * XXX: label: Import dos-slice.
- * XXX: mbr: edit geometry
- */
 
 void
 handle_intr(int sig)
@@ -52,11 +42,22 @@ main(int argc, char **argv)
 	signal(SIGINT, SIG_IGN);
 
 	/* Are we running as init? */
+	cpio_fd = -1;
 	if (getpid() == 1) {
 		setsid();
-		close(0); open("/dev/console",O_RDWR);
-		close(1); dup(0);
-		close(2); dup(0);
+		if (argc > 1 && strchr(argv[1],'C')) {
+			/* Kernel told us that we are on a CDROM root */
+			close(0); open("/bootcd/dev/console",O_RDWR);
+			close(1); dup(0);
+			close(2); dup(0);
+			cpio_fd = open("/floppies/cpio.flp",O_RDONLY);
+			on_cdrom++;
+			chroot("/bootcd");
+		} else {
+			close(0); open("/dev/console",O_RDWR);
+			close(1); dup(0);
+			close(2); dup(0);
+		}
 		printf("sysinstall running as init\n\r");
 		ioctl(0,TIOCSCTTY,(char *)NULL);
 		setlogin("root");
@@ -93,7 +94,6 @@ main(int argc, char **argv)
 		reboot(RB_AUTOBOOT);
 	} else {
 		stage3();
-		stage4();
 		stage5();
 	}
 	return 0;
