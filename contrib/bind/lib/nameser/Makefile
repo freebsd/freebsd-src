@@ -15,12 +15,12 @@
 # SOFTWARE.
 #
 
-# $Id: Makefile,v 8.20 2000/07/11 06:41:42 vixie Exp $
+# $Id: Makefile,v 8.21 2000/12/23 08:03:02 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
 # this Makefile will be invoked with a lot of overrides for the following:
-SYSTYPE= bsdos
+SYSTYPE= freebsd
 DESTDIR =
 DESTLIB = /usr/local/lib
 O=o
@@ -28,7 +28,7 @@ A=a
 CC= cc
 LD= ld
 SHELL= /bin/sh
-CDEBUG= -g
+CDEBUG= -g -Wall
 TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: getnetent.c,v 1.17 1999/10/13 16:39:30 vixie Exp $";
+static const char rcsid[] = "$Id: getnetent.c,v 1.18 2000/12/23 08:14:53 vixie Exp $";
 #endif
 
 /* Imports */
@@ -175,14 +175,16 @@ getnetbyaddr_p(unsigned long net, int type, struct net_data *net_data) {
 	addr[3] = (0x000000FF & net);
 
 	/* reduce bits to as close to natural number as possible */
-	if ((bits == 32) && (addr[0] < 224) && (addr[3] == 0))
-		if ((addr[0] < 192) && (addr[2] == 0))
+	if ((bits == 32) && (addr[0] < 224) && (addr[3] == 0)) {
+		if ((addr[0] < 192) && (addr[2] == 0)) {
 			if ((addr[0] < 128) && (addr[1] == 0))
 				bits = 8;
 			else
 				bits = 16;
-		else
+		} else {
 			bits = 24;
+		}
+	}
 
 	net_data->nww_last = (*nw->byaddr)(nw, addr, bits, AF_INET);
 	net_data->nw_last = nw_to_net(net_data->nww_last, net_data);

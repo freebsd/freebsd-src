@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 8.38 2000/03/30 20:16:51 vixie Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 8.41 2000/12/23 08:14:58 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -127,10 +127,6 @@ static int		pselect(int, void *, void *, void *,
 				struct timespec *,
 				const sigset_t *);
 #endif
-
-/* Reachover. */
-
-void res_pquery(const res_state, const u_char *, int, FILE *);
 
 /* Public. */
 
@@ -284,8 +280,10 @@ res_nsend(res_state statp,
 					needclose++;
 					break;
 				}
-		if (needclose)
+		if (needclose) {
 			res_nclose(statp);
+			EXT(statp).nscount = 0;
+		}
 	}
 
 	/*
@@ -308,11 +306,16 @@ res_nsend(res_state statp,
 	    (statp->options & RES_BLAST) == 0) {
 		struct sockaddr_in ina;
 		int lastns = statp->nscount - 1;
+		int fd;
 
 		ina = statp->nsaddr_list[0];
-		for (ns = 0; ns < lastns; ns++)
+		fd = EXT(statp).nssocks[0];
+		for (ns = 0; ns < lastns; ns++) {
 			statp->nsaddr_list[ns] = statp->nsaddr_list[ns + 1];
+			EXT(statp).nssocks[ns] = EXT(statp).nssocks[ns + 1];
+		}
 		statp->nsaddr_list[lastns] = ina;
+		EXT(statp).nssocks[lastns] = fd;
 	}
 
 	/*
@@ -347,7 +350,7 @@ res_nsend(res_state statp,
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
-					return (-1);
+					goto fail;
 				}
 			} while (!done);
 		}
@@ -362,7 +365,7 @@ res_nsend(res_state statp,
 			n = send_vc(statp, buf, buflen, ans, anssiz, &terrno,
 				    ns);
 			if (n < 0)
-				return (-1);
+				goto fail;
 			if (n == 0)
 				goto next_ns;
 			resplen = n;
@@ -371,7 +374,7 @@ res_nsend(res_state statp,
 			n = send_dg(statp, buf, buflen, ans, anssiz, &terrno,
 				    ns, &v_circuit, &gotsomewhere);
 			if (n < 0)
-				return (-1);
+				goto fail;
 			if (n == 0)
 				goto next_ns;
 			if (v_circuit)
@@ -394,7 +397,7 @@ res_nsend(res_state statp,
 		 * or if we haven't been asked to keep a socket open,
 		 * close the socket.
 		 */
-		if (v_circuit && (statp->options & RES_USEVC) == 0 ||
+		if ((v_circuit && (statp->options & RES_USEVC) == 0) ||
 		    (statp->options & RES_STAYOPEN) == 0) {
 			res_nclose(statp);
 		}
@@ -422,7 +425,7 @@ res_nsend(res_state statp,
 				case res_error:
 					/*FALLTHROUGH*/
 				default:
-					return (-1);
+					goto fail;
 				}
 			} while (!done);
 
@@ -439,6 +442,9 @@ res_nsend(res_state statp,
 			errno = ETIMEDOUT;	/* no answer obtained */
 	} else
 		errno = terrno;
+	return (-1);
+ fail:
+	res_nclose(statp);
 	return (-1);
 }
 
@@ -686,9 +692,16 @@ send_dg(res_state statp,
 	now = evNowTime();
 	timeout = evConsTime(seconds, 0);
 	finish = evAddTime(now, timeout);
+	goto nonow;
  wait:
+	now = evNowTime();
+ nonow:
 	FD_ZERO(&dsmask);
 	FD_SET(s, &dsmask);
+	if (evCmpTime(finish, now) > 0)
+		timeout = evSubTime(finish, now);
+	else
+		timeout = evConsTime(0, 0);
 	n = pselect(s + 1, &dsmask, NULL, NULL, &timeout, NULL);
 	if (n == 0) {
 		Dprint(statp->options & RES_DEBUG, (stdout, ";; timeout\n"));
@@ -696,13 +709,8 @@ send_dg(res_state statp,
 		return (0);
 	}
 	if (n < 0) {
-		if (errno == EINTR) {
-			now = evNowTime();
-			if (evCmpTime(finish, now) > 0) {
-				timeout = evSubTime(finish, now);
-				goto wait;
-			}
-		}
+		if (errno == EINTR)
+			goto wait;
 		Perror(statp, stderr, "select", errno);
 		res_nclose(statp);
 		return (0);

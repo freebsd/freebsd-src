@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1999 by Internet Software Consortium
+ * Copyright (c) 2000 by Internet Software Consortium, Inc.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,17 +15,21 @@
  * SOFTWARE.
  */
 
+
+#include <port_before.h>
+#include <stdio.h>
+#include <isc/misc.h>
+#include <port_after.h>
+#ifndef HAVE_MOVEFILE
 /*
- * $Id: misc.h,v 8.4 2000/12/23 08:14:52 vixie Exp $
+ * rename() is lame (can't overwrite an existing file) on some systems.
+ * use movefile() instead, and let lame OS ports do what they need to.
  */
 
-#ifndef _ISC_MISC_H
-#define _ISC_MISC_H
-
-#define	bitncmp		__bitncmp
-/*#define isc_movefile	__isc_movefile */
-
-extern int		bitncmp(const void *l, const void *r, int n);
-extern int		isc_movefile(const char *, const char *);
-
-#endif /*_ISC_MISC_H*/
+int
+isc_movefile(const char *oldname, const char *newname) {
+	return (rename(oldname, newname));
+}
+#else
+	static int os_port_has_isc_movefile = 1;
+#endif

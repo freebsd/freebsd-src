@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_print.c,v 8.18 2000/02/29 05:48:12 vixie Exp $";
+static const char rcsid[] = "$Id: ns_print.c,v 8.21 2000/12/09 00:15:38 marka Exp $";
 #endif
 
 /* Import. */
@@ -123,7 +123,9 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		T(addstr("\t\t\t", 3, &buf, &buflen));
 	} else {
 		len = prune_origin(name, origin);
-		if (len == 0) {
+		if (*name == '\0') {
+			goto root;
+		} else if (len == 0) {
 			T(addstr("@\t\t\t", 4, &buf, &buflen));
 		} else {
 			T(addstr(name, len, &buf, &buflen));
@@ -131,6 +133,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 			if (((origin == NULL || origin[0] == '\0') ||
 			    (origin[0] != '.' && origin[1] != '\0' &&
 			    name[len] == '\0')) && name[len - 1] != '.') {
+ root:
 				T(addstr(".", 1, &buf, &buflen));
 				len++;
 			}
@@ -145,6 +148,8 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 	addlen(x, &buf, &buflen);
 	len = SPRINTF((tmp, " %s %s", p_class(class), p_type(type)));
 	T(addstr(tmp, len, &buf, &buflen));
+	if (rdlen == 0)
+		return (buf - obuf);
 	T(spaced = addtab(x + len, 16, spaced, &buf, &buflen));
 
 	/*
@@ -605,6 +610,36 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		break;
 	    }
 
+	case ns_t_tkey: {
+		/* KJD - need to complete this */
+		u_long t;
+		int mode, err, keysize;
+
+		/* Algorithm name. */
+		T(addname(msg, msglen, &rdata, origin, &buf, &buflen));
+		T(addstr(" ", 1, &buf, &buflen));
+
+		/* Inception. */
+		t = ns_get32(rdata);  rdata += NS_INT32SZ;
+		len = SPRINTF((tmp, "%s ", p_secstodate(t)));
+		T(addstr(tmp, len, &buf, &buflen));
+
+		/* Experation. */
+		t = ns_get32(rdata);  rdata += NS_INT32SZ;
+		len = SPRINTF((tmp, "%s ", p_secstodate(t)));
+		T(addstr(tmp, len, &buf, &buflen));
+
+		/* Mode , Error, Key Size. */
+		/* Priority, Weight, Port. */
+		mode = ns_get16(rdata);  rdata += NS_INT16SZ;
+		err  = ns_get16(rdata);  rdata += NS_INT16SZ;
+		keysize  = ns_get16(rdata);  rdata += NS_INT16SZ;
+		len = SPRINTF((tmp, "%u %u %u ", mode, err, keysize));
+		T(addstr(tmp, len, &buf, &buflen));
+
+        /* needs to dump key, print otherdata length & other data */
+		break;
+	    }
 	case ns_t_tsig: {
 		/* BEW - need to complete this */
 		int n;
@@ -752,7 +787,9 @@ addname(const u_char *msg, size_t msglen,
 	if (n < 0)
 		goto enospc;	/* Guess. */
 	newlen = prune_origin(*buf, origin);
-	if (newlen == 0) {
+	if (**buf == '\0') {
+		goto root;
+	} else if (newlen == 0) {
 		/* Use "@" instead of name. */
 		if (newlen + 2 > *buflen)
 			goto enospc;        /* No room for "@\0". */
@@ -763,6 +800,7 @@ addname(const u_char *msg, size_t msglen,
 		    (origin[0] != '.' && origin[1] != '\0' &&
 		    (*buf)[newlen] == '\0')) && (*buf)[newlen - 1] != '.') {
 			/* No trailing dot. */
+ root:
 			if (newlen + 2 > *buflen)
 				goto enospc;	/* No room for ".\0". */
 			(*buf)[newlen++] = '.';
