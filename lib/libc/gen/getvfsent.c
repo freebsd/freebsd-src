@@ -187,6 +187,14 @@ vfspath(const char *name)
 int
 vfsisloadable(const char *name)
 {
+	int fd;
+
+	fd = open("/dev/lkm", O_RDWR, 0);
+	if(fd < 0) {
+		return 0;
+	}
+	close(fd);
+
 	return !!vfspath(name);
 }
 
