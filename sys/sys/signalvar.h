@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
+#ifndef _SYS_SIGNALVAR_H_
 #define	_SYS_SIGNALVAR_H_
 
 #include <sys/signal.h>
@@ -110,7 +110,7 @@ typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
-			(set).__bits[__i] = ~(unsigned int)0;		\
+			(set).__bits[__i] = ~0U;			\
 	} while (0)
 
 #define SIGISMEMBER(set, signo)						\
@@ -206,7 +206,7 @@ void	pgsigio __P((struct sigio *, int signum, int checkctty));
 void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
 void	psignal __P((struct proc *p, int sig));
-void	sigexit __P((struct proc *p, int signum));
+void	sigexit __P((struct proc *p, int signum)) __dead2;
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
 
@@ -215,6 +215,6 @@ void	trapsignal __P((struct proc *p, int sig, u_long code));
  */
 void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* !_SYS_SIGNALVAR_H_ */
+#endif /* !_SYS_SIGNALVAR_H_ */
