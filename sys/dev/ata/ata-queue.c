@@ -131,15 +131,14 @@ ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
     struct ata_request *request = ata_alloc_request();
-    int packet_size, error = ENOMEM;
+    int error = ENOMEM;
 
     if (request) {
-	if ((atadev->param->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
-	    packet_size = 12;
-	else
-	    packet_size = 16;
 	request->device = atadev;
-	bcopy(ccb, request->u.atapi.ccb, packet_size);
+	if ((atadev->param->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
+	    bcopy(ccb, request->u.atapi.ccb, 12);
+	else
+	    bcopy(ccb, request->u.atapi.ccb, 16);
 	request->data = data;
 	request->bytecount = count;
 	request->transfersize = min(request->bytecount, 65534);
@@ -332,43 +331,70 @@ ata_completed(void *context, int dummy)
 	if (request->result)
 	    break;
 
-	if (request->error) {
-	    switch ((request->error & ATA_SK_MASK)) {
-	    case ATA_SK_RECOVERED_ERROR:
-		ata_prtdev(request->device, "WARNING - %s recovered error\n",
-			   ata_cmd2str(request));
-		/* FALLTHROUGH */
+	/* if we have a sensekey -> request sense from device */
+	if (request->error & ATA_SK_MASK &&
+	    request->u.atapi.ccb[0] != ATAPI_REQUEST_SENSE) {
+	    static u_int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
+                			sizeof(struct atapi_sense),
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	    case ATA_SK_NO_SENSE:
-		request->result = 0;
-		break;
-
-	    case ATA_SK_NOT_READY: 
-		request->result = EBUSY;
-		break;
-
-	    case ATA_SK_UNIT_ATTENTION:
-		request->device->flags |= ATA_D_MEDIA_CHANGED;
-		request->result = EIO;
-		break;
-
-	    default:
-		if (!(request->flags & ATA_R_QUIET))
-		    ata_prtdev(request->device,
-			       "FAILURE - %s status=%b sensekey=%s error=%b\n",
-			       ata_cmd2str(request),
-			       request->status, "\20\10BUSY\7READY\6DMA"
-			       "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
-			       ata_skey2str((request->error & ATA_SK_MASK)>>4),
-			       (request->error & ATA_E_MASK),
-			       "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
-			       "\2NO_MEDIA\1ILLEGAL_LENGTH");
-		request->result = EIO;
-	    }
-	    if (request->error & ATA_E_MASK)
-		request->result = EIO;
+	    bcopy(ccb, request->u.atapi.ccb, 16);
+	    request->u.atapi.sense_key = request->error;
+	    request->data = (caddr_t)&request->u.atapi.sense_data;
+	    request->bytecount = sizeof(struct atapi_sense);
+	    request->transfersize = sizeof(struct atapi_sense);
+	    request->timeout = 5;
+	    request->flags =
+		ATA_R_ATAPI | ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_REQUEUE;
+	    ata_queue_request(request);
+	    return;
 	}
-	break;
+
+	switch (request->u.atapi.sense_key & ATA_SK_MASK) {
+	case ATA_SK_RECOVERED_ERROR:
+	    ata_prtdev(request->device, "WARNING - %s recovered error\n",
+		       ata_cmd2str(request));
+	    /* FALLTHROUGH */
+
+	case ATA_SK_NO_SENSE:
+	    request->result = 0;
+	    break;
+
+	case ATA_SK_NOT_READY: 
+	    request->result = EBUSY;
+	    break;
+
+	case ATA_SK_UNIT_ATTENTION:
+	    request->device->flags |= ATA_D_MEDIA_CHANGED;
+	    request->result = EIO;
+	    break;
+
+	default:
+	    request->result = EIO;
+	    if (request->flags & ATA_R_QUIET)
+		break;
+
+	    ata_prtdev(request->device,
+		       "FAILURE - %s %s asc=0x%02x ascq=0x%02x ",
+		       ata_cmd2str(request), ata_skey2str(
+		       (request->u.atapi.sense_key & ATA_SK_MASK) >> 4),
+		       request->u.atapi.sense_data.asc,
+		       request->u.atapi.sense_data.ascq);
+	    if (request->u.atapi.sense_data.sksv)
+		printf("sks=0x%02x 0x%02x 0x%02x ",
+		       request->u.atapi.sense_data.sk_specific,
+		       request->u.atapi.sense_data.sk_specific1,
+		       request->u.atapi.sense_data.sk_specific2);
+	    printf("status=%b error=%b\n",
+		   request->status, "\20\10BUSY\7READY\6DMA"
+		   "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
+		   (request->error & ATA_E_MASK),
+		   "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
+		   "\2NO_MEDIA\1ILLEGAL_LENGTH");
+	}
+
+	if (request->error & ATA_E_MASK)
+	    request->result = EIO;
     }
 
     ATA_DEBUG_RQ(request, "completed callback/wakeup");
