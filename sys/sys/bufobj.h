@@ -67,7 +67,10 @@ struct bufobj {
 	struct bufv	bo_clean;	/* i Clean buffers */
 	struct bufv	bo_dirty;	/* i Dirty buffers */
 	long		bo_numoutput;	/* i Writes in progress */
+	u_int		bo_flag;	/* i Flags */
 };
+
+#define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
 
 #define	BO_LOCK(bo) \
 	do { \
@@ -84,6 +87,10 @@ struct bufobj {
 #define	BO_MTX(bo)		((bo)->bo_mtx)
 #define	ASSERT_BO_LOCKED(bo)	mtx_assert(bo->bo_mtx, MA_OWNED)
 #define	ASSERT_BO_UNLOCKED(bo)	mtx_assert(bo->bo_mtx, MA_NOTOWNED)
+
+void bufobj_wdrop(struct bufobj *bo);
+void bufobj_wref(struct bufobj *bo);
+int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 #endif /* _SYS_BUFOBJ_H_ */
