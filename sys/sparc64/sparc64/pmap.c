@@ -115,9 +115,8 @@ struct msgbuf *msgbufp;
 vm_paddr_t msgbuf_phys;
 
 /*
- * Physical addresses of first and last available physical page.
+ * Physical address of the last available physical page.
  */
-vm_paddr_t avail_start;
 vm_paddr_t avail_end;
 
 int pmap_pagedaemon_waken;
@@ -434,9 +433,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Calculate the first and last available physical addresses.
+	 * Calculate the last available physical address.
 	 */
-	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
 		;
 	avail_end = phys_avail[i + 1];
