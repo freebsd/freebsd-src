@@ -195,6 +195,11 @@
                            Fix temporal decimation, disable it when
                            doing CAP_SINGLEs, and in dual-field capture, don't
                            capture fields for different frames
+1.22            11/08/97   Randall Hopper <rhh@ct.picker.com>
+                           Fixes for packed 24bpp - FIFO alignment
+1.23            11/17/97   Amancio <hasty@star-gate.com>
+                           Added yuv support mpeg encoding 
+
 */
 
 #define DDB(x) x
@@ -456,6 +461,7 @@ static struct meteor_pixfmt_internal {
 { { 0, METEOR_PIXTYPE_RGB, 4, { 0xff0000,0x00ff00,0x0000ff }, 1,1 }, 0x00 },
 { { 0, METEOR_PIXTYPE_YUV, 2, { 0xff0000,0x00ff00,0x0000ff }, 1,1 }, 0x88 },
 { { 0, METEOR_PIXTYPE_YUV_PACKED, 2, { 0xff0000,0x00ff00,0x0000ff }, 0,1 }, 0x44 },
+{ { 0, METEOR_PIXTYPE_YUV_12, 2, { 0xff0000,0x00ff00,0x0000ff }, 1,1 }, 0x88 },
 
 };
 #define PIXFMT_TABLE_SIZE ( sizeof(pixfmt_table) / sizeof(pixfmt_table[0]) )
@@ -483,6 +489,7 @@ static struct {
     { METEOR_GEO_RGB24,
       { 0, METEOR_PIXTYPE_RGB, 4, { 0xff0000, 0x00ff00, 0x0000ff }, 0, 0 }
     },
+
 };
 #define METEOR_PIXFMT_TABLE_SIZE ( sizeof(meteor_pixfmt_table) / \
 				   sizeof(meteor_pixfmt_table[0]) )
@@ -1922,6 +1929,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 				    break;
 			case METEOR_GEO_YUV_422:
 				    bktr->format = METEOR_GEO_YUV_422;
+                                    if (geo->oformat & METEOR_GEO_YUV_12) 
+					bktr->format = METEOR_GEO_YUV_12;
 				    break;
 			case METEOR_GEO_YUV_PACKED:
 				    bktr->format = METEOR_GEO_YUV_PACKED;
@@ -2524,6 +2533,20 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 		    volatile u_char ** target_buffer, int cols ) {
 
  u_long flag, flag2;
+ struct meteor_pixfmt *pf = &pixfmt_table[ bktr->pixfmt ].public;
+ u_int  skip, start_skip;
+
+  /*  For RGB24, we need to align the component in FIFO Byte Lane 0         */
+  /*    to the 1st byte in the mem dword containing our start addr.         */
+  /*    BTW, we know this pixfmt's 1st byte is Blue; thus the start addr    */
+  /*     must be Blue.                                                      */
+  start_skip = 0;
+  if (( pf->type == METEOR_PIXTYPE_RGB ) && ( pf->Bpp == 3 ))
+	  switch ( ((u_long) *target_buffer) % 4 ) {
+	  case 2 : start_skip = 4 ; break;
+	  case 1 : start_skip = 8 ; break;
+	  }
+
  if ((width * pixel_width) < DMA_BT848_SPLIT ) {
      if (  width == cols) {
 	 flag = OP_SOL | OP_EOL;
@@ -2533,16 +2556,21 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 	    flag = OP_EOL;
        } else flag = 0;	
 
-     *(*dma_prog)++ = operation | flag  | width * pixel_width;
+     skip = 0;
+     if (( flag & OP_SOL ) && ( start_skip > 0 )) {
+	     *(*dma_prog)++ = OP_SKIP | OP_SOL | start_skip;
+	     flag &= ~OP_SOL;
+	     skip = start_skip;
+     }
+
+     *(*dma_prog)++ = operation | flag  | (width * pixel_width - skip);
      if (operation != OP_SKIP ) 
 	 *(*dma_prog)++ = (u_long)  *target_buffer;
 
      *target_buffer += width * pixel_width;
      bktr->current_col += width;
 
-
-
-    } else {
+ } else {
 
 	if (bktr->current_col == 0 && width == cols) {
 	    flag = OP_SOL ;
@@ -2557,16 +2585,24 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 	    flag =  0;
 	    flag2 = 0;
 	}
-	*(*dma_prog)++ = operation  | flag | 
-	    (width * pixel_width / 2);
+
+	skip = 0;
+	if (( flag & OP_SOL ) && ( start_skip > 0 )) {
+		*(*dma_prog)++ = OP_SKIP | OP_SOL | start_skip;
+		flag &= ~OP_SOL;
+		skip = start_skip;
+	}
+
+	*(*dma_prog)++ = operation  | flag |
+	      (width * pixel_width / 2 - skip);
 	if (operation != OP_SKIP ) 
 	      *(*dma_prog)++ = (u_long ) *target_buffer ;
 	*target_buffer +=  (width * pixel_width / 2) ;
 
+	if ( operation == OP_WRITE )
+		operation = OP_WRITEC;
 	*(*dma_prog)++ = operation | flag2 |
 	    (width * pixel_width / 2);
-	if (operation != OP_SKIP ) 
-	      *(*dma_prog)++ = (u_long ) *target_buffer ;
 	*target_buffer +=  (width * pixel_width / 2) ;
 	  bktr->current_col += width;
 
@@ -2975,6 +3011,137 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
  * 
  */
 static void
+yuv12_prog( bktr_ptr_t bktr, char i_flag,
+	     int cols, int rows, int interlace ){
+
+	int			i, k;
+	volatile unsigned int	inst;
+	volatile unsigned int	inst1;
+	volatile u_long		target_buffer, t1, buffer;
+	bt848_ptr_t		bt848;
+	volatile u_long		*dma_prog;
+        struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
+
+	bt848 = bktr->base;
+
+	bt848->color_fmt         = pf_int->color_fmt;
+
+	dma_prog = (u_long *) bktr->dma_prog;
+
+	bktr->capcontrol =   1 << 6 | 1 << 4 |	3;
+
+	bt848->adc = SYNC_LEVEL;
+	bt848->oform = 0x00;
+
+	bt848->e_control |= BT848_E_CONTROL_LDEC; /* disable luma decimation */
+	bt848->o_control |= BT848_O_CONTROL_LDEC;
+
+	bt848->e_scloop |= BT848_O_SCLOOP_CAGC;	/* chroma agc enable */
+	bt848->o_scloop |= BT848_O_SCLOOP_CAGC; 
+
+        bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
+ 	bt848->o_vscale_hi &= ~0x80;
+ 	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
+ 	bt848->o_vscale_hi |= 0x40;
+ 
+ 	/* disable gamma correction removal */
+ 	bt848->color_ctl_gamma = 1;
+ 
+	/* Construct Write */
+ 	inst  = OP_WRITE123  | OP_SOL | OP_EOL |  (cols); 
+ 	inst1  = OP_WRITES123  | OP_SOL | OP_EOL |  (cols); 
+ 	if (bktr->video.addr)
+ 		target_buffer = (u_long) bktr->video.addr;
+ 	else
+ 		target_buffer = (u_long) vtophys(bktr->bigbuf);
+     
+	buffer = target_buffer;
+ 	t1 = buffer;
+ 
+ 	*dma_prog++ = OP_SYNC  | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
+ 	*dma_prog++ = 0;  /* NULL WORD */
+ 	if (i_flag > 2) 
+ 	    k = 1;
+ 	else k = 0;
+ 	       
+ 	for (i = 0; i < (rows/interlace )/2 - k; i++) {
+		*dma_prog++ = inst;
+ 		*dma_prog++ = cols/2 | (cols/2 << 16);
+ 		*dma_prog++ = target_buffer;
+ 		*dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
+ 		*dma_prog++ = t1 + (cols*rows) + (cols*rows/4) + i*cols/2 * interlace;
+ 		target_buffer += interlace*cols;
+ 		*dma_prog++ = inst1;
+ 		*dma_prog++ = cols/2 | (cols/2 << 16);
+ 		*dma_prog++ = target_buffer;
+ 		target_buffer += interlace*cols;
+ 
+ 	}
+ 
+ 	switch (i_flag) {
+ 	case 1:
+ 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;  /*sync vro*/
+ 		*dma_prog++ = 0;  /* NULL WORD */
+ 
+ 		*dma_prog++ = OP_JUMP ;
+ 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+ 		return;
+
+ 	case 2:
+ 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;  /*sync vre*/
+ 		*dma_prog++ = 0;  /* NULL WORD */
+ 
+ 		*dma_prog++ = OP_JUMP ;
+ 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+ 		return;
+ 
+ 	case 3:
+ 		*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+		*dma_prog++ = OP_JUMP | 0xC << 24;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+		dma_prog = (u_long * ) bktr->odd_dma_prog;
+
+		target_buffer  = (u_long) buffer + cols;
+		t1 = target_buffer + cols/2;
+		*dma_prog++ = OP_SYNC   | 1 << 24 | BKTR_FM3; 
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		for (i = 0; i < ((rows/interlace )/2 ) ; i++) {
+		    *dma_prog++ = inst;
+		    *dma_prog++ = cols/2 | (cols/2 << 16);
+         	    *dma_prog++ = target_buffer;
+		    *dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
+		    *dma_prog++ = t1 + (cols*rows) + (cols*rows/4) + i*cols/2 * interlace;
+		    target_buffer += interlace*cols;
+		    *dma_prog++ = inst1;
+		    *dma_prog++ = cols/2 | (cols/2 << 16);
+		    *dma_prog++ = target_buffer;
+		    target_buffer += interlace*cols;
+
+		}	
+
+	
+	}
+    
+	*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRE;
+	*dma_prog++ = 0;  /* NULL WORD */
+	*dma_prog++ = OP_JUMP | 0xC << 24;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+	*dma_prog++ = 0;  /* NULL WORD */
+}
+  
+
+
+/*
+ * 
+ */
+static void
 build_dma_prog( bktr_ptr_t bktr, char i_flag )
 {
 	int			rows, cols,  interlace;
@@ -3035,6 +3202,11 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 		return;
 	}
 
+	if ( pf_int->public.type  == METEOR_PIXTYPE_YUV_12 ) {
+		yuv12_prog(bktr, i_flag, cols, rows, interlace);
+		bt848->color_ctl_swap = pixfmt_swap_flags( bktr->pixfmt );
+		return;
+	}
 	return;
 }
 
@@ -3180,6 +3352,8 @@ get_bktr_mem( int unit, unsigned size )
  * Note that without bt swapping, 2Bpp and 3Bpp modes are written 
  *   byte-swapped, and 4Bpp modes are byte and word swapped (see Table 6 
  *   and read R->L).  
+ * Note also that for 3Bpp, we may additionally need to do some creative 
+ *   SKIPing to align the FIFO bytelines with the target buffer (see split()).
  * This is abstracted here: e.g. no swaps = RGBA; byte & short swap = ABGR
  *   as one would expect.
  */
