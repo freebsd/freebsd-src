@@ -86,6 +86,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #include <sys/linker.h>
 #include <sys/cons.h>
+#include <sys/ucontext.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -365,27 +366,16 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	init_param2(physmem);
 
 	/*
-	 * Initialise virtual memory.
-	 */
-	ofmsr |= PSL_IR | PSL_DR;
-	pmap_bootstrap(startkernel, endkernel);
-
-	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
 	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
 
 	/*
-	 * Initialize proc0.
+	 * Start initializing proc0 and thread0.
 	 */
 	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
-	/* proc0.p_md.md_utrap = NULL; */
 	proc0.p_uarea = (struct user *)uarea0;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
-	thread0.td_kstack = kstack0;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	/* frame0.tf_tstate = TSTATE_IE | TSTATE_PEF; */
 	thread0.td_frame = &frame0;
 	LIST_INIT(&thread0.td_contested);
 
@@ -396,16 +386,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
+	pc->pc_cpuid = 0;
 	/* pc->pc_mid = mid; */
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
-
-	/*
-	 * Map and initialise the message buffer.
-	 */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	/*
 	 * Initialize mutexes.
@@ -413,8 +397,27 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
-
 	mtx_lock(&Giant);
+
+	/*
+	 * Initialise virtual memory.
+	 */
+	ofmsr |= PSL_IR | PSL_DR;
+	pmap_bootstrap(startkernel, endkernel);
+
+	/*
+	 * Finish setting up thread0.
+	 */
+	thread0.td_kstack = kstack0;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+
+	/*
+	 * Map and initialise the message buffer.
+	 */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 }
 
 #if 0 /* XXX: Old powerpc_init */
@@ -892,7 +895,7 @@ install_extint(void (*handler)(void))
 #endif
 
 	msr = mfmsr();
-	mtmsr(msr & ~PSL_EE);
+	mtmsr(msr & ~(PSL_EE|PSL_RI));
 
 	extint_call = (extint_call & 0xfc000003) | offset;
 	bcopy(&extint, (void *)EXC_EXI, (size_t)&extsize);
