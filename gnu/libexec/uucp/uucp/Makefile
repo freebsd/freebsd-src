@@ -1,10 +1,9 @@
 # Makefile for uucp
-# $Id: Makefile,v 1.1 1993/08/05 18:27:34 conklin Exp $
+# $Id: Makefile,v 1.2 1994/05/31 05:37:12 ache Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
-BINGRP=         $(group)
-BINMODE=        4550
+BINMODE=        4555
 
 PROG=		uucp
 SRCS=		uucp.c util.c log.c copy.c
