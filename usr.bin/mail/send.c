@@ -123,10 +123,10 @@ sendmessage(mp, obuf, doign, prefix)
 			 * Pick up the header field if we have one.
 			 */
 			for (cp = line; (c = *cp++) != '\0' && c != ':' &&
-			    !isspace(c);)
+			    !isspace((unsigned char)c);)
 				;
 			cp2 = --cp;
-			while (isspace(*cp++))
+			while (isspace((unsigned char)*cp++))
 				;
 			if (cp[-1] != ':') {
 				/*

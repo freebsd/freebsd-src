@@ -82,15 +82,15 @@ setptr(ibuf, offset)
 		 msgCount = 0;
 	} else {
 		/* Seek into the file to get to the new messages */
-		(void)fseek(ibuf, offset, SEEK_SET);
+		(void)fseeko(ibuf, offset, SEEK_SET);
 		/*
 		 * We need to make "offset" a pointer to the end of
 		 * the temp file that has the copy of the mail file.
 		 * If any messages have been edited, this will be
 		 * different from the offset into the mail file.
 		 */
-		(void)fseek(otf, 0L, SEEK_END);
-		offset = ftell(otf);
+		(void)fseeko(otf, (off_t)0, SEEK_END);
+		offset = ftello(otf);
 	}
 	omsgCount = msgCount;
 	maybe = 1;
@@ -138,7 +138,7 @@ setptr(ibuf, offset)
 		} else if (inhead) {
 			for (cp = linebuf, cp2 = "status";; cp++) {
 				if ((c = *cp2++) == '\0') {
-					while (isspace(*cp++))
+					while (isspace((unsigned char)*cp++))
 						;
 					if (cp[-1] != ':')
 						break;
@@ -150,7 +150,7 @@ setptr(ibuf, offset)
 					inhead = 0;
 					break;
 				}
-				if (*cp != c && *cp != toupper(c))
+				if (*cp != c && *cp != toupper((unsigned char)c))
 					break;
 			}
 		}
@@ -221,7 +221,7 @@ setinput(mp)
 	(void)fflush(otf);
 	if (fseeko(itf,
 		   positionof(mp->m_block, mp->m_offset), SEEK_SET) < 0)
-		err(1, "fseek");
+		err(1, "fseeko");
 	return (itf);
 }
 

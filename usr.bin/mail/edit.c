@@ -115,7 +115,7 @@ edit1(msgvec, type)
 			size = ftello(otf);
 			mp->m_block = blockof(size);
 			mp->m_offset = boffsetof(size);
-			mp->m_size = fsize(fp);
+			mp->m_size = (long)fsize(fp);
 			mp->m_lines = 0;
 			mp->m_flag |= MODIFY;
 			rewind(fp);

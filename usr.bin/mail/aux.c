@@ -181,7 +181,7 @@ gethfield(f, linebuf, rem, colon)
 			return (-1);
 		if ((c = readline(f, linebuf, LINESIZE)) <= 0)
 			return (-1);
-		for (cp = linebuf; isprint(*cp) && *cp != ' ' && *cp != ':';
+		for (cp = linebuf; isprint((unsigned char)*cp) && *cp != ' ' && *cp != ':';
 		    cp++)
 			;
 		if (*cp != ':' || cp == linebuf)
@@ -256,7 +256,7 @@ istrncpy(dest, src, dsize)
 
 	strlcpy(dest, src, dsize);
 	while (*dest)
-		*dest++ = tolower(*dest);
+		*dest++ = tolower((unsigned char)*dest);
 }
 
 /*

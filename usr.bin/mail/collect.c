@@ -248,7 +248,7 @@ cont:
 			 * Set the Subject line.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			hp->h_subject = savestr(cp);
 			break;
@@ -257,7 +257,7 @@ cont:
 			 * Set the Reply-To line.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			hp->h_replyto = savestr(cp);
 			break;
@@ -287,7 +287,7 @@ cont:
 			 * then open it and copy the contents to collf.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			if (*cp == '\0') {
 				printf("Interpolate what file?\n");
@@ -563,7 +563,7 @@ forward(ms, fp, fn, f)
 		tabst = NULL;
 	else if ((tabst = value("indentprefix")) == NULL)
 		tabst = "\t";
-	ig = isupper(f) ? NULL : ignore;
+	ig = isupper((unsigned char)f) ? NULL : ignore;
 	printf("Interpolating:");
 	for (; *msgvec != 0; msgvec++) {
 		struct message *mp = message + *msgvec - 1;
