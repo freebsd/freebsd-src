@@ -42,6 +42,7 @@
 .Sh SYNOPSIS
 .Nm lp
 .Op Fl cs
+.Op Fl o Ar option
 .Op Fl d Ar printer
 .Op Fl n Ar num
 .Op Ar name ...
@@ -78,6 +79,10 @@ are taken as the destination printer.
 Specify that
 .Ar num
 copies of each of the named files shall be printed.
+.It Fl o Ar option
+Printer specific options.
+Not supported, provided only as a compatibility
+option for SVR.
 .It Fl s
 Silent operation.
 Not supported,
