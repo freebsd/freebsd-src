@@ -465,16 +465,16 @@ interpret:
 	 * For security and other reasons, the file descriptor table cannot
 	 * be shared after an exec.
 	 */
-	FILEDESC_LOCK(p->p_fd);
+	FILEDESC_LOCK_FAST(p->p_fd);
 	if (p->p_fd->fd_refcnt > 1) {
 		struct filedesc *tmp;
 
-		FILEDESC_UNLOCK(p->p_fd);
+		FILEDESC_UNLOCK_FAST(p->p_fd);
 		tmp = fdcopy(p->p_fd);
 		fdfree(td);
 		p->p_fd = tmp;
 	} else
-		FILEDESC_UNLOCK(p->p_fd);
+		FILEDESC_UNLOCK_FAST(p->p_fd);
 
 	/*
 	 * Malloc things before we need locks.

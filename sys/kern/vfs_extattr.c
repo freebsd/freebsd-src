@@ -702,10 +702,10 @@ fchdir(td, uap)
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	vrele(vpold);
 	return (0);
 }
@@ -747,10 +747,10 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	vrele(vp);
 	return (0);
 }
@@ -1175,10 +1175,10 @@ restart:
 		return (EEXIST);
 	} else {
 		VATTR_NULL(&vattr);
-		FILEDESC_LOCK(td->td_proc->p_fd);
+		FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 		vattr.va_mode = (mode & ALLPERMS) &
 		    ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_UNLOCK(td->td_proc->p_fd);
+		FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 		vattr.va_rdev = dev;
 		whiteout = 0;
 
@@ -1283,9 +1283,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -1487,9 +1487,9 @@ restart:
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	vattr.va_type = VLNK;
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
@@ -3254,9 +3254,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -3658,11 +3658,11 @@ umask(td, uap)
 {
 	register struct filedesc *fdp;
 
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = uap->newmask & ALLPERMS;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 	return (0);
 }
 

@@ -549,10 +549,10 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 		/* Check for race with close */
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		if ((unsigned) fd >= fdp->fd_nfiles ||
 		    fp != fdp->fd_ofiles[fd]) {
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_UNLOCK_FAST(fdp);
 			flp->l_whence = SEEK_SET;
 			flp->l_start = 0;
 			flp->l_len = 0;
@@ -560,7 +560,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
 					   F_UNLCK, flp, F_POSIX);
 		} else
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
 		break;
 
@@ -736,14 +736,14 @@ do_dup(td, type, old, new, retval)
 		(void) closef(delfp, td);
 		mtx_unlock(&Giant);
 		if (holdleaders) {
-			FILEDESC_LOCK(fdp);
+			FILEDESC_LOCK_FAST(fdp);
 			fdp->fd_holdleaderscount--;
 			if (fdp->fd_holdleaderscount == 0 &&
 			    fdp->fd_holdleaderswakeup != 0) {
 				fdp->fd_holdleaderswakeup = 0;
 				wakeup(&fdp->fd_holdleaderscount);
 			}
-			FILEDESC_UNLOCK(fdp);
+			FILEDESC_UNLOCK_FAST(fdp);
 		}
 	} else {
 		FILEDESC_UNLOCK(fdp);
@@ -1033,14 +1033,14 @@ close(td, uap)
 	error = closef(fp, td);
 	mtx_unlock(&Giant);
 	if (holdleaders) {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_holdleaderscount--;
 		if (fdp->fd_holdleaderscount == 0 &&
 		    fdp->fd_holdleaderswakeup != 0) {
 			fdp->fd_holdleaderswakeup = 0;
 			wakeup(&fdp->fd_holdleaderscount);
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 	}
 	return (error);
 }
@@ -1472,9 +1472,9 @@ struct filedesc *
 fdshare(fdp)
 	struct filedesc *fdp;
 {
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	fdp->fd_refcnt++;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	return (fdp);
 }
 
@@ -1495,13 +1495,13 @@ fdcopy(fdp)
 		return (NULL);
 
 	newfdp = fdinit(fdp);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		FILEDESC_LOCK(newfdp);
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
 		FILEDESC_UNLOCK(newfdp);
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 	}
 	/* copy everything except kqueue descriptors */
 	newfdp->fd_freefile = -1;
@@ -1517,17 +1517,17 @@ fdcopy(fdp)
 				newfdp->fd_freefile = i;
 		}
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	FILEDESC_LOCK(newfdp);
 	for (i = 0; i <= newfdp->fd_lastfile; ++i)
 		if (newfdp->fd_ofiles[i] != NULL)
 			fdused(newfdp, i);
 	FILEDESC_UNLOCK(newfdp);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
 	newfdp->fd_cmask = fdp->fd_cmask;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	return (newfdp);
 }
 
