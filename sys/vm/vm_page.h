@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.25 1996/01/30 23:02:38 mpp Exp $
+ * $Id: vm_page.h,v 1.26 1996/05/18 04:00:18 dyson Exp $
  */
 
 /*
@@ -242,6 +242,7 @@ void vm_page_cache __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
 void vm_page_free __P((vm_page_t));
+void vm_page_free_zero __P((vm_page_t));
 void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
 void vm_page_remove __P((vm_page_t));
