@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.18 1999/01/15 06:00:24 grog Exp grog $
+ * $Id: vinumvar.h,v 1.19 1999/03/23 02:48:20 grog Exp grog $
  */
 
 #include <sys/time.h>
@@ -521,14 +521,14 @@ struct mc {
  * state.c 
  */
 enum volplexstate {
-    volplex_onlyusdown = 0,				    /* we're the only plex, and we're down */
+    volplex_onlyusdown = 0,				    /* 0: we're the only plex, and we're down */
     volplex_alldown,					    /* 1: another plex is down, and so are we */
     volplex_otherup,					    /* 2: another plex is up */
-    volplex_otherupdown,				    /* other plexes are up and down */
+    volplex_otherupdown,				    /* 3: other plexes are up and down */
     volplex_onlyus,					    /* 4: we're up and alone */
-    volplex_onlyusup,					    /* only we are up, others are down */
-    volplex_allup,					    /* all plexes are up */
-    volplex_someup					    /* some plexes are up, including us */
+    volplex_onlyusup,					    /* 5: only we are up, others are down */
+    volplex_allup,					    /* 6: all plexes are up */
+    volplex_someup					    /* 7: some plexes are up, including us */
 };
 
 /* state map for plex */
@@ -570,4 +570,7 @@ enum debugflags {
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
 };
 
+#ifdef KERNEL
+#define longjmp LongJmp					    /* test our longjmps */
+#endif
 #endif
