@@ -36,62 +36,20 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-passwd.c,v 1.27 2002/05/24 16:45:16 stevesk Exp $");
+RCSID("$OpenBSD: auth-passwd.c,v 1.29 2003/08/26 09:58:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "log.h"
 #include "servconf.h"
 #include "auth.h"
-
-/*
- * Do not try to use PAM for password authentication, as it is
- * already (and far better) supported by the challenge/response
- * authentication mechanism.
- */
-#undef USE_PAM
-
-#if !defined(USE_PAM) && !defined(HAVE_OSF_SIA)
-/* Don't need any of these headers for the PAM or SIA cases */
-# ifdef HAVE_CRYPT_H
-#  include <crypt.h>
-# endif
-# ifdef WITH_AIXAUTHENTICATE
-#  include <login.h>
-# endif
-# ifdef __hpux
-#  include <hpsecurity.h>
-#  include <prot.h>
-# endif
-# ifdef HAVE_SECUREWARE
-#  include <sys/security.h>
-#  include <sys/audit.h>
-#  include <prot.h>
-# endif /* HAVE_SECUREWARE */
-# if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
-#  include <shadow.h>
-# endif
-# if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
-#  include <sys/label.h>
-#  include <sys/audit.h>
-#  include <pwdadj.h>
-# endif
-# if defined(HAVE_MD5_PASSWORDS) && !defined(HAVE_MD5_CRYPT)
-#  include "md5crypt.h"
-# endif /* defined(HAVE_MD5_PASSWORDS) && !defined(HAVE_MD5_CRYPT) */
-
-# ifdef HAVE_CYGWIN
-#  undef ERROR
-#  include <windows.h>
-#  include <sys/cygwin.h>
-#  define is_winnt       (GetVersion() < 0x80000000)
-# endif
-#endif /* !USE_PAM && !HAVE_OSF_SIA */
+#ifdef WITH_AIXAUTHENTICATE
+# include "buffer.h"
+# include "canohost.h"
+extern Buffer loginmsg;
+#endif
 
 extern ServerOptions options;
-#ifdef WITH_AIXAUTHENTICATE
-extern char *aixloginmsg;
-#endif
 
 /*
  * Tries to authenticate the user using password.  Returns true if
@@ -101,46 +59,26 @@ int
 auth_password(Authctxt *authctxt, const char *password)
 {
 	struct passwd * pw = authctxt->pw;
-#if !defined(USE_PAM) && !defined(HAVE_OSF_SIA)
-	char *encrypted_password;
-	char *pw_password;
-	char *salt;
-# if defined(__hpux) || defined(HAVE_SECUREWARE)
-	struct pr_passwd *spw;
-# endif /* __hpux || HAVE_SECUREWARE */
-# if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
-	struct spwd *spw;
-# endif
-# if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
-	struct passwd_adjunct *spw;
-# endif
-# ifdef WITH_AIXAUTHENTICATE
-	char *authmsg;
-	int authsuccess;
-	int reenter = 1;
-# endif
-#endif /* !defined(USE_PAM) && !defined(HAVE_OSF_SIA) */
+	int ok = authctxt->valid;
 
 	/* deny if no user. */
 	if (pw == NULL)
 		return 0;
 #ifndef HAVE_CYGWIN
-       if (pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
-		return 0;
+	if (pw && pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
+		ok = 0;
 #endif
 	if (*password == '\0' && options.permit_empty_passwd == 0)
 		return 0;
 
-#if defined(USE_PAM)
-	return auth_pam_password(authctxt, password);
-#elif defined(HAVE_OSF_SIA)
-	return auth_sia_password(authctxt, password);
+#if defined(HAVE_OSF_SIA)
+	return auth_sia_password(authctxt, password) && ok;
 #else
 # ifdef KRB5
 	if (options.kerberos_authentication == 1) {
 		int ret = auth_krb5_password(authctxt, password);
 		if (ret == 1 || ret == 0)
-			return ret;
+			return ret && ok;
 		/* Fall back to ordinary passwd authentication. */
 	}
 # endif
@@ -151,27 +89,47 @@ auth_password(Authctxt *authctxt, const char *password)
 		if (hToken == INVALID_HANDLE_VALUE)
 			return 0;
 		cygwin_set_impersonation_token(hToken);
-		return 1;
+		return ok;
 	}
 # endif
 # ifdef WITH_AIXAUTHENTICATE
-	authsuccess = (authenticate(pw->pw_name,password,&reenter,&authmsg) == 0);
+	{
+		char *authmsg = NULL;
+		int reenter = 1;
+		int authsuccess = 0;
 
-	if (authsuccess)
-	        /* We don't have a pty yet, so just label the line as "ssh" */
-	        if (loginsuccess(authctxt->user,
-			get_canonical_hostname(options.verify_reverse_mapping),
-			"ssh", &aixloginmsg) < 0)
-				aixloginmsg = NULL;
+		if (authenticate(pw->pw_name, password, &reenter,
+		    &authmsg) == 0 && ok) {
+			char *msg;
+			char *host = 
+			    (char *)get_canonical_hostname(options.use_dns);
 
-	return(authsuccess);
-# endif
-# ifdef KRB4
-	if (options.kerberos_authentication == 1) {
-		int ret = auth_krb4_password(authctxt, password);
-		if (ret == 1 || ret == 0)
-			return ret;
-		/* Fall back to ordinary passwd authentication. */
+			authsuccess = 1;
+			aix_remove_embedded_newlines(authmsg);	
+
+			debug3("AIX/authenticate succeeded for user %s: %.100s",
+				pw->pw_name, authmsg);
+
+	        	/* No pty yet, so just label the line as "ssh" */
+			aix_setauthdb(authctxt->user);
+	        	if (loginsuccess(authctxt->user, host, "ssh", 
+			    &msg) == 0) {
+				if (msg != NULL) {
+					debug("%s: msg %s", __func__, msg);
+					buffer_append(&loginmsg, msg, 
+					    strlen(msg));
+					xfree(msg);
+				}
+			}
+		} else {
+			debug3("AIX/authenticate failed for user %s: %.100s",
+			    pw->pw_name, authmsg);
+		}
+
+		if (authmsg != NULL)
+			xfree(authmsg);
+
+		return authsuccess;
 	}
 # endif
 # ifdef BSD_AUTH
@@ -179,64 +137,28 @@ auth_password(Authctxt *authctxt, const char *password)
 	    (char *)password) == 0)
 		return 0;
 	else
-		return 1;
-# endif
-	pw_password = pw->pw_passwd;
-
-	/*
-	 * Various interfaces to shadow or protected password data
-	 */
-# if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
-	spw = getspnam(pw->pw_name);
-	if (spw != NULL)
-		pw_password = spw->sp_pwdp;
-# endif /* defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW) */
-
-# if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
-	if (issecure() && (spw = getpwanam(pw->pw_name)) != NULL)
-		pw_password = spw->pwa_passwd;
-# endif /* defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW) */
-
-# ifdef HAVE_SECUREWARE
-	if ((spw = getprpwnam(pw->pw_name)) != NULL)
-		pw_password = spw->ufld.fd_encrypt;
-# endif /* HAVE_SECUREWARE */
-
-# if defined(__hpux) && !defined(HAVE_SECUREWARE)
-	if (iscomsec() && (spw = getprpwnam(pw->pw_name)) != NULL)
-		pw_password = spw->ufld.fd_encrypt;
-# endif /* defined(__hpux) && !defined(HAVE_SECUREWARE) */
+		return ok;
+# else
+	{
+	/* Just use the supplied fake password if authctxt is invalid */
+	char *pw_password = authctxt->valid ? shadow_pw(pw) : pw->pw_passwd;
 
 	/* Check for users with no password. */
-	if ((password[0] == '\0') && (pw_password[0] == '\0'))
-		return 1;
+	if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0)
+		return ok;
+	else {
+		/* Encrypt the candidate password using the proper salt. */
+		char *encrypted_password = xcrypt(password,
+		    (pw_password[0] && pw_password[1]) ? pw_password : "xx");
 
-	if (pw_password[0] != '\0')
-		salt = pw_password;
-	else
-		salt = "xx";
+		/*
+		 * Authentication is accepted if the encrypted passwords
+		 * are identical.
+		 */
+		return (strcmp(encrypted_password, pw_password) == 0) && ok;
+	}
 
-# ifdef HAVE_MD5_PASSWORDS
-	if (is_md5_salt(salt))
-		encrypted_password = md5_crypt(password, salt);
-	else
-		encrypted_password = crypt(password, salt);
-# else /* HAVE_MD5_PASSWORDS */
-#  if defined(__hpux) && !defined(HAVE_SECUREWARE)
-	if (iscomsec())
-		encrypted_password = bigcrypt(password, salt);
-	else
-		encrypted_password = crypt(password, salt);
-#  else
-#   ifdef HAVE_SECUREWARE
-	encrypted_password = bigcrypt(password, salt);
-#   else
-	encrypted_password = crypt(password, salt);
-#   endif /* HAVE_SECUREWARE */
-#  endif /* __hpux && !defined(HAVE_SECUREWARE) */
-# endif /* HAVE_MD5_PASSWORDS */
-
-	/* Authentication is accepted if the encrypted passwords are identical. */
-	return (strcmp(encrypted_password, pw_password) == 0);
-#endif /* !USE_PAM && !HAVE_OSF_SIA */
+	}
+# endif
+#endif /* !HAVE_OSF_SIA */
 }

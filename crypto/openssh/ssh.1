@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.168 2003/03/28 10:11:43 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.175 2003/07/22 13:35:22 markus Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
@@ -50,7 +50,7 @@
 .Pp
 .Nm ssh
 .Bk -words
-.Op Fl afgknqstvxACNTX1246
+.Op Fl afgknqstvxACNTVX1246
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl e Ar escape_char
@@ -302,6 +302,9 @@ Background ssh at logout when waiting for forwarded connection / X11 sessions
 to terminate
 .It Cm ~?
 Display a list of escape characters
+.It Cm ~B
+Send a BREAK to the remote system (only useful for SSH protocol version 2
+and if the peer supports it)
 .It Cm ~C
 Open command line (only useful for adding port forwardings using the
 .Fl L
@@ -487,13 +490,13 @@ It is possible to have multiple
 options (and multiple identities specified in
 configuration files).
 .It Fl I Ar smartcard_device
-Specifies which smartcard device to use. The argument is
-the device
+Specifies which smartcard device to use.
+The argument is the device
 .Nm
 should use to communicate with a smartcard used for storing the user's
 private RSA key.
 .It Fl k
-Disables forwarding of Kerberos tickets and AFS tokens.
+Disables forwarding of Kerberos tickets.
 This may also be specified on a per-host basis in the configuration file.
 .It Fl l Ar login_name
 Specifies the user to log in as on the remote machine.
@@ -541,9 +544,10 @@ per-host basis in the configuration file.
 Quiet mode.
 Causes all warning and diagnostic messages to be suppressed.
 .It Fl s
-May be used to request invocation of a subsystem on the remote system. Subsystems are a feature of the SSH2 protocol which facilitate the use
-of SSH as a secure transport for other applications (eg. sftp). The
-subsystem is specified as the remote command.
+May be used to request invocation of a subsystem on the remote system.
+Subsystems are a feature of the SSH2 protocol which facilitate the use
+of SSH as a secure transport for other applications (eg. sftp).
+The subsystem is specified as the remote command.
 .It Fl t
 Force pseudo-tty allocation.
 This can be used to execute arbitrary
@@ -565,8 +569,10 @@ This is helpful in
 debugging connection, authentication, and configuration problems.
 Multiple
 .Fl v
-options increases the verbosity.
-Maximum is 3.
+options increase the verbosity.
+The maximum is 3.
+.It Fl V
+Display the version number and exit.
 .It Fl x
 Disables X11 forwarding.
 .It Fl X
@@ -645,9 +651,9 @@ on the local side, and whenever a connection is made to this port, the
 connection is forwarded over the secure channel, and the application
 protocol is then used to determine where to connect to from the
 remote machine.
-Currently the SOCKS4 protocol is supported, and
+Currently the SOCKS4 and SOCKS5 protocols are supported, and
 .Nm
-will act as a SOCKS4 server.
+will act as a SOCKS server.
 Only root can forward privileged ports.
 Dynamic port forwardings can also be specified in the configuration file.
 .It Fl 1
@@ -961,15 +967,6 @@ above.
 .Nm
 exits with the exit status of the remote command or with 255
 if an error occurred.
-.Sh AUTHORS
-OpenSSH is a derivative of the original and free
-ssh 1.2.12 release by Tatu Ylonen.
-Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
-Theo de Raadt and Dug Song
-removed many bugs, re-added newer features and
-created OpenSSH.
-Markus Friedl contributed the support for SSH
-protocol versions 1.5 and 2.0.
 .Sh SEE ALSO
 .Xr rsh 1 ,
 .Xr scp 1 ,
@@ -992,3 +989,12 @@ protocol versions 1.5 and 2.0.
 .%D January 2002
 .%O work in progress material
 .Re
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.

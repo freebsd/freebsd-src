@@ -1,5 +1,29 @@
-/* $Id: acconfig.h,v 1.149 2003/03/10 00:38:10 djm Exp $ */
+/* $Id: acconfig.h,v 1.166 2003/09/16 01:52:19 dtucker Exp $ */
 /* $FreeBSD$ */
+
+/*
+ * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef _CONFIG_H
 #define _CONFIG_H
@@ -9,9 +33,19 @@
 
 @TOP@
 
+/* Define if your platform breaks doing a seteuid before a setuid */
+#undef SETEUID_BREAKS_SETUID
+
+/* Define if your setreuid() is broken */
+#undef BROKEN_SETREUID
+
+/* Define if your setregid() is broken */
+#undef BROKEN_SETREGID
+
 /* Define to a Set Process Title type if your system is */
 /* supported by bsd-setproctitle.c */
 #undef SPT_TYPE
+#undef SPT_PADCHAR
 
 /* setgroups() NOOP allowed */
 #undef SETGROUPS_NOOP
@@ -82,6 +116,9 @@
 
 /* Define if you want to enable AIX4's authenticate function */
 #undef WITH_AIXAUTHENTICATE
+
+/* Define if your AIX loginfailed() function takes 4 arguments (AIX >= 5.2) */
+#undef AIX_LOGINFAILED_4ARG
 
 /* Define if you have/want arrays (cluster-wide session managment, not C arrays) */
 #undef WITH_IRIX_ARRAY
@@ -202,17 +239,14 @@
 /* Define if compiler implements __func__ */
 #undef HAVE___func__
 
+/* Define this is you want GSSAPI support in the version 2 protocol */
+#undef GSSAPI
+
 /* Define if you want Kerberos 5 support */
 #undef KRB5
 
 /* Define this if you are using the Heimdal version of Kerberos V5 */
 #undef HEIMDAL
-
-/* Define if you want Kerberos 4 support */
-#undef KRB4
-
-/* Define if you want AFS support */
-#undef AFS
 
 /* Define if you want S/Key support */
 #undef SKEY
@@ -299,9 +333,6 @@
 /* Specify location of ssh.pid */
 #undef _PATH_SSH_PIDDIR
 
-/* Use IPv4 for connection by default, IPv6 can still if explicity asked */
-#undef IPV4_DEFAULT
-
 /* getaddrinfo is broken (if present) */
 #undef BROKEN_GETADDRINFO
 
@@ -331,6 +362,9 @@
 
 /* Define in your struct dirent expects you to allocate extra space for d_name */
 #undef BROKEN_ONE_BYTE_DIRENT_D_NAME
+
+/* Define if your system has /etc/default/login */
+#undef HAVE_ETC_DEFAULT_LOGIN
 
 /* Define if your getopt(3) defines and uses optreset */
 #undef HAVE_GETOPT_OPTRESET
@@ -371,15 +405,28 @@
 /* Silly mkstemp() */
 #undef HAVE_STRICT_MKSTEMP
 
-/* Setproctitle emulation */
-#undef SETPROCTITLE_STRATEGY
-#undef SETPROCTITLE_PS_PADDING
-
 /* Some systems put this outside of libc */
 #undef HAVE_NANOSLEEP
 
-/* Pushing STREAMS modules incorrectly acquires a controlling TTY */
-#undef STREAMS_PUSH_ACQUIRES_CTTY
+/* Define if sshd somehow reacquires a controlling TTY after setsid() */
+#undef SSHD_ACQUIRES_CTTY
+
+/* Define if cmsg_type is not passed correctly */
+#undef BROKEN_CMSG_TYPE
+
+/* Strings used in /etc/passwd to denote locked account */
+#undef LOCKED_PASSWD_STRING
+#undef LOCKED_PASSWD_PREFIX
+#undef LOCKED_PASSWD_SUBSTR
+
+/* Define if DNS support is to be activated */
+#undef DNS
+
+/* Define if getrrsetbyname() exists */
+#undef HAVE_GETRRSETBYNAME
+
+/* Define if HEADER.ad exists in arpa/nameser.h */
+#undef HAVE_HEADER_AD
 
 @BOTTOM@
 

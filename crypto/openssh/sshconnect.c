@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.137 2002/11/21 23:03:51 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.148 2003/09/18 07:52:54 markus Exp $");
 
 #include <openssl/bn.h>
 
@@ -33,8 +33,16 @@ RCSID("$OpenBSD: sshconnect.c,v 1.137 2002/11/21 23:03:51 deraadt Exp $");
 #include "misc.h"
 #include "readpass.h"
 
+#ifdef DNS
+#include "dns.h"
+#endif
+
 char *client_version_string = NULL;
 char *server_version_string = NULL;
+
+#ifdef DNS
+int verified_host_key_dns = 0;
+#endif
 
 /* import */
 extern Options options;
@@ -163,7 +171,7 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
  * Creates a (possibly privileged) socket for use as the ssh connection.
  */
 static int
-ssh_create_socket(int privileged, int family)
+ssh_create_socket(int privileged, struct addrinfo *ai)
 {
 	int sock, gaierr;
 	struct addrinfo hints, *res;
@@ -175,15 +183,16 @@ ssh_create_socket(int privileged, int family)
 	if (privileged) {
 		int p = IPPORT_RESERVED - 1;
 		PRIV_START;
-		sock = rresvport_af(&p, family);
+		sock = rresvport_af(&p, ai->ai_family);
 		PRIV_END;
 		if (sock < 0)
-			error("rresvport: af=%d %.100s", family, strerror(errno));
+			error("rresvport: af=%d %.100s", ai->ai_family,
+			    strerror(errno));
 		else
 			debug("Allocated local port %d.", p);
 		return sock;
 	}
-	sock = socket(family, SOCK_STREAM, 0);
+	sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (sock < 0)
 		error("socket: %.100s", strerror(errno));
 
@@ -192,8 +201,9 @@ ssh_create_socket(int privileged, int family)
 		return sock;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = family;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = ai->ai_family;
+	hints.ai_socktype = ai->ai_socktype;
+	hints.ai_protocol = ai->ai_protocol;
 	hints.ai_flags = AI_PASSIVE;
 	gaierr = getaddrinfo(options.bind_address, "0", &hints, &res);
 	if (gaierr) {
@@ -210,6 +220,74 @@ ssh_create_socket(int privileged, int family)
 	}
 	freeaddrinfo(res);
 	return sock;
+}
+
+static int
+timeout_connect(int sockfd, const struct sockaddr *serv_addr,
+    socklen_t addrlen, int timeout)
+{
+	fd_set *fdset;
+	struct timeval tv;
+	socklen_t optlen;
+	int fdsetsz, optval, rc, result = -1;
+
+	if (timeout <= 0)
+		return (connect(sockfd, serv_addr, addrlen));
+
+	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0)
+		return (-1);
+
+	rc = connect(sockfd, serv_addr, addrlen);
+	if (rc == 0)
+		return (0);
+	if (errno != EINPROGRESS)
+		return (-1);
+
+	fdsetsz = howmany(sockfd + 1, NFDBITS) * sizeof(fd_mask);
+	fdset = (fd_set *)xmalloc(fdsetsz);
+
+	memset(fdset, 0, fdsetsz);
+	FD_SET(sockfd, fdset);
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+
+	for(;;) {
+		rc = select(sockfd + 1, NULL, fdset, NULL, &tv);
+		if (rc != -1 || errno != EINTR)
+			break;
+	}
+
+	switch(rc) {
+	case 0:
+		/* Timed out */
+		errno = ETIMEDOUT;
+		break;
+	case -1:
+		/* Select error */
+	    	debug("select: %s", strerror(errno));
+		break;
+	case 1:
+		/* Completed or failed */
+		optval = 0;
+		optlen = sizeof(optval);
+		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval, 
+		    &optlen) == -1) {
+		    	debug("getsockopt: %s", strerror(errno));
+			break;
+		}
+		if (optval != 0) {
+			errno = optval;
+			break;
+		}
+		result = 0;
+		break;
+	default:
+		/* Should not occur */
+		fatal("Bogus return (%d) from select()", rc);
+	}
+
+	xfree(fdset);
+	return (result);
 }
 
 /*
@@ -295,12 +373,13 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 				host, ntop, strport);
 
 			/* Create a socket for connecting. */
-			sock = ssh_create_socket(needpriv, ai->ai_family);
+			sock = ssh_create_socket(needpriv, ai);
 			if (sock < 0)
 				/* Any error is already output */
 				continue;
 
-			if (connect(sock, ai->ai_addr, ai->ai_addrlen) >= 0) {
+			if (timeout_connect(sock, ai->ai_addr, ai->ai_addrlen,
+			    options.connection_timeout) >= 0) {
 				/* Successful connection. */
 				memcpy(hostaddr, ai->ai_addr, ai->ai_addrlen);
 				break;
@@ -332,7 +411,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 
 	/* Return failure if we didn't get a successful connection. */
 	if (attempt >= connection_attempts) {
-		log("ssh: connect to host %s port %s: %s",
+		logit("ssh: connect to host %s port %s: %s",
 		    host, strport, strerror(errno));
 		return full_failure ? ECONNABORTED : ECONNREFUSED;
 	}
@@ -421,7 +500,7 @@ ssh_exchange_identification(void)
 			enable_compat13();
 			minor1 = 3;
 			if (options.forward_agent) {
-				log("Agent forwarding disabled for protocol 1.3");
+				logit("Agent forwarding disabled for protocol 1.3");
 				options.forward_agent = 0;
 			}
 		}
@@ -445,7 +524,7 @@ ssh_exchange_identification(void)
 	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 	    compat20 ? PROTOCOL_MINOR_2 : minor1,
 	    SSH_VERSION);
-	if (atomicio(write, connection_out, buf, strlen(buf)) != strlen(buf))
+	if (atomicio(vwrite, connection_out, buf, strlen(buf)) != strlen(buf))
 		fatal("write: %.100s", strerror(errno));
 	client_version_string = xstrdup(buf);
 	chop(client_version_string);
@@ -496,7 +575,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
-	int len, host_line, ip_line, has_keys;
+	int len, host_line, ip_line;
 	const char *host_file = NULL, *ip_file = NULL;
 
 	/*
@@ -612,16 +691,16 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 		debug("Found key in %s:%d", host_file, host_line);
 		if (options.check_host_ip && ip_status == HOST_NEW) {
 			if (readonly)
-				log("%s host key for IP address "
+				logit("%s host key for IP address "
 				    "'%.128s' not in list of known hosts.",
 				    type, ip);
 			else if (!add_host_to_hostfile(user_hostfile, ip,
 			    host_key))
-				log("Failed to add the %s host key for IP "
+				logit("Failed to add the %s host key for IP "
 				    "address '%.128s' to the list of known "
 				    "hosts (%.30s).", type, ip, user_hostfile);
 			else
-				log("Warning: Permanently added the %s host "
+				logit("Warning: Permanently added the %s host "
 				    "key for IP address '%.128s' to the list "
 				    "of known hosts.", type, ip);
 		}
@@ -640,19 +719,36 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			    "have requested strict checking.", type, host);
 			goto fail;
 		} else if (options.strict_host_key_checking == 2) {
-			has_keys = show_other_keys(host, host_key);
+			char msg1[1024], msg2[1024];
+
+			if (show_other_keys(host, host_key))
+				snprintf(msg1, sizeof(msg1),
+				   "\nbut keys of different type are already"
+				   " known for this host.");
+			else
+				snprintf(msg1, sizeof(msg1), ".");
 			/* The default */
 			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+			msg2[0] = '\0';
+#ifdef DNS
+			if (options.verify_host_key_dns) {
+				if (verified_host_key_dns)
+					snprintf(msg2, sizeof(msg2),
+					    "Matching host key fingerprint"
+					    " found in DNS.\n");
+				else
+					snprintf(msg2, sizeof(msg2),
+					    "No matching host key fingerprint"
+					    " found in DNS.\n");
+			}
+#endif
 			snprintf(msg, sizeof(msg),
 			    "The authenticity of host '%.200s (%s)' can't be "
 			    "established%s\n"
-			    "%s key fingerprint is %s.\n"
+			    "%s key fingerprint is %s.\n%s"
 			    "Are you sure you want to continue connecting "
 			    "(yes/no)? ",
-			    host, ip,
-			    has_keys ? ",\nbut keys of different type are already "
-			    "known for this host." : ".",
-			    type, fp);
+			    host, ip, msg1, type, fp, msg2);
 			xfree(fp);
 			if (!confirm(msg))
 				goto fail;
@@ -668,10 +764,10 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 		 * local known_hosts file.
 		 */
 		if (!add_host_to_hostfile(user_hostfile, hostp, host_key))
-			log("Failed to add the host to the list of known "
+			logit("Failed to add the host to the list of known "
 			    "hosts (%.500s).", user_hostfile);
 		else
-			log("Warning: Permanently added '%.200s' (%s) to the "
+			logit("Warning: Permanently added '%.200s' (%s) to the "
 			    "list of known hosts.", hostp, type);
 		break;
 	case HOST_CHANGED:
@@ -722,13 +818,24 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 
 		/*
 		 * If strict host key checking has not been requested, allow
-		 * the connection but without password authentication or
+		 * the connection but without MITM-able authentication or
 		 * agent forwarding.
 		 */
 		if (options.password_authentication) {
 			error("Password authentication is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.password_authentication = 0;
+		}
+		if (options.kbd_interactive_authentication) {
+			error("Keyboard-interactive authentication is disabled"
+			    " to avoid man-in-the-middle attacks.");
+			options.kbd_interactive_authentication = 0;
+			options.challenge_response_authentication = 0;
+		}
+		if (options.challenge_response_authentication) {
+			error("Challenge/response authentication is disabled"
+			    " to avoid man-in-the-middle attacks.");
+			options.challenge_response_authentication = 0;
 		}
 		if (options.forward_agent) {
 			error("Agent forwarding is disabled to avoid "
@@ -774,7 +881,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			    host_file, host_line);
 		}
 		if (options.strict_host_key_checking == 1) {
-			log(msg);
+			logit("%s", msg);
 			error("Exiting, you have requested strict checking.");
 			goto fail;
 		} else if (options.strict_host_key_checking == 2) {
@@ -783,7 +890,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			if (!confirm(msg))
 				goto fail;
 		} else {
-			log(msg);
+			logit("%s", msg);
 		}
 	}
 
@@ -795,10 +902,32 @@ fail:
 	return -1;
 }
 
+/* returns 0 if key verifies or -1 if key does NOT verify */
 int
 verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
 	struct stat st;
+
+#ifdef DNS
+	if (options.verify_host_key_dns) {
+		switch(verify_host_key_dns(host, hostaddr, host_key)) {
+		case DNS_VERIFY_OK:
+#ifdef DNSSEC
+			return 0;
+#else
+			verified_host_key_dns = 1;
+			break;
+#endif
+		case DNS_VERIFY_FAILED:
+			return -1;
+		case DNS_VERIFY_ERROR:
+			break;
+		default:
+			debug3("bad return value from verify_host_key_dns");
+			break;
+		}
+	}
+#endif /* DNS */
 
 	/* return ok if the key can be found in an old keyfile */
 	if (stat(options.system_hostfile2, &st) == 0 ||
@@ -881,7 +1010,7 @@ show_key_from_file(const char *file, const char *host, int keytype)
 	if ((ret = lookup_key_in_hostfile_by_type(file, host,
 	    keytype, found, &line))) {
 		fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
-		log("WARNING: %s key found for host %s\n"
+		logit("WARNING: %s key found for host %s\n"
 		    "in %s:%d\n"
 		    "%s key fingerprint %s.",
 		    key_type(found), host, file, line,

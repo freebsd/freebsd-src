@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.36 2003/04/01 10:22:21 markus Exp $");
+RCSID("$OpenBSD: monitor.c,v 1.49 2003/08/28 12:54:34 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
@@ -68,6 +68,11 @@ RCSID("$FreeBSD$");
 #include "ssh2.h"
 #include "mpaux.h"
 
+#ifdef GSSAPI
+#include "ssh-gss.h"
+static Gssctxt *gsscontext = NULL;
+#endif
+
 /* Imports */
 extern ServerOptions options;
 extern u_int utmp_len;
@@ -102,7 +107,7 @@ struct {
 	u_int olen;
 } child_state;
 
-/* Functions on the montior that answer unprivileged requests */
+/* Functions on the monitor that answer unprivileged requests */
 
 int mm_answer_moduli(int, Buffer *);
 int mm_answer_sign(int, Buffer *);
@@ -127,17 +132,17 @@ int mm_answer_sessid(int, Buffer *);
 
 #ifdef USE_PAM
 int mm_answer_pam_start(int, Buffer *);
+int mm_answer_pam_account(int, Buffer *);
 int mm_answer_pam_init_ctx(int, Buffer *);
 int mm_answer_pam_query(int, Buffer *);
 int mm_answer_pam_respond(int, Buffer *);
 int mm_answer_pam_free_ctx(int, Buffer *);
 #endif
 
-#ifdef KRB4
-int mm_answer_krb4(int, Buffer *);
-#endif
-#ifdef KRB5
-int mm_answer_krb5(int, Buffer *);
+#ifdef GSSAPI
+int mm_answer_gss_setup_ctx(int, Buffer *);
+int mm_answer_gss_accept_ctx(int, Buffer *);
+int mm_answer_gss_userok(int, Buffer *);
 #endif
 
 static Authctxt *authctxt;
@@ -150,8 +155,9 @@ static int key_blobtype = MM_NOKEY;
 static char *hostbased_cuser = NULL;
 static char *hostbased_chost = NULL;
 static char *auth_method = "unknown";
-static int session_id2_len = 0;
+static u_int session_id2_len = 0;
 static u_char *session_id2 = NULL;
+static pid_t monitor_child_pid;
 
 struct mon_table {
 	enum monitor_reqtype type;
@@ -176,6 +182,7 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_AUTHPASSWORD, MON_AUTH, mm_answer_authpassword},
 #ifdef USE_PAM
     {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
+    {MONITOR_REQ_PAM_ACCOUNT, 0, mm_answer_pam_account},
     {MONITOR_REQ_PAM_INIT_CTX, MON_ISAUTH, mm_answer_pam_init_ctx},
     {MONITOR_REQ_PAM_QUERY, MON_ISAUTH, mm_answer_pam_query},
     {MONITOR_REQ_PAM_RESPOND, MON_ISAUTH, mm_answer_pam_respond},
@@ -191,6 +198,11 @@ struct mon_table mon_dispatch_proto20[] = {
 #endif
     {MONITOR_REQ_KEYALLOWED, MON_ISAUTH, mm_answer_keyallowed},
     {MONITOR_REQ_KEYVERIFY, MON_AUTH, mm_answer_keyverify},
+#ifdef GSSAPI
+    {MONITOR_REQ_GSSSETUP, MON_ISAUTH, mm_answer_gss_setup_ctx},
+    {MONITOR_REQ_GSSSTEP, MON_ISAUTH, mm_answer_gss_accept_ctx},
+    {MONITOR_REQ_GSSUSEROK, MON_AUTH, mm_answer_gss_userok},
+#endif
     {0, 0, NULL}
 };
 
@@ -222,16 +234,11 @@ struct mon_table mon_dispatch_proto15[] = {
 #endif
 #ifdef USE_PAM
     {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
+    {MONITOR_REQ_PAM_ACCOUNT, 0, mm_answer_pam_account},
     {MONITOR_REQ_PAM_INIT_CTX, MON_ISAUTH, mm_answer_pam_init_ctx},
     {MONITOR_REQ_PAM_QUERY, MON_ISAUTH, mm_answer_pam_query},
     {MONITOR_REQ_PAM_RESPOND, MON_ISAUTH, mm_answer_pam_respond},
     {MONITOR_REQ_PAM_FREE_CTX, MON_ONCE|MON_AUTHDECIDE, mm_answer_pam_free_ctx},
-#endif
-#ifdef KRB4
-    {MONITOR_REQ_KRB4, MON_ONCE|MON_AUTH, mm_answer_krb4},
-#endif
-#ifdef KRB5
-    {MONITOR_REQ_KRB5, MON_ONCE|MON_AUTH, mm_answer_krb5},
 #endif
     {0, 0, NULL}
 };
@@ -306,6 +313,18 @@ monitor_child_preauth(struct monitor *pmonitor)
 			if (authctxt->pw->pw_uid == 0 &&
 			    !auth_root_allowed(auth_method))
 				authenticated = 0;
+#ifdef USE_PAM
+			/* PAM needs to perform account checks after auth */
+			if (options.use_pam) {
+				Buffer m;
+
+				buffer_init(&m);
+				mm_request_receive_expect(pmonitor->m_sendfd, 
+				    MONITOR_REQ_PAM_ACCOUNT, &m);
+				authenticated = mm_answer_pam_account(pmonitor->m_sendfd, &m);
+				buffer_free(&m);
+			}
+#endif
 		}
 
 		if (ent->flags & MON_AUTHDECIDE) {
@@ -327,9 +346,25 @@ monitor_child_preauth(struct monitor *pmonitor)
 	return (authctxt);
 }
 
+static void
+monitor_set_child_handler(pid_t pid)
+{
+	monitor_child_pid = pid;
+}
+
+static void
+monitor_child_handler(int signal)
+{
+	kill(monitor_child_pid, signal);
+}
+
 void
 monitor_child_postauth(struct monitor *pmonitor)
 {
+	monitor_set_child_handler(pmonitor->m_pid);
+	signal(SIGHUP, &monitor_child_handler);
+	signal(SIGTERM, &monitor_child_handler);
+
 	if (compat20) {
 		mon_dispatch = mon_dispatch_postauth20;
 
@@ -337,7 +372,6 @@ monitor_child_postauth(struct monitor *pmonitor)
 		monitor_permit(mon_dispatch, MONITOR_REQ_MODULI, 1);
 		monitor_permit(mon_dispatch, MONITOR_REQ_SIGN, 1);
 		monitor_permit(mon_dispatch, MONITOR_REQ_TERM, 1);
-
 	} else {
 		mon_dispatch = mon_dispatch_postauth15;
 		monitor_permit(mon_dispatch, MONITOR_REQ_TERM, 1);
@@ -573,7 +607,8 @@ mm_answer_pwnamallow(int socket, Buffer *m)
 	}
 
 #ifdef USE_PAM
-	monitor_permit(mon_dispatch, MONITOR_REQ_PAM_START, 1);
+	if (options.use_pam)
+		monitor_permit(mon_dispatch, MONITOR_REQ_PAM_START, 1);
 #endif
 
 	return (0);
@@ -623,7 +658,7 @@ mm_answer_authpassword(int socket, Buffer *m)
 	passwd = buffer_get_string(m, &plen);
 	/* Only authenticate if the context is valid */
 	authenticated = options.password_authentication &&
-	    authctxt->valid && auth_password(authctxt, passwd);
+	    auth_password(authctxt, passwd);
 	memset(passwd, 0, strlen(passwd));
 	xfree(passwd);
 
@@ -756,17 +791,39 @@ mm_answer_pam_start(int socket, Buffer *m)
 {
 	char *user;
 	
+	if (!options.use_pam)
+		fatal("UsePAM not set, but ended up in %s anyway", __func__);
+
 	user = buffer_get_string(m, NULL);
 
 	start_pam(user);
 
 	xfree(user);
 
+	monitor_permit(mon_dispatch, MONITOR_REQ_PAM_ACCOUNT, 1);
+
 	return (0);
 }
 
-static void *pam_ctxt, *pam_authok;
-extern KbdintDevice pam_device;
+int
+mm_answer_pam_account(int socket, Buffer *m)
+{
+	u_int ret;
+	
+	if (!options.use_pam)
+		fatal("UsePAM not set, but ended up in %s anyway", __func__);
+
+	ret = do_pam_account();
+
+	buffer_put_int(m, ret);
+
+	mm_request_send(socket, MONITOR_ANS_PAM_ACCOUNT, m);
+
+	return (ret);
+}
+
+static void *sshpam_ctxt, *sshpam_authok;
+extern KbdintDevice sshpam_device;
 
 int
 mm_answer_pam_init_ctx(int socket, Buffer *m)
@@ -774,10 +831,10 @@ mm_answer_pam_init_ctx(int socket, Buffer *m)
 
 	debug3("%s", __func__);
 	authctxt->user = buffer_get_string(m, NULL);
-	pam_ctxt = (pam_device.init_ctx)(authctxt);
-	pam_authok = NULL;
+	sshpam_ctxt = (sshpam_device.init_ctx)(authctxt);
+	sshpam_authok = NULL;
 	buffer_clear(m);
-	if (pam_ctxt != NULL) {
+	if (sshpam_ctxt != NULL) {
 		monitor_permit(mon_dispatch, MONITOR_REQ_PAM_FREE_CTX, 1);
 		buffer_put_int(m, 1);
 	} else {
@@ -795,10 +852,10 @@ mm_answer_pam_query(int socket, Buffer *m)
 	int i, ret;
 
 	debug3("%s", __func__);
-	pam_authok = NULL;
-	ret = (pam_device.query)(pam_ctxt, &name, &info, &num, &prompts, &echo_on);
+	sshpam_authok = NULL;
+	ret = (sshpam_device.query)(sshpam_ctxt, &name, &info, &num, &prompts, &echo_on);
 	if (ret == 0 && num == 0)
-		pam_authok = pam_ctxt;
+		sshpam_authok = sshpam_ctxt;
 	if (num > 1 || name == NULL || info == NULL)
 		ret = -1;
 	buffer_clear(m);
@@ -829,25 +886,25 @@ mm_answer_pam_respond(int socket, Buffer *m)
 	int i, ret;
 
 	debug3("%s", __func__);
-	pam_authok = NULL;
+	sshpam_authok = NULL;
 	num = buffer_get_int(m);
 	if (num > 0) {
 		resp = xmalloc(num * sizeof(char *));
 		for (i = 0; i < num; ++i)
 			resp[i] = buffer_get_string(m, NULL);
-		ret = (pam_device.respond)(pam_ctxt, num, resp);
+		ret = (sshpam_device.respond)(sshpam_ctxt, num, resp);
 		for (i = 0; i < num; ++i)
 			xfree(resp[i]);
 		xfree(resp);
 	} else {
-		ret = (pam_device.respond)(pam_ctxt, num, NULL);
+		ret = (sshpam_device.respond)(sshpam_ctxt, num, NULL);
 	}
 	buffer_clear(m);
 	buffer_put_int(m, ret);
 	mm_request_send(socket, MONITOR_ANS_PAM_RESPOND, m);
 	auth_method = "keyboard-interactive/pam";
 	if (ret == 0)
-		pam_authok = pam_ctxt;
+		sshpam_authok = sshpam_ctxt;
 	return (0);
 }
 
@@ -856,10 +913,10 @@ mm_answer_pam_free_ctx(int socket, Buffer *m)
 {
 
 	debug3("%s", __func__);
-	(pam_device.free_ctx)(pam_ctxt);
+	(sshpam_device.free_ctx)(sshpam_ctxt);
 	buffer_clear(m);
 	mm_request_send(socket, MONITOR_ANS_PAM_FREE_CTX, m);
-	return (pam_authok == pam_ctxt);
+	return (sshpam_authok == sshpam_ctxt);
 }
 #endif
 
@@ -984,7 +1041,7 @@ monitor_valid_userblob(u_char *data, u_int datalen)
 		fail++;
 	p = buffer_get_string(&b, NULL);
 	if (strcmp(authctxt->user, p) != 0) {
-		log("wrong user name passed to monitor: expected %s != %.100s",
+		logit("wrong user name passed to monitor: expected %s != %.100s",
 		    authctxt->user, p);
 		fail++;
 	}
@@ -1032,7 +1089,7 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 		fail++;
 	p = buffer_get_string(&b, NULL);
 	if (strcmp(authctxt->user, p) != 0) {
-		log("wrong user name passed to monitor: expected %s != %.100s",
+		logit("wrong user name passed to monitor: expected %s != %.100s",
 		    authctxt->user, p);
 		fail++;
 	}
@@ -1142,14 +1199,14 @@ mm_record_login(Session *s, struct passwd *pw)
 	}
 	/* Record that there was a login on that tty from the remote host. */
 	record_login(s->pid, s->tty, pw->pw_name, pw->pw_uid,
-	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
+	    get_remote_name_or_ip(utmp_len, options.use_dns),
 	    (struct sockaddr *)&from, fromlen);
 }
 
 static void
 mm_session_close(Session *s)
 {
-	debug3("%s: session %d pid %d", __func__, s->self, s->pid);
+	debug3("%s: session %d pid %ld", __func__, s->self, (long)s->pid);
 	if (s->ttyfd != -1) {
 		debug3("%s: tty %s ptyfd %d",  __func__, s->tty, s->ptyfd);
 		fatal_remove_cleanup(session_pty_cleanup2, (void *)s);
@@ -1413,89 +1470,6 @@ mm_answer_rsa_response(int socket, Buffer *m)
 	return (success);
 }
 
-#ifdef KRB4
-int
-mm_answer_krb4(int socket, Buffer *m)
-{
-	KTEXT_ST auth, reply;
-	char  *client, *p;
-	int success;
-	u_int alen;
-
-	reply.length = auth.length = 0;
- 
-	p = buffer_get_string(m, &alen);
-	if (alen >=  MAX_KTXT_LEN)
-		 fatal("%s: auth too large", __func__);
-	memcpy(auth.dat, p, alen);
-	auth.length = alen;
-	memset(p, 0, alen);
-	xfree(p);
-
-	success = options.kerberos_authentication &&
-	    authctxt->valid &&
-	    auth_krb4(authctxt, &auth, &client, &reply);
-
-	memset(auth.dat, 0, alen);
-	buffer_clear(m);
-	buffer_put_int(m, success);
-
-	if (success) {
-		buffer_put_cstring(m, client);
-		buffer_put_string(m, reply.dat, reply.length);
-		if (client)
-			xfree(client);
-		if (reply.length)
-			memset(reply.dat, 0, reply.length);
-	}
-
-	debug3("%s: sending result %d", __func__, success);
-	mm_request_send(socket, MONITOR_ANS_KRB4, m);
-
-	auth_method = "kerberos";
-
-	/* Causes monitor loop to terminate if authenticated */
-	return (success);
-}
-#endif
-
-#ifdef KRB5
-int
-mm_answer_krb5(int socket, Buffer *m)
-{
-	krb5_data tkt, reply;
-	char *client_user;
-	u_int len;
-	int success;
-
-	/* use temporary var to avoid size issues on 64bit arch */
-	tkt.data = buffer_get_string(m, &len);
-	tkt.length = len;
-
-	success = options.kerberos_authentication &&
-	    authctxt->valid &&
-	    auth_krb5(authctxt, &tkt, &client_user, &reply);
-
-	if (tkt.length)
-		xfree(tkt.data);
-
-	buffer_clear(m);
-	buffer_put_int(m, success);
-
-	if (success) {
-		buffer_put_cstring(m, client_user);
-		buffer_put_string(m, reply.data, reply.length);
-		if (client_user)
-			xfree(client_user);
-		if (reply.length)
-			xfree(reply.data);
-	}
-	mm_request_send(socket, MONITOR_ANS_KRB5, m);
-
-	return success;
-}
-#endif
-
 int
 mm_answer_term(int socket, Buffer *req)
 {
@@ -1611,6 +1585,8 @@ mm_get_keystate(struct monitor *pmonitor)
 	Buffer m;
 	u_char *blob, *p;
 	u_int bloblen, plen;
+	u_int32_t seqnr, packets;
+	u_int64_t blocks;
 
 	debug3("%s: Waiting for new keys", __func__);
 
@@ -1640,8 +1616,14 @@ mm_get_keystate(struct monitor *pmonitor)
 	xfree(blob);
 
 	/* Now get sequence numbers for the packets */
-	packet_set_seqnr(MODE_OUT, buffer_get_int(&m));
-	packet_set_seqnr(MODE_IN, buffer_get_int(&m));
+	seqnr = buffer_get_int(&m);
+	blocks = buffer_get_int64(&m);
+	packets = buffer_get_int(&m);
+	packet_set_state(MODE_OUT, seqnr, blocks, packets);
+	seqnr = buffer_get_int(&m);
+	blocks = buffer_get_int64(&m);
+	packets = buffer_get_int(&m);
+	packet_set_state(MODE_IN, seqnr, blocks, packets);
 
  skip:
 	/* Get the key context */
@@ -1762,3 +1744,79 @@ monitor_reinit(struct monitor *mon)
 	mon->m_recvfd = pair[0];
 	mon->m_sendfd = pair[1];
 }
+
+#ifdef GSSAPI
+int
+mm_answer_gss_setup_ctx(int socket, Buffer *m)
+{
+	gss_OID_desc oid;
+	OM_uint32 major;
+	u_int len;
+
+	oid.elements = buffer_get_string(m, &len);
+	oid.length = len;
+
+	major = ssh_gssapi_server_ctx(&gsscontext, &oid);
+
+	xfree(oid.elements);
+
+	buffer_clear(m);
+	buffer_put_int(m, major);
+
+	mm_request_send(socket,MONITOR_ANS_GSSSETUP, m);
+
+	/* Now we have a context, enable the step */
+	monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 1);
+
+	return (0);
+}
+
+int
+mm_answer_gss_accept_ctx(int socket, Buffer *m)
+{
+	gss_buffer_desc in;
+	gss_buffer_desc out = GSS_C_EMPTY_BUFFER;
+	OM_uint32 major,minor;
+	OM_uint32 flags = 0; /* GSI needs this */
+	u_int len;
+
+	in.value = buffer_get_string(m, &len);
+	in.length = len;
+	major = ssh_gssapi_accept_ctx(gsscontext, &in, &out, &flags);
+	xfree(in.value);
+
+	buffer_clear(m);
+	buffer_put_int(m, major);
+	buffer_put_string(m, out.value, out.length);
+	buffer_put_int(m, flags);
+	mm_request_send(socket, MONITOR_ANS_GSSSTEP, m);
+
+	gss_release_buffer(&minor, &out);
+
+	/* Complete - now we can do signing */
+	if (major==GSS_S_COMPLETE) {
+		monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 0);
+		monitor_permit(mon_dispatch, MONITOR_REQ_GSSUSEROK, 1);
+	}
+	return (0);
+}
+
+int
+mm_answer_gss_userok(int socket, Buffer *m)
+{
+	int authenticated;
+
+	authenticated = authctxt->valid && ssh_gssapi_userok(authctxt->user);
+
+	buffer_clear(m);
+	buffer_put_int(m, authenticated);
+
+	debug3("%s: sending result %d", __func__, authenticated);
+	mm_request_send(socket, MONITOR_ANS_GSSUSEROK, m);
+
+	auth_method="gssapi";
+
+	/* Monitor loop will terminate if authenticated */
+	return (authenticated);
+}
+#endif /* GSSAPI */
