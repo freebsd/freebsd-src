@@ -716,10 +716,10 @@ installCommit(dialogMenuItem *self)
 
     need_bin = Dists & DIST_BIN;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) == DITEM_SUCCESS && (!need_bin || !(Dists & DIST_BIN)))
-	i = installFixup(self);
-    else
-	i = DITEM_FAILURE;
+    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
+	if (need_bin && !(Dists & DIST_BIN))
+	    i = installFixup(self);
+    }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RESTORE;
 }
