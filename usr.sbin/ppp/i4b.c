@@ -339,7 +339,7 @@ struct device *
 i4b_Create(struct physical *p)
 {
   struct i4bdevice *dev;
-  int oldflag;
+  int oldflag, dial;
   msg_vr_req_t req;
   telno_t number;
 
@@ -357,9 +357,12 @@ i4b_Create(struct physical *p)
     log_Printf(LogDEBUG, "%s: Input is an i4b version %d.%d.%d isdn "
                "device (%s)\n", p->link.name, req.version, req.release,
                req.step, p->name.full);
-  } else
+    dial = 0;
+  } else {
     log_Printf(LogDEBUG, "%s: Opened %s (i4b version %d.%d.%d)\n",
                p->link.name, p->name.full, req.version, req.release, req.step);
+    dial = 1;
+  }
 
   /* We're gonna return an i4bdevice (unless something goes horribly wrong) */
 
@@ -402,9 +405,13 @@ i4b_Create(struct physical *p)
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  strncpy(number, datalink_ChoosePhoneNumber(p->dl), sizeof number - 1);
-  number[sizeof number - 1] = '\0';
-  if (ioctl(p->fd, I4B_RBCH_DIALOUT, number) == -1) {
+  if (dial) {
+    strncpy(number, datalink_ChoosePhoneNumber(p->dl), sizeof number - 1);
+    number[sizeof number - 1] = '\0';
+    if (number[0] == '\0')
+      dial = 0;
+  }
+  if (dial && ioctl(p->fd, I4B_RBCH_DIALOUT, number) == -1) {
     /* Complete failure - parent doesn't continue trying to ``create'' */
 
     log_Printf(LogWARN, "%s: ioctl(I4B_RBCH_DIALOUT): %s\n",
