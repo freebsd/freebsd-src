@@ -139,6 +139,7 @@ struct linkbuf {
 	dev_t	devnum;
 	int	count;
 	char	pathname[BUFSIZ];
+	char	src[BUFSIZ];
 	char	target[BUFSIZ];
 	struct	linkbuf *nextp;
 };
