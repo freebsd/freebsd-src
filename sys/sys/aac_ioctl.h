@@ -54,8 +54,6 @@ union aac_statrequest {
 
 #define AACIO_STATS		_IOWR('T', 101, union aac_statrequest)
 
-#ifdef AAC_COMPAT_LINUX
-
 /*
  * Ioctl commands likely to be submitted from a Linux management application.
  * These bit encodings are actually descended from Windows NT.  Ick.
@@ -169,5 +167,3 @@ struct get_adapter_fib_ioctl {
     int	  	Wait;
     caddr_t	AifFib;
 };
-
-#endif
