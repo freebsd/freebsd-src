@@ -42,14 +42,20 @@
  */
 enum gctl_request {
 	GCTL_INVALID_REQUEST = 0,
+
 	GCTL_CREATE_GEOM,
 	GCTL_DESTROY_GEOM,
+
 	GCTL_ATTACH,
 	GCTL_DETACH,
+
 	GCTL_CREATE_PROVIDER,
 	GCTL_DESTROY_PROVIDER,
+
 	GCTL_INSERT_GEOM,
 	GCTL_ELIMINATE_GEOM,
+
+	GCTL_CONFIG_GEOM,
 };
 
 #ifdef GCTL_TABLE
@@ -71,6 +77,7 @@ struct gctl_req_table {
 	{ 0, 1, 1, 0, 1, "destroy provider",	GCTL_DESTROY_PROVIDER       },
 	{ 1, 1, 1, 0, 1, "insert geom",		GCTL_INSERT_GEOM            },
 	{ 0, 1, 0, 0, 1, "eliminate geom",	GCTL_ELIMINATE_GEOM         },
+	{ 0, 1, 0, 0, 1, "config geom",		GCTL_CONFIG_GEOM            },
 
 	/* Terminator entry */
 	{ 1, 1, 1, 1, 1, "*INVALID*",		GCTL_INVALID_REQUEST        }
