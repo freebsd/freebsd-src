@@ -221,6 +221,15 @@ digi_bcopy(const void *vfrom, void *vto, size_t sz)
 	return (1);
 }
 
+static void
+digi_delay(struct digi_softc *sc, const char *txt)
+{
+	if (cold)
+		DELAY(5000);
+	else
+		tsleep(sc, PUSER | PCATCH, txt, 5);
+}
+
 static int
 digi_init(struct digi_softc *sc)
 {
@@ -310,7 +319,7 @@ digi_init(struct digi_softc *sc)
 				    sc->res.unit, sc->name);
 				return (EIO);
 			}
-			tsleep(sc, PUSER | PCATCH, "digiinit0", 1);
+			digi_delay(sc, "digiinit0");
 		}
 		DLOG(DIGIDB_INIT, (sc->dev, "Got init reset after %d us\n", i));
 
@@ -366,7 +375,7 @@ digi_init(struct digi_softc *sc)
 			    sc->res.unit);
 			return (EIO);
 		}
-		tsleep(sc, PUSER | PCATCH, "digibios0", 1);
+		digi_delay(sc, "digibios0");
 	}
 
 	DLOG(DIGIDB_INIT, (sc->dev, "BIOS started after %d us\n", i));
@@ -378,7 +387,7 @@ digi_init(struct digi_softc *sc)
 			    sc->res.unit, vW(ptr), *(u_short *)"GD");
 			return (EIO);
 		}
-		tsleep(sc, PUSER | PCATCH, "digibios1", 1);
+		digi_delay(sc, "digibios1");
 	}
 
 	DLOG(DIGIDB_INIT, (sc->dev, "BIOS booted after %d iterations\n", i));
@@ -418,7 +427,7 @@ digi_init(struct digi_softc *sc)
 				sc->hidewin(sc);
 				return (EIO);
 			}
-			tsleep(sc, PUSER | PCATCH, "digifep0", 1);
+			digi_delay(sc, "digifep0");
 		}
 		DLOG(DIGIDB_INIT,
 		    (sc->dev, "FEP/OS moved after %d iterations\n", i));
@@ -504,7 +513,7 @@ digi_init(struct digi_softc *sc)
 			sc->hidewin(sc);
 			return (EIO);
 		}
-		tsleep(sc, PUSER | PCATCH, "digifep1", 1);
+		digi_delay(sc, "digifep1");
 	}
 
 	DLOG(DIGIDB_INIT, (sc->dev, "FEP/OS started after %d iterations\n", i));
