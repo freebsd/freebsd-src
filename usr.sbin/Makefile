@@ -18,13 +18,13 @@ SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 # SUBDIR+=XNSrouted trsp
 
 .if   make(clean) || make(cleandir)
-SUBDIR+=apm apmconf bad144 config config.new fdformat fdwrite \
+SUBDIR+=apm apmconf bad144 config config.new fdformat fdwrite fdcontrol \
 	iostat kbdcontrol lptcontrol ncrcontrol rtprio swapinfo vidcontrol 
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
-SUBDIR+=apm apmconf bad144 config fdformat fdwrite kbdcontrol lptcontrol \
-	ncrcontrol rtprio spkrtest swapinfo vidcontrol
+SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol kbdcontrol \
+	lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
 # iostat
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat 
