@@ -60,6 +60,7 @@ static char sccsid[] = "@(#)canfield.c	8.1 (Berkeley) 5/31/93";
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "pathnames.h"
 
