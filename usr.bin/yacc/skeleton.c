@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.11 1997/02/22 19:58:02 peter Exp $
+ *	$Id: skeleton.c,v 1.12 1997/03/22 01:48:17 bde Exp $
  */
 
 #ifndef lint
@@ -68,19 +68,9 @@ char *banner[] =
     "#define yyclearin (yychar=(YYEMPTY))",
     "#define yyerrok (yyerrflag=0)",
     "#define YYRECOVERING (yyerrflag!=0)",
-    "/* cfront 1.2 defines \"c_plusplus\" instead of \"__cplusplus\" */",
-    "#ifdef c_plusplus",
-    "#ifndef __cplusplus",
-    "#define __cplusplus",
-    "#endif",
-    "#endif",
-    "#ifdef __cplusplus",
-    "extern \"C\" { char *getenv(const char *); }",
-    "#else",
-    "extern char *getenv();",
     "extern int yylex();",
     "extern int yyparse();",
-    "#endif",
+    "static int yygrowstack();",
     0
 };
 
@@ -173,7 +163,7 @@ char *body[] =
     "{",
     "    register int yym, yyn, yystate;",
     "#if YYDEBUG",
-    "    register char *yys;",
+    "    register const char *yys;",
     "",
     "    if ((yys = getenv(\"YYDEBUG\")))",
     "    {",
