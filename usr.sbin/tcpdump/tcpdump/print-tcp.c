@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-tcp.c,v 1.28 94/06/16 01:26:40 mccanne Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-tcp.c,v 1.2 1995/03/08 12:52:44 olah Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -62,6 +62,39 @@ static char rcsid[] =
 #ifndef TCPOPT_TIMESTAMP
 #define TCPOPT_TIMESTAMP	8	/* timestamps (rfc1323) */
 #endif
+#ifndef TCPOPT_CC
+#define TCPOPT_CC		11	/* connection count (rfc1644) */
+#endif
+#ifndef TCPOPT_CCNEW
+#define TCPOPT_CCNEW		12	/* connection count new (rfc1644) */
+#endif
+#ifndef TCPOPT_CCECHO
+#define TCPOPT_CCECHO		13	/* connection count echo (rfc1644) */
+#endif
+
+struct opt_table {
+	int len;		/* option length, zero if unknown */
+	const char *nam;	/* option name */
+};
+
+static	struct opt_table tcp_opts[] = {
+	{ 1, "eol" },
+	{ 1, "nop" },
+	{ 4, "mss" },
+	{ 3, "wscale" },
+	{ 2, "sackOK" },
+	{ 0, "sack" },		/* XXX sack: don't know how long */
+	{ 6, "echo" },
+	{ 6, "echoreply" },
+	{10, "timestamp" },
+	{ 0, "opt-%d:" },
+	{ 0, "opt-%d:" },
+	{ 6, "cc" },
+	{ 6, "ccnew" },
+	{ 6, "ccecho" },
+	{ 0, "opt-%d:" },	/* last entry must be an unknown option */
+};
+#define MAXTCPOPT (sizeof(tcp_opts)/sizeof(tcp_opts[0])-1)
 
 struct tha {
 	struct in_addr src;
@@ -193,84 +226,82 @@ tcp_print(register const u_char *bp, register int length,
 		register const u_char *cp = (const u_char *)tp + sizeof(*tp);
 		int i;
 		char ch = '<';
+		char lch = '>';
 
 		putchar(' ');
-		while (--hlen >= 0) {
+		/* adjust length if necessary */
+		if (cp + hlen > snapend) {
+			hlen = snapend - cp;
+			lch = '|';
+		}
+		while (hlen > 0) {
+			register struct opt_table *opt;
+
 			putchar(ch);
-			switch (*cp++) {
-			case TCPOPT_MAXSEG:
-			{
-				(void)printf("mss %d", cp[1] << 8 | cp[2]);
-				if (*cp != 4)
-					(void)printf("[len %d]", *cp);
-				cp += 3;
-				hlen -= 3;
+			ch = ',';
+
+			opt = *cp < MAXTCPOPT ?
+				&tcp_opts[*cp] : &tcp_opts[MAXTCPOPT];
+			(void)printf(opt->nam, *cp);
+
+			/* eol and nop have no length */
+			if (opt->len == 1) {
+				hlen--, cp++;
+				continue;
+			}
+			/* quit if options are truncated */
+			if ((hlen == 1) ||
+			    (opt->len != 0 && hlen < opt->len) ||
+			    (opt->len == 0 && hlen < *(cp + 1))) {
+				lch = '|';
 				break;
 			}
-			case TCPOPT_EOL:
-				(void)printf("eol");
-				break;
-			case TCPOPT_NOP:
-				(void)printf("nop");
+			/* check if optlen in segment is what we assume */
+			if (opt->len != 0 && *(cp + 1) != opt->len) {
+				register int l = *(cp + 1);
+
+				(void)printf("[len %d]", l);
+				hlen -= l;
+				cp += l;
+				continue;
+			}
+				
+			/* print the option body */
+			switch (*cp) {
+			case TCPOPT_MAXSEG:
+				(void)printf(" %d", cp[2] << 8 | cp[3]);
 				break;
 			case TCPOPT_WSCALE:
-				(void)printf("wscale %d", cp[1]);
-				if (*cp != 3)
-					(void)printf("[len %d]", *cp);
-				cp += 2;
-				hlen -= 2;
+				(void)printf(" %d", cp[2]);
 				break;
 			case TCPOPT_SACKOK:
-				(void)printf("sackOK");
-				if (*cp != 2)
-					(void)printf("[len %d]", *cp);
-				cp += 1;
-				hlen -= 1;
 				break;
 			case TCPOPT_ECHO:
-			{
-				(void)printf("echo %u",
-					     cp[1] << 24 | cp[2] << 16 |
-					     cp[3] << 8 | cp[4]);
-				if (*cp != 6)
-					(void)printf("[len %d]", *cp);
-				cp += 5;
-				hlen -= 5;
-				break;
-			}
 			case TCPOPT_ECHOREPLY:
-			{
-				(void)printf("echoreply %u",
-					     cp[1] << 24 | cp[2] << 16 |
-					     cp[3] << 8 | cp[4]);
-				if (*cp != 6)
-					(void)printf("[len %d]", *cp);
-				cp += 5;
-				hlen -= 5;
+			case TCPOPT_CC:
+			case TCPOPT_CCNEW:
+			case TCPOPT_CCECHO:
+				(void)printf(" %lu",
+					     cp[2] << 24 | cp[3] << 16 |
+					     cp[4] << 8 | cp[5]);
 				break;
-			}
 			case TCPOPT_TIMESTAMP:
-			{
-				(void)printf("timestamp %lu %lu",
-					     cp[1] << 24 | cp[2] << 16 |
-					     cp[3] << 8 | cp[4],
-					     cp[5] << 24 | cp[6] << 16 |
-					     cp[7] << 8 | cp[8]);
-				if (*cp != 10)
-					(void)printf("[len %d]", *cp);
-				cp += 9;
-				hlen -= 9;
+				(void)printf(" %lu %lu",
+					     cp[2] << 24 | cp[3] << 16 |
+					     cp[4] << 8 | cp[5],
+					     cp[6] << 24 | cp[7] << 16 |
+					     cp[8] << 8 | cp[9]);
 				break;
-  			}
 			default:
-				(void)printf("opt-%d:", cp[-1]);
-				for (i = *cp++ - 2, hlen -= i + 1; i > 0; --i)
+				hlen -= *++cp;
+				for (i = *cp++ - 2; i > 0; --i)
 					(void)printf("%02x", *cp++);
 				break;
 			}
-			ch = ',';
+			/* adjust length */
+			hlen -= opt->len;
+			cp += opt->len;
 		}
-		putchar('>');
+		putchar(lch);
 	}
 }
-
