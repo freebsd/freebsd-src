@@ -93,6 +93,8 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
+UKBD_DFLT_KEYMAP	opt_ukbd.h
+
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
@@ -182,10 +184,6 @@ OLTR_NO_BULLSEYE_MAC	opt_oltr.h
 # Defaults to NDGB*16.
 NDGBPORTS		opt_dgb.h
 
-# -------------------------------
-# EOF
-# -------------------------------
-
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
 BS_TARG_SAFEMODE	opt_bs.h
@@ -198,3 +196,7 @@ PC98			opt_global.h
 EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 LINE30			opt_syscons.h
+
+# -------------------------------
+# EOF
+# -------------------------------
