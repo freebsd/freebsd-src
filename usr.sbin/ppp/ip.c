@@ -206,7 +206,12 @@ prototxt(int cproto)
  * One (and only one) of pip or pip6 must be set.
  */
 int
-FilterCheck(const unsigned char *packet, u_int32_t family,
+FilterCheck(const unsigned char *packet,
+#ifdef NOINET6
+	    u_int32_t family __unused,
+#else
+	    u_int32_t family,
+#endif
             const struct filter *filter, unsigned *psecs)
 {
   int gotinfo;			/* true if IP payload decoded */
