@@ -3866,7 +3866,14 @@ isp_setdfltparm(isp, channel)
 		sdp->isp_devparam[tgt].cur_period = 0;
 		sdp->isp_devparam[tgt].dev_flags = DPARM_DEFAULT;
 		sdp->isp_devparam[tgt].cur_dflags = 0;
-		if (isp->isp_type < ISP_HA_SCSI_1040 ||
+		/*
+		 * We default to Wide/Fast for versions less than a 1040
+		 * (unless it's SBus).
+		 */
+		if ((isp->isp_bustype == ISP_BT_SBUS &&
+		    isp->isp_type < ISP_HA_SCSI_1020A) ||
+		    (isp->isp_bustype == ISP_BT_PCI &&
+		    isp->isp_type < ISP_HA_SCSI_1040) ||
 		    (isp->isp_clock && isp->isp_clock < 60)) {
 			sdp->isp_devparam[tgt].sync_offset =
 			    ISP_10M_SYNCPARMS >> 8;
@@ -3931,7 +3938,7 @@ isp_setdfltparm(isp, channel)
 		IDPRINTF(3, ("%s: bus %d tgt %d flags %x offset %x period %x\n",
 		    isp->isp_name, channel, tgt,
 		    sdp->isp_devparam[tgt].dev_flags,
-		    sdp->isp_devparam[tgt].sync_period,
+		    sdp->isp_devparam[tgt].sync_offset,
 		    sdp->isp_devparam[tgt].sync_period));
 	}
 
