@@ -4,6 +4,5 @@
 KMOD=		ng_rfc1490
 SRCS= 		ng_rfc1490.c
 MAN8=		ng_rfc1490.8
-KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
