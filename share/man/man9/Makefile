@@ -20,7 +20,7 @@ MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	fetch.9 \
 	get_cyclecounter.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
-	kernacc.9 kthread.9 \
+	kernacc.9 kthread.9 ktr.9 \
 	malloc.9 make_dev.9 mbuf.9 mbchain.9 mdchain.9 \
 	microseq.9 microtime.9 microuptime.9 \
 	mi_switch.9 module.9 mutex.9 \
@@ -109,6 +109,8 @@ MLINKS+=kthread.9 kproc_start.9 kthread.9 kproc_shutdown.9
 MLINKS+=kthread.9 kthread_create.9 kthread.9 kthread_exit.9
 MLINKS+=kthread.9 kthread_resume.9 kthread.9 kthread_suspend.9
 MLINKS+=kthread.9 kthread_suspend_check.9
+MLINKS+=ktr.9 CTR0.9 ktr.9 CTR1.9 ktr.9 CTR2.9
+MLINKS+=ktr.9 CTR3.9 ktr.9 CTR4.9 ktr.9 CTR5.9
 MLINKS+=make_dev.9 depends_dev.9
 MLINKS+=make_dev.9 destroy_dev.9
 MLINKS+=make_dev.9 make_dev_alias.9
