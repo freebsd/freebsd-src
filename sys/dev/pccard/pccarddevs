@@ -358,6 +358,7 @@ product NWN WLAN_1148		0x0003 NWN 1148 WLAN
 
 /* Olicom Products */
 product OLICOM TR		0x2132 GoCard Token Ring 16/4
+product OLICOM OC2220		0x2220 GoCard Ethernet
 
 /* Ositech Products */
 product OSITECH TRUMPCARD_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
