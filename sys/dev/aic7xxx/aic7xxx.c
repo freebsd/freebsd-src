@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#78 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#79 $
  *
  * $FreeBSD$
  */
@@ -3854,7 +3854,7 @@ ahc_shutdown(void *arg)
 
 /*
  * Reset the controller and record some information about it
- * that is only availabel just after a reset.
+ * that is only available just after a reset.
  */
 int
 ahc_reset(struct ahc_softc *ahc)
