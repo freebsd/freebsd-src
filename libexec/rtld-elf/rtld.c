@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,13 +73,16 @@ typedef struct Struct_LockInfo {
  * Function declarations.
  */
 static const char *basename(const char *);
-static void call_fini_functions(Obj_Entry *);
-static void call_init_functions(Obj_Entry *);
 static void die(void);
 static void digest_dynamic(Obj_Entry *);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static char *find_library(const char *, const Obj_Entry *);
+static void funclist_call(Funclist *);
+static void funclist_clear(Funclist *);
+static void funclist_init(Funclist *);
+static void funclist_push_head(Funclist *, InitFunc);
+static void funclist_push_tail(Funclist *, InitFunc);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
 static void init_dag1(Obj_Entry *root, Obj_Entry *obj);
@@ -102,7 +105,7 @@ static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_list(const char *, unsigned long,
   Objlist *, const Obj_Entry **, bool in_plt);
 static void trace_loaded_objects(Obj_Entry *obj);
-static void unload_object(Obj_Entry *, bool do_fini_funcs);
+static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 
 void r_debug_state(void);
@@ -158,7 +161,7 @@ static func_ptr_type exports[] = {
 
 /*
  * Global declarations normally provided by crt1.  The dynamic linker is
- * not build with crt1, so we have to provide them ourselves.
+ * not built with crt1, so we have to provide them ourselves.
  */
 char *__progname;
 char **environ;
@@ -209,6 +212,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Elf_Auxinfo *auxp;
     const char *argv0;
     Obj_Entry *obj;
+    Funclist initlist;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -325,15 +329,22 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (load_needed_objects(obj_main) == -1)
 	die();
 
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+    /*
+     * Make a list of all objects loaded at startup.  Also construct
+     * the list of init functions to call, in reverse order.
+     */
+    funclist_init(&initlist);
+    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
 	objlist_add(&list_main, obj);
+	if (obj->init != NULL && !obj->mainprog)
+	    funclist_push_head(&initlist, obj->init);
+    }
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
 	exit(0);
     }
 
-    dbg("relocating objects");
     if (relocate_objects(obj_main,
 	ld_bind_now != NULL && *ld_bind_now != '\0') == -1)
 	die();
@@ -351,8 +362,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     r_debug_state();		/* say hello to gdb! */
 
-    dbg("calling _init functions");
-    call_init_functions(obj_main->next);
+    funclist_call(&initlist);
+    wlock_acquire();
+    funclist_clear(&initlist);
+    lock_release();
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
 
@@ -415,26 +428,6 @@ basename(const char *name)
 {
     const char *p = strrchr(name, '/');
     return p != NULL ? p + 1 : name;
-}
-
-static void
-call_fini_functions(Obj_Entry *first)
-{
-    Obj_Entry *obj;
-
-    for (obj = first;  obj != NULL;  obj = obj->next)
-	if (obj->fini != NULL)
-	    (*obj->fini)();
-}
-
-static void
-call_init_functions(Obj_Entry *first)
-{
-    if (first != NULL) {
-	call_init_functions(first->next);
-	if (first->init != NULL)
-	    (*first->init)();
-    }
 }
 
 static void
@@ -565,11 +558,11 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	case DT_INIT:
-	    obj->init = (void (*)(void)) (obj->relocbase + dynp->d_un.d_ptr);
+	    obj->init = (InitFunc) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
 	case DT_FINI:
-	    obj->fini = (void (*)(void)) (obj->relocbase + dynp->d_un.d_ptr);
+	    obj->fini = (InitFunc) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
 	case DT_DEBUG:
@@ -832,6 +825,55 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
     else
 	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
     return def;
+}
+
+static void
+funclist_call(Funclist *list)
+{
+    Funclist_Entry *elm;
+
+    STAILQ_FOREACH(elm, list, link) {
+	dbg("calling init/fini function at %p", elm->func);
+	(*elm->func)();
+    }
+}
+
+static void
+funclist_clear(Funclist *list)
+{
+    Funclist_Entry *elm;
+
+    while (!STAILQ_EMPTY(list)) {
+	elm = STAILQ_FIRST(list);
+	STAILQ_REMOVE_HEAD(list, link);
+	free(elm);
+    }
+}
+
+static void
+funclist_init(Funclist *list)
+{
+    STAILQ_INIT(list);
+}
+
+static void
+funclist_push_head(Funclist *list, InitFunc func)
+{
+    Funclist_Entry *elm;
+
+    elm = NEW(Funclist_Entry);
+    elm->func = func;
+    STAILQ_INSERT_HEAD(list, elm, link);
+}
+
+static void
+funclist_push_tail(Funclist *list, InitFunc func)
+{
+    Funclist_Entry *elm;
+
+    elm = NEW(Funclist_Entry);
+    elm->func = func;
+    STAILQ_INSERT_TAIL(list, elm, link);
 }
 
 /*
@@ -1214,8 +1256,12 @@ relocate_objects(Obj_Entry *first, bool bind_now)
 static void
 rtld_exit(void)
 {
+    Obj_Entry *obj;
+
     dbg("rtld_exit()");
-    call_fini_functions(obj_list->next);
+    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
+	if (obj->fini != NULL)
+	    (*obj->fini)();
 }
 
 static char *
@@ -1258,6 +1304,8 @@ int
 dlclose(void *handle)
 {
     Obj_Entry *root;
+    Obj_Entry *obj;
+    Funclist finilist;
 
     wlock_acquire();
     root = dlcheck(handle);
@@ -1266,11 +1314,31 @@ dlclose(void *handle)
 	return -1;
     }
 
-    GDB_STATE(RT_DELETE);
-    unload_object(root, true);
+    /* Unreference the object and its dependencies. */
     root->dl_refcount--;
-    GDB_STATE(RT_CONSISTENT);
+    unref_dag(root);
 
+    if (root->refcount == 0) {
+	/*
+	 * The object is no longer referenced, so we must unload it.
+	 * First, make a list of the fini functions and then call them
+	 * with no locks held.
+	 */
+	funclist_init(&finilist);
+	for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
+	    if (obj->refcount == 0 && obj->fini != NULL)
+		funclist_push_tail(&finilist, obj->fini);
+
+	lock_release();
+	funclist_call(&finilist);
+	wlock_acquire();
+	funclist_clear(&finilist);
+
+	/* Finish cleaning up the newly-unreferenced objects. */
+	GDB_STATE(RT_DELETE);
+	unload_object(root);
+	GDB_STATE(RT_CONSISTENT);
+    }
     lock_release();
     return 0;
 }
@@ -1338,6 +1406,10 @@ dlopen(const char *name, int mode)
 {
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
+    Obj_Entry *initobj;
+    Funclist initlist;
+
+    funclist_init(&initlist);
 
     wlock_acquire();
     GDB_STATE(RT_ADD);
@@ -1363,15 +1435,27 @@ dlopen(const char *name, int mode)
 
 	    if (load_needed_objects(obj) == -1 ||
 	      (init_dag(obj), relocate_objects(obj, mode == RTLD_NOW)) == -1) {
-		unload_object(obj, false);
 		obj->dl_refcount--;
+		unref_dag(obj);
+		if (obj->refcount == 0)
+		    unload_object(obj);
 		obj = NULL;
-	    } else
-		call_init_functions(obj);
+	    } else {
+		/* Make list of init functions to call, in reverse order */
+		for (initobj = obj; initobj != NULL; initobj = initobj->next)
+		    if (initobj->init != NULL)
+			funclist_push_head(&initlist, initobj->init);
+	    }
 	}
     }
 
     GDB_STATE(RT_CONSISTENT);
+
+    /* Call the init functions with no locks held. */
+    lock_release();
+    funclist_call(&initlist);
+    wlock_acquire();
+    funclist_clear(&initlist);
     lock_release();
     return obj;
 }
@@ -1734,44 +1818,40 @@ trace_loaded_objects(Obj_Entry *obj)
 }
 
 /*
- * Note, this is called only for objects loaded by dlopen().
+ * Unload a dlopened object and its dependencies from memory and from
+ * our data structures.  It is assumed that the DAG rooted in the
+ * object has already been unreferenced, and that the object has a
+ * reference count of 0.
  */
 static void
-unload_object(Obj_Entry *root, bool do_fini_funcs)
+unload_object(Obj_Entry *root)
 {
-    unref_dag(root);
-    if (root->refcount == 0) {	/* We are finished with some objects. */
-	Obj_Entry *obj;
-	Obj_Entry **linkp;
-	Objlist_Entry *elm;
+    Obj_Entry *obj;
+    Obj_Entry **linkp;
+    Objlist_Entry *elm;
 
-	/* Finalize objects that are about to be unmapped. */
-	if (do_fini_funcs)
-	    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-		if (obj->refcount == 0 && obj->fini != NULL)
-		    (*obj->fini)();
+    assert(root->refcount == 0);
 
-	/* Remove the DAG from all objects' DAG lists. */
-	STAILQ_FOREACH(elm, &root->dagmembers , link)
-	    objlist_remove(&elm->obj->dldags, root);
+    /* Remove the DAG from all objects' DAG lists. */
+    STAILQ_FOREACH(elm, &root->dagmembers , link)
+	objlist_remove(&elm->obj->dldags, root);
 
-	/* Remove the DAG from the RTLD_GLOBAL list. */
-	objlist_remove(&list_global, root);
+    /* Remove the DAG from the RTLD_GLOBAL list. */
+    objlist_remove(&list_global, root);
 
-	/* Unmap all objects that are no longer referenced. */
-	linkp = &obj_list->next;
-	while ((obj = *linkp) != NULL) {
-	    if (obj->refcount == 0) {
-		dbg("unloading \"%s\"", obj->path);
-		munmap(obj->mapbase, obj->mapsize);
-		linkmap_delete(obj);
-		*linkp = obj->next;
-		obj_free(obj);
-	    } else
-		linkp = &obj->next;
-	}
-	obj_tail = linkp;
+    /* Unmap all objects that are no longer referenced. */
+    linkp = &obj_list->next;
+    while ((obj = *linkp) != NULL) {
+	if (obj->refcount == 0) {
+	    dbg("unloading \"%s\"", obj->path);
+	    munmap(obj->mapbase, obj->mapsize);
+	    linkmap_delete(obj);
+	    *linkp = obj->next;
+	    obj_free(obj);
+	} else
+	    linkp = &obj->next;
     }
+    obj_tail = linkp;
 }
 
 static void
