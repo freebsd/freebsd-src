@@ -35,13 +35,13 @@
  *
  */
 
-/* Created by ./makestatetext on Fri Jan 29 10:38:01 CST 1999. Do not edit */
+/* Created by ./makestatetext on Sun Feb 28 15:28:55 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
 {
     "unallocated",
-    "uninit",
+    "referenced",
     "down",
     "up",
 };
