@@ -62,7 +62,9 @@ main(int argc, char *argv[])
 	int     ch;
 	char   *p;
 	char	buf[33];
+	int     failed;
 
+	failed = 0;
 	while ((ch = getopt(argc, argv, "pqrs:tx")) != -1)
 		switch (ch) {
 		case 'p':
@@ -93,19 +95,24 @@ main(int argc, char *argv[])
 	if (*argv) {
 		do {
 			p = MD5File(*argv, buf);
-			if (!p)
+			if (!p) {
 				warn("%s", *argv);
-			else
+				failed++;
+			} else {
 				if (qflag)
 					printf("%s\n", p);
 				else if (rflag)
 					printf("%s %s\n", p, *argv);
 				else
 					printf("MD5 (%s) = %s\n", *argv, p);
+			}
 		} while (*++argv);
 	} else if (!sflag && (optind == 1 || qflag || rflag))
 		MDFilter(0);
 
+	if (failed != 0)
+		return (1);
+ 
 	return (0);
 }
 /*
