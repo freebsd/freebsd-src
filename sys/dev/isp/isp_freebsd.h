@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.h,v 1.9 1998/04/17 17:09:29 mjacob Exp $ */
+/* $Id: isp_freebsd.h,v 1.1 1998/04/22 17:54:52 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -51,7 +51,13 @@
 #include <vm/pmap.h>
 #include <sys/kernel.h>
 
-#include <osreldate.h>
+/*
+ * Quick hack fix to get around osreldate.h not being present.
+ * #include <osreldate.h>
+ */
+#ifndef	__FreeBSD_version
+#define	__FreeBSD_version	300002
+#endif
 
 #define	ISP_SCSI_XFER_T		struct scsi_xfer
 struct isposinfo {
