@@ -223,7 +223,7 @@ fm801_rdcd(kobj_t obj, void *devinfo, int regno)
 	}
 	if (i >= TIMO) {
 		printf("fm801 rdcd: write codec invalid\n");
-		return 0;
+		return -1;
 	}
 
 	return fm801_rd(fm801,FM_CODEC_DATA,2);
@@ -612,6 +612,13 @@ fm801_pci_attach(device_t dev)
 
 	codec = AC97_CREATE(dev, fm801, fm801_ac97);
 	if (codec == NULL) goto oops;
+
+	/*
+	 * XXX: quick check that device actually has sound capabilities.
+	 * The problem is that some cards built around fm801 chip only
+	 * have radio tuner onboard, but no sound capabilities.
+	 */
+	if (fm801_rdcd(NULL, fm801, AC97_REG_POWER) == -1) goto oops;
 
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto oops;
 
