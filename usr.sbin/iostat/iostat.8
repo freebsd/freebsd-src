@@ -25,6 +25,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -57,7 +59,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
-.\"  $FreeBSD$
 .\"
 .Dd December 22, 1997
 .Dt IOSTAT 8
@@ -69,7 +70,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm iostat
-.Op Fl CdhKIoT
+.Op Fl CdhKIoT?
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl n Ar devs
@@ -122,16 +123,16 @@ instead of the default
 Display up to
 .Ar devs
 number of devices.
-.Nm Iostat
+.Nm iostat
 will display fewer devices if there aren't
 .Ar devs
 devices present.
 .It Fl N
 Extract the name list from the specified system instead of the default
-.Pa /kernel .
+.Dq Pa /kernel .
 .It Fl o
 Display old-style
-.Nm
+.Nm iostat
 device statistics.  Sectors per second, transfers per second, and miliseconds
 per seek are displayed.  If
 .Fl I
@@ -202,7 +203,7 @@ all devices in the system are compared.  Any device that fully matches
 any
 .Fl t
 argument will be included in the 
-.Nm
+.Nm iostat
 output, up to the number of devices that can be displayed in
 80 columns, or the maximum number of devices specified by the user.
 .It Fl T
@@ -216,6 +217,8 @@ seconds between each display.
 If no repeat
 .Ar count
 is specified, the default is infinity.
+.It Fl ?
+Display a usage statement and exit.
 .El
 .Pp
 .Nm Iostat
@@ -230,28 +233,27 @@ characters written to terminals
 .El
 .It devices
 Device operations.  The header of the field is the device name and unit number.
-.Nm Iostat
+.Nm iostat
 will display as many devices as will fit in a standard 80 column screen, or
 the maximum number of devices in the system, whichever is smaller.  If
 .Fl n
 is specified on the command line, iostat will display the smaller of the
 requested number of devices, and the maximum number of devices in the system.
 To force
-.Nm
+.Nm iostat
 to display specific drives, their names may be supplied on the command
 line.
-.Nm Iostat
+.Nm iostat
 will not display more devices than will fit in an 80 column screen, unless
 the
 .Fl n
 argument is given on the command line to specify a maximum number of
 devices to display.  If fewer devices are specified on the command line
-than will fit in an 80 column screen,
-.Nm
-will show only the specified devices.
+than will fit in an 80 column screen, iostat will show only the specified
+devices.
 .Pp
 The standard
-.Nm
+.Nm iostat
 device display shows the following statistics:
 .Pp
 .Bl -tag -width indent -compact
@@ -264,7 +266,7 @@ megabytes per second
 .El
 .Pp
 The standard
-.Nm
+.Nm iostat
 device display, with the
 .Fl I
 flag specified, shows the following statistics:
@@ -279,7 +281,7 @@ total number of megabytes transferred
 .El
 .Pp
 The old-style
-.Nm
+.Nm iostat
 display (using
 .Fl o )
 shows the following statistics:
@@ -294,7 +296,7 @@ average milliseconds per transaction
 .El
 .Pp
 The old-style
-.Nm
+.Nm iostat
 display, with the
 .Fl I
 flag specified, shows the following statistics:
@@ -324,9 +326,9 @@ average milliseconds per transaction
 .Sh FILES
 .Bl -tag -width /dev/kmem -compact
 .It Pa /kernel
-default kernel namelist
+Default kernel namelist.
 .It Pa /dev/kmem
-default memory file
+Default memory file.
 .El
 .Sh EXAMPLES
 .Dl iostat -w 1 da0 da1 cd0
@@ -385,7 +387,7 @@ The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
 .Sh HISTORY
 This version of
-.Nm
+.Nm iostat
 first appeared in
 .Fx 3.0 .
 .Sh BUGS
