@@ -44,71 +44,53 @@ static INLINE void
 isp_prtstst(sp)
 	ispstatusreq_t *sp;
 {
-	char buf[172], *p = buf;
-	sprintf(p, "states->");
+	char buf[172];
+	sprintf(buf, "states=>");
 	if (sp->req_state_flags & RQSF_GOT_BUS) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "GOT_BUS ");
+		STRNCAT(buf, " GOT_BUS", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_GOT_TARGET) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "GOT_TGT ");
+		STRNCAT(buf, " GOT_TGT", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_SENT_CDB) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "SENT_CDB ");
+		STRNCAT(buf, " SENT_CDB", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_XFRD_DATA) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "XFRD_DATA ");
+		STRNCAT(buf, " XFRD_DATA", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_GOT_STATUS) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "GOT_STS ");
+		STRNCAT(buf, " GOT_STS", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_GOT_SENSE) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "GOT_SNS ");
+		STRNCAT(buf, " GOT_SNS", sizeof buf);
 	}
 	if (sp->req_state_flags & RQSF_XFER_COMPLETE) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "XFR_CMPLT ");
+		STRNCAT(buf, " XFR_CMPLT", sizeof buf);
 	}
-	p += strlen(p);
-	sprintf(p, "%s%s", buf, "\n");
-	p += strlen(p);
-	sprintf(p, "%s%s", buf, "status->");
+	STRNCAT(buf, "\nstatus=>", sizeof buf);
 	if (sp->req_status_flags & RQSTF_DISCONNECT) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Disconnect ");
+		STRNCAT(buf, " Disconnect", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_SYNCHRONOUS) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Sync_xfr ");
+		STRNCAT(buf, " Sync_xfr", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_PARITY_ERROR) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Parity ");
+		STRNCAT(buf, " Parity", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_BUS_RESET) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Bus_Reset ");
+		STRNCAT(buf, " Bus_Reset", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_DEVICE_RESET) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Device_Reset ");
+		STRNCAT(buf, " Device_Reset", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_ABORTED) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Aborted ");
+		STRNCAT(buf, " Aborted", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_TIMEOUT) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Timeout ");
+		STRNCAT(buf, " Timeout", sizeof buf);
 	}
 	if (sp->req_status_flags & RQSTF_NEGOTIATION) {
-		p += strlen(p);
-		sprintf(p, "%s%s", buf, "Negotiation ");
+		STRNCAT(buf, " Negotiation", sizeof buf);
 	}
 	PRINTF(buf, "%s\n", buf);
 }
@@ -171,6 +153,9 @@ isp_find_xs __P((struct ispsoftc *, u_int32_t));
 static INLINE u_int32_t
 isp_find_handle __P((struct ispsoftc *, ISP_SCSI_XFER_T *));
 
+static INLINE int
+isp_handle_index __P((u_int32_t));
+
 static INLINE void
 isp_destroy_handle __P((struct ispsoftc *, u_int32_t));
 
@@ -232,13 +217,20 @@ isp_find_handle(isp, xs)
 	return (0);
 }
 
+static INLINE int
+isp_handle_index(handle)
+	u_int32_t handle;
+{
+	return (handle-1);
+}
+
 static INLINE void
 isp_destroy_handle(isp, handle)
 	struct ispsoftc *isp;
 	u_int32_t handle;
 {
 	if (handle > 0 && handle <= (u_int32_t) isp->isp_maxcmds) {
-		isp->isp_xflist[handle - 1] = NULL;
+		isp->isp_xflist[isp_handle_index(handle)] = NULL;
 	}
 }
 
@@ -269,8 +261,10 @@ isp_getrqentry(isp, iptrp, optrp, resultp)
 	if (iptr == optr) {
 		return (1);
 	}
-	*optrp = optr;
-	*iptrp = iptr;
+	if (optrp)
+		*optrp = optr;
+	if (iptrp)
+		*iptrp = iptr;
 	return (0);
 }
 
