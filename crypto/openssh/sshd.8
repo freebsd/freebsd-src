@@ -217,8 +217,6 @@ host key files are normally not readable by anyone but root).
 The default is
 .Pa /etc/ssh/ssh_host_key
 for protocol version 1, and
-.Pa /etc/ssh/ssh_host_rsa_key
-and
 .Pa /etc/ssh/ssh_host_dsa_key
 for protocol version 2.
 It is possible to have multiple host key files for
@@ -562,14 +560,14 @@ Contains configuration data for
 .Nm sshd .
 The file format and configuration options are described in
 .Xr sshd_config 5 .
-.It Pa /etc/ssh/ssh_host_key, /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_rsa_key
+.It Pa /etc/ssh/ssh_host_key, /etc/ssh/ssh_host_dsa_key
 These three files contain the private parts of the host keys.
 These files should only be owned by root, readable only by root, and not
 accessible to others.
 Note that
 .Nm
 does not start if this file is group/world-accessible.
-.It Pa /etc/ssh/ssh_host_key.pub, /etc/ssh/ssh_host_dsa_key.pub, /etc/ssh/ssh_host_rsa_key.pub
+.It Pa /etc/ssh/ssh_host_key.pub, /etc/ssh/ssh_host_dsa_key.pub
 These three files contain the public parts of the host keys.
 These files should be world-readable but writable only by
 root.
