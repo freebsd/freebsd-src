@@ -32,7 +32,5 @@ ENTRY(_longjmp)
 	mtcr	12
 	mr	2,9
 	mr	1,10
-	or.	3,4,4
-	bnelr
-	li	3,1
+	mr	3,4
 	blr
