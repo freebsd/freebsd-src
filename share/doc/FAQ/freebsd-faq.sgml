@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.23 1995/12/03 17:21:07 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.24 1995/12/03 17:27:18 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -965,7 +965,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/or/
               <url url="mailto:info@xinside.com" name="Info E-mail address">
             <tag/or/
-              phone +1(303)384-9999
+              phone +1 (303) 298-7478.
           </descrip>
 
       <sect1>
