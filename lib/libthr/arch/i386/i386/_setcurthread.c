@@ -75,15 +75,13 @@ ldt_init(void)
 void
 _retire_thread(void *entry)
 {
-	pthread_t thr = curthread;
-
-	_spinlock_pthread(thr, &ldt_lock);
+	_spinlock(&ldt_lock);
 	if (ldt_free == NULL)
 		*(void **)entry = NULL;
 	else
 		*(void **)entry = *ldt_free;
 	ldt_free = entry;
-	_spinunlock_pthread(thr, &ldt_lock);
+	_spinunlock(&ldt_lock);
 }
 
 void *
