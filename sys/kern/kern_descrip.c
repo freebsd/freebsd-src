@@ -1499,6 +1499,10 @@ ffind_lock(td, fd)
 	return (fp);
 }
 
+/*
+ * Drop reference on struct file passed in, may call closef if the
+ * reference hits zero.
+ */
 int
 fdrop(fp, td)
 	struct file *fp;
@@ -1672,6 +1676,11 @@ fputsock(struct socket *so)
 	sorele(so);
 }
 
+/*
+ * Drop reference on struct file passed in, may call closef if the
+ * reference hits zero.
+ * Expects struct file locked, and will unlock it.
+ */
 int
 fdrop_locked(fp, td)
 	struct file *fp;
