@@ -580,7 +580,7 @@ mdcreate_preload(struct md_ioctl *mdio)
 	sc->type = MD_PRELOAD;
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
-	sc->pl_ptr = (u_char *)mdio->md_base;
+	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
 	sc->pl_len = (mdio->md_size << DEV_BSHIFT);
 	mdinit(sc);
 	return (0);
