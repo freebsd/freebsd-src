@@ -157,8 +157,8 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 	if (ret != ARCHIVE_OK)
 		return (ret);
 	ret = (a->compression_write)(a, buff, 512);
-	if (ret < 512)
-		return (ARCHIVE_FATAL);
+	if (ret != ARCHIVE_OK)
+		return (ret);
 
 	ustar->entry_bytes_remaining = archive_entry_size(entry);
 	ustar->entry_padding = 0x1ff & (- ustar->entry_bytes_remaining);
@@ -469,8 +469,8 @@ write_nulls(struct archive *a, size_t padding)
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
 		ret = (a->compression_write)(a, a->nulls, to_write);
-		if (ret < to_write)
-			return (ARCHIVE_FATAL);
+		if (ret != ARCHIVE_OK)
+			return (ret);
 		padding -= to_write;
 	}
 	return (ARCHIVE_OK);

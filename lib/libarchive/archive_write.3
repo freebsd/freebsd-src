@@ -190,6 +190,7 @@ Build and write a header using the data in the provided
 structure.
 .It Fn archive_write_data
 Write data corresponding to the header just written.
+Returns number of bytes written or -1 on error.
 .It Fn archive_write_close
 Complete the archive and invoke the close callback.
 .It Fn archive_write_finish
@@ -321,20 +322,19 @@ and
 .Fn archive_error_string
 functions will return appropriate values.
 Note that if the client-provided write callback function
-returns -1, that error will be propagated back to the caller
+returns a non-zero value, that error will be propagated back to the caller
 through whatever API function resulted in that call, which
 may include
 .Fn archive_write_header ,
 .Fn archive_write_data ,
 or
 .Fn archive_write_close .
-In such a case, the
+The client callback can call
+.Fn archive_set_error
+to provide values that can then be retrieved by
 .Fn archive_errno
-or
-.Fn archive_error_string
-fields will not return useful information; you should use
-client-private data to return error information
-back to your mainline code.
+and
+.Fn archive_error_string .
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr libarchive 3 ,

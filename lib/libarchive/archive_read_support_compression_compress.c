@@ -295,8 +295,10 @@ read_ahead(struct archive *a, const void **p, size_t min)
 				read_avail++;
 			} else {
 				ret = next_code(a, state);
-				if (ret)
+				if (ret == ARCHIVE_EOF)
 					state->end_of_stream = ret;
+				else if (ret != ARCHIVE_OK)
+					return (ret);
 			}
 		}
 	}
@@ -346,7 +348,8 @@ finish(struct archive *a)
 
 /*
  * Process the next code and fill the stack with the expansion
- * of the code.  Returns TRUE if we hit the end of the data.
+ * of the code.  Returns ARCHIVE_FATAL if there is a fatal I/O or
+ * format error, ARCHIVE_EOF if we hit end of data, ARCHIVE_OK otherwise.
  */
 static int
 next_code(struct archive *a, struct private_data *state)
@@ -391,9 +394,11 @@ next_code(struct archive *a, struct private_data *state)
 		return (next_code(a, state));
 	}
 
-	if (code > state->free_ent)
-		/* XXX invalid code?  This is fatal. XXX */
-		return (1);
+	if (code > state->free_ent) {
+		/* An invalid code is a fatal error. */
+		archive_set_error(a, -1, "Invalid compressed data");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Special case for KwKwK string. */
 	if (code >= state->free_ent) {
@@ -426,7 +431,7 @@ next_code(struct archive *a, struct private_data *state)
 
 	/* Remember previous code. */
 	state->oldcode = newcode;
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 /*

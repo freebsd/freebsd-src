@@ -50,8 +50,7 @@ struct shar {
 	int			 uuavail;
 	char			 uubuffer[3];
 	int			 wrote_header;
-	char			*work;
-	size_t			 work_len;
+	struct archive_string	 work;
 };
 
 static int	archive_write_shar_finish(struct archive *);
@@ -70,23 +69,13 @@ shar_printf(struct archive *a, const char *fmt, ...)
 {
 	struct shar *shar;
 	va_list ap;
-	int required;
 	int ret;
 
 	shar = a->format_data;
-	if (shar->work_len <= 0) {
-		shar->work_len = 1024;
-		shar->work = malloc(shar->work_len);
-	}
-
 	va_start(ap, fmt);
-	required = vsnprintf(shar->work, shar->work_len, fmt, ap);
-	if ((size_t)required >= shar->work_len) {
-		shar->work_len = required + 256;
-		realloc(shar->work, shar->work_len);
-		required = vsnprintf(shar->work, shar->work_len, fmt, ap);
-	}
-	ret = ((a->compression_write)(a, shar->work, strlen(shar->work)));
+	archive_string_empty(&(shar->work));
+	archive_string_vsprintf(&(shar->work), fmt, ap);
+	ret = ((a->compression_write)(a, shar->work.s, strlen(shar->work.s)));
 	va_end(ap);
 	return (ret);
 }
@@ -149,11 +138,16 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	char *p, *pp;
 	struct shar *shar;
 	const struct stat *st;
+	int ret;
 
 	shar = a->format_data;
 	if (!shar->wrote_header) {
-		shar_printf(a, "#!/bin/sh\n");
-		shar_printf(a, "# This is a shell archive\n");
+		ret = shar_printf(a, "#!/bin/sh\n");
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		ret = shar_printf(a, "# This is a shell archive\n");
+		if (ret != ARCHIVE_OK)
+			return (ret);
 		shar->wrote_header = 1;
 	}
 
@@ -192,7 +186,9 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	}
 
 	/* Stock preparation for all file types. */
-	shar_printf(a, "echo x %s\n", name);
+	ret = shar_printf(a, "echo x %s\n", name);
+	if (ret != ARCHIVE_OK)
+		return (ret);
 
 	if (!S_ISDIR(st->st_mode)) {
 		/* Try to create the dir. */
@@ -206,8 +202,10 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 			if (strcmp(p, ".") == 0) {
 				/* Don't try to "mkdir ." */
 			} else if (shar->last_dir == NULL) {
-				shar_printf(a,
+				ret = shar_printf(a,
 				    "mkdir -p %s > /dev/null 2>&1\n", p);
+				if (ret != ARCHIVE_OK)
+					return (ret);
 				shar->last_dir = p;
 			} else if (strcmp(p, shar->last_dir) == 0) {
 				/* We've already created this exact dir. */
@@ -217,8 +215,10 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 				/* We've already created a subdir. */
 				free(p);
 			} else {
-				shar_printf(a,
+				ret = shar_printf(a,
 				    "mkdir -p %s > /dev/null 2>&1\n", p);
+				if (ret != ARCHIVE_OK)
+					return (ret);
 				free(shar->last_dir);
 				shar->last_dir = p;
 			}
@@ -227,27 +227,41 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 
 	/* Handle file-type specific issues. */
 	shar->has_data = 0;
-	if ((linkname = archive_entry_hardlink(entry)) != NULL)
-		shar_printf(a, "ln -f %s %s\n", linkname, name);
-	else if ((linkname = archive_entry_symlink(entry)) != NULL)
-		shar_printf(a, "ln -fs %s %s\n", linkname, name);
-	else {
+	if ((linkname = archive_entry_hardlink(entry)) != NULL) {
+		ret = shar_printf(a, "ln -f %s %s\n", linkname, name);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+	} else if ((linkname = archive_entry_symlink(entry)) != NULL) {
+		ret = shar_printf(a, "ln -fs %s %s\n", linkname, name);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+	} else {
 		switch(st->st_mode & S_IFMT) {
 		case S_IFREG:
-			if (archive_entry_size(entry) == 0)
-				shar_printf(a, "touch %s\n", name);
-			else {
+			if (archive_entry_size(entry) == 0) {
+				/* More portable than "touch." */
+				ret = shar_printf(a, "test -e \"%s\" || :> \"%s\"\n", name, name);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+			} else {
 				if (shar->dump) {
-					shar_printf(a,
+					ret = shar_printf(a,
 					    "uudecode -o %s << 'SHAR_END'\n",
 					    name);
-					shar_printf(a, "begin %o %s\n",
+					if (ret != ARCHIVE_OK)
+						return (ret);
+					ret = shar_printf(a, "begin %o %s\n",
 					    archive_entry_mode(entry) & 0777,
 					    name);
-				} else
-					shar_printf(a,
+					if (ret != ARCHIVE_OK)
+						return (ret);
+				} else {
+					ret = shar_printf(a,
 					    "sed 's/^X//' > %s << 'SHAR_END'\n",
 					    name);
+					if (ret != ARCHIVE_OK)
+						return (ret);
+				}
 				shar->has_data = 1;
 				shar->end_of_line = 1;
 				shar->outpos = 0;
@@ -255,7 +269,10 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 			}
 			break;
 		case S_IFDIR:
-			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", name);
+			ret = shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n",
+			    name);
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			/* Record that we just created this directory. */
 			if (shar->last_dir != NULL)
 				free(shar->last_dir);
@@ -271,17 +288,23 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 			 */
 			break;
 		case S_IFIFO:
-			shar_printf(a, "mkfifo %s\n", name);
+			ret = shar_printf(a, "mkfifo %s\n", name);
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			break;
 		case S_IFCHR:
-			shar_printf(a, "mknod %s c %d %d\n", name,
+			ret = shar_printf(a, "mknod %s c %d %d\n", name,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			break;
 		case S_IFBLK:
-			shar_printf(a, "mknod %s b %d %d\n", name,
+			ret = shar_printf(a, "mknod %s b %d %d\n", name,
 			    archive_entry_rdevmajor(entry),
 			    archive_entry_rdevminor(entry));
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			break;
 		default:
 			return (ARCHIVE_WARN);
@@ -293,18 +316,18 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 
 /* XXX TODO: This could be more efficient XXX */
 static int
-archive_write_shar_data_sed(struct archive *a, const void *buff, size_t length)
+archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
 {
 	struct shar *shar;
 	const char *src;
-	size_t n;
+	int ret;
 
 	shar = a->format_data;
 	if (!shar->has_data)
 		return (0);
 
 	src = buff;
-	n = length;
+	ret = ARCHIVE_OK;
 	shar->outpos = 0;
 	while (n-- > 0) {
 		if (shar->end_of_line) {
@@ -316,14 +339,17 @@ archive_write_shar_data_sed(struct archive *a, const void *buff, size_t length)
 		shar->outbuff[shar->outpos++] = *src++;
 
 		if (shar->outpos > sizeof(shar->outbuff) - 2) {
-			(a->compression_write)(a, shar->outbuff, shar->outpos);
+			ret = (a->compression_write)(a, shar->outbuff,
+			    shar->outpos);
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			shar->outpos = 0;
 		}
 	}
 
 	if (shar->outpos > 0)
-		(a->compression_write)(a, shar->outbuff, shar->outpos);
-	return (length);
+		ret = (a->compression_write)(a, shar->outbuff, shar->outpos);
+	return (ret);
 }
 
 #define	UUENC(c)	(((c)!=0) ? ((c) & 077) + ' ': '`')
@@ -357,6 +383,7 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 	struct shar *shar;
 	const char *src;
 	size_t n;
+	int ret;
 
 	shar = a->format_data;
 	if (!shar->has_data)
@@ -367,8 +394,10 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 		if (shar->uuavail == 3)
 			uuencode_group(shar);
 		if (shar->outpos >= 60) {
-			shar_printf(a, "%c%s\n", UUENC(shar->outbytes),
+			ret = shar_printf(a, "%c%s\n", UUENC(shar->outbytes),
 			    shar->outbuff);
+			if (ret != ARCHIVE_OK)
+				return (ret);
 			shar->outpos = 0;
 			shar->outbytes = 0;
 		}
@@ -376,7 +405,7 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 		shar->uubuffer[shar->uuavail++] = *src++;
 		shar->outbytes++;
 	}
-	return (length);
+	return (ARCHIVE_OK);
 }
 
 static int
@@ -384,6 +413,7 @@ archive_write_shar_finish_entry(struct archive *a)
 {
 	const char *g, *p, *u;
 	struct shar *shar;
+	int ret;
 
 	shar = a->format_data;
 	if (shar->entry == NULL)
@@ -395,37 +425,51 @@ archive_write_shar_finish_entry(struct archive *a)
 			if (shar->uuavail > 0)
 				uuencode_group(shar);
 			if (shar->outpos > 0) {
-				shar_printf(a, "%c%s\n", UUENC(shar->outbytes),
-				    shar->outbuff);
+				ret = shar_printf(a, "%c%s\n",
+				    UUENC(shar->outbytes), shar->outbuff);
+				if (ret != ARCHIVE_OK)
+					return (ret);
 				shar->outpos = 0;
 				shar->uuavail = 0;
 				shar->outbytes = 0;
 			}
-			shar_printf(a, "%c\n", UUENC(0));
-			shar_printf(a, "end\n", UUENC(0));
-			shar_printf(a, "SHAR_END\n");
+			ret = shar_printf(a, "%c\n", UUENC(0));
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			ret = shar_printf(a, "end\n", UUENC(0));
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			ret = shar_printf(a, "SHAR_END\n");
+			if (ret != ARCHIVE_OK)
+				return (ret);
 		}
 		/* Restore file mode, owner, flags. */
 		/*
 		 * TODO: Don't immediately restore mode for
 		 * directories; defer that to end of script.
 		 */
-		shar_printf(a, "chmod %o %s\n",
+		ret = shar_printf(a, "chmod %o %s\n",
 		    archive_entry_mode(shar->entry) & 07777,
 		    archive_entry_pathname(shar->entry));
+		if (ret != ARCHIVE_OK)
+			return (ret);
 
 		u = archive_entry_uname(shar->entry);
 		g = archive_entry_gname(shar->entry);
 		if (u != NULL || g != NULL) {
-			shar_printf(a, "chown %s%s%s %s\n",
+			ret = shar_printf(a, "chown %s%s%s %s\n",
 			    (u != NULL) ? u : "",
 			    (g != NULL) ? ":" : "", (g != NULL) ? g : "",
 			    archive_entry_pathname(shar->entry));
+			if (ret != ARCHIVE_OK)
+				return (ret);
 		}
 
 		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
-			shar_printf(a, "chflags %s %s\n", p,
+			ret = shar_printf(a, "chflags %s %s\n", p,
 			    archive_entry_pathname(shar->entry));
+			if (ret != ARCHIVE_OK)
+				return (ret);
 		}
 
 		/* TODO: restore ACLs */
@@ -433,9 +477,14 @@ archive_write_shar_finish_entry(struct archive *a)
 	} else {
 		if (shar->has_data) {
 			/* Finish sed-encoded data:  ensure last line ends. */
-			if (!shar->end_of_line)
-				shar_printf(a, "\n");
-			shar_printf(a, "SHAR_END\n");
+			if (!shar->end_of_line) {
+				ret = shar_printf(a, "\n");
+				if (ret != ARCHIVE_OK)
+					return (ret);
+			}
+			ret = shar_printf(a, "SHAR_END\n");
+			if (ret != ARCHIVE_OK)
+				return (ret);
 		}
 	}
 
@@ -448,6 +497,7 @@ static int
 archive_write_shar_finish(struct archive *a)
 {
 	struct shar *shar;
+	int ret;
 
 	/*
 	 * TODO: Accumulate list of directory names/modes and
@@ -463,7 +513,9 @@ archive_write_shar_finish(struct archive *a)
 	 * shar_finish to free the format-specific data).
 	 */
 	if (shar->wrote_header) {
-		shar_printf(a, "exit\n");
+		ret = shar_printf(a, "exit\n");
+		if (ret != ARCHIVE_OK)
+			return (ret);
 		/* Shar output is never padded. */
 		archive_write_set_bytes_in_last_block(a, 1);
 		/*
@@ -475,8 +527,7 @@ archive_write_shar_finish(struct archive *a)
 		archive_entry_free(shar->entry);
 	if (shar->last_dir != NULL)
 		free(shar->last_dir);
-	if (shar->work != NULL)
-		free(shar->work);
+	archive_string_free(&(shar->work));
 	free(shar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);

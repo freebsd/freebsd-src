@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <bzlib.h>
@@ -56,7 +57,7 @@ struct private_data {
 
 static int	archive_compressor_bzip2_finish(struct archive *);
 static int	archive_compressor_bzip2_init(struct archive *);
-static ssize_t	archive_compressor_bzip2_write(struct archive *, const void *,
+static int	archive_compressor_bzip2_write(struct archive *, const void *,
 		    size_t);
 static int	drive_compressor(struct archive *, struct private_data *,
 		    int finishing);
@@ -153,15 +154,17 @@ archive_compressor_bzip2_init(struct archive *a)
 
 /*
  * Write data to the compressed stream.
+ *
+ * Returns ARCHIVE_OK if all data written, error otherwise.
  */
-static ssize_t
+static int
 archive_compressor_bzip2_write(struct archive *a, const void *buff,
     size_t length)
 {
 	struct private_data *state;
 
 	state = a->compression_data;
-	if (!a->client_writer) {
+	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
@@ -175,9 +178,9 @@ archive_compressor_bzip2_write(struct archive *a, const void *buff,
 	SET_NEXT_IN(state, buff);
 	state->stream.avail_in = length;
 	if (drive_compressor(a, state, 0))
-		return (-1);
+		return (ARCHIVE_FATAL);
 	a->file_position += length;
-	return (length);
+	return (ARCHIVE_OK);
 }
 
 
@@ -191,6 +194,7 @@ archive_compressor_bzip2_finish(struct archive *a)
 	int ret;
 	struct private_data *state;
 	ssize_t target_block_length;
+	ssize_t bytes_written;
 	unsigned tocopy;
 
 	state = a->compression_data;
@@ -246,12 +250,16 @@ archive_compressor_bzip2_finish(struct archive *a)
 	}
 
 	/* Write the last block */
-	ret = (a->client_writer)(a, a->client_data, state->compressed,
-	    block_length);
+	bytes_written = (a->client_writer)(a, a->client_data,
+	    state->compressed, block_length);
 
-	a->raw_position += ret;
-	if (ret != 0)
-		goto cleanup;
+	/* TODO: Handle short write of final block. */
+	if (bytes_written <= 0)
+		ret = ARCHIVE_FATAL;
+	else {
+		a->raw_position += ret;
+		ret = ARCHIVE_OK;
+	}
 
 	/* Cleanup: shut down compressor, release memory, etc. */
 cleanup:
@@ -284,27 +292,28 @@ cleanup:
 static int
 drive_compressor(struct archive *a, struct private_data *state, int finishing)
 {
-	size_t	ret;
+	ssize_t	bytes_written;
+	int ret;
 
 	for (;;) {
 		if (state->stream.avail_out == 0) {
-			ret = (a->client_writer)(a, a->client_data,
+			bytes_written = (a->client_writer)(a, a->client_data,
 			    state->compressed, state->compressed_buffer_size);
-			if (ret <= 0) {
+			if (bytes_written <= 0) {
 				/* TODO: Handle this write failure */
 				return (ARCHIVE_FATAL);
-			} else if (ret < state->compressed_buffer_size) {
+			} else if ((size_t)bytes_written < state->compressed_buffer_size) {
 				/* Short write: Move remainder to
 				 * front and keep filling */
 				memmove(state->compressed,
-				    state->compressed + ret,
-				    state->compressed_buffer_size - ret);
+				    state->compressed + bytes_written,
+				    state->compressed_buffer_size - bytes_written);
 			}
 
-			a->raw_position += ret;
+			a->raw_position += bytes_written;
 			state->stream.next_out = state->compressed +
-			    state->compressed_buffer_size - ret;
-			state->stream.avail_out = ret;
+			    state->compressed_buffer_size - bytes_written;
+			state->stream.avail_out = bytes_written;
 		}
 
 		ret = BZ2_bzCompress(&(state->stream),

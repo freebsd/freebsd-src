@@ -314,8 +314,9 @@ archive_write_pax_header(struct archive *a,
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
 	const char *hardlink;
-	const wchar_t *wp, *wp2, *wname_start;
-	int need_extension, oldstate, r, ret;
+	const wchar_t *wp, *wp2;
+	const char *suffix_start;
+	int need_extension, r, ret;
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
 
@@ -368,11 +369,11 @@ archive_write_pax_header(struct archive *a,
 	 */
 	wp = archive_entry_pathname_w(entry_main);
 	p = archive_entry_pathname(entry_main);
-	if (wcslen(wp) <= 100)	/* Short enough for just 'name' field */
-		wname_start = wp;	/* Record a zero-length prefix */
+	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
+		suffix_start = p;	/* Record a zero-length prefix */
 	else
 		/* Find the largest suffix that fits in 'name' field. */
-		wname_start = wcschr(wp + wcslen(wp) - 100 - 1, '/');
+		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
 
 	/* Find non-ASCII character, if any. */
 	wp2 = wp;
@@ -383,8 +384,7 @@ archive_write_pax_header(struct archive *a,
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
-	if (wname_start == NULL || wname_start - wp > 155 ||
-	    *wp2 != L'\0') {
+	if (suffix_start == NULL || suffix_start - p > 155 || *wp2 != L'\0') {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p));
@@ -622,7 +622,7 @@ archive_write_pax_header(struct archive *a,
 	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0);
 
 	/* If we built any extended attributes, write that entry first. */
-	ret = 0;
+	ret = ARCHIVE_OK;
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
@@ -657,13 +657,13 @@ archive_write_pax_header(struct archive *a,
 
 		/* Note that the 'x' header shouldn't ever fail to format */
 		if (ret != 0) {
-			const char *msg = "archive_write_header_pax: "
+			const char *msg = "archive_write_pax_header: "
 			    "'x' header failed?!  This can't happen.\n";
 			write(2, msg, strlen(msg));
 			exit(1);
 		}
 		r = (a->compression_write)(a, paxbuff, 512);
-		if (r < 512) {
+		if (r != ARCHIVE_OK) {
 			pax->entry_bytes_remaining = 0;
 			pax->entry_padding = 0;
 			return (ARCHIVE_FATAL);
@@ -672,23 +672,25 @@ archive_write_pax_header(struct archive *a,
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
 		pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
 
-		oldstate = a->state;
-		a->state = ARCHIVE_STATE_DATA;
-		r = archive_write_data(a, pax->pax_header.s,
+		r = (a->compression_write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
-		a->state = oldstate;
-		if (r < (int)archive_strlen(&(pax->pax_header))) {
+		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			return (ARCHIVE_FATAL);
 		}
-
-		archive_write_pax_finish_entry(a);
+		/* Pad out the end of the entry. */
+		r = write_nulls(a, pax->entry_padding);
+		if (r != ARCHIVE_OK) {
+			/* If a write fails, we're pretty much toast. */
+			return (ARCHIVE_FATAL);
+		}
+		pax->entry_bytes_remaining = pax->entry_padding = 0;
 	}
 
 	/* Write the header for main entry. */
 	r = (a->compression_write)(a, ustarbuff, 512);
-	if (ret != ARCHIVE_OK)
-		ret = (r < 512) ? ARCHIVE_FATAL : ARCHIVE_OK;
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	/*
 	 * Inform the client of the on-disk size we're using, so
@@ -839,9 +841,9 @@ write_nulls(struct archive *a, size_t padding)
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
 		ret = (a->compression_write)(a, a->nulls, to_write);
-		if (ret <= 0)
-			return (ARCHIVE_FATAL);
-		padding -= ret;
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		padding -= to_write;
 	}
 	return (ARCHIVE_OK);
 }

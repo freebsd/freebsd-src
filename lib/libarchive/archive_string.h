@@ -104,9 +104,4 @@ void	__archive_string_vsprintf(struct archive_string *, const char *,
 	    va_list);
 #define	archive_string_vsprintf	__archive_string_vsprintf
 
-/* Like 'sprintf', but resizes the underlying string as necessary. */
-void	__archive_string_sprintf(struct archive_string *, const char *, ...);
-#define	archive_string_sprintf	__archive_string_sprintf
-
-
 #endif

@@ -111,10 +111,15 @@ static ssize_t
 file_write(struct archive *a, void *client_data, void *buff, size_t length)
 {
 	struct write_fd_data	*mine;
+	ssize_t	bytesWritten;
 
-	(void)a; /* UNUSED */
 	mine = client_data;
-	return (write(mine->fd, buff, length));
+	bytesWritten = write(mine->fd, buff, length);
+	if (bytesWritten <= 0) {
+		archive_set_error(a, errno, "Write error");
+		return (-1);
+	}
+	return (bytesWritten);
 }
 
 static int

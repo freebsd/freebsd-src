@@ -609,7 +609,7 @@ archive_entry_set_rdevmajor(struct archive_entry *entry, dev_t m)
 	dev_t d;
 
 	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev(m, minor(d));
+	entry->ae_stat.st_rdev = makedev(major(m), minor(d));
 }
 
 void
@@ -618,7 +618,7 @@ archive_entry_set_rdevminor(struct archive_entry *entry, dev_t m)
 	dev_t d;
 
 	d = entry->ae_stat.st_rdev;
-	entry->ae_stat.st_rdev = makedev( major(d), m);
+	entry->ae_stat.st_rdev = makedev(major(d), minor(m));
 }
 
 void

@@ -270,7 +270,10 @@ archive_read_format_tar_bid(struct archive *a)
 		bid++;
 
 	/* Now let's look at the actual header and see if it matches. */
-	bytes_read = (a->compression_read_ahead)(a, &h, 512);
+	if (a->compression_read_ahead != NULL)
+		bytes_read = (a->compression_read_ahead)(a, &h, 512);
+	else
+		bytes_read = 0; /* Empty file. */
 	if (bytes_read < 0)
 		return (ARCHIVE_FATAL);
 	if (bytes_read == 0  &&  bid > 0) {
@@ -846,8 +849,11 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		st->st_mode |= S_IFREG;
 		break;
 	case 'S': /* GNU sparse files */
-		/* I would like to support these someday... */
-		break;
+		/*
+		 * Sparse files are really just regular files with
+		 * sparse information in the extended area.
+		 */
+		/* FALL THROUGH */
 	default: /* Regular file  and non-standard types */
 		/*
 		 * Per POSIX: non-recognized types should always be

@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 static int	archive_compressor_none_finish(struct archive *a);
 static int	archive_compressor_none_init(struct archive *);
-static ssize_t	archive_compressor_none_write(struct archive *, const void *,
+static int	archive_compressor_none_write(struct archive *, const void *,
 		    size_t);
 
 struct archive_none {
@@ -104,13 +104,13 @@ archive_compressor_none_init(struct archive *a)
 /*
  * Write data to the stream.
  */
-static ssize_t
+static int
 archive_compressor_none_write(struct archive *a, const void *vbuff,
     size_t length)
 {
 	const char *buff;
 	ssize_t remaining, to_copy;
-	int ret;
+	ssize_t bytes_written;
 	struct archive_none *state;
 
 	state = a->compression_data;
@@ -129,10 +129,12 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 		 * output buffer.
 		 */
 		if (state->avail == 0) {
-			ret = (a->client_writer)(a, a->client_data,
+			bytes_written = (a->client_writer)(a, a->client_data,
 			    state->buffer, state->buffer_size);
-			/* XXX TODO: if ret < state->buffer_size XXX */
-			a->raw_position += ret;
+			if (bytes_written <= 0)
+				return (ARCHIVE_FATAL);
+			/* XXX TODO: if bytes_written < state->buffer_size */
+			a->raw_position += bytes_written;
 			state->next = state->buffer;
 			state->avail = state->buffer_size;
 		}
@@ -147,7 +149,7 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 		remaining -= to_copy;
 	}
 	a->file_position += length;
-	return (length);
+	return (ARCHIVE_OK);
 }
 
 
@@ -159,6 +161,7 @@ archive_compressor_none_finish(struct archive *a)
 {
 	ssize_t block_length;
 	ssize_t target_block_length;
+	ssize_t bytes_written;
 	int ret;
 	int ret2;
 	struct archive_none *state;
@@ -193,9 +196,14 @@ archive_compressor_none_finish(struct archive *a)
 			    target_block_length - block_length);
 			block_length = target_block_length;
 		}
-		ret = (a->client_writer)(a, a->client_data, state->buffer,
-		    block_length);
-		a->raw_position += ret;
+		bytes_written = (a->client_writer)(a, a->client_data,
+		    state->buffer, block_length);
+		if (bytes_written <= 0)
+			ret = ARCHIVE_FATAL;
+		else {
+			a->raw_position += bytes_written;
+			ret = ARCHIVE_OK;
+		}
 	}
 
 	/* Close the output */
