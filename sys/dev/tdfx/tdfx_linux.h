@@ -32,9 +32,9 @@
  */
 
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_ioctl.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_ioctl.h>
 
 /*
  * This code was donated by Vladimir N. Silynaev to allow for defining
