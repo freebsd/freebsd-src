@@ -116,6 +116,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"shells",		TRUE, NULL },
    { JUST_COPY,		"skeykeys",		TRUE, NULL },
    { JUST_COPY,		"spwd.db",		TRUE, NULL },
+   { JUST_COPY,		"ssh",			TRUE, NULL },
    { JUST_COPY,		"syslog.conf",		TRUE, NULL },
    { JUST_COPY,		"ttys",			TRUE, NULL },
    { JUST_COPY,		"uucp",			TRUE, NULL },
