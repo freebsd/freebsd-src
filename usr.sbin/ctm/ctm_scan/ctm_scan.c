@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.8 1995/03/19 21:26:00 phk Exp $
+ * $Id: ctm_scan.c,v 1.9 1995/03/24 21:33:20 phk Exp $
  *
  */
 #include <stdio.h>
@@ -138,6 +138,8 @@ Do(char *path)
 int
 main(int argc, char **argv)
 {
+    int i;
+
     /*
      * Initialize barf[], characters diff/patch will not appreciate.
      */
@@ -173,10 +175,13 @@ main(int argc, char **argv)
      */
     if (argc > 1) {
 	while (argc > 1) {
-		Do(argv[1]);
+		i = Do(argv[1]);
 		argc--;
 		argv++;
+		if (i)
+			return i;
 	}
+	return i;
     } else 
 	    return Do(".");
 }
