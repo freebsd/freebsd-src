@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.6 1996/04/04 22:43:59 rich Exp $
+ *      $Id: scsiconf.c,v 1.30.4.7 1996/06/08 11:28:49 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -244,6 +244,10 @@ static struct scsidevs knowndevs[] =
 	{
 		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
 		"mx1", SC_ONE_LU
+	},
+	{
+		T_DIRECT, T_FIXED, "EMULEX", "MD21*" , "*",
+		"sd", SC_MORE_LUS
 	},
 	{
 		T_DIRECT, T_FIXED, "*", "*", "*",
