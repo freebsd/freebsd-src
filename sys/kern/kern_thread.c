@@ -1939,8 +1939,7 @@ thread_single(int force_exit)
 		thread_suspend_one(td);
 		DROP_GIANT();
 		PROC_UNLOCK(p);
-		p->p_stats->p_ru.ru_nvcsw++;
-		mi_switch();
+		mi_switch(SW_VOL);
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
 		PROC_LOCK(p);
@@ -2042,8 +2041,7 @@ thread_suspend_check(int return_instead)
 		}
 		DROP_GIANT();
 		PROC_UNLOCK(p);
-		p->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
+		mi_switch(SW_INVOL);
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
 		PROC_LOCK(p);

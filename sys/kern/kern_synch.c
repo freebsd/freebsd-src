@@ -250,9 +250,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	sched_sleep(td, priority & PRIMASK);
 
 	if (TD_ON_SLEEPQ(td)) {
-		p->p_stats->p_ru.ru_nvcsw++;
 		TD_SET_SLEEPING(td);
-		mi_switch();
+		mi_switch(SW_VOL);
 	}
 	/*
 	 * We're awake from voluntary sleep.
@@ -278,8 +277,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * the wrong msleep().  Yuck.
 		 */
 		TD_SET_SLEEPING(td);
-		p->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
+		mi_switch(SW_INVOL);
 		td->td_flags &= ~TDF_TIMOFAIL;
 	} 
 	if ((td->td_flags & TDF_INTERRUPT) && (priority & PCATCH) &&
@@ -453,7 +451,7 @@ wakeup_one(ident)
  * The machine independent parts of mi_switch().
  */
 void
-mi_switch(void)
+mi_switch(int flags)
 {
 	struct bintime new_switchtime;
 	struct thread *td;
@@ -469,7 +467,13 @@ mi_switch(void)
 #endif
 	KASSERT(td->td_critnest == 1,
 	    ("mi_switch: switch in a critical section"));
+	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
+	    ("mi_switch: switch must be voluntary or involuntary"));
 
+	if (flags & SW_VOL)
+		p->p_stats->p_ru.ru_nvcsw++;
+	else
+		p->p_stats->p_ru.ru_nivcsw++;
 	/*
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
@@ -647,9 +651,8 @@ yield(struct thread *td, struct yield_args *uap)
 	kg = td->td_ksegrp;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
-	kg->kg_proc->p_stats->p_ru.ru_nvcsw++;
 	sched_prio(td, PRI_MAX_TIMESHARE);
-	mi_switch();
+	mi_switch(SW_VOL);
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;
 	return (0);

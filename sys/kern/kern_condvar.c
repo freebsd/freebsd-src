@@ -119,8 +119,7 @@ static __inline void
 cv_switch(struct thread *td)
 {
 	TD_SET_SLEEPING(td);
-	td->td_proc->p_stats->p_ru.ru_nvcsw++;
-	mi_switch();
+	mi_switch(SW_VOL);
 	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
 }
@@ -370,8 +369,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		 * Go back to sleep.
 		 */
 		TD_SET_SLEEPING(td);
-		td->td_proc->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
+		mi_switch(SW_INVOL);
 		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 
@@ -447,8 +445,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		 * Go back to sleep.
 		 */
 		TD_SET_SLEEPING(td);
-		td->td_proc->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
+		mi_switch(SW_INVOL);
 		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 	mtx_unlock_spin(&sched_lock);

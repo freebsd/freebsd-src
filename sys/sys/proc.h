@@ -841,7 +841,10 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 int	leavepgrp(struct proc *p);
-void	mi_switch(void);
+void	mi_switch(int flags);
+/* Flags for mi_switch(). */
+#define	SW_VOL		0x0001		/* Voluntary switch. */
+#define	SW_INVOL	0x0002		/* Involuntary switch. */
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
 int	p_cansched(struct thread *td, struct proc *p);
