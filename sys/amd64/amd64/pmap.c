@@ -1364,7 +1364,6 @@ _pmap_allocpte(pmap, ptepindex)
 
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
-	vm_page_flag_set(m, PG_MAPPED);
 	vm_page_wakeup(m);
 
 	return m;
