@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id$
+ * $Id: tty_subr.c,v 1.5 1994/08/02 07:42:53 davidg Exp $
  */
 
 /*
@@ -26,8 +26,6 @@ int cfreecount = 0;
 #ifndef INITIAL_CBLOCKS
 #define INITIAL_CBLOCKS 50
 #endif
-
-void cblock_alloc_cblocks	__P((int));
 
 #define MBUF_DIAG
 #ifdef MBUF_DIAG
