@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.59 1998/09/25 11:40:04 yokota Exp $
+#	$Id: LINT,v 1.286.2.60 1998/09/26 17:36:15 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -377,6 +377,13 @@ options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
 options		TCPDEBUG
 
+#
+# options BRIDGE can be used to enable bridging -- see bridge(4)
+# options DUMMYNET enables the "Dummynet" bandwidth manager and
+# delay emulator -- see dummynet(4) . It requires IPFIREWALL.
+#
+# options DUMMYNET
+# options BRIDGE
 
 #####################################################################
 # FILESYSTEM OPTIONS
