@@ -68,7 +68,7 @@ static int flags = 0;
 static int mode = -1;
 #define	vmem		((u_short *)0xB8000)
 static int blink = 1;
-int flipdelete = 1;		/* Flip meaning of delete and backspace */
+int flipdelete = 0;		/* Flip meaning of delete and backspace */
 extern int capture_fd;
 static u_short break_code = 0x00;
 static u_short scan_code = 0x00;
@@ -2137,6 +2137,7 @@ video_init()
 			       | ButtonReleaseMask | PointerMotionMask );
     }
 
+    XStoreName(dpy, win, "DOS");
     XMapWindow(dpy, win);
     XFlush(dpy);
 
