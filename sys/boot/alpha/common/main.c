@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.3 1998/08/31 21:10:40 msmith Exp $
+ *	$Id: main.c,v 1.4 1998/09/03 02:10:02 msmith Exp $
  */
 
 
@@ -127,7 +127,7 @@ main(void)
      * we must close it eventually since otherwise the firmware leaves
      * the ncr hardware in a broken state (at least it does on my EB164).
      */
-    open("/", O_RDONLY);
+    open("/boot", O_RDONLY);
 
     interact();			/* doesn't return */
 }

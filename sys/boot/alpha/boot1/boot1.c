@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: boot1.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From	$NetBSD: bootxx.c,v 1.4 1997/09/06 14:08:29 drochner Exp $ 
  */
 
@@ -162,7 +162,7 @@ loadfile(char *name, char *addr)
     }
 
     do {
-	n = read(addr, 1024);
+	n = readit(addr, 1024);
 	addr += n;
 	twiddle();
     } while (n > 0);

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1998/08/22 10:31:01 dfr Exp $
+# $Id: Makefile,v 1.3 1998/08/31 21:10:40 msmith Exp $
 
 LIB=		alpha
 NOPIC=		true
@@ -6,8 +6,9 @@ NOPROFILE=	true
 INTERNALLIB=	true
 
 # XXX hack to pick up stand.h
-CFLAGS= -I/home/dfr/FreeBSD/alpha/src/lib/libstand
-CFLAGS+= -DDEBUG
+LIBSTANDDIR=	${.CURDIR}/../../../../lib/libstand
+CFLAGS=		-I${LIBSTANDDIR}
+CFLAGS+=	-DDEBUG
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs

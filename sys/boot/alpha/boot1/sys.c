@@ -25,7 +25,7 @@
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
  *	fromL Id: sys.c,v 1.21 1997/06/09 05:10:56 bde Exp
- *	$Id$
+ *	$Id: sys.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,8 @@
 #include <ufs/ufs/inode.h>
 
 #include <sys/dirent.h>
+
+#define COMPAT_UFS
 
 struct fs *fs;
 struct inode inode;
@@ -65,7 +67,7 @@ static int block_map(int file_block);
 static int find(char *path);
 
 int
-read(char *buffer, int count)
+readit(char *buffer, int count)
 {
     int logno, off, size;
     int cnt2, bnum2;
@@ -160,11 +162,44 @@ block_map(int file_block)
 	return (((int *)mapbuf)[(file_block - NDADDR) % NINDIR(fs)]);
 }
 
+#ifdef COMPAT_UFS
+
+#define max(a, b)	((a) > (b) ? (a) : (b))
+
+/*
+ * Sanity checks for old file systems.
+ *
+ * XXX - goes away some day.
+ */
+static void
+ffs_oldfscompat(fs)
+	struct fs *fs;
+{
+	int i;
+
+	fs->fs_npsect = max(fs->fs_npsect, fs->fs_nsect);	/* XXX */
+	fs->fs_interleave = max(fs->fs_interleave, 1);		/* XXX */
+	if (fs->fs_postblformat == FS_42POSTBLFMT)		/* XXX */
+		fs->fs_nrpos = 8;				/* XXX */
+	if (fs->fs_inodefmt < FS_44INODEFMT) {			/* XXX */
+		quad_t sizepb = fs->fs_bsize;			/* XXX */
+								/* XXX */
+		fs->fs_maxfilesize = fs->fs_bsize * NDADDR - 1;	/* XXX */
+		for (i = 0; i < NIADDR; i++) {			/* XXX */
+			sizepb *= NINDIR(fs);			/* XXX */
+			fs->fs_maxfilesize += sizepb;		/* XXX */
+		}						/* XXX */
+		fs->fs_qbmask = ~fs->fs_bmask;			/* XXX */
+		fs->fs_qfmask = ~fs->fs_fmask;			/* XXX */
+	}							/* XXX */
+}
+#endif
 
 int
 openrd(char *name)
 {
     int ret;
+    char namecopy[128];
 
     if (devopen())
 	return 1;
@@ -174,10 +209,16 @@ openrd(char *name)
      */
     devread((char *)(fs = (struct fs *)fsbuf), SBLOCK + boff, SBSIZE);
 
+#ifdef COMPAT_UFS
+    ffs_oldfscompat(fs);
+#endif
+
     /*
      * Find the actual FILE on the mounted device.
+     * Make a copy of the name since find() is destructive.
      */
-    ret = find(name);
+    strcpy(namecopy, name);
+    ret = find(namecopy);
     if (ret == 0)
 	return 1;
     if (ret < 0)
