@@ -48,110 +48,111 @@ coda/coda_subr.c	optional vcoda
 coda/coda_venus.c	optional vcoda
 coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
-contrib/dev/acpica/Subsystem/Common/cmalloc.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmclib.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmcopy.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmdebug.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmdelete.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmeval.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmglobal.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cminit.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmobject.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Common/cmxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Debugger/dbcmds.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbdisasm.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbdisply.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbexec.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbfileio.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbhistry.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbinput.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbstats.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbutils.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Debugger/dbxface.c	optional acpica acpi_debug
-contrib/dev/acpica/Subsystem/Dispatcher/dsfield.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dsmethod.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dsmthdat.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dsobject.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dsopcode.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dsutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dswexec.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dswload.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dswscope.c	optional acpica
-contrib/dev/acpica/Subsystem/Dispatcher/dswstate.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evevent.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evmisc.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evregion.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evrgnini.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evsci.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evxfevnt.c	optional acpica
-contrib/dev/acpica/Subsystem/Events/evxfregn.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwacpi.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwgpe.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwregs.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwsleep.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwtimer.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amconfig.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amconvrt.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amcreate.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amdump.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amdyadic.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amfield.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amfldio.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/ammisc.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/ammonad.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amnames.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amprep.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amregion.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amresnte.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amresolv.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amresop.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amstore.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amstoren.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amstorob.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amsystem.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Interpreter/amxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsaccess.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsalloc.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsdump.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nseval.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsinit.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsload.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsnames.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsobject.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nssearch.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nswalk.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsxfname.c	optional acpica
-contrib/dev/acpica/Subsystem/Namespace/nsxfobj.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psargs.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psfind.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psopcode.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psparse.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psscope.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/pstree.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/pswalk.c	optional acpica
-contrib/dev/acpica/Subsystem/Parser/psxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsaddr.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rscalc.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rscreate.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsdump.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsio.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsirq.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rslist.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsmemory.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsmisc.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Resources/rsxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbconvrt.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbget.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbinstal.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbutils.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbxface.c	optional acpica
-contrib/dev/acpica/Subsystem/Tables/tbxfroot.c	optional acpica
+contrib/dev/acpica/dbcmds.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbdisasm.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbdisply.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbexec.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbfileio.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbhistry.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbinput.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbstats.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbutils.c	 optional acpica acpi_debug
+contrib/dev/acpica/dbxface.c	 optional acpica acpi_debug
+contrib/dev/acpica/dsfield.c	 optional acpica
+contrib/dev/acpica/dsmethod.c	 optional acpica
+contrib/dev/acpica/dsmthdat.c	 optional acpica
+contrib/dev/acpica/dsobject.c	 optional acpica
+contrib/dev/acpica/dsopcode.c	 optional acpica
+contrib/dev/acpica/dsutils.c	 optional acpica
+contrib/dev/acpica/dswexec.c	 optional acpica
+contrib/dev/acpica/dswload.c	 optional acpica
+contrib/dev/acpica/dswscope.c	 optional acpica
+contrib/dev/acpica/dswstate.c	 optional acpica
+contrib/dev/acpica/evevent.c	 optional acpica
+contrib/dev/acpica/evmisc.c	 optional acpica
+contrib/dev/acpica/evregion.c	 optional acpica
+contrib/dev/acpica/evrgnini.c	 optional acpica
+contrib/dev/acpica/evsci.c	 optional acpica
+contrib/dev/acpica/evxface.c	 optional acpica
+contrib/dev/acpica/evxfevnt.c	 optional acpica
+contrib/dev/acpica/evxfregn.c	 optional acpica
+contrib/dev/acpica/exconfig.c	 optional acpica
+contrib/dev/acpica/exconvrt.c	 optional acpica
+contrib/dev/acpica/excreate.c	 optional acpica
+contrib/dev/acpica/exdump.c	 optional acpica
+contrib/dev/acpica/exdyadic.c	 optional acpica
+contrib/dev/acpica/exfield.c	 optional acpica
+contrib/dev/acpica/exfldio.c	 optional acpica
+contrib/dev/acpica/exmisc.c	 optional acpica
+contrib/dev/acpica/exmonad.c	 optional acpica
+contrib/dev/acpica/exmutex.c	 optional acpica
+contrib/dev/acpica/exnames.c	 optional acpica
+contrib/dev/acpica/exprep.c	 optional acpica
+contrib/dev/acpica/exregion.c	 optional acpica
+contrib/dev/acpica/exresnte.c	 optional acpica
+contrib/dev/acpica/exresolv.c	 optional acpica
+contrib/dev/acpica/exresop.c	 optional acpica
+contrib/dev/acpica/exstore.c	 optional acpica
+contrib/dev/acpica/exstoren.c	 optional acpica
+contrib/dev/acpica/exstorob.c	 optional acpica
+contrib/dev/acpica/exsystem.c	 optional acpica
+contrib/dev/acpica/exutils.c	 optional acpica
+contrib/dev/acpica/exxface.c	 optional acpica
+contrib/dev/acpica/hwacpi.c	 optional acpica
+contrib/dev/acpica/hwgpe.c	 optional acpica
+contrib/dev/acpica/hwregs.c	 optional acpica
+contrib/dev/acpica/hwsleep.c	 optional acpica
+contrib/dev/acpica/hwtimer.c	 optional acpica
+contrib/dev/acpica/nsaccess.c	 optional acpica
+contrib/dev/acpica/nsalloc.c	 optional acpica
+contrib/dev/acpica/nsdump.c	 optional acpica
+contrib/dev/acpica/nseval.c	 optional acpica
+contrib/dev/acpica/nsinit.c	 optional acpica
+contrib/dev/acpica/nsload.c	 optional acpica
+contrib/dev/acpica/nsnames.c	 optional acpica
+contrib/dev/acpica/nsobject.c	 optional acpica
+contrib/dev/acpica/nssearch.c	 optional acpica
+contrib/dev/acpica/nsutils.c	 optional acpica
+contrib/dev/acpica/nswalk.c	 optional acpica
+contrib/dev/acpica/nsxfname.c	 optional acpica
+contrib/dev/acpica/nsxfobj.c	 optional acpica
+contrib/dev/acpica/psargs.c	 optional acpica
+contrib/dev/acpica/psfind.c	 optional acpica
+contrib/dev/acpica/psopcode.c	 optional acpica
+contrib/dev/acpica/psparse.c	 optional acpica
+contrib/dev/acpica/psscope.c	 optional acpica
+contrib/dev/acpica/pstree.c	 optional acpica
+contrib/dev/acpica/psutils.c	 optional acpica
+contrib/dev/acpica/pswalk.c	 optional acpica
+contrib/dev/acpica/psxface.c	 optional acpica
+contrib/dev/acpica/rsaddr.c	 optional acpica
+contrib/dev/acpica/rscalc.c	 optional acpica
+contrib/dev/acpica/rscreate.c	 optional acpica
+contrib/dev/acpica/rsdump.c	 optional acpica
+contrib/dev/acpica/rsio.c	 optional acpica
+contrib/dev/acpica/rsirq.c	 optional acpica
+contrib/dev/acpica/rslist.c	 optional acpica
+contrib/dev/acpica/rsmemory.c	 optional acpica
+contrib/dev/acpica/rsmisc.c	 optional acpica
+contrib/dev/acpica/rsutils.c	 optional acpica
+contrib/dev/acpica/rsxface.c	 optional acpica
+contrib/dev/acpica/tbconvrt.c	 optional acpica
+contrib/dev/acpica/tbget.c	 optional acpica
+contrib/dev/acpica/tbinstal.c	 optional acpica
+contrib/dev/acpica/tbutils.c	 optional acpica
+contrib/dev/acpica/tbxface.c	 optional acpica
+contrib/dev/acpica/tbxfroot.c	 optional acpica
+contrib/dev/acpica/utalloc.c	 optional acpica
+contrib/dev/acpica/utclib.c	 optional acpica
+contrib/dev/acpica/utcopy.c	 optional acpica
+contrib/dev/acpica/utdebug.c	 optional acpica
+contrib/dev/acpica/utdelete.c	 optional acpica
+contrib/dev/acpica/uteval.c	 optional acpica
+contrib/dev/acpica/utglobal.c	 optional acpica
+contrib/dev/acpica/utinit.c	 optional acpica
+contrib/dev/acpica/utmisc.c	 optional acpica
+contrib/dev/acpica/utobject.c	 optional acpica
+contrib/dev/acpica/utxface.c	 optional acpica
 crypto/blowfish/bf_cbc.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_cbc_m.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional ipsec ipsec_esp
