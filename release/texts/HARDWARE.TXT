@@ -326,7 +326,7 @@ wds:    Western Digital WD7000 IDE
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA,
 Microchannel and PCI bus based PC's, ranging from 386sx to Pentium
 class machines (though the 386sx is not recommended).  Support for
-generic IDE or ESDI drive configurations, various SCSI controller,
+generic IDE drive configurations, various SCSI controllers,
 network and serial cards is also provided.
 
 What follows is a list of all peripherals currently known to work with
@@ -359,12 +359,6 @@ ATA controllers:
     SiS 5591
     VIA 82C586
     VIA 82C686
-
-WD1003 (any generic MFM/RLL - obsolete)
-WD1007 (any generic ESDI - obsolete)
-* Note: now that the wd driver has been replaced by the ata driver framework
-which does not have bad144 support the true MFM/RLL/ESDI drives/adapters 
-have become obsolete.
 
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers

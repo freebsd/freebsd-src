@@ -206,10 +206,6 @@ regex(3), rather than that of perl(1). [4.1.1]
 boot98cfg(8), a PC-98 boot manager installation and configuration
 utility, has been added. [4.1.1]
 
-Binutils have been upgraded to 2.10.0. [4.1.1]
-
-libreadline has been upgraded to 4.1. [4.1.1]
-
 The ifconfig(8) command can set the link-layer address of an
 interface.  [4.1.1]
 
@@ -303,7 +299,7 @@ cvs(1) has been updated to 1.11.
 ---------------------------
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA, MCA and PCI
 bus based PC's, ranging from 386sx to Pentium class machines (though the
-386sx is not recommended).  Support for generic IDE or ESDI drive
+386sx is not recommended).  Support for generic IDE drive
 configurations, various SCSI controller, network and serial cards is
 also provided.
 
@@ -314,8 +310,6 @@ received confirmation of this.
 
 2.1. Disk Controllers
 ---------------------
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
