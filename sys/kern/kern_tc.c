@@ -550,7 +550,6 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
-		u_int64_t delta;
 		/* magic, at its best... */
 		tcount = count - pps->ppscount[2];
 		pps->ppscount[2] = count;
