@@ -7,6 +7,11 @@
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
 # Moved to secure: bdes
 #
+
+.if ${MACHINE_ARCH} != "ia64"
+_xlint=	xlint
+.endif
+
 SUBDIR=	alias \
 	apply \
 	asa \
@@ -165,6 +170,7 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
+	truss \
 	tset \
 	tsort \
 	tty \
@@ -196,6 +202,7 @@ SUBDIR=	alias \
 	write \
 	xargs \
 	xinstall \
+	${_xlint} \
 	xstr \
 	yacc \
 	yes \
@@ -236,11 +243,6 @@ SUBDIR+=doscmd \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=uac
-.endif
-
-# Things which don't compile on new platforms yet:
-.if ${MACHINE_ARCH} != "ia64"
-SUBDIR+=truss xlint
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
