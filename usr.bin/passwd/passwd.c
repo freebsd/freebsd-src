@@ -216,6 +216,7 @@ main(argc, argv)
 		k = auth_getval("auth_list");
 		if (k && strstr(k, "kerberos"))
 		if(krb_get_lrealm(realm, 0) == KSUCCESS) {
+			setuid(getuid());
 			fprintf(stderr, "realm %s\n", realm);
 			exit(krb_passwd(argv[0], iflag, rflag, uflag));
 		}
