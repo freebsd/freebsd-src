@@ -362,7 +362,9 @@ _zget(vm_zone_t z)
 		panic("zget: null zone");
 
 	if (z->zflags & ZONE_INTERRUPT) {
-		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
+		nbytes = z->zpagecount * PAGE_SIZE;
+		nbytes -= nbytes % z->zsize;
+		item = (char *) z->zkva + nbytes;
 		for (i = 0; ((i < z->zalloc) && (z->zpagecount < z->zpagemax));
 		     i++) {
 			vm_offset_t zkva;
@@ -379,7 +381,7 @@ _zget(vm_zone_t z)
 			zone_kmem_pages++;
 			cnt.v_wire_count++;
 		}
-		nitems = (i * PAGE_SIZE) / z->zsize;
+		nitems = ((z->zpagecount * PAGE_SIZE) - nbytes) / z->zsize;
 	} else {
 		nbytes = z->zalloc * PAGE_SIZE;
 
