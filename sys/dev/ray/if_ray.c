@@ -63,42 +63,31 @@
  */
 
 /*
- *
  * Card configuration
  * ==================
  *
  * This card is unusual in that it uses both common and attribute
- * memory whilst working. The -stable versions of FreeBSD have a real
- * problem managing and setting up the correct memory maps. This
- * driver should reset the memory maps correctly under PAO and non-PAO
- * -stable systems. Work is in hand to fix these problems for -current.
+ * memory whilst working. It should use common memory and an IO port.
  *
- * The first fixes the brain deadness of pccardd (where it reads the
- * CIS for common memory, sets it all up and then throws it all away
- * assuming the card is an ed driver...). Note that this could be
- * dangerous (because it doesn't interact with pccardd) if you
- * use other memory mapped cards at the same time.
+ * The 3.x branch of FreeBSD has a real problem managing and setting
+ * up the correct memory maps. However, this driver should reset the
+ * memory maps correctly - it works around for the brain deadness of
+ * pccardd (where it reads the CIS for common memory, sets it all up
+ * and then throws it all away assuming the card is an ed driver...).
+ * Note that this could be dangerous (because it doesn't interact with
+ * pccardd) if you use other memory mapped cards at the same time.
  *
- * The second option ensures that common memory is remapped whenever
- * we are going to access it (we can't just do it once, as something
- * like pccardd may have read the attribute memory and pccard.c
- * doesn't re-map the last active window - it remaps the last
- * non-active window...).
+ * There is no support for running this driver on 4.0.
  *
+ * For >4.1 and -cuurent things are a lot better.
  *
  * Ad-hoc and infra-structure modes
  * ================================
  * 
  * At present only the ad-hoc mode is being worked on.
  *
- * Apart from just writing the code for infrastructure mode I have a
- * few concerns about both the Linux and NetBSD drivers in this area.
- * They don't seem to differentiate between the MAC address of the AP
- * and the BSS_ID of the network. I presume this is handled when
- * joining a managed n/w and the network parameters are updated, but
- * I'm not sure. How does this interact with ARP? For mobility we want
- * to be able to move around without worrying about which AP we are
- * actually talking to - we should always talk to the BSS_ID.
+ * I hope to start work on support for infrastructure when an AP arrives
+ * from FreeBSD Labs.
  *
  * The Linux driver also seems to have the capability to act as an AP.
  * I wonder what facilities the "AP" can provide within a driver? We can
@@ -154,119 +143,11 @@
  */
 
 /*
- * TODO
- *
- * _stop - mostly done
- *	would be nice to understand shutdown/or power save to prevent RX
- * _reset - done
- * 	just needs calling in the right places
- *	converted panics to resets - when tx packets are the wrong length
- *	may be needed in a couple of other places when I do more commands
- * havenet - mostly done
- *	i think i've got all the places to set it right, but not so sure
- *	we reset it in all the right places
- * _unload - done
- *	recreated most of stop but as card is unplugged don't try and
- *	access it to turn it off
- * TX bpf - done
- * RX bpf - done
- *	I would much prefer to have the complete 802.11 packet dropped to
- *	the bpf tap and then have a user land program parse the headers
- *	as needed. This way, tcpdump -w can be used to grab the raw data. If
- *	needed the 802.11 aware program can "translate" the .11 to ethernet
- *	for tcpdump -r
- * use std timeout code for download - done
- *	was mainly moving a call and removing a load of stuff in
- *	download_done as it duplicates check_ccs and ccs_done
- * promisoius - done
- * add the start_join_net - done
- *	i needed it anyway
- * remove startccs and startcmd - done
- *	as those were used for the NetBSD start timeout
- * multicast - done but UNTESTED
- *	I don't have the ability/facilty to test this
- * rxlevel - done
- *	stats reported via raycontrol
- * getparams ioctl - done
- *	reported via raycontrol
- * start_join_done needs a restart in download_done - done
- *	now use netbsd style start up
- * ioctls - done
- *	use raycontrol
- *	translation, BSS_ID, countrycode, changing mode
- * ifp->if_hdr length - done
- * rx level and antenna cache - done
- *	antenna not used yet
- * antenna tx side - done
- *	not tested!
- * shutdown - done
- *	the driver seems to do the right thing for plugging and unplugging
- *	cards
- * apm/resume - ignore
- *	apm+pccard is borken for 3.x - no one knows how to do it anymore
- * fix the XXX code in start_join_done - n/a
- *	i've removed this as the error handling should be consistent for
- *	all ECF commands and none of the other commands bother!
- * ray_update_params_done needs work - done
- *	as part of scheduler/promisc re-write
- * raycontrol to be firmware version aware - done
- *	also report and update parameters IOCTLs are version aware
- * make RAY_DPRINTFN RAY_DPRINTF - done
- * make all printfs RAY_PRINTF - done
- * faster TX routine - done
- *	see comments but OACTIVE is gone
- * __P to die - done
- *	the rest is ansi anyway
- * macroize the attribute read/write and 3.x driver - done
- *	like the SRAM macros?
- * rename "translation" to framing for consitency with Webgear - done
- * severe breakage with CCS allocation - done
- *	ccs are now allocated in a sleepable context with error recovery
- * resource allocation should be be in attach and not probe - done
- * resources allocated in probe hould be released before probe exits - done
- * softc and ifp in variable definition block - done
- * callout handles need rationalising. can probably remove sj_timerh - done
- * why can't download use sc_promisc? - done
- *	still use the specific update in _init to ensure that the state is
- *	right until promisc is moved into current/desired parameters
- * for ALLMULTI must go into PROMISC and filter unicast packets - done
- *	recent changes to ether_input mean I don't need this
- * IFF_RUNNING checks are they really needed? - done
- *	this whole area is circumspect as RUNNING is reflection of the
- *	driver state and is subject to waits etc.
- *	- need to return EIO from runq routines that check
- *	- now understood and I have to get the runq routines to
- *	  check as required
- *		init sequence is done
- *		stop sequence is done
- *		others are done
- * mcast code resurrection - done
- * remove ray_reset - done
- * detach needs to drain comq - done
- *	in fact we don't drain the comq just get the hell out asap
- * remember to ccs_free on error in _user routines - done
- *	not relevant anymore
- * macro for gone and check is at head of all externally called routines - done
- *	not relevant anymore
- * probably function/macro to test unload at top of commands - done
- * detach checks in all routines that access the card - done
- *	not relevant anymore as they won't be called by runq
- * reset in ray_init_user? - done
- *	no as I don't want to remove it (people can always cycle power
- *	from the command line)
- * check RECERRs and make sure that some are RAY_PRINTF not RAY_DPRINTF - done
- * _reset - check where needed - done
- * check and rationalise CM mappings - done
- * PCATCH tsleeps and have something that will clean the runq - done
- * tidy #includes - we cant need all of these - done
- * priorities for each tsleep - done
- * make RAY_DEBUG a knob somehow - either sysctl or IFF_DEBUG - done
- * splimp or splnet? - done
- * could do with selectively calling ray_mcast in ray_init - done
- *	just ensure that the list is reset
- *
  * ***watchdog to catch screwed up removals?
+ * ***error handling of RAY_COM_RUNQ
  * ***error handling of ECF command completions
+ * ***can't seem to create a n/w that Win95 wants to see.
+ * ***need decent association code
  * use /sys/net/if_ieee80211.h and update it
  * write up driver structure in comments above
  * UPDATE_PARAMS seems to return via an interrupt - maybe the timeout
@@ -285,16 +166,41 @@
  *	all ray_sj, ray_assoc sequencues need a "nicer" solution as we
  *		remember association and authentication
  *	need to consider WEP
- * acting as ap - should be able to get working from the manual
+ *	acting as ap - should be able to get working from the manual
+ *	need to finish RAY_ECMD_REJOIN_DONE
  *
  * ray_nw_param
  *	promisc in here too? - done
  *	should be able to update the parameters before we download to the
- *		device
+ *		device. This means we must attach a desired struct to the
+ *		runq entry and maybe have another big case statement to
+ *		move these desired into current when not running.
+ *		init must then use the current settings (pre-loaded
+ *		in attach now!) and pass to download. But we can't access
+ *		current nw params outside of the runq - ahhh
  * 	differeniate between parameters set in attach and init
  * 	sc_station_addr in here too (for changing mac address)
  * 	move desired into the command structure?
  *	take downloaded MIB from a complete nw_param?
+ *	longer term need to attach a desired nw params to the runq entry
+ *
+ *
+ * RAY_COM_RUNQ errors
+ *
+ * if sleeping in ccs_alloc with eintr/erestart/enxio/enodev
+ *	erestart	try again from the top
+ *			XXX do not malloc more comqs
+ *			XXX ccs allocation hard
+ *	eintr		clean up and return
+ *	enxio		clean up and return - done in macro
+ *
+ * if sleeping in runq_arr itself with eintr/erestart/enxio/enodev
+ *	erestart	try again from the top
+ *			XXX do not malloc more comqs
+ *			XXX ccs allocation hard
+ *			XXX reinsert comqs at head of list
+ *	eintr		clean up and return
+ *	enxio		clean up and return - done in macro
  */
 
 #define XXX		0
@@ -302,12 +208,11 @@
 #define XXX_INFRA	0
 #define XXX_8BIT	0
 #define RAY_DEBUG	(				\
- 			/* RAY_DBG_RECERR	| */	\
  			/* RAY_DBG_SUBR		| */ 	\
 			   RAY_DBG_BOOTPARAM	|    	\
-			   RAY_DBG_STARTJOIN	|   	\
+			/* RAY_DBG_STARTJOIN	| */ 	\
 			/* RAY_DBG_CCS		| */	\
-                           RAY_DBG_IOCTL	|   	\
+                        /* RAY_DBG_IOCTL	| */	\
                         /* RAY_DBG_MBUF		| */ 	\
                         /* RAY_DBG_RX		| */	\
                         /* RAY_DBG_CM		| */ 	\
@@ -325,7 +230,6 @@
  */
 #define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
 #define RAY_COM_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
-#define RAY_RESET_TIMEOUT	(5*hz)	/* Timeout for resetting the card */
 #define RAY_TX_TIMEOUT		(hz/2)	/* Timeout for rescheduling TX */
 /*
  * XXX build options - move to LINT
@@ -401,8 +305,8 @@ static void	ray_init_assoc		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_assoc_done	(struct ray_softc *sc, size_t ccs);
 static void	ray_init_download	(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_download_done	(struct ray_softc *sc, size_t ccs);
-static void	ray_init_download_v4	(struct ray_softc *sc);
-static void	ray_init_download_v5	(struct ray_softc *sc);
+static void	ray_init_download_v4	(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_init_download_v5	(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_mcast		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_sj		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_sj_done	(struct ray_softc *sc, size_t ccs);
@@ -426,6 +330,7 @@ static int	ray_res_alloc_irq	(struct ray_softc *sc);
 static void	ray_res_release		(struct ray_softc *sc);
 static void	ray_rx			(struct ray_softc *sc, size_t rcs);
 static void	ray_rx_ctl		(struct ray_softc *sc, struct mbuf *m0);
+static void	ray_rx_data		(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t antenna);
 static void	ray_rx_mgt		(struct ray_softc *sc, struct mbuf *m0);
 static void	ray_rx_mgt_auth		(struct ray_softc *sc, struct mbuf *m0);
 static void	ray_rx_update_cache	(struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna);
@@ -596,14 +501,12 @@ ray_attach(device_t dev)
 	 * reset a few things on the card.
 	 *
 	 * Do not update these in ray_init_download's parameter setup
+	 *
+	 * XXX see the ray_init_download section for stuff to move
 	 */
 	RAY_MAP_CM(sc);
-#if XXX
-	see the ray_init_download section for stuff to move
-#endif
 	bzero(&sc->sc_d, sizeof(struct ray_nw_param));
 	bzero(&sc->sc_c, sizeof(struct ray_nw_param));
-
 
 	/* Clear statistics counters */
 	sc->sc_rxoverflow = 0;
@@ -651,9 +554,6 @@ ray_attach(device_t dev)
 	callout_handle_init(&sc->tx_timerh);
 	TAILQ_INIT(&sc->sc_comq);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#if XXX
-	at_shutdown(ray_shutdown, sc, SHUTDOWN_POST_SYNC);
-#endif /* XXX */
 
 	/*
 	 * Print out some useful information
@@ -938,28 +838,6 @@ ray_init_user(struct ray_softc *sc)
 
 	return (error);
 }
-/*
-XXX
-runq_arr may fail:
-
-    if sleeping in ccs_alloc with eintr/erestart/enxio/enodev
-		erestart	try again from the top
-				XXX do not malloc more comqs
-				XXX ccs allocation hard
-    		eintr		clean up and return
-		enxio		clean up and return - done in macro
-
-    if sleeping in runq_arr itself with eintr/erestart/enxio/enodev
-		erestart	try again from the top
-				XXX do not malloc more comqs
-				XXX ccs allocation hard
-				XXX reinsert comqs at head of list
-    		eintr		clean up and return
-		enxio		clean up and return - done in macro
-
-    longer term need to attach a desired nw params to the runq entry
-
-*/
 
 /*
  * Runq entry for resetting driver and downloading start up structures to card
@@ -993,10 +871,9 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 	 *
 	 * All of the variables in these sets can be updated by the
 	 * card or ioctls.
+	 *
+	 * XXX see the ray_attach section for stuff to move
 	 */
-#if XXX
-	see the ray_attach section for stuff to move
-#endif
 	sc->sc_d.np_upd_param = 0;
 	bzero(sc->sc_d.np_bss_id, ETHER_ADDR_LEN);
 	sc->sc_d.np_inited = 0;
@@ -1014,13 +891,18 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 
 	sc->framing = SC_FRAMING_WEBGEAR;
 
+/* XXX this is a hack whilst I transition the code. The instance
+ * XXX variables above should be set somewhere else. This is needed for
+ * XXX start_join / 
+bcopy(&sc->sc_d, &com->c_desired, sizeof(struct ray_nw_param));
+	    
 	/*
 	 * Download the right firmware defaults
 	 */
 	if (sc->sc_version == RAY_ECFS_BUILD_4)
-		ray_init_download_v4(sc);
+		ray_init_download_v4(sc, com);
 	else
-		ray_init_download_v5(sc);
+		ray_init_download_v5(sc, com);
 
 	/*
 	 * Kick the card
@@ -1035,7 +917,7 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
  * Firmware version 4 defaults - see if_raymib.h for details
  */
 static void
-ray_init_download_v4(struct ray_softc *sc)
+ray_init_download_v4(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	struct ray_mib_4 ray_mib_4_default;
 
@@ -1044,9 +926,9 @@ ray_init_download_v4(struct ray_softc *sc)
 
 #define MIB4(m)		ray_mib_4_default.##m
 
-	MIB4(mib_net_type)		= sc->sc_d.np_net_type;
-	MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
-	bcopy(sc->sc_d.np_ssid, MIB4(mib_ssid), IEEE80211_NWID_LEN);
+	MIB4(mib_net_type)		= com->c_desired.np_net_type;
+	MIB4(mib_ap_status)		= com->c_desired.np_ap_status;
+	bcopy(com->c_desired.np_ssid, MIB4(mib_ssid), IEEE80211_NWID_LEN);
 	MIB4(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
 	MIB4(mib_apm_mode)		= RAY_MIB_APM_MODE_DEFAULT;
 	bcopy(sc->sc_station_addr, MIB4(mib_mac_addr), ETHER_ADDR_LEN);
@@ -1067,7 +949,7 @@ ray_init_download_v4(struct ray_softc *sc)
 	MIB4(mib_infra_scan_cycle)	= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
 	MIB4(mib_infra_super_scan_cycle)
 	 				= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
-	MIB4(mib_promisc)		= sc->sc_d.np_promisc;
+	MIB4(mib_promisc)		= com->c_desired.np_promisc;
    PUT2(MIB4(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
 	MIB4(mib_slot_time)		= RAY_MIB_SLOT_TIME_V4;
 	MIB4(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
@@ -1099,7 +981,7 @@ ray_init_download_v4(struct ray_softc *sc)
  * Firmware version 5 defaults - see if_raymib.h for details
  */
 static void
-ray_init_download_v5(struct ray_softc *sc)
+ray_init_download_v5(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	struct ray_mib_5 ray_mib_5_default;
 
@@ -1107,9 +989,9 @@ ray_init_download_v5(struct ray_softc *sc)
 	RAY_MAP_CM(sc);
 
 #define MIB5(m)		ray_mib_5_default.##m
-	MIB5(mib_net_type)		= sc->sc_d.np_net_type;
-	MIB5(mib_ap_status)		= sc->sc_d.np_ap_status;
-	bcopy(sc->sc_d.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
+	MIB5(mib_net_type)		= com->c_desired.np_net_type;
+	MIB5(mib_ap_status)		= com->c_desired.np_ap_status;
+	bcopy(com->c_desired.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
 	MIB5(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
 	MIB5(mib_apm_mode)		= RAY_MIB_APM_MODE_DEFAULT;
 	bcopy(sc->sc_station_addr, MIB5(mib_mac_addr), ETHER_ADDR_LEN);
@@ -1130,7 +1012,7 @@ ray_init_download_v5(struct ray_softc *sc)
 	MIB5(mib_infra_scan_cycle)	= RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT;
 	MIB5(mib_infra_super_scan_cycle)
 	 				= RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT;
-	MIB5(mib_promisc)		= sc->sc_d.np_promisc;
+	MIB5(mib_promisc)		= com->c_desired.np_promisc;
    PUT2(MIB5(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
 	MIB5(mib_slot_time)		= RAY_MIB_SLOT_TIME_V5;
 	MIB5(mib_roam_low_snr_thresh)	= RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT;
@@ -1153,9 +1035,9 @@ ray_init_download_v5(struct ray_softc *sc)
 	MIB5(mib_test_min_chan)	= RAY_MIB_TEST_MIN_CHAN_DEFAULT;
 	MIB5(mib_test_max_chan)	= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
 	MIB5(mib_allow_probe_resp)	= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
-	MIB5(mib_privacy_must_start)	= sc->sc_d.np_priv_start;
-	MIB5(mib_privacy_can_join)	= sc->sc_d.np_priv_join;
-	MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
+	MIB5(mib_privacy_must_start)	= com->c_desired.np_priv_start;
+	MIB5(mib_privacy_can_join)	= com->c_desired.np_priv_join;
+	MIB5(mib_basic_rate_set[0])	= com->c_desired.np_def_txrate;
 #undef MIB5
 
 	SRAM_WRITE_REGION(sc, RAY_HOST_TO_ECF_BASE,
@@ -1172,14 +1054,6 @@ ray_init_download_done(struct ray_softc *sc, size_t ccs)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_COM_CHECK(sc, ccs);
 
-	/*
-	 * Copy the downloaded desired parameters to the current set
-	 *
-	 * XXX these potentially break serialisation until we attach the
-	 * XXX desired parameters to the runq
-	 */
-	bcopy(&sc->sc_d, &sc->sc_c, sizeof(struct ray_nw_param));
-	    
 	ray_com_ecf_done(sc);
 }
 
@@ -1227,9 +1101,6 @@ ray_init_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 
 	/*
 	 * If card already running we don't need to start the n/w.
-	 *
-	 * XXX When we cope with errors and re-call this routine we
-	 * XXX need better checking
 	 */
 	if ((com->c_flags & RAY_COM_FCHKRUNNING) &&
 	    (ifp->if_flags & IFF_RUNNING)) {
@@ -1340,9 +1211,6 @@ ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 
 	/*
 	 * If card already running we don't need to associate.
-	 *
-	 * XXX When we cope with errors and re-call this routine we
-	 * XXX need better checking
 	 */
 	if ((com->c_flags & RAY_COM_FCHKRUNNING) &&
 	    (ifp->if_flags & IFF_RUNNING)) {
@@ -1700,12 +1568,8 @@ ray_tx_send(struct ray_softc *sc, size_t ccs, u_int8_t pktlen, u_int8_t *dst)
 
 	if (!RAY_ECF_READY(sc)) {
 		/*
-		 * XXX From NetBSD code:
-		 *
 		 * XXX If this can really happen perhaps we need to save
-		 * XXX the chain and use it later.  I think this might
-		 * XXX be a confused state though because we check above
-		 * XXX and don't issue any commands between.
+		 * XXX the chain and use it later.
 		 */
 		RAY_RECERR(sc, "ECF busy, dropping packet");
 		RAY_CCS_FREE(sc, ccs);
@@ -1795,14 +1659,13 @@ static void
 ray_rx(struct ray_softc *sc, size_t rcs)
 {
 	struct ieee80211_header *header;
-	struct ether_header *eh;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m0;
 	size_t pktlen, fraglen, readlen, tmplen;
 	size_t bufp, ebufp;
-	u_int8_t *dst, *src;
 	u_int8_t siglev, antenna;
 	u_int first, ni, i;
+	u_int8_t *dst;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -1911,10 +1774,8 @@ skip_read:
 		return;
 
 	/*
-	 * Check the 802.11 packet type
-	 *
-	 * DATA packets are dealt with below, CTL and MGT packets
-	 * are handled in their own functions.
+	 * Check the 802.11 packet type and hand off to
+	 * appropriate functions.
 	 */
 	header = mtod(m0, struct ieee80211_header *);
 	if ((header->i_fc[0] & IEEE80211_FC0_VERSION_MASK)
@@ -1927,29 +1788,61 @@ skip_read:
 	}
 	switch (header->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
 
+	case IEEE80211_FC0_TYPE_DATA:
+		ray_rx_data(sc, m0, siglev, antenna);
+		break;
+
 	case IEEE80211_FC0_TYPE_MGT:
 		ray_rx_mgt(sc, m0);
-		m_freem(m0);
-		return;
 		break;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		ray_rx_ctl(sc, m0);
-		m_freem(m0);
-		return;
-		break;
-
-	case IEEE80211_FC0_TYPE_DATA:
 		break;
 
 	default:
 		RAY_RECERR(sc, "unknown packet fc0 0x%x", header->i_fc[0]);
 		ifp->if_ierrors++;
 		m_freem(m0);
-		return;
-
 	}
-	
+}
+
+/*
+ * Deal with DATA packet types
+ */
+static void
+ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t antenna)
+{
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
+	struct ether_header *eh;
+	u_int8_t *src;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
+
+	/*
+	 * Obtain the .11 src addresses.
+	 */
+	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
+
+	case IEEE80211_FC1_STA_TO_STA:
+		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta %6D", src, ":");
+		src = header->i_addr2;
+		break;
+
+	case IEEE80211_FC1_AP_TO_STA:
+		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from ap %6D", src, ":");
+		src = header->i_addr3;
+		break;
+
+	default:
+		RAY_RECERR(sc, "DATA TODS/FROMDS wrong fc1 0x%x",
+		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
+		ifp->if_ierrors++;
+		m_freem(m0);
+		return;
+	}
+
 	/*
 	 * Check the the data packet subtype, some packets have
 	 * nothing in them so we will drop them here.
@@ -1981,49 +1874,6 @@ skip_read:
 	}
 
 	/*
-	 * Obtain the .11 src addresses.
-	 *
-	 * XXX This needs some work for INFRA mode
-	 * XXX Do I need this at all? MGT and CTL is far easier.
-	 */
-	src = header->i_addr2;
-	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
-
-	case IEEE80211_FC1_STA_TO_STA:
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta %6D",
-		    src, ":");
-		break;
-
-	case IEEE80211_FC1_STA_TO_AP:	/* XXX XXX_ACTING_AP */
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta to ap %6D %6D",
-		    src, ":", header->i_addr3, ":");
-		ifp->if_ierrors++;
-		m_freem(m0);
-		break;
-
-	case IEEE80211_FC1_AP_TO_STA:	/* XXX_INFRA */
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from ap %6D",
-		    src, ":");
-		ifp->if_ierrors++;
-		m_freem(m0);
-		break;
-
-	case IEEE80211_FC1_AP_TO_AP:	/* XXX XXX_ACTING_AP */
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet between aps %6D %6D",
-		    src, ":", header->i_addr2, ":");
-		ifp->if_ierrors++;
-		m_freem(m0);
-		return;
-		break;
-
-	default:
-		RAY_RECERR(sc, "unknown packet fc1 0x%x", header->i_fc[1]);
-		ifp->if_ierrors++;
-		m_freem(m0);
-		return;
-	}
-
-	/*
 	 * Translation - capability as described earlier
 	 *
 	 * Each case must remove the 802.11 header and leave an 802.3
@@ -2042,7 +1892,6 @@ skip_read:
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
-
 	}
 
 	/*
@@ -2054,8 +1903,6 @@ skip_read:
 	eh = mtod(m0, struct ether_header *);
 	m_adj(m0, sizeof(struct ether_header));
 	ether_input(ifp, eh, m0);
-
-	return;
 }
 
 /*
@@ -2074,6 +1921,7 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 		RAY_RECERR(sc, "MGT TODS/FROMDS wrong fc1 0x%x",
 		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
 		ifp->if_ierrors++;
+		m_freem(m0);
 		return;
 	}
 
@@ -2117,32 +1965,28 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 
  	case IEEE80211_FC0_SUBTYPE_MGT_DEAUTH:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "DEAUTH MGT packet");
+		/* XXX ray_rx_mgt_deauth(sc, m0); */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_REQ:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_REQ MGT packet");
-		if (sc->sc_c.np_ap_status != RAY_MIB_AP_STATUS_AP)
-			return;
-		else
+		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
+		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
 			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 			
  	case IEEE80211_FC0_SUBTYPE_MGT_ASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_MGT_REASSOC_RESP:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_RESP MGT packet");
-		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC) ||
-		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
-			return;
-		else
+		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
+		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL))
 			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_MGT_DISASSOC:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "DISASSOC MGT packet");
-		if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
-			return;
-		else
+		if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA)
 			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
@@ -2158,8 +2002,9 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 		RAY_RECERR(sc, "reserved MGT packet subtype 0x%x",
 		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		ifp->if_ierrors++;
-		return;
 	}
+
+	m_freem(m0);
 }
 
 /*
@@ -2251,6 +2096,7 @@ ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 		RAY_RECERR(sc, "CTL TODS/FROMDS wrong fc1 0x%x",
 		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
 		ifp->if_ierrors++;
+		m_freem(m0);
 		return;
 	}
 
@@ -2265,9 +2111,8 @@ ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 
 	case IEEE80211_FC0_SUBTYPE_CTL_PS_POLL:
 		RAY_DPRINTF(sc, RAY_DBG_CTL, "PS_POLL CTL packet");
-		if (sc->sc_c.np_ap_status != RAY_MIB_AP_STATUS_AP)
-			return;
-		else
+		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
+		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
 			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 
@@ -2285,8 +2130,9 @@ ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 		RAY_RECERR(sc, "reserved CTL packet subtype 0x%x",
 		    header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 		ifp->if_ierrors++;
-		return;
 	}
+
+	m_freem(m0);
 }
 
 /*
@@ -2676,6 +2522,9 @@ ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 
 /*
  * User land entry to parameter reporting
+ *
+ * As we by pass the runq to report current parameters this function
+ * only provides a snap shot of the driver's state.
  */
 static int
 ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
@@ -2874,11 +2723,8 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
 	/*
-	 * Handle certain parameters specially
-	 *
-	 * XXX Do I want a field to skip start/join in the command?
+	 * Check that the parameter is available based on firmware version
 	 */
-	todo = 0;
 	pr->r_failcause = 0;
 	if (pr->r_paramid > RAY_MIB_LASTUSER)
 		return (EINVAL);
@@ -2888,6 +2734,11 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	if ((sc->sc_version == RAY_ECFS_BUILD_5) &&
 	    !(mib_info[pr->r_paramid][0] & RAY_V5))
 		return (EINVAL);
+
+	/*
+	 * Handle certain parameters specially
+	 */
+	todo = 0;
 	switch (pr->r_paramid) {
 	case RAY_MIB_NET_TYPE:		/* Updated via START_NET JOIN_NET  */
 		sc->sc_d.np_net_type = *pr->r_data;
@@ -2917,7 +2768,7 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 		break;
 
 	case RAY_MIB_AP_STATUS:	/* Unsupported */
-	case RAY_MIB_MAC_ADDR:	/* XXX Need interface up */
+	case RAY_MIB_MAC_ADDR:	/* XXX Need interface up but could be done */
 	case RAY_MIB_PROMISC:	/* BPF */
 		return (EINVAL);
 		break;
@@ -2928,6 +2779,9 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 		break;
 	}
 
+	/*
+	 * Generate the runq entries as needed
+	 */
 	ncom = 0;
 	if (todo & RAY_UPP_PARAMS) {
 		com[ncom++] = RAY_COM_MALLOC(ray_upparams, 0);
@@ -3202,18 +3056,8 @@ ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 	RAY_MAP_CM(sc);
 
-#if RAY_DEBUG & RAY_DBG_COM
-	if (com != TAILQ_FIRST(&sc->sc_comq))
-		RAY_PANIC(sc, "com and head of queue");
-#endif /* RAY_DEBUG & RAY_DBG_COM */
-
 	/*
-	 * XXX other drivers did this, but I think 
-	 * XXX what we really want to do is just make sure we don't
-	 * XXX get here or that spinning is ok
-	 *
-	 * XXX actually we probably want to call a timeout on
-	 * XXX ourself here...
+	 * XXX we probably want to call a timeout on ourself here...
 	 */
 	i = 0;
 	while (!RAY_ECF_READY(sc))
@@ -3258,10 +3102,6 @@ ray_com_ecf_timo(void *xsc)
 	RAY_MAP_CM(sc);
 
 	com = TAILQ_FIRST(&sc->sc_comq);
-#if RAY_DEBUG & RAY_DBG_COM /* XXX get rid of this at some point or make it KASSERT */
-	if (com == NULL)
-		RAY_PANIC(sc, "no command queue");
-#endif /* RAY_DEBUG & RAY_DBG_COM */
 
 	cmd = SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_cmd);
 	switch (SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_status)) {
@@ -3541,7 +3381,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 		RAY_RECERR(sc, "Cannot allocate common memory");
 		return (ENOMEM);
 	}
-	/* XXX Ensure 8bit access */
+	/* XXX Ensure 8bit access somehow */
 #if XXX_8BIT
 	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 	    SYS_RES_MEMORY, sc->cm_rid, 2); /* XXX card_set_res_flags */
