@@ -1142,7 +1142,7 @@ again:
   if (nlp->fake)
     {
       if (nlp->change_dir && chdir (nlp->change_dir))
-	msg_perror ("Can't change to directory %d", nlp->change_dir);
+	msg_perror ("Can't change to directory %s", nlp->change_dir);
       namelist = 0;
       return 1;
     }
