@@ -44,6 +44,7 @@
 #	scd*	"sony cdrom disks"
 #	matcd*	"Matsushita (panasonic) cdrom disks"
 #	vn*	"vnode disks"
+#	od*	"optical disks"
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -87,7 +88,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.101 1995/08/13 22:05:51 peter Exp $
+#	$Id: MAKEDEV,v 1.102 1995/08/18 11:29:05 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -224,12 +225,13 @@ wt*)
 	;;
 
 # Individual slices.
-sd*s*|vn*s*|wd*s*)
+sd*s*|vn*s*|wd*s*|od*s*)
 	umask 37
 	case $i in
 	sd*s*) name=sd; blk=4;  chr=13;;
 	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
+	od*s*) name=od; blk=20; chr=70;;
 	esac
 	unit=`expr $i : '..\([0-9]*\)s'`
 	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
@@ -388,12 +390,13 @@ ft*)
 	umask 77
 	;;
 
-sd*|vn*|wd*)
+sd*|vn*|wd*|od*)
 	umask 37
 	case $i in
 	sd*) name=sd; blk=4;  chr=13;;
 	wd*) name=wd; blk=0;  chr=3;;
 	vn*) name=vn; blk=15; chr=43;;
+	od*) name=od; blk=20; chr=70;;
 	esac
 	unit=`expr $i : '..\(.*\)'`
 	case $unit in
@@ -403,7 +406,7 @@ sd*|vn*|wd*)
 			sh MAKEDEV $name$unit$slicepartname
 		done
 		case $name in
-		sd)
+		sd|od)
 			rm -f r${name}${unit}.ctl
 			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
 			chmod 600 r${name}${unit}.ctl
