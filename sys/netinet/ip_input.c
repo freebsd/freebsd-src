@@ -39,7 +39,6 @@
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_pfil_hooks.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -134,6 +133,11 @@ static int	ip_sendsourcequench = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
 	&ip_sendsourcequench, 0,
 	"Enable the transmission of source quench packets");
+
+int	ip_do_randomid = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
+	&ip_do_randomid, 0,
+	"Assign random ip_id values");
 
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
@@ -281,9 +285,7 @@ ip_init()
 	maxnipq = nmbclusters / 32;
 	maxfragsperpacket = 16;
 
-#ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
-#endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);

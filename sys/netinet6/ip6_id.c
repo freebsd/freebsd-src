@@ -86,8 +86,6 @@
  * This avoids reuse issues caused by reseeding.
  */
 
-#include "opt_random_ip_id.h"
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -99,8 +97,6 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-
-#ifdef RANDOM_IP_ID
 
 #ifndef INT32_MAX
 #define INT32_MAX	0x7fffffffU
@@ -267,5 +263,3 @@ ip6_randomflowlabel(void)
 
 	return randomid(&randomtab_20) & 0xfffff;
 }
-
-#endif /* RANDOM_IP_ID */

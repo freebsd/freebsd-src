@@ -30,7 +30,6 @@
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_random_ip_id.h"
 #endif
 
 #ifndef __FreeBSD__
@@ -106,10 +105,6 @@ struct pfsync_softc	pfsyncif;
 #endif
 int			pfsync_sync_ok;
 struct pfsyncstats	pfsyncstats;
-
-#ifndef RANDOM_IP_ID
-extern u_int16_t	 ip_randomid(void);
-#endif
 
 #ifdef __FreeBSD__
 

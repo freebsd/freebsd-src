@@ -37,7 +37,6 @@
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_pfil_hooks.h"
-#include "opt_random_ip_id.h"
 #include "opt_mbuf_stress_test.h"
 
 #include <sys/param.h>
@@ -216,11 +215,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-#ifdef RANDOM_IP_ID
-		ip->ip_id = ip_randomid();
-#else
-		ip->ip_id = htons(ip_id++);
-#endif
+		ip->ip_id = ip_newid();
 		ipstat.ips_localout++;
 	} else {
 		hlen = ip->ip_hl << 2;

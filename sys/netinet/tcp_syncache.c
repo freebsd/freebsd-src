@@ -38,7 +38,6 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
-#include "opt_random_ip_id.h"
 #include "opt_tcpdebug.h"
 #include "opt_tcp_sack.h"
 
@@ -958,11 +957,7 @@ syncache_add(inc, to, th, sop, m)
 		if (inc->inc_isipv6 &&
 		    (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)) {
 			sc->sc_flowlabel =
-#ifdef RANDOM_IP_ID
 			    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
-#else
-			    (htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
-#endif
 		}
 #endif
 	}

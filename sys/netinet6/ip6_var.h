@@ -283,9 +283,6 @@ struct ip6aux {
 #define	IPV6_MINMTU		0x04	/* use minimum MTU (IPV6_USE_MIN_MTU) */
 
 extern struct	ip6stat ip6stat;	/* statistics */
-#ifndef RANDOM_IP_ID
-extern u_int32_t ip6_id;		/* fragment identifier */
-#endif
 extern int	ip6_defhlim;		/* default hop limit */
 extern int	ip6_defmcasthlim;	/* default multicast hop limit */
 extern int	ip6_forwarding;		/* act as router? */
@@ -309,9 +306,6 @@ extern time_t	ip6_log_time;
 extern int	ip6_hdrnestlimit; /* upper limit of # of extension headers */
 extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
 
-#ifndef RANDOM_IP_ID
-extern u_int32_t ip6_flow_seq;
-#endif
 extern int ip6_auto_flowlabel;
 extern int ip6_auto_linklocal;
 
@@ -399,10 +393,8 @@ struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *,
 int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **, int));
-#ifdef RANDOM_IP_ID
 u_int32_t ip6_randomid __P((void));
 u_int32_t ip6_randomflowlabel __P((void));
-#endif
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_VAR_H_ */

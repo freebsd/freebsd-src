@@ -30,7 +30,6 @@
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_random_ip_id.h"	/* or ip_var does not export it */
 #include "opt_pf.h"
 #define	NPFLOG DEV_PFLOG
 #else
@@ -168,9 +167,6 @@ RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 /* Private prototypes */
-#ifndef RANDOM_IP_ID
-extern u_int16_t	 ip_randomid(void);
-#endif
 void			 pf_ip2key(struct pf_fragment *, struct ip *);
 void			 pf_remove_fragment(struct pf_fragment *);
 void			 pf_flush_fragments(void);
