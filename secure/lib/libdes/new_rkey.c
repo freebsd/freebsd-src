@@ -77,14 +77,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: new_rnd_key.c,v 1.1 1995/09/16 21:01:51 mark Exp $
+ * $Id: new_rkey.c,v 1.1.1.1 1996/02/10 15:32:24 markm Exp $
  */
 
 /* 21-Nov-95 - eay - I've finally put this into libdes, I have made a
  * few changes since it need to compile on all version of unix and
  * there were a few things that would not :-) */
 
-#incldue <stdio.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/param.h>
