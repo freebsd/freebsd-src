@@ -464,7 +464,7 @@ case "${RERUN}" in
       make DESTDIR=${TEMPROOT} distrib-dirs &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
-          -DNO_MAKEDEV distribution;} ||
+          -DNO_MAKEDEV_RUN distribution;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
