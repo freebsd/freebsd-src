@@ -344,10 +344,8 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	error = 0;
 	pgrp = NULL;
 
-	mtx_lock(&Giant);
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
-	mtx_unlock(&Giant);
 
 	sx_xlock(&proctree_lock);
 
@@ -364,14 +362,10 @@ setsid(register struct thread *td, struct setsid_args *uap)
 
 	sx_xunlock(&proctree_lock);
 
-	if (newpgrp != NULL || newsess != NULL) {
-		mtx_lock(&Giant);
-		if (newpgrp != NULL)
-			FREE(newpgrp, M_PGRP);
-		if (newsess != NULL)
-			FREE(newsess, M_SESSION);
-		mtx_unlock(&Giant);
-	}
+	if (newpgrp != NULL)
+		FREE(newpgrp, M_PGRP);
+	if (newsess != NULL)
+		FREE(newsess, M_SESSION);
 
 	return (error);
 }
@@ -413,9 +407,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	error = 0;
 
-	mtx_lock(&Giant);
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-	mtx_unlock(&Giant);
 
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
@@ -479,11 +471,8 @@ done:
 	sx_xunlock(&proctree_lock);
 	KASSERT((error == 0) || (newpgrp != NULL),
 	    ("setpgid failed and newpgrp is NULL"));
-	if (newpgrp != NULL) {
-		mtx_lock(&Giant);
+	if (newpgrp != NULL)
 		FREE(newpgrp, M_PGRP);
-		mtx_unlock(&Giant);
-	}
 	return (error);
 }
 
