@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniip.c,v 1.1 1998/09/15 08:23:10 phk Exp $
+ *	@(#) $Id: uniip.c,v 1.2 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniip.c,v 1.1 1998/09/15 08:23:10 phk Exp $");
+__RCSID("@(#) $Id: uniip.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 
@@ -68,7 +68,7 @@ struct ip_serv	uniip_ipserv = {
 	uniarp_svcactive,
 	uniarp_vcclose,
 	NULL,
-	{ATM_AAL5, ATM_ENC_LLC},
+	{ { ATM_AAL5, ATM_ENC_LLC} },
 };
 
 

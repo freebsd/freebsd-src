@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.38 1998/10/31 15:31:24 peter Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.39 1998/12/07 21:58:35 archie Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -911,9 +911,9 @@ loop:
 		nvp = vp->v_mntvnodes.le_next;
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
-		    (dep->de_flag &
+		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY)) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

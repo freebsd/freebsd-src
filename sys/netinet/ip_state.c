@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.3 1998/06/20 18:37:51 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.4 1998/11/26 18:54:52 eivind Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -478,8 +478,8 @@ u_short sp, dp;
 		     (!out && is->is_ifpin == ifp)) &&
 		    (is->is_dst.s_addr == dst.s_addr) &&
 		    (is->is_src.s_addr == src.s_addr) &&
-		    (!tcp || (sp == is->is_sport) &&
-		     (dp == is->is_dport))) {
+		    (!tcp || ((sp == is->is_sport) &&
+		     (dp == is->is_dport)))) {
 			ret = 1;
 		}
 	} else {
@@ -487,8 +487,8 @@ u_short sp, dp;
 		     (!out && is->is_ifpout == ifp)) &&
 		    (is->is_dst.s_addr == src.s_addr) &&
 		    (is->is_src.s_addr == dst.s_addr) &&
-		    (!tcp || (sp == is->is_dport) &&
-		     (dp == is->is_sport))) {
+		    (!tcp || ((sp == is->is_dport) &&
+		     (dp == is->is_sport)))) {
 			ret = 1;
 		}
 	}

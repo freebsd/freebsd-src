@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.70 1999/01/05 18:49:58 eivind Exp $
+ * $Id: nfs_subs.c,v 1.71 1999/01/21 08:29:07 dillon Exp $
  */
 
 /*
@@ -1254,7 +1254,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	if (error = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, &cp2))
+	if ((error = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, &cp2)) != 0)
 		return (error);
 	fp = (struct nfs_fattr *)cp2;
 	if (v3) {
@@ -2032,7 +2032,7 @@ netaddr_match(family, haddr, nam)
 	return (0);
 }
 
-static nfsuint64 nfs_nullcookie = { 0, 0 };
+static nfsuint64 nfs_nullcookie = { { 0, 0 } };
 /*
  * This function finds the directory cookie that corresponds to the
  * logical byte offset given.

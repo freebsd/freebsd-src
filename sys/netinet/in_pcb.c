@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.45 1998/09/17 18:42:16 fenner Exp $
+ *	$Id: in_pcb.c,v 1.46 1998/12/07 21:58:37 archie Exp $
  */
 
 #include <sys/param.h>
@@ -439,7 +439,7 @@ in_pcbconnect(inp, nam, p)
 	/*
 	 *   Call inner routine, to assign local interface address.
 	 */
-	if (error = in_pcbladdr(inp, nam, &ifaddr))
+	if ((error = in_pcbladdr(inp, nam, &ifaddr)) != 0)
 		return(error);
 
 	if (in_pcblookup_hash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,

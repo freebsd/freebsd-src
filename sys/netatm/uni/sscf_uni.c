@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni.c,v 1.3 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: sscf_uni.c,v 1.4 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/sscf_uni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sscf_uni.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
+__RCSID("@(#) $Id: sscf_uni.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -107,7 +107,7 @@ sscf_uni_start()
 	/*
 	 * Register stack service
 	 */
-	if (err = atm_stack_register(&sscf_uni_service))
+	if ((err = atm_stack_register(&sscf_uni_service)) != 0)
 		goto done;
 
 done:

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_subr.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: atm_subr.c,v 1.3 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_subr.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: atm_subr.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -54,7 +54,7 @@ struct ifqueue		atm_intrq;
 #ifdef sgi
 int			atm_intr_index;
 #endif
-struct atm_sock_stat	atm_sock_stat = {0};
+struct atm_sock_stat	atm_sock_stat = { { 0 } };
 int			atm_init = 0;
 int			atm_debug = 0;
 int			atm_dev_print = 0;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.36 1998/12/04 22:54:51 archie Exp $
+ * $Id: kernfs_vnops.c,v 1.37 1998/12/07 21:58:31 archie Exp $
  */
 
 /*
@@ -293,8 +293,8 @@ found:
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_lookup: allocate new vnode\n");
 #endif
-	if (error = getnewvnode(VT_KERNFS, dvp->v_mount, kernfs_vnodeop_p,
-	    &fvp)) {
+	if ((error = getnewvnode(VT_KERNFS, dvp->v_mount, kernfs_vnodeop_p,
+	    &fvp)) != 0) {
 		vn_lock(dvp, LK_SHARED | LK_RETRY, p);
 		return (error);
 	}
@@ -466,7 +466,7 @@ kernfs_read(ap)
 #endif
 
 	len = 0;
-	if (error = kernfs_xread(kt, strbuf, sizeof(strbuf), &len))
+	if ((error = kernfs_xread(kt, strbuf, sizeof(strbuf), &len)) != 0)
 		return (error);
 	if (len <= off)
 		return (0);
@@ -497,7 +497,7 @@ kernfs_write(ap)
 		return (EINVAL);
 
 	xlen = min(uio->uio_resid, KSTRING-1);
-	if (error = uiomove(strbuf, xlen, uio))
+	if ((error = uiomove(strbuf, xlen, uio)) != 0)
 		return (error);
 
 	if (uio->uio_resid != 0)
@@ -566,7 +566,7 @@ kernfs_readdir(ap)
 		/*
 		 * And ship to userland
 		 */
-		if (error = uiomove((caddr_t)dp, UIO_MX, uio))
+		if ((error = uiomove((caddr_t)dp, UIO_MX, uio)) != 0)
 			break;
 	}
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: sigpvc_if.c,v 1.4 1999/01/19 23:11:39 mks Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/sigpvc/sigpvc_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
+__RCSID("@(#) $Id: sigpvc_if.c,v 1.4 1999/01/19 23:11:39 mks Exp $");
 #endif
 
 
@@ -639,7 +639,7 @@ sigpvc_ioctl(code, data, arg1)
 			/*
 			 * Copy data to user buffer and update buffer info
 			 */
-			if (err = copyout((caddr_t)&avr, cp, sizeof(avr)))
+			if ((err = copyout((caddr_t)&avr, cp, sizeof(avr))) != 0)
 				break;
 			cp += sizeof(avr);
 			space -= sizeof(avr);

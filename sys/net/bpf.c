@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.45 1998/11/11 10:04:09 truckman Exp $
+ * $Id: bpf.c,v 1.46 1998/12/07 21:58:36 archie Exp $
  */
 
 #include "bpfilter.h"
@@ -985,7 +985,7 @@ bpf_ifname(ifp, ifr)
 	char *s = ifp->if_name;
 	char *d = ifr->ifr_name;
 
-	while (*d++ = *s++)
+	while ((*d++ = *s++) != 0)
 		continue;
 	d--; /* back to the null */
 	/* XXX Assume that unit number is less than 10. */

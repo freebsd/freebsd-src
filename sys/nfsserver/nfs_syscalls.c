@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.43 1998/09/01 02:31:52 luoqi Exp $
+ * $Id: nfs_syscalls.c,v 1.44 1998/12/07 21:58:44 archie Exp $
  */
 
 #include <sys/param.h>
@@ -791,7 +791,7 @@ nfsrv_zapsock(slp)
 		if (slp->ns_nam)
 			FREE(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
-		while (rec = STAILQ_FIRST(&slp->ns_rec)) {
+		while ((rec = STAILQ_FIRST(&slp->ns_rec)) != NULL) {
 			STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
 			if (rec->nr_address)
 				FREE(rec->nr_address, M_SONAME);

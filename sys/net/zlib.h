@@ -1,4 +1,4 @@
-/*	$Id: zlib.h,v 1.3 1997/08/19 14:10:50 peter Exp $	*/
+/*	$Id: zlib.h,v 1.4 1998/03/21 20:56:16 peter Exp $	*/
 
 /*
  * This file is derived from zlib.h and zconf.h from the zlib-1.0.4
@@ -281,7 +281,7 @@ typedef struct z_stream_s {
     uInt     avail_out; /* remaining free space at next_out */
     uLong    total_out; /* total nb of bytes output so far */
 
-    char     *msg;      /* last error message, NULL if no error */
+    const char     *msg; /* last error message, NULL if no error */
     struct internal_state FAR *state; /* not visible by applications */
 
     alloc_func zalloc;  /* used to allocate the internal state */
