@@ -93,7 +93,7 @@ VNODEOP_SET(udf_vnodeop_opv_desc);
 MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
 MALLOC_DEFINE(M_UDFDS, "UDF DS", "UDF Dirstream structure");
 
-#define INVALID_BMAP	-1
+#define UDF_INVALID_BMAP	-1
 
 /* Look up a udf_node based on the ino_t passed in and return it's vnode */
 int
@@ -567,7 +567,10 @@ udf_getfid(struct udf_dirstream *ds)
 		}
 	}
 
-	/* XXX Is this the right place for this? */
+	/*
+	 * Clean up from a previous fragmented FID.
+	 * XXX Is this the right place for this?
+	 */
 	if (ds->fid_fragment && ds->buf != NULL) {
 		ds->fid_fragment = 0;
 		FREE(ds->buf, M_UDFFID);
@@ -644,7 +647,7 @@ udf_getfid(struct udf_dirstream *ds)
 
 	/*
 	 * Update the offset. Align on a 4 byte boundary because the
-	 * UDF spec says so.  If it was a fragmented entry, clean up.
+	 * UDF spec says so.
 	 */
 	ds->this_off = ds->off;
 	if (!ds->fid_fragment) {
@@ -715,9 +718,7 @@ udf_readdir(struct vop_readdir_args *a)
 
 	/*
 	 * Iterate through the file id descriptors.  Give the parent dir
-	 * entry special attention.  size will be the size of the extent
-	 * returned in data.  If there is more than one extent, things get
-	 * ugly.
+	 * entry special attention.
 	 */
 	ds = udf_opendir(node, uio->uio_offset, node->fentry->inf_len,
 	    node->udfmp);
@@ -918,10 +919,6 @@ udf_lookup(struct vop_cachedlookup_args *a)
 		nchstats.ncs_2passes++;
 	}
 
-	/*
-	 * The name lookup algorithm is quite similar to what is in readdir.
-	 * Can this be broken out and shared?
-	 */
 lookloop:
 	ds = udf_opendir(node, offset, fsize, udfmp);
 
@@ -1057,7 +1054,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 	udfmp = node->udfmp;
 
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
-	if (error == INVALID_BMAP) {
+	if (error == UDF_INVALID_BMAP) {
 		/*
 		 * This error means that the file *data* is stored in the
 		 * allocation descriptor field of the file entry.
@@ -1176,7 +1173,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		*max_size = 0;
 		*sector = node->hash_id + udfmp->part_start;
 
-		return (INVALID_BMAP);
+		return (UDF_INVALID_BMAP);
 	case 2:
 		/* DirectCD does not use extended_ad's */
 	default:
