@@ -192,6 +192,9 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
 	int incr;
 
+	bzero(&object->mtx, sizeof(object->mtx));
+	mtx_init(&object->mtx, "vm object", NULL, MTX_DEF);
+
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
@@ -611,6 +614,7 @@ vm_object_terminate(vm_object_t object)
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
 	mtx_unlock(&vm_object_list_mtx);
 
+	mtx_destroy(&object->mtx);
 	wakeup(object);
 
 	/*
