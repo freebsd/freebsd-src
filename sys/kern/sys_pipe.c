@@ -60,6 +60,7 @@
 #include <sys/mutex.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
+#include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
@@ -197,14 +198,18 @@ pipe(td, uap)
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
+	struct mtx *pmtx;
 	int fd, error;
 	
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 
+	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
+	
 	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
 		pipeclose(rpipe); 
 		pipeclose(wpipe); 
+		free(pmtx, M_TEMP);
 		return (ENFILE);
 	}
 	
@@ -215,6 +220,7 @@ pipe(td, uap)
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
+		free(pmtx, M_TEMP);
 		return (error);
 	}
 	fhold(rf);
@@ -244,6 +250,7 @@ pipe(td, uap)
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
+		free(pmtx, M_TEMP);
 		return (error);
 	}
 	FILE_LOCK(wf);
@@ -255,7 +262,8 @@ pipe(td, uap)
 	td->td_retval[1] = fd;
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
-	rpipe->pipe_mtxp = wpipe->pipe_mtxp = mtx_pool_alloc();
+	mtx_init(pmtx, "pipe mutex", MTX_DEF);
+	rpipe->pipe_mtxp = wpipe->pipe_mtxp = pmtx;
 	fdrop(rf, td);
 
 	return (0);
@@ -1277,42 +1285,55 @@ pipeclose(cpipe)
 	struct pipe *cpipe;
 {
 	struct pipe *ppipe;
+	int hadpeer;
 
-	if (cpipe) {
+	if (cpipe == NULL)
+		return;
+
+	hadpeer = 0;
+
+	/* partially created pipes won't have a valid mutex. */
+	if (PIPE_MTX(cpipe) != NULL)
 		PIPE_LOCK(cpipe);
 		
-		pipeselwakeup(cpipe);
+	pipeselwakeup(cpipe);
 
-		/*
-		 * If the other side is blocked, wake it up saying that
-		 * we want to close it down.
-		 */
-		while (cpipe->pipe_busy) {
-			wakeup(cpipe);
-			cpipe->pipe_state |= PIPE_WANT | PIPE_EOF;
-			msleep(cpipe, PIPE_MTX(cpipe), PRIBIO, "pipecl", 0);
-		}
-
-		/*
-		 * Disconnect from peer
-		 */
-		if ((ppipe = cpipe->pipe_peer) != NULL) {
-			pipeselwakeup(ppipe);
-
-			ppipe->pipe_state |= PIPE_EOF;
-			wakeup(ppipe);
-			KNOTE(&ppipe->pipe_sel.si_note, 0);
-			ppipe->pipe_peer = NULL;
-		}
-		/*
-		 * free resources
-		 */
-		PIPE_UNLOCK(cpipe);
-		mtx_lock(&Giant);
-		pipe_free_kmem(cpipe);
-		zfree(pipe_zone, cpipe);
-		mtx_unlock(&Giant);
+	/*
+	 * If the other side is blocked, wake it up saying that
+	 * we want to close it down.
+	 */
+	while (cpipe->pipe_busy) {
+		wakeup(cpipe);
+		cpipe->pipe_state |= PIPE_WANT | PIPE_EOF;
+		msleep(cpipe, PIPE_MTX(cpipe), PRIBIO, "pipecl", 0);
 	}
+
+	/*
+	 * Disconnect from peer
+	 */
+	if ((ppipe = cpipe->pipe_peer) != NULL) {
+		hadpeer++;
+		pipeselwakeup(ppipe);
+
+		ppipe->pipe_state |= PIPE_EOF;
+		wakeup(ppipe);
+		KNOTE(&ppipe->pipe_sel.si_note, 0);
+		ppipe->pipe_peer = NULL;
+	}
+	/*
+	 * free resources
+	 */
+	if (PIPE_MTX(cpipe) != NULL) {
+		PIPE_UNLOCK(cpipe);
+		if (!hadpeer) {
+			mtx_destroy(PIPE_MTX(cpipe));
+			free(PIPE_MTX(cpipe), M_TEMP);
+		}
+	}
+	mtx_lock(&Giant);
+	pipe_free_kmem(cpipe);
+	zfree(pipe_zone, cpipe);
+	mtx_unlock(&Giant);
 }
 
 /*ARGSUSED*/
