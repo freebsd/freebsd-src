@@ -33,8 +33,9 @@
 .Sh SYNOPSIS
 .In stand.h
 .Sh DESCRIPTION
+The
 .Nm
-provides a set of supporting functions for standalone
+library provides a set of supporting functions for standalone
 applications, mimicking where possible the standard
 .Bx
 programming
@@ -408,8 +409,10 @@ file system cannot provide meaningful values for this call, and the
 file system always reports files having uid/gid of zero.
 .El
 .Sh PAGER
+The
 .Nm
-supplies a simple internal pager to ease reading the output of large commands.
+library supplies a simple internal pager to ease reading the output of large
+commands.
 .Bl -hang -width 10n
 .It Xo
 .Ft void
@@ -436,9 +439,10 @@ Sends the lines in the
 .Fa lines
 to the pager.  Newline characters are counted in order to determine the number
 of lines being output (wrapped lines are not accounted for).
+The
 .Fn pager_output
-will return zero when all of the lines have been output, or nonzero if the
-display was paused and the user elected to quit.
+function will return zero when all of the lines have been output, or nonzero
+if the display was paused and the user elected to quit.
 .It Xo
 .Ft int
 .Fn pager_file "char *fname"
@@ -622,8 +626,9 @@ which is a NULL terminated array of pointers to device switch structures.
 .Sh BUGS
 The lack of detailed memory usage data is unhelpful.
 .Sh HISTORY
+The
 .Nm
-contains contributions from many sources, including:
+library contains contributions from many sources, including:
 .Bl -bullet -compact
 .It
 .Nm libsa
