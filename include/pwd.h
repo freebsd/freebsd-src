@@ -89,11 +89,11 @@ typedef __size_t	size_t;
  * As it happens, some applications read the database directly.
  * (Bad app, no cookie!)  Thus, we leave the _PW_KEY* symbols at their
  * old pre-FreeBSD 5.1 values so these apps still work.  Consequently
- * we have to do muck around a bit more to get the correct, versioned
- * tag, and that is what the _PW_VERSIONED macros is about.
+ * we have to muck around a bit more to get the correct, versioned
+ * tag, and that is what the _PW_VERSIONED macro is about.
  */
 
-#define _PW_VERSION_MASK	'0xF0'
+#define _PW_VERSION_MASK	'\xF0'
 #define _PW_VERSIONED(x, v)	((unsigned char)(((x) & 0xCF) | ((v)<<4)))
 
 #define	_PW_KEYBYNAME		'\x31'	/* stored by name */
