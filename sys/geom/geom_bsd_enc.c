@@ -46,6 +46,8 @@
 #include <sys/disklabel.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#else
+#include <string.h>
 #endif
 
 void
