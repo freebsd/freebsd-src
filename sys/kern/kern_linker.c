@@ -37,6 +37,7 @@
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
@@ -44,7 +45,6 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
-
 
 #include "linker_if.h"
 
@@ -274,11 +274,6 @@ linker_file_register_modules(linker_file_t lf)
 		moddata = (*mdp)->md_data;
 		KLD_DPF(FILE, ("Registering module %s in %s\n",
 		    moddata->name, lf->filename));
-		if (module_lookupbyname(moddata->name) != NULL) {
-			printf("Warning: module %s already exists\n",
-			    moddata->name);
-			continue;	/* or return a error ? */
-		}
 		error = module_register(moddata, lf);
 		if (error)
 			printf("Module %s failed to register: %d\n",
@@ -447,8 +442,10 @@ linker_file_unload(linker_file_t file)
 		/*
 		 * Inform any modules associated with this file.
 		 */
+		MOD_XLOCK;
 		for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
 			next = module_getfnext(mod);
+			MOD_XUNLOCK;
 
 			/*
 			 * Give the module a chance to veto the unload.
@@ -458,9 +455,11 @@ linker_file_unload(linker_file_t file)
 				    " vetoes unload\n", mod));
 				lockmgr(&lock, LK_RELEASE, 0, curthread);
 				goto out;
-			}
+			} else
+				MOD_XLOCK;
 			module_release(mod);
 		}
+		MOD_XUNLOCK;
 	}
 	file->refs--;
 	if (file->refs > 0) {
@@ -900,11 +899,13 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 	mtx_lock(&Giant);
 	lf = linker_find_file_by_id(SCARG(uap, fileid));
 	if (lf) {
+		MOD_SLOCK;
 		mp = TAILQ_FIRST(&lf->modules);
 		if (mp != NULL)
 			td->td_retval[0] = module_getid(mp);
 		else
 			td->td_retval[0] = 0;
+		MOD_SUNLOCK;
 	} else
 		error = ENOENT;
 	mtx_unlock(&Giant);

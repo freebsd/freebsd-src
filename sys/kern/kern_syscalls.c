@@ -30,6 +30,9 @@
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/module.h>
 
 /*
@@ -96,7 +99,9 @@ syscall_module_handler(struct module *mod, int what, void *arg)
                if (error)
                        return error;
 	       ms.intval = *data->offset;
+	       MOD_XLOCK;
 	       module_setspecific(mod, &ms);
+	       MOD_XUNLOCK;
                if (data->chainevh)
                        error = data->chainevh(mod, what, data->chainarg);
                return error;
