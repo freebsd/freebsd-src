@@ -57,6 +57,8 @@
 #include <net/route.h>
 #include <net/bpf.h>
 
+#include <net/net_osdep.h>
+
 extern int loioctl __P((struct ifnet *, u_long, caddr_t));
 extern int looutput __P((struct ifnet *ifp,
 		struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
