@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#
+#       @(#)Build	8.3 (Berkeley) 5/19/98
+#
+
+#
+#  A quick-and-dirty script to create cf files.
+#
+
+SMROOT=${SMROOT-../..}
+BUILDTOOLS=${BUILDTOOLS-$SMROOT/BuildTools}
+
+M4=`sh $BUILDTOOLS/bin/find_m4.sh`
+ret=$?
+if [ $ret -ne 0 ]
+then
+	exit $ret
+fi
+echo "Using M4=$M4"
+
+eval exec ${MAKE-make} M4=$M4 $*

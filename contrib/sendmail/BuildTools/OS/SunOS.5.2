@@ -1,0 +1,22 @@
+#	@(#)SunOS.5.2	8.8	(Berkeley)	3/21/98
+define(`confCC', `gcc')
+define(`confBEFORE', `sysexits.h')
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confENVDEF', `-DSOLARIS=20100 ')
+define(`confLIBS', `-lsocket -lnsl -lelf')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `sys')
+define(`confSTDIR', `/etc/mail')
+define(`confHFDIR', `/etc/mail')
+define(`confINSTALL', `${BUILDBIN}/install.sh')
+define(`confDEPEND_TYPE', `CC-M')
+PUSHDIVERT(3)
+sysexits.h:
+	if [ -r /usr/ucbinclude/sysexits.h ]; \
+	then \
+		ln -s /usr/ucbinclude/sysexits.h; \
+	fi
+POPDIVERT
