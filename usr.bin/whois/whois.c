@@ -98,7 +98,7 @@ main(argc, argv)
 	qnichost = NULL;
 	flags = 0;
 	use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1)
+	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1) {
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
@@ -137,20 +137,23 @@ main(argc, argv)
 		default:
 			usage();
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
-	if (!argc)
+	if (!argc) {
 		usage();
+	}
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sp = getservbyname("whois", "tcp");
-	if (sp == NULL)
+	if (sp == NULL) {
 		sin.sin_port = htons(WHOIS_PORT);
-	else
+	} else {
 		sin.sin_port = sp->s_port;
+	}
 
 	/*
 	 * If no nic host is specified, use whois-servers.net
@@ -159,8 +162,9 @@ main(argc, argv)
 	if (host == NULL) {
 		use_qnichost = 1;
 		host = NICHOST;
-		if (!(flags & WHOIS_QUICK))
+		if (!(flags & WHOIS_QUICK)) {
 			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
+		}
 	}
 	while (argc--) {
 		if (use_qnichost) {
@@ -168,14 +172,17 @@ main(argc, argv)
 				free(qnichost);
 				qnichost = NULL;
 			}
-			for (i = j = 0; (*argv)[i]; i++)
-				if ((*argv)[i] == '.')
+			for (i = j = 0; (*argv)[i]; i++) {
+				if ((*argv)[i] == '.') {
 					j = i;
+				}
+			}
 			if (j != 0) {
 				qnichost = (char *) calloc(i - j + 1 +
 				    strlen(QNICHOST_TAIL), sizeof(char));
-				if (!qnichost)
+				if (!qnichost) {
 					err(1, "calloc");
+				}
 				strcpy(qnichost, *argv + j + 1);
 				strcat(qnichost, QNICHOST_TAIL);
 
@@ -192,9 +199,10 @@ main(argc, argv)
 		}
 		if (!qnichost && inet_aton(host, &sin.sin_addr) == 0) {
 			hp = gethostbyname2(host, AF_INET);
-			if (hp == NULL)
+			if (hp == NULL) {
 				errx(EX_NOHOST, "%s: %s", host,
 				    hstrerror(h_errno));
+			}
 			host = hp->h_name;
 			sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
 		}
@@ -216,32 +224,37 @@ whois(name, sinp, flags)
 	int s, nomatch;
 
 	s = socket(PF_INET, SOCK_STREAM, 0);
-	if (s < 0)
+	if (s < 0) {
 		err(EX_OSERR, "socket");
+	}
 
-	if (connect(s, (struct sockaddr *)sinp, sizeof(*sinp)) < 0)
+	if (connect(s, (struct sockaddr *)sinp, sizeof(*sinp)) < 0) {
 		err(EX_OSERR, "connect");
+	}
 
 	sfi = fdopen(s, "r");
 	sfo = fdopen(s, "w");
-	if (sfi == NULL || sfo == NULL)
+	if (sfi == NULL || sfo == NULL) {
 		err(EX_OSERR, "fdopen");
+	}
 	(void)fprintf(sfo, "%s\r\n", name);
 	(void)fflush(sfo);
 	nhost = NULL;
 	nomatch = 0;
 	while ((buf = fgetln(sfi, &len))) {
-		if (buf[len - 2] == '\r')
+		if (buf[len - 2] == '\r') {
 			buf[len - 2] = '\0';
-		else
+		} else {
 			buf[len - 1] = '\0';
+		}
 
 		if ((flags & WHOIS_RECURSE) && !nhost &&
 		    (p = strstr(buf, "Whois Server: "))) {
 			p += sizeof("Whois Server: ") - 1;
 			if ((len = strcspn(p, " \t\n\r"))) {
-				if ((nhost = malloc(len + 1)) == NULL)
+				if ((nhost = malloc(len + 1)) == NULL) {
 					err(1, "malloc");
+				}
 				memcpy(nhost, p, len);
 				nhost[len] = '\0';
 			}
@@ -252,8 +265,9 @@ whois(name, sinp, flags)
 			if ((len = strcspn(p, "\"")) &&
 			    strncasecmp(name, p, len) == 0 &&
 			    name[len] == '\0' &&
-			    strchr(name, '.') == NULL)
+			    strchr(name, '.') == NULL) {
 				nomatch = 1;
+			}
 		}
 		(void)puts(buf);
 	}
@@ -266,12 +280,14 @@ whois(name, sinp, flags)
 	if (nhost) {
 		if (inet_aton(nhost, &sinp->sin_addr) == 0) {
 			struct hostent *hp = gethostbyname2(nhost, AF_INET);
-			if (hp == NULL)
+			if (hp == NULL) {
 				return;
+			}
 			sinp->sin_addr = *(struct in_addr *)hp->h_addr_list[0];
 		}
-		if (!nomatch)
+		if (!nomatch) {
 			free(nhost);
+		}
 		whois(name, sinp, 0);
 	}
 }
