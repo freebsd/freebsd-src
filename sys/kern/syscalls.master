@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.59 1999/05/13 09:09:35 bde Exp $
+	$Id: syscalls.master,v 1.60 1999/08/04 20:04:25 jkh Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -275,9 +275,9 @@
 177	UNIMPL	NOHIDE	sfork (BSD/OS 2.x)
 178	UNIMPL	NOHIDE	getdescriptor (BSD/OS 2.x)
 179	UNIMPL	NOHIDE	setdescriptor (BSD/OS 2.x)
-
-; Syscalls 180-199 are used by/reserved for BSD
 180	UNIMPL	NOHIDE	nosys
+
+; Syscalls 181-199 are used by/reserved for BSD
 181	STD	POSIX	{ int setgid(gid_t gid); }
 182	STD	BSD	{ int setegid(gid_t egid); }
 183	STD	BSD	{ int seteuid(uid_t euid); }
