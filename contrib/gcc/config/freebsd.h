@@ -23,7 +23,8 @@ Boston, MA 02111-1307, USA.  */
    their commonalities.
    Adapted from /usr/src/contrib/gcc/config/i386/freebsd.h,
    /usr/src/contrib/gcc/config/svr4.h & 
-   egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
+   egcs/gcc/config/i386/freebsd-elf.h by
+   David O'Brien <obrien@FreeBSD.org>.  */
 
 /* $FreeBSD$ */
 
@@ -35,14 +36,14 @@ Boston, MA 02111-1307, USA.  */
    -z* options (for the linker) (coming from SVR4).
    We also have -R (alias --rpath), no -z, --soname (-h), --assert etc.  */
 
-#define FBSD_SWITCH_TAKES_ARG(CHAR) \
-  (DEFAULT_SWITCH_TAKES_ARG (CHAR) \
-   || (CHAR) == 'h' \
-   || (CHAR) == 'z' /* ignored by ld */ \
-   || (CHAR) == 'R')
+#define FBSD_SWITCH_TAKES_ARG(CHAR)					\
+  (DEFAULT_SWITCH_TAKES_ARG (CHAR)					\
+    || (CHAR) == 'h'							\
+    || (CHAR) == 'z' /* ignored by ld */				\
+    || (CHAR) == 'R')
 
 #undef  SWITCH_TAKES_ARG
-#define SWITCH_TAKES_ARG(CHAR)	(FBSD_SWITCH_TAKES_ARG(CHAR))
+#define SWITCH_TAKES_ARG(CHAR) (FBSD_SWITCH_TAKES_ARG(CHAR))
 
 /* This defines which multi-letter switches take arguments.  */
 
@@ -53,11 +54,13 @@ Boston, MA 02111-1307, USA.  */
    || !strcmp ((STR), "assert") || !strcmp ((STR), "dynamic-linker"))
 
 #undef  WORD_SWITCH_TAKES_ARG
-#define WORD_SWITCH_TAKES_ARG(STR)	(FBSD_WORD_SWITCH_TAKES_ARG(STR))
+#define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
 
 /* Place spaces around this string.  We depend on string splicing to produce
    the final CPP_PREDEFINES value.  */
-#define FBSD_CPP_PREDEFINES " -Dunix -D__FreeBSD__=5 -D__FreeBSD_cc_version=500002 -Asystem(unix) -Asystem(FreeBSD) "
+
+#define FBSD_CPP_PREDEFINES \
+  " -D__FreeBSD__=5 -D__FreeBSD_cc_version=500002 -Dunix -Asystem(unix) -Asystem(FreeBSD) "
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
@@ -71,9 +74,9 @@ Boston, MA 02111-1307, USA.  */
 #define CPP_SPEC FBSD_CPP_SPEC
 
 /* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
-   libc, depending on whether we're doing profiling.  Add the appropriate
-   libc_r if supporting threads.
-   (like the default, except no -lg, and no -p).  */
+   libc, depending on whether we're doing profiling or need threads support.
+   (simular to the default, except no -lg, and no -p).  */
+
 #undef  LIB_SPEC
 #define LIB_SPEC "							\
   %{!shared:								\
@@ -133,10 +136,8 @@ Boston, MA 02111-1307, USA.  */
 #undef  HANDLE_SYSV_PRAGMA
 #define HANDLE_SYSV_PRAGMA
 
-/* FreeBSD ELF using our home-grown crtbegin.o/crtend.o does not support the
-   DWARF2 unwinding mechanisms.  Once `make world' bootstraping problems with
-   the EGCS crtstuff.c is overcome, we will switch to the non-sjlj-exceptions 
-   type exception machanism.  */
+/* FreeBSD ELF uses across the board will now use DWARF2 unwinding as the IA-64
+   psABI requires it.  */
 #define DWARF2_UNWIND_INFO 0
 
 /* Do not use ``thunks'' to implement C++ vtables.  This method still has
@@ -152,9 +153,8 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_COMMENT_START	"#"
 
 /* Attach a special .ident directive to the end of the file to identify
-   the version of GCC which compiled this code.  The format of the
-   .ident string is patterned after the ones produced by native SVR4
-   C compilers.  */
+   the version of GCC which compiled this code.  The format of the .ident
+   string is patterned after the ones produced by native SVR4 C compilers.  */
 
 #undef  IDENT_ASM_OP
 #define IDENT_ASM_OP	"\t.ident\t"
@@ -162,7 +162,7 @@ Boston, MA 02111-1307, USA.  */
 /* Output #ident as a .ident.  */
 
 #undef  ASM_OUTPUT_IDENT
-#define ASM_OUTPUT_IDENT(FILE, NAME) \
+#define ASM_OUTPUT_IDENT(FILE, NAME)					\
   fprintf ((FILE), "%s\"%s\"\n", IDENT_ASM_OP, (NAME));
 
 /* Identify the front-end which produced this file.  To keep symbol
@@ -199,21 +199,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  SKIP_ASM_OP
 #define SKIP_ASM_OP		"\t.zero\t"
-
-/* How to output some space.  The rules are different depending on the
-   object format.  */
-#undef  ASM_OUTPUT_SKIP
-#define ASM_OUTPUT_SKIP(FILE, SIZE) 					\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-        fprintf ((FILE), "%s%u\n", SKIP_ASM_OP, (SIZE));		\
-      }									\
-    else								\
-      {									\
-        fprintf ((FILE), "\t.space\t%u\n", (SIZE));			\
-      }									\
-  } while (0)
 
 /* A table of bytes codes used by the ASM_OUTPUT_ASCII and
    ASM_OUTPUT_LIMITED_STRING macros.  Each byte in the table
@@ -276,28 +261,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  COMMON_ASM_OP
 #define COMMON_ASM_OP	"\t.comm\t"
 
-#undef  ASM_OUTPUT_ALIGNED_COMMON
-#define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	fprintf ((FILE), "%s", COMMON_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u,%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
-      }									\
-    else								\
-      {									\
-	int rounded = (SIZE);						\
-	if (rounded == 0) rounded = 1;					\
-	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
-	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
-		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
-	fprintf ((FILE), "%s ", COMMON_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u\n", (rounded));				\
-      }									\
-  } while (0)
-
 /* This says how to output assembler code to declare an
    uninitialized internal linkage data object.  Under SVR4/ELF,
    the linker seems to want the alignment of data objects
@@ -305,34 +268,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  LOCAL_ASM_OP
 #define LOCAL_ASM_OP	"\t.local\t"
-
-/* This says how to output assembler code to declare an
-   uninitialized internal linkage data object.  Under SVR4,
-   the linker seems to want the alignment of data objects
-   to depend on their types.  We do exactly that here.  */
-
-#undef  ASM_OUTPUT_ALIGNED_LOCAL
-#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	fprintf ((FILE), "%s", LOCAL_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), "\n");						\
-	ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));	\
-      }									\
-    else								\
-      {									\
-	int rounded = (SIZE);						\
-	if (rounded == 0) rounded = 1;					\
-	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
-	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
-		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
-	fputs ("\t.lcomm\t", (FILE));					\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u\n", (rounded));				\
-      }									\
-  } while (0)
 
 #undef  ASM_OUTPUT_BEFORE_CASE_LABEL
 #define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE, PREFIX, NUM, TABLE)		\
@@ -461,48 +396,6 @@ extern void text_section ();
       }									\
   }
 
-/* A C statement (sans semicolon) to output an element in the table of
-   global constructors.  */
-#undef  ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE, NAME)				\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	ctors_section ();						\
-	fprintf ((FILE), "%s ", INT_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), "\n");						\
-      }									\
-    else								\
-      {									\
-	fprintf (asm_out_file, "%s \"%s__CTOR_LIST__\",22,0,0,",	\
-		 ASM_STABS_OP, (TARGET_UNDERSCORES) ? "_" : "");	\
-	assemble_name (asm_out_file, name);				\
-	fputc ('\n', asm_out_file);					\
-      }									\
-  } while (0)
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#undef  ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE, NAME)				\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	dtors_section ();						\
-	fprintf ((FILE), "%s ", INT_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), "\n");						\
-      }									\
-    else								\
-      {									\
-	fprintf (asm_out_file, "%s \"%s__DTOR_LIST__\",22,0,0,",	\
-		 ASM_STABS_OP, (TARGET_UNDERSCORES) ? "_" : "");	\
-	assemble_name (asm_out_file, name);				\
-	fputc ('\n', asm_out_file);					\
-      }									\
-  } while (0)
-
 /* A C statement or statements to switch to the appropriate
    section for output of RTX in mode MODE.  RTX is some kind
    of constant in RTL.  The argument MODE is redundant except
@@ -610,7 +503,7 @@ extern void text_section ();
 #undef  DBX_DEBUGGING_INFO
 #define DBX_DEBUGGING_INFO
 
-/* Use stabs instead of DWARF debug format.  */
+/* This is BSD, so use stabs instead of DWARF debug format.  */
 #undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
@@ -619,5 +512,3 @@ extern void text_section ();
    	architecture's native OS's tools that don't apply to us.  */
 #undef ASM_IDENTIFY_GCC
 #undef ASM_IDENTIFY_LANGUAGE
-
-#include "dbxelf.h"
