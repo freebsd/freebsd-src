@@ -1765,7 +1765,7 @@ addarg(argv, val)
 	if (cpp == &argv[(long)argv[-1]]) {
 		--argv;
 		*argv = (char *)((long)(*argv) + 10);
-		argv = (char **)realloc(argv, (long)(*argv) + 2);
+		argv = (char **)realloc(argv, sizeof(*argv) * ((long)(*argv) + 2));
 		if (argv == NULL)
 			return(NULL);
 		argv++;
