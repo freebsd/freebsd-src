@@ -3,6 +3,25 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990704:
+	src/contrib/sys/softupdates is moving to
+	src/sy/contrib/softupdates.  Update your symbolic links/etc.
+
+19990702:
+	Major changes have been made to vinum and its interface.  See
+	the man page (vinum(8)) for details.  Look at the concat,
+	mirror and stripe commands, as well as the SIMPLIFIED
+	CONFIGURATION section.
+
+19990628:
+	Newsyslog.conf has had a minor, but potentially dangerous,
+	change to its username/group syntax.  The old syntax was
+	user.group, while the new syntax is user:group.
+
+19990627:
+	Inetd wrapping default has changed.  Please see the updated
+	man page for details.
+
 19990623:
 	Compaq Smart Raid driver committed as ida.
 
@@ -288,4 +307,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.35 1999/06/23 06:39:07 imp Exp $
+$Id: UPDATING,v 1.36 1999/06/24 04:20:37 imp Exp $
