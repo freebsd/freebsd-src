@@ -83,7 +83,6 @@
 
 struct aha_softc *aha_softcs[NAHATOT];
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define	PRVERB(x) if (bootverbose) printf x
 
 /* Macro to determine that a rev is potentially a new valid one
