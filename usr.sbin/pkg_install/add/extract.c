@@ -132,7 +132,7 @@ extract_plist(const char *home, Package *pkg)
     Group = NULL;
     Mode = NULL;
     last_file = NULL;
-    (const char *)Directory = home;
+    Directory = (char *)home;
 
     /* Do it */
     while (p) {
@@ -223,7 +223,7 @@ extract_plist(const char *home, Package *pkg)
 		Directory = p->name;
 	    }
 	    else
-		(const char *)Directory = home;
+		Directory = (char *)home;
 	    break;
 
 	case PLIST_CMD:

@@ -5,7 +5,7 @@ SRCS=	main.c perform.c futil.c extract.c
 
 CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
-WARNS?=	6
+WARNS?=	3
 WFORMAT?=	1
 
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
