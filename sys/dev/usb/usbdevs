@@ -91,6 +91,7 @@ vendor WACOM		0x056a	WACOM Corp. Ltd.
 vendor ETEK		0x056c	e-TEK Labs
 vendor EIZO		0x056d	EIZO
 vendor ELECOM		0x056e	Elecom Corp. Ltd.
+vendor YEDATA		0x057b	Y-E Data
 vendor ROCKFIRE		0x0583	Rockfire
 vendor IOMEGA		0x059b	Iomega Corp.
 vendor OMNIVISION	0x05a9	OmniVision
@@ -421,6 +422,9 @@ product VISION VC6452V002	0x0002	VC6452V002 Camera
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
+
+/* Y-E Data products */
+product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 
 /* Zoom Telephonics Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
