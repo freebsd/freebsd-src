@@ -305,23 +305,14 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 	_thread_enter_cancellation_point();
 	
-	if (cond == NULL || abstime == NULL)
+	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+	    abstime->tv_nsec >= 1000000000)
 		rval = EINVAL;
-
-	if (abstime->tv_sec < 0 || 
-		abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000) {
-		errno = EINVAL;
-		_thread_leave_cancellation_point();
-		return (-1);
-	}
-
 	/*
-	 * If the condition variable is statically initialized,
-	 * perform the dynamic initialization:
+	 * If the condition variable is statically initialized, perform dynamic
+	 * initialization.
 	 */
-	if (*cond != NULL ||
-	    (rval = pthread_cond_init(cond,NULL)) == 0) {
-
+	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
 		_thread_enter_cancellation_point();
 
 		/* Lock the condition variable structure: */
@@ -471,9 +462,13 @@ pthread_cond_signal(pthread_cond_t * cond)
 	int             rval = 0;
 	pthread_t       pthread;
 
-	if (cond == NULL || *cond == NULL)
+	if (cond == NULL)
 		rval = EINVAL;
-	else {
+       /*
+        * If the condition variable is statically initialized, perform dynamic
+        * initialization.
+        */
+	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL) == 0)) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:
@@ -532,9 +527,13 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 	int             rval = 0;
 	pthread_t       pthread;
 
-	if (cond == NULL || *cond == NULL)
+	if (cond == NULL)
 		rval = EINVAL;
-	else {
+       /*
+        * If the condition variable is statically initialized, perform dynamic
+        * initialization.
+        */
+	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL) == 0)) {
 		/*
 		 * Defer signals to protect the scheduling queues
 		 * from access by the signal handler:
