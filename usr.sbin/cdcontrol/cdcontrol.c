@@ -24,6 +24,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/cdio.h>
+#include <sys/cdrio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
@@ -31,6 +32,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
+#include <limits.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +74,7 @@ static const char rcsid[] =
 #define CMD_CDID	15
 #define CMD_NEXT	16
 #define CMD_PREVIOUS	17
+#define CMD_SPEED	18
 #define STATUS_AUDIO	0x1
 #define STATUS_MEDIA	0x2
 #define STATUS_VOLUME	0x4
@@ -104,6 +107,7 @@ struct cmdtab {
 { CMD_VOLUME,	"volume",	1,
       "<l> <r> | left | right | mute | mono | stereo" },
 { CMD_CDID,	"cdid",		2, "" },
+{ CMD_SPEED,	"speed",	2, "speed" },
 { 0,		NULL,		0, NULL }
 };
 
@@ -276,7 +280,9 @@ int main (int argc, char **argv)
 
 int run (int cmd, char *arg)
 {
+	long speed;
 	int l, r, rc;
+	char *ep;
 
 	switch (cmd) {
 
@@ -423,6 +429,19 @@ int run (int cmd, char *arg)
 		}
 
 		return setvol (l, r);
+
+	case CMD_SPEED:
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		errno = 0;
+		speed = strtol(arg, &ep, 10);
+		if (*ep || ep == arg || speed <= 0 || speed > INT_MAX ||
+		    errno != 0) {
+			warnx("invalid command arguments %s", arg);
+			return (0);
+		}
+		return ioctl(fd, CDRIOCREADSPEED, &speed);
 
 	default:
 	case CMD_HELP:
@@ -1171,7 +1190,7 @@ char *parse (char *buf, int *cmd)
 
 	for (buf = p; *p && ! isspace (*p); p++)
 		continue;
-  
+ 
 	len = p - buf;
 	if (! len)
 		return (0);
