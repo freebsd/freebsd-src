@@ -21,7 +21,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.4 1994/08/23 07:52:17 paul Exp $
+ * $Id: if_le.c,v 1.9 1994/08/16 20:40:56 thomas Exp $
+ *
+ * $Log: if_le.c,v $
+ * Revision 1.9  1994/08/16  20:40:56  thomas
+ * New README files (one per driver)
+ * Minor updates to drivers (DEPCA support and add pass to attach
+ * output)
+ *
+ * Revision 1.8  1994/08/05  20:20:54  thomas
+ * Enable change log
+ *
+ * Revision 1.7  1994/08/05  20:20:14  thomas
+ * *** empty log message ***
  *
  */
 
@@ -87,7 +99,14 @@ typedef struct le_board le_board_t;
 typedef u_short le_mcbits_t;
 #define	LE_MC_NBPW_LOG2		4
 #define LE_MC_NBPW		(1 << LE_MC_NBPW_LOG2)
-
+#if __FreeBSD__ > 1
+#define	IF_RESET_ARGS	int unit
+#define	LE_RESET(ifp)	(((sc)->le_if.if_reset)((sc)->le_if.if_unit))
+#else
+#define	IF_RESET_ARGS	int unit, int dummy
+#define	LE_RESET(ifp)	(((sc)->le_if.if_reset)((sc)->le_if.if_unit, 0))
+#endif
+
 #if !defined(LE_NOLEMAC)
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -229,6 +248,8 @@ struct le_softc {
 #endif
     } le_un;
 };
+#define	le_if		le_ac.ac_if
+
 
 static int le_probe(struct isa_device *dvp);
 static int le_attach(struct isa_device *dvp);
@@ -304,8 +325,6 @@ unsigned le_intrs[NLE];
 #define LE_OUTB(sc, reg, data) \
 	({__asm __volatile("outb %0, %1"::"a" ((u_char)(data)), "d" ((u_short)((sc)->le_iobase + (reg))));})
 
-#define	LE_IFP(sc)			(&(sc)->le_ac.ac_if)
-
 #define	MEMCPY(to, from, len)		bcopy(from, to, len)
 #define	MEMSET(where, what, howmuch)	bzero(where, howmuch)
 #define	MEMCMP(l, r, len)		bcmp(l, r, len)
@@ -327,8 +346,8 @@ le_probe(
     sc->le_iobase = dvp->id_iobase;
     sc->le_membase = (u_char *) dvp->id_maddr;
     sc->le_irq = dvp->id_irq;
-    LE_IFP(sc)->if_name = ledriver.name;
-    LE_IFP(sc)->if_unit = dvp->id_unit;
+    sc->le_if.if_name = ledriver.name;
+    sc->le_if.if_unit = dvp->id_unit;
 
     /*
      * Find and Initialize board..
@@ -342,7 +361,7 @@ le_probe(
 	}
     }
     printf("%s%d: no board found at 0x%x\n", 
-	   LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit, dvp->id_iobase);
+	   sc->le_if.if_name, sc->le_if.if_unit, dvp->id_iobase);
     return 0;
 }
 
@@ -351,7 +370,7 @@ le_attach(
     struct isa_device *dvp)
 {
     le_softc_t *sc = &le_softc[dvp->id_unit];
-    struct ifnet *ifp = LE_IFP(sc);
+    struct ifnet *ifp = &sc->le_if;
     struct ifaddr *ifa = ifp->if_addrlist;
 
     ifp->if_mtu = ETHERMTU;
@@ -360,7 +379,8 @@ le_attach(
 	   sc->le_prodname,
 	   ether_sprintf(sc->le_ac.ac_enaddr));
 
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS | IFF_MULTICAST;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+    ifp->if_flags  |= IFF_MULTICAST;
 
     ifp->if_output = ether_output;
     ifp->if_ioctl = le_ioctl;
@@ -419,7 +439,7 @@ le_input(
 
     if (total_len - sizeof(eh) > ETHERMTU
 	    || total_len - sizeof(eh) < ETHERMIN) {
-	LE_IFP(sc)->if_ierrors++;
+	sc->le_if.if_ierrors++;
 	return;
     }
     MEMCPY(&eh, seg1, sizeof(eh));
@@ -452,23 +472,23 @@ le_input(
 
     MGETHDR(m, M_DONTWAIT, MT_DATA);
     if (m == NULL) {
-	LE_IFP(sc)->if_ierrors++;
+	sc->le_if.if_ierrors++;
 	return;
     }
     m->m_pkthdr.len = total_len;
-    m->m_pkthdr.rcvif = LE_IFP(sc);
+    m->m_pkthdr.rcvif = &sc->le_if;
     if (total_len + LE_XTRA > MHLEN /* >= MINCLSIZE */) {
 	MCLGET(m, M_DONTWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 	    m_free(m);
-	    LE_IFP(sc)->if_ierrors++;
+	    sc->le_if.if_ierrors++;
 	    return;
 	}
     } else if (total_len + LE_XTRA > MHLEN && MINCLSIZE == (MHLEN+MLEN)) {
 	MGET(m->m_next, M_DONTWAIT, MT_DATA);
 	if (m->m_next == NULL) {
 	    m_free(m);
-	    LE_IFP(sc)->if_ierrors++;
+	    sc->le_if.if_ierrors++;
 	    return;
 	}
 	m->m_next->m_len = total_len - MHLEN - LE_XTRA;
@@ -508,7 +528,7 @@ le_input(
 	}
     }
 #endif
-    ether_input(LE_IFP(sc), &eh, m);
+    ether_input(&sc->le_if, &eh, m);
 }
 
 static int
@@ -591,6 +611,7 @@ le_ioctl(
 	    }
 	    break;
 	}
+
 
 	default: {
 	    error = EINVAL;
@@ -675,7 +696,7 @@ le_multi_filter(
 
     MEMSET(sc->le_mctbl, 0, (sc->le_mcmask + 1) / 8);
 
-    if (LE_IFP(sc)->if_flags & IFF_ALLMULTI) {
+    if (sc->le_if.if_flags & IFF_ALLMULTI) {
 	sc->le_flags |= IFF_MULTICAST|IFF_ALLMULTI;
 	return;
     }
@@ -756,13 +777,10 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
+static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
-#if __FreeBSD__ > 1
-static void lemac_reset(int unit);
-#else
-static void lemac_reset(int unit, int dummy);
-#endif
+static void lemac_reset(IF_RESET_ARGS);
 static void lemac_intr(le_softc_t *sc);
 static void lemac_rne_intr(le_softc_t *sc);
 static void lemac_tne_intr(le_softc_t *sc);
@@ -772,10 +790,10 @@ static int  lemac_read_eeprom(le_softc_t *sc);
 static void lemac_init_adapmem(le_softc_t *sc);
 
 static const le_mcbits_t lemac_allmulti_mctbl[16] =  {
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
 };
 /*
  * An IRQ mapping table.  Less space than switch statement.
@@ -827,19 +845,18 @@ lemac_probe(
 
     if (irq != sc->le_irq) {
 	printf("%s%d: lemac configuration error: expected IRQ 0x%x actual 0x%x\n",
-	       LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit, sc->le_irq, irq);
+	       sc->le_if.if_name, sc->le_if.if_unit, sc->le_irq, irq);
 	return 0;
     }
 
     /*
      * Try to reset the unit
      */
+    sc->le_if.if_init = lemac_init;
+    sc->le_if.if_start = lemac_start;
+    sc->le_if.if_reset = lemac_reset;
     sc->lemac_memmode = 2;
-#if __FreeBSD__ > 1
-    lemac_reset(LE_IFP(sc)->if_unit);
-#else
-    lemac_reset(LE_IFP(sc)->if_unit, 0);
-#endif
+    LE_RESET(sc);
     if ((sc->le_flags & IFF_UP) == 0)
 	return 0;
 
@@ -848,20 +865,17 @@ lemac_probe(
      */
     if (vtophys(sc->le_membase) != sc->lemac_membase) {
 	printf("%s%d: lemac configuration error: expected iomem 0x%x actual 0x%x\n",
-	       LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit,
+	       sc->le_if.if_name, sc->le_if.if_unit,
 	       vtophys(sc->le_membase), sc->lemac_membase);
 	return 0;
     }
 
-    LE_IFP(sc)->if_init = lemac_init;
-    LE_IFP(sc)->if_start = lemac_start;
-    LE_IFP(sc)->if_reset = lemac_reset;
     sc->le_prodname = sc->lemac_prodname;
     sc->le_mctbl = sc->lemac_mctbl;
     sc->le_mcmask = (1 << LEMAC_MCTBL_BITS) - 1;
     sc->lemac_txmax = lemac_deftxmax;
     *msize = 2048;
-    le_intrvec[LE_IFP(sc)->if_unit] = lemac_intr;
+    le_intrvec[sc->le_if.if_unit] = lemac_intr;
 
     return LEMAC_IOSPACE;
 }
@@ -870,11 +884,8 @@ lemac_probe(
  * Do a hard reset of the board;
  */
 static void
-#if __FreeBSD__ > 1
-lemac_reset(int unit)
-#else
-lemac_reset(int unit, int dummy)
-#endif
+lemac_reset(
+    IF_RESET_ARGS)
 {
     le_softc_t *sc = &le_softc[unit];
     int portval, cksum;
@@ -884,7 +895,7 @@ lemac_reset(int unit, int dummy)
      */
 
     sc->le_flags &= IFF_UP;
-    LE_IFP(sc)->if_flags &= ~IFF_OACTIVE;
+    sc->le_if.if_flags &= ~IFF_OACTIVE;
     LEMAC_INTR_DISABLE(sc);
 
     LE_OUTB(sc, LEMAC_REG_IOP, LEMAC_IOP_EEINIT);
@@ -900,7 +911,7 @@ lemac_reset(int unit, int dummy)
      */
     if ((cksum = lemac_read_eeprom(sc)) != LEMAC_EEP_CKSUM) { 
 	printf("%s%d: reset: EEPROM checksum failed (0x%x)\n",
-	       LE_IFP(sc)->if_unit, LE_IFP(sc)->if_unit, cksum);
+	       sc->le_if.if_unit, sc->le_if.if_unit, cksum);
 	return;
     }
 
@@ -945,7 +956,7 @@ lemac_init(
     /*
      * If the interface has the up flag
      */
-    if (LE_IFP(sc)->if_flags & IFF_UP) {
+    if (sc->le_if.if_flags & IFF_UP) {
 	int saved_cs = LE_INB(sc, LEMAC_REG_CS);
 	LE_OUTB(sc, LEMAC_REG_CS, saved_cs | (LEMAC_CS_TXD | LEMAC_CS_RXD));
 	LE_OUTB(sc, LEMAC_REG_PA0, sc->le_ac.ac_enaddr[0]);
@@ -957,13 +968,13 @@ lemac_init(
 
 	LE_OUTB(sc, LEMAC_REG_IC, LE_INB(sc, LEMAC_REG_IC) | LEMAC_IC_IE);
 
-	if (LE_IFP(sc)->if_flags & IFF_PROMISC) {
+	if (sc->le_if.if_flags & IFF_PROMISC) {
 	    LE_OUTB(sc, LEMAC_REG_CS, LEMAC_CS_MCE | LEMAC_CS_PME);
 	} else {
 	    LEMAC_INTR_DISABLE(sc);
 	    le_multi_filter(sc);
 	    LE_OUTB(sc, LEMAC_REG_MPN, 0);
-	    if ((sc->le_flags | LE_IFP(sc)->if_flags) & IFF_ALLMULTI) {
+	    if ((sc->le_flags | sc->le_if.if_flags) & IFF_ALLMULTI) {
 		MEMCPY(&sc->le_membase[LEMAC_MCTBL_OFF], lemac_allmulti_mctbl, sizeof(lemac_allmulti_mctbl));
 	    } else {
 		MEMCPY(&sc->le_membase[LEMAC_MCTBL_OFF], sc->lemac_mctbl, sizeof(sc->lemac_mctbl));
@@ -974,12 +985,12 @@ lemac_init(
 	LE_OUTB(sc, LEMAC_REG_CTL, LE_INB(sc, LEMAC_REG_CTL) ^ LEMAC_CTL_LED);
 
 	LEMAC_INTR_ENABLE(sc);
-	LE_IFP(sc)->if_flags |= IFF_RUNNING;
+	sc->le_if.if_flags |= IFF_RUNNING;
     } else {
 	LE_OUTB(sc, LEMAC_REG_CS, LEMAC_CS_RXD|LEMAC_CS_TXD);
 
 	LEMAC_INTR_DISABLE(sc);
-	LE_IFP(sc)->if_flags &= ~IFF_RUNNING;
+	sc->le_if.if_flags &= ~IFF_RUNNING;
     }
     splx(s);
 }
@@ -1045,7 +1056,7 @@ lemac_rne_intr(
 	LE_OUTB(sc, LEMAC_REG_MPN, rxpg);
 	
 	rxptr = sc->le_membase;
-	LE_IFP(sc)->if_ipackets++;
+	sc->le_if.if_ipackets++;
 	if (*rxptr & LEMAC_RX_OK) {
 
 	    /*
@@ -1055,7 +1066,7 @@ lemac_rne_intr(
 	    rxlen = ((*(u_int *)rxptr >> 8) & 0x7FF) - 4;
 	    le_input(sc, rxptr + sizeof(u_int), rxlen, rxlen, NULL);
 	} else { /* end if (*rxptr & LEMAC_RX_OK) */
-	    LE_IFP(sc)->if_ierrors++;
+	    sc->le_if.if_ierrors++;
 	}
 next:
 	LE_OUTB(sc, LEMAC_REG_FMQ, rxpg);  /* Return this page to Free Memory Queue */
@@ -1099,15 +1110,11 @@ lemac_rxd_intr(
 	return;
 
     printf("%s%d: fatal RXD error, attempting recovery\n",
-	   LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit);
+	   sc->le_if.if_name, sc->le_if.if_unit);
 
-#if __FreeBSD__ > 1
-    lemac_reset(LE_IFP(sc)->if_unit);
-#else
-    lemac_reset(LE_IFP(sc)->if_unit, 0);
-#endif
+    LE_RESET(sc);
     if (sc->le_flags & IFF_UP) {
-	lemac_init(LE_IFP(sc)->if_unit);
+	lemac_init(sc->le_if.if_unit);
 	return;
     }
 
@@ -1115,7 +1122,7 @@ lemac_rxd_intr(
      *  Error during initializion.  Mark card as disabled.
      */
     printf("%s%d: recovery failed -- board disabled\n",
-	   LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit);
+	   sc->le_if.if_name, sc->le_if.if_unit);
     return;
 }
 
@@ -1186,12 +1193,12 @@ lemac_tne_intr(
     lemac_tne_intrs++;
     while (txcount--) {
 	txsts = LE_INB(sc, LEMAC_REG_TDQ);
-	LE_IFP(sc)->if_opackets++;		/* another one done */
+	sc->le_if.if_opackets++;		/* another one done */
 	if ((txsts & LEMAC_TDQ_COL) != LEMAC_TDQ_NOCOL)
-	    LE_IFP(sc)->if_collisions++;
+	    sc->le_if.if_collisions++;
     }
-    LE_IFP(sc)->if_flags &= ~IFF_OACTIVE;
-    lemac_start(LE_IFP(sc));
+    sc->le_if.if_flags &= ~IFF_OACTIVE;
+    lemac_start(&sc->le_if);
 }
 
 static void
@@ -1207,10 +1214,10 @@ lemac_txd_intr(
      */
 
     lemac_txd_intrs++;
-    LE_IFP(sc)->if_oerrors++;
+    sc->le_if.if_oerrors++;
     if (LE_INB(sc, LEMAC_REG_TS) & LEMAC_TS_ECL)
-	LE_IFP(sc)->if_collisions++;
-    LE_IFP(sc)->if_flags &= ~IFF_OACTIVE;
+	sc->le_if.if_collisions++;
+    sc->le_if.if_flags &= ~IFF_OACTIVE;
 
     LE_OUTB(sc, LEMAC_REG_FMQ, LE_INB(sc, LEMAC_REG_TQ));
 				/* Get Page number and write it back out */
@@ -1290,17 +1297,14 @@ lemac_init_adapmem(
  * Start of DEPCA (DE200/DE201/DE202/DE422 etal) support.
  *
  */
+static int  depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void depca_intr(le_softc_t *sc);
 static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
 			    unsigned ndescs, unsigned bufoffset,
 			    unsigned descoffset);
 static void lance_init(int unit);
-#if __FreeBSD__ > 1
-static void lance_reset(int unit);
-#else
-static void lance_reset(int unit, int dummy);
-#endif
+static void lance_reset(IF_RESET_ARGS);
 static void lance_intr(le_softc_t *sc);
 static int  lance_rx_intr(le_softc_t *sc);
 static void lance_start(struct ifnet *ifp);
@@ -1484,6 +1488,9 @@ depca_probe(
 	    return 0;
 	}
     }
+    if (idx == DEPCA_CLASSIC)
+	sc->lance_ramsize -= 16384;	/* Can't use the ROM area on a DEPCA */
+
     /*
      * Try to read the address ROM.
      *   Stop the LANCE, reset the Address ROM Counter (AAC),
@@ -1504,7 +1511,7 @@ depca_probe(
 	DEPCA_WRNICSR(sc, DEPCA_RDNICSR(sc) | DEPCA_NICSR_AAC);
     }
 
-    if (le_read_macaddr(sc, DEPCA_REG_ADDRROM, 0) < 0)
+    if (le_read_macaddr(sc, DEPCA_REG_ADDRROM, idx == DEPCA_CLASSIC) < 0)
 	return 0;
 
     MEMCPY(sc->le_ac.ac_enaddr, sc->le_hwaddr, 6);
@@ -1513,22 +1520,18 @@ depca_probe(
      */
     DEPCA_WRNICSR(sc, DEPCA_RDNICSR(sc) | DEPCA_NICSR_SHE);
 
-    le_intrvec[LE_IFP(sc)->if_unit] = depca_intr;
+    le_intrvec[sc->le_if.if_unit] = depca_intr;
     if (!lance_init_adapmem(sc))
 	return 0;
 
+    sc->le_if.if_reset = lance_reset;
+    sc->le_if.if_init = lance_init;
+    sc->le_if.if_start = lance_start;
     DEPCA_WRNICSR(sc, DEPCA_NICSR_SHE | DEPCA_NICSR_ENABINTR);
-#if __FreeBSD__ > 1
-    lance_reset(LE_IFP(sc)->if_unit);
-#else
-    lance_reset(LE_IFP(sc)->if_unit, 0);
-#endif
+    LE_RESET(sc);
 
     LN_STAT(low_txfree = sc->lance_txinfo.ri_max);
     LN_STAT(low_txheapsize = 0xFFFFFFFF);
-    LE_IFP(sc)->if_reset = lance_reset;
-    LE_IFP(sc)->if_init = lance_init;
-    LE_IFP(sc)->if_start = lance_start;
     *msize = sc->lance_ramsize;
     return DEPCA_IOSPACE;
 }
@@ -1667,7 +1670,7 @@ lance_dumpcsrs(
     const char *id)
 {
     printf("%s%d: %s: nicsr=%04x",
-	   LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit,
+	   sc->le_if.if_name, sc->le_if.if_unit,
 	   id, DEPCA_RDNICSR(sc));
     LN_SELCSR(sc, LN_CSR0); printf(" csr0=%04x", LN_RDCSR(sc));
     LN_SELCSR(sc, LN_CSR1); printf(" csr1=%04x", LN_RDCSR(sc));
@@ -1677,11 +1680,8 @@ lance_dumpcsrs(
 }
 
 static void
-#if __FreeBSD__ > 1
-lance_reset(int unit)
-#else
-lance_reset(int unit, int dummy)
-#endif
+lance_reset(
+    IF_RESET_ARGS)
 {
     le_softc_t *sc = &le_softc[unit];
     register int cnt, csr;
@@ -1693,10 +1693,10 @@ lance_reset(int unit, int dummy)
     DELAY(100);
 
     sc->le_flags &= ~IFF_UP;
-    LE_IFP(sc)->if_flags &= ~(IFF_UP|IFF_RUNNING);
+    sc->le_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
 
     le_multi_filter(sc);		/* initialize the multicast table */
-    if ((sc->le_flags | LE_IFP(sc)->if_flags) & IFF_ALLMULTI) {
+    if ((sc->le_flags | sc->le_if.if_flags) & IFF_ALLMULTI) {
 	sc->lance_initb.ln_multi_mask[0] = 0xFFFFU;
 	sc->lance_initb.ln_multi_mask[1] = 0xFFFFU;
 	sc->lance_initb.ln_multi_mask[2] = 0xFFFFU;
@@ -1705,7 +1705,7 @@ lance_reset(int unit, int dummy)
     sc->lance_initb.ln_physaddr[0] = ((u_short *) sc->le_ac.ac_enaddr)[0];
     sc->lance_initb.ln_physaddr[1] = ((u_short *) sc->le_ac.ac_enaddr)[1];
     sc->lance_initb.ln_physaddr[2] = ((u_short *) sc->le_ac.ac_enaddr)[2];
-    if (LE_IFP(sc)->if_flags & IFF_PROMISC) {
+    if (sc->le_if.if_flags & IFF_PROMISC) {
 	sc->lance_initb.ln_mode |= LN_MODE_PROMISC;
     } else {
 	sc->lance_initb.ln_mode &= ~LN_MODE_PROMISC;
@@ -1739,7 +1739,7 @@ lance_reset(int unit, int dummy)
 	lance_dumpcsrs(sc, "lance_reset: reset failure");
     } else {
 	/* lance_dumpcsrs(sc, "lance_reset: end"); */
-	LE_IFP(sc)->if_flags |= IFF_UP;
+	sc->le_if.if_flags |= IFF_UP;
 	sc->le_flags |= IFF_UP;
     }
 }
@@ -1754,12 +1754,8 @@ lance_init(
     ln_desc_t desc;
 
     LN_STAT(inits++);
-    if (LE_IFP(sc)->if_flags & IFF_RUNNING) {
-#if __FreeBSD__ > 1
-	lance_reset(unit);
-#else
-	lance_reset(unit, 0);
-#endif
+    if (sc->le_if.if_flags & IFF_RUNNING) {
+	LE_RESET(sc);
 	lance_tx_intr(sc);
 	/*
 	 * If we were running, requeue any pending transmits.
@@ -1771,23 +1767,19 @@ lance_init(
 		di = ri->ri_nextout - 1;
 	    if (di->di_mbuf == NULL)
 		break;
-	    IF_PREPEND(&LE_IFP(sc)->if_snd, di->di_mbuf);
+	    IF_PREPEND(&sc->le_if.if_snd, di->di_mbuf);
 	    di->di_mbuf = NULL;
 	    ri->ri_free++;
 	}
     } else {
-#if __FreeBSD__ > 1
-	lance_reset(unit);
-#else
-	lance_reset(unit, 0);
-#endif
+	LE_RESET(sc);
     }
 
     /*
      * Reset the transmit ring.  Make sure we own all the buffers.
      * Also reset the transmit heap.
      */
-    LE_IFP(sc)->if_flags &= ~IFF_OACTIVE;
+    sc->le_if.if_flags &= ~IFF_OACTIVE;
     ri = &sc->lance_txinfo;
     for (di = ri->ri_first; di < ri->ri_last; di++) {
 	if (di->di_mbuf != NULL) {
@@ -1818,14 +1810,14 @@ lance_init(
     ri->ri_outsize = ri->ri_heapend - ri->ri_heap;
     ri->ri_free = 0;
 
-    if (LE_IFP(sc)->if_flags & IFF_UP) {
-	LE_IFP(sc)->if_flags |= IFF_RUNNING;
+    if (sc->le_if.if_flags & IFF_UP) {
+	sc->le_if.if_flags |= IFF_RUNNING;
 	LN_WRCSR(sc, LN_CSR0_START|LN_CSR0_INITDONE|LN_CSR0_ENABINTR);
 	/* lance_dumpcsrs(sc, "lance_init: up"); */
-	lance_start(LE_IFP(sc));
+	lance_start(&sc->le_if);
     } else {
 	/* lance_dumpcsrs(sc, "lance_init: down"); */
-	LE_IFP(sc)->if_flags &= ~IFF_RUNNING;
+	sc->le_if.if_flags &= ~IFF_RUNNING;
     }
 }
 
@@ -1854,25 +1846,25 @@ lance_intr(
 	if (oldcsr & LN_CSR0_MEMERROR) {
 	    LN_STAT(memory_errors++);
 	    if (oldcsr & (LN_CSR0_RXON|LN_CSR0_TXON)) {
-		lance_init(LE_IFP(sc)->if_unit);
+		lance_init(sc->le_if.if_unit);
 		return;
 	    }
 	}
     }
 
     if ((oldcsr & LN_CSR0_RXINT) && lance_rx_intr(sc)) {
-	lance_init(LE_IFP(sc)->if_unit);
+	lance_init(sc->le_if.if_unit);
 	return;
     }
 
     if (oldcsr & LN_CSR0_TXINT) {
 	if (lance_tx_intr(sc))
-	    lance_start(LE_IFP(sc));
+	    lance_start(&sc->le_if);
     }
 
     if (oldcsr == (LN_CSR0_PENDINTR|LN_CSR0_RXON|LN_CSR0_TXON))
         printf("%s%d: lance_intr: stray interrupt\n",
-	       LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit);
+	       sc->le_if.if_name, sc->le_if.if_unit);
 }
 
 static int
@@ -1943,7 +1935,7 @@ lance_rx_intr(
 	     * If the packet is bad, increment the
 	     * counters.  
 	     */
-	    LE_IFP(sc)->if_ierrors++;
+	    sc->le_if.if_ierrors++;
 	    if (desc.d_flag & LN_DFLAG_RxBADCRC)
 		LN_STAT(rx_badcrc++);
 	    if (desc.d_flag & LN_DFLAG_RxOVERFLOW)
@@ -1951,7 +1943,7 @@ lance_rx_intr(
 	    if (desc.d_flag & LN_DFLAG_RxFRAMING)
 		LN_STAT(rx_badframe++);
 	}
-	LE_IFP(sc)->if_ipackets++;
+	sc->le_if.if_ipackets++;
 	LN_STAT(rx_ndescs[ndescs-1]++);
 	rxdescs += ndescs;
 	while (ndescs-- > 0) {
@@ -2105,7 +2097,7 @@ lance_tx_intr(
 	    break;
 
 	if (desc.d_flag & (LN_DFLAG_TxONECOLL|LN_DFLAG_TxMULTCOLL))
-	    LE_IFP(sc)->if_collisions++;
+	    sc->le_if.if_collisions++;
 	if (desc.d_flag & LN_DFLAG_TxDEFERRED)
 	    LN_STAT(tx_deferred++);
 	if (desc.d_flag & LN_DFLAG_TxONECOLL)
@@ -2122,15 +2114,15 @@ lance_tx_intr(
 		    if ((tdr = (desc.d_status & LN_DSTS_TxTDRMASK)) > 0) {
 			tdr *= 100;
 			printf("%s%d: lance: warning: excessive collisions: TDR %dns (%d-%dm)\n",
-			       LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit,
+			       sc->le_if.if_name, sc->le_if.if_unit,
 			       tdr, (tdr*99)/1000, (tdr*117)/1000);
 		    }
 		}
 		if (desc.d_status & LN_DSTS_TxBUFERROR)
 		    LN_STAT(tx_buferror++);
-		LE_IFP(sc)->if_oerrors++;
+		sc->le_if.if_oerrors++;
 		if ((desc.d_status & LN_DSTS_TxLATECOLL) == 0) {
-		    lance_init(LE_IFP(sc)->if_unit);
+		    lance_init(sc->le_if.if_unit);
 		    return 0;
 		} else {
 		    LN_STAT(tx_late_collisions++);
@@ -2139,12 +2131,12 @@ lance_tx_intr(
 	}
 	m_freem(ri->ri_nextin->di_mbuf);
 	ri->ri_nextin->di_mbuf = NULL;
-	LE_IFP(sc)->if_opackets++;
+	sc->le_if.if_opackets++;
 	ri->ri_free++;
 	ri->ri_outsize += ri->ri_nextin->di_buflen;
 	if (++ri->ri_nextin == ri->ri_last)
 	    ri->ri_nextin = ri->ri_first;
-	LE_IFP(sc)->if_flags &= ~IFF_OACTIVE;
+	sc->le_if.if_flags &= ~IFF_OACTIVE;
 	xmits++;
     }
     if (ri->ri_free == ri->ri_max)
