@@ -191,7 +191,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 		 * on a local network).  XXX Probably should use a back-off
 		 * scheme.
 		 */
-		error = tsleep(p->p_nlminfo, PCATCH | PUSER, "lockd", 20*hz);
+		error = tsleep(p->p_nlminfo, PUSER, "lockd", 20*hz);
 		if (error != 0) {
 			if (error == EWOULDBLOCK) {
 				/*
