@@ -94,10 +94,12 @@
 #define mutex_t			pthread_mutex_t
 #define cond_t			pthread_cond_t
 #define rwlock_t		pthread_rwlock_t
+#define once_t			pthread_once_t
 
 #define thread_key_t		pthread_key_t
 #define MUTEX_INITIALIZER	PTHREAD_MUTEX_INITIALIZER
 #define RWLOCK_INITIALIZER	PTHREAD_RWLOCK_INITIALIZER
+#define ONCE_INITIALIZER	PTHREAD_ONCE_INIT
 
 #define mutex_init(m, a)	_pthread_mutex_init(m, a)
 #define mutex_lock(m)		if (__isthreaded) \
@@ -127,6 +129,7 @@
 #define thr_getspecific(k)	_pthread_getspecific(k)
 #define thr_sigsetmask(f, n, o)	_pthread_sigmask(f, n, o)
 
+#define thr_once(o, i)		_pthread_once(o, i)
 #define thr_self()		_pthread_self()
 #define thr_exit(x)		_pthread_exit(x)
 #define thr_main()		_pthread_main_np()

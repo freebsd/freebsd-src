@@ -618,10 +618,14 @@ and documented in
 (RFC2553).
 .\"
 .Sh BUGS
-Though the current implementation should be thread-safe, using
+Although the current implementation is otherwise thread-safe, using
 .Fn getaddrinfo
 in conjunction with
 .Fn gethostby*
-breaks thread-safeness.
+(see
+.Xr gethostbyname 3 )
+or
+.Xr yp 8
+breaks the thread-safety of both.
 .Pp
 The text was shamelessly copied from RFC2553.

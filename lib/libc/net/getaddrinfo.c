@@ -305,10 +305,10 @@ static struct ai_errlist {
 };
 
 /*
- * XXX: Our res_*() is not thread-safe.  So, we share lock between
+ * XXX: Many dependencies are not thread-safe.  So, we share lock between
  * getaddrinfo() and getipnodeby*().  Still, we cannot use
  * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call res_*().
+ * functions which call them.
  */
 pthread_mutex_t __getaddrinfo_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 #define THREAD_LOCK() \
@@ -1348,9 +1348,13 @@ get_port(ai, servname, matchonly)
 			break;
 		}
 
-		if ((sp = getservbyname(servname, proto)) == NULL)
+		THREAD_LOCK();
+		if ((sp = getservbyname(servname, proto)) == NULL) {
+			THREAD_UNLOCK();
 			return EAI_SERVICE;
+		}
 		port = sp->s_port;
+		THREAD_UNLOCK();
 	}
 
 	if (!matchonly) {
@@ -1501,15 +1505,11 @@ explore_fqdn(pai, hostname, servname, res)
 
 	result = NULL;
 
-	THREAD_LOCK();
-
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
 	 */
-	if (get_portmatch(pai, servname) != 0) {
-		THREAD_UNLOCK();
+	if (get_portmatch(pai, servname) != 0)
 		return 0;
-	}
 
 	switch (_nsdispatch(&result, dtab, NSDB_HOSTS, "getaddrinfo",
 			default_dns_files, hostname, pai)) {
@@ -1530,14 +1530,12 @@ explore_fqdn(pai, hostname, servname, res)
 		}
 		break;
 	}
-	THREAD_UNLOCK();
 
 	*res = result;
 
 	return 0;
 
 free:
-	THREAD_UNLOCK();
 	if (result)
 		freeaddrinfo(result);
 	return error;
@@ -2037,6 +2035,7 @@ _files_getaddrinfo(rv, cb_data, ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	THREAD_LOCK();
 	_sethtent();
 	while ((p = _gethtent(name, pai)) != NULL) {
 		cur->ai_next = p;
@@ -2044,6 +2043,7 @@ _files_getaddrinfo(rv, cb_data, ap)
 			cur = cur->ai_next;
 	}
 	_endhtent();
+	THREAD_UNLOCK();
 
 	*((struct addrinfo **)rv) = sentinel.ai_next;
 	if (sentinel.ai_next == NULL)
@@ -2152,9 +2152,12 @@ _yp_getaddrinfo(rv, cb_data, ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	THREAD_LOCK();
 	if (!__ypdomain) {
-		if (_yp_check(&__ypdomain) == 0)
+		if (_yp_check(&__ypdomain) == 0) {
+			THREAD_UNLOCK();
 			return NS_UNAVAIL;
+		}
 	}
 	if (__ypcurrent)
 		free(__ypcurrent);
@@ -2189,6 +2192,7 @@ _yp_getaddrinfo(rv, cb_data, ap)
 				cur = cur->ai_next;
 		}
 	}
+	THREAD_UNLOCK();
 
 	if (sentinel.ai_next == NULL) {
 		h_errno = HOST_NOT_FOUND;
@@ -2202,7 +2206,6 @@ _yp_getaddrinfo(rv, cb_data, ap)
 /* resolver logic */
 
 extern const char *__hostalias(const char *);
-extern int h_errno;
 
 /*
  * Formulate a normal query, send, and await answer.
