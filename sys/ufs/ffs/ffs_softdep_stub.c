@@ -32,6 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep_stub.c	9.1 (McKusick) 7/10/97
+ *	$Id$
  */
 
 /* 
