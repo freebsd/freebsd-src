@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.19 1997/11/14 15:39:14 brian Exp $
+ * $Id: ccp.c,v 1.20 1997/11/22 03:37:25 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -41,6 +41,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "pred.h"
+#include "deflate.h"
 
 struct ccpstate CcpInfo;
 
@@ -53,8 +54,6 @@ static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *);
-
-#define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
 struct fsm CcpFsm = {
   "CCP",
@@ -92,10 +91,30 @@ static char const *cftypes[] = {
    "MSPPC",	/* 18: Microsoft PPC */
    "GAND",	/* 19: Gandalf FZA */
    "V42BIS",	/* 20: ARG->DATA.42bis compression */
-   "BSD",	/* BSD LZW Compress */
+   "BSD",	/* 21: BSD LZW Compress */
+   "???",
+   "???",
+   "DEFLATE",	/* 24: PPP Deflate */
 };
 
 #define NCFTYPES (sizeof(cftypes)/sizeof(char *))
+
+static const char *
+protoname(int proto)
+{
+  if (proto < 0 || proto > NCFTYPES)
+    return "none";
+  return cftypes[proto];
+}
+
+static const struct ccp_algorithm *algorithm[] = {
+  &Pred1Algorithm,
+  &DeflateAlgorithm
+};
+
+static int in_algorithm = -1;
+static int out_algorithm = -1;
+#define NALGORITHMS (sizeof(algorithm)/sizeof(algorithm[0]))
 
 int
 ReportCcpStatus(struct cmdargs const *arg)
@@ -105,10 +124,10 @@ ReportCcpStatus(struct cmdargs const *arg)
 
   if (VarTerm) {
     fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
-    fprintf(VarTerm, "myproto = %s, hisproto = %s\n",
-	    cftypes[icp->want_proto], cftypes[icp->his_proto]);
-    fprintf(VarTerm, "Input: %ld --> %ld,  Output: %ld --> %ld\n",
-	    icp->orgin, icp->compin, icp->orgout, icp->compout);
+    fprintf(VarTerm, "My protocol = %s, His protocol = %s\n",
+            protoname(icp->my_proto), protoname(icp->his_proto));
+    fprintf(VarTerm, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
+            icp->uncompout, icp->compout, icp->compin, icp->uncompin);
   }
   return 0;
 }
@@ -120,8 +139,15 @@ CcpInit()
 
   FsmInit(&CcpFsm);
   memset(icp, '\0', sizeof(struct ccpstate));
-  if (Enabled(ConfPred1))
-    icp->want_proto = TY_PRED1;
+  icp->his_proto = icp->my_proto = -1;
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
+    (*algorithm[in_algorithm]->i.Term)();
+    in_algorithm = -1;
+  }
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
+    (*algorithm[out_algorithm]->o.Term)();
+    out_algorithm = -1;
+  }
   CcpFsm.maxconfig = 10;
 }
 
@@ -137,13 +163,22 @@ CcpSendConfigReq(struct fsm *fp)
 {
   u_char *cp;
   struct ccpstate *icp = &CcpInfo;
+  int f;
 
-  cp = ReqBuff;
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
-  if (icp->want_proto && !REJECTED(icp, TY_PRED1)) {
-    *cp++ = TY_PRED1;
-    *cp++ = 2;
-  }
+  cp = ReqBuff;
+  CcpInfo.my_proto = -1;
+  out_algorithm = -1;
+  for (f = 0; f < NALGORITHMS; f++)
+    if (Enabled(algorithm[f]->Conf) && !REJECTED(icp, algorithm[f]->id)) {
+      struct lcp_opt o;
+
+      (*algorithm[f]->o.Get)(&o);
+      cp += LcpPutConf(LogCCP, cp, &o, cftypes[o.id],
+                       (*algorithm[f]->Disp)(&o));
+      CcpInfo.my_proto = o.id;
+      out_algorithm = f;
+    }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
 
@@ -170,7 +205,8 @@ CcpSendTerminateAck(struct fsm *fp)
 void
 CcpRecvResetReq(struct fsm *fp)
 {
-  Pred1Init(2);			/* Initialize Output part */
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
+    (*algorithm[out_algorithm]->o.Reset)();
 }
 
 static void
@@ -183,24 +219,44 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
+    (*algorithm[in_algorithm]->i.Term)();
+    in_algorithm = -1;
+  }
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
+    (*algorithm[out_algorithm]->o.Term)();
+    out_algorithm = -1;
+  }
 }
 
 static void
 CcpLayerDown(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerDown.\n");
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
+    (*algorithm[in_algorithm]->i.Term)();
+    in_algorithm = -1;
+  }
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
+    (*algorithm[out_algorithm]->o.Term)();
+    out_algorithm = -1;
+  }
 }
 
 /*
- *  Called when CCP has reached to OPEN state
+ *  Called when CCP has reached the OPEN state
  */
 static void
 CcpLayerUp(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
-  LogPrintf(LogCCP, "myproto = %d, hisproto = %d\n",
-	    CcpInfo.want_proto, CcpInfo.his_proto);
-  Pred1Init(3);			/* Initialize Input and Output */
+  LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
+            protoname(CcpInfo.my_proto), CcpInfo.my_proto,
+            protoname(CcpInfo.his_proto), CcpInfo.his_proto);
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+    (*algorithm[in_algorithm]->i.Init)();
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
+    (*algorithm[out_algorithm]->o.Init)();
 }
 
 void
@@ -213,15 +269,29 @@ CcpUp()
 void
 CcpOpen()
 {
-  if (Enabled(ConfPred1))
-    FsmOpen(&CcpFsm);
+  int f;
+
+  for (f = 0; f < NALGORITHMS; f++)
+    if (Enabled(algorithm[f]->Conf)) {
+      CcpFsm.open_mode = OPEN_ACTIVE;
+      FsmOpen(&CcpFsm);
+      break;
+    }
+
+  if (f == NALGORITHMS)
+    for (f = 0; f < NALGORITHMS; f++)
+      if (Acceptable(algorithm[f]->Conf)) {
+        CcpFsm.open_mode = OPEN_PASSIVE;
+        FsmOpen(&CcpFsm);
+        break;
+      }
 }
 
 static void
 CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
   int type, length;
-  char tbuff[100];
+  int f;
 
   ackp = AckBuff;
   nakp = NakBuff;
@@ -233,41 +303,73 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
     type = *cp;
     length = cp[1];
     if (type < NCFTYPES)
-      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
+      LogPrintf(LogCCP, " %s[%d]\n", cftypes[type], length);
     else
-      snprintf(tbuff, sizeof(tbuff), " ");
+      LogPrintf(LogCCP, " ???[%d]\n", length);
 
-    LogPrintf(LogCCP, "%s\n", tbuff);
+    for (f = NALGORITHMS-1; f > -1; f--)
+      if (algorithm[f]->id == type)
+        break;
 
-    switch (type) {
-    case TY_PRED1:
+    if (f == -1) {
+      /* Don't understand that :-( */
+      if (mode_type == MODE_REQ) {
+        CcpInfo.my_reject |= (1 << type);
+        memcpy(rejp, cp, length);
+        rejp += length;
+      }
+    } else {
+      struct lcp_opt o;
+
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(ConfPred1)) {
-	  memcpy(ackp, cp, length);
-	  ackp += length;
-	  CcpInfo.his_proto = type;
+	if (Acceptable(algorithm[f]->Conf) && in_algorithm == -1) {
+	  memcpy(&o, cp, length);
+          switch ((*algorithm[f]->i.Set)(&o)) {
+          case MODE_REJ:
+	    memcpy(rejp, &o, o.len);
+	    rejp += o.len;
+            break;
+          case MODE_NAK:
+	    memcpy(nakp, &o, o.len);
+	    nakp += o.len;
+            break;
+          case MODE_ACK:
+	    memcpy(ackp, cp, length);
+	    ackp += length;
+	    CcpInfo.his_proto = type;
+            in_algorithm = f;		/* This one'll do ! */
+            break;
+          }
 	} else {
 	  memcpy(rejp, cp, length);
 	  rejp += length;
 	}
 	break;
       case MODE_NAK:
+	memcpy(&o, cp, length);
+        if ((*algorithm[f]->o.Set)(&o) == MODE_ACK)
+          CcpInfo.my_proto = algorithm[f]->id;
+        else {
+	  CcpInfo.his_reject |= (1 << type);
+	  CcpInfo.my_proto = -1;
+        }
+        break;
       case MODE_REJ:
 	CcpInfo.his_reject |= (1 << type);
-	CcpInfo.want_proto = 0;
+	CcpInfo.my_proto = -1;
 	break;
       }
-      break;
-    case TY_BSD:
-    default:
-      CcpInfo.my_reject |= (1 << type);
-      memcpy(rejp, cp, length);
-      rejp += length;
-      break;
     }
+
     plen -= length;
     cp += length;
+  }
+
+  if (rejp != RejBuff) {
+    ackp = AckBuff;	/* let's not send both ! */
+    CcpInfo.his_proto = -1;
+    in_algorithm = -1;
   }
 }
 
@@ -281,4 +383,34 @@ CcpInput(struct mbuf *bp)
       LogPrintf(LogERROR, "Unexpected CCP in phase %d\n", phase);
     pfree(bp);
   }
+}
+
+void
+CcpResetInput()
+{
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+    (*algorithm[in_algorithm]->i.Reset)();
+}
+
+int
+CcpOutput(int pri, u_short proto, struct mbuf *m)
+{
+  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
+    return (*algorithm[out_algorithm]->o.Write)(pri, proto, m);
+  return 0;
+}
+
+struct mbuf *
+CompdInput(u_short *proto, struct mbuf *m)
+{
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+    return (*algorithm[in_algorithm]->i.Read)(proto, m);
+  return NULL;
+}
+
+void
+CcpDictSetup(u_short proto, struct mbuf *m)
+{
+  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+    (*algorithm[in_algorithm]->i.DictSetup)(proto, m);
 }

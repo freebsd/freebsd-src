@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.79 1997/11/14 20:07:39 brian Exp $
+.\" $Id: ppp.8,v 1.80 1997/11/18 14:52:06 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1061,7 +1061,7 @@ the current IETF-draft specs. As a default behaviour,
 will attempt to use (or be willing to accept) this capability when the
 peer agrees (or requests it).
 
-To disable CCP/predictor functionality completely, use the
+To disable CCP/predictor1 functionality completely, use the
 .Dq disable pred1
 and
 .Dq deny pred1
@@ -1587,19 +1587,20 @@ challenge.  Refer to the description of the
 .Dq set encrypt
 command for further details.
 
+.It deflate
+Default: Enabled and Accepted.  This option decides if deflate
+compression will be used by the Compression Control Protocol (CCP).
+This is the same algorithm as used by the
+.Xr gzip 1
+program.
+
+
 .It lqr
 Default: Disabled and Accepted.  This option decides if Link Quality
 Requests will be sent.  LQR is a protocol that allows
 .Nm
 to determine that the link is down without relying on the modems
 carrier detect.
-
-.It msext
-Default: Disabled.  This option allows the use of Microsoft's
-.Em PPP
-extensions, supporting the negotiation of the DNS and the NetBIOS NS.
-Enabling this allows us to pass back the values given in "set ns"
-and "set nbns".
 
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
@@ -1629,7 +1630,7 @@ PAP is accepted by default.
 
 .It pred1
 Default: Enabled and Accepted.  This option decides if Predictor 1
-compression will be used.
+compression will be used by the Compression Control Protocol (CCP).
 
 .It protocomp
 Default: Enabled and Accepted.  This option is used to negotiate
@@ -1646,6 +1647,13 @@ The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
 
 .Bl -tag -width 20
+.It msext
+Default: Disabled.  This option allows the use of Microsoft's
+.Em PPP
+extensions, supporting the negotiation of the DNS and the NetBIOS NS.
+Enabling this allows us to pass back the values given in "set ns"
+and "set nbns".
+
 .It passwdauth
 Default: Disabled.  Enabling this option will tell the PAP authentication
 code to use the password file (see
@@ -2430,6 +2438,7 @@ Get port number if port number is using service name.
 .Xr crontab 5 ,
 .Xr ftp 1 ,
 .Xr getty 8 ,
+.Xr gzip 1 ,
 .Xr hostname 1 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
@@ -2451,3 +2460,7 @@ Get port number if port number is using service name.
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
 and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
 It has since had an enormous face lift and looks substantially different.
+
+.Pp
+The zlib compression algorithms used in the DEFLATE protocol are provided
+thanks to Jean-loup Gailly (Copyright 1995).
