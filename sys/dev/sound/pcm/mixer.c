@@ -334,7 +334,7 @@ mixer_hwvol_init(device_t dev)
             OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
-	    sysctl_hw_snd_hwvol_mixer, "A", "")
+	    sysctl_hw_snd_hwvol_mixer, "A", "");
 #endif
 	snd_mtxunlock(m->lock);
 	return 0;
