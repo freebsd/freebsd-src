@@ -49,6 +49,7 @@
 #include <sys/sbuf.h>
 #include <sys/errno.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 
@@ -107,12 +108,10 @@ static struct proc *g_event_proc;
 static void
 g_event_procbody(void)
 {
-	struct proc *p = g_event_proc;
-	struct thread *tp = &p->p_xxthread;
 
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
-		g_run_events(tp);
+		g_run_events();
 		mtx_lock(&Giant);
 		tsleep(&g_wait_event, PRIBIO, "g_events", hz/10);
 		mtx_unlock(&Giant);

@@ -58,10 +58,11 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events, g_silence_events;
-static void g_do_event(struct g_event *ep, struct thread *tp);
+static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_doorlock;
 
@@ -108,7 +109,7 @@ g_orphan_provider(struct g_provider *pp, int error)
  */
 
 static void
-g_orphan_register(struct g_provider *pp, struct thread *tp)
+g_orphan_register(struct g_provider *pp)
 {
 	struct g_consumer *cp, *cp2;
 
@@ -125,7 +126,7 @@ g_orphan_register(struct g_provider *pp, struct thread *tp)
 		KASSERT(cp->geom->class->orphan != NULL,
 		    ("class %s has no orphan, geom %s",
 		    cp->geom->class->name, cp->geom->name));
-		cp->geom->class->orphan(cp, tp);
+		cp->geom->class->orphan(cp);
 		cp = cp2;
 	}
 }
@@ -138,7 +139,7 @@ g_destroy_event(struct g_event *ep)
 }
 
 static void
-g_do_event(struct g_event *ep, struct thread *tp)
+g_do_event(struct g_event *ep)
 {
 	struct g_class *mp, *mp2;
 	struct g_geom *gp;
@@ -159,7 +160,7 @@ g_do_event(struct g_event *ep, struct thread *tp)
 				continue;
 			LIST_FOREACH(gp, &mp->geom, geom) {
 				LIST_FOREACH(pp, &gp->provider, provider) {
-					mp2->taste(ep->class, pp, tp, 0);
+					mp2->taste(ep->class, pp, 0);
 					g_topology_assert();
 				}
 			}
@@ -176,7 +177,7 @@ g_do_event(struct g_event *ep, struct thread *tp)
 				if(cp->geom->class == mp)
 					i = 0;
 			if (i) {
-				mp->taste(mp, ep->provider, tp, 0);
+				mp->taste(mp, ep->provider, 0);
 				g_topology_assert();
 			}
 		}
@@ -204,7 +205,7 @@ g_do_event(struct g_event *ep, struct thread *tp)
 }
 
 static int
-one_event(struct thread *tp)
+one_event(void)
 {
 	struct g_event *ep;
 	struct g_provider *pp;
@@ -218,7 +219,7 @@ one_event(struct thread *tp)
 		mtx_unlock(&g_doorlock);
 		if (pp == NULL)
 			break;
-		g_orphan_register(pp, tp);
+		g_orphan_register(pp);
 	}
 	ep = TAILQ_FIRST(&g_events);
 	if (ep == NULL) {
@@ -234,7 +235,7 @@ one_event(struct thread *tp)
 		ep->provider->event = NULL;
 	if (ep->consumer != NULL)
 		ep->consumer->event = NULL;
-	g_do_event(ep, tp);
+	g_do_event(ep);
 	g_pending_events--;
 	if (g_pending_events == 0) {
 		mtx_lock(&Giant);
@@ -247,10 +248,10 @@ one_event(struct thread *tp)
 }
 
 void
-g_run_events(struct thread *tp)
+g_run_events()
 {
 
-	while (one_event(tp))
+	while (one_event())
 		;
 }
 

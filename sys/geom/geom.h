@@ -57,27 +57,18 @@ struct thread;
 struct bio;
 struct sbuf;
 
-LIST_HEAD(class_list_head, g_class);
-TAILQ_HEAD(g_tailq_head, g_geom);
-TAILQ_HEAD(event_tailq_head, g_event);
-
-extern struct g_tailq_head geoms;
-extern struct event_tailq_head events;
-extern int g_debugflags;
-
-
 #define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0
 
 typedef struct g_geom * g_create_geom_t (struct g_class *mp,
     struct g_provider *pp, char *name);
 typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
-    struct thread *tp, int flags);
+    int flags);
 #define G_TF_NORMAL		0
 #define G_TF_INSIST		1
 #define G_TF_TRANSPARENT	2
 typedef int g_access_t (struct g_provider *, int, int, int);
 /* XXX: not sure about the thread arg */
-typedef void g_orphan_t (struct g_consumer *, struct thread *);
+typedef void g_orphan_t (struct g_consumer *);
 
 typedef void g_start_t (struct bio *);
 typedef void g_spoiled_t (struct g_consumer *);
@@ -168,30 +159,7 @@ struct g_provider {
 	int			index;
 };
 
-/*
- * Various internal actions are tracked by tagging g_event[s] onto
- * an internal eventqueue.
- */
-enum g_events {
-	EV_NEW_CLASS,		/* class */
-	EV_NEW_PROVIDER,	/* provider */
-	EV_SPOILED,		/* provider, consumer */
-	EV_LAST
-};
-
-struct g_event {
-	enum g_events 		event;
-	TAILQ_ENTRY(g_event)	events;
-	struct g_class		*class;
-	struct g_geom		*geom;
-	struct g_provider	*provider;
-	struct g_consumer	*consumer;
-};
-
 /* geom_dump.c */
-struct sbuf * g_conf(void);
-struct sbuf * g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
-struct sbuf * g_confdot(void);
 void g_hexdump(void *ptr, int length);
 void g_trace(int level, char *, ...);
 #	define G_T_TOPOLOGY	1
@@ -206,11 +174,8 @@ uint32_t g_dec_le4(u_char *p);
 void g_enc_le4(u_char *p, uint32_t u);
 
 /* geom_event.c */
-void g_event_init(void);
 void g_orphan_provider(struct g_provider *pp, int error);
-void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 void g_rattle(void);
-void g_run_events(struct thread *tp);
 void g_silence(void);
 
 /* geom_subr.c */
@@ -228,7 +193,6 @@ int g_haveattr(struct bio *bp, char *attribute, void *val, int len);
 int g_haveattr_int(struct bio *bp, char *attribute, int val);
 int g_haveattr_off_t(struct bio *bp, char *attribute, off_t val);
 struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
-extern struct class_list_head g_classs;
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, char *fmt, ...);
@@ -236,23 +200,18 @@ void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
-extern char *g_wait_event, *g_wait_sim, *g_wait_up, *g_wait_down;
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp);
-int g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr, struct thread *tp);
-void g_io_init(void);
+int g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
-void g_io_schedule_down(struct thread *tp);
-void g_io_schedule_up(struct thread *tp);
-int g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr, struct thread *tp);
+int g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr);
 struct bio *g_new_bio(void);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
 
 /* geom_kern.c / geom_kernsim.c */
-void g_init(void);
 
 struct g_ioctl {
 	u_long		cmd;
