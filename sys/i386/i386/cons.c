@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.15 1994/08/31 07:44:22 davidg Exp $
+ *	$Id: cons.c,v 1.16 1994/10/20 00:07:45 phk Exp $
  */
 
 
@@ -56,7 +56,8 @@
 
 /* XXX - all this could be autoconfig()ed */
 #include "sc.h"
-#if NSC > 0
+#include "vt.h"
+#if NSC > 0 || NVT > 0
 int pccnprobe(), pccninit(), pccngetc(), pccncheckc(), pccnputc();
 #endif
 
