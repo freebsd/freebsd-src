@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.50 1997/08/31 22:59:41 brian Exp $
+ * $Id: modem.c,v 1.51 1997/09/10 02:20:30 brian Exp $
  *
  *  TODO:
  */
@@ -312,15 +312,14 @@ ModemTimeout()
 	DownConnection();
       }
     }
-  } else {
-    if (!Online) {
-      time(&uptime);
-      LogPrintf(LogPHASE, "Connected!\n");
-      mbits = TIOCM_CD;
-      connect_count++;
-    } else if (uptime == 0) {
-      time(&uptime);
-    }
+  } else if (!Online) {
+    /* mbits was set to zero in OpenModem() */
+    time(&uptime);
+    LogPrintf(LogPHASE, "Connected!\n");
+    mbits = TIOCM_CD;
+    connect_count++;
+  } else if (uptime == 0) {
+    time(&uptime);
   }
 }
 
@@ -331,6 +330,7 @@ StartModemTimer()
   ModemTimer.state = TIMER_STOPPED;
   ModemTimer.load = SECTICKS;
   ModemTimer.func = ModemTimeout;
+  LogPrintf(LogDEBUG, "ModemTimer using ModemTimeout() - %p\n", ModemTimeout);
   StartTimer(&ModemTimer);
 }
 
@@ -438,18 +438,25 @@ OpenModem(int mode)
   char *host, *cp, *port;
   int res;
 
-  mbits = 0;
-  if (mode & MODE_DIRECT) {
+  if (modem >= 0)
+    LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
+    /* We're going back into "term" mode */
+  else if (mode & MODE_DIRECT) {
     if (isatty(0)) {
-      modem = open(ctermid(NULL), O_RDWR | O_NONBLOCK);
+      char *dev;
+      modem = open(dev = ctermid(NULL), O_RDWR | O_NONBLOCK);
       if (modem < 0) {
-	LogPrintf(LogPHASE, "Open Failed %s\n", ctermid(NULL));
-	return (modem);
+	LogPrintf(LogERROR, "OpenModem(direct) failed: %s: %s\n",
+		  dev, strerror(errno));
+	return (-1);
       }
-    } else
+      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
+    } else {
       /* must be a tcp connection */
+      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
       return modem = dup(1);
-  } else if (modem < 0) {
+    }
+  } else {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
 	if (res == UU_LOCK_INUSE)
@@ -461,10 +468,12 @@ OpenModem(int mode)
       }
       modem = open(VarDevice, O_RDWR | O_NONBLOCK);
       if (modem < 0) {
-	LogPrintf(LogPHASE, "Open Failed %s\n", VarDevice);
+	LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
+		  strerror(errno));
 	(void) uu_unlock(VarBaseDevice);
-	return (modem);
+	return (-1);
       }
+      LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
     } else {
       /* XXX: PPP over TCP */
       cp = index(VarDevice, ':');
@@ -477,12 +486,18 @@ OpenModem(int mode)
 	  *cp = ':';		/* Don't destroy VarDevice */
 	  if (modem < 0)
 	    return (-1);
+          LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
 	} else {
 	  *cp = ':';		/* Don't destroy VarDevice */
+	  LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
 	  return (-1);
 	}
-      } else
+      } else {
+	LogPrintf(LogERROR,
+		  "Device (%s) must be in /dev or be a host:port pair\n",
+		  VarDevice);
 	return (-1);
+      }
     }
   }
 
@@ -491,6 +506,7 @@ OpenModem(int mode)
    * for further operation. In this implementation, we assume that modem is
    * configuted to use CTS/RTS flow control.
    */
+  mbits = 0;
   dev_is_modem = isatty(modem) || DEV_IS_SYNC;
   if (DEV_IS_SYNC)
     sleep(1);
@@ -527,13 +543,21 @@ OpenModem(int mode)
 	      rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 
     if (!(mode & MODE_DIRECT))
-      if (ioctl(modem, TIOCMGET, &mbits))
-	return (-1);
+      if (ioctl(modem, TIOCMGET, &mbits)) {
+        LogPrintf(LogERROR, "OpenModem: Cannot get modem status: %s\n",
+		  strerror(errno));
+        close(modem);
+	return (modem = -1);
+      }
     LogPrintf(LogDEBUG, "OpenModem: modem control = %o\n", mbits);
 
     oldflag = fcntl(modem, F_GETFL, 0);
-    if (oldflag < 0)
-      return (-1);
+    if (oldflag < 0) {
+      LogPrintf(LogERROR, "OpenModem: Cannot get modem flags: %s\n",
+		strerror(errno));
+      close(modem);
+      return (modem = -1);
+    }
     (void) fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
   StartModemTimer();
@@ -606,6 +630,7 @@ HangupModem(int flag)
     modem = -1;			/* Mark as modem has closed */
     return;
   }
+
   if (modem >= 0 && Online) {
     mbits &= ~TIOCM_DTR;
 #ifdef __bsdi__			/* not a POSIX way */
@@ -630,7 +655,7 @@ HangupModem(int flag)
 
     /*
      * ModemTimeout() may call DownConection() to close the modem resulting
-     * in modem == 0.
+     * in modem == -1.
      */
     if (modem >= 0) {
       char ScriptBuffer[200];
@@ -806,15 +831,23 @@ DialModem()
 int
 ShowModemStatus()
 {
+  char *dev;
 #ifdef TIOCOUTQ
   int nb;
-
 #endif
 
   if (!VarTerm)
     return 1;
 
-  fprintf(VarTerm, "device: %s  speed: ", VarDevice);
+  if (mode & MODE_DIRECT)
+    if (isatty(0))
+      dev = ctermid(NULL);
+    else
+      dev = "network";
+  else
+    dev = VarDevice;
+
+  fprintf(VarTerm, "device: %s  speed: ", dev);
   if (DEV_IS_SYNC)
     fprintf(VarTerm, "sync\n");
   else
