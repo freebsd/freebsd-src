@@ -89,6 +89,9 @@ PATH_T to = { to.p_path, emptystring, "" };
 int fflag, iflag, nflag, pflag, vflag;
 static int Rflag, rflag;
 
+int info;
+static void siginfo (int notused __unused);
+
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int);
@@ -173,6 +176,7 @@ main(int argc, char *argv[])
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
+	(void)signal(SIGINFO, siginfo);
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
@@ -500,4 +504,11 @@ mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 	if (b_info == FTS_D)
 		return (1);
 	return (0);
+}
+
+static void
+siginfo (int notused __unused)
+{
+
+	info = 1;
 }
