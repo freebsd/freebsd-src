@@ -34,7 +34,7 @@
 The
 .Nm
 archive format collects any number of files, directories, and other
-filesystem objects (symbolic links, device nodes, etc.) into a single
+file system objects (symbolic links, device nodes, etc.) into a single
 stream of bytes.
 The format was originally designed to be used with
 tape drives that operate with fixed-size blocks, but is widely used as
@@ -43,7 +43,7 @@ a general packaging mechanism.
 A
 .Nm
 archive consists of a series of 512-byte records.
-Each filesystem object requires a header record which stores basic metadata
+Each file system object requires a header record which stores basic metadata
 (pathname, owner, permissions, etc.) and zero or more records containing any
 file data.
 The end of the archive is indicated by two records consisting
