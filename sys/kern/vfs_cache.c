@@ -47,6 +47,7 @@
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
@@ -707,7 +708,14 @@ __getcwd(td, uap)
 	struct thread *td;
 	struct __getcwd_args *uap;
 {
-	char *bp, *buf;
+
+	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen));
+}
+
+int
+kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
+{
+	char *bp, *tmpbuf;
 	int error, i, slash_prefixed;
 	struct filedesc *fdp;
 	struct namecache *ncp;
@@ -716,12 +724,13 @@ __getcwd(td, uap)
 	numcwdcalls++;
 	if (disablecwd)
 		return (ENODEV);
-	if (uap->buflen < 2)
+	if (buflen < 2)
 		return (EINVAL);
-	if (uap->buflen > MAXPATHLEN)
-		uap->buflen = MAXPATHLEN;
-	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
-	bp += uap->buflen - 1;
+	if (buflen > MAXPATHLEN)
+		buflen = MAXPATHLEN;
+	error = 0;
+	tmpbuf = bp = malloc(buflen, M_TEMP, M_WAITOK);
+	bp += buflen - 1;
 	*bp = '\0';
 	fdp = td->td_proc->p_fd;
 	slash_prefixed = 0;
@@ -731,7 +740,7 @@ __getcwd(td, uap)
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
 				FILEDESC_UNLOCK(fdp);
-				free(buf, M_TEMP);
+				free(tmpbuf, M_TEMP);
 				return (EBADF);
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
@@ -740,35 +749,35 @@ __getcwd(td, uap)
 		if (vp->v_dd->v_id != vp->v_ddid) {
 			FILEDESC_UNLOCK(fdp);
 			numcwdfail1++;
-			free(buf, M_TEMP);
+			free(tmpbuf, M_TEMP);
 			return (ENOTDIR);
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
 			FILEDESC_UNLOCK(fdp);
 			numcwdfail2++;
-			free(buf, M_TEMP);
+			free(tmpbuf, M_TEMP);
 			return (ENOENT);
 		}
 		if (ncp->nc_dvp != vp->v_dd) {
 			FILEDESC_UNLOCK(fdp);
 			numcwdfail3++;
-			free(buf, M_TEMP);
+			free(tmpbuf, M_TEMP);
 			return (EBADF);
 		}
 		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
-			if (bp == buf) {
+			if (bp == tmpbuf) {
 				FILEDESC_UNLOCK(fdp);
 				numcwdfail4++;
-				free(buf, M_TEMP);
+				free(tmpbuf, M_TEMP);
 				return (ENOMEM);
 			}
 			*--bp = ncp->nc_name[i];
 		}
-		if (bp == buf) {
+		if (bp == tmpbuf) {
 			FILEDESC_UNLOCK(fdp);
 			numcwdfail4++;
-			free(buf, M_TEMP);
+			free(tmpbuf, M_TEMP);
 			return (ENOMEM);
 		}
 		*--bp = '/';
@@ -777,16 +786,19 @@ __getcwd(td, uap)
 	}
 	FILEDESC_UNLOCK(fdp);
 	if (!slash_prefixed) {
-		if (bp == buf) {
+		if (bp == tmpbuf) {
 			numcwdfail4++;
-			free(buf, M_TEMP);
+			free(tmpbuf, M_TEMP);
 			return (ENOMEM);
 		}
 		*--bp = '/';
 	}
 	numcwdfound++;
-	error = copyout(bp, uap->buf, strlen(bp) + 1);
-	free(buf, M_TEMP);
+	if (bufseg == UIO_SYSSPACE)
+		bcopy(bp, buf, strlen(bp) + 1);
+	else
+		error = copyout(bp, buf, strlen(bp) + 1);
+	free(tmpbuf, M_TEMP);
 	return (error);
 }
 
