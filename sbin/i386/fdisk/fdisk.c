@@ -197,8 +197,7 @@ static void print_params();
 static void change_active(int which);
 static void change_code();
 static void get_params_to_use();
-static void dos(int sec, int size, unsigned char *c, unsigned char *s,
-		unsigned char *h);
+static void dos(struct dos_partition *partp);
 static int open_disk(int u_flag);
 static ssize_t read_disk(off_t sector, void *buf);
 static ssize_t write_disk(off_t sector, void *buf);
@@ -344,10 +343,7 @@ main(int argc, char *argv[])
 		partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs -
 		    dos_sectors;
 
-		dos(partp->dp_start, partp->dp_size, 
-		    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-		dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
-		    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+		dos(partp);
 		if (v_flag)
 			print_s0(-1);
 		write_s0();
@@ -524,10 +520,7 @@ struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
 	partp->dp_start = start;
 	partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs - start;
 
-	dos(partp->dp_start, partp->dp_size, 
-	    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-	dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
-	    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+	dos(partp);
 }
 
 static void
@@ -554,6 +547,10 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp);
 		Decimal("start", partp->dp_start, tmp);
 		Decimal("size", partp->dp_size, tmp);
+		if (!sanitize_partition(partp)) {
+			warnx("ERROR: failed to adjust; setting sysid to 0");
+			partp->dp_typ = 0;
+		}
 
 		if (ok("Explicitly specify beg/end address ?"))
 		{
@@ -577,14 +574,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			partp->dp_ecyl = DOSCYL(tcyl);
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
-		} else {
-			if (!sanitize_partition(partp))
-				partp->dp_typ = 0;
-			dos(partp->dp_start, partp->dp_size,
-			    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-			dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
-			    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
-		}
+		} else
+			dos(partp);
 
 		print_part(i);
 	} while (!ok("Are we happy with this entry?"));
@@ -607,23 +598,34 @@ print_params()
 static void
 change_active(int which)
 {
-int i;
-int active = 4, tmp;
-struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
+	struct dos_partition *partp = &mboot.parts[0];
+	int active, i, new, tmp;
 
+	active = -1;
+	for (i = 0; i < NDOSPART; i++) {
+		if ((partp[i].dp_flag & ACTIVE) == 0)
+			continue;
+		printf("Partition %d is marked active\n", i + 1);
+		if (active == -1)
+			active = i + 1;
+	}
 	if (a_flag && which != -1)
 		active = which;
+	else if (active == -1)
+		active = 1;
+
 	if (!ok("Do you want to change the active partition?"))
 		return;
 setactive:
-	active = 4;
 	do {
-		Decimal("active partition", active, tmp);
-		if (active < 1 || 4 < active) {
+		new = active;
+		Decimal("active partition", new, tmp);
+		if (new < 1 || new > 4) {
 			printf("Active partition number must be in range 1-4."
 					"  Try again.\n");
 			goto setactive;
 		}
+		active = new;
 	} while (!ok("Are you happy with this choice"));
 	for (i = 0; i < NDOSPART; i++)
 		partp[i].dp_flag = 0;
@@ -662,27 +664,32 @@ get_params_to_use()
 * Change real numbers into strange dos numbers	*
 \***********************************************/
 static void
-dos(sec, size, c, s, h)
-int sec, size;
-unsigned char *c, *s, *h;
+dos(partp)
+	struct dos_partition *partp;
 {
-int cy;
-int hd;
+	int cy, sec;
+	u_int32_t end;
 
-	if (sec == 0 && size == 0) {
-		*s = *c = *h = 0;
+	if (partp->dp_typ == 0 && partp->dp_start == 0 &&
+	    partp->dp_size == 0) {
+		bcopy(partp, &mtpart, sizeof(*partp));
 		return;
 	}
 
-	cy = sec / ( dos_cylsecs );
-	sec = sec - cy * ( dos_cylsecs );
+	/* Start c/h/s. */
+	partp->dp_shd = partp->dp_start % dos_cylsecs / dos_sectors;
+	cy = partp->dp_start / dos_cylsecs;
+	sec = partp->dp_start % dos_sectors + 1;
+	partp->dp_scyl = DOSCYL(cy);
+	partp->dp_ssect = DOSSECT(sec, cy);
 
-	hd = sec / dos_sectors;
-	sec = (sec - hd * dos_sectors) + 1;
-
-	*h = hd;
-	*c = cy & 0xff;
-	*s = (sec & 0x3f) | ( (cy & 0x300) >> 2);
+	/* End c/h/s. */
+	end = partp->dp_start + partp->dp_size - 1;
+	partp->dp_ehd = end % dos_cylsecs / dos_sectors;
+	cy = end / dos_cylsecs;
+	sec = end % dos_sectors + 1;
+	partp->dp_ecyl = DOSCYL(cy);
+	partp->dp_esect = DOSSECT(sec, cy);
 }
 
 int fd;
@@ -839,7 +846,9 @@ ok(str)
 char *str;
 {
 	printf("%s [n] ", str);
-	fgets(lbuf, LBUF, stdin);
+	fflush(stdout);
+	if (fgets(lbuf, LBUF, stdin) == NULL)
+		exit(1);
 	lbuf[strlen(lbuf)-1] = 0;
 
 	if (*lbuf &&
@@ -858,7 +867,9 @@ char *cp;
 
 	while (1) {
 		printf("Supply a decimal value for \"%s\" [%d] ", str, deflt);
-		fgets(lbuf, LBUF, stdin);
+		fflush(stdout);
+		if (fgets(lbuf, LBUF, stdin) == NULL)
+			exit(1);
 		lbuf[strlen(lbuf)-1] = 0;
 
 		if (!*lbuf)
@@ -1234,15 +1245,12 @@ process_partition(command)
 	}
 	if (partp->dp_size == 0)
 	{
-	    warnx("ERROR line %d: size for partition %d is zero",
+	    warnx("ERROR line %d: size of partition %d is zero",
 		    current_line_number, partition);
 	    break;
 	}
 
-	dos(partp->dp_start, partp->dp_size,
-	    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
-	dos(partp->dp_start+partp->dp_size - 1, partp->dp_size,
-	    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+	dos(partp);
 	status = 1;
 	break;
     }
@@ -1400,17 +1408,37 @@ sanitize_partition(partp)
     struct dos_partition	*partp;
 {
     u_int32_t			prev_head_boundary, prev_cyl_boundary;
-    u_int32_t			adj_size, max_end;
+    u_int32_t			max_end, size, start;
 
-    max_end = partp->dp_start + partp->dp_size;
+    start = partp->dp_start;
+    size = partp->dp_size;
+    max_end = start + size;
+    /* Only allow a zero size if the partition is being marked unused. */
+    if (size == 0) {
+	if (start == 0 && partp->dp_typ == 0)
+	    return (1);
+	warnx("ERROR: size of partition is zero");
+	return (0);
+    }
+    /* Return if no adjustment is necessary. */
+    if (start % dos_sectors == 0 && (start + size) % dos_sectors == 0)
+	return (1);
+
+    if (start % dos_sectors != 0)
+	warnx("WARNING: partition does not start on a head boundary");
+    if ((start  +size) % dos_sectors != 0)
+	warnx("WARNING: partition does not end on a cylinder boundary");
+    warnx("WARNING: this may confuse the BIOS or some operating systems");
+    if (!ok("Correct this automatically?"))
+	return (1);
 
     /*
      * Adjust start upwards, if necessary, to fall on an head boundary.
      */
-    if (partp->dp_start % dos_sectors != 0) {
-	prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
+    if (start % dos_sectors != 0) {
+	prev_head_boundary = start / dos_sectors * dos_sectors;
 	if (max_end < dos_sectors ||
-	    prev_head_boundary > max_end - dos_sectors) {
+	    prev_head_boundary >= max_end - dos_sectors) {
 	    /*
 	     * Can't go past end of partition
 	     */
@@ -1418,37 +1446,31 @@ sanitize_partition(partp)
     "ERROR: unable to adjust start of partition to fall on a head boundary");
 	    return (0);
         }
-	warnx(
-    "WARNING: adjusting start offset of partition\n\
-    to %u to fall on a head boundary",
-	    (u_int)(prev_head_boundary + dos_sectors));
-	partp->dp_start = prev_head_boundary + dos_sectors;
+	start = prev_head_boundary + dos_sectors;
     }
 
     /*
      * Adjust size downwards, if necessary, to fall on a cylinder
      * boundary.
      */
-    prev_cyl_boundary = ((partp->dp_start + partp->dp_size) / dos_cylsecs) *
-	dos_cylsecs;
-    if (prev_cyl_boundary > partp->dp_start)
-	adj_size = prev_cyl_boundary - partp->dp_start;
-    else
-    {
+    prev_cyl_boundary = ((start + size) / dos_cylsecs) * dos_cylsecs;
+    if (prev_cyl_boundary > start)
+	size = prev_cyl_boundary - start;
+    else {
 	warnx("ERROR: could not adjust partition to start on a head boundary\n\
     and end on a cylinder boundary.");
 	return (0);
     }
-    if (adj_size != partp->dp_size) {
-	warnx(
-    "WARNING: adjusting size of partition to %u to end on a\n\
-    cylinder boundary",
-	    (u_int)adj_size);
-	partp->dp_size = adj_size;
+
+    /* Finally, commit any changes to partp and return. */
+    if (start != partp->dp_start) {
+	warnx("WARNING: adjusting start offset of partition to %u",
+	    (u_int)start);
+	partp->dp_start = start;
     }
-    if (partp->dp_size == 0) {
-	warnx("ERROR: size for partition is zero");
-	return (0);
+    if (size != partp->dp_size) {
+	warnx("WARNING: adjusting size of partition to %u", (u_int)size);
+	partp->dp_size = size;
     }
 
     return (1);
