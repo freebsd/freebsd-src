@@ -17,11 +17,21 @@ ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
 dev/ccd/ccd.c		optional ccd device-driver
 dev/vn/vn.c		optional vn
-gnu/isdn/iitel.c            optional itel device-driver
-gnu/isdn/iitty.c            optional ity device-driver
-gnu/isdn/if_ii.c            optional ii device-driver
-gnu/isdn/isdn.c             optional isdn device-driver
-gnu/isdn/iispy.c            optional ispy device-driver
+gnu/ext2fs/ext2_alloc.c		optional ext2fs
+gnu/ext2fs/ext2_balloc.c	optional ext2fs
+gnu/ext2fs/ext2_inode.c		optional ext2fs
+gnu/ext2fs/ext2_inode_cnv.c	optional ext2fs
+gnu/ext2fs/ext2_linux_balloc.c	optional ext2fs
+gnu/ext2fs/ext2_linux_ialloc.c	optional ext2fs
+gnu/ext2fs/ext2_lookup.c	optional ext2fs
+gnu/ext2fs/ext2_subr.c		optional ext2fs
+gnu/ext2fs/ext2_vfsops.c	optional ext2fs
+gnu/ext2fs/ext2_vnops.c		optional ext2fs
+gnu/isdn/if_ii.c	optional ii device-driver
+gnu/isdn/iispy.c	optional ispy device-driver
+gnu/isdn/iitel.c	optional itel device-driver
+gnu/isdn/iitty.c	optional ity device-driver
+gnu/isdn/isdn.c		optional isdn device-driver
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
@@ -70,9 +80,9 @@ kern/subr_prof.c	standard
 kern/subr_rlist.c	standard
 kern/subr_xxx.c		standard
 kern/sys_generic.c	standard
+kern/sys_pipe.c		standard
 kern/sys_process.c	standard
 kern/sys_socket.c	standard
-kern/sys_pipe.c		standard
 kern/sysv_ipc.c		standard
 kern/sysv_msg.c		optional sysvmsg
 kern/sysv_sem.c		optional sysvsem
@@ -81,7 +91,7 @@ kern/tty.c		standard
 kern/tty_compat.c	standard
 kern/tty_conf.c		standard
 kern/tty_pty.c		optional pty
-kern/tty_snoop.c        optional snp
+kern/tty_snoop.c	optional snp
 kern/tty_subr.c		standard
 kern/tty_tb.c		optional tb
 kern/tty_tty.c		standard
@@ -102,6 +112,9 @@ kern/vfs_subr.c		standard
 kern/vfs_syscalls.c	standard
 kern/vfs_vnops.c	standard
 miscfs/deadfs/dead_vnops.c	standard
+miscfs/devfs/devfs_tree.c	optional devfs
+miscfs/devfs/devfs_vfsops.c	optional devfs
+miscfs/devfs/devfs_vnops.c	optional devfs
 miscfs/fdesc/fdesc_vfsops.c	optional fdesc
 miscfs/fdesc/fdesc_vnops.c	optional fdesc
 miscfs/fifofs/fifo_vnops.c	standard
@@ -114,15 +127,15 @@ miscfs/portal/portal_vfsops.c	optional portal
 miscfs/portal/portal_vnops.c	optional portal
 miscfs/procfs/procfs_ctl.c	optional procfs
 miscfs/procfs/procfs_fpregs.c	standard
+miscfs/procfs/procfs_map.c	optional procfs
 miscfs/procfs/procfs_mem.c	standard
 miscfs/procfs/procfs_note.c	optional procfs
 miscfs/procfs/procfs_regs.c	standard
 miscfs/procfs/procfs_status.c	optional procfs
 miscfs/procfs/procfs_subr.c	optional procfs
+miscfs/procfs/procfs_type.c	optional procfs
 miscfs/procfs/procfs_vfsops.c	optional procfs
 miscfs/procfs/procfs_vnops.c	optional procfs
-miscfs/procfs/procfs_map.c	optional procfs
-miscfs/procfs/procfs_type.c	optional procfs
 miscfs/specfs/spec_vnops.c	standard
 miscfs/umapfs/umap_subr.c	optional umapfs
 miscfs/umapfs/umap_vfsops.c	optional umapfs
@@ -130,9 +143,6 @@ miscfs/umapfs/umap_vnops.c	optional umapfs
 miscfs/union/union_subr.c	optional union
 miscfs/union/union_vfsops.c	optional union
 miscfs/union/union_vnops.c	optional union
-miscfs/devfs/devfs_vnops.c	optional devfs
-miscfs/devfs/devfs_vfsops.c	optional devfs
-miscfs/devfs/devfs_tree.c	optional devfs
 msdosfs/msdosfs_conv.c		optional msdosfs
 msdosfs/msdosfs_denode.c	optional msdosfs
 msdosfs/msdosfs_fat.c		optional msdosfs
@@ -151,6 +161,7 @@ net/if_mib.c		standard
 net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
+net/if_tun.c		optional tun
 net/ppp_tty.c		optional ppp
 net/radix.c		standard
 net/raw_cb.c		standard
@@ -159,7 +170,6 @@ net/route.c		standard
 net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
-net/if_tun.c		optional tun
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
@@ -196,13 +206,13 @@ netinet/in.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
+netinet/ip_divert.c	optional ipdivert
+netinet/ip_fw.c		optional ipfirewall
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet
 netinet/ip_mroute.c	optional inet
 netinet/ip_output.c	optional inet
-netinet/ip_divert.c	optional ipdivert
 netinet/raw_ip.c	optional inet
-netinet/ip_fw.c         optional ipfirewall
 netinet/tcp_debug.c	optional tcpdebug
 netinet/tcp_input.c	optional inet
 netinet/tcp_output.c	optional inet
@@ -210,7 +220,6 @@ netinet/tcp_subr.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet
-netipx/ipx_usrreq.c	optional ipx
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_error.c	optional ipx
@@ -220,6 +229,7 @@ netipx/ipx_outputfl.c	optional ipx
 netipx/ipx_pcb.c	optional ipx
 netipx/ipx_proto.c	optional ipx
 netipx/ipx_tun.c	optional ipx
+netipx/ipx_usrreq.c	optional ipx
 netipx/spx_debug.c	optional ipx
 netipx/spx_usrreq.c	optional ipx
 #netiso/clnp_debug.c	optional iso
@@ -300,31 +310,31 @@ pci/if_de.c		optional de device-driver
 pci/if_ed_p.c		optional ed device-driver
 pci/if_fxp.c		optional fxp device-driver
 pci/if_lnc_p.c		optional lnc device-driver
-pci/if_vx.c		optional vx  device-driver
+pci/if_pdq.c		optional fea device-driver
+pci/if_pdq.c		optional fpa device-driver
+pci/if_vx.c		optional vx device-driver
+pci/meteor.c		optional meteor device-driver
 pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pcisupport.c	optional pci
-pci/if_pdq.c		optional fea device-driver
 pci/pdq.c		optional fea device-driver
-pci/if_pdq.c		optional fpa device-driver
 pci/pdq.c		optional fpa device-driver
-pci/meteor.c		optional meteor device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/od.c		optional od
-scsi/scsi_base.c	optional scbus
-scsi/scsi_sense.c	optional scbus
-scsi/scsi_ioctl.c	optional scbus
-scsi/scsiconf.c		optional scbus
-scsi/scsi_driver.c		optional scbus
-scsi/uk.c		optional scbus
 scsi/pt.c		optional pt
+scsi/scsi_base.c	optional scbus
+scsi/scsi_driver.c	optional scbus
+scsi/scsi_ioctl.c	optional scbus
+scsi/scsi_sense.c	optional scbus
+scsi/scsiconf.c		optional scbus
+scsi/sctarg.c		optional sctarg
 scsi/sd.c		optional sd
-scsi/st.c		optional st
-scsi/worm.c		optional worm
-scsi/su.c		optional su
 scsi/ssc.c		optional ssc
-scsi/sctarg.c	optional sctarg
+scsi/st.c		optional st
+scsi/su.c		optional su
+scsi/uk.c		optional scbus
+scsi/worm.c		optional worm
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_alloc.c	optional mfs
 ufs/ffs/ffs_balloc.c	optional ffs
@@ -352,16 +362,6 @@ ufs/lfs/lfs_vfsops.c	optional lfs
 ufs/lfs/lfs_vnops.c	optional lfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
-gnu/ext2fs/ext2_balloc.c	optional ext2fs
-gnu/ext2fs/ext2_inode.c		optional ext2fs
-gnu/ext2fs/ext2_subr.c		optional ext2fs
-gnu/ext2fs/ext2_vfsops.c	optional ext2fs
-gnu/ext2fs/ext2_vnops.c		optional ext2fs
-gnu/ext2fs/ext2_inode_cnv.c	optional ext2fs
-gnu/ext2fs/ext2_lookup.c	optional ext2fs
-gnu/ext2fs/ext2_linux_ialloc.c	optional ext2fs
-gnu/ext2fs/ext2_linux_balloc.c	optional ext2fs
-gnu/ext2fs/ext2_alloc.c		optional ext2fs
 ufs/ufs/ufs_bmap.c	standard
 ufs/ufs/ufs_disksubr.c	standard
 ufs/ufs/ufs_ihash.c	standard
