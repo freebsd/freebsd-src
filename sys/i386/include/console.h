@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.25.2.1 1996/11/19 17:25:20 nate Exp $
+ *	$Id: console.h,v 1.25.2.2 1996/12/04 16:11:18 phk Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -144,9 +144,7 @@ struct mouse_info {
 #define KD_CGA		3		/* color graphics adapter    	*/
 #define KD_EGA		4		/* enhanced graphics adapter 	*/
 #define KD_VGA		5		/* video graphics adapter    	*/
-#ifdef PC98
-#define KD_PC98		6
-#endif
+#define KD_PC98		6		/* PC-98 display            	*/
 
 #define KD_TEXT		0		/* set text mode restore fonts  */
 #define KD_TEXT0	0		/* ditto			*/
@@ -273,10 +271,6 @@ typedef struct ssaver ssaver_t;
 #define BKEY		0x800		/* backtab (ESC [ Z)		*/
 
 /* video mode definitions */
-#ifdef PC98
-#define M_PC98_80x25	98	/* PC98 80x25 */
-#define M_PC98_80x30	99	/* PC98 80x30 */
-#else
 #define M_B40x25	0	/* black & white 40 columns */
 #define M_C40x25	1	/* color 40 columns */
 #define M_B80x25	2	/* black & white 80 columns */
@@ -315,15 +309,16 @@ typedef struct ssaver ssaver_t;
 
 #define M_ENH_B80x43	0x70	/* ega black & white 80x43 */
 #define M_ENH_C80x43	0x71	/* ega color 80x43 */
+
+#define M_PC98_80x25	98	/* PC98 80x25 */
+#define M_PC98_80x30	99	/* PC98 80x30 */
+
 #define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
-#endif /* PC98 */
 
-#ifdef PC98
 #define SW_PC98_80x25	_IO('S', M_PC98_80x25)
 #define SW_PC98_80x30	_IO('S', M_PC98_80x30)
-#else
 #define SW_B40x25 	_IO('S', M_B40x25)
 #define SW_C40x25  	_IO('S', M_C40x25)
 #define SW_B80x25  	_IO('S', M_B80x25)
@@ -360,6 +355,5 @@ typedef struct ssaver ssaver_t;
 #define SW_CG640x480	_IO('S', M_VGA12)
 #define SW_VGA13	_IO('S', M_VGA13)
 #define SW_VGA_CG320	_IO('S', M_VGA13)
-#endif /* PC98 */
 
 #endif /* !_MACHINE_CONSOLE_H_ */
