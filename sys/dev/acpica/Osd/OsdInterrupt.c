@@ -40,7 +40,7 @@
  
 #include <dev/acpica/acpivar.h>
 
-#define _COMPONENT	OS_DEPENDENT
+#define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("INTERRUPT")
 
 /*
@@ -52,7 +52,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -93,7 +93,7 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
 	return_ACPI_STATUS(AE_BAD_PARAMETER);

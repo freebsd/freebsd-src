@@ -157,7 +157,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	PROCESSOR_CONTROL
+#define _COMPONENT	ACPI_PROCESSOR_CONTROL
 MODULE_NAME("PROCESSOR")
 
 #define PR_MAX_POWER_STATES		4
@@ -303,7 +303,7 @@ acpi_pr_identify(driver_t *driver, device_t bus)
 {
     ACPI_HANDLE			handle;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (!acpi_disabled("processor") && 
 	(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_PR_", &handle) == AE_OK))
@@ -322,7 +322,7 @@ acpi_pr_identify_cpu(ACPI_HANDLE handle, UINT32 level, void *context, void **sta
     device_t		child;
     PROCESSOR_APIC	lapic;
     
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     acpi_pr_FindLapic(bus, handle, &lapic);
 
@@ -352,7 +352,7 @@ acpi_pr_attach(device_t dev)
 {
     struct acpi_pr_softc	*sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->pr_dev = dev;
@@ -466,7 +466,7 @@ acpi_pr_CalculatePowerStates(struct acpi_pr_softc *sc)
     u_int32_t		    StateCount = 0;
     u_int32_t		    i = 0;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Set Latency Defaults:
@@ -516,7 +516,7 @@ acpi_pr_CalculatePerformanceStates(struct acpi_pr_softc *sc)
 {
     ACPI_STATUS		    Status = AE_OK;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /* TODO... */
 
@@ -532,7 +532,7 @@ acpi_pr_CalculateThrottlingStates(struct acpi_pr_softc *sc)
     u_int32_t		    StateCount = 0;
     u_int32_t		    i = 0;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Get Throttling States:
@@ -568,7 +568,7 @@ acpi_pr_PolicyInitialize(struct acpi_pr_softc *sc)
 {
     ACPI_STATUS	Status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if ((Status = AcpiSetProcessorSleepState(sc->pr_handle, sc->pr_PowerStates.ActiveState)) != AE_OK) {
 	device_printf(sc->pr_dev, "could not set Active sleep state - %s\n", acpi_strerror(Status));
