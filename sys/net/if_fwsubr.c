@@ -236,6 +236,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		enc = mtod(m, union fw_encap *);
 		enc->unfrag.ether_type = type;
 		enc->unfrag.lf = FW_ENCAP_UNFRAG;
+		enc->unfrag.reserved = 0;
 
 		/*
 		 * Byte swap the encapsulation header manually.
@@ -277,6 +278,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			enc = mtod(m, union fw_encap *);
 			if (foff == 0) {
 				enc->firstfrag.lf = FW_ENCAP_FIRST;
+				enc->firstfrag.reserved1 = 0;
+				enc->firstfrag.reserved2 = 0;
 				enc->firstfrag.datagram_size = dsize - 1;
 				enc->firstfrag.ether_type = type;
 				enc->firstfrag.dgl = dgl;
@@ -285,6 +288,9 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 					enc->nextfrag.lf = FW_ENCAP_NEXT;
 				else
 					enc->nextfrag.lf = FW_ENCAP_LAST;
+				enc->nextfrag.reserved1 = 0;
+				enc->nextfrag.reserved2 = 0;
+				enc->nextfrag.reserved3 = 0;
 				enc->nextfrag.datagram_size = dsize - 1;
 				enc->nextfrag.fragment_offset = foff;
 				enc->nextfrag.dgl = dgl;
