@@ -1488,6 +1488,7 @@ getdiskbyname(char *name)
 		    UIO_SYSSPACE, cp, curthread);
 		nid.ni_startdir = vroot;
 		nid.ni_pathlen = strlen(cp);
+		nid.ni_cnd.cn_cred = curthread->td_ucred;
 		nid.ni_cnd.cn_nameptr = cp;
 
 		error = lookup(&nid);
