@@ -132,7 +132,6 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
-#	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
 # $FreeBSD$
@@ -240,7 +239,7 @@ all)
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
 	sh MAKEDEV usb0 ums0 ulpt0 ugen0		# cdev, USB devices
-	sh MAKEDEV bpf0 ipl tun0			# cdev, network
+	sh MAKEDEV bpf0 tun0				# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
@@ -1372,13 +1371,6 @@ perfmon)
 	mknod perfmon c 2 32
 	chgrp kmem perfmon
 	chmod 640 perfmon
-	;;
-
-ipl)
-	mknod ipl c 79 0
-	mknod ipnat c 79 1
-	mknod ipstate c 79 2
-	mknod ipauth c 79 3
 	;;
 
 kbd*)
