@@ -57,6 +57,10 @@ static int  vcmp(const void *, const void *);
 #define	KOFF(x)	offsetof(struct kinfo_proc, x)
 #define	ROFF(x)	offsetof(struct rusage, x)
 
+#define	LWPFMT	"d"
+#define	LWPLEN	6
+#define	NLWPFMT	"d"
+#define	NLWPLEN	4
 #define	UIDFMT	"u"
 #define	UIDLEN	5
 #define	PIDFMT	"d"
@@ -102,6 +106,8 @@ static VAR var[] = {
 	{"logname", "", "login", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"lstart", "STARTED", NULL, LJUST|USER, lstarted, NULL, 28, 0, CHAR,
 		NULL, 0},
+	{"lwp", "LWP", NULL, 0, kvar, NULL, LWPLEN, KOFF(ki_tid), UINT,
+		LWPFMT, 0},
 	{"majflt", "MAJFLT", NULL, USER, rvar, NULL, 4, ROFF(ru_majflt),
 		LONG, "ld", 0},
 	{"minflt", "MINFLT", NULL, USER, rvar, NULL, 4, ROFF(ru_minflt),
@@ -116,6 +122,8 @@ static VAR var[] = {
 		0},
 	{"nivcsw", "NIVCSW", NULL, USER, rvar, NULL, 5, ROFF(ru_nivcsw),
 		LONG, "ld", 0},
+	{"nlwp", "NLWP", NULL, 0, kvar, NULL, NLWPLEN, KOFF(ki_numthreads),
+		UINT, NLWPFMT, 0},
 	{"nsignals", "", "nsigs", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"nsigs", "NSIGS", NULL, USER, rvar, NULL, 4, ROFF(ru_nsignals),
 		LONG, "ld", 0},
