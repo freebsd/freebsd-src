@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.75.2.3 1997/06/20 10:27:34 kato Exp $
+ *	$Id: locore.s,v 1.75.2.4 1997/07/15 11:10:24 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -562,11 +562,7 @@ olddiskboot:
 	movl	%eax,R(_bootdev)
 
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
-#ifdef PC98
-	movl	$0x90200, %esi
-#else
 	movl	$0x10200, %esi
-#endif
 	movl	$R(_userconfig_from_boot),%edi
 	movl	$512,%ecx
 	cld
