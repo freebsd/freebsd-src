@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <wchar.h>
 
-__warn_references(fgetrune, "warning: fgetrune() is deprecated. See fgetrune(3).");
+__warn_references(fgetrune, "warning: fgetrune() is obsolete. See fgetrune(3).");
 long
 fgetrune(fp)
 	FILE *fp;
@@ -62,7 +62,7 @@ fgetrune(fp)
 	return ((long)ch);
 }
 
-__warn_references(fungetrune, "warning: fungetrune() is deprecated. See fungetrune(3).");
+__warn_references(fungetrune, "warning: fungetrune() is obsolete. See fungetrune(3).");
 int
 fungetrune(r, fp)
 	rune_t r;
@@ -72,7 +72,7 @@ fungetrune(r, fp)
 	return (ungetwc((wint_t)r, fp) == WEOF ? EOF : 0);
 }
 
-__warn_references(fputrune, "warning: fputrune() is deprecated. See fputrune(3).");
+__warn_references(fputrune, "warning: fputrune() is obsolete. See fputrune(3).");
 int
 fputrune(r, fp)
 	rune_t r;
