@@ -548,7 +548,9 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   struct timeval tv;
   int got;
   char hostname[MAXHOSTNAMELEN];
+#if 0
   struct hostent *hp;
+#endif
   struct in_addr hostaddr;
 #ifndef NODES
   struct mschap_response msresp;
@@ -671,6 +673,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   if (gethostname(hostname, sizeof hostname) != 0)
     log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
   else {
+#if 0
     if ((hp = gethostbyname(hostname)) != NULL) {
       hostaddr.s_addr = *(u_long *)hp->h_addr;
       if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
@@ -680,6 +683,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
         return 0;
       }
     }
+#endif
     if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
       log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
@@ -717,7 +721,9 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   struct timeval tv;
   int got;
   char hostname[MAXHOSTNAMELEN];
+#if 0
   struct hostent *hp;
+#endif
   struct in_addr hostaddr;
 
   if (!*r->cfg.file)
@@ -786,6 +792,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   if (gethostname(hostname, sizeof hostname) != 0)
     log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
   else {
+#if 0
     if ((hp = gethostbyname(hostname)) != NULL) {
       hostaddr.s_addr = *(u_long *)hp->h_addr;
       if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
@@ -795,6 +802,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
         return;
       }
     }
+#endif
     if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
       log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
