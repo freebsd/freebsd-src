@@ -140,7 +140,7 @@ struct router_info {
 	struct ifnet *rti_ifp;
 	int    rti_type; /* type of router which is querier on this interface */
 	int    rti_time; /* # of slow timeouts since last old query */
-	struct router_info *rti_next;
+	SLIST_ENTRY(router_info) rti_list;
 };
 
 /*
