@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.6 1996/06/12 05:07:25 gpalmer Exp $
+ *	$Id: imgact_elf.c,v 1.7 1996/06/18 05:15:46 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@
 static int map_pages __P((struct vnode *vp, vm_offset_t offset, vm_offset_t *buf, vm_size_t size));
 static void unmap_pages __P((struct vnode *vp, vm_offset_t buf, vm_size_t size));
 static int elf_check_permissions __P((struct proc *p, struct vnode *vp));
-static int elf_check_header __P((Elf32_Ehdr *hdr, int type));
+static int elf_check_header __P((const Elf32_Ehdr *hdr, int type));
 static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *entry));
 static int elf_freebsd_fixup __P((int **stack_base, struct image_params *imgp));
@@ -237,7 +237,7 @@ elf_check_permissions(struct proc *p, struct vnode *vp)
 }
 
 static int
-elf_check_header(Elf32_Ehdr *hdr, int type)
+elf_check_header(const Elf32_Ehdr *hdr, int type)
 {
 	if (!(hdr->e_ident[EI_MAG0] == ELFMAG0 &&
 	      hdr->e_ident[EI_MAG1] == ELFMAG1 &&
@@ -468,8 +468,8 @@ fail:
 int
 exec_elf_imgact(struct image_params *imgp)
 {
-	Elf32_Ehdr *hdr = (Elf32_Ehdr *) imgp->image_header;
-	Elf32_Phdr *phdr, *mapped_phdr = NULL;
+	const Elf32_Ehdr *hdr = (const Elf32_Ehdr *) imgp->image_header;
+	const Elf32_Phdr *phdr, *mapped_phdr = NULL;
 	Elf32_Auxargs *elf_auxargs = NULL;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	vm_prot_t prot = 0;
@@ -514,8 +514,8 @@ exec_elf_imgact(struct image_params *imgp)
 		 */
 		phdr = mapped_phdr;
 	} else {
-		phdr = (Elf32_Phdr*)
-			((char*)(imgp->image_header)+hdr->e_phoff);
+		phdr = (const Elf32_Phdr*)
+		       ((const char *)imgp->image_header + hdr->e_phoff);
 	}
 	
 	/*

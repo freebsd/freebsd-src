@@ -32,7 +32,7 @@
  *
  *	@(#)scanc.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: scanc.c,v 1.3 1995/03/17 06:15:39 phk Exp $
+ * $Id: scanc.c,v 1.4 1995/07/11 18:50:47 bde Exp $
  */
 
 #include <sys/libkern.h>
@@ -40,10 +40,10 @@
 int
 scanc(size, cp, table, mask0)
 	u_int size;
-	register u_char *cp, table[];
+	register const u_char *cp, table[];
 	int mask0;
 {
-	register u_char *end;
+	register const u_char *end;
 	register u_char mask;
 
 	mask = mask0;
@@ -53,7 +53,7 @@ scanc(size, cp, table, mask0)
 		 * The cast to volatile should have no effect, but in fact it
 		 * improves the code on i386's.
 		 */
-		if (table[*(volatile u_char *)cp] & mask)
+		if (table[*(volatile const u_char *)cp] & mask)
 			break;
 	}
 	return (end - cp);

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.8 1996/06/18 05:15:59 dyson Exp $
+ *	$Id: procfs_subr.c,v 1.9 1996/07/02 13:38:10 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -340,7 +340,7 @@ vfs_findname(nm, buf, buflen)
 	int buflen;
 {
 	for (; nm->nm_name; nm++)
-		if (bcmp(buf, (char *) nm->nm_name, buflen+1) == 0)
+		if (bcmp(buf, nm->nm_name, buflen+1) == 0)
 			return (nm);
 
 	return (0);
