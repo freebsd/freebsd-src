@@ -6,6 +6,29 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
+ * Just when we thought life were beautiful, reality pops its grim face over
+ * the edge again:
+ *
+ * ] 20. ACPI Timer Errata
+ * ]
+ * ]   Problem: The power management timer may return improper result when
+ * ]   read. Although the timer value settles properly after incrementing,
+ * ]   while incrementing there is a 3nS window every 69.8nS where the
+ * ]   timer value is indeterminate (a 4.2% chance that the data will be
+ * ]   incorrect when read). As a result, the ACPI free running count up
+ * ]   timer specification is violated due to erroneous reads.  Implication:
+ * ]   System hangs due to the "inaccuracy" of the timer when used by
+ * ]   software for time critical events and delays.
+ * ] 
+ * ] Workaround: Read the register twice and compare.
+ * ] Status: This will not be fixed in the PIIX4 or PIIX4E.
+ *
+ * The counter is in other words not latched to the PCI bus clock when
+ * read.  Notice the workaround isn't:  We need to read until we have
+ * three monotonic samples and then use the middle one, otherwise we are
+ * not protected against the fact that the bits can be wrong in two
+ * directions.  If we only cared about monosity two reads would be enough.
+ *
  * $FreeBSD$
  *
  */
@@ -63,7 +86,16 @@ SYSCTL_PROC(_machdep, OID_AUTO, piix_freq, CTLTYPE_INT | CTLFLAG_RW,
 static unsigned
 piix_get_timecount(struct timecounter *tc)
 {
-	return (inl(piix_timecounter_address));
+	unsigned u1, u2, u3;
+
+	u2 = inl(piix_timecounter_address);
+	u3 = inl(piix_timecounter_address);
+	do {
+		u1 = u2;
+		u2 = u3;
+		u3 = inl(piix_timecounter_address);
+	} while (u1 > u2 || u2 > u3);
+	return (u2);
 }
 
 static int
