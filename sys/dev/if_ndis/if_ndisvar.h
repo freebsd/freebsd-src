@@ -62,6 +62,8 @@ struct ndis_cfglist {
 
 TAILQ_HEAD(nch, ndis_cfglist);
 
+#define NDIS_INITIALIZED(sc)	(sc->ndis_block.nmb_miniportadapterctx != NULL)
+
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
 
@@ -131,4 +133,3 @@ struct ndis_softc {
 
 #define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
 #define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
-
