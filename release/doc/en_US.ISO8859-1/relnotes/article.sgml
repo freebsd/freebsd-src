@@ -200,6 +200,10 @@
       configuration is enabled by default in the
       <filename>GENERIC</filename> kernel.</para>
 
+    <para arch="i386,pc98">The &man.hifn.4; driver now supports 
+      symmetric crypto for the 7955 and 7956 chipsets.
+      &merged;</para>
+
     <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
       PCI Universal Communications driver now supports
       to connect parallel ports to the &man.ppc.4; driver.</para>
@@ -500,6 +504,10 @@
     <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
       &man.mount.smbfs.8; utilities have been moved from
       <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
+
+    <para>The &man.rc.conf.5; variable <varname>ntpd_flags</varname> for
+      &man.ntpd.8; now includes <option>-f /var/db/ntpd.drift</option>
+      by default.</para>
 
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
