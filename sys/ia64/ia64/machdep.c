@@ -144,9 +144,7 @@ struct msgbuf *msgbufp=0;
 int Maxmem = 0;
 long dumplo;
 
-int	totalphysmem;		/* total amount of physical memory in system */
-int	physmem;		/* physical memory used by NetBSD + some rsvd */
-int	resvmem;		/* amount of memory reserved for PROM */
+int	physmem;			/* Physical conventional memory. */
 
 vm_offset_t phys_avail[100];
 
@@ -584,17 +582,13 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		if (pfn1 <= pfn0)
 			continue;
 
-		if (mdp->Type != EfiConventionalMemory) {
-			resvmem += (pfn1 - pfn0);
+		if (mdp->Type != EfiConventionalMemory)
 			continue;
-		}
-
-		totalphysmem += (pfn1 - pfn0);
 
 		/*
-		 * We have a memory descriptors available for system
-		 * software use.  We must determine if this cluster
-		 * holds the kernel.
+		 * We have a memory descriptor that describes conventional
+		 * memory that is for general use. We must determine if the
+		 * loader has put the kernel in this region.
 		 */
 		physmem += (pfn1 - pfn0);
 		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
