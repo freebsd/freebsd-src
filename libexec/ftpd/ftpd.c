@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.8 1997/05/10 19:48:12 davidn Exp $
+ *	$Id: ftpd.c,v 1.25.2.9 1997/05/21 23:27:12 danny Exp $
  */
 
 #if 0
@@ -151,8 +151,8 @@ off_t	byte_count;
 #endif
 int	defumask = CMASK;		/* default umask value */
 char	tmpline[7];
-#ifdef VIRTUAL_HOSTING
 char	*hostname;
+#ifdef VIRTUAL_HOSTING
 char	*ftpuser;
 
 static struct ftphost {
@@ -165,8 +165,6 @@ static struct ftphost {
 	char		*loginmsg;
 } *thishost, *firsthost;
 
-#else
-char	hostname[MAXHOSTNAMELEN];
 #endif
 char	remotehost[MAXHOSTNAMELEN];
 char	*ident = NULL;
@@ -535,7 +533,9 @@ main(argc, argv, envp)
 		/* reply(220,) must follow */
 	}
 #ifndef VIRTUAL_HOSTING
-	(void) gethostname(hostname, sizeof(hostname));
+	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
+		fatal("Ran out of memory.");
+	(void) gethostname(hostname, MAXHOSTNAMELEN);
 #endif
 	reply(220, "%s FTP server (%s) ready.", hostname, version);
 	(void) setjmp(errcatch);
