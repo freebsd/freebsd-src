@@ -90,13 +90,6 @@ SUPFLAGS+=	-h ${SUPHOST}
 .endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= env -i PATH=${PATH} MAKEFLAGS="${.MAKEFLAGS}" ${MAKE} \
-		-f /dev/null -V MAKEOBJDIRPREFIX dummy
-.if !empty(_MAKEOBJDIRPREFIX)
-.error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
-	(in /etc/make.conf) or command-line variable.
-.endif
-
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
 OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
@@ -180,13 +173,13 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 
 # bootstrap-tools stage
-BMAKEENV=	DESTDIR= \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		-DNOHTML -DNOINFO -DNOLINT -DNOMAN -DNOPIC -DNOPROFILE \
 		-DNOSHARED -DNO_CPU_CFLAGS -DNO_WARNS
@@ -194,6 +187,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} -DNOLINT -DNO_CPU_CFLAGS -DNO_WARNS
 
 # cross-tools stage
@@ -201,11 +195,10 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
-		DESTDIR=${WORLDTMP} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
+WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 # install stage
 .if empty(.MAKEFLAGS:M-n)
