@@ -339,7 +339,7 @@ init_transport(struct netconfig *nconf)
 						continue;
 				}
 				if (setsockopt(fd, IPPROTO_IPV6,
-                                    IPV6_BINDV6ONLY, &on, sizeof on) < 0) {
+                                    IPV6_V6ONLY, &on, sizeof on) < 0) {
                                         syslog(LOG_ERR, "can't set v6-only binding for "
                                             "udp6 socket: %m");
 					continue;
