@@ -45,11 +45,7 @@
 #include <sys/tty.h>
 
 #include <machine/../linux/linux.h>
-#ifdef __alpha__
-#include <linux_proto.h>
-#else
 #include <machine/../linux/linux_proto.h>
-#endif
 #include <compat/linux/linux_util.h>
 
 #ifndef __alpha__
