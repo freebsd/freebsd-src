@@ -3262,7 +3262,8 @@ tulip_reset(
 	printf("%s: tulip_reset: additional reset needed?!?\n",
 	       sc->tulip_xname);
 #endif
-    tulip_media_print(sc);
+    if (bootverbose)
+	    tulip_media_print(sc);
     if (sc->tulip_features & TULIP_HAVE_DUALSENSE)
 	TULIP_CSR_WRITE(sc, csr_sia_status, TULIP_CSR_READ(sc, csr_sia_status));
 
