@@ -76,6 +76,10 @@
 	__asm __volatile("flush %0" : : "r" (va));			\
 } while (0)
 
+#define	flushw() do {							\
+	__asm __volatile("flushw" : :);					\
+} while (0)
+
 #define	ldxa(va, asi) ({						\
 	u_long __r;							\
 	__asm __volatile("ldxa [%1] %2, %0"				\
