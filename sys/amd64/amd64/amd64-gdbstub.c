@@ -420,16 +420,16 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
   int    addr, length;
   char * ptr;
   struct i386regs {
-    unsigned int eax;
-    unsigned int ecx;
-    unsigned int edx;
-    unsigned int ebx;
-    unsigned int esp;
-    unsigned int ebp;
-    unsigned int esi;
-    unsigned int edi;
-    unsigned int eip;
-    unsigned int eflags;
+    unsigned int rax;
+    unsigned int rcx;
+    unsigned int rdx;
+    unsigned int rbx;
+    unsigned int rsp;
+    unsigned int rbp;
+    unsigned int rsi;
+    unsigned int rdi;
+    unsigned int rip;
+    unsigned int rflags;
     unsigned int cs;
     unsigned int ss;
     unsigned int ds;
@@ -437,23 +437,23 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
   };
   struct i386regs registers;
 
-  registers.eax = raw_regs->tf_eax;
-  registers.ebx = raw_regs->tf_ebx;
-  registers.ecx = raw_regs->tf_ecx;
-  registers.edx = raw_regs->tf_edx;
+  registers.rax = raw_regs->tf_rax;
+  registers.rbx = raw_regs->tf_rbx;
+  registers.rcx = raw_regs->tf_rcx;
+  registers.rdx = raw_regs->tf_rdx;
 
-  registers.esp = raw_regs->tf_esp;
-  registers.ebp = raw_regs->tf_ebp;
-  registers.esi = raw_regs->tf_esi;
-  registers.edi = raw_regs->tf_edi;
+  registers.rsp = raw_regs->tf_rsp;
+  registers.rbp = raw_regs->tf_rbp;
+  registers.rsi = raw_regs->tf_rsi;
+  registers.rdi = raw_regs->tf_rdi;
 
-  registers.eip = raw_regs->tf_eip;
-  registers.eflags = raw_regs->tf_eflags;
+  registers.rip = raw_regs->tf_rip;
+  registers.rflags = raw_regs->tf_rflags;
 
   registers.cs = raw_regs->tf_cs;
   registers.ss = raw_regs->tf_ss;
-  registers.ds = raw_regs->tf_ds;
-  registers.es = raw_regs->tf_es;
+  registers.ds = 0;	/* XXX rds() */
+  registers.es = 0;	/* XXX res() */
 
   /* reply to host that an exception has occurred */
   sigval = computeSignal (type);
@@ -466,19 +466,19 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
   *ptr++ = hexchars[PC >> 4];
   *ptr++ = hexchars[PC & 0xf];
   *ptr++ = ':';
-  ptr = mem2hex ((vm_offset_t)&registers.eip, ptr, 4);
+  ptr = mem2hex ((vm_offset_t)&registers.rip, ptr, 4);
   *ptr++ = ';';
 
   *ptr++ = hexchars[FP >> 4];
   *ptr++ = hexchars[FP & 0xf];
   *ptr++ = ':';
-  ptr = mem2hex ((vm_offset_t)&registers.ebp, ptr, 4);
+  ptr = mem2hex ((vm_offset_t)&registers.rbp, ptr, 4);
   *ptr++ = ';';
 
   *ptr++ = hexchars[SP >> 4];
   *ptr++ = hexchars[SP & 0xf];
   *ptr++ = ':';
-  ptr = mem2hex ((vm_offset_t)&registers.esp, ptr, 4);
+  ptr = mem2hex ((vm_offset_t)&registers.rsp, ptr, 4);
   *ptr++ = ';';
 
   *ptr++ = 0;
@@ -577,32 +577,34 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
 	  ptr = &remcomInBuffer[1];
 	  if (hexToInt(&ptr,&addr))
-	    registers.eip = addr;
+	    registers.rip = addr;
 
 
 	  /* set the trace bit if we're stepping */
 	  if (remcomInBuffer[0] == 's')
-	    registers.eflags |= PSL_T;
+	    registers.rflags |= PSL_T;
 	  else
-	    registers.eflags &= ~PSL_T;
+	    registers.rflags &= ~PSL_T;
 
-	  raw_regs->tf_eax = registers.eax;
-	  raw_regs->tf_ebx = registers.ebx;
-	  raw_regs->tf_ecx = registers.ecx;
-	  raw_regs->tf_edx = registers.edx;
+	  raw_regs->tf_rax = registers.rax;
+	  raw_regs->tf_rbx = registers.rbx;
+	  raw_regs->tf_rcx = registers.rcx;
+	  raw_regs->tf_rdx = registers.rdx;
 
-	  raw_regs->tf_esp = registers.esp;
-	  raw_regs->tf_ebp = registers.ebp;
-	  raw_regs->tf_esi = registers.esi;
-	  raw_regs->tf_edi = registers.edi;
+	  raw_regs->tf_rsp = registers.rsp;
+	  raw_regs->tf_rbp = registers.rbp;
+	  raw_regs->tf_rsi = registers.rsi;
+	  raw_regs->tf_rdi = registers.rdi;
 
-	  raw_regs->tf_eip = registers.eip;
-	  raw_regs->tf_eflags = registers.eflags;
+	  raw_regs->tf_rip = registers.rip;
+	  raw_regs->tf_rflags = registers.rflags;
 
 	  raw_regs->tf_cs = registers.cs;
 	  raw_regs->tf_ss = registers.ss;
+#if 0
 	  raw_regs->tf_ds = registers.ds;
 	  raw_regs->tf_es = registers.es;
+#endif
 	  return 0;
 
 	} /* switch */
