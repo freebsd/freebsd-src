@@ -445,6 +445,7 @@ pmap_bootstrap()
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
+	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 5; i++)
 		kernel_pmap->pm_rid[i] = 0;
 	kernel_pmap->pm_active = 1;
@@ -698,6 +699,7 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
+	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < 5; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	pmap->pm_active = 0;
@@ -722,6 +724,7 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < 5; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
+	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -1339,6 +1342,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 
 	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 
 	/*
@@ -1374,6 +1378,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 out:
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 }
 
@@ -1414,6 +1419,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_t pmap = pv->pv_pmap;
 		vm_offset_t va = pv->pv_va;
 
+		PMAP_LOCK(pmap);
 		oldpmap = pmap_install(pmap);
 		pte = pmap_find_vhpt(va);
 		KASSERT(pte != NULL, ("pte"));
@@ -1422,6 +1428,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_remove_pte(pmap, pte, va, pv, 1);
 		pmap_invalidate_page(pmap, va);
 		pmap_install(oldpmap);
+		PMAP_UNLOCK(pmap);
 	}
 
 	vm_page_flag_clear(m, PG_WRITEABLE);
@@ -1458,6 +1465,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		panic("pmap_protect: unaligned addresses");
 
 	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	while (sva < eva) {
 		/* 
@@ -1491,6 +1499,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		sva += PAGE_SIZE;
 	}
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 }
 
@@ -1704,6 +1713,7 @@ pmap_change_wiring(pmap, va, wired)
 	if (pmap == NULL)
 		return;
 
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 
 	pte = pmap_find_vhpt(va);
@@ -1720,6 +1730,7 @@ pmap_change_wiring(pmap, va, wired)
 	pmap_pte_set_w(pte, wired);
 
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 }
 
 
@@ -1854,6 +1865,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 #endif
 
 	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
 		pv;
 		pv = npv) {
@@ -1874,6 +1886,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 
 	pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 }
 
