@@ -2236,8 +2236,12 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 
 		/*
 		 * Wait for wiring or unwiring of an entry to complete.
+		 * Also wait for any system wirings to disappear on
+		 * user maps.
 		 */
-		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0) {
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0 ||
+		    (vm_map_pmap(map) != kernel_pmap &&
+		    vm_map_entry_system_wired_count(entry) != 0)) {
 			unsigned int last_timestamp;
 			vm_offset_t saved_start;
 			vm_map_entry_t tmp_entry;
