@@ -384,10 +384,10 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 		return (ENXIO);
 	if (pccard_mem == 0)
 		return (ENOMEM);
-	for (win = 0; win < slt->ctrl->maxmem; win++)
+	for (win = slt->ctrl->maxmem - 1; win >= 0; win--)
 		if ((slt->mem[win].flags & MDF_ACTIVE) == 0)
 			break;
-	if (win >= slt->ctrl->maxmem)
+	if (win < 0)
 		return (EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
@@ -430,10 +430,10 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 		return (ENXIO);
 	if (pccard_mem == 0)
 		return (ENOMEM);
-	for (win = 0; win < slt->ctrl->maxmem; win++)
+	for (win = slt->ctrl->maxmem - 1; win >= 0; win--)
 		if ((slt->mem[win].flags & MDF_ACTIVE) == 0)
 			break;
-	if (win >= slt->ctrl->maxmem)
+	if (win < 0)
 		return (EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
