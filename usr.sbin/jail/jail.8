@@ -142,7 +142,7 @@ For consistency, we will refer to the parent box as the
 .Dq "host environment" ,
 and to the jailed virtual machine as the
 .Dq "jail environment" .
-Because jail is implemented using IP aliases, one of the first things to do
+Since jail is implemented using IP aliases, one of the first things to do
 is to disable IP services on the host system that listen on all local
 IP addresses for a service.
 If a network service is present in the host environment that binds all
@@ -419,7 +419,7 @@ is set, the source IP addresses are enforced to comply
 with the IP address bound to the jail, regardless of whether or not
 the
 .Dv IP_HDRINCL
-flag has been set on the socket. Because raw sockets can be used to configure
+flag has been set on the socket.  Since raw sockets can be used to configure
 and interact with various network subsystems, extra caution should be used
 where privileged access to jails is given out to untrusted parties. As such,
 by default this option is disabled.
