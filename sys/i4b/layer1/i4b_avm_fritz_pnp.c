@@ -38,7 +38,7 @@
  *	Fritz!Card PnP specific routines for isic driver
  *	------------------------------------------------
  *
- *	$Id: i4b_avm_fritz_pnp.c,v 1.3 1999/07/05 13:22:12 hm Exp $
+ *	$Id: i4b_avm_fritz_pnp.c,v 1.1 1999/08/06 14:02:13 hm Exp $
  *
  *      last edit-date: [Thu 10 Jun 08:50:28 CEST 1999]
  *
@@ -1146,7 +1146,7 @@ avm_pnp_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp)
  *	fill HSCX fifo with data from the current mbuf
  *	Put this here until it can go into i4b_hscx.c
  *---------------------------------------------------------------------------*/
-int
+static int
 isic_hscx_fifo(isic_Bchan_t *chan, struct isic_softc *sc)
 {
 	int len;
