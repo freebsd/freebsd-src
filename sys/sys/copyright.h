@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: copyright.h,v 1.4 1998/01/06 11:44:55 wosch Exp $
+ * 	$Id: copyright.h,v 1.5 1998/12/31 14:26:42 wosch Exp $
  */
 
 
@@ -38,7 +38,7 @@
 
 /* a port of FreeBSD to the NEC PC98, Japan */
 #define COPYRIGHT_PC98 \
-	"Copyright (c) 1994-1998 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
+	"Copyright (c) 1994-1999 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
 
 /* HP + Motorola */
 #define COPYRIGHT_HPFPLIB \
