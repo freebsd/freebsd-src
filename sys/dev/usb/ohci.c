@@ -41,8 +41,8 @@
 /*
  * USB Open Host Controller driver.
  *
- * OHCI spec: http://www.intel.com/design/usb/ohci11d.pdf
- * USB spec: http://www.teleport.com/cgi-bin/mailmerge.cgi/~usb/cgiform.tpl
+ * OHCI spec: ftp://ftp.compaq.com/pub/supportinformation/papers/hcir1_0a.exe
+ * USB spec: http://www.usb.org/developers/data/usb11.pdf
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
 #include <sys/queue.h>
 #include <sys/select.h>
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #endif
