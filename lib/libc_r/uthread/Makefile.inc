@@ -20,6 +20,7 @@ SRCS+= \
 	uthread_attr_getscope.c \
 	uthread_attr_getstackaddr.c \
 	uthread_attr_getstacksize.c \
+	uthread_attr_get_np.c \
 	uthread_attr_setcreatesuspend_np.c \
 	uthread_attr_setdetachstate.c \
 	uthread_attr_setguardsize.c \
