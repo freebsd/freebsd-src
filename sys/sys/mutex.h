@@ -88,7 +88,6 @@
 
 #ifdef WITNESS
 struct mtx_debug {
-	/* If you add anything here, adjust the mtxf_t definition below */
 	struct witness	*mtxd_witness;
 	LIST_ENTRY(mtx)	mtxd_held;
 	const char	*mtxd_file;
