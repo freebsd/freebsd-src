@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.23 1996/01/08 11:53:46 joerg Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.24 1996/01/16 18:27:03 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -55,11 +55,21 @@ In case of problems, please contact the
 for this domain.
 
 <itemize>
-
 <item>
 <htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
-
+<item>
+<htmlurl url="ftp://ftp2.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.br.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp3.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.br.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp4.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp4.br.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp5.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp5.br.freebsd.org/pub/FreeBSD"><newline>
 </itemize>
 
 <tag>Canada</tag>
