@@ -356,7 +356,9 @@ vop_reclaim {
 };
 
 #
-#% lock		vp	? ? ?
+#lock		vp	? ? ?
+#! lock		pre	vop_lock_pre
+#! lock		post	vop_lock_post
 #
 vop_lock {
 	IN struct vnode *vp;
@@ -365,7 +367,9 @@ vop_lock {
 };
 
 #
-#% unlock	vp	L ? L
+#unlock		vp	L ? L
+#! unlock	pre	vop_unlock_pre
+#! unlock	post	vop_unlock_post
 #
 vop_unlock {
 	IN struct vnode *vp;
