@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.6 1998/10/02 20:53:17 msmith Exp $
+ *	$Id: bootinfo.c,v 1.7 1998/10/03 14:13:30 rnordier Exp $
  */
 
 #include <stand.h>
@@ -234,6 +234,7 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     int				bootdevnr;
     u_int			pad;
     char			*kernelname;
+    const char			*kernelpath;
 
     *howtop = bi_getboothowto(args);
 
@@ -305,8 +306,12 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 
     *howtop |= RB_BOOTINFO;		/* it's there now */
 
+    /*
+     * Get the kernel name, strip off any device prefix.
+     */
     kernelname = getenv("kernelname");
-    bi.bi_kernelname = VTOP(kernelname);
+    i386_getdev(NULL, kernelname, &kernelpath);
+    bi.bi_kernelname = VTOP(kernelpath);
     *bip = VTOP(&bi);
 
     return(0);
