@@ -40,7 +40,7 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
- /* $FreeBSD$ */
+/* $FreeBSD$ */
 
 #ifndef lint
 static char copyright[] =
