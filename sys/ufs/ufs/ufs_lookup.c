@@ -863,7 +863,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		dsize = DIRSIZ(OFSFMT(dvp), nep);
 		spacefree += nep->d_reclen - dsize;
 #ifdef UFS_DIRHASH
-		if (dp->i_dirhash != NULL)
+		if (dp->i_dirhash != NULL && nep->d_ino)
 			ufsdirhash_move(dp, nep, dp->i_offset + loc,
 			    dp->i_offset + ((char *)ep - dirbuf));
 #endif
