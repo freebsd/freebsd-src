@@ -67,7 +67,7 @@ PO_FLAG=-pg
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
-	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
+	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
