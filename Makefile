@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.172 1998/04/26 08:40:25 jkh Exp $
+#	$Id: Makefile,v 1.173 1998/04/27 16:21:33 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -707,6 +707,7 @@ build-tools:
 		gnu/usr.bin/groff	\
 		gnu/usr.bin/gzip	\
 		gnu/usr.bin/man/makewhatis	\
+		gnu/usr.bin/patch	\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo	\
 		share/info		\
