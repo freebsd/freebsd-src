@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2000-2001 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,4 +39,48 @@
 void
 db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 {
+	db_addr_t callpc;
+	u_int64_t *bsp;
+	int sof, sol;
+
+	if (count == -1)
+		count = 65535;
+
+	if (!have_addr) {
+		callpc = (db_addr_t)ddb_regs.tf_cr_iip;
+		bsp = db_rse_current_frame();
+		sof = ddb_regs.tf_cr_ifs & 0x7f;
+		sol = (ddb_regs.tf_cr_ifs >> 7) & 0x7f;
+	} else {
+		callpc = 0;	/* XXX */
+		bsp = 0;	/* XXX */
+		sof = 0;	/* XXX */
+		sol = 0;	/* XXX */
+	}
+
+	while (count--) {
+		const char *	name;
+		db_expr_t	offset;
+		c_db_sym_t	sym;
+		u_int64_t	ar_pfs;
+
+		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		db_symbol_values(sym, &name, NULL);
+
+		db_printf("%s() at ", name);
+		db_printsym(callpc, DB_STGY_PROC);
+		db_printf("\n");
+
+		/*
+		 * XXX this assumes the simplistic stack frames used
+		 * by the old toolchain.
+		 */
+		ar_pfs = *db_rse_register_address(bsp, 32 + sol - 1);
+		callpc = *db_rse_register_address(bsp, 32 + sol - 2);
+		sof = ar_pfs & 0x7f;
+		sol = (ar_pfs >> 7) & 0x7f;
+		bsp = db_rse_previous_frame(bsp, sol);
+		if (!callpc)
+			break;
+	}
 }
