@@ -33,7 +33,8 @@
 ;
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
-; [other 64 bit platforms with an alternate 32 bit syscall table go here too]
+; sys/compat/freebsd32/syscalls.master
+
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 #include <sys/param.h>
@@ -82,7 +83,7 @@
 26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
 			    int data); }
 27	MSTD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
-28	MSTD	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
+28	MSTD	BSD	{ int sendmsg(int s, struct msghdr *msg, int flags); }
 29	MSTD	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); }
 30	MSTD	BSD	{ int accept(int s, caddr_t name, int *anamelen); }
@@ -644,4 +645,4 @@
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
-; [other 64 bit platforms with an alternate 32 bit syscall table go here too]
+; sys/compat/freebsd32/syscalls.master
