@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.4 1997/02/06 08:32:55 pst Exp $
+ * $Id: setlocale.c,v 1.8.2.5 1997/02/08 14:15:48 joerg Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.4 1997/02/06 08:32:55 pst Exp $";
+	"$Id: setlocale.c,v 1.8.2.5 1997/02/08 14:15:48 joerg Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -97,8 +97,6 @@ extern int __time_load_locale __P((const char *)); /* strftime.c */
 #ifdef XPG4
 extern int _xpg4_setrunelocale __P((char *));
 #endif
-
-char	*_PathLocale;
 
 char *
 setlocale(category, locale)

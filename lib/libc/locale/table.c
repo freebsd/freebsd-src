@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: table.c,v 1.6 1996/08/20 21:16:53 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -193,3 +193,5 @@ _RuneLocale _DefaultRuneLocale = {
 _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
 int __mb_cur_max = 1;
+
+char	*_PathLocale;
