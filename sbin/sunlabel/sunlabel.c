@@ -423,7 +423,7 @@ edit_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 	if (pid == 0) {
 		if ((editor = getenv("EDITOR")) == NULL)
 			editor = _PATH_VI;
-		execlp(editor, editor, tmpfil, NULL);
+		execlp(editor, editor, tmpfil, (char *)NULL);
 		err(1, "execlp %s", editor);
 	}
 	status = 0;
