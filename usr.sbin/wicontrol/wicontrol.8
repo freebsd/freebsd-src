@@ -58,6 +58,13 @@
 .Nm wicontrol
 .Fl i Ar iface Fl d Ar max data length
 .Nm wicontrol
+.Fl i Ar iface Fl e Ar 0|1
+.Nm wicontrol
+.Fl i Ar iface Fl k Ar key
+.Op Fl v Ar 1|2|3|4
+.Nm wicontrol
+.Fl i Ar iface Fl T Ar 1|2|3|4
+.Nm wicontrol
 .Fl i Ar iface Fl r Ar RTS threshold
 .Nm wicontrol
 .Fl i Ar iface Fl f Ar frequency
@@ -66,9 +73,11 @@
 .Nm wicontrol
 .Fl i Ar iface Fl S Ar max_sleep_duration
 .Nm wicontrol
-.Fl i Ar iface Fl Z (zero signal cache)
+.Fl i Ar iface Fl Z
+(zero signal cache)
 .Nm wicontrol
-.Fl i Ar iface Fl C (display signal cache)
+.Fl i Ar iface Fl C
+(display signal cache)
 .Sh DESCRIPTION
 The
 .Nm
@@ -187,6 +196,34 @@ Set the maximum receive and transmit frame size for a specified interface.
 The
 .Ar max data length
 can be any number from 350 to 2304. The default is 2304.
+.It Fl i Ar iface Fl e Ar 0|1
+Enable or disable WEP encryption. Permitted values are
+.Ar 0
+(encryption disabled) or
+.Ar 1
+(encryption enabled). Encryption is off by default.
+.It Fl i Ar iface Fl k Ar key "[-v 1|2|3|4]"
+Set WEP encryption keys. There are four default encryption keys
+that can be programmed. A specific key can be set using
+the
+.Fl v
+flag. If the
+.Fl v
+flag is not specified, the first key will be set. Encryption keys
+can either be normal text (i.e. "hello") or a series of hexadecimal
+digits (i.e. "0x1234512345"). For
+WaveLAN Turbo Silver cards, the key is restricted to 40 bits, hence
+the key can be either a 5 character text string or 10 hex digits.
+For WaveLAN Turbo Gold cards, the key can be up to 128 bits,
+which means the key can be specified as either a 16 character text
+string or 32 hex digits.
+.Pp
+Note: currently, the field in the structure used to program the key
+into the NIC is only 14 bytes long, not 16. I'm not sure how this is
+supposed to allow 128 bits of key info for the gold cards.
+.It Fl i Ar iface Fl T Ar 1|2|3|4
+Specify which of the four WEP encryption keys will be used to
+encrypt transmitted packets.
 .It Fl i Ar iface Fl r Ar RTS threshold
 Set the RTS/CTS threshold for a given interface. This controls the
 number of bytes used for the RTS/CTS handshake boundary. The
