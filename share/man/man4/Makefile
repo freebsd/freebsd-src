@@ -14,6 +14,7 @@ MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipfw.4 ipfirewall.4 ipaccounting.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=yp.4 YP.4 yp.4 nis.4 yp.4 NIS.4
 MLINKS+=smp.4 SMP.4
+MLINKS+=scsi.4 cam.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	 man4.i386 
