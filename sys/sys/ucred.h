@@ -46,24 +46,18 @@
  * Only the suser()/suser_xxx() function should be used for this.
  */
 struct ucred {
-	struct	mtx cr_mtx;		/* protect refcount */
 	u_int	cr_ref;			/* reference count */
 	uid_t	cr_uid;			/* effective user id */
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
 	struct	uidinfo *cr_uidinfo;	/* per uid resource consumption */
+	struct	mtx cr_mtx;		/* protect refcount */
 };
 #define cr_gid cr_groups[0]
 #define NOCRED ((struct ucred *)0)	/* no credential available */
 #define FSCRED ((struct ucred *)-1)	/* filesystem credential */
 
 #ifdef _KERNEL
-#define	crhold(cr) \
-	do {						\
-		mtx_enter(&(cr)->cr_mtx, MTX_DEF);	\
-		(cr)->cr_ref++;				\
-		mtx_exit(&(cr)->cr_mtx, MTX_DEF);	\
-	} while (0)
 
 struct proc;
 
@@ -73,6 +67,7 @@ struct ucred	*crcopy __P((struct ucred *cr));
 struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
 struct ucred	*crget __P((void));
+void		crhold __P((struct ucred *cr));
 int		groupmember __P((gid_t gid, struct ucred *cred));
 #endif /* _KERNEL */
 
