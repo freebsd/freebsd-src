@@ -119,7 +119,8 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 #define	fpgetmask()	((fp_except_t)					\
 	((~__fpgetreg(FP_MSKS_REG) & FP_MSKS_FLD) >> FP_MSKS_OFF))
 #define	fpsetmask(m)	((fp_except_t)					\
-	(__fpsetreg(~(m), FP_MSKS_REG, FP_MSKS_FLD, FP_MSKS_OFF)))
+	(~__fpsetreg(~(m), FP_MSKS_REG, FP_MSKS_FLD, FP_MSKS_OFF)) &	\
+	    (FP_MSKS_FLD >> FP_MSKS_OFF))
 #define	fpgetsticky()	((fp_except_t)					\
 	((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF))
 #define	fpresetsticky(m) ((fp_except_t)					\
