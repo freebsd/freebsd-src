@@ -42,6 +42,7 @@ struct devdesc
 #define DEVT_NONE	0
 #define DEVT_DISK	1
 #define DEVT_NET	2
+#define	DEVT_CD		3
 };
 
 /* Commands and return values; nonzero return sets command_errmsg != NULL */
