@@ -774,16 +774,6 @@ mcpcia_intr(void *arg)
 {
 	unsigned long vec = (unsigned long) arg;
 
-	if (vec >= MCPCIA_VEC_EISA && vec < MCPCIA_VEC_PCI) {
-#if NSIO > 0
-		sio_iointr(framep, vec);
-		return;
-#else
-		panic("mcpcia_intr: (E)ISA interrupt support not configured "
-		    "for vector 0x%lx", vec);
-#endif
-	}
-	
 	/*
 	 * Check for I2C interrupts.  These are technically within
 	 * the PCI vector range, but no PCI device should ever map
