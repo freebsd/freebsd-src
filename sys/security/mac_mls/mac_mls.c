@@ -2441,6 +2441,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_socket_peer_label = mac_mls_destroy_label,
 	.mpo_destroy_vnode_label = mac_mls_destroy_label,
 	.mpo_copy_cred_label = mac_mls_copy_label,
+	.mpo_copy_ifnet_label = mac_mls_copy_label,
 	.mpo_copy_mbuf_label = mac_mls_copy_label,
 	.mpo_copy_pipe_label = mac_mls_copy_label,
 	.mpo_copy_socket_label = mac_mls_copy_label,
