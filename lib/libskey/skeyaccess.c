@@ -72,6 +72,9 @@ static struct in_addr *lookup_internet_addr();
 #ifndef CONSOLE
 #define CONSOLE		"console"
 #endif
+#ifndef VTY_PREFIX
+#define VTY_PREFIX      "ttyv"
+#endif
 
 struct login_info {
     char   *host_name;			/* host name */
@@ -169,7 +172,11 @@ struct login_info *login_info;
     int     permission=DENY;
 
 #ifdef PERMIT_CONSOLE
-    if (login_info->port != 0 && strcasecmp(login_info->port, CONSOLE) == 0)
+    if (login_info->port != 0 &&
+	(strcmp(login_info->port, CONSOLE) == 0 ||
+	 strncmp(login_info->port, VTY_PREFIX, sizeof(VTY_PREFIX) - 1) == 0
+	)
+       )
 	return (1);
 #endif
 
