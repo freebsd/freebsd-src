@@ -356,11 +356,13 @@ sub html2html {
 	      chop;
 	      $st_header[0] = $_;
 	      $st_parent[0] = -1;
-	      print tocfile "<HEAD>\n<TITLE>$st_header[0]</TITLE>\n</HEAD>\n";
+	      $t = $st_header[0];
+	      $t =~ s|<[a-zA-Z/][^>]*>||g;
+	      print tocfile "<HEAD>\n<TITLE>$t</TITLE>\n</HEAD>\n";
 	      print tocfile "<H1>$st_header[0]</H1>\n";
 
 	      $header[$st_ol[$sc]] = 
-		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
+		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n" . 
 		      "</HEAD>\n$BODY\n";
     	      $header[$st_ol[$sc]] .= $html_header;
 	      if ($opt_ssi) {	# Server Side Include hook
@@ -394,8 +396,10 @@ sub html2html {
 
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
+    	    	  $t = $_;
+	          $t =~ s|<[a-zA-Z/][^>]*>||g;
 		  $header[$st_ol[$sc]] = 
-		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n$BODY\n";
+		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n</HEAD>\n$BODY\n";
 		  $header[$st_ol[$sc]] .= $html_header;
 		  if ($opt_ssi) { # Server Side Include hook
 		      $header[$st_ol[$sc]] .=
