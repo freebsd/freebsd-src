@@ -86,8 +86,8 @@ static void enter_kvm(struct inpcb *, struct socket *, int, const char *);
 static void enter_sysctl(struct inpcb *, struct xsocket *, int, const char *);
 static void fetchnetstat_kvm(void);
 static void fetchnetstat_sysctl(void);
-static char *inetname(struct in_addr);
-static void inetprint(struct in_addr *, int, const char *);
+static char *inetname(struct sockaddr *);
+static void inetprint(struct sockaddr *, const char *);
 
 #define	streq(a,b)	(strcmp(a,b)==0)
 #define	YMAX(w)		((w)->_maxy-1)
@@ -109,10 +109,8 @@ struct netinfo {
 #define	NIF_FACHG	0x2		/* foreign address changed */
 	short	ni_state;		/* tcp state */
 	const char	*ni_proto;		/* protocol */
-	struct	in_addr ni_laddr;	/* local address */
-	long	ni_lport;		/* local port */
-	struct	in_addr	ni_faddr;	/* foreign address */
-	long	ni_fport;		/* foreign port */
+	struct sockaddr_storage ni_lsa;	/* local address */
+	struct sockaddr_storage	ni_fsa;	/* foreign address */
 	u_int	ni_rcvcc;		/* rcv buffer character count */
 	u_int	ni_sndcc;		/* snd buffer character count */
 };
@@ -205,8 +203,19 @@ again:
 	LIST_FOREACH(next, &head, inp_list) {
 		KREAD(next, &inpcb, sizeof (inpcb));
 		next = &inpcb;
-		if (!aflag && inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
-			continue;
+		if (!aflag) {
+			if (inpcb.inp_vflag & INP_IPV4) {
+				if (inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
+					continue;
+			}
+#ifdef INET6
+			else if (inpcb.inp_vflag & INP_IPV6) {
+				if (memcmp(&inpcb.in6p_laddr,
+				    &in6addr_any, sizeof(in6addr_any)) == 0)
+					continue;
+			}
+#endif
+		}
 		if (nhosts && !checkhost(&inpcb))
 			continue;
 		if (nports && !checkport(&inpcb))
@@ -293,9 +302,21 @@ fetchnetstat_sysctl()
 			}
 			cur += plen;
 
-			if (!aflag && inet_lnaof(inpcb->inp_laddr) == 
-			    INADDR_ANY)
-				continue;
+			if (!aflag) {
+				if (inpcb->inp_vflag & INP_IPV4) {
+					if (inet_lnaof(inpcb->inp_laddr) ==
+					    INADDR_ANY)
+						continue;
+				}
+#ifdef INET6
+				else if (inpcb->inp_vflag & INP_IPV6) {
+					if (memcmp(&inpcb->in6p_laddr,
+					    &in6addr_any, sizeof(in6addr_any))
+					    == 0)
+						continue;
+				}
+#endif
+			}
 			if (nhosts && !checkhost(inpcb))
 				continue;
 			if (nports && !checkport(inpcb))
@@ -348,6 +369,48 @@ enter(inp, state, proto)
 	const char *proto;
 {
 	struct netinfo *p;
+	struct sockaddr_storage lsa, fsa;
+	struct sockaddr_in *sa4;
+#ifdef INET6
+	struct sockaddr_in6 *sa6;
+#endif
+
+	memset(&lsa, 0, sizeof(lsa));
+	memset(&fsa, 0, sizeof(fsa));
+	if (inp->inp_vflag & INP_IPV4) {
+		sa4 = (struct sockaddr_in *)&lsa;
+		sa4->sin_addr = inp->inp_laddr;
+		sa4->sin_port = inp->inp_lport;
+		sa4->sin_family = AF_INET;
+		sa4->sin_len = sizeof(struct sockaddr_in);
+
+		sa4 = (struct sockaddr_in *)&fsa;
+		sa4->sin_addr = inp->inp_faddr;
+		sa4->sin_port = inp->inp_fport;
+		sa4->sin_family = AF_INET;
+		sa4->sin_len = sizeof(struct sockaddr_in);
+	}
+#ifdef INET6
+	else if (inp->inp_vflag & INP_IPV6) {
+		sa6 = (struct sockaddr_in6 *)&lsa;
+		memcpy(&sa6->sin6_addr, &inp->in6p_laddr,
+		    sizeof(struct in6_addr));
+		sa6->sin6_port = inp->inp_lport;
+		sa6->sin6_family = AF_INET6;
+		sa6->sin6_len = sizeof(struct sockaddr_in6);
+
+		sa6 = (struct sockaddr_in6 *)&fsa;
+		memcpy(&sa6->sin6_addr, &inp->in6p_faddr,
+		    sizeof(struct in6_addr));
+		sa6->sin6_port = inp->inp_fport;
+		sa6->sin6_family = AF_INET6;
+		sa6->sin6_len = sizeof(struct sockaddr_in6);
+	}
+#endif
+	else {
+		error("Unsupported address family");
+		return NULL;
+	}
 
 	/*
 	 * Only take exact matches, any sockets with
@@ -359,11 +422,11 @@ enter(inp, state, proto)
 	TAILQ_FOREACH(p, &netcb, chain) {
 		if (!streq(proto, p->ni_proto))
 			continue;
-		if (p->ni_lport != inp->inp_lport ||
-		    p->ni_laddr.s_addr != inp->inp_laddr.s_addr)
+		if (p->ni_lsa.ss_family != lsa.ss_family ||
+		    memcmp(&p->ni_lsa, &lsa, lsa.ss_len) != 0)
 			continue;
-		if (p->ni_faddr.s_addr == inp->inp_faddr.s_addr &&
-		    p->ni_fport == inp->inp_fport)
+		if (p->ni_fsa.ss_family == fsa.ss_family &&
+		    memcmp(&p->ni_fsa, &fsa, fsa.ss_len) == 0)
 			break;
 	}
 	if (p == NULL) {
@@ -373,10 +436,8 @@ enter(inp, state, proto)
 		}
 		TAILQ_INSERT_HEAD(&netcb, p, chain);
 		p->ni_line = -1;
-		p->ni_laddr = inp->inp_laddr;
-		p->ni_lport = inp->inp_lport;
-		p->ni_faddr = inp->inp_faddr;
-		p->ni_fport = inp->inp_fport;
+		memcpy(&p->ni_lsa, &lsa, lsa.ss_len);
+		memcpy(&p->ni_fsa, &fsa, fsa.ss_len);
 		p->ni_proto = strdup(proto);
 		p->ni_flags = NIF_LACHG|NIF_FACHG;
 	}
@@ -412,6 +473,7 @@ void
 shownetstat()
 {
 	struct netinfo *p, *q;
+	char proto[6], *family = "";
 
 	/*
 	 * First, delete any connections that have gone
@@ -452,15 +514,19 @@ shownetstat()
 		}
 		if (p->ni_flags & NIF_LACHG) {
 			wmove(wnd, p->ni_line, LADDR);
-			inetprint(&p->ni_laddr, p->ni_lport, p->ni_proto);
+			inetprint((struct sockaddr *)&p->ni_lsa, p->ni_proto);
 			p->ni_flags &= ~NIF_LACHG;
 		}
 		if (p->ni_flags & NIF_FACHG) {
 			wmove(wnd, p->ni_line, FADDR);
-			inetprint(&p->ni_faddr, p->ni_fport, p->ni_proto);
+			inetprint((struct sockaddr *)&p->ni_fsa, p->ni_proto);
 			p->ni_flags &= ~NIF_FACHG;
 		}
-		mvwaddstr(wnd, p->ni_line, PROTO, p->ni_proto);
+#ifdef INET6
+		family = (p->ni_lsa.ss_family == AF_INET) ? "4" : "6";
+#endif
+		snprintf(proto, sizeof(proto), "%s%s", p->ni_proto, family);
+		mvwaddstr(wnd, p->ni_line, PROTO, proto);
 		mvwprintw(wnd, p->ni_line, RCVCC, "%6u", p->ni_rcvcc);
 		mvwprintw(wnd, p->ni_line, SNDCC, "%6u", p->ni_sndcc);
 		if (streq(p->ni_proto, "tcp")) {
@@ -484,15 +550,28 @@ shownetstat()
  * If the nflag was specified, use numbers instead of names.
  */
 static void
-inetprint(in, port, proto)
-	struct in_addr *in;
-	int port;
+inetprint(sa, proto)
+	struct sockaddr *sa;
 	const char *proto;
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
+	int port;
 
-	snprintf(line, sizeof(line), "%.*s.", 16, inetname(*in));
+	switch (sa->sa_family) {
+	case AF_INET:
+		port = ((struct sockaddr_in *)sa)->sin_port;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		port = ((struct sockaddr_in6 *)sa)->sin6_port;
+		break;
+#endif
+	default:
+		port = 0;
+		break;
+	}
+	snprintf(line, sizeof(line), "%.*s.", 16, inetname(sa));
 	cp = index(line, '\0');
 	if (!nflag && port)
 		sp = getservbyport(port, proto);
@@ -516,14 +595,28 @@ inetprint(in, port, proto)
  * numeric value, otherwise try for symbolic name.
  */
 static char *
-inetname(in)
-	struct in_addr in;
+inetname(sa)
+	struct sockaddr *sa;
 {
 	char *cp = 0;
-	static char line[50];
+	static char line[NI_MAXHOST];
 	struct hostent *hp;
 	struct netent *np;
+	struct in_addr in;
 
+#ifdef INET6
+	if (sa->sa_family == AF_INET6) {
+		if (memcmp(&((struct sockaddr_in6 *)sa)->sin6_addr,
+		    &in6addr_any, sizeof(in6addr_any)) == 0)
+			strcpy(line, "*");
+		else
+			getnameinfo(sa, sa->sa_len, line, sizeof(line), NULL, 0,
+			    nflag ? NI_NUMERICHOST : 0);
+		return (line);
+	}
+#endif
+
+	in = ((struct sockaddr_in *)sa)->sin_addr;
 	if (!nflag && in.s_addr != INADDR_ANY) {
 		int net = inet_netof(in);
 		int lna = inet_lnaof(in);
