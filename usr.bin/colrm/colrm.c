@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -43,6 +45,7 @@ static char sccsid[] = "@(#)colrm.c	8.2 (Berkeley) 5/4/95";
 
 #include <sys/types.h>
 #include <limits.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,9 +54,8 @@ static char sccsid[] = "@(#)colrm.c	8.2 (Berkeley) 5/4/95";
 
 #define	TAB	8
 
-void err __P((const char *, ...));
 void check __P((FILE *));
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -78,12 +80,12 @@ main(argc, argv)
 	case 2:
 		stop = strtol(argv[1], &p, 10);
 		if (stop <= 0 || *p)
-			err("illegal column -- %s", argv[1]);
+			errx(1, "illegal column -- %s", argv[1]);
 		/* FALLTHROUGH */
 	case 1:
 		start = strtol(argv[0], &p, 10);
 		if (start <= 0 || *p)
-			err("illegal column -- %s", argv[0]);
+			errx(1, "illegal column -- %s", argv[0]);
 		break;
 	case 0:
 		break;
@@ -92,7 +94,7 @@ main(argc, argv)
 	}
 
 	if (stop && start > stop)
-		err("illegal start and stop columns");
+		errx(1, "illegal start and stop columns");
 
 	for (column = 0;;) {
 		switch (ch = getchar()) {
@@ -127,8 +129,7 @@ check(stream)
 	if (feof(stream))
 		exit(0);
 	if (ferror(stream))
-		err("%s: %s",
-		    stream == stdin ? "stdin" : "stdout", strerror(errno));
+		err(1, "%s", stream == stdin ? "stdin" : "stdout");
 }
 
 void
@@ -138,6 +139,7 @@ usage()
 	exit(1);
 }
 
+#ifdef 0
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -166,3 +168,4 @@ err(fmt, va_alist)
 	exit(1);
 	/* NOTREACHED */
 }
+#endif
