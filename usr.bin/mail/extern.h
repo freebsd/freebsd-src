@@ -169,7 +169,7 @@ void	 makemessage(FILE *, int);
 void	 mark(int);
 int	 markall(char [], int);
 int	 matchsender(char *, int);
-int	 matchsubj(char *, int);
+int	 matchfield(char *, int);
 int	 mboxit(int []);
 int	 member(char *, struct ignoretab *);
 void	 mesedit(FILE *, int);
