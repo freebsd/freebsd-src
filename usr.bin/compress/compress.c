@@ -58,6 +58,8 @@ static char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
 #include <varargs.h>
 #endif
 
+#include "zopen.h"
+
 void	compress __P((char *, char *, int));
 void	cwarn __P((const char *, ...));
 void	cwarnx __P((const char *, ...));
