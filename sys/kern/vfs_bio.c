@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.220 1999/07/04 00:25:27 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.221 1999/07/08 06:05:52 mckusick Exp $
  */
 
 /*
@@ -427,7 +427,7 @@ bremfree(struct buf * bp)
 		if (bp->b_qindex == QUEUE_EMPTYKVA) {
 			kvafreespace -= bp->b_kvasize;
 		}
-		KASSERT(BUF_REFCNT(bp) == 0, ("bremfree: bp %p not locked",bp));
+		KASSERT(BUF_REFCNT(bp) == 1, ("bremfree: bp %p not locked",bp));
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
 		bp->b_qindex = QUEUE_NONE;
 		runningbufspace += bp->b_bufsize;
