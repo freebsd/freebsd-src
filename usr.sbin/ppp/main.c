@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.123 1998/05/21 21:46:40 brian Exp $
+ * $Id: main.c,v 1.124 1998/05/23 22:24:43 brian Exp $
  *
  *	TODO:
  */
@@ -476,8 +476,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
     FD_ZERO(&wfds);
     FD_ZERO(&efds);
 
-    sig_Handle();
-
     /* All our datalinks, the tun device and the MP socket */
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
 
@@ -490,11 +488,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     i = select(nfds, &rfds, &wfds, &efds, NULL);
 
-    if (i == 0)
-      continue;
-    else if (i < 0) {
-      if (errno == EINTR)
-	continue;
+    if (i < 0 && errno != EINTR) {
       log_Printf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       if (log_IsKept(LogTIMER)) {
         struct timeval t;
@@ -532,6 +526,11 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       break;
     }
 
+    sig_Handle();
+
+    if (i <= 0)
+      continue;
+
     for (i = 0; i <= nfds; i++)
       if (FD_ISSET(i, &efds)) {
         log_Printf(LogALERT, "Exception detected on descriptor %d\n", i);
@@ -549,6 +548,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     if (descriptor_IsSet(&bundle->desc, &rfds))
       descriptor_Read(&bundle->desc, bundle, &rfds);
+
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
 
   log_Printf(LogDEBUG, "DoLoop done.\n");

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.3 1998/05/23 13:38:06 brian Exp $
+ *	$Id: datalink.c,v 1.4 1998/05/23 22:24:33 brian Exp $
  */
 
 #include <sys/types.h>
@@ -526,7 +526,9 @@ datalink_LayerFinish(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
-    fsm_Down(fp);	/* Bring us to INITIAL or STARTING */
+    if (fp->state == ST_STOPPED)
+      fsm_Close(fp);			/* back to CLOSED */
+    fsm_Down(fp);			/* Bring us to INITIAL or STARTING */
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, 0);
   } else if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
@@ -761,6 +763,8 @@ datalink_Down(struct datalink *dl, int stay)
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
+      if (dl->physical->link.lcp.fsm.state == ST_STOPPED)
+        fsm_Close(&dl->physical->link.lcp.fsm);		/* back to CLOSED */
       fsm_Down(&dl->physical->link.lcp.fsm);
       if (stay)
         fsm_Close(&dl->physical->link.lcp.fsm);
@@ -965,7 +969,6 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     free(oname);
   } else {
     dl->name = strdup(dl->name);
-    dl->physical->link.name = dl->name;
     free(iov[*niov].iov_base);
   }
   (*niov)++;
@@ -1076,7 +1079,8 @@ datalink_NextName(struct datalink *dl)
   n = sprintf(name, "%.*s-", dl->name[f] == '-' ? f : f + 1, dl->name);
   sprintf(name + n, "%d", atoi(dl->name + f + 1) + 1);
   oname = dl->name;
-  dl->physical->link.name = dl->name = name;
+  dl->name = name;
+  /* our physical link name isn't updated (it probably isn't created yet) */
   return oname;
 }
 
