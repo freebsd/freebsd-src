@@ -36,6 +36,7 @@ struct ofwfb_softc {
 	int	       	sc_console;
 
 	intptr_t	sc_addr;
+	int		sc_depth;
         int	       	sc_height;
         int	       	sc_width;
 	int	       	sc_stride;
@@ -47,6 +48,9 @@ struct ofwfb_softc {
 
 	u_char	       *sc_font;
 	int		sc_font_height;
+
+	vi_blank_display_t *sc_blank;
+	vi_putc_t	*sc_putc;
 };
 
 #endif
