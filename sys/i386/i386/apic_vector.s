@@ -117,13 +117,13 @@ IDTVEC(vec_name) ;							\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
 	je	7f ;			/* bit clear, not masked */	\
 	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
-	movl	IOAPICADDR(irq_num),%ecx ;	/* ioapic addr */	\
+	movl	IOAPICADDR(irq_num), %ecx ;	/* ioapic addr */	\
 	movl	REDIRIDX(irq_num), %eax ;	/* get the index */	\
-	movl	%eax,(%ecx) ;			/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-7: ;									\
+	movl	%eax, (%ecx) ;			/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
+	andl	$~IOART_INTMASK, %eax ;		/* clear the mask */	\
+	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+7: ;						/* already unmasked */	\
 	IMASK_UNLOCK
 
 #ifdef APIC_INTR_DIAGNOSTIC
@@ -379,7 +379,7 @@ _Xcpuast:
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
 	jnc	2f
-	orl	$AST_PENDING+AST_RESCHED,_astpending
+	orl	$AST_PENDING+AST_RESCHED, _astpending
 	lock
 	incl	CNAME(want_resched_cnt)
 2:		
@@ -565,6 +565,14 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(21,fastintr21)
 	FAST_INTR(22,fastintr22)
 	FAST_INTR(23,fastintr23)
+	FAST_INTR(24,fastintr24)
+	FAST_INTR(25,fastintr25)
+	FAST_INTR(26,fastintr26)
+	FAST_INTR(27,fastintr27)
+	FAST_INTR(28,fastintr28)
+	FAST_INTR(29,fastintr29)
+	FAST_INTR(30,fastintr30)
+	FAST_INTR(31,fastintr31)
 #define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
 /* Threaded interrupts */
 	INTR(0,intr0, CLKINTR_PENDING)
@@ -591,6 +599,14 @@ MCOUNT_LABEL(bintr)
 	INTR(21,intr21,)
 	INTR(22,intr22,)
 	INTR(23,intr23,)
+	INTR(24,intr24,)
+	INTR(25,intr25,)
+	INTR(26,intr26,)
+	INTR(27,intr27,)
+	INTR(28,intr28,)
+	INTR(29,intr29,)
+	INTR(30,intr30,)
+	INTR(31,intr31,)
 MCOUNT_LABEL(eintr)
 
 /*
@@ -667,8 +683,6 @@ CNAME(cpuast_cnt):
 	.long 0
 CNAME(cpustop_restartfunc):
 	.long 0
-		
-
 
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
