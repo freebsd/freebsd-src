@@ -1225,6 +1225,7 @@ ENTRY(casuptr)
  *
  *	Fetch a byte (sword, word) from user memory
  */
+ALTENTRY(fuword32)
 ENTRY(fuword)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -1236,9 +1237,6 @@ ENTRY(fuword)
 	movl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
-
-ENTRY(fuword32)
-	jmp	fuword
 
 /*
  * These two routines are called from the profiling code, potentially
@@ -1294,6 +1292,7 @@ fusufault:
  *
  *	Write a byte (word, longword) to user memory
  */
+ALTENTRY(suword32)
 ENTRY(suword)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -1336,9 +1335,6 @@ ENTRY(suword)
 	movl	PCPU(CURPCB),%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
-
-ENTRY(suword32)
-	jmp	suword
 
 /*
  * suword16 - MP SAFE (if not I386_CPU)
