@@ -75,7 +75,7 @@ options 	INVARIANT_SUPPORT
 options 	WITNESS
 
 # To make an SMP kernel, the next line is needed
-options 	SMP			# Symmetric MultiProcessor Kernel
+#options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
 device		isa
