@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.300 1998/06/17 14:57:55 bde Exp $
+ *	$Id: machdep.c,v 1.301 1998/06/21 17:46:53 bde Exp $
  */
 
 #include "apm.h"
@@ -193,6 +193,17 @@ sysctl_hw_usermem SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
+
+static int
+sysctl_hw_availpages SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0,
+		i386_btop(avail_end - avail_start), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_availpages, "I", "");
 
 int bootverbose = 0, Maxmem = 0;
 long dumplo;
@@ -1113,7 +1124,6 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
-	char *cp;
 
 	struct isa_device *idp;
 #ifndef SMP
