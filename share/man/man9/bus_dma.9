@@ -322,7 +322,7 @@ Boundary constraint, in bytes, of the target DMA memory region.
 The boundary indicates the set of addresses, all multiples of the
 boundary argument, that cannot be crossed by a single
 .Vt bus_dma_segment_t .
-The boundary must be either a power of 2 or 0.
+The boundary must be a power of 2.
 .Ql 0
 indicates that there are no boundary restrictions.
 .It Fa lowaddr
