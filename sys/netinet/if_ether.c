@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.5 1994/10/02 17:48:36 phk Exp $
+ * $Id: if_ether.c,v 1.6 1994/10/11 23:16:37 wollman Exp $
  */
 
 /*
@@ -95,6 +95,24 @@ int	arpinit_done = 0;
 #ifdef	ARP_PROXYALL
 int	arp_proxyall = 1;
 #endif
+
+/*
+ * Support: format an IP address.  There should be a standard kernel routine
+ * to do this.
+ */
+static char *
+arp_ntoa(struct in_addr *x)
+{
+	static char buf[4*sizeof "123"];
+	unsigned char *ucp = (unsigned char *)x;
+
+	sprintf(buf, "%d.%d.%d.%d",
+		ucp[0] & 0xff,
+		ucp[1] & 0xff,
+		ucp[2] & 0xff,
+		ucp[3] & 0xff);
+	return buf;
+}
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -448,14 +466,14 @@ in_arpinput(m)
 	if (!bcmp((caddr_t)ea->arp_sha, (caddr_t)etherbroadcastaddr,
 	    sizeof (ea->arp_sha))) {
 		log(LOG_ERR,
-		    "arp: ether address is broadcast for IP address %x!\n",
-		    ntohl(isaddr.s_addr));
+		    "arp: ether address is broadcast for IP address %s!\n",
+		    arp_ntoa(&isaddr));
 		goto out;
 	}
 	if (isaddr.s_addr == myaddr.s_addr) {
 		log(LOG_ERR,
-		   "duplicate IP address %x!! sent from ethernet address: %s\n",
-		   ntohl(isaddr.s_addr), ether_sprintf(ea->arp_sha));
+		   "duplicate IP address %s! sent from ethernet address: %s\n",
+		   arp_ntoa(&isaddr), ether_sprintf(ea->arp_sha));
 		itaddr = myaddr;
 		goto reply;
 	}
@@ -463,8 +481,8 @@ in_arpinput(m)
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
-			log(LOG_INFO, "arp info overwritten for %x by %s\n",
-			    isaddr.s_addr, ether_sprintf(ea->arp_sha));
+			log(LOG_INFO, "arp info overwritten for %s by %s\n",
+			    arp_ntoa(&isaddr), ether_sprintf(ea->arp_sha));
 		bcopy((caddr_t)ea->arp_sha, LLADDR(sdl),
 			    sdl->sdl_alen = sizeof(ea->arp_sha));
 		if (rt->rt_expire)
@@ -519,7 +537,10 @@ reply:
 			bcopy(ac->ac_enaddr, (caddr_t)ea->arp_sha,
 			      sizeof(ea->arp_sha));
 			rtfree(rt);
-			printf("arp: proxying for %x\n", ntohl(itaddr.s_addr));
+#ifdef DEBUG_PROXY
+			printf("arp: proxying for %s\n", 
+			       arp_ntoa(&itaddr));
+#endif
 #else
 			goto out;
 #endif
@@ -578,6 +599,7 @@ arplookup(addr, create, proxy)
 {
 	register struct rtentry *rt;
 	static struct sockaddr_inarp sin = {sizeof(sin), AF_INET };
+	const char *why = 0;
 
 	sin.sin_addr.s_addr = addr;
 	sin.sin_other = proxy ? SIN_PROXY : 0;
@@ -585,11 +607,20 @@ arplookup(addr, create, proxy)
 	if (rt == 0)
 		return (0);
 	rt->rt_refcnt--;
-	if ((rt->rt_flags & RTF_GATEWAY) || (rt->rt_flags & RTF_LLINFO) == 0 ||
-	    rt->rt_gateway->sa_family != AF_LINK) {
-		if (create)
-			log(LOG_DEBUG, "arptnew failed on %x\n", ntohl(addr));
-		return (0);
+
+	if(rt->rt_flags & RTF_GATEWAY)
+		why = "host is not on local network";
+	else if((rt->rt_flags & RTF_LLINFO) == 0)
+		why = "could not allocate llinfo";
+	else if(rt->rt_gateway->sa_family != AF_LINK)
+		why = "gateway route is not ours";
+
+	if(why && create) {
+		log(LOG_DEBUG, "arplookup %s failed: %s\n",
+		    arp_ntoa(&sin.sin_addr), why);
+		return 0;
+	} else if(why) {
+		return 0;
 	}
 	return ((struct llinfo_arp *)rt->rt_llinfo);
 }
