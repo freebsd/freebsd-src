@@ -87,8 +87,9 @@ setup(dev)
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
 		return (0);
 	}
-	if ((statb.st_mode & S_IFMT) != S_IFCHR) {
-		pfatal("%s is not a character device", dev);
+	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
+	    (statb.st_mode & S_IFMT) != S_IFBLK) {
+		pfatal("%s is not a disk device", dev);
 		if (reply("CONTINUE") == 0)
 			return (0);
 	}
