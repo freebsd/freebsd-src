@@ -46,6 +46,8 @@
 #define	_PATH_GROUP		"/etc/group"
 #endif
 
+#include <sys/types.h>
+
 struct group {
 	char	*gr_name;		/* group name */
 	char	*gr_passwd;		/* group password */
