@@ -23,33 +23,25 @@
  * $FreeBSD$
  */
 
-
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/signal.h>
 #include <sys/param.h>
-
-#include "os.h"
-#include <stdio.h>
-#include <nlist.h>
-#include <math.h>
-#include <kvm.h>
-#include <pwd.h>
 #include <sys/errno.h>
-#include <sys/sysctl.h>
 #include <sys/file.h>
-#include <sys/time.h>
 #include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/vmmeter.h>
 #include <sys/resource.h>
 #include <sys/rtprio.h>
+#include <sys/signal.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/user.h>
+#include <sys/vmmeter.h>
 
-/* Swap */
+#include <kvm.h>
+#include <math.h>
+#include <nlist.h>
+#include <pwd.h>
+#include <stdio.h>
 #include <stdlib.h>
-
 #include <unistd.h>
-#include <osreldate.h> /* for changes in kernel structures */
 
 #include "top.h"
 #include "machine.h"
