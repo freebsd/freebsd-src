@@ -975,7 +975,7 @@ static int an_ioctl(ifp, command, data)
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
 
-	if(sc->an_gone) {
+	if (sc->an_gone) {
 		error = ENODEV;
 		goto out;
 	}
@@ -1037,8 +1037,8 @@ static int an_ioctl(ifp, command, data)
 		error = copyout(&areq, ifr->ifr_data, sizeof(areq));
 		break;
 	case SIOCSAIRONET:
-                if ((error = suser(p)))
-                        goto out;
+		if ((error = suser(p)))
+			goto out;
 		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
 		if (error)
 			break;
