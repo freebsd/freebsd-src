@@ -154,18 +154,10 @@ acpi_cpu_attach(device_t dev)
      * Get global parameters from the FADT.
      */
     if (device_get_unit(sc->cpu_dev) == 0) {
-	/* get the FADT */
-	if (ACPI_FAILURE(status = acpi_GetTableIntoBuffer(ACPI_TABLE_FADT, 1, &buf))) {
-	    device_printf(sc->cpu_dev, "couldn't get FADT - %s\n", acpi_strerror(status));
-	    if (buf.Pointer != NULL)
-		AcpiOsFree(buf.Pointer);
-	    return_VALUE(ENXIO);
-	}
-	cpu_duty_offset = ((FADT_DESCRIPTOR_REV2 *)buf.Pointer)->DutyOffset;
-	cpu_duty_width = ((FADT_DESCRIPTOR_REV2 *)buf.Pointer)->DutyWidth;
-	cpu_smi_cmd = ((FADT_DESCRIPTOR_REV1 *)buf.Pointer)->SmiCmd;
-	cpu_pstate_cnt = ((FADT_DESCRIPTOR_REV2 *)buf.Pointer)->PstateCnt;
-	AcpiOsFree(buf.Pointer);
+	cpu_duty_offset = AcpiGbl_FADT->DutyOffset;
+	cpu_duty_width = AcpiGbl_FADT->DutyWidth;
+	cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
+	cpu_pstate_cnt = AcpiGbl_FADT->PstateCnt;
 
 	/* validate the offset/width */
 	duty_end = cpu_duty_offset + cpu_duty_width - 1;
@@ -281,7 +273,7 @@ acpi_cpu_init_throttling(void *arg)
     /* if ACPI 2.0+, signal platform that we are taking over throttling */
     if (cpu_pstate_cnt != 0) {
 	/* XXX should be a generic interface for this */
-	AcpiOsOut8(cpu_smi_cmd, cpu_pstate_cnt);
+	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
     }
 
     ACPI_UNLOCK;
