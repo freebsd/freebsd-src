@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.7 1998/11/01 13:52:52 rnordier Exp $
+#	$Id: btx.s,v 1.8 1998/11/02 17:53:08 rnordier Exp $
 
 #
 # Memory layout.
@@ -99,8 +99,8 @@ start:						# Start of code
 btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
-		.byte 0x0			# Major version
-		.byte 0x57			# Minor version
+		.byte 0x1			# Major version
+		.byte 0x0			# Minor version
 		.byte 0x0			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
