@@ -173,7 +173,7 @@ struct vm_page {
 #else
 #define PQ_CACHESIZE 128
 #endif
-#endif
+#endif			/* !defined(PQ_CACHESIZE) */
 
 #if PQ_CACHESIZE >= 1024
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
@@ -225,7 +225,7 @@ struct vpgqueues {
 
 extern struct vpgqueues vm_page_queues[PQ_COUNT];
 
-#endif
+#endif			/* !defined(KLD_MODULE) */
 
 /*
  * These are the flags defined for vm_page.
@@ -256,7 +256,6 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 /*
  * Misc constants.
  */
-
 #define ACT_DECLINE		1
 #define ACT_ADVANCE		3
 #define ACT_INIT		5
@@ -372,6 +371,5 @@ int vm_page_bits (int, int);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 void vm_page_zero_idle_wakeup(void);
-
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */

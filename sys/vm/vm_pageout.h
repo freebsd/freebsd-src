@@ -109,7 +109,5 @@ void vm_pageout_page __P((vm_page_t, vm_object_t));
 void vm_pageout_cluster __P((vm_page_t, vm_object_t));
 int vm_pageout_flush __P((vm_page_t *, int, int));
 void vm_pageout_page_free __P((vm_page_t));
-
 #endif
-
-#endif
+#endif	/* _VM_VM_PAGEOUT_H_ */

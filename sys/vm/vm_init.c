@@ -90,7 +90,6 @@
 /*
  * System initialization
  */
-
 static void vm_mem_init __P((void *));
 SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
 
@@ -100,7 +99,6 @@ SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
  *
  *	The start and end address of physical memory is passed in.
  */
-
 /* ARGSUSED*/
 static void
 vm_mem_init(dummy)

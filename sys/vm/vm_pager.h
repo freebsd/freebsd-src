@@ -83,7 +83,6 @@ struct pagerops {
 #define	VM_PAGER_PUT_INVAL	0x2
 
 #ifdef _KERNEL
-
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_VMPGDATA);
 #endif
@@ -114,7 +113,6 @@ void vm_pager_strategy __P((vm_object_t object, struct bio *bp));
  *	( or into VM space somewhere ).  If the pagein was successful, we
  *	must fully validate it.
  */
-
 static __inline int
 vm_pager_get_pages(
 	vm_object_t object,
@@ -130,7 +128,7 @@ vm_pager_get_pages(
 	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
 		vm_page_zero_invalid(m[reqpage], TRUE);
 	}
-	return(r);
+	return (r);
 }
 
 static __inline void
@@ -156,7 +154,6 @@ vm_pager_put_pages(
  *
  *	This routine does not have to be called at any particular spl.
  */
-
 static __inline boolean_t
 vm_pager_has_page(
 	vm_object_t object,
@@ -179,7 +176,6 @@ vm_pager_has_page(
  * 
  *      This function may not block.
  */
- 
 static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
@@ -188,6 +184,5 @@ vm_pager_page_unswapped(vm_page_t m)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
 }
 
-#endif
-
+#endif				/* _KERNEL */
 #endif				/* _VM_PAGER_ */

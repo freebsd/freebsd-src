@@ -55,6 +55,5 @@ int vnode_pager_generic_getpages __P((struct vnode *vp, vm_page_t *m,
 int vnode_pager_generic_putpages __P((struct vnode *vp, vm_page_t *m,
 					  int count, boolean_t sync,
 					  int *rtvals));
-#endif
-
+#endif				/* _KERNEL */
 #endif				/* _VNODE_PAGER_ */
