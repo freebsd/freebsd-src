@@ -16,17 +16,17 @@
 .Dt BLACKHOLE 4
 .Os FreeBSD 
 .Sh NAME
-.Nm \&blackhole 
+.Nm blackhole 
 .Nd a
 .Xr sysctl 8
 MIB for manipulating behaviour in respect of refused TCP or UDP connection
 attempts.
 .Sh SYNOPSIS
-.Nm \&sysctl net.inet.tcp.blackhole
-.Nm \&sysctl net.inet.udp.blackhole
+.Cd sysctl net.inet.tcp.blackhole
+.Cd sysctl net.inet.udp.blackhole
 .Pp
-.Nm \&sysctl -w net.inet.tcp.blackhole=[0 | 1 | 2]
-.Nm \&sysctl -w net.inet.udp.blackhole=[0 | 1]
+.Cd sysctl -w net.inet.tcp.blackhole=[0 | 1 | 2]
+.Cd sysctl -w net.inet.udp.blackhole=[0 | 1]
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,12 +68,12 @@ to protect your system, and not the blackhole feature.
 This mechanism is not a substitute for securing your system,
 but should be used together with other security mechanisms.
 .Pp
-.Sh "SEE ALSO"
-.Xr ipfw 8
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr ipfw 8 ,
 .Xr sysctl 8
-.Xr ip 4
-.Xr tcp 4
-.Xr udp 4
 .Sh AUTHORS
 .An Geoffrey M. Rehmet
 .Sh HISTORY
@@ -81,4 +81,4 @@ The TCP and UDP
 .Nm 
 MIBs
 first appeared in
-.Fx 4.0
+.Fx 4.0 .
