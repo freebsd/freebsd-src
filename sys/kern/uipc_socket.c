@@ -1739,7 +1739,7 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 }
 
 int
-sokqfilter(struct file *fp, struct knote *kn)
+soo_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct socket *so = (struct socket *)kn->kn_fp->f_data;
 	struct sockbuf *sb;

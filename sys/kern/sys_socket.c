@@ -54,7 +54,7 @@
 #include <net/route.h>
 
 struct	fileops socketops = {
-	soo_read, soo_write, soo_ioctl, soo_poll, sokqfilter,
+	soo_read, soo_write, soo_ioctl, soo_poll, soo_kqfilter,
 	soo_stat, soo_close
 };
 
