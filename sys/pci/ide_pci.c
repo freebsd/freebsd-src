@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.26 1999/01/16 19:48:01 bde Exp $
+ *	$Id: ide_pci.c,v 1.27 1999/01/17 05:18:54 bde Exp $
  */
 
 #include "pci.h"
@@ -159,7 +159,7 @@ mkcookie(int		iobase_wd,
 
 
 static void ide_pci_attach(pcici_t tag, int unit);
-static void *ide_pci_candma(int, int);
+static void *ide_pci_candma(int, int, int);
 static int ide_pci_dmainit(void *, 
 	struct wdparams *, 
 	int (*)(int, void *),
@@ -1449,16 +1449,17 @@ static struct pci_device ide_pci_device = {
 DATA_SET(pcidevice_set, ide_pci_device);
 
 /*
- * Return a cookie if we can do DMA on the specified (iobase_wd, ctlr).
+ * Return a cookie if we may be able to do DMA on the specified
+ * (iobase_wd, ctlr, unit).
  */
 static void *
-ide_pci_candma(int iobase_wd, int ctlr)
+ide_pci_candma(int iobase_wd, int ctlr, int unit)
 {
 	struct ide_pci_cookie *cp;
 
 	cp = softc.cookies.lh_first;
 	while(cp) {
-		if (cp->ctlr == ctlr &&
+		if (cp->ctlr == ctlr && cp->unit == unit &&
 			((iobase_wd == 0) || (cp->iobase_wd == iobase_wd)))
 			break;
 		cp = cp->le.le_next;
