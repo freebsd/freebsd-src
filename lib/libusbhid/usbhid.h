@@ -45,7 +45,7 @@ typedef enum hid_kind {
 
 typedef struct hid_item {
 	/* Global */
-	int _usage_page;
+	unsigned int _usage_page;
 	int logical_minimum;
 	int logical_maximum;
 	int physical_minimum;
