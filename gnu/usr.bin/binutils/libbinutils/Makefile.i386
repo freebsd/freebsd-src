@@ -2,4 +2,4 @@
 # $FreeBSD$
 #
 
-TARGET=		i386-unknown-freebsdelf
+TARGET=		i386-unknown-freebsd
