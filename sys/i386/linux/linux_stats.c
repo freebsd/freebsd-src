@@ -33,8 +33,6 @@
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/socketvar.h>
-#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
