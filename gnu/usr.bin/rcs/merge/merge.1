@@ -2,22 +2,14 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: merge.1,v 5.3 1991/02/28 19:18:45 eggert Exp $
+.Id $Id: merge.1,v 5.7 1995/06/01 16:23:43 eggert Exp $
 .TH MERGE 1 \*(Dt GNU
 .SH NAME
 merge \- three-way file merge
 .SH SYNOPSIS
 .B merge
 [
-.B \-L
-.I label1
-[
-.B \-L
-.I label3
-] ] [
-.B \-p
-] [
-.B \-q
+.I "options"
 ]
 .I "file1 file2 file3"
 .SH DESCRIPTION
@@ -28,11 +20,8 @@ to
 .I file3
 into
 .IR file1 .
-The result goes to standard output if
-.B \-p
-is present, into
-.I file1
-otherwise.
+The result ordinarily goes into
+.IR file1 .
 .B merge
 is useful for combining separate changes to an original.  Suppose
 .I file2
@@ -46,57 +35,101 @@ Then
 .B merge
 combines both changes.
 .PP
-An overlap occurs if both
+A conflict occurs if both
 .I file1
 and
 .I file3
 have changes in a common segment of lines.
-On a few older hosts where
-.B diff3
-does not support the
-.B \-E
-option,
+If a conflict is found,
 .B merge
-does not detect overlaps, and merely supplies the changed lines from
-.I file3.
-On most hosts, if overlaps occur,
-.B merge
-outputs a message (unless the
-.B \-q
-option is given),
-and includes both alternatives
-in the result.  The alternatives are delimited as follows:
+normally outputs a warning and brackets the conflict with
+.B <<<<<<<
+and
+.B >>>>>>>
+lines.
+A typical conflict will look like this:
 .LP
 .RS
 .nf
-.BI <<<<<<< " file1"
-.I "lines in file1"
+.BI <<<<<<< " file A"
+.I "lines in file A"
 .B "======="
-.I "lines in file3"
-.BI >>>>>>> " file3"
+.I "lines in file B"
+.BI >>>>>>> " file B"
 .RE
 .fi
 .LP
-If there are overlaps, the user should edit the result and delete one of the
+If there are conflicts, the user should edit the result and delete one of the
 alternatives.
-If the
-.BI \-L "\ label1"
-and
-.BI \-L "\ label3"
-options are given, the labels are output in place of the names
-.I file1
-and
+.SH OPTIONS
+.TP
+.B \-A
+Output conflicts using the
+.B \-A
+style of
+.BR diff3 (1),
+if supported by
+.BR diff3 .
+This merges all changes leading from
+.I file2
+to
 .I file3
-in overlap reports.
+into
+.IR file1 ,
+and generates the most verbose output.
+.TP
+\f3\-E\fP, \f3\-e\fP
+These options specify conflict styles that generate less information
+than
+.BR \-A .
+See
+.BR diff3 (1)
+for details.
+The default is
+.BR \-E .
+With
+.BR \-e ,
+.B merge
+does not warn about conflicts.
+.TP
+.BI \-L " label"
+This option may be given up to three times, and specifies labels
+to be used in place of the corresponding file names in conflict reports.
+That is,
+.B "merge\ \-L\ x\ \-L\ y\ \-L\ z\ a\ b\ c"
+generates output that looks like it came from files
+.BR x ,
+.B y
+and
+.B z
+instead of from files
+.BR a ,
+.B b
+and
+.BR c .
+.TP
+.BI \-p
+Send results to standard output instead of overwriting
+.IR file1 .
+.TP
+.BI \-q
+Quiet; do not warn about conflicts.
+.BI \-V
+Print \*r's version number.
 .SH DIAGNOSTICS
-Exit status is 0 for no overlaps, 1 for some overlaps, 2 for trouble.
+Exit status is 0 for no conflicts, 1 for some conflicts, 2 for trouble.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
 .SH SEE ALSO
 diff3(1), diff(1), rcsmerge(1), co(1).
+.SH BUGS
+It normally does not make sense to merge binary files as if they were text, but
+.B merge
+tries to do it anyway.
+.br

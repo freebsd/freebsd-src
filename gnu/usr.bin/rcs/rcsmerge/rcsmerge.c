@@ -1,13 +1,7 @@
-/*
- *                       rcsmerge operation
- */
-/*****************************************************************************
- *                       join 2 revisions with respect to a third
- *****************************************************************************
- */
+/* Merge RCS revisions.  */
 
-/* Copyright (C) 1982, 1988, 1989 Walter Tichy
-   Copyright 1990, 1991 by Paul Eggert
+/* Copyright 1982, 1988, 1989 Walter Tichy
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -23,8 +17,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -32,9 +27,34 @@ Report problems and direct all questions to:
 
 */
 
-
-
-/* $Log: rcsmerge.c,v $
+/*
+ * $Log: rcsmerge.c,v $
+ * Revision 5.15  1995/06/16 06:19:24  eggert
+ * Update FSF address.
+ *
+ * Revision 5.14  1995/06/01 16:23:43  eggert
+ * (main): Report an error if -kb, so don't worry about binary stdout.
+ * Punctuate messages properly.  Rewrite to avoid `goto end'.
+ *
+ * Revision 5.13  1994/03/17 14:05:48  eggert
+ * Specify subprocess input via file descriptor, not file name.  Remove lint.
+ *
+ * Revision 5.12  1993/11/09 17:40:15  eggert
+ * -V now prints version on stdout and exits.  Don't print usage twice.
+ *
+ * Revision 5.11  1993/11/03 17:42:27  eggert
+ * Add -A, -E, -e, -z.  Ignore -T.  Allow up to three file labels.
+ * Pass -Vn to `co'.  Pass unexpanded revision name to `co', so that Name works.
+ *
+ * Revision 5.10  1992/07/28  16:12:44  eggert
+ * Add -V.
+ *
+ * Revision 5.9  1992/01/24  18:44:19  eggert
+ * lint -> RCS_lint
+ *
+ * Revision 5.8  1992/01/06  02:42:34  eggert
+ * Update usage string.
+ *
  * Revision 5.7  1991/11/20  17:58:09  eggert
  * Don't Iopen(f, "r+"); it's not portable.
  *
@@ -98,17 +118,17 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 eggert Exp $")
+mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.15 1995/06/16 06:19:24 eggert Exp $")
 {
 	static char const cmdusage[] =
-		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] [-p] [-Vn] file";
+		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] -ksubst -{pq}[rev] -Vn -xsuff -zzone file";
 	static char const quietarg[] = "-q";
 
 	register int i;
 	char *a, **newargv;
 	char const *arg[3];
-	char const *rev[2]; /*revision numbers*/
-	char const *expandarg, *versionarg;
+	char const *rev[3], *xrev[3]; /*revision numbers*/
+	char const *edarg, *expandarg, *suffixarg, *versionarg, *zonearg;
         int tostdout;
 	int status;
 	RILE *workptr;
@@ -119,10 +139,10 @@ mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 egge
 
 	bufautobegin(&commarg);
 	bufautobegin(&numericrev);
-	rev[0] = rev[1] = nil;
+	edarg = rev[1] = rev[2] = 0;
 	status = 0; /* Keep lint happy.  */
 	tostdout = false;
-	expandarg = versionarg = quietarg; /* i.e. a no-op */
+	expandarg = suffixarg = versionarg = zonearg = quietarg; /* no-op */
 	suffixes = X_DEFAULT;
 
 	argc = getRCSINIT(argc, argv, &newargv);
@@ -140,15 +160,32 @@ mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 egge
 				break;
                         /* falls into -r */
                 case 'r':
-			if (!rev[0])
-				rev[0] = a;
-			else if (!rev[1])
+			if (!rev[1])
 				rev[1] = a;
+			else if (!rev[2])
+				rev[2] = a;
 			else
-				faterror("too many revision numbers");
+				error("too many revision numbers");
                         break;
+
+		case 'A': case 'E': case 'e':
+			if (*a)
+				goto unknown;
+			edarg = *argv;
+			break;
+
 		case 'x':
+			suffixarg = *argv;
 			suffixes = a;
+			break;
+		case 'z':
+			zonearg = *argv;
+			zone_set(a);
+			break;
+		case 'T':
+			/* Ignore -T, so that RCSINIT can contain -T.  */
+			if (*a)
+				goto unknown;
 			break;
 		case 'V':
 			versionarg = *argv;
@@ -161,90 +198,88 @@ mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 egge
 			    break;
 			/* fall into */
                 default:
-			faterror("unknown option: %s%s", *argv, cmdusage);
+		unknown:
+			error("unknown option: %s%s", *argv, cmdusage);
                 };
         } /* end of option processing */
 
-	if (argc<1) faterror("no input file%s", cmdusage);
-	if (!rev[0]) faterror("no base revision number given");
+	if (!rev[1]) faterror("no base revision number given");
 
-        /* now handle all filenames */
+	/* Now handle all pathnames.  */
 
-	if (0  <  pairfilenames(argc, argv, rcsreadopen, true, false)) {
+	if (!nerror) {
+	    if (argc < 1)
+		faterror("no input file%s", cmdusage);
+	    if (0 < pairnames(argc, argv, rcsreadopen, true, false)) {
 
-                if (argc>2 || (argc==2&&argv[1]!=nil))
-                        warn("too many arguments");
-		diagnose("RCS file: %s\n", RCSfilename);
-		if (!(workptr = Iopen(workfilename,
-			FOPEN_R_WORK,
-			(struct stat*)0
-		)))
-			efaterror(workfilename);
+                if (argc>2  ||  (argc==2 && argv[1]))
+			warn("excess arguments ignored");
+		if (Expand == BINARY_EXPAND)
+			workerror("merging binary files");
+		diagnose("RCS file: %s\n", RCSname);
+		if (!(workptr = Iopen(workname, FOPEN_R_WORK, (struct stat*)0)))
+			efaterror(workname);
 
                 gettree();  /* reads in the delta tree */
 
-                if (Head==nil) faterror("no revisions present");
+		if (!Head) rcsfaterror("no revisions present");
 
-		if (!*rev[0])
-			rev[0]  =  Dbranch ? Dbranch : Head->num;
-		if (!fexpandsym(rev[0], &numericrev, workptr))
-			goto end;
-		if (!(target=genrevs(numericrev.string, (char *)nil, (char *)nil, (char *)nil,&gendeltas))) goto end;
-		rev[0] = target->num;
-		if (!rev[1] || !*rev[1])
+		if (!*rev[1])
 			rev[1]  =  Dbranch ? Dbranch : Head->num;
-		if (!fexpandsym(rev[1], &numericrev, workptr))
-			goto end;
-		if (!(target=genrevs(numericrev.string, (char *)nil, (char *)nil, (char *)nil,&gendeltas))) goto end;
-		rev[1] = target->num;
+		if (fexpandsym(rev[1], &numericrev, workptr)
+		    && (target=genrevs(numericrev.string, (char *)0, (char *)0, (char*)0, &gendeltas))
+		) {
+		  xrev[1] = target->num;
+		  if (!rev[2] || !*rev[2])
+			rev[2]  =  Dbranch ? Dbranch : Head->num;
+		  if (fexpandsym(rev[2], &numericrev, workptr)
+		      && (target=genrevs(numericrev.string, (char *)0, (char *)0, (char *)0, &gendeltas))
+		  ) {
+		    xrev[2] = target->num;
 
-		if (strcmp(rev[0],rev[1]) == 0) {
-			if (tostdout) {
-				FILE *o;
-#				if text_equals_binary_stdio || text_work_stdio
-				    o = stdout;
-#				else
-				    if (!(o=fdopen(STDOUT_FILENO,FOPEN_W_WORK)))
-					efaterror("stdout");
-#				endif
-				fastcopy(workptr,o);
-				Ofclose(o);
-			}
-			goto end;
-		}
-		Izclose(&workptr);
+		    if (strcmp(xrev[1],xrev[2]) == 0) {
+		      if (tostdout) {
+			fastcopy(workptr, stdout);
+			Ofclose(stdout);
+		      }
+		    } else {
+		      Izclose(&workptr);
 
-		for (i=0; i<2; i++) {
-			diagnose("retrieving revision %s\n", rev[i]);
+		      for (i=1; i<=2; i++) {
+			diagnose("retrieving revision %s\n", xrev[i]);
 			bufscpy(&commarg, "-p");
-			bufscat(&commarg, rev[i]);
+			bufscat(&commarg, rev[i]); /* not xrev[i], for $Name's sake */
 			if (run(
-				(char*)0,
+				-1,
 				/* Do not collide with merger.c maketemp().  */
-				arg[i+1] = maketemp(i+3),
-				co, quietarg, commarg.string, expandarg,
-				versionarg, RCSfilename, (char*)0
+				arg[i] = maketemp(i+2),
+				co, quietarg, commarg.string,
+				expandarg, suffixarg, versionarg, zonearg,
+				RCSname, (char*)0
 			))
-				faterror("co failed");
+				rcsfaterror("co failed");
+		      }
+		      diagnose("Merging differences between %s and %s into %s%s\n",
+			       xrev[1], xrev[2], workname,
+			       tostdout?"; result to stdout":"");
+
+		      arg[0] = xrev[0] = workname;
+		      status = merge(tostdout, edarg, xrev, arg);
+		    }
+		  }
 		}
-		diagnose("Merging differences between %s and %s into %s%s\n",
-			 rev[0], rev[1], workfilename,
-                         tostdout?"; result to stdout":"");
 
-		arg[0] = rev[0] = workfilename;
-		status = merge(tostdout, rev, arg);
+		Izclose(&workptr);
+	    }
         }
-
-end:
-	Izclose(&workptr);
 	tempunlink();
 	exitmain(nerror ? DIFF_TROUBLE : status);
 }
 
-#if lint
+#if RCS_lint
 #	define exiterr rmergeExit
 #endif
-	exiting void
+	void
 exiterr()
 {
 	tempunlink();

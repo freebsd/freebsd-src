@@ -1,14 +1,13 @@
-/*
- *                     RCS file comparison
- */
+/* Compare working files, ignoring RCS keyword strings.  */
+
 /*****************************************************************************
  *                       rcsfcmp()
  *                       Testprogram: define FCMPTEST
  *****************************************************************************
  */
 
-/* Copyright (C) 1982, 1988, 1989 Walter Tichy
-   Copyright 1990, 1991 by Paul Eggert
+/* Copyright 1982, 1988, 1989 Walter Tichy
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -24,8 +23,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -37,7 +37,25 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfcmp.c,v $
+/*
+ * $Log: rcsfcmp.c,v $
+ * Revision 5.14  1995/06/16 06:19:24  eggert
+ * Update FSF address.
+ *
+ * Revision 5.13  1995/06/01 16:23:43  eggert
+ * (rcsfcmp): Add -kb support.
+ *
+ * Revision 5.12  1994/03/17 14:05:48  eggert
+ * Normally calculate the $Log prefix from context, not from RCS file.
+ * Calculate line numbers correctly even if the $Log prefix contains newlines.
+ * Remove lint.
+ *
+ * Revision 5.11  1993/11/03 17:42:27  eggert
+ * Fix yet another off-by-one error when comparing Log string expansions.
+ *
+ * Revision 5.10  1992/07/28 16:12:44  eggert
+ * Statement macro names now end in _.
+ *
  * Revision 5.9  1991/10/07  17:32:46  eggert
  * Count log lines correctly.
  *
@@ -101,8 +119,9 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(fcmpId, "$Id: rcsfcmp.c,v 5.9 1991/10/07 17:32:46 eggert Exp $")
+libId(fcmpId, "$Id: rcsfcmp.c,v 5.14 1995/06/16 06:19:24 eggert Exp $")
 
+	static int discardkeyval P((int,RILE*));
 	static int
 discardkeyval(c, f)
 	register int c;
@@ -114,24 +133,24 @@ discardkeyval(c, f)
 			case '\n':
 				return c;
 			default:
-				Igeteof(f, c, return EOF;);
+				Igeteof_(f, c, return EOF;)
 				break;
 		}
 }
 
 	int
-rcsfcmp(xfp, xstatp, ufname, delta)
+rcsfcmp(xfp, xstatp, uname, delta)
 	register RILE *xfp;
 	struct stat const *xstatp;
-	char const *ufname;
+	char const *uname;
 	struct hshentry const *delta;
-/* Compare the files xfp and ufname.  Return zero
- * if xfp has the same contents as ufname and neither has keywords,
+/* Compare the files xfp and uname.  Return zero
+ * if xfp has the same contents as uname and neither has keywords,
  * otherwise -1 if they are the same ignoring keyword values,
  * and 1 if they differ even ignoring
  * keyword values. For the LOG-keyword, rcsfcmp skips the log message
  * given by the parameter delta in xfp.  Thus, rcsfcmp returns nonpositive
- * if xfp contains the same as ufname, with the keywords expanded.
+ * if xfp contains the same as uname, with the keywords expanded.
  * Implementation: character-by-character comparison until $ is found.
  * If a $ is found, read in the marker keywords; if they are real keywords
  * and identical, read in keyword value. If value is terminated properly,
@@ -145,23 +164,24 @@ rcsfcmp(xfp, xstatp, ufname, delta)
     register int xeof, ueof;
     register char * tp;
     register char const *sp;
+    register size_t leaderlen;
     int result;
     enum markers match1;
     struct stat ustat;
 
-    if (!(ufp = Iopen(ufname, FOPEN_R_WORK, &ustat))) {
-       efaterror(ufname);
+    if (!(ufp = Iopen(uname, FOPEN_R_WORK, &ustat))) {
+       efaterror(uname);
     }
     xeof = ueof = false;
-    if (Expand==OLD_EXPAND) {
+    if (MIN_UNEXPAND <= Expand) {
 	if (!(result = xstatp->st_size!=ustat.st_size)) {
-#	    if has_mmap && large_memory
+#	    if large_memory && maps_memory
 		result = !!memcmp(xfp->base,ufp->base,(size_t)xstatp->st_size);
 #	    else
 		for (;;) {
 		    /* get the next characters */
-		    Igeteof(xfp, xc, xeof=true;);
-		    Igeteof(ufp, uc, ueof=true;);
+		    Igeteof_(xfp, xc, xeof=true;)
+		    Igeteof_(ufp, uc, ueof=true;)
 		    if (xeof | ueof)
 			goto eof;
 		    if (xc != uc)
@@ -172,21 +192,22 @@ rcsfcmp(xfp, xstatp, ufname, delta)
     } else {
 	xc = 0;
 	uc = 0; /* Keep lint happy.  */
+	leaderlen = 0;
 	result = 0;
 
 	for (;;) {
 	  if (xc != KDELIM) {
 	    /* get the next characters */
-	    Igeteof(xfp, xc, xeof=true;);
-	    Igeteof(ufp, uc, ueof=true;);
+	    Igeteof_(xfp, xc, xeof=true;)
+	    Igeteof_(ufp, uc, ueof=true;)
 	    if (xeof | ueof)
 		goto eof;
 	  } else {
 	    /* try to get both keywords */
 	    tp = xkeyword;
 	    for (;;) {
-		Igeteof(xfp, xc, xeof=true;);
-		Igeteof(ufp, uc, ueof=true;);
+		Igeteof_(xfp, xc, xeof=true;)
+		Igeteof_(ufp, uc, ueof=true;)
 		if (xeof | ueof)
 		    goto eof;
 		if (xc != uc)
@@ -221,8 +242,8 @@ rcsfcmp(xfp, xstatp, ufname, delta)
 		  }
 		  switch (xc) {
 		      default:
-			  Igeteof(xfp, xc, xeof=true;);
-			  Igeteof(ufp, uc, ueof=true;);
+			  Igeteof_(xfp, xc, xeof=true;)
+			  Igeteof_(ufp, uc, ueof=true;)
 			  if (xeof | ueof)
 			      goto eof;
 			  continue;
@@ -237,38 +258,47 @@ rcsfcmp(xfp, xstatp, ufname, delta)
 		  goto return1;
 	      if (xc==KDELIM) {
 		  /* Skip closing KDELIM.  */
-		  Igeteof(xfp, xc, xeof=true;);
-		  Igeteof(ufp, uc, ueof=true;);
+		  Igeteof_(xfp, xc, xeof=true;)
+		  Igeteof_(ufp, uc, ueof=true;)
 		  if (xeof | ueof)
 		      goto eof;
 		  /* if the keyword is LOG, also skip the log message in xfp*/
 		  if (match1==Log) {
 		      /* first, compute the number of line feeds in log msg */
-		      unsigned lncnt;
+		      int lncnt;
 		      size_t ls, ccnt;
 		      sp = delta->log.string;
 		      ls = delta->log.size;
 		      if (ls<sizeof(ciklog)-1 || memcmp(sp,ciklog,sizeof(ciklog)-1)) {
-			/* This log message was inserted.  */
-			lncnt = 3;
-			while (ls--) if (*sp++=='\n') lncnt++;
+			/*
+			* This log message was inserted.  Skip its header.
+			* The number of newlines to skip is
+			* 1 + (C+1)*(1+L+1), where C is the number of newlines
+			* in the comment leader, and L is the number of
+			* newlines in the log string.
+			*/
+			int c1 = 1;
+			for (ccnt=Comment.size; ccnt--; )
+			    c1 += Comment.string[ccnt] == '\n';
+			lncnt = 2*c1 + 1;
+			while (ls--) if (*sp++=='\n') lncnt += c1;
 			for (;;) {
 			    if (xc=='\n')
 				if(--lncnt==0) break;
-			    Igeteof(xfp, xc, goto returnresult;);
+			    Igeteof_(xfp, xc, goto returnresult;)
 			}
 			/* skip last comment leader */
 			/* Can't just skip another line here, because there may be */
 			/* additional characters on the line (after the Log....$)  */
-			for (ccnt=Comment.size; ccnt--; ) {
-			    Igeteof(xfp, xc, goto returnresult;);
-			    if(xc=='\n') break;
+			ccnt = RCSversion<VERSION(5) ? Comment.size : leaderlen;
+			do {
+			    Igeteof_(xfp, xc, goto returnresult;)
 			    /*
 			     * Read to the end of the comment leader or '\n',
-			     * whatever comes first.  Some editors strip
-			     * trailing white space from a leader like " * ".
+			     * whatever comes first, because the leader's
+			     * trailing white space was probably stripped.
 			     */
-			}
+			} while (ccnt-- && (xc!='\n' || --c1));
 		      }
 		  }
 	      } else {
@@ -284,6 +314,10 @@ rcsfcmp(xfp, xstatp, ufname, delta)
 	  }
 	  if (xc != uc)
 	      goto return1;
+	  if (xc == '\n')
+	      leaderlen = 0;
+	  else
+	      leaderlen++;
 	}
     }
 

@@ -1,7 +1,8 @@
-# Do nothing for the following
-obj clean cleandir depend rcsfreeze all:
-	@echo No need to make $@ for rcsfreeze\; ignored
+MAN1=	rcsfreeze.1
 
-install:
-	install -c -o bin -g bin -m 555 rcsfreeze.sh /usr/bin/rcsfreeze
-	install -c -o bin -g bin -m 444 rcsfreeze.1 /usr/share/man/man1
+afterinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/rcsfreeze.sh ${DESTDIR}${BINDIR}/rcsfreeze
+
+.include "../../Makefile.inc"
+.include <bsd.prog.mk>
