@@ -27,6 +27,9 @@
 # include <sys/kernel.h>
 # ifdef DEVFS
 #  include <sys/devfsext.h>
+#  if defined(IPFILTER) && defined(_KERNEL)
+#   include "opt_devfs.h"
+#  endif
 # endif /*DEVFS*/
 #endif
 #include <sys/conf.h>
@@ -375,7 +378,8 @@ static void ipl_drvinit __P((void *unused))
 	}
 }
 
-# ifdef	IPFILTER_LKM
+# if defined(IPFILTER_LKM) || \
+     defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
 SYSINIT(ipldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ipl_drvinit,NULL)
 # endif /* IPFILTER_LKM */
 #endif /* _FreeBSD_version */
