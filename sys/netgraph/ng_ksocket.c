@@ -67,6 +67,12 @@
 #include <netinet/in.h>
 #include <netatalk/at.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock", "netgraph ksock node ");
+#else
+#define M_NETGRAPH_KSOCKET M_NETGRAPH
+#endif
+
 #define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 #define SADATA_OFFSET	(OFFSETOF(struct sockaddr, sa_data))
 
@@ -224,17 +230,17 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 			return (EINVAL);
 		pathlen = strlen(path);
 		if (pathlen > SOCK_MAXADDRLEN) {
-			FREE(path, M_NETGRAPH);
+			FREE(path, M_NETGRAPH_KSOCKET);
 			return (E2BIG);
 		}
 		if (*buflen < pathoff + pathlen) {
-			FREE(path, M_NETGRAPH);
+			FREE(path, M_NETGRAPH_KSOCKET);
 			return (ERANGE);
 		}
 		*off += toklen;
 		bcopy(path, sun->sun_path, pathlen);
 		sun->sun_len = pathoff + pathlen;
-		FREE(path, M_NETGRAPH);
+		FREE(path, M_NETGRAPH_KSOCKET);
 		break;
 	    }
 
@@ -309,7 +315,7 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 		if ((pathtoken = ng_encode_string(pathbuf, pathlen)) == NULL)
 			return (ENOMEM);
 		slen += snprintf(cbuf, cbuflen, "local/%s", pathtoken);
-		FREE(pathtoken, M_NETGRAPH);
+		FREE(pathtoken, M_NETGRAPH_KSOCKET);
 		if (slen >= cbuflen)
 			return (ERANGE);
 		*off += sun->sun_len;
@@ -489,7 +495,7 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -805,7 +811,7 @@ ng_ksocket_shutdown(node_p node)
 
 	/* Take down netgraph node */
 	bzero(priv, sizeof(*priv));
-	FREE(priv, M_NETGRAPH);
+	FREE(priv, M_NETGRAPH_KSOCKET);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);

@@ -329,9 +329,7 @@ nglmi_inquire(sc_p sc, int full)
 	m->m_pkthdr.rcvif = NULL;
 	/* Allocate a meta struct (and leave some slop for options to be
 	 * added by other modules). */
-	/* MALLOC(meta, meta_p, sizeof( struct ng_meta) + META_PAD,
-	 * M_NETGRAPH, M_NOWAIT); */
-	MALLOC(meta, meta_p, sizeof(*meta) + META_PAD, M_NETGRAPH, M_NOWAIT);
+	MALLOC(meta, meta_p, sizeof(*meta) + META_PAD, M_NETGRAPH_META, M_NOWAIT);
 	if (meta != NULL) {	/* if it failed, well, it was optional anyhow */
 		meta->used_len = (u_short) sizeof(struct ng_meta);
 		meta->allocated_len

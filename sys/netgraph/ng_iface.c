@@ -76,6 +76,12 @@
 #include <netgraph/ng_iface.h>
 #include <netgraph/ng_cisco.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node ");
+#else
+#define M_NETGRAPH_IFACE M_NETGRAPH
+#endif
+
 /* This struct describes one address family */
 struct iffam {
 	sa_family_t	family;		/* Address family */
@@ -200,6 +206,7 @@ NETGRAPH_INIT(iface, &typestruct);
    One means the unit number is free, zero means it's taken. */
 static int	*ng_iface_units = NULL;
 static int	ng_iface_units_len = 0;
+static int	ng_units_in_use = 0;
 
 #define UNITS_BITSPERWORD	(sizeof(*ng_iface_units) * NBBY)
 
@@ -281,7 +288,7 @@ ng_iface_get_unit(int *unit)
 
 		newlen = (2 * ng_iface_units_len) + 4;
 		MALLOC(newarray, int *, newlen * sizeof(*ng_iface_units),
-		    M_NETGRAPH, M_NOWAIT);
+		    M_NETGRAPH_IFACE, M_NOWAIT);
 		if (newarray == NULL)
 			return (ENOMEM);
 		bcopy(ng_iface_units, newarray,
@@ -289,7 +296,7 @@ ng_iface_get_unit(int *unit)
 		for (i = ng_iface_units_len; i < newlen; i++)
 			newarray[i] = ~0;
 		if (ng_iface_units != NULL)
-			FREE(ng_iface_units, M_NETGRAPH);
+			FREE(ng_iface_units, M_NETGRAPH_IFACE);
 		ng_iface_units = newarray;
 		ng_iface_units_len = newlen;
 	}
@@ -298,6 +305,7 @@ ng_iface_get_unit(int *unit)
 	    ("%s: word=%d bit=%d", __FUNCTION__, ng_iface_units[index], bit));
 	ng_iface_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
+	ng_units_in_use++;
 	return (0);
 }
 
@@ -319,7 +327,15 @@ ng_iface_free_unit(int unit)
 	/*
 	 * XXX We could think about reducing the size of ng_iface_units[]
 	 * XXX here if the last portion is all ones
+	 * XXX At least free it if no more units.
+	 * Needed if we are to eventually be able to unload.
 	 */
+	ng_units_in_use--;
+	if (ng_units_in_use == 0) { /* XXX make SMP safe */
+		FREE(ng_iface_units, M_NETGRAPH_IFACE);
+		ng_iface_units_len = 0;
+		ng_iface_units = NULL;
+	}
 }
 
 /************************************************************************
@@ -529,12 +545,12 @@ ng_iface_constructor(node_p node)
 	int error = 0;
 
 	/* Allocate node and interface private structures */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT|M_ZERO);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	MALLOC(ifp, struct ifnet *, sizeof(*ifp), M_NETGRAPH, M_NOWAIT|M_ZERO);
+	MALLOC(ifp, struct ifnet *, sizeof(*ifp), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
 	if (ifp == NULL) {
-		FREE(priv, M_NETGRAPH);
+		FREE(priv, M_NETGRAPH_IFACE);
 		return (ENOMEM);
 	}
 
@@ -544,8 +560,8 @@ ng_iface_constructor(node_p node)
 
 	/* Get an interface unit number */
 	if ((error = ng_iface_get_unit(&priv->unit)) != 0) {
-		FREE(ifp, M_NETGRAPH);
-		FREE(priv, M_NETGRAPH);
+		FREE(ifp, M_NETGRAPH_IFACE);
+		FREE(priv, M_NETGRAPH_IFACE);
 		return (error);
 	}
 
@@ -750,9 +766,10 @@ ng_iface_shutdown(node_p node)
 
 	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
+	FREE(priv->ifp, M_NETGRAPH_IFACE);
 	priv->ifp = NULL;
 	ng_iface_free_unit(priv->unit);
-	FREE(priv, M_NETGRAPH);
+	FREE(priv, M_NETGRAPH_IFACE);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	return (0);
