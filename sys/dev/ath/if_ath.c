@@ -2238,7 +2238,9 @@ static void
 ath_draintxq(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
+	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 
 	/* XXX return value */
@@ -2272,7 +2274,14 @@ ath_draintxq(struct ath_softc *sc)
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
+		ni = bf->bf_node;
 		bf->bf_node = NULL;
+		if (ni != NULL && ni != ic->ic_bss) {
+			/*
+			 * Reclaim node reference.
+			 */
+			ieee80211_free_node(ic, ni);
+		}
 		ATH_TXBUF_LOCK(sc);
 		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
