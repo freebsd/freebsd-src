@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.8 1996/09/12 12:41:46 adam Exp $
+ *	$Id: main.c,v 1.9 1996/10/29 03:12:47 steve Exp $
  */
 
 #ifndef lint
@@ -169,7 +169,7 @@ state1:
 	}
 state2:
 	state = 3;
-	if (privileged == 0) {
+	if (!privileged && iflag) {
 		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
 			state = 3;
 			read_profile(shinit);
