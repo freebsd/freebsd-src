@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.79 1995/03/28 07:54:54 bde Exp $
+ *	$Id: conf.c,v 1.80 1995/03/28 18:18:31 sos Exp $
  */
 
 #include <sys/param.h>
@@ -244,20 +244,20 @@ d_psize_t	scdsize;
 
 #include "matcd.h"
 #if NMATCD > 0
-d_open_t  matcdopen;
-d_close_t matcdclose;
-d_strategy_t matcdstrategy;
-d_ioctl_t matcdioctl;
-d_dump_t matcddump;
-d_psize_t matcdsize;
-#define       matcddump       nxdump
+d_open_t	matcdopen;
+d_close_t	matcdclose;
+d_strategy_t	matcdstrategy;
+d_ioctl_t	matcdioctl;
+d_dump_t	matcddump;
+d_psize_t	matcdsize;
+#define		matcddump	nxdump
 #else
-#define       matcdopen       nxopen
-#define       matcdclose      nxclose
-#define       matcdstrategy   nxstrategy
-#define       matcdioctl      nxioctl
-#define       matcddump       nxdump
-#define       matcdsize       (d_psize_t *)0
+#define	matcdopen	nxopen
+#define	matcdclose	nxclose
+#define	matcdstrategy	nxstrategy
+#define	matcdioctl	nxioctl
+#define	matcddump	nxdump
+#define	matcdsize	(d_psize_t *)0
 #endif
 
 #include "ata.h"
