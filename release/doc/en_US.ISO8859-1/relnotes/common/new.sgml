@@ -249,6 +249,10 @@
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries.</para>
 
+    <para>&man.syslogd.8; now has the ability to bind to a specific
+    address--as opposed to using every available one--via the
+    <option>-b</option> option.</para>
+
     <para>Previously, &man.vnconfig.8; was only capable of configuring
     16 devices when invoked with the <option>-f</option>
     (configuration file) option.  This limit has been removed.</para>
