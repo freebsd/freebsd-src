@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.151 1998/01/22 21:26:22 jkh Exp $
+#	$Id: MAKEDEV,v 1.152 1998/02/09 08:41:49 cwt Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -271,7 +271,7 @@ od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	sd*s*) name=sd; blk=4;  chr=13;;
 	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
-	wfd*s*) name=wfd; blk=24; chr=87;;
+	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
 	wfd*s*)
@@ -440,7 +440,7 @@ od*|sd*|vn*|wd*|wfd*)
 	sd*) name=sd; blk=4;  chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
-	wfd*) name=wfd; blk=24; chr=87;;
+	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
 	wfd*)
