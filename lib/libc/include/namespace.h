@@ -77,6 +77,7 @@
 #define		open				_open
 #define		poll				_poll
 #define		pthread_cond_signal		_pthread_cond_signal
+#define		pthread_cond_broadcast		_pthread_cond_broadcast
 #define		pthread_cond_wait		_pthread_cond_wait
 #define		pthread_cond_init		_pthread_cond_init
 #define		pthread_exit			_pthread_exit
