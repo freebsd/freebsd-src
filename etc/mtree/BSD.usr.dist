@@ -315,6 +315,8 @@
             ..
             ibcs2
             ..
+            ipfw
+            ..
             isdn
             ..
             kld
