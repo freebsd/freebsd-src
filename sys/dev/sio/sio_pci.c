@@ -50,6 +50,7 @@ static device_method_t sio_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sio_pci_probe),
 	DEVMETHOD(device_attach,	sio_pci_attach),
+	DEVMETHOD(device_detach,	siodetach),
 
 	{ 0, 0 }
 };
