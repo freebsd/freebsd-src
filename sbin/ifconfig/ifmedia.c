@@ -168,9 +168,8 @@ media_status(s, info)
 				printf("no carrier");
 			break;
 		}
+		putchar('\n');
 	}
-
-	putchar('\n');
 
 	if (ifmr.ifm_count > 0 && supmedia) {
 		printf("\tsupported media:\n");
