@@ -84,7 +84,7 @@ typedef struct decimal *decimal;
 
 decimal decimal_add (), decimal_sub (), decimal_mul (), decimal_div ();
 decimal decimal_mul_dc (), decimal_mul_rounded (), decimal_rem ();
-decimal decimal_round_digits ();
+decimal decimal_round_digits (), decimal_trunc_digits ();
 decimal make_decimal (), decimal_copy (), decimal_parse ();
 decimal decimal_sqrt (), decimal_expt ();
 
