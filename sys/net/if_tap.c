@@ -935,7 +935,7 @@ tappoll(dev, events, td)
 			TAPDEBUG("%s%d waiting for data, minor = %#x\n",
 				ifp->if_name, ifp->if_unit, minor(dev));
 
-			selrecord(curthread, &tp->tap_rsel);
+			selrecord(td, &tp->tap_rsel);
 		}
 	}
 

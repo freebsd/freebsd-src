@@ -178,7 +178,7 @@ logpoll(dev_t dev, int events, struct thread *td)
 		if (msgbufp->msg_bufr != msgbufp->msg_bufx)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(curthread, &logsoftc.sc_selp);
+			selrecord(td, &logsoftc.sc_selp);
 	}
 	splx(s);
 	return (revents);

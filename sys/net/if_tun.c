@@ -809,7 +809,7 @@ tunpoll(dev_t dev, int events, struct thread *td)
 		} else {
 			TUNDEBUG("%s%d: tunpoll waiting\n", ifp->if_name,
 			    ifp->if_unit);
-			selrecord(curthread, &tp->tun_rsel);
+			selrecord(td, &tp->tun_rsel);
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM))

@@ -745,7 +745,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *cred, struct thread *td)
                 if (kq->kq_count) {
                         revents |= events & (POLLIN | POLLRDNORM);
 		} else {
-                        selrecord(curthread, &kq->kq_sel);
+                        selrecord(td, &kq->kq_sel);
 			kq->kq_state |= KQ_SEL;
 		}
 	}
