@@ -935,6 +935,18 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
 }
 
 int
+command_Expand_Interpret(char *buff, int nb, char *argv[MAXARGS], int offset)
+{
+  char buff2[LINE_LEN-offset];
+
+  InterpretArg(buff, buff2);
+  strncpy(buff, buff2, LINE_LEN - offset - 1);
+  buff[LINE_LEN - offset - 1] = '\0';
+
+  return command_Interpret(buff, nb, argv);
+}
+
+int
 command_Interpret(char *buff, int nb, char *argv[MAXARGS])
 {
   char *cp;
@@ -1013,7 +1025,7 @@ command_Decode(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
   int argc;
   char *argv[MAXARGS];
 
-  if ((argc = command_Interpret(buff, nb, argv)) < 0)
+  if ((argc = command_Expand_Interpret(buff, nb, argv, 0)) < 0)
     return 0;
 
   command_Run(bundle, argc, (char const *const *)argv, prompt, label, NULL);
