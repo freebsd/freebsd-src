@@ -55,10 +55,11 @@ static void  bput __P((char *));
 static char *ccval __P((struct cchar *, int));
 
 void
-print(tp, wp, ldisc, fmt)
+print(tp, wp, ldisc, timeout, fmt)
 	struct termios *tp;
 	struct winsize *wp;
 	int ldisc;
+	int timeout;
 	enum FMT fmt;
 {
 	struct cchar *p;
@@ -96,7 +97,8 @@ print(tp, wp, ldisc, fmt)
 	else
 		cnt += printf("speed %d baud;", ispeed);
 	if (fmt >= BSD)
-		cnt += printf(" %d rows; %d columns;", wp->ws_row, wp->ws_col);
+		cnt += printf(" %d rows; %d columns; drainwait %d seconds;",
+			      wp->ws_row, wp->ws_col, timeout);
 	if (cnt)
 		(void)printf("\n");
 

@@ -103,6 +103,8 @@ args:	argc -= optind;
 		err(1, "TIOCGETD");
 	if (ioctl(i.fd, TIOCGWINSZ, &i.win) < 0)
 		warn("TIOCGWINSZ: %s\n", strerror(errno));
+	if (ioctl(i.fd, TIOCGDRAINWAIT, &i.timeout) < 0)
+		warn("TIOCGDRAINWAIT: %s\n", strerror(errno));
 
 	checkredirect();			/* conversion aid */
 
@@ -113,14 +115,14 @@ args:	argc -= optind;
 		/* FALLTHROUGH */
 	case BSD:
 	case POSIX:
-		print(&i.t, &i.win, i.ldisc, fmt);
+		print(&i.t, &i.win, i.ldisc, i.timeout, fmt);
 		break;
 	case GFLAG:
-		gprint(&i.t, &i.win, i.ldisc);
+		gprint(&i.t, &i.win, i.ldisc, i.timeout);
 		break;
 	}
 
-	for (i.set = i.wset = 0; *argv; ++argv) {
+	for (i.set = i.wset = i.tset = 0; *argv; ++argv) {
 		if (ksearch(&argv, &i))
 			continue;
 
@@ -141,8 +143,9 @@ args:	argc -= optind;
 		}
 
 		if (!strncmp(*argv, "gfmt1", sizeof("gfmt1") - 1)) {
-			gread(&i.t, *argv + sizeof("gfmt1") - 1);
+			gread(&i.t, &i.timeout, *argv + sizeof("gfmt1") - 1);
 			i.set = 1;
+			i.tset = 1;
 			continue;
 		}
 
@@ -154,6 +157,8 @@ args:	argc -= optind;
 		err(1, "tcsetattr");
 	if (i.wset && ioctl(i.fd, TIOCSWINSZ, &i.win) < 0)
 		warn("TIOCSWINSZ");
+	if (i.tset && ioctl(i.fd, TIOCSDRAINWAIT, &i.timeout) < 0)
+		warn("TIOCSDRAINWAIT");
 	exit(0);
 }
 
