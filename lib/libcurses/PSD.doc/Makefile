@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.1 (Berkeley) 8/14/93
+#	@(#)Makefile	8.2 (Berkeley) 5/23/94
 
 DIR=	psd/19.curses
 SRCS=	Master
@@ -22,7 +22,7 @@ VFONT=	/usr/libexec/vfontedpr
 	${VFONT} $*.c | grep -v "^'wh" > $*.gr
 
 paper.ps: ${SRCS}
-	${ROFF} ${SRCS} > ${.TARGET}
+	soelim ${SRCS} | ${ROFF} > ${.TARGET}
 
 Master: twinkle1.gr ex1.gr ex2.gr fns.doc intro.5 intro.2.tbl intro.0 intro.1 \
 	intro.3 intro.4 intro.6 macros c_macros
