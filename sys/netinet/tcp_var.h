@@ -53,6 +53,8 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
+extern int	tcp_reass_maxseg;
+extern int	tcp_reass_qsize;
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_TSEGQ);
 #endif
