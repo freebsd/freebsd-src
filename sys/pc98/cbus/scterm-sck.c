@@ -214,6 +214,46 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	i = n = 0;
 	sc = scp->sc; 
 	if (tcp->esc == 1) {	/* seen ESC */
+#ifdef KANJI
+		switch (tcp->kanji_type) {
+		case KTYPE_KANIN:	/* Kanji Invoke sequence */
+			switch (c) {
+			case 'B':
+			case '@':
+				tcp->kanji_type = KTYPE_7JIS;
+				tcp->esc = 0;
+				tcp->kanji_1st_char = 0;
+				return;
+			default:
+				tcp->kanji_type = KTYPE_ASCII;
+				tcp->esc = 0;
+				break;
+			}
+			break;
+		case KTYPE_ASCIN:	/* Ascii Invoke sequence */
+			switch (c) {
+			case 'J':
+			case 'B':
+			case 'H':
+				tcp->kanji_type = KTYPE_ASCII;
+				tcp->esc = 0;
+				tcp->kanji_1st_char = 0;
+				return;
+			case 'I':
+				tcp->kanji_type = KTYPE_JKANA;
+				tcp->esc = 0;
+				tcp->kanji_1st_char = 0;
+				return;
+			default:
+				tcp->kanji_type = KTYPE_ASCII;
+				tcp->esc = 0;
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+#endif
 		switch (c) {
 
 		case '7':	/* Save cursor position */
