@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.4 1995/07/14 21:44:31 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.5 1995/07/16 17:06:22 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -341,28 +341,34 @@
       <sect1>Before installing from a MS-DOS partition</heading>
 
 	<p>To prepare for installation from an MS-DOS partition,
-	  you should simply copy the files from the distribution
-	  into a directory called <tt>FREEBSD</tt>.  For example, to do
-	  a minimal installation of FreeBSD from DOS using files
-	  copied from the CDROM, you might do something like
-	  this: 
+	  copy the files from the distribution into a directory
+	  called <tt>C:&bsol;FREEBSD</tt>.  The directory tree structure
+	  of the CDROM must be partially reproduced within this directory
+	  so we suggest using the DOS <tt>xcopy</tt>
+	  command.  For example, to prepare for a minimal installation of
+	  FreeBSD:
 <tscreen><verb>
 C> MD C:\FREEBSD
-C> XCOPY /S E:\DISTS\BIN C:\FREEBSD
-C> XCOPY /S E:\FLOPPIES C:\FREEBSD
+C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
+C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
 </verb></tscreen>
-
-	  Asssuming that <tt>C:</tt> was where you had free space and
-	  <tt>E:</tt> was where your CD was mounted.  Note that you need
-	  the <tt>FLOPPIES</tt> directory because the <tt>root.flp</tt> image is
-	  automatically looked for there when you are doing a
-	  MS-DOS installation.
+	  asssuming that <tt>C:</tt> is where you have free space
+	  and <tt>E:</tt> is where your CDROM is mounted.  Note
+	  that you need the <tt>FLOPPIES</tt> directory because
+	  the <tt>root.flp</tt> image is needed during an MS-DOS
+	  installation.
 
 	  For as many `DISTS' you wish to install from MS-DOS
 	  (and you have free space for), install each one under
-	  <tt>C:&bsol;FREEBSD</tt> - the BIN dist is only the minimal
-	  requirement.
-
+	  <tt>C:&bsol;FREEBSD</tt> - the <tt>BIN</tt> dist is only the
+	  minimal requirement.  If you have room on your MS-DOS
+	  partition for all the distributions, you could replace
+	  the last line above with:
+<tscreen><verb>
+C> XCOPY /S E:\DISTS C:\FREEBSD\
+</verb></tscreen>
+	  which would copy all the subdirectories of 
+          <tt>E:&bsol;DISTS</tt> to <tt>C:&bsol;FREEBSD</tt>.
 
       <sect1>Before installing from QIC/SCSI Tape</heading>
 
