@@ -123,6 +123,14 @@
       FreeBSD-SA-01:62.  The release notes mentioned the correction,
       but not the security advisory, which was issued after the
       release date of &release.prev;.</para>
+
+    <para>A security hole in <application>OpenSSH</application> could
+      allow users to execute code with arbitrary privileges
+      if <literal>UseLogin yes</literal> was set, has been
+      closed.  Note that the default value of this setting is
+      <literal>UseLogin no</literal>.  For more information, including
+      workarounds and bugfixes, see security advisory
+      FreeBSD-SA-01:63.</para>
 ]]>
   </sect1>
 
