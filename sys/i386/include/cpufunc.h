@@ -157,7 +157,7 @@ halt(void)
 #define	inb(port) __extension__ ({					\
 	u_char	_data;							\
 	if (__builtin_constant_p(port) && ((port) & 0xffff) < 0x100	\
-	    && (0x10000 + (port)) < 0x20000)				\
+	    && (port) < 0x10000)					\
 		_data = inbc(port);					\
 	else								\
 		_data = inbv(port);					\
@@ -165,7 +165,7 @@ halt(void)
 
 #define	outb(port, data) (						\
 	__builtin_constant_p(port) && ((port) & 0xffff) < 0x100		\
-	&& (0x10000 + (port)) < 0x20000					\
+	&& (port) < 0x10000						\
 	? outbc(port, data) : outbv(port, data))
 
 static __inline u_char
