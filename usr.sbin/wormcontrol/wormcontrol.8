@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: wormcontrol.8,v 1.1.1.1 1996/01/27 17:52:20 joerg Exp $
+.\" $Id: wormcontrol.8,v 1.2 1996/02/01 14:14:22 joerg Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -106,6 +106,16 @@ and
 against the list of known quirks.  An error will be returned if no
 quirk record matches, and the device won't be usable for anything else
 until a quirk record has been successfully selected.
+.Pp
+By now, the vendor/model names of
+.Dq PLASMON
+\&/
+.Dq RF4100 ,
+and
+.Dq HP
+\&/
+.Dq 4020i
+are known.
 .It prepdisk Ar single \&| double Op Ar dummy
 Prepare the disk for recording.  This must be done before any tracks
 can be prepared, and remains in effect until the session has been
