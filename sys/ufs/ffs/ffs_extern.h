@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.16 1997/08/16 19:16:19 wollman Exp $
+ * $Id: ffs_extern.h,v 1.17 1997/09/27 13:40:05 kato Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -75,12 +75,12 @@ int	ffs_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
 int	ffs_isblock __P((struct fs *, u_char *, ufs_daddr_t));
-int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *));
+int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *,
+	     struct malloc_type *));
 int	ffs_mountroot __P((void));
 int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));
-int	ffs_reclaim __P((struct vop_reclaim_args *));
 void	ffs_setblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
