@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: messages.c,v 1.6 1997/02/22 15:43:40 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -559,7 +559,7 @@ fprint_value (file, val)
 {
   if (sizeof (val) <= sizeof (long))
     {
-      fprintf (file, "%ld", val);
+      fprintf (file, "%ld", (long) val);
       return;
     }
 #ifdef BFD_ASSEMBLER
@@ -579,7 +579,7 @@ sprint_value (buf, val)
 {
   if (sizeof (val) <= sizeof (long))
     {
-      sprintf (buf, "%ld", val);
+      sprintf (buf, "%ld", (long) val);
       return;
     }
 #ifdef BFD_ASSEMBLER
