@@ -27,9 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.24 1997/04/10 14:18:03 wpaul Exp $";
-#endif
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -41,13 +42,17 @@ static char rcsid[] = "$Id: ypbind.c,v 1.24 1997/04/10 14:18:03 wpaul Exp $";
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
-#include <syslog.h>
-#include <stdio.h>
-#include <errno.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
+#include <errno.h>
 #include <netdb.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <net/if.h>
@@ -56,8 +61,7 @@ static char rcsid[] = "$Id: ypbind.c,v 1.24 1997/04/10 14:18:03 wpaul Exp $";
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_rmt.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <rpc/rpc_com.h>
 #include <rpcsvc/yp.h>
 struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
@@ -247,7 +251,7 @@ CLIENT *clnt;
 	if (strchr(argp->ypsetdom_domain, '/')) {
 		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
 rejecting.", argp->ypsetdom_domain);
-		return;
+		return(NULL);
 	}
 	fromsin = svc_getcaller(transp);
 
@@ -255,7 +259,7 @@ rejecting.", argp->ypsetdom_domain);
 	case YPSET_LOCAL:
 		if( fromsin->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
 			svcerr_noprog(transp);
-			return;
+			return(NULL);
 		}
 		break;
 	case YPSET_ALL:
@@ -263,17 +267,17 @@ rejecting.", argp->ypsetdom_domain);
 	case YPSET_NO:
 	default:
 		svcerr_noprog(transp);
-		return;
+		return(NULL);
 	}
 
 	if(ntohs(fromsin->sin_port) >= IPPORT_RESERVED) {
 		svcerr_noprog(transp);
-		return;
+		return(NULL);
 	}
 
 	if(argp->ypsetdom_vers != YPVERS) {
 		svcerr_noprog(transp);
-		return;
+		return(NULL);
 	}
 
 	bzero((char *)&bindsin, sizeof bindsin);
@@ -282,7 +286,7 @@ rejecting.", argp->ypsetdom_domain);
 	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
 	rpc_received(argp->ypsetdom_domain, &bindsin, 1);
 
-	return;
+	return(NULL);
 }
 
 static void
@@ -385,7 +389,6 @@ main(argc, argv)
 int argc;
 char **argv;
 {
-	char path[MAXPATHLEN];
 	struct timeval tv;
 	int i;
 	DIR *dird;
@@ -393,22 +396,16 @@ char **argv;
 	struct _dom_binding *ypdb;
 
 	/* Check that another ypbind isn't already running. */
-	if ((yplockfd = (open(YPBINDLOCK, O_RDONLY|O_CREAT, 0444))) == -1) {
-		perror(YPBINDLOCK);
-		exit(1);
-	}
+	if ((yplockfd = (open(YPBINDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)
+		err(1, "%s", YPBINDLOCK);
 
-	if(flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK) {
-		fprintf (stderr, "Another ypbind is already running. Aborting.\n");
-		exit(1);
-	}
+	if(flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
+		errx(1, "another ypbind is already running. Aborting");
 
 	/* XXX domainname will be overriden if we use restricted mode */
 	yp_get_default_domain(&domain_name);
-	if( domain_name[0] == '\0') {
-		fprintf(stderr, "domainname not set. Aborting.\n");
-		exit(1);
-	}
+	if( domain_name[0] == '\0')
+		errx(1, "domainname not set. Aborting");
 
 	for(i=1; i<argc; i++) {
 		if( strcmp("-ypset", argv[i]) == 0)
@@ -437,43 +434,31 @@ char **argv;
 	}
 
 #ifdef DAEMON
-	if (daemon(0,0)) {
-		perror("fork");
-		exit(1);
-	}
+	if (daemon(0,0))
+		err(1, "fork");
 #endif
 
 	pmap_unset(YPBINDPROG, YPBINDVERS);
 
 	udptransp = svcudp_create(RPC_ANYSOCK);
-	if (udptransp == NULL) {
-		fprintf(stderr, "cannot create udp service.\n");
-		exit(1);
-	}
+	if (udptransp == NULL)
+		errx(1, "cannot create udp service");
 	if (!svc_register(udptransp, YPBINDPROG, YPBINDVERS, ypbindprog_2,
-	    IPPROTO_UDP)) {
-		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, udp).\n");
-		exit(1);
-	}
+	    IPPROTO_UDP))
+		errx(1, "unable to register (YPBINDPROG, YPBINDVERS, udp)");
 
 	tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0);
-	if (tcptransp == NULL) {
-		fprintf(stderr, "cannot create tcp service.\n");
-		exit(1);
-	}
+	if (tcptransp == NULL)
+		errx(1, "cannot create tcp service");
 
 	if (!svc_register(tcptransp, YPBINDPROG, YPBINDVERS, ypbindprog_2,
-	    IPPROTO_TCP)) {
-		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, tcp).\n");
-		exit(1);
-	}
+	    IPPROTO_TCP))
+		errx(1, "unable to register (YPBINDPROG, YPBINDVERS, tcp)");
 
 	/* build initial domain binding, make it "unsuccessful" */
 	ypbindlist = (struct _dom_binding *)malloc(sizeof *ypbindlist);
-	if (ypbindlist == NULL) {
-		perror("malloc");
-		exit(1);
-	}
+	if (ypbindlist == NULL)
+		errx(1, "malloc");
 	bzero((char *)ypbindlist, sizeof *ypbindlist);
 	strncpy(ypbindlist->dom_domain, domain_name, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
@@ -683,7 +668,7 @@ struct _dom_binding *ypdb;
 		return;
 	}
 
-	if (ypdb->dom_vers = -1 && (long)ypdb->dom_server_addr.sin_addr.s_addr)
+	if (ypdb->dom_vers == -1 && (long)ypdb->dom_server_addr.sin_addr.s_addr)
 		syslog(LOG_WARNING, "NIS server [%s] for domain \"%s\" not responding",
 		inet_ntoa(ypdb->dom_server_addr.sin_addr), ypdb->dom_domain);
 
@@ -791,7 +776,6 @@ struct _dom_binding *ypdb;
 	enum clnt_stat stat;
 	int rpcsock = RPC_ANYSOCK;
 	CLIENT *client_handle;
-	time_t t;
 
 	interval.tv_sec = FAIL_THRESHOLD;
 	interval.tv_usec = 0;
@@ -917,7 +901,7 @@ int force;
 	}
 
 	/* We've recovered from a crash: inform the world. */
-	if (ypdb->dom_vers = -1 && ypdb->dom_server_addr.sin_addr.s_addr)
+	if (ypdb->dom_vers == -1 && ypdb->dom_server_addr.sin_addr.s_addr)
 		syslog(LOG_WARNING, "NIS server [%s] for domain \"%s\" OK",
 		inet_ntoa(raddrp->sin_addr), ypdb->dom_domain);
 
