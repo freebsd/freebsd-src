@@ -10,12 +10,8 @@ CFLAGS+= -I${.CURDIR}
 LDADD= -lm 
 DPADD= ${LIBM} 
 
-.if exists (/usr/lib/libcrypt.a) 
 DPADD+= ${LIBCRYPT}
 LDADD+= -lcrypt
-.else
-SRCS+= crypt.c
-.endif
 
 .include <bsd.prog.mk> 
 .include "../../Makefile.inc"
