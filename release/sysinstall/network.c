@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.5 1995/06/04 22:24:47 jkh Exp $
+ * $Id: network.c,v 1.6.2.6 1995/06/04 22:49:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -202,6 +202,13 @@ startPPP(Device *devp)
     strcpy(netmask, getenv("netmask") ? getenv("netmask") : "0xffffffff");
     fprintf(fp, " add 0 %s %s\n", netmask, provider);
     fclose(fp);
+
+    if (isDebug())
+	msgDebug("Creating /dev/tun0 device.\n");
+    if (!file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
+	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
+	return FALSE;
+    }
     if (!fork()) {
 	dup2(fd, 0);
 	dup2(fd, 1);
