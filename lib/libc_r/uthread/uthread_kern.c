@@ -477,6 +477,7 @@ _thread_kern_scheduler(void)
 			 */
 			_set_curthread(&_thread_kern_thread);
 			curthread = &_thread_kern_thread;
+
 			DBG_MSG("No runnable threads, using kernel thread %p\n",
 			    curthread);
 
