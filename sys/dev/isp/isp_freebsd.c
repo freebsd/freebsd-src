@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.c,v 1.3 1998/09/15 08:42:55 gibbs Exp $ */
+/* $Id: isp_freebsd.c,v 1.4 1998/09/16 16:42:40 mjacob Exp $ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -213,10 +213,15 @@ isp_action(sim, ccb)
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
 		case CMD_EAGAIN:
+#if	0
 			printf("%s: EAGAINed %d.%d\n", isp->isp_name,
 			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 			printf("%s: %d EAGAIN\n", __FILE__, __LINE__);
-			xpt_freeze_simq(sim, 1);
+#endif
+			if (isp->isp_osinfo.simqfrozen == 0) {
+				xpt_freeze_simq(sim, 1);
+				isp->isp_osinfo.simqfrozen = 1;
+			}
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 			xpt_done(ccb);
@@ -248,7 +253,8 @@ isp_action(sim, ccb)
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
 		tgt = ccb->ccb_h.target_id;
 		s = splcam();
-		error = isp_control(isp, ISPCTL_RESET_DEV, (void *)(intptr_t) tgt);
+		error =
+		    isp_control(isp, ISPCTL_RESET_DEV, (void *)(intptr_t) tgt);
 		(void) splx(s);
 		if (error) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
