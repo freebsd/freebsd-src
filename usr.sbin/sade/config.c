@@ -668,10 +668,10 @@ configXDesktop(dialogMenuItem *self)
 	    write_root_xprofile("xterm &\n[ ! -d $HOME/GNUstep/Library/WindowMaker ] && /usr/X11R6/bin/wmaker.inst\nexec /usr/X11R6/bin/wmaker\n");
 	}
     }
-    else if (!strcmp(desk, "fvwm2")) {
+    else if (!strcmp(desk, "fvwm")) {
 	ret = package_add("fvwm");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm2"))
-	    write_root_xprofile("xterm &\nexec fvwm2\n");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm"))
+	    write_root_xprofile("xterm &\nexec fvwm\n");
     }
     if (DITEM_STATUS(ret) == DITEM_FAILURE)
 	msgConfirm("An error occurred while adding the package(s) required\n"
