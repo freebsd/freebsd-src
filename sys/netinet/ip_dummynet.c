@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 1998-2001 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
  *
@@ -33,6 +33,12 @@
 /*
  * This module implements IP dummynet, a bandwidth limiter/delay emulator
  * used in conjunction with the ipfw package.
+ * Description of the data structures used is in ip_dummynet.h
+ * Here you mainly find the following blocks of code:
+ *  + variable declarations;
+ *  + heap management functions;
+ *  + scheduler and dummynet functions;
+ *  + configuration and initialization.
  *
  * Most important Changes:
  *
@@ -213,6 +219,12 @@ heap_init(struct dn_heap *h, int new_size)
 #define SET_OFFSET(heap, node) \
     if (heap->offset > 0) \
 	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = node ;
+/*
+ * RESET_OFFSET is used for sanity checks. It sets offset to an invalid value.
+ */
+#define RESET_OFFSET(heap, node) \
+    if (heap->offset > 0) \
+	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = -1 ;
 static int
 heap_insert(struct dn_heap *h, dn_key key1, void *p)
 {   
@@ -261,6 +273,12 @@ heap_extract(struct dn_heap *h, void *obj)
 	    return ; /* or maybe panic... */
 	}
 	father = *((int *)((char *)obj + h->offset)) ;
+	if (father < 0 || father >= h->elements) {
+	    printf("dummynet: heap_extract, father %d out of bound 0..%d\n",
+		father, h->elements);
+	    panic("heap_extract");
+	}
+	RESET_OFFSET(h, father);
     }
     child = HEAP_LEFT(father) ;		/* left child */
     while (child <= max) {		/* valid entry */
@@ -278,7 +296,7 @@ heap_extract(struct dn_heap *h, void *obj)
 	 */
 	h->p[father] = h->p[max] ;
 	heap_insert(h, father, NULL); /* this one cannot fail */
-    }   
+    }
 }           
 
 /*
@@ -332,7 +350,7 @@ heapify(struct dn_heap *h)
 
     for (i = 0 ; i < h->elements ; i++ )
 	heap_insert(h, i , NULL) ;
-    }
+}
 
 /*
  * cleanup the heap and free data structure
@@ -406,11 +424,17 @@ transmit_event(struct dn_pipe *pipe)
 
 	    if (pkt->dn_m->m_len < ETHER_HDR_LEN
 	      && (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
-		m_freem(pkt->dn_m);
+		printf("dummynet/bridge: pullup fail, dropping pkt\n");
 		break;
 	    }
 	    bcopy(mtod(pkt->dn_m, struct ether_header *), &hdr, ETHER_HDR_LEN);
 	    m_adj(pkt->dn_m, ETHER_HDR_LEN);
+	    /*
+	     * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
+	     * on return it will supply the pointer to the actual packet
+	     * (originally pkt->dn_m, but could be something else now) if
+	     * it has not consumed it.
+	     */
 	    bdg_forward(&m, &hdr, pkt->ifp);
 	    if (m)
 		m_freem(m);
@@ -484,14 +508,14 @@ ready_event(struct dn_flow_queue *q)
     }
     p_was_empty = (p->head == NULL) ;
 
-	/*
+    /*
      * schedule fixed-rate queues linked to this pipe:
      * Account for the bw accumulated since last scheduling, then
      * drain as many pkts as allowed by q->numbytes and move to
      * the delay line (in p) computing output time.
      * bandwidth==0 (no limit) means we can drain the whole queue,
      * setting len_scaled = 0 does the job.
-	 */
+     */
     q->numbytes += ( curr_time - q->sched_time ) * p->bandwidth;
     while ( (pkt = q->head) != NULL ) {
 	int len = pkt->dn_m->m_pkthdr.len;
@@ -551,7 +575,6 @@ ready_event_wfq(struct dn_pipe *p)
 	}
     }
 
-
     while ( sch->elements && p->numbytes >= 0 ) {
 	struct dn_heap *neh ;
 	u_int64_t normalized_service ;
@@ -568,12 +591,17 @@ ready_event_wfq(struct dn_pipe *p)
 	/* XXX should we do this at the end of the service ? */
 	/* evaluate normalized service */
 	normalized_service = (len<<MY_M)/p->sum ;
-	if (q->len == 0) { /* session not backlogged any more*/
-	    heap_extract(blh, q); /* remove queue from backlogged heap */
-	    p->sum -= fs->weight;
+	q->S = q->F ; /* update start time */
+	if (q->len == 0) {
+	    /*
+	     * Session not backlogged any more, remove from backlogged
+	     * and insert into idle_heap
+	     */
+	    heap_extract(blh, q);
 	    fs->backlogged-- ;
+	    /* p->sum -= fs->weight; XXX don't do this here ! */
+	    heap_insert(&(p->idle_heap), q->F, q);
 	} else { /* session backlogged again: update values */
-	    q->S = q->F ; /* update start time */
 	    len = (q->head)->dn_m->m_pkthdr.len;
 	    q->F += (len<<MY_M)/(u_int64_t) fs->weight ;
 	    /* update queue position in backlogged_heap */
@@ -642,6 +670,7 @@ dummynet(void * __unused unused)
     int s ;
     struct dn_heap *heaps[3];
     int i;
+    struct dn_pipe *pe ;
 
     heaps[0] = &ready_heap ;		/* fixed-rate queues */
     heaps[1] = &wfq_ready_heap ;	/* wfq queues */
@@ -650,14 +679,14 @@ dummynet(void * __unused unused)
     curr_time++ ;
     for (i=0; i < 3 ; i++) {
 	h = heaps[i];
-    while (h->elements > 0 && DN_KEY_LEQ(h->p[0].key, curr_time) ) {
+	while (h->elements > 0 && DN_KEY_LEQ(h->p[0].key, curr_time) ) {
 	    DDB(if (h->p[0].key > curr_time)
 		printf("-- dummynet: warning, heap %d is %d ticks late\n",
 		    i, (int)(curr_time - h->p[0].key));)
 	    p = h->p[0].object ; /* store a copy before heap_extract */
 	    heap_extract(h, NULL); /* need to extract before processing */
 	    if (i == 0)
-        ready_event(p) ;
+		ready_event(p) ;
 	    else if (i == 1) {
 		struct dn_pipe *pipe = p;
 		if (pipe->if_name[0] != '\0')
@@ -666,9 +695,19 @@ dummynet(void * __unused unused)
 		else
 		    ready_event_wfq(p) ;
 	    } else
-        transmit_event(p);
+		transmit_event(p);
+	}
     }
-    }
+    /* sweep pipes trying to expire idle flow_queues */
+    for (pe = all_pipes; pe ; pe = pe->next )
+	if (pe->idle_heap.elements > 0 &&
+		DN_KEY_LT(pe->idle_heap.p[0].key, pe->V) ) {
+	    struct dn_flow_queue *q = pe->idle_heap.p[0].object ;
+
+	    heap_extract(&(pe->idle_heap), NULL);
+	    q->S = q->F + 1 ; /* mark timestamp as invalid */
+	    pe->sum -= q->fs->weight ;
+	}
     splx(s);
     timeout(dummynet, NULL, 1);
 }
@@ -760,7 +799,7 @@ create_queue(struct dn_flow_set *fs, int i)
     q->fs = fs ;
     q->hash_slot = i ;
     q->next = fs->rq[i] ;
-    q->S = q->F = fs->pipe->V ;		/* set virtual times */
+    q->S = q->F + 1;   /* hack - mark timestamp as invalid */
     fs->rq[i] = q ;
     fs->rq_elements++ ;
     return q ;
@@ -989,7 +1028,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    printf("No pipe %d for queue %d, drop pkt\n",
 		fs->parent_nr, fs->fs_nr);
 	    goto dropit ;
-    }
+	}
     }
     q = find_queue(fs);
     if ( q == NULL )
@@ -1047,8 +1086,13 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     q->len++;
     q->len_bytes += len ;
 
-    if ( q->head != pkt )	/* flow was not idle, we are done */
-	goto done;
+    if ( q->head != pkt ) {	/* flow was not idle, we are done */
+	static int errors = 0 ;
+	if (q->blh_pos >= 0 ) /* good... */
+	    goto done;
+	printf("+++ hey [%d] flow 0x%08x not idle but not in heap\n",
+	    ++errors, q);
+    }
     /*
      * The flow was previously idle, so we need to schedule it.
      */
@@ -1059,7 +1103,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    t = SET_TICKS(pkt, q, pipe);
 	q->sched_time = curr_time ;
 	if (t == 0)	/* must process it now */
-	ready_event( q );
+	    ready_event( q );
 	else
 	    heap_insert(&ready_heap, curr_time + t , q );
     } else {
@@ -1069,11 +1113,16 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	 * there is some other flow already scheduled for the same pipe.
 	 * If eligible, AND the pipe is idle, then call ready_event_wfq().
 	 */
-	q->S = MAX64(q->F, pipe->V ) ;
+	if (DN_KEY_GT(q->S, q->F)) { /* means timestamps are invalid */
+	    q->S = pipe->V ;
+	    pipe->sum += fs->weight ; /* add weight of new queue */
+	} else {
+	    heap_extract(&(pipe->idle_heap), q);
+	    q->S = MAX64(q->F, pipe->V ) ;
+	}
 	q->F = q->S + ( len<<MY_M )/(u_int64_t) fs->weight;
 
 	heap_insert(&(pipe->backlogged_heap), q->S, q);
-	pipe->sum += fs->weight ;	/* new session backlogged */
 	fs->backlogged++ ;
 	if (DN_KEY_GT(q->S, pipe->V) ) { /* not eligible */
 	    DDB(printf("== not eligible, size %d\n", (int)len);)
@@ -1166,6 +1215,7 @@ purge_pipe(struct dn_pipe *pipe)
     heap_free( &(pipe->scheduler_heap) );
     heap_free( &(pipe->not_eligible_heap) );
     heap_free( &(pipe->backlogged_heap) );
+    heap_free( &(pipe->idle_heap) );
 }
 
 /*
@@ -1326,7 +1376,7 @@ alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
     if (x->rq == NULL) {
 	printf("sorry, cannot allocate queue\n");
 	return ENOSPC;
-	}
+    }
     bzero(x->rq, (1+x->rq_size) * sizeof(struct dn_flow_queue *));
     x->rq_elements = 0;
     return 0 ;
@@ -1351,11 +1401,11 @@ set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
     /* configuring RED */
     if ( x->flags_fs & DN_IS_RED )
 	config_red(src, x) ;    /* XXX should check errors */
-	}
+}
 
-	    /*
+/*
  * setup pipe or queue parameters.
-	     */
+ */
 
 static int 
 config_pipe(struct dn_pipe *p)
@@ -1390,8 +1440,14 @@ config_pipe(struct dn_pipe *p)
 	    bzero(x, sizeof(struct dn_pipe));
 	    x->pipe_nr = p->pipe_nr;
 	    x->fs.pipe = x ;
+	    /* a flowset is backlogged only if it has packets queued.
+	     * Otherwise it becomes idle, so we can use the same variable
+	     * to store the position in either heap.
+	     */
 	    x->backlogged_heap.size = x->backlogged_heap.elements = 0 ;
 	    x->backlogged_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
+	    x->idle_heap.size = x->idle_heap.elements = 0 ;
+	    x->idle_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 	} else
 	    x = b;
 
@@ -1466,24 +1522,24 @@ config_pipe(struct dn_pipe *p)
     return 0 ;
 }
 
-	    /*
+/*
  * Helper function to remove from a heap queues which are linked to
  * a flow_set about to be deleted.
-	     */
+ */
 static void
 fs_remove_from_heap(struct dn_heap *h, struct dn_flow_set *fs)
 {
-		int i = 0, found = 0 ;
+    int i = 0, found = 0 ;
     for (; i < h->elements ;)
 	if ( ((struct dn_flow_queue *)h->p[i].object)->fs == fs) {
-			h->elements-- ;
-			h->p[i] = h->p[h->elements] ;
-			found++ ;
-		    } else
-			i++ ;
-		if (found)
-		    heapify(h);
-	    }
+	    h->elements-- ;
+	    h->p[i] = h->p[h->elements] ;
+	    found++ ;
+	} else
+	    i++ ;
+    if (found)
+	heapify(h);
+}
 
 /*
  * helper function to remove a pipe from a heap (can be there at most once)
@@ -1495,14 +1551,14 @@ pipe_remove_from_heap(struct dn_heap *h, struct dn_pipe *p)
 	int i = 0 ;
 	for (i=0; i < h->elements ; i++ ) {
 	    if (h->p[i].object == p) { /* found it */
-			h->elements-- ;
-			h->p[i] = h->p[h->elements] ;
-		    heapify(h);
+		h->elements-- ;
+		h->p[i] = h->p[h->elements] ;
+		heapify(h);
 		break ;
 	    }
 	}
     }
-	    }
+}
 
 /*
  * drain all queues. Called in case of severe mbuf shortage.
@@ -1549,7 +1605,7 @@ delete_pipe(struct dn_pipe *p)
 	/* locate pipe */
 	for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
 		 a = b , b = b->next) ;
-	if (b == NULL || b->pipe_nr != p->pipe_nr)
+	if (b == NULL || (b->pipe_nr != p->pipe_nr) )
 	    return EINVAL ; /* not found */
 
 	s = splnet() ;
@@ -1577,15 +1633,15 @@ delete_pipe(struct dn_pipe *p)
 	/* remove reference to here from extract_heap and wfq_ready_heap */
 	pipe_remove_from_heap(&extract_heap, b);
 	pipe_remove_from_heap(&wfq_ready_heap, b);
-	    splx(s);
-	    free(b, M_IPFW);
+	splx(s);
+	free(b, M_IPFW);
     } else { /* this is a dummynet queue (dn_flow_set) */
 	struct dn_flow_set *a, *b;
 
 	/* locate set */
 	for (a = NULL, b = all_flow_sets ; b && b->fs_nr < p->fs.fs_nr ;
 		 a = b , b = b->next) ;
-	if (b == NULL || b->fs_nr != p->fs.fs_nr)
+	if (b == NULL || (b->fs_nr != p->fs.fs_nr) )
 	    return EINVAL ; /* not found */
 
 	s = splnet() ;
@@ -1604,12 +1660,15 @@ delete_pipe(struct dn_pipe *p)
 	    fs_remove_from_heap(&(b->pipe->backlogged_heap), b);
 	    fs_remove_from_heap(&(b->pipe->not_eligible_heap), b);
 	    fs_remove_from_heap(&(b->pipe->scheduler_heap), b);
+#if 0	/* XXX should i remove from idle_heap as well ? */
+	    fs_remove_from_heap(&(b->pipe->idle_heap), b);
+#endif
 	}
 	purge_flow_set(b, 1);
 	splx(s);
     }
     return 0 ;
-	}
+}
 
 /*
  * helper function used to copy data from kernel in DUMMYNET_GET
@@ -1756,14 +1815,16 @@ ip_dn_ctl(struct sockopt *sopt)
 static void
 ip_dn_init(void)
 {
-    printf("DUMMYNET initialized (000608)\n");
+    printf("DUMMYNET initialized (010116)\n");
     all_pipes = NULL ;
     all_flow_sets = NULL ;
     ready_heap.size = ready_heap.elements = 0 ;
-    ready_heap.offset = 0 ;
+    /* ready_heap.offset = 0 ; */
+    ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 
     wfq_ready_heap.size = wfq_ready_heap.elements = 0 ;
-    wfq_ready_heap.offset = 0 ;
+    /* wfq_ready_heap.offset = 0 ; */
+    wfq_ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 
     extract_heap.size = extract_heap.elements = 0 ;
     extract_heap.offset = 0 ;
