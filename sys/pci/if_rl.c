@@ -170,7 +170,7 @@ static struct rl_type rl_devs[] = {
 		"LevelOne FPC-0106TX" },
 	{ EDIMAX_VENDORID, EDIMAX_DEVICEID_EP4103DL, RL_8139,
 		"Edimax EP-4103DL CardBus" },
-	{ 0, 0, NULL }
+	{ 0, 0, 0, NULL }
 };
 
 static int rl_probe		(device_t);

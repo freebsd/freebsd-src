@@ -34,7 +34,7 @@
  * See pthread_*
  */
 
-#define	UMTX_UNOWNED	NULL
+#define	UMTX_UNOWNED	0x0
 #define	UMTX_CONTESTED	0x1
 
 

@@ -1314,7 +1314,7 @@ fwohci_tx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
 	int err = 0;
 	int idb, z, i, dmach = 0, ldesc;
-	u_int32_t off = NULL;
+	u_int32_t off = 0;
 	struct fwohcidb_tr *db_tr;
 	struct fwohcidb *db;
 
@@ -1329,7 +1329,7 @@ fwohci_tx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			break;
 		}
 	}
-	if(off == NULL){
+	if(off == 0){
 		err = EINVAL;
 		return err;
 	}
@@ -1373,7 +1373,7 @@ fwohci_rx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
 	int err = 0;
 	int idb, z, i, dmach = 0, ldesc;
-	u_int32_t off = NULL;
+	u_int32_t off = 0;
 	struct fwohcidb_tr *db_tr;
 	struct fwohcidb *db;
 
@@ -1390,7 +1390,7 @@ fwohci_rx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			}
 		}
 	}
-	if(off == NULL){
+	if(off == 0){
 		err = EINVAL;
 		return err;
 	}
