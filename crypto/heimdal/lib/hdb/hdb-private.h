@@ -26,23 +26,11 @@ _hdb_remove __P((
 	HDB *db,
 	hdb_entry *entry));
 
-void
-_hdb_seal_keys_int __P((
-	hdb_entry *ent,
-	int key_version,
-	krb5_data schedule));
-
 krb5_error_code
 _hdb_store __P((
 	krb5_context context,
 	HDB *db,
 	unsigned flags,
 	hdb_entry *entry));
-
-void
-_hdb_unseal_keys_int __P((
-	hdb_entry *ent,
-	int key_version,
-	krb5_data schedule));
 
 #endif /* __hdb_private_h__ */

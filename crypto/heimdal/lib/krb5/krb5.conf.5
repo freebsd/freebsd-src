@@ -1,4 +1,4 @@
-.\" $Id: krb5.conf.5,v 1.7 1999/11/04 01:57:28 assar Exp $
+.\" $Id: krb5.conf.5,v 1.12 2001/01/19 04:53:24 assar Exp $
 .\"
 .Dd April 11, 1999
 .Dt KRB5.CONF 5
@@ -46,7 +46,6 @@ name:
 .Li STRINGs
 consists of one or more non-white space characters.
 Currently recognised sections and bindings are:
-
 .Bl -tag -width "xxx" -offset indent
 .It Li [libdefaults]
 .Bl -tag -width "xxx" -offset indent
@@ -65,7 +64,24 @@ Maximum time to wait for a reply from the kdc, default is 3 seconds.
 These are decribed in the 
 .Xr krb5_425_conv_principal  3
 manual page.
-.It Li capath = Va realm-routing-table
+.It Li capath = {
+.Bl -tag -width "xxx" -offset indent
+.It Va destination-realm Li = Va next-hop-realm
+.It ...
+.El
+Normally, all requests to realms different from the one of the current
+client are sent to this KDC to get cross-realm tickets.
+If this KDC does not have a cross-realm key with the desired realm and
+the hierarchical path to that realm does not work, a path can be
+configured using this directive.
+The text shown above instructs the KDC to try to obtain a cross-realm
+ticket to
+.Va next-hop-realm
+when the desired realm is
+.Va destination-realm .
+This configuration should preferably be done on the KDC where it will
+help all its clients but can also be done on the client itself.
+.It Li }
 .It Li default_etypes = Va etypes...
 A list of default etypes to use.
 .It Li default_etypes_des = Va etypes...
@@ -113,10 +129,18 @@ perid.
 .It Va REALM Li = {
 .Bl -tag -width "xxx" -offset indent
 .It Li kdc = Va host[:port]
-Specifies a kdc for this realm. If the optional port is absent, the
+Specifies a list of kdcs for this realm. If the optional port is absent, the
 default value for the
 .Dq kerberos/udp
 service will be used.
+The kdcs will be used in the order that they are specified.
+.It Li admin_server = Va host[:port]
+Specifies the admin server for this realm, where all the modifications
+to the database are perfomed.
+.It Li kpasswd_server = Va host[:port]
+Points to the server where all the password changes are perfomed.
+If there is no such entry, the kpasswd port on the admin_server host
+will be tried.
 .It Li v4_instance_convert
 .It Li v4_name_convert
 .It Li default_domain
@@ -136,7 +160,100 @@ for logging. See the
 .Xr krb5_openlog 3
 manual page for a list of defined destinations.
 .El
+.It Li [kdc]
+.Bl -tag -width "xxx" -offset indent
+.It database Li = {
+.Bl -tag -width "xxx" -offset indent
+.It dbname Li = Va DATABASENAME
+use this database for this realm.
+.It realm Li = Va REALM
+specifies the realm that will be stored in this database.
+.It mkey_file Li = Pa FILENAME
+use this keytab file for the master key of this database.
+If not specified
+.Va DATABASENAME Ns .mkey
+will be used.
+.It acl_file Li = PA FILENAME
+use this file for the ACL list of this database.
+.It log_file Li = Pa FILENAME
+use this file as the log of changes performed to the database.  This
+file is used by
+.Nm ipropd-master
+for propagating changes to slaves.
 .El
+.It Li }
+.It max-request = Va SIZE
+Maximum size of a kdc request.
+.It require-preauth = Va BOOL
+If set pre-authentication is required. Since krb4 requests are not
+pre-authenticated they will be rejected.
+.It ports = Va "list of ports"
+list of ports the kdc should listen to.
+.It addresses = Va "list of interfaces"
+list of addresses the kdc should bind to.
+.It enable-kerberos4 = Va BOOL
+turn on kerberos4 support.
+.It v4-realm = Va REALM
+to what realm v4 requests should be mapped.
+.It enable-524 = Va BOOL
+should the Kerberos 524 converting facility be turned on. Default is same as
+.Va enable-kerberos4 .
+.It enable-http = Va BOOL
+should the kdc answer kdc-requests over http.
+.It enable-kaserver = Va BOOL
+if this kdc should emulate the AFS kaserver.
+.It check-ticket-addresses = Va BOOL
+verify the addresses in the tickets used in tgs requests.
+.\" XXX
+.It allow-null-ticket-addresses = Va BOOL
+allow addresses-less tickets.
+.\" XXX 
+.It allow-anonymous = Va BOOL
+if the kdc is allowed to hand out anonymous tickets.
+.It encode_as_rep_as_tgs_rep = Va BOOL
+encode as-rep as tgs-rep tobe compatible with mistakes older DCE secd did.
+.\" XXX 
+.It kdc_warn_pwexpire = Va TIME
+the time before expiration that the user should be warned that her
+password is about to expire.
+.It logging = Va Logging
+What type of logging the kdc should use, see also [logging]/kdc.
+.El
+.It Li [kadmin]
+.Bl -tag -width "xxx" -offset indent
+.It require-preauth = Va BOOL
+If pre-authentication is required to talk to the kadmin server.
+.It default_keys = Va keytypes...
+for each entry in
+.Va default_keys
+try to parse it as a sequence of
+.Va etype:salttype:salt
+syntax of this if something like:
+.Pp
+[(des|des3|etype):](pw-salt|afs3-salt)[:string]
+.Pp
+if
+.Ar etype
+is omitted it means everything, and if string is omitted is means the default string (for that principal). Additional special values of keyttypes are:
+.Bl -tag -width "xxx" -offset indent
+.It v5 
+The kerberos 5 salt
+.Va pw-salt
+.It v4
+The kerberos 4 type
+.Va des:pw-salt:
+.El
+.It use_v4_salt = Va BOOL
+When true, this is the same as
+.Pp
+.Va default_keys = Va des3:pw-salt Va v4
+.Pp
+and is only left for backwards compatability.
+.El
+.El
+.Sh ENVIRONMENT
+.Ev KRB5_CONFIG
+points to the configuration file to read.
 .Sh EXAMPLE
 .Bd -literal -offset indent
 [lib_defaults]
@@ -160,7 +277,21 @@ manual page for a list of defined destinations.
 	kdc = SYSLOG:INFO
 	default = SYSLOG:INFO:USER
 .Ed
+.Sh DIAGNOSTICS
+Since
+.Nm
+is read and parsed by the krb5 library, there is not a lot of
+opportunities for programs to report parsing errors in any useful
+format.
+To help overcome this problem, there is a program
+.Nm verify_krb5_conf
+that reads
+.Nm
+and tries to emit useful diagnostics from parsing errors.  Note that
+this program does not have any way of knowing what options are
+actually used and thus cannot warn about unknown or misspelt ones.
 .Sh SEE ALSO
+.Xr verify_krb5_conf 8 ,
 .Xr krb5_openlog 3 ,
 .Xr krb5_425_conv_principal 3 ,
 .Xr strftime 3 ,

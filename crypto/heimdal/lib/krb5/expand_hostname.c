@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: expand_hostname.c,v 1.8 2000/02/20 02:25:29 assar Exp $");
+RCSID("$Id: expand_hostname.c,v 1.9 2000/02/23 03:12:07 assar Exp $");
 
 static krb5_error_code
 copy_hostname(krb5_context context,
@@ -130,7 +130,7 @@ krb5_expand_hostname_realms (krb5_context context,
 
     for (a = ai; a != NULL; a = a->ai_next) {
 	if (a->ai_canonname != NULL) {
-	    ret = copy_hostname (context, orig_hostname, new_hostname);
+	    ret = copy_hostname (context, a->ai_canonname, new_hostname);
 	    if (ret) {
 		freeaddrinfo (ai);
 		return ret;

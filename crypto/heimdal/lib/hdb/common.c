@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: common.c,v 1.6 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: common.c,v 1.8 2001/01/30 01:22:17 assar Exp $");
 
 int
 hdb_principal2key(krb5_context context, krb5_principal p, krb5_data *key)
@@ -102,7 +102,7 @@ krb5_error_code
 _hdb_fetch(krb5_context context, HDB *db, unsigned flags, hdb_entry *entry)
 {
     krb5_data key, value;
-    int code;
+    int code = 0;
 
     hdb_principal2key(context, entry->principal, &key);
     code = db->_get(context, db, key, &value);
@@ -110,10 +110,13 @@ _hdb_fetch(krb5_context context, HDB *db, unsigned flags, hdb_entry *entry)
     if(code)
 	return code;
     hdb_value2entry(context, &value, entry);
-    if (db->master_key_set && (flags & HDB_F_DECRYPT))
-	hdb_unseal_keys (db, entry);
+    if (db->master_key_set && (flags & HDB_F_DECRYPT)) {
+	code = hdb_unseal_keys (context, db, entry);
+	if (code)
+	    hdb_free_entry(context, entry);
+    }
     krb5_data_free(&value);
-    return 0;
+    return code;
 }
 
 krb5_error_code
@@ -123,7 +126,11 @@ _hdb_store(krb5_context context, HDB *db, unsigned flags, hdb_entry *entry)
     int code;
 
     hdb_principal2key(context, entry->principal, &key);
-    hdb_seal_keys(db, entry);
+    code = hdb_seal_keys(context, db, entry);
+    if (code) {
+	krb5_data_free(&key);
+	return code;
+    }
     hdb_entry2value(context, entry, &value);
     code = db->_put(context, db, flags & HDB_F_REPLACE, key, value);
     krb5_data_free(&value);

@@ -1,3 +1,264 @@
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): bump version to 11:1:2
+	* print_version.c (print_version): add 2001
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* getifaddrs.c (getifaddrs2): copy the entire sockaddr
+
+	* roken-common.h (_PATH_BSHELL): add
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in: move __attribute__ to roken-common.h
+
+	* esetenv.c (esetenv): cast to handle a setenv that takes a `char
+ 	* which is the case on Unicos
+
+2000-12-29  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (EXTRA_libroken_la_SOURCES): ifaddrs.h ->
+	ifaddrs.hin
+
+2000-12-25  Assar Westerlund  <assar@sics.se>
+
+	* getarg.c (print_arg): add a case for arg_strings
+
+2000-12-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* snprintf.c (append_string): handle NULL strings by printing
+	`(null)'
+
+2000-12-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-common.h: add c++ externs
+
+	* roken.h.in: fix last commit differently
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* err.hin (warnerr): remove, it's not part of the err.h interface
+	* roken-common.h (warnerr): moved here from err.hin
+	* Makefile.am (libroken_la_LDFLAGS): set version to 11:0:2
+	* vis.c: s/u_int32_t/unsigned/ for systems that do not define
+	u_int32_t
+
+2000-12-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: rename some headers to avoid conflict with possible
+	system headers
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* vis.c: make sure _DIAGASSERT is defined
+
+	* unvis.c: make sure _DIAGASSERT is defined
+
+	* Makefile.am: unvis.c, and vis.h
+
+	* vis.h: vis.h from NetBSD
+
+	* unvis.c: unvis from NetBSD
+
+	* roken.h.in: cleanup previous
+
+	* roken-common.h: make `extern "C"' into a macro, this make emacs
+	much happier
+
+	* vis.c: strvis implementation from NetBSD
+
+	* roken.h.in: add prototypes for strvis*
+
+2000-12-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ifaddrs.h: fix freeifaddrs prototype, and add ifa_broadaddr
+	macro
+
+	* getifaddrs.c: free some memory
+
+2000-12-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ifaddrs.h: getifaddrs implementation using SIOCGIFCONFIG etc
+
+	* getifaddrs.c: getifaddrs implementation using SIOCGIFCONFIG etc
+
+2000-10-08  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c (mini_inetd): check that fds are not too large to
+	select on
+
+2000-09-24  Assar Westerlund  <assar@sics.se>
+
+	*  esetenv.c: new file/function
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 10:0:1
+
+2000-08-10  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c (accept_it): type-correctness on parameters to
+	accept
+
+2000-08-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: add proto compat for getsockname
+
+2000-08-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* write_pid.c: conditionalise pidfile
+
+	* write_pid.c: add pidfile function
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 9:0:0
+
+	* warnerr.c: add get_progname
+
+2000-07-24  Assar Westerlund  <assar@sics.se>
+
+	* getaddrinfo.c (add_hostent): if there's no fqdn in `he' try
+	reverse resolving to see if there's a fuller name there.  don't
+	use just-freed memory
+
+2000-07-22  Assar Westerlund  <assar@sics.se>
+
+	* xdbm.h: do not define ndbm functions in terms of dbm functions
+	if we're using db
+
+2000-07-20  Assar Westerlund  <assar@sics.se>
+
+	* rtbl.c (rtbl_format): avoid printing an empty row at the end
+
+2000-07-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: make this compatible with `make dist'
+
+	* Makefile.am: revert version number for now
+
+2000-07-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: AM_PROG_LIBTOOL -> AC_PROG_LIBTOOL
+
+2000-07-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: set ACLOCAL_AMFLAGS
+
+2000-07-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getaddrinfo_hostspec.c: add new function that takes socktype
+	hint as parameter
+
+2000-07-09  Assar Westerlund  <assar@sics.se>
+
+	* rtbl.c (rtbl_add_column): initialize `col' completely
+
+	* configure.in: bring headers and functions more in-line with
+	what's actually being used
+
+2000-07-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: declare ether_addr and sockaddr_dl for AIX
+
+	* rtbl.{c,h}: simple table functions
+
+2000-07-08  Assar Westerlund  <assar@sics.se>
+
+	* configure.in (AM_INIT_AUTOMAKE): bump version to 10
+	* configure.in (AC_BROKEN): add strsep_copy
+	* Makefile.am (ACLOCAL): fetch files from cf
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h (pid_file_*): fix protos
+
+2000-06-28  Assar Westerlund  <assar@sics.se>
+
+	* getnameinfo_verified.c (getnameinfo_verified): free memory
+	returned from getaddrinfo
+
+2000-06-27  Assar Westerlund  <assar@sics.se>
+
+	* resolve.c: export string_to_type and type_to_string
+	* resolve.c: add key,sig,cert update test-program
+	* resolve.h: add key,sig,cert
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* resolve.h: add T_SIG, T_KEY
+	* resolve.c: add SIG and KEY
+	* Makefile.am (libroken_la_SOURCES): add environment.c and
+	write_pid.c
+
+	* write_pid.c: new file for writing a pid file.
+
+	* environment.c: new file with functionality for reading
+	/etc/environment.  From Ake Sandgren <ake@cs.umu.se>
+
+2000-06-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* strsep_copy.c: strsep, but with const stringp so returns string
+	in separate buffer
+
+2000-05-23  Assar Westerlund  <assar@sics.se>
+
+	* vsyslog.c (vsyslog): calculate length of new format string
+	correctly
+
+2000-05-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getusershell.c: implment the AIX version use
+	/etc/security/login.cfg
+
+2000-05-21  Assar Westerlund  <assar@sics.se>
+
+	* vsyslog.c (vsyslog): actually handle `%m'
+
+2000-05-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): set version to 8:1:3
+
+	* roken-common.h: moved __attribute__ to roken.h.in
+
+2000-04-14  Assar Westerlund  <assar@sics.se>
+
+	* getaddrinfo_hostspec.c (roken_getaddrinfo_hostspec): copy the
+	correct length from `hostspec'.  based on a patch from Love
+	<lha@s3.kth.se>
+
+2000-04-09  Assar Westerlund  <assar@sics.se>
+
+	* xdbm.h: only include one of db.h and the dbm-series
+
+2000-04-05  Assar Westerlund  <assar@sics.se>
+
+	* resolve.c (_resolve_debug): explicitly set to zero.  this moves
+	the variable from bss to data and the dynamic linker on MacOS
+	X/Darwin seems unhappy with stuff in the bss segment.
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 8:0:3
+
+2000-03-11  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (_SS_PAD1SIZE): try to write an inpenetrable
+	expression that also works on Crays
+
+2000-03-09  Assar Westerlund  <assar@sics.se>
+
+	* getarg.c (arg_match_short): backup optind when there's a missing
+	argument so that the error can point at the flag and not the
+	non-existant argument
+
+2000-03-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (SOURCES): add timeval.c
+	* Makefile.am (libroken_la_SOURCES): add timeval.c
+	* timeval.c: new file
+
 2000-02-19  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: set version to 7:1:2

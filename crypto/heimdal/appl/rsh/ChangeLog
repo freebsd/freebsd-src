@@ -1,3 +1,72 @@
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (save_krb5_creds): use krb5_rd_cred2 instead of
+	krb5_rd_cred
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (main): handle krb5_init_context failure consistently
+	* rsh.c (main): handle krb5_init_context failure consistently
+
+2000-12-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: require encryption if passed -x
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (loop): check that the fd's aren't too large to select on
+	* rsh.c (loop, proto): check that the fd's aren't too large to
+	select on
+
+2000-08-10  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c: move code to do config/command parsing correctly.
+
+2000-08-09  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): only fetch stuff from krb5.conf when no option has
+	been given
+
+2000-08-01  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (doit): loop until we create an error socket of an
+	supported socket family
+
+2000-07-02  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c: DCE stuff from Ake Sandgren <ake@cs.umu.se>
+	do not call syslog with a variable as format string
+
+	* rsh_locl.h (_PATH_ETC_ENVIRONMENT): add
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (main): work-around for setuid and capabilities bug fixed
+	in Linux 2.2.16
+
+2000-06-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: nuke long option from -z
+	
+	* rsh.c: don't try to encrypt if auth is broken (Daniel Kouril)
+	
+2000-06-03  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (doit): check return value of getspnam.  From
+	<haba@pdc.kth.se>
+
+2000-05-23  Assar Westerlund  <assar@sics.se>
+
+	* rsh.c (proto): select on the normal socket when waiting for the
+	daemon to connect back to the stderr port, so that we discover
+	when data arrives there before.  when that happens, we assume that
+	the daemon did not manage to connect (because of NAT/whatever) and
+	continue as if `-e' was given
+	* rshd.c (doit): if we fail to connect back to the stderr port,
+	act as if `-e' was given on the client side, i.e. without the
+	special TCP-connection.  This tries to make things better when
+	running the head against a NAT wall, for example.
+
 2000-02-07  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (LDADD): make sure we use the heimdal libdes

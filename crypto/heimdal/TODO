@@ -1,6 +1,6 @@
 -*- indented-text -*-
 
-$Id: TODO,v 1.40 2000/01/28 04:10:56 assar Exp $
+$Id: TODO,v 1.55 2001/01/30 22:51:32 assar Exp $
 
 * configure
 
@@ -8,37 +8,27 @@ use more careful checking before starting to use berkeley db.  it only
 makes sense to do so if we have the appropriate library and the header
 file.
 
+handle readline hiding in readline/readline.h
+
 * appl
-
-more programs here
-
-** appl/login
-
-/etc/environment etc.
 
 ** appl/popper
 
 Implement RFC1731 and 1734, pop over GSS-API
 
-** appl/test
-
-should test more stuff
-
-** appl/rsh
-
-add rcp program
-
-** appl/ftp
-
 * doc
-
-there's some room for improvement here.
 
 * kdc
 
 * kadmin
 
+make it happy with reading and parsing kdc.conf
+
 is in need of a major cleanup
+
+* kpasswdd
+
+figure out what's the deal with do_sequence and the MIT client
 
 * lib
 
@@ -46,31 +36,29 @@ is in need of a major cleanup
 
 prepend a prefix on all generated symbols
 
-make asn1_compile use enum types where applicable
-
 ** lib/auth
 
 PAM
 
+** lib/com_err
+
+write a man-page
+
 ** lib/des
+
+make everything work with openssl and make prototypes compatible
 
 ** lib/gssapi
 
-process_context_token, display_status, add_cred, inquire_cred_by_mech,
-export_sec_context, import_sec_context, inquire_names_for_mech, and
+process_context_token, add_cred, inquire_cred_by_mech,
+inquire_names_for_mech, and
 inquire_mechs_for_name not implemented.
-
-only DES MAC MD5 and DES implemented.
 
 set minor_status in all functions
 
-init_sec_context: `initiator_cred_handle' and `time_req' ignored.
-
-input channel bindings are not supported
-
-delegation not implemented
-
 anonymous credentials not implemented
+
+add rc4
 
 ** lib/hdb
 
@@ -88,20 +76,15 @@ using krb5_get_krbhst.
 
 the replay cache is, in its current state, not very useful
 
-the following encryption types have been implemented: DES-CBC-CRC,
-DES-CBC-MD4, DES-CBC-MD5, DES3-CBC-MD5, DES3-CBC-SHA1
-
-supports the following checksums: CRC32, RSA-MD4, RSA-MD5,
-RSA-MD4-DES, RSA-MD5-DES, RSA-MD5-DES3, SHA1, HMAC-SHA1-DES3
-
 always generates a new subkey in an authenticator
 
 should the sequence numbers be XORed?
 
-fix pre-authentication with pa-afs3-salt
-
 OTP?
 
-** lib/roken
+make checksum/encryption type configuration more realm-specific.  make
+some simple way of handling the w2k situtation
 
-** lib/sl
+crypto: allow scather/gather creation of checksums
+
+** lib/roken

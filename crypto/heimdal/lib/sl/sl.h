@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sl.h,v 1.7 1999/12/02 16:58:55 joda Exp $ */
+/* $Id: sl.h,v 1.9 2001/01/26 14:58:41 joda Exp $ */
 
 #ifndef _SL_H
 #define _SL_H
+
+#define SL_BADCOMMAND -1
 
 typedef int (*cmd_func)(int, char **);
 
@@ -48,10 +50,11 @@ struct sl_cmd {
 typedef struct sl_cmd SL_cmd;
 
 void sl_help (SL_cmd *, int argc, char **argv);
-int  sl_loop (SL_cmd *, char *prompt);
-int  sl_command_loop (SL_cmd *cmds, char *prompt, void **data);
+int  sl_loop (SL_cmd *, const char *prompt);
+int  sl_command_loop (SL_cmd *cmds, const char *prompt, void **data);
 int  sl_command (SL_cmd *cmds, int argc, char **argv);
 int sl_make_argv(char*, int*, char***);
+void sl_apropos (SL_cmd *cmd, const char *topic);
 
 
 #endif /* _SL_H */

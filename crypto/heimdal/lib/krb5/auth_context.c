@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: auth_context.c,v 1.50 1999/12/02 17:05:07 joda Exp $");
+RCSID("$Id: auth_context.c,v 1.55 2000/12/10 20:01:05 assar Exp $");
 
 krb5_error_code
 krb5_auth_con_init(krb5_context context,
@@ -67,20 +67,21 @@ krb5_error_code
 krb5_auth_con_free(krb5_context context,
 		   krb5_auth_context auth_context)
 {
-    krb5_free_authenticator(context, &auth_context->authenticator);
-    if(auth_context->local_address){
-	free_HostAddress(auth_context->local_address);
-	free(auth_context->local_address);
-    }
-    if(auth_context->remote_address){
-	free_HostAddress(auth_context->remote_address);
-	free(auth_context->remote_address);
-    }
-    if(auth_context->keyblock)
+    if (auth_context != NULL) {
+	krb5_free_authenticator(context, &auth_context->authenticator);
+	if(auth_context->local_address){
+	    free_HostAddress(auth_context->local_address);
+	    free(auth_context->local_address);
+	}
+	if(auth_context->remote_address){
+	    free_HostAddress(auth_context->remote_address);
+	    free(auth_context->remote_address);
+	}
 	krb5_free_keyblock(context, auth_context->keyblock);
-    krb5_free_keyblock(context, auth_context->remote_subkey);
-    krb5_free_keyblock(context, auth_context->local_subkey);
-    free (auth_context);
+	krb5_free_keyblock(context, auth_context->remote_subkey);
+	krb5_free_keyblock(context, auth_context->local_subkey);
+	free (auth_context);
+    }
     return 0;
 }
 
@@ -128,49 +129,71 @@ krb5_auth_con_setaddrs(krb5_context context,
 }
 
 krb5_error_code
-krb5_auth_con_setaddrs_from_fd (krb5_context context,
-				krb5_auth_context auth_context,
-				void *p_fd)
+krb5_auth_con_genaddrs(krb5_context context, 
+		       krb5_auth_context auth_context, 
+		       int fd, int flags)
 {
-    int fd = *((int *)p_fd);
     krb5_error_code ret;
     krb5_address local_k_address, remote_k_address;
     krb5_address *lptr = NULL, *rptr = NULL;
     struct sockaddr_storage ss_local, ss_remote;
     struct sockaddr *local  = (struct sockaddr *)&ss_local;
     struct sockaddr *remote = (struct sockaddr *)&ss_remote;
-    int len;
+    socklen_t len;
 
-    if (auth_context->local_address == NULL) {
-	len = sizeof(ss_local);
-	if(getsockname(fd, local, &len) < 0) {
-	    ret = errno;
-	    goto out;
+    if(flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR) {
+	if (auth_context->local_address == NULL) {
+	    len = sizeof(ss_local);
+	    if(getsockname(fd, local, &len) < 0) {
+		ret = errno;
+		goto out;
+	    }
+	    krb5_sockaddr2address (local, &local_k_address);
+	    if(flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR) {
+		krb5_sockaddr2port (local, &auth_context->local_port);
+	    } else
+		auth_context->local_port = 0;
+	    lptr = &local_k_address;
 	}
-	krb5_sockaddr2address (local, &local_k_address);
-	krb5_sockaddr2port (local, &auth_context->local_port);
-	lptr = &local_k_address;
     }
-    if (auth_context->remote_address == NULL) {
+    if(flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR) {
 	len = sizeof(ss_remote);
 	if(getpeername(fd, remote, &len) < 0) {
 	    ret = errno;
 	    goto out;
 	}
 	krb5_sockaddr2address (remote, &remote_k_address);
-	krb5_sockaddr2port (remote, &auth_context->remote_port);
+	if(flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR) {
+	    krb5_sockaddr2port (remote, &auth_context->remote_port);
+	} else
+	    auth_context->remote_port = 0;
 	rptr = &remote_k_address;
     }
     ret = krb5_auth_con_setaddrs (context,
 				  auth_context,
 				  lptr,
 				  rptr);
-out:
+  out:
     if (lptr)
 	krb5_free_address (context, lptr);
     if (rptr)
 	krb5_free_address (context, rptr);
     return ret;
+
+}
+
+krb5_error_code
+krb5_auth_con_setaddrs_from_fd (krb5_context context,
+				krb5_auth_context auth_context,
+				void *p_fd)
+{
+    int fd = *(int*)p_fd;
+    int flags = 0;
+    if(auth_context->local_address == NULL)
+	flags |= KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR;
+    if(auth_context->remote_address == NULL)
+	flags |= KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR;
+    return krb5_auth_con_genaddrs(context, auth_context, fd, flags);
 }
 
 krb5_error_code
@@ -396,6 +419,24 @@ krb5_auth_con_setuserkey(krb5_context context,
     return krb5_copy_keyblock(context, keyblock, &auth_context->keyblock);
 }
 
+krb5_error_code
+krb5_auth_con_getrcache(krb5_context context,
+			krb5_auth_context auth_context,
+			krb5_rcache *rcache)
+{
+    *rcache = auth_context->rcache;
+    return 0;
+}
+
+krb5_error_code
+krb5_auth_con_setrcache(krb5_context context,
+			krb5_auth_context auth_context,
+			krb5_rcache rcache)
+{
+    auth_context->rcache = rcache;
+    return 0;
+}
+
 #if 0 /* not implemented */
 
 krb5_error_code
@@ -412,15 +453,6 @@ krb5_auth_con_setivector(krb5_context context,
 			 krb5_pointer ivector)
 {
     krb5_abortx(context, "unimplemented krb5_auth_con_setivector called");
-}
-
-
-krb5_error_code
-krb5_auth_con_setrcache(krb5_context context,
-			krb5_auth_context auth_context,
-			krb5_rcache rcache)
-{
-    krb5_abortx(context, "unimplemented krb5_auth_con_setrcache called");
 }
 
 #endif /* not implemented */

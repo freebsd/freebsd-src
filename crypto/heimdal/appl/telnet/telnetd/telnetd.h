@@ -124,10 +124,6 @@
 
 #include "defs.h"
 
-#ifdef HAVE_ARPA_TELNET_H
-#include <arpa/telnet.h>
-#endif
-
 #ifndef _POSIX_VDISABLE
 # ifdef VDISABLE
 #  define _POSIX_VDISABLE VDISABLE
@@ -152,11 +148,15 @@
 #include <sys/utsname.h>
 #endif
 
-#include "ext.h"
-
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
+
+#ifdef HAVE_ARPA_TELNET_H
+#include <arpa/telnet.h>
+#endif
+
+#include "ext.h"
 
 #ifdef SOCKS
 #include <socks.h>

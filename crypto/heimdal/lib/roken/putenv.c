@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: putenv.c,v 1.6 1999/12/02 16:58:51 joda Exp $");
+RCSID("$Id: putenv.c,v 1.7 2000/03/26 23:08:24 assar Exp $");
 #endif
 
 #include <stdlib.h>
@@ -47,30 +47,34 @@ extern char **environ;
  *      Makes the value of the environment variable name equal to
  *      value by altering an existing variable or creating a new one.
  */
-int putenv(const char *string)
+
+int
+putenv(const char *string)
 {
     int i;
+    const char *eq = (const char *)strchr(string, '=');
     int len;
     
-    len = string - strchr(string, '=') + 1;
+    if (eq == NULL)
+	return 1;
+    len = eq - string;
 
-    if(environ == NULL){
+    if(environ == NULL) {
 	environ = malloc(sizeof(char*));
 	if(environ == NULL)
 	    return 1;
 	environ[0] = NULL;
     }
 
-    for(i = 0; environ[i]; i++)
-	if(strncmp(string, environ[i], len)){
-	    environ[len] = string;
+    for(i = 0; environ[i] != NULL; i++)
+	if(strncmp(string, environ[i], len) == 0) {
+	    environ[i] = string;
 	    return 0;
 	}
-    environ = realloc(environ, sizeof(char*) * (i + 1));
+    environ = realloc(environ, sizeof(char*) * (i + 2));
     if(environ == NULL)
 	return 1;
-    environ[i] = string;
+    environ[i]   = string;
     environ[i+1] = NULL;
     return 0;
 }
-

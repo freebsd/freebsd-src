@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: kdecode_ticket.c,v 1.2 1999/12/02 17:05:00 joda Exp $");
+RCSID("$Id: kdecode_ticket.c,v 1.4 2000/12/31 07:50:19 assar Exp $");
 
 static char *etype_str;
 static int version_flag;
@@ -61,7 +61,9 @@ print_and_decode_tkt (krb5_context context,
     if (ret)
 	krb5_err (context, 1, ret, "krb5_string_to_key");
 
-    krb5_crypto_init(context, &key, 0, &crypto);
+    ret = krb5_crypto_init(context, &key, 0, &crypto);
+    if (ret)
+	krb5_err (context, 1, ret, "krb5_crypto_init");
 
     ret = krb5_decrypt_EncryptedData (context, crypto, KRB5_KU_TICKET,
 				      &tkt.enc_part, &dec_data);
@@ -105,7 +107,7 @@ main(int argc, char **argv)
 
     ret = krb5_init_context (&context);
     if (ret)
-	errx(1, "krb5_init_context failed: %u", ret);
+	errx(1, "krb5_init_context failed: %d", ret);
   
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);

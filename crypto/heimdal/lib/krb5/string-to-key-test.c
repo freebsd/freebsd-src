@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: string-to-key-test.c,v 1.2 1999/10/28 23:10:38 assar Exp $");
+RCSID("$Id: string-to-key-test.c,v 1.4 2000/12/31 08:03:54 assar Exp $");
 
 enum { MAXSIZE = 24 };
 
@@ -60,6 +60,9 @@ static struct testcase {
      {0x7f, 0x40, 0x67, 0xb9, 0xbc, 0xc4, 0x40, 0xfb, 0x43, 0x73, 0xd9,
       0xd3, 0xcd, 0x7c, 0xc7, 0x67, 0xe6, 0x79, 0x94, 0xd0, 0xa8, 0x34,
       0xdf, 0x62}},
+    {"does/not@MATTER", "foo", ETYPE_ARCFOUR_HMAC_MD5,
+     {0xac, 0x8e, 0x65, 0x7f, 0x83, 0xdf, 0x82, 0xbe,
+      0xea, 0x5d, 0x43, 0xbd, 0xaf, 0x78, 0x00, 0xcc}},
     {NULL}
 };
 
@@ -71,7 +74,9 @@ main(int argc, char **argv)
     krb5_error_code ret;
     int val = 0;
 
-    krb5_init_context (&context);
+    ret = krb5_init_context (&context);
+    if (ret)
+	errx (1, "krb5_init_context failed: %d", ret);
 
     for (t = tests; t->principal_name; ++t) {
 	krb5_keyblock key;

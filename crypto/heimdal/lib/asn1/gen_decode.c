@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_decode.c,v 1.11 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: gen_decode.c,v 1.15 2001/01/29 08:36:45 assar Exp $");
 
 static void
 decode_primitive (const char *typename, const char *name)
@@ -48,215 +48,228 @@ decode_primitive (const char *typename, const char *name)
 static void
 decode_type (const char *name, const Type *t)
 {
-  switch (t->type) {
-  case TType:
+    switch (t->type) {
+    case TType:
 #if 0
-    decode_type (name, t->symbol->type);
+	decode_type (name, t->symbol->type);
 #endif
-    fprintf (codefile,
-	     "e = decode_%s(p, len, %s, &l);\n"
-	     "FORW;\n",
-	     t->symbol->gen_name, name);
-    break;
-  case TInteger:
-    decode_primitive ("integer", name);
-    break;
-  case TOctetString:
-    decode_primitive ("octet_string", name);
-    break;
-  case TBitString: {
-    Member *m;
-    int tag = -1;
-    int pos;
-
-    fprintf (codefile,
-	     "e = der_match_tag_and_length (p, len, UNIV, PRIM, UT_BitString,"
-	     "&reallen, &l);\n"
-	     "FORW;\n"
-	     "if(len < reallen)\n"
-	     "return ASN1_OVERRUN;\n"
-	     "p++;\n"
-	     "len--;\n"
-	     "reallen--;\n"
-	     "ret++;\n");
-    pos = 0;
-    for (m = t->members; m && tag != m->val; m = m->next) {
-      while (m->val / 8 > pos / 8) {
 	fprintf (codefile,
-		 "p++; len--; reallen--; ret++;\n");
-	pos += 8;
-      }
-      fprintf (codefile,
-	       "%s->%s = (*p >> %d) & 1;\n",
-	       name, m->gen_name, 7 - m->val % 8);
-      if (tag == -1)
-	tag = m->val;
+		 "e = decode_%s(p, len, %s, &l);\n"
+		 "FORW;\n",
+		 t->symbol->gen_name, name);
+	break;
+    case TInteger:
+	if(t->members == NULL)
+	    decode_primitive ("integer", name);
+	else {
+	    char *s;
+	    asprintf(&s, "(int*)%s", name);
+	    if(s == NULL)
+		errx (1, "out of memory");
+	    decode_primitive ("integer", s);
+	    free(s);
+	}
+	break;
+    case TUInteger:
+	decode_primitive ("unsigned", name);
+	break;
+    case TOctetString:
+	decode_primitive ("octet_string", name);
+	break;
+    case TBitString: {
+	Member *m;
+	int tag = -1;
+	int pos;
+
+	fprintf (codefile,
+		 "e = der_match_tag_and_length (p, len, UNIV, PRIM, UT_BitString,"
+		 "&reallen, &l);\n"
+		 "FORW;\n"
+		 "if(len < reallen)\n"
+		 "return ASN1_OVERRUN;\n"
+		 "p++;\n"
+		 "len--;\n"
+		 "reallen--;\n"
+		 "ret++;\n");
+	pos = 0;
+	for (m = t->members; m && tag != m->val; m = m->next) {
+	    while (m->val / 8 > pos / 8) {
+		fprintf (codefile,
+			 "p++; len--; reallen--; ret++;\n");
+		pos += 8;
+	    }
+	    fprintf (codefile,
+		     "%s->%s = (*p >> %d) & 1;\n",
+		     name, m->gen_name, 7 - m->val % 8);
+	    if (tag == -1)
+		tag = m->val;
+	}
+	fprintf (codefile,
+		 "p += reallen; len -= reallen; ret += reallen;\n");
+	break;
     }
-    fprintf (codefile,
-	     "p += reallen; len -= reallen; ret += reallen;\n");
-    break;
-  }
-  case TSequence: {
-    Member *m;
-    int tag = -1;
+    case TSequence: {
+	Member *m;
+	int tag = -1;
 
-    if (t->members == NULL)
-      break;
+	if (t->members == NULL)
+	    break;
 
-    fprintf (codefile,
-	     "e = der_match_tag_and_length (p, len, UNIV, CONS, UT_Sequence,"
-	     "&reallen, &l);\n"
-	     "FORW;\n"
-	     "{\n"
-	     "int dce_fix;\n"
-	     "if((dce_fix = fix_dce(reallen, &len)) < 0)\n"
-	     "return ASN1_BAD_FORMAT;\n");
+	fprintf (codefile,
+		 "e = der_match_tag_and_length (p, len, UNIV, CONS, UT_Sequence,"
+		 "&reallen, &l);\n"
+		 "FORW;\n"
+		 "{\n"
+		 "int dce_fix;\n"
+		 "if((dce_fix = fix_dce(reallen, &len)) < 0)\n"
+		 "return ASN1_BAD_FORMAT;\n");
 
-    for (m = t->members; m && tag != m->val; m = m->next) {
-      char *s;
+	for (m = t->members; m && tag != m->val; m = m->next) {
+	    char *s;
 
-      asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&", name, m->gen_name);
-      if (0 && m->type->type == TType){
-	  if(m->optional)
-	      fprintf (codefile,
-		       "%s = malloc(sizeof(*%s));\n", s, s);
-	  fprintf (codefile, 
-		   "e = decode_seq_%s(p, len, %d, %d, %s, &l);\n",
-		   m->type->symbol->gen_name,
-		   m->val, 
-		   m->optional,
-		   s);
-	  if(m->optional)
-	      fprintf (codefile, 
-		       "if (e == ASN1_MISSING_FIELD) {\n"
-		       "free(%s);\n"
-		       "%s = NULL;\n"
-		       "e = l = 0;\n"
-		       "}\n",
-		       s, s);
+	    asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&", name, m->gen_name);
+	    if (0 && m->type->type == TType){
+		if(m->optional)
+		    fprintf (codefile,
+			     "%s = malloc(sizeof(*%s));\n"
+			     "if(%s == NULL) return ENOMEM;\n", s, s, s);
+		fprintf (codefile, 
+			 "e = decode_seq_%s(p, len, %d, %d, %s, &l);\n",
+			 m->type->symbol->gen_name,
+			 m->val, 
+			 m->optional,
+			 s);
+		if(m->optional)
+		    fprintf (codefile, 
+			     "if (e == ASN1_MISSING_FIELD) {\n"
+			     "free(%s);\n"
+			     "%s = NULL;\n"
+			     "e = l = 0;\n"
+			     "}\n",
+			     s, s);
 	  
-	  fprintf (codefile, "FORW;\n");
+		fprintf (codefile, "FORW;\n");
 	  
-      }else{
-	  fprintf (codefile, "{\n"
-		   "size_t newlen, oldlen;\n\n"
-		   "e = der_match_tag (p, len, CONTEXT, CONS, %d, &l);\n",
-		   m->val);
-	  fprintf (codefile,
-		   "if (e)\n");
-	  if(m->optional)
-	      /* XXX should look at e */
-	      fprintf (codefile,
-		       "%s = NULL;\n", s);
-	  else
-	      fprintf (codefile,
-		       "return e;\n");
-	  fprintf (codefile, 
-		   "else {\n");
-	  fprintf (codefile,
-		   "p += l;\n"
-		   "len -= l;\n"
-		   "ret += l;\n"
-		   "e = der_get_length (p, len, &newlen, &l);\n"
-		   "FORW;\n"
-		   "{\n"
+	    }else{
+		fprintf (codefile, "{\n"
+			 "size_t newlen, oldlen;\n\n"
+			 "e = der_match_tag (p, len, CONTEXT, CONS, %d, &l);\n",
+			 m->val);
+		fprintf (codefile,
+			 "if (e)\n");
+		if(m->optional)
+		    /* XXX should look at e */
+		    fprintf (codefile,
+			     "%s = NULL;\n", s);
+		else
+		    fprintf (codefile,
+			     "return e;\n");
+		fprintf (codefile, 
+			 "else {\n");
+		fprintf (codefile,
+			 "p += l;\n"
+			 "len -= l;\n"
+			 "ret += l;\n"
+			 "e = der_get_length (p, len, &newlen, &l);\n"
+			 "FORW;\n"
+			 "{\n"
 	       
-		   "int dce_fix;\n"
-		   "oldlen = len;\n"
-		   "if((dce_fix = fix_dce(newlen, &len)) < 0)"
-		   "return ASN1_BAD_FORMAT;\n");
-	  if (m->optional)
-	      fprintf (codefile,
-		       "%s = malloc(sizeof(*%s));\n",
-		       s, s);
-	  decode_type (s, m->type);
-	  fprintf (codefile,
-		   "if(dce_fix){\n"
-		   "e = der_match_tag_and_length (p, len, "
-		   "(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
-		   "FORW;\n"
-		   "}else \n"
-		   "len = oldlen - newlen;\n"
-		   "}\n"
-		   "}\n");
-	  fprintf (codefile,
-		   "}\n");
-      }
-      if (tag == -1)
-	tag = m->val;
-      free (s);
+			 "int dce_fix;\n"
+			 "oldlen = len;\n"
+			 "if((dce_fix = fix_dce(newlen, &len)) < 0)"
+			 "return ASN1_BAD_FORMAT;\n");
+		if (m->optional)
+		    fprintf (codefile,
+			     "%s = malloc(sizeof(*%s));\n"
+			     "if(%s == NULL) return ENOMEM;\n", s, s, s);
+		decode_type (s, m->type);
+		fprintf (codefile,
+			 "if(dce_fix){\n"
+			 "e = der_match_tag_and_length (p, len, "
+			 "(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
+			 "FORW;\n"
+			 "}else \n"
+			 "len = oldlen - newlen;\n"
+			 "}\n"
+			 "}\n");
+		fprintf (codefile,
+			 "}\n");
+	    }
+	    if (tag == -1)
+		tag = m->val;
+	    free (s);
+	}
+	fprintf(codefile,
+		"if(dce_fix){\n"
+		"e = der_match_tag_and_length (p, len, "
+		"(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
+		"FORW;\n"
+		"}\n"
+		"}\n");
+
+	break;
     }
-    fprintf(codefile,
-	    "if(dce_fix){\n"
-	    "e = der_match_tag_and_length (p, len, "
-	    "(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
-	    "FORW;\n"
-	    "}\n"
-	    "}\n");
+    case TSequenceOf: {
+	char *n;
 
-    break;
-  }
-  case TSequenceOf: {
-    char *n;
+	fprintf (codefile,
+		 "e = der_match_tag_and_length (p, len, UNIV, CONS, UT_Sequence,"
+		 "&reallen, &l);\n"
+		 "FORW;\n"
+		 "if(len < reallen)\n"
+		 "return ASN1_OVERRUN;\n"
+		 "len = reallen;\n");
 
-    fprintf (codefile,
-	     "e = der_match_tag_and_length (p, len, UNIV, CONS, UT_Sequence,"
-	     "&reallen, &l);\n"
-	     "FORW;\n"
-	     "if(len < reallen)\n"
-	     "return ASN1_OVERRUN;\n"
-	     "len = reallen;\n");
+	fprintf (codefile,
+		 "{\n"
+		 "size_t origlen = len;\n"
+		 "int oldret = ret;\n"
+		 "ret = 0;\n"
+		 "(%s)->len = 0;\n"
+		 "(%s)->val = NULL;\n"
+		 "while(ret < origlen) {\n"
+		 "(%s)->len++;\n"
+		 "(%s)->val = realloc((%s)->val, sizeof(*((%s)->val)) * (%s)->len);\n",
+		 name, name, name, name, name, name, name);
+	asprintf (&n, "&(%s)->val[(%s)->len-1]", name, name);
+	decode_type (n, t->subtype);
+	fprintf (codefile, 
+		 "len = origlen - ret;\n"
+		 "}\n"
+		 "ret += oldret;\n"
+		 "}\n");
+	free (n);
+	break;
+    }
+    case TGeneralizedTime:
+	decode_primitive ("generalized_time", name);
+	break;
+    case TGeneralString:
+	decode_primitive ("general_string", name);
+	break;
+    case TApplication:
+	fprintf (codefile,
+		 "e = der_match_tag_and_length (p, len, APPL, CONS, %d, "
+		 "&reallen, &l);\n"
+		 "FORW;\n"
+		 "{\n"
+		 "int dce_fix;\n"
+		 "if((dce_fix = fix_dce(reallen, &len)) < 0)\n"
+		 "return ASN1_BAD_FORMAT;\n", 
+		 t->application);
+	decode_type (name, t->subtype);
+	fprintf(codefile,
+		"if(dce_fix){\n"
+		"e = der_match_tag_and_length (p, len, "
+		"(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
+		"FORW;\n"
+		"}\n"
+		"}\n");
 
-    fprintf (codefile,
-	     "{\n"
-	     "size_t origlen = len;\n"
-	     "int oldret = ret;\n"
-	     "ret = 0;\n"
-	     "(%s)->len = 0;\n"
-	     "(%s)->val = NULL;\n"
-	     "while(ret < origlen) {\n"
-	     "(%s)->len++;\n"
-	     "(%s)->val = realloc((%s)->val, sizeof(*((%s)->val)) * (%s)->len);\n",
-	     name, name, name, name, name, name, name);
-    asprintf (&n, "&(%s)->val[(%s)->len-1]", name, name);
-    decode_type (n, t->subtype);
-    fprintf (codefile, 
-	     "len = origlen - ret;\n"
-	     "}\n"
-	     "ret += oldret;\n"
-	     "}\n");
-    free (n);
-    break;
-  }
-  case TGeneralizedTime:
-    decode_primitive ("generalized_time", name);
-    break;
-  case TGeneralString:
-    decode_primitive ("general_string", name);
-    break;
-  case TApplication:
-    fprintf (codefile,
-	     "e = der_match_tag_and_length (p, len, APPL, CONS, %d, "
-	     "&reallen, &l);\n"
-	     "FORW;\n"
-	     "{\n"
-	     "int dce_fix;\n"
-	     "if((dce_fix = fix_dce(reallen, &len)) < 0)\n"
-	     "return ASN1_BAD_FORMAT;\n", 
-	     t->application);
-    decode_type (name, t->subtype);
-    fprintf(codefile,
-	    "if(dce_fix){\n"
-	    "e = der_match_tag_and_length (p, len, "
-	    "(Der_class)0, (Der_type)0, 0, &reallen, &l);\n"
-	    "FORW;\n"
-	    "}\n"
-	    "}\n");
-
-    break;
-  default :
-    abort ();
-  }
+	break;
+    default :
+	abort ();
+    }
 }
 
 void
@@ -282,17 +295,10 @@ generate_type_decode (const Symbol *s)
 
   switch (s->type->type) {
   case TInteger:
-    fprintf (codefile, "return decode_integer (p, len, data, size);\n");
-    break;
+  case TUInteger:
   case TOctetString:
-    fprintf (codefile, "return decode_octet_string (p, len, data, size);\n");
-    break;
   case TGeneralizedTime:
-    fprintf (codefile, "return decode_generalized_time (p, len, data, size);\n");
-    break;
   case TGeneralString:
-    fprintf (codefile, "return decode_general_string (p, len, data, size);\n");
-    break;
   case TBitString:
   case TSequence:
   case TSequenceOf:
@@ -303,6 +309,7 @@ generate_type_decode (const Symbol *s)
 	     "size_t l;\n"
 	     "int i, e;\n\n");
     fprintf(codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
+    fprintf(codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
 
     decode_type ("data", s->type);
     fprintf (codefile, 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -38,11 +38,12 @@
 #endif
 #include <gssapi.h>
 
-RCSID("$Id: gssapi.c,v 1.13 1999/12/02 16:58:29 joda Exp $");
+RCSID("$Id: gssapi.c,v 1.15 2000/12/08 05:07:49 assar Exp $");
 
 struct gss_data {
     gss_ctx_id_t context_hdl;
     char *client_name;
+    gss_cred_id_t delegated_cred_handle;
 };
 
 static int
@@ -50,7 +51,17 @@ gss_init(void *app_data)
 {
     struct gss_data *d = app_data;
     d->context_hdl = GSS_C_NO_CONTEXT;
+    d->delegated_cred_handle = NULL;
+#if defined(FTP_SERVER)
     return 0;
+#else
+    /* XXX Check the gss mechanism; with  gss_indicate_mechs() ? */
+#ifdef KRB5
+    return !use_kerberos;
+#else
+    return 0
+#endif /* KRB5 */
+#endif /* FTP_SERVER */
 }
 
 static int
@@ -168,6 +179,15 @@ gss_adat(void *app_data, void *buf, size_t len)
 
     input_token.value = buf;
     input_token.length = len;
+
+    d->delegated_cred_handle = malloc(sizeof(*d->delegated_cred_handle));
+    if (d->delegated_cred_handle == NULL) {
+       reply(500, "Out of memory");
+       goto out;
+    }
+
+    memset ((char*)d->delegated_cred_handle, 0,
+            sizeof(*d->delegated_cred_handle));
     
     maj_stat = gss_accept_sec_context (&min_stat,
 				       &d->context_hdl,
@@ -179,7 +199,7 @@ gss_adat(void *app_data, void *buf, size_t len)
 				       &output_token,
 				       NULL,
 				       NULL,
-				       NULL);
+                                       &d->delegated_cred_handle);
 
     if(output_token.length) {
 	if(base64_encode(output_token.value, output_token.length, &p) < 0) {
@@ -304,7 +324,8 @@ gss_auth(void *app_data, char *host)
 					&d->context_hdl,
 					target_name,
 					GSS_C_NO_OID,
-					GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG,
+                                        GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG
+                                          | GSS_C_DELEG_FLAG,
 					0,
 					bindings,
 					&input,
@@ -346,7 +367,8 @@ gss_auth(void *app_data, char *host)
 	if (maj_stat & GSS_S_CONTINUE_NEEDED) {
 	    p = strstr(reply_string, "ADAT=");
 	    if(p == NULL){
-		printf("Error: expected ADAT in reply.\n");
+		printf("Error: expected ADAT in reply. got: %s\n",
+		       reply_string);
 		return AUTH_ERROR;
 	    } else {
 		p+=5;

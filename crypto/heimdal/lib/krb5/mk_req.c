@@ -33,7 +33,49 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_req.c,v 1.20 2000/01/16 10:22:42 assar Exp $");
+RCSID("$Id: mk_req.c,v 1.22 2000/11/15 06:50:53 assar Exp $");
+
+krb5_error_code
+krb5_mk_req_exact(krb5_context context,
+		  krb5_auth_context *auth_context,
+		  const krb5_flags ap_req_options,
+		  const krb5_principal server,
+		  krb5_data *in_data,
+		  krb5_ccache ccache,
+		  krb5_data *outbuf)
+{
+    krb5_error_code ret;
+    krb5_creds this_cred, *cred;
+
+    memset(&this_cred, 0, sizeof(this_cred));
+
+    ret = krb5_cc_get_principal(context, ccache, &this_cred.client);
+  
+    if(ret)
+	return ret;
+
+    ret = krb5_copy_principal (context, server, &this_cred.server);
+    if (ret) {
+	krb5_free_creds_contents (context, &this_cred);
+	return ret;
+    }
+
+    this_cred.times.endtime = 0;
+    if (auth_context && *auth_context && (*auth_context)->keytype)
+	this_cred.session.keytype = (*auth_context)->keytype;
+
+    ret = krb5_get_credentials (context, 0, ccache, &this_cred, &cred);
+    krb5_free_creds_contents(context, &this_cred);
+    if (ret)
+	return ret;
+
+    return krb5_mk_req_extended (context,
+				 auth_context,
+				 ap_req_options,
+				 in_data,
+				 cred,
+				 outbuf);
+}
 
 krb5_error_code
 krb5_mk_req(krb5_context context,
@@ -46,29 +88,16 @@ krb5_mk_req(krb5_context context,
 	    krb5_data *outbuf)
 {
     krb5_error_code ret;
-    krb5_creds this_cred, *cred;
     char **realms;
-    krb5_data realm_data;
     char *real_hostname;
-
-    memset(&this_cred, 0, sizeof(this_cred));
-
-    ret = krb5_cc_get_principal(context, ccache, &this_cred.client);
-  
-    if(ret)
-	return ret;
+    krb5_principal server;
 
     ret = krb5_expand_hostname_realms (context, hostname,
 				       &real_hostname, &realms);
-    if (ret) {
-	krb5_free_principal (context, this_cred.client);
+    if (ret)
 	return ret;
-    }
 
-    realm_data.length = strlen(*realms);
-    realm_data.data   = *realms;
-
-    ret = krb5_build_principal (context, &this_cred.server,
+    ret = krb5_build_principal (context, &server,
 				strlen(*realms),
 				*realms,
 				service,
@@ -76,23 +105,10 @@ krb5_mk_req(krb5_context context,
 				NULL);
     free (real_hostname);
     krb5_free_host_realm (context, realms);
-
-    if (ret) {
-	krb5_free_principal (context, this_cred.client);
-	return ret;
-    }
-    this_cred.times.endtime = 0;
-    if (auth_context && *auth_context && (*auth_context)->keytype)
-	this_cred.session.keytype = (*auth_context)->keytype;
-
-    ret = krb5_get_credentials (context, 0, ccache, &this_cred, &cred);
     if (ret)
 	return ret;
-
-    return krb5_mk_req_extended (context,
-				 auth_context,
-				 ap_req_options,
-				 in_data,
-				 cred,
-				 outbuf);
+    ret = krb5_mk_req_exact (context, auth_context, ap_req_options,
+			     server, in_data, ccache, outbuf);
+    krb5_free_principal (context, server);
+    return ret;
 }

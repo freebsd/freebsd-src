@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.30 2000/02/06 05:58:56 assar Exp $");
+RCSID("$Id: rshd.c,v 1.39 2001/01/09 18:44:29 assar Exp $");
 
 enum auth_method auth_method;
 
@@ -62,6 +62,13 @@ static int do_log = 1;
 static int do_newpag = 1;
 static int do_version;
 static int do_help = 0;
+
+#if defined(DCE)
+int dfsk5ok = 0;
+int dfspag = 0;
+int dfsfwd = 0;
+krb5_ticket *user_ticket;
+#endif
 
 static void
 syslog_and_die (const char *m, ...)
@@ -215,7 +222,7 @@ save_krb5_creds (int s,
     }
   
     krb5_cc_initialize(context,ccache,client);
-    ret = krb5_rd_cred(context, auth_context, ccache,&remote_cred);
+    ret = krb5_rd_cred2(context, auth_context, ccache, &remote_cred);
     krb5_data_free (&remote_cred);
     if (ret)
 	return 0;
@@ -356,6 +363,8 @@ recv_krb5_auth (int s, u_char *buf,
 	do_encrypt = 1;
 	memmove (cmd, cmd + 3, strlen(cmd) - 2);
     } else {
+	if(do_encrypt)
+	    fatal (s, "Encryption required");
 	do_encrypt = 0;
     }
 
@@ -381,6 +390,10 @@ recv_krb5_auth (int s, u_char *buf,
 	}
     }	   
 
+#if defined(DCE)
+    user_ticket = ticket;
+#endif
+
     return 0;
 }
 
@@ -392,6 +405,9 @@ loop (int from0, int to0,
     fd_set real_readset;
     int max_fd;
     int count = 2;
+
+    if(from0 >= FD_SETSIZE || from1 >= FD_SETSIZE || from2 >= FD_SETSIZE)
+	errx (1, "fd too large");
 
     FD_ZERO(&real_readset);
     FD_SET(from0, &real_readset);
@@ -521,17 +537,42 @@ is_reserved(u_short port)
  */
 
 static void
-setup_environment (char *env[7], struct passwd *pwd)
+setup_environment (char ***env, const struct passwd *pwd)
 {
-    asprintf (&env[0], "USER=%s",  pwd->pw_name);
-    asprintf (&env[1], "HOME=%s",  pwd->pw_dir);
-    asprintf (&env[2], "SHELL=%s", pwd->pw_shell);
-    asprintf (&env[3], "PATH=%s",  _PATH_DEFPATH);
-    asprintf (&env[4], "SSH_CLIENT=only_to_make_bash_happy");
+    int i, j, path;
+    char **e;
+
+    i = 0;
+    path = 0;
+    *env = NULL;
+
+    i = read_environment(_PATH_ETC_ENVIRONMENT, env);
+    e = *env;
+    for (j = 0; j < i; j++) {
+	if (!strncmp(e[j], "PATH=", 5)) {
+	    path = 1;
+	}
+    }
+
+    e = *env;
+    e = realloc(e, (i + 7) * sizeof(char *));
+
+    asprintf (&e[i++], "USER=%s",  pwd->pw_name);
+    asprintf (&e[i++], "HOME=%s",  pwd->pw_dir);
+    asprintf (&e[i++], "SHELL=%s", pwd->pw_shell);
+    if (! path) {
+	asprintf (&e[i++], "PATH=%s",  _PATH_DEFPATH);
+    }
+    asprintf (&e[i++], "SSH_CLIENT=only_to_make_bash_happy");
+#if defined(DCE)
+    if (getenv("KRB5CCNAME"))
+	asprintf (&e[i++], "KRB5CCNAME=%s",  getenv("KRB5CCNAME"));
+#else
     if (do_unique_tkfile)
-       asprintf (&env[5], "KRB5CCNAME=%s", tkfile);
-       else env[5] = NULL;
-    env[6] = NULL;
+	asprintf (&e[i++], "KRB5CCNAME=%s", tkfile);
+#endif
+    e[i++] = NULL;
+    *env = e;
 }
 
 static void
@@ -545,14 +586,14 @@ doit (int do_kerberos, int check_rhosts)
     struct sockaddr *thataddr = (struct sockaddr *)&thataddr_ss;
     struct sockaddr_storage erraddr_ss;
     struct sockaddr *erraddr = (struct sockaddr *)&erraddr_ss;
-    int addrlen;
+    socklen_t addrlen;
     int port;
     int errsock = -1;
     char client_user[COMMAND_SZ], server_user[USERNAME_SZ];
     char cmd[COMMAND_SZ];
     struct passwd *pwd;
     int s = STDIN_FILENO;
-    char *env[7];
+    char **env;
 
     addrlen = sizeof(thisaddr_ss);
     if (getsockname (s, thisaddr, &addrlen) < 0)
@@ -606,8 +647,10 @@ doit (int do_kerberos, int check_rhosts)
 	    syslog_and_die ("socket: %m");
 	if (connect (errsock,
 		     erraddr,
-		     socket_sockaddr_size (erraddr)) < 0)
-	    syslog_and_die ("connect: %m");
+		     socket_sockaddr_size (erraddr)) < 0) {
+	    syslog (LOG_WARNING, "connect: %m");
+	    close (errsock);
+	}
     }
     
     if(do_kerberos) {
@@ -646,6 +689,10 @@ doit (int do_kerberos, int check_rhosts)
 	    syslog_and_die("recv_bsd_auth failed");
     }
 
+#if defined(DCE) && defined(AIX)
+    esetenv("AUTHSTATE", "DCE", 1);
+#endif
+
     pwd = getpwnam (server_user);
     if (pwd == NULL)
 	fatal (s, "Login incorrect.");
@@ -662,30 +709,15 @@ doit (int do_kerberos, int check_rhosts)
 	long    today;
     
 	sp = getspnam(server_user);
-	today = time(0)/(24L * 60 * 60);
-	if (sp->sp_expire > 0) 
-	    if (today > sp->sp_expire) 
-		fatal(s, "Account has expired.");
+	if (sp != NULL) {
+	    today = time(0)/(24L * 60 * 60);
+	    if (sp->sp_expire > 0) 
+		if (today > sp->sp_expire) 
+		    fatal(s, "Account has expired.");
+	}
     }
 #endif
     
-#ifdef HAVE_SETLOGIN
-    if (setlogin(pwd->pw_name) < 0)
-	syslog(LOG_ERR, "setlogin() failed: %m");
-#endif
-
-#ifdef HAVE_SETPCRED
-    if (setpcred (pwd->pw_name, NULL) == -1)
-	syslog(LOG_ERR, "setpcred() failure: %m");
-#endif /* HAVE_SETPCRED */
-    if (initgroups (pwd->pw_name, pwd->pw_gid) < 0)
-	fatal (s, "Login incorrect.");
-
-    if (setgid(pwd->pw_gid) < 0)
-	fatal (s, "Login incorrect.");
-
-    if (setuid (pwd->pw_uid) < 0)
-	fatal (s, "Login incorrect.");
 
 #ifdef KRB5
     {
@@ -703,7 +735,35 @@ doit (int do_kerberos, int check_rhosts)
 	if (kerberos_status)
 	    krb5_start_session();
     }
+    chown(tkfile + 5, pwd->pw_uid, -1);
+
+#if defined(DCE)
+    if (kerberos_status) {
+	esetenv("KRB5CCNAME", tkfile, 1);
+	dfspag = krb5_dfs_pag(context, kerberos_status, user_ticket->client, server_user);
+    }
 #endif
+
+#endif
+
+#ifdef HAVE_SETLOGIN
+    if (setlogin(pwd->pw_name) < 0)
+	syslog(LOG_ERR, "setlogin() failed: %m");
+#endif
+
+#ifdef HAVE_SETPCRED
+    if (setpcred (pwd->pw_name, NULL) == -1)
+	syslog(LOG_ERR, "setpcred() failure: %m");
+#endif /* HAVE_SETPCRED */
+
+    if (initgroups (pwd->pw_name, pwd->pw_gid) < 0)
+	fatal (s, "Login incorrect.");
+
+    if (setgid(pwd->pw_gid) < 0)
+	fatal (s, "Login incorrect.");
+
+    if (setuid (pwd->pw_uid) < 0)
+	fatal (s, "Login incorrect.");
 
     if (chdir (pwd->pw_dir) < 0)
 	fatal (s, "Remote directory.");
@@ -714,7 +774,7 @@ doit (int do_kerberos, int check_rhosts)
 	close (errsock);
     }
 
-    setup_environment (env, pwd);
+    setup_environment (&env, pwd);
 
     if (do_encrypt) {
 	setup_copier ();
@@ -736,7 +796,7 @@ doit (int do_kerberos, int check_rhosts)
 
 #ifdef KRB5
 	/* XXX */
-       {
+       if (kerberos_status) {
 	   krb5_ccache ccache;
 	   krb5_error_code status;
 
@@ -811,7 +871,13 @@ main(int argc, char **argv)
     }
 
 #ifdef KRB5
-    krb5_init_context (&context);
+    {
+	krb5_error_code ret;
+
+	ret = krb5_init_context (&context);
+	if (ret)
+	    errx (1, "krb5_init_context failed: %d", ret);
+    }	
 #endif
 
     if(port_str) {

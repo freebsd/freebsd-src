@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: release_name.c,v 1.4 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: release_name.c,v 1.5 2000/04/12 09:48:27 assar Exp $");
 
 OM_uint32 gss_release_name
            (OM_uint32 * minor_status,
@@ -43,5 +43,6 @@ OM_uint32 gss_release_name
   gssapi_krb5_init ();
   krb5_free_principal(gssapi_krb5_context,
 		      *input_name);
+  *input_name = GSS_C_NO_NAME;
   return GSS_S_COMPLETE;
 }

@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: get.c,v 1.15 2000/01/02 04:41:01 assar Exp $");
+RCSID("$Id: get.c,v 1.16 2000/12/31 02:51:43 assar Exp $");
 
 int
 kt_get(int argc, char **argv)
@@ -131,13 +131,26 @@ kt_get(int argc, char **argv)
 	if(ret == 0)
 	    created++;
 	else if(ret != KADM5_DUP) {
+	    krb5_warn(context, ret, "kadm5_create_principal(%s)", argv[i]);
 	    krb5_free_principal(context, princ_ent);
 	    continue;
 	}
 	ret = kadm5_randkey_principal(kadm_handle, princ_ent, &keys, &n_keys);
+	if (ret) {
+	    krb5_warn(context, ret, "kadm5_randkey_principal(%s)", argv[i]);
+	    krb5_free_principal(context, princ_ent);
+	    continue;
+	}
 	
 	ret = kadm5_get_principal(kadm_handle, princ_ent, &princ, 
 			      KADM5_PRINCIPAL | KADM5_KVNO | KADM5_ATTRIBUTES);
+	if (ret) {
+	    krb5_warn(context, ret, "kadm5_get_principal(%s)", argv[i]);
+	    for (j = 0; j < n_keys; j++)
+		krb5_free_keyblock_contents(context, &keys[j]);
+	    krb5_free_principal(context, princ_ent);
+	    continue;
+	}
 	princ.attributes &= (~KRB5_KDB_DISALLOW_ALL_TIX);
 	mask = KADM5_ATTRIBUTES;
 	if(created) {
@@ -145,6 +158,13 @@ kt_get(int argc, char **argv)
 	    mask |= KADM5_KVNO;
 	}
 	ret = kadm5_modify_principal(kadm_handle, &princ, mask);
+	if (ret) {
+	    krb5_warn(context, ret, "kadm5_modify_principal(%s)", argv[i]);
+	    for (j = 0; j < n_keys; j++)
+		krb5_free_keyblock_contents(context, &keys[j]);
+	    krb5_free_principal(context, princ_ent);
+	    continue;
+	}
 	for(j = 0; j < n_keys; j++) {
 	    entry.principal = princ_ent;
 	    entry.vno = princ.kvno;

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.7 2000/01/02 04:00:22 assar Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.9 2000/07/02 16:14:16 assar Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 
@@ -221,7 +221,7 @@ akf_next_entry(krb5_context context,
 	goto out;
     }
 
-    entry->vno = (int8_t) kvno;
+    entry->vno = kvno;
 
     entry->keyblock.keytype         = ETYPE_DES_CBC_MD5;
     entry->keyblock.keyvalue.length = 8;
@@ -235,6 +235,8 @@ akf_next_entry(krb5_context context,
     ret = cursor->sp->fetch(cursor->sp, entry->keyblock.keyvalue.data, 8);
     if(ret != 8)
 	ret = (ret < 0) ? errno : KRB5_KT_END;
+    else
+	ret = 0;
 
     entry->timestamp = time(NULL);
 
@@ -260,7 +262,7 @@ akf_add_entry(krb5_context context,
 {
     struct akf_data *d = id->data;
     int fd, created = 0;
-    int32_t kvno;
+    krb5_error_code ret;
 
     fd = open (d->filename, O_RDWR | O_BINARY);
     if (fd < 0) {
@@ -274,29 +276,68 @@ akf_add_entry(krb5_context context,
     if (entry->keyblock.keyvalue.length == 8
 	&& entry->keyblock.keytype == ETYPE_DES_CBC_MD5) {
 
-	int32_t len = 0;
+	int32_t len;
+	krb5_storage *sp;
 
-	if (!created) {
-	    if (lseek (fd, 0, SEEK_SET))
-		return errno;
-	    
-	    if (read (fd, &len, sizeof(len)) != sizeof(len))
-		return errno;
+	sp = krb5_storage_from_fd(fd);
+	if(sp == NULL) {
+	    close(fd);
+	    return ENOMEM;
 	}
-	len += 1;
-
-	if (lseek (fd, 0, SEEK_SET))
+	if (created)
+	    len = 0;
+	else {
+	    if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
+		krb5_storage_free(sp);
+		close(fd);
+		return errno;
+	    }
+	    
+	    ret = krb5_ret_int32(sp, &len);
+	    if(ret) {
+		krb5_storage_free(sp);
+		close(fd);
+		return ret;
+	    }
+	}
+	len++;
+	
+	if((*sp->seek)(sp, 0, SEEK_SET) < 0) {
+	    krb5_storage_free(sp);
+	    close(fd);
 	    return errno;
+	}
+	
+	ret = krb5_store_int32(sp, len);
+	if(ret) {
+	    krb5_storage_free(sp);
+	    close(fd);
+	    return ret;
+	}
+		
 
-	if (write (fd, &len, sizeof(len)) != sizeof(len))
+	if((*sp->seek)(sp, (len - 1) * (8 + 4), SEEK_CUR) < 0) {
+	    krb5_storage_free(sp);
+	    close(fd);
 	    return errno;
-
-	if (lseek (fd, 4 + (len-1) * (8+4), SEEK_SET))
-	    return errno;
-
-	kvno = entry->vno;
-	write(fd, &kvno, sizeof(kvno));
-	write(fd, entry->keyblock.keyvalue.data, 8);
+	}
+	
+	ret = krb5_store_int32(sp, entry->vno);
+	if(ret) {
+	    krb5_storage_free(sp);
+	    close(fd);
+	    return ret;
+	}
+	ret = sp->store(sp, entry->keyblock.keyvalue.data, 
+			entry->keyblock.keyvalue.length);
+	if(ret != entry->keyblock.keyvalue.length) {
+	    krb5_storage_free(sp);
+	    close(fd);
+	    if(ret < 0)
+		return errno;
+	    return ENOTTY;
+	}
+	krb5_storage_free(sp);
     }
     close (fd);
     return 0;

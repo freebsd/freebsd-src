@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997 Kungliga Tekniska Högskolan
-.\" $Id: krb5_build_principal.3,v 1.1 1997/08/14 00:03:16 joda Exp $
+.\" $Id: krb5_build_principal.3,v 1.2 2001/01/26 22:43:21 assar Exp $
 .Dd August 8, 1997
 .Dt KRB5_BUILD_PRINCIPAL 3
 .Os HEIMDAL
@@ -10,28 +10,19 @@
 .Nm krb5_build_principal_va_ext ,
 .Nm krb5_make_principal
 .Nd Principal creation functions
-
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
 .Ft krb5_error_code
 .Fn krb5_build_principal "krb5_context context" "krb5_principal *principal" "int realm_len" "krb5_const_realm realm" "..."
-
 .Ft krb5_error_code
 .Fn krb5_build_principal_ext "krb5_context context" "krb5_principal *principal" "int realm_len" "krb5_const_realm realm" "..."
-
 .Ft krb5_error_code
 .Fn krb5_build_principal_va "krb5_context context" "krb5_principal *principal" "int realm_len" "krb5_const_realm realm" "va_list ap"
-
 .Ft krb5_error_code
 .Fn krb5_build_principal_va_ext "krb5_context context" "krb5_principal *principal" "int realm_len" "krb5_const_realm realm" "va_list ap"
-
 .Ft krb5_error_code
 .Fn krb5_make_principal "krb5_context context" "krb5_principal *principal" "krb5_const_realm realm" "..."
-
-
 .Sh DESCRIPTION
-
 These functions create a Kerberos 5 principal from a realm and a list
 of components.
 All of these functions return an allocated principal in the 
@@ -65,7 +56,6 @@ is a wrapper around
 If the realm is
 .Dv NULL ,
 the default realm will be used.
-
 .Sh BUGS
 You can not have a NUL in a component. Until someone can give a good
 example of where it would be a good idea to have NUL's in a component,

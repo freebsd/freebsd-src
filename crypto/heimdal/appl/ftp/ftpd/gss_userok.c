@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 #include <gssapi.h>
 #include <krb5.h>
 
-RCSID("$Id: gss_userok.c,v 1.2 1999/12/02 16:58:31 joda Exp $");
+RCSID("$Id: gss_userok.c,v 1.7 2001/01/30 00:36:58 assar Exp $");
 
 /* XXX a bit too much of krb5 dependency here... 
    What is the correct way to do this? 
@@ -47,6 +47,7 @@ extern krb5_context gssapi_krb5_context;
 struct gss_data {
     gss_ctx_id_t context_hdl;
     char *client_name;
+    gss_cred_id_t delegated_cred_handle;
 };
 
 int gss_userok(void*, char*); /* to keep gcc happy */
@@ -58,12 +59,67 @@ gss_userok(void *app_data, char *username)
     if(gssapi_krb5_context) {
 	krb5_principal client;
 	krb5_error_code ret;
+        
 	ret = krb5_parse_name(gssapi_krb5_context, data->client_name, &client);
 	if(ret)
 	    return 1;
 	ret = krb5_kuserok(gssapi_krb5_context, client, username);
+        if (!ret) {
+           krb5_free_principal(gssapi_krb5_context, client);
+           return 1;
+        }
+        
+        ret = 0;
+        
+        /* more of krb-depend stuff :-( */
+	/* gss_add_cred() ? */
+        if (data->delegated_cred_handle && 
+            data->delegated_cred_handle->ccache ) {
+            
+           krb5_ccache ccache = NULL; 
+           char* ticketfile;
+           struct passwd *pw;
+	   OM_uint32 minor_status;
+           
+           pw = getpwnam(username);
+           
+	   if (pw == NULL) {
+	       ret = 1;
+	       goto fail;
+	   }
+
+           asprintf (&ticketfile, "%s%u", KRB5_DEFAULT_CCROOT, pw->pw_uid);
+        
+           ret = krb5_cc_resolve(gssapi_krb5_context, ticketfile, &ccache);
+           if (ret)
+              goto fail;
+           
+           ret = gss_krb5_copy_ccache(&minor_status,
+				      data->delegated_cred_handle,
+				      ccache);
+           if (ret)
+              goto fail;
+           
+           chown (ticketfile+5, pw->pw_uid, pw->pw_gid);
+           
+#ifdef KRB4
+           if (k_hasafs()) {
+              krb5_afslog(gssapi_krb5_context, ccache, 0, 0);
+           }
+#endif
+           esetenv ("KRB5CCNAME", ticketfile, 1);
+           
+fail:
+           if (ccache)
+              krb5_cc_close(gssapi_krb5_context, ccache); 
+           krb5_cc_destroy(gssapi_krb5_context, 
+                           data->delegated_cred_handle->ccache);
+           data->delegated_cred_handle->ccache = NULL;
+           free(ticketfile);
+        }
+           
 	krb5_free_principal(gssapi_krb5_context, client);
-	return !ret;
+        return ret;
     }
     return 1;
 }

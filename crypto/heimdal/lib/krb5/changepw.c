@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.20 2000/02/07 13:40:18 joda Exp $");
+RCSID("$Id: changepw.c,v 1.30 2000/12/10 23:10:10 assar Exp $");
 
 static krb5_error_code
 get_kdc_address (krb5_context context,
@@ -52,10 +52,12 @@ get_kdc_address (krb5_context context,
 	return ret;
 
     port = ntohs(krb5_getportbyname (context, "kpasswd", "udp", KPASSWD_PORT));
-    error = roken_getaddrinfo_hostspec(*hostlist, port, ai);
+    error = roken_getaddrinfo_hostspec2(*hostlist, SOCK_DGRAM, port, ai);
 
     krb5_free_krbhst (context, hostlist);
-    return error;
+    if(error)
+	return krb5_eai_to_heim_errno(error);
+    return 0;
 }
 
 static krb5_error_code
@@ -138,7 +140,12 @@ out2:
 
 static void
 str2data (krb5_data *d,
-	  char *fmt,
+	  const char *fmt,
+	  ...) __attribute__ ((format (printf, 2, 3)));
+
+static void
+str2data (krb5_data *d,
+	  const char *fmt,
 	  ...)
 {
     va_list args;
@@ -261,6 +268,7 @@ krb5_change_password (krb5_context	context,
     int sock;
     int i;
     struct addrinfo *ai, *a;
+    int done = 0;
 
     ret = krb5_auth_con_init (context, &auth_context);
     if (ret)
@@ -270,58 +278,71 @@ krb5_change_password (krb5_context	context,
     if (ret)
 	goto out;
 
-    krb5_auth_con_setflags (context, auth_context,
-			    KRB5_AUTH_CONTEXT_DO_SEQUENCE);
+    for (a = ai; !done && a != NULL; a = a->ai_next) {
+	int replied = 0;
 
-    for (a = ai; a != NULL; a = a->ai_next) {
 	sock = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
 	if (sock < 0)
 	    continue;
 
-	for (i = 0; i < 5; ++i) {
+	for (i = 0; !done && i < 5; ++i) {
 	    fd_set fdset;
 	    struct timeval tv;
 
-	    ret = send_request (context,
-				&auth_context,
-				creds,
-				sock,
-				a->ai_addr,
-				a->ai_addrlen,
-				newpw);
-	    if (ret)
+	    if (!replied) {
+		replied = 0;
+		ret = send_request (context,
+				    &auth_context,
+				    creds,
+				    sock,
+				    a->ai_addr,
+				    a->ai_addrlen,
+				    newpw);
+		if (ret) {
+		    close(sock);
+		    goto out;
+		}
+	    }
+	    
+	    if (sock >= FD_SETSIZE) {
+		ret = ERANGE;
+		close (sock);
 		goto out;
+	    }
 
 	    FD_ZERO(&fdset);
 	    FD_SET(sock, &fdset);
 	    tv.tv_usec = 0;
-	    tv.tv_sec  = 1 << i;
+	    tv.tv_sec  = 1 + (1 << i);
 
 	    ret = select (sock + 1, &fdset, NULL, NULL, &tv);
-	    if (ret < 0 && errno != EINTR)
+	    if (ret < 0 && errno != EINTR) {
+		close(sock);
 		goto out;
-	    if (ret == 1)
-		break;
+	    }
+	    if (ret == 1) {
+		ret = process_reply (context,
+				     auth_context,
+				     sock,
+				     result_code,
+				     result_code_string,
+				     result_string);
+		if (ret == 0)
+		    done = 1;
+		else if (i > 0 && ret == KRB5KRB_AP_ERR_MUT_FAIL)
+		    replied = 1;
+	    } else {
+		ret = KRB5_KDC_UNREACH;
+	    }
 	}
-	if (i == 5) {
-	    ret = KRB5_KDC_UNREACH;
-	    close (sock);
-	    continue;
-	}
-
-	ret = process_reply (context,
-			     auth_context,
-			     sock,
-			     result_code,
-			     result_code_string,
-			     result_string);
 	close (sock);
-	if (ret == 0)
-	    break;
     }
     freeaddrinfo (ai);
 
 out:
     krb5_auth_con_free (context, auth_context);
-    return ret;
+    if (done)
+	return 0;
+    else
+	return ret;
 }

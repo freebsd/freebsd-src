@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -39,50 +39,9 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.33 1999/12/02 17:04:55 joda Exp $");
+RCSID("$Id: login.c,v 1.46 2001/01/29 02:18:03 assar Exp $");
 
-/*
- * the environment we will send to execle and the shell.
- */
-
-static char **env;
-static int num_env;
-
-static void
-extend_env(char *str)
-{
-    env = realloc(env, (num_env + 1) * sizeof(*env));
-    if(env == NULL)
-	errx(1, "Out of memory!");
-    env[num_env++] = str;
-}
-
-static void
-add_env(const char *var, const char *value)
-{
-    int i;
-    char *str;
-    asprintf(&str, "%s=%s", var, value);
-    if(str == NULL)
-	errx(1, "Out of memory!");
-    for(i = 0; i < num_env; i++)
-	if(strncmp(env[i], var, strlen(var)) == 0 && 
-	   env[i][strlen(var)] == '='){
-	    free(env[i]);
-	    env[i] = str;
-	    return;
-	}
-    
-    extend_env(str);
-}
-
-static void
-copy_env(void)
-{
-    char **p;
-    for(p = environ; *p; p++)
-	extend_env(*p);
-}
+static int login_timeout = 60;
 
 static int
 start_login_process(void)
@@ -118,8 +77,11 @@ start_logout_process(void)
 	argv0 = prog;
 
     pid = fork();
-    if(pid == 0)
+    if(pid == 0) {
+	/* avoid getting signals sent to the shell */
+	setpgid(0, getpid());
 	return 0;
+    }
     if(pid == -1)
 	err(1, "fork");
     /* wait for the real login process to exit */
@@ -167,7 +129,18 @@ exec_shell(const char *shell, int fallback)
     err(1, "%s", shell);
 }
 
-static enum { AUTH_KRB4, AUTH_KRB5 } auth;
+static enum { NONE = 0, AUTH_KRB4 = 1, AUTH_KRB5 = 2, AUTH_OTP = 3 } auth;
+
+#ifdef OTP
+static OtpContext otp_ctx;
+
+static int
+otp_verify(struct passwd *pwd, const char *password)
+{
+   return (otp_verify_user (&otp_ctx, password));
+}
+#endif /* OTP */
+
 
 #ifdef KRB5
 static krb5_context context;
@@ -179,19 +152,12 @@ krb5_verify(struct passwd *pwd, const char *password)
     krb5_error_code ret;
     krb5_principal princ;
 
-    ret = krb5_init_context(&context);
+    ret = krb5_parse_name(context, pwd->pw_name, &princ);
     if(ret)
 	return 1;
-	    
-    ret = krb5_parse_name(context, pwd->pw_name, &princ);
-    if(ret){
-	krb5_free_context(context);
-	return 1;
-    }
     ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &id);
-    if(ret){
+    if(ret) {
 	krb5_free_principal(context, princ);
-	krb5_free_context(context);
 	return 1;
     }
     ret = krb5_verify_user_lrealm(context,
@@ -201,10 +167,53 @@ krb5_verify(struct passwd *pwd, const char *password)
 				  1,
 				  NULL);
     krb5_free_principal(context, princ);
-    if (ret)
-	krb5_free_context (context);
     return ret;
 }
+
+#ifdef KRB4
+static krb5_error_code
+krb5_to4 (krb5_ccache id)
+{
+    if (krb5_config_get_bool(context, NULL,
+			     "libdefaults",
+			     "krb4_get_tickets",
+			     NULL)) {
+        CREDENTIALS c;
+        krb5_creds mcred, cred;
+        char krb4tkfile[MAXPATHLEN];
+	krb5_error_code ret;
+	krb5_principal princ;
+
+	ret = krb5_cc_get_principal (context, id, &princ);
+	if (ret)
+	    return ret;
+
+	ret = krb5_make_principal(context, &mcred.server,
+				  princ->realm,
+				  "krbtgt",
+				  princ->realm,
+				  NULL);
+	krb5_free_principal (context, princ);
+	if (ret)
+	    return ret;
+
+	ret = krb5_cc_retrieve_cred(context, id, 0, &mcred, &cred);
+	if(ret == 0) {
+	    ret = krb524_convert_creds_kdc(context, id, &cred, &c);
+	    if(ret == 0) {
+		snprintf(krb4tkfile,sizeof(krb4tkfile),"%s%d",TKT_ROOT,
+			 getuid());
+		krb_set_tkt_string(krb4tkfile);
+		tf_setup(&c, c.pname, c.pinst);
+	    }
+	    memset(&c, 0, sizeof(c));
+	    krb5_free_creds_contents(context, &cred);
+	}
+	krb5_free_principal(context, mcred.server);
+    }
+    return 0;
+}
+#endif /* KRB4 */
 
 static int
 krb5_start_session (const struct passwd *pwd)
@@ -224,35 +233,7 @@ krb5_start_session (const struct passwd *pwd)
 	return ret;
     }
 #ifdef KRB4
-    if (krb5_config_get_bool(context, NULL,
-			     "libdefaults",
-			     "krb4_get_tickets",
-			     NULL)) {
-        CREDENTIALS c;
-        krb5_creds mcred, cred;
-        krb5_realm realm;
-        char krb4tkfile[MAXPATHLEN];
-
-        krb5_get_default_realm(context, &realm);
-	krb5_make_principal(context, &mcred.server, realm,
-			    "krbtgt",
-			    realm,
-			    NULL);
-	free (realm);
-	ret = krb5_cc_retrieve_cred(context, id2, 0, &mcred, &cred);
-	if(ret == 0) {
-	    ret = krb524_convert_creds_kdc(context, id2, &cred, &c);
-	    if(ret == 0) {
-		snprintf(krb4tkfile,sizeof(krb4tkfile),"%s%d",TKT_ROOT,
-			 getuid());
-		krb_set_tkt_string(krb4tkfile);
-		tf_setup(&c, c.pname, c.pinst);
-	    }
-	    memset(&c, 0, sizeof(c));
-	    krb5_free_creds_contents(context, &cred);
-	}
-	krb5_free_principal(context, mcred.server);
-    }
+    krb5_to4 (id2);
 #endif
     krb5_cc_close(context, id2);
     krb5_cc_destroy(context, id);
@@ -279,9 +260,6 @@ krb5_get_afs_tokens (const struct passwd *pwd)
     if (!k_hasafs ())
 	return;
 
-    ret = krb5_init_context(&context);
-    if(ret)
-	return;
     ret = krb5_cc_default(context, &id2);
  
     if (ret == 0) {
@@ -299,7 +277,6 @@ krb5_get_afs_tokens (const struct passwd *pwd)
 			      pwd->pw_uid, pwd->pw_dir);
 	krb5_cc_close (context, id2);
     }
-    krb5_free_context (context);
 }
 
 #endif /* KRB4 */
@@ -365,14 +342,17 @@ krb4_get_afs_tokens (const struct passwd *pwd)
 
 static int f_flag;
 static int p_flag;
+#if 0
 static int r_flag;
+#endif
 static int version_flag;
 static int help_flag;
 static char *remote_host;
+static char *auth_level = NULL;
 
 struct getargs args[] = {
+    { NULL, 'a', arg_string,    &auth_level,    "authentication mode" },
 #if 0
-    { NULL, 'a' },
     { NULL, 'd' },
 #endif
     { NULL, 'f', arg_flag,	&f_flag,	"pre-authenticated" },
@@ -450,7 +430,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
     else
 	tty_gid = pwd->pw_gid;
 
-    if (chown (ttyn, pwd->pw_uid, pwd->pw_gid) < 0) {
+    if (chown (ttyn, pwd->pw_uid, tty_gid) < 0) {
 	warn("chown %s", ttyn);
 	if (rootlogin == 0)
 	    exit (1);
@@ -481,7 +461,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 	if(rootlogin == 0)
 	    exit(1);
     }
-    if(setuid(pwd->pw_uid)){
+    if(setuid(pwd->pw_uid) || (pwd->pw_uid != 0 && setuid(0) == 0)) {
 	warn("setuid(%u)", (unsigned)pwd->pw_uid);
 	if(rootlogin == 0)
 	    exit(1);
@@ -560,17 +540,44 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 #ifdef KRB5
     if (auth == AUTH_KRB5) {
 	krb5_start_session (pwd);
-	krb5_finish ();
     }
 #ifdef KRB4
+    else if (auth == 0) {
+	krb5_error_code ret;
+	krb5_ccache id;
+
+	ret = krb5_cc_default (context, &id);
+	if (ret == 0) {
+	    krb5_to4 (id);
+	    krb5_cc_close (context, id);
+	}
+    }
+
     krb5_get_afs_tokens (pwd);
 #endif /* KRB4 */
+    krb5_finish ();
 #endif /* KRB5 */
 
 #ifdef KRB4
     krb4_get_afs_tokens (pwd);
 #endif /* KRB4 */
 
+    add_env("PATH", _PATH_DEFPATH);
+
+    {
+	const char *str = login_conf_get_string("environment");
+	char buf[MAXPATHLEN];
+
+	if(str == NULL) {
+	    login_read_env(_PATH_ETC_ENVIRONMENT);
+	} else {
+	    while(strsep_copy(&str, ",", buf, sizeof(buf)) != -1) {
+		if(buf[0] == '\0')
+		    continue;
+		login_read_env(buf);
+	    }
+	}
+    }
     add_env("HOME", home_dir);
     add_env("USER", pwd->pw_name);
     add_env("LOGNAME", pwd->pw_name);
@@ -604,6 +611,12 @@ check_password(struct passwd *pwd, const char *password)
 	return 0;
     }
 #endif
+#ifdef OTP
+    if (otp_verify (pwd, password) == 0) {
+       auth = AUTH_OTP;
+       return 0;
+    }
+#endif
     return 1;
 }
 
@@ -612,6 +625,17 @@ usage(int status)
 {
     arg_printusage(args, nargs, NULL, "[username]");
     exit(status);
+}
+
+static RETSIGTYPE
+sig_handler(int sig)
+{
+    if (sig == SIGALRM)
+         fprintf(stderr, "Login timed out after %d seconds\n",
+                login_timeout);
+      else
+         fprintf(stderr, "Login received signal, exiting\n");
+    exit(0);
 }
 
 int
@@ -624,8 +648,19 @@ main(int argc, char **argv)
     int optind = 0;
 
     int ask = 1;
+    struct sigaction sa;
     
     set_progname(argv[0]);
+
+#ifdef KRB5
+    {
+	krb5_error_code ret;
+
+	ret = krb5_init_context(&context);
+	if (ret)
+	    errx (1, "krb5_init_context failed: %d", ret);
+    }
+#endif
 
     openlog("login", LOG_ODELAY, LOG_AUTH);
 
@@ -664,21 +699,41 @@ main(int argc, char **argv)
 	    ask = 0;
 	}
     }
+
+#if defined(DCE) && defined(AIX)
+    esetenv("AUTHSTATE", "DCE", 1);
+#endif
+
     /* XXX should we care about environment on the command line? */
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sig_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGALRM, &sa, NULL);
+    alarm(login_timeout);
+
     for(try = 0; try < max_tries; try++){
 	struct passwd *pwd;
 	char password[128];
 	int ret;
 	char ttname[32];
 	char *tty, *ttyn;
+        char prompt[128];
+#ifdef OTP
+        char otp_str[256];
+#endif
 
 	if(ask){
-	    f_flag = r_flag = 0;
+	    f_flag = 0;
+#if 0
+	    r_flag = 0;
+#endif
 	    ret = read_string("login: ", username, sizeof(username), 1);
 	    if(ret == -3)
 		exit(0);
 	    if(ret == -2)
-		continue;
+		sig_handler(0); /* exit */
 	}
         pwd = k_getpwnam(username);
 #ifdef ALLOW_NULL_PASSWORD
@@ -687,11 +742,28 @@ main(int argc, char **argv)
         }
         else
 #endif
-	if(f_flag == 0) {
-	    ret = read_string("Password: ", password, sizeof(password), 0);
-	    if(ret == -3 || ret == -2)
-		continue;
-	}
+
+        {
+#ifdef OTP
+           if(auth_level && strcmp(auth_level, "otp") == 0 &&
+                 otp_challenge(&otp_ctx, username,
+                            otp_str, sizeof(otp_str)) == 0)
+                 snprintf (prompt, sizeof(prompt), "%s's %s Password: ",
+                            username, otp_str);
+            else
+#endif
+                 strncpy(prompt, "Password: ", sizeof(prompt));
+
+	    if (f_flag == 0) {
+	       ret = read_string(prompt, password, sizeof(password), 0);
+               if (ret == -3) {
+                  ask = 1;
+                  continue;
+               }
+               if (ret == -2)
+                  sig_handler(0);
+            }
+         }
 	
 	if(pwd == NULL){
 	    fprintf(stderr, "Login incorrect.\n");
@@ -724,6 +796,7 @@ main(int argc, char **argv)
 		       pwd->pw_name, tty);
 	    exit (1);
 	}
+        alarm(0);
 	do_login(pwd, tty, ttyn);
     }
     exit(1);

@@ -1,10 +1,8 @@
--- $Id: hdb.asn1,v 1.7 1999/05/03 16:48:52 joda Exp $
+-- $Id: hdb.asn1,v 1.8 2000/06/19 15:22:22 joda Exp $
 HDB DEFINITIONS ::=
 BEGIN
 
-EncryptionKey EXTERNAL
-KerberosTime EXTERNAL
-Principal EXTERNAL
+IMPORTS EncryptionKey, KerberosTime, Principal FROM krb5;
 
 HDB_DB_FORMAT INTEGER ::= 2	-- format of database, 
 				-- update when making changes

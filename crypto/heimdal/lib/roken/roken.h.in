@@ -1,6 +1,6 @@
 /* -*- C -*- */
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -32,13 +32,18 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.135 2000/02/14 02:24:20 assar Exp $ */
+/* $Id: roken.h.in,v 1.148 2001/01/27 05:28:09 assar Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+
+#ifdef _AIX
+struct ether_addr;
+struct sockaddr_dl;
+#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -109,9 +114,6 @@
 #include <paths.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef ROKEN_LIB_FUNCTION
 #if defined(__BORLANDC__)
@@ -124,6 +126,8 @@ extern "C" {
 #endif
 
 #include <roken-common.h>
+
+ROKEN_CPP_START
 
 #if !defined(HAVE_SETSID) && defined(HAVE__SETSID)
 #define setsid _setsid
@@ -194,6 +198,10 @@ size_t strnlen(const char*, size_t);
 
 #if !defined(HAVE_STRSEP) || defined(NEED_STRSEP_PROTO)
 char *strsep(char**, const char*);
+#endif
+
+#if !defined(HAVE_STRSEP_COPY) || defined(NEED_STRSEP_COPY_PROTO)
+ssize_t strsep_copy(const char**, const char*, char*, size_t);
 #endif
 
 #ifndef HAVE_STRCASECMP
@@ -340,6 +348,10 @@ int
 mkstemp(char *template);
 #endif
 
+#ifndef HAVE_PIDFILE
+void pidfile (const char*);
+#endif
+
 #ifndef HAVE_FLOCK
 #ifndef LOCK_SH
 #define LOCK_SH   1		/* Shared lock */
@@ -450,7 +462,7 @@ typedef unsigned short sa_family_t;
 
 typedef unsigned char roken_sa_family_t;
 
-#define _SS_PAD1SIZE   (_SS_ALIGNSIZE - sizeof (roken_sa_family_t) - sizeof(unsigned char))
+#define _SS_PAD1SIZE   ((2 * _SS_ALIGNSIZE - sizeof (roken_sa_family_t) - sizeof(unsigned char)) % _SS_ALIGNSIZE)
 #define _SS_PAD2SIZE   (_SS_MAXSIZE - (sizeof (roken_sa_family_t) + sizeof(unsigned char) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
 
 struct sockaddr_storage {
@@ -464,7 +476,7 @@ struct sockaddr_storage {
 
 typedef unsigned short roken_sa_family_t;
 
-#define _SS_PAD1SIZE   (_SS_ALIGNSIZE - sizeof (roken_sa_family_t))
+#define _SS_PAD1SIZE   ((2 * _SS_ALIGNSIZE - sizeof (roken_sa_family_t)) % _SS_ALIGNSIZE)
 #define _SS_PAD2SIZE   (_SS_MAXSIZE - (sizeof (roken_sa_family_t) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
 
 struct sockaddr_storage {
@@ -521,8 +533,8 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
 		     char *serv, size_t servlen,
 		     int flags);
 
-int
-roken_getaddrinfo_hostspec(const char *, int, struct addrinfo **);
+int roken_getaddrinfo_hostspec(const char *, int, struct addrinfo **); 
+int roken_getaddrinfo_hostspec2(const char *, int, int, struct addrinfo **);
 
 #ifndef HAVE_STRFTIME
 size_t
@@ -569,8 +581,13 @@ struct hostent* roken_gethostbyaddr(const void*, size_t, int);
 #define roken_openlog(a,b,c) openlog((char *)a,b,c)
 #endif
 
-void set_progname(char *argv0);
-
-#ifdef __cplusplus
-}
+#ifdef GETSOCKNAME_PROTO_COMPATIBLE
+#define roken_getsockname(a,b,c) getsockname(a,b,c)
+#else
+#define roken_getsockname(a,b,c) getsockname(a, b, (void*)c)
 #endif
+
+void set_progname(char *argv0);
+const char *get_progname(void);
+
+ROKEN_CPP_END

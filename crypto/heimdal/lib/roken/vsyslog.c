@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: vsyslog.c,v 1.3 1999/12/02 16:58:54 joda Exp $");
+RCSID("$Id: vsyslog.c,v 1.6 2000/05/22 22:09:25 assar Exp $");
 #endif
 
 #ifndef HAVE_VSYSLOG
@@ -44,14 +44,72 @@ RCSID("$Id: vsyslog.c,v 1.3 1999/12/02 16:58:54 joda Exp $");
 
 #include "roken.h"
 
+/*
+ * the theory behind this is that we might be trying to call vsyslog
+ * when there's no memory left, and we should try to be as useful as
+ * possible.  And the format string should say something about what's
+ * failing.
+ */
+
+static void
+simple_vsyslog(int pri, const char *fmt, va_list ap)
+{
+    syslog (pri, "%s", fmt);
+}
+
+/*
+ * do like syslog but with a `va_list'
+ */
+
 void
 vsyslog(int pri, const char *fmt, va_list ap)
 {
-    char *p;
+    char *fmt2;
+    const char *p;
+    char *p2;
+    int saved_errno = errno;
+    int fmt_len  = strlen (fmt);
+    int fmt2_len = fmt_len;
+    char *buf;
 
-    vasprintf (&p, fmt, ap);
-    syslog (pri, "%s", p);
-    free (p);
+    fmt2 = malloc (fmt_len + 1);
+    if (fmt2 == NULL) {
+	simple_vsyslog (pri, fmt, ap);
+	return;
+    }
+
+    for (p = fmt, p2 = fmt2; *p != '\0'; ++p) {
+	if (p[0] == '%' && p[1] == 'm') {
+	    const char *e = strerror (saved_errno);
+	    int e_len = strlen (e);
+	    char *tmp;
+	    int pos;
+
+	    pos = p2 - fmt2;
+	    fmt2_len += e_len - 2;
+	    tmp = realloc (fmt2, fmt2_len + 1);
+	    if (tmp == NULL) {
+		free (fmt2);
+		simple_vsyslog (pri, fmt, ap);
+		return;
+	    }
+	    fmt2 = tmp;
+	    p2   = fmt2 + pos;
+	    memmove (p2, e, e_len);
+	    p2 += e_len;
+	    ++p;
+	} else
+	    *p2++ = *p;
+    }
+    *p2 = '\0';
+
+    vasprintf (&buf, fmt2, ap);
+    free (fmt2);
+    if (buf == NULL) {
+	simple_vsyslog (pri, fmt, ap);
+	return;
+    }
+    syslog (pri, "%s", buf);
+    free (buf);
 }
-
 #endif

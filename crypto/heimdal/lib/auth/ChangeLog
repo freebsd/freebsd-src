@@ -1,3 +1,30 @@
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* sia/Makefile.am (libsia_krb5.so): actually run ld in the case
+	shared library case
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* sia/sia.c (siad_ses_init): handle krb5_init_context failure
+	consistently
+	* afskauthlib/verify.c (verify_krb5): handle krb5_init_context
+	failure consistently
+
+2000-11-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* afskauthlib/Makefile.am: use libtool
+
+	* afskauthlib/Makefile.am: work with krb4 only
+
+2000-07-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* sia/Makefile.am: don't compress library, since 5.0 seems to have
+	a problem with this
+
+2000-07-02  Assar Westerlund  <assar@sics.se>
+
+	* afskauthlib/verify.c: fixes for pag setting
+
 1999-12-30  Assar Westerlund  <assar@sics.se>
 
 	* sia/Makefile.am: try to link with shared libraries if we don't
@@ -28,6 +55,10 @@
 
 	* afskauthlib/verify.c (verify_krb5): remove krb5_kuserok.  use
  	krb5_verify_user_lrealm
+
+1999-08-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pam/Makefile.in: link with res_search/dn_expand libraries
 
 1999-08-11  Johan Danielsson  <joda@pdc.kth.se>
 

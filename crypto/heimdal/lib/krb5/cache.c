@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: cache.c,v 1.44 1999/12/02 17:05:08 joda Exp $");
+RCSID("$Id: cache.c,v 1.45 2000/12/05 09:18:29 joda Exp $");
 
 /*
  * Add a new ccache type with operations `ops', overwriting any
@@ -356,7 +356,9 @@ krb5_cc_remove_cred(krb5_context context,
 		    krb5_flags which,
 		    krb5_creds *cred)
 {
-    return id->ops->remove_cred(context, id, which, cred);
+    if(id->ops->remove_cred == NULL)
+	return EACCES; /* XXX */
+    return (*id->ops->remove_cred)(context, id, which, cred);
 }
 
 /*

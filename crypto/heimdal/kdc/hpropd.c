@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hpropd.c,v 1.22 2000/01/06 21:39:24 assar Exp $");
+RCSID("$Id: hpropd.c,v 1.31 2001/01/25 12:37:39 assar Exp $");
 
 #ifdef KRB4
 static des_cblock mkey4;
@@ -127,10 +127,10 @@ dump_krb4(krb5_context context, hdb_entry *ent, int fd)
 	free(p);
     }
  
-    if (ent->pw_end == NULL)
-	strcat(buf, time2str(60*60*24*365*50)); /* passwd will never expire */
+    if (ent->valid_end == NULL)
+	strcat(buf, time2str(60*60*24*365*50)); /* no expiration */
     else
-	strcat(buf, time2str(*ent->pw_end));
+	strcat(buf, time2str(*ent->valid_end));
     strcat(buf, " ");
 
     if (ent->modified_by == NULL) 
@@ -168,6 +168,7 @@ static int from_stdin;
 #ifdef KRB4
 static int v4dump;
 #endif
+static char *ktname = NULL;
 
 struct getargs args[] = {
     { "database", 'd', arg_string, &database, "database", "file" },
@@ -175,6 +176,7 @@ struct getargs args[] = {
     { "print",	    0, arg_flag, &print_dump, "print dump to stdout" },
     { "inetd",	   'i',	arg_negative_flag,	&inetd_flag,
       "Not started from inetd" },
+    { "keytab",   'k',	arg_string, &ktname,	"keytab to use for authentication", "keytab" },
 #ifdef KRB4
     { "v4dump",       '4',  arg_flag, &v4dump, "create v4 type DB" },
 #endif
@@ -197,20 +199,18 @@ main(int argc, char **argv)
     krb5_error_code ret;
     krb5_context context;
     krb5_auth_context ac = NULL;
-    krb5_principal server;
     krb5_principal c1, c2;
     krb5_authenticator authent;
     krb5_keytab keytab;
     int fd;
     HDB *db;
-    char hostname[128];
     int optind = 0;
     char *tmp_db;
     krb5_log_facility *fac;
     int nprincs;
 #ifdef KRB4
     int e;
-    int fd_out;
+    int fd_out = -1;
 #endif
 
     set_progname(argv[0]);
@@ -250,8 +250,10 @@ main(int argc, char **argv)
     else {
 	struct sockaddr_storage ss;
 	struct sockaddr *sa = (struct sockaddr *)&ss;
-	int sin_len = sizeof(ss);
+	socklen_t sin_len = sizeof(ss);
 	char addr_name[256];
+	krb5_ticket *ticket;
+	char *server;
 
 	fd = STDIN_FILENO;
 	if (inetd_flag == -1) {
@@ -277,21 +279,34 @@ main(int argc, char **argv)
 
 	krb5_log(context, fac, 0, "Connection from %s", addr_name);
     
-	gethostname(hostname, sizeof(hostname));
-	ret = krb5_sname_to_principal(context, hostname, HPROP_NAME,
-				      KRB5_NT_SRV_HST, &server);
+	ret = krb5_kt_register(context, &hdb_kt_ops);
 	if(ret)
-	    krb5_err(context, 1, ret, "krb5_sname_to_principal");
-	
-	ret = krb5_kt_default(context, &keytab);
-	if(ret)
-	    krb5_err(context, 1, ret, "krb5_kt_default");
-	
-	ret = krb5_recvauth(context, &ac, &fd, HPROP_VERSION,
-			    server, 0, keytab, NULL);
+	    krb5_err(context, 1, ret, "krb5_kt_register");
+
+	if (ktname != NULL) {
+	    ret = krb5_kt_resolve(context, ktname, &keytab);
+	    if (ret)
+		krb5_err (context, 1, ret, "krb5_kt_resolve %s", ktname);
+	} else {
+	    ret = krb5_kt_default (context, &keytab);
+	    if (ret)
+		krb5_err (context, 1, ret, "krb5_kt_default");
+	}
+
+	ret = krb5_recvauth(context, &ac, &fd, HPROP_VERSION, NULL,
+			    0, keytab, &ticket);
 	if(ret)
 	    krb5_err(context, 1, ret, "krb5_recvauth");
 	
+	ret = krb5_unparse_name(context, ticket->server, &server);
+	if (ret)
+	    krb5_err(context, 1, ret, "krb5_unparse_name");
+	if (strncmp(server, "hprop/", 5) != 0)
+	    krb5_errx(context, 1, "ticket not for hprop (%s)", server);
+
+	free(server);
+	krb5_free_ticket (context, ticket);
+
 	ret = krb5_auth_getauthenticator(context, ac, &authent);
 	if(ret)
 	    krb5_err(context, 1, ret, "krb5_auth_getauthenticator");
@@ -347,21 +362,21 @@ main(int argc, char **argv)
 	krb5_data data;
 	hdb_entry entry;
 
-	if(from_stdin){
-	    ret = recv_clear(context, fd, &data);
+	if(from_stdin) {
+	    ret = krb5_read_message(context, &fd, &data);
+	    if(ret != 0 && ret != HEIM_ERR_EOF)
+		krb5_err(context, 1, ret, "krb5_read_message");
+	} else {
+	    ret = krb5_read_priv_message(context, ac, &fd, &data);
 	    if(ret)
-		krb5_err(context, 1, ret, "recv_clear");
-	}else{
-	    ret = recv_priv(context, ac, fd, &data);
-	    if(ret)
-		krb5_err(context, 1, ret, "recv_priv");
+		krb5_err(context, 1, ret, "krb5_read_priv_message");
 	}
 
-	if(data.length == 0) {
+	if(ret == HEIM_ERR_EOF || data.length == 0) {
 	    if(!from_stdin) {
 		data.data = NULL;
 		data.length = 0;
-		send_priv(context, ac, &data, fd);
+		krb5_write_priv_message(context, ac, &fd, &data);
 	    }
 	    if(!print_dump) {
 #ifdef KRB4

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,10 +33,101 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: sl.c,v 1.25 1999/12/02 16:58:55 joda Exp $");
+RCSID("$Id: sl.c,v 1.28 2001/01/26 14:58:26 joda Exp $");
 #endif
 
 #include "sl_locl.h"
+#include <setjmp.h>
+
+static size_t
+print_sl (FILE *stream, int mdoc, int longp, SL_cmd *c)
+    __attribute__ ((unused));
+
+static size_t
+print_sl (FILE *stream, int mdoc, int longp, SL_cmd *c)
+{
+    if(mdoc){
+	if(longp)
+	    fprintf(stream, "= Ns");
+	fprintf(stream, " Ar ");
+    }else
+	if (longp)
+	    putc ('=', stream);
+	else
+	    putc (' ', stream);
+
+    return 1;
+}
+
+static void
+mandoc_template(SL_cmd *cmds,
+		const char *extra_string)
+{
+    SL_cmd *c, *prev;
+    char timestr[64], cmd[64];
+    const char *p;
+    time_t t;
+
+    printf(".\\\" Things to fix:\n");
+    printf(".\\\"   * correct section, and operating system\n");
+    printf(".\\\"   * remove Op from mandatory flags\n");
+    printf(".\\\"   * use better macros for arguments (like .Pa for files)\n");
+    printf(".\\\"\n");
+    t = time(NULL);
+    strftime(timestr, sizeof(timestr), "%b %d, %Y", localtime(&t));
+    printf(".Dd %s\n", timestr);
+    p = strrchr(__progname, '/');
+    if(p) p++; else p = __progname;
+    strncpy(cmd, p, sizeof(cmd));
+    cmd[sizeof(cmd)-1] = '\0';
+    strupr(cmd);
+       
+    printf(".Dt %s SECTION\n", cmd);
+    printf(".Os OPERATING_SYSTEM\n");
+    printf(".Sh NAME\n");
+    printf(".Nm %s\n", p);
+    printf(".Nd\n");
+    printf("in search of a description\n");
+    printf(".Sh SYNOPSIS\n");
+    printf(".Nm\n");
+    for(c = cmds; c->name; ++c) {
+/*	if (c->func == NULL)
+	    continue; */
+	printf(".Op Fl %s", c->name);
+/*	print_sl(stdout, 1, 0, c);*/
+	printf("\n");
+	
+    }
+    if (extra_string && *extra_string)
+	printf (".Ar %s\n", extra_string);
+    printf(".Sh DESCRIPTION\n");
+    printf("Supported options:\n");
+    printf(".Bl -tag -width Ds\n");
+    prev = NULL;
+    for(c = cmds; c->name; ++c) {
+	if (c->func) {
+	    if (prev)
+		printf ("\n%s\n", prev->usage);
+
+	    printf (".It Fl %s", c->name);
+	    prev = c;
+	} else
+	    printf (", %s\n", c->name);
+    }
+    if (prev)
+	printf ("\n%s\n", prev->usage);
+
+    printf(".El\n");
+    printf(".\\\".Sh ENVIRONMENT\n");
+    printf(".\\\".Sh FILES\n");
+    printf(".\\\".Sh EXAMPLES\n");
+    printf(".\\\".Sh DIAGNOSTICS\n");
+    printf(".\\\".Sh SEE ALSO\n");
+    printf(".\\\".Sh STANDARDS\n");
+    printf(".\\\".Sh HISTORY\n");
+    printf(".\\\".Sh AUTHORS\n");
+    printf(".\\\".Sh BUGS\n");
+}
 
 static SL_cmd *
 sl_match (SL_cmd *cmds, char *cmd, int exactp)
@@ -65,6 +156,11 @@ void
 sl_help (SL_cmd *cmds, int argc, char **argv)
 {
     SL_cmd *c, *prev_c;
+
+    if (getenv("SLMANDOC")) {
+	mandoc_template(cmds, NULL);
+	return;
+    }
 
     if (argc == 1) {
 	prev_c = NULL;
@@ -178,9 +274,28 @@ sl_make_argv(char *line, int *ret_argc, char ***ret_argv)
     return 0;
 }
 
+static jmp_buf sl_jmp;
+
+static void sl_sigint(int sig)
+{
+    longjmp(sl_jmp, 1);
+}
+
+static char *sl_readline(const char *prompt)
+{
+    char *s;
+    void (*old)(int);
+    old = signal(SIGINT, sl_sigint);
+    if(setjmp(sl_jmp))
+	printf("\n");
+    s = readline((char*)prompt);
+    signal(SIGINT, old);
+    return s;
+}
+
 /* return values: 0 on success, -1 on fatal error, or return value of command */
 int
-sl_command_loop(SL_cmd *cmds, char *prompt, void **data)
+sl_command_loop(SL_cmd *cmds, const char *prompt, void **data)
 {
     int ret = 0;
     char *buf;
@@ -188,7 +303,7 @@ sl_command_loop(SL_cmd *cmds, char *prompt, void **data)
     char **argv;
 	
     ret = 0;
-    buf = readline(prompt);
+    buf = sl_readline(prompt);
     if(buf == NULL)
 	return 1;
 
@@ -213,11 +328,19 @@ sl_command_loop(SL_cmd *cmds, char *prompt, void **data)
 }
 
 int 
-sl_loop(SL_cmd *cmds, char *prompt)
+sl_loop(SL_cmd *cmds, const char *prompt)
 {
     void *data = NULL;
     int ret;
     while((ret = sl_command_loop(cmds, prompt, &data)) == 0)
 	;
     return ret;
+}
+
+void
+sl_apropos (SL_cmd *cmd, const char *topic)
+{
+    for (; cmd->name != NULL; ++cmd)
+        if (cmd->usage != NULL && strstr(cmd->usage, topic) != NULL)
+	    printf ("%-20s%s\n", cmd->name, cmd->usage);
 }

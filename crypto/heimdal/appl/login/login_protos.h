@@ -14,6 +14,11 @@
 #endif
 
 void
+add_env __P((
+	const char *var,
+	const char *value));
+
+void
 check_shadow __P((
 	const struct passwd *pw,
 	const struct spwd *sp));
@@ -21,8 +26,14 @@ check_shadow __P((
 char *
 clean_ttyname __P((char *tty));
 
+void
+copy_env __P((void));
+
 int
 do_osfc2_magic __P((uid_t uid));
+
+void
+extend_env __P((char *str));
 
 int
 login_access __P((
@@ -31,6 +42,9 @@ login_access __P((
 
 char *
 login_conf_get_string __P((const char *str));
+
+int
+login_read_env __P((const char *file));
 
 char *
 make_id __P((char *tty));

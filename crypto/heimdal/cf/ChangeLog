@@ -1,3 +1,159 @@
+2000-12-26  Assar Westerlund  <assar@sics.se>
+
+	* krb-ipv6.m4: remove some dnl that weren't the correct with
+	modern autoconf
+
+2000-12-15  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4 (inet_ntoa, inet_ntop, inet_pton): add necessary
+	includes when testing
+	* broken2.m4: new variant of broken, with includes and arguments
+
+	* test-package.m4: s/ifval/m4_ifval/ to keep in sync with
+ 	autoconf.  from Ake Sandgren <ake@cs.umu.se>
+	* check-var.m4: s/ifval/m4_ifval/ to keep in sync with autoconf.
+  	from Ake Sandgren <ake@cs.umu.se>
+
+2000-12-13  Assar Westerlund  <assar@sics.se>
+
+	* krb-irix.m4: need to set irix to no first.  From Ake Sandgren
+	<ake@cs.umu.se>
+
+2000-12-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: move sa_len test to before test for broken
+	getnameinfo
+
+2000-12-12  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: only test for broken getnameinfo if it exists
+
+2000-12-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: ifaddrs.h
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: test for unvis, and vis.h
+
+	* roken-frag.m4: test for strvis*
+
+2000-12-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am.common: just warn if we fail to setuid a program
+
+	* broken-getnameinfo.m4: add more quotes
+
+	* roken-frag.m4: test for getifaddrs
+
+	* roken-frag.m4: test for broken AIX getnameinfo
+
+	* broken-getnameinfo.m4: test for broken getnameinfo
+
+2000-12-01  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common: add kludge for LIBS
+
+2000-11-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check-man.m4: update this after recent changes
+
+	* Makefile.am.common: use install-catman.sh
+
+	* install-catman.sh: script to install preformatted manual pages
+
+	* Makefile.am.common: change cat handling
+
+2000-11-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: don't use AC_CONFIG_FILES here, since it doesn't
+	work with automake
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* krb-readline.m4: link against the libtool-versions of
+	libeditline and libel_compat
+
+	* Makefile.am.common (INCLUDES): add $(INCLUDES_roken)
+	* roken-frag.m4 (CPPFLAGS_roken): rename to INCLUDES_roken
+
+2000-11-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* aix.m4: set aix
+
+2000-08-19  Assar Westerlund  <assar@sics.se>
+
+	* krb-bigendian.m4: merge from arla: make it work better
+
+2000-08-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: check getsockname for proto compat
+
+2000-08-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am.common: add library for pidfile
+
+	* roken-frag.m4: tests for util.h and pidfile
+
+2000-07-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check-var.m4: rename to rk_CHECK_VAR, transposing the arguments,
+	and making the second optional, AU_DEFINE AC_CHECK_VAR to
+	rk_CHECK_VAR
+
+	* roken-frag.m4: other roken tests
+
+	* db.m4: db tests
+
+2000-07-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* mips-abi.m4: AC_ERROR -> AC_MSG_ERROR
+
+	* check-netinet-ip-and-tcp.m4: use cache_check, and make this work
+	with new autoconf
+
+	* aix.m4: don't subst AFS_EXTRA_LD
+
+2000-07-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check-var.m4: workaround feature of newer autoconf
+
+	* find-func-no-libs2.m4: use cleaner autoheader trick
+
+	* have-type.m4: use cleaner autoheader trick
+
+	* have-types.m4: use cleaner autoheader trick
+
+	* test-package.m4: add 6th parameter for now
+
+	* broken.m4: use cleaner autoheader trick
+
+	* retsigtype.m4: test for signal handler return type
+
+	* broken-realloc.m4: test for broken realloc
+
+2000-07-08  Assar Westerlund  <assar@sics.se>
+
+	* roken.m4: set CPPFLAGS_roken and call AC_CONFIG_SUBDIRS
+
+2000-07-02  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (CP): set and use
+
+2000-04-05  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (INCLUDE_openldap, LIB_openldap): add
+
+2000-03-28  Assar Westerlund  <assar@sics.se>
+
+	* krb-prog-yacc.m4: AC_MSG_WARNING should be AC_MSG_WARN
+
+	* shared-libs.m4: try to update to freebsd5 (and elf)
+
+2000-03-16  Assar Westerlund  <assar@sics.se>
+
+	* krb-prog-yacc.m4: warn we do not find any yacc
+
 2000-01-08  Assar Westerlund  <assar@sics.se>
 
 	* krb-bigendian.m4: new file, replacement for ac_c_bigendian
@@ -16,6 +172,10 @@
 	* krb-ipv6.m4: add --without-ipv6 make sure we have `in6addr_any'
  	which we use in the code.  This test avoids false positives on
  	OpenBSD
+
+1999-11-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* grok-type.m4: inttypes.h
 
 1999-11-05  Assar Westerlund  <assar@sics.se>
 

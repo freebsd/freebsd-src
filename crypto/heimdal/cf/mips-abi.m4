@@ -1,4 +1,4 @@
-dnl $Id: mips-abi.m4,v 1.4 1998/05/16 20:44:15 joda Exp $
+dnl $Id: mips-abi.m4,v 1.5 2000/07/18 15:01:42 joda Exp $
 dnl
 dnl
 dnl Check for MIPS/IRIX ABI flags. Sets $abi and $abilibdirext to some
@@ -27,7 +27,7 @@ case "${with_mips_abi}" in
        n32|yes) abi='-mabi=n32'; abilibdirext='32'  ;;
         64) abi='-mabi=64';  abilibdirext='64'   ;;
 	no) abi=''; abilibdirext='';;
-         *) AC_ERROR("Invalid ABI specified") ;;
+         *) AC_MSG_ERROR("Invalid ABI specified") ;;
 esac
 if test -n "$abi" ; then
 ac_foo=krb_cv_gcc_`echo $abi | tr =- __`
@@ -54,7 +54,7 @@ case $abi in
 	CLAGS="$save_CFLAGS"
 	if test $ac_res = yes; then
 		# New GCC
-		AC_ERROR([$CC does not support the $with_mips_abi ABI])
+		AC_MSG_ERROR([$CC does not support the $with_mips_abi ABI])
 	fi
 	# Old GCC
 	abi=''
@@ -67,7 +67,7 @@ case $abi in
 			abilibdirext=''
 		else
 			# Some broken GCC
-			AC_ERROR([$CC does not support the $with_mips_abi ABI])
+			AC_MSG_ERROR([$CC does not support the $with_mips_abi ABI])
 		fi
 	;;
 esac
@@ -79,7 +79,7 @@ case "${with_mips_abi}" in
        n32|yes) abi='-n32'; abilibdirext='32'  ;;
         64) abi='-64'; abilibdirext='64'   ;;
 	no) abi=''; abilibdirext='';;
-         *) AC_ERROR("Invalid ABI specified") ;;
+         *) AC_MSG_ERROR("Invalid ABI specified") ;;
 esac
 fi #if test -n "$GCC"; then
 ;;

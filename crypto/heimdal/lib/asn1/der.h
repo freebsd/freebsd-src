@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: der.h,v 1.18 1999/12/02 17:05:01 joda Exp $ */
+/* $Id: der.h,v 1.20 2001/01/29 08:31:27 assar Exp $ */
 
 #ifndef __DER_H__
 #define __DER_H__
@@ -66,7 +66,7 @@ enum {
 time_t timegm (struct tm *);
 #endif
 
-void time2generalizedtime (time_t t, octet_string *s);
+int time2generalizedtime (time_t t, octet_string *s);
 
 int der_get_int (const unsigned char *p, size_t len, int *ret, size_t *size);
 int der_get_length (const unsigned char *p, size_t len,
@@ -87,6 +87,7 @@ int der_match_tag_and_length (const unsigned char *p, size_t len,
 			      size_t *length_ret, size_t *size);
 
 int decode_integer (const unsigned char*, size_t, int*, size_t*);
+int decode_unsigned (const unsigned char*, size_t, unsigned*, size_t*);
 int decode_general_string (const unsigned char*, size_t,
 			   general_string*, size_t*);
 int decode_octet_string (const unsigned char*, size_t, octet_string*, size_t*);
@@ -105,6 +106,8 @@ int der_put_length_and_tag (unsigned char*, size_t, size_t,
 
 int encode_integer (unsigned char *p, size_t len,
 		    const int *data, size_t*);
+int encode_unsigned (unsigned char *p, size_t len,
+		     const unsigned *data, size_t*);
 int encode_general_string (unsigned char *p, size_t len, 
 			   const general_string *data, size_t*);
 int encode_octet_string (unsigned char *p, size_t len,
@@ -119,6 +122,7 @@ void free_generalized_time (time_t *t);
 
 size_t length_len (size_t len);
 size_t length_integer (const int *data);
+size_t length_unsigned (const unsigned *data);
 size_t length_general_string (const general_string *data);
 size_t length_octet_string (const octet_string *k);
 size_t length_generalized_time (const time_t *t);

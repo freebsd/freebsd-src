@@ -43,7 +43,7 @@
 %{
 
 #include "ftpd_locl.h"
-RCSID("$Id: ftpcmd.y,v 1.56 1999/10/26 11:56:23 assar Exp $");
+RCSID("$Id: ftpcmd.y,v 1.60 2000/11/05 16:53:20 joda Exp $");
 
 off_t	restart_point;
 
@@ -159,18 +159,21 @@ cmd
 			eprt ($3);
 			free ($3);
 		}
-	| PASV CRLF
+	| PASV CRLF check_login
 		{
+		    if($3)
 			pasv ();
 		}
-	| EPSV CRLF
+	| EPSV CRLF check_login
 		{
+		    if($3)
 			epsv (NULL);
 		}
-	| EPSV SP STRING CRLF
+	| EPSV SP STRING CRLF check_login
 		{
+		    if($5)
 			epsv ($3);
-			free ($3);
+		    free ($3);
 		}
 	| TYPE SP type_code CRLF
 		{
@@ -577,7 +580,7 @@ cmd
 		}
 	| SYST CRLF
 		{
-#if defined(unix) || defined(__unix__) || defined(__unix) || defined(_AIX) || defined(_CRAY)
+#if !defined(WIN32) && !defined(__EMX__) && !defined(__OS2__) && !defined(__CYGWIN32__)
 		    reply(215, "UNIX Type: L%d", NBBY);
 #else
 		    reply(215, "UNKNOWN Type: L%d", NBBY);
@@ -620,7 +623,9 @@ cmd
 					      "%s: not a plain file.", $3);
 				} else {
 					struct tm *t;
-					t = gmtime(&stbuf.st_mtime);
+					time_t mtime = stbuf.st_mtime;
+
+					t = gmtime(&mtime);
 					reply(213,
 					      "%04d%02d%02d%02d%02d%02d",
 					      t->tm_year + 1900,

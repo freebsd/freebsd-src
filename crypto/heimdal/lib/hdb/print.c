@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 #include "hdb_locl.h"
 #include <ctype.h>
 
-RCSID("$Id: print.c,v 1.4 1999/12/26 13:50:22 assar Exp $");
+RCSID("$Id: print.c,v 1.5 2001/01/26 15:08:36 joda Exp $");
 
 /* 
    This is the present contents of a dump line. This might change at
@@ -75,9 +75,14 @@ append_hex(char *str, krb5_data *data)
 	p[data->length + 1] = '\"';
 	memcpy(p + 1, data->data, data->length);
     }else{
-	p = calloc(1, data->length * 2 + 1);
-	for(i = 0; i < data->length; i++)
-	    sprintf(p + 2 * i, "%02x", ((u_char*)data->data)[i]);
+	const char *xchars = "0123456789abcdef";
+	char *q = p = malloc(data->length * 2 + 1);
+	for(i = 0; i < data->length; i++) {
+	    unsigned char c = ((u_char*)data->data)[i];
+	    *q++ = xchars[(c & 0xf0) >> 4];
+	    *q++ = xchars[(c & 0xf)];
+	}
+	*q = '\0';
     }
     strcat(str, p);
     free(p);
@@ -123,6 +128,7 @@ hdb_entry2string(krb5_context context, hdb_entry *ent, char **str)
 {
     char *p;
     char buf[1024] = "";
+    char tmp[32];
     int i;
     krb5_error_code ret;
 
@@ -134,29 +140,26 @@ hdb_entry2string(krb5_context context, hdb_entry *ent, char **str)
     strlcat(buf, " ", sizeof(buf));
     free(p);
     /* --- kvno */
-    asprintf(&p, "%d", ent->kvno);
-    strlcat(buf, p, sizeof(buf));
-    free(p);
+    snprintf(tmp, sizeof(tmp), "%d", ent->kvno);
+    strlcat(buf, tmp, sizeof(buf));
     /* --- keys */
     for(i = 0; i < ent->keys.len; i++){
 	/* --- mkvno, keytype */
 	if(ent->keys.val[i].mkvno)
-	    asprintf(&p, ":%d:%d:", 
+	    snprintf(tmp, sizeof(tmp), ":%d:%d:", 
 		     *ent->keys.val[i].mkvno, 
 		     ent->keys.val[i].key.keytype);
 	else
-	    asprintf(&p, "::%d:", 
+	    snprintf(tmp, sizeof(tmp), "::%d:", 
 		     ent->keys.val[i].key.keytype);
-	strlcat(buf, p, sizeof(buf));
-	free(p);
+	strlcat(buf, tmp, sizeof(buf));
 	/* --- keydata */
 	append_hex(buf, &ent->keys.val[i].key.keyvalue);
 	strlcat(buf, ":", sizeof(buf));
 	/* --- salt */
 	if(ent->keys.val[i].salt){
-	    asprintf(&p, "%u/", ent->keys.val[i].salt->type);
-	    strlcat(buf, p, sizeof(buf));
-	    free(p);
+	    snprintf(tmp, sizeof(tmp), "%u/", ent->keys.val[i].salt->type);
+	    strlcat(buf, tmp, sizeof(buf));
 	    append_hex(buf, &ent->keys.val[i].salt->salt);
 	}else
 	    strlcat(buf, "-", sizeof(buf));
@@ -196,28 +199,25 @@ hdb_entry2string(krb5_context context, hdb_entry *ent, char **str)
 
     /* --- max life */
     if(ent->max_life){
-	asprintf(&p, "%d", *ent->max_life);
-	strlcat(buf, p, sizeof(buf));
-	free(p);
+	snprintf(tmp, sizeof(tmp), "%d", *ent->max_life);
+	strlcat(buf, tmp, sizeof(buf));
     }else
 	strlcat(buf, "-", sizeof(buf));
     strlcat(buf, " ", sizeof(buf));
 
     /* --- max renewable life */
     if(ent->max_renew){
-	asprintf(&p, "%d", *ent->max_renew);
-	strlcat(buf, p, sizeof(buf));
-	free(p);
+	snprintf(tmp, sizeof(tmp), "%d", *ent->max_renew);
+	strlcat(buf, tmp, sizeof(buf));
     }else
 	strlcat(buf, "-", sizeof(buf));
     
     strlcat(buf, " ", sizeof(buf));
 
     /* --- flags */
-    asprintf(&p, "%d", HDBFlags2int(ent->flags));
-    strlcat(buf, p, sizeof(buf));
-    free(p);
-
+    snprintf(tmp, sizeof(tmp), "%d", HDBFlags2int(ent->flags));
+    strlcat(buf, tmp, sizeof(buf));
+    
     *str = strdup(buf);
     
     return 0;

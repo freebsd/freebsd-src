@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: telnetd.c,v 1.60 1999/12/05 10:59:52 assar Exp $");
+RCSID("$Id: telnetd.c,v 1.63 2000/10/08 13:32:28 assar Exp $");
 
 #ifdef _SC_CRAY_SECURE_SYS
 #include <sys/sysv.h>
@@ -143,7 +143,8 @@ main(int argc, char **argv)
 {
     struct sockaddr_storage __ss;
     struct sockaddr *sa = (struct sockaddr *)&__ss;
-    int on = 1, sa_size;
+    int on = 1;
+    socklen_t sa_size;
     int ch;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
     int tos = -1;
@@ -362,9 +363,9 @@ main(int argc, char **argv)
      *	Get socket's security label
      */
     if (secflag)  {
-	int szss = sizeof(ss);
+	socklen_t szss = sizeof(ss);
 	int sock_multi;
-	int szi = sizeof(int);
+	socklen_t szi = sizeof(int);
 
 	memset(&dv, 0, sizeof(dv));
 
@@ -737,7 +738,7 @@ Please contact your net administrator");
      */
     *user_name = 0;
     level = getterminaltype(user_name, sizeof(user_name));
-    setenv("TERM", terminaltype ? terminaltype : "network", 1);
+    esetenv("TERM", terminaltype ? terminaltype : "network", 1);
 
 #ifdef _SC_CRAY_SECURE_SYS
     if (secflag) {
@@ -968,6 +969,11 @@ my_telnet(int f, int p, char *host, int level, char *autoname)
 	FD_ZERO(&ibits);
 	FD_ZERO(&obits);
 	FD_ZERO(&xbits);
+
+	if (f >= FD_SETSIZE
+	    || p >= FD_SETSIZE)
+	    fatal(net, "fd too large");
+
 	/*
 	 * Never look for input if there's still
 	 * stuff in the corresponding output buffer

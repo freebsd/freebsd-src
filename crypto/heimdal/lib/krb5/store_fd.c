@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store_fd.c,v 1.6 1999/12/02 17:05:13 joda Exp $");
+RCSID("$Id: store_fd.c,v 1.8 2001/01/29 02:32:35 assar Exp $");
 
 typedef struct fd_storage{
     int fd;
@@ -44,13 +44,13 @@ typedef struct fd_storage{
 static ssize_t
 fd_fetch(krb5_storage *sp, void *data, size_t size)
 {
-    return read(FD(sp), data, size);
+    return net_read(FD(sp), data, size);
 }
 
 static ssize_t
-fd_store(krb5_storage *sp, void *data, size_t size)
+fd_store(krb5_storage *sp, const void *data, size_t size)
 {
-    return write(FD(sp), data, size);
+    return net_write(FD(sp), data, size);
 }
 
 static off_t

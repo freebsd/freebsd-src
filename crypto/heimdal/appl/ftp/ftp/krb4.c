@@ -38,7 +38,7 @@
 #endif
 #include <krb.h>
 
-RCSID("$Id: krb4.c,v 1.37 1999/12/06 17:10:13 assar Exp $");
+RCSID("$Id: krb4.c,v 1.38 2000/06/21 02:46:09 assar Exp $");
 
 #ifdef FTP_SERVER
 #define LOCAL_ADDR ctrl_addr
@@ -202,6 +202,12 @@ struct sec_server_mech krb4_server_mech = {
 #else /* FTP_SERVER */
 
 static int
+krb4_init(void *app_data)
+{
+   return !use_kerberos;
+}
+
+static int
 mk_auth(struct krb4_data *d, KTEXT adat, 
 	char *service, char *host, int checksum)
 {
@@ -322,7 +328,7 @@ krb4_auth(void *app_data, char *host)
 struct sec_client_mech krb4_client_mech = {
     "KERBEROS_V4",
     sizeof(struct krb4_data),
-    NULL, /* init */
+    krb4_init, /* init */
     krb4_auth,
     NULL, /* end */
     krb4_check_prot,

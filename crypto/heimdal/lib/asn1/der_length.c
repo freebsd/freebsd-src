@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,10 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_length.c,v 1.10 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: der_length.c,v 1.11 2000/04/06 17:20:26 assar Exp $");
 
 static size_t
-length_unsigned (unsigned val)
+len_unsigned (unsigned val)
 {
   size_t ret = 0;
 
@@ -48,7 +48,7 @@ length_unsigned (unsigned val)
 }
 
 static size_t
-length_int (int val)
+len_int (int val)
 {
   size_t ret = 0;
 
@@ -73,13 +73,21 @@ length_len (size_t len)
   if (len < 128)
     return 1;
   else
-    return length_unsigned (len) + 1;
+    return len_unsigned (len) + 1;
 }
 
 size_t
 length_integer (const int *data)
 {
-  size_t len = length_int (*data);
+  size_t len = len_int (*data);
+
+  return 1 + length_len(len) + len;
+}
+
+size_t
+length_unsigned (const unsigned *data)
+{
+  size_t len = len_unsigned (*data);
 
   return 1 + length_len(len) + len;
 }

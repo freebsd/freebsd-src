@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_addrs.c,v 1.35 1999/12/02 17:05:09 joda Exp $");
+RCSID("$Id: get_addrs.c,v 1.40 2000/12/10 20:07:05 assar Exp $");
 
 #ifdef __osf__
 /* hate */
@@ -43,42 +43,35 @@ struct mbuf;
 #ifdef HAVE_NET_IF_H
 #include <net/if.h>
 #endif
-
-#ifdef HAVE_SYS_SOCKIO_H
-#include <sys/sockio.h>
-#endif /* HAVE_SYS_SOCKIO_H */
-
-#ifdef HAVE_NETINET_IN6_VAR_H
-#include <netinet/in6_var.h>
-#endif /* HAVE_NETINET_IN6_VAR_H */
+#include <ifaddrs.h>
 
 static krb5_error_code
 gethostname_fallback (krb5_addresses *res)
 {
-     krb5_error_code err;
-     char hostname[MAXHOSTNAMELEN];
-     struct hostent *hostent;
+    krb5_error_code err;
+    char hostname[MAXHOSTNAMELEN];
+    struct hostent *hostent;
 
-     if (gethostname (hostname, sizeof(hostname)))
-	  return errno;
-     hostent = roken_gethostbyname (hostname);
-     if (hostent == NULL)
-	  return errno;
-     res->len = 1;
-     res->val = malloc (sizeof(*res->val));
-     if (res->val == NULL)
-	 return ENOMEM;
-     res->val[0].addr_type = hostent->h_addrtype;
-     res->val[0].address.data = NULL;
-     res->val[0].address.length = 0;
-     err = krb5_data_copy (&res->val[0].address,
-			   hostent->h_addr,
-			   hostent->h_length);
-     if (err) {
-	 free (res->val);
-	 return err;
-     }
-     return 0;
+    if (gethostname (hostname, sizeof(hostname)))
+	return errno;
+    hostent = roken_gethostbyname (hostname);
+    if (hostent == NULL)
+	return errno;
+    res->len = 1;
+    res->val = malloc (sizeof(*res->val));
+    if (res->val == NULL)
+	return ENOMEM;
+    res->val[0].addr_type = hostent->h_addrtype;
+    res->val[0].address.data = NULL;
+    res->val[0].address.length = 0;
+    err = krb5_data_copy (&res->val[0].address,
+			  hostent->h_addr,
+			  hostent->h_length);
+    if (err) {
+	free (res->val);
+	return err;
+    }
+    return 0;
 }
 
 enum {
@@ -94,143 +87,96 @@ enum {
  */
 
 static krb5_error_code
-find_all_addresses (krb5_context context,
-		    krb5_addresses *res, int flags,
-		    int af, int siocgifconf, int siocgifflags,
-		    size_t ifreq_sz)
+find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
 {
-     krb5_error_code ret;
-     int fd;
-     size_t buf_size;
-     char *buf;
-     struct ifconf ifconf;
-     int num, j = 0;
-     char *p;
-     size_t sz;
-     struct sockaddr sa_zero;
-     struct ifreq *ifr;
-     krb5_address lo_addr;
-     int got_lo = FALSE;
+    struct sockaddr sa_zero;
+    struct ifaddrs *ifa0, *ifa;
+    krb5_error_code ret = ENXIO; 
+    int num, idx;
 
-     buf = NULL;
-     res->val = NULL;
+    res->val = NULL;
 
-     memset (&sa_zero, 0, sizeof(sa_zero));
-     fd = socket(af, SOCK_DGRAM, 0);
-     if (fd < 0)
-	  return -1;
+    if (getifaddrs(&ifa0) == -1)
+	return (errno);
 
-     buf_size = 8192;
-     for (;;) {
-	 buf = malloc(buf_size);
-	 if (buf == NULL) {
-	     ret = ENOMEM;
-	     goto error_out;
-	 }
-	 ifconf.ifc_len = buf_size;
-	 ifconf.ifc_buf = buf;
-	 if (ioctl (fd, siocgifconf, &ifconf) < 0) {
-	     ret = errno;
-	     goto error_out;
-	 }
-	 /*
-	  * Can the difference between a full and a overfull buf
-	  * be determined?
-	  */
+    memset(&sa_zero, 0, sizeof(sa_zero));
 
-	 if (ifconf.ifc_len < buf_size)
-	     break;
-	 free (buf);
-	 buf_size *= 2;
-     }
+    /* First, count all the ifaddrs. */
+    for (ifa = ifa0, num = 0; ifa != NULL; ifa = ifa->ifa_next, num++)
+	/* nothing */;
 
-     num = ifconf.ifc_len / ifreq_sz;
-     res->len = num;
-     res->val = calloc(num, sizeof(*res->val));
-     if (res->val == NULL) {
-	 ret = ENOMEM;
-	 goto error_out;
-     }
+    if (num == 0) {
+	freeifaddrs(ifa0);
+	return (ENXIO);
+    }
 
-     j = 0;
-     for (p = ifconf.ifc_buf;
-	  p < ifconf.ifc_buf + ifconf.ifc_len;
-	  p += sz) {
-	 struct ifreq ifreq;
-	 struct sockaddr *sa;
+    /* Allocate storage for them. */
+    res->val = calloc(num, sizeof(*res->val));
+    if (res->val == NULL) {
+	freeifaddrs(ifa0);
+	return (ENOMEM);
+    }
 
-	 ifr = (struct ifreq *)p;
-	 sa  = &ifr->ifr_addr;
+    /* Now traverse the list. */
+    for (ifa = ifa0, idx = 0; ifa != NULL; ifa = ifa->ifa_next) {
+	if ((ifa->ifa_flags & IFF_UP) == 0)
+	    continue;
+	if (memcmp(ifa->ifa_addr, &sa_zero, sizeof(sa_zero)) == 0)
+	    continue;
+	if (krb5_sockaddr_uninteresting(ifa->ifa_addr))
+	    continue;
 
-	 sz = ifreq_sz;
-#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
-	 sz = max(sz, sizeof(ifr->ifr_name) + sa->sa_len);
-#endif
-#ifdef SA_LEN
-	 sz = max(sz, SA_LEN(sa));
-#endif
-	 memcpy (ifreq.ifr_name, ifr->ifr_name, sizeof(ifr->ifr_name));
+	if ((ifa->ifa_flags & IFF_LOOPBACK) != 0) {
+	    /* We'll deal with the LOOP_IF_NONE case later. */
+	    if ((flags & LOOP) == 0)
+		continue;
+	}
 
-	 if (ioctl(fd, siocgifflags, &ifreq) < 0) {
-	     ret = errno;
-	     goto error_out;
-	 }
+	ret = krb5_sockaddr2address(ifa->ifa_addr, &res->val[idx]);
+	if (ret) {
+	    /*
+	     * The most likely error here is going to be "Program
+	     * lacks support for address type".  This is no big
+	     * deal -- just continue, and we'll listen on the
+	     * addresses who's type we *do* support.
+	     */
+	    continue;
+	}
+	idx++;
+    }
 
-	 if (!(ifreq.ifr_flags & IFF_UP))
-	     continue;
-	 if (memcmp (sa, &sa_zero, sizeof(sa_zero)) == 0)
-	     continue;
-	 if (krb5_sockaddr_uninteresting (sa))
-	     continue;
+    /*
+     * If no addresses were found, and LOOP_IF_NONE is set, then find
+     * the loopback addresses and add them to our list.
+     */
+    if ((flags & LOOP_IF_NONE) != 0 && idx == 0) {
+	for (ifa = ifa0; ifa != NULL; ifa = ifa->ifa_next) {
+	    if ((ifa->ifa_flags & IFF_UP) == 0)
+		continue;
+	    if (memcmp(ifa->ifa_addr, &sa_zero, sizeof(sa_zero)) == 0)
+		continue;
+	    if (krb5_sockaddr_uninteresting(ifa->ifa_addr))
+		continue;
 
-	 if (ifreq.ifr_flags & IFF_LOOPBACK) {
-	     if (flags & LOOP_IF_NONE) {
-		 ret = krb5_sockaddr2address (sa, &lo_addr);
-		 if (ret)
-		     goto error_out;
-		 got_lo = TRUE;
-		 continue;
-	     } else if((flags & LOOP) == 0)
-		 continue;
-	 }
+	    if ((ifa->ifa_flags & IFF_LOOPBACK) != 0) {
+		ret = krb5_sockaddr2address(ifa->ifa_addr, &res->val[idx]);
+		if (ret) {
+		    /*
+		     * See comment above.
+		     */
+		    continue;
+		}
+		idx++;
+	    }
+	}
+    }
 
-	 ret = krb5_sockaddr2address (sa, &res->val[j]);
-	 if (ret)
-	     goto error_out;
-	 ++j;
-     }
-     if ((flags & LOOP_IF_NONE) && got_lo) {
-	 if (j == 0)
-	     res->val[j++] = lo_addr;
-	 else
-	     krb5_free_address (context, &lo_addr);
-     }
-
-     if (j != num) {
-	 void *tmp;
-
-	 res->len = j;
-	 tmp = realloc (res->val, j * sizeof(*res->val));
-	 if (j != 0 && tmp == NULL) {
-	     ret = ENOMEM;
-	     goto error_out;
-	 }
-	 res->val = tmp;
-     }
-     ret = 0;
-     goto cleanup;
-
-error_out:
-     if (got_lo)
-	     krb5_free_address (context, &lo_addr);
-     while(j--) {
-	 krb5_free_address (context, &res->val[j]);
-     }
-     free (res->val);
-cleanup:
-     close (fd);
-     free (buf);
-     return ret;
+    freeifaddrs(ifa0);
+    if (ret)
+	free(res->val);
+    else
+	res->len = idx;        /* Now a count. */
+    return (ret);
 }
 
 static krb5_error_code
@@ -239,26 +185,9 @@ get_addrs_int (krb5_context context, krb5_addresses *res, int flags)
     krb5_error_code ret = -1;
 
     if (flags & SCAN_INTERFACES) {
-#if defined(AF_INET6) && defined(SIOCGIF6CONF) && defined(SIOCGIF6FLAGS)
-	if (ret)
-	    ret = find_all_addresses (context, res, flags,
-				      AF_INET6, SIOCGIF6CONF, SIOCGIF6FLAGS,
-				      sizeof(struct in6_ifreq));
-#endif
-#if defined(HAVE_IPV6) && defined(SIOCGIFCONF)
-	if (ret)
-	    ret = find_all_addresses (context, res, flags,
-				      AF_INET6, SIOCGIFCONF, SIOCGIFFLAGS,
-				      sizeof(struct ifreq));
-#endif
-#if defined(AF_INET) && defined(SIOCGIFCONF) && defined(SIOCGIFFLAGS)
-	if (ret)
-	    ret = find_all_addresses (context, res, flags,
-				      AF_INET, SIOCGIFCONF, SIOCGIFFLAGS,
-				      sizeof(struct ifreq));
+	ret = find_all_addresses (context, res, flags);
 	if(ret || res->len == 0)
 	    ret = gethostname_fallback (res);
-#endif
     } else
 	ret = 0;
 

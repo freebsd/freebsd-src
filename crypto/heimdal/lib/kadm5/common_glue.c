@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: common_glue.c,v 1.4 1999/12/02 17:05:05 joda Exp $");
+RCSID("$Id: common_glue.c,v 1.5 2000/03/23 22:58:26 assar Exp $");
 
 #define __CALL(F, P) (*((kadm5_common_context*)server_handle)->funcs.F)P;
 
@@ -43,6 +43,16 @@ kadm5_chpass_principal(void *server_handle,
 		       char *password)
 {
     return __CALL(chpass_principal, (server_handle, princ, password));
+}
+
+kadm5_ret_t
+kadm5_chpass_principal_with_key(void *server_handle,
+				krb5_principal princ,
+				int n_key_data,
+				krb5_key_data *key_data)
+{
+    return __CALL(chpass_principal_with_key,
+		  (server_handle, princ, n_key_data, key_data));
 }
 
 kadm5_ret_t

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: addr_families.c,v 1.23 2000/02/16 02:09:00 assar Exp $");
+RCSID("$Id: addr_families.c,v 1.24 2000/07/08 13:05:43 joda Exp $");
 
 struct addr_operations {
     int af;
@@ -523,7 +523,7 @@ krb5_parse_address(krb5_context context,
 
     error = getaddrinfo (string, NULL, NULL, &ai);
     if (error)
-	return -1;
+	return krb5_eai_to_heim_errno(error);
     
     n = 0;
     for (a = ai; a != NULL; a = a->ai_next)
