@@ -330,6 +330,7 @@ rip_ctloutput(so, sopt)
 				inp->inp_flags &= ~INP_HDRINCL;
 			break;
 
+		case IP_FW_ADD:
 		case IP_FW_DEL:
 		case IP_FW_FLUSH:
 		case IP_FW_ZERO:
