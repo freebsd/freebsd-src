@@ -1,6 +1,6 @@
 /*
- * $Source: /usr/src/kerberosIV/des/RCS/new_rnd_key.c,v $
- * $Author: bostic $
+ * $Source: /home/ncvs/src/eBones/des/new_rnd_key.c,v $
+ * $Author: rgrimes $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
@@ -18,16 +18,13 @@
 
 #ifndef	lint
 static char rcsid_new_rnd_key_c[] =
-"$Header: /usr/src/kerberosIV/des/RCS/new_rnd_key.c,v 4.2 91/02/25 15:14:22 bostic Exp $";
+"$Header: /home/ncvs/src/eBones/des/new_rnd_key.c,v 1.1.1.1 1994/05/27 05:12:12 rgrimes Exp $";
 #endif	lint
 
 #include <mit-copyright.h>
 
 #include <des.h>
-#include "des_internal.h"
-
-extern void des_fixup_key_parity();
-extern int des_is_weak_key();
+#include "des_locl.h"
 
 void des_set_random_generator_seed(), des_set_sequence_number();
 void des_generate_random_block();
@@ -44,7 +41,7 @@ void des_generate_random_block();
  */
 int
 des_new_random_key(key)
-     des_cblock key;
+     des_cblock *key;
 {
     do {
 	des_generate_random_block(key);
@@ -68,7 +65,7 @@ des_new_random_key(key)
  *
  * Note: this routine calls des_set_random_generator_seed.
  */
-#ifndef BSDUNIX
+#if NOTBSDUNIX
   you lose...   (aka, you get to implement an analog of this for your
 		 system...)
 #else
@@ -76,7 +73,7 @@ des_new_random_key(key)
 #include <sys/time.h>
 
 void des_init_random_number_generator(key)
-     des_cblock key;
+     des_cblock *key;
 {
     struct { /* This must be 64 bits exactly */
 	long process_id;
@@ -99,12 +96,12 @@ void des_init_random_number_generator(key)
      */
     des_set_random_generator_seed(key);
     des_set_sequence_number((unsigned char *)&seed);
-    des_new_random_key(new_key);
+    des_new_random_key(&new_key);
 
     /*
      * use it to select a random stream:
      */      
-    des_set_random_generator_seed(new_key);
+    des_set_random_generator_seed(&new_key);
 
     /*
      * use a time stamp to ensure that a server started later does not reuse
@@ -117,8 +114,8 @@ void des_init_random_number_generator(key)
      * use the time stamp finally to select the final seed using the
      * current random number stream:
      */
-    des_new_random_key(new_key);
-    des_set_random_generator_seed(new_key);
+    des_new_random_key(&new_key);
+    des_set_random_generator_seed(&new_key);
 }
 
 #endif /* ifdef BSDUNIX */
@@ -152,7 +149,7 @@ static unsigned char sequence_number[8];
  */
 void
 des_set_random_generator_seed(key)
-     des_cblock key;
+     des_cblock *key;
 {
     register int i;
 
@@ -189,14 +186,14 @@ des_set_sequence_number(new_sequence_number)
  *           before this routine is called.
  */
 void des_generate_random_block(block)
-     des_cblock block;
+     des_cblock *block;
 {
     int i;
 
     /*
      * Encrypt the sequence number to get the new random block:
      */
-    des_ecb_encrypt(sequence_number, block, random_sequence_key, 1);
+    des_ecb_encrypt(&sequence_number, block, random_sequence_key, 1);
 
     /*
      * Increment the sequence number as an 8 byte unsigned number with wrap:
