@@ -1266,6 +1266,48 @@ options 	ADW_ALLOW_MEMIO
 #options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
 					# default:8, range:[1..64]
 
+# The 'dpt' driver provides support for old DPT controllers (http://www.dpt.com/).
+# These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
+# The DPT controllers are commonly re-licensed under other brand-names -
+# some controllers by Olivetti, Dec, HP, AT&T, SNI, AST, Alphatronic, NEC and
+# Compaq are actually DPT controllers.
+#
+# See src/sys/dev/dpt for debugging and other subtle options.
+#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
+#                           instruments are enabled.  The tools in
+#                           /usr/sbin/dpt_* assume these to be enabled.
+#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
+#                           If you ant the driver to handle timeouts, enable
+#                           this option.  If your system is very busy, this
+#                           option will create more trouble than solve.
+#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
+#                           wait when timing out with the above option.
+#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
+#  DPT_LOST_IRQ             When enabled, will try, once per second, to catch
+#                           any interrupt that got lost.  Seems to help in some
+#                           DPT-firmware/Motherboard combinations.  Minimal
+#                           cost, great benefit.
+#  DPT_RESET_HBA            Make "reset" actually reset the controller
+#                           instead of fudging it.  Only enable this if you
+#			    are 100% certain you need it.
+
+device		dpt
+
+# DPT options
+#!CAM# options 	DPT_MEASURE_PERFORMANCE
+#!CAM# options 	DPT_HANDLE_TIMEOUTS
+options 	DPT_TIMEOUT_FACTOR=4
+options 	DPT_LOST_IRQ
+options 	DPT_RESET_HBA
+options 	DPT_ALLOW_MEMIO
+
+#
+# Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
+# firmware.  These controllers have a SCSI-like interface, and require
+# the CAM infrastructure.
+#
+device		mly
+
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
@@ -2336,41 +2378,6 @@ options 	DEBUG_LOCKS
 options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
-
-# The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
-# These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
-# The DPT controllers are commonly re-licensed under other brand-names -
-# some controllers by Olivetti, Dec, HP, AT&T, SNI, AST, Alphatronic, NEC and
-# Compaq are actually DPT controllers.
-#
-# See src/sys/dev/dpt for debugging and other subtle options.
-#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
-#                           instruments are enabled.  The tools in
-#                           /usr/sbin/dpt_* assume these to be enabled.
-#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
-#                           If you ant the driver to handle timeouts, enable
-#                           this option.  If your system is very busy, this
-#                           option will create more trouble than solve.
-#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
-#                           wait when timing out with the above option.
-#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
-#  DPT_LOST_IRQ             When enabled, will try, once per second, to catch
-#                           any interrupt that got lost.  Seems to help in some
-#                           DPT-firmware/Motherboard combinations.  Minimal
-#                           cost, great benefit.
-#  DPT_RESET_HBA            Make "reset" actually reset the controller
-#                           instead of fudging it.  Only enable this if you
-#			    are 100% certain you need it.
-
-device		dpt
-
-# DPT options
-#!CAM# options 	DPT_MEASURE_PERFORMANCE
-#!CAM# options 	DPT_HANDLE_TIMEOUTS
-options 	DPT_TIMEOUT_FACTOR=4
-options 	DPT_LOST_IRQ
-options 	DPT_RESET_HBA
-options 	DPT_ALLOW_MEMIO
 
 # USB support
 # UHCI controller
