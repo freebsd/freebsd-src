@@ -1721,13 +1721,8 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-	static	int cdevsw_add_done;
 	int i;
 
-	if (!cdevsw_add_done) {
-		cdevsw_add(&fd_cdevsw);	/* XXX */
-		cdevsw_add_done = 1;
-	}
 	fd = device_get_softc(dev);
 	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
@@ -1754,7 +1749,6 @@ fd_detach(device_t dev)
 	for (i = 0; i < NUMDENS - 1; i++)
 		if (fd->clonedevs[i] != NODEV)
 			destroy_dev(fd->clonedevs[i]);
-	cdevsw_remove(&fd_cdevsw);
 	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
 
 	return (0);
