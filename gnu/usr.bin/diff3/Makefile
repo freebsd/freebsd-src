@@ -3,7 +3,7 @@
 .PATH:  ${.CURDIR}/../../../contrib/diff
 
 PROG=		diff3
-SRCS=		diff3.c getopt.c getopt1.c version.c
+SRCS=           diff3.c version.c
 
 # Important for ctype macros!
 CFLAGS+=-funsigned-char

@@ -14,7 +14,7 @@ SUBDIR=	doc
 
 # libtar SRCS
 SRCS=	addext.c argmatch.c backupfile.c basename.c dirname.c error.c \
-	exclude.c full-write.c getdate.c getline.c getopt.c getopt1.c \
+	exclude.c full-write.c getdate.c getline.c \
 	getstr.c hash.c human.c mktime.c modechange.c prepargs.c \
 	print-copyr.c quotearg.c safe-read.c save-cwd.c savedir.c unicodeio.c \
 	xgetcwd.c xmalloc.c xstrdup.c xstrtoul.c xstrtoumax.c
