@@ -46,6 +46,7 @@ uint32_t version = G_MIRROR_VERSION;
 
 static char label_balance[] = "split", configure_balance[] = "none";
 static intmax_t label_slice = 4096, configure_slice = -1;
+static intmax_t insert_priority = 0;
 
 static void mirror_main(struct gctl_req *req, unsigned f);
 static void mirror_activate(struct gctl_req *req);
@@ -79,6 +80,7 @@ struct g_command class_commands[] = {
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'i', "inactive", NULL, G_TYPE_NONE },
+		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -105,7 +107,7 @@ usage(const char *comm)
 	    "       %s dump dev1 [dev2 [...]]\n"
 	    "       %s configure [-anv] [-b balance] [-s slice] name\n"
 	    "       %s rebuild [-v] name dev1 [dev2 [...]]\n"
-	    "       %s insert [-iv] name dev1 [dev2 [...]]\n"
+	    "       %s insert [-iv] [-p priority] name dev1 [dev2 [...]]\n"
 	    "       %s remove [-v] name dev1 [dev2 [...]]\n"
 	    "       %s activate [-v] name dev1 [dev2 [...]]\n"
 	    "       %s deactivate [-v] name dev1 [dev2 [...]]\n"
