@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.115 1998/08/09 17:17:10 brian Exp $
+.\" $Id: ppp.8,v 1.116 1998/08/09 17:17:23 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1950,7 +1950,7 @@ program.  Refer to the
 section above for details.  It is disabled by default as it violates
 .Pa rfc1975 .
 .It dns
-Default: Enabled and Denied.  This option allows DNS negotiation.
+Default: Disabled and Denied.  This option allows DNS negotiation.
 .Pp
 If
 .Dq enable Ns No d,
