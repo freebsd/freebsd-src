@@ -364,6 +364,8 @@ dev/ata/atapi-cam.c	optional atapicam
 dev/ath/if_ath.c	optional ath
 dev/ath/if_ath_pci.c	optional ath pci
 dev/ath/if_ath_pci.c	optional ath card
+dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
+dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe
 dev/awi/am79c930.c	optional awi
 dev/awi/awi.c		optional awi
 dev/awi/if_awi_pccard.c	optional awi card
@@ -1273,11 +1275,20 @@ net/zlib.c		optional crypto
 net/zlib.c		optional geom_uzip
 net80211/ieee80211.c	optional wlan
 net80211/ieee80211_crypto.c	optional wlan
+net80211/ieee80211_crypto_ccmp.c	optional wlan_ccmp
+crypto/rijndael/rijndael-alg-fst.c	optional wlan_ccmp
+crypto/rijndael/rijndael-api.c		optional wlan_ccmp
+net80211/ieee80211_crypto_none.c	optional wlan
+net80211/ieee80211_crypto_tkip.c	optional wlan_tkip
+net80211/ieee80211_crypto_wep.c	optional wlan_wep
+net80211/ieee80211_freebsd.c	optional wlan
 net80211/ieee80211_input.c	optional wlan
 net80211/ieee80211_ioctl.c	optional wlan
 net80211/ieee80211_node.c	optional wlan
 net80211/ieee80211_output.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
+net80211/ieee80211_xauth.c	optional wlan_xauth
+net80211/ieee80211_acl.c	optional wlan_acl
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
@@ -1443,7 +1454,6 @@ netgraph/ng_mppc.c	optional netgraph_mppc_compression
 netgraph/ng_mppc.c	optional netgraph_mppc_encryption
 netgraph/netflow/ng_netflow.c	optional netgraph_netflow
 netgraph/netflow/netflow.c	optional netgraph_netflow
-crypto/rc4/rc4.c	optional wlan
 crypto/rc4/rc4.c	optional netgraph_mppc_encryption
 crypto/sha1.c		optional netgraph_mppc_encryption
 netgraph/ng_one2many.c	optional netgraph_one2many
