@@ -151,46 +151,53 @@ struct vm_page {
  */
 /* Each of PQ_FREE, and PQ_CACHE have PQ_HASH_SIZE entries */
 
-/* Define one of the following */
+/* Backward compatibility for existing PQ_*CACHE config options. */
+#if !defined(PQ_CACHESIZE)
 #if defined(PQ_HUGECACHE)
+#define PQ_CACHESIZE 1024
+#elsif defined(PQ_LARGECACHE)
+#define PQ_CACHESIZE 512
+#elsif defined(PQ_MEDIUMCACHE)
+#define PQ_CACHESIZE 256
+#elsif defined(PQ_NORMALCACHE)
+#define PQ_CACHESIZE 64
+#elsif defined(PQ_NOOPT)
+#define PQ_CACHESIZE 0
+#else
+#define PQ_CACHESIZE 128
+#endif
+#endif
+
+#if PQ_CACHESIZE >= 1024
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
-#endif
 
-/* Define one of the following */
-#if defined(PQ_LARGECACHE)
+#elsif PQ_CACHESIZE >= 512
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
-#endif
 
-
-/*
- * Use 'options PQ_NOOPT' to disable page coloring
- */
-#if defined(PQ_NOOPT)
-#define PQ_PRIME1 1
-#define PQ_PRIME2 1
-#define PQ_L2_SIZE 1
-#endif
-
-#if defined(PQ_NORMALCACHE)
-#define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
-#endif
-
-#if defined(PQ_MEDIUMCACHE)
+#elsif PQ_CACHESIZE >= 256
 #define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
-#endif
 
-#if !defined(PQ_L2_SIZE)
+#elsif PQ_CACHESIZE >= 128
 #define PQ_PRIME1 9	/* Produces a good PQ_L2_SIZE/3 + PQ_PRIME1 */
 #define PQ_PRIME2 5	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_L2_SIZE 32	/* 512KB or smaller, 4-way set-associative cache */
+#define PQ_L2_SIZE 32	/* A number of colors opt for 128k cache */
+
+#elsif PQ_CACHESIZE >= 64
+#define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
+
+#else
+#define PQ_PRIME1 1	/* Disable page coloring. */
+#define PQ_PRIME2 1
+#define PQ_L2_SIZE 1
+
 #endif
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
