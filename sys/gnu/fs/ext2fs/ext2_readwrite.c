@@ -112,7 +112,7 @@ READ(ap)
 
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
-		else if (doclusterread)
+		else if (ext2_doclusterread)
 			error = cluster_read(vp,
 			    ip->i_size, lbn, size, NOCRED,
 				uio->uio_resid, (ap->a_ioflag >> 16), &bp);
@@ -277,7 +277,7 @@ WRITE(ap)
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
 		} else if (xfersize + blkoffset == fs->s_frag_size) {
-			if (doclusterwrite) {
+			if (ext2_doclusterwrite) {
 #if defined(__FreeBSD__)
 				bp->b_flags |= B_CLUSTEROK;
 #endif
