@@ -360,7 +360,7 @@ tcp_input(m, off0)
 	struct tcpopt to;		/* options in this segment */
 	struct rmxp_tao tao;		/* our TAO cache entry */
 	int headlocked = 0;
-	struct sockaddr_in *next_hop = NULL;
+	struct sockaddr_in *next_hop;
 	int rstreason; /* For badport_bandlim accounting purposes */
 
 	struct ip6_hdr *ip6 = NULL;
@@ -380,11 +380,7 @@ tcp_input(m, off0)
 	short ostate = 0;
 #endif
 
-	/* Grab info from MT_TAG mbufs prepended to the chain. */
-	for (;m && m->m_type == MT_TAG; m = m->m_next) { 
-		if (m->_m_tag_id == PACKET_TAG_IPFORWARD)
-			next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
-	}
+	next_hop = ip_claim_next_hop(m);
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
