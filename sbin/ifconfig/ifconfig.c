@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.25 1997/05/04 06:00:27 peter Exp $";
+	"$Id: ifconfig.c,v 1.26 1997/05/04 06:14:47 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,6 +94,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "ifconfig.h"
 
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
@@ -182,6 +184,11 @@ struct	cmd {
 	{ "-link1",	-IFF_LINK1,	setifflags },
 	{ "link2",	IFF_LINK2,	setifflags },
 	{ "-link2",	-IFF_LINK2,	setifflags },
+#ifdef USE_IF_MEDIA
+	{ "media",	NEXTARG,	setmedia },
+	{ "mediaopt",	NEXTARG,	setmediaopt },
+	{ "-mediaopt",	NEXTARG,	unsetmediaopt },
+#endif
 	{ "normal",	-IFF_LINK0,	setifflags },
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
@@ -282,6 +289,11 @@ usage()
 	fputs("        [ mtu n ]\n", stderr);
 	fputs("        [ arp | -arp ]\n", stderr);
 	fputs("        [ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ]\n", stderr);
+#ifdef USE_IF_MEDIA
+	fputs("        [ media mtype ]\n", stderr);
+	fputs("        [ mediaopt mopts ]\n", stderr);
+	fputs("        [ -mediaopt mopts ]\n", stderr);
+#endif
 	exit(1);
 }
 
@@ -299,7 +311,7 @@ main(argc, argv)
 
 	/* Parse leading line options */
 	all = allmedia = downonly = uponly = namesonly = 0;
-	while ((c = getopt(argc, argv, "adlu")) != -1) {
+	while ((c = getopt(argc, argv, "adlmu")) != -1) {
 		switch (c) {
 		case 'a':	/* scan all interfaces */
 			all++;
@@ -312,6 +324,14 @@ main(argc, argv)
 			break;
 		case 'u':	/* restrict scan to "down" interfaces */
 			uponly++;
+			break;
+		case 'm':	/* show media choices in status */
+#ifdef USE_IF_MEDIA
+			allmedia++;
+#else
+			fputs("WARNING: if_media not compiled in!\n", stderr);
+			usage();
+#endif
 			break;
 		default:
 			usage();
@@ -474,6 +494,9 @@ ifconfig(argc, argv, rafp)
 
 	if (argc == 0) {
 		status();
+#ifdef USE_IF_MEDIA
+		media_status(s);
+#endif
 		close(s);
 		return(0);
 	}
