@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1998/05/01 09:51:31 andreas Exp $
+#	$Id: Makefile,v 1.9 1998/05/01 12:01:57 bde Exp $
 
 BCDIR=	${.CURDIR}/../../../contrib/bc
 
@@ -7,7 +7,7 @@ BCDIR=	${.CURDIR}/../../../contrib/bc
 PROG=	dc
 SRCS=	array.c dc.c eval.c misc.c numeric.c stack.c string.c \
 	getopt.c getopt1.c number.c
-CFLAGS+=-I${.CURDIR} -I${BCDIR}/h -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR}/../bc -I${BCDIR}/h -DHAVE_CONFIG_H
 DPADD=	${LIBM}
 LDADD=	-lm
 SUBDIR=	doc
