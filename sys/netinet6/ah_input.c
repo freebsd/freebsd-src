@@ -97,13 +97,9 @@
 extern struct protosw inetsw[];
 
 void
-#if __STDC__
-ah4_input(struct mbuf *m, ...)
-#else
-ah4_input(m, va_alist)
+ah4_input(m, off)
 	struct mbuf *m;
-	va_dcl
-#endif
+	int off;
 {
 	struct ip *ip;
 	struct ah *ah;
@@ -115,14 +111,8 @@ ah4_input(m, va_alist)
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
 	size_t hlen;
-	int off, proto;
-	va_list ap;
+	int proto;
 	size_t stripsiz = 0;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = mtod(m, struct ip *)->ip_p;
-	va_end(ap);
 
 #ifndef PULLDOWN_TEST
 	if (m->m_len < off + sizeof(struct newah)) {
@@ -136,9 +126,11 @@ ah4_input(m, va_alist)
 	}
 
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 	ah = (struct ah *)(((caddr_t)ip) + off);
 #else
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 	IP6_EXTHDR_GET(ah, struct ah *, m, off, sizeof(struct newah));
 	if (ah == NULL) {
 		ipseclog((LOG_DEBUG, "IPv4 AH input: can't pullup;"
