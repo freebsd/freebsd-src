@@ -24,35 +24,37 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
-.\" 
-.\" harp(4) man page
 .\"
 .Dd July 21, 2003
 .Dt HARP 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm harp
-.Nd Pseudo physical interface driver for HARP
+.Nd pseudo physical interface driver for HARP
 .Sh SYNOPSIS
-.Cd options atm
+.Cd device atm
 .Cd options NATM
 .Cd options ATM_CORE
 .Cd device harp
 .Sh DESCRIPTION
 The
 .Nm
-driver, when loaded, attaches to all netgraph ATM interfaces in the system and for
+driver, when loaded, attaches to all
+.Xr netgraph 4
+ATM interfaces in the system, and for
 each of these interfaces presents a physical interface to the HARP stack.
-The name of the harp physical interface is the same as the name of the
-netgraph interface (they are in different namespaces).
+The name of the
+.Nm
+physical interface is the same as the name of the
+Netgraph interface (they are in different namespaces).
 .Sh SEE ALSO
 .Xr fatm 4 ,
 .Xr hatm 4 ,
-.Xr patm 4 ,
 .Xr ng_atm 4 ,
+.Xr patm 4 ,
 .Xr atm 8
 .Sh CAVEATS
 When
@@ -61,4 +63,4 @@ is used, it must be started before
 .Nm
 is loaded, to get the correct configuration for the HARP physical interface.
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org .
+.An Harti Brandt Aq harti@FreeBSD.org
