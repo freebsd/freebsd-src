@@ -1437,8 +1437,45 @@ hint.sio.0.port="0x3F8"
 hint.sio.0.flags="0x10"
 hint.sio.0.irq="4"
 
+# Options for sio:
+options 	CONSPEED=115200		# speed for serial console
+					# (default 9600)
+options 	COM_ESP			#code for Hayes ESP
+options 	COM_MULTIPORT		#code for some cards with shared IRQs
+
+# `flags' specific to sio(4). See below for flags used by both sio(4) and
+# uart(4).
+#	0x20	force this unit to be the console (unless there is another
+#		higher priority console).  This replaces the COMCONSOLE option.
+#	0x40	reserve this unit for low level console operations.  Do not
+#		access the device in any normal way.
+# PnP `flags'
+#	0x1	disable probing of this device.  Used to prevent your modem
+#		from being attached as a PnP modem.
+# Other flags for sio that aren't documented in the man page.
+#	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
+#		ST16650A-compatible UARTs.
+
 #
-# `flags' for serial drivers that support consoles (only for sio now):
+# uart: newbusified driver for serial interfaces. It consolidates the sio(4),
+#	sab(4) and zs(4) drivers.
+
+device		uart
+
+# The following hint should only be used for pure ISA devices. It is not
+# needed otherwise. Use of hints is strongly discouraged.
+hint.uart.0.at="isa"
+
+# The following 3 hints are used when the UART is a system device (ie console
+# or debug port), but only on platforms that don't have any other means to
+# pass the information to the kernel. The unit number of the hint is only used
+# to bundle the hints together. There's no relation to the unit number of the
+# probed UART.
+hint.uart.0.port="0x3f8"
+hint.uart.0.flags="0x10"
+hint.uart.0.baud="115200"
+
+# `flags' for serial drivers that support consoles like sio(4) and uart(4):
 #	0x10	enable console support for this unit.  The other console flags
 #		are ignored unless this is set.  Enabling console support does
 #		not make the unit the preferred console - boot with -h or set
@@ -1446,35 +1483,17 @@ hint.sio.0.irq="4"
 #		console support; the first one (in config file order) with
 #		this flag set is preferred.  Setting this flag for sio0 gives
 #		the old behaviour.
-#	0x20	force this unit to be the console (unless there is another
-#		higher priority console).  This replaces the COMCONSOLE option.
-#	0x40	reserve this unit for low level console operations.  Do not
-#		access the device in any normal way.
 #	0x80	use this port for serial line gdb support in ddb.
 #
-# PnP `flags'
-#	0x1	disable probing of this device.  Used to prevent your modem
-#		from being attached as a PnP modem.
-#
 
-# Options for serial drivers that support consoles (only for sio now):
+# Options for serial drivers that support consoles:
 options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 					#DDB, if available.
-options 	CONSPEED=115200		# speed for serial console
-					# (default 9600)
 
 # Solaris implements a new BREAK which is initiated by a character
 # sequence CR ~ ^b which is similar to a familiar pattern used on
 # Sun servers by the Remote Console.
 options 	ALT_BREAK_TO_DEBUGGER
-
-# Options for sio:
-options 	COM_ESP			#code for Hayes ESP
-options 	COM_MULTIPORT		#code for some cards with shared IRQs
-
-# Other flags for sio that aren't documented in the man page.
-#	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
-#		ST16650A-compatible UARTs.
 
 # PCI Universal Communications driver
 # Supports various single and multi port PCI serial cards. Maybe later
