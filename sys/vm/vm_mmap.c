@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.15 1995/03/19 14:29:25 davidg Exp $
+ * $Id: vm_mmap.c,v 1.16 1995/03/21 02:54:04 davidg Exp $
  */
 
 /*
@@ -624,6 +624,17 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		fitit = FALSE;
 		(void) vm_map_remove(map, *addr, *addr + size);
 	}
+
+	/*
+	 * We currently can only deal with page aligned file offsets.
+	 * The check is here rather than in the syscall because the
+	 * kernel calls this function internally for other mmaping
+	 * operations (such as in exec) and non-aligned offsets will
+	 * cause pmap inconsistencies...so we want to be sure to
+	 * disallow this in all cases.
+	 */
+	if (foff & PAGE_MASK)
+		return (EINVAL);
 
 	/*
 	 * Lookup/allocate pager.  All except an unnamed anonymous lookup gain
