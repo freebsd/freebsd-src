@@ -50,7 +50,8 @@ typedef struct __mcontext {
 #define	_MC_REV0_SIGFRAME	1	/* context is a signal frame */
 #define	_MC_REV0_TRAPFRAME	2	/* context is a trap frame */
 	long	mc_format;
-	long	mc_spare[6];
+	long	mc_thrptr;		/* Thread pointer */
+	long	mc_spare[5];
 } mcontext_t;
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
