@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.161 1999/08/23 05:12:42 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.162 1999/08/24 03:51:33 rgrimes Exp $
 #
 # Please see the file README before making changes to this file.
 #
@@ -109,33 +109,33 @@
                             ..
                         ..
                         DynaLoader
-                            ..
-                            Fcntl
-                            ..
-                            IO
-                            ..
-                            IPC
-                                SysV
-                                ..
-                            ..
-                            NDBM_File
-                            ..
-                            Opcode
-                            ..
-                            POSIX
-                            ..
-                            SDBM_File
-                            ..
-                            Socket
-                            ..
-                            attrs
-                            ..
-                            re
-                            ..
-                            sdbm
+                        ..
+                        Fcntl
+                        ..
+                        IO
+                        ..
+                        IPC
+                            SysV
                             ..
                         ..
+                        NDBM_File
+                        ..
+                        Opcode
+                        ..
+                        POSIX
+                        ..
+                        SDBM_File
+                        ..
+                        Socket
+                        ..
+                        attrs
+                        ..
+                        re
+                        ..
+                        sdbm
+                        ..
                     ..
+                ..
                 pod
                 ..
             ..
@@ -326,11 +326,11 @@
             diskless
                 209.157.86.12
                 ..
-                HT.DISKLESS  
+                HT.DISKLESS
                 ..
-                archive.backplane.com  
+                archive.backplane.com
                 ..
-                HT.STD  
+                HT.STD
                 ..
             ..
             drivers
