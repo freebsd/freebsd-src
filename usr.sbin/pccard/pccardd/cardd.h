@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.13 1999/07/23 01:33:34 hosokawa Exp $
+ * $Id: cardd.h,v 1.14 1999/08/01 18:04:24 imp Exp $
  *
  *	Common include file for PCMCIA daemon
  */
@@ -161,3 +161,5 @@ void		 readfile(char *);
 #define	MEMBLKS	((MEMEND-MEMSTART)/MEMUNIT)
 #define	MEM2BIT(x) (((x)-MEMSTART)/MEMUNIT)
 #define	BIT2MEM(x) (((x)*MEMUNIT)+MEMSTART)
+
+#define MAXINCLUDES	10
