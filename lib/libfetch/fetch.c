@@ -75,11 +75,11 @@ fetchXGet(struct url *URL, struct url_stat *us, char *flags)
     int direct;
 
     direct = (flags && strchr(flags, 'd'));
-    if (strcasecmp(URL->scheme, "file") == 0)
+    if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchXGetFile(URL, us, flags);
-    else if (strcasecmp(URL->scheme, "http") == 0)
+    else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 	return fetchXGetHTTP(URL, us, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+    else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 	return fetchXGetFTP(URL, us, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -107,11 +107,11 @@ fetchPut(struct url *URL, char *flags)
     int direct;
 
     direct = (flags && strchr(flags, 'd'));
-    if (strcasecmp(URL->scheme, "file") == 0)
+    if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchPutFile(URL, flags);
-    else if (strcasecmp(URL->scheme, "http") == 0)
+    else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 	return fetchPutHTTP(URL, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+    else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 	return fetchPutFTP(URL, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -129,11 +129,11 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
     int direct;
 
     direct = (flags && strchr(flags, 'd'));
-    if (strcasecmp(URL->scheme, "file") == 0)
+    if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchStatFile(URL, us, flags);
-    else if (strcasecmp(URL->scheme, "http") == 0)
+    else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 	return fetchStatHTTP(URL, us, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+    else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 	return fetchStatFTP(URL, us, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -151,11 +151,11 @@ fetchList(struct url *URL, char *flags)
     int direct;
 
     direct = (flags && strchr(flags, 'd'));
-    if (strcasecmp(URL->scheme, "file") == 0)
+    if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchListFile(URL, flags);
-    else if (strcasecmp(URL->scheme, "http") == 0)
+    else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 	return fetchListHTTP(URL, flags);
-    else if (strcasecmp(URL->scheme, "ftp") == 0) {
+    else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 	return fetchListFTP(URL, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -288,7 +288,7 @@ fetchMakeURL(char *scheme, char *host, int port, char *doc,
 
 /*
  * Split an URL into components. URL syntax is:
- * method:[//[user[:pwd]@]host[:port]]/[document]
+ * [method:/][/[user[:pwd]@]host[:port]/][document]
  * This almost, but not quite, RFC1738 URL syntax.
  */
 struct url *
@@ -305,19 +305,18 @@ fetchParseURL(char *URL)
     }
 
     /* scheme name */
-    for (i = 0; *URL && (*URL != ':'); URL++)
-	if (i < URL_SCHEMELEN)
-	    u->scheme[i++] = *URL;
-    if (!URL[0] || (URL[1] != '/')) {
-	_url_seterr(URL_BAD_SCHEME);
-	goto ouch;
+    if ((p = strstr(URL, ":/"))) {
+	snprintf(u->scheme, URL_SCHEMELEN+1, "%.*s", p - URL, URL);
+	URL = ++p;
+	/*
+	 * Only one slash: no host, leave slash as part of document
+	 * Two slashes: host follows, strip slashes
+	 */
+	if (URL[1] == '/')
+	    URL = (p += 2);
     }
-    else URL++;
-    if (URL[1] != '/') {
-	p = URL;
+    if (!*URL || *URL == '/')
 	goto nohost;
-    }
-    else URL += 2;
 
     p = strpbrk(URL, "/@");
     if (p && *p == '@') {
@@ -368,7 +367,27 @@ nohost:
     if (!*p)
 	p = "/";
     
-    if ((u->doc = strdup(p)) == NULL) {
+    if (strcmp(u->scheme, "http") == 0 || strcmp(u->scheme, "https") == 0) {
+	const char hexnums[] = "0123456789abcdef";
+	char *doc;
+
+	/* Perform %hh encoding of white space. */
+	if ((doc = u->doc = malloc(strlen(p) * 3 + 1)) == NULL) {
+	    _fetch_syserr();
+	    goto ouch;
+	}
+	while (*p != '\0') {
+	    if (!isspace(*p)) {
+		*doc++ = *p++;
+            } else {
+		*doc++ = '%';
+		*doc++ = hexnums[((unsigned int)*p) >> 4];
+		*doc++ = hexnums[((unsigned int)*p) & 0xf];
+		p++;
+            }
+	}
+	*doc = '\0';
+    } else if ((u->doc = strdup(p)) == NULL) {
 	_fetch_syserr();
 	goto ouch;
     }

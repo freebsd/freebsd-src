@@ -618,151 +618,66 @@ _http_default_port(char *scheme)
 
     if ((se = getservbyname(scheme, "tcp")) != NULL)
 	return ntohs(se->s_port);
-    if (strcasecmp(scheme, "ftp") == 0)
+    if (strcasecmp(scheme, SCHEME_FTP) == 0)
 	return FTP_DEFAULT_PORT;
-    if (strcasecmp(scheme, "http") == 0)
+    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
 	return HTTP_DEFAULT_PORT;
     return 0;
-}
-
-/*
- * Connect to the specified HTTP proxy server.
- */
-static int
-_http_proxy_connect(char *proxy, int af, int verbose)
-{
-    char *hostname, *p;
-    int fd, port;
-
-    /* get hostname */
-    hostname = NULL;
-#ifdef INET6
-    /* host part can be an IPv6 address enclosed in square brackets */
-    if (*proxy == '[') {
-	if ((p = strchr(proxy, ']')) == NULL) {
-	    /* no terminating bracket */
-	    /* XXX should set an error code */
-	    goto ouch;
-	}
-	if (p[1] != '\0' && p[1] != ':') {
-	    /* garbage after address */
-	    /* XXX should set an error code */
-	    goto ouch;
-	}
-	if ((hostname = malloc(p - proxy)) == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    goto ouch;
-	}
-	strncpy(hostname, proxy + 1, p - proxy - 1);
-	hostname[p - proxy - 1] = '\0';
-	++p;
-    } else {
-#endif /* INET6 */
-	if ((p = strchr(proxy, ':')) == NULL)
-	    p = strchr(proxy, '\0');
-	if ((hostname = malloc(p - proxy + 1)) == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    goto ouch;
-	}
-	strncpy(hostname, proxy, p - proxy);
-	hostname[p - proxy] = '\0';
-#ifdef INET6
-    }
-#endif /* INET6 */
-    DEBUG(fprintf(stderr, "proxy name: [%s]\n", hostname));
-    
-    /* get port number */
-    port = 0;
-    if (*p == ':') {
-	++p;
-	if (strspn(p, "0123456789") != strlen(p) || strlen(p) > 5) {
-	    /* port number is non-numeric or too long */
-	    /* XXX should set an error code */
-	    goto ouch;
-	}
-	port = atoi(p);
-	if (port < 1 || port > 65535) {
-	    /* port number is out of range */
-	    /* XXX should set an error code */
-	    goto ouch;
-	}
-    }
-    
-    if (!port) {
-#if 0
-	/*
-	 * commented out, since there is currently no service name
-	 * for HTTP proxies
-	 */
-	struct servent *se;
-	
-	if ((se = getservbyname("xxxx", "tcp")) != NULL)
-	    port = ntohs(se->s_port);
-	else
-#endif
-	    port = 3128;
-    }
-    DEBUG(fprintf(stderr, "proxy port: %d\n", port));
-	
-    /* connect */
-    if ((fd = _fetch_connect(hostname, port, af, verbose)) == -1)
-	_fetch_syserr();
-    return fd;
-    
- ouch:
-    if (hostname)
-	free(hostname);
-    return -1;
 }
 
 /*
  * Connect to the correct HTTP server or proxy. 
  */
 static int
-_http_connect(struct url *URL, int *proxy, char *flags)
+_http_connect(struct url *URL, struct url *purl, char *flags)
 {
-    int direct, verbose;
+    int verbose;
     int af, fd;
-    char *p;
     
 #ifdef INET6
     af = AF_UNSPEC;
 #else
     af = AF_INET;
 #endif
-
-    direct = (flags && strchr(flags, 'd'));
+    
     verbose = (flags && strchr(flags, 'v'));
     if (flags && strchr(flags, '4'))
 	af = AF_INET;
+#ifdef INET6
     else if (flags && strchr(flags, '6'))
 	af = AF_INET6;
-    
-    /* check port */
-    if (!URL->port)
-	URL->port = _http_default_port(URL->scheme);
-    
-    if (!direct && (p = getenv("HTTP_PROXY")) != NULL && *p != '\0') {
-	/* attempt to connect to proxy server */
-	if ((fd = _http_proxy_connect(p, af, verbose)) == -1)
-	    return -1;
-	*proxy = 1;
-    } else {
-	/* if no proxy is configured, try direct */
-	if (strcasecmp(URL->scheme, "ftp") == 0) {
-	    /* can't talk http to an ftp server */
-	    /* XXX should set an error code */
-	    return -1;
-	}
-	if ((fd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
-	    /* _fetch_connect() has already set an error code */
-	    return -1;
-	*proxy = 0;
-    }
+#endif
 
+    if (purl) {
+	URL = purl;
+    } else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
+	/* can't talk http to an ftp server */
+	/* XXX should set an error code */
+	return -1;
+    }
+    
+    if ((fd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
+	/* _fetch_connect() has already set an error code */
+	return -1;
     return fd;
+}
+
+static struct url *
+_http_get_proxy()
+{
+    struct url *purl;
+    char *p;
+    
+    if ((p = getenv("HTTP_PROXY")) && (purl = fetchParseURL(p))) {
+	if (!*purl->scheme)
+	    strcpy(purl->scheme, SCHEME_HTTP);
+	if (!purl->port)
+	    purl->port = _http_default_port(SCHEME_HTTP);
+	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
+	    return purl;
+	fetchFreeURL(purl);
+    }
+    return NULL;
 }
 
 
@@ -773,11 +688,12 @@ _http_connect(struct url *URL, int *proxy, char *flags)
 /*
  * Send a request and process the reply
  */
-static FILE *
-_http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
+FILE *
+_http_request(struct url *URL, char *op, struct url_stat *us,
+	      struct url *purl, char *flags)
 {
     struct url *url, *new;
-    int chunked, need_auth, noredirect, proxy, verbose;
+    int chunked, direct, need_auth, noredirect, verbose;
     int code, fd, i, n;
     off_t offset, clength, length, size;
     time_t mtime;
@@ -789,9 +705,15 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
     char hbuf[MAXHOSTNAMELEN + 1];
 #endif
 
+    direct = (flags && strchr(flags, 'd'));
     noredirect = (flags && strchr(flags, 'A'));
     verbose = (flags && strchr(flags, 'v'));
 
+    if (direct && purl) {
+	fetchFreeURL(purl);
+	purl = NULL;
+    }
+    
     /* try the provided URL first */
     url = URL;
 
@@ -809,8 +731,12 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	size = -1;
 	mtime = 0;
     retry:
+	/* check port */
+	if (!url->port)
+	    url->port = _http_default_port(url->scheme);
+    
 	/* connect to server or proxy */
-	if ((fd = _http_connect(url, &proxy, flags)) == -1)
+	if ((fd = _http_connect(url, purl, flags)) == -1)
 	    goto ouch;
 
 	host = url->host;
@@ -825,7 +751,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	if (verbose)
 	    _fetch_info("requesting %s://%s:%d%s",
 			url->scheme, host, url->port, url->doc);
-	if (proxy) {
+	if (purl) {
 	    _http_cmd(fd, "%s %s://%s:%d%s HTTP/1.1",
 		      op, url->scheme, host, url->port, url->doc);
 	} else {
@@ -834,15 +760,18 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	}
 
 	/* proxy authorization */
-	if (proxy && (p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
-	    _http_authorize(fd, "Proxy-Authorization", p);
+	if (purl) {
+	    if (*purl->user || *purl->pwd)
+		_http_basic_auth(fd, "Proxy-Authorization",
+				 purl->user, purl->pwd);
+	    else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
+		_http_authorize(fd, "Proxy-Authorization", p);
+	}
 	
 	/* server authorization */
 	if (need_auth) {
 	    if (*url->user || *url->pwd)
-		_http_basic_auth(fd, "Authorization",
-				 url->user ? url->user : "",
-				 url->pwd ? url->pwd : "");
+		_http_basic_auth(fd, "Authorization", url->user, url->pwd);
 	    else if ((p = getenv("HTTP_AUTH")) != NULL && *p != '\0')
 		_http_authorize(fd, "Authorization", p);
 	    else {
@@ -1023,12 +952,16 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 
     if (url != URL)
 	fetchFreeURL(url);
+    if (purl)
+	fetchFreeURL(purl);
     
     return f;
 
  ouch:
     if (url != URL)
 	fetchFreeURL(url);
+    if (purl)
+	fetchFreeURL(purl);
     if (fd != -1)
 	close(fd);
     return NULL;
@@ -1045,7 +978,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 FILE *
 fetchXGetHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    return _http_request(URL, "GET", us, flags);
+    return _http_request(URL, "GET", us, _http_get_proxy(), flags);
 }
 
 /*
@@ -1075,7 +1008,7 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
     FILE *f;
     
-    if ((f = _http_request(URL, "HEAD", us, flags)) == NULL)
+    if ((f = _http_request(URL, "HEAD", us, _http_get_proxy(), flags)) == NULL)
 	return -1;
     fclose(f);
     return 0;

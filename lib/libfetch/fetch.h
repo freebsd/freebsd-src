@@ -59,6 +59,11 @@ struct url_ent {
     struct url_stat stat;
 };
 
+/* Recognized schemes */
+#define SCHEME_FTP	"ftp"
+#define SCHEME_HTTP	"http"
+#define SCHEME_FILE	"file"
+
 /* Error codes */
 #define	FETCH_ABORT	 1
 #define	FETCH_AUTH	 2
