@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	from: npx.4,v 1.1 1993/08/06 10:58:03 cgd Exp
+.\"	$Id: npx.4,v 1.1 1993/08/06 10:58:03 cgd Exp $
 .\" $FreeBSD$
 .\"
 .Dd August 28, 1993
@@ -52,78 +52,98 @@ The
 .Nm
 driver enables the use of the system's Numeric Processing Extension
 coprocessor,
-if one is present.  Numeric processing extensions are present in
+if one is present.
+Numeric processing extensions are present in
 systems with
-.Sy 486DX
+.Tn 486DX
 CPUs and in systems with
-.Sy 387
+.Tn 387
 or
-.Sy 487SX
-coprocessors.  The
+.Tn 487SX
+coprocessors.
+The
 .Nm
 driver is required for proper system functioning regardless
 of whether or not a NPX is present.
 .Pp
-If there is no NPX present in the system, the MATH_EMULATE or
-GPL_MATH_EMULATE option must be defined in the kernel configuration
+If there is no NPX present in the system, the
+.Dv MATH_EMULATE
+or
+.Dv GPL_MATH_EMULATE
+option must be defined in the kernel configuration
 file.
-It will provide support for the instructions normally executed by the
-NPX.
+It will provide support for the instructions normally executed by the NPX.
 If there is no NPX in the system and the kernel is not built with math
 emulation, the system will not boot.
 .Pp
 You can choose to use a much more fully-featured math emulator (under the
-GPL license) by including the option GPL_MATH_EMULATE in your kernel
-configuration file instead of the MATH_EMULATE option.
+GPL license) by including the
+.Cd "options GPL_MATH_EMULATE"
+in your kernel
+configuration file instead of the
+.Dv MATH_EMULATE
+option.
 .Pp
 The
-.Sy GENERIC
-kernel configuration uses the MATH_EMULATE option.
+.Pa GENERIC
+kernel configuration uses the
+.Dv MATH_EMULATE
+option.
 .Pp
-The flags for npx0 are:
-.Bl -tag -width xxxxxxxxx -compact
+The flags for
+.Pa npx0
+are:
+.Pp
+.Bl -tag -width indent -compact
 .It 0x01
-don't use the npx registers to optimize bcopy.
+do not use the NPX registers to optimize bcopy.
 .It 0x02
-don't use the npx registers to optimize bzero.
+do not use the NPX registers to optimize bzero.
 .It 0x04
-don't use the npx registers to optimize copyin or copyout.
+do not use the NPX registers to optimize copyin or copyout.
 .It 0x08
 use emulator even if hardware FPU is available.
 .El
 .Pp
-The npx registers are normally used
+The NPX registers are normally used
 to optimize copying and zeroing
 when all of the following conditions are satisfied:
+.Pp
 .Bl -enum -compact
 .It
-I586_CPU is an option
+.Cd "cpu I586_CPU"
+is an option
 .It
-the cpu is an i586 (perhaps not a Pentium)
+the CPU is an i586 (perhaps not a Pentium)
 .It
-the probe for npx0 succeeds
+the probe for
+.Pa npx0
+succeeds
 .It
 INT 16 exception handling works.
 .El
+.Pp
 Then copying and zeroing
-using the npx registers
+using the NPX registers
 is normally 30-100% faster.
 .Pp
 The flags can be used
 to control cases
-where it doesn't work or is slower.
+where it does not work or is slower.
 Setting them at boot time
 using userconfig works correctly
 (the optimizations are not used
 until later in the bootstrap
-when npx0 is attached).
+when
+.Pa npx0
+is attached).
 Flag 0x08 automatically disables the i586 optimized routines.
 .Sh CAVEATS
 The emulator is much slower than the NPX coprocessor.
 This will result in poor floating-point math performance
 if the emulator must be used.
 .Pp
-The non-GPL emulator does not support the whole set of npx
+The non-GPL emulator does not support the whole set of NPX
 instructions.
 It is sufficient for booting and configuring a system, but it cannot
 support a system with normal workload unless care is taken to compile
@@ -136,6 +156,8 @@ the NPX to the CPU wired properly.
 If this is the case, the emulator must be used if consistent system
 operation is desired.
 .Pp
-When using the default MATH_EMULATE option,
+When using the default
+.Dv MATH_EMULATE
+option,
 transcendental function instructions are not implemented.
 Emulation of other instructions is suspect.
