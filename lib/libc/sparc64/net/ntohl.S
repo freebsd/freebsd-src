@@ -57,5 +57,5 @@
         .set CNAME(ntohl),CNAME(__ntohl)
 ENTRY(__ntohl)
 	retl
-	 signx	%o0, %o0
+	 srl	%o0, 0, %o0	/* zero extend */
 END(__ntohl)
