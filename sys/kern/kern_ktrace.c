@@ -226,14 +226,15 @@ ktr_getrequest(int type)
 	if (req != NULL) {
 		STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
 		req->ktr_header.ktr_type = type;
-		KASSERT(p->p_tracep != NULL, ("ktrace: no trace vnode"));
-		req->ktr_vp = p->p_tracep;
-		VREF(p->p_tracep);
+		KASSERT(p->p_tracevp != NULL, ("ktrace: no trace vnode"));
+		KASSERT(p->p_tracecred != NULL, ("ktrace: no trace cred"));
+		req->ktr_vp = p->p_tracevp;
+		VREF(p->p_tracevp);
+		req->ktr_cred = crhold(p->p_tracecred);
 		mtx_unlock(&ktrace_mtx);
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
 		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
-		req->ktr_cred = crhold(td->td_ucred);
 		req->ktr_header.ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {
@@ -498,6 +499,7 @@ ktrace(td, uap)
 	int ret = 0;
 	int flags, error = 0;
 	struct nameidata nd;
+	struct ucred *cred;
 
 	td->td_inktrace = 1;
 	if (ops != KTROP_CLEAR) {
@@ -527,15 +529,18 @@ ktrace(td, uap)
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
-			if (p->p_tracep == vp) {
+			if (p->p_tracevp == vp) {
 				if (ktrcanset(td, p)) {
 					mtx_lock(&ktrace_mtx);
-					p->p_tracep = NULL;
+					cred = p->p_tracecred;
+					p->p_tracecred = NULL;
+					p->p_tracevp = NULL;
 					p->p_traceflag = 0;
 					mtx_unlock(&ktrace_mtx);
 					PROC_UNLOCK(p);
 					(void) vn_close(vp, FREAD|FWRITE,
-						td->td_ucred, td);
+						cred, td);
+					crfree(cred);
 				} else {
 					PROC_UNLOCK(p);
 					error = EPERM;
@@ -654,6 +659,7 @@ ktrops(td, p, ops, facs, vp)
 	struct vnode *vp;
 {
 	struct vnode *tracevp = NULL;
+	struct ucred *tracecred = NULL;
 
 	PROC_LOCK(p);
 	if (!ktrcanset(td, p)) {
@@ -662,13 +668,17 @@ ktrops(td, p, ops, facs, vp)
 	}
 	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
-		if (p->p_tracep != vp) {
+		if (p->p_tracevp != vp) {
 			/*
 			 * if trace file already in use, relinquish below
 			 */
-			tracevp = p->p_tracep;
+			tracevp = p->p_tracevp;
 			VREF(vp);
-			p->p_tracep = vp;
+			p->p_tracevp = vp;
+		}
+		if (p->p_tracecred != td->td_ucred) {
+			tracecred = p->p_tracecred;
+			p->p_tracecred = crhold(td->td_ucred);
 		}
 		p->p_traceflag |= facs;
 		if (td->td_ucred->cr_uid == 0)
@@ -678,14 +688,18 @@ ktrops(td, p, ops, facs, vp)
 		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0) {
 			/* no more tracing */
 			p->p_traceflag = 0;
-			tracevp = p->p_tracep;
-			p->p_tracep = NULL;
+			tracevp = p->p_tracevp;
+			p->p_tracevp = NULL;
+			tracecred = p->p_tracecred;
+			p->p_tracecred = NULL;
 		}
 	}
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL)
 		vrele(tracevp);
+	if (tracecred != NULL)
+		crfree(tracecred);
 
 	return (1);
 }
@@ -804,17 +818,24 @@ ktr_writerequest(struct ktr_request *req)
 	 * we really do this?  Other processes might have suitable
 	 * credentials for the operation.
 	 */
+	cred = NULL;
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		PROC_LOCK(p);
-		if (p->p_tracep == vp) {
+		if (p->p_tracevp == vp) {
 			mtx_lock(&ktrace_mtx);
-			p->p_tracep = NULL;
+			p->p_tracevp = NULL;
 			p->p_traceflag = 0;
+			cred = p->p_tracecred;
+			p->p_tracecred = NULL;
 			mtx_unlock(&ktrace_mtx);
 			vrele_count++;
 		}
 		PROC_UNLOCK(p);
+		if (cred != NULL) {
+			crfree(cred);
+			cred = NULL;
+		}
 	}
 	sx_sunlock(&allproc_lock);
 	/*
