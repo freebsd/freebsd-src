@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.4 1995/06/18 14:08:44 ache Exp $
+ *	$Id: file.c,v 1.4.2.1 1997/08/24 21:41:33 jkh Exp $
  */
 
 #ifndef lint
@@ -450,7 +450,7 @@ tsearch(word, command, max_word_length)
 
     looking_for_lognames = (*word == '~') && (Strchr(word, '/') == NULL);
     if (looking_for_lognames) {
-	(void) setpwent();
+	setpwent();
 	copyn(name, &word[1], MAXNAMLEN);	/* name sans ~ */
 	dir_fd = NULL;
     }
@@ -498,7 +498,7 @@ again:				/* search for matches */
 	ignoring = FALSE;
 	nignored = 0;
 	if (looking_for_lognames)
-	    (void) setpwent();
+	    setpwent();
 	else
 	    rewinddir(dir_fd);
 	goto again;
