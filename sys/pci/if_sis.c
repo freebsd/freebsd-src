@@ -1385,7 +1385,7 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
 	bus_dmamap_load(sc->sis_tag, c->sis_map,
 	    mtod(m, void *), MCLBYTES,
 	    sis_dma_map_desc_ptr, c, 0);
-	bus_dmamap_sync(sc->sis_tag, c->sis_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sis_tag, c->sis_map, BUS_DMASYNC_PREREAD);
 
 	return(0);
 }
