@@ -64,19 +64,19 @@
 #define OUTL	outl	(%dx)
 
 #else	/* wheeze */
+
 #define ALIGN
 #define	LCL(x)	x
 
 #define LB(x,n) n
 #ifdef	__STDC__
 #define EXT(x) x
-#define LEXT(x) x ## :
-
+#define LEXT(x) .type EXT(x),@function; EXT(x):
 #define LBb(x,n) n ## b
 #define LBf(x,n) n ## f
 #else	/* __STDC__ */
 #define EXT(x) _/**/x
-#define LEXT(x) _/**/x/**/:
+#define LEXT(x) .type EXT(x),@function; EXT(x)/**/:
 #define LBb(x,n) n/**/b
 #define LBf(x,n) n/**/f
 #endif	/* __STDC__ */
