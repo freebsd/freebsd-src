@@ -883,7 +883,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 	ac->ac_flags |= AMR_CMD_DATAOUT;
 	cmd = AMR_CMD_LWRITE;
     }
-    amrd = (struct amrd_softc *)bio->bio_dev->si_drv1;
+    amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;
     blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
 
