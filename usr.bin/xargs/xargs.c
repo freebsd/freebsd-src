@@ -457,8 +457,10 @@ prerun(int argc, char **argv)
 	/*
 	 * Free the input line buffer, if we have one.
 	 */
-	if (inpline != NULL)
+	if (inpline != NULL) {
 		free(inpline);
+		inpline = NULL;
+	}
 }
 
 static void
