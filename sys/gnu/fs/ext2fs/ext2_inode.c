@@ -529,13 +529,6 @@ ext2_reclaim(ap)
 		ext2_update(vp, 0);
 	}
 	vfs_hash_remove(vp);
-	/*
-	 * Purge old data structures associated with the inode.
-	 */
-	if (ip->i_devvp) {
-		vrele(ip->i_devvp);
-		ip->i_devvp = 0;
-	}
 	FREE(vp->v_data, M_EXT2NODE);
 	vp->v_data = 0;
 	vnode_destroy_vobject(vp);
