@@ -37,10 +37,8 @@
  *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Print multicast routing structures and statistics.

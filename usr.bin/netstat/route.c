@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -486,7 +487,7 @@ ntreestuff(void)
 	}
 
 	if ((buf = malloc(needed)) == 0) {
-		err(2, "malloc(%lu)", (unsigned long)needed);
+		errx(2, "malloc(%lu)", (unsigned long)needed);
 	}
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
 		err(1, "sysctl: net.route.0.0.dump");
@@ -563,21 +564,21 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	switch(sa->sa_family) {
 	case AF_INET:
 	    {
-		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct sockaddr_in *sockin = (struct sockaddr_in *)sa;
 
-		if ((sin->sin_addr.s_addr == INADDR_ANY) &&
+		if ((sockin->sin_addr.s_addr == INADDR_ANY) &&
 			mask &&
 			ntohl(((struct sockaddr_in *)mask)->sin_addr.s_addr)
 				==0L)
 				cp = "default" ;
 		else if (flags & RTF_HOST)
-			cp = routename(sin->sin_addr.s_addr);
+			cp = routename(sockin->sin_addr.s_addr);
 		else if (mask)
-			cp = netname(sin->sin_addr.s_addr,
+			cp = netname(sockin->sin_addr.s_addr,
 				     ntohl(((struct sockaddr_in *)mask)
 					   ->sin_addr.s_addr));
 		else
-			cp = netname(sin->sin_addr.s_addr, 0L);
+			cp = netname(sockin->sin_addr.s_addr, 0L);
 		break;
 	    }
 
