@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.3 1994/08/02 07:41:36 davidg Exp $
+ * $Id: cd9660_vnops.c,v 1.4 1994/08/08 09:11:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -479,6 +479,7 @@ cd9660_readdir(ap)
 	struct iso_mnt *imp;
 	struct iso_node *ip;
 	struct buf *bp = NULL;
+	u_short tmplen;
 	
 	ip = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
@@ -567,8 +568,9 @@ cd9660_readdir(ap)
 		switch (imp->iso_ftype) {
 		case ISO_FTYPE_RRIP:
 			cd9660_rrip_getname(ep,idp->current.d_name,
-					   (u_short *)&idp->current.d_namlen,
+					   &tmplen,
 					   &idp->current.d_fileno,imp);
+			idp->current.d_namlen = tmplen;
 			if (idp->current.d_namlen)
 				error = iso_uiodir(idp,&idp->current,idp->curroff);
 			break;
@@ -658,7 +660,7 @@ cd9660_readlink(ap)
 	 * Get parents directory record block that this inode included.
 	 */
 	error = bread(imp->im_devvp,
-		      (daddr_t)(ip->i_number / DEV_BSIZE),
+		      iso_dblkno(imp, ip->i_number),
 		      imp->logical_block_size,
 		      NOCRED,
 		      &bp);

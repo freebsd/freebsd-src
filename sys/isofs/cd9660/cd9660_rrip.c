@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_rrip.c,v 1.2 1994/08/02 07:41:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -521,7 +521,7 @@ cd9660_rrip_loop(isodir,ana,table)
 			if (ana->iso_ce_blk >= ana->imp->volume_space_size
 			    || ana->iso_ce_off + ana->iso_ce_len > ana->imp->logical_block_size
 			    || bread(ana->imp->im_devvp,
-				     ana->iso_ce_blk * ana->imp->logical_block_size / DEV_BSIZE,
+				     iso_lblktodaddr(ana->imp, ana->iso_ce_blk),
 				     ana->imp->logical_block_size,NOCRED,&bp))
 				/* what to do now? */
 				break;
