@@ -217,8 +217,9 @@ makemsg(fname)
 						cnt = 0;
 					}
 				}
+			} else {
+				putc(ch, fp);
 			}
-			putc(ch, fp);
 		}
 	(void)fprintf(fp, "%79s\r\n", " ");
 	rewind(fp);
