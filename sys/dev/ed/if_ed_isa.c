@@ -66,7 +66,6 @@ static int
 ed_isa_probe(dev)
 	device_t dev;
 {
-	struct ed_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error = 0;
 
