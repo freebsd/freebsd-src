@@ -138,12 +138,12 @@ server. These are described following.
 .B ?
 [
 .I command_keyword
-}
+]
 .PP
 A \*(L"?\*(R" by itself will print a list of all the command keywords
 known to this incarnation of
 .IR ntpq .
-A \*(L"?\*(R" followed by a command keyword will print funcation and
+A \*(L"?\*(R" followed by a command keyword will print function and
 usage information about the command. This command is probably a better
 source of information about
 .I ntpq
@@ -359,7 +359,7 @@ fuzzballs.
 Sends a read status request to the server for the given association. The
 names and values of the peer variables returned will be printed. Note
 that the status word from the header is displayed preceding the
-variables, both in hexidecimal and in pidgeon English.
+variables, both in hexadecimal and in pidgin English.
 .PP
 .B readvar
 [
@@ -517,9 +517,9 @@ The character in the left margin indicates the fate of this peer in the
 clock selection process. The codes mean: <sp> discarded due to high
 stratum and/or failed sanity checks; \*(L"x\*(R" designated falsticker
 by the intersection algorithm; \*(L".\*(R" culled from the end of the
-candidate list; \*(L"-\*(R" discarded by the clustering algorithmi;
+candidate list; \*(L"-\*(R" discarded by the clustering algorithm;
 \*(L"+\*(R" included in the final selection set; \*(L"#\*(R" selected
-for synchronizatio;n but distance exceeds maximum; \*(L"*\*(R" selected
+for synchronization but distance exceeds maximum; \*(L"*\*(R" selected
 for synchronization; and \*(L"o\*(R" selected for synchronization, pps
 signal in use.
 .PP
