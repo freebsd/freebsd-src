@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfsdiskless.h,v 1.2 1994/08/02 07:52:19 davidg Exp $
  */
 
 /*
@@ -43,7 +43,7 @@
  * vnodes plus do a partial ifconfig(8) and route(8) so that the critical net
  * interface can communicate with the server.
  * The primary bootstrap is expected to fill in the appropriate fields before
- * starting vmunix. Whether or not the swap area is nfs mounted is determined
+ * starting the kernel. Whether or not the swap area is nfs mounted is determined
  * by the value in swdevt[0]. (equal to NODEV --> swap over nfs)
  * Currently only works for AF_INET protocols.
  * NB: All fields are stored in net byte order to avoid hassles with
