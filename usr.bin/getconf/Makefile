@@ -3,7 +3,7 @@
 PROG=	getconf
 
 SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR} -DSTABLE
 CLEANFILES+=	confstr.c limits.c pathconf.c progenv.c sysconf.c \
 		confstr.names limits.names pathconf.names sysconf.names \
 		conflicting.names unique.names
