@@ -39,8 +39,9 @@ static void	*heapbase;
 void
 setheap(void *base, void *top)
 {
-    heapbase = base;
-    maxheap = top - base;
+    /* Align start address to 16 bytes for the malloc code. Sigh. */
+    heapbase = (void *)(((uintptr_t)base + 15) & ~15);
+    maxheap = top - heapbase;
 }
 
 char *
