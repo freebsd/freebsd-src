@@ -1370,7 +1370,7 @@ purge_pipe(struct dn_pipe *pipe)
  * remove references from all ipfw rules to all pipes.
  */
 static void
-dummynet_flush()
+dummynet_flush(void)
 {
     struct dn_pipe *curr_p, *p ;
     struct dn_flow_set *fs, *curr_fs;
