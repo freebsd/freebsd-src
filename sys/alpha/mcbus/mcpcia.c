@@ -33,6 +33,7 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <machine/md_var.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
@@ -728,6 +729,7 @@ static device_method_t mcpcia_methods[] = {
 	DEVMETHOD(pcib_maxslots,		mcpcia_maxslots),
 	DEVMETHOD(pcib_read_config,		mcpcia_read_config),
 	DEVMETHOD(pcib_write_config,		mcpcia_write_config),
+	DEVMETHOD(pcib_route_interrupt,		alpha_pci_route_interrupt),
 
 	{ 0, 0 }
 };
