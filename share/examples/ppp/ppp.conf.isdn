@@ -36,8 +36,8 @@
 isdn:
  set phone 12345678	# Replace this with your ISPs phone number
 
- set authname somename	# Replace these with your login name & password.
- set authkey somepasswd	# This profile assumes you're using PAP or CHAP.
+ set authname "somename"  # Replace these with your login name & password.
+ set authkey "somepasswd" # This profile assumes you're using PAP or CHAP.
 
  set enddisc mac	# Assuming you have a LAN
 
