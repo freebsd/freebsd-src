@@ -263,7 +263,6 @@ void
 gettime(struct timeval *ttp) {
 	if (gettimeofday(ttp, NULL) < 0)
 		ns_error(ns_log_default, "gettimeofday: %s", strerror(errno));
-	INSIST(ttp->tv_usec >= 0 && ttp->tv_usec < 1000000);
 }
 
 /*
