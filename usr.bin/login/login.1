@@ -34,7 +34,7 @@
 .\"
 .Dd May 5, 1994
 .Dt LOGIN 1
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm login
 .Nd log into the computer
@@ -107,7 +107,7 @@ file.
 .Pp
 If the file
 .Pa /etc/skeykeys
-exists, 
+exists,
 .Nm
 will offer S/key password validation if the user has an entry in the file.
 .Pa /etc/skey.access
@@ -177,6 +177,13 @@ system mailboxes
 makes login quieter
 .It Pa /etc/auth.conf
 configure authentication services
+.It Pa /etc/pam.conf
+if
+.Nm
+is configured with PAM support, it uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq login
 .El
 .Sh SEE ALSO
 .Xr builtin 1 ,
