@@ -200,7 +200,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	struct socket *so;
 	int error, s;
 
-	so = fp->un_data.socket;
+	so = fp->f_data;
 #if 0
 	tslp = NULL;
 	/*

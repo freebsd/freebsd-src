@@ -159,7 +159,7 @@ osf1_fstatfs(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)))
 		return (error);
-	mp = (fp->un_data.vnode)->v_mount;
+	mp = ((struct vnode *)fp->f_data)->v_mount;
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
 	if (error) {

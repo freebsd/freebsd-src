@@ -644,7 +644,7 @@ getparm(fp, pa)
 	if (st == NULL)
 		return;
 
-	so = fp->un_data.socket;
+	so = fp->f_data;
 
 	pa->family = st->s_family;
 
