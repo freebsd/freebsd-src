@@ -2702,28 +2702,16 @@ indicates that
 should use the lowest power state available while
 .Dq Li HIGH
 indicates that the lowest latency state (less power savings) should be used.
-.It Va performance_throttle_state
+.It Va performance_cpu_freq
 .Pq Vt str
-CPU throttling state to use while on AC power.
+CPU clock frequency to use while on AC power.
 The string
 .Dq Li LOW
 indicates that
-.Xr acpi 4
-should use the lowest throttling state available while
+.Xr cpufreq 4
+should use the lowest frequency available while
 .Dq Li HIGH
-indicates that the highest performance state (less power savings) should be
-used.
-.It Va economy_throttle_state
-.Pq Vt str
-CPU throttling state to use when off AC power.
-The string
-.Dq Li LOW
-indicates that
-.Xr acpi 4
-should use the lowest throttling state available while
-.Dq Li HIGH
-indicates that the highest performance state (less power savings) should be
-used.
+indicates that the highest frequency (less power savings) should be used.
 .It Va economy_cx_lowest
 .Pq Vt str
 CPU idle state to use when off AC power.
@@ -2734,6 +2722,16 @@ indicates that
 should use the lowest power state available while
 .Dq Li HIGH
 indicates that the lowest latency state (less power savings) should be used.
+.It Va economy_cpu_freq
+.Pq Vt str
+CPU clock frequency to use when off AC power.
+The string
+.Dq Li LOW
+indicates that
+.Xr cpufreq 4
+should use the lowest frequency available while
+.Dq Li HIGH
+indicates that the highest frequency (less power savings) should be used.
 .It Va jail_enable
 .Pq Vt bool
 If set to
