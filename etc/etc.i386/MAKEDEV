@@ -40,6 +40,7 @@
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	da*	"SCSI Direct Access Devices"
 #	cd*	"SCSI CD-ROM disks"
+#	sd*	"SCSI disk", antiquated, use da* instead
 #	mcd*	"Mitsumi CD-ROM disks"
 #	scd*	"Sony CD-ROM disks"
 #	matcd*	"Matsushita (Panasonic) CD-ROM disks"
@@ -107,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp $
+#	$Id: MAKEDEV,v 1.172 1998/09/16 00:10:26 ken Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -264,7 +265,7 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
+od*s*|sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
 	fla*s*) name=fla; blk=28; chr=101;;
