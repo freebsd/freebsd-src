@@ -1766,6 +1766,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
       &merged;</para>
 
+    <para>A bug has been fixed in the implementation of the TCP SYN 
+      cache (<quote>syncache</quote>), which could allow a remote
+      attacker to deny access to a service when accept filters
+      (see &man.accept.filter.9;) were in use.  This bug has been 
+      fixed. &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
