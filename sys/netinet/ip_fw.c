@@ -1465,11 +1465,13 @@ got_match:
 			return(f->fw_divert_port | IP_FW_PORT_TEE_FLAG);
 #endif
 		case IP_FW_F_SKIPTO: /* XXX check */
-			f = f->next_rule_ptr ? f->next_rule_ptr :
-				lookup_next_rule(f) ;
+			if (f->next_rule_ptr == NULL)
+			    f->next_rule_ptr = lookup_next_rule(f) ;
+			f = f->next_rule_ptr;
 			if (!f)
 			    goto dropit;
 			goto again ;
+
 		case IP_FW_F_PIPE:
 		case IP_FW_F_QUEUE:
 			*flow_id = f ; /* XXX set flow id */
