@@ -16,6 +16,7 @@ BINGRP=	network
 MAN8=	ppp.8
 
 .if defined(RELEASE_CRUNCH)
+NONETGRAPH=true
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
