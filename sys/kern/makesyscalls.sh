@@ -116,6 +116,13 @@ s/\$//g
 		printf "struct proc;\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
 		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg
+		printf "#if BYTE_ORDER == LITTLE_ENDIAN\n"> sysarg
+		printf "#define\tPADL_(t)\t0\n" > sysarg
+		printf "#define\tPADR_(t)\tPAD_(t)\n" > sysarg
+		printf "#else\n" > sysarg
+		printf "#define\tPADL_(t)\tPAD_(t)\n" > sysarg
+		printf "#define\tPADR_(t)\t0\n" > sysarg
+		printf "#endif\n\n" > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
 		printf "char *%s[] = {\n", namesname > sysnames
@@ -277,7 +284,9 @@ s/\$//g
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
 				printf("struct\t%s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
-					printf("\t%s\t%s;\tchar %s_[PAD_(%s)];\n",
+					printf("\tchar %s_l_[PADL_(%s)]; " \
+					    "%s %s; char %s_r_[PADR_(%s)];\n",
+					    argname[i], argtype[i],
 					    argtype[i], argname[i],
 					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
@@ -328,7 +337,9 @@ s/\$//g
 		if (argc != 0 && $2 != "CPT_NOA") {
 			printf("struct\t%s {\n", argalias) > syscompat
 			for (i = 1; i <= argc; i++)
-				printf("\t%s\t%s;\tchar %s_[PAD_(%s)];\n",
+				printf("\tchar %s_l_[PADL_(%s)]; %s %s; " \
+				    "char %s_r_[PADR_(%s)];\n",
+				    argname[i], argtype[i],
 				    argtype[i], argname[i],
 				    argname[i], argtype[i]) > syscompat
 			printf("};\n") > syscompat
@@ -411,6 +422,8 @@ s/\$//g
 
 		printf("\n#endif /* %s */\n\n", compat) > syscompatdcl
 		printf("#undef PAD_\n") > syscompatdcl
+		printf("#undef PADL_\n") > syscompatdcl
+		printf("#undef PADR_\n") > syscompatdcl
 		printf("\n#endif /* !%s */\n", sysproto_h) > syscompatdcl
 
 		printf("\n") > sysmk
