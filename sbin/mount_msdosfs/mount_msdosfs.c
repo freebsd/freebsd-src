@@ -30,14 +30,15 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_msdos.c,v 1.7 1997/02/22 14:32:30 peter Exp $";
 #endif /* not lint */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
-#define MSDOSFS
 #include <sys/mount.h>
 #include <sys/stat.h>
+
+#include <msdosfs/msdosfsmount.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
@@ -67,9 +68,9 @@ main(argc, argv)
 {
 	struct msdosfs_args args;
 	struct stat sb;
-	int c, mntflags, set_gid, set_uid, set_mask;
+	int c, error, mntflags, set_gid, set_uid, set_mask;
 	char *dev, *dir, ndir[MAXPATHLEN+1];
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
@@ -131,17 +132,17 @@ main(argc, argv)
 			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-	vfc = getvfsbyname("msdos");
-	if(!vfc && vfsisloadable("msdos")) {
-		if(vfsload("msdos"))
+	error = getvfsbyname("msdos", &vfc);
+	if (error && vfsisloadable("msdos")) {
+		if (vfsload("msdos"))
 			err(EX_OSERR, "vfsload(msdos)");
 		endvfsent();	/* clear cache */
-		vfc = getvfsbyname("msdos");
+		error = getvfsbyname("msdos", &vfc);
 	}
-	if (!vfc)
+	if (error)
 		errx(EX_OSERR, "msdos filesystem is not available");
 
-	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
+	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", dev);
 
 	exit (0);

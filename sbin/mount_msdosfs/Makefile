@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 14:32:29 peter Exp $
 #
 
 PROG=	mount_msdos
@@ -10,6 +10,7 @@ BINOWN=	root
 BINMODE= 4555
 
 MOUNT=	${.CURDIR}/../../mount
+CFLAGS+= -D_NEW_VFSCONF
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
