@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.7 1994/11/05 17:31:23 ache Exp $
+ *	$Id: test.c,v 1.8 1994/11/05 20:24:49 ache Exp $
  */
 
 #ifndef lint
@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)test.c	8.3 (Berkeley) 4/2/94";
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -359,8 +360,17 @@ exist:
 			i = S_IXOTH;
 permission:		if (fs->stat.st_uid == geteuid())
 				i <<= 6;
-			else if (fs->stat.st_gid == getegid())
-				i <<= 3;
+			else {
+				gid_t grlist[NGROUPS];
+				int ngroups, j;
+
+				ngroups = getgroups(NGROUPS, grlist);
+				for (j = 0; j < ngroups; j++)
+					if (fs->stat.st_gid == grlist[j]) {
+						i <<= 3;
+						goto filebit;
+					}
+			}
 		} else
 			i = S_IXOTH|S_IXGRP|S_IXUSR;
 		goto filebit;	/* true if (stat.st_mode & i) != 0 */
