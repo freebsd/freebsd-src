@@ -62,6 +62,7 @@ void	c_cut (FILE *, const char *);
 void	f_cut (FILE *, const char *);
 void	get_list (char *);
 int	main (int, char **);
+void	needpos(size_t);
 static 	void usage (void);
 
 int
@@ -133,7 +134,7 @@ main(argc, argv)
 
 size_t autostart, autostop, maxval;
 
-char positions[_POSIX2_LINE_MAX + 1];
+char *positions;
 
 void
 get_list(list)
@@ -175,21 +176,38 @@ get_list(list)
 			errx(1, "[-cf] list: illegal list value");
 		if (!stop || !start)
 			errx(1, "[-cf] list: values may not include zero");
-		if (stop > _POSIX2_LINE_MAX)
-			errx(1, "[-cf] list: %ld too large (max %d)",
-			    (long)stop, _POSIX2_LINE_MAX);
-		if (maxval < stop)
+		if (maxval < stop) {
 			maxval = stop;
+			needpos(maxval + 1);
+		}
 		for (pos = positions + start; start++ <= stop; *pos++ = 1);
 	}
 
 	/* overlapping ranges */
-	if (autostop && maxval > autostop)
+	if (autostop && maxval > autostop) {
 		maxval = autostop;
+		needpos(maxval + 1);
+	}
 
 	/* set autostart */
 	if (autostart)
 		memset(positions + 1, '1', autostart);
+}
+
+void
+needpos(size_t n)
+{
+	static size_t npos;
+
+	/* Grow the positions array to at least the specified size. */
+	if (n > npos) {
+		if (npos == 0)
+			npos = n;
+		while (n > npos)
+			npos *= 2;
+		if ((positions = realloc(positions, npos)) == NULL)
+			err(1, "realloc");
+	}
 }
 
 /* ARGSUSED */
