@@ -127,11 +127,20 @@ void free();
 #ifndef CHAR_BIT
 # define CHAR_BIT 8
 #endif
+/* The extra casts work around common compiler bugs.  */
+#define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
+#define TYPE_MINIMUM(t) ((t) (TYPE_SIGNED (t) \
+			      ? ~ (t) 0 << (sizeof (t) * CHAR_BIT - 1) \
+			      : (t) 0))
+#define TYPE_MAXIMUM(t) ((t) (~ (t) 0 - TYPE_MINIMUM (t)))
+#ifndef CHAR_MAX
+# define CHAR_MAX TYPE_MAXIMUM (char)
+#endif
 #ifndef INT_MAX
-# define INT_MAX 2147483647
+# define INT_MAX TYPE_MAXIMUM (int)
 #endif
 #ifndef UCHAR_MAX
-# define UCHAR_MAX 255
+# define UCHAR_MAX TYPE_MAXIMUM (unsigned char)
 #endif
 
 #if !defined(STDC_HEADERS) && defined(HAVE_STRING_H) && defined(HAVE_MEMORY_H)

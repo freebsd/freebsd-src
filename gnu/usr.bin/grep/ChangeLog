@@ -1,3 +1,22 @@
+2000-01-04  Paul Eggert
+
+	Inititial patch from David O'Brien.
+
+	Add --binary-files option.
+	* NEWS, doc/grep.1, doc/grep.texi: Document it.
+	* src/grep.c (BINARY_FILES_OPTION): New constant.
+	(long_options, grep, usage, main): New --binary-files option.
+	(binary_files): New var.
+	* src/system.h (TYPE_SIGNED, TYPE_MINIMUM, TYPE_MAXIMUM, CHAR_MAX):
+	New macros.
+	(INT_MAX, UCHAR_MAX): Define in terms of TYPE_MAXIMUM.
+
+2000-01-04  Paul Eggert
+
+	* savedir.c (savedir): Don't store past the end of an array if
+	name_size is zero and the directory is empty.
+	Reported by Dima Barsky <dima@pwd.hp.com>.
+
 1999-11-18  Paul Eggert
 
 	* m4/largefile.m4 (AC_SYS_LARGEFILE_FLAGS): Work around a
@@ -46,8 +65,8 @@
 	* configure.in: drop support for --without-included-regex.
 	This was generating bogus bug reports, since many GNU/Linux
 	users have different version of glibc.  And glibc maintainers
-	decided to drop k&r support. 
-	
+	decided to drop k&r support.
+
 1999-11-01 Arnold D. Robbins
 
 	* regex.c (init_syntax_once): move below definition of
@@ -302,7 +321,7 @@ axes.)
 
 1999-06-15 Alain Magloire
 
-	* src/grep.c, doc/grep{1,texi} : 
+	* src/grep.c, doc/grep{1,texi} :
 	--revert-match should be --invert-match.
 	Correction proposed by Karl Berry.
 
@@ -337,7 +356,7 @@ axes.)
 1999-03-05  Eli Zaretskii
 
 	* src/grep.c (main): Print the name of the default matcher instead
-	of just "grep".                                                        
+	of just "grep".
 
 1999-02-06 Alain Magloire
 
@@ -349,7 +368,7 @@ axes.)
 	the input is drained, like this:
 	status=`echo 'check' | { ${GREP} -E -e pattern >/dev/null 2>&1;
 	echo $?; cat >/dev/null; }`; if test $status -ne $errnu then ... fi
-	Excerpt email from Andreas Schwab.                              
+	Excerpt email from Andreas Schwab.
 
 1999-02-23 Alain Magloire
 
@@ -470,7 +489,7 @@ axes.)
 	* PATCHES-AM: New file. A small patch for automake-1.4, use $(sep)
 	as the path separator base on @SEP@.
 	* PATCHES-AC configure.in : updated for autoconf-13.
- 
+
 1999-01-27 Volker Borchert
 
 	* grep.c: fgrep -NUM not working correctly.
