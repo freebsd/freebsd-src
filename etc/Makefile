@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.167 1998/06/11 20:25:56 guido Exp $
+#	$Id: Makefile,v 1.168 1998/08/04 15:54:27 peter Exp $
 
 SUBDIR=	sendmail
 
@@ -58,7 +58,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	( cd ${.CURDIR}/sendmail/cf; ${MAKE} etc-sendmail.cf ); \
+	( cd ${.CURDIR}/sendmail; ${MAKE} etc-sendmail.cf ); \
 	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
