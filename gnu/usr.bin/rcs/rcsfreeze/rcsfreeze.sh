@@ -2,7 +2,7 @@
 
 # rcsfreeze - assign a symbolic revision number to a configuration of RCS files
 
-#	$Id: rcsfreeze.sh,v 1.3 1996/03/12 21:42:40 wosch Exp $
+#	$Id: rcsfreeze.sh,v 1.4 1996/03/12 23:09:04 wosch Exp $
 
 #       The idea is to run rcsfreeze each time a new version is checked
 #       in. A unique symbolic revision number (C_[number], where number
@@ -28,7 +28,7 @@
 PATH=/bin:/usr/bin:$PATH
 export PATH
 
-DATE=`date` || exit
+DATE=`LC_TIME=C date` || exit
 # Check whether we have an RCS subdirectory, so we can have the right
 # prefix for our paths.
 if test -d RCS

@@ -4,7 +4,7 @@ SRCS=		ftpio.c ftperr.c
 MAN3=		ftpio.3
 CLEANFILES+=	ftperr.c
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=    4
 SHLIB_MINOR=	0
 
 beforeinstall:

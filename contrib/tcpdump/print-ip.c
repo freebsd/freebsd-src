@@ -166,7 +166,7 @@ igmp_print(register const u_char *bp, register u_int len,
 	case 0x12:
 	case 0x16:
 		(void)printf("igmp %s report %s",
-			     bp[0] & 0x0f == 6 ? "v2" : "v1",
+			     (bp[0] & 0x0f) == 6 ? "v2" : "v1",
 			     ipaddr_string(&bp[4]));
 		if (len != 8)
 			(void)printf(" [len %d]", len);
@@ -175,75 +175,10 @@ igmp_print(register const u_char *bp, register u_int len,
 		break;
 	case 0x17:
 		(void)printf("igmp leave %s", ipaddr_string(&bp[4]));
-		switch(bp[1]) {
-		case 1:
-			(void)printf(" probe");
-			if (len < 8)
-				(void)printf(" [len %d]", len);
-			if (vflag) {
-				if (len > 8)
-					(void)printf(" genid 0x%08x",
-						     ntohl(*(u_int32_t *)&bp[8]));
-				(void)printf(" [nf 0x%02x]", bp[5]);
-			}
-			if (len > 12) {
-				int i;
-				for (i = 12; i + 3 < len; i += 4)
-					(void)printf("\n\t%s",
-						     ipaddr_string(&bp[i]));
-			}
-			break;
-		case 2:
-			(void)printf(" report");
-			if (vflag)
-				(void)printf(" [nf 0x%02x]", bp[5]);
-			if (len < 8)
-				(void)printf(" [len %d]", len);
-			break;
-		case 3:
-		case 5:
-			(void)printf(" %sneighbor query",
-				     bp[1] == 5 ? "new " : "");
-			if (len < 8)
-				(void)printf(" [len %d]", len);
-			break;
-		case 4:
-		case 6:
-			(void)printf(" %sneighbor list",
-				     bp[1] == 6 ? "new " : "");
-			if (len < 8)
-				(void)printf(" [len %d]", len);
-			break;
-		case 7:
-			(void)printf(" prune %s from ", ipaddr_string(&bp[12]));
-			(void)printf(" %s timer %d", ipaddr_string(&bp[8]),
-				     ntohl(*(u_int32_t *)&bp[16]));
-			if (len != 20)
-				(void)printf(" [len %d]", len);
-			break;
-		case 8:
-			(void)printf(" graft %s from ", ipaddr_string(&bp[12]));
-			(void)printf(" %s", ipaddr_string(&bp[8]));
-			if (len != 16)
-				(void)printf(" [len %d]", len);
-			break;
-		case 9:
-			(void)printf(" graft ack %s from ",
-				     ipaddr_string(&bp[12]));
-			(void)printf(" %s", ipaddr_string(&bp[8]));
-			if (len != 16)
-				(void)printf(" [len %d]", len);
-			break;
-		default:
-			(void)printf("-%d", bp[1]);
-			if (len != 8)
-				(void)printf(" [len %d]", len);
-			break;
-		}
-
-		if (bp[7] != 3 || (bp[7] == 3 && (bp[6] > 5 || bp[6] < 4)))
-			(void)printf(" [v%d.%d]", bp[7], bp[6]);
-
+		if (len != 8)
+			(void)printf(" [len %d]", len);
+		if (bp[1])
+			(void)printf(" [b1=0x%x]", bp[1]);
 		break;
 	case 0x13:
 		(void)printf("igmp dvmrp");
@@ -510,10 +445,10 @@ ip_print(register const u_char *bp, register u_int length)
 			igmp_print(cp, len, (const u_char *)ip);
 			break;
 
-#ifndef IPPROTO_ENCAP
-#define IPPROTO_ENCAP 4
+#ifndef IPPROTO_IPIP
+#define IPPROTO_IPIP 4
 #endif
-		case IPPROTO_ENCAP:
+		case IPPROTO_IPIP:
 			/* ip-in-ip encapsulation */
 			if (vflag)
 				(void)printf("%s > %s: ",

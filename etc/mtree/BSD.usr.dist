@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74 1996/11/01 08:00:37 peter Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.1 1996/11/16 21:03:17 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -178,8 +178,6 @@
             meteor
             ..
 	    perfmon
-	    ..
-	    removeuser
 	    ..
 	    slattach
 	    ..
@@ -409,6 +407,8 @@
             ..
             ja_JP.EUC
             ..
+	    lt_LN.ASCII
+            ..
 	    lt_LN.ISO_8859-1
             ..
 	    nl_BE.ISO_8859-1
@@ -418,6 +418,8 @@
 	    no_NO.ISO_8859-1
             ..
 	    pt_PT.ISO_8859-1
+            ..
+	    ru_SU.CP866
             ..
             ru_SU.KOI8-R
             ..
@@ -469,6 +471,10 @@
             America
                 Indiana
                 ..
+            ..
+            Antarctica
+            ..
+            Arctic
             ..
             Asia
             ..
