@@ -1,3 +1,5 @@
+#include "opt_scsi.h"
+
 #include <sys/param.h>
 
 #include <scsi/scsiconf.h>
