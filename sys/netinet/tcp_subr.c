@@ -1125,6 +1125,8 @@ tcp_new_isn()
 		return tcp_iss;
 	case 1:			/* OpenBSD randomized scheme */
 		return tcp_rndiss_next();
+	default:
+		panic("cannot happen");
 	}
 }
 
