@@ -123,9 +123,13 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 		oidp->oid_number = newoid++;
 		if (newoid == 0x7fffffff)
 			panic("out of oids");
-	} else if (oidp->oid_number >= CTL_AUTO_START) {
-		panic("static sysctl oid too high: %d", oidp->oid_number);
 	}
+#if 0
+	else if (oidp->oid_number >= CTL_AUTO_START) {
+		/* do not panic; this happens when unregistering sysctl sets */
+		printf("static sysctl oid too high: %d", oidp->oid_number);
+	}
+#endif
 
 	/*
 	 * Insert the oid into the parent's list in order.
