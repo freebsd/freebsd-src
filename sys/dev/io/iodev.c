@@ -87,3 +87,4 @@ io_modevent(module_t mod __unused, int type, void *data __unused)
 }
 
 DEV_MODULE(io, io_modevent, NULL);
+MODULE_VERSION(io, 1);
