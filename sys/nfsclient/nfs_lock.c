@@ -145,6 +145,10 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 * file error message for the user, otherwise the application will
 	 * complain that the user's file is missing, which isn't the case.
 	 * Note that we use proc0's cred, so the fifo is opened as root.
+	 *
+	 * XXX: Note that this behavior is relative to the root directory
+	 * of the current process, and this may result in a variety of
+	 * {functional, security} problems in chroot() environments.
 	 */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
@@ -153,6 +157,9 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 * to open the fifo we need to write to. vn_open() really should
 	 * take a ucred (and once it does, this code should be fixed to use
 	 * proc0's ucred.
+	 *
+	 * XXX: This introduces an exploitable race condition allowing
+	 * a local attacker to gain root privilege.
 	 */
 	saved_uid = p->p_ucred->cr_uid;
 	p->p_ucred->cr_uid = 0;		/* temporarly run the vn_open as root */
