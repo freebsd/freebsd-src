@@ -75,7 +75,7 @@ METHOD void write_config {
 # a device's interrupt register.
 #
 METHOD int route_interrupt {
+	device_t pcib;
 	device_t dev;
-	int device;
 	int pin;
 };

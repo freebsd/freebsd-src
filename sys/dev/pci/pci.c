@@ -1149,7 +1149,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	 * Look for a listing for this device in a loaded device database.
 	 */
 	if ((device = pci_describe_device(child)) != NULL) {
-		printf("<%s>", device);
+		device_printf(dev, "<%s>", device);
 		free(device, M_DEVBUF);
 	} else {
 	    /*
@@ -1209,26 +1209,42 @@ static int
 pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc) 
 {
 	char	*cp = *ptr;
+	int	left;
 
 	*device = -1;
 	*vendor = -1;
-	*desc = NULL;
+	**desc = '\0';
 	for (;;) {
-		if ((cp - pci_vendordata) >= pci_vendordata_size)
+		left = pci_vendordata_size - (cp - pci_vendordata);
+		if (left <= 0) {
+			*ptr = cp;
 			return(1);
+		}
 
 		/* vendor entry? */
-		if (sscanf(cp, "%x\t%80[^\n]", vendor, *desc) == 2)
+		if (*cp != '\t' && sscanf(cp, "%x\t%80[^\n]", vendor, *desc) == 2)
 			break;
 		/* device entry? */
-		if (sscanf(cp, "\t%x\t%80[^\n]", device, *desc) == 2)
+		if (*cp == '\t' && sscanf(cp, "%x\t%80[^\n]", device, *desc) == 2)
 			break;
 		
 		/* skip to next line */
-		while (*cp != '\n')
+		while (*cp != '\n' && left > 0) {
 			cp++;
-		cp++;
+			left--;
+		}
+		if (*cp == '\n') {
+			cp++;
+			left--;
+		}
 	}
+	/* skip to next line */
+	while (*cp != '\n' && left > 0) {
+		cp++;
+		left--;
+	}
+	if (*cp == '\n' && left > 0)
+		cp++;
 	*ptr = cp;
 	return(0);
 }
@@ -1262,8 +1278,10 @@ pci_describe_device(device_t dev)
 	if ((dp = malloc(80, M_DEVBUF, M_NOWAIT)) == NULL)
 		goto out;
 	for (;;) {
-		if (pci_describe_parse_line(&line, &vendor, &device, &dp))
-			goto out;
+		if (pci_describe_parse_line(&line, &vendor, &device, &dp)) {
+			*dp = 0;
+			break;
+		}
 		if (vendor != -1) {
 			*dp = 0;
 			break;
@@ -1271,8 +1289,10 @@ pci_describe_device(device_t dev)
 		if (device == pci_get_device(dev))
 			break;
 	}
+	if (dp[0] == '\0')
+		snprintf(dp, 80, "0x%x", pci_get_device(dev));
 	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) != NULL)
-		sprintf(desc, "%s%s%s", vp, (dp[0] != 0) ? ", " : "", dp);
+		sprintf(desc, "%s, %s", vp, dp);
  out:
 	if (vp != NULL)
 		free(vp, M_DEVBUF);
