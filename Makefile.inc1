@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.53 1998/12/30 12:06:07 bde Exp $
+#	$Id: Makefile.inc1,v 1.54 1999/01/01 08:45:43 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -266,12 +266,12 @@ buildworld: check-objformat
 	@echo ">>> Cleaning up the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-${OBJDIR}
-.endif
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -471,8 +471,18 @@ bootstrap:
 .if defined(DESTDIR)
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
-	cd ${.CURDIR}/include;	${MAKE} all
-	cd ${.CURDIR}/include;	${MAKE} beforeinstall
+	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
+.for d in net netatm netinet posix4 sys vm machine
+	if [ -h ${DESTDIR}/usr/include/$d ]; then \
+		rm -f ${DESTDIR}/usr/include/$d ; \
+	fi
+.endfor
+	cd ${.CURDIR}/sys; \
+		find -dx net netatm netinet posix4 sys vm -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include
+	mkdir -p ${DESTDIR}/usr/include/machine
+	cd ${.CURDIR}/sys/${MACHINE_ARCH}/include; find -dx . -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include/machine
 .endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
