@@ -55,6 +55,9 @@
 static int cfgmech;
 static int devmax;
 static int usebios;
+static int enable_pcibios = 0;
+
+TUNABLE_INT("hw.pci.enable_pcibios", &enable_pcibios);
 
 static int	pci_cfgintr_unique(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_linked(struct PIR_entry *pe, int pin);
@@ -449,14 +452,34 @@ pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
     bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
 }
 
+static u_int16_t
+pcibios_get_version(void)
+{
+    struct bios_regs args;
+
+    args.eax = PCIBIOS_BIOS_PRESENT;
+    if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)))
+	return (0x0000);
+    if (args.edx != 0x20494350)
+	return (0x0000);
+    return (args.ebx & 0xffff);
+}
+
 /*
  * Determine whether there is a PCI BIOS present
  */
 static int
 pcibios_cfgopen(void)
 {
-    /* check for a found entrypoint */
-    return(PCIbios.entry != 0);
+    u_int16_t		v = 0;
+    
+    if (PCIbios.entry != 0 && enable_pcibios) {
+	v = pcibios_get_version();
+	if (v > 0)
+	    printf("pcibios: BIOS version %x.%02x\n", (v & 0xff00) >> 8,
+	      v & 0xff);
+    }
+    return (v > 0);
 }
 
 /* 
