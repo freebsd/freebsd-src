@@ -216,20 +216,20 @@ struct pgrp;
 struct thread;
 struct proc;
 struct sigio;
-struct sx;
+struct mtx;
 
 extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
-extern struct sx	sigio_lock;
+extern struct mtx	sigio_lock;
 
 /*
  * Lock the pointers for a sigio object in the underlying objects of
  * a file descriptor.
  */
-#define SIGIO_SLOCK()	sx_slock(&sigio_lock)
-#define SIGIO_XLOCK()	sx_xlock(&sigio_lock)
-#define SIGIO_SUNLOCK()	sx_sunlock(&sigio_lock)
-#define SIGIO_XUNLOCK()	sx_xunlock(&sigio_lock)
-#define SIGIO_ASSERT(what)	sx_assert(&sigio_lock, what)
+#define SIGIO_LOCK()	mtx_lock(&sigio_lock)
+#define SIGIO_TRYLOCK()	mtx_trylock(&sigio_lock)
+#define SIGIO_UNLOCK()	mtx_unlock(&sigio_lock)
+#define SIGIO_LOCKED()	mtx_owned(&sigio_lock)
+#define SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
 
 /*
  * Machine-independent functions:
@@ -239,7 +239,7 @@ void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig);
 int	issignal(struct proc *p);
 void	killproc(struct proc *p, char *why);
-void	pgsigio(struct sigio *, int signum, int checkctty);
+void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
 void	postsig(int sig);
 void	psignal(struct proc *p, int sig);

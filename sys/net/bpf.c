@@ -511,7 +511,7 @@ bpf_wakeup(d)
 	}
 	wakeup((caddr_t)d);
 	if (d->bd_async && d->bd_sig && d->bd_sigio)
-		pgsigio(d->bd_sigio, d->bd_sig, 0);
+		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 
 	selwakeup(&d->bd_sel);
 }
