@@ -745,7 +745,7 @@ logmsg(pri, msg, from, flags)
 		 */
 		if ((flags & MARK) == 0 && msglen == f->f_prevlen &&
 		    !strcmp(msg, f->f_prevline) &&
-		    !strcmp(from, f->f_prevhost)) {
+		    !strcasecmp(from, f->f_prevhost)) {
 			(void)strncpy(f->f_lasttime, timestamp, 15);
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
@@ -828,13 +828,13 @@ fprintlog(f, flags, msg)
 		if (LogFacPri > 1) {
 		  CODE *c;
 
-		  for (c = facilitynames; c; c++) {
+		  for (c = facilitynames; c->c_name; c++) {
 		    if (c->c_val == fac) {
 		      f_s = c->c_name;
 		      break;
 		    }
 		  }
-		  for (c = prioritynames; c; c++) {
+		  for (c = prioritynames; c->c_name; c++) {
 		    if (c->c_val == pri) {
 		      p_s = c->c_name;
 		      break;
@@ -889,7 +889,7 @@ fprintlog(f, flags, msg)
 	case F_FORW:
 		dprintf(" %s\n", f->f_un.f_forw.f_hname);
 		/* check for local vs remote messages */
-		if (strcmp(f->f_prevhost, LocalHostName))
+		if (strcasecmp(f->f_prevhost, LocalHostName))
 			l = snprintf(line, sizeof line - 1,
 			    "<%d>%.15s Forwarded from %s: %s",
 			    f->f_prevpri, iov[0].iov_base, f->f_prevhost,
@@ -1115,7 +1115,8 @@ cvthname(f)
 			inet_ntoa(f->sin_addr));
 		return (inet_ntoa(f->sin_addr));
 	}
-	if ((p = strchr(hp->h_name, '.')) && strcmp(p + 1, LocalDomain) == 0)
+	if ((p = strchr(hp->h_name, '.')) &&
+	    strcasecmp(p + 1, LocalDomain) == 0)
 		*p = '\0';
 	return (hp->h_name);
 }
