@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ucred.h	8.4 (Berkeley) 1/9/95
- * $Id: ucred.h,v 1.8 1997/02/22 09:46:19 peter Exp $
+ * $Id: ucred.h,v 1.9 1999/01/30 12:28:49 phk Exp $
  */
 
 #ifndef _SYS_UCRED_H_
@@ -41,7 +41,7 @@
  * Credentials.
  *
  * Please do not inspect cr_uid directly to determine superuserness.
- * only the suser() function should be used for this.
+ * Only the suser() function should be used for this.
  */
 struct ucred {
 	u_short	cr_ref;			/* reference count */
