@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.18 1998/09/17 09:34:57 phk Exp $
+#	$Id: bsd.libnames.mk,v 1.19 1998/11/18 01:53:56 jdp Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -48,7 +48,20 @@ LIBMYTINFO?=	${DESTDIR}${LIBDIR}/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
+
+# The static PAM library doesn't know its secondary dependencies,
+# so we have to specify them explictly.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a	# XXX doesn't exist
+MINUSLPAM?=	-lpam
+.if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
+.ifdef MAKE_KERBEROS4
+LIBPAM+=	${LIBKRB} ${LIBDES}
+MINUSLPAM+=	-lkrb -ldes
+.endif
+LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD}
+MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd
+.endif
+
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPERL?=	${DESTDIR}${LIBDIR}/libperl.a
