@@ -255,10 +255,16 @@ lint: ${SRCS:M*.c}
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
 ${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.po: ${_S}
+.endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 ${SOBJS}: ${SRCS:M*.h}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.So: ${_S}
+.endfor
 .endif
 .endif
 
