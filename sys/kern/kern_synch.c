@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.67 1998/11/26 14:05:58 bde Exp $
+ * $Id: kern_synch.c,v 1.68 1998/11/26 16:49:55 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -650,7 +650,8 @@ mi_switch()
 	 * Check if the process exceeds its cpu resource allocation.
 	 * If over max, kill it.
 	 */
-	if (p->p_stat != SZOMB && p->p_runtime > p->p_limit->p_cpulimit) {
+	if (p->p_stat != SZOMB && p->p_limit->p_cpulimit != RLIM_INFINITY &&
+	    p->p_runtime > p->p_limit->p_cpulimit) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
 			killproc(p, "exceeded maximum CPU limit");
