@@ -73,6 +73,8 @@
 
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
+#include <machine/in_cksum.h>	/* XXX for in_cksum */
+
 static int fw_verbose = 0;
 static int verbose_limit = 0;
 
@@ -345,16 +347,13 @@ tcpopts_match(struct ip *ip, ipfw_insn *cmd)
 	return (flags_match(cmd, bits));
 }
 
-/*
- * XXX done
- */
 static int
 iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 {
 	if (ifp == NULL)	/* no iface with this packet, match fails */
 		return 0;
 	/* Check by name or by IP address */
-	if (cmd->name[0] != '\0') { /* XXX by name */
+	if (cmd->name[0] != '\0') { /* match by name */
 		/* Check unit number (-1 is wildcard) */
 		if (cmd->p.unit != -1 && cmd->p.unit != ifp->if_unit)
 			return(0);
@@ -419,10 +418,17 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 		case O_DENY:
 			action = "Deny";
 			break;
+
 		case O_REJECT:
-			action = (cmd->arg1==ICMP_REJECT_RST) ?
-			    "Reset" : "Unreach";
+			if (cmd->arg1==ICMP_REJECT_RST)
+				action = "Reset";
+			else if (cmd->arg1==ICMP_UNREACH_HOST)
+				action = "Reject";
+			else
+				snprintf(SNPARGS(action2, 0), "Unreach %d",
+					cmd->arg1);
 			break;
+
 		case O_ACCEPT:
 			action = "Accept";
 			break;
@@ -568,7 +574,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 
 /*
  * IMPORTANT: the hash function for dynamic rules must be commutative
- * in * source and destination (ip,port), because rules are bidirectional
+ * in source and destination (ip,port), because rules are bidirectional
  * and we want to find both in the same bucket.
  */
 static __inline int
@@ -979,23 +985,94 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	return 0;
 }
 
+#if 0
+static void
+send_pkt(struct ip_fw_args *args, u_int32_t seq, u_int32_t ack, int flags)
+{
+	struct mbuf *m;
+	struct ip *ip = mtod(args->m, struct ip *);
+	struct tcphdr *tcp;
+	struct route sro;	/* fake route */
+
+	MGETHDR(m, M_DONTWAIT, MT_HEADER);
+	if (m == 0)  
+		return;
+	m->m_pkthdr.rcvif = (struct ifnet *)0;
+	m->m_pkthdr.len = m->m_len = sizeof(struct ip) + sizeof(struct tcphdr);
+	m->m_data += max_linkhdr;
+
+	ip->ip_v = 4;
+	ip->ip_hl = 5;
+	ip->ip_tos = 0;
+	ip->ip_len = 0;		/* set later */
+#ifdef RANDOM_IP_ID
+	ip->ip_id = ip_randomid();
+#else
+	ip->ip_id = htons(ip_id++);
+#endif
+	ip->ip_off = 0;
+	ip->ip_ttl = 0;		/* set later */
+	ip->ip_p = IPPROTO_TCP;
+	ip->ip_sum = 0;
+	ip->ip_src.s_addr = args->f_id.dst_ip;
+	ip->ip_dst.s_addr = args->f_id.src_ip;
+
+	tcp = L3HDR(struct tcphdr, ip);
+	tcp->th_sport = htons(args->f_id.dst_port); /* swap ports */
+	tcp->th_dport = htons(args->f_id.src_port);
+	tcp->th_off = 4;
+	tcp->th_x2 = 0;
+	tcp->th_win = 0;
+	tcp->th_sum = 0;
+	tcp->th_urp = 0;
+	if (flags & TH_ACK) {
+		tcp->th_seq = htonl(ack);
+		tcp->th_ack = htonl(0);
+		tcp->th_flags = TH_RST;
+	} else {
+		if (flags & TH_SYN)
+			seq++;
+		tcp->th_seq = htonl(0);
+		tcp->th_ack = htonl(seq);
+		tcp->th_flags = TH_RST | TH_ACK;
+	}
+	/* compute TCP checksum... */
+	tcp->th_sum = in_cksum(m, m->m_pkthdr.len);
+	ip->ip_ttl = ip_defttl;
+	ip->ip_len = m->m_pkthdr.len;
+	bzero (&sro, sizeof (sro));
+	ip_rtaddr(ip->ip_dst, &sro);
+	ip_output(m, NULL, &sro, 0, NULL);
+	if (sro.ro_rt)
+		RTFREE(sro.ro_rt);
+}
+#endif
+
 /*
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct mbuf *m, int code, int offset, int ip_len)
+send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
 {
 	if (code != ICMP_REJECT_RST) /* Send an ICMP unreach */
-		icmp_error(m, ICMP_UNREACH, code, 0L, 0);
-	else {
+		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
+	else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
+#if 0
+		struct tcphdr *const tcp =
+		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
+		if ( (tcp->th_flags & TH_RST) == 0)
+			send_pkt(args, tcp->th_seq, tcp->th_ack, tcp->th_flags);
+		m_freem(args->m);
+#else
 		/* XXX warning, this code writes into the mbuf */
-		struct ip *ip = mtod(m, struct ip *);
+		struct ip *ip = mtod(args->m, struct ip *);
 		struct tcphdr *const tcp = L3HDR(struct tcphdr, ip);
 		struct tcpiphdr ti, *const tip = (struct tcpiphdr *) ip;
 		int hlen = ip->ip_hl << 2;
 
-		if (offset != 0 || (tcp->th_flags & TH_RST)) {
-			m_freem(m);	/* free the mbuf */
+		if (tcp->th_flags & TH_RST) {
+			m_freem(args->m);	/* free the mbuf */
+			args->m = NULL;
 			return;
 		}
 		ti.ti_i = *((struct ipovly *) ip);
@@ -1005,15 +1082,18 @@ send_reject(struct mbuf *m, int code, int offset, int ip_len)
 		tip->ti_ack = ntohl(tip->ti_ack);
 		tip->ti_len = ip_len - hlen - (tip->ti_off << 2);
 		if (tcp->th_flags & TH_ACK) {
-			tcp_respond(NULL, (void *)ip, tcp, m,
+			tcp_respond(NULL, (void *)ip, tcp, args->m,
 			    0, tcp->th_ack, TH_RST);
 		} else {
 			if (tcp->th_flags & TH_SYN)
 				tip->ti_len++;
-			tcp_respond(NULL, (void *)ip, tcp, m, 
+			tcp_respond(NULL, (void *)ip, tcp, args->m, 
 			    tip->ti_seq + tip->ti_len, 0, TH_RST|TH_ACK);
 		}
-	}
+#endif
+	} else
+		m_freem(args->m);
+	args->m = NULL;
 }
 
 /**
@@ -1579,6 +1659,12 @@ check_body:
 					goto cmd_fail;
 				goto cmd_match;
 
+			case O_IPPRECEDENCE:
+				if (hlen == 0 ||
+				    (cmd->arg1 != (ip->ip_tos & 0xe0)) )
+					goto cmd_fail;
+				goto cmd_match;
+
 			case O_IPTOS:
 				if (hlen == 0 ||
 				    !flags_match(cmd, ip->ip_tos))
@@ -1635,7 +1721,7 @@ check_body:
 				ipfw_log(f, hlen, args->eh, m, oif);
 				goto cmd_match;
 
-			case O_PROB: /* XXX check */
+			case O_PROB:
 				if (random() < ((ipfw_insn_u32 *)cmd)->d[0] )
 					goto cmd_match;
 				goto cmd_fail;
@@ -1717,11 +1803,12 @@ check_body:
 				 */
 				if (hlen > 0 &&
 				    (proto != IPPROTO_ICMP ||
-					is_icmp_query(ip)) &&
+				     is_icmp_query(ip)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(dst_ip.s_addr)) {
-					send_reject(m,cmd->arg1,offset,ip_len);
-					args->m = m = NULL;
+					send_reject(args, cmd->arg1,
+					    offset,ip_len);
+					m = args->m;
 				}
 				goto deny;
 
@@ -1795,20 +1882,6 @@ pullup_failed:
 		printf("pullup failed\n");
 	return(IP_FW_PORT_DENY_FLAG);
 }
-
-#if 0	/* XXX old instructions not implemented yet XXX */
-bogusfrag:
-    if (fw_verbose) {
-	if (*m != NULL)
-	    ipfw_report(NULL, ip, ip_off, ip_len, (*m)->m_pkthdr.rcvif, oif);
-    }
-    return(IP_FW_PORT_DENY_FLAG);
-
-		if (f->fw_ipflg & IP_FW_IF_IPPRE &&
-		     (f->fw_iptos & 0xe0) != (ip->ip_tos & 0xe0))
-			continue;
-
-#endif	/* XXX old instructions not implemented yet */
 
 /*
  * When a rule is added/deleted, clear the next_rule pointers in all rules.
@@ -2119,6 +2192,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPID:
 		case O_IPPRE:
 		case O_IPTOS:
+		case O_IPPRECEDENCE:
 		case O_IPTTL:
 		case O_IPVER:
 		case O_TCPWIN:
@@ -2203,12 +2277,12 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			goto check_action;
 
-		case O_FORWARD_IP: /* XXX no! */
+		case O_FORWARD_IP:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa))
 				goto bad_size;
 			goto check_action;
 
-		case O_FORWARD_MAC: /* XXX no! */
+		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
 		case O_ACCEPT:

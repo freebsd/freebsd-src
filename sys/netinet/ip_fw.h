@@ -76,6 +76,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_IPPRE,		/* arg1 = id			*/
 	O_IPTOS,		/* arg1 = id			*/
+	O_IPPRECEDENCE,		/* arg1 = precedence << 5	*/
 	O_IPTTL,		/* arg1 = TTL			*/
 
 	O_IPVER,		/* arg1 = version		*/
