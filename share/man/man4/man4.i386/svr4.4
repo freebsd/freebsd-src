@@ -54,7 +54,7 @@ Special signal handling for activated images
 SVR4 to native system call translation
 .It
 STREAMS network API emulation (via the
-.Xr streams 5
+.Xr streams 4
 loadable module, or by means of
 .Dl device streams
 in a kernel configuration file)
@@ -109,9 +109,9 @@ if ! kldstat -v | grep -E 'svr4elf' > /dev/null; then
 fi
 .Ed
 .Pp
-.Xr svr4 8
+The kernel
 will check for the presence of the
-.Xr streams 5
+.Xr streams 4
 module, and load it if necessary.
 .Pp
 Note that dynamically linked SVR4 executables
@@ -131,14 +131,14 @@ or loaded as a module.
 .Pp
 STREAMS emulation is limited but (largely) functional. 
 Assuming the
-.Xr streams 5
+.Xr streams 4
 module is loaded, a STREAMS handle can be obtained by opening one of the 
 relevent files in
 .Pa /dev
 or 
 .Pa /compat/svr4/dev .
 Internally, the 
-.Xr streams 5
+.Xr streams 4
 driver produces a socket descriptor and "tags" it with additional STREAMS
 state information before returning it to the client application. 
 The
@@ -157,7 +157,7 @@ Emulation of signal handlers is buggy.
 Emulated connectionless STREAMS fail to receive data from the network in
 some circumstances (but succeed in others -- probably due to particular
 ways of initializing them which the
-.Xr streams 5
+.Xr streams 4
 module is mishandling, and interaction between STREAMS and 
 .Xr poll 2 ) .
 Connection-oriented STREAMS appear to be functional.
@@ -198,8 +198,8 @@ module entrypoints.
 .El
 .Sh SEE ALSO
 .Xr brandelf 1 ,
-.Xr elf 5 ,
-.Xr streams 4
+.Xr streams 4 ,
+.Xr elf 5
 .Sh HISTORY
 System V Release 4 ABI support first appeared in FreeBSD
 .Fx 4.0 .
