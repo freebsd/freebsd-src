@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: log.c,v 1.7 1997/02/22 16:10:26 peter Exp $
  *
  */
 #include "defs.h"
@@ -279,4 +279,29 @@ va_dcl
   LogTimeStamp();
   vlogprintf(format, ap);
   va_end(ap);
+}
+
+void
+LogReOpen( sig )
+int sig;
+{
+  FILE *nlogfile;
+
+#ifdef USELOGFILE
+  nlogfile = fopen(LOGFILE, "a");
+  if (nlogfile == NULL) {
+    LogPrintf(~0,"can't re-open %s.\r\n", LOGFILE);
+  }
+  else {
+    LogPrintf(~0,"log file closed due to signal %d.\r\n",sig);
+    LogFlush();
+    fclose(logfile);
+    logfile = nlogfile;
+    logptr = logbuff;
+    logcnt = 0;
+    logtop = lognext = NULL;
+    LogPrintf(~0,"log file opened due to signal %d.\r\n",sig);
+  }
+#endif
+  LogFlush();
 }
