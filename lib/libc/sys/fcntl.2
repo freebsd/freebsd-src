@@ -494,19 +494,27 @@ or
 and satisfying the lock or unlock request would result in the
 number of locked regions in the system exceeding a system-imposed limit.
 .It Bq Er EOPNOTSUPP
-.Fa Fildes
-refers to a file that does not support locking.
-.It Bq Er EOVERFLOW
 The argument
 .Fa cmd
-of
+is
 .Dv F_GETLK ,
 .Dv F_SETLK
 or
 .Dv F_SETLKW
-cause
+and
+.Fa fildes
+refers to a file that does not support locking.
+.It Bq Er EOVERFLOW
+The argument
+.Fa cmd
+is
+.Dv F_GETLK ,
+.Dv F_SETLK
+or
+.Dv F_SETLKW
+and
 .Fa off_t
-type calculations overflow.
+type calculations overflow happens.
 .It Bq Er EPERM
 .Fa Cmd
 is
