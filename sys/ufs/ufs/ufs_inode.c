@@ -76,8 +76,10 @@ ufs_inactive(ap)
 	mode_t mode;
 	int error = 0;
 
+	VI_LOCK(vp);
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_inactive: pushing active", vp);
+	VI_UNLOCK(vp);
 
 	/*
 	 * Ignore inodes related to stale file handles.
@@ -149,8 +151,10 @@ ufs_reclaim(ap)
 	int i;
 #endif
 
+	VI_LOCK(vp);
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_reclaim: pushing active", vp);
+	VI_UNLOCK(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
 		ip->i_flag |= IN_MODIFIED;
 		UFS_UPDATE(vp, 0);
