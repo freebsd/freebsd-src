@@ -76,13 +76,13 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		drive->devicename,
 		drive->vp->v_usecount);
     }
-    if (drive->vp->v_type != VBLK) {			    /* only consider block devices */
+    if (!vn_isdisk(drive->vp)) {			    /* only consider block devices */
 	VOP_UNLOCK(drive->vp, 0, drive->p);
 	close_drive(drive);
 	drive->lasterror = ENOTBLK;
 	if (verbose)
 	    log(LOG_WARNING,
-		"vinum open_drive %s: Not a block device\n",
+		"vinum open_drive %s: Not a disk device\n",
 		drive->devicename);
 	return ENOTBLK;
     }
