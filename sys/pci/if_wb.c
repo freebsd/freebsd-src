@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.4 1998/12/14 06:32:56 dillon Exp $
+ *	$Id: if_wb.c,v 1.36 1999/01/16 05:28:52 wpaul Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.4 1998/12/14 06:32:56 dillon Exp $";
+	"$Id: if_wb.c,v 1.36 1999/01/16 05:28:52 wpaul Exp $";
 #endif
 
 /*
@@ -174,8 +174,8 @@ static void wb_shutdown		__P((int, void *));
 static int wb_ifmedia_upd	__P((struct ifnet *));
 static void wb_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static void wb_eeprom_putbyte	__P((struct wb_softc *, u_int8_t));
-static void wb_eeprom_getword	__P((struct wb_softc *, u_int8_t, u_int16_t *));
+static void wb_eeprom_putbyte	__P((struct wb_softc *, int));
+static void wb_eeprom_getword	__P((struct wb_softc *, int, u_int16_t *));
 static void wb_read_eeprom	__P((struct wb_softc *, caddr_t, int,
 							int, int));
 static void wb_mii_sync		__P((struct wb_softc *));
@@ -183,14 +183,14 @@ static void wb_mii_send		__P((struct wb_softc *, u_int32_t, int));
 static int wb_mii_readreg	__P((struct wb_softc *, struct wb_mii_frame *));
 static int wb_mii_writereg	__P((struct wb_softc *, struct wb_mii_frame *));
 static u_int16_t wb_phy_readreg	__P((struct wb_softc *, int));
-static void wb_phy_writereg	__P((struct wb_softc *, u_int16_t, u_int16_t));
+static void wb_phy_writereg	__P((struct wb_softc *, int, int));
 
 static void wb_autoneg_xmit	__P((struct wb_softc *));
 static void wb_autoneg_mii	__P((struct wb_softc *, int, int));
 static void wb_setmode_mii	__P((struct wb_softc *, int));
 static void wb_getmode_mii	__P((struct wb_softc *));
-static void wb_setcfg		__P((struct wb_softc *, u_int16_t));
-static u_int8_t wb_calchash	__P((u_int8_t *));
+static void wb_setcfg		__P((struct wb_softc *, int));
+static u_int8_t wb_calchash	__P((caddr_t));
 static void wb_setmulti		__P((struct wb_softc *));
 static void wb_reset		__P((struct wb_softc *));
 static int wb_list_rx_init	__P((struct wb_softc *));
@@ -217,7 +217,7 @@ static int wb_list_tx_init	__P((struct wb_softc *));
  */
 static void wb_eeprom_putbyte(sc, addr)
 	struct wb_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 {
 	register int		d, i;
 
@@ -247,7 +247,7 @@ static void wb_eeprom_putbyte(sc, addr)
  */
 static void wb_eeprom_getword(sc, addr, dest)
 	struct wb_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 	u_int16_t		*dest;
 {
 	register int		i;
@@ -515,8 +515,8 @@ static u_int16_t wb_phy_readreg(sc, reg)
 
 static void wb_phy_writereg(sc, reg, data)
 	struct wb_softc		*sc;
-	u_int16_t		reg;
-	u_int16_t		data;
+	int			reg;
+	int			data;
 {
 	struct wb_mii_frame	frame;
 
@@ -532,7 +532,7 @@ static void wb_phy_writereg(sc, reg, data)
 }
 
 static u_int8_t wb_calchash(addr)
-	u_int8_t		*addr;
+	caddr_t			addr;
 {
 	u_int32_t		crc, carry;
 	int			i, j;
@@ -930,7 +930,7 @@ static void wb_setmode_mii(sc, media)
  */
 static void wb_setcfg(sc, bmcr)
 	struct wb_softc		*sc;
-	u_int16_t		bmcr;
+	int			bmcr;
 {
 	int			i, restart = 0;
 
@@ -1359,7 +1359,7 @@ static void wb_rxeof(sc)
 		cur_rx = sc->wb_cdata.wb_rx_head;
 		sc->wb_cdata.wb_rx_head = cur_rx->wb_nextdesc;
 
-		if ((rxstat & WB_RXSTAT_RXERR) || (rxstat & WB_RXSTAT_MIIERR)
+		if ((rxstat & WB_RXSTAT_MIIERR)
 			 || WB_RXBYTES(cur_rx->wb_ptr->wb_status) == 0) {
 			ifp->if_ierrors++;
 			wb_reset(sc);
@@ -1370,8 +1370,15 @@ static void wb_rxeof(sc)
 			return;
 		}
 
+		if (rxstat & WB_RXSTAT_RXERR) {
+			ifp->if_ierrors++;
+			cur_rx->wb_ptr->wb_ctl =
+				WB_RXCTL_RLINK | (MCLBYTES - 1);
+			cur_rx->wb_ptr->wb_status = WB_RXSTAT;
+			continue;
+		}
+
 		/* No errors; receive the packet. */	
-		m = cur_rx->wb_mbuf;
 		total_len = WB_RXBYTES(cur_rx->wb_ptr->wb_status);
 
 		/*
@@ -1383,6 +1390,18 @@ static void wb_rxeof(sc)
 		 */
 		total_len -= ETHER_CRC_LEN;
 
+		if (total_len < MINCLSIZE) {
+			m = m_devget(mtod(cur_rx->wb_mbuf, char *),
+				total_len, 0, ifp, NULL);
+			cur_rx->wb_ptr->wb_ctl =
+				WB_RXCTL_RLINK | (MCLBYTES - 1);
+			cur_rx->wb_ptr->wb_status = WB_RXSTAT;
+			if (m == NULL) {
+				ifp->if_ierrors++;
+				continue;
+			}
+		} else {
+			m = cur_rx->wb_mbuf;
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
 		 * fails, it means we have an out of memory condition and
@@ -1390,18 +1409,19 @@ static void wb_rxeof(sc)
 		 * result in a lost packet, but there's little else we
 		 * can do in this situation.
 		 */
-		if (wb_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
-			cur_rx->wb_ptr->wb_ctl =
+			if (wb_newbuf(sc, cur_rx) == ENOBUFS) {
+				ifp->if_ierrors++;
+				cur_rx->wb_ptr->wb_ctl =
 					WB_RXCTL_RLINK | (MCLBYTES - 1);
-			cur_rx->wb_ptr->wb_status = WB_RXSTAT;
-			continue;
+				cur_rx->wb_ptr->wb_status = WB_RXSTAT;
+				continue;
+			}
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
 		}
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = total_len;
 
 #if NBPFILTER > 0
 		/*
@@ -1561,9 +1581,11 @@ static void wb_intr(arg)
 
 		if ((status & WB_ISR_RX_NOBUF) || (status & WB_ISR_RX_ERR)) {
 			ifp->if_ierrors++;
+#ifdef foo
 			wb_stop(sc);
 			wb_reset(sc);
 			wb_init(sc);
+#endif
 		}
 
 		if (status & WB_ISR_TX_OK)
@@ -1774,6 +1796,7 @@ static void wb_start(ifp)
 	 * once for each packet.
 	 */
 	WB_TXCTL(cur_tx) |= WB_TXCTL_FINT;
+	cur_tx->wb_ptr->wb_frag[0].wb_ctl |= WB_TXCTL_FINT;
 	sc->wb_cdata.wb_tx_tail = cur_tx;
 
 	if (sc->wb_cdata.wb_tx_head == NULL) {

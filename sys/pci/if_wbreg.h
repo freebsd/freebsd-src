@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wbreg.h,v 1.12 1998/11/29 06:40:50 wpaul Exp $
+ *	$Id: if_wbreg.h,v 1.12 1998/11/29 06:40:50 wpaul Exp wpaul $
  */
 
 /*
@@ -160,7 +160,7 @@
  */
 #define WB_TXTHRESH(x)		((x >> 5) << 14)
 #define WB_TXTHRESH_CHUNK	32
-#define WB_TXTHRESH_INIT	72
+#define WB_TXTHRESH_INIT	0 /*72*/
  
 /*
  * Interrupt mask bits.
