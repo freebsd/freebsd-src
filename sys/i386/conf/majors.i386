@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.75 1999/05/18 16:18:23 roger Exp $
+$Id: majors.i386,v 1.76 1999/06/06 10:41:35 phk Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -37,7 +37,7 @@ blkdev	name		comments
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 24	wstb		ATAPI tape client of "wd"
-25	vinum		RAID fs
+25	vinum		Volume manager
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
 28	fla		M-Systems DiskOnChip(r)
@@ -140,7 +140,7 @@ chrdev	name		comments
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
 90	wst		ATAPI tape client of "wd"
-91	vinum		RAID fs
+91	vinum		Volume manager
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
 93	coda		CODA filesystem.
 94	loran		Loran-C Receiver
