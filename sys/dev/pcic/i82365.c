@@ -631,8 +631,6 @@ pcic_intr(void *arg)
 	struct pcic_softc *sc = arg;
 	int i;
 
-	DEVPRINTF((sc->dev, "intr\n"));
-
 	for (i = 0; i < PCIC_NSLOTS; i++)
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP)
 			pcic_intr_socket(&sc->handle[i]);
@@ -710,9 +708,7 @@ pcic_queue_event(struct pcic_handle *h, int event)
 static void
 pcic_attach_card(struct pcic_handle *h)
 {
-	DPRINTF(("pcic_attach_card h %p h->dev %p\n", h, h->dev));
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
-		DPRINTF(("Calling MI attach function\n"));
 		/* call the MI attach function */
 		CARD_ATTACH_CARD(h->dev);
 		h->flags |= PCIC_FLAG_CARDP;
@@ -724,10 +720,8 @@ pcic_attach_card(struct pcic_handle *h)
 static void
 pcic_detach_card(struct pcic_handle *h, int flags)
 {
-	DPRINTF(("pcic_detach_card h %p h->dev %p\n", h, h->dev));
 	if (h->flags & PCIC_FLAG_CARDP) {
 		h->flags &= ~PCIC_FLAG_CARDP;
-
 		/* call the MI detach function */
 		CARD_DETACH_CARD(h->dev, flags);
 	} else {
@@ -1096,20 +1090,8 @@ pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
 
 	*windowp = win;
 
-#if 0
-	/* XXX this is pretty gross */
-	if (sc->iot != pcihp->iot)
-		panic("pcic_chip_io_map iot is bogus");
-#endif
-
 	DPRINTF(("pcic_chip_io_map window %d %s port %lx+%lx\n",
 		 win, width_names[width], (u_long) ioaddr, (u_long) size));
-
-	/* XXX wtf is this doing here? */
-
-	printf(" port 0x%lx", (u_long) ioaddr);
-	if (size > 1)
-		printf("-0x%lx", (u_long) ioaddr + (u_long) size - 1);
 
 	h->io[win].addr = ioaddr;
 	h->io[win].size = size;
@@ -1262,7 +1244,6 @@ int
 pcic_disable_socket(device_t dev, device_t child)
 {
 	struct pcic_handle *h = pcic_get_handle(dev, child);
-	DPRINTF(("pcic_chip_socket_disable\n"));
 
 	/* power down the socket */
 
@@ -1486,7 +1467,6 @@ pcic_set_res_flags(device_t dev, device_t child, int type, int rid,
 {
 	struct pcic_handle *h = pcic_get_handle(dev, child);
 
-	DPRINTF(("%p %p %d %d %#x\n", dev, child, type, rid, flags));
 	if (type != SYS_RES_MEMORY)
 		return (EINVAL);
 	h->mem[rid].kind = PCCARD_MEM_ATTR;
