@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.62 1998/08/24 08:39:37 dfr Exp $
+ * $Id: sysctl.h,v 1.63 1998/09/05 12:42:56 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -134,16 +134,16 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 /* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
-	static const struct sysctl_oid sysctl__##parent##_##name = { \
+	static struct sysctl_oid sysctl__##parent##_##name = { \
 		nbr, kind, a1, a2, #name, handler, fmt }; \
-	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name)
+	DATA_SET(sysctl_##parent, sysctl__##parent##_##name)
 
 /* This constructs a node from which other oids can hang. */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
 	extern struct linker_set sysctl_##parent##_##name; \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
 		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
-	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name)
+	DATA_SET(sysctl_##parent##_##name, sysctl__##parent##_##name)
 
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
