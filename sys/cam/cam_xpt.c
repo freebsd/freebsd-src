@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.51 1999/04/17 08:36:03 peter Exp $
+ *      $Id: cam_xpt.c,v 1.52 1999/04/19 21:26:08 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,8 +62,6 @@
 #include <cam/scsi/scsi_pass.h>
 #include "opt_cam.h"
 #include "opt_scsi.h"
-
-extern	void	(*ihandlers[32]) __P((void));
 
 /* Datastructures internal to the xpt layer */
 

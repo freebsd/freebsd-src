@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.9 1999/04/16 21:21:39 peter Exp $
+ * $Id: pcibus.c,v 1.10 1999/04/19 08:55:11 dfr Exp $
  *
  */
 
@@ -130,41 +130,6 @@ pci_cvt_to_bwx(vm_offset_t sparse)
 	else
 		return NULL;
 }
-
-#if 0
-
-/*
- * These can disappear when I update the pci code to use the new
- * device framework.
- */
-struct intrec *
-intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
-	    intrmask_t *maskptr, int flags)
-{
-	struct resource *res;
-	device_t pcib = chipset.intrdev;
-	int zero = 0;
-	void *cookie;
-
-	res = BUS_ALLOC_RESOURCE(pcib, NULL, SYS_RES_IRQ, &zero,
-				irq, irq, 1, RF_SHAREABLE | RF_ACTIVE);
-	if (BUS_SETUP_INTR(pcib, pcib, res, (driver_intr_t *)handler, arg, &cookie))
-		return 0;
-
-	return (struct intrec *)cookie;
-}
-
-int
-intr_connect(struct intrec *idesc)
-{
-	/*
-	 * intr_create has already connected it (doesn't matter for the
-	 * only consumer of this interface (pci).
-	 */
-	return 0;
-}
-
-#endif
 
 void
 alpha_platform_assign_pciintr(pcicfgregs *cfg)

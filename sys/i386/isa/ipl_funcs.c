@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.14 1998/12/07 21:58:22 archie Exp $
+ *	$Id: ipl_funcs.c,v 1.15 1999/03/05 23:39:02 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -104,6 +104,14 @@ splx(unsigned ipl)
 	if (ipending & ~ipl)
 		splz();
 }
+
+intrmask_t
+splq(intrmask_t mask)
+{ 
+	intrmask_t tmp = cpl;
+	cpl |= mask;
+	return (tmp);
+}       
 
 #else /* !SMP */
 
