@@ -27,7 +27,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 29, 1994
+.Dd February 12, 2005
 .Dt CATOPEN 3
 .Os
 .Sh NAME
@@ -135,7 +135,7 @@ is set to indicate the error.
 .It Bq Er EINVAL
 Argument
 .Fa name
-does not point to a valid message catalog.
+does not point to a valid message catalog, or catalog is corrupt.
 .It Bq Er ENAMETOOLONG
 An entire path to the message catalog exceeded 1024 characters.
 .It Bq Er ENOENT
@@ -154,4 +154,4 @@ Insufficient memory is available.
 The
 .Fn catopen
 function conforms to
-.St -xpg4 .
+.St -p1003.1-2001 .

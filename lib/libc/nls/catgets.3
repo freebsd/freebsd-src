@@ -27,7 +27,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 29, 1994
+.Dd February 12, 2005
 .Dt CATGETS 3
 .Os
 .Sh NAME
@@ -58,6 +58,19 @@ If the specified message was retrieved successfully,
 returns a pointer to an internal buffer containing the message string;
 otherwise it returns
 .Fa s .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa catd
+argument is not valid message catalog descriptor.
+.It Bq Er EBADMSG
+The message identified by
+.Fa set_id
+and
+.Fa msg_id
+is not in the message catalog.
+.El
 .Sh SEE ALSO
 .Xr gencat 1 ,
 .Xr catclose 3 ,
@@ -66,4 +79,4 @@ otherwise it returns
 The
 .Fn catgets
 function conforms to
-.St -xpg4 .
+.St -p1003.1-2001 .
