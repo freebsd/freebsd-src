@@ -266,15 +266,12 @@ _thread_init(void)
 		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
 		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
 
-		/* Setup the context for the scheduler: */
-		getcontext(&_thread_kern_sched_ctx);
-		_thread_kern_sched_ctx.uc_stack.ss_sp =
+		/* Setup the context for the scheduler. */
+		_thread_kern_kse_mailbox.km_stack.ss_sp =
 		    _thread_kern_sched_stack;
-		_thread_kern_sched_ctx.uc_stack.ss_size = sched_stack_size;
-		makecontext(&_thread_kern_sched_ctx, _thread_kern_scheduler, 1);
-
-		/* Block all signals to the scheduler's context. */
-		sigfillset(&_thread_kern_sched_ctx.uc_sigmask);
+		_thread_kern_kse_mailbox.km_stack.ss_size = sched_stack_size;
+		_thread_kern_kse_mailbox.km_func =
+		    (void *)_thread_kern_scheduler;
 
 		/*
 		 * Write a magic value to the thread structure
@@ -287,9 +284,12 @@ _thread_init(void)
 		    PTHREAD_CANCEL_DEFERRED;
 
 		/* Setup the context for initial thread. */
-		getcontext(&_thread_initial->ctx);
-		_thread_kern_sched_ctx.uc_stack.ss_sp = _thread_initial->stack;
-		_thread_kern_sched_ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
+		getcontext(&_thread_initial->mailbox.tm_context);
+		_thread_initial->mailbox.tm_context.uc_stack.ss_sp =
+		    _thread_initial->stack;
+		_thread_initial->mailbox.tm_context.uc_stack.ss_size =
+		    PTHREAD_STACK_INITIAL;
+		_thread_initial->mailbox.tm_udata = (void *)_thread_initial;
 
 		/* Default the priority of the initial thread: */
 		_thread_initial->base_priority = PTHREAD_DEFAULT_PRIORITY;
@@ -334,6 +334,11 @@ _thread_init(void)
 			_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
 			    clockinfo.tick : CLOCK_RES_USEC_MIN;
 
+		/* Start KSE. */
+		_thread_kern_kse_mailbox.km_curthread =
+			&_thread_initial->mailbox;
+		if (kse_create(&_thread_kern_kse_mailbox, 0) != 0)
+			PANIC("kse_new failed");
 	}
 
 	/* Initialise the garbage collector mutex and condition variable. */
