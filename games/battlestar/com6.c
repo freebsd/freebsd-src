@@ -90,12 +90,14 @@ live()
 }
 
 /*
- * sigh -- this program thinks "time" is an int.  It's easier to not load
- * <time.h> than try and fix it.
+ * sigh -- this program thinks `clock' and `time' are ints.  It's easier
+ * to hack around this than to fix it properly.
  */
-#define KERNEL
+#define	clock	not_our_clock
+#define	time	not_our_time
 #include <sys/time.h>
-#undef KERNEL
+#undef clock
+#undef time
 
 post(ch)
 char ch;
