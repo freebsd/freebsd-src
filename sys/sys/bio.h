@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.75 1999/07/04 00:25:32 mckusick Exp $
+ * $Id: buf.h,v 1.76 1999/07/08 06:05:58 mckusick Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -446,7 +446,7 @@ extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 struct uio;
 
-vm_offset_t bufhashinit __P((vm_offset_t));
+caddr_t bufhashinit __P((caddr_t));
 void	bufinit __P((void));
 void	bwillwrite __P((void));
 void	bremfree __P((struct buf *));
