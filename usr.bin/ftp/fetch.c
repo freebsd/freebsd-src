@@ -282,11 +282,11 @@ url_get(origline, proxyenv)
 		printf("Requesting %s (via %s)\n", origline, proxyenv);
 	len = snprintf(buf, sizeof(buf), "GET %s%s HTTP/1.0\r\n\r\n",
 	    proxy ? "" : "/", path);
-	if (len < 0) {
+	if (len < 0 || len >= sizeof(buf)) {
 		warnx("Failed to format HTTP request");
 		goto cleanup_url_get;
 	}
-        if (write(s, buf, len) < len) {
+	if (write(s, buf, len) < len) {
 		warn("Writing HTTP request");
 		goto cleanup_url_get;
 	}
