@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: README,v 1.5 1998/09/02 01:34:57 brian Exp $
 
 		Filtering out SPAM from your site
 
@@ -14,18 +14,10 @@ usernames (such as investor and success).  We do not accept mail
 from any machine that matches a entry in either database, or users
 in the fakenames database.
 
-	WARNING: We do not maintain the database source files.
-		 Read domain.txt and ips.txt.
-		 (Make will fetch them for you)
-		 Domains that you want to allow, should be added
-		 to the file /etc/mail/allowed_domains.txt.
-		 IP addresses that you want to allow, should be added
-		 to the file /etc/mail/allowed_ips.txt.
-
 Filtering at your site:
 	To filter spam at your site you need to:
 	1. modify your /etc/sendmail.cf, 
-	2. retrieve the database source files from the master site,
+	2. create a list of domains/ips you wish to block
 	3. make the databases and 
 	4. finally signal sendmail that the configuration file has changed.
 
@@ -35,22 +27,7 @@ in /etc/mail/sendmail.cf.additions to your .mc file.  If you do
 not use m4 to generate your /etc/sendmail.cf, add the database
 declarations to your /etc/sendmail.cf.
 
-2. Fetching the database source files:
-
-	The database source files are available from Gulf Coast
-Internet via anonymous FTP.  The Makefile in /etc/mail will retreive
-the source files for you: as root, type "cd /etc/mail; make" at
-the command line.  The previous version of the database source
-files is moved to <filename>.0.  
-
-	Local additions should be kept in separate files.  We use
-spamsites.local and denyip.local.  You may want to diff the new
-versions of the files against the previous versions to see what
-has changed.  
-
-	Local deletions should be kept in separate files.  We use
-allowed_domain.txt and allowed_ips.txt.  (This feature was added
-after netcom.com was added to the spam block list.)
+2. Put the list of domains you wish to block in /etc/mail/spamsites
 
 3. Make the databases:
 	As root, type "cd /etc/mail; make install" will build the
