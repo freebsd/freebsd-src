@@ -35,7 +35,7 @@ int chn_poll(pcm_channel *c, int ev, struct proc *p);
 
 int chn_init(pcm_channel *c, void *devinfo, int dir);
 int chn_setdir(pcm_channel *c, int dir);
-int chn_reset(pcm_channel *c);
+int chn_reset(pcm_channel *c, u_int32_t fmt);
 int chn_setvolume(pcm_channel *c, int left, int right);
 int chn_setspeed(pcm_channel *c, int speed);
 int chn_setformat(pcm_channel *c, u_int32_t fmt);

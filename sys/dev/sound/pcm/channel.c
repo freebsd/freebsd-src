@@ -336,7 +336,7 @@ static void
 chn_wrintr(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
-    	int start, dl, l;
+    	int start, l;
 
     	if (b->underflow && !(c->flags & CHN_F_MAPPED)) {
 /*		printf("underflow return\n");
@@ -485,7 +485,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 
 	/* Start playing if not yet. */
 	if ((bs->rl || b->rl) && !b->dl) {
-		chn_wrintr(c);
+		chn_intr(c);
 	}
 
    	if (c->flags & CHN_F_NBIO) {
@@ -501,7 +501,7 @@ chn_write(pcm_channel *c, struct uio *buf)
   			while (chn_wrfeed2nd(c, buf) > 0);
 
 			/* Start playing if necessary. */
-  			if ((bs->rl || b->rl) && !b->dl) chn_wrintr(c);
+  			if ((bs->rl || b->rl) && !b->dl) chn_intr(c);
 
 			/* Have we finished to feed the secondary buffer? */
 			if (buf->uio_resid == 0)
@@ -738,7 +738,7 @@ chn_read(pcm_channel *c, struct uio *buf)
  	while (chn_rdfeed2nd(c, buf) > 0);
 
 	/* Start capturing if not yet. */
-  	if ((!bs->rl || !b->rl) && !b->dl) chn_rdintr(c);
+  	if ((!bs->rl || !b->rl) && !b->dl) chn_intr(c);
 
   	if (!(c->flags & CHN_F_NBIO)) {
   		/* Wait until all samples are captured. */
@@ -748,7 +748,7 @@ chn_read(pcm_channel *c, struct uio *buf)
  			while (chn_rdfeed2nd(c, buf) > 0);
 
 			/* Start capturing if necessary. */
- 			if ((!bs->rl || !b->rl) && !b->dl) chn_rdintr(c);
+ 			if ((!bs->rl || !b->rl) && !b->dl) chn_intr(c);
 
 			/* Have we finished to feed the uio? */
 			if (buf->uio_resid == 0)
@@ -775,7 +775,12 @@ chn_read(pcm_channel *c, struct uio *buf)
 void
 chn_intr(pcm_channel *c)
 {
-	if (c->direction == PCMDIR_PLAY) chn_wrintr(c); else chn_rdintr(c);
+	if (c->flags & CHN_F_INIT)
+		chn_reinit(c);
+	if (c->direction == PCMDIR_PLAY)
+		chn_wrintr(c);
+	else
+		chn_rdintr(c);
 }
 
 static void
@@ -949,14 +954,14 @@ chn_poll(pcm_channel *c, int ev, struct proc *p)
 		if (c->direction == PCMDIR_PLAY) {
 			/* Fill up the DMA buffer. */
 			chn_checkunderflow(c);
-			while(chn_wrfeed(c) > 0);
-			if (!b->dl) chn_wrintr(c);
+			while (chn_wrfeed(c) > 0);
 		} else {
 			/* Suck up the DMA buffer. */
 			chn_dmaupdate(c);
-			while(chn_rdfeed(c) > 0);
-			if (!b->dl) chn_rdintr(c);
+			while (chn_rdfeed(c) > 0);
 		}
+		if (!b->dl)
+			chn_intr(c);
 	}
 	ret = 0;
 	if (chn_polltrigger(c) && chn_pollreset(c))
@@ -1034,7 +1039,7 @@ chn_flush(pcm_channel *c)
 }
 
 int
-chn_reset(pcm_channel *c)
+chn_reset(pcm_channel *c, u_int32_t fmt)
 {
 	int r;
 
@@ -1043,9 +1048,11 @@ chn_reset(pcm_channel *c)
 	r = chn_setblocksize(c, CHN_2NDBUFBLKNUM, CHN_2NDBUFBLKSIZE);
 	if (r)
 		return r;
-	c->format = AFMT_U8;
-	c->speed = 8000;
-	c->volume = (100 << 8) | 100;
+	if (fmt) {
+		c->format = fmt;
+		c->speed = DSP_DEFAULT_SPEED;
+		c->volume = (100 << 8) | 100;
+	}
 	chn_resetbuf(c);
 	c->flags |= CHN_F_INIT;
 	return 0;
@@ -1142,6 +1149,8 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	snd_dbuf *bs = &c->buffer2nd;
 	int s, bufsz;
 
+	if (c->fragments == blkcnt && c->blocksize2nd == blksz)
+		return 0;
     	if (c->flags & CHN_F_MAPPED) {
 		DEB(printf("chn_setblocksize: can't work on mapped channel"));
 		return EINVAL;
