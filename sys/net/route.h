@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.28 1998/03/23 13:58:02 bde Exp $
+ * $Id: route.h,v 1.29 1999/05/06 18:12:56 peter Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -101,8 +101,7 @@ struct rtentry {
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
-	short	rt_filler;		/* was short flags field */
-	short	rt_refcnt;		/* # held references */
+	long	rt_refcnt;		/* # held references */
 	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
