@@ -690,7 +690,8 @@ ata_generic_reset(struct ata_channel *ch)
 	    }
 	}
 
-	if ((mask & 0x02) && (stat1 & ATA_S_BUSY)) {
+	if ((mask & 0x02) && (stat1 & ATA_S_BUSY) &&
+	    !((mask & 0x01) && (stat0 & ATA_S_BUSY))) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
 	    err = ATA_IDX_INB(ch, ATA_ERROR);
@@ -712,8 +713,8 @@ ata_generic_reset(struct ata_channel *ch)
 			ch->devices |= ATA_ATA_SLAVE;
 		    }
 		}
-		else if ((stat0 & 0x0f) && err == lsb && err == msb) {
-		    stat0 |= ATA_S_BUSY;
+		else if ((stat1 & 0x0f) && err == lsb && err == msb) {
+		    stat1 |= ATA_S_BUSY;
 		}
 	    }
 	}
