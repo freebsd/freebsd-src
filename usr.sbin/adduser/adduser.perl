@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.7.4.1 1995/10/19 06:29:30 jkh Exp $
+# $Id: adduser.perl,v 1.11 1996/05/06 06:15:19 gclarkii Exp $
 #
 
 # read variables
@@ -56,9 +56,9 @@ sub variables {
     # List of directories where shells located
     @path = ('/bin', '/usr/bin', '/usr/local/bin');
     # common shells, first element has higher priority
-    @shellpref = ('bash', 'tcsh', 'ksh', 'csh', 'sh');
+    @shellpref = ('csh', 'sh', 'bash', 'tcsh', 'ksh');
 
-    $defaultshell = 'bash';	# defaultshell if not empty
+    $defaultshell = 'sh';	# defaultshell if not empty
     $group_uniq = 'USER';
     $defaultgroup = $group_uniq;# login groupname, $group_uniq means username
 
@@ -938,7 +938,13 @@ sub home_create {
 	return 0;
     }
 
-    return mkdir("$homedir",0755) if $dotdir eq "no";
+    if ($dotdir eq 'no') {
+	if (!mkdir("$homedir",0755)) {
+	    warn "mkdir $homedir: $!\n"; return 0;
+	}
+	system 'chown', "$name:$group", $homedir;
+	return !$?;
+    }
 
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
