@@ -71,7 +71,7 @@ OBJCOPY?=	objcopy
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .else
 WERROR?=	-Werror
-CFLAGS:=	${CFLAGS:C/-O2/-O2 -fno-strict-alias/}
+CFLAGS:=	${CFLAGS:C/-O2/-O2 -fno-strict-aliasing/}
 .endif
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
