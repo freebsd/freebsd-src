@@ -58,6 +58,7 @@
 #include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <machine/stdarg.h>
 
 #if defined(INET) || defined(INET6)
 /*XXX*/
@@ -1647,6 +1648,19 @@ ifmaof_ifpforaddr(sa, ifp)
 			break;
 
 	return ifma;
+}
+
+int
+if_printf(struct ifnet *ifp, const char *fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	retval = printf("%s%d: ", ifp->if_name, ifp->if_unit);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);
+	return (retval);
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
