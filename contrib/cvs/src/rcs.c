@@ -4389,7 +4389,7 @@ getfullCVSname(CVSname, pathstore)
 
 	*pathstore = xstrdup(CVSname);
 	if ((c = strrchr(*pathstore, '/')) != NULL) {
-	    if (alen >= *pathstore - c) {
+	    if (c - *pathstore >= alen) {
 		if (!strncmp(c - alen, ATTIC, alen)) {
 		    while (*c != '\0') {
 			*(c - alen) = *c;
