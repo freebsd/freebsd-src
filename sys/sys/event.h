@@ -123,6 +123,8 @@ struct kevent {
 #include <sys/_mutex.h>
 struct knote;
 SLIST_HEAD(klist, knote);
+struct kqueue;
+SLIST_HEAD(kqlist, kqueue);
 struct knlist {
 	struct	mtx	*kl_lock;	/* lock to protect kll_list */
 	struct	klist	kl_list;
@@ -134,9 +136,6 @@ struct knlist {
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_KQUEUE);
 #endif
-
-struct kqueue;
-SLIST_HEAD(kqlist, kqueue);
 
 #define KNOTE(list, hist, lock)		knote(list, hist, lock)
 #define KNOTE_LOCKED(list, hint)	knote(list, hint, 1)
