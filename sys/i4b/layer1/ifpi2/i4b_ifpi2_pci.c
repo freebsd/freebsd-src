@@ -974,18 +974,25 @@ avma1pp2_intr(void *xsc)
 	/* was there an interrupt from this card ? */
 	if ((stat & ASL_IRQ_Pending) == 0)
 		return; /* no */
-	/* interrupts are high active */
-	if (stat & ASL_IRQ_TIMER)
-	  NDBGL1(L1_H_IRQ, "timer interrupt ???");
-	if (stat & ASL_IRQ_HSCX)
+	/* For slow machines loop as long as an interrupt is active */
+	for (; ((stat & ASL_IRQ_Pending) != 0) ;)
 	{
-	  NDBGL1(L1_H_IRQ, "HSCX");
-		avma1pp2_hscx_int_handler(sc);
-	}
-	if (stat & ASL_IRQ_ISAC)
-	{
-	  NDBGL1(L1_H_IRQ, "ISAC");
-		ifpi2_isacsx_intr(sc);
+		/* interrupts are high active */
+		if (stat & ASL_IRQ_TIMER)
+			NDBGL1(L1_H_IRQ, "timer interrupt ???");
+		if (stat & ASL_IRQ_HSCX)
+		{
+			NDBGL1(L1_H_IRQ, "HSCX");
+			avma1pp2_hscx_int_handler(sc);
+		}
+		if (stat & ASL_IRQ_ISAC)
+		{
+		       NDBGL1(L1_H_IRQ, "ISAC");
+		       ifpi2_isacsx_intr(sc);
+		}
+		stat = bus_space_read_1(btag, bhandle, STAT0_OFFSET);
+		NDBGL1(L1_H_IRQ, "stat %x", stat);
+
 	}
 }
 
