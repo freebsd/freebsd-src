@@ -177,7 +177,7 @@ static struct atpic_intsrc atintrs[] = {
 	INTSRC(15),
 };
 
-CTASSERT(sizeof(atintrs) / sizeof(struct atpic_intsrc) == NUM_ISA_IRQS);
+CTASSERT(sizeof(atintrs) / sizeof(atintrs[0]) == NUM_ISA_IRQS);
 
 static void
 atpic_enable_source(struct intsrc *isrc)
@@ -448,8 +448,8 @@ atpic_startup(void)
 	 * we have one and as an optimization to avoid masking edge
 	 * triggered interrupts.  For the case that we don't have an ELCR,
 	 * it doesn't hurt to mask an edge triggered interrupt, so we
-	 * that is why we assume level trigger for any interrupt that we
-	 * aren't sure is edge triggered.
+	 * assume level trigger for any interrupt that we aren't sure is
+	 * edge triggered.
 	 */
 	if (elcr_probe() == 0) {
 		using_elcr = 1;
