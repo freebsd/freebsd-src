@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.4.4.1 1995/10/07 12:51:12 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

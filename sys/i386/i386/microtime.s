@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.7 1994/11/05 23:53:46 bde Exp $
+ * $FreeBSD$
  */
 
 #include <machine/asmacros.h>

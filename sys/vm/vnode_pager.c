@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.40.4.1 1995/07/07 06:22:00 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsv2.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsv2.h,v 1.3 1994/08/18 22:35:37 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NFS_NFSV2_H_

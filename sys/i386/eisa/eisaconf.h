@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.8 1996/01/30 22:53:51 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_EISA_EISACONF_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
- * $Id: stdarg.h,v 1.5 1994/08/02 07:39:09 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _STDARG_H_

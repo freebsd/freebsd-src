@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.4 1995/03/16 18:14:17 bde Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-

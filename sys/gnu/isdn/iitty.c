@@ -1,4 +1,4 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp $";
+static char     _ittyid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.12.4.2 1996/05/02 12:09:04 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.5.4.1 1995/09/14 07:10:11 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

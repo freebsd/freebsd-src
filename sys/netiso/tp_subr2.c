@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr2.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_subr2.c,v 1.4 1995/05/30 08:11:34 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_subr2.c,v 1.4 1995/05/30 08:11:34 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_subr2.c,v $
  *
  * Some auxiliary routines:

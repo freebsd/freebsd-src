@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.7 1995/01/30 06:44:40 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef MCD_H

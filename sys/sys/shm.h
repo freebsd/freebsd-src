@@ -1,4 +1,4 @@
-/* $Id: shm.h,v 1.4 1995/07/08 16:36:30 joerg Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*

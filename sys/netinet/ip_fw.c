@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.14.4.10 1996/11/12 17:31:31 jkh Exp $
+ * $FreeBSD$
  */
 
 /*

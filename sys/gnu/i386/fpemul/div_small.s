@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *     $Id: div_small.s,v 1.2 1994/04/29 21:07:11 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

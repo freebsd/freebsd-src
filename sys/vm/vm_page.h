@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.17 1995/03/26 23:33:14 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -66,7 +66,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_pcb.h,v $
  *
  *

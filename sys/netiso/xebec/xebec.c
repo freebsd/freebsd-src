@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/xebec.c,v 1.2 1995/05/30 08:12:16 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/xebec.c,v $ */
 
 #include "xebec.h"

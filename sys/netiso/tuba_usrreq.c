@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: tuba_usrreq.c,v 1.2 1994/08/02 07:51:38 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

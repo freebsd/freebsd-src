@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.16.4.3 1996/03/14 17:13:50 fenner Exp $
+ * $FreeBSD$
  */
 
 

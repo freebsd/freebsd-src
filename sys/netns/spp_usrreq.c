@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: spp_usrreq.c,v 1.3 1995/03/19 14:29:04 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -62,7 +62,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_shrx.s,v 1.2 1994/04/29 21:34:29 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

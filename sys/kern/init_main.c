@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.25.4.1 1996/02/22 11:09:58 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

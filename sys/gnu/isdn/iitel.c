@@ -1,4 +1,4 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp $";
+static char     _itelid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *

@@ -35,7 +35,7 @@
  *
  *	@(#)portal.h	8.4 (Berkeley) 1/21/94
  *
- * $Id: portal.h,v 1.3 1992/05/30 10:05:24 jsp Exp jsp $
+ * $FreeBSD$
  */
 
 struct portal_args {

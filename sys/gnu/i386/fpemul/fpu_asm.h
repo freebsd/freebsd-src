@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_asm.h,v 1.2 1994/04/29 21:07:14 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm.c,v 1.9.4.6 1997/04/11 16:45:38 gibbs Exp $
+ * $FreeBSD$
  */
 #include <sys/types.h>
 #include <sys/mman.h>

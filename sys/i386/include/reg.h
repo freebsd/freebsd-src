@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.9 1994/10/02 17:31:29 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_REG_H_

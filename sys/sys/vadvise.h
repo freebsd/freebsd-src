@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vadvise.h	8.1 (Berkeley) 6/2/93
- * $Id: vadvise.h,v 1.2 1994/08/02 07:54:08 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_VADVISE_H_

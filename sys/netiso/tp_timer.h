@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_timer.h,v 1.4 1995/05/30 08:11:37 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_TP_TIMER_H_
@@ -66,7 +66,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_timer.h,v 1.4 1995/05/30 08:11:37 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_timer.h,v $
  *
  * ARGO TP

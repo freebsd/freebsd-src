@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_table.h	8.1 (Berkeley) 6/10/93
- * $Id: tuba_table.h,v 1.2 1994/08/02 07:51:37 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_TUBA_TABLE_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.13.4.2 1996/05/31 01:41:54 alex Exp $
+ * $FreeBSD$
  */
 
 /*

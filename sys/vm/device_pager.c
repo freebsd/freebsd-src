@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.10 1995/05/18 02:59:18 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

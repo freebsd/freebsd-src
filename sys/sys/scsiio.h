@@ -1,5 +1,5 @@
 /*
- * $Id: scsiio.h,v 1.3 1995/01/08 13:39:46 dufault Exp $
+ * $FreeBSD$
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_

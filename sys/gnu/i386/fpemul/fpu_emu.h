@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_emu.h,v 1.2 1994/04/29 21:16:20 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.21 1995/05/30 08:13:22 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include	<sys/types.h>

@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.7.4.2 1996/07/02 01:58:38 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsdiskless.h,v 1.3 1994/08/05 09:28:49 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NFS_NFSDISKLESS_H_

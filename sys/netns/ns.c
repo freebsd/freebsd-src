@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
- * $Id: ns.c,v 1.3 1994/11/15 14:26:31 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

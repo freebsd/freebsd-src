@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.65 1995/05/30 08:13:51 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #define SPLSD splbio

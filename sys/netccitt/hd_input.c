@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_input.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_input.c,v 1.4 1995/05/11 19:26:39 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

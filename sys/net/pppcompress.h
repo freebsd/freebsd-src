@@ -39,7 +39,7 @@
  *	- added sl_uncompress_tcp_part.
  *
  *	From: 	slcompress.h	7.4	90/06/28
- *	$Id: pppcompress.h,v 1.2 1994/09/23 00:13:22 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_PPPCOMPRESS_H_

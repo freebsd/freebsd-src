@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.18 1996/07/16 08:53:04 davidg Exp $
+# $FreeBSD$
 #
 
 machine		"i386"

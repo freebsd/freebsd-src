@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.2 (Berkeley) 2/17/94
- * $Id: union.h,v 1.2 1994/08/02 07:45:42 davidg Exp $
+ * $FreeBSD$
  */
 
 struct union_args {

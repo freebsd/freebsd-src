@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.9 1996/06/28 16:59:47 joerg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

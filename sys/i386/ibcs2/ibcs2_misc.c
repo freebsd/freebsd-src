@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_misc.c,v 1.4 1995/05/02 17:14:38 ache Exp $
+ * $FreeBSD$
  */
 
 #include <i386/ibcs2/ibcs2.h>

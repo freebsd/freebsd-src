@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.11.4.3 1996/05/30 01:24:38 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.14.4.1 1995/11/12 10:40:36 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

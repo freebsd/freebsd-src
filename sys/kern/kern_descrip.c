@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.9 1995/03/28 07:56:26 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

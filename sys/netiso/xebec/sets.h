@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/sets.h,v 1.2 1995/05/30 08:12:14 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/sets.h,v $ */
 
 #define MAXEVENTS 200

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.19.4.5 1996/03/04 04:56:23 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

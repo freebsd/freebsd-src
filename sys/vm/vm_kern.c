@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.13.4.2 1996/05/26 18:35:22 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

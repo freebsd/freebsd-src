@@ -1,5 +1,5 @@
 /*
- * $Id: tp_events.h,v 1.3 1994/08/21 06:14:24 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_TP_EVENTS_H_

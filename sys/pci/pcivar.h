@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.6 1995/05/30 08:13:12 rgrimes Exp $
+** $FreeBSD$
 **
 **  Declarations for pci device drivers.
 **

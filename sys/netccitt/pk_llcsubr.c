@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_llcsubr.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_llcsubr.c,v 1.3 1994/12/13 22:32:16 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

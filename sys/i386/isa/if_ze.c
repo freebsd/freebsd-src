@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.16 1995/05/24 20:33:42 davidg Exp $
+ * $FreeBSD$
  */
 
 #include "ze.h"

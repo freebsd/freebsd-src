@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.10 1995/03/16 18:16:48 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

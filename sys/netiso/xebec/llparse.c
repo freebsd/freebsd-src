@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llparse.c,v 1.2 1995/05/30 08:11:57 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llparse.c,v $ */
 /*
  * ************************* NOTICE *******************************

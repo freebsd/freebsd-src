@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_cksum.c,v 1.2 1994/08/02 07:54:32 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

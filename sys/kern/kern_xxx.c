@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.10.4.1 1995/08/24 03:50:12 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

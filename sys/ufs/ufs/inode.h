@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.5 1995/04/24 05:13:11 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifndef _UFS_UFS_INODE_H_

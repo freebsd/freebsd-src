@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20.4.5 1996/06/27 05:39:02 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

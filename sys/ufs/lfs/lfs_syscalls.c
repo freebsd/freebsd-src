@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.9 1995/05/11 19:26:52 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

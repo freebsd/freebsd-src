@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.4 1994/08/13 03:49:22 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

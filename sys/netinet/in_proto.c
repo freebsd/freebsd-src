@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: in_proto.c,v 1.17 1995/06/26 16:11:51 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

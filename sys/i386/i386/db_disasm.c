@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.8 1995/01/29 02:38:15 bde Exp $
+ * $FreeBSD$
  */
 
 /*

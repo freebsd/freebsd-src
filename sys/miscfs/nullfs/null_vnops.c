@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.7 1995/03/19 14:28:54 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

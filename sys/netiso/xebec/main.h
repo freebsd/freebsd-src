@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/main.h,v 1.2 1995/05/30 08:12:05 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/main.h,v $ */
 
 #define TRUE 1

@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.1.2.4 1996/06/08 07:10:43 gibbs Exp $
+ * $FreeBSD$
  */
 
 /*

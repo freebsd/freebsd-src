@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.5 1994/10/17 17:47:36 phk Exp $
+ * $FreeBSD$
  */
 
 /*

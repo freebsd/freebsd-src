@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25err.h	8.1 (Berkeley) 6/10/93
- * $Id: x25err.h,v 1.3 1994/08/21 05:44:12 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETCCITT_X25ERR_H_

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.6 1994/09/27 03:34:58 phk Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wtreg.h,v 1.6 1996/01/08 12:46:15 joerg Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.1 1995/02/14 15:00:35 jkh Exp $";
+static char     _isdn_ioctl_id[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *

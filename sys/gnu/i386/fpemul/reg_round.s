@@ -65,7 +65,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_round.s,v 1.2 1994/04/29 21:30:23 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

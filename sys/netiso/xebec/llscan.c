@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llscan.c,v 1.2 1995/05/30 08:12:01 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llscan.c,v $ */
 /*
  * ************************* NOTICE *******************************

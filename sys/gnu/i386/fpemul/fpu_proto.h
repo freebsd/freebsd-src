@@ -1,6 +1,6 @@
 /*
  *
- *    $Id: fpu_proto.h,v 1.2 1994/04/29 21:16:23 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

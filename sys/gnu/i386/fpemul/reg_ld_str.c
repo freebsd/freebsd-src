@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_ld_str.c,v 1.4 1994/08/31 04:45:24 davidg Exp $
+ * $FreeBSD$
  *
  */
 

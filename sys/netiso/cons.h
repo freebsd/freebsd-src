@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons.h	8.1 (Berkeley) 6/10/93
- * $Id: cons.h,v 1.4 1995/05/30 08:10:30 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_CONS_H_
@@ -64,7 +64,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/cons.h,v 1.4 1995/05/30 08:10:30 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/cons.h,v $
  *
  * interface between TP and CONS

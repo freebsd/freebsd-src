@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.16 1995/09/08 03:14:00 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_ISA_H_

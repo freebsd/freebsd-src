@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.15 1996/01/31 18:46:36 gibbs Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/systm.h>

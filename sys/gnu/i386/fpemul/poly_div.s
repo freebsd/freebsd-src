@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_div.s,v 1.2 1994/04/29 21:23:27 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.10 1994/10/30 20:55:44 bde Exp $
+ * $FreeBSD$
  */
 
 /*

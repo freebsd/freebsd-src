@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.9 1994/10/20 00:48:28 wollman Exp $
+ * $FreeBSD$
  */
 
 

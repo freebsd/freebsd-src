@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk.h	8.1 (Berkeley) 6/10/93
- * $Id: pk.h,v 1.3 1994/08/21 05:44:09 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETCCITT_PK_H_

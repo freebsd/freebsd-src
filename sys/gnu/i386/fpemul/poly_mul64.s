@@ -59,7 +59,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: poly_mul64.s,v 1.2 1994/04/29 21:23:29 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_debug.c,v 1.3 1995/02/15 06:29:42 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

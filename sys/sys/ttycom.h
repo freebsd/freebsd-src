@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.8 1995/03/30 05:17:50 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_TTYCOM_H_

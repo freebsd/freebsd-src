@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef	_MACHTYPES_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
- * $Id: iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_ISO_H_
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso.h,v $ */
 
 /*

@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.5 1995/03/30 20:43:32 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_SLVAR_H_

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.4 1995/04/01 01:46:27 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52.4.5 1996/11/14 15:55:40 jkh Exp $
+ * $FreeBSD$
  */
 
 /*

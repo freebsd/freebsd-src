@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_raw.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_raw.c,v 1.3 1995/05/30 08:10:23 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_raw.c,v 1.3 1995/05/30 08:10:23 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_raw.c,v $ */
 
 #include <sys/param.h>

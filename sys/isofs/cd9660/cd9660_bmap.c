@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_bmap.c	8.3 (Berkeley) 1/23/94
- * $Id$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.9 1995/01/25 20:05:03 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_REBOOT_H_

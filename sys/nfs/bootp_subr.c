@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.1.2.2 1997/05/14 01:36:51 tegge Exp $	*/
+/* $FreeBSD$	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

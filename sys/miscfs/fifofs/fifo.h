@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.4 1995/02/14 06:30:18 phk Exp $
+ * $FreeBSD$
  */
 
 extern int	(**fifo_vnodeop_p)();

@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: exception.h,v 1.2 1994/04/29 21:07:13 gclarkii Exp $
+ * $FreeBSD$
  *
  *
  */

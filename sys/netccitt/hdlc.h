@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hdlc.h	8.1 (Berkeley) 6/10/93
- * $Id: hdlc.h,v 1.2 1994/08/02 07:47:12 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETCCITT_HDLC_H_

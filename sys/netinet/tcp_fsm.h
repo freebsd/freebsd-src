@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_fsm.h,v 1.5 1995/02/16 01:53:31 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_TCP_FSM_H_

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.28.4.8 1996/11/15 08:10:10 jkh Exp $
+ ** $FreeBSD$
  **/
 
 /**
@@ -2222,7 +2222,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28.4.8 1996/11/15 08:10:10 jkh Exp $
+ * $FreeBSD$
  */
 
 #include "scbus.h"

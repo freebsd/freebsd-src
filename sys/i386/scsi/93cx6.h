@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.h,v 1.1.2.3 1996/06/08 07:10:44 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

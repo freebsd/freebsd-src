@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_tpdu.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_tpdu.h,v 1.4 1995/05/30 08:11:38 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_TP_TPDU_H_
@@ -66,7 +66,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_tpdu.h,v 1.4 1995/05/30 08:11:38 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_tpdu.h,v $
  *
  * This ghastly set of macros makes it possible to

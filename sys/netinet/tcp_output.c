@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.11.4.4 1996/03/04 04:56:26 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

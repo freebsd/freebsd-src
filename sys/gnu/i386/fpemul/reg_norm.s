@@ -61,7 +61,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_norm.s,v 1.2 1994/04/29 21:30:22 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

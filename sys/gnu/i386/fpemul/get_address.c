@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: get_address.c,v 1.2 1994/04/29 21:16:26 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

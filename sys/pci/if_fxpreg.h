@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.2.2.3 1997/03/17 11:11:34 davidg Exp $
+ * $FreeBSD$
  */
 
 #define FXP_VENDORID_INTEL	0x8086

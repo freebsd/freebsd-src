@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_input.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_input.c,v 1.3 1995/05/30 08:11:12 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_input.c,v 1.3 1995/05/30 08:11:12 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_input.c,v $
  *
  * tp_input() gets an mbuf chain from ip.  Actually, not directly

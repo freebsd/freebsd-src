@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_eon.c	8.1 (Berkeley) 6/10/93
- * $Id: if_eon.c,v 1.4 1995/05/30 08:10:45 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/if_eon.c,v 1.4 1995/05/30 08:10:45 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/if_eon.c,v $
  *
  *	EON rfc

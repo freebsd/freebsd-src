@@ -1,4 +1,4 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.7 1995/09/08 11:06:46 bde Exp $";
+static char     nic38_id[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *

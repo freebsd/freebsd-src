@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: ffs_subr.c,v 1.3 1994/10/10 01:04:38 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

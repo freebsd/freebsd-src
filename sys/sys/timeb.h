@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)timeb.h	8.2 (Berkeley) 1/21/94
- * $Id: timeb.h,v 1.2 1994/08/02 07:53:49 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TIMEB_H_

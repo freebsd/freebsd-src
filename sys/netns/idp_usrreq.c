@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: idp_usrreq.c,v 1.3 1994/11/15 14:26:30 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

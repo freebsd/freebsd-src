@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22.4.4 1996/06/15 14:03:33 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

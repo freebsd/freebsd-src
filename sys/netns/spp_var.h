@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: spp_var.h,v 1.2 1994/08/02 07:52:01 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETNS_SPP_VAR_H_

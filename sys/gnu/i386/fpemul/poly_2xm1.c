@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *   $Id: poly_2xm1.c,v 1.2 1994/04/29 21:23:25 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.12 1996/06/29 09:17:17 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

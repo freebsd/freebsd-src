@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  *      modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef _SPEAKER_H_

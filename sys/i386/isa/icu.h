@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.6 1994/09/18 23:18:32 bde Exp $
+ * $FreeBSD$
  */
 
 /*

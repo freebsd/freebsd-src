@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.4 1996/01/31 18:02:18 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

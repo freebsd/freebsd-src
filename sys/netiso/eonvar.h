@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)eonvar.h	8.1 (Berkeley) 6/10/93
- * $Id: eonvar.h,v 1.3 1994/08/21 06:14:17 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_EONVAR_H_

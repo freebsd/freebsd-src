@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_iso.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_iso.c,v 1.3 1995/05/30 08:11:18 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -62,7 +62,7 @@ SOFTWARE.
  */
 /*
  * ARGO TP
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_iso.c,v 1.3 1995/05/30 08:11:18 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_iso.c,v $
  *
  * Here is where you find the iso-dependent code.  We've tried

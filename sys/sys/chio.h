@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  *
- *	$Id: chio.h,v 1.4 1993/11/18 05:03:24 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /* This is a "convertet" mtio.h from 386BSD

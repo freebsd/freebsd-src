@@ -35,7 +35,7 @@
  *
  *	@(#)null.h	8.2 (Berkeley) 1/21/94
  *
- * $Id: lofs.h,v 1.8 1992/05/30 10:05:43 jsp Exp jsp $
+ * $FreeBSD$
  */
 
 struct null_args {

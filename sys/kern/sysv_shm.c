@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.5.4.1 1995/12/04 02:29:40 jkh Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*

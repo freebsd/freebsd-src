@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.22.4.6 1996/09/08 13:46:46 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

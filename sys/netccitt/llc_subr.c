@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_subr.c,v 1.4 1995/05/11 19:26:40 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

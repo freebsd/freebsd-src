@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: ioctl_fd.h,v 1.6 1994/09/25 18:41:21 joerg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _IOCTL_FD_H

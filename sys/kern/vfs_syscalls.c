@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.25.4.5 1997/03/26 20:29:14 guido Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydev.h	8.2 (Berkeley) 1/4/94
- * $Id: ttydev.h,v 1.2 1994/08/02 07:53:58 davidg Exp $
+ * $FreeBSD$
  */
 
 /* COMPATABILITY HEADER FILE */

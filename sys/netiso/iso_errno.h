@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_errno.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_errno.h,v 1.4 1994/11/27 20:58:30 ats Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETISO_ISO_ERRNO_H_

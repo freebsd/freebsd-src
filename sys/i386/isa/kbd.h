@@ -1,7 +1,7 @@
 /*
  * Keyboard definitions
  *	from: unknown origin, 386BSD 0.1
- *	$Id: kbd.h,v 1.3 1993/11/07 17:44:33 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_KBD_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.3 1995/02/09 23:13:22 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifdef TCPDEBUG

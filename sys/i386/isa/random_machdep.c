@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.9 1996/06/17 16:47:43 bde Exp $
+ * $FreeBSD$
  *
  * Version 0.95, last modified 18-Oct-95
  * 

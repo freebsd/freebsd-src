@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.9.4.1 1996/03/21 20:30:09 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NFS_NFSNODE_H_

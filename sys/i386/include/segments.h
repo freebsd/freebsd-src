@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.8 1995/02/14 19:21:15 sos Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_SEGMENTS_H_

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_subr.c,v 1.3 1995/02/15 06:29:45 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

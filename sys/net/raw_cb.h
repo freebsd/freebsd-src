@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.h,v 1.2 1994/08/02 07:46:36 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_RAW_CB_H_

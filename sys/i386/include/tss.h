@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- *	$Id: tss.h,v 1.4 1993/11/17 23:25:04 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_TSS_H_

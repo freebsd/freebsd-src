@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: ns_pcb.h,v 1.2 1994/08/02 07:51:53 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETNS_NS_PCB_H_

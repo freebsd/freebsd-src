@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.73.4.5 1996/03/31 15:55:01 joerg Exp $
+ * $FreeBSD$
  */
 
 /*

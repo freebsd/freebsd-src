@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/sets.c,v 1.2 1995/05/30 08:12:12 rgrimes Exp $ */
+/* $FreeBSD$ */
 /* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/sets.c,v $ */
 /*
  * This code is such a kludge that I don't want to put my name on it.

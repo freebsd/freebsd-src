@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.8 1995/04/16 11:25:47 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

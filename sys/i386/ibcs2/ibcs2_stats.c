@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_stats.c,v 1.1 1994/10/14 08:53:09 sos Exp $
+ * $FreeBSD$
  */
 
 #include <i386/ibcs2/ibcs2.h>

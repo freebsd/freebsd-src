@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.16.4.1 1995/11/10 15:08:05 davidg Exp $
+ * $FreeBSD$
  *
  *
  */

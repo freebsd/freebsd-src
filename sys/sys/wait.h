@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.1 (Berkeley) 6/2/93
- * $Id: wait.h,v 1.3 1994/08/21 04:42:17 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_WAIT_H_

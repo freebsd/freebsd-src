@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.h,v 1.3 1993/11/25 01:30:14 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_timer.c,v 1.2 1994/08/02 07:47:23 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

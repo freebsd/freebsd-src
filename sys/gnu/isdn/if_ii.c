@@ -1,4 +1,4 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp $";
+static char     _if_iiid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *

@@ -1,4 +1,4 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.5 1995/09/08 11:06:58 bde Exp $";
+static char     _isdnid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *

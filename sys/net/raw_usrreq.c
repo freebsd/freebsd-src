@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.5 1995/02/16 01:11:38 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

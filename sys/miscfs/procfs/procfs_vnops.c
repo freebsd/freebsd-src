@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.14.4.3 1996/02/23 15:12:02 peter Exp $
+ * $FreeBSD$
  */
 
 /*

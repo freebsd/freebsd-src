@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_output.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_output.c,v 1.3 1995/03/19 14:29:00 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.13 1995/03/20 21:30:21 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_ROUTE_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	from: @(#) ieeefp.h 	1.0 (Berkeley) 9/23/93
- *	$Id: ieeefp.h,v 1.1 1994/08/04 19:16:37 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

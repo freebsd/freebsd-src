@@ -1,4 +1,4 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.4 1995/09/08 11:06:56 bde Exp $";
+static char     _ispyid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.10.4.2 1996/04/01 00:26:04 gibbs Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/types.h>

@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.29.4.2 1996/04/01 00:26:03 gibbs Exp $
+ * $FreeBSD$
  */
 
 #define SPLSD splbio

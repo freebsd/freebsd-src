@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.8 1995/03/17 22:02:05 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_KERNEL_H_

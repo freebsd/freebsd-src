@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.7.4.4 1995/10/07 12:47:58 davidg Exp $
+ * $FreeBSD$
  */
 
 #include "bpfilter.h"

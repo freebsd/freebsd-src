@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.h	8.1 (Berkeley) 1/21/94
- * $Id: cd9660_rrip.h,v 1.2 1994/08/02 07:41:30 davidg Exp $
+ * $FreeBSD$
  */
 
 typedef struct {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25acct.h	8.1 (Berkeley) 6/10/93
- * $Id: x25acct.h,v 1.2 1994/08/02 07:47:52 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETCCITT_X25ACCT_H_

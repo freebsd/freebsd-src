@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.50.4.3 1996/03/06 23:20:42 bde Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: reg_constant.h,v 1.2 1994/04/29 21:30:18 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

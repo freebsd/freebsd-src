@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.7.4.4 1996/07/12 17:31:46 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef TUBA_INCLUDE

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.12 1995/04/13 18:24:33 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

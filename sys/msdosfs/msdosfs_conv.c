@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.4 1995/03/29 18:48:06 ache Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*

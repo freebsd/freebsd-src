@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.7.4.1 1996/03/21 20:29:59 phk Exp $
+ * $FreeBSD$
  */
 
 /*

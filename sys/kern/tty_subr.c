@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.10.4.3 1995/11/03 08:05:05 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_proto.c,v 1.4 1995/05/30 08:10:56 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso_proto.c,v 1.4 1995/05/30 08:10:56 rgrimes Exp $
+/* $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso_proto.c,v $
  *
  * iso_proto.c : protocol switch tables in the ISO domain

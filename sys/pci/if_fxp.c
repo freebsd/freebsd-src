@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8.2.13 1997/03/17 12:12:25 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

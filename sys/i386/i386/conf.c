@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85.4.8 1996/06/23 23:24:32 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

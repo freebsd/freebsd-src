@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_var.h	8.1 (Berkeley) 6/10/93
- * $Id: pk_var.h,v 1.4 1995/03/16 18:14:40 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETCCITT_PK_VAR_H_

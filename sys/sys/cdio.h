@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.7 1995/04/09 15:50:48 jkh Exp $
+ * $FreeBSD$
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.5 1994/10/15 04:08:44 ache Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.4 1995/09/08 18:30:33 julian Exp $
+ * $FreeBSD$
  */
 
 #include "asc.h"

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.12 1995/03/16 18:12:29 bde Exp $
+ * $FreeBSD$
  */
 
 /* Portions of this software are covered by the following: */

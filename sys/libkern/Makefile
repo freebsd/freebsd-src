@@ -1,5 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.8 1995/03/16 17:32:20 wollman Exp $
+# $FreeBSD$
 
 .undef NOPROFILE
 

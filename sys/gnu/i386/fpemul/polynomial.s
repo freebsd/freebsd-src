@@ -64,7 +64,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: polynomial.s,v 1.2 1994/04/29 21:23:31 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

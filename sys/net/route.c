@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.23.4.3 1996/06/08 02:02:03 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

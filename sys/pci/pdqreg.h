@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqreg.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
+ * $FreeBSD$
  *
  * $Log: pdqreg.h,v $
  * Revision 1.1  1995/03/14  09:16:07  davidg

@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_init.S,v 1.4.4.2 1996/03/12 21:28:18 nate Exp $
+ * $FreeBSD$
  */
 
 /*

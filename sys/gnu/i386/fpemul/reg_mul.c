@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_mul.c,v 1.2 1994/04/29 21:30:21 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.41.4.2 1995/07/22 04:41:47 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: poly_atan.c,v 1.3 1994/04/29 21:23:26 gclarkii Exp $
+ * $FreeBSD$
  *
  */
 

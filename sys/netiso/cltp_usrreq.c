@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: cltp_usrreq.c,v 1.3 1994/11/15 14:26:14 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef CLTPOVAL_SRC /* XXX -- till files gets changed */
