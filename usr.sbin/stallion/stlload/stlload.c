@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: stlload.c,v 1.5 1997/02/22 16:13:45 peter Exp $
  */
 
 /*****************************************************************************/
@@ -51,7 +51,7 @@
 
 /*****************************************************************************/
 
-char	*version = "0.0.5";
+char	*version = "1.0.0";
 char	*defdevice = "/dev/staliomem%d";
 char	*image = BOOTDIR "/cdk.sys";
 char	*oldimage = BOOTDIR "/2681.sys";
