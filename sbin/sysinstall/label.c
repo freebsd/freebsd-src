@@ -15,10 +15,9 @@ display_disklabel(int disk)
 	window = newwin(LINES-2, COLS-2, 1, 1);
 	keypad(window, TRUE);
 
-	draw_box(window, 1, 1, LINES-2, COLS-2,
-				COLOR_PAIR(COLOR_YELLOW), COLOR_PAIR(COLOR_BLUE));
+	draw_box(window, 1, 1, LINES - 2, COLS - 2, dialog_attr, border_attr);
+	wattrset(window, dialog_attr);
 
-	wattron(window, COLOR_PAIR(COLOR_RED));
 	mvwprintw(window, 2, 2, "Dumping label for disk %d, %s\n", disk, avail_disklabels[disk].d_typename);
 	mvwprintw(window, 3, 2, "magic = %lu",avail_disklabels[disk].d_magic);
 	mvwprintw(window, 3, 22, "type = %x",avail_disklabels[disk].d_type);
