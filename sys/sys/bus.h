@@ -353,6 +353,7 @@ int	resource_long_value(const char *name, int unit, const char *resname,
 			    long *result);
 int	resource_string_value(const char *name, int unit, const char *resname,
 			      const char **result);
+int	resource_disabled(const char *name, int unit);
 int	resource_find_match(int *anchor, const char **name, int *unit,
 			    const char *resname, const char *value);
 int	resource_find_dev(int *anchor, const char *name, int *unit,
