@@ -88,15 +88,20 @@ struct jobs *yppush_joblist;	/* Linked list of running jobs. */
 /*
  * Local error messages.
  */
-static char *
+static const char *
 yppusherr_string(int err)
 {
 	switch (err) {
-	case YPPUSH_TIMEDOUT: return("transfer or callback timed out");
-	case YPPUSH_YPSERV:   return("failed to contact ypserv");
-	case YPPUSH_NOHOST:   return("no such host");
-	case YPPUSH_PMAP:     return("portmapper failure");
-	default:              return("unknown error code");
+	case YPPUSH_TIMEDOUT:
+		return("transfer or callback timed out");
+	case YPPUSH_YPSERV:
+		return("failed to contact ypserv");
+	case YPPUSH_NOHOST:
+		return("no such host");
+	case YPPUSH_PMAP:
+		return("portmapper failure");
+	default:
+		return("unknown error code");
 	}
 }
 
