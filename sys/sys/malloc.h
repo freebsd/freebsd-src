@@ -55,11 +55,11 @@
 
 struct malloc_type {
 	struct malloc_type *ks_next;	/* next in list */
-	long 	ks_memuse;	/* total memory held in bytes */
-	long	ks_size;	/* sizes of this thing that are allocated */
-	long	ks_inuse;	/* # of packets of this type currently in use */
+	u_long 	ks_memuse;	/* total memory held in bytes */
+	u_long	ks_size;	/* sizes of this thing that are allocated */
+	u_long	ks_inuse;	/* # of packets of this type currently in use */
 	uint64_t ks_calls;	/* total packets of this type ever allocated */
-	long	ks_maxused;	/* maximum number ever used */
+	u_long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
 };
