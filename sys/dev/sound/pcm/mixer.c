@@ -121,12 +121,19 @@ mixer_reinit(device_t dev)
 	int i;
     	snddev_info *d = device_get_softc(dev);
 	if (d == NULL) return -1;
-	if (d->mixer.init != NULL && d->mixer.init(&d->mixer) == 0) {
-		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
-			mixer_set(d, i, d->mixer.level[i]);
-		mixer_setrecsrc(d, d->mixer.recsrc);
-		return 0;
-	} else return -1;
+
+	if (d->mixer.reinit != NULL)
+		i = d->mixer.reinit(&d->mixer);
+	else if (d->mixer.init != NULL)
+		i = d->mixer.init(&d->mixer);
+	else
+		i = 0;
+	if (i)
+		return i;
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		mixer_set(d, i, d->mixer.level[i]);
+	mixer_setrecsrc(d, d->mixer.recsrc);
+	return 0;
 }
 
 int

@@ -203,6 +203,18 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 	return (mode == codec->extstat)? 0 : -1;
 }
 
+u_int16_t
+ac97_getextmode(struct ac97_info *codec)
+{
+	return codec->extstat;
+}
+
+u_int16_t
+ac97_getextcaps(struct ac97_info *codec)
+{
+	return codec->extcaps;
+}
+
 static int
 ac97_setrecsrc(struct ac97_info *codec, int channel)
 {
@@ -305,6 +317,7 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	} else
 		codec->count = 1;
+
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
@@ -383,6 +396,37 @@ ac97_initmixer(struct ac97_info *codec)
 	return 0;
 }
 
+static unsigned
+ac97_reinitmixer(struct ac97_info *codec)
+{
+	unsigned i;
+
+	if (codec->init) {
+		codec->count = codec->init(codec->devinfo);
+		if (codec->count == 0) {
+			device_printf(codec->dev, "ac97 codec init failed\n");
+			return ENODEV;
+		}
+	} else
+		codec->count = 1;
+
+	wrcd(codec, AC97_REG_POWER, 0);
+	wrcd(codec, AC97_REG_RESET, 0);
+	DELAY(100000);
+	i = rdcd(codec, AC97_REG_RESET);
+
+	if (!codec->noext) {
+		wrcd(codec, AC97_REGEXT_STAT, codec->extstat);
+		if (rdcd(codec, AC97_REGEXT_STAT) != codec->extstat)
+			device_printf(codec->dev, "ac97 codec failed to reset extended mode (%x, got %x)\n",
+				      codec->extstat, rdcd(codec, AC97_REGEXT_STAT));
+	}
+
+	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
+		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
+	return 0;
+}
+
 struct ac97_info *
 ac97_create(device_t dev, void *devinfo, ac97_init *init, ac97_read *rd, ac97_write *wr)
 {
@@ -445,6 +489,16 @@ ac97mix_uninit(snd_mixer *m)
 }
 
 static int
+ac97mix_reinit(snd_mixer *m)
+{
+	struct ac97_info *codec = mix_getdevinfo(m);
+
+	if (codec == NULL)
+		return -1;
+	return ac97_reinitmixer(codec);
+}
+
+static int
 ac97mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
@@ -472,6 +526,7 @@ snd_mixer ac97_mixer = {
 	"AC97 mixer",
 	ac97mix_init,
 	ac97mix_uninit,
+	ac97mix_reinit,
 	ac97mix_set,
 	ac97mix_setrecsrc,
 };
