@@ -41,7 +41,7 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_union.c	8.5 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_union.c	8.6 (Berkeley) 4/26/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ main(argc, argv)
 			args.mntflags |= UNMNT_BELOW;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'r':
 			args.mntflags &= ~UNMNT_OPMASK;
@@ -109,7 +109,7 @@ main(argc, argv)
 
 	args.target = target;
 
-	if (mount(MOUNT_UNION, argv[1], mntflags, &args))
+	if (mount("union", argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

@@ -41,7 +41,7 @@ static char copyright[] =
 #endif not lint
 
 #ifndef lint
-static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
+static char sccsid[] = "@(#)nfsd.c	8.9 (Berkeley) 3/29/95";
 #endif not lint
 
 #include <sys/param.h>
@@ -63,10 +63,10 @@ static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
 #include <netiso/iso.h>
 #endif
 #include <nfs/rpcv2.h>
-#include <nfs/nfsv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 
-#ifdef KERBEROS
+#ifdef NFSKERB
 #include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
 #endif
@@ -94,11 +94,16 @@ struct	nfsd_srvargs nsd;
 char	**Argv = NULL;		/* pointer to argument vector */
 char	*LastArg = NULL;	/* end of argv */
 
-#ifdef KERBEROS
+#ifdef NFSKERB
 char		lnam[ANAME_SZ];
 KTEXT_ST	kt;
-AUTH_DAT	auth;
+AUTH_DAT	kauth;
 char		inst[INST_SZ];
+struct nfsrpc_fullblock kin, kout;
+struct nfsrpc_fullverf kverf;
+NFSKERBKEY_T	kivec;
+struct timeval	ktv;
+NFSKERBKEYSCHED_T kerb_keysched;
 #endif
 
 void	nonfs __P((int));
@@ -139,6 +144,7 @@ main(argc, argv, envp)
 #ifdef ISO
 	struct sockaddr_iso isoaddr, isopeer;
 #endif
+	struct timeval ktv;
 	fd_set ready, sockbits;
 	int ch, cltpflag, connect_type_cnt, i, len, maxsock, msgsock;
 	int nfsdcnt, nfssvc_flag, on, reregister, sock, tcpflag, tcpsock;
@@ -229,10 +235,12 @@ main(argc, argv, envp)
 
 	if (reregister) {
 		if (udpflag &&
-		    !pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_UDP, NFS_PORT))
+		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
+		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)))
 			err(1, "can't register with portmap for UDP.");
 		if (tcpflag &&
-		    !pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_TCP, NFS_PORT))
+		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
+		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)))
 			err(1, "can't register with portmap for TCP.");
 		exit(0);
 	}
@@ -249,11 +257,17 @@ main(argc, argv, envp)
 			continue;
 		}
 
-		setproctitle("nfsd-srv");
+		setproctitle("server");
 		nfssvc_flag = NFSSVC_NFSD;
 		nsd.nsd_nfsd = NULL;
-#ifdef KERBEROS
-		nsd.nsd_authstr = (char *)kt.dat;
+#ifdef NFSKERB
+		if (sizeof (struct nfsrpc_fullverf) != RPCX_FULLVERF ||
+		    sizeof (struct nfsrpc_fullblock) != RPCX_FULLBLOCK)
+		    syslog(LOG_ERR, "Yikes NFSKERB structs not packed!");
+		nsd.nsd_authstr = (u_char *)&kt;
+		nsd.nsd_authlen = sizeof (kt);
+		nsd.nsd_verfstr = (u_char *)&kverf;
+		nsd.nsd_verflen = sizeof (kverf);
 #endif
 		while (nfssvc(nfssvc_flag, &nsd) < 0) {
 			if (errno != ENEEDAUTH) {
@@ -261,14 +275,27 @@ main(argc, argv, envp)
 				exit(1);
 			}
 			nfssvc_flag = NFSSVC_NFSD | NFSSVC_AUTHINFAIL;
-#ifdef KERBEROS
-			kt.length = nsd.nsd_authlen;
-			kt.mbz = 0;
-			(void)strcpy(inst, "*");
-			if (krb_rd_req(&kt, "rcmd",
-			    inst, nsd.nsd_haddr, &auth, "") == RD_AP_OK &&
-			    krb_kntoln(&auth, lnam) == KSUCCESS &&
-			    (pwd = getpwnam(lnam)) != NULL) {
+#ifdef NFSKERB
+			/*
+			 * Get the Kerberos ticket out of the authenticator
+			 * verify it and convert the principal name to a user
+			 * name. The user name is then converted to a set of
+			 * user credentials via the password and group file.
+			 * Finally, decrypt the timestamp and validate it.
+			 * For more info see the IETF Draft "Authentication
+			 * in ONC RPC".
+			 */
+			kt.length = ntohl(kt.length);
+			if (gettimeofday(&ktv, (struct timezone *)0) == 0 &&
+			    kt.length > 0 && kt.length <=
+			    (RPCAUTH_MAXSIZ - 3 * NFSX_UNSIGNED)) {
+			    kin.w1 = NFS_KERBW1(kt);
+			    kt.mbz = 0;
+			    (void)strcpy(inst, "*");
+			    if (krb_rd_req(&kt, NFS_KERBSRV,
+				inst, nsd.nsd_haddr, &kauth, "") == RD_AP_OK &&
+				krb_kntoln(&kauth, lnam) == KSUCCESS &&
+				(pwd = getpwnam(lnam)) != NULL) {
 				cr = &nsd.nsd_cr;
 				cr->cr_uid = pwd->pw_uid;
 				cr->cr_groups[0] = pwd->pw_gid;
@@ -289,9 +316,34 @@ main(argc, argv, envp)
 						break;
 				}
 				endgrent();
-				nfssvc_flag = NFSSVC_NFSD | NFSSVC_AUTHIN;
+
+				/*
+				 * Get the timestamp verifier out of the
+				 * authenticator and verifier strings.
+				 */
+				kin.t1 = kverf.t1;
+				kin.t2 = kverf.t2;
+				kin.w2 = kverf.w2;
+				bzero((caddr_t)kivec, sizeof (kivec));
+				bcopy((caddr_t)kauth.session,
+				    (caddr_t)nsd.nsd_key,sizeof(kauth.session));
+
+				/*
+				 * Decrypt the timestamp verifier in CBC mode.
+				 */
+				XXX
+
+				/*
+				 * Validate the timestamp verifier, to
+				 * check that the session key is ok.
+				 */
+				nsd.nsd_timestamp.tv_sec = ntohl(kout.t1);
+				nsd.nsd_timestamp.tv_usec = ntohl(kout.t2);
+				nsd.nsd_ttl = ntohl(kout.w1);
+				if ((nsd.nsd_ttl - 1) == ntohl(kout.w2))
+				    nfssvc_flag = NFSSVC_NFSD | NFSSVC_AUTHIN;
 			}
-#endif /* KERBEROS */
+#endif /* NFSKERB */
 		}
 		exit(0);
 	}
@@ -311,7 +363,8 @@ main(argc, argv, envp)
 			syslog(LOG_ERR, "can't bind udp addr");
 			exit(1);
 		}
-		if (!pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_UDP, NFS_PORT)) {
+		if (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
+		    !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)) {
 			syslog(LOG_ERR, "can't register with udp portmap");
 			exit(1);
 		}
@@ -391,7 +444,8 @@ main(argc, argv, envp)
 			syslog(LOG_ERR, "listen failed");
 			exit(1);
 		}
-		if (!pmap_set(RPCPROG_NFS, NFS_VER2, IPPROTO_TCP, NFS_PORT)) {
+		if (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
+		    !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)) {
 			syslog(LOG_ERR, "can't register tcp with portmap");
 			exit(1);
 		}
@@ -480,7 +534,7 @@ main(argc, argv, envp)
 	if (connect_type_cnt == 0)
 		exit(0);
 
-	setproctitle("nfsd-master");
+	setproctitle("master");
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -554,7 +608,7 @@ main(argc, argv, envp)
 void
 usage()
 {
-	(void)fprintf(stderr, "nfsd %s\n", USAGE);
+	(void)fprintf(stderr, "usage: nfsd %s\n", USAGE);
 	exit(1);
 }
 
@@ -570,7 +624,7 @@ reapchild(signo)
 	int signo;
 {
 
-	while (wait3(NULL, WNOHANG, NULL));
+	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
 void
@@ -581,9 +635,9 @@ setproctitle(a)
 	char buf[80];
 
 	cp = Argv[0];
-	(void)snprintf(buf, sizeof(buf), "%s", a);
+	(void)snprintf(buf, sizeof(buf), "nfsd-%s", a);
 	(void)strncpy(cp, buf, LastArg - cp);
 	cp += strlen(cp);
 	while (cp < LastArg)
-		*cp++ = ' ';
+		*cp++ = '\0';
 }

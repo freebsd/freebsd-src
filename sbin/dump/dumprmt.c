@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dumprmt.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)dumprmt.c	8.1 (Berkeley) 6/5/93";
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -105,8 +106,7 @@ static void
 rmtconnaborted()
 {
 
-	(void) fprintf(stderr, "rdump: Lost connection to remote host.\n");
-	exit(1);
+	errx(1, "Lost connection to remote host.");
 }
 
 void
@@ -124,18 +124,13 @@ rmtgetconn()
 
 	if (sp == NULL) {
 		sp = getservbyname("shell", "tcp");
-		if (sp == NULL) {
-			(void) fprintf(stderr,
-			    "rdump: shell/tcp: unknown service\n");
-			exit(1);
-		}
+		if (sp == NULL)
+			errx(1, "shell/tcp: unknown service");
 		pwd = getpwuid(getuid());
-		if (pwd == NULL) {
-			(void) fprintf(stderr, "rdump: who are you?\n");
-			exit(1);
-		}
+		if (pwd == NULL)
+			errx(1, "who are you?");
 	}
-	if ((cp = index(rmtpeer, '@')) != NULL) {
+	if ((cp = strchr(rmtpeer, '@')) != NULL) {
 		tuser = rmtpeer;
 		*cp = '\0';
 		if (!okname(tuser))
@@ -175,8 +170,7 @@ okname(cp0)
 	for (cp = cp0; *cp; cp++) {
 		c = *cp;
 		if (!isascii(c) || !(isalnum(c) || c == '_' || c == '-')) {
-			(void) fprintf(stderr, "rdump: invalid user name %s\n",
-			    cp0);
+			warnx("invalid user name: %s", cp0);
 			return (0);
 		}
 	}

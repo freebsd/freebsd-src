@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)mountd.8	8.1 (Berkeley) 6/9/93
+.\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\"
-.Dd June 9, 1993
+.Dd April 28, 1995
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm /sbin/mountd
-.Op Fl n
+.Op Fl nr
 .Op Ar exportsfile
 .Sh DESCRIPTION
 .Xr Mountd
@@ -53,7 +53,9 @@ listens for service requests at the port indicated in the
 .Tn NFS
 server specification; see
 .%T "Network File System Protocol Specification" ,
-RFC1094.
+RFC1094, Appendix A and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I.
 .Pp
 Options and operands available for
 .Nm mountd :
@@ -64,6 +66,19 @@ The
 option allows non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
 that require it.
+.It Fl r
+The
+.Fl r
+option allows mount RPCs requests for regular files to be served.
+Although this seems to violate the mount protocol specification,
+some diskless workstations do mount requests for
+their swapfiles and expect them to be regular files.
+Since a regular file cannot be specified in
+.Pa /etc/exports ,
+the entire file system in which the swapfiles resides
+will have to be exported with the
+.Fl alldirs
+flag.
 .It Ar exportsfile
 The
 .Ar exportsfile
@@ -78,7 +93,7 @@ After changing the exports file,
 a hangup signal should be sent to the mountd daemon
 to get it to reload the export information.
 After sending the SIGHUP
-(kill -HUP `cat /var/run/mountd.pid`),
+(kill \-s HUP `cat /var/run/mountd.pid`),
 check the syslog output to see if mountd logged any parsing
 errors in the exports file.
 .Sh FILES

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)traverse.c	8.2 (Berkeley) 9/23/93";
+static char sccsid[] = "@(#)traverse.c	8.7 (Berkeley) 6/15/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,9 +45,9 @@ static char sccsid[] = "@(#)traverse.c	8.2 (Berkeley) 9/23/93";
 #include <ufs/fsdir.h>
 #include <ufs/inode.h>
 #else
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 #endif
 
 #include <protocols/dumprestore.h>
@@ -115,13 +115,8 @@ blockest(dp)
 }
 
 /* Auxiliary macro to pick up files changed since previous dump. */
-#ifdef FS_44INODEFMT
-#define	CHANGEDSINCE(dp, t) \
-	((dp)->di_mtime.ts_sec >= (t) || (dp)->di_ctime.ts_sec >= (t))
-#else
 #define	CHANGEDSINCE(dp, t) \
 	((dp)->di_mtime >= (t) || (dp)->di_ctime >= (t))
-#endif
 
 /* The WANTTODUMP macro decides whether a file should be dumped. */
 #ifdef UF_NODUMP
@@ -367,8 +362,7 @@ dumpino(dp, ino)
 			spcl.c_addr[0] = 1;
 			spcl.c_count = 1;
 			writeheader(ino);
-			bcopy((caddr_t)dp->di_shortlink, buf,
-			    (u_long)dp->di_size);
+			memmove(buf, dp->di_shortlink, (u_long)dp->di_size);
 			buf[dp->di_size] = '\0';
 			writerec(buf, 0);
 			return;
@@ -423,7 +417,7 @@ dmpindir(ino, blk, ind_level, size)
 	if (blk != 0)
 		bread(fsbtodb(sblock, blk), (char *)idblk, (int) sblock->fs_bsize);
 	else
-		bzero((char *)idblk, (int)sblock->fs_bsize);
+		memset(idblk, 0, (int)sblock->fs_bsize);
 	if (ind_level <= 0) {
 		if (*size < NINDIR(sblock) * sblock->fs_bsize)
 			cnt = howmany(*size, sblock->fs_fsize);
@@ -558,7 +552,7 @@ bread(blkno, buf, size)
 	extern int errno;
 
 loop:
-	if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) < 0)
+	if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) == -1)
 		msg("bread: lseek fails\n");
 	if ((cnt = read(diskfd, buf, size)) == size)
 		return;
@@ -596,9 +590,9 @@ loop:
 	/*
 	 * Zero buffer, then try to read each sector of buffer separately.
 	 */
-	bzero(buf, size);
+	memset(buf, 0, size);
 	for (i = 0; i < size; i += dev_bsize, buf += dev_bsize, blkno++) {
-		if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) < 0)
+		if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) == -1)
 			msg("bread: lseek2 fails!\n");
 		if ((cnt = read(diskfd, buf, (int)dev_bsize)) == dev_bsize)
 			continue;

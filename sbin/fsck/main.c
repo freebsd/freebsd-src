@@ -38,32 +38,40 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/mount.h>
+
 #include <ufs/ufs/dinode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
-#include <fstab.h>
-#include <stdlib.h>
-#include <string.h>
+
 #include <ctype.h>
-#include <stdio.h>
+#include <err.h>
+#include <fstab.h>
+#include <string.h>
+
 #include "fsck.h"
 
-void	catch(), catchquit(), voidquit();
 int	returntosingle;
 
+static int argtoi __P((int flag, char *req, char *str, int base));
+static int docheck __P((struct fstab *fsp));
+static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
+		int child));
+void main __P((int argc, char *argv[]));
+
+void
 main(argc, argv)
 	int	argc;
 	char	*argv[];
 {
 	int ch;
 	int ret, maxrun = 0;
-	extern int docheck(), checkfilesys();
-	extern char *optarg, *blockcheck();
+	extern char *optarg;
 	extern int optind;
 
 	sync();
@@ -93,7 +101,7 @@ main(argc, argv)
 		case 'm':
 			lfmode = argtoi('m', "mode", optarg, 8);
 			if (lfmode &~ 07777)
-				errexit("bad mode to -m: %o\n", lfmode);
+				errx(EEXIT, "bad mode to -m: %o", lfmode);
 			printf("** lost+found creation mode %o\n", lfmode);
 			break;
 
@@ -110,7 +118,7 @@ main(argc, argv)
 			break;
 
 		default:
-			errexit("%c option?\n", ch);
+			errx(EEXIT, "%c option?", ch);
 		}
 	}
 	argc -= optind;
@@ -130,6 +138,7 @@ main(argc, argv)
 	exit(ret);
 }
 
+static int
 argtoi(flag, req, str, base)
 	int flag;
 	char *req, *str;
@@ -140,13 +149,14 @@ argtoi(flag, req, str, base)
 
 	ret = (int)strtol(str, &cp, base);
 	if (cp == str || *cp)
-		errexit("-%c flag requires a %s\n", flag, req);
+		errx(EEXIT, "-%c flag requires a %s", flag, req);
 	return (ret);
 }
 
 /*
  * Determine whether a filesystem should be checked.
  */
+static int
 docheck(fsp)
 	register struct fstab *fsp;
 {
@@ -163,23 +173,28 @@ docheck(fsp)
  * Check the specified filesystem.
  */
 /* ARGSUSED */
+static int
 checkfilesys(filesys, mntpt, auxdata, child)
 	char *filesys, *mntpt;
 	long auxdata;
+	int child;
 {
-	daddr_t n_ffree, n_bfree;
+	ufs_daddr_t n_ffree, n_bfree;
 	struct dups *dp;
 	struct zlncnt *zlnp;
-	int cylno;
+	int cylno, flags;
 
 	if (preen && child)
 		(void)signal(SIGQUIT, voidquit);
 	cdevname = filesys;
 	if (debug && preen)
 		pwarn("starting\n");
-	if (setup(filesys) == 0) {
+	switch (setup(filesys)) {
+	case 0:
 		if (preen)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
+		/* fall through */
+	case -1:
 		return (0);
 	}
 	/*
@@ -280,7 +295,19 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			bwrite(fswritefd, (char *)&sblock,
 			    fsbtodb(&sblock, cgsblock(&sblock, cylno)), SBSIZE);
 	}
-	ckfini();
+	if (!hotroot) {
+		ckfini(1);
+	} else {
+		struct statfs stfs_buf;
+		/*
+		 * Check to see if root is mounted read-write.
+		 */
+		if (statfs("/", &stfs_buf) == 0)
+			flags = stfs_buf.f_flags;
+		else
+			flags = 0;
+		ckfini(flags & MNT_RDONLY);
+	}
 	free(blockmap);
 	free(statemap);
 	free((char *)lncntp);
@@ -289,25 +316,20 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	if (!preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (hotroot) {
-		struct statfs stfs_buf;
+		struct ufs_args args;
+		int ret;
 		/*
 		 * We modified the root.  Do a mount update on
 		 * it, unless it is read-write, so we can continue.
 		 */
-		if (statfs("/", &stfs_buf) == 0) {
-			long flags = stfs_buf.f_flags;
-			struct ufs_args args;
-			int ret;
-
-			if (flags & MNT_RDONLY) {
-				args.fspec = 0;
-				args.export.ex_flags = 0;
-				args.export.ex_root = 0;
-				flags |= MNT_UPDATE | MNT_RELOAD;
-				ret = mount(MOUNT_UFS, "/", flags, &args);
-				if (ret == 0)
-					return(0);
-			}
+		if (flags & MNT_RDONLY) {
+			args.fspec = 0;
+			args.export.ex_flags = 0;
+			args.export.ex_root = 0;
+			flags |= MNT_UPDATE | MNT_RELOAD;
+			ret = mount("ufs", "/", flags, &args);
+			if (ret == 0)
+				return (0);
 		}
 		if (!preen)
 			printf("\n***** REBOOT NOW *****\n");

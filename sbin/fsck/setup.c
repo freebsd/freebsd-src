@@ -32,35 +32,47 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)setup.c	8.2 (Berkeley) 2/21/94";
+static char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif /* not lint */
 
 #define DKTYPENAMES
 #include <sys/param.h>
 #include <sys/time.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <string.h>
+
 #include "fsck.h"
 
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-struct	disklabel *getdisklabel();
+static void badsb __P((int listerr, char *s));
+static int calcsb __P((char *dev, int devfd, struct fs *fs));
+static struct disklabel *getdisklabel __P((char *s, int fd));
+static int readsb __P((int listerr));
 
+/*
+ * Read in a superblock finding an alternate if necessary.
+ * Return 1 if successful, 0 if unsuccessful, -1 if filesystem
+ * is already clean (preen mode only).
+ */
+int
 setup(dev)
 	char *dev;
 {
 	long cg, size, asked, i, j;
-	long bmapsize;
+	long skipclean, bmapsize;
 	struct disklabel *lp;
 	off_t sizepb;
 	struct stat statb;
@@ -68,6 +80,7 @@ setup(dev)
 
 	havesb = 0;
 	fswritefd = -1;
+	skipclean = preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
 		return (0);
@@ -98,8 +111,8 @@ setup(dev)
 	sblk.b_un.b_buf = malloc(SBSIZE);
 	asblk.b_un.b_buf = malloc(SBSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
-		errexit("cannot allocate space for superblock\n");
-	if (lp = getdisklabel((char *)NULL, fsreadfd))
+		errx(EEXIT, "cannot allocate space for superblock");
+	if (lp = getdisklabel(NULL, fsreadfd))
 		dev_bsize = secsize = lp->d_secsize;
 	else
 		dev_bsize = secsize = DEV_BSIZE;
@@ -107,6 +120,7 @@ setup(dev)
 	 * Read in the superblock, looking for alternates if necessary
 	 */
 	if (readsb(1) == 0) {
+		skipclean = 0;
 		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
 			return(0);
 		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
@@ -127,6 +141,10 @@ setup(dev)
 			return(0);
 		}
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
+	}
+	if (skipclean && sblock.fs_clean) {
+		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
+		return (-1);
 	}
 	maxfsblock = sblock.fs_size;
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
@@ -214,17 +232,16 @@ setup(dev)
 		sblock.fs_nrpos = 8;
 		sblock.fs_postbloff =
 		    (char *)(&sblock.fs_opostbl[0][0]) -
-		    (char *)(&sblock.fs_link);
+		    (char *)(&sblock.fs_firstfield);
 		sblock.fs_rotbloff = &sblock.fs_space[0] -
-		    (u_char *)(&sblock.fs_link);
+		    (u_char *)(&sblock.fs_firstfield);
 		sblock.fs_cgsize =
 			fragroundup(&sblock, CGSIZE(&sblock));
 		sbdirty();
 		dirty(&asblk);
 	}
-	if (asblk.b_dirty) {
-		bcopy((char *)&sblock, (char *)&altsblock,
-			(size_t)sblock.fs_sbsize);
+	if (asblk.b_dirty && !bflag) {
+		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);
 		flush(fswritefd, &asblk);
 	}
 	/*
@@ -240,7 +257,7 @@ setup(dev)
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
 			if (reply("CONTINUE") == 0)
-				errexit("");
+				exit(EEXIT);
 			asked++;
 		}
 	}
@@ -288,17 +305,18 @@ setup(dev)
 	return (1);
 
 badsb:
-	ckfini();
+	ckfini(0);
 	return (0);
 }
 
 /*
  * Read in the super block and its summary info.
  */
+static int
 readsb(listerr)
 	int listerr;
 {
-	daddr_t super = bflag ? bflag : SBOFF / dev_bsize;
+	ufs_daddr_t super = bflag ? bflag : SBOFF / dev_bsize;
 
 	if (bread(fsreadfd, (char *)&sblock, super, (long)SBSIZE) != 0)
 		return (0);
@@ -338,8 +356,8 @@ readsb(listerr)
 	getblk(&asblk, cgsblock(&sblock, sblock.fs_ncg - 1), sblock.fs_sbsize);
 	if (asblk.b_errs)
 		return (0);
-	altsblock.fs_link = sblock.fs_link;
-	altsblock.fs_rlink = sblock.fs_rlink;
+	altsblock.fs_firstfield = sblock.fs_firstfield;
+	altsblock.fs_unused_1 = sblock.fs_unused_1;
 	altsblock.fs_time = sblock.fs_time;
 	altsblock.fs_cstotal = sblock.fs_cstotal;
 	altsblock.fs_cgrotor = sblock.fs_cgrotor;
@@ -352,12 +370,11 @@ readsb(listerr)
 	altsblock.fs_optim = sblock.fs_optim;
 	altsblock.fs_rotdelay = sblock.fs_rotdelay;
 	altsblock.fs_maxbpg = sblock.fs_maxbpg;
-	bcopy((char *)sblock.fs_csp, (char *)altsblock.fs_csp,
-		sizeof sblock.fs_csp);
-	bcopy((char *)sblock.fs_fsmnt, (char *)altsblock.fs_fsmnt,
-		sizeof sblock.fs_fsmnt);
-	bcopy((char *)sblock.fs_sparecon, (char *)altsblock.fs_sparecon,
-		sizeof sblock.fs_sparecon);
+	memmove(altsblock.fs_csp, sblock.fs_csp, sizeof sblock.fs_csp);
+	altsblock.fs_maxcluster = sblock.fs_maxcluster;
+	memmove(altsblock.fs_fsmnt, sblock.fs_fsmnt, sizeof sblock.fs_fsmnt);
+	memmove(altsblock.fs_sparecon,
+		sblock.fs_sparecon, sizeof sblock.fs_sparecon);
 	/*
 	 * The following should not have to be copied.
 	 */
@@ -365,11 +382,26 @@ readsb(listerr)
 	altsblock.fs_interleave = sblock.fs_interleave;
 	altsblock.fs_npsect = sblock.fs_npsect;
 	altsblock.fs_nrpos = sblock.fs_nrpos;
+	altsblock.fs_state = sblock.fs_state;
 	altsblock.fs_qbmask = sblock.fs_qbmask;
 	altsblock.fs_qfmask = sblock.fs_qfmask;
 	altsblock.fs_state = sblock.fs_state;
 	altsblock.fs_maxfilesize = sblock.fs_maxfilesize;
-	if (bcmp((char *)&sblock, (char *)&altsblock, (int)sblock.fs_sbsize)) {
+	if (memcmp(&sblock, &altsblock, (int)sblock.fs_sbsize)) {
+		if (debug) {
+			long *nlp, *olp, *endlp;
+
+			printf("superblock mismatches\n");
+			nlp = (long *)&altsblock;
+			olp = (long *)&sblock;
+			endlp = olp + (sblock.fs_sbsize / sizeof *olp);
+			for ( ; olp < endlp; olp++, nlp++) {
+				if (*olp == *nlp)
+					continue;
+				printf("offset %d, original %d, alternate %d\n",
+				    olp - (long *)&sblock, *olp, *nlp);
+			}
+		}
 		badsb(listerr,
 		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
 		return (0);
@@ -378,6 +410,7 @@ readsb(listerr)
 	return (1);
 }
 
+static void
 badsb(listerr, s)
 	int listerr;
 	char *s;
@@ -396,6 +429,7 @@ badsb(listerr, s)
  * can be used. Do NOT attempt to use other macros without verifying that
  * their needed information is available!
  */
+static int
 calcsb(dev, devfd, fs)
 	char *dev;
 	int devfd;
@@ -406,8 +440,8 @@ calcsb(dev, devfd, fs)
 	register char *cp;
 	int i;
 
-	cp = index(dev, '\0') - 1;
-	if (cp == (char *)-1 || (*cp < 'a' || *cp > 'h') && !isdigit(*cp)) {
+	cp = strchr(dev, '\0') - 1;
+	if (cp == (char *)-1 || ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))) {
 		pfatal("%s: CANNOT FIGURE OUT FILE SYSTEM PARTITION\n", dev);
 		return (0);
 	}
@@ -422,7 +456,7 @@ calcsb(dev, devfd, fs)
 			fstypenames[pp->p_fstype] : "unknown");
 		return (0);
 	}
-	bzero((char *)fs, sizeof(struct fs));
+	memset(fs, 0, sizeof(struct fs));
 	fs->fs_fsize = pp->p_fsize;
 	fs->fs_frag = pp->p_frag;
 	fs->fs_cpg = pp->p_cpg;
@@ -449,7 +483,7 @@ calcsb(dev, devfd, fs)
 	return (1);
 }
 
-struct disklabel *
+static struct disklabel *
 getdisklabel(s, fd)
 	char *s;
 	int	fd;
@@ -460,7 +494,7 @@ getdisklabel(s, fd)
 		if (s == NULL)
 			return ((struct disklabel *)NULL);
 		pwarn("ioctl (GCINFO): %s\n", strerror(errno));
-		errexit("%s: can't read disk label\n", s);
+		errx(EEXIT, "%s: can't read disk label", s);
 	}
 	return (&lab);
 }

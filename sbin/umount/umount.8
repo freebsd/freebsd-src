@@ -29,23 +29,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)umount.8	8.1 (Berkeley) 2/20/94
+.\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\"
-.Dd February 20, 1994
+.Dd May 8, 1995
 .Dt UMOUNT 8
 .Os BSD 4
 .Sh NAME
 .Nm umount
-.Nd unmount file systems
+.Nd unmount filesystems
 .Sh SYNOPSIS
 .Nm umount
 .Op Fl fv
 .Ar special | node
 .Nm umount
-.Fl a
+.Fl a | A
 .Op Fl fv
 .Op Fl h Ar host
-.Op Fl t Ar ufs | lfs | external_type
+.Op Fl t Ar type
 .Sh DESCRIPTION
 The
 .Nm umount
@@ -54,7 +54,7 @@ calls the
 .Xr unmount 2
 system call to remove a
 .Ar "special device"
-or the remote node (rhost:path) from the file system tree at the point
+or the remote node (rhost:path) from the filesystem tree at the point
 .Ar node .
 If either
 .Ar special
@@ -67,23 +67,26 @@ file.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a
-All of the file systems described in
+All the filesystems described in
 .Xr fstab 5
 are unmounted.
+.It Fl A
+All the currently mounted filesystems except
+the root are unmounted.
 .It Fl f
-The file system is forcibly unmounted.
+The filesystem is forcibly unmounted.
 Active special devices continue to work,
 but all other files return errors if further accesses are attempted.
-The root file system cannot be forcibly unmounted.
+The root filesystem cannot be forcibly unmounted.
 .It Fl h Ar host
 Only filesystems mounted from the specified host will be
 unmounted.
 This option is implies the
-.Fl a
+.Fl A
 option and, unless otherwise specified with the
 .Fl t
 option, will only unmount NFS filesystems.
-.It Fl t Ar "ufs \\*(Ba lfs \\*(Ba external type"
+.It Fl t Ar type
 Is used to indicate the actions should only be taken on
 filesystems of the specified type.
 More than one type may be specified in a comma separated list.
@@ -104,13 +107,13 @@ umounts all filesystems of the type
 and
 .Tn MFS .
 .It Fl v
-Verbose, additional information is printed out as each file system
+Verbose, additional information is printed out as each filesystem
 is unmounted.
 .El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-file system table
+filesystem table
 .El
 .Sh SEE ALSO
 .Xr unmount 2 ,

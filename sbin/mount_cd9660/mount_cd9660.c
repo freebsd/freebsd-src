@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94
+ *      @(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95
  */
 
 #ifndef lint
@@ -45,12 +45,12 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
-#define CD9660
 #include <sys/mount.h>
+#include <sys/../isofs/cd9660/cd9660_mount.h>
 
 #include <err.h>
 #include <stdlib.h>
@@ -75,9 +75,8 @@ main(argc, argv)
 {
 	struct iso_args args;
 	int ch, mntflags, opts;
-	char *dev, *dir, *options;
+	char *dev, *dir;
 
-	options = NULL;
 	mntflags = opts = 0;
 	while ((ch = getopt(argc, argv, "ego:r")) != EOF)
 		switch (ch) {
@@ -88,7 +87,7 @@ main(argc, argv)
 			opts |= ISOFSMNT_GENS;
 			break;
 		case 'o':
-			getmntopts(options, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'r':
 			opts |= ISOFSMNT_NORRIP;
@@ -107,16 +106,16 @@ main(argc, argv)
 	dir = argv[1];
 
 #define DEFAULT_ROOTUID	-2
+	/*
+	 * ISO 9660 filesystems are not writeable.
+	 */
+	mntflags |= MNT_RDONLY;
+	args.export.ex_flags = MNT_EXRDONLY;
 	args.fspec = dev;
 	args.export.ex_root = DEFAULT_ROOTUID;
-
-	if (mntflags & MNT_RDONLY)
-		args.export.ex_flags = MNT_EXRDONLY;
-	else
-		args.export.ex_flags = 0;
 	args.flags = opts;
 
-	if (mount(MOUNT_CD9660, dir, mntflags, &args) < 0)
+	if (mount("cd9660", dir, mntflags, &args) < 0)
 		err(1, NULL);
 	exit(0);
 }

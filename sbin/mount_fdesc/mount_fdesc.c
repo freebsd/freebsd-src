@@ -42,7 +42,7 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_fdesc.c	8.2 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_fdesc.c	8.3 (Berkeley) 4/26/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
 		switch (ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case '?':
 		default:
@@ -86,7 +86,7 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	if (mount(MOUNT_FDESC, argv[1], mntflags, NULL))
+	if (mount("fdesc", argv[1], mntflags, NULL))
 		err(1, NULL);
 	exit(0);
 }

@@ -32,24 +32,29 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass5.c	8.2 (Berkeley) 2/2/94";
+static char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+
+#include <err.h>
 #include <string.h>
+
 #include "fsck.h"
 
+void
 pass5()
 {
 	int c, blk, frags, basesize, sumsize, mapsize, savednrpos;
-	register struct fs *fs = &sblock;
-	register struct cg *cg = &cgrp;
-	daddr_t dbase, dmax;
-	register daddr_t d;
-	register long i, j;
+	struct fs *fs = &sblock;
+	struct cg *cg = &cgrp;
+	ufs_daddr_t dbase, dmax;
+	ufs_daddr_t d;
+	long i, j;
 	struct csum *cs;
 	struct csum cstotal;
 	struct inodesc idesc[3];
@@ -57,9 +62,10 @@ pass5()
 	register struct cg *newcg = (struct cg *)buf;
 	struct ocg *ocg = (struct ocg *)buf;
 
-	bzero((char *)newcg, (size_t)fs->fs_cgsize);
+	statemap[WINO] = USTATE;
+	memset(newcg, 0, (size_t)fs->fs_cgsize);
 	newcg->cg_niblk = fs->fs_ipg;
-	if (cvtlevel > 3) {
+	if (cvtlevel >= 3) {
 		if (fs->fs_maxcontig < 2 && fs->fs_contigsumsize > 0) {
 			if (preen)
 				pwarn("DELETING CLUSTERING MAPS\n");
@@ -101,8 +107,9 @@ pass5()
 	switch ((int)fs->fs_postblformat) {
 
 	case FS_42POSTBLFMT:
-		basesize = (char *)(&ocg->cg_btot[0]) - (char *)(&ocg->cg_link);
-		sumsize = &ocg->cg_iused[0] - (char *)(&ocg->cg_btot[0]);
+		basesize = (char *)(&ocg->cg_btot[0]) -
+		    (char *)(&ocg->cg_firstfield);
+		sumsize = &ocg->cg_iused[0] - (u_int8_t *)(&ocg->cg_btot[0]);
 		mapsize = &ocg->cg_free[howmany(fs->fs_fpg, NBBY)] -
 			(u_char *)&ocg->cg_iused[0];
 		ocg->cg_magic = CG_MAGIC;
@@ -112,7 +119,7 @@ pass5()
 
 	case FS_DYNAMICPOSTBLFMT:
 		newcg->cg_btotoff =
-		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_link);
+		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
 		newcg->cg_boff =
 		    newcg->cg_btotoff + fs->fs_cpg * sizeof(long);
 		newcg->cg_iusedoff = newcg->cg_boff + 
@@ -134,22 +141,24 @@ pass5()
 			    howmany(fs->fs_cpg * fs->fs_spc / NSPB(fs), NBBY);
 		}
 		newcg->cg_magic = CG_MAGIC;
-		basesize = &newcg->cg_space[0] - (u_char *)(&newcg->cg_link);
+		basesize = &newcg->cg_space[0] -
+		    (u_char *)(&newcg->cg_firstfield);
 		sumsize = newcg->cg_iusedoff - newcg->cg_btotoff;
 		mapsize = newcg->cg_nextfreeoff - newcg->cg_iusedoff;
 		break;
 
 	default:
-		errexit("UNKNOWN ROTATIONAL TABLE FORMAT %d\n",
+		sumsize = 0;	/* keep lint happy */
+		errx(EEXIT, "UNKNOWN ROTATIONAL TABLE FORMAT %d",
 			fs->fs_postblformat);
 	}
-	bzero((char *)&idesc[0], sizeof idesc);
+	memset(&idesc[0], 0, sizeof idesc);
 	for (i = 0; i < 3; i++) {
 		idesc[i].id_type = ADDR;
 		if (doinglevel2)
 			idesc[i].id_fix = FIX;
 	}
-	bzero((char *)&cstotal, sizeof(struct csum));
+	memset(&cstotal, 0, sizeof(struct csum));
 	j = blknum(fs, fs->fs_size + fs->fs_frag - 1);
 	for (i = fs->fs_size; i < j; i++)
 		setbmap(i);
@@ -186,8 +195,8 @@ pass5()
 			newcg->cg_irotor = cg->cg_irotor;
 		else
 			newcg->cg_irotor = 0;
-		bzero((char *)&newcg->cg_frsum[0], sizeof newcg->cg_frsum);
-		bzero((char *)&cg_blktot(newcg)[0],
+		memset(&newcg->cg_frsum[0], 0, sizeof newcg->cg_frsum);
+		memset(&cg_blktot(newcg)[0], 0,
 		      (size_t)(sumsize + mapsize));
 		if (fs->fs_postblformat == FS_42POSTBLFMT)
 			ocg->cg_magic = CG_MAGIC;
@@ -213,7 +222,7 @@ pass5()
 			default:
 				if (j < ROOTINO)
 					break;
-				errexit("BAD STATE %d FOR INODE I=%d",
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
 				    statemap[j], j);
 			}
 		}
@@ -247,7 +256,7 @@ pass5()
 			}
 		}
 		if (fs->fs_contigsumsize > 0) {
-			long *sump = cg_clustersum(newcg);
+			int32_t *sump = cg_clustersum(newcg);
 			u_char *mapp = cg_clustersfree(newcg);
 			int map = *mapp++;
 			int bit = 1;
@@ -280,38 +289,38 @@ pass5()
 		cstotal.cs_nifree += newcg->cg_cs.cs_nifree;
 		cstotal.cs_ndir += newcg->cg_cs.cs_ndir;
 		cs = &fs->fs_cs(fs, c);
-		if (bcmp((char *)&newcg->cg_cs, (char *)cs, sizeof *cs) != 0 &&
+		if (memcmp(&newcg->cg_cs, cs, sizeof *cs) != 0 &&
 		    dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
-			bcopy((char *)&newcg->cg_cs, (char *)cs, sizeof *cs);
+			memmove(cs, &newcg->cg_cs, sizeof *cs);
 			sbdirty();
 		}
 		if (doinglevel1) {
-			bcopy((char *)newcg, (char *)cg, (size_t)fs->fs_cgsize);
+			memmove(cg, newcg, (size_t)fs->fs_cgsize);
 			cgdirty();
 			continue;
 		}
-		if (bcmp(cg_inosused(newcg),
+		if (memcmp(cg_inosused(newcg),
 			 cg_inosused(cg), mapsize) != 0 &&
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
-			bcopy(cg_inosused(newcg), cg_inosused(cg),
+			memmove(cg_inosused(cg), cg_inosused(newcg),
 			      (size_t)mapsize);
 			cgdirty();
 		}
-		if ((bcmp((char *)newcg, (char *)cg, basesize) != 0 ||
-		     bcmp((char *)&cg_blktot(newcg)[0],
-			  (char *)&cg_blktot(cg)[0], sumsize) != 0) &&
+		if ((memcmp(newcg, cg, basesize) != 0 ||
+		     memcmp(&cg_blktot(newcg)[0],
+			  &cg_blktot(cg)[0], sumsize) != 0) &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
-			bcopy((char *)newcg, (char *)cg, (size_t)basesize);
-			bcopy((char *)&cg_blktot(newcg)[0],
-			      (char *)&cg_blktot(cg)[0], (size_t)sumsize);
+			memmove(cg, newcg, (size_t)basesize);
+			memmove(&cg_blktot(cg)[0],
+			       &cg_blktot(newcg)[0], (size_t)sumsize);
 			cgdirty();
 		}
 	}
 	if (fs->fs_postblformat == FS_42POSTBLFMT)
 		fs->fs_nrpos = savednrpos;
-	if (bcmp((char *)&cstotal, (char *)&fs->fs_cstotal, sizeof *cs) != 0
+	if (memcmp(&cstotal, &fs->fs_cstotal, sizeof *cs) != 0
 	    && dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
-		bcopy((char *)&cstotal, (char *)&fs->fs_cstotal, sizeof *cs);
+		memmove(&fs->fs_cstotal, &cstotal, sizeof *cs);
 		fs->fs_ronly = 0;
 		fs->fs_fmod = 0;
 		sbdirty();

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.2 (Berkeley) 3/25/94";
+static char sccsid[] = "@(#)utilities.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ pathcheck(name)
 	struct entry *ep;
 	char *start;
 
-	start = index(name, '/');
+	start = strchr(name, '/');
 	if (start == 0)
 		return;
 	for (cp = start; *cp != '\0'; cp++) {
@@ -227,6 +227,45 @@ linkit(existing, new, type)
 	vprintf(stdout, "Create %s link %s->%s\n",
 		type == SYMLINK ? "symbolic" : "hard", new, existing);
 	return (GOOD);
+}
+
+/*
+ * Create a whiteout.
+ */
+int
+addwhiteout(name)
+	char *name;
+{
+
+	if (!Nflag && mknod(name, S_IFWHT, 0) < 0) {
+		fprintf(stderr, "warning: cannot create whiteout %s: %s\n",
+		    name, strerror(errno));
+		return (FAIL);
+	}
+	vprintf(stdout, "Create whiteout %s\n", name);
+	return (GOOD);
+}
+
+/*
+ * Delete a whiteout.
+ */
+void
+delwhiteout(ep)
+	register struct entry *ep;
+{
+	char *name;
+
+	if (ep->e_type != LEAF)
+		badentry(ep, "delwhiteout: not a leaf");
+	ep->e_flags |= REMOVED;
+	ep->e_flags &= ~TMPNAME;
+	name = myname(ep);
+	if (!Nflag && undelete(name) < 0) {
+		fprintf(stderr, "warning: cannot delete whiteout %s: %s\n",
+		    name, strerror(errno));
+		return;
+	}
+	vprintf(stdout, "Delete whiteout %s\n", name);
 }
 
 /*
