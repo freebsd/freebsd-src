@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.96 1999/02/19 14:25:34 luoqi Exp $
+ *	$Id: kern_exec.c,v 1.97 1999/04/03 22:20:01 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -428,11 +428,7 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-#ifdef VM_STACK
 	caddr_t	stack_addr = (caddr_t) (USRSTACK - MAXSSIZ);
-#else
-	caddr_t	stack_addr = (caddr_t) (USRSTACK - SGROWSIZ);
-#endif
 	vm_map_t map = &vmspace->vm_map;
 
 	imgp->vmspace_destroyed = 1;
@@ -454,7 +450,6 @@ exec_new_vmspace(imgp)
 	}
 
 	/* Allocate a new stack */
-#ifdef VM_STACK
 	error = vm_map_stack (&vmspace->vm_map, (vm_offset_t)stack_addr,
 			      (vm_size_t)MAXSSIZ, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
@@ -466,18 +461,6 @@ exec_new_vmspace(imgp)
 	 */
 	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
-#else
-	error = vm_map_insert(&vmspace->vm_map, NULL, 0,
-		(vm_offset_t) stack_addr, (vm_offset_t) USRSTACK,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-		return (error);
-
-	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
-
-	/* Initialize maximum stack address */
-	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
-#endif
 
 	return(0);
 }
