@@ -807,6 +807,7 @@ mi_switch()
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
+	KASSERT((td->td_state != TDS_RUNQ), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
 	if (td->td_state != TDS_MTX &&
 	    td->td_state != TDS_RUNQ &&
@@ -866,7 +867,7 @@ mi_switch()
 #endif
 
 	/*
-	 * Pick a new current process and record its start time.
+	 * Finish up stats for outgoing thread.
 	 */
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
@@ -877,23 +878,33 @@ mi_switch()
 	ke->ke_oncpu = NOCPU;
 	ke->ke_flags &= ~KEF_NEEDRESCHED;
 	/*
-	 * At the last moment: if this KSE is not on the run queue,
-	 * it needs to be freed correctly and the thread treated accordingly.
+	 * At the last moment, if this thread is still marked RUNNING,
+	 * then put it back on the run queue as it has not been suspended
+	 * or stopped or any thing else similar.
 	 */
-	if ((td->td_state == TDS_RUNNING) &&
-	    ((ke->ke_flags & KEF_IDLEKSE) == 0)) {
+	if (td->td_state == TDS_RUNNING) {
+		KASSERT(((ke->ke_flags & KEF_IDLEKSE) == 0),
+		    ("Idle thread in mi_switch with wrong state"));
 		/* Put us back on the run queue (kse and all). */
 		setrunqueue(td);
-	} else if ((td->td_flags & TDF_UNBOUND) &&
-	    (td->td_state != TDS_RUNQ)) { /* in case of old code */
+	} else if (td->td_flags & TDF_UNBOUND) {
 		/*
-		 * We will not be on the run queue.
-		 * Someone else can use the KSE if they need it.
+		 * We will not be on the run queue. So we must be
+		 * sleeping or similar. If it's available,
+		 * someone else can use the KSE if they need it.
+		 * XXXKSE KSE loaning will change this.
 		 */
 		td->td_kse = NULL;
 		kse_reassign(ke);
 	}
-	cpu_switch();
+
+	cpu_switch();		/* SHAZAM!!*/
+
+	/* 
+	 * Start setting up stats etc. for the incoming thread.
+	 * Similar code in fork_exit() is returned to by cpu_switch()
+	 * in the case of a new thread/process.
+	 */
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;
