@@ -455,7 +455,7 @@ dvloop:
 	}
 #endif
 	if(xferq != NULL){
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL){
 			err = ENOMEM;
 			return err;
@@ -734,7 +734,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		ibufreq->tx.psize = sc->fc->it[sub]->psize;
 		break;
 	case FW_ASYREQ:
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL){
 			err = ENOMEM;
 			return err;
@@ -821,7 +821,7 @@ error:
 		fwb->start_lo = bindreq->start.lo;
 		fwb->addrlen = bindreq->len;
 
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL){
 			err = ENOMEM;
 			return err;

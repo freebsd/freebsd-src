@@ -81,7 +81,7 @@ fwmem_xfer_req(
 {
 	struct fw_xfer *xfer;
 
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_FWXFER);
 	if (xfer == NULL)
 		return NULL;
 

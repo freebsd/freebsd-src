@@ -450,7 +450,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if (xfer == NULL) {
 			return;
 		}
