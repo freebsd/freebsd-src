@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.238 1999/05/09 13:10:46 peter Exp $
+ *	$Id: sio.c,v 1.239 1999/05/09 16:56:38 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -309,8 +309,7 @@ struct com_s {
 };
 
 #ifdef COM_ESP
-static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
-				     Port_t esp_port));
+static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
 static	int	sioattach	__P((device_t dev));
 
@@ -831,8 +830,7 @@ sioprobe(dev)
 
 #ifdef COM_ESP
 static int
-espattach(isdp, com, esp_port)
-	struct isa_device	*isdp;
+espattach(com, esp_port)
 	struct com_s		*com;
 	Port_t			esp_port;
 {
@@ -1029,7 +1027,7 @@ sioattach(dev)
 		}
 #ifdef COM_ESP
 		for (espp = likely_esp_ports; *espp != 0; espp++)
-			if (espattach(dev, com, *espp)) {
+			if (espattach(com, *espp)) {
 				com->tx_fifo_size = 1024;
 				break;
 			}
@@ -1585,6 +1583,8 @@ siointr(arg)
 	COM_UNLOCK();
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
+	int		unit;
+	struct com_s	*com;
 
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
