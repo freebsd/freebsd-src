@@ -207,10 +207,6 @@ int tcp_do_sack = 1;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
     &tcp_do_sack, 0, "Enable/Disable TCP SACK support");
 
-int tcp_sackhole_limit = 10 * 1024; /* Arbitrarily set */
-SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, sackhole_limit, CTLFLAG_RW,
-    &tcp_sackhole_limit, 0, "Limit on the total SACK scoreboard elements");
-
 uma_zone_t sack_hole_zone;
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
