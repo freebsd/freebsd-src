@@ -102,7 +102,7 @@ open_elffile(char *filename)
 	int fileno = open(filename, O_RDONLY);
 
 	if (fileno < 0)
-		err(1, filename);
+		err(1, "%s", filename);
 	return (fileno);
 }
 
@@ -183,7 +183,7 @@ open_exefile(char *filename)
 	int fileno = open(filename, O_RDWR | O_TRUNC | O_CREAT, 0666);
 
 	if (fileno < 0)
-		err(1, filename);
+		err(1, "%s", filename);
 	return (fileno);
 }
 
