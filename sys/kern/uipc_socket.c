@@ -316,22 +316,34 @@ solisten(so, backlog, td)
 	return (0);
 }
 
+/*
+ * Attempt to free a socket.  This should really be sotryfree().
+ *
+ * We free the socket if the protocol is no longer interested in the socket,
+ * there's no file descriptor reference, and the refcount is 0.  While the
+ * calling macro sotryfree() tests the refcount, sofree() has to test it
+ * again as it's possible to race with an accept()ing thread if the socket is
+ * in an listen queue of a listen socket, as being in the listen queue
+ * doesn't elevate the reference count.  sofree() acquires the accept mutex
+ * early for this test in order to avoid that race.
+ */
 void
 sofree(so)
 	struct socket *so;
 {
 	struct socket *head;
 
-	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
-	SOCK_LOCK_ASSERT(so);
+	SOCK_UNLOCK(so);
+	ACCEPT_LOCK();
+	SOCK_LOCK(so);
 
-	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0) {
+	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0 ||
+	    so->so_count != 0) {
 		SOCK_UNLOCK(so);
+		ACCEPT_UNLOCK();
 		return;
 	}
 
-	SOCK_UNLOCK(so);
-	ACCEPT_LOCK();
 	head = so->so_head;
 	if (head != NULL) {
 		KASSERT((so->so_qstate & SQ_COMP) != 0 ||
@@ -353,6 +365,7 @@ sofree(so)
 		 * the listening socket is closed.
 		 */
 		if ((so->so_qstate & SQ_COMP) != 0) {
+			SOCK_UNLOCK(so);
 			ACCEPT_UNLOCK();
 			return;
 		}
@@ -365,6 +378,7 @@ sofree(so)
 	    (so->so_qstate & SQ_INCOMP) == 0,
 	    ("sofree: so_head == NULL, but still SQ_COMP(%d) or SQ_INCOMP(%d)",
 	    so->so_qstate & SQ_COMP, so->so_qstate & SQ_INCOMP));
+	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
