@@ -1,13 +1,12 @@
 /*
  * Copyright (c) 1982, 1986, 1989, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2000-2001 Robert N. M. Watson.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
- *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
+ * Copyright (c) 2000-2001 Robert N. M. Watson.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,17 +56,16 @@
 #include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
-#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_kern, OID_AUTO, security, CTLFLAG_RW, 0,
     "Kernel security policy");
-
 SYSCTL_NODE(_kern_security, OID_AUTO, bsd, CTLFLAG_RW, 0,
     "BSD security policy");
 
@@ -76,11 +74,6 @@ struct getpid_args {
 	int	dummy;
 };
 #endif
-
-/*
- * getpid
- */
-
 /*
  * MPSAFE
  */
@@ -103,10 +96,6 @@ getpid(td, uap)
 	mtx_unlock_giant(s);
 	return (0);
 }
-
-/*
- * getppid
- */
 
 #ifndef _SYS_SYSPROTO_H_
 struct getppid_args {
@@ -134,9 +123,7 @@ getppid(td, uap)
 }
 
 /* 
- * Get process group ID; note that POSIX getpgrp takes no parameter 
- *
- * MP SAFE
+ * Get process group ID; note that POSIX getpgrp takes no parameter.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getpgrp_args {
@@ -165,7 +152,6 @@ struct getpgid_args {
 	pid_t	pid;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -176,10 +162,10 @@ getpgid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct proc *pt;
-	int error = 0;
-	int s;
+	int error, s;
 
 	s = mtx_lock_giant(kern_giant_proc);
+	error = 0;
 	if (uap->pid == 0)
 		td->td_retval[0] = p->p_pgrp->pg_id;
 	else if ((pt = pfind(uap->pid)) == NULL)
@@ -202,7 +188,6 @@ struct getsid_args {
 	pid_t	pid;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -213,9 +198,10 @@ getsid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct proc *pt;
-	int error = 0;
+	int error;
 
 	mtx_lock(&Giant);
+	error = 0;
 	if (uap->pid == 0)
 		td->td_retval[0] = p->p_session->s_sid;
 	else if ((pt = pfind(uap->pid)) == NULL)
@@ -230,16 +216,11 @@ getsid(td, uap)
 	return (error);
 }
 
-
-/*
- * getuid() - MP SAFE
- */
 #ifndef _SYS_SYSPROTO_H_
 struct getuid_args {
         int     dummy;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -260,15 +241,14 @@ getuid(td, uap)
 	return (0);
 }
 
-/*
- * geteuid() - MP SAFE
- */
 #ifndef _SYS_SYSPROTO_H_
 struct geteuid_args {
         int     dummy;
 };
 #endif
-
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 geteuid(td, uap)
@@ -281,15 +261,11 @@ geteuid(td, uap)
 	return (0);
 }
 
-/*
- * getgid() - MP SAFE
- */
 #ifndef _SYS_SYSPROTO_H_
 struct getgid_args {
         int     dummy;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -320,7 +296,6 @@ struct getegid_args {
         int     dummy;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -350,18 +325,18 @@ struct getgroups_args {
 int
 getgroups(td, uap)
 	struct thread *td;
-	register struct	getgroups_args *uap;
+	register struct getgroups_args *uap;
 {
 	struct ucred *cred;
 	struct proc *p = td->td_proc;
 	u_int ngrp;
-	int error = 0;
+	int error;
 
 	mtx_lock(&Giant);
+	error = 0;
 	cred = p->p_ucred;
 	if ((ngrp = uap->gidsetsize) == 0) {
 		td->td_retval[0] = cred->cr_ngroups;
-		error = 0;
 		goto done2;
 	}
 	if (ngrp < cred->cr_ngroups) {
@@ -370,9 +345,8 @@ getgroups(td, uap)
 	}
 	ngrp = cred->cr_ngroups;
 	if ((error = copyout((caddr_t)cred->cr_groups,
-	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t)))) {
+	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t))))
 		goto done2;
-	}
 	td->td_retval[0] = ngrp;
 done2:
 	mtx_unlock(&Giant);
@@ -384,7 +358,6 @@ struct setsid_args {
         int     dummy;
 };
 #endif
-
 /*
  * MPSAFE
  */
@@ -398,9 +371,9 @@ setsid(td, uap)
 	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	if (p->p_pgid == p->p_pid || pgfind(p->p_pid)) {
+	if (p->p_pgid == p->p_pid || pgfind(p->p_pid))
 		error = EPERM;
-	} else {
+	else {
 		(void)enterpgrp(p, p->p_pid, 1);
 		td->td_retval[0] = p->p_pid;
 		error = 0;
@@ -424,8 +397,8 @@ setsid(td, uap)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct setpgid_args {
-	int	pid;	/* target process id */
-	int	pgid;	/* target pgrp id */
+	int	pid;		/* target process id */
+	int	pgid;		/* target pgrp id */
 };
 #endif
 /*
@@ -438,15 +411,13 @@ setpgid(td, uap)
 	register struct setpgid_args *uap;
 {
 	struct proc *curp = td->td_proc;
-	register struct proc *targp;		/* target process */
-	register struct pgrp *pgrp;		/* target pgrp */
+	register struct proc *targp;	/* target process */
+	register struct pgrp *pgrp;	/* target pgrp */
 	int error;
 
 	if (uap->pgid < 0)
 		return (EINVAL);
-
 	mtx_lock(&Giant);
-
 	sx_slock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == NULL || !inferior(targp)) {
@@ -479,11 +450,11 @@ setpgid(td, uap)
 		error = EPERM;
 		goto done2;
 	}
-	if (uap->pgid == 0) {
+	if (uap->pgid == 0)
 		uap->pgid = targp->p_pid;
-	} else if (uap->pgid != targp->p_pid) {
+	else if (uap->pgid != targp->p_pid) {
 		if ((pgrp = pgfind(uap->pgid)) == 0 ||
-	            pgrp->pg_session != curp->p_session) {
+		    pgrp->pg_session != curp->p_session) {
 			PROC_UNLOCK(targp);
 			error = EPERM;
 			goto done2;
@@ -527,16 +498,16 @@ setuid(td, uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t uid;
-	int error = 0;
+	int error;
 
-	uid = uap->uid;
 	oldcred = p->p_ucred;
+	uid = uap->uid;
 	mtx_lock(&Giant);
-
+	error = 0;
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
-	 * Note that setuid(geteuid()) is a special case of 
+	 * Note that setuid(geteuid()) is a special case of
 	 * "appropriate privileges" in appendix B.4.2.2.  We need
 	 * to use this clause to be compatible with traditional BSD
 	 * semantics.  Basically, it means that "setuid(xx)" sets all
@@ -546,7 +517,7 @@ setuid(td, uap)
 	 * 1: We determine if the euid is going to change, and do EPERM
 	 *    right away.  We unconditionally change the euid later if this
 	 *    test is satisfied, simplifying that part of the logic.
-	 * 2: We determine if the real and/or saved uid's are going to
+	 * 2: We determine if the real and/or saved uids are going to
 	 *    change.  Determined by compile options.
 	 * 3: Change euid last. (after tests in #2 for "appropriate privs")
 	 */
@@ -557,7 +528,7 @@ setuid(td, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
 
 	newcred = crdup(oldcred);
@@ -625,17 +596,16 @@ seteuid(td, uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid;
-	int error = 0;
+	int error;
 
 	euid = uap->euid;
-
 	mtx_lock(&Giant);
+	error = 0;
 	oldcred = p->p_ucred;
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
 	 * not see our changes.
@@ -669,11 +639,12 @@ setgid(td, uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t gid;
-	int error = 0;
+	int error;
 
 	gid = uap->gid;
 
 	mtx_lock(&Giant);
+	error = 0;
 	oldcred = p->p_ucred;
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
@@ -693,9 +664,8 @@ setgid(td, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
 
 	newcred = crdup(oldcred);
 #ifdef _POSIX_SAVED_IDS
@@ -761,17 +731,16 @@ setegid(td, uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t egid;
-	int error = 0;
+	int error;
 
 	egid = uap->egid;
-
 	mtx_lock(&Giant);
+	error = 0;
 	oldcred = p->p_ucred;
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
 	newcred = crdup(oldcred);
 	if (oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -805,10 +774,9 @@ setgroups(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
 	ngrp = uap->gidsetsize;
 	oldcred = p->p_ucred;
-	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
+	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
 	if (ngrp > NGROUPS) {
 		error = EINVAL;
@@ -860,22 +828,20 @@ setreuid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
-	uid_t ruid, euid;
-	int error = 0;
+	uid_t euid, ruid;
+	int error;
 
-	ruid = uap->ruid;
 	euid = uap->euid;
-
+	ruid = uap->ruid;
 	mtx_lock(&Giant);
-
+	error = 0;
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
 	newcred = crdup(oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
@@ -914,23 +880,20 @@ setregid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
-	gid_t rgid, egid;
-	int error = 0;
+	gid_t egid, rgid;
+	int error;
 
-	rgid = uap->rgid;
 	egid = uap->egid;
-
+	rgid = uap->rgid;
 	mtx_lock(&Giant);
-
+	error = 0;
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
-
 	newcred = crdup(oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -975,13 +938,12 @@ setresuid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
-	uid_t ruid, euid, suid;
+	uid_t euid, ruid, suid;
 	int error;
 
-	ruid = uap->ruid;
 	euid = uap->euid;
+	ruid = uap->ruid;
 	suid = uap->suid;
-
 	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
@@ -993,10 +955,8 @@ setresuid(td, uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
-
 	newcred = crdup(oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
@@ -1041,11 +1001,11 @@ setresgid(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
-	gid_t rgid, egid, sgid;
+	gid_t egid, rgid, sgid;
 	int error;
 
-	rgid = uap->rgid;
 	egid = uap->egid;
+	rgid = uap->rgid;
 	sgid = uap->sgid;
 
 	mtx_lock(&Giant);
@@ -1105,7 +1065,6 @@ getresuid(td, uap)
 
 	mtx_lock(&Giant);
 	cred = p->p_ucred;
-
 	if (uap->ruid)
 		error1 = copyout((caddr_t)&cred->cr_ruid,
 		    (caddr_t)uap->ruid, sizeof(cred->cr_ruid));
@@ -1116,7 +1075,7 @@ getresuid(td, uap)
 		error3 = copyout((caddr_t)&cred->cr_svuid,
 		    (caddr_t)uap->suid, sizeof(cred->cr_svuid));
 	mtx_unlock(&Giant);
-	return error1 ? error1 : (error2 ? error2 : error3);
+	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1141,7 +1100,6 @@ getresgid(td, uap)
 
 	mtx_lock(&Giant);
 	cred = p->p_ucred;
-
 	if (uap->rgid)
 		error1 = copyout((caddr_t)&cred->cr_rgid,
 		    (caddr_t)uap->rgid, sizeof(cred->cr_rgid));
@@ -1152,15 +1110,17 @@ getresgid(td, uap)
 		error3 = copyout((caddr_t)&cred->cr_svgid,
 		    (caddr_t)uap->sgid, sizeof(cred->cr_svgid));
 	mtx_unlock(&Giant);
-	return error1 ? error1 : (error2 ? error2 : error3);
+	return (error1 ? error1 : error2 ? error2 : error3);
 }
-
 
 #ifndef _SYS_SYSPROTO_H_
 struct issetugid_args {
 	int dummy;
 };
 #endif
+/*
+ * NOT MPSAFE?
+ */
 /* ARGSUSED */
 int
 issetugid(td, uap)
@@ -1190,9 +1150,10 @@ __setugid(td, uap)
 	struct __setugid_args *uap;
 {
 #ifdef REGRESSION
-	int error = 0;
+	int error;
 
 	mtx_lock(&Giant);
+	error = 0;
 	switch (uap->flag) {
 	case 0:
 		td->td_proc->p_flag &= ~P_SUGID;
@@ -1207,8 +1168,9 @@ __setugid(td, uap)
 	mtx_unlock(&Giant);
 	return (error);
 #else /* !REGRESSION */
+
 	return (ENOSYS);
-#endif /* !REGRESSION */
+#endif /* REGRESSION */
 }
 
 /*
@@ -1251,7 +1213,8 @@ int
 suser(p)
 	struct proc *p;
 {
-	return suser_xxx(0, p, 0);
+
+	return (suser_xxx(0, p, 0));
 }
 
 /*
@@ -1260,7 +1223,6 @@ suser(p)
  */
 int
 suser_td(td)
-	
 	struct thread *td;
 {
 	return suser_xxx(0, td->td_proc, 0);
@@ -1290,9 +1252,9 @@ suser_xxx(cred, proc, flag)
 		printf("suser_xxx(): THINK!\n");
 		return (EPERM);
 	}
-	if (!cred) 
+	if (cred == NULL)
 		cred = proc->p_ucred;
-	if (cred->cr_uid != 0) 
+	if (cred->cr_uid != 0)
 		return (EPERM);
 	if (jailed(cred) && !(flag & PRISON_ROOT))
 		return (EPERM);
@@ -1300,78 +1262,60 @@ suser_xxx(cred, proc, flag)
 }
 
 /*
- * Test (local, globale) securelevel values against passed required
- * securelevel.  _gt implements (level > securelevel), and _ge implements
- * (level >= securelevel).  Returns 0 oer EPERM.
+ * Test the active securelevel against a given level.  securelevel_gt()
+ * implements (securelevel > level).  securelevel_ge() implements
+ * (securelevel >= level).  Note that the logic is inverted -- these
+ * functions return EPERM on "success" and 0 on "failure".
  *
  * cr is permitted to be NULL for the time being, as there were some
  * existing securelevel checks that occurred without a process/credential
- * context.  In the future this will be disallowed, so a kernel
- * message is displayed.
+ * context.  In the future this will be disallowed, so a kernel message
+ * is displayed.
  */
 int
 securelevel_gt(struct ucred *cr, int level)
 {
+	int active_securelevel;
 
-	if (cr == NULL) {
+	active_securelevel = securelevel;
+	if (cr == NULL)
 		printf("securelevel_gt: cr is NULL\n");
-		if (level > securelevel)
-			return (0);
-		else
-			return (EPERM);
-	} else if (cr->cr_prison == NULL) {
-		if (level > securelevel)
-			return (0);
-		else
-			return (EPERM);
-	} else {
-		if (level > imax(cr->cr_prison->pr_securelevel, securelevel))
-			return (0);
-		else
-			return (EPERM);
-	}
-
+	if (cr->cr_prison != NULL)
+		active_securelevel = imax(cr->cr_prison->pr_securelevel,
+		    active_securelevel);
+	return (active_securelevel > level ? EPERM : 0);
 }
 
 int
 securelevel_ge(struct ucred *cr, int level)
 {
+	int active_securelevel;
 
-	if (cr == NULL) {
-		printf("securelevel_ge: cr is NULL\n");
-		if (level >= securelevel)
-			return (0);
-		else
-			return (EPERM);
-	} if (cr->cr_prison == NULL) {
-		if (level >= securelevel)
-			return (0);
-		else
-			return (EPERM);
-	} else {
-		if (level >= imax(cr->cr_prison->pr_securelevel, securelevel))
-			return (0);
-		else
-			return (EPERM);
-	}
+	active_securelevel = securelevel;
+	if (cr == NULL)
+		printf("securelevel_gt: cr is NULL\n");
+	if (cr->cr_prison != NULL)
+		active_securelevel = imax(cr->cr_prison->pr_securelevel,
+		    active_securelevel);
+	return (active_securelevel >= level ? EPERM : 0);
 }
 
 /*
  * 'see_other_uids' determines whether or not visibility of processes
- * and sockets with credentials holding different real uid's is possible
+ * and sockets with credentials holding different real uids is possible
  * using a variety of system MIBs.
+ * XXX: data declarations should be together near the beginning of the file.
  */
 static int	see_other_uids = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, see_other_uids,
-    CTLFLAG_RW, &see_other_uids, 0,
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
+    &see_other_uids, 0,
     "Unprivileged processes may see subjects/objects with different real uid");
 
 /*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: none
- * References: u1 and u2 must be immutable credentials
- *             u1 and u2 must be valid for the lifetime of the call
+ * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
 int
@@ -1480,11 +1424,11 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 			return (error);
 	}
 
-        return (0);
+	return (0);
 }
 
 /*-
- * Determine whether p1 may reschedule p2
+ * Determine whether p1 may reschedule p2.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of p1 and p2
  *        must be held.  Normally, p1 will be curproc, and a lock must
@@ -1524,10 +1468,11 @@ p_cansched(struct proc *p1, struct proc *p2)
  * when hardening systems.
  *
  * XXX: Should modifying and reading this variable require locking?
+ * XXX: data declarations should be together near the beginning of the file.
  */
 static int	unprivileged_proc_debug = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_proc_debug,
-    CTLFLAG_RW, &unprivileged_proc_debug, 0,
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_proc_debug, CTLFLAG_RW,
+    &unprivileged_proc_debug, 0,
     "Unprivileged processes may use process debugging facilities");
 
 /*-
@@ -1541,17 +1486,15 @@ SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_proc_debug,
 int
 p_candebug(struct proc *p1, struct proc *p2)
 {
-	int error, i, grpsubset, uidsubset, credentialchanged;
+	int credentialchanged, error, grpsubset, i, uidsubset;
 
 	if (!unprivileged_proc_debug) {
 		error = suser_xxx(NULL, p1, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
-
 	if (p1 == p2)
 		return (0);
-	
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
 
@@ -1595,8 +1538,8 @@ p_candebug(struct proc *p1, struct proc *p2)
 			return (error);
 	}
 
-	/* can't trace init when securelevel > 0 */
-	if (p2->p_pid == 1) {
+	/* Can't trace init when securelevel > 0. */
+	if (p2 == initproc) {
 		error = securelevel_gt(p1->p_ucred, 0);
 		if (error)
 			return (error);
@@ -1642,7 +1585,6 @@ crhold(cr)
 	return (cr);
 }
 
-
 /*
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
@@ -1671,9 +1613,8 @@ crfree(cr)
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
 		FREE((caddr_t)cr, M_CRED);
-	} else {
+	} else
 		mtx_unlock(&cr->cr_mtx);
-	}
 }
 
 /*
@@ -1701,7 +1642,7 @@ crcopy(dest, src)
 
 	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
-	    (unsigned)((caddr_t)&src->cr_endcopy - 
+	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
@@ -1775,16 +1716,15 @@ setlogin(td, uap)
 	char logintmp[MAXLOGNAME];
 
 	mtx_lock(&Giant);
-	if ((error = suser_xxx(0, p, PRISON_ROOT)))
+	if ((error = suser_xxx(0, p, PRISON_ROOT)) != 0)
 		goto done2;
 	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
 	    sizeof(logintmp), (size_t *)0);
-	if (error == ENAMETOOLONG) {
+	if (error == ENAMETOOLONG)
 		error = EINVAL;
-	} else if (!error) {
-		(void) memcpy(p->p_pgrp->pg_session->s_login, logintmp,
+	else if (!error)
+		(void)memcpy(p->p_pgrp->pg_session->s_login, logintmp,
 		    sizeof(logintmp));
-	}
 done2:
 	mtx_unlock(&Giant);
 	return (error);
