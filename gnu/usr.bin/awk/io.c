@@ -646,7 +646,8 @@ devopen(name, mode)
 const char *name, *mode;
 {
 	int openfd = INVALID_HANDLE;
-	const char *cp, *ptr;
+	const char *cp;
+	char *ptr;
 	int flag = 0;
 	struct stat buf;
 	extern double strtod();
@@ -806,7 +807,7 @@ const char *name, *mode;
 	char tbuf[BUFSIZ], *cp;
 	int i;
 #if defined(NGROUPS_MAX) && NGROUPS_MAX > 0
-#if defined(atarist) || defined(__svr4__) || defined(__osf__)
+#if defined(atarist) || defined(__svr4__) || defined(__osf__) || defined(__FreeBSD__)
 	gid_t groupset[NGROUPS_MAX];
 #else
 	int groupset[NGROUPS_MAX];
