@@ -210,7 +210,7 @@ chgsbsize(uid, hiwat, to, max)
 	if (uip == NULL)
 		uip = uicreate(uid);
 	s = splnet();
-	diff = to - *hiwat;
+	diff = (rlim_t)to - (rlim_t)*hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (diff > 0 && uip->ui_sbsize + diff > max) {
 		(void)uifree(uip);
