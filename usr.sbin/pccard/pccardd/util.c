@@ -46,18 +46,20 @@ die(char *msg)
 	closelog();
 	exit(1);
 }
+
 void *
 xmalloc(int sz)
 {
 void *p;
 
-	p = malloc(sz+8);
+	p = malloc(sz);
 	if (p)
 		bzero(p, sz);
 	else
 		die("malloc failed");
 	return(p);
 }
+
 char *
 newstr(char *p)
 {
