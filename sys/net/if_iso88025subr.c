@@ -117,8 +117,8 @@ iso88025_ifattach(struct ifnet *ifp, int bpf)
 
     ifa = ifaddr_byindex(ifp->if_index);
     if (ifa == 0) {
-            printf("iso88025_ifattach: no lladdr!\n");
-            return;
+        if_printf(ifp, "%s() no lladdr!\n", __func__);
+        return;
     }
 
     sdl = (struct sockaddr_dl *)ifa->ifa_addr;
