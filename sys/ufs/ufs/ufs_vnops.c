@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.23 1995/05/15 07:31:09 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.24 1995/05/30 08:15:39 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -683,31 +683,31 @@ ufs_link(ap)
 		panic("ufs_link: no name");
 #endif
 	if (vp->v_mount != tdvp->v_mount) {
-		VOP_ABORTOP(vp, cnp);
+		VOP_ABORTOP(tdvp, cnp);
 		error = EXDEV;
 		goto out2;
 	}
-	if (vp != tdvp && (error = VOP_LOCK(tdvp))) {
-		VOP_ABORTOP(vp, cnp);
+	if (vp != tdvp && (error = VOP_LOCK(vp))) {
+		VOP_ABORTOP(tdvp, cnp);
 		goto out2;
 	}
-	ip = VTOI(tdvp);
+	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
-		VOP_ABORTOP(vp, cnp);
+		VOP_ABORTOP(tdvp, cnp);
 		error = EMLINK;
 		goto out1;
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
-		VOP_ABORTOP(vp, cnp);
+		VOP_ABORTOP(tdvp, cnp);
 		error = EPERM;
 		goto out1;
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
 	tv = time;
-	error = VOP_UPDATE(tdvp, &tv, &tv, 1);
+	error = VOP_UPDATE(vp, &tv, &tv, 1);
 	if (!error)
-		error = ufs_direnter(ip, vp, cnp);
+		error = ufs_direnter(ip, tdvp, cnp);
 	if (error) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
@@ -715,9 +715,9 @@ ufs_link(ap)
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 out1:
 	if (vp != tdvp)
-		VOP_UNLOCK(tdvp);
+		VOP_UNLOCK(vp);
 out2:
-	vput(vp);
+	vput(tdvp);
 	return (error);
 }
 
