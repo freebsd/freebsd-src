@@ -187,6 +187,7 @@ int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 				/*    the run command). */
 char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
+char *destdir = NULL;		/* Directory to treat at root for logs */
 const char *conf;		/* Configuration file to use */
 
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
@@ -339,7 +340,10 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 	if (tempwork == NULL)
 		err(1, "malloc of conf_entry for %s", fname);
 
-	tempwork->log = strdup(fname);
+	if (destdir == NULL)
+		tempwork->log = strdup(fname);
+	else
+		asprintf(&tempwork->log, "%s%s", destdir, fname);
 	if (tempwork->log == NULL)
 		err(1, "strdup for %s", fname);
 
@@ -694,11 +698,14 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:f:nrsvCD:FR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
+			break;
+		case 'd':
+			destdir = optarg;
 			break;
 		case 'f':
 			conf = optarg;
