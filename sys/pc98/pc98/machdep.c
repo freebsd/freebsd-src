@@ -35,17 +35,18 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.62 1997/11/25 09:54:36 kato Exp $
+ *	$Id: machdep.c,v 1.63 1997/12/03 09:46:33 kato Exp $
  */
 
 #include "apm.h"
 #include "npx.h"
-#include "opt_sysvipc.h"
-#include "opt_ddb.h"
 #include "opt_bounce.h"
+#include "opt_cpu.h"
+#include "opt_ddb.h"
 #include "opt_maxmem.h"
 #include "opt_perfmon.h"
 #include "opt_smp.h"
+#include "opt_sysvipc.h"
 #include "opt_userconfig.h"
 #include "opt_vm86.h"
 
@@ -878,9 +879,9 @@ u_int my_tr;				/* which task register setting */
 #endif /* VM86 */
 #endif
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 struct gate_descriptor *t_idt;
-int has_f00f_bug;
+extern int has_f00f_bug;
 #endif
 
 static struct i386tss dblfault_tss;
@@ -1576,7 +1577,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 }
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 void f00f_hack(void);
 SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
@@ -1585,8 +1586,6 @@ f00f_hack(void) {
 	struct region_descriptor r_idt;
 	unsigned char *tmp;
 	int i;
-	vm_offset_t vp;
-	unsigned *pte;
 
 	if (!has_f00f_bug)
 		return;
@@ -1605,13 +1604,12 @@ f00f_hack(void) {
 	bcopy(idt, t_idt, sizeof(idt));
 	r_idt.rd_base = (int)t_idt;
 	lidt(&r_idt);
-	vp = trunc_page(t_idt);
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
 	return;
 }
-#endif /* NO_F00F_HACK */
+#endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
 int
 ptrace_set_pc(p, addr)
