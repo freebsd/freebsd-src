@@ -1242,10 +1242,6 @@ Starting with SRM firmware version 5.9 you can boot from Adaptec 2940-series
 adapters in addition to the usual set of Qlogic and Symbios/NCR adapters.
 This unfortunately does not include the embedded Adaptec SCSI chips.
 
-CPU:
-DS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
-and will only use the primary CPU.
-
 Memory:
 If you are using banks of DIMMs of different sizes the biggest DIMMs should
 be installed in the DIMM slots marked '0' on the mainboard. The DIMM slots
@@ -1287,10 +1283,6 @@ Features:
 
 Memory:
 A maximum of 2Gb memory is supported by FreeBSD.
-
-CPU:
-DP264 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
-and will only use the primary CPU.
 
 Embedded SCSI:
 The on-board Adaptec is not bootable but works with FreeBSD 4.0 and later
@@ -1337,8 +1329,6 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
 CPU:
 The CPUs spec-ed as 200 MHz are in reality running at 190 MHz. Maximum
 number of CPUs is 4. All CPUs must be of the same type/speed. 
-
-Currently FreeBSD only uses one CPU in a multiprocessor machine. 
 
 If any of the processors are ever marked as failed, they will
 remain marked as failed even after they have been replaced (or reseated) 
@@ -1460,9 +1450,6 @@ Features:
 - 1 parallel port
 - PS/2 style keyboard & mouse port
 
-CPU:
-Rawhide is a multiprocessor machine. Currently FreeBSD only uses one CPU.
-
 Memory:
 Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
 and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
@@ -1521,9 +1508,6 @@ Features:
 - 2 serial ports
 - 1 parallel port
 - PS/2 style keyboard & mouse port 
-
-CPU:
-AS1200 is a multiprocessor-capable machine. Currently FreeBSD only uses one CPU.
 
 Memory:
 AS1200 uses 2 memory daughter cards. On each of these cards are 8 DIMM slots. 
@@ -1589,10 +1573,6 @@ Features:
 Memory:
 FreeBSD supports (and has been tested with) up to 2 Gbytes of memory on 
 TurboLaser.
-
-CPU:
-TurboLaser is very much a multiprocessor machine. Currently FreeBSD only
-uses one CPU.
 
 Expansion:
 Only PCI expansion is supported on FreeBSD. XMI or Futurebus+ (which 
@@ -1796,10 +1776,6 @@ Features:
 - embedded dual Intel 82559 10/100Mbit Ethernet
 - embedded Symbios 53C1000 Ultra160 SCSI controller
 - expansion: 2 64 bit PCI slots (2/3 length)
-
-CPU:
-The CS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
-and will only use the primary CPU.
 
 Console:
 SRM console code comes standard with the CS20. The SRM lives in 2Mbytes of
