@@ -24,10 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -122,7 +122,7 @@ archive_compressor_bzip2_init(struct archive *a)
 	}
 
 	/* Library setup failed: clean up. */
-	archive_set_error(a, -1,
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Internal error initializing compression library");
 	free(state->compressed);
 	free(state);
@@ -130,17 +130,17 @@ archive_compressor_bzip2_init(struct archive *a)
 	/* Override the error message if we know what really went wrong. */
 	switch (ret) {
 	case BZ_PARAM_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "invalid setup parameter");
 		break;
 	case BZ_MEM_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ENOMEM,
 		    "Internal error initializing compression library: "
 		    "out of memory");
 		break;
 	case BZ_CONFIG_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "mis-compiled library");
 		break;
@@ -161,7 +161,7 @@ archive_compressor_bzip2_write(struct archive *a, const void *buff,
 
 	state = a->compression_data;
 	if (!a->client_writer) {
-		archive_set_error(a, EINVAL,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -194,7 +194,7 @@ archive_compressor_bzip2_finish(struct archive *a)
 	state = a->compression_data;
 	ret = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, EINVAL,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?\n"
 		    "This is probably an internal programming error.");
 		ret = ARCHIVE_FATAL;
@@ -256,7 +256,8 @@ cleanup:
 	case BZ_OK:
 		break;
 	default:
-		archive_set_error(a, -1, "Failed to clean up compressor");
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Failed to clean up compressor");
 		ret = ARCHIVE_FATAL;
 	}
 
@@ -319,7 +320,8 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 			return (ARCHIVE_OK);
 		default:
 			/* Any other return value indicates an error */
-			archive_set_error(a, -1, "Bzip2 compression failed");
+			archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+			    "Bzip2 compression failed");
 			return (ARCHIVE_FATAL);
 		}
 	}

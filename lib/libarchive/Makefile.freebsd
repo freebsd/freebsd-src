@@ -109,13 +109,13 @@ MLINKS += libarchive.3 archive.3
 
 INCS =	archive.h archive_entry.h
 
-CFLAGS+=-DDEBUG -g
 .if defined(DMALLOC)
-CFLAGS+=-DDMALLOC -I/usr/local/include
-LDFLAGS+=-L/usr/local/lib -ldmalloc
+DEBUG_FLAGS+= -DDEBUG -g
+CFLAGS+= -DHAVE_DMALLOC -I/usr/local/include
+LDFLAGS+= -L/usr/local/lib -ldmalloc
 .endif
 
-# Should be WARNS=10, except that zlib.h is borked. <sigh>
-WARNS?=	3	
+# Should be WARNS=6, except that zlib.h is borked. <sigh>
+WARNS?=	3
 
 .include <bsd.lib.mk>

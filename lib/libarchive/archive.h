@@ -52,6 +52,20 @@ struct archive_entry;
 #define	ARCHIVE_FATAL	(-3)	/* No more operations are possible. */
 
 /*
+ * As far as possible, archive_errno returns standard platform errno codes.
+ * Of course, the details vary by platform, so the actual definitions
+ * here are stored in "archive_platform.h".  The symbols are listed here
+ * for reference; as a rule, clients should not need to know the exact
+ * platform-dependent error code.
+ */
+/* Unrecognized or invalid file format. */
+/* #define ARCHIVE_ERRNO_FILE_FORMAT */
+/* Illegal usage of the library. */
+/* #define ARCHIVE_ERRNO_PROGRAMMER_ERROR */
+/* Unknown or unclassified error. */
+/* #define ARCHIVE_ERRNO_MISC */
+
+/*
  * Callbacks are invoked to automatically read/write/open/close the archive.
  * You can provide your own for complex tasks (like breaking archives
  * across multiple tapes) or use standard ones built into the library.

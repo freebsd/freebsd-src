@@ -24,10 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -149,7 +149,7 @@ archive_compressor_gzip_init(struct archive *a)
 	}
 
 	/* Library setup failed: clean up. */
-	archive_set_error(a, -1, "Internal error "
+	archive_set_error(a, ARCHIVE_ERRNO_MISC, "Internal error "
 	    "initializing compression library");
 	free(state->compressed);
 	free(state);
@@ -157,7 +157,8 @@ archive_compressor_gzip_init(struct archive *a)
 	/* Override the error message if we know what really went wrong. */
 	switch (ret) {
 	case Z_STREAM_ERROR:
-		archive_set_error(a, EINVAL, "Internal error initializing "
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Internal error initializing "
 		    "compression library: invalid setup parameter");
 		break;
 	case Z_MEM_ERROR:
@@ -165,7 +166,8 @@ archive_compressor_gzip_init(struct archive *a)
 		    "compression library");
 		break;
 	case Z_VERSION_ERROR:
-		archive_set_error(a, -1, "Internal error initializing "
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Internal error initializing "
 		    "compression library: invalid library version");
 		break;
 	}
@@ -185,7 +187,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 
 	state = a->compression_data;
 	if (!a->client_writer) {
-		archive_set_error(a, EDOOFUS,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -220,7 +222,7 @@ archive_compressor_gzip_finish(struct archive *a)
 	state = a->compression_data;
 	ret = 0;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, EDOOFUS,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		ret = ARCHIVE_FATAL;
@@ -310,7 +312,8 @@ cleanup:
 	case Z_OK:
 		break;
 	default:
-		archive_set_error(a, -1, "Failed to clean up compressor");
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Failed to clean up compressor");
 		ret = ARCHIVE_FATAL;
 	}
 	free(state->compressed);
@@ -373,7 +376,8 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 			return (ARCHIVE_OK);
 		default:
 			/* Any other return value indicates an error. */
-			archive_set_error(a, -1, "GZip compression failed");
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "GZip compression failed");
 			return (ARCHIVE_FATAL);
 		}
 	}

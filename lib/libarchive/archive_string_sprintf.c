@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  * the core code, so it cannot easily be omitted.)
  */
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <err.h>
@@ -63,6 +63,7 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 		__archive_string_ensure(as, l + 1);
 		l = vsnprintf(as->s, as->buffer_length, fmt, ap);
 	}
+	as->length = l;
 }
 
 /*
