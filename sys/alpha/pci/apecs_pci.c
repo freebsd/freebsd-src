@@ -36,9 +36,13 @@
 #include <pci/pcivar.h>
 #include <machine/swiz.h>
 #include <machine/md_var.h>
+#include <machine/rpb.h>
+#include <machine/resource.h>
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
+#include <alpha/pci/pcibus.h>
+#include <alpha/isa/isavar.h>
 
 #include "alphapci_if.h"
 #include "pcib_if.h"
@@ -52,6 +56,7 @@ apecs_pcib_probe(device_t dev)
 {
 	device_set_desc(dev, "2107x PCI host bus adapter");
 
+	pci_init_resources();
 	device_add_child(dev, "pci", 0);
 
 	return 0;
@@ -65,6 +70,29 @@ apecs_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
 		return 0;
 	}
 	return ENOENT;
+}
+
+static struct resource *
+apecs_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
+			  u_long start, u_long end, u_long count, u_int flags)
+{
+	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
+	    (type == SYS_RES_IRQ))
+		return isa_alloc_intr(bus, child, start);
+	else
+		return pci_alloc_resource(bus, child, type, rid,
+					  start, end, count, flags);
+}
+
+static int
+apecs_pcib_release_resource(device_t bus, device_t child, int type, int rid,
+			    struct resource *r)
+{
+	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
+	    (type == SYS_RES_IRQ))
+		return isa_release_intr(bus, child, r);
+	else
+		return pci_release_resource(bus, child, type, rid, r);
 }
 
 static void *
@@ -175,10 +203,10 @@ static device_method_t apecs_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	apecs_pcib_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource,	apecs_pcib_alloc_resource),
+	DEVMETHOD(bus_release_resource,	apecs_pcib_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 

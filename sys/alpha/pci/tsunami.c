@@ -44,7 +44,6 @@
 #include <alpha/isa/isavar.h>
 #include <alpha/pci/tsunamireg.h>
 #include <alpha/pci/tsunamivar.h>
-#include <alpha/pci/pcibus.h>
 #include <machine/bwx.h>
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
@@ -248,8 +247,8 @@ tsunami_init()
 	bwx_init_space(&io_space, KV(TSUNAMI_IO(0)));
 	bwx_init_space(&mem_space, KV(TSUNAMI_MEM(0)));
 
-	busspace_isa_io = (kobj_t) &io_space;
-	busspace_isa_mem = (kobj_t) &mem_space;
+	busspace_isa_io = (struct alpha_busspace *) &io_space;
+	busspace_isa_mem = (struct alpha_busspace *) &mem_space;
 
 	chipset = tsunami_chipset;
 	platform.pci_intr_enable =  tsunami_intr_enable;
@@ -274,7 +273,6 @@ tsunami_probe(device_t dev)
 	else
 		tsunami_num_pchips = 1;
 
-	pci_init_resources();
 	isa_init_intr();
 
 	for(i = 0; i < tsunami_num_pchips; i++) {

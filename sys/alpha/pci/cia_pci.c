@@ -103,6 +103,8 @@
 
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
+#include <alpha/pci/pcibus.h>
+#include <alpha/isa/isavar.h>
 
 #include "alphapci_if.h"
 #include "pcib_if.h"
@@ -116,6 +118,7 @@ cia_pcib_probe(device_t dev)
 {
 	device_set_desc(dev, "2117x PCI host bus adapter");
 
+	pci_init_resources();
 	device_add_child(dev, "pci", 0);
 
 	return 0;
@@ -395,10 +398,10 @@ static device_method_t cia_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	cia_pcib_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	alpha_platform_pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	alpha_platform_pci_teardown_intr),
 
