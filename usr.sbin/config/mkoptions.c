@@ -51,8 +51,6 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-#define ns(s) strdup(s)
-
 static	struct users {
 	int	u_default;
 	int	u_min;
@@ -298,7 +296,7 @@ openit:
 	if (fp == 0) {
 		return;
 	}
-	if(ident == NULL) {
+	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
 	}
@@ -322,12 +320,9 @@ next:
 	}
 	if (wd == 0)
 		goto next;
-	/*************************************************\
-	* If it's a comment ignore to the end of the line *
-	\*************************************************/
-	if(wd[0] == '#')
+	if (wd[0] == '#')
 	{
-		while( ((wd = get_word(fp)) != (char *)EOF) && wd)
+		while (((wd = get_word(fp)) != (char *)EOF) && wd)
 		;
 		goto next;
 	}

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)config.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -81,6 +82,7 @@ struct device {
 	int	d_target;		/* target number */
 	int	d_lun;			/* unit number */
 	int	d_slave;		/* slave number */
+	int	d_count;		/* pseudo-device count */
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
 	int	d_dk;			/* if init 1 set to number for iostat */
@@ -96,10 +98,8 @@ struct device {
 	struct	device *d_next;		/* Next one in list */
 };
 #define TO_NEXUS	(struct device *)-1
-#define TO_VBA		(struct device *)-2
 
 struct config {
-	char	*c_dev;
 	char	*s_sysname;
 };
 
@@ -179,3 +179,4 @@ extern	int old_config_present;	/* Old config/build directory still there */
 extern char *PREFIX;		/* Config file name - for error messages */
 
 #define eq(a,b)	(!strcmp(a,b))
+#define ns(s)	strdup(s)

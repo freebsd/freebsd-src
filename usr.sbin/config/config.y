@@ -4,12 +4,9 @@
 	struct	file_list *file;
 }
 
-%token	AND
 %token	ANY
 %token	AT
-%token	BIO
 %token	BUS
-%token	CAM
 %token	COMMA
 %token	CONFIG
 %token	CONFLICTS
@@ -27,24 +24,16 @@
 %token	IOSIZ
 %token	IRQ
 %token	MACHINE
-%token	MASTER
 %token	MAXUSERS
-%token	MINOR
 %token	MINUS
-%token	NET
 %token	NEXUS
 %token	OPTIONS
 %token	MAKEOPTIONS
 %token	PORT
-%token	PRIORITY
 %token	PSEUDO_DEVICE
 %token	SEMICOLON
-%token	SEQUENTIAL
-%token	SIZE
-%token	SLAVE
 %token	TARGET
 %token	TTY
-%token	TRACE
 %token	UNIT
 %token	VECTOR
 
@@ -111,7 +100,6 @@ int	yyline;
 struct  file_list *ftab;
 char	errbuf[80];
 int	maxusers;
-int	do_trace;
 
 int	seen_scbus;
 
@@ -139,8 +127,6 @@ Spec:
 	      = { newdev(&cur); } |
 	Config_spec SEMICOLON
 		|
-	TRACE SEMICOLON
-	      = { do_trace = !do_trace; } |
 	SEMICOLON
 		|
 	error SEMICOLON
@@ -320,13 +306,11 @@ Dev:
 	;
 
 Device_spec:
-	DEVICE Dev_name Dev_info Int_spec
+	DEVICE Dev_name Dev_info
 	      = { cur.d_type = DEVICE; } |
-	MASTER Dev_name Dev_info Int_spec
-	      = { cur.d_type = MASTER; } |
-	DISK Dev_name Dev_info Int_spec
+	DISK Dev_name Dev_info
 	      = { cur.d_dk = 1; cur.d_type = DEVICE; } |
-	CONTROLLER Dev_name Dev_info Int_spec
+	CONTROLLER Dev_name Dev_info
 	      = { cur.d_type = CONTROLLER; } |
 	PSEUDO_DEVICE Init_dev Dev
 	      = {
@@ -337,7 +321,7 @@ Device_spec:
 	      = {
 		cur.d_name = $3;
 		cur.d_type = PSEUDO_DEVICE;
-		cur.d_slave = $4;
+		cur.d_count = $4;
 		} ;
 
 Dev_name:
@@ -370,7 +354,7 @@ Con_info:
 		cur.d_conn = connect($2, $3);
 		} |
 	AT NEXUS NUMBER
-	      = { check_nexus(&cur, $3); cur.d_conn = TO_NEXUS; };
+	      = { cur.d_conn = TO_NEXUS; };
     
 Info_list:
 	Info_list Info
@@ -379,7 +363,7 @@ Info_list:
 		;
 
 Info:
-	BUS NUMBER
+	BUS NUMBER	/* controller scbus1 at ahc0 bus 1 - twin channel */
 	      = {
 		if (cur.d_conn != 0 && cur.d_conn->d_type == CONTROLLER)
 			cur.d_slave = $2;
@@ -393,14 +377,6 @@ Info:
 	      = { cur.d_lun = $2; } |
 	DRIVE NUMBER
 	      = { cur.d_drive = $2; } |
-	SLAVE NUMBER
-	      = {
-		if (cur.d_conn != 0 && cur.d_conn != TO_NEXUS &&
-		    cur.d_conn->d_type == MASTER)
-			cur.d_slave = $2;
-		else
-			yyerror("can't specify slave--not to master");
-		} |
 	IRQ NUMBER
 	      = { cur.d_irq = $2; } |
 	DRQ NUMBER
@@ -413,28 +389,12 @@ Info:
 	      = { cur.d_port = $2; } |
 	PORT NUMBER
 	      = { cur.d_portn = $2; } |
-	TTY 
-	      = { yyerror("`tty' interrupt label obsolete"); } |
-	BIO 
-	      = { yyerror("`bio' interrupt label obsolete"); } |
-	CAM 
-	      = { yyerror("`cam' interrupt label obsolete"); } |
-	NET 
-	      = { yyerror("`net' interrupt label obsolete"); } |
 	FLAGS NUMBER
 	      = { cur.d_flags = $2; } |
 	DISABLE	
 	      = { cur.d_disabled = 1; } |
 	CONFLICTS
 	      = { cur.d_conflicts = 1; };
-
-Int_spec:
-	VECTOR ID
-	      = { yyerror("`vector xxxintr' interrupt vector obsolete"); } |
-	PRIORITY NUMBER
-	      = { yyerror("`priority nnn' interrupt priority obsolete"); } |
-	/* lambda */
-		;
 
 %%
 
@@ -492,7 +452,7 @@ connect(dev, num)
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if ((num != dp->d_unit) || !eq(dev, dp->d_name))
 			continue;
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER) {
+		if (dp->d_type != CONTROLLER) {
 			(void) snprintf(errbuf, sizeof(errbuf), 
 			    "%s connected to non-controller", dev);
 			yyerror(errbuf);
@@ -577,33 +537,12 @@ init_dev(dp)
 	dp->d_conflicts = 0;
 	dp->d_disabled = 0;
 	dp->d_flags = dp->d_dk = 0;
-	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = UNKNOWN;
+	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
+		dp->d_count = UNKNOWN;
 	dp->d_port = (char *)0;
 	dp->d_portn = -1;
 	dp->d_irq = -1;
 	dp->d_drq = -1;
 	dp->d_maddr = 0;
 	dp->d_msize = 0;
-}
-
-/*
- * make certain that this is a reasonable type of thing to connect to a nexus
- */
-static void
-check_nexus(dev, num)
-	register struct device *dev;
-	int num;
-{
-
-	switch (machine) {
-
-	case MACHINE_I386:
-	case MACHINE_PC98:
-#if 0
-		if (!eq(dev->d_name, "isa"))
-			yyerror("only isa's should be connected to the nexus");
-#endif
-		break;
-
-	}
 }
