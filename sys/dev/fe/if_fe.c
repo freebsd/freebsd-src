@@ -68,10 +68,6 @@
  *  o   To test new-bus frontend.
  */
 
-#include "opt_fe.h"
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
