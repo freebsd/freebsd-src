@@ -734,17 +734,10 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
 	 * Default to PAGE_SIZE after much discussion.
+	 * XXX: min(PAGE_SIZE, vp->v_bufobj.bo_bsize) may be more correct.
 	 */
 
-	if (vap->va_type == VREG) {
-		sb->st_blksize = vap->va_blocksize;
-	} else if (vn_isdisk(vp, NULL)) {
-		sb->st_blksize = vp->v_rdev->si_bsize_phys;
-		if (sb->st_blksize < BLKDEV_IOSIZE)
-			sb->st_blksize = BLKDEV_IOSIZE;
-	} else {
-		sb->st_blksize = PAGE_SIZE;
-	}
+	sb->st_blksize = PAGE_SIZE;
 	
 	sb->st_flags = vap->va_flags;
 	if (suser(td))
