@@ -124,7 +124,7 @@ struct timeval actualtimeout =
 	15 * 60L,					/* tv_sec */
 	0							/* tv_usec */
 };
-u_int maxhops = 4;				/* Number of hops allowed for requests. */
+u_char maxhops = 4;				/* Number of hops allowed for requests. */
 u_int minwait = 3;				/* Number of seconds client must wait before
 						   its bootrequest packets are forwarded. */
 
@@ -281,7 +281,7 @@ main(argc, argv)
 						"bootpgw: invalid hop count limit\n");
 				break;
 			}
-			maxhops = (u_int)n;
+			maxhops = (u_char)n;
 			break;
 
 		case 'i':				/* inetd mode */
@@ -528,7 +528,8 @@ static void
 handle_request()
 {
 	struct bootp *bp = (struct bootp *) pktbuf;
-	u_short secs, hops;
+	u_short secs;
+        u_char hops;
 
 	/* XXX - SLIP init: Set bp_ciaddr = recv_addr here? */
 
@@ -542,13 +543,13 @@ handle_request()
 		return;
 
 	/* Has this packet hopped too many times? */
-	hops = ntohs(bp->bp_hops);
+	hops = bp->bp_hops;
 	if (++hops > maxhops) {
 		report(LOG_NOTICE, "reqest from %s reached hop limit",
 			   inet_ntoa(recv_addr.sin_addr));
 		return;
 	}
-	bp->bp_hops = htons(hops);
+	bp->bp_hops = hops;
 
 	/*
 	 * Here one might discard a request from the same subnet as the
