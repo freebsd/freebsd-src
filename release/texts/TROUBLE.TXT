@@ -364,11 +364,4 @@ A: There is a problem with the onboard Ethernet in the Netfinity 3500
    to configure the onboard adapter at any time.
 
 
-Q: Why does my TEAC CD-220E (rev 1.0D) IDE CD-ROM lock up the system when
-   I use it?
-
-A: There are apparently firmware problems with this drive and,
-   though a fix may soon be forthcoming, it should probably be avoided
-   for now.
-
 [ Please send hardware tips for this Q&A section to jkh@freebsd.org ]
