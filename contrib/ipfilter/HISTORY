@@ -8,7 +8,7 @@
 #
 # Thanks to Tel.Net Media for allowing me to maintain and further develop
 # IP Filter as part of my job and supplying Sun equipment for testing the
-# move to 64bits.
+# move to 64bits and Gigabit Ethernet.
 #
 # Thanks to BSDI for providing object files for BSD/OS 3.1 and the means
 # to further support development of IP Filter under BSDI.
@@ -20,6 +20,43 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.3.8	01/02/2000 - Released
+
+fix state handling of SYN packets.
+
+add parsing recognition of extra icmp types/codes and fix handling of
+icmp time stamps and mask requests - Frank volf
+
+3.3.7	25/01/2000 - Released
+
+sync on state information as well as NAT information when required
+
+record nat protocol in all nat log records
+
+don't reuse the IP# from an active NAT session if the IP# in the rule
+has changed dynamically.
+
+lookup the protocol for NAT log information in ipmon and pass that to
+portname.
+
+fix the bug with changing the outbound interface of a packet where it
+would lead to a panic.
+
+use fr_running instead of ipl_inited. (sysctl name change on freebsd)
+
+return EIO if someone attempts an ioctl on state/nat if ipfilter is not
+enabled.
+
+fix rule insertion bug
+
+make state flushing clean anything that's not fully established (4/4)
+
+call fr_state_flush() after we've released ipf_state so we don't generate
+a recursive mutex acquisition panic
+
+fix parsing of icmp code after return-icmp/return-icmp-as-dest and add
+some patches to enhance parsing strength
+
 3.3.6	28/12/1999 - Released
 
 add in missing rwlock release in fr_checkicmpmatchingstate() and fix check

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.4.2.14 1999/12/11 05:31:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.4.2.16 2000/01/16 10:12:42 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -126,7 +126,6 @@ extern	int	tcp_ttl;
 # endif
 #endif
 
-int	ipl_inited = 0;
 int	ipl_unreach = ICMP_UNREACH_FILTER;
 u_long	ipl_frouteok[2] = {0, 0};
 
@@ -230,7 +229,7 @@ int iplattach()
 # endif
 
 	SPL_NET(s);
-	if (ipl_inited || (fr_checkp == fr_check)) {
+	if (fr_running || (fr_checkp == fr_check)) {
 		printf("IP Filter: already initialized\n");
 		SPL_X(s);
 		return EBUSY;
@@ -258,7 +257,6 @@ int iplattach()
 	}
 # endif
 
-	ipl_inited = 1;
 	bzero((char *)frcache, sizeof(frcache));
 	fr_savep = fr_checkp;
 	fr_checkp = fr_check;
@@ -286,6 +284,7 @@ int iplattach()
 	timeout(ipfr_slowtimer, NULL, hz/2);
 # endif
 #endif
+	fr_running = 1;
 	return 0;
 }
 
@@ -310,7 +309,7 @@ int ipldetach()
 # endif
 #endif
 	SPL_NET(s);
-	if (!ipl_inited)
+	if (!fr_running)
 	{
 		printf("IP Filter: not initialized\n");
 		SPL_X(s);
@@ -319,7 +318,7 @@ int ipldetach()
 
 	fr_checkp = fr_savep;
 	i = frflush(IPL_LOGIPF, i);
-	ipl_inited = 0;
+	fr_running = 0;
 
 # ifdef NETBSD_PF
 	pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT);
@@ -412,11 +411,15 @@ int mode;
 	SPL_NET(s);
 
 	if (unit == IPL_LOGNAT) {
+		if (!fr_running)
+			return EIO;
 		error = nat_ioctl(data, cmd, mode);
 		SPL_X(s);
 		return error;
 	}
 	if (unit == IPL_LOGSTATE) {
+		if (!fr_running)
+			return EIO;
 		error = fr_state_ioctl(data, cmd, mode);
 		SPL_X(s);
 		return error;
@@ -437,15 +440,10 @@ int mode;
 			error = EPERM;
 		else {
 			IRCOPY(data, (caddr_t)&enable, sizeof(enable));
-			if (enable) {
+			if (enable)
 				error = iplattach();
-				if (error == 0)
-					fr_running = 1;
-			} else {
+			else
 				error = ipldetach();
-				if (error == 0)
-					fr_running = 0;
-			}
 		}
 		break;
 	}
@@ -702,13 +700,15 @@ caddr_t data;
 	}
 
 	if (!f) {
-		if (req != SIOCINAFR || req != SIOCINIFR)
+		if (req != SIOCINAFR && req != SIOCINIFR)
 			while ((f = *ftail))
 				ftail = &f->fr_next;
 		else {
-			if (fp->fr_hits)
+			if (fp->fr_hits) {
+				ftail = fprev;
 				while (--fp->fr_hits && (f = *ftail))
 					ftail = &f->fr_next;
+			}
 			f = NULL;
 		}
 	}
@@ -944,7 +944,11 @@ ip_t *ip;
 #  if _BSDI_VERSION >= 199802
 	return ip_output(m, (struct mbuf *)0, &ro, 0, 0, NULL);
 #  else
+#   if	defined(__OpenBSD__)
+	return ip_output(m, (struct mbuf *)0, 0, 0, 0, NULL);
+#   else
 	return ip_output(m, (struct mbuf *)0, 0, 0, 0);
+#   endif
 #  endif
 # endif
 }
