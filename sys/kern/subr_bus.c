@@ -790,8 +790,10 @@ device_probe_child(device_t dev, device_t child)
 	/*
 	 * The driver returned an error so it certainly doesn't match.
 	 */
-	if (result > 0)
+	if (result > 0) {
+	    device_set_driver(child, 0);
 	    continue;
+	}
 
 	/*
 	 * A priority lower than SUCCESS, remember the best matching
