@@ -424,12 +424,6 @@ int midiattach(struct isa_device * dev);
 int synthattach(struct isa_device * dev);
 
 /*
- * functions in isa.c
- */
-
-int isa_dmastatus(int chan);
-int isa_dmastop(int chan);
-/*
  *      DMA buffer calls
  */
 
