@@ -6,45 +6,47 @@
 .TP
 .B pkg_manage
 .SH DESCRIPTION
-Pkg_manage is an interactive tool with wich you can install, 
-delete and view packages. It is a 
-front-end to the pkg_add(1), pkg_info(1) and pkg_delete(1) programs.
+Pkg_manage is an interactive tool with which you can install, 
+delete and view packages. It is essentially a 
+front-end to the pkg_add(1), pkg_info(1) and pkg_delete(1) programs
+which uses the new libdialog extensions for the GUI.
 
-Pressing F1 (or '?') at anytime during the program will bring up 
-online-help.  (Pressing '?' will not invoke help when in character 
-input fields)
+Pressing F1 (or '?') at any time during the program will bring up 
+on-line help.  (Pressing '?' will not invoke help when in character 
+input fields).
 
 .SH NAVIGATING THE MENU
-When starting pkg_manage you will be put in a menu with the following 
-choices:
+At start time, pkg_manage will present a menu with the following choices:
 
 .TP
 .B 1. View installed.
 You will be offered an overview of the installed 
-packages. Moving the cursor to a packagename and pressing 'enter'
-will show additional information for the package. Use the 
+packages. Moving the cursor to a package name and pressing the
+.B Enter
+key will show additional information for the package. Use the 
 .B PgUp
 and 
 .B PgDn
-keys to page through the information. Press
+keys to page through the information.  Press the
 .B Enter
-(this selects the 
+key (this selects the 
 .B <EXIT>
-button) to return to the 'View installed Packages' menu. 
+button) to return to the `View installed Packages' menu. 
 
-When done viewing packages move the cursor to the 
+When done viewing packages, move the cursor to the 
 .B <Cancel> 
 button with the right-arrow key (or left-arrow key) 
-and press enter. This will return you to the main-menu.
+and press Enter. This will return you to the main menu.
 
 .TP
 .B 2. Delete installed
-You can choose a package from the installed ones to delete. Move the 
-cursor to the package you wish to delete and press enter. This will
+You can select a package from the list of installed packages for deletion.
+Move the cursor to the package you wish to delete and press Enter. This will
 bring up another menu from which you can choose to either:
 
 .B 1. Simulate delete:
-Have a look at the commands that are going to be executed (recommended).
+Have a look at the commands that are going to be executed rather than
+executing them (recommended).
 .B 2. Delete:
 Execute the commands to delete the package.
 .B 3. Cancel:
@@ -56,86 +58,90 @@ previous menu.
 Choose the 
 .B <Cancel>
 button if you don't want to delete any packages 
-and return to the main-menu.
+and return to the main menu.
 
 .TP
 .B 3. View pkg files
-Take a look at the description of not yet installed packages and see if you 
-want it or not. 
-Choose a package with the fileselector. See below for a description of 
-the usage of the fileselector.
+Take a look at the descriptions of not-yet-installed packages and see if you 
+want any of them or not. 
+For this option, you'll be asked to chose a package file name using the new
+file selector object. See below for a description of the usage of the
+file selector.
 
 .TP
 .B 4. Install pkg files
-Install packages of your choice. Use the fileselector to select a 
+Install packages of your choice. Use the file selector to select a 
 package.
 
 .TP
 .B 5. Quit
-Well just try this one if you get fed up fiddling with your packages.
+Well, just try this one if you get fed up fiddling with your packages.
 
-.SH USING THE FILESELECTOR
+.SH USING THE FILE SELECTOR
 
-Using the fileselector is really very simple.
+Using the file selector is really quite simple, with a typical file selector
+dialog looking something like this:
 
-.\"
-.\" Does anyone know how I can enter this into the manpage?
-.\"
-.\"+----------------------------------------------------------+
-.\"|  Filemask:           Directory:                          |
-.\"| +-----------------+ +----------------------------------+ |
-.\"| |*.tgz            | |/seperate/home/marc/src/pkg_manage| |
-.\"| +-----------------+ +----------------------------------+ |
-.\"| |  Directories:                 Files:                   |
-.\"| +--------------------------+ +-------------------------+ |
-.\"| |..                        | |mlist-1.2_bin.tgz        | |
-.\"| |libdialog                 | |                         | |
-.\"| |                          | |                         | |
-.\"| |                          | |                         | |
-.\"| |                          | |                         | |
-.\"| |                          | |                         | |
-.\"| |                          | |                         | |
-.\"| +-------------------(100%)-+ +------------------(100%)-+ |
-.\"|  Selection:                                              |
-.\"| +------------------------------------------------------+ |
-.\"| |                                                      | |
-.\"| +------------------------------------------------------+ |
-.\"|                   +------+  +----------+                 |
-.\"|                   | <Ok> |  | <Cancel> |                 |
-.\"|                   +------+  +----------+                 |
-.\"+----------------------------------------------------------+ 
-.\"
-Use the 
+.nf
++----------------------------------------------------------+
+|  Filemask:           Directory:                          |
+| +-----------------+ +----------------------------------+ |
+| |*.tgz            | |/seperate/home/marc/src/pkg_manage| |
+| +-----------------+ +----------------------------------+ |
+| |  Directories:                 Files:                   |
+| +--------------------------+ +-------------------------+ |
+| |..                        | |mlist-1.2_bin.tgz        | |
+| |libdialog                 | |                         | |
+| |                          | |                         | |
+| |                          | |                         | |
+| |                          | |                         | |
+| |                          | |                         | |
+| |                          | |                         | |
+| +-------------------(100%)-+ +------------------(100%)-+ |
+|  Selection:                                              |
+| +------------------------------------------------------+ |
+| |                                                      | |
+| +------------------------------------------------------+ |
+|                   +------+  +----------+                 |
+|                   | <Ok> |  | <Cancel> |                 |
+|                   +------+  +----------+                 |
++----------------------------------------------------------+ 
+
+.fi
+You may use the 
 .B TAB 
-key to move forwards from one input/display field to 
-the next. If enabled in the termcap, 
+key to move forward from one input or display field to 
+the next. If enabled in the termcap file, 
 .B Shift-TAB 
-will move backwards.
-Pressing enter in a field will perform the changes you may have made and 
-move to the next field. Pressing 
+will also move backwards.
+Pressing the
+.B Enter
+key in a field will commit any changes you may have made and 
+move to the next field. Pressing the
 .B TAB 
-will discard the changes and move to the next field.
+key will discard any changes and move to the next field.
 
 The 
 .B "Filemask:" 
-controls what kind of files will be displayed in the 
+field controls what kind of files will be displayed in the 
 .B "Files:" 
-list. The expression follows the same rules as your shell does, i.e.
-\'*.tgz' will only show files having names ending with '.tgz'.
+list. The expression follows the same globbing rules that your shell
+does, e.g.  \'*.tgz' will only show files having names ending with '.tgz'.
 
+The
 .B "Directory:"
-displays the current directory. You can also type in another directory 
-in this field. 
+field displays the current directory. You can also type another directory 
+name into this field. 
 
 The 
 .B "Directories:" 
 list enables you to browse the filesystem. Select 
 .B '..'
-and press enter to
-go up the directory tree, select any other directory listed to descent 
+and press Enter to
+go up the directory tree, select any other directory listed to descend
 into that directory.
 
-Finally there three more fields: The 
+Finally, there three more fields: The 
 .B Selection:
 , the 
 .B <Ok>
@@ -143,16 +149,16 @@ button and the
 .B <Cancel> 
 button. The file chosen in the 
 .B Files:
-field, assuming you pressed enter, will be displayed in the 
+field, assuming you pressed Enter, will be displayed in the 
 .B Selection:
 field. You can also change this value directly by editing the field. 
 
 When you are satisfied with the current selection you can move the cursor
 to the
 .B <Ok>
-button and press enter. If you want to back out, move the cursor to the 
+button and press Enter. If you want to back out, move the cursor to the 
 .B <Cancel> 
-button and press enter.
+button and press Enter.
 
 .SH SEE ALSO
 pkg_add(1), pkg_info(1), pkg_delete(1), pkg_create(1).
