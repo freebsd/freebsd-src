@@ -1195,9 +1195,7 @@ ptransfer(direction, bytes, t0, t1)
 		else
 			printf("%ld bytes %s in %.2f seconds (%.2f Kbytes/s)\n",
 				bytes, direction, s, bs / 1024.);
-        }
-  }
-
+	}
 }
 
 /*
