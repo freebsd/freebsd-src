@@ -29,7 +29,7 @@
  *
  *	BSDI int1a.c,v 2.2 1996/04/08 19:32:49 bostic Exp
  *
- * $Id: int1a.c,v 1.3 1996/09/22 15:42:56 miff Exp $
+ * $Id: int1a.c,v 1.1 1997/08/09 01:42:49 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -47,6 +47,7 @@ int1a(regcontext_t *REGS)
     struct	timeval	tod;
     struct	timezone zone;
     struct	tm *tm;
+    time_t	tv_sec;
     long	value;
     static long midnight = 0;
 
@@ -57,7 +58,8 @@ int1a(regcontext_t *REGS)
 	gettimeofday(&tod, &zone);
 
 	if (midnight == 0) {
-	    tm = localtime(&boot_time.tv_sec);
+	    tv_sec = boot_time.tv_sec;
+	    tm = localtime(&tv_sec);
 	    midnight = boot_time.tv_sec - (((tm->tm_hour * 60)
 					    + tm->tm_min) * 60
 					   + tm->tm_sec);
@@ -66,7 +68,8 @@ int1a(regcontext_t *REGS)
 	R_AL = (tod.tv_sec - midnight) / (24 * 60 * 60);
 
 	if (R_AL) {
-	    tm = localtime(&boot_time.tv_sec);
+	    tv_sec = boot_time.tv_sec;
+	    tm = localtime(&tv_sec);
 	    midnight = boot_time.tv_sec - (((tm->tm_hour * 60)
 					    + tm->tm_min) * 60
 					   + tm->tm_sec);
@@ -81,14 +84,16 @@ int1a(regcontext_t *REGS)
 	break;
 
     case 0x01:				/* set current clock count */
-	tm = localtime(&boot_time.tv_sec);
+	tv_sec = boot_time.tv_sec;
+	tm = localtime(&tv_sec);
 	midnight = boot_time.tv_sec - (((tm->tm_hour * 60)
 	    + tm->tm_min) * 60 + tm->tm_sec);
         break;
 
     case 0x02:
 	gettimeofday(&tod, &zone);
-	tm = localtime(&tod.tv_sec);
+	tv_sec = tod.tv_sec;
+	tm = localtime(&tv_sec);
 	R_CH = to_BCD(tm->tm_hour);
 	R_CL = to_BCD(tm->tm_min);
 	R_DH = to_BCD(tm->tm_sec);
@@ -96,7 +101,8 @@ int1a(regcontext_t *REGS)
 
     case 0x04:
 	gettimeofday(&tod, &zone);
-	tm = localtime(&tod.tv_sec);
+	tv_sec = tod.tv_sec;
+	tm = localtime(&tv_sec);
 	R_CH = to_BCD((tm->tm_year + 1900) / 100);
 	R_CL = to_BCD((tm->tm_year + 1900) % 100);
 	R_DH = to_BCD(tm->tm_mon + 1);
