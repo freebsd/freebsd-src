@@ -82,6 +82,22 @@ vm_pageq_requeue(vm_page_t m)
 }
 
 /*
+ *	vm_pageq_enqueue:
+ *
+ */
+void
+vm_pageq_enqueue(int queue, vm_page_t m)
+{
+	struct vpgqueues *vpq;
+
+	vpq = &vm_page_queues[queue];
+	m->queue = queue;
+	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
+	++*vpq->cnt;
+	++vpq->lcnt;
+}
+
+/*
  *	vm_add_new_page:
  *
  *	Add a new page to the freelist for use by the system.
@@ -95,14 +111,11 @@ vm_pageq_add_new_page(vm_offset_t pa)
 	GIANT_REQUIRED;
 
 	++cnt.v_page_count;
-	++cnt.v_free_count;
 	m = PHYS_TO_VM_PAGE(pa);
 	m->phys_addr = pa;
 	m->flags = 0;
 	m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
-	m->queue = m->pc + PQ_FREE;
-	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
-	vm_page_queues[m->queue].lcnt++;
+	vm_pageq_enqueue(m->pc + PQ_FREE, m);
 	return (m);
 }
 

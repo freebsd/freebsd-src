@@ -1041,12 +1041,9 @@ vm_page_activate(vm_page_t m)
 		vm_pageq_remove(m);
 
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
-			m->queue = PQ_ACTIVE;
-			vm_page_queues[PQ_ACTIVE].lcnt++;
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
-			cnt.v_active_count++;
+			vm_pageq_enqueue(PQ_ACTIVE, m);
 		}
 	} else {
 		if (m->act_count < ACT_INIT)
@@ -1311,17 +1308,11 @@ vm_page_unwire(vm_page_t m, int activate)
 			cnt.v_wire_count--;
 			if (m->flags & PG_UNMANAGED) {
 				;
-			} else if (activate) {
-				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
-				m->queue = PQ_ACTIVE;
-				vm_page_queues[PQ_ACTIVE].lcnt++;
-				cnt.v_active_count++;
-			} else {
+			} else if (activate)
+				vm_pageq_enqueue(PQ_ACTIVE, m);
+			else {
 				vm_page_flag_clear(m, PG_WINATCFLS);
-				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
-				m->queue = PQ_INACTIVE;
-				vm_page_queues[PQ_INACTIVE].lcnt++;
-				cnt.v_inactive_count++;
+				vm_pageq_enqueue(PQ_INACTIVE, m);
 			}
 		}
 	} else {
@@ -1451,10 +1442,7 @@ vm_page_cache(vm_page_t m)
 	}
 	s = splvm();
 	vm_pageq_remove_nowakeup(m);
-	m->queue = PQ_CACHE + m->pc;
-	vm_page_queues[m->queue].lcnt++;
-	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
-	cnt.v_cache_count++;
+	vm_pageq_enqueue(PQ_CACHE + m->pc, m);
 	vm_page_free_wakeup();
 	splx(s);
 }

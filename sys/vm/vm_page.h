@@ -334,13 +334,13 @@ void vm_page_free_zero(vm_page_t m);
 int vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg);
 void vm_page_dirty(vm_page_t m);
 void vm_page_undirty(vm_page_t m);
-vm_page_t vm_page_list_find(int basequeue, int index, boolean_t prefer_zero);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
 struct vpgqueues *vm_pageq_aquire(int queue);
 void vm_pageq_release(struct vpgqueues *vpq);
 vm_page_t vm_pageq_add_new_page(vm_offset_t pa);
+void vm_pageq_enqueue(int queue, vm_page_t m);
 void vm_pageq_remove_nowakeup(vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
 vm_page_t vm_pageq_find(int basequeue, int index, boolean_t prefer_zero);
@@ -359,12 +359,9 @@ vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 vm_offset_t vm_page_startup (vm_offset_t, vm_offset_t, vm_offset_t);
-vm_page_t vm_add_new_page (vm_offset_t pa);
 void vm_page_unmanage (vm_page_t);
 void vm_page_unwire (vm_page_t, int);
 void vm_page_wire (vm_page_t);
-void vm_page_unqueue (vm_page_t);
-void vm_page_unqueue_nowakeup (vm_page_t);
 void vm_page_set_validclean (vm_page_t, int, int);
 void vm_page_set_dirty (vm_page_t, int, int);
 void vm_page_clear_dirty (vm_page_t, int, int);
@@ -372,10 +369,6 @@ void vm_page_set_invalid (vm_page_t, int, int);
 int vm_page_is_valid (vm_page_t, int, int);
 void vm_page_test_dirty (vm_page_t);
 int vm_page_bits (int, int);
-#if 0
-int vm_page_sleep(vm_page_t m, char *msg, char *busy);
-int vm_page_asleep(vm_page_t m, char *msg, char *busy);
-#endif
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 void vm_page_zero_idle_wakeup(void);
