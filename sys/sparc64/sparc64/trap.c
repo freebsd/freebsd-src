@@ -208,7 +208,7 @@ const int trap_sig[] = {
 	SIGILL,			/* range check */
 	SIGILL,			/* fix alignment */
 	SIGILL,			/* integer overflow */
-	-1,			/* syscall */
+	SIGSYS,			/* syscall */
 	-1,			/* restore physical watchpoint */
 	-1,			/* restore virtual watchpoint */
 	-1,			/* kernel stack fault */
