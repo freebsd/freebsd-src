@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.5.2.1 1997/03/26 17:55:19 obrien Exp $
+ *	$Id: util.c,v 1.5.2.2 1998/07/15 02:01:36 jkh Exp $
  */
 
 #ifndef lint
@@ -154,7 +154,7 @@ prn_octal(s)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: ls [-ACFHLPRTWacdfgikloqrstu1]"
+	(void)fprintf(stderr, "usage: ls [-ACFHLPRTacdfgikloqrstu1]"
 		      " [file ...]\n");
 	exit(1);
 }
