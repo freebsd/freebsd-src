@@ -1008,6 +1008,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 * This thread now owns one less priority mutex.
 				 */
 				curthread->priority_mutex_count--;
+				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Remove the mutex from the threads queue. */
 				MUTEX_ASSERT_IS_OWNED(*m);
