@@ -853,7 +853,8 @@ options.  You must also specify the destination label in
 .Pa /etc/ppp/ppp.conf
 to use.  It must contain the
 .Dq set ifaddr
-command to define the remote peers IP address. (refer to
+command to define the remote peers IP address.
+(refer to
 .Pa /usr/share/examples/ppp/ppp.conf.sample )
 .Bd -literal -offset indent
 # ppp -auto pmdemand
@@ -911,7 +912,8 @@ command:
 .Bl -tag -width attempts -compact
 .It Ar secs
 is the number of seconds to wait before attempting
-to connect again. If the argument is the literal string
+to connect again.
+If the argument is the literal string
 .Sq Li random ,
 the delay period is a random value between 1 and 30 seconds inclusive.
 .It Ar inc
@@ -980,7 +982,8 @@ Modifying the dial delay is very useful when running
 .Nm
 in
 .Fl auto
-mode on both ends of the link. If each end has the same timeout,
+mode on both ends of the link.
+If each end has the same timeout,
 both ends wind up calling each other at the same time if the link
 drops and both ends have packets queued.
 At some locations, the serial link may not be reliable, and carrier
@@ -1421,7 +1424,8 @@ and that other machines have designated the
 .Nm
 host as the gateway for the LAN.
 .Sh PACKET FILTERING
-This implementation supports packet filtering. There are four kinds of
+This implementation supports packet filtering.
+There are four kinds of
 filters; the
 .Em in
 filter, the
@@ -1635,13 +1639,15 @@ to successfully negotiate DEFLATE with
 version 2.3.*.
 .Sh CONTROLLING IP ADDRESS
 .Nm
-uses IPCP to negotiate IP addresses. Each side of the connection
+uses IPCP to negotiate IP addresses.
+Each side of the connection
 specifies the IP address that it's willing to use, and if the requested
 IP address is acceptable then
 .Nm
 returns ACK to the requester.  Otherwise,
 .Nm
-returns NAK to suggest that the peer use a different IP address. When
+returns NAK to suggest that the peer use a different IP address.
+When
 both sides of the connection agree to accept the received request (and
 send ACK), IPCP is set to the open state and a network level connection
 is established.
