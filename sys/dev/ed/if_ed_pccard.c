@@ -41,10 +41,6 @@
 #include <net/if_arp.h>
 #include <net/if_mib.h>
 
-#include <sys/select.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-
 #include <dev/ed/if_edvar.h>
 
 /*
