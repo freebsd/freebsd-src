@@ -2048,14 +2048,13 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
  */
 
 void
-pmap_zero_page_area(vm_page_t m)
+pmap_zero_page_idle(vm_page_t m)
 {
 	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
 	bzero((caddr_t) va, PAGE_SIZE);
 }
 
 
-/*
 /*
  *	pmap_copy_page copies the specified (machine independent)
  *	page by mapping the page into virtual memory and using
