@@ -68,7 +68,7 @@ rain_update(video_adapter_t *adp)
 static int
 rain_saver(video_adapter_t *adp, int blank)
 {
-	int i, j, k, o, p, pl;
+	int i, j, o, p, pl;
 	u_char temp;
 
 	if (blank) {
