@@ -2846,6 +2846,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		printf("ipfw: size mismatch (have %d want %d)\n", size, l);
 		return (EINVAL);
 	}
+	if (rule->act_ofs >= rule->cmd_len) {
+		printf("ipfw: bogus action offset (%u > %u)\n",
+		    rule->act_ofs, rule->cmd_len - 1);
+		return (EINVAL);
+	}
 	/*
 	 * Now go for the individual checks. Very simple ones, basically only
 	 * instruction sizes.
