@@ -58,6 +58,18 @@ struct acpi_bst {
 	u_int32_t volt;				/* Present Voltage */
 };
 
+union acpi_cmbat_ioctl_arg {
+	int	 unit;
+	struct	 acpi_bif bif;
+	struct	 acpi_bst bst;
+};
+
+#define ACPIIO_CMBAT_GET_UNITS	_IOR('B', 1, int)
+#define ACPIIO_CMBAT_GET_BIF	_IOWR('B', 2, union acpi_cmbat_ioctl_arg)
+#define ACPIIO_CMBAT_GET_BST	_IOWR('B', 3, union acpi_cmbat_ioctl_arg)
+
+#define ACPIIO_ACAD_GET_STATUS	_IOR('A', 1, int)
+
 #ifdef _KERNEL
 extern int	acpi_register_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg), void *arg);
 extern void	acpi_deregister_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg));
