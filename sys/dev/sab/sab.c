@@ -102,7 +102,6 @@ struct sabtty_softc {
 #define	SABTTYF_RBUF_OVERFLOW	0x04
 #define	SABTTYF_CDCHG		0x08
 #define	SABTTYF_CONS		0x10
-#define	SABTTYF_TXDRAIN		0x20
 	uint8_t			sc_pvr_dtr;
 	uint8_t			sc_pvr_dsr;
 	uint8_t			sc_imr0;
@@ -350,9 +349,8 @@ sab_attach(device_t dev)
 	    INTR_TYPE_TTY, &sc->sc_softih);
 
 	if (sabtty_cons != NULL) {
+		DELAY(50000);
 		cninit();
-		device_printf(sabtty_cons->sc_dev, "console, %d baud\n",
-		    sabtty_cons->sc_tty->t_ospeed);
 	}
 
 	EVENTHANDLER_REGISTER(shutdown_final, sab_shutdown, sc,
@@ -426,10 +424,16 @@ sabtty_probe(device_t dev)
 
 	switch (device_get_unit(dev)) {
 	case 0:
-		device_set_desc(dev, "ttya");
+		if (sabtty_console(dev, NULL, 0))
+			device_set_desc(dev, "Channel A, console");
+		else
+			device_set_desc(dev, "Channel A");
 		break;
 	case 1:
-		device_set_desc(dev, "ttyb");
+		if (sabtty_console(dev, NULL, 0))
+			device_set_desc(dev, "Channel B, console");
+		else
+			device_set_desc(dev, "Channel B");
 		break;
 	default:
 		return (ENXIO);
@@ -454,7 +458,9 @@ sabtty_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_parent = device_get_softc(device_get_parent(dev));
 	sc->sc_bt = sc->sc_parent->sc_bt;
+	sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
 	sc->sc_rend = sc->sc_rbuf + SABTTY_RBUF_SIZE;
+	sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
 	sc->sc_xend = sc->sc_xbuf + SABTTY_XBUF_SIZE;
 
 	switch (device_get_unit(dev)) {
@@ -474,7 +480,7 @@ sabtty_attach(device_t dev)
 
 	tp = ttymalloc(NULL);
 	sc->sc_si = make_dev(&sabtty_cdevsw, device_get_unit(dev),
-	    UID_ROOT, GID_WHEEL, 0600, device_get_desc(dev));
+	    UID_ROOT, GID_WHEEL, 0600, "tty%c", 'a' + device_get_unit(dev));
 	sc->sc_si->si_drv1 = sc;
 	sc->sc_si->si_tty = tp;
 	tp->t_dev = sc->sc_si;
@@ -488,10 +494,6 @@ sabtty_attach(device_t dev)
 	tp->t_lflag = TTYDEF_LFLAG;
 
 	if (sabtty_console(dev, mode, sizeof(mode))) {
-		/* Let current output drain */
-		DELAY(100000);
-		sabtty_reset(sc);
-
 		ttychars(tp);
 		if (sscanf(mode, "%d,%d,%c,%d,%c", &baud, &clen, &parity,
 		    &stop, &c) == 5) {
@@ -527,14 +529,6 @@ sabtty_attach(device_t dev)
 			tp->t_ispeed = 9600;
 			tp->t_cflag = CREAD | CS8 | HUPCL;
 		}
-		sabtty_param(sc, tp, &tp->t_termios);
-		SAB_WRITE(sc, SAB_CCR0, SAB_READ(sc, SAB_CCR0) | SAB_CCR0_PU);
-		sabtty_cec_wait(sc);
-		SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_XRES);
-		sabtty_cec_wait(sc);
-		SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_RRES);
-		sabtty_cec_wait(sc);
-
 		sc->sc_flags |= SABTTYF_CONS;
 		sabtty_cons = sc;
 	}
@@ -641,9 +635,6 @@ sabtty_intr(struct sabtty_softc *sc)
 	}
 
 	if (isr1 & SAB_ISR1_ALLS) {
-		if (sc->sc_flags & SABTTYF_TXDRAIN)
-			wakeup(sc);
-		sc->sc_flags &= ~SABTTYF_STOP;
 		sc->sc_flags |= SABTTYF_DONE;
 		sc->sc_imr1 |= SAB_IMR1_ALLS;
 		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
@@ -664,7 +655,7 @@ sabtty_intr(struct sabtty_softc *sc)
 		}
 		sc->sc_xget = ptr;
 		sc->sc_xc -= len;
-		if (sc->sc_xc == 0 || (sc->sc_flags & SABTTYF_STOP) != 0) {
+		if (sc->sc_xc == 0) {
 			sc->sc_imr1 |= SAB_IMR1_XPR;
 			sc->sc_imr1 &= ~SAB_IMR1_ALLS;
 			SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
@@ -710,7 +701,8 @@ sabtty_softintr(struct sabtty_softc *sc)
 
 	SABTTY_LOCK(sc);
 	flags = sc->sc_flags;
-	sc->sc_flags &= ~(SABTTYF_DONE|SABTTYF_CDCHG|SABTTYF_RBUF_OVERFLOW);
+	sc->sc_flags &= ~(SABTTYF_DONE | SABTTYF_CDCHG |
+	    SABTTYF_RBUF_OVERFLOW);
 	SABTTY_UNLOCK(sc);
 
 	if (flags & SABTTYF_CDCHG) {
@@ -747,6 +739,7 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 
 		sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
 		sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
+		sc->sc_xc = 0;
 
 		s = spltty();
 
@@ -821,39 +814,13 @@ sabttyclose(dev_t dev, int flags, int mode, struct thread *td)
 {
 	struct sabtty_softc *sc;
 	struct tty *tp;
-	int s;
 
 	sc = dev->si_drv1;
 	tp = dev->si_tty;
 
 	(*linesw[tp->t_line].l_close)(tp, flags);
-
-	s = spltty();
-
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		/* Wait for output drain */
-		sc->sc_imr1 &= ~SAB_IMR1_ALLS;
-		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
-		sc->sc_flags |= SABTTYF_TXDRAIN;
-		(void)tsleep(sc, TTIPRI, "ttclos", 5 * hz);
-		sc->sc_imr1 |= SAB_IMR1_ALLS;
-		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
-		sc->sc_flags &= ~SABTTYF_TXDRAIN;
-
-		if (tp->t_cflag & HUPCL) {
-			sabtty_mdmctrl(sc, 0, DMSET);
-			(void)tsleep(sc, TTIPRI, "ttclos", hz);
-		}
-
-		if ((sc->sc_flags & SABTTYF_CONS) == 0) {
-			/* Flush and power down if we're not the console */
-			sabtty_flush(sc);
-			sabtty_reset(sc);
-		}
-	}
-
+	sabttystop(tp, FREAD | FWRITE);
 	ttyclose(tp);
-	splx(s);
 
 	return (0);
 }
@@ -925,7 +892,7 @@ sabttystart(struct tty *tp)
 	sc = tp->t_dev->si_drv1;
 
 	s = spltty();
-	if ((tp->t_state & (TS_TTSTOP | TS_TIMEOUT | TS_BUSY)) == 0) {
+	if ((tp->t_state & (TS_TTSTOP | TS_TIMEOUT)) == 0) {
 		if (tp->t_outq.c_cc) {
 			SABTTY_LOCK(sc);
 			while (tp->t_outq.c_cc != 0 &&
@@ -953,21 +920,15 @@ static void
 sabttystop(struct tty *tp, int rw)
 {
 	struct sabtty_softc *sc;
-	int s;
 
 	sc = tp->t_dev->si_drv1;
 
-	s = spltty();
-	if (tp->t_state & TS_BUSY) {
-		if ((tp->t_state & TS_TTSTOP) == 0)
-			tp->t_state |= TS_FLUSH;
-		SABTTY_LOCK(sc);
-		sc->sc_flags |= SABTTYF_STOP;
-		sc->sc_imr1 &= ~SAB_IMR1_ALLS;
-		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
-		SABTTY_UNLOCK(sc);
-	}
-	splx(s);
+	tp->t_state &= ~TS_BUSY;
+	sc->sc_rput = sc->sc_rget = sc->sc_rbuf;
+	sc->sc_xput = sc->sc_xget = sc->sc_xbuf;
+	sc->sc_imr1 |= SAB_IMR1_ALLS | SAB_IMR1_XPR;
+	SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
+	sabttystart(tp);
 }
 
 static int
@@ -1366,14 +1327,18 @@ sabtty_console(device_t dev, char *mode, int len)
 	char input[32];
 	char name[32];
 
+	sprintf(name, "tty%c", 'a' + device_get_unit(dev));
 	options = OF_finddevice("/options");
 	if (OF_getprop(options, "input-device", input, sizeof(input)) == -1 ||
 	    OF_getprop(options, "output-device", output, sizeof(output)) == -1)
 		return (0);
 	if (strcmp(input, output) == 0 &&
-	    strcmp(input, device_get_desc(dev)) == 0) {
-		sprintf(name, "%s-mode", input);
-		return (OF_getprop(options, name, mode, len) != -1);
+	    strcmp(input, name) == 0) {
+		if (mode != NULL) {
+			sprintf(name, "%s-mode", input);
+			return (OF_getprop(options, name, mode, len) != -1);
+		} else
+			return (1);
 	}
 	return (0);
 }
