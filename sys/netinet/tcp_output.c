@@ -83,7 +83,7 @@
 extern struct mbuf *m_copypack();
 #endif
 
-int path_mtu_discovery = 1;
+static int path_mtu_discovery = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&path_mtu_discovery, 1, "Enable Path MTU Discovery");
 
