@@ -374,7 +374,6 @@ void
 statclock(frame)
 	register struct clockframe *frame;
 {
-	struct pstats *pstats;
 	struct rusage *ru;
 	struct vmspace *vm;
 	struct thread *td;
@@ -427,16 +426,16 @@ statclock(frame)
 	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
-	if ((pstats = p->p_stats) != NULL &&
-	    (ru = &pstats->p_ru) != NULL &&
-	    (vm = p->p_vmspace) != NULL) {
-		ru->ru_ixrss += pgtok(vm->vm_tsize);
-		ru->ru_idrss += pgtok(vm->vm_dsize);
-		ru->ru_isrss += pgtok(vm->vm_ssize);
-		rss = pgtok(vmspace_resident_count(vm));
-		if (ru->ru_maxrss < rss)
-			ru->ru_maxrss = rss;
-	}
+	MPASS(p->p_stats != NULL);
+	MPASS(p->p_vmspace != NULL);
+	vm = p->p_vmspace;
+	ru = &p->p_stats->p_ru;
+	ru->ru_ixrss += pgtok(vm->vm_tsize);
+	ru->ru_idrss += pgtok(vm->vm_dsize);
+	ru->ru_isrss += pgtok(vm->vm_ssize);
+	rss = pgtok(vmspace_resident_count(vm));
+	if (ru->ru_maxrss < rss)
+		ru->ru_maxrss = rss;
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 }
 
