@@ -212,8 +212,11 @@ demangle(struct radius *r, const void *mangled, size_t mlen,
     return;
   }
 
-  *buf = malloc(*len);
-  memcpy(*buf, P + 1, *len);
+  if ((*buf = malloc(*len)) == NULL) {
+    log_Printf(LogWARN, "demangle: Out of memory (%lu bytes)\n", (u_long)*len);
+    *len = 0;
+  } else
+    memcpy(*buf, P + 1, *len);
 }
 #endif
 

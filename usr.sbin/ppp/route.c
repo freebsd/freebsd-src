@@ -278,10 +278,15 @@ Index2Nam(int idx)
         }
         if (ifs[ifm->ifm_index-1] == NULL) {
           ifs[ifm->ifm_index-1] = (char *)malloc(dl->sdl_nlen+1);
-          memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
-          ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
-          if (route_nifs < ifm->ifm_index)
-            route_nifs = ifm->ifm_index;
+          if (ifs[ifm->ifm_index-1] == NULL)
+	    log_Printf(LogDEBUG, "Skipping interface %d: Out of memory\n",
+                  ifm->ifm_index);
+	  else {
+	    memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
+	    ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
+	    if (route_nifs < ifm->ifm_index)
+	      route_nifs = ifm->ifm_index;
+	  }
         }
       } else if (log_IsKept(LogDEBUG))
         log_Printf(LogDEBUG, "Skipping out-of-range interface %d!\n",
@@ -612,8 +617,13 @@ route_Add(struct sticky_route **rp, int type, const struct ncprange *dst,
       rp = &(*rp)->next;
   }
 
-  if (!r)
+  if (r == NULL) {
     r = (struct sticky_route *)malloc(sizeof(struct sticky_route));
+    if (r == NULL) {
+      log_Printf(LogERROR, "route_Add: Out of memory!\n");
+      return;
+    }
+  }
   r->type = type;
   r->next = NULL;
   ncprange_copy(&r->dst, dst);
