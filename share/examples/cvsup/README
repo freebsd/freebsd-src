@@ -1,8 +1,9 @@
-# $Id: README,v 1.11 1997/09/05 04:59:22 jdp Exp $
+# $Id: README,v 1.12 1998/04/20 11:26:27 jb Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
-with CVSup version 14.0 or later.
+with CVSup version 14.0 or later.  For general information on CVSup
+itself, please see http://www.freebsd.org/handbook/cvsup.html
 
 To maintain the sources for the FreeBSD-current release, use these files:
 
