@@ -89,7 +89,7 @@ struct buf *buf;		/* buffer header pool */
 
 static struct proc *bufdaemonproc;
 
-static int inmem(struct vnode * vp, daddr_t blkno);
+static int inmem(struct vnode *vp, daddr_t blkno);
 static void vm_hold_free_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
@@ -3531,10 +3531,8 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 	vm_page_lock_queues();
 	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 		m = bp->b_pages[i];
-
 		if (n > size)
 			n = size;
-
 		vm_page_set_validclean(m, base & PAGE_MASK, n);
 		base += n;
 		size -= n;
@@ -3603,7 +3601,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		} else {
 			for (; sa < ea; sa += DEV_BSIZE, j++) {
 				if (((bp->b_pages[i]->flags & PG_ZERO) == 0) &&
-					(bp->b_pages[i]->valid & (1<<j)) == 0)
+				    (bp->b_pages[i]->valid & (1 << j)) == 0)
 					bzero(sa, DEV_BSIZE);
 			}
 		}
