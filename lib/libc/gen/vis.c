@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -52,6 +54,21 @@ vis(dst, c, flag, nextc)
 	register int flag;
 {
 	c = (unsigned char)c;
+
+	if (flag & VIS_HTTPSTYLE) {
+	    if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')
+		|| (c >= 'a' && c <= 'z') || c == '$' || c == '-'
+		|| c == '_' || c == '\'' || c == '+' || c == '!' ||
+		c == '(' || c == ')' || c == ',' || c == '"' ||
+		c == ';' || c == '/' || c == '?' || c == ':' ||
+		c == '@' || c == '&' || c == '=' || c == '+')) {
+		*dst++ = '%';
+		snprintf(dst, 4, (c < 16 ? "0%X" : "%X"), c);
+		dst += 2;
+		goto done;
+	    }
+	}
+
 	if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
 	   ((flag & VIS_TAB) == 0 && c == '\t') ||
