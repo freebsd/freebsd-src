@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.41 1999/01/01 14:38:29 des Exp $
+ *	$Id: console.h,v 1.41.2.1 1999/05/07 09:01:46 dfr Exp $
  *	from: i386/include console.h,v 1.43
  */
 
@@ -286,6 +286,28 @@ struct ssaver	{
 	long	time;
 };
 
+/* video mode information block */
+struct video_info {
+    int			vi_mode;
+    int			vi_flags;
+#define V_INFO_COLOR	(1<<0)
+#define V_INFO_GRAPHICS	(1<<1)
+#define V_INFO_LINEAR	(1<<2)
+#define V_INFO_VESA	(1<<3)
+    int			vi_width;
+    int			vi_height;
+    int			vi_cwidth;
+    int			vi_cheight;
+    int			vi_depth;
+    int			vi_planes;
+    u_int		vi_window;	/* physical address */
+    size_t		vi_window_size;
+    size_t		vi_window_gran;
+    u_int		vi_buffer;	/* physical address */
+    size_t		vi_buffer_size;
+    /* XXX pixel format, memory model,... */
+};
+
 /* adapter infromation block */
 struct video_adapter {
     int			va_index;
@@ -318,7 +340,8 @@ struct video_adapter {
     int			va_initial_mode;
     int			va_initial_bios_mode;
     int			va_mode;
-    int			va_mode_flags;	/* copy of vi_flags */
+    struct video_info	va_info;
+    int			va_line_width;
     void		*va_token;
 };
 
@@ -341,33 +364,11 @@ struct video_adapter_info {
     int			va_initial_mode;
     int			va_initial_bios_mode;
     int			va_mode;
-    int			va_mode_flags;
+    int			va_line_width;
 };
 
 #define V_ADP_PRIMARY		0
 #define V_ADP_SECONDARY		1
-
-/* video mode information block */
-struct video_info {
-    int			vi_mode;
-    int			vi_flags;
-#define V_INFO_COLOR	(1<<0)
-#define V_INFO_GRAPHICS	(1<<1)
-#define V_INFO_LINEAR	(1<<2)
-#define V_INFO_VESA	(1<<3)
-    int			vi_width;
-    int			vi_height;
-    int			vi_cwidth;
-    int			vi_cheight;
-    int			vi_depth;
-    int			vi_planes;
-    u_int		vi_window;	/* physical address */
-    size_t		vi_window_size;
-    size_t		vi_window_gran;
-    u_int		vi_buffer;	/* physical address */
-    size_t		vi_buffer_size;
-    /* XXX pixel format, memory model,... */
-};
 
 struct keyboard_info {
     int			kb_index;	/* kbdio index# */
