@@ -183,7 +183,8 @@ typedef struct {
  */
 
 #ifndef	_LP64
-#if	defined(__alpha__) || defined(__sparcv9cpu) || defined(__sparc_v9__)
+#if	defined(__alpha__) || defined(__sparcv9cpu) || defined(__sparc_v9__) ||\
+    defined(__ia64__)
 #define	_LP64
 #endif
 #endif

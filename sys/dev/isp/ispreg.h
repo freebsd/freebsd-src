@@ -63,6 +63,7 @@
 
 #define	PCI_MBOX_REGS_OFF		0x70
 #define	PCI_MBOX_REGS2100_OFF		0x10
+#define	PCI_MBOX_REGS2300_OFF		0x40
 #define	SBUS_MBOX_REGS_OFF		0x80
 
 #define	PCI_SXP_REGS_OFF		0x80
@@ -107,6 +108,37 @@
 #define	BIU_ISR		(BIU_BLOCK+0xA)		/* R  : Bus Interface Status */
 #define	BIU_SEMA	(BIU_BLOCK+0xC)		/* RW : Bus Semaphore */
 #define	BIU_NVRAM	(BIU_BLOCK+0xE)		/* RW : Bus NVRAM */
+/*
+ * These are specific to the 2300.
+ *
+ * They *claim* you can read BIU_R2HSTSLO with a full 32 bit access
+ * and get both registers, but I'm a bit dubious about that. But the
+ * point here is that the top 16 bits are firmware defined bits that
+ * the RISC processor uses to inform the host about something- usually
+ * something which was nominally in a mailbox register.
+ */
+#define	BIU_REQINP	(BIU_BLOCK+0x10)	/* Request Queue In */
+#define	BIU_REQOUTP	(BIU_BLOCK+0x12)	/* Request Queue Out */
+#define	BIU_RSPINP	(BIU_BLOCK+0x14)	/* Response Queue In */
+#define	BIU_RSPOUTP	(BIU_BLOCK+0x16)	/* Response Queue Out */
+
+#define	BIU_R2HSTSLO	(BIU_BLOCK+0x18)
+#define	BIU_R2HSTSHI	(BIU_BLOCK+0x1A)
+
+#define	BIU_R2HST_INTR		(1 << 15)	/* RISC to Host Interrupt */
+#define	BIU_R2HST_PAUSED	(1 <<  8)	/* RISC paused */
+#define	BIU_R2HST_ISTAT_MASK	0x3f		/* intr information && status */
+#define		ISPR2HST_ROM_MBX_OK	0x1	/* ROM mailbox cmd done ok */
+#define		ISPR2HST_ROM_MBX_FAIL	0x2	/* ROM mailbox cmd done fail */
+#define		ISPR2HST_MBX_OK		0x10	/* mailbox cmd done ok */
+#define		ISPR2HST_MBX_FAIL	0x11	/* mailbox cmd done fail */
+#define		ISPR2HST_ASYNC_EVENT	0x12	/* Async Event */
+#define		ISPR2HST_RSPQ_UPDATE	0x13	/* Response Queue Update */
+#define		ISPR2HST_RQST_UPDATE	0x14	/* Resquest Queue Update */
+#define		ISPR2HST_RIO_16		0x15	/* RIO 1-16 */
+#define		ISPR2HST_FPOST		0x16	/* Low 16 bits fast post */
+#define		ISPR2HST_FPOST_CTIO	0x17	/* Low 16 bits fast post ctio */
+
 #define	DFIFO_COMMAND	(BIU_BLOCK+0x60)	/* RW : Command FIFO Port */
 #define		RDMA2100_CONTROL	DFIFO_COMMAND
 #define	DFIFO_DATA	(BIU_BLOCK+0x62)	/* RW : Data FIFO Port */
