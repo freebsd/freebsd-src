@@ -47,6 +47,7 @@
 #include <sys/time.h>
 #include <geom/geom.h>
 
+static g_orphan_t g_dev_orphan;
 
 static struct g_geom *
 dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
@@ -63,6 +64,7 @@ dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		}
 	}
 	gp = g_new_geomf(mp, pp->name);
+	gp->orphan = g_dev_orphan;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	return (gp);
@@ -90,8 +92,6 @@ g_dev_orphan(struct g_consumer *cp)
 static struct g_class dev_class	= {
 	"DEV-class",
 	dev_taste,
-	NULL,
-	g_dev_orphan,
 	NULL,
 	G_CLASS_INITSTUFF
 };

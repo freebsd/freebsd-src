@@ -43,14 +43,13 @@
 #include <strings.h>
 #include <err.h>
 #include <sys/errno.h>
+#include <sys/stat.h>
 #include <geom/geom.h>
 
 #include "geom_simdisk.h"
 
 struct g_class g_simdisk_class = {
 	"SIMDISK-class",
-	NULL,
-	g_std_access,
 	NULL,
 	NULL,
 	G_CLASS_INITSTUFF
@@ -140,8 +139,10 @@ g_simdisk_create(char *name, struct simdisk_softc *sc)
 	gp = g_new_geomf(&g_simdisk_class, "%s", name);
 	gp->start = g_simdisk_start;
 	gp->softc = sc;
+	gp->access = g_std_access;
 
 	pp = g_new_providerf(gp, "%s", name);
+	pp->mediasize=sc->mediasize;
 	g_error_provider(pp, 0);
 	unit++;
 	g_topology_unlock();
@@ -152,12 +153,15 @@ struct g_geom *
 g_simdisk_new(char *name, char *path)
 {
 	struct simdisk_softc *sc;
+	struct stat st;
 
 	sc = calloc(1, sizeof *sc);
 
 	sc->fd = open(path, O_RDONLY);
 	if (sc->fd < 0)
 		err(1, path);
+	fstat(sc->fd, &st);
+	sc->mediasize = st.st_size;
 	sc->sectorsize = 512;
 	LIST_INIT(&sc->sectors);
 	TAILQ_INIT(&sc->sort);
