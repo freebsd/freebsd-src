@@ -22,16 +22,18 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: fetch.3,v 1.1.1.1 1998/07/09 16:52:43 des Exp $
 .\"
 .Dd July 1, 1998
 .Dt FETCH 3
 .Os
 .Sh NAME
-.Nm fetchParseURL ,
-.Nm fetchFreeURL ,
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
+.Nm fetchParseURL ,
+.Nm fetchFreeURL ,
+.Nm fetchGet ,
+.Nm fetchPut ,
 .Nm fetchGetFile ,
 .Nm fetchPutFile ,
 .Nm fetchGetHTTP ,
@@ -41,10 +43,18 @@
 .Nd file transfer library
 .Sh SYNOPSIS
 .Fd #include <fetch.h>
+.Ft FILE *
+.Fn fetchGetURL "char *URL" "char *flags"
+.Ft FILE *
+.Fn fetchPutURL "char *URL" "char *flags"
 .Ft url_t *
 .Fn fetchParseURL "char *URL" "char *flags"
 .Ft void
 .Fn fetchFreeURL "url_t *u"
+.Ft FILE *
+.Fn fetchGet "url_t *URL" "char *flags"
+.Ft FILE *
+.Fn fetchPut "url_t *URL" "char *flags"
 .Ft FILE *
 .Fn fetchGetFile "url_t *u" "char *flags"
 .Ft FILE *
@@ -60,6 +70,19 @@
 .Sh DESCRIPTION
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
+.Pp
+.Fn fetchGetURL
+and
+.Fn fetchPutURL
+constitute the recommended interface to the
+.Nm fetch
+library. They examine the URL passed to them to determine the transfer
+method, and call the appropriate lower-level functions to perform the
+actual transfer. The 
+.Fa flags
+argument is a string of characters which specify transfer options. The
+meaning of the individual flags is scheme-dependent, and is detailed
+in the appropriate section below.
 .Pp
 .Fn fetchParseURL
 takes a URL in the form of a null-terminated string and splits it into
@@ -79,25 +102,24 @@ The pointer returned by
 should be freed using
 .Fn fetchFreeURL .
 .Pp
+.Fn fetchGet
+and
+.Fn fetchPut
+are similar to
 .Fn fetchGetURL
 and
-.Fn fetchPutURL
-constitute the recommended interface to the
-.Nm fetch
-library. They examine the URL passed to them to determine the transfer
-method, and call the appropriate lower-level functions to perform the
-actual transfer. The 
-.Fa flags
-argument is a string of characters which specify transfer options. The
-meaning of the individual flags is scheme-dependent, and is detailed
-in the appropriate section below.
+.Fn fetchPutURL ,
+except that they expect a pre-parsed URL in the form of a pointer to
+an
+.Fa url_t
+structure rather than a string.
 .Pp
 All of the
 .Fn fetchGetXXX
 and
 .Fn fetchPutXXX
 functions return a pointer to a stream which can be used to read or
-write data from or to the requested document, respectively. Not that
+write data from or to the requested document, respectively. Note that
 although the implementation details of the individual access methods
 vary, it can generally be assumed that a stream returned by one of the
 .Fn fetchGetXXX
@@ -167,7 +189,7 @@ All other functions return a stream pointer which may be used to
 access the requested document. Upon failure of any kind, they return a
 NULL pointer.
 .Sh ENVIRONMENT
-The FTP and HTTP functions use the
+The FTP and HTTP related functions use the
 .Ev HTTP_PROXY
 and
 .Ev FTP_PROXY
@@ -175,8 +197,7 @@ environment variables, respectively, as the address of a proxy server
 to use for transferring files.
 .Sh SEE ALSO
 .Xr fetch 1 ,
-.Xr ftpio 3 ,
-.Xr lots_of_other_stuff
+.Xr ftpio 3
 .Rs
 .%A T. Berners-Lee, L. Masinter & M. McCahill
 .%D December 1994
@@ -202,11 +223,6 @@ Some parts of the library are not yet implemented. The most notable
 examples of this are
 .Fn fetchPutHTTP
 and proxy support for the FTP access method.
-.Pp
-I hate HTTP.
-.Pp
-Why does the \.Pp macro sometimes insert two blank lines instead of
-one?
 .Sh HISTORY
 The
 .Nm fetch
@@ -230,4 +246,19 @@ and later turned inside out by
 This manual page was written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 .Sh BUGS
-If I knew, I'd have fixed them.
+There's no way to select a proxy at run-time other than setting the
+.Ev HTTP_PROXY
+or
+.Ev FTP_PROXY
+environment variables as appropriate. There is also no way to stop the
+FTP and HTTP functions from trying to use a proxy if these variables
+are set.
+.Pp
+HTTP authentication doesn't work. I'm not sure that's a bug in my
+code; as far as I can determine,
+.Nm libfetch
+handles HTTP/1.1 basic authentication correctly as outlined in
+RFC2068, but I haven't been able to find an HTTP server that honors
+the Authentication: header field.
+.Pp
+Tons of other stuff.
