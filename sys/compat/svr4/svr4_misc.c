@@ -817,7 +817,8 @@ svr4_sys_break(td, uap)
 	struct thread *td;
 	struct svr4_sys_break_args *uap;
 {
-	struct vmspace *vm = td->td_proc->p_vmspace;
+	struct proc *p = td->td_proc;
+	struct vmspace *vm = p->p_vmspace;
 	vm_offset_t new, old, base, ns;
 	int rv;
 
