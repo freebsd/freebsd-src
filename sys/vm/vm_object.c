@@ -1276,11 +1276,8 @@ vm_object_split(vm_map_entry_t entry)
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		vm_object_pip_wakeup(orig_object);
 	}
-	for (idx = 0; idx < size; idx++) {
-		m = vm_page_lookup(new_object, idx);
-		if (m != NULL)
-			vm_page_wakeup(m);
-	}
+	TAILQ_FOREACH(m, &new_object->memq, listq)
+		vm_page_wakeup(m);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
