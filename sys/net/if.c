@@ -52,6 +52,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -763,6 +764,8 @@ ifioctl(so, cmd, data, p)
 {
 	register struct ifnet *ifp;
 	register struct ifreq *ifr;
+	register struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 	struct ifstat *ifs;
 	int error;
 	short oif_flags;
@@ -912,6 +915,33 @@ ifioctl(so, cmd, data, p)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
+	case SIOCSIFLLADDR:
+		error = suser(p);
+		if (error)
+			return (error);
+		ifa = ifnet_addrs[ifp->if_index - 1];
+		if (ifa == NULL)
+			return(EINVAL);
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		if (sdl == NULL)
+			return(EINVAL);
+		bcopy(ifr->ifr_addr.sa_data,
+		    ((struct arpcom *)ifp->if_softc)->ac_enaddr,
+		    ifr->ifr_addr.sa_len);
+		bcopy(ifr->ifr_addr.sa_data, LLADDR(sdl),
+		    ifr->ifr_addr.sa_len);
+		/*
+		 * If the interface is already up, we need
+		 * to re-init it in order to reprogram its
+		 * address filter.
+		 */
+		if (ifp->if_flags & IFF_UP) {
+			ifp->if_flags &= ~IFF_UP;
+			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
+			ifp->if_flags |= IFF_UP;
+			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
+		}
+		return(0);
 	default:
 		oif_flags = ifp->if_flags;
 		if (so->so_proto == 0)
