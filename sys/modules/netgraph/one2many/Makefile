@@ -2,6 +2,6 @@
 
 KMOD=		ng_one2many
 SRCS= 		ng_one2many.c
-NOMAN=
+KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

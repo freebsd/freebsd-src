@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Archie Cobbs <archie@freebsd.org>
+ * Author: Archie Cobbs <archie@FreeBSD.org>
  *
  * $FreeBSD$
  */
@@ -262,7 +262,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
+	const char *retaddr, struct ng_mesg **rptr)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
@@ -382,8 +382,7 @@ ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive data on a hook
  */
 static int
-ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta)
+ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
