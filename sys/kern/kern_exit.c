@@ -46,6 +46,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -83,20 +84,7 @@
 /* Required to be non-static for SysVR4 emulator */
 MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
-static MALLOC_DEFINE(M_ATEXIT, "atexit", "atexit callback");
-
 static int wait1(struct thread *, struct wait_args *, int);
-
-/*
- * callout list for things to do at exit time
- */
-struct exitlist {
-	exitlist_fn function;
-	TAILQ_ENTRY(exitlist) next;
-};
-
-TAILQ_HEAD(exit_list_head, exitlist);
-static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
 
 /*
  * exit --
@@ -121,7 +109,6 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	struct exitlist *ep;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -218,9 +205,7 @@ exit1(struct thread *td, int rv)
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
-	TAILQ_FOREACH(ep, &exit_list, next)
-		(*ep->function)(p);
-
+	EVENTHANDLER_INVOKE(process_exit, p);
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, M_WAITOK);
@@ -797,52 +782,4 @@ proc_reparent(struct proc *child, struct proc *parent)
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
-}
-
-/*
- * The next two functions are to handle adding/deleting items on the
- * exit callout list
- *
- * at_exit():
- * Take the arguments given and put them onto the exit callout list,
- * However first make sure that it's not already there.
- * returns 0 on success.
- */
-
-int
-at_exit(exitlist_fn function)
-{
-	struct exitlist *ep;
-
-#ifdef INVARIANTS
-	/* Be noisy if the programmer has lost track of things */
-	if (rm_at_exit(function))
-		printf("WARNING: exit callout entry (%p) already present\n",
-		    function);
-#endif
-	ep = malloc(sizeof(*ep), M_ATEXIT, M_NOWAIT);
-	if (ep == NULL)
-		return (ENOMEM);
-	ep->function = function;
-	TAILQ_INSERT_TAIL(&exit_list, ep, next);
-	return (0);
-}
-
-/*
- * Scan the exit callout list for the given item and remove it.
- * Returns the number of items removed (0 or 1)
- */
-int
-rm_at_exit(exitlist_fn function)
-{
-	struct exitlist *ep;
-
-	TAILQ_FOREACH(ep, &exit_list, next) {
-		if (ep->function == function) {
-			TAILQ_REMOVE(&exit_list, ep, next);
-			free(ep, M_ATEXIT);
-			return (1);
-		}
-	}
-	return (0);
 }

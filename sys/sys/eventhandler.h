@@ -208,4 +208,15 @@ typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
+/* Process events */
+struct proc;
+
+typedef void (*exitlist_fn)(void *, struct proc *);
+typedef void (*forklist_fn)(void *, struct proc *, struct proc *, int);
+typedef void (*execlist_fn)(void *, struct proc *);
+
+EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
+EVENTHANDLER_DECLARE(process_fork, forklist_fn);
+EVENTHANDLER_DECLARE(process_exec, execlist_fn);
+
 #endif /* SYS_EVENTHANDLER_H */
