@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.33 1997/12/08 22:56:44 fsmp Exp $
+ * $Id: smp.h,v 1.34 1998/01/01 08:47:12 bde Exp $
  *
  */
 
@@ -67,11 +67,11 @@ extern u_int			mpintr_lock;
 /* functions in mplock.s */
 void	get_mplock		__P((void));
 void	rel_mplock		__P((void));
-void	try_mplock		__P((void));
+int	try_mplock		__P((void));
 #ifdef RECURSIVE_MPINTRLOCK
 void	get_mpintrlock		__P((void));
 void	rel_mpintrlock		__P((void));
-void	try_mpintrlock		__P((void));
+int	try_mpintrlock		__P((void));
 #endif /*  RECURSIVE_MPINTRLOCK */
 
 /* global data in apic_vector.s */

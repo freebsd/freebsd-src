@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.84 1998/02/06 12:14:30 eivind Exp $
+ *	$Id: vnode_pager.c,v 1.85 1998/02/23 08:22:48 dyson Exp $
  */
 
 /*
@@ -169,14 +169,7 @@ vnode_pager_dealloc(object)
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
-	if (object->paging_in_progress) {
-		int s = splvm();
-		while (object->paging_in_progress) {
-			object->flags |= OBJ_PIPWNT;
-			tsleep(object, PVM, "vnpdea", 0);
-		}
-		splx(s);
-	}
+	vm_object_pip_wait(object, "vnpdea");
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
