@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int	build __P((char *, mode_t));
+int	main __P((int, char *[]));
 void	usage __P((void));
 
 int vflag;
