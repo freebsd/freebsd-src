@@ -56,7 +56,7 @@ static	struct users {
 	int	u_default;
 	int	u_min;
 	int	u_max;
-} users= { 8, 2, 512 };
+} users = { 8, 2, 512 };
 
 static char *lower(char *);
 static void read_options(void);
