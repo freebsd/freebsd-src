@@ -118,5 +118,6 @@ extern int	 fetchLastErrCode;
 #define MAXERRSTRING 256
 extern char	 fetchLastErrString[MAXERRSTRING];
 extern int	 fetchTimeout;
+extern int	 fetchRestartCalls;
 
 #endif
