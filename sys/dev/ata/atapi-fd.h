@@ -75,6 +75,5 @@ struct afd_softc {
     struct afd_cappage		cap;		/* capabilities page info */
     struct disk			disk;		/* virtual drives */
     struct devstat		stats;
-    dev_t			dev;		/* device place holder */
 };
 
