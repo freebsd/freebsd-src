@@ -45,7 +45,7 @@
 #include <machine/mutex.h>
 
 /* All mutexes in system (used for debug/panic) */
-mtx_t all_mtx = { MTX_UNOWNED, 0, 0, 0, "All mutexes queue head",
+mtx_t all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx
 #ifdef SMP_DEBUG
