@@ -26,29 +26,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id$
-#
-# scsiformat [-qw] [-p page-control] raw-device-name
+# $Id: scsiformat.sh,v 1.4 1997/02/22 14:33:17 peter Exp $
 #
 
 PATH="/sbin:/usr/sbin:/bin:/usr/bin"; export PATH
 
 READONLY=yes
+DOIT=no
 QUIET=no
 RAW=
 PAGE=0
 
 usage()
 {
-	echo "usage: scsiformat [-qw] [-p page-control] raw-device-name" 1>&2
+	echo "usage: scsiformat [-qyw] [-p page-control] raw-device-name" 1>&2
 	exit 2
 }
 
-while getopts "qwp:" option
+while getopts "qwyp:" option
 do
 	case $option in
 	q)
 		QUIET=yes
+		;;
+	y)
+		DOIT=yes
 		;;
 	w)
 		READONLY=no
@@ -130,14 +132,13 @@ fi	# !quiet
 
 if [ "$READONLY" = "no" ]
 then
-	# grace period, last chance to hit INTR
-	echo -n "Three seconds until format begins."
-	sleep 1
-	echo -n "."
-	sleep 1
-	echo -n "."
-	sleep 1
+	if [ "$DOIT" != "yes" ]
+	then
+		echo "This will destroy all data on this drive!"
+		echo -n "Hit return to continue, or INTR (^C) to abort: "
+		read dummy
+	fi
 	# formatting may take a huge amount of time, set timeout to 2 hours
-	echo " Formatting... this may take a while."
+	echo "Formatting... this may take a while."
 	scsi -s 7200 -f $RAW -c "4 0 0 0 0 0"
 fi
