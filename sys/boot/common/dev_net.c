@@ -209,6 +209,7 @@ net_getparams(sock)
 {
     char buf[MAXHOSTNAMELEN];
     char temp[FNAME_SIZE];
+    struct iodesc *d;
     int i;
     n_long smask;
 
@@ -284,6 +285,14 @@ net_getparams(sock)
 	    bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);	    
     }
     printf("net_open: server path: %s\n", rootpath);	    
+
+    d = socktodesc(sock);
+    sprintf(temp, "%6D", d->myea, ":");
+    setenv("boot.netif.ip", inet_ntoa(myip), 1);
+    setenv("boot.netif.netmask", intoa(netmask), 1);
+    setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+    setenv("boot.netif.hwaddr", temp, 1);
+
     return (0);
 }
 
