@@ -436,11 +436,19 @@ status_init(char *buf, int size)
 		d = gsd(i);
 		if (!d) continue;
 		dev = devclass_get_device(pcm_devclass, i);
-        	if (1) snprintf(buf + strlen(buf), size - strlen(buf),
-		            	"pcm%d: <%s> %s (%d/%d channels%s)\n",
-		            	i, device_get_desc(dev), d->status,
-		            	d->playcount, d->reccount,
+        	if (1) {
+			snprintf(buf + strlen(buf), size - strlen(buf),
+		            	"pcm%d: <%s> %s",
+		            	i, device_get_desc(dev), d->status);
+			if (d->chancount > 0)
+				snprintf(buf + strlen(buf), size - strlen(buf),
+				" (%dp/%dr channels%s)\n",
+			    	d->playcount, d->reccount,
 			    	(!(d->flags & SD_F_SIMPLEX))? " duplex" : "");
+			else
+				snprintf(buf + strlen(buf), size - strlen(buf),
+				" (mixer only)");
+		}
     	}
     	return strlen(buf);
 }
