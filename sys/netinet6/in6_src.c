@@ -96,8 +96,6 @@
 
 #include <net/net_osdep.h>
 
-#include "loop.h"
-
 /*
  * Return an IPv6 address, which is the most appropriate for given
  * destination and user specified options.
