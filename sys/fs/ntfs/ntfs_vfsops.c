@@ -114,7 +114,7 @@ ntfs_omount (
 	/*
 	 * Use NULL path to flag a root mount
 	 */
-	if( path == NULL) {
+	if (mp->mnt_flag & MNT_ROOTFS) {
 		/*
 		 ***
 		 * Mounting root filesystem
