@@ -27,19 +27,21 @@
  */
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/taskqueue.h>
+#include <sys/lock.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 
 static void	*taskqueue_ih;
+static struct mtx taskqueue_queues_mutex;
 
 struct taskqueue {
 	STAILQ_ENTRY(taskqueue)	tq_link;
@@ -48,32 +50,63 @@ struct taskqueue {
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
 	int			tq_draining;
+	struct mtx		tq_mutex;
 };
+
+static void	init_taskqueue_list(void *data);
+
+static void
+init_taskqueue_list(void *data __unused)
+{
+
+	mtx_init(&taskqueue_queues_mutex, "taskqueue list", MTX_DEF);
+	STAILQ_INIT(&taskqueue_queues);
+}
+SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
+    NULL);
+
+void
+task_init(struct task *task, int priority, task_fn_t *func, void *context)
+{
+
+	KASSERT(task != NULL, ("task == NULL"));
+
+	mtx_init(&task->ta_mutex, "task", MTX_DEF);
+	mtx_lock(&task->ta_mutex);
+	task->ta_pending = 0;
+	task->ta_priority = priority;
+	task->ta_func = func;
+	task->ta_context = context;
+	mtx_unlock(&task->ta_mutex);
+}
+
+void
+task_destroy(struct task *task)
+{
+
+	mtx_destroy(&task->ta_mutex);
+}
 
 struct taskqueue *
 taskqueue_create(const char *name, int mflags,
 		 taskqueue_enqueue_fn enqueue, void *context)
 {
 	struct taskqueue *queue;
-	static int once = 1;
-	int s;
 
-	queue = malloc(sizeof(struct taskqueue), M_TASKQUEUE, mflags);
+	queue = malloc(sizeof(struct taskqueue), M_TASKQUEUE, mflags | M_ZERO);
 	if (!queue)
 		return 0;
+
 	STAILQ_INIT(&queue->tq_queue);
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
 	queue->tq_draining = 0;
+	mtx_init(&queue->tq_mutex, "taskqueue", MTX_DEF);
 
-	s = splhigh();
-	if (once) {
-		STAILQ_INIT(&taskqueue_queues);
-		once = 0;
-	}
+	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_INSERT_TAIL(&taskqueue_queues, queue, tq_link);
-	splx(s);
+	mtx_unlock(&taskqueue_queues_mutex);
 
 	return queue;
 }
@@ -81,32 +114,39 @@ taskqueue_create(const char *name, int mflags,
 void
 taskqueue_free(struct taskqueue *queue)
 {
-	int s = splhigh();
+
+	mtx_lock(&queue->tq_mutex);
 	queue->tq_draining = 1;
-	splx(s);
+	mtx_unlock(&queue->tq_mutex);
 
 	taskqueue_run(queue);
 
-	s = splhigh();
+	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_REMOVE(&taskqueue_queues, queue, taskqueue, tq_link);
-	splx(s);
+	mtx_unlock(&taskqueue_queues_mutex);
 
+	mtx_destroy(&queue->tq_mutex);
 	free(queue, M_TASKQUEUE);
 }
 
+/*
+ * Returns with the taskqueue locked.
+ */
 struct taskqueue *
 taskqueue_find(const char *name)
 {
 	struct taskqueue *queue;
-	int s;
 
-	s = splhigh();
-	STAILQ_FOREACH(queue, &taskqueue_queues, tq_link)
+	mtx_lock(&taskqueue_queues_mutex);
+	STAILQ_FOREACH(queue, &taskqueue_queues, tq_link) {
+		mtx_lock(&queue->tq_mutex);
 		if (!strcmp(queue->tq_name, name)) {
-			splx(s);
+			mtx_unlock(&taskqueue_queues_mutex);
 			return queue;
 		}
-	splx(s);
+		mtx_unlock(&queue->tq_mutex);
+	}
+	mtx_unlock(&taskqueue_queues_mutex);
 	return 0;
 }
 
@@ -116,22 +156,23 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	struct task *ins;
 	struct task *prev;
 
-	int s = splhigh();
-
 	/*
 	 * Don't allow new tasks on a queue which is being freed.
 	 */
+	mtx_lock(&queue->tq_mutex);
 	if (queue->tq_draining) {
-		splx(s);
+		mtx_unlock(&queue->tq_mutex);
 		return EPIPE;
 	}
 
 	/*
 	 * Count multiple enqueues.
 	 */
+	mtx_lock(&task->ta_mutex);
 	if (task->ta_pending) {
 		task->ta_pending++;
-		splx(s);
+		mtx_unlock(&task->ta_mutex);
+		mtx_unlock(&queue->tq_mutex);
 		return 0;
 	}
 
@@ -155,38 +196,43 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
+	mtx_unlock(&task->ta_mutex);
+
 	if (queue->tq_enqueue)
 		queue->tq_enqueue(queue->tq_context);
-
-	splx(s);
-
+	mtx_unlock(&queue->tq_mutex);
 	return 0;
 }
 
 void
 taskqueue_run(struct taskqueue *queue)
 {
-	int s;
 	struct task *task;
+	task_fn_t *saved_func;
+	void *arg;
 	int pending;
 
-	s = splhigh();
+	mtx_lock(&queue->tq_mutex);
 	while (STAILQ_FIRST(&queue->tq_queue)) {
 		/*
 		 * Carefully remove the first task from the queue and
 		 * zero its pending count.
 		 */
 		task = STAILQ_FIRST(&queue->tq_queue);
+		mtx_lock(&task->ta_mutex);
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
+		mtx_unlock(&queue->tq_mutex);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
-		splx(s);
+		saved_func = task->ta_func;
+		arg = task->ta_context;
+		mtx_unlock(&task->ta_mutex);
 
-		task->ta_func(task->ta_context, pending);
+		saved_func(arg, pending);
 
-		s = splhigh();
+		mtx_lock(&queue->tq_mutex);
 	}
-	splx(s);
+	mtx_unlock(&queue->tq_mutex);
 }
 
 static void

@@ -320,6 +320,10 @@ amr_free(struct amr_softc *sc)
 	TAILQ_REMOVE(&sc->amr_cmd_clusters, acc, acc_link);
 	amr_freecmd_cluster(acc);
     }
+
+#if __FreeBSD_version >= 500005
+    TASK_DESTROY(&sc->amr_task_complete);
+#endif
 }
 
 /*******************************************************************************
