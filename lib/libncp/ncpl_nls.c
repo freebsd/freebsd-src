@@ -159,15 +159,15 @@ int
 ncp_nls_setlocale(char *name) {
 	int i;
 
-	ncp_nls.tolower = def2lower;
-	ncp_nls.toupper = def2upper;
+	ncp_nls.to_lower = def2lower;
+	ncp_nls.to_upper = def2upper;
 	if (setlocale(LC_CTYPE, name) == NULL) {
 		fprintf(stderr, "Can't set locale '%s'\n", name);
 		return EINVAL;
 	}
 	for (i = 0; i < 256; i++) {
-		ncp_nls.tolower[i] = tolower(i);
-		ncp_nls.toupper[i] = toupper(i);
+		ncp_nls.to_lower[i] = tolower(i);
+		ncp_nls.to_upper[i] = toupper(i);
 	}
 	return 0;
 }
