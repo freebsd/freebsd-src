@@ -900,11 +900,6 @@ options 	PPS_SYNC
 
 options 	NTIMECOUNTER=20
 
-# Enable PnP support in the kernel.  This allows you to automatically
-# attach to PnP cards for drivers that support it and allows you to
-# configure cards from USERCONFIG.  See pnp(4) for more info.
-controller	pnp0
-
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
 controller	atkbdc0	at isa? port IO_KBD
 
@@ -1407,7 +1402,8 @@ device uart0	at isa? port 0x330 irq 5
 
 # The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
 # You may also wish to enable the pnp controller with this, for pnp
-# sound cards.
+# sound cards.  Note that motherboard sound devices may require
+# options PNPBIOS.
 #
 # For non-pnp sound cards only:
 #device		pcm0 at isa? port ? irq 10 drq 1 flags 0x0
