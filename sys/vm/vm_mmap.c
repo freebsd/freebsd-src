@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.36 1996/02/23 18:49:25 peter Exp $
+ * $Id: vm_mmap.c,v 1.37 1996/03/02 02:54:21 dyson Exp $
  */
 
 /*
@@ -150,7 +150,7 @@ mmap(p, uap, retval)
 	register struct file *fp;
 	struct vnode *vp;
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	vm_prot_t prot, maxprot;
 	caddr_t handle;
 	int flags, error;
@@ -165,7 +165,17 @@ mmap(p, uap, retval)
 	if (((flags & MAP_FIXED) && (addr & PAGE_MASK)) ||
 	    (ssize_t) uap->len < 0 || ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
-	size = (vm_size_t) round_page(uap->len);
+
+	/*
+	 * Round page if not already disallowed by above test
+	 * XXX: Is there any point in the MAP_FIXED align requirement above?
+	 */
+	size = uap->len;
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
@@ -324,24 +334,21 @@ msync(p, uap, retval)
 	vm_map_t map;
 	int rv;
 
-	map = &p->p_vmspace->vm_map;
 	addr = (vm_offset_t) uap->addr;
-	size = round_page((vm_size_t) uap->len);
+	size = uap->len;
 	flags = uap->flags;
 
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
-	if ((int)size < 0)
+	if (addr + size < addr)
 		return(EINVAL);
 
 	if ((flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
 		return (EINVAL);
+
+	map = &p->p_vmspace->vm_map;
 
 	/*
 	 * XXX Gak!  If size is zero we are supposed to sync "all modified
@@ -385,7 +392,7 @@ msync(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct munmap_args {
 	caddr_t addr;
-	int len;
+	size_t len;
 };
 #endif
 int
@@ -399,18 +406,15 @@ munmap(p, uap, retval)
 	vm_map_t map;
 
 	addr = (vm_offset_t) uap->addr;
-	size = (vm_size_t) uap->len;
+	size = uap->len;
 
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
-	if ((int)size < 0)
+	if (addr + size < addr)
 		return(EINVAL);
+
 	if (size == 0)
 		return (0);
 
@@ -451,7 +455,7 @@ munmapfd(p, fd)
 #ifndef _SYS_SYSPROTO_H_
 struct mprotect_args {
 	caddr_t addr;
-	int len;
+	size_t len;
 	int prot;
 };
 #endif
@@ -466,18 +470,14 @@ mprotect(p, uap, retval)
 	register vm_prot_t prot;
 
 	addr = (vm_offset_t) uap->addr;
-	size = (vm_size_t) uap->len;
+	size = uap->len;
 	prot = uap->prot & VM_PROT_ALL;
 
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
-	if ((int)size < 0)
+	if (addr + size < addr)
 		return(EINVAL);
 
 	switch (vm_map_protect(&p->p_vmspace->vm_map, addr, addr + size, prot,
@@ -493,7 +493,7 @@ mprotect(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct minherit_args {
 	caddr_t addr;
-	int len;
+	size_t len;
 	int inherit;
 };
 #endif
@@ -508,18 +508,14 @@ minherit(p, uap, retval)
 	register vm_inherit_t inherit;
 
 	addr = (vm_offset_t)uap->addr;
-	size = (vm_size_t)uap->len;
+	size = uap->len;
 	inherit = uap->inherit;
 
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
-	if ((int)size < 0)
+	if (addr + size < addr)
 		return(EINVAL);
 
 	switch (vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
@@ -535,7 +531,7 @@ minherit(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct madvise_args {
 	caddr_t addr;
-	int len;
+	size_t len;
 	int behav;
 };
 #endif
@@ -555,7 +551,7 @@ madvise(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct mincore_args {
 	caddr_t addr;
-	int len;
+	size_t len;
 	char *vec;
 };
 #endif
@@ -572,7 +568,7 @@ mincore(p, uap, retval)
 	char *vec;
 
 	addr = trunc_page((vm_offset_t) uap->addr);
-	end = addr + round_page((vm_size_t) uap->len);
+	end = addr + (vm_size_t)round_page(uap->len);
 	if (VM_MAXUSER_ADDRESS > 0 && end > VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 	if (end < addr)
@@ -611,22 +607,20 @@ mlock(p, uap, retval)
 	int error;
 
 	addr = (vm_offset_t) uap->addr;
-	size = (vm_size_t) uap->len;
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
+	size = uap->len;
+
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 
 	/* disable wrap around */
-	if (addr + (int)size < addr)
+	if (addr + size < addr)
 		return (EINVAL);
 
 	if (atop(size) + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
+
 #ifdef pmap_wired_count
 	if (size + ptoa(pmap_wired_count(vm_map_pmap(&p->p_vmspace->vm_map))) >
 	    p->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
@@ -658,18 +652,15 @@ munlock(p, uap, retval)
 	int error;
 
 	addr = (vm_offset_t) uap->addr;
-	size = (vm_size_t) uap->len;
-	/*
-	 * Align the address to a page boundary,
-	 * and adjust the size accordingly.
-	 */
+	size = uap->len;
+
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 
 	/* disable wrap around */
-	if (addr + (int)size < addr)
+	if (addr + size < addr)
 		return (EINVAL);
 
 #ifndef pmap_wired_count
