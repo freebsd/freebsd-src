@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.122 1998/01/12 01:46:30 dyson Exp $
+ * $Id: vfs_subr.c,v 1.123 1998/01/12 03:15:01 dyson Exp $
  */
 
 /*
@@ -66,6 +66,7 @@
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <sys/sysctl.h>
 
@@ -77,7 +78,6 @@ static void	insmntque __P((struct vnode *vp, struct mount *mp));
 #ifdef DDB
 static void	printlockedvnodes __P((void));
 #endif
-static void	vbusy __P((struct vnode *));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
@@ -110,7 +110,7 @@ SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "")
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
-int vfs_ioopt = 2;
+int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 struct mntlist mountlist;	/* mounted filesystem list */
@@ -374,8 +374,11 @@ getnewvnode(tag, mp, vops, vpp)
 	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
 		nvp = TAILQ_NEXT(vp, v_freelist);
 		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-		TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 		vp->v_flag &= ~VTBFREE;
+		vp->v_flag |= VFREE;
+		if (vp->v_usecount)
+			panic("tobe free vnode isn't");
 		freevnodes++;
 	}
 
@@ -1171,9 +1174,6 @@ vclean(vp, flags, p)
 	if ((active = vp->v_usecount))
 		vp->v_usecount++;
 
-	if (vp->v_object) {
-		vp->v_object->flags |= OBJ_DEAD;
-	}
 	/*
 	 * Prevent the vnode from being recycled or brought into use while we
 	 * clean it out.
@@ -1193,10 +1193,21 @@ vclean(vp, flags, p)
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 */
-	if (vp->v_object)
-		vm_object_terminate(vp->v_object);
-	else
-		vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
+	vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
+	if (vp->v_object) {
+		if (vp->v_object->ref_count == 0) {
+			/*
+			 * This is a normal way of shutting down the object/vnode
+			 * association.
+			 */
+			vm_object_terminate(vp->v_object);
+		} else {
+			/*
+			 * Woe to the process that tries to page now :-).
+			 */
+			vm_pager_deallocate(vp->v_object);
+		}
+	}
 
 	/*
 	 * If purging an active vnode, it must be closed and
@@ -2186,7 +2197,7 @@ vfree(vp)
 	splx(s);
 }
 
-static void
+void
 vbusy(vp)
 	struct vnode *vp;
 {

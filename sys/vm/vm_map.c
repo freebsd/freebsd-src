@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.104 1998/01/06 05:25:58 dyson Exp $
+ * $Id: vm_map.c,v 1.105 1998/01/12 01:44:31 dyson Exp $
  */
 
 /*
@@ -87,9 +87,11 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/default_pager.h>
+#include <vm/swap_pager.h>
 #include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_VMMAP, "VM map", "VM map structures");
@@ -332,6 +334,7 @@ vm_map_entry_create(map)
 #define	vm_map_entry_link(map, after_where, entry) \
 		{ \
 		(map)->nentries++; \
+		(map)->timestamp++; \
 		(entry)->prev = (after_where); \
 		(entry)->next = (after_where)->next; \
 		(entry)->prev->next = (entry); \
@@ -340,6 +343,7 @@ vm_map_entry_create(map)
 #define	vm_map_entry_unlink(map, entry) \
 		{ \
 		(map)->nentries--; \
+		(map)->timestamp++; \
 		(entry)->next->prev = (entry)->prev; \
 		(entry)->prev->next = (entry)->next; \
 		}
@@ -1145,23 +1149,27 @@ vm_map_madvise(map, pmap, start, end, advise)
 	for(current = entry;
 		(current != &map->header) && (current->start < end);
 		current = current->next) {
-		vm_size_t size = current->end - current->start;
+		vm_size_t size;
 
 		if (current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
 			continue;
 		}
+
+		vm_map_clip_end(map, current, end);
+		size = current->end - current->start;
 
 		/*
 		 * Create an object if needed
 		 */
 		if (current->object.vm_object == NULL) {
 			vm_object_t object;
+			if ((advise == MADV_FREE) || (advise == MADV_DONTNEED))
+				continue;
 			object = vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(size));
 			current->object.vm_object = object;
 			current->offset = 0;
 		}
 
-		vm_map_clip_end(map, current, end);
 		switch (advise) {
 	case MADV_NORMAL:
 			current->object.vm_object->behavior = OBJ_NORMAL;
@@ -1181,8 +1189,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				size = current->end - current->start;
-				pindex = OFF_TO_IDX(entry->offset);
+				pindex = OFF_TO_IDX(current->offset);
 				count = OFF_TO_IDX(size);
 				/*
 				 * MADV_DONTNEED removes the page from all
@@ -1197,7 +1204,6 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				size = current->end - current->start;
 				pindex = OFF_TO_IDX(current->offset);
 				count = OFF_TO_IDX(size);
 				vm_object_madvise(current->object.vm_object,
@@ -1213,6 +1219,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 		}
 	}
 
+	map->timestamp++;
 	vm_map_simplify_entry(map, entry);
 	vm_map_unlock(map);
 	return;
@@ -1262,6 +1269,7 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 
 	vm_map_simplify_entry(map, temp_entry);
+	map->timestamp++;
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1364,6 +1372,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			/* First we need to allow map modifications */
 			vm_map_set_recursive(map);
 			vm_map_lock_downgrade(map);
+			map->timestamp++;
 
 			rv = vm_fault_user_wire(map, entry->start, entry->end);
 			if (rv) {
@@ -1394,6 +1403,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			vm_map_simplify_entry(map,entry);
 		}
 	}
+	map->timestamp++;
 	vm_map_unlock(map);
 	return KERN_SUCCESS;
 }
@@ -1562,6 +1572,7 @@ vm_map_pageable(map, start, end, new_pageable)
 					entry->wired_count--;
 					entry = entry->prev;
 				}
+				map->timestamp++;
 				vm_map_unlock(map);
 				return (KERN_INVALID_ARGUMENT);
 			}
@@ -1630,6 +1641,7 @@ vm_map_pageable(map, start, end, new_pageable)
 
 	vm_map_unlock(map);
 
+	map->timestamp++;
 	return (KERN_SUCCESS);
 }
 
@@ -2068,6 +2080,7 @@ vmspace_fork(vm1)
 	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
 	new_pmap = &vm2->vm_pmap;	/* XXX */
 	new_map = &vm2->vm_map;	/* XXX */
+	new_map->timestamp = 1;
 
 	old_entry = old_map->header.next;
 
@@ -2224,7 +2237,7 @@ vmspace_unshare(struct proc *p) {
 int
 vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	      vm_offset_t vaddr,
-	      vm_prot_t fault_type,
+	      vm_prot_t fault_typea,
 	      vm_map_entry_t *out_entry,	/* OUT */
 	      vm_object_t *object,		/* OUT */
 	      vm_pindex_t *pindex,		/* OUT */
@@ -2238,6 +2251,7 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	register vm_map_t map = *var_map;
 	register vm_prot_t prot;
 	register boolean_t su;
+	vm_prot_t fault_type = fault_typea;
 
 RetryLookup:;
 
@@ -2297,11 +2311,16 @@ RetryLookup:;
 	 */
 
 	prot = entry->protection;
-	if ((fault_type & VM_PROT_OVERRIDE_WRITE) == 0 ||
-		(entry->eflags & MAP_ENTRY_COW) == 0 ||
-		(entry->wired_count != 0)) {
-		if ((fault_type & (prot)) !=
-		    (fault_type & ~VM_PROT_OVERRIDE_WRITE))
+
+	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
+	if ((fault_type & prot) != fault_type) {
+			RETURN(KERN_PROTECTION_FAILURE);
+	}
+
+	if (entry->wired_count &&
+			(fault_type & VM_PROT_WRITE) &&
+			(entry->eflags & MAP_ENTRY_COW) &&
+			(fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
 			RETURN(KERN_PROTECTION_FAILURE);
 	}
 
@@ -2462,16 +2481,16 @@ vm_map_lookup_done(map, entry)
  * operations.
  */
 int
-vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
+vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 	vm_map_t mapa;
 	vm_object_t srcobject;
 	off_t cp;
-	int cnt;
+	int cnta;
 	vm_offset_t uaddra;
 	int *npages;
 {
 	vm_map_t map;
-	vm_object_t first_object, object;
+	vm_object_t first_object, oldobject, object;
 	vm_map_entry_t first_entry, entry;
 	vm_prot_t prot;
 	boolean_t wired, su;
@@ -2480,12 +2499,14 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 	vm_pindex_t first_pindex, osize, oindex;
 	off_t ooffset;
 	int skipinit, allremoved;
+	int cnt;
 
 	if (npages)
 		*npages = 0;
 
 	allremoved = 0;
 
+	cnt = cnta;
 	while (cnt > 0) {
 		map = mapa;
 		uaddr = uaddra;
@@ -2531,47 +2552,10 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
  * If we are changing an existing map entry, just redirect
  * the object, and change mappings.
  */
-		if (first_object->type == OBJT_VNODE) {
-
-			if (first_object != srcobject) {
-
-				vm_object_deallocate(first_object);
-				srcobject->flags |= OBJ_OPT;
-				vm_object_reference(srcobject);
-
-				first_entry->object.vm_object = srcobject;
-				first_entry->offset = cp;
-
-			} else if (first_entry->offset != cp) {
-
-				first_entry->offset = cp;
-
-			} else {
-
-				skipinit = 1;
-
-			}
-
-			if (skipinit == 0) {
-				/*
-   				* Remove old window into the file
-   				*/
-				if (!allremoved) {
-					pmap_remove (map->pmap, uaddra, uaddra + cnt);
-					allremoved = 1;
-				}
-
-				/*
-   				* Force copy on write for mmaped regions
-   				*/
-				vm_object_pmap_copy_1 (srcobject,
-					oindex, oindex + osize);
-			}
-			
-		} else if ((first_object->ref_count == 1) &&
+		if ((first_object->ref_count == 1) &&
 			(first_object->size == osize) &&
-			(first_object->resident_page_count == 0)) {
-			vm_object_t oldobject;
+			((first_object->type == OBJT_DEFAULT) ||
+				(first_object->type == OBJT_SWAP)) ) {
 
 			oldobject = first_object->backing_object;
 
@@ -2586,15 +2570,31 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 				}
 
 				/*
+				 * Remove unneeded old pages
+				 */
+				if (first_object->resident_page_count) {
+					vm_object_page_remove (first_object, 0, 0, 0);
+				}
+
+				/*
+				 * Invalidate swap space
+				 */
+				if (first_object->type == OBJT_SWAP) {
+					swap_pager_freespace(first_object,
+						OFF_TO_IDX(first_object->paging_offset),
+						first_object->size);
+				}
+
+				/*
    				* Force copy on write for mmaped regions
    				*/
-				vm_object_pmap_copy_1 (srcobject,
-					oindex, oindex + osize);
+				vm_object_pmap_copy_1 (srcobject, oindex, oindex + osize);
 
 				/*
    				* Point the object appropriately
    				*/
 				if (oldobject != srcobject) {
+
 				/*
    				* Set the object optimization hint flag
    				*/
@@ -2613,6 +2613,7 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 					TAILQ_INSERT_TAIL(&srcobject->shadow_head,
 						first_object, shadow_list);
 					srcobject->shadow_count++;
+					srcobject->flags |= OBJ_OPT;
 
 					first_object->backing_object = srcobject;
 				}
@@ -2629,15 +2630,17 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 			srcobject->flags |= OBJ_OPT;
 			vm_object_reference(srcobject);
 
+			object = srcobject;
+			ooffset = cp;
+			vm_object_shadow(&object, &ooffset, osize);
+
 			if (!allremoved) {
 				pmap_remove (map->pmap, uaddra, uaddra + cnt);
 				allremoved = 1;
 			}
-			vm_object_pmap_copy_1 (srcobject,
-				oindex, oindex + osize);
-			vm_map_lookup_done(map, first_entry);
 
-			vm_map_lock(map);
+			vm_object_pmap_copy_1 (srcobject, oindex, oindex + osize);
+			vm_map_lock_upgrade(map);
 
 			if (first_entry == &map->header) {
 				map->first_free = &map->header;
@@ -2648,8 +2651,8 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 			SAVE_HINT(map, first_entry->prev);
 			vm_map_entry_delete(map, first_entry);
 
-			rv = vm_map_insert(map, srcobject, cp, start, end,
-				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE | MAP_COPY_NEEDED);
+			rv = vm_map_insert(map, object, ooffset, start, end,
+				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE);
 
 			if (rv != KERN_SUCCESS)
 				panic("vm_uiomove: could not insert new entry: %d", rv);
@@ -2659,9 +2662,10 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
  * Map the window directly, if it is already in memory
  */
 		if (!skipinit)
-			pmap_object_init_pt(map->pmap, start,
-				srcobject, (vm_pindex_t) OFF_TO_IDX(cp), end - start, 0);
+			pmap_object_init_pt(map->pmap, uaddra,
+				srcobject, (vm_pindex_t) OFF_TO_IDX(cp), tcnt, 0);
 
+		map->timestamp++;
 		vm_map_unlock(map);
 
 		cnt -= tcnt;
@@ -2689,9 +2693,8 @@ vm_freeze_page_alloc(object, pindex)
 			return NULL;
 	}
 
-	m->valid = VM_PAGE_BITS_ALL;
+	m->valid = 0;
 	m->dirty = 0;
-	vm_page_deactivate(m);
 	return m;
 }
 
@@ -2708,30 +2711,20 @@ vm_freeze_copyopts(object, froma, toa)
 	int s;
 	vm_object_t robject, robjectn;
 	vm_pindex_t idx, from, to;
-	return;
 
-	if ((vfs_ioopt == 0) || (object == NULL) ||
+	if ((vfs_ioopt == 0) ||
+		(object == NULL) ||
 		((object->flags & OBJ_OPT) == 0))
 		return;
 
 	if (object->shadow_count > object->ref_count)
 		panic("vm_freeze_copyopts: sc > rc");
 
-	for( robject = TAILQ_FIRST(&object->shadow_head);
-		 robject;
-		 robject = robjectn) {
+	while( robject = TAILQ_FIRST(&object->shadow_head)) {
 		vm_pindex_t bo_pindex;
-		vm_pindex_t dstpindex;
 		vm_page_t m_in, m_out;
 
-		robjectn = TAILQ_NEXT(robject, shadow_list);
-
 		bo_pindex = OFF_TO_IDX(robject->backing_object_offset);
-		if (bo_pindex > toa)
-			continue;
-
-		if ((bo_pindex + robject->size) < froma)
-			continue;
 
 		vm_object_reference(robject);
 
@@ -2748,86 +2741,79 @@ vm_freeze_copyopts(object, froma, toa)
 		}
 
 		robject->paging_in_progress++;
-		from = froma;
-		if (from < bo_pindex)
-			from = bo_pindex;
 
-		to = toa;
+		for (idx = 0; idx < robject->size; idx++) {
 
-		for (idx = from; idx < to; idx++) {
-
-			dstpindex = idx - bo_pindex;
-			if (dstpindex >= robject->size)
-				break;
-
-			m_in = vm_page_lookup(object, idx);
-			if (m_in == NULL)
-				continue;
-
-			if( m_in->flags & PG_BUSY) {
-				s = splvm();
-				while (m_in && (m_in->flags & PG_BUSY)) {
-					m_in->flags |= PG_WANTED;
-					tsleep(m_in, PVM, "pwtfrz", 0);
-					m_in = vm_page_lookup(object, idx);
-				}
-				splx(s);
-				if (m_in == NULL)
-					continue;
-			}
-			m_in->flags |= PG_BUSY;
-
-retryout:
-			m_out = vm_page_lookup(robject, dstpindex);
+m_outretry:
+			m_out = vm_page_lookup(robject, idx);
 			if( m_out && (m_out->flags & PG_BUSY)) {
 				s = splvm();
 				while (m_out && (m_out->flags & PG_BUSY)) {
 					m_out->flags |= PG_WANTED;
 					tsleep(m_out, PVM, "pwtfrz", 0);
-					m_out = vm_page_lookup(robject, dstpindex);
+					m_out = vm_page_lookup(robject, idx);
 				}
 				splx(s);
 			}
 
 			if (m_out == NULL) {
-				m_out = vm_freeze_page_alloc(robject, dstpindex);
+				m_out = vm_freeze_page_alloc(robject, idx);
 				if (m_out == NULL)
-					goto retryout;
+					goto m_outretry;
 			}
 
 			if (m_out->valid == 0) {
+				m_out->flags |= PG_BUSY;
+m_inretry:
+				m_in = vm_page_lookup(object, bo_pindex + idx);
+				if (m_in == NULL) {
+					int rv;
+					m_in = vm_freeze_page_alloc(object, bo_pindex + idx);
+					if (m_in == NULL)
+						goto m_inretry;
+					rv = vm_pager_get_pages(object, &m_in, 1, 0);
+					if (rv != VM_PAGER_OK) {
+						printf("vm_freeze_copyopts: cannot read page from file: %x\n", m_in->pindex);
+						continue;
+					}
+				} else if(m_in->busy || (m_in->flags & PG_BUSY)) {
+					s = splvm();
+					while (m_in && (m_in->busy || (m_in->flags & PG_BUSY))) {
+						m_in->flags |= PG_WANTED;
+						tsleep(m_in, PVM, "pwtfrz", 0);
+						m_in = vm_page_lookup(object, bo_pindex + idx);
+					}
+					splx(s);
+					if (m_in == NULL) {
+						goto m_inretry;
+					}
+				}
+
+				m_in->flags |= PG_BUSY;
 				vm_page_protect(m_in, VM_PROT_NONE);
-				pmap_copy_page(VM_PAGE_TO_PHYS(m_in),
-					VM_PAGE_TO_PHYS(m_out));
+				pmap_copy_page(VM_PAGE_TO_PHYS(m_in), VM_PAGE_TO_PHYS(m_out));
 				m_out->valid = VM_PAGE_BITS_ALL;
+				m_out->dirty = VM_PAGE_BITS_ALL;
+
+				vm_page_deactivate(m_out);
+				vm_page_deactivate(m_in);
+
+				PAGE_WAKEUP(m_out);
+				PAGE_WAKEUP(m_in);
 			}
-			PAGE_WAKEUP(m_out);
-			PAGE_WAKEUP(m_in);
 		}
+
+		object->shadow_count--;
+		object->ref_count--;
+		TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);
+		robject->backing_object = NULL;
+		robject->backing_object_offset = 0;
 
 		vm_object_pip_wakeup(robject);
-
-		if (((from - bo_pindex) == 0) && ((to - bo_pindex) == robject->size)) {
-
-			object->shadow_count--;
-
-			TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);
-			robject->backing_object = NULL;
-			robject->backing_object_offset = 0;
-
-			if (object->ref_count == 1) {
-				if (object->shadow_count == 0)
-					object->flags &= ~OBJ_OPT;
-				vm_object_deallocate(object);
-				vm_object_deallocate(robject);
-				return;
-			}
-			vm_object_deallocate(object);
-		}
 		vm_object_deallocate(robject);
 	}
-	if (object->shadow_count == 0)
-		object->flags &= ~OBJ_OPT;
+
+	object->flags &= ~OBJ_OPT;
 }
 
 #include "opt_ddb.h"

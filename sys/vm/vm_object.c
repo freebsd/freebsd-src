@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.105 1998/01/07 03:12:19 dyson Exp $
+ * $Id: vm_object.c,v 1.106 1998/01/12 01:44:38 dyson Exp $
  */
 
 /*
@@ -242,8 +242,11 @@ vm_object_reference(object)
 #endif
 
 	object->ref_count++;
-	if (object->type == OBJT_VNODE)
-		vget((struct vnode *) object->handle, LK_NOOBJ, curproc);
+	if (object->type == OBJT_VNODE) {
+		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
+			printf("vm_object_reference: delay in getting object\n");
+		}
+	}
 }
 
 void
@@ -263,11 +266,10 @@ vm_object_vndeallocate(object)
 #endif
 
 	object->ref_count--;
-	if (object->type == OBJT_VNODE) {
-		if (object->ref_count == 0)
-			vp->v_flag &= ~VTEXT;
-		vrele(vp);
+	if (object->ref_count == 0) {
+		vp->v_flag &= ~VTEXT;
 	}
+	vrele(vp);
 }
 
 /*
@@ -296,7 +298,7 @@ vm_object_deallocate(object)
 		}
 
 		if (object->ref_count == 0) {
-			panic("vm_object_deallocate: object deallocated too many times");
+			panic("vm_object_deallocate: object deallocated too many times: %d", object->type);
 		} else if (object->ref_count > 2) {
 			object->ref_count--;
 			return;
@@ -452,17 +454,17 @@ vm_object_terminate(object)
 	 */
 	vm_pager_deallocate(object);
 
-	simple_lock(&vm_object_list_lock);
-	TAILQ_REMOVE(&vm_object_list, object, object_list);
-	vm_object_count--;
-	simple_unlock(&vm_object_list_lock);
-
-	wakeup(object);
-
-	/*
-	 * Free the space for the object.
-	 */
-	zfree(obj_zone, object);
+	if (object->ref_count == 0) {
+		simple_lock(&vm_object_list_lock);
+		TAILQ_REMOVE(&vm_object_list, object, object_list);
+		vm_object_count--;
+		simple_unlock(&vm_object_list_lock);
+		/*
+   		* Free the space for the object.
+   		*/
+		zfree(obj_zone, object);
+		wakeup(object);
+	}
 }
 
 /*

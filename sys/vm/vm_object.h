@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.40 1997/12/29 00:24:55 dyson Exp $
+ * $Id: vm_object.h,v 1.41 1998/01/06 05:26:07 dyson Exp $
  */
 
 /*
@@ -73,7 +73,7 @@
 
 #include <sys/queue.h>
 
-enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE };
+enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_DEAD };
 typedef enum obj_type objtype_t;
 
 /*
