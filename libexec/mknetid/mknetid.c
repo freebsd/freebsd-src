@@ -38,6 +38,11 @@
 
 #ifndef lint
 static const char rcsid[] =
+	"$Id: mknetid.c,v 1.4.2.2 1997/12/15 07:16:15 charnier Exp $";
+#endif /* not lint */
+
+#ifndef lint
+static const char rcsid[] =
 	"$Id$";
 #endif /* not lint */
 

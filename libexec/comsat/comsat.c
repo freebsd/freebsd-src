@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)comsat.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: comsat.c,v 1.6.2.1 1997/12/12 07:16:56 charnier Exp $";
+	"$Id: comsat.c,v 1.6.2.2 1998/02/18 12:25:43 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -186,9 +186,11 @@ mailfor(name)
 		file = name;
 	else
 		file = cp + 1;
-	sprintf(buf, "%s/%.*s", _PATH_MAILDIR, sizeof(utmp[0].ut_name), name);
+	sprintf(buf, "%s/%.*s", _PATH_MAILDIR, (int)sizeof(utmp[0].ut_name),
+	    name);
 	if (*file != '/') {
-		sprintf(buf2, "%s/%.*s", _PATH_MAILDIR, sizeof(utmp[0].ut_name), file);
+		sprintf(buf2, "%s/%.*s", _PATH_MAILDIR,
+		    (int)sizeof(utmp[0].ut_name), file);
 		file = buf2;
 	}
 	folder = strcmp(buf, file);

@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.25.2.16 1998/05/16 21:29:20 ache Exp $";
+	"$Id: ftpd.c,v 1.25.2.17 1998/06/04 22:28:14 steve Exp $";
 #endif /* not lint */
 
 /*
@@ -460,7 +460,7 @@ main(argc, argv, envp)
 
 	(void) signal(SIGCHLD, SIG_IGN);
 	(void) signal(SIGPIPE, lostconn);
-	if ((int)signal(SIGURG, myoob) < 0)
+	if (signal(SIGURG, myoob) == SIG_ERR)
 		syslog(LOG_ERR, "signal: %m");
 
 #ifdef SKEY
@@ -480,6 +480,13 @@ main(argc, argv, envp)
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 #endif
+	/*
+	 * Disable Nagle on the control channel so that we don't have to wait
+	 * for peer's ACK before issuing our next reply.
+	 */
+	if (setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "control setsockopt TCP_NODELAY: %m");
+
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
 
 	/* set this here so klogin can use it... */
@@ -1133,7 +1140,7 @@ retrieve(cmd, name)
 	FILE *fin, *dout;
 	struct stat st;
 	int (*closefunc) __P((FILE *));
-	long start;
+	time_t start;
 
 	if (cmd == 0) {
 		fin = fopen(name, "r"), closefunc = fclose;
@@ -1921,7 +1928,8 @@ dolog(sin)
 			       remotehost, hostname);
 		else
 #endif
-			syslog(LOG_INFO, "connection from %s", remotehost);
+			syslog(LOG_INFO, "connection from %s (%s)", remotehost,
+				inet_ntoa(sin->sin_addr));
 	}
 }
 
@@ -2289,7 +2297,7 @@ logxfer(name, size, start)
 {
 	char buf[1024];
 	char path[MAXPATHLEN + 1];
-	long now;
+	time_t now;
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
