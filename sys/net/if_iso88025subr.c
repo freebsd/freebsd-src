@@ -175,25 +175,27 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                 /*
                  * XXX - This code is probably wrong
                  */
-                case AF_IPX:
-                        {
-                        struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-                        struct arpcom *ac = IFP2AC(ifp);
+                case AF_IPX: {
+				struct ipx_addr *ina;
+				struct arpcom *ac;
 
-                        if (ipx_nullhost(*ina))
-                                ina->x_host = *(union ipx_host *)ac->ac_enaddr;
-                        else {
-                                bcopy((caddr_t) ina->x_host.c_host,
-                                      (caddr_t) ac->ac_enaddr,
-                                      ISO88025_ADDR_LEN);
-                        }
+				ina = &(IA_SIPX(ifa)->sipx_addr);
+				ac = IFP2AC(ifp);
 
-                        /*
-                         * Set new address
-                         */
-                        ifp->if_init(ifp->if_softc);
-                        break;
-                        }
+				if (ipx_nullhost(*ina))
+					ina->x_host = *(union ipx_host *)
+							ac->ac_enaddr;
+				else
+					bcopy((caddr_t) ina->x_host.c_host,
+					      (caddr_t) ac->ac_enaddr,
+					      ISO88025_ADDR_LEN);
+
+				/*
+				 * Set new address
+				 */
+				ifp->if_init(ifp->if_softc);
+			}
+			break;
 #endif	/* IPX */
                 default:
                         ifp->if_init(ifp->if_softc);
