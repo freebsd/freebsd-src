@@ -22,7 +22,7 @@
  * documentation and/or software.
  */
 
-#ident "$Revision: 1.2 $"
+#ident "$Revision: 1.3 $"
 
 #ifdef sgi
 #include <strings.h>

@@ -514,11 +514,13 @@ specifies a RIPv2 password that will be included on all RIPv2
 responses sent and checked on all RIPv2 responses received.
 The password must not contain any blanks, tab characters, commas
 or '#' characters.
-.It Cm passwd Ns \&= Ns Ar XXX1[|KeyID[start|stop]][XXX2...]
-specifies one or more RIPv2 cleartext passwords that will be included on
+.It Cm passwd Ns \&= Ns Ar XXX1[|KeyID[start|stop]]
+specifies a RIPv2 cleartext password that will be included on
 all RIPv2 responses sent, and checked on all RIPv2 responses received.
-Any blanks, tab characters, commas, or '#' or '|' characters in the
+Any blanks, tab characters, commas, or '#', '|', or NULL characters in the
 password must be escaped with a backslash (\\).
+The common escape sequences \\n, \\r, \\t, \\b, and \\xxx have their
+usual meanings.
 The
 .Cm KeyID
 must be unique but is ignored for cleartext passwords.
@@ -528,15 +530,21 @@ and
 .Cm stop
 are timestamps in the form year/month/day@hour:minute.
 They specify when the password is valid.
-The first valid password is used on output packets.
+The valid password with the most future is used on output packets, unless
+all passwords have expired, in which case the password that expired most
+recently is used, or unless no passwords are valid yet, in which case
+no password is output.
 Incoming packets can carry any password that is valid, will
 be valid within 24 hours, or that was valid within 24 hours.
-.It Cm md5_passwd Ns \&= Ns Ar XXX1|KeyID[start|stop][XXX2...]
-specifes one or more RIPv2 MD5 passwords.
+.It Cm md5_passwd Ns \&= Ns Ar XXX1|KeyID[start|stop]
+specifes a RIPv2 MD5 password.
 Except that a
 .Cm KeyID
-is required, this keyword is the similar to
+is required, this keyword is similar to
 .Cm passwd .
+To protect the secrets, this parameter setting is valid only in the
+.Em /etc/gateways
+file and only when that file is readable only by UID 0.
 .It Cm no_ag
 turns off aggregation of subnets in RIPv1 and RIPv2 responses.
 .It Cm no_super_ag
@@ -612,6 +620,10 @@ causes RIP packets from that router and other routers named in
 other
 .Cm trust_gateway
 keywords to be accept, and packets from other routers to be ignored.
+.It Cm redirect_ok
+causes RIP to allow ICMP Redirect messages when the system is acting
+as a router and forwarding packets.
+Otherwise, ICMP Redirect messages are are overridden.
 .El
 .Pp
 .Sh FILES
