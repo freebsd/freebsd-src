@@ -82,6 +82,7 @@ extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
 extern int	jail_sysvipc_allowed;
 extern int	jail_getfsstat_jailrootonly;
+extern int	jail_allow_raw_sockets;
 
 LIST_HEAD(prisonlist, prison);
 extern struct	prisonlist allprison;
