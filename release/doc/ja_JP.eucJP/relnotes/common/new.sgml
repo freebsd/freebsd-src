@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.255
+    Original revision: 1.257
 -->
 
 <articleinfo>
@@ -400,6 +400,15 @@
       <varname>kern.security.*</varname> から
       <varname>security.*</varname> へと移動しました.</para>
 
+    <para><varname>kern.maxvnodes</varname> は使用する vnode の
+      数を正しく制限するようになりました.
+      これまでは, キャッシュされていないページの vnode のみが
+      free でき, これにより多くのメモリを積んだマシンが
+      多くの小さいファイルにアクセスする際に, 制限なしに vnode の
+      数を大きくすることが可能でした.
+      <literal>vnlru</literal> カーネルスレッドが vnode の解放
+      と再利用を行なっています. &merged;</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -511,11 +520,7 @@
 	一行出力する毎にカーネルがちょっと止まるようにする
 	<option>-p</option> フラグが追加されました. &merged;</para>
 
-      <para arch="i386">&os; ブートローダは 16K ディスクブロックの
-	ファイルシステムからもブートできるようになりました (従来は 8K ま
-	ででした). &merged;</para>
-
-      <para arch="alpha">&os; ブートローダは 8K より大きなブロック
+      <para arch="alpha,i386">&os; ブートローダは 8K より大きなブロック
 	サイズのファイルシステムからもブートできるようになりました.
 	&merged;</para>
 
@@ -1004,6 +1009,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.ata.4; ドライバは 48-bit アドレスに対応しました.
 	137GB より大きなデバイスに対応したことになります. &merged;</para>
+
+      <para>&man.ata.4; ドライバで, VIA 82C686B サウスブリッジチップ
+	を使ったシステムにおいて, データが壊れる場合があることへの
+	対策が行なわれました. &merged;</para>
 
       <para>CAM のエラー回復処理コードが更新されました.</para>
 
