@@ -38,177 +38,178 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amq.8,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+.\" $Id: amq.8,v 1.2 1998/09/05 06:38:19 obrien Exp $
 .\"
-.TH AMQ 8 "25 April 1989"
-.SH NAME
-amq \- automounter query tool
-.SH SYNOPSIS
-.B amq
-[
-.BI \-fmpsuvTU
-] [
-.BI \-h " hostname"
-] [
-.BI \-l " log_file"
-] [
-.BI \-x " log_options"
-] [
-.BI \-D " debug_options"
-] [
-.BI \-M " mountmap entry"
-] [
-.BI \-P " program_number"
-] [
-.I directory
-] .\|.\|.
-.SH DESCRIPTION
-.B Amq
-provides a simple way of determining the current state of
-.B amd
+.Dd March 16, 1991
+.Dt AMQ 8
+.Os
+.Sh NAME
+.Nm amq
+.Nd automounter query tool
+.Sh SYNOPSIS
+.Nm amq
+.Op Fl fmpsuvTU
+.Op Fl h Ar hostname
+.Op Fl l Ar log_file
+.Op Fl x Ar log_options
+.Op Fl D Ar debug_options
+.Op Fl M Ar mountmap_entry
+.Op Fl P Ar program_number
+.Op Ar directory
+.Ar ...
+.Sh DESCRIPTION
+.Nm Amq
+provides a simple way of determining the current state of the
+.Xr amd 8
 program.
 Communication is by
-.SM RPC.
-Three modes of operation are supported by the current protocol.  By default
-a list of mount points and auto-mounted filesystems is output.  An
-alternative host can be specified using the
-.I \-h
+.Tn RPC .
+Three modes of operation are supported by the current protocol.
+By default a list of mount points and auto-mounted filesystems
+is output.
+An alternative host can be specified using the
+.Fl h
 option.
-.LP
-If
-.I directory
-names are given, as output by default, then per-filesystem
-information is displayed.
-.SH OPTIONS
-
-.TP
-.B \-f
-Ask the automounter to flush the internal caches.
-
-.TP
-.BI \-h " hostname"
-Specify an alternate host to query.  By default the local host is used.  In
-an
-.SM HP-UX
-cluster, the root server is queried by default, since that is the system on
-which the automounter is normally run.
-
-.TP
-.BI \-l " log_file"
+.Pp
+If directory names are given, as output by default,
+then per-filesystem information is displayed.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+Request automounter to flush the internal caches.
+.It Fl h Ar hostname
+Query alternate host
+.Ar hostname .
+By default the local host is used.  In an
+.Tn HP-UX
+cluster, the root server is queried by default, since
+that is the system on which the automounter is normally run.
+.It Fl l Ar log_file
 Tell amd to use
-.I log_file
-as the log file name.  For security reasons, this must be the same log file
-which amd used when started.  This option is therefore only useful to
-refresh amd's open file handle on the log file, so that it can be rotated
-and compressed via daily cron jobs.
-
-.TP
-.B \-m
-Ask the automounter to provide a list of mounted filesystems, including the
-number of references to each filesystem and any error which occurred while
-mounting.
-
-.TP
-.B \-p
-Return the process ID of the remote or locally running amd.  Useful when you
-need to send a signal to the local amd process, and would rather not have to
-search through the process table.  This option is used in the
-.I ctl-amd
+.Ar log_file
+as the log file name. 
+For security reasons, this must be the same log file which
+.Nm amd
+used when started.  This option is therefore only useful to 
+refresh
+.Nm amd's
+open file handle on the log file, so that it can be rotated and compressed via
+daily cron jobs.
+.It Fl m
+Request the automounter to provide a list of mounted filesystems,
+including the number of references to each filesystem and any error
+which occurred while mounting.
+.It Fl p
+Return the process ID of the remote or locally running
+.Nm amd .  
+Useful when you need to send a signal to the local
+.Nm amd
+process, and would rather not have to search through the process table.  This
+option is used in the
+.Pa ctl-amd
 script.
-
-.TP
-.B \-s
-Ask the automounter to provide system-wide mount statistics.
-
-.TP
-.B \-u
-Ask the automounter to unmount the filesystems named in
-.I directory
-instead of providing
-information about them.  Unmounts are requested, not forced.  They merely
-cause the mounted filesystem to timeout, which will be picked up by
-.BR amd 's
+.It Fl s
+Request the automounter to provide system-wide mount statistics.
+.It Fl u
+Request the automounter to unmount the named filesystems
+instead of providing information about them.  Unmounts are requested,
+not forced.  They merely cause the mounted filesystem to timeout,
+which will be picked up by
+.Nm amd Ns \'s
 main scheduler thus causing the normal timeout action to be taken.
-
-.TP
-.B \-v
-Ask the automounter for its version information.  This is a subset of the
-information output by
-.BR amd 's
-.I -v
+.It Fl v
+Request the automounter to provide version information.  This is a subset
+of the information provided by
+.Nm amd Ns \'s Fl v
 option.
-
-.TP
-.BI \-x " log_options"
-Ask the automounter to use the logging options specified in
-.I log_options
+.It Fl x Ar log_options
+Ask the automounter to use the logging options specified in 
+.Ar log_options
 from now on.
-
-.TP
-.BI \-D " log_options"
-Ask the automounter to use the debugging options specified in
-.I debug_options
+.It Fl D Ar log_options
+Ask the automounter to use the debugging options specified in 
+.Ar debug_options
 from now on.
-
-.TP
-.BI \-M " map_ent"
-Pass a mount map entry to
-.B amd
-and wait for it to be evaluated, possible causing a mount.  This option is
-highly insecure.  By default, amd and amq do not support it.  You have to
-configure am-utils with
-.I \-\-enable\-amq\-mount
+.It Fl M
+Pass a mount map entry to 
+.Nm amd
+and wait for it to be evaluated, possibly causing a mount.
+This option is highly insecure.  
+By default,
+.Nm amd
+and 
+.Nm amq
+do not support it.
+It is necessary to configure
+.Nm am-utils
+with 
+.Ar --enable-amq-mount
 to enable this option.
-
-.TP
-.BI \-P " program_number"
-Contact an alternate running amd that had registered itself on a different
-RPC
-.I program_number
-and apply all other operations to that instance of the automounter.  This is
-useful when you run multiple copies of amd, and need to manage each
-one separately.  If not specified, amq will use the default program number
-for amd, 300019.  For security reasons, the only alternate program numbers
-amd can use range from 300019 to 300029, inclusive.
-
-.TP
-.B \-T
+.It Fl P Ar program_number
+Contact an alternate running 
+.Nm amd 
+that had registered itself on a different RPC
+.Ar program_number 
+and apply all other operations to that instance of the automounter.  
+This is useful when running multiple copies of 
+.Nmamd , 
+and need to manage each one separately.  
+If not specified, 
+.Nm amq
+will use the default program number for 
+.Nm amd ,
+300019.
+For security reasons, the only alternate program numbers
+.Nm amd
+can use range from 300019 to 300029, inclusive.
+.It Fl T
 Contact
-.B amd
-using the TCP transport only.  Normally
-.B amq
-will try TCP, and if that failed, will try UDP.
-
-.TP
-.B \-U
-Contact
-.B amd
-using UDP (connectionless) transport only.  Normally
-.B amq
-will try TCP, and if that failed, will try UDP.
-
-.SH FILES
-.PD 0
-.TP 20
-.B amq.x
-.SM RPC
+.Nm amd
+using the TCP transport only.  
+Normally 
+.Nm amq
+will try TCP, and if that fails, will try UDP.
+.It Fl U
+Contact 
+.Nm amd
+using UDP (connectionless) transport only. 
+Normally
+.Nm amq
+will try TCP, and if that fails, will try UDP.
+.El
+.Sh FILES
+.Bl -tag -width amq.xxxxx -compact
+.Bl -tag -width Ds
+.It Pa amq.x
+.Tn RPC
 protocol description.
-.SH CAVEATS
-.B Amq
+.El
+.Sh CAVEATS
+.Nm Amq
 uses a Sun registered
-.SM RPC
+.Tn RPC
 program number (300019 decimal) which may not
-be in the /etc/rpc database.
-.SH "SEE ALSO"
-.BR amd.conf (5).
-.BR amd (8),
-.BR ctl-amd (8),
-.SH AUTHORS
-Jan-Simon Pendry <jsp@doc.ic.ac.uk>, Department of Computing, Imperial College, London, UK.
-.P
-Erez Zadok <ezk@cs.columbia.edu>, Department of Computer Science, Columbia
-University, New York, USA.
-.P
-Other authors and contributors to am-utils are listed in the
-.B AUTHORS
-file distributed with am-utils.
+be in the
+.Pa /etc/rpc
+database.
+.Sh SEE ALSO
+.Xr amd.conf 8 ,
+.Xr amd 8 ,
+.Xr ctl-amd 8 
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to 
+.Nm am-utils
+are listed in the
+.Nm AUTHORS 
+file distributed with
+.Nm am-utils .
+.Sh HISTORY
+.Nm Amq
+first appeared in 4.4BSD.
+.At
