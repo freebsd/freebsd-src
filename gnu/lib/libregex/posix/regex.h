@@ -1,6 +1,6 @@
 /* Definitions for data structures and routines for the regular
    expression library, version 0.12.
-   Copyright (C) 1985,89,90,91,92,93,95,96,97,98 Free Software Foundation, Inc.
+   Copyright (C) 1985,1989-1993,1995-1998, 2000 Free Software Foundation, Inc.
 
    This file is part of the GNU C Library.  Its master source is NOT part of
    the C library, however.  The master source lives in /gd/gnu/lib.
@@ -160,6 +160,11 @@ typedef unsigned long int reg_syntax_t;
    this bit set, and it won't affect anything in the normal case. */
 #define RE_DEBUG (RE_NO_GNU_OPS << 1)
 
+/* If this bit is set, a syntactically invalid interval is treated as
+   a string of ordinary characters.  For example, the ERE 'a{1' is
+   treated as 'a\{1'.  */
+#define RE_INVALID_INTERVAL_ORD (RE_DEBUG << 1)
+
 /* This global variable defines the particular regexp syntax to use (for
    some interfaces).  When a regexp is compiled, the syntax used is
    stored in the pattern buffer, so changing this does not affect
@@ -199,7 +204,8 @@ extern reg_syntax_t re_syntax_options;
    | RE_NO_BK_VBAR)
 
 #define RE_SYNTAX_POSIX_EGREP						\
-  (RE_SYNTAX_EGREP | RE_INTERVALS | RE_NO_BK_BRACES)
+  (RE_SYNTAX_EGREP | RE_INTERVALS | RE_NO_BK_BRACES			\
+   | RE_INVALID_INTERVAL_ORD)
 
 /* P1003.2/D11.2, section 4.20.7.1, lines 5078ff.  */
 #define RE_SYNTAX_ED RE_SYNTAX_POSIX_BASIC
@@ -221,13 +227,13 @@ extern reg_syntax_t re_syntax_options;
   (_RE_SYNTAX_POSIX_COMMON | RE_LIMITED_OPS)
 
 #define RE_SYNTAX_POSIX_EXTENDED					\
-  (_RE_SYNTAX_POSIX_COMMON | RE_CONTEXT_INDEP_ANCHORS			\
-   | RE_CONTEXT_INDEP_OPS  | RE_NO_BK_BRACES				\
-   | RE_NO_BK_PARENS       | RE_NO_BK_VBAR				\
-   | RE_UNMATCHED_RIGHT_PAREN_ORD)
+  (_RE_SYNTAX_POSIX_COMMON  | RE_CONTEXT_INDEP_ANCHORS			\
+   | RE_CONTEXT_INDEP_OPS   | RE_NO_BK_BRACES				\
+   | RE_NO_BK_PARENS        | RE_NO_BK_VBAR				\
+   | RE_CONTEXT_INVALID_OPS | RE_UNMATCHED_RIGHT_PAREN_ORD)
 
-/* Differs from ..._POSIX_EXTENDED in that RE_CONTEXT_INVALID_OPS
-   replaces RE_CONTEXT_INDEP_OPS and RE_NO_BK_REFS is added.  */
+/* Differs from ..._POSIX_EXTENDED in that RE_CONTEXT_INDEP_OPS is
+   removed and RE_NO_BK_REFS is added.  */
 #define RE_SYNTAX_POSIX_MINIMAL_EXTENDED				\
   (_RE_SYNTAX_POSIX_COMMON  | RE_CONTEXT_INDEP_ANCHORS			\
    | RE_CONTEXT_INVALID_OPS | RE_NO_BK_BRACES				\
@@ -513,13 +519,31 @@ extern int re_exec _RE_ARGS ((const char *));
 # endif
 #endif
 
+/* GCC 2.95 and later have "__restrict"; C99 compilers have
+   "restrict", and "configure" may have defined "restrict".  */
+#ifndef __restrict
+# if ! (2 < __GNUC__ || (2 == __GNUC__ && 95 <= __GNUC_MINOR__))
+#  if defined restrict || 199901L <= __STDC_VERSION__
+#   define __restrict restrict
+#  else
+#   define __restrict
+#  endif
+# endif
+#endif
+/* For now unconditionally define __restrict_arr to expand to nothing.
+   Ideally we would have a test for the compiler which allows defining
+   it to restrict.  */
+#define __restrict_arr
+
 /* POSIX compatibility.  */
-extern int regcomp _RE_ARGS ((regex_t *__preg, const char *__pattern,
+extern int regcomp _RE_ARGS ((regex_t *__restrict __preg,
+			      const char *__restrict __pattern,
 			      int __cflags));
 
-extern int regexec _RE_ARGS ((const regex_t *__preg,
-			      const char *__string, size_t __nmatch,
-			      regmatch_t __pmatch[], int __eflags));
+extern int regexec _RE_ARGS ((const regex_t *__restrict __preg,
+			      const char *__restrict __string, size_t __nmatch,
+			      regmatch_t __pmatch[__restrict_arr],
+			      int __eflags));
 
 extern size_t regerror _RE_ARGS ((int __errcode, const regex_t *__preg,
 				  char *__errbuf, size_t __errbuf_size));
