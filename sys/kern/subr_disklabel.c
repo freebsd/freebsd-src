@@ -44,10 +44,23 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/syslog.h>
 #include <machine/atomic.h>
+
+/*
+ * Mutex to use when delaying niced I/O bound processes in bioqdisksort().
+ */
+static struct mtx dksort_mtx;
+static void
+dksort_init(void)
+{
+
+	mtx_init(&dksort_mtx, "dksort", MTX_DEF);
+}
+SYSINIT(dksort, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dksort_init, NULL)
 
 /*
  * Seek sort for disks.
@@ -72,7 +85,19 @@ bioqdisksort(bioq, bp)
 	struct bio *bq;
 	struct bio *bn;
 	struct bio *be;
+	struct thread *td = curthread;
 	
+	if (td && td->td_ksegrp->kg_nice > 0) {
+		TAILQ_FOREACH(bn, &bioq->queue, bio_queue)
+			if (BIOTOBUF(bn)->b_vp != BIOTOBUF(bn)->b_vp)
+				break;
+		if (bn != NULL) {
+			mtx_lock(&dksort_mtx);
+			msleep((caddr_t)&dksort_mtx, &dksort_mtx,
+			    PPAUSE | PCATCH | PDROP, "ioslow",
+			    td->td_ksegrp->kg_nice);
+		}
+	}
 	if (!atomic_cmpset_int(&bioq->busy, 0, 1))
 		panic("Recursing in bioqdisksort()");
 	be = TAILQ_LAST(&bioq->queue, bio_queue);
