@@ -17,8 +17,4 @@ SUBDIR+=as ld
 .endif
 .endif
 
-.if !defined(NOPERL) && !defined(NO_PERL) && exists(${.CURDIR}/perl)
-SUBDIR+=perl
-.endif
-
 .include <bsd.subdir.mk>
