@@ -144,7 +144,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		 * Use the garbage collector mutex for synchronization of the
 		 * spare stack list.
 		 */
-		DEAD_LIST_LOCK;
+		STACK_LOCK;
 
 		if ((spare_stack = LIST_FIRST(&_dstackq)) != NULL) {
 				/* Use the spare stack. */
@@ -153,7 +153,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		}
 
 		/* Unlock the garbage collector mutex. */
-		DEAD_LIST_UNLOCK;
+		STACK_UNLOCK;
 	}
 	/*
 	 * The user specified a non-default stack and/or guard size, so try to
@@ -165,7 +165,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		 * Use the garbage collector mutex for synchronization of the
 		 * spare stack list.
 		 */
-		DEAD_LIST_LOCK;
+		STACK_LOCK;
 
 		LIST_FOREACH(spare_stack, &_mstackq, qe) {
 			if (spare_stack->stacksize == stack_size &&
@@ -177,7 +177,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		}
 
 		/* Unlock the garbage collector mutex. */
-		DEAD_LIST_UNLOCK;
+		STACK_UNLOCK;
 	}
 
 	/* Check if a stack was not allocated from a stack cache: */
