@@ -36,6 +36,16 @@
 MALLOC_DECLARE(M_ISADEV);
 
 /*
+ * PNP configurations are kept in a tailq.
+ */
+TAILQ_HEAD(isa_config_list, isa_config_entry);
+struct isa_config_entry {
+	TAILQ_ENTRY(isa_config_entry) ice_link;
+	int			ice_priority;
+	struct isa_config	ice_config;
+};
+
+/*
  * The structure used to attach devices to the isa bus.
  */
 struct isa_device {
@@ -45,6 +55,9 @@ struct isa_device {
 	u_int32_t		id_serial; /* pnp serial */
 	u_int32_t		id_logicalid; /* pnp logical device id */
 	u_int32_t		id_compatid; /* pnp compat device id */
+	struct isa_config_list	id_configs; /* pnp config alternatives */
+	isa_config_cb		*id_config_cb; /* callback function */
+	void			*id_config_arg;	/* callback argument */
 };
 
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))

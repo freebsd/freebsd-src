@@ -120,7 +120,6 @@ extern struct isa_driver  wldriver;
 extern struct isa_driver  zedriver;
 extern struct isa_driver  zpdriver;
 extern struct isa_driver oltrdriver;
-extern struct isa_driver pcmdriver;
 extern struct isa_driver pasdriver;
 extern struct isa_driver  sbdriver;
 extern struct isa_driver sbxvidriver;
@@ -333,9 +332,6 @@ static struct old_isa_driver old_drivers[] = {
 
 #if NOLTR > 0
 	{ INTR_TYPE_MISC, &oltrdriver },
-#endif
-#if NPCM > 0
-	{ INTR_TYPE_MISC, &pcmdriver },
 #endif
 #if NPAS > 0
 	{ INTR_TYPE_MISC, &pasdriver },
