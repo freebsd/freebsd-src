@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1996/11/03 19:15:44 peter Exp $
+# $Id: Makefile,v 1.5 1996/11/03 21:32:37 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -29,6 +29,12 @@ MLINKS+=vi.1 ex.1 vi.1 view.1
 MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 
 CATALOGS= dutch english french german ru_SU.KOI8-R spanish swedish
+DALINKS= da_DK
+ENLINKS= en_AU en_CA en_GB en_US
+FRLINKS= fr_BE fr_CA fr_CH fr_FR
+DELINKS= de_AT de_CH de_DE
+ESLINKS= es_ES
+SVLINKS= sv_SE
 
 .PATH:	${SRCDIR}/common
 .PATH:	${SRCDIR}/ex
@@ -130,6 +136,25 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
 		${DESTDIR}/usr/share/vi/catalog
+	for l in ${DALINKS}; do \
+		ln -fs dutch ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	for l in ${ENLINKS}; do \
+		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	ln -fs english ${DESTDIR}/usr/share/vi/catalog/us-ascii
+	for l in ${FRLINKS}; do \
+		ln -fs french ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	for l in ${DELINKS}; do \
+		ln -fs german ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	for l in ${ESLINKS}; do \
+		ln -fs spanish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
+	for l in ${SVLINKS}; do \
+		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
+	done
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/tcl_scripts/*.tcl \
 		${DESTDIR}/usr/share/vi/tcl
