@@ -90,13 +90,95 @@ always require this, while builtin bridges need it less often");
 typedef void (*init_t)(device_t);
 
 static void pcic_pci_cardbus_init(device_t);
-static void pcic_pci_oz67xx_init(device_t);
-static void pcic_pci_oz68xx_init(device_t);
-static void pcic_pci_pd67xx_init(device_t);
-static void pcic_pci_pd683x_init(device_t);
-static void pcic_pci_ricoh_init(device_t);
-static void pcic_pci_ti_init(device_t);
-static void pcic_pci_topic_init(device_t);
+static pcic_intr_mapirq_t pcic_pci_gen_mapirq;
+
+static pcic_intr_way_t pcic_pci_oz67xx_func;
+static pcic_intr_way_t pcic_pci_oz67xx_csc;
+static pcic_init_t pcic_pci_oz67xx_init;
+
+static pcic_intr_way_t pcic_pci_oz68xx_func;
+static pcic_intr_way_t pcic_pci_oz68xx_csc;
+static pcic_init_t pcic_pci_oz68xx_init;
+
+static pcic_intr_way_t pcic_pci_pd67xx_func;
+static pcic_intr_way_t pcic_pci_pd67xx_csc;
+static pcic_init_t pcic_pci_pd67xx_init;
+
+static pcic_intr_way_t pcic_pci_pd68xx_func;
+static pcic_intr_way_t pcic_pci_pd68xx_csc;
+static pcic_init_t pcic_pci_pd68xx_init;
+
+static pcic_intr_way_t pcic_pci_ricoh_func;
+static pcic_intr_way_t pcic_pci_ricoh_csc;
+static pcic_init_t pcic_pci_ricoh_init;
+
+static pcic_intr_way_t pcic_pci_ti113x_func;
+static pcic_intr_way_t pcic_pci_ti113x_csc;
+static pcic_init_t pcic_pci_ti_init;
+
+static pcic_intr_way_t pcic_pci_ti12xx_func;
+static pcic_intr_way_t pcic_pci_ti12xx_csc;
+
+static pcic_intr_way_t pcic_pci_topic_func;
+static pcic_intr_way_t pcic_pci_topic_csc;
+static pcic_init_t pcic_pci_topic_init;
+
+static struct pcic_chip pcic_pci_oz67xx_chip = {
+	pcic_pci_oz67xx_func,
+	pcic_pci_oz67xx_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_oz67xx_init
+};
+
+static struct pcic_chip pcic_pci_oz68xx_chip = {
+	pcic_pci_oz68xx_func,
+	pcic_pci_oz68xx_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_oz68xx_init
+};
+
+static struct pcic_chip pcic_pci_pd67xx_chip = {
+	pcic_pci_pd67xx_func,
+	pcic_pci_pd67xx_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_pd67xx_init
+};
+
+static struct pcic_chip pcic_pci_pd68xx_chip = {
+	pcic_pci_pd68xx_func,
+	pcic_pci_pd68xx_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_pd68xx_init
+};
+
+static struct pcic_chip pcic_pci_ricoh_chip = {
+	pcic_pci_ricoh_func,
+	pcic_pci_ricoh_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_ricoh_init
+};
+
+static struct pcic_chip pcic_pci_ti113x_chip = {
+	pcic_pci_ti113x_func,
+	pcic_pci_ti113x_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_ti_init
+};
+
+static struct pcic_chip pcic_pci_ti12xx_chip = {
+	pcic_pci_ti12xx_func,
+	pcic_pci_ti12xx_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_ti_init
+};
+
+static struct pcic_chip pcic_pci_topic_chip = {
+	pcic_pci_topic_func,
+	pcic_pci_topic_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_topic_init
+};
+
 
 struct pcic_pci_table
 {
@@ -104,113 +186,113 @@ struct pcic_pci_table
 	const char	*descr;
 	int		type;
 	u_int32_t	flags;
-	init_t		init;
+ 	struct pcic_chip *chip;
 } pcic_pci_devs[] = {
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
-	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd67xx_init },
+	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6832,
 	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd683x_init },
+	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, pcic_pci_pd683x_init },
+	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz67xx_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6730,
 	  "O2micro OZ6730 PC-Card Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz67xx_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6832,
 	  "O2micro 6832/6833 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6860,
 	  "O2micro 6860/6836 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6872,
 	  "O2micro 6812/6872 PCI-Cardbus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_oz68xx_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C465,
 	  "Ricoh RL5C465 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C475,
 	  "Ricoh RL5C475 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C476,
 	  "Ricoh RL5C476 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C477,
 	  "Ricoh RL5C477 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C478,
 	  "Ricoh RL5C478 PCI-CardBus Bridge",
-	  PCIC_RF5C296, PCIC_RICOH_POWER, pcic_pci_ricoh_init },
+	  PCIC_RF5C296, PCIC_RICOH_POWER, &pcic_pci_ricoh_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1031,
 	  "TI PCI-1031 PCI-PCMCIA Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1130,
 	  "TI PCI-1130 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1131,
 	  "TI PCI-1131 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti113x_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1210,
 	  "TI PCI-1210 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1211,
 	  "TI PCI-1211 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1220,
 	  "TI PCI-1220 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1221,
 	  "TI PCI-1221 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1225,
 	  "TI PCI-1225 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1250,
 	  "TI PCI-1250 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1251,
 	  "TI PCI-1251 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1251B,
 	  "TI PCI-1251B PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1410,
 	  "TI PCI-1410 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1420,
 	  "TI PCI-1420 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1450,
 	  "TI PCI-1450 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1451,
 	  "TI PCI-1451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4410,
 	  "TI PCI-4410 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4450,
 	  "TI PCI-4450 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI4451,
 	  "TI PCI-4451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_DF_POWER, pcic_pci_ti_init },
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95,
 	  "Toshiba ToPIC95 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95B,
 	  "Toshiba ToPIC95B PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC97,
 	  "Toshiba ToPIC97 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
+	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_topic_chip },
 	{ PCI_DEVICE_ID_TOSHIBA_TOPIC100,
 	  "Toshiba ToPIC100 PCI-CardBus Bridge",
-	  PCIC_I82365, PCIC_AB_POWER, pcic_pci_topic_init },
+	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_topic_chip },
 	{ 0, NULL, 0, 0, NULL }
 };
 
@@ -246,6 +328,46 @@ pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
 	return (NULL);
 }
 
+/*
+ * The standard way to control fuction interrupts is via bit 7 in the BCR
+ * register.  Some data sheets indicate that this is just for "intterupts"
+ * while others are clear that it is for function interrupts.  When this
+ * bit is set, function interrupts are routed via the ExCA register.  When
+ * this bit is clear, they are routed via the PCI bus, usually via the int
+ * in the INTPIN register.
+ */
+static int
+pcic_pci_gen_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	u_int16_t bcr;
+	
+	bcr = pci_read_config(sp->sc->dev, CB_PCI_BRIDGE_CTRL, 2);
+	if (way == pcic_iw_pci)
+		bcr &= ~CB_BCR_INT_EXCA;
+	else
+		bcr |= CB_BCR_INT_EXCA;
+	pci_write_config(sp->sc->dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
+	return (0);
+}
+
+
+/*
+ * The O2micro OZ67xx chips functions.
+ */
+static int
+pcic_pci_oz67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_oz67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	/* XXX */
+	return (0);
+}
+
+
 static void
 pcic_pci_oz67xx_init(device_t dev)
 {
@@ -254,6 +376,22 @@ pcic_pci_oz67xx_init(device_t dev)
 	 */
 	device_printf(dev, "Warning: O2micro OZ67xx chips may not work\n");
 	pcic_pci_cardbus_init(dev);
+}
+
+/*
+ * The O2micro OZ68xx chips functions.
+ */
+static int
+pcic_pci_oz68xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_oz68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	/* XXX */
+	return (0);
 }
 
 static void
@@ -266,6 +404,24 @@ pcic_pci_oz68xx_init(device_t dev)
 	pcic_pci_cardbus_init(dev);
 }
 
+/*
+ * The Cirrus Logic PD6729/30.  These are weird beasts, so be careful.
+ */
+static int
+pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	/* XXX */
+	return (0);
+}
+
+static int
+pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	/* XXX */
+	return (0);
+}
+
+
 static void
 pcic_pci_pd67xx_init(device_t dev)
 {
@@ -276,48 +432,86 @@ pcic_pci_pd67xx_init(device_t dev)
 }
 
 /*
- * Set up the CL-PD6832
+ * Set up the CL-PD6832 and 6833.
  */
-static void
-pcic_pci_pd683x_init(device_t dev)
+static int
+pcic_pci_pd68xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
-	struct pcic_softc *sc = device_get_softc(dev);
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_pd68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	struct pcic_softc *sc = sp->sc;
+	device_t	dev = sc->dev;
 	u_int32_t	device_id = pci_get_devid(dev);
 	u_long bcr;
 	u_long cm1;
 
 	/*
-	 * CLPD6832 management interrupt enable bit is bit 11 (MGMT_IRQ_ENA)
-	 * in bridge control register(offset 0x3d).
-	 * When this bit is turned on, card status change interrupt sets
-	 * on ISA IRQ interrupt.
-	 * Bit 7 controls the function interrupts and appears to be stanard.
+	 * CLPD6832 management interrupt enable bit is bit 11
+	 * (MGMT_IRQ_ENA) in bridge control register(offset 0x3d).
+	 * When on, card status interrupts are ISA controlled by
+	 * the ExCA register 0x05.
 	 *
-	 * The CLPD6833 does things differently.  It has bit 7, but not bit
-	 * 11.  Bit 11's functionality appears to be in the "Configuration
+	 * The CLPD6833 does things differently.  It doesn't have bit
+	 * 11 in the bridge control register.  Instead, this
+	 * functionality appears to be in the "Configuration
 	 * Miscellaneous 1" register bit 1.
 	 */
-	bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6832) {
-		if (sc->csc_route == pcic_iw_pci)
+		bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+		if (way == pcic_iw_pci)
 			bcr &= ~CLPD6832_BCR_MGMT_IRQ_ENA;
 		else
 			bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
+		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 	}
-	if (sc->func_route == pcic_iw_pci)
-		bcr &= ~CB_BCR_INT_EXCA;
-	else
-		bcr |= CB_BCR_INT_EXCA;
-	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6833) {
 		cm1 = pci_read_config(dev, CLPD6833_CFG_MISC_1, 4);
-		if (sc->csc_route == pcic_iw_pci)
+		if (way == pcic_iw_pci)
 			cm1 &= ~CLPD6833_CM1_MGMT_EXCA_ENA;
 		else
 			cm1 |= CLPD6833_CM1_MGMT_EXCA_ENA;
 		pci_write_config(dev, CLPD6833_CFG_MISC_1, cm1, 4);
 	}
+	return (0);
+}
+
+static void
+pcic_pci_pd68xx_init(device_t dev)
+{
 	pcic_pci_cardbus_init(dev);
+}
+
+static int
+pcic_pci_ricoh_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_ricoh_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	struct pcic_softc *sc = sp->sc;
+	device_t	dev = sc->dev;
+	u_int16_t	mcr2;
+
+	/*
+	 * For CSC interrupts via ISA, we can't do that exactly.
+	 * However, we can disable INT# routing, which is usually what
+	 * we want.  This is bit 7 in the field.  Note, bit 6 looks
+	 * interesting, but appears to be unnecessary.
+	 */
+	mcr2 = pci_read_config(dev, R5C47X_MISC_CONTROL_REGISTER_2, 2);
+	if (way == pcic_iw_pci)
+		mcr2 &= ~R5C47X_MCR2_CSC_TO_INTX_DISABLE;
+	else
+		mcr2 |= R5C47X_MCR2_CSC_TO_INTX_DISABLE;
+	pci_write_config(dev,  R5C47X_MISC_CONTROL_REGISTER_2, mcr2, 2);
+
+	return (0);
 }
 
 static void
@@ -343,6 +537,88 @@ pcic_pci_ricoh_init(device_t dev)
 }
 
 /*
+ * TI 1030, 1130, and 1131.
+ */
+static int
+pcic_pci_ti113x_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	u_int32_t	cardcntl;
+	device_t	dev = sp->sc->dev;
+
+	/*
+	 * The TI-1130 (and 1030 and 1131) have a different interrupt
+	 * routing control than the newer cards.  assume we're not
+	 * routing PCI, but enable as necessary when we find someone
+	 * uses PCI interrupts.  In order to get any pci interrupts,
+	 * PCI_IRQ_ENA (bit 5) must be set.  If either PCI_IREQ (bit
+	 * 4) or PCI_CSC (bit 3) are set, then set bit 5 at the same
+	 * time, since setting them enables the PCI interrupt routing.
+	 *
+	 * It also appears necessary to set the function routing bit
+	 * in the bridge control register, but cardbus_init does that
+	 * for us.
+	 */
+	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
+	if (way == pcic_iw_pci)
+		cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
+	else
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
+	if (cardcntl & (TI113X_CARDCNTL_PCI_IREQ | TI113X_CARDCNTL_PCI_CSC))
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
+	else
+		cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
+
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_ti113x_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	u_int32_t	cardcntl;
+	device_t	dev = sp->sc->dev;
+
+	/*
+	 * The TI-1130 (and 1030 and 1131) have a different interrupt
+	 * routing control than the newer cards.  assume we're not
+	 * routing PCI, but enable as necessary when we find someone
+	 * uses PCI interrupts.  In order to get any pci interrupts,
+	 * PCI_IRQ_ENA (bit 5) must be set.  If either PCI_IREQ (bit
+	 * 4) or PCI_CSC (bit 3) are set, then set bit 5 at the same
+	 * time, since setting them enables the PCI interrupt routing.
+	 *
+	 * It also appears necessary to set the function routing bit
+	 * in the bridge control register, but cardbus_init does that
+	 * for us.
+	 */
+	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
+	if (way == pcic_iw_pci)
+		cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+	else
+		cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
+	if (cardcntl & (TI113X_CARDCNTL_PCI_IREQ | TI113X_CARDCNTL_PCI_CSC))
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
+	else
+		cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
+
+	return (0);
+}
+
+static int
+pcic_pci_ti12xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_ti12xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	/* XXX */
+	return (0);
+}
+
+/*
  * TI PCI-CardBus Host Adapter specific function code.
  * This function is separated from pcic_pci_attach().
  * Takeshi Shibagaki(shiba@jp.freebsd.org).
@@ -363,30 +639,6 @@ pcic_pci_ti_init(device_t dev)
 
 	if (ti113x) {
 		device_printf(dev, "TI113X PCI Config Reg: ");
-
-		/*
-		 * The TI-1130 (and 1030 and 1131) have a different
-		 * interrupt routing control than the newer cards.
-		 * assume we're not routing PCI, but enable as necessary
-		 * when we find someone uses PCI interrupts.  In order to
-		 * get any pci interrupts, PCI_IRQ_ENA (bit 5) must
-		 * be set.  If either PCI_IREQ (bit 4) or PCI_CSC (bit 3)
-		 * are set, then set bit 5 at the same time, since setting
-		 * them enables the PCI interrupt routing.
-		 */
-		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
-		if (sc->func_route == pcic_iw_pci)
-			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA | 
-			    TI113X_CARDCNTL_PCI_IREQ;
-		else
-			cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
-		if (sc->csc_route == pcic_iw_pci)
-			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA | 
-			    TI113X_CARDCNTL_PCI_CSC;
-		else
-			cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
-		pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
-		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
 		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA) {
 			if (syscntl & TI113X_SYSCNTL_CLKRUN_SEL)
 				printf("[clkrun irq 12]");
@@ -415,11 +667,11 @@ pcic_pci_ti_init(device_t dev)
 		 */
 		pci_write_config(dev, TI12XX_PCI_MULTIMEDIA_CONTROL, 0, 4);
 	}
-	/* 
-	 * Default card control register setting is PCI interrupt.
-	 * The method of this code switches PCI INT and ISA IRQ by bit
-	 * 7 of Bridge Control Register(Offset:0x3e,0x13e).  
-	 * Takeshi Shibagaki(shiba@jp.freebsd.org)
+	/*
+	 * Special code for the Orinoco cards (and a few others).  They
+	 * seem to need this special code to make them work only over pci
+	 * interrupts.  Sadly, doing this code also causes problems for
+	 * many laptops, so we have to make it controlled by a tunable.
 	 */
 	if (sc->func_route == pcic_iw_pci) {
 		if (pcic_init_routing) {
@@ -457,46 +709,65 @@ pcic_pci_ti_init(device_t dev)
 	pcic_pci_cardbus_init(dev);
 }
 
+/*
+ * Code for TOPIC chips
+ */
+static int
+pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (pcic_pci_gen_func(sp, way));
+}
+
+static int
+pcic_pci_topic_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+
+	return (0);
+}
+
 static void
 pcic_pci_topic_init(device_t dev)
 {
-	/*
-	 * This is almost certainly incomplete.
-	 */
-	device_printf(dev, "Warning: Toshiba ToPIC chips may not work\n");
+	struct pcic_softc *sc = device_get_softc(dev);
+	u_int32_t device_id;
+
+	device_id = pci_get_devid(dev);
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+		/*
+		 * We need to enable voltage sense and 3V cards explicitly
+		 * in the bridge.  The datasheets I have for both the
+		 * ToPIC 97 and 100 both lists these ports.  Without
+		 * datasheets for the ToPIC95s, I can't tell if we need
+		 * to do it there or not.
+		 */
+		pcic_setb(&sc->slots[0], PCIC_TOPIC_FCR,
+		    PCIC_FCR_3V_EN | PCIC_FCR_VS_EN);
+	}
 	pcic_pci_cardbus_init(dev);
 }
 
 static void
 pcic_pci_cardbus_init(device_t dev)
 {
+	struct pcic_softc *sc = device_get_softc(dev);
 	u_int16_t	brgcntl;
 	int		unit;
-	struct pcic_softc *sc = device_get_softc(dev);
 
 	unit = device_get_unit(dev);
 
-	if (sc->func_route == pcic_iw_pci) {
-		/* Use INTA for routing function interrupts via pci bus */
-		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-		brgcntl &= ~CB_BCR_INT_EXCA;
-		brgcntl |= CB_BCR_WRITE_POST_EN | CB_BCR_MASTER_ABORT;
-		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
-	} else {
-		/* Output ISA IRQ indicated in ExCA register(0x03). */
-		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-		brgcntl |= CB_BCR_INT_EXCA;
-		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
-	}
+	brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+	brgcntl |= CB_BCR_WRITE_POST_EN | CB_BCR_MASTER_ABORT;
+	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
 
 	/* Turn off legacy address */
 	pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, 0, 2);
 
 	/* 
-	 * Write zeros into the remaining BARs.  This seems to turn off
-	 * the pci configuration of these things and make the cardbus
-	 * bridge use the values for memory programmed into the pcic
-	 * registers.
+	 * Write zeros into the remaining memory I/O windows.  This
+	 * seems to turn off the pci configuration of these things and
+	 * make the cardbus bridge use the values for memory
+	 * programmed into the pcic registers.
 	 */
 	pci_write_config(dev, CB_PCI_MEMBASE0, 0, 4);
 	pci_write_config(dev, CB_PCI_MEMLIMIT0, 0, 4);
@@ -506,6 +777,13 @@ pcic_pci_cardbus_init(device_t dev)
 	pci_write_config(dev, CB_PCI_IOLIMIT0, 0, 4);
 	pci_write_config(dev, CB_PCI_IOBASE1, 0, 4);
 	pci_write_config(dev, CB_PCI_IOLIMIT1, 0, 4);
+
+	/*
+	 * Force the function interrupts to be pulse rather than
+	 * edge triggered.
+	 */
+	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
+	sc->chip->csc_intr_way(&sc->slots[0], sc->csc_route);
 
 	return;
 }
@@ -584,10 +862,14 @@ pcic_pci_intr(void *arg)
 				sc->cd_pending = 1;
 			} else {
 				sc->cd_present = 0;
-				sp->intr = NULL;
 				pccard_event(sp->slt, card_removed);
 			}
 		}
+		if (event & CB_SE_POWER)
+			device_printf(sc->dev, "Power interrupt\n");
+		if (stat & CB_SS_BADVCC)
+			device_printf(sc->dev, "BAD Vcc request\n");
+
 		/* Ack the interrupt */
 		bus_space_write_4(sp->bst, sp->bsh, 0, event);
 	}
@@ -659,9 +941,24 @@ pcic_pci_probe(device_t dev)
 	 * This so we get the interrupt number in the probe message.
 	 * We only need to route interrupts when we're doing pci
 	 * parallel interrupt routing.
+	 *
+	 * Note: The CLPD6729 is a special case.  See its init function
+	 * for an explaination of ISA vs PCI interrupts.
 	 */
-	if (pcic_intr_path == pcic_iw_pci) {
+	if (pcic_intr_path == pcic_iw_pci && 
+	    device_id != PCI_DEVICE_ID_PCIC_CLPD6729) {
 		rid = 0;
+#ifdef __i386__
+		/*
+		 * IRQ 0 is invalid on x86, but not other platforms.
+		 * If we have irq 0, then write 255 to force a new, non-
+		 * bogus one to be assigned.
+		 */
+		if (pci_get_irq(dev) == 0) {
+			pci_set_irq(dev, 255);
+			pci_write_config(dev, PCIR_INTLINE, 255, 1);
+		}
+#endif
 		res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 		    RF_ACTIVE);
 		if (res)
@@ -721,6 +1018,7 @@ pcic_pci_attach(device_t dev)
 	u_int32_t stat;
 	struct pcic_pci_table *itm;
 	int rid;
+	int i;
 	struct resource *r = NULL;
 	int error;
 	u_long irq = 0;
@@ -745,15 +1043,32 @@ pcic_pci_attach(device_t dev)
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->iores == NULL)
 			return (ENOMEM);
-		sp->getb = pcic_getb_io;
-		sp->putb = pcic_putb_io;
 		sp->bst = rman_get_bustag(sc->iores);
 		sp->bsh = rman_get_bushandle(sc->iores);
-		sp->offset = pci_get_function(dev) * PCIC_SLOT_SIZE;
 		sp->controller = PCIC_PD672X;
 		sp->revision = 0;
 		sc->flags = PCIC_PD_POWER;
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
+		for (i = 0; i < 2; i++) {
+			sp[i].getb = pcic_getb_io;
+			sp[i].putb = pcic_putb_io;
+			sp[i].offset = i * PCIC_SLOT_SIZE;
+			sp[i].controller = PCIC_PD672X;
+			printf("ID is 0x%x\n", sp[i].getb(sp, PCIC_ID_REV));
+			if ((sp[i].getb(sp, PCIC_ID_REV) & 0xc0) == 0x80)
+				sp[i].slt = (struct slot *) 1;
+		}
+		/*
+		 * We only support isa at this time.  These cards can be
+		 * wired up as either ISA cards *OR* PCI cards (well, weird
+		 * hybrids are possible, but not seen in the wild).  Since it
+		 * is an either or thing, we assume ISA since all laptops that
+		 * we supported in 4.3 and earlier work.
+		 */ 
+		sc->csc_route = pcic_iw_isa;
+		sc->func_route = pcic_iw_isa;
+		if (itm)
+			sc->flags = itm->flags;
 	} else {
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
@@ -769,18 +1084,22 @@ pcic_pci_attach(device_t dev)
 		if (itm != NULL) {
 			sp->controller = itm->type;
 			sp->revision = 0;
-			sc->flags  = itm->flags;
+			sc->flags = itm->flags;
 		} else {
 			/* By default, assume we're a D step compatible */
 			sp->controller = PCIC_I82365SL_DF;
 			sp->revision = 0;
 			sc->flags = PCIC_DF_POWER;
 		}
+		/* sc->flags = PCIC_CARDBUS_POWER; */
+		sp->slt = (struct slot *) 1;
+		sc->csc_route = pcic_intr_path;
+		sc->func_route = pcic_intr_path;
+		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+		sc->cd_present = (stat & CB_SS_CD) == 0;	
 	}
 	sc->dev = dev;
-	sc->csc_route = pcic_intr_path;
-	sc->func_route = pcic_intr_path;
-	sp->slt = (struct slot *) 1;
+	sc->chip = itm->chip;
 
 	if (sc->csc_route == pcic_iw_pci) {
 		rid = 0;
@@ -808,6 +1127,8 @@ pcic_pci_attach(device_t dev)
 				pcic_dealloc(dev);
 				return (ENXIO);
 			}
+			device_printf(dev,
+			    "Management interrupt on ISA IRQ %ld\n", irq);
 			intr = pcic_isa_intr;
 		} else {
 			sc->slot_poll = pcic_timeout;
@@ -821,10 +1142,9 @@ pcic_pci_attach(device_t dev)
 	 * Initialize AFTER we figure out what kind of interrupt we're
 	 * going to be using, if any.
 	 */
-	if (itm && itm->init)
-		itm->init(dev);
-	else
-		pcic_pci_cardbus_init(dev);
+	if (!sc->chip)
+		panic("Bug: sc->chip not set!\n");
+	sc->chip->init(dev);
 
 	/*
 	 * Now install the interrupt handler, if necessary.
@@ -839,9 +1159,6 @@ pcic_pci_attach(device_t dev)
 			return (error);
 		}
 	}
-
-	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	sc->cd_present = (stat & CB_SS_CD) == 0;	
 	return (pcic_attach(dev));
 }
 
@@ -885,6 +1202,21 @@ pcic_pci_get_memory(device_t dev)
 	pci_write_config(dev, sc->memrid, sockbase, 4);
 	device_printf(dev, "PCI Memory allocated: 0x%08x\n", sockbase);
 	return (0);
+}
+
+static int
+pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
+{
+	/*
+	 * If we're doing ISA interrupt routing, then just go to the
+	 * generic ISA routine.  Also, irq 0 means turn off the interrupts
+	 * at the bridge.  We do this by making the interrupts edge
+	 * triggered rather then level.
+	 */
+	if (sp->sc->func_route == pcic_iw_isa || irq == 0)
+		return (pcic_isa_mapirq(sp, irq));
+
+	return (sp->sc->chip->func_intr_way(sp, pcic_iw_pci));
 }
 
 static device_method_t pcic_pci_methods[] = {

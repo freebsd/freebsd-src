@@ -37,8 +37,6 @@ struct pcic_slot {
 	void   (*putb)(struct pcic_slot *, int, u_int8_t);
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
-	driver_intr_t *intr;
-	void *argp;
 };
 
 enum pcic_intr_way { pcic_iw_isa = 1, pcic_iw_pci = 2 };
@@ -47,12 +45,14 @@ struct pcic_softc
 {
 	u_int32_t		slotmask;/* Mask of valid slots */
 	u_int32_t		flags;	/* Interesting flags */
-#define PCIC_AB_POWER	0x00000001	/* Use old A/B step power */
-#define PCIC_DF_POWER	0x00000002	/* Uses DF step regs  */
-#define PCIC_PD_POWER	0x00000004	/* Uses CL-PD regs  */
-#define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
-#define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
-#define PCIC_RICOH_POWER 0x0000020	/* Uses the ricoh power regs */
+#define PCIC_AB_POWER	   0x00000001	/* Use old A/B step power */
+#define PCIC_DF_POWER	   0x00000002	/* Uses DF step regs  */
+#define PCIC_PD_POWER	   0x00000004	/* Uses CL-PD regs  */
+#define	PCIC_VG_POWER	   0x00000008	/* Uses VG power regs */
+#define PCIC_KING_POWER    0x00000010	/* Uses IBM KING regs  */
+#define PCIC_RICOH_POWER   0x00000020	/* Uses the ricoh power regs */
+#define PCIC_CARDBUS_POWER 0x00000040	/* Cardbus power regs */
+
 	enum pcic_intr_way	csc_route; /* How to route csc interrupts */
 	enum pcic_intr_way	func_route; /* How to route function ints */
 	int			iorid;	/* Rid of I/O region */
@@ -70,6 +70,19 @@ struct pcic_softc
 	int			cd_pending; /* debounce timeout active */
 	int			cd_present; /* debounced card-present state */
 	struct callout_handle	cd_ch;	/* handle for pcic_cd_insert */
+	struct pcic_chip	*chip;
+};
+
+typedef int (pcic_intr_way_t)(struct pcic_slot *, enum pcic_intr_way);
+typedef int (pcic_intr_mapirq_t)(struct pcic_slot *, int irq);
+typedef void (pcic_init_t)(device_t);
+
+struct pcic_chip
+{
+	pcic_intr_way_t *func_intr_way;
+	pcic_intr_way_t *csc_intr_way;
+	pcic_intr_mapirq_t *map_irq;
+	pcic_init_t	*init;
 };
 
 extern devclass_t	pcic_devclass;
@@ -92,6 +105,7 @@ int pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 unsigned char pcic_getb_io(struct pcic_slot *sp, int reg);
 driver_intr_t	pcic_isa_intr;
 int		pcic_isa_intr1(void *);
+pcic_intr_mapirq_t pcic_isa_mapirq;
 void pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val);
 int pcic_set_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t offset
