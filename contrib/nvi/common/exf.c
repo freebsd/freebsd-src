@@ -837,10 +837,39 @@ file_write(sp, fm, tm, name, flags)
 	SIGBLOCK;
 	if ((fd = open(name, oflags,
 	    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)) < 0) {
+		if (errno == EACCES && LF_ISSET(FS_FORCE)) {
+			/*
+			 * If the user owns the file but does not
+			 * have write permission on it, grant it
+			 * automatically for the duration of the
+			 * opening of the file, if possible.
+			 */
+			struct stat sb;
+			mode_t fmode;
+
+			if (stat(name, &sb) != 0)
+				goto fail_open;
+			fmode = sb.st_mode;
+			if (!(sb.st_mode & S_IWUSR) && sb.st_uid == getuid())
+				fmode |= S_IWUSR;
+			else
+				goto fail_open;
+			if (chmod(name, fmode) != 0)
+				goto fail_open;
+			fd = open(name, oflags, S_IRUSR | S_IWUSR |
+			    S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+			if (fd == -1)
+				goto fail_open;
+			(void)fchmod(fd, sb.st_mode);
+			goto success_open;
+		fail_open:
+			errno = EACCES;
+		}
 		msgq_str(sp, M_SYSERR, name, "%s");
 		SIGUNBLOCK;
 		return (1);
 	}
+success_open:
 	SIGUNBLOCK;
 
 	/* Try and get a lock. */
