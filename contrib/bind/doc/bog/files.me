@@ -1,0 +1,1150 @@
+.\" ++Copyright++ 1986, 1988, 1995
+.\" -
+.\" Copyright (c) 1986, 1988, 1995
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)files.me	6.8 (Berkeley) 9/19/89
+.\"
+.sh 1 "Files
+.pp
+The name server uses several files to load its data base.
+This section covers the files and their formats needed for \fInamed\fP.
+.sh 2 "Boot File"
+.pp
+This is the file that is first read when \fInamed\fP starts up.
+This tells the server what type of server it is,
+which
+zones it has authority over and where to get its initial data.
+The default location for this file is \fI/etc\|/named.boot\fP\|.
+However this can be changed
+by setting the \fIBOOTFILE\fP variable when you compile \fInamed\fP 
+or by specifying
+the location on the command line when \fInamed\fP is started up.
+.sh 3 "Domain"
+.pp
+A default domain may be specified for the name server
+using a line such as
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIdomain 	Berkeley\fP\fB\|.\|\fP\fIEdu\fP
+.)b
+.re
+Older name servers use this information when they receive a query for a name
+without a ``\fB.\fP'' that is not known.  Newer designs assume that the
+resolver library will append its own idea of a ``default domain'' to any
+unqualified names.  Though the name server can still be compiled with
+support for the \fIdomain\fP directive in the boot file, the default is to
+leave it out and we strenuously recommend against its use.  If you use this
+feature, clients outside your local domain which send you requests about
+unqualified names will have the implicit qualification of your domain rather
+than theirs.  The proper place for this function is on the client, in their
+\fB/etc/resolv.conf\fP (or equivalent) file.  Use of the \fIdomain\fP
+directive in your boot file is strongly discouraged.
+.sh 3 "Directory"
+.pp
+The \fIdirectory\fP directive specifies the directory in which the name server
+should run, allowing the other file names in the boot file to use relative path
+names.  There can be only one \fIdirectory\fP directive and it should be given
+before any other directives that specify file names.
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIdirectory  	/var/named\fP
+.)b
+.re
+If you have more than a couple of named files to be maintained, you may wish
+to place the named files in a directory such as /var/named and adjust the
+directory command properly.  The main purposes of this command are to make
+sure named is in the proper directory when trying to include files by
+relative path names with $INCLUDE and to allow named to run in a location
+that is reasonable to dump core if it feels the urge.
+.sh 3 "Primary Service"
+.pp
+The line in the boot file that designates the server as a primary master server
+for a zone looks as follows:
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIprimary  	Berkeley\fP\fB\|.\|\fP\fIEdu	ucbhosts\fP
+.)b
+.re
+The first field specifies that the server is a primary one for the zone 
+stated in the second field.
+The third field is the name of the file from which the data is read.
+.pp
+The above assumes that the zone you are specifying is a class \fIIN\fP
+zone.  If you wish to designate a different class you can append
+\fI/class\fP to the first field, where \fIclass\fP is either the
+integer value or the standard mnemonic for the class.  For example the line 
+for a primary server for a hesiod class zone looks as follows:
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIprimary/HS         Berkeley\fP\fB\|.\|\fP\fIEdu    hesiod.data\fP
+.)b
+.re
+Note that this support for specifying other than class \fIIN\fP zones is a
+compile-time option which your vendor may not have enabled when they built
+your operating system.
+.sh 3 "Secondary Service"
+.pp
+The line for a secondary server is similar to the primary except
+that it lists addresses of other servers (usually primary servers)
+from which the zone data will be obtained.
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +\w`128.32.0.10  `u +\w`128.32.0.10  `u +.5i +.5i
+\fIsecondary	Berkeley\fP\fB\|.\|\fP\fIEdu	128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI10	\fP\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI4\fP \fIucbhosts.bak\fP
+.)b
+.re
+The first field specifies that the server is a secondary server for
+the zone stated in the second field.
+The two network addresses specify the name servers which have data for the 
+zone.  Note that at least one of these will be a \fIprimary\fP, and, unless
+you are using some protocol other than \s-1IP/DNS\s+1 for your zone transfer
+mechanism, the others will all be other \fIsecondary\fP servers.  Having your
+secondary server pull data from other secondary servers is usually unwise,
+since you can add delay to the propagation of zone updates if your network's
+connectivity varies in pathological but common ways.  The intended use for
+multiple addresses on a \fIsecondary\fP declaration is when the \fIprimary\fP
+server has multiple network interfaces and therefore multiple host addresses.
+The secondary server gets its data across the network from one of the listed
+servers.  The server addresses are tried in the order listed.
+If a filename is present after the list of primary servers, data for the zone
+will be dumped into that file as a backup.
+When the server is first started, the data is loaded from the backup file
+if possible, and a primary server is then consulted to check that the zone
+is still up-to-date.  Note that listing your server as a \fIsecondary\fP
+server does not necessarily make it one \(em the parent zone must
+\fIdelegate\fP authority to your server as well as the primary and the
+other secondaries, or you will be transferring a zone over for no reason;
+no other server will have a reason to query you for that zone unless the
+parent zone lists you as a server for the zone.
+.pp
+As with primary you may specify a secondary server for a class other than
+\fIIN\fP by appending \fI/class\fP to the \fIsecondary\fP keyword, e.g.,
+\fIsecondary/HS\fP.
+.sh 3 "Stub Service"
+.pp
+The line for a stub server is similar to a secondary.
+(This feature is experimental as of 4.9.3.)
+.(b l
+.ta 0.5i +\w`stub   `u +\w`berkeley.edu   `u +\w`128.32.0.10  `u +\w`128.32.0.10  `u +.5i +.5i
+\fIstub	Berkeley\fP\fB\|.\|\fP\fIEdu	128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI10	\fP\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI4\fP \fIucbhosts.bak\fP
+.)b
+.re
+The first field specifies that the server is a stub server for the zone stated
+in the second field.
+.pp
+Stub zones are intended to ensure that a primary for a zone always has the
+correct \fINS\fP records for children of that zone. If the primary is not
+a secondary for a child zone it should be configured with stub zones for
+all its children. Stub zones provide a mechanism to allow \fINS\fP records
+for a zone to be specified in only one place.
+.(b l
+.ta 0.5i +\w`primary   `u +\w`dms.csiro.au   `u +\w`130.155.98.1  `u +.5i +.5i
+\fIprimary	CSIRO\fP\fB\|.\|\fP\fIAU	\fIcsiro.dat\fP
+\fIstub	dms.CSIRO\fP\fB\|.\|\fP\fIAU	130\fP\fB.\fP\fI155\fP\fB.\fP\fI16\fP\fB.\fP\fI1	\fIdms.stub\fP
+\fIstub	dap.CSIRO\fP\fB\|.\|\fP\fIAU	130\fP\fB.\fP\fI155\fP\fB.\fP\fI98\fP\fB.\fP\fI1	\fIdap.stub\fP
+.)b
+.re
+.sh 3 "Cache Initialization"
+.pp
+All servers, including ``caching only'' servers, should have a line as
+follows in the boot file to prime the name servers cache:
+.(b l
+\fIcache		\fP\fB.\fP\fI	root\fP\fB.\fP\fIcache\fP
+.)b
+Do not put anything into your \fIcache\fP files other than root server
+information.
+.pp
+All cache files listed will be read in at named boot time and any values
+still valid will be reinstated in the cache.
+The root name server
+information in the cache files will be used until a root query is 
+actually answered by one of the name servers in the cache file, after
+which that answer will be used instead of the cache file until the answer
+times out.
+.pp
+As with \fIprimary\fP and \fIsecondary\fP, you may specify a secondary
+server for a class other than \fIIN\fP by appending \fI/class\fP to the
+\fIcache\fP keyword, e.g., \fIclass/HS\fP.
+.sh 3 "Forwarders"
+.pp
+Any server can make use of \fIforwarders\fP.  A \fIforwarder\fP is another
+server capable of processing recursive queries that is willing to try
+resolving queries on behalf of other systems.  The \fIforwarders\fP
+command specifies forwarders by internet address as follows:
+.(b l
+\fIforwarders		\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI10	\fP\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI4\fP
+.)b
+.re
+There are two main reasons for wanting to do so.  First, some systems may
+not have full network access and may be prevented from sending any IP
+packets into the rest of the Internet and therefore must rely on a forwarder
+which does have access to the full net.  The second reason is that the
+forwarder sees a union of all queries as they pass through its server and
+therefore it builds up a very rich cache of data compared to the cache in a
+typical workstation name server.  In effect, the \fIforwarder\fP becomes a
+meta-cache that all hosts can benefit from, thereby reducing the total
+number of queries from that site to the rest of the net.
+.pp
+The effect of ``forwarders'' is to prepend some fixed addresses to the list
+of name servers to be tried for every query.  Normally that list is made up
+only of higher-authority servers discovered via \fINS\fP record lookups for
+the relevant domain.  If the forwarders do not answer, then unless the
+\fIslave\fP directive was given, the appropriate servers for the domains
+will be queried directly.
+
+.sh 3 "Slave Servers"
+.pp
+Slave mode is used if the use of forwarders is the only possible way
+to resolve queries due to lack of full net access or if you wish to prevent
+the name server from using other than the listed forwarders.
+Slave mode is activated by placing the simple command
+.(b l
+\fIoptions forward-only\fP
+.)b
+in the bootfile.  If this option is used, then you must specify forwarders.
+When in slave mode, the server will forward each query to each of the the
+forwarders until an answer is found or the list of forwarders is exhausted.
+The server will not try to contact any remote name server other than those
+named in the \fIforwarders\fP list.
+.pp
+So while \fIforwarders\fP prepends addresses to the ``server list'' for each
+query, \fIoptions forward-only\fP causes the ``server list'' to contain
+\fIonly\fP those addresses listed in the \fIforwarders\fP declarations.
+Careless use of the \fIoptions forward-only\fP directive can cause really
+horrible forwarding loops, since
+you could end up forwarding queries only to some set of hosts which are also
+slaves, and one or several of them could be forwarding queries back to you.
+.pp
+Use of the \fIoptions forward-only\fP directive should be considered very
+carefully.  Note that this same behaviour can be achieved using the deprecated
+directive, \fIslave\fP.
+
+.sh 3 "Nonrecursive Servers"
+.pp
+\s-1BIND\s+1's separation of authoritative (zone) and nonauthoritiative (cache)
+data has always been somewhat weak, and pollution of the former via the latter
+has been known to occur.  One way to prevent this, as well as to save memory on
+servers carrying a lot of authoritative data (e.g., root servers) is to make
+such servers ``nonrecursive.''  This can be achieved via the directive
+.(b l
+\fIoptions no-recursion\fP
+.)b
+in the bootfile.  A server with this option enabled will not attempt to fetch
+data to help answer queries \(em if you ask it for data it does not have, it
+will send you a referral to a more authoritative server or, if it is itself
+authoritative for the zone of the query, it will send you an negative answer.
+.pp
+A nonrecursive server can be named in an \s-1NS\ RR\s+1 but it cannot be listed
+in the \fIresolv.conf\fP file.
+
+.sh 3 "Query Logging"
+.pp
+If the file system containing your \fIsyslog\fP file has quite a bit of space,
+you can consider using the
+.(b l
+\fIoptions query-log\fP
+.)b
+directive in your bootfile.  This will cause your name server to log every
+query it receives, which when combined with a Perl or \s-1AWK\s+1 script to
+postprocess the logs, can be a useful management tool.
+
+.sh 3 "Inverse Query Pseudosupport"
+.pp
+\s-1BIND\s+1 by default does not support inverse queries, and this has been
+known to cause problems for certain microcomputer operating systems and for
+older versions of \s-1BIND\s+1's \fInslookup\fP tool.  You may decide that
+rather than answering with ``operation not implemented,'' \fInamed\fP should
+detect the most common inverse queries and answer them with bogus information.
+It is better to upgrade your clients to stop depending on inverse queries, but
+if that is not possible, you should use the
+.(b l
+\fIoptions fake-iquery\fP
+.)b
+directive in your bootfile.  \fINOTE:\fP the responses are in fact bogus, in
+that they contain \s-1ISO\s+18859 square brackets (\fB[\fP and \fB]\fP), so
+your clients will not be able to do anything useful with these responses.  It
+has been observed that no client ever did anything useful with real inverse
+query responses, either.
+
+.sh 3 "Setting Name Server Limits"
+.pp
+Some name server operations can be quite resource intensive, and in order to
+tune your system properly it is sometimes necessary to change \s-1BIND\s+1's
+internal quotas.  This is accomplished via
+.(b l
+\fIlimit <name> <value>\fP
+.)b
+directives in the bootfile.  Limits, and their default values, are as follows:
+.(b I
+\fIlimit transfers-in 10\fP
+.)b
+This is the number of simultaneous \fInamed-xfer\fP processes \s-1BIND\s+1 is
+willing to start.  Higher numbers yield faster convergence to primary servers
+if your secondary server has hundreds or thousands of zones to maintain, but
+setting this number too high can cause thrashing due to starvation of resources
+such as network bandwidth or swap space.  \fINOTE:\fP this limit can also be
+expressed via the deprecated directive \fImax-fetch NN\fP.
+.(b I
+\fIlimit transfers-per-ns 2\fP
+.)b
+This is the number of simultaneous \fInamed-xfer\fP processes \s-1BIND\s+1 is
+willing to initiate \fIto any given name server\fP.  In most cases, you should
+not need to change it.  If your secondary server is pulling hundreds or
+thousands of zones from a single primary server, increasing
+\fItransfers-per-ns\fP may speed convergence.  It should be kept as
+small as possible, to avoid causing thrashing and resource starvation
+on the primary server.
+.(b I
+\fIlimit datasize <system-dependent>\fP
+.)b
+Most systems have a quota that limits the size of the so-called ``data
+segment,'' which is where \s-1BIND\s+1 keeps all of its authority and cache
+data.  \s-1BIND\s+1 will behave suboptimally (perhaps even exiting) if it runs
+up against this quota.  If your system supports a system call to change this
+quota for a given process, you can ask \s-1BIND\s+1 to use that system call
+via the \fIlimit datasize NN\fP directive.  The value given here may be scaled
+by postfixing \fIk\fP for 1024X, \fIm\fP for (1024^2)X, and \fIg\fP for
+(1024^3)X.  In 1995, the root servers all use \fIlimit datasize 64m\fP.
+
+.sh 3 "Zone Transfer Restrictions"
+.pp
+It may be the case that your organization does not wish to give complete
+lists of your hosts to anyone on the Internet who can reach your name servers.
+While it is still possible for people to ``iterate'' through your address
+range, looking for \fIPTR\fP records, and build a list of your hosts the
+``slow'' way, it is still considered reasonable to restrict your export of
+zones via the zone transfer protocol.  To limit the list of neighbors who
+can transfer zones from your server, use the \fIxfrnets\fP directive.
+.pp
+This directive has the same syntax as \fIforwarders\fP except that you can
+list network numbers in addition to host addresses.  For example, you could
+add the directive
+.(b l
+\fIxfrnets 16.0.0.0\fP
+.)b
+.re
+if you wanted to permit only hosts on Class A network number 16 to transfer
+zones from your server.  This is not nearly granular enough, and a future
+version of \s-1BIND\s+1 will permit such access-control to be specified on a
+per-host basis rather than the current per-net basis.  Note that while
+addresses without explicit masks are assumed by this directive to be networks,
+you can specify a mask which is as granular as you wish, perhaps including
+all bits of the address such that only a single host is given transfer
+permission.  For example, consider
+.(b l
+\fIxfrnets 16.1.0.2&255.255.255.255\fP
+.)b
+which would permit only host \fI16.1.0.2\fP to transfer zones from you.  Note
+that no spaces are allowed surrounding the ``\fI&\fP'' character that 
+introduces a netmask.
+.pp
+The \fIxfrnets\fP directive may also be given as \fItcplist\fP for
+compatibility with interim releases of \s-1BIND\s+1 4.9.
+
+.sh 3 "Sorting Addresses"
+.pp
+If there are multiple addresses available for a name server which \s-1BIND\s+1
+wants to contact, \s-1BIND\s+1 will try the ones it believes are ``closest''
+first.  ``Closeness'' is defined in terms of similarity-of-address; that is,
+if one address is on the same \fIsubnet\fP as some interface of the local host,
+then that address will be tried first.  Failing that, an address which is on
+the same \fInetwork\fP will be tried first.  Failing that, they will be tried
+in a more-or-less random order unless the \fIsortlist\fP directive was given
+in the \fInamed.boot\fP file.  \fIsortlist\fP has a syntax similar to
+\fIforwarders\fP, \fIxfrnets\fP, and \fIbogusns\fP \(em you give it a list
+of dotted-quad networks and it uses these to ``prefer'' some remote name server
+addresses over others.  If no explicit mask is provided with each element of
+a \fIsortlist\fP, one will be inferred based on the high order address bits.
+.pp
+If you are on a Class C net which has a Class B net between you and the rest
+of the Internet, you could try to improve the name server's luck in getting
+answers by listing the Class B network's number in a \fIsortlist\fP
+directive.  This should have the effect of trying ``closer'' servers before
+the more ``distant'' ones.  Note that this behaviour is new as of \s-1BIND
+4.9\s+1.
+.pp
+The other and older effect of the \fIsortlist\fP directive is to cause
+\s-1BIND\s+1 to sort the \fIA\fP records in any response it generates, so as
+to put those which appear on the \fIsortlist\fP earlier than those which do
+not.  This is not as helpful as you might think, since many clients will
+reorder the \fIA\fP records either at random or using \s-1LIFO\s+1; also,
+consider the fact that the server won't be able to guess the client's network
+topology, and so will not be able to accurately order for ``closeness'' to
+all possible clients.  Doing the ordering in the resolver is clearly superior.
+.pp
+In actual practice, this directive is used only rarely since it hardwires
+information which changes rapidly; a network which is ``close'' today may
+be ``distant'' next month.  Since \s-1BIND\s+1 builds up a cache of the
+remote name servers' response times, it will quickly converge on
+``reasonable'' behaviour, which isn't the same as ``optimal'' but it's
+close enough.  Future directions for \s-1BIND\s+1 include choosing
+addresses based on local interface metrics (on hosts that have more than
+one) and perhaps on routing table information.  We do not intend to solve
+the generalized ``multihomed host'' problem, but we should be able to do a
+little better than we're doing now.  Likewise, we hope to see a higher
+level resolver library that sorts responses using topology information that
+only exists on the client's host.
+
+.sh 3 "Bogus Name Servers"
+.pp
+It happens occasionally that some remote name server goes ``bad''.  You can
+tell your name server to refuse to listen to or ask questions of certain
+other name servers by listing them in a \fIbogusns\fP directive in your
+\fInamed.boot\fP file.  Its syntax is the same as \fIforwarders\fP,
+\fIxfrnets\fP, and \fIsortlist\fP \(em you just give it a list of dotted-quad
+Internet addresses.  Note that zones delegated to such servers will not be
+reachable from clients of your servers; thus you should use this directive
+sparingly or not at all.
+
+.sh 3 "Segmented Boot Files"
+.pp
+If you are secondary for a lot of zones, you may find it convenient to split
+your \fInamed.boot\fP file into a static portion which hardly ever changes
+(directives such as \fIdirectory\fP, \fIsortlist\fP, \fIxfrnets\fP and
+\fIcache\fP could go here), and dynamic portions that change frequently
+(all of your \fIprimary\fP directives might go in one file, and all of your
+\fIsecondary\fP directives might go in another file \(em and either or both
+of these might be fetched automatically from some neighbor so that they can
+change your list of secondary zones without requiring your active
+intervention).  You can accomplish this via the \fIinclude\fP directive,
+which takes just a single file name as its argument.  No quotes are needed
+around the file name.  The file name will be evaluated after the name server
+has changed its working directory to that specified in the \fIdirectory\fP
+directive, so you can use relative pathnames if your system supports them.
+
+.sh 2 "Resolver Configuration"
+.pp
+The configuration file's name is \fI/etc/resolv.conf\fP.
+This file designates the name servers on the network that should 
+be sent queries.
+The resolver will try to contact a name server on the localhost if it cannot
+find its configuration file.  You should install the configuration file
+on every host anyway, since this is the only recommended way to specify a
+system-level default domain, and you can still list the local host's address
+if it runs a name server.
+It is considered reasonable to create this file even if you run a local
+server, since its contents will be cached by each client of the resolver
+library when the client makes its first call to a resolver routine.
+.pp
+The \fIresolv.conf\fP file contains directives, one per line, of the
+following forms:
+.(l I
+; comment
+# another comment
+domain \fIlocal-domain\fP
+search \fIsearch-list\fP
+nameserver \fIserver-address\fP
+sortlist \fIsort-list\fP
+options \fIoption-list\fP
+.)l
+Exactly one of the \fIdomain\fP or \fIsearch\fP directives should be given,
+exactly once.
+If the \fIsearch\fP directive is given, the first item in the given
+\fIsearch-list\fP will override any previously-specified \fIlocal-domain\fP.
+The \fInameserver\fP directive may be given up to three times; additional
+\fInameserver\fP directives will be ignored.  Comments may be given by
+starting a line with a ``\fB\|;\|\fP'' or ``\fB\|#\|\fP''; note that
+comments were not permitted in versions of the resolver earlier than the one
+included with \s-1BIND 4.9\s+1 \(em so if your vendor's resolver supports
+comments, you know they are really on the ball.
+.pp
+The \fIlocal-domain\fP will be appended to any query-name that does not
+contain a ``\fB\|.\|\fP''.  \fIlocal-domain\fP can be overridden on a 
+per-process basis by setting the \s-1LOCALDOMAIN\s+1 environment variable.
+Note that \fIlocal-domain\fP processing can be disabled by setting an 
+option in the resolver.
+.pp
+The \fIsearch-list\fP is a list of domains which are tried, in order,
+as qualifying domains for query-names which do not contain a ``\fB\|.\|\fP''.
+Note that \fIsearch-list\fP processing can be disabled by setting an 
+option in the resolver.  Also note that the environment variable
+``\s-1LOCALDOMAIN\s+1'' can override this \fIsearch-list\fP on a per-process
+basis.
+.pp
+The \fIserver-address\fP\|'s are aggregated and then used as the default
+destination of queries generated through the resolver.  In other words,
+this is the way you tell the resolver which name servers it should use.  It
+is possible for a given client application to override this list, and this
+is often done inside the name server (which is itself a \fIresolver\fP
+client) and in test programs such as \fInslookup\fP.
+Note that if you wish to list the
+local host in your resolver configuration file, you should probably use its
+primary Internet address rather than a local-host alias such as 127.0.0.1 or
+0.0.0.0.  This is due to a bug in the handling of connected \s-1SOCK_DGRAM\s+1
+sockets in some versions of the \s+1BSD\s-1 networking code.  If you must use
+an address-alias, you should prefer 0.0.0.0 (or simply ``0'') over 127.0.0.1,
+though be warned that depending on the vintage of your \s-1BSD\s+1-derived
+networking code, both of them are capable of failing in their own ways.
+If your host's IP
+implementation does not create a short-circuit route between the default
+interface and the loopback interface, then you might also want to add a
+static route (eg. in \fB/etc/rc.local\fP) to do so:
+.(b l
+\fIroute add myhost.domain.name localhost 1\fP
+.)b
+.pp
+The \fIsort-list\fP is a list of IP address, netmask pairs. Addresses
+returned by gethostbyname are sorted to the order specified by this list.
+Any addresses that do not match the address netmask pair will be returned
+after those that do. The netmask is optional and the natural netmask will be
+used if not specified.
+.pp
+The \fIoption-list\fP is a list of options which each override some internal
+resolver variable.  Supported options at this time are:
+.ip \fBdebug\fP
+sets the \s-1RES_DEBUG\s+1 bit in \fB_res.options\fP.
+.ip \fBndots:\fP\fIn\fP
+sets the lower threshold (measured in ``number of dots'') on names given to
+\fIres_query\fP() such that names with more than this number of dots will be
+tried as absolute names before any \fIlocal-domain\fP or \fIsearch-list\fP
+processing is done.  The default for this internal variable is ``1''.
+.\" .pp
+.\" Finally, if the environment variable \s-1HOSTALIASES\s+1 is set, it is
+.\" taken to contain the name of a file which in turn contains resolver-level
+.\" aliases.  These aliases are applied only to names which do not contain any
+.\" ``\fB\|.\|\fP'' characters, and they are applied to query-names before the
+.\" query is generated.  Note that the resolver options governing the operation
+.\" of \fIlocal-domain\fP and \fIsearch-list\fP do not apply to
+.\" \s-1HOSTALIASES\s+1.
+
+.sh 2 "Cache Initialization File"
+.sh 3 root.cache
+.pp
+The name server needs to know the servers that are the authoritative name
+servers for the root domain of the network.  To do this we have to prime the
+name server's cache with the addresses of these higher authorities.  The
+location of this file is specified in the boot file.  This file uses the
+Standard Resource Record Format (aka. Masterfile Format) covered further on
+in this paper.
+
+.sh 2 "Domain Data Files"
+.pp
+There are two standard files for specifying the data for a 
+domain.  These are \fIhosts\fP and \fIhost.rev\fP.
+These files use the Standard Resource Record Format covered later
+in this paper.  Note that the file names are arbitrary; many network
+administrators prefer to name their zone files after the domains they
+contain, especially in the average case which is where a given server
+is primary and/or secondary for many different zones.
+.sh 3 hosts
+.pp
+This file contains all the data about the machines in this zone.
+The location of this file is specified in the boot file.
+.sh 3 hosts.rev
+.pp
+This file specifies the IN-ADDR\|.\|ARPA domain.
+This is a special domain for allowing address to name mapping.
+As internet host addresses do not fall within domain boundaries,
+this special domain was formed to allow inverse mapping.
+The IN-ADDR\|.\|ARPA domain has four
+labels preceding it. These labels correspond to the 4 octets of
+an Internet address. 
+All four octets must be specified even if an octet contains zero.
+The Internet address 128.32.0.4 is located in the domain
+4\|.\|0\|.\|32\|.\|128\|.\|IN-ADDR\|.\|ARPA.
+This reversal of the address is awkward to read but allows 
+for the natural grouping of hosts in a network.
+.sh 3 named.local
+.pp
+This file specifies the \fIPTR\fP record for the local loopback interface,
+better known as \fIlocalhost\fP, whose network address is 127.0.0.1.  The
+location of this file is specified in the boot file.  It is vitally
+important to the proper operation of every name server that the 127.0.0.1
+address have a \fIPTR\fP record pointing back to the name
+``\fBlocalhost.\fP''.  The name of this \fIPTR\fP record is always
+``\fB1.0.0.127.\s-1IN-ADDR.ARPA\s+1\fP''.  This is necessary if you want
+your users to be able to use hostname-authentication (\fIhosts.equiv\fP or
+\fI~/.rhosts\fP) on the name ``\fBlocalhost\fP''.  As implied by this
+\fIPTR\fP record, there should be a ``\fBlocalhost.\fP\fImy.dom.ain\fP''
+\fIA\fP record (with address 127.0.0.1) in every domain that contains hosts.
+``\fBlocalhost.\fP'' will lose its trailing dot when
+\fB1.0.0.127.in-addr.arpa\fP is queried for; then, the DEFNAMES and/or
+DNSRCH resolver options will cause ``\fBlocalhost\fP'' to be evaluated as a
+host name in the local domain, and that means the top domains (or ideally,
+every domain) in your resolver's search path had better have something by
+that name.
+.sh 2 "Standard Resource Record Format"
+.pp
+The records in the name server data files are called resource records.
+The Standard Resource Record Format (RR) is specified in RFC1035.
+The following is a general description of these records:
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	Record Type	Record Specific data\fP 
+.TE
+Resource records have a standard format shown above.
+The first field is always the name of the domain record
+and it must always start in column 1.
+For all RR's other than the first in a file, the name may be left blank;
+in that case it takes on the name of the previous RR.
+The second field is an optional time to live field.
+This specifies how long this data will be stored in the data base.
+By leaving this field blank the default time to live is specified
+in the \fIStart Of Authority\fP resource record (see below).
+The third field is the address class; currently, only one class is supported:
+\fIIN\fP for internet addresses and other internet information.  Limited 
+support is included for the \fIHS\fP class, which is for MIT/Athena ``Hesiod''
+information.
+The fourth field states the type of the resource record.
+The fields after that are dependent on the type of the RR.
+Case is preserved in names and data fields when loaded into the name server.
+All comparisons and lookups in the name server data base are case insensitive.
+.bl
+.b
+The following characters have special meanings:
+.ip ``\fB.\fP''
+A free standing dot in the name field refers to the root domain.
+.ip ``@''
+A free standing @ in the name field denotes the current origin.
+.ip "``\eX''"
+Where X is any character other than a digit (0-9),
+quotes that character so that its special meaning does not apply.
+For example, ``\e.'' can be used to place a dot character in a label.
+.ip "``\eDDD''"
+Where each D is a digit, is the octet corresponding to the
+decimal number described by DDD.  
+The resulting octet is assumed to be text and 
+is not checked for special meaning.
+.ip "``( )''"
+Parentheses are used to group data that crosses a line.  
+In effect, line terminations are not recognized within parentheses.
+(At present, this notation only works for SOA RR's and is not optional.)
+.ip "``;''"
+Semicolon starts a comment; the remainder of the line is ignored.  Note
+that a completely blank line is also considered a comment, and ignored.
+.ip "``*''"
+An asterisk signifies wildcarding.  Note that this is just another data
+character whose special meaning comes about only during internal name
+server search operations.  Wildcarding is only meaningful for some RR
+types (notably \fIMX\fP), and then only in the name field \(em not in
+the data fields.
+.pp
+Anywhere a name appears \(em either in the name field or in some data field
+defined to contain names \(em the current origin will be appended if the
+name does not end in a ``\fB\|.\|\fP''.
+This is useful for appending the current domain name to the data,
+such as machine names, but may cause problems where you do not want 
+this to happen.
+A good rule of thumb is that, if the name is not in the domain for which
+you are creating the data file, end the name with a ``\fB.\fP''.
+.sh 3 $INCLUDE
+.pp
+An include line begins with $INCLUDE, starting in column 1,
+and is followed by a file name, and, optionally, by a new
+temporary $ORIGIN to be used while reading this file.
+This feature is
+particularly useful for separating different types of data into multiple files.
+An example would be:
+.(b l
+$INCLUDE /usr/local/adm/named/data/mail-exchanges
+.)b
+The line would be interpreted as a request to load the file
+\fI/usr/local/adm/named/data/mail-exchanges\fP.  The $INCLUDE command does not cause
+data to be loaded into a different zone or tree. This is simply a way to
+allow data for a given primary zone to be organized in separate files.  
+Not even the ``temporary $ORIGIN'' feature described above is sufficient
+to cause your data to branch out into some other zone \(em zone boundaries
+can only be introduced in the boot file.
+.pp
+A $INCLUDE file must have a name on its first RR.  That is, the first 
+character of the first non-comment line must not be a space.  The current
+default name in the parent file \fIdoes not\fP carry into the $INCLUDE
+file.
+.sh 3 $ORIGIN
+.pp
+The origin is a way of changing the origin in a data file.  The line starts
+in column 1, and is followed by a domain origin.  This seems like it could
+be useful for putting more then one zone into a data file, but that's not
+how it works.  The name server fundamentally requires a given zone to map
+entirely to some specific file.  You should therefore be very careful to use
+$ORIGIN only once at the top of a file, or, within a file, to change to a
+``lower'' domain in the zone  \(em never to some other zone altogether.
+.sh 3 "SOA - Start Of Authority"
+.(b L
+.TS
+l l l l l l.
+\fIname	{ttl}	addr-class	SOA	Origin	Person in charge\fP
+@		IN	SOA	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP	kjd\fB.\fPucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP (
+			1995122103	; Serial
+			10800	; Refresh
+			1800	; Retry
+			3600000	; Expire
+			259200 )	; Minimum
+.TE
+.)b
+The \fIStart of Authority, SOA,\fP record designates the start of a zone.
+The name is the name of the zone and is often given as ``@'' since this
+is always the current $ORIGIN and the SOA RR is usually the first record
+of the primary zone file.
+Origin is the name of the host on which this data file resides (in other
+words, the \fIprimary master\fP server for this zone.)
+Person in charge is the e-mail address for the person responsible
+for the name server, with ``@'' changed to a ``.''.
+The serial number is the version number of this data file and must be a
+positive integer.
+This number must be incremented whenever a change is made to the data.
+Older servers permitted the use of a phantom ``.'' in this and other
+numbers in a zone file; the meaning of n.m was ``n000m'' rather than the
+more intuitive ``n*1000+m'' (such that 1.234 translated to 1000234 rather
+than to 1234).  This feature has been deprecated due to its
+obscurity, unpredictability, and lack of necessity.
+Note that using a ``YYYYMMDDNN'' notation you can still make 100 changes
+per day until the year 4294.  You should choose a notation that works for
+you.  If you're a clever \fIperl\fP programmer you could even use \fIRCS\fP
+version numbers to help generate your zone serial numbers.
+The refresh indicates how often, in seconds, the secondary name servers
+are to check with the primary name server to see if an update is needed.
+The retry indicates how long, in seconds, a secondary server should wait
+before retrying a failed zone transfer.
+Expire is the upper limit, in seconds, that a secondary name server
+is to use the data before it expires for lack of getting a refresh.
+Minimum is the default number of seconds to be used for the Time To Live
+field on resource records which do not specify one in the zone file.
+It is also an enforced minimum on Time To Live if it is specified on
+some resource record (RR) in the zone.
+There must be exactly one \fISOA\fP record per zone.
+.sh 3 "NS - Name Server"
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	NS	Name servers name\fP
+		IN	NS	ucbarpa\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB.\fP
+.TE
+The \fIName Server\fP record, \fINS\fP, lists a name server responsible 
+for a given domain, creating a \fIdelegation point\fP and a \fIsubzone\fP.
+The first name field specifies the zone that is serviced by 
+the name server specified by the second name.
+Every zone needs at least two name servers.
+.bp		\" ----PLACEMENT HACK----
+.sh 3 "A - Address"
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	A	address\fP
+ucbarpa		IN	A	128\fB.\fP32\fB.\fP0\fB.\fP4
+		IN	A	10\fB.\fP0\fB.\fP0\fB.\fP78
+.TE
+The \fIAddress\fP record, \fIA\fP, lists the address for a given machine. 
+The name field is the machine name and the address is the network address.
+There should be one \fIA\fP record for each address of the machine. 
+.sh 3 "HINFO - Host Information"
+.TS
+l l l l l l. 
+\fI{name}	{ttl}	addr-class	HINFO	Hardware	OS\fP
+		IN	HINFO	VAX-11/780	UNIX
+.TE
+\fIHost Information\fP resource record, \fIHINFO\fP, is for host specific
+data.  This lists the hardware and operating system that are running at the
+listed host.  If you want to include a space in the machine name you must
+quote the name (using ``"'' characters.)  There could be one \fIHINFO\fP
+record for each host, though for security reasons most domains don't have
+any \fIHINFO\fP records at all.  No application depends on them.
+.(b L
+.sh 3 "WKS - Well Known Services"
+.TS
+l l l l l l l.
+\fI{name}	{ttl}	addr-class	WKS	address	protocol	list of services\fP
+		IN	WKS	128\fB.\fP32\fB.\fP0\fB.\fP10	UDP	who route timed domain
+		IN	WKS	128\fB.\fP32\fB.\fP0\fB.\fP10	TCP	( echo telnet
+						discard sunrpc sftp
+						uucp-path systat daytime
+						netstat qotd nntp
+						link chargen ftp 
+						auth time whois mtp
+						pop rje finger smtp
+						supdup hostnames 
+						domain
+						nameserver )
+.TE
+The \fIWell Known Services\fP record, \fIWKS\fP, describes the well known
+services supported by a particular protocol at a specified address.  The
+list of services and port numbers come from the list of services specified
+in \fI/etc/services.\fP There should be only one \fIWKS\fP record per
+protocol per address.  Note that RFC1123 says of \fIWKS\fP records:
+.)b
+.(l L
+   2.2  Using Domain Name Service
+   ...
+      An application SHOULD NOT rely on the ability to locate a WKS
+      record containing an accurate listing of all services at a
+      particular host address, since the WKS RR type is not often used
+      by Internet sites.  To confirm that a service is present, simply
+      attempt to use it.
+   ...
+      5.2.12  WKS Use in MX Processing: RFC-974, p. 5
+
+         RFC-974 [SMTP:3] recommended that the domain system be queried
+         for WKS ("Well-Known Service") records, to verify that each
+         proposed mail target does support SMTP.  Later experience has
+         shown that WKS is not widely supported, so the WKS step in MX
+         processing SHOULD NOT be used.
+   ...
+         6.1.3.6  Status of RR Types
+   ...
+                 The TXT and WKS RR types have not been widely used by
+                 Internet sites; as a result, an application cannot rely
+                 on the the existence of a TXT or WKS RR in most
+                 domains.
+.)l
+.sh 3 "CNAME - Canonical Name"
+.TS
+l l l l l. 
+\fIalias	{ttl}	addr-class	CNAME	Canonical name\fP
+ucbmonet		IN	CNAME	monet
+.TE
+The \fICanonical Name\fP resource record, \fICNAME\fP, specifies an
+alias or nickname for the official, or canonical, host name.
+This record must be the only one associated with the alias name.
+All other resource records must be
+associated with the canonical name, not with the nickname.
+Any resource records that include a domain name as their value
+(e.g., NS or MX) \fImust\fP list the canonical name, not the nickname.
+Similarly, a CNAME will be followed when searching for A RRs, but not
+for MX RRs or NS RRs or most other types of RRs.  CNAMEs are allowed
+to point to other CNAMEs, but this is considered sloppy.
+.pp
+Nicknames are useful when a well known host changes its name.  In that
+case, it is usually a good idea to have a \fICNAME\fP record so that
+people still using the old name will get to the right place.
+.sh 3 "PTR - Domain Name Pointer"
+.TS
+l l l l l. 
+\fIname	{ttl}	addr-class	PTR	real name\fP
+7.0		IN	PTR	monet\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+.TE
+A \fIDomain Name Pointer\fP record, \fIPTR\fP, allows special names to point
+to some other location in the domain.  The above example of a \fIPTR\fP
+record is used in setting up reverse pointers for the special
+\fIIN-ADDR\fP\fB\|.\|\fP\fIARPA\fP domain. This line is from the example
+\fIhosts.rev\fP file.  \fIPTR\fP records are needed by the
+\fIgethostbyaddr\fP function.  Note the trailing ``\fB\|.\|\fP'' which
+prevents \s-1BIND\s+1 from appending the current \s-1$ORIGIN\s+1 to that
+domain name.
+.sh 3 "MX - Mail Exchange"
+.TS
+l l l l l l. 
+\fIname	{ttl}	addr-class	MX	preference value	mail exchange\fP
+Munnari\fB\|.\|\fPOZ\fB\|.\|\fPAU\fB\|.\fP		IN	MX	0	Seismo\fB\|.\|\fPCSS\fB\|.\|\fPGOV\fB\|.\fP
+*\fB\|.\|\fPIL\fB\|.\fP		IN	MX	0	RELAY\fB\|.\|\fPCS\fB\|.\|\fPNET\fB\|.\fP
+.TE
+\fIMail eXchange\fP records, \fIMX\fP, are used to specify a list of hosts
+which are configured to receive mail sent to this domain name.  Every name
+which receives mail should have an \fIMX\fP since if one is not found at the
+time mail is being delivered, an \fIMX\fP will be ``imputed'' with a cost
+of 0 and a destination of the host itself.  If you want a host to receive
+its own mail, you should create an \fIMX\fP for your host's name, pointing
+at your host's name.  It is better to have this be explicit than to let it
+be imputed by remote mailers.
+In the first example, above,
+Seismo\fB\|.\|\fPCSS\fB\|.\|\fPGOV\fB\|.\fP is a mail gateway that knows how
+to deliver mail to Munnari\fB\|.\|\fPOZ\fB\|.\|\fPAU\fB\|.\fP.  These two
+machines may have a private connection or use a different transport medium.
+The preference value is the order that a mailer should follow when there is
+more than one way to deliver mail to a single machine.  Note that lower
+numbers indicate higher precedence, and that mailers are supposed to randomize
+same-valued \fIMX\fP hosts so as to distribute the load evenly if the costs
+are equal.  See RFC974 for more detailed information.
+.pp
+Wildcard names containing the character ``*'' may be used for mail routing
+with \fIMX\fP records.  There are likely to be servers on the network that
+simply state that any mail to a domain is to be routed through a relay.
+Second example, above, all mail to hosts in the domain IL is routed through
+RELAY.CS.NET.  This is done by creating a wildcard resource record, which
+states that *.IL has an \fIMX\fP of RELAY.CS.NET.  Wildcard \fIMX\fP records
+are not very useful in practice, though, since once a mail message gets to
+the gateway for a given domain it still has to be routed \fIwithin\fP that
+domain and it is not currently possible to have an apparently-different set
+of \fIMX\fP records inside and outside of a domain.  If you won't be needing
+any Mail Exchanges inside your domain, go ahead and use a wildcard.  If you
+want to use both wildcard ``top-level'' and specific ``interior'' \fIMX\fP
+records, note that each specific record will have to ``end with'' a complete
+recitation of the same data that is carried in the top-level record.  This
+is because the specific \fIMX\fP records will take precedence over the 
+top-level wildcard records, and must be able to perform the top-level's
+if a given interior domain is to be able to receive mail from outside the
+gateway.  Wildcard \fIMX\fP records are very subtle and you should be careful
+with them.
+.sh 3 "TXT - Text"
+.TS
+l l l l l l. 
+\fIname	{ttl}	addr-class	TXT	string\fP
+Munnari\fB\|.\|\fPOZ\fB\|.\|\fPAU\fB\|.\fP		IN	TXT	"foo"
+.TE
+A \fITXT\fP record contains free-form textual data.  The syntax of the text
+depends on the domain where it is found; many systems use \fITXT\fP records
+to encode local data in a stylized format.  MIT Hesiod is one such system.
+.sh 3 "RP - Responsible Person"
+.TS
+l l l l l l.
+\fIowner	{ttl}	addr-class	RP	mbox-domain-name	TXT-domain-name\fP
+franklin		IN 	RP	ben.franklin.berkeley.edu.	sysadmins.berkeley.edu.
+.TE
+.pp
+The Responsible Person record, \fIRP\fP, identifies the name or group name of
+the responsible person for a host.  Often it is desirable to be able to
+identify the responsible entity for a particular host.  When that host
+is down or malfunctioning, you would want to contact those parties
+who might be able to repair the host.
+.pp
+The first field, \fImbox-domain-name\fP, is a domain name that specifies the
+mailbox for the responsible person.  Its format in a zone file uses
+the \s-1DNS\s+1 convention for mailbox encoding, identical to that used for
+the \fIPerson-in-charge\fP mailbox field in the SOA record.
+In the example above, the \fImbox-domain-name\fP shows the encoding for
+``\fB<ben@franklin.berkeley.edu>\fP''.
+The root domain name (just ``\fB\|.\|\fP'') may be specified
+to indicate that no mailbox is available.
+.pp
+The second field, \fITXT-domain-name\fP, is a domain name for which
+\fITXT\fP records exist.  A subsequent query can be performed to retrieve
+the associated \fITXT\fP resource records at \fITXT-domain-name\fP.  This
+provides a level of indirection so that the entity can be referred to from
+multiple places in the \s-1DNS\s+1.  The root domain name (just
+``\fB\|.\|\fP'') may be specified for \fITXT-domain-name\fI to indicate
+that no associated \fITXT\fP RR exists.  In the example above,
+``\fBsysadmins.berkeley.edu.\fP'' is the name of a TXT record that might
+contain some text with names and phone numbers.
+.pp
+The format of the \fIRP\fP record is class-insensitive.
+Multiple \fIRP\fP records at a single name may be present in the database,
+though they should have identical TTLs.
+.pp
+The \fIRP\fP record is still experimental; not all name servers implement
+or recognize it.
+.sh 3 "AFSDB - DCE or AFS Server"
+.TS
+l l l l l l. 
+\fIname	{ttl}	addr-class	AFSDB	subtype	server host name\fP
+toaster.com.		IN	AFSDB	1	jack.toaster.com.
+toaster.com.		IN	AFSDB	1	jill.toaster.com.
+toaster.com.		IN	AFSDB	2	tracker.toaster.com.
+.TE
+\fIAFSDB\fP records are used to specify the hosts that provide a style of
+distributed service advertised under this domain name.  A subtype value
+(analogous to the ``preference'' value in the \fIMX\fP record) indicates
+which style of distributed service is provided with the given name.
+Subtype 1 indicates that the named host is an AFS (R) database server for
+the AFS cell of the given domain name.  Subtype 2 indicates that the
+named host provides intra-cell name service for the DCE (R) cell named by
+the given domain name.
+In the example above, jack\fB\|.\|\fPtoaster\fB\|.\|\fPcom and
+jill\fB\|.\|\fPtoaster\fB\|.\|\fPcom are declared to be AFS database
+servers for the toaster\fB\|.\|\fPcom AFS cell, so that AFS clients
+wishing service from toaster\fB\|.\|\fPcom are directed to those two hosts
+for further information.  The third record declares that
+tracker\fB\|.\|\fPtoaster\fB\|.\|\fPcom houses a directory server for the
+root of the DCE cell toaster\fB\|.\|\fPcom, so that DCE clients that wish
+to refer to DCE services should consult with the host
+tracker\fB\|.\|\fPtoaster\fB\|.\|\fPcom for further information.  The
+DCE sub-type of record is usually accompanied by a \fITXT\fP record for
+other information specifying other details to be used in accessing the
+DCE cell.  RFC1183 contains more detailed information on the use of
+this record type.
+.pp
+The \fIAFSDB\fP record is still experimental; not all name servers implement
+or recognize it.
+
+.sh 3 "PX - Pointer to X.400/RFC822 mapping information"
+.TS
+l l l l l l l. 
+\fIname	{ttl}	addr-class	PX	prefer	822-dom	X.400-dom\fP
+*.ADMD-garr.X42D.it.		IN	PX	50	it.	ADMD-garr.C-it.
+*.infn.it.		IN	PX	50	infn.it.	O.PRMD-infn.ADMD-garr.C-it.
+*.it.		IN	PX	50	it.	O-gate.PRMD-garr.ADMD-garr.C-it.
+.TE
+.pp
+The \fIPX\fP records (\fIPointer to X.400/RFC822 mapping information\fP) 
+are used to specify address mapping rules between X.400 O/R addresses and 
+RFC822 style (domain-style) mail addresses. For a detailed description of the 
+mapping process please refer to RFC1327.
+.pp
+Mapping rules are of 3 different types:
+.pp
+1) mapping from X.400 to RFC822 (defined as "table 1 rules" in RFC1327)
+.pp
+2) mapping from RFC822 to X.400 (defined as "table 2 rules" in RFC1327)
+.pp
+3) encoding RFC822 into X.400   (defined as "gate table" in RFC1327)
+.pp
+All three types of mapping rules are specified using \fIPX\fP Resource
+Records in DNS, although the \fIname\fP value is different: for case 1, the
+\fIname\fP value is an X.400 domain in DNS syntax, whereas for cases 2 and
+3 the \fIname\fP value is an RFC822 domain. Refer to RFC-1664 for details
+on specifying an X.400 domain in DNS syntax and for the use of the
+\fIX42D\fP keyword in it. Tools are available to convert from RFC1327
+tables format into DNS files syntax.  \fIPreference\fP is analogous to the
+\fIMX\fP RR Preference parameter: it is currently advised to use a fixed
+value of 50 for it. \fI822-dom\fP gives the RFC822 part of the mapping
+rules, and \fIX.400-dom\fP gives the X.400 part of the mapping rule (in DNS
+syntax). It is currently advised always to use wildcarded \fIname\fP
+values, as the RFC1327 tables specifications permit wildcard
+specifications only. This is to keep compatibility with existing services
+using static RFC1327 tables instead of DNS \fIPX\fP information.
+.pp
+Specifications of mapping rules from X.400 to RFC822 syntax requires the
+creation of an appropriate X.400 domain tree into DNS, including thus specific
+\fISOA\fP and \fINS\fP records for the domain itself. Specification of mapping 
+rules from RFC822 into X.400 can be embedded directly into the normal direct 
+\fIname\fP tree.
+Again, refer to RFC1664 for details about organization of this structure.
+.pp
+Tools and library routines, based on the standard resolver ones, are available
+to retrieve from DNS the appropriate mapping rules in RFC1327 or DNS syntax.
+.pp
+Once again, refer to RFC1664 to use the \fIPX\fP resource record, and be careful
+in coordinating the mapping information you can specify in DNS with the same
+information specified into the RFC1327 static tables.
+.pp
+The \fIPX\fP record is still experimental; not all servers implement or
+recognize it.
+
+.sh 2 "Discussion about the TTL"
+.pp
+The Time To Live assigned to the records and to the zone via the
+Minimum field in the SOA record is very important. High values will
+lead to lower BIND network traffic and faster response time. Lower
+values will tend to generate lots of requests but will allow faster
+propagation of changes.
+.pp
+Only changes and deletions from the zone are affected by the TTLs.
+Additions propagate according to the Refresh value in the SOA.
+.pp
+Experience has shown that sites use default TTLs for their zones varying
+from around 0.5 day to around 7 days. You may wish to consider boosting
+the default TTL shown in former versions of this guide from one day
+(86400 seconds) to three days (259200 seconds). This will drastically
+reduce the number of requests made to your name servers.
+.pp
+If you need fast propagation of changes and deletions, it might be wise
+to reduce the Minimum field a few days before the change, then do the
+modification itself and augment the TTL to its former value.
+.pp
+If you know that your zone is pretty stable (you mainly add new records
+without deleting or changing old ones) then you may even wish to consider
+a TTL higher than three days.
+.pp
+Note that in any case, it makes no sense to have records with a TTL
+below the SOA Refresh delay, as Delay is the time required for secondaries
+to get a copy of the newly modified zone.
+
+.sh 2 "About ``secure zones''
+.pp
+Secure zones implement named security on a zone by zone basis.  It is
+designed to use a permission list of networks or hosts which may obtain
+particular information from the zone.
+.pp
+In order to use zone security, \fInamed\fP must be compiled with SECURE_ZONES
+defined and you must have at least one secure_zone TXT RR.  Unless a
+\fIsecure_zone\fP record exists for a given zone, no restrictions will be
+applied to the data in that zone.  The format of the secure_zone TXT RR is:
+.lp
+secure_zone\h'0.5i'addr-class\h'0.5i'TXT\h'0.5i'string
+.pp
+The addr-class may be either \fIHS\fP or \fIIN\fP.  The syntax for the TXT
+string is either ``network address:netmask'' or ``host IP address:H''.
+.pp
+``network address:netmask'' allows queries from an entire network.  If the
+netmask is omitted, named will use the default netmask for the network
+address specified.
+.pp
+``host IP address:H'' allows queries from a host.  The ``H'' after the ``:''
+is required to differentiate the host address from a network address.
+Multiple secure_zone TXT RRs are allowed in the same zone file.
+.pp
+For example, you can set up a zone to only answer Hesiod requests from the
+masked class B network 130.215.0.0 and from host 128.23.10.56 by adding the
+following two TXT RR's:
+.lp
+secure_zone\h'0.5i'HS\h'0.5i'TXT\h'0.5i'``130.215.0.0:255.255.0.0''
+secure_zone\h'0.5i'HS\h'0.5i'TXT\h'0.5i'``128.23.10.56:H''
+.pp
+This feature can be used to restrict access to a Hesiod password map or to
+separate internal and external internet address resolution on a firewall
+machine without needing to run a separate named for internal and external
+address resolution.
+.pp
+Note that you will need to include your loopback interface (127.0.0.1) in
+your secure_zone record, or your local clients won't be able to resolve
+names.
+
+.sh 2 "About Hesiod, and HS-class Resource Records
+.pp
+Hesiod, developed by \s-1MIT\s+1 Project Athena, is an information service
+built upon \s-1BIND\s+1.  Its intent is similar to that of Sun's
+\s-1NIS\s+1: to furnish information about users, groups, network-accessible
+file systems, printcaps, and mail service throughout an installation.  Aside
+from its use of \s-1BIND\s+1 rather than separate server code another
+important difference between Hesiod and \s-1NIS\s+1 is that Hesiod is not
+intended to deal with passwords and authentication, but only with data that
+are not security sensitive.  Hesiod servers can be implemented by adding
+resource records to \s-1BIND\s+1 servers; or they can be implemented as
+separate servers separately administered.
+.pp
+To learn about and obtain Hesiod make an anonymous \s-1FTP\s+1 connection to
+host \s-1ATHENA-DIST.MIT.EDU\s+1 and retrieve the compressed tar file
+\fB/pub/ATHENA/hesiod.tar.Z\fP.  You will not need the named and resolver
+library portions of the distribution because their functionality has already
+been integrated into \s-1BIND as of 4.9\s+1.  To learn how Hesiod functions
+as part of the Athena computing environment obtain the paper
+\fB/pub/ATHENA/usenix/athena-changes.PS\fP from the above \s-1FTP\s+1 server
+host.  There is also a tar file of sample Hesiod resource files.
+.pp
+Whether one should use Hesiod class is open to question, since the same
+services can probably be provided with class IN, type TXT and type
+CNAME records.  In either case, the code and documents for Hesiod will
+suggest how to set up and use the service.
+.pp
+Note that while \s-1BIND\s+1 includes support for \fIHS\fP-class queries,
+the zone transfer logic for non-\fIIN\fP-class zones is still experimental.
+
+.sh 2 "Sample Files"
+.pp
+The following section contains sample files for the name server.
+This covers example boot files for the different types of servers
+and example domain data base files.

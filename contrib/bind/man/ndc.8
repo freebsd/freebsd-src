@@ -1,0 +1,127 @@
+.\" Copyright (c) 1994
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.TH @INDOT_U@NDC @SYS_OPS_EXT_U@ "November 27, 1994"
+.UC 5
+.SH NAME
+@INDOT@ndc \- name daemon control interface
+.SH SYNOPSIS
+.B @INDOT@ndc
+.I directive
+[ ... ]
+.SH DESCRIPTION
+This command allows the name server administrator to send various signals
+to the name server, or to restart it.  Zero or more directives may be given,
+from the following list:
+.TP
+.B status
+Displays the current status of
+.B @INDOT@named
+as shown by
+.BR ps (1).
+.TP
+.B dumpdb
+Causes
+.B @INDOT@named
+to dump its database and cache to
+.B /var/tmp/named_dump.db
+(uses the INT signal.)
+.TP
+.B reload
+Causes
+.B @INDOT@named
+to check the serial numbers of all primary and secondary zones
+and to reload those that have changed (uses the HUP signal.)
+.TP
+.B stats
+Causes
+.B @INDOT@named
+to dump its statistics to
+.B /var/tmp/named.stats
+(uses the IOT or ABRT signal.)
+.TP
+.B trace
+Causes
+.B @INDOT@named
+to increment its ``tracing level'' by one.  Whenever the tracing level
+is nonzero, trace information will be written to
+.BR /var/tmp/named.run .
+Higher tracing levels result in more detailed information.
+(Uses the USR1 signal.)
+.TP
+.B notrace
+Causes
+.B @INDOT@named
+to set its ``tracing level'' to zero, closing
+.B /var/tmp/named.run
+if it is open (uses the USR2 signal.)
+.TP
+.B querylog
+Causes
+.B @INDOT@named
+to toggle the ``query logging'' feature, which while on will result in a
+.BR syslog (3)
+of each incoming query (uses the WINCH signal.)  Note that query logging
+consumes quite a lot of log file space.  This directive may also be given as
+.BR qrylog .
+.TP
+.B start
+Causes
+.B @INDOT@named
+to be started, as long as it isn't already running.
+.TP
+.B stop
+Causes
+.B @INDOT@named
+to be stopped, if it is running.
+.TP
+.B restart
+Causes
+.B @INDOT@named
+to be killed and restarted.
+.SH BUGS
+Arguments to
+.B @INDOT@named
+are not preserved by
+.BR restart ,
+or known by
+.BR start .
+Some mechanism for controlling the parameters and environment should exist.
+.PP
+Implemented as a
+.BR sh (1)
+script.
+.SH AUTHOR
+Paul Vixie (Internet Software Consortium)
+.SH SEE ALSO
+@INDOT@named(@SYS_OPS_EXT@),
+@INDOT@named.reload(@SYS_OPS_EXT@),
+@INDOT@named.restart(@SYS_OPS_EXT@)
