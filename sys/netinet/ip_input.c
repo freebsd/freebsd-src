@@ -556,7 +556,7 @@ pass:
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
 	    m->m_pkthdr.rcvif != NULL &&
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
-	    (args.next_hop == NULL);
+	    (args.next_hop == NULL) && (dchg == 0);
 
 	/*
 	 * Check for exact addresses in the hash bucket.
