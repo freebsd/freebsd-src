@@ -190,13 +190,13 @@ pc98_system_parameter:
  *	prot = protection bits
  */
 #define	fillkpt(base, prot)		  \
-	shll	$2,%ebx			; \
+	shll	$PTESHIFT,%ebx		; \
 	addl	base,%ebx		; \
 	orl	$PG_V,%eax		; \
 	orl	prot,%eax		; \
 1:	movl	%eax,(%ebx)		; \
 	addl	$PAGE_SIZE,%eax		; /* increment physical address */ \
-	addl	$4,%ebx			; /* next pte */ \
+	addl	$PTESIZE,%ebx		; /* next pte */ \
 	loop	1b
 
 /*
