@@ -238,7 +238,7 @@ realinstall: _SUBDIR
 	done; true
 .endif
 .if !defined(NO_XREF)
-	kldxref ${DESTDIR}${KMODDIR}
+	-kldxref ${DESTDIR}${KMODDIR}
 .endif
 
 install: afterinstall _SUBDIR
