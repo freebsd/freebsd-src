@@ -367,7 +367,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 */
 	if (harvest.interrupt && ithread->it_flags & IT_ENTROPY) {
 		entropy.vector = ithread->it_vector;
-		entropy.proc = ctd->td_proc;;
+		entropy.proc = ctd->td_proc;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
 		    RANDOM_INTERRUPT);
 	}
