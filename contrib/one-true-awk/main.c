@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20030314";
+const char	*version = "version 20030729";
 
 #define DEBUG
 #include <stdio.h>
@@ -55,10 +55,8 @@ int main(int argc, char *argv[])
 {
 	const char *fs = NULL;
 
-	setlocale(LC_ALL, "");
-	setlocale(LC_COLLATE, "");
 	setlocale(LC_CTYPE, "");
-	setlocale(LC_MESSAGES, "");
+	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
 		fprintf(stderr, "Usage: %s [-f programfile | 'program'] [-Ffieldsep] [-v var=value] [files]\n", cmdname);
@@ -147,6 +145,7 @@ int main(int argc, char *argv[])
 	if (!safe)
 		envinit(environ);
 	yyparse();
+	setlocale(LC_NUMERIC, ""); /* back to whatever it is locally */
 	if (fs)
 		*FS = qstring(fs, '\0');
 	   dprintf( ("errorflag=%d\n", errorflag) );
