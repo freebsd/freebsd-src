@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 .PATH: ${GCCDIR}
 
