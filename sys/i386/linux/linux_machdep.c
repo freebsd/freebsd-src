@@ -250,7 +250,7 @@ linux_old_select(struct thread *td, struct linux_old_select_args *args)
 
 #ifdef DEBUG
 	if (ldebug(old_select))
-		printf(ARGS(old_select, "%x"), args->ptr);
+		printf(ARGS(old_select, "%p"), args->ptr);
 #endif
 
 	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
