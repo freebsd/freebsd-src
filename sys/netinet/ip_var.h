@@ -154,7 +154,6 @@ extern u_short	ip_id;				/* ip packet ctr, for ids */
 #endif
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
-extern struct route ipforward_rt;		/* ip forwarding cached route */
 extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
@@ -167,6 +166,7 @@ int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	 ip_drain(void);
 int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
+void	 ip_forward_cacheinval(void);
 void	 ip_freemoptions(struct ip_moptions *);
 void	 ip_init(void);
 extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
