@@ -200,6 +200,7 @@ FIXITLABEL=		minimum2
 MFSLABEL=		auto
 BIGBOOTLABEL=		minimum2
 .elif ${TARGET_ARCH} == "sparc64"
+DISKLABEL=		sunlabel
 BIGBOOTSIZE=		4096
 MFSSIZE=		4096
 BOOTINODE=		8192
@@ -214,6 +215,8 @@ MFSINODE=		8192
 MFSLABEL=		auto
 MFSSIZE=		8192
 .endif
+
+DISKLABEL?=		disklabel
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
@@ -245,13 +248,12 @@ CD_DISC2=		${CD}/disc2
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
-# ia64 is different enough that we want our own doFS.sh.
-.if ${TARGET_ARCH} == "ia64"
-DOFS_SH=	${.CURDIR}/ia64/doFS.sh
+.if exists(${.CURDIR}/${TARGET_ARCH}/doFS.sh)
+DOFS_SH=	${.CURDIR}/${TARGET_ARCH}/doFS.sh
 .elif ${TARGET} != ${MACHINE}
-DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${TARGET}
+DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ${TARGET}
 .else
-DOFS_SH=	${.CURDIR}/scripts/doFS.sh ""
+DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ""
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
