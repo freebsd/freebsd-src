@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.15 1995/12/15 05:00:31 peter Exp $ */
+/*	$Id: sysv_shm.c,v 1.16 1995/12/26 16:03:32 joerg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -30,6 +30,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
