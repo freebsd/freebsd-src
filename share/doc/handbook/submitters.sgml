@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.34 1996/12/10 21:46:33 joerg Exp $ -->
+<!-- $Id: submitters.sgml,v 1.35 1997/01/01 13:41:50 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -72,7 +72,7 @@ provide an accurate mapping of BIOS geometries for disks.
 <item>SCSI driver issues.  Overall coordination: &a.hackers
 <p><itemize>
 <item>Support tagged queuing generically.  Requires a rewrite of how we do
-our command queing, but we need this anyway to for prioritized I/O
+our command queuing, but we need this anyway to for prioritized I/O
 (CD-R writers/scanners).
 <item>Better error handling (Busy status and retries).
 <item>Merged Scatter-Gather list creation code.
@@ -395,7 +395,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.34 1996/12/10 21:46:33 joerg Exp $
+	$Id: submitters.sgml,v 1.35 1997/01/01 13:41:50 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
