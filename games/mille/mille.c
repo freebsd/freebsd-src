@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1982, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mille.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 # include	"mille.h"
@@ -51,8 +55,12 @@ static char sccsid[] = "@(#)mille.c	8.1 (Berkeley) 5/31/93";
  * @(#)mille.c	1.3 (Berkeley) 5/10/83
  */
 
+void check_more __P((void));
+void die __P((int));
 void	rub();
+static void usage __P((void));
 
+int
 main(ac, av)
 reg int		ac;
 reg char	*av[]; {
@@ -75,8 +83,7 @@ reg char	*av[]; {
 	  case 1:
 		break;
 	  default:
-		printf("usage: milles [ restore_file ]\n");
-		exit(-1);
+		usage();
 		/* NOTREACHED */
 	}
 	Play = PLAYER;
@@ -131,6 +138,13 @@ reg char	*av[]; {
 	}
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: mille [restore_file]\n");
+	exit(1);
+}
+
 /*
  *	Routine to trap rubouts, and make sure they really want to
  * quit.
@@ -147,6 +161,7 @@ rub() {
 /*
  *	Time to go beddy-by
  */
+void
 die(code)
 int code; {
 
