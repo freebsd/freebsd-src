@@ -1,3 +1,105 @@
+2000-11-06  Alan Modra  <alan@linuxcare.com.au>
+
+	Merge most place_orphan changes from mainline.
+	2000-09-07  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Fix
+	broken list handling.  Create __start_SECNAME and __stop_SECNAME
+	when no place-holder.  Add some comments.  Test both SEC_CODE and
+	SEC_READONLY for hold_text to prevent .rodata orphan poisoning.
+	Handle case where no output section statement created.
+
+	2000-09-06  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Don't
+	try shuffling sections when the orphan happens to be the place
+	holder.  Keep count of unique section names generated so we speed
+	the search for a new name.
+
+	2000-04-25  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_section): Delete.
+	(output_rel_find): New function.
+	(hold_section, hold_use): Delete.
+	(hold_text, hold_rodata, hold_data, hold_bss, hold_rel,
+	hold_interp): Make local to place_orphan.
+	(gld${EMULATION_NAME}_place_orphan): Use lang_output_section_find
+	rather than place_section to find possible previous use of orphan.
+	Similarly find the place-holder output sections.  Use returned
+	value from lang_enter_output_section_statement rather than calling
+	lang_output_section_statement_lookup.
+	* ldlang.c (lang_enter_output_section_statement): Return output
+	section statement.
+	* ldlang.h (lang_enter_output_section_statement): Change
+	declaration too.
+	* ldlang.h (lang_output_section_statement): Export it.
+	* ldlang.c (lang_output_section_statement): Ditto.
+
+	2000-04-18  H.J. Lu  <hjl@gnu.org>
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Call
+	lang_leave_output_section_statement () after calling
+	lang_enter_output_section_statement ().
+
+	2000-04-18  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (struct orphan_save): Add section field.
+	(gld${EMULATION_NAME}_place_orphan): Use above to keep sections in
+	better order, and place first orphan section as we did before the
+	2000-04-12 patch.  Ignore ~SEC_ALLOC sections when choosing place.
+	Don't call make_bfd_section here, let wild_doit do the job for us.
+	Don't build a statement list when we'll only throw it away.
+
+	2000-04-14  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Process
+	~SEC_ALLOC sections too.  Init start address of debug sections.
+
+	2000-04-12  Alan Modra  <alan@linuxcare.com.au>
+	* emultempl/elf32.em (struct orphan_save): New.
+	(hold_text, hold_rodata, hold_data, hold_bss, hold_rel,
+	hold_interp): Make them struct orphan_save.
+	(gld${EMULATION_NAME}_place_section): Modify for new hold_*.
+	(gld${EMULATION_NAME}_place_orphan): Add new orphan sections to
+	the end of the relevant section list.  Also add associated section
+	statements to the end of any previous orphan statements.
+
+2000-11-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldlex.l (yy_create_string_buffer): Init yy_is_our_buffer,
+	yy_is_interactive, yy_at_bol, and yy_fill_buffer.
+	* ldlex.c: Regenerate.
+
+	* Makefile.am (DISTCLEANFILES): Add stringify.sed.
+	* Makefile.in: Regenerate.
+
+2000-10-16  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version number to 2.10.1.
+	* configure: Regenerate.
+
+2000-10-12  Peter Jeremy  <peter.jeremy@alcatel.com.au>
+
+	From 2000-08-08  Peter Jeremy  <peter.jeremy@alcatel.com.au>
+	* emultempl/elf32.em (_after_close): Refer to -rpath not --rpath
+	in error message.
+
+2000-04-14  Matthew Green  <mrg@cygnus.com>
+	
+	* configure.tgt: Add NetBSD/sparc ELF, and NetBSD/sparc64 support.
+
+2000-06-07  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* emultempl/mipsecoff.em (gld{EMULATION_NAME}_after_open): Require all
+	input objects to be ECOFF.
+	(check_sections): einfo takes %B, not %P, to print a BFD name.
+
+2000-07-31  Rodney Brown  <RodneyBrown@pmsc.com>
+
+	* configure.tgt: Select targ_emul=elf_i386 for Unixware 7
+	(i586-sco-sysv5uw7.1.0).
+
+2000-06-18  Alan Modra  <alan@linuxcare.com.au>
+
+	* NEWS: Update list of targets supporting --gc-sections.
+
+	* scripttempl/elf.sc: KEEP .eh_frame contents.
+	* scripttempl/elfd30v.sc: Same here.
+
 2000-05-22  David O'Brien  <obrien@FreeBSD.org>
 
         * configure.tgt: Recognize alpha-*-freebsd*.
@@ -37,6 +139,10 @@
 2000-04-29  Andreas Jaeger  <aj@suse.de>
 
 	* ld.h: Correctly check GCC version.
+
+2000-04-21  Richard Henderson  <rth@cygnus.com>
+
+	* scripttempl/elfd30v.sc: Place .gcc_except_table.
 
 2000-04-19  Alan Modra  <alan@linuxcare.com.au>
 
