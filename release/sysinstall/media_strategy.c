@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.11 1995/05/22 14:10:23 jkh Exp $
+ * $Id: media_strategy.c,v 1.12 1995/05/23 02:41:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,7 +55,7 @@
 #include <sys/dkbad.h>
 #include <sys/mman.h>
 #include <netdb.h>
-#include "libftp.h"
+#include "ftp.h"
 
 #define MSDOSFS
 #define CD9660
@@ -399,6 +399,33 @@ mediaInitTape(Device *dev)
 Boolean
 mediaInitNetwork(Device *dev)
 {
+    int i;
+
+    if (!strncmp("cuaa", dev->name, 4)) {
+	if (tcpStartPPP()) {
+	    msgConfirm("You have selected a serial device as your network installation device.\nThe PPP dialer is now running on the 3rd screen (type ALT-F3 to interact\nwith it) and should be used to establish the link BEFORE YOU HIT RETURN\nhere!  Once you hit return in this screen (type ALT-F1 to return to this\nscreen from the PPP screen) the installation will assume that your link\nis set up and begin transfering the distributions over PPP.");
+	}
+	else {
+	    msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
+	    return FALSE;
+	}
+    }
+    else {
+	char *cp, ifconfig[64];
+
+	sprintf(ifconfig, "%s%s", VAR_IFCONFIG, dev->name);
+	cp = getenv(ifconfig);
+	if (!cp) {
+	    msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
+	    return FALSE;
+	}
+	i = vsystem("ifconfig %s", ifconfig);
+	if (i) {
+	    msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.");
+	    return FALSE;
+	}
+    }
+    config_resolv();
     return TRUE;
 }
 

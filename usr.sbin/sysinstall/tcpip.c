@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.9 1995/05/18 16:44:41 gpalmer Exp $
+ * $Id: tcpip.c,v 1.10 1995/05/21 15:40:54 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -571,3 +571,26 @@ tcpDeviceSelect(void)
     return netDevice;
 }
 
+/* Start PPP on the 3rd screen */
+Boolean
+tcpStartPPP(void)
+{
+    int fd;
+
+    fd = open("/dev/ttyv2", O_RDWR);
+    if (fd == -1)
+	return FALSE;
+
+    if (!fork()) {
+	dup2(fd, 0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
+	exit(1);
+    }
+    return TRUE;
+}
+
+
+
+	
