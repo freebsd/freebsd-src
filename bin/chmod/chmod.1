@@ -43,12 +43,8 @@
 .Nd change file modes
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Fl f
-.Fl R
-.Op Fl H | Fl L | Fl P
-.Fl v
-.Oc
+.Op Fl fhv
+.Op Fl R Op Fl H | L | P
 .Ar mode
 .Ar
 .Sh DESCRIPTION
@@ -84,19 +80,15 @@ Do not display a diagnostic message if
 .Nm
 could not modify the mode for
 .Va file .
+.It Fl h
+If the file is a symbolic link, change the mode of the link itself
+rather than the file that the link points to.
 .It Fl v
 Cause
 .Nm
 to be verbose, showing files as the mode is modified.
 .El
 .Pp
-Symbolic links do not have modes, so unless the
-.Fl H
-or
-.Fl L
-option is set,
-.Nm
-on a symbolic link always succeeds and has no effect.
 The
 .Fl H ,
 .Fl L
