@@ -1933,6 +1933,22 @@ vcount(vp)
 }
 
 /*
+ * Same as above, but using the dev_t as argument
+ */
+
+int
+count_dev(dev)
+	dev_t dev;
+{
+	struct vnode *vp;
+
+	vp = SLIST_FIRST(&dev->si_hlist);
+	if (vp == NULL)
+		return (0);
+	return(vcount(vp));
+}
+
+/*
  * Print out a description of a vnode.
  */
 static char *typename[] =

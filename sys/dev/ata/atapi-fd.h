@@ -73,7 +73,6 @@ struct afd_cappage {
 struct afd_softc {
     struct atapi_softc		*atp;		/* controller structure */
     int32_t			lun;		/* logical device unit */
-    int32_t			refcnt;		/* the number of raw opens */
     int32_t			transfersize;	/* max size of each transfer */
     struct buf_queue_head	buf_queue;	/* queue of i/o requests */
     struct afd_header		header;		/* capabilities page info */

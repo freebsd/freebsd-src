@@ -240,7 +240,7 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (!stp)
 	return ENXIO;
 
-    if (stp->flags == F_OPEN)
+    if (count_dev(dev) > 1)
 	return EBUSY;
 
     atapi_test_ready(stp->atp);
@@ -253,7 +253,6 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 
     stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
-    stp->flags |= F_OPEN;
     ast_total = 0;
     return 0;
 }
@@ -276,10 +275,10 @@ astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (!(minor(dev) & 0x01))
 	ast_rewind(stp);
 
-    if (stp->cap.lock)
+    if (stp->cap.lock && count_dev(dev) == 1)
 	ast_prevent_allow(stp, 0);
 
-    stp->flags &= ~(F_OPEN | F_CTL_WARN);
+    stp->flags &= F_CTL_WARN;
 #ifdef AST_DEBUG
     printf("ast%d: %llu total bytes transferred\n", stp->lun, ast_total);
 #endif
