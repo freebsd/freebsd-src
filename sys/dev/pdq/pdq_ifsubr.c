@@ -86,6 +86,7 @@ arp_ifinit(
     ifa->ifa_rtrequest = arp_rtrequest;
     ifa->ifa_flags |= RTF_CLONING;
 #endif
+}
 #endif
 
 
