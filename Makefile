@@ -105,7 +105,7 @@ STARTTIME!= LC_ALL=C date
 #
 world: upgrade_checks
 	@echo "--------------------------------------------------------------"
-	@echo ">>> elf make world started on ${STARTTIME}"
+	@echo ">>> make world started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo
@@ -125,7 +125,8 @@ world: upgrade_checks
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@printf ">>> elf make world completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
+	@echo ">>> make world completed on `LC_ALL=C date`"
+	@echo "                   (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -198,7 +199,8 @@ universe:
 .endfor
 .endfor
 	@echo "--------------------------------------------------------------"
-	@printf ">>> make universe completed on `LC_ALL=C date`\n                      (started ${STARTTIME})\n"
+	@echo ">>> make universe completed on `LC_ALL=C date`"
+	@echo "                      (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
 
 KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
