@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.11 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: vpo.c,v 1.12 1999/05/06 20:16:27 ken Exp $
  *
  */
 
@@ -187,7 +187,6 @@ vpoattach(struct ppb_device *dev)
 		return (0);
 	}
 
-	cam_sim_set_basexfer_speed(vpo->sim, 93/*kB/s*/);
 	if (xpt_bus_register(vpo->sim, /*bus*/0) != CAM_SUCCESS) {
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
 		return (0);
