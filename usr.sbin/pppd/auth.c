@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: auth.c,v 1.17 1997/08/19 17:52:31 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -312,6 +312,10 @@ network_phase(unit)
 	    if (protp->protocol != PPP_CCP)
 		++num_np_open;
 	}
+
+    if (num_np_open == 0)
+	/* nothing to do */
+	lcp_close(0, "No network protocols running");
 }
 
 /*
@@ -423,8 +427,14 @@ void
 np_up(unit, proto)
     int unit, proto;
 {
-    if (num_np_up == 0 && idle_time_limit > 0) {
-	TIMEOUT(check_idle, NULL, idle_time_limit);
+    if (num_np_up == 0) {
+	/*
+	 * At this point we consider that the link has come up successfully.
+	 */
+	need_holdoff = 0;
+
+	if (idle_time_limit > 0)
+	    TIMEOUT(check_idle, NULL, idle_time_limit);
 
 	/*
 	 * Set a timeout to close the connection once the maximum
@@ -478,7 +488,6 @@ check_idle(arg)
     if (itime >= idle_time_limit) {
 	/* link is idle: shut it down. */
 	syslog(LOG_INFO, "Terminating connection due to lack of activity.");
-	need_holdoff = 0;
 	lcp_close(0, "Link inactive");
     } else {
 	TIMEOUT(check_idle, NULL, idle_time_limit - itime);
@@ -966,6 +975,7 @@ get_pap_passwd(passwd)
 {
     char *filename;
     FILE *f;
+    int ret;
     struct wordlist *addrs;
     char secret[MAXWORDLEN];
 
@@ -975,9 +985,11 @@ get_pap_passwd(passwd)
     if (f == NULL)
 	return 0;
     check_access(f, filename);
-    if (scan_authfile(f, user,
-		      remote_name[0]? remote_name: NULL,
-		      (u_int32_t)0, secret, NULL, filename) < 0)
+    ret = scan_authfile(f, user,
+			remote_name[0]? remote_name: NULL,
+			(u_int32_t)0, secret, NULL, filename);
+    fclose(f);
+    if (ret < 0)
 	return 0;
     if (passwd != NULL) {
 	strncpy(passwd, secret, MAXSECRETLEN);
