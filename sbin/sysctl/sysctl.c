@@ -384,7 +384,7 @@ S_vmtotal(int l2, void *p)
 	printf("Shared Real Memory:\t(Total: %lldK Active: %lldK)\n",
 	    (long long)v->t_rmshr * pageKilo,
 	    (long long)v->t_armshr * pageKilo);
-	printf("Free Memory Pages:\t%ldK\n", (long long)v->t_free * pageKilo);
+	printf("Free Memory Pages:\t%lldK\n", (long long)v->t_free * pageKilo);
 
 	return (0);
 }
