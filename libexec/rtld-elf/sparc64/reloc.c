@@ -455,6 +455,8 @@ reloc_jmpslots(Obj_Entry *obj)
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    true, NULL);
+		if (def == NULL)
+			return -1;
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);
 		reloc_jmpslot(where, target, defobj);
 	}
