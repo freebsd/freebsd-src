@@ -190,7 +190,8 @@ SUBDIR+=acpi \
 	sicontrol \
 	spkrtest \
 	stallion \
-	wlconfig
+	wlconfig \
+	zzz
 .if !defined(NO_I4B)
 SUBDIR+=i4b
 .endif
