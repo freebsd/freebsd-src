@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.51.2.1 1999/01/31 00:57:46 paul Exp $
+ * $Id: if_lnc.c,v 1.51.2.2 1999/03/18 18:47:28 luigi Exp $
  */
 
 /*
@@ -645,7 +645,9 @@ lnc_rint(struct lnc_softc *sc)
 						m_freem(head);
 				else
 				{
+#ifdef BRIDGE
 getit:
+#endif
 					/* Skip over the ether header */
 					head->m_data += sizeof *eh;
 					head->m_len -= sizeof *eh;
@@ -1228,23 +1230,34 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	if (sc->nic.mem_mode == DMA_FIXED)
 		lnc_mem_size += (NDESC(sc->nrdre) * RECVBUFSIZE) + (NDESC(sc->ntdre) * TRANSBUFSIZE);
 
-	sc->recv_ring = malloc(lnc_mem_size, M_DEVBUF, M_NOWAIT);
+	if (sc->nic.mem_mode != SHMEM) {
+		if (sc->nic.ic < PCnet_32) {
+			/* ISA based cards */
+			sc->recv_ring = contigmalloc(lnc_mem_size, M_DEVBUF, M_NOWAIT,
+										 0ul, 0xfffffful, 4ul, 0x1000000);
+		} else {
+			/* Non-ISA based cards, 32 bit capable */
+#ifdef notyet
+			/*
+			 * For the 32 bit driver we're not fussed where we DMA to
+			 * though it'll still need to be contiguous
+			 */
+			sc->recv_ring = malloc(lnc_mem_size, M_DEVBUF, M_NOWAIT);
+#else
+			/*
+			 * For now it still needs to be below 16MB because the
+			 * descriptor's can only hold 16 bit addresses.
+			 */
+			sc->recv_ring = contigmalloc(lnc_mem_size, M_DEVBUF, M_NOWAIT,
+										 0ul, 0xfffffful, 4ul, 0x1000000);
+#endif
+		}    	
+	}
 
 	if (!sc->recv_ring) {
 		log(LOG_ERR, "lnc%d: Couldn't allocate memory for NIC\n", unit);
 		return (0);	/* XXX -- attach failed -- not tested in
 				 * calling routines */
-	}
-	/*
-	 * XXX - Shouldn't this be skipped for the EISA and PCI versions ???
-	 *       Print the message but do not return for the PCnet_PCI !
-	 */
-	if ((sc->nic.mem_mode != SHMEM) && (kvtop(sc->recv_ring) > 0x1000000)) {
-		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", unit);
-		if ((sc->nic.ic != PCnet_PCI) &&
-		    (sc->nic.ic != PCnet_PCI_II) &&
-		    (sc->nic.ic != PCnet_FAST))
-			return (0);
 	}
 
 	/* Set default mode */
@@ -1265,6 +1278,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	sc->arpcom.ac_if.if_type = IFT_ETHER;
 	sc->arpcom.ac_if.if_addrlen = ETHER_ADDR_LEN;
 	sc->arpcom.ac_if.if_hdrlen = ETHER_HDR_LEN;
+	sc->arpcom.ac_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	/*
 	 * XXX -- should check return status of if_attach
@@ -1696,13 +1710,13 @@ lnc_start(struct ifnet *ifp)
 			 */
 
 
-			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits))
+			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits)) {
 				if (!(head = chain_to_cluster(head))) {
 					log(LOG_ERR, "lnc%d: Couldn't get mbuf for transmit packet -- Resetting \n ",ifp->if_unit);
 					lnc_reset(sc);
 					return;
 				}
-			else if ((sc->nic.ic == LANCE) || (sc->nic.ic == C_LANCE)) {
+			} else if ((sc->nic.ic == LANCE) || (sc->nic.ic == C_LANCE)) {
 				if ((head->m_len < 100) && (head->m_next)) {
 					len = 100 - head->m_len;
 					if (M_TRAILINGSPACE(head) < len) {
@@ -2020,7 +2034,7 @@ mbuf_dump_chain(struct mbuf * m)
 				    m->M_dat.MH.MH_dat.MH_ext.ext_size);
 			}
 		}
-	} while (m = m->m_next);
+	} while ((m = m->m_next) != NULL);
 }
 #endif
 
