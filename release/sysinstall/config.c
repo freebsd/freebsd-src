@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.39 1995/11/07 10:45:30 jkh Exp $
+ * $Id: config.c,v 1.16.2.40 1995/11/11 11:20:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -221,7 +221,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
+	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro,noauto 0 0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -234,7 +234,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro,noauto 0 0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.77 1995/11/08 07:09:23 jkh Exp $
+ * $Id: install.c,v 1.71.2.78 1995/11/09 02:31:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -416,10 +416,16 @@ installCommit(char *str)
 		   "questions will be asked at this point.  For any option you do not wish\n"
 		   "to configure, select Cancel.");
 
+	if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
+	    dialog_clear();
+	    if (!msgYesNo("Would you like to configure this machine's network interfaces?"))
+		tcpDeviceSelect();
+	}
+
 	dialog_clear();
 	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
-		      "machine?  (that is Windows 95, Windows NT or Windows for Workgroups\n"
-		      "machines or others using compatible protocols)."))
+		      "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
+		      "machines can use NETBUI transport for disk and printer sharing."))
 	    configSamba(NULL);
 
 	dialog_clear();
@@ -465,26 +471,27 @@ installCommit(char *str)
 	    dialog_clear();
 	    if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
 			  "This will require that you have your FreeBSD CD in the CDROM\n"
-			  "drive to use the ports collection, but at substantial savings\n"
-			  "in disk space."))
+			  "drive to use the ports collection, but at a substantial savings\n"
+			  "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n
+			  "depending on the speed of your CDROM drive)."))
 		configPorts(NULL);
 	}
 
 	dialog_clear();
 	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
-		      "applications, from text editors to games to WEB servers.  If you've never\n"
-		      "done so, it's definitely worth browsing through.\n\n"
-		      "Would you like to do so now?"))
+		      "applications, from text editors to games to WEB servers.  Would you like\n"
+		      "to browse the collection now?"))
 	    configPackages(NULL);
 
 	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 	
-	/* Final menu of last resort */
-	dialog_clear();
-	if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
-		      "configuration options (many of which you may have already answered)?"))
-	    dmenuOpenSimple(&MenuConfigure);
     }
+
+    /* Final menu of last resort */
+    dialog_clear();
+    if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
+		  "configuration options (some of which you may have already configured)?"))
+	dmenuOpenSimple(&MenuConfigure);
 
     /* Write out any changes .. */
     configResolv();
