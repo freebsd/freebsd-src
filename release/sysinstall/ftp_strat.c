@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.31 1995/10/22 21:38:07 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.32 1995/10/23 13:19:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,11 +66,9 @@ get_new_host(Device *dev, Boolean tentative)
     char *oldTitle = MenuMediaFTP.title;
     char *cp = variable_get(VAR_FTP_ONERROR);
 
-    if (tentative || (cp && !strcmp(cp, "retry")))
+    if (tentative || strcmp(cp, "reselect"))
 	return TRUE;
-    /* Don't have to check for "abort" because that's always checked by ftpShouldAbort(), so we can
-     * assume onerror = reselect at this point.
-     */
+
     ++reselectCount;
 
     dialog_clear();
@@ -80,10 +78,6 @@ get_new_host(Device *dev, Boolean tentative)
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i != RET_FAIL) {
-	char *cp = variable_get(VAR_FTP_USER);
-
-	if (cp && *cp)
-	    (void)mediaSetFtpUserPass(NULL);
 	/* Bounce the link if necessary */
 	if (ftpInitted) {
 	    dev->shutdown(dev);
@@ -101,7 +95,7 @@ ftpShouldAbort(Device *dev, int retries)
     Boolean shut = FALSE;
     int rval = 0;
 
-    if (reselectCount > 3) {
+    if (reselectCount > 2) {
 	dialog_clear();
 	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
 		      "misconfigured, the information you entered in the network setup\n"
@@ -251,7 +245,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     fp = file;
     nretries = 0;
 
-    /* Kludge for init */
+    /* Kludge for init - the FTP get method is the only one that also needs to init.  Grrr! */
     lastRequest = file;
     if (!dev->init(dev))
 	return -2;
@@ -274,14 +268,23 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 	}
 	else {
 	    /* Try some bogus alternatives */
-	    if (nretries == 1)
+	    switch (nretries) {
+	    case 1:
 		sprintf(buf, "dists/%s", file);
-	    else if (nretries == 2)
+		break;
+
+	    case 2:
 		sprintf(buf, "%s/%s", variable_get(VAR_RELNAME), file);
-	    else if (nretries == 3)
+		break;
+
+	    case 3:
 		sprintf(buf, "%s/dists/%s", variable_get(VAR_RELNAME), file);
-	    else
-		sprintf(buf, file);
+		break;
+
+	    default:
+		strcpy(buf, file);
+		break;
+	    }
 	    fp = buf;
 	}
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.52 1995/10/22 17:39:12 jkh Exp $
+ * $Id: install.c,v 1.71.2.53 1995/10/23 13:19:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -653,7 +653,7 @@ installFilesystems(char *str)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private && root->newfs) {
+	    else if (c1->type == fat && c1->private && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);

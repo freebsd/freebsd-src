@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.17 1995/10/22 12:04:04 jkh Exp $
+ * $Id: dist.c,v 1.36.2.19 1995/10/22 17:39:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -351,7 +351,8 @@ distExtract(char *parent, Distribution *me)
 	    }
 	}
 	else { 	/* Not available locally?  Try to get it from the distribution itself */
-	    msgNotify("Trying to get attributes file from %s..", mediaDevice->name);
+	    msgNotify("Trying to get attributes file for %s from %s..", dist, mediaDevice->name);
+	    snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd >= 0) {
 		dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
