@@ -17,8 +17,9 @@
 #define	IPI_INVLTLB		3
 #define	IPI_RENDEZVOUS		4
 #define	IPI_STOP		5
+#define	IPI_TEST		6
 
-#define	IPI_COUNT		6
+#define	IPI_COUNT		7
 
 #ifndef LOCORE
 
