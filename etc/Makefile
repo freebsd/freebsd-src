@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.80 1994/09/09 13:34:27 rgrimes Exp $
+#	$Id: Makefile,v 1.81 1994/09/09 16:11:58 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -20,9 +20,9 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN3=	daily weekly monthly
 
-CLEANFILES+=	*.o *.lo
-CLEANFILES+=	filesystem filesystem.c filesystem.cache filesystem.mk
-CLEANFILES+=	kcopy kcopy.c kcopy.cache kcopy.mk
+CLEANFILES+=	*.c *.o *.lo
+CLEANFILES+=	filesystem filesystem.cache filesystem.mk
+CLEANFILES+=	kcopy kcopy.cache kcopy.mk
 
 MAKEDEVS=	(cd ${MOUNT}/dev; \
 		    sh ${DESTDIR}/dev/MAKEDEV std; \
@@ -41,15 +41,16 @@ WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
-COPYRIGHT=	COPYRIGHT.386BSD COPYRIGHT.FreeBSD
-FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD ROSTER.FreeBSD
-FREEBSD+=	MIRROR.SITES PERSONAL.ACKS RELNOTES.FreeBSD SUPPORT.TXT
+COPYRIGHT=	COPYRIGHT
+FREEBSD=	
 FREEBSD+=	${COPYRIGHT}
 #
-# Floppy drive name and files for building FreeBSD Floppies
+# Floppy drive name, mount point, type and parameters for building Floppies
 FLOPPY?=	fd0
 MOUNT?=		/mnt
 FLOPPY_TYPE?=	fd1200
+FLOPPY_BS?=	15b
+FLOPPY_TRACKS?=	160
 #
 MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
@@ -74,7 +75,7 @@ FILESYSTEM_FILES+=	${MDEC}
 FILESYSTEM_LINKS=	bin/[ bin/expr bin/ls bin/mkdir bin/rm
 FILESYSTEM_LINKS+=	bin/sh bin/sync bin/test
 FILESYSTEM_LINKS+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
-FILESYSTEM_LINKS+=	sbin/mount sbin/mount_pcfs
+FILESYSTEM_LINKS+=	sbin/mount
 FILESYSTEM_LINKS+=	sbin/newfs
 FILESYSTEM_LINKS+=	sbin/umount
 FILESYSTEM_LINKS+=	usr/bin/cpio
@@ -88,7 +89,7 @@ FILESYSTEM_CPIO+=	bin/ln bin/mkdir bin/mv bin/rm bin/sync
 FILESYSTEM_CPIO+=	bin/test
 FILESYSTEM_CPIO+=	etc/spwd.db
 FILESYSTEM_CPIO+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
-FILESYSTEM_CPIO+=	sbin/mount sbin/mount_pcfs
+FILESYSTEM_CPIO+=	sbin/mount
 FILESYSTEM_CPIO+=	sbin/newfs
 FILESYSTEM_CPIO+=	sbin/umount
 FILESYSTEM_CPIO_DIRS=	root
@@ -105,13 +106,12 @@ CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/cpio usr/bin/ex usr/bin/ftp
 CPIO_CPIO+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/vi usr/bin/view usr/bin/zcat
-CPIO_CPIO+=	usr/lib/libc.so.1.1
-CPIO_CPIO+=	usr/lib/libcurses.so.1.1
-CPIO_CPIO+=	usr/lib/libgcc.so.1.1
-CPIO_CPIO+=	usr/lib/libm.so.1.1
-CPIO_CPIO+=	usr/lib/libtermlib.so.1.1
-CPIO_CPIO+=	usr/lib/libtermcap.so.1.1
-CPIO_CPIO+=	usr/lib/libutil.so.1.1
+CPIO_CPIO+=	usr/lib/libc.so.*
+CPIO_CPIO+=	usr/lib/libcurses.so.*
+CPIO_CPIO+=	usr/lib/libgcc.so.*
+CPIO_CPIO+=	usr/lib/libm.so.*
+CPIO_CPIO+=	usr/lib/libtermcap.so.*
+CPIO_CPIO+=	usr/lib/libutil.so.*
 CPIO_CPIO+=	usr/libexec/ld.so
 CPIO_CPIO+=	usr/sbin/bad144 usr/sbin/chown
 CPIO_CPIO+=	usr/share/misc/termcap
@@ -121,12 +121,9 @@ CPIO_CPIO_DIRS+=	var var/tmp var/run var/spool var/spool/lock
 SCRYPT_LIB=	lib/libcrypt
 DESCRYPT_LIB=	secure/lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
-CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
-CRYPT_SRCS+=	libexec/rshd libexec/telnetd libexec/uucpd
 CRYPT_SRCS+=	sbin/init
-CRYPT_SRCS+=	secure/usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
-CRYPT_SRCS+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
-CRYPT_DIRS=	bin sbin usr usr/bin usr/lib usr/libexec 
+CRYPT_SRCS+=	secure/usr.bin/bdes
+CRYPT_DIRS=	bin sbin usr usr/bin usr/lib
 
 all depend etc install lint:
 
@@ -252,15 +249,15 @@ kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERICAH ${.CURDIR}/../sys/i386/conf
 	(cd ${.CURDIR}/../sys/compile; rm -rf GENERICAH GENERICBT)
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERICAH; config GENERICBT)
 	(cd ${.CURDIR}/../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
-	        ${DESTDIR}/386bsd.GENERICAH)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
+	        ${DESTDIR}/kernel.GENERICAH)
 	(cd ${.CURDIR}/../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
-	        ${DESTDIR}/386bsd.GENERICBT)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
+	        ${DESTDIR}/kernel.GENERICBT)
 
 kcopy-floppy:
-	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
+	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
+		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 8192 -m 0 -o space \
 		r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
@@ -283,24 +280,26 @@ kcopy-floppy:
 kcopy_ah.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_ah.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_ah.flp \
 		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz &
 
 kcopy_bt.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_bt.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_bt.flp \
 		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz &
 
@@ -322,30 +321,32 @@ cdins-floppy:
 cdins_ah.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_ah.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_ah.flp \
 		>${RELEASEDIR}/floppies/cdins_ah.flp.gz &
 
 cdins_bt.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_bt.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_bt.flp \
 		>${RELEASEDIR}/floppies/cdins_bt.flp.gz &
 
 filesyst.flp:
-	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
+	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
+		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}  ${MOUNT}
@@ -377,16 +378,17 @@ filesyst.flp:
 	    sort -u -r /tmp/filelist >filelist; \
 	    rm /tmp/filelist)
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/filesyst.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesyst.flp \
 		>${RELEASEDIR}/floppies/filesyst.flp.gz &
 
 cpio.flp:
-	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
-		${DESTDIR}/usr/mdec/fdboot ${DESTDIR}/usr/mdec/bootfd
+	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
+		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
 			r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
@@ -394,26 +396,21 @@ cpio.flp:
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
-	# This ugliness is because the default termcap file is simply too
+	#
+	# XXX This ugliness is because the default termcap file is simply too
 	# big and we don't need such a hugh one for the initial installation,
 	# yet we want the symlink in /etc to point to the right place so we
-	# need to install the smaller one in the same location.  Same goes
-	# for the elvis hackery; just trying to bum as many bytes as we can
-	# here, and that's rarely a very pretty process.
+	# need to install the smaller one in the same location.
+	#
 	mv ${DESTDIR}/usr/share/misc/termcap ${DESTDIR}/usr/share/misc/otermcap
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/termcap.small ${DESTDIR}/usr/share/misc/termcap
-	# Use cp so we don't destroy the links.
-	cp ${DESTDIR}/usr/bin/ex ${DESTDIR}/usr/bin/ex.bak
-	cp ${DESTDIR}/usr/bin/elvis ${DESTDIR}/usr/bin/ex
 	(cd ${DESTDIR}/; \
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst2.cpio.gz)
-	# cpio is done, put everything back in shape for the bindist.
+	# XXX cpio is done, put everything back in shape for the bindist.
 	mv ${DESTDIR}/usr/share/misc/otermcap ${DESTDIR}/usr/share/misc/termcap
-	cp ${DESTDIR}/usr/bin/ex.bak ${DESTDIR}/usr/bin/ex
-	rm ${DESTDIR}/usr/bin/ex.bak
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.rc ${MOUNT}/rc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
@@ -421,10 +418,11 @@ cpio.flp:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.magic ${MOUNT}/magic
 	df -ik ${MOUNT}
-	umount /dev/${FLOPPY}
+	# XXX umount is returning 1 for some reason :-(
+	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cpio.flp \
-		bs=15b count=160
+		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio.flp \
 		>${RELEASEDIR}/floppies/cpio.flp.gz &
 
@@ -548,11 +546,15 @@ des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
-	mtree -u -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -u -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -u -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	#
+	# XXX The mtree commands need to be redone so that a status of 0 or
+	# 2 is okay, but a status of 1 causes the make to abort.
+	#
+	mtree -d -u -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -d -u -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -d -u -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .if defined(CDROMDIST)
-	mtree -u -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
+	mtree -d -u -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
@@ -563,8 +565,8 @@ release:	release-dirs distribution crunch extract kcopy-kernels \
 		floppies bin-tarball des-tarball clean
 
 release-dirs:
-	chflags -R noschg ${RELEASEDIR}
+	chflags -R noschg ${RELEASEDIR}/
 	rm -rf ${RELEASEDIR}/*
-	mtree -u -f ${.CURDIR}/mtree/BSD.release.dist -p ${RELEASEDIR}
+	mtree -d -u -f ${.CURDIR}/mtree/BSD.release.dist -p ${RELEASEDIR}
 
 .include <bsd.prog.mk>
