@@ -1,12 +1,13 @@
 #
 # Internet (IP) protocols
 #
-#	$Id: protocols,v 1.4 1996/07/10 19:44:03 julian Exp $
+#	$Id: protocols,v 1.4.2.1 1997/12/20 12:41:33 peter Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
-# Updated for FreeBSD based on RFC 1340, Assigned Numbers (July 1992).
+# See also http://www.iana.org/in-notes/iana/assignments/protocol-numbers
 #
 ip	0	IP		# internet protocol, pseudo protocol number
+#hopopt	0	HOPOPT		# hop-by-hop options for ipv6
 icmp	1	ICMP		# internet control message protocol
 igmp	2	IGMP		# Internet Group Management
 ggp	3	GGP		# gateway-gateway protocol
@@ -22,9 +23,16 @@ rdp	27	RDP		# "reliable datagram" protocol
 iso-tp4	29	ISO-TP4		# ISO Transport Protocol class 4
 xtp	36	XTP		# Xpress Tranfer Protocol
 idpr-cmtp	39	IDPR-CMTP	# IDPR Control Message Transport
-ip6	41	IPV6		# internet protocol version 6
+ipv6	41	IPV6		# ipv6
+ipv6-route	43	IPV6-ROUTE	# routing header for ipv6
+ipv6-frag	44	IPV6-FRAG	# fragment header for ipv6
 rsvp	46	RSVP		# Resource ReSerVation Protocol
-icmp6	58	ICMPV6		# ICMP for IPv6
+esp	50	ESP		# encapsulating security payload
+ah	51	AH		# authentication header
+skip	57	SKIP		# SKIP 
+ipv6-icmp	58	IPV6-ICMP	# ICMP for IPv6
+ipv6-nonxt	59	IPV6-NONXT	# no next header for ipv6
+ipv6-opts	60	IPV6-OPTS	# destination options for ipv6
 vmtp	81	VMTP		# Versatile Message Transport
 ospf	89	OSPFIGP		# Open Shortest Path First IGP
 ipip	94	IPIP		# Yet Another IP encapsulation
