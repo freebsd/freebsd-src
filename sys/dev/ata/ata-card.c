@@ -58,8 +58,18 @@ ata_pccard_match(device_t dev)
 	return (0);
 
     /* other devices might need to be matched here */
-
     return(ENXIO);
+}
+
+static int
+ata_pccard_intrnoop(struct ata_channel *ch)
+{
+    return 1;
+}
+
+static void
+ata_pccard_locknoop(struct ata_channel *ch, int type)
+{
 }
 
 static int
@@ -106,6 +116,8 @@ ata_pccard_probe(device_t dev)
 
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
+    ch->intr_func = ata_pccard_intrnoop;
+    ch->lock_func = ata_pccard_locknoop;
     return ata_probe(dev);
 }
 
