@@ -291,10 +291,10 @@ char *username(void);
 bool unedit(char *);
 int usrerr(const char *, ...);
 
-void gstrbotch(char *, char *);
-char *gstrcat(char *, char *, size_t); 
-char *gstrcpy(char *, char *, size_t);
-char *gstrncat(char *, char *, size_t, size_t);
+void gstrbotch(const char *, const char *);
+char *gstrcat(char *, const char *, size_t); 
+char *gstrcpy(char *, const char *, size_t);
+char *gstrncat(char *, const char *, size_t, size_t);
 
 #define	FBUFSIZ	BUFSIZ
 #define	PFILELG	120
@@ -1571,7 +1571,7 @@ username(void)
 **	is to be done.
 */
 char *
-gstrcat(char *to, char *from, size_t length)
+gstrcat(char *to, const char *from, size_t length)
 {
 	if (strlen(from) + strlen(to) >= length) {
 		gstrbotch(to, from);
@@ -1580,7 +1580,7 @@ gstrcat(char *to, char *from, size_t length)
 }
 
 char *
-gstrncat(char *to, char *from, size_t n, size_t length)
+gstrncat(char *to, const char *from, size_t n, size_t length)
 {
 	if (n + strlen(to) >= length) {
 		gstrbotch(to, from);
@@ -1589,7 +1589,7 @@ gstrncat(char *to, char *from, size_t n, size_t length)
 }
 
 char *
-gstrcpy(char *to, char *from, size_t length)
+gstrcpy(char *to, const char *from, size_t length)
 {
 	if (strlen(from) >= length) {
 		gstrbotch(from, (char *)0);
@@ -1598,7 +1598,7 @@ gstrcpy(char *to, char *from, size_t length)
 }
 
 void
-gstrbotch(char *str1, char *str2)
+gstrbotch(const char *str1, const char *str2)
 {
 	usrerr("Filename(s) too long: %s %s", str1, str2);
 }
