@@ -34,10 +34,6 @@
 #include <dev/sound/isa/mss.h>
 #include <dev/sound/chip.h>
 
-#if notyet
-#include "midi.h"
-#endif /* notyet */
-
 #define MSS_BUFFSIZE (65536 - 256)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 
@@ -352,12 +348,8 @@ gusmax_setup(struct mss_info *mss, device_t dev, struct resource *alt)
 	port_wr(alt, 0x0f, 0x00);
 
 	irqctl = irq_bits[isa_get_irq(parent)];
-#if notyet
-#if NMIDI > 0
 	/* Share the IRQ with the MIDI driver.  */
 	irqctl |= 0x40;
-#endif /* NMIDI > 0 */
-#endif /* notyet */
 	dmactl = dma_bits[isa_get_drq(parent)];
 	if (device_get_flags(parent) & DV_F_DUAL_DMA)
 		dmactl |= dma_bits[device_get_flags(parent) & DV_F_DRQ_MASK]
@@ -495,7 +487,7 @@ mss_probe(device_t dev)
     	int flags, irq, drq, result = ENXIO, setres = 0;
     	struct mss_info *mss;
 
-    	if (isa_get_vendorid(dev)) return ENXIO; /* not yet */
+    	if (isa_get_logicalid(dev)) return ENXIO; /* not yet */
 
     	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT);
     	if (!mss) return ENXIO;
@@ -1556,7 +1548,7 @@ guspcm_attach(device_t dev)
 	mss->drq1_rid = 1;
 	mss->drq2_rid = -1;
 
-	if (isa_get_vendorid(parent) == 0)
+	if (isa_get_logicalid(parent) == 0)
 		mss->bd_id = MD_GUSMAX;
 	else {
 		mss->bd_id = MD_GUSPNP;

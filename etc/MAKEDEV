@@ -1344,7 +1344,9 @@ snd*)
 				# minor number 7 is unused
 	mknod music$unit	c $chr `expr $unit '*' 16 + 8`
 	mknod pss$unit		c $chr `expr $unit '*' 16 + 9`
-				# minor numbers 10-15 are unused
+				# minor number 10 is unused
+	mknod midistat		c $chr 11
+				# minor numbers 12-15 are unused
 	umask 77
 	;;
 
