@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.44 1998/02/18 20:15:43 dima Exp $
+#	$Id: LINT,v 1.286.2.45 1998/03/02 02:47:33 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -971,6 +971,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
+# bktr: Bt848 capture boards (http://www.freebsd.org/~fsmp/HomeAuto/Bt848.html)
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
@@ -1148,6 +1149,9 @@ options	"EISA_SLOTS=12"
 #   option METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
 #	for initialization of fps routine when a signal is not present.
 #
+# The 'bktr' device is a PCI video capture board. It also has a TV tuner
+# on board.
+
 controller	pci0
 controller	ahc1
 controller	ncr0
@@ -1158,7 +1162,7 @@ device		tx0
 device		vx0
 device		fpa0
 device		meteor0
-
+device		bktr0
 
 #
 # PCCARD/PCMCIA
