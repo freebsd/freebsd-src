@@ -71,18 +71,13 @@ Boolean
 VarHead(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 {
     char *slash;
-    char *buffer;
 
-    buffer = estrdup(word);
-    slash = strrchr(buffer, '/');
+    slash = strrchr(word, '/');
     if (slash != NULL) {
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
 	}
-	*slash = '\0';
-	Buf_AddBytes(buf, strlen (buffer), (Byte *)buffer);
-	free(buffer);
-	return (TRUE);
+	Buf_AddBytes(buf, slash - word, (Byte *)word);
     } else {
 	/*
 	 * If no directory part, give . (q.v. the POSIX standard)
@@ -93,7 +88,6 @@ VarHead(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 	    Buf_AddByte(buf, (Byte)'.');
 	}
     }
-    free(buffer);
     return (TRUE);
 }
 
@@ -122,7 +116,8 @@ VarTail(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
     }
 
     slash = strrchr(word, '/');
-    if (slash++ != NULL) {
+    if (slash != NULL) {
+	slash++;
 	Buf_AddBytes(buf, strlen(slash), (const Byte *)slash);
     } else {
 	Buf_AddBytes(buf, strlen(word), (const Byte *)word);
@@ -150,10 +145,11 @@ VarSuffix(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
     const char *dot;
 
     dot = strrchr(word, '.');
-    if (dot++ != NULL) {
+    if (dot != NULL) {
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
 	}
+	dot++;
 	Buf_AddBytes(buf, strlen(dot), (const Byte *)dot);
 	addSpace = TRUE;
     }
@@ -178,20 +174,18 @@ VarSuffix(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 Boolean
 VarRoot(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 {
-    char *buffer;
     char *dot;
 
     if (addSpace) {
 	Buf_AddByte(buf, (Byte)' ');
     }
 
-    buffer = estrdup(word);
-    dot = strrchr(buffer, '.');
+    dot = strrchr(word, '.');
     if (dot != NULL) {
-	*dot = '\0';
+	Buf_AddBytes(buf, dot - word, (Byte *)word);
+    } else {
+	Buf_AddBytes(buf, strlen(word), (Byte *)word);
     }
-    Buf_AddBytes(buf, strlen(buffer), (Byte *)buffer);
-    free(buffer);
     return (TRUE);
 }
 
