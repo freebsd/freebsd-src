@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.68 1994/05/17 14:18:13 jkh Exp $
+#	$Id: LINT,v 1.69 1994/05/17 22:30:41 jkh Exp $
 #
 
 machine		"i386"
@@ -65,6 +65,7 @@ options		USER_LDT		#allow user-level control of i386 ldt
 # See /sys/i386/doc/sound.doc for information about EXCLUDE options for
 #  the sound drivers.
 
+options		IP_VAT_COMPAT		# compatibility for BSDI/NetBSD mcast
 options		MULTICAST		# Multicast code
 options		MROUTING		# Multicast routing
 
