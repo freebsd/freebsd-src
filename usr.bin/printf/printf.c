@@ -376,7 +376,11 @@ escape(fmt)
 				value += *fmt - '0';
 			}
 			--fmt;
-			*store = value;
+			if (value == '%') {
+				*store++ = '%';
+				*store = '%';
+			} else
+				*store = value;
 			break;
 		default:
 			*store = *fmt;
