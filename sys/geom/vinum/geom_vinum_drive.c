@@ -181,12 +181,14 @@ gv_drive_access(struct g_provider *pp, int dr, int dw, int de)
 		}
 	}
 
+#if 0
 	/* On first open, grab an extra "exclusive" bit */
 	if (cp->acr == 0 && cp->acw == 0 && cp->ace == 0)
 		de++;
 	/* ... and let go of it on last close */
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
+#endif
 	error = g_access(cp, dr, dw, de);
 	if (error) {
 		printf("FOOO: g_access failed: %d\n", error);
@@ -294,6 +296,12 @@ gv_drive_orphan(struct g_consumer *cp)
 	g_wither_geom(gp, error);
 }
 
+static void
+gv_drive_taste_orphan(struct g_consumer *cp)
+{
+	KASSERT(1 == 0, ("gv_drive_taste_orphan called: %s", cp->geom->name));
+}
+
 static struct g_geom *
 gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
@@ -323,11 +331,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sc = gp2->softc;
 
 	gp = g_new_geomf(mp, "%s.vinumdrive", pp->name);
-	gp->start = gv_drive_start;
-	gp->spoiled = gv_drive_orphan;
-	gp->orphan = gv_drive_orphan;
-	gp->access = gv_drive_access;
-	gp->start = gv_drive_start;
+	gp->orphan = gv_drive_taste_orphan;
 
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
@@ -357,6 +361,9 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		 */
 		g_topology_lock();
 		g_access(cp, -1, 0, 0);
+		g_detach(cp);
+		g_wither_geom(gp, ENXIO);
+		gp = NULL;
 
 		d = gv_find_drive(sc, vhdr->label.name);
 
@@ -385,6 +392,23 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 			/* Save it into the main configuration. */
 			LIST_INSERT_HEAD(&sc->drives, d, drive);
+		}
+
+		gp = g_new_geomf(mp, "%s.vinumdrive", pp->name);
+		gp->start = gv_drive_start;
+		gp->orphan = gv_drive_orphan;
+		gp->access = gv_drive_access;
+		gp->start = gv_drive_start;
+
+		cp = g_new_consumer(gp);
+		g_attach(cp, pp);
+		error = g_access(cp, 1, 1, 1);
+		if (error) {
+			g_free(vhdr);
+			g_detach(cp);
+			g_destroy_consumer(cp);
+			g_destroy_geom(gp);
+			return (NULL);
 		}
 
 		gp->softc = d;
