@@ -1,7 +1,5 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 # $FreeBSD$
-#
-# MAINTAINER = Will Andrews <will@FreeBSD.org>
 
 PROG=	make
 CFLAGS+= -I${.CURDIR}
