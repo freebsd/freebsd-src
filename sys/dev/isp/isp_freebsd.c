@@ -37,7 +37,7 @@
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
 static void isp_relsim(void *);
-static timeout_t isp_timeout;
+static timeout_t isp_watchdog;
 static void isp_action(struct cam_sim *, union ccb *);
 
 
@@ -143,6 +143,7 @@ isp_attach(struct ispsoftc *isp)
 		isp->isp_path2 = path;
 	}
 	isp->isp_state = ISP_RUNSTATE;
+	ENABLE_INTS(isp);
 	if (isplist == NULL) {
 		isplist = isp;
 	} else {
@@ -398,7 +399,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	/*
 	 * First, check to see if we're enabling on fibre channel
 	 * and don't yet have a notion of who the heck we are (no
-	 * loop yet). We do this by
+	 * loop yet).
 	 */
 	if (IS_FC(isp) && cel->enable &&
 	    (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
@@ -417,9 +418,9 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 		s = splcam();
 		rv = isp_control(isp, ISPCTL_PDB_SYNC, NULL);
 		(void) splx(s);
-		if (rv || fcp->isp_loopstate != LOOP_READY) {
+		if (rv || fcp->isp_fwstate != FW_READY) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("could not get a good port database\n");
+			printf("could not get a good port database read\n");
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			return;
 		}
@@ -806,7 +807,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 	default:
 		isp_destroy_handle(isp, save_handle);
-		return (ccb->ccb_h.spriv_field0);
+		return (XS_ERR(ccb));
 	}
 }
 
@@ -1198,23 +1199,74 @@ isp_relsim(void *arg)
 }
 
 static void
-isp_timeout(void *arg)
+isp_watchdog(void *arg)
 {
 	ISP_SCSI_XFER_T *xs = arg;
 	struct ispsoftc *isp = XS_ISP(xs);
 	u_int32_t handle;
 	int s = splcam();
+
 	/*
-	 * We've decide this command is dead. Make sure we're not trying
-	 * to kill a command that's already dead by getting it's handle.
+	 * We've decided this command is dead. Make sure we're not trying
+	 * to kill a command that's already dead by getting it's handle and
+	 * and seeing whether it's still alive.
 	 */
 	handle = isp_find_handle(isp, xs);
 	if (handle) {
-		isp_destroy_handle(isp, handle);
-		xpt_print_path(xs->ccb_h.path);
-		printf("watchdog timeout (handle 0x%x)\n", handle);
-		XS_SETERR(xs, CAM_CMD_TIMEOUT);
-		isp_done(xs);
+		u_int16_t r;
+
+		if (XS_CMD_DONE_P(xs)) {
+			PRINTF("%s: watchdog found done cmd (handle 0x%x)\n",
+			    isp->isp_name, handle);
+			(void) splx(s);
+			return;
+		}
+
+		if (XS_CMD_WDOG_P(xs)) {
+			PRINTF("%s: recursive watchdog (handle 0x%x)\n",
+			    isp->isp_name, handle);
+			(void) splx(s);
+			return;
+		}
+
+		XS_CMD_S_WDOG(xs);
+
+		r = ISP_READ(isp, BIU_ISR);
+
+		if (INT_PENDING(isp, r) && isp_intr(isp) && XS_CMD_DONE_P(xs)) {
+			IDPRINTF(2, ("%s: watchdog cleanup (%x, %x)\n",
+			    isp->isp_name, handle, r));
+			xpt_done((union ccb *) xs);
+		} else if (XS_CMD_GRACE_P(xs)) {
+			isp_destroy_handle(isp, handle);
+			xpt_print_path(xs->ccb_h.path);
+			printf("%s: watchdog timeout (%x, %x)\n",
+			    isp->isp_name, handle, r);
+			XS_SETERR(xs, CAM_CMD_TIMEOUT);
+			XS_CMD_C_WDOG(xs);
+			isp_done(xs);
+		} else {
+			u_int16_t iptr, optr;
+			ispreq_t *mp;
+
+			XS_CMD_C_WDOG(xs);
+			xs->ccb_h.timeout_ch = timeout(isp_watchdog, xs, hz);
+			if (isp_getrqentry(isp, &iptr, &optr, (void **) &mp)) {
+				(void) splx(s);
+				return;
+			}
+			XS_CMD_S_GRACE(xs);
+			MEMZERO((void *) mp, sizeof (*mp));
+			mp->req_header.rqs_entry_count = 1;
+			mp->req_header.rqs_entry_type = RQSTYPE_MARKER;
+			mp->req_modifier = SYNC_ALL;
+			mp->req_target = XS_CHANNEL(xs) << 7;
+			ISP_SWIZZLE_REQUEST(isp, mp);
+			MemoryBarrier();
+			ISP_ADD_REQUEST(isp, iptr);
+		}
+	} else {
+		IDPRINTF(2, ("%s: watchdog with no command\n", isp->isp_name));
 	}
 	(void) splx(s);
 }
@@ -1241,8 +1293,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			/*
 			 * Lie. Say it was a selection timeout.
 			 */
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-			ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT | CAM_DEV_QFRZN;
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			xpt_done(ccb);
 			return;
@@ -1282,19 +1333,22 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #endif
 		((struct ccb_scsiio *) ccb)->scsi_status = SCSI_STATUS_OK;
 		s = splcam();
-		DISABLE_INTS(isp);
 		error = ispscsicmd((ISP_SCSI_XFER_T *) ccb);
-		ENABLE_INTS(isp);
 		splx(s);
 		switch (error) {
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
+				int ticks;
 				if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
-					ccb->ccb_h.timeout = 5 * 1000;
+					ticks = 60 * 1000 * hz;
+				else
+					ticks = ccb->ccb_h.timeout * hz;
+				ticks = ((ticks + 999) / 1000) + hz + hz;
 				ccb->ccb_h.timeout_ch =
-				    timeout(isp_timeout, (caddr_t)ccb,
-				    (ccb->ccb_h.timeout * hz) / 1000);
+				    timeout(isp_watchdog, (caddr_t)ccb, ticks);
+			} else {
+				callout_handle_init(&ccb->ccb_h.timeout_ch);
 			}
 			break;
 		case CMD_RQLATER:
@@ -1305,8 +1359,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				timeout(isp_relsim, isp, 500);
 				xpt_freeze_simq(sim, 1);
 			}
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-                        ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			xpt_done(ccb);
 			break;
 		case CMD_EAGAIN:
@@ -1316,8 +1369,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    isp->isp_name));
 			}
 			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-                        ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			xpt_done(ccb);
 			break;
 		case CMD_COMPLETE:
@@ -1326,8 +1378,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		default:
 			printf("%s: What's this? 0x%x at %d in file %s\n",
 			    isp->isp_name, error, __LINE__, __FILE__);
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-			ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+			XS_SETERR(ccb, CAM_REQ_CMP_ERR);
 			xpt_done(ccb);
 		}
 		break;
@@ -1372,8 +1423,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				printf("XPT_CONT_TARGET_IO freeze simq\n");
 			}
 			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-                        ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			xpt_done(ccb);
 		} else {
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
@@ -1640,7 +1690,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 
 	case XPT_TERM_IO:		/* Terminate the I/O process */
-		/* Does this need to be implemented? */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		break;
@@ -1706,8 +1755,7 @@ isp_done(struct ccb_scsiio *sccb)
 
 	if (XS_NOERR(sccb))
 		XS_SETERR(sccb, CAM_REQ_CMP);
-	sccb->ccb_h.status &= ~CAM_STATUS_MASK;
-	sccb->ccb_h.status |= sccb->ccb_h.spriv_field0;
+
 	if ((sccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
 	    (sccb->scsi_status != SCSI_STATUS_OK)) {
 		sccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -1718,6 +1766,7 @@ isp_done(struct ccb_scsiio *sccb)
 			sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 		}
 	}
+
 	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if ((sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
@@ -1730,6 +1779,7 @@ isp_done(struct ccb_scsiio *sccb)
 				    sccb->scsi_status));
 		}
 	}
+
 	/*
 	 * If we were frozen waiting resources, clear that we were frozen
 	 * waiting for resources. If we are no longer frozen, and the devq
@@ -1752,13 +1802,22 @@ isp_done(struct ccb_scsiio *sccb)
 			    isp->isp_name, isp->isp_osinfo.simqfrozen));
 		}
 	}
-	if (CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB) &&
+	if ((CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB)) &&
 	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		xpt_print_path(sccb->ccb_h.path);
 		printf("cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
-	untimeout(isp_timeout, (caddr_t)sccb, sccb->ccb_h.timeout_ch);
-	xpt_done((union ccb *) sccb);
+
+	XS_CMD_S_DONE(sccb);
+	if (XS_CMD_WDOG_P(sccb) == 0) {
+		untimeout(isp_watchdog, (caddr_t)sccb, sccb->ccb_h.timeout_ch);
+		if (XS_CMD_GRACE_P(sccb)) {
+			IDPRINTF(2, ("%s: finished command on borrowed time\n",
+			    isp->isp_name));
+		}
+		XS_CMD_S_CLEAR(sccb);
+		xpt_done((union ccb *) sccb);
+	}
 }
 
 int
