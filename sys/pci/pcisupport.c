@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.66 1998/05/04 08:16:03 kato Exp $
+**  $Id: pcisupport.c,v 1.67 1998/05/08 07:56:48 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -48,6 +48,10 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/pmap.h>
 
 /*---------------------------------------------------------
 **
@@ -851,7 +855,7 @@ static struct pci_device vga_device = {
 
 DATA_SET (pcidevice_set, vga_device);
 
-static char* vga_probe (pcici_t tag, pcidi_t unused)
+static char* vga_probe (pcici_t tag, pcidi_t typea)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 	u_int id = pci_conf_read(tag, PCI_ID_REG);
@@ -1077,9 +1081,33 @@ static char* vga_probe (pcici_t tag, pcidi_t unused)
 	if (vendor && chip) {
 		char *buf;
 		int len;
+		int i;
+		int reqmapmem;
 
-		if (type == 0)
+		if (type == 0) {
 			type = "SVGA controller";
+		}
+
+		reqmapmem = PCI_MAPMEM;
+		for (i = 0; i < tag->nummaps; i++) {
+			pcimap *m = &tag->map[i];
+			if (m->type & PCI_MAPMEMP)
+				reqmapmem |= PCI_MAPMEMP;
+		}
+
+		for (i = 0; i < tag->nummaps; i++) {
+			unsigned mapaddr;
+			pcimap *m = &tag->map[i];
+			mapaddr = (m->base >> 12);
+			if (m->type == reqmapmem) {
+				pmap_setdevram(m->base, (1 << m->ln2size));
+			}
+		}
+
+#if defined(i386)
+		pmap_setvidram();
+#endif
+		
 		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
 		sprintf(buf, "%s %s %s", vendor, chip, type);
