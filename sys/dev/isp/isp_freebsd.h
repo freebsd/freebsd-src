@@ -365,6 +365,11 @@ extern void isp_attach(struct ispsoftc *);
 extern void isp_uninit(struct ispsoftc *);
 
 /*
+ * driver global data
+ */
+extern int isp_announced;
+
+/*
  * Platform private flags
  */
 #define	ISP_SPRIV_ERRSET	0x1

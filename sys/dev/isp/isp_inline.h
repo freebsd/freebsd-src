@@ -31,6 +31,7 @@
  */
 #ifndef	_ISP_INLINE_H
 #define	_ISP_INLINE_H
+
 /*
  * Handle Functions.
  * For each outstanding command there will be a non-zero handle.
