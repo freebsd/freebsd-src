@@ -87,7 +87,8 @@ ieee80211_node_attach(struct ifnet *ifp)
 	ic->ic_node_free = ieee80211_node_free;
 	ic->ic_node_copy = ieee80211_node_copy;
 	ic->ic_bss = (*ic->ic_node_alloc)(ic);
-	/* XXX KASSERT != NULL? */
+	KASSERT(ic->ic_bss != NULL, ("unable to setup inital BSS node"));
+	ic->ic_bss->ni_chan = IEEE80211_CHAN_ANYC;
 }
 
 void
