@@ -232,6 +232,7 @@ COMMON ITEMS:
 	make buildkernel KERNEL=YOUR_KERNEL_HERE
 	make installkernel KERNEL=YOUR_KERNEL_HERE
 	make installworld
+	[1]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand
@@ -244,6 +245,10 @@ COMMON ITEMS:
 	your sources that you have read and understood all the recent
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
+
+	[1] If you have third party modules, such as vmware, you
+	should disable them at this point so they don't crash your
+	system on reboot.
 
 FORMAT:
 
