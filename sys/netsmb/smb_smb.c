@@ -264,6 +264,13 @@ smb_smb_ssnsetup(struct smb_vc *vcp, struct smb_cred *scred)
 			ntencpass = malloc(uniplen, M_SMBTEMP, M_WAITOK);
 			smb_strtouni(ntencpass, smb_vc_getpass(vcp));
 			plen--;
+
+			/*
+			 * The uniplen is zeroed because Samba cannot deal
+			 * with this 2nd cleartext password.  This Samba
+			 * "bug" is actually a workaround for problems in
+			 * Microsoft clients.
+			 */
 			uniplen = 0/*-= 2*/;
 			unipp = ntencpass;
 		}
@@ -298,7 +305,8 @@ smb_smb_ssnsetup(struct smb_vc *vcp, struct smb_cred *scred)
 	} else {
 		mb_put_uint16le(mbp, uniplen);
 		mb_put_uint32le(mbp, 0);		/* reserved */
-		mb_put_uint32le(mbp, 0);		/* my caps */
+		mb_put_uint32le(mbp, vcp->obj.co_flags & SMBV_UNICODE ?
+				     SMB_CAP_UNICODE : 0);
 		smb_rq_wend(rqp);
 		smb_rq_bstart(rqp);
 		mb_put_mem(mbp, pp, plen, MB_MSYSTEM);
@@ -610,13 +618,6 @@ smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 	int error = 0, len, tsize, resid;
 	struct uio olduio;
 
-	/*
-	 * review: manage iov more precisely
-	 */
-	if (uio->uio_iovcnt != 1) {
-		SMBERROR("can't handle iovcnt > 1\n");
-		return EIO;
-	}
 	tsize = uio->uio_resid;
 	olduio = *uio;
 	while (tsize > 0) {
@@ -631,6 +632,13 @@ smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 		tsize -= resid;
 	}
 	if (error) {
+		/*
+		 * Errors can happen on the copyin, the rpc, etc.  So they
+		 * imply resid is unreliable.  The only safe thing is
+		 * to pretend zero bytes made it.  We needn't restore the
+		 * iovs because callers don't depend on them in error
+		 * paths - uio_resid and uio_offset are what matter.
+		 */
 		*uio = olduio;
 	}
 	return error;

@@ -84,6 +84,7 @@
 #define SMBV_SINGLESHARE	0x0080	/* only one share connectin should be allowed */
 #define SMBV_CREATE		0x0100	/* lookup for create opeartion */
 /*#define SMBV_FAILED		0x0200*/	/* last reconnect attempt has failed */
+#define SMBV_UNICODE		0x0400	/* connection is configured to use Unicode */
 
 
 /*
