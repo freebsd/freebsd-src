@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -47,32 +47,59 @@ static int
 _pam_echo(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
-	struct pam_message msg;
-	const struct pam_message *msgp;
-	const struct pam_conv *pamc;
-	struct pam_response *resp;
+	char msg[PAM_MAX_MSG_SIZE];
+	const char *str, *p, *q;
+	int err, i, item;
 	size_t len;
-	int i, pam_err;
 
 	if (flags & PAM_SILENT)
 		return (PAM_SUCCESS);
-	pam_err = pam_get_item(pamh, PAM_CONV, (const void **)&pamc);
-	if (pam_err != PAM_SUCCESS)
-		return (pam_err);
-	for (i = 0, len = 0; i < argc; ++i)
-		len += strlen(argv[i]) + 1;
-	if ((msg.msg = malloc(len)) == NULL)
-		return (PAM_BUF_ERR);
-	for (i = 0, len = 0; i < argc; ++i)
-		len += sprintf(msg.msg + len, "%s%s", i ? " " : "", argv[i]);
-	msg.msg[len] = '\0';
-	msg.msg_style = PAM_TEXT_INFO;
-	msgp = &msg;
-	resp = NULL;
-	pam_err = (pamc->conv)(1, &msgp, &resp, pamc->appdata_ptr);
-	free(resp);
-	free(msg.msg);
-	return (pam_err);
+	for (i = 0, len = 0; i < argc && len < sizeof(msg) - 1; ++i) {
+		if (i > 0)
+			msg[len++] = ' ';
+		for (p = argv[i]; *p != '\0' && len < sizeof(msg) - 1; ++p) {
+			if (*p != '%' || p[1] == '\0') {
+				msg[len++] = *p;
+				continue;
+			}
+			switch (*++p) {
+			case 'H':
+				item = PAM_RHOST;
+				break;
+			case 'h':
+				/* not implemented */
+				item = -1;
+				break;
+			case 's':
+				item = PAM_SERVICE;
+				break;
+			case 't':
+				item = PAM_TTY;
+				break;
+			case 'U':
+				item = PAM_RUSER;
+				break;
+			case 'u':
+				item = PAM_USER;
+				break;
+			default:
+				item = -1;
+				msg[len++] = *p;
+				break;
+			}
+			if (item == -1)
+				continue;
+			err = pam_get_item(pamh, item, (const void **)&str);
+			if (err != PAM_SUCCESS)
+				return (err);
+			if (str == NULL)
+				str = "(null)";
+			for (q = str; *q != '\0' && len < sizeof(msg) - 1; ++q)
+				msg[len++] = *q;
+		}
+	}
+	msg[len] = '\0';
+	return (pam_info(pamh, "%s", msg));
 }
 
 PAM_EXTERN int
