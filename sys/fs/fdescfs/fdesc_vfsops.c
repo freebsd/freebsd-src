@@ -135,7 +135,6 @@ fdesc_root(mp, vpp, td)
 	struct vnode **vpp;
 	struct thread *td;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
 
 	/*
