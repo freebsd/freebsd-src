@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf64.h,v 1.1 1998/06/10 10:57:26 dfr Exp $
+ *      $Id: elf64.h,v 1.2 1998/06/14 13:24:09 dfr Exp $
  */
 
 #ifndef _SYS_ELF64_H_
@@ -197,6 +197,9 @@ typedef struct {
 #define PT_PHDR		6	/* Location of program header itself. */
 
 #define PT_COUNT	7	/* Number of defined p_type values. */
+
+#define PT_LOPROC	0x70000000	/* First processor-specific type. */
+#define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
 /* Values for p_flags. */
 #define PF_X		0x1	/* Executable. */
