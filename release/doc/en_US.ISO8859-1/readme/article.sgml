@@ -87,7 +87,7 @@
 	advertised, &release.branch; is very much a
 	work-in-progress.</para>
 
-      <para>The basic requirements for using this &release.type are
+      <para>The basic requirements for using this &release.type; are
 	technical proficiency with &os; and an understanding of the
 	ongoing development process of &os; &release.branch; (as
 	discussed on the &a.current;).</para>
@@ -182,7 +182,7 @@
       <para>If you're tracking the &release.branch; development efforts, you
 	<emphasis>must</emphasis> join the &a.current;, in order to
 	keep abreast of recent developments and changes that may
-	affect the way you use and maintain the system.
+	affect the way you use and maintain the system.</para>
 
       <para>Being a largely-volunteer effort, the &os;
 	Project is always happy to have extra hands willing to help&mdash;there are already far more desired enhancements than
