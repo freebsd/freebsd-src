@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.41 1998/08/18 10:13:11 ache Exp $
+ * $Id: bpf.c,v 1.42 1998/10/04 17:20:22 alex Exp $
  */
 
 #include "bpfilter.h"
@@ -122,14 +122,14 @@ static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
 static void	bpf_detachd __P((struct bpf_d *d));
 static void	bpf_freed __P((struct bpf_d *));
 static void	bpf_ifname __P((struct ifnet *, struct ifreq *));
-static void	bpf_mcopy __P((const void *, void *, u_int));
+static void	bpf_mcopy __P((const void *, void *, size_t));
 static int	bpf_movein __P((struct uio *, int,
 		    struct mbuf **, struct sockaddr *, int *));
 static int	bpf_setif __P((struct bpf_d *, struct ifreq *));
 static inline void
 		bpf_wakeup __P((struct bpf_d *));
 static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
-		    u_int, void (*)(const void *, void *, u_int)));
+		    u_int, void (*)(const void *, void *, size_t)));
 static void	reset_d __P((struct bpf_d *));
 static int	 bpf_setf __P((struct bpf_d *, struct bpf_program *));
 
@@ -1060,7 +1060,7 @@ static void
 bpf_mcopy(src_arg, dst_arg, len)
 	const void *src_arg;
 	void *dst_arg;
-	register u_int len;
+	register size_t len;
 {
 	register const struct mbuf *m;
 	register u_int count;
@@ -1117,7 +1117,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	register struct bpf_d *d;
 	register u_char *pkt;
 	register u_int pktlen, snaplen;
-	register void (*cpfn) __P((const void *, void *, u_int));
+	register void (*cpfn) __P((const void *, void *, size_t));
 {
 	register struct bpf_hdr *hp;
 	register int totlen, curlen;
