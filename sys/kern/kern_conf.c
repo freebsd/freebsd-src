@@ -155,6 +155,8 @@ allocdev(void)
 		bzero(si, sizeof *si);
 		si->si_flags |= SI_STASHED;
 	}
+	si->__si_namebuf[0] = '\0';
+	si->si_name = si->__si_namebuf;
 	LIST_INIT(&si->si_children);
 	TAILQ_INIT(&si->si_snapshots);
 	return (si);
