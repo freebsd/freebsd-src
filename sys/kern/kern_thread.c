@@ -615,6 +615,7 @@ thread_single(int force_exit)
 					mtx_lock_spin(&sched_lock);
 					TAILQ_REMOVE(&p->p_suspended,
 					    td, td_runq);
+					p->p_suspcount--;
 					setrunqueue(td); /* Should suicide. */
 					mtx_unlock_spin(&sched_lock);
 				}
@@ -625,6 +626,8 @@ thread_single(int force_exit)
 					abortsleep(td2);
 				break;
 			/* case TDS RUNNABLE: XXXKSE maybe raise priority? */
+			default: 	/* needed to avoid an error */
+				break;
 			}
 		}
 		/*
@@ -738,6 +741,7 @@ thread_suspend_check(int return_instead)
 			if (p->p_numthreads == p->p_suspcount) {
 				TAILQ_REMOVE(&p->p_suspended,
 				    p->p_singlethread, td_runq);
+				p->p_suspcount--;
 				setrunqueue(p->p_singlethread);
 			}
 		}
