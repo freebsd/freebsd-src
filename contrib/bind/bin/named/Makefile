@@ -46,7 +46,7 @@ PS=ps
 LDFLAGS=
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} ${DEFS}
 
-VER= LOCAL-`date +%y%m%d.%H%M%S`
+VER= LOCAL-`date +%Y%m%d.%H%M%S`
 HOSTNAMECMD= hostname || uname -n
 
 PROG=	named
