@@ -7,7 +7,7 @@
 #define _G_NAMES_HAVE_UNDERSCORE 1
 #define _G_VTABLE_LABEL_HAS_LENGTH 1
 #ifdef __ELF__
-#define _G_VTABLE_LABEL_PREFIX "_vt."
+#define _G_VTABLE_LABEL_PREFIX "_vt$"
 #else
 #define _G_VTABLE_LABEL_PREFIX "__vt$"
 #endif
