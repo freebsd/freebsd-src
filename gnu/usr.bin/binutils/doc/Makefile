@@ -7,17 +7,19 @@ CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc
 
-INFO = as ld annotate gasp gdb gdbint stabs
+INFO = as ld annotate gasp gdb gdbint stabs binutils
 INFOSECTION=	"Programming & development tools."
 INFOENTRY_as=	"* As: (as).            The GNU assembler."
 INFOENTRY_gasp=	"* Gasp: (gasp).        The GNU Assembler Macro Preprocessor."
 INFOENTRY_ld=	"* Ld: (ld).		The GNU linker."
 INFOENTRY_annotate= "* GDB annotation: (annotate).	Annotations for the GNU Debugger (GDB)."
+INFOENTRY_binutils= "* Binutils: (binutils).		The GNU Binary Utilities."
 
 MAKEINFOFLAGS+= --no-validate
 MAKEINFOFLAGS+= -I ${SRCDIR}/gas/doc -I ${SRCDIR}/ld -I ${SRCDIR}/bfd/doc
 MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/doc
 MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
+MAKEINFOFLAGS+= -I ${CONTRIBDIR}/binutils/binutils
 
 CLEANFILES= gdb-cfg.texi inc-hist.texi inc-hist.texi.orig
 
@@ -29,6 +31,9 @@ gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi remote.texi \
 
 gdb-cfg.texi: all-cfg.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
+
+.PATH: ${SRCDIR}/binutils
+binutils.info: binutils.texi config.texi
 
 gasver.texi ldver.texi:
 	echo "@set VERSION ${VERSION}" > ${.TARGET}
