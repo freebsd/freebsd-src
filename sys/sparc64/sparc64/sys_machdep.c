@@ -40,13 +40,5 @@ struct sysarch_args {
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
-	int error;
-
-	error = 0;
-	switch (uap->op) {
-	default:
-		error = EINVAL;
-		break;
-	}
-	return (error);
+	return (EINVAL);
 }
