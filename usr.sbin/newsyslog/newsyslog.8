@@ -288,6 +288,16 @@ turned over should not be included.  The
 flag means nothing, but can be used as a placeholder when the
 .Ar path_to_pid_file
 field is specified.
+.Ar G
+flag means that the specified
+.Ar logfile_name
+is a shell pattern, which instructs the
+.Nm
+to archive all filenames matchins this pattern using the same
+options.
+See
+.Xr glob 3
+for details on matching rules.
 .It Ar path_to_pid_file
 This optional field specifies
 the file name to read to find the daemon process id.  If this
