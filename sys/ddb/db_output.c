@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.13 1995/11/29 10:25:29 phk Exp $
+ *	$Id: db_output.c,v 1.14 1995/12/07 12:44:53 davidg Exp $
  */
 
 /*
@@ -37,11 +37,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <vm/vm_param.h>
+
+#include <machine/cons.h>
 #include <machine/stdarg.h>
+
 #include <ddb/ddb.h>
 #include <ddb/db_output.h>
-#include <machine/cons.h>
 
 /*
  *	Character output - tracks position in line.

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.8 1995/11/24 14:13:39 bde Exp $
+ *	$Id: db_print.c,v 1.9 1995/12/07 12:44:55 davidg Exp $
  */
 
 /*
@@ -36,11 +36,8 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm_param.h>
 
 #include <ddb/ddb.h>
-
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_sym.h>

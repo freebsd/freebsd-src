@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.h,v 1.4 1995/05/30 07:56:47 rgrimes Exp $
+ *	$Id: db_access.h,v 1.5 1995/11/24 13:52:56 bde Exp $
  */
 
 #ifndef _DDB_DB_ACCESS_H_
@@ -36,8 +36,6 @@
 /*
  * Data access functions for debugger.
  */
-#include <machine/db_machdep.h>		/* expression types */
-
 db_expr_t	db_get_value __P((db_addr_t addr, int size,
 				  boolean_t is_signed));
 void		db_put_value __P((db_addr_t addr, int size, db_expr_t value));
