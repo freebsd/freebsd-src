@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <dev/aac/aac_compat.h>
 #include <sys/bus.h>
@@ -100,6 +101,14 @@ static driver_t aac_disk_driver = {
 };
 
 DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
+
+/* sysctl tunables */
+static unsigned int aac_iosize_max = 65536;	/* due to limits of the card */
+TUNABLE_INT("hw.aac.iosize_max", &aac_iosize_max);
+
+SYSCTL_DECL(_hw_aac);
+SYSCTL_UINT(_hw_aac, OID_AUTO, iosize_max, CTLFLAG_RD, &aac_iosize_max, 0,
+	   "Max I/O size per transfer to an array");
 
 /******************************************************************************
  * Handle open from generic layer.
@@ -215,8 +224,6 @@ static int
 aac_disk_attach(device_t dev)
 {
     struct aac_disk	*sc = (struct aac_disk *)device_get_softc(dev);
-    int			sgspace;
-    int			maxsg;
     
     debug_called(4);
 
@@ -259,21 +266,7 @@ aac_disk_attach(device_t dev)
     disks_registered++;
 #endif
 
-    /*
-     * We can calculate the maximum number of s/g entries based on the size of
-     * the FIB and the command structures packed within it.
-     */
-    sgspace = (sizeof(struct aac_fib) - sizeof(struct aac_fib_header) - 
-	       imax(sizeof(struct aac_blockwrite),
-	       sizeof(struct aac_blockread)));
-    maxsg = (sgspace - sizeof(struct aac_sg_table)) /
-	     sizeof(struct aac_sg_entry);
-
-    /*      
-     * set the maximum I/O size to the theoretical worst maximum allowed by the
-     * S/G list size
-     */
-    sc->ad_dev_t->si_iosize_max = (maxsg - 1) * PAGE_SIZE;
+    sc->ad_dev_t->si_iosize_max = aac_iosize_max;
 
     return (0);
 }
