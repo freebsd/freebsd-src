@@ -5,6 +5,12 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000615:
+	phk removed the compatibility creation of wd devices in the
+	ad driver.  If you haven't done so already, you must update
+	your fstab, etc to use the ad devices instead of the wd
+	devices.
+
 20000612:
 	Peter took an axe to config(8).  Besure that you read his mail
 	on the topic before even thinking about updating.  More details
