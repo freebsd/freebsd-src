@@ -65,7 +65,7 @@ static const char rcsid[] =
 typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
 typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
-int	fflag, vflag, count;
+int	fflag, vflag;
 char   *nfshost;
 
 void	 checkmntlist (char *, char **, char **, char **);
@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 	/* Start disks transferring immediately. */
 	sync();
 
-	all = count = errs = 0;
+	all = errs = 0;
 	while ((ch = getopt(argc, argv, "Aafh:t:v")) != -1)
 		switch (ch) {
 		case 'A':
@@ -243,11 +243,11 @@ umountfs(char *name, char **typelist)
 	struct timeval pertry, try;
 	CLIENT *clp;
 	size_t len;
-	int so, speclen;
+	int so, speclen, do_rpc;
 	char *mntonname, *mntfromname;
 	char *mntfromnamerev;
 	char *nfsdirname, *orignfsdirname;
-	char *resolved, realname[MAXPATHLEN + 1];
+	char *resolved, realname[MAXPATHLEN];
 	char *type, *delimp, *hostp, *origname;
 
 	len = 0;
@@ -387,13 +387,11 @@ umountfs(char *name, char **typelist)
 	 * happen before unmount(2), but it should happen
 	 * after the previous namecheck.
 	 */
-	if (!strcmp(type, "nfs")) {
-		if (getmntname(mntfromname, NULL, NOTHING,
-		    &type, COUNT) == NULL)
-			count = 1;
-		else
-			count = 0;
-	}
+	if (strcmp(type, "nfs") == 0 && getmntname(mntfromname, NULL, NOTHING,
+	    &type, COUNT) != NULL)
+		do_rpc = 1;
+	else
+		do_rpc = 0;
 	if (!namematch(hp))
 		return (1);
 	if (unmount(mntonname, fflag) != 0 ) {
@@ -406,7 +404,7 @@ umountfs(char *name, char **typelist)
 	 * Report to mountd-server which nfsname
 	 * has been unmounted.
 	 */
-	if (hp != NULL && !(fflag & MNT_FORCE) && count == 0) {
+	if (hp != NULL && !(fflag & MNT_FORCE) && do_rpc) {
 		memset(&saddr, 0, sizeof(saddr));
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = 0;
@@ -521,8 +519,10 @@ getmntname(const char *fromname, const char *onname,
 			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0) {
 				if (mntcount[i] == 1)
 					count--;
-				else
+				else {
 					mntcount[i] = 1;
+					break;
+				}
 			}
 		}
 		if (count <= 1)
@@ -612,7 +612,7 @@ getrealname(char *name, char *realname)
 			strcpy(realname, "/");
 		else {
 			if ((dirname = strrchr(name + 1, '/')) == NULL)
-				strncpy(realname, name, MAXPATHLEN);
+				snprintf(realname, MAXPATHLEN, "%s", name);
 			else
 				havedir = 1;
 		}
