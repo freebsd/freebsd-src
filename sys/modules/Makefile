@@ -162,20 +162,17 @@ SUBDIR+=3dfx \
 	awi \
 	bktr \
 	coff \
-	dpt \
 	drm \
 	ed \
 	elink \
 	em \
 	ep \
-	ex \
 	fe \
 	fpu \
 	gnufpu \
 	hea \
 	hfa \
 	ibcs2 \
-	idt \
 	ie \
 	linprocfs \
 	linux \
@@ -212,8 +209,11 @@ SUBDIR+=aac \
 	cbb \
 	ciss \
 	cm \
+	dpt \
 	el \
+	ex \
 	exca \
+	idt \
 	iir \
 	mly \
 	s3 \
