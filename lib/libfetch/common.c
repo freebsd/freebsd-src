@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 
 #include <com_err.h>
@@ -239,6 +240,87 @@ _fetch_connect(char *host, int port, int verbose)
     }
 
     return sd;
+}
+
+
+/*
+ * Read a line of text from a socket w/ timeout
+ */
+#define MIN_BUF_SIZE 1024
+
+int
+_fetch_getln(int fd, char **buf, size_t *size, size_t *len)
+{
+    struct timeval now, timeout, wait;
+    fd_set readfds;
+    int r;
+    char c;
+    
+    if (*buf == NULL) {
+	if ((*buf = malloc(MIN_BUF_SIZE)) == NULL) {
+	    errno = ENOMEM;
+	    return -1;
+	}
+	*size = MIN_BUF_SIZE;
+    }
+
+    **buf = '\0';
+    *len = 0;
+
+    if (fetchTimeout) {
+	gettimeofday(&timeout, NULL);
+	timeout.tv_sec += fetchTimeout;
+	FD_ZERO(&readfds);
+    }
+    
+    do {
+	if (fetchTimeout) {
+	    FD_SET(fd, &readfds);
+	    gettimeofday(&now, NULL);
+	    wait.tv_sec = timeout.tv_sec - now.tv_sec;
+	    wait.tv_usec = timeout.tv_usec - now.tv_usec;
+	    if (wait.tv_usec < 0) {
+		wait.tv_usec += 1000000;
+		wait.tv_sec--;
+	    }
+	    if (wait.tv_sec < 0) {
+		errno = ETIMEDOUT;
+		return -1;
+	    }
+	    r = select(fd+1, &readfds, NULL, NULL, &wait);
+	    if (r == -1) {
+		if (errno == EINTR)
+		    continue;
+		/* EBADF or EINVAL: shouldn't happen */
+		return -1;
+	    }
+	    if (!FD_ISSET(fd, &readfds))
+		continue;
+	}
+	r = read(fd, &c, 1);
+	if (r == 0)
+	    break;
+	if (r == -1) {
+	    if (errno == EINTR)
+		continue;
+	    /* any other error is bad news */
+	    return -1;
+	}
+	(*buf)[*len] = c;
+	*len += 1;
+	if (*len == *size) {
+	    char *tmp;
+	    
+	    if ((tmp = realloc(*buf, *size * 2 + 1)) == NULL) {
+		errno = ENOMEM;
+		return -1;
+	    }
+	    *buf = tmp;
+	    *size = *size * 2 + 1;
+	}
+    } while (c != '\n');
+    
+    return 0;
 }
 
 
