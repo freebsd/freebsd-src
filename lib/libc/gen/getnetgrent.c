@@ -286,21 +286,14 @@ static int _listmatch(list, group, len)
 	while(isspace(*ptr))
 		ptr++;
 
-	if (strchr(list, ',') == NULL) {
-		if (strncmp(ptr, group, glen) == 0) {
+	while (ptr < list + len) {
+		cptr = ptr;
+		while(*ptr != ','  && *ptr != '\0' && !isspace(*ptr))
+			ptr++;
+		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
 			return(1);
-		}
-	} else {
-		while (ptr < list + len) {
-			cptr = ptr;
-			while(*ptr != ','  && !isspace(*ptr))
-				ptr++;
-			if (strncmp(cptr, group, glen) == 0 &&
-					glen == (ptr - cptr))
-				return(1);
-			while(*ptr == ','  || isspace(*ptr))
-				ptr++;
-		}
+		while(*ptr == ','  || isspace(*ptr))
+			ptr++;
 	}
 
 	return(0);
