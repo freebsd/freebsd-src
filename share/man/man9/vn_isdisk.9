@@ -31,31 +31,39 @@
 .Os
 .Sh NAME
 .Nm vn_isdisk
-.Nd "Checks if the vnode represents a disk"
+.Nd "checks if the vnode represents a disk"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn vn_isdisk "struct vnode *vp" "int *errp"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn vn_isdisk
 function checks to see if the vnode represents a disk.
 In order for the vnode to be a disk it must be a character
-device, v_rdev must be valid, and the cdevsw entrys flags
-must have D_DISK set.
+device,
+.Va v_rdev
+must be valid, and the
+.Vt cdevsw
+entry's
+.Va flags
+must have
+.Dv D_DISK
+set.
 .Pp
 Its arguments are:
-.Bl -tag errp
-.It Ar vp
+.Bl -tag -xwidth ".Fa errp"
+.It Fa vp
 The vnode to check.
-.It Ar errp
-A integer pointer to store the error number in if the call fails. 
+.It Fa errp
+An integer pointer to store the error number in if the call fails.
 .El
 .Sh RETURN VALUES
-If the vnode represents a disk one is returned; otherwise, zero
+If the vnode represents a disk, 1 is returned; otherwise, zero
 is returned and
-.Ar errp
+.Fa errp
 will contain the error number.
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

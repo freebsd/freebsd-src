@@ -31,26 +31,28 @@
 .Os
 .Sh NAME
 .Nm lockdestroy
-.Nd "Destroys a lock"
+.Nd "destroys a lock"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/lockmgr.h>
+.In sys/types.h
+.In sys/lockmgr.h
 .Ft int
 .Fn lockdestroy "struct lock *lkp"
 .Sh DESCRIPTION
 The
-.Nm
-function destroys the given lock. (Currently is does nothing!)
+.Fn lockdestroy
+function destroys the given lock.
+(Currently is does nothing!)
 .Pp
 Its arguments are:
-.Bl -tag
-.It Ar lkp
-The lock to destroy 
+.Bl -tag -xwidth ".Fa lkp"
+.It Fa lkp
+The lock to destroy
 .El
 .Sh SEE ALSO
-.Xr lockmgr 9
-.Xr lockcount 9
+.Xr lockcount 9 ,
+.Xr lockmgr 9 ,
+.Xr lockmgr_printinfo 9 ,
 .Xr lockstatus 9
-.Xr lockmgr_printinfo 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
