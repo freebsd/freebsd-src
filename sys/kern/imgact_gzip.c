@@ -238,7 +238,8 @@ do_aout_hdr(struct imgact_gzip * gz)
 			&vmaddr,
 			gz->a_out.a_text + gz->a_out.a_data,
 			VM_PROT_ALL, VM_PROT_ALL, MAP_ANON | MAP_FIXED,
-			0,
+			OBJT_DEFAULT,
+			NULL,
 			0);
 
 	if (error) {
@@ -311,7 +312,8 @@ NextByte(void *vp)
 			VM_PROT_READ,	/* protection */
 			VM_PROT_READ,	/* max protection */
 			0,	/* flags */
-			(caddr_t) igz->ip->vp,	/* vnode */
+			OBJT_VNODE,	/* handle type */
+			igz->ip->vp,	/* vnode */
 			igz->offset);	/* offset */
 	if (error) {
 		igz->where = __LINE__;
