@@ -38,8 +38,10 @@ static const char rcsid[] =
 #include <err.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -152,8 +154,8 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	puts("fifo");
 	break;
     }
-    printf("I=%lu MODE=%o SIZE=%qu", (u_long)inum, DIP(dp, di_mode),
-	DIP(dp, di_size));
+    printf("I=%lu MODE=%o SIZE=%ju", (u_long)inum, DIP(dp, di_mode),
+	(uintmax_t)DIP(dp, di_size));
     if (sblock.fs_magic == FS_UFS1_MAGIC)
 	t = _time32_to_time(dp->dp1.di_mtime);
     else
@@ -187,8 +189,8 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 
     blocks = DIP(dp, di_blocks);
     gen = DIP(dp, di_gen);
-    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%qx GEN=%qx\n", DIP(dp, di_nlink),
-	DIP(dp, di_flags), blocks, gen);
+    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
+	DIP(dp, di_flags), (intmax_t)blocks, (intmax_t)gen);
 }
 
 
@@ -248,7 +250,7 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 		putchar('\n');
 	    return 0;
 	}
-	j = sprintf(tempbuf, "%qd", blkno);
+	j = sprintf(tempbuf, "%jd", (intmax_t)blkno);
 	if (level == 0) {
 	    charssofar += j;
 	    if (charssofar >= cpl - 2) {
@@ -279,7 +281,7 @@ static void
 printblocks(ino_t inum, union dinode *dp)
 {
     char *bufp;
-    int i, j, nfrags;
+    int i, nfrags;
     long ndb, offset;
     ufs2_daddr_t blkno;
 
@@ -294,7 +296,7 @@ printblocks(ino_t inum, union dinode *dp)
 	if (i > 0)
 	    printf(", ");
 	blkno = DIP(dp, di_db[i]);
-	printf("%qd", blkno);
+	printf("%jd", (intmax_t)blkno);
 	if (--ndb == 0 && (offset = blkoff(&sblock, DIP(dp, di_size))) != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
