@@ -6,6 +6,8 @@
  * 
  * The routines contained in this file do all the rcs file parsing and
  * manipulation
+ *
+ * $FreeBSD$
  */
 
 #include <assert.h>
@@ -154,6 +156,26 @@ static const char spacetab[] = {
 };
 
 #define whitespace(c)	(spacetab[(unsigned char)c] != 0)
+
+static char *rcs_lockfile;
+
+/* A few generic thoughts on error handling, in particular the
+   printing of unexpected characters that we find in the RCS file
+   (that is, why we use '\x%x' rather than %c or some such).
+
+   * Avoiding %c means we don't have to worry about what is printable
+   and other such stuff.  In error handling, often better to keep it
+   simple.
+
+   * Hex rather than decimal or octal because character set standards
+   tend to use hex.
+
+   * Saying "character 0x%x" might make it sound like we are printing
+   a file offset.  So we use '\x%x'.
+
+   * Would be nice to print the offset within the file, but I can
+   imagine various portability hassles (in particular, whether
+   unsigned long is always big enough to hold file offsets).  */
 
 /* Parse an rcsfile given a user file name and a repository.  If there is
    an error, we print an error message and return NULL.  If the file
@@ -366,7 +388,9 @@ RCS_parsercsfile_i (fp, rcsfile)
 	    break;
 	}
 
-	for (cp = key; (isdigit (*cp) || *cp == '.') && *cp != '\0'; cp++)
+	for (cp = key;
+	     (isdigit ((unsigned char) *cp) || *cp == '.') && *cp != '\0';
+	     cp++)
 	    /* do nothing */ ;
 	if (*cp == '\0')
 	    break;
@@ -500,7 +524,9 @@ RCS_reparsercsfile (rdata, pfp, rcsbufp)
 	 * revision or `desc', we are done with the headers and are down to the
 	 * revision deltas, so we break out of the loop
 	 */
-	for (cp = key; (isdigit (*cp) || *cp == '.') && *cp != '\0'; cp++)
+	for (cp = key;
+	     (isdigit ((unsigned char) *cp) || *cp == '.') && *cp != '\0';
+	     cp++)
 	     /* do nothing */ ;
 	/* Note that when comparing with RCSDATE, we are not massaging
            VALUE from the string found in the RCS file.  This is OK
@@ -583,6 +609,98 @@ RCS_reparsercsfile (rdata, pfp, rcsbufp)
 	*rcsbufp = rcsbuf;
     }
     rdata->flags &= ~PARTIAL;
+}
+
+/* Move RCS into or out of the Attic, depending on TOATTIC.  If the
+   file is already in the desired place, return without doing
+   anything.  At some point may want to think about how this relates
+   to RCS_rewrite but that is a bit hairy (if one wants renames to be
+   atomic, or that kind of thing).  If there is an error, print a message
+   and return 1.  On success, return 0.  */
+int
+RCS_setattic (rcs, toattic)
+    RCSNode *rcs;
+    int toattic;
+{
+    char *newpath;
+    char *p;
+    char *q;
+
+    /* Some systems aren't going to let us rename an open file.  */
+    rcsbuf_cache_close ();
+
+    /* Could make the pathname computations in this file, and probably
+       in other parts of rcs.c too, easier if the REPOS and FILE
+       arguments to RCS_parse got stashed in the RCSNode.  */
+
+    if (toattic)
+    {
+	mode_t omask;
+
+	if (rcs->flags & INATTIC)
+	    return 0;
+
+	/* Example: rcs->path is "/foo/bar/baz,v".  */
+	newpath = xmalloc (strlen (rcs->path) + sizeof CVSATTIC + 5);
+	p = last_component (rcs->path);
+	strncpy (newpath, rcs->path, p - rcs->path);
+	strcpy (newpath + (p - rcs->path), CVSATTIC);
+
+	/* Create the Attic directory if it doesn't exist.  */
+	omask = umask (cvsumask);
+	if (CVS_MKDIR (newpath, 0777) < 0 && errno != EEXIST)
+	    error (0, errno, "cannot make directory %s", newpath);
+	(void) umask (omask);
+
+	strcat (newpath, "/");
+	strcat (newpath, p);
+
+	if (CVS_RENAME (rcs->path, newpath) < 0)
+	{
+	    int save_errno = errno;
+
+	    /* The checks for isreadable look awfully fishy, but
+	       I'm going to leave them here for now until I
+	       can think harder about whether they take care of
+	       some cases which should be handled somehow.  */
+
+	    if (isreadable (rcs->path) || !isreadable (newpath))
+	    {
+		error (0, save_errno, "cannot rename %s to %s",
+		       rcs->path, newpath);
+		free (newpath);
+		return 1;
+	    }
+	}
+    }
+    else
+    {
+	if (!(rcs->flags & INATTIC))
+	    return 0;
+
+	newpath = xmalloc (strlen (rcs->path));
+
+	/* Example: rcs->path is "/foo/bar/Attic/baz,v".  */
+	p = last_component (rcs->path);
+	strncpy (newpath, rcs->path, p - rcs->path - 1);
+	newpath[p - rcs->path - 1] = '\0';
+	q = newpath + (p - rcs->path - 1) - (sizeof CVSATTIC - 1);
+	assert (strncmp (q, CVSATTIC, sizeof CVSATTIC - 1) == 0);
+	strcpy (q, p);
+
+	if (CVS_RENAME (rcs->path, newpath) < 0)
+	{
+	    error (0, errno, "failed to move `%s' out of the attic",
+		   rcs->path);
+	    free (newpath);
+	    return 1;
+	}
+    }
+
+    free (rcs->path);
+    rcs->path = newpath;
+
+    return 0;
 }
 
 /*
@@ -673,7 +791,8 @@ warning: duplicate key `%s' in version `%s' of RCS file `%s'",
 
 			op = *cp++;
 			if (op != 'a' && op  != 'd')
-			    error (1, 0, "unrecognized operation '%c' in %s",
+			    error (1, 0, "\
+unrecognized operation '\\x%x' in %s",
 				   op, rcs->path);
 			(void) strtoul (cp, (char **) &cp, 10);
 			if (*cp++ != ' ')
@@ -1481,7 +1600,8 @@ rcsbuf_getstring (rcsbuf, strp)
 
     /* PTR should now point to the start of a string. */
     if (c != '@')
-	error (1, 0, "expected @-string at `%c' in %s", c, rcsbuf->filename);
+	error (1, 0, "expected @-string at '\\x%x' in %s",
+	       c, rcsbuf->filename);
 
     /* Optimize the common case of a value composed of a single
        '@' string.  */
@@ -1738,7 +1858,7 @@ rcsbuf_getword (rcsbuf, wordp)
            printing character that is not a special.' This test ought
 	   to do the trick. */
 	c = *ptr;
-	if (isprint (c) &&
+	if (isprint ((unsigned char) c) &&
 	    c != ';' && c != '$' && c != ',' && c != '@' && c != ':')
 	{
 	    ++ptr;
@@ -1806,9 +1926,10 @@ rcsbuf_getrevnum (rcsbuf, revp)
 	++ptr;
     }
 
-    if (! isdigit (c) && c != '.')
+    if (! isdigit ((unsigned char) c) && c != '.')
 	error (1, 0,
-	       "unexpected `%c' reading revision number in RCS file %s",
+	       "\
+unexpected '\\x%x' reading revision number in RCS file %s",
 	       c, rcsbuf->filename);
 
     *revp = ptr;
@@ -1828,10 +1949,11 @@ rcsbuf_getrevnum (rcsbuf, revp)
 
 	c = *ptr;
     }
-    while (isdigit (c) || c == '.');
+    while (isdigit ((unsigned char) c) || c == '.');
 
     if (! whitespace (c))
-	error (1, 0, "unexpected `%c' reading revision number in RCS file %s",
+	error (1, 0, "\
+unexpected '\\x%x' reading revision number in RCS file %s",
 	       c, rcsbuf->filename);
 
     *ptr = '\0';
@@ -2339,7 +2461,7 @@ RCS_getversion (rcs, tag, date, force_tag_match, simple_tag)
 	}
 
 	/* Work out the branch.  */
-	if (! isdigit (tag[0]))
+	if (! isdigit ((unsigned char) tag[0]))
 	    branch = RCS_whatbranch (rcs, tag);
 	else
 	    branch = xstrdup (tag);
@@ -2404,6 +2526,16 @@ RCS_tag2rev (rcs, tag)
 	    }
 	}
 
+	/* Try for a real (that is, exists in the RCS deltas) branch
+	   (RCS_exist_rev just checks for real revisions and revisions
+	   which have tags pointing to them).  */
+	pa = RCS_getbranch (rcs, rev, 1);
+	if (pa != NULL)
+	{
+	    free (pa);
+	    return rev;
+	}
+
        /* Tag is branch, but does not exist, try corresponding 
 	* magic branch tag.
 	*
@@ -2427,7 +2559,7 @@ RCS_tag2rev (rcs, tag)
     RCS_check_tag (tag); /* exit if not a valid tag */
 
     /* If tag is "HEAD", special case to get head RCS revision */
-    if (tag && (strcmp (tag, TAG_HEAD) == 0))
+    if (tag && STREQ (tag, TAG_HEAD))
         return (RCS_head (rcs));
 
     /* If valid tag let translate_symtag say yea or nay. */
@@ -2480,7 +2612,7 @@ RCS_gettag (rcs, symtag, force_tag_match, simple_tag)
 #endif
 	    return (RCS_head (rcs));
 
-    if (!isdigit (tag[0]))
+    if (!isdigit ((unsigned char) tag[0]))
     {
 	char *version;
 
@@ -2689,7 +2821,7 @@ RCS_isbranch (rcs, rev)
     const char *rev;
 {
     /* numeric revisions are easy -- even number of dots is a branch */
-    if (isdigit (*rev))
+    if (isdigit ((unsigned char) *rev))
 	return ((numdots (rev) & 1) == 0);
 
     /* assume a revision if you can't find the RCS info */
@@ -2716,7 +2848,7 @@ RCS_nodeisbranch (rcs, rev)
     assert (rcs != NULL);
 
     /* numeric revisions are easy -- even number of dots is a branch */
-    if (isdigit (*rev))
+    if (isdigit ((unsigned char) *rev))
 	return ((numdots (rev) & 1) == 0);
 
     version = translate_symtag (rcs, rev);
@@ -2943,7 +3075,7 @@ RCS_branch_head (rcs, rev)
     if (RCS_nodeisbranch (rcs, rev))
 	return RCS_getbranch (rcs, rev, 1);
 
-    if (isdigit (*rev))
+    if (isdigit ((unsigned char) *rev))
 	num = xstrdup (rev);
     else
     {
@@ -3115,8 +3247,23 @@ RCS_getdate (rcs, date, force_tag_match)
      */
 
     /* if we found what we're looking for, and it's not 1.1 return it */
-    if (cur_rev != NULL && ! STREQ (cur_rev, "1.1"))
-	return (xstrdup (cur_rev));
+    if (cur_rev != NULL)
+    {
+	if (! STREQ (cur_rev, "1.1"))
+	    return (xstrdup (cur_rev));
+
+	/* This is 1.1;  if the date of 1.1 is not the same as that for the
+	   1.1.1.1 version, then return 1.1.  This happens when the first
+	   version of a file is created by a regular cvs add and commit,
+	   and there is a subsequent cvs import of the same file.  */
+	p = findnode (rcs->versions, "1.1.1.1");
+	if (p)
+	{
+	    vers = (RCSVers *) p->data;
+	    if (RCS_datecmp (vers->date, date) != 0)
+		return xstrdup ("1.1");
+	}
+    }
 
     /* look on the vendor branch */
     retval = RCS_getdatebranch (rcs, date, CVSBRANCH);
@@ -3468,11 +3615,11 @@ RCS_check_tag (tag)
      * characters cannot be non-visible graphic characters, and must not be
      * in the set of "invalid" RCS identifier characters.
      */
-    if (isalpha (*tag))
+    if (isalpha ((unsigned char) *tag))
     {
 	for (cp = tag; *cp; cp++)
 	{
-	    if (!isgraph (*cp))
+	    if (!isgraph ((unsigned char) *cp))
 		error (1, 0, "tag `%s' has non-visible graphic characters",
 		       tag);
 	    if (strchr (invalid, *cp))
@@ -3499,7 +3646,7 @@ RCS_valid_rev (rev)
 {
    char last, c;
    last = *rev++;
-   if (!isdigit (last))
+   if (!isdigit ((unsigned char) last))
        return 0;
    while ((c = *rev++))   /* Extra parens placate -Wall gcc option */
    {
@@ -3510,10 +3657,10 @@ RCS_valid_rev (rev)
            continue;
        }
        last = c;
-       if (!isdigit (c))
+       if (!isdigit ((unsigned char) c))
            return 0;
    }
-   if (!isdigit (last))
+   if (!isdigit ((unsigned char) last))
        return 0;
    return 1;
 }
@@ -3549,8 +3696,24 @@ char *
 RCS_getexpand (rcs)
     RCSNode *rcs;
 {
+    /* Since RCS_parsercsfile_i now reads expand, don't need to worry
+       about RCS_reparsercsfile.  */
     assert (rcs != NULL);
     return rcs->expand;
+}
+
+/* Set keyword expansion mode to EXPAND.  For example "b" for binary.  */
+void
+RCS_setexpand (rcs, expand)
+    RCSNode *rcs;
+    char *expand;
+{
+    /* Since RCS_parsercsfile_i now reads expand, don't need to worry
+       about RCS_reparsercsfile.  */
+    assert (rcs != NULL);
+    if (rcs->expand != NULL)
+	free (rcs->expand);
+    rcs->expand = xstrdup (expand);
 }
 
 /* RCS keywords, and a matching enum.  */
@@ -3760,7 +3923,7 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 	/* Look for the first non alphabetic character after the '$'.  */
 	send = srch + srch_len;
 	for (s = srch; s < send; s++)
-	    if (! isalpha (*s))
+	    if (! isalpha ((unsigned char) *s))
 		break;
 
 	/* If the first non alphabetic character is not '$' or ':',
@@ -3876,7 +4039,7 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 		break;
 
 	    case KEYWORD_NAME:
-		if (name != NULL && ! isdigit (*name))
+		if (name != NULL && ! isdigit ((unsigned char) *name))
 		    value = (char *) name;
 		else
 		    value = NULL;
@@ -4219,7 +4382,7 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 			    : (sout != RUN_TTY ? sout : "(stdout)"))));
     }
 
-    assert (rev == NULL || isdigit (*rev));
+    assert (rev == NULL || isdigit ((unsigned char) *rev));
 
     if (noexec && workfile != NULL)
 	return 0;
@@ -4467,9 +4630,9 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 		error (1, 0, "%s:%s has bad `special' newphrase %s",
 		       workfile, vers->version, info->data);
 	    devnum = devnum_long;
-	    if (strcmp (devtype, "character") == 0)
+	    if (STREQ (devtype, "character"))
 		special_file = S_IFCHR;
-	    else if (strcmp (devtype, "block") == 0)
+	    else if (STREQ (devtype, "block"))
 		special_file = S_IFBLK;
 	    else
 		error (0, 0, "%s is a special file of unsupported type `%s'",
@@ -5030,6 +5193,9 @@ RCS_checkin (rcs, workfile, message, rev, flags)
     struct tm *ftm;
     time_t modtime;
     int adding_branch = 0;
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    struct stat sb;
+#endif
 
     commitpt = NULL;
 
@@ -5050,40 +5216,11 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 	allocated_workfile = 1;
     }
 
-    /* Is the backend file a symbolic link?  Follow it and replace the
-       filename with the destination of the link.  */
-
-    while (islink (rcs->path))
-    {
-	char *newname;
-#ifdef HAVE_READLINK
-	/* The clean thing to do is probably to have each filesubr.c
-	   implement this (with an error if not supported by the
-	   platform, in which case islink would presumably return 0).
-	   But that would require editing each filesubr.c and so the
-	   expedient hack seems to be looking at HAVE_READLINK.  */
-	newname = xreadlink (rcs->path);
-#else
-	error (1, 0, "internal error: islink doesn't like readlink");
-#endif
-	
-	if (isabsolute (newname))
-	{
-	    free (rcs->path);
-	    rcs->path = newname;
-	}
-	else
-	{
-	    char *oldname = last_component (rcs->path);
-	    int dirlen = oldname - rcs->path;
-	    char *fullnewname = xmalloc (dirlen + strlen (newname) + 1);
-	    strncpy (fullnewname, rcs->path, dirlen);
-	    strcpy (fullnewname + dirlen, newname);
-	    free (newname);
-	    free (rcs->path);
-	    rcs->path = fullnewname;
-	}
-    }
+    /* If the filename is a symbolic link, follow it and replace it
+       with the destination of the link.  We need to do this before
+       calling rcs_internal_lockfile, or else we won't put the lock in
+       the right place. */
+    resolve_symlink (&(rcs->path));
 
     checkin_quiet = flags & RCS_FLAGS_QUIET;
     if (!checkin_quiet)
@@ -5129,7 +5266,6 @@ RCS_checkin (rcs, workfile, message, rev, flags)
     if (preserve_perms)
     {
 	Node *np;
-	struct stat sb;
 	char buf[64];	/* static buffer should be safe: see usage. -twp */
 
 	delta->other_delta = getlist();
@@ -5228,6 +5364,12 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 
 	dtext->version = xstrdup (newrev);
 	bufsize = 0;
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+	if (preserve_perms && !S_ISREG (sb.st_mode))
+	    /* Pretend file is empty.  */
+	    bufsize = 0;
+	else
+#endif
 	get_file (workfile, workfile,
 		  rcs->expand != NULL && STREQ (rcs->expand, "b") ? "rb" : "r",
 		  &dtext->text, &bufsize, &dtext->len);
@@ -5310,7 +5452,7 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 	char *branch, *tip, *newrev, *p;
 	int dots, isrevnum;
 
-	assert (isdigit(*rev));
+	assert (isdigit ((unsigned char) *rev));
 
 	newrev = xstrdup (rev);
 	dots = numdots (newrev);
@@ -5465,6 +5607,12 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 	/* If this revision is being inserted on the trunk, the change text
 	   for the new delta should be the contents of the working file ... */
 	bufsize = 0;
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+	if (preserve_perms && !S_ISREG (sb.st_mode))
+	    /* Pretend file is empty.  */
+	    ;
+	else
+#endif
 	get_file (workfile, workfile,
 		  rcs->expand != NULL && STREQ (rcs->expand, "b") ? "rb" : "r",
 		  &dtext->text, &bufsize, &dtext->len);
@@ -6539,8 +6687,23 @@ RCS_delete_revs (rcs, tag1, tag2, inclusive)
 	char *diffbuf;
 	size_t bufsize, len;
 
+#if defined (__CYGWIN32__) || defined (_WIN32)
+	/* FIXME: This is an awful kludge, but at least until I have
+	   time to work on it a little more and test it, I'd rather
+	   give a fatal error than corrupt the file.  I think that we
+	   need to use "-kb" and "--binary" and "rb" to get_file
+	   (probably can do it always, not just for binary files, if
+	   we are consistent between the RCS_checkout and the diff).  */
+	{
+	    char *expand = RCS_getexpand (rcs);
+	    if (expand != NULL && STREQ (expand, "b"))
+		error (1, 0,
+		   "admin -o not implemented yet for binary on this system");
+	}
+#endif
+
 	afterfile = cvs_temp_name();
-	status = RCS_checkout (rcs, NULL, after, NULL, NULL, afterfile,
+	status = RCS_checkout (rcs, NULL, after, NULL, "-ko", afterfile,
 			       (RCSCHECKOUTPROC)0, NULL);
 	if (status > 0)
 	    goto delrev_done;
@@ -6568,13 +6731,13 @@ RCS_delete_revs (rcs, tag1, tag2, inclusive)
 	else
 	{
 	    beforefile = cvs_temp_name();
-	    status = RCS_checkout (rcs, NULL, before, NULL, NULL, beforefile,
+	    status = RCS_checkout (rcs, NULL, before, NULL, "-ko", beforefile,
 				   (RCSCHECKOUTPROC)0, NULL);
 	    if (status > 0)
 		goto delrev_done;
 
 	    outfile = cvs_temp_name();
-	    status = diff_exec (beforefile, afterfile, "-n", outfile);
+	    status = diff_exec (beforefile, afterfile, "-an", outfile);
 
 	    if (status == 2)
 	    {
@@ -7024,7 +7187,7 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
        we define a deltafrag as an add or a delete) need to be applied
        in reverse order.  So we stick them into a linked list.  */
     struct deltafrag {
-	enum {ADD, DELETE} type;
+	enum {FRAG_ADD, FRAG_DELETE} type;
 	unsigned long pos;
 	unsigned long nlines;
 	const char *new_lines;
@@ -7041,7 +7204,8 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	if (op != 'a' && op != 'd')
 	    /* Can't just skip over the deltafrag, because the value
 	       of op determines the syntax.  */
-	    error (1, 0, "unrecognized operation '%c' in %s", op, name);
+	    error (1, 0, "unrecognized operation '\\x%x' in %s",
+		   op, name);
 	df = (struct deltafrag *) xmalloc (sizeof (struct deltafrag));
 	df->next = dfhead;
 	dfhead = df;
@@ -7063,7 +7227,7 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	{
 	    unsigned int i;
 
-	    df->type = ADD;
+	    df->type = FRAG_ADD;
 	    i = df->nlines;
 	    /* The text we want is the number of lines specified, or
 	       until the end of the value, whichever comes first (it
@@ -7093,7 +7257,7 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	    --df->pos;
 
 	    assert (op == 'd');
-	    df->type = DELETE;
+	    df->type = FRAG_DELETE;
 	}
     }
 
@@ -7103,12 +7267,12 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 
 	switch (df->type)
 	{
-	case ADD:
+	case FRAG_ADD:
 	    if (! linevector_add (lines, df->new_lines, df->len, addvers,
 				  df->pos))
 		return 0;
 	    break;
-	case DELETE:
+	case FRAG_DELETE:
 	    if (df->pos > lines->nlines
 		|| df->pos + df->nlines > lines->nlines)
 		return 0;
@@ -7567,7 +7731,9 @@ getdelta (rcsbuf, rcsfile, keyp, valp)
 
     /* Make sure that it is a revision number and not a cabbage 
        or something. */
-    for (cp = key; (isdigit (*cp) || *cp == '.') && *cp != '\0'; cp++)
+    for (cp = key;
+	 (isdigit ((unsigned char) *cp) || *cp == '.') && *cp != '\0';
+	 cp++)
 	/* do nothing */ ;
     /* Note that when comparing with RCSDATE, we are not massaging
        VALUE from the string found in the RCS file.  This is OK since
@@ -7751,7 +7917,9 @@ unable to parse %s; `state' not in the expected place", rcsfile);
 	    continue;
 	}
 	/* if we have a new revision number, we're done with this delta */
-	for (cp = key; (isdigit (*cp) || *cp == '.') && *cp != '\0'; cp++)
+	for (cp = key;
+	     (isdigit ((unsigned char) *cp) || *cp == '.') && *cp != '\0';
+	     cp++)
 	    /* do nothing */ ;
 	/* Note that when comparing with RCSDATE, we are not massaging
 	   VALUE from the string found in the RCS file.  This is OK
@@ -8333,6 +8501,30 @@ count_delta_actions (np, ignore)
     return 0;
 }
 
+/*
+ * Clean up temporary files
+ */
+static RETSIGTYPE
+rcs_cleanup ()
+{
+    /* Note that the checks for existence_error are because we are
+       called from a signal handler, so we don't know whether the
+       files got created.  */
+
+    /* FIXME: Do not perform buffered I/O from an interrupt handler like
+       this (via error).  However, I'm leaving the error-calling code there
+       in the hope that on the rare occasion the error call is actually made
+       (e.g., a fluky I/O error or permissions problem prevents the deletion
+       of a just-created file) reentrancy won't be an issue.  */
+    if (rcs_lockfile != NULL)
+    {
+	if (unlink_file (rcs_lockfile) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", rcs_lockfile);
+    }
+    rcs_lockfile = NULL;
+}
+
 /* RCS_internal_lockfile and RCS_internal_unlockfile perform RCS-style
    locking on the specified RCSFILE: for a file called `foo,v', open
    for writing a file called `,foo,'.
@@ -8357,10 +8549,6 @@ count_delta_actions (np, ignore)
    processes from stomping all over each other's laundry.  Hence,
    they are `internal' locking functions.
 
-   Note that we don't clean up the ,foo, file on ^C.  We probably should.
-   I'm not completely sure whether RCS does or not (I looked at the code
-   a little, and didn't find it).
-
    If there is an error, give a fatal error; if we return we always
    return a non-NULL value.  */
 
@@ -8368,13 +8556,35 @@ static FILE *
 rcs_internal_lockfile (rcsfile)
     char *rcsfile;
 {
-    char *lockfile;
     int fd;
     struct stat rstat;
     FILE *fp;
+    static int first_call = 1;
+
+    if (first_call)
+    {
+	first_call = 0;
+	/* clean up if we get a signal */
+#ifdef SIGHUP
+	(void) SIG_register (SIGHUP, rcs_cleanup);
+#endif
+#ifdef SIGINT
+	(void) SIG_register (SIGINT, rcs_cleanup);
+#endif
+#ifdef SIGQUIT
+	(void) SIG_register (SIGQUIT, rcs_cleanup);
+#endif
+#ifdef SIGPIPE
+	(void) SIG_register (SIGPIPE, rcs_cleanup);
+#endif
+#ifdef SIGTERM
+	(void) SIG_register (SIGTERM, rcs_cleanup);
+#endif
+    }
 
     /* Get the lock file name: `,file,' for RCS file `file,v'. */
-    lockfile = rcs_lockfilename (rcsfile);
+    assert (rcs_lockfile == NULL);
+    rcs_lockfile = rcs_lockfilename (rcsfile);
 
     /* Use the existing RCS file mode, or read-only if this is a new
        file.  (Really, this is a lie -- if this is a new file,
@@ -8400,12 +8610,13 @@ rcs_internal_lockfile (rcsfile)
        rely on O_EXCL these days.  This might be true for unix (I
        don't really know), but I am still pretty skeptical in the case
        of the non-unix systems.  */
-    fd = open (lockfile, OPEN_BINARY | O_WRONLY | O_CREAT | O_EXCL | O_TRUNC,
+    fd = open (rcs_lockfile,
+	       OPEN_BINARY | O_WRONLY | O_CREAT | O_EXCL | O_TRUNC,
 	       S_IRUSR | S_IRGRP | S_IROTH);
 
     if (fd < 0)
     {
-	error (1, errno, "could not open lock file `%s'", lockfile);
+	error (1, errno, "could not open lock file `%s'", rcs_lockfile);
     }
 
     /* Force the file permissions, and return a stream object. */
@@ -8413,11 +8624,11 @@ rcs_internal_lockfile (rcsfile)
        this in the non-HAVE_FCHMOD case.  */
 #ifdef HAVE_FCHMOD
     if (fchmod (fd, rstat.st_mode) < 0)
-	error (1, errno, "cannot change mode for %s", lockfile);
+	error (1, errno, "cannot change mode for %s", rcs_lockfile);
 #endif
     fp = fdopen (fd, FOPEN_BINARY_WRITE);
     if (fp == NULL)
-	error (1, errno, "cannot fdopen %s", lockfile);
+	error (1, errno, "cannot fdopen %s", rcs_lockfile);
 
     free (lockfile);
 
@@ -8429,10 +8640,7 @@ rcs_internal_unlockfile (fp, rcsfile)
     FILE *fp;
     char *rcsfile;
 {
-    char *lockfile;
-
-    /* Get the lock file name: `,file,' for RCS file `file,v'. */
-    lockfile = rcs_lockfilename (rcsfile);
+    assert (rcs_lockfile != NULL);
 
     /* Abort if we could not write everything successfully to LOCKFILE.
        This is not a great error-handling mechanism, but should prevent
@@ -8445,12 +8653,21 @@ rcs_internal_unlockfile (fp, rcsfile)
 	   fragile even if it happens to sometimes be true.  The real
 	   solution is to check each call to fprintf rather than waiting
 	   until the end like this.  */
-	error (1, 0, "error writing to lock file %s", lockfile);
+	error (1, 0, "error writing to lock file %s", rcs_lockfile);
     if (fclose (fp) == EOF)
-	error (1, errno, "error closing lock file %s", lockfile);
+	error (1, errno, "error closing lock file %s", rcs_lockfile);
 
-    rename_file (lockfile, rcsfile);
-    free (lockfile);
+    rename_file (rcs_lockfile, rcsfile);
+
+    {
+	/* Use a temporary to make sure there's no interval
+	   (after rcs_lockfile has been freed but before it's set to NULL)
+	   during which the signal handler's use of rcs_lockfile would
+	   reference freed memory.  */
+	char *tmp = rcs_lockfile;
+	rcs_lockfile = NULL;
+	free (tmp);
+    }
 }
 
 static char *
@@ -8492,6 +8709,9 @@ RCS_rewrite (rcs, newdtext, insertpt)
 
     if (noexec)
 	return;
+
+    /* Make sure we're operating on an actual file and not a symlink.  */
+    resolve_symlink (&(rcs->path));
 
     fout = rcs_internal_lockfile (rcs->path);
 
@@ -8571,8 +8791,8 @@ annotate_fileproc (callerdat, finfo)
     cvs_outerr (finfo->fullname, 0);
     cvs_outerr ("\n***************\n", 0);
 
-    RCS_deltas (finfo->rcs, fp, rcsbufp, version, RCS_ANNOTATE, (char **) NULL,
-		(size_t) NULL, (char **) NULL, (size_t *) NULL);
+    RCS_deltas (finfo->rcs, fp, rcsbufp, version, RCS_ANNOTATE, NULL,
+		NULL, NULL, NULL);
     free (version);
     return 0;
 }
@@ -8645,8 +8865,8 @@ annotate (argc, argv)
 	option_with_arg ("-r", tag);
 	if (date)
 	    client_senddate (date);
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("annotate\012", 0);
 	return get_responses_and_close ();
     }
@@ -8682,7 +8902,7 @@ make_file_label (path, rev, rcs)
     char *file;
 
     file = last_component (path);
-    label = (char *) xmalloc (strlen (file)
+    label = (char *) xmalloc (strlen (path)
 			      + (rev == NULL ? 0 : strlen (rev))
 			      + 50);
 
@@ -8691,7 +8911,7 @@ make_file_label (path, rev, rcs)
 	char *date;
 	RCS_getrevtime (rcs, rev, datebuf, 0);
 	date = printable_date (datebuf);
-	(void) sprintf (label, "-L%s\t%s\t%s", file, date, rev);
+	(void) sprintf (label, "-L%s\t%s\t%s", path, date, rev);
 	free (date);
     }
     else
@@ -8708,7 +8928,7 @@ make_file_label (path, rev, rcs)
 			    wm->tm_year + 1900, wm->tm_mon + 1,
 			    wm->tm_mday, wm->tm_hour,
 			    wm->tm_min, wm->tm_sec);
-	    (void) sprintf (label, "-L%s\t%s", file, datebuf);
+	    (void) sprintf (label, "-L%s\t%s", path, datebuf);
 	}
     }
     return label;
