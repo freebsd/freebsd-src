@@ -444,9 +444,9 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 	i = write(dfd, sbuf, gl->sectorsize);
 	if (i != (int)gl->sectorsize)
 		err(1, "write");
-	printf("Wrote key %d at %jd\n", key, (intmax_t)offset);
 	free(sbuf);
 #if 0
+	printf("Wrote key %d at %jd\n", key, (intmax_t)offset);
 	printf("s0 = %jd\n", (intmax_t)gl->sector0);
 	printf("sN = %jd\n", (intmax_t)gl->sectorN);
 	printf("l[0] = %jd\n", (intmax_t)gl->lsector[0]);
@@ -476,7 +476,7 @@ cmd_destroy(struct g_bde_key *gl, int nkey)
 static int
 sorthelp(const void *a, const void *b)
 {
-	const off_t *oa, *ob;
+	const uint64_t *oa, *ob;
 
 	oa = a;
 	ob = b;
