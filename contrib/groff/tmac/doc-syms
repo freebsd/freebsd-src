@@ -318,11 +318,11 @@
 .       \}
 .       if "\\*(A\\n(aP"-ansiC" \{\
 .		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
-.		as b1 (``\\*(tNISO C\\*(aa'')
+.		as b1 (``\\*(tNISO\~C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-isoC" \{\
 .		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
-.		as b1 (``\\*(tNISO C\\*(aa'')
+.		as b1 (``\\*(tNISO\~C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-isoC-99" \{\
 .		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1999\\*(sV
@@ -330,11 +330,11 @@
 .       \}
 .       if "\\*(A\\n(aP"-iso9899" \{\
 .		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
-.		as b1 (``\\*(tNISO C\\*(aa'')
+.		as b1 (``\\*(tNISO\~C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-ansiC-89" \{\
-.		ds b1 \&\\*(tNANSI \\*(aaX3.159-1989\\*(sV
-.		as b1 (``\\*(tNANSI C\\*(aa'')
+.		ds b1 \&\\*(tNANSI \\*(aaX\~3.159-1989\\*(sV
+.		as b1 (``\\*(tNANSI\~C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-ieee754" \{\
 .		ds b1 \&\\*(tNIEEE Std \\*(aa754-1985
@@ -342,22 +342,22 @@
 .       if "\\*(A\\n(aP"-iso8802-3" \{\
 .		ds b1 \&\\*(tNISO \\*(aa8802-3:1989
 .\" .		ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
-.\" .		as b1 (``\\*(tNANSI C\\*(aa'')
+.\" .		as b1 (``\\*(tNANSI\~C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-xpg3" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue 3\\*(aa\\*(sV
+.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~3\\*(aa\\*(sV
 .		as b1 (``\\*(tNXPG3\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-xpg4" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue 4\\*(aa\\*(sV
+.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~4\\*(aa\\*(sV
 .		as b1 (``\\*(tNXPG4\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-xpg4.2" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue 4.2\\*(aa\\*(sV
+.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~4.2\\*(aa\\*(sV
 .		as b1 (``\\*(tNXPG4.2\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-susv2" \{\
-.		ds b1 \&\\*(tNVersion 2 of the Single UNIX Specification\\*(aa
+.		ds b1 \&\\*(tNVersion\~2 of the Single UNIX Specification\\*(aa
 .       \}
 .	ie \\n(aC>\\n(aP \{\
 .		nr aP \\n(aP+1
