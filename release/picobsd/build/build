@@ -6,7 +6,7 @@
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
-OBJ=/usr/obj
+OBJ=/usr/obj-pico
 
 # --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
 # The "build" script will ask you for parameters. Just run it... :-)
@@ -20,7 +20,7 @@ LANGUAGE=en
 SITE=
 
 # FLOPPY_SIZE  floppy size in KB (default to 1440)
-FLOPPY_SIZE=1440
+FLOPPY_SIZE=1440 # 1440 1480 1720 (the latter will not boot!)
 
 # DEVFS is currently broken. Always set this.
 #
@@ -338,7 +338,7 @@ this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 do_install() {
     dialog --title "Build ${TYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
-`cat .build.reply` \
+`cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n
 WARNING: the contents of the floppy will be permanently erased!\n\
@@ -354,7 +354,7 @@ Your options:\n\
 	    FILENAME=picobsd.bin
 	fi
 	echo "Writing ${FILENAME}..."
-	dd if=${FILENAME} of=/dev/rfd0
+	dd if=${FILENAME} of=/dev/rfd0.${FLOPPY_SIZE}
     else
 	echo "Ok, the image is in picobsd.bin"
     fi
