@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 103 $
+ *              $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -352,7 +352,7 @@ AcpiExAccessRegion (
         }
         else if (Status == AE_NOT_EXIST)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            ACPI_REPORT_ERROR ((
                 "Region %s(%X) has no handler\n",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 65 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -375,7 +375,11 @@ AcpiEnterSleepState (
         }
     }
 
-    Status = AcpiHwDisableNonWakeupGpes ();
+    /*
+     * 1) Disable all runtime GPEs 
+     * 2) Enable all wakeup GPEs
+     */
+    Status = AcpiHwPrepareGpesForSleep ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -526,7 +530,11 @@ AcpiEnterSleepStateS4bios (
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiHwDisableNonWakeupGpes ();
+    /*
+     * 1) Disable all runtime GPEs 
+     * 2) Enable all wakeup GPEs
+     */
+    Status = AcpiHwPrepareGpesForSleep ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -646,10 +654,14 @@ AcpiLeaveSleepState (
     {
         ACPI_REPORT_ERROR (("Method _WAK failed, %s\n", AcpiFormatException (Status)));
     }
+    /* TBD: _WAK "sometimes" returns stuff - do we want to look at it? */
 
-    /* _WAK returns stuff - do we want to look at it? */
-
-    Status = AcpiHwEnableNonWakeupGpes ();
+    /*
+     * Restore the GPEs:
+     * 1) Disable all wakeup GPEs 
+     * 2) Enable all runtime GPEs
+     */
+    Status = AcpiHwRestoreGpesOnWake ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
