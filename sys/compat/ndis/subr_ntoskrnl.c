@@ -282,7 +282,7 @@ ntoskrnl_writereg_ushort(reg, val)
 	uint16_t		*reg;
 	uint16_t		val;
 {
-	bus_space_write_2(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg, val);
+	bus_space_write_2(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg, val);
 	return;
 }
 
@@ -290,7 +290,7 @@ __stdcall static uint16_t
 ntoskrnl_readreg_ushort(reg)
 	uint16_t		*reg;
 {
-	return(bus_space_read_2(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg));
+	return(bus_space_read_2(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static void
@@ -298,7 +298,7 @@ ntoskrnl_writereg_ulong(reg, val)
 	uint32_t		*reg;
 	uint32_t		val;
 {
-	bus_space_write_4(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg, val);
+	bus_space_write_4(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg, val);
 	return;
 }
 
@@ -306,14 +306,14 @@ __stdcall static uint32_t
 ntoskrnl_readreg_ulong(reg)
 	uint32_t		*reg;
 {
-	return(bus_space_read_4(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg));
+	return(bus_space_read_4(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static uint8_t
 ntoskrnl_readreg_uchar(reg)
 	uint8_t			*reg;
 {
-	return(bus_space_read_1(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg));
+	return(bus_space_read_1(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static void
@@ -321,7 +321,7 @@ ntoskrnl_writereg_uchar(reg, val)
 	uint8_t			*reg;
 	uint8_t			val;
 {
-	bus_space_write_1(I386_BUS_SPACE_MEM, 0x0, (uint32_t)reg, val);
+	bus_space_write_1(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg, val);
 	return;
 }
 
