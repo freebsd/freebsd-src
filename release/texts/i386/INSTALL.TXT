@@ -13,7 +13,7 @@
 |         1.5     Installing over a network using NFS or FTP          |
 |                 1.5.1   NFS Installation tips                       |
 |                 1.5.2   FTP Installation tips                       |
-|         1.6     Tips for Serial COnsole Users                       |
+|         1.6     Tips for Serial Console Users                       |
 |                                                                     |
 | 2.0     DOS User's Q&A section.                                     |
 |         2.1     How do I make space for FreeBSD?                    |
