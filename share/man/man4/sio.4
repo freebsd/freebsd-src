@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.6 1994/02/17 17:44:07 rgrimes Exp $
+.\"	$Id: sio.4,v 1.7 1994/02/19 13:19:33 ache Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -138,8 +138,8 @@ for dialin ports (and dialout when bidirectional usage disabled)
 for dialout ports when bidirectional usage enabled
 .El
 .Pp
-If device number more then 10 last character of device name
-belongs to [a-z] set.
+The devices numbers are made from the set [0-9a-z] so that more than
+10 ports can be supported.
 /dev/tty0? and /dev/ttyd? are mutually exclusive, if you have
 /dev/tty0? corresponding /dev/ttyd? must be removed and vice versa.
 .Sh DIAGNOSTICS
