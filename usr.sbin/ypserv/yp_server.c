@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.17 1997/01/07 06:07:20 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.12.2.1 1997/01/14 01:33:57 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -336,8 +336,9 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		sprintf (t, "%u", argp->transid);
 		sprintf (g, "%u", argp->prog);
 		sprintf (p, "%u", argp->port);
-		if (debug)
+		if (debug) {
 			close(0); close(1); close(2);
+		}
 		if (strcmp(yp_dir, _PATH_YP)) {
 			execl(ypxfr_command, "ypxfr",
 			"-d", argp->map_parms.domain,
