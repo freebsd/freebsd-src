@@ -8,6 +8,6 @@ SRCS=	chkey.c update.c generic.c
 CFLAGS+=-DYP
 
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBGMP}
-LDADD=	-lrpcsvc -lmp -lgmp
+LDADD=	-lrpcsvc -lmp -lcrypto
 
 .include <bsd.prog.mk>
