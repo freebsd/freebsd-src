@@ -1,4 +1,4 @@
-Updating Information for FreeBSD STABLE users
+Updating Information for FreeBSD 4.7 Security Branch (RELENG_4_7) users.
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
@@ -7,6 +7,15 @@ done items, please see the COMMON ITEMS: section later in the file.
 A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
+
+This is for the 4.7 release branch.  All entries since 4.7 are an
+itemized list of commits to this branch, numbered from the beginning.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
 
 20030106:	p3	FreeBSD-SA-02:44.filedesc
 	Correct a reference counting bug in fpathconf(2).
@@ -1116,7 +1125,7 @@ that the style, formatting, etc of this file can be maintained.
 
 Copyright information:
 
-Copyright 1998-2002 M. Warner Losh.  All Rights Reserved.
+Copyright 1998-2003 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, translation and use, with or without modification, in
 full or in part, are permitted provided that the above copyright
