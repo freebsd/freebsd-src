@@ -213,7 +213,7 @@ acpi_identify(driver_t *driver, device_t parent)
     char			*debugpoint;
 #endif
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if(!cold){
 	    printf("Don't load this driver from userland!!\n");
@@ -296,7 +296,7 @@ acpi_probe(device_t dev)
     ACPI_STATUS		status;
     int			error;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
         power_pm_get_type() != POWER_PM_TYPE_ACPI) {
@@ -330,7 +330,7 @@ acpi_attach(device_t dev)
     char		*debugpoint;
 #endif
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_LOCK;
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
@@ -732,7 +732,7 @@ acpi_isa_get_logicalid(device_t dev)
     ACPI_STATUS		error;
     u_int32_t		pnpid;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     pnpid = 0;
     ACPI_LOCK;
@@ -757,7 +757,7 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     int			result;
     u_int32_t		pnpid;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
      * ISA-style drivers attached to ACPI may persist and
@@ -792,7 +792,7 @@ acpi_probe_children(device_t bus)
     static char		*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int			i;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_ASSERTLOCK;
 
     /*
@@ -842,7 +842,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_OBJECT_TYPE	type;
     device_t		child, bus = (device_t)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
      * Skip this device if we think we'll have trouble with it.
@@ -1312,7 +1312,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     UINT8	TypeA;
     UINT8	TypeB;
 
-    ACPI_FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
     ACPI_ASSERTLOCK;
 
     if (sc->acpi_sstate != ACPI_STATE_S0)
@@ -1411,7 +1411,7 @@ acpi_Enable(struct acpi_softc *sc)
     ACPI_STATUS	status;
     u_int32_t	flags;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_ASSERTLOCK;
 
     flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
@@ -1431,7 +1431,7 @@ acpi_Disable(struct acpi_softc *sc)
 {
     ACPI_STATUS	status;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_ASSERTLOCK;
 
     if (sc->acpi_enabled) {
@@ -1453,7 +1453,7 @@ acpi_Disable(struct acpi_softc *sc)
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
-    ACPI_FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
     ACPI_LOCK;
     if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
@@ -1465,7 +1465,7 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 static void
 acpi_system_eventhandler_wakeup(void *arg, int state)
 {
-    ACPI_FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
     /* Well, what to do? :-) */
 
@@ -1483,7 +1483,7 @@ acpi_eventhandler_power_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_power_button_sx);
 
@@ -1495,7 +1495,7 @@ acpi_eventhandler_power_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_power_button_sx);
 
@@ -1507,7 +1507,7 @@ acpi_eventhandler_sleep_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_sleep_button_sx);
 
@@ -1519,7 +1519,7 @@ acpi_eventhandler_sleep_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_sleep_button_sx);
 
