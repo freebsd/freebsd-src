@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: ports.7,v 1.2 1998/01/28 01:09:46 obrien Exp $
+.\" $Id: ports.7,v 1.3 1998/01/28 01:12:05 obrien Exp $
 .\"
 .Dd January 25, 1998
 .Dt PORTS 7
@@ -37,17 +37,18 @@ The
 offers a simple way for users and
 administrators to install applications.
 Each 
-.Ar port
-listed here contains any patches necessary to make the original
-application source code compile and run on BSD. Installing an
-application is as simple as downloading the port, unpacking it and typing
-make in the port directory. The 
-.Ar Makefile
+.Em port
+contains any patches necessary to make the original
+application source code compile and run on BSD.  Compiling an
+application is as simple as typing
+.Ic make build
+in the port directory!  The 
+.Ql Pa Makefile
 automatically fetches the
 application source code, either from a local disk or via ftp, unpacks it
-on your system, applies the patches, and compiles. If all goes well,
+on your system, applies the patches, and compiles it.  If all goes well,
 simply type
-.Ar make install
+.Ic make install
 to install the application.
 .Pp
 For more information about using ports, see
@@ -61,110 +62,222 @@ http://www.freebsd.org/handbook/porting.html).
 Both are part of the FreeBSD Handbook.
 .Pp
 .Sh TARGETS
-.Ss fetch
+.Pp
+Some of the targets work recursively through subdirectories.
+This lets you, for example, install all of the biology
+ports.  The targets that do this are
+.Ar build , checksum , clean , configure , extract , fetch , install ,
+and
+.Ar package .
+.Pp
+The following targets will be run automatically by each proceeding
+target in order.  That is,
+.Ar build
+will be run
+.Pq if necessary
+by
+.Ar install ,
+and so on all the way to
+.Ar fetch .
+You will usually only target
+.Ar install .
+.Bl -tag -width configure
+.It Ar fetch
 Fetch all of the files needed to build this port from the site(s)
-listed in MASTER_SITES and PATCH_SITES.  See FETCH_CMD, MASTER_SITES,
-PATCH_SITES, and MASTER_SITE_OVERRIDE for details on how those
-environment variables impact this command.  If there are
-subdirectories, then this target operates recursively.
-.Ss fetch-list
+listed in MASTER_SITES and PATCH_SITES.  See
+.Ev FETCH_CMD
+and
+.Ev MASTER_SITE_OVERRIDE .
+.It Ar checksum
+Verify that the fetched distfile matches the one the port was tested against.
+Defining
+.Ev NO_CHECKSUM
+will skip this step.
+.It Ar depends
+Install
+.Pq or compile if only compilation is necessary
+any dependencies of the current port.  When called by the
+.Ar extract
+or
+.Ar fetch
+targets, this is run in piecemeal as
+.Ar fetch-depends ,
+.Ar build-depends ,
+etc.  Defining
+.Ev NO_DEPENDS
+will skip this step.
+.It Ar extract
+Expand the distfile into a work directory.
+.It Ar patch
+Apply any patches that are necessary for the port.
+.It Ar configure
+Configure the port.  Some ports will ask you questions during
+this stage.  See
+.Ev INTERACTIVE
+and
+.Ev BATCH .
+.It Ar build
+Build the the port.  This is the same as calling the
+.Ar all
+target.
+.It Ar install
+Install the the port and register it with the package system.  This
+is all you really need to do.
+.El
+.Pp
+The following targets are not run during the normal install process.
+.Bl -tag -width fetch-list
+.It Ar fetch-list
 Show list of files needed to be fetched in order to build the port.
-.Ss checksum
-Verifies the fetched distfile matches the one the port was tested against.
-.Ss makesum
-Creats an MD5 checksum for the distfile the port is tested against.
-.Ss extract
-Checksum the files for the port and then extract them into a work
-directory.  Defining NO_CHECKSUM will skip the checksum check step.
-Files will be fetched in the same way that 
-.Ar make fetch
-fetches them.
-If there are subdirectories, then this target operates recursively.
-.Ss patch
-Patches the port.  Generally this isn't used directly as the "all"
-target does this.  If the port hasn't been extracted yet, then it will
-be extracted.
-.Ss configure
-Configures the port.  Generally this isn't used directly as the "all"
-target does this.  If the port hasn't been patched yet, the patch
-target is performed.
-.Ss build
-Builds the the port.   Generally this isn't used directly as the "all"
-target does this.
-.Ss install
-Installs the the port and registers the port with the pkg system.  If
-the port hasn't been built yet, then all steps to build the port are
-perforfmed.
-.Ss reinstall
-Simular to \'install\'.
-.Ss deinstall
-Removes an installed port from the system.
-.Ss package
-Makes a binary package for the port from an installed port.  You must
-install the package first.  If the port has not been installed then
-the port will be installed.  The .tar.gz file that is built is placed
-into the current directory, unless the PACKAGES variable is set.
-.Ss clean
-Cleans up after yourself.  Blah Blah Blah.
-.Ss distclean
-Cleans up fetched distfiles in addition to what \'clean\' does.
+.It Ar depends-list package-depends
+Print a list of all the compile and run dependencies, and dependencies
+of those dependencies.
+.It Ar clean
+Remove the expanded source code.  This recurses to dependencies unless
+.Ev NOCLEANDEPENDS
+is defined.
+.It Ar distclean
+Remove the port's distfile(s) and perform the
+.Ar clean
+operation.  The
+.Sq clean
+portion recurses to dependencies unless
+.Ev NOCLEANDEPENDS
+is defined, but the
+.Sq distclean
+portion never recurses
+.Pq this is perhaps a bug .
+.It Ar reinstall
+Use this to restore a port after using
+.Xr pkg_delete 1
+when you should have used
+.Ar deinstall .
+.It Ar deinstall
+Remove an installed port from the system, similar to
+.Xr pkg_delete 1 .
+.It Ar package
+Make a binary package for the port.  The port will be installed if it
+hasn't already been.  The package is a .tgz file that you can use to
+install the port on other machines with
+.Xr pkg_add 1 .
+If the directory specified by
+.Ev PACKAGES
+does not exist
+.Po
+usually
+.Pa /usr/ports/packages
+or
+.Pa /usr/pkgsrc/packages
+.Pc
+you must define either
+.Ev PKGREPOSITORY
+or
+.Ev PKGFILE .
+.El
 .Sh ENVIRONMENT VARIABLES
-.Ss PORTSDIR
-Location of the ports tree.  This defaults to /usr/ports on
+You can change all of these.
+.Bl -tag -width MASTER_SITES
+.It Ev PORTSDIR
+Location of the ports tree.  This is
+.Pa /usr/ports
+on
+.\" .Fx
 FreeBSD
 and
+.\" .Ox ,
 OpenBSD
-, but on 
-.Nx
-this defaults to /usr/pkgsrc
-.Ss DISTDIR
-Where to install the ports into.
-.Ss PACKAGES
-Location of where to put the packages that are built with make packages
-.Ss PREFIX
-Where to install things in general (default: /usr/local).
-.Ss MASTER_SITES
+and
+.Pa /usr/pkgsrc
+on
+.Nx .
+.It Ev DISTDIR
+Where to find/put distfiles, normally
+.Pa distfiles/
+in
+.Ev PORTSDIR .
+.It Ev PACKAGES
+Used only for the
+.Ar package
+target; the base directory for the packages tree, normally
+.Pa packages/
+in
+.Ev PORTSDIR .
+If this directory exists, the package tree will be (partially) constructed.
+This directory does not have to exist; if it doesn't, however, you will have
+to define one of
+.Bl -tag -width PKGREPOSITORY
+.It Ev PKGREPOSITORY
+What directory to put the package in.
+.It Ev PKGFILE
+The full path to the package.
+.El
+.It Ev PREFIX
+Where to install things in general
+.Po
+usually
+.Pa /usr/local
+or
+.Pa /usr/X11R6
+.Pc
+.It Ev MASTER_SITES
 Primary sites for distribution files if not found locally.
-.Ss PATCH_SITES
-Primary locations(s) for distribution patch files if not found
+.It Ev PATCH_SITES
+Primary location(s) for distribution patch files if not found
 locally.
-.Ss NOCLEANDEPNDS
-.Ss FETCH_CMD
-Command to use to fetch files from the remote.
-.Ss FETCH_BEFORE_ARGS
-.Ss FETCH_AFTER_ARGS
-.Ss MASTER_SITE_OVERRIDE
-If set, override MASTER_SITES setting with this value.
-.Ss FORCE_PKG_REGISTER
-If set, it will overwrite any existing package registration on the
-system.
-.Ss MOTIFLIB
+.It Ev MASTER_SITE_FREEBSD
+If set, go to the master FreeBSD site for all files.
+.It Ev MASTER_SITE_OVERRIDE
+Try going to this site for all files and patches, first.
+.It Ev NOCLEANDEPENDS
+If defined, don't let
+.Sq clean
+recurse to dependencies.
+.It Ev FETCH_CMD
+Command to use to fetch files.  Normally
+.Xr fetch 1 .
+.It Ev FORCE_PKG_REGISTER
+If set, overwrite any existing package registration on the system.
+.It Ev MOTIFLIB
 Location of libXm.{a,so}.
-.Ss PATCH_DEBUG
+.It Ev PATCH_DEBUG
 Displays verbose output from applying each patch.
-.Ss BROKEN
-String as to why the port is broken.
-.Ss RESTRICTED
-String as to why the port is restricted.
+.It Ev INTERACTIVE
+If defined, only operate on a port if it requires interaction.
+.It Ev BATCH
+If defined, only operate on a port if it can be installed 100% automatically.
+.El
 .Sh FILES
 .Bl -tag -width /usr/ports/xxxx -compact
 .It Pa /usr/ports
 The default ports directory (FreeBSD and OpenBSD).
 .It Pa /usr/pkgsrc
 The default ports directory (NetBSD).
+.It Pa /usr/share/mk/bsd.port.mk
+The big Kahuna.
 .Sh SEE ALSO
 .Xr make 1 ,
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
 .Xr pkg_delete 1 ,
 .Xr pkg_info 1 .
+.Pp
+The FreeBSD handbook.
 .Sh AUTHORS
-This man page has been written by David O'Brien.
+This man page was originated by David O'Brien.
 The ports collection is maintained by Satoshi Asami and the
-.\" incredible
-awesome
-ports team.
+awesome ports team.
 .Sh HISTORY
 .Nm The Ports Collection
 appeared in
 .Fx 1.0 .
+.Sh BUGS
+Ports documentation is split over four places ---
+.Pa /usr/share/mk/bsd.port.mk ,
+the
+.Dq Ports Collection
+section of the handbook, the
+.Dq Porting Existing Software
+section of the handbook, and
+.Xr ports 7 .
+.Pp
+This man page is too long.
