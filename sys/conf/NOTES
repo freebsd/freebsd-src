@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.472 1998/09/20 07:20:19 gibbs Exp $
+#	$Id: LINT,v 1.473 1998/09/20 17:15:25 nsouch Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -805,8 +805,11 @@ options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
-# If the screen flickers badly when the mouse pointer is moved, try this.
-options		SC_BAD_FLICKER
+# Instruct the syscons driver to use slightly faster routine for screen 
+# updates. May cause flicker on some systems. 
+#options		SC_ALT_SEQACCESS
+
+
 # To include support for VESA video modes
 # Dont use together with SMP!!
 options		VESA			# needs VM86 defined too!!
