@@ -488,7 +488,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
 	goto out;
     }
-    if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &resbuf))) {
+    if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s - %s\n",
 		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
 	goto out;
