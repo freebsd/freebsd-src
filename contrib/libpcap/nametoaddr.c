@@ -366,7 +366,7 @@ pcap_ether_hostton(const char *name)
 }
 #else
 
-#if !defined(sgi) && !defined(__NetBSD__)
+#if !defined(sgi) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 extern int ether_hostton(char *, struct ether_addr *);
 #endif
 
