@@ -1,0 +1,98 @@
+===================
+Distribution format
+===================
+
+A typical FreeBSD distribution directory looks something like this:
+
+ABOUT.TXT       bin             dict            manpages        tools
+HARDWARE.TXT    compat1x        des             doc             packages
+INSTALL.TXT     compat20        floppies        ports
+README.TXT      compat21        games           proflibs
+RELNOTES.TXT    info            src
+DISTRIB.TXT     XF86332
+
+If you want to do a CDROM, FTP or NFS installation from this
+distribution directory, all you need to do is make a 1.44Mb floppy
+from the floppies/boot.flp image file (see floppies/README.TXT for
+instructions on how to do this), boot it and follow the instructions.
+See INSTALL.TXT for more information.
+
+If you're trying to do some other type of installation or are merely
+curious about how a distribution is organized, what follows is a more
+thorough description of each item in more detail:
+
+1. The *.TXT files obviously contain documentation (this file is
+   DISTRIB.TXT) and should be read before starting an installation.
+
+2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
+   consists of a series of gzip'd tar files which contain each component
+   of the XFree86 distribution.
+
+3. The bin, dict, des, doc, games, info, manpages, proflibs, and src
+   directories contain the primary distribution components of FreeBSD
+   itself and are split into smaller files for easy packing onto floppies
+   (should that be necessary).
+
+4. The compat1x, compat20 and compat21 directories contain distributions
+   for compatibility with older releases and are distributed as single
+   gzip'd tar files - they can be installed during release time or later
+   by running their `install.sh' scripts.
+
+5. The floppies subdirectory also contains the floppy installation images
+   and the floppies/README.TXT file should be read for further
+   information on using them.
+
+6. The packages and ports directories contain the FreeBSD packages and
+   ports collections.  Packages may be installed from the packages
+   directory by running the command: ``/stand/sysinstall configPackages''
+   or by feeding individual filenames in packages/ to the pkg_add(1)
+   command.
+
+   The ports collection may be installed like any other distribution
+   and requires about 26MB unpacked.  More information on the ports
+   collection may be obtained from http://www.freebsd.org/ports or
+   locally from ``file:/usr/share/doc/handbook'' if you've installed
+   the doc distribution.
+
+7. Last of all, the tools directory contains various DOS tools for
+   discovering disk geometries, installing boot managers and the like.
+   It is purely optional and provided only for user convenience.
+
+A typical distribution (we'll use the info distribution as an example)
+looks like this internally:
+
+CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+info.aa         info.ac         info.ae         info.mtree
+
+The CHECKSUM.MD5 file contains MD5 signatures for each file, should
+data corruption be suspected, and is purely for reference. It is not
+used by the actual installation and does not need to be copied with
+the rest of the distribution files.  The info.a* files are split,
+gzip'd tar files, the contents of which can be viewed by doing:
+
+        cat info.a* | tar tvzf -
+
+During installation, they are automatically concatenated and extracted
+by the installation procedure.
+
+The info.inf file is also necessary since it is read by the installation
+program in order to figure out how many pieces to look for when fetching and
+concatenating the distribution.  When putting distributions onto floppies,
+the .inf file MUST occupy the first floppy of each distribution set!
+
+The info.mtree file is another non-essential file which is provided
+for user reference.  It contains the MD5 signatures of the *unpacked*
+distribution files and can be later used with the mtree(1) program
+to verify the installation permissions and checksums against any possible
+modifications to the file.  When used with the bin distribution, this can
+be an excellent way of detecting trojan horse attacks on your system.
+
+Finally, the install.sh file is for use by those who want to install the
+distribution after installation time.  To install the info distribution from
+CDROM after a system was installed, for example, you'd do:
+
+                cd /cdrom/info
+                sh install.sh
+
+And that's all there is to it!  Each distribution contains its own
+install.sh file for this.
