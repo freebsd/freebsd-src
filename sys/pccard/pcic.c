@@ -385,6 +385,7 @@ pcic_power(struct slot *slt)
 		if ((c & PCIC_POW) == 0)
 			slt->pwr.vcc = 33;
 		/* FALL THROUGH */
+	case PCIC_I82365:
 	case PCIC_PD672X:
 	case PCIC_PD6710:
 	case PCIC_VG365:
