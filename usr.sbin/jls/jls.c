@@ -59,7 +59,7 @@ retry:
 			free(sxp);
 			goto retry;
 		}
-		err(1, "sysctlbyname(): security.jail.list", NULL);
+		err(1, "sysctlbyname(): security.jail.list");
 	}
 	if (len < sizeof(*xp) || len % sizeof(*xp) ||
 	    xp->pr_version != XPRISON_VERSION)
