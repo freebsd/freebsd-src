@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.33 1995/06/10 08:59:15 jkh Exp $
+ * $Id: dist.c,v 1.35.2.34 1995/06/10 09:35:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -349,7 +349,7 @@ distExtract(char *parent, Distribution *me)
 	    numchunks = 0;
 	}
 	if (!numchunks)
-	    return FALSE;
+	    continue;
 
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
