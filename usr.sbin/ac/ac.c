@@ -514,21 +514,65 @@ ac(FILE	*fp)
 	struct utmp_list *lp, *head = NULL;
 	struct utmp usr;
 	struct tm *ltm;
-	time_t secs;
-	int day = -1;
+	time_t prev_secs, secs, ut_timecopy;
+	int day, rfound, tchanged, tskipped;
 
+	day = -1;
+	prev_secs = 1;			/* Minimum acceptable date == 1970 */
+	rfound = tchanged = tskipped = 0;
+	secs = 0;
 	while (fread((char *)&usr, sizeof(usr), 1, fp) == 1) {
+		rfound++;
+		/*
+		 * The type of utmp.ut_time is not necessary type time_t, as
+		 * it is explicitly defined as type int32_t.  Copy the value
+		 * for platforms where sizeof(time_t) != size(int32_t).
+		 */
+		ut_timecopy = _time32_to_time(usr.ut_time);
+		/*
+		 * With sparc64 using 64-bit time_t's, there is some system
+		 * routine which sets ut_time==0 (the high-order word of a
+		 * 64-bit time) instead of a 32-bit time value.  For those
+		 * wtmp files, it is "more-accurate" to substitute the most-
+		 * recent time found, instead of throwing away the entire
+		 * record.  While it is still just a guess, it is a better
+		 * guess than throwing away a log-off record and therefore
+		 * counting a session as if it continued to the end of the
+		 * month, or the next system-reboot.
+		 */
+		if (ut_timecopy == 0 && prev_secs > 1) {
+#ifdef DEBUG
+			if (Debug)
+				printf("%s - date changed to: %s",
+				    debug_pfx(&usr, &usr), ctime(&prev_secs));
+#endif
+			tchanged++;
+			usr.ut_time = ut_timecopy = prev_secs;
+		}
+		/*
+		 * Skip records where the time goes backwards.
+		 */
+		if (ut_timecopy < prev_secs) {
+#ifdef DEBUG
+			if (Debug)
+				printf("%s - bad date, record skipped\n",
+				    debug_pfx(&usr, &usr));
+#endif
+			tskipped++;
+			continue;	/* Skip this invalid record. */
+		}
+		prev_secs = ut_timecopy;
+
 		if (!FirstTime)
-			FirstTime = usr.ut_time;
+			FirstTime = ut_timecopy;
 		if (Flags & AC_D) {
-			time_t t = _int_to_time(usr.ut_time);
-			ltm = localtime(&t);
+			ltm = localtime(&ut_timecopy);
 			if (day >= 0 && day != ltm->tm_yday) {
 				day = ltm->tm_yday;
 				/*
 				 * print yesterday's total
 				 */
-				secs = usr.ut_time;
+				secs = ut_timecopy;
 				secs -= ltm->tm_sec;
 				secs -= 60 * ltm->tm_min;
 				secs -= 3600 * ltm->tm_hour;
@@ -538,10 +582,10 @@ ac(FILE	*fp)
 		}
 		switch(*usr.ut_line) {
 		case '|':
-			secs = usr.ut_time;
+			secs = ut_timecopy;
 			break;
 		case '{':
-			secs -= usr.ut_time;
+			secs -= ut_timecopy;
 			/*
 			 * adjust time for those logged in
 			 */
@@ -550,7 +594,7 @@ ac(FILE	*fp)
 			break;
 		case '~':			/* reboot or shutdown */
 			head = log_out(head, &usr);
-			FirstTime = usr.ut_time; /* shouldn't be needed */
+			FirstTime = ut_timecopy; /* shouldn't be needed */
 			break;
 		default:
 			/*
@@ -579,13 +623,13 @@ ac(FILE	*fp)
 	(void)strcpy(usr.ut_line, "~");
 
 	if (Flags & AC_D) {
-		time_t t = _int_to_time(usr.ut_time);
-		ltm = localtime(&t);
+		ut_timecopy = _time32_to_time(usr.ut_time);
+		ltm = localtime(&ut_timecopy);
 		if (day >= 0 && day != ltm->tm_yday) {
 			/*
 			 * print yesterday's total
 			 */
-			secs = usr.ut_time;
+			secs = ut_timecopy;
 			secs -= ltm->tm_sec;
 			secs -= 60 * ltm->tm_min;
 			secs -= 3600 * ltm->tm_hour;
@@ -604,6 +648,14 @@ ac(FILE	*fp)
 			show_users(Users);
 		show("total", Total);
 	}
+
+	if (tskipped > 0)
+		printf("(Skipped %d of %d records due to invalid time values)\n",
+		    tskipped, rfound);
+	if (tchanged > 0)
+		printf("(Changed %d of %d records to have a more likely time value)\n",
+		    tchanged, rfound);
+
 	return 0;
 }
 
