@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.10 1997/07/19 15:31:27 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.11 1997/08/18 00:21:49 jdp Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -23,8 +23,6 @@
 	lint
 	..
 	stallion
-	..
-	tcl
 	..
     ..
     libexec

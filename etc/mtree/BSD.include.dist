@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.7 1996/10/03 21:42:41 peter Exp $
+#	$Id: BSD.include.dist,v 1.7.2.1 1997/03/09 06:58:45 bde Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -42,12 +42,6 @@
     ss
     ..
     sys
-    ..
-    tcl
-        generic
-        ..
-        unix
-        ..
     ..
     ufs
         ffs
