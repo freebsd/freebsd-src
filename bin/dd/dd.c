@@ -52,9 +52,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
-#include <sys/diskslice.h>
 #include <sys/filio.h>
-#include <sys/mtio.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -82,7 +80,7 @@ off_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 quad_t	files_cnt = 1;		/* # of files to copy */
-const u_char	*ctab;			/* conversion table */
+const	u_char *ctab;		/* conversion table */
 
 int
 main(argc, argv)
@@ -152,7 +150,7 @@ setup()
 	 * Allocate space for the input and output buffers.  If not doing
 	 * record oriented I/O, only need a single buffer.
 	 */
-	if (!(ddflags & (C_BLOCK|C_UNBLOCK))) {
+	if (!(ddflags & (C_BLOCK | C_UNBLOCK))) {
 		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
 			err(1, "input buffer");
 		out.db = in.db;
@@ -180,8 +178,8 @@ setup()
 	 * table that does both at once.  If just converting case, use the
 	 * built-in tables.
 	 */
-	if (ddflags & (C_LCASE|C_UCASE)) {
-		if (ddflags & (C_ASCII|C_EBCDIC)) {
+	if (ddflags & (C_LCASE | C_UCASE)) {
+		if (ddflags & (C_ASCII | C_EBCDIC)) {
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
 					casetab[cnt] = tolower(ctab[cnt]);
@@ -227,7 +225,9 @@ getfdtype(io)
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}
-	} else if (!S_ISREG(sb.st_mode))
+	} else if (lseek(io->fd, (off_t)0, SEEK_CUR) == 0)
+		io->flags |= ISSEEK;
+	else if (errno == ESPIPE)
 		io->flags |= ISPIPE;
 }
 
@@ -245,7 +245,7 @@ dd_in()
 		 * use spaces.
 		 */
 		if (ddflags & C_SYNC) {
-			if (ddflags & (C_BLOCK|C_UNBLOCK))
+			if (ddflags & (C_BLOCK | C_UNBLOCK))
 				memset(in.dbp, ' ', in.dbsz);
 			else
 				memset(in.dbp, 0, in.dbsz);
@@ -269,12 +269,12 @@ dd_in()
 			summary();
 
 			/*
-			 * If it's not a tape drive or a pipe, seek past the
+			 * If it's a seekable file descriptor, seek past the
 			 * error.  If your OS doesn't do the right thing for
 			 * raw disks this section should be modified to re-read
 			 * in sector size chunks.
 			 */
-			if (!(in.flags & (ISPIPE|ISTAPE)) &&
+			if (in.flags & ISSEEK &&
 			    lseek(in.fd, (off_t)in.dbsz, SEEK_CUR))
 				warn("%s", in.name);
 
@@ -327,7 +327,7 @@ dd_in()
 }
 
 /*
- * Clea nup any remaining I/O and flush output.  If necessary, the output file
+ * Clean up any remaining I/O and flush output.  If necessary, the output file
  * is truncated.
  */
 static void
@@ -340,7 +340,7 @@ dd_close()
 	else if (cfunc == unblock)
 		unblock_close();
 	if (ddflags & C_OSYNC && out.dbcnt && out.dbcnt < out.dbsz) {
-		if (ddflags & (C_BLOCK|C_UNBLOCK))
+		if (ddflags & (C_BLOCK | C_UNBLOCK))
 			memset(out.dbp, ' ', out.dbsz - out.dbcnt);
 		else
 			memset(out.dbp, 0, out.dbsz - out.dbcnt);
@@ -428,13 +428,14 @@ dd_out(force)
 			++st.out_part;
 			if (nw == cnt)
 				break;
+			if (out.flags & ISTAPE)
+				errx(1, "%s: short write on tape device",
+				    out.name);
 			if (out.flags & ISCHR && !warned) {
 				warned = 1;
 				warnx("%s: short write on character device",
 				    out.name);
 			}
-			if (out.flags & ISTAPE)
-				errx(1, "%s: short write on tape device", out.name);
 		}
 		if ((out.dbcnt -= n) < out.dbsz)
 			break;

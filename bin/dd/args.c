@@ -142,14 +142,14 @@ jcl(argv)
 	 * Ascii/ebcdic and cbs implies block/unblock.
 	 * Block/unblock requires cbs and vice-versa.
 	 */
-	if (ddflags & (C_BLOCK|C_UNBLOCK)) {
+	if (ddflags & (C_BLOCK | C_UNBLOCK)) {
 		if (!(ddflags & C_CBS))
 			errx(1, "record operations require cbs");
 		if (cbsz == 0)
 			errx(1, "cbs cannot be zero");
 		cfunc = ddflags & C_BLOCK ? block : unblock;
 	} else if (ddflags & C_CBS) {
-		if (ddflags & (C_ASCII|C_EBCDIC)) {
+		if (ddflags & (C_ASCII | C_EBCDIC)) {
 			if (ddflags & C_ASCII) {
 				ddflags |= C_UNBLOCK;
 				cfunc = unblock;
@@ -161,6 +161,7 @@ jcl(argv)
 			errx(1, "cbs meaningless if not doing record operations");
 	} else
 		cfunc = def;
+
 	/*
 	 * Bail out if the calculation of a file offset would overflow.
 	 */
@@ -206,7 +207,6 @@ f_count(arg)
 {
 
 	cpy_cnt = get_num(arg);
-
 	if (!cpy_cnt)
 		terminate(0);
 }
@@ -217,6 +217,8 @@ f_files(arg)
 {
 
 	files_cnt = get_num(arg);
+	if (files_cnt < 1)
+		errx(1, "files must be between 1 and %qd", QUAD_MAX);
 }
 
 static void
@@ -228,8 +230,8 @@ f_ibs(arg)
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
 		if (res < 1 || res > SSIZE_MAX)
-			errx(1, "ibs must be between 1 and %d", INT_MAX);
-		in.dbsz = (int)res;
+			errx(1, "ibs must be between 1 and %d", SSIZE_MAX);
+		in.dbsz = (size_t)res;
 	}
 }
 
