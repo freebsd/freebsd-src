@@ -214,15 +214,10 @@ setpassent(stayopen)
 	return(1);
 }
 
-int
+void
 setpwent()
 {
-	_pw_keynum = 0;
-#ifdef YP
-	_pw_stepping_yp = 0;
-#endif
-	_pw_stayopen = 0;
-	return(1);
+	(void)setpassent(0);
 }
 
 void
