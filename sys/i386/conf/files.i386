@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.8 1993/08/21 22:24:24 rgrimes Exp $
+#	$Id: files.i386,v 1.9 1993/08/21 23:52:36 rgrimes Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -10,7 +10,7 @@ i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb
 i386/i386/in_cksum.c		optional	inet
 i386/i386/machdep.c		standard		config-dependent
-i386/i386/math_emulate.c	standard
+i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
 i386/i386/ns_cksum.c		optional	ns

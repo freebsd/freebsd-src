@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.4 1993/08/21 23:46:41 rgrimes Exp $
+#	$Id: GENERICAH,v 1.5 1993/08/26 17:55:55 rgrimes Exp $
 #
 
 machine		"i386"
@@ -10,6 +10,7 @@ ident		GENERICAH
 timezone	8 dst
 maxusers	10
 maxfdescs	2048			#Max file descriptors per process
+options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
@@ -49,16 +50,17 @@ device		cd1
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
-device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
-device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
-device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
-device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
+#The old drivers are rearly needed anymore...
+#device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
+#device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
+#device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
+#device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
 
-#For high speed serial lines use these instead.
-#device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
-#device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
-#device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
-#device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
+#For high speed serial lines.
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
+device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		lpa0	at isa? port "IO_LPT1" tty
