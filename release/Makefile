@@ -987,7 +987,7 @@ doc.1:
 #
 doc.2:
 	@echo "Making release documentation..."
-	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' 
+	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' \
 	    INSTALL_COMPRESSED='' DOCDIR=${RND}
 	touch ${.TARGET}
 
