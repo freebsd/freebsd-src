@@ -386,6 +386,8 @@ fb_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD: 
 		printf("fb module unload - not possible for this module type\n"); 
 		return EINVAL; 
+	default:
+		return EOPNOTSUPP;
 	} 
 	return 0; 
 } 

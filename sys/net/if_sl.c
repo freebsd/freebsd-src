@@ -210,6 +210,8 @@ sl_modevent(module_t mod, int type, void *data)
 		ldisc_deregister(SLIPDISC);
 		printf("if_sl module unload - not possible for this module type\n"); 
 		return EINVAL; 
+	default:
+		return EOPNOTSUPP;
 	} 
 	return 0; 
 } 

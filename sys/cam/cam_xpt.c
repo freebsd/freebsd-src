@@ -1348,6 +1348,8 @@ cam_module_event_handler(module_t mod, int what, void *arg)
 		xpt_init(NULL);
 	} else if (what == MOD_UNLOAD) {
 		return EBUSY;
+	} else {
+		return EOPNOTSUPP;
 	}
 
 	return 0;

@@ -646,6 +646,8 @@ harp_modevent(module_t mod, int event, void *data)
 		uma_zdestroy(harp_vcc_zone);
 
 		break;
+	  default:
+		return (EOPNOTSUPP);
 	}
 	return (0);
 }

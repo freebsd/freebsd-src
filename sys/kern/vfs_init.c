@@ -528,7 +528,8 @@ vfs_modevent(module_t mod, int type, void *data)
 		if (vfc)
 			error = vfs_unregister(vfc);
 		break;
-	default:	/* including MOD_SHUTDOWN */
+	default:
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);

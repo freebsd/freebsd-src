@@ -248,6 +248,8 @@ vlan_modevent(module_t mod, int type, void *data)
 			    &LIST_FIRST(&ifv_list)->ifv_if);
 		VLAN_LOCK_DESTROY();
 		break;
+	default:
+		return (EOPNOTSUPP);
 	}
 	return (0);
 }

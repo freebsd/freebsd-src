@@ -767,6 +767,8 @@ gremodevent(module_t mod, int type, void *data)
 		mtx_unlock(&gre_mtx);
 		mtx_destroy(&gre_mtx);
 		break;
+	default:
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

@@ -204,6 +204,8 @@ tunmodevent(module_t mod, int type, void *data)
 		clone_cleanup(&tunclones);
 		mtx_destroy(&tunmtx);
 		break;
+	default:
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

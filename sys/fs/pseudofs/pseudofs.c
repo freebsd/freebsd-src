@@ -394,7 +394,7 @@ pfs_modevent(module_t mod, int evt, void *arg)
 		pfs_fileno_unload();
 		break;
 	default:
-		printf("pseudofs: unexpected event type %d\n", evt);
+		return EOPNOTSUPP;
 		break;
 	}
 	return 0;

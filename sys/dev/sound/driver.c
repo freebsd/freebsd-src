@@ -38,6 +38,7 @@ snd_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return 0;

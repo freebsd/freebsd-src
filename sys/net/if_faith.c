@@ -145,6 +145,8 @@ faithmodevent(mod, type, data)
 		mtx_unlock(&faith_mtx);
 		mtx_destroy(&faith_mtx);
 		break;
+	default:
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

@@ -57,6 +57,8 @@
 		case MOD_UNLOAD: \
 			printf(#name " module unload - not possible for this module type\n"); \
 			return EINVAL; \
+		default: \
+			return EOPNOTSUPP; \
 		} \
 		return 0; \
 	} \

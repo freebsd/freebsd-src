@@ -651,6 +651,9 @@ dcons_modevent(module_t mode, int type, void *data)
 		break;
 	case MOD_SHUTDOWN:
 		break;
+	default:
+		err = EOPNOTSUPP;
+		break;
 	}
 	return(err);
 }

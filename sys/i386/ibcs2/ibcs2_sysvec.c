@@ -116,7 +116,7 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 		}
 		sx_sunlock(&allproc_lock);
 	default:
-	        /* do not care */
+	        return (EOPNOTSUPP);
 		break;
 	}
 	return (rval);

@@ -484,9 +484,8 @@ sppp_modevent(module_t mod, int type, void *unused)
 		break;
 	case MOD_UNLOAD:
 		return EACCES;
-		break;
 	default:
-		break;
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

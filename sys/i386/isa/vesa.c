@@ -1652,7 +1652,7 @@ vesa_mod_event(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		return vesa_unload();
 	default:
-		break;
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

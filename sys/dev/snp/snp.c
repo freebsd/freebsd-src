@@ -650,6 +650,7 @@ snp_modevent(mod, type, data)
 		ldisc_deregister(snooplinedisc);
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return (0);

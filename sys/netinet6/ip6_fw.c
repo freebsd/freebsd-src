@@ -1293,6 +1293,7 @@ ip6fw_modevent(module_t mod, int type, void *unused)
 		printf("IPv6 firewall unloaded\n");
 		return 0;
 	default:
+		return EOPNOTSUPP;
 		break;
 	}
 	return 0;
