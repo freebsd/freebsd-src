@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.2 1995/04/20 07:34:54 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.3 1995/04/20 22:00:05 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -549,9 +549,30 @@ DBPRINT(("getattr\n"));
 	vap->va_fileid = (long)file_node;
 	vap->va_size = file_node->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
-	vap->va_atime = file_node->atime;
-	vap->va_mtime = file_node->mtime;
-	vap->va_ctime = file_node->ctime;
+	if(file_node->ctime.tv_sec)
+	{
+		vap->va_ctime = file_node->ctime;
+	}
+	else
+	{
+		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_ctime));
+	}
+	if(file_node->mtime.tv_sec)
+	{
+		vap->va_mtime = file_node->mtime;
+	}
+	else
+	{
+		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_mtime));
+	}
+	if(file_node->atime.tv_sec)
+	{
+		vap->va_atime = file_node->atime;
+	}
+	else
+	{
+		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_atime));
+	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
 	vap->va_bytes = file_node->len;	/* u_quad_t */
