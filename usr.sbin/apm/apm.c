@@ -15,8 +15,15 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.14 1998/09/04 16:08:54 imp Exp $";
+	"$Id: apm.c,v 1.14.2.1 1999/07/29 19:04:07 iwasaki Exp $";
 #endif /* not lint */
+
+#include <sys/file.h> 
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <machine/apm_bios.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -24,9 +31,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
-#include <machine/apm_bios.h>
 #include <time.h>
+#include <unistd.h>
 
 #define APMDEV	"/dev/apm"
 
@@ -290,8 +296,11 @@ main(int argc, char *argv[])
 	int     display = 0, batt_life = 0, ac_status = 0, standby = 0;
 	int	batt_time = 0, delta = 0;
 	char	*cmdname;
+	size_t	cmos_wall_len = sizeof(cmos_wall);
 
-
+	if (sysctlbyname("machdep.wall_cmos_clock", &cmos_wall, &cmos_wall_len,
+	    NULL, 0) == -1)
+		err(1, "sysctlbyname(machdep.wall_cmos_clock)");
 	if ((cmdname = strrchr(argv[0], '/')) != NULL)
 		cmdname++;
 	else
