@@ -1856,8 +1856,11 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		return;
 	}
 
-	if (psize + pindex > object->size)
+	if (psize + pindex > object->size) {
+		if (object->size < pindex)
+			return;		  
 		psize = object->size - pindex;
+	}
 
 	/*
 	 * if we are processing a major portion of the object, then scan the
