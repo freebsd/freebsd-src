@@ -85,8 +85,8 @@ struct job *jobtab;		/* array of jobs */
 int njobs;			/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 #if JOBS
+struct job *jobmru;		/* most recently used job list */
 int initialpgrp;		/* pgrp of shell on invocation */
-int curjob;			/* current job */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
@@ -104,6 +104,11 @@ STATIC int onsigchild(void);
 STATIC int waitproc(int, int *);
 STATIC void cmdtxt(union node *);
 STATIC void cmdputs(char *);
+#if JOBS
+STATIC void setcurjob(struct job *);
+STATIC void deljob(struct job *);
+STATIC struct job *getcurjob(struct job *);
+#endif
 
 
 /*
@@ -367,8 +372,7 @@ freejob(struct job *jp)
 		ckfree(jp->ps);
 	jp->used = 0;
 #if JOBS
-	if (curjob == jp - jobtab + 1)
-		curjob = 0;
+	deljob(jp);
 #endif
 	INTON;
 }
@@ -459,10 +463,9 @@ getjob(char *name)
 
 	if (name == NULL) {
 #if JOBS
-currentjob:
-		if ((jobno = curjob) == 0 || jobtab[jobno - 1].used == 0)
+currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 			error("No current job");
-		return &jobtab[jobno - 1];
+		return (jp);
 #else
 		error("No current job");
 #endif
@@ -519,9 +522,18 @@ makejob(union node *node __unused, int nprocs)
 			INTOFF;
 			if (njobs == 0) {
 				jobtab = ckmalloc(4 * sizeof jobtab[0]);
+				jobmru = NULL;
 			} else {
 				jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
 				memcpy(jp, jobtab, njobs * sizeof jp[0]);
+#if JOBS
+				/* Relocate `next' pointers and list head */
+				jobmru = &jp[jobmru - jobtab];
+				for (i = 0; i < njobs; i++)
+					if (jp[i].next != NULL)
+						jp[i].next = &jp[jp[i].next -
+						    jobtab];
+#endif
 				/* Relocate `ps' pointers */
 				for (i = 0; i < njobs; i++)
 					if (jp[i].ps == &jobtab[i].ps0)
@@ -544,6 +556,7 @@ makejob(union node *node __unused, int nprocs)
 	jp->nprocs = 0;
 #if JOBS
 	jp->jobctl = jobctl;
+	jp->next = NULL;
 #endif
 	if (nprocs > 1) {
 		jp->ps = ckmalloc(nprocs * sizeof (struct procstat));
@@ -556,6 +569,65 @@ makejob(union node *node __unused, int nprocs)
 	return jp;
 }
 
+#if JOBS
+STATIC void
+setcurjob(struct job *cj)
+{
+	struct job *jp, *prev;
+
+	for (prev = NULL, jp = jobmru; jp != NULL; prev = jp, jp = jp->next) {
+		if (jp == cj) {
+			if (prev != NULL)
+				prev->next = jp->next;
+			else
+				jobmru = jp->next;
+			jp->next = jobmru;
+			jobmru = cj;
+			return;
+		}
+	}
+	cj->next = jobmru;
+	jobmru = cj;
+}
+
+STATIC void
+deljob(struct job *j)
+{
+	struct job *jp, *prev;
+
+	for (prev = NULL, jp = jobmru; jp != NULL; prev = jp, jp = jp->next) {
+		if (jp == j) {
+			if (prev != NULL)
+				prev->next = jp->next;
+			else
+				jobmru = jp->next;
+			return;
+		}
+	}
+}
+
+/*
+ * Return the most recently used job that isn't `nj', and preferably one
+ * that is stopped.
+ */
+STATIC struct job *
+getcurjob(struct job *nj)
+{
+	struct job *jp;
+
+	/* Try to find a stopped one.. */
+	for (jp = jobmru; jp != NULL; jp = jp->next)
+		if (jp->used && jp != nj && jp->state == JOBSTOPPED)
+			return (jp);
+	/* Otherwise the most recently used job that isn't `nj' */
+	for (jp = jobmru; jp != NULL; jp = jp->next)
+		if (jp->used && jp != nj)
+			return (jp);
+
+	return (NULL);
+}
+
+#endif
 
 /*
  * Fork of a subshell.  If we are doing job control, give the subshell its
@@ -667,6 +739,9 @@ forkshell(struct job *jp, union node *n, int mode)
 		ps->cmd = nullstr;
 		if (iflag && rootshell && n)
 			ps->cmd = commandtext(n);
+#if JOBS
+		setcurjob(jp);
+#endif
 	}
 	INTON;
 	TRACE(("In parent shell:  child = %d\n", pid));
@@ -719,7 +794,7 @@ waitforjob(struct job *jp, int *origstatus)
 #endif
 	}
 	if (jp->state == JOBSTOPPED)
-		curjob = jp - jobtab + 1;
+		setcurjob(jp);
 #endif
 	status = jp->ps[jp->nprocs - 1].status;
 	if (origstatus != NULL)
@@ -804,8 +879,8 @@ dowait(int block, struct job *job)
 					TRACE(("Job %d: changing state from %d to %d\n", jp - jobtab + 1, jp->state, state));
 					jp->state = state;
 #if JOBS
-					if (done && curjob == jp - jobtab + 1)
-						curjob = 0;		/* no current job */
+					if (done)
+						deljob(jp);
 #endif
 				}
 			}
