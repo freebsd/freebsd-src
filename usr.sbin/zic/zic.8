@@ -183,11 +183,11 @@ Recognized forms include:
 Any of these forms may be followed by the letter
 .Em w
 if the given time is local
-.q "wall clock"
+.Dq "wall clock"
 time,
 .Em s
 if the given time is local
-.q standard
+.Dq standard
 time, or
 .Em u
 (or
@@ -210,15 +210,15 @@ and
 suffixes are not used).
 .It LETTER/S
 Give the
-.q "variable part"
+.Dq "variable part"
 (for example, the
-.q S
+.Dq S
 or
-.q D
+.Dq D
 in
-.q EST
+.Dq EST
 or
-.q EDT )
+.Dq EDT )
 of time zone abbreviations to be used when this rule is in effect.
 If this field is
 .Em \- ,
@@ -263,7 +263,7 @@ The format for time zone abbreviations in this time zone.
 The pair of characters
 .Em %s
 is used to show where the
-.q "variable part"
+.Dq "variable part"
 of the time zone abbreviation goes.
 Alternately,
 a slash (/)
@@ -276,10 +276,10 @@ the time zone information is generated from the given GMT offset
 and rule change until the time specified.
 .Pp
 The next line must be a
-.q continuation
+.Dq continuation
 line; this has the same form as a zone line except that the
 string
-.q Zone
+.Dq Zone
 and the name are omitted, as the continuation line will
 place information starting at the time specified as the
 .Em UNTIL
@@ -339,10 +339,10 @@ The
 .Em CORR
 field
 should be
-.q +
+.Dq +
 if a second was added
 or
-.q -
+.Dq -
 if a second was skipped.
 .\" There's no need to document the following, since it's impossible for more
 .\" than one leap second to be inserted or deleted at a time.
@@ -359,11 +359,11 @@ The
 .Em R/S
 field
 should be (an abbreviation of)
-.q Stationary
+.Dq Stationary
 if the leap second time given by the other fields should be interpreted as GMT
 or
 (an abbreviation of)
-.q Rolling
+.Dq Rolling
 if the leap second time given by the other fields should be interpreted as
 local wall clock time.
 .Sh NOTE
