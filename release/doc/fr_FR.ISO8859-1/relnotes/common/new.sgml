@@ -2698,7 +2698,7 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
       <para>&man.gcc.1; utilise maintenant une version unifi&eacute; de 
       <filename>libgcc</filename> plutot qu'une version s&eacute;par&eacute;es 
       pour les programmes supportant les thread et ceux ne les supportant pas. 
-      <filename>/usr/lib/libgcc_r.a</filename> peut donc être retir&eacute;.
+      <filename>/usr/lib/libgcc_r.a</filename> peut donc &ecirc;tre retir&eacute;.
       &merged;</para>
 
       <para>&man.gcc.1; supporte maintenant la variable d'environnement 
@@ -2895,7 +2895,68 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
 
       <sect4>
         <title>OpenSSH</title>
-	<para></para>
+
+	<para><application>OpenSSH</application> a &eacute;t&eacute; mis 
+	&agrave; jour en version 2.9, qui permet le support du protocole 
+	SSH2 (par d&eacute;faut maintenant) et la gestion des clefs DSA. 
+	&man.ssh-add.1; et &man.ssh-agent.1; peuvent maintenant utilis&eacute;
+	 les clefs DSA, et support&eacute; l'authentification distante.  Les 
+	 utilisateurs de <application>OpenSSH</application> aux USA n'ont plus
+	  besoin de se bas&eacute; sur la license restrictive de la boite 
+	  &agrave; outils RSAREF utilis&eacute;e pour les clefs RSA. Parmis 
+	  les nouvelles fonctionnalit&eacute;s ajout&eacute; on trouve: un 
+	  client et un serveur sftp.  &man.scp.1; peut maintenant travailler 
+	  sur des fichiers de plus de 2 GBytes. Une limite sur le nombre de 
+	  connections non authentifi&eacute;s que &man.sshd.8; peut 
+	  support&eacute; a &eacute;t&eacute; ajout&eacute;. Le support 
+	  &agrave; l'algorithme de cryptage Rijndael a &eacute;t&eacute; 
+	  ajout&eacute;. Un proxy exp&eacute;rimental 
+	  <application>SOCKS4</application> a &eacute;t&eacute; ajout&eacute; 
+	  &agrave; &man.ssh.1;.</para>
+ 
+	<para><application>OpenSSH</application> peut utiliser les mots de 
+	passes OPIE pour l'authentification en mode SSH1. Le support pour le 
+	mode SSH2 , n'est pas encore disponible. &merged;</para>
+
+        <para>Le support de <application>PAM</application> pour 
+	<application>OpenSSH</application> a &eacute;t&eacute; 
+	ajout&eacute;.</para>
+
+	<para>Un tr&egrave;s vieux bogue de <application>OpenSSH</application>,
+	 qui r&eacute;sultait par une fermeture de la session lorsqu'un client
+	  X11 tunnelis&eacute; &eacute;tait ferm&eacute; a &eacute;t&eacute; 
+	  corrig&eacute;.</para>
+
+	<para>La compatibilit&eacute; <application>Kerberos</application> a 
+	&eacute;t&eacute; ajout&eacute;e &agrave; 
+	<application>OpenSSH</application>. &merged;</para>
+
+	<para><application>OpenSSH</application> a &eacute;t&eacute; 
+	modifi&eacute; pour etre plus r&eacute;sistant aux attaques par 
+	&eacute;coute de trafic, en obligeant que les caract&egrave;res 
+	<quote>non affich&eacute;s</quote> soit quand m&ecirc;me 
+	affich&eacute;s dans un paquet vide, comme ils le sont lors du 
+	bourrage des mots de passe envoy&eacute;s, ce qui permet de ne pas 
+	avoir d'informations sur la longueur du mot de passe. &merged;</para>
+
+        <para>&man.sshd.8; est activ&eacute; par d&eacute;faut lors d'une 
+	nouvelle installation. &merged;</para>
+
+        <para>&man.sshd.8; <literal>X11Forwarding</literal> est maintenant 
+	activ&eacute; par d&eacute;faut au niveau du serveur (tous les 
+	risques sont sur le client, ou il est d&eacute;sactiv&eacute; par 
+	d&eacute;faut). &merged;</para>
+
+	<para>Le param&egrave;tre <literal>ConnectionsPerPeriod</literal> 
+	dans <filename>/etc/ssh/sshd_config</filename>, a &eacute;t&eacute; 
+	remplac&eacute; par <literal>MaxStartups</literal>. &merged;</para>
+
+	<para>Le fichier de configuration de 
+	<application>OpenSSH</application> dispose du param&egrave;tre 
+	<literal>VersionAddendum</literal>, permettant de changer la chaine 
+	de caract&egrave;res de version affich&eacute;e apr&egrave;s la 
+	version principale de <application>OpenSSH</application> au niveau de 
+	&man.sshd.8;.</para>
 	</sect4>
       
       <sect4>
@@ -2910,6 +2971,91 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
 	<varname>MACHINE_CPU</varname> et/ou <varname>CPUTYPE</varname> de 
 	<filename>make.conf</filename>. &merged;</para>
       </sect4>
+
+
+      <sect4>
+	<title>sendmail</title>
+
+	<para><application>sendmail</application> a &eacute;t&eacute; mis 
+	&agrave; jour de la version 8.9.3 vers la version 8.12.2. Les 
+	changements importants incluent : &man.sendmail.8; n'est plus 
+	install&eacute; set-user-ID <username>root</username> (mais en 
+	set-group-ID smmsp); un nouveau r&eacute;pertoire où se trouvent les 
+	fichiers par d&eacute;faut (voir 
+	<filename>/usr/src/contrib/sendmail/cf/README</filename>); 
+	&man.newaliases.1; est limit&eacute; &agrave; root et aux utilisateurs 
+	identifi&eacute;s; le cryptage STARTTLS ; le port MSA (587) est 
+	activ&eacute; par d&eacute;faut. Voyez le fichier 
+	<filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> pour 
+	plus d'informations. &merged;</para>
+
+	<para>&man.mail.local.8; n'est plus install&eacute; par d&eacute;faut 
+	set-user-ID  <username>bin</username>. Si vous utilisez un fichier 
+	<filename>/etc/mail/sendmail.cf</filename> de la configuration par 
+	d&eacute;faut <filename>sendmail.cf</filename> inclue avec &os; d'une 
+	version sup&eacute;rieure &agrave; 3.1.0, tout va bien. Si vous 
+	utilisez une version personnalis&eacute;e de 
+	<filename>sendmail.cf</filename> et <command>mail.local</command> pour 
+	la distribution, v&eacute;rifiez bien que l'option 
+	<literal>F=S</literal> est mise &agrave; la ligne 
+	<literal>Mlocal</literal>. Les personnes utilisant des fichiers 
+	<filename>.mc</filename> qui doivent ajouter cette option, peuvent le 
+	faire en ajoutant la ligne suivante au fichier <filename>.mc</filename>
+	 et en reg&eacute;n&egrave;rant le fichier 
+	 <filename>sendmail.cf</filename>: </para>
+
+	<programlisting>MODIFY_MAILER_FLAGS(`LOCAL',`+S')dnl</programlisting>
+
+	<para>Notez que <literal>FEATURE(`local_lmtp')</literal> le fait 
+	automatiquement . &merged;</para>
+
+	<para>La configuration par d&eacute;faut de 
+	<filename>/etc/mail/sendmail.cf</filename> d&eacute;sactive les 
+	commandes SMTP <literal>EXPN</literal> et <literal>VRFY</literal>. 
+	&merged;</para>
+
+	<para>&man.vacation.1; a &eacute;t&eacute; mis &agrave; jour en 
+	version inclue dans <application>sendmail</application>.&merged;</para>
+
+	<para>Les outils de configuration de 
+	<application>sendmail</application> sont install&eacute;s dans 
+	<filename>/usr/share/sendmail/cf/</filename>. &merged;</para>
+
+	<para>De nouvelles options sont disponibles dans 
+	<filename>make.conf</filename> :
+	<varname>SENDMAIL_MC</varname> et
+	<varname>SENDMAIL_ADDITIONAL_MC</varname>.  Voyez
+	<filename>/usr/share/examples/etc/make.conf</filename> pour plus 
+	d'informations. &merged;</para>
+
+	<para><filename>/etc/mail/Makefile</filename>; utilise la nouvelle 
+	option <varname>SENDMAIL_MC</varname> de 
+	<filename>make.conf</filename>; peut g&eacute;n&eacute;rer les fichiers
+	 <filename>.cf</filename> depuis les fichiers <filename>.mc</filename>;
+	  g&eacute;n&eacute;ralise la reconstruction des tables de hashage; 
+	  peut reconstruire le fichier des alias; et peut arreter, 
+	  d&eacute;marrer ou relancer  <application>sendmail</application>. 
+	  &merged;</para>
+
+	<para>Les utilisateurs <username>smmsp</username> et 
+	<username>mailnull</username> ont &eacute;t&eacute; ajout&eacute;s 
+	dans <filename>/etc/master.passwd</filename>. En l'absence de valeur 
+	<literal>confDEF_USER_ID</literal>, l'utilisateur 
+	<username>mailnull</username> sera utilis&eacute; par d&eacute;faut 
+	pour augmenter le niveau de s&eacute;curit&eacute;. 
+	Pr&eacute;c&eacute;demment, si l'utilisateur 
+	<username>mailnull</username> &eacute;tait inexistant, l'utilisateur 
+	<username>daemon</username> &eacute;tait utilis&eacute;. Cette 
+	modification peut g&eacute;n&eacute;rer des probl&egrave;mes de 
+	droits lors de l'envoi de courrier a des programmes (comme pour 
+	<filename role="package">mail/majordomo</filename>).&merged; 
+	L'ancienne  fonctionnalit&eacute; peut &ecirc;tre 
+	r&eacute;activ&eacute;e en ajoutant la ligne 
+	<programlisting>define(`confDEF_USER_ID', `daemon')</programlisting> 
+	aux fichiers <filename><replaceable>*</replaceable>.mc</filename> de 
+	configuration.</para>
+      </sect4>
+
 
 
     </sect3>
