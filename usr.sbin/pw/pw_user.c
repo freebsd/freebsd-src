@@ -36,10 +36,19 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <utmp.h>
+#if defined(USE_MD5RAND)
 #include <md5.h>
+#endif
 #include "pw.h"
 #include "bitmap.h"
 #include "pwupd.h"
+
+#if (MAXLOGNAME-1) > UT_NAMESIZE
+#define LOGNAMESIZE UT_NAMESIZE
+#else
+#define LOGNAMESIZE (MAXLOGNAME-1)
+#endif
 
 static int      print_user(struct passwd * pwd, int pretty);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
@@ -993,7 +1002,7 @@ print_user(struct passwd * pwd, int pretty)
 		  strftime(acexpire, sizeof acexpire, "%c", tptr);
 		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
 		  strftime(pwexpire, sizeof pwexpire, "%c", tptr);
-		printf("Login Name: %-10s   #%-16ld  Group: %-10s   #%ld\n"
+		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
 		       "     Shell: %-26.26s     Office: %s\n"
@@ -1041,7 +1050,7 @@ pw_checkname(u_char *name, int gecos)
 					    name[l]);
 		++l;
 	}
-	if (!gecos && l > MAXLOGNAME)
+	if (!gecos && l > LOGNAMESIZE)
 		cmderr(EX_DATAERR, "name too long `%s'\n", name);
 	return (char *)name;
 }
