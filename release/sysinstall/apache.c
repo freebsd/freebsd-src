@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.27.2.3 1996/12/09 09:28:50 jkh Exp $
+ * $Id: apache.c,v 1.27.2.4 1997/01/15 04:50:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -235,7 +235,7 @@ configApache(dialogMenuItem *self)
     dialog_clear_norefresh();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
-    i = package_add(PACKAGE_APACHE);
+    i = package_add(variable_get(VAR_APACHE_PKG));
     if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
