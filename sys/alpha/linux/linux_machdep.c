@@ -57,13 +57,13 @@ struct linux_select_argv {
 };
 
 int
-linux_execve(struct proc *p, struct linux_execve_args *args)
+linux_execve(struct thread *td, struct linux_execve_args *args)
 {
 	struct execve_args bsd;
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, args->path);
+	CHECKALTEXIST(td, &sg, args->path);
 
 #ifdef DEBUG
 	if (ldebug(execve))
@@ -72,11 +72,11 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	bsd.fname = args->path;
 	bsd.argv = args->argp;
 	bsd.envv = args->envp;
-	return (execve(p, &bsd));
+	return (execve(td, &bsd));
 }
 
 int
-linux_fork(struct proc *p, struct linux_fork_args *args)
+linux_fork(struct thread *td, struct linux_fork_args *args)
 {
 	int error;
 
@@ -84,17 +84,17 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 	if (ldebug(fork))
 		printf(ARGS(fork, ""));
 #endif
-	if ((error = fork(p, (struct fork_args *)args)) != 0)
+	if ((error = fork(td, (struct fork_args *)args)) != 0)
 		return (error);
 
-	if (p->p_retval[1] == 1)
-		p->p_retval[0] = 0;
+	if (td->td_retval[1] == 1)
+		td->td_retval[0] = 0;
 
 	return (0);
 }
 
 int
-linux_vfork(struct proc *p, struct linux_vfork_args *args)
+linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
 	int error;
 
@@ -102,11 +102,11 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	if (ldebug(vfork))
 		printf(ARGS(vfork, ""));
 #endif
-	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
+	if ((error = vfork(td, (struct vfork_args *)args)) != 0)
 		return (error);
 	/* Are we the child? */
-	if (p->p_retval[1] == 1)
-		p->p_retval[0] = 0;
+	if (td->td_retval[1] == 1)
+		td->td_retval[0] = 0;
 	return (0);
 }
 
@@ -117,7 +117,7 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 #define	CLONE_PID	0x1000
 
 int
-linux_clone(struct proc *p, struct linux_clone_args *args)
+linux_clone(struct thread *td, struct linux_clone_args *args)
 {
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
@@ -156,13 +156,13 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	error = 0;
 	start = 0;
 
-	if ((error = fork1(p, ff, &p2)) != 0)
+	if ((error = fork1(td, ff, &p2)) != 0)
 		return (error);
 
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
-	p2->p_addr->u_pcb.pcb_hw.apcb_usp = (unsigned long)args->stack;
+	p2->p_thread.td_pcb->pcb_hw.apcb_usp = (unsigned long)args->stack;
 
 #ifdef DEBUG
 	if (ldebug(clone))
@@ -175,11 +175,11 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	 */
 	mtx_lock_spin(&sched_lock);
 	p2->p_stat = SRUN;
-	setrunqueue(p2);
+	setrunqueue(&p2->p_thread);
 	mtx_unlock_spin(&sched_lock);
 
-	p->p_retval[0] = p2->p_pid;
-	p->p_retval[1] = 0;
+	td->td_retval[0] = p2->p_pid;
+	td->td_retval[1] = 0;
 	return (0);
 }
 
@@ -187,7 +187,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 #define	GUARD_SIZE  (4 * PAGE_SIZE)
 
 int
-linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
+linux_mmap(struct thread *td, struct linux_mmap_args *linux_args)
 {
 	struct mmap_args /* {
 		caddr_t addr;
@@ -285,17 +285,17 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 #endif
 	if (bsd_args.addr == 0)
 		bsd_args.addr = (caddr_t)0x40000000UL;
-	error = mmap(p, &bsd_args);
+	error = mmap(td, &bsd_args);
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(LMSG("mmap returns %d, 0x%lx", error, p->p_retval[0]);
+		printf(LMSG("mmap returns %d, 0x%lx", error, td->td_retval[0]);
 #endif
 	return (error);
 }
 
 int
-linux_rt_sigsuspend(p, uap)
-	struct proc *p;
+linux_rt_sigsuspend(td, uap)
+	struct thread *td;
 	struct linux_rt_sigsuspend_args *uap;
 {
 	int error;
@@ -321,12 +321,12 @@ linux_rt_sigsuspend(p, uap)
 	bmask = stackgap_alloc(&sg, sizeof(sigset_t));
 	linux_to_bsd_sigset(&lmask, bmask);
 	bsd.sigmask = bmask;
-	return (sigsuspend(p, &bsd));
+	return (sigsuspend(td, &bsd));
 }
 
 int
-linux_mprotect(p, uap)
-	struct proc *p;
+linux_mprotect(td, uap)
+	struct thread *td;
 	struct linux_mprotect_args *uap;
 {
 
@@ -335,12 +335,12 @@ linux_mprotect(p, uap)
 		printf(ARGS(mprotect, "%p, 0x%lx, 0x%x)",
 		    (void *)uap->addr, uap->len, uap->prot);
 #endif
-	return (mprotect(p, (void *)uap));
+	return (mprotect(td, (void *)uap));
 }
 
 int
-linux_munmap(p, uap)
-	struct proc *p;
+linux_munmap(td, uap)
+	struct thread *td;
 	struct linux_munmap_args *uap;
 {
 
@@ -349,7 +349,7 @@ linux_munmap(p, uap)
 		printf(ARGS(munmap, "%p, 0x%lx",
 		    (void *)uap->addr, uap->len);
 #endif
-	return (munmap(p, (void *)uap));
+	return (munmap(td, (void *)uap));
 }
 
 /*
@@ -358,12 +358,12 @@ linux_munmap(p, uap)
  */
 
 int
-linux_setpgid(p, uap)
-	struct proc *p;
+linux_setpgid(td, uap)
+	struct thread *td;
 	struct linux_setpgid_args *uap;
 {
 
-	return (setpgid(p, (void *)uap));
+	return (setpgid(td, (void *)uap));
 }
 
 
@@ -374,8 +374,8 @@ static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 };
 
 int
-linux_setrlimit(p, uap)
-	struct proc *p;
+linux_setrlimit(td, uap)
+	struct thread *td;
 	struct linux_setrlimit_args *uap;
 {
 	struct rlimit rlim;
@@ -398,12 +398,12 @@ linux_setrlimit(p, uap)
 	if ((error =
 	   copyin((caddr_t)uap->rlim, (caddr_t)&rlim, sizeof (struct rlimit))))
 		return (error);
-	return dosetrlimit(p,  which, &rlim);
+	return dosetrlimit(td,  which, &rlim);
 }
 
 int
-linux_getrlimit(p, uap)
-	struct proc *p;
+linux_getrlimit(td, uap)
+	struct thread *td;
 	struct linux_getrlimit_args *uap;
 {
 	u_int which;
@@ -421,6 +421,6 @@ linux_getrlimit(p, uap)
 	if (which == -1)
 		return EINVAL;
 
-	return (copyout((caddr_t)&p->p_rlimit[which], (caddr_t)uap->rlim,
-	    sizeof (struct rlimit)));
+	return (copyout((caddr_t)&td->td_proc->p_rlimit[which],
+	    (caddr_t)uap->rlim, sizeof (struct rlimit)));
 }
