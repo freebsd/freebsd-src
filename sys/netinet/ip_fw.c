@@ -1512,7 +1512,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 		}
 		if (nbr < IPFW_DEFAULT_RULE - 100)
 			nbr += 100;
-		ftmp->fw_number = nbr;
+		ftmp->fw_number = frwl->fw_number = nbr;
 	}
 
 	/* Got a valid number; now insert it, keeping the list ordered */
@@ -1928,6 +1928,8 @@ ip_fw_ctl(struct sockopt *sopt)
 			error = EINVAL;
 		} else {
 			error = add_entry(&ip_fw_chain, &frwl);
+			if (!error && sopt->sopt_dir == SOPT_GET)
+				error = sooptcopyout(sopt, &frwl, sizeof frwl);
 		}
 		break;
 
