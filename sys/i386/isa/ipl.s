@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.7 1997/08/10 20:58:58 fsmp Exp $
+ *	$Id: ipl.s,v 1.8 1997/08/10 21:17:55 fsmp Exp $
  */
 
 
@@ -182,8 +182,7 @@ doreti_unpend:
 	 */
 	sti
 	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
-	MP_INSTR_LOCK
-	btrl	%ecx,_ipending
+	MPLOCKED btrl %ecx, _ipending
 	jnc	doreti_next		/* some intr cleared memory copy */
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
@@ -244,8 +243,7 @@ swi_ast_phantom:
 	 * using by using cli, but they are unavoidable for lcall entries.
 	 */
 	cli
-	MP_INSTR_LOCK
-	orl	$SWI_AST_PENDING,_ipending
+	MPLOCKED orl $SWI_AST_PENDING, _ipending
 	subl	%eax,%eax
 	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
 
@@ -283,8 +281,7 @@ splz_next:
 	ALIGN_TEXT
 splz_unpend:
 	bsfl	%ecx,%ecx
-	MP_INSTR_LOCK
-	btrl	%ecx,_ipending
+	MPLOCKED btrl %ecx, _ipending
 	jnc	splz_next
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx

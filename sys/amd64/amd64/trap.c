@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.104 1997/08/12 19:07:42 dyson Exp $
+ *	$Id: trap.c,v 1.1 1997/08/19 20:26:01 smp Exp smp $
  */
 
 /*
@@ -778,6 +778,14 @@ trap_fatal(frame)
 		printf("bio ");
 	if (cpl == 0)
 		printf("none");
+#ifdef SMP
+/**
+ *  XXX FIXME:
+ *	we probably SHOULD have stopped the other CPUs before now!
+ *	another CPU COULD have been touching cpl at this moment...
+ */
+	printf(" <- SMP: XXX");
+#endif
 	printf("\n");
 
 #ifdef KDB
