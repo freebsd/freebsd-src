@@ -338,6 +338,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>CVS</application> has been updated from
+      version 1.11.5 to version 1.11.17.</para>
+
     <para><application>sendmail</application> has been updated from
       version 8.12.11 to version 8.13.1.</para>
 
