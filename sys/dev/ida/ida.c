@@ -33,10 +33,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Generic driver for Compaq SMART RAID adapters.
- *
- * Specific probe routines are in:
- *	pci/ida_pci.c		
- *	i386/eisa/ida_eisa.c
  */
 
 #include <sys/param.h>
