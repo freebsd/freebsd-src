@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.9 1995/01/24 18:52:50 wollman Exp $
+#	$Id: services,v 1.11 1995/04/09 03:02:08 ache Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1507,6 +1507,7 @@ ccmail		3264/tcp   #cc:mail/lotus
 ccmail		3264/udp   #cc:mail/lotus
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
+rsvp-encap	3455/udp   #RSVP encapsulated in UDP
 mapper-nodemgr	3984/tcp   #MAPPER network node manager
 mapper-nodemgr	3984/udp   #MAPPER network node manager
 mapper-mapethd	3985/tcp   #MAPPER TCP/IP server
