@@ -163,7 +163,8 @@ diskLabelEditor(dialogMenuItem *self)
     }
     else if (cnt) {
 	/* Some are already selected */
-	if (variable_get(VAR_NONINTERACTIVE))
+	if (variable_get(VAR_NONINTERACTIVE) &&
+	  !variable_get(VAR_DISKINTERACTIVE))
 	    i = diskLabelNonInteractive(NULL);
 	else
 	    i = diskLabel(NULL);
@@ -173,7 +174,8 @@ diskLabelEditor(dialogMenuItem *self)
 	cnt = deviceCount(devs);
 	if (cnt == 1) {
 	    devs[0]->enabled = TRUE;
-	    if (variable_get(VAR_NONINTERACTIVE))
+	    if (variable_get(VAR_NONINTERACTIVE) &&
+	      !variable_get(VAR_DISKINTERACTIVE))
 		i = diskLabelNonInteractive(devs[0]);
 	    else
 		i = diskLabel(devs[0]);
