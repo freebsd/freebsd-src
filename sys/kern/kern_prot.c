@@ -1030,7 +1030,7 @@ groupmember(gid, cred)
 }
 
 /*
- * `suser_permitted' (which can be set by the kern.security.suser_permitted
+ * `suser_enabled' (which can be set by the kern.security.suser_enabled
  * sysctl) determines whether the system 'super-user' policy is in effect.
  * If it is nonzero, an effective uid of 0 connotes special privilege,
  * overriding many mandatory and discretionary protections.  If it is zero,
@@ -1039,9 +1039,9 @@ groupmember(gid, cred)
  * existing userland programs, and should not be done without careful
  * consideration of the consequences.
  */
-static int	suser_permitted = 1;
-SYSCTL_INT(_kern_security, OID_AUTO, suser_permitted, CTLFLAG_RW,
-    &suser_permitted, 0, "processes with uid 0 have privilege");
+int	suser_enabled = 1;
+SYSCTL_INT(_kern_security, OID_AUTO, suser_enabled, CTLFLAG_RW,
+    &suser_enabled, 0, "processes with uid 0 have privilege");
 
 /*
  * Test whether the specified credentials imply "super-user" privilege.
@@ -1060,7 +1060,7 @@ suser_xxx(cred, proc, flag)
 	struct proc *proc;
 	int flag;
 {
-	if (!suser_permitted)
+	if (!suser_enabled)
 		return (EPERM);
 	if (!cred && !proc) {
 		printf("suser_xxx(): THINK!\n");
