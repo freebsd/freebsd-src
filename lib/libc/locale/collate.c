@@ -60,7 +60,7 @@ __collate_load_tables(const char *encoding)
 	int i, saverr;
 	char collate_version[STR_LEN];
 	char buf[PATH_MAX];
-	char *TMP_substitute_table, *TMP_char_pri_table, *TMP_chain_pri_table;
+	void *TMP_substitute_table, *TMP_char_pri_table, *TMP_chain_pri_table;
 	static char collate_encoding[ENCODING_LEN + 1];
 
 	/* 'encoding' must be already checked. */
@@ -143,15 +143,15 @@ __collate_load_tables(const char *encoding)
 	(void)fclose(fp);
 
 	(void)strcpy(collate_encoding, encoding);
-	(void)memcpy(__collate_substitute_table, TMP_substitute_table,
-		     sizeof(__collate_substitute_table));
-	(void)memcpy(__collate_char_pri_table, TMP_char_pri_table,
-		     sizeof(__collate_char_pri_table));
-	(void)memcpy(__collate_chain_pri_table, TMP_chain_pri_table,
-		     sizeof(__collate_chain_pri_table));
-	free(TMP_substitute_table);
-	free(TMP_char_pri_table);
-	free(TMP_chain_pri_table);
+	if (__collate_substitute_table_ptr != NULL)
+		free(__collate_substitute_table_ptr);
+	__collate_substitute_table_ptr = TMP_substitute_table;
+	if (__collate_char_pri_table_ptr != NULL)
+		free(__collate_char_pri_table_ptr);
+	__collate_char_pri_table_ptr = TMP_char_pri_table;
+	if (__collate_chain_pri_table_ptr != NULL)
+		free(__collate_chain_pri_table_ptr);
+	__collate_chain_pri_table_ptr = TMP_chain_pri_table;
 	
 	__collate_substitute_nontrivial = 0;
 	for (i = 0; i < UCHAR_MAX + 1; i++) {
