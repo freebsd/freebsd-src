@@ -3,7 +3,7 @@
 .\" the file /usr/src/bin/f2c/Notice states:
 .\"
 .\"/****************************************************************
-.\"Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+.\"Copyright 1990 - 1997 by AT&T Bell Laboratories and Bellcore.
 .\"
 .\"Permission to use, copy, modify, and distribute this software
 .\"and its documentation for any purpose and without fee is hereby
@@ -35,12 +35,15 @@
 .Nm f2c
 .Op Fl AaCcEfgpRrsUuw
 .Op Fl C++
+.Op Fl cd
+.Op Fl d Ar dir
 .Op Fl ec
 .Op Fl e1c
 .Op Fl ext
 .Op Fl h Ns Op Cm d
 .Op Fl \&I2
 .Op Fl \&i2
+.Op Fl i90
 .Op Fl kr Ns Op Cm d
 .Op Fl o Ar name
 .Op Fl onetrip
@@ -96,6 +99,14 @@ Compile code to check that subscripts are within declared array bounds.
 Output C++ code.
 .It Fl c
 Include original Fortran source as comments.
+.It Fl cd
+Do not recognize cdabs, cdcos, cdexp, cdlog, cdsin, and
+cdsqrt as synonyms for the double complex intrinsics
+zabs, zcos, zexp, zlog, zsin, and zsqrt, respectively.
+.It Fl d Ar dir
+Write `.c' files in directory 
+.Ar dir 
+instead of the current directory
 .It Fl E
 Declare uninitialized COMMON to be Extern (overridably defined in
 .Pa f2c.h
@@ -150,6 +161,9 @@ and
 .Fl Df2c_i2 ),
 so INTEGER and LOGICAL variables may be assigned by INQUIRE and array lengths
 are stored in short ints
+.It Fl i90 
+Do not recognize the Fortran 90 bit-manipulation intrinsics btest,
+iand, ibclr, ibits, ibset, ieor, ior, ishft, and ishftc.
 .It Fl kr Ns Op Cm d
 Use temporary values to enforce Fortran expression evaluation
 where K&R (first edition) parenthesization rules allow rearrangement.

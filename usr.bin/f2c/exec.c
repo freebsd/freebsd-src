@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1993 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -536,12 +536,16 @@ exdo(int range, Namep loopname, chainp spec)
 /* Declare the loop initialization value, casting it properly and declaring a
    register if need be */
 
+	ctlstack->doinit = 0;
 	if (ISCONST (DOINIT) || !onetripflag)
 /* putx added 6-29-89 (mwm), not sure if fixtype is required, but I doubt it
    since mkconv is called just before */
 		doinit = putx (mkconv (dotype, DOINIT));
-	else {
-	    doinit = (expptr) mktmp(dotype, ENULL);
+	else  {
+	    if (onetripflag)
+	   	ctlstack->doinit = doinit = (expptr) mktmp0(dotype, ENULL);
+	    else
+		doinit = (expptr) mktmp(dotype, ENULL);
 	    puteq (cpexpr (doinit), DOINIT);
 	} /* else */
 
@@ -601,7 +605,8 @@ exdo(int range, Namep loopname, chainp spec)
 	if (onetripflag)
 	    test = mkexpr (OPOR, test,
 		    mkexpr (OPEQ, cpexpr((expptr)dovarp), cpexpr (doinit)));
-	init = mkexpr (OPASSIGN, cpexpr((expptr)dovarp), doinit);
+	init = mkexpr (OPASSIGN, cpexpr((expptr)dovarp),
+			ctlstack->doinit ? cpexpr(doinit) : doinit);
 	inc = mkexpr (OPPLUSEQ, (expptr)dovarp, cpexpr (ctlstack -> dostep));
 
 	if (!onetripflag && ISCONST (ctlstack -> domax) && ISCONST (doinit)
@@ -697,6 +702,8 @@ enddo(int here)
 					frtemp((Addrp)e);
 				else
 					frexpr(e);
+			if (e = ctlstack->doinit)
+				frtemp((Addrp)e);
 			}
 		else if (ctlstack->dowhile)
 			p1for_end ();

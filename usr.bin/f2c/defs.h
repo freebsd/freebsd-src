@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1995 by AT&T Bell Laboratories, Bellcore.
+Copyright 1990 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "sysdep.h"
@@ -75,7 +75,7 @@ extern long headoffset;		/* Since the header block requires data we
 extern char main_alias[];	/* name given to PROGRAM psuedo-op */
 extern char *token;
 extern int maxtoklen, toklen;
-extern long lineno;
+extern long err_lineno, lineno;
 extern char *infname;
 extern int needkwd;
 extern struct Labelblock *thislabel;
@@ -150,7 +150,7 @@ extern flag multitype;	/* YES iff there is more than one return value
 			   possible */
 extern int blklevel;
 extern long lastiolabno;
-extern int lastlabno;
+extern long lastlabno;
 extern int lastvarno;
 extern int lastargslot;	/* integer offset pointing to the next free
 			   location for an argument to the current routine */
@@ -227,6 +227,7 @@ struct Ctlframe
 	int ctlabels[4];	/* Control labels, defined below */
 	int dolabel;		/* label marking end of this DO loop */
 	Namep donamep;		/* DO index variable */
+	expptr doinit;		/* for use with -onetrip */
 	expptr domax;		/* constant or temp variable holding MAX
 				   loop value; or expr of while(expr) */
 	expptr dostep;		/* expression */
@@ -359,7 +360,7 @@ extern struct Hashentry *lasthash;
 
 struct Intrpacked	/* bits for intrinsic function description */
 	{
-	unsigned f1:3;
+	unsigned f1:4;
 	unsigned f2:4;
 	unsigned f3:7;
 	unsigned f4:1;
@@ -714,9 +715,9 @@ struct Eqvchain
 struct Literal
 	{
 	short littype;
-	short litnum;			/* numeric part of the assembler
+	short lituse;		/* usage count */
+	long litnum;			/* numeric part of the assembler
 					   label for this constant value */
-	int lituse;		/* usage count */
 	union	{
 		ftnint litival;
 		double litdval[2];
@@ -958,7 +959,7 @@ int	ncat Argdcl((expptr));
 void	negate_const Argdcl((Constp));
 void	new_endif(Void);
 Extsym*	newentry Argdcl((Namep, int));
-int	newlabel(Void);
+long	newlabel(Void);
 void	newproc(Void);
 Addrp	nextdata Argdcl((long*));
 void	nice_printf Argdcl((FILEP, char*, ...));
@@ -1019,6 +1020,7 @@ void	setimpl Argdcl((int, long, int, int));
 void	setintr Argdcl((Namep));
 void	settype Argdcl((Namep, int, long));
 void	sigcatch Argdcl((int));
+void	sserr Argdcl((Namep));
 void	start_formatting(Void);
 void	startioctl(Void);
 void	startproc Argdcl((Extsym*, int));

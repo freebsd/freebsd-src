@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -140,8 +140,20 @@ new_arg_length(Namep arg)
 #endif
 {
 	static char buf[64];
-	sprintf (buf, "%s_len", arg->fvarname);
-
+	char *fmt = "%s_len", *s = arg->fvarname;
+	switch(*s) {
+	  case 'r':
+		if (!strcmp(s+1, "et_val"))
+			goto adjust_fmt;
+		break;
+	  case 'h':
+	  case 'i':
+		if (!s[1]) {
+ adjust_fmt:
+			fmt = "%s_length"; /* avoid conflict with libF77 */
+			}
+	  }
+	sprintf (buf, fmt, s);
 	return buf;
 } /* new_arg_length */
 
@@ -241,7 +253,7 @@ lit_name(struct Literal *litp)
 	case TYINT1:
 		val = litp -> litval.litival;
 		if (val >= 256 || val < -255)
-			sprintf (buf, "ci1_b%d", litp -> litnum);
+			sprintf (buf, "ci1_b%ld", litp -> litnum);
 		else if (val < 0)
 			sprintf (buf, "ci1_n%ld", -val);
 		else
@@ -250,7 +262,7 @@ lit_name(struct Literal *litp)
         case TYSHORT:
 		val = litp -> litval.litival;
 		if (val >= 32768 || val <= -32769)
-			sprintf (buf, "cs_b%d", litp -> litnum);
+			sprintf (buf, "cs_b%ld", litp -> litnum);
 		else if (val < 0)
 			sprintf (buf, "cs_n%ld", -val);
 		else
@@ -262,7 +274,7 @@ lit_name(struct Literal *litp)
 #endif
 		val = litp -> litval.litival;
 		if (val >= 100000 || val <= -10000)
-			sprintf (buf, "c_b%d", litp -> litnum);
+			sprintf (buf, "c_b%ld", litp -> litnum);
 		else if (val < 0)
 			sprintf (buf, "c_n%ld", -val);
 		else
@@ -294,7 +306,7 @@ lit_name(struct Literal *litp)
 	case TYDCOMPLEX:
 	case TYSUBR:
 	default:
-		sprintf (buf, "c_b%d", litp -> litnum);
+		sprintf (buf, "c_b%ld", litp -> litnum);
     } /* switch */
     return buf;
 } /* lit_name */
@@ -815,8 +827,9 @@ char *c_keywords[] = {
 	"protected", "public", "r", "real", "register", "return",
 	"short", "shortint", "shortlogical", "signed", "sin", "sinh",
 	"sizeof", "sqrt", "static", "struct", "switch", "tan", "tanh",
-	"template", "this", "try", "type", "typedef", "union",
-	"unsigned", "vars", "virtual", "void", "volatile", "while", "z"
+	"template", "this", "try", "type", "typedef", "uinteger",
+	"ulongint", "union", "unsigned", "vars", "virtual", "void",
+	"volatile", "while", "z"
 	}; /* c_keywords */
 
 int n_keywords = sizeof(c_keywords)/sizeof(char *);
