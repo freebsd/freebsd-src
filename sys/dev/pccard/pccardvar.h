@@ -60,7 +60,6 @@ struct pccard_mem_handle {
 	bus_addr_t      addr;		/* resulting address in bus space */
 	bus_size_t      size;		/* size of mem space */
 	bus_size_t      realsize;	/* how much we really allocated */
-	long		offset;		/* mapped Offset on card */
 	bus_addr_t	cardaddr;	/* Absolute address on card */
 	int		kind;
 };
