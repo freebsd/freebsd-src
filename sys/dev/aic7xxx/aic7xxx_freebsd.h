@@ -43,6 +43,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -165,6 +166,7 @@ struct ahc_platform_data {
 	struct resource		*regs;
 	struct resource		*irq;
 	void			*ih;
+	eventhandler_tag	 eh;
 };
 
 struct scb_platform_data {
@@ -451,11 +453,20 @@ void	  ahc_notify_xfer_settings_change(struct ahc_softc *,
 void	  ahc_platform_set_tags(struct ahc_softc *, struct ahc_devinfo *,
 				int /*enable*/);
 
-/***************************** Initialization *********************************/
+/************************* Initialization/Teardown ****************************/
 int	  ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
 void	  ahc_platform_free(struct ahc_softc *ahc);
 int	  ahc_attach(struct ahc_softc *);
 int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
+int	  ahc_detach(device_t);
+
+/****************************** Interrupts ************************************/
+void			ahc_platform_intr(void *);
+static __inline void	ahc_platform_flushwork(struct ahc_softc *ahc);
+static __inline void
+ahc_platform_flushwork(struct ahc_softc *ahc)
+{
+}
 
 /************************ Misc Function Declarations **************************/
 timeout_t ahc_timeout;
