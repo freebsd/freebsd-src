@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.21 1997/03/29 02:43:49 kato Exp $
+ *	$Id: pc98.c,v 1.22 1997/04/11 12:29:51 kato Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
  */
 
 #include "opt_auto_eoi.h"
+#include "opt_smp.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -62,6 +63,10 @@
 #include <sys/malloc.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#if defined(APIC_IO)
+#include <machine/smp.h>
+#include <machine/apic.h>
+#endif /* APIC_IO */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -77,6 +82,14 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include "vector.h"
+
+#ifdef APIC_IO
+/*
+ * This is to accommodate "mixed-mode" programming for 
+ * motherboards that don't connect the 8254 to the IO APIC.
+ */
+#define AUTO_EOI_1
+#endif
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
@@ -116,6 +129,16 @@ static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr10), &IDTVEC(fastintr11),
 	&IDTVEC(fastintr12), &IDTVEC(fastintr13),
 	&IDTVEC(fastintr14), &IDTVEC(fastintr15)
+#if defined(APIC_IO)
+	, &IDTVEC(fastintr16), &IDTVEC(fastintr17),
+	&IDTVEC(fastintr18), &IDTVEC(fastintr19),
+	&IDTVEC(fastintr20), &IDTVEC(fastintr21),
+	&IDTVEC(fastintr22), &IDTVEC(fastintr23)
+#if defined(IPI_INTS)
+/* XXX probably NOT needed, we register_intr(slowintr[I]) */ 
+	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
+#endif /* IPI_INTS */
+#endif /* APIC_IO */
 };
 
 static inthand_t *slowintr[ICU_LEN] = {
@@ -123,6 +146,13 @@ static inthand_t *slowintr[ICU_LEN] = {
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
 	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
 	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15)
+#if defined(APIC_IO)
+	, &IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
+	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23)
+#if defined(IPI_INTS)
+	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
+#endif /* IPI_INTS */
+#endif /* APIC_IO */
 };
 
 static void config_isadev __P((struct isa_device *isdp, u_int *mp));
@@ -1016,6 +1046,39 @@ struct isa_device *find_isadev(table, driverp, unit)
 /*
  * Return nonzero if a (masked) irq is pending for a given device.
  */
+#if defined(APIC_IO)
+
+int
+isa_irq_pending(dvp)
+	struct isa_device *dvp;
+{
+	/* read APIC IRR containing the 16 ISA INTerrupts */
+#if defined(TEST_UPPERPRIO)
+	if ((u_int32_t)dvp->id_irq == APIC_IRQ10)
+		return (int)(apic_base[APIC_IRR2] & 1);
+	else
+#endif /** TEST_UPPERPRIO */
+		return ((apic_base[APIC_IRR1] & 0x00ffffff)
+		    & (u_int32_t)dvp->id_irq) ? 1 : 0;
+}
+
+/*
+ * an 8259 specific routine,
+ * for use by boot probes in certain device drivers.
+ */
+int
+icu_irq_pending(dvp)
+	struct isa_device *dvp;
+{
+	unsigned id_irq;
+	id_irq = dvp->id_irq;
+	if (id_irq & 0xff)
+		return (inb(IO_ICU1) & id_irq);
+	return (inb(IO_ICU2) & (id_irq >> 8));
+}
+
+#else /* APIC_IO */
+
 int
 isa_irq_pending(dvp)
 	struct isa_device *dvp;
@@ -1028,6 +1091,8 @@ isa_irq_pending(dvp)
 	return (inb(IO_ICU2) & (id_irq >> 8));
 }
 
+#endif /* APIC_IO */
+
 int
 update_intr_masks(void)
 {
@@ -1035,11 +1100,15 @@ update_intr_masks(void)
 	u_int mask,*maskptr;
 
 	for (intr=0; intr < ICU_LEN; intr ++) {
-#ifdef PC98
-		if (intr==7) continue;
+#if defined(APIC_IO)
+		/* no 8259 SLAVE to ignore */
 #else
-		if (intr==2) continue;
+#ifdef PC98
+		if (intr==7) continue;	/* ignore 8259 SLAVE output */
+#else
+		if (intr==2) continue;	/* ignore 8259 SLAVE output */
 #endif
+#endif /* APIC_IO */
 		maskptr = intr_mptr[intr];
 		if (!maskptr) continue;
 		*maskptr |= 1 << intr;
@@ -1071,11 +1140,15 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	int	id;
 	u_int	mask = (maskptr ? *maskptr : 0);
 
+#if defined(APIC_IO)
+	if ((u_int)intr >= ICU_LEN	/* no 8259 SLAVE to ignore */
+#else
 #ifdef PC98
 	if ((u_int)intr >= ICU_LEN || intr == 7
 #else
 	if ((u_int)intr >= ICU_LEN || intr == 2
 #endif
+#endif /* APIC_IO */
 	    || (u_int)device_id >= NR_DEVICES)
 		return (EINVAL);
 	if (intr_handler[intr] != isa_strayintr)
@@ -1087,9 +1160,24 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	intr_mptr[intr] = maskptr;
 	intr_mask[intr] = mask | (1 << intr);
 	intr_unit[intr] = unit;
+#if defined(TEST_UPPERPRIO)
+	if (intr == 10) {
+	    printf("--- setting IRQ10 to IDT64\n");
+	    setidt(64,
+	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	}
+	else {
+	    printf("setting IRQ%02d to IDT%02d\n", intr, ICU_OFFSET+intr);
+	    setidt(ICU_OFFSET + intr,
+	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	}
+#else
 	setidt(ICU_OFFSET + intr,
 	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif /** TEST_UPPERPRIO */
 	write_eflags(ef);
 	for (cp = intrnames, id = 0; id <= device_id; id++)
 		while (*cp++ != '\0')
@@ -1099,9 +1187,12 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	if (intr < 10) {
 		cp[-3] = intr + '0';
 		cp[-2] = ' ';
-	} else {
+	} else if (intr < 20) {
 		cp[-3] = '1';
 		cp[-2] = intr - 10 + '0';
+	} else {
+		cp[-3] = '2';
+		cp[-2] = intr - 20 + '0';
 	}
 	return (0);
 }
