@@ -1718,9 +1718,9 @@ device		miibus
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
 # bge:	Support for gigabit ethernet adapters based on the Broadcom
-#	BCM570x familiy of controllers, including the 3Com 3c996-T,
-#	the SysKonnect SK-9D21 and SK-9D41, and the embedded gigE NICs
-#	on Dell PowerEdge 2550 servers.
+#	BCM570x family of controllers, including the 3Com 3c996-T,
+#	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
+#	the embedded gigE NICs on Dell PowerEdge 2550 servers.
 # cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
