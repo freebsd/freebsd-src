@@ -88,13 +88,18 @@ etc.  Up to
 .Dv NG_PPP_MAX_LINKS
 links are supported.
 These device-independent hooks transmit and receive full PPP
-frames, which include the PPP protocol field, but no address, control
-or checksum fields.
+frames, which include the PPP protocol, address, control, and
+information fields, but no checksum or other link-specific fields.
+.Pp
 On outgoing frames, when protocol compression
 has been enabled and the protocol number is suitable for compression,
 the protocol field will be compressed (i.e., sent as one byte
 instead of two).  Either compressed or uncompressed protocol fields
-are accepted on incoming frames.
+are accepted on incoming frames.  Similarly, if address and control
+field compression has been enabled for the link, the address and
+control fields will be omitted (except for LCP frames as required
+by the standards).  Incoming frames have the address and control fields
+stripped automatically if present.
 .Pp
 Since all negotiation is handled outside the PPP node, the links
 should not be connected and enabled until the corresponding link
@@ -113,7 +118,6 @@ hook as well.  This mode is appropriate for the link authentication phase.
 As soon as the link is enabled, the PPP node will
 begin processing frames received on the link.
 .Sh COMPRESSION AND ENCRYPTION
-.Pp
 Compression is supported via two hooks,
 .Dv compress
 and
@@ -284,7 +288,39 @@ and enabling protocol field compression.  Note that no link or functionality
 is active until the corresponding hook is also connected.
 This command takes a
 .Dv "struct ng_ppp_node_config"
-as an argument.
+as an argument:
+.Bd -literal -offset 0
+/* Per-link config structure */
+struct ng_ppp_link_config {
+  u_char    enableLink;     /* enable this link */
+  u_char    enableProtoComp;/* enable protocol field compression */
+  u_char    enableACFComp;  /* enable addr/ctrl field compression */
+  u_int16_t mru;            /* peer MRU */
+  u_int32_t latency;        /* link latency (in milliseconds) */
+  u_int32_t bandwidth;      /* link bandwidth (in bytes/second) */
+};
+
+/* Node config structure */
+struct ng_ppp_node_config {
+  u_int16_t mrru;                   /* multilink peer MRRU */
+  u_char    enableMultilink;        /* enable multilink */
+  u_char    recvShortSeq;           /* recv multilink short seq # */
+  u_char    xmitShortSeq;           /* xmit multilink short seq # */
+  u_char    enableRoundRobin;       /* xmit whole packets */
+  u_char    enableIP;               /* enable IP data flow */
+  u_char    enableAtalk;            /* enable AppleTalk data flow */
+  u_char    enableIPX;              /* enable IPX data flow */
+  u_char    enableCompression;      /* enable PPP compression */
+  u_char    enableDecompression;    /* enable PPP decompression */
+  u_char    enableEncryption;       /* enable PPP encryption */
+  u_char    enableDecryption;       /* enable PPP decryption */
+  u_char    enableVJCompression;    /* enable VJ compression */
+  u_char    enableVJDecompression;  /* enable VJ decompression */
+  struct ng_ppp_link_config          /* per link config params */
+            links[NG_PPP_MAX_LINKS];
+};
+.Ed
+.Pp
 .It Dv NGM_PPP_GET_CONFIG
 Returns the current configuration as a
 .Dv "struct ng_ppp_node_config" .
@@ -308,7 +344,12 @@ This node type also accepts the control messages accepted by the
 node type. When received, these messages are simply forwarded to
 the adjacent
 .Xr ng_vjc 8
-node, if any.
+node, if any.  This is particularly useful when the individual
+PPP links are able to generate
+.Dv NGM_VJC_RECV_ERROR
+messages (see
+.Xr ng_vjc 8
+for a description).
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
