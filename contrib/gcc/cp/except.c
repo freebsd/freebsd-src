@@ -1614,9 +1614,15 @@ emit_exception_table ()
 void
 register_exception_table ()
 {
+  rtx addr = gen_rtx (SYMBOL_REF, Pmode, "__EXCEPTION_TABLE__");
+
+#ifdef MARK_LOCAL_ADDRESS
+  MARK_LOCAL_ADDRESS(addr);
+#endif
+
   emit_library_call (gen_rtx (SYMBOL_REF, Pmode, "__register_exceptions"), 0,
 		     VOIDmode, 1,
-		     gen_rtx (SYMBOL_REF, Pmode, "__EXCEPTION_TABLE__"),
+		     addr,
 		     Pmode);
 }
 
