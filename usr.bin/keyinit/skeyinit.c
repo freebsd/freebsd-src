@@ -5,7 +5,6 @@
 #include <string.h>
 #include <pwd.h>
 #include <skey.h>
-#include <stdio.h>
 #include <time.h>
 
 extern int optind;
@@ -13,7 +12,7 @@ extern char *optarg;
 
 char * readpass();
 
-int skeylookup __ARGS((struct skey *mp,char *name));
+int skeylookup __P((struct skey *mp,char *name));
 
 #define NAMELEN 2
 int
