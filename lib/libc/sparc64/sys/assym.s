@@ -7,6 +7,9 @@
 
 #define	FPRS_FEF	0x4
 
+#define	CCR_MASK	0xff
+#define	ASI_MASK	0xff
+
 #define	UF_G0		0x0
 #define	UF_G1		0x8
 #define	UF_G2		0x10
@@ -23,10 +26,12 @@
 #define	UF_O5		0x68
 #define	UF_O6		0x70
 #define	UF_O7		0x78
-#define	UF_PC		0x90
-#define	UF_NPC		0x98
-#define	UF_SFAR		0xa0
-#define	UF_SFSR		0xa8
-#define	UF_TAR		0xb0
-#define	UF_TYPE		0xb8
+#define	UF_PC		0x80
+#define	UF_NPC		0x88
+#define	UF_SFAR		0x90
+#define	UF_SFSR		0x98
+#define	UF_TAR		0xa0
+#define	UF_TYPE		0xa8
+#define	UF_STATE	0xb0
+#define	UF_FSR		0xb8
 #define	UF_SIZEOF	0xc0
