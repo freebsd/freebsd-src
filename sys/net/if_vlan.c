@@ -591,9 +591,15 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		VLAN_UNLOCK();
 		m_freem(m);
 		ifp->if_noproto++;
+#ifdef DEBUG
+		printf("vlan_input: tag %d, no interface\n", tag);
+#endif
 		return;	
 	}
 	VLAN_UNLOCK();		/* XXX extend below? */
+#ifdef DEBUG
+	printf("vlan_input: tag %d, parent %s\n", tag, ifv->ifv_p->if_xname);
+#endif
 
 	if (mtag == NULL) {
 		/*
