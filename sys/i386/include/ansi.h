@@ -38,6 +38,36 @@
 #define	_MACHINE_ANSI_H_
 
 /*
+ * Typedefs for especially magic types.  #define's wouldn't work in the
+ * __GNUC__ case, since __attribute__(()) only works in certain contexts.
+ * This is not in <machine/types.h>, since that has too much namespace
+ * pollution for inclusion in ANSI headers, yet we need __int64_t in at
+ * least <stdio.h>.
+ */
+#ifdef __GNUC__
+typedef	int __attribute__((__mode__(__DI__)))		 __int64_t;
+typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
+#else
+/* LONGLONG */
+typedef	long long					 __int64_t;
+/* LONGLONG */
+typedef	unsigned long long				__uint64_t;
+#endif
+/*
+ * Internal names for basic integral types.  Omit the typedef if
+ * not possible for a machine/compiler combination.
+ */
+typedef	__signed char		   __int8_t;
+typedef	unsigned char		  __uint8_t;
+typedef	short			  __int16_t;
+typedef	unsigned short		 __uint16_t;
+typedef	int			  __int32_t;
+typedef	unsigned int		 __uint32_t;
+
+typedef	int			 __intptr_t;
+typedef	unsigned int		__uintptr_t;
+
+/*
  * Types which are fundamental to the implementation and must be declared
  * in more than one standard header are defined here.  Standard headers
  * then use:
@@ -97,35 +127,5 @@
  * We define this here since both <stddef.h> and <sys/types.h> needs it.
  */
 #define __offsetof(type, field) ((size_t)(&((type *)0)->field))
-
-/*
- * Typedefs for especially magic types.  #define's wouldn't work in the
- * __GNUC__ case, since __attribute__(()) only works in certain contexts.
- * This is not in <machine/types.h>, since that has too much namespace
- * pollution for inclusion in ANSI headers, yet we need __int64_t in at
- * least <stdio.h>.
- */
-#ifdef __GNUC__
-typedef	int __attribute__((__mode__(__DI__)))		 __int64_t;
-typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
-#else
-/* LONGLONG */
-typedef	long long					 __int64_t;
-/* LONGLONG */
-typedef	unsigned long long				__uint64_t;
-#endif
-/*
- * Internal names for basic integral types.  Omit the typedef if
- * not possible for a machine/compiler combination.
- */
-typedef	__signed char		   __int8_t;
-typedef	unsigned char		  __uint8_t;
-typedef	short			  __int16_t;
-typedef	unsigned short		 __uint16_t;
-typedef	int			  __int32_t;
-typedef	unsigned int		 __uint32_t;
-
-typedef	int			 __intptr_t;
-typedef	unsigned int		__uintptr_t;
 
 #endif /* !_MACHINE_ANSI_H_ */
