@@ -32,14 +32,19 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id$
+ *	$Id: in_cksum.c,v 1.10 1997/02/22 09:32:20 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 
-extern int	in_cksum __P((struct mbuf *m, int len));
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+
+#include <machine/in_cksum.h>
 
 /*
  * Checksum routine for Internet Protocol family headers.
@@ -236,4 +241,172 @@ in_cksum(m, len)
 	}
 	REDUCE;
 	return (~sum & 0xffff);
+}
+
+/*
+ * This is the exact same algorithm as above with a few exceptions:
+ * (1) it is designed to operate on buffers, not mbufs
+ * (2) it returns an intermediate form of the sum which has to be
+ *     explicitly finalized (but this can be delayed)
+ * (3) it accepts an intermediate sum
+ *
+ * This is particularly useful when building packets quickly,
+ * since one can compute the checksum of the pseudoheader ahead of
+ * time and then use this function to complete the work.  That way,
+ * the pseudoheader never actually has to exist in the packet buffer,
+ * which avoids needless duplication of work.
+ */
+in_psum_t
+in_cksum_partial(psum, w, len)
+	in_psum_t psum;
+	const u_short *w;
+	int len;
+{
+	register in_psum_t sum = psum;
+	int byte_swapped = 0;
+	union { char	c[2]; u_short	s; } su;
+
+	/*
+	 * Force to long boundary so we do longword aligned
+	 * memory operations
+	 */
+	if (3 & (int) w) {
+		REDUCE;
+		if ((1 & (int) w) && (len > 0)) {
+			sum <<= 8;
+			su.c[0] = *(char *)w;
+			w = (u_short *)((char *)w + 1);
+			len--;
+			byte_swapped = 1;
+		}
+		if ((2 & (int) w) && (len >= 2)) {
+			sum += *w++;
+			len -= 2;
+		}
+	}
+	/*
+	 * Advance to a 486 cache line boundary.
+	 */
+	if (4 & (int) w && len >= 4) {
+		ADD(0);
+		MOP;
+		w += 2;
+		len -= 4;
+	}
+	if (8 & (int) w && len >= 8) {
+		ADD(0);
+		ADDC(4);
+		MOP;
+		w += 4;
+		len -= 8;
+	}
+	/*
+	 * Do as much of the checksum as possible 32 bits at at time.
+	 * In fact, this loop is unrolled to make overhead from
+	 * branches &c small.
+	 */
+	len -= 1;
+	while ((len -= 32) >= 0) {
+		u_char junk;
+		/*
+		 * Add with carry 16 words and fold in the last
+		 * carry by adding a 0 with carry.
+		 *
+		 * The early ADD(16) and the LOAD(32) are to load
+		 * the next 2 cache lines in advance on 486's.  The
+		 * 486 has a penalty of 2 clock cycles for loading
+		 * a cache line, plus whatever time the external
+		 * memory takes to load the first word(s) addressed.
+		 * These penalties are unavoidable.  Subsequent
+		 * accesses to a cache line being loaded (and to
+		 * other external memory?) are delayed until the
+		 * whole load finishes.  These penalties are mostly
+		 * avoided by not accessing external memory for
+		 * 8 cycles after the ADD(16) and 12 cycles after
+		 * the LOAD(32).  The loop terminates when len
+		 * is initially 33 (not 32) to guaranteed that
+		 * the LOAD(32) is within bounds.
+		 */
+		ADD(16);
+		ADDC(0);
+		ADDC(4);
+		ADDC(8);
+		ADDC(12);
+		LOAD(32);
+		ADDC(20);
+		ADDC(24);
+		ADDC(28);
+		MOP;
+		w += 16;
+	}
+	len += 32 + 1;
+	if (len >= 32) {
+		ADD(16);
+		ADDC(0);
+		ADDC(4);
+		ADDC(8);
+		ADDC(12);
+		ADDC(20);
+		ADDC(24);
+		ADDC(28);
+		MOP;
+		w += 16;
+		len -= 32;
+	}
+	if (len >= 16) {
+		ADD(0);
+		ADDC(4);
+		ADDC(8);
+		ADDC(12);
+		MOP;
+		w += 8;
+		len -= 16;
+	}
+	if (len >= 8) {
+		ADD(0);
+		ADDC(4);
+		MOP;
+		w += 4;
+		len -= 8;
+	}
+	if (len == 0 && byte_swapped == 0)
+		goto out;
+	REDUCE;
+	while ((len -= 2) >= 0) {
+		sum += *w++;
+	}
+	if (byte_swapped) {
+		sum <<= 8;
+		byte_swapped = 0;
+		if (len == -1) {
+			su.c[1] = *(char *)w;
+			sum += su.s;
+			len = 0;
+		} else
+			len = -1;
+	} else if (len == -1) {
+		/*
+		 * This buffer has odd number of bytes.
+		 * There could be a word split betwen
+		 * this buffer and the next.
+		 */
+		su.c[0] = *(char *)w;
+	}
+out:
+	if (len == -1) {
+		/* The last buffer has odd # of bytes. Follow the
+		   standard (the odd byte is shifted left by 8 bits) */
+		su.c[1] = 0;
+		sum += su.s;
+	}
+	return sum;
+}
+
+int
+in_cksum_finalize(psum)
+	in_psum_t psum;
+{
+	in_psum_t sum = psum;
+	REDUCE;
+	return (sum & 0xffff);
 }

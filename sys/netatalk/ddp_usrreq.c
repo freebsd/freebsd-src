@@ -19,11 +19,13 @@
 #include <netatalk/at_extern.h>
 
 static void at_pcbdisconnect( struct ddpcb *ddp );
-static void at_sockaddr( struct ddpcb *ddp, struct mbuf *addr );
-static int at_pcbsetaddr( struct ddpcb *ddp, struct mbuf *addr, struct proc *p);
-static int at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p);
-static void at_pcbdetach( struct socket *so, struct ddpcb *ddp);
-static int at_pcballoc( struct socket *so );
+static void at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr);
+static int at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr,
+			  struct proc *p);
+static int at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, 
+			 struct proc *p);
+static void at_pcbdetach(struct socket *so, struct ddpcb *ddp);
+static int at_pcballoc(struct socket *so);
 
 struct ddpcb	*ddp_ports[ ATPORT_LAST ];
 struct ddpcb	*ddpcb = NULL;
@@ -71,7 +73,7 @@ ddp_detach(struct socket *so)
 }
 
 static int      
-ddp_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+ddp_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -82,13 +84,13 @@ ddp_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 	    return( EINVAL);
 	}
 	s = splnet();
-	error = at_pcbsetaddr( ddp, nam, p );
+	error = at_pcbsetaddr(ddp, nam, p);
 	splx(s);
 	return (error);
 }
     
 static int
-ddp_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+ddp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -151,7 +153,7 @@ ddp_shutdown(struct socket *so)
 }
 
 static int
-ddp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
+ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
             struct mbuf *control, struct proc *p)
 {
 	struct ddpcb	*ddp;
@@ -173,7 +175,7 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
 		}
 
 		s = splnet();
-		error = at_pcbconnect( ddp, addr, p );
+		error = at_pcbconnect(ddp, addr, p);
 		splx( s );
 		if ( error ) {
 			return(error);
@@ -212,17 +214,16 @@ ddp_abort(struct socket *so)
 
 
 static void
-at_sockaddr( struct ddpcb *ddp, struct mbuf *addr)
+at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr)
 {
     struct sockaddr_at	*sat;
 
-    addr->m_len = sizeof( struct sockaddr_at );
-    sat = mtod( addr, struct sockaddr_at *);
     *sat = ddp->ddp_lsat;
+    *addr = dup_sockaddr((struct sockaddr *)&ddp->ddp_lsat, 0);
 }
 
 static int 
-at_pcbsetaddr( struct ddpcb *ddp, struct mbuf *addr, struct proc *p )
+at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 {
     struct sockaddr_at	lsat, *sat;
     struct at_ifaddr	*aa;
@@ -232,13 +233,10 @@ at_pcbsetaddr( struct ddpcb *ddp, struct mbuf *addr, struct proc *p )
 	return( EINVAL );
     }
 
-    if ( addr != 0 ) {			/* validate passed address */
-	sat = mtod( addr, struct sockaddr_at *);
-	if ( addr->m_len != sizeof( *sat )) {
-	    return( EINVAL );
-	}
-	if ( sat->sat_family != AF_APPLETALK ) {
-	    return( EAFNOSUPPORT );
+    if (addr != 0) {			/* validate passed address */
+	sat = (struct sockaddr_at *)addr;
+	if (sat->sat_family != AF_APPLETALK) {
+	    return(EAFNOSUPPORT);
 	}
 
 	if ( sat->sat_addr.s_node != ATADDR_ANYNODE ||
@@ -319,18 +317,16 @@ at_pcbsetaddr( struct ddpcb *ddp, struct mbuf *addr, struct proc *p )
 }
 
 static int
-at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
+at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 {
-    struct sockaddr_at	*sat = mtod( addr, struct sockaddr_at *);
+    struct sockaddr_at	*sat = (struct sockaddr_at *)addr;
     struct route	*ro;
     struct at_ifaddr	*aa = 0;
     struct ifnet	*ifp;
     u_short		hintnet = 0, net;
 
-    if ( addr->m_len != sizeof( *sat ))
-	return( EINVAL );
-    if ( sat->sat_family != AF_APPLETALK ) {
-	return( EAFNOSUPPORT );
+    if (sat->sat_family != AF_APPLETALK) {
+	return(EAFNOSUPPORT);
     }
 
     /*
@@ -410,7 +406,7 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 
     ddp->ddp_fsat = *sat;
     if ( ddp->ddp_lsat.sat_port == ATADDR_ANYPORT ) {
-	return( at_pcbsetaddr( ddp, (struct mbuf *)0, p ));
+	return(at_pcbsetaddr(ddp, (struct sockaddr *)0, p));
     }
     return( 0 );
 }
@@ -426,25 +422,24 @@ at_pcbdisconnect( struct ddpcb	*ddp )
 static int
 at_pcballoc( struct socket *so )
 {
-    struct ddpcb	*ddp;
-    struct mbuf		*m;
+	struct ddpcb	*ddp;
 
-    m = m_getclr( M_WAIT, MT_PCB );
-    ddp = mtod( m, struct ddpcb * );
-    ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
+	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_WAITOK);
+	bzero(ddp, sizeof *ddp);
+	ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
 
-    ddp->ddp_next = ddpcb;
-    ddp->ddp_prev = NULL;
-    ddp->ddp_pprev = NULL;
-    ddp->ddp_pnext = NULL;
-    if ( ddpcb ) {
-	ddpcb->ddp_prev = ddp;
-    }
-    ddpcb = ddp;
+	ddp->ddp_next = ddpcb;
+	ddp->ddp_prev = NULL;
+	ddp->ddp_pprev = NULL;
+	ddp->ddp_pnext = NULL;
+	if (ddpcb) {
+		ddpcb->ddp_prev = ddp;
+	}
+	ddpcb = ddp;
 
-    ddp->ddp_socket = so;
-    so->so_pcb = (caddr_t)ddp;
-    return( 0 );
+	ddp->ddp_socket = so;
+	so->so_pcb = (caddr_t)ddp;
+	return(0);
 }
 
 static void
@@ -479,8 +474,7 @@ at_pcbdetach( struct socket *so, struct ddpcb *ddp)
     if ( ddp->ddp_next ) {
 	ddp->ddp_next->ddp_prev = ddp->ddp_prev;
     }
-
-    (void) m_free( dtom( ddp ));
+    FREE(ddp, M_PCB);
 }
 
 /*
@@ -535,13 +529,13 @@ ddp_search( struct sockaddr_at *from, struct sockaddr_at *to,
     return( ddp );
 }
 static int
-at_setpeeraddr(struct socket *so, struct mbuf *nam)
+at_setpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	return(EOPNOTSUPP);
 }
 
 static int
-at_setsockaddr(struct socket *so, struct mbuf *nam)
+at_setsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;

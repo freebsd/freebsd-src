@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.39 1997/07/16 09:06:29 dfr Exp $
+ * $Id: nfs_subs.c,v 1.40 1997/07/22 15:35:57 dfr Exp $
  */
 
 /*
@@ -1429,7 +1429,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	fhandle_t *fhp;
 	int len;
 	struct nfssvc_sock *slp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct mbuf **mdp;
 	caddr_t *dposp;
 	struct vnode **retdirp;
@@ -1840,7 +1840,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	struct vnode **vpp;
 	struct ucred *cred;
 	struct nfssvc_sock *slp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	int *rdonlyp;
 	int kerbflag;
 	int pubflag;
@@ -1925,13 +1925,13 @@ int
 netaddr_match(family, haddr, nam)
 	int family;
 	union nethostaddr *haddr;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 {
 	register struct sockaddr_in *inetaddr;
 
 	switch (family) {
 	case AF_INET:
-		inetaddr = mtod(nam, struct sockaddr_in *);
+		inetaddr = (struct sockaddr_in *)nam;
 		if (inetaddr->sin_family == AF_INET &&
 		    inetaddr->sin_addr.s_addr == haddr->had_inetaddr)
 			return (1);
@@ -1941,8 +1941,8 @@ netaddr_match(family, haddr, nam)
 	    {
 		register struct sockaddr_iso *isoaddr1, *isoaddr2;
 
-		isoaddr1 = mtod(nam, struct sockaddr_iso *);
-		isoaddr2 = mtod(haddr->had_nam, struct sockaddr_iso *);
+		isoaddr1 = (struct sockaddr_iso *)nam;
+		isoaddr2 = (struct sockaddr_iso *)haddr->had_nam;
 		if (isoaddr1->siso_family == AF_ISO &&
 		    isoaddr1->siso_nlen > 0 &&
 		    isoaddr1->siso_nlen == isoaddr2->siso_nlen &&

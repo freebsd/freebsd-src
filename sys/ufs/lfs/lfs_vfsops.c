@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.19 1997/03/24 11:25:08 bde Exp $
+ * $Id: lfs_vfsops.c,v 1.20 1997/08/02 14:33:21 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -58,7 +58,7 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-static int lfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+static int lfs_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
 static int lfs_mount __P((struct mount *, char *, caddr_t,
 		struct nameidata *, struct proc *));
@@ -91,9 +91,9 @@ VFS_SET(lfs_vfsops, lfs, MOUNT_LFS, 0);
 /*
  * Called by main() when ufs is going to be mounted as root.
  */
+int
 lfs_mountroot()
 {
-	extern struct vnode *rootvp;
 	struct fs *fs;
 	struct mount *mp;
 	struct proc *p = curproc;	/* XXX */
@@ -683,7 +683,7 @@ static int
 lfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

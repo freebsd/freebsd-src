@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.14 1997/05/10 09:58:55 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.15 1997/06/26 19:35:58 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -70,12 +70,14 @@ SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
 
 static	int ipx_usr_abort(struct socket *so);
 static	int ipx_attach(struct socket *so, int proto, struct proc *p);
-static	int ipx_bind(struct socket *so, struct mbuf *nam, struct proc *p);
-static	int ipx_connect(struct socket *so, struct mbuf *nam, struct proc *p);
+static	int ipx_bind(struct socket *so, struct sockaddr *nam, struct proc *p);
+static	int ipx_connect(struct socket *so, struct sockaddr *nam,
+			struct proc *p);
 static	int ipx_detach(struct socket *so);
 static	int ipx_disconnect(struct socket *so);
 static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct mbuf *addr, struct mbuf *control, struct proc *p);
+		     struct sockaddr *addr, struct mbuf *control, 
+		     struct proc *p);
 static	int ipx_shutdown(struct socket *so);
 static	int ripx_attach(struct socket *so, int proto, struct proc *p);
 static	int ipx_output(struct ipxpcb *ipxp, struct mbuf *m0);
@@ -458,7 +460,7 @@ ipx_attach(so, proto, p)
 static int
 ipx_bind(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -469,7 +471,7 @@ ipx_bind(so, nam, p)
 static int
 ipx_connect(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	int error;
@@ -520,11 +522,11 @@ ipx_disconnect(so)
 int
 ipx_peeraddr(so, nam)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	ipx_setpeeraddr(ipxp, nam);
+	ipx_setpeeraddr(ipxp, nam); /* XXX what if alloc fails? */
 	return (0);
 }
 
@@ -533,7 +535,7 @@ ipx_send(so, flags, m, nam, control, p)
 	struct socket *so;
 	int flags;
 	struct mbuf *m;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct mbuf *control;
 	struct proc *p;
 {
@@ -589,11 +591,11 @@ ipx_shutdown(so)
 int
 ipx_sockaddr(so, nam)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	ipx_setsockaddr(ipxp, nam);
+	ipx_setsockaddr(ipxp, nam); /* XXX what if alloc fails? */
 	return (0);
 }
 

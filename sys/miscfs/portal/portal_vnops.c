@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.18 1997/03/23 03:36:54 bde Exp $
+ * $Id: portal_vnops.c,v 1.19 1997/08/02 14:32:08 bde Exp $
  */
 
 /*
@@ -197,10 +197,9 @@ portal_connect(so, so2)
 	unp2 = sotounpcb(so2);
 	unp3 = sotounpcb(so3);
 	if (unp2->unp_addr)
-		unp3->unp_addr = m_copy(unp2->unp_addr, 0, (int)M_COPYALL);
-
+		unp3->unp_addr = (struct sockaddr_un *)
+			dup_sockaddr((struct sockaddr *)unp2->unp_addr, 0);
 	so2 = so3;
-
 
 	return (unp_connect2(so, so2));
 }
@@ -326,8 +325,8 @@ portal_open(ap)
 	auio.uio_offset = 0;
 	auio.uio_resid = aiov[0].iov_len + aiov[1].iov_len;
 
-	error = sosend(so, (struct mbuf *) 0, &auio,
-			(struct mbuf *) 0, (struct mbuf *) 0, 0);
+	error = sosend(so, (struct sockaddr *) 0, &auio,
+			(struct mbuf *) 0, (struct mbuf *) 0, 0, p);
 	if (error)
 		goto bad;
 
@@ -335,7 +334,7 @@ portal_open(ap)
 	do {
 		struct mbuf *m = 0;
 		int flags = MSG_WAITALL;
-		error = soreceive(so, (struct mbuf **) 0, &auio,
+		error = soreceive(so, (struct sockaddr **) 0, &auio,
 					&m, &cm, &flags);
 		if (error)
 			goto bad;

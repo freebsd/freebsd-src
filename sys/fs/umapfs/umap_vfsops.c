@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.14 1997/02/22 09:40:38 peter Exp $
+ * $Id: umap_vfsops.c,v 1.15 1997/08/02 14:32:25 bde Exp $
  */
 
 /*
@@ -54,7 +54,7 @@
 #include <miscfs/umapfs/umap.h>
 
 static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct mbuf *nam, struct vnode **vpp,
+				   struct sockaddr *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
 static int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
@@ -391,7 +391,7 @@ static int
 umapfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fidp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred**credanonp;

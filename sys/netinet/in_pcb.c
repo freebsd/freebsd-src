@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.32 1997/05/19 00:18:30 tegge Exp $
+ *	$Id: in_pcb.c,v 1.33 1997/05/19 01:28:39 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ in_pcballoc(so, pcbinfo, p)
 int
 in_pcbbind(inp, nam, p)
 	register struct inpcb *inp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	register struct socket *so = inp->inp_socket;
@@ -157,8 +157,8 @@ in_pcbbind(inp, nam, p)
 	     (so->so_options & SO_ACCEPTCONN) == 0))
 		wild = 1;
 	if (nam) {
-		sin = mtod(nam, struct sockaddr_in *);
-		if (nam->m_len != sizeof (*sin))
+		sin = (struct sockaddr_in *)nam;
+		if (nam->sa_len != sizeof (*sin))
 			return (EINVAL);
 #ifdef notdef
 		/*
@@ -188,7 +188,7 @@ in_pcbbind(inp, nam, p)
 			struct inpcb *t;
 
 			/* GROSS */
-			if (ntohs(lport) < IPPORT_RESERVED &&
+			if (ntohs(lport) < IPPORT_RESERVED && p &&
 			    (error = suser(p->p_ucred, &p->p_acflag)))
 				return (EACCES);
 			t = in_pcblookup(inp->inp_pcbinfo, zeroin_addr, 0,
@@ -209,7 +209,7 @@ in_pcbbind(inp, nam, p)
 			last  = ipport_hilastauto;
 			lastport = &inp->inp_pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (error = suser(p->p_ucred, &p->p_acflag))
+			if (p && (error = suser(p->p_ucred, &p->p_acflag)))
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
@@ -278,13 +278,13 @@ in_pcbbind(inp, nam, p)
 int
 in_pcbladdr(inp, nam, plocal_sin)
 	register struct inpcb *inp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct sockaddr_in **plocal_sin;
 {
 	struct in_ifaddr *ia;
-	register struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
+	register struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 
-	if (nam->m_len != sizeof (*sin))
+	if (nam->sa_len != sizeof (*sin))
 		return (EINVAL);
 	if (sin->sin_family != AF_INET)
 		return (EAFNOSUPPORT);
@@ -395,11 +395,11 @@ in_pcbladdr(inp, nam, plocal_sin)
 int
 in_pcbconnect(inp, nam, p)
 	register struct inpcb *inp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	struct sockaddr_in *ifaddr;
-	register struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
+	register struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	int error;
 
 	/*
@@ -414,7 +414,7 @@ in_pcbconnect(inp, nam, p)
 		return (EADDRINUSE);
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		if (inp->inp_lport == 0)
-			(void)in_pcbbind(inp, (struct mbuf *)0, p);
+			(void)in_pcbbind(inp, (struct sockaddr *)0, p);
 		inp->inp_laddr = ifaddr->sin_addr;
 	}
 	inp->inp_faddr = sin->sin_addr;
@@ -463,12 +463,13 @@ in_pcbdetach(inp)
  * without the need for a wrapper function.  The socket must have a valid
  * (i.e., non-nil) PCB, but it should be impossible to get an invalid one
  * except through a kernel programming error, so it is acceptable to panic
- * (or in this case trap) if the PCB is invalid.
+ * (or in this case trap) if the PCB is invalid.  (Actually, we don't trap
+ * because there actually /is/ a programming error somewhere... XXX)
  */
 int
 in_setsockaddr(so, nam)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	int s;
 	register struct inpcb *inp;
@@ -480,9 +481,9 @@ in_setsockaddr(so, nam)
 		splx(s);
 		return EINVAL;
 	}
-	nam->m_len = sizeof (*sin);
-	sin = mtod(nam, struct sockaddr_in *);
-	bzero((caddr_t)sin, sizeof (*sin));
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
+	*nam = (struct sockaddr *)sin;
+	bzero(sin, sizeof *sin);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_lport;
@@ -494,7 +495,7 @@ in_setsockaddr(so, nam)
 int
 in_setpeeraddr(so, nam)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	int s;
 	struct inpcb *inp;
@@ -506,8 +507,8 @@ in_setpeeraddr(so, nam)
 		splx(s);
 		return EINVAL;
 	}
-	nam->m_len = sizeof (*sin);
-	sin = mtod(nam, struct sockaddr_in *);
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
+	*nam = (struct sockaddr *)sin;
 	bzero((caddr_t)sin, sizeof (*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);

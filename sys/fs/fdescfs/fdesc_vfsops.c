@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.10 1997/02/22 09:40:15 peter Exp $
+ * $Id: fdesc_vfsops.c,v 1.11 1997/08/02 14:31:59 bde Exp $
  */
 
 /*
@@ -244,7 +244,7 @@ fdesc_sync(mp, waitfor, cred, p)
 }
 
 #define fdesc_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct mbuf *, struct vnode **, int *, struct ucred **)))eopnotsupp)
+	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
 #define fdesc_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
 	    struct proc *)))eopnotsupp)
 #define fdesc_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.15 1997/02/22 09:40:31 peter Exp $
+ *	$Id: procfs_vfsops.c,v 1.16 1997/08/02 14:32:19 bde Exp $
  */
 
 /*
@@ -177,7 +177,7 @@ procfs_init(vfsp)
 }
 
 #define procfs_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct mbuf *, struct vnode **, int *, struct ucred **)))einval)
+	    struct sockaddr *, struct vnode **, int *, struct ucred **)))einval)
 #define procfs_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
 	    struct proc *)))eopnotsupp)
 #define procfs_sync ((int (*) __P((struct mount *, int, struct ucred *, \

@@ -70,7 +70,7 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
-static int ext2_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+static int ext2_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
 static int ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
 static int ext2_mount __P((struct mount *,
@@ -1053,7 +1053,7 @@ static int
 ext2_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.17 1997/05/07 14:37:31 kato Exp $
+ * $Id: union_vfsops.c,v 1.18 1997/08/02 14:32:29 bde Exp $
  */
 
 /*
@@ -531,7 +531,7 @@ union_statfs(mp, sbp, p)
 	    struct proc *)))nullop)
 
 #define union_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct mbuf *, struct vnode **, int *, struct ucred **)))eopnotsupp)
+	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
 #define union_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
 	    struct proc *)))eopnotsupp)
 #define union_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \

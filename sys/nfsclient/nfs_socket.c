@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.25 1997/05/13 17:25:44 dfr Exp $
+ * $Id: nfs_socket.c,v 1.26 1997/06/03 17:22:46 dfr Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ static int	nfs_msg __P((struct proc *,char *,char *));
 static int	nfs_rcvlock __P((struct nfsreq *));
 static void	nfs_rcvunlock __P((int *flagp));
 static void	nfs_realign __P((struct mbuf *m, int hsiz));
-static int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
+static int	nfs_receive __P((struct nfsreq *rep, struct sockaddr **aname,
 				 struct mbuf **mp));
 static int	nfs_reconnect __P((struct nfsreq *rep));
 #ifndef NFS_NOSERVER 
@@ -195,7 +195,7 @@ nfs_connect(nmp, rep)
 	struct proc *p = &proc0; /* only used for socreate and sobind */
 
 	nmp->nm_so = (struct socket *)0;
-	saddr = mtod(nmp->nm_nam, struct sockaddr *);
+	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
 		nmp->nm_soproto, p);
 	if (error)
@@ -207,17 +207,18 @@ nfs_connect(nmp, rep)
 	 * Some servers require that the client port be a reserved port number.
 	 */
 	if (saddr->sa_family == AF_INET && (nmp->nm_flag & NFSMNT_RESVPORT)) {
-		MGET(m, M_WAIT, MT_SONAME);
-		sin = mtod(m, struct sockaddr_in *);
-		sin->sin_len = m->m_len = sizeof (struct sockaddr_in);
+		struct sockaddr_in ssin;
+		bzero(&ssin, sizeof ssin);
+		sin = &ssin;
+		sin->sin_len = sizeof (struct sockaddr_in);
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = INADDR_ANY;
 		tport = IPPORT_RESERVED - 1;
 		sin->sin_port = htons(tport);
-		while ((error = sobind(so, m, p)) == EADDRINUSE &&
+		while ((error = sobind(so, (struct sockaddr *)sin, p))
+		       == EADDRINUSE &&
 		       --tport > IPPORT_RESERVED / 2)
 			sin->sin_port = htons(tport);
-		m_freem(m);
 		if (error)
 			goto bad;
 	}
@@ -232,6 +233,7 @@ nfs_connect(nmp, rep)
 			goto bad;
 		}
 	} else {
+		/* XXX should not use mbuf */
 		error = soconnect(so, nmp->nm_nam, p);
 		if (error)
 			goto bad;
@@ -383,11 +385,11 @@ nfs_disconnect(nmp)
 int
 nfs_send(so, nam, top, rep)
 	register struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	register struct mbuf *top;
 	struct nfsreq *rep;
 {
-	struct mbuf *sendnam;
+	struct sockaddr *sendnam;
 	int error, soflags, flags;
 
 	if (rep) {
@@ -405,7 +407,7 @@ nfs_send(so, nam, top, rep)
 	} else
 		soflags = so->so_proto->pr_flags;
 	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
-		sendnam = (struct mbuf *)0;
+		sendnam = (struct sockaddr *)0;
 	else
 		sendnam = nam;
 	if (so->so_type == SOCK_SEQPACKET)
@@ -414,10 +416,11 @@ nfs_send(so, nam, top, rep)
 		flags = 0;
 
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, sendnam, 0, top, 0,
-						     flags);
+						     flags, curproc /*XXX*/);
 	if (error) {
 		if (rep) {
-			log(LOG_INFO, "nfs send error %d for server %s\n",error,
+			log(LOG_INFO, "nfs send error %d for server %s\n",
+			    error,
 			    rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
 			/*
 			 * Deal with errors for the client side.
@@ -451,7 +454,7 @@ nfs_send(so, nam, top, rep)
 static int
 nfs_receive(rep, aname, mp)
 	register struct nfsreq *rep;
-	struct mbuf **aname;
+	struct sockaddr **aname;
 	struct mbuf **mp;
 {
 	register struct socket *so;
@@ -460,7 +463,7 @@ nfs_receive(rep, aname, mp)
 	register struct mbuf *m;
 	struct mbuf *control;
 	u_long len;
-	struct mbuf **getnam;
+	struct sockaddr **getnam;
 	int error, sotype, rcvflg;
 	struct proc *p = curproc;	/* XXX */
 
@@ -468,7 +471,7 @@ nfs_receive(rep, aname, mp)
 	 * Set up arguments for soreceive()
 	 */
 	*mp = (struct mbuf *)0;
-	*aname = (struct mbuf *)0;
+	*aname = (struct sockaddr *)0;
 	sotype = rep->r_nmp->nm_sotype;
 
 	/*
@@ -533,7 +536,7 @@ tryagain:
 			do {
 			   rcvflg = MSG_WAITALL;
 			   error = so->so_proto->pr_usrreqs->pru_soreceive
-				   (so, (struct mbuf **)0, &auio,
+				   (so, (struct sockaddr **)0, &auio,
 				    (struct mbuf **)0, (struct mbuf **)0,
 				    &rcvflg);
 			   if (error == EWOULDBLOCK && rep) {
@@ -568,7 +571,7 @@ tryagain:
 			do {
 			    rcvflg = MSG_WAITALL;
 			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, (struct mbuf **)0,
+				    (so, (struct sockaddr **)0,
 				     &auio, mp, (struct mbuf **)0, &rcvflg);
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
@@ -593,7 +596,7 @@ tryagain:
 			do {
 			    rcvflg = 0;
 			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, (struct mbuf **)0,
+				    (so, (struct sockaddr **)0,
 				&auio, mp, &control, &rcvflg);
 			    if (control)
 				m_freem(control);
@@ -628,7 +631,7 @@ errout:
 		if ((so = rep->r_nmp->nm_so) == NULL)
 			return (EACCES);
 		if (so->so_state & SS_ISCONNECTED)
-			getnam = (struct mbuf **)0;
+			getnam = (struct sockaddr **)0;
 		else
 			getnam = aname;
 		auio.uio_resid = len = 1000000;
@@ -671,7 +674,8 @@ nfs_reply(myrep)
 	register struct nfsreq *rep;
 	register struct nfsmount *nmp = myrep->r_nmp;
 	register long t1;
-	struct mbuf *mrep, *nam, *md;
+	struct mbuf *mrep, *md;
+	struct sockaddr *nam;
 	u_long rxid, *tl;
 	caddr_t dpos, cp2;
 	int error;
@@ -715,7 +719,7 @@ nfs_reply(myrep)
 			return (error);
 		}
 		if (nam)
-			m_freem(nam);
+			FREE(nam, M_SONAME);
 
 		/*
 		 * Get the xid and check that it is an rpc reply
@@ -1356,7 +1360,7 @@ nfs_timer(arg)
 		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, (struct mbuf *)0,
+				    (so, 0, m, (struct sockaddr *)0,
 				     (struct mbuf *)0, p);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
@@ -1642,7 +1646,8 @@ nfsrv_rcv(so, arg, waitflag)
 {
 	register struct nfssvc_sock *slp = (struct nfssvc_sock *)arg;
 	register struct mbuf *m;
-	struct mbuf *mp, *nam;
+	struct mbuf *mp;
+	struct sockaddr *nam;
 	struct uio auio;
 	int flags, error;
 
@@ -1717,7 +1722,7 @@ nfsrv_rcv(so, arg, waitflag)
 					     M_NFSRVDESC, waitflag);
 				if (!rec) {
 					if (nam)
-						m_freem(nam);
+						FREE(nam, M_SONAME);
 					m_freem(mp);
 					continue;
 				}
@@ -1864,7 +1869,7 @@ nfsrv_getstream(slp, waitflag)
 		    m_freem(slp->ns_frag);
 		} else {
 		    nfs_realign(slp->ns_frag, 10 * NFSX_UNSIGNED);
-		    rec->nr_address = (struct mbuf*)0;
+		    rec->nr_address = (struct sockaddr *)0;
 		    rec->nr_packet = slp->ns_frag;
 		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
 		}
@@ -1883,7 +1888,8 @@ nfsrv_dorec(slp, nfsd, ndp)
 	struct nfsrv_descript **ndp;
 {
 	struct nfsrv_rec *rec;
-	register struct mbuf *m, *nam;
+	register struct mbuf *m;
+	struct sockaddr *nam;
 	register struct nfsrv_descript *nd;
 	int error;
 
@@ -1902,7 +1908,7 @@ nfsrv_dorec(slp, nfsd, ndp)
 	nd->nd_dpos = mtod(m, caddr_t);
 	error = nfs_getreq(nd, nfsd, TRUE);
 	if (error) {
-		m_freem(nam);
+		FREE(nam, M_SONAME);
 		free((caddr_t)nd, M_NFSRVDESC);
 		return (error);
 	}

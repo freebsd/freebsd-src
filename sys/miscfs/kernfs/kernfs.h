@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
- * $Id$
+ * $Id: kernfs.h,v 1.6 1997/02/22 09:40:18 peter Exp $
  */
 
 #define	_PATH_KERNFS	"/kern"		/* Default mountpoint */
@@ -52,7 +52,7 @@ struct kernfs_node {
 #define	VTOKERN(vp) ((struct kernfs_node *)(vp)->v_data)
 
 #define kernfs_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct mbuf *, struct vnode **, int *, struct ucred **)))eopnotsupp)
+	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
 #define kernfs_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
 	    struct proc *)))eopnotsupp)
 #define kernfs_sync ((int (*) __P((struct mount *, int, struct ucred *, \

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.37 1997/04/03 05:14:45 davidg Exp $
+ *	$Id: udp_usrreq.c,v 1.38 1997/04/27 20:01:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
 
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
-static	int udp_output __P((struct inpcb *, struct mbuf *, struct mbuf *,
+static	int udp_output __P((struct inpcb *, struct mbuf *, struct sockaddr *,
 			    struct mbuf *, struct proc *));
 static	void udp_notify __P((struct inpcb *, int));
 
@@ -363,7 +363,8 @@ static int
 udp_output(inp, m, addr, control, p)
 	register struct inpcb *inp;
 	register struct mbuf *m;
-	struct mbuf *addr, *control;
+	struct sockaddr *addr;
+	struct mbuf *control;
 	struct proc *p;
 {
 	register struct udpiphdr *ui;
@@ -445,7 +446,7 @@ udp_output(inp, m, addr, control, p)
 
 	if (addr) {
 		in_pcbdisconnect(inp);
-		inp->inp_laddr = laddr;
+		inp->inp_laddr = laddr;	/* XXX rehash? */
 		splx(s);
 	}
 	return (error);
@@ -503,7 +504,7 @@ udp_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-udp_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+udp_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -518,7 +519,7 @@ udp_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 }
 
 static int
-udp_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+udp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -572,7 +573,7 @@ udp_disconnect(struct socket *so)
 }
 
 static int
-udp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
+udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	    struct mbuf *control, struct proc *p)
 {
 	struct inpcb *inp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.30 1997/07/17 09:21:34 msmith Exp $
+ *	$Id: rtsock.c,v 1.31 1997/07/18 11:44:24 julian Exp $
  */
 
 
@@ -150,7 +150,7 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-rts_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+rts_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	int s, error;
 	s = splnet();
@@ -160,7 +160,7 @@ rts_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 }
 
 static int
-rts_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+rts_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	int s, error;
 	s = splnet();
@@ -214,7 +214,7 @@ rts_disconnect(struct socket *so)
 /* pru_listen is EOPNOTSUPP */
 
 static int
-rts_peeraddr(struct socket *so, struct mbuf *nam)
+rts_peeraddr(struct socket *so, struct sockaddr **nam)
 {
 	int s, error;
 	s = splnet();
@@ -227,7 +227,7 @@ rts_peeraddr(struct socket *so, struct mbuf *nam)
 /* pru_rcvoob is EOPNOTSUPP */
 
 static int
-rts_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+rts_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct proc *p)
 {
 	int s, error;
@@ -250,7 +250,7 @@ rts_shutdown(struct socket *so)
 }
 
 static int
-rts_sockaddr(struct socket *so, struct mbuf *nam)
+rts_sockaddr(struct socket *so, struct sockaddr **nam)
 {
 	int s, error;
 	s = splnet();
