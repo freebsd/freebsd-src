@@ -331,7 +331,7 @@ trap(int vector, int imm, struct trapframe *framep)
 
 	user = ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
 	if (user) {
-		sticks = td->td_kse->ke_sticks;
+		sticks = td->td_sticks;
 		td->td_frame = framep;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
@@ -792,7 +792,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	p = td->td_proc;
 
 	td->td_frame = framep;
-	sticks = td->td_kse->ke_sticks;
+	sticks = td->td_sticks;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 
@@ -939,7 +939,7 @@ ia32_syscall(struct trapframe *framep)
 	 */
 	cnt.v_syscall++;
 
-	sticks = td->td_kse->ke_sticks;
+	sticks = td->td_sticks;
 	td->td_frame = framep;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);

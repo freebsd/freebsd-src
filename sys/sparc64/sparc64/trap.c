@@ -243,7 +243,7 @@ trap(struct trapframe *tf)
 		KASSERT(td->td_proc != NULL, ("trap: curproc NULL"));
 
 		p = td->td_proc;
-		sticks = td->td_kse->ke_sticks;
+		sticks = td->td_sticks;
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
@@ -495,7 +495,7 @@ syscall(struct trapframe *tf)
 	reg = 0;
 	regcnt = REG_MAXARGS;
 
-	sticks = td->td_kse->ke_sticks;
+	sticks = td->td_sticks;
 	td->td_frame = tf;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);

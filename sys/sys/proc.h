@@ -298,6 +298,7 @@ struct thread {
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	struct thread	*td_standin;	/* (?) Use this for an upcall */
+	u_int64_t	td_sticks;	/* (j) Statclock hits in system mode. */
 	u_int		td_usticks;	/* (?) Statclock kernel hits, for UTS */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_base_pri
@@ -442,12 +443,6 @@ struct kse {
 	struct thread	*ke_thread;	/* Active associated thread. */
 	struct thread	*ke_owner;	/* Always points to the owner */
 	fixpt_t		ke_pctcpu;     /* (j) %cpu during p_swtime. */
-	u_int64_t	ke_uu;		/* (j) Previous user time in usec. */
-	u_int64_t	ke_su;		/* (j) Previous system time in usec. */
-	u_int64_t	ke_iu;		/* (j) Previous intr time in usec. */
-	u_int64_t	ke_uticks;	/* (j) Statclock hits in user mode. */
-	u_int64_t	ke_sticks;	/* (j) Statclock hits in system mode. */
-	u_int64_t	ke_iticks;	/* (j) Statclock hits in intr. */
 	u_int		ke_uuticks;	/* Statclock hits in user, for UTS */
 	u_int		ke_usticks;	/* Statclock hits in kernel, for UTS */
 	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
@@ -569,6 +564,12 @@ struct proc {
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
 	struct bintime	p_runtime;	/* (j) Real time. */
+	u_int64_t	p_uu;		/* (j) Previous user time in usec. */
+	u_int64_t	p_su;		/* (j) Previous system time in usec. */
+	u_int64_t	p_iu;		/* (j) Previous intr time in usec. */
+	u_int64_t	p_uticks;	/* (j) Statclock hits in user mode. */
+	u_int64_t	p_sticks;	/* (j) Statclock hits in system mode. */
+	u_int64_t	p_iticks;	/* (j) Statclock hits in intr. */
 	int		p_profthreads;	/* (c) Num threads in addupc_task */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */

@@ -264,7 +264,7 @@ trap(frame)
 		!(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL))) {
 		/* user trap */
 
-		sticks = td->td_kse->ke_sticks;
+		sticks = td->td_sticks;
 		td->td_frame = &frame;
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
@@ -957,7 +957,7 @@ syscall(frame)
 	KASSERT((td->td_kse != NULL), ("syscall: kse/thread UNLINKED"));
 	KASSERT((td->td_kse->ke_thread == td), ("syscall:kse/thread mismatch"));
 
-	sticks = td->td_kse->ke_sticks;
+	sticks = td->td_sticks;
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
