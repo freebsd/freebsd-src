@@ -138,6 +138,9 @@ extern void initializecpu(void);
 #endif
 
 static void cpu_startup(void *);
+static void fpstate_drop(struct thread *td);
+static void get_fpcontext(struct thread *td, mcontext_t *mcp);
+static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 #ifdef CPU_ENABLE_SSE
 static void set_fpregs_xmm(struct save87 *, struct savexmm *);
 static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
@@ -440,8 +443,10 @@ sendsig(catcher, sig, mask, code)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	sf.sf_uc.uc_mcontext.mc_flags = __UC_MC_VALID;	/* no FP regs */
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
+	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
+	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
+	fpstate_drop(td);
 
 	/* Allocate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
@@ -675,7 +680,7 @@ sigreturn(td, uap)
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
 	const ucontext_t *ucp;
-	int cs, eflags, error;
+	int cs, eflags, error, ret;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -749,6 +754,9 @@ sigreturn(td, uap)
 			return (EINVAL);
 		}
 
+		ret = set_fpcontext(td, &ucp->uc_mcontext);
+		if (ret != 0)
+			return (ret);
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
 	}
 
@@ -909,10 +917,19 @@ exec_setregs(td, entry, stack, ps_strings)
 	 */
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 
-#ifdef DEV_NPX
 	/* Initialize the npx (if any) for the current process. */
-	npxinit(__INITIAL_NPXCW__);
-#endif
+	/*
+	 * XXX the above load_cr0() also initializes it and is a layering
+	 * violation if NPX is configured.  It drops the npx partially
+	 * and this would be fatal if we were interrupted now, and decided
+	 * to force the state to the pcb, and checked the invariant
+	 * (CR0_TS clear) if and only if PCPU_GET(fpcurthread) != NULL).
+	 * ALL of this can happen except the check.  The check used to
+	 * happen and be fatal later when we didn't complete the drop
+	 * before returning to user mode.  This should be fixed properly
+	 * soon.
+	 */
+	fpstate_drop(td);
 
 	/*
 	 * XXX - Linux emulator
@@ -2003,8 +2020,6 @@ fill_fpregs_xmm(sv_xmm, sv_87)
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
 		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
-
-	sv_87->sv_ex_sw = sv_xmm->sv_ex_sw;
 }
 
 static void
@@ -2029,8 +2044,6 @@ set_fpregs_xmm(sv_87, sv_xmm)
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
 		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
-
-	sv_xmm->sv_ex_sw = sv_87->sv_ex_sw;
 }
 #endif /* CPU_ENABLE_SSE */
 
@@ -2060,6 +2073,179 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #endif /* CPU_ENABLE_SSE */
 	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
 	return (0);
+}
+
+/*
+ * Get machine context.
+ */
+void
+get_mcontext(struct thread *td, mcontext_t *mcp)
+{
+	struct trapframe *tp;
+
+	tp = td->td_frame;
+
+	mcp->mc_onstack = sigonstack(tp->tf_esp);
+	mcp->mc_gs = td->td_pcb->pcb_gs;
+	mcp->mc_fs = tp->tf_fs;
+	mcp->mc_es = tp->tf_es;
+	mcp->mc_ds = tp->tf_ds;
+	mcp->mc_edi = tp->tf_edi;
+	mcp->mc_esi = tp->tf_esi;
+	mcp->mc_ebp = tp->tf_ebp;
+	mcp->mc_isp = tp->tf_isp;
+	mcp->mc_ebx = tp->tf_ebx;
+	mcp->mc_edx = tp->tf_edx;
+	mcp->mc_ecx = tp->tf_ecx;
+	mcp->mc_eax = tp->tf_eax;
+	mcp->mc_eip = tp->tf_eip;
+	mcp->mc_cs = tp->tf_cs;
+	mcp->mc_eflags = tp->tf_eflags;
+	mcp->mc_esp = tp->tf_esp;
+	mcp->mc_ss = tp->tf_ss;
+	mcp->mc_len = sizeof(*mcp);
+	get_fpcontext(td, mcp);
+}
+
+/*
+ * Set machine context.
+ *
+ * However, we don't set any but the user modifyable flags, and
+ * we we won't touch the cs selector.
+ */
+int
+set_mcontext(struct thread *td, const mcontext_t *mcp)
+{
+	struct trapframe *tp;
+	int ret;
+	int	eflags;
+
+	tp = td->td_frame;
+	if (mcp->mc_len != sizeof(*mcp))
+		return (EINVAL);
+	eflags = (mcp->mc_eflags & PSL_USERCHANGE) |
+	    (tp->tf_eflags & ~PSL_USERCHANGE);
+	if ((ret = set_fpcontext(td, mcp)) == 0) {
+		tp->tf_fs = mcp->mc_fs;
+		tp->tf_es = mcp->mc_es;
+		tp->tf_ds = mcp->mc_ds;
+		tp->tf_edi = mcp->mc_edi;
+		tp->tf_esi = mcp->mc_esi;
+		tp->tf_ebp = mcp->mc_ebp;
+		tp->tf_ebx = mcp->mc_ebx;
+		tp->tf_edx = mcp->mc_edx;
+		tp->tf_ecx = mcp->mc_ecx;
+		tp->tf_eax = mcp->mc_eax;
+		tp->tf_eip = mcp->mc_eip;
+		tp->tf_eflags = eflags;
+		tp->tf_esp = mcp->mc_esp;
+		tp->tf_ss = mcp->mc_ss;
+		td->td_pcb->pcb_gs = mcp->mc_gs;
+		ret = 0;
+	}
+	return (ret);
+}
+
+static void
+get_fpcontext(struct thread *td, mcontext_t *mcp)
+{
+#ifndef DEV_NPX
+	mcp->mc_fpformat = _MC_FPFMT_NODEV;
+	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
+#else
+	union savefpu *addr;
+
+	/*
+	 * XXX mc_fpstate might be misaligned, since its declaration is not
+	 * unportabilized using __attribute__((aligned(16))) like the
+	 * declaration of struct savemm, and anyway, alignment doesn't work
+	 * for auto variables since we don't use gcc's pessimal stack
+	 * alignment.  Work around this by abusing the spare fields after
+	 * mcp->mc_fpstate.
+	 *
+	 * XXX unpessimize most cases by only aligning when fxsave might be
+	 * called, although this requires knowing too much about
+	 * npxgetregs()'s internals.
+	 */
+	addr = (union savefpu *)&mcp->mc_fpstate;
+	if (td == PCPU_GET(fpcurthread) && cpu_fxsr &&
+	    ((uintptr_t)(void *)addr & 0xF)) {
+		do
+			addr = (void *)((char *)addr + 4);
+		while ((uintptr_t)(void *)addr & 0xF);
+	}
+	mcp->mc_ownedfp = npxgetregs(td, addr);
+	if (addr != (union savefpu *)&mcp->mc_fpstate) {
+		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
+		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
+	}
+	mcp->mc_fpformat = npxformat();
+#endif
+}
+
+static int
+set_fpcontext(struct thread *td, const mcontext_t *mcp)
+{
+	union savefpu *addr;
+
+	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
+		return (0);
+	else if (mcp->mc_fpformat != _MC_FPFMT_387 &&
+	    mcp->mc_fpformat != _MC_FPFMT_XMM)
+		return (EINVAL);
+	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
+		/* We don't care what state is left in the FPU or PCB. */
+		fpstate_drop(td);
+	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
+	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
+		/* XXX align as above. */
+		addr = (union savefpu *)&mcp->mc_fpstate;
+		if (td == PCPU_GET(fpcurthread) && cpu_fxsr &&
+		    ((uintptr_t)(void *)addr & 0xF)) {
+			do
+				addr = (void *)((char *)addr + 4);
+			while ((uintptr_t)(void *)addr & 0xF);
+			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
+		}
+#ifdef DEV_NPX
+		/*
+		 * XXX we violate the dubious requirement that npxsetregs()
+		 * be called with interrupts disabled.
+		 */
+		npxsetregs(td, addr);
+#endif
+		/*
+		 * Don't bother putting things back where they were in the
+		 * misaligned case, since we know that the caller won't use
+		 * them again.
+		 */
+	} else
+		return (EINVAL);
+	return (0);
+}
+
+static void
+fpstate_drop(struct thread *td)
+{
+	register_t s;
+
+	s = intr_disable();
+#ifdef DEV_NPX
+	if (PCPU_GET(fpcurthread) == td)
+		npxdrop();
+#endif
+	/*
+	 * XXX force a full drop of the npx.  The above only drops it if we
+	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 *
+	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
+	 * We only need to drop to !PCB_INITDONE in sendsig().  But
+	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * have too many layers.
+	 */
+	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	intr_restore(s);
 }
 
 int
