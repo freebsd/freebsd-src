@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ah_core.c,v 1.35 2000/06/14 11:14:03 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,14 +28,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
  * RFC1826/2402 authentication header.
  */
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -46,7 +48,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#include <sys/kernel.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -55,18 +57,19 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_var.h>
-#include <netinet/in_pcb.h>
 
 #ifdef INET6
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 #endif
 
 #include <netinet6/ipsec.h>
-#include <netinet6/ah.h>
 #ifdef INET6
 #include <netinet6/ipsec6.h>
+#endif
+#include <netinet6/ah.h>
+#ifdef INET6
 #include <netinet6/ah6.h>
 #endif
 #ifdef IPSEC_ESP
@@ -76,7 +79,6 @@
 #endif
 #endif
 #include <net/pfkeyv2.h>
-#include <netkey/key_var.h>
 #include <netkey/keydb.h>
 #include <sys/md5.h>
 #include <crypto/sha1.h>
@@ -85,57 +87,54 @@
 
 #define	HMACSIZE	16
 
-#ifdef INET6
-#define	ZEROBUFLEN	256
-static char zerobuf[ZEROBUFLEN];
-#endif
-
 static int ah_sumsiz_1216 __P((struct secasvar *));
 static int ah_sumsiz_zero __P((struct secasvar *));
 static int ah_none_mature __P((struct secasvar *));
-static void ah_none_init __P((struct ah_algorithm_state *,
+static int ah_none_init __P((struct ah_algorithm_state *,
 	struct secasvar *));
-static void ah_none_loop __P((struct ah_algorithm_state *, const caddr_t,
-			      size_t));
+static void ah_none_loop __P((struct ah_algorithm_state *, caddr_t, size_t));
 static void ah_none_result __P((struct ah_algorithm_state *, caddr_t));
 static int ah_keyed_md5_mature __P((struct secasvar *));
-static void ah_keyed_md5_init __P((struct ah_algorithm_state *,
+static int ah_keyed_md5_init __P((struct ah_algorithm_state *,
 	struct secasvar *));
-static void ah_keyed_md5_loop __P((struct ah_algorithm_state *, const caddr_t,
+static void ah_keyed_md5_loop __P((struct ah_algorithm_state *, caddr_t,
 	size_t));
 static void ah_keyed_md5_result __P((struct ah_algorithm_state *, caddr_t));
 static int ah_keyed_sha1_mature __P((struct secasvar *));
-static void ah_keyed_sha1_init __P((struct ah_algorithm_state *,
+static int ah_keyed_sha1_init __P((struct ah_algorithm_state *,
 	struct secasvar *));
-static void ah_keyed_sha1_loop __P((struct ah_algorithm_state *, const caddr_t,
+static void ah_keyed_sha1_loop __P((struct ah_algorithm_state *, caddr_t,
 	size_t));
 static void ah_keyed_sha1_result __P((struct ah_algorithm_state *, caddr_t));
 static int ah_hmac_md5_mature __P((struct secasvar *));
-static void ah_hmac_md5_init __P((struct ah_algorithm_state *,
+static int ah_hmac_md5_init __P((struct ah_algorithm_state *,
 	struct secasvar *));
-static void ah_hmac_md5_loop __P((struct ah_algorithm_state *, const caddr_t,
+static void ah_hmac_md5_loop __P((struct ah_algorithm_state *, caddr_t,
 	size_t));
 static void ah_hmac_md5_result __P((struct ah_algorithm_state *, caddr_t));
 static int ah_hmac_sha1_mature __P((struct secasvar *));
-static void ah_hmac_sha1_init __P((struct ah_algorithm_state *,
+static int ah_hmac_sha1_init __P((struct ah_algorithm_state *,
 	struct secasvar *));
-static void ah_hmac_sha1_loop __P((struct ah_algorithm_state *, const caddr_t,
+static void ah_hmac_sha1_loop __P((struct ah_algorithm_state *, caddr_t,
 	size_t));
 static void ah_hmac_sha1_result __P((struct ah_algorithm_state *, caddr_t));
 
+static void ah_update_mbuf __P((struct mbuf *, int, int, struct ah_algorithm *,
+	struct ah_algorithm_state *));
+
 /* checksum algorithms */
-/* NOTE: The order depends on SADB_AALG_x in netkey/keyv2.h */
+/* NOTE: The order depends on SADB_AALG_x in net/pfkeyv2.h */
 struct ah_algorithm ah_algorithms[] = {
 	{ 0, 0, 0, 0, 0, 0, },
-	{ ah_sumsiz_1216, ah_hmac_md5_mature, 128, 128,
+	{ ah_sumsiz_1216, ah_hmac_md5_mature, 128, 128, "hmac-md5",
 		ah_hmac_md5_init, ah_hmac_md5_loop, ah_hmac_md5_result, },
-	{ ah_sumsiz_1216, ah_hmac_sha1_mature, 160, 160,
+	{ ah_sumsiz_1216, ah_hmac_sha1_mature, 160, 160, "hmac-sha1",
 		ah_hmac_sha1_init, ah_hmac_sha1_loop, ah_hmac_sha1_result, },
-	{ ah_sumsiz_1216, ah_keyed_md5_mature, 128, 128,
+	{ ah_sumsiz_1216, ah_keyed_md5_mature, 128, 128, "keyed-md5",
 		ah_keyed_md5_init, ah_keyed_md5_loop, ah_keyed_md5_result, },
-	{ ah_sumsiz_1216, ah_keyed_sha1_mature, 160, 160,
+	{ ah_sumsiz_1216, ah_keyed_sha1_mature, 160, 160, "keyed-sha1",
 		ah_keyed_sha1_init, ah_keyed_sha1_loop, ah_keyed_sha1_result, },
-	{ ah_sumsiz_zero, ah_none_mature, 0, 2048,
+	{ ah_sumsiz_zero, ah_none_mature, 0, 2048, "none",
 		ah_none_init, ah_none_loop, ah_none_result, },
 };
 
@@ -165,24 +164,26 @@ ah_none_mature(sav)
 	struct secasvar *sav;
 {
 	if (sav->sah->saidx.proto == IPPROTO_AH) {
-		printf("ah_none_mature: protocol and algorithm mismatch.\n");
+		ipseclog((LOG_ERR,
+		    "ah_none_mature: protocol and algorithm mismatch.\n"));
 		return 1;
 	}
 	return 0;
 }
 
-static void
+static int
 ah_none_init(state, sav)
 	struct ah_algorithm_state *state;
 	struct secasvar *sav;
 {
 	state->foo = NULL;
+	return 0;
 }
 
 static void
 ah_none_loop(state, addr, len)
 	struct ah_algorithm_state *state;
-	const caddr_t addr;
+	caddr_t addr;
 	size_t len;
 {
 }
@@ -202,34 +203,34 @@ ah_keyed_md5_mature(sav)
 	return 0;
 }
 
-static void
+static int
 ah_keyed_md5_init(state, sav)
 	struct ah_algorithm_state *state;
 	struct secasvar *sav;
 {
+	size_t padlen;
+	size_t keybitlen;
+	u_int8_t buf[32];
+
 	if (!state)
 		panic("ah_keyed_md5_init: what?");
 
 	state->sav = sav;
 	state->foo = (void *)malloc(sizeof(MD5_CTX), M_TEMP, M_NOWAIT);
 	if (state->foo == NULL)
-		panic("ah_keyed_md5_init: what?");
+		return ENOBUFS;
+
 	MD5Init((MD5_CTX *)state->foo);
 	if (state->sav) {
 		MD5Update((MD5_CTX *)state->foo,
 			(u_int8_t *)_KEYBUF(state->sav->key_auth),
 			(u_int)_KEYLEN(state->sav->key_auth));
 
-	    {
 		/*
 		 * Pad after the key.
 		 * We cannot simply use md5_pad() since the function
 		 * won't update the total length.
 		 */
-		size_t padlen;
-		size_t keybitlen;
-		u_int8_t buf[32];
-
 		if (_KEYLEN(state->sav->key_auth) < 56)
 			padlen = 64 - 8 - _KEYLEN(state->sav->key_auth);
 		else
@@ -255,14 +256,15 @@ ah_keyed_md5_init(state, sav)
 		buf[2] = (keybitlen >> 16) & 0xff;
 		buf[3] = (keybitlen >> 24) & 0xff;
 		MD5Update((MD5_CTX *)state->foo, buf, 8);
-	    }
 	}
+
+	return 0;
 }
 
 static void
 ah_keyed_md5_loop(state, addr, len)
 	struct ah_algorithm_state *state;
-	const caddr_t addr;
+	caddr_t addr;
 	size_t len;
 {
 	if (!state)
@@ -298,26 +300,30 @@ ah_keyed_sha1_mature(sav)
 	struct ah_algorithm *algo;
 
 	if (!sav->key_auth) {
-		printf("esp_keyed_sha1_mature: no key is given.\n");
+		ipseclog((LOG_ERR, "ah_keyed_sha1_mature: no key is given.\n"));
 		return 1;
 	}
 	algo = &ah_algorithms[sav->alg_auth];
 	if (sav->key_auth->sadb_key_bits < algo->keymin
 	 || algo->keymax < sav->key_auth->sadb_key_bits) {
-		printf("ah_keyed_sha1_mature: invalid key length %d.\n",
-			sav->key_auth->sadb_key_bits);
+		ipseclog((LOG_ERR,
+		    "ah_keyed_sha1_mature: invalid key length %d.\n",
+		    sav->key_auth->sadb_key_bits));
 		return 1;
 	}
 
 	return 0;
 }
 
-static void
+static int
 ah_keyed_sha1_init(state, sav)
 	struct ah_algorithm_state *state;
 	struct secasvar *sav;
 {
 	SHA1_CTX *ctxt;
+	size_t padlen;
+	size_t keybitlen;
+	u_int8_t buf[32];
 
 	if (!state)
 		panic("ah_keyed_sha1_init: what?");
@@ -325,7 +331,7 @@ ah_keyed_sha1_init(state, sav)
 	state->sav = sav;
 	state->foo = (void *)malloc(sizeof(SHA1_CTX), M_TEMP, M_NOWAIT);
 	if (!state->foo)
-		panic("ah_keyed_sha1_init: what?");
+		return ENOBUFS;
 
 	ctxt = (SHA1_CTX *)state->foo;
 	SHA1Init(ctxt);
@@ -334,14 +340,9 @@ ah_keyed_sha1_init(state, sav)
 		SHA1Update(ctxt, (u_int8_t *)_KEYBUF(state->sav->key_auth),
 			(u_int)_KEYLEN(state->sav->key_auth));
 
-	    {
 		/*
 		 * Pad after the key.
 		 */
-		size_t padlen;
-		size_t keybitlen;
-		u_int8_t buf[32];
-
 		if (_KEYLEN(state->sav->key_auth) < 56)
 			padlen = 64 - 8 - _KEYLEN(state->sav->key_auth);
 		else
@@ -367,14 +368,15 @@ ah_keyed_sha1_init(state, sav)
 		buf[2] = (keybitlen >> 16) & 0xff;
 		buf[3] = (keybitlen >> 24) & 0xff;
 		SHA1Update(ctxt, buf, 8);
-	    }
 	}
+
+	return 0;
 }
 
 static void
 ah_keyed_sha1_loop(state, addr, len)
 	struct ah_algorithm_state *state;
-	const caddr_t addr;
+	caddr_t addr;
 	size_t len;
 {
 	SHA1_CTX *ctxt;
@@ -383,7 +385,7 @@ ah_keyed_sha1_loop(state, addr, len)
 		panic("ah_keyed_sha1_loop: what?");
 	ctxt = (SHA1_CTX *)state->foo;
 
-	sha1_loop(ctxt, (caddr_t)addr, (size_t)len);
+	SHA1Update(ctxt, (caddr_t)addr, (size_t)len);
 }
 
 static void
@@ -415,21 +417,22 @@ ah_hmac_md5_mature(sav)
 	struct ah_algorithm *algo;
 
 	if (!sav->key_auth) {
-		printf("esp_hmac_md5_mature: no key is given.\n");
+		ipseclog((LOG_ERR, "ah_hmac_md5_mature: no key is given.\n"));
 		return 1;
 	}
 	algo = &ah_algorithms[sav->alg_auth];
 	if (sav->key_auth->sadb_key_bits < algo->keymin
 	 || algo->keymax < sav->key_auth->sadb_key_bits) {
-		printf("ah_hmac_md5_mature: invalid key length %d.\n",
-			sav->key_auth->sadb_key_bits);
+		ipseclog((LOG_ERR,
+		    "ah_hmac_md5_mature: invalid key length %d.\n",
+		    sav->key_auth->sadb_key_bits));
 		return 1;
 	}
 
 	return 0;
 }
 
-static void
+static int
 ah_hmac_md5_init(state, sav)
 	struct ah_algorithm_state *state;
 	struct secasvar *sav;
@@ -448,7 +451,7 @@ ah_hmac_md5_init(state, sav)
 	state->sav = sav;
 	state->foo = (void *)malloc(64 + 64 + sizeof(MD5_CTX), M_TEMP, M_NOWAIT);
 	if (!state->foo)
-		panic("ah_hmac_md5_init: what?");
+		return ENOBUFS;
 
 	ipad = (u_char *)state->foo;
 	opad = (u_char *)(ipad + 64);
@@ -478,12 +481,14 @@ ah_hmac_md5_init(state, sav)
 
 	MD5Init(ctxt);
 	MD5Update(ctxt, ipad, 64);
+
+	return 0;
 }
 
 static void
 ah_hmac_md5_loop(state, addr, len)
 	struct ah_algorithm_state *state;
-	const caddr_t addr;
+	caddr_t addr;
 	size_t len;
 {
 	MD5_CTX *ctxt;
@@ -530,21 +535,22 @@ ah_hmac_sha1_mature(sav)
 	struct ah_algorithm *algo;
 
 	if (!sav->key_auth) {
-		printf("esp_hmac_sha1_mature: no key is given.\n");
+		ipseclog((LOG_ERR, "ah_hmac_sha1_mature: no key is given.\n"));
 		return 1;
 	}
 	algo = &ah_algorithms[sav->alg_auth];
 	if (sav->key_auth->sadb_key_bits < algo->keymin
 	 || algo->keymax < sav->key_auth->sadb_key_bits) {
-		printf("ah_hmac_sha1_mature: invalid key length %d.\n",
-			sav->key_auth->sadb_key_bits);
+		ipseclog((LOG_ERR,
+		    "ah_hmac_sha1_mature: invalid key length %d.\n",
+		    sav->key_auth->sadb_key_bits));
 		return 1;
 	}
 
 	return 0;
 }
 
-static void
+static int
 ah_hmac_sha1_init(state, sav)
 	struct ah_algorithm_state *state;
 	struct secasvar *sav;
@@ -564,7 +570,7 @@ ah_hmac_sha1_init(state, sav)
 	state->foo = (void *)malloc(64 + 64 + sizeof(SHA1_CTX),
 			M_TEMP, M_NOWAIT);
 	if (!state->foo)
-		panic("ah_hmac_sha1_init: what?");
+		return ENOBUFS;
 
 	ipad = (u_char *)state->foo;
 	opad = (u_char *)(ipad + 64);
@@ -594,12 +600,14 @@ ah_hmac_sha1_init(state, sav)
 
 	SHA1Init(ctxt);
 	SHA1Update(ctxt, ipad, 64);
+
+	return 0;
 }
 
 static void
 ah_hmac_sha1_loop(state, addr, len)
 	struct ah_algorithm_state *state;
-	const caddr_t addr;
+	caddr_t addr;
 	size_t len;
 {
 	SHA1_CTX *ctxt;
@@ -645,46 +653,99 @@ ah_hmac_sha1_result(state, addr)
 /*
  * go generate the checksum.
  */
+static void
+ah_update_mbuf(m, off, len, algo, algos)
+	struct mbuf *m;
+	int off;
+	int len;
+	struct ah_algorithm *algo;
+	struct ah_algorithm_state *algos;
+{
+	struct mbuf *n;
+	int tlen;
+
+	/* easy case first */
+	if (off + len <= m->m_len) {
+		(algo->update)(algos, mtod(m, caddr_t) + off, len);
+		return;
+	}
+
+	for (n = m; n; n = n->m_next) {
+		if (off < n->m_len)
+			break;
+
+		off -= n->m_len;
+	}
+
+	if (!n)
+		panic("ah_update_mbuf: wrong offset specified");
+
+	for (/*nothing*/; n && len > 0; n = n->m_next) {
+		if (n->m_len == 0)
+			continue;
+		if (n->m_len - off < len)
+			tlen = n->m_len - off;
+		else
+			tlen = len;
+
+		(algo->update)(algos, mtod(n, caddr_t) + off, tlen);
+
+		len -= tlen;
+		off = 0;
+	}
+}
+
+/*
+ * Go generate the checksum. This function won't modify the mbuf chain
+ * except AH itself.
+ *
+ * NOTE: the function does not free mbuf on failure.
+ * Don't use m_copy(), it will try to share cluster mbuf by using refcnt.
+ */
 int
-ah4_calccksum(m0, ahdat, algo, sav)
-	struct mbuf *m0;
+ah4_calccksum(m, ahdat, len, algo, sav)
+	struct mbuf *m;
 	caddr_t ahdat;
+	size_t len;
 	struct ah_algorithm *algo;
 	struct secasvar *sav;
 {
-	struct mbuf *m;
+	int off;
 	int hdrtype;
-	u_char *p;
 	size_t advancewidth;
 	struct ah_algorithm_state algos;
-	int tlen;
 	u_char sumbuf[AH_MAXSUMSIZE];
 	int error = 0;
+	int ahseen;
+	struct mbuf *n = NULL;
 
+	if ((m->m_flags & M_PKTHDR) == 0)
+		return EINVAL;
+
+	ahseen = 0;
 	hdrtype = -1;	/*dummy, it is called IPPROTO_IP*/
 
-	m = m0;
+	off = 0;
 
-	p = mtod(m, u_char *);
-
-	(algo->init)(&algos, sav);
+	error = (algo->init)(&algos, sav);
+	if (error)
+		return error;
 
 	advancewidth = 0;	/*safety*/
 
 again:
 	/* gory. */
 	switch (hdrtype) {
-	case -1:	/*first one*/
+	case -1:	/*first one only*/
 	    {
 		/*
 		 * copy ip hdr, modify to fit the AH checksum rule,
 		 * then take a checksum.
-		 * XXX need to care about source routing... jesus.
 		 */
 		struct ip iphdr;
 		size_t hlen;
 
-		bcopy((caddr_t)p, (caddr_t)&iphdr, sizeof(struct ip));
+		m_copydata(m, off, sizeof(iphdr), (caddr_t)&iphdr);
 #ifdef _IP_VHL
 		hlen = IP_VHL_HL(iphdr.ip_vhl) << 2;
 #else
@@ -692,22 +753,38 @@ again:
 #endif
 		iphdr.ip_ttl = 0;
 		iphdr.ip_sum = htons(0);
-		if (ip4_ah_cleartos) iphdr.ip_tos = 0;
+		if (ip4_ah_cleartos)
+			iphdr.ip_tos = 0;
 		iphdr.ip_off = htons(ntohs(iphdr.ip_off) & ip4_ah_offsetmask);
 		(algo->update)(&algos, (caddr_t)&iphdr, sizeof(struct ip));
 
 		if (hlen != sizeof(struct ip)) {
 			u_char *p;
-			int i, j;
-			int l, skip;
-			u_char dummy[4];
+			int i, l, skip;
+
+			if (hlen > MCLBYTES) {
+				error = EMSGSIZE;
+				goto fail;
+			}
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n && hlen > MLEN) {
+				MCLGET(n, M_DONTWAIT);
+				if ((n->m_flags & M_EXT) == 0) {
+					m_free(n);
+					n = NULL;
+				}
+			}
+			if (n == NULL) {
+				error = ENOBUFS;
+				goto fail;
+			}
+			m_copydata(m, off, hlen, mtod(n, caddr_t));
 
 			/*
 			 * IP options processing.
 			 * See RFC2402 appendix A.
 			 */
-			bzero(dummy, sizeof(dummy));
-			p = mtod(m, u_char *);
+			p = mtod(n, u_char *);
 			i = sizeof(struct ip);
 			while (i < hlen) {
 				skip = 1;
@@ -731,23 +808,27 @@ again:
 					break;
 				}
 				if (l <= 0 || hlen - i < l) {
-					printf("ah4_input: invalid IP option "
-						"(type=%02x len=%02x)\n",
-						p[i + IPOPT_OPTVAL],
-						p[i + IPOPT_OLEN]);
-					break;
+					ipseclog((LOG_ERR,
+					    "ah4_calccksum: invalid IP option "
+					    "(type=%02x len=%02x)\n",
+					    p[i + IPOPT_OPTVAL],
+					    p[i + IPOPT_OLEN]));
+					m_free(n);
+					n = NULL;
+					error = EINVAL;
+					goto fail;
 				}
-				if (skip) {
-					for (j = 0; j < l / sizeof(dummy); j++)
-						(algo->update)(&algos, dummy, sizeof(dummy));
-
-					(algo->update)(&algos, dummy, l % sizeof(dummy));
-				} else
-					(algo->update)(&algos, p + i, l);
+				if (skip)
+					bzero(p + i, l);
 				if (p[i + IPOPT_OPTVAL] == IPOPT_EOL)
 					break;
 				i += l;
 			}
+			p = mtod(n, u_char *) + sizeof(struct ip);
+			(algo->update)(&algos, p, hlen - sizeof(struct ip));
+
+			m_free(n);
+			n = NULL;
 		}
 
 		hdrtype = (iphdr.ip_p) & 0xff;
@@ -757,370 +838,306 @@ again:
 
 	case IPPROTO_AH:
 	    {
-		u_char dummy[4];
+		struct ah ah;
 		int siz;
 		int hdrsiz;
+		int totlen;
 
-		hdrsiz = (sav->flags & SADB_X_EXT_OLD) ?
-				sizeof(struct ah) : sizeof(struct newah);
-
-		(algo->update)(&algos, p, hdrsiz);
-
-		/* key data region. */
+		m_copydata(m, off, sizeof(ah), (caddr_t)&ah);
+		hdrsiz = (sav->flags & SADB_X_EXT_OLD)
+				? sizeof(struct ah)
+				: sizeof(struct newah);
 		siz = (*algo->sumsiz)(sav);
-		bzero(&dummy[0], sizeof(dummy));
-		while (sizeof(dummy) <= siz) {
-			(algo->update)(&algos, dummy, sizeof(dummy));
-			siz -= sizeof(dummy);
-		}
-		/* can't happen, but just in case */
-		if (siz)
-			(algo->update)(&algos, dummy, siz);
+		totlen = (ah.ah_len + 2) << 2;
 
-		/* padding region, just in case */
-		siz = (((struct ah *)p)->ah_len << 2) - (*algo->sumsiz)(sav);
-		if ((sav->flags & SADB_X_EXT_OLD) == 0)
-			siz -= 4;		/* sequence number field */
-		if (0 < siz) {
-			/* RFC 1826 */
-			(algo->update)(&algos, p + hdrsiz + (*algo->sumsiz)(sav),
-				siz);
-		}
+		/*
+		 * special treatment is necessary for the first one, not others
+		 */
+		if (!ahseen) {
+			if (totlen > m->m_pkthdr.len - off ||
+			    totlen > MCLBYTES) {
+				error = EMSGSIZE;
+				goto fail;
+			}
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n && totlen > MLEN) {
+				MCLGET(n, M_DONTWAIT);
+				if ((n->m_flags & M_EXT) == 0) {
+					m_free(n);
+					n = NULL;
+				}
+			}
+			if (n == NULL) {
+				error = ENOBUFS;
+				goto fail;
+			}
+			m_copydata(m, off, totlen, mtod(n, caddr_t));
+			n->m_len = totlen;
+			bzero(mtod(n, caddr_t) + hdrsiz, siz);
+			(algo->update)(&algos, mtod(n, caddr_t), n->m_len);
+			m_free(n);
+			n = NULL;
+		} else
+			ah_update_mbuf(m, off, totlen, algo, &algos);
+		ahseen++;
 
-		hdrtype = ((struct ah *)p)->ah_nxt;
-		advancewidth = hdrsiz;
-		advancewidth += ((struct ah *)p)->ah_len << 2;
-		if ((sav->flags & SADB_X_EXT_OLD) == 0)
-			advancewidth -= 4;	/* sequence number field */
+		hdrtype = ah.ah_nxt;
+		advancewidth = totlen;
 		break;
 	    }
 
 	default:
-		printf("ah4_calccksum: unexpected hdrtype=%x; "
-			"treating rest as payload\n", hdrtype);
-		/*fall through*/
-	case IPPROTO_ICMP:
-	case IPPROTO_IGMP:
-	case IPPROTO_IPIP:
-#ifdef INET6
-	case IPPROTO_IPV6:
-	case IPPROTO_ICMPV6:
-#endif
-	case IPPROTO_UDP:
-	case IPPROTO_TCP:
-	case IPPROTO_ESP:
-		while (m) {
-			tlen = m->m_len - (p - mtod(m, u_char *));
-			(algo->update)(&algos, p, tlen);
-			m = m->m_next;
-			p = m ? mtod(m, u_char *) : NULL;
-		}
-
-		advancewidth = 0;	/*loop finished*/
+		ah_update_mbuf(m, off, m->m_pkthdr.len - off, algo, &algos);
+		advancewidth = m->m_pkthdr.len - off;
 		break;
 	}
 
-	if (advancewidth) {
-		/* is it safe? */
-		while (m && advancewidth) {
-			tlen = m->m_len - (p - mtod(m, u_char *));
-			if (advancewidth < tlen) {
-				p += advancewidth;
-				advancewidth = 0;
-			} else {
-				advancewidth -= tlen;
-				m = m->m_next;
-				if (m)
-					p = mtod(m, u_char *);
-				else {
-					printf("ERR: hit the end-of-mbuf...\n");
-					p = NULL;
-				}
-			}
-		}
+	off += advancewidth;
+	if (off < m->m_pkthdr.len)
+		goto again;
 
-		if (m)
-			goto again;
+	if (len < (*algo->sumsiz)(sav)) {
+		error = EINVAL;
+		goto fail;
 	}
 
-	/* for HMAC algorithms... */
 	(algo->result)(&algos, &sumbuf[0]);
 	bcopy(&sumbuf[0], ahdat, (*algo->sumsiz)(sav));
 
+	if (n)
+		m_free(n);
+	return error;
+
+fail:
+	if (n)
+		m_free(n);
 	return error;
 }
 
 #ifdef INET6
 /*
- * go generate the checksum. This function won't modify the mbuf chain
+ * Go generate the checksum. This function won't modify the mbuf chain
  * except AH itself.
+ *
+ * NOTE: the function does not free mbuf on failure.
+ * Don't use m_copy(), it will try to share cluster mbuf by using refcnt.
  */
 int
-ah6_calccksum(m0, ahdat, algo, sav)
-	struct mbuf *m0;
+ah6_calccksum(m, ahdat, len, algo, sav)
+	struct mbuf *m;
 	caddr_t ahdat;
+	size_t len;
 	struct ah_algorithm *algo;
 	struct secasvar *sav;
 {
-	struct mbuf *m;
-	int hdrtype;
-	u_char *p;
-	size_t advancewidth;
+	int newoff, off;
+	int proto, nxt;
+	struct mbuf *n = NULL;
+	int error;
+	int ahseen;
 	struct ah_algorithm_state algos;
-	int tlen;
-	int error = 0;
 	u_char sumbuf[AH_MAXSUMSIZE];
-	int nest;
 
-	hdrtype = -1;	/*dummy, it is called IPPROTO_IPV6 */
+	if ((m->m_flags & M_PKTHDR) == 0)
+		return EINVAL;
 
-	m = m0;
+	error = (algo->init)(&algos, sav);
+	if (error)
+		return error;
 
-	p = mtod(m, u_char *);
+	off = 0;
+	proto = IPPROTO_IPV6;
+	nxt = -1;
+	ahseen = 0;
 
-	(algo->init)(&algos, sav);
-
-	advancewidth = 0;	/*safety*/
-	nest = 0;
-
-again:
-	if (ip6_hdrnestlimit && (++nest > ip6_hdrnestlimit)) {
-		ip6stat.ip6s_toomanyhdr++;
-		error = EINVAL;	/*XXX*/
-		goto bad;
+ again:
+	newoff = ip6_nexthdr(m, off, proto, &nxt);
+	if (newoff < 0)
+		newoff = m->m_pkthdr.len;
+	else if (newoff <= off) {
+		error = EINVAL;
+		goto fail;
 	}
 
-	/* gory. */
-	switch (hdrtype) {
-	case -1:	/*first one*/
-	    {
-		struct ip6_hdr ip6copy;
+	switch (proto) {
+	case IPPROTO_IPV6:
+		/*
+		 * special treatment is necessary for the first one, not others
+		 */
+		if (off == 0) {
+			struct ip6_hdr ip6copy;
 
-		bcopy(p, &ip6copy, sizeof(struct ip6_hdr));
-		/* RFC2402 */
-		ip6copy.ip6_flow = 0;
-		ip6copy.ip6_vfc = IPV6_VERSION;
-		ip6copy.ip6_hlim = 0;
-		if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_src))
-			ip6copy.ip6_src.s6_addr16[1] = 0x0000;
-		if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_dst))
-			ip6copy.ip6_dst.s6_addr16[1] = 0x0000;
-		(algo->update)(&algos, (caddr_t)&ip6copy,
-			       sizeof(struct ip6_hdr));
-		hdrtype = (((struct ip6_hdr *)p)->ip6_nxt) & 0xff;
-		advancewidth = sizeof(struct ip6_hdr);
+			if (newoff - off != sizeof(struct ip6_hdr)) {
+				error = EINVAL;
+				goto fail;
+			}
+
+			m_copydata(m, off, newoff - off, (caddr_t)&ip6copy);
+			/* RFC2402 */
+			ip6copy.ip6_flow = 0;
+			ip6copy.ip6_vfc &= ~IPV6_VERSION_MASK;
+			ip6copy.ip6_vfc |= IPV6_VERSION;
+			ip6copy.ip6_hlim = 0;
+			if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_src))
+				ip6copy.ip6_src.s6_addr16[1] = 0x0000;
+			if (IN6_IS_ADDR_LINKLOCAL(&ip6copy.ip6_dst))
+				ip6copy.ip6_dst.s6_addr16[1] = 0x0000;
+			(algo->update)(&algos, (caddr_t)&ip6copy,
+				       sizeof(struct ip6_hdr));
+		} else {
+			newoff = m->m_pkthdr.len;
+			ah_update_mbuf(m, off, m->m_pkthdr.len - off, algo,
+			    &algos);
+		}
 		break;
-	    }
 
 	case IPPROTO_AH:
 	    {
-		u_char dummy[4];
 		int siz;
 		int hdrsiz;
 
-		hdrsiz = (sav->flags & SADB_X_EXT_OLD) ?
-				sizeof(struct ah) : sizeof(struct newah);
-
-		(algo->update)(&algos, p, hdrsiz);
-
-		/* key data region. */
+		hdrsiz = (sav->flags & SADB_X_EXT_OLD)
+				? sizeof(struct ah)
+				: sizeof(struct newah);
 		siz = (*algo->sumsiz)(sav);
-		bzero(&dummy[0], 4);
-		while (4 <= siz) {
-			(algo->update)(&algos, dummy, 4);
-			siz -= 4;
-		}
-		/* can't happen, but just in case */
-		if (siz)
-			(algo->update)(&algos, dummy, siz);
 
-		/* padding region, just in case */
-		siz = (((struct ah *)p)->ah_len << 2) - (*algo->sumsiz)(sav);
-		if ((sav->flags & SADB_X_EXT_OLD) == 0)
-			siz -= 4;		/* sequence number field */
-		if (0 < siz) {
-			(algo->update)(&algos, p + hdrsiz + (*algo->sumsiz)(sav),
-				siz);
-		}
-
-		hdrtype = ((struct ah *)p)->ah_nxt;
-		advancewidth = hdrsiz;
-		advancewidth += ((struct ah *)p)->ah_len << 2;
-		if ((sav->flags & SADB_X_EXT_OLD) == 0)
-			advancewidth -= 4;	/* sequence number field */
+		/*
+		 * special treatment is necessary for the first one, not others
+		 */
+		if (!ahseen) {
+			if (newoff - off > MCLBYTES) {
+				error = EMSGSIZE;
+				goto fail;
+			}
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n && newoff - off > MLEN) {
+				MCLGET(n, M_DONTWAIT);
+				if ((n->m_flags & M_EXT) == 0) {
+					m_free(n);
+					n = NULL;
+				}
+			}
+			if (n == NULL) {
+				error = ENOBUFS;
+				goto fail;
+			}
+			m_copydata(m, off, newoff - off, mtod(n, caddr_t));
+			n->m_len = newoff - off;
+			bzero(mtod(n, caddr_t) + hdrsiz, siz);
+			(algo->update)(&algos, mtod(n, caddr_t), n->m_len);
+			m_free(n);
+			n = NULL;
+		} else
+			ah_update_mbuf(m, off, newoff - off, algo, &algos);
+		ahseen++;
 		break;
 	    }
 
 	 case IPPROTO_HOPOPTS:
 	 case IPPROTO_DSTOPTS:
 	 {
-		 int hdrlen, optlen;
-		 u_int8_t *optp, *lastp = p, *optend, opt;
+		struct ip6_ext *ip6e;
+		int hdrlen, optlen;
+		u_int8_t *p, *optend, *optp;
 
-		 tlen = m->m_len - (p - mtod(m, u_char *));
-		 /* We assume all the options is contained in a single mbuf */
-		 if (tlen < sizeof(struct ip6_ext)) {
-			 error = EINVAL;
-			 goto bad;
-		 }
-		 hdrlen  = (((struct ip6_ext *)p)->ip6e_len + 1) << 3;
-		 hdrtype = (int)((struct ip6_ext *)p)->ip6e_nxt;
-		 if (tlen < hdrlen) {
-			 error = EINVAL;
-			 goto bad;
-		 }
-		 optend = p + hdrlen;
+		if (newoff - off > MCLBYTES) {
+			error = EMSGSIZE;
+			goto fail;
+		}
+		MGET(n, M_DONTWAIT, MT_DATA);
+		if (n && newoff - off > MLEN) {
+			MCLGET(n, M_DONTWAIT);
+			if ((n->m_flags & M_EXT) == 0) {
+				m_free(n);
+				n = NULL;
+			}
+		}
+		if (n == NULL) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_copydata(m, off, newoff - off, mtod(n, caddr_t));
+		n->m_len = newoff - off;
 
-		 /*
-		  * ICV calculation for the options header including all
-		  * options. This part is a little tricky since there are
-		  * two type of options; mutable and immutable. Our approach
-		  * is to calculate ICV for a consecutive immutable options
-		  * at once. Here is an example. In the following figure,
-		  * suppose that we've calculated ICV from the top of the
-		  * header to MutableOpt1, which is a mutable option.
-		  * lastp points to the end of MutableOpt1. Some immutable
-		  * options follows MutableOpt1, and we encounter a new
-		  * mutable option; MutableOpt2. optp points to the head
-		  * of MutableOpt2. In this situation, uncalculated immutable
-		  * field is the field from lastp to optp+2 (note that the
-		  * type and the length fields are considered as immutable
-		  * even in a mutable option). So we first calculate ICV
-		  * for the field as immutable, then calculate from optp+2
-		  * to the end of MutableOpt2, whose length is optlen-2,
-		  * where optlen is the length of MutableOpt2. Finally,
-		  * lastp is updated to point to the end of MutableOpt2
-		  * for further calculation. The updated point is shown as
-		  * lastp' in the figure.
-		  *                                <------ optlen ----->
-		  * -----------+-------------------+---+---+-----------+
-		  * MutableOpt1|ImmutableOptions...|typ|len|MutableOpt2|
-		  * -----------+-------------------+---+---+-----------+
-		  *            ^                   ^       ^
-		  *            lastp               optp    optp+2
-		  *            <---- optp + 2 - lastp -----><-optlen-2->
-		  *                                                    ^
-		  *                                                    lastp'
-		  */
-		 for (optp = p + 2; optp < optend; optp += optlen) {
-			 opt = optp[0];
-			 if (opt == IP6OPT_PAD1) {
-				 optlen = 1;
-			 } else {
-				 if (optp + 2 > optend) {
-					 error = EINVAL; /* malformed option */
-					 goto bad;
-				 }
-				 optlen = optp[1] + 2;
-				 if (opt & IP6OPT_MUTABLE) {
-					 /*
-					  * ICV calc. for the (consecutive)
-					  * immutable field followd by the
-					  * option.
-					  */
-					 (algo->update)(&algos, lastp,
-							optp + 2 - lastp);
-					 if (optlen - 2 > ZEROBUFLEN) {
-						 error = EINVAL; /* XXX */
-						 goto bad;
-					 }
-					 /*
-					  * ICV calc. for the mutable
-					  * option using an all-0 buffer.
-					  */
-					 (algo->update)(&algos, zerobuf,
-							optlen - 2);
-					 lastp = optp + optlen;
-				 }
-			 }
-		 }
-		 /*
-		  * Wrap up the calulation; compute ICV for the consecutive
-		  * immutable options at the end of the header(if any).
-		  */
-		 (algo->update)(&algos, lastp, p + hdrlen - lastp);
-		 advancewidth = hdrlen;
-		 break;
-	 }
-	 case IPPROTO_ROUTING:
-	 {
-		 /*
-		  * For an input packet, we can just calculate `as is'.
-		  * For an output packet, we assume ip6_output have already
-		  * made packet how it will be received at the final destination.
-		  * So we'll only check if the header is malformed.
-		  */
-		 int hdrlen;
+		ip6e = mtod(n, struct ip6_ext *);
+		hdrlen = (ip6e->ip6e_len + 1) << 3;
+		if (newoff - off < hdrlen) {
+			 error = EINVAL;
+			 m_free(n);
+			 n = NULL;
+			 goto fail;
+		}
+		p = mtod(n, u_int8_t *);
+		optend = p + hdrlen;
 
-		 tlen = m->m_len - (p - mtod(m, u_char *));
-		 /* We assume all the options is contained in a single mbuf */
-		 if (tlen < sizeof(struct ip6_ext)) {
-			 error = EINVAL;
-			 goto bad;
-		 }
-		 hdrlen  = (((struct ip6_ext *)p)->ip6e_len + 1) << 3;
-		 hdrtype = (int)((struct ip6_ext *)p)->ip6e_nxt;
-		 if (tlen < hdrlen) {
-			 error = EINVAL;
-			 goto bad;
-		 }
-		 advancewidth = hdrlen;
-		 (algo->update)(&algos, p, hdrlen);
-		 break;
-	 }
-	default:
-		printf("ah6_calccksum: unexpected hdrtype=%x; "
-			"treating rest as payload\n", hdrtype);
-		/*fall through*/
-	case IPPROTO_ICMP:
-	case IPPROTO_IGMP:
-	case IPPROTO_IPIP:	/*?*/
-	case IPPROTO_IPV6:
-	case IPPROTO_ICMPV6:
-	case IPPROTO_UDP:
-	case IPPROTO_TCP:
-	case IPPROTO_ESP:
-		while (m) {
-			tlen = m->m_len - (p - mtod(m, u_char *));
-			(algo->update)(&algos, p, tlen);
-			m = m->m_next;
-			p = m ? mtod(m, u_char *) : NULL;
+		/*
+		 * ICV calculation for the options header including all
+		 * options.  This part is a little tricky since there are
+		 * two type of options; mutable and immutable.  We try to
+		 * null-out mutable ones here.
+		 */
+		optp = p + 2;
+		while (optp < optend) {
+			if (optp[0] == IP6OPT_PAD1)
+				optlen = 1;
+			else {
+				if (optp + 2 > optend) {
+					error = EINVAL;
+					m_free(n);
+					n = NULL;
+					goto fail;
+				}
+				optlen = optp[1] + 2;
+
+				if (optp[0] & IP6OPT_MUTABLE)
+					bzero(optp + 2, optlen - 2);
+			}
+
+			optp += optlen;
 		}
 
-		advancewidth = 0;	/*loop finished*/
+		(algo->update)(&algos, mtod(n, caddr_t), n->m_len);
+		m_free(n);
+		n = NULL;
+		break;
+	 }
+
+	 case IPPROTO_ROUTING:
+		/*
+		 * For an input packet, we can just calculate `as is'.
+		 * For an output packet, we assume ip6_output have already
+		 * made packet how it will be received at the final
+		 * destination.
+		 */
+		/* FALLTHROUGH */
+
+	default:
+		ah_update_mbuf(m, off, newoff - off, algo, &algos);
 		break;
 	}
 
-	if (advancewidth) {
-		/* is it safe? */
-		while (m && advancewidth) {
-			tlen = m->m_len - (p - mtod(m, u_char *));
-			if (advancewidth < tlen) {
-				p += advancewidth;
-				advancewidth = 0;
-			} else {
-				advancewidth -= tlen;
-				m = m->m_next;
-				if (m)
-					p = mtod(m, u_char *);
-				else {
-					printf("ERR: hit the end-of-mbuf...\n");
-					p = NULL;
-				}
-			}
-		}
-
-		if (m)
-			goto again;
+	if (newoff < m->m_pkthdr.len) {
+		proto = nxt;
+		off = newoff;
+		goto again;
 	}
 
-	/* for HMAC algorithms... */
+	if (len < (*algo->sumsiz)(sav)) {
+		error = EINVAL;
+		goto fail;
+	}
+
 	(algo->result)(&algos, &sumbuf[0]);
 	bcopy(&sumbuf[0], ahdat, (*algo->sumsiz)(sav));
 
-	return(0);
-
-  bad:
-	return(error);
+	/* just in case */
+	if (n)
+		m_free(n);
+	return 0;
+fail:
+	/* just in case */
+	if (n)
+		m_free(n);
+	return error;
 }
 #endif

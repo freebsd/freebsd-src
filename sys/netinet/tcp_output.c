@@ -45,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/mbuf.h>
+#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -54,15 +55,11 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet6/in6_pcb.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
 #include <netinet/tcp.h>
@@ -809,31 +806,38 @@ send:
 	 */
 #ifdef INET6
 	if (isipv6) {
-		/* 
+		/*
 		 * we separately set hoplimit for every segment, since the
 		 * user might want to change the value via setsockopt.
 		 * Also, desired default hop limit might be changed via
-		 * Neighbor Discovery. 
-		 */ 
-		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, 
-					       tp->t_inpcb->in6p_route.ro_rt ? 
-					       tp->t_inpcb->in6p_route.ro_rt->rt_ifp 
-					       : NULL); 
+		 * Neighbor Discovery.
+		 */
+		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb,
+					       tp->t_inpcb->in6p_route.ro_rt ?
+					       tp->t_inpcb->in6p_route.ro_rt->rt_ifp
+					       : NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 #ifdef IPSEC
-		m->m_pkthdr.rcvif = (struct ifnet *)so;
+		ipsec_setsocket(m, so);
 #endif /*IPSEC*/
 		error = ip6_output(m,
 			    tp->t_inpcb->in6p_outputopts,
 			    &tp->t_inpcb->in6p_route,
-			    (so->so_options & SO_DONTROUTE)|IPV6_SOCKINMRCVIF,
-			    NULL, NULL);
+			    (so->so_options & SO_DONTROUTE), NULL, NULL);
 	} else
 #endif /* INET6 */
     {
 	struct rtentry *rt;
 	ip->ip_len = m->m_pkthdr.len;
+#ifdef INET6
+ 	if (INP_CHECK_SOCKAF(so, AF_INET6))
+ 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb,
+ 					    tp->t_inpcb->in6p_route.ro_rt ?
+ 					    tp->t_inpcb->in6p_route.ro_rt->rt_ifp
+ 					    : NULL);
+ 	else
+#endif /* INET6 */
 	ip->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
 	ip->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
 	/*
@@ -849,8 +853,11 @@ send:
 	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
 		ip->ip_off |= IP_DF;
 	}
+#ifdef IPSEC
+ 	ipsec_setsocket(m, so);
+#endif /*IPSEC*/
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
-	    (so->so_options & SO_DONTROUTE)|IP_SOCKINMRCVIF, 0);
+	    (so->so_options & SO_DONTROUTE), 0);
     }
 	if (error) {
 out:

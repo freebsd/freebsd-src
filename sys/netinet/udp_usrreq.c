@@ -188,6 +188,10 @@ udp_input(m, off, proto)
 	}
 	uh = (struct udphdr *)((caddr_t)ip + iphlen);
 
+	/* destination port of 0 is illegal, based on RFC768. */
+	if (uh->uh_dport == 0)
+		goto bad;
+
 	/*
 	 * Make mbuf data length reflect UDP length.
 	 * If not enough data to reflect UDP length, drop.
@@ -410,7 +414,7 @@ bad:
 	return;
 }
 
-#if defined(INET6)
+#ifdef INET6
 static void
 ip_2_ip6_hdr(ip6, ip)
 	struct ip6_hdr *ip6;
@@ -717,12 +721,10 @@ udp_output(inp, m, addr, control, p)
 	udpstat.udps_opackets++;
 
 #ifdef IPSEC
-	m->m_pkthdr.rcvif = (struct ifnet *)inp->inp_socket;
+	ipsec_setsocket(m, inp->inp_socket);
 #endif /*IPSEC*/
-
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST))
-	    | IP_SOCKINMRCVIF,
+	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
 	    inp->inp_moptions);
 
 	if (addr) {

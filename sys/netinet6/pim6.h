@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: pim6.h,v 1.3 2000/03/25 07:23:58 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * Protocol Independent Multicast (PIM) definitions
@@ -39,7 +40,7 @@
 /*
  * PIM packet header
  */
-#define	PIM_VERSION	2
+#define PIM_VERSION	2
 struct pim {
 #if defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
 	u_char	pim_type:4, /* the PIM message type, currently they are:
@@ -52,17 +53,17 @@ struct pim {
 	u_char	pim_ver:4,	/* PIM version */
 		pim_type:4;	/* PIM type    */
 #endif
-	u_char	pim_rsv;	/* Reserved */
+	u_char  pim_rsv;	/* Reserved */
 	u_short	pim_cksum;	/* IP style check sum */
 };
 
-#define	PIM_MINLEN	8		/* The header min. length is 8    */
-#define	PIM6_REG_MINLEN	(PIM_MINLEN+40)	/* Register message + inner IP6 header */
+#define PIM_MINLEN	8		/* The header min. length is 8    */
+#define PIM6_REG_MINLEN	(PIM_MINLEN+40)	/* Register message + inner IP6 header */
 
 /*
  * Message types
  */
-#define	PIM_REGISTER	1	/* PIM Register type is 1 */
+#define PIM_REGISTER	1	/* PIM Register type is 1 */
 
 /* second bit in reg_head is the null bit */
-#define	PIM_NULL_REGISTER 0x40000000
+#define PIM_NULL_REGISTER 0x40000000

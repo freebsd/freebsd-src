@@ -61,21 +61,17 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>	/* for ICMP_BANDLIM		*/
-#ifdef INET6
-#include <netinet/ip6.h>
 #include <netinet/in_var.h>
-#include <netinet6/nd6.h>
-#include <netinet/icmp6.h>
-#endif
+#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM		*/
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
+#include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_pcb.h>
 #endif
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM		*/
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -156,7 +152,7 @@ do { \
 	if ((tp) && (tp)->t_inpcb && \
 	    ((tp)->t_inpcb->inp_vflag & INP_IPV6) != 0 && \
 	    (tp)->t_inpcb->in6p_route.ro_rt) \
-		nd6_nud_hint((tp)->t_inpcb->in6p_route.ro_rt, NULL); \
+		nd6_nud_hint((tp)->t_inpcb->in6p_route.ro_rt, NULL, 0); \
 } while (0)
 #else
 #define ND6_HINT(tp)

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des_3cbc.c,v 1.4 2000/06/14 10:41:17 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,16 +28,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * based on sys/crypto/des/des_cbc.c, rewrote by Tomomi Suzuki
  */
 #include <crypto/des/des_locl.h>
 
+#define panic(x)	do { printf(x); return EINVAL; } while (0)
 
-void des_3cbc_process(m0, skip, length, schedule, ivec, mode)
+int des_3cbc_process(m0, skip, length, schedule, ivec, mode)
 	struct mbuf *m0;
 	size_t skip;
 	size_t length;
@@ -55,21 +57,21 @@ void des_3cbc_process(m0, skip, length, schedule, ivec, mode)
 	/* sanity check */
 	if (m0->m_pkthdr.len < skip) {
 		printf("des_3cbc_process: mbuf length < skip\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < length) {
 		printf("des_3cbc_process: mbuf length < encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (m0->m_pkthdr.len < skip + length) {
 		printf("des_3cbc_process: mbuf length < "
 			"skip + encrypt length\n");
-		return;
+		return EINVAL;
 	}
 	if (length % 8) {
 		printf("des_3cbc_process: length(%lu) is not multiple of 8\n",
 			(u_long)length);
-		return;
+		return EINVAL;
 	}
 
 	m = m0;
@@ -242,5 +244,7 @@ void des_3cbc_process(m0, skip, length, schedule, ivec, mode)
 
 		length -= 8;
 	}
+
+	return 0;
 }
 

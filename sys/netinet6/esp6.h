@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: esp.h,v 1.8 2000/07/02 13:23:33 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -34,12 +35,12 @@
  */
 
 #ifndef _NETINET6_ESP6_H_
-#define	_NETINET6_ESP6_H_
+#define _NETINET6_ESP6_H_
 
 #ifdef _KERNEL
 extern int esp6_output __P((struct mbuf *, u_char *, struct mbuf *,
 	struct ipsecrequest *));
 extern int esp6_input __P((struct mbuf **, int *, int));
-#endif
+#endif /*_KERNEL*/
 
 #endif /*_NETINET6_ESP6_H_*/

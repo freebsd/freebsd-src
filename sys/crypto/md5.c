@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: md5.c,v 1.4 2000/03/27 04:36:22 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -35,61 +36,61 @@
 #include <sys/systm.h>
 #include <crypto/md5.h>
 
-#define	SHIFT(X, s) (((X) << (s)) | ((X) >> (32 - (s))))
+#define SHIFT(X, s) (((X) << (s)) | ((X) >> (32 - (s))))
 
-#define	F(X, Y, Z) (((X) & (Y)) | ((~X) & (Z)))
-#define	G(X, Y, Z) (((X) & (Z)) | ((Y) & (~Z)))
-#define	H(X, Y, Z) ((X) ^ (Y) ^ (Z))
-#define	I(X, Y, Z) ((Y) ^ ((X) | (~Z)))
+#define F(X, Y, Z) (((X) & (Y)) | ((~X) & (Z)))
+#define G(X, Y, Z) (((X) & (Z)) | ((Y) & (~Z)))
+#define H(X, Y, Z) ((X) ^ (Y) ^ (Z))
+#define I(X, Y, Z) ((Y) ^ ((X) | (~Z)))
 
-#define	ROUND1(a, b, c, d, k, s, i) { \
+#define ROUND1(a, b, c, d, k, s, i) { \
 	(a) = (a) + F((b), (c), (d)) + X[(k)] + T[(i)]; \
 	(a) = SHIFT((a), (s)); \
 	(a) = (b) + (a); \
 }
 
-#define	ROUND2(a, b, c, d, k, s, i) { \
+#define ROUND2(a, b, c, d, k, s, i) { \
 	(a) = (a) + G((b), (c), (d)) + X[(k)] + T[(i)]; \
 	(a) = SHIFT((a), (s)); \
 	(a) = (b) + (a); \
 }
 
-#define	ROUND3(a, b, c, d, k, s, i) { \
+#define ROUND3(a, b, c, d, k, s, i) { \
 	(a) = (a) + H((b), (c), (d)) + X[(k)] + T[(i)]; \
 	(a) = SHIFT((a), (s)); \
 	(a) = (b) + (a); \
 }
 
-#define	ROUND4(a, b, c, d, k, s, i) { \
+#define ROUND4(a, b, c, d, k, s, i) { \
 	(a) = (a) + I((b), (c), (d)) + X[(k)] + T[(i)]; \
 	(a) = SHIFT((a), (s)); \
 	(a) = (b) + (a); \
 }
 
-#define	Sa	 7
-#define	Sb	12
-#define	Sc	17
-#define	Sd	22
+#define Sa	 7
+#define Sb	12
+#define Sc	17
+#define Sd	22
 
-#define	Se	 5
-#define	Sf	 9
-#define	Sg	14
-#define	Sh	20
+#define Se	 5
+#define Sf	 9
+#define Sg	14
+#define Sh	20
 
-#define	Si	 4
-#define	Sj	11
-#define	Sk	16
-#define	Sl	23
+#define Si	 4
+#define Sj	11
+#define Sk	16
+#define Sl	23
 
-#define	Sm	 6
-#define	Sn	10
-#define	So	15
-#define	Sp	21
+#define Sm	 6
+#define Sn	10
+#define So	15
+#define Sp	21
 
-#define	MD5_A0	0x67452301
-#define	MD5_B0	0xefcdab89
-#define	MD5_C0	0x98badcfe
-#define	MD5_D0	0x10325476
+#define MD5_A0	0x67452301
+#define MD5_B0	0xefcdab89
+#define MD5_C0	0x98badcfe
+#define MD5_D0	0x10325476
 
 /* Integer part of 4294967296 times abs(sin(i)), where i is in radians. */
 static const u_int32_t T[65] = {
@@ -123,7 +124,7 @@ static const u_int8_t md5_paddat[MD5_BUFLEN] = {
 	0,	0,	0,	0,	0,	0,	0,	0,
 	0,	0,	0,	0,	0,	0,	0,	0,
 	0,	0,	0,	0,	0,	0,	0,	0,
-	0,	0,	0,	0,	0,	0,	0,	0,
+	0,	0,	0,	0,	0,	0,	0,	0,	
 };
 
 static void md5_calc __P((u_int8_t *, md5_ctxt *));
@@ -158,7 +159,7 @@ void md5_loop(ctxt, input, len)
 		for (i = gap; i + MD5_BUFLEN <= len; i += MD5_BUFLEN) {
 			md5_calc((u_int8_t *)(input + i), ctxt);
 		}
-
+		
 		ctxt->md5_i = len - i;
 		bcopy((void *)(input + i), (void *)ctxt->md5_buf, ctxt->md5_i);
 	} else {
@@ -173,7 +174,7 @@ void md5_pad(ctxt)
 {
 	u_int gap;
 
-	/* Don't count up padding. Keep md5_n. */
+	/* Don't count up padding. Keep md5_n. */	
 	gap = MD5_BUFLEN - ctxt->md5_i;
 	if (gap > 8) {
 		bcopy((void *)md5_paddat,
@@ -189,7 +190,7 @@ void md5_pad(ctxt)
 		      MD5_BUFLEN - sizeof(ctxt->md5_n));
 	}
 
-	/* 8 byte word */
+	/* 8 byte word */	
 #if BYTE_ORDER == LITTLE_ENDIAN
 	bcopy(&ctxt->md5_n8[0], &ctxt->md5_buf[56], 8);
 #endif
@@ -241,7 +242,7 @@ static void md5_calc(b64, ctxt)
 	u_int32_t D = ctxt->md5_std;
 #if BYTE_ORDER == LITTLE_ENDIAN
 	u_int32_t *X = (u_int32_t *)b64;
-#endif
+#endif	
 #if BYTE_ORDER == BIG_ENDIAN
 	/* 4 byte words */
 	/* what a brute force but fast! */
@@ -272,7 +273,7 @@ static void md5_calc(b64, ctxt)
 	ROUND1(C, D, A, B, 10, Sc, 11); ROUND1(B, C, D, A, 11, Sd, 12);
 	ROUND1(A, B, C, D, 12, Sa, 13); ROUND1(D, A, B, C, 13, Sb, 14);
 	ROUND1(C, D, A, B, 14, Sc, 15); ROUND1(B, C, D, A, 15, Sd, 16);
-
+	
 	ROUND2(A, B, C, D,  1, Se, 17); ROUND2(D, A, B, C,  6, Sf, 18);
 	ROUND2(C, D, A, B, 11, Sg, 19); ROUND2(B, C, D, A,  0, Sh, 20);
 	ROUND2(A, B, C, D,  5, Se, 21); ROUND2(D, A, B, C, 10, Sf, 22);
@@ -290,14 +291,14 @@ static void md5_calc(b64, ctxt)
 	ROUND3(C, D, A, B,  3, Sk, 43); ROUND3(B, C, D, A,  6, Sl, 44);
 	ROUND3(A, B, C, D,  9, Si, 45); ROUND3(D, A, B, C, 12, Sj, 46);
 	ROUND3(C, D, A, B, 15, Sk, 47); ROUND3(B, C, D, A,  2, Sl, 48);
-
-	ROUND4(A, B, C, D,  0, Sm, 49); ROUND4(D, A, B, C,  7, Sn, 50);
-	ROUND4(C, D, A, B, 14, So, 51); ROUND4(B, C, D, A,  5, Sp, 52);
-	ROUND4(A, B, C, D, 12, Sm, 53); ROUND4(D, A, B, C,  3, Sn, 54);
-	ROUND4(C, D, A, B, 10, So, 55); ROUND4(B, C, D, A,  1, Sp, 56);
-	ROUND4(A, B, C, D,  8, Sm, 57); ROUND4(D, A, B, C, 15, Sn, 58);
-	ROUND4(C, D, A, B,  6, So, 59); ROUND4(B, C, D, A, 13, Sp, 60);
-	ROUND4(A, B, C, D,  4, Sm, 61); ROUND4(D, A, B, C, 11, Sn, 62);
+	
+	ROUND4(A, B, C, D,  0, Sm, 49); ROUND4(D, A, B, C,  7, Sn, 50);	
+	ROUND4(C, D, A, B, 14, So, 51); ROUND4(B, C, D, A,  5, Sp, 52);	
+	ROUND4(A, B, C, D, 12, Sm, 53); ROUND4(D, A, B, C,  3, Sn, 54);	
+	ROUND4(C, D, A, B, 10, So, 55); ROUND4(B, C, D, A,  1, Sp, 56);	
+	ROUND4(A, B, C, D,  8, Sm, 57); ROUND4(D, A, B, C, 15, Sn, 58);	
+	ROUND4(C, D, A, B,  6, So, 59); ROUND4(B, C, D, A, 13, Sp, 60);	
+	ROUND4(A, B, C, D,  4, Sm, 61); ROUND4(D, A, B, C, 11, Sn, 62);	
 	ROUND4(C, D, A, B,  2, So, 63); ROUND4(B, C, D, A,  9, Sp, 64);
 
 	ctxt->md5_sta += A;

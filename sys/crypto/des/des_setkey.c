@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: des_setkey.c,v 1.3 2000/03/27 04:36:33 sumikawa Exp $	*/
+
 /* crypto/des/set_key.c */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -43,8 +46,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 /* set_key.c v 1.4 eay 24/9/91
@@ -97,7 +98,7 @@ des_cblock (*key);
  * Many thanks to smb@ulysses.att.com (Steven Bellovin) for the reference
  * (and actual cblock values).
  */
-#define	NUM_WEAK_KEY	16
+#define NUM_WEAK_KEY	16
 static des_cblock weak_keys[NUM_WEAK_KEY]={
 	/* weak keys */
 	{0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01},
@@ -142,7 +143,7 @@ des_cblock (*key);
  * 	(a)=((a)^((t)<<(n))))
  */
 
-#define	HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
+#define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
 	(a)=(a)^(t)^(t>>(16-(n))))
 
 /* return 0 if key parity is odd (correct),
@@ -223,7 +224,7 @@ des_key_schedule schedule;
 		/* table contained 0213 4657 */
 		*(k++)=((t<<16L)|(s&0x0000ffffL))&0xffffffffL;
 		s=     ((s>>16L)|(t&0xffff0000L));
-
+		
 		s=(s<<4L)|(s>>28L);
 		*(k++)=s&0xffffffffL;
 		}
