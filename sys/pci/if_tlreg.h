@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.11 1999/07/23 02:06:57 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.12 1999/07/23 02:17:59 wpaul Exp $
  */
 
 
@@ -116,23 +116,16 @@ struct tl_softc {
 	void			*tl_intrhand;
 	struct resource		*tl_irq;
 	struct resource		*tl_res;
+	device_t		tl_miibus;
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
-	struct tl_type		*tl_pinfo;	/* PHY info struct */
-	u_int8_t		tl_ctlr;	/* chip number */
 	u_int8_t		tl_unit;	/* interface number */
 	u_int8_t		tl_eeaddr;
-	u_int8_t		tl_phy_addr;	/* PHY address */
-	u_int8_t		tl_tx_pend;	/* TX pending */
-	u_int8_t		tl_want_auto;	/* autoneg scheduled */
-	u_int8_t		tl_autoneg;	/* autoneg in progress */
-	u_int16_t		tl_phy_sts;	/* PHY status */
-	u_int16_t		tl_phy_vid;	/* PHY vendor ID */
-	u_int16_t		tl_phy_did;	/* PHY device ID */
 	caddr_t			tl_ldata_ptr;
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;
 	u_int8_t		tl_txeoc;
 	u_int8_t		tl_bitrate;
+	int			tl_if_flags;
 	struct callout_handle	tl_stat_ch;
 };
 
@@ -140,20 +133,6 @@ struct tl_softc {
  * Transmit interrupt threshold.
  */
 #define TX_THR		0x00000004
-
-#define TL_FLAG_FORCEDELAY	1
-#define TL_FLAG_SCHEDDELAY	2
-#define TL_FLAG_DELAYTIMEO	3
-
-/*
- * The ThunderLAN supports up to 32 PHYs.
- */
-#define TL_PHYADDR_MIN		0x00
-#define TL_PHYADDR_MAX		0x1F
-
-#define PHY_UNKNOWN	6
-
-#define TL_PHYS_IDLE	-1
 
 /*
  * General constants that are fun to know.
@@ -165,65 +144,6 @@ struct tl_softc {
  */
 #define	TI_VENDORID		0x104C
 #define	TI_DEVICEID_THUNDERLAN	0x0500
-
-/*
- * Known PHY Ids. According to the Level 1 documentation (which is
- * very nice, incidentally), here's how they work:
- *
- * The PHY identifier register #1 is composed of bits 3 through 18
- * of the OUI. (First 16-bit word.)
- * The PHY identifier register #2 is composed of bits 19 through 24
- * if the OUI.
- * This is followed by 6 bits containing the manufacturer's model
- * number.
- * Lastly, there are 4 bits for the manufacturer's revision number.
- *
- * Honestly, there are a lot of these that don't make any sense; the
- * only way to be really sure is to look at the data sheets.
- */
-
-/*
- * Texas Instruments PHY identifiers
- *
- * The ThunderLAN manual has a curious and confusing error in it.
- * In chapter 7, which describes PHYs, it says that TI PHYs have
- * the following ID codes, where xx denotes a revision:
- *
- * 0x4000501xx			internal 10baseT PHY
- * 0x4000502xx			TNETE211 100VG-AnyLan PMI
- *
- * The problem here is that these are not valid 32-bit hex numbers:
- * there's one digit too many. My guess is that they mean the internal
- * 10baseT PHY is 0x4000501x and the TNETE211 is 0x4000502x since these
- * are the only numbers that make sense.
- */
-#define TI_PHY_VENDORID		0x4000
-#define TI_PHY_10BT		0x501F
-#define TI_PHY_100VGPMI		0x502F
-
-/*
- * These ID values are for the NS DP83840A 10/100 PHY
- */
-#define NS_PHY_VENDORID		0x2000
-#define NS_PHY_83840A		0x5C0F
-
-/*
- * Level 1 10/100 PHY
- */
-#define LEVEL1_PHY_VENDORID	0x7810
-#define LEVEL1_PHY_LXT970	0x000F
-
-/*
- * Intel 82555 10/100 PHY
- */
-#define INTEL_PHY_VENDORID	0x0A28
-#define INTEL_PHY_82555		0x015F
-
-/*
- * SEEQ 80220 10/100 PHY
- */
-#define SEEQ_PHY_VENDORID	0x0016
-#define SEEQ_PHY_80220		0xF83F
 
 /*
  * These are the PCI vendor and device IDs for Compaq ethernet
@@ -631,177 +551,6 @@ struct tl_stats {
 	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_EDATA); /* Toggle DATA to 1 */	\
 	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ETXEN); /* Disable xmit. */	\
 	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK); /* Pull clock low again */
-
-
-/*
- * These are the register definitions for the PHY (physical layer
- * interface chip).
- * The ThunderLAN chip has a built-in 10Mb/sec PHY which may be used
- * in some configurations. The Compaq 10/100 cards based on the ThunderLAN
- * use a National Semiconductor DP83840A PHY. The generic BMCR and BMSR
- * layouts for both PHYs are identical, however some of the bits are not
- * used by the ThunderLAN's internal PHY (most notably those dealing with
- * switching between 10 and 100Mb/sec speeds). Since Both PHYs use the
- * same bits, we #define them with generic names here.
- */
-/*
- * PHY BMCR Basic Mode Control Register
- */
-#define PHY_BMCR			0x00
-#define PHY_BMCR_RESET			0x8000
-#define PHY_BMCR_LOOPBK			0x4000
-#define PHY_BMCR_SPEEDSEL		0x2000
-#define PHY_BMCR_AUTONEGENBL		0x1000
-#define PHY_BMCR_RSVD0			0x0800	/* write as zero */
-#define PHY_BMCR_PWRDOWN		0x0800	/* tlan internal PHY only */
-#define PHY_BMCR_ISOLATE		0x0400
-#define PHY_BMCR_AUTONEGRSTR		0x0200
-#define PHY_BMCR_DUPLEX			0x0100
-#define PHY_BMCR_COLLTEST		0x0080
-#define PHY_BMCR_RSVD1			0x0040	/* write as zero, don't care */
-#define PHY_BMCR_RSVD2			0x0020	/* write as zero, don't care */
-#define PHY_BMCR_RSVD3			0x0010	/* write as zero, don't care */
-#define PHY_BMCR_RSVD4			0x0008	/* write as zero, don't care */
-#define PHY_BMCR_RSVD5			0x0004	/* write as zero, don't care */
-#define PHY_BMCR_RSVD6			0x0002	/* write as zero, don't care */
-#define PHY_BMCR_RSVD7			0x0001	/* write as zero, don't care */
-/*
- * RESET: 1 == software reset, 0 == normal operation
- * Resets status and control registers to default values.
- * Relatches all hardware config values.
- *
- * LOOPBK: 1 == loopback operation enabled, 0 == normal operation
- *
- * SPEEDSEL: 1 == 100Mb/s, 0 == 10Mb/s
- * Link speed is selected byt his bit or if auto-negotiation if bit
- * 12 (AUTONEGENBL) is set (in which case the value of this register
- * is ignored).
- *
- * AUTONEGENBL: 1 == Autonegotiation enabled, 0 == Autonegotiation disabled
- * Bits 8 and 13 are ignored when autoneg is set, otherwise bits 8 and 13
- * determine speed and mode. Should be cleared and then set if PHY configured
- * for no autoneg on startup.
- *
- * ISOLATE: 1 == isolate PHY from MII, 0 == normal operation
- *
- * AUTONEGRSTR: 1 == restart autonegotiation, 0 = normal operation
- *
- * DUPLEX: 1 == full duplex mode, 0 == half duplex mode
- *
- * COLLTEST: 1 == collision test enabled, 0 == normal operation
- */
-
-/* 
- * PHY, BMSR Basic Mode Status Register 
- */   
-#define PHY_BMSR			0x01
-#define PHY_BMSR_100BT4			0x8000
-#define PHY_BMSR_100BTXFULL		0x4000
-#define PHY_BMSR_100BTXHALF		0x2000
-#define PHY_BMSR_10BTFULL		0x1000
-#define PHY_BMSR_10BTHALF		0x0800
-#define PHY_BMSR_RSVD1			0x0400	/* write as zero, don't care */
-#define PHY_BMSR_RSVD2			0x0200	/* write as zero, don't care */
-#define PHY_BMSR_RSVD3			0x0100	/* write as zero, don't care */
-#define PHY_BMSR_RSVD4			0x0080	/* write as zero, don't care */
-#define PHY_BMSR_MFPRESUP		0x0040
-#define PHY_BMSR_AUTONEGCOMP		0x0020
-#define PHY_BMSR_REMFAULT		0x0010
-#define PHY_BMSR_CANAUTONEG		0x0008
-#define PHY_BMSR_LINKSTAT		0x0004
-#define PHY_BMSR_JABBER			0x0002
-#define PHY_BMSR_EXTENDED		0x0001
-
-#define PHY_CTL_IGLINK			0x8000
-#define PHY_CTL_SWAPOL			0x4000
-#define PHY_CTL_AUISEL			0x2000
-#define PHY_CTL_SQEEN			0x1000
-#define PHY_CTL_MTEST			0x0800
-#define PHY_CTL_NFEW			0x0004
-#define PHY_CTL_INTEN			0x0002
-#define PHY_CTL_TINT			0x0001
-
-#define TL_PHY_GENCTL			0x00
-#define TL_PHY_GENSTS			0x01
-
-/*
- * PHY Generic Identifier Register, hi bits
- */
-#define TL_PHY_VENID			0x02
-
-/*
- * PHY Generic Identifier Register, lo bits
- */
-#define TL_PHY_DEVID			0x03
-
-#define TL_PHY_ANAR			0x04
-#define TL_PHY_LPAR			0x05 
-#define TL_PHY_ANEXP			0x06
-
-#define TL_PHY_PHYID			0x10
-#define TL_PHY_CTL			0x11
-#define TL_PHY_STS			0x12
-
-#define TL_LPAR_RMFLT			0x2000
-#define TL_LPAR_RSVD0			0x1000
-#define TL_LPAR_RSVD1			0x0800
-#define TL_LPAR_100BT4			0x0400
-#define TL_LPAR_100BTXFULL		0x0200
-#define TL_LPAR_100BTXHALF		0x0100
-#define TL_LPAR_10BTFULL		0x0080
-#define TL_LPAR_10BTHALF		0x0040
-
-/*
- * PHY Antoneg advertisement register.
- */
-#define PHY_ANAR			TL_PHY_ANAR
-#define PHY_ANAR_NEXTPAGE		0x8000
-#define PHY_ANAR_RSVD0			0x4000
-#define PHY_ANAR_TLRFLT			0x2000
-#define PHY_ANAR_RSVD1			0x1000
-#define PHY_RSVD_RSDV2			0x0800
-#define PHY_RSVD_RSVD3			0x0400
-#define PHY_ANAR_100BT4			0x0200
-#define PHY_ANAR_100BTXFULL		0x0100
-#define PHY_ANAR_100BTXHALF		0x0080
-#define PHY_ANAR_10BTFULL		0x0040
-#define PHY_ANAR_10BTHALF		0x0020
-#define PHY_ANAR_PROTO4			0x0010
-#define PHY_ANAR_PROTO3			0x0008
-#define PHY_ANAR_PROTO2			0x0004
-#define PHY_AHAR_PROTO1			0x0002
-#define PHY_AHAR_PROTO0			0x0001
-
-/*
- * DP83840 PHY, PCS Confifguration Register
- */
-#define TL_DP83840_PCS			0x17
-#define TL_DP83840_PCS_LED4_MODE	0x0002
-#define TL_DP83840_PCS_F_CONNECT	0x0020
-#define TL_DP83840_PCS_BIT8		0x0100
-#define TL_DP83840_PCS_BIT10		0x0400
-
-/*
- * DP83840 PHY, PAR register
- */
-#define TL_DP83840_PAR			0x19
-
-#define PAR_RSVD0			0x8000
-#define PAR_RSVD1			0x4000
-#define PAR_RSVD2			0x2000
-#define PAR_RSVD3			0x1000
-#define PAR_DIS_CRS_JAB			0x0800
-#define PAR_AN_EN_STAT			0x0400
-#define PAR_RSVD4			0x0200
-#define PAR_FEFI_EN			0x0100
-#define PAR_DUPLEX_STAT			0x0080
-#define PAR_SPEED_10			0x0040
-#define PAR_CIM_STATUS			0x0020
-#define PAR_PHYADDR4			0x0010
-#define PAR_PHYADDR3			0x0008
-#define PAR_PHYADDR2			0x0004
-#define PAR_PHYADDR1			0x0002
-#define PAR_PHYADDR0			0x0001
 
 
 /*
