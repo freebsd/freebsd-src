@@ -571,8 +571,10 @@ ready_event(struct dn_flow_queue *q)
 	/* XXX should check errors on heap_insert, and drain the whole
 	 * queue on error hoping next time we are luckier.
 	 */
-    } else	/* RED needs to know when the queue becomes empty */
+    } else {	/* RED needs to know when the queue becomes empty */
 	q->q_time = curr_time;
+	q->numbytes = 0;
+    }
     /*
      * If the delay line was empty call transmit_event(p) now.
      * Otherwise, the scheduler will take care of it.
@@ -1515,8 +1517,9 @@ set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
 static int
 config_pipe(struct dn_pipe *p)
 {
-    int s ;
+    int i, s;
     struct dn_flow_set *pfs = &(p->fs);
+    struct dn_flow_queue *q;
 
     /*
      * The config program passes parameters as follows:
@@ -1548,14 +1551,22 @@ config_pipe(struct dn_pipe *p)
 	     */
 	    x->idle_heap.size = x->idle_heap.elements = 0 ;
 	    x->idle_heap.offset=OFFSET_OF(struct dn_flow_queue, heap_pos);
-	} else
+	} else {
 	    x = b;
+	    s = splimp();
+	    /* Flush accumulated credit for all queues */
+	    for (i = 0; i <= x->fs.rq_size; i++)
+		for (q = x->fs.rq[i]; q; q = q->next)
+		    q->numbytes = 0;
+	    splx(s);
+	}
 
-	    x->bandwidth = p->bandwidth ;
+	s = splimp();
+	x->bandwidth = p->bandwidth ;
 	x->numbytes = 0; /* just in case... */
 	bcopy(p->if_name, x->if_name, sizeof(p->if_name) );
 	x->ifp = NULL ; /* reset interface ptr */
-	    x->delay = p->delay ;
+	x->delay = p->delay ;
 	set_fs_parms(&(x->fs), pfs);
 
 
@@ -1565,14 +1576,13 @@ config_pipe(struct dn_pipe *p)
 		free(x, M_DUMMYNET);
 		return s ;
 	    }
-	    s = splimp() ;
 	    x->next = b ;
 	    if (a == NULL)
 		all_pipes = x ;
 	    else
 		a->next = x ;
-	    splx(s);
 	}
+	splx(s);
     } else { /* config queue */
 	struct dn_flow_set *x, *a, *b ;
 
@@ -1601,6 +1611,7 @@ config_pipe(struct dn_pipe *p)
 		return EINVAL ;
 	    x = b;
 	}
+	s = splimp();
 	set_fs_parms(x, pfs);
 
 	if ( x->rq == NULL ) { /* a new flow_set */
@@ -1609,14 +1620,13 @@ config_pipe(struct dn_pipe *p)
 		free(x, M_DUMMYNET);
 		return s ;
 	    }
-	    s = splimp() ;
 	    x->next = b;
 	    if (a == NULL)
 		all_flow_sets = x;
 	    else
 		a->next = x;
-	    splx(s);
 	}
+	splx(s);
     }
     return 0 ;
 }

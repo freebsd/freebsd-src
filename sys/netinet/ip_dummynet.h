@@ -218,7 +218,7 @@ struct dn_flow_queue {
     struct dn_pkt *head, *tail ;	/* queue of packets */
     u_int len ;
     u_int len_bytes ;
-    long numbytes ;		/* credit for transmission (dynamic queues) */
+    u_long numbytes ;		/* credit for transmission (dynamic queues) */
 
     u_int64_t tot_pkts ;	/* statistics counters	*/
     u_int64_t tot_bytes ;
