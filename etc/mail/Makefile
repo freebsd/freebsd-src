@@ -31,13 +31,13 @@ default:
 	mv /etc/mail/block_domains.new /etc/mail/block_domains.txt
 
 install:
-	makemap hash /etc/mail/spamsites < /etc/mail/block_domains.txt
+	/usr/sbin/makemap hash /etc/mail/spamsites < /etc/mail/block_domains.txt
 .if exists(/etc/mail/spamsites.local)
-	makemap -o hash /etc/mail/spamsites < /etc/mail/spamsites.local
+	/usr/sbin/makemap -o hash /etc/mail/spamsites < /etc/mail/spamsites.local
 .endif
-	makemap hash /etc/mail/denyip < /etc/mail/block_ips.txt
+	/usr/sbin/makemap hash /etc/mail/denyip < /etc/mail/block_ips.txt
 .if exists(/etc/mail/denyip.local)
-	makemap -o hash /etc/mail/denyip < /etc/mail/denyip.local
+	/usr/sbin/makemap -o hash /etc/mail/denyip < /etc/mail/denyip.local
 .endif
 
 all: default install
