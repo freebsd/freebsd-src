@@ -44,7 +44,7 @@
 .Op Fl I Ar mask
 .Op Fl a | s | d Ar depth
 .Op Fl c
-.Op Fl h | k
+.Op Fl h | k | m
 .Op Fl x
 .Op Ar
 .Sh DESCRIPTION
@@ -55,13 +55,6 @@ and for each directory in the file hierarchy rooted in each directory
 argument.
 If no file is specified, the block usage of the hierarchy rooted in
 the current directory is displayed.
-If the
-.Fl k
-flag is specified, the number of 1024-byte
-blocks used by the file is displayed, otherwise
-.Xr getbsize 3
-is used to determine the preferred block size.
-Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -98,6 +91,8 @@ directories deep.
 Display a grand total.
 .It Fl k
 Display block counts in 1024-byte (1-Kbyte) blocks.
+.It Fl m
+Display block counts in 104857-byte (1-Mbyte) blocks.
 .It Fl x
 File system mount points are not traversed.
 .El
