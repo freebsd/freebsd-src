@@ -31,7 +31,7 @@
 #include <machine/sal.h>
 
 #define SAL_PCI_ADDRESS(bus, slot, func, reg) \
-	(((bus) << 23) | ((slot) << 11) | ((func) << 8) | (reg))
+	(((bus) << 16) | ((slot) << 11) | ((func) << 8) | (reg))
 
 int
 pci_cfgregopen(void)
@@ -51,9 +51,8 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 		return (~0);
 	else
 		return (res.sal_result[0]);
-
-
 }
+
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
