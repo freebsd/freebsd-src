@@ -196,6 +196,7 @@ static int dc_rx_resync		__P((struct dc_softc *));
 static void dc_rxeof		__P((struct dc_softc *));
 static void dc_txeof		__P((struct dc_softc *));
 static void dc_tick		__P((void *));
+static void dc_tx_underrun	__P((struct dc_softc *));
 static void dc_intr		__P((void *));
 static void dc_start		__P((struct ifnet *));
 static int dc_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -1202,17 +1203,16 @@ static void dc_setcfg(sc, media)
 		DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_TX_ON|DC_NETCFG_RX_ON));
 
 		for (i = 0; i < DC_TIMEOUT; i++) {
-			DELAY(10);
 			isr = CSR_READ_4(sc, DC_ISR);
-			if (isr & DC_ISR_TX_IDLE ||
+			if (isr & DC_ISR_TX_IDLE &&
 			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED)
 				break;
+			DELAY(10);
 		}
 
 		if (i == DC_TIMEOUT)
 			printf("dc%d: failed to force tx and "
 				"rx to idle state\n", sc->dc_unit);
-
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
@@ -2555,6 +2555,55 @@ static void dc_tick(xsc)
 	return;
 }
 
+/*
+ * A transmit underrun has occurred.  Back off the transmit threshold,
+ * or switch to store and forward mode if we have to.
+ */
+static void dc_tx_underrun(sc)
+	struct dc_softc		*sc;
+{
+	u_int32_t		isr;
+	int			i;
+
+	if (DC_IS_DAVICOM(sc))
+		dc_init(sc);
+
+	if (DC_IS_INTEL(sc)) {
+		/*
+		 * The real 21143 requires that the transmitter be idle
+		 * in order to change the transmit threshold or store
+		 * and forward state.
+		 */
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
+
+		for (i = 0; i < DC_TIMEOUT; i++) {
+			isr = CSR_READ_4(sc, DC_ISR);
+			if (isr & DC_ISR_TX_IDLE)
+				break;
+			DELAY(10);
+		}
+		if (i == DC_TIMEOUT) {
+			printf("dc%d: failed to force tx to idle state\n",
+			    sc->dc_unit);
+			dc_init(sc);
+		}
+	}
+
+	printf("dc%d: TX underrun -- ", sc->dc_unit);
+	sc->dc_txthresh += DC_TXTHRESH_INC;
+	if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
+		printf("using store and forward mode\n");
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
+	} else {
+		printf("increasing TX threshold\n");
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_THRESH);
+		DC_SETBIT(sc, DC_NETCFG, sc->dc_txthresh);
+	}
+
+	if (DC_IS_INTEL(sc))
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
+}
+
 static void dc_intr(arg)
 	void			*arg;
 {
@@ -2600,27 +2649,8 @@ static void dc_intr(arg)
 			}
 		}
 
-		if (status & DC_ISR_TX_UNDERRUN) {
-			u_int32_t		cfg;
-
-			printf("dc%d: TX underrun -- ", sc->dc_unit);
-			if (DC_IS_DAVICOM(sc) || DC_IS_INTEL(sc))
-				dc_init(sc);
-			cfg = CSR_READ_4(sc, DC_NETCFG);
-			cfg &= ~DC_NETCFG_TX_THRESH;
-			if (sc->dc_txthresh == DC_TXTHRESH_160BYTES) {
-				printf("using store and forward mode\n");
-				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
-			} else if (sc->dc_flags & DC_TX_STORENFWD) {
-				printf("resetting\n");
-			} else {
-				sc->dc_txthresh += 0x4000;
-				printf("increasing TX threshold\n");
-				CSR_WRITE_4(sc, DC_NETCFG, cfg);
-				DC_SETBIT(sc, DC_NETCFG, sc->dc_txthresh);
-				DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
-			}
-		}
+		if (status & DC_ISR_TX_UNDERRUN)
+			dc_tx_underrun(sc);
 
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
@@ -2865,7 +2895,7 @@ static void dc_init(xsc)
 	if (sc->dc_flags & DC_TX_STORENFWD)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
 	else {
-		if (sc->dc_txthresh == DC_TXTHRESH_160BYTES) {
+		if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
 		} else {
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
@@ -2893,7 +2923,7 @@ static void dc_init(xsc)
 	}
 
 	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_THRESH);
-	DC_SETBIT(sc, DC_NETCFG, DC_TXTHRESH_72BYTES);
+	DC_SETBIT(sc, DC_NETCFG, DC_TXTHRESH_MIN);
 
 	/* Init circular RX list. */
 	if (dc_list_rx_init(sc) == ENOBUFS) {
