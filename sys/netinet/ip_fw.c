@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.63 1997/09/10 03:07:14 peter Exp $
+ *	$Id: ip_fw.c,v 1.64 1997/10/12 20:25:25 phk Exp $
  */
 
 /*
@@ -21,6 +21,7 @@
 
 #ifndef IPFIREWALL_MODULE
 #include "opt_ipfw.h"
+#include "opt_ipdivert.h"
 #endif
 
 #include <sys/param.h>
