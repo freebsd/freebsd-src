@@ -61,6 +61,8 @@
 #include <netatm/uni/unisig_mbuf.h>
 #include <netatm/uni/unisig_print.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -292,7 +294,7 @@ unisig_send_setup(usp, uvp)
 	/*
 	 * Get memory for a SETUP message
 	 */
-	setup = (struct unisig_msg *)atm_allocate(&unisig_msgpool);
+	setup = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (setup == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -318,8 +320,7 @@ unisig_send_setup(usp, uvp)
 	 * specify one in the attribute block
 	 */
 	if (ap->calling.tag != T_ATM_PRESENT) {
-		setup->msg_ie_cgad = (struct ie_generic *)
-				atm_allocate(&unisig_iepool);
+		setup->msg_ie_cgad = uma_zalloc(unisig_ie_zone, M_WAITOK); 
 		if (setup->msg_ie_cgad == NULL) {
 			err = ENOMEM;
 			goto done;
@@ -378,13 +379,13 @@ unisig_send_release(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a RELEASE message
 	 */
-	rls_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	rls_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (rls_msg == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
 	if (cause_ie == NULL) {
-		atm_free(rls_msg);
+		uma_zfree(unisig_msg_zone, rls_msg);
 		return(ENOMEM);
 	}
 
@@ -454,13 +455,13 @@ unisig_send_release_complete(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a RELEASE COMPLETE message
 	 */
-	rls_cmp = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	rls_cmp = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (rls_cmp == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
 	if (cause_ie == NULL) {
-		atm_free(rls_cmp);
+		uma_zfree(unisig_msg_zone, rls_cmp);
 		return(ENOMEM);
 	}
 
@@ -533,19 +534,19 @@ unisig_send_status(usp, uvp, msg, cause)
 	/*
 	 * Get memory for a STATUS message
 	 */
-	stat_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	stat_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (stat_msg == NULL) {
 		return(ENOMEM);
 	}
-	cause_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
 	if (cause_ie == NULL) {
-		atm_free(stat_msg);
+		uma_zfree(unisig_msg_zone, stat_msg);
 		return(ENOMEM);
 	}
-	clst_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	clst_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO); 
 	if (clst_ie == NULL) {
-		atm_free(stat_msg);
-		atm_free(cause_ie);
+		uma_zfree(unisig_msg_zone, stat_msg);
+		uma_zfree(unisig_ie_zone, cause_ie);
 		return(ENOMEM);
 	}
 
@@ -678,7 +679,7 @@ unisig_rcv_restart(usp, msg)
 	/*
 	 * Get memory for a RESTART ACKNOWLEDGE message
 	 */
-	rsta_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	rsta_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
 	if (rsta_msg == NULL) {
 		return;
 	}
@@ -771,7 +772,7 @@ unisig_rcv_setup(usp, msg)
 	/*
 	 * Get a new VCCB for the connection
 	 */
-	uvp = (struct unisig_vccb *)atm_allocate(&unisig_vcpool);
+	uvp = uma_zalloc(unisig_vc_zone, M_WAITOK | M_ZERO);
 	if (uvp == NULL) {
 		return;
 	}
@@ -799,9 +800,8 @@ unisig_rcv_setup(usp, msg)
 	if (uvp->uv_sstate == UNI_NULL) {
 		DEQUEUE(uvp, struct unisig_vccb, uv_sigelem,
 				usp->us_vccq);
-		atm_free(uvp);
+		uma_zfree(unisig_vc_zone, uvp);
 	}
-
 	return;
 }
 
@@ -842,7 +842,7 @@ unisig_rcv_msg(usp, m)
 	/*
 	 * Get storage for the message
 	 */
-	msg = (struct unisig_msg *)atm_allocate(&unisig_msgpool);
+	msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (msg == NULL) {
 		err = ENOMEM;
 		goto done;

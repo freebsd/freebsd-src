@@ -187,7 +187,7 @@ uniarp_svc_oldage(uap)
 		if (uap->ua_ivp == NULL) {
 			UNIARP_CANCEL(uap);
 			UNIARP_DELETE(uap);
-			atm_free((caddr_t)uap);
+			uma_zfree(uniarp_zone, uap);
 			return;
 		}
 	}

@@ -59,10 +59,13 @@
 #include <netatm/uni/sscf_uni.h>
 #include <netatm/uni/sscf_uni_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
 
+extern uma_zone_t	unisig_vc_zone;
 
 /*
  * Local variables
@@ -173,7 +176,7 @@ sscf_uni_lower(cmd, tok, arg1, arg2)
 			sscf_uni_abort(uvp, "sscf_uni: TERM failure\n");
 			return;
 		}
-		atm_free((caddr_t)uvp);
+		uma_zfree(unisig_vc_zone, uvp);
 		sscf_uni_vccnt--;
 		break;
 

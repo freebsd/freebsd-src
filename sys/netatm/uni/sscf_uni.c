@@ -59,6 +59,8 @@
 #include <netatm/uni/uni.h>
 #include <netatm/uni/sscf_uni_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -77,12 +79,8 @@ static int	sscf_uni_inst(struct stack_defn **, Atm_connvc *);
 /*
  * Local variables
  */
-static struct sp_info	sscf_uni_pool = {
-	"sscf uni pool",		/* si_name */
-	sizeof(struct univcc),		/* si_blksiz */
-	5,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
+
+static uma_zone_t	sscf_uni_zone;
 
 static struct stack_defn	sscf_uni_service = {
 	NULL,
@@ -121,13 +119,17 @@ sscf_uni_start()
 {
 	int	err = 0;
 
+	sscf_uni_zone = uma_zcreate("sscf uni", sizeof(struct univcc), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (sscf_uni_zone == NULL)
+		panic("sscf_uni_start: uma_zcreate");
+
+	uma_zone_set_max(sscf_uni_zone, 100);
+
 	/*
 	 * Register stack service
 	 */
-	if ((err = atm_stack_register(&sscf_uni_service)) != 0)
-		goto done;
-
-done:
+	err = atm_stack_register(&sscf_uni_service);
 	return (err);
 }
 
@@ -166,13 +168,8 @@ sscf_uni_stop()
 	/*
 	 * Deregister the stack service
 	 */
-	(void) atm_stack_deregister(&sscf_uni_service);
-
-	/*
-	 * Free our storage pools
-	 */
-	atm_release_pool(&sscf_uni_pool);
-
+	(void)atm_stack_deregister(&sscf_uni_service);
+	uma_zdestroy(sscf_uni_zone);
 	return (0);
 }
 
@@ -216,10 +213,9 @@ sscf_uni_inst(ssp, cvp)
 	/*
 	 * Allocate our control block
 	 */
-	uvp = (struct univcc *)atm_allocate(&sscf_uni_pool);
+	uvp = uma_zalloc(sscf_uni_zone, M_WAITOK);
 	if (uvp == NULL)
 		return (ENOMEM);
-
 	uvp->uv_ustate = UVU_INST;
 	uvp->uv_lstate = UVL_INST;
 	uvp->uv_connvc = cvp;
@@ -246,7 +242,7 @@ sscf_uni_inst(ssp, cvp)
 		/*
 		 * Lower layer instantiation failed, free our resources
 		 */
-		atm_free((caddr_t)uvp);
+		uma_zfree(sscf_uni_zone, uvp);
 		sscf_uni_vccnt--;
 		return (err);
 	}
