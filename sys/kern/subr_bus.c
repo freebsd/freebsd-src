@@ -1471,7 +1471,6 @@ device_delete_child(device_t dev, device_t child)
 		devclass_delete_device(child->devclass, child);
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
-	device_set_desc(child, NULL);
 	kobj_delete((kobj_t) child, M_BUS);
 
 	bus_data_generation_update();
@@ -2232,6 +2231,7 @@ device_detach(device_t dev)
 
 	dev->state = DS_NOTPRESENT;
 	device_set_driver(dev, NULL);
+	device_set_desc(dev, NULL);
 	device_sysctl_fini(dev);
 
 	return (0);
