@@ -269,7 +269,7 @@ struct an_txframe {
 };
 
 struct an_rxframe_802_3 {
-        u_int16_t		an_rx_802_3_status;     /* 0x34 */	
+        u_int16_t		an_rx_802_3_status;     /* 0x34 */
 	u_int16_t		an_rx_802_3_payload_len;/* 0x36 */
 	u_int8_t		an_rx_dst_addr[6];      /* 0x38 */
 	u_int8_t		an_rx_src_addr[6];      /* 0x3E */
@@ -281,7 +281,7 @@ struct an_txframe_802_3 {
 /*
  * Transmit 802.3 header structure.
  */
-        u_int16_t		an_tx_802_3_status;     /* 0x34 */	
+        u_int16_t		an_tx_802_3_status;     /* 0x34 */
 	u_int16_t		an_tx_802_3_payload_len;/* 0x36 */
 	u_int8_t		an_tx_dst_addr[6];      /* 0x38 */
 	u_int8_t		an_tx_src_addr[6];      /* 0x3E */
@@ -337,8 +337,8 @@ struct an_snap_hdr {
 
 #define AN_TX_RING_CNT		4
 #define AN_INC(x, y)		(x) = (x + 1) % y
- 
-struct an_tx_ring_data {        
+
+struct an_tx_ring_data {
 	u_int16_t		an_tx_fids[AN_TX_RING_CNT];
 	u_int16_t		an_tx_ring[AN_TX_RING_CNT];
 	int			an_tx_prod;
@@ -349,7 +349,7 @@ struct an_softc	{
 	struct arpcom		arpcom;
 
         int                     an_unit;
-        
+
 	int	port_rid;	/* resource id for port range */
 	struct resource* port_res; /* resource for port range */
 	int	irq_rid;	/* resource id for irq */
