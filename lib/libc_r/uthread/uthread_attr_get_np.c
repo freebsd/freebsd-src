@@ -34,17 +34,16 @@
 __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 
 int
-_pthread_attr_get_np(pthread_t *pid, pthread_attr_t *dst)
+_pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 {
 	int	ret;
 
-	if ((pid == NULL) || (*pid == NULL) || (dst == NULL) || (*dst == NULL))
-		return(EINVAL);
+	if (pid == NULL || dst == NULL || *dst == NULL)
+		return (EINVAL);
 
-	if ((ret = _find_thread(*pid)) != 0)
-		return(ret);
+	if ((ret = _find_thread(pid)) != 0)
+		return (ret);
 
-	memcpy(*dst, &(*pid)->attr, sizeof(struct pthread_attr));
-
+	memcpy(*dst, &pid->attr, sizeof(struct pthread_attr));
 	return (0);
 }
