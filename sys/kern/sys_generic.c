@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/vnode.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/condvar.h>
@@ -138,9 +139,11 @@ pread(td, uap)
 
 	if ((error = fget_read(td, uap->fd, &fp)) != 0)
 		return (error);
-	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
+	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
 		error = ESPIPE;
-	} else {
+	else if (uap->offset < 0 && fp->f_vnode->v_type != VCHR)
+		error = EINVAL;
+	else {
 		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
 			    uap->offset, FOF_OFFSET);
 	}
@@ -361,9 +364,11 @@ pwrite(td, uap)
 	int error;
 
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
-		if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
+		if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
 			error = ESPIPE;
-		} else {
+		else if (uap->offset < 0 && fp->f_vnode->v_type != VCHR)
+			error = EINVAL;
+		else {
 			error = dofilewrite(td, fp, uap->fd, uap->buf,
 				    uap->nbyte, uap->offset, FOF_OFFSET);
 		}
