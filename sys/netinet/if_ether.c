@@ -924,8 +924,7 @@ arplookup(addr, create, proxy)
 			    inet_ntoa(sin.sin_addr), why);
 
 		/* If there are no references to this route, purge it */
-		if (rt->rt_refcnt <= 0 &&
-		    (rt->rt_flags & RTF_WASCLONED) != RTF_WASCLONED) {
+		if (rt->rt_refcnt <= 0 && (rt->rt_flags & RTF_WASCLONED)) {
 			rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),
 					rt->rt_gateway, rt_mask(rt),
