@@ -112,10 +112,10 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
-.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
+.if exists(${.CURDIR}/../sys/contrib/ipfilter/netinet)
+	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/machine
+		${DESTDIR}/usr/include/netinet
 .endif
 .for i in ${SFILES}
 	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
