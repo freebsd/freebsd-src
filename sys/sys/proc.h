@@ -215,7 +215,6 @@ struct	proc {
 	struct	vnode *p_textvp;	/* (b) Vnode of executable. */
 
 	struct	mtx p_mtx;		/* (k) Lock for this struct. */
-	u_int	p_spinlocks;		/* (k) Count of held spin locks. */
 	char	p_lock;		/* (c) Process lock (prevent swap) count. */
 	u_char	p_oncpu;		/* (j) Which cpu we are on. */
 	u_char	p_lastcpu;		/* (j) Last cpu we were on. */
