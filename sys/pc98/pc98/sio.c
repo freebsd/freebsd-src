@@ -726,6 +726,7 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	com = com_addr(comconsole);
 	if (com == NULL)
 		return (ENXIO);
+
 	tp = com->tp;
 	if (tp == NULL)
 		return (ENXIO);
@@ -1547,6 +1548,7 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 #endif
+
 	tp = com->tp = ttyalloc();
 	tp->t_oproc = comstart;
 	tp->t_param = comparam;
@@ -1822,7 +1824,6 @@ determined_type: ;
 	com->devs[5] = make_dev(&sioc_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	tp->t_dev = com->devs[0];
 	for (rid = 0; rid < 6; rid++) {
 		com->devs[rid]->si_drv1 = com;
 		com->devs[rid]->si_tty = tp;
@@ -1837,8 +1838,7 @@ determined_type: ;
 	pps_init(&com->pps);
 
 	rid = 0;
-	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-					     RF_ACTIVE);
+	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (com->irqres) {
 		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
 				     INTR_TYPE_TTY | INTR_FAST,
@@ -1899,13 +1899,13 @@ sioopen(dev, flag, mode, td)
 	int		unit;
 
 	mynor = minor(dev);
-	unit = dev2unit(dev);
+	unit = MINOR_TO_UNIT(mynor);
 	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
-	tp = dev->si_tty;
+	tp = dev->si_tty = com->tp;
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -1913,7 +1913,7 @@ sioopen(dev, flag, mode, td)
 	 */
 open_top:
 	error = ttydtrwaitsleep(tp);
-	if (error)
+	if (error != 0)
 		goto out;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
@@ -1952,6 +1952,7 @@ open_top:
 		 * cases: to preempt sleeping callin opens if we are
 		 * callout, and to complete a callin open after DCD rises.
 		 */
+		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? tp->t_init_out : tp->t_init_in;
 #ifdef PC98
@@ -2287,7 +2288,7 @@ siowrite(dev, uio, flag)
 	mynor = minor(dev);
 
 	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = dev->si_drv1;
 	if (com == NULL || com->gone)
 		return (ENODEV);
 	/*
@@ -2961,16 +2962,16 @@ siocioctl(dev, cmd, data, flag, td)
 	struct thread	*td;
 {
 	struct com_s	*com;
+	struct tty	*tp;
 	int		error;
 	int		mynor;
 	struct termios	*ct;
-	struct tty	*tp;
 
 	mynor = minor(dev);
 	com = dev->si_drv1;
-	tp = dev->si_tty;
 	if (com == NULL || com->gone)
 		return (ENODEV);
+	tp = com->tp;
 
 	switch (mynor & CONTROL_MASK) {
 	case CONTROL_INIT_STATE:
