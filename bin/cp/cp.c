@@ -83,9 +83,7 @@ static const char rcsid[] =
 
 PATH_T to = { to.p_path, "", "" };
 
-uid_t myuid;
 int Rflag, iflag, pflag, rflag, fflag, vflag;
-int myumask;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
@@ -169,12 +167,6 @@ main(argc, argv)
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
 	}
-
-	myuid = getuid();
-
-	/* Copy the umask for explicit mode setting. */
-	myumask = umask(0);
-	(void)umask(myumask);
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
