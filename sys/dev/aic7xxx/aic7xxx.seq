@@ -57,7 +57,9 @@
 poll_for_work:
 	call	clear_target_state;
 	and	SXFRCTL0, ~SPIOEN;
-	clr	SCSIBUSL;
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		clr	SCSIBUSL;
+	}
 poll_for_work_loop:
 	test	SSTAT0, SELDO|SELDI	jnz selection;
 	test	SCSISEQ, ENSELO	jnz poll_for_work_loop;
@@ -487,7 +489,9 @@ target_busfree_wait:
 		test	SCSISIGI, ACKI jnz .;
 target_busfree:
 		and	SIMODE1, ~ENBUSFREE;
-		clr	SCSIBUSL;
+		if ((ahc->features & AHC_ULTRA2) != 0) {
+			clr	SCSIBUSL;
+		}
 		clr	SCSISIGO;
 		mvi	LASTPHASE, P_BUSFREE;
 		call	complete_target_cmd;
@@ -614,7 +618,9 @@ ITloop:
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
 	mov	NONE, SCSIDATL;		/* Ack the last byte */
-	clr	SCSIBUSL;		/* Prevent bit leakage durint SELTO */
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		clr	SCSIBUSL;	/* Prevent bit leakage durint SELTO */
+	}
 	and	SXFRCTL0, ~SPIOEN;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
