@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.19 1994/02/28 04:19:39 alm Exp $
+#	$Id: SYSCONS,v 1.20 1994/03/01 01:27:03 alm Exp $
 #
 
 machine		"i386"
@@ -79,7 +79,7 @@ pseudo-device	loop
 pseudo-device	ether
 pseudo-device	log
 pseudo-device	sl	2
-pseudo-device	pty	4
+pseudo-device	pty	16
 pseudo-device	speaker
 
 pseudo-device	swappager
