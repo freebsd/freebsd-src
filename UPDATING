@@ -8,7 +8,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
-200411104:
+20041104:
 	FreeBSD 5.3-RELEASE
 
 20041010:
