@@ -1,4 +1,4 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -30,23 +30,6 @@ extern void push_body(const char *);
 extern void do_for(char *var, double from, double to,
 		   int by_is_multiplicative, double by, char *body);
 extern void do_lookahead();
-
-#ifndef HAVE_FMOD
-extern "C" {
-  double fmod(double, double);
-}
-#endif
-
-#undef rand
-#undef srand
-extern "C" {
-  int rand();
-#ifdef RET_TYPE_SRAND_IS_VOID
-  void srand(unsigned int);
-#else
-  int srand(unsigned int);
-#endif
-}
 
 /* Maximum number of characters produced by printf("%g") */
 #define GDIGITS 14
@@ -125,6 +108,7 @@ char *do_sprintf(const char *form, const double *v, int nv);
 %token SPLINE
 %token HEIGHT
 %token RADIUS
+%token FIGNAME
 %token WIDTH
 %token DIAMETER
 %token UP
@@ -283,7 +267,7 @@ works */
 %type <pair> position
 %type <obtype> object_type
 %type <n> optional_ordinal_last ordinal
-%type <str> until
+%type <str> macro_name until
 %type <dv> sprintf_args
 %type <lstr> text print_args print_arg
 
@@ -322,6 +306,14 @@ separator:
 	;
 
 placeless_element:
+	FIGNAME '=' macro_name
+		{
+		  a_delete graphname;
+		  graphname = new char[strlen($3) + 1];
+		  strcpy(graphname, $3);
+		  a_delete $3;
+		}
+	|
 	VARIABLE '=' any_expr
 		{
 		  define_variable($1, $3);
@@ -440,6 +432,11 @@ placeless_element:
 	| reset_variables
 	| RESET
 		{ define_variable("scale", 1.0); }
+	;
+
+macro_name:
+	VARIABLE
+	| LABEL
 	;
 
 reset_variables:
@@ -1664,7 +1661,7 @@ place *lookup_label(const char *label)
 
 void define_label(const char *label, const place *pl)
 {
-  place *p = new place;
+  place *p = new place[1];
   *p = *pl;
   current_table->define(label, p);
 }
@@ -1681,7 +1678,7 @@ int lookup_variable(const char *name, double *val)
 
 void define_variable(const char *name, double val)
 {
-  place *p = new place;
+  place *p = new place[1];
   p->obj = 0;
   p->x = val;
   p->y = 0.0;

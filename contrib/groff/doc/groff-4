@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,256 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Manipulating Filling and Adjusting,  Next: Manipulating Hyphenation,  Prev: Registers,  Up: gtroff Reference
+
+Manipulating Filling and Adjusting
+==================================
+
+   Various ways of causing "breaks" were given in *Note Implicit Line
+Breaks::.  The `br' request likewise causes a break.  Several other
+requests also cause breaks, but implicitly.  These are `bp', `ce',
+`cf', `fi', `fl', `in', `nf', `rj', `sp', `ti', and `trf'.
+
+ - Request: .br
+     Break the current line, i.e., the input collected so far is emitted
+     without adjustment.
+
+     If the no-break control character is used, `gtroff' suppresses the
+     break:
+
+
+          a
+          'br
+          b
+              => a b
+
+
+   Initially, `gtroff' fills and adjusts text to both margins.  Filling
+can be disabled via the `nf' request and re-enabled with the `fi'
+request.
+
+ - Request: .fi
+ - Register: \n[.u]
+     Activate fill mode (which is the default).  This request implicitly
+     enables adjusting; it also inserts a break in the text currently
+     being filled.  The read-only number register `.u' is set to 1.
+
+     The fill mode status is associated with the current environment
+     (*note Environments::).
+
+     See *Note Line Control::, for interaction with the `\c' escape.
+
+ - Request: .nf
+     Activate no-fill mode.  Input lines are output as-is, retaining
+     line breaks and ignoring the current line length.  This command
+     implicitly disables adjusting; it also causes a break.  The number
+     register `.u' is set to 0.
+
+     The fill mode status is associated with the current environment
+     (*note Environments::).
+
+     See *Note Line Control::, for interaction with the `\c' escape.
+
+ - Request: .ad [mode]
+ - Register: \n[.j]
+     Set adjusting mode.
+
+     Activation and deactivation of adjusting is done implicitly with
+     calls to the `fi' or `nf' requests.
+
+     MODE can have one of the following values:
+
+    `l'
+          Adjust text to the left margin.  This produces what is
+          traditionally called ragged-right text.
+
+    `r'
+          Adjust text to the right margin, producing ragged-left text.
+
+    `c'
+          Center filled text.  This is different to the `ce' request
+          which only centers text without filling.
+
+    `b'
+    `n'
+          Justify to both margins.  This is the default used by
+          `gtroff'.
+
+     Finally, MODE can be the numeric argument returned by the `.j'
+     register.
+
+     With no argument, `gtroff' adjusts lines in the same way it did
+     before adjusting was deactivated (with a call to `na', for
+     example).
+
+
+          text
+          .ad r
+          .nr ad \n[.j]
+          text
+          .ad c
+          text
+          .na
+          text
+          .ad         \" back to centering
+          text
+          .ad \n[ad]  \" back to right justifying
+
+     The current adjustment mode is available in the read-only number
+     register `.j'; it can be stored and subsequently used to set
+     adjustment.
+
+     The adjustment mode status is associated with the current
+     environment (*note Environments::).
+
+ - Request: .na
+     Disable adjusting.  This request won't change the current
+     adjustment mode: A subsequent call to `ad' uses the previous
+     adjustment setting.
+
+     The adjustment mode status is associated with the current
+     environment (*note Environments::).
+
+ - Request: .brp
+ - Escape: \p
+     Adjust the current line and cause a break.
+
+     In most cases this produces very ugly results since `gtroff'
+     doesn't have a sophisticated paragraph building algorithm (as TeX
+     have, for example); instead, `gtroff' fills and adjusts a paragraph
+     line by line:
+
+
+            This is an uninteresting sentence.
+            This is an uninteresting sentence.\p
+            This is an uninteresting sentence.
+
+     is formatted as
+
+
+            This is  an uninteresting  sentence.   This  is an
+            uninteresting                            sentence.
+            This is an uninteresting sentence.
+
+
+ - Request: .ss word_space_size [sentence_space_size]
+ - Register: \n[.ss]
+ - Register: \n[.sss]
+     Change the size of a space between words.  It takes its units as
+     one twelfth of the space width parameter for the current font.
+     Initially both the WORD_SPACE_SIZE and SENTENCE_SPACE_SIZE are 12.
+     In fill mode, the values specify the minimum distance.
+
+     If two arguments are given to the `ss' request, the second
+     argument sets the sentence space size.  If the second argument is
+     not given, sentence space size is set to WORD_SPACE_SIZE.  The
+     sentence space size is used in two circumstances: If the end of a
+     sentence occurs at the end of a line in fill mode, then both an
+     inter-word space and a sentence space are added; if two spaces
+     follow the end of a sentence in the middle of a line, then the
+     second space is a sentence space.  If a second argument is never
+     given to the `ss' request, the behaviour of UNIX `troff' is the
+     same as that exhibited by GNU `troff'.  In GNU `troff', as in UNIX
+     `troff', a sentence should always be followed by either a newline
+     or two spaces.
+
+     The read-only number registers `.ss' and `.sss' hold the values of
+     the parameters set by the first and second arguments of the `ss'
+     request.
+
+     The word space and sentence space values are associated with the
+     current environment (*note Environments::).
+
+     Contrary to AT&T `troff', this request is _not_ ignored if a TTY
+     output device is used; the given values are then rounded down to a
+     multiple of 12 (*note Implementation Differences::).
+
+     The request is ignored if there is no parameter.
+
+     Another useful application of the `ss' request is to insert
+     discardable horizontal space, i.e., space which is discarded at a
+     line break.  For example, paragraph-style footnotes could be
+     separated this way:
+
+
+          .ll 4.5i
+          1.\ This is the first footnote.\c
+          .ss 48
+          .nop
+          .ss 12
+          2.\ This is the second footnote.
+
+     The result:
+
+
+          1. This is the first footnote.        2. This
+          is the second footnote.
+
+     Note that the `\h' escape produces unbreakable space.
+
+ - Request: .ce [nnn]
+ - Register: \n[.ce]
+     Center text.  While the `.ad c' request also centers text, it
+     fills the text as well.  `ce' does not fill the text it affects.
+     This request causes a break.  The number of lines still to be
+     centered is associated with the current environment (*note
+     Environments::).
+
+     The following example demonstrates the differences.  Here the
+     input:
+
+
+          .ll 4i
+          .ce 1000
+          This is a small text fragment which shows the differences
+          between the `.ce' and the `.ad c' request.
+          .ce 0
+          
+          .ad c
+          This is a small text fragment which shows the differences
+          between the `.ce' and the `.ad c' request.
+
+     And here the result:
+
+
+            This is a small text fragment which
+                   shows the differences
+          between the `.ce' and the `.ad c' request.
+          
+            This is a small text fragment which
+          shows the differences between the `.ce'
+                  and the `.ad c' request.
+
+     With no arguments, `ce' centers the next line of text.  NNN
+     specifies the number of lines to be centered.  If the argument is
+     zero or negative, centering is disabled.
+
+     The basic length for centering text is the line length (as set
+     with the `ll' request) minus the indentation (as set with the `in'
+     request).  Temporary indentation is ignored.
+
+     As can be seen in the previous example, it is a common idiom to
+     turn on centering for a large number of lines, and to turn off
+     centering after text to be centered.  This is useful for any
+     request which takes a number of lines as an argument.
+
+     The `.ce' read-only number register contains the number of lines
+     remaining to be centered, as set by the `ce' request.
+
+ - Request: .rj [nnn]
+ - Register: \n[.rj]
+     Justify unfilled text to the right margin.  Arguments are
+     identical to the `ce' request.  The `.rj' read-only number
+     register is the number of lines to be right-justified as set by
+     the `rj' request.  This request causes a break.  The number of
+     lines still to be right-justified is associated with the current
+     environment (*note Environments::).
 
 
 File: groff,  Node: Manipulating Hyphenation,  Next: Manipulating Spacing,  Prev: Manipulating Filling and Adjusting,  Up: gtroff Reference
@@ -122,7 +369,7 @@ There are a number of ways to influence hyphenation.
           ... check the /var/log/\:httpd/\:access_log file ...
 
      Note that `\X' and `\Y' start a word, that is, the `\%' escape in
-     (say) ` \X'...'\%foobar' and ` \Y'...'\%foobar' no longer prevents
+     (say) `\X'...'\%foobar' and `\Y'...'\%foobar' no longer prevents
      hyphenation but inserts a hyphenation point at the beginning of
      `foobar'; most likely this isn't what you want to do.
 
@@ -186,8 +433,8 @@ There are a number of ways to influence hyphenation.
      The set of hyphenation patterns is associated with the current
      language set by the `hla' request.  The `hpf' request is usually
      invoked by the `troffrc' or `troffrc-end' file; by default,
-     `troffrc' loads hyphenation patterns for American English (in file
-     `hyphen.us').
+     `troffrc' loads hyphenation patterns and exceptions for American
+     English (in files `hyphen.us' and `hyphenex.us').
 
      A second call to `hpf' (for the same language) will replace the
      hyphenation patterns with the new ones.
@@ -286,6 +533,43 @@ Manipulating Spacing
      `gtroff' moves that distance from the top of the page.  This
      request causes a line break.  The default scaling indicator is `v'.
 
+     If a vertical trap is sprung during execution of `sp', the amount
+     of vertical space after the trap is discarded.  For example, this
+
+
+          .de xxx
+          ..
+          .
+          .wh 0 xxx
+          .
+          .pl 5v
+          foo
+          .sp 2
+          bar
+          .sp 50
+          baz
+
+     results in
+
+
+          foo
+          
+          
+          bar
+          
+          baz
+
+     The amount of discarded space is available in the number register
+     `.trunc'.
+
+     To protect `sp' against vertical traps, use the `vpt' request:
+
+
+          .vpt 0
+          .sp -3
+          .vpt 1
+
+
  - Request: .ls [nnn]
  - Register: \n[.L]
      Output NNN-1 blank lines after each line of text.  With no
@@ -306,7 +590,7 @@ Manipulating Spacing
    *Note Changing Type Sizes::, for the requests `vs' and `pvs' as
 alternatives to `ls'.
 
- - Escape: \x'SPACING'
+ - Escape: \x'spacing'
  - Register: \n[.a]
      Sometimes, extra vertical spacing is only needed occasionally, e.g.
      to allow space for a tall construct (like an equation).  The `\x'
@@ -488,9 +772,7 @@ movement to the next tab stop (much like it did on a typewriter).
 
         * Calling `ta' without an argument removes all tab stops.
 
-        * The start-up value of `gtroff' is `T 0.5i' in troff mode and
-          `T 0.8i' in nroff mode (the latter is done with an explicit
-          call to the `ta' request in the file `tty.tmac'.
+        * The start-up value of `gtroff' is `T 0.8i'.
 
      The read-only number register `.tabs' contains a string
      representation of the current tab settings suitable for use as an
@@ -741,7 +1023,7 @@ can be changed with the `cc' and `c2' requests, respectively.
      and end a superscript:
 
 
-          .ds { \v'-.3m'\s'\Es[.s]*60/100'
+          .ds { \v'-.3m'\s'\En[.s]*60/100'
           .ds } \s0\v'.3m'
 
      Another example to demonstrate the differences between the various
@@ -1121,196 +1403,4 @@ These dimensions are:
      Similar to `.i' and `.in', the difference between `.l' and `.ll'
      is that the latter takes into account whether a partially
      collected line still uses the old line length value.
-
-
-File: groff,  Node: Line Control,  Next: Page Layout,  Prev: Line Layout,  Up: gtroff Reference
-
-Line Control
-============
-
-   It is important to understand how `gtroff' handles input and output
-lines.
-
-   Many escapes use positioning relative to the input line.  For
-example, this
-
-
-     This is a \h'|1.2i'test.
-     
-     This is a
-     \h'|1.2i'test.
-
-produces
-
-
-     This is a   test.
-     
-     This is a             test.
-
-   The main usage of this feature is to define macros which act exactly
-at the place where called.
-
-
-     .\" A simple macro to underline a word
-     .de underline
-     .  nop \\$1\l'|0\[ul]'
-     ..
-
-In the above example, `|0' specifies a negative distance from the
-current position (at the end of the just emitted argument `\$1') back
-to the beginning of the input line.  Thus, the `\l' escape draws a line
-from right to left.
-
-   `gtroff' makes a difference between input and output line
-continuation; the latter is also called "interrupting" a line.
-
- - Escape: \<RET>
- - Escape: \c
- - Register: \n[.int]
-     Continue a line.  `\<RET>' (this is a backslash at the end of a
-     line immediately followed by a newline) works on the input level,
-     suppressing the effects of the following newline in the input.
-
-
-          This is a \
-          .test
-              => This is a .test
-
-     The `|' operator is also affected.
-
-     `\c' works on the output level.  Anything after this escape on the
-     same line is ignored, except `\R' which works as usual.  Anything
-     before `\c' on the same line will be appended to the current
-     partial output line.  The next non-command line after an
-     interrupted line counts as a new input line.
-
-     The visual results depend on whether no-fill mode is active.
-
-        * If no-fill mode is active (using the `nf' request), the next
-          input text line after `\c' will be handled as a continuation
-          of the same input text line.
-
-
-               .nf
-               This is a \c
-               test.
-                   => This is a test.
-
-        * If fill mode is active (using the `fi' request), a word
-          interrupted with `\c' will be continued with the text on the
-          next input text line, without an intervening space.
-
-
-               This is a te\c
-               st.
-                   => This is a test.
-
-
-     Note that an intervening control line which causes a break is
-     stronger than `\c', flushing out the current partial line in the
-     usual way.
-
-     The `.int' register contains a positive value if the last output
-     line was interrupted with `\c'; this is associated with the
-     current environment (*note Environments::).
-
-
-
-File: groff,  Node: Page Layout,  Next: Page Control,  Prev: Line Control,  Up: gtroff Reference
-
-Page Layout
-===========
-
-   `gtroff' provides some very primitive operations for controlling
-page layout.
-
- - Request: .pl [length]
- - Request: .pl +length
- - Request: .pl -length
- - Register: \n[.p]
-     Set the "page length" to LENGTH (or increment or decrement the
-     current value by LENGTH).  This is the length of the physical
-     output page.  The default scaling indicator is `v'.
-
-     The current setting can be found in the read-only number register
-     `.p'.
-
-     Note that this only specifies the size of the page, not the top and
-     bottom margins.  Those are not set by `gtroff' directly.  *Note
-     Traps::, for further information on how to do this.
-
-     Negative `pl' values are possible also, but not very useful: No
-     trap is sprung, and each line is output on a single page (thus
-     suppressing all vertical spacing).
-
-     If no argument or an invalid argument is given, `pl' sets the page
-     length to 11i.
-
-   `gtroff' provides several operations which help in setting up top
-and bottom titles (or headers and footers).
-
- - Request: .tl 'left'center'right'
-     Print a "title line".  It consists of three parts: a left
-     justified portion, a centered portion, and a right justified
-     portion.  The argument separator `'' can be replaced with any
-     character not occurring in the title line.  The `%' character is
-     replaced with the current page number.  This character can be
-     changed with the `pc' request (see below).
-
-     Without argument, `tl' is ignored.
-
-     Some notes:
-
-        * A title line is not restricted to the top or bottom of a page.
-
-        * `tl' prints the title line immediately, ignoring a partially
-          filled line (which stays untouched).
-
-        * It is not an error to omit closing delimiters.  For example,
-          `.tl /foo' is equivalent to `.tl /foo///': It prints a title
-          line with the left justified word `foo'; the centered and
-          right justfied parts are empty.
-
-        * `tl' accepts the same parameter delimiting characters as the
-          `\A' escape; see *Note Escapes::.
-
- - Request: .lt [length]
- - Request: .lt +length
- - Request: .lt -length
- - Register: \n[.lt]
-     The title line is printed using its own line length, which is
-     specified (or incremented or decremented) with the `lt' request.
-     Initially, the title line length is set to 6.5i.  If a negative
-     line length is specified (which is not allowed), `gtroff' emits a
-     warning of type `range' and sets the title line length to zero.
-     The default scaling indicator is `m'.  If `lt' is called without
-     an argument, the title length is reset to the previous value
-     before the last call to `lt'.
-
-     The current setting of this is available in the `.lt' read-only
-     number register; it is associated with the current environment
-     (*note Environments::).
-
-
- - Request: .pn page
- - Request: .pn +page
- - Request: .pn -page
- - Register: \n[.pn]
-     Change (increase or decrease) the page number of the _next_ page.
-     The only argument is the page number; the request is ignored
-     without a parameter.
-
-     The read-only number register `.pn' contains the number of the next
-     page: either the value set by a `pn' request, or the number of the
-     current page plus 1.
-
- - Register: \n[%]
-     A read-write register holding the current page number.
-
- - Request: .pc [char]
-     Change the page number character (used by the `tl' request) to a
-     different character.  With no argument, this mechanism is disabled.
-     Note that this doesn't affect the number register `%'.
-
-   *Note Traps::.
 

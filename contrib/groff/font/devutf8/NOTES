@@ -9,11 +9,6 @@ unmapped:
 Character 0x002D has not been given a name because its Unicode name
 "HYPHEN-MINUS" is so ambiguous that it's unusable for serious typographic use.
 
-The following, mentioned in the original troff manual, are only approximate:
-
-  \(lk    middle part of big left curly brace
-  \(rk    middle part of big right curly brace
-
 \(wp has been mapped to 0x2118, because according to unicode.org's
 NamesList-3.0.0.txt, U+2118 "SCRIPT CAPITAL P" is really a Weierstrass p,
 neither SCRIPT not CAPITAL.
@@ -23,12 +18,6 @@ documented and not known to "devdvi" (actually, there is no space glyph
 within the TeX system).
 
 space	24	0	0x0020
-
-The following lines could be added, to define names which are known to e.g.
-"devdvi" but are not known to "devps".
-
-<<	24	0	0x226A
->>	24	0	0x226B
 
 "devps" maps \(a~ and ~ to asciitilde, which is equivalent to 0x02DC, but
 this glyph is just too small.  We map them to 0x007E instead.
@@ -44,9 +33,6 @@ We map it to 0x03A9.
 
 "devps" maps *D to Delta, which is equivalent to either 0x2206 or 0x0394.
 We map it to 0x0394.
-
-"devps" maps CR to carriagereturn, which is equivalent to 0x21B5.  We map
-it to 0x240D instead.
 
 
 Using unnamed characters

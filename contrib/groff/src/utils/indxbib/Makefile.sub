@@ -6,7 +6,7 @@ OBJS=\
   indxbib.$(OBJEXT) \
   signal.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/indxbib.cc
+  $(srcdir)/indxbib.cpp
 CSRCS=\
   $(srcdir)/signal.c
 NAMEPREFIX=$(g)

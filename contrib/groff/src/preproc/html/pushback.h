@@ -1,5 +1,5 @@
 // -*- C -*-
-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2003 Free Software Foundation, Inc.
      Written by Gaius Mulley (gaius@glam.ac.uk).
 
 This file is part of groff.
@@ -23,7 +23,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 
 /*
- *  defines the class and methods implemented within pushbackbuffer.cc
+ *  defines the class and methods implemented within pushback.cpp
  */
 
 class pushBackBuffer
@@ -48,7 +48,7 @@ class pushBackBuffer
   float readNumber     (void);
   int   readInt        (void);
   char *readString     (void);
-  int   isString       (char *string);
+  int   isString       (const char *string);
 };
 
 

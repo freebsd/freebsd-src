@@ -1,0 +1,19 @@
+name EURO
+internalname FreeEuro
+charset
+---	750,685,12	3	0	Euro.symbol
+---	750,685,12	3	1	Euro.symbol.bold
+---	750,685,12,92	3	2	Euro.symbol.slanted
+---	750,685,12,100	3	3	Euro.symbol.bold.slanted
+---	741,676,14	3	4	Euro.serif
+---	800,691,19	3	5	Euro.serif.bold
+---	734,666,18,11	3	6	Euro.serif.italic
+---	800,691,19,8	3	7	Euro.serif.bold.italic
+---	756,709,23	3	8	Euro.sansserif
+---	796,710,22	3	9	Euro.sansserif.bold
+---	756,709,23,106	3	10	Euro.sansserif.slanted
+---	796,710,22,107	3	11	Euro.sansserif.bold.slanted
+---	600,576,16	3	12	Euro.mono
+---	600,597,14	3	13	Euro.mono.bold
+---	600,576,16,31	3	14	Euro.mono.slanted
+---	600,597,14,43	3	15	Euro.mono.bold.slanted

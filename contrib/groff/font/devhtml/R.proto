@@ -118,6 +118,7 @@ rC	24	0	0x007D
 a~	24	0	0x007E
 ~	"
 ti	"
+---	24	0	0x00A0	&nbsp;
 r!	24	0	0x00A1	&iexcl;
 ct	24	0	0x00A2	&cent;
 Po	24	0	0x00A3	&pound;
@@ -130,6 +131,7 @@ co	24	0	0x00A9	&copy;
 Of	24	0	0x00AA	&ordf;
 Fo	24	0	0x00AB	&laquo;
 no	24	0	0x00AC	&not;
+tno	"
 rg	24	0	0x00AE	&reg;
 a-	24	0	0x00AF	&macr;
 de	24	0	0x00B0	&deg;
@@ -149,6 +151,10 @@ Fc	24	0	0x00BB	&raquo;
 14	24	0	0x00BC	&frac14;
 12	24	0	0x00BD	&frac12;
 34	24	0	0x00BE	&frac34;
+18	24	0	0x215B	&#8539;
+38	24	0	0x215C	&#8540;
+58	24	0	0x215D	&#8541;
+78	24	0	0x215E	&#8542;
 r?	24	0	0x00BF	&iquest;
 `A	24	0	0x00C0	&Agrave;
 'A	24	0	0x00C1	&Aacute;
@@ -216,7 +222,11 @@ tdi	"
 'y	24	0	0x00FD	&yacute;
 Tp	24	0	0x00FE	&thorn;
 :y	24	0	0x00FF	&yuml;
+'C	24	0	0x0106	&#262;
+'c	24	0	0x0107	&#263;
 .i	24	0	0x0131	&#305;
+IJ	24	0	0x0132	&#306;
+ij	24	0	0x0133	&#307;
 /L	24	0	0x0141	&#321;
 /l	24	0	0x0142	&#322;
 OE	24	0	0x0152	&OElig;
@@ -278,13 +288,14 @@ ts	24	0	0x03C2	&sigmaf;
 *s	24	0	0x03C3	&sigma;
 *t	24	0	0x03C4	&tau;
 *u	24	0	0x03C5	&upsilon;
-*f	24	0	0x03C6	&phi;
++f	24	0	0x03C6	&phi;
 *x	24	0	0x03C7	&chi;
 *q	24	0	0x03C8	&psi;
 *w	24	0	0x03C9	&omega;
 +h	24	0	0x03D1	&thetasym;
-+f	24	0	0x03D5	&#981;
+*f	24	0	0x03D5	&#981;
 +p	24	0	0x03D6	&piv;
++e	24	0	0x03F5	&#1013;
 en	24	0	0x2013	&ndash;
 em	24	0	0x2014	&mdash;
 `	24	0	0x2018	&lsquo;
@@ -307,6 +318,8 @@ rn	24	0	0x203E	&oline;
 f/	24	0	0x2044	&frasl;
 Eu	24	0	0x20AC	&euro;
 eu	"
+-h	24	0	0x210F	&#8463;
+hbar	"
 Im	24	0	0x2111	&image;
 wp	24	0	0x2118	&weierp;
 Re	24	0	0x211C	&real;
@@ -317,11 +330,14 @@ ua	24	0	0x2191	&uarr;
 ->	24	0	0x2192	&rarr;
 da	24	0	0x2193	&darr;
 <>	24	0	0x2194	&harr;
+va	24	0	0x2195	&#8597;
+CR	24	0	0x21B5	&#8629;
 lA	24	0	0x21D0	&lArr;
 uA	24	0	0x21D1	&uArr;
 rA	24	0	0x21D2	&rArr;
 dA	24	0	0x21D3	&dArr;
 hA	24	0	0x21D4	&hArr;
+vA	24	0	0x21D5	&#8661;
 fa	24	0	0x2200	&forall;
 pd	24	0	0x2202	&part;
 te	24	0	0x2203	&exist;
@@ -334,8 +350,10 @@ product	24	0	0x220F	&prod;
 sum	24	0	0x2211	&sum;
 \-	24	0	0x2212	&minus;
 mi	"
+-+	24	0	0x2213	&#8723;
 **	24	0	0x2217	&lowast;
 sr	24	0	0x221A	&radic;
+sqrt	"
 pt	24	0	0x221D	&prop;
 if	24	0	0x221E	&infin;
 /_	24	0	0x2220	&ang;
@@ -344,20 +362,25 @@ OR	24	0	0x2228	&or;
 ca	24	0	0x2229	&cap;
 cu	24	0	0x222A	&cup;
 is	24	0	0x222B	&int;
+integral	"
 tf	24	0	0x2234	&there4;
 3d	"
-ti	24	0	0x223C	&sim;
-ap	"
+ap	24	0	0x223C	&sim;
+|=	24	0	0x2243	&#8771;
 =~	24	0	0x2245	&cong;
 ~~	24	0	0x2248	&asymp;
 ~=	"
 !=	24	0	0x2260	&ne;
 ==	24	0	0x2261	&equiv;
+ne	24	0	0x2262	&#8802;
 <=	24	0	0x2264	&le;
 >=	24	0	0x2265	&ge;
+<<	24	0	0x226A	&#8810;
+>>	24	0	0x226B	&#8811;
 sb	24	0	0x2282	&sub;
 sp	24	0	0x2283	&sup;
 nb	24	0	0x2284	&nsub;
+nc	24	0	0x2285	&#8837;
 ib	24	0	0x2286	&sube;
 ip	24	0	0x2287	&supe;
 c+	24	0	0x2295	&oplus;
@@ -370,22 +393,43 @@ lf	24	0	0x230A	&lfloor;
 rf	24	0	0x230B	&rfloor;
 la	24	0	0x2329	&lang;
 ra	24	0	0x232A	&rang;
-CR	24	0	0x240D	&#9229;
-an	24	0	0x2500	&#9472;
+parenlefttp	24	0	0x239B	&#9115;
+parenleftex	24	0	0x239C	&#9116;
+parenleftbt	24	0	0x239D	&#9117;
+parenrighttp	24	0	0x239E	&#9118;
+parenrightex	24	0	0x239F	&#9119;
+parenrightbt	24	0	0x23A0	&#9120;
+bracketlefttp	24	0	0x23A1	&#9121;
+bracketleftex	24	0	0x23A2	&#9122;
+bracketleftbt	24	0	0x23A3	&#9123;
+bracketrighttp	24	0	0x23A4	&#9124;
+bracketrightex	24	0	0x23A5	&#9125;
+bracketrightbt	24	0	0x23A6	&#9126;
+lt	24	0	0x23A7	&#9127;
+bracelefttp	"
+lk	24	0	0x23A8	&#9128;
+braceleftmid	"
+lb	24	0	0x23A9	&#9129;
+braceleftbt	"
+bv	24	0	0x23AA	&#9130;
+braceex	"
+braceleftex	"
+bracerightex	"
+rt	24	0	0x23AB	&#9131;
+bracerighttp	"
+rk	24	0	0x23AC	&#9132;
+bracerightmid	"
+rb	24	0	0x23AD	&#9133;
+bracerightbt	"
+an	24	0	0x23AF	&#9135;
 br	24	0	0x2502	&#9474;
-bv	"
-rk	24	0	0x251D	&#9501;
-lk	24	0	0x2525	&#9509;
-lt	24	0	0x256D	&#9581;
-rt	24	0	0x256E	&#9582;
-rb	24	0	0x256F	&#9583;
-lb	24	0	0x2570	&#9584;
 sq	24	0	0x25A1	&#9633;
 lz	24	0	0x25CA	&loz;
-ci	24	0	0x25EF	&#9711;
+ci	24	0	0x25CB	&#9675;
 lh	24	0	0x261C	&#9756;
 rh	24	0	0x261E	&#9758;
 SP	24	0	0x2660	&spades;
 CL	24	0	0x2663	&clubs;
 HE	24	0	0x2665	&hearts;
 DI	24	0	0x2666	&diams;
+OK	24	0	0x2713	&#10003;

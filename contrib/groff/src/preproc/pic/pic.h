@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2003
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -30,6 +30,30 @@ extern "C" {
   double hypot(double, double);
 }
 #endif /* NEED_DECLARATION_HYPOT */
+
+#ifdef NEED_DECLARATION_RAND
+#undef rand
+extern "C" {
+  int rand();
+}
+#endif /* NEED_DECLARATION_RAND */
+
+#ifdef NEED_DECLARATION_SRAND
+#undef srand
+extern "C" {
+#ifdef RET_TYPE_SRAND_IS_VOID
+  void srand(unsigned int);
+#else
+  int srand(unsigned int);
+#endif
+}
+#endif /* NEED_DECLARATION_SRAND */
+
+#ifndef HAVE_FMOD
+extern "C" {
+  double fmod(double, double);
+}
+#endif
 
 #include "assert.h"
 #include "cset.h"
@@ -102,3 +126,4 @@ extern int zero_length_line_flag;
 extern int driver_extension_flag;
 extern int compatible_flag;
 extern int safer_flag;
+extern char *graphname;

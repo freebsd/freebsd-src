@@ -1,3 +1,33 @@
+Wed Apr 06:42:35 2003  Joergen Haegg <jh@axis.com>
+
+	* the footer was not adjusted by VM due to a missing
+	  pg*extra-footer-size in the calculation of pg*last-pos
+
+Wed Apr 06:04:58 2003  Joergen Haegg <jh@axis.com>
+
+	* space adjustments in 4.MT to make it more like
+	  the original
+
+Sun Mar 21:45:10 2003  Joergen Haegg <jh@axis.com>
+
+	* removed error check i 4.MT, .AF is not mandatory anymore
+
+Sat Mar 21:56:57 2003  Joergen Haegg <jh@axis.com>
+
+	* cov*firm now defined only if arg to AF is non-empty
+	  That will also enable cov*default-firm from the mm locale-file
+	  to work.
+
+Sat Mar 21:05:29 2003  Joergen Haegg <jh@axis.com>
+
+	* added .ll in pg@set-env to initialize the
+	  header environment properly
+
+Wed Mar 19 23:02:16 2003  Werner LEMBERG  <wl@gnu.org>
+
+	* groff_mm.man: Some fixes from Robert D. Goulding
+	<goulding@Princeton.EDU>.
+
 Wed Sep 09:53:06 2002  Joergen Haegg <jh@axis.com>
 
 	* added implicit -mm to mmroff, it's now possible

@@ -2,9 +2,9 @@
 
 # groffer - display groff files
 
-# File position: <groff-source>/contrib/groffer/groffer
+# Source file position: <groff-source>/contrib/groffer/groffer.sh
 
-# Copyright (C) 2001,2002 Free Software Foundation, Inc.
+# Copyright (C) 2001,2002,2003 Free Software Foundation, Inc.
 # Written by Bernd Warken <bwarken@mayn.de>
 
 # This file is part of groff.
@@ -29,8 +29,10 @@ export _PROGRAM_VERSION;
 export _LAST_UPDATE;
 
 _PROGRAM_NAME='groffer';
-_PROGRAM_VERSION='0.9.1';
-_LAST_UPDATE='30 Sep 2002';
+_PROGRAM_VERSION='0.9.4';
+_LAST_UPDATE='22 Jan 2003';
+
+# This program is installed with groff version @VERSION@.
 
 ########################################################################
 # Determine the shell under which to run this script;
@@ -44,9 +46,7 @@ if test "${_groffer_run}" != 'second'; then
   export _groffer_run;
   export _this;
 
-
-  #_this="@BINDIR@/${_PROGRAM_NAME}";
-  _this='groffer.sh';
+  _this="@BINDIR@/${_PROGRAM_NAME}";
 
   ###########################
   # _get_opt_shell ("$@")
@@ -217,7 +217,6 @@ _DEBUG_LM='no';			# disable landmark messages
 # base_name (path)
 # catz (<file>)
 # clean_up ()
-# clean_up_secondary ()
 # diag (text>*)
 # dirname_append (<path> [<dir...>])
 # dirname_chop (<path>)
@@ -271,6 +270,8 @@ _DEBUG_LM='no';			# disable landmark messages
 # tmp_cat ()
 # tmp_create (<suffix>?)
 # to_tmp (<filename>)
+# trap_clean ()
+# trap_set (<functionname>)
 # usage ()
 # version ()
 # warning (<string>)
@@ -366,9 +367,8 @@ _SQUOTE="'";
 _TAB='	';
 
 # function return values; `0' means ok; other values are error codes
+export _ALL_EXIT;
 export _BAD;
-export _BAD2;
-export _BAD3;
 export _ERROR;
 export _GOOD;
 export _NO;
@@ -377,9 +377,9 @@ export _YES;
 
 _GOOD='0';			# return ok
 _BAD='1';			# return negatively, error code `1'
-_BAD2='2';			# return negatively, error code `2'
-_BAD3='3';			# return negatively, error code `3'
-_ERROR='255';			# for syntax errors; no `-1' in `ash'
+_ERROR='7';			# for syntax errors; no `-1' in `ash'
+
+_ALL_EXIT="${_GOOD} ${_BAD} ${_ERROR}"; # all exit codes (for `trap_set')
 
 _NO="${_BAD}";
 _YES="${_GOOD}";
@@ -492,8 +492,8 @@ _OPTS_GROFFER_LONG_ARG="'background' 'bd' 'bg' 'bw' 'default-modes' \
 
 ##### options inhereted from groff
 
-_OPTS_GROFF_SHORT_NA="'a' 'b' 'c' 'e' 'g' 'i' 'l' 'p' 's' 't' 'z' \
-'C' 'E' 'G' 'N' 'R' 'S' 'U' 'V'";
+_OPTS_GROFF_SHORT_NA="'a' 'b' 'c' 'C' 'e' 'E' 'g' 'G' 'i' 'l' 'N' 'p' \
+'R' 's' 'S' 't' 'U' 'V' 'z'";
 _OPTS_GROFF_SHORT_ARG="'d' 'f' 'F' 'I' 'L' 'm' 'M' 'n' 'o' 'P' 'r' \
 'w' 'W'";
 _OPTS_GROFF_LONG_NA="";
@@ -614,9 +614,9 @@ export _OPT_X;			# groff option -X.
 export _OPT_XRM;		# specify X resource.
 export _OPT_Z;			# groff option -Z.
 # _TMP_* temporary files
-export _TMP_DIR;		# directory for temporary files
+export _TMP_DIR;		# groff directory for temporary files
+export _TMP_DIR_SUB;		# groffer directory for temporary files
 export _TMP_CAT;		# stores concatenation of everything
-export _TMP_PREFIX;		# dir and base name for temporary files
 export _TMP_STDIN;		# stores stdin, if any
 
 # these variables are preset in section `Preset' after the rudim. test
@@ -674,8 +674,8 @@ _HAS_OPTS_POSIX='';
 
 # _TMP_* temporary files
 _TMP_DIR='';
+_TMP_DIR_SUB='';
 _TMP_CAT='';
-_TMP_PREFIX='';
 _TMP_STDIN='';
 
 
@@ -790,19 +790,10 @@ landmark "1: debugging functions";
 #
 clean_up()
 {
-  clean_up_secondary;
-  rm -f "${_TMP_CAT}";
-}
-
-
-##############
-# clean_up_secondary ()
-#
-# Clean up temporary files without $_TMP_CAT.
-#
-clean_up_secondary()
-{
-  rm -f "${_TMP_STDIN}";
+  if test -d "${_TMP_DIR}"; then
+    rm -f "${_TMP_DIR}"/*;
+    rmdir "${_TMP_DIR}";
+  fi;
 }
 
 
@@ -1044,9 +1035,9 @@ func_stack_dump()
       _rest="${_FUNC_STACK}";
       while test "${_rest}" != ''; do
         # get part before the first bang `!'.
-        diag "$(echo -n "${_rest}" | sed -e 's/^\([^!]*\)!.*$/\1/')";
-        # delete part up to the first bang `!'.
-        _rest="$(echo -n "${_rest}" | sed -e 's/^!*[^!]*!*//')";
+        diag "$(echo -n "${_rest}" | sed -e 's/!.*$//')";
+        # delete part before and including the first bang `!'.
+        _rest="$(echo -n "${_rest}" | sed -e 's/^[^!]*!//')";
       done;
       ;;
     *)
@@ -1219,8 +1210,8 @@ base_name()
       do_nothing;
       ;;
     */*)
-      # delete everything up to last slash `/'.
-      echo -n "$1" | sed -e '\|^.*/*\([^/]*\)$|s||\1|';
+      # delete everything before and including the last slash `/'.
+      echo -n "$1" | sed -e '\|^.*//*\([^/]*\)$|s||\1|';
       ;;
     *)
       echo -n "$1";
@@ -1275,14 +1266,6 @@ fi;
 # clean_up ()
 #
 # Do the final cleaning up before exiting; used by the trap calls.
-#
-# defined above
-
-
-########################################################################
-# clean_up_secondary ()
-#
-# Do the second but final cleaning up.
 #
 # defined above
 
@@ -1926,7 +1909,7 @@ list_from_args()
 
 
 ########################################################################
-# list_from_cmdline (<s_n> <s_a> <l_n> <l_n> [<cmdline_arg>...])
+# list_from_cmdline (<s_n> <s_a> <l_n> <l_a> [<cmdline_arg>...])
 #
 # Transform command line arguments into a normalized form.
 #
@@ -2033,20 +2016,20 @@ list_from_cmdline()
           # get next short option from cluster (first char of $_rest)
           _optchar="$(echo -n "${_rest}" | sed -e 's/^\(.\).*$/\1/')";
           # remove first character from ${_rest};
-          _rest="$(echo -n "${_rest}" | 's/^.//')";
+          _rest="$(echo -n "${_rest}" | sed -e 's/^.//')";
           if list_has "${_short_n}" "${_optchar}"; then
             _result="$(list_append "${_result}" "-${_optchar}")";
             continue;
           elif list_has "${_short_a}" "${_optchar}"; then
             # remove leading character
             case "${_optchar}" in
-              /)		# cannot use normal `sed' separator
+              /)
                 _rest="$(echo -n "${_rest}" | sed -e '\|^.|s|||')";
                 ;;
               ?)
                 _rest="$(echo -n "${_rest}" | sed -e 's/^.//')";
                 ;;
-              *)
+              ??*)
                 error "${_fn} several chars parsed for short option."
                 ;;
             esac;
@@ -2283,7 +2266,7 @@ man_do_filespec()
   local _spec;
   local _string;
   local s;
-  if is_empty "${MANPATH}"; then
+  if is_empty "${_MAN_PATH}"; then
     eval "${return_bad}";
   fi;
   if is_empty "$1"; then
@@ -2915,7 +2898,7 @@ if test "${_HAS_COMPRESSION}" = 'yes'; then
   {
     local _f;
     func_check save_stdin = 0 "$@";
-    _f="$(tmp_create)";
+     _f="${_TMP_DIR}"/INPUT;
     cat >"${_f}";
     catz "${_f}" >"${_TMP_STDIN}";
     rm -f "${_f}";
@@ -3007,9 +2990,9 @@ tmp_create()
 {
   func_check tmp_create '<=' 1 "$@";
   local _tmp;
-  _tmp="${_TMP_PREFIX}${_PROCESS_ID}$1";
+  _tmp="${_TMP_DIR}/$1";
   echo -n >"${_tmp}";
-  echo -n "${_tmp}";
+  echo -n "${_tmp}";		# output file name
   eval "${return_ok}";
 }
 
@@ -3039,6 +3022,44 @@ to_tmp()
 
 
 ########################################################################
+# trap_clean ()
+#
+# disable trap on all exit codes ($_ALL_EXIT)
+#
+# Arguments: 0
+# Globals:   $_ALL_EXIT
+#
+trap_clean()
+{
+  func_check trap_clean = 0 "$@";
+  local i;
+  for i in ${_ALL_EXIT}; do
+    trap "" "$i" 2>/dev/null || true;
+  done;
+  eval "${return_ok}";
+}
+
+
+########################################################################
+# trap_set (<functionname>)
+#
+# call function on all exit codes ($_ALL_EXIT)
+#
+# Arguments: 1 (name of a shell function)
+# Globals:   $_ALL_EXIT
+#
+trap_set()
+{
+  func_check trap_set = 1 "$@";
+  local i;
+  for i in ${_ALL_EXIT}; do
+    trap "$1" "$i" 2>/dev/null || true;
+  done;
+  eval "${return_ok}";
+}
+
+
+########################################################################
 # usage ()
 #
 # print usage information to stderr
@@ -3054,18 +3075,18 @@ This is free software licensed under the GNU General Public License.
 
 EOF
 
-  echo2 "Usage: ${_PROGRAM_NAME} ${_header} [option]... [filespec]...";
+  echo2 "Usage: ${_PROGRAM_NAME} [option]... [filespec]...";
 
   cat >&2 <<EOF
 
 where "filespec" is one of
-  "filename"       name of a readablefile
+  "filename"       name of a readable file
   "-"              for standard input
   "man:name.n"     man page "name" in section "n"
   "man:name"       man page "name" in first section found
   "name.n"         man page "name" in section "n"
   "name"           man page "name" in first section found
-and some more (see groff(1) for details).
+and some more (see groffer(1) for details).
 
 Display roff files, standard input, and/or Unix manual pages with
 in a X window viewer or in a text pager.
@@ -3279,7 +3300,7 @@ main_init()
 {
   func_check main_init = 0 "$@";
   # call clean_up() on any signal
-  trap clean_up  2>/dev/null || true;
+  trap_set clean_up;
 
   for f in ${_CONFFILES}; do
     if is_file "$f"; then
@@ -3288,24 +3309,39 @@ main_init()
   done;
 
   # determine temporary directory
+  umask 000;
+  _TMP_DIR='';
   for d in "${GROFF_TMPDIR}" "${TMPDIR}" "${TMP}" "${TEMP}" \
            "${TEMPDIR}" "${HOME}"'/tmp' '/tmp' "${HOME}" '.';
   do
     if test "$d" != ""; then
       if test -d "$d" && test -r "$d" && test -w "$d"; then
-        _TMP_DIR="$d";
-        break;
+        _TMP_DIR="${d}/${_PROGRAM_NAME}${_PROCESS_ID}";
+        if test -d "${_TMP_DIR}"; then
+	  rm -f "${_TMP_DIR}"/*;
+          break;
+        else
+          mkdir "${_TMP_DIR}";
+          if test ! -d "${_TMP_DIR}"; then
+	    _TMP_DIR='';
+	    continue;
+  	  fi;
+          break;
+	fi;
+      fi;
+      if test ! -w "${_TMP_DIR}"; then
+	_TMP_DIR='';
+	continue;
       fi;
     fi;
   done;
   unset d;
-  if test "${_TMP_DIR}" = ""; then
-    error "Couldn't find a directory for storing temorary files.";
+  if test "${_TMP_DIR}" = ''; then
+    error "Couldn't create a directory for storing temporary files.";
   fi;
-  _TMP_PREFIX="${_TMP_DIR}/${_PROGRAM_NAME}";
 
-  _TMP_CAT="$(tmp_create)";
-  _TMP_STDIN="$(tmp_create i)";
+  _TMP_CAT="$(tmp_create groffer_cat)";
+  _TMP_STDIN="$(tmp_create groffer_input)";
   eval "${return_ok}";
 } # main_init()
 
@@ -3313,7 +3349,8 @@ main_init()
 ########################################################################
 # main_parse_MANOPT ()
 #
-# Parse $MANOPT; this clobbered by the command line.
+# Parse $MANOPT to retrieve man options, but only if it is a non-empty
+# string; found man arguments can be overwritten by the command line.
 #
 # Globals:
 #   in: $MANOPT, $_OPTS_MAN_*
@@ -3327,7 +3364,14 @@ main_parse_MANOPT()
   local _opt;
   local _list;
   _list='';
-  # feed in $MANOPT
+  if test "${MANOPT}" != ''; then
+    MANOPT="$(echo -n "${MANOPT}" | \
+      sed -e 's/^'"${_SPACE}${_SPACE}"'*//')";
+  fi;
+  if test "${MANOPT}" = ''; then
+    eval "${return_ok}";
+  fi;
+  # add arguments in $MANOPT by mapping them to groffer options
   eval set -- "$(list_from_cmdline \
     "${_OPTS_MAN_SHORT_NA}" "${_OPTS_MAN_SHORT_ARG}" \
     "${_OPTS_MAN_LONG_NA}" "${_OPTS_MAN_LONG_ARG}" \
@@ -4042,7 +4086,7 @@ main_do_fileargs()
       _exitcode="${_GOOD}";
     fi;
   done;
-  clean_up_secondary;
+  rm -f "${_TMP_STDIN}";
   if is_equal "${_exitcode}" "${_BAD}"; then
     eval "${return_bad}";
   fi;
@@ -4185,7 +4229,7 @@ main_set_resources()
 # Globals:
 #   in: $_DISPLAY_MODE, $_OPT_DEVICE,
 #       $_ADDOPTS_GROFF, $_ADDOPTS_POST, $_ADDOPTS_X,
-#       $_REGISTERED_TITLE, $_TMP_PREFIX, $_TMP_CAT,
+#       $_REGISTERED_TITLE, $_TMP_CAT,
 #       $_OPT_PAGER $PAGER $_MANOPT_PAGER
 #
 landmark '19: main_display()';
@@ -4218,7 +4262,7 @@ main_display()
         _ADDOPTS_GROFF="${_ADDOPTS_GROFF} -T${_OPT_DEVICE}";
       fi;
       _groggy="$(tmp_cat | eval grog "${_options}")";
-      trap "" EXIT 2>/dev/null || true;
+      trap_clean;
       # start a new shell program to get another process ID.
       sh -c '
         set -e;
@@ -4233,7 +4277,7 @@ main_display()
           {
             rm -f "${_modefile}";
           }
-          trap clean_up EXIT 2>/dev/null || true;
+          trap clean_up 0 2>/dev/null || true;
           eval "${_groggy}" "${_ADDOPTS_GROFF}";
         ) &'
       ;;
@@ -4293,7 +4337,7 @@ main_display()
           ;;
       esac;
       _groggy="$(tmp_cat | grog -Tps)";
-      trap "" EXIT 2>/dev/null || true;
+      trap_clean;
       # start a new shell program to get another process ID.
       sh -c '
         set -e;
@@ -4313,7 +4357,7 @@ main_display()
           {
             rm -f "${_modefile}";
           }
-          trap clean_up EXIT 2>/dev/null || true;
+          trap clean_up 0 2>/dev/null || true;
           eval "${_DISPLAY_PROG}" ${_DISPLAY_ARGS} "${_modefile}";
         ) &'
       ;;
@@ -4370,8 +4414,9 @@ main_display()
 
 _do_display()
 {
-  trap "" EXIT 2>/dev/null || true;
-  # start a new shell program to get another process ID.
+  trap_clean;
+  # start a new shell program for another process ID and better
+  # cleaning-up of the temporary files.
   sh -c '
     set -e;
     _PROCESS_ID="$$";
@@ -4383,9 +4428,12 @@ _do_display()
     (
       clean_up()
       {
-        rm -f "${_modefile}";
+        if test -d "${_TMP_DIR}"; then
+          rm -f "${_TMP_DIR}"/*;
+          rmdir "${_TMP_DIR}";
+        fi;
       }
-      trap clean_up EXIT 2>/dev/null || true;
+      trap clean_up 0 2>/dev/null || true;
       eval "${_DISPLAY_PROG}" ${_DISPLAY_ARGS} "${_modefile}";
     ) &'
 }

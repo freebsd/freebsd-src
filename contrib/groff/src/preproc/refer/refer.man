@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -67,7 +67,7 @@ This file documents the GNU version of
 which is part of the groff document formatting system.
 .B refer
 copies the contents of
-.IR filename \|.\|.\|.
+.IR filename \|.\|.\|.\&
 to the standard output,
 except that lines between
 .B .[
@@ -290,7 +290,7 @@ field or a
 field.
 .TP
 .B B
-For an article that is part of a book, the title of the book
+For an article that is part of a book, the title of the book.
 .TP
 .B C
 The place (city) of publication.
@@ -1289,6 +1289,10 @@ Default database.
 .TP
 .IB file @INDEX_SUFFIX@
 Index files.
+.SH ENVIRONMENT
+.Tp \w'\fBREFER'u+2n
+.B REFER
+If set, overrides the default database.
 .SH "SEE ALSO"
 .BR @g@indxbib (@MAN1EXT@),
 .BR @g@lookbib (@MAN1EXT@),
