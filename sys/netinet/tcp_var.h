@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1993, 1994
+ * Copyright (c) 1982, 1986, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.14 1995/07/10 15:39:16 wollman Exp $
+ *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
+ * 	$Id: tcp_var.h,v 1.15 1995/07/29 18:48:44 davidg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -109,7 +109,7 @@ struct tcpcb {
  * transmit timing stuff.  See below for scale of srtt and rttvar.
  * "Variance" is actually smoothed difference.
  */
-	short	t_idle;			/* inactivity time */
+	u_short	t_idle;			/* inactivity time */
 	short	t_rtt;			/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 	short	t_srtt;			/* smoothed round-trip time */
@@ -286,6 +286,8 @@ struct	tcpstat {
 	u_long	tcps_usedrtt;		/* times RTT initialized from route */
 	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
 	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
+	u_long	tcps_persistdrop;	/* timeout in persist state */
+	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
 };
 
 /*
