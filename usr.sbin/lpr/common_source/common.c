@@ -553,8 +553,9 @@ fatal(pp, msg, va_alist)
 #else
 	va_start(ap);
 #endif
-	if (from != host)
-		(void)printf("%s: ", host);
+	/* this error message is being sent to the 'from_host' */
+	if (from_host != local_host)
+		(void)printf("%s: ", local_host);
 	(void)printf("%s: ", progname);
 	if (pp && pp->printer)
 		(void)printf("%s: ", pp->printer);

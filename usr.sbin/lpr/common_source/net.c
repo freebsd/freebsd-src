@@ -65,9 +65,15 @@ static const char rcsid[] =
 #include "lp.local.h"
 #include "pathnames.h"
 
-char	 host[MAXHOSTNAMELEN];	/* host machine name */
-char	*from = host;		/* client's machine name */
-char	 from_ip[NI_MAXHOST] = ""; /* client machine's IP address */
+/*
+ * 'local_host' is always the hostname of the machine which is running
+ * lpr (lpd, whatever), while 'from_host' either points at 'local_host'
+ * or points at a different buffer when receiving a job from a remote
+ * machine (and that buffer has the hostname of that remote machine).
+ */
+char		 local_host[MAXHOSTNAMELEN];	/* host running lpd/lpr */
+const char	*from_host = local_host;	/* client's machine name */
+const char	*from_ip = "";		/* client machine's IP address */
 
 #ifdef INET6
 u_char	family = PF_UNSPEC;
