@@ -338,7 +338,7 @@ main(argc, argv)
 		}
 		first_time = 0;
 
-		if (IM && *IM)
+		if (IM && *IM && !(PL && PP))
 			putf(IM);
 		if (setjmp(timeout)) {
 			cfsetispeed(&tmode, B0);
@@ -364,9 +364,9 @@ main(argc, argv)
 					digit++;
 				*q++ = *p++;
 			}
-		} else
+		} else if (!(PL && PP))
 			rval = getname();
-		if (rval == 2) {
+		if (rval == 2 || (PL && PP)) {
 			oflush();
 			alarm(0);
 			limit.rlim_max = RLIM_INFINITY;
