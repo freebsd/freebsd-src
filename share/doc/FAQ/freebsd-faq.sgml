@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.11 1995/08/17 21:18:48 ats Exp $
+<date> $Id: freebsd-faq.sgml,v 1.12 1995/08/20 15:21:31 gclarkii Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -13,7 +13,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
     <toc>
 
-    <sect>Preface
+    <sect>
+      <heading>Preface</heading>
       <p>
         Welcome to the FreeBSD 2.X FAQ !  This document tries to answer
         some of the most frequently asked questions about FreeBSD 2.X  (or
@@ -60,7 +61,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src"
             name="FreeBSD-current src directory">
 
-      <sect1>What is FreeBSD?
+      <sect1>
+	<heading>What is FreeBSD?</heading>
         <p>
           FreeBSD 2.X is a UN*X type operating system based on
           U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
@@ -86,7 +88,8 @@ Any entries with a &lt;XXX&gt; are under construction.
             <item>Improved SCSI support
           </itemize>
 
-      <sect1>What do I need to run FreeBSD?
+      <sect1>
+	<heading>What do I need to run FreeBSD?</heading>
         <p>
           You'll need a 386 or better PC, with 4 Mo or more of RAM and at
           least 60 MB of hard disk space. It can run with a low end MDA
@@ -94,7 +97,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           See the section on <ref id="hardware" name="Hardware compatibility">
  
-      <sect1>Where can I get FreeBSD?
+      <sect1>
+	<heading>Where can I get FreeBSD</heading>
         <p>
           The distribution is available via anonymous ftp from:
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD home directory">
@@ -113,7 +117,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           email: <url url="mailto:orders@cdrom.com" name="WC Orders address"> <newline>
           WWW: <url url="http://www.cdrom.com/" name="WC Home page"><newline> 
 
-      <sect1>What are the FreeBSD mailing lists, and how can I get on them?
+      <sect1>
+	<heading>What are the FreeBSD mailing lists, and how can I get on them?</heading>
         <p>
           The following mailing lists are provided for FreeBSD users and
           developers.  For more information, send to
@@ -166,7 +171,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           <bf/not/ to the list itself. The last thing the subscribred
           users want to see is administrative requests...
 
-      <sect1>What are the various FreeBSD news groups?
+      <sect1>
+	<heading>What are the various FreeBSD news groups?</heading>
         <p>
           There are two newsgroups currently dedicated to FreeBSD:
           <descrip>
@@ -185,7 +191,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           Trn, TIN and others there.
       </sect1>
       
-      <sect1>Books on FreeBSD
+      <sect1>
+	<heading>Books on FreeBSD</heading>
         <p> 
           There currently aren't any books written specifically for
           FreeBSD, although some people are supposedly working on some.
@@ -249,7 +256,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           these, however, are also on the FreeBSD 2.0.5R CDROM (and the
           FreeBSD CDROM often has newer versions).
  
-      <sect1>Other sources of information.
+      <sect1>
+	<heading>Other sources of information.</heading>
         <p>
           One good source of additional information is the
           ``&lsqb;comp.unix.bsd&rsqb; NetBSD, FreeBSD, and 386BSD (0.1)
@@ -270,9 +278,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           The FreeBSD handbook has a pretty complete bibliography, look at:
           <url url="http://www.FreeBSD.ORG/How/handbook/bibliography.html" name="Bibliography">
 
-    <sect>FreeBSD goals
+    <sect>
+      <heading>FreeBSD goals</heading>
       <p>
-      <sect1>Copyrights
+      <sect1>
+	<heading>Copyrights</heading>
         <p>
           The goals of the FreeBSD Project are to provide software that may
           be used for any purpose and without strings attached.  Many of us
@@ -291,9 +301,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           in how the code is shared and distributed and so is a string we
           can reasonably live with.
 
-    <sect>Installation
+    <sect>
+      <heading>Installation</heading>
       <p>
-      <sect1>How do I install FreeBSD?
+      <sect1>
+	<heading>How do I install FreeBSD?</heading>
         <p>
 
           <bf/IMPORTANT NOTE/ if you  are installing 2.0.5R from tape,  see
@@ -318,7 +330,8 @@ Any entries with a &lt;XXX&gt; are under construction.
             RELNOTES        -- Release notes
           </verb>
 
-      <sect1>Help! I have no space! Do I need to delete everything first?
+      <sect1>
+	<heading>Help! I have no space! Do I need to delete everything first?</heading>
 
         <p>
           If your machine is already running DOS and has little or no free
@@ -337,7 +350,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           menu for an estimation of how much free space you'll need for the
           kind of installation you want.
 
-      <sect1>Can I use compressed DOS filesystems from FreeBSD?
+      <sect1>
+	<heading>Can I use compressed DOS filesystems from FreeBSD?</heading>
 
         <p>
           No.  If you are using a utility such as Stacker(tm) or
@@ -351,14 +365,16 @@ Any entries with a &lt;XXX&gt; are under construction.
           partition and use this for communications between DOS and
           FreeBSD.
 
-      <sect1>Can I mount my DOS extended partitions?
+      <sect1>
+	<heading>Can I mount my DOS extended partitions?</heading>
 
         <p>
           This feature isn't in FreeBSD 2.0.5 but should be in 2.1.  We've
           laid all the groundwork for making this happen, now we just need
           to do the last 1% of the work involved.
 
-      <sect1>Can I run DOS binaries under FreeBSD?
+      <sect1>
+	<heading>Can I run DOS binaries under FreeBSD?</heading>
 
         <p>
           Not yet!  We'd like to add support for this someday, but are
@@ -374,8 +390,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           to run DOS text mode applications.  It requires the X Window
           System (provided as XFree86 3.1.2).
 
-      <sect1>Help! I  can't  install from tape! The  install fails with a ``record too big'' error!
-          <label id="install-tape"> 
+      <sect1>
+	<heading>Help! I  can't  install from tape! The  install fails with a ``record too big'' error!<label id="install-tape"></heading>
         <p> 
           If you are installing 2.0.5R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
@@ -384,7 +400,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           you will get an error that complains about  the record size being
           too big.
  
-       <sect1>I want to install FreeBSD onto a SCSI disk that has more than 1024 cylinders.  How do I do it?
+       <sect1>
+	<heading>I want to install FreeBSD onto a SCSI disk that has more than 1024 cylinders.  How do I do it?</heading>
 
         <p>
           This depends.  If you don't have DOS (or another operating
@@ -402,7 +419,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           subdirectory) which can be used for this purpose.
 
 
-      <sect1>When I boot FreeBSD it says ``Missing Operating System''.
+      <sect1>
+	<heading>When I boot FreeBSD it says ``Missing Operating System''.</heading>
 
         <p>
           See question above.  This is classically a case of FreeBSD and
@@ -410,7 +428,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           geometry.  You will have to reinstall FreeBSD, but obeying the
           instructions given above will almost always get you going.
 
-      <sect1>When I install the boot manager and try to boot FreeBSD for the first time, it just comes back with the boot manager prompt again.
+      <sect1>
+	<heading>When I install the boot manager and try to boot FreeBSD for the first time, it just comes back with the boot manager prompt again.</heading>
 
         <p>
           This is another symptom of the problem described in the preceding
@@ -419,8 +438,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           translation (often marked as ``&gt;1GB drive support''), try
           toggling its setting and reinstalling FreeBSD.
 
-      <sect1>I'm having lots of trouble trying to disklabel a new SCSI drive. I have made an entry in <tt>/etc/disktab</tt>, but when I try to label the drive the following happens:
-        <p>
+      <sect1>
+	<heading>I'm having lots of trouble trying to disklabel a new SCSI drive.</heading>
+
+	<p>I have made an entry in <tt>/etc/disktab</tt>, but
+	  when I try to label the drive the following happens:
           <verb>
             mips# disklabel -w /dev/sd1 sea32550N
             disklabel: ioctl DIOCWDINFO: Operation not supported by device
@@ -507,7 +529,8 @@ sea32550N|Seagate 32550N:\
           offset 0 is invalid so <tt/sysinstall/ doesn't support creating
           such slices.
 
-      <sect1>I have an IDE drive with lots of bad blocks on it and FreeBSD doesn't seem to install properly.
+      <sect1>
+	<heading>I have an IDE drive with lots of bad blocks on it and FreeBSD doesn't seem to install properly.</heading>
 
         <p>
           FreeBSD's bad block (the ``<tt/bad144/'' command) handling is
@@ -522,14 +545,15 @@ sea32550N|Seagate 32550N:\
           to see if this feature has been disabled on your drive.  However,
           ESDI, RLL, and ST-506 drives normally do not do this.
 
-      <sect1>I have 32MB of memory, should I expect any special problems?
-          <label id="bigram">
+      <sect1>
+	<heading>I have 32MB of memory, should I expect any special problems?<label id="bigram"></heading>
 
         <p>
           No.  FreeBSD 2.X comes with bounce buffers which allows your bus
           mastering controller access to greater than 16MB.
 
-      <sect1>My network card keeps getting errors like, ``<tt/ed1: timeout/''.  What's going on?
+      <sect1>
+	<heading>My network card keeps getting errors like, ``<tt/ed1: timeout/''.  What's going on?</heading>
 
         <p>
           This is usually caused by an interrupt conflict (e.g., two boards
@@ -538,7 +562,8 @@ sea32550N|Seagate 32550N:\
           presence  of IRQ conflicts.  However, with  2.0.5R and later, IRQ
           conflicts are no  longer tolerated.  
  
-      <sect1>Do I need to install the complete sources? 
+      <sect1>
+	<heading>Do I need to install the complete sources?</heading>
 
         <p> In general, no.  However, we would strongly recommend that you
           install, at a minimum, the ``<tt/base/'' source kit, which
@@ -560,7 +585,8 @@ sea32550N|Seagate 32550N:\
           releases of FreeBSD.
 
 
-      <sect1>DES encryption software can not be exported from the United States.  If I live outside the US, how can I encrypt passwords?
+      <sect1>
+	<heading>DES encryption software can not be exported from the United States.  If I live outside the US, how can I encrypt passwords?</heading>
 
         <p> If it is not absolutely imperative that you use DES style
           encryption, you can use FreeBSD's default encryption for even
@@ -607,9 +633,11 @@ sea32550N|Seagate 32550N:\
 
       </sect1>
     </sect>
-    <sect>Hardware compatibility <label id="hardware">
+    <sect>
+      <heading>Hardware compatibility <label id="hardware"></heading>
       <p>
-      <sect1>What kind of hard drives does FreeBSD run on?
+      <sect1>
+	<heading>What kind of hard drives does FreeBSD run on?</heading>
 
         <p>
           FreeBSD supports ST-506 (sometimes called ``MFM''), RLL, and ESDI
@@ -618,7 +646,8 @@ sea32550N|Seagate 32550N:\
 
           FreeBSD also supports IDE and SCSI hard drives.
 
-      <sect1>What SCSI controllers are supported?
+      <sect1>
+	<heading>What SCSI controllers are supported?</heading>
 
         <p>
           FreeBSD supports the following SCSI controllers:
@@ -658,7 +687,8 @@ sea32550N|Seagate 32550N:\
               WD7000 &lt;ISA&gt; &lt;No scatter/gather&gt;
           </descrip>
 
-      <sect1>What CD-ROM drives are supported by FreeBSD?
+      <sect1>
+	<heading>What CD-ROM drives are supported by FreeBSD?</heading>
 
         <p>
           Any SCSI drive connected to a supported controller.
@@ -673,7 +703,8 @@ sea32550N|Seagate 32550N:\
           All non-SCSI cards are known to be extremely slow compared to
           SCSI drives.
  
-      <sect1>What multi-port serial cards are supported by FreeBSD?
+      <sect1>
+	<heading>What multi-port serial cards are supported by FreeBSD?</heading>
 
         <p>
           <itemize>
@@ -697,14 +728,16 @@ sea32550N|Seagate 32550N:\
           Check the <tt/sio(4)/ man page to get more information on
           configuring such cards.
 
-      <sect1>Does FreeBSD support the AHA-2xxx SCSI adapters from Adaptec?
+      <sect1>
+	<heading>Does FreeBSD support the AHA-2xxx SCSI adapters from Adaptec?</heading>
 
         <p>
           FreeBSD supports the AHA-2xxx line of disks.  The GPL portions
           of the old drivers have been re-written and now it is fully
           under the Berkeley style copyright.
  
-      <sect1>I have a Mumbleco bus mouse.  Is it supported and if so, how do I set it up for XFree86?
+      <sect1>
+	<heading>I have a Mumbleco bus mouse.  Is it supported and if so, how do I set it up for XFree86?</heading>
 
         <p>
           FreeBSD supports the Logitech and ATI Inport bus mice.  You need
@@ -714,7 +747,8 @@ sea32550N|Seagate 32550N:\
             device        mse0    at isa? port 0x23c tty irq6 vector mseintr
           </verb>
           
-      <sect1>I have a PS/2 mouse (``keyboard'' mouse) (Alternatively: I have a laptop with a track-ball mouse).  How do I use it?
+      <sect1>
+	<heading>I have a PS/2 mouse (``keyboard'' mouse) (Alternatively: I have a laptop with a track-ball mouse).  How do I use it?</heading>
         <p>
           You'll have to add the following lines to your kernel
           configuration file and recompile:
@@ -724,13 +758,15 @@ device    psm0    at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
 
-      <sect1>What types of tape drives are supported under FreeBSD?
+      <sect1>
+	<heading>What types of tape drives are supported under FreeBSD?</heading>
           
         <p>
           FreeBSD supports SCSI, QIC-02 and QIC-40/80 (Floppy based) tape
           drives.  This includes 8-mm (aka Exabyte) and DAT drives.
           
-      <sect1>What sound cards are supported by FreeBSD?
+      <sect1>
+	<heading>What sound cards are supported by FreeBSD?</heading>
           
         <p>
           FreeBSD supports the SoundBlaster, SoundBlaster Pro, SoundBlaster
@@ -742,7 +778,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           <bf/NOTE/ This is only for sound!  This driver does not support
           CD-ROMs, SCSI or joysticks on these cards.
           
-      <sect1>What network cards does FreeBSD support?
+      <sect1>
+	<heading>What network cards does FreeBSD support?</heading>
 
         <p>
           There is support for the following cards:
@@ -795,7 +832,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           we are incompatiable with other versions, but we hope to correct
           this in the near future.
 
-      <sect1>I have a 386/486sx/486SLC machine without a math co-processor. Will this cause me any problems?
+      <sect1>
+	<heading>I have a 386/486sx/486SLC machine without a math co-processor. Will this cause me any problems?</heading>
 
         <p>
           Generally no, but there are circumstances where you will take a
@@ -808,7 +846,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           us to say it, but nobody ever got fired for buying Intel.  Unless
           you're sure it works with FreeBSD, beware of clones.
 
-      <sect1>What other devices does 2.X support?
+      <sect1>
+	<heading>What other devices does 2.X support?</heading>
 
         <p>
           Here is a listing of drivers that do not fit into any of the
@@ -842,7 +881,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
               Driver for the X-10 POWERHOUSE <newline>
           </descrip>
 
-      <sect1>I am about to buy a new machine to run FreeBSD on and want an idea of what other people are running. Is there list of other systems anywhere?
+      <sect1>
+	<heading>I am about to buy a new machine to run FreeBSD on and want an idea of what other people are running. Is there list of other systems anywhere?</heading>
 
         <p>
           Yes.  Please look at the file <tt>Systems.FAQ</tt>.  This file is
@@ -851,13 +891,15 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           have sent in, and does not constitute any kind of endorsement by
           the FreeBSD Project.
 
-      <sect1>I have a lap-top with power management. Can FreeBSD take advantage of this?
+      <sect1>
+	<heading>I have a lap-top with power management. Can FreeBSD take advantage of this?</heading>
         <p>
           Yes it can on certain machines.  Please look in the <tt/LINT/
           kernel config file under <tt/APM/.
 
 
-    <sect>Commercial Applications
+    <sect>
+      <heading>Commercial Applications</heading>
 
       <p>
         <bf/NOTE/ This section is still very sparse, though we're hoping, of
@@ -869,7 +911,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         entries here for inclusion.
 
 
-      <sect1>Where can I get Motif for FreeBSD?
+      <sect1>
+	<heading>Where can I get Motif for FreeBSD?</heading>
         <p>
           Contact the following company:
 
@@ -881,8 +924,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           FAX: +44 (0) 329 825936<newline>
           Email:  <url url="mailto:info@lasermoon.co.uk" name="Info Address">
 
-      <sect1>Are there any commercial X servers for some of the high-end graphics cards like the Matrox or &num;9 I-128, or offering 8/16/24 bit deep pallettes?
-          <label id="xinside">
+      <sect1>
+	<heading>Are there any commercial X servers for some of the high-end graphics cards like the Matrox or &num;9 I-128, or offering 8/16/24 bit deep pallettes?<label id="xinside"></heading>
         <p>
           Yes, X Inside Incorporated sells their Accelerated-X product for
           FreeBSD and other Intel based systems.
@@ -909,7 +952,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
               phone +1(303)384-9999
           </descrip>
 
-      <sect1>Any other applications I might be interested in?
+      <sect1>
+	<heading>Any other applications I might be interested in?</heading>
 
         <p>
           RenderMorphics, Ltd. sells a high-speed 3D rendering package for
@@ -934,9 +978,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
       </sect1>
 
-    <sect>User Applications
+    <sect>
+      <heading>User Applications</heading>
         
-      <sect1>I want to run X, how do I go about it?
+      <sect1>
+	<heading>I want to run X, how do I go about it?</heading>
 
         <p>
           First, get the XFree86(tm) distribution of X11R6 from
@@ -951,7 +997,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           available at a very reasonable price.  See section
           <ref id="xinside" name="on Xaccel"> for more details.
 
-      <sect1>I've been trying to run ghostscript on a 386 (or 486sx) with no math co-processor and I keep getting errors. What's up? <label id="emul">
+      <sect1>
+	<heading>I've been trying to run ghostscript on a 386 (or 486sx) with no math co-processor and I keep getting errors. What's up?<label id="emul"></heading>
 
         <p>
           You will need to add the alternate math emulator to your kernel,
@@ -965,7 +1012,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           <bf/NOTE/ You will need to remove the <tt/MATH&lowbar;EMULATE/
           option when you do this.
 
-      <sect1>I want all this neat software, but I haven't got the space or CPU power to compile it all myself.  Is there any way of getting binaries?
+      <sect1>
+	<heading>I want all this neat software, but I haven't got the space or CPU power to compile it all myself.  Is there any way of getting binaries?</heading>
 
         <p>
           Yes.  We support the concept of a ``package'', which is
@@ -986,9 +1034,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           details on the care and feeding of the package software, so no
           explicit details will be given here.
 
-    <sect>Miscellaneous Questions
+    <sect>
+      <heading>Miscellaneous Questions</heading>
       <p>
-      <sect1>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?
+      <sect1>
+	<heading>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?</heading>
         <p>
           You have to use either ``<tt/-H/'' or ``<tt/-L/'' together with
           the ``<tt/-R/'' option to make this work.  See the <tt/chmod(1)/
@@ -1011,7 +1061,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           ``<tt/foo/'', to change the permissions of the directory,
           ``<tt/bar/''.
  
-      <sect1>How do I mount a CDROM?  I've tried using <tt/mount(8)/, but it keeps on giving me an error like, ``<tt>/dev/cd0a on /mnt: Incorrect super block.</tt>''
+      <sect1>
+	<heading>How do I mount a CDROM?  I've tried using <tt/mount(8)/, but it keeps on giving me an error like, ``<tt>/dev/cd0a on /mnt: Incorrect super block.</tt>''</heading>
         <p>
           You have to tell <tt/mount(8)/ the type of the device that you
           want to mount.  By default, <tt/mount(8)/ will assume the
@@ -1038,12 +1089,14 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             mount_cd9660 /dev/cd0c /mnt
           </verb>
  
-      <sect1>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?
+      <sect1>
+	<heading>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?</heading>
         <p>
           This generally means that there is no CDROM in the CDROM drive.
           Feed the drive something.
   
-      <sect1>My programs occasionally die with ``Signal 11'' errors. What's going on?
+      <sect1>
+	<heading>My programs occasionally die with ``Signal 11'' errors. What's going on?</heading>
         <p>
           This can be caused by bad hardware (memory, motherboard, etc.).
           Try running a memory-testing program on your PC.  Note that, even
@@ -1053,7 +1106,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           (such as during busmastering DMA from a SCSI controller like the
           Adaptec 1542).
  
-      <sect1>Help, some of my X Window menus and dialog boxes don't work right!  I can't select them.
+      <sect1>
+	<heading>Help, some of my X Window menus and dialog boxes don't work right!  I can't select them.</heading>
         <p>
           Try turning off the Num Lock key.
 
@@ -1067,7 +1121,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
     ServerNumLock
 </verb>
 
-      <sect1>How do I access the virtual consoles?
+      <sect1>
+	<heading>How do I access the virtual consoles?</heading>
         <p>
           If the console is not currently displaying X Window, just press
           Alt-F1 to Alt-F12.  
@@ -1086,7 +1141,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           Ctrl key; the Ctrl-Alt-function key combination is used only when
           switching from X Window to a virtual terminal.
   
-      <sect1>How do I increase the number of virtual consoles?
+      <sect1>
+	<heading>How do I increase the number of virtual consoles?</heading>
         <p>
           Edit <tt>/etc/ttys</tt> and add entries for ``<tt/ttyv4/'' to
           ``<tt/ttyvc/'' after the comment on ``Virtual terminals'' (delete
@@ -1160,13 +1216,15 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           will probably appear to hang/lock up after executing the kill
           command.
  
-      <sect1>I've heard of something called FreeBSD-current. How do I run it, and where can I get more information?
+      <sect1>
+	<heading>I've heard of something called FreeBSD-current. How do I run it, and where can I get more information?</heading>
 
         <p>
           Read the file <tt>/usr/src/share/FAQ/Text/current-policy.FAQ</tt>,
           it will tell you all you need to know.
           
-      <sect1>What is this thing called ``<tt/sup/'', and how do I use it?
+      <sect1>
+	<heading>What is this thing called ``<tt/sup/'', and how do I use it?</heading>
 
         <p>
           SUP stands for Software Update Protocol, and was developed by CMU
@@ -1198,7 +1256,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
           which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
 
-      <sect1>How do I create customized installation disks that I can give out to other people at my site?
+      <sect1>
+	<heading>How do I create customized installation disks that I can give out to other people at my site?</heading>
 
         <p>
           The entire process of creating installation disks and source and
@@ -1206,7 +1265,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           <tt>/usr/src/release/Makefile</tt>.  The information there should
           be enough to get you started.
 
-      <sect1>How do I re-build my system without clobbering the existing installed binaries?
+      <sect1>
+	<heading>How do I re-build my system without clobbering the existing installed binaries?</heading>
 
         <p>
           If you define the environment variable <tt/DESTDIR/ while running
@@ -1218,7 +1278,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           however.
 
 
-      <sect1>When my system booted, it told me that ``(bus speed defaulted)''.  What does that mean?
+      <sect1>
+	<heading>When my system booted, it told me that ``(bus speed defaulted)''.  What does that mean?</heading>
 
         <p>
           The Adaptec 1542 SCSI host adapters allow the user to configure
@@ -1231,7 +1292,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           but on those systems where it doesn't, your data could be
           corrupted.
 
-      <sect1>I would like to track changes to current and do not have net access.  Is there any way besides downloading the whole tree? <label id="ctm">
+      <sect1>
+	<heading>I would like to track changes to current and do not have net access.  Is there any way besides downloading the whole tree?<label id="ctm"></heading>
 
         <p>
           Yes, you can use the <tt/CTM/ facility.  Check out the
@@ -1242,7 +1304,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
           for more information.
 
-      <sect1>How do I split up large binary files into smaller 240k files like the distribution does?
+      <sect1>
+	<heading>How do I split up large binary files into smaller 240k files like the distribution does?</heading>
 
         <p>
           Newer BSD based systems have a ``<tt/-b/'' option to split that
@@ -1259,9 +1322,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             $&lcub;RELEASEDIR&rcub;/tarballs/bindist/bin_tgz.)
           </verb>
 
-      <sect1>&lt;XXX&gt; I've had a couple of system panics and would like to be able browse the system dumps.  The normal kernel is stripped and I don't want to run a bloated kernel.  What can I do?</>
+      <sect1>
+	<heading>&lt;XXX&gt; I've had a couple of system panics and would like to be able browse the system dumps.  The normal kernel is stripped and I don't want to run a bloated kernel.  What can I do?</heading>
 
-      <sect1>I've got this neato kernel extension I just know everyone will will want.  How do I get it included into the distribution?
+      <sect1>
+	<heading>I've got this neato kernel extension I just know everyone will will want.  How do I get it included into the distribution?</heading>
         <p>
           Please take a look at the FAQ for submiting code to FreeBSD at:
 
@@ -1273,9 +1338,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
       </sect1>
 
-    <sect>Kernel Configuration
+    <sect>
+      <heading>Kernel Configuration</heading>
       <p>
-      <sect1>Ok, so how DO I compile my own kernel, anyway? <label id="make-kernel">
+      <sect1>
+	<heading>Ok, so how DO I compile my own kernel, anyway?<label id="make-kernel"></heading>
         <p>
           Before you can compile a kernel, you need either the complete
           <tt/srcdist/ or, at the minimum, the <tt/kerndist/ loaded on your
@@ -1339,7 +1406,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           messages printed by your old kernel, some of which may be quite
           helpful in configuring the new one.
 
-      <sect1>When I compile a kernel with multi-port serial code, it tells me that only the first port is probed and the rest skipped due to interrupt conflicts.  How do I fix this?
+      <sect1>
+	<heading>When I compile a kernel with multi-port serial code, it tells me that only the first port is probed and the rest skipped due to interrupt conflicts.  How do I fix this?</heading>
 
         <p>
           The problem here is that FreeBSD has code built-in to keep the
@@ -1357,7 +1425,8 @@ device    sio4    at isa? port 0x2b0 tty flags 0x501 vector siointr
 device    sio5    at isa? port 0x2b8 tty flags 0x501 vector siointr
 </verb>
 
-      <sect1>FreeBSD is supposed to come with support for QIC-40/80 drives but when I look, I can't find it.
+      <sect1>
+	<heading>FreeBSD is supposed to come with support for QIC-40/80 drives but when I look, I can't find it.</heading>
 
         <p>
           You need to uncomment the following line in the generic config
@@ -1391,7 +1460,8 @@ disk        fd1   at fdc0 drive 1
           <tt/-current/ and try that.
 
 
-      <sect1>Does FreeBSD support IPC primitives like those in System V?
+      <sect1>
+	<heading>Does FreeBSD support IPC primitives like those in System V?</heading>
 
         <p>
           Yes, FreeBSD supports System V-style IPC.  This includes shared
@@ -1407,7 +1477,8 @@ disk        fd1   at fdc0 drive 1
 
           Recompile and install.
 
-      <sect1>Will FreeBSD ever support other architectures?
+      <sect1>
+	<heading>Will FreeBSD ever support other architectures?</heading>
 
         <p>
           Several different groups have expressed interest in working on
@@ -1416,7 +1487,8 @@ disk        fd1   at fdc0 drive 1
           <tt>&lt;platforms@FreeBSD.ORG&gt;</tt> for more information on our
           strategy for porting.
 
-      <sect1>I just wrote a device driver for a Foobar Systems, Inc. Integrated Adaptive Gronkulator card.  How do I get the appropriate major numbers assigned?
+      <sect1>
+	<heading>I just wrote a device driver for a Foobar Systems, Inc. Integrated Adaptive Gronkulator card.  How do I get the appropriate major numbers assigned?</heading>
 
         <p>
           This depends on whether or not you plan on making the driver
@@ -1432,9 +1504,11 @@ disk        fd1   at fdc0 drive 1
 
       </sect1>
 
-    <sect>System Administration
+    <sect>
+      <heading>System Administration</heading>
 
-<sect1>Hmm, where are my familiar BSD system files ? What's this <tt>/etc/sysconfig</tt> thing ?
+<sect1>
+	<heading>Hmm, where are my familiar BSD system files ? What's this <tt>/etc/sysconfig</tt> thing?</heading>
 
         <p>
           As for 2.0.5R, the primary configuration file is
@@ -1455,7 +1529,8 @@ disk        fd1   at fdc0 drive 1
           The <tt>/etc/rc.i386</tt> is for Intel-specifics setting like the
           iBCS2 emulation.
 
-      <sect1>How do I add a user easily?  I read the man page and am more confused than ever!  (Alternatively: I didn't read the man page, I never read man pages! :-) )
+      <sect1>
+	<heading>How do I add a user easily?  I read the man page and am more confused than ever!</heading>
 
         <p>
           Use the <tt/adduser/ command.
@@ -1465,12 +1540,14 @@ disk        fd1   at fdc0 drive 1
           <tt>&lt;roberto@FreeBSD.ORG&gt;</tt> about it.  It is currently
           under further development.
 
-      <sect1>&lt;XXX&gt; I'm trying to use my printer and keep running into problems.  I tried looking at <tt>/etc/printcap</tt>, but it's close to useless.  Any ideas?
+      <sect1>
+	<heading>&lt;XXX&gt; I'm trying to use my printer and keep running into problems.  I tried looking at <tt>/etc/printcap</tt>, but it's close to useless.  Any ideas?</heading>
         <p>
           Still under construction.
       </sect1>
 
-      <sect1>My keyboard mappings are wrong for my system. How can I fix them?
+      <sect1>
+	<heading>My keyboard mappings are wrong for my system. How can I fix them?</heading>
         <p>
           The kbdcontrol program has an option to load a keyboard map file.
           Under <tt>/usr/share/syscons/keymaps</tt> are a number of map
@@ -1502,9 +1579,11 @@ disk        fd1   at fdc0 drive 1
           </itemize>
       </sect1>
 
-    <sect>Networking
+    <sect>
+      <heading>Networking</heading>
 
-      <sect1>Where can I get information booting FreeBSD ``diskless'', that is booting and running a FreeBSD box from a server rather than having a local disk?
+      <sect1>
+	<heading>Where can I get information booting FreeBSD ``diskless'', that is booting and running a FreeBSD box from a server rather than having a local disk?</heading>
 
         <p>
           Please read the diskless section in the Handbook. It is in
@@ -1513,7 +1592,8 @@ disk        fd1   at fdc0 drive 1
           <url url="http://www.FreeBSD.ORG/How/handbook/diskless.html"
             name="Handbook's section on diskless boot">
 
-      <sect1>I've heard that you can use a FreeBSD box as a dedicated network router - is there any easy support for this?
+      <sect1>
+	<heading>I've heard that you can use a FreeBSD box as a dedicated network router - is there any easy support for this?</heading>
 
         <p>
           Internet standards and good engineering practice prohibit us from
@@ -1536,7 +1616,8 @@ disk        fd1   at fdc0 drive 1
           standard requirements for routers; however, it comes close enough
           for ordinary usage.
 
-      <sect1>Does FreeBSD support SLIP and PPP?</>
+      <sect1>
+	<heading>Does FreeBSD support SLIP and PPP?</heading>
 
         <p>
           Yes.  See the man pages for <tt/slattach(8)/ and/or <tt/pppd(8)/
@@ -1555,7 +1636,8 @@ disk        fd1   at fdc0 drive 1
           <url url="http://www.FreeBSD.ORG/How/handbook"
             name="FreeBSD's Handbook">
 
-      <sect1>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!
+      <sect1>
+	<heading>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!</heading>
 
         <p>
           In the Berkeley networking framework, network interfaces are only
@@ -1568,7 +1650,8 @@ disk        fd1   at fdc0 drive 1
           networking on FreeBSD is basically the same as on SunOS 4.0 or
           Ultrix.
 
-      <sect1>How do I get my 3C503 to use the other network port?
+      <sect1>
+	<heading>How do I get my 3C503 to use the other network port?</heading>
 
         <p>
           If you want to use the other ports, you'll have to specify an
@@ -1576,7 +1659,8 @@ disk        fd1   at fdc0 drive 1
           default port is ``<tt/link0/''. To use the AUI port instead of
           the BNC one, use ``<tt/link2/''.
 
-      <sect1>I'm having problems with NFS to/from FreeBSD and my Wuffotronics Workstation / generic NFS appliance, where should I look first?
+      <sect1>
+	<heading>I'm having problems with NFS to/from FreeBSD and my Wuffotronics Workstation / generic NFS appliance, where should I look first?</heading>
 
         <p>
           Certain PC network cards are better than others (to put it
@@ -1590,7 +1674,8 @@ disk        fd1   at fdc0 drive 1
           for more information on
           this topic.
 
-      <sect1>Why can't I NFS-mount from a Linux box?
+      <sect1>
+	<heading>Why can't I NFS-mount from a Linux box?</heading>
 
         <p>
           Some versions of the Linux NFS code only accept mount requests
@@ -1599,7 +1684,8 @@ disk        fd1   at fdc0 drive 1
             mount -o -P linuxbox:/blah /mnt
           </verb>
 
-      <sect1>I want to enable IP multicast support on my FreeBSD box, how do I do it?  (Alternatively: What the heck IS multicasting and what applications make use of it?)
+      <sect1>
+	<heading>I want to enable IP multicast support on my FreeBSD box, how do I do it?  (Alternatively: What the heck IS multicasting and what applications make use of it?)</heading>
 
         <p>
           Multicast host operations are fully supported in FreeBSD 2.0 by
@@ -1630,12 +1716,14 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 
       </sect1>
 
-    <sect> Serial Communications
+    <sect>
+      <heading>Serial Communications</heading>
       <p>
         This section answers common questions about serial communications
         with FreeBSD.
 
-      <sect1> How do I tell if FreeBSD found my serial ports or modem cards?
+      <sect1>
+	<heading>How do I tell if FreeBSD found my serial ports or modem cards?</heading>
         <p>
           As the FreeBSD kernel boots, it will probe for the serial ports
           in your system for which the kernel was configured.  You can
@@ -1669,12 +1757,14 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           section <ref id="make-kernel" name="about building a kernel"> for
           more details.
 
-      <sect1>Hey, I just upgraded to 2.0.5 and my <tt/tty0X/ are missing !
+      <sect1>
+	<heading>Hey, I just upgraded to 2.0.5 and my <tt/tty0X/ are missing!</heading>
         <p>
           Don't worry, they have been merged with the <tt/ttydX/
           devices. You'll have to change old configuration files.
 
-      <sect1> How do I access the serial ports once FreeBSD is running?
+      <sect1>
+	<heading>How do I access the serial ports once FreeBSD is running?</heading>
         <p>
           The third serial port, <tt/sio2/ (known as COM3 in DOS), is on
           <tt>/dev/cuaa2</tt> for dial-out devices, and on
@@ -1693,7 +1783,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           can still dialout with the same modem and the system will take
           care of all the conflicts.
 
-      <sect1> How do I configure the kernel for my multiport serial card?
+      <sect1>
+	<heading>How do I configure the kernel for my multiport serial card?</heading>
         <p>
           Again, the section on kernel configuration provides information
           about configuring your kernel.  For a multiport serial card,
@@ -1716,11 +1807,13 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           (<tt/0x700/), diagnostics enabled during probe (<tt/0x080/), and
           all the ports share an irq (<tt/0x001/).
 
-      <sect1> I have two multiport serial cards that can share irqs. Can FreeBSD handle this?
+      <sect1>
+	<heading>I have two multiport serial cards that can share irqs. Can FreeBSD handle this?</heading>
         <p>
           Not yet. You'll have to use a different irq for each card.
 
-      <sect1> What's the difference between <tt/ttyd1/, <tt/ttyid1/, and <tt/ttyld1/?  Or, how can I set the default serial parameters for a port?
+      <sect1>
+	<heading>What's the difference between <tt/ttyd1/, <tt/ttyid1/, and <tt/ttyld1/?  Or, how can I set the default serial parameters for a port?</heading>
         <p>
           The <tt/ttydX/ (or <tt/cuaaX/) device is the regular device
           you'll want to open for your applications.  When a process opens
@@ -1759,7 +1852,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           devices writable only by <tt/root/. The <tt/MAKEDEV/ script does
           <bf/NOT/ do this when it creates the device entries.
 
-      <sect1> How can I enable dialup logins on my modem?
+      <sect1>
+	<heading>How can I enable dialup logins on my modem?</heading>
         <p>
           So you want to become an Internet service provider, eh?  First,
           you'll need one or more modems that can autoanswer.  Your modem
@@ -1820,7 +1914,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             747 ??  I      0:00.04 /usr/libexec/getty std.57600 ttyd1 
           </verb>
 
-      <sect1> How can I make my spare computer a dumb terminal connected to my FreeBSD box?
+      <sect1>
+	<heading>How can I make my spare computer a dumb terminal connected to my FreeBSD box?</heading>
         <p>
           If you're using another computer as a terminal into your FreeBSD
           system, get a null modem cable to go between the two serial
@@ -1838,7 +1933,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           (<tt/std.38400/ from <tt>/etc/gettytab</tt>) and <tt/root/ logins
           are allowed (secure).
 
-      <sect1>  Why can't I run <tt/tip/ or <tt/cu/?
+      <sect1>
+	<heading>Why can't I run <tt/tip/ or <tt/cu/?</heading>
         <p>
           On your system, the programs <tt/tip/ and <tt/cu/ are probably
           executable only by <tt/uucp/ and group <tt/dialer/.  You can use
@@ -1853,7 +1949,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           You don't have to run this command for <tt/cu/, since <tt/cu/ is
           just a hard link to <tt/tip/.
 
-      <sect1> My stock Hayes modem isn't supported---what should I do?
+      <sect1>
+	<heading>My stock Hayes modem isn't supported---what should I do?</heading>
         <p>
           Actually, the man page for <tt/tip/ is out of date.  There is a
           generic Hayes dialer already built in.  Just use
@@ -1878,7 +1975,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           1/''. Then ``<tt/make/'' and ``<tt/make install/''. Everything
           works nicely after that.
 
-      <sect1> How am I expected to enter these AT commands without resorting to some DOS-based terminal program? <label id="direct-at">
+      <sect1>
+	<heading>How am I expected to enter these AT commands without resorting to some DOS-based terminal program?<label id="direct-at"></heading>
         <p>
           Make what's called a ``<tt/direct/'' entry in your
           <tt>/etc/remote</tt> file.  For example, if your modem's hooked
@@ -1897,7 +1995,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             MAKEDEV cuaa0
           </verb>
 
-      <sect1> Why doesn't the <tt/@/ sign for the phone number capability work?
+      <sect1>
+	<heading>Why doesn't the <tt/@/ sign for the phone number capability work?</heading>
         <p>
           The <tt/@/ sign in the pn capability tells tip to look in
           <tt>/etc/phones</tt> for a phone number.  But the <tt/@/ sign is
@@ -1907,7 +2006,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             pn=\@
           </verb>
 
-      <sect1> How can I dial a phone number on the command line?
+      <sect1>
+	<heading>How can I dial a phone number on the command line?</heading>
         <p>
           Put what's called a ``<tt/generic/'' entry in your
           <tt>/etc/remote</tt> file.  For example:
@@ -1926,7 +2026,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           </verb>
           and type ``<tt/cu 5551234 -s 115200/''.
 
-      <sect1> Great---but how can I do that without having to specify the bps rate on the command line?
+      <sect1>
+	<heading>Great---but how can I do that without having to specify the bps rate on the command line?</heading>
         <p>
           Put in an entry for <tt/tip1200/ or <tt/cu1200/, but go ahead and
           use whatever bps rate is appropriate with the br
@@ -1934,7 +2035,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           why it looks for a ``<tt/tip1200/'' entry.  You don't have to use
           1200 bps, though.
 
-      <sect1> I want separate entries for various hosts I access through a terminal server, but I don't want to type ``<tt/CONNECT &lt;host&gt;/'' each time once I'm connected. Can <tt/tip/ do that for me?
+      <sect1>
+	<heading>I want separate entries for various hosts I access through a terminal server, but I don't want to type ``<tt/CONNECT &lt;host&gt;/'' each time once I'm connected. Can <tt/tip/ do that for me?</heading>
         <p>
           Yes. Use the <tt/cm/ capability. For example, these entries in
           <tt>/etc/remote</tt>:
@@ -1951,7 +2053,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           connect to the hosts pain or muffin; and ``<tt/tip deep13/'' to
           get to the terminal server.
 
-      <sect1> My university has 42 billion students but only 4 modem lines. Can tip automatically try each line?
+      <sect1>
+	<heading>My university has 42 billion students but only 4 modem lines. Can tip automatically try each line?</heading>
         <p>
           Sure.  Make an entry for your university in <tt>/etc/remote</tt>
           and use <tt>\@</tt> for the <tt/pn/ capability:
@@ -1974,7 +2077,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           <tt/tip/ will try each one in the listed order, then give up.  If
           you want to keep retrying, run <tt/tip/ in a while loop.
 
-      <sect1> How come I have to hit CTRL+P twice to send CTRL+P once?
+      <sect1>
+	<heading>How come I have to hit CTRL+P twice to send CTRL+P once?</heading>
         <p>
           CTRL+P is the default ``force'' character, used to tell <tt/tip/
           that the next character is literal data.  You can set the force
@@ -1995,7 +2099,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             force=<single-char>
           </verb>
 
-      <sect1> Suddenly everything I type is all UPPER CASE.  What gives?
+      <sect1>
+	<heading>Suddenly everything I type is all UPPER CASE.  What gives?</heading>
         <p>
           You must've pressed CTRL+A, <tt/tip/'s ``raise character,''
           specially designed for people with broken caps-lock keys. Use
@@ -2011,7 +2116,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           </verb>
           The ^^ is SHIFT+CTRL+6.
 
-      <sect1> How can I do file transfers with <tt/tip/?
+      <sect1>
+	<heading>How can I do file transfers with <tt/tip/?</heading>
         <p>
           If you're talking to another UNIX system, you can send and
           receive files with <tt/~p/ (put) and <tt/~t/ (take).  These
@@ -2025,7 +2131,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           There's no error checking, so you probably should use another
           protocol, like zmodem.
 
-      <sect1> Okay, how can I run zmodem with <tt/tip/?
+      <sect1>
+	<heading>Okay, how can I run zmodem with <tt/tip/?</heading>
         <p>
           To receive files, start the sending program on the remote end.
           Then, type ``<tt/~C rz/'' to begin receiving them locally.
@@ -2036,7 +2143,8 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 
     </sect>
 
-    <sect>ACKNOWLEDGMENTS
+    <sect>
+      <heading>ACKNOWLEDGMENTS</heading>
 
       <p>
         <code>
