@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.40 1998/01/20 03:50:42 yokota Exp $
+#	$Id: LINT,v 1.286.2.41 1998/01/21 18:41:45 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -379,10 +379,10 @@ options		TCPDEBUG
 # currently be demand-loaded.)  Some people still prefer to statically
 # compile other filesystems as well.
 #
-# NB: The LFS, PORTAL, and UNION filesystems are known to be buggy,
-# and WILL panic your system if you attempt to do anything with them.
-# They are included here as an incentive for some enterprising soul to
-# sit down and fix them.
+# NB: The LFS, NULL, PORTAL, UMAP and UNION filesystems are known to be
+# buggy, and WILL panic your system if you attempt to do anything with
+# them.  They are included here as an incentive for some enterprising
+# soul to sit down and fix them.
 #
 # Note: 4.4BSD NQNFS lease checking has relatively high cost for
 # _local_ I/O as well as remote I/O. Don't use it unless you will
