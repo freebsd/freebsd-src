@@ -72,7 +72,7 @@
     static int fdzero;
 #   define MMAP_FD	fdzero
 #   define INIT_MMAP() \
-	{ if ((fdzero=open("/dev/zero", O_RDWR, 0000)) == -1) \
+	{ if ((fdzero = _libc_open("/dev/zero", O_RDWR, 0000)) == -1) \
 	    wrterror("open of /dev/zero"); }
 #   define MADV_FREE			MADV_DONTNEED
 #endif /* __sparc__ */
@@ -275,10 +275,10 @@ static void
 wrterror(char *p)
 {
     char *q = " error: ";
-    write(STDERR_FILENO, __progname, strlen(__progname));
-    write(STDERR_FILENO, malloc_func, strlen(malloc_func));
-    write(STDERR_FILENO, q, strlen(q));
-    write(STDERR_FILENO, p, strlen(p));
+    _libc_write(STDERR_FILENO, __progname, strlen(__progname));
+    _libc_write(STDERR_FILENO, malloc_func, strlen(malloc_func));
+    _libc_write(STDERR_FILENO, q, strlen(q));
+    _libc_write(STDERR_FILENO, p, strlen(p));
     suicide = 1;
     abort();
 }
@@ -289,12 +289,11 @@ wrtwarning(char *p)
     char *q = " warning: ";
     if (malloc_abort)
 	wrterror(p);
-    write(STDERR_FILENO, __progname, strlen(__progname));
-    write(STDERR_FILENO, malloc_func, strlen(malloc_func));
-    write(STDERR_FILENO, q, strlen(q));
-    write(STDERR_FILENO, p, strlen(p));
+    _libc_write(STDERR_FILENO, __progname, strlen(__progname));
+    _libc_write(STDERR_FILENO, malloc_func, strlen(malloc_func));
+    _libc_write(STDERR_FILENO, q, strlen(q));
+    _libc_write(STDERR_FILENO, p, strlen(p));
 }
-
 
 /*
  * Allocate a number of pages from the OS

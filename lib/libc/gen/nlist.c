@@ -66,11 +66,11 @@ nlist(name, list)
 {
 	int fd, n;
 
-	fd = open(name, O_RDONLY, 0);
+	fd = _libc_open(name, O_RDONLY, 0);
 	if (fd < 0)
 		return (-1);
 	n = __fdnlist(fd, list);
-	(void)close(fd);
+	(void)_libc_close(fd);
 	return (n);
 }
 
@@ -255,7 +255,7 @@ __elf_fdnlist(fd, list)
 
 	/* Make sure obj is OK */
 	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
-	    read(fd, &ehdr, sizeof(Elf_Ehdr)) != sizeof(Elf_Ehdr) ||
+	    _libc_read(fd, &ehdr, sizeof(Elf_Ehdr)) != sizeof(Elf_Ehdr) ||
 	    !__elf_is_okay__(&ehdr) ||
 	    fstat(fd, &st) < 0)
 		return (-1);
@@ -339,7 +339,7 @@ __elf_fdnlist(fd, list)
 
 	while (symsize > 0 && nent > 0) {
 		cc = MIN(symsize, sizeof(sbuf));
-		if (read(fd, sbuf, cc) != cc)
+		if (_libc_read(fd, sbuf, cc) != cc)
 			break;
 		symsize -= cc;
 		for (s = sbuf; cc > 0 && nent > 0; ++s, cc -= sizeof(*s)) {

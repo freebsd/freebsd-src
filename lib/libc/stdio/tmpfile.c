@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -72,7 +74,7 @@ tmpfile()
 
 	if ((fp = fdopen(fd, "w+")) == NULL) {
 		sverrno = errno;
-		(void)close(fd);
+		(void)_libc_close(fd);
 		errno = sverrno;
 		return (NULL);
 	}

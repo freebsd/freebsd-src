@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -84,7 +86,7 @@ getpass(prompt)
 		if (p < buf + _PASSWORD_LEN)
 			*p++ = ch;
 	*p = '\0';
-	(void)write(fileno(outfp), "\n", 1);
+	(void)_libc_write(fileno(outfp), "\n", 1);
 	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
 
 	(void)sigprocmask(SIG_SETMASK, &oset, NULL);

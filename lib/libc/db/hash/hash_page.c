@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -537,7 +539,7 @@ __get_page(hashp, p, bucket, is_bucket, is_disk, is_bitmap)
 	else
 		page = OADDR_TO_PAGE(bucket);
 	if ((lseek(fd, (off_t)page << hashp->BSHIFT, SEEK_SET) == -1) ||
-	    ((rsize = read(fd, p, size)) == -1))
+	    ((rsize = _libc_read(fd, p, size)) == -1))
 		return (-1);
 	bp = (u_int16_t *)p;
 	if (!rsize)
@@ -608,7 +610,7 @@ __put_page(hashp, p, bucket, is_bucket, is_bitmap)
 	else
 		page = OADDR_TO_PAGE(bucket);
 	if ((lseek(fd, (off_t)page << hashp->BSHIFT, SEEK_SET) == -1) ||
-	    ((wsize = write(fd, p, size)) == -1))
+	    ((wsize = _libc_write(fd, p, size)) == -1))
 		/* Errno is set */
 		return (-1);
 	if (wsize != size) {
@@ -712,7 +714,8 @@ overflow_page(hashp)
 #define	OVMSG	"HASH: Out of overflow pages.  Increase page size\n"
 	if (offset > SPLITMASK) {
 		if (++splitnum >= NCACHED) {
-			(void)write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			(void)_libc_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) -
+			    1);
 			return (0);
 		}
 		hashp->OVFL_POINT = splitnum;
@@ -725,7 +728,8 @@ overflow_page(hashp)
 	if (free_bit == (hashp->BSIZE << BYTE_SHIFT) - 1) {
 		free_page++;
 		if (free_page >= NCACHED) {
-			(void)write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			(void)_libc_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) -
+			    1);
 			return (0);
 		}
 		/*
@@ -749,7 +753,7 @@ overflow_page(hashp)
 		offset++;
 		if (offset > SPLITMASK) {
 			if (++splitnum >= NCACHED) {
-				(void)write(STDERR_FILENO, OVMSG,
+				(void)_libc_write(STDERR_FILENO, OVMSG,
 				    sizeof(OVMSG) - 1);
 				return (0);
 			}
@@ -867,7 +871,7 @@ open_temp(hashp)
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
 	if ((hashp->fp = mkstemp(namestr)) != -1) {
 		(void)unlink(namestr);
-		(void)fcntl(hashp->fp, F_SETFD, 1);
+		(void)_libc_fcntl(hashp->fp, F_SETFD, 1);
 	}
 	(void)sigprocmask(SIG_SETMASK, &oset, (sigset_t *)NULL);
 	return (hashp->fp != -1 ? 0 : -1);

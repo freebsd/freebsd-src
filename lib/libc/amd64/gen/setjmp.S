@@ -54,8 +54,9 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-.globl CNAME(__setjmp); CNAME(__setjmp):
-ENTRY(setjmp)
+ALTENTRY(setjmp)
+ALTENTRY(_libc_setjmp)
+ENTRY(__setjmp)
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
 	leal	28(%ecx), %eax
@@ -81,8 +82,9 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-.globl CNAME(__longjmp); CNAME(__longjmp):
-ENTRY(longjmp)
+ALTENTRY(longjmp)
+ALTENTRY(_libc_longjmp)
+ENTRY(__longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
 	pushl	$0			/* (sigset_t*)oset */

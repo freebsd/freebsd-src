@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -84,7 +86,7 @@ __rec_close(dbp)
 			if (fclose(t->bt_rfp))
 				status = RET_ERROR;
 		} else
-			if (close(t->bt_rfd))
+			if (_libc_close(t->bt_rfd))
 				status = RET_ERROR;
 
 	if (__bt_close(dbp) == RET_ERROR)
@@ -150,7 +152,8 @@ __rec_sync(dbp, flags)
 		 */
 		status = (dbp->seq)(dbp, &key, &data, R_FIRST);
 		while (status == RET_SUCCESS) {
-			if (write(t->bt_rfd, data.data, data.size) != data.size)
+			if (_libc_write(t->bt_rfd, data.data, data.size) !=
+			    data.size)
 				return (RET_ERROR);
 			status = (dbp->seq)(dbp, &key, &data, R_NEXT);
 		}

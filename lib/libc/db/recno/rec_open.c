@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -66,7 +68,7 @@ __rec_open(fname, flags, mode, openinfo, dflags)
 	int rfd, sverrno;
 
 	/* Open the user's file -- if this fails, we're done. */
-	if (fname != NULL && (rfd = open(fname, flags, mode)) < 0)
+	if (fname != NULL && (rfd = _libc_open(fname, flags, mode)) < 0)
 		return (NULL);
 
 	/* Create a btree in memory (backed by disk). */
@@ -213,7 +215,7 @@ err:	sverrno = errno;
 	if (dbp != NULL)
 		(void)__bt_close(dbp);
 	if (fname != NULL)
-		(void)close(rfd);
+		(void)_libc_close(rfd);
 	errno = sverrno;
 	return (NULL);
 }

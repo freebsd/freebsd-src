@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -247,9 +249,10 @@ execvp(name, argv)
 		 * the user may execute the wrong program.
 		 */
 		if (lp + ln + 2 > sizeof(buf)) {
-			(void)write(STDERR_FILENO, "execvp: ", 8);
-			(void)write(STDERR_FILENO, p, lp);
-			(void)write(STDERR_FILENO, ": path too long\n", 16);
+			(void)_libc_write(STDERR_FILENO, "execvp: ", 8);
+			(void)_libc_write(STDERR_FILENO, p, lp);
+			(void)_libc_write(STDERR_FILENO, ": path too long\n",
+			    16);
 			continue;
 		}
 		bcopy(p, buf, lp);

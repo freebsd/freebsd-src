@@ -25,6 +25,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
@@ -43,20 +45,24 @@
 
 	.set	noreorder
 
-LEAF(sigsetjmp, 2)
+XLEAF(sigsetjmp, 2)
+XLEAF(_libc_sigsetjmp, 2)
+LEAF(__sigsetjmp, 2)
 	LDGP(pv)
 	stq	a1, (81 * 8)(a0)		/* save the mask */
 	bne	a1, Lsavesig			/* if !zero, save signals */
 	jmp	zero, _setjmp				/* else don't. */
 Lsavesig:
 	jmp	zero, setjmp
-END(sigsetjmp)
+END(__sigsetjmp)
 
-LEAF(siglongjmp, 2)
+XLEAF(siglongjmp, 2)
+XLEAF(_libc_siglongjmp, 2)
+LEAF(__siglongjmp, 2)
 	LDGP(pv)
 	ldq	t0, (81 * 8)(a0)		/* get the mask */
 	bne	t0, Lrestoresig			/* if !zero, restore signals */
 	jmp	zero, _longjmp
 Lrestoresig:
 	jmp	zero, longjmp
-END(siglongjmp)
+END(__siglongjmp)

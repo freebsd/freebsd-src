@@ -53,7 +53,9 @@
 
 #include "DEFS.h"
 
-ENTRY(_setjmp)
+ALTENTRY(_setjmp)
+ALTENTRY(_libc__setjmp)
+ENTRY(___setjmp)
 	movl	4(%esp),%eax
 	movl	0(%esp),%edx
 	movl	%edx, 0(%eax)		/* rta */
@@ -66,7 +68,9 @@ ENTRY(_setjmp)
 	xorl	%eax,%eax
 	ret
 
-ENTRY(_longjmp)
+ALTENTRY(_longjmp)
+ALTENTRY(_libc__longjmp)
+ENTRY(___longjmp)
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

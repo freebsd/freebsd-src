@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -205,7 +207,7 @@ mpool_get(mp, pgno, flags)
 	off = mp->pagesize * pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (NULL);
-	if ((nr = read(mp->fd, bp->page, mp->pagesize)) != mp->pagesize) {
+	if ((nr = _libc_read(mp->fd, bp->page, mp->pagesize)) != mp->pagesize) {
 		if (nr >= 0)
 			errno = EFTYPE;
 		return (NULL);
@@ -297,7 +299,7 @@ mpool_sync(mp)
 			return (RET_ERROR);
 
 	/* Sync the file descriptor. */
-	return (fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
+	return (_libc_fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
 }
 
 /*
@@ -380,7 +382,7 @@ mpool_write(mp, bp)
 	off = mp->pagesize * bp->pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (RET_ERROR);
-	if (write(mp->fd, bp->page, mp->pagesize) != mp->pagesize)
+	if (_libc_write(mp->fd, bp->page, mp->pagesize) != mp->pagesize)
 		return (RET_ERROR);
 
 	bp->flags &= ~MPOOL_DIRTY;
