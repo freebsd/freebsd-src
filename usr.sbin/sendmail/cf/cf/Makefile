@@ -58,7 +58,7 @@ install:
 	
 
 # Helper for src/etc/Makefile
-etc-sendmail.cf:
+etc-sendmail.cf: freebsd.cf
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/sendmail.cf
 
