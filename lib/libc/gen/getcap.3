@@ -106,7 +106,7 @@ but may then be
 .Xr free 3 Ns \&'d .
 On success 0 is returned, 1 if the returned
 record contains an unresolved
-.Nm tc
+.Ic tc
 expansion,
 \-1 if the requested record couldn't be found,
 \-2 if a system error was encountered (couldn't open/read a file, etc.) also
@@ -251,7 +251,7 @@ comments below).
 Upon completion of the database 0 is returned,  1 is returned upon successful
 return of record with possibly more remaining (we haven't reached the end of
 the database yet), 2 is returned if the record contains an unresolved
-.Nm tc
+.Ic tc
 expansion, \-1 is returned if an system error occurred, and \-2
 is returned if a potential reference loop is detected (see
 .Ic tc=
@@ -284,7 +284,7 @@ By convention, the last name is usually a comment and is not intended as
 a lookup tag.  For example, the
 .Em vt100
 record from the
-.Nm termcap
+.Xr termcap 5
 database begins:
 .Pp
 .Dl "d0\||\|vt100\||\|vt100-am\||\|vt100am\||\|dec vt100:"
