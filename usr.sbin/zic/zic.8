@@ -4,6 +4,9 @@ zic \- time zone compiler
 .SH SYNOPSIS
 .B zic
 [
+.B \-\-version
+]
+[
 .B \-v
 ] [
 .B \-d
@@ -44,6 +47,9 @@ the standard input is read.
 .PP
 These options are available:
 .TP
+.BI "\-\-version"
+Output version information and exit.
+.TP
 .BI "\-d " directory
 Create time conversion information files in the named directory rather than
 in the standard directory named below.
@@ -75,6 +81,10 @@ Complain if a year that appears in a data file is outside the range
 of years representable by
 .IR time (2)
 values.
+Also complain if a time of 24:00
+(which cannot be handled by pre-1998 versions of
+.IR zic )
+appears in the input.
 .TP
 .B \-s
 Limit time values stored in output files to values that are the same
@@ -202,6 +212,7 @@ Recognized forms include:
 2:00	time in hours and minutes
 15:00	24-hour format time (for times after noon)
 1:28:14	time in hours, minutes, and seconds
+\-	equivalent to 0
 .fi
 .in -.5i
 .sp
@@ -410,4 +421,4 @@ the earliest transition time recorded in the compiled file is correct.
 /usr/local/etc/zoneinfo	standard directory used for created files
 .SH "SEE ALSO"
 newctime(3), tzfile(5), zdump(8)
-.\" @(#)zic.8	7.18
+.\" @(#)zic.8	7.22
