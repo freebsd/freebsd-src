@@ -111,6 +111,9 @@ for more details on how to set this option.
 .It Fl b Ar block-size
 The block size of the file system, in bytes.  It must be a power of 2.  The
 default size is 8192 bytes, and the smallest allowable size is 4096 bytes.
+The optimal block:fragment ratio is 8:1.
+Other ratios are possible, but are not recommended,
+and may produce unpredictable results.
 .It Fl c Ar #cylinders/group
 The number of cylinders per cylinder group in a file system.  The default
 is to compute the maximum allowed by the other parameters.  This value is
