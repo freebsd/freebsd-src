@@ -36,6 +36,11 @@ dhclient_prestart()
 	if [ -z "$dhcp_list" ]; then
 		return 1
 	fi
+
+	for ifn in ${dhcp_list}; do
+		ifscript_up ${ifn}
+	done
+
 	rc_flags="${rc_flags} ${dhcp_flags} ${dhcp_list}"
 	return 0
 }
