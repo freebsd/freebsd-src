@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.112 1998/04/17 22:36:36 des Exp $
+ *	$Id: isa.c,v 1.113 1998/07/19 04:22:55 bde Exp $
  */
 
 /*
@@ -160,8 +160,9 @@ haveseen(dvp, tmpdvp, checkbits)
 			if ((dvp->id_iobase >= tmpdvp->id_iobase) &&
 			    (dvp->id_iobase <=
 				  (tmpdvp->id_iobase + tmpdvp->id_alive - 1))) {
-				conflict(dvp, tmpdvp, dvp->id_iobase, whatnot,
-					 "I/O address", "0x%x");
+				if (!(checkbits & CC_QUIET))
+					conflict(dvp, tmpdvp, dvp->id_iobase,
+					    whatnot, "I/O address", "0x%x");
 				return 1;
 			}
 		}
@@ -179,8 +180,10 @@ haveseen(dvp, tmpdvp, checkbits)
 			if ((KERNBASE + dvp->id_maddr >= tmpdvp->id_maddr) &&
 			    (KERNBASE + dvp->id_maddr <=
 			     (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
-				conflict(dvp, tmpdvp, (int)dvp->id_maddr,
-					 whatnot, "maddr", "0x%x");
+				if (!(checkbits & CC_QUIET))
+					conflict(dvp, tmpdvp,
+					    (int)dvp->id_maddr, whatnot,
+					    "maddr", "0x%x");
 				return 1;
 			}
 		}
@@ -189,8 +192,10 @@ haveseen(dvp, tmpdvp, checkbits)
 		 */
 		if (checkbits & CC_IRQ && tmpdvp->id_irq) {
 			if (tmpdvp->id_irq == dvp->id_irq) {
-				conflict(dvp, tmpdvp, ffs(dvp->id_irq) - 1,
-					 whatnot, "irq", "%d");
+				if (!(checkbits & CC_QUIET))
+					conflict(dvp, tmpdvp,
+					    ffs(dvp->id_irq) - 1, whatnot,
+					    "irq", "%d");
 				return 1;
 			}
 		}
@@ -199,8 +204,9 @@ haveseen(dvp, tmpdvp, checkbits)
 		 */
 		if (checkbits & CC_DRQ && tmpdvp->id_drq != -1) {
 			if (tmpdvp->id_drq == dvp->id_drq) {
-				conflict(dvp, tmpdvp, dvp->id_drq, whatnot,
-					 "drq", "%d");
+				if (!(checkbits & CC_QUIET))
+					conflict(dvp, tmpdvp, dvp->id_drq,
+					    whatnot, "drq", "%d");
 				return 1;
 			}
 		}
@@ -545,7 +551,7 @@ config_isadev_c(isdp, mp, reconfig)
 			 * already skip the early check for IRQs and force
 			 * a check for IRQs in the next group of checks.
 			 */
-			checkbits |= CC_IRQ;
+			checkbits |= CC_ATTACH | CC_IRQ;
 			if (haveseen_isadev(isdp, checkbits))
 				return;
 			isdp->id_alive = id_alive;
