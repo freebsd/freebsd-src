@@ -107,7 +107,8 @@ SUBDIR+=fdisk \
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=fdisk
+SUBDIR+=fdisk \
+	gpt
 .endif
 
 .include <bsd.subdir.mk>
