@@ -43,13 +43,13 @@ struct info {
 	int off;				/* turn off */
 	int set;				/* need set */
 	int wset;				/* need window set */
-	char *arg;				/* argument */
+	const char *arg;			/* argument */
 	struct termios t;			/* terminal info */
 	struct winsize win;			/* window info */
 };
 
 struct cchar {
-	char *name;
+	const char *name;
 	int sub;
 	u_char def;
 };

@@ -48,9 +48,11 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
+static void gerr __P((const char *s));
+
 static void
 gerr(s)
-	char *s;
+	const char *s;
 {
 	if (s)
 		errx(1, "illegal gfmt1 option -- %s", s);
