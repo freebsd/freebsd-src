@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.12 1995/02/18 21:12:33 bde Exp $
+ * $Id: buf.h,v 1.13 1995/03/16 18:16:12 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -96,11 +96,7 @@ struct buf {
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
 	void	*b_spc;
-#ifndef VMIO
-	void	*b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
-#else
 	struct	vm_page *b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
-#endif
 	int		b_npages;
 };
 
