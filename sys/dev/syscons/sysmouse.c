@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
-#include <sys/random.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 
@@ -336,8 +335,6 @@ sysmouse_event(mouse_info_t *info)
 			(*linesw[sysmouse_tty->t_line].l_rint)(buf[i],
 							       sysmouse_tty);
 	}
-
-	random_harvest(buf, sizeof(buf), 2, 0, RANDOM_MOUSE);
 
 	return mouse_status.flags;
 }
