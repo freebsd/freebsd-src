@@ -314,8 +314,7 @@ initpbuf(struct buf *bp)
  *	relatively soon when the rest of the subsystems get smart about it. XXX
  */
 struct buf *
-getpbuf(pfreecnt)
-	int *pfreecnt;
+getpbuf(int *pfreecnt)
 {
 	int s;
 	struct buf *bp;
@@ -355,8 +354,7 @@ getpbuf(pfreecnt)
  *	call understand how to use pfreecnt.
  */
 struct buf *
-trypbuf(pfreecnt)
-	int *pfreecnt;
+trypbuf(int *pfreecnt)
 {
 	int s;
 	struct buf *bp;
@@ -387,9 +385,7 @@ trypbuf(pfreecnt)
  *	relatively soon when the rest of the subsystems get smart about it. XXX
  */
 void
-relpbuf(bp, pfreecnt)
-	struct buf *bp;
-	int *pfreecnt;
+relpbuf(struct buf *bp, int *pfreecnt)
 {
 	int s;
 
