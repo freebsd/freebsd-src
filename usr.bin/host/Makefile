@@ -1,6 +1,10 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $Id$
+
+.include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
+
+.PATH:	${BIND_DIR}/tools
+.PATH:	${BIND_DIR}/man
 
 PROG=	host
-MAN1=	host.1
 
 .include <bsd.prog.mk>
