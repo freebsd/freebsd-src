@@ -456,6 +456,9 @@ options 	PMAP_SHPGPERPROC=201
 #XXX keep these here for now and reactivate when support for emulating
 #XXX these 32 bit binaries is added.
 
+# Enable 32-bit runtime support for FreeBSD/i386 binaries.
+options 	COMPAT_IA32
+
 # Enable iBCS2 runtime support for SCO and ISC binaries
 #XXX#options 	IBCS2
 
