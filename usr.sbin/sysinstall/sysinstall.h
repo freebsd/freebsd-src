@@ -280,6 +280,7 @@ typedef struct _device {
     void (*shutdown)(struct _device *dev);
     void *private;
     unsigned int flags;
+    unsigned int volume;
 } Device;
 
 /* Some internal representations of partitions */
@@ -335,6 +336,7 @@ typedef struct _indexEntry {	/* A single entry in an INDEX file */
     int  depc;			/* how many depend on me	*/
     int  installed;		/* indicates if it is installed */
     char *maintainer;		/* maintainer			*/
+    unsigned int volume;	/* Volume of package            */
 } IndexEntry;
 typedef IndexEntry *IndexEntryPtr;
 
