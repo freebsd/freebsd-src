@@ -2804,6 +2804,7 @@ wi_get_cur_ssid(sc, ssid, len)
 		*len = IEEE80211_NWID_LEN;
 		bcopy(sc->wi_net_name, ssid, IEEE80211_NWID_LEN);
 		break;
+	case WI_PORTTYPE_IBSS:
 	case WI_PORTTYPE_ADHOC:
 		wreq.wi_type = WI_RID_CURRENT_SSID;
 		error = wi_read_record(sc, (struct wi_ltv_gen *)&wreq);
