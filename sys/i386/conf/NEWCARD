@@ -136,8 +136,6 @@ device		sc	1
 #device		vt
 #options 	XSERVER			# support for X server on a vt console
 #options 	FAT_CURSOR		# start with block cursor
-# If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
-#options 	PCVT_SCANSET=2		# IBM keyboards are non-std
 
 # Floating point support - do not disable.
 device		npx
