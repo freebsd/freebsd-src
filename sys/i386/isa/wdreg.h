@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wxreg.h,v 1.1 1993/10/26 22:26:39 nate Exp $
+ *	$Id: wdreg.h,v 1.6 1994/01/04 20:05:26 nate Exp $
  */
 
 /*
@@ -96,7 +96,6 @@
 
 #define	WDSD_IBM	0xa0		/* forced to 512 byte sector, ecc */
 
-
 #ifdef KERNEL
 /*
  * read parameters command returns this:
@@ -133,12 +132,12 @@ struct wdparams {
 void wdstrategy(struct buf *bp);
 void wdintr(int unit);
 int wdopen(dev_t dev, int flags, int fmt, struct proc *p);
-int wdclose(dev_t dev, int flags, int fmt);
-int wdioctl(dev_t dev, int cmd, caddr_t addr, int flag);
+int wdclose(dev_t dev, int flags, int fmt, struct proc *p);
+int wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
 #ifdef	B_FORMAT
 int wdformat(struct buf *bp);
 #endif
 int wdsize(dev_t dev);
 int wddump(dev_t dev);
 
-#endif KERNEL
+#endif /* KERNEL */
