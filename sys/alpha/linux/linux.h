@@ -383,6 +383,8 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_GETZCNT		15
 #define	LINUX_SETVAL		16
 #define	LINUX_SETALL		17
+#define	LINUX_SEM_STAT		18
+#define	LINUX_SEM_INFO		19
 
 union l_semun {
 	l_int		val;
