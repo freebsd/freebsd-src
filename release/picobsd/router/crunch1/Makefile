@@ -9,7 +9,7 @@ crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
 	@${MAKE} -f crunch1.mk NOSECURE=yes NOCRYPT=yes all \
-	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DRELEASE_CRUNCH" #2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH" #2>&1 >/dev/null
 
 clean:
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \

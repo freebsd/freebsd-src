@@ -13,7 +13,7 @@ crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
 	@${MAKE} -f crunch1.mk -DNOPAM all \
-	    "CFLAGS=${CFLAGS} -DNOPAM -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DNOPAM -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
 
 clean:
 #	@if [ -f /usr/src/usr.bin/passwd/.picobsd.patched ]; then \
