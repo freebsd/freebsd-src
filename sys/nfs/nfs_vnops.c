@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.15 1995/05/30 08:12:49 rgrimes Exp $
+ * $Id: nfs_vnops.c,v 1.16 1995/06/27 11:06:53 dfr Exp $
  */
 
 /*
@@ -1651,7 +1651,7 @@ nfs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 	/*
 	* Since the args are reversed in the VOP_LINK() calls,
 	 * switch them back. Argh!

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.7 1994/10/10 07:55:48 phk Exp $
+ * $Id: union_vnops.c,v 1.8 1994/11/04 14:41:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -919,7 +919,7 @@ union_link(ap)
 		VREF(vp);
 		vrele(ap->a_tdvp);
 
-		error = VOP_LINK(dvp, vp, ap->a_cnp);
+		error = VOP_LINK(vp, dvp, ap->a_cnp);
 	} else {
 		/*
 		 * XXX: need to copy to upper layer
