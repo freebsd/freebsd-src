@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.137 1999/05/06 18:12:17 peter Exp $
+ *	$Id: trap.c,v 1.138 1999/06/01 18:19:47 jlemon Exp $
  */
 
 /*
@@ -147,7 +147,6 @@ static __inline void userret __P((struct proc *p, struct trapframe *frame,
 				  u_quad_t oticks));
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-extern struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
 
@@ -727,7 +726,7 @@ trap_pfault(frame, usermode, eva)
 		 * fault.
 		 */
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-		if ((eva == (unsigned int)&t_idt[6]) && has_f00f_bug) {
+		if ((eva == (unsigned int)&idt[6]) && has_f00f_bug) {
 			frame->tf_trapno = T_PRIVINFLT;
 			return -2;
 		}
