@@ -366,6 +366,7 @@ u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));	\
 } while (0)
 #define	BPF_MTAP(_ifp,_m) do {					\
+	M_ASSERTVALID(_m);					\
 	if ((_ifp)->if_bpf)					\
 		bpf_mtap((_ifp)->if_bpf, (_m));			\
 } while (0)
