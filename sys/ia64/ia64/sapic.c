@@ -142,7 +142,7 @@ sapic_enable(struct sapic *sa, int input, int vector,
 	rte.rte_destination_eid = (lid >> 16) & 255;
 	rte.rte_trigger_mode = trigger_mode;
 	rte.rte_polarity = polarity;
-	rte.rte_delivery_mode = 0; /* fixed */
+	rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
 	rte.rte_vector = vector;
 	sapic_write_rte(sa, input, &rte);
 }
