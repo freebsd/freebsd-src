@@ -286,11 +286,12 @@ mac_mls_contains_equal(struct mac_mls *mac_mls)
 }
 
 static int
-mac_mls_subject_equal_ok(struct mac_mls *mac_mls)
+mac_mls_subject_privileged(struct mac_mls *mac_mls)
 {
 
-	KASSERT((mac_mls->mm_flags & MAC_MLS_FLAGS_BOTH) == MAC_MLS_FLAGS_BOTH,
-	    ("mac_mls_subject_equal_ok: subject doesn't have both labels"));
+	KASSERT((mac_mls->mm_flags & MAC_MLS_FLAGS_BOTH) ==
+	    MAC_MLS_FLAGS_BOTH,
+	    ("mac_mls_subject_privileged: subject doesn't have both labels"));
 
 	/* If the single is EQUAL, it's ok. */
 	if (mac_mls->mm_single.mme_type == MAC_MLS_TYPE_EQUAL)
@@ -1357,7 +1358,7 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 		 * their label.
 		 */
 		if (mac_mls_contains_equal(new)) {
-			error = mac_mls_subject_equal_ok(subj);
+			error = mac_mls_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1403,23 +1404,9 @@ mac_mls_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 		return (error);
 
 	/*
-	 * If the MLS label is to be changed, authorize as appropriate.
+	 * Relabeling network interfaces requires MLS privilege.
 	 */
-	if (new->mm_flags & MAC_MLS_FLAGS_BOTH) {
-		/*
-		 * Rely on traditional superuser status for the MLS
-		 * interface relabel requirements.  XXX: This will go
-		 * away.
-		 */
-		error = suser_cred(cred, 0);
-		if (error)
-			return (EPERM);
-
-		/*
-		 * XXXMAC: Additional consistency tests regarding the single
-		 * and the range of the new label might be performed here.
-		 */
-	}
+	error = mac_mls_subject_privileged(subj);
 
 	return (0);
 }
@@ -1548,7 +1535,7 @@ mac_mls_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 		 * subject must have appropriate privilege.
 		 */
 		if (mac_mls_contains_equal(new)) {
-			error = mac_mls_subject_equal_ok(subj);
+			error = mac_mls_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1710,7 +1697,7 @@ mac_mls_check_socket_relabel(struct ucred *cred, struct socket *socket,
 		 * the subject must have appropriate privilege.
 		 */
 		if (mac_mls_contains_equal(new)) {
-			error = mac_mls_subject_equal_ok(subj);
+			error = mac_mls_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -2128,7 +2115,7 @@ mac_mls_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 		 * the subject must have appropriate privilege.
 		 */
 		if (mac_mls_contains_equal(new)) {
-			error = mac_mls_subject_equal_ok(subj);
+			error = mac_mls_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
