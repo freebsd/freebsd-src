@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.8 1996/07/05 00:06:36 jmz Exp $ */
+/* $Id: main.c,v 1.9 1996/07/18 00:08:02 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -78,7 +78,7 @@ int match (char *, char *), http_open ();
 void
 usage ()
 {
-    fprintf (stderr, "usage: %s [-D:HINPMV:Lqpr] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
+    fprintf (stderr, "usage: %s [-D:HINPMV:Lqmnpr] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
     exit (1);
 }
 
