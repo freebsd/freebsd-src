@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999 Søren Schmidt
+ * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@
 #if SMP == 0
 #define isa_apic_irq(x) x
 #endif
-#define IOMASK	0xfffffffc /* XXX SOS 0xfffc */
+#define IOMASK	0xfffffffc
 
 /* prototypes */
 static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
@@ -189,41 +189,54 @@ ata_pcimatch(device_t dev)
     /* supported chipsets */
     case 0x12308086:
 	return "Intel PIIX ATA controller";
+
     case 0x70108086:
 	return "Intel PIIX3 ATA controller";
+
     case 0x71118086:
     case 0x71998086:
-	return "Intel PIIX4 ATA controller";
+	return "Intel PIIX4 ATA-33 controller";
+
     case 0x522910b9:
-	return "AcerLabs Aladdin ATA controller";
+	return "AcerLabs Aladdin ATA-33 controller";
+
     case 0x05711106: /* 82c586 & 82c686 */
 	if (ata_find_dev(dev, 0x05861106))
-	    return "VIA 82C586 ATA controller";
+	    return "VIA 82C586 ATA-33 controller";
+	if (ata_find_dev(dev, 0x05961106))
+	    return "VIA 82C596 ATA-33 controller";
 	if (ata_find_dev(dev, 0x06861106))
-	    return "VIA 82C686 ATA controller";
+	    return "VIA 82C686 ATA-66 controller";
 	return "VIA Apollo ATA controller";
+
     case 0x55131039:
-	return "SiS 5591 ATA controller";
+	return "SiS 5591 ATA-33 controller";
+
     case 0x74091022:
-	return "AMD 756 ATA controller";
+	return "AMD 756 ATA-66 controller";
+
     case 0x4d33105a:
-	return "Promise Ultra/33 ATA controller";
+	return "Promise ATA-33 controller";
+
     case 0x4d38105a:
-	return "Promise Ultra/66 ATA controller";
+	return "Promise ATA-66 controller";
+
     case 0x00041103:
-	return "HighPoint HPT366 ATA controller";
+	return "HighPoint HPT366 ATA-66 controller";
 
    /* unsupported but known chipsets, generic DMA only */
-    case 0x05961106:
-	return "VIA 82C596 ATA controller (generic mode)";
     case 0x06401095:
 	return "CMD 640 ATA controller (generic mode)";
+
     case 0x06461095:
 	return "CMD 646 ATA controller (generic mode)";
+
     case 0xc6931080:
 	return "Cypress 82C693 ATA controller (generic mode)";
+
     case 0x01021078:
 	return "Cyrix 5530 ATA controller (generic mode)";
+
     default:
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
@@ -321,21 +334,22 @@ ata_pciattach(device_t dev)
 
     /* do extra chipset specific setups */
     switch (type) {
-    case 0x522910b9:
-	/* on the Aladdin activate the ATAPI FIFO */
+    case 0x522910b9: /* Aladdin need to activate the ATAPI FIFO */
 	pci_write_config(dev, 0x53, 
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
 
     case 0x4d33105a:
-    case 0x4d38105a:
-	/* the Promise's need burst mode to be turned on explicitly */
+    case 0x4d38105a: /* Promise's need burst mode to be turned on */
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	break;
 
+    case 0x00041103: /* HPT366 controller defaults */
+	printf("ata: HPT config %08x\n", pci_read_config(dev, 0x50, 4));
+	break;
+
     case 0x05711106:
-    case 0x74091022:
-	/* the VIA 82C586, VIA 82C686 & AMD 756 needs some sensible defaults */
+    case 0x74091022: /* VIA 82C586, 82C596, 82C686 & AMD 756 default setup */
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
@@ -360,6 +374,7 @@ ata_pciattach(device_t dev)
     lun = 0;
     if (iobase_1 && ata_probe(iobase_1, altiobase_1, bmaddr_1, dev, &lun)) {
 	scp = atadevices[lun];
+	scp->chiptype = type;
 	if (iobase_1 == IO_WD1)
 #ifdef __i386__
 	    inthand_add(device_get_nameunit(dev), irq1, ataintr, scp,
@@ -383,6 +398,7 @@ ata_pciattach(device_t dev)
     lun = 1;
     if (iobase_2 && ata_probe(iobase_2, altiobase_2, bmaddr_2, dev, &lun)) {
 	scp = atadevices[lun];
+	scp->chiptype = type;
 	if (iobase_2 == IO_WD2)
 #ifdef __i386__
 	    inthand_add(device_get_nameunit(dev), irq2, ataintr, scp,
@@ -575,14 +591,30 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 static void
 ataintr(void *data)
 {
-    struct ata_softc *scp =(struct ata_softc *)data;
+    struct ata_softc *scp = (struct ata_softc *)data;
 
-    /* is this interrupt really for this channel */
-    if ((scp->flags & ATA_DMA_ACTIVE) &&
-	!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
-	return;
+    /* check if this interrupt is for us (shared PCI interrupts) */
+    switch (scp->chiptype) {
+    case 0x00041103:    /* HighPoint HPT366 controller */
+	if (scp->active == ATA_IDLE)
+	    return;
+	if (!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
+	    return;
+	break;
 
-    if (((scp->status = inb(scp->ioaddr+ATA_STATUS)) & ATA_S_BUSY)==ATA_S_BUSY)
+    case 0x4d33105a:	/* Promise 33's */
+    case 0x4d38105a:	/* Promise 66's */
+	if (!(inl((pci_read_config(scp->dev, 0x20, 4) & IOMASK) + 0x1c) & 
+	      ((scp->unit) ? 0x00004000 : 0x00000400)))
+	    return;
+	break;
+
+    default:
+	if ((scp->flags & ATA_DMA_ACTIVE) &&
+	    !(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
+	    return;
+    }
+    if (((scp->status = inb(scp->ioaddr + ATA_STATUS))&ATA_S_BUSY)==ATA_S_BUSY)
 	return;
 
     /* find & call the responsible driver to process this interrupt */
@@ -623,7 +655,7 @@ ataintr(void *data)
 		       scp->lun, intr_count, scp->status);
 	}
 #endif
-	return;
+	/* return; SOS XXX */
     }
     scp->active = ATA_IDLE;
     scp->running = NULL;
@@ -883,24 +915,36 @@ int8_t *
 ata_mode2str(int32_t mode)
 {
     switch (mode) {
-    case ATA_MODE_PIO:
-	return "PIO";
-    case ATA_MODE_WDMA2:
-	return "DMA";
-    case ATA_MODE_UDMA2:
-	return "UDMA33";
-    case ATA_MODE_UDMA3:
-	return "UDMA3";
-    case ATA_MODE_UDMA4:
-	return "UDMA66";
+    case ATA_PIO0: return "PIO0";
+    case ATA_PIO1: return "PIO1";
+    case ATA_PIO2: return "PIO2";
+    case ATA_PIO3: return "PIO3";
+    case ATA_PIO4: return "PIO4";
+    case ATA_WDMA2: return "WDMA2";
+    case ATA_UDMA2: return "UDMA33";
+    case ATA_UDMA4: return "UDMA66";
+    default: return "???";
+    }
+}
+
+int8_t
+ata_pio2mode(int32_t pio)
+{
+    switch (pio) {
     default:
-	return "???";
+    case 0: return ATA_PIO0;
+    case 1: return ATA_PIO1;
+    case 2: return ATA_PIO2;
+    case 3: return ATA_PIO3;
+    case 4: return ATA_PIO4;
     }
 }
 
 static int8_t *
 active2str(int32_t active)
 {
+    static char buf[8];
+
     switch (active) {
     case ATA_IDLE:
 	return("ATA_IDLE");
@@ -913,7 +957,8 @@ active2str(int32_t active)
     case ATA_REINITING:
 	return("ATA_REINITING");
     default:
-	return("UNKNOWN");
+	sprintf(buf, "0x%02x", active);
+	return buf;
     }
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999 Søren Schmidt
+ * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,12 +124,6 @@ struct ata_dmaentry {
 	u_int32_t count;
 };  
 
-/* ATA device DMA access modes */
-#define ATA_WDMA2			0x22
-#define ATA_UDMA2			0x42
-#define ATA_UDMA3			0x43
-#define ATA_UDMA4			0x44
-
 /* structure describing an ATA device */
 struct ata_softc {
     int32_t			unit;		/* unit on this controller */
@@ -138,14 +132,18 @@ struct ata_softc {
     int32_t			ioaddr;		/* port addr */
     int32_t			altioaddr;	/* alternate port addr */
     int32_t			bmaddr;		/* bus master DMA port */
+    int32_t			chiptype;	/* pciid of controller chip */
     void			*dev_softc[2];	/* ptr to devices softc's */
     struct ata_dmaentry		*dmatab[2];	/* DMA transfer tables */
     int32_t 			mode[2];	/* transfer mode for devices */
-#define		ATA_MODE_PIO		0x00
-#define		ATA_MODE_WDMA2		0x01
-#define		ATA_MODE_UDMA2		0x02
-#define		ATA_MODE_UDMA3		0x04
-#define		ATA_MODE_UDMA4		0x08
+#define 	ATA_PIO0		0x08
+#define		ATA_PIO1		0x09
+#define		ATA_PIO2		0x0a
+#define		ATA_PIO3		0x0b
+#define		ATA_PIO4		0x0c
+#define		ATA_WDMA2		0x22
+#define		ATA_UDMA2		0x42
+#define		ATA_UDMA4		0x44
 
     int32_t			flags;		/* controller flags */
 #define		ATA_DMA_ACTIVE		0x01
@@ -193,6 +191,7 @@ void ata_dmastart(struct ata_softc *);
 int32_t ata_dmastatus(struct ata_softc *);
 int32_t ata_dmadone(struct ata_softc *);
 int8_t *ata_mode2str(int32_t);
+int8_t ata_pio2mode(int32_t);
 void bswap(int8_t *, int32_t);
 void btrim(int8_t *, int32_t);
 void bpack(int8_t *, int8_t *, int32_t);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999 Søren Schmidt
+ * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -462,6 +462,7 @@ ad_transfer(struct ad_request *request)
 	/* does this drive support multi sector transfers ? */
 	else if (request->currentsize > DEV_BSIZE)
 	    cmd = request->flags & AR_F_READ?ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
+	/* just plain old single sector transfer */
 	else
 	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
