@@ -200,7 +200,7 @@ static device_method_t pn_methods[] = {
 };
 
 static driver_t pn_driver = {
-	"if_pn",
+	"pn",
 	pn_methods,
 	sizeof(struct pn_softc),
 };

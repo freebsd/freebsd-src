@@ -354,7 +354,7 @@ static device_method_t tl_methods[] = {
 };
 
 static driver_t tl_driver = {
-	"if_tl",
+	"tl",
 	tl_methods,
 	sizeof(struct tl_softc)
 };

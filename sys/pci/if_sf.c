@@ -201,7 +201,7 @@ static device_method_t sf_methods[] = {
 };
 
 static driver_t sf_driver = {
-	"if_sf",
+	"sf",
 	sf_methods,
 	sizeof(struct sf_softc),
 };
