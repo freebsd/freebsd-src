@@ -117,6 +117,9 @@ network_pass1() {
 		fi
 	done
 
+	# gifconfig
+	network_gif_setup
+
 	# Set up all the network interfaces, calling startup scripts if needed
 	#
 	case ${network_interfaces} in
@@ -731,4 +734,24 @@ network_pass4() {
 
 	echo '.'
 	network_pass4_done=YES
+}
+
+network_gif_setup() {
+	case ${gif_interfaces} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		for i in ${gif_interfaces}; do
+			eval peers=\$gifconfig_$i
+			case ${peers} in
+			'')
+				continue
+				;;
+			*)
+				ifconfig $i tunnel ${peers}
+				;;
+			esac
+		done
+		;;
+	esac
 }
