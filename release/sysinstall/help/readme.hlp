@@ -1,12 +1,12 @@
    -----------------------------------------
-       FreeBSD 2.2.1  ---  RELEASE Version             ,        ,
+       FreeBSD 2.2.x  ---  RELENG Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2.1 RELEASE version of FreeBSD!      /- _  `-/  '
+Welcome to the 2.2 RELEASE branch of FreeBSD!         /- _  `-/  '
                                                      (/\/ \ \   /\
-This is a full release on the RELENG_2_2 branch      / /   | `    \
-and begins a whole new cycle of FreeBSD release      O O   ) /    |
-technology, taking over from where 2.1.7-RELEASE     `-^--'`<     '
+This is a full release on the RELENG_2_2 branch,     / /   | `    \
+part  of a new cycle of FreeBSD release              O O   ) /    |
+technology which takes over from where 2.1.7         `-^--'`<     '
 left off.                                           (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
