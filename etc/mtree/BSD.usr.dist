@@ -35,18 +35,22 @@
         msdosfs
         ..
         perl
-            5.00503
+            5.006
                 B
                 ..
                 CGI
                 ..
                 CPAN
                 ..
+                Carp
+                ..
                 Class
                 ..
                 Data
                 ..
                 Devel
+                ..
+                Exporter
                 ..
                 ExtUtils
                 ..
@@ -65,6 +69,8 @@
                 Net
                 ..
                 Pod
+                    Text
+                    ..
                 ..
                 Search
                 ..
@@ -83,6 +89,10 @@
                 User
                 ..
                 auto
+                    File
+                        Glob
+                        ..
+                    ..
                     Getopt
                         Long
                         ..
@@ -98,6 +108,8 @@
                     IO
                     ..
                     IPC
+                    ..
+                    arpa
                     ..
                     auto
                         B
@@ -137,6 +149,16 @@
                     ..
                 ..
                 pod
+                ..
+                unicode
+                    In
+                    ..
+                    Is
+                    ..
+                    To
+                    ..
+                ..
+                warnings
                 ..
             ..
         ..
