@@ -302,7 +302,7 @@ main(int argc, char **argv)
 			devname);
 		if(! yes ()) {
 			printf("Not confirmed.\n");
-			return 0;
+			return 3;
 		}
 	}
 
