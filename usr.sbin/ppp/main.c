@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.20 1996/07/09 17:40:36 ache Exp $
+ * $Id: main.c,v 1.21 1996/10/07 04:21:00 jkh Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -61,6 +61,7 @@ extern void AsyncInput(), IpOutput();
 extern int  SelectSystem();
 
 extern void DecodeCommand(), Prompt();
+extern int aft_cmd;
 extern int IsInteractive();
 extern struct in_addr ifnetmask;
 static void DoLoop(void);
@@ -455,6 +456,7 @@ PacketMode()
   if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
     TtyCommandMode(1);
     fprintf(stderr, "Packet mode.\r\n");
+    aft_cmd = 1;
   }
 }
 
@@ -483,6 +485,7 @@ ReadTty()
 #endif
   if (!TermMode) {
     n = read(netfd, linebuff, sizeof(linebuff)-1);
+    aft_cmd = 1;
     if (n > 0) {
       DecodeCommand(linebuff, n, 1);
     } else {
@@ -644,6 +647,7 @@ DoLoop()
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
     LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
+    fflush(stderr);
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (!modem)
