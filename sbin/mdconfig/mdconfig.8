@@ -51,6 +51,7 @@
 .Nm
 .Fl a
 .Fl t Ar type
+.Op Fl n
 .Oo
 .Fl o
 .Oo Cm no Oc Ns Ar option
@@ -64,6 +65,7 @@
 .Fl u Ar unit
 .Nm
 .Fl l
+.Op Fl n
 .Op Fl u Ar unit
 .Sh DESCRIPTION
 The
@@ -103,6 +105,9 @@ devices.  If the
 .Fl u
 option is used in conjuction with this, the output is limited to
 information on the specified device.
+.It Fl n
+When printing md device names, print only the unit number without the
+md prefix.
 .It Fl s Ar size
 Size of the memory disk.
 .Ar Size
