@@ -56,7 +56,7 @@
 .In sys/lock.h
 .In sys/mutex.h
 .Ft void
-.Fn mtx_init "struct mtx *mutex" "const char *description" "const char *type" "int opts"
+.Fn mtx_init "struct mtx *mutex" "const char *name" "const char *type" "int opts"
 .Ft void
 .Fn mtx_lock "struct mtx *mutex"
 .Ft void
@@ -144,11 +144,22 @@ function must be used to initialize a mutex
 before it can be passed to
 .Fn mtx_lock .
 The
-.Fa description
-argument is used by the witness code
-to classify a mutex when doing checks of lock ordering.
-The pointer passed in as the
-.Fa description
+.Fa name
+option is used to identify the lock in debugging output etc.
+The
+.Fa type
+option is used by the witness code to classify a mutex when doing checks
+of lock ordering.
+If
+.Fa type
+is
+.Dv NULL ,
+.Fa name
+is used in its place.
+The pointer passed in as
+.Fa name
+and
+.Fa type
 is saved rather than the data it points to.
 The data pointed to must remain stable
 until the mutex is destroyed.
