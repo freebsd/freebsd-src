@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.42 1998/10/11 17:31:35 markm Exp $
+#     $Id: BSD.local.dist,v 1.43 1998/12/14 07:44:46 dillon Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -167,6 +167,10 @@
         dict
         ..
         doc
+        ..
+        emacs
+            site-lisp
+            ..
         ..
         examples
         ..
