@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.14 1998/11/08 15:36:35 rnordier Exp $
+ *	$Id: boot2.c,v 1.15 1998/11/08 18:29:29 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -160,6 +160,7 @@ main(void)
 	printf("%s: %s", PATH_CONFIG, cmd);
 	if (parse(cmd))
 	    autoboot = 0;
+	*cmd = 0;
     }
     if (autoboot && !*kname) {
 	if (autoboot == 2) {
