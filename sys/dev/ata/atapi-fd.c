@@ -149,7 +149,7 @@ afd_sense(struct afd_softc *fdp)
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
 	if (!(error = atapi_queue_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
-				      A_READ, 30, NULL, NULL, NULL)))
+				      ATPR_F_READ, 30, NULL, NULL, NULL)))
 	    break;
     }
     if (error)
@@ -340,7 +340,7 @@ afd_start(struct afd_softc *fdp)
 
 	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
-			(bp->b_flags & B_READ) ? A_READ : 0, 30,
+			(bp->b_flags & B_READ) ? ATPR_F_READ : 0, 30,
 			afd_partial_done, fdp, bp);
 
 	count -= fdp->transfersize;
@@ -356,7 +356,7 @@ afd_start(struct afd_softc *fdp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
-		    (bp->b_flags & B_READ) ? A_READ : 0, 30, afd_done, fdp, bp);
+		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 30, afd_done, fdp,bp);
 }
 
 static int32_t 
@@ -383,7 +383,7 @@ afd_done(struct atapi_request *request)
 	bp->b_flags |= B_ERROR;
     }
     else
-	bp->b_resid += request->bytecount;
+	bp->b_resid += (bp->b_bcount - request->donecount);
     devstat_end_transaction_buf(&fdp->stats, bp);
     biodone(bp);
     afd_start(fdp);

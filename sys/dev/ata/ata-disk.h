@@ -59,10 +59,10 @@ struct ad_request {
     struct callout_handle       timeout_handle; /* handle for untimeout */ 
     int32_t			retries;	/* retry count */
     int32_t			flags;
-#define		AR_F_READ		0x0001
-#define		AR_F_ERROR		0x0002
-#define		AR_F_DMA_USED		0x0004
-#define		AR_F_FORCE_PIO		0x0008
+#define		ADR_F_READ		0x0001
+#define		ADR_F_ERROR		0x0002
+#define		ADR_F_DMA_USED		0x0004
+#define		ADR_F_FORCE_PIO		0x0008
 
     int8_t			*data;		/* pointer to data buf */
     struct buf			*bp;		/* associated buf ptr */
