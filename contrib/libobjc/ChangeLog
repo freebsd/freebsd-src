@@ -1,12 +1,20 @@
-2003-02-05  Release Manager
+2003-05-13  Release Manager
 
-	* GCC 3.2.2 Released.
+	* GCC 3.3 Released.
 
-2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+2003-05-13  Release Manager
 
-	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
-	(install-libs, install-headers): Prepend $(DESTDIR) to
-	destination paths in all (un)installation commands.
+	* GCC 3.3 Released.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in: Propagate ORIGINAL_LD_FOR_MULTILIBS to
+	config.status.
+	* configure: Rebuilt.
 
 2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -15,29 +23,49 @@
 	version_specific_libs is enabled.
 	* configure: Rebuilt.
 
-2002-11-19  Release Manager
+2003-01-26  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
 
-	* GCC 3.2.1 Released.
+	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
+	(install-libs, install-headers): Prepend $(DESTDIR) to
+	destination paths in all (un)installation commands.
 
-2002-11-19  Release Manager
-
-	* GCC 3.2.1 Released.
-
-2002-11-18  Release Manager
-
-	* GCC 3.2.1 Released.
-
-2002-10-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+2002-09-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* Makefile.in (all): Fix multilib parallel build.
 
-2002-08-14  Release Manager
+Thu Sep 12 12:44:37 2002  Nicola Pero  <n.pero@mi.flashnet.it>
 
-	* GCC 3.2 Released.
+	* sendmsg.c (nil_method): Declare not to take a variable number of
+	args.
+	(objc_msg_lookup): Cast nil_method to IMP before returning it.
+	(objc_msg_lookup_super): The same.
 
-2002-07-25  Release Manager
+2002-09-10  Jan Hubicka  <jh@suse.cz>
 
-	* GCC 3.1.1 Released.
+	* nil_method.c (nil_method): No longer defined with variable
+	arguments.
+
+2002-07-02  Rodney Brown  <rbrown64@csc.com.au>
+
+	* objc/encoding.h: Fix formatting.
+	* objc/hash.h: Likewise.
+	* objc/objc-api.h: Likewise.
+	* objc/runtime.h: Likewise.
+	* objc/thr.h: Likewise.
+	* archive.c: Likewise.
+	* class.c: Likewise.
+	* encoding.c: Likewise.
+	* gc.c: Likewise.
+	* hash.c: Likewise.
+	* init.c: Likewise.
+	* misc.c: Likewise.
+	* nil_method.c: Likewise.
+	* objects.c: Likewise.
+	* sarray.c: Likewise.
+	* selector.c: Likewise.
+	* sendmsg.c: Likewise.
+	* thr-mach.c: Likewise.
+	* thr.c: Likewise.
 
 2002-06-25  DJ Delorie  <dj@redhat.com>
 
@@ -46,13 +74,68 @@
 	* configure.in: Call it before AC_CANONICAL_SYSTEM.
 	* configure: Regenerate.
 
-2002-05-14  Release Manager
+2002-06-21  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
-	* GCC 3.1 Released.
+	* Object.m (forward, read, write): Fix unused parameter warnings.
+	* encoding.c: Include <stdlib.h>.
+	(target_flags): Mark with attribute unused.
+	(atoi): Delete.
+	* runtime.h (__objc_selector_max_index): Change to unsigned int.
+	(__objc_generate_gc_type_description): Prototype.
+	* selector.c (__objc_selector_max_index): Change to unsigned int.
 
-2002-05-14  Release Manager
+Mon Jun 17 18:37:42 2002  Nicola Pero  <n.pero@mi.flashnet.it>
 
-	* GCC 3.1 Released.
+	* sendmsg.c (__objc_get_forward_imp): Fix warning by making sure
+	we always have a return value: if __objc_msg_forward does not
+	supply a forwarding implementation, return the default
+	__builtin_apply based one.
+
+2002-06-15  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Object.m: Fix signed/unsigned warning.
+	* Protocol.m: Likewise.
+	* archive.c: Always include stdlib.h.
+	(objc_read_short, objc_read_unsigned_short, objc_read_int,
+	objc_read_long, __objc_read_nbyte_uint, __objc_read_nbyte_ulong):
+	Fix signed/unsigned warning.
+	(objc_write_type, objc_read_type, objc_write_types,
+	objc_read_types): Ensure ctype 8-bit safety.
+	(__objc_no_write, __objc_no_read): Mark unused parameters.
+	* class.c (class_table_setup): Specify void arg.
+	* encoding.c (atoi, objc_sizeof_type, objc_alignof_type,
+	objc_skip_typespec, objc_skip_offset,
+	objc_layout_structure_next_member): Ensure ctype 8-bit safety.
+	(objc_layout_structure_next_member): Ensure variables are
+	initialized.
+	* gc.c (__objc_generate_gc_type_description,
+	class_ivar_set_gcinvisible): Mark unused parameters.
+	* init.c (__objc_send_load, __objc_destroy_class_tree_node): Mark
+	unused parameters.
+	(__objc_init_protocols) Fix signed/unsigned warning.
+	* nil_method.c (nil_method): Mark unused parameters.
+	* thr.h (objc_thread_callback): Specify void arg.
+	* sarray.c (sarray_new, sarray_realloc, sarray_free): Fix
+	signed/unsigned warning.
+	(sarray_free): Fix formatting.
+	* selector.c (sel_types_match): Ensure ctype 8-bit safety.
+	* sendmsg.c (__objc_init_install_dtable) Mark unused parameters.
+
+2002-06-09  Andreas Jaeger  <aj@suse.de>
+
+	* encoding.c (objc_layout_structure_next_member): Remove unused
+	variable.
+
+2002-05-20  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (SHELL): Set to @SHELL@.
+	(WARN_CFLAGS): New.
+	(ALL_CFLAGS): Add $(WARN_CFLAGS).
+
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* aclocal.m4: Allow for PWDCMD to override hardcoded pwd.
+	* configure: Regenerate.
 
 2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -226,14 +309,14 @@ Wed Jan  3 00:49:10 2001  Ovidiu Predescu  <ovidiu@cup.hp.com>
 	function. This can alleviate problems __builtin_apply() and
 	friends have on various platforms. (Solution suggested by Helge
 	Hess.)
-	
+
 	* objc/objc-api.h: Define __objc_msg_forward.
 
 	* sendmsg.c: Define gen_rtx_REG.
 
 2000-12-06      Ralf Corsepius <corsepiu@faw.uni-ulm.de>
 
-	* thr-rtems.c: New file. Stub to compile. 
+	* thr-rtems.c: New file. Stub to compile.
 
 2000-09-06  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -275,7 +358,7 @@ Sun Aug  6 22:51:16 2000  Ovidiu Predescu  <ovidiu@cup.hp.com>
 
 Fri Jul 28 08:58:02 2000  Nicola Pero  <nicola@brainstorm.co.uk>
 
-	* configure.in: Added libtool support; build shared libraries 
+	* configure.in: Added libtool support; build shared libraries
 	if --enable-shared was passed on command line.
 	* Makefile.in: Modified most compilation commands to use libtool.
 	* aclocal.m4: New symbolic link to the ../libtool.m4, from the
@@ -336,7 +419,7 @@ Tue Sep 21 07:47:10 1999  Jeffrey A Law  (law@cygnus.com)
 
 	* Makefile.in (gc.o, gc_gc.o): Do not pass -fgnu-runtime to
 	the compiler when building C code.
-	
+
 Fri Aug  6 23:32:29 1999  Daniel Jacobowitz <drow@drow.them.org>
 
 	* Makefile.in (FLAGS_TO_PASS): Include prefix, exec_prefix,
@@ -415,7 +498,7 @@ Sat Oct 17 05:21:31 1998  Ovidiu Predescu  <ovidiu@slip.net>
 Mon Oct 11 21:25:27 1998  Ovidiu Predescu  <ovidiu@slip.net>
 
 	* encoding.c: Redefine get_inner_array_type to get the first entry
- 	in the structure.
+	in the structure.
 
 Thu Oct  8 12:21:14 1998  Richard Frith-Macdonald <richard@brainstorm.co.uk>
 
@@ -480,4 +563,3 @@ Mon Sep 21 23:27:10 1998  Ovidiu Predescu <ovidiu@slip.net>
 1998-09-21  Ben Elliston  <bje@cygnus.com>
 
 	* New directory.  Moved files from ../gcc/objc.
-
