@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.36 1995/11/14 10:03:56 phk Exp $
+ * $Id: if_de.c,v 1.37 1995/11/17 12:11:22 davidg Exp $
  *
  */
 
@@ -799,7 +799,7 @@ tulip_dc21041_media_select(
 			/*
 			 * Before we are sure this is the right media we need
 			 * to send a small packet to make sure there's carrier.
-			 * Strangely, BNC and AUI will 'see" receive data if
+			 * Strangely, BNC and AUI will "see" receive data if
 			 * either is connected so the transmit is the only way
 			 * to verify the connectivity.
 			 */
