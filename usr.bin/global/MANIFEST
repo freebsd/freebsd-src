@@ -1,0 +1,16 @@
+HISTORY			Histroy of GLOBAL.
+INSTALL			Installation method
+MANIFEST		This file.
+Makefile		Makefile for generic UNIX(including BSD).
+Makefile.bsd		Makefile for BSD.
+Makefile.inc		A part of Makefile for BSD.
+README			Readme (introduction and usage).
+VERSION			Version number.
+btreeop/		Btreeop command directory.
+gctags/			Gctags command directory (extended ctags).
+global/			Global command directory.
+gtags/			Gtags command directory.
+htags/			Htags command directory.
+systags/		Script for kernel.
+nvi-1.34.diff		Patch for nvi 1.34.
+nvi-1.76.diff		Patch for nvi 1.76.
