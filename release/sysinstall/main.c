@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.50 1999/01/08 00:14:22 jkh Exp $
+ * $Id: main.c,v 1.50.2.1 1999/02/05 22:20:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include "pccard_conf.h"
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
@@ -85,6 +86,11 @@ main(int argc, char **argv)
     /* Move stderr aside */
     if (DebugFD)
 	dup2(DebugFD, 2);
+
+#ifdef PCCARD
+    /* Initialize PC-card */
+    pccardInitialize();
+#endif
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
