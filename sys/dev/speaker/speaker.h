@@ -19,8 +19,7 @@ typedef struct
 {
     int	frequency;	/* in hertz */
     int duration;	/* in 1/100ths of a second */
-}
-tone_t;
+} tone_t;
 
 /*
  * Strings written to the speaker device are interpreted as tunes and played;
