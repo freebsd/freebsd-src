@@ -34,4 +34,7 @@ SRCS=	map_vme.c	ntp_config.c \
 version.c: 
 	sh -e ${.CURDIR}/../scripts/mkver ntpd
 
+afterinstall:
+	rm -f ${DESTDIR}/usr/sbin/xntpd
+
 .include <bsd.prog.mk>
