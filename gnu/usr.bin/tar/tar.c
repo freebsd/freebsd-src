@@ -783,7 +783,7 @@ Other options:\n\
 ", stdout);			/* KLUDGE */
   fputs ("\
 -W, --verify		attempt to verify the archive after writing it\n\
---exclude FILE		exclude file FILE\n\
+--exclude PATTERN	exclude files, given as a globbing PATTERN\n\
 -X, --exclude-from FILE	exclude files listed in FILE\n\
 -y, --bzip2, --bunzip2  filter the archive through bzip2\n\
 -Z, --compress,\n\
