@@ -1738,7 +1738,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		if (hdtr.headers != NULL) {
 			hdr_uio.uio_td = td;
 			hdr_uio.uio_rw = UIO_WRITE;
-			error = iov_to_uio(hdtr.headers, hdtr.hdr_cnt,
+			error = uiofromiov(hdtr.headers, hdtr.hdr_cnt,
 				&hdr_uio);
 			if (error)
 				goto done;
