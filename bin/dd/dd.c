@@ -214,9 +214,7 @@ getfdtype(io)
 		err(1, "%s", io->name);
 	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
 		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
-			warn("%s", io->name);
-			if (S_ISCHR(sb.st_mode))
-				io->flags |= ISCHR;
+			err(1, "%s", io->name);
 		} else {
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
