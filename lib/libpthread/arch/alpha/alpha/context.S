@@ -250,7 +250,7 @@ Lsc_sc:	/* sigcontext format */
 	stq	a3, 8(a0)			/* save a2 on stack */
 	ldq	a3, ((R_A3 + 1) * 8)(a0)	/* restore a3 */
 	ldq	a0, ((R_A0 + 1) * 8)(a0)	/* restore a0 */
-Lsc3:	bne	a2, Lsc4
+Lsc3:	beq	a2, Lsc4
 	stq	a1, 0(a2)
 Lsc4:	ldq	a1, 0(sp)		/* restore a1, a2 */
 	ldq	a2, 8(sp)
