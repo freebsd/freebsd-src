@@ -525,10 +525,6 @@ quit(msg)
 	exit(1);
 }
 
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
-
 void
 rt_xaddrs(cp, cplim, rtinfo)
 	register caddr_t cp, cplim;
@@ -542,7 +538,7 @@ rt_xaddrs(cp, cplim, rtinfo)
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;
 		rtinfo->rti_info[i] = sa = (struct sockaddr *)cp;
-		ADVANCE(cp, sa);
+		cp += SA_SIZE(sa);
 	}
 }
 
