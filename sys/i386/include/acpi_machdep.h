@@ -23,14 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpi_machdep.c,v 1.4 2000/08/08 14:12:10 iwasaki Exp $
  *	$FreeBSD$
  */
 
-#include "opt_acpi.h"
+#ifndef _MACHINE_ACPI_MACHDEP_H_
+#define _MACHINE_ACPI_MACHDEP_H_
 
-#include <machine/acpi_machdep.h>
+#define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define ACPI_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
 
-#ifdef ACPI_NO_OSDFUNC_INLINE
-#include <machine/acpica_osd.h>
-#endif	/* ACPI_NO_OSDFUNC_INLINE */
+#endif	/* ! _MACHINE_ACPI_MACHDEP_H_ */

@@ -56,7 +56,7 @@
 #include <dev/acpi/aml/aml_parse.h>
 #include <dev/acpi/aml/aml_memman.h>
 
-#include <machine/acpica_osd.h>		/* for ACPI_BUS_SPACE_IO */
+#include <machine/acpi_machdep.h>	/* for ACPI_BUS_SPACE_IO */
 
 /*
  * ACPI pmap subsystem
