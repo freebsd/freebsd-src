@@ -45,7 +45,7 @@
 The
 .Fx
 .Sq boot0
-boot manager permits the operator to select from which disk and which
+boot manager permits the operator to select from which disk and
 slice an i386 machine (PC) is booted.
 .Pp
 Note that what are referred to here as
@@ -76,7 +76,7 @@ The options are:
 Install the
 .Sq boot0
 boot manager.
-This option causes MBR code to be replaced, but without
+This option causes MBR code to be replaced, without
 affecting the embedded slice table.
 .It Fl v
 Verbose: display information about the slices defined, etc.
@@ -96,7 +96,7 @@ is acceptable here.
 .It Fl f Ar file
 Specify that a backup copy of the preexisting MBR should be written to
 .Ar file .
-This file is created if it does not exist, and truncated if it does.
+This file is created if it does not exist, and replaced if it does.
 .It Fl m Ar mask
 Specify slices to be enabled/disabled, where
 .Ar mask
