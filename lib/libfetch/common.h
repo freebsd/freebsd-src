@@ -25,56 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.4 1998/08/17 09:30:19 des Exp $
+ *	$Id$
  */
 
-#ifndef _FETCH_H_INCLUDED
-#define _FETCH_H_INCLUDED
+#ifndef _COMMON_H_INCLUDED
+#define _COMMON_H_INCLUDED
 
-#include <sys/param.h>
-#include <stdio.h>
-
-#define _LIBFETCH_VER "libfetch/1.0"
-
-#define URL_SCHEMELEN 16
-#define URL_USERLEN 256
-#define URL_PWDLEN 256
-
-struct url_s {
-    char scheme[URL_SCHEMELEN+1];
-    char user[URL_USERLEN+1];
-    char pwd[URL_PWDLEN+1];
-    char host[MAXHOSTNAMELEN+1];
-    int  port;
-    char doc[2];
+/* Structure used for error message lists */
+struct fetcherr {  
+    const int num;  
+    const char *string;  
 };
 
-typedef struct url_s url_t;
-
-/* FILE-specific functions */
-FILE	*fetchGetFile(url_t *, char *);
-FILE	*fetchPutFile(url_t *, char *);
-
-/* HTTP-specific functions */
-char	*fetchContentType(FILE *);
-FILE	*fetchGetHTTP(url_t *, char *);
-FILE	*fetchPutHTTP(url_t *, char *);
-
-/* FTP-specific functions */
-FILE	*fetchGetFTP(url_t *, char *);
-FILE	*fetchPutFTP(url_t *, char *);
-
-/* Generic functions */
-int	 fetchConnect(char *, int);
-url_t	*fetchParseURL(char *);
-void	 fetchFreeURL(url_t *);
-FILE	*fetchGetURL(char *, char *);
-FILE	*fetchPutURL(char *, char *);
-FILE	*fetchGet(url_t *, char *);
-FILE	*fetchPut(url_t *, char *);
-
-/* Error code and string */
-extern int fetchLastErrCode;
-extern const char *fetchLastErrText;
-
+const char	*_fetch_errstring(struct fetcherr *, int);
+void		 _fetch_seterr(struct fetcherr *, int);
+void		 _fetch_syserr(void);
+    
 #endif
