@@ -44,6 +44,7 @@ SRCS+= \
 	thr_create.c \
 	thr_detach.c \
 	thr_equal.c \
+	thr_execve.c \
 	thr_exit.c \
 	thr_fcntl.c \
 	thr_find_thread.c \

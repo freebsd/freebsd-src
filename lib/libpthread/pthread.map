@@ -25,6 +25,7 @@ global:
 	__write;
 	__writev;
 	_aio_suspend;
+	_execve;
 	_fork;
 	_nanosleep;
 	_pause;
@@ -176,6 +177,7 @@ global:
 	close;
 	connect;
 	creat;
+	execve;
 	fcntl;
 	fork;
 	fsync;
