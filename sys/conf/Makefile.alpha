@@ -261,6 +261,7 @@ kernel-tags:
 	sed -e 's,      ../,    ,' tags > tags1
 
 kernel-install kernel-install.debug:
+.if exists(${DESTDIR}/boot)
 	@if [ ! -f ${DESTDIR}/boot/device.hints ] ; then \
 		echo "You must set up a ${DESTDIR}/boot/device.hints file first." ; \
 		exit 1 ; \
@@ -269,6 +270,7 @@ kernel-install kernel-install.debug:
 		echo "You must activate /boot/device.hints in loader.conf." ; \
 		exit 1 ; \
 	fi
+.endif
 	@if [ ! -f ${KERNEL_KO}${.TARGET:S/kernel-install//} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
