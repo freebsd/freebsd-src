@@ -25,15 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_signal.c,v 1.8 1997/02/22 09:38:24 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
-#include <sys/exec.h>
-#include <sys/signal.h>
 #include <sys/signalvar.h>
 
 #include <i386/linux/linux.h>
