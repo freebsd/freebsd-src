@@ -168,6 +168,9 @@ main(int argc, char **argv)
     ps.ind_size = 8;		/* -i8 */
     verbose = 0;
     ps.decl_indent = 16;	/* -di16 */
+    ps.local_decl_indent = -1;	/* if this is not set to some nonnegative value
+				 * by an arg, we will set this equal to
+				 * ps.decl_ind */
     ps.indent_parameters = 1;	/* -ip */
     ps.decl_com_ind = 0;	/* if this is not set to some positive value
 				 * by an arg, we will set this equal to
@@ -254,6 +257,8 @@ main(int argc, char **argv)
     }
     if (block_comment_max_col <= 0)
 	block_comment_max_col = max_col;
+    if (ps.local_decl_indent < 0)	/* if not specified by user, set this */
+	ps.local_decl_indent = ps.decl_indent;
     if (ps.decl_com_ind <= 0)	/* if not specified by user, set this */
 	ps.decl_com_ind = ps.ljust_decl ? (ps.com_ind <= 10 ? 2 : ps.com_ind - 8) : ps.com_ind;
     if (continuation_indent == 0)
@@ -906,8 +911,15 @@ check_type:
 	    prefix_blankline_requested = 0;
 	    for (i = 0; token[i++];);	/* get length of token */
 
-	    dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
-	    use_tabs = ps.decl_indent > 0;
+	    if (ps.ind_level == 0 || ps.dec_nest > 0) {
+		/* global variable or struct member in local variable */
+		dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
+		use_tabs = ps.decl_indent > 0;
+	    } else {
+		/* local variable */
+		dec_ind = ps.local_decl_indent > 0 ? ps.local_decl_indent : i;
+		use_tabs = ps.local_decl_indent > 0;
+	    }
 	    goto copy_id;
 
 	case ident:		/* got an identifier or constant */
