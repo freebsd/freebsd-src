@@ -69,6 +69,7 @@ struct g_class g_stripe_class = {
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0, "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
+TUNABLE_INT("kern.geom.stripe.debug", &g_stripe_debug);
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,
     "Debug level");
 static int g_stripe_fast = 1;
@@ -876,6 +877,9 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 
 	G_STRIPE_DEBUG(3, "Tasting %s.", pp->name);
+	/* Skip providers with 0 sectorsize. */
+	if (pp->sectorsize == 0)
+		return (NULL);
 
 	gp = g_new_geomf(mp, "stripe:taste");
 	gp->start = g_stripe_start;
@@ -1153,7 +1157,8 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL) {
 		/* Nothing here. */
 	} else if (cp != NULL) {
-		/* Nothing here. */
+		sbuf_printf(sb, "%s<Number>%u</Number>\n", indent,
+		    (u_int)cp->index);
 	} else {
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
 		sbuf_printf(sb, "%s<Stripesize>%u</Stripesize>\n", indent,
