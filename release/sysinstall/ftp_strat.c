@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.21 1995/06/05 21:45:49 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.22 1995/06/05 23:13:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -194,7 +194,7 @@ retry:
 punt:
     FtpClose(ftp);
     ftp = NULL;
-    (*netdev->shutdown)(netdev);
+    (*netDevice->shutdown)(netDevice);
     return FALSE;
 }
 
