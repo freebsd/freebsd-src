@@ -41,6 +41,7 @@
 .Nd substitute user identity
 .Sh SYNOPSIS
 .Nm
+.Op Fl
 .Op Fl Kflm
 .Op Fl c Ar class 
 .Op Ar login Op Ar args
@@ -120,6 +121,9 @@ The invoked shell is the target login's, and
 will change directory to the target login's home directory.
 Resource limits and session priority are modified to that for the
 target account's login class.
+.It Fl
+(no letter) The same as
+.Fl l .
 .It Fl m
 Leave the environment unmodified.
 The invoked shell is your login shell, and no directory changes are made.
@@ -137,6 +141,9 @@ Only allowed for the super-user.
 .Pp
 The
 .Fl l
+(or
+.Fl
+)
 and
 .Fl m
 options are mutually exclusive; the last one specified
@@ -219,8 +226,11 @@ option applies to
 .Nm
 while the second is an argument to the shell being invoked.
 .It Li "su -l foo"
-Pretend a login for user
-.Li foo .
+Simulate a login for user foo.
+.It Li "su - foo"
+Same as above.
+.It Li "su -  "
+Simulate a login for root.
 .El
 .Sh HISTORY
 A
