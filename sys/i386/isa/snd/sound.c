@@ -1226,7 +1226,7 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 #include <vm/vm_extern.h>
 
 static int
-sndmmap(dev_t dev, int offset, int nprot)
+sndmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     snddev_info *d = get_snddev_info(dev, NULL);
 

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.51 1998/06/07 17:10:02 dfr Exp $
+ *	$Id: mem.c,v 1.52 1998/06/21 11:33:29 bde Exp $
  */
 
 /*
@@ -381,7 +381,7 @@ mmrw(dev, uio, flags)
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, int offset, int nprot)
+memmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 	switch (minor(dev))
 	{

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.274 1998/09/17 09:38:35 dfr Exp $
+ *  $Id: syscons.c,v 1.275 1998/10/31 10:35:23 dfr Exp $
  *  from: i386/isa syscons.c,v 1.278
  */
 
@@ -3936,7 +3936,7 @@ next_code:
 }
 
 int
-scmmap(dev_t dev, int offset, int nprot)
+scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     if (offset > 0x20000 - PAGE_SIZE)
 	return -1;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.33 1998/10/21 23:06:50 dg Exp $
+ * $Id: device_pager.c,v 1.34 1998/10/22 01:45:29 dg Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,8 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	dev_t dev;
 	d_mmap_t *mapfunc;
 	vm_object_t object;
-	unsigned int npages, off;
+	unsigned int npages;
+	vm_offset_t off;
 
 	/*
 	 * Make sure this device can be mapped.
@@ -206,7 +207,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
-	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (int) offset << PAGE_SHIFT, prot));
+	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
 #ifdef DIAGNOSTIC
 	if (paddr == -1)
 		panic("dev_pager_getpage: map function returns error");
