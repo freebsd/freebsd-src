@@ -1,4 +1,3 @@
-
 /****************************************************************************
  *
  *	Program:	dir.c
@@ -22,20 +21,21 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if !defined sgi
+#include <unistd.h>		/* XXX for _POSIX_VERSION ifdefs */
+
+#if !defined sgi && !defined _POSIX_VERSION
 #include <sys/dir.h>
 #endif
 #if defined __sun__
 #include <sys/dirent.h>
 #endif
-#if defined sgi
+#if defined sgi || defined _POSIX_VERSION
 #include <dirent.h>
 #endif
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <fnmatch.h>
 #include <sys/param.h>
 #include "dir.h"

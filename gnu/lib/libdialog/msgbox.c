@@ -93,7 +93,7 @@ int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int w
     for (i = 0; i < width-2; i++)
     waddch(dialog, ' ');
     display_helpline(dialog, height-1, width);
-    print_button(dialog, "  OK  ", height-2, width/2-4, TRUE);
+    print_button(dialog, "  OK  ", height-2, width/2-6, TRUE);
     wrefresh(dialog);
     while (key != ESC && key != '\n' && key != ' ' && key != '\r')
       key = wgetch(dialog);
@@ -171,7 +171,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     for (i = 0; i < width-2; i++)
     waddch(dialog, ' ');
     display_helpline(dialog, height-1, width);
-    print_button(dialog, " CONTINUE ", height-2, width/2-8, TRUE);
+    print_button(dialog, "  OK  ", height-2, width/2-6, TRUE);
     wattrset(dialog, dialog_attr);
 
     theight = height - 4;
@@ -193,9 +193,11 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	    startline = max_lines - theight;
 	    if (startline < 0) startline = 0;
 	    break;
+	case '\020':	/* ^P */
 	case KEY_UP:
 	    if (startline > 0) startline--;
 	    break;
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	    if (startline < max_lines - theight) startline++;
 	    break;

@@ -24,12 +24,12 @@
 #include <dialog.h>
 #include "dialog.priv.h"
 
-static void redraw_field(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, unsigned char instr[], int input_x, int scroll, chtype attr, chtype old_attr, int fexit);
+static void redraw_field(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, unsigned char instr[], int input_x, int scroll, chtype attr, chtype old_attr, int fexit, int attr_mask);
 
 /*
  * Line editor
  */
-int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result)
+int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result, int attr_mask)
 {
   int i, key;
   chtype old_attr;
@@ -53,7 +53,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 /*    scroll = i - input_x;*/
     scroll = (i > box_width) ? i - box_width + 1: 0;
   }
-  redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+  redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 
   for (;;) {
     wattrset(dialog, attr);
@@ -86,12 +86,12 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
       case '\013':
       case KEY_EOL:
 	memset(instr + scroll + input_x, '\0', sizeof(instr) - scroll - input_x);
-	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	continue;
       case '\001':
       case KEY_HOME:
 	input_x = scroll = 0;
-	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	continue;
       case '\005':
       case KEY_END:
@@ -100,7 +100,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	i++;
 	input_x = i % box_width;
 	scroll = i - input_x;
-	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	continue;
       case '\002':
       case KEY_LEFT:
@@ -109,7 +109,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
 	    input_x = oldscroll - 1 - scroll;
-	    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	  } else {
 	    input_x--;
 	    wmove(dialog, box_y, input_x + box_x);
@@ -126,7 +126,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	      instr[scroll+input_x] = ' ';
 	    if (input_x == box_width-1) {
 	      scroll++;
-	      redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	      redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	    }
 	    else {
 	      wmove(dialog, box_y, input_x + box_x);
@@ -149,7 +149,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    input_x = oldscroll - 1 - scroll;
 	  } else
 	    input_x--;
-	  redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	  redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	} else
 	  beep();
 	continue;
@@ -163,7 +163,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	  continue;
 	}
 	memmove(instr+scroll+input_x, instr+scroll+input_x+1, i-(scroll+input_x));
-	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	continue;
       default:
 	if (CCEQ(key, erase_char))
@@ -182,7 +182,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	      scroll++;
 	    else
 	      input_x++;
-	    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE);
+	    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, FALSE, attr_mask);
 	  } else
 	    beep(); /* Alarm user about overflow */
 	  continue;
@@ -190,14 +190,14 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
       }
     }
 ret:
-    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, TRUE);
+    redraw_field(dialog, box_y, box_x, flen, box_width, instr, input_x, scroll, attr, old_attr, TRUE, attr_mask);
     wrefresh(dialog);
     strcpy(result, instr);
     return key;
 }
 
 static void
-redraw_field(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, unsigned char instr[], int input_x, int scroll, chtype attr, chtype old_attr, int fexit)
+redraw_field(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, unsigned char instr[], int input_x, int scroll, chtype attr, chtype old_attr, int fexit, int attr_mask)
 {
   int i, fix_len;
 
@@ -205,9 +205,9 @@ redraw_field(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, unsi
   wmove(dialog, box_y, box_x);
   fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
   for (i = 0; i < fix_len; i++)
-    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+      waddch(dialog, instr[scroll+i] ? ((attr_mask & DITEM_NO_ECHO) ? '*' : instr[scroll+i]) : ' ');
   wattrset(dialog, old_attr);
   for ( ; i < box_width; i++)
-    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+      waddch(dialog, instr[scroll+i] ? ((attr_mask & DITEM_NO_ECHO) ? '*' : instr[scroll+i]) : ' ');
   wmove(dialog, box_y, input_x + box_x);
 }

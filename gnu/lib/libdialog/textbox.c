@@ -136,7 +136,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   }
   display_helpline(dialog, height-1, width);
 
-  print_button(dialog, " CONTINUE ", height-2, width/2-8, TRUE);
+  print_button(dialog, "  OK  ", height-2, width/2-6, TRUE);
   wnoutrefresh(dialog);
   getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 
@@ -219,6 +219,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
         break;
       case 'K':    /* Previous line */
       case 'k':
+      case '\020':	/* ^P */
       case KEY_UP:
         if (!begin_reached) {
           back_lines(page_length+1);
@@ -266,6 +267,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
         break;
       case 'J':    /* Next line */
       case 'j':
+      case '\016':	/* ^N */
       case KEY_DOWN:
         if (!end_reached) {
           begin_reached = 0;
@@ -657,7 +659,7 @@ static int get_search_term(WINDOW *win, unsigned char *search_term, int height, 
 
   first = 1;
   while (key != ESC) {
-    key = line_edit(win, y+1, x+1, -1, box_width-2, searchbox_attr, first, search_term);
+    key = line_edit(win, y+1, x+1, -1, box_width-2, searchbox_attr, first, search_term, 0);
     first = 0;
     switch (key) {
       case '\n':

@@ -90,6 +90,9 @@
  */
 int DialogX, DialogY;
 
+/* This "secret" global allows you to change the behavior of an input field */
+int DialogInputAttrs;
+
 /*
  * Do some initialization for dialog
  */
@@ -328,14 +331,12 @@ void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected)
   waddstr(win, selected ? "[" : " ");
   temp = strspn(label, " ");
   label += temp;
-  wattrset(win, selected ? button_label_active_attr : button_label_inactive_attr);
   for (i = 0; i < temp; i++)
     waddch(win, ' ');
   wattrset(win, selected ? button_key_active_attr : button_key_inactive_attr);
   waddch(win, label[0]);
-  wattrset(win, selected ? button_label_active_attr : button_label_inactive_attr);
-  waddstr(win, label+1);
   wattrset(win, selected ? button_active_attr : button_inactive_attr);
+  waddstr(win, label+1);
   waddstr(win, selected ? "]" : " ");
   wmove(win, y, x+temp+1);
 }
