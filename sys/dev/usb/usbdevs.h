@@ -122,6 +122,7 @@
 #define	USB_VENDOR_STMICRO	0x0483		/* STMicroelectronics */
 #define	USB_VENDOR_YAMAHA	0x0499		/* YAMAHA */
 #define	USB_VENDOR_COMPAQ	0x049f		/* Compaq Computers */
+#define	USB_VENDOR_HITACHI	0x04a4		/* Hitachi, Ltd. */
 #define	USB_VENDOR_ACERP	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_VISIONEER	0x04a7		/* Visioneer */
 #define	USB_VENDOR_CANON	0x04a9		/* Canon */
@@ -665,6 +666,9 @@
 
 /* Hauppauge Computer Works */
 #define	USB_PRODUCT_HAUPPAUGE_WINTV_USB_FM	0x4d12		/* WinTV USB FM */
+
+/* Hitachi, Ltd. products */
+#define	USB_PRODUCT_HITACHI_DVDCAM_USB	0x001e		/* DVDCAM USB HS Interface */
 
 /* HP products */
 #define	USB_PRODUCT_HP_895C	0x0004		/* DeskJet 895C */

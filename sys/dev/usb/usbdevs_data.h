@@ -1060,6 +1060,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "WinTV USB FM",
 	},
 	{
+	    USB_VENDOR_HITACHI, USB_PRODUCT_HITACHI_DVDCAM_USB,
+	    0,
+	    "Hitachi, Ltd.",
+	    "DVDCAM USB HS Interface",
+	},
+	{
 	    USB_VENDOR_HP, USB_PRODUCT_HP_895C,
 	    0,
 	    "Hewlett Packard",
@@ -3181,6 +3187,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_COMPAQ, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Compaq Computers",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_HITACHI, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Hitachi, Ltd.",
 	    NULL,
 	},
 	{
