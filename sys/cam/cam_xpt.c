@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.4 1998/09/16 13:24:37 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.5 1998/09/16 23:30:01 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,6 +97,19 @@ STAILQ_HEAD(highpowerlist, ccb_hdr) highpowerq;
 #ifndef SCSI_DELAY
 #define SCSI_DELAY 2000
 #endif
+/*
+ * If someone sets this to 0, we assume that they want the minimum
+ * allowable bus settle delay.  All devices need _some_ sort of bus settle
+ * delay, so we'll set it to a minimum value of 100ms.
+ */
+#if (SCSI_DELAY == 0)
+#undef SCSI_DELAY
+#define SCSI_DELAY 100
+#endif
+
+/*
+ * Make sure the user isn't using seconds instead of milliseconds.
+ */
 #if (SCSI_DELAY < 100)
 #error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
 #endif
@@ -268,9 +281,10 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	{
 		/* Really only one LUN */
 		{
-			T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*" },
-			CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+			T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*"
 		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
 	{
 		/* Default tagged queuing parameters for all devices */
 		{
@@ -5358,28 +5372,26 @@ xpt_config(void *arg)
 static int
 xptfinishconfigfunc(struct cam_ed *device, void *arg)
 {
-	union ccb *done_ccb;
+	union ccb work_ccb;
+	struct cam_path path;
 	cam_status status;
 
-	done_ccb = (union ccb *)arg;
-
-	if ((status = xpt_create_path(&done_ccb->ccb_h.path,
-				      xpt_periph, device->target->bus->path_id,
-				      device->target->target_id,
-				      device->lun_id)) != CAM_REQ_CMP) {
-		printf("xptfinishconfig: xpt_create_path failed with status"
-		       " %#x, halting bus configuration\n", status);
+	if ((status = xpt_compile_path(&path, xpt_periph,
+				       device->target->bus->path_id,
+				       device->target->target_id,
+				       device->lun_id)) != CAM_REQ_CMP) {
+		printf("xptfinishconfig: xpt_compile_path failed with status"
+		       " %#x, halting device registration\n", status);
 		return(0);
 	}
 
-	xpt_setup_ccb(&done_ccb->ccb_h,
-		      done_ccb->ccb_h.path,
-		      /*priority*/1);
+	xpt_setup_ccb(&work_ccb.ccb_h, &path, /*priority*/1);
 
-	done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action(done_ccb);
-	xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path, done_ccb);
+	work_ccb.ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action(&work_ccb);
+	xpt_async(AC_FOUND_DEVICE, &path, &work_ccb);
 
+	xpt_release_path(&path);
 	return(1);
 }
 
@@ -5449,7 +5461,7 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 		 * Itterate through our devices announcing
 		 * them in probed bus order.
 		 */
-		xpt_for_all_devices(xptfinishconfigfunc, done_ccb);
+		xpt_for_all_devices(xptfinishconfigfunc, NULL);
 
 		/*
 		 * Check for devices with no "standard" peripheral driver
