@@ -800,6 +800,7 @@ bootstrap-tools:
     gnu/usr.bin/texinfo \
     usr.bin/colldef \
     ${_lex} \
+    usr.bin/lorder \
     usr.bin/makewhatis \
     usr.bin/rpcgen \
     ${_uudecode} \
