@@ -152,13 +152,12 @@ Note that the compressed output is always properly blocked.
 Freeze the settings, open the archive, and prepare for writing entries.
 This is the most generic form of this function, which accepts
 pointers to three callback functions which will be invoked by
-the library to write the constructed archive.
-Note: Internally, the callbacks are invoked by the compression layer.
+the compression layer to write the constructed archive.
 In order to support external compression programs, the compression
 is permitted to fork and invoke the callbacks from a separate process.
 In particular, clients should not assume that they can communicate
 between the callbacks and the mainline code using shared variables.
-Note that the standard gzip, bzip2, and "none" compression methods do not fork.
+(The standard gzip, bzip2, and "none" compression methods do not fork.)
 .It Fn archive_write_open_fd
 A convenience form of
 .Fn archive_write_open
