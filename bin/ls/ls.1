@@ -32,10 +32,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ls.1	8.6 (Berkeley) 4/18/94
-.\"	$Id: ls.1,v 1.4 1995/09/26 08:48:09 mpp Exp $
+.\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
+.\"	$Id: ls.1,v 1.5 1996/08/29 18:05:56 wosch Exp $
 .\"
-.Dd April 18, 1994
+.Dd July 29, 1994
 .Dt LS 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ACFLRTacdfiloqrstu1
+.Op Fl ACFLRTWacdfiloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -84,8 +84,9 @@ that is a directory, an asterisk (*) after each that is
 executable,
 an at sign (@) after each symbolic link,
 an equals sign (=) after each socket,
+a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
-.Tn FIFO . 
+.Tn FIFO .
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
@@ -94,6 +95,8 @@ Recursively list subdirectories encountered.
 .It Fl T
 Display complete time information for the file, including
 month, day, hour, minute, second, and year.
+.It Fl W
+Display whiteouts when scanning directories. (UNIMPLEMENTED)
 .It Fl a
 Include directory entries whose names begin with a
 dot (.).
