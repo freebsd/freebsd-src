@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.11 1995/05/08 06:06:25 jkh Exp $
+ * $Id: install.c,v 1.12 1995/05/08 10:20:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,8 +86,10 @@ installHook(char *str)
 	for (i = 0; Disks[i]; i++)
 	    Disks[i] = device_slice_disk(Disks[i]);
 
+	/* Whap partitions on all the FreeBSD slices created */
 	partition_disks();
 
+	/* Try and write it out */
 	if (!write_disks()) {
 	    int scroll, choice, curr, max;
 
@@ -95,7 +97,7 @@ installHook(char *str)
 	    scroll = choice = curr = max = 0;
 	    dmenuOpen(&MenuInstall, &choice, &scroll, &curr, &max);
 	    cpio_extract();
-	    extract_dists();
+	    distExtractAll();
 	    install_configuration_files();
 	    do_final_setup();
 	    SystemWasInstalled = TRUE;
@@ -240,11 +242,6 @@ cpio_extract(void)
     if (i < 0 || j)
 	msgFatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
 		 i, j, cpid, zpid, strerror(errno));
-}
-
-void
-extract_dists(void)
-{
 }
 
 void
