@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.168 1999/06/17 00:39:26 alc Exp $
+ * $Id: vm_map.c,v 1.169 1999/06/17 05:49:00 alc Exp $
  */
 
 /*
@@ -2281,7 +2281,7 @@ Retry:
 	/* If this is the main process stack, see if we're over the 
 	 * stack limit.
 	 */
-	if (is_procstack && (vm->vm_ssize + grow_amount >
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
 			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
@@ -2292,10 +2292,10 @@ Retry:
 	if (grow_amount > stack_entry->avail_ssize) {
 		grow_amount = stack_entry->avail_ssize;
 	}
-	if (is_procstack && (vm->vm_ssize + grow_amount >
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
 	                     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
 		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
-		              vm->vm_ssize;
+		              ctob(vm->vm_ssize);
 	}
 
 	if (vm_map_lock_upgrade(map))
@@ -2330,8 +2330,8 @@ Retry:
 							(new_stack_entry->end -
 							 new_stack_entry->start);
 			if (is_procstack)
-				vm->vm_ssize += new_stack_entry->end -
-						new_stack_entry->start;
+				vm->vm_ssize += btoc(new_stack_entry->end -
+						     new_stack_entry->start);
 		}
 	}
 
