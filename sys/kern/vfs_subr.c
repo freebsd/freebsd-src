@@ -3777,13 +3777,27 @@ extattr_check_cred(struct vnode *vp, int attrnamespace,
 #define	IGNORE_LOCK(vp) ((vp)->v_type == VCHR || (vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0, "");
+
 int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex, 0, "");
+
 int vfs_badlock_print = 1;	/* Print lock violations. */
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print, 0, "");
+
+#ifdef KDB
+int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW, &vfs_badlock_backtrace, 0, "");
+#endif
 
 static void
 vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 {
 
+#ifdef KDB
+	if (vfs_badlock_backtrace)
+		kdb_backtrace();
+#endif
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, (void *)vp, msg);
 	if (vfs_badlock_ddb)
