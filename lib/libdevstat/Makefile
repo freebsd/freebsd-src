@@ -1,3 +1,4 @@
+MAINTAINER=ken@FreeBSD.ORG
 
 LIB=	devstat
 SRCS=	devstat.c
