@@ -183,6 +183,13 @@ ata_detach(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)) || !ch->r_irq)
 	return ENXIO;
 
+    /* mark devices on this channel as detaching */
+    ch->device[MASTER].flags |= ATA_D_DETACHING;
+    ch->device[SLAVE].flags |= ATA_D_DETACHING;
+
+    /* fail outstanding requests on this channel */
+    ata_fail_requests(ch, NULL);
+
     /* detach devices on this channel */
     if (ch->device[MASTER].detach)
 	ch->device[MASTER].detach(&ch->device[MASTER]);
@@ -191,9 +198,6 @@ ata_detach(device_t dev)
 #ifdef DEV_ATAPICAM
     atapi_cam_detach_bus(ch);
 #endif
-
-    /* fail outstanding requests on this channel */
-    ata_fail_requests(ch, NULL);
 
     /* flush cache and powerdown device */
     if (ch->device[MASTER].param) {
@@ -283,18 +287,6 @@ ata_reinit(struct ata_channel *ch)
 	if ((newdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
 	    ch->device[SLAVE].attach)
 	    ch->device[SLAVE].attach(&ch->device[SLAVE]);
-    }
-
-    /* restore device config and transfermode on devices */
-    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) {
-	if (ch->device[MASTER].config)
-	    ch->device[MASTER].config(&ch->device[MASTER]);
-	ch->device[MASTER].setmode(&ch->device[MASTER],ch->device[MASTER].mode);
-    }
-    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) {
-	if (ch->device[SLAVE].config)
-	    ch->device[SLAVE].config(&ch->device[SLAVE]);
-	ch->device[SLAVE].setmode(&ch->device[SLAVE], ch->device[SLAVE].mode);
     }
 
 #ifdef DEV_ATAPICAM
@@ -632,6 +624,7 @@ ata_identify_devices(struct ata_channel *ch)
 	if (ata_getparam(&ch->device[SLAVE], ATA_ATAPI_IDENTIFY))
 	    ch->devices &= ~ATA_ATAPI_SLAVE;
 	else {
+	    ata_controlcmd(&ch->device[SLAVE], ATA_ATAPI_RESET, 0, 0, 0);
 	    switch (ch->device[SLAVE].param->config & ATA_ATAPI_TYPE_MASK) {
 #ifdef DEV_ATAPICD
 	    case ATA_ATAPI_TYPE_CDROM:
@@ -663,6 +656,7 @@ ata_identify_devices(struct ata_channel *ch)
 	if (ata_getparam(&ch->device[MASTER], ATA_ATAPI_IDENTIFY))
 	    ch->devices &= ~ATA_ATAPI_MASTER;
 	else {
+	    ata_controlcmd(&ch->device[MASTER], ATA_ATAPI_RESET, 0, 0, 0);
 	    switch (ch->device[MASTER].param->config & ATA_ATAPI_TYPE_MASK) {
 #ifdef DEV_ATAPICD
 	    case ATA_ATAPI_TYPE_CDROM:

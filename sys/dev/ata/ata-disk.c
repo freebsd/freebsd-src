@@ -160,7 +160,6 @@ ad_detach(struct ata_device *atadev)
 {
     struct ad_softc *adp = atadev->softc;
 
-    atadev->flags |= ATA_D_DETACHING;
 #ifdef DEV_ATARAID
     if (adp->flags & AD_F_RAID_SUBDISK)
 	ata_raiddisk_detach(adp);
