@@ -70,6 +70,17 @@ static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
         { 0x80, 0, 1, 0, DOSPTYP_386BSD, 254, 255, 255, 0, 50000, },
 };
+
+static void
+g_mbr_print(int i, struct dos_partition *dp)
+{
+
+	printf("[%d] f:%02x typ:%d", i, dp->dp_flag, dp->dp_typ);
+	printf(" s(CHS):%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
+	printf(" e(CHS):%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
+	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
+}
+
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 {
@@ -106,6 +117,7 @@ g_enc_dos_partition(u_char *ptr, struct dos_partition *d)
 
 struct g_mbr_softc {
 	int		type [NDOSPART];
+	u_int		sectorsize;
 	u_char		sec0[512];
 };
 
@@ -122,10 +134,13 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		return (EBUSY);
 
 	dp = ndp;
-	for (i = 0; i < NDOSPART; i++) 
+	for (i = 0; i < NDOSPART; i++) {
 		g_dec_dos_partition(
 		    sec0 + DOSPARTOFF + i * sizeof(struct dos_partition),
 		    dp + i);
+		if (bootverbose)
+			g_mbr_print(i, dp + i);
+	}
 	if ((!bcmp(dp, historical_bogus_partition_table,
 	    sizeof historical_bogus_partition_table)) ||
 	    (!bcmp(dp, historical_bogus_partition_table_fixed,
@@ -158,18 +173,18 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		else if (dp[i].dp_typ == 0)
 			l[i] = 0;
 		else
-			l[i] = (off_t)dp[i].dp_size << 9ULL;
+			l[i] = (off_t)dp[i].dp_size * ms->sectorsize;
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
-		    (off_t)dp[i].dp_start << 9ULL, l[i], 512,
-		    "%ss%d", gp->name, 1 + i);
+		    (off_t)dp[i].dp_start * ms->sectorsize, l[i],
+		    ms->sectorsize, "%ss%d", gp->name, 1 + i);
 		if (error)
 			return (error);
 	}
 	for (i = 0; i < NDOSPART; i++) {
 		ms->type[i] = dp[i].dp_typ;
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-		    (off_t)dp[i].dp_start << 9ULL, l[i], 512,
-		    "%ss%d", gp->name, 1 + i);
+		    (off_t)dp[i].dp_start * ms->sectorsize, l[i],
+		    ms->sectorsize, "%ss%d", gp->name, 1 + i);
 	}
 	bcopy(sec0, ms->sec0, 512);
 	return (0);
@@ -285,19 +300,6 @@ g_mbr_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_
 	}
 }
 
-
-
-static void
-g_mbr_print(int i, struct dos_partition *dp)
-{
-
-	g_hexdump(dp, sizeof(dp[0]));
-	printf("[%d] f:%02x typ:%d", i, dp->dp_flag, dp->dp_typ);
-	printf(" s(CHS):%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
-	printf(" e(CHS):%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
-	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
-}
-
 static struct g_geom *
 g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
@@ -324,8 +326,9 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (error)
 			fwsectors = 17;
 		sectorsize = cp->provider->sectorsize;
-		if (sectorsize != 512)
+		if (sectorsize < 512)
 			break;
+		ms->sectorsize = sectorsize;
 		gsp->frontstuff = sectorsize * fwsectors;
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
