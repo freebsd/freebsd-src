@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.82 1997/10/10 18:18:47 phk Exp $
+ *	$Id: vm_page.c,v 1.83 1997/11/06 08:35:50 dyson Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1357,7 +1358,9 @@ again1:
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
-						vm_object_page_clean(m->object, 0, 0, TRUE, TRUE);
+						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+						vm_object_page_clean(m->object, 0, 0, TRUE);
+						VOP_UNLOCK(m->object->handle, 0, curproc);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
@@ -1389,7 +1392,9 @@ again1:
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
-						vm_object_page_clean(m->object, 0, 0, TRUE, TRUE);
+						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+						vm_object_page_clean(m->object, 0, 0, TRUE);
+						VOP_UNLOCK(m->object->handle, 0, curproc);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {

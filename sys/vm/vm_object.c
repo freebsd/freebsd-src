@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.101 1997/11/18 11:02:19 bde Exp $
+ * $Id: vm_object.c,v 1.102 1997/12/19 09:03:14 dyson Exp $
  */
 
 /*
@@ -95,7 +95,6 @@ static void	vm_object_qcollapse __P((vm_object_t object));
 static void	vm_object_deactivate_pages __P((vm_object_t));
 #endif
 static void	vm_object_terminate __P((vm_object_t));
-static void	vm_object_cache_trim __P((void));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -123,9 +122,6 @@ static void	vm_object_cache_trim __P((void));
  *
  */
 
-int vm_object_cache_max;
-struct object_q vm_object_cached_list;
-static int vm_object_cached;		/* size of cached list */
 struct object_q vm_object_list;
 struct simplelock vm_object_list_lock;
 static long vm_object_count;		/* count of all objects */
@@ -187,15 +183,10 @@ _vm_object_allocate(type, size, object)
 void
 vm_object_init()
 {
-	TAILQ_INIT(&vm_object_cached_list);
 	TAILQ_INIT(&vm_object_list);
 	simple_lock_init(&vm_object_list_lock);
 	vm_object_count = 0;
 	
-	vm_object_cache_max = 84;
-	if (cnt.v_page_count > 1000)
-		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
-
 	kernel_object = &kernel_object_store;
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
@@ -245,14 +236,19 @@ vm_object_reference(object)
 {
 	if (object == NULL)
 		return;
-
 	if (object->ref_count == 0) {
-		if ((object->flags & OBJ_CANPERSIST) == 0)
-			panic("vm_object_reference: non-persistent object with 0 ref_count");
-		TAILQ_REMOVE(&vm_object_cached_list, object, cached_list);
-		vm_object_cached--;
+		panic("vm_object_reference: attempting to reference deallocated obj");
 	}
 	object->ref_count++;
+	if ((object->type == OBJT_VNODE) && (object->flags & OBJ_VFS_REF)) {
+		struct vnode *vp;
+		vp = (struct vnode *)object->handle;
+		simple_lock(&vp->v_interlock);
+		if (vp->v_flag & VOBJREF)
+			vp->v_flag |= VOBJREF;
+		++vp->v_usecount;
+		simple_unlock(&vp->v_interlock);
+	}
 }
 
 /*
@@ -271,19 +267,51 @@ vm_object_deallocate(object)
 	vm_object_t object;
 {
 	vm_object_t temp;
+	struct vnode *vp;
 
 	while (object != NULL) {
 
-		if (object->ref_count == 0)
+		if (object->ref_count == 0) {
 			panic("vm_object_deallocate: object deallocated too many times");
+		} else if (object->ref_count > 2) {
+			object->ref_count--;
+			return;
+		}
+
+		/*
+		 * Here on ref_count of one or two, which are special cases for
+		 * objects.
+		 */
+		vp = NULL;
+		if (object->type == OBJT_VNODE) {
+			vp = (struct vnode *)object->handle;
+			if (vp->v_flag & VOBJREF) {
+				if (object->ref_count < 2) {
+					panic("vm_object_deallocate: "
+							"not enough references for OBJT_VNODE: %d",
+							object->ref_count);
+				} else {
+
+					/*
+					 * Freeze optimized copies.
+					 */
+					vm_freeze_copyopts(object, 0, object->size);
+
+					/*
+					 * Loose our reference to the vnode.
+					 */
+					vp->v_flag &= ~VOBJREF;
+					vrele(vp);
+				}
+			}
+		}
 
 		/*
 		 * Lose the reference
 		 */
-		object->ref_count--;
-		if (object->ref_count != 0) {
-			if ((object->ref_count == 1) &&
-			    (object->handle == NULL) &&
+		if (object->ref_count == 2) {
+			object->ref_count--;
+			if ((object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
 				vm_object_t robject;
@@ -328,45 +356,15 @@ vm_object_deallocate(object)
 			return;
 		}
 
-		if (object->type == OBJT_VNODE) {
-			struct vnode *vp = object->handle;
-
-			vp->v_flag &= ~VTEXT;
-		}
-
-		/*
-		 * See if this object can persist and has some resident
-		 * pages.  If so, enter it in the cache.
-		 */
-		if (object->flags & OBJ_CANPERSIST) {
-			if (object->resident_page_count != 0) {
-#if 0
-				vm_object_page_clean(object, 0, 0 ,TRUE, TRUE);
-#endif
-				TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
-				    cached_list);
-				vm_object_cached++;
-
-				vm_object_cache_trim();
-				return;
-			} else {
-				object->flags &= ~OBJ_CANPERSIST;
-			}
-		}
-
 		/*
 		 * Make sure no one uses us.
 		 */
 		object->flags |= OBJ_DEAD;
 
-		if (object->type == OBJT_VNODE) {
-			struct vnode *vp = object->handle;
-			if (vp->v_flag & VVMIO) {
-				object->ref_count++;
-				vm_freeze_copyopts(object, 0, object->size);
-				object->ref_count--;
-			}
-		}
+		if (vp)
+			vp->v_flag &= ~VTEXT;
+
+		object->ref_count--;
 
 		temp = object->backing_object;
 		if (temp) {
@@ -414,16 +412,8 @@ vm_object_terminate(object)
 	 */
 	if (object->type == OBJT_VNODE) {
 		struct vnode *vp = object->handle;
-		struct proc *cp = curproc;	/* XXX */
-		int waslocked;
-
-		waslocked = VOP_ISLOCKED(vp);
-		if (!waslocked)
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, cp);
-		vm_object_page_clean(object, 0, 0, TRUE, FALSE);
+		vm_object_page_clean(object, 0, 0, TRUE);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-		if (!waslocked)
-			VOP_UNLOCK(vp, 0, cp);
 	}
 
 	/*
@@ -468,12 +458,11 @@ vm_object_terminate(object)
  */
 
 void
-vm_object_page_clean(object, start, end, syncio, lockflag)
+vm_object_page_clean(object, start, end, syncio)
 	vm_object_t object;
 	vm_pindex_t start;
 	vm_pindex_t end;
 	boolean_t syncio;
-	boolean_t lockflag;
 {
 	register vm_page_t p, np, tp;
 	register vm_offset_t tstart, tend;
@@ -496,8 +485,6 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 
 	vp = object->handle;
 
-	if (lockflag)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, pproc);
 	object->flags |= OBJ_CLEANING;
 
 	tstart = start;
@@ -614,8 +601,6 @@ rescan:
 
 	VOP_FSYNC(vp, NULL, syncio, curproc);
 
-	if (lockflag)
-		VOP_UNLOCK(vp, 0, pproc);
 	object->flags &= ~OBJ_CLEANING;
 	return;
 }
@@ -642,23 +627,6 @@ vm_object_deactivate_pages(object)
 	}
 }
 #endif
-
-/*
- *	Trim the object cache to size.
- */
-static void
-vm_object_cache_trim()
-{
-	register vm_object_t object;
-
-	while (vm_object_cached > vm_object_cache_max) {
-		object = TAILQ_FIRST(&vm_object_cached_list);
-
-		vm_object_reference(object);
-		pager_cache(object, FALSE);
-	}
-}
-
 
 /*
  *	vm_object_pmap_copy:
@@ -1554,8 +1522,6 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	db_printf("offset=0x%x, backing_object=(0x%x)+0x%x\n",
 	    (int) object->paging_offset,
 	    (int) object->backing_object, (int) object->backing_object_offset);
-	db_printf("cache: next=%p, prev=%p\n",
-	    TAILQ_NEXT(object, cached_list), TAILQ_PREV(object, cached_list));
 
 	if (!full)
 		return;

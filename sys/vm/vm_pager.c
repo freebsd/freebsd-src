@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.29 1997/09/01 03:17:28 bde Exp $
+ * $Id: vm_pager.c,v 1.30 1997/10/12 20:26:31 phk Exp $
  */
 
 /*
@@ -249,28 +249,6 @@ vm_pager_object_lookup(pg_list, handle)
 		if (object->handle == handle)
 			return (object);
 	return (NULL);
-}
-
-/*
- * This routine loses a reference to the object -
- * thus a reference must be gained before calling.
- */
-int
-pager_cache(object, should_cache)
-	vm_object_t object;
-	boolean_t should_cache;
-{
-	if (object == NULL)
-		return (KERN_INVALID_ARGUMENT);
-
-	if (should_cache)
-		object->flags |= OBJ_CANPERSIST;
-	else
-		object->flags &= ~OBJ_CANPERSIST;
-
-	vm_object_deallocate(object);
-
-	return (KERN_SUCCESS);
 }
 
 /*

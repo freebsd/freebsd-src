@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.52 1997/10/28 15:59:05 bde Exp $
+ * $Id: nfs_serv.c,v 1.53 1997/12/27 02:56:34 bde Exp $
  */
 
 /*
@@ -1792,7 +1792,6 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 		}
 out:
 		if (!error) {
-			vnode_pager_uncache(vp, procp);
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			nqsrv_getl(vp, ND_WRITE);
 
@@ -1969,7 +1968,6 @@ out:
 		nqsrv_getl(tdvp, ND_WRITE);
 		if (tvp) {
 			nqsrv_getl(tvp, ND_WRITE);
-			(void) vnode_pager_uncache(tvp, procp);
 		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
