@@ -915,11 +915,11 @@ vn_closefile(fp, td)
 {
 	struct vnode *vp;
 	struct flock lf;
-
-	GIANT_REQUIRED;
+	int error;
 
 	vp = fp->f_vnode;
 
+	mtx_lock(&Giant);
 	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -930,7 +930,9 @@ vn_closefile(fp, td)
 
 	fp->f_ops = &badfileops;
 
-	return (vn_close(vp, fp->f_flag, fp->f_cred, td));
+	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*

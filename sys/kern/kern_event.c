@@ -906,7 +906,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	struct knote **knp, *kn, *kn0;
 	int i;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 
 	FILEDESC_LOCK(fdp);
 	for (i = 0; i < fdp->fd_knlistsize; i++) {
@@ -957,6 +957,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
+	mtx_unlock(&Giant);
 	return (0);
 }
 
