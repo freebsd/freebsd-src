@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.33 1998/02/09 06:05:09 jdp Exp $
+ *	$Id: crt0.c,v 1.34 1998/02/11 04:57:12 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -115,14 +115,14 @@ void			monstartup(void *low, void *high);
 #define _exit(v) \
 	__syscall(SYS_exit, (int)(v))
 #define _open(name, f, m) \
-	__syscall(SYS_open, (char *)(name), (int)(f), (int)(m))
+	__syscall(SYS_open, (const char *)(name), (int)(f), (int)(m))
 #define _read(fd, s, n) \
 	__syscall(SYS_read, (int)(fd), (void *)(s), (size_t)(n))
 #define _write(fd, s, n) \
-	__syscall(SYS_write, (int)(fd), (void *)(s), (size_t)(n))
+	__syscall(SYS_write, (int)(fd), (const void *)(s), (size_t)(n))
 #define _mmap(addr, len, prot, flags, fd, off)	\
-	(caddr_t) __syscall(SYS_mmap, (caddr_t)(addr), (size_t)(len), \
-		(int)(prot), (int)(flags), (int)(fd), (long)0L, (off_t)(off))
+	(void *) __syscall(SYS_mmap, (void *)(addr), (size_t)(len), \
+		(int)(prot), (int)(flags), (int)(fd), 0, (off_t)(off))
 
 #define _PUTNMSG(str, len)	_write(2, (str), (len))
 #define _PUTMSG(str)		_PUTNMSG((str), sizeof (str) - 1)
