@@ -443,7 +443,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				 * Bail out. Reverse all the mappings
 				 * and unwire the pages.
 				 */
+				vm_page_lock_queues();
 				vm_page_wakeup(m);
+				vm_page_unlock_queues();
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
 				for (k = 0; k <= i; k += PAGE_SIZE) {
@@ -457,7 +459,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				return error;
 			}
 		}
+		vm_page_lock_queues();
 		vm_page_wakeup(m);
+		vm_page_unlock_queues();
 	}
 
 	/*
