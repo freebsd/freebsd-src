@@ -91,6 +91,7 @@ struct var vifs;
 struct var vmail;
 struct var vmpath;
 struct var vpath;
+struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vvers;
@@ -116,6 +117,8 @@ const struct varinit varinit[] = {
 	  NULL },
 	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin",
 	  changepath },
+	{ &vppid,	VSTRFIXED|VTEXTFIXED|VUNSET,	"PPID=",
+	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
@@ -165,6 +168,7 @@ INIT {
 void
 initvar(void)
 {
+	char ppid[20];
 	const struct varinit *ip;
 	struct var *vp;
 	struct var **vpp;
@@ -188,6 +192,10 @@ initvar(void)
 		*vpp = &vps1;
 		vps1.text = geteuid() ? "PS1=$ " : "PS1=# ";
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
+	}
+	if ((vppid.flags & VEXPORT) == 0) {
+		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
+		setvarsafe("PPID", ppid, 0);
 	}
 }
 
