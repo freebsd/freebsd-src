@@ -1107,7 +1107,7 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 	 */
 	USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
 	/* We don't care what the initial value was, as long as the values are unique */
-	sc->cbw.dCBWTag++;					/* Increase the tag number */
+	USETDW(sc->cbw.dCBWTag, UGETDW(sc->cbw.dCBWTag) + 1);
 	USETDW(sc->cbw.dCBWDataTransferLength, datalen);
 	/* DIR_NONE is treated as DIR_OUT (0x00) */
 	sc->cbw.bCBWFlags = (dir == DIR_IN? CBWFLAGS_IN:CBWFLAGS_OUT);
