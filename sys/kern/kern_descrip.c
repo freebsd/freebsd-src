@@ -1100,11 +1100,8 @@ fdalloc(td, want, result)
 		 */
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_nfiles >= nfiles) {
-			/* XXX uma_large_free() needs Giant. */
 			FILEDESC_UNLOCK(fdp);
-			mtx_lock(&Giant);
 			free(newofile, M_FILEDESC);
-			mtx_unlock(&Giant);
 			FILEDESC_LOCK(fdp);
 			continue;
 		}
@@ -1129,11 +1126,8 @@ fdalloc(td, want, result)
 		fdp->fd_nfiles = nfiles;
 		fdexpand++;
 		if (oldofile != NULL) {
-			/* XXX uma_large_free() needs Giant. */
 			FILEDESC_UNLOCK(fdp);
-			mtx_lock(&Giant);
 			free(oldofile, M_FILEDESC);
-			mtx_unlock(&Giant);
 			FILEDESC_LOCK(fdp);
 		}
 	}
