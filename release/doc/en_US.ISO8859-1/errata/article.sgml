@@ -188,6 +188,22 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
       corrected on both the &release.prev; security fix branch and the
       &release.branch; development branch.</para>
 
+    <para>&os; supports a hashed form of the login capabilities
+      database, stored in <filename>/etc/login.conf.db</filename>.
+      This is generated from the <filename>/etc/login.conf</filename>
+      text file.  If the hashed database is present, &man.login.1;
+      will use it in preference to the contents of the text file.
+      &os; &release.prev; is the first release that actually includes
+      <filename>/etc/login.conf.db</filename> on the distribution
+      media; thus, users modifying
+      <filename>/etc/login.conf</filename> need to remember to
+      regenerate the database, using &man.cap.mkdb.1;.  Users
+      performing source upgrades are generally not affected by this
+      change, because &man.mergemaster.8; offers the option to
+      regenerate <filename>/etc/login.conf.db</filename> during
+      upgrades.  &man.login.conf.5; has more details on the format and
+      usage of the login capabilities database.</para>
+
 ]]>
   </sect1>
 </article>
