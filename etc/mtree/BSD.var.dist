@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.23.4.2 1996/06/05 02:37:00 jkh Exp $
+#	$Id: BSD.var.dist,v 1.23.4.3 1996/06/17 09:17:40 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -40,7 +40,7 @@
     ..
     run             uname=bin
     ..
-    rwho            uname=bin
+    rwho            uname=bin gname=daemon mode=0775
     ..
 /set type=dir uname=uucp gname=daemon mode=0755
     spool           uname=bin gname=bin
