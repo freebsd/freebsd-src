@@ -184,11 +184,17 @@ snpdevtotty(dev)
 	struct cdev *dev;
 {
 	struct cdevsw *cdp;
+	struct tty *tp;
 
-	cdp = devsw(dev);
-	if (cdp == NULL || (cdp->d_flags & D_TTY) == 0)
+	cdp = dev_refthread(dev);
+	if (cdp == NULL)
 		return (NULL);
-	return (dev->si_tty);
+	if (!(cdp->d_flags & D_TTY))
+		tp = NULL;
+	else
+		tp = dev->si_tty;
+	dev_relthread(dev);
+	return (tp);
 }
 
 #define SNP_INPUT_BUF	5	/* This is even too much, the maximal
