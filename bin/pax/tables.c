@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tables.c,v 1.7 1997/02/22 14:04:43 peter Exp $
  */
 
 #ifndef lint
@@ -180,6 +180,7 @@ chk_lnk(arcn)
 			 */
 			arcn->ln_nlen = l_strncpy(arcn->ln_name, pt->name,
 				PAXPATHLEN+1);
+			arcn->ln_name[PAXPATHLEN] = '\0';
 			if (arcn->type == PAX_REG)
 				arcn->type = PAX_HRG;
 			else
@@ -655,6 +656,7 @@ sub_name(oname, onamelen)
 			 * and return (we know that oname has enough space)
 			 */
 			*onamelen = l_strncpy(oname, pt->nname, PAXPATHLEN+1);
+			oname[PAXPATHLEN] = '\0';
 			return;
 		}
 		pt = pt->fow;
