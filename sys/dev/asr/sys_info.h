@@ -22,7 +22,7 @@
  */
 
 #ifndef         __SYS_INFO_H
-#define         __SYS_INFO_H
+#define	        __SYS_INFO_H
 
 /*File - SYS_INFO.H
  ****************************************************************************
@@ -119,24 +119,24 @@
  *---------------------------------------------------------------------------*/
 
 /*flags - bit definitions */
-#define SI_CMOS_Valid           0x0001
-#define SI_NumDrivesValid       0x0002
-#define SI_ProcessorValid       0x0004
-#define SI_MemorySizeValid      0x0008
-#define SI_DriveParamsValid     0x0010
-#define SI_SmartROMverValid     0x0020
-#define SI_OSversionValid       0x0040
-#define SI_OSspecificValid      0x0080  /* 1 if OS structure returned */
-#define SI_BusTypeValid         0x0100
+#define	SI_CMOS_Valid           0x0001
+#define	SI_NumDrivesValid       0x0002
+#define	SI_ProcessorValid       0x0004
+#define	SI_MemorySizeValid      0x0008
+#define	SI_DriveParamsValid     0x0010
+#define	SI_SmartROMverValid     0x0020
+#define	SI_OSversionValid       0x0040
+#define	SI_OSspecificValid      0x0080  /* 1 if OS structure returned */
+#define	SI_BusTypeValid         0x0100
 
-#define SI_ALL_VALID            0x0FFF  /* All Std SysInfo is valid */
-#define SI_NO_SmartROM          0x8000
+#define	SI_ALL_VALID            0x0FFF  /* All Std SysInfo is valid */
+#define	SI_NO_SmartROM          0x8000
 
 /*busType - definitions */
-#define SI_ISA_BUS      0x00
-#define SI_MCA_BUS      0x01
-#define SI_EISA_BUS     0x02
-#define SI_PCI_BUS      0x04
+#define	SI_ISA_BUS      0x00
+#define	SI_MCA_BUS      0x01
+#define	SI_EISA_BUS     0x02
+#define	SI_PCI_BUS      0x04
 
 #ifdef  __cplusplus
    struct sysInfo_S {
@@ -197,8 +197,8 @@
  *---------------------------------------------------------------------------*/
 
 /*flags - bit definitions */
-#define DI_DOS_HIGH             0x01    /* DOS is loaded high */
-#define DI_DPMI_VALID           0x02    /* DPMI version is valid */
+#define	DI_DOS_HIGH             0x01    /* DOS is loaded high */
+#define	DI_DPMI_VALID           0x02    /* DPMI version is valid */
 
 #ifdef  __cplusplus
    struct DOS_Info_S {
@@ -463,16 +463,16 @@ typedef struct dpt_metrics {
 	u_int32_t	write_by_size_max_time[10];
 	struct timeval	write_by_size_total_time[10];
 
-#define SIZE_512        0
-#define SIZE_1K         1
-#define SIZE_2K         2
-#define SIZE_4K         3
-#define SIZE_8K         4
-#define SIZE_16K        5
-#define SIZE_32K        6
-#define SIZE_64K        7
-#define SIZE_BIGGER     8
-#define SIZE_OTHER      9
+#define	SIZE_512        0
+#define	SIZE_1K         1
+#define	SIZE_2K         2
+#define	SIZE_4K         3
+#define	SIZE_8K         4
+#define	SIZE_16K        5
+#define	SIZE_32K        6
+#define	SIZE_64K        7
+#define	SIZE_BIGGER     8
+#define	SIZE_OTHER      9
 
 	struct timeval	intr_started;
 } dpt_perf_t;

@@ -106,12 +106,12 @@
  * $FreeBSD$
  */
 
-#define ASR_VERSION     1
-#define ASR_REVISION    '0'
-#define ASR_SUBREVISION '8'
-#define ASR_MONTH       8
-#define ASR_DAY         21
-#define ASR_YEAR        2001 - 1980
+#define	ASR_VERSION     1
+#define	ASR_REVISION    '0'
+#define	ASR_SUBREVISION '8'
+#define	ASR_MONTH       8
+#define	ASR_DAY         21
+#define	ASR_YEAR        2001 - 1980
 
 /*
  *      Debug macros to reduce the unsightly ifdefs
@@ -196,7 +196,7 @@
 # define debug_usr_cmd_dump_message(message)
 #endif /* DEBUG_ASR_USR_CMD */
 
-#define dsDescription_size 46   /* Snug as a bug in a rug */
+#define	dsDescription_size 46   /* Snug as a bug in a rug */
 #include "dev/asr/dptsig.h"
 
 static dpt_sig_S ASR_sig = {
@@ -246,8 +246,8 @@ static dpt_sig_S ASR_sig = {
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
-#define STATIC static
-#define INLINE
+#define	STATIC static
+#define	INLINE
 
 #if (defined(DEBUG_ASR) && (DEBUG_ASR > 0))
 # undef STATIC
@@ -255,12 +255,12 @@ static dpt_sig_S ASR_sig = {
 # undef INLINE
 # define INLINE
 #endif
-#define IN
-#define OUT
-#define INOUT
+#define	IN
+#define	OUT
+#define	INOUT
 
-#define osdSwap4(x) ((u_long)ntohl((u_long)(x)))
-#define KVTOPHYS(x) vtophys(x)
+#define	osdSwap4(x) ((u_long)ntohl((u_long)(x)))
+#define	KVTOPHYS(x) vtophys(x)
 #include        "dev/asr/dptalign.h"
 #include        "dev/asr/i2oexec.h"
 #include        "dev/asr/i2obscsi.h"
@@ -272,14 +272,14 @@ static dpt_sig_S ASR_sig = {
 
 /* Configuration Definitions */
 
-#define SG_SIZE          58     /* Scatter Gather list Size              */
-#define MAX_TARGET_ID    126    /* Maximum Target ID supported           */
-#define MAX_LUN          255    /* Maximum LUN Supported                 */
-#define MAX_CHANNEL      7      /* Maximum Channel # Supported by driver */
-#define MAX_INBOUND      2000   /* Max CCBs, Also Max Queue Size         */
-#define MAX_OUTBOUND     256    /* Maximum outbound frames/adapter       */
-#define MAX_INBOUND_SIZE 512    /* Maximum inbound frame size            */
-#define MAX_MAP          4194304L /* Maximum mapping size of IOP         */
+#define	SG_SIZE          58     /* Scatter Gather list Size              */
+#define	MAX_TARGET_ID    126    /* Maximum Target ID supported           */
+#define	MAX_LUN          255    /* Maximum LUN Supported                 */
+#define	MAX_CHANNEL      7      /* Maximum Channel # Supported by driver */
+#define	MAX_INBOUND      2000   /* Max CCBs, Also Max Queue Size         */
+#define	MAX_OUTBOUND     256    /* Maximum outbound frames/adapter       */
+#define	MAX_INBOUND_SIZE 512    /* Maximum inbound frame size            */
+#define	MAX_MAP          4194304L /* Maximum mapping size of IOP         */
                                 /* Also serves as the minimum map for    */
                                 /* the 2005S zero channel RAID product   */
 
@@ -379,14 +379,14 @@ typedef struct Asr_softc {
         struct Asr_softc      * ha_next;       /* HBA list */
 
 #ifdef ASR_MEASURE_PERFORMANCE
-#define MAX_TIMEQ_SIZE  256	/* assumes MAX 256 scsi commands sent */
+#define	MAX_TIMEQ_SIZE  256	/* assumes MAX 256 scsi commands sent */
         asr_perf_t              ha_performance;
         u_int32_t               ha_submitted_ccbs_count;
 
         /* Queueing macros for a circular queue */
-#define TIMEQ_FREE_LIST_EMPTY(head, tail) (-1 == (head) && -1 == (tail))
-#define TIMEQ_FREE_LIST_FULL(head, tail) ((((tail) + 1) % MAX_TIMEQ_SIZE) == (head))
-#define ENQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
+#define	TIMEQ_FREE_LIST_EMPTY(head, tail) (-1 == (head) && -1 == (tail))
+#define	TIMEQ_FREE_LIST_FULL(head, tail) ((((tail) + 1) % MAX_TIMEQ_SIZE) == (head))
+#define	ENQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
         if (!TIMEQ_FREE_LIST_FULL((head), (tail))) { \
                 if TIMEQ_FREE_LIST_EMPTY((head),(tail)) { \
                         (head) = (tail) = 0; \
@@ -397,7 +397,7 @@ typedef struct Asr_softc {
         else { \
                 debug_asr_printf("asr: Enqueueing when TimeQ Free List is full... This should not happen!\n"); \
         }
-#define DEQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
+#define	DEQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
         if (!TIMEQ_FREE_LIST_EMPTY((head), (tail))) { \
                 item  = Q[(head)]; \
                 if ((head) == (tail)) { (head) = (tail) = -1; } \
@@ -424,23 +424,23 @@ STATIC Asr_softc_t * Asr_softc;
 
 /* Externally callable routines */
 #if __FreeBSD_version >= 400000
-#define PROBE_ARGS  IN device_t tag
-#define PROBE_RET   int
-#define PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
-#define PROBE_RETURN(retval) if(retval){device_set_desc(tag,retval);return(0);}else{return(ENXIO);}
-#define ATTACH_ARGS IN device_t tag
-#define ATTACH_RET  int
-#define ATTACH_SET() int unit = device_get_unit(tag)
-#define ATTACH_RETURN(retval) return(retval)
+#define	PROBE_ARGS  IN device_t tag
+#define	PROBE_RET   int
+#define	PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
+#define	PROBE_RETURN(retval) if(retval){device_set_desc(tag,retval);return(0);}else{return(ENXIO);}
+#define	ATTACH_ARGS IN device_t tag
+#define	ATTACH_RET  int
+#define	ATTACH_SET() int unit = device_get_unit(tag)
+#define	ATTACH_RETURN(retval) return(retval)
 #else
-#define PROBE_ARGS  IN pcici_t tag, IN pcidi_t id
-#define PROBE_RET   const char *
-#define PROBE_SET()
-#define PROBE_RETURN(retval) return(retval)
-#define ATTACH_ARGS IN pcici_t tag, IN int unit
-#define ATTACH_RET  void
-#define ATTACH_SET()
-#define ATTACH_RETURN(retval) return
+#define	PROBE_ARGS  IN pcici_t tag, IN pcidi_t id
+#define	PROBE_RET   const char *
+#define	PROBE_SET()
+#define	PROBE_RETURN(retval) return(retval)
+#define	ATTACH_ARGS IN pcici_t tag, IN int unit
+#define	ATTACH_RET  void
+#define	ATTACH_SET()
+#define	ATTACH_RETURN(retval) return
 #endif
 /* I2O HDM interface */
 STATIC PROBE_RET      asr_probe(PROBE_ARGS);
@@ -575,7 +575,7 @@ DATA_SET (mode0_pciset, mode0_pcidev);
  *
  * only ioctl is used. the sd driver provides all other access.
  */
-#define CDEV_MAJOR 154   /* preferred default character major */
+#define	CDEV_MAJOR 154   /* preferred default character major */
 STATIC struct cdevsw asr_cdevsw = {
         asr_open,       /* open     */
         asr_close,      /* close    */
@@ -640,8 +640,8 @@ SYSINIT(asrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asr_drvinit,NULL)
 #endif
 
 /* I2O support routines */
-#define defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
-#define getAlignLong(STRUCT,NAME) ((STRUCT *)(NAME))
+#define	defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
+#define	getAlignLong(STRUCT,NAME) ((STRUCT *)(NAME))
 
 /*
  *      Fill message with default.
@@ -662,7 +662,7 @@ ASR_fillMessage (
         return (Message_Ptr);
 } /* ASR_fillMessage */
 
-#define EMPTY_QUEUE ((U32)-1L)
+#define	EMPTY_QUEUE ((U32)-1L)
 
 STATIC INLINE U32
 ASR_getMessage(
@@ -1703,7 +1703,7 @@ ASR_queue(
 
 
 /* Simple Scatter Gather elements */
-#define SG(SGL,Index,Flags,Buffer,Size)                            \
+#define	SG(SGL,Index,Flags,Buffer,Size)                            \
         I2O_FLAGS_COUNT_setCount(                                  \
           &(((PI2O_SG_ELEMENT)(SGL))->u.Simple[Index].FlagsCount), \
           Size);                                                   \
@@ -3398,12 +3398,12 @@ asr_action(
 } /* asr_action */
 
 #ifdef ASR_MEASURE_PERFORMANCE
-#define WRITE_OP 1
-#define READ_OP 2
-#define min_submitR     sc->ha_performance.read_by_size_min_time[index]
-#define max_submitR     sc->ha_performance.read_by_size_max_time[index]
-#define min_submitW     sc->ha_performance.write_by_size_min_time[index]
-#define max_submitW     sc->ha_performance.write_by_size_max_time[index]
+#define	WRITE_OP 1
+#define	READ_OP 2
+#define	min_submitR     sc->ha_performance.read_by_size_min_time[index]
+#define	max_submitR     sc->ha_performance.read_by_size_max_time[index]
+#define	min_submitW     sc->ha_performance.write_by_size_min_time[index]
+#define	max_submitW     sc->ha_performance.write_by_size_max_time[index]
 
 STATIC INLINE void
 asr_IObySize(
@@ -3645,8 +3645,8 @@ asr_intr (
                                 submitted_time = 0xffffffff;
                         }
 
-#define maxctime sc->ha_performance.max_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
-#define minctime sc->ha_performance.min_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
+#define	maxctime sc->ha_performance.max_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
+#define	minctime sc->ha_performance.min_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
                         if (submitted_time != 0xffffffff) {
                                 if ( maxctime < submitted_time ) {
                                         maxctime = submitted_time;
@@ -3841,7 +3841,7 @@ typedef U32   DPT_RTN_T;
 #undef SCSI_RESET       /* Conflicts with "scsi/scsiconf.h" defintion */
 #include        "dev/asr/osd_unix.h"
 
-#define asr_unit(dev)     minor(dev)
+#define	asr_unit(dev)     minor(dev)
 
 STATIC INLINE Asr_softc_t *
 ASR_get_sc (
@@ -4443,9 +4443,9 @@ asr_ioctl(
                 CtlrInfo.blinkState = i;
                 CtlrInfo.pciBusNum = sc->ha_pciBusNum;
                 CtlrInfo.pciDeviceNum = sc->ha_pciDeviceNum;
-#define FLG_OSD_PCI_VALID 0x0001
-#define FLG_OSD_DMA       0x0002
-#define FLG_OSD_I2O       0x0004
+#define	FLG_OSD_PCI_VALID 0x0001
+#define	FLG_OSD_DMA       0x0002
+#define	FLG_OSD_I2O       0x0004
                 CtlrInfo.hbaFlags = FLG_OSD_PCI_VALID | FLG_OSD_DMA | FLG_OSD_I2O;
                 CtlrInfo.Interrupt = sc->ha_irq;
                 if (cmd & 0xFFFF0000) {

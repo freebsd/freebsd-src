@@ -22,7 +22,7 @@
  */
 
 #ifndef         __OSD_UNIX_H
-#define         __OSD_UNIX_H
+#define	        __OSD_UNIX_H
 
 /*File - OSD_UNIX.H */
 /*****************************************************************************/
@@ -56,60 +56,60 @@
 
 /* Definitions - Defines & Constants ---------------------------------------*/
 
-#define DPT_TurnAroundKey  0x01    /* TurnAround Message Type for engine      */
-#define DPT_EngineKey      0x02    /* Message Que and Type for engine         */
-#define DPT_LoggerKey      0x03    /* Message Type For Logger                 */
-#define DPT_CommEngineKey  0x04    /* Message Que Type Created                */
+#define	DPT_TurnAroundKey  0x01    /* TurnAround Message Type for engine      */
+#define	DPT_EngineKey      0x02    /* Message Que and Type for engine         */
+#define	DPT_LoggerKey      0x03    /* Message Type For Logger                 */
+#define	DPT_CommEngineKey  0x04    /* Message Que Type Created                */
  
-#define MSG_RECEIVE    0x40000000  /* Ored Into Logger PID For Return Msg     */
+#define	MSG_RECEIVE    0x40000000  /* Ored Into Logger PID For Return Msg     */
 
-#define ENGMSG_ECHO        0x00    /* Turnarround Echo Engine Message         */
-#define ENGMSG_OPEN        0x01    /* Turnarround Open Engine Message         */
-#define ENGMSG_CLOSE       0x02    /* Turnarround Close Engine Message        */
-
-  /* Message Que Creation Flags */
-
-#define MSG_URD            00400  
-#define MSG_UWR            00200  
-#define MSG_GRD            00040  
-#define MSG_GWR            00020  
-#define MSG_ORD            00004  
-#define MSG_OWR            00002  
-#define MSG_ALLRD          00444
-#define MSG_ALLWR          00222
+#define	ENGMSG_ECHO        0x00    /* Turnarround Echo Engine Message         */
+#define	ENGMSG_OPEN        0x01    /* Turnarround Open Engine Message         */
+#define	ENGMSG_CLOSE       0x02    /* Turnarround Close Engine Message        */
 
   /* Message Que Creation Flags */
 
-#define SHM_URD            00400  
-#define SHM_UWR            00200  
-#define SHM_GRD            00040  
-#define SHM_GWR            00020  
-#define SHM_ORD            00004  
-#define SHM_OWR            00002  
-#define SHM_ALLRD          00444
-#define SHM_ALLWR          00222
+#define	MSG_URD            00400  
+#define	MSG_UWR            00200  
+#define	MSG_GRD            00040  
+#define	MSG_GWR            00020  
+#define	MSG_ORD            00004  
+#define	MSG_OWR            00002  
+#define	MSG_ALLRD          00444
+#define	MSG_ALLWR          00222
+
+  /* Message Que Creation Flags */
+
+#define	SHM_URD            00400  
+#define	SHM_UWR            00200  
+#define	SHM_GRD            00040  
+#define	SHM_GWR            00020  
+#define	SHM_ORD            00004  
+#define	SHM_OWR            00002  
+#define	SHM_ALLRD          00444
+#define	SHM_ALLWR          00222
 
   /* Program Exit Codes */
 
-#define ExitGoodStatus           0
-#define ExitBadParameter         1
-#define ExitSignalFail           3
-#define ExitMsqAllocFail         5
-#define ExitBuffAllocFail        6
-#define ExitMsgSendFail          8
-#define ExitMsgReceiveFail       9
+#define	ExitGoodStatus           0
+#define	ExitBadParameter         1
+#define	ExitSignalFail           3
+#define	ExitMsqAllocFail         5
+#define	ExitBuffAllocFail        6
+#define	ExitMsgSendFail          8
+#define	ExitMsgReceiveFail       9
 
-#define ExitEngOpenFail          10
-#define ExitDuplicateEngine      11
+#define	ExitEngOpenFail          10
+#define	ExitDuplicateEngine      11
 
-#define ExitCommAllocFail        12 
-#define ExitDuplicateCommEng     13
-#define ExitCommConnectFail      14
+#define	ExitCommAllocFail        12 
+#define	ExitDuplicateCommEng     13
+#define	ExitCommConnectFail      14
 
 #ifndef MAX_HAS
 
-#define MAX_HAS                  18
-#define MAX_NAME                 100
+#define	MAX_HAS                  18
+#define	MAX_NAME                 100
 
 #endif  /* ifndef MAX_HAS */
 
@@ -141,24 +141,24 @@ typedef struct {
 #include <sys/ddidmareq.h>
 #include <sys/mutex.h>
 #include <sys/scsi/scsi.h>
-/*#define _KERNEL */
+/*#define	_KERNEL */
 #include <sys/dditypes.h>
 #include <sys/ddi_impldefs.h>
 #include <sys/scsi/impl/transport.h>
 /* #undef _KERNEL */
 
 #undef MSG_DISCONNECT
-#define MSG_DISCONNECT  0x11L
+#define	MSG_DISCONNECT  0x11L
 
-#define EATAUSRCMD     1
-#define DPT_SIGNATURE  2
-#define DPT_NUMCTRLS   3
-#define DPT_CTRLINFO   4
-#define DPT_SYSINFO    5
-#define DPT_BLINKLED   6
-#define I2OUSRCMD      7
-/* #define I2ORESCANCMD 8 */	/* Use DPT_IO_ACCESS instead */
-/* #define I2ORESETCMD  9 */	/* Use DPT_IO_ACCESS instead */
+#define	EATAUSRCMD     1
+#define	DPT_SIGNATURE  2
+#define	DPT_NUMCTRLS   3
+#define	DPT_CTRLINFO   4
+#define	DPT_SYSINFO    5
+#define	DPT_BLINKLED   6
+#define	I2OUSRCMD      7
+/* #define	I2ORESCANCMD 8 */	/* Use DPT_IO_ACCESS instead */
+/* #define	I2ORESETCMD  9 */	/* Use DPT_IO_ACCESS instead */
 
 #define	DPT_MAX_DMA_SEGS  32         /* Max used Scatter/Gather seg         */
 
@@ -187,55 +187,55 @@ typedef struct {
 # define _IO(x,y)	(0x0fff3900|y)
 #endif
 /* EATA PassThrough Command	*/
-#define EATAUSRCMD      _IOWR('D',65,EATA_CP)
+#define	EATAUSRCMD      _IOWR('D',65,EATA_CP)
 /* Get Signature Structure	*/
-#define DPT_SIGNATURE   _IOR('D',67,dpt_sig_S)
+#define	DPT_SIGNATURE   _IOR('D',67,dpt_sig_S)
 /* Get Number Of DPT Adapters	*/
-#define DPT_NUMCTRLS    _IOR('D',68,int)
+#define	DPT_NUMCTRLS    _IOR('D',68,int)
 /* Get Adapter Info Structure	*/
-#define DPT_CTRLINFO    _IOR('D',69,CtrlInfo)
+#define	DPT_CTRLINFO    _IOR('D',69,CtrlInfo)
 /* Get System Info Structure	*/
-#define DPT_SYSINFO     _IOR('D',72,sysInfo_S)
+#define	DPT_SYSINFO     _IOR('D',72,sysInfo_S)
 /* Get Blink LED Code	        */
-#define DPT_BLINKLED    _IOR('D',75,int)
+#define	DPT_BLINKLED    _IOR('D',75,int)
 /* Get Statistical information (if available) */
-#define DPT_STATS_INFO        _IOR('D',80,STATS_DATA)
+#define	DPT_STATS_INFO        _IOR('D',80,STATS_DATA)
 /* Clear the statistical information          */
-#define DPT_STATS_CLEAR       _IO('D',81)
+#define	DPT_STATS_CLEAR       _IO('D',81)
 /* Send an I2O command */
-#define I2OUSRCMD	_IO('D',76)
+#define	I2OUSRCMD	_IO('D',76)
 /* Inform driver to re-acquire LCT information */
-#define I2ORESCANCMD	_IO('D',77)
+#define	I2ORESCANCMD	_IO('D',77)
 /* Inform driver to reset adapter */
-#define I2ORESETCMD	_IO('D',78)
+#define	I2ORESETCMD	_IO('D',78)
 
 #elif defined (SNI_MIPS)
   /* Unix Ioctl Command definitions */
 
-#define EATAUSRCMD     (('D'<<8)|65)
-#define DPT_DEBUG      (('D'<<8)|66)
-#define DPT_SIGNATURE  (('D'<<8)|67)
-#define DPT_NUMCTRLS   (('D'<<8)|68)
-#define DPT_CTRLINFO   (('D'<<8)|69)
-#define DPT_STATINFO   (('D'<<8)|70)
-#define DPT_CLRSTAT    (('D'<<8)|71)
-#define DPT_SYSINFO    (('D'<<8)|72)
+#define	EATAUSRCMD     (('D'<<8)|65)
+#define	DPT_DEBUG      (('D'<<8)|66)
+#define	DPT_SIGNATURE  (('D'<<8)|67)
+#define	DPT_NUMCTRLS   (('D'<<8)|68)
+#define	DPT_CTRLINFO   (('D'<<8)|69)
+#define	DPT_STATINFO   (('D'<<8)|70)
+#define	DPT_CLRSTAT    (('D'<<8)|71)
+#define	DPT_SYSINFO    (('D'<<8)|72)
 /* Set Timeout Value		*/
-#define DPT_TIMEOUT    (('D'<<8)|73)
+#define	DPT_TIMEOUT    (('D'<<8)|73)
 /* Get config Data  		*/
-#define DPT_CONFIG     (('D'<<8)|74)
+#define	DPT_CONFIG     (('D'<<8)|74)
 /* Get config Data  		*/
-#define DPT_BLINKLED   (('D'<<8)|75)
+#define	DPT_BLINKLED   (('D'<<8)|75)
 /* Get Statistical information (if available) */
-#define DPT_STATS_INFO        (('D'<<8)|80)
+#define	DPT_STATS_INFO        (('D'<<8)|80)
 /* Clear the statistical information          */
-#define DPT_STATS_CLEAR       (('D'<<8)|81)
+#define	DPT_STATS_CLEAR       (('D'<<8)|81)
 /* Send an I2O command */
-#define I2OUSRCMD	(('D'<<8)|76)
+#define	I2OUSRCMD	(('D'<<8)|76)
 /* Inform driver to re-acquire LCT information */
-#define I2ORESCANCMD	(('D'<<8)|77)
+#define	I2ORESCANCMD	(('D'<<8)|77)
 /* Inform driver to reset adapter */
-#define I2ORESETCMD	(('D'<<8)|78)
+#define	I2ORESETCMD	(('D'<<8)|78)
 
 #else  
 
@@ -262,45 +262,45 @@ typedef struct {
 # define _IO(x,y)	(((x)<<8)|y)
 #endif
 /* EATA PassThrough Command	*/
-#define EATAUSRCMD      _IOWR('D',65,EATA_CP)
+#define	EATAUSRCMD      _IOWR('D',65,EATA_CP)
 /* Set Debug Level If Enabled	*/
-#define DPT_DEBUG       _IOW('D',66,int)
+#define	DPT_DEBUG       _IOW('D',66,int)
 /* Get Signature Structure	*/
-#define DPT_SIGNATURE   _IOR('D',67,dpt_sig_S)
+#define	DPT_SIGNATURE   _IOR('D',67,dpt_sig_S)
 #if defined __bsdi__
-#define DPT_SIGNATURE_PACKED   _IOR('D',67,dpt_sig_S_Packed)
+#define	DPT_SIGNATURE_PACKED   _IOR('D',67,dpt_sig_S_Packed)
 #endif
 /* Get Number Of DPT Adapters	*/
-#define DPT_NUMCTRLS    _IOR('D',68,int)
+#define	DPT_NUMCTRLS    _IOR('D',68,int)
 /* Get Adapter Info Structure	*/
-#define DPT_CTRLINFO    _IOR('D',69,CtrlInfo)
+#define	DPT_CTRLINFO    _IOR('D',69,CtrlInfo)
 /* Get Statistics If Enabled	*/
-#define DPT_STATINFO    _IO('D',70)
+#define	DPT_STATINFO    _IO('D',70)
 /* Clear Stats If Enabled	*/
-#define DPT_CLRSTAT     _IO('D',71)
+#define	DPT_CLRSTAT     _IO('D',71)
 /* Get System Info Structure	*/
-#define DPT_SYSINFO     _IOR('D',72,sysInfo_S)
+#define	DPT_SYSINFO     _IOR('D',72,sysInfo_S)
 /* Set Timeout Value		*/
-#define DPT_TIMEOUT     _IO('D',73)
+#define	DPT_TIMEOUT     _IO('D',73)
 /* Get config Data  		*/
-#define DPT_CONFIG      _IO('D',74)
+#define	DPT_CONFIG      _IO('D',74)
 /* Get Blink LED Code	        */
-#define DPT_BLINKLED    _IOR('D',75,int)
+#define	DPT_BLINKLED    _IOR('D',75,int)
 /* Get Statistical information (if available) */
-#define DPT_STATS_INFO        _IOR('D',80,STATS_DATA)
+#define	DPT_STATS_INFO        _IOR('D',80,STATS_DATA)
 /* Clear the statistical information          */
-#define DPT_STATS_CLEAR       _IO('D',81)
+#define	DPT_STATS_CLEAR       _IO('D',81)
 /* Get Performance metrics */
-#define DPT_PERF_INFO        _IOR('D',82,dpt_perf_t)
+#define	DPT_PERF_INFO        _IOR('D',82,dpt_perf_t)
 /* Send an I2O command */
-#define I2OUSRCMD	_IO('D',76)
+#define	I2OUSRCMD	_IO('D',76)
 /* Inform driver to re-acquire LCT information */
-#define I2ORESCANCMD	_IO('D',77)
+#define	I2ORESCANCMD	_IO('D',77)
 /* Inform driver to reset adapter */
-#define I2ORESETCMD	_IO('D',78)
+#define	I2ORESETCMD	_IO('D',78)
 #if defined _DPT_LINUX
 /* See if the target is mounted */
-#define DPT_TARGET_BUSY	_IOR('D',79, TARGET_BUSY_T)
+#define	DPT_TARGET_BUSY	_IOR('D',79, TARGET_BUSY_T)
 #endif
 
 
@@ -308,17 +308,17 @@ typedef struct {
 
 		 /* Adapter Flags Field Bit Definitions */
 
-#define CTLR_INSTALLED  0x00000001  /* Adapter Was Installed        */
-#define CTLR_DMA        0x00000002  /* DMA Supported                */
-#define CTLR_OVERLAP    0x00000004  /* Overlapped Commands Support  */
-#define CTLR_SECONDARY  0x00000008  /* I/O Address Not 0x1f0        */
-#define CTLR_BLINKLED   0x00000010  /* Adapter In Blink LED State   */
-#define CTLR_HBACI      0x00000020  /* Cache Inhibit Supported      */
-#define CTLR_CACHE      0x00000040  /* Adapter Has Cache            */
-#define CTLR_SANE       0x00000080  /* Adapter Functioning OK       */
-#define CTLR_BUS_QUIET  0x00000100  /* Bus Quite On This Adapter    */
-#define CTLR_ABOVE_16   0x00000200  /* Support For Mem. Above 16 MB */
-#define CTLR_SCAT_GATH  0x00000400  /* Scatter Gather Supported     */
+#define	CTLR_INSTALLED  0x00000001  /* Adapter Was Installed        */
+#define	CTLR_DMA        0x00000002  /* DMA Supported                */
+#define	CTLR_OVERLAP    0x00000004  /* Overlapped Commands Support  */
+#define	CTLR_SECONDARY  0x00000008  /* I/O Address Not 0x1f0        */
+#define	CTLR_BLINKLED   0x00000010  /* Adapter In Blink LED State   */
+#define	CTLR_HBACI      0x00000020  /* Cache Inhibit Supported      */
+#define	CTLR_CACHE      0x00000040  /* Adapter Has Cache            */
+#define	CTLR_SANE       0x00000080  /* Adapter Functioning OK       */
+#define	CTLR_BUS_QUIET  0x00000100  /* Bus Quite On This Adapter    */
+#define	CTLR_ABOVE_16   0x00000200  /* Support For Mem. Above 16 MB */
+#define	CTLR_SCAT_GATH  0x00000400  /* Scatter Gather Supported     */
 
 
 /* Definitions - Structure & Typedef ---------------------------------------*/
@@ -335,7 +335,7 @@ typedef struct {
 		 uLONG     timeOut;
 	       } MsgHdr;
 
-#define MsgDataSize sizeof(MsgHdr) - 4
+#define	MsgDataSize sizeof(MsgHdr) - 4
 
 #ifndef SNI_MIPS
 
@@ -407,24 +407,24 @@ typedef struct EATACommandPacket {
 
                       /* Control Flags 1 Definitions */
 
-#define SCSI_RESET        0x01       /* Cause a SCSI Bus reset on the cmd */
-#define HBA_INIT          0x02       /* Cause Controller to reInitialize  */
-#define AUTO_REQ_SENSE    0x04       /* Do Auto Request Sense on errors   */
-#define SCATTER_GATHER    0x08       /* Data Ptr points to a SG Packet    */
-#define INTERPRET         0x20       /* Interpret the SCSI cdb of own use */
-#define DATA_OUT          0x04       /* Data Out phase with command       */
-#define DATA_IN           0x08       /* Data In phase with command        */
+#define	SCSI_RESET        0x01       /* Cause a SCSI Bus reset on the cmd */
+#define	HBA_INIT          0x02       /* Cause Controller to reInitialize  */
+#define	AUTO_REQ_SENSE    0x04       /* Do Auto Request Sense on errors   */
+#define	SCATTER_GATHER    0x08       /* Data Ptr points to a SG Packet    */
+#define	INTERPRET         0x20       /* Interpret the SCSI cdb of own use */
+#define	DATA_OUT          0x04       /* Data Out phase with command       */
+#define	DATA_IN           0x08       /* Data In phase with command        */
 
                       /* Control Flags 2 Definitions */
 
-#define FIRMWARE_NESTED   0x01
+#define	FIRMWARE_NESTED   0x01
 
 
                       /* Control Flags 3 Definitions */
 
-#define PHYSICAL_UNIT     0x01       /* Send Command Directly To Target   */
-#define IAT               0x02       /* Inhibit Address Translation       */
-#define HBACI             0x04       /* Inhibit Caching                   */
+#define	PHYSICAL_UNIT     0x01       /* Send Command Directly To Target   */
+#define	IAT               0x02       /* Inhibit Address Translation       */
+#define	HBACI             0x04       /* Inhibit Caching                   */
 
 
   /* Structure Returned From Get Controller Info                             */
@@ -479,8 +479,8 @@ typedef struct {
 
 #define	SDI_IOC        (('S'<<24)|('D'<<16)|('I'<<8))
 
-#define SDI_HBANAME    ((SDI_IOC)|0x14) /* Get HBA module name      */
-#define SDI_SEND       0x0081           /* Send a SCSI command      */
+#define	SDI_HBANAME    ((SDI_IOC)|0x14) /* Get HBA module name      */
+#define	SDI_SEND       0x0081           /* Send a SCSI command      */
 
 #else
 
@@ -545,8 +545,8 @@ typedef struct dpt_cfg {
 #endif /* _DPT_AIX */
 
 
-#define MAX_ELEMENT_COUNT        64
-#define MAX_BUCKET_COUNT         10
+#define	MAX_ELEMENT_COUNT        64
+#define	MAX_BUCKET_COUNT         10
 
 /*
  * DPT statistics structure definitions
