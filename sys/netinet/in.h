@@ -163,8 +163,8 @@
  *
  * When a user does a bind(2) or connect(2) with a port number of zero,
  * a non-conflicting local port address is chosen.
- * The default range is IPPORT_RESERVED through
- * IPPORT_USERRESERVED, although that is settable by sysctl.
+ * The default range is IPPORT_HIFIRSTAUTO through
+ * IPPORT_HILASTAUTO, although that is settable by sysctl.
  *
  * A user may set the IPPROTO_IP option IP_PORTRANGE to change this
  * default assignment range.
@@ -173,7 +173,8 @@
  *
  * The value IP_PORTRANGE_HIGH changes the range of candidate port numbers
  * into the "high" range.  These are reserved for client outbound connections
- * which do not want to be filtered by any firewalls.
+ * which do not want to be filtered by any firewalls.  Note that by default
+ * this is the same as IP_PORTRANGE_DEFAULT.
  *
  * The value IP_PORTRANGE_LOW changes the range to the "low" are
  * that is (by convention) restricted to privileged processes.  This
