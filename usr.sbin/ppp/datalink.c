@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.7 1998/05/29 18:32:10 brian Exp $
+ *	$Id: datalink.c,v 1.8 1998/06/12 17:45:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -389,14 +389,19 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-datalink_ComeDown(struct datalink *dl, int stay)
+datalink_ComeDown(struct datalink *dl, int how)
 {
-  if (stay) {
+  if (how != CLOSE_NORMAL) {
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
+    if (how == CLOSE_LCP)
+      dl->stayonline = 1;
   }
 
-  if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
+  if (dl->stayonline) {
+    dl->stayonline = 0;
+    datalink_NewState(dl, DATALINK_READY);
+  } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
     modem_Offline(dl->physical);
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       datalink_NewState(dl, DATALINK_HANGUP);
@@ -532,7 +537,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
       fsm_Close(fp);			/* back to CLOSED */
     fsm_Down(fp);			/* Bring us to INITIAL or STARTING */
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
-    datalink_ComeDown(dl, 0);
+    datalink_ComeDown(dl, CLOSE_NORMAL);
   } else if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
     fsm_Open(fp);		/* CCP goes to ST_STOPPED */
 }
@@ -562,6 +567,7 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   dl->phone.next = NULL;
   dl->phone.alt = NULL;
   dl->phone.chosen = "N/A";
+  dl->stayonline = 0;
   dl->script.run = 1;
   dl->script.packetmode = 1;
   mp_linkInit(&dl->mp);
@@ -728,7 +734,7 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 }
 
 void
-datalink_Close(struct datalink *dl, int stay)
+datalink_Close(struct datalink *dl, int how)
 {
   /* Please close */
   switch (dl->state) {
@@ -741,19 +747,21 @@ datalink_Close(struct datalink *dl, int stay)
     case DATALINK_AUTH:
     case DATALINK_LCP:
       fsm_Close(&dl->physical->link.lcp.fsm);
-      if (stay) {
+      if (how != CLOSE_NORMAL) {
         dl->dial_tries = -1;
         dl->reconnect_tries = 0;
+        if (how == CLOSE_LCP)
+          dl->stayonline = 1;
       }
       break;
 
     default:
-      datalink_ComeDown(dl, stay);
+      datalink_ComeDown(dl, how);
   }
 }
 
 void
-datalink_Down(struct datalink *dl, int stay)
+datalink_Down(struct datalink *dl, int how)
 {
   /* Carrier is lost */
   switch (dl->state) {
@@ -768,14 +776,14 @@ datalink_Down(struct datalink *dl, int stay)
       if (dl->physical->link.lcp.fsm.state == ST_STOPPED)
         fsm_Close(&dl->physical->link.lcp.fsm);		/* back to CLOSED */
       fsm_Down(&dl->physical->link.lcp.fsm);
-      if (stay)
+      if (how != CLOSE_NORMAL)
         fsm_Close(&dl->physical->link.lcp.fsm);
       else
         fsm_Open(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     default:
-      datalink_ComeDown(dl, stay);
+      datalink_ComeDown(dl, how);
   }
 }
 
@@ -783,6 +791,12 @@ void
 datalink_StayDown(struct datalink *dl)
 {
   dl->reconnect_tries = 0;
+}
+
+void
+datalink_DontHangup(struct datalink *dl)
+{
+  dl->stayonline = 1;
 }
 
 int

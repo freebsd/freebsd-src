@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.140 1998/06/12 17:45:08 brian Exp $
+ * $Id: command.c,v 1.141 1998/06/12 20:12:25 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/12 17:45:08 $";
+const char VersionDate[] = "$Date: 1998/06/12 20:12:25 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -872,26 +872,29 @@ OpenCommand(struct cmdargs const *arg)
 static int
 CloseCommand(struct cmdargs const *arg)
 {
-  if (arg->argc == arg->argn ||
-      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp")))
-    bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
-  else if (arg->argc == arg->argn+1 &&
-           (!strcasecmp(arg->argv[arg->argn], "ccp") ||
-            !strcasecmp(arg->argv[arg->argn], "ccp!"))) {
-    struct link *l;
-    struct fsm *fp;
+  if (arg->argc == arg->argn)
+    bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, CLOSE_STAYDOWN);
+  else if (arg->argc == arg->argn + 1) {
+    if (!strcasecmp(arg->argv[arg->argn], "lcp"))
+      bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, CLOSE_LCP);
+    else if (!strcasecmp(arg->argv[arg->argn], "ccp") ||
+             !strcasecmp(arg->argv[arg->argn], "ccp!")) {
+      struct link *l;
+      struct fsm *fp;
 
-    if (!(l = command_ChooseLink(arg)))
+      if (!(l = command_ChooseLink(arg)))
+        return -1;
+      fp = &l->ccp.fsm;
+
+      if (fp->state == ST_OPENED) {
+        fsm_Close(fp);
+        if (arg->argv[arg->argn][3] == '!')
+          fp->open_mode = 0;		/* Stay ST_CLOSED */
+        else
+          fp->open_mode = OPEN_PASSIVE;	/* Wait for the peer to start */
+      }
+    } else
       return -1;
-    fp = &l->ccp.fsm;
-
-    if (fp->state == ST_OPENED) {
-      fsm_Close(fp);
-      if (arg->argv[arg->argn][3] == '!')
-        fp->open_mode = 0;		/* Stay ST_CLOSED */
-      else
-        fp->open_mode = OPEN_PASSIVE;	/* Wait for the peer to start */
-    }
   } else
     return -1;
 
@@ -904,7 +907,7 @@ DownCommand(struct cmdargs const *arg)
   if (arg->argc == arg->argn ||
       (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp"))) {
     if (arg->cx)
-      datalink_Down(arg->cx, 1);
+      datalink_Down(arg->cx, CLOSE_STAYDOWN);
     else
       bundle_Down(arg->bundle);
   } else if (arg->argc == arg->argn+1 &&
