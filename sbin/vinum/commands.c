@@ -103,6 +103,8 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	    printf("%4d: %s", file_line, buffer);	    /* XXX */
 	ioctl(superdev, VINUM_CREATE, &buffer);
 	if (reply->error != 0) {			    /* error in config */
+	    if (!verbose)				    /* print this line anyway */
+		printf("%4d: %s", file_line, buffer);
 	    fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
 	    /* XXX at the moment, we reset the config
 	     * lock on error, so try to get it again.
