@@ -96,7 +96,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
-	u_int size;
+	size_t size;
 	int isvnunlocked = 0;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
@@ -196,8 +196,8 @@ nullfs_mount(mp, path, data, ndp, p)
 	mp->mnt_data = (qaddr_t) xmp;
 	vfs_getnewfsid(mp);
 
-	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
+	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname,
+	    MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)nullfs_statfs(mp, &mp->mnt_stat, p);
 	NULLFSDEBUG("nullfs_mount: lower %s, alias at %s\n",
