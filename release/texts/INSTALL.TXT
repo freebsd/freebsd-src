@@ -23,7 +23,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Tue Mar 24 00:56:14 PST 1998
+Last updated:   Sun Nov 29 03:32:14 PST 1998
 
 0.0     Quick Start
 ---     -----------
@@ -382,7 +382,7 @@ installation can continue over NFS or FTP.
         Options flag.
 
         In order for NFS installation to work, the server must also support
-        "subdir mounts", e.g. if your FreeBSD 2.2 distribution directory
+        "subdir mounts", e.g. if your FreeBSD 2.2.8 distribution directory
         lives on:  ziggy:/usr/archive/stuff/FreeBSD
         Then ziggy will have to allow the direct mounting of
         /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
@@ -409,7 +409,7 @@ installation can continue over NFS or FTP.
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/2.2-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD/2.2.8-RELEASE
 
         There are two FTP installation modes you can use:
 

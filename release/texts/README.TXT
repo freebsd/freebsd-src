@@ -1,8 +1,8 @@
    -----------------------------------------
-      FreeBSD 2.2.7  ---  STABLE  Version              ,        ,
+      FreeBSD 2.2.8  ---  RELEASE Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2.7-STABLE  version of FreeBSD!      /- _  `-/  '
+Welcome to the 2.2.8-RELEASE version of FreeBSD!      /- _  `-/  '
                                                      (/\/ \ \   /\
 This is a full release to follow 2.2.7-RELEASE,      / /   | `    \
 which was released in July, 1998.  Many bugs         O O   ) /    |
@@ -18,6 +18,20 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
+
+
+NOTE: Unless circumstances dictate otherwise, this is the *last* release
+      on the RELENG_2_2 branch.  As of 2.2.8-RELEASE, the 2.2-stable
+      branch is in maintenance mode only.  This means that certain critical
+      patches and security fixes may still go into the 2.2-stable tree from
+      time to time, but people are encouraged to transition to 3.0-stable
+      just as soon as it's created (est: Jan 1999) if they want to track
+      a new and "living" -stable branch.  The 3.0-current branch has not
+      yet been forked into the 3.1-current and 3.0-stable branches due to
+      the fact that we're giving feedback for 3.0-RELEASE more time to
+      come back before doing so.  This will result in less post-branch
+      work for the release engineers who would otherwise have to merge a
+      lot more changes from the very outset of the 3.0-stable branch.
 
 
             Most files here are also in the Documentation
@@ -68,15 +82,9 @@ o It is also important to check the ERRATA.TXT file for any
 
 o Information regarding problems which arise after the CD
   is printed can be found at:
-  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.7-RELEASE/ERRATA.TXT
+  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.8-RELEASE/ERRATA.TXT
 
-For the most up-to-date software along the RELENG_2_2 branch (also
-known as -Stable) which is now proceeding onwards toward the release
-of FreeBSD 2.2.8, please install from:
-
-        ftp://releng22.freebsd.org/pub/FreeBSD/
-
-Or for the latest 3.0-Current (HEAD branch) snapshot releases, please
+For the latest 3.0-Current (HEAD branch) snapshot releases, please
 install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
