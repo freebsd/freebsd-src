@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
 #else
 static const char rcsid[] =
-    "$Id: mknod.c,v 1.3 1996/07/30 17:43:21 bde Exp $";
+    "$Id: mknod.c,v 1.3.2.1 1997/03/12 19:05:01 bde Exp $";
 #endif
 #endif /* not lint */
 
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 int
 main(argc, argv)
@@ -80,39 +81,24 @@ main(argc, argv)
 		mode |= S_IFCHR;
 	else if (argv[2][0] == 'b')
 		mode |= S_IFBLK;
-	else {
-		(void)fprintf(stderr,
-		    "mknod: node must be type 'b' or 'c'\n");
-		exit(1);
-	}
+	else
+		errx(1, "node must be type 'b' or 'c'");
 
 	errno = 0;
 	major = (long)strtoul(argv[3], &endp, 0);
-	if (endp == argv[3] || *endp != '\0') {
-		(void)fprintf(stderr,
-		    "mknod: %s: non-numeric major number\n", argv[3]);
-		exit(1);
-	}
+	if (endp == argv[3] || *endp != '\0')
+		errx(1, "%s: non-numeric major number", argv[3]);
 	range_error = errno;
 	errno = 0;
 	minor = (long)strtoul(argv[4], &endp, 0);
-	if (endp == argv[4] || *endp != '\0') {
-		(void)fprintf(stderr,
-		    "mknod: %s: non-numeric minor number\n", argv[4]);
-		exit(1);
-	}
+	if (endp == argv[4] || *endp != '\0')
+		errx(1, "%s: non-numeric minor number", argv[4]);
 	range_error |= errno;
 	dev = makedev(major, minor);
-	if (range_error || major(dev) != major || minor(dev) != minor) {
-		(void)fprintf(stderr,
-		    "mknod: major or minor number too large\n");
-		exit(1);
-	}
+	if (range_error || major(dev) != major || minor(dev) != minor)
+		errx(1, "major or minor number too large");
 
-	if (mknod(argv[1], mode, dev) != 0) {
-		(void)fprintf(stderr,
-		    "mknod: %s: %s\n", argv[1], strerror(errno));
-		exit(1);
-	}
+	if (mknod(argv[1], mode, dev) != 0)
+		err(1, "%s", argv[1]);
 	exit(0);
 }
