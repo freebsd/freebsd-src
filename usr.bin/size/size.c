@@ -54,8 +54,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 
-int	show __P((int, const char *));
-static void	usage __P((void));
+int	show(int, const char *);
+static void	usage(void);
 
 int
 main(argc, argv)

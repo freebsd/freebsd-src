@@ -58,12 +58,12 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <time.h>
 #include <unistd.h>
 
-int	main __P((int, char *[]));
-int	rw __P((char *, struct stat *, int));
-void	stime_arg1 __P((char *, struct timeval *));
-void	stime_arg2 __P((char *, int, struct timeval *));
-void	stime_file __P((char *, struct timeval *));
-void	usage __P((void));
+int	main(int, char *[]);
+int	rw(char *, struct stat *, int);
+void	stime_arg1(char *, struct timeval *);
+void	stime_arg2(char *, int, struct timeval *);
+void	stime_file(char *, struct timeval *);
+void	usage(void);
 
 int
 main(argc, argv)

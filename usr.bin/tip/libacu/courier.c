@@ -61,7 +61,7 @@ static	jmp_buf timeoutbuf, intbuf;
 static	int coursync(), cour_connect(), cour_swallow();
 void	cour_nap();
 
-void cour_disconnect __P((void));
+void cour_disconnect(void);
 
 int
 cour_dialer(num, acu)

@@ -145,22 +145,22 @@ kvm_t *kd;
 #define	VMSTAT		0x20
 #define ZMEMSTAT	0x40
 
-static void	cpustats __P((void));
-static void	devstats __P((void));
-static void	domem __P((void));
-static void	dointr __P((void));
-static void	dosum __P((void));
-static void	dovmstat __P((u_int, int));
-static void	dozmem __P((void));
-static void	kread __P((int, void *, size_t));
-static void	needhdr __P((int));
-static void	printhdr __P((void));
-static void	usage __P((void));
+static void	cpustats(void);
+static void	devstats(void);
+static void	domem(void);
+static void	dointr(void);
+static void	dosum(void);
+static void	dovmstat(u_int, int);
+static void	dozmem(void);
+static void	kread(int, void *, size_t);
+static void	needhdr(int);
+static void	printhdr(void);
+static void	usage(void);
 
-static long	pct __P((long, long));
-static long	getuptime __P((void));
+static long	pct(long, long);
+static long	getuptime(void);
 
-char **getdrivedata __P((char **));
+char **getdrivedata(char **);
 
 int
 main(argc, argv)

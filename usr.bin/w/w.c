@@ -121,12 +121,12 @@ struct	entry {
 /* W_DISPHOSTSIZE should not be greater than UT_HOSTSIZE */
 #define	W_DISPHOSTSIZE	16
 
-static void		 pr_header __P((time_t *, int));
-static struct stat	*ttystat __P((char *, int));
-static void		 usage __P((int));
-static int		 this_is_uptime __P((const char *s));
+static void		 pr_header(time_t *, int);
+static struct stat	*ttystat(char *, int);
+static void		 usage(int);
+static int		 this_is_uptime(const char *s);
 
-char *fmt_argv __P((char **, char *, int));	/* ../../bin/ps/fmt.c */
+char *fmt_argv(char **, char *, int);	/* ../../bin/ps/fmt.c */
 
 int
 main(argc, argv)

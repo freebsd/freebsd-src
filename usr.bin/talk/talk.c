@@ -64,7 +64,7 @@ static const char copyright[] =
  *		Fixed to not run with unwriteable terminals MRVM 28/12/94
  */
 
-int main __P((int, char **));
+int main(int, char **);
 
 int
 main(argc, argv)

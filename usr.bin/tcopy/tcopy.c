@@ -67,11 +67,11 @@ int	filen, guesslen, maxblk = MAXREC;
 u_int64_t	lastrec, record, size, tsize;
 FILE	*msg;
 
-void	*getspace __P((int));
-void	 intr __P((int));
-static void	 usage __P((void));
-void	 verify __P((int, int, char *));
-void	 writeop __P((int, int));
+void	*getspace(int);
+void	 intr(int);
+static void	 usage(void);
+void	 verify(int, int, char *);
+void	 writeop(int, int);
 void	rewind_tape(int);
 
 int

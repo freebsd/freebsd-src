@@ -56,7 +56,7 @@ static const char sccsid[] = "@(#)regexp.c	8.1 (Berkeley) 6/6/93";
 #define TRUE	!(FALSE)
 #define NIL	0
 
-static void	expconv __P((void));
+static void	expconv(void);
 
 boolean	 _escaped;	/* true if we are currently _escaped */
 char	*s_start;	/* start of string */

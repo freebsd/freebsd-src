@@ -68,12 +68,12 @@ static SPACE HS, PS, SS;
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static inline int	 applies __P((struct s_command *));
-static void		 flush_appends __P((void));
-static void		 lputs __P((char *));
-static inline int	 regexec_e __P((regex_t *, const char *, int, int, size_t));
-static void		 regsub __P((SPACE *, char *, char *));
-static int		 substitute __P((struct s_command *));
+static inline int	 applies(struct s_command *);
+static void		 flush_appends(void);
+static void		 lputs(char *);
+static inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
+static void		 regsub(SPACE *, char *, char *);
+static int		 substitute(struct s_command *);
 
 struct s_appends *appends;	/* Array of pointers to strings to append. */
 static int appendx;		/* Index into appends array. */

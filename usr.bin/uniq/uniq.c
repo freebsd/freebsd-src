@@ -62,12 +62,12 @@ static const char rcsid[] =
 int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
-FILE	*file __P((const char *, const char *));
-void	 show __P((FILE *, char *));
-char	*skip __P((char *));
-void	 obsolete __P((char *[]));
-static void	 usage __P((void));
-int      stricoll __P((char *, char*));
+FILE	*file(const char *, const char *);
+void	 show(FILE *, char *);
+char	*skip(char *);
+void	 obsolete(char *[]);
+static void	 usage(void);
+int      stricoll(char *, char*);
 
 int
 main (argc, argv)

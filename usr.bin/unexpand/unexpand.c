@@ -57,8 +57,8 @@ char	genbuf[BUFSIZ];
 char	linebuf[BUFSIZ];
 int	all;
 
-static void usage __P((void));
-void tabify __P((char));
+static void usage(void);
+void tabify(char);
 
 int
 main(argc, argv)

@@ -106,12 +106,12 @@ char  *rassoc;
 short **derives;
 char *nullable;
 
-static void create_file_names __P((void));
-static void getargs __P((int, char **));
-static void onintr __P((int));
-static void open_files __P((void));
-static void set_signals __P((void));
-static void usage __P((void));
+static void create_file_names(void);
+static void getargs(int, char **);
+static void onintr(int);
+static void open_files(void);
+static void set_signals(void);
+static void usage(void);
 
 
 void

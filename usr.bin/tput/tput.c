@@ -57,9 +57,9 @@ static const char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #undef putchar
 #define outc putchar
 
-static void   prlongname __P((char *));
-static void   usage __P((void));
-static char **process __P((const char *, char *, char **));
+static void   prlongname(char *);
+static void   usage(void);
+static char **process(const char *, char *, char **);
 
 int
 main(argc, argv)

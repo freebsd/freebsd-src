@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 uintmax_t tlinect, twordct, tcharct;
 int doline, doword, dochar;
 
-static int	cnt __P((const char *));
-static void	usage __P((void));
+static int	cnt(const char *);
+static void	usage(void);
 
 int
 main(argc, argv)

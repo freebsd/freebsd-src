@@ -56,8 +56,8 @@ static const char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
 
 int eflags, fold, foldwidth=80, none, markeol, debug;
 
-void process __P((FILE *));
-static void usage __P((void));
+void process(FILE *);
+static void usage(void);
 
 int
 main(argc, argv)

@@ -76,25 +76,25 @@ int	cflg;
 int	vflg;
 int	readstd;
 
-char lastchr __P((char *));
+char lastchr(char *);
 
-int fgetNUL __P((char *, int, FILE *));
-int istail __P((char *, char *));
-int octdigit __P((char));
-int xgetc __P((FILE *));
+int fgetNUL(char *, int, FILE *);
+int istail(char *, char *);
+int octdigit(char);
+int xgetc(FILE *);
 
-off_t hashit __P((char *, int));
-off_t yankstr __P((char **));
+off_t hashit(char *, int);
+off_t yankstr(char **);
 
-static void usage __P((void));
+static void usage(void);
 
-void flushsh __P((void));
-void found __P((int, off_t, char *));
-void inithash __P((void));
-void onintr __P((int));
-void process __P((const char *));
-void prstr __P((char *));
-void xsdotc __P((void));
+void flushsh(void);
+void found(int, off_t, char *);
+void inithash(void);
+void onintr(int);
+void process(const char *);
+void prstr(char *);
+void xsdotc(void);
 
 int
 main(argc, argv)

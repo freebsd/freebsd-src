@@ -70,8 +70,8 @@ static int	hcnt,			/* head count */
 		read_len;		/* length to read */
 static u_char	hbfr[sizeof(EXEC)];	/* buffer for struct exec */
 
-int getch __P((void));
-static void usage __P((void));
+int getch(void);
+static void usage(void);
 
 int
 main(argc, argv)

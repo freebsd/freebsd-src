@@ -53,7 +53,7 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #include <stdlib.h>
 #include <unistd.h>
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)

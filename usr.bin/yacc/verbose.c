@@ -48,16 +48,16 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "defs.h"
 
-static void log_unused __P((void));
-static void log_conflicts __P((void));
-static void print_actions __P((int));
-static void print_conflicts __P((int));
-static void print_core __P((int));
-static void print_gotos __P((int));
-static void print_nulls __P((int));
-static void print_reductions __P((action *, register int));
-static void print_shifts __P((action *));
-static void print_state __P((int));
+static void log_unused(void);
+static void log_conflicts(void);
+static void print_actions(int);
+static void print_conflicts(int);
+static void print_core(int);
+static void print_gotos(int);
+static void print_nulls(int);
+static void print_reductions(action *, register int);
+static void print_shifts(action *);
+static void print_state(int);
 
 static short *null_rules;
 

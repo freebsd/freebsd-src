@@ -62,17 +62,17 @@ short final_state;
 static int SRcount;
 static int RRcount;
 
-static action *add_reduce __P((action *, int, int));
-static action *add_reductions __P((int, action *));
-static void defreds __P((void));
-static void find_final_state __P((void));
-static void free_action_row __P((action *));
-static action *get_shifts __P((int));
-static action *parse_actions __P((int));
-static void remove_conflicts __P((void));
-static int sole_reduction __P((int));
-static void total_conflicts __P((void));
-static void unused_rules __P((void));
+static action *add_reduce(action *, int, int);
+static action *add_reductions(int, action *);
+static void defreds(void);
+static void find_final_state(void);
+static void free_action_row(action *);
+static action *get_shifts(int);
+static action *parse_actions(int);
+static void remove_conflicts(void);
+static int sole_reduction(int);
+static void total_conflicts(void);
+static void unused_rules(void);
 
 
 void

@@ -50,7 +50,7 @@ static const char rcsid[] =
 #endif
 #define FAIL -1
 
-static void usage __P((void));
+static void usage(void);
 
 static void
 usage()

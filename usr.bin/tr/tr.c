@@ -94,8 +94,8 @@ static int string1[NCHARS] = {
 STR s1 = { STRING1, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 STR s2 = { STRING2, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 
-static void setup __P((int *, char *, STR *, int));
-static void usage __P((void));
+static void setup(int *, char *, STR *, int);
+static void usage(void);
 
 int
 main(argc, argv)

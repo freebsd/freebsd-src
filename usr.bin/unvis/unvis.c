@@ -51,8 +51,8 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <vis.h>
 
-void process __P((FILE *, const char *));
-static void usage __P((void));
+void process(FILE *, const char *);
+static void usage(void);
 
 int
 main(argc, argv)

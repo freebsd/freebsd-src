@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 typedef struct {
@@ -47,4 +48,4 @@ typedef struct {
 #define	NCHARS	(UCHAR_MAX + 1)		/* Number of possible characters. */
 #define	OOBCH	(UCHAR_MAX + 1)		/* Out of band character value. */
 
-int	 next __P((STR *));
+int	 next(STR *);
