@@ -30,6 +30,7 @@ ia64/ia64/db_disasm.c		optional	ddb
 ia64/ia64/db_interface.c	optional	ddb
 ia64/ia64/db_trace.c		optional	ddb
 ia64/ia64/efi.c			standard
+ia64/ia64/eficlock.c		standard
 ia64/ia64/elf_machdep.c		standard
 ia64/ia64/exception.s		standard
 ia64/ia64/in_cksum.c		optional	inet
@@ -53,7 +54,6 @@ ia64/ia64/setjmp.s		standard
 ia64/ia64/ski.c			optional	ski
 ia64/ia64/support.s		standard
 ia64/ia64/ssc.c			optional	ski
-ia64/ia64/sscclock.c		optional	ski
 ia64/ia64/sscdisk.c		optional	ski
 ia64/ia64/swtch.s		standard
 ia64/ia64/sys_machdep.c		standard
