@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.46 1998/07/21 05:42:32 jkh Exp $
+ * $Id: dist.c,v 1.73.2.47 1998/07/21 06:09:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,6 +197,8 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
+    if (XF86Dists || XF86ServerDists || XF86FontDists)
+	Dists |= DIST_XF86;
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
@@ -260,13 +262,12 @@ distSetXDeveloper(dialogMenuItem *self)
 {
     int i;
 
-    distReset(NULL);
-    Dists = _DIST_DEVELOPER | DIST_XF86;
-    SrcDists = DIST_SRC_ALL;
+    i = distSetDeveloper(self);
+    Dists |= DIST_XF86;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i |= distSetXF86(NULL);
     distVerifyFlags();
     return i;
 }
@@ -301,12 +302,12 @@ distSetXUser(dialogMenuItem *self)
 {
     int i;
 
-    distReset(NULL);
-    Dists = _DIST_USER | DIST_XF86;
+    i = distSetUser(self);
+    Dists |= DIST_XF86;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i |= distSetXF86(NULL);
     distVerifyFlags();
     return i;
 }
@@ -324,7 +325,7 @@ distSetEverything(dialogMenuItem *self)
 {
     int i;
 
-    Dists = DIST_ALL;
+    Dists = DIST_ALL | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
@@ -774,6 +775,7 @@ distExtractAll(dialogMenuItem *self)
     if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
+    distVerifyFlags();
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */

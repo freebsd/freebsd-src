@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.62 1998/03/13 11:13:28 jkh Exp $
+ * $Id: config.c,v 1.51.2.63 1998/03/23 09:18:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -542,8 +542,8 @@ configXEnvironment(dialogMenuItem *self)
     }
     else {
 	dialog_clear_norefresh();
-	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
-		   "The XFree86 distribution before attempting to configure it.");
+	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
+		   "Please install this before attempting to configure XFree86.");
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
 }
