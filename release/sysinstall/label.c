@@ -309,7 +309,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     strcpy(ret->newfs_cmd, "newfs ");
     strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
-    ret->soft = 0;
+    ret->soft = strcmp(mpoint, "/") ? 1 : 0;
     if (!size)
 	return ret;
     return ret;
