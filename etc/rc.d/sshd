@@ -17,6 +17,30 @@ start_precmd="sshd_precmd"
 pidfile="/var/run/${name}.pid"
 extra_commands="keygen reload"
 
+timeout=300
+
+user_reseed()
+{
+	(
+	seeded=`sysctl -n kern.random.sys.seeded 2>/dev/null`
+	if [ "${seeded}" != "" ] ; then
+		warn "Setting entropy source to blocking mode."
+		echo "===================================================="
+		echo "Type a full screenful of random junk to unblock"
+		echo "it and remember to finish with <enter>. This will"
+		echo "timeout in ${timeout} seconds, but waiting for"
+		echo "the timeout without typing junk may make the"
+		echo "entropy source deliver predictable output."
+		echo ""
+		echo "Just hit <enter> for fast+insecure startup."
+		echo "===================================================="
+		sysctl kern.random.sys.seeded=0 2>/dev/null
+		read -t ${timeout} junk
+		echo "${junk}" `sysctl -a` `date` > /dev/random
+	fi
+	)
+}
+
 sshd_keygen()
 {
 	(
@@ -60,6 +84,7 @@ sshd_precmd()
 	if [ ! -f /etc/ssh/ssh_host_key -o \
 	    ! -f /etc/ssh/ssh_host_dsa_key -o \
 	    ! -f /etc/ssh/ssh_host_rsa_key ]; then
+		user_reseed
 		run_rc_command keygen
 	fi
 }
