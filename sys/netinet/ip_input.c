@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.39 1996/03/25 17:41:23 phk Exp $
+ * $Id: ip_input.c,v 1.40 1996/04/03 13:52:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -255,7 +255,7 @@ ip_input(struct mbuf *m)
 
 	if (ip_fw_chk_ptr &&
 	    !(*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m))
-		goto bad;
+		return;
 
 	/*
 	 * Process options and, if not destined for us,
