@@ -30,19 +30,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 1999
+.Dd August 14, 2004
 .Dt DC 4
 .Os
 .Sh NAME
 .Nm dc
-.Nd "DEC/Intel 21143 and clone 10/100 ethernet driver"
+.Nd "DEC/Intel 21143 and clone 10/100 Ethernet driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device dc"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for several PCI fast ethernet adapters and
+driver provides support for several PCI Fast Ethernet adapters and
 embedded controllers based on the following chipsets:
 .Pp
 .Bl -bullet -compact -offset indent
@@ -117,12 +117,17 @@ Adico AE310TX (98715A)
 .It
 Alfa Inc GFC2204 (ASIX AX88140A)
 .It
-Built in 10Mbps only ethernet on Compaq Presario 7900 series
+Built in 10Mbps only Ethernet on Compaq Presario 7900 series
 desktops (21143, non-MII)
 .It
 Built in DE500-BA on DEC Alpha workstations (21143, non-MII)
 .It
-Built in ethernet on LinkSys EtherFast 10/100 Instant GigaDrive (DM9102, MII)
+Built in Sun DMFE 10/100 Mbps Ethernet on Sun Netra X1 and Sun Fire V100
+(DM9102A, MII, see the
+.Sx NOTES
+section below)
+.It
+Built in Ethernet on LinkSys EtherFast 10/100 Instant GigaDrive (DM9102, MII)
 .It
 CNet Pro110B (ASIX AX88140A)
 .It
@@ -214,7 +219,7 @@ implies
 .Ar half-duplex
 mode.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Ar mediaopt
 option can also be used to enable
@@ -242,6 +247,28 @@ Note that the 100baseTX media type may not be available on certain
 Intel 21143 adapters which support 10Mbps media attachments only.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh NOTES
+On sparc64 the
+.Nm
+driver respects the
+.Va local-mac-address?
+system configuration variable for the built in Sun DMFE 10/100 Mbps Ethernet
+interfaces on Sun Netra X1 and Sun Fire V100.
+This system configuration variable can be set in the Open Firmware boot
+monitor using the
+.Ic setenv
+command or by
+.Xr eeprom 8 .
+If set to
+.Dq Li false
+(the default), the
+.Nm
+driver will use the system's default MAC address for both of the built in
+devices.
+If set to
+.Dq Li true ,
+the unique MAC address of each interface is used rather than the system's
+default MAC address.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "dc%d: couldn't map ports/memory"
@@ -303,6 +330,7 @@ the card should be configured correctly.
 .Xr miibus 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
+.Xr eeprom 8 ,
 .Xr ifconfig 8
 .Rs
 .%T ADMtek AL981, AL983 and AL985 data sheets
