@@ -185,7 +185,7 @@ struct trapframe;
  * 
  * It is important to remember that a particular thread structure only
  * exists as long as the system call or kernel entrance (e.g. by pagefault)
- * which it is currently executing. It should threfore NEVER be referenced
+ * which it is currently executing. It should therefore NEVER be referenced
  * by pointers in long lived structures that live longer than a single
  * request. If several threads complete their work at the same time,
  * they will all rewind their stacks to the user boundary, report their
@@ -216,7 +216,7 @@ struct kse;
 /*
  * The KSEGRP is allocated resources across a number of CPUs.
  * (Including a number of CPUxQUANTA. It parcels these QUANTA up among
- * Its KSEs, each of which should be running in a different CPU.
+ * its KSEs, each of which should be running in a different CPU.
  * BASE priority and total available quanta are properties of a KSEGRP.
  * Multiple KSEGRPs in a single process compete against each other
  * for total quanta in the same way that a forked child competes against
@@ -258,7 +258,7 @@ They would be given priorities calculated from the KSEG.
  * This is what is put to sleep and reactivated.
  * The first KSE available in the correct group will run this thread.
  * If several are available, use the one on the same CPU as last time.
- * When waing to be run, threads are hung off the KSEGRP in priority order.
+ * When wating to be run, threads are hung off the KSEGRP in priority order.
  * with N runnable and queued KSEs in the KSEGRP, the first N threads
  * are linked to them. Other threads are not yet assigned.
  */
