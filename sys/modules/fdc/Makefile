@@ -20,8 +20,6 @@ SRCS+=	opt_fdc.h bus_if.h card_if.h device_if.h \
 
 FDC_DEBUG?=	0	# 0/1
 
-opt_fdc.h:
-	touch ${.TARGET}
 .if ${FDC_DEBUG} > 0
 	echo "#define FDC_DEBUG 1" >> ${.TARGET}
 .endif
