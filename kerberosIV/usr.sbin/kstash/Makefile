@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kstash
-MAN8=		${KRB4DIR}/man/kstash.8
+MAN=		${KRB4DIR}/man/kstash.8
 SRCS=		kstash.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
