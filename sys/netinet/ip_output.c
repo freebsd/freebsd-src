@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.8 1994/09/14 03:10:13 wollman Exp $
+ * $Id: ip_output.c,v 1.9 1994/11/16 10:17:10 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -414,8 +414,10 @@ done:
 	 * those we forward.
 	 * Here we want to convert ip_len to host byte order when counting
 	 * so we set 3rd arg to 1.
+	 * This is locally generated packet so it has not
+	 * incoming interface.
 	 */
-	ip_acct_cnt(ip,ip_acct_chain,1);
+	ip_acct_cnt(ip,NULL,ip_acct_chain,1);
 #endif
 	return (error);
 bad:
