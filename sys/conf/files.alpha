@@ -31,6 +31,7 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	clean		"atkbdmap.h"
 #
 alpha/alpha/alpha-gdbstub.c	optional	ddb
+alpha/alpha/alphadump.c		standard
 alpha/alpha/api_up1000.c	optional	api_up1000
 alpha/alpha/atomic.s		standard
 alpha/alpha/autoconf.c		standard
