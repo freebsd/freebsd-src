@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)trpt.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #if BSD >= 199103
 #define NEWVM
 #endif
