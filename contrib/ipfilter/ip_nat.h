@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.17.2.9 2000/10/19 15:44:04 darrenr Exp $
+ * $Id: ip_nat.h,v 2.17.2.10 2000/10/27 14:06:51 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -207,6 +207,7 @@ typedef	struct	natstat	{
 	u_int	ns_rultab_sz;
 	u_int	ns_rdrtab_sz;
 	nat_t	*ns_instances;
+	u_int	ns_wilds;
 } natstat_t;
 
 #define	IPN_ANY		0x000
