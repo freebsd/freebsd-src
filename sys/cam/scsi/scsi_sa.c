@@ -611,7 +611,7 @@ saclose(dev_t dev, int flag, int fmt, struct thread *td)
 		break;
 	default:
 		xpt_print_path(periph->path);
-		panic("unknown mode 0x%x in saclose\n", mode);
+		panic("unknown mode 0x%x in saclose", mode);
 		/* NOTREACHED */
 		break;
 	}
