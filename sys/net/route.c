@@ -350,6 +350,12 @@ ifa_ifwithroute(flags, dst, gateway)
 #define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
 static int rt_fixdelete(struct radix_node *, void *);
+static int rt_fixchange(struct radix_node *, void *);
+
+struct rtfc_arg {
+	struct rtentry *rt0;
+	struct radix_node_head *rnh;
+};
 
 int
 rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
@@ -466,6 +472,19 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		}
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
+		/*
+		 * We repeat the same procedure from rt_setgate() here because
+		 * it doesn't fire when we call it there because the node
+		 * hasn't been added to the tree yet.
+		 */
+		if (!(rt->rt_flags & RTF_HOST)) {
+			struct rtfc_arg arg;
+			arg.rnh = rnh;
+			arg.rt0 = rt;
+			rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
+					       rt_fixchange, &arg);
+		}
+
 		if (ret_nrt) {
 			*ret_nrt = rt;
 			rt->rt_refcnt++;
@@ -498,6 +517,87 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 	return 0;
 }
 
+/*
+ * This routine is called from rt_setgate() to do the analogous thing for
+ * adds and changes.  There is the added complication in this case of a 
+ * middle insert; i.e., insertion of a new network route between an older
+ * network route and (cloned) host routes.  For this reason, a simple check
+ * of rt->rt_parent is insufficient; each candidate route must be tested
+ * against the (mask, value) of the new route (passed as before in vp)
+ * to see if the new route matches it.  Unfortunately, this has the obnoxious
+ * property of also triggering for insertion /above/ a pre-existing network 
+ * route and clones.  Sigh.  This may be fixed some day.
+ *
+ * XXX - it may be possible to do fixdelete() for changes and reserve this
+ * routine just for adds.  I'm not sure why I thought it was necessary to do
+ * changes this way.
+ */
+#ifdef DEBUG
+int rtfcdebug = 0;
+#endif
+
+static int
+rt_fixchange(struct radix_node *rn, void *vp)
+{
+	struct rtentry *rt = (struct rtentry *)rn;
+	struct rtfc_arg *ap = vp;
+	struct rtentry *rt0 = ap->rt0;
+	struct radix_node_head *rnh = ap->rnh;
+	u_char *xk1, *xm1, *xk2;
+	int i, len;
+
+#ifdef DEBUG
+	if (rtfcdebug)
+		printf("rt_fixchange: rt %p, rt0 %p\n", rt, rt0);
+#endif
+
+	if (!rt->rt_parent || (rt->rt_flags & RTF_PINNED)) {
+#ifdef DEBUG
+		if(rtfcdebug) printf("no parent or pinned\n");
+#endif
+		return 0;
+	}
+
+	if (rt->rt_parent == rt0) {
+#ifdef DEBUG
+		if(rtfcdebug) printf("parent match\n");
+#endif
+		return rtrequest(RTM_DELETE, rt_key(rt), 
+				 (struct sockaddr *)0, rt_mask(rt),
+				 rt->rt_flags, (struct rtentry **)0);
+	}
+
+	/*
+	 * There probably is a function somewhere which does this...
+	 * if not, there should be.
+	 */	
+	len = imin(((struct sockaddr *)rt_key(rt0))->sa_len,
+		   ((struct sockaddr *)rt_key(rt))->sa_len);
+
+	xk1 = (u_char *)rt_key(rt0);
+	xm1 = (u_char *)rt_mask(rt0);
+	xk2 = (u_char *)rt_key(rt);
+
+	for (i = rnh->rnh_treetop->rn_off; i < len; i++) {
+		if ((xk2[i] & xm1[i]) != xk1[i]) {
+#ifdef DEBUG
+			if(rtfcdebug) printf("no match\n");
+#endif
+			return 0;
+		}
+	}
+
+	/*
+	 * OK, this node is a clone, and matches the node currently being
+	 * changed/added under the node's mask.  So, get rid of it.
+	 */
+#ifdef DEBUG
+	if(rtfcdebug) printf("deleting\n");
+#endif
+	return rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
+			 rt_mask(rt), rt->rt_flags, (struct rtentry **)0);
+}
+
 int
 rt_setgate(rt0, dst, gate)
 	struct rtentry *rt0;
@@ -506,6 +606,7 @@ rt_setgate(rt0, dst, gate)
 	caddr_t new, old;
 	int dlen = ROUNDUP(dst->sa_len), glen = ROUNDUP(gate->sa_len);
 	register struct rtentry *rt = rt0;
+	struct radix_node_head *rnh = rt_tables[dst->sa_family];
 
 	if (rt->rt_gateway == 0 || glen > ROUNDUP(rt->rt_gateway->sa_len)) {
 		old = (caddr_t)rt_key(rt);
@@ -526,9 +627,38 @@ rt_setgate(rt0, dst, gate)
 		rt = rt->rt_gwroute; RTFREE(rt);
 		rt = rt0; rt->rt_gwroute = 0;
 	}
+	/*
+	 * Cloning loop avoidance:
+	 * In the presence of protocol-cloning and bad configuration,
+	 * it is possible to get stuck in bottomless mutual recursion
+	 * (rtrequest rt_setgate rtalloc1).  We avoid this by not allowing
+	 * protocol-cloning to operate for gateways (which is probably the
+	 * correct choice anyway), and avoid the resulting reference loops
+	 * by disallowing any route to run through itself as a gateway.
+	 * This is obviuosly mandatory when we get rt->rt_output().
+	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
-		rt->rt_gwroute = rtalloc1(gate, 1, 0UL);
+		rt->rt_gwroute = rtalloc1(gate, 1, RTF_PRCLONING);
+		if (rt->rt_gwroute == rt) {
+			RTFREE(rt->rt_gwroute);
+			rt->rt_gwroute = 0;
+			return 1; /* failure */
+		}
 	}
+
+	/*
+	 * This isn't going to do anything useful for host routes, so
+	 * don't bother.  Also make sure we have a reasonable mask
+	 * (we don't yet have one during adds).
+	 */
+	if (!(rt->rt_flags & RTF_HOST) && rt_mask(rt) != 0) {
+		struct rtfc_arg arg;
+		arg.rnh = rnh;
+		arg.rt0 = rt;
+		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt), 
+				       rt_fixchange, &arg);
+	}
+
 	return 0;
 }
 
