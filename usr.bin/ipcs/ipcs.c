@@ -134,8 +134,7 @@ struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { NULL } };
 static kvm_t *kd;
 
 char   *
-fmt_perm(mode)
-	u_short mode;
+fmt_perm(u_short mode)
 {
 	static char buffer[100];
 
@@ -155,9 +154,7 @@ fmt_perm(mode)
 }
 
 void
-cvt_time(t, buf)
-	time_t  t;
-	char   *buf;
+cvt_time(time_t t, char *buf)
 {
 	struct tm *tm;
 
@@ -183,9 +180,7 @@ cvt_time(t, buf)
 #define TIME		16
 
 int
-main(argc, argv)
-	int     argc;
-	char   *argv[];
+main(int argc, char *argv[])
 {
 	int     display = SHMINFO | MSGINFO | SEMINFO;
 	int     option = 0;
@@ -558,10 +553,7 @@ main(argc, argv)
 }
 
 void
-sysctlgatherstruct(addr, size, vecarr)
-	void *addr;
-	size_t size;
-	struct scgs_vector *vecarr;
+sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
 {
 	struct scgs_vector *xp;
 	size_t tsiz;
@@ -581,10 +573,7 @@ sysctlgatherstruct(addr, size, vecarr)
 }
 
 void
-kget(idx, addr, size)
-	int idx;
-	void *addr;
-	size_t size;
+kget(int idx, void *addr, size_t size)
 {
 	char *symn;			/* symbol name */
 	size_t tsiz;
@@ -681,7 +670,7 @@ user2uid(char *username)
 }
 
 void
-usage()
+usage(void)
 {
 
 	fprintf(stderr,
