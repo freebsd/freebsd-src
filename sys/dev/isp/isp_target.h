@@ -409,9 +409,9 @@ typedef struct {
 	isphdr_t	ct_header;
 	u_int16_t	ct_reserved;
 	u_int16_t	ct_fwhandle;	/* just to match CTIO */
-	u_int8_t	ct_lun;	/* lun */
-	u_int8_t	ct_iid;	/* initiator id */
-	u_int16_t	ct_rxid; /* response ID */
+	u_int8_t	ct_lun;		/* lun */
+	u_int8_t	ct_iid;		/* initiator id */
+	u_int16_t	ct_rxid;	/* response ID */
 	u_int16_t	ct_flags;
 	u_int16_t 	ct_status;	/* isp status */
 	u_int16_t	ct_timeout;
