@@ -137,7 +137,7 @@ ttsetcompat(tp, com, data, term)
 		cc[VSTOP] = tc->t_stopc;
 		cc[VEOF] = tc->t_eofc;
 		cc[VEOL] = tc->t_brkc;
-		if (tc->t_brkc == -1)
+		if (tc->t_brkc == (char)_POSIX_VDISABLE)
 			cc[VEOL2] = _POSIX_VDISABLE;
 		*com = TIOCSETA;
 		break;
