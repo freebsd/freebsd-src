@@ -156,8 +156,8 @@
 #include <sys/vnode.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/disk.h>
 #include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/lock.h>
 #include <sys/reboot.h>
 #include <sys/module.h>
@@ -198,42 +198,21 @@ static void InitBP(struct bio *, struct vnode *, unsigned rw_flag,
 		   RF_SectorCount_t numSect, caddr_t buf,
 		   void (*cbFunc) (struct bio *), void *cbArg, 
 		   int logBytesPerSector, struct proc * b_proc);
-static dev_t raidinit(RF_Raid_t *);
+static struct raid_softc *raidinit(RF_Raid_t *);
 static void rf_search_label(dev_t, struct disklabel *,
 			    RF_AutoConfig_t **) __unused;
 
 static int	raid_modevent(module_t, int, void*);
 void		raidattach(void);
-d_psize_t	raidsize;
-d_open_t	raidopen;
-d_close_t	raidclose;
-d_ioctl_t	raidioctl;
-d_write_t	raidwrite;
-d_read_t	raidread;
-d_strategy_t	raidstrategy;
-#if 0
-d_dump_t	raiddump;
-#endif
+
+disk_open_t	raidopen;
+disk_close_t	raidclose;
+disk_ioctl_t	raidioctl;
+disk_strategy_t	raidstrategy;
 
 d_open_t	raidctlopen;
 d_close_t	raidctlclose;
 d_ioctl_t	raidctlioctl;
-
-static struct cdevsw raid_cdevsw = {
-	raidopen,
-	raidclose,
-	raidread,
-	raidwrite,
-	raidioctl,
-	nopoll,
-	nommap,
-	raidstrategy,
-	"raid",
-	200,
-	nodump,
-	nopsize,
-	D_DISK,
-};
 
 static struct cdevsw raidctl_cdevsw = {
 	raidctlopen,
@@ -250,8 +229,6 @@ static struct cdevsw raidctl_cdevsw = {
 	nopsize,
 	0,
 };
-
-static struct cdevsw raiddisk_cdevsw;
 
 /*
  * Pilfered from ccd.c
@@ -275,17 +252,16 @@ struct raidctl_softc {
 	dev_t	sc_dev;		/* Device node */
 	int	sc_flags;	/* flags */
 	int	sc_numraid;	/* Number of configured raid devices */
-	dev_t	sc_raiddevs[RF_MAX_ARRAYS];
+	struct raid_softc *sc_raiddevs[RF_MAX_ARRAYS];
 };
 
 struct raid_softc {
-	dev_t	sc_dev;		/* Our device */
 	dev_t	sc_parent_dev;
 	int     sc_flags;	/* flags */
 	int	sc_busycount;	/* How many times are we opened? */
 	size_t  sc_size;	/* size of the raid device */
 	dev_t	sc_parent;	/* Parent device */
-	struct disk		sc_dkdev;	/* generic disk device info */
+	struct disk		sc_disk;	/* generic disk device info */
  	uma_zone_t		sc_cbufpool;	/* component buffer pool */
 	RF_Raid_t		*raidPtr;	/* Raid information struct */
 	struct bio_queue_head	bio_queue;	/* used for the device queue */
@@ -615,7 +591,7 @@ out:
 		    (parent_sc->sc_raiddevs[unit] == NULL))
 			return (EINVAL);
 
-		sc = parent_sc->sc_raiddevs[unit]->si_drv1;
+		sc = parent_sc->sc_raiddevs[unit];
 		if ((retcode = raidlock(sc)) != 0)
 			return (retcode);
 
@@ -635,7 +611,7 @@ out:
 
 		devstat_remove_entry(&sc->device_stats);
 
-		disk_destroy(&sc->sc_dkdev);
+		disk_destroy(&sc->sc_disk);
 		raidunlock(sc);
 
 		/* XXX Need to be able to destroy the zone */
@@ -656,34 +632,20 @@ out:
 	return (retcode);
 }
 
-#if 0 /* XXX DUMP!!!! */
-int
-raiddump(dev)
-	dev_t   dev;
-{
-	/* Not implemented. */
-	return ENXIO;
-}
-#endif
-
 /* ARGSUSED */
 int
-raidopen(dev, flags, fmt, td)
-	dev_t   dev;
-	int     flags, fmt;
-	struct thread *td;
+raidopen(struct disk *dp)
 {
 	struct raid_softc *sc;
-	struct disk	*dp;
 	int     error = 0;
 
-	sc = dev->si_drv1;
+	sc = dp->d_drv1;
 
 	if ((error = raidlock(sc)) != 0)
 		return (error);
-	dp = &sc->sc_dkdev;
+	dp = &sc->sc_disk;
 
-	rf_printf(1, "Opening raid device %s\n", dev->si_name);
+	rf_printf(1, "Opening raid device %s%d\n", dp->d_name, dp->d_unit);
 
 	/* Generate overall disklabel */
 	raidgetdefaultlabel(sc->raidPtr, sc, dp);
@@ -712,15 +674,12 @@ raidopen(dev, flags, fmt, td)
 }
 /* ARGSUSED */
 int
-raidclose(dev, flags, fmt, td)
-	dev_t   dev;
-	int     flags, fmt;
-	struct thread *td;
+raidclose(struct disk *dp)
 {
 	struct raid_softc *sc;
 	int     error = 0;
 
-	sc = dev->si_drv1;
+	sc = dp->d_drv1;
 
 	if ((error = raidlock(sc)) != 0)
 		return (error);
@@ -742,7 +701,7 @@ raidstrategy(bp)
 	struct bio *bp;
 {
 	RF_Raid_t *raidPtr;
-	struct raid_softc *sc = bp->bio_dev->si_drv1;
+	struct raid_softc *sc = bp->bio_disk->d_drv1;
 	int     s;
 
 	raidPtr = sc->raidPtr;
@@ -779,42 +738,10 @@ raidstrategy(bp)
 }
 
 int
-raidread(dev, uio, flags)
-	dev_t   dev;
-	struct uio *uio;
-	int     flags;
-{
-	struct raid_softc *sc;
-
-	sc = dev->si_drv1;
-
-	return (physio(dev, uio, BIO_READ));
-
-}
-
-int
-raidwrite(dev, uio, flags)
-	dev_t   dev;
-	struct uio *uio;
-	int     flags;
-{
-	struct raid_softc *sc;
-	int ret;
-
-	sc = dev->si_drv1;
-
-	rf_printf(3, "raidwrite\n");
-	ret = physio(dev, uio, BIO_WRITE);
-
-	return (ret);
-
-}
-
-int
-raidioctl(dev, cmd, data, flag, td)
-	dev_t   dev;
+raidioctl(dp, cmd, data, flag, td)
+	struct disk *dp;
 	u_long  cmd;
-	caddr_t data;
+	void	*data;
 	int     flag;
 	struct thread *td;
 {
@@ -834,10 +761,10 @@ raidioctl(dev, cmd, data, flag, td)
 	int unit;
 	int i, j, d;
 
-	sc = dev->si_drv1;
+	sc = dp->d_drv1;
 	raidPtr = sc->raidPtr;
 
-	rf_printf(2, "raidioctl: %s %ld\n", dev->si_name, cmd);
+	rf_printf(2, "raidioctl: %s%d %ld\n", dp->d_name, dp->d_unit, cmd);
 
 	switch (cmd) {
 
@@ -1141,8 +1068,8 @@ raidioctl(dev, cmd, data, flag, td)
 		    || rr->col < 0 || rr->col >= raidPtr->numCol)
 			return (EINVAL);
 
-		rf_printf(0, "%s: Failing the disk: row: %d col: %d\n",
-		       dev->si_name, rr->row, rr->col);
+		rf_printf(0, "%s%d: Failing the disk: row: %d col: %d\n",
+		       dp->d_name, dp->d_unit, rr->row, rr->col);
 
 		/* make a copy of the recon request so that we don't rely on
 		 * the user's buffer */
@@ -1336,12 +1263,11 @@ raidioctl(dev, cmd, data, flag, td)
    RAIDframe device.  */
 
 
-static dev_t 
+static struct raid_softc *
 raidinit(raidPtr)
 	RF_Raid_t *raidPtr;
 {
 	struct raid_softc *sc;
-	dev_t	diskdev;
 
 	RF_Malloc(sc, sizeof(struct raid_softc), (struct raid_softc *));
 	if (sc == NULL) {
@@ -1362,14 +1288,14 @@ raidinit(raidPtr)
 	sc->sc_size = raidPtr->totalSectors;
 
 	/* Create the disk device */
-	diskdev = disk_create(raidPtr->raidid, &sc->sc_dkdev, 0, &raid_cdevsw,
-		    &raiddisk_cdevsw);
-	if (diskdev == NODEV) {
-		rf_printf(1, "disk_create failed\n");
-		return (NULL);
-	}
-	sc->sc_dkdev.d_dev->si_drv1 = sc;
-	sc->sc_dev = diskdev;
+	sc->sc_disk.d_open = raidopen;
+	sc->sc_disk.d_close = raidclose;
+	sc->sc_disk.d_ioctl = raidioctl;
+	sc->sc_disk.d_strategy = raidstrategy;
+	sc->sc_disk.d_drv1 = sc;
+	sc->sc_disk.d_maxsize = DFLTPHYS;
+	sc->sc_disk.d_name = "raid";
+	disk_create(raidPtr->raidid, &sc->sc_disk, 0, NULL, NULL);
 	raidPtr->sc = sc;
 
 	/* Register with devstat */
@@ -1377,7 +1303,7 @@ raidinit(raidPtr)
 			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_IF_OTHER, DEVSTAT_PRIORITY_ARRAY);
 
-	return (diskdev);
+	return (sc);
 }
 
 /* wake up the daemon & tell it to get us a spare table
@@ -1559,7 +1485,7 @@ rf_DispatchKernelIO(queue, req)
 
 	sc = queue->raidPtr->sc;
 
-	rf_printf(3, "DispatchKernelIO %s\n", sc->sc_dev->si_name);
+	rf_printf(3, "DispatchKernelIO %s\n", sc->sc_disk.d_name);
 
 	bp = req->bp;
 #if 1
@@ -1624,8 +1550,9 @@ rf_DispatchKernelIO(queue, req)
 		 * reqs at any other priority */
 		queue->curPriority = req->priority;
 
-		rf_printf(3, "Going for %c to %s row %d col %d\n",
-			req->type, sc->sc_dev->si_name, queue->row, queue->col);
+		rf_printf(3, "Going for %c to %s%d row %d col %d\n",
+			req->type, sc->sc_disk.d_name, 
+			sc->sc_disk.d_unit, queue->row, queue->col);
 		rf_printf(3, "sector %d count %d (%d bytes) %d\n",
 			(int) req->sectorOffset, (int) req->numSector,
 			(int) (req->numSector <<
@@ -1699,9 +1626,9 @@ KernelWakeupFunc(vbp)
 		/* but only mark it once... */
 		if (queue->raidPtr->Disks[queue->row][queue->col].status ==
 		    rf_ds_optimal) {
-			rf_printf(0, "%s: IO Error.  Marking %s as "
-			    "failed.\n", sc->sc_dev->si_name, queue->raidPtr->
-			    Disks[queue->row][queue->col].devname);
+			rf_printf(0, "%s%d: IO Error.  Marking %s as "
+			    "failed.\n", sc->sc_disk.d_name, sc->sc_disk.d_unit,
+			    queue->raidPtr->Disks[queue->row][queue->col].devname);
 			queue->raidPtr->Disks[queue->row][queue->col].status =
 			    rf_ds_failed;
 			queue->raidPtr->status[queue->row] = rf_rs_degraded;
