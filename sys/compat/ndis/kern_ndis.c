@@ -76,6 +76,7 @@ __stdcall static void ndis_status_func(ndis_handle, ndis_status,
 	void *, uint32_t);
 __stdcall static void ndis_statusdone_func(ndis_handle);
 __stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
+__stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 
 /*
@@ -118,6 +119,15 @@ ndis_setdone_func(adapter, status)
 	ndis_status		status;
 {
 	printf ("Setup done... %x\n", status);
+	return;
+}
+
+__stdcall static void
+ndis_getdone_func(adapter, status)
+	ndis_handle		adapter;
+	ndis_status		status;
+{
+	printf ("Query done... %x\n", status);
 	return;
 }
 
@@ -309,11 +319,24 @@ ndis_return_packet(packet, arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
+	ndis_packet		*p;
 	__stdcall ndis_return_handler	returnfunc;
+	uint32_t		t;
 
 	if (arg == NULL || packet == NULL)
 		return;
 
+	p = packet;
+
+	/* Decrement refcount. */
+	p->np_private.npp_count--;
+
+	/* Release packet when refcount hits zero, otherwise return. */
+	if (p->np_private.npp_count)
+		return;
+	t = *(uint32_t *)&p->u.np_clrsvd.np_miniport_rsvd[0];
+if (t == 0)
+printf ("returning %p %x\n", p, t);
 	sc = arg;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
@@ -439,6 +462,7 @@ ndis_ptom(m0, p)
 
 	priv = &p->np_private;
 	buf = priv->npp_head;
+	priv->npp_count = 0;
 
 	for (buf = priv->npp_head; buf != NULL; buf = buf->nb_next) {
 		if (buf == priv->npp_head)
@@ -450,25 +474,15 @@ ndis_ptom(m0, p)
 			*m0 = NULL;
 			return(ENOBUFS);
 		}
-
-		/*
-		 * Note: there's some hackery going on here. We want
-		 * to mate the mbufs to the buffers in the NDIS packet,
-		 * but we don't mark the mbufs with the M_EXT flag to
-		 * indicate external storage. This is because we don't
-		 * want anything special done to free the buffers.
-		 * Depending on the circumstances, the caller may want
-		 * the entire packet to be released, buffers and all,
-		 * by calling ndis_return_packet(), or ndis_free_packet().
-		 * We leave it up to the caller to do the MEXTADD() to
-		 * set up the free mechanism in the first mbuf of the
-		 * chain.
-		 */
 		if (buf->nb_bytecount > buf->nb_size)
 			m->m_len = buf->nb_size;
 		else
 			m->m_len = buf->nb_bytecount;
 		m->m_data = buf->nb_mappedsystemva;
+		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
+		    p->np_rsvd[0], 0, EXT_NDIS);
+		m->m_ext.ext_buf = (void *)p; /* XXX */
+		priv->npp_count++;
 		totlen += m->m_len;
 		if (m->m_flags & MT_HEADER)
 			*m0 = m;
@@ -524,7 +538,6 @@ ndis_mtop(m0, p)
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len == NULL)
 			continue;
-
 		buf = malloc(sizeof(ndis_buffer), M_DEVBUF, M_NOWAIT|M_ZERO);
 		if (buf == NULL) {
 			ndis_free_packet(*p);
@@ -651,20 +664,11 @@ ndis_init_dma(arg)
 	if (sc->ndis_tmaps == NULL)
 		return(ENOMEM);
 
-	sc->ndis_mbufs = malloc(sizeof(struct mbuf) * sc->ndis_maxpkts,
-	    M_DEVBUF, M_NOWAIT|M_ZERO);
-
-	if (sc->ndis_mbufs == NULL) {
-		free(sc->ndis_tmaps, M_DEVBUF);
-		return(ENOMEM);
-	}
-
 	for (i = 0; i < sc->ndis_maxpkts; i++) {
 		error = bus_dmamap_create(sc->ndis_ttag, 0,
 		    &sc->ndis_tmaps[i]);
 		if (error) {
 			free(sc->ndis_tmaps, M_DEVBUF);
-			free(sc->ndis_mbufs, M_DEVBUF);
 			return(ENODEV);
 		}
 	}
@@ -677,18 +681,24 @@ ndis_destroy_dma(arg)
 	void			*arg;
 {
 	struct ndis_softc	*sc;
+	struct mbuf		*m;
+	ndis_packet		*p = NULL;
 	int			i;
 
 	sc = arg;
 
 	for (i = 0; i < sc->ndis_maxpkts; i++) {
-		if (sc->ndis_mbufs[i] != NULL)
-			m_freem(sc->ndis_mbufs[i]);
+		if (sc->ndis_txarray[i] != NULL) {
+			p = sc->ndis_txarray[i];
+			m = (struct mbuf *)p->np_rsvd[1];
+			if (m != NULL)
+				m_freem(m);
+			ndis_free_packet(sc->ndis_txarray[i]);
+		}
 		bus_dmamap_destroy(sc->ndis_ttag, sc->ndis_tmaps[i]);
 	}
 
 	free(sc->ndis_tmaps, M_DEVBUF);
-	free(sc->ndis_mbufs, M_DEVBUF);
 
 	bus_dma_tag_destroy(sc->ndis_ttag);
 
@@ -1041,6 +1051,7 @@ ndis_load_driver(img, arg)
 
 	block->nmb_signature = (void *)0xcafebabe;
 	block->nmb_setdone_func = ndis_setdone_func;
+	block->nmb_querydone_func = ndis_getdone_func;
 	block->nmb_status_func = ndis_status_func;
 	block->nmb_statusdone_func = ndis_statusdone_func;
 	block->nmb_resetdone_func = ndis_resetdone_func;
