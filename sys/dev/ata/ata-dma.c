@@ -96,9 +96,35 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 
     switch (scp->chiptype) {
 
+    case 0x24118086:    /* Intel ICH */
+	if (udmamode >= 4) {
+	    int32_t mask48, new48;
+	    int16_t word54;
+
+	    word54 = pci_read_config(parent, 0x54, 2);
+	    if (word54 & (0x10 << devno)) {
+	        error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA4,  ATA_C_F_SETXFER,ATA_WAIT_READY);
+	    	if (bootverbose)
+		    ata_printf(scp, device,
+			       "%s setting up UDMA4 mode on ICH chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
+		    new48 = (1 << devno) + (2 << (16 + (devno << 2)));
+		    pci_write_config(parent, 0x48,
+				     (pci_read_config(parent, 0x48, 4) &
+				     ~mask48) | new48, 4);
+		    pci_write_config(parent, 0x54, word54 | (1 << devno), 2);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		    return;
+		}
+	    }
+	}           
+	/* FALLTHROUGH */
+
     case 0x71118086:	/* Intel PIIX4 */
     case 0x71998086:	/* Intel PIIX4e */
-    case 0x24118086:	/* Intel ICH */
     case 0x24218086:	/* Intel ICH0 */
 	if (udmamode >= 2) {
 	    int32_t mask48, new48;
