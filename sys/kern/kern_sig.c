@@ -1642,6 +1642,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 			abortsleep(td);
 	} else if (TD_IS_IDLE(td)) {
 		TD_CLR_IDLE(td);
+		setrunnable(td);
 	}
 #ifdef SMP
 	  else {
