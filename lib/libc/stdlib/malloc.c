@@ -308,7 +308,7 @@ wrtwarning(char *p)
  * Allocate a number of pages from the OS
  */
 static void *
-map_pages(int pages)
+map_pages(size_t pages)
 {
     caddr_t result, tail;
 
@@ -338,7 +338,7 @@ static int
 extend_pgdir(u_long index)
 {
     struct  pginfo **new, **old;
-    int i, oldlen;
+    u_long i, oldlen;
 
     /* Make it this many pages */
     i = index * sizeof *page_dir;
@@ -501,7 +501,7 @@ static void *
 malloc_pages(size_t size)
 {
     void *p, *delay_free = 0;
-    int i;
+    size_t i;
     struct pgfree *pf;
     u_long index;
 
@@ -827,9 +827,9 @@ irealloc(void *ptr, size_t size)
  */
 
 static __inline__ void
-free_pages(void *ptr, int index, struct pginfo *info)
+free_pages(void *ptr, u_long index, struct pginfo *info)
 {
-    int i;
+    u_long i;
     struct pgfree *pf, *pt=0;
     u_long l;
     void *tail;
@@ -957,7 +957,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
  */
 
 static __inline__ void
-free_bytes(void *ptr, int index, struct pginfo *info)
+free_bytes(void *ptr, u_long index, struct pginfo *info)
 {
     int i;
     struct pginfo **mp;
@@ -1022,7 +1022,7 @@ static void
 ifree(void *ptr)
 {
     struct pginfo *info;
-    int index;
+    u_long index;
 
     /* This is legal */
     if (!ptr)
