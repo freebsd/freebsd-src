@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_xpt.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -5360,7 +5360,7 @@ xptfinishconfigfunc(struct cam_ed *device, void *arg)
 				      device->target->target_id,
 				      device->lun_id)) != CAM_REQ_CMP) {
 		printf("xptfinishconfig: xpt_create_path failed with status"
-		       " %#x, halting bus configuration\n");
+		       " %#x, halting bus configuration\n", status);
 		return(0);
 	}
 
