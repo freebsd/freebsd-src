@@ -469,7 +469,9 @@ int
 iconv_lookupcp(char **cpp, const char *s)
 {
 	if (cpp == NULL) {
-		ICDEBUG("warning a NULL list passed\n");
+		ICDEBUG("warning a NULL list passed\n", ""); /* XXX ISO variadic								macros cannot
+								leave out the
+								variadic args */
 		return ENOENT;
 	}
 	for (; *cpp; cpp++)
