@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.12 1995/10/22 21:38:12 jkh Exp $
+ * $Id: installPreconfig.c,v 1.13 1995/10/23 13:19:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,7 +168,7 @@ installPreconfig(char *str)
 	    dialog_clear();
 	    if (msgYesNo("Unable to find the configuration file: %s\n"
 			 "Do you want to try again?", buf)) {
-		unmount("/mnt2", 0);
+		unmount("/mnt2", MNT_FORCE);
 		break;
 	    }
 	    else
@@ -204,7 +204,7 @@ installPreconfig(char *str)
 		}
 		else if (i == RET_FAIL) {
 		    dialog_clear();
-		    msgConfirm("Configuration file %s loaded with some errors.\n", buf);
+		    msgConfirm("Configuration file %s loaded with some errors.", buf);
 		}
 	    }
 	    close(fd);
