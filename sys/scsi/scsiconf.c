@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.101 1997/12/30 22:26:51 nate Exp $
+ *      $Id: scsiconf.c,v 1.102 1998/01/21 08:03:37 ache Exp $
  */
 
 #include "opt_scsi.h"
@@ -274,6 +274,10 @@ static struct scsidevs knowndevs[] =
 	{
 		T_DIRECT, T_DIRECT, T_FIXED, "IFT", "*" , "*",
 		"sd", SC_MORE_LUS
+	},
+	{
+		T_DIRECT, T_DIRECT, T_REMOV, "iomega", "jaz*", "*",
+		"sd", SD_Q_NO_TAGS
 	},
 #endif	/* NSD */
 #if NST > 0
