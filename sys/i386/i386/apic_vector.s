@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.18 1997/07/30 22:46:49 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.13 1997/07/31 05:42:05 fsmp Exp $
  */
 
 
@@ -45,6 +45,7 @@
 	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
 7: ;									\
+	lock ;					/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
 	IMASK_UNLOCK ;				/* exit critical reg */	\
 	movl	$0, lapic_eoi ;			/* do the EOI */	\
@@ -70,6 +71,7 @@
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+	lock ;					/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
 	movl	$0, lapic_eoi ;			/* do the EOI */	\
 	IMASK_UNLOCK ;				/* exit critical reg */	\
@@ -206,6 +208,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 3: ;									\
 	/* XXX skip mcounting here to avoid double count */		\
+	lock ;					/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	REL_ISRLOCK(irq_num) ;						\
 	popl	%es ;							\
