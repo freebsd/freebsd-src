@@ -8,7 +8,7 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.18 2003/01/20 07:16:58 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.19 2003/02/06 21:56:00 ue Exp $
 	basiert auf: 1.19
 -->
 
@@ -39,10 +39,6 @@
 
     <authorgroup>
       <corpauthor>Das &os; Projekt</corpauthor>
-
-      <collab>
-        <collabname>Deutsche &Uuml;bersetzung von Udo Erdelhoff</collabname>
-      </collab>
     </authorgroup>
 
     <pubdate>$FreeBSD$</pubdate>

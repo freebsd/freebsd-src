@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.25 2003/01/13 20:30:47 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.26 2003/02/06 21:56:01 ue Exp $
   basiert auf: 1.54
 -->
 
@@ -13,16 +13,6 @@
         <surname>Bulte</surname>
 
         <contrib>Gepflegt von </contrib>
-      </author>
-    </authorgroup>
-
-    <authorgroup>
-      <author>
-        <firstname>Udo</firstname>
-
-        <surname>Erdelhoff</surname>
-
-        <contrib>&Uuml;bersetzt von </contrib>
       </author>
     </authorgroup>
   </sect1info>
