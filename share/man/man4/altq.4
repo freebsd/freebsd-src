@@ -79,7 +79,7 @@ discipline.
 .It Dv ALTQ_CDNR
 build the traffic conditioner.
 This option is meaningless at the moment as the conditioner is not used by
-any of the available disciplines or consumer.
+any of the available disciplines or consumers.
 .It Dv ALTQ_PRIQ
 build the
 .Dq "Priority Queuing"
@@ -92,7 +92,7 @@ enable additional debugging facilities.
 .Pp
 Note that
 .Nm Ns -disciplines
-can not be loaded as kernel modules.
+cannot be loaded as kernel modules.
 In order to use a certain discipline you have to build it into a custom
 kernel.
 The
@@ -103,9 +103,9 @@ can be loaded as a module.
 .Sh SUPPORTED DEVICES
 The driver modifications described in
 .Xr altq 9
-and required to use a certain network card with
-.Nm
-have been applied to the following hardware drivers
+are required to use a certain network card with
+.Nm .
+They have been applied to the following hardware drivers:
 .Xr an 4 ,
 .Xr ath 4 ,
 .Xr awi 4 ,
