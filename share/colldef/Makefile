@@ -3,7 +3,8 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        cs_CZ.ISO8859-2 \
+LOCALES=	bg_BG.CP1251 \
+		cs_CZ.ISO8859-2 \
 		de_DE.ISO8859-15 \
 		de_DE.ISO8859-1 \
 		el_GR.ISO8859-7 \
@@ -49,6 +50,7 @@ DELINKS = de_AT de_CH
 
 all: ${LOCALES:S/$/.out/g}
 
+bg_BG.CP1251.out:	map.CP1251
 cs_CZ.ISO8859-2.out:    map.ISO8859-2
 de_DE.ISO8859-15.out:   map.ISO8859-15
 de_DE.ISO8859-1.out:    map.ISO8859-1
