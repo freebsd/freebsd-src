@@ -243,8 +243,11 @@ vm_object_reference(object)
 	if (object == NULL)
 		return;
 
+#if 0
+	/* object can be re-referenced during final cleaning */
 	KASSERT(!(object->flags & OBJ_DEAD),
 	    ("vm_object_reference: attempting to reference dead obj"));
+#endif
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
@@ -374,8 +377,14 @@ doterm:
 			temp->generation++;
 			object->backing_object = NULL;
 		}
-		vm_object_terminate(object);
-		/* unlocks and deallocates object */
+
+		/*
+		 * Don't double-terminate, we could be in a termination
+		 * recursion due to the terminate having to sync data
+		 * to disk.
+		 */
+		if ((object->flags & OBJ_DEAD) == 0)
+			vm_object_terminate(object);
 		object = temp;
 	}
 }
@@ -427,6 +436,12 @@ vm_object_terminate(object)
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 	}
+
+	/*
+	 * Wait for any I/O to complete, after which there had better not
+	 * be any references left on the object.
+	 */
+	vm_object_pip_wait(object, "objtrm");
 
 	if (object->ref_count != 0)
 		panic("vm_object_terminate: object with references, ref_count=%d", object->ref_count);
@@ -546,7 +561,17 @@ vm_object_page_clean(object, start, end, flags)
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
+		struct vnode *vp;
+
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+                if (object->type == OBJT_VNODE &&
+                    (vp = (struct vnode *)object->handle) != NULL) {
+                        if (vp->v_flag & VOBJDIRTY) {
+                                simple_lock(&vp->v_interlock);
+                                vp->v_flag &= ~VOBJDIRTY;
+                                simple_unlock(&vp->v_interlock);
+                        }
+                }
 	}
 
 rescan:
@@ -1305,6 +1330,8 @@ vm_object_collapse(object)
 			 * necessary is to dispose of it.
 			 */
 
+			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
+			KASSERT(TAILQ_FIRST(&backing_object->memq) == NULL, ("backing_object %p somehow has left over pages during collapse!", backing_object));
 			TAILQ_REMOVE(
 			    &vm_object_list, 
 			    backing_object,
@@ -1560,6 +1587,24 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 
 	return (TRUE);
 }
+
+void
+vm_object_set_writeable_dirty(vm_object_t object)
+{
+	struct vnode *vp;
+
+	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+	if (object->type == OBJT_VNODE &&
+	    (vp = (struct vnode *)object->handle) != NULL) {
+		if ((vp->v_flag & VOBJDIRTY) == 0) {
+			simple_lock(&vp->v_interlock);
+			vp->v_flag |= VOBJDIRTY;
+			simple_unlock(&vp->v_interlock);
+		}
+	}
+}
+
+
 
 #include "opt_ddb.h"
 #ifdef DDB

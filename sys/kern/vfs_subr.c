@@ -440,6 +440,49 @@ vattr_null(vap)
 }
 
 /*
+ * This routine is called when we have too many vnodes.  It attempts
+ * to free <count> vnodes and will potentially free vnodes that still
+ * have VM backing store (VM backing store is typically the cause
+ * of a vnode blowout so we want to do this).  Therefore, this operation
+ * is not considered cheap.
+ *
+ * A number of conditions may prevent a vnode from being reclaimed.
+ * the buffer cache may have references on the vnode, a directory
+ * vnode may still have references due to the namei cache representing
+ * underlying files, or the vnode may be in active use.   It is not
+ * desireable to reuse such vnodes.  These conditions may cause the
+ * number of vnodes to reach some minimum value regardless of what
+ * you set kern.maxvnodes to.  Do not set kernl.maxvnodes too low.
+ */
+static void
+vlrureclaim(struct mount *mp, int count)
+{
+	struct vnode *vp;
+
+	simple_lock(&mntvnode_slock);
+	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
+		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+
+		if (vp->v_type != VNON &&
+		    vp->v_type != VBAD &&
+		    VMIGHTFREE(vp) &&		/* critical path opt */
+		    simple_lock_try(&vp->v_interlock)
+		) {
+			simple_unlock(&mntvnode_slock);
+			if (VMIGHTFREE(vp)) {
+				vgonel(vp, curproc);
+			} else {
+				simple_unlock(&vp->v_interlock);
+			}
+			simple_lock(&mntvnode_slock);
+		}
+		--count;
+	}
+	simple_unlock(&mntvnode_slock);
+}
+
+/*
  * Routines having to do with the management of the vnode table.
  */
 extern vop_t **dead_vnodeop_p;
@@ -460,13 +503,22 @@ getnewvnode(tag, mp, vops, vpp)
 	vm_object_t object;
 
 	s = splbio();
-	simple_lock(&vnode_free_list_slock);
+
+	/*
+	 * Try to reuse vnodes if we hit the max.  This situation only
+	 * occurs in certain large-memory (2G+) situations.  For the 
+	 * algorithm to be stable we have to try to reuse at least 2.
+	 * No hysteresis should be necessary.
+	 */
+	if (numvnodes - freevnodes > desiredvnodes)
+		vlrureclaim(mp, 2);
 
 	/*
 	 * Attempt to reuse a vnode already on the free list, allocating
 	 * a new vnode if we can't find one or if we have not reached a
 	 * good minimum for good LRU performance.
 	 */
+	simple_lock(&vnode_free_list_slock);
 	if (freevnodes >= wantfreevnodes && numvnodes >= minvnodes) {
 		int count;
 
@@ -601,7 +653,7 @@ insmntque(vp, mp)
 		simple_unlock(&mntvnode_slock);
 		return;
 	}
-	TAILQ_INSERT_HEAD(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
+	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	simple_unlock(&mntvnode_slock);
 }
 
@@ -2512,49 +2564,50 @@ vfs_export_lookup(mp, nep, nam)
  * the mount point must be locked.
  */
 void
-vfs_msync(struct mount *mp, int flags) {
+vfs_msync(struct mount *mp, int flags) 
+{
 	struct vnode *vp, *nvp;
 	struct vm_object *obj;
-	int anyio, tries;
+	int tries;
 
 	tries = 5;
+	simple_lock(&mntvnode_slock);
 loop:
-	anyio = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
-
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-
 		if (vp->v_mount != mp) {
-			goto loop;
+			if (--tries > 0)
+				goto loop;
+			break;
 		}
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		if (vp->v_flag & VXLOCK)	/* XXX: what if MNT_WAIT? */
 			continue;
 
-		if (flags != MNT_WAIT) {
-			if (VOP_GETVOBJECT(vp, &obj) != 0 ||
-			    (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
-			if (VOP_ISLOCKED(vp, NULL))
-				continue;
-		}
-
-		simple_lock(&vp->v_interlock);
-		if (VOP_GETVOBJECT(vp, &obj) == 0 &&
-		    (obj->flags & OBJ_MIGHTBEDIRTY)) {
+		/*
+		 * There could be hundreds of thousands of vnodes, we cannot
+		 * afford to do anything heavy-weight until we have a fairly
+		 * good indication that there is something to do.
+		 */
+		if ((vp->v_flag & VOBJDIRTY) &&
+		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, NULL) == 0)) {
+			simple_unlock(&mntvnode_slock);
 			if (!vget(vp,
-				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
+			    LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
 				if (VOP_GETVOBJECT(vp, &obj) == 0) {
 					vm_object_page_clean(obj, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : OBJPC_NOSYNC);
-					anyio = 1;
 				}
 				vput(vp);
 			}
-		} else {
-			simple_unlock(&vp->v_interlock);
+			simple_lock(&mntvnode_slock);
+			if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp) {
+				if (--tries > 0)
+					goto loop;
+				break;
+			}
 		}
 	}
-	if (anyio && (--tries > 0))
-		goto loop;
+	simple_unlock(&mntvnode_slock);
 }
 
 /*

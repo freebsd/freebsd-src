@@ -783,8 +783,7 @@ readrest:
 
 	if (prot & VM_PROT_WRITE) {
 		vm_page_flag_set(fs.m, PG_WRITEABLE);
-		vm_object_set_flag(fs.m->object,
-				   OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+		vm_object_set_writeable_dirty(fs.m->object);
 
 		/*
 		 * If the fault is a write, we know that this page is being

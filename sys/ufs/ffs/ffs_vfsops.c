@@ -973,37 +973,42 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		simple_lock(&vp->v_interlock);
+
+		/*
+		 * Depend on the mntvnode_slock to keep things stable enough
+		 * for a quick test.  Since there might be hundreds of 
+		 * thousands of vnodes, we cannot afford even a subroutine
+		 * call unless there's a good chance that we have work to do.
+		 */
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
-			simple_unlock(&vp->v_interlock);
 			continue;
 		}
 		if (vp->v_type != VCHR) {
 			simple_unlock(&mntvnode_slock);
-			error =
-			  vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+			error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT, p);
 			if (error) {
 				simple_lock(&mntvnode_slock);
 				if (error == ENOENT)
 					goto loop;
-				continue;
+			} else {
+				if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
+					allerror = error;
+				VOP_UNLOCK(vp, 0, p);
+				vrele(vp);
+				simple_lock(&mntvnode_slock);
 			}
-			if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
-				allerror = error;
-			VOP_UNLOCK(vp, 0, p);
-			vrele(vp);
-			simple_lock(&mntvnode_slock);
 		} else {
 			simple_unlock(&mntvnode_slock);
-			simple_unlock(&vp->v_interlock);
 			/* UFS_UPDATE(vp, waitfor == MNT_WAIT); */
 			UFS_UPDATE(vp, 0);
 			simple_lock(&mntvnode_slock);
 		}
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
+			goto loop;
 	}
 	simple_unlock(&mntvnode_slock);
 	/*
