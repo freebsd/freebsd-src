@@ -226,9 +226,6 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_SHORTNAME	1	/* Force old DOS short names only */
 #define	MSDOSFSMNT_LONGNAME	2	/* Force Win'95 long names */
 #define	MSDOSFSMNT_NOWIN95	4	/* Completely ignore Win95 entries */
-#ifndef __FreeBSD__
-#define	MSDOSFSMNT_GEMDOSFS	8	/* This is a gemdos-flavour */
-#endif
 #define MSDOSFSMNT_U2WTABLE     0x10    /* Local->Unicode and local<->DOS   */
 					/* tables loaded                    */
 #define MSDOSFSMNT_ULTABLE      0x20    /* Local upper<->lower table loaded */
