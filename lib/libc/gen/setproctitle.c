@@ -65,6 +65,7 @@ setproctitle(const char *fmt, ...)
 	static char *nargv[2] = { buf, NULL };
 	char **nargvp;
 	int nargc;
+	int i;
 	va_list ap;
 	size_t len;
 	unsigned long ul_ps_strings;
@@ -124,12 +125,12 @@ setproctitle(const char *fmt, ...)
 			/* Record our original args */
 			oargc = ps_strings->ps_nargvstr;
 			oargv = ps_strings->ps_argvstr;
-			for (nargc = len = 0; nargc < oargc; nargc++) {
+			for (i = len = 0; i < oargc; i++) {
 				snprintf(obuf + len, sizeof(obuf) - len, "%s%s",
-				    len ? " " : "", oargv[nargc]);
+				    len ? " " : "", oargv[i]);
 				if (len)
 					len++;
-				len += strlen(oargv[nargc]);
+				len += strlen(oargv[i]);
 				if (len >= sizeof(obuf))
 					break;
 			}
