@@ -41,11 +41,10 @@
  *
  */
 
-#define HIFN_DEBUG
-
 /*
  * Driver for the Hifn 7751 encryption processor.
  */
+#include "opt_hifn.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,6 +69,10 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+
+#ifdef HIFN_RNDTEST
+#include <dev/rndtest/rndtest.h>
+#endif
 #include <dev/hifn/hifn7751reg.h>
 #include <dev/hifn/hifn7751var.h>
 
@@ -107,6 +110,9 @@ static devclass_t hifn_devclass;
 
 DRIVER_MODULE(hifn, pci, hifn_driver, hifn_devclass, 0, 0);
 MODULE_DEPEND(hifn, crypto, 1, 1, 1);
+#ifdef HIFN_RNDTEST
+MODULE_DEPEND(hifn, rndtest, 1, 1, 1);
+#endif
 
 static	void hifn_reset_board(struct hifn_softc *, int);
 static	void hifn_reset_puc(struct hifn_softc *);
@@ -228,6 +234,14 @@ hifn_partname(struct hifn_softc *sc)
 		return "NetSec unknown-part";
 	}
 	return "Unknown-vendor unknown-part";
+}
+
+static void
+default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
+{
+	u_int32_t *p = (u_int32_t *)buf;
+	for (count /= sizeof (u_int32_t); count; count--)
+		add_true_randomness(*p++);
 }
 
 /*
@@ -515,6 +529,10 @@ hifn_detach(device_t dev)
 	/*XXX other resources */
 	callout_stop(&sc->sc_tickto);
 	callout_stop(&sc->sc_rngto);
+#ifdef HIFN_RNDTEST
+	if (sc->sc_rndtest)
+		rndtest_detach(sc->sc_rndtest);
+#endif
 
 	/* Turn off DMA polling */
 	WRITE_REG_1(sc, HIFN_1_DMA_CNFG, HIFN_DMACNFG_MSTRESET |
@@ -617,6 +635,15 @@ hifn_init_pubrng(struct hifn_softc *sc)
 	u_int32_t r;
 	int i;
 
+#ifdef HIFN_RNDTEST
+	sc->sc_rndtest = rndtest_attach(sc->sc_dev);
+	if (sc->sc_rndtest)
+		sc->sc_harvest = rndtest_harvest;
+	else
+		sc->sc_harvest = default_harvest;
+#else
+	sc->sc_harvest = default_harvest;
+#endif
 	if ((sc->sc_flags & HIFN_IS_7811) == 0) {
 		/* Reset 7951 public key/rng engine */
 		WRITE_REG_1(sc, HIFN_1_PUB_RESET,
@@ -703,10 +730,9 @@ hifn_rng(void *vsc)
 			/* NB: discard first data read */
 			if (sc->sc_rngfirst)
 				sc->sc_rngfirst = 0;
-			else {
-				add_true_randomness(num[0]);
-				add_true_randomness(num[1]);
-			}
+			else
+				(*sc->sc_harvest)(sc->sc_rndtest,
+					num, sizeof (num));
 		}
 	} else {
 		num[0] = READ_REG_1(sc, HIFN_1_RNG_DATA);
@@ -715,7 +741,8 @@ hifn_rng(void *vsc)
 		if (sc->sc_rngfirst)
 			sc->sc_rngfirst = 0;
 		else
-			add_true_randomness(num[0]);
+			(*sc->sc_harvest)(sc->sc_rndtest,
+				num, sizeof (num[0]));
 	}
 
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);

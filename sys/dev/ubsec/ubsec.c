@@ -40,11 +40,11 @@
  *
  */
 
-#define UBSEC_DEBUG
-
 /*
  * uBsec 5[56]01, 58xx hardware crypto accelerator
  */
+
+#include "opt_ubsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,6 +87,9 @@
 #define	letoh16(x)		le16toh(x)
 #define	letoh32(x)		le32toh(x)
 
+#ifdef UBSEC_RNDTEST
+#include <dev/rndtest/rndtest.h>
+#endif
 #include <dev/ubsec/ubsecreg.h>
 #include <dev/ubsec/ubsecvar.h>
 
@@ -124,6 +127,9 @@ static devclass_t ubsec_devclass;
 
 DRIVER_MODULE(ubsec, pci, ubsec_driver, ubsec_devclass, 0, 0);
 MODULE_DEPEND(ubsec, crypto, 1, 1, 1);
+#ifdef UBSEC_RNDTEST
+MODULE_DEPEND(ubsec, rndtest, 1, 1, 1);
+#endif
 
 static	void ubsec_intr(void *);
 static	int ubsec_newsession(void *, u_int32_t *, struct cryptoini *);
@@ -237,6 +243,14 @@ ubsec_partname(struct ubsec_softc *sc)
 		return "Sun unknown-part";
 	}
 	return "Unknown-vendor unknown-part";
+}
+
+static void
+default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
+{
+	u_int32_t *p = (u_int32_t *)buf;
+	for (count /= sizeof (u_int32_t); count; count--)
+		add_true_randomness(*p++);
 }
 
 static int
@@ -414,6 +428,15 @@ ubsec_attach(device_t dev)
 #ifndef UBSEC_NO_RNG
 	if (sc->sc_flags & UBS_FLAGS_RNG) {
 		sc->sc_statmask |= BS_STAT_MCR2_DONE;
+#ifdef UBSEC_RNDTEST
+		sc->sc_rndtest = rndtest_attach(dev);
+		if (sc->sc_rndtest)
+			sc->sc_harvest = rndtest_harvest;
+		else
+			sc->sc_harvest = default_harvest;
+#else
+		sc->sc_harvest = default_harvest;
+#endif
 
 		if (ubsec_dma_malloc(sc, sizeof(struct ubsec_mcr),
 		    &sc->sc_rng.rng_q.q_mcr, 0))
@@ -484,6 +507,11 @@ ubsec_detach(device_t dev)
 	callout_stop(&sc->sc_rngto);
 
 	crypto_unregister_all(sc->sc_cid);
+
+#ifdef UBSEC_RNDTEST
+	if (sc->sc_rndtest)
+		rndtest_detach(sc->sc_rndtest);
+#endif
 
 	while (!SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
 		struct ubsec_q *q;
@@ -1652,13 +1680,11 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 #ifndef UBSEC_NO_RNG
 	case UBS_CTXOP_RNGBYPASS: {
 		struct ubsec_q2_rng *rng = (struct ubsec_q2_rng *)q;
-		u_int32_t *p;
-		int i;
 
 		ubsec_dma_sync(&rng->rng_buf, BUS_DMASYNC_POSTREAD);
-		p = (u_int32_t *)rng->rng_buf.dma_vaddr;
-		for (i = 0; i < UBSEC_RNG_BUFSIZ; p++, i++)
-			add_true_randomness(*p);
+		(*sc->sc_harvest)(sc->sc_rndtest,
+			rng->rng_buf.dma_vaddr,
+			UBSEC_RNG_BUFSIZ*sizeof (u_int32_t));
 		rng->rng_used = 0;
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 		break;

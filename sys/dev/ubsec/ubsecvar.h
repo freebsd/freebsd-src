@@ -200,6 +200,9 @@ struct ubsec_softc {
 	struct callout		sc_rngto;	/* rng timeout */
 	int			sc_rnghz;	/* rng poll time */
 	struct ubsec_q2_rng	sc_rng;
+	struct rndtest_state	*sc_rndtest;	/* RNG test state */
+	void			(*sc_harvest)(struct rndtest_state *,
+					void *, u_int);
 	struct ubsec_dma	sc_dmaa[UBS_MAX_NQUEUE];
 	struct ubsec_q		*sc_queuea[UBS_MAX_NQUEUE];
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_q2free;	/* free list */
