@@ -75,5 +75,6 @@ struct md_ioctl {
 #define MD_RESERVE	0x02	/* Pre-reserve swap */
 #define MD_AUTOUNIT	0x04	/* Assign next free unit */
 #define MD_READONLY	0x08	/* Readonly mode */
+#define MD_COMPRESS	0x10	/* Compression mode */
 
 #endif	/* _SYS_MDIOCTL_H_*/
