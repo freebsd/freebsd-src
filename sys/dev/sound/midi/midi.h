@@ -57,12 +57,12 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#include <machine/clock.h>	/* for DELAY */
 #include <machine/resource.h>
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>	/* for DELAY */
+#include <machine/limits.h>
 #include <sys/soundcard.h>
 #include <sys/rman.h>
 #include <sys/mman.h>
