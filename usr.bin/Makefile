@@ -146,6 +146,7 @@ SUBDIR=	apply \
 	sockstat \
 	soelim \
 	split \
+	stat \
 	su \
 	symorder \
 	systat \
@@ -221,7 +222,7 @@ SUBDIR+=perl
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=vacation 
+SUBDIR+=vacation
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
