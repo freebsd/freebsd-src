@@ -102,15 +102,16 @@
 65	NOPROTO	LINUX	{ int getpgrp(void); }
 66	NOPROTO	LINUX	{ int setsid(void); }
 67	STD	LINUX	{ int linux_sigaction(int sig, \
-				struct linux_sigaction *nsa, \
-				struct linux_sigaction *osa); }
+				linux_osigaction_t *nsa, \
+				linux_osigaction_t *osa); }
 68	STD	LINUX	{ int linux_siggetmask(void); }
-69	STD	LINUX	{ int linux_sigsetmask(linux_sigset_t mask); }
+69	STD	LINUX	{ int linux_sigsetmask(linux_osigset_t mask); }
 70	NOPROTO	LINUX	{ int setreuid(int ruid, int euid); }
 71	NOPROTO	LINUX	{ int setregid(int rgid, int egid); }
 72	STD	LINUX	{ int linux_sigsuspend(int restart, \
-				linux_sigset_t oldmask, linux_sigset_t mask); }
-73	STD	LINUX	{ int linux_sigpending(linux_sigset_t *mask); }
+				linux_osigset_t oldmask, \
+				linux_osigset_t mask); }
+73	STD	LINUX	{ int linux_sigpending(linux_osigset_t *mask); }
 74	NOPROTO	LINUX	{ int osethostname(char *hostname, u_int len); }
 75	STD	LINUX	{ int linux_setrlimit(u_int resource, \
 				struct ogetrlimit *rlim); }
@@ -186,7 +187,8 @@
 124	STD	LINUX	{ int linux_adjtimex(void); }
 125	NOPROTO	LINUX	{ int mprotect(caddr_t addr, int len, int prot); }
 126	STD	LINUX	{ int linux_sigprocmask(int how, \
-				linux_sigset_t *mask, linux_sigset_t *omask); }
+				linux_osigset_t *mask, \
+				linux_osigset_t *omask); }
 127	STD	LINUX	{ int linux_create_module(void); }
 128	STD	LINUX	{ int linux_init_module(void); }
 129	STD	LINUX	{ int linux_delete_module(void); }
@@ -251,17 +253,17 @@
 172	STD	LINUX	{ int linux_prctl(void); }
 173	STD	LINUX	{ int linux_rt_sigreturn(void); }
 174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
-				struct linux_new_sigaction *act, \
-				struct linux_new_sigaction *oact, \
+				linux_sigaction_t *act, \
+				linux_sigaction_t *oact, \
 				size_t sigsetsize); }
 175	STD	LINUX	{ int linux_rt_sigprocmask(int how, \
-				struct linux_new_sigset *mask, \
-				struct linux_new_sigset *omask, \
+				linux_sigset_t *mask, linux_sigset_t *omask, \
 				size_t sigsetsize); }
 176	STD	LINUX	{ int linux_rt_sigpending(void); }
 177	STD	LINUX	{ int linux_rt_sigtimedwait(void); }
 178	STD	LINUX	{ int linux_rt_sigqueueinfo(void); }
-179	STD	LINUX	{ int linux_rt_sigsuspend(void); }
+179	STD	LINUX	{ int linux_rt_sigsuspend(linux_sigset_t *newset, \
+				size_t sigsetsize); }
 180	STD	LINUX	{ int linux_pread(void); }
 181	STD	LINUX	{ int linux_pwrite(void); }
 182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }

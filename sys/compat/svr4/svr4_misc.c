@@ -100,7 +100,6 @@
 
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 
-extern int bsd_to_svr4_sig[];
 static int svr4_mknod __P((struct proc *, register_t *, char *,
     svr4_mode_t, svr4_dev_t));
 
@@ -159,11 +158,11 @@ svr4_sys_wait(p, uap)
 	if (WIFSIGNALED(st)) {
 		sig = WTERMSIG(st);
 		if (sig >= 0 && sig < NSIG)
-			st = (st & ~0177) | bsd_to_svr4_sig[sig];
+			st = (st & ~0177) | SVR4_BSD2SVR4_SIG(sig);
 	} else if (WIFSTOPPED(st)) {
 		sig = WSTOPSIG(st);
 		if (sig >= 0 && sig < NSIG)
-			st = (st & ~0xff00) | (bsd_to_svr4_sig[sig] << 8);
+			st = (st & ~0xff00) | (SVR4_BSD2SVR4_SIG(sig) << 8);
 	}
 
 	/*
@@ -1119,7 +1118,7 @@ svr4_setinfo(p, st, s)
 	} else if (WIFSTOPPED(st)) {
 		sig = WSTOPSIG(st);
 		if (sig >= 0 && sig < NSIG)
-			i.si_status = bsd_to_svr4_sig[sig];
+			i.si_status = SVR4_BSD2SVR4_SIG(sig);
 
 		if (i.si_status == SVR4_SIGCONT)
 			i.si_code = SVR4_CLD_CONTINUED;
@@ -1128,7 +1127,7 @@ svr4_setinfo(p, st, s)
 	} else {
 		sig = WTERMSIG(st);
 		if (sig >= 0 && sig < NSIG)
-			i.si_status = bsd_to_svr4_sig[sig];
+			i.si_status = SVR4_BSD2SVR4_SIG(sig);
 
 		if (WCOREDUMP(st))
 			i.si_code = SVR4_CLD_DUMPED;
