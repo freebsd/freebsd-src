@@ -57,7 +57,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	Elf_Ehdr hdr;
 	char buf[PAGE_SIZE];
     } u;
-    int nbytes, i;
+    int i;
+    ssize_t nbytes;
     Elf_Phdr *phdr;
     Elf_Phdr *phlimit;
     Elf_Phdr **segs;
@@ -91,7 +92,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     }
 
     /* Make sure the file is valid */
-    if (nbytes < sizeof(Elf_Ehdr)
+    if (nbytes < (ssize_t)sizeof(Elf_Ehdr)
       || u.hdr.e_ident[EI_MAG0] != ELFMAG0
       || u.hdr.e_ident[EI_MAG1] != ELFMAG1
       || u.hdr.e_ident[EI_MAG2] != ELFMAG2
@@ -128,7 +129,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	  "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
 	return NULL;
     }
-    if (u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) > nbytes) {
+    if (u.hdr.e_phoff + u.hdr.e_phnum * sizeof(Elf_Phdr) > (size_t)nbytes) {
 	_rtld_error("%s: program header too large", path);
 	return NULL;
     }
