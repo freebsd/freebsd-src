@@ -232,10 +232,10 @@ get_resolution(struct asc_unit *scu)
     res=0;
     scu->cmd_byte = ASC_STANDBY;
     outb(ASC_CMD, scu->cmd_byte);
-    tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascres", hz/10);
+    tsleep(scu, ASCPRI | PCATCH, "ascres", hz/10);
     for(delay= 100; (res=inb(ASC_STAT)) & ASC_RDY_FLAG; delay--)
     {
-        i = tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascres0", 1);
+        i = tsleep(scu, ASCPRI | PCATCH, "ascres0", 1);
         if ( ( i == 0 ) || ( i == EWOULDBLOCK ) )
 	    i = SUCCESS;
 	else
@@ -352,7 +352,7 @@ asc_reset(struct asc_unit *scu)
 
   outb(ASC_CFG,scu->cfg_byte);	/* for safety, do this here */
   outb(ASC_CMD,scu->cmd_byte);	/* probably not needed */
-  tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascres", hz/10); /* sleep .1 sec */
+  tsleep(scu, ASCPRI | PCATCH, "ascres", hz/10); /* sleep .1 sec */
 
   scu->blen = DEFAULT_BLEN;
   scu->btime = TIMEOUT;
@@ -525,7 +525,7 @@ ascintr(int unit)
 	scu->sbuf.count += scu->linesize;
 	if (scu->flags & SLEEPING) {
 	    scu->flags &= ~SLEEPING;
-	    wakeup((caddr_t)scu);
+	    wakeup(scu);
 	}
 	if (scu->sbuf.size - scu->sbuf.count >= scu->linesize) {
 	    dma_restart(scu);
@@ -628,7 +628,7 @@ asc_startread(struct asc_unit *scu)
     /*** sub_28: light on etc...***/
   scu->cmd_byte = ASC_STANDBY;
   outb(ASC_CMD, scu->cmd_byte);
-  tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascstrd", hz/10); /* sleep .1 sec */
+  tsleep(scu, ASCPRI | PCATCH, "ascstrd", hz/10); /* sleep .1 sec */
   return SUCCESS;
 }
 
@@ -658,7 +658,7 @@ ascclose(dev_t dev, int flags, int fmt, struct thread *td)
   outb(ASC_CFG, 0 ); /* don't save in CFG byte!!! */
   scu->cmd_byte &= ~ASC_LIGHT_ON;
   outb(ASC_CMD, scu->cmd_byte);/* light off */
-  tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascclo", hz/2); /* sleep 1/2 sec */
+  tsleep(scu, ASCPRI | PCATCH, "ascclo", hz/2); /* sleep 1/2 sec */
   scu->cfg_byte &= ~ scu->dma_byte ; /* disable scanner dma */
   scu->cfg_byte &= ~ scu->int_byte ; /* disable scanner int */
   outb(ASC_CFG, scu->cfg_byte);
@@ -734,13 +734,13 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
   if ( scu->sbuf.count == 0 ) { /* no data avail., must wait */
       if (!(scu->flags & DMA_ACTIVE)) dma_restart(scu);
       scu->flags |= SLEEPING;
-      res = tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascread", 0);
+      res = tsleep(scu, ASCPRI | PCATCH, "ascread", 0);
       scu->flags &= ~SLEEPING;
       if ( res == 0 ) res = SUCCESS;
   }
   splx(sps); /* lower priority... */
   if (scu->flags & FLAG_DEBUG)
-      tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascdly",hz);
+      tsleep(scu, ASCPRI | PCATCH, "ascdly",hz);
   lprintf("asc%d.read(after): "
       "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %ld\n",
 	  unit, scu->sbuf.size, scu->sbuf.rptr,

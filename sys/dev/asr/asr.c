@@ -1101,7 +1101,7 @@ ASR_failActiveCommands (
 		if (ccb->path) {
 			xpt_done ((union ccb *)ccb);
 		} else {
-			wakeup ((caddr_t)ccb);
+			wakeup (ccb);
 		}
 	}
 	splx(s);
@@ -3798,7 +3798,7 @@ asr_intr (
 		if (ccb->ccb_h.path) {
 			xpt_done ((union ccb *)ccb);
 		} else {
-			wakeup ((caddr_t)ccb);
+			wakeup (ccb);
 		}
 	}
 #ifdef ASR_MEASURE_PERFORMANCE
@@ -4313,7 +4313,7 @@ ASR_queue_i(
 		}
 		/* Check every second for BlinkLed */
 		/* There is no PRICAM, but outwardly PRIBIO is functional */
-		tsleep((caddr_t)ccb, PRIBIO, "asr", hz);
+		tsleep(ccb, PRIBIO, "asr", hz);
 	}
 	splx(s);
 

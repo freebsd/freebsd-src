@@ -144,7 +144,7 @@ sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 	iod = nfs_numasync - 1;
 	for (i = 0; i < nfs_numasync - nfs_iodmax; i++) {
 		if (nfs_iodwant[iod])
-			wakeup((caddr_t)&nfs_iodwant[iod]);
+			wakeup(&nfs_iodwant[iod]);
 		iod--;
 	}
 	return (0);
@@ -244,7 +244,7 @@ nfssvc_iod(void *instance)
 		 * Always keep at least nfs_iodmin kthreads.
 		 */
 		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
-		error = tsleep((caddr_t)&nfs_iodwant[myiod], PWAIT | PCATCH,
+		error = tsleep(&nfs_iodwant[myiod], PWAIT | PCATCH,
 		    "nfsidl", timo);
 	    }
 	    if (error)

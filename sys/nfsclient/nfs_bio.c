@@ -1085,7 +1085,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	 */
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nfsvinval",
+		error = tsleep(&np->n_flag, PRIBIO + 2, "nfsvinval",
 			slptimeo);
 		if (error && intrflg &&
 		    nfs_sigintr(nmp, NULL, td))
@@ -1103,7 +1103,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
-				wakeup((caddr_t)&np->n_flag);
+				wakeup(&np->n_flag);
 			}
 			return (EINTR);
 		}
@@ -1112,7 +1112,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {
 		np->n_flag &= ~NFLUSHWANT;
-		wakeup((caddr_t)&np->n_flag);
+		wakeup(&np->n_flag);
 	}
 	return (0);
 }
@@ -1180,7 +1180,7 @@ again:
 		nfs_iodwant[iod] = NULL;
 		nfs_iodmount[iod] = nmp;
 		nmp->nm_bufqiods++;
-		wakeup((caddr_t)&nfs_iodwant[iod]);
+		wakeup(&nfs_iodwant[iod]);
 	}
 
 	/*

@@ -687,7 +687,7 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	}
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "smfsvinv", slptimeo);
+		error = tsleep(&np->n_flag, PRIBIO + 2, "smfsvinv", slptimeo);
 		error = smb_proc_intr(td->td_proc);
 		if (error == EINTR && intrflg)
 			return EINTR;
@@ -699,7 +699,7 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
-				wakeup((caddr_t)&np->n_flag);
+				wakeup(&np->n_flag);
 			}
 			return EINTR;
 		}
@@ -708,7 +708,7 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {
 		np->n_flag &= ~NFLUSHWANT;
-		wakeup((caddr_t)&np->n_flag);
+		wakeup(&np->n_flag);
 	}
 	return (error);
 }

@@ -1614,7 +1614,7 @@ ppcintr(void *arg)
 				ppc->ppc_dmastat = PPC_DMA_COMPLETE;
 
 				/* wakeup the waiting process */
-				wakeup((caddr_t)ppc);
+				wakeup(ppc);
 			}
 		}
 	} else if (ppc->ppc_irqstat & PPC_IRQ_FIFO) {
@@ -1720,7 +1720,7 @@ ppc_write(device_t dev, char *buf, int len, int how)
 		 */
 		do {
 			/* release CPU */
-			error = tsleep((caddr_t)ppc,
+			error = tsleep(ppc,
 				PPBPRI | PCATCH, "ppcdma", 0);
 
 		} while (error == EWOULDBLOCK);
@@ -1752,7 +1752,7 @@ ppc_write(device_t dev, char *buf, int len, int how)
 #ifdef PPC_DEBUG
 			printf("Z");
 #endif
-			error = tsleep((caddr_t)ppc, PPBPRI | PCATCH, "ppcfifo", hz/100);
+			error = tsleep(ppc, PPBPRI | PCATCH, "ppcfifo", hz/100);
 			if (error != EWOULDBLOCK) {
 #ifdef PPC_DEBUG
 				printf("I");

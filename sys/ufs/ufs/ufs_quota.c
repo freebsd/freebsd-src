@@ -139,7 +139,7 @@ chkdq(ip, change, cred, flags)
 				continue;
 			while (dq->dq_flags & DQ_LOCK) {
 				dq->dq_flags |= DQ_WANT;
-				(void) tsleep((caddr_t)dq, PINOD+1, "chkdq1", 0);
+				(void) tsleep(dq, PINOD+1, "chkdq1", 0);
 			}
 			ncurblocks = dq->dq_curblocks + change;
 			if (ncurblocks >= 0)
@@ -165,7 +165,7 @@ chkdq(ip, change, cred, flags)
 			continue;
 		while (dq->dq_flags & DQ_LOCK) {
 			dq->dq_flags |= DQ_WANT;
-			(void) tsleep((caddr_t)dq, PINOD+1, "chkdq2", 0);
+			(void) tsleep(dq, PINOD+1, "chkdq2", 0);
 		}
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curblocks + change >= dq->dq_bsoftlimit &&
@@ -261,7 +261,7 @@ chkiq(ip, change, cred, flags)
 				continue;
 			while (dq->dq_flags & DQ_LOCK) {
 				dq->dq_flags |= DQ_WANT;
-				(void) tsleep((caddr_t)dq, PINOD+1, "chkiq1", 0);
+				(void) tsleep(dq, PINOD+1, "chkiq1", 0);
 			}
 			ncurinodes = dq->dq_curinodes + change;
 			/* XXX: ncurinodes is unsigned */
@@ -288,7 +288,7 @@ chkiq(ip, change, cred, flags)
 			continue;
 		while (dq->dq_flags & DQ_LOCK) {
 			dq->dq_flags |= DQ_WANT;
-			(void) tsleep((caddr_t)dq, PINOD+1, "chkiq2", 0);
+			(void) tsleep(dq, PINOD+1, "chkiq2", 0);
 		}
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curinodes + change >= dq->dq_isoftlimit &&
@@ -586,7 +586,7 @@ setquota(mp, id, type, addr)
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		(void) tsleep((caddr_t)dq, PINOD+1, "setqta", 0);
+		(void) tsleep(dq, PINOD+1, "setqta", 0);
 	}
 	/*
 	 * Copy all but the current values.
@@ -647,7 +647,7 @@ setuse(mp, id, type, addr)
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		(void) tsleep((caddr_t)dq, PINOD+1, "setuse", 0);
+		(void) tsleep(dq, PINOD+1, "setuse", 0);
 	}
 	/*
 	 * Reset time limit if have a soft limit and were
@@ -862,7 +862,7 @@ dqget(vp, id, ump, type, dqp)
 	if (vp != dqvp)
 		VOP_UNLOCK(dqvp, 0, td);
 	if (dq->dq_flags & DQ_WANT)
-		wakeup((caddr_t)dq);
+		wakeup(dq);
 	dq->dq_flags = 0;
 	/*
 	 * I/O error in reading quota file, release
@@ -951,7 +951,7 @@ dqsync(vp, dq)
 		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, td);
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
-		(void) tsleep((caddr_t)dq, PINOD+2, "dqsync", 0);
+		(void) tsleep(dq, PINOD+2, "dqsync", 0);
 		if ((dq->dq_flags & DQ_MOD) == 0) {
 			if (vp != dqvp)
 				VOP_UNLOCK(dqvp, 0, td);
@@ -972,7 +972,7 @@ dqsync(vp, dq)
 	if (auio.uio_resid && error == 0)
 		error = EIO;
 	if (dq->dq_flags & DQ_WANT)
-		wakeup((caddr_t)dq);
+		wakeup(dq);
 	dq->dq_flags &= ~(DQ_MOD|DQ_LOCK|DQ_WANT);
 	if (vp != dqvp)
 		VOP_UNLOCK(dqvp, 0, td);

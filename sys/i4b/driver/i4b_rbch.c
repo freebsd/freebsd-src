@@ -260,7 +260,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 		{
 			NDBGL4(L4_RBCHDBG, "unit %d, wait read init", unit);
 		
-			if((error = tsleep((caddr_t) &rbch_softc[unit],
+			if((error = tsleep( &rbch_softc[unit],
 					   TTIPRI | PCATCH,
 					   "rrrbch", 0 )) != 0)
 			{
@@ -281,7 +281,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 		
 			NDBGL4(L4_RBCHDBG, "unit %d, wait read data", unit);
 		
-			if((error = tsleep((caddr_t) &isdn_linktab[unit]->rx_queue,
+			if((error = tsleep( &isdn_linktab[unit]->rx_queue,
 					   TTIPRI | PCATCH,
 					   "rrbch", 0 )) != 0)
 			{
@@ -355,7 +355,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		{
 			NDBGL4(L4_RBCHDBG, "unit %d, write wait init", unit);
 		
-			error = tsleep((caddr_t) &rbch_softc[unit],
+			error = tsleep( &rbch_softc[unit],
 						   TTIPRI | PCATCH,
 						   "wrrbch", 0 );
 			if(error == ERESTART) {
@@ -374,7 +374,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 				NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep init", unit, error);
 				return(error);
 			}
-			tsleep((caddr_t) &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
+			tsleep( &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
 		}
 
 		while(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
@@ -383,7 +383,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 
 			NDBGL4(L4_RBCHDBG, "unit %d, write queue full", unit);
 		
-			if ((error = tsleep((caddr_t) &isdn_linktab[unit]->tx_queue,
+			if ((error = tsleep( &isdn_linktab[unit]->tx_queue,
 					    TTIPRI | PCATCH,
 					    "wrbch", 0)) != 0) {
 				sc->sc_devstate &= ~ST_WRWAITEMPTY;
@@ -655,7 +655,7 @@ rbch_connect(int unit, void *cdp)
 		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		sc->sc_devstate |= ST_CONNECTED;
 		sc->sc_cd = cdp;
-		wakeup((caddr_t)sc);
+		wakeup(sc);
 	}
 }
 
@@ -737,7 +737,7 @@ rbch_rx_data_rdy(int unit)
 	{
 		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		rbch_softc[unit].sc_devstate &= ~ST_RDWAITDATA;
-		wakeup((caddr_t) &isdn_linktab[unit]->rx_queue);
+		wakeup( &isdn_linktab[unit]->rx_queue);
 	}
 	else
 	{
@@ -758,7 +758,7 @@ rbch_tx_queue_empty(int unit)
 	{
 		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		rbch_softc[unit].sc_devstate &= ~ST_WRWAITEMPTY;
-		wakeup((caddr_t) &isdn_linktab[unit]->tx_queue);
+		wakeup( &isdn_linktab[unit]->tx_queue);
 	}
 	else
 	{

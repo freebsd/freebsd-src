@@ -253,7 +253,7 @@ readloop:
 					return err;
 			}
 			ir->flag |= FWXFERQ_WAKEUP;
-			err = tsleep((caddr_t)ir, FWPRI, "fw_read", hz);
+			err = tsleep(ir, FWPRI, "fw_read", hz);
 			ir->flag &= ~FWXFERQ_WAKEUP;
 			if (err == 0)
 				goto readloop;
@@ -375,7 +375,7 @@ isoloop:
 				err = sc->fc->itx_enable(sc->fc, sub);
 				if (err)
 					return err;
-				err = tsleep((caddr_t)it, FWPRI,
+				err = tsleep(it, FWPRI,
 							"fw_write", hz);
 				if (err)
 					return err;
@@ -420,7 +420,7 @@ dvloop:
 				if(err){
 					return err;
 				}
-				err = tsleep((caddr_t)it, FWPRI, "fw_write", hz);
+				err = tsleep(it, FWPRI, "fw_write", hz);
 				if(err){
 					return err;
 				}
@@ -503,7 +503,7 @@ dvloop:
 #else
 		fw_asyreq(fc, -1, xfer);
 #endif
-		err = tsleep((caddr_t)xfer, FWPRI, "fw_write", hz);
+		err = tsleep(xfer, FWPRI, "fw_write", hz);
 		if(xfer->resp == EBUSY)
 			return EBUSY;
 		fw_xfer_free( xfer);
@@ -777,7 +777,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			fw_xfer_free( xfer);
 			return err;
 		}
-		err = tsleep((caddr_t)xfer, FWPRI, "asyreq", hz);
+		err = tsleep(xfer, FWPRI, "asyreq", hz);
 		if(err == 0){
 			if(asyreq->req.len >= xfer->recv.len){
 				asyreq->req.len = xfer->recv.len;

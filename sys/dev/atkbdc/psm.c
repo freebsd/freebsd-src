@@ -1528,7 +1528,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
             return EWOULDBLOCK;
         }
         sc->state |= PSM_ASLP;
-        error = tsleep((caddr_t) sc, PZERO | PCATCH, "psmrea", 0);
+        error = tsleep( sc, PZERO | PCATCH, "psmrea", 0);
         sc->state &= ~PSM_ASLP;
         if (error) {
             splx(s);
@@ -2366,7 +2366,7 @@ psmintr(void *arg)
 
         if (sc->state & PSM_ASLP) {
             sc->state &= ~PSM_ASLP;
-            wakeup((caddr_t) sc);
+            wakeup( sc);
     	}
         selwakeup(&sc->rsel);
     }
@@ -2821,7 +2821,7 @@ psmresume(device_t dev)
 	 * cannot be accessed anymore.
 	 */
         sc->state &= ~PSM_ASLP;
-        wakeup((caddr_t)sc);
+        wakeup(sc);
     }
 
     if (verbose >= 2)
