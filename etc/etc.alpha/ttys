@@ -1,0 +1,56 @@
+#	$Id$
+#	From NetBSD: ttys,v 1.4 1995/07/30 19:52:13 cgd Exp
+#
+# name	getty				type	status		comments
+
+# In normal operation, getty on 'console' pseudo-device is disabled, and is
+# enabled for the correct 'real' device (e.g. one of the serial ports).
+
+# console pseudo-device
+console	"/usr/libexec/getty std.9600"	unknown on secure
+
+# Workstation console (framebuffer) ttys
+ttyE0	"/usr/libexec/getty std.9600"	unknown off secure
+ttyE1	"/usr/libexec/getty std.9600"	unknown off secure
+
+# DEC 3000 Z8530 ("scc") serial ports
+ttyB0	"/usr/libexec/getty std.9600"	unknown off secure
+ttyB1	"/usr/libexec/getty std.9600"	unknown off secure
+
+# AlphaStation NS16550 ("com") serial ports
+ttyC0	"/usr/libexec/getty std.9600"	unknown off secure
+ttyC1	"/usr/libexec/getty std.9600"	unknown off secure
+
+# pseudo-ttys
+ttyp0	none				network
+ttyp1	none				network
+ttyp2	none				network
+ttyp3	none				network
+ttyp4	none				network
+ttyp5	none				network
+ttyp6	none				network
+ttyp7	none				network
+ttyp8	none				network
+ttyp9	none				network
+ttypa	none				network
+ttypb	none				network
+ttypc	none				network
+ttypd	none				network
+ttype	none				network
+ttypf	none				network
+ttyq0	none				network
+ttyq1	none				network
+ttyq2	none				network
+ttyq3	none				network
+ttyq4	none				network
+ttyq5	none				network
+ttyq6	none				network
+ttyq7	none				network
+ttyq8	none				network
+ttyq9	none				network
+ttyqa	none				network
+ttyqb	none				network
+ttyqc	none				network
+ttyqd	none				network
+ttyqe	none				network
+ttyqf	none				network
