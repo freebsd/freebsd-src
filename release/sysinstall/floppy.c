@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.6 1995/06/02 00:03:32 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.7 1995/06/04 05:13:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -153,7 +153,8 @@ mediaGetFloppy(Device *dev, char *file)
 	return -1;
     else while (access(buf, R_OK) != 0) {
 	mediaShutdownFloppy(mediaDevice);
-	mediaInitFloppy(mediaDevice);
+	if (!mediaInitFloppy(mediaDevice))
+	    return -1;
     }
     return open(buf, O_RDONLY);
 }
