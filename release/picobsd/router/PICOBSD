@@ -1,6 +1,9 @@
 #
 # $FreeBSD$
 #
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker        def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD       820     oinit   3072            32768
 
 machine		i386
 cpu		I386_CPU
@@ -34,25 +37,15 @@ options		NO_SWAPPING
 #options	DUMMYNET
 #options	BRIDGE
 
-controller	isa0
-controller	pci0
+device	isa0
+device	pci0
 
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device	fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 #device		fd1	at fdc0 drive 1
 
-#controller	wdc0	at isa? port IO_WD1 irq 14
-#device		wd0	at wdc0 drive 0
-#device		wd1	at wdc0 drive 1
-
-#controller	wdc1	at isa? port IO_WD2 irq 15
-#device		wd2	at wdc1 drive 0
-#device		wd3	at wdc1 drive 1
-
-#device		wcd0	#IDE CD-ROM
-
 # atkbdc0 controlls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD
+device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 
 device		vga0	at isa? port ? conflicts
@@ -67,13 +60,6 @@ device		sio1	at isa? port IO_COM2 irq 3
 device		sio2	at isa? disable port IO_COM3 irq 5
 device		sio3	at isa? disable port IO_COM4 irq 9
 
-#device ppc0	at isa? port? flags 0x40 irq 7
-#controller	ppbus0
-#device		lpt0	at ppbus?
-#device		plip0	at ppbus?
-#device		ppi0	at ppbus?
-
-#
 # The following Ethernet NICs are all PCI devices.
 #
 device de0              # DEC/Intel DC21x4x (``Tulip'')
@@ -94,9 +80,6 @@ device ie1 at isa? port 0x360 irq 7 iomem 0xd0000
 pseudo-device	loop
 pseudo-device	ether
 #pseudo-device	tun	2
-#pseudo-device	vn
-#pseudo-device bpf	4
 pseudo-device ppp 	4
 pseudo-device	pty	16
 pseudo-device	md
-#pseudo-device	gzip		# Exec gzipped a.out's
