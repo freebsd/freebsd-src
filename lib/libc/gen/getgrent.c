@@ -473,7 +473,7 @@ static int
 _getypgroup(struct group *gr, const char *name, char *map)
 {
 	char *result, *s;
-	static char resultbuf[1024];
+	static char resultbuf[YPMAXRECORD + 2];
 	int resultlen;
 
 	if(!_gr_yp_domain) {
@@ -490,6 +490,7 @@ _getypgroup(struct group *gr, const char *name, char *map)
 
 	if(resultlen >= sizeof resultbuf) return 0;
 	strncpy(resultbuf, result, resultlen);
+	resultbuf[resultlen] = '\0';
 	free(result);
 	return(_gr_breakout_yp(gr, resultbuf));
 
@@ -502,7 +503,7 @@ _nextypgroup(struct group *gr)
 	static char *key;
 	static int keylen;
 	char *lastkey, *result;
-	static char resultbuf[1024];
+	static char resultbuf[YPMAXRECORD + 2];
 	int resultlen;
 	int rv;
 
@@ -537,7 +538,8 @@ unpack:
 			goto tryagain;
 		}
 
-		strcpy(resultbuf, result);
+		strncpy(resultbuf, result, resultlen);
+		resultbuf[resultlen] = '\0';
 		free(result);
 		if((result = strchr(resultbuf, '\n')) != NULL)
 			*result = '\0';

@@ -568,7 +568,8 @@ static char * _get_adjunct_pw(name)
 		    &result, &resultlen)))
 		return(NULL);
 
-	strncpy((char *)&adjunctbuf, result, YPMAXRECORD);
+	strncpy(adjunctbuf, result, resultlen);
+	adjunctbuf[resultlen] = '\0';
 	free(result);
 	result = (char *)&adjunctbuf;
 
@@ -582,7 +583,7 @@ static char * _get_adjunct_pw(name)
 }
 
 static int
-_pw_breakout_yp(struct passwd *pw, char *res, int master)
+_pw_breakout_yp(struct passwd *pw, char *res, int resultlen, int master)
 {
 	char *s, *result;
 	static char resbuf[YPMAXRECORD+2];
@@ -602,7 +603,8 @@ _pw_breakout_yp(struct passwd *pw, char *res, int master)
 	 * a static buffer here since the memory pointed to by
 	 * res will be free()ed when this function returns.
 	 */
-	strncpy((char *)&resbuf, res, YPMAXRECORD);
+	strncpy((char *)&resbuf, res, resultlen);
+	resbuf[resultlen] = '\0';
 	result = (char *)&resbuf;
 
 	/*
@@ -756,7 +758,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		*s = ':'; /* Put back the colon we previously replaced with a NUL. */
 	}
 
-	rv = _pw_breakout_yp(pw, result, _gotmaster);
+	rv = _pw_breakout_yp(pw, result, resultlen, _gotmaster);
 	free(result);
 	return(rv);
 }
@@ -816,7 +818,7 @@ unpack:
 		}
 
 		*s = ':'; /* Put back the colon we previously replaced with a NUL. */
-		if (_pw_breakout_yp(pw, result, _gotmaster)) {
+		if (_pw_breakout_yp(pw, result, resultlen, _gotmaster)) {
 			free(result);
 			return(1);
 		} else {
