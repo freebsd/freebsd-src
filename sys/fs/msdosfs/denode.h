@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: denode.h,v 1.1 1994/09/19 15:41:38 dfr Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -166,8 +166,9 @@ struct denode {
  */
 #define	DE_LOCKED	0x0001	/* directory entry is locked */
 #define	DE_WANTED	0x0002	/* someone wants this de */
-#define	DE_UPDATE	0x0004	/* file has been modified */
-#define	DE_MODIFIED	0x0080	/* denode wants to be written back to disk */
+#define	DE_UPDATE	0x0004	/* modification time update request */
+#define	DE_MODIFIED	0x0080	/* denode has been modified, but DE_UPDATE
+				 * isn't set */
 
 /*
  * Transfer directory entries between internal and external form.
@@ -199,18 +200,20 @@ struct denode {
 #define	DETOV(de)	((de)->de_vnode)
 
 #define	DE_UPDAT(dep, t, waitfor) \
-	if (dep->de_flag & DE_UPDATE) \
-		(void) deupdat(dep, t, waitfor);
+	if ((dep)->de_flag & (DE_MODIFIED | DE_UPDATE)) \
+		(void) deupdat((dep), (t), (waitfor));
 
 #define	DE_TIMES(dep, t) \
-	if (dep->de_flag & DE_UPDATE) { \
+	if ((dep)->de_flag & DE_UPDATE) { \
+		struct timespec DE_TIMES_ts; \
 		(dep)->de_flag |= DE_MODIFIED; \
-		unix2dostime(t, &dep->de_Date, &dep->de_Time); \
+		TIMEVAL_TO_TIMESPEC((t), &DE_TIMES_ts); \
+		unix2dostime(&DE_TIMES_ts, &(dep)->de_Date, &(dep)->de_Time); \
 		(dep)->de_flag &= ~DE_UPDATE; \
 	}
 
 /*
- * This overlays the fid sturcture (see mount.h)
+ * This overlays the fid structure (see mount.h)
  */
 struct defid {
 	u_short defid_len;	/* length of structure */

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.8 1994/11/01 21:14:45 jkh Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.9 1994/11/29 23:39:15 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -197,12 +197,9 @@ msdosfs_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct timespec ts;
 
-	if (vp->v_usecount > 1 && !(dep->de_flag & DE_LOCKED)) {
-		TIMEVAL_TO_TIMESPEC(&time, &ts);
-		DE_TIMES(dep, &ts);
-	}
+	if (vp->v_usecount > 1 && !(dep->de_flag & DE_LOCKED))
+		DE_TIMES(dep, &time);
 	return 0;
 }
 
@@ -296,10 +293,8 @@ msdosfs_getattr(ap)
 	u_int cn;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct vattr *vap = ap->a_vap;
-	struct timespec ts;
 
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
-	DE_TIMES(dep, &ts);
+	DE_TIMES(dep, &time);
 	vap->va_fsid = dep->de_dev;
 	/*
 	 * The following computation of the fileid must be the same as that
@@ -327,9 +322,11 @@ msdosfs_getattr(ap)
 	vap->va_size = dep->de_FileSize;
 	dos2unixtime(dep->de_Date, dep->de_Time, &vap->va_atime);
 	vap->va_mtime = vap->va_atime;
+#if 0
 #ifndef MSDOSFS_NODIRMOD
 	if (vap->va_mode & S_IFDIR)
 		TIMEVAL_TO_TIMESPEC(&time, &vap->va_mtime);
+#endif
 #endif
 	vap->va_ctime = vap->va_atime;
 	vap->va_flags = dep->de_flag;
@@ -406,7 +403,7 @@ msdosfs_setattr(ap)
 			dep->de_Attributes &= ~ATTR_READONLY;
 		else
 			dep->de_Attributes |= ATTR_READONLY;
-		dep->de_flag |= DE_UPDATE;
+		dep->de_flag |= DE_MODIFIED;
 	}
 
 	if (vap->va_flags != VNOVAL) {
@@ -419,7 +416,7 @@ msdosfs_setattr(ap)
 			dep->de_flag &= 0xffff0000;
 			dep->de_flag |= (vap->va_flags & 0xffff);
 		}
-		dep->de_flag |= DE_UPDATE;
+		dep->de_flag |= DE_MODIFIED;
 	}
 	return error;
 }
@@ -545,7 +542,6 @@ msdosfs_write(ap)
 	struct ucred *cred = ap->a_cred;
 	struct timespec ts;
 	
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_write(vp %08x, uio %08x, ioflag %08x, cred %08x\n",
 	       vp, uio, ioflag, cred);
@@ -728,6 +724,7 @@ errexit:
 				error = 0;
 		}
 	} else {
+		TIMEVAL_TO_TIMESPEC(&time, &ts);
 		error = deupdat(dep, &ts, 1);
 	}
 	return error;
@@ -794,8 +791,6 @@ msdosfs_fsync(ap)
 	struct buf *nbp;
 	int s;
 
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
-
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
@@ -824,6 +819,7 @@ loop:
 	}
 #endif
 	splx(s);
+	TIMEVAL_TO_TIMESPEC(&time, &ts);
 	return deupdat(VTODE(vp), &ts, wait);
 }
 
