@@ -38,14 +38,14 @@ do
 
 	if [ "`uname -m`" = "alpha" ]; then
 		disklabel -Brw -b ${RD}/trees/bin/usr/mdec/boot1 \
-		  /dev/r${VNDEVICE} minimum
+		  /dev/r${VNDEVICE} ${FSLABEL}
 	else
 		disklabel -Brw \
 		  -b ${RD}/trees/bin/usr/mdec/fdboot \
 		  -s ${RD}/trees/bin/usr/mdec/bootfd \
-		  /dev/r${VNDEVICE} minimum
+		  /dev/r${VNDEVICE} ${FSLABEL}
 	fi
-	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
+	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} -o space /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
@@ -61,7 +61,7 @@ do
 
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
-	if [ $FSLABEL != "minimum" ] ; then
+	if ! echo $FSLABEL | grep -q minimum; then
 		echo ${FSSIZE} > fs-image.size
 		break
 	fi
