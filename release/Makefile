@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.246.2.34 1997/03/15 20:59:35 joerg Exp $
 #
 # How to roll a release:
 #
@@ -104,7 +104,7 @@ rerelease release:
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports
 .endif
 .endif
@@ -115,7 +115,7 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
 .endif
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
 .endif
 .endif
@@ -136,8 +136,8 @@ rerelease release:
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
-.if defined(NO_PORTS)
-	echo "export NO_PORTS=${NO_PORTS}"	>> ${CHROOTDIR}/mk
+.if defined(NOPORTS)
+	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
@@ -497,7 +497,7 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	ln -s ../ports ${CD_DISC2}/usr/ports
 .endif
 #
@@ -553,7 +553,7 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
-.if defined(NO_PORTS)
+.if defined(NOPORTS)
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 .else
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1 ports.1
