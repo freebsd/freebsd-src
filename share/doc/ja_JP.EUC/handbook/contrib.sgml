@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.41 1997/03/17 02:12:43 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.42 1997/03/26 05:51:03 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.227 -->
+<!-- Original revision: 1.228 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -264,6 +264,7 @@
 	  <item>David Leonard &lt;d@scry.dstc.edu.au&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
+	  <item>Dmitrij Tejblum &lt;dima@tejblum.dnttm.rssi.ru&gt;
 	  <item>Dmitry Kohmanyuk &lt;dk@farm.org&gt;
 	  <item>&a.whiteside;
 	  <item>Don Yuniskis &lt;dgy@rtd.com&gt;
