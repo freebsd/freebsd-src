@@ -423,11 +423,12 @@ mmap(td, uap)
 	    flags, handle, pos);
 	if (error == 0)
 		td->td_retval[0] = (register_t) (addr + pageoff);
-	mtx_lock(&Giant);
+	goto done2;
 done:
+	mtx_unlock(&Giant);
+done2:
 	if (fp)
 		fdrop(fp, td);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
