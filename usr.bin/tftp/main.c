@@ -70,9 +70,13 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <histedit.h>
+
 #include "extern.h"
 
 #define	TIMEOUT		5		/* secs between rexmt's */
+
+#define MAXLINE     200
 
 struct	sockaddr_in peeraddr;
 int	f;
@@ -81,10 +85,9 @@ int	trace;
 int	verbose;
 int	connected;
 char	mode[32];
-char	line[200];
+char	line[MAXLINE];
 int	margc;
 char	*margv[20];
-char	*prompt = "tftp";
 jmp_buf	toplevel;
 void	intr();
 struct	servent *sp;
@@ -589,6 +592,11 @@ tail(filename)
 	return (filename);
 }
 
+static const char *
+command_prompt() {
+	return ("tftp> ");
+}
+
 /*
  * Command parser.
  */
@@ -597,14 +605,42 @@ command()
 {
 	register struct cmd *c;
 	char *cp;
+	static EditLine *el = NULL;
+	static History *hist = NULL;
+	HistEvent he;
+	const char * bp;
+	int len, num;
+	int verbose;
+
+	verbose = isatty(0);
+
+	if (verbose) {
+		el = el_init("tftp", stdin, stdout, stderr);
+		hist = history_init();
+		history(hist, &he, H_EVENT, 100);
+		el_set(el, EL_HIST, history, hist);
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_PROMPT, command_prompt);
+		el_set(el, EL_SIGNAL, 1);
+		el_source(el, NULL);
+	}
 
 	for (;;) {
-		printf("%s> ", prompt);
-		if (fgets(line, sizeof line , stdin) == 0) {
-			if (feof(stdin)) {
-				exit(0);
-			} else {
-				continue;
+		if (verbose) {
+                        if ((bp = el_gets(el, &num)) == NULL || num == 0)
+                                exit(0);
+
+                        len = (num > MAXLINE) ? MAXLINE : num;
+                        memcpy(line, bp, len);
+                        line[len] = '\0';
+                        history(hist, &he, H_ENTER, bp);
+		} else {
+			if (fgets(line, sizeof line , stdin) == 0) {
+				if (feof(stdin)) {
+					exit(0);
+				} else {
+					continue;
+				}
 			}
 		}
 		if ((cp = strchr(line, '\n')))
