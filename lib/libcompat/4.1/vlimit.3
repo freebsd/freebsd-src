@@ -92,7 +92,7 @@ is thus a built-in command to
 .Pp
 The system refuses to extend the data or stack space when the limits
 would be exceeded in the normal way; a
-.Xr break 2
+.Xr brk 2
 call fails if the data space limit is reached, or the process is
 killed when the stack limit is reached (since the stack cannot be
 extended, there is no way to send a signal!).
