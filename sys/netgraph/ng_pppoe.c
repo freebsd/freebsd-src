@@ -347,13 +347,18 @@ AAA
  * for testing allow a null string to match 1st found and a null service
  * to match all requests. Also make '*' do the same.
  */
+
+#define NG_MATCH_EXACT	1
+#define NG_MATCH_ANY	2
+
 static hook_p
-pppoe_match_svc(node_p node, char *svc_name, int svc_len)
+pppoe_match_svc(node_p node, char *svc_name, int svc_len, int match)
 {
 	sessp	sp	= NULL;
 	negp	neg	= NULL;
 	priv_p	privp	= node->private;
-	hook_p hook;
+	hook_p	allhook	= NULL;
+	hook_p	hook;
 
 AAA
 	LIST_FOREACH(hook, &node->hooks, hooks) {
@@ -369,17 +374,12 @@ AAA
 			continue;
 
 		neg = sp->neg;
-		/* XXX check validity of this */
-		/* special case, NULL request. match 1st found. */
-		if (svc_len == 0)
-			break;
 
-		/* XXX check validity of this */
 		/* Special case for a blank or "*" service name (wildcard) */
-		if ((neg->service_len == 0)
-		||  ((neg->service_len == 1)
-		  && (neg->service.data[0] == '*'))) {
-			break;
+		if (match == NG_MATCH_ANY && neg->service_len == 1 &&
+		    neg->service.data[0] == '*') {
+			allhook = hook;
+			continue;
 		}
 
 		/* If the lengths don't match, that aint it. */
@@ -387,10 +387,13 @@ AAA
 			continue;
 
 		/* An exact match? */
+		if (svc_len == 0)
+			break;
+
 		if (strncmp(svc_name, neg->service.data, svc_len) == 0)
 			break;
 	}
-	return (hook);
+	return (hook ? hook : allhook);
 }
 /**************************************************************************
  * Routine to find a particular session that matches an incoming packet	  *
@@ -581,6 +584,17 @@ AAA
 				LEAVE(EINVAL);
 			}
 			sp = hook->private;
+
+			if (msg->header.cmd == NGM_PPPOE_LISTEN) {
+				/*
+				 * Ensure we aren't already listening for this
+				 * service.
+				 */
+				if (pppoe_match_svc(node, ourmsg->data,
+				    ourmsg->data_len, NG_MATCH_EXACT) != NULL) {
+					LEAVE(EEXIST);
+				}
+			}
 
 			/*
 			 * PPPOE_SERVICE advertisments are set up
@@ -876,11 +890,11 @@ AAA
 					LEAVE(ENETUNREACH);
 				}
 				sendhook = pppoe_match_svc(hook->node,
-			    		tag->tag_data, ntohs(tag->tag_len));
+			    		tag->tag_data, ntohs(tag->tag_len),
+					NG_MATCH_ANY);
 				if (sendhook) {
 					NG_SEND_DATA(error, sendhook, m, meta);
 				} else {
-					printf("no such service\n");
 					LEAVE(ENETUNREACH);
 				}
 				break;
