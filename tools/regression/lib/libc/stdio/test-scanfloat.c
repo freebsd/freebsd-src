@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <float.h>
+#include <ieeefp.h>
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
@@ -61,9 +62,6 @@ main(int argc, char *argv[])
 
 	sscanf("3.141592653589793", "%lf", &d);
 	assert(eq(DBL, d, 3.141592653589793));
-
-	sscanf("3.14159265358979323846", "%Lg", &ld);
-	assert(eq(LDBL, ld, 3.14159265358979323846L));
 
 	sscanf("1.234568e+06", "%E", &f);
 	assert(eq(FLT, f, 1.234568e+06));
@@ -121,7 +119,10 @@ main(int argc, char *argv[])
 	assert(d == 0x90a.bcdefp+09);
 	assert(strcmp(buf, "a") == 0);
 
-#if LDBL_MANT_DIG > DBL_MANT_DIG
+#if (LDBL_MANT_DIG > DBL_MANT_DIG) && !defined(__i386__)
+	sscanf("3.14159265358979323846", "%Lg", &ld);
+	assert(eq(LDBL, ld, 3.14159265358979323846L));
+
 	sscanf("  0X.0123456789abcdefffp-3g", "%Le%s", &ld, buf);
 	assert(ld == 0x0.0123456789abcdefffp-3L);
 	assert(strcmp(buf, "g") == 0);
@@ -162,6 +163,16 @@ main(int argc, char *argv[])
 
 	sscanf("-nan", "%le", &d);
 	assert(isnan(d));
+
+	fpsetround(FP_RN);
+
+	/* strtod() should round small numbers to 0. */
+	sscanf("0x1.23p-5000", "%le", &d);
+	assert(d == 0.0);
+
+	/* Extra digits in a denormal shouldn't break anything. */
+	sscanf("0x1.2345678p-1050", "%le", &d);
+	assert(d == 0x1.234568p-1050);
 
 	printf("PASS scanfloat\n");
 
