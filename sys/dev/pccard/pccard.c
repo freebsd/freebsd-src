@@ -831,6 +831,11 @@ pccard_card_intrdebug(arg)
 }
 #endif
 
+#define PCCARD_NPORT	2
+#define PCCARD_NMEM	5
+#define PCCARD_NIRQ	1
+#define PCCARD_NDRQ	0
+
 static int
 pccard_add_children(device_t dev, int busno)
 {
@@ -845,6 +850,116 @@ pccard_probe(device_t dev)
 	return pccard_add_children(dev, device_get_unit(dev));
 }
 
+static void
+pccard_print_resources(struct resource_list *rl, const char *name, int type,
+    int count, const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed;
+	int i;
+
+	printed = 0;
+	for (i = 0; i < count; i++) {
+		rle = resource_list_find(rl, type, i);
+		if (rle) {
+			if (printed == 0)
+				printf(" %s ", name);
+			else if (printed > 0)
+				printf(",");
+			printed++;
+			printf(format, rle->start);
+			if (rle->count > 1) {
+				printf("-");
+				printf(format, rle->start + rle->count - 1);
+			}
+		} else if (i > 3) {
+			/* check the first few regardless */
+			break;
+		}
+	}
+}
+
+static int
+pccard_print_child(device_t dev, device_t child)
+{
+	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	int retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += printf(" at");
+
+	if (devi) {
+		pccard_print_resources(rl, "port", SYS_RES_IOPORT,
+		    PCCARD_NPORT, "%#lx");
+		pccard_print_resources(rl, "iomem", SYS_RES_MEMORY,
+		    PCCARD_NMEM, "%#lx");
+		pccard_print_resources(rl, "irq", SYS_RES_IRQ, PCCARD_NIRQ,
+		    "%ld");
+		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
+		    "%ld");
+		retval += printf(" slot %d", devi->slotnum);
+	}
+
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+static int
+pccard_set_resource(device_t dev, device_t child, int type, int rid,
+		 u_long start, u_long count)
+{
+	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+
+	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
+	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
+		return EINVAL;
+	if (rid < 0)
+		return EINVAL;
+	if (type == SYS_RES_IOPORT && rid >= PCCARD_NPORT)
+		return EINVAL;
+	if (type == SYS_RES_MEMORY && rid >= PCCARD_NMEM)
+		return EINVAL;
+	if (type == SYS_RES_IRQ && rid >= PCCARD_NIRQ)
+		return EINVAL;
+	if (type == SYS_RES_DRQ && rid >= PCCARD_NDRQ)
+		return EINVAL;
+
+	resource_list_add(rl, type, rid, start, start + count - 1, count);
+
+	return 0;
+}
+
+static int
+pccard_get_resource(device_t dev, device_t child, int type, int rid,
+    u_long *startp, u_long *countp)
+{
+	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (!rle)
+		return ENOENT;
+	
+	if (startp)
+		*startp = rle->start;
+	if (countp)
+		*countp = rle->count;
+
+	return 0;
+}
+
+static void
+pccard_delete_resource(device_t dev, device_t child, int type, int rid)
+{
+	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct resource_list *rl = &devi->resources;
+	resource_list_delete(rl, type, rid);
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -854,23 +969,17 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-#if 0
 	DEVMETHOD(bus_print_child,	pccard_print_child),
-#endif
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-#if 0
-	DEVMETHOD(bus_alloc_resource,	pccard_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pccard_release_resource),
-#endif
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-#if 0
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
-#endif
 
 	{ 0, 0 }
 };
@@ -883,6 +992,7 @@ static driver_t pccard_driver = {
 
 devclass_t	pccard_devclass;
 
-DRIVER_MODULE(pccard, pcicx, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pccbb, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
