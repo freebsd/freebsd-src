@@ -60,6 +60,7 @@
 #include <machine/bwx.h>
 #include <machine/intr.h>
 #include <machine/rpb.h>
+#include <machine/smp.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
