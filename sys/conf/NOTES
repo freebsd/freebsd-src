@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.386 1997/12/23 08:01:16 yokota Exp $
+#	$Id: LINT,v 1.387 1997/12/26 20:41:05 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1026,9 +1026,6 @@ options		NATM			#native ATM
 # This driver will use the new PnP code if it's available.
 #
 # pca: PCM audio through your PC speaker
-#
-# If you don't have a lpt0 device at IRQ 7, you can remove the
-# ``conflicts'' specification in the appropriate device entries below.
 #
 # If you have a GUS-MAX card and want to use the CS4231 codec on the
 # card the drqs for the gus max must be 8 bit (1, 2, or 3).
