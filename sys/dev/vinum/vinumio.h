@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.4 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinumio.h,v 1.14 1999/01/18 05:00:30 grog Exp grog $
  */
 
 #ifdef VINUMDEBUG
@@ -120,8 +120,7 @@ struct vinum_ioctl_msg {
 #define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
 #define VINUM_REMOVE 		_IOC(IOC_IN | IOC_OUT, L, 83, MAX_IOCTL_REPLY) /* remove an object */
-#define VINUM_GETUNMAPPED	_IOWR(L, 84, struct plexregion)	/* get unmapped element (plex, re) */
-#define VINUM_GETDEFECTIVE	_IOWR(L, 85, struct plexregion)	/* get defective element (plex, re) */
+/* 84, 85 going begging */
 #define VINUM_RESETSTATS	_IOC(IOC_IN | IOC_OUT, L, 86, MAX_IOCTL_REPLY) /* reset object stats */
 #define VINUM_ATTACH		_IOC(IOC_IN | IOC_OUT, L, 87, MAX_IOCTL_REPLY) /* reset object stats */
 #define VINUM_DETACH		_IOC(IOC_IN | IOC_OUT, L, 88, MAX_IOCTL_REPLY) /* reset object stats */
@@ -139,3 +138,8 @@ struct vinum_rename_msg {
 #ifdef VINUMDEBUG
 #define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */
 #endif
+
+#define VINUM_DAEMON		_IOC(0, L, 92, 0)	    /* perform the kernel part of Vinum daemon */
+#define VINUM_FINDDAEMON	_IOC(0, L, 93, 0)	    /* check for presence of Vinum daemon */
+#define VINUM_SETDAEMON		_IOW(L, 94, int)	    /* set daemon flags */
+#define VINUM_GETDAEMON		_IOR(L, 95, int)	    /* get daemon flags */
