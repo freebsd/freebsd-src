@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.3 1997/11/03 07:44:12 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -73,7 +73,7 @@ boolean	terse	= FALSE;	/* Terse output */
 
 char	*suffixlist = ".*";	/* initially, can touch any file */
 
-int errorsort __P((Eptr *, Eptr *));
+int errorsort __P((const void *, const void *));
 void forkvi __P((int, char **));
 void try __P((char *, int, char **));
 
@@ -258,9 +258,10 @@ try(name, argc, argv)
 	execvp(name, argv);
 }
 
-int errorsort(epp1, epp2)
-		Eptr	*epp1, *epp2;
+int errorsort(vepp1, vepp2)
+	const void	*vepp1, *vepp2;
 {
+	const Eptr	*epp1 = vepp1, *epp2 = vepp2;
 	reg	Eptr	ep1, ep2;
 		int	order;
 	/*
