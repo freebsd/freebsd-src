@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.18 1995/04/06 07:20:16 rgrimes Exp $
+ *  $Id: ft.c,v 1.19 1995/04/09 06:23:12 rgrimes Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -408,8 +408,9 @@ static struct kern_devconf kdc_ft[NFT] = { {
 	ft_externalize, 0, 0, DISK_EXTERNALLEN,
 	0,			/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
-	"floppy tape"
+	DC_IDLE,		/* state */
+	"floppy tape",
+	DC_CLS_TAPE		/* class */
 } };
 
 static inline void
@@ -512,43 +513,55 @@ out:
   tape_end(ftu);
   if (ft->type != NO_TYPE) {
 	fdc->flags |= FDC_HASFTAPE;
+	ft_registerdev(fdcu, ftu);
 	switch(hw.hw_make) {
 	    case 0x0000:
-		if (ft->type == FT_COLORADO)
+		if (ft->type == FT_COLORADO) {
 			manu = "Colorado";
-		else if (ft->type == FT_INSIGHT)
+			kdc_ft[ftu].kdc_description = "Colorado floppy tape";
+		} else if (ft->type == FT_INSIGHT) {
 			manu = "Insight";
-		else if (ft->type == FT_MOUNTAIN && hw.hw_model == 0x05)
+			kdc_ft[ftu].kdc_description = "Insight floppy tape";
+		} else if (ft->type == FT_MOUNTAIN && hw.hw_model == 0x05) {
 			manu = "Archive";
-		else if (ft->type == FT_MOUNTAIN)
+			kdc_ft[ftu].kdc_description = "Archive floppy tape";
+		} else if (ft->type == FT_MOUNTAIN) {
 			manu = "Mountain";
-		else
+			kdc_ft[ftu].kdc_description = "Mountain floppy tape";
+		} else {
 			manu = "Unknown";
+		}
 		break;
 	    case 0x0001:
 		manu = "Colorado";
+		kdc_ft[ftu].kdc_description = "Colorado floppy tape";
 		break;
 	    case 0x0005:
-		if (hw.hw_model >= 0x09)
+		if (hw.hw_model >= 0x09) {
 			manu = "Conner";
-		else
+			kdc_ft[ftu].kdc_description = "Conner floppy tape";
+		} else {
 			manu = "Archive";
+			kdc_ft[ftu].kdc_description = "Archive floppy tape";
+		}
 		break;
 	    case 0x0006:
 		manu = "Mountain";
+		kdc_ft[ftu].kdc_description = "Mountain floppy tape";
 		break;
 	    case 0x0007:
 		manu = "Wangtek";
+		kdc_ft[ftu].kdc_description = "Wangtek floppy tape";
 		break;
 	    case 0x0222:
 		manu = "IOMega";
+		kdc_ft[ftu].kdc_description = "IOMega floppy tape";
 		break;
 	    default:
 		manu = "Unknown";
 		break;
 	}
 	printf("ft%d: %s tape\n", fdup->id_unit, manu);
-	ft_registerdev(fdcu, ftu);
   }
   ft->attaching = 0;
   return(ft->type);
@@ -2078,6 +2091,7 @@ ftopen(dev_t dev, int arg2) {
 	return(ENODEV);
   fdc->fdu = ftu;
   fdc->flags |= FDC_TAPE_BUSY; 
+  kdc_ft[ftu].kdc_state = DC_BUSY;
   return(set_fdcmode(dev, FDC_TAPE_MODE)); /* try to switch to tape */
 }
 
@@ -2099,6 +2113,7 @@ ftclose(dev_t dev, int flags)
   tape_cmd(ftu, QC_PRIMARY);
   tape_state(ftu, 0, QS_READY, 60);
   ftreq_rewind(ftu);
+  kdc_ft[ftu].kdc_state = DC_IDLE;
   return(set_fdcmode(dev, FDC_DISK_MODE));	/* Otherwise, close tape */
 }
 

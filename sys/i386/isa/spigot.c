@@ -82,7 +82,7 @@ int	spigot_attach(struct isa_device *id);
 
 struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
 
-static struct kern_devconf kdc_spigot[NSPIGOT] = {
+static struct kern_devconf kdc_spigot[NSPIGOT] = { {
 	0,			/* kdc_next -> filled in by dev_attach() */
 	0,			/* kdc_rlink -> filled in by dev_attach() */
 	0,			/* kdc_number -> filled in by dev_attach() */
@@ -99,9 +99,10 @@ static struct kern_devconf kdc_spigot[NSPIGOT] = {
 	ISA_EXTERNALLEN,		/* kdc_datalen */
 	&kdc_isa0,			/* kdc_parent */
 	0,				/* kdc_parentdata */
-	DC_UNKNOWN,			/* kdc_state - not supported */
-	"Video Spigot frame grabber"	/* kdc_description */
-};
+	DC_UNCONFIGURED,	/* kdc_state - not supported */
+	"Video Spigot frame grabber",	/* kdc_description */
+	DC_CLS_MISC		/* class */
+} };
 
 static inline void
 spigot_registerdev(struct isa_device *id)
@@ -118,7 +119,9 @@ spigot_probe(struct isa_device *devp)
 {
 int			status;
 
-	if(inb(0xad9) == 0xff) 	/* ff if board isn't there??? */
+	spigot_registerdev(devp);
+
+	if(devp->id_iobase != 0xad6 || inb(0xad9) == 0xff) 	/* ff if board isn't there??? */
 		status = 0;
 	else
 		status = 1;
@@ -129,12 +132,11 @@ int			status;
 int
 spigot_attach(struct isa_device *devp)
 {
-struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+	struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+	kdc_spigot[devp->id_unit].kdc_state = DC_UNKNOWN;
 
 	ss->flags = 0;
 	ss->maddr = devp->id_maddr;
-
-	spigot_registerdev(devp);
 
 	return 1;
 }

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.3 1994/10/21 01:19:05 wollman Exp $
+ *	$Id: ctx.c,v 1.4 1994/10/23 21:27:11 wollman Exp $
  */
 
 /*
@@ -160,8 +160,9 @@ static struct kern_devconf kdc_ctx[NCTX] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-	"CORTEX-I frame grabber"
+	DC_UNCONFIGURED,	/* always start out here */
+	"CORTEX-I frame grabber",
+	DC_CLS_MISC
 } };
 
 static inline void
@@ -178,6 +179,8 @@ int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
+
+	ctx_registerdev(devp);
 
 	if (inb(devp->id_iobase) == 0xff)	/* 0xff only if board absent */
 		status = 0;
@@ -198,7 +201,7 @@ ctxattach(struct isa_device * devp)
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
-	ctx_registerdev(devp);
+	kdc_ctx[devp->id_unit].kdc_state = DC_IDLE;
 	return (1);
 }
 
@@ -227,6 +230,7 @@ ctxopen(dev_t dev, int flag)
 		return (ENOMEM);
 
 	sr->flag = OPEN;
+	kdc_ctx[unit].kdc_state = DC_BUSY;
 
 /*
 	Set up the shadow registers.  We don't actually write these
@@ -264,6 +268,7 @@ ctxclose(dev_t dev, int flag)
 
 	unit = UNIT(minor(dev));
 	ctx_sr[unit].flag = 0;
+	kdc_ctx[unit].kdc_state = DC_IDLE;
 	free(ctx_sr[unit].lutp, M_DEVBUF);
 	ctx_sr[unit].lutp = NULL;
 	return (0);

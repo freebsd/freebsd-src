@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.88 1995/04/04 16:26:04 ache Exp $
+ *	$Id: sio.c,v 1.89 1995/04/11 17:58:09 ache Exp $
  */
 
 #include "sio.h"
@@ -347,6 +347,31 @@ static	struct speedtab comspeedtab[] = {
 /* XXX - configure this list */
 static Port_t likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
 
+static struct kern_devconf kdc_sio[NSIO] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"sio", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,
+	"RS-232 serial port"
+} };
+
+static void
+sioregisterdev(id)
+	struct isa_device *id;
+{
+	int	unit;
+
+	unit = id->id_unit;
+	if (unit != 0)
+		kdc_sio[unit] = kdc_sio[0];
+	kdc_sio[unit].kdc_unit = unit;
+	kdc_sio[unit].kdc_isa = id;
+	kdc_sio[unit].kdc_state = DC_IDLE;
+	dev_attach(&kdc_sio[unit]);
+}
+
 static int
 sioprobe(dev)
 	struct isa_device	*dev;
@@ -359,6 +384,8 @@ sioprobe(dev)
 	Port_t		iobase;
 	u_char		mcr_image;
 	int		result;
+
+	sioregisterdev(dev);
 
 	if (!already_init) {
 		/*
@@ -535,31 +562,6 @@ sioprobe(dev)
 	return (result);
 }
 
-static struct kern_devconf kdc_sio[NSIO] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"sio", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	"RS-232 serial port"
-} };
-
-static void
-sioregisterdev(id)
-	struct isa_device *id;
-{
-	int	unit;
-
-	unit = id->id_unit;
-	if (unit != 0)
-		kdc_sio[unit] = kdc_sio[0];
-	kdc_sio[unit].kdc_unit = unit;
-	kdc_sio[unit].kdc_isa = id;
-	kdc_sio[unit].kdc_state = DC_IDLE;
-	dev_attach(&kdc_sio[unit]);
-}
-
 
 static int
 sioattach(isdp)
@@ -634,6 +636,8 @@ sioattach(isdp)
 #ifdef DSI_SOFT_MODEM
 	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
 	    printf(" Digicom Systems, Inc. SoftModem");
+	    kdc_sio[isdp->id_unit].kdc_description = 
+	      "Serial port: Digicom Systems SoftModem";
         goto determined_type;
 	}
 #endif /* DSI_SOFT_MODEM */
@@ -654,6 +658,8 @@ sioattach(isdp)
 		outb(iobase + com_scr, scr);
 		if (scr1 != 0xa5 || scr2 != 0x5a) {
 			printf(" 8250");
+			kdc_sio[isdp->id_unit].kdc_description =
+			  "Serial port: National 8250 or compatible";
 			goto determined_type;
 		}
 	}
@@ -662,21 +668,31 @@ sioattach(isdp)
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_TRIGGER_1:
 		printf(" 16450");
+		kdc_sio[isdp->id_unit].kdc_description =
+		  "Serial port: National 16450 or compatible";
 		break;
 	case FIFO_TRIGGER_4:
 		printf(" 16450?");
+		kdc_sio[isdp->id_unit].kdc_description =
+		  "Serial port: maybe National 16450";
 		break;
 	case FIFO_TRIGGER_8:
 		printf(" 16550?");
+		kdc_sio[isdp->id_unit].kdc_description =
+		  "Serial port: maybe National 16550";
 		break;
 	case FIFO_TRIGGER_14:
 		printf(" 16550A");
-		if (COM_NOFIFO(isdp))
+		if (COM_NOFIFO(isdp)) {
 			printf(" fifo disabled");
-		else {
+			kdc_sio[isdp->id_unit].kdc_description =
+			  "Serial port: National 16550A, FIFO disabled";
+		} else {
 			com->hasfifo = TRUE;
 			com->ftl_init = FIFO_TRIGGER_14;
 			com->tx_fifo_size = 16;
+			kdc_sio[isdp->id_unit].kdc_description =
+			  "Serial port: National 16550A or compatible";
 		}
 		break;
 	}
@@ -696,7 +712,8 @@ determined_type: ;
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
-	sioregisterdev(isdp);
+	kdc_sio[unit].kdc_state = 
+	  (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
@@ -718,6 +735,7 @@ determined_type: ;
 			outb(iobase + com_cfcr, CFCR_8BITS);
 			outb(com->modem_status_port,
 			     com->mcr_image |= MCR_DTR | MCR_RTS);
+			kdc_sio[unit].kdc_state = DC_BUSY;
 
 			if (kgdb_debug_init) {
 				/*
@@ -891,6 +909,7 @@ open_top:
 	disc_optim(tp, &(tp->t_termios), com);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
+	kdc_sio[unit].kdc_state = DC_BUSY;
 out:
 	splx(s);
 	if (!(tp->t_state & TS_ISOPEN) && com->wopeners == 0)
@@ -910,11 +929,13 @@ sioclose(dev, flag, mode, p)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
+	int		unit;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (0);
-	com = com_addr(MINOR_TO_UNIT(mynor));
+	unit = MINOR_TO_UNIT(mynor);
+	com = com_addr(unit);
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -922,6 +943,7 @@ sioclose(dev, flag, mode, p)
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
+	kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 	return (0);
 }

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.115 1995/03/17 04:19:19 davidg Exp $
+ *	$Id: machdep.c,v 1.116 1995/04/06 07:55:42 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -129,7 +129,18 @@ static void identifycpu(void);
 static void initcpu(void);
 
 char machine[] = "i386";
-char cpu_model[sizeof("Cy486DLC") + 1];
+char cpu_model[128];
+
+struct kern_devconf kdc_cpu0 = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"cpu", 0, { MDDT_CPU },
+	0, 0, 0, CPU_EXTERNALLEN,
+	0,			/* CPU has no parent */
+	0,			/* no parentdata */
+	DC_BUSY,		/* the CPU is always busy */
+	cpu_model,		/* no sense in duplication */
+	DC_CLS_CPU		/* class */
+};
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -404,14 +415,80 @@ identifycpu()
 	printf("CPU: ");
 	if (cpu >= 0 
 	    && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
-		printf("%s", i386_cpus[cpu].cpu_name);
 		cpu_class = i386_cpus[cpu].cpu_class;
 		strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 	} else {
 		printf("unknown cpu type %d\n", cpu);
 		panic("startup: bad cpu id");
 	}
-	printf(" (");
+
+#ifdef I586_CPU
+	if(cpu_class == CPUCLASS_586) {
+		calibrate_cyclecounter();
+		printf("%d-MHz ", pentium_mhz);
+	}
+#endif
+	if (!strcmp(cpu_vendor,"GenuineIntel")) {
+		if ((cpu_id & 0xf00) > 3) {
+			cpu_model[0] = '\0';
+
+			switch (cpu_id & 0x3000) {
+			case 0x1000: 
+				strcpy(cpu_model, "Overdrive "); 
+				break;
+			case 0x2000:
+				strcpy(cpu_model, "Dual ");
+				break;
+			}
+			if ((cpu_id & 0xf00) == 0x400) {
+				strcat(cpu_model, "i486 ");
+			} else if ((cpu_id & 0xf00) == 0x500) {
+				strcat(cpu_model, "Pentium ");
+			} else {
+				strcat(cpu_model, "unknown ");
+			}
+
+			switch (cpu_id & 0xff0) {
+			case 0x400:
+				strcat(cpu_model, "DX"); break;
+			case 0x410:
+				strcat(cpu_model, "DX"); break;
+			case 0x420:
+				strcat(cpu_model, "SX"); break;
+			case 0x430:
+				strcat(cpu_model, "DX2"); break;
+			case 0x440:
+				strcat(cpu_model, "SL"); break;
+			case 0x450:
+				strcat(cpu_model, "SX2"); break;
+			case 0x470:
+				strcat(cpu_model, "DX2 Write-Back Enhanced");
+				break;
+			case 0x480:
+				strcat(cpu_model, "DX4"); break;
+			case 0x510: 
+				if (pentium_mhz == 60) {
+					strcat(cpu_model, "510\\60");
+				} else if (pentium_mhz == 66) {
+					strcat(cpu_model, "567\\66");
+				} else {
+					strcat(cpu_model,"510\\60 or 567\\66");
+				}
+				break;
+			case 0x520:
+				if (pentium_mhz == 90) {
+					strcat(cpu_model, "735\\90");
+				} else if (pentium_mhz == 100) {
+					strcat(cpu_model, "815\\100");
+				} else {
+					strcat(cpu_model,"735\\90 or 815\\100");
+				}
+				break;
+			}
+		}
+	}
+
+	printf("%s (", cpu_model);
 	switch(cpu_class) {
 	case CPUCLASS_286:
 		printf("286");
@@ -428,57 +505,20 @@ identifycpu()
 	default:
 		printf("unknown");	/* will panic below... */
 	}
-	printf("-class CPU)");
-#ifdef I586_CPU
-	if(cpu_class == CPUCLASS_586) {
-		calibrate_cyclecounter();
-		printf(" %d MHz", pentium_mhz);
-	}
-#endif
+	printf("-class CPU)\n");
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	if(cpu_id)
 		printf("  Id = 0x%lx",cpu_id);
-	printf("\n");	/* cpu speed would be nice, but how? */
-	if (!strcmp(cpu_vendor,"GenuineIntel")) {
-		printf("  This is a");
-		if ((cpu_id & 0xf00) > 3) {
-			switch (cpu_id & 0x3000) {
-			    case 0x1000: printf("Overdrive "); break;
-			    case 0x2000: printf("Dual "); break;
-			}
-			if ((cpu_id & 0xf00) == 0x400) 
-			    printf("n i486");
-			else if ((cpu_id & 0xf00) == 0x500) 
-			    printf(" Pentium ");
-			else
-			    printf(" unknown CPU");
-			switch (cpu_id & 0xff0) {
-			    case 0x400: printf("DX"); break;
-			    case 0x410: printf("DX"); break;
-			    case 0x420: printf("SX"); break;
-			    case 0x430: printf("DX2"); break;
-			    case 0x440: printf("SL"); break;
-			    case 0x450: printf("SX2"); break;
-			    case 0x470: printf("DX2 Write-Back Enhanced");
-				break;
-			    case 0x480: printf("DX4"); break;
-			    case 0x510: printf("510\\60 or 567\\66"); break;
-			    case 0x520: printf("735\\90 or 815\\100"); break;
-			}
-		}
-		printf("  Stepping=%d\n", cpu_id & 0xf);
+
+	if (!strcmp(cpu_vendor, "GenuineIntel")) {
+		printf("  Stepping=%d", cpu_id & 0xf);
 		if (cpu_high > 0) {
-			printf("  Features=0x%lx",cpu_feature);
-			if (cpu_feature & 0x1) printf(" FPU"); 
-			if (cpu_feature & 0x2) printf(" VME"); 
-			if (cpu_feature & 0x8) printf(" PSE"); 
-			if (cpu_feature & 0x80) printf(" MCE");
-			if (cpu_feature & 0x100) printf(" CX8");
-			if (cpu_feature & 0x200) printf(" APIC");
-			printf("\n");
+#define FEATUREFMT "\020\001FPU\002VME\003PSE\004MCE\005CX8\006APIC"
+			printf("  Features=0x%b", cpu_feature, FEATUREFMT);
 		}
 	}
+	printf("\n");
 
 	/*
 	 * Now that we have told the user what they have,
@@ -502,6 +542,7 @@ identifycpu()
 	default:
 		break;
 	}
+	dev_attach(&kdc_cpu0);
 }
 
 /*

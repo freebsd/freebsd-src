@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.29 1995/03/23 09:00:18 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.30 1995/03/28 07:55:23 bde Exp $
  */
 
 #include <sys/types.h>
@@ -325,8 +325,9 @@ static struct kern_devconf kdc_ahb[NAHB] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always ``in use'' */
-	"Adaptec 174x-series SCSI host adapter"
+	DC_UNCONFIGURED,	/* always start out here in probe */
+	"Adaptec 174x-series SCSI host adapter",
+	DC_CLS_MISC		/* host adapters aren't special */
 } };
 
 static inline void
@@ -506,6 +507,10 @@ ahbprobe1(dev)
 	bzero(ahb, sizeof(struct ahb_data));
 	ahbdata[unit] = ahb;
 	ahb->baseport = dev->id_iobase;
+#ifndef DEV_LKM
+	ahb_registerdev(dev);
+#endif /* DEV_LKM */
+
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads ahb->vect
@@ -543,7 +548,7 @@ ahb_attach(dev)
 	ahb->sc_link.adapter = &ahb_switch;
 	ahb->sc_link.device = &ahb_dev;
 
-	ahb_registerdev(dev);
+	kdc_ahb[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	/*
 	 * ask the adapter what subunits are present
 	 */

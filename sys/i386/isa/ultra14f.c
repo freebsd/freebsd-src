@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.28 1995/03/16 18:12:06 bde Exp $
+ *      $Id: ultra14f.c,v 1.29 1995/03/23 09:00:20 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -326,8 +326,9 @@ static struct kern_devconf kdc_uha[NUHA] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always busy */
-	"UltraStore 14F or 34F SCSI host adapter"
+	DC_UNCONFIGURED,	/* state */
+	"UltraStore 14F or 34F SCSI host adapter",
+	DC_CLS_MISC		/* host adapters aren't special */
 } };
 
 static inline void
@@ -467,7 +468,7 @@ uhaprobe(dev)
 	struct uha_reg *ur;
 	struct uha_bits *ub;
 
-	dev->id_unit = unit;
+	dev->id_unit = unit;	/* XXX */
 
 	/*
 	 * find unit and check we have that many defined
@@ -505,6 +506,8 @@ uhaprobe(dev)
 		return 0;
 	}
 	bzero(ub, sizeof(struct uha_bits));
+
+	uha_registerdev(dev);
 
 	uhareg[unit] = ur;
 	uhabits[unit] = ub;
@@ -549,7 +552,7 @@ uha_attach(dev)
 	uha->sc_link.device = &uha_dev;
 	uha->sc_link.flags = SDEV_BOUNCE;
 
-	uha_registerdev(dev);
+	kdc_uha[unit].kdc_state = DC_BUSY;
 	/*
 	 * ask the adapter what subunits are present
 	 */

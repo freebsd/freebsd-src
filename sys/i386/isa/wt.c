@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.14 1995/01/09 17:55:10 joerg Exp $
+ * $Id: wt.c,v 1.15 1995/03/28 07:55:56 bde Exp $
  *
  */
 
@@ -170,12 +170,36 @@ static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
 
+static struct kern_devconf kdc_wt[NWT] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"wt", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* state */
+	"Archive or Wangtek QIC-02/QIC-36 tape controller",
+	DC_CLS_TAPE		/* class */
+} };
+
+static inline void
+wt_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_wt[id->id_unit] = kdc_wt[0];
+	kdc_wt[id->id_unit].kdc_unit = id->id_unit;
+	kdc_wt[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_wt[id->id_unit]);
+}
+
+
 /*
  * Probe for the presence of the device.
  */
 int wtprobe (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
+
+	wt_registerdev(id);
 
 	t->unit = id->id_unit;
 	t->chan = id->id_drq;
@@ -214,27 +238,6 @@ int wtprobe (struct isa_device *id)
 	return (0);
 }
 
-static struct kern_devconf kdc_wt[NWT] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"wt", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* host adapters are always busy */
-	"Archive or Wangtek QIC-02/QIC-36 tape controller"
-} };
-
-static inline void
-wt_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_wt[id->id_unit] = kdc_wt[0];
-	kdc_wt[id->id_unit].kdc_unit = id->id_unit;
-	kdc_wt[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_wt[id->id_unit]);
-}
-
-
 /*
  * Device is found, configure it.
  */
@@ -249,7 +252,7 @@ int wtattach (struct isa_device *id)
 		printf ("wt%d: type <Wangtek>\n", t->unit);
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
-	wt_registerdev(id);
+	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
 	return (1);
 }
 
@@ -336,6 +339,8 @@ int wtopen (int dev, int flag)
 		return (EAGAIN);
 
 	t->flags = TPINUSE;
+	kdc_wt[u].kdc_state = DC_BUSY;
+
 	if (flag & FREAD)
 		t->flags |= TPREAD;
 	if (flag & FWRITE)
@@ -383,6 +388,7 @@ int wtclose (int dev)
 		wtreadfm (t);
 done:
 	t->flags &= TPREW | TPRMARK | TPSTART | TPTIMER;
+	kdc_wt[u].kdc_state = DC_IDLE;
 	free (t->buf, M_TEMP);
 	return (0);
 }

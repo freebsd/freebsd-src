@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.30 1994/11/08 02:53:42 jkh Exp $
+ *      $Id: bt742a.c,v 1.31 1995/03/16 18:11:56 bde Exp $
  */
 
 /*
@@ -446,8 +446,9 @@ static struct kern_devconf kdc_bt[NBT] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always busy */
-	"Buslogic 742-compatible SCSI host adapter"
+	DC_UNCONFIGURED,	/* always start here */
+	"Buslogic 742-compatible SCSI host adapter",
+	DC_CLS_MISC		/* host adapters aren't special */
 } };
 
 static inline void
@@ -643,6 +644,10 @@ btprobe(dev)
 	btdata[unit] = bt;
 	bt->bt_base = dev->id_iobase;
 
+#ifndef DEV_LKM
+	bt_registerdev(dev);
+#endif /* not DEV_LKM */
+
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads bt->bt_int
@@ -683,7 +688,8 @@ btattach(dev)
 	bt->sc_link.device = &bt_dev;
 	bt->sc_link.flags = SDEV_BOUNCE;
 
-	bt_registerdev(dev);
+	kdc_bt[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
+
 	/*
 	 * ask the adapter what subunits are present
 	 */

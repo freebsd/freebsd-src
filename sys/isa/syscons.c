@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.107 1995/03/03 08:37:07 sos Exp $
+ *  $Id: syscons.c,v 1.111 1995/04/04 20:06:26 sos Exp $
  */
 
 #include "sc.h"
@@ -203,7 +203,8 @@ static struct kern_devconf kdc_sc[NSC] = {
     &kdc_isa0,      		/* parent */
     0,          		/* parentdata */
     DC_BUSY,        		/* the console is almost always busy */
-    "Graphics console"
+    "Graphics console",
+    DC_CLS_DISPLAY		/* class */
 };
 
 static inline void
