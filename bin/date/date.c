@@ -116,7 +116,8 @@ main(argc, argv)
 			break;
 		case 'r':		/* user specified seconds */
 			rflag = 1;
-			tval = atol(optarg);
+			if (sscanf(optarg,"%li",&tval) != 1)
+				usage();
 			break;
 		case 't':		/* minutes west of UTC */
 					/* error check; don't allow "PST" */
