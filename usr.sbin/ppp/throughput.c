@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.6 1998/04/10 13:19:23 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.7 1998/04/16 00:26:18 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <time.h>
 
@@ -47,6 +48,7 @@ throughput_init(struct pppThroughput *t)
   for (f = 0; f < SAMPLE_PERIOD; f++)
     t->SampleOctets[f] = 0;
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
+  memset(&t->Timer, '\0', sizeof t->Timer);
   t->Timer.name = "throughput";
   t->uptime = 0;
   t->rolling = 0;
@@ -107,7 +109,6 @@ throughput_sampler(void *v)
   u_long old;
 
   StopTimer(&t->Timer);
-  t->Timer.state = TIMER_STOPPED;
 
   old = t->SampleOctets[t->nSample];
   t->SampleOctets[t->nSample] = t->OctetsIn + t->OctetsOut;
@@ -123,11 +124,11 @@ throughput_sampler(void *v)
 void
 throughput_start(struct pppThroughput *t, const char *name, int rolling)
 {
+  StopTimer(&t->Timer);
   throughput_init(t);
   t->rolling = rolling ? 1 : 0;
   time(&t->uptime);
   if (t->rolling) {
-    t->Timer.state = TIMER_STOPPED;
     t->Timer.load = SECTICKS;
     t->Timer.func = throughput_sampler;
     t->Timer.name = name;
@@ -139,8 +140,7 @@ throughput_start(struct pppThroughput *t, const char *name, int rolling)
 void
 throughput_stop(struct pppThroughput *t)
 {
-  if (t->rolling)
-    StopTimer(&t->Timer);
+  StopTimer(&t->Timer);
 }
 
 void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.50 1998/04/16 00:26:09 brian Exp $
+ * $Id: modem.c,v 1.77.2.51 1998/04/17 22:04:32 brian Exp $
  *
  *  TODO:
  */
@@ -325,7 +325,6 @@ modem_StartTimer(struct bundle *bundle, struct physical *modem)
   ModemTimer = &modem->link.Timer;
 
   StopTimer(ModemTimer);
-  ModemTimer->state = TIMER_STOPPED;
   ModemTimer->load = SECTICKS;
   ModemTimer->func = modem_Timeout;
   ModemTimer->name = "modem CD";

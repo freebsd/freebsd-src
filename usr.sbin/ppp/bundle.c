@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.52 1998/04/17 22:05:03 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.53 1998/04/18 23:17:23 brian Exp $
  */
 
 #include <sys/types.h>
@@ -906,7 +906,6 @@ bundle_StartIdleTimer(struct bundle *bundle)
       bundle->idle.timer.func = bundle_IdleTimeout;
       bundle->idle.timer.name = "idle";
       bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
-      bundle->idle.timer.state = TIMER_STOPPED;
       bundle->idle.timer.arg = bundle;
       StartTimer(&bundle->idle.timer);
       bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;

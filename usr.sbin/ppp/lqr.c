@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.23 1998/04/16 00:26:07 brian Exp $
+ * $Id: lqr.c,v 1.22.2.24 1998/04/18 01:01:24 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -235,7 +235,6 @@ StartLqm(struct lcp *lcp)
     LogPrintf(LogLQM, "Will send %s every %d.%02d secs\n",
               physical->hdlc.lqm.method & LQM_LQR ? "LQR" : "ECHO LQR",
               lcp->want_lqrperiod / 100, lcp->want_lqrperiod % 100);
-    physical->hdlc.lqm.timer.state = TIMER_STOPPED;
     physical->hdlc.lqm.timer.load = lcp->want_lqrperiod * SECTICKS / 100;
     physical->hdlc.lqm.timer.func = SendLqrReport;
     physical->hdlc.lqm.timer.name = "lqm";

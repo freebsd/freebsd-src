@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.25 1998/04/07 00:53:43 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.26 1998/04/18 01:01:22 brian Exp $
  *
  *	TODO:
  */
@@ -593,7 +593,6 @@ hdlc_ReportTime(void *v)
   struct hdlc *hdlc = (struct hdlc *)v;
 
   StopTimer(&hdlc->ReportTimer);
-  hdlc->ReportTimer.state = TIMER_STOPPED;
 
   if (memcmp(&hdlc->laststats, &hdlc->stats, sizeof hdlc->stats)) {
     LogPrintf(LogPHASE,
@@ -612,7 +611,6 @@ void
 hdlc_StartTimer(struct hdlc *hdlc)
 {
   StopTimer(&hdlc->ReportTimer);
-  hdlc->ReportTimer.state = TIMER_STOPPED;
   hdlc->ReportTimer.load = 60 * SECTICKS;
   hdlc->ReportTimer.arg = hdlc;
   hdlc->ReportTimer.func = hdlc_ReportTime;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.27 1998/04/07 00:53:41 brian Exp $
+ * $Id: fsm.c,v 1.27.2.28 1998/04/16 00:25:58 brian Exp $
  *
  *  TODO:
  */
@@ -163,7 +163,7 @@ NewState(struct fsm * fp, int new)
   if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED)) {
     StopTimer(&fp->FsmTimer);
     if (new == ST_STOPPED && fp->StoppedTimer.load) {
-      fp->StoppedTimer.state = TIMER_STOPPED;
+      StopTimer(&fp->StoppedTimer);
       fp->StoppedTimer.func = StoppedTimeout;
       fp->StoppedTimer.arg = (void *) fp;
       StartTimer(&fp->StoppedTimer);
@@ -235,7 +235,7 @@ FsmOpen(struct fsm * fp)
         LogPrintf(LogPHASE, "Entering STOPPED state for %d seconds\n",
                   fp->open_mode);
       NewState(fp, ST_STOPPED);
-      fp->OpenTimer.state = TIMER_STOPPED;
+      StopTimer(&fp->OpenTimer);
       fp->OpenTimer.load = fp->open_mode * SECTICKS;
       fp->OpenTimer.func = FsmOpenNow;
       fp->OpenTimer.arg = (void *)fp;
@@ -412,7 +412,6 @@ static void
 FsmInitRestartCounter(struct fsm * fp)
 {
   StopTimer(&fp->FsmTimer);
-  fp->FsmTimer.state = TIMER_STOPPED;
   fp->FsmTimer.func = FsmTimeout;
   fp->FsmTimer.arg = (void *) fp;
   (*fp->fn->InitRestartCounter)(fp);

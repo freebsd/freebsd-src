@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.40 1998/04/18 01:01:19 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.41 1998/04/18 23:17:25 brian Exp $
  */
 
 #include <sys/types.h>
@@ -85,7 +85,6 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
   StopTimer(&dl->dial_timer);
  
   if (Timeout) { 
-    dl->dial_timer.state = TIMER_STOPPED;
     if (Timeout > 0)
       dl->dial_timer.load = Timeout * SECTICKS;
     else

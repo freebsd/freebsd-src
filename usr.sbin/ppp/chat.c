@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.23 1998/04/18 01:01:15 brian Exp $
+ *	$Id: chat.c,v 1.44.2.24 1998/04/18 23:17:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -77,7 +77,6 @@ chat_PauseTimer(void *v)
 {
   struct chat *c = (struct chat *)v;
   StopTimer(&c->pause);
-  c->pause.state = TIMER_STOPPED;
   c->pause.load = 0;
 }
 
@@ -85,7 +84,6 @@ static void
 chat_Pause(struct chat *c, u_long load)
 {
   StopTimer(&c->pause);
-  c->pause.state = TIMER_STOPPED;
   c->pause.load += load;
   c->pause.func = chat_PauseTimer;
   c->pause.name = "chat pause";
@@ -105,7 +103,6 @@ static void
 chat_SetTimeout(struct chat *c)
 {
   StopTimer(&c->timeout);
-  c->timeout.state = TIMER_STOPPED;
   if (c->TimeoutSec > 0) {
     c->timeout.load = SECTICKS * c->TimeoutSec;
     c->timeout.func = chat_TimeoutTimer;

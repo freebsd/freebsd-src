@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.26 1998/04/14 23:17:10 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.27 1998/04/18 01:01:27 brian Exp $
  */
 
 #include <sys/param.h>
@@ -505,7 +505,6 @@ prompt_Continue(struct prompt *p)
     bgtimer.func = prompt_TimedContinue;
     bgtimer.name = "prompt bg";
     bgtimer.load = SECTICKS;
-    bgtimer.state = TIMER_STOPPED;
     bgtimer.arg = p;
     StartTimer(&bgtimer);
   }
