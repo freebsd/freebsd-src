@@ -7,7 +7,7 @@ KMOD	= dcons_crom
 SRCS	= dcons_crom.c dcons.h \
 		bus_if.h device_if.h
 
-#KMODDEPS = firewire dcons
+KMODDEPS = firewire dcons
 
 CFLAGS+= -I${.CURDIR}/../..
 
