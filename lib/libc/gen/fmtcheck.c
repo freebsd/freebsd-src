@@ -57,8 +57,10 @@ enum __e_fmtcheck_types {
 	FMTCHECK_QUADPOINTER,
 	FMTCHECK_PTRDIFFTPOINTER,
 	FMTCHECK_SIZETPOINTER,
+#ifndef NO_FLOATING_POINT
 	FMTCHECK_DOUBLE,
 	FMTCHECK_LONGDOUBLE,
+#endif
 	FMTCHECK_STRING,
 	FMTCHECK_WIDTH,
 	FMTCHECK_PRECISION,
@@ -149,6 +151,7 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
+#ifndef NO_FLOATING_POINT
 	if (strchr("aAeEfFgG", *f)) {
 		if (longdouble)
 			RETURN(pf,f,FMTCHECK_LONGDOUBLE);
@@ -156,6 +159,7 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_DOUBLE);
 	}
+#endif
 	if (*f == 'c') {
 		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
