@@ -1207,17 +1207,37 @@ bad:
 }
 
 /*
- * Validate the route rt0 to the specified destination.  If the
- * route is marked down try to find a new route.  If the route
+ * rt_check() is invoked on each layer 2 output path, prior to
+ * encapsulating outbound packets.
+ *
+ * The function is mostly used to find a routing entry for the gateway,
+ * which in some protocol families could also point to the link-level
+ * address for the gateway itself (the side effect of revalidating the
+ * route to the destination is rather pointless at this stage, we did it
+ * already a moment before in the pr_output() routine to locate the ifp
+ * and gateway to use).
+ *
+ * When we remove the layer-3 to layer-2 mapping tables from the
+ * routing table, this function can be removed.
+ *
+ * === On input ===
+ *   *dst is the address of the NEXT HOP (which coincides with the
+ *	final destination if directly reachable);
+ *   *lrt0 points to the cached route to the final destination;
+ *   *lrt is not meaningful;
+ *
+ * === Operation ===
+ * If the route is marked down try to find a new route.  If the route
  * to the gateway is gone, try to setup a new route.  Otherwise,
  * if the route is marked for packets to be rejected, enforce that.
  *
- * On return lrt contains the route to the destination and lrt0
- * contains the route to the next hop.  Their values are meaningul
- * ONLY if no error is returned.
+ * === On return ===
+ *   *dst is unchanged;
+ *   *lrt0 points to the (possibly new) route to the final destination
+ *	(NOTE: different meaning from what it was on input)
+ *   *lrt points to the route to the next hop
  *
- * This routine is invoked on each layer 2 output path, prior to
- * encapsulating outbound packets.
+ * Their values are meaningul ONLY if no error is returned.
  */
 int
 rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
