@@ -263,7 +263,6 @@ _dns_grscan(rv, cb_data, ap)
 	char		**hp;
 	void		 *context;
 	int		  r;
-	size_t		  sz;
 
 	r = NS_UNAVAIL;
 	if (!search && _gr_hesnum == -1)
@@ -327,7 +326,6 @@ _nis_grscan(rv, cb_data, ap)
 	char	*key, *data;
 	int	 keylen, datalen;
 	int	 r;
-	size_t   sz;
 
 	if(__ypdomain == NULL) {
 		switch (yp_get_default_domain(&__ypdomain)) {
