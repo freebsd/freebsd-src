@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 52 $
+ * $Revision: 53 $
  *
  *****************************************************************************/
 
@@ -273,6 +273,36 @@ AcpiUtStrcmp (
     }
 
     return ((unsigned char) *String1 - (unsigned char) *String2);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    memcmp
+ *
+ * PARAMETERS:  Buffer1         - First Buffer
+ *              Buffer2         - Second Buffer
+ *              Count           - Maximum # of bytes to compare
+ *
+ * RETURN:      Index where Buffers mismatched, or 0 if Buffers matched
+ *
+ * DESCRIPTION: Compare two Buffers, with a maximum length
+ *
+ ******************************************************************************/
+
+int
+AcpiUtMemcmp (
+    const char              *Buffer1,
+    const char              *Buffer2,
+    ACPI_SIZE               Count)
+{
+
+    for ( ; Count-- && (*Buffer1 == *Buffer2); Buffer1++, Buffer2++)
+    {
+    }
+
+    return ((Count == ACPI_SIZE_MAX) ? 0 : ((unsigned char) *Buffer1 -
+        (unsigned char) *Buffer2));
 }
 
 

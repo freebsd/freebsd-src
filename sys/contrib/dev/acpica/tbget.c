@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 88 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -244,6 +244,9 @@ AcpiTbGetTableHeader (
             Address->PointerType));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Table Signature: [%4.4s]\n",
+        ReturnHeader->Signature));
 
     return_ACPI_STATUS (AE_OK);
 }

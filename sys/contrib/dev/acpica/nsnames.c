@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 84 $
+ *              $Revision: 86 $
  *
  ******************************************************************************/
 
@@ -281,7 +281,12 @@ AcpiNsGetPathnameLength (
         NextNode = AcpiNsGetParentNode (NextNode);
     }
 
-    return (Size + 1);
+    if (!Size)
+    {
+        Size = 1;       /* Root node case */
+    }
+
+    return (Size + 1);  /* +1 for null string terminator */
 }
 
 
@@ -334,7 +339,8 @@ AcpiNsHandleToPathname (
 
     AcpiNsBuildExternalPath (Node, RequiredSize, Buffer->Pointer);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X] \n", (char *) Buffer->Pointer, (UINT32) RequiredSize));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X] \n",
+        (char *) Buffer->Pointer, (UINT32) RequiredSize));
     return_ACPI_STATUS (AE_OK);
 }
 

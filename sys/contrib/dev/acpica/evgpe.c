@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpe - General Purpose Event handling and dispatch
- *              $Revision: 42 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -176,6 +176,8 @@ AcpiEvSetGpeType (
  * FUNCTION:    AcpiEvUpdateGpeEnableMasks
  *
  * PARAMETERS:  GpeEventInfo            - GPE to update
+ *              Type                    - What to do: ACPI_GPE_DISABLE or
+ *                                        ACPI_GPE_ENABLE
  *
  * RETURN:      Status
  *
@@ -243,6 +245,8 @@ AcpiEvUpdateGpeEnableMasks (
  * FUNCTION:    AcpiEvEnableGpe
  *
  * PARAMETERS:  GpeEventInfo            - GPE to enable
+ *              WriteToHardware         - Enable now, or just mark data structs
+ *                                        (WAKE GPEs should be deferred)
  *
  * RETURN:      Status
  *
@@ -525,13 +529,8 @@ AcpiEvGpeDetect (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
-                "GPE pair: Status %8.8X%8.8X = %02X, Enable %8.8X%8.8X = %02X\n",
-                ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (
-                    GpeRegisterInfo->StatusAddress.Address)),
-                    StatusReg,
-                ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (
-                    GpeRegisterInfo->EnableAddress.Address)),
-                    EnableReg));
+                "Read GPE Register at GPE%X: Status=%02X, Enable=%02X\n",
+                GpeRegisterInfo->BaseGpeNumber, StatusReg, EnableReg));
 
             /* First check if there is anything active at all in this register */
 
@@ -822,7 +821,7 @@ AcpiEvGpeDispatch (
 #ifdef ACPI_GPE_NOTIFY_CHECK
 
 /*******************************************************************************
- * NOT USED, PROTOTYPE ONLY AND WILL PROBABLY BE REMOVED
+ * TBD: NOT USED, PROTOTYPE ONLY AND WILL PROBABLY BE REMOVED
  *
  * FUNCTION:    AcpiEvCheckForWakeOnlyGpe
  *

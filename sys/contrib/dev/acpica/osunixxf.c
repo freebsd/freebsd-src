@@ -185,7 +185,15 @@ AcpiOsGetRootPointer (
     ACPI_POINTER           *Address)
 {
 
+#if 0
+    /* The supporting code for this is not yet available.
+     * Return to the old situation for now.
+     */
+    return (AeLocalGetRootPointer(Flags, Address));
+#else
     return (AE_OK);
+#endif
+
 }
 
 
@@ -238,14 +246,28 @@ AcpiOsTableOverride (
     ACPI_TABLE_HEADER       *ExistingTable,
     ACPI_TABLE_HEADER       **NewTable)
 {
+
     if (!ExistingTable || !NewTable)
     {
         return (AE_BAD_PARAMETER);
     }
 
-    /* TODO: Add table-getting code here */
     *NewTable = NULL;
-    return (AE_NO_ACPI_TABLES);
+
+#ifdef _ACPI_EXEC_APP
+
+    /* This code exercises the table override mechanism in the core */
+
+    if (!ACPI_STRNCMP (ExistingTable->Signature, DSDT_SIG, ACPI_NAME_SIZE))
+    {
+        /* override DSDT with itself */
+
+        *NewTable = AcpiGbl_DbTablePtr;
+    }
+    return (AE_OK);
+#else
+    return AE_NO_ACPI_TABLES;
+#endif
 }
 
 
@@ -686,7 +708,7 @@ AcpiOsReleaseLock (
 UINT32
 AcpiOsInstallInterruptHandler (
     UINT32                  InterruptNumber,
-    OSD_HANDLER             ServiceRoutine,
+    ACPI_OSD_HANDLER        ServiceRoutine,
     void                    *Context)
 {
 
@@ -710,7 +732,7 @@ AcpiOsInstallInterruptHandler (
 ACPI_STATUS
 AcpiOsRemoveInterruptHandler (
     UINT32                  InterruptNumber,
-    OSD_HANDLER             ServiceRoutine)
+    ACPI_OSD_HANDLER        ServiceRoutine)
 {
 
     return AE_OK;
@@ -734,7 +756,7 @@ AcpiOsRemoveInterruptHandler (
 ACPI_STATUS
 AcpiOsQueueForExecution (
     UINT32                  Priority,
-    OSD_EXECUTION_CALLBACK  Function,
+    ACPI_OSD_EXEC_CALLBACK  Function,
     void                    *Context)
 {
 
@@ -778,7 +800,7 @@ AcpiOsBreakpoint (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiOsSleepUsec
+ * FUNCTION:    AcpiOsStall
  *
  * PARAMETERS:  microseconds        To sleep
  *
@@ -805,22 +827,20 @@ AcpiOsStall (
  *
  * FUNCTION:    AcpiOsSleep
  *
- * PARAMETERS:  seconds             To sleep
- *              milliseconds        To sleep
+ * PARAMETERS:  milliseconds        To sleep
  *
  * RETURN:      Blocks until sleep is completed.
  *
- * DESCRIPTION: Sleep at second/millisecond granularity
+ * DESCRIPTION: Sleep at millisecond granularity
  *
  *****************************************************************************/
 
 void
 AcpiOsSleep (
-    UINT32                  seconds,
-    UINT32                  milliseconds)
+    ACPI_INTEGER            milliseconds)
 {
 
-    sleep (seconds + (milliseconds / 1000));    /* Sleep for whole seconds */
+    sleep (milliseconds / 1000);    /* Sleep for whole seconds */
 
     /*
      * Arg to usleep() must be less than 1,000,000 (1 second)
@@ -836,20 +856,22 @@ AcpiOsSleep (
  *
  * PARAMETERS:  None
  *
- * RETURN:      Current time in milliseconds
+ * RETURN:      Current time in 100 nanosecond units
  *
- * DESCRIPTION: Get the current system time (in milliseconds).
+ * DESCRIPTION: Get the current system time
  *
  *****************************************************************************/
 
-UINT32
+UINT64
 AcpiOsGetTimer (void)
 {
     struct timeval  time;
 
     gettimeofday(&time, NULL);
 
-    return ((time.tv_sec/1000) + (time.tv_usec*1000));
+    /* Seconds * 10^7 = 100ns(10^-7), Microseconds(10^-6) * 10^1 = 100ns */
+
+    return (((UINT64) time.tv_sec * 10000000) + ((UINT64) time.tv_usec * 10));
 }
 
 

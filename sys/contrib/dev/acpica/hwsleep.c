@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 69 $
+ *              $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -381,14 +381,14 @@ AcpiEnterSleepState (
      * 1) Disable/Clear all GPEs
      * 2) Enable all wakeup GPEs
      */
-    Status = AcpiHwDisableAllGpes ();
+    Status = AcpiHwDisableAllGpes (ACPI_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
     AcpiGbl_SystemAwakeAndRunning = FALSE;
 
-    Status = AcpiHwEnableAllWakeupGpes ();
+    Status = AcpiHwEnableAllWakeupGpes (ACPI_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -543,14 +543,14 @@ AcpiEnterSleepStateS4bios (
      * 1) Disable/Clear all GPEs
      * 2) Enable all wakeup GPEs
      */
-    Status = AcpiHwDisableAllGpes ();
+    Status = AcpiHwDisableAllGpes (ACPI_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
     AcpiGbl_SystemAwakeAndRunning = FALSE;
 
-    Status = AcpiHwEnableAllWakeupGpes ();
+    Status = AcpiHwEnableAllWakeupGpes (ACPI_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -582,6 +582,7 @@ AcpiEnterSleepStateS4bios (
  * RETURN:      Status
  *
  * DESCRIPTION: Perform OS-independent ACPI cleanup after a sleep
+ *              Called with interrupts ENABLED.
  *
  ******************************************************************************/
 
@@ -677,14 +678,14 @@ AcpiLeaveSleepState (
      * 1) Disable/Clear all GPEs
      * 2) Enable all runtime GPEs
      */
-    Status = AcpiHwDisableAllGpes ();
+    Status = AcpiHwDisableAllGpes (ACPI_NOT_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
     AcpiGbl_SystemAwakeAndRunning = TRUE;
 
-    Status = AcpiHwEnableAllRuntimeGpes ();
+    Status = AcpiHwEnableAllRuntimeGpes (ACPI_NOT_ISR);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
