@@ -53,8 +53,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command
-calls the
+utility calls the
 .Xr mount 2
 system call to prepare and graft a
 .Ar "special device"
@@ -260,7 +259,7 @@ The same as the
 argument to the
 .Fl o
 option.
-.It Fl t Ar "ufs \\*(Ba external type"
+.It Fl t Ar ufs | external_type
 The argument following the
 .Fl t
 is used to indicate the file system type.
@@ -403,5 +402,5 @@ directions to be possible for all users is 0111 (execute for all).
 .Sh HISTORY
 A
 .Nm
-command appeared in
+utility appeared in
 .At v1 .

@@ -34,7 +34,9 @@
 .Op Fl log_ipfw_denied
 .Ek
 .Sh DESCRIPTION
-This program provides a Network Address Translation facility for use
+The
+.Nm
+utility provides a Network Address Translation facility for use
 with
 .Xr divert 4
 sockets under
@@ -47,7 +49,7 @@ switch to
 .Pp
 The
 .Nm
-normally runs in the background as a daemon.
+utility normally runs in the background as a daemon.
 It is passed raw IP packets as they travel into and out of the machine,
 and will possibly change these before re-injecting them back into the
 IP packet stream.
@@ -463,7 +465,7 @@ rules starting from the rule number
 will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
 .It Fl log_ipfw_denied
-Log when a packet can not be re-injected because an
+Log when a packet cannot be re-injected because an
 .Xr ipfw 8
 rule blocks it.
 This is the default with
