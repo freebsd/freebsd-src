@@ -567,7 +567,7 @@ pcic_probe(void)
 	cinfo.maxmem = PCIC_MEM_WIN;
 	cinfo.maxio = PCIC_IO_WIN;
 	cinfo.irqs = free_irqs;
-	cinfo.pcic_imask = &pcic_imask;
+	cinfo.imask = &pcic_imask;
 
 #ifdef	LKM
 	bzero(pcic_slots, sizeof(pcic_slots));
