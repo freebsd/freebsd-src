@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.74 1998/07/04 20:45:36 julian Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.75 1998/07/11 07:45:50 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1226,7 +1226,9 @@ abortit:
 				VOP_UNLOCK(fvp, 0, p);
 				goto bad;
 			}
-			if (ip->de_dirclust != MSDOSFSROOT)
+			if (ip->de_dirclust == MSDOSFSROOT)
+				ip->de_diroffset = to_diroffset;
+			else
 				ip->de_diroffset = to_diroffset & pmp->pm_crbomask;
 		}
 		reinsert(ip);
