@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.35 1996/07/14 06:05:53 dyson Exp $
+ *	$Id: mem.c,v 1.36 1996/07/15 05:23:04 bde Exp $
  */
 
 /*
@@ -87,6 +87,8 @@ static struct cdevsw mem_cdevsw =
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
 	  seltrue,	memmmap,	NULL,	"mem",	NULL, -1 };
 
+static caddr_t	zbuf;
+
 #ifdef DEVFS
 static void *mem_devfs_token;
 static void *kmem_devfs_token;
@@ -98,8 +100,6 @@ static void *io_devfs_token;
 #ifdef PERFMON
 static void *perfmon_devfs_token;
 #endif
-
-static caddr_t	zbuf;
 
 static void memdevfs_init __P((void));
 
