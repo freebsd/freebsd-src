@@ -466,7 +466,8 @@ g_haveattr(struct bio *bp, char *attribute, void *val, int len)
 	if (strcmp(bp->bio_attribute, attribute))
 		return (0);
 	if (bp->bio_length != len) {
-		printf("bio_length %lld len %d -> EFAULT\n", bp->bio_length, len);
+		printf("bio_length %lld len %d -> EFAULT\n",
+		    (long long)bp->bio_length, len);
 		error = EFAULT;
 	} else {
 		error = 0;

@@ -138,7 +138,7 @@ static void
 g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 {
 
-	sbuf_printf(sb, "\t<provider>\n", pp);
+	sbuf_printf(sb, "\t<provider>\n");
 	sbuf_printf(sb, "\t  <ref>%p</ref>\n", pp);
 	sbuf_printf(sb, "\t  <geom><ref>%p</ref></geom>\n", pp->geom);
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",

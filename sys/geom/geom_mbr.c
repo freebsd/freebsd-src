@@ -176,7 +176,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 	if (sizeof(struct dos_partition) != 16) {
 		printf("WARNING: struct dos_partition compiles to %d bytes, should be 16.\n",
-		    sizeof(struct dos_partition));
+		    (int)sizeof(struct dos_partition));
 		return (NULL);
 	}
 	g_trace(G_T_TOPOLOGY, "mbr_taste(%s,%s)", mp->name, pp->name);
