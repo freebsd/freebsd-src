@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.58 1995/04/20 03:17:44 julian Exp $
+ *	$Id: fd.c,v 1.59 1995/05/06 19:34:25 joerg Exp $
  *
  */
 
@@ -693,7 +693,7 @@ fdattach(struct isa_device *dev)
 		fd->fdc = fdc;
 		fd->fdsu = fdsu;
 		fd->options = 0;
-		printf("fd%d: ", fdsu, fdu);
+		printf("fd%d: ", fdu);
 		
 		fd_registerdev(fdcu, fdu);
 		switch (fdt) {
@@ -1417,7 +1417,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			{
 				printf(
 		"fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
-				       fdu, descyl, cyl, st0, NE7_ST0BITS);
+				       fdu, descyl, cyl, st0);
 				return(retrier(fdcu));
 			}
 		}
