@@ -926,6 +926,7 @@ product MELCO LUATX5		0x0005	LUA-TX Ethernet
 product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
 product MELCO LUAKTX		0x0012	LUA-KTX Ethernet
 product	MELCO DUBPXXG		0x001c	USB-IDE Bridge: DUB-PxxG
+product	MELCO LUAU2KTX		0x003d	LUA-U2-KTX Ethernet
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
