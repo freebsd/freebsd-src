@@ -496,7 +496,9 @@ sendudp(struct iodesc *h, void *pkt, size_t len)
 	delay(1000);
 #endif
 	if (udpwrite_p->status != 0) {
-		printf("sendudp failed %x\n", udpwrite_p->status);
+		/* XXX: This happens a lot.  It shouldn't. */
+		if (udpwrite_p->status != 1)
+			printf("sendudp failed %x\n", udpwrite_p->status);
 		return -1;
 	}
 	return len;
