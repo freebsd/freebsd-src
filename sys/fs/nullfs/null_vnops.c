@@ -627,12 +627,18 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *lowervp = xp->null_lowervp;
 	struct lock *vnlock;
 
+	/*
+	 * Use the interlock to protect the clearing of v_data to
+	 * prevent faults in null_lock().
+	 */
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	VI_UNLOCK(vp);
 	if (lowervp) {
 		null_hashrem(xp);
 		vrele(lowervp);
 	}
 
-	vp->v_data = NULL;
 	vp->v_object = NULL;
 	vnlock = vp->v_vnlock;
 	vp->v_vnlock = &vp->v_lock;
