@@ -20,7 +20,7 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
-.\"	$Id: bpf.4,v 1.5 1996/10/05 18:37:21 wosch Exp $
+.\"	$Id: bpf.4,v 1.6 1996/12/14 18:47:42 mpp Exp $
 .\"
 .Dd January 16, 1996
 .Dt BPF 4
@@ -43,7 +43,7 @@ The packet filter appears as a character special device,
 etc.
 After opening the device, the file descriptor must be bound to a
 specific network interface with the
-.Dv BIOSETIF
+.Dv BIOCSETIF
 ioctl.
 A given interface can be shared be multiple listeners, and the filter
 underlying each descriptor will see an identical packet stream.
