@@ -61,7 +61,6 @@
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-disk.h>
 #include <dev/ata/atapi-all.h>
 
 /* misc defines */

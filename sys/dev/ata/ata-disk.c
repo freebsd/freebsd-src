@@ -39,8 +39,7 @@
 #include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
+#include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
@@ -56,18 +55,15 @@
 #include <dev/ata/ata-disk.h>
 
 static d_open_t		adopen;
-static d_close_t	adclose;
-static d_ioctl_t	adioctl;
 static d_strategy_t	adstrategy;
-static d_psize_t	adpsize;
 static d_dump_t         addump;
 
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
-	/* close */	adclose,
+	/* close */	noclose,
 	/* read */	physread,
 	/* write */	physwrite,
-	/* ioctl */	adioctl,
+	/* ioctl */	noioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
 	/* devtotty */	nodevtotty,
@@ -78,7 +74,7 @@ static struct cdevsw ad_cdevsw = {
 	/* parms */	noparms,
 	/* maj */	116,
 	/* dump */	addump,
-	/* psize */	adpsize,
+	/* psize */	nopsize,
 	/* flags */	D_DISK,
 	/* maxio */	0,
 	/* bmaj */	30,
@@ -142,6 +138,7 @@ ad_attach(void *notused)
     int32_t ctlr, dev, secsperint;
     int8_t model_buf[40+1];
     int8_t revision_buf[8+1];
+    dev_t dev1;
 
     /* now, run through atadevices and look for ATA disks */
     for (ctlr=0; ctlr<MAXATA; ctlr++) {
@@ -231,10 +228,11 @@ ad_attach(void *notused)
 				  DEVSTAT_NO_ORDERED_TAGS,
                                   DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 				  0x180);
-    		make_dev(&ad_cdevsw, dkmakeminor(adp->lun, 0, 0),
-		    UID_ROOT, GID_OPERATOR, 0640, "rad%d", adp->lun);
-    		make_dev(&ad_cdevsw, dkmakeminor(adp->lun, 0, 0),
-		    UID_ROOT, GID_OPERATOR, 0640, "ad%d", adp->lun);
+		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw);
+		dev1->si_drv1 = adp;
+		dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw);
+		dev1->si_drv1 = adp;
+
 		bufq_init(&adp->queue);
 	        adtab[adnlun++] = adp;
             }
@@ -274,102 +272,37 @@ ad_getparam(struct ad_softc *adp)
 static int
 adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
-    int32_t lun = UNIT(dev);
     struct ad_softc *adp;
-    struct disklabel label;
-    int32_t error;
+    int32_t lun;
+    struct disklabel *dl;
 
+    adp = dev->si_drv1;
+    lun = adp->lun;
 #ifdef AD_DEBUG
 printf("adopen: lun=%d adnlun=%d\n", lun, adnlun);
 #endif
-    if (lun >= adnlun || !(adp = adtab[lun]))
-        return ENXIO;
-
-    /* spinwait if anybody else is reading the disk label */
-    /* is this needed anymore ?? SOS XXX */
-    while (adp->flags & AD_F_LABELLING)
-        tsleep((caddr_t)&adp->flags, PZERO - 1, "adop1", 1);
-
-    /* protect agains label race */
-    adp->flags |= AD_F_LABELLING;
-
-    /* build disklabel and initilize slice tables */
-    bzero(&label, sizeof label);
-    label.d_secsize = DEV_BSIZE;
-    label.d_nsectors = adp->sectors;
-    label.d_ntracks = adp->heads;
-    label.d_ncylinders = adp->cylinders;
-    label.d_secpercyl = adp->sectors * adp->heads;
-    label.d_secperunit = adp->total_secs;
-
-    error = dsopen(dev, fmt, 0, &adp->slices, &label);
-
-    adp->flags &= ~AD_F_LABELLING;
+    dl = &adp->disk.d_label;
+    bzero(dl, sizeof *dl);
+    dl->d_secsize = DEV_BSIZE;
+    dl->d_nsectors = adp->sectors;
+    dl->d_ntracks = adp->heads;
+    dl->d_ncylinders = adp->cylinders;
+    dl->d_secpercyl = adp->sectors * adp->heads;
+    dl->d_secperunit = adp->total_secs;
     ad_sleep(adp, "adop2");
-    return error;
-}
-
-static int 
-adclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
-{
-    int32_t lun = UNIT(dev);
-    struct ad_softc *adp;
-
-#ifdef AD_DEBUG
-printf("adclose: lun=%d adnlun=%d\n", lun, adnlun);
-#endif
-    if (lun >= adnlun || !(adp = adtab[lun]))
-        return ENXIO;
-
-    dsclose(dev, fmt, adp->slices);
     return 0;
-}
-
-static int 
-adioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
-{
-    struct ad_softc *adp;
-    int32_t lun = UNIT(dev);
-    int32_t error = 0;
-
-    if (lun >= adnlun || !(adp = adtab[lun]))
-        return ENXIO;
-
-    ad_sleep(adp, "adioct");
-    error = dsioctl(dev, cmd, addr, flags, &adp->slices);
-
-    if (error != ENOIOCTL)
-        return error;
-    return ENOTTY;
 }
 
 static void 
 adstrategy(struct buf *bp)
 {
     struct ad_softc *adp;
-    int32_t lun = UNIT(bp->b_dev);
     int32_t s;
 
+    adp = bp->b_dev->si_drv1;
 #ifdef AD_DEBUG
 printf("adstrategy: entered count=%d\n", bp->b_bcount);
 #endif
-    if (lun >= adnlun ||  bp->b_blkno < 0 || !(adp = adtab[lun]) 
-	|| bp->b_bcount % DEV_BSIZE != 0) {
-        bp->b_error = EINVAL; 
-        bp->b_flags |= B_ERROR;
-        biodone(bp);
-	return;
-    }
-
-    if (dscheck(bp, adp->slices) <= 0) {
-	biodone(bp);
-	return;
-    }
-
-    /* hang around if somebody else is labelling */
-    if (adp->flags & AD_F_LABELLING)
-        ad_sleep(adp, "adlab");
-
     s = splbio();
     bufqdisksort(&adp->queue, bp);
     ad_start(adp);
@@ -379,45 +312,22 @@ printf("adstrategy: leaving\n");
 #endif
 }
 
-static int
-adpsize(dev_t dev)
-{
-    struct ad_softc *adp;
-    int32_t lun = UNIT(dev);
-
-    if (lun >= adnlun || !(adp = adtab[lun]))
-        return -1;
-    return dssize(dev, &adp->slices);
-}
-
 int
 addump(dev_t dev)
 {
     struct ad_softc *adp;
-    struct disklabel *lp;
     struct ad_request request;
-    int32_t lun = UNIT(dev), part = dkpart(dev);
-    u_int32_t count, blkno, blkoff;
+    u_int count, blkno, secsize;
     vm_offset_t addr = 0;
-    static int addoingadump = 0;
+    int error;
 
-    if (addoingadump++ != 0)
-	return EFAULT;
-
-    if (lun >= adnlun || !(adp = adtab[lun]))
+    error = disk_dumpcheck(dev, &count, &blkno, &secsize);
+    if (error)
+	return (error);
+	
+    adp = dev->si_drv1;
+    if (!adp)
 	return ENXIO;
-
-    if ((adp->slices == NULL) || (lp = dsgetlabel(dev, adp->slices)) == NULL)
-	return ENXIO;
-
-    count = (u_long)Maxmem * PAGE_SIZE / lp->d_secsize;
-
-    if ((dumplo < 0) || (dumplo + count > lp->d_partitions[part].p_size))
-        return EINVAL;
-
-    blkoff = lp->d_partitions[part].p_offset +
-             adp->slices->dss_slices[dkslice(dev)].ds_offset;
-    blkno = blkoff + dumplo;
 
     adp->flags &= ~AD_F_DMA_ENABLED;
 
@@ -450,8 +360,8 @@ addump(dev_t dev)
             printf("%ld ", (long)(count * DEV_BSIZE) / (1024 * 1024));
         }
 
-        blkno += howmany(PAGE_SIZE, lp->d_secsize);
-        count -= howmany(PAGE_SIZE, lp->d_secsize);
+        blkno += howmany(PAGE_SIZE, secsize);
+        count -= howmany(PAGE_SIZE, secsize);
         addr += PAGE_SIZE;
     }
 
@@ -723,19 +633,13 @@ ad_version(u_int16_t version)
 static void 
 ad_drvinit(void)
 {
-    static int32_t ad_devsw_installed = 0;
-
-    if (!ad_devsw_installed) {
-	if (!ad_cdevsw.d_maxio)
-	    ad_cdevsw.d_maxio = 256 * DEV_BSIZE;
-        cdevsw_add(&ad_cdevsw);
-	fakewd_cdevsw = ad_cdevsw;
-	fakewd_cdevsw.d_maj = 3;
-	fakewd_cdevsw.d_bmaj = 0;
-	fakewd_cdevsw.d_name = "wd";
-        cdevsw_add(&fakewd_cdevsw);	/* grab wd entries too */
-        ad_devsw_installed = 1;
-    }
+    if (!ad_cdevsw.d_maxio)
+	ad_cdevsw.d_maxio = 256 * DEV_BSIZE;
+    fakewd_cdevsw = ad_cdevsw;
+    fakewd_cdevsw.d_maj = 3;
+    fakewd_cdevsw.d_bmaj = 0;
+    fakewd_cdevsw.d_name = "wd";
+    
     /* register callback for when interrupts are enabled */
     if (!(ad_attach_hook = 
 	(struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
