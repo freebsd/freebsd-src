@@ -1547,7 +1547,7 @@ mlx*)
 3dfx*)
 	unit=`expr $i : '3dfx\(.*\)'`
 	mknod 3dfx$unit c 107 $unit
-	ln -s 3dfx$unit 3dfx
+	ln -sf 3dfx$unit 3dfx
 	;;
 
 twe*)
