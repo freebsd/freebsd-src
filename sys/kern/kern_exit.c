@@ -131,20 +131,11 @@ exit1(p, rv)
 	/* are we a task leader? */
 	PROC_LOCK(p);
 	if(p == p->p_leader) {
-        	struct kill_args killArgs;
-
-		killArgs.signum = SIGKILL;
 		q = p->p_peers;
-		while(q) {
-			killArgs.pid = q->p_pid;
-			/*
-		         * The interface for kill is better
-			 * than the internal signal
-			 */
-			PROC_UNLOCK(p);
-			kill(p, &killArgs);
-			PROC_LOCK(p);
-			nq = q;
+		while (q != NULL) {
+			PROC_LOCK(q);
+			psignal(q, SIGKILL);
+			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
 		while (p->p_peers) 
@@ -197,7 +188,7 @@ exit1(p, rv)
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
-	PROC_LOCK(p);
+	PROC_LOCK(p->p_leader);
 	if(p->p_leader->p_peers) {
 		q = p->p_leader;
 		while(q->p_peers != p)
@@ -205,7 +196,7 @@ exit1(p, rv)
 		q->p_peers = p->p_peers;
 		wakeup((caddr_t)p->p_leader);
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(p->p_leader);
 
 	/*
 	 * XXX Shutdown SYSV semaphores
@@ -359,6 +350,12 @@ exit1(p, rv)
 	else
 	        psignal(p->p_pptr, SIGCHLD);
 	PROC_UNLOCK(p->p_pptr);
+
+	/*
+	 * If this is a kthread, then wakeup anyone waiting for it to exit.
+	 */
+	if (p->p_flag & P_KTHREAD)
+		wakeup((caddr_t)p);
 	PROC_UNLOCK(p);
 	sx_xunlock(&proctree_lock);
 	
