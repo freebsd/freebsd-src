@@ -361,6 +361,7 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	register char *user, *p;
 	int ch;
 	char buf[MAXHOSTNAMELEN + 128];		/* host + login */
+	char hname[MAXHOSTNAMELEN];
 	struct hostent *hp;
 	/* Presumed guilty until proven innocent. */
 	int userok = 0, hostok = 0;
@@ -376,6 +377,7 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_long),
 							AF_INET)) == NULL)
 		return (-1);
+	strcpy(hname, hp->h_name);
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
@@ -414,15 +416,15 @@ __ivaliduser(hostf, raddr, luser, ruser)
 				break;
 			}
 			if (buf[1] == '@')  /* match a host by netgroup */
-				hostok = innetgr((char *)&buf[2], hp->h_name,
-						NULL, ypdomain);
+				hostok = innetgr((char *)&buf[2],
+					(char *)&hname, NULL, ypdomain);
 			else		/* match a host by addr */
 				hostok = __icheckhost(raddr,(char *)&buf[1]);
 			break;
 		case '-':     /* reject '-' hosts and all their users */
 			if (buf[1] == '@') {
 				if (innetgr((char *)&buf[2],
-					      hp->h_name, NULL, ypdomain))
+					      (char *)&hname, NULL, ypdomain))
 					return(-1);
 			} else {
 				if (__icheckhost(raddr,(char *)&buf[1]))
