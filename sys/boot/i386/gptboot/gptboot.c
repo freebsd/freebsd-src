@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define RBX_NOINTR	0x1c	/* -n */
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
-/* 0x1f is reserved for the historical RB_BOOTINFO option */
+/* 0x1f is reserved for the RB_BOOTINFO flag. */
 
 /* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
 #define RBX_MASK	0x2005ffff
@@ -359,7 +359,7 @@ load(void)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
-    __exec((caddr_t)addr, opts & RBX_MASK,
+    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 }
