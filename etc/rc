@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169.2.9 1999/03/17 20:04:56 billf Exp $
+#	$Id: rc,v 1.169.2.10 1999/04/12 15:55:56 cracauer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -45,7 +45,9 @@ if [ -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
-if [ -n "$vinum_drives" ]; then
+if [ X$start_vinum = XYES ]; then
+	vinum start
+elif [ -n "$vinum_drives" ]; then
 	vinum read $vinum_drives
 fi
 
