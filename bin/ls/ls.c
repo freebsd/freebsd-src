@@ -113,7 +113,10 @@ static int f_reversesort;	/* reverse whatever sort is used */
        int f_sectime;		/* print the real time for all files */
 static int f_singlecol;		/* use single column output */
        int f_size;		/* list size in short listing */
+       int f_slash;		/* similar to f_type, but only for dirs */
+       int f_sortacross;	/* sort across rows, not down columns */ 
        int f_statustime;	/* use time of last mode change */
+       int f_stream;		/* stream the output, seperate with commas */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
@@ -167,15 +170,17 @@ main(int argc, char *argv[])
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
- 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstuw")) != -1) {
+ 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklmnopqrstuwx")) 
+	    != -1) {
 		switch (ch) {
 		/*
-		 * The -1, -C and -l options all override each other so shell
-		 * aliasing works right.
+		 * The -1, -C, -x and -l options all override each other so
+		 * shell aliasing works right.
 		 */
 		case '1':
 			f_singlecol = 1;
 			f_longform = 0;
+			f_stream = 0;
 			break;
 		case 'B':
 			f_nonprint = 0;
@@ -183,10 +188,16 @@ main(int argc, char *argv[])
 			f_octal_escape = 0;
 			break;
 		case 'C':
-			f_longform = f_singlecol = 0;
+			f_sortacross = f_longform = f_singlecol = 0;
 			break;
 		case 'l':
 			f_longform = 1;
+			f_singlecol = 0;
+			f_stream = 0;
+			break;
+		case 'x':
+			f_sortacross = 1;
+			f_longform = 0;
 			f_singlecol = 0;
 			break;
 		/* The -c and -u options override each other. */
@@ -200,6 +211,7 @@ main(int argc, char *argv[])
 			break;
 		case 'F':
 			f_type = 1;
+			f_slash = 0;
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
@@ -244,11 +256,20 @@ main(int argc, char *argv[])
 		case 'k':
 			f_kblocks = 1;
 			break;
+		case 'm':
+			f_stream = 1;
+			f_singlecol = 0;
+			f_longform = 0;
+			break;
 		case 'n':
 			f_numericonly = 1;
 			break;
 		case 'o':
 			f_flags = 1;
+			break;
+		case 'p':
+			f_slash = 1;
+			f_type = 1;
 			break;
 		case 'q':
 			f_nonprint = 1;
@@ -390,6 +411,8 @@ main(int argc, char *argv[])
 		printfcn = printscol;
 	else if (f_longform)
 		printfcn = printlong;
+	else if (f_stream)
+		printfcn = printstream;
 	else
 		printfcn = printcol;
 
