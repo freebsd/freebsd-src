@@ -594,7 +594,7 @@ find_geom(struct gclass *classp, const char *name)
 }
 
 static void
-show_one_provider(struct gprovider *pp, const char *prefix)
+list_one_provider(struct gprovider *pp, const char *prefix)
 {
 	struct gconfig *conf;
 	char buf[5];
@@ -612,7 +612,7 @@ show_one_provider(struct gprovider *pp, const char *prefix)
 }
 
 static void
-show_one_consumer(struct gconsumer *cp, const char *prefix)
+list_one_consumer(struct gconsumer *cp, const char *prefix)
 {
 	struct gprovider *pp;
 	struct gconfig *conf;
@@ -637,7 +637,7 @@ show_one_consumer(struct gconsumer *cp, const char *prefix)
 }
 
 static void
-show_one_geom(struct ggeom *gp)
+list_one_geom(struct ggeom *gp)
 {
 	struct gprovider *pp;
 	struct gconsumer *cp;
@@ -653,7 +653,7 @@ show_one_geom(struct ggeom *gp)
 		n = 1;
 		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 			printf("%u. ", n++);
-			show_one_provider(pp, "   ");
+			list_one_provider(pp, "   ");
 		}
 	}
 	if (!LIST_EMPTY(&gp->lg_consumer)) {
@@ -661,7 +661,7 @@ show_one_geom(struct ggeom *gp)
 		n = 1;
 		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
 			printf("%u. ", n++);
-			show_one_consumer(cp, "   ");
+			list_one_consumer(cp, "   ");
 		}
 	}
 	printf("\n");
@@ -730,7 +730,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			assert(name != NULL);
 			gp = find_geom(classp, name);
 			if (gp != NULL)
-				show_one_geom(gp);
+				list_one_geom(gp);
 			else
 				fprintf(stderr, "No such geom: %s.\n", name);
 		}
@@ -738,7 +738,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider))
 				continue;
-			show_one_geom(gp);
+			list_one_geom(gp);
 		}
 	}
 	geom_deletetree(&mesh);
