@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.78 1995/12/16 21:45:02 bde Exp $
+ * $Id: tty.c,v 1.79 1996/03/02 18:24:06 peter Exp $
  */
 
 /*-
@@ -2177,11 +2177,11 @@ ttyinfo(tp)
 		ttyprintf(tp, "not a controlling terminal\n");
 	else if (tp->t_pgrp == NULL)
 		ttyprintf(tp, "no foreground process group\n");
-	else if ((p = tp->t_pgrp->pg_mem) == NULL)
+	else if ((p = tp->t_pgrp->pg_members.lh_first) == 0)
 		ttyprintf(tp, "empty foreground process group\n");
 	else {
 		/* Pick interesting process. */
-		for (pick = NULL; p != NULL; p = p->p_pgrpnxt)
+		for (pick = NULL; p != 0; p = p->p_pglist.le_next)
 			if (proc_compare(pick, p))
 				pick = p;
 

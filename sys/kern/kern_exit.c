@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.29 1996/02/25 09:49:57 hsu Exp $
+ * $Id: kern_exit.c,v 1.29 1996/03/11 02:24:21 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -208,34 +208,19 @@ exit1(p, rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
-	if ((*p->p_prev = p->p_next))
-		p->p_next->p_prev = p->p_prev;
-	if ((p->p_next = zombproc))
-		p->p_next->p_prev = &p->p_next;
-	p->p_prev = &zombproc;
-	zombproc = p;
+	LIST_REMOVE(p, p_list);
+	LIST_INSERT_HEAD(&zombproc, p, p_list);
 	p->p_stat = SZOMB;
 
-	for (pp = &pidhash[PIDHASH(p->p_pid)]; *pp; pp = &(*pp)->p_hash)
-		if (*pp == p) {
-			*pp = p->p_hash;
-			goto done;
-		}
-	panic("exit");
-done:
+	LIST_REMOVE(p, p_hash);
 
-	if (p->p_cptr)		/* only need this if any child is S_ZOMB */
+	q = p->p_children.lh_first;
+	if (q)		/* only need this if any child is S_ZOMB */
 		wakeup((caddr_t) initproc);
-	for (q = p->p_cptr; q != NULL; q = nq) {
-		nq = q->p_osptr;
-		if (nq != NULL)
-			nq->p_ysptr = NULL;
-		if (initproc->p_cptr)
-			initproc->p_cptr->p_ysptr = q;
-		q->p_osptr = initproc->p_cptr;
-		q->p_ysptr = NULL;
-		initproc->p_cptr = q;
-
+	for (; q != 0; q = nq) {
+		nq = q->p_sibling.le_next;
+		LIST_REMOVE(q, p_sibling);
+		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
 		/*
 		 * Traced processes are killed
@@ -246,7 +231,6 @@ done:
 			psignal(q, SIGKILL);
 		}
 	}
-	p->p_cptr = NULL;
 
 	/*
 	 * Save exit status and final rusage info, adding in child rusage
@@ -364,7 +348,7 @@ wait1(q, uap, retval, compat)
 #endif
 loop:
 	nfound = 0;
-	for (p = q->p_cptr; p; p = p->p_osptr) {
+	for (p = q->p_children.lh_first; p != 0; p = p->p_sibling.le_next) {
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
@@ -432,14 +416,8 @@ loop:
 			 * Unlink it from its process group and free it.
 			 */
 			leavepgrp(p);
-			if ((*p->p_prev = p->p_next))	/* off zombproc */
-				p->p_next->p_prev = p->p_prev;
-			if ((q = p->p_ysptr))
-				q->p_osptr = p->p_osptr;
-			if ((q = p->p_osptr))
-				q->p_ysptr = p->p_ysptr;
-			if ((q = p->p_pptr)->p_cptr == p)
-				q->p_cptr = p->p_osptr;
+			LIST_REMOVE(p, p_list);	/* off zombproc */
+			LIST_REMOVE(p, p_sibling);
 
 			/*
 			 * Give machine-dependent layer a chance
@@ -489,28 +467,11 @@ proc_reparent(child, parent)
 	register struct proc *child;
 	register struct proc *parent;
 {
-	register struct proc *o;
-	register struct proc *y;
 
 	if (child->p_pptr == parent)
 		return;
 
-	/* fix up the child linkage for the old parent */
-	o = child->p_osptr;
-	y = child->p_ysptr;
-	if (y)
-		y->p_osptr = o;
-	if (o)
-		o->p_ysptr = y;
-	if (child->p_pptr->p_cptr == child)
-		child->p_pptr->p_cptr = o;
-
-	/* fix up child linkage for new parent */
-	o = parent->p_cptr;
-	if (o)
-		o->p_ysptr = child;
-	child->p_osptr = o;
-	child->p_ysptr = NULL;
-	parent->p_cptr = child;
+	LIST_REMOVE(child, p_sibling);
+	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
 }
