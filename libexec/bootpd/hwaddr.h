@@ -22,11 +22,7 @@ struct hwinfo {
 extern struct hwinfo hwinfolist[];
 extern int hwinfocnt;
 
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 extern void setarp P((int, struct in_addr *, int, u_char *, int));
 extern char *haddrtoa P((u_char *, int));

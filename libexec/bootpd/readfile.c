@@ -227,11 +227,7 @@ PRIVATE struct htypename htnamemap[] = {
  * Externals and forward declarations.
  */
 
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 extern boolean iplookcmp();
 boolean nmcmp P((hash_datum *, hash_datum *));

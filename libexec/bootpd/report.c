@@ -4,11 +4,7 @@
  * report() - calls syslog
  */
 
-#ifdef	__STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include <stdio.h>
 #include <syslog.h>
@@ -92,17 +88,8 @@ static int numlevels = sizeof(levelnames) / sizeof(levelnames[0]);
  * Print a log message using syslog(3) and/or stderr.
  * The message passed in should not include a newline.
  */
-#ifdef	__STDC__
 void
 report(int priority, const char *fmt,...)
-#else
-/*VARARGS2*/
-void
-report(priority, fmt, va_alist)
-	int priority;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 	static char buf[128];
@@ -110,11 +97,7 @@ report(priority, fmt, va_alist)
 	if ((priority < 0) || (priority >= numlevels)) {
 		priority = numlevels - 1;
 	}
-#ifdef	__STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 

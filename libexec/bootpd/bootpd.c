@@ -105,11 +105,7 @@ SOFTWARE.
  * Externals, forward declarations, and global variables
  */
 
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 extern void dumptab P((char *));
 

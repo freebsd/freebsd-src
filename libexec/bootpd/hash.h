@@ -25,6 +25,7 @@ SOFTWARE.
 
 /*
  * Generalized hash table ADT
+ * $FreeBSD$
  *
  * Provides multiple, dynamically-allocated, variable-sized hash tables on
  * various data and keys.
@@ -93,11 +94,7 @@ SOFTWARE.
 /*
  * Define "hash_datum" as a universal data type
  */
-#ifdef __STDC__
 typedef void hash_datum;
-#else
-typedef char hash_datum;
-#endif
 
 typedef struct hash_memberstruct  hash_member;
 typedef struct hash_tblstruct     hash_tbl;
@@ -120,11 +117,7 @@ struct hash_tblstruct {
 };
 
 /* ANSI function prototypes or empty arg list? */
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 typedef int (*hash_cmpfp) P((hash_datum *, hash_datum *));
 typedef void (*hash_freefp) P((hash_datum *));
