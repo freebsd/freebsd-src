@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	trek
 SRCS=	abandon.c attack.c autover.c capture.c check_out.c checkcond.c \
@@ -9,7 +10,7 @@ SRCS=	abandon.c attack.c autover.c capture.c check_out.c checkcond.c \
 	ranf.c rest.c schedule.c score.c setup.c setwarp.c \
 	shield.c snova.c srscan.c systemname.c torped.c utility.c \
 	visual.c warp.c win.c cgetc.c
-MAN6=	trek.6
+MAN=	trek.6
 DPADD=	${LIBM} ${LIBCOMPAT}
 LDADD=	-lm -lcompat
 HIDEGAME=hidegame

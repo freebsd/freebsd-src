@@ -7,7 +7,7 @@ DPADD=	${LIBM} ${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lm -lcurses -ltermcap -lcompat
 DATAFILES=characs gold lastdead mess monsters motd scoreboard void
 HIDEGAME=hidegame
-MAN6=	phantasia.6
+MAN=	phantasia.6
 CLEANFILES=${DATAFILES} cross-phantglobs.o map setup setup.o stamp.setuprun
 
 all: stamp.setuprun

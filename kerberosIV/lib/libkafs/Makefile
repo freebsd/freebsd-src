@@ -8,7 +8,7 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/kafs
 SRCS=		afssys.c afskrb.c common.c issuid.c \
 		strlcpy.c strlcat.c
-MAN3=		${KRB4DIR}/man/kafs.3
+MAN=		${KRB4DIR}/man/kafs.3
 MLINKS=		kafs.3 k_hasafs.3 kafs.3 k_afsklog.3 kafs.3 k_afsklog_uid.3 \
 		kafs.3 k_pioctl.3 kafs.3 k_unlog.3 kafs.3 k_setpag.3 \
 		kafs.3 k_afs_cell_of_file.3

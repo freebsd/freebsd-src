@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kadmin
-MAN8=		${KRB4DIR}/man/kadmin.8
+MAN=		${KRB4DIR}/man/kadmin.8
 SRCS=		kadmin.c new_pwd.c random_password.c \
 		${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
 CFLAGS+=	-I${KRB4DIR}/include \

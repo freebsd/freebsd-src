@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kdb_init
-MAN8=		${KRB4DIR}/man/kdb_init.8
+MAN=		${KRB4DIR}/man/kdb_init.8
 SRCS=		kdb_init.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

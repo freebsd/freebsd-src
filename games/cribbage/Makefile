@@ -5,7 +5,7 @@ PROG=	cribbage
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 SRCS=	extern.c crib.c cards.c instr.c io.c score.c support.c
-MAN6=	cribbage.6
+MAN=	cribbage.6
 HIDEGAME=hidegame
 
 beforeinstall:

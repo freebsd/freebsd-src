@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN1=		${KRB4DIR}/man/ksrvtgt.1
+MAN=		${KRB4DIR}/man/ksrvtgt.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

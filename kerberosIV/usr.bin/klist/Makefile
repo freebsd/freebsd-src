@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		klist
-MAN1=		${KRB4DIR}/man/klist.1
+MAN=		${KRB4DIR}/man/klist.1
 SRCS=		klist.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
