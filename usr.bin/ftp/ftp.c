@@ -139,6 +139,13 @@ hookup(host0, port)
 			       sizeof(hostnamebuf));
 	hostname = hostnamebuf;
 	while (1) {
+		/*
+		 * make sure that ai_addr is NOT an IPv4 mapped address.
+		 * IPv4 mapped address complicates too many things in FTP
+		 * protocol handling, as FTP protocol is defined differently
+		 * between IPv4 and IPv6.
+		 */
+		ai_unmapped(res);
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (s < 0) {
 			res = res->ai_next;
@@ -1927,4 +1934,32 @@ abort_remote(din)
 		(void)getreply(0);
 	}
 	(void)getreply(0);
+}
+
+void
+ai_unmapped(ai)
+	struct addrinfo *ai;
+{
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in sin;
+
+	if (ai->ai_family != AF_INET6)
+		return;
+	if (ai->ai_addrlen != sizeof(struct sockaddr_in6) ||
+	    sizeof(sin) > ai->ai_addrlen)
+		return;
+	sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+	if (!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+		return;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(struct sockaddr_in);
+	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
+	    sizeof(sin.sin_addr));
+	sin.sin_port = sin6->sin6_port;
+
+	ai->ai_family = AF_INET;
+	memcpy(ai->ai_addr, &sin, sin.sin_len);
+	ai->ai_addrlen = sin.sin_len;
 }
