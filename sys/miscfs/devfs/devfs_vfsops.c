@@ -303,6 +303,7 @@ static struct vfsops devfs_vfsops = {
 	devfs_sync,
 	vfs_stdvget,
 	vfs_stdfhtovp,
+	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	devfs_init
 };

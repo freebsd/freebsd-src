@@ -56,8 +56,9 @@
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
 static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct sockaddr *nam, struct vnode **vpp,
-				   int *exflagsp, struct ucred **credanonp));
+				   struct vnode **vpp));
+static int	umapfs_checkexp __P((struct mount *mp, struct sockaddr *nam,
+				    int *extflagsp, struct ucred **credanonp));
 static int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
 static int	umapfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
@@ -398,16 +399,25 @@ umapfs_vget(mp, ino, vpp)
 }
 
 static int
-umapfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
+umapfs_fhtovp(mp, fidp, vpp)
 	struct mount *mp;
 	struct fid *fidp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
+{
+	
+	return (VFS_FHTOVP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, fidp, vpp));
+}
+
+static int
+umapfs_checkexp(mp, nam, exflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
 	int *exflagsp;
-	struct ucred**credanonp;
+	struct ucred **credanonp;
 {
 
-	return (VFS_FHTOVP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, fidp, nam, vpp, exflagsp,credanonp));
+	return (VFS_CHECKEXP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, nam, 
+		exflagsp, credanonp));
 }
 
 static int
@@ -428,6 +438,7 @@ static struct vfsops umap_vfsops = {
 	umapfs_sync,
 	umapfs_vget,
 	umapfs_fhtovp,
+	umapfs_checkexp,
 	umapfs_vptofh,
 	umapfs_init,
 };

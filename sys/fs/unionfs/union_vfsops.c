@@ -496,7 +496,7 @@ union_statfs(mp, sbp, p)
 
 static struct vfsops union_vfsops = {
 	union_mount,
-	vfs_stdstart,
+	vfs_stdstart,	/* underlying start already done */
 	union_unmount,
 	union_root,
 	vfs_stdquotactl,
@@ -504,6 +504,7 @@ static struct vfsops union_vfsops = {
 	vfs_stdsync,    /* XXX assumes no cached data on union level */
 	vfs_stdvget,
 	vfs_stdfhtovp,
+	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	union_init,
 };

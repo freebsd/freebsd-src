@@ -120,6 +120,7 @@ static struct vfsops nfs_vfsops = {
 	nfs_sync,
 	vfs_stdvget,
 	vfs_stdfhtovp,		/* shouldn't happen */
+	vfs_stdcheckexp,
 	vfs_stdvptofh,		/* shouldn't happen */
 	nfs_init,
 	nfs_uninit,
