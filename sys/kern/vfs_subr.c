@@ -2099,7 +2099,8 @@ vget(vp, flags, td)
 		if ((flags & LK_NOWAIT) == 0) {
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
-		}
+		} else
+			VI_UNLOCK(vp);
 		return (ENOENT);
 	}
 
