@@ -96,7 +96,6 @@ static struct filedesc0 filedesc0;
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
-struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
 SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
 int	bootverbose;

@@ -479,8 +479,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		return (error);
 	}
 
-	rootvp = vp;
-
 	/*
 	 * This is not really an nfs issue, but it is much easier to
 	 * set hostname here and then let the "/etc/rc.xxx" files
