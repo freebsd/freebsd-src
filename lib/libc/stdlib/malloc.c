@@ -975,10 +975,11 @@ free_pages(void *ptr, u_long index, struct pginfo *info)
 	malloc_brk = pf->end;
 
 	index = ptr2index(pf->end);
-	last_index = index - 1;
 
 	for(i=index;i <= last_index;)
 	    page_dir[i++] = MALLOC_NOT_MINE;
+
+	last_index = index - 1;
 
 	/* XXX: We could realloc/shrink the pagedir here I guess. */
     }
