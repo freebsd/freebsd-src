@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.36 1995/11/05 20:45:58 dyson Exp $
+ * $Id: vm_fault.c,v 1.37 1995/11/20 12:19:53 phk Exp $
  */
 
 /*
@@ -80,14 +80,22 @@
 #include <sys/resource.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_extern.h>
 
 int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 

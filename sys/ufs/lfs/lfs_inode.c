@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.9 1995/05/30 08:15:20 rgrimes Exp $
+ * $Id: lfs_inode.c,v 1.10 1995/09/04 00:21:00 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,8 @@
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

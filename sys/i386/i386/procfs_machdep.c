@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.3 1995/01/14 13:20:09 bde Exp $
+ *	$Id: procfs_machdep.c,v 1.4 1995/03/16 18:11:29 bde Exp $
  */
 
 /*
@@ -72,13 +72,21 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/user.h>
 #include <sys/vnode.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <miscfs/procfs/procfs.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
+#include <sys/user.h>
 
 int
 procfs_read_regs(p, regs)

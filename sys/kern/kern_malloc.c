@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.14 1995/09/09 18:10:03 davidg Exp $
+ * $Id: kern_malloc.c,v 1.15 1995/12/02 17:10:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,9 +39,12 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)

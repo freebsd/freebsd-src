@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.51 1995/11/20 12:19:58 phk Exp $
+ * $Id: swap_pager.c,v 1.52 1995/12/03 12:18:33 bde Exp $
  */
 
 /*
@@ -56,16 +56,21 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/vmmeter.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <sys/rlist.h>
 
 #include <vm/vm.h>
-#include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #ifndef NPENDINGIO
 #define NPENDINGIO	10

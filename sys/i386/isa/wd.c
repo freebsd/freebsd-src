@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.94 1995/11/29 10:48:01 julian Exp $
+ *	$Id: wd.c,v 1.95 1995/11/29 14:40:08 julian Exp $
  */
 
 /* TODO:
@@ -88,6 +88,9 @@
 #include <sys/syslog.h>
 #include <sys/dkstat.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/pmap.h>
 
 #ifdef ATAPI
 #include <i386/isa/atapi.h>

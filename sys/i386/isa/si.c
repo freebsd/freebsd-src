@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.20 1995/12/04 17:33:45 peter Exp $
+ *	$Id: si.c,v 1.21 1995/12/06 23:50:27 bde Exp $
  */
 
 #ifndef lint
@@ -57,6 +57,8 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>

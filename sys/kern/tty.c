@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.70 1995/09/10 11:48:13 bde Exp $
+ * $Id: tty.c,v 1.71 1995/10/31 19:27:50 bde Exp $
  */
 
 /*-
@@ -91,6 +91,11 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
 static int	ttnread __P((struct tty *tp));

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.3 1995/12/05 02:01:51 davidg Exp $
+ *	$Id: if_fxp.c,v 1.4 1995/12/05 11:49:49 davidg Exp $
  */
 
 /*
@@ -76,7 +76,7 @@
 
 #include <vm/vm.h>		/* for vtophys */
 #include <vm/vm_param.h>	/* for vtophys */
-#include <machine/pmap.h>	/* for vtophys */
+#include <vm/pmap.h>		/* for vtophys */
 #include <machine/clock.h>	/* for DELAY */
 
 #include <pci/pcivar.h>

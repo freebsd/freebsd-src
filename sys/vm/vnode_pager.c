@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.52 1995/10/30 17:56:30 bde Exp $
+ *	$Id: vnode_pager.c,v 1.53 1995/11/20 12:19:11 phk Exp $
  */
 
 /*
@@ -60,11 +60,16 @@
 #include <sys/uio.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
+#include <vm/vm_extern.h>
 
 extern vm_offset_t vnode_pager_addr __P((struct vnode *vp, vm_offset_t address,
 					 int *run));

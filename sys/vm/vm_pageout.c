@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.59 1995/11/05 20:46:02 dyson Exp $
+ * $Id: vm_pageout.c,v 1.60 1995/11/20 12:19:26 phk Exp $
  */
 
 /*
@@ -81,13 +81,20 @@
 #include <sys/kernel.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_extern.h>
 
 /*
  * System initialization

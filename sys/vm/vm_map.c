@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.26 1995/11/12 08:58:58 davidg Exp $
+ * $Id: vm_map.c,v 1.27 1995/11/20 12:19:49 phk Exp $
  */
 
 /*
@@ -72,12 +72,21 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_inherit.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_extern.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,

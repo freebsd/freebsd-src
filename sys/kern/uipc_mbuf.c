@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.14 1995/12/02 17:10:41 bde Exp $
+ * $Id: uipc_mbuf.c,v 1.15 1995/12/02 18:58:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,9 @@
 #include <sys/protosw.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)

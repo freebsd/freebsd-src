@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.11 1995/10/21 08:38:13 davidg Exp $
+ *	$Id: subr_rlist.c,v 1.12 1995/12/02 18:58:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,9 @@
 #include <sys/rlist.h>
 #include <sys/proc.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 /*
  * Resource lists.

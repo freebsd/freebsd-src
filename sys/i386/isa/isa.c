@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.56 1995/11/20 12:41:44 phk Exp $
+ *	$Id: isa.c,v 1.57 1995/11/20 13:24:18 bde Exp $
  */
 
 /*
@@ -61,6 +61,8 @@
 #include <sys/rlist.h>
 #include <machine/segments.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <machine/spl.h>
 #include <machine/cpu.h>
 #include <i386/isa/isa_device.h>

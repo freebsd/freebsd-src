@@ -68,6 +68,8 @@
 #include <machine/cpu.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 

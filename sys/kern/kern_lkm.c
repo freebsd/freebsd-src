@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.21 1995/11/29 14:40:34 julian Exp $
+ * $Id: kern_lkm.c,v 1.22 1995/11/29 17:45:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #ifdef JREMOD
 #ifdef DEVFS

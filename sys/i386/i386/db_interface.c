@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.14 1995/05/30 07:59:22 rgrimes Exp $
+ *	$Id: db_interface.c,v 1.15 1995/11/18 06:49:35 bde Exp $
  */
 
 /*
@@ -40,10 +40,11 @@
 
 #include <machine/cons.h>	/* XXX: import cons_unavail */
 
-#include <ddb/ddb.h>
-
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#include <ddb/ddb.h>
 #include <setjmp.h>
 
 int	db_active = 0;

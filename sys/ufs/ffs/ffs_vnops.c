@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.17 1995/11/09 08:14:01 bde Exp $
+ * $Id: ffs_vnops.c,v 1.18 1995/11/14 09:40:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -50,8 +50,11 @@
 #include <sys/lockf.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>

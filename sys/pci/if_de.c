@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.37 1995/11/17 12:11:22 davidg Exp $
+ * $Id: if_de.c,v 1.38 1995/11/29 11:19:02 asami Exp $
  *
  */
 
@@ -82,8 +82,9 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_kern.h>
 
 #if defined(__FreeBSD__)
 #include <pci.h>
