@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 void
-pass3()
+pass3(void)
 {
 	struct inoinfo *inp;
 	int loopcnt, inpindex, state;

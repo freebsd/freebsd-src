@@ -43,11 +43,7 @@ __RCSID("$NetBSD: fsutil.c,v 1.7 1998/07/30 17:41:03 thorpej Exp $");
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <errno.h>
 #include <fstab.h>
 #include <err.h>
@@ -65,58 +61,41 @@ static int preen = 0;
 
 extern char *__progname;
 
-static void vmsg __P((int, const char *, va_list)) __printflike(2, 0);
+static void vmsg(int, const char *, va_list) __printflike(2, 0);
 
 void
-setcdevname(cd, pr)
-	const char *cd;
-	int pr;
+setcdevname(const char *cd, int pr)
 {
 	dev = cd;
 	preen = pr;
 }
 
 const char *
-cdevname()
+cdevname(void)
 {
 	return dev;
 }
 
 int
-hotroot()
+hotroot(void)
 {
 	return hot;
 }
 
 /*VARARGS*/
 void
-#if __STDC__
 errexit(const char *fmt, ...)
-#else
-errexit(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	const char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, const char *);
-#endif
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	exit(8);
 }
 
 static void
-vmsg(fatal, fmt, ap)
-	int fatal;
-	const char *fmt;
-	va_list ap;
+vmsg(int fatal, const char *fmt, va_list ap)
 {
 	if (!fatal && preen)
 		(void) printf("%s: ", dev);
@@ -136,82 +115,45 @@ vmsg(fatal, fmt, ap)
 
 /*VARARGS*/
 void
-#if __STDC__
 pfatal(const char *fmt, ...)
-#else
-pfatal(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	const char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, const char *);
-#endif
 	vmsg(1, fmt, ap);
 	va_end(ap);
 }
 
 /*VARARGS*/
 void
-#if __STDC__
 pwarn(const char *fmt, ...)
-#else
-pwarn(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	const char *fmt;
 
-	va_start(ap);
-	fmt = va_arg(ap, const char *);
-#endif
+	va_start(ap, fmt);
 	vmsg(0, fmt, ap);
 	va_end(ap);
 }
 
 void
-perror(s)
-	const char *s;
+perror(const char *s)
 {
 	pfatal("%s (%s)", s, strerror(errno));
 }
 
 void
-#if __STDC__
 panic(const char *fmt, ...)
-#else
-panic(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	const char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, const char *);
-#endif
 	vmsg(1, fmt, ap);
 	va_end(ap);
 	exit(8);
 }
 
 const char *
-unrawname(name)
-	const char *name;
+unrawname(const char *name)
 {
 	static char unrawbuf[32];
 	const char *dp;
@@ -230,8 +172,7 @@ unrawname(name)
 }
 
 const char *
-rawname(name)
-	const char *name;
+rawname(const char *name)
 {
 	static char rawbuf[32];
 	const char *dp;
@@ -243,8 +184,7 @@ rawname(name)
 }
 
 const char *
-devcheck(origname)
-	const char *origname;
+devcheck(const char *origname)
 {
 	struct stat stslash, stchar;
 
@@ -269,8 +209,7 @@ devcheck(origname)
  * Get the mount point information for name.
  */
 struct statfs *
-getmntpt(name)
-	const char *name;
+getmntpt(const char *name)
 {
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
@@ -306,69 +245,9 @@ getmntpt(name)
 	return (statfsp);
 }
 
-#if 0
-/*
- * XXX this code is from NetBSD, but fails in FreeBSD because we
- * don't have blockdevs. I don't think its needed.
- */
-const char *
-blockcheck(origname)
-	const char *origname;
-{
-	struct stat stslash, stblock, stchar;
-	const char *newname, *raw;
-	struct fstab *fsp;
-	int retried = 0;
-
-	hot = 0;
-	if (stat("/", &stslash) < 0) {
-		perror("/");
-		printf("Can't stat root\n");
-		return (origname);
-	}
-	newname = origname;
-retry:
-	if (stat(newname, &stblock) < 0) {
-		perror(newname);
-		printf("Can't stat %s\n", newname);
-		return (origname);
-	}
-	if (S_ISBLK(stblock.st_mode)) {
-		if (stslash.st_dev == stblock.st_rdev)
-			hot++;
-		raw = rawname(newname);
-		if (stat(raw, &stchar) < 0) {
-			perror(raw);
-			printf("Can't stat %s\n", raw);
-			return (origname);
-		}
-		if (S_ISCHR(stchar.st_mode)) {
-			return (raw);
-		} else {
-			printf("%s is not a character device\n", raw);
-			return (origname);
-		}
-	} else if (S_ISCHR(stblock.st_mode) && !retried) {
-		newname = unrawname(newname);
-		retried++;
-		goto retry;
-	} else if ((fsp = getfsfile(newname)) != 0 && !retried) {
-		newname = fsp->fs_spec;
-		retried++;
-		goto retry;
-	}
-	/*
-	 * Not a block or character device, just return name and
-	 * let the user decide whether to use it.
-	 */
-	return (origname);
-}
-#endif
-
 
 void *
-emalloc(s)
-	size_t s;
+emalloc(size_t s)
 {
 	void *p;
 
@@ -380,9 +259,7 @@ emalloc(s)
 
 
 void *
-erealloc(p, s)
-	void *p;
-	size_t s;
+erealloc(void *p, size_t s)
 {
 	void *q;
 
@@ -394,8 +271,7 @@ erealloc(p, s)
 
 
 char *
-estrdup(s)
-	const char *s;
+estrdup(const char *s)
 {
 	char *p;
 

@@ -71,15 +71,13 @@ union {
 
 long	dev_bsize = 1;
 
-int	dumpfs __P((char *));
-int	dumpcg __P((char *, int, int));
-void	pbits __P((void *, int));
-void	usage __P((void));
+int	dumpfs(const char *);
+int	dumpcg(const char *, int, int);
+void	pbits(void *, int);
+void	usage(void) __dead2;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct fstab *fs;
 	int ch, eval;
@@ -105,8 +103,7 @@ main(argc, argv)
 }
 
 int
-dumpfs(name)
-	char *name;
+dumpfs(const char *name)
 {
 	ssize_t n;
 	int fd, c, i, j, k, size;
@@ -244,9 +241,7 @@ err:	if (fd != -1)
 };
 
 int
-dumpcg(name, fd, c)
-	char *name;
-	int fd, c;
+dumpcg(const char *name, int fd, int c)
 {
 	off_t cur;
 	int i, j;
@@ -311,9 +306,7 @@ dumpcg(name, fd, c)
 };
 
 void
-pbits(vp, max)
-	void *vp;
-	int max;
+pbits(void *vp, int max)
 {
 	int i;
 	char *p;
@@ -335,7 +328,7 @@ pbits(vp, max)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: dumpfs filesys | device\n");
 	exit(1);

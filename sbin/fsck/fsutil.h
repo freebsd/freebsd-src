@@ -31,28 +31,25 @@
  * $FreeBSD$
  */
 
-void perror __P((const char *));
-void errexit __P((const char *, ...))
+void perror(const char *);
+void errexit(const char *, ...)
     __attribute__((__noreturn__,__format__(__printf__,1,2)));  
-void pfatal __P((const char *, ...))
+void pfatal(const char *, ...)
     __attribute__((__format__(__printf__,1,2)));  
-void pwarn __P((const char *, ...))
+void pwarn(const char *, ...)
     __attribute__((__format__(__printf__,1,2)));  
-void panic __P((const char *, ...))
+void panic(const char *, ...)
     __attribute__((__noreturn__,__format__(__printf__,1,2)));  
-const char *rawname __P((const char *));
-const char *unrawname __P((const char *));
-#if 0
-const char *blockcheck __P((const char *));
-#endif
-const char *devcheck __P((const char *));
-const char *cdevname __P((void));
-void setcdevname __P((const char *, int));
-struct statfs *getmntpt __P((const char *));
-int  hotroot __P((void));
-void *emalloc __P((size_t));
-void *erealloc __P((void *, size_t));
-char *estrdup __P((const char *));
+const char *rawname(const char *);
+const char *unrawname(const char *);
+const char *devcheck(const char *);
+const char *cdevname(void);
+void setcdevname(const char *, int);
+struct statfs *getmntpt(const char *);
+int  hotroot(void);
+void *emalloc(size_t);
+void *erealloc(void *, size_t);
+char *estrdup(const char *);
 
 #define	CHECK_PREEN	0x0001
 #define	CHECK_VERBOSE	0x0002
@@ -61,5 +58,5 @@ char *estrdup __P((const char *));
 #define	DO_BACKGRD	0x0010
 
 struct fstab;
-int checkfstab __P((int, int (*)(struct fstab *), 
-    int (*) (const char *, const char *, const char *, char *, pid_t *)));
+int checkfstab(int, int (*)(struct fstab *), 
+    int (*) (const char *, const char *, const char *, char *, pid_t *));

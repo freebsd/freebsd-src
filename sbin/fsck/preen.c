@@ -79,18 +79,15 @@ TAILQ_HEAD(disk, diskentry) diskh;
 
 static int nrun = 0, ndisks = 0;
 
-static struct diskentry *finddisk __P((const char *));
-static void addpart __P((const char *, const char *, const char *));
-static int startdisk __P((struct diskentry *, 
-    int (*)(const char *, const char *, const char *, char *, pid_t *)));
-static void printpart __P((void));
+static struct diskentry *finddisk(const char *);
+static void addpart(const char *, const char *, const char *);
+static int startdisk(struct diskentry *, 
+    int (*)(const char *, const char *, const char *, char *, pid_t *));
+static void printpart(void);
 
 int
-checkfstab(flags, docheck, checkit)
-	int flags;
-	int (*docheck) __P((struct fstab *));
-	int (*checkit) __P((const char *, const char *, const char *, char *,
-	    pid_t *));
+checkfstab(int flags, int (*docheck)(struct fstab *), 
+    int (*checkit)(const char *, const char *, const char *, char *, pid_t *))
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
@@ -247,8 +244,7 @@ checkfstab(flags, docheck, checkit)
 
 
 static struct diskentry *
-finddisk(name)
-	const char *name;
+finddisk(const char *name)
 {
 	const char *p;
 	size_t len = 0;
@@ -285,7 +281,7 @@ finddisk(name)
 
 
 static void
-printpart()
+printpart(void)
 {
 	struct diskentry *d;
 	struct partentry *p;
@@ -300,8 +296,7 @@ printpart()
 
 
 static void
-addpart(type, devname, mntpt)
-	const char *type, *devname, *mntpt;
+addpart(const char *type, const char *devname, const char *mntpt)
 {
 	struct diskentry *d = finddisk(devname);
 	struct partentry *p;
@@ -322,10 +317,8 @@ addpart(type, devname, mntpt)
 
 
 static int
-startdisk(d, checkit)
-	struct diskentry *d;
-	int (*checkit) __P((const char *, const char *, const char *, char *,
-	    pid_t *));
+startdisk(struct diskentry *d, int (*checkit)(const char *, const char *,
+    const char *, char *, pid_t *))
 {
 	struct partentry *p = TAILQ_FIRST(&d->d_part);
 	int rv;

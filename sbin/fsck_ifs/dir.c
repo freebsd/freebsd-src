@@ -63,20 +63,20 @@ struct	odirtemplate odirhead = {
 	0, DIRBLKSIZ - 12, 2, ".."
 };
 
-static int chgino __P((struct inodesc *));
-static int dircheck __P((struct inodesc *, struct direct *));
-static int expanddir __P((struct dinode *dp, char *name));
-static void freedir __P((ino_t ino, ino_t parent));
-static struct direct *fsck_readdir __P((struct inodesc *));
-static struct bufarea *getdirblk __P((ufs_daddr_t blkno, long size));
-static int lftempname __P((char *bufp, ino_t ino));
-static int mkentry __P((struct inodesc *));
+static int chgino(struct inodesc *);
+static int dircheck(struct inodesc *, struct direct *);
+static int expanddir(struct dinode *dp, char *name);
+static void freedir(ino_t ino, ino_t parent);
+static struct direct *fsck_readdir(struct inodesc *);
+static struct bufarea *getdirblk(ufs_daddr_t blkno, long size);
+static int lftempname(char *bufp, ino_t ino);
+static int mkentry(struct inodesc *);
 
 /*
  * Propagate connected state through the tree.
  */
 void
-propagate()
+propagate(void)
 {
 	struct inoinfo **inpp, *inp;
 	struct inoinfo **inpend;
@@ -102,8 +102,7 @@ propagate()
  * Scan each entry in a directory block.
  */
 int
-dirscan(idesc)
-	struct inodesc *idesc;
+dirscan(struct inodesc *idesc)
 {
 	struct direct *dp;
 	struct bufarea *bp;
@@ -166,8 +165,7 @@ dirscan(idesc)
  * get next entry in a directory.
  */
 static struct direct *
-fsck_readdir(idesc)
-	struct inodesc *idesc;
+fsck_readdir(struct inodesc *idesc)
 {
 	struct direct *dp, *ndp;
 	struct bufarea *bp;
@@ -228,9 +226,7 @@ dpok:
  * This is a superset of the checks made in the kernel.
  */
 static int
-dircheck(idesc, dp)
-	struct inodesc *idesc;
-	struct direct *dp;
+dircheck(struct inodesc *idesc, struct direct *dp)
 {
 	int size;
 	char *cp;
@@ -277,18 +273,14 @@ bad:
 }
 
 void
-direrror(ino, errmesg)
-	ino_t ino;
-	char *errmesg;
+direrror(ino_t ino, char *errmesg)
 {
 
 	fileerror(ino, ino, errmesg);
 }
 
 void
-fileerror(cwd, ino, errmesg)
-	ino_t cwd, ino;
-	char *errmesg;
+fileerror(ino_t cwd, ino_t ino, char *errmesg)
 {
 	struct dinode *dp;
 	char pathbuf[MAXPATHLEN + 1];
@@ -310,9 +302,7 @@ fileerror(cwd, ino, errmesg)
 }
 
 void
-adjust(idesc, lcnt)
-	struct inodesc *idesc;
-	int lcnt;
+adjust(struct inodesc *idesc, int lcnt)
 {
 	struct dinode *dp;
 	int saveresolved;
@@ -369,8 +359,7 @@ adjust(idesc, lcnt)
 }
 
 static int
-mkentry(idesc)
-	struct inodesc *idesc;
+mkentry(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 	struct direct newent;
@@ -414,8 +403,7 @@ mkentry(idesc)
 }
 
 static int
-chgino(idesc)
-	struct inodesc *idesc;
+chgino(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
 
@@ -430,10 +418,7 @@ chgino(idesc)
 }
 
 int
-linkup(orphan, parentdir, name)
-	ino_t orphan;
-	ino_t parentdir;
-	char *name;
+linkup(ino_t orphan, ino_t parentdir, char *name)
 {
 	struct dinode *dp;
 	int lostdir;
@@ -548,10 +533,7 @@ linkup(orphan, parentdir, name)
  * fix an entry in a directory.
  */
 int
-changeino(dir, name, newnum)
-	ino_t dir;
-	char *name;
-	ino_t newnum;
+changeino(ino_t dir, char *name, ino_t newnum)
 {
 	struct inodesc idesc;
 
@@ -569,9 +551,7 @@ changeino(dir, name, newnum)
  * make an entry in a directory
  */
 int
-makeentry(parent, ino, name)
-	ino_t parent, ino;
-	char *name;
+makeentry(ino_t parent, ino_t ino, char *name)
 {
 	struct dinode *dp;
 	struct inodesc idesc;
@@ -605,9 +585,7 @@ makeentry(parent, ino, name)
  * Attempt to expand the size of a directory
  */
 static int
-expanddir(dp, name)
-	struct dinode *dp;
-	char *name;
+expanddir(struct dinode *dp, char *name)
 {
 	ufs_daddr_t lastbn, newblk;
 	struct bufarea *bp;
@@ -662,9 +640,7 @@ bad:
  * allocate a new directory
  */
 ino_t
-allocdir(parent, request, mode)
-	ino_t parent, request;
-	int mode;
+allocdir(ino_t parent, ino_t request, int mode)
 {
 	ino_t ino;
 	char *cp;
@@ -723,8 +699,7 @@ allocdir(parent, request, mode)
  * free a directory inode
  */
 static void
-freedir(ino, parent)
-	ino_t ino, parent;
+freedir(ino_t ino, ino_t parent)
 {
 	struct dinode *dp;
 
@@ -740,9 +715,7 @@ freedir(ino, parent)
  * generate a temporary name for the lost+found directory.
  */
 static int
-lftempname(bufp, ino)
-	char *bufp;
-	ino_t ino;
+lftempname(char *bufp, ino_t ino)
 {
 	ino_t in;
 	char *cp;
@@ -767,9 +740,7 @@ lftempname(bufp, ino)
  * Insure that it is held until another is requested.
  */
 static struct bufarea *
-getdirblk(blkno, size)
-	ufs_daddr_t blkno;
-	long size;
+getdirblk(ufs_daddr_t blkno, long size)
 {
 
 	if (pdirbp != 0)
