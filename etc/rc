@@ -384,9 +384,9 @@ case ${dumpdev} in
 	;;
 *)
 	if [ -e "${dumpdev}" -a -d /var/crash ]; then
-		dumpon -v ${dumpdev}
+		/sbin/dumpon -v ${dumpdev}
 		echo -n 'Checking for core dump: '
-		savecore /var/crash
+		/sbin/savecore ${savecore_flags} /var/crash
 	fi
 	;;
 esac
