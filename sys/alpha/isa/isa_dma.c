@@ -93,10 +93,8 @@ static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 /*
  * Setup a DMA channel's bounce buffer.
  */
-void
-isa_dmainit(chan, bouncebufsize)
-	int chan;
-	u_int bouncebufsize;
+int
+isa_dma_init(int chan, u_int bouncebufsize, int flag __unused)
 {
 	static int initted = 0;
 	bus_addr_t boundary = chan >= 4 ? 0x20000 : 0x10000;
@@ -114,10 +112,10 @@ isa_dmainit(chan, bouncebufsize)
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("isa_dmainit: channel out of range");
+		panic("isa_dma_init: channel out of range");
 
 	if (dma_tag[chan] || dma_map[chan])
-		panic("isa_dmainit: impossible request"); 
+		panic("isa_dma_init: impossible request"); 
 #endif
 
 	if (bus_dma_tag_create(/*parent*/NULL,
@@ -132,13 +130,13 @@ isa_dmainit(chan, bouncebufsize)
 			       /*lockfunc*/busdma_lock_mutex,
 			       /*lockarg*/&Giant,
 			       &dma_tag[chan]) != 0) {
-		panic("isa_dmainit: unable to create dma tag\n");
+		panic("isa_dma_init: unable to create dma tag\n");
 	}
 	
 	if (bus_dmamap_create(dma_tag[chan], 0, &dma_map[chan])) {
-		panic("isa_dmainit: unable to create dma map\n");
+		panic("isa_dma_init: unable to create dma map\n");
 	}
-
+	return (0);
 }
 
 /*
@@ -349,7 +347,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 #endif
 
 	if (!dma_tag || !dma_map[chan])
-		panic("isa_dmastart: called without isa_dmainit");
+		panic("isa_dmastart: called without isa_dma_init");
 
 	dma_busy |= (1 << chan);
 
