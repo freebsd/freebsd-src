@@ -315,9 +315,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     quad_t	p;
     mode_t	mymask;
     login_cap_t *llc = NULL;
-#ifndef __NETBSD_SYSCALLS
     struct rtprio rtp;
-#endif
     int error;
 
     if (lc == NULL) {
@@ -337,23 +335,19 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	p = login_getcapnum(lc, "priority", LOGIN_DEFPRI, LOGIN_DEFPRI);
 
 	if(p > PRIO_MAX) {
-#ifndef __NETBSD_SYSCALLS
 	    rtp.type = RTP_PRIO_IDLE;
 	    rtp.prio = p - PRIO_MAX - 1;
 	    p = (rtp.prio > RTP_PRIO_MAX) ? 31 : p;
 	    if(rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
 		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
-#endif
 	} else if(p < PRIO_MIN) {
-#ifndef __NETBSD_SYSCALLS
 	    rtp.type = RTP_PRIO_REALTIME;
 	    rtp.prio = abs(p - PRIO_MIN + RTP_PRIO_MAX);
 	    p = (rtp.prio > RTP_PRIO_MAX) ? 1 : p;
 	    if(rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
 		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
-#endif
 	} else {
 	    if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
 		syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
