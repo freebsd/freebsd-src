@@ -49,8 +49,6 @@
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -68,8 +66,23 @@ int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
+static struct callout loadav_callout;
+
+struct loadavg averunnable =
+	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
+/*
+ * Constants for averages over 1, 5, and 15 minutes
+ * when sampling at 5 second intervals.
+ */
+static fixpt_t cexp[3] = {
+	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
+	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
+	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
+};
+
 static int	curpriority_cmp __P((struct proc *p));
 static void	endtsleep __P((void *));
+static void	loadav __P((void *arg));
 static void	maybe_resched __P((struct proc *chk));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
@@ -327,7 +340,6 @@ schedcpu(arg)
 		}
 		splx(s);
 	}
-	vmmeter();
 	wakeup((caddr_t)&lbolt);
 	timeout(schedcpu, (void *)0, hz);
 }
@@ -923,14 +935,50 @@ resetpriority(p)
 	maybe_resched(p);
 }
 
+/*
+ * Compute a tenex style load average of a quantity on
+ * 1, 5 and 15 minute intervals.
+ */
+static void
+loadav(void *arg)
+{
+	int i, nrun;
+	struct loadavg *avg;
+	struct proc *p;
+
+	avg = &averunnable;
+	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		switch (p->p_stat) {
+		case SRUN:
+		case SIDL:
+			nrun++;
+		}
+	}
+	for (i = 0; i < 3; i++)
+		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
+		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
+
+	/*
+	 * Schedule the next update to occur after 5 seconds, but add a
+	 * random variation to avoid synchronisation with processes that
+	 * run at regular intervals.
+	 */
+	callout_reset(&loadav_callout, hz * 4 + (int)(random() % (hz * 2 + 1)),
+	    loadav, NULL);
+}
+
 /* ARGSUSED */
 static void
 sched_setup(dummy)
 	void *dummy;
 {
+
+	callout_init(&loadav_callout);
+
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
 	schedcpu(NULL);
+	loadav(NULL);
 }
 
 /*
