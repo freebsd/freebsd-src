@@ -533,7 +533,7 @@ GetIfIndex(char *name)
 
 void
 route_Change(struct bundle *bundle, struct sticky_route *r,
-             struct in_addr me, struct in_addr peer)
+             struct in_addr me, struct in_addr peer, struct in_addr dns[2])
 {
   struct in_addr none, del;
 
@@ -549,6 +549,18 @@ route_Change(struct bundle *bundle, struct sticky_route *r,
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
       bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = peer;
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_DSTDNS0) && r->dst.s_addr != peer.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      r->dst = dns[0];
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_DSTDNS1) && r->dst.s_addr != peer.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      r->dst = dns[1];
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
@@ -648,6 +660,10 @@ route_ShowSticky(struct prompt *p, struct sticky_route *r, const char *tag,
       prompt_Printf(p, "MYADDR");
     else if (r->type & ROUTE_DSTHISADDR)
       prompt_Printf(p, "HISADDR");
+    else if (r->type & ROUTE_DSTDNS0)
+      prompt_Printf(p, "DNS0");
+    else if (r->type & ROUTE_DSTDNS1)
+      prompt_Printf(p, "DNS1");
     else if (!def)
       prompt_Printf(p, "%s", inet_ntoa(r->dst));
 

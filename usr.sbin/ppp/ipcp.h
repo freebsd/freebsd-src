@@ -87,6 +87,14 @@ struct ipcp {
     struct slstat slstat;		/* VJ statistics */
   } vj;
 
+  struct {
+    unsigned resolver : 1;		/* Found resolv.conf ? */
+    unsigned writable : 1;		/* Can write resolv.conf ? */
+    struct in_addr dns[2];		/* Current DNS addresses */
+    char *resolv;			/* Contents of resolv.conf */
+    char *resolv_nons;			/* Contents of resolv.conf without ns */
+  } ns;
+
   struct sticky_route *route;		/* List of dynamic routes */
 
   unsigned heis1172 : 1;		/* True if he is speaking rfc1172 */
@@ -98,6 +106,8 @@ struct ipcp {
 
   struct in_addr my_ip;			/* IP address I'm willing to use */
   u_int32_t my_compproto;		/* VJ params I'm willing to use */
+
+  struct in_addr dns[2];		/* DNSs to REQ/ACK */
 
   u_int32_t peer_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;			/* Request codes I have rejected */
@@ -133,6 +143,9 @@ extern void ipcp_AddUrgentPort(struct port_range *, u_short);
 extern void ipcp_RemoveUrgentPort(struct port_range *, u_short);
 extern void ipcp_ClearUrgentPorts(struct port_range *);
 extern struct in_addr addr2mask(struct in_addr);
+extern int ipcp_WriteDNS(struct ipcp *);
+extern void ipcp_RestoreDNS(struct ipcp *);
+extern void ipcp_LoadDNS(struct ipcp *);
 
 #define ipcp_IsUrgentTcpPort(ipcp, p1, p2) \
           ipcp_IsUrgentPort(&(ipcp)->cfg.urgent.tcp, p1, p2)

@@ -185,6 +185,7 @@ extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
 extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
                                  struct in_addr *);
+extern void bundle_AdjustDNS(struct bundle *, struct in_addr [2]);
 extern void bundle_CalculateBandwidth(struct bundle *);
 extern void bundle_AutoAdjust(struct bundle *, int, int);
 extern int bundle_WantAutoloadTimer(struct bundle *);
