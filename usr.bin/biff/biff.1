@@ -47,6 +47,13 @@ The
 utility informs the system whether you want to be notified when mail arrives
 during the current terminal session.
 .Pp
+Affected is the first terminal associated with the standard input,
+standard output or standard error file descriptor, in that order.
+Thus, it is possible to use the redirection facilities of a shell to
+toggle the notification for other terminals than the one
+.Nm
+runs on.
+.Pp
 The following options are available:
 .Bl -tag -width indent
 .It Cm n

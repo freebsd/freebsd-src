@@ -74,7 +74,9 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if ((name = ttyname(STDERR_FILENO)) == NULL)
+	if ((name = ttyname(STDIN_FILENO)) == NULL &&
+	    (name = ttyname(STDOUT_FILENO)) == NULL &&
+	    (name = ttyname(STDERR_FILENO)) == NULL)
 		err(2, "unknown tty");
 
 	if (stat(name, &sb))
