@@ -374,6 +374,25 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 		if (reg & TPL_BAR_REG_PREFETCHABLE)
 			dinfo->mprefetchable |= BARBIT(bar);
 #if 0
+		/*
+		 * XXX: It appears from a careful reading of the spec
+		 * that we're not supposed to honor this when the bridge
+		 * is not on the main system bus.  PCI spec doesn't appear
+		 * to allow for memory ranges not listed in the bridge's
+		 * decode range to be decoded.  The PC Card spec seems to
+		 * indicate that this should only be done on x86 based
+		 * machines, which seems to imply that on non-x86 machines
+		 * the adddresses can be anywhere.  This further implies that
+		 * since the hardware can do it on non-x86 machines, it should
+		 * be able to do it on x86 machines.  Therefore, we can and
+		 * should ignore this hint.  Furthermore, the PC Card spec
+		 * recommends always allocating memory above 1MB, contradicting
+		 * the other part of the PC Card spec.
+		 *
+		 * NetBSD ignores this bit, but it also ignores the
+		 * prefetchable bit too, so that's not an indication of
+		 * correctness.
+		 */
 		if (reg & TPL_BAR_REG_BELOW1MB)
 			dinfo->mbelow1mb |= BARBIT(bar);
 #endif
