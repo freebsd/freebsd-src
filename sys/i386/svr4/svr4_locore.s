@@ -3,7 +3,7 @@
 
 #include <svr4/svr4_syscall.h>		/* system call numbers */
 
-/* $Id$ */
+/* $Id: svr4_locore.s,v 1.6 1999/07/30 12:47:17 newton Exp $ */
 	
 NON_GPROF_ENTRY(svr4_sigcode)
 	call	SVR4_SIGF_HANDLER(%esp)
@@ -24,7 +24,7 @@ NON_GPROF_ENTRY(svr4_sigcode)
 	movl	$exit,%eax
 	int	$0x80			# exit if sigreturn fails
 
-	.align	2				/* long word align */
+	ALIGN_TEXT
 svr4_esigcode:
 
 	.data
