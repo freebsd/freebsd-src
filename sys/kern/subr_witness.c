@@ -124,7 +124,6 @@ static int	itismychild(struct witness *parent, struct witness *child);
 static void	removechild(struct witness *parent, struct witness *child);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
-static int	dup_ok(struct witness *);
 static int	blessed(struct witness *, struct witness *);
 static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 				     struct witness_list *list);
@@ -226,12 +225,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "clk", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
-};
-
-static const char *dup_list[] = {
-	"process lock",
-	"process group",
-	NULL
 };
 
 /*
@@ -549,7 +542,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 	w1 = lock1->li_lock->lo_witness;
 	if (w1 == w) {
-		if (w->w_same_squawked || dup_ok(w))
+		if (w->w_same_squawked || (lock->lo_flags & LO_DUPOK))
 			goto out;
 		w->w_same_squawked = 1;
 		printf("acquiring duplicate lock of same type: \"%s\"\n", 
@@ -1141,17 +1134,6 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 		for (i = 0; i < wcl->wcl_count; i++)
 			    witness_displaydescendants(prnt,
 				wcl->wcl_children[i]);
-}
-
-static int
-dup_ok(struct witness *w)
-{
-	const char **dup;
-	
-	for (dup = dup_list; *dup != NULL; dup++)
-		if (strcmp(w->w_name, *dup) == 0)
-			return (1);
-	return (0);
 }
 
 static int

@@ -69,6 +69,7 @@ struct lock_class {
 #define	LO_RECURSABLE	0x00080000	/* Lock may recurse. */
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
+#define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
 
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_SLEPT	0x00010000	/* Lock instance has been slept with. */

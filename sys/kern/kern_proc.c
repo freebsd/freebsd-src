@@ -341,7 +341,7 @@ enterpgrp(p, pgid, pgrp, sess)
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
 
-	mtx_init(&pgrp->pg_mtx, "process group", MTX_DEF);
+	mtx_init(&pgrp->pg_mtx, "process group", MTX_DEF|MTX_DUPOK);
 
 	if (sess != NULL) {
 		/*
