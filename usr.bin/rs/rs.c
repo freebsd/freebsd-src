@@ -347,8 +347,10 @@ getline(void)	/* get line; maintain curline, curlen; manage storage */
 	}
 	else if (skip <= 0) {			/* don't waste storage */
 		curline += curlen + 1;
-		if (putlength)		/* print length, recycle storage */
+		if (putlength) {	/* print length, recycle storage */
 			printf(" %d line %d\n", curlen, irows);
+			curline = ibuf;
+		}
 	}
 	if (!putlength && endblock - curline < BUFSIZ) {   /* need storage */
 		/*ww = endblock-curline; tt += ww;*/
