@@ -1,6 +1,6 @@
 #! /bin/sh
 
-: '@(#)yearistype.sh	7.3'
+: '@(#)yearistype.sh	7.4'
 
 case $#-$2 in
 	2-even)		case $1 in
@@ -8,7 +8,7 @@ case $#-$2 in
 				*)				exit 1 ;;
 			esac ;;
 	2-nonpres)	case $1 in
-				*[02468][048]|*[13567][26])	exit 1 ;;
+				*[02468][048]|*[13579][26])	exit 1 ;;
 				*)				exit 0 ;;
 			esac ;;
 	2-odd)		case $1 in
@@ -16,7 +16,7 @@ case $#-$2 in
 				*)				exit 1 ;;
 			esac ;;
 	2-uspres)	case $1 in
-				*[02468][048]|*[13567][26])	exit 0 ;;
+				*[02468][048]|*[13579][26])	exit 0 ;;
 				*)				exit 1 ;;
 			esac ;;
 	2-*)		echo "$0: wild type - $2" >&2
