@@ -261,6 +261,8 @@ lexi()
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
+		if (ps.p_l_follow)
+			break;	/* inside parens: cast */
 		/*
 		 * Next time around, we may want to know that we have had a
 		 * 'struct'
