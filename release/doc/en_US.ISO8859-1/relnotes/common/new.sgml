@@ -89,50 +89,20 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">The &man.puc.4; (PCI <quote>Universal</quote>
-      Communications) driver has been added, to help connect PCI-based
-      serial ports to the &man.sio.4; driver.</para>
-
-    <para>The kernel dump device can now be set via the
-      <varname>dumpdev</varname> loader tunable.  As a result, it is now
-      possible to obtain crash dumps from panics during the late stages
-      of kernel initialization (before the system enters into
-      single-user mode).</para>
-
-    <para>The &man.snp.4; device is no longer static and can now be
-      compiled as a module.</para>
-
-    <para arch="i386">The &man.spic.4; driver, which provides access
-      to the Jog Dial device on some Sony laptops, has been
-      added.  &man.moused.8; support for this device has also been
-      added.</para>
-
-    <para arch="i386">The &man.viapm.4; driver for VIA SMBus
-      power management controllers has been added.</para>
+    <para></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386">The <literal>CPU_ATHLON_SSE_HACK</literal>
-	kernel option has been added, which attempts to enable the SSE
-	feature bit on newer Athlon CPUs if the BIOS has forgotten to
-	enable it.</para>
-
-      <para arch="i386">On some systems, the BIOS does not activate
-	the I/O ports and memory of PCI devices, thus making them
-	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
-	option forces &os; to enable these devices so that they can be
-	used.</para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>Boot Loaders</title>
 
-      <para arch="i386"><filename>boot2</filename> now supports a
-	<option>-n</option> option to disallow boot interruption by
-	keypresses.</para>
+      <para></para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -141,124 +111,30 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>The &man.an.4; driver now supports Cisco LEAP, as well as
-        the <quote>Home</quote> WEP key.  The Linux Aironet
-        utilities are now supported under emulation.</para>
-
-      <para arch="i386">Generic support for ARCNET token-based
-	networks has been added.</para>
-
-      <para arch="i386">The cm driver has been added to support SMC
-	COM90cx6 ARCNET network adapters.</para>
-
-      <para>The &man.dc.4; driver now has support for VLANs.</para>
-
-      <para arch="i386">Support for Intel Gigabit Ethernet cards in
-	the <filename>GENERIC</filename> kernel is now provided by the
-	&man.em.4; driver, rather than the &man.wx.4; driver.  The
-	latter driver has been deprecated since &os;
-	4.5-RELEASE.</para>
-
-      <para arch="alpha">The &man.fpa.4; driver now works on Alpha
-        machines.</para>
-
-      <para>The my driver, which supports the Myson Fast Ethernet and
-	Gigabit Ethernet adapters, has been added.</para>
-
-      <para>The &man.wi.4; driver now has support for Prism II and
-	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
-	cards.</para>
-
-      <para>The &man.wi.4; driver now supports using a &os; host as
-	a wireless access point.  This functionality can be enabled 
-	using the <literal>mediaopt hostap</literal> option of 
-	&man.ifconfig.8;.  This feature requires a wireless 
-	adapter based on the Prism II chipset.</para>
-
-      <para>The &man.wi.4; driver now has support for
-	<application>bsd-airtools</application>.</para>
-
-      <para>The xe driver can now be built as a module.</para>
+      <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
-      <para>Selected network drivers now implement a
-	semi-polling mode, which makes systems much more resilient to
-	attacks and overloads.  To enable polling, the following options
-	are required in a kernel configuration file:
-
-	<programlisting>options DEVICE_POLLING
-options HZ=1000 # not compulsory but strongly recommended</programlisting>
-
-	The <varname>kern.polling.enable</varname> sysctl variable
-	will then activate polling mode; with the
-	<varname>kern.polling.user_frac</varname> sysctl indicating the
-	percentage of CPU time to be reserved for userland.  The devices
-	initially supporting polling are &man.dc.4;, &man.fxp.4;, &man.rl.4;, and
-	&man.sis.4;.  More details can be found in the &man.polling.4;
-	manual page.</para>
     </sect3>
 
     <sect3>
       <title>Network Protocols</title>
 
-      <para>&man.bridge.4; now has better support for multiple,
-	fully-independent bridging clusters, and is much more stable in
-	the presence of dynamic attachments and detatchments.  Full
-	support for VLANs is also supported.</para>
+      <para></para>
 
-      <para>A bug in the IPsec processing for IPv4, which caused the
-	inbound SPD checks to be ignored, has been fixed.</para>
-
-      <para>A new ng_eiface netgraph module has been added, which
-	appears as an Ethernet interface but delivers its Ethernet
-	frames to a Netgraph hook.</para>
-
-      <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
-	packets to be filtered to different hooks depending on
-	ethertype.</para>
-
-      <para>The &man.tcp.4; syncache implementation had a bug that
-	could cause kernel panics; this has been fixed.</para>
-
-      <para>The TCP implementation now properly ignores packets
-	addressed to IP-layer broadcast addresses.</para>
     </sect3>
 
     <sect3>
       <title>Disks and Storage</title>
 
-      <para>The &man.ahc.4; driver was synchronized with the version
-	from &os; -CURRENT as of 29 April 2002.</para>
+      <para></para>
 
-      <para>The &man.ata.4; driver was synchronized with the driver from
-	&os; -CURRENT as of 18 March 2002.</para>
-
-      <important>
-	<para>Some users have experienced problems during testing with
-	  ATA tagged queueing.  Typical symptoms are read timeouts at
-	  boot time leading to a failure to mount the root filesystem.
-	  These problems have only appeared on systems having disks
-	  supporting tagged queueing attached to motherboard ATA
-	  controllers.  As this feature is only supported by certain
-	  ATA hard disks, and must be enabled explicitly (by setting
-	  <literal>hw.ata.tags="1"</literal> in
-	  <filename>/boot/loader.conf</filename>), this should not
-	  pose a problem for a majority of users.</para>
-      </important>
-
-      <para>The &man.ata.4; driver now has support for creating,
-	deleting, querying, and rebuilding ATA RAIDs under control of
-	&man.atacontrol.8;.</para>
     </sect3>
 
     <sect3>
       <title>Filesystems</title>
 
-      <para>A bug was been fixed in soft updates that could cause
-	occasional filesystem corruption if the system is shut down
-	immediately after performing heavy filesystem activities, such
-	as installing a new kernel or other software.</para>
+      <para></para>
     </sect3>
 
     <sect3>
@@ -270,354 +146,41 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Multimedia Support</title>
 
-      <para arch="i386">The ufm driver, supporting the D-Link DSB-R100
-	USB Radio, has been added.</para>
-
-      <para arch="i386">The via82c686 sound driver now supports the VIA
-	VT8233.</para>
-
-      <para arch="i386">The ich sound driver now supports the SiS
-	7012 chipset.</para>
-
-      <para arch="i386">The &man.pcm.4; driver was synchronized with
-	the version from &os; -CURRENT as of 22 April 2002.</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <sect4>
-	<title>IPFilter</title>
-
-	<para><application>IPFilter</application> has been updated to
-	  3.4.27.</para>
-
-      </sect4>
-
-      <sect4 arch="i386">
-	<title>isdn4bsd</title>
-
-	<para>The &man.ifpi2.4; driver for supporting the AVM
-	  Fritz!Card PCI version 2 controller has been added.</para>
-
-      </sect4>
+      <para></para>
     </sect3>
   </sect2>
 
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>An <quote>off-by-one</quote> bug has been fixed in
-      <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed an authenticated remote user to cause
-      &man.sshd.8; to execute arbitrary code with superuser
-      privileges, or allowed a malicious SSH server to execute arbitrary
-      code on the client system with the privileges of the client user.  (See security
-      advisory <ulink
-        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)</para>
-
-    <para>A programming error in <application>zlib</application> could
-      result in attempts to free memory multiple times.  The
-      &man.malloc.3;/&man.free.3; routines used in &os; are not
-      vulnerable to this error, but applications receiving
-      specially-crafted blocks of invalid compressed data could
-      be made to function incorrectly or abort.  This
-      <application>zlib</application> bug has been fixed.  For a
-      workaround and solutions, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
-
-    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
-      cookie (<quote>syncookie</quote>) implementations, which could
-      cause legitimate TCP/IP traffic to crash a machine, have been
-      fixed.  For a workaround and patches, see security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
-
-    <para>A routing table memory leak, which could allow a remote
-      attacker to exhaust the memory of a target machine, has been
-      fixed.  A workaround and patches can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
-
-    <para>A bug with memory-mapped I/O, which could cause a system
-      crash, has been fixed.  For more information about a solution,
-      see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
-      </para>
-
-    <para>A security hole, in which SUID programs could be made to
-      read from or write to inappropriate files through manipulation
-      of their standard I/O file descriptors, has been fixed.
-      Information regarding a solution can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
-      </para>
-
-    <para>Some unexpected behavior could be allowed with &man.k5su.8;
-      because it does not require that an invoking user be a member of
-      the <groupname>wheel</groupname> group when attempting to become
-      the superuser (this is the case with &man.su.1;).  To avoid this
-      situation, &man.k5su.8; is now installed non-SUID by default
-      (effectively disabling it).  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
-
-    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
-      utility, which could allow files to be overwritten without
-      warning or allow local users unintended access to files.  These
-      problems have been corrected with a new import of
-      <application>bzip2</application>.  For more information, see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
-
-    <para>A bug has been fixed in the implementation of the TCP SYN 
-      cache (<quote>syncache</quote>), which could allow a remote
-      attacker to deny access to a service when accept filters
-      (see &man.accept.filter.9;) were in use.  This bug has been 
-      fixed; for more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
-
-    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
-      may be able to remove the contents of arbitrary files if
-      <filename>/tmp/.X11-unix</filename> does not exist and the
-      system can be made to reboot.  This bug has been corrected (see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+    <para></para>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.atacontrol.8; has been added to control various aspects
-      of the &man.ata.4; driver.</para>
-
-    <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
-      <literal>speed</literal> command to set the maximum speed to be
-      used by the drive.</para>
-
-    <para>&man.ctags.1; no longer creates a corrupt tags file if the
-      source file used <literal>//</literal> (C++-style)
-      comments.</para>
-
-    <para>&man.dump.8; now supplies progress information in its
-      process title, useful for monitoring automated backups.</para>
-
-    <para><filename>/etc/rc.firewall</filename> and
-      <filename>/etc/rc.firewall6</filename> will no longer add their own
-      hardcoded rules in the cases of a rules file in the
-      <varname>firewall_type</varname> variable or a non-existent
-      firewall type.  (The motivation for this change is to avoid
-      acting on assumptions about a site's firewall policies.)  In
-      addition, the <literal>closed</literal> firewall type now works
-      as documented in the &man.rc.firewall.8; manual page.</para>
-
-    <para>The functionality of <filename>/etc/security</filename> has
-      been been moved into a set of scripts under the &man.periodic.8;
-      framework, to make local customization easier and more
-      maintainable.  These scripts now reside in
-      <filename>/etc/periodic/security/</filename>.</para>
-
-    <para>The <option>ether</option> address family of
-      &man.ifconfig.8; has been changed to a more generic
-      <option>link</option> family (<option>ether</option> is still
-      accepted for backwards compatability).</para>
-
-    <para>&man.fsdb.8; now supports a <literal>blocks</literal>
-      command to list the blocks allocated by a particular
-      inode.</para>
-
-    <para>&man.ispppcontrol.8; has been deleted, and its functionality
-      has been folded into &man.spppcontrol.8;.</para>
-
-    <para>&man.k5su.8; is no longer installed SUID
-      <username>root</username> by default.  Users requiring this
-      feature can either manually change the permissions on the
-      &man.k5su.8; executable or add
-      <literal>ENABLE_SUID_K5SU=yes</literal> to
-      <filename>/etc/make.conf</filename> before a source
-      upgrade.</para>
-
-    <para>&man.ldd.1; can now be used on shared libraries, in addition
-      to executables.</para>
-
-    <para>&man.last.1; now supports a <option>-y</option> flag, which
-      causes the year to be included in the session start time.</para>
-
-    <para><filename>libstand</filename> now has support for loading
-      large kernels and modules split across several physical
-      media.</para>
-
-    <para><filename>libusb</filename> has been renamed as
-      <filename>libusbhid</filename>, following NetBSD's naming
-      conventions.</para>
-
-    <para>&man.lpd.8; now recognizes the <option>-s</option> flag as
-      the preferred synonym for <option>-p</option> (these flags
-      cause &man.lpd.8; not to open a socket for network print
-      jobs).</para>
-
-    <para>&man.lpd.8; now implements a new <literal>rc</literal>
-      printcap option.  When specified in a print queue for a remote
-      host, boolean option causes &man.lpd.8; to resend the data file
-      for each copy the user requested via <command>lpr
-      -#<replaceable>n</replaceable></command>.</para>
-
-    <para>&man.ls.1; now accepts a <option>-h</option> flag, which
-      when combined with the <option>-l</option> flag, causes file
-      sizes to be printed with unit suffixes, such that the number of
-      digits printed is fewer than four.</para>
-
-    <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
-      it to emit <literal>#line</literal> directives for use by
-      &man.cpp.1;.</para>
-
-    <para>&man.mergemaster.8; now supports two new flags.
-      The <option>-p</option> flag enables a
-      <quote>pre-<literal>buildworld</literal></quote> mode to compare files
-      known to be essential to the success of the
-      <literal>buildworld</literal> and
-      <literal>installworld</literal> system updating steps.  The
-      <option>-C</option> flag, used after a successful
-      &man.mergemaster.8; run, compares options in
-      <filename>/etc/rc.conf</filename> to the default options in
-      <filename>/etc/defaults/rc.conf</filename>.</para>
-
-    <para>&man.ngctl.8; now supports a <option>write</option> command
-      to send a data packet down a given hook.</para>
-
-    <para>&man.patch.1; now accepts a <option>-i</option> command-line
-      flag to read a patch from a file, rather than standard
-      input.</para>
-
-    <para>A &man.pam.ssh.8; module has been added to allow the use of
-      SSH passphrases and keypairs for authentication.  This module
-      also handles session management by invoking
-      &man.ssh-agent.1;.</para>
-
-    <para>&man.pr.1; now supports the <option>-f</option> and
-      <option>-p</option> flags to pause output going to a
-      terminal.</para>
-
-    <para>The <option>-W</option> option to &man.ps.1; (to extract
-      information from a specified swap device) has been useless for
-      some time; it has been removed.</para>
-
-    <para>&man.reboot.8; now takes a <option>-k</option> to specify
-      the next kernel to boot.</para>
-
-    <para>&man.sshd.8; no longer emits fake S/Key challenges for users
-      who do not have S/Key enabled.  The prior behavior created
-      confusing, useless one-time-password prompts when using some
-      newer SSH clients to connect to a &os; system.</para>
-
-    <para>&man.sysinstall.8; now has rudimentary support for
-      retrieving packages from the correct volume of a multiple-volume
-      installation (such as a multi-CD distribution).</para>
-
-    <para>&man.tftp.1; and &man.tftpd.8; now support IPv6.</para>
-
-    <para>The &man.usbhidctl.1; utility has been added to manipulate
-      USB Human Interface Devices.</para>
-
-    <para>&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
-      set their output files.  &man.uuencode.1; can now be made to do base64 encoding
-      when given the <option>-m</option> flag, while &man.uudecode.1;
-      can now automatically decode base64 files.</para>
-
-    <para>&man.watch.8; now takes a <option>-f</option> option to
-      specify a &man.snp.4; device to use.</para>
+    <para></para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
-
-    <para>Locales with names of the form <literal>*.EUC</literal> have
-      been renamed to the form <literal>*.euc??</literal>.  For
-      example, <literal>ja_JP.EUC</literal> has become
-      <literal>ja_JP.eucJP</literal>.  This improves locale name
-      compatability with &os; CURRENT, X11R6, and a number of
-      other UNIX versions.</para>
-
-    <para>The locale support was synchronized with the code from &os;
-      -CURRENT.  This change brings support for the
-      <literal>LC_NUMERIC</literal>, <literal>LC_MONETARY</literal>,
-      and <literal>LC_MESSAGES</literal> categories, as well as
-      improvements to &man.strftime.3;, revised locale definitions,
-      and improvement of the localization of many base system
-      programs.</para>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated to
-	8.3.2-T1B.</para>
-
-      <para><application>bzip2</application> has been updated to
-	1.0.2.</para>
-
-      <para><application>Heimdal Kerberos</application> has been updated to
-	0.4e.</para>
-
-      <para>The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC8.</para>
-
-      <para><application>texinfo</application> has been updated to
-	4.1.</para>
-
-      <para>The timezone database has been updated to the
-	<filename>tzdata2002c</filename> release.</para>
-
-      <sect4>
-
-	<title>Sendmail</title>
-
-	<para><application>sendmail</application> has been updated to
-	  8.12.3.  &man.sendmail.8; is no longer installed as a
-	  set-user-ID <username>root</username> binary (now set-group-ID <groupname>smmsp</groupname>).
-	  See <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
-	  and <filename>/etc/mail/README</filename> for more
-	  information.</para>
-
-	<para>With this 
-	  <application>sendmail</application> upgrade, multiple
-	  <application>sendmail</application> daemons (some required
-	  to handle outgoing mail) are started by &man.rc.8;, even if
-	  the <varname>sendmail_enable</varname> variable is set to
-	  <literal>NO</literal>.  To completely disable
-	  <application>sendmail</application>,
-	  <varname>sendmail_enable</varname> must be set to
-	  <literal>NONE</literal>.  Alternatively, for systems using a
-	  different MTA, the <varname>mta_start_script</varname> variable can
-	  be used to point to a different startup script (more details
-	  can be found in &man.rc.sendmail.8;).</para>
-
-	<para>The permissions for <application>sendmail</application>
-	  alias and map databases built via
-	  <filename>/etc/mail/Makefile</filename> now default to mode
-	  0640 to protect against a file locking local denial of service.
-	  It can be changed by setting the new
-	  <varname>SENDMAIL_MAP_PERMS</varname>
-	  <filename>make.conf</filename> option.</para>
-
-	<para>The permissions for the <application>sendmail</application>
-	  statistics file, <filename>/var/log/sendmail.st</filename>, have
-	  been changed from mode 0644 to mode 0640 to protect against
-	  a file locking local denial of service.</para>
-
-      </sect4>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>The Ports Collection infrastructure now uses
-        <application>XFree86</application> 4.2.0 as the default version
-        of the X Window System for the purposes of satisfying
-        dependencies.  To return to using
-        <application>XFree86</application> 3.3.6, add the following line
-        to <filename>/etc/make.conf</filename>:</para>
-
-      <programlisting>XFREE86_VERSION=3</programlisting>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -625,13 +188,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para arch="i386,alpha"><application>XFree86</application> 4.2.0
-      is now the default version of the X Window System supported by
-      &man.sysinstall.8;.  It installs
-      <application>XFree86</application> as a set of standard binary
-      packages, so the usual package utilities such as
-      &man.pkg.info.1; can be used to examine/manipulate its
-      components.</para>
+    <para></para>
 
   </sect2>
 </sect1>
