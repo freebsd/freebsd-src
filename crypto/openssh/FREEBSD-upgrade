@@ -14,7 +14,7 @@
 
 3) Remove trash:
 
-	$ rm -rf $(cat FREEBSD-Xlist)
+	$ eval "rm -rf $(tr '[:space:]' ' ' </usr/src/crypto/openssh/FREEBSD-Xlist)"
 
    Make sure that took care of everything, and if it didn't, make sure
    to update FREEBSD-Xlist so you won't miss it the next time.
