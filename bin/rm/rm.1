@@ -43,7 +43,7 @@
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm rm
-.Op Fl dfiPRrW
+.Op Fl dfiPRrWv
 .Ar file ...
 .Sh DESCRIPTION
 The
@@ -103,6 +103,8 @@ Equivalent to
 Attempt to undelete the named files.
 Currently, this option can only be used to recover
 files covered by whiteouts.
+.It Fl v
+Be verbose when deleting files, showing them as they are removed.
 .El
 .Pp
 The
