@@ -835,6 +835,7 @@ dev/usb/usbdi.c		optional usb
 dev/usb/usbdi_util.c	optional usb
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
+dev/vkbd/vkbd.c			optional vkbd
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
