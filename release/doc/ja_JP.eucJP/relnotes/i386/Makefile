@@ -1,5 +1,5 @@
 # $FreeBSD$
-# Original revision: 1.4
+# Original revision: 1.3.2.2
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

@@ -2,6 +2,7 @@
   -- Language-specific --
 
   -- $FreeBSD$ --
+  -- Original revision: 1.1.2.1 --
 
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
        "release.dsl"
