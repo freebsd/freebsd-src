@@ -25,18 +25,22 @@
 #include "dialog.priv.h"
 #include <ncurses.h>
 
-static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected);
+static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected,
+		       dialogMenuItem *me);
+
+#define DREF(di, item)		((di) ? &((di)[(item)]) : NULL)
 
 static int menu_width, tag_x, item_x;
 
 /*
  * Display a menu for choosing among a number of options
  */
-int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
-		int item_no, void *it, unsigned char *result, int *ch, int *sc)
+int
+dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
+	    int item_no, void *it, unsigned char *result, int *ch, int *sc)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-      l, k, scroll = 0, max_choice, redraw_menu = FALSE;
+    l, k, scroll = 0, max_choice, redraw_menu = FALSE;
   char okButton, cancelButton;
   WINDOW *dialog, *menu;
   unsigned char **items;
@@ -92,8 +96,8 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   if (height > LINES)
     height = LINES;
   /* center dialog box on screen */
-  x = (COLS - width)/2;
-  y = (LINES - height)/2;
+  x = DialogX ? DialogX : (COLS - width)/2;
+  y = DialogY ? DialogY : (LINES - height)/2;
 
 #ifdef HAVE_NCURSES
   if (use_shadow)
@@ -152,7 +156,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 
   /* Print the menu */
   for (i = 0; i < max_choice; i++)
-    print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice);
+    print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice, DREF(ditems, scroll + i));
   wnoutrefresh(menu);
   print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 
@@ -164,10 +168,10 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   if (ditems && result) {
     cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
     print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		 ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : FALSE);
+		 ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
     okButton = toupper(ditems[OK_BUTTON].prompt[0]);
     print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		 ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : TRUE);
+		 ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
   }
   else {
     cancelButton = 'C';
@@ -184,7 +188,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     /* Shortcut to OK? */
     if (toupper(key) == okButton) {
       if (ditems && result && ditems[OK_BUTTON].fire) {
-	if ((*ditems[OK_BUTTON].fire)(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
 	  continue;
 	else
 	  delwin(dialog);
@@ -198,7 +202,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     /* Shortcut to cancel? */
     else if (toupper(key) == cancelButton) {
       if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-	if ((*ditems[CANCEL_BUTTON].fire)(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
 	  continue;
       }
       delwin(dialog);
@@ -221,13 +225,13 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
             getyx(dialog, cur_y, cur_x);    /* Save cursor position */
             if (menu_height > 1) {
               /* De-highlight current first item before scrolling down */
-              print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, FALSE);
+              print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, FALSE, DREF(ditems, scroll));
               scrollok(menu, TRUE);
               wscrl(menu, -1);
               scrollok(menu, FALSE);
             }
             scroll--;
-            print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, TRUE);
+            print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, TRUE, DREF(ditems, scroll));
             wnoutrefresh(menu);
 	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
@@ -244,13 +248,15 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
             getyx(dialog, cur_y, cur_x);    /* Save cursor position */
             if (menu_height > 1) {
               /* De-highlight current last item before scrolling up */
-              print_item(menu, items[(scroll+max_choice-1)*2], items[(scroll+max_choice-1)*2 + 1], max_choice-1, FALSE);
+              print_item(menu, items[(scroll + max_choice - 1) * 2], items[(scroll + max_choice - 1) * 2 + 1],
+			 max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
               scrollok(menu, TRUE);
               scroll(menu);
               scrollok(menu, FALSE);
             }
             scroll++;
-              print_item(menu, items[(scroll+max_choice-1)*2], items[(scroll+max_choice-1)*2 + 1], max_choice-1, TRUE);
+	    print_item(menu, items[(scroll + max_choice - 1) * 2], items[(scroll + max_choice - 1) * 2 + 1],
+		       max_choice - 1, TRUE, DREF(ditems, scroll + max_choice - 1));
             wnoutrefresh(menu);
 	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
@@ -263,11 +269,13 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       if (i != choice) {
         /* De-highlight current item */
         getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-        print_item(menu, items[(scroll+choice)*2], items[(scroll+choice)*2 + 1], choice, FALSE);
+        print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, FALSE,
+		   DREF(ditems, scroll + choice));
 
         /* Highlight new item */
         choice = i;
-        print_item(menu, items[(scroll+choice)*2], items[(scroll+choice)*2 + 1], choice, TRUE);
+        print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, TRUE,
+		   DREF(ditems, scroll + choice));
         wnoutrefresh(menu);
         wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
         wrefresh(dialog);
@@ -322,15 +330,15 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       if (ditems && result) {
 	if (button) {
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	}
 	else {
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	}
       }
       else {
@@ -351,7 +359,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     case '\n':
       if (!button) {
 	if (ditems && ditems[scroll + choice].fire) {
-	  if ((*ditems[scroll + choice].fire)(&ditems[scroll + choice]) == DITEM_FAILURE)
+	  if (ditems[scroll + choice].fire(&ditems[scroll + choice]) == DITEM_FAILURE)
 	    continue;
 	}
 	else if (result)
@@ -371,8 +379,8 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 
     if (redraw_menu) {
 	for (i = 0; i < max_choice; i++) {
-	    print_item(menu, items[(scroll+i)*2],
-		       items[(scroll+i)*2 + 1], i, i == choice);
+	    print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i, i == choice,
+		       DREF(ditems, scroll + i));
 	}
 	wnoutrefresh(menu);
 	print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
@@ -390,7 +398,8 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 /*
  * Print menu item
  */
-static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected)
+static void
+print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me)
 {
   int i;
 
@@ -407,6 +416,11 @@ static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int
   wmove(win, choice, item_x);
   wattrset(win, selected ? item_selected_attr : item_attr);
   waddstr(win, item);
+  /* If have a selection handler for this, call it */
+  if (me && me->selected) {
+    wrefresh(win);
+    me->selected(me, selected);
+  }
 }
 /* End of print_item() */
 
