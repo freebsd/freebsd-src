@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.170 1998/10/29 09:51:27 peter Exp $
+ * $Id: vfs_subr.c,v 1.171 1998/10/29 11:50:32 bde Exp $
  */
 
 /*
@@ -2467,7 +2467,7 @@ loop:
 			if (!vget(vp,
 				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
 				if (vp->v_object) {
-					vm_object_page_clean(vp->v_object, 0, 0, TRUE);
+					vm_object_page_clean(vp->v_object, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : 0);
 					anyio = 1;
 				}
 				vput(vp);
