@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.5 1995/05/30 08:28:24 rgrimes Exp $
+ * $Id: decode.c,v 1.5.2.1 1995/05/31 10:17:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,11 +62,6 @@ dispatch(DMenuItem *tmp, char *name)
     Boolean failed = FALSE;
 
     switch (tmp->type) {
-	/* User whapped ESC twice and wants a sub-shell */
-    case DMENU_SHELL_ESCAPE:
-	systemShellEscape();
-	break;
-
 	/* We want to simply display a file */
     case DMENU_DISPLAY_FILE:
 	systemDisplayFile((char *)tmp->ptr);

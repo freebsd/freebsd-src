@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41 1995/05/30 08:28:55 rgrimes Exp $
+ * $Id: sysinstall.h,v 1.41.2.1 1995/05/31 10:17:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,7 +105,6 @@ typedef struct disk Disk;
 typedef struct chunk Chunk;
 
 typedef enum {
-    DMENU_SHELL_ESCAPE,			/* Fork a shell			*/
     DMENU_DISPLAY_FILE,			/* Display a file's contents	*/
     DMENU_SUBMENU,			/* Recurse into another menu	*/
     DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
@@ -433,7 +432,6 @@ extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
 extern void	systemWelcome(void);
 extern int	systemExecute(char *cmd);
-extern int	systemShellEscape(void);
 extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
 extern void	systemChangeFont(const u_char font[]);
