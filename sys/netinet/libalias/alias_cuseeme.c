@@ -70,7 +70,7 @@ AliasHandleCUSeeMeOut(struct ip *pip, struct alias_link *link)
   struct udphdr *ud;
 
   ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
-  if(ud->uh_ulen >= sizeof(struct cu_header)) {
+  if (ntohs(ud->uh_ulen) - sizeof(struct udphdr) >= sizeof(struct cu_header)) {
     struct cu_header *cu;
     struct alias_link *cu_link;
 
@@ -104,7 +104,7 @@ AliasHandleCUSeeMeIn(struct ip *pip, struct in_addr original_addr)
   cu = (struct cu_header *)(ud + 1);
   oc = (struct oc_header *)(cu + 1);
   ci = (struct client_info *)(oc + 1);
-  end = (char *)cu + ud->uh_ulen;
+  end = (char *)ud + ntohs(ud->uh_ulen);
 
   if ((char *)oc <= end) {
     if(cu->dest_addr)
