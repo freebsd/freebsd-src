@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.2 1998/02/16 00:18:52 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.3 1998/02/16 19:09:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -98,16 +98,23 @@ datalink_HangupDone(struct datalink *dl)
     dl->state = DATALINK_CLOSED;
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
+    datalink_StartDialTimer(dl, VarRedialTimeout);
     bundle_LinkClosed(dl->bundle, dl);
   } else {
     LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
+    if (dl->dial_tries < 0) {
+      datalink_StartDialTimer(dl, dl->reconnect_timeout);
+      dl->dial_tries = VarDialTries;
+      dl->reconnect_tries--;
+    } else {
+      dl->dial_tries--;
+      if (VarNextPhone == NULL)
+        datalink_StartDialTimer(dl, VarRedialTimeout);
+      else
+        datalink_StartDialTimer(dl, VarRedialNextTimeout);
+    }
   }
-
-  if (VarNextPhone == NULL)
-    datalink_StartDialTimer(dl, VarRedialTimeout);
-  else
-    datalink_StartDialTimer(dl, VarRedialNextTimeout);
 }
 
 static int
@@ -291,6 +298,10 @@ datalink_Create(const char *name, struct bundle *bundle)
   dl->next = NULL;
   memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
   dl->dial_tries = 0;
+  dl->max_reconnect = 0;
+  dl->reconnect_tries = 0;
+  dl->reconnect_timeout = RECONNECT_TIMEOUT;
+
   dl->name = strdup(name);
   if ((dl->physical = modem_Create(dl->name)) == NULL) {
     free(dl->name);
@@ -330,7 +341,7 @@ datalink_Up(struct datalink *dl)
   if (dl->state == DATALINK_CLOSED) {
     LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
-    dl->reconnect_tries = (mode & MODE_DIRECT) ? 0 : VarReconnectTries;
+    dl->reconnect_tries = dl->max_reconnect;
     dl->dial_tries = VarDialTries;
   }
 }

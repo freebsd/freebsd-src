@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.4 1998/02/16 00:01:12 brian Exp $
+ * $Id: vars.h,v 1.42.2.5 1998/02/16 19:10:03 brian Exp $
  *
  *	TODO:
  */
@@ -64,8 +64,6 @@ struct pppvars {
   int idle_timeout;		/* Idle timeout value */
   int lqr_timeout;		/* LQR timeout value */
   int retry_timeout;		/* Retry timeout value */
-  int reconnect_timer;		/* Timeout before reconnect on carrier loss */
-  int reconnect_tries;		/* Attempt reconnect on carrier loss */
   int redial_timeout;		/* Redial timeout value */
   int redial_next_timeout;	/* Redial next timeout value */
   int dial_tries;		/* Dial attempts before giving up, 0 == inf */
@@ -125,8 +123,6 @@ struct pppvars {
 #define VarNextPhone    	pppVars.next_phone
 #define VarAltPhone     	pppVars.alt_phone
 #define	VarShortHost		pppVars.shostname
-#define VarReconnectTimer	pppVars.reconnect_timer
-#define VarReconnectTries	pppVars.reconnect_tries
 #define VarRedialTimeout	pppVars.redial_timeout
 #define VarRedialNextTimeout	pppVars.redial_next_timeout
 #define VarDialTries		pppVars.dial_tries
@@ -153,47 +149,6 @@ extern char VarLocalVersion[];
 
 extern int Utmp;		/* Are we in /etc/utmp ? */
 extern int ipKeepAlive;
-#if 0
-extern int reconnectState;
-extern int reconnectCount;
-
-#define RECON_TRUE (1)
-#define RECON_FALSE (2)
-#define RECON_UNKNOWN (3)
-#define RECON_ENVOKED (4)
-#define reconnect(x)                          \
-  do                                          \
-    if (reconnectState == RECON_UNKNOWN) {    \
-      reconnectState = x;                     \
-      if (x == RECON_FALSE)                   \
-        reconnectCount = 0;                   \
-    }                                         \
-  while(0)
-
-
-/*
- * This is the logic behind the reconnect variables:
- * We have four reconnect "states".  We start off not requiring anything
- * from the reconnect code (reconnectState == RECON_UNKNOWN).  If the
- * line is brought down (via LcpClose() or LcpDown()), we have to decide
- * whether to set to RECON_TRUE or RECON_FALSE.  It's only here that we
- * know the correct action.  Once we've decided, we don't want that
- * decision to be overridden (hence the above reconnect() macro) - If we
- * call LcpClose, the ModemTimeout() still gets to "notice" that the line
- * is down.  When it "notice"s, it should only set RECON_TRUE if a decision
- * hasn't already been made.
- *
- * In main.c, when we notice we have RECON_TRUE, we must only action
- * it once.  The fourth "state" is where we're bringing the line up,
- * but if we call LcpClose for any reason (failed PAP/CHAP etc) we
- * don't want to set to RECON_{TRUE,FALSE}.
- *
- * If we get a connection or give up dialing, we go back to RECON_UNKNOWN.
- * If we get give up dialing or reconnecting or if we chose to down the
- * connection, we set reconnectCount back to zero.
- *
- */
-#endif
 
 extern int EnableCommand(struct cmdargs const *);
 extern int DisableCommand(struct cmdargs const *);

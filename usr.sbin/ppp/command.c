@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.17 1998/02/15 23:59:49 brian Exp $
+ * $Id: command.c,v 1.131.2.18 1998/02/16 19:09:44 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -513,8 +513,10 @@ ShowPreferredMTU(struct cmdargs const *arg)
 static int
 ShowReconnect(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, " Reconnect Timer:  %d,  %d tries\n",
-	        VarReconnectTimer, VarReconnectTries);
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
+
+  prompt_Printf(&prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
+                dl->name, dl->reconnect_timeout, dl->max_reconnect);
   return 0;
 }
 
@@ -854,8 +856,10 @@ static int
 SetReconnect(struct cmdargs const *arg)
 {
   if (arg->argc == 2) {
-    VarReconnectTimer = atoi(arg->argv[0]);
-    VarReconnectTries = atoi(arg->argv[1]);
+    struct datalink *dl = bundle2datalink(arg->bundle, NULL);
+
+    dl->reconnect_timeout = atoi(arg->argv[0]);
+    dl->max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
     return 0;
   }
   return -1;
@@ -1274,10 +1278,10 @@ SetNBNS(struct cmdargs const *arg)
 int
 SetVariable(struct cmdargs const *arg)
 {
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
   u_long map;
   const char *argp;
   int param = (int)arg->data;
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
 
   if (arg->argc > 0)
     argp = *arg->argv;
