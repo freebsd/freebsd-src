@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 100 $
+ *              $Revision: 101 $
  *
  *****************************************************************************/
 
@@ -374,7 +374,7 @@ AcpiGetObjectInfo (
     {
         /*
          * Get extra info for ACPI Devices objects only:
-         * Run the Device _HID, _UID, _CID, _STA, and _ADR methods.
+         * Run the Device _HID, _UID, _CID, _STA, _ADR and _SxD methods.
          *
          * Note: none of these methods are required, so they may or may
          * not be present for this device.  The Info.Valid bitfield is used
@@ -429,7 +429,7 @@ AcpiGetObjectInfo (
         Status = AcpiUtExecute_Sxds (Node, Info.HighestDstates);
         if (ACPI_SUCCESS (Status))
         {
-            Info.Valid |= ACPI_VALID_STA;
+            Info.Valid |= ACPI_VALID_SXDS;
         }
 
         Status = AE_OK;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 66 $
+ *       $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -146,9 +146,7 @@ AcpiPsxLoadTable (
 
 ACPI_STATUS
 AcpiPsxExecute (
-    ACPI_NAMESPACE_NODE     *MethodNode,
-    ACPI_OPERAND_OBJECT     **Params,
-    ACPI_OPERAND_OBJECT     **ReturnObjDesc);
+    ACPI_PARAMETER_INFO     *Info);
 
 
 /******************************************************************************
