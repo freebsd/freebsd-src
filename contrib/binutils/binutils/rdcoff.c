@@ -1,5 +1,5 @@
 /* stabs.c -- Parse COFF debugging information
-   Copyright (C) 1996, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.

@@ -1,6 +1,6 @@
 /* BFD back-end data structures for ELF files.
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 1999, 2000 Free Software
-   Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -26,6 +26,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "elf/internal.h"
 #include "elf/external.h"
 #include "bfdlink.h"
+
+/* The number of entries in a section is its size divided by the size
+   of a single entry.  This is normally only applicaable to reloc and
+   symbol table sections.  */
+#define NUM_SHDR_ENTRIES(shdr) ((shdr)->sh_size / (shdr)->sh_entsize)
 
 /* If size isn't specified as 64 or 32, NAME macro should fail.  */
 #ifndef NAME

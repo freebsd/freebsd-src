@@ -1,3 +1,123 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-06-06  Peter Jakubek <pjak@snafu.de>
+	* m68k-dis.c (print_insn_m68k): Fix typo.
+	* m68k-opc.c (m68k_opcodes): Correct allowed operands for
+	mcf (ColdFire) div, rem and moveb instructions.
+
+	2001-06-06  Alan Modra  <amodra@bigpond.net.au>
+	* i386-dis.c (cond_jump_flag, loop_jcxz_flag): Define.
+	(cond_jump_mode, loop_jcxz_mode): Define.
+	(dis386_att): Add cond_jump_flag and loop_jcxz_flag as
+	appropriate, and 'F' suffix to loop insns.
+	(disx86_64_att): Likewise.
+	(dis386_twobyte_att): Likewise.
+	(print_insn_i386): Don't output addr prefix for loop, jcxz insns.
+	Output data size prefix for long conditional jumps.  Output cs and
+	ds branch hints.
+	(putop): Handle 'F', and mark PREFIX_ADDR used for case 'E'.
+	(OP_J): Don't make PREFIX_DATA used.
+
+	2001-05-16  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* mips-dis.c (mips_isa_type): Add MIPS r12k support.
+
+	2001-05-15  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* mips-dis.c (INSNLEN): Rename MAXLEN.
+	(std_reg_names): Replace by mips32_reg_names and mips64_reg_names.
+	(print_insn_arg): Remove $ prefix of register names.
+	(set_mips_isa_type): Remove.
+	(mips_isa_type): New function.
+	(get_mips_isa): New Function.
+	(print_insn_mips): Rename _print_insn_mips.
+	(_print_insn_mips): New function, contains code which was
+	duplicated in print_insn_big_mips and print_insn_little_mips.
+	(print_insn_big_mips): Moved code to _print_insn_mips.
+	(print_insn_little_mips): Likewise.
+	(print_mips16_insn_arg): Remove $ prefix of register names.
+	Print error message before abort.
+
+	2001-05-14  J.T. Conklin  <jtc@redback.com>
+	* ppc-opc.c (powerpc_opcodes): Fixed extended opcode field of
+ 	simplified mnemonics used for setting PPC750-specific special
+	purpose	registers.
+
+	2001-03-23  Nick Clifton  <nickc@redhat.com>
+	* mips-opc.c: Remove extraneous whitespace.
+	* mips-dis.c: Remove extraneous whitespace.
+
+	2001-03-06  Igor Shevlyakov  <igor@windriver.com>
+	* m68k-dis.c (print_insn_m68k): Recognize Coldfire CPUs
+	so command line switches will work.
+
+	2001-02-28  Igor Shevlyakov  <igor@windriver.com>
+	* m68k-opc.c: fix cpushl according to Motorola. Enable
+	bunch of instructions for Coldfire 5407 and add all new.
+
+	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in (BFD_VERSION): Do without grep.
+	* configure: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	2001-02-20  H.J. Lu  <hjl@gnu.org>
+	* Makefile.am (ia64-ic.tbl): Remove the target.
+	(ia64-raw.tbl): Likewise.
+	(ia64-waw.tbl): Likewise.
+	(ia64-war.tbl): Likewise.
+	(ia64-asmtab.c): Generate it in the source directory.
+	* Makefile.in: Regenerated.
+
+	2001-02-11  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+        * mips-dis.c (print_insn_arg): Use top four bits of the address of
+	the following instruction not of the jump itself for the jump
+	target.
+	(print_mips16_insn_arg): Likewise.
+
+	2001-02-11  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+	* Makefile.am (stamp-lib): ranlib the libopcodes.a in the build
+	directory.
+	* Makefile.in: Regenerate.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
+2001-05-23  Alan Modra  <amodra@one.net.au>
+
+	* arc-opc.c: Whitespace changes.
+
+	Merge from mainline
+	2001-05-12  Peter Targett  <peter.targett@arccores.com>
+	* arc-opc.c (arc_reg_names): Correct attribute for lp_count
+	register to r/w.  Formatting fixes throughout file.
+
+2001-05-12  Alan Modra  <amodra@one.net.au>
+
+	* i386-dis.c (prefix_user_table): Correct movq2dq, movdq2q, and
+	movq operands.
+	(twobyte_has_modrm): Update table.
+	(need_modrm): Give it file scope.
+	(MODRM_CHECK): Define.
+	(dofloat): Use MODRM_CHECK.
+	(OP_E): Likewise.
+	(OP_EM): Likewise.
+	(OP_EX): Likewise.
+
+2001-05-04  Alan Modra  <amodra@one.net.au>
+
+	* i386-dis.c (Ev, Ed): Remove duplicate define.
+	(Gd): Define.
+	(XS): Define.
+	(OP_XS): New function.
+	(dis386_twobyte_att): Correct pinsrw, pextrw, pmovmskb, and
+	movmskp operands.
+	(dis386_twobyte_intel): Likewise.
+	(prefix_user_table): Use MS for maskmovq operand.
+
+	Merge mainline:  2001-04-06  Andreas Jaeger  <aj@suse.de>
+	* i386-dis.c: Add ffreep instruction.
+
 2001-03-30  Alexandre Oliva  <aoliva@redhat.com>
 
 	* ppc-opc.c (insert_mbe): Shift mask initializer as long.
@@ -201,7 +321,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 
 	* ia64-dis.c (print_insn_ia64): Cast away const on ia64_free_opcode
 	argument.
-	* ia64_gen.c (insert_deplist): Cast sizeof result to int.
+	* ia64-gen.c (insert_deplist): Cast sizeof result to int.
 	(print_dependency_table): Print NULL if semantics field not set.
 	(insert_opcode_dependencies): Mark cmp parameter as unused.
 	(print_main_table): Use fprintf_vma to print long long fields.
@@ -247,7 +367,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
         Delete "sel" code operands from mfc1 and mtc1.
         Add MIPS64 opcode changes (dclo, dclz), and "sel" code variants
 	for dm[ft]c[023].
-	
+
 2000-12-03  Ed Satterthwaite  ehs@sibyte.com  and
             Chris Demetriou   cgd@sibyte.com
 
@@ -274,7 +394,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
         "mfc2," "mfc3," "mtc1," "mtc2," and "mtc3" for MIPS32.  Update
         MIPS32 "sdbbp" to use 'B' operand specifier.  Add MIPS32
         "wait" variant which uses 'J' operand specifier.
-        
+
         * mips-dis.c (set_mips_isa_type): Update to use
         CPU_UNKNOWN and ISA_* constants.  Add bfd_mach_mips32 case.
         Replace bfd_mach_mips4K with bfd_mach_mips32_4k case.
@@ -330,7 +450,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 	* sparc-dis.c (v9a_asr_reg_names): Add v9b ASRs.
 	(compute_arch_mask): Add v8plusb and v9b machines.
 	(print_insn_sparc): siam mode decoding, accept ASRs up to 25.
-	* opcodes/sparc-opc.c: Support for Cheetah instruction set.
+	* sparc-opc.c: Support for Cheetah instruction set.
 	(prefetch_table): Add #invalidate.
 
 2000-10-16  Nick Clifton  <nickc@redhat.com>
@@ -347,7 +467,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 
 	* ia64-ic.tbl: Update from Intel.
 	* ia64-asmtab.c: Regenerate.
-	
+
 2000-10-04  Kazu Hirata  <kazu@hxi.com>
 
 	* ia64-gen.c: Convert C++-style comments to C-style comments.
@@ -380,28 +500,28 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 	* ia64-asmtab.c: Regnerate.
 
 2000-09-13  Anders Norlander  <anorland@acc.umu.se>
-	
- 	* mips-opc.c (mips_builtin_opcodes): Support cache instruction on 4K cores.
- 	Add mfc0 and mtc0 with sub-selection values.
+
+	* mips-opc.c (mips_builtin_opcodes): Support cache instruction on 4K cores.
+	Add mfc0 and mtc0 with sub-selection values.
 	Add clo and clz opcodes.
- 	Add msub and msubu instructions for MIPS32.
- 	Add madd/maddu aliases for mad/madu for MIPS32.
- 	Support wait, deret, eret, movn, pref for MIPS32.
+	Add msub and msubu instructions for MIPS32.
+	Add madd/maddu aliases for mad/madu for MIPS32.
+	Support wait, deret, eret, movn, pref for MIPS32.
 	Support tlbp, tlbr, tlbwi, tlbwr.
- 	(P4): New define.
- 
- 	* mips-dis.c (print_insn_arg): Print sdbbp 'm' args.
- 	(print_insn_arg): Handle 'H' args.
- 	(set_mips_isa_type): Recognize 4K.
+	(P4): New define.
+
+	* mips-dis.c (print_insn_arg): Print sdbbp 'm' args.
+	(print_insn_arg): Handle 'H' args.
+	(set_mips_isa_type): Recognize 4K.
 	Use CPU_* defines instead of hardcoded numbers.
 
 2000-09-11  Catherine Moore <clm@redhat.com>
 
 	* d30v-opc.c (d30v_operand_t): New operand type Rb2.
 	(d30v_format_tab): Use Rb2 for modinc and moddec.
- 
+
 2000-09-07  Catherine Moore  <clm@redhat.com>
- 
+
         * d30v-opc.c (d30v_format_tab): Use format Ra for
         modinc and moddec.
 
@@ -413,7 +533,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 
 	* configure: Regenerate.
 	* po/opcodes.pot: Regenerate.
-	
+
 2000-08-31  Alexandre Oliva  <aoliva@redhat.com>
 
 	* acinclude.m4: Include libtool and gettext macros from the
@@ -454,14 +574,14 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 	in the buffer.
 	* fr30-asm.c: Regenerated.
 	* fr30-desc.c: Regenerated.
-	* fr30-desc.h Regenerated.
+	* fr30-desc.h: Regenerated.
 	* fr30-dis.c: Regenerated.
 	* fr30-ibld.c: Regenerated.
 	* fr30-opc.c: Regenerated.
-	* fr30-opc.h Regenerated.
+	* fr30-opc.h: Regenerated.
 	* m32r-asm.c: Regenerated.
 	* m32r-desc.c: Regenerated.
-	* m32r-desc.h Regenerated.
+	* m32r-desc.h: Regenerated.
 	* m32r-dis.c: Regenerated.
 	* m32r-ibld.c: Regenerated.
 	* m32r-opc.c: Regenerated.
@@ -512,7 +632,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 	* cgen.sh: Likewise.
 
 2000-08-02  Jim Wilson  <wilson@redhat.com>
-	
+
 	* ia64-dis.c (print_insn_ia64): Call ia64_free_opcode at end.
 
 2000-07-29  Marek Michalkiewicz  <marekm@linux.org.pl>
@@ -648,13 +768,13 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 2000-06-18  Stephane Carrez  <stcarrez@worldnet.fr>
 
 	* Makefile.in, configure: regenerate
-	* disassemble.c (disassembler): Recognize ARCH_m68hc12, 
+	* disassemble.c (disassembler): Recognize ARCH_m68hc12,
 	ARCH_m68hc11.
-	* m68hc11-dis.c (read_memory, print_insn, print_insn_m68hc12): 
+	* m68hc11-dis.c (read_memory, print_insn, print_insn_m68hc12):
 	New functions.
 	* configure.in: Recognize m68hc12 and m68hc11.
 	* m68hc11-dis.c, m68hc11-opc.c: New files for support of m68hc1x
-	* Makefile.am (CFILES, ALL_MACHINES): New files for disassembly 
+	* Makefile.am (CFILES, ALL_MACHINES): New files for disassembly
 	and opcode generation for m68hc11 and m68hc12.
 
 2000-06-16  Nick Duffek  <nsd@redhat.com>
@@ -744,7 +864,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 
 2000-05-11  Thomas de Lellis  <tdel@windriver.com>
 
-	* arm-opc.c: Disassembly of thumb ldsb/ldsh
+	* arm-opc.h: Disassembly of thumb ldsb/ldsh
 	instructions changed to ldrsb/ldrsh.
 
 2000-05-11  Ulf Carlsson  <ulfc@engr.sgi.com>
@@ -853,7 +973,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 	* ia64-asmtab.c, ia64-asmtab.h, ia64-dis.c, ia64-gen.c ia64-ic.tbl,
 	ia64-opc-a.c, ia64-opc-b.c, ia64-opc-d.c ia64-opc-f.c, ia64-opc-i.c,
 	ia64-opc-m.c, ia64-opc-x.c, ia64-opc.c, ia64-opc.h, ia64-raw.tbl,
-	ia64-war.tbl, ia64-waw.tbl): New files.
+	ia64-war.tbl, ia64-waw.tbl: New files.
 
 2000-04-20  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -888,7 +1008,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 
 2000-04-05  J"orn Rennecke <amylaar@redhat.com>
 
-	* sh-opc.c (sh_table): Use A_DISP_PC / PCRELIMM_8BY2 for ldre & ldrs.
+	* sh-opc.h (sh_table): Use A_DISP_PC / PCRELIMM_8BY2 for ldre & ldrs.
 	stc GBR,@-<REG_N> is available for arch_sh1_up.
 	Group parallel processing insn with identical mnemonics together.
 	Make three-operand psha / pshl come first.
@@ -1007,7 +1127,7 @@ Sat Jan 13 01:48:24 MET 2001  Jan Hubicka  <jh@suse.cz>
 2000-02-23  Andrew Haley  <aph@redhat.com>
 
 	* m32r-asm.c, m32r-desc.c, m32r-desc.h, m32r-dis.c,
-	m32r-ibld.c,m32r-opc.h: Rebuild.
+	m32r-ibld.c, m32r-opc.h: Rebuild.
 
 2000-02-23  Linas Vepstas <linas@linas.org>
 

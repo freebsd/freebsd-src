@@ -6,6 +6,9 @@ gas, gprof, ld, and opcodes subdirectories.  The home page for binutils
 is http://sources.redhat.com/binutils/ and patches should be sent to
 binutils@sources.redhat.com with "[patch]" as part of the subject.
 
+Note - patches to the top level configure.in and config.sub scripts
+should be sent to config-patches@gnu.org and not to the binutils list.
+
 		--------- Blanket Write Privs ---------
 
 Nick Clifton <nickc@redhat.com> (head maintainer)
@@ -14,7 +17,7 @@ Ian Taylor <ian@zembu.com>
 Jeff Law <law@redhat.com>
 Jim Wilson <wilson@redhat.com>
 DJ Delorie <dj@redhat.com>
-Alan Modra <alan@linuxcare.com.au>
+Alan Modra <amodra@bigpond.net.au>
 Michael Meissner <meissner@redhat.com>
 
 		    --------- Maintainers ---------
@@ -33,10 +36,10 @@ other maintainers.
 ARM		Nick Clifton <nickc@redhat.com>
 AVR		Denis Chertykov <denisc@overta.ru>
 CRIS		Hans-Peter Nilsson <hp@axis.com>
-HPPA elf32	Alan Modra <alan@linuxcare.com.au>
+HPPA elf32	Alan Modra <amodra@bigpond.net.au>
 IA64		Jim Wilson <wilson@redhat.com>
 i860		Jason Eckhardt <jle@redhat.com>
-ix86		Alan Modra <alan@linuxcare.com.au>
+ix86		Alan Modra <amodra@bigpond.net.au>
 ix86 COFF,PE	DJ Delorie <dj@redhat.com>
 ix86		H.J.Lu <hjl@gnu.org>
 ix86 INTEL MODE Diego Novillo <dnovillo@redhat.com>
@@ -76,3 +79,14 @@ one of the above lists (blanket write or maintainers).
 [It's a huge list, folks.  You know who you are.  If you have the
  *ability* to do binutils checkins, you're in this group.  Just remember
  to get approval before checking anything in.]
+
+	       -------------  Obvious Fixes -------------
+
+Fixes for obvious mistakes do not need approval, and can be checked in
+right away, but the patch should still be sent to the binutils list.
+The definition of obvious is a bit hazy, and if you are not sure, then
+you should seek approval first.  Obvious fixes include fixes for
+spelling mistakes, blatantly incorrect code (where the correct code is
+also blatantly obvious), and so on.  Obvious fixes should always be
+small, the larger they are, the more likely it is that they contain
+some un-obvious side effect or consequence.

@@ -1,5 +1,6 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
-   Copyright (C) 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 

@@ -1,5 +1,6 @@
 /* BFD semi-generic back-end for a.out binaries.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
+   2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -775,6 +776,7 @@ NAME(aout,machine_type) (arch, machine, unknown)
     case bfd_mach_mips4650:
     case bfd_mach_mips8000:
     case bfd_mach_mips10000:
+    case bfd_mach_mips12000:
     case bfd_mach_mips16:
     case bfd_mach_mips32:
     case bfd_mach_mips32_4k:
@@ -2906,7 +2908,8 @@ NAME(aout,bfd_free_cached_info) (abfd)
 {
   asection *o;
 
-  if (bfd_get_format (abfd) != bfd_object)
+  if (bfd_get_format (abfd) != bfd_object
+      || abfd->tdata.aout_data == NULL)
     return true;
 
 #define BFCI_FREE(x) if (x != NULL) { free (x); x = NULL; }

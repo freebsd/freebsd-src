@@ -1,5 +1,6 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -230,6 +231,7 @@ real_read (where, a,b, file)
      This makes it to something reasonable. - DJ */
   if (a == 0 || b == 0)
     return 0;
+
 
 #if defined (__VAX) && defined (VMS)
   /* Apparently fread on Vax VMS does not keep the record length
@@ -746,7 +748,6 @@ bfd_seek (abfd, position, direction)
     file_position += abfd->origin;
 
   result = fseek (f, file_position, direction);
-
   if (result != 0)
     {
       int hold_errno = errno;
@@ -959,7 +960,7 @@ bfd_putb16 (data, addr)
      register bfd_byte *addr;
 {
   addr[0] = (bfd_byte) (data >> 8);
-  addr[1] = (bfd_byte )data;
+  addr[1] = (bfd_byte) data;
 }
 
 void
@@ -967,7 +968,7 @@ bfd_putl16 (data, addr)
      bfd_vma data;
      register bfd_byte *addr;
 {
-  addr[0] = (bfd_byte )data;
+  addr[0] = (bfd_byte) data;
   addr[1] = (bfd_byte) (data >> 8);
 }
 
@@ -1126,7 +1127,7 @@ bfd_putb32 (data, addr)
         addr[0] = (bfd_byte) (data >> 24);
         addr[1] = (bfd_byte) (data >> 16);
         addr[2] = (bfd_byte) (data >>  8);
-        addr[3] = (bfd_byte)data;
+        addr[3] = (bfd_byte) data;
 }
 
 void
@@ -1134,7 +1135,7 @@ bfd_putl32 (data, addr)
      bfd_vma data;
      register bfd_byte *addr;
 {
-        addr[0] = (bfd_byte)data;
+        addr[0] = (bfd_byte) data;
         addr[1] = (bfd_byte) (data >>  8);
         addr[2] = (bfd_byte) (data >> 16);
         addr[3] = (bfd_byte) (data >> 24);

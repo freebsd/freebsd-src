@@ -1,5 +1,6 @@
 /* BFD back end for NetBSD style core files
-   Copyright 1988, 89, 91, 92, 93, 96, 1998 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1993, 1996, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
 This file is part of BFD, the Binary File Descriptor library.

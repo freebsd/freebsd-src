@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright (C) 1996, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.

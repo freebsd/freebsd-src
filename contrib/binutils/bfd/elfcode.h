@@ -1,6 +1,6 @@
 /* ELF executable support for BFD.
-   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 1999, 2000 Free
-   Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -1372,11 +1372,9 @@ elf_slurp_reloc_table (abfd, asect, symbols, dynamic)
 	return true;
 
       rel_hdr = &d->rel_hdr;
-      reloc_count = rel_hdr->sh_size / rel_hdr->sh_entsize;
+      reloc_count = NUM_SHDR_ENTRIES (rel_hdr);
       rel_hdr2 = d->rel_hdr2;
-      reloc_count2 = (rel_hdr2
-		      ? (rel_hdr2->sh_size / rel_hdr2->sh_entsize)
-		      : 0);
+      reloc_count2 = (rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0);
 
       BFD_ASSERT (asect->reloc_count == reloc_count + reloc_count2);
       BFD_ASSERT (asect->rel_filepos == rel_hdr->sh_offset
@@ -1393,7 +1391,7 @@ elf_slurp_reloc_table (abfd, asect, symbols, dynamic)
 	return true;
 
       rel_hdr = &d->this_hdr;
-      reloc_count = rel_hdr->sh_size / rel_hdr->sh_entsize;
+      reloc_count = NUM_SHDR_ENTRIES (rel_hdr);
       rel_hdr2 = NULL;
       reloc_count2 = 0;
     }

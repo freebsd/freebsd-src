@@ -11,7 +11,7 @@ AC_ISC_POSIX
 # library.  For user convenience, we always use the same version
 # number that BFD is using.
 changequote(,)dnl
-BFD_VERSION=`grep INIT_AUTOMAKE ${srcdir}/../bfd/configure.in | sed -n -e 's/[ 	]//g' -e 's/^.*,\(.*\)).*$/\1/p'`
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
 changequote([,])dnl
 
 AM_INIT_AUTOMAKE(opcodes, ${BFD_VERSION})
@@ -198,10 +198,10 @@ if test x${all_targets} = xfalse ; then
 	bfd_ns32k_arch)		ta="$ta ns32k-dis.lo" ;;
 	bfd_pj_arch)	        ta="$ta pj-dis.lo pj-opc.lo" ;;
 	bfd_powerpc_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
+	bfd_powerpc_64_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_pyramid_arch)	;;
 	bfd_romp_arch)		;;
 	bfd_rs6000_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
-	bfd_powerpc_64_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_sh_arch)
 				ta="$ta sh-dis.lo" ;;
 	bfd_sparc_arch)		ta="$ta sparc-dis.lo sparc-opc.lo" ;;

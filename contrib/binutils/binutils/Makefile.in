@@ -253,7 +253,7 @@ objcopy_SOURCES = objcopy.c not-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)
 
 strings_SOURCES = strings.c $(BULIBS)
 
-readelf_SOURCES = readelf.c version.c
+readelf_SOURCES = readelf.c version.c unwind-ia64.c
 readelf_LDADD = $(INTLLIBS) $(LIBIBERTY)
 
 strip_new_SOURCES = objcopy.c is-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)
@@ -394,7 +394,8 @@ version.$(OBJEXT) filemode.$(OBJEXT)
 addr2line_LDADD = $(LDADD)
 addr2line_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 addr2line_LDFLAGS = 
-readelf_OBJECTS =  readelf.$(OBJEXT) version.$(OBJEXT)
+readelf_OBJECTS =  readelf.$(OBJEXT) version.$(OBJEXT) \
+unwind-ia64.$(OBJEXT)
 readelf_DEPENDENCIES =  ../libiberty/libiberty.a
 readelf_LDFLAGS = 
 nm_new_OBJECTS =  nm.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) \
@@ -437,7 +438,7 @@ configure.in deflex.c defparse.c nlmheader.c rclex.c rcparse.c
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = gtar
+TAR = tar
 GZIP_ENV = --best
 SOURCES = $(nlmconv_SOURCES) $(srconv_SOURCES) $(sysdump_SOURCES) $(coffdump_SOURCES) $(dlltool_SOURCES) $(windres_SOURCES) $(dllwrap_SOURCES) $(size_SOURCES) $(objdump_SOURCES) $(ar_SOURCES) $(strings_SOURCES) $(ranlib_SOURCES) $(objcopy_SOURCES) $(addr2line_SOURCES) $(readelf_SOURCES) $(nm_new_SOURCES) $(strip_new_SOURCES) $(cxxfilt_SOURCES)
 OBJECTS = $(nlmconv_OBJECTS) $(srconv_OBJECTS) $(sysdump_OBJECTS) $(coffdump_OBJECTS) $(dlltool_OBJECTS) $(windres_OBJECTS) $(dllwrap_OBJECTS) $(size_OBJECTS) $(objdump_OBJECTS) $(ar_OBJECTS) $(strings_OBJECTS) $(ranlib_OBJECTS) $(objcopy_OBJECTS) $(addr2line_OBJECTS) $(readelf_OBJECTS) $(nm_new_OBJECTS) $(strip_new_OBJECTS) $(cxxfilt_OBJECTS)

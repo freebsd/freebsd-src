@@ -1,5 +1,6 @@
 /* tc-sparc.c -- Assemble for the SPARC
-   Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -2970,16 +2971,19 @@ md_apply_fix3 (fixP, value, segment)
 
   /* If this is a data relocation, just output VAL.  */
 
-  if (fixP->fx_r_type == BFD_RELOC_16)
+  if (fixP->fx_r_type == BFD_RELOC_16
+      || fixP->fx_r_type == BFD_RELOC_SPARC_UA16)
     {
       md_number_to_chars (buf, val, 2);
     }
   else if (fixP->fx_r_type == BFD_RELOC_32
+	   || fixP->fx_r_type == BFD_RELOC_SPARC_UA32
 	   || fixP->fx_r_type == BFD_RELOC_SPARC_REV32)
     {
       md_number_to_chars (buf, val, 4);
     }
-  else if (fixP->fx_r_type == BFD_RELOC_64)
+  else if (fixP->fx_r_type == BFD_RELOC_64
+	   || fixP->fx_r_type == BFD_RELOC_SPARC_UA64)
     {
       md_number_to_chars (buf, val, 8);
     }
@@ -3315,6 +3319,9 @@ tc_gen_reloc (section, fixp)
     case BFD_RELOC_SPARC_LOX10:
     case BFD_RELOC_SPARC_REV32:
     case BFD_RELOC_SPARC_OLO10:
+    case BFD_RELOC_SPARC_UA16:
+    case BFD_RELOC_SPARC_UA32:
+    case BFD_RELOC_SPARC_UA64:
     case BFD_RELOC_VTABLE_ENTRY:
     case BFD_RELOC_VTABLE_INHERIT:
       code = fixp->fx_r_type;
@@ -4065,12 +4072,9 @@ sparc_cons_align (nbytes)
   if (! enforce_aligned_data)
     return;
 
+  /* Don't align if this is an unaligned pseudo-op.  */
   if (sparc_no_align_cons)
-    {
-      /* This is an unaligned pseudo-op.  */
-      sparc_no_align_cons = 0;
-      return;
-    }
+    return;
 
   nalign = log2 (nbytes);
   if (nalign == 0)
@@ -4195,9 +4199,23 @@ cons_fix_new_sparc (frag, where, nbytes, exp)
        (nbytes == 2 ? BFD_RELOC_16 :
 	(nbytes == 4 ? BFD_RELOC_32 : BFD_RELOC_64)));
 
-  if (target_little_endian_data && nbytes == 4
+  if (target_little_endian_data
+      && nbytes == 4
       && now_seg->flags & SEC_ALLOC)
     r = BFD_RELOC_SPARC_REV32;
+
+  if (sparc_no_align_cons)
+    {
+      switch (nbytes)
+	{
+	case 2: r = BFD_RELOC_SPARC_UA16; break;
+	case 4: r = BFD_RELOC_SPARC_UA32; break;
+	case 8: r = BFD_RELOC_SPARC_UA64; break;
+	default: abort ();
+	}
+      sparc_no_align_cons = 0;
+    }
+
   fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
 }
 

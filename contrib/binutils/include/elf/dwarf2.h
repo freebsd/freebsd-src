@@ -1,6 +1,6 @@
 /* Declarations and definitions of codes relating to the DWARF symbolic
    debugging information format.
-   Copyright (C) 1992, 1993, 1995, 1996, 1999 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1995, 1996, 1999 Free Software Foundation, Inc.
 
    Written by Gary Funck (gary@intrepid.com) The Ada Joint Program
    Office (AJPO), Florida State Unviversity and Silicon Graphics Inc.

@@ -1,3 +1,8 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdint.texi (BFD target vector miscellaneous): --oformat, not
+	-oformat.
+
 2001-01-25  Kazu Hirata  <kazu@hxi.com>
 
 	* chew.c: Do not output trailing whitespaces in type and

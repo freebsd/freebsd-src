@@ -1,5 +1,5 @@
 /* BFD backend for sparc little-endian aout binaries.
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright 1996 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

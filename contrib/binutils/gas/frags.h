@@ -1,5 +1,5 @@
 /* frags.h - Header file for the frag concept.
-   Copyright (C) 1987, 92, 93, 94, 95, 97, 98, 99, 2000
+   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -61,6 +61,10 @@ struct frag {
 #ifndef NO_LISTING
   struct list_info_struct *line;
 #endif
+
+  /* Flipped each relax pass so we can easily determine whether
+     fr_address has been adjusted.  */
+  unsigned int relax_marker:1;
 
   /* What state is my tail in? */
   relax_stateT fr_type;

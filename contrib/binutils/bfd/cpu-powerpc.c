@@ -1,5 +1,5 @@
 /* BFD PowerPC CPU definition
-   Copyright (C) 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 2000 Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

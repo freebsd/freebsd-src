@@ -1,6 +1,7 @@
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -521,7 +522,7 @@ extern bfd *bfd_last_cache;
 
 /* List of supported target vectors, and the default vector (if
    bfd_default_vector[0] is NULL, there is no default).  */
-extern const bfd_target * const bfd_target_vector[];
+extern const bfd_target * const *bfd_target_vector;
 extern const bfd_target *bfd_default_vector[];
 
 /* Functions shared by the ECOFF and MIPS ELF backends, which have no
@@ -646,7 +647,9 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_SPARC_GLOB_DAT",
   "BFD_RELOC_SPARC_JMP_SLOT",
   "BFD_RELOC_SPARC_RELATIVE",
+  "BFD_RELOC_SPARC_UA16",
   "BFD_RELOC_SPARC_UA32",
+  "BFD_RELOC_SPARC_UA64",
   "BFD_RELOC_SPARC_BASE13",
   "BFD_RELOC_SPARC_BASE22",
   "BFD_RELOC_SPARC_10",
@@ -706,6 +709,17 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MIPS_GOT_PAGE",
   "BFD_RELOC_MIPS_GOT_OFST",
   "BFD_RELOC_MIPS_GOT_DISP",
+  "BFD_RELOC_MIPS_SHIFT5",
+  "BFD_RELOC_MIPS_SHIFT6",
+  "BFD_RELOC_MIPS_INSERT_A",
+  "BFD_RELOC_MIPS_INSERT_B",
+  "BFD_RELOC_MIPS_DELETE",
+  "BFD_RELOC_MIPS_HIGHEST",
+  "BFD_RELOC_MIPS_HIGHER",
+  "BFD_RELOC_MIPS_SCN_DISP",
+  "BFD_RELOC_MIPS_REL16",
+  "BFD_RELOC_MIPS_RELGOT",
+  "BFD_RELOC_MIPS_JALR",
 
   "BFD_RELOC_386_GOT32",
   "BFD_RELOC_386_PLT32",

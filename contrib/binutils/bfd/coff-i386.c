@@ -1,5 +1,6 @@
 /* BFD back-end for Intel 386 COFF files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -128,7 +129,9 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 
 #ifdef COFF_WITH_PE
   /* FIXME: How should this case be handled?  */
-  if (reloc_entry->howto->type == R_IMAGEBASE)
+  if (reloc_entry->howto->type == R_IMAGEBASE
+      && output_bfd != NULL
+      && bfd_get_flavour(output_bfd) == bfd_target_coff_flavour)
     diff -= pe_data (output_bfd)->pe_opthdr.ImageBase;
 #endif
 
@@ -488,7 +491,9 @@ coff_i386_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
 	*addendp -= sym->n_value;
     }
 
-  if (rel->r_type == R_IMAGEBASE)
+  if (rel->r_type == R_IMAGEBASE
+      && (bfd_get_flavour(sec->output_section->owner)
+	  == bfd_target_coff_flavour))
     {
       *addendp -= pe_data(sec->output_section->owner)->pe_opthdr.ImageBase;
     }
@@ -575,7 +580,7 @@ const bfd_target
 
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* section flags */
 #ifdef COFF_WITH_PE
-   | SEC_LINK_ONCE | SEC_LINK_DUPLICATES
+   | SEC_LINK_ONCE | SEC_LINK_DUPLICATES | SEC_READONLY
 #endif
    | SEC_CODE | SEC_DATA),
 

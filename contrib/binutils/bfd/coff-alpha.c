@@ -1,5 +1,6 @@
 /* BFD back-end for ALPHA Extended-Coff files.
-   Copyright 1993, 94, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Modified from coff-mips.c by Steve Chamberlain <sac@cygnus.com> and
    Ian Lance Taylor <ian@cygnus.com>.
 
@@ -127,13 +128,13 @@ reloc_nil PARAMS ((bfd *, arelent *, asymbol *, PTR,
 
 static bfd_reloc_status_type
 reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc;
-     asymbol *sym;
-     PTR data;
-     asection *sec;
-     bfd *output_bfd;
-     char **error_message;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     arelent *reloc ATTRIBUTE_UNUSED;
+     asymbol *sym ATTRIBUTE_UNUSED;
+     PTR data ATTRIBUTE_UNUSED;
+     asection *sec ATTRIBUTE_UNUSED;
+     bfd *output_bfd ATTRIBUTE_UNUSED;
+     char **error_message ATTRIBUTE_UNUSED;
 {
   return bfd_reloc_ok;
 }
@@ -472,7 +473,7 @@ alpha_ecoff_object_p (abfd)
 
 static boolean
 alpha_ecoff_bad_format_hook (abfd, filehdr)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      PTR filehdr;
 {
   struct internal_filehdr *internal_f = (struct internal_filehdr *) filehdr;
@@ -707,7 +708,7 @@ alpha_adjust_reloc_in (abfd, intern, rptr)
 
 static void
 alpha_adjust_reloc_out (abfd, rel, intern)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      const arelent *rel;
      struct internal_reloc *intern;
 {
@@ -1175,7 +1176,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 
 static reloc_howto_type *
 alpha_bfd_reloc_type_lookup (abfd, code)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_reloc_code_real_type code;
 {
   int alpha_type;
@@ -1249,7 +1250,7 @@ alpha_bfd_reloc_type_lookup (abfd, code)
 
 static bfd_vma
 alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
-     bfd *output_bfd;
+     bfd *output_bfd ATTRIBUTE_UNUSED;
      struct bfd_link_info *info;
      bfd *input_bfd;
      struct external_reloc *ext_rel;
@@ -2012,7 +2013,7 @@ static boolean
 alpha_adjust_headers (abfd, fhdr, ahdr)
      bfd *abfd;
      struct internal_filehdr *fhdr;
-     struct internal_aouthdr *ahdr;
+     struct internal_aouthdr *ahdr ATTRIBUTE_UNUSED;
 {
   if ((abfd->flags & (DYNAMIC | EXEC_P)) == (DYNAMIC | EXEC_P))
     fhdr->f_flags |= F_ALPHA_CALL_SHARED;

@@ -1,5 +1,6 @@
 /* as.c - GAS main program.
-   Copyright (C) 1987, 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -231,7 +232,6 @@ Options:\n\
                       	  m      include macro expansions\n\
                       	  n      omit forms processing\n\
                       	  s      include symbols\n\
-                      	  L      include line debug statistics (if applicable)\n\
                       	  =FILE  list to FILE (must be last sub-option)\n"));
 
   fprintf (stream, _("\
@@ -401,7 +401,7 @@ parse_args (pargc, pargv)
 #define OPTION_LISTING_LHS_WIDTH (OPTION_STD_BASE + 9)
     {"listing-lhs-width", required_argument, NULL, OPTION_LISTING_LHS_WIDTH},
 #define OPTION_LISTING_LHS_WIDTH2 (OPTION_STD_BASE + 10)
-    {"listing-lhs-width", required_argument, NULL, OPTION_LISTING_LHS_WIDTH2},
+    {"listing-lhs-width2", required_argument, NULL, OPTION_LISTING_LHS_WIDTH2},
 #define OPTION_LISTING_RHS_WIDTH (OPTION_STD_BASE + 11)
     {"listing-rhs-width", required_argument, NULL, OPTION_LISTING_RHS_WIDTH},
 #define OPTION_LISTING_CONT_LINES (OPTION_STD_BASE + 12)

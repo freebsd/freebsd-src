@@ -7,7 +7,7 @@ AC_INIT(libbfd.c)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(bfd, 2.11)
+AM_INIT_AUTOMAKE(bfd, 2.11.2)
 
 dnl These must be called before AM_PROG_LIBTOOL, because it may want
 dnl to call AC_CHECK_PROG.
@@ -304,12 +304,12 @@ changequote([,])dnl
 	;;
   rs6000-*-aix4*)	COREFILE=rs6000-core.lo ;;
   rs6000-*-*)		COREFILE=rs6000-core.lo ;;
-  powerpc-*-*bsd*)	COREFILE=netbsd-core.lo ;;
   powerpc-*-aix4*)	COREFILE=rs6000-core.lo ;;
   powerpc-*-aix*)	COREFILE=rs6000-core.lo ;;
   powerpc-*-beos*)	;;
   powerpc-*-freebsd*)	COREFILE='' ;;
   powerpc-*-netbsd*)	COREFILE=netbsd-core.lo ;;
+  powerpc-*-*bsd*)	COREFILE=netbsd-core.lo ;;
   sparc-*-netbsd* | sparc-*-openbsd*)
 	COREFILE=netbsd-core.lo
 	;;
@@ -485,7 +485,7 @@ do
     b_out_vec_big_host)		tb="$tb bout.lo aout32.lo" ;;
     b_out_vec_little_host)	tb="$tb bout.lo aout32.lo" ;;
     bfd_efi_app_ia32_vec)	tb="$tb efi-app-ia32.lo peigen.lo cofflink.lo" ;;
-    bfd_efi_app_ia64_vec)	tb="$tb efi-app-ia64.lo peigen.lo cofflink.lo"
+    bfd_efi_app_ia64_vec)	tb="$tb efi-app-ia64.lo pepigen.lo cofflink.lo"
   				target64=true ;;
     bfd_elf64_alpha_vec)	tb="$tb elf64-alpha.lo elf64.lo $elf"
 				target64=true ;;
@@ -552,6 +552,10 @@ do
     bfd_elf64_little_generic_vec) tb="$tb elf64-gen.lo elf64.lo $elf"
 				target64=true ;;
     bfd_elf64_sparc_vec)	tb="$tb elf64-sparc.lo elf64.lo $elf"
+				target64=true ;;
+    bfd_elf64_tradbigmips_vec)	tb="$tb elf64-mips.lo elf64.lo $elf ecofflink.lo"
+				target64=true ;;
+    bfd_elf64_tradlittlemips_vec) tb="$tb elf64-mips.lo elf64.lo $elf ecofflink.lo"
 				target64=true ;;
     cisco_core_big_vec)		tb="$tb cisco-core.lo" ;;
     cisco_core_little_vec)	tb="$tb cisco-core.lo" ;;
@@ -741,4 +745,5 @@ esac
 
 rm -f doc/config.status
 AC_OUTPUT(Makefile doc/Makefile bfd-in3.h:bfd-in2.h po/Makefile.in:po/Make-in,
-[sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile])
+[sed -e '/SRC-POTFILES =/r po/SRC-POTFILES' -e '/BLD-POTFILES =/r po/BLD-POTFILES' po/Makefile.in > po/Makefile])
+

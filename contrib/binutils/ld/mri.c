@@ -1,5 +1,5 @@
 /* mri.c -- handle MRI style linker scripts
-   Copyright 1991, 92, 93, 94, 95, 96, 1997, 1998, 2000
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.

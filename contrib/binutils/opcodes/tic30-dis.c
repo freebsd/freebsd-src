@@ -1,5 +1,5 @@
 /* Disassembly routines for TMS320C30 architecture
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This program is free software; you can redistribute it and/or modify
