@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.57 1995/12/24 08:10:39 davidg Exp $
+ *	$Id: locore.s,v 1.58 1995/12/25 14:40:49 davidg Exp $
  */
 
 /*
@@ -331,7 +331,7 @@ got_common_bi_size:
 	testl	%eax,%eax
 	jnz	1f
 	movl	$CPU_386,_cpu-KERNBASE
-	jmp	2f
+	jmp	3f
 
 1:	/* Try to toggle identification flag; does not exist on early 486s. */
 	pushfl
