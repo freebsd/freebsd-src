@@ -70,9 +70,18 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
+/*
+ * Return values from kill_qtask().
+ */
+#define KQT_LFERROR	-2
+#define KQT_KILLFAIL	-1
+#define KQT_NODAEMON	0
+#define KQT_KILLOK	1
+
 static void	 abortpr(struct printer *_pp, int _dis);
 static int	 doarg(char *_job);
 static int	 doselect(struct dirent *_d);
+static int	 kill_qtask(const char *lf);
 static void	 putmsg(struct printer *_pp, int _argc, char **_argv);
 static int	 sortq(const void *_a, const void *_b);
 static void	 startpr(struct printer *_pp, int _chgenable);
@@ -278,6 +287,93 @@ out:
 }
 
 /*
+ * Kill the current daemon, to stop printing of the active job.
+ */
+static int
+kill_qtask(const char *lf)
+{
+	FILE *fp;
+	pid_t pid;
+	int errsav, killres, lockres, res;
+
+	seteuid(euid);
+	fp = fopen(lf, "r");
+	errsav = errno;
+	seteuid(uid);
+	res = KQT_NODAEMON;
+	if (fp == NULL) {
+		/*
+		 * If there is no lock file, then there is no daemon to
+		 * kill.  Any other error return means there is some
+		 * kind of problem with the lock file.
+		 */
+		if (errsav != ENOENT)
+			res = KQT_LFERROR;
+		goto killdone;
+	}
+
+	/* If the lock file is empty, then there is no daemon to kill */
+	if (getline(fp) == 0)
+		goto killdone;
+
+	/*
+	 * If the file can be locked without blocking, then there
+	 * no daemon to kill, or we should not try to kill it.
+	 *
+	 * XXX - not sure I understand the reasoning behind this...
+	 */
+	lockres = flock(fileno(fp), LOCK_SH|LOCK_NB);
+	(void) fclose(fp);
+	if (lockres == 0)
+		goto killdone;
+
+	pid = atoi(line);
+	if (pid < 0) {
+		/*
+		 * If we got a negative pid, then the contents of the
+		 * lock file is not valid.
+		 */
+		res = KQT_LFERROR;
+		goto killdone;
+	}
+
+	seteuid(uid);
+	killres = kill(pid, SIGTERM);
+	errsav = errno;
+	seteuid(uid);
+	if (killres == 0) {
+		res = KQT_KILLOK;
+		printf("\tdaemon (pid %d) killed\n", pid);
+	} else if (errno == ESRCH) {
+		res = KQT_NODAEMON;
+	} else {
+		res = KQT_KILLFAIL;
+		printf("\tWarning: daemon (pid %d) not killed:\n", pid);
+		printf("\t    %s\n", strerror(errsav));
+	}
+
+killdone:
+	switch (res) {
+	case KQT_LFERROR:
+		printf("\tcannot open lock file: %s\n",
+		    strerror(errsav));
+		break;
+	case KQT_NODAEMON:
+		printf("\tno daemon to abort\n");
+		break;
+	case KQT_KILLFAIL:
+	case KQT_KILLOK:
+		/* These two already printed messages to the user. */
+		break;
+	default:
+		printf("\t<internal error in kill_qtask>\n");
+		break;
+	}
+
+	return (res);
+}
+
+/*
  * Write a message into the status file.
  */
 static void
@@ -299,6 +395,58 @@ upstat(struct printer *pp, const char *msg)
 	else
 		(void) write(fd, msg, strlen(msg));
 	(void) close(fd);
+}
+
+/*
+ * kill an existing daemon and disable printing.
+ */
+void
+abort_q(struct printer *pp)
+{
+	int killres, setres;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	/*
+	 * Turn on the owner execute bit of the lock file to disable printing.
+	 */
+	setres = set_qstate(SQS_STOPP, lf);
+
+	/*
+	 * If set_qstate found that there already was a lock file, then
+	 * call a routine which will read that lock file and kill the
+	 * lpd-process which is listed in that lock file.  If the lock
+	 * file did not exist, then either there is no daemon running
+	 * for this queue, or there is one running but *it* could not
+	 * write a lock file (which means we can not determine the
+	 * process id of that lpd-process).
+	 */
+	switch (setres) {
+	case SQS_CHGOK:
+	case SQS_CHGFAIL:
+		/* Kill the process */
+		killres = kill_qtask(lf);
+		break;
+	case SQS_CREOK:
+	case SQS_CREFAIL:
+		printf("\tno daemon to abort\n");
+		break;
+	case SQS_STATFAIL:
+		printf("\tassuming no daemon to abort\n");
+		break;
+	default:
+		printf("\t<unexpected result (%d) from set_qstate>\n",
+		    setres);
+		break;
+	}
+
+	if (setres >= 0) {
+		seteuid(euid);
+		upstat(pp, "printing disabled\n");
+		seteuid(uid);
+	}
 }
 
 /*
@@ -750,6 +898,21 @@ enable(struct printer *pp)
 }
 
 /*
+ * Enable queuing to the printer (allow lpr to add new jobs to the queue).
+ */
+void
+enable_q(struct printer *pp)
+{
+	int setres;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_ENABLEQ, lf);
+}
+
+/*
  * Disable queuing.
  */
 void
@@ -783,6 +946,21 @@ disable(struct printer *pp)
 	} else
 		printf("\tcannot stat lock file\n");
 	seteuid(uid);
+}
+
+/*
+ * Disable queuing.
+ */
+void
+disable_q(struct printer *pp)
+{
+	int setres;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_DISABLEQ, lf);
 }
 
 /*
@@ -924,6 +1102,37 @@ restart(struct printer *pp)
 }
 
 /*
+ * Kill and restart the daemon.
+ */
+void
+restart_q(struct printer *pp)
+{
+	int killres, setres, startok;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	killres = kill_qtask(lf);
+
+	/*
+	 * XXX - if the kill worked, we should probably sleep for
+	 *      a second or so before trying to restart the queue.
+	 */
+
+	/* make sure the queue is set to print jobs */
+	setres = set_qstate(SQS_STARTP, lf);
+
+	seteuid(euid);
+	startok = startdaemon(pp);
+	seteuid(uid);
+	if (!startok)
+		printf("\tcouldn't restart daemon\n");
+	else
+		printf("\tdaemon restarted\n");
+}
+
+/*
  * Enable printing on the specified printer and startup the daemon.
  */
 void
@@ -955,6 +1164,30 @@ startpr(struct printer *pp, int chgenable)
 			printf("\tprinting enabled\n");
 	}
 	if (!startdaemon(pp))
+		printf("\tcouldn't start daemon\n");
+	else
+		printf("\tdaemon started\n");
+	seteuid(uid);
+}
+
+/*
+ * Enable printing on the specified printer and startup the daemon.
+ */
+void
+start_q(struct printer *pp)
+{
+	int setres, startok;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_STARTP, lf);
+
+	seteuid(euid);
+	startok = startdaemon(pp);
+	seteuid(uid);
+	if (!startok)
 		printf("\tcouldn't start daemon\n");
 	else
 		printf("\tdaemon started\n");
@@ -1062,6 +1295,28 @@ stop(struct printer *pp)
 	} else
 		printf("\tcannot stat lock file\n");
 	seteuid(uid);
+}
+
+/*
+ * Stop the specified daemon after completing the current job and disable
+ * printing.
+ */
+void
+stop_q(struct printer *pp)
+{
+	int setres;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_STOPP, lf);
+
+	if (setres >= 0) {
+		seteuid(euid);
+		upstat(pp, "printing disabled\n");
+		seteuid(uid);
+	}
 }
 
 struct	jobqueue **queue;
@@ -1236,4 +1491,27 @@ void
 up(struct printer *pp)
 {
 	startpr(pp, 2);
+}
+
+/*
+ * Enable both queuing & printing, and start printer (undo `down').
+ */
+void
+up_q(struct printer *pp)
+{
+	int setres, startok;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_ENABLEQ+SQS_STARTP, lf);
+
+	seteuid(euid);
+	startok = startdaemon(pp);
+	seteuid(uid);
+	if (!startok)
+		printf("\tcouldn't start daemon\n");
+	else
+		printf("\tdaemon started\n");
 }
