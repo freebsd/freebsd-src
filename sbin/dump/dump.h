@@ -103,7 +103,6 @@ time_t	unctime(char *str);
 
 /* mapping rouintes */
 union	dinode;
-long	blockest(union dinode *dp);
 int	mapfiles(ino_t maxino, long *tapesize);
 int	mapdirs(ino_t maxino, long *tapesize);
 
