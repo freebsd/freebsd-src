@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #define LOCORE
 
+#include <machine/param.h>
 #include <machine/specialreg.h>
 
 	.align 4
@@ -38,23 +39,27 @@ wakeup_16:
 	nop
 	cli
 
-	/* Set up segment registers for real mode */
+	/*
+	 * Set up segment registers for real mode and a small stack for
+	 * any calls we make.
+	 */
 	movw	%cs,%ax
 	movw	%ax,%ds
 	movw	%ax,%ss
-	
-#ifndef ACPI_NO_RESET_VIDEO
-	/*
-	 * Re-initialize video BIOS.  Restore DS and SS from CS in
-	 * case the BIOS modified them.
-	 */
-	cmp	$1, no_reset_video
+	movw	$PAGE_SIZE,%sp
+
+	/* Re-initialize video BIOS if the reset_video tunable is set. */
+	cmp	$1,reset_video
 	je	wakeup_16_gdt
-	lcall	$0xc000, $3
-	movw	%cs, %ax
-	movw	%ax, %ds
-	movw	%ax, %ss
-#endif
+	lcall	$0xc000,$3
+
+	/*
+	 * Set up segment registers for real mode again in case the
+	 * previous BIOS call clobbers them.
+	 */
+	movw	%cs,%ax
+	movw	%ax,%ds
+	movw	%ax,%ss
 
 wakeup_16_gdt:
 	/* Load GDT for real mode */
@@ -214,7 +219,7 @@ physical_esp:		.long 0
 previous_cr2:		.long 0
 previous_cr3:		.long 0
 previous_cr4:		.long 0
-no_reset_video:		.long 0
+reset_video:		.long 0
 
 /* transfer from real mode to protected mode */
 previous_cr0:		.long 0
