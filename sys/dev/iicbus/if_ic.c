@@ -136,7 +136,8 @@ icattach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ICMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = icioctl;
 	ifp->if_output = icoutput;
 	ifp->if_type = IFT_PARA;
