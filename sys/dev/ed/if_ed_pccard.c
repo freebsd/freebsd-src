@@ -65,7 +65,6 @@
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
 #endif
 MODULE_DEPEND(ed, ether, 1, 1, 1);
-MODULE_DEPEND(ed, pccard, 1, 1, 1);
 
 /*
  *      PC-Card (PCMCIA) specific code.
