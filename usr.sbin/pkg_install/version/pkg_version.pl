@@ -42,7 +42,7 @@ $CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
 $OriginCommand = '/usr/sbin/pkg_info -qo';
-$GetPortVersionCommand = 'make -V PORTVERSION';
+$GetPkgNameCommand = 'make -V PKGNAME';
 
 #$IndexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
 $PortsDirectory = '/usr/ports';
@@ -109,7 +109,7 @@ sub CompareNumbers {
 # 1.349 of ports/Mk/bsd.port.mk for more information.
 #
 sub CompareVersions {
-    local($fv1, $fv2, $v1, $v2, $v1, $r2, $e1, $e2, $rc);
+    local($fv1, $fv2, $v1, $v2, $r1, $r2, $e1, $e2, $rc);
 
     $fv1 = $_[0];
     $fv2 = $_[1];
@@ -283,9 +283,12 @@ foreach $packageString (sort keys %currentPackages) {
 	# will fail.
 	chdir "$PortsDirectory/$origin" or next;
 
-	open VERSION, "$GetPortVersionCommand|";
-	$portversion = <VERSION>;
-	close VERSION;
+	open PKGNAME, "$GetPkgNameCommand|";
+	$portversion = <PKGNAME>;
+	close PKGNAME;
+
+	$pkgname =~ /(.+)-(.+)/;
+	$portversion = $2;
 
 	if ($portversion ne "") {
 	    chomp $portversion;
