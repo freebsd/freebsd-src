@@ -31,9 +31,7 @@
 #ifndef _FETCH_H_INCLUDED
 #define _FETCH_H_INCLUDED
 
-#include <fetch_err.h>
-
-#define _LIBFETCH_VER "libfetch/1.0"
+#define _LIBFETCH_VER "libfetch/2.0"
 
 #define URL_SCHEMELEN 16
 #define URL_USERLEN 256
@@ -60,6 +58,27 @@ struct url_ent {
     char	 name[MAXPATHLEN];
     struct url_stat stat;
 };
+
+/* Error codes */
+#define	FETCH_ABORT	 1
+#define	FETCH_AUTH	 2
+#define	FETCH_DOWN	 3
+#define	FETCH_EXISTS	 4
+#define	FETCH_FULL	 5
+#define	FETCH_INFO	 6
+#define	FETCH_MEMORY	 7
+#define	FETCH_MOVED	 8
+#define	FETCH_NETWORK	 9
+#define	FETCH_OK	10
+#define	FETCH_PROTO	11
+#define	FETCH_RESOLV	12
+#define	FETCH_SERVER	13
+#define	FETCH_TEMP	14
+#define	FETCH_TIMEOUT	15
+#define	FETCH_UNAVAIL	16
+#define	FETCH_UNKNOWN	17
+#define	FETCH_URL	18
+#define	FETCH_VERBOSE	19
 
 /* FILE-specific functions */
 FILE		*fetchGetFile(struct url *, char *);
@@ -96,6 +115,8 @@ void		 fetchFreeURL(struct url *);
 
 /* Last error code */
 extern int	 fetchLastErrCode;
+#define MAXERRSTRING 256
+extern char	 fetchLastErrString[MAXERRSTRING];
 extern int	 fetchTimeout;
 
 #endif
