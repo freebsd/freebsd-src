@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.4 1995/01/05 19:51:43 se Exp $
+ * $Id: uipc_domain.c,v 1.5 1995/05/11 00:13:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,6 @@ domaininit()
 	ADDDOMAIN(local);
 
 	for (dpp = (struct domain **)domain_set.ls_items; *dpp; dpp++) {
-		printf("domaininit %s\n", (**dpp).dom_name);
 		(**dpp).dom_next = domains;
 		domains = *dpp;
 	}
