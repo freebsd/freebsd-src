@@ -169,7 +169,7 @@ ofw_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
 	/* XXX Should be replaced with callout_stop(9) */
 	untimeout(ofw_timeout, tp, ofw_timeouthandle);
 	ttyld_close(tp, flag);
-	ttyclose(tp);
+	tty_close(tp);
 
 	return (0);
 }

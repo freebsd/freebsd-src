@@ -706,7 +706,7 @@ sabttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		/* XXX handle initial DCD */
 	}
 
-	error = ttyopen(dev, tp);
+	error = tty_open(dev, tp);
 	if (error != 0)
 		return (error);
 
@@ -728,7 +728,7 @@ sabttyclose(struct cdev *dev, int flags, int mode, struct thread *td)
 		return (0);
 
 	ttyld_close(tp, flags);
-	ttyclose(tp);
+	tty_close(tp);
 
 	return (0);
 }

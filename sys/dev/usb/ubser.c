@@ -442,7 +442,7 @@ bad:
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
 					ttyld_close(tp, 0);
-					ttyclose(tp);
+					tty_close(tp);
 				}
 			}
 			destroy_dev(sc->dev[i]);
@@ -476,7 +476,7 @@ USB_DETACH(ubser)
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
 					ttyld_close(tp, 0);
-					ttyclose(tp);
+					tty_close(tp);
 				}
 			}
 			destroy_dev(sc->dev[i]);
@@ -907,7 +907,7 @@ ubser_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	wakeup(&sc->sc_opening);
 	splx(s);
 
-	error = ttyopen(dev, tp);
+	error = tty_open(dev, tp);
 	if (error)
 		goto bad;
 

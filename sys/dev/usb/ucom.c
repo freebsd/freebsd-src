@@ -208,7 +208,7 @@ ucom_detach(struct ucom_softc *sc)
 			device_printf(sc->sc_dev,
 				      "still open, forcing close\n");
 			ttyld_close(tp, 0);
-			ttyclose(tp);
+			tty_close(tp);
 		}
 	} else {
 		DPRINTF(("ucom_detach: no tty\n"));
@@ -388,7 +388,7 @@ ucomopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	wakeup(&sc->sc_opening);
 	splx(s);
 
-	error = ttyopen(dev, tp);
+	error = tty_open(dev, tp);
 	if (error)
 		goto bad;
 
@@ -457,7 +457,7 @@ ucomclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	s = spltty();
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
-	ttyclose(tp);
+	tty_close(tp);
 	splx(s);
 
 	if (sc->sc_dying)

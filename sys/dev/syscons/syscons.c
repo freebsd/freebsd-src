@@ -557,7 +557,7 @@ scclose(struct cdev *dev, int flag, int mode, struct thread *td)
     }
     spltty();
     ttyld_close(tp, flag);
-    ttyclose(tp);
+    tty_close(tp);
     spl0();
     return(0);
 }
