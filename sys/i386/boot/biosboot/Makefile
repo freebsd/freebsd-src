@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.60 1997/08/31 06:11:25 phk Exp $
+#	$Id: Makefile,v 1.61 1998/01/27 16:56:43 msmith Exp $
 #
 
 PROG=	boot
@@ -14,7 +14,10 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-DDO_BAD144
 CFLAGS+=	-DVESA_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../..
+.if exists(${.CURDIR}/../../../../include)
+CFLAGS+=	-nostdinc -I${.CURDIR}/../../../../include
+.endif
+CFLAGS+=	-I${.CURDIR}/../../.. -I${.OBJDIR}
 CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
@@ -43,7 +46,7 @@ CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 # SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
+CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 machine sizetest
 LDFLAGS+=	-N -T 0 -nostdlib
 #LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
 #		${BINDIR}/sdboot ${BINDIR}/fdboot\
@@ -85,7 +88,12 @@ boot2:		boot.nohdr
 		exit 2 ; \
 	fi
 
-all:		boot1 boot2
+pre-compile:
+.if !exists(${.OBJDIR}/machine)
+	ln -s ${.CURDIR}/../../include ${.OBJDIR}/machine
+.endif
+
+all:	pre-compile boot1 boot2
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
