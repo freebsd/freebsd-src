@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.77 1998/08/23 10:12:12 bde Exp $
+ *	$Id: si.c,v 1.78 1999/01/12 00:36:35 eivind Exp $
  */
 
 #ifndef lint
@@ -1205,7 +1205,8 @@ open_top:
 				goto open_top;
 			}
 		}
-		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			DPRINT((pp, DBG_OPEN|DBG_FAIL,
 				"already open and EXCLUSIVE set\n"));
 			error = EBUSY;

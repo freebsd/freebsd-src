@@ -1,4 +1,4 @@
-/* $Id: promcons.c,v 1.2 1998/07/05 11:59:44 dfr Exp $ */
+/* $Id: promcons.c,v 1.3 1998/07/12 16:15:02 dfr Exp $ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -112,11 +112,12 @@ promopen(dev, flag, mode, p)
 		tp->t_oflag = TTYDEF_OFLAG;
 		tp->t_cflag = TTYDEF_CFLAG|CLOCAL;
 		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_ispeed = tp->t_ospeed = 9600;
+		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if (tp->t_state&TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+	} else if (tp->t_state & TS_XCLUDE &&
+	    suser(p->p_ucred, &p->p_acflag)) {
 		splx(s);
 		return EBUSY;
 	}

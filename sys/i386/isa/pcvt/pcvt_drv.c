@@ -517,7 +517,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
-	else if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
+	else if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
 		return (EBUSY);
 
 #if PCVT_NETBSD || (PCVT_FREEBSD >= 200)

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.109 1999/01/19 12:41:26 kato Exp $
+ *  $Id: syscons.c,v 1.110 1999/01/27 08:22:08 kato Exp $
  */
 
 #include "sc.h"
@@ -753,7 +753,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	}
     }
     else
-	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
+	if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
 	    return(EBUSY);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();

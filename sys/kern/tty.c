@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.111 1999/01/08 17:31:12 eivind Exp $
+ * $Id: tty.c,v 1.112 1999/01/28 17:32:00 dillon Exp $
  */
 
 /*-
@@ -981,9 +981,9 @@ ttioctl(tp, cmd, data, flag)
 		splx(s);
 		break;
 	case TIOCSTI:			/* simulate terminal input */
-		if (p->p_ucred->cr_uid && (flag & FREAD) == 0)
+		if ((flag & FREAD) == 0 && suser(p->p_ucred, &p->p_acflag))
 			return (EPERM);
-		if (p->p_ucred->cr_uid && !isctty(p, tp))
+		if (!isctty(p, tp) && suser(p->p_ucred, &p->p_acflag))
 			return (EACCES);
 		s = spltty();
 		(*linesw[tp->t_line].l_rint)(*(u_char *)data, tp);

@@ -766,7 +766,8 @@ again:
 				goto again;
 			}
 		}
-		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			error = EBUSY;
 			goto out;
 		}
