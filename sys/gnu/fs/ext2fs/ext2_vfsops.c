@@ -55,7 +55,7 @@
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>

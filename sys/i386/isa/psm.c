@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: psm.c,v 1.37 1997/02/22 09:37:01 peter Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>

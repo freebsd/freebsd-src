@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.8 1997/02/22 09:36:43 peter Exp $
+ * $Id: istallion.c,v 1.9 1997/03/13 03:51:25 davidn Exp $
  */
 
 /*****************************************************************************/
@@ -48,7 +48,7 @@
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <machine/cpu.h>

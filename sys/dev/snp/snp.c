@@ -23,7 +23,7 @@
 #include <sys/ioctl_compat.h>	/* Oooh..We need O/NTTYDISC	 */
 #include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: tty_tty.c,v 1.14 1997/02/22 09:39:27 peter Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
