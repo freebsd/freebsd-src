@@ -332,13 +332,12 @@ file
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "getty repeating too quickly on port %s, sleeping"
+.It "getty repeating too quickly on port %s, sleeping."
 A process being started to service a line is exiting quickly
 each time it is started.
 This is often caused by a ringing or noisy terminal line.
 .Em "Init will sleep for 30 seconds" ,
 .Em "then continue trying to start the process" .
-.Pp
 .It "some processes would not die; ps axl advised."
 A process
 is hung and could not be killed when the system was shutting down.
