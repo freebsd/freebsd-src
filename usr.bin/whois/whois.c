@@ -246,8 +246,8 @@ whois(name, sinp, flags)
 		    (p = strstr(buf, "No match for \""))) {
 			p += sizeof("No match for \"") - 1;
 			if ((len = strcspn(p, "\"")) &&
-			    name[len] == '\0' &&
 			    strncasecmp(name, p, len) == 0 &&
+			    name[len] == '\0' &&
 			    strchr(name, '.') == NULL)
 				nomatch = 1;
 		}
