@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.8 1998/10/30 02:06:44 gibbs Exp $
+ *      $Id: bt.c,v 1.9 1998/11/10 06:44:50 gibbs Exp $
  */
 
  /*
