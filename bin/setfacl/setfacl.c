@@ -96,7 +96,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: setfacl [-bdhknv] [-m entries] [-M file1] "
+	fprintf(stderr, "usage: setfacl [-bdhkn] [-m entries] [-M file1] "
 	    "[-x entries] [-X file2] [file ...]\n");
 	exit(1);
 }
