@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.17 1997/08/21 06:33:04 charnier Exp $
+ *  $Id: linux_sysvec.c,v 1.18 1997/08/25 23:41:39 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -48,7 +48,6 @@
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <machine/cpu.h>
-#include <machine/psl.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
