@@ -1304,11 +1304,11 @@ AAA
 		}
 		FREE(sp, M_NETGRAPH);
 		hook->private = NULL;
-		/* work out how many session hooks there are
+		/* work out how many session hooks there are */
 		/* Node goes away on last session hook removal */
 		hooks = node->numhooks; /* this one already not counted */
 		if (privp->ethernet_hook) hooks -= 1;
-		if (privp->debug) hooks -= 1;
+		if (privp->debug_hook) hooks -= 1;
 		if (hooks == 0) 
 			ng_rmnode(node);
 	}
