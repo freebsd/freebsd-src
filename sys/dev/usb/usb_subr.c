@@ -849,6 +849,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	int found, i, confi, nifaces;
 	usbd_status err;
 	device_ptr_t dv;
+	device_ptr_t *tmpdv;
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 
 #if defined(__FreeBSD__)
@@ -880,14 +881,20 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 
 	/* First try with device specific drivers. */
 	DPRINTF(("usbd_probe_and_attach: trying device specific drivers\n"));
+
+	dev->ifacenums = NULL;
+	dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
+	if (dev->subdevs == NULL)
+		return (USBD_NOMEM);
+	dev->subdevs[0] = bdev;
+	dev->subdevs[1] = 0;
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv) {
-		dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
-		if (dev->subdevs == NULL)
-			return (USBD_NOMEM);
-		dev->subdevs[0] = dv;
-		dev->subdevs[1] = 0;
 		return (USBD_NORMAL_COMPLETION);
+	} else {
+		tmpdv = dev->subdevs;
+		dev->subdevs = NULL;
+		free(tmpdv, M_USB);
 	}
 
 	DPRINTF(("usbd_probe_and_attach: no device specific driver found\n"));
@@ -927,6 +934,15 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 #endif
 			return (USBD_NOMEM);
 		}
+		dev->ifacenums = malloc((nifaces) * sizeof(*dev->ifacenums),
+		    M_USB,M_NOWAIT);
+		if (dev->ifacenums == NULL) {
+			free(tmpdv, M_USB);
+#if defined(__FreeBSD__)
+			device_delete_child(parent, bdev);
+#endif
+			return (USBD_NOMEM);
+		}
 
 		found = 0;
 		for (i = 0; i < nifaces; i++) {
@@ -934,12 +950,14 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 				continue; /* interface already claimed */
 			uaa.iface = ifaces[i];
 			uaa.ifaceno = ifaces[i]->idesc->bInterfaceNumber;
+			dev->subdevs[found] = bdev;
+			dev->subdevs[found + 1] = 0;
+			dev->ifacenums[found] = i;
 			dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print,
 					   usbd_submatch);
 			if (dv != NULL) {
-				dev->subdevs[found++] = dv;
-				dev->subdevs[found] = 0;
 				ifaces[i] = 0; /* consumed */
+				found++;
 
 #if defined(__FreeBSD__)
 				/* create another child for the next iface */
@@ -952,6 +970,8 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 				device_set_ivars(bdev, &uaa);
 				device_quiet(bdev);
 #endif
+			} else {
+				dev->subdevs[found] = 0;
 			}
 		}
 		if (found != 0) {
@@ -961,8 +981,11 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 #endif
 			return (USBD_NORMAL_COMPLETION);
 		}
-		free(dev->subdevs, M_USB);
-		dev->subdevs = 0;
+		tmpdv = dev->subdevs;
+		dev->subdevs = NULL;
+		free(tmpdv, M_USB);
+		free(dev->ifacenums, M_USB);
+		dev->ifacenums = NULL;
 	}
 	/* No interfaces were attached in any of the configurations. */
 
@@ -976,14 +999,18 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	uaa.usegeneric = 1;
 	uaa.configno = UHUB_UNK_CONFIGURATION;
 	uaa.ifaceno = UHUB_UNK_INTERFACE;
+	dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
+	if (dev->subdevs == 0)
+		return (USBD_NOMEM);
+	dev->subdevs[0] = bdev;
+	dev->subdevs[1] = 0;
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv != NULL) {
-		dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
-		if (dev->subdevs == 0)
-			return (USBD_NOMEM);
-		dev->subdevs[0] = dv;
-		dev->subdevs[1] = 0;
 		return (USBD_NORMAL_COMPLETION);
+	} else {
+		tmpdv = dev->subdevs;
+		dev->subdevs = 0;
+		free(tmpdv, M_USB);
 	}
 
 	/*
@@ -1370,6 +1397,8 @@ usb_free_device(usbd_device_handle dev)
 		free(dev->cdesc, M_USB);
 	if (dev->subdevs != NULL)
 		free(dev->subdevs, M_USB);
+	if (dev->ifacenums != NULL)
+		free(dev->ifacenums, M_USB);
 	free(dev, M_USB);
 }
 
