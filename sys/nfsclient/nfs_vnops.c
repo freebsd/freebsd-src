@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.102 1998/05/31 19:29:28 peter Exp $
+ * $Id: nfs_vnops.c,v 1.103 1998/05/31 20:08:56 peter Exp $
  */
 
 
@@ -989,7 +989,7 @@ nfs_readlink(ap)
 	register struct vnode *vp = ap->a_vp;
 
 	if (vp->v_type != VLNK)
-		return (EPERM);
+		return (EINVAL);
 	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred, 0));
 }
 
