@@ -62,8 +62,8 @@ vendor THRUST		0x044f	Thrustmaster
 vendor TI		0x0451	Texas Instruments
 vendor ANALOGDEVICES	0x0456	Analog Devices, Inc.
 vendor KYE		0x0458	KYE Systems Corp.
+vendor DIAMOND2	0x045a	Diamond (Supra)
 vendor MICROSOFT	0x045e	Microsoft
-vendor SUPRA		0x045a	Supra
 vendor PRIMAX		0x0461	Primax Electronics
 vendor AMP		0x0464	AMP, Inc.
 vendor CHERRY		0x046a	Cherry Mikroschalter GmbH
@@ -75,13 +75,31 @@ vendor CONNECTIX	0x0478	Connectix Corp.
 vendor KENSINGTON	0x047d	Kensington
 vendor LUCENT		0x047e	Lucent
 vendor STMICRO		0x0483	STMicroelectronics
+vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
+vendor VISIONEER	0x04a7  Visioneer
 vendor CANON		0x04a9	Canon, Inc.
+vendor IBM		0x04b3	IBM Corporation
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
+vendor RAINBOW		0x04b9	Rainbow Technologies
 vendor IODATA		0x04bb	I/O Data
 vendor 3COMUSR		0x04c1	U.S. Robotics
+vendor METHODE		0x04c2	Methode Electronics Far East PTE Ltd.
+vendor MAXISWITCH	0x04c3	Maxi Switch, Inc.
+vendor LOCKHEEDMER	0x04c4	Lockheed Martin Energy Research
+vendor FUJITSU		0x04c5	Fujitsu Ltd.
+vendor TOSHIBAAM	0x04c6	Toshiba America Electronic Components
+vendor MICROMACRO	0x04c7	Micro Macro Technologies
 vendor KONICA		0x04c8	Konica Corp.
+vendor LITEON		0x04ca	Lite-On Technology Corp.
+vendor FUJIPHOTO	0x04cb	Fuji Photo Film Co., Ltd.
+vendor PHILIPSSEMI	0x04cc	Philips Semiconductors
+vendor TATUNG		0x04cd	Tatung Co. Of America
+vendor SCANLOGIC	0x04ce	ScanLogic Corp.
+vendor MYSON		0x04cf	Myson Technology Inc.
+vendor DIGI2		0x04d0	Digi International
+vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing Technologies, Inc.
 vendor SHUTTLE		0x04e6	Shuttle Technology
 vendor ANNABOOKS	0x04ed	Annabooks
@@ -101,12 +119,14 @@ vendor ATI		0x0528	ATI Technologies, Inc.
 vendor AKS		0x0529	Aladdin Knowledge Systems
 vendor UNIACCESS	0x0540	Universal Access
 vendor ANCHOR		0x0547	Anchor Chips, Inc.
+vendor SONY		0x054c  Sony Corp.
 vendor VISION		0x0553	VLSI Vision Ltd.
 vendor ASAHIKASEI	0x0556	Asahi Kasei Microsystems Co., Ltd
 vendor ATEN		0x0557	ATEN International Co. Ltd.
 vendor MUSTEK		0x055f	Mustek Systems, Inc.
 vendor TELEX		0x0562	Telex Communications, Inc.
 vendor PERACOM		0x0565	Peracom Networks, Inc.
+vendor ALCOR2		0x0566	Alcor Micro, Inc.
 vendor WACOM		0x056a	WACOM Corp. Ltd.
 vendor ETEK		0x056c	e-TEK Labs
 vendor EIZO		0x056d	EIZO
@@ -116,10 +136,12 @@ vendor YEDATA		0x057b	Y-E Data
 vendor AVM		0x057c	AVM GmbH
 vendor QUICKSHOT	0x057f	Quickshot
 vendor ROCKFIRE		0x0583	Rockfire
+vendor ZYXEL		0x0586	ZyXEL Communication Co.
 vendor ALCOR		0x058f	Alcor Micro, Inc.
 vendor IOMEGA		0x059b	Iomega Corp.
 vendor ATREND		0x059c	A-Trend Technology Co., Ltd.
 vendor AID		0x059d	Advanced Input Devices
+vendor LACIE		0x059f	LaCie
 vendor OMNIVISION	0x05a9	OmniVision
 vendor INSYSTEM		0x05ab	In-System Design
 vendor APPLE		0x05ac	Apple Computer
@@ -128,8 +150,14 @@ vendor QTRONIX		0x05c7	Qtronix Corp
 vendor ELSA		0x05cc	ELSA Gmbh
 vendor BRAINBOXES	0x05d1	Brainboxes Limited
 vendor AXIOHM		0x05d9	Axiohm Transaction Solutions
+vendor MICROTEK		0x05da  Microtek
+vendor SYMBOL		0x05e0	Symbol Technologies
+vendor GENESYS		0x05e3	Genesys Logic, Inc.
+vendor FUJI		0x05e5	Fuji Electric Co., Ltd.
+vendor KEITHLEY		0x05e6	Keithley Instruments
 vendor EIZONANAO	0x05e7	EIZO Nanao
 vendor KLSI		0x05e9	Kawasaki LSI
+vendor FFC		0x05eb	FFC Limited
 vendor ANKO		0x05ef	Anko Electronic Co., Ltd.
 vendor PIENGINEERING	0x05f3	P.I. Engineering
 vendor AOC		0x05f6	AOC International
@@ -143,12 +171,14 @@ vendor ACTLABS		0x061c	Act Labs, Ltd.
 vendor ALARIS		0x0620	Alaris, Inc.
 vendor APEX		0x0624	Apex, Inc.
 vendor AVISION		0x0638	Avision, Inc.
+vendor TEAC		0x0644	TEAC
 vendor LINKSYS		0x066b	Linksys, Inc.
 vendor ACERSA		0x066e	Acer Semiconductor America, Inc.
 vendor AIWA		0x0677	Aiwa Co., Ltd.
 vendor ACARD		0x0678	ACARD Technology Corp.
 vendor PROLIFIC		0x067b	Prolific Technology Inc.
 vendor ADVANCELOGIC	0x0680	Avance Logic, Inc.
+vendor CTX		0x0698	Chuntex
 vendor ASKEY		0x069a	Askey Computer Corp.
 vendor ALCATELT		0x06b9	Alcatel Telecom
 vendor AGFA		0x06bd	AGFA-Gevaert NV
@@ -164,15 +194,19 @@ vendor SMC		0x0707	Standard Microsystems Corp
 vendor MCT		0x0711	MCT Corp.
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
+vendor GRIFFIN		0x077d	Griffin Technology, Inc.
 vendor SANDISK		0x0781	SanDisk Corp
 vendor BRIMAX		0x078e	Brimax, Inc.
 vendor AXIS		0x0792	Axis Communications AB
 vendor ABL		0x0794	ABL Electronics Corp.
 vendor ALFADATA		0x079d	Alfadata Computer Corp.
+vendor NATIONALTECH	0x07a2	National Technical Systems
+vendor ONNTO		0x07a3	Onnto Corp.
 vendor BE		0x07a4	Be, Inc.
 vendor ADMTEK		0x07a6	ADMtek, Inc.
 vendor COREGA		0x07aa	Corega
 vendor FREECOM		0x07ab	Freecom
+vendor MICROTECH	0x07af	Microtech
 vendor ABOCOM		0x07b8	AboCom Systems, Inc.
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken Corp.
 vendor APG		0x07c5	APG Cash Drawer
@@ -201,9 +235,11 @@ vendor 2WIRE		0x08c8	2Wire, Inc
 vendor AIPTEK		0x08ca	AIPTEK International, Inc.
 vendor SMARTBRIDGES	0x08d1	SmartBridges Pte Ltd.
 vendor BILLIONTON	0x08dd	Billionton Systems, Inc.
+vendor EXTENDED		0x08e9	Extended Systems, Inc.
 vendor AUTHENTEC	0x08ff	AuthenTec, Inc.
 vendor ALATION		0x0910	Alation Systems, Inc.
 vendor BIOMETRIC	0x0929	American Biometric Company
+vendor YANO		0x094f	Yano
 vendor BLUEWATER	0x0956	BlueWater Systems, Inc.
 vendor AGILENT		0x0957	Agilent Technologies, Inc.
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
@@ -219,12 +255,15 @@ vendor AKAI		0x09e8	AKAI professional M.I. Corp.
 vendor ARESCOM		0x09f5	ARESCOM
 vendor BAY		0x09f9	Bay Associates
 vendor ALTERA		0x09fb	Altera
+vendor TREK		0x0a16	Trek Technology
 vendor ASAHIOPTICAL	0x0a17	Asahi Optical Co., Ltd.
 vendor BOCASYSTEMS	0x0a43	Boca Systems, Inc.
 vendor BROADCOM		0x0a5c	Broadcom Corp.
+vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
-vendor BELKIN2		0x1293  Belkin Components (second entry)
+vendor BELKIN2		0x1293	Belkin Components (2nd)
+vendor UMAX		0x1606	UMAX Data Systems, Inc.
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
@@ -250,6 +289,9 @@ product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
+product ACERP ACERSCAN_320U	0x2022	Acerscan 320U
+product ACERP ACERSCAN_640U	0x2040  Acerscan 640U
+product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 
 /* ActiveWire, Inc. products */
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
@@ -264,12 +306,21 @@ product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
 /* Agiler products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
 
+/* AGFA products */
+product AGFA SNAPSCAN1212U	0x0001	SnapScan 1212U
+product AGFA SNAPSCANTOUCH	0x0100	SnapScan Touch
+product AGFA SNAPSCAN1212U2	0x2061	SnapScan 1212U
+
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
-/* ALCOR products */
-product ALCOR STRONGMAN		0x9213	Strong Man Keyboard hub
-product ALCOR STRONGMAN_KBD	0x9410	Strong Man Keyboard
+/* Alcor Micro, Inc. products */
+product ALCOR2 KBD_HUB		0x2802	Kbd Hub
+
+product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
+product ALCOR AU9814		0x9215	AU9814 Hub
+product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
+product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
 
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
@@ -285,9 +336,16 @@ product ANCHOR EZLINK		0x2720	EZLINK
 /* AOX, Inc. products */
 product AOX USB101		0x0008	USB ethernet controller engine
 
+/* Apple Computer products */
+product APPLE SPEAKERS		0x1101	Speakers
+
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer adapter
 product ATEN UC10T		0x2002	10Mbps ethernet adapter
+product ATEN UC232A		0x2008	Serial adapter
+
+/* Avision products */
+product AVISION 1200U		0x0268	1200U scanner
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
@@ -322,12 +380,18 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
 
+/* Compaq products */
+product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
+
 /* Connectix products */
 product CONNECTIX QUICKCAM	0x0001	QuickCam
 
 /* Corega products */
 product COREGA ETHER_USB_T	0x0001	Ether USB-T
 product COREGA FETHER_USB_TX	0x0004	FEther USB-TX
+
+/* CTX products */
+product CTX EX1300		0x9999	Ex1300 hub
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
@@ -369,17 +433,31 @@ product ENTREGA CENTRONICS	0x0006	Centronics connector
 product ENTREGA 1S9		0x0093	1S9 serial connector
 product ENTREGA EZUSB		0x8000	EZ-USB
 /*product ENTREGA SERIAL	0x8001	DB25 Serial connector*/
+product ENTREGA 2U4S		0x8004  2U4S serial connector/usb hub
 /*product ENTREGA SERIAL_DB9	0x8093	DB9 Serial connector*/
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
 
 /* Epson products */
+product EPSON PRINTER1		0x0001	USB Printer
 product EPSON PRINTER2		0x0002	ISD USB Smart Cable for Mac
 product EPSON PRINTER3		0x0003	ISD USB Smart Cable
+product EPSON 636		0x0101	Perfection 636U / 636Photo scanner
+product EPSON 610		0x0103	Perfection 610 scanner
+product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
+
+/* e-TEK Labs products */
+product ETEK 1COM		0x8007	Serial port
+
+/* Extended Systems products */
+product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
 /* Gravis products */
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
+
+/* Griffin Technology */
+product GRIFFIN IMATE		0x0405	iMate, ABD adapter
 
 /* Freecom products */
 product FREECOM DVD		0xfc01	Connector for DVD drive
@@ -401,6 +479,9 @@ product HP 5200			0x0401	Scanjet 5200
 product HP 6300C		0x0601	Scanjet 6300C
 product HP 970CSE		0x1004	Deskjet 970Cse
 product HP P1100		0x3102	Photosmart P1100
+
+/* IBM Corporation */
+product	IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
 
 /* Inside Out Networks products */
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
@@ -452,6 +533,10 @@ product KONICA CAMERA		0x0720	Digital Color Camera
 product KYE NICHE		0x0001	Niche mouse
 product KYE NETSCROLL		0x0003	Genius NetScroll mouse
 product KYE FLIGHT2000		0x1004	Flight 2000 joystick
+product KYE VIVIDPRO		0x2001	ColorPage Vivid-Pro scanner
+
+/* LaCie products */
+product LACIE CDRW		0xa602	CD R/W
 
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
@@ -465,14 +550,19 @@ product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
 product LOGITECH M4848		0x0301	M4848 mouse
-product LOGITECH QUICKCAM	0x0801	QuickCam
+product LOGITECH PAGESCAN	0x040f	PageScan
+product LOGITECH QUICKCAMWEB	0x0801	QuickCam Web
 product LOGITECH QUICKCAMPRO	0x0810	QuickCam Pro
+product LOGITECH QUICKCAMEXP	0x0840	QuickCam Express
+product LOGITECH QUICKCAM	0x0850	QuickCam
 product LOGITECH N43		0xc000	N43
 product LOGITECH N48		0xc001	N48 mouse
 product LOGITECH MBA47		0xc002	M-BA47 mouse
 product LOGITECH WMMOUSE	0xc004	WingMan Gaming Mouse
+product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMJOY		0xc281	WingMan Force joystick 
+product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
@@ -496,6 +586,15 @@ product MICROSOFT SIDEWINDER	0x001a	Sidewinder Precision Racing Wheel
 product MICROSOFT INTELLIEYE	0x0025	IntelliEye mouse
 product MICROSOFT INETPRO	0x002b	Internet Keyboard Pro
 
+/* Microtek products */
+product MICROTEK X6U		0x0099	ScanMaker X6 - X6U
+product MICROTEK 336CX		0x0094	Phantom 336CX - C3 scanner
+product MICROTEK 336CX2		0x00a0	Phantom 336CX - C3 scanner
+product MICROTEK C6		0x009a	Phantom C6 scanner
+product MICROTEK V6USL		0x00a3	ScanMaker V6USL
+product MICROTEK V6USL2		0x80a3	ScanMaker V6USL
+product MICROTEK V6UL		0x80ac	ScanMaker V6UL
+
 /* Midiman products */
 product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
 
@@ -506,6 +605,7 @@ product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
 
 /* Mustek products */
+product MUSTEK 1200CU		0x0001	1200 CU scanner
 product MUSTEK MDC800		0xa800	MDC-800 digital camera
 
 /* NEC products */
@@ -520,6 +620,7 @@ product NETGEAR EA101		0x1001	Ethernet adapter
 
 /* OmniVision Technologies, Inc. products */
 product OMNIVISION OV511	0x0511	OV511 Camera
+product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 
 /* Palm Computing, Inc. */
 product PALM SERIAL		0x0080	USB Serial Adaptor
@@ -544,6 +645,16 @@ product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
 product PLX TESTBOARD		0x9060	test board
 
 /* Primax products */
+product PRIMAX G2E300		0x0301	G2E-300 scanner
+product PRIMAX G2300		0x0302	G2-300 scanner
+product PRIMAX G2E3002		0x0303	G2E-300 scanner
+product PRIMAX 9600		0x0340	Colorado USB 9600 scanner
+product PRIMAX 600U		0x0341	Colorado 600u scanner
+product PRIMAX 19200		0x0360	Colorado USB 19200 scanner
+product PRIMAX 1200U		0x0361	Colorado 1200u scanner
+product PRIMAX 636I		0x0381	ReadyScan 636i
+product PRIMAX G2600		0x0382	G2-600 scanner
+product PRIMAX G2E600		0x0383	G2E-600 scanner
 product PRIMAX COMFORT		0x4d01	Comfort
 product PRIMAX MOUSEINABOX	0x4d02	Mouse-in-a-Box
 product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
@@ -551,9 +662,16 @@ product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
+
+/* Qtronix products */
+product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
+
+/* Rainbow Technologies products */
+product	RAINBOW IKEY2000	0x1200	i-Key 2000  
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -583,6 +701,9 @@ product SMC 2202USB		0x0200	10/100 ethernet adapter
 /* SOLID YEAR products */
 product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 
+/* SONY products */
+product SONY DSC	0x0010	Sony DSC cameras
+
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
 
@@ -591,7 +712,12 @@ product SUN KEYBOARD		0x0005	Type 6 USB
 /* XXX The above is a North American PC style keyboard possibly */
 
 /* Supra products */
-product SUPRA SUPRAEXPRESS56K	0x07da	Supra Express 56K modem
+product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
+product DIAMOND2 SUPRA2890	0x0b4a	SupraMax 2890 56K Modem
+product DIAMOND2 RIO600USB	0x5001	Rio 600 USB
+
+/* TEAC products */
+product TEAC FD05PUB		0x0000	FD-05PUB floppy
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
@@ -602,11 +728,25 @@ product TI UTUSB41		0x1446	UT-USB41 hub
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
+/* Trek Technology products */
+product TREK THUMBDRIVE		0x1111	ThumbDrive
+
+/* UMAX products */
+product UMAX ASTRA1236U		0x0002	Astra 1236U Scanner
+product UMAX ASTRA1220U		0x0010	Astra 1220U Scanner
+product UMAX ASTRA2000U		0x0030	Astra 2000U Scanner
+product UMAX ASTRA2100U		0x0130	Astra 2100U Scanner
+product UMAX ASTRA2200U		0x0230	Astra 2200U Scanner
+
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 
 /* Vision products */
-product VISION VC6452V002	0x0002	VC6452V002 Camera
+product VISION VC6452V002	0x0002	CPiA Camera
+
+/* Visioneer products */
+product VISIONEER 5300		0x0221	OneTouch 5300 / 7600
+product VISIONEER 6100		0x0231	OneTouch 6100
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
@@ -616,5 +756,11 @@ product WACOM INTUOSA5		0x0021	Intuos A5
 /* Y-E Data products */
 product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 
+/* Yano products */
+product YANO U640MO		0x0101	U640MO-03
+
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
+
+/* ZyXEL Communication Co. products */
+product ZYXEL 980N		0x2011	Scorpion-980N keyboard
