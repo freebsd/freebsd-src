@@ -1,16 +1,24 @@
 /*
- * (C)opyright 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.0.2.13 1997/05/24 07:41:55 darrenr Exp $
+ * $Id: ip_fil.h,v 2.0.2.39.2.4 1997/11/12 10:50:02 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
 #define	__IP_FIL_H__
+
+/*
+ * Pathnames for various IP Filter control devices.  Used by LKM
+ * and userland, so defined here.
+ */
+#define	IPNAT_NAME	"/dev/ipnat"
+#define	IPSTATE_NAME	"/dev/ipstate"
+#define	IPAUTH_NAME	"/dev/ipauth"
 
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
@@ -45,6 +53,9 @@
 #define	SIOCFRSYN	_IOW('r', 73, u_int)
 #define	SIOCFRZST	_IOWR('r', 74, struct friostat)
 #define	SIOCZRLST	_IOWR('r', 75, struct frentry)
+#define	SIOCAUTHW	_IOWR('r', 76, struct fr_info)
+#define	SIOCAUTHR	_IOWR('r', 77, struct fr_info)
+#define	SIOCATHST	_IOWR('r', 78, struct fr_authstat)
 #else
 #define	SIOCADAFR	_IOW(r, 60, struct frentry)
 #define	SIOCRMAFR	_IOW(r, 61, struct frentry)
@@ -62,6 +73,9 @@
 #define	SIOCFRSYN	_IOW(r, 73, u_int)
 #define	SIOCFRZST	_IOWR(r, 74, struct friostat)
 #define	SIOCZRLST	_IOWR(r, 75, struct frentry)
+#define	SIOCAUTHW	_IOWR(r, 76, struct fr_info)
+#define	SIOCAUTHR	_IOWR(r, 77, struct fr_info)
+#define	SIOCATHST	_IOWR(r, 78, struct fr_authstat)
 #endif
 #define	SIOCADDFR	SIOCADAFR
 #define	SIOCDELFR	SIOCRMAFR
@@ -75,7 +89,7 @@ typedef	struct	fr_ip	{
 	u_char	fi_p;
 	struct	in_addr	fi_src;
 	struct	in_addr	fi_dst;
-	u_long	fi_optmsk;	/* bitmask composed from IP options */
+	u_32_t	fi_optmsk;	/* bitmask composed from IP options */
 	u_short	fi_secmsk;	/* bitmask composed from IP security options */
 	u_short	fi_auth;
 } fr_ip_t;
@@ -87,20 +101,30 @@ typedef	struct	fr_ip	{
 
 typedef	struct	fr_info	{
 	struct	fr_ip	fin_fi;
-	void	*fin_ifp;
 	u_short	fin_data[2];
 	u_short	fin_out;
-	u_char	fin_tcpf;
-	u_char	fin_icode;
-	u_short	fin_rule;
 	u_short	fin_hlen;
+	u_char	fin_tcpf;
+	u_char	fin_icode;		/* From here on is packet specific */
+	u_short	fin_rule;
+	u_short	fin_group;
 	u_short	fin_dlen;
-	char	*fin_dp;		/* start of data past IP header */
+	u_short	fin_id;
+	void	*fin_ifp;
 	struct	frentry *fin_fr;
+	char	*fin_dp;		/* start of data past IP header */
 	void	*fin_mp;
 } fr_info_t;
 
-#define	FI_CSIZE	(sizeof(struct fr_ip) + 11)
+/*
+ * Size for compares on fr_info structures
+ */
+#define	FI_CSIZE	(sizeof(struct fr_ip) + sizeof(u_short) * 4 + \
+			 sizeof(u_char))
+/*
+ * Size for copying cache fr_info structure
+ */
+#define	FI_COPYSIZE	(sizeof(fr_info_t) - sizeof(void *) * 2)
 
 typedef	struct	frdest	{
 	void	*fd_ifp;
@@ -110,9 +134,13 @@ typedef	struct	frdest	{
 
 typedef	struct	frentry {
 	struct	frentry	*fr_next;
-	struct	ifnet	*fr_ifa;
+	u_short	fr_group;	/* group to which this rule belongs */
+	u_short	fr_grhead;	/* group # which this rule starts */
+	struct	frentry	*fr_grp;
+	int	fr_ref;		/* reference count - for grouping */
+	void	*fr_ifa;
 	/*
-	 * There are only incremented when a packet  matches this rule and
+	 * These are only incremented when a packet  matches this rule and
 	 * it is the last match
 	 */
 	U_QUAD_T	fr_hits;
@@ -135,8 +163,9 @@ typedef	struct	frentry {
 	u_short	fr_sport;
 	u_short	fr_stop;	/* top port for <> and >< */
 	u_short	fr_dtop;	/* top port for <> and >< */
-	u_long	fr_flags;	/* per-rule flags && options (see below) */
-	int	(*fr_func) __P((int, struct ip *, fr_info_t *));	/* call this function */
+	u_32_t	fr_flags;	/* per-rule flags && options (see below) */
+	int	fr_skip;	/* # of rules to skip */
+	int	(*fr_func) __P((int, ip_t *, fr_info_t *));	/* call this function */
 	char	fr_icode;	/* return ICMP code */
 	char	fr_ifname[IFNAMSIZ];
 	struct	frdest	fr_tif;	/* "to" interface */
@@ -159,10 +188,10 @@ typedef	struct	frentry {
 /*
  * fr_flags
  */
-#define	FR_BLOCK	0x00001
-#define	FR_PASS		0x00002
-#define	FR_OUTQUE	0x00004
-#define	FR_INQUE	0x00008
+#define	FR_BLOCK	0x00001	/* do not allow packet to pass */
+#define	FR_PASS		0x00002	/* allow packet to pass */
+#define	FR_OUTQUE	0x00004	/* outgoing packets */
+#define	FR_INQUE	0x00008	/* ingoing packets */
 #define	FR_LOG		0x00010	/* Log */
 #define	FR_LOGB		0x00011	/* Log-fail */
 #define	FR_LOGP		0x00012	/* Log-pass */
@@ -170,7 +199,7 @@ typedef	struct	frentry {
 #define	FR_LOGFIRST	0x00040	/* Log the first byte if state held */
 #define	FR_RETRST	0x00080	/* Return TCP RST packet - reset connection */
 #define	FR_RETICMP	0x00100	/* Return ICMP unreachable packet */
-#define	FR_NOMATCH	0x00200
+#define	FR_NOMATCH	0x00200	/* no match occured */
 #define	FR_ACCOUNT	0x00400	/* count packet bytes */
 #define	FR_KEEPFRAG	0x00800	/* keep fragment information */
 #define	FR_KEEPSTATE	0x01000	/* keep `connection' state information */
@@ -182,10 +211,20 @@ typedef	struct	frentry {
 #define	FR_LOGORBLOCK	0x40000	/* block the packet if it can't be logged */
 #define	FR_NOTSRCIP	0x80000	/* not the src IP# */
 #define	FR_NOTDSTIP	0x100000	/* not the dst IP# */
+#define	FR_AUTH		0x200000	/* use authentication */
+#define	FR_PREAUTH	0x400000	/* require preauthentication */
 
 #define	FR_LOGMASK	(FR_LOG|FR_LOGP|FR_LOGB)
+
 /*
- * recognized flags for SIOCGETFF and SIOCSETFF
+ * These correspond to #define's for FI_* and are stored in fr_flags
+ */
+#define	FF_OPTIONS	0x01000000
+#define	FF_TCPUDP	0x02000000
+#define	FF_FRAG		0x04000000
+#define	FF_SHORT	0x08000000
+/*
+ * recognized flags for SIOCGETFF and SIOCSETFF, and get put in fr_flags
  */
 #define	FF_LOGPASS	0x10000000
 #define	FF_LOGBLOCK	0x20000000
@@ -220,6 +259,7 @@ typedef	struct	filterstats {
 	u_long	fr_bads;	/* bad attempts to allocate packet state */
 	u_long	fr_ads;		/* new packet state kept */
 	u_long	fr_chit;	/* cached hit */
+	u_long	fr_tcpbad;	/* TCP checksum check failures */
 	u_long	fr_pull[2];	/* good and bad pullup attempts */
 #if SOLARIS
 	u_long	fr_bad;		/* bad IP packets to the filter */
@@ -237,34 +277,59 @@ typedef	struct	friostat	{
 	struct	frentry		*f_fout[2];
 	struct	frentry		*f_acctin[2];
 	struct	frentry		*f_acctout[2];
+	struct	frentry		*f_auth;
+	u_long	f_froute[2];
 	int	f_active;
 } friostat_t;
 
-typedef struct  optlist {
+typedef struct	optlist {
 	u_short ol_val;
-	int     ol_bit;
+	int	ol_bit;
 } optlist_t;
 
+
 /*
- * Log structure.  Each packet header logged is prepended by one of these,
- * minimize size to make most effective use of log space which should
- * (ideally) be a muliple of the most common log entry size.
+ * Group list structure.
  */
-typedef	struct ipl_ci	{
-	u_long	sec;
-	u_long	usec;
-	u_char	hlen;
-	u_char	plen;
-	u_short	rule;		/* assume never more than 64k rules, total */
-#if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603))
-	u_long	flags;
-	u_char	ifname[IFNAMSIZ];	/* = 32 bytes */
+typedef	struct frgroup {
+	u_short	fg_num;
+	struct	frgroup	*fg_next;
+	struct	frentry	*fg_head;
+	struct	frentry	**fg_start;
+} frgroup_t;
+
+
+/*
+ * Log structure.  Each packet header logged is prepended by one of these.
+ * Following this in the log records read from the device will be an ipflog
+ * structure which is then followed by any packet data.
+ */
+typedef	struct	iplog	{
+	u_long	ipl_magic;
+	u_long	ipl_sec;
+	u_long	ipl_usec;
+	u_int	ipl_len;
+	u_int	ipl_count;
+	size_t	ipl_dsize;
+	struct	iplog	*ipl_next;
+} iplog_t;
+
+#define IPL_MAGIC 0x49504c4d /* 'IPLM' */
+
+typedef	struct	ipflog	{
+#if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
+        (defined(OpenBSD) && (OpenBSD >= 199603))
+	u_char	fl_ifname[IFNAMSIZ];
 #else
-	u_long	flags;
-	u_int	unit;
-	u_char	ifname[4];	/* = 24 bytes */
+	u_int	fl_unit;
+	u_char	fl_ifname[4];
 #endif
-} ipl_ci_t;
+	u_char	fl_plen;	/* extra data after hlen */
+	u_char	fl_hlen;	/* length of IP headers saved */
+	u_short	fl_rule;	/* assume never more than 64k rules, total */
+	u_short	fl_group;
+	u_32_t	fl_flags;
+} ipflog_t;
 
 
 #ifndef	ICMP_UNREACH_FILTER
@@ -275,15 +340,15 @@ typedef	struct ipl_ci	{
 #define	IPF_LOGGING	0
 #endif
 #ifndef	IPF_DEFAULT_PASS
-#define	IPF_DEFAULT_PASS	0
+#define	IPF_DEFAULT_PASS	FR_PASS
 #endif
 
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 #define	IPLLOGSIZE	8192
 
 /*
- * Device filenames.  Use ipf on Solaris2 because ipl is already a name used
- * by something else.
+ * Device filenames for reading log information.  Use ipf on Solaris2 because
+ * ipl is already a name used by something else.
  */
 #ifndef	IPL_NAME
 # if	SOLARIS
@@ -292,11 +357,15 @@ typedef	struct ipl_ci	{
 #  define	IPL_NAME	"/dev/ipl"
 # endif
 #endif
-#define	IPL_NAT		"/dev/ipnat"
-#define	IPL_STATE	"/dev/ipstate"
+#define	IPL_NAT		IPNAT_NAME
+#define	IPL_STATE	IPSTATE_NAME
+#define	IPL_AUTH	IPAUTH_NAME
+
 #define	IPL_LOGIPF	0	/* Minor device #'s for accessing logs */
 #define	IPL_LOGNAT	1
 #define	IPL_LOGSTATE	2
+#define	IPL_LOGAUTH	3
+#define	IPL_LOGMAX	3
 
 #if !defined(CDEV_MAJOR) && defined (__FreeBSD_version) && \
     (__FreeBSD_version >= 220000)
@@ -304,78 +373,145 @@ typedef	struct ipl_ci	{
 #endif
 
 #ifndef	_KERNEL
-extern	int	fr_check __P((struct ip *, int, struct ifnet *, int, char *));
-extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *,
-				  int, char *));
-extern	int	send_reset __P((struct ip *, struct ifnet *));
-extern	int	icmp_error __P((struct ip *, struct ifnet *));
-extern	void    ipllog __P((void));
-extern	void	ipfr_fastroute __P((struct ip *, fr_info_t *, frdest_t *));
+extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
+extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
+extern	int	send_reset __P((ip_t *, struct ifnet *));
+extern	int	icmp_error __P((ip_t *, struct ifnet *));
+extern	int	ipf_log __P((void));
+extern	void	ipfr_fastroute __P((ip_t *, fr_info_t *, frdest_t *));
+extern	struct	ifnet *get_unit __P((char *));
+# define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
+# if defined(__NetBSD__) || defined(__OpenBSD__)
+extern	int	iplioctl __P((dev_t, u_long, caddr_t, int));
+# else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int));
+# endif
 extern	int	iplopen __P((dev_t, int));
 extern	int	iplclose __P((dev_t, int));
 #else /* #ifndef _KERNEL */
+# if defined(__NetBSD__) && defined(PFIL_HOOKS)
+extern	int	ipfilterattach __P((int));
+# endif
 extern	int	iplattach __P((void));
-extern	int	ipldetach __P((void));
+extern	int	ipl_enable __P((void));
+extern	int	ipl_disable __P((void));
+extern	void	ipflog_init __P((void));
+extern	int	ipflog_clear __P((int));
+extern	int	ipflog_read __P((int, struct uio *));
+extern	int	ipflog __P((u_int, ip_t *, fr_info_t *, mb_t *));
+extern	int	ipllog __P((int, u_long, void **, size_t *, int *, int));
 # if	SOLARIS
-extern	int	fr_check __P((struct ip *, int, struct ifnet *, int, qif_t *,
-			      queue_t *, mblk_t **));
-extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *,
-				  int, qif_t *, queue_t *, mblk_t *));
-extern	int	icmp_error __P((queue_t *, ip_t *, int, int, qif_t *,
+extern	int	fr_check __P((ip_t *, int, void *, int, qif_t *, mb_t **));
+extern	int	(*fr_checkp) __P((ip_t *, int, void *,
+				  int, qif_t *, mb_t **));
+extern	int	icmp_error __P((ip_t *, int, int, qif_t *,
 				struct in_addr));
 extern	int	iplioctl __P((dev_t, int, int, int, cred_t *, int *));
 extern	int	iplopen __P((dev_t *, int, int, cred_t *));
 extern	int	iplclose __P((dev_t, int, int, cred_t *));
 extern	int	ipfsync __P((void));
+extern	int	send_reset __P((ip_t *, qif_t *));
+extern	int	ipfr_fastroute __P((qif_t *, ip_t *, mblk_t *, mblk_t **,
+				   fr_info_t *, frdest_t *));
+extern	void	copyin_mblk __P((mblk_t *, int, int, char *));
+extern	void	copyout_mblk __P((mblk_t *, int, int, char *));
+extern	int	fr_qin __P((queue_t *, mblk_t *));
+extern	int	fr_qout __P((queue_t *, mblk_t *));
 #  ifdef	IPFILTER_LOG
 extern	int	iplread __P((dev_t, struct uio *, cred_t *));
 #  endif
-extern	u_short	fr_tcpsum __P((mblk_t *, ip_t *, tcphdr_t *));
 # else /* SOLARIS */
-extern	int	fr_check __P((struct ip *, int, struct ifnet *, int,
-			      struct mbuf **));
-extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *, int,
-				  struct mbuf **));
+extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
+extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	int	send_reset __P((struct tcpiphdr *));
-extern	int	ipllog __P((u_int, int, struct ip *, fr_info_t *, struct mbuf *));
-extern	void	ipfr_fastroute __P((struct mbuf *, fr_info_t *, frdest_t *));
-#  ifdef	IPFILTER_LKM
+extern	void	ipfr_fastroute __P((mb_t *, fr_info_t *, frdest_t *));
+extern	size_t	mbufchainlen __P((mb_t *));
+#  ifdef	__sgi
+#   include <sys/cred.h>
+extern	int	iplioctl __P((dev_t, int, caddr_t, int, cred_t *, int *));
+extern	int	iplopen __P((dev_t *, int, int, cred_t *));
+extern	int	iplclose __P((dev_t, int, int, cred_t *));
+extern	int	iplread __P((dev_t, struct uio *, cred_t *));
+extern	int	ipfsync __P((void));
+extern	int	ipfilter_sgi_attach __P((void));
+extern	void	ipfilter_sgi_detach __P((void));
+extern	void	ipfilter_sgi_intfsync __P((void));
+#  else
+#   ifdef	IPFILTER_LKM
 extern	int	iplidentify __P((char *));
-#  endif
-extern	u_short	fr_tcpsum __P((struct mbuf *, ip_t *, tcphdr_t *));
-#  if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 220000) || \
+#   endif
+#   if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 220000) || \
       (NetBSD >= 199511)
+#    ifdef	__NetBSD__
+extern	int	iplioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+#    else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct proc *));
+#    endif
 extern	int	iplopen __P((dev_t, int, int, struct proc *));
 extern	int	iplclose __P((dev_t, int, int, struct proc *));
-#  else
+#   else
+#    if defined(__OpenBSD__)
+extern	int	iplioctl __P((dev_t, u_long, caddr_t, int));
+#    else /* __OpenBSD__ */
+#     ifndef	linux
 extern	int	iplioctl __P((dev_t, int, caddr_t, int));
+#     else
+extern	int	iplioctl(struct inode *, struct file *, u_int, u_long);
+#     endif
+#    endif /* __OpenBSD__ */
+#    ifndef linux
 extern	int	iplopen __P((dev_t, int));
 extern	int	iplclose __P((dev_t, int));
-#  endif /* (_BSDI_VERSION >= 199510) */
-#  ifdef IPFILTER_LOG
+#    else
+extern	int	iplopen __P((struct inode *, struct file *));
+extern	void	iplclose __P((struct inode *, struct file *));
+#    endif /* !linux */
+#   endif /* (_BSDI_VERSION >= 199510) */
 #   if	BSD >= 199306
 extern	int	iplread __P((dev_t, struct uio *, int));
 #   else
+#    ifndef linux
 extern	int	iplread __P((dev_t, struct uio *));
+#    else
+extern	int	iplread(struct inode *, struct file *, char *, int);
+#    endif /* !linux */
 #   endif /* BSD >= 199306 */
-#  else
-#   define	iplread	noread
-#  endif /* IPFILTER_LOG */
+#  endif /* __ sgi */
 # endif /* SOLARIS */
 #endif /* #ifndef _KERNEL */
+
+/*
+ * Post NetBSD 1.2 has the PFIL interface for packet filters.  This turns
+ * on those hooks.  We don't need any special mods in non-IP Filter code
+ * with this!
+ */
+#if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
+    (defined(NetBSD1_2) && NetBSD1_2 > 1)
+# define NETBSD_PF
+#endif
+
+extern	int	ipldetach __P((void));
+extern	u_short	fr_tcpsum __P((mb_t *, ip_t *, tcphdr_t *));
+#define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
+extern	int	fr_scanlist __P((int, ip_t *, fr_info_t *, void *));
 extern	u_short	ipf_cksum __P((u_short *, int));
 extern	int	fr_copytolog __P((int, char *, int));
+extern	void	frflush __P((int, caddr_t));
+extern	frgroup_t *fr_addgroup __P((u_short, frentry_t *, int, int));
+extern	frgroup_t *fr_findgroup __P((u_short, u_32_t, int, int, frgroup_t ***));
+extern	void	fr_delgroup __P((u_short, u_32_t, int, int));
 extern	int	ipl_unreach;
 extern	int	ipl_inited;
+extern	u_long	ipl_frouteok[2];
 extern	int	fr_pass;
 extern	int	fr_flags;
 extern	int	fr_active;
-extern	fr_info_t	frcache[];
-extern	char	*iplh[3], *iplt[3];
-extern	char	iplbuf[3][IPLLOGSIZE];
-extern	int	iplused[3];
+extern	fr_info_t	frcache[2];
+#ifdef	IPFILTER_LOG
+extern	iplog_t	**iplh[IPL_LOGMAX+1], *iplt[IPL_LOGMAX+1];
+extern	int	iplused[IPL_LOGMAX + 1];
+#endif
 extern	struct frentry *ipfilter[2][2], *ipacct[2][2];
+extern	struct frgroup *ipfgroups[3][2];
 extern	struct filterstats frstats[];
 #endif	/* __IP_FIL_H__ */
