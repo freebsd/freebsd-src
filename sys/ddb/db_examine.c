@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_examine.c,v 1.16 1997/02/22 09:28:22 peter Exp $
  */
 
 /*
@@ -31,7 +31,6 @@
  *	Date:	7/90
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 
@@ -43,8 +42,8 @@
 
 static char	db_examine_format[TOK_STRING_SIZE] = "x";
 
-static void db_examine(db_addr_t, char *, int);
-static void db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
+static void	db_examine __P((db_addr_t, char *, int));
+static void	db_search __P((db_addr_t, int, db_expr_t, db_expr_t, u_int));
 
 /*
  * Examine (print) data.

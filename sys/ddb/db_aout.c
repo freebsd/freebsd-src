@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_aout.c,v 1.17 1997/02/22 09:28:19 peter Exp $
  */
 
 /*
@@ -322,7 +322,7 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
  * Initialization routine for a.out files.
  */
 void
-kdb_init(void)
+kdb_init()
 {
 	if (bootinfo.bi_esymtab != bootinfo.bi_symtab)
 		X_db_sym_init((int *)bootinfo.bi_symtab,

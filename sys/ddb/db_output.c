@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_output.c,v 1.21 1997/02/22 09:28:26 peter Exp $
  */
 
 /*
@@ -151,7 +151,12 @@ db_print_position()
  * Printing
  */
 void
+#if __STDC__
 db_printf(const char *fmt, ...)
+#else
+db_printf(fmt)
+	const char *fmt;
+#endif
 {
 	va_list	listp;
 
@@ -163,7 +168,12 @@ db_printf(const char *fmt, ...)
 int db_indent;
 
 void
+#if __STDC__
 db_iprintf(const char *fmt,...)
+#else
+db_iprintf(fmt)
+	const char *fmt;
+#endif
 {
 	register int i;
 	va_list listp;
