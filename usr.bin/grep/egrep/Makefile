@@ -9,7 +9,7 @@
 PROG=	egrep
 CFLAGS+=-Dstrrchr=rindex -Dstrchr=index -DNOKANJI
 LDADD= -lcompat	# must search compat to get spencers early regexp package
-MAN1=	grep.0
+MAN1=	grep.1
 LINKS=	${BINDIR}/egrep ${BINDIR}/grep ${BINDIR}/egrep ${BINDIR}/fgrep
 MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 

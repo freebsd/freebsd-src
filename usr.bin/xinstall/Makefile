@@ -2,7 +2,7 @@
 
 PROG=	xinstall
 SRCS=	stat_flags.c xinstall.c
-MAN1=	install.0
+MAN1=	install.1
 .PATH:	${.CURDIR}/../../bin/ls
 
 install:
