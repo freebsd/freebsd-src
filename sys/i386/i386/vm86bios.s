@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "npx.h"
+
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
 
