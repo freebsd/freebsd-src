@@ -83,8 +83,6 @@
 
 #undef	SN_DEBUG	/* (by hosokawa) */
 
-#include "pnp.h"
-
 #include <sys/param.h>
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
