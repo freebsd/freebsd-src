@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.13 1995/10/31 17:03:26 joerg Exp $
+ *	$Id: swapgeneric.c,v 1.14 1995/12/04 16:47:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/devconf.h>
 
 #include <i386/i386/cons.h>
@@ -65,24 +64,6 @@
  */
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
-
-static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
-{
-	int error;
-	dev_t ndumpdev;
-
-	ndumpdev = dumpdev;
-	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (!error && ndumpdev != dumpdev) {
-		error = setdumpdev(ndumpdev);
-	}
-	return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "");
-
 
 #ifdef notused
 int	nswap;
