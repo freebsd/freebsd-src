@@ -32,7 +32,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996,1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: dns_ho.c,v 1.18 1998/01/26 23:08:22 halley Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.26 1999/10/15 19:49:09 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -75,6 +75,7 @@ static char rcsid[] = "$Id: dns_ho.c,v 1.18 1998/01/26 23:08:22 halley Exp $";
 #include <stdio.h>
 #include <string.h>
 
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -87,8 +88,6 @@ static char rcsid[] = "$Id: dns_ho.c,v 1.18 1998/01/26 23:08:22 halley Exp $";
 #else
 # define SPRINTF(x) sprintf x
 #endif
-
-extern int h_errno;
 
 /* Definitions. */
 
@@ -113,6 +112,8 @@ struct pvt {
 	char *		host_aliases[MAXALIASES];
 	char		hostbuf[8*1024];
 	u_char		host_addr[16];	/* IPv4 or IPv6 */
+	struct __res_state  *res;
+	void		(*free_res)(void *);
 };
 
 typedef union {
@@ -122,6 +123,8 @@ typedef union {
 
 static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
 static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
+/* Note: the IPv6 loopback address is in the "tunnel" space */
+static const u_char v6local[] = { 0,0, 0,1 }; /* last 4 bytes of IPv6 addr */
 
 /* Forwards. */
 
@@ -134,14 +137,19 @@ static struct hostent *	ho_byaddr(struct irs_ho *this, const void *addr,
 static struct hostent *	ho_next(struct irs_ho *this);
 static void		ho_rewind(struct irs_ho *this);
 static void		ho_minimize(struct irs_ho *this);
+static struct __res_state * ho_res_get(struct irs_ho *this);
+static void		ho_res_set(struct irs_ho *this,
+				   struct __res_state *res,
+				   void (*free_res)(void *));
 
 static void		map_v4v6_hostent(struct hostent *hp, char **bp,
 					 int *len);
-static void		addrsort(char **, int);
+static void		addrsort(res_state, char **, int);
 static struct hostent *	gethostans(struct irs_ho *this,
 				   const u_char *ansbuf, int anslen,
 				   const char *qname, int qtype,
 				   int af, int size);
+static int		init(struct irs_ho *this);
 
 /* Exports. */
 
@@ -150,13 +158,14 @@ irs_dns_ho(struct irs_acc *this) {
 	struct irs_ho *ho;
 	struct pvt *pvt;
 
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
+	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pvt, 0, sizeof *pvt);
-	if (!(ho = (struct irs_ho *)malloc(sizeof *ho))) {
-		free(pvt);
+
+	if (!(ho = memget(sizeof *ho))) {
+		memput(pvt, sizeof *pvt);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -169,6 +178,8 @@ irs_dns_ho(struct irs_acc *this) {
 	ho->next = ho_next;
 	ho->rewind = ho_rewind;
 	ho->minimize = ho_minimize;
+	ho->res_get = ho_res_get;
+	ho->res_set = ho_res_set;
 	return (ho);
 }
 
@@ -178,18 +189,23 @@ static void
 ho_close(struct irs_ho *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
+	ho_minimize(this);
+	if (pvt->res && pvt->free_res)
+		(*pvt->free_res)(pvt->res);
 	if (pvt)
-		free(pvt);
-	free(this);
+		memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct hostent *
 ho_byname(struct irs_ho *this, const char *name) {
+	struct pvt *pvt = (struct pvt *)this->private;
 	struct hostent *hp;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+	if (init(this) == -1)
 		return (NULL);
-	if (_res.options & RES_USE_INET6) {
+
+	if (pvt->res->options & RES_USE_INET6) {
 		hp = ho_byname2(this, name, AF_INET6);
 		if (hp)
 			return (hp);
@@ -200,11 +216,12 @@ ho_byname(struct irs_ho *this, const char *name) {
 static struct hostent *
 ho_byname2(struct irs_ho *this, const char *name, int af) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	int n, size, type, len;
+	int n, size, type;
 	u_char buf[MAXPACKET];
+	char tmp[NS_MAXDNAME];
 	const char *cp;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+	if (init(this) == -1)
 		return (NULL);
 
 	switch (af) {
@@ -217,20 +234,22 @@ ho_byname2(struct irs_ho *this, const char *name, int af) {
 		type = T_AAAA;
 		break;
 	default:
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		errno = EAFNOSUPPORT;
 		return (NULL);
 	}
 
 	/*
 	 * if there aren't any dots, it could be a user-level alias.
-	 * this is also done in res_query() since we are not the only
+	 * this is also done in res_nquery() since we are not the only
 	 * function that looks up host names.
 	 */
-	if (!strchr(name, '.') && (cp = hostalias(name)))
+	if (!strchr(name, '.') && (cp = res_hostalias(pvt->res, name,
+						      tmp, sizeof tmp)))
 		name = cp;
 
-	if ((n = res_search(name, C_IN, type, buf, sizeof buf)) < 0)
+	if ((n = res_nsearch(pvt->res, name, C_IN, type,
+			     buf, sizeof buf)) < 0)
 		return (NULL);
 	return (gethostans(this, buf, n, name, type, af, size));
 }
@@ -244,11 +263,13 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 	struct hostent *hp;
 	int n, size;
 	
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+	if (init(this) == -1)
 		return (NULL);
+
 	if (af == AF_INET6 && len == IN6ADDRSZ &&
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
-	     !memcmp(uaddr, tunnelled, sizeof tunnelled))) {
+           (!memcmp(uaddr, tunnelled, sizeof tunnelled) &&
+            memcmp(&uaddr[sizeof tunnelled], v6local, sizeof(v6local))))) {
 		/* Unmap. */
 		addr = (char *)addr + sizeof mapped;
 		uaddr += sizeof mapped;
@@ -264,12 +285,12 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 		break;
 	default:
 		errno = EAFNOSUPPORT;
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		return (NULL);
 	}
 	if (size > len) {
 		errno = EINVAL;
-		h_errno = NETDB_INTERNAL;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		return (NULL);
 	}
 	switch (af) {
@@ -292,21 +313,21 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 	default:
 		abort();
 	}
-	n = res_query(qbuf, C_IN, T_PTR, buf, sizeof buf);
+	n = res_nquery(pvt->res, qbuf, C_IN, T_PTR, buf, sizeof buf);
 	if (n < 0)
 		return (NULL);
 	hp = gethostans(this, buf, n, qbuf, T_PTR, af, size);
 	if (!hp)
-		return (NULL);	/* h_errno was set by gethostans() */
+		return (NULL);	/* H_ERRNO was set by gethostans() */
         memcpy(pvt->host_addr, addr, len);
 	pvt->h_addr_ptrs[0] = (char *)pvt->host_addr;
 	pvt->h_addr_ptrs[1] = NULL;
-	if (af == AF_INET && (_res.options & RES_USE_INET6)) {
+	if (af == AF_INET && (pvt->res->options & RES_USE_INET6)) {
 		map_v4v6_address((char*)pvt->host_addr, (char*)pvt->host_addr);
 		pvt->host.h_addrtype = AF_INET6;
 		pvt->host.h_length = IN6ADDRSZ;
 	}
-	h_errno = NETDB_SUCCESS;
+	RES_SET_H_ERRNO(pvt->res, NETDB_SUCCESS);
 	return (hp);
 }
 
@@ -322,7 +343,42 @@ ho_rewind(struct irs_ho *this) {
 
 static void
 ho_minimize(struct irs_ho *this) {
-	/* NOOP */
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (pvt->res)
+		res_nclose(pvt->res);
+}
+
+static struct __res_state *
+ho_res_get(struct irs_ho *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (!pvt->res) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (!res) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		memset(res, 0, sizeof *res);
+		ho_res_set(this, res, free);
+	}
+
+	return (pvt->res);
+}
+
+static void
+ho_res_set(struct irs_ho *this, struct __res_state *res,
+		void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (pvt->res && pvt->free_res) {
+		res_nclose(pvt->res);
+		(*pvt->free_res)(pvt->res);
+	}
+
+	pvt->res = res;
+	pvt->free_res = free_res;
 }
 
 /* Private. */
@@ -364,7 +420,7 @@ gethostans(struct irs_ho *this,
 	 * Find first satisfactory answer.
 	 */
 	if (ansbuf + HFIXEDSZ > eom) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 		return (NULL);
 	}
 	hp = (HEADER *)ansbuf;
@@ -374,27 +430,27 @@ gethostans(struct irs_ho *this,
 	buflen = sizeof pvt->hostbuf;
 	cp = ansbuf + HFIXEDSZ;
 	if (qdcount != 1) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 		return (NULL);
 	}
 	n = dn_expand(ansbuf, eom, cp, bp, buflen);
-	if ((n < 0) || !(*name_ok)(bp)) {
-		h_errno = NO_RECOVERY;
+	if (n < 0 || !maybe_ok(pvt->res, bp, name_ok)) {
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 		return (NULL);
 	}
 	cp += n + QFIXEDSZ;
 	if (cp > eom) {
-		h_errno = NO_RECOVERY;
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 		return (NULL);
 	}
 	if (qtype == T_A || qtype == T_AAAA) {
-		/* res_send() has already verified that the query name is the
+		/* res_nsend() has already verified that the query name is the
 		 * same as the one we sent; this just gets the expanded name
 		 * (i.e., with the succeeding search-domain tacked on).
 		 */
 		n = strlen(bp) + 1;		/* for the \0 */
 		if (n > MAXHOSTNAMELEN) {
-			h_errno = NO_RECOVERY;
+			RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 			return (NULL);
 		}
 		pvt->host.h_name = bp;
@@ -413,7 +469,7 @@ gethostans(struct irs_ho *this,
 	had_error = 0;
 	while (ancount-- > 0 && cp < eom && !had_error) {
 		n = dn_expand(ansbuf, eom, cp, bp, buflen);
-		if ((n < 0) || !(*name_ok)(bp)) {
+		if (n < 0 || !maybe_ok(pvt->res, bp, name_ok)) {
 			had_error++;
 			continue;
 		}
@@ -434,7 +490,7 @@ gethostans(struct irs_ho *this,
 			if (ap >= &pvt->host_aliases[MAXALIASES-1])
 				continue;
 			n = dn_expand(ansbuf, eom, cp, tbuf, sizeof tbuf);
-			if ((n < 0) || !(*name_ok)(tbuf)) {
+			if (n < 0 || !maybe_ok(pvt->res, tbuf, name_ok)) {
 				had_error++;
 				continue;
 			}
@@ -458,7 +514,7 @@ gethostans(struct irs_ho *this,
 		}
 		if (qtype == T_PTR && type == T_CNAME) {
 			n = dn_expand(ansbuf, eom, cp, tbuf, sizeof tbuf);
-			if (n < 0 || !res_dnok(tbuf)) {
+			if (n < 0 || !maybe_dnok(pvt->res, tbuf)) {
 				had_error++;
 				continue;
 			}
@@ -481,12 +537,13 @@ gethostans(struct irs_ho *this,
 		}
 		switch (type) {
 		case T_PTR:
-			if (strcasecmp(tname, bp) != 0) {
+			if (ns_samename(tname, bp) != 1) {
 				cp += n;
 				continue;
 			}
 			n = dn_expand(ansbuf, eom, cp, bp, buflen);
-			if (n < 0 || !res_hnok(bp) || n >= MAXHOSTNAMELEN) {
+			if (n < 0 || !maybe_hnok(pvt->res, bp) ||
+			    n >= MAXHOSTNAMELEN) {
 				had_error++;
 				break;
 			}
@@ -505,7 +562,7 @@ gethostans(struct irs_ho *this,
 			break;
 		case T_A:
 		case T_AAAA:
-			if (strcasecmp(pvt->host.h_name, bp) != 0) {
+			if (ns_samename(pvt->host.h_name, bp) != 1) {
 				cp += n;
 				continue;
 			}
@@ -551,8 +608,8 @@ gethostans(struct irs_ho *this,
 		*ap = NULL;
 		*hap = NULL;
 
-		if (_res.nsort && haveanswer > 1 && qtype == T_A)
-			addrsort(pvt->h_addr_ptrs, haveanswer);
+		if (pvt->res->nsort && haveanswer > 1 && qtype == T_A)
+			addrsort(pvt->res, pvt->h_addr_ptrs, haveanswer);
 		if (!pvt->host.h_name) {
 			n = strlen(qname) + 1;	/* for the \0 */
 			if (n > buflen || n >= MAXHOSTNAMELEN)
@@ -562,13 +619,13 @@ gethostans(struct irs_ho *this,
 			bp += n;
 			buflen -= n;
 		}
-		if (_res.options & RES_USE_INET6)
+		if (pvt->res->options & RES_USE_INET6)
 			map_v4v6_hostent(&pvt->host, &bp, &buflen);
-		h_errno = NETDB_SUCCESS;
+		RES_SET_H_ERRNO(pvt->res, NETDB_SUCCESS);
 		return (&pvt->host);
 	}
  no_recovery:
-	h_errno = NO_RECOVERY;
+	RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 	return (NULL);
 }
 
@@ -598,16 +655,16 @@ map_v4v6_hostent(struct hostent *hp, char **bpp, int *lenp) {
 }
 
 static void
-addrsort(char **ap, int num) {
+addrsort(res_state statp, char **ap, int num) {
 	int i, j, needsort = 0, aval[MAXADDRS];
 	char **p;
 
 	p = ap;
 	for (i = 0; i < num; i++, p++) {
-		for (j = 0 ; (unsigned)j < _res.nsort; j++)
-			if (_res.sort_list[j].addr.s_addr == 
+		for (j = 0 ; (unsigned)j < statp->nsort; j++)
+			if (statp->sort_list[j].addr.s_addr == 
 			    (((struct in_addr *)(*p))->s_addr &
-			     _res.sort_list[j].mask))
+			     statp->sort_list[j].mask))
 				break;
 		aval[i] = j;
 		if (needsort == 0 && i > 0 && j < aval[i-1])
@@ -634,4 +691,16 @@ addrsort(char **ap, int num) {
 		}
 		needsort++;
 	}
+}
+
+static int
+init(struct irs_ho *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	
+	if (!pvt->res && !ho_res_get(this))
+		return (-1);
+	if (((pvt->res->options & RES_INIT) == 0) &&
+	    res_ninit(pvt->res) == -1)
+		return (-1);
+	return (0);
 }

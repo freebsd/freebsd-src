@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_glue.c,v 8.7 1998/02/13 19:51:45 halley Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.14 1999/10/19 02:06:26 gson Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +24,7 @@ static char rcsid[] = "$Id: ns_glue.c,v 8.7 1998/02/13 19:51:45 halley Exp $";
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -87,6 +88,13 @@ sin_ntoa(struct sockaddr_in sin) {
 /*
  * Logging Support
  */
+
+int
+ns_wouldlog(int category, int level) {
+	if (log_ctx_valid)
+		return (log_check(log_ctx, category, level));
+	return (0);
+}
 
 void
 ns_debug(int category, int level, const char *format, ...) {
@@ -279,7 +287,7 @@ my_fclose(FILE *fp) {
 	    s = fclose(fp);
 
 	if (s < 0)
-		ns_info(ns_log_default, "fclose(%d) failed: %m", fd,
+		ns_info(ns_log_default, "fclose(%d) failed: %s", fd,
 			strerror(errno));
 	else
 		ns_debug(ns_log_default, 3, "fclose(%d) succeeded", fd);
@@ -303,6 +311,21 @@ savebuf(const u_char *buf, size_t len, int needpanic) {
 	return (bp);
 }
 
+char *
+__newstr(size_t len, int needpanic) {
+	return (__newstr_record(len, needpanic, __FILE__, __LINE__));
+}
+
+char *
+__savestr(const char *str, int needpanic) {
+	return (__savestr_record(str, needpanic, __FILE__, __LINE__));
+}
+
+void
+__freestr(char *str) {
+	__freestr_record(str, __FILE__, __LINE__);
+}
+
 #ifdef DEBUG_STRINGS
 char *
 debug_newstr(size_t len, int needpanic, const char *file, int line) {
@@ -310,7 +333,7 @@ debug_newstr(size_t len, int needpanic, const char *file, int line) {
 
 	size = len + 3;	/* 2 length bytes + NUL. */
 	printf("%s:%d: newstr %d\n", file, line, size);
-	return (__newstr(len, needpanic));
+	return (__newstr_record(len, needpanic, file, line));
 }
 
 char *
@@ -320,7 +343,7 @@ debug_savestr(const char *str, int needpanic, const char *file, int line) {
 	len = strlen(str);
 	len += 3;	/* 2 length bytes + NUL. */
 	printf("%s:%d: savestr %d %s\n", file, line, len, str);
-	return (__savestr(str, needpanic));
+	return (__savestr_record(str, needpanic, file, line));
 }
 
 void
@@ -333,7 +356,7 @@ debug_freestr(char *str, const char *file, int line) {
 	NS_GET16(len, bp);
 	len += 3;	/* 2 length bytes + NUL. */
 	printf("%s:%d: freestr %d %s\n", file, line, len, str);
-	__freestr(str);
+	__freestr_record(str, file, line);
 	return;
 }
 #endif /* DEBUG_STRINGS */
@@ -342,12 +365,12 @@ debug_freestr(char *str, const char *file, int line) {
  * Return a counted string buffer big enough for a string of length 'len'.
  */
 char *
-__newstr(size_t len, int needpanic) {
+__newstr_record(size_t len, int needpanic, char *file, int line) {
 	u_char *buf, *bp;
 
 	REQUIRE(len <= 65536);
 
-	buf = (u_char *)memget(2/*Len*/ + len + 1/*Nul*/);
+	buf = (u_char *)__memget_record(2/*Len*/ + len + 1/*Nul*/, file, line);
 	if (buf == NULL) {
 		if (needpanic)
 			panic("savestr: memget failed (%s)", strerror(errno));
@@ -363,7 +386,7 @@ __newstr(size_t len, int needpanic) {
  * Save a NUL terminated string and return a pointer to it.
  */
 char *
-__savestr(const char *str, int needpanic) {
+__savestr_record(const char *str, int needpanic, char *file, int line) {
 	char *buf;
 	size_t len;
 
@@ -375,20 +398,20 @@ __savestr(const char *str, int needpanic) {
 		else
 			return (NULL);
 	}
-	buf = __newstr(len, needpanic);
+	buf = __newstr_record(len, needpanic, file, line);
 	memcpy(buf, str, len + 1);
 	return (buf);
 }
 
 void
-__freestr(char *str) {
+__freestr_record(char *str, char *file, int line) {
 	u_char *buf, *bp;
 	size_t len;
 
 	buf = (u_char *)str - 2/*Len*/;
 	bp = buf;
 	NS_GET16(len, bp);
-	memput(buf, 2/*Len*/ + len + 1/*Nul*/);
+	__memput_record(buf, 2/*Len*/ + len + 1/*Nul*/, file, line);
 }
 
 char *
@@ -414,3 +437,14 @@ ctimel(long l) {
 
 	return (checked_ctime(&t));
 }
+
+/*
+ * rename() is lame (can't overwrite an existing file) on some systems.
+ * use movefile() instead, and let lame OS ports do what they need to.
+ */
+#ifndef HAVE_MOVEFILE
+int
+movefile(const char *oldname, const char *newname) {
+	return (rename(oldname, newname));
+}
+#endif

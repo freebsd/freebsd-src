@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: hesiod.h,v 1.5 1996/12/04 09:39:00 vixie Exp $
+ * $Id: hesiod.h,v 1.7 1999/01/08 19:22:45 vixie Exp $
  */
 
 #ifndef _HESIOD_H_INCLUDED
@@ -33,5 +33,8 @@ char *		hesiod_to_bind __P((void *context, const char *name,
 char **		hesiod_resolve __P((void *context, const char *name,
 				    const char *type));
 void		hesiod_free_list __P((void *context, char **list));
+struct __res_state * __hesiod_res_get __P((void *context));
+void		__hesiod_res_set __P((void *context, struct __res_state *,
+				      void (*)(void *)));
 
 #endif /*_HESIOD_H_INCLUDED*/

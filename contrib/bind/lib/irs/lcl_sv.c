@@ -32,7 +32,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_sv.c,v 1.11 1997/12/04 04:57:58 halley Exp $";
+static const char rcsid[] = "$Id: lcl_sv.c,v 1.20 1999/10/07 20:44:03 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -58,31 +58,42 @@ static const char rcsid[] = "$Id: lcl_sv.c,v 1.11 1997/12/04 04:57:58 halley Exp
 
 #include <sys/types.h>
 #include <sys/socket.h>
-
 #include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 
+#ifdef IRS_LCL_SV_DB
+#include <db.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 #include <irs.h>
+#include <isc/memcluster.h>
 
 #include "port_after.h"
 
 #include "irs_p.h"
 #include "lcl_p.h"
 
-#define MAXALIASES      35
+#ifdef SPRINTF_CHAR
+# define SPRINTF(x) strlen(sprintf/**/x)
+#else
+# define SPRINTF(x) ((size_t)sprintf x)
+#endif
 
 /* Types */
 
 struct pvt {
-	FILE *		fp;
-	char		line[BUFSIZ+1];
-	struct servent	serv;
-	char *		serv_aliases[MAXALIASES];
+#ifdef IRS_LCL_SV_DB
+	DB *		dbh;
+	int		dbf;
+#endif
+	struct lcl_sv	sv;
 };
 
 /* Forward */
@@ -94,6 +105,10 @@ static struct servent *		sv_byname(struct irs_sv *, const char *,
 static struct servent *		sv_byport(struct irs_sv *, int, const char *);
 static void			sv_rewind(struct irs_sv *);
 static void			sv_minimize(struct irs_sv *);
+/*global*/ struct servent *	irs_lclsv_fnxt(struct lcl_sv *);
+#ifdef IRS_LCL_SV_DB
+static struct servent *		sv_db_rec(struct lcl_sv *, DBT *, DBT *);
+#endif
 
 /* Portability */
 
@@ -108,13 +123,13 @@ irs_lcl_sv(struct irs_acc *this) {
 	struct irs_sv *sv;
 	struct pvt *pvt;
 	
-	if (!(sv = (struct irs_sv *)malloc(sizeof *sv))) {
+	if ((sv = memget(sizeof *sv)) == NULL) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(sv, 0x5e, sizeof *sv);
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
-		free(sv);
+	if ((pvt = memget(sizeof *pvt)) == NULL) {
+		memput(sv, sizeof *sv);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -126,6 +141,11 @@ irs_lcl_sv(struct irs_acc *this) {
 	sv->byport = sv_byport;
 	sv->rewind = sv_rewind;
 	sv->minimize = sv_minimize;
+	sv->res_get = NULL;
+	sv->res_set = NULL;
+#ifdef IRS_LCL_SV_DB
+	pvt->dbf = R_FIRST;
+#endif
 	return (sv);
 }
 
@@ -135,120 +155,278 @@ static void
 sv_close(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	
-        if (pvt->fp)
-                fclose(pvt->fp);
-	free(pvt);
-	free(this);
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL)
+		(*pvt->dbh->close)(pvt->dbh);
+#endif
+	if (pvt->sv.fp)
+		fclose(pvt->sv.fp);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct servent *
 sv_byname(struct irs_sv *this, const char *name, const char *proto) {
-        register struct servent *p;
-        register char **cp;
+#ifdef IRS_LCL_SV_DB
+	struct pvt *pvt = (struct pvt *)this->private;
+#endif
+	struct servent *p;
+	char **cp;
 
-        sv_rewind(this);
-        while ((p = sv_next(this))) {
-                if (strcmp(name, p->s_name) == 0)
-                        goto gotname;
-                for (cp = p->s_aliases; *cp; cp++)
-                        if (strcmp(name, *cp) == 0)
-                                goto gotname;
-                continue;
+	sv_rewind(this);
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL) {
+		DBT key, data;
+
+		/* Note that (sizeof "/") == 2. */
+		if ((strlen(name) + sizeof "/" + proto ? strlen(proto) : 0)
+		    > sizeof pvt->sv.line)
+			goto try_local;
+		key.data = pvt->sv.line;
+		key.size = SPRINTF((pvt->sv.line, "%s/%s", name,
+				    proto ? proto : "")) + 1;
+		if (proto != NULL) {
+			if ((*pvt->dbh->get)(pvt->dbh, &key, &data, 0) != 0)
+				return (NULL);
+		} else if ((*pvt->dbh->seq)(pvt->dbh, &key, &data, R_CURSOR)
+			   != 0)
+			return (NULL);
+		return (sv_db_rec(&pvt->sv, &key, &data));
+	}
+ try_local:
+#endif
+
+	while ((p = sv_next(this))) {
+		if (strcmp(name, p->s_name) == 0)
+			goto gotname;
+		for (cp = p->s_aliases; *cp; cp++)
+			if (strcmp(name, *cp) == 0)
+				goto gotname;
+		continue;
  gotname:
-                if (proto == NULL || strcmp(p->s_proto, proto) == 0)
-                        break;
+		if (proto == NULL || strcmp(p->s_proto, proto) == 0)
+			break;
 	}
 	return (p);
 }
 
 static struct servent *
 sv_byport(struct irs_sv *this, int port, const char *proto) {
-        register struct servent *p;
+#ifdef IRS_LCL_SV_DB
+	struct pvt *pvt = (struct pvt *)this->private;
+#endif
+	struct servent *p;
 
-        sv_rewind(this);
-        while ((p = sv_next(this))) {
-                if (p->s_port != port)
-                        continue;
-                if (proto == NULL || strcmp(p->s_proto, proto) == 0)
-                        break;
-        }
-        return (p);
+	sv_rewind(this);
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL) {
+		DBT key, data;
+		u_short *ports;
+
+		ports = (u_short *)pvt->sv.line;
+		ports[0] = 0;
+		ports[1] = port;
+		key.data = ports;
+		key.size = sizeof(u_short) * 2;
+		if (proto && *proto) {
+			strncpy((char *)ports + key.size, proto,
+				BUFSIZ - key.size);
+			key.size += strlen((char *)ports + key.size) + 1;
+			if ((*pvt->dbh->get)(pvt->dbh, &key, &data, 0) != 0)
+				return (NULL);
+		} else {
+			if ((*pvt->dbh->seq)(pvt->dbh, &key, &data, R_CURSOR)
+			    != 0)
+				return (NULL);
+		}
+		return (sv_db_rec(&pvt->sv, &key, &data));
+	}
+#endif
+	while ((p = sv_next(this))) {
+		if (p->s_port != port)
+			continue;
+		if (proto == NULL || strcmp(p->s_proto, proto) == 0)
+			break;
+	}
+	return (p);
 }
 
 static void
 sv_rewind(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
-	if (pvt->fp) {
-		if (fseek(pvt->fp, 0L, SEEK_SET) == 0)
+	if (pvt->sv.fp) {
+		if (fseek(pvt->sv.fp, 0L, SEEK_SET) == 0)
 			return;
-		(void)fclose(pvt->fp);
+		(void)fclose(pvt->sv.fp);
+		pvt->sv.fp = NULL;
 	}
-	if (!(pvt->fp = fopen(_PATH_SERVICES, "r" )))
+#ifdef IRS_LCL_SV_DB
+	pvt->dbf = R_FIRST;
+	if (pvt->dbh != NULL)
 		return;
-	if (fcntl(fileno(pvt->fp), F_SETFD, 1) < 0) {
-		(void)fclose(pvt->fp);
-		pvt->fp = NULL;
+	pvt->dbh = dbopen(_PATH_SERVICES_DB, O_RDONLY,O_RDONLY,DB_BTREE, NULL);
+	if (pvt->dbh != NULL) {
+		if (fcntl((*pvt->dbh->fd)(pvt->dbh), F_SETFD, 1) < 0) {
+			(*pvt->dbh->close)(pvt->dbh);
+			pvt->dbh = NULL;
+		}
+		return;
+	}
+#endif
+	if ((pvt->sv.fp = fopen(_PATH_SERVICES, "r")) == NULL)
+		return;
+	if (fcntl(fileno(pvt->sv.fp), F_SETFD, 1) < 0) {
+		(void)fclose(pvt->sv.fp);
+		pvt->sv.fp = NULL;
 	}
 }
 
 static struct servent *
 sv_next(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	char *p;
-	register char *cp, **q;
 
-	if (!pvt->fp)
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL)
+		NULL;
+	else
+#endif
+	     if (pvt->sv.fp != NULL)
+		NULL;
+	else
 		sv_rewind(this);
-	if (!pvt->fp)
-		return (NULL);
- again:
-	if ((p = fgets(pvt->line, BUFSIZ, pvt->fp)) == NULL)
-		return (NULL);
-	if (*p == '#')
-		goto again;
-	cp = strpbrk(p, "#\n");
-	if (cp == NULL)
-		goto again;
-	*cp = '\0';
-	pvt->serv.s_name = p;
-	p = strpbrk(p, " \t");
-	if (p == NULL)
-		goto again;
-	*p++ = '\0';
-	while (*p == ' ' || *p == '\t')
-		p++;
-	cp = strpbrk(p, ",/");
-	if (cp == NULL)
-		goto again;
-	*cp++ = '\0';
-	pvt->serv.s_port = htons((u_short)atoi(p));
-	pvt->serv.s_proto = cp;
-	q = pvt->serv.s_aliases = pvt->serv_aliases;
-	cp = strpbrk(cp, " \t");
-	if (cp != NULL)
-		*cp++ = '\0';
-	while (cp && *cp) {
-		if (*cp == ' ' || *cp == '\t') {
-			cp++;
-			continue;
+
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL) {
+		DBT key, data;
+
+		while ((*pvt->dbh->seq)(pvt->dbh, &key, &data, pvt->dbf) == 0){
+			pvt->dbf = R_NEXT;
+			if (((char *)key.data)[0])
+				continue;
+			return (sv_db_rec(&pvt->sv, &key, &data));
 		}
-		if (q < &pvt->serv_aliases[MAXALIASES - 1])
-			*q++ = cp;
-		cp = strpbrk(cp, " \t");
-		if (cp != NULL)
-			*cp++ = '\0';
 	}
-	*q = NULL;
-	return (&pvt->serv);
+#endif
+
+	if (pvt->sv.fp == NULL)
+		return (NULL);
+	return (irs_lclsv_fnxt(&pvt->sv));
 }
 
 static void
 sv_minimize(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
-	if (pvt->fp != NULL) {
-		(void)fclose(pvt->fp);
-		pvt->fp = NULL;
+#ifdef IRS_LCL_SV_DB
+	if (pvt->dbh != NULL) {
+		(*pvt->dbh->close)(pvt->dbh);
+		pvt->dbh = NULL;
+	}
+#endif
+	if (pvt->sv.fp != NULL) {
+		(void)fclose(pvt->sv.fp);
+		pvt->sv.fp = NULL;
 	}
 }
+
+/* Quasipublic. */
+
+struct servent *
+irs_lclsv_fnxt(struct lcl_sv *sv) {
+	char *p, *cp, **q;
+
+ again:
+	if ((p = fgets(sv->line, BUFSIZ, sv->fp)) == NULL)
+		return (NULL);
+	if (*p == '#')
+		goto again;
+	sv->serv.s_name = p;
+	while (*p && *p != '\n' && *p != ' ' && *p != '\t' && *p != '#')
+		++p;
+	if (*p == '\0' || *p == '#' || *p == '\n')
+		goto again;
+	*p++ = '\0';
+	while (*p == ' ' || *p == '\t')
+		p++;
+	if (*p == '\0' || *p == '#' || *p == '\n')
+		goto again;
+	sv->serv.s_port = htons((u_short)strtol(p, &cp, 10));
+	if (cp == p || (*cp != '/' && *cp != ','))
+		goto again;
+	p = cp + 1;
+	sv->serv.s_proto = p;
+
+	q = sv->serv.s_aliases = sv->serv_aliases;
+
+	while (*p && *p != '\n' && *p != ' ' && *p != '\t' && *p != '#')
+		++p;
+
+	while (*p == ' ' || *p == '\t') {
+		*p++ = '\0';
+		while (*p == ' ' || *p == '\t')
+			++p;
+		if (*p == '\0' || *p == '#' || *p == '\n')
+			break;
+		if (q < &sv->serv_aliases[IRS_SV_MAXALIASES - 1])
+			*q++ = p;
+		while (*p && *p != '\n' && *p != ' ' && *p != '\t' && *p != '#')
+			++p;
+	}
+		
+	*p = '\0';
+	*q = NULL;
+	return (&sv->serv);
+}
+
+/* Private. */
+
+#ifdef IRS_LCL_SV_DB
+static struct servent *
+sv_db_rec(struct lcl_sv *sv, DBT *key, DBT *data) {
+	char *p, **q;
+	int n;
+
+	p = data->data;
+	p[data->size - 1] = '\0';	/* should be, but we depend on it */
+
+	if (((char *)key->data)[0] == '\0') {
+		if (key->size < sizeof(u_short)*2 || data->size < 2)
+			return (NULL);
+		sv->serv.s_port = ((u_short *)key->data)[1];
+		n = strlen(p) + 1;
+		if (n > sizeof(sv->line)) {
+			n = sizeof(sv->line);
+		}
+		memcpy(sv->line, p, n);
+		sv->serv.s_name = sv->line;
+		if ((sv->serv.s_proto = strchr(sv->line, '/')) != NULL)
+			*(sv->serv.s_proto)++ = '\0';
+		p += n;
+		data->size -= n;
+	} else {
+		if (data->size < sizeof(u_short) + 1)
+			return (NULL);
+		if (key->size > sizeof(sv->line))
+			key->size = sizeof(sv->line);
+		((char *)key->data)[key->size - 1] = '\0';
+		memcpy(sv->line, key->data, key->size);
+		sv->serv.s_name = sv->line;
+		if ((sv->serv.s_proto = strchr(sv->line, '/')) != NULL)
+			*(sv->serv.s_proto)++ = '\0';
+		sv->serv.s_port = *(u_short *)data->data;
+		p += sizeof(u_short);
+		data->size -= sizeof(u_short);
+	}
+	q = sv->serv.s_aliases = sv->serv_aliases;
+	while (data->size > 0 && q < &sv->serv_aliases[IRS_SV_MAXALIASES - 1]) {
+
+		*q++ = p;
+		n = strlen(p) + 1;
+		data->size -= n;
+		p += n;
+	}
+	*q = NULL;
+	return (&sv->serv);
+}
+#endif

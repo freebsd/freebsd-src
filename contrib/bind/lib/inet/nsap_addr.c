@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: nsap_addr.c,v 8.8 1998/02/13 01:11:12 halley Exp $";
+static const char rcsid[] = "$Id: nsap_addr.c,v 8.10 1999/10/13 16:39:28 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"

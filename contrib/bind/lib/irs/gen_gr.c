@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: gen_gr.c,v 1.16 1998/03/21 00:59:47 halley Exp $";
+static const char rcsid[] = "$Id: gen_gr.c,v 1.21 1999/10/13 16:39:29 vixie Exp $";
 #endif
 
 /* Imports */
@@ -29,12 +29,17 @@ static int __bind_irs_gr_unneeded;
 
 #include <sys/types.h>
 
-#include <assert.h>
+#include <isc/assertions.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -59,6 +64,8 @@ struct pvt {
 	size_t			nmemb;    /* Malloc'd max index of gr_mem[]. */
 	char *			membuf;
 	size_t			membufsize;
+	struct __res_state *	res;
+	void			(*free_res)(void *);
 };
 
 /* Forward */
@@ -71,6 +78,10 @@ static void		gr_rewind(struct irs_gr *);
 static int		gr_list(struct irs_gr *, const char *,
 				gid_t, gid_t *, int *);
 static void		gr_minimize(struct irs_gr *);
+static struct __res_state * gr_res_get(struct irs_gr *);
+static void		gr_res_set(struct irs_gr *,
+				      struct __res_state *,
+				      void (*)(void *));
 
 static void		grmerge(struct irs_gr *gr, const struct group *src,
 				int preserve);
@@ -89,13 +100,13 @@ irs_gen_gr(struct irs_acc *this) {
 	struct irs_gr *gr;
 	struct pvt *pvt;
 
-	if (!(gr = malloc(sizeof *gr))) {
+	if (!(gr = memget(sizeof *gr))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(gr, 0x5e, sizeof *gr);
-	if (!(pvt = malloc(sizeof *pvt))) {
-		free(gr);
+	if (!(pvt = memget(sizeof *pvt))) {
+		memput(gr, sizeof *gr);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -110,6 +121,8 @@ irs_gen_gr(struct irs_acc *this) {
 	gr->rewind = gr_rewind;
 	gr->list = gr_list;
 	gr->minimize = gr_minimize;
+	gr->res_get = gr_res_get;
+	gr->res_set = gr_res_set;
 	return (gr);
 }
 
@@ -119,8 +132,8 @@ static void
 gr_close(struct irs_gr *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct group *
@@ -266,6 +279,46 @@ gr_minimize(struct irs_gr *this) {
 	}
 }
 
+static struct __res_state *
+gr_res_get(struct irs_gr *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (!pvt->res) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (!res) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		memset(res, 0, sizeof *res);
+		gr_res_set(this, res, free);
+	}
+
+	return (pvt->res);
+}
+
+static void
+gr_res_set(struct irs_gr *this, struct __res_state *res,
+		void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct irs_rule *rule;
+
+	if (pvt->res && pvt->free_res) {
+		res_nclose(pvt->res);
+		(*pvt->free_res)(pvt->res);
+	}
+
+	pvt->res = res;
+	pvt->free_res = free_res;
+
+	for (rule = pvt->rules; rule != NULL; rule = rule->next) {
+		struct irs_gr *gr = rule->inst->gr;
+
+		if (gr->res_set)
+			(*gr->res_set)(gr, pvt->res, NULL);
+	}
+}
+
 /* Private. */
 
 static void
@@ -310,7 +363,7 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 	 * Enlarge destination membuf; cp points at new portion.
 	 */
 	n = sizenew(pvt->group.gr_mem, src->gr_mem);
-	assert((nnew == 0) == (n == 0));
+	INSIST((nnew == 0) == (n == 0));
 	if (!preserve) {
 		n += strlen(src->gr_name) + 1;
 		n += strlen(src->gr_passwd) + 1;
@@ -346,7 +399,7 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		strcpy(cp, src->gr_passwd);
 		cp += strlen(src->gr_passwd) + 1;
 	}
-	assert(cp >= pvt->membuf && cp <= &pvt->membuf[pvt->membufsize]);
+	INSIST(cp >= pvt->membuf && cp <= &pvt->membuf[pvt->membufsize]);
 }
 
 static int

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: nsupdate.c,v 8.5 1998/02/14 20:54:48 halley Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.21 1999/10/19 22:22:59 cyarnell Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,20 +20,28 @@ static char rcsid[] = "$Id: nsupdate.c,v 8.5 1998/02/14 20:54:48 halley Exp $";
  */
 
 #include "port_before.h"
+
 #include <sys/param.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <res_update.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <isc/dst.h>
 #include "port_after.h"
+#include "../named/db_defs.h"
 
 /* XXX all of this stuff should come from libbind.a */
 
@@ -74,8 +82,19 @@ struct map type_strs[] = {
 	{ "rt",         T_RT },
 	{ "nsap",       T_NSAP },
 	{ "nsap_ptr",   T_NSAP_PTR },
+	{ "sig",        T_SIG },
+	{ "key",        T_KEY },
 	{ "px",         T_PX },
 	{ "loc",        T_LOC },
+	{ "nxt",        T_NXT },
+	{ "eid",        T_EID },
+	{ "nimloc",     T_NIMLOC },
+	{ "srv",        T_SRV },
+	{ "atma",       T_ATMA },
+	{ "naptr",      T_NAPTR },
+	{ "kx",         ns_t_kx },
+	{ "cert",       ns_t_cert },
+	{ "aaaa",       ns_t_aaaa },
 };
 #define M_TYPE_CNT (sizeof(type_strs) / sizeof(struct map))
 
@@ -97,11 +116,16 @@ struct map opcode_strs[] = {
 };
 #define M_OPCODE_CNT (sizeof(opcode_strs) / sizeof(struct map))
 
+static int getcharstring(char *, char *, int, int, int);
 static char *progname;
-static FILE *log;
 
 static void usage(void);
 static int getword_str(char *, int, char **, char *);
+
+static struct __res_state res;
+
+int dns_findprimary (res_state, char *, struct ns_tsig_key *, char *,
+                     int, struct in_addr *);
 
 /*
  * format of file read by nsupdate is kept the same as the log
@@ -123,27 +147,32 @@ main(argc, argv)
 {
 	FILE *fp = NULL;
 	char buf[BUFSIZ], buf2[BUFSIZ], hostbuf[100], filebuf[100];
-	char dnbuf[MAXDNAME];
+	char dnbuf[MAXDNAME], data[MAXDATA];
 	u_char packet[PACKETSZ], answer[PACKETSZ];
 	char *host = hostbuf, *batchfile = filebuf;
 	char *r_dname, *cp, *startp, *endp, *svstartp;
 	char section[15], opcode[10];
 	int i, c, n, n1, inside, lineno = 0, vc = 0,
 		debug = 0, r_size, r_section, r_opcode,
-		prompt = 0, ret = 0;
+		prompt = 0, ret = 0, stringtobin = 0;
 	int16_t r_class, r_type;
 	u_int32_t r_ttl;
 	struct map *mp;
-	ns_updrec *rrecp_start = NULL, *rrecp, *tmprrecp;
+	ns_updrec *rrecp;
+	ns_updque listuprec;
 	struct in_addr hostaddr;
 	extern int getopt();
 	extern char *optarg;
 	extern int optind, opterr, optopt;
+	ns_tsig_key key;
+	char *keyfile=NULL, *keyname=NULL, *p, *pp;
+	int file_major, file_minor, alg;
+
 
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "dv")) != EOF) {
+	while ((c = getopt(argc, argv, "dsvk:n:")) != -1) {
 		switch (c) {
 		case 'v':
 			vc = 1;
@@ -151,9 +180,128 @@ main(argc, argv)
 		case 'd':
 			debug = 1;
 			break;
+		case 's':
+			stringtobin = 1;
+			break;
+		case 'k': {
+			/* -k keydir:keyname */
+			char *colon;
+   
+			if ((colon=strchr(optarg, ':'))==NULL) {
+				fprintf(stderr, "key option argument should be keydir:keyname\n");
+				exit(1);
+			}
+			keyname=colon+1;
+			keyfile=optarg;
+			*colon='\0';
+			break;
+		}
+		 case 'n':
+			keyname=optarg;
+			break;
 		default:
 			usage();
 		}
+	}
+
+	if (keyfile) {
+#ifdef PARSE_KEYFILE
+		if ((fp=fopen(keyfile, "r"))==NULL) {
+			perror("open keyfile");
+			exit(1);
+		}
+		/* now read the header info from the file */
+		if ((i=fread(buf, 1, BUFSIZ, fp)) < 5) {
+			fclose(fp);
+                	exit(1);
+        	}
+		fclose(fp);
+		fp=NULL;
+
+		p=buf;
+
+		n=strlen(p);		/* get length of strings */
+		n1=strlen("Private-key-format: v");
+		if (n1 > n || strncmp(buf, "Private-key-format: v", n1)) {
+			fprintf(stderr, "Invalid key file format\n");
+			exit(1);	/* not a match */
+		}
+		p+=n1;		/* advance pointer */
+		sscanf((char *)p, "%d.%d", &file_major, &file_minor);
+		/* should do some error checking with these someday */
+		while (*p++!='\n');	/* skip to end of line */
+
+        	n=strlen(p);		/* get length of strings */
+        	n1=strlen("Algorithm: ");
+        	if (n1 > n || strncmp(p, "Algorithm: ", n1)) {
+			fprintf(stderr, "Invalid key file format\n");
+                	exit(1);	/* not a match */
+		}
+		p+=n1;		/* advance pointer */
+		if (sscanf((char *)p, "%d", &alg)!=1) {
+			fprintf(stderr, "Invalid key file format\n");
+			exit(1);
+		}
+		while (*p++!='\n');	/* skip to end of line */
+
+        	n=strlen(p);		/* get length of strings */
+        	n1=strlen("Key: ");
+        	if (n1 > n || strncmp(p, "Key: ", n1)) {
+			fprintf(stderr, "Invalid key file format\n");
+			exit(1);	/* not a match */
+		}
+		p+=n1;		/* advance pointer */
+		pp=p;
+		while (*pp++!='\n');	/* skip to end of line, terminate it */
+		*--pp='\0';
+
+		key.data=malloc(1024*sizeof(char));
+		key.len=b64_pton(p, key.data, 1024);
+
+		strcpy(key.name, keyname);
+		strcpy(key.alg, "HMAC-MD5.SIG-ALG.REG.INT");
+#else
+		/* use the dst* routines to parse the key files
+		 * 
+		 * This requires that both the .key and the .private files
+		 * exist in your cwd, so the keyfile parmeter here is
+		 * assumed to be a path in which the K*.{key,private} files
+		 * exist.
+		 */
+		DST_KEY *dst_key;
+		char cwd[PATH_MAX+1];
+
+		if (getcwd(cwd, PATH_MAX)==NULL) {
+			perror("unable to get current directory");
+			exit(1);
+		}
+		if (chdir(keyfile)<0) {
+			fprintf(stderr, "unable to chdir to %s: %s\n", keyfile,
+				strerror(errno));
+			exit(1);
+		}
+
+		dst_init();
+		dst_key = dst_read_key(keyname,
+				       0 /* not used for private keys */,
+				       KEY_HMAC_MD5, DST_PRIVATE);
+		if (!dst_key) {
+			fprintf(stderr, "dst_read_key: error reading key\n");
+			exit(1);
+		}
+		key.data=malloc(1024*sizeof(char));
+		dst_key_to_buffer(dst_key, key.data, 1024);
+		key.len=dst_key->dk_key_size;
+
+		strcpy(key.name, keyname);
+		strcpy(key.alg, "HMAC-MD5.SIG-ALG.REG.INT");
+
+		if (chdir(cwd)<0) {
+			fprintf(stderr, "unable to chdir to %s: %s\n", cwd,
+				strerror(errno));
+			exit(1);
+		}
+#endif
 	}
 
 	if ((argc - optind) == 0) {
@@ -383,7 +531,7 @@ main(argc, argv)
 			break;
 		    default:
 			fprintf(stderr,
-		"unknown operation in update section\"%s\"\n", opcode);
+		"unknown operation in update section \"%s\"\n", opcode);
 			exit (1);
 		    }
 		    break;
@@ -396,38 +544,60 @@ main(argc, argv)
 		if ( !(rrecp = res_mkupdrec(r_section, r_dname, r_class,
 					    r_type, r_ttl)) ||
 		     (r_size > 0 && !(rrecp->r_data = (u_char *)malloc(r_size))) ) {
+			if (rrecp)
+				res_freeupdrec(rrecp);
 			fprintf(stderr, "saverrec error\n");
 			exit (1);
 		}
+        if (stringtobin) {
+             switch(r_opcode)  {
+             case T_HINFO:
+                  if (!getcharstring(buf,(char *)data,2,2,lineno))
+                       exit(1);
+                  cp = data;
+                  break;
+             case T_ISDN:
+                  if (!getcharstring(buf,(char *)data,1,2,lineno))
+                       exit(1);
+                  cp = data;
+                  break;
+             case T_TXT:
+                  if (!getcharstring(buf,(char *)data,1,0,lineno))
+                       exit(1);
+                  cp = data;
+                  break;
+             case T_X25:
+                  if (!getcharstring(buf,(char *)data,1,1,lineno))
+                       exit(1);
+                  cp = data;
+                  break;
+             default:
+		  break;
+             }
+        }
 		rrecp->r_opcode = r_opcode;
 		rrecp->r_size = r_size;
 		(void) strncpy((char *)rrecp->r_data, cp, r_size);
-		/* append current record to the end of linked list of
-		 * records seen so far */
-		if (rrecp_start == NULL)
-			rrecp_start = rrecp;
-		else {	
-			tmprrecp = rrecp_start;
-			while (tmprrecp->r_next != NULL)
-				tmprrecp = tmprrecp->r_next;
-			tmprrecp->r_next = rrecp;
-		}
+		APPEND(listuprec, rrecp, r_link);
 	    } else { /* end of an update packet */
-		(void) res_init();
+		(void) res_ninit(&res);
 		if (vc)
-		    _res.options |= RES_USEVC | RES_STAYOPEN;
+		    res.options |= RES_USEVC | RES_STAYOPEN;
 		if (debug)
-		    _res.options |= RES_DEBUG;
-		if (rrecp_start) {
-		    if ((n = res_update(rrecp_start)) < 0)
-			fprintf(stderr, "failed update packet\n");
-	            /* free malloc'ed memory */
-        	    while(rrecp_start) {
-                	tmprrecp = rrecp_start;
-                	rrecp_start = rrecp_start->r_next;
-			free((char *)tmprrecp->r_dname);
-                	free((char *)tmprrecp);
-        	    }
+		    res.options |= RES_DEBUG;
+		if (!EMPTY(listuprec)) {
+			n = res_nupdate(&res, HEAD(listuprec),
+					keyfile != NULL ? &key : NULL);
+			if (n < 0)
+				fprintf(stderr, "failed update packet\n");
+			while (!EMPTY(listuprec)) {
+				ns_updrec *tmprrecp = HEAD(listuprec);
+
+				UNLINK(listuprec, tmprrecp, r_link);
+				if (tmprrecp->r_size != 0)
+					free((char *)tmprrecp->r_data);
+				res_freeupdrec(tmprrecp);
+			}
 		}
 	    }
 	} /* for */
@@ -436,7 +606,7 @@ main(argc, argv)
 
 static void
 usage() {
-	fprintf(stderr, "Usage: %s [-d] [-v] [file]\n",
+	fprintf(stderr, "Usage: %s [ -k keydir:keyname ] [-d] [-v] [file]\n",
 		progname);
 	exit(1);
 }
@@ -468,4 +638,52 @@ getword_str(char *buf, int size, char **startpp, char *endp) {
         }
         *cp = '\0';
         return (cp != buf);
+}
+
+#define MAXCHARSTRING 255
+
+static int
+getcharstring(char *buf, char *data,
+         int minfields, int maxfields, int lineno)
+{
+   int nfield = 0, n = 0, i;
+
+   do {
+        nfield++;
+        i = 0;
+        if (*buf == '"') {
+             buf++;
+             while(buf[i] && buf[i] != '"')
+                  i++;
+        } else {
+             while(isspace(*buf))
+                  i++;
+        }
+        if (i > MAXCHARSTRING) {
+             fprintf(stderr,
+               "%d: RDATA field %d too long",
+               lineno, nfield);
+             return(0);
+        }
+        if (n + i + 1 > MAXDATA) {
+             fprintf(stderr,
+               "%d: total RDATA too long", lineno);
+             return(0);
+        }
+        data[n]=i;
+        memmove(data + 1 + n, buf, i);
+        buf += i + 1;
+        n += i + 1;
+        while(*buf && isspace(*buf))
+             buf++;
+   } while (nfield < maxfields && *buf);
+
+   if (nfield < minfields) {
+        fprintf(stderr,
+             "%d: expected %d RDATA fields, only saw %d",
+             lineno, minfields, nfield);
+        return (0);
+   }
+
+   return (n);
 }

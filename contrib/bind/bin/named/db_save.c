@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_save.c,v 8.15 1998/01/26 22:40:08 halley Exp $";
+static const char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
+static const char rcsid[] = "$Id: db_save.c,v 8.26 1999/10/13 16:39:02 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static char rcsid[] = "$Id: db_save.c,v 8.15 1998/01/26 22:40:08 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -82,6 +82,7 @@ static char rcsid[] = "$Id: db_save.c,v 8.15 1998/01/26 22:40:08 halley Exp $";
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -136,11 +137,13 @@ savedata(class, type, ttl, data, size)
 	int size;
 {
 	struct databuf *dp;
-	int bytes = (type == T_NS) ? DATASIZE(size)+INT32SZ : DATASIZE(size);
+	int bytes = DATASIZE(size);
 
 	dp = (struct databuf *)memget(bytes);
 	if (dp == NULL)
 		panic("savedata: memget", NULL);
+	if (class > CLASS_MAX)
+		panic("savedata: bad class", NULL);
 	memset(dp, 0, bytes);
 	dp->d_next = NULL;
 	dp->d_type = type;
@@ -151,26 +154,13 @@ savedata(class, type, ttl, data, size)
 	dp->d_flags = 0;
 	dp->d_cred = 0;
 	dp->d_clev = 0;
+	dp->d_secure = DB_S_INSECURE;
 	dp->d_rcode = NOERROR;
 	dp->d_ns = NULL;
 	dp->d_nstime = 0;
 	memcpy(dp->d_data, data, dp->d_size);
 	return (dp);
 }
-
-int hashsizes[] = {	/* hashtable sizes */
-	2,
-	11,
-	113,
-	337,
-	977,
-	2053,
-	4073,
-	8011,
-	16001,
-	99887,
-	0
-};
 
 /*
  * Allocate a data buffer & save data.

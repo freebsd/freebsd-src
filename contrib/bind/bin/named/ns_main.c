@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 8.67 1998/04/28 19:17:46 halley Exp $";
+static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
+static const char rcsid[] = "$Id: ns_main.c,v 8.117 1999/11/08 23:01:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static char rcsid[] = "$Id: ns_main.c,v 8.67 1998/04/28 19:17:46 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -75,10 +75,11 @@ static char rcsid[] = "$Id: ns_main.c,v 8.67 1998/04/28 19:17:46 halley Exp $";
 
 #if !defined(lint) && !defined(SABER)
 char copyright[] =
-"@(#) Copyright (c) 1986, 1989, 1990 The Regents of the University of California.\n\
- portions Copyright (c) 1993 Digital Equipment Corporation\n\
- portions Copyright (c) 1995, 1996, 1997 Internet Software Consortium\n\
- All rights reserved.\n";
+"@(#) Copyright (c) 1986, 1989, 1990 The Regents of the University of California.\n"
+"portions Copyright (c) 1993 Digital Equipment Corporation\n"
+"portions Copyright (c) 1995-1999 Internet Software Consortium\n"
+"portions Copyright (c) 1999 Check Point Software Technologies\n"
+"All rights reserved.\n";
 #endif /* not lint */
 
 /*
@@ -94,6 +95,7 @@ char copyright[] =
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #ifdef SVR4	/* XXX */
 # include <sys/sockio.h>
 #else
@@ -139,21 +141,32 @@ char copyright[] =
 				/* list of interfaces */
 static	LIST(struct _interface)	iflist;
 static	int 			iflist_initialized = 0;
+static	int			iflist_dont_rescan = 0;
 
-				
-static	const int		drbufsize = 8 * 1024,	/* UDP rcv buf size */
-				dsbufsize = 16 * 1024,	/* UDP snd buf size */
-				sbufsize = 16 * 1024;	/* TCP snd buf size */ 
+static	const int		drbufsize = 32 * 1024,	/* UDP rcv buf size */
+				dsbufsize = 48 * 1024,	/* UDP snd buf size */
+				sbufsize = 16 * 1024,	/* TCP snd buf size */ 
+				nudptrans = 20,		/* #/udps per select */
+				listenmax = 50;
 
 static	u_int16_t		nsid_state;
-static	int			needs;
+static	u_int16_t               *nsid_pool;  /* optional query id pool */
+static	u_int16_t               *nsid_vtable;  /* optional shuffle table */
+static	u_int32_t               nsid_hash_state;
+static	u_int16_t               nsid_a1, nsid_a2, nsid_a3;
+static	u_int16_t               nsid_c1, nsid_c2, nsid_c3;
+static	u_int16_t               nsid_state2;
+static	int                     nsid_algorithm;
+
+typedef void (*handler)(void);
+static	int			needs = 0;
+static	handler			handlers[main_need_num];
 
 static	struct qstream		*sq_add(void);
 static	int			opensocket_d(interface *),
 				opensocket_s(interface *);
 static	void			sq_query(struct qstream *),
-				dq_remove(interface *),
-				ns_handle_needs(void);
+				dq_remove(interface *);
 static	int			sq_dowrite(struct qstream *);
 static	void			use_desired_debug(void);
 static	void			stream_write(evContext, void *, int, int);
@@ -162,7 +175,8 @@ static	interface *		if_find(struct in_addr, u_int16_t port);
 
 static	int			sq_here(struct qstream *);
 
-static void			stream_accept(evContext, void *, int,
+static void			deallocate_everything(void),
+				stream_accept(evContext, void *, int,
 					      const void *, int,
 					      const void *, int),
 				stream_getlen(evContext, void *, int, int),
@@ -175,14 +189,20 @@ static void			stream_accept(evContext, void *, int,
 static void			stream_send(evContext, void *, int,
 					       const void *, int,
 					       const void *, int);
-static void			init_signals(void);
-static void			set_signal_handler(int, SIG_FN (*)());
 static int			only_digits(const char *);
+
+static void			init_needs(void),
+				handle_need(void);
+
+#ifndef HAVE_CUSTOM
+static void			custom_init(void),
+				custom_shutdown(void);
+#endif
 
 static void
 usage() {
 	fprintf(stderr,
-"Usage: named [-d #] [-q] [-r] [-f] [-p port] [[-b|-c] configfile]\n");
+"Usage: named [-d #] [-q] [-r] [-v] [-f] [-p port] [[-b|-c] configfile]\n");
 #ifdef CAN_CHANGE_ID
 	fprintf(stderr,
 "             [-u (username|uid)] [-g (groupname|gid)]\n");
@@ -202,20 +222,16 @@ static char bad_directory[] = "chdir failed for directory '%s': %s";
 /*ARGSUSED*/
 int
 main(int argc, char *argv[], char *envp[]) {
-	int n, udpcnt;
-	char *arg;
-	struct qstream *sp;
-	interface *ifp;
-	const int on = 1;
-	int rfd, size, len, debug_option;
-	char **argp, *p;
+	int n;
+	char *p;
 	int ch;
-	FILE *fp;			/* file descriptor for pid file */
 	struct passwd *pw;
 	struct group *gr;
-#ifdef HAVE_GETRUSAGE
-	struct rlimit rl;
+
+#ifdef _AUX_SOURCE
+	set42sig();
 #endif
+	debugfile = savestr(_PATH_DEBUG, 1);
 
 	user_id = getuid();
 	group_id = getgid();
@@ -231,7 +247,17 @@ main(int argc, char *argv[], char *envp[]) {
 
 	(void) umask(022);
 
-	while ((ch = getopt(argc, argv, "b:c:d:g:p:t:u:w:qrf")) != EOF) {
+	/* Save argv[] before getopt() destroys it -- needed for execvp(). */
+	saved_argv = malloc(sizeof(char *) * (argc + 1));
+	INSIST(saved_argv != NULL);
+	for (n = 0; n < argc; n++) {
+		saved_argv[n] = strdup(argv[n]);
+		INSIST(saved_argv[n] != NULL);
+	}
+	saved_argv[argc] = NULL;
+	/* XXX we need to free() this for clean shutdowns. */
+
+	while ((ch = getopt(argc, argv, "b:c:d:g:p:t:u:vw:qrf")) != -1) {
 		switch (ch) {
 		case 'b':
 		case 'c':
@@ -290,6 +316,10 @@ main(int argc, char *argv[], char *envp[]) {
 		case 't':
 			chroot_dir = savestr(optarg, 1);
 			break;
+
+		case 'v':
+			fprintf(stderr, "%s\n", Version);
+			exit(1);
 
 #ifdef CAN_CHANGE_ID
 		case 'u':
@@ -390,6 +420,10 @@ main(int argc, char *argv[], char *envp[]) {
 	/* Establish global event context. */
 	evCreate(&ev);
 
+	/* Establish global resolver context. */
+	res_ninit(&res);
+	res.options &= ~(RES_DEFNAMES | RES_DNSRCH | RES_RECURSE);
+
 	/*
 	 * Set up logging.
 	 */
@@ -416,13 +450,13 @@ main(int argc, char *argv[], char *envp[]) {
 	use_desired_debug();
 #endif
 
+	/* Perform system-dependent initialization */
+	custom_init();
+
+	init_needs();
 	init_signals();
 
 	ns_notice(ns_log_default, "starting.  %s", Version);
-
-	_res.options &= ~(RES_DEFNAMES | RES_DNSRCH | RES_RECURSE);
-
-	nsid_init();
 
 	/*
 	 * Initialize and load database.
@@ -433,6 +467,8 @@ main(int argc, char *argv[], char *envp[]) {
 	ns_init(conffile);
 	time(&boottime);
 	resettime = boottime;
+
+	nsid_init();
 
 	/*
 	 * Fork and go into background now that
@@ -477,21 +513,46 @@ main(int argc, char *argv[], char *envp[]) {
 			ns_panic(ns_log_security, 1, "setuid(%s): %s",
 				 user_name, strerror(errno));
 		ns_info(ns_log_security, "user = %s", user_name);
+		if (user_id != 0)
+			iflist_dont_rescan++;
 	}
 #endif /* CAN_CHANGE_ID */
 
 	ns_notice(ns_log_default, "Ready to answer queries.");
 	gettime(&tt);
 	prime_cache();
-	for (;;) {
+	while (!main_needs_exit) {
 		evEvent event;
 
-		if (needs)
-			ns_handle_needs();
-		INSIST_ERR(evGetNext(ev, &event, EV_WAIT) != -1);
-		INSIST_ERR(evDispatch(ev, event) != -1);
+		ns_debug(ns_log_default, 15, "main loop");
+		if (needs != 0) {
+			/* Drain outstanding events; handlers ~block~. */
+			while (evGetNext(ev, &event, EV_POLL) != -1)
+				INSIST_ERR(evDispatch(ev, event) != -1);
+			INSIST_ERR(errno == EINTR || errno == EWOULDBLOCK);
+			handle_need();
+		} else if (evGetNext(ev, &event, EV_WAIT) != -1) {
+			INSIST_ERR(evDispatch(ev, event) != -1);
+		} else {
+			INSIST_ERR(errno == EINTR);
+		}
 	}
-	/* NOTREACHED */
+	ns_info(ns_log_default, "named shutting down");
+#ifdef BIND_UPDATE
+	dynamic_about_to_exit();
+#endif
+	if (server_options && server_options->pid_filename)
+		(void)unlink(server_options->pid_filename);
+	ns_logstats(ev, NULL, evNowTime(), evConsTime(0, 0));
+
+	if (NS_OPTION_P(OPTION_DEALLOC_ON_EXIT))
+		deallocate_everything();
+	else
+		shutdown_configuration();
+
+	/* Cleanup for system-dependent stuff */
+	custom_shutdown();
+	
 	return (0);
 }
 
@@ -508,7 +569,7 @@ stream_accept(evContext lev, void *uap, int rfd,
 	interface *ifp = uap;
 	struct qstream *sp;
 	struct iovec iov;
-	int n, len;
+	int len, n;
 	const int on = 1;
 #ifdef IP_OPTIONS	/* XXX */
 	u_char ip_opts[IP_OPT_BUF_SIZE];
@@ -594,21 +655,6 @@ stream_accept(evContext lev, void *uap, int rfd,
 
 	/* Condition the socket. */
 
-/* XXX clean up */
-#if 0
-	if ((n = fcntl(rfd, F_GETFL, 0)) == -1) {
-		ns_info(ns_log_default, "fcntl(rfd, F_GETFL): %s",
-			strerror(errno));
-		(void) close(rfd);
-		return;
-	}
-	if (fcntl(rfd, F_SETFL, n|PORT_NONBLOCK) == -1) {
-		ns_info(ns_log_default, "fcntl(rfd, NONBLOCK): %s",
-			strerror(errno));
-		(void) close(rfd);
-		return;
-	}
-#endif
 #ifndef CANNOT_SET_SNDBUF
 	if (setsockopt(rfd, SOL_SOCKET, SO_SNDBUF,
 		      (char*)&sbufsize, sizeof sbufsize) < 0) {
@@ -621,6 +667,19 @@ stream_accept(evContext lev, void *uap, int rfd,
 	if (setsockopt(rfd, SOL_SOCKET, SO_KEEPALIVE,
 		       (char *)&on, sizeof on) < 0) {
 		ns_info(ns_log_default, "setsockopt(rfd, KEEPALIVE): %s",
+			strerror(errno));
+		(void) close(rfd);
+		return;
+	}
+
+	if ((n = fcntl(rfd, F_GETFL, 0)) == -1) {
+		ns_info(ns_log_default, "fcntl(rfd, F_GETFL): %s",
+			strerror(errno));
+		(void) close(rfd);
+		return;
+	}
+	if (fcntl(rfd, F_SETFL, n|PORT_NONBLOCK) == -1) {
+		ns_info(ns_log_default, "fcntl(rfd, NONBLOCK): %s",
 			strerror(errno));
 		(void) close(rfd);
 		return;
@@ -685,20 +744,23 @@ tcp_send(struct qinfo *qp) {
 	
 	ns_debug(ns_log_default, 1, "tcp_send");
 	if ((sp = sq_add()) == NULL) {
-		return(SERVFAIL);
+		return (SERVFAIL);
 	}
 	if ((sp->s_rfd = socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1) {
 		sq_remove(sp);
-		return(SERVFAIL);
+		return (SERVFAIL);
 	}
-
+	if (sp->s_rfd > evHighestFD(ev)) {
+		sq_remove(sp);
+		return (SERVFAIL);
+	}
 	if (sq_openw(sp, qp->q_msglen + INT16SZ) == -1) {
 		sq_remove(sp);
-		return(SERVFAIL);
+		return (SERVFAIL);
 	}
 	if (sq_write(sp, qp->q_msg, qp->q_msglen) == -1) {
 		sq_remove(sp);
-		return(SERVFAIL);
+		return (SERVFAIL);
 	}
 
 	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_KEEPALIVE,
@@ -711,17 +773,14 @@ tcp_send(struct qinfo *qp) {
 	sp->s_time = tt.tv_sec;	/* last transaction time */
 	sp->s_refcnt = 1;
 	sp->flags |= STREAM_DONE_CLOSE;
-	if (qp->q_fwd)
-		sp->s_from = qp->q_fwd->fwdaddr;
-	else
-		sp->s_from = qp->q_addr[qp->q_curaddr].ns_addr;
+	sp->s_from = qp->q_addr[qp->q_curaddr].ns_addr;
 	if (evConnect(ev, sp->s_rfd, &sp->s_from, sizeof(sp->s_from),
 		      stream_send, sp, &sp->evID_c) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
 	sp->flags |= STREAM_CONNECT_EV;
-	return(NOERROR);
+	return (NOERROR);
 }
 
 static void
@@ -763,7 +822,8 @@ stream_write(evContext ctx, void *uap, int fd, int evmask) {
 
 	if (sp->s_wbuf) {
 		memput(sp->s_wbuf, sp->s_wbuf_end - sp->s_wbuf);
-		sp->s_wbuf = NULL;
+		sp->s_wbuf_send = sp->s_wbuf_free = NULL;
+		sp->s_wbuf_end = sp->s_wbuf = NULL;
 	}
 	(void) evDeselectFD(ev, sp->evID_w);
 	sp->flags &= ~STREAM_WRITE_EV;
@@ -811,6 +871,13 @@ stream_getlen(evContext lev, void *uap, int fd, int bytes) {
 	 */
 	sp->s_size = ns_get16(sp->s_temp);
 	ns_debug(ns_log_default, 5, "stream message: %d bytes", sp->s_size);
+	if (sp->s_size < HFIXEDSZ) {
+		ns_error(ns_log_default,
+			 "stream_getlen(%s): request too small",
+			 sin_ntoa(sp->s_from));
+		sq_remove(sp);
+		return;
+	}
 
 	if (!(sp->flags & STREAM_MALLOC)) {
 		sp->s_bufsize = 64*1024-1; /* maximum tcp message size */
@@ -834,7 +901,6 @@ stream_getlen(evContext lev, void *uap, int fd, int bytes) {
 static void
 stream_getmsg(evContext lev, void *uap, int fd, int bytes) {
 	struct qstream *sp = uap;
-	int buflen, n;
 
 	sp->flags &= ~STREAM_READ_EV;
 	if (bytes == -1) {
@@ -847,10 +913,12 @@ stream_getmsg(evContext lev, void *uap, int fd, int bytes) {
 	gettime(&tt);
 	sp->s_time = tt.tv_sec;
 
-	ns_debug(ns_log_default, 5, "sp %#x rfd %d size %d time %d next %#x",
-		sp, sp->s_rfd, sp->s_size, sp->s_time, sp->s_next);
-	ns_debug(ns_log_default, 5, "\tbufsize %d bytes %d", sp->s_bufsize,
-		 bytes);
+	if (ns_wouldlog(ns_log_default,5)) {
+		ns_debug(ns_log_default, 5, "sp %#x rfd %d size %d time %d next %#x",
+			sp, sp->s_rfd, sp->s_size, sp->s_time, sp->s_next);
+		ns_debug(ns_log_default, 5, "\tbufsize %d bytes %d", sp->s_bufsize,
+			 bytes);
+	}
 
 	/*
 	 * Do we have enough memory for the query?  If not, and if we have a
@@ -882,12 +950,16 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 	interface *ifp = uap;
 	struct sockaddr_in from;
 	int from_len = sizeof from;
-	int n;
+	int n, nudp;
 	union {
 		HEADER h;			/* Force alignment of 'buf'. */
 		u_char buf[PACKETSZ+1];
 	} u;
 
+	tt = evTimeVal(evNowTime());
+	nudp = 0;
+
+ more:
 	n = recvfrom(fd, (char *)u.buf, sizeof u.buf, 0,
 		     (struct sockaddr *)&from, &from_len);
 
@@ -911,15 +983,6 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 			 * ignore them.
 			 */
 			return;
-		case EBADF:
-		case ENOTCONN:
-		case ENOTSOCK:
-		case EFAULT:
-			/*
-			 * If one these happens, we're broken.
-			 */
-			ns_panic(ns_log_default, 1, "recvfrom: %s",
-				 strerror(errno));
 		default:
 			/*
 			 * An error we don't expect.  Log it and press
@@ -931,14 +994,14 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 		}
 	}
 
-#ifndef BSD
 	/* Handle bogosity on systems that need it. */
 	if (n == 0)
 		return;
-#endif
 
-	ns_debug(ns_log_default, 1, "datagram from %s, fd %d, len %d",
-		 sin_ntoa(from), fd, n);
+	if (ns_wouldlog(ns_log_default, 1)) {
+		ns_debug(ns_log_default, 1, "datagram from %s, fd %d, len %d",
+			 sin_ntoa(from), fd, n);
+	}
 
 	if (n > PACKETSZ) {
 		/*
@@ -949,8 +1012,9 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 		ns_debug(ns_log_default, 1, "truncated oversize UDP packet");
 	}
 
-	gettime(&tt);		/* Keep 'tt' current. */
 	dispatch_message(u.buf, n, PACKETSZ, NULL, from, fd, ifp);
+	if (++nudp < nudptrans)
+		goto more;
 }
 
 static void
@@ -961,8 +1025,35 @@ dispatch_message(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 
 	if (msglen < HFIXEDSZ) {
 		ns_debug(ns_log_default, 1, "dropping undersize message");
+		if (qsp) {
+			qsp->flags |= STREAM_DONE_CLOSE;
+			sq_done(qsp);
+		}
 		return;
 	}
+
+	if (server_options->blackhole_acl != NULL && 
+	    ip_match_address(server_options->blackhole_acl,
+			     from.sin_addr) == 1) {
+		ns_debug(ns_log_default, 1,
+			 "dropping blackholed %s from %s",
+			 hp->qr ? "response" : "query",
+			 sin_ntoa(from));
+		if (qsp) {
+			qsp->flags |= STREAM_DONE_CLOSE;
+			sq_done(qsp);
+		}
+		return;
+	}
+
+	/* Drop UDP packets from port zero.  They are invariable forged. */
+	if (qsp == NULL && ntohs(from.sin_port) == 0) {
+		ns_notice(ns_log_security,
+			  "dropping source port zero packet from %s",
+			  sin_ntoa(from));
+		return;
+	}
+
 	if (hp->qr) {
 		ns_resp(msg, msglen, from, qsp);
 		if (qsp)
@@ -976,6 +1067,10 @@ dispatch_message(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		ns_notice(ns_log_security,
 			  "refused query on non-query socket from %s",
 			  sin_ntoa(from));
+		if (qsp) {
+			qsp->flags |= STREAM_DONE_CLOSE;
+			sq_done(qsp);
+		}
 		/* XXX Send refusal here. */
 	}
 }
@@ -986,16 +1081,23 @@ getnetconf(int periodic_scan) {
 	struct ifreq ifreq;
 	struct in_addr ina;
 	interface *ifp;
-	char buf[32768], *cp, *cplim;
-	u_int32_t nm;
+	char *buf, *cp, *cplim;
+	static int bufsiz = 4095;
 	time_t my_generation = time(NULL);
-	int s, cpsize;
+	int s, cpsize, n;
 	int found;
 	listen_info li;
-	u_int16_t port;
 	ip_match_element ime;
 	u_char *mask_ptr;
 	struct in_addr mask;
+
+	if (iflist_initialized) {
+		if (iflist_dont_rescan)
+			return;
+	} else {
+		INIT_LIST(iflist);
+		iflist_initialized = 1;
+	}
 
 	ns_debug(ns_log_default, 1, "getnetconf(generation %lu)",
 		 (u_long)my_generation);
@@ -1010,11 +1112,6 @@ getnetconf(int periodic_scan) {
 		return;
 	}
 
-	if (!iflist_initialized) {
-		INIT_LIST(iflist);
-		iflist_initialized = 1;
-	}
-
 	if (local_addresses != NULL)
 		free_ip_match_list(local_addresses);
 	local_addresses = new_ip_match_list();
@@ -1022,11 +1119,46 @@ getnetconf(int periodic_scan) {
 		free_ip_match_list(local_networks);
 	local_networks = new_ip_match_list();
 
-	ifc.ifc_len = sizeof buf;
-	ifc.ifc_buf = buf;
-	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0)
-		ns_panic(ns_log_default, 1, "get interface configuration: %s",
-			 strerror(errno));
+	for (;;) {
+		buf = memget(bufsiz);
+		if (!buf)
+			ns_panic(ns_log_default, 1,
+				"memget(interface)", NULL);
+		ifc.ifc_len = bufsiz;
+		ifc.ifc_buf = buf;
+#ifdef IRIX_EMUL_IOCTL_SIOCGIFCONF
+              /*
+               * This is a fix for IRIX OS in which the call to ioctl with
+               * the flag SIOCGIFCONF may not return an entry for all the
+               * interfaces like most flavors of Unix.
+               */
+              if (emul_ioctl(&ifc) >= 0)
+                      break;
+#else
+		if ((n = ioctl(s, SIOCGIFCONF, (char *)&ifc)) != -1) {
+			/*
+			 * Some OS's just return what will fit rather
+			 * than set EINVAL if the buffer is too small
+			 * to fit all the interfaces in.  If 
+			 * ifc.ifc_len is too near to the end of the
+			 * buffer we will grow it just in case and
+			 * retry.
+			 */
+			if (ifc.ifc_len + 2 * sizeof(ifreq) < bufsiz)
+				break;
+		}
+#endif
+		if ((n == -1) && errno != EINVAL)
+			ns_panic(ns_log_default, 1,
+				"get interface configuration: %s",
+				strerror(errno));
+
+		if (bufsiz > 1000000)
+			ns_panic(ns_log_default, 1,
+				"get interface configuration: maximum buffer size exceeded");
+		memput(buf, bufsiz);
+		bufsiz += 4096;
+	}
 
 	ns_debug(ns_log_default, 2, "getnetconf: SIOCGIFCONF: ifc_len = %d",
 		 ifc.ifc_len);
@@ -1035,7 +1167,7 @@ getnetconf(int periodic_scan) {
 	cplim = buf + ifc.ifc_len;    /* skip over if's with big ifr_addr's */
 	for (cp = buf; cp < cplim; cp += cpsize) {
 		memcpy(&ifreq, cp, sizeof ifreq);
-#if defined HAVE_SA_LEN
+#ifdef HAVE_SA_LEN
 #ifdef FIX_ZERO_SA_LEN
 		if (ifreq.ifr_addr.sa_len == 0)
 			ifreq.ifr_addr.sa_len = 16;
@@ -1228,6 +1360,7 @@ getnetconf(int periodic_scan) {
 		}
 	}
 	close(s);
+	memput(buf, bufsiz);
 
 	ns_debug(ns_log_default, 7, "local addresses:");
 	dprint_ip_match_list(ns_log_default, local_addresses, 2, "", "");
@@ -1268,6 +1401,23 @@ opensocket_d(interface *ifp) {
 	if ((ifp->dfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		ns_error(ns_log_default, "socket(SOCK_DGRAM): %s",
 			 strerror(errno));
+		return (-1);
+	}
+	if (ifp->dfd > evHighestFD(ev)) {
+		ns_error(ns_log_default, "socket too high: %d", ifp->dfd);
+		close(ifp->dfd);
+		return (-1);
+	}
+	if ((n = fcntl(ifp->dfd, F_GETFL, 0)) == -1) {
+		ns_info(ns_log_default, "fcntl(ifp->dfd, F_GETFL): %s",
+			strerror(errno));
+		(void) close(ifp->dfd);
+		return (-1);
+	}
+	if (fcntl(ifp->dfd, F_SETFL, n|PORT_NONBLOCK) == -1) {
+		ns_info(ns_log_default, "fcntl(ifp->dfd, NONBLOCK): %s",
+			strerror(errno));
+		(void) close(ifp->dfd);
 		return (-1);
 	}
 #ifdef F_DUPFD		/* XXX */
@@ -1350,6 +1500,11 @@ opensocket_s(interface *ifp) {
 			 strerror(errno));
 		return (-1);
 	}
+	if (ifp->sfd > evHighestFD(ev)) {
+		ns_error(ns_log_default, "socket too high: %d", ifp->sfd);
+		close(ifp->sfd);
+		return (-1);
+	}
 #ifdef F_DUPFD		/* XXX */
 	/*
 	 * Leave a space for stdio to work in.
@@ -1386,7 +1541,7 @@ opensocket_s(interface *ifp) {
 		sleep(30);
 		goto again;
 	}
-	if (evListen(ev, ifp->sfd, 5/*XXX*/, stream_accept, ifp, &ifp->evID_s)
+	if (evListen(ev, ifp->sfd, listenmax, stream_accept, ifp, &ifp->evID_s)
 	    == -1) {
 		ns_error(ns_log_default, "evListen(sfd=%d): %s",
 			 ifp->sfd, strerror(errno));
@@ -1460,6 +1615,8 @@ opensocket_f() {
 	if ((ds = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		ns_panic(ns_log_default, 1, "socket(SOCK_DGRAM): %s",
 			 strerror(errno));
+	if (ds > evHighestFD(ev))
+		ns_panic(ns_log_default, 1, "socket too high: %d", ds);
 	if (setsockopt(ds, SOL_SOCKET, SO_REUSEADDR,
 	    (char *)&on, sizeof on) != 0) {
 		ns_notice(ns_log_default, "setsockopt(REUSEADDR): %s",
@@ -1468,7 +1625,7 @@ opensocket_f() {
 	}
 	if (bind(ds, (struct sockaddr *)&server_options->query_source,
 		 sizeof server_options->query_source) < 0)
-		ns_panic(ns_log_default, 1, "opensocket_f: bind(%s): %s",
+		ns_panic(ns_log_default, 0, "opensocket_f: bind(%s): %s",
 			 sin_ntoa(server_options->query_source),
 			 strerror(errno));
 
@@ -1513,56 +1670,6 @@ setdebug(int new_debug) {
 #endif
 }
 
-static SIG_FN
-onhup(int sig) {
-	ns_need(MAIN_NEED_RELOAD);
-}
-
-static SIG_FN
-onintr(int sig) {
-	ns_need(MAIN_NEED_EXIT);
-}
-
-static SIG_FN
-setdumpflg(int sig) {
-	ns_need(MAIN_NEED_DUMP);
-}
-
-#ifdef DEBUG
-static SIG_FN
-setIncrDbgFlg(int sig) {
-	desired_debug++;
-	ns_need(MAIN_NEED_DEBUG);
-}
-
-static SIG_FN
-setNoDbgFlg(int sig) {
-	desired_debug = 0;
-	ns_need(MAIN_NEED_DEBUG);
-}
-#endif /*DEBUG*/
-
-#if defined(QRYLOG) && defined(SIGWINCH)
-static SIG_FN
-setQrylogFlg(int sig) {
-	ns_need(MAIN_NEED_QRYLOG);
-}
-#endif /*QRYLOG && SIGWINCH*/
-
-static SIG_FN
-setstatsflg(int sig) {
-	ns_need(MAIN_NEED_STATSDUMP);
-}
-
-static SIG_FN
-discard_pipe(int sig) {
-#ifdef SIGPIPE_ONE_SHOT
-	int saved_errno = errno;
-	set_signal_handler(SIGPIPE, discard_pipe);
-	errno = saved_errno;
-#endif
-}
-
 /*
 ** Routines for managing stream queue
 */
@@ -1601,7 +1708,8 @@ sq_remove(struct qstream *qp) {
 
 	if (qp->s_wbuf != NULL) {
 		memput(qp->s_wbuf, qp->s_wbuf_end - qp->s_wbuf);
-		qp->s_wbuf = NULL;
+		qp->s_wbuf_send = qp->s_wbuf_free = NULL;
+		qp->s_wbuf_end = qp->s_wbuf = NULL;
 	}
 	if (qp->flags & STREAM_MALLOC)
 		memput(qp->s_buf, qp->s_bufsize);
@@ -1655,7 +1763,7 @@ sq_flush(struct qstream *allbut) {
  */
 int
 sq_openw(struct qstream *qs, int buflen) {
-#ifdef SO_LINGER	/* XXX */
+#ifdef DO_SO_LINGER	/* XXX */
 	static const struct linger ll = { 1, 120 };
 #endif
 
@@ -1666,7 +1774,7 @@ sq_openw(struct qstream *qs, int buflen) {
 	qs->s_wbuf_send = qs->s_wbuf;
 	qs->s_wbuf_free = qs->s_wbuf;
 	qs->s_wbuf_end = qs->s_wbuf + buflen;
-#ifdef SO_LINGER	/* XXX */
+#ifdef DO_SO_LINGER	/* XXX */
 	/* kernels that map pages for IO end up failing if the pipe is full
 	 * at exit and we take away the final buffer.  this is really a kernel
 	 * bug but it's harmless on systems that are not broken, so...
@@ -1685,6 +1793,7 @@ sq_dowrite(struct qstream *qs) {
 	if (qs->s_wbuf_free > qs->s_wbuf_send) {
 		int n = write(qs->s_rfd, qs->s_wbuf_send,
 			      qs->s_wbuf_free - qs->s_wbuf_send);
+		INSIST(qs->s_wbuf != NULL);
 		if (n < 0) {
 			if (errno != EINTR && errno != EAGAIN
 #if (EWOULDBLOCK != EAGAIN)
@@ -1831,8 +1940,10 @@ sq_done(struct qstream *sp) {
 	struct iovec iov;
 
 	if (sp->s_wbuf != NULL) {
+		INSIST(sp->s_wbuf_send == sp->s_wbuf_free);
 		memput(sp->s_wbuf, sp->s_wbuf_end - sp->s_wbuf);
-		sp->s_wbuf = NULL;
+		sp->s_wbuf_send = sp->s_wbuf_free = NULL;
+		sp->s_wbuf_end = sp->s_wbuf = NULL;
 	}
 	if (sp->flags & STREAM_AXFR)
 		ns_freexfr(sp);
@@ -1950,7 +2061,6 @@ net_mask(struct in_addr ina) {
  */
 int
 aIsUs(struct in_addr addr) {
-	interface *ifp;
 
 	if (ina_hlong(addr) == INADDR_ANY || if_find(addr, 0) != NULL)
 		return (1);
@@ -1982,22 +2092,397 @@ if_find(struct in_addr addr, u_int16_t port) {
  * allocation scheme to make it a little harder to predict them.  Note
  * that the resolver will need the same protection so the cleverness
  * should be put there rather than here; this is just an interface layer.
+ *
+ * This is true but ... most clients only send out a few queries, they
+ * use varying port numbers, and the queries aren't sent to the outside
+ * world which we know is full of spoofers.  Doing a good job of randomizing
+ * ids may also be to expensive for each client. Queries forwarded by the
+ * server always come from the same port (unless you let 8.x pick a port
+ * and restart it periodically - maybe it should open several and use
+ * them randomly).  The server sends out lots more queries, and if it's
+ * cache is corrupted, it has the potential to affect more clients.
+ * NOTE: - randomizing the ID or source port doesn't help a bit if the
+ * queries can be sniffed.
+ *                             -- DL
  */
 
+/*
+ * Allow the user to pick one of two ID randomization algorithms.
+ *
+ * The first algorithm is an adaptation of the sequence shuffling
+ * algorithm discovered by Carter Bays and S. D. Durham [ACM Trans. Math.
+ * Software 2 (1976), 59-64], as documented as Algorithm B in Chapter
+ * 3.2.2 in Volume 2 of Knuth's "The Art of Computer Programming".  We use
+ * a randomly selected linear congruential random number generator with a
+ * modulus of 2^16, whose increment is a randomly picked odd number, and
+ * whose multiplier is picked from a set which meets the following
+ * criteria:
+ *     Is of the form 8*n+5, which ensures "high potency" according to
+ *     principle iii in the summary chapter 3.6.  This form also has a
+ *     gcd(a-1,m) of 4 which is good according to principle iv.
+ *
+ *     Is between 0.01 and 0.99 times the modulus as specified by
+ *     principle iv.
+ *
+ *     Passes the spectral test "with flying colors" (ut >= 1) in
+ *     dimensions 2 through 6 as calculated by Algorithm S in Chapter
+ *     3.3.4 and the ratings calculated by formula 35 in section E.
+ *
+ *     Of the multipliers that pass this test, pick the set that is
+ *     best according to the theoretical bounds of the serial
+ *     correlation test.  This was calculated using a simplified
+ *     version of Knuth's Theorem K in Chapter 3.3.3.
+ *
+ * These criteria may not be important for this use, but we might as well
+ * pick from the best generators since there are so many possible ones and
+ * we don't have that many random bits to do the picking.
+ *
+ * We use a modulus of 2^16 instead of something bigger so that we will
+ * tend to cycle through all the possible IDs before repeating any,
+ * however the shuffling will perturb this somewhat.  Theoretically there
+ * is no minimimum interval between two uses of the same ID, but in
+ * practice it seems to be >64000.
+ *
+ * Our adaptatation  of Algorithm B mixes the hash state which has
+ * captured various random events into the shuffler to perturb the
+ * sequence.
+ *
+ * One disadvantage of this algorithm is that if the generator parameters
+ * were to be guessed, it would be possible to mount a limited brute force
+ * attack on the ID space since the IDs are only shuffled within a limited
+ * range.
+ *
+ * The second algorithm uses the same random number generator to populate
+ * a pool of 65536 IDs.  The hash state is used to pick an ID from a window
+ * of 4096 IDs in this pool, then the chosen ID is swapped with the ID
+ * at the beginning of the window and the window position is advanced.
+ * This means that the interval between uses of the ID will be no less
+ * than 65536-4096.  The ID sequence in the pool will become more random
+ * over time.
+ *
+ * For both algorithms, two more linear congruential random number generators
+ * are selected.  The ID from the first part of algorithm is used to seed
+ * the first of these generators, and its output is used to seed the second.
+ * The strategy is use these generators as 1 to 1 hashes to obfuscate the
+ * properties of the generator used in the first part of either algorithm.
+ *
+ * The first algorithm may be suitable for use in a client resolver since
+ * its memory requirements are fairly low and it's pretty random out of
+ * the box.  It is somewhat succeptible to a limited brute force attack,
+ * so the second algorithm is probably preferable for a longer running
+ * program that issues a large number of queries and has time to randomize
+ * the pool.
+ */
+
+#define NSID_SHUFFLE_TABLE_SIZE 100 /* Suggested by Knuth */
+/*
+ * Pick one of the next 4096 IDs in the pool.
+ * There is a tradeoff here between randomness and how often and ID is reused.
+ */
+#define NSID_LOOKAHEAD 4096	/* Must be a power of 2 */
+#define NSID_SHUFFLE_ONLY 1	/* algorithm 1 */
+#define NSID_USE_POOL 2		/* algorithm 2 */
+
+/*
+ * Keep a running hash of various bits of data that we'll use to
+ * stir the ID pool or perturb the ID generator
+ */
 void
-nsid_init() {
-	nsid_state = res_randomid();
+nsid_hash(u_char *data, size_t len) {
+	/*
+	 * Hash function similar to the one we use for hashing names.
+	 * We don't fold case or toss the upper bit here, though.
+	 * This hash doesn't do much interesting when fed binary zeros,
+	 * so there may be a better hash function.
+	 * This function doesn't need to be very strong since we're
+	 * only using it to stir the pool, but it should be reasonably
+	 * fast.
+	 */
+	while (len-- > 0) {
+		HASHROTATE(nsid_hash_state);
+		nsid_hash_state += *data++;
+	}
 }
+
+/*
+ * Table of good linear congruential multipliers for modulus 2^16
+ * in order of increasing serial correlation bounds (so trim from
+ * the end).
+ */
+static const u_int16_t nsid_multiplier_table[] = {
+	17565, 25013, 11733, 19877, 23989, 23997, 24997, 25421,
+	26781, 27413, 35901, 35917, 35973, 36229, 38317, 38437,
+	39941, 40493, 41853, 46317, 50581, 51429, 53453, 53805,
+	11317, 11789, 12045, 12413, 14277, 14821, 14917, 18989,
+	19821, 23005, 23533, 23573, 23693, 27549, 27709, 28461,
+	29365, 35605, 37693, 37757, 38309, 41285, 45261, 47061,
+	47269, 48133, 48597, 50277, 50717, 50757, 50805, 51341,
+	51413, 51581, 51597, 53445, 11493, 14229, 20365, 20653,
+	23485, 25541, 27429, 29421, 30173, 35445, 35653, 36789,
+	36797, 37109, 37157, 37669, 38661, 39773, 40397, 41837,
+	41877, 45293, 47277, 47845, 49853, 51085, 51349, 54085,
+	56933,  8877,  8973,  9885, 11365, 11813, 13581, 13589,
+	13613, 14109, 14317, 15765, 15789, 16925, 17069, 17205,
+	17621, 17941, 19077, 19381, 20245, 22845, 23733, 24869,
+	25453, 27213, 28381, 28965, 29245, 29997, 30733, 30901,
+	34877, 35485, 35613, 36133, 36661, 36917, 38597, 40285,
+	40693, 41413, 41541, 41637, 42053, 42349, 45245, 45469,
+	46493, 48205, 48613, 50861, 51861, 52877, 53933, 54397,
+	55669, 56453, 56965, 58021,  7757,  7781,  8333,  9661,
+	12229, 14373, 14453, 17549, 18141, 19085, 20773, 23701,
+	24205, 24333, 25261, 25317, 27181, 30117, 30477, 34757,
+	34885, 35565, 35885, 36541, 37957, 39733, 39813, 41157,
+	41893, 42317, 46621, 48117, 48181, 49525, 55261, 55389,
+	56845,  7045,  7749,  7965,  8469,  9133,  9549,  9789,
+	10173, 11181, 11285, 12253, 13453, 13533, 13757, 14477,
+	15053, 16901, 17213, 17269, 17525, 17629, 18605, 19013,
+	19829, 19933, 20069, 20093, 23261, 23333, 24949, 25309,
+	27613, 28453, 28709, 29301, 29541, 34165, 34413, 37301,
+	37773, 38045, 38405, 41077, 41781, 41925, 42717, 44437,
+	44525, 44613, 45933, 45941, 47077, 50077, 50893, 52117,
+	 5293, 55069, 55989, 58125, 59205,  6869, 14685, 15453,
+	16821, 17045, 17613, 18437, 21029, 22773, 22909, 25445,
+	25757, 26541, 30709, 30909, 31093, 31149, 37069, 37725,
+	37925, 38949, 39637, 39701, 40765, 40861, 42965, 44813,
+	45077, 45733, 47045, 50093, 52861, 52957, 54181, 56325,
+	56365, 56381, 56877, 57013,  5741, 58101, 58669,  8613,
+	10045, 10261, 10653, 10733, 11461, 12261, 14069, 15877,
+	17757, 21165, 23885, 24701, 26429, 26645, 27925, 28765,
+	29197, 30189, 31293, 39781, 39909, 40365, 41229, 41453,
+	41653, 42165, 42365, 47421, 48029, 48085, 52773,  5573,
+	57037, 57637, 58341, 58357, 58901,  6357,  7789,  9093,
+	10125, 10709, 10765, 11957, 12469, 13437, 13509, 14773,
+	15437, 15773, 17813, 18829, 19565, 20237, 23461, 23685,
+	23725, 23941, 24877, 25461, 26405, 29509, 30285, 35181,
+	37229, 37893, 38565, 40293, 44189, 44581, 45701, 47381,
+	47589, 48557,  4941, 51069,  5165, 52797, 53149,  5341,
+	56301, 56765, 58581, 59493, 59677,  6085,  6349,  8293,
+	 8501,  8517, 11597, 11709, 12589, 12693, 13517, 14909,
+	17397, 18085, 21101, 21269, 22717, 25237, 25661, 29189,
+	30101, 31397, 33933, 34213, 34661, 35533, 36493, 37309,
+	40037,  4189, 42909, 44309, 44357, 44389,  4541, 45461,
+	46445, 48237, 54149, 55301, 55853, 56621, 56717, 56901,
+	 5813, 58437, 12493, 15365, 15989, 17829, 18229, 19341,
+	21013, 21357, 22925, 24885, 26053, 27581, 28221, 28485,
+	30605, 30613, 30789, 35437, 36285, 37189,  3941, 41797,
+	 4269, 42901, 43293, 44645, 45221, 46893,  4893, 50301,
+	50325,  5189, 52109, 53517, 54053, 54485,  5525, 55949,
+	56973, 59069, 59421, 60733, 61253,  6421,  6701,  6709,
+	 7101,  8669, 15797, 19221, 19837, 20133, 20957, 21293,
+	21461, 22461, 29085, 29861, 30869, 34973, 36469, 37565,
+	38125, 38829, 39469, 40061, 40117, 44093, 47429, 48341,
+	50597, 51757,  5541, 57629, 58405, 59621, 59693, 59701,
+	61837,  7061, 10421, 11949, 15405, 20861, 25397, 25509,
+	25893, 26037, 28629, 28869, 29605, 30213, 34205, 35637,
+	36365, 37285,  3773, 39117,  4021, 41061, 42653, 44509,
+	 4461, 44829,  4725,  5125, 52269, 56469, 59085,  5917,
+	60973,  8349, 17725, 18637, 19773, 20293, 21453, 22533,
+	24285, 26333, 26997, 31501, 34541, 34805, 37509, 38477,
+	41333, 44125, 46285, 46997, 47637, 48173,  4925, 50253,
+	50381, 50917, 51205, 51325, 52165, 52229,  5253,  5269,
+	53509, 56253, 56341,  5821, 58373, 60301, 61653, 61973,
+	62373,  8397, 11981, 14341, 14509, 15077, 22261, 22429,
+	24261, 28165, 28685, 30661, 34021, 34445, 39149,  3917,
+	43013, 43317, 44053, 44101,  4533, 49541, 49981,  5277,
+	54477, 56357, 57261, 57765, 58573, 59061, 60197, 61197,
+	62189,  7725,  8477,  9565, 10229, 11437, 14613, 14709,
+	16813, 20029, 20677, 31445,  3165, 31957,  3229, 33541,
+	36645,  3805, 38973,  3965,  4029, 44293, 44557, 46245,
+	48917,  4909, 51749, 53709, 55733, 56445,  5925,  6093,
+	61053, 62637,  8661,  9109, 10821, 11389, 13813, 14325,
+	15501, 16149, 18845, 22669, 26437, 29869, 31837, 33709,
+	33973, 34173,  3677,  3877,  3981, 39885, 42117,  4421,
+	44221, 44245, 44693, 46157, 47309,  5005, 51461, 52037,
+	55333, 55693, 56277, 58949,  6205, 62141, 62469,  6293,
+	10101, 12509, 14029, 17997, 20469, 21149, 25221, 27109,
+	 2773,  2877, 29405, 31493, 31645,  4077, 42005, 42077,
+	42469, 42501, 44013, 48653, 49349,  4997, 50101, 55405,
+	56957, 58037, 59429, 60749, 61797, 62381, 62837,  6605,
+	10541, 23981, 24533,  2701, 27333, 27341, 31197, 33805,
+	 3621, 37381,  3749,  3829, 38533, 42613, 44381, 45901,
+	48517, 51269, 57725, 59461, 60045, 62029, 13805, 14013,
+	15461, 16069, 16157, 18573,  2309, 23501, 28645,  3077,
+	31541, 36357, 36877,  3789, 39429, 39805, 47685, 47949,
+	49413,  5485, 56757, 57549, 57805, 58317, 59549, 62213,
+	62613, 62853, 62933,  8909, 12941, 16677, 20333, 21541,
+	24429, 26077, 26421,  2885, 31269, 33381,  3661, 40925,
+	42925, 45173,  4525,  4709, 53133, 55941, 57413, 57797,
+	62125, 62237, 62733,  6773, 12317, 13197, 16533, 16933,
+	18245,  2213,  2477, 29757, 33293, 35517, 40133, 40749,
+	 4661, 49941, 62757,  7853,  8149,  8573, 11029, 13421,
+	21549, 22709, 22725, 24629,  2469, 26125,  2669, 34253,
+	36709, 41013, 45597, 46637, 52285, 52333, 54685, 59013,
+	60997, 61189, 61981, 62605, 62821,  7077,  7525,  8781,
+	10861, 15277,  2205, 22077, 28517, 28949, 32109, 33493,
+	 3685, 39197, 39869, 42621, 44997, 48565,  5221, 57381,
+	61749, 62317, 63245, 63381, 23149,  2549, 28661, 31653,
+	33885, 36341, 37053, 39517, 42805, 45853, 48997, 59349,
+	60053, 62509, 63069,  6525,  1893, 20181,  2365, 24893,
+	27397, 31357, 32277, 33357, 34437, 36677, 37661, 43469,
+	43917, 50997, 53869,  5653, 13221, 16741, 17893,  2157,
+	28653, 31789, 35301, 35821, 61613, 62245, 12405, 14517,
+	17453, 18421,  3149,  3205, 40341,  4109, 43941, 46869,
+	48837, 50621, 57405, 60509, 62877,  8157, 12933, 12957,
+	16501, 19533,  3461, 36829, 52357, 58189, 58293, 63053,
+	17109,  1933, 32157, 37701, 59005, 61621, 13029, 15085,
+	16493, 32317, 35093,  5061, 51557, 62221, 20765, 24613,
+	 2629, 30861, 33197, 33749, 35365, 37933, 40317, 48045,
+	56229, 61157, 63797,  7917, 17965,  1917,  1973, 20301,
+	 2253, 33157, 58629, 59861, 61085, 63909,  8141,  9221,
+	14757,  1581, 21637, 26557, 33869, 34285, 35733, 40933,
+	42517, 43501, 53653, 61885, 63805,  7141, 21653, 54973,
+	31189, 60061, 60341, 63357, 16045,  2053, 26069, 33997,
+	43901, 54565, 63837,  8949, 17909, 18693, 32349, 33125,
+	37293, 48821, 49053, 51309, 64037,  7117,  1445, 20405,
+	23085, 26269, 26293, 27349, 32381, 33141, 34525, 36461,
+	37581, 43525,  4357, 43877,  5069, 55197, 63965,  9845,
+	12093,  2197,  2229, 32165, 33469, 40981, 42397,  8749,
+	10853,  1453, 18069, 21693, 30573, 36261, 37421, 42533
+};
+#define NSID_MULT_TABLE_SIZE \
+           ((sizeof nsid_multiplier_table)/(sizeof nsid_multiplier_table[0]))
+
+void
+nsid_init(void) {
+	struct timeval now;
+	pid_t mypid;
+	u_int16_t a1ndx, a2ndx, a3ndx, c1ndx, c2ndx, c3ndx;
+	int i;
+
+	if (nsid_algorithm != 0)
+		return;
+
+	gettimeofday(&now, NULL);
+	mypid = getpid();
+
+	/* Initialize the state */
+	nsid_hash_state = 0;
+	nsid_hash((u_char *)&now, sizeof now);
+	nsid_hash((u_char *)&mypid, sizeof mypid);
+
+	/*
+	 * Select our random number generators and initial seed.
+	 * We could really use more random bits at this point,
+	 * but we'll try to make a silk purse out of a sows ear ...
+	 */
+	/* generator 1 */
+	a1ndx = ((u_long) NSID_MULT_TABLE_SIZE *
+		 (nsid_hash_state & 0xFFFF)) >> 16;
+	nsid_a1 = nsid_multiplier_table[a1ndx];
+	c1ndx = (nsid_hash_state >> 9) & 0x7FFF;
+	nsid_c1 = 2*c1ndx + 1;
+	/* generator 2, distinct from 1 */
+	a2ndx = ((u_long) (NSID_MULT_TABLE_SIZE - 1) *
+		 ((nsid_hash_state >> 10) & 0xFFFF)) >> 16;
+	if (a2ndx >= a1ndx)
+		a2ndx++;
+	nsid_a2 = nsid_multiplier_table[a2ndx];
+	c2ndx = nsid_hash_state % 32767;
+	if (c2ndx >= c1ndx)
+		c2ndx++;
+	nsid_c2 = 2*c2ndx + 1;
+	/* generator 3, distinct from 1 and 2 */
+	a3ndx = ((u_long) (NSID_MULT_TABLE_SIZE - 2) *
+		 ((nsid_hash_state >> 20) & 0xFFFF)) >> 16;
+	if (a3ndx >= a1ndx || a3ndx >= a2ndx)
+		a3ndx++;
+	if (a3ndx >= a1ndx && a3ndx >= a2ndx)
+		a3ndx++;
+	nsid_a3 = nsid_multiplier_table[a3ndx];
+	c3ndx = nsid_hash_state % 32766;
+	if (c3ndx >= c1ndx || c3ndx >= c2ndx)
+		c3ndx++;
+	if (c3ndx >= c1ndx && c3ndx >= c2ndx)
+		c3ndx++;
+	nsid_c3 = 2*c3ndx + 1;
+
+	nsid_state = ((nsid_hash_state >> 16) ^ (nsid_hash_state)) & 0xFFFF;
+
+	/* Do the algorithm specific initialization */
+	INSIST(server_options != NULL);
+	if (NS_OPTION_P(OPTION_USE_ID_POOL) == 0) {
+		/* Algorithm 1 */
+		nsid_algorithm = NSID_SHUFFLE_ONLY;
+		nsid_vtable = memget(NSID_SHUFFLE_TABLE_SIZE *
+				     (sizeof(u_int16_t)) );
+		if (!nsid_vtable)
+			ns_panic(ns_log_default, 1, "memget(nsid_vtable)",
+				 NULL);
+		for (i = 0; i < NSID_SHUFFLE_TABLE_SIZE; i++) {
+			nsid_vtable[i] = nsid_state;
+			nsid_state = (((u_long) nsid_a1 * nsid_state) + nsid_c1)
+					& 0xFFFF;
+		}
+		nsid_state2 = nsid_state;
+	} else {
+		/* Algorithm 2 */
+		nsid_algorithm = NSID_USE_POOL;
+		nsid_pool = memget(0x10000 * (sizeof(u_int16_t)));
+		if (!nsid_pool)
+			ns_panic(ns_log_default, 1, "memget(nsid_pool)", NULL);
+		for (i = 0; ; i++) {
+			nsid_pool[i] = nsid_state;
+			nsid_state = (((u_long) nsid_a1 * nsid_state) + nsid_c1)                                     & 0xFFFF;
+			if (i == 0xFFFF)
+				break;
+		}
+	}
+}
+
+#define NSID_RANGE_MASK (NSID_LOOKAHEAD - 1)
+
+#define NSID_POOL_MASK 0xFFFF /* used to wrap the pool index */
 
 u_int16_t
 nsid_next() {
-	if (nsid_state == 65535)
-		nsid_state = 0;
-	else
-		nsid_state++;
-	return (nsid_state);
+	u_int16_t id, compressed_hash;
+
+	compressed_hash = ((nsid_hash_state >> 16) ^ (nsid_hash_state)) &
+			0xFFFF;
+	if (nsid_algorithm == NSID_SHUFFLE_ONLY) {
+		u_int16_t j;
+
+		/*
+		 * This is the original Algorithm B
+		 * j = ((u_long) NSID_SHUFFLE_TABLE_SIZE * nsid_state2)
+		 *     >> 16;
+		 *
+		 * We'll perturb it with some random stuff  ...
+		 */
+		j = ((u_long) NSID_SHUFFLE_TABLE_SIZE *
+		     (nsid_state2 ^ compressed_hash)) >> 16;
+		nsid_state2 = id = nsid_vtable[j];
+		nsid_state = (((u_long) nsid_a1 * nsid_state) + nsid_c1) &
+				0xFFFF;
+		nsid_vtable[j] = nsid_state;
+	} else if (nsid_algorithm == NSID_USE_POOL) {
+		u_int16_t pick;
+
+		pick = compressed_hash & NSID_RANGE_MASK;
+		id = nsid_pool[(nsid_state + pick) & NSID_POOL_MASK];
+		if (pick != 0) {
+			/* Swap two IDs to stir the pool */
+			nsid_pool[(nsid_state + pick) & NSID_POOL_MASK] =
+				nsid_pool[nsid_state];
+			nsid_pool[nsid_state] = id;
+		}
+
+		/* increment the base pointer into the pool */
+		if (nsid_state == 65535)
+			nsid_state = 0;
+		else
+			nsid_state++;
+	} else
+		ns_panic(ns_log_default, 1, "Unknown ID algorithm", NULL);
+
+	/* Now lets obfuscate ... */
+	id = (((u_long) nsid_a2 * id) + nsid_c2) & 0xFFFF;
+	id = (((u_long) nsid_a3 * id) + nsid_c3) & 0xFFFF;
+
+	return (id);
 }
 
+/* Note: this function CAN'T deallocate the saved_argv[]. */
 static void
 deallocate_everything(void) {
 	FILE *f;
@@ -2010,6 +2495,7 @@ deallocate_everything(void) {
 	free_addinfo();
 	ns_shutdown();
 	dq_remove_all();
+	db_lame_destroy();
 	if (local_addresses != NULL)
 		free_ip_match_list(local_addresses);
 	if (local_networks != NULL)
@@ -2020,12 +2506,23 @@ deallocate_everything(void) {
 	evDestroy(ev);
 	if (conffile != NULL)
 		freestr(conffile);
+	conffile = NULL;
+	if (debugfile != NULL)
+		freestr(debugfile);
+	debugfile = NULL;
 	if (user_name != NULL)
 		freestr(user_name);
+	user_name = NULL;
 	if (group_name != NULL)
 		freestr(group_name);
+	group_name = NULL;
 	if (chroot_dir != NULL)
 		freestr(chroot_dir);
+	chroot_dir = NULL;
+	if (nsid_pool != NULL)
+		memput(nsid_pool, 0x10000 * (sizeof(u_int16_t)));
+	nsid_pool = NULL;
+	irs_destroy();
 	if (f != NULL) {
 		memstats(f);
 		(void)fclose(f);
@@ -2034,7 +2531,12 @@ deallocate_everything(void) {
 	
 static void
 ns_exit(void) {
-	ns_info(ns_log_default, "named shutting down");
+	main_needs_exit++;
+}
+
+static void
+ns_restart(void) {
+	ns_info(ns_log_default, "named restarting");
 #ifdef BIND_UPDATE
 	dynamic_about_to_exit();
 #endif
@@ -2043,16 +2545,18 @@ ns_exit(void) {
 	ns_logstats(ev, NULL, evNowTime(), evConsTime(0, 0));
 	if (NS_OPTION_P(OPTION_DEALLOC_ON_EXIT))
 		deallocate_everything();
-	exit(0);
+	else
+		shutdown_configuration();
+	execvp(saved_argv[0], saved_argv);
+	abort();
 }
 
 static void
 use_desired_debug(void) {
 #ifdef DEBUG
 	sigset_t set;
-	int bad;
 
-	/* protect against race conditions by blocking debugging signals */
+	/* Protect against race conditions by blocking debugging signals. */
 
 	if (sigemptyset(&set) < 0) {
 		ns_error(ns_log_os,
@@ -2086,72 +2590,75 @@ use_desired_debug(void) {
 #endif
 }
 
-static void
+void
 toggle_qrylog(void) {
 	qrylog = !qrylog;
 	ns_notice(ns_log_default, "query log %s\n", qrylog ?"on" :"off");
 }
 
-#ifdef BIND_NOTIFY
 static void
-do_notify_after_load(void) {
-	evDo(ev, (const void *)notify_after_load);
+wild(void) {
+	ns_panic(ns_log_default, 1, "wild need", NULL);
 }
-#endif
-	
+
 /*
  * This is a functional interface to the global needs and options.
  */
 
-static	const struct need_handler {
-		int	need;
-		void	(*handler)(void);
-	} need_handlers[] = {
-		{ MAIN_NEED_RELOAD,	ns_reload },
-		{ MAIN_NEED_MAINT,	ns_maint },
-		{ MAIN_NEED_ENDXFER,	endxfer },
-		{ MAIN_NEED_ZONELOAD,	loadxfer },
-		{ MAIN_NEED_DUMP,	doadump },
-		{ MAIN_NEED_STATSDUMP,	ns_stats },
-		{ MAIN_NEED_EXIT,	ns_exit },
-		{ MAIN_NEED_QRYLOG,	toggle_qrylog },
-		{ MAIN_NEED_DEBUG,	use_desired_debug },
-#ifdef BIND_NOTIFY
-		{ MAIN_NEED_NOTIFY,	do_notify_after_load },
-#endif
-		{ 0,			NULL }
-	};
+static void
+init_needs(void) {
+	int need;
+
+	for (need = 0; need < main_need_num; need++)
+		handlers[need] = wild;
+	handlers[main_need_zreload] = ns_zreload;
+	handlers[main_need_reload] = ns_reload;
+	handlers[main_need_reconfig] = ns_reconfig;
+	handlers[main_need_endxfer] = endxfer;
+	handlers[main_need_zoneload] = loadxfer;
+	handlers[main_need_dump] = doadump;
+	handlers[main_need_statsdump] = ns_stats;
+	handlers[main_need_exit] = ns_exit;
+	handlers[main_need_qrylog] = toggle_qrylog;
+	handlers[main_need_debug] = use_desired_debug;
+	handlers[main_need_restart] = ns_restart;
+	handlers[main_need_reap] = reapchild;
+}
+
+static void
+handle_need(void) {
+	int need;
+
+	ns_debug(ns_log_default, 15, "handle_need()");
+	for (need = 0; need < main_need_num; need++)
+		if ((needs & (1 << need)) != 0) {
+			/* Turn off flag first, handlers ~turn~ it back on. */
+			block_signals();
+			needs &= ~(1 << need);
+			unblock_signals();
+			(handlers[need])();
+			return;
+		}
+	ns_panic(ns_log_default, 1, "handle_need() found no needs", NULL);
+}
+
+void
+ns_need(enum need need) {
+	block_signals();
+	ns_need_unsafe(need);
+	unblock_signals();
+}
+
+/* Note: this function should only be called with signals blocked. */
+void
+ns_need_unsafe(enum need need) {
+	needs |= (1 << need);
+}
 
 void
 ns_setoption(int option) {
 	ns_warning(ns_log_default, "used obsolete ns_setoption(%d)", option);
 }
-
-void
-ns_need(int need) {
-	needs |= need;
-}
-
-int
-ns_need_p(int need) {
-	return ((needs & need) != 0);
-}
-
-static void
-ns_handle_needs() {
-	const struct need_handler *nhp;
-
-	for (nhp = need_handlers; nhp->need && nhp->handler; nhp++) {
-		if ((needs & nhp->need) != 0) {
-			/*
-			 * Turn off flag first, handler might turn it back on.
-			 */
-			needs &= ~nhp->need;
-			(*nhp->handler)();
-		}
-	}
-}
-
 
 void
 writestream(struct qstream *sp, const u_char *msg, int msglen) {
@@ -2166,45 +2673,6 @@ writestream(struct qstream *sp, const u_char *msg, int msglen) {
 	sq_writeh(sp, sq_flushw);
 }
 
-static void
-set_signal_handler(int sig, SIG_FN (*handler)()) {
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof sa);
-	sa.sa_handler = handler;
-	if (sigemptyset(&sa.sa_mask) < 0) {
-		ns_error(ns_log_os,
-			 "sigemptyset failed in set_signal_handler(%d): %s",
-			 sig, strerror(errno));
-		return;
-	}
-	if (sigaction(sig, &sa, NULL) < 0)
-		ns_error(ns_log_os,
-			 "sigaction failed in set_signal_handler(%d): %s",
-			 sig, strerror(errno));
-}
-
-static void
-init_signals() {
-	set_signal_handler(SIGINT, setdumpflg);
-	set_signal_handler(SIGILL, setstatsflg);
-#ifdef DEBUG
-	set_signal_handler(SIGUSR1, setIncrDbgFlg);
-	set_signal_handler(SIGUSR2, setNoDbgFlg);
-#endif
-	set_signal_handler(SIGHUP, onhup);
-#if defined(SIGWINCH) && defined(QRYLOG)	/* XXX */
-	set_signal_handler(SIGWINCH, setQrylogFlg);
-#endif
-	set_signal_handler(SIGCHLD, reapchild);
-	set_signal_handler(SIGPIPE, discard_pipe);
-	set_signal_handler(SIGTERM, onintr);
-#if defined(SIGXFSZ)	/* XXX */
-	/* Wierd DEC Hesiodism, harmless. */
-	set_signal_handler(SIGXFSZ, onhup);
-#endif
-}
-
 static int
 only_digits(const char *s) {
 	if (*s == '\0')
@@ -2216,3 +2684,54 @@ only_digits(const char *s) {
 	}
 	return (1);
 }
+#if defined(__GNUC__) && defined(__BOUNDS_CHECKING_ON)
+	/* Use bounds checking malloc, etc. */
+void *
+memget(size_t len) {
+	return (malloc(len));
+}
+
+void
+memput(void *addr, size_t len) {
+	free(addr);
+}
+
+int
+meminit(size_t init_max_size, size_t target_size) {
+	return (0);
+}
+
+void *
+memget_debug(size_t size, const char *file, int line) {
+        void *ptr;
+        ptr = __memget(size);
+        fprintf(stderr, "%s:%d: memget(%lu) -> %p\n", file, line,
+                (u_long)size, ptr);
+        return (ptr);
+}
+
+void
+memput_debug(void *ptr, size_t size, const char *file, int line) {
+        fprintf(stderr, "%s:%d: memput(%p, %lu)\n", file, line, ptr,
+                (u_long)size);
+        __memput(ptr, size);
+}
+
+void
+memstats(FILE *out) {
+	fputs("No memstats\n", out);
+}
+#endif
+
+#ifndef HAVE_CUSTOM
+/* Standard implementation has nothing here */
+static void
+custom_init(void) {
+	/* Noop. */
+}
+
+static void
+custom_shutdown(void) {
+	/* Noop. */
+}
+#endif

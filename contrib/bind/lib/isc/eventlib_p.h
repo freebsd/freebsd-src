@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +18,7 @@
 /* eventlib_p.h - private interfaces for eventlib
  * vix 09sep95 [initial]
  *
- * $Id: eventlib_p.h,v 1.25 1998/02/06 01:53:54 halley Exp $
+ * $Id: eventlib_p.h,v 1.27 1999/06/03 20:36:05 vixie Exp $
  */
 
 #ifndef _EVENTLIB_P_H
@@ -165,7 +165,7 @@ typedef struct {
 	fd_set		wrLast, wrNext;
 	fd_set		exLast, exNext;
 	fd_set		nonblockBefore;
-	int		fdMax, fdCount;
+	int		fdMax, fdCount, highestFD;
 	evFile		*fdTable[FD_SETSIZE];
 #ifdef EVENTLIB_TIME_CHECKS
 	struct timespec	lastSelectTime;
