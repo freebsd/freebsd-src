@@ -313,8 +313,7 @@ atm_ifattach(ifp)
 	ifp->if_snd.ifq_maxlen = 50;	/* dummy */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != 0;
-	    ifa = TAILQ_NEXT(ifa, ifa_list))
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 #elif defined(__FreeBSD__) && (__FreeBSD__ > 2)
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
 	    ifa = TAILQ_NEXT(ifa, ifa_link))

@@ -229,8 +229,7 @@ static void miibus_mediainit(dev)
 	MIIBUS_MEDIAINIT(device_get_parent(dev));
 
 	mii = device_get_softc(dev);
-	for (m = LIST_FIRST(&mii->mii_media.ifm_list); m != NULL;
-	     m = LIST_NEXT(m, ifm_list)) {
+	LIST_FOREACH(m, &mii->mii_media.ifm_list, ifm_list) {
 		media = m->ifm_media;
 		if (media == (IFM_ETHER|IFM_AUTO))
 			break;
@@ -290,8 +289,7 @@ mii_mediachg(mii)
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
 
-	for (child = LIST_FIRST(&mii->mii_phys); child != NULL;
-	     child = LIST_NEXT(child, mii_list)) {
+	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
 		rv = (*child->mii_service)(child, mii, MII_MEDIACHG);
 		if (rv)
 			return (rv);
@@ -308,8 +306,7 @@ mii_tick(mii)
 {
 	struct mii_softc *child;
 
-	for (child = LIST_FIRST(&mii->mii_phys); child != NULL;
-	     child = LIST_NEXT(child, mii_list))
+	LIST_FOREACH(child, &mii->mii_phys, mii_list)
 		(void) (*child->mii_service)(child, mii, MII_TICK);
 }
 
@@ -325,7 +322,6 @@ mii_pollstat(mii)
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
 
-	for (child = LIST_FIRST(&mii->mii_phys); child != NULL;
-	     child = LIST_NEXT(child, mii_list))
+	LIST_FOREACH(child, &mii->mii_phys, mii_list)
 		(void) (*child->mii_service)(child, mii, MII_POLLSTAT);
 }

@@ -92,8 +92,7 @@ in_localaddr(in)
 			if ((i & ia->ia_netmask) == ia->ia_net)
 				return (1);
 	} else {
-		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-		     ia = TAILQ_NEXT(ia, ia_link))
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
 			if ((i & ia->ia_subnetmask) == ia->ia_subnet)
 				return (1);
 	}

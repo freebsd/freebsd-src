@@ -321,8 +321,7 @@ pccard_function_init(struct pccard_function *pf)
 	}
 	bus = device_get_parent(pf->dev);
 	/* Remember which configuration entry we are using. */
-	for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
-	    cfe = STAILQ_NEXT(cfe, cfe_list)) {
+	STAILQ_FOREACH(cfe, &pf->cfe_head, cfe_list) {
 		for (i = 0; i < cfe->num_iospace; i++)
 			cfe->iores[i] = NULL;
 		cfe->irqres = NULL;

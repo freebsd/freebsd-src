@@ -888,8 +888,7 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 		return;
 	}
 
-	for (uele = LIST_FIRST(&ump->um_extattr.uepm_list); uele != NULL;
-	    uele = LIST_NEXT(uele, uele_entries))
+	LIST_FOREACH(uele, &ump->um_extattr.uepm_list, uele_entries)
 		ufs_extattr_rm(vp, uele->uele_attrname, NULL, p);
 
 	ufs_extattr_uepm_unlock(ump, p);

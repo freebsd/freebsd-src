@@ -3012,8 +3012,7 @@ tulip_addr_filter(
 #endif
 
     multicnt = 0;
-    for (ifma = LIST_FIRST(&sc->tulip_if.if_multiaddrs); ifma != NULL;
-	 ifma = LIST_NEXT(ifma, ifma_link)) {
+    LIST_FOREACH(ifma, &sc->tulip_if.if_multiaddrs, ifma_link) {
 
 	    if (ifma->ifma_addr->sa_family == AF_LINK)
 		multicnt++;
@@ -3041,8 +3040,7 @@ tulip_addr_filter(
 	 */
 	bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
 
-	for (ifma = LIST_FIRST(&sc->tulip_if.if_multiaddrs); ifma != NULL;
-	     ifma = LIST_NEXT(ifma, ifma_link)) {
+	LIST_FOREACH(ifma, &sc->tulip_if.if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3092,8 +3090,7 @@ tulip_addr_filter(
 	    /*
 	     * Else can get perfect filtering for 16 addresses.
 	     */
-	    for (ifma = LIST_FIRST(&sc->tulip_if.if_multiaddrs); ifma != NULL;
-		 ifma = LIST_NEXT(ifma, ifma_link)) {
+	    LIST_FOREACH(ifma, &sc->tulip_if.if_multiaddrs, ifma_link) {
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
 			    continue;
 		    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);

@@ -171,8 +171,7 @@ ffs_fsync(ap)
 		skipmeta = 1;
 	s = splbio();
 loop:
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp;
-	     bp = TAILQ_NEXT(bp, b_vnbufs))
+	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
 		bp->b_flags &= ~B_SCANNED;
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);

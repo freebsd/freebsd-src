@@ -492,8 +492,7 @@ static int sf_ifmedia_upd(ifp)
 	sc->sf_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc        *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
