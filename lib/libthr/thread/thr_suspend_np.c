@@ -43,7 +43,7 @@ int
 _pthread_suspend_np(pthread_t thread)
 {
 	/* XXXTHR */
-	return (-1);
+	return (ENOTSUP);
 }
 
 void
