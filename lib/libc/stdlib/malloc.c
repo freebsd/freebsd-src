@@ -315,7 +315,11 @@ static void
 wrtwarning(char *p)
 {
 
-    if (malloc_abort)
+    /*
+     * Sensitive processes, somewhat arbitrarily defined here as setuid,
+     * setgid, root and wheel cannot afford to have malloc mistakes.
+     */
+    if (malloc_abort || issetugid() || getuid() == 0 || getgid() == 0)
 	wrterror(p);
     _malloc_message(_getprogname(), malloc_func, " warning: ", p);
 }
@@ -458,21 +462,13 @@ malloc_init(void)
 		case 'z': malloc_zero    = 0; break;
 		case 'Z': malloc_zero    = 1; break;
 		default:
-		    j = malloc_abort;
-		    malloc_abort = 0;
-		    wrtwarning("unknown char in MALLOC_OPTIONS\n");
-		    malloc_abort = j;
+		    _malloc_message(_getprogname(), malloc_func,
+			 " warning: ", "unknown char in MALLOC_OPTIONS\n");
 		    break;
 	    }
 	}
     }
 
-    /*
-     * Sensitive processes, somewhat arbitrarily defined here as setuid,
-     * setgid, root and wheel cannot afford to have malloc mistakes.
-     */
-    if (issetugid() || getuid() == 0 || getgid() == 0)
-	    malloc_abort = 1;
 
     UTRACE(0, 0, 0);
 
@@ -750,9 +746,6 @@ imalloc(size_t size)
 	result = malloc_bytes(size);
     else
 	result = malloc_pages(size);
-
-    if (malloc_abort && result == NULL)
-	wrterror("allocation failed\n");
 
     if (malloc_zero && result != NULL)
 	memset(result, 0, size);
