@@ -44,11 +44,11 @@
 .Op Ar service-name
 .Ar module-type
 .Ar control-flag
-.Pa pam_self
+.Pa pam_opieaccess
 .Op Ar options
 .Sh DESCRIPTION
 The
-.Nm 
+.Nm
 module is used in conjunction with the
 .Xr pam_opie 8
 PAM module to ascertain that authentication can proceed by other means
@@ -110,14 +110,16 @@ was declined.
 .Sh SEE ALSO
 .Xr opie 4 ,
 .Xr opieaccess 5 ,
-.Xr pam_opie 8 ,
 .Xr pam.conf 5 ,
-.Xr pam 8
+.Xr pam 8 ,
+.Xr pam_opie 8
 .Sh AUTHORS
 The
 .Nm
-module and this manual page were developed for the FreeBSD Project by
+module and this manual page were developed for the
+.Fx
+Project by
 ThinkSec AS and NAI Labs, the Security Research Division of Network
-Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
