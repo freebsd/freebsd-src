@@ -113,6 +113,10 @@
 .Fc
 .Ft void
 .Fn m_cat "struct mbuf *m" "struct mbuf *n"
+.Ft unsigned
+.Fn m_fixhdr "struct mbuf *mbuf"
+.Ft unsigned
+.Fn m_length "struct mbuf *mbuf" "struct mbuf **last"
 .Ft struct mbuf *
 .Fn m_split "struct mbuf *mbuf" "int len" "int how"
 .\"
@@ -468,6 +472,12 @@ It's safe to set
 .Fa offset
 beyond the current chain end: zeroed mbufs will be allocated to fill the
 space.
+.\"
+.It Fn m_length buf last
+Return the length of the mbuf chain, and optionally a pointer to the last mbuf.
+.\"
+.It Fn m_fixhdr buf
+Set the packet-header length to the length of the mbuf chain.
 .\"
 .It Fn m_devget buf len offset ifp copy
 Copy data from a device local memory pointed to by
