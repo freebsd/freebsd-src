@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.72 2000/05/04 09:50:22 markus Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.74 2000/05/17 16:57:02 markus Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/dsa.h>
@@ -253,7 +253,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 			temporarily_use_uid(original_real_uid);
 			if (connect(sock, ai->ai_addr, ai->ai_addrlen) >= 0) {
 				/* Successful connection. */
-				memcpy(hostaddr, ai->ai_addr, sizeof(*hostaddr));
+				memcpy(hostaddr, ai->ai_addr, ai->ai_addrlen); 
 				restore_uid();
 				break;
 			} else {
@@ -297,21 +297,6 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	packet_set_connection(sock, sock);
 
 	return 1;
-}
-
-char *
-chop(char *s)
-{
-	char *t = s;
-	while (*t) {
-		if(*t == '\n' || *t == '\r') {
-			*t = '\0';
-			return s;
-		}
-		t++;
-	}
-	return s;
-
 }
 
 /*
