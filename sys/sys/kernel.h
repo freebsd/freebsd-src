@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.34 1997/09/21 22:09:11 gibbs Exp $
+ * $Id: kernel.h,v 1.35 1997/11/18 07:23:40 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -200,7 +200,8 @@ enum sysinit_elem_order {
  */
 typedef enum sysinit_elem_type {
 	SI_TYPE_DEFAULT		= 0x00000000,	/* No special processing*/
-	SI_TYPE_KTHREAD		= 0x00000001	/* start kernel thread*/
+	SI_TYPE_KTHREAD		= 0x00000001,	/* start kernel thread*/
+	SI_TYPE_KPROCESS	= 0x00000002	/* start kernel process*/
 } si_elem_t;
 
 
@@ -242,6 +243,16 @@ struct sysinit {
 		func,						\
 		ident,						\
 		SI_TYPE_KTHREAD					\
+	};							\
+	DATA_SET(sysinit_set,uniquifier ## _sys_init);
+
+#define	SYSINIT_KP(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit uniquifier ## _sys_init = {	\
+		subsystem,					\
+		order,						\
+		func,						\
+		ident,						\
+		SI_TYPE_KPROCESS					\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
