@@ -43,7 +43,7 @@
 #
 PATH=/usr/bin:/bin
 CPP=/usr/libexec/gcc2/cpp
-ALST="-D__GNUC__ -$ "
+ALST="-D__GNUC__=2 -$ "
 NSI=no
 OPTS=""
 INCS="-nostdinc"
@@ -61,7 +61,7 @@ do
 		INCS="$INCS $A"
 		;;
 	-U__GNUC__)
-		ALST=`echo $ALST | sed -e 's/-D__GNUC__//'`
+		ALST=`echo $ALST | sed -e 's/-D__GNUC__=2//'`
 		;;
 	-*)
 		OPTS="$OPTS '$A'"
