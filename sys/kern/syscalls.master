@@ -352,7 +352,7 @@
 			    union semun *arg); }
 221	MNOSTD	BSD	{ int semget(key_t key, int nsems, int semflg); }
 222	MNOSTD	BSD	{ int semop(int semid, struct sembuf *sops, \
-			    u_int nsops); }
+			    size_t nsops); }
 223	UNIMPL	NOHIDE	semconfig
 224	MNOSTD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }

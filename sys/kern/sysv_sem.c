@@ -858,7 +858,7 @@ done2:
 struct semop_args {
 	int	semid;
 	struct	sembuf *sops;
-	u_int	nsops;
+	size_t	nsops;
 };
 #endif
 
@@ -871,14 +871,15 @@ semop(td, uap)
 	struct semop_args *uap;
 {
 	int semid = uap->semid;
-	u_int nsops = uap->nsops;
+	size_t nsops = uap->nsops;
 	struct sembuf *sops;
 	struct semid_ds *semaptr;
 	struct sembuf *sopptr = 0;
 	struct sem *semptr = 0;
 	struct sem_undo *suptr;
 	struct mtx *sema_mtxp;
-	int i, j, error;
+	size_t i, j;
+	int error;
 	int do_wakeup, do_undos;
 
 	DPRINTF(("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops));
