@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.4.2.6 1995/06/10 02:21:40 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.15 1995/11/04 11:09:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,46 +58,59 @@ mediaInitNFS(Device *dev)
     if (NFSMounted)
 	return TRUE;
 
-    if (!(*netDevice->init)(netDevice))
+    if (!netDevice->init(netDevice))
 	return FALSE;
 
-    if (Mkdir("/nfs", NULL))
+    if (Mkdir("/dist", NULL))
 	return FALSE;
 
-    if (vsystem("mount_nfs %s %s %s /nfs", (OptFlags & OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
-	    (OptFlags & OPT_NFS_SECURE) ? "-P" : "", dev->name)) {
-	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->name, strerror(errno), errno);
+    msgNotify("Mounting %s over NFS.", dev->name);
+    if (vsystem("mount_nfs %s %s %s /dist",
+		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
+		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name)) {
+	dialog_clear();
+	msgConfirm("Error mounting %s on /dist: %s (%u)", dev->name, strerror(errno), errno);
+	netDevice->shutdown(netDevice);
 	return FALSE;
     }
     NFSMounted = TRUE;
+    msgDebug("Mounted NFS device %s onto /dist\n", dev->name);
     return TRUE;
 }
 
 int
-mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetNFS(Device *dev, char *file, Boolean tentative)
 {
-    char		buf[PATH_MAX];
+    char	buf[PATH_MAX];
 
-    snprintf(buf, PATH_MAX, "/nfs/%s", file);
-    if (!access(buf, R_OK))
+    msgDebug("Request for %s from NFS\n", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/nfs/dists/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
     return open(buf, O_RDONLY);
 }
 
 void
 mediaShutdownNFS(Device *dev)
 {
-    Device *netdev = (Device *)dev->private;
+    /* Device *netdev = (Device *)dev->private; */
 
     if (!NFSMounted)
 	return;
-    msgDebug("Unmounting /nfs\n");
-    if (unmount("/nfs", MNT_FORCE) != 0)
-	msgConfirm("Could not unmount the NFS partition: %s\n", strerror(errno));
-    if (isDebug())
-	msgDebug("Unmount returned\n");
-    (*netdev->shutdown)(netdev);
+    msgNotify("Unmounting NFS partition on /dist");
+    if (unmount("/dist", MNT_FORCE) != 0) {
+	dialog_clear();
+	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
+    }
+    msgDebug("Unmount of NFS partition successful\n");
+    /* (*netdev->shutdown)(netdev); */
     NFSMounted = FALSE;
     return;
 }

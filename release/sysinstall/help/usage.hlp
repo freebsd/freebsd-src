@@ -1,6 +1,9 @@
 HOW TO USE THIS SYSTEM
 ======================
 
+The following keys are recognised in most of the dialogs you'll
+encounter during this installation:
+
 KEY             ACTION
 ---             ------
 UP ARROW        Move to previous item (or up, in a text field).
@@ -12,18 +15,22 @@ LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
 RETURN          Select item.
 PAGE UP         In text boxes, scrolls up one page.
 PAGE DOWN       In text boxes, scrolls down one page.
-SPACE           In "radio" or multiple choice menus, toggle the current item.
+SPACE           In "radio" or multiple choice menus, toggle the current
+                item.  In help screens, scroll to next page of text.
 F1              Help (in screens that provide it).
-
-If you also see small "^(-)" or "v(+)" symbols at the edges of a menu,
-it means that there are more items above or below the current one that
-aren't being shown (due to insufficient screen space).  Using the
-up/down arrow keys will cause the menu to scroll.  When a symbol
-disappears, it means you are at the top (or bottom) of the menu.
 
 In text fields, the amount of text above the current point will be
 displayed as a percentage in the lower right corner.  100% means
-you're at the bottom of the field.
+you're at the bottom of the available text.
+
+If you see small "^(-)" or "v(+)" symbols at the edges of a menu, it
+means that there are more items above or below the current one that
+aren't being shown (due to insufficient screen space).  Using the
+up/down arrow keys will cause the menu to scroll.  The PageUp and
+PageDown keys will scroll by entire screens.
+
+When an arrow symbol disappears, it means you are at the top (or
+bottom) of the menu.
 
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
@@ -35,20 +42,25 @@ SPECIAL FEATURES:
 
 It is also possible to select a menu item by typing the first
 character of its name, if unique.  Such "accelerator" characters will
-be specially highlighted in the item name.
+be specially highlighted in the item name.  Unfortunately, the
+accellerators aren't always unique (a shortcoming of the dialog menu
+library) so you'll only be able to get at the *first* unique menu
+entry for a given accellerator.
 
 The console driver also contains a scroll-back buffer for reviewing
 things that may have scrolled off the screen.  To use scroll-back,
-press the "Scroll Lock" key on your keyboard and use the arrow or
-Page Up/Page Down keys to move through the saved text.  To leave
-scroll-back mode, press the Scroll Lock key again.  This feature
-is most useful for dealing with sub-shells or other "wizard modes"
-that don't use menus.
+press the "Scroll Lock" key on your keyboard and use the arrow or Page
+Up/Page Down keys to move through the saved text.  To leave
+scroll-back mode, press the Scroll Lock key again.  This feature is
+most useful for reading back through your boot messages (go ahead, try
+it now!) though it's also useful when dealing with sub-shells or other
+"wizard modes" that don't use menus and tend to scroll their output
+off the top of the screen.
 
-Once the system is fully installed and running "multi-user", you will
-also find that you have multiple "virtual consoles" and can use them to
-have several active sessions at once.  Use ALT-F<n> to switch between
-them, where `F<n>' is the function key corresponding to the screen you
-wish to see.  By default, the system comes with 3 virtual consoles enabled.
-You can create more by editing the /etc/ttys file, once the system is up,
-for a maximum of 12.
+Once the system is fully installed and running multi-user you will
+also find that you have multiple "virtual consoles" and can use them
+to have several active sessions at once.  Use ALT-F<n> to switch
+between them, where `F<n>' is the function key corresponding to the
+screen you wish to see.  By default, the system comes with 3 virtual
+consoles enabled.  You can create more by editing the /etc/ttys file
+(up to a maximum of 12).

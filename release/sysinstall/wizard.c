@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.5.2.1 1995/06/05 02:25:27 jkh Exp $
+ * $Id: wizard.c,v 1.6.2.1 1995/09/20 10:43:13 jkh Exp $
  *
  */
 
@@ -155,7 +155,11 @@ slice_wizard(Disk *d)
 	    continue;
 	}
 	if (!strcasecmp(*cmds,"allfreebsd")) {
-	    All_FreeBSD(d);
+	    All_FreeBSD(d, 0);
+	    continue;
+	}
+	if (!strcasecmp(*cmds,"dedicate")) {
+	    All_FreeBSD(d, 1);
 	    continue;
 	}
 	if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
@@ -213,6 +217,7 @@ slice_wizard(Disk *d)
 	    printf("\007ERROR\n");
 	printf("CMDS:\n");
 	printf("allfreebsd\t\t");
+	printf("dedicate\t\t");
 	printf("bios cyl hd sect\n");
 	printf("collapse [pointer]\t\t");
 	printf("create offset size enum subtype flags\n");

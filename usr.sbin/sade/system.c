@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44 1995/06/11 19:30:10 rgrimes Exp $
+ * $Id: system.c,v 1.45 1995/09/18 16:52:36 peter Exp $
  *
  * Jordan Hubbard
  *
@@ -70,6 +70,9 @@ systemInitialize(int argc, char **argv)
     /* If we haven't crashed I guess dialog is running ! */
     DialogActive = TRUE;
 
+    /* Make sure HOME is set for those utilities that need it */
+    if (!getenv("HOME"))
+	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
 }
 
@@ -85,7 +88,7 @@ systemShutdown(void)
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-	reboot(RB_HALT);
+	reboot(0);
     }
     else
 	exit(1);
@@ -96,11 +99,16 @@ int
 systemExecute(char *command)
 {
     int status;
+    struct termios foo;
 
     dialog_clear();
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
+    if (tcgetattr(0, &foo) != -1) {
+	foo.c_cc[VERASE] = '\010';
+	tcsetattr(0, TCSANOW, &foo);
+    }
     status = system(command);
     DialogActive = TRUE;
     dialog_clear();
@@ -108,9 +116,9 @@ systemExecute(char *command)
     return status;
 }
 
-/* Display a file in a filebox */
+/* Display a help file in a filebox */
 int
-systemDisplayFile(char *file)
+systemDisplayHelp(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
@@ -189,8 +197,8 @@ vsystem(char *fmt, ...)
     pid_t pid;
     int omask;
     sig_t intsave, quitsave;
-    char *cmd,*p;
-    int i,magic=0;
+    char *cmd;
+    int i;
 
     cmd = (char *)malloc(FILENAME_MAX);
     cmd[0] = '\0';
@@ -198,67 +206,72 @@ vsystem(char *fmt, ...)
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
 
-    /* Find out if this command needs the wizardry of the shell */
-    for (p="<>|'`=\"()" ; *p; p++)
-	if (strchr(cmd, *p))
-	    magic++;
     omask = sigblock(sigmask(SIGCHLD));
     if (isDebug())
-	msgDebug("Executing command `%s' (Magic=%d)\n", cmd, magic);
-    switch(pid = fork()) {
-    case -1:			/* error */
+	msgDebug("Executing command `%s'\n", cmd);
+    pid = fork();
+    if (pid == -1) {
 	(void)sigsetmask(omask);
 	i = 127;
-
-    case 0:				/* child */
+    }
+    else if (!pid) {	/* Junior */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
 	    if (OnVTY && isDebug())
-		msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
+		msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
-#ifdef NOT_A_GOOD_IDEA_CRUNCHED_BINARY
-	if (magic) {
-	    char *argv[100];
-	    i = 0;
-	    argv[i++] = "crunch";
-	    argv[i++] = "sh";
-	    argv[i++] = "-c";
-	    argv[i++] = cmd;
-	    argv[i] = 0;
-	    exit(crunched_main(i,argv));
-	} else {
-	    char *argv[100];
-	    i = 0;
-	    argv[i++] = "crunch";
-	    while (cmd && *cmd) {
-		argv[i] = strsep(&cmd," \t");
-		if (*argv[i])
-		    i++;
-	    }
-	    argv[i] = 0;
-	    if (crunched_here(argv[1]))
-		exit(crunched_main(i,argv));
-	    else
-		execvp(argv[1],argv+1);
-	    kill(getpid(),9);
-	}
-#else /* !CRUNCHED_BINARY */
 	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
-	kill(getpid(),9);
-#endif /* CRUNCHED_BINARY */
+	exit(1);
     }
-    intsave = signal(SIGINT, SIG_IGN);
-    quitsave = signal(SIGQUIT, SIG_IGN);
-    pid = waitpid(pid, &pstat, 0);
-    (void)sigsetmask(omask);
-    (void)signal(SIGINT, intsave);
-    (void)signal(SIGQUIT, quitsave);
-    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-    if (isDebug())
-	msgDebug("Command `%s' returns status of %d\n", cmd, i);
-    free(cmd);
+    else {
+	intsave = signal(SIGINT, SIG_IGN);
+	quitsave = signal(SIGQUIT, SIG_IGN);
+	pid = waitpid(pid, &pstat, 0);
+	(void)sigsetmask(omask);
+	(void)signal(SIGINT, intsave);
+	(void)signal(SIGQUIT, quitsave);
+	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
+	if (isDebug())
+	    msgDebug("Command `%s' returns status of %d\n", cmd, i);
+        free(cmd);
+    }
     return i;
+}
+
+void
+systemCreateHoloshell(void)
+{
+    if (OnVTY) {
+	if (!fork()) {
+	    int i, fd;
+	    struct termios foo;
+	    extern int login_tty(int);
+	    
+	    for (i = 0; i < 64; i++)
+		close(i);
+	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
+	    ioctl(0, TIOCSCTTY, &fd);
+	    dup2(0, 1);
+	    dup2(0, 2);
+	    if (login_tty(fd) == -1)
+		msgDebug("Doctor: I can't set the controlling terminal.\n");
+	    signal(SIGTTOU, SIG_IGN);
+	    if (tcgetattr(fd, &foo) != -1) {
+		foo.c_cc[VERASE] = '\010';
+		if (tcsetattr(fd, TCSANOW, &foo) == -1)
+		    msgDebug("Doctor: I'm unable to set the erase character.\n");
+	    }
+	    else
+		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
+	    printf("Warning: This shell is chroot()'d to /mnt\n");
+	    execlp("sh", "-sh", 0);
+	    msgDebug("Was unable to execute sh for Holographic shell!\n");
+	    exit(1);
+	}
+	else
+	    msgNotify("Starting an emergency holographic shell on VTY4");
+    }
 }

@@ -3,12 +3,8 @@ process is complete.  At the minimum, you should probably set the
 system manager's password and the system time zone.
 
 For extra goodies like bash, emacs, pascal, etc., you should look at
-the Packages item in this menu.  Currently, the Packages option is
-only useful if you have a CDROM or an existing packages collection
-somewhere in the file system hierarchy where the package management
-tool can locate it.  The automatic transfer of packages via FTP is not
-yet supported!
+the Packages item in this menu.
 
 For setting the timezone after the system is installed, type
-``tzsetup''.  For more information on the general system
+``tzsetup''.  For more information on the overall general system
 configuration, see the ``/etc/sysconfig'' file.

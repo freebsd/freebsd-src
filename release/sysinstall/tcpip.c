@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.1 1995/07/21 10:02:59 rgrimes Exp $
+ * $Id: tcpip.c,v 1.31 1995/09/18 16:52:38 peter Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -52,15 +52,14 @@
 #include "dir.h"
 #include "dialog.priv.h"
 #include "colors.h"
-#include "rc.h"
 #include "sysinstall.h"
 
 /* These are nasty, but they make the layout structure a lot easier ... */
 
-static char		hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
-			gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
-static int		okbutton, cancelbutton;
-static char		ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
+static char	hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
+		gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
+static int	okbutton, cancelbutton;
+static char	ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
 
 /* What the screen size is meant to be */
 #define TCP_DIALOG_Y		0
@@ -104,25 +103,25 @@ static Layout layout[] = {
       "IP Address:",
       "The IP address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
-#define LAYOUT_IPADDR		5
+#define LAYOUT_IPADDR		4
 { 10, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
-      "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
+      "The netmask for this interface, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
-#define LAYOUT_NETMASK		6
+#define LAYOUT_NETMASK		5
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
       "Any interface-specific options to ifconfig you would like to use",
       extras, STRINGOBJ, NULL },
-#define LAYOUT_EXTRAS		7
+#define LAYOUT_EXTRAS		6
 { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON		8
+#define LAYOUT_OKBUTTON		7
 { 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON	9
+#define LAYOUT_CANCELBUTTON	8
 { NULL },
 };
 
@@ -171,6 +170,61 @@ verifySettings(void)
     return 0;
 }
 
+int
+tcpInstallDevice(char *str)
+{
+    Device **devs;
+    Device *dp = NULL;
+    
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return RET_FAIL;
+    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
+    if (devs && (dp = devs[0])) {
+	char temp[512], ifn[255];
+
+	if (!dp->private) {
+	    DevInfo *di;
+	    char *ipaddr, *netmask, *extras;
+
+	    di = dp->private = (DevInfo *)malloc(sizeof(DevInfo));
+
+	    if ((ipaddr = variable_get(string_concat3(VAR_IPADDR, "_", dp->name))) == NULL)
+		ipaddr = variable_get(VAR_IPADDR);
+
+	    if ((netmask = variable_get(string_concat3(VAR_NETMASK, "_", dp->name))) == NULL)
+	        netmask = variable_get(VAR_NETMASK);
+
+	    if ((extras = variable_get(string_concat3(VAR_EXTRAS, "_", dp->name))) == NULL)
+		extras = variable_get(VAR_EXTRAS);
+
+	    string_copy(di->ipaddr, ipaddr);
+	    string_copy(di->netmask, netmask);
+	    string_copy(di->extras, extras);
+
+	    if (ipaddr) {
+		char *ifaces;
+
+		sprintf(temp, "inet %s %s netmask %s", ipaddr, extras ? extras : "", netmask);
+		sprintf(ifn, "%s%s", VAR_IFCONFIG, dp->name);
+		variable_set2(ifn, temp);
+		ifaces = variable_get(VAR_INTERFACES);
+		if (!ifaces)
+		    variable_set2(VAR_INTERFACES, ifaces = "lo0");
+		/* Only add it if it's not there already */
+		if (!strstr(ifaces, dp->name)) {
+		    sprintf(ifn, "%s %s", dp->name, ifaces);
+		    variable_set2(VAR_INTERFACES, ifn);
+		}
+	    }
+	}
+	mediaDevice = dp;
+    }
+    return dp ? RET_SUCCESS : RET_FAIL;
+}
+    
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
@@ -211,26 +265,45 @@ tcpOpenDialog(Device *devp)
 	strcpy(netmask, di->netmask);
 	strcpy(extras, di->extras);
     }
-    else
-	ipaddr[0] = netmask[0] = extras[0] = '\0';
+    else { /* See if there are any defaults */
+	char *cp;
 
+	if (!ipaddr[0]) {
+	    if ((cp = variable_get(VAR_IPADDR)) != NULL)
+		strcpy(ipaddr, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_IPADDR))) != NULL)
+		strcpy(ipaddr, cp);
+	}
+	if (!netmask[0]) {
+	    if ((cp = variable_get(VAR_NETMASK)) != NULL)
+		strcpy(netmask, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_NETMASK))) != NULL)
+		strcpy(netmask, cp);
+	}
+	if (!extras[0]) {
+	    if ((cp = variable_get(VAR_EXTRAS)) != NULL)
+		strcpy(extras, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_EXTRAS))) != NULL)
+		strcpy(extras, cp);
+	}
+    }
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
-    tmp = getenv(VAR_HOSTNAME);
+    tmp = variable_get(VAR_HOSTNAME);
     if (tmp)
 	strcpy(hostname, tmp);
     else
 	bzero(hostname, sizeof(hostname));
-    tmp = getenv(VAR_DOMAINNAME);
+    tmp = variable_get(VAR_DOMAINNAME);
     if (tmp)
 	strcpy(domainname, tmp);
     else
 	bzero(domainname, sizeof(domainname));
-    tmp = getenv(VAR_GATEWAY);
+    tmp = variable_get(VAR_GATEWAY);
     if (tmp)
 	strcpy(gateway, tmp);
     else
 	bzero(gateway, sizeof(gateway));
-    tmp = getenv(VAR_NAMESERVER);
+    tmp = variable_get(VAR_NAMESERVER);
     if (tmp)
 	strcpy(nameserver, tmp);
     else
@@ -268,8 +341,7 @@ tcpOpenDialog(Device *devp)
 
     /* Find the first object in the list */
     first = obj;
-    while (first->prev)
-	first = first->prev;
+    for (first = obj; first->prev; first = first->prev);
 
     /* Some more initialisation before we go into the main input loop */
     n = 0;
@@ -290,15 +362,30 @@ tcpOpenDialog(Device *devp)
 	/* Ask for libdialog to do its stuff */
 	ret = PollObj(&obj);
 
-	/* We are in the Hostname field - calculate the domainname */
-	if (n == 0) {
+	if (n == LAYOUT_HOSTNAME) {
+	    /* We are in the Hostname field - calculate the domainname */
 	    if ((tmp = index(hostname, '.')) != NULL) {
 		strncpy(domainname, tmp + 1, strlen(tmp + 1));
 		domainname[strlen(tmp+1)] = '\0';
-		RefreshStringObj(layout[1].obj);
+		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
 	}
-
+	else if (n == LAYOUT_IPADDR) {
+	    /* Insert a default value for the netmask, 0xffffff00 is
+	       the most appropriate one (entire class C, or subnetted
+	       class A/B network). */
+	    if(netmask[0] == '\0') {
+		strcpy(netmask, "255.255.255.0");
+		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
+	    }
+	}   
+	else if (n == LAYOUT_DOMAINNAME) {
+	    if (!index(hostname, '.') && domainname[0]) {
+		strcat(hostname, ".");
+		strcat(hostname, domainname);
+		RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
+	    }
+	}
 	/* Handle special case stuff that libdialog misses. Sigh */
 	switch (ret) {
 	    /* Bail out */
@@ -391,7 +478,7 @@ tcpOpenDialog(Device *devp)
 
     if (!cancel) {
 	DevInfo *di;
-	char temp[512], ifn[64];
+	char temp[512], ifn[255];
 	char *ifaces;
 
 	variable_set2(VAR_HOSTNAME, hostname);
@@ -412,7 +499,7 @@ tcpOpenDialog(Device *devp)
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	variable_set2(ifn, temp);
-	ifaces = getenv(VAR_INTERFACES);
+	ifaces = variable_get(VAR_INTERFACES);
 	if (!ifaces)
 	    variable_set2(VAR_INTERFACES, ifaces = "lo0");
 	/* Only add it if it's not there already */
@@ -422,9 +509,9 @@ tcpOpenDialog(Device *devp)
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
-	return 0;
+	return RET_SUCCESS;
     }
-    return 1;
+    return RET_FAIL;
 }
 
 static int
@@ -436,13 +523,13 @@ netHook(char *str)
     string_prune(str);
     str = string_skipwhite(str);
     if (!*str)
-	return 0;
+	return RET_FAIL;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs) {
 	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
     }
-    return devs ? 1 : 0;
+    return devs ? RET_DONE : RET_FAIL;
 }
 
 /* Get a network device */
@@ -460,13 +547,14 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	status = FALSE;
     }
-    else if (cnt == 1) {
-	tcpOpenDialog(devs[0]);
+    else if (cnt == 1 || !RunningAsInit) {
+	/* If we're running in user mode, assume network already up */
+	if (RunningAsInit)
+	    tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
 	status = TRUE;
     }
     else {
-
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
@@ -482,5 +570,5 @@ tcpMenuSelect(char *str)
 {
     (void)tcpDeviceSelect();
     configResolv();
-    return 0;
+    return RET_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.9 1995/06/05 12:03:46 jkh Exp $
+ * $Id: devices.c,v 1.36.2.11 1995/11/15 06:57:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,16 +82,20 @@ static struct {
     { DEVICE_TYPE_CDROM,	"scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
     { DEVICE_TYPE_CDROM,	"matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
     { DEVICE_TYPE_CDROM,	"matcd1a",	"Matsushita CDROM (2nd unit)"				},
+    { DEVICE_TYPE_CDROM,	"wcd0c",	"ATAPI IDE CDROM"					},
+    { DEVICE_TYPE_CDROM,	"wcd1c",	"ATAPI IDE CDROM (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
     { DEVICE_TYPE_TAPE, 	"rst1",		"SCSI tape drive (2nd unit)"				},
-    { DEVICE_TYPE_TAPE, 	"ft0",		"Floppy tape drive (QIC-02)"				},
-    { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
+    { DEVICE_TYPE_TAPE, 	"rft0",		"Floppy tape drive (QIC-02)"				},
+    { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa2",	"Serial port (COM3) - possible PPP/SLIP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa3",	"Serial port (COM4) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
@@ -126,18 +130,21 @@ new_device(char *name)
 Boolean
 dummyInit(Device *dev)
 {
+    msgDebug("Dummy init called for %s\n", dev->name);
     return TRUE;
 }
 
 int
-dummyGet(Device *dev, char *dist, Attribs *dist_attrs)
+dummyGet(Device *dev, char *dist, Boolean tentative)
 {
+    msgDebug("Dummy get called for %s\n", dev->name);
     return -1;
 }
 
 Boolean
 dummyClose(Device *dev, int fd)
 {
+    msgDebug("Dummy [default] close called for %s with fd of %d.\n", dev->name, fd);
     if (!close(fd))
 	return TRUE;
     return FALSE;
@@ -146,6 +153,7 @@ dummyClose(Device *dev, int fd)
 void
 dummyShutdown(Device *dev)
 {
+    msgDebug("Dummy shutdown called for %s\n", dev->name);
     return;
 }
 
@@ -166,7 +174,7 @@ deviceTry(char *name, char *try)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(Device *, char *, Attribs *),
+	       Boolean (*init)(Device *), int (*get)(Device *, char *, Boolean),
 	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
 {
     Device *newdev;
@@ -294,10 +302,12 @@ deviceGetAll(void)
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0) {
+	dialog_clear();
 	msgConfirm("ifconfig: socket");
 	return;
     }
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+	dialog_clear();
 	msgConfirm("ifconfig (SIOCGIFCONF)");
 	return;
     }
@@ -316,6 +326,7 @@ deviceGetAll(void)
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	    dialog_clear();
 	    msgConfirm("ifconfig: socket");
 	    continue;
 	}
