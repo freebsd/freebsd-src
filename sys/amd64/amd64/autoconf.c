@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)autoconf.c	7.1 (Berkeley) 5/9/91
+ *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
  */
 
 #include <sys/cdefs.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)isa.c	7.2 (Berkeley) 5/13/91
+ *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  */
 
 #include <sys/cdefs.h>
