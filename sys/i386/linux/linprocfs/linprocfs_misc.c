@@ -85,7 +85,6 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	struct uio *uio;
 {
 	char *ps;
-	int xlen;
 	char psbuf[512];		/* XXX - conservative */
 	unsigned long memtotal;		/* total memory in bytes */
 	unsigned long memused;		/* used memory in bytes */
@@ -156,11 +155,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 		B2K(memshared), B2K(buffers), B2K(cached),
 		B2K(swaptotal), B2K(swapfree));
 
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 int
@@ -171,7 +166,6 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	struct uio *uio;
 {
 	char *ps;
-	int xlen;
 	char psbuf[512];		/* XXX - conservative */
 	int class;
         int i;
@@ -248,12 +242,7 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
                         (tsc_freq + 4999) / 1000000,
                         ((tsc_freq + 4999) / 10000) % 100);
         }
-        
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 int
@@ -265,7 +254,6 @@ linprocfs_dostat(curp, p, pfs, uio)
 {
         char *ps;
 	char psbuf[512];
-	int xlen;
 
 	ps = psbuf;
 	ps += sprintf(ps,
@@ -287,11 +275,7 @@ linprocfs_dostat(curp, p, pfs, uio)
 		      cnt.v_intr,
 		      cnt.v_swtch,
 		      boottime.tv_sec);
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 int
@@ -302,7 +286,6 @@ linprocfs_douptime(curp, p, pfs, uio)
 	struct uio *uio;
 {
 	char *ps;
-	int xlen;
 	char psbuf[64];
 	struct timeval tv;
 
@@ -311,11 +294,7 @@ linprocfs_douptime(curp, p, pfs, uio)
 	ps += sprintf(ps, "%ld.%02ld %ld.%02ld\n",
 		      tv.tv_sec, tv.tv_usec / 10000,
 		      T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 int
@@ -332,10 +311,7 @@ linprocfs_doversion(curp, p, pfs, uio)
 	for (xlen = 0; ps[xlen] != '\n'; ++xlen)
 		/* nothing */ ;
 	++xlen;
-	xlen -= uio->uio_offset;
-	ps += uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(ps, xlen, uio));
 }
 
 int
@@ -346,7 +322,6 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	struct uio *uio;
 {
 	char *ps, psbuf[1024];
-	int xlen;
 
 	ps = psbuf;
 	ps += sprintf(ps, "%d", p->p_pid);
@@ -388,11 +363,7 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 #undef PS_ADD
 	ps += sprintf(ps, "\n");
 	
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 /*
@@ -419,7 +390,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 {
 	char *ps, psbuf[1024];
 	char *state;
-	int i, xlen;
+	int i;
 
 	ps = psbuf;
 
@@ -490,11 +461,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	PS_ADD(ps, "CapEff:\t%016x\n",	  0);
 #undef PS_ADD
 	
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
 
 int
@@ -504,8 +471,7 @@ linprocfs_doloadavg(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-     char *ps, psbuf[512];
-     int xlen;
+	char *ps, psbuf[512];
 	extern int nextpid;
 
 	ps=psbuf;
@@ -522,10 +488,5 @@ linprocfs_doloadavg(curp, p, pfs, uio)
 		-1,			/* number of tasks */
 		nextpid		/* The last pid */
 	);
-
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-     return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	return (uiomove_frombuf(psbuf, ps - psbuf, uio));
 }
