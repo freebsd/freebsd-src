@@ -59,6 +59,7 @@ MAN=	aac.4 \
 	fd.4 \
 	fdc.4 \
 	firewire.4 \
+	fla.4 \
 	fpa.4 \
 	fwe.4 \
 	fwohci.4 \
