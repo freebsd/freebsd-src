@@ -625,7 +625,7 @@ release.8:
 	@cp /boot/boot* ${RD}/mfsfd/boot
 	@cp /boot/loader.help ${RD}/mfsfd/boot
 	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
-.if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
 	@cd ${.CURDIR} && ${MAKE} doMODULES KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
 .endif
 	@echo "Making the regular boot floppy."
@@ -639,7 +639,7 @@ release.8:
 .if exists(${.CURDIR}/${MACHINE}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
 	@perl ${.CURDIR}/scripts/driver-copy2.pl \
-		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
+		${.CURDIR}/${MACHINE}/drivers.conf \
 		${RD}/kernels ${RD}/mfsfd/stand/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
@@ -916,7 +916,7 @@ createBOOTMFS:
 .endif
 .if exists(${.CURDIR}/${MACHINE}/drivers.conf)
 	@perl ${.CURDIR}/scripts/driver-remove.pl \
-		${.CURDIR}/${MACHINE_ARCH}/drivers.conf \
+		${.CURDIR}/${MACHINE}/drivers.conf \
 		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 
