@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.40 1997/11/07 08:52:58 phk Exp $
+ * $Id: kern_time.c,v 1.41 1998/02/20 16:35:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -77,43 +77,32 @@ static int
 settime(tv)
 	struct timeval *tv;
 {
-	struct timeval delta;
+	struct timeval delta, tv1;
 	struct timespec ts;
 	struct proc *p;
 	int s;
 
-	/*
-	 * Must not set clock backwards in highly secure mode.
-	 */
 	s = splclock();
-	delta.tv_sec = tv->tv_sec - time.tv_sec;
-	delta.tv_usec = tv->tv_usec - time.tv_usec;
-	splx(s);
+	microtime(&tv1);
+	delta.tv_sec = tv->tv_sec - tv1.tv_sec;
+	delta.tv_usec = tv->tv_usec - tv1.tv_usec;
 	timevalfix(&delta);
-	if (delta.tv_sec < 0 && securelevel > 1)
-		return (EPERM);
 
-	s = splclock();
 	/*
-	 * Recalculate delta directly to minimize clock interrupt
-	 * latency.  Fix it after the ipl has been lowered.
+	 * If the system is secure, we do not allow the time to be 
+	 * set to an earlier value (it may be slowed using adjtime,
+	 * but not set back). This feature prevent interlopers from
+	 * setting arbitrary time stamps on files.
 	 */
-	delta.tv_sec = tv->tv_sec - time.tv_sec;
-	delta.tv_usec = tv->tv_usec - time.tv_usec;
+	if (delta.tv_sec < 0 && securelevel > 1) {
+		splx(s);
+		return (EPERM);
+	}
+
 	ts.tv_sec = tv->tv_sec;
 	ts.tv_nsec = tv->tv_usec * 1000;
 	set_timecounter(&ts);
-	/*
-	 * XXX should arrange for microtime() to agree with *tv if
-	 * it is called now.  As it is, it may add up to about
-	 * `tick' unwanted usec.
-	 * Another problem is that clock interrupts may occur at
-	 * other than multiples of `tick'.  It's not worth fixing
-	 * this here, since the problem is also caused by tick
-	 * adjustments.
-	 */
 	(void) splsoftclock();
-	timevalfix(&delta);
 	timevaladd(&boottime, &delta);
 	timevaladd(&runtime, &delta);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
@@ -239,10 +228,6 @@ nanosleep1(p, rqt, rmt)
 				atv.tv_usec = 0;
 			}
 		}
-		/*
-		 * XXX this is not as careful as settimeofday() about minimising
-		 * interrupt latency.  The hzto() interface is inconvenient as usual.
-		 */
 		s = splclock();
 		timevaladd(&atv, &time);
 		timo = hzto(&atv);
