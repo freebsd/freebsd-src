@@ -24,8 +24,8 @@ M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
 DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
 DEST_SUBMIT_CF=	${DESTDIR}/etc/mail/submit.cf
 
-ALL=		freebsd.cf
-CLEANFILES=	freebsd.cf
+ALL=		freebsd.cf freebsd.submit.cf
+CLEANFILES=	freebsd.cf freebsd.submit.cf
 
 # Local SENDMAIL_MC or SENDMAIL_CF may be set in /etc/make.conf.
 # Warning!  If set, this causes 'make install' to always copy it
@@ -60,6 +60,13 @@ ${mc:T:R}.cf: ${mc}
 
 all: ${ALL}
 
+# Build the installed submit.cf from the sendmail distributed submit.mc.
+freebsd.submit.cf:	${CFDIR}/cf/submit.mc
+	${RM} ${.TARGET}
+	${M4} -D_CF_DIR_=${CFDIR}/ ${SENDMAIL_M4_FLAGS} \
+	    ${CFDIR}/m4/cf.m4 ${.ALLSRC} > ${.TARGET}
+	${CHMOD} ${ROMODE} ${.TARGET}
+
 install distribution:
 .if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
 	@echo ">>> ERROR: Both SENDMAIL_MC and SENDMAIL_CF cannot be set"
@@ -71,7 +78,7 @@ install distribution:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CFDIR}/cf/submit.mc ${DESTDIR}/etc/mail/freebsd.submit.mc
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CFDIR}/cf/submit.cf ${DESTDIR}/etc/mail/freebsd.submit.cf
+	    freebsd.submit.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 \
@@ -94,7 +101,7 @@ install distribution:
 	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .elif make(distribution)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CFDIR}/cf/submit.cf ${DEST_SUBMIT_CF}
+	    freebsd.submit.cf ${DEST_SUBMIT_CF}
 .endif
 .endif
 
