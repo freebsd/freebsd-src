@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1995, David Greenman
  * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
+ * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,6 @@
 /*
  * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
-
-#include "vlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,11 +63,6 @@
 #include <vm/pmap.h>		/* for vtophys */
 #include <machine/clock.h>	/* for DELAY */
 
-#if NVLAN > 0
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
-#endif
-
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
 
@@ -81,15 +74,6 @@
 
 MODULE_DEPEND(fxp, miibus, 1, 1, 1);
 #include "miibus_if.h"
-
-#ifdef KLD_MODULE
-#define NMIIBUS 1
-#else
-#include "miibus.h"
-#endif
-#if NMIIBUS < 1
-#error "You need to add 'device miibus' to your kernel config!"
-#else
 
 /*
  * NOTE!  On the Alpha, we have an alignment constraint.  The
@@ -268,11 +252,7 @@ fxp_scb_wait(struct fxp_softc *sc)
 	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
 		DELAY(2);
 	if (i == 0)
-		device_printf(sc->dev, "SCB timeout: 0x%x, 0x%x, 0x%x 0x%x\n",
-		    CSR_READ_1(sc, FXP_CSR_SCB_COMMAND),
-		    CSR_READ_1(sc, FXP_CSR_SCB_STATACK),
-		    CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS),
-		    CSR_READ_2(sc, FXP_CSR_FLOWCONTROL));
+		device_printf(sc->dev, "SCB timeout\n");
 }
 
 static __inline void
@@ -452,39 +432,12 @@ fxp_attach(device_t dev)
 	fxp_autosize_eeprom(sc);
 
 	/*
-	 * Determine whether we must use the 503 serial interface.
+	 * Determine in whether we must use the 503 serial interface.
 	 */
 	fxp_read_eeprom(sc, &data, 6, 1);
 	if ((data & FXP_PHY_DEVICE_MASK) != 0 &&
 	    (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags &= FXP_FLAG_SERIAL_MEDIA;
-
-	/*
-	 * Find out the basic controller type; we currently only
-	 * differentiate between a 82557 and greater.
-	 */
-	fxp_read_eeprom(sc, &data, 5, 1);
-	if ((data >> 8) == 1)
-		sc->chip = FXP_CHIP_82557;
-
-	/*
-	 * If we are not a 82557 chip, we can enable extended features.
-	 */
-	if (sc->chip != FXP_CHIP_82557) {
-		/*
-		 * If there is a valid cacheline size (8 or 16 dwords),
-		 * then turn on MWI.
-		 */
-		if (pci_read_config(dev, PCIR_CACHELNSZ, 1) != 0)
-			sc->flags |= FXP_FLAG_MWI_ENABLE;
-
-		/* turn on the extended TxCB feature */
-		sc->flags |= FXP_FLAG_EXT_TXCB;
-#if NVLAN > 0
-		/* enable reception of long frames for VLAN */
-		sc->flags |= FXP_FLAG_LONG_PKT_EN;
-#endif
-	}
 
 	/*
 	 * Read MAC address.
@@ -497,7 +450,6 @@ fxp_attach(device_t dev)
 		device_printf(dev, "PCI IDs: %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),
 		    pci_get_subvendor(dev), pci_get_subdevice(dev));
-		device_printf(dev, "Chip Type: %d\n", sc->chip);
 	}
 
 	/*
@@ -540,13 +492,6 @@ fxp_attach(device_t dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
-#if NVLAN > 0
-	/*
-	 * Tell the upper layer(s) we support long frames.
-	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-#endif
-
 	/*
 	 * Let the system queue as many packets as we have available
 	 * TX descriptors.
@@ -572,9 +517,10 @@ static void
 fxp_release(struct fxp_softc *sc)
 {
 
-	bus_generic_detach(sc->dev);
-	if (sc->miibus)
+	if (sc->miibus) {
+		bus_generic_detach(sc->dev);
 		device_delete_child(sc->dev, sc->miibus);
+	}
 
 	if (sc->cbl_base)
 		free(sc->cbl_base, M_DEVBUF);
@@ -892,9 +838,8 @@ tbdinit:
 			struct mbuf *mn;
 
 			/*
-			 * We ran out of segments. We have to recopy this
-			 * mbuf chain first. Bail out if we can't get the
-			 * new buffers.
+			 * We ran out of segments. We have to recopy this mbuf
+			 * chain first. Bail out if we can't get the new buffers.
 			 */
 			MGETHDR(mn, M_DONTWAIT, MT_DATA);
 			if (mn == NULL) {
@@ -922,15 +867,13 @@ tbdinit:
 		txp->cb_status = 0;
 		if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
-			    FXP_CB_COMMAND_S;
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
 		} else {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
-			    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 			/*
-			 * Set a 5 second timer just in case we don't hear
-			 * from the card again.
+			 * Set a 5 second timer just in case we don't hear from the
+			 * card again.
 			 */
 			ifp->if_timer = 5;
 		}
@@ -1075,19 +1018,6 @@ rcvloop:
 						m_freem(m);
 						goto rcvloop;
 					}
-#if NVLAN > 0
-					/*
-					 * Drop the packet if it has CRC
-					 * errors.  This test is only needed
-					 * when doing 802.1q VLAN on the 82557
-					 * chip.
-					 */
-					if (rfa->rfa_status &
-					    FXP_RFA_STATUS_CRC) {
-						m_freem(m);
-						goto rcvloop;
-					}
-#endif
 					m->m_pkthdr.rcvif = ifp;
 					m->m_pkthdr.len = m->m_len = total_len;
 					eh = mtod(m, struct ether_header *);
@@ -1373,11 +1303,7 @@ fxp_init(void *xsc)
 	cbp->ext_txcb_dis = 	sc->flags & FXP_FLAG_EXT_TXCB ? 0 : 1;
 	cbp->ext_stats_dis = 	1;	/* disable extended counters */
 	cbp->keep_overrun_rx = 	0;	/* don't pass overrun frames to host */
-#if NVLAN > 0
-	cbp->save_bf =		sc->chip == FXP_CHIP_82557 ? 1 : prm;
-#else
 	cbp->save_bf =		prm;	/* save bad frames */
-#endif
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (once) on DMA underrun */
 	cbp->two_frames =	0;	/* do not limit FIFO to 2 frames */
@@ -1402,6 +1328,19 @@ fxp_init(void *xsc)
 	cbp->crc16_en =		0;	/* (don't) enable crc-16 algorithm */
 	cbp->crscdt =		sc->flags & FXP_FLAG_SERIAL_MEDIA ? 1 : 0;
 
+	/*
+	 * we may want to move all FC stuff to a separate section.
+	 * the values here are 82557 compatible.
+	 */
+	cbp->fc_delay_lsb =	0;
+	cbp->fc_delay_msb =	0x40;
+	cbp->pri_fc_thresh =	0x03;
+	cbp->tx_fc_dis =	0;	/* (don't) disable transmit FC */
+	cbp->rx_fc_restop =	0;	/* (don't) enable FC stop frame */
+	cbp->rx_fc_restart =	0;	/* (don't) enable FC start frame */
+	cbp->fc_filter =	0;	/* (do) pass FC frames to host */
+	cbp->pri_fc_loc =	1;	/* location of priority in FC frame */
+
 	cbp->stripping =	!prm;	/* truncate rx packet to byte count */
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
@@ -1413,30 +1352,6 @@ fxp_init(void *xsc)
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
 	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
-
-	if (sc->chip == FXP_CHIP_82557) {
-		/*
-		 * The 82557 has no hardware flow control, the values
-		 * below are the defaults for the chip.
-		 */
-		cbp->fc_delay_lsb =	0;
-		cbp->fc_delay_msb =	0x40;
-		cbp->pri_fc_thresh =	3;
-		cbp->tx_fc_dis =	0;
-		cbp->rx_fc_restop =	0;
-		cbp->rx_fc_restart =	0;
-		cbp->fc_filter =	0;
-		cbp->pri_fc_loc =	1;
-	} else {
-		cbp->fc_delay_lsb =	0x1f;
-		cbp->fc_delay_msb =	0x01;
-		cbp->pri_fc_thresh =	3;
-		cbp->tx_fc_dis =	0;	/* enable transmit FC */
-		cbp->rx_fc_restop =	1;	/* enable FC restop frames */
-		cbp->rx_fc_restart =	1;	/* enable FC restart frames */
-		cbp->fc_filter =	!prm;	/* drop FC frames to host */
-		cbp->pri_fc_loc =	1;	/* FC pri location (byte31) */
-	}
 
 	/*
 	 * Start the config command/DMA.
@@ -1476,12 +1391,8 @@ fxp_init(void *xsc)
 	for (i = 0; i < FXP_NTXCB; i++) {
 		txp[i].cb_status = FXP_CB_STATUS_C | FXP_CB_STATUS_OK;
 		txp[i].cb_command = FXP_CB_COMMAND_NOP;
-		txp[i].link_addr =
-		    vtophys(&txp[(i + 1) & FXP_TXCB_MASK].cb_status);
-		if (sc->flags & FXP_FLAG_EXT_TXCB)
-			txp[i].tbd_array_addr = vtophys(&txp[i].tbd[2]);
-		else
-			txp[i].tbd_array_addr = vtophys(&txp[i].tbd[0]);
+		txp[i].link_addr = vtophys(&txp[(i + 1) & FXP_TXCB_MASK].cb_status);
+		txp[i].tbd_array_addr = vtophys(&txp[i].tbd[0]);
 		txp[i].next = &txp[(i + 1) & FXP_TXCB_MASK];
 	}
 	/*
@@ -1511,11 +1422,6 @@ fxp_init(void *xsc)
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
-
-	/*
-	 * Enable interrupts.
-	 */
-	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
 	splx(s);
 
 	/*
@@ -1689,7 +1595,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct mii_data *mii;
+        struct mii_data *mii;
 	int s, error = 0;
 
 	s = splimp();
@@ -1808,8 +1714,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 		txp = sc->cbl_last->next;
 		txp->mb_head = NULL;
 		txp->cb_status = 0;
-		txp->cb_command = FXP_CB_COMMAND_NOP |
-		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+		txp->cb_command = FXP_CB_COMMAND_NOP | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 		/*
 		 * Advance the end of list forward.
 		 */
@@ -1837,8 +1742,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 	mcsp->next = sc->cbl_base;
 	mcsp->mb_head = NULL;
 	mcsp->cb_status = 0;
-	mcsp->cb_command = FXP_CB_COMMAND_MCAS |
-	    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+	mcsp->cb_command = FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 	mcsp->link_addr = vtophys(&sc->cbl_base->cb_status);
 
 	nmcasts = 0;
@@ -1888,5 +1792,3 @@ fxp_mc_setup(struct fxp_softc *sc)
 	ifp->if_timer = 2;
 	return;
 }
-
-#endif /* NMIIBUS > 0 */
