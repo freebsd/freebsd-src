@@ -51,10 +51,12 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/syscall.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
+#include <sys/kthread.h>
 #include <sys/unistd.h>	
 #include <sys/jail.h>	
 
@@ -273,7 +275,7 @@ fork1(p1, flags, procp)
 		p1->p_peers = newproc;
 		newproc->p_leader = p1->p_leader;
 	} else {
-		newproc->p_peers = 0;
+		newproc->p_peers = NULL;
 		newproc->p_leader = newproc;
 	}
 
@@ -319,7 +321,7 @@ retry:
 		 */
 		p2 = LIST_FIRST(&allproc);
 again:
-		for (; p2 != 0; p2 = LIST_NEXT(p2, p_list)) {
+		for (; p2 != NULL; p2 = LIST_NEXT(p2, p_list)) {
 			while (p2->p_pid == trypid ||
 			    p2->p_pgrp->pg_id == trypid ||
 			    p2->p_session->s_sid == trypid) {
@@ -377,9 +379,12 @@ again:
 	 * Increase reference counts on shared objects.
 	 * The p_stats and p_sigacts substructs are set in vm_fork.
 	 */
-	p2->p_flag = P_INMEM;
-	if (p1->p_flag & P_PROFIL)
+	p2->p_flag = 0;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	p2->p_sflag = PS_INMEM;
+	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	MALLOC(p2->p_cred, struct pcred *, sizeof(struct pcred),
 	    M_SUBPROC, M_WAITOK);
 	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
@@ -630,4 +635,74 @@ rm_at_fork(function)
 		}
 	}	
 	return (0);
+}
+
+/*
+ * Handle the return of a child process from fork1().  This function
+ * is called from the MD fork_trampoline() entry point.
+ */
+void
+fork_exit(callout, arg, frame)
+	void *callout(void *, struct trapframe *);
+	void *arg;
+	struct trapframe frame;
+{
+	struct proc *p;
+
+	mtx_exit(&sched_lock, MTX_SPIN);
+	/*
+	 * XXX: We really shouldn't have to do this.
+	 */
+	enable_intr();
+
+#ifdef SMP
+	if (PCPU_GET(switchtime.tv_sec) == 0)
+		microuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
+#endif
+
+	/*
+	 * cpu_set_fork_handler intercepts this function call to
+         * have this call a non-return function to stay in kernel mode.
+         * initproc has its own fork handler, but it does return.
+         */
+	(*callout)(arg, &frame);
+
+	/*
+	 * Check if a kernel thread misbehaved and returned from its main
+	 * function.
+	 */
+	p = CURPROC;
+	if (p->p_flag & P_KTHREAD) {
+		mtx_enter(&Giant, MTX_DEF);
+		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
+		    p->p_comm, p->p_pid);
+		kthread_exit(0);
+	}
+	mtx_assert(&Giant, MA_NOTOWNED);
+}
+
+/*
+ * Simplified back end of syscall(), used when returning from fork()
+ * directly into user mode.  Giant is not held on entry, and must not
+ * be held on return.  This function is passed in to fork_exit() as the
+ * first parameter and is called when returning to a new userland process.
+ */
+void
+fork_return(p, frame)
+	struct proc *p;
+	struct trapframe *frame;
+{
+
+	userret(p, frame, 0);
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (!mtx_owned(&Giant))
+			mtx_enter(&Giant, MTX_DEF);
+		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
+	}
+#endif
+	if (mtx_owned(&Giant))
+		mtx_exit(&Giant, MTX_DEF);
+	mtx_assert(&Giant, MA_NOTOWNED);
 }
