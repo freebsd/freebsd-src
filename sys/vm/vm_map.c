@@ -310,10 +310,14 @@ vmspace_free(struct vmspace *vm)
 void
 vmspace_exitfree(struct proc *p)
 {
-	GIANT_REQUIRED;
+	struct vmspace *vm;
 
-	if (p == p->p_vmspace->vm_freer)
-		vmspace_dofree(p->p_vmspace);
+	GIANT_REQUIRED;
+	if (p == p->p_vmspace->vm_freer) {
+		vm = p->p_vmspace;
+		p->p_vmspace = NULL;
+		vmspace_dofree(vm);
+	}
 }
 
 /*
