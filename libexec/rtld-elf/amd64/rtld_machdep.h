@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rtld_machdep.h,v 1.1 1999/04/09 00:28:43 jdp Exp $
  */
 
 #ifndef RTLD_MACHDEP_H
@@ -32,5 +32,13 @@
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj) \
     ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
+
+/* Fixup the jump slot at "where" to transfer control to "target". */
+#define reloc_jmpslot(where, target)			\
+    do {						\
+	dbg("reloc_jmpslot: *%p = %p", (void *)(where),	\
+	  (void *)(target));				\
+	(*(Elf_Addr *)(where) = (Elf_Addr)(target));	\
+    } while (0)
 
 #endif

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rtld_machdep.h,v 1.1 1999/04/09 00:28:43 jdp Exp $
  */
 
 #ifndef RTLD_MACHDEP_H
@@ -31,5 +31,7 @@
 
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj)	(&_DYNAMIC)
+
+void reloc_jmpslot(Elf_Addr *, Elf_Addr);
 
 #endif
