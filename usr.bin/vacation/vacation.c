@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vacation.c,v 1.12 1997/11/03 07:51:05 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -417,7 +417,7 @@ sendmessage(myname)
 		syslog(LOG_ERR, "vacation: pipe: %s", strerror(errno));
 		exit(1);
 	}
-	i = vfork();
+	i = fork();
 	if (i < 0) {
 		syslog(LOG_ERR, "vacation: fork: %s", strerror(errno));
 		exit(1);

@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: mv.c,v 1.20 1998/06/09 03:39:38 imp Exp $";
+	"$Id: mv.c,v 1.21 1998/06/28 21:00:04 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -308,7 +308,7 @@ copy(from, to)
 {
 	int pid, status;
 
-	if ((pid = vfork()) == 0) {
+	if ((pid = fork()) == 0) {
 		execl(_PATH_CP, "mv", "-PRp", from, to, NULL);
 		warn("%s", _PATH_CP);
 		_exit(1);

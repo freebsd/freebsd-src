@@ -722,9 +722,9 @@ char	*argv[];
 
     child_died();			/* Start up signal handler */
     shell_active = 1;			/* We are running down below */
-    if (shell_pid = vfork()) {
+    if (shell_pid = fork()) {
 	if (shell_pid == -1) {
-	    perror("vfork");
+	    perror("fork");
 	    (void) close(serversock);
 	} else {
 	    state = UNCONNECTED;
