@@ -1675,8 +1675,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 	while (*p == '\t' || *p == ' ')
 		p++;
 
-	switch (*p)
-	{
+	switch (*p) {
 	case '@':
 		(void)strlcpy(f->f_un.f_forw.f_hname, ++p,
 			sizeof(f->f_un.f_forw.f_hname));
@@ -1931,7 +1930,7 @@ allowaddr(char *s)
 		else {
 			ap.port = strtol(cp1, &cp2, 0);
 			if (*cp2 != '\0')
-				return -1; /* port not numeric */
+				return (-1); /* port not numeric */
 		}
 	} else {
 		if ((se = getservbyname("syslog", "udp")))
@@ -1945,7 +1944,7 @@ allowaddr(char *s)
 	    strspn(cp1 + 1, "0123456789") == strlen(cp1 + 1)) {
 		*cp1 = '\0';
 		if ((masklen = atoi(cp1 + 1)) < 0)
-			return -1;
+			return (-1);
 	}
 #ifdef INET6
 	if (*s == '[') {
@@ -1987,7 +1986,7 @@ allowaddr(char *s)
 					maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
 			} else {
 				freeaddrinfo(res);
-				return -1;
+				return (-1);
 			}
 			/* Lose any host bits in the network number. */
 			addrp->s_addr &= maskp->s_addr;
@@ -2016,7 +2015,7 @@ allowaddr(char *s)
 #endif
 		else {
 			freeaddrinfo(res);
-			return -1;
+			return (-1);
 		}
 		freeaddrinfo(res);
 	} else {
@@ -2059,7 +2058,7 @@ allowaddr(char *s)
 		exit(1);
 	}
 	memcpy(&AllowedPeers[NumAllowed - 1], &ap, sizeof(struct allowedpeer));
-	return 0;
+	return (0);
 }
 
 /*
@@ -2079,7 +2078,7 @@ validate(struct sockaddr *sa, const char *hname)
 
 	if (NumAllowed == 0)
 		/* traditional behaviour, allow everything */
-		return 1;
+		return (1);
 
 	(void)strlcpy(name, hname, sizeof(name));
 	memset(&hints, 0, sizeof(hints));
@@ -2094,7 +2093,7 @@ validate(struct sockaddr *sa, const char *hname)
 	}
 	if (getnameinfo(sa, sa->sa_len, ip, sizeof ip, port, sizeof port,
 			NI_NUMERICHOST | withscopeid | NI_NUMERICSERV) != 0)
-		return 0;	/* for safety, should not occur */
+		return (0);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
 		ip, port, name);
 	sport = atoi(port);
@@ -2170,9 +2169,9 @@ validate(struct sockaddr *sa, const char *hname)
 			}
 		}
 		dprintf("accepted in rule %d.\n", i);
-		return 1;	/* hooray! */
+		return (1);	/* hooray! */
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -2188,10 +2187,10 @@ p_open(const char *prog, pid_t *pid)
 	char errmsg[200];
 
 	if (pipe(pfd) == -1)
-		return -1;
+		return (-1);
 	if ((nulldesc = open(_PATH_DEVNULL, O_RDWR)) == -1)
 		/* we are royally screwed anyway */
-		return -1;
+		return (-1);
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGALRM);
@@ -2201,7 +2200,7 @@ p_open(const char *prog, pid_t *pid)
 	case -1:
 		sigprocmask(SIG_SETMASK, &omask, 0);
 		close(nulldesc);
-		return -1;
+		return (-1);
 
 	case 0:
 		/* XXX should check for NULL return */
@@ -2259,7 +2258,7 @@ p_open(const char *prog, pid_t *pid)
 			       (int)*pid);
 		logerror(errmsg);
 	}
-	return pfd[1];
+	return (pfd[1]);
 }
 
 static void
@@ -2299,10 +2298,10 @@ deadq_remove(pid_t pid)
 		if (q->dq_pid == pid) {
 			TAILQ_REMOVE(&deadq_head, q, dq_entries);
 				free(q);
-				return 1;
+				return (1);
 		}
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -2385,12 +2384,12 @@ socksetup(int af, const char *bindhostname)
 	if (*socks == 0) {
 		free(socks);
 		if (Debug)
-			return(NULL);
+			return (NULL);
 		else
 			die(0);
 	}
 	if (res)
 		freeaddrinfo(res);
 
-	return(socks);
+	return (socks);
 }
