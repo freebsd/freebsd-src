@@ -309,11 +309,11 @@ struct acd_track_info {
 /* Structure describing an ATAPI CDROM device */
 struct acd_softc {
     struct atapi_softc		*atp;		/* controller structure */
-    int32_t			lun;		/* logical device unit */
-    int32_t			flags;		/* device state flags */
+    int				lun;		/* logical device unit */
+    int				flags;		/* device state flags */
 #define 	F_LOCKED		0x0001	/* this unit is locked */
 
-    struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
+    struct buf_queue_head	bio_queue;	/* Queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
     struct {
 	u_int32_t	volsize;		/* volume size in blocks */
@@ -335,9 +335,9 @@ struct acd_softc {
     } subchan;
     struct changer		*changer_info;	/* changer info */
     struct acd_softc		**driver;	/* softc's of changer slots */
-    int32_t			slot;		/* this instance slot number */
+    int				slot;		/* this instance slot number */
     time_t			timestamp;	/* this instance timestamp */
-    u_int32_t			block_size;	/* blocksize currently used */
+    int				block_size;	/* blocksize currently used */
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev1, dev2;	/* device place holders */
