@@ -1234,7 +1234,7 @@ ieee80211_free_node(struct ieee80211_node *ni)
 	struct ieee80211_node_table *nt = ni->ni_table;
 
 #ifdef IEEE80211_DEBUG_REFCNT
-	IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
+	IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_NODE,
 		"%s (%s:%u) %s refcnt %d\n", __func__, func, line,
 		 ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)-1);
 #endif
