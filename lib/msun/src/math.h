@@ -101,163 +101,163 @@ struct exception {
  * ANSI/POSIX
  */
 __BEGIN_DECLS
-double	acos __P((double));
-double	asin __P((double));
-double	atan __P((double));
-double	atan2 __P((double, double));
-double	cos __P((double));
-double	sin __P((double));
-double	tan __P((double));
+double	acos(double);
+double	asin(double);
+double	atan(double);
+double	atan2(double, double);
+double	cos(double);
+double	sin(double);
+double	tan(double);
 
-double	cosh __P((double));
-double	sinh __P((double));
-double	tanh __P((double));
+double	cosh(double);
+double	sinh(double);
+double	tanh(double);
 
-double	exp __P((double));
-double	frexp __P((double, int *));
-double	ldexp __P((double, int));
-double	log __P((double));
-double	log10 __P((double));
-double	modf __P((double, double *));
+double	exp(double);
+double	frexp(double, int *);
+double	ldexp(double, int);
+double	log(double);
+double	log10(double);
+double	modf(double, double *);
 
-double	pow __P((double, double));
-double	sqrt __P((double));
+double	pow(double, double);
+double	sqrt(double);
 
-double	ceil __P((double));
-double	fabs __P((double));
-double	floor __P((double));
-double	fmod __P((double, double));
+double	ceil(double);
+double	fabs(double);
+double	floor(double);
+double	fmod(double, double);
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-double	erf __P((double));
-double	erfc __P((double));
-double	gamma __P((double));
-double	hypot __P((double, double));
-int	isinf __P((double));
-int	isnan __P((double));
-int	finite __P((double));
-double	j0 __P((double));
-double	j1 __P((double));
-double	jn __P((int, double));
-double	lgamma __P((double));
-double	y0 __P((double));
-double	y1 __P((double));
-double	yn __P((int, double));
+double	erf(double);
+double	erfc(double);
+double	gamma(double);
+double	hypot(double, double);
+int	isinf(double);
+int	isnan(double);
+int	finite(double);
+double	j0(double);
+double	j1(double);
+double	jn(int, double);
+double	lgamma(double);
+double	y0(double);
+double	y1(double);
+double	yn(int, double);
 
 #if !defined(_XOPEN_SOURCE)
-double	acosh __P((double));
-double	asinh __P((double));
-double	atanh __P((double));
-double	cbrt __P((double));
-double	logb __P((double));
-double	nextafter __P((double, double));
-double	remainder __P((double, double));
-double	scalb __P((double, double));
+double	acosh(double);
+double	asinh(double);
+double	atanh(double);
+double	cbrt(double);
+double	logb(double);
+double	nextafter(double, double);
+double	remainder(double, double);
+double	scalb(double, double);
 
 #ifndef __cplusplus
-int	matherr __P((struct exception *));
+int	matherr(struct exception *);
 #endif
 
 /*
  * IEEE Test Vector
  */
-double	significand __P((double));
+double	significand(double);
 
 /*
  * Functions callable from C, intended to support IEEE arithmetic.
  */
-double	copysign __P((double, double));
-int	ilogb __P((double));
-double	rint __P((double));
-double	scalbn __P((double, int));
+double	copysign(double, double);
+int	ilogb(double);
+double	rint(double);
+double	scalbn(double, int);
 
 /*
  * BSD math library entry points
  */
-double	drem __P((double, double));
-double	expm1 __P((double));
-double	log1p __P((double));
+double	drem(double, double);
+double	expm1(double);
+double	log1p(double);
 
 /*
  * Reentrant version of gamma & lgamma; passes signgam back by reference
  * as the second argument; user must allocate space for signgam.
  */
 #ifdef _REENTRANT
-double	gamma_r __P((double, int *));
-double	lgamma_r __P((double, int *));
+double	gamma_r(double, int *);
+double	lgamma_r(double, int *);
 #endif /* _REENTRANT */
 
 /* float versions of ANSI/POSIX functions */
-float	acosf __P((float));
-float	asinf __P((float));
-float	atanf __P((float));
-float	atan2f __P((float, float));
-float	cosf __P((float));
-float	sinf __P((float));
-float	tanf __P((float));
+float	acosf(float);
+float	asinf(float);
+float	atanf(float);
+float	atan2f(float, float);
+float	cosf(float);
+float	sinf(float);
+float	tanf(float);
 
-float	coshf __P((float));
-float	sinhf __P((float));
-float	tanhf __P((float));
+float	coshf(float);
+float	sinhf(float);
+float	tanhf(float);
 
-float	expf __P((float));
-float	frexpf __P((float, int *));
-float	ldexpf __P((float, int));
-float	logf __P((float));
-float	log10f __P((float));
-float	modff __P((float, float *));
+float	expf(float);
+float	frexpf(float, int *);
+float	ldexpf(float, int);
+float	logf(float);
+float	log10f(float);
+float	modff(float, float *);
 
-float	powf __P((float, float));
-float	sqrtf __P((float));
+float	powf(float, float);
+float	sqrtf(float);
 
-float	ceilf __P((float));
-float	fabsf __P((float));
-float	floorf __P((float));
-float	fmodf __P((float, float));
+float	ceilf(float);
+float	fabsf(float);
+float	floorf(float);
+float	fmodf(float, float);
 
-float	erff __P((float));
-float	erfcf __P((float));
-float	gammaf __P((float));
-float	hypotf __P((float, float));
-int	isnanf __P((float));
-int	finitef __P((float));
-float	j0f __P((float));
-float	j1f __P((float));
-float	jnf __P((int, float));
-float	lgammaf __P((float));
-float	y0f __P((float));
-float	y1f __P((float));
-float	ynf __P((int, float));
+float	erff(float);
+float	erfcf(float);
+float	gammaf(float);
+float	hypotf(float, float);
+int	isnanf(float);
+int	finitef(float);
+float	j0f(float);
+float	j1f(float);
+float	jnf(int, float);
+float	lgammaf(float);
+float	y0f(float);
+float	y1f(float);
+float	ynf(int, float);
 
-float	acoshf __P((float));
-float	asinhf __P((float));
-float	atanhf __P((float));
-float	cbrtf __P((float));
-float	logbf __P((float));
-float	nextafterf __P((float, float));
-float	remainderf __P((float, float));
-float	scalbf __P((float, float));
+float	acoshf(float);
+float	asinhf(float);
+float	atanhf(float);
+float	cbrtf(float);
+float	logbf(float);
+float	nextafterf(float, float);
+float	remainderf(float, float);
+float	scalbf(float, float);
 
 /*
  * float version of IEEE Test Vector
  */
-float	significandf __P((float));
+float	significandf(float);
 
 /*
  * Float versions of functions callable from C, intended to support
  * IEEE arithmetic.
  */
-float	copysignf __P((float, float));
-int	ilogbf __P((float));
-float	rintf __P((float));
-float	scalbnf __P((float, int));
+float	copysignf(float, float);
+int	ilogbf(float);
+float	rintf(float);
+float	scalbnf(float, int);
 
 /*
  * float versions of BSD math library entry points
  */
-float	dremf __P((float, float));
-float	expm1f __P((float));
-float	log1pf __P((float));
+float	dremf(float, float);
+float	expm1f(float);
+float	log1pf(float);
 
 /*
  * Float versions of reentrant version of gamma & lgamma; passes
@@ -265,8 +265,8 @@ float	log1pf __P((float));
  * allocate space for signgam.
  */
 #ifdef _REENTRANT
-float	gammaf_r __P((float, int *));
-float	lgammaf_r __P((float, int *));
+float	gammaf_r(float, int *);
+float	lgammaf_r(float, int *);
 #endif	/* _REENTRANT */
 
 #endif /* !_XOPEN_SOURCE */
