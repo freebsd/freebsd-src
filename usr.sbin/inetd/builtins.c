@@ -1,9 +1,41 @@
+/*-
+ * Copyright (c) 1983, 1991, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $Id$
+ *
+ */
+
+#include <sys/filio.h>
+#include <sys/ioccom.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -11,6 +43,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -247,14 +280,17 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 
 /* ARGSUSED */
 void
-iderror(lport, fport, fp, er)
-	int lport, fport, er;
-	FILE *fp;
+iderror(lport, fport, s, er)
+	int lport, fport, s, er;
 {
-	fprintf(fp, "%d , %d : ERROR : %s\r\n", lport, fport, 
+	char *p;
+
+	er = asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
 	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
-	fflush(fp);
-	fclose(fp);
+	if (er == -1)
+		exit(0);
+	write(s, p, strlen(p));
+	free(p);
 
 	exit(0);
 }
@@ -268,8 +304,12 @@ ident_stream(s, sep)		/* Ident service */
 	struct sockaddr_in sin[2];
 	struct ucred uc;
 	struct passwd *pw;
-	FILE *fp;
-	char buf[BUFSIZE], *cp, **av;
+	struct timeval tv = {
+		10,
+		0
+	};
+	fd_set fdset;
+	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL;
 	int len, c, rflag = 0, fflag = 0, argc = 0;
 	u_short lport, fport;
 
@@ -279,7 +319,7 @@ ident_stream(s, sep)		/* Ident service */
 	for (av = sep->se_argv; *av; av++)
 		argc++;
 	if (argc) {
-		while ((c = getopt(argc, sep->se_argv, "fr")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "fro:")) != -1)
 			switch (c) {
 			case 'f':
 				fflag = 1;
@@ -287,39 +327,51 @@ ident_stream(s, sep)		/* Ident service */
 			case 'r':
 				rflag = 1;
 				break;
+			case 'o':
+				osname = optarg;
+				break;
 			default:
 				break;
 			}
 	}
-	fp = fdopen(s, "r+");
+	if (osname == NULL) {
+		struct utsname un;
+
+		if (uname(&un))
+			iderror(0, 0, s, errno);
+		osname = un.sysname;
+	}
 	len = sizeof(sin[0]);
 	if (getsockname(s, (struct sockaddr *)&sin[0], &len) == -1)
-		iderror(0, 0, fp, errno);
+		iderror(0, 0, s, errno);
 	len = sizeof(sin[1]);
 	if (getpeername(s, (struct sockaddr *)&sin[1], &len) == -1)
-		iderror(0, 0, fp, errno);
-	errno = 0;
-	if (fgets(buf, sizeof(buf), fp) == NULL)
-		iderror(0, 0, fp, errno);
-	buf[BUFSIZE - 1] = '\0';
-	strtok(buf, "\r\n");
-	cp = strtok(buf, ",");
-	if (cp == NULL || sscanf(cp, "%hu", &lport) != 1)
-		iderror(0, 0, fp, 0);
-	cp = strtok(NULL, ",");
-	if (cp == NULL || sscanf(cp, "%hu", &fport) != 1)
-		iderror(0, 0, fp, 0);
+		iderror(0, 0, s, errno);
+	FD_ZERO(&fdset);
+	FD_SET(s, &fdset);
+	if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
+		iderror(0, 0, s, errno);
+	if (ioctl(s, FIONREAD, &len) == -1)
+		iderror(0, 0, s, errno);
+	if (len >= sizeof(buf))
+		len = sizeof(buf) - 1;
+	len = read(s, buf, len);
+	if (len == -1)
+		iderror(0, 0, s, errno);
+	buf[len] = '\0';
+	if (sscanf(buf, "%hu,%hu", &lport, &fport) != 2)
+		iderror(0, 0, s, 0);
 	if (!rflag)
-		iderror(lport, fport, fp, -1);
+		iderror(lport, fport, s, -1);
 	sin[0].sin_port = htons(lport);
 	sin[1].sin_port = htons(fport);
 	len = sizeof(uc);
 	if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
 	    sizeof(sin)) == -1)
-		iderror(lport, fport, fp, errno);
+		iderror(lport, fport, s, errno);
 	pw = getpwuid(uc.cr_uid);
 	if (pw == NULL)
-		iderror(lport, fport, fp, errno);
+		iderror(lport, fport, s, errno);
 	if (fflag) {
 		FILE *fakeid = NULL;
 		char fakeid_path[PATH_MAX];
@@ -351,10 +403,11 @@ ident_stream(s, sep)		/* Ident service */
 	} else
 		cp = pw->pw_name;
 printit:
-	fprintf(fp, "%d , %d : USERID : FreeBSD :%s\r\n", lport, fport,
-	    cp);
-	fflush(fp);
-	fclose(fp);
+	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
+	    cp) == -1)
+		iderror(0, 0, s, errno);
+	write(s, p, strlen(p));
+	free(p);
 	
 	exit(0);
 }
