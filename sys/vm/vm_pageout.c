@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.71 1996/05/18 03:38:00 dyson Exp $
+ * $Id: vm_pageout.c,v 1.72 1996/05/24 05:19:15 dyson Exp $
  */
 
 /*
@@ -540,6 +540,7 @@ vm_pageout_scan()
 	 * them.
 	 */
 
+rescan0:
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
 
@@ -554,12 +555,10 @@ rescan1:
 		cnt.v_pdpages++;
 		next = TAILQ_NEXT(m, pageq);
 
-#if defined(VM_DIAGNOSE)
 		if (m->queue != PQ_INACTIVE) {
 			printf("vm_pageout_scan: page not inactive?\n");
 			break;
 		}
-#endif
 
 		/*
 		 * Dont mess with busy pages, keep in the front of the
@@ -611,6 +610,8 @@ rescan1:
 
 			object = m->object;
 			if (object->flags & OBJ_DEAD) {
+				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 				m = next;
 				continue;
 			}
@@ -618,8 +619,15 @@ rescan1:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) || vget(vp, 1)) {
+					if (m->queue == PQ_INACTIVE) {
+						TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+						TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+					}
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						++vnodes_skipped;
+					if (next->queue != PQ_INACTIVE) {
+						goto rescan0;
+					}
 					m = next;
 					continue;
 				}
@@ -852,6 +860,7 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
+		int inactive_target;
 		int s = splvm();
 		if (!vm_pages_needed ||
 			((cnt.v_free_count >= cnt.v_free_reserved) &&
@@ -867,6 +876,11 @@ vm_pageout()
 		splx(s);
 		vm_pager_sync();
 		vm_pageout_scan();
+		inactive_target =
+			(cnt.v_page_count - cnt.v_wire_count) / 4;
+		if (inactive_target < 2*cnt.v_free_min)
+			inactive_target = 2*cnt.v_free_min;
+		cnt.v_inactive_target = inactive_target;
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
 	}
