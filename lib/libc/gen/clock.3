@@ -69,3 +69,12 @@ The
 .Fn clock
 function conforms to
 .St -isoC .
+However,
+.St -susv2
+requires
+.Dv CLOCKS_PER_SEC
+to be defined as one million.
+.Fx
+does not conform to this requirement;
+changing the value would introduce binary incompatibility
+and one million is still inadequate on modern processors.
