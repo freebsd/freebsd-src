@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.31 1997/10/28 19:01:02 phk Exp $
+ * $Id: malloc.h,v 1.32 1997/12/04 07:29:17 davidg Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -63,7 +63,8 @@ struct malloc_type {
 };
 
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
-	struct malloc_type type[1] = { { shortdesc, M_MAGIC } }; \
+	struct malloc_type type[1] = { { NULL, 0, 0, 0, 0, 0, 0, \
+					 M_MAGIC, shortdesc, 0, 0 } }; \
 	struct __hack
 
 #define	MALLOC_DECLARE(type) \
