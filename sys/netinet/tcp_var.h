@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.25 1995/12/16 02:14:19 bde Exp $
+ * 	$Id: tcp_var.h,v 1.26 1995/12/29 01:12:02 davidg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -324,7 +324,6 @@ extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_mssdflt;	/* XXX */
 extern	u_long tcp_now;		/* for RFC 1323 timestamps */
-extern  u_short tcp_lastport;	/* last assigned port */
 
 void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *
