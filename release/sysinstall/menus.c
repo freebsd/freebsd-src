@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.24 1995/10/17 02:56:56 jkh Exp $
+ * $Id: menus.c,v 1.42.2.25 1995/10/18 00:12:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -149,15 +149,11 @@ distribution files.",
 
 DMenu MenuMediaFTP = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-"Please specify an FTP site",
-"FreeBSD is distributed from a number of sites on the Internet. Please\n\
-select the site closest to you or \"other\" if you'd like to specify another\n\
-choice.  Also note that not all sites carry every possible distribution!\n\
-Distributions other than the basic user set are only guaranteed to be\n\
-available from the Primary site.\n\n\
-If the first site selected doesn't respond, try one of the alternates.\n\
-You may also wish to investigate the options menu in case of trouble.\n\
-To specify a URL not in this list, chose \"other\".",
+"Please select a FreeBSD FTP distribution site",
+"Please select the site closest to you or \"other\" if you'd like to specify\n\
+a different choice.  Also note that not every site listed here carries more\n\
+than the base distribution kits. Only the Primary site is guaranteed to carry\n\
+the full range of distributions.",
 "Select a site that's close!",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.35 1995/10/16 23:02:20 jkh Exp $
+ * $Id: install.c,v 1.71.2.36 1995/10/18 00:12:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -721,13 +721,13 @@ installPreconfig(char *str)
 	}
 	else {
 	    Attribs *cattr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    int i;
+	    int i, j;
 
 	    if (attr_parse(cattr, fd) == RET_FAIL)
 		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cp);
 	    else {
-		for (i = 0; cattr[i].name[0]; i++)
-		    variable_set2(cattr[i].name, cattr[i].value);
+		for (j = 0; cattr[j].name[0]; j++)
+		    variable_set2(cattr[j].name, cattr[j].value);
 		i = RET_SUCCESS;
 	    }
 	    mediaDevice->close(mediaDevice, fd);
