@@ -601,7 +601,9 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	}
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
+	VOP_UNLOCK(devvp, 0, p);
 	if (error)
 		return (error);
 	if (devvp->v_rdev->si_iosize_max > mp->mnt_iosize_max)

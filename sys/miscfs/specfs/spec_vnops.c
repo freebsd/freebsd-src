@@ -68,10 +68,8 @@ static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
 static int	spec_print __P((struct vop_print_args *));
 static int	spec_read __P((struct vop_read_args *));  
-static int	spec_bufread __P((struct vop_read_args *));  
 static int	spec_strategy __P((struct vop_strategy_args *));
 static int	spec_write __P((struct vop_write_args *));
-static int	spec_bufwrite __P((struct vop_write_args *));
 
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
@@ -113,9 +111,6 @@ static struct vnodeopv_desc spec_vnodeop_opv_desc =
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
 
-static int bdev_buffered = 0;
-SYSCTL_INT(_vfs, OID_AUTO, bdev_buffered, CTLFLAG_RW, &bdev_buffered, 0, "");
-
 int
 spec_vnoperate(ap)
 	struct vop_generic_args /* {
@@ -142,8 +137,8 @@ spec_open(ap)
 	} */ *ap;
 {
 	struct proc *p = ap->a_p;
-	struct vnode *bvp, *vp = ap->a_vp;
-	dev_t bdev, dev = vp->v_rdev;
+	struct vnode *vp = ap->a_vp;
+	dev_t dev = vp->v_rdev;
 	int error;
 	struct cdevsw *dsw;
 	const char *cp;
@@ -162,60 +157,42 @@ spec_open(ap)
 	if (!dev->si_iosize_max)
 		dev->si_iosize_max = DFLTPHYS;
 
-	switch (vp->v_type) {
-	case VCHR:
-		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
-			/*
-			 * When running in very secure mode, do not allow
-			 * opens for writing of any disk character devices.
-			 */
-			if (securelevel >= 2
-			    && dsw->d_bmaj != -1
-			    && (dsw->d_flags & D_TYPEMASK) == D_DISK)
-				return (EPERM);
-			/*
-			 * When running in secure mode, do not allow opens
-			 * for writing of character
-			 * devices whose corresponding block devices are
-			 * currently mounted.
-			 */
-			if (securelevel >= 1) {
-				if ((bdev = chrtoblk(dev)) != NODEV &&
-				    vfinddev(bdev, VBLK, &bvp) &&
-				    bvp->v_usecount > 0 &&
-				    (error = vfs_mountedon(bvp)))
-					return (error);
-			}
-		}
-		if ((dsw->d_flags & D_TYPEMASK) == D_TTY)
-			vp->v_flag |= VISTTY;
-		VOP_UNLOCK(vp, 0, p);
-		error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, p);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		break;
-	case VBLK:
+	/*
+	 * XXX: Disks get special billing here, but it is mostly wrong.
+	 * XXX: diskpartitions can overlap and the real checks should
+	 * XXX: take this into account, and consequently they need to
+	 * XXX: live in the diskslicing code.  Some checks do.
+	 */
+	if (vn_isdisk(vp) && ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
 		/*
-		 * When running in very secure mode, do not allow
-		 * opens for writing of any disk block devices.
+		 * Never allow opens for write if the device is mounted R/W
 		 */
-		if (securelevel >= 2 && ap->a_cred != FSCRED &&
-		    (ap->a_mode & FWRITE) &&
-		    (dsw->d_flags & D_TYPEMASK) == D_DISK)
+		if (vp->v_specmountpoint != NULL &&
+		    !(vp->v_specmountpoint->mnt_flag & MNT_RDONLY))
+				return (EBUSY);
+
+		/*
+		 * When running in secure mode, do not allow opens
+		 * for writing if the device is mounted
+		 */
+		if (securelevel >= 1 && vp->v_specmountpoint != NULL)
 			return (EPERM);
 
 		/*
-		 * Do not allow opens of block devices that are
-		 * currently mounted.
+		 * When running in very secure mode, do not allow
+		 * opens for writing of any devices.
 		 */
-		error = vfs_mountedon(vp);
-		if (error)
-			return (error);
-		error = (*dsw->d_open)(dev, ap->a_mode, S_IFBLK, p);
-		break;
-	default:
-		error = ENXIO;
-		break;
+		if (securelevel >= 2)
+			return (EPERM);
 	}
+
+	/* XXX: Special casing of ttys for deadfs.  Probably redundant */
+	if (dsw->d_flags & D_TTY)
+		vp->v_flag |= VISTTY;
+
+	VOP_UNLOCK(vp, 0, p);
+	error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	if (error)
 		return (error);
@@ -255,122 +232,28 @@ spec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
 		struct uio *a_uio;
-		int  a_ioflag;
+		int a_ioflag;
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
- 	struct proc *p = uio->uio_procp;
-	int error = 0;
+	struct vnode *vp;
+	struct proc *p;
+	struct uio *uio;
+	dev_t dev;
+	int error;
 
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_READ)
-		panic("spec_read mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
-		panic("spec_read proc");
-#endif
+	vp = ap->a_vp;
+	dev = vp->v_rdev;
+	uio = ap->a_uio;
+	p = uio->uio_procp;
+
 	if (uio->uio_resid == 0)
 		return (0);
 
-	if (vp->v_type == VCHR || (bdev_buffered == 0)) {
-		VOP_UNLOCK(vp, 0, p);
-		error = (*devsw(vp->v_rdev)->d_read)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-	} else {
-		return (spec_bufread(ap));
-	}
-}
-
-
-/* Vnode op for buffered read */
-/* ARGSUSED */
-static int
-spec_bufread(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
- 	struct proc *p = uio->uio_procp;
-	struct buf *bp;
-	daddr_t bn, nextbn;
-	long bsize, bscale;
-	struct partinfo dpart;
-	int n, on;
-	d_ioctl_t *ioctl;
-	int error = 0;
-	int seqcount = ap->a_ioflag >> 16;
-	dev_t dev;
-
-	if (uio->uio_offset < 0)
-		return (EINVAL);
-	dev = vp->v_rdev;
-
-	/*
-	 * Calculate block size for block device.  The block size must
-	 * be larger then the physical minimum.
-	 */
-
-	bsize = vp->v_rdev->si_bsize_best;
-	if (bsize < vp->v_rdev->si_bsize_phys)
-		bsize = vp->v_rdev->si_bsize_phys;
-	if (bsize < BLKDEV_IOSIZE)
-		bsize = BLKDEV_IOSIZE;
-
-	if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
-	    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
-	    dpart.part->p_fstype == FS_BSDFFS &&
-	    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
-		bsize = dpart.part->p_frag * dpart.part->p_fsize;
-	bscale = btodb(bsize);
-	do {
-		bn = btodb(uio->uio_offset) & ~(bscale - 1);
-		on = uio->uio_offset % bsize;
-		if (seqcount > 1) {
-			nextbn = bn + bscale;
-			error = breadn(vp, bn, (int)bsize, &nextbn,
-				(int *)&bsize, 1, NOCRED, &bp);
-		} else {
-			error = bread(vp, bn, (int)bsize, NOCRED, &bp);
-		}
-
-		/*
-		 * Figure out how much of the buffer is valid relative
-		 * to our offset into the buffer, which may be negative
-		 * if we are beyond the EOF.
-		 *
-		 * The valid size of the buffer is based on 
-		 * bp->b_bcount (which may have been truncated by
-		 * dscheck or the device) minus bp->b_resid, which
-		 * may be indicative of an I/O error if non-zero.
-		 */
-		if (error == 0) {
-			n = bp->b_bcount - on;
-			if (n < 0) {
-				error = EINVAL;
-			} else {
-				n = min(n, bp->b_bcount - bp->b_resid - on);
-				if (n < 0)
-					error = EIO;
-			}
-		}
-		if (error) {
-			brelse(bp);
-			return (error);
-		}
-		n = min(n, uio->uio_resid);
-		error = uiomove((char *)bp->b_data + on, n, uio);
-		brelse(bp);
-	} while (error == 0 && uio->uio_resid > 0 && n != 0);
+	VOP_UNLOCK(vp, 0, p);
+	error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	return (error);
-	/* NOTREACHED */
 }
 
 /*
@@ -382,129 +265,24 @@ spec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
 		struct uio *a_uio;
-		int  a_ioflag;
+		int a_ioflag;
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
-	struct proc *p = uio->uio_procp;
-	int error = 0;
+	struct vnode *vp;
+	struct proc *p;
+	struct uio *uio;
+	dev_t dev;
+	int error;
 
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_WRITE)
-		panic("spec_write mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
-		panic("spec_write proc");
-#endif
+	vp = ap->a_vp;
+	dev = vp->v_rdev;
+	uio = ap->a_uio;
+	p = uio->uio_procp;
 
-	if (vp->v_type == VCHR || (bdev_buffered == 0)) {
-		VOP_UNLOCK(vp, 0, p);
-		error = (*devsw(vp->v_rdev)->d_write)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-	} else {
-		return (spec_bufwrite(ap));
-	}
-}
-
-
-/* Vnode op for buffered write */
-/* ARGSUSED */
-static int
-spec_bufwrite(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
-	struct proc *p = uio->uio_procp;
-	struct buf *bp;
-	daddr_t bn;
-	int bsize, blkmask;
-	struct partinfo dpart;
-	int n, on;
-	int error = 0;
-
-	if (uio->uio_resid == 0)
-		return (0);
-	if (uio->uio_offset < 0)
-		return (EINVAL);
-
-	/*
-	 * Calculate block size for block device.  The block size must
-	 * be larger then the physical minimum.
-	 */
-	bsize = vp->v_rdev->si_bsize_best;
-	if (bsize < vp->v_rdev->si_bsize_phys)
-		bsize = vp->v_rdev->si_bsize_phys;
-	if (bsize < BLKDEV_IOSIZE)
-		bsize = BLKDEV_IOSIZE;
-
-	if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
-	    (caddr_t)&dpart, FREAD, p) == 0) {
-		if (dpart.part->p_fstype == FS_BSDFFS &&
-		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
-			bsize = dpart.part->p_frag *
-			    dpart.part->p_fsize;
-	}
-	blkmask = btodb(bsize) - 1;
-	do {
-		bn = btodb(uio->uio_offset) & ~blkmask;
-		on = uio->uio_offset % bsize;
-
-		/*
-		 * Calculate potential request size, determine
-		 * if we can avoid a read-before-write.
-		 */
-		n = min((unsigned)(bsize - on), uio->uio_resid);
-		if (n == bsize)
-			bp = getblk(vp, bn, bsize, 0, 0);
-		else
-			error = bread(vp, bn, bsize, NOCRED, &bp);
-
-		/*
-		 * n is the amount of effective space in the buffer
-		 * that we wish to write relative to our offset into
-		 * the buffer. We have to truncate it to the valid
-		 * size of the buffer relative to our offset into
-		 * the buffer (which may end up being negative if
-		 * we are beyond the EOF).
-		 *
-		 * The valid size of the buffer is based on 
-		 * bp->b_bcount (which may have been truncated by
-		 * dscheck or the device) minus bp->b_resid, which
-		 * may be indicative of an I/O error if non-zero.
-		 *
-		 * XXX In a newly created buffer, b_bcount == bsize
-		 * and, being asynchronous, we have no idea of the
-		 * EOF.
-		 */
-		if (error == 0) {
-			n = min(n, bp->b_bcount - on);
-			if (n < 0) {
-				error = EINVAL;
-			} else {
-				n = min(n, bp->b_bcount - bp->b_resid - on);
-				if (n < 0)
-					error = EIO;
-			}
-		}
-		if (error) {
-			brelse(bp);
-			return (error);
-		}
-		error = uiomove((char *)bp->b_data + on, n, uio);
-		if (n + on == bsize)
-			bawrite(bp);
-		else
-			bdwrite(bp);
-	} while (error == 0 && uio->uio_resid > 0 && n != 0);
+	VOP_UNLOCK(vp, 0, p);
+	error = (*devsw(dev)->d_write) (dev, uio, ap->a_ioflag);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	return (error);
 }
 
@@ -523,8 +301,9 @@ spec_ioctl(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	dev_t dev = ap->a_vp->v_rdev;
+	dev_t dev;
 
+	dev = ap->a_vp->v_rdev;
 	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
 	    ap->a_data, ap->a_fflag, ap->a_p));
 }
@@ -653,6 +432,10 @@ spec_freeblks(ap)
 	struct cdevsw *bsw;
 	struct buf *bp;
 
+	/*
+	 * XXX: This assumes that strategy does the deed right away.
+	 * XXX: this may not be TRTTD.
+	 */
 	bsw = devsw(ap->a_vp->v_rdev);
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
@@ -690,7 +473,7 @@ spec_bmap(ap)
 		*ap->a_vpp = vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
-	if (vp->v_type == VBLK && vp->v_mount != NULL)
+	if (vp->v_mount != NULL)
 		runp = runb = MAXBSIZE / vp->v_mount->mnt_stat.f_iosize;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = runp;
@@ -715,46 +498,20 @@ spec_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct proc *p = ap->a_p;
 	dev_t dev = vp->v_rdev;
-	int mode, error;
 
-	switch (vp->v_type) {
-
-	case VCHR:
-		/*
-		 * Hack: a tty device that is a controlling terminal
-		 * has a reference from the session structure.
-		 * We cannot easily tell that a character device is
-		 * a controlling terminal, unless it is the closing
-		 * process' controlling terminal.  In that case,
-		 * if the reference count is 2 (this last descriptor
-		 * plus the session), release the reference from the session.
-		 */
-		if (vcount(vp) == 2 && p && (vp->v_flag & VXLOCK) == 0 &&
-		    vp == p->p_session->s_ttyvp) {
-			vrele(vp);
-			p->p_session->s_ttyvp = NULL;
-		}
-		mode = S_IFCHR;
-		break;
-
-	case VBLK:
-		if (bdev_buffered) {
-			/*
-			 * On last close of a block device (that isn't mounted)
-			 * we must invalidate any in core blocks, so that
-			 * we can, for instance, change floppy disks.
-			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			error = vinvalbuf(vp, V_SAVE, ap->a_cred, p, 0, 0);
-			VOP_UNLOCK(vp, 0, p);
-			if (error)
-				return (error);
-		}
-		mode = S_IFBLK;
-		break;
-
-	default:
-		panic("spec_close: not special");
+	/*
+	 * Hack: a tty device that is a controlling terminal
+	 * has a reference from the session structure.
+	 * We cannot easily tell that a character device is
+	 * a controlling terminal, unless it is the closing
+	 * process' controlling terminal.  In that case,
+	 * if the reference count is 2 (this last descriptor
+	 * plus the session), release the reference from the session.
+	 */
+	if (vcount(vp) == 2 && p && (vp->v_flag & VXLOCK) == 0 &&
+	    vp == p->p_session->s_ttyvp) {
+		vrele(vp);
+		p->p_session->s_ttyvp = NULL;
 	}
 	/*
 	 * We do not want to really close the device if it
@@ -772,7 +529,7 @@ spec_close(ap)
 	} else if (vcount(vp) > 1) {
 		return (0);
 	}
-	return (devsw(dev)->d_close(dev, ap->a_fflag, mode, p));
+	return (devsw(dev)->d_close(dev, ap->a_fflag, S_IFCHR, p));
 }
 
 /*
