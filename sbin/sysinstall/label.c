@@ -10,7 +10,9 @@ display_disklabel(int disk)
 	int i, key=0;
 	WINDOW *window;
 
-	window = newwin(LINES, COLS, 0, 0);
+	if (use_shadow)
+		draw_shadow(stdscr, 1, 1, LINES-2, COLS-2);
+	window = newwin(LINES-2, COLS-2, 1, 1);
 	keypad(window, TRUE);
 
 	draw_box(window, 1, 1, LINES-2, COLS-2,
@@ -63,11 +65,10 @@ display_disklabel(int disk)
 		mvwprintw(window, 14+i, 70, "cpg: %d",avail_disklabels[disk].d_partitions[i].p_cpg);
 	}
 
-	refresh();
+	dialog_update();
 
 	while (key != '\n')
 		key = wgetch(window);
-	clear();
 	dialog_clear();
-	refresh();
+	dialog_update();
 }
