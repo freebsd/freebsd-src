@@ -59,26 +59,23 @@ static const char rcsid[] =
  * ignored (exclusive-use, lack of permission, etc.).
  */
 char *
-ttymsg(iov, iovcnt, line, tmout)
-	struct iovec *iov;
-	int iovcnt;
-	char *line;
-	int tmout;
+ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 {
+	struct iovec localiov[7];
+	int cnt, fd, left, wret;
 	static char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
-	register int cnt, fd, left, wret;
-	struct iovec localiov[7];
-	int forked = 0;
+	int forked;
 
+	forked = 0;
 	if (iovcnt > sizeof(localiov) / sizeof(localiov[0]))
 		return ("too many iov's (change code in wall/ttymsg.c)");
 
-	(void) strcpy(device + sizeof(_PATH_DEV) - 1, line);
+	strlcpy(device + sizeof(_PATH_DEV) - 1, line, sizeof(device));
 	if (strchr(device + sizeof(_PATH_DEV) - 1, '/')) {
 		/* A slash is an attempt to break security... */
-		(void) snprintf(errbuf, sizeof(errbuf), "'/' in \"%s\"",
-		    device);
+		(void) snprintf(errbuf, sizeof(errbuf),
+		    "Too many '/' in \"%s\"", device);
 		return (errbuf);
 	}
 
@@ -89,8 +86,8 @@ ttymsg(iov, iovcnt, line, tmout)
 	if ((fd = open(device, O_WRONLY|O_NONBLOCK, 0)) < 0) {
 		if (errno == EBUSY || errno == EACCES)
 			return (NULL);
-		(void) snprintf(errbuf, sizeof(errbuf),
-		    "%s: %s", device, strerror(errno));
+		(void) snprintf(errbuf, sizeof(errbuf), "%s: %s", device,
+		    strerror(errno));
 		return (errbuf);
 	}
 
@@ -104,7 +101,7 @@ ttymsg(iov, iovcnt, line, tmout)
 		if (wret >= 0) {
 			left -= wret;
 			if (iov != localiov) {
-				bcopy(iov, localiov,
+				bcopy(iov, localiov, 
 				    iovcnt * sizeof(struct iovec));
 				iov = localiov;
 			}
