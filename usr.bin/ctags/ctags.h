@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1987, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -32,6 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ctags.h	8.3 (Berkeley) 4/2/94
+ *
+ * $FreeBSD$
+ *
  */
 
 #define	bool	char
@@ -47,9 +49,10 @@
 #define	GETC(op,exp)	((c = getc(inf)) op (int)exp)
 
 /*
- * Assumes that the last element is always 'NO',
- * as the EOF return from stdio get overlaid to
- * that entry.
+ * These character classification macros assume that the (EOF & 0xff) element
+ * of the arrays is always 'NO', as the EOF return from getc() gets masked
+ * to that value.  Masking with 0xff has no effect for normal characters
+ * returned by getc() provided chars have 8 bits.
  */
 
 #define	iswhite(arg)	_wht[arg & 0xff]	/* T if char is white */
