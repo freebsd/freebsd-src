@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_common.c,v 1.1 1999/05/22 15:18:23 dfr Exp $
+ *	$Id: isa_common.c,v 1.2 1999/05/28 09:24:58 dfr Exp $
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.
@@ -279,8 +279,28 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 	case ISA_IVAR_FLAGS:
 		*result = idev->id_flags;
 		break;
+
+	case ISA_IVAR_VENDORID:
+		*result = idev->id_vendorid;
+		break;
+
+	case ISA_IVAR_SERIAL:
+		*result = idev->id_serial;
+		break;
+
+	case ISA_IVAR_LOGICALID:
+		*result = idev->id_logicalid;
+		break;
+
+	case ISA_IVAR_COMPATID:
+		*result = idev->id_compatid;
+		break;
+
+	default:
+		return ENOENT;
 	}
-	return ENOENT;
+
+	return 0;
 }
 
 static int
@@ -307,9 +327,27 @@ isa_write_ivar(device_t bus, device_t dev,
 	case ISA_IVAR_FLAGS:
 		idev->id_flags = value;
 		break;
+
+	case ISA_IVAR_VENDORID:
+		idev->id_vendorid = value;
+		break;
+
+	case ISA_IVAR_SERIAL:
+		idev->id_serial = value;
+		break;
+
+	case ISA_IVAR_LOGICALID:
+		idev->id_logicalid = value;
+		break;
+
+	case ISA_IVAR_COMPATID:
+		idev->id_compatid = value;
+		break;
+
 	default:
 		return (ENOENT);
 	}
+
 	return (0);
 }
 
@@ -349,6 +387,14 @@ isa_get_resource(device_t dev, device_t child, int type, int rid,
 	return 0;
 }
 
+static void
+isa_delete_resource(device_t dev, device_t child, int type, int rid)
+{
+	struct isa_device* idev = DEVTOISA(child);
+	struct resource_list *rl = &idev->id_resources;
+	resource_list_delete(rl, type, rid);
+}
+
 static device_method_t isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		isa_probe),
@@ -373,6 +419,7 @@ static device_method_t isa_methods[] = {
 	/* ISA interface */
 	DEVMETHOD(isa_set_resource,	isa_set_resource),
 	DEVMETHOD(isa_get_resource,	isa_get_resource),
+	DEVMETHOD(isa_delete_resource,	isa_delete_resource),
 
 	{ 0, 0 }
 };
