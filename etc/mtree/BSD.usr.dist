@@ -318,6 +318,12 @@
             ipfw
             ..
             isdn
+                contrib
+                ..
+                i4brunppp
+                ..
+                v21
+                ..
             ..
             kld
                 cdev
