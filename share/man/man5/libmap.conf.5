@@ -24,8 +24,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd April 7, 2003
 .Dt LIBMAP.CONF 5
 .Os
@@ -34,41 +32,44 @@
 .Nd "configuration file for dynamic object dependency mapping"
 .Sh DESCRIPTION
 The
-.Em libmap
+.Nm libmap
 functionality of
-.Nm ld-elf.so.1
+.Xr ld-elf.so.1 1
 allows dynamic object dependencies to be mapped to arbitrary
 names.
 .Pp
-The configuration file consists of two whitespace separated columns; the 
+The configuration file consists of two whitespace separated columns; the
 left hand side containing the mapping candidate and the right hand
-side containing the mapping.  Dependencies are matched against candidates
-and replaced with the mappings.
+side containing the mapping.
+Dependencies are matched against candidates and replaced with the mappings.
 .Pp
 Constrained mappings may be specified by enclosing the name of the
-executable or library in brackets.  All mappings following a constraint
-will only be evaluated for that constraint.  Currently, constraints
-are matched literally so that an executable with a fully qualified pathname 
-will only match the same constraint.  This means that
-.Em /usr/bin/foo
+executable or library in brackets.
+All mappings following a constraint will only be evaluated for that constraint.
+Currently, constraints
+are matched literally so that an executable with a fully qualified pathname
+will only match the same constraint.
+This means that
+.Pa /usr/bin/foo
 will not match a constraint for
-.Em foo
+.Pa foo
 and vise-versa.
 .Pp
-WARNING!  Constrained mappings must never appear first in the configuration
-file.  While there is a way to specify the
+WARNING!
+Constrained mappings must never appear first in the configuration file.
+While there is a way to specify the
 .Dq default
 constraint, its use is not recommended.
 .Pp
 The most common use at the date of writing is for allowing multiple
-POSIX threading libraries to be used on a system without relinking or
+.Tn POSIX
+threading libraries to be used on a system without relinking or
 changing symlinks.
 .Pp
-In order to enable this feature please see 
+In order to enable this feature please see
 .Pa src/libexec/rtld-elf/Makefile .
 .Sh EXAMPLE
 .Bd -literal
-
 # /etc/libmap.conf
 #
 # candidate		mapping
@@ -98,14 +99,15 @@ libc_r.so		libkse.so
 The libmap configuration file.
 .El
 .Sh SEE ALSO
+.Xr ldd 1 ,
 .Xr rtld 1
-.Xr ldd 1
 .Sh HISTORY
 The
 .Nm
-manual page and libmap.conf functionality first appeared in
+manual page and
+.Nm libmap
+functionality first appeared in
 .Fx 5.1 .
 .Sh AUTHORS
-This
-manual page was written by
-.An Matthew N. Dodd <winter@jurai.net> .
+This manual page was written by
+.An Matthew N. Dodd Aq winter@jurai.net .
