@@ -71,6 +71,9 @@ static const char rcsid[] =
 
 #include "kvm_private.h"
 
+/* from src/lib/libc/gen/nlist.c */
+int __fdnlist		__P((int, struct nlist *));
+
 char *
 kvm_geterr(kd)
 	kvm_t *kd;
