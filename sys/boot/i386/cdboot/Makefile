@@ -1,17 +1,15 @@
 # $FreeBSD$
 
-MAINTAINER=jhb@FreeBSD.org
+FILES=	${BOOT}
+CLEANFILES= ${BOOT} ${BOOT}.out ${BOOT}.o
 
-ORG=		0x7c00
+BOOT=	cdboot
+ORG=	0x7c00
 
-PROG=		cdboot
-NOMAN=
-STRIP=
+${BOOT}: ${BOOT}.out
+	objcopy -S -O binary ${BOOT}.out ${.TARGET}
 
-${PROG}: ${PROG}.o
-	${LD} -N -e start -Ttext ${ORG} -o ${PROG}.out ${PROG}.o
-	objcopy -S -O binary ${PROG}.out ${.TARGET}
-
-CLEANFILES+=	${PROG}.o ${PROG}.out
+${BOOT}.out: ${BOOT}.o
+	${LD} -N -e start -Ttext ${ORG} -o ${.TARGET} ${BOOT}.o
 
 .include <bsd.prog.mk>

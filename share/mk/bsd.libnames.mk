@@ -103,6 +103,7 @@ LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBSSH?=	${DESTDIR}${LIBDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
+LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a

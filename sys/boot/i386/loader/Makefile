@@ -1,12 +1,9 @@
 # $FreeBSD$
 
-PROG=		loader
-STRIP=
 NEWVERSWHAT=	"bootstrap loader" i386
-INSTALLFLAGS=	-b
 
 # architecture-specific loader code
-SRCS=		main.c conf.c
+SRCS=		main.c conf.c vers.c
 
 CFLAGS+=	-ffreestanding
 # Enable PXE TFTP or NFS support, not both.
@@ -42,9 +39,9 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
-CFLAGS+=	-I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c vers.o ${PROG}.list ${PROG}.bin ${PROG}.sym ${PROG}.help
+CLEANFILES=	vers.c loader loader.list loader.bin loader.sym loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x0
@@ -53,26 +50,7 @@ LDFLAGS=	-nostdlib -static -Ttext 0x0
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
 CFLAGS+=	-I${.CURDIR}/..
 
-# where to get libstand from
-#XXX need a better way to do this
-LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
-LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
-LIBSTAND=	-lstand
-.endif
-.endif
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-
 # BTX components
-.if exists(${.OBJDIR}/../btx)
-BTXDIR=		${.OBJDIR}/../btx
-.else
-BTXDIR=		${.CURDIR}/../btx
-.endif
-BTXLDR=		${BTXDIR}/btxldr/btxldr
-BTXKERN=	${BTXDIR}/btx/btx
-BTXCRT=		${BTXDIR}/lib/crt0.o
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 
 # BTX is expecting ELF components
@@ -82,46 +60,47 @@ CFLAGS+=	-elf
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
 
-vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
-	${CC} ${CFLAGS} -c vers.c
+# Pick up ../Makefile.inc early.
+.include <bsd.init.mk>
 
-${PROG}: ${PROG}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
+vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+
+loader: loader.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
-		-b ${BTXKERN} ${PROG}.bin
+		-b ${BTXKERN} loader.bin
 #	/usr/bin/kzip ${.TARGET}
 #	mv ${.TARGET}.kz ${.TARGET}
 
-${PROG}.bin: ${PROG}.sym
+loader.bin: loader.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip -R .comment -R .note ${.TARGET}
 
-${PROG}.help: help.common help.i386
+loader.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth 
-FILES=	${PROG}.help loader.4th support.4th loader.conf
+FILES=	loader loader.help loader.4th support.4th loader.conf
 FILES+= screen.4th frames.4th beastie.4th
+# XXX INSTALLFLAGS_loader= -b
+FILESMODE_loader= ${BINMODE} -b
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=	${.CURDIR}/loader.rc
 .endif
 
-# Cannot use ${OBJS} above this line
-.include <bsd.prog.mk>
+OBJS=	${SRCS:N*.h:R:S/$/.o/g}
 
-${PROG}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
-	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
+loader.sym: ${OBJS} ${LIBFICL} ${LIBI386} ${LIBSTAND}
+	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} \
 		${LIBFICL} ${LIBI386} ${LIBSTAND}
 
-# If it's not there, don't consider it a target
-.if exists(${.CURDIR}/../../../i386/include)
-beforedepend ${OBJS}: machine
-
+.if defined(REALLY_AMD64)
+${OBJS}: machine
+CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
-
 .endif
 
-CLEANFILES+=	machine
+.include <bsd.prog.mk>
