@@ -223,10 +223,6 @@ scd_attach(struct isa_device *dev)
 	bioq_init(&cd->head);
 
 	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, 0),
-	    UID_ROOT, GID_OPERATOR, 0640, "rscd%da", unit);
-	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-	    UID_ROOT, GID_OPERATOR, 0640, "rscd%dc", unit);
-	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, 0),
 	    UID_ROOT, GID_OPERATOR, 0640, "scd%da", unit);
 	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
 	    UID_ROOT, GID_OPERATOR, 0640, "scd%dc", unit);
