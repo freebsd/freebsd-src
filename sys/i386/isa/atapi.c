@@ -104,6 +104,7 @@
 
 #ifndef ATAPI_MODULE
 # include "wcd.h"
+# include "wfd.h"
 /* # include "wmt.h" -- add your driver here */
 /* # include "wmd.h" -- add your driver here */
 #endif
@@ -171,6 +172,7 @@ static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern int wdstart (int ctrlr);
+extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
 
 /*
@@ -219,6 +221,9 @@ int atapi_attach (int ctlr, int unit, int port)
 	case AT_DRQT_ACCEL: printf (", accel"); break;
 	default:            printf (", drq%d", ap->drqtype);
 	}
+	/* When 'slow' is set, clear 'intrcmd' */
+	if (ata->slow)
+		ata->intrcmd = 0;
 
 	/* overlap operation supported */
 	if (ap->ovlapflag)
@@ -272,6 +277,14 @@ int atapi_attach (int ctlr, int unit, int port)
 		break;
 
 	case AT_TYPE_DIRECT:            /* direct-access */
+#if NWFD > 0
+		/* ATAPI Floppy(LS-120) */
+		if (wfdattach (ata, unit, ap, ata->debug) >= 0) {
+			/* Device attached successfully. */
+			ata->attached[unit] = 1;
+			return (1);
+		}
+#endif
 	case AT_TYPE_CDROM:             /* CD-ROM device */
 #if NWCD > 0
 		/* ATAPI CD-ROM */
@@ -318,6 +331,7 @@ static char *cmdname (u_char cmd)
 	case 0x1e: return ("PREVENT_ALLOW");
 	case 0x25: return ("READ_CAPACITY");
 	case 0x28: return ("READ_BIG");
+	case 0x2a: return ("WRITE_BIG");
 	case 0x43: return ("READ_TOC");
 	case 0x42: return ("READ_SUBCHANNEL");
 	case 0x55: return ("MODE_SELECT_BIG");
@@ -481,7 +495,7 @@ static struct atapicmd *atapi_alloc (struct atapi *ata)
 	struct atapicmd *ac;
 
 	while (! ata->free)
-		tsleep ((caddr_t)ata, PRIBIO, "atacmd", 0);
+		tsleep ((caddr_t)ata, PRIBIO, "atacmd", 100);
 	ac = ata->free;
 	ata->free = ac->next;
 	ac->busy = 1;
