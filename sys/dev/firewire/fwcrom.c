@@ -294,7 +294,7 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 {
 	struct csrreg *reg;
 	struct csrdirectory *dir;
-	char *desc, st;
+	char *desc;
 	uint16_t crc;
 
 	reg = crom_get(cc);
