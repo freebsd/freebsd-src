@@ -2183,12 +2183,6 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	HW_WDOG
 
 #
-# Add the Intel ICH watchdog timer driver. This is independent from
-# HW_WDOG option.
-#
-device		ichwd
-
-#
 # Add software watchdog routines.
 #
 options 	SW_WATCHDOG
