@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.16 1998/12/10 01:52:16 archie Exp $
+ *	$Id: ide_pci.c,v 1.17 1998/12/14 05:47:26 dillon Exp $
  */
 
 #include "pci.h"
@@ -935,7 +935,7 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 static void
 ide_pci_attach(pcici_t tag, int unit)
 {
-	u_long class, cmd;
+	u_long class = 0, cmd;
 	int bmista_1, bmista_2;
 	int iobase_wd_1, iobase_wd_2, iobase_bm_1, iobase_bm_2;
 	int altiobase_wd_1, altiobase_wd_2;
