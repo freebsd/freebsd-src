@@ -2213,17 +2213,11 @@ vx_unlock(struct vnode *vp)
  * Release the passed interlock if the vnode will be recycled.
  */
 int
-vrecycle(vp, inter_lkp, td)
-	struct vnode *vp;
-	struct mtx *inter_lkp;
-	struct thread *td;
+vrecycle(struct vnode *vp, struct thread *td)
 {
 
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0) {
-		if (inter_lkp) {
-			mtx_unlock(inter_lkp);
-		}
 		vgonel(vp, td);
 		return (1);
 	}

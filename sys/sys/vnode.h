@@ -616,8 +616,7 @@ int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);
 void	vn_printf(struct vnode *vp, const char *fmt, ...);
 #define vprint(label, vp) vn_printf((vp), "%s\n", (label))
-int	vrecycle(struct vnode *vp, struct mtx *inter_lkp,
-	    struct thread *td);
+int	vrecycle(struct vnode *vp, struct thread *td);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
