@@ -396,6 +396,9 @@ struct msghdr {
 #define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
 #define	MSG_COMPAT      0x8000		/* used in sendit() */
 #endif
+#ifdef _KERNEL
+#define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
+#endif
 
 /*
  * Header for ancillary data objects in msg_control buffer.
