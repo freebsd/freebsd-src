@@ -150,6 +150,8 @@ static vm_object_t
 				      vm_prot_t prot, vm_ooffset_t offset);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static boolean_t
+		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 static void	swap_pager_init(void);
 static void	swap_pager_unswapped(vm_page_t);
 static void	swap_pager_strategy(vm_object_t, struct bio *);
@@ -724,7 +726,7 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
  *	(that is handled in getpages/putpages).  It probably isn't worth
  *	doing here.
  */
-boolean_t
+static boolean_t
 swap_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
 	vm_pindex_t pindex;
