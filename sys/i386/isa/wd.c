@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.164 1998/05/05 14:27:26 sos Exp $
+ *	$Id: wd.c,v 1.165 1998/05/06 22:14:42 julian Exp $
  */
 
 /* TODO:
@@ -161,21 +161,21 @@ struct diskgeom {
  * The structure of a disk drive.
  */
 struct disk {
-	long	dk_bc;		/* byte count left */
+	u_int	dk_bc;		/* byte count left */
 	short	dk_skip;	/* blocks already transferred */
 	int	dk_ctrlr;	/* physical controller number */
 #ifdef CMD640
 	int	dk_ctrlr_cmd640;/* controller number for CMD640 quirk */
 #endif
-	int	dk_unit;	/* physical unit number */
-	int	dk_lunit;	/* logical unit number */
-	int	dk_interface;	/* interface (two ctrlrs per interface) */
+	u_int32_t	dk_unit;	/* physical unit number */
+	u_int32_t	dk_lunit;	/* logical unit number */
+	u_int32_t	dk_interface;	/* interface (two ctrlrs per interface) */
 	char	dk_state;	/* control state */
 	u_char	dk_status;	/* copy of status reg. */
 	u_char	dk_error;	/* copy of error reg. */
 	u_char	dk_timeout;	/* countdown to next timeout */
-	int	dk_port;	/* i/o port base */
-	int	dk_altport;	/* altstatus port base */
+	u_int32_t	dk_port;	/* i/o port base */
+	u_int32_t	dk_altport;	/* altstatus port base */
 #ifdef	DEVFS
 #ifdef	SLICE
 	struct slice	*slice;
@@ -202,8 +202,8 @@ struct disk {
 #define DKFL_LBA	0x02000	/* use LBA for data transfers */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* disk stats unit number */
-	int	dk_multi;	/* multi transfers */
-	int	dk_currentiosize;	/* current io size */
+	unsigned int	dk_multi;	/* multi transfers */
+	u_int	dk_currentiosize;	/* current io size */
 	struct diskgeom dk_dd;	/* device configuration data */
 	struct diskslices *dk_slices;	/* virtual drives */
 	void	*dk_dmacookie;	/* handle for DMA services */
@@ -248,7 +248,9 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
+#ifndef	SLICE
 static void wdstrategy1(struct buf *bp);
+#endif
 static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
@@ -263,7 +265,7 @@ static sl_h_IO_req_t	wdsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	wdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	wdsopen;	/* downwards travelling open */
 /*static sl_h_close_t	wdsclose; */	/* downwards travelling close */
-static sl_h_dump_t	wdsdump;	/* core dump req downward */
+static sl_h_dump_t	wddump;		/* core dump req downward */
 static void	wds_init(void*);
 
 static struct slice_handler slicetype = {
@@ -280,7 +282,7 @@ static struct slice_handler slicetype = {
 	NULL,	/* claim */
 	NULL,	/* verify */
 	NULL,	/* upconfig */
-	&wdsdump
+	&wddump
 };
 #endif
 
@@ -451,7 +453,7 @@ wdattach(struct isa_device *dvp)
 #if defined(DEVFS) && ! defined(SLICE)
 	int	mynor;
 #endif
-	int	unit, lunit;
+	u_int	unit, lunit;
 	struct isa_device *wdup;
 	struct disk *du;
 	struct wdparams *wp;
@@ -879,8 +881,8 @@ wdstart(int ctrlr)
 	struct diskgeom *lp;	/* XXX sic */
 	long	blknum;
 	long	secpertrk, secpercyl;
-	int	lunit;
-	int	count;
+	u_int	lunit;
+	u_int	count;
 #ifdef CMD640
 	int	ctrlr_atapi;
 
@@ -1323,7 +1325,7 @@ oops:
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
             && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
-		int	chk, dummy, multisize;
+		u_int	chk, dummy, multisize;
 		multisize = chk = du->dk_currentiosize * DEV_BSIZE;
 		if( du->dk_bc < chk) {
 			chk = du->dk_bc;
@@ -2003,7 +2005,7 @@ failed:
 	bcopy(tb, wp, sizeof(struct wdparams));
 
 	/* shuffle string byte order */
-	for (i = 0; i < sizeof(wp->wdp_model); i += 2) {
+	for (i = 0; (unsigned)i < sizeof(wp->wdp_model); i += 2) {
 		u_short *p;
 
 		p = (u_short *) (wp->wdp_model + i);
@@ -2013,12 +2015,13 @@ failed:
 	 * Clean up the wdp_model by converting nulls to spaces, and
 	 * then removing the trailing spaces.
 	 */
-	for (i=0; i < sizeof(wp->wdp_model); i++) {
+	for (i = 0; (unsigned)i < sizeof(wp->wdp_model); i++) {
 		if (wp->wdp_model[i] == '\0') {
 			wp->wdp_model[i] = ' ';
 		}
 	}
-	for (i=sizeof(wp->wdp_model)-1; i>=0 && wp->wdp_model[i]==' '; i--) {
+	for (i = sizeof(wp->wdp_model) - 1;
+	    (i >= 0 && wp->wdp_model[i] == ' '); i--) {
 		wp->wdp_model[i] = '\0';
 	}
 
@@ -2204,25 +2207,34 @@ wdsize(dev_t dev)
 		return (-1);
 	return (dssize(dev, &du->dk_slices, wdopen, wdclose));
 }
-
-/*
- * Dump core after a system crash.
- */
+#endif	/* !SLICE */
+ 
+#ifndef SLICE
 int
 wddump(dev_t dev)
+#else
+static int
+wddump(void *private, int32_t start, int32_t num)
+#endif /* SLICE */
 {
 	register struct disk *du;
+#ifndef SLICE
 	struct disklabel *lp;
 	long	num;		/* number of sectors to write */
 	int	lunit, part;
 	long	blkoff, blknum;
 	long	blkchk, blkcnt, blknext;
-	long	cylin, head, sector;
-	long	secpertrk, secpercyl, nblocks;
 	u_long	ds_offset;
-	char   *addr;
+	u_long	nblocks;
 	static int wddoingadump = 0;
+#else
+	long	blknum, blkchk, blkcnt, blknext;
+#endif /* SLICE */
+	long	cylin, head, sector;
+	long	secpertrk, secpercyl;
+	char   *addr;
 
+#ifndef SLICE
 	/* Toss any characters present prior to dump. */
 	while (cncheckc() != -1)
 		;
@@ -2238,6 +2250,7 @@ wddump(dev_t dev)
 
 	/* Size of memory to dump, in disk sectors. */
 	num = (u_long)Maxmem * PAGE_SIZE / du->dk_dd.d_secsize;
+
 
 	secpertrk = du->dk_dd.d_nsectors;
 	secpercyl = du->dk_dd.d_secpercyl;
@@ -2265,6 +2278,14 @@ wddump(dev_t dev)
 	wdtab[du->dk_ctrlr].b_active = 1;
 #endif
 	wddoingadump = 1;
+#else
+	du = private;
+	if (du->dk_state < OPEN)
+		return (ENXIO);
+
+	secpertrk = du->dk_dd.d_nsectors;
+	secpercyl = du->dk_dd.d_secpercyl;
+#endif /* SLICE */
 
 	/* Recalibrate the drive. */
 	DELAY(5);		/* ATA spec XXX NOT */
@@ -2277,7 +2298,11 @@ wddump(dev_t dev)
 
 	du->dk_flags |= DKFL_SINGLE;
 	addr = (char *) 0;
+#ifndef SLICE
 	blknum = dumplo + blkoff;
+#else
+	blknum = start;
+#endif /* SLICE */
 	while (num > 0) {
 		blkcnt = num;
 		if (blkcnt > MAXTRANSFER)
@@ -2294,12 +2319,20 @@ wddump(dev_t dev)
 		 * sector is bad, then reduce reduce the transfer to
 		 * avoid any bad sectors.
 		 */
+#ifndef SLICE
 		if (du->dk_flags & DKFL_SINGLE
 		    && dsgetbad(dev, du->dk_slices) != NULL) {
 		  for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
 			daddr_t blknew;
 			blknew = transbad144(dsgetbad(dev, du->dk_slices),
 					     blkchk - ds_offset) + ds_offset;
+#else
+		if (du->dk_flags & DKFL_SINGLE && du->slice->handler_up) {
+		    for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
+			daddr_t blknew = blkchk;
+			(void) (*du->slice->handler_up->upconf)(du->slice,
+				SLCIOCTRANSBAD, (caddr_t)&blknew, 0, 0);
+#endif /* SLICE */
 			if (blknew != blkchk) {
 				/* Found bad block. */
 				blkcnt = blkchk - blknum;
@@ -2315,7 +2348,7 @@ wddump(dev_t dev)
 #endif
 				break;
 			}
-		  }
+		    }
 		}
 out:
 
@@ -2403,7 +2436,6 @@ out:
 	}
 	return (0);
 }
-#endif	/* !SLICE */
 
 static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
@@ -2705,7 +2737,6 @@ static int
 wdsopen(void *private, int flags, int mode, struct proc *p)
 {
 	register struct disk *du;
-	register unsigned int lunit;
 	int	error = 0;
 
 	du = private;
@@ -2745,10 +2776,10 @@ wdsclose(void *private, int flags, int mode, struct proc *p)
 static int
 wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 {
-	register struct disk *du;
+	register struct disk *du = private;
+#ifdef notyet
 	int	error;
-
-	du = private;
+#endif
 
 	wdsleep(du->dk_ctrlr, "wdioct");
 	switch (cmd) {
@@ -2782,159 +2813,6 @@ wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 	default:
 		return (ENOTTY);
 	}
-}
-
-static int
-wdsdump(void *private, int32_t start, int32_t num)
-{
-	register struct disk *du;
-	long	blknum, blkchk, blkcnt, blknext;
-	long	cylin, head, sector;
-	long	secpertrk, secpercyl, nblocks;
-	char   *addr;
-
-	du = private;
-	if (du->dk_state < OPEN)
-		return (ENXIO);
-
-	secpertrk = du->dk_dd.d_nsectors;
-	secpercyl = du->dk_dd.d_secpercyl;
-
-	/* Recalibrate the drive. */
-	DELAY(5);		/* ATA spec XXX NOT */
-	if (wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
-	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
-	    || wdsetctlr(du) != 0) {
-		wderror((struct buf *)NULL, du, "wddump: recalibrate failed");
-		return (EIO);
-	}
-
-	du->dk_flags |= DKFL_SINGLE;
-	addr = (char *) 0;
-	blknum = start;
-	while (num > 0) {
-		blkcnt = num;
-		if (blkcnt > MAXTRANSFER)
-			blkcnt = MAXTRANSFER;
-		/* Keep transfer within current cylinder. */
-		if ((blknum + blkcnt - 1) / secpercyl != blknum / secpercyl)
-			blkcnt = secpercyl - (blknum % secpercyl);
-		blknext = blknum + blkcnt;
-
-		/*
-		 * See if one of the sectors is in the bad sector list
-		 * (if we have one).  If the first sector is bad, then
-		 * reduce the transfer to this one bad sector; if another
-		 * sector is bad, then reduce reduce the transfer to
-		 * avoid any bad sectors.
-		 */
-		if (du->dk_flags & DKFL_SINGLE && du->slice->handler_up) {
-		    for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
-			daddr_t blknew = blkchk;
-			(void) (*du->slice->handler_up->upconf)(du->slice,
-				SLCIOCTRANSBAD, (caddr_t)&blknew, 0, 0);
-			if (blknew != blkchk) {
-				/* Found bad block. */
-				blkcnt = blkchk - blknum;
-				if (blkcnt > 0) {
-					blknext = blknum + blkcnt;
-					goto out;
-				}
-				blkcnt = 1;
-				blknext = blknum + blkcnt;
-#if 1 || defined(WDDEBUG)
-				printf("bad block %lu -> %lu\n",
-				       blknum, blknew);
-#endif
-				break;
-			}
-		    }
-		}
-out:
-
-		/* Compute disk address. */
-		cylin = blknum / secpercyl;
-		head = (blknum % secpercyl) / secpertrk;
-		sector = blknum % secpertrk;
-
-#if 0
-		/* Let's just talk about this first... */
-		pg("cylin l%d head %ld sector %ld addr 0x%x count %ld",
-		   cylin, head, sector, addr, blkcnt);
-#endif
-
-		/* Do the write. */
-		if (wdcommand(du, cylin, head, sector, blkcnt, WDCC_WRITE)
-		    != 0) {
-			wderror((struct buf *)NULL, du,
-				"wdsdump: timeout waiting to to give command");
-			return (EIO);
-		}
-		while (blkcnt != 0) {
-			if (is_physical_memory((vm_offset_t)addr))
-				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-					   trunc_page(addr), VM_PROT_READ, TRUE);
-			else
-				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-					   trunc_page(0), VM_PROT_READ, TRUE);
-
-			/* Ready to send data? */
-			DELAY(5);	/* ATA spec */
-			if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT)
-			    < 0) {
-				wderror((struct buf *)NULL, du,
-					"wdsdump: timeout waiting for DRQ");
-				return (EIO);
-			}
-			if (du->dk_flags & DKFL_32BIT)
-				outsl(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & PAGE_MASK),
-				      DEV_BSIZE / sizeof(long));
-			else
-				outsw(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & PAGE_MASK),
-				      DEV_BSIZE / sizeof(short));
-			addr += DEV_BSIZE;
-			/*
-			 * If we are dumping core, it may take a while.
-			 * So reassure the user and hold off any watchdogs.
-			 */
-			if ((unsigned)addr % (1024 * 1024) == 0) {
-#ifdef	HW_WDOG
-				if (wdog_tickler)
-					(*wdog_tickler)();
-#endif /* HW_WDOG */
-				printf("%ld ", num / (1024 * 1024 / DEV_BSIZE));
-			}
-			num--;
-			blkcnt--;
-		}
-
-		/* Wait for completion. */
-		DELAY(5);	/* ATA spec XXX NOT */
-		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) < 0) {
-			wderror((struct buf *)NULL, du,
-				"wdsdump: timeout waiting for status");
-			return (EIO);
-		}
-
-		/* Check final status. */
-		if (du->dk_status
-		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR)
-		    != (WDCS_READY | WDCS_SEEKCMPLT)) {
-			wderror((struct buf *)NULL, du,
-				"wdsdump: extra DRQ, or error");
-			return (EIO);
-		}
-
-		/* Update block count. */
-		blknum = blknext;
-
-		/* Operator aborting dump? */
-		if (cncheckc() != -1)
-			return (EINTR);
-	}
-	return (0);
 }
 
 #endif /* SLICE */
