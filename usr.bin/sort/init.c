@@ -291,12 +291,12 @@ fixit(argc, argv)
 }
 
 static int
-findgap (u_char *table, int old, int new)
+findgap(u_char *table, int old, int new)
 {
 	u_char gap[NBINS];
 	int i, fto, rto, ret, lim;
 
-	(void)memset (gap, 0, sizeof(gap));
+	(void)memset(gap, 0, sizeof(gap));
 	for (i = 0; i < NBINS; i++)
 		gap[table[i]]++;
 
@@ -332,11 +332,11 @@ findgap (u_char *table, int old, int new)
 	else if (rto >= 0)
 		ret = rto;
 
-	return ret;
+	return (ret);
 }
 
 static void
-shift_at_REC_D (u_char *table, int new)
+shift_at_REC_D(u_char *table, int new)
 {
 	int i, old, conflict, to, oldn;
 
@@ -395,16 +395,16 @@ shift_at_REC_D (u_char *table, int new)
 }
 
 static int
-collcmp (const void *a, const void *b)
+collcmp(const void *a, const void *b)
 {
 	static char sa[2], sb[2];
 
 	if (*((char *)a) == *((char *)b))
-		return 0;
+		return (0);
 	sa[0] = *((char *)a);
 	sb[0] = *((char *)b);
 
-	return strcoll(sa, sb);
+	return (strcoll(sa, sb));
 }
 
 /*
@@ -456,10 +456,10 @@ settables(gflags)
 		}
 	}
 
-	shift_at_REC_D (ascii, REC_D);
-	shift_at_REC_D (Rascii, REC_D);
-	shift_at_REC_D (Ftable, REC_D);
-	shift_at_REC_D (RFtable, REC_D);
+	shift_at_REC_D(ascii, REC_D);
+	shift_at_REC_D(Rascii, REC_D);
+	shift_at_REC_D(Ftable, REC_D);
+	shift_at_REC_D(RFtable, REC_D);
 
 	if ((gflags & R) && !((gflags & F) && SINGL_FLD))
 		wts = Rascii;
@@ -470,19 +470,19 @@ settables(gflags)
 	else
 		wts = Ftable;
 
-	(void)memcpy (gweights, wts, sizeof(gweights));
+	(void)memcpy(gweights, wts, sizeof(gweights));
 	if (!(gflags & R))
-		shift_at_REC_D (gweights, 0);
+		shift_at_REC_D(gweights, 0);
 	else
-		shift_at_REC_D (gweights, NBINS - 1);
+		shift_at_REC_D(gweights, NBINS - 1);
 
 	if (SINGL_FLD && (gflags & F)) {
 		if (!(gflags & R)) {
-			shift_at_REC_D (ascii, 0);
-			shift_at_REC_D (Rascii, 0);
+			shift_at_REC_D(ascii, 0);
+			shift_at_REC_D(Rascii, 0);
 		} else {
-			shift_at_REC_D (ascii, NBINS - 1);
-			shift_at_REC_D (Rascii, NBINS - 1);
+			shift_at_REC_D(ascii, NBINS - 1);
+			shift_at_REC_D(Rascii, NBINS - 1);
 		}
 	}
 }
