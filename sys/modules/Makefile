@@ -19,6 +19,7 @@ SUBDIR=	accf_data \
 	dummynet \
 	fdesc \
 	fxp \
+	gx \
 	if_disc \
 	if_ef \
 	if_gif \
