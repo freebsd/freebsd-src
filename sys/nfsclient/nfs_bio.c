@@ -206,8 +206,14 @@ nfs_getpages(struct vop_getpages_args *ap)
 			vm_page_set_validclean(m, 0, size - toff);
 			/* handled by vm_fault now	  */
 			/* vm_page_zero_invalid(m, TRUE); */
+		} else {
+			/*
+			 * Read operation was short.  If no error occured
+			 * we may have hit a zero-fill section.   We simply
+			 * leave valid set to 0.
+			 */
+			;
 		}
-
 		if (i != ap->a_reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in
@@ -831,9 +837,7 @@ again:
 				else
 					bcount = np->n_size - (off_t)lbn * biosize;
 			}
-
 			bp = nfs_getcacheblk(vp, lbn, bcount, td);
-
 			if (uio->uio_offset + n > np->n_size) {
 				np->n_size = uio->uio_offset + n;
 				np->n_flag |= NMODIFIED;
@@ -1299,11 +1303,13 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;
+
 	    switch (vp->v_type) {
 	    case VREG:
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
 		nfsstats.read_bios++;
 		error = nfs_readrpc(vp, uiop, cr);
+
 		if (!error) {
 		    if (uiop->uio_resid) {
 			/*
@@ -1315,7 +1321,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 			 * writes, but that is not possible any longer.
 			 */
 			int nread = bp->b_bcount - uiop->uio_resid;
-			int left  = bp->b_bcount - nread;
+			int left  = uiop->uio_resid;
 
 			if (left > 0)
 				bzero((char *)bp->b_data + nread, left);
@@ -1485,3 +1491,48 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	bufdone(bp);
 	return (error);
 }
+
+/*
+ * Used to aid in handling ftruncate() operations on the NFS client side.
+ * Truncation creates a number of special problems for NFS.  We have to
+ * throw away VM pages and buffer cache buffers that are beyond EOF, and
+ * we have to properly handle VM pages or (potentially dirty) buffers
+ * that straddle the truncation point.
+ */
+
+int
+nfs_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad_t nsize)
+{
+	struct nfsnode *np = VTONFS(vp);
+	u_quad_t tsize = np->n_size;
+	int biosize = vp->v_mount->mnt_stat.f_iosize;
+	int error = 0;
+
+	np->n_size = nsize;
+
+	if (np->n_size < tsize) {
+		struct buf *bp;
+		daddr_t lbn;
+		int bufsize;
+
+		/*
+		 * vtruncbuf() doesn't get the buffer overlapping the 
+		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
+		 * buffer that now needs to be truncated.
+		 */
+		error = vtruncbuf(vp, cred, td, nsize, biosize);
+		lbn = nsize / biosize;
+		bufsize = nsize & (biosize - 1);
+		bp = nfs_getcacheblk(vp, lbn, bufsize, td);
+		if (bp->b_dirtyoff > bp->b_bcount)
+			bp->b_dirtyoff = bp->b_bcount;
+		if (bp->b_dirtyend > bp->b_bcount)
+			bp->b_dirtyend = bp->b_bcount;
+		bp->b_flags |= B_RELBUF;  /* don't leave garbage around */
+		brelse(bp);
+	} else {
+		vnode_pager_setsize(vp, nsize);
+	}
+	return(error);
+}
+
