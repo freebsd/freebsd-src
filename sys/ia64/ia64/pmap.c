@@ -797,32 +797,6 @@ pmap_dispose_thread(struct thread *td)
 }
 
 /*
- * Set up a variable sized alternate kstack.  This appears to be MI.
- */
-void
-pmap_new_altkstack(struct thread *td, int pages)
-{
-
-	td->td_altkstack = td->td_kstack;
-	td->td_altkstack_obj = td->td_kstack_obj;
-	td->td_altkstack_pages = td->td_kstack_pages;
-	pmap_new_thread(td, pages);
-}
-
-void
-pmap_dispose_altkstack(struct thread *td)
-{
-
-	pmap_dispose_thread(td);
-	td->td_kstack = td->td_altkstack;
-	td->td_kstack_obj = td->td_altkstack_obj;
-	td->td_kstack_pages = td->td_altkstack_pages;
-	td->td_altkstack = 0;
-	td->td_altkstack_obj = NULL;
-	td->td_altkstack_pages = 0;
-}
-
-/*
  * Allow the KSTACK for a thread to be prejudicially paged out.
  */
 void
