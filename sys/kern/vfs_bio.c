@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.78 1995/12/13 03:47:01 dyson Exp $
+ * $Id: vfs_bio.c,v 1.79 1995/12/14 08:32:09 phk Exp $
  */
 
 /*
@@ -722,12 +722,16 @@ trytofreespace:
 	if (bp->b_vp)
 		brelvp(bp);
 
-	/* we are not free, nor do we contain interesting data */
-	if (bp->b_rcred != NOCRED)
-		crfree(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crfree(bp->b_wcred);
 fillbuf:
+	/* we are not free, nor do we contain interesting data */
+	if (bp->b_rcred != NOCRED) {
+		crfree(bp->b_rcred);
+		bp->b_rcred = NOCRED;
+	}
+	if (bp->b_wcred != NOCRED) {
+		crfree(bp->b_wcred);
+		bp->b_wcred = NOCRED;
+	}
 	bp->b_flags |= B_BUSY;
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -744,7 +748,6 @@ fillbuf:
 	bp->b_resid = 0;
 	bp->b_bcount = 0;
 	bp->b_npages = 0;
-	bp->b_wcred = bp->b_rcred = NOCRED;
 	bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
