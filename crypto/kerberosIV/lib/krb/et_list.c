@@ -44,7 +44,7 @@
 
 #include "config.h"
 
-RCSID("$Id: et_list.c,v 1.12 1997/05/13 09:45:01 bg Exp $");
+RCSID("$Id: et_list.c,v 1.1.1.1 1997/09/04 06:04:22 markm Exp $");
 
 struct et_list {
     struct et_list *next;
@@ -53,9 +53,6 @@ struct et_list {
 
 #if defined(__GNUC__)
 
-#ifdef __FreeBSD__
-asm(".globl __et_list");	/* FreeBSD bug workaround */
-#endif
 struct et_list * _et_list __attribute__ ((weak)) = 0;
 
 #else /* !__GNUC__ */
