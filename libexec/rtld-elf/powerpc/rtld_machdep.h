@@ -62,4 +62,19 @@ void _rtld_bind_start(void);
 void _rtld_powerpc_pltresolve(void);
 void _rtld_powerpc_pltcall(void);
 
+#define round(size, align) \
+    (((size) + (align) - 1) & ~((align) - 1))
+#define calculate_first_tls_offset(size, align) \
+    round(8, align)
+#define calculate_tls_offset(prev_offset, prev_size, size, align) \
+    round(prev_offset + prev_size, align)
+#define calculate_tls_end(off, size)    ((off) + (size))
+ 
+typedef struct {
+	unsigned long ti_module;
+	unsigned long ti_offset;
+} tls_index;
+
+extern void *__tls_get_addr(tls_index* ti);
+
 #endif

@@ -2508,9 +2508,9 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
     return (void*) (dtv[index + 1] + offset);
 }
 
-/* XXX not sure what variants to use for arm and powerpc. */
+/* XXX not sure what variants to use for arm. */
 
-#if defined(__ia64__) || defined(__alpha__)
+#if defined(__ia64__) || defined(__alpha__) || defined(__powerpc__)
 
 /*
  * Allocate Static TLS using the Variant I method.
@@ -2524,9 +2524,6 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     Elf_Addr *dtv, *olddtv;
     Elf_Addr addr;
     int i;
-
-    assert(tcbsize == 16);
-    assert(tcbalign == 16);
 
     size = tls_static_space;
 
