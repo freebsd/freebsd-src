@@ -16,9 +16,15 @@ dd if=/dev/zero of=tmp count=1 > /dev/null 2>&1
 rm tmp
 
 c=`dd if=/dev/${MD} count=1 2>/dev/null | md5`
-if [ $c != 509b44919d3921502bd31237c4bb1f75 ] ; then
-	echo "FAILED: fdisk -I gives bad checksum" 1>&2
+if [ $c != ea4277fcccb6a927a1a497a6b15bfb8c ] ; then
+	echo "FAILED: 'fdisk -I' gives bad checksum ($c)" 1>&2
 	exit 1
 fi
 echo "PASSED: fdisk -I"
+c=`./fdisk $MD | md5`
+if [ $c != 4b126d7ac4c6b2af7ef27ede8ef102ec ] ; then
+	echo "FAILED: 'fdisk' gives bad checksum ($c)" 1>&2
+	exit 1
+fi
+echo "PASSED: fdisk"
 exit 0
