@@ -68,7 +68,9 @@ sigwait(const sigset_t * set, int *sig)
 	sigdelset(&waitset, SIGINFO);
 
 	/* Check to see if a pending signal is in the wait mask. */
-	if (tempset = (_thread_run->sigpend & waitset)) {
+	tempset = _thread_run->sigpend;
+	SIGSETAND(tempset, waitset);
+	if (SIGNOTEMPTY(tempset)) {
 		/* Enter a loop to find a pending signal: */
 		for (i = 1; i < NSIG; i++) {
 			if (sigismember (&tempset, i))

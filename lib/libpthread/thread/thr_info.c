@@ -156,8 +156,14 @@ _thread_dump_info(void)
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 			case PS_SIGWAIT:
-				snprintf(s, sizeof(s), "sigmask 0x%08lx\n",
-				    (unsigned long)pthread->sigmask);
+				snprintf(s, sizeof(s), "sigmask (hi)");
+				_thread_sys_write(fd, s, strlen(s));
+				for (i = _SIG_WORDS - 1; i >= 0; i--) {
+					snprintf(s, sizeof(s), "%08x\n",
+					    pthread->sigmask.__bits[i]);
+					_thread_sys_write(fd, s, strlen(s));
+				}
+				snprintf(s, sizeof(s), "(lo)\n");
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 

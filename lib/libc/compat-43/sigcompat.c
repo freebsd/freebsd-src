@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -47,7 +49,8 @@ sigvec(signo, sv, osv)
 
 	if (sv)
 		sv->sv_flags ^= SV_INTERRUPT;	/* !SA_INTERRUPT */
-	ret = sigaction(signo, (struct sigaction *)sv, (struct sigaction *)osv);
+	ret = osigaction(signo, (struct osigaction *)sv,
+	    (struct osigaction *)osv);
 	if (ret == 0 && osv)
 		osv->sv_flags ^= SV_INTERRUPT;	/* !SA_INTERRUPT */
 	return (ret);
@@ -57,29 +60,34 @@ int
 sigsetmask(mask)
 	int mask;
 {
-	int omask, n;
+	sigset_t set, oset;
 
-	n = sigprocmask(SIG_SETMASK, (sigset_t *) &mask, (sigset_t *) &omask);
-	if (n)
-		return (n);
-	return (omask);
+	sigemptyset(&set);
+	set.__bits[0] = mask;
+	(void)sigprocmask(SIG_SETMASK, &set, &oset);
+	return (oset.__bits[0]);
 }
 
 int
 sigblock(mask)
 	int mask;
 {
-	int omask, n;
+	sigset_t set, oset;
 
-	n = sigprocmask(SIG_BLOCK, (sigset_t *) &mask, (sigset_t *) &omask);
-	if (n)
-		return (n);
-	return (omask);
+	sigemptyset(&set);
+	set.__bits[0] = mask;
+
+	(void)sigprocmask(SIG_BLOCK, &set, &oset);
+	return (oset.__bits[0]);
 }
 
 int
 sigpause(mask)
 	int mask;
 {
-	return (sigsuspend((sigset_t *)&mask));
+	sigset_t set;
+
+	sigemptyset(&set);
+	set.__bits[0] = mask;
+	return (sigsuspend(&set));
 }
