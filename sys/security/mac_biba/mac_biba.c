@@ -1235,7 +1235,7 @@ mac_biba_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 	struct mac_biba *p, *i;
-     
+
 	if (!mac_biba_enabled)
 		return (0);
 
