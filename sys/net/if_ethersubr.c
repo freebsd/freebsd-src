@@ -879,6 +879,79 @@ SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
 	    &ether_ipfw,0,"Pass ether pkts through firewall");
 
+#if 0
+/*
+ * This is for reference.  We have a table-driven version
+ * of the little-endian crc32 generator, which is faster
+ * than the double-loop.
+ */
+uint32_t
+ether_crc32_le(const uint8_t *buf, size_t len)
+{
+	size_t i;
+	uint32_t crc;
+	int bit;
+	uint8_t data;
+
+	crc = 0xffffffff;	/* initial value */
+
+	for (i = 0; i < len; i++) {
+		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1)
+			carry = (crc ^ data) & 1;
+			crc >>= 1;
+			if (carry)
+				crc = (crc ^ ETHER_CRC_POLY_LE);
+	}
+
+	return (crc);
+}
+#else
+uint32_t
+ether_crc32_le(const uint8_t *buf, size_t len)
+{
+	static const uint32_t crctab[] = {
+		0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+		0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
+	};
+	size_t i;
+	uint32_t crc;
+
+	crc = 0xffffffff;	/* initial value */
+
+	for (i = 0; i < len; i++) {
+		crc ^= buf[i];
+		crc = (crc >> 4) ^ crctab[crc & 0xf];
+		crc = (crc >> 4) ^ crctab[crc & 0xf];
+	}
+
+	return (crc);
+}
+#endif
+
+uint32_t
+ether_crc32_be(const uint8_t *buf, size_t len)
+{
+	size_t i;
+	uint32_t crc, carry;
+	int bit;
+	uint8_t data;
+
+	crc = 0xffffffff;	/* initial value */
+
+	for (i = 0; i < len; i++) {
+		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
+			crc <<= 1;
+			if (carry)
+				crc = (crc ^ ETHER_CRC_POLY_BE) | carry;
+		}
+	}
+
+	return (crc);
+}
+
 int
 ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 {
