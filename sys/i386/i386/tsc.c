@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.40 1995/12/10 13:38:23 phk Exp $
+ *	$Id: clock.c,v 1.41 1995/12/14 23:01:51 bde Exp $
  */
 
 /*
@@ -295,7 +295,7 @@ calibrate_cyclecounter(void)
 	 */
 	unsigned long long count;
 
-#define howlong ((unsigned)4*tick)
+#define howlong 131072UL
 	__asm __volatile(".byte 0x0f, 0x30" : : "A"(0LL), "c" (0x10));
 	DELAY(howlong);
 	__asm __volatile(".byte 0xf,0x31" : "=A" (count));
