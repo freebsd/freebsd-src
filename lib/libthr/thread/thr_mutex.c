@@ -285,8 +285,6 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	int	ret = 0;
 
-	_thread_sigblock();
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking the mutex private (delete safe):
@@ -294,9 +292,6 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 1)) == 0)
 		ret = mutex_lock_common(mutex, 1, NULL);
-
-	if (ret != 0)
-		_thread_sigunblock();
 
 	return (ret);
 }
@@ -529,8 +524,6 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 	if (_thread_initial == NULL)
 		_thread_init();
 
-	_thread_sigblock();
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking it private (delete safe):
@@ -538,9 +531,6 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((ret = mutex_init(mutex, 1)) == 0))
 		ret = mutex_lock_common(mutex, 0, NULL);
-
-	if (ret != 0)
-		_thread_sigunblock();
 
 	return (ret);
 }
@@ -577,10 +567,7 @@ __pthread_mutex_unlock(pthread_mutex_t * mutex)
 int
 _pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
-	int error;
-	if ((error = mutex_unlock_common(mutex, /* add reference */ 0)) == 0)
-		_thread_sigunblock();
-	return (error);
+	return (mutex_unlock_common(mutex, /* add reference */ 0));
 }
 
 int
