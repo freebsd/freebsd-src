@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.2 1995/01/20 22:03:36 wollman Exp $";
+	"$Id: passwd.c,v 1.3 1995/01/31 08:34:05 wpaul Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -172,30 +172,43 @@ main(argc, argv)
 
 #ifdef YP
 	/*
-	 * If the user isn't in the local database file, he must
-	 * be in the NIS database.
+	 * If NIS is turned on in the password database, use it, else punt.
 	 */
 #ifdef KERBEROS
-	if (!use_yp_passwd && !opt_shell && !opt_fullname &&
-		iflag == NULL && rflag == NULL && uflag == NULL) {
-#else
-	if (!use_yp_passwd && !opt_shell && !opt_fullname) {
+	if (iflag == NULL && rflag == NULL && uflag == NULL) {
 #endif
 		if ((dbp = dbopen(_PATH_MP_DB, O_RDONLY, PERM_SECURE,
 				DB_HASH, &openinfo)) == NULL)
 			errx(1, "error opening database: %s.", _PATH_MP_DB);
 
-		bf[0] = _PW_KEYBYNAME;
-		bcopy(uname, bf + 1, MIN(strlen(uname), UT_NAMESIZE));
+		bf[0] = _PW_KEYYPENABLED;
 		key.data = (u_char *)bf;
-		key.size = strlen(uname) + 1;
+		key.size = 1;
 		if ((dbp->get)(dbp,&key,&data,0))
-			use_yp_passwd = 1;
-		(dbp->close)(dbp);
+			(dbp->close)(dbp);
+		else {
+			if (!use_local_passwd) {
+				(dbp->close)(dbp);
+				exit(yp_passwd(uname));
+			} else {
+			/*
+			 * Reject -l flag if NIS is turned on and the user
+			 * doesn't exist in the local password database.
+			 */
+				bf[0] = _PW_KEYBYNAME;
+				bcopy(uname, bf + 1, MIN(strlen(uname), UT_NAMESIZE));
+				key.data = (u_char *)bf;
+				key.size = strlen(uname) + 1;
+				if ((dbp->get)(dbp,&key,&data,0)) {
+					(dbp->close)(dbp);
+					errx(1, "unknown local user: %s.", uname);
+				}
+			(dbp->close)(dbp);
+			}
+		}
+#ifdef KERBEROS
 	}
-
-	if (!use_local_passwd && (use_yp_passwd || opt_shell || opt_fullname))
-		exit(yp_passwd(uname));
+#endif
 #endif
 
 	if (!use_local_passwd) {
@@ -206,10 +219,6 @@ main(argc, argv)
 		}
 #endif
 	}
-#ifdef YP
-	if (use_local_passwd && use_yp_passwd)
-		errx(1,"unknown local user: %s.",uname);
-#endif
 	exit(local_passwd(uname));
 }
 
@@ -224,7 +233,7 @@ usage()
 	fprintf(stderr,
 	"        [-l] [-y] [-f] [-s] [user]\n");
 #else
-	(void)fprintf(stderr, "usage: passwd [-y] [-f] [-s] [user] \n");
+	(void)fprintf(stderr, "usage: passwd [-l] [-y] [-f] [-s] [user] \n");
 #endif
 #else
 #ifdef	KERBEROS
