@@ -68,7 +68,7 @@ close in several ways.  These include:
 Closing a `rewind device',
 referred to as sub-mode 00 below.
 An example is 
-.Pa /dev/rsa0 .
+.Pa /dev/sa0 .
 .It
 Using the MTOFFL
 .Xr ioctl 2
@@ -172,16 +172,16 @@ The
 driver supports all of the ioctls of
 .Xr mtio 4 .
 .Sh FILES
-.Bl -tag -width /dev/[n][e]rsa[0-9] -compact
-.It Pa /dev/[n][e]rsa[0-9]
+.Bl -tag -width /dev/[n][e]sa[0-9] -compact
+.It Pa /dev/[n][e]sa[0-9]
 general form:
-.It Pa /dev/rsa0
+.It Pa /dev/sa0
 Rewind on close
-.It Pa /dev/nrsa0
+.It Pa /dev/nsa0
 No rewind on close
-.It Pa /dev/ersa0
-Rewind and eject on close (if capable)
-.It Pa /dev/rsa0.ctl
+.It Pa /dev/esa0
+Eject on close (if capable)
+.It Pa /dev/sa0.ctl
 Control mode device (to examine state while another program is
 accessing the device, e.g.).
 .Sh BUGS
