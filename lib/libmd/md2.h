@@ -23,7 +23,7 @@
 #ifndef _MD2_H_
 #define _MD2_H_
 
-typedef struct {
+typedef struct MD2Context {
   unsigned char state[16];	/* state */
   unsigned char checksum[16];	/* checksum */
   unsigned int count;		/* number of bytes, modulo 16 */
