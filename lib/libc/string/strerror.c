@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,19 +42,23 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #define	UPREFIX		"Unknown error: "
+
 /*
  * Define a buffer size big enough to describe a 64-bit signed integer
  * converted to ASCII decimal (19 bytes), with an optional leading sign
- * (1 byte), finally we get the prefix and a trailing NUL from UPREFIX.
+ * (1 byte); finally, we get the prefix and a trailing NUL from UPREFIX.
  */
 #define	EBUFSIZE	(20 + sizeof(UPREFIX))
 
-/* Don't link to stdio(3) to avoid bloat for statically linked binaries. */
+/*
+ * Doing this by hand instead of linking with stdio(3) avoids bloat for
+ * statically linked binaries.
+ */
 static void
 errstr(int num, char *buf, size_t len)
 {
-	unsigned int uerr;
 	char *p, *t;
+	unsigned int uerr;
 	char tmp[EBUFSIZE];
 
 	if (strlcpy(buf, UPREFIX, len) >= len)
@@ -66,7 +70,7 @@ errstr(int num, char *buf, size_t len)
 	} while (uerr /= 10);
 	if (num < 0)
 		*t++ = '-';
-	for (p = buf + strlen(UPREFIX); t > tmp && p < buf + len - 1;)
+	for (p = buf + sizeof(UPREFIX) - 1; t > tmp && p < buf + len - 1;)
 		*p++ = *--t;
 	*p = '\0';
 }
@@ -74,15 +78,14 @@ errstr(int num, char *buf, size_t len)
 int
 strerror_r(int errnum, char *strerrbuf, size_t buflen)
 {
-	int retval;
 
-	retval = 0;
 	if (errnum < 1 || errnum >= sys_nerr) {
 		errstr(errnum, strerrbuf, buflen);
-		retval = EINVAL;
-	} else if (strlcpy(strerrbuf, sys_errlist[errnum], buflen) >= buflen)
-		retval = ERANGE;
-	return (retval);
+		return (EINVAL);
+	}
+	if (strlcpy(strerrbuf, sys_errlist[errnum], buflen) >= buflen)
+		return (ERANGE);
+	return (0);
 }
 
 char *
