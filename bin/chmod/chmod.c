@@ -70,12 +70,13 @@ main(argc, argv)
 	long val;
 	int oct, omode;
 	int Hflag, Lflag, Pflag, Rflag, ch, fflag, fts_options, hflag, rval;
+	int vflag;
 	char *ep, *mode;
 
 	set = NULL;
 	omode = 0;
-	Hflag = Lflag = Pflag = Rflag = fflag = hflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRXfgorstuwx")) != -1)
+	Hflag = Lflag = Pflag = Rflag = fflag = hflag = vflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRXfgorstuvwx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -118,6 +119,9 @@ main(argc, argv)
 			    argv[optind - 1][2] == '\0')
 				--optind;
 			goto done;
+		case 'v':
+			vflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -191,6 +195,9 @@ done:	argv += optind;
 		    getmode(set, p->fts_statp->st_mode)) && !fflag) {
 			warn(p->fts_path);
 			rval = 1;
+		} else {
+		    	if (vflag)
+				(void)printf("%s\n", p->fts_accpath);
 		}
 	}
 	if (errno)
@@ -203,6 +210,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: chmod [-f -R [-H | -L | -P]] mode file ...\n");
+	    "usage: chmod [-fv] [-R [-H | -L | -P]] mode file ...\n");
 	exit(1);
 }
