@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.98 1998/08/09 15:34:11 brian Exp $
+ * $Id: modem.c,v 1.99 1998/08/26 18:07:56 brian Exp $
  *
  *  TODO:
  */
@@ -115,7 +115,7 @@ modem_Create(struct datalink *dl, int type)
 
   p->fd = -1;
   p->mbits = 0;
-  p->dev_is_modem = 0;
+  p->isatty = 0;
   p->out = NULL;
   p->connect_count = 0;
   p->dl = dl;
@@ -276,7 +276,7 @@ modem_Timeout(void *data)
   timer_Stop(&modem->Timer);
   timer_Start(&modem->Timer);
 
-  if (modem->dev_is_modem) {
+  if (modem->isatty || physical_IsSync(modem)) {
     if (modem->fd >= 0) {
       if (ioctl(modem->fd, TIOCMGET, &modem->mbits) < 0) {
 	log_Printf(LogPHASE, "%s: ioctl error (%s)!\n", modem->link.name,
@@ -617,8 +617,8 @@ modem_Open(struct physical *modem, struct bundle *bundle)
    * for further operation.
    */
   modem->mbits = 0;
-  modem->dev_is_modem = isatty(modem->fd) || physical_IsSync(modem);
-  if (modem->dev_is_modem && !physical_IsSync(modem)) {
+  modem->isatty = isatty(modem->fd);
+  if (modem->isatty) {
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
     log_Printf(LogDEBUG, "%s: Open: modem (get): fd = %d, iflag = %lx, "
@@ -679,7 +679,7 @@ modem_Speed(struct physical *modem)
 {
   struct termios rstio;
 
-  if (!physical_IsATTY(modem))
+  if (!modem->isatty)
     return 115200;
 
   tcgetattr(modem->fd, &rstio);
@@ -697,7 +697,7 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
 
   log_Printf(LogDEBUG, "%s: Entering modem_Raw\n", modem->link.name);
 
-  if (!isatty(modem->fd) || physical_IsSync(modem))
+  if (!modem->isatty || physical_IsSync(modem))
     return 0;
 
   if (modem->type != PHYS_DIRECT && modem->fd >= 0 && !Online(modem))
@@ -721,7 +721,8 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
     return (-1);
   fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
-  if (modem->dev_is_modem && ioctl(modem->fd, TIOCMGET, &modem->mbits) == 0 &&
+  if ((modem->isatty || physical_IsSync(modem)) &&
+      ioctl(modem->fd, TIOCMGET, &modem->mbits) == 0 &&
       (modem->mbits & TIOCM_CD)) {
     modem_StartTimer(bundle, modem);
     modem_Timeout(modem);
@@ -737,7 +738,7 @@ modem_Unraw(struct physical *modem)
 {
   int oldflag;
 
-  if (isatty(modem->fd) && !physical_IsSync(modem)) {
+  if (modem->isatty && !physical_IsSync(modem)) {
     tcsetattr(modem->fd, TCSAFLUSH, &modem->ios);
     oldflag = fcntl(modem->fd, F_GETFL, 0);
     if (oldflag < 0)
@@ -775,7 +776,7 @@ modem_Offline(struct physical *modem)
 
     timer_Stop(&modem->Timer);
     modem->mbits &= ~TIOCM_DTR;
-    if (isatty(modem->fd) && Online(modem)) {
+    if (modem->isatty && Online(modem)) {
       tcgetattr(modem->fd, &tio);
       if (cfsetspeed(&tio, B0) == -1)
         log_Printf(LogWARN, "%s: Unable to set modem to speed 0\n",
@@ -796,7 +797,7 @@ modem_Close(struct physical *modem)
 
   log_Printf(LogDEBUG, "%s: Close\n", modem->link.name);
 
-  if (!isatty(modem->fd)) {
+  if (!modem->isatty) {
     modem_PhysicalClose(modem);
     *modem->name.full = '\0';
     modem->name.base = modem->name.full;
@@ -876,7 +877,7 @@ modem_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "Name: %s\n", modem->link.name);
   prompt_Printf(arg->prompt, " State:           ");
   if (modem->fd >= 0) {
-    if (isatty(modem->fd))
+    if (modem->isatty)
       prompt_Printf(arg->prompt, "open, %s carrier\n",
                     Online(modem) ? "with" : "no");
     else
