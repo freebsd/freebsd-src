@@ -27,6 +27,8 @@
  * 
  */
 
+#include <stddef.h>
+
 #include <i386/isa/sound/sound_config.h>
 #include <i386/isa/sound/ultrasound.h>
 #include <i386/isa/sound/gus_hw.h>
@@ -1569,7 +1571,7 @@ guswave_load_patch(int dev, int format, snd_rw_buf * addr,
 
     u_long   blk_size, blk_end, left, src_offs, target;
 
-    sizeof_patch = (long) &patch.data[0] - (long) &patch; /* Header size */
+    sizeof_patch = offsetof(struct patch_info, data); /* Header size */
 
     if (format != GUS_PATCH) {
 	printf("GUS Error: Invalid patch format (key) 0x%x\n", format);

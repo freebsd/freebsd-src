@@ -21,6 +21,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <stddef.h>
+
 #ifdef __FreeBSD__
 #  include <gnu/i386/isa/sound/awe_config.h>
 #else
@@ -3296,7 +3298,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	int note, free_sample, free_info;
 	int rc;
 
-	sizeof_patch = (int)((long)&patch.data[0] - (long)&patch); /* header size */
+	sizeof_patch = offsetof(struct patch_info, data); /* header size */
 	if (size < sizeof_patch) {
 		printk("AWE32 Error: Patch header too short\n");
 		return RET_ERROR(EINVAL);

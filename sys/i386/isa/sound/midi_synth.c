@@ -30,6 +30,8 @@
 #define USE_SEQ_MACROS
 #define USE_SIMPLE_MACROS
 
+#include <stddef.h>
+
 #include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) /* && defined(CONFIG_MIDI) */
@@ -448,7 +450,7 @@ midi_synth_load_patch(int dev, int format, snd_rw_buf * addr,
     int             i;
     unsigned long   left, src_offs, eox_seen = 0;
     int             first_byte = 1;
-    int             hdr_size = (unsigned long) &sysex.data[0] - (unsigned long) &sysex;
+    int             hdr_size = offsetof(struct sysex_info, data);
 
     leave_sysex(dev);
 
