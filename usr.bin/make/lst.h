@@ -144,15 +144,8 @@ void	Lst_Concat(Lst *, Lst *, int);
 LstNode		*Lst_Member(Lst *, void *);
 
 /* Loop through a list. Note, that you may not delete the list element. */
-/*
 #define	LST_FOREACH(PTR, LST)						\
 	for ((PTR) = (LST)->firstPtr; (PTR) != NULL; (PTR) = (PTR)->nextPtr)
-*/
-#define	LST_FOREACH(PTR, LST) \
-	for (LstNode *_tmp1 = (LST)->firstPtr, *_tmp2 = Lst_Succ(_tmp1);\
-	    ((PTR) = _tmp1) != NULL;					\
-	    (Lst_Succ(_tmp1) != _tmp2 ? abort() : (void)0),		\
-	    (_tmp1 = _tmp2), _tmp2 = Lst_Succ(_tmp1))
 
 /*
  * for using the list as a queue
