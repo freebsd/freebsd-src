@@ -376,6 +376,9 @@ escape:
 		case -3:
 			reason = "I/O block allocation failed";
 			break;
+		case -4:
+			reason = "requires more than one memory window";
+			break;
 		default:
 			reason = "Unknown";
 			break;
@@ -529,7 +532,8 @@ assign_driver(struct card *cp)
 				perror("ioctl (PIOCSRESOURCE)");
 				exit(1);
 			}
-			if (pool_irq[i] && res.resource_addr == i) {
+			if (pool_irq[i]
+			    && (res.resource_addr == i || !use_kern_irq)) {
 				conf->irq = i;
 				pool_irq[i] = 0;
 				break;
@@ -627,12 +631,27 @@ assign_io(struct slot *sp)
 	 * Found a matching configuration. Now look at the I/O, memory and IRQ
 	 * to create the desired parameters. Look at memory first.
 	 */
-	if (!(strncmp(sp->config->driver->name, "ed", 2) == 0
-		&& (sp->config->flags & 0x10))
-		&& (cisconf->memspace || (defconf && defconf->memspace))) {
+
+	/* Skip ed cards in PIO mode */
+	if ((strncmp(sp->config->driver->name, "ed", 2) == 0) &&
+	    (sp->config->flags & 0x10))
+		goto memskip;
+
+	if (cisconf->memspace || (defconf && defconf->memspace)) {
 		struct cis_memblk *mp;
 
 		mp = cisconf->mem;
+		/* 
+		 * Currently we do not handle the presence of multiple windows.
+		 * Then again neither does the interface to the kernel!
+		 * See setup_slot() and readcis.c:cis_conf()
+		 */
+		if (cisconf->memwins > 1) {
+			logmsg("Card requires %d memory windows.",
+		            cisconf->memwins);
+			return (-4);
+		}
+
 		if (!cisconf->memspace)
 			mp = defconf->mem;
 		sp->mem.size = mp->length;
@@ -650,13 +669,23 @@ assign_io(struct slot *sp)
 				return (-2);
 			sp->config->driver->mem = sp->mem.addr;
 		}
-		sp->mem.cardaddr = 0x4000;
-		sp->flags |= MEM_ASSIGNED;
+		/* Driver specific set up */
+		if (strncmp(sp->config->driver->name, "ed", 2) == 0) {
+			sp->mem.cardaddr = 0x4000;
+			sp->mem.flags = MDF_ACTIVE | MDF_16BITS;
+		} else {
+			sp->mem.flags = MDF_ACTIVE;
+		}
+
+		if (sp->mem.flags & MDF_ACTIVE)
+			sp->flags |= MEM_ASSIGNED;
 		if (debug_level > 0) {
-			logmsg("Using mem addr 0x%x, size %d, card addr 0x%x\n",
-			    sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
+			logmsg("Using mem addr 0x%x, size %d, card addr 0x%x, flags 0x%x\n",
+			    sp->mem.addr, sp->mem.size, sp->mem.cardaddr,
+			    sp->mem.flags);
 		}
 	}
+memskip:
 
 	/* Now look at I/O. */
 	bzero(&sp->io, sizeof(sp->io));
@@ -830,7 +859,7 @@ setup_slot(struct slot *sp)
 	}
 	if (sp->flags & MEM_ASSIGNED) {
 		mem.window = 0;
-		mem.flags = sp->mem.flags | MDF_ACTIVE | MDF_16BITS;
+		mem.flags = sp->mem.flags;
 		mem.start = (caddr_t) sp->mem.addr;
 		mem.card = sp->mem.cardaddr;
 		mem.size = sp->mem.size;
