@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/14 14:39:37 $
+<date>$Date: 1997/01/14 14:40:42 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -157,7 +157,7 @@ Any entries with a &lt;XXX&gt; are under construction.
                         |
                         |
                         |
-                      2.0.5 ---> 2.1 ---> 2.1.5 ---> 2.1.6 ---* [-stable ends]
+                      2.0.5 ---> 2.1 ---> 2.1.5 ---> 2.1.6  [2.1-stable ends]
                         |                         (Dec 1996)
                         |
      [3.0-current]   2.2-SNAPs
