@@ -64,7 +64,7 @@
 
 /* ATAPI commands */
 #define ATAPI_TEST_UNIT_READY		0x00	/* check if device is ready */
-#define ATAPI_REWIND			0x01	/* rewind */
+#define ATAPI_REZERO			0x01	/* rewind */
 #define ATAPI_REQUEST_SENSE		0x03	/* get sense data */
 #define ATAPI_FORMAT			0x04	/* format unit */
 #define ATAPI_READ			0x08	/* read data */
