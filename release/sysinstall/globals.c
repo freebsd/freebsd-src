@@ -47,6 +47,7 @@ Boolean		RunningAsInit;	/* Are we running as init? */
 Boolean		DialogActive;	/* Is libdialog initialized? */
 Boolean		ColorDisplay;	/* Are we on a color display? */
 Boolean		OnVTY;		/* Are we on a VTY? */
+Boolean		PkgInteractive;	/* Is the package going to spew at us? */
 Boolean		USAResident;	/* Are we cryptographically challenged? */
 Variable	*VarHead;	/* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
@@ -63,6 +64,7 @@ globalsInit(void)
 {
     DebugFD = -1;
     ColorDisplay = FALSE;
+    PkgInteractive = FALSE;
     Fake = FALSE;
     OnVTY = FALSE;
     DialogActive = FALSE;
