@@ -380,9 +380,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 				timeout = (hz * sndbuf_getblksz(bs)) / (sndbuf_getspd(bs) * sndbuf_getbps(bs));
 				if (timeout < 1)
 					timeout = 1;
-				CHN_UNLOCK(c);
 	   			ret = chn_sleep(c, "pcmrd", timeout);
-				CHN_LOCK(c);
 				if (ret == EWOULDBLOCK) {
 					count -= timeout;
 					ret = 0;
