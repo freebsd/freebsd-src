@@ -2156,23 +2156,22 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	 */
 	udev.dv_handle = (uintptr_t)dev;
 	udev.dv_parent = (uintptr_t)dev->parent;
-	if (dev->nameunit == NULL) {
-		udev.dv_name[0] = 0;
-	} else {
-		snprintf(udev.dv_name, 32, "%s", dev->nameunit);
-	}
-	if (dev->desc == NULL) {
-		udev.dv_desc[0] = 0;
-	} else {
-		snprintf(udev.dv_desc, 32, "%s", dev->desc);
-	}
-	if ((dev->driver == NULL) || (dev->driver->name == NULL)) {
-		udev.dv_drivername[0] = 0;
-	} else {
-		snprintf(udev.dv_drivername, 32, "%s", dev->driver->name);
-	}
-	udev.dv_pnpinfo[0] = 0;
-	udev.dv_location[0] = 0;
+	if (dev->nameunit == NULL)
+		udev.dv_name[0] = '\0';
+	else
+		strlcpy(udev.dv_name, dev->nameunit, sizeof(udev.dv_name));
+
+	if (dev->desc == NULL)
+		udev.dv_desc[0] = '\0';
+	else
+		strlcpy(udev.dv_desc, dev->desc, sizeof(udev.dv_desc));
+	if (dev->driver == NULL || dev->driver->name == NULL)
+		udev.dv_drivername[0] = '\0';
+	else
+		strlcpy(udev.dv_drivername, dev->driver->name,
+		    sizeof(udev.dv_drivername));
+	udev.dv_pnpinfo[0] = '\0';
+	udev.dv_location[0] = '\0';
 	udev.dv_devflags = dev->devflags;
 	udev.dv_flags = dev->flags;
 	udev.dv_state = dev->state;
@@ -2225,7 +2224,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	 */
 	if (res_idx == -1) {
 		urm.rm_handle = (uintptr_t)rm;
-		snprintf(urm.rm_descr, RM_TEXTLEN, "%s", rm->rm_descr);
+		strlcpy(urm.rm_descr, rm->rm_descr, RM_TEXTLEN);
 		urm.rm_start = rm->rm_start;
 		urm.rm_size = rm->rm_end - rm->rm_start + 1;
 		urm.rm_type = rm->rm_type;
@@ -2249,11 +2248,11 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 					    device_get_name(res->r_dev),
 					    device_get_unit(res->r_dev));
 				} else {
-					snprintf(ures.r_devname, RM_TEXTLEN,
-					    "nomatch");
+					strlcpy(ures.r_devname, "nomatch",
+					    RM_TEXTLEN);
 				}
 			} else {
-				ures.r_devname[0] = 0;
+				ures.r_devname[0] = '\0';
 			}
 			ures.r_start = res->r_start;
 			ures.r_size = res->r_end - res->r_start + 1;
