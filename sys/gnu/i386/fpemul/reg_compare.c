@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_compare.c,v 1.2 1994/04/29 21:30:16 gclarkii Exp $
+ *     $Id: reg_compare.c,v 1.3 1994/06/10 07:44:47 rich Exp $
  * 
  */
 
@@ -183,7 +183,7 @@ compare(FPU_REG * b)
 int
 compare_st_data(void)
 {
-	int     f, c;
+	int     f = 0, c;
 
 	c = compare(&FPU_loaded_data);
 
@@ -224,7 +224,7 @@ compare_st_data(void)
 static int
 compare_st_st(int nr)
 {
-	int     f, c;
+	int     f = 0, c;
 
 	if (!NOT_EMPTY_0 || !NOT_EMPTY(nr)) {
 		setcc(SW_C3 | SW_C2 | SW_C0);
@@ -271,7 +271,7 @@ compare_st_st(int nr)
 static int
 compare_u_st_st(int nr)
 {
-	int     f, c;
+	int     f = 0, c;
 
 	if (!NOT_EMPTY_0 || !NOT_EMPTY(nr)) {
 		setcc(SW_C3 | SW_C2 | SW_C0);
