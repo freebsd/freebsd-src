@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.26 1996/10/11 10:15:30 dfr Exp $
+ * $Id: nfs_bio.c,v 1.27 1996/10/12 17:39:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -319,6 +319,7 @@ again:
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
+		        vfs_unbusy_pages(bp);
 			brelse(bp);
 			while (error == NFSERR_BAD_COOKIE) {
 			    nfs_invaldir(vp);
@@ -337,7 +338,10 @@ again:
 				    bp->b_flags |= B_READ;
 				    vfs_busy_pages(bp, 0);
 				    error = nfs_doio(bp, cred, p);
-				    if (error)
+				    if (error) {
+					vfs_unbusy_pages(bp);
+					brelse(bp);
+				    } else if (i < lbn)
 					brelse(bp);
 				}
 			    }
