@@ -29,7 +29,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* ZMAGIC files start at address 0.  This does not apply to QMAGIC.  */
 #define TEXT_START_ADDR 0
 
+#if 0
 #define	PAGE_SIZE	4096
+#endif
 #define	SEGMENT_SIZE	PAGE_SIZE
 
 #define	DEFAULT_ARCH	bfd_arch_i386
