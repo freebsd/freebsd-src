@@ -99,6 +99,14 @@
 
 #include <setjmp.h>
 
+#include "sio.h"
+
+#if NSIO == 0
+void
+gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
+{
+}
+#else
 /************************************************************************/
 
 void		gdb_handle_exception (db_regs_t *, int, int);
@@ -585,3 +593,4 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
       putpacket (remcomOutBuffer);
     }
 }
+#endif /* NSIO > 0 */
