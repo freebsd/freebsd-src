@@ -744,7 +744,7 @@
 
     <para arch="i386,alpha,amd64">MSS/WSS Compatible DSPs (&man.pcm.4; driver)</para>
 
-    <para arch="i386,amd64">NeoMagic 256AV/ZX (&man.pcm.4; driver)</para>
+    &hwlist.snd.neomagic;
 
     <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; driver)</para>
 

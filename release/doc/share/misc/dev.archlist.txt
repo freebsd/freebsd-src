@@ -113,6 +113,7 @@ snd_gusc	i386,amd64
 snd_ich	i386,amd64
 snd_maestro	i386,alpha,amd64
 snd_maestro3	i386,alpha,amd64
+snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
 ste	i386,pc98,alpha,amd64
