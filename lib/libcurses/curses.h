@@ -375,19 +375,19 @@ extern int	 __rawmode;
 extern int	 __noqch;
 extern int       __usecs;
 
-int	 tputs __P((char *, int, void (*)(int)));
+int      tputs __P((const char *, int, void (*)(int)));
 
 #else
 
-int      tputs __P((char *, int, int (*)(int)));
+int      tputs __P((const char *, int, int (*)(int)));
 
 #endif
 
 /* Termcap functions. */
-int	 tgetent __P((char *, char *));
-int	 tgetnum __P((char *));
-int	 tgetflag __P((char *));
-char	*tgetstr __P((char *, char **));
-char	*tgoto __P((char *, int, int));
+int      tgetent __P((char *, const char *));
+int      tgetnum __P((const char *));
+int      tgetflag __P((const char *));
+char    *tgetstr __P((const char *, char **));
+char    *tgoto __P((const char *, int, int));
 
 #endif /* !_CURSES_H_ */
