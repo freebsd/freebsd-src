@@ -221,7 +221,7 @@ tdfx_attach(device_t dev) {
 	/* Setup for Voodoo3 and Banshee, PIO and an extram Memrange */
 	if(pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO3 ||
 		pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE) {
-		rid = PCIR_MAPS;
+		rid = 0x14;	/* 2nd mem map */
 		tdfx_info->addr1 = (pci_read_config(dev, 0x14, 4) & 0xffff0000);
 #ifdef DEBUG
 		device_printf(dev, "Base1 @ 0x%x\n", tdfx_info->addr1);
@@ -238,7 +238,7 @@ tdfx_attach(device_t dev) {
 			tdfx_info->memrid2 = rid;
 		}
 		/* Now to map the PIO stuff */
-		rid = 0;
+/*		rid = 0;
 		tdfx_info->piorange = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if(tdfx_info->piorange == NULL) {
@@ -249,7 +249,7 @@ tdfx_attach(device_t dev) {
 		}
 		else {
 			tdfx_info->piorid = rid;
-		}
+		}*/
 	} else {
 	  tdfx_info->addr1 = 0;
 	  tdfx_info->memrange2 = NULL;
@@ -296,9 +296,9 @@ tdfx_detach(device_t dev) {
 		if(tdfx_info->memrange2 != NULL)
 			bus_release_resource(dev, SYS_RES_MEMORY, tdfx_info->memrid2,
 				tdfx_info->memrange);
-		if(tdfx_info->piorange != NULL)
+	/*	if(tdfx_info->piorange != NULL)
 			bus_release_resource(dev, SYS_RES_IOPORT, tdfx_info->piorid,
-				tdfx_info->piorange);
+				tdfx_info->piorange);*/
 	}		
 
 	/* Though it is safe to leave the WRCOMB support since the 
@@ -474,8 +474,10 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 
 	/* See if the Banshee/V3 LFB is being requested */
 	if(tdfx_info->memrange2 != NULL && (offset & 0xff000000) ==
-			tdfx_info->addr1)
+			tdfx_info->addr1) {
 	  	offset &= 0xffffff;
+		return atop(rman_get_start(tdfx_info->memrange2) + offset);
+	}
 
 	if((offset >= 0x1000000) || (offset < 0)) {
 #ifdef  DEBUG
