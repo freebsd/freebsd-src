@@ -455,6 +455,11 @@ _ftp_transfer(int cd, char *oper, char *file,
 	if (e != FTP_OK)
 	    goto ouch;
 
+	/* seek to required offset */
+	if (offset)
+	    if (_ftp_cmd(cd, "REST %lu", (u_long)offset) != FTP_FILE_OK)
+		goto sysouch;
+	
 	/* make the server initiate the transfer */
 	if (verbose)
 	    _fetch_info("initiating transfer");
