@@ -1777,6 +1777,11 @@ amr*)
 	mknod amr$unit c 132 `unit2minor $unit`
 	;;
 
+ciss*)
+	unit=`expr $i : 'ciss\(.*\)'`
+	mknod ciss$unit c 166 `unit2minor $unit`
+	;;
+
 agpgart)
 	mknod agpgart c 148 0
 	;;

@@ -150,6 +150,7 @@ dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_pci.c	optional bt pci
 dev/ccd/ccd.c		optional ccd
+dev/ciss/ciss.c		optional ciss
 dev/cs/if_cs.c		optional cs
 dev/cs/if_cs_isa.c	optional cs isa
 dev/cs/if_cs_pccard.c	optional cs card
