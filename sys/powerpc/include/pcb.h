@@ -38,7 +38,7 @@
 typedef int faultbuf[23];
 
 struct pcb {
-	register_t	pcb_context[18];	/* non-volatile r14-r31 */
+	register_t	pcb_context[20];	/* non-volatile r14-r31 */
 	register_t	pcb_cr;			/* Condition register */
 	register_t	pcb_sp;			/* stack pointer */
 	register_t	pcb_lr;			/* link register */
