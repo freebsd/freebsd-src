@@ -1,4 +1,4 @@
-# Copyright 1998 Juniper Networks, Inc.
+# Copyright 2001 Mark R V Murray
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,28 +22,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
-SUBDIR+=	pam_deny
-SUBDIR+=	pam_ftp
-.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_kerberosIV
-.endif
-.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_krb5
-.endif
-SUBDIR+=	pam_nologin
-SUBDIR+=	pam_opie
-SUBDIR+=	pam_permit
-SUBDIR+=	pam_radius
-SUBDIR+=	pam_rootok
-SUBDIR+=	pam_securetty
-SUBDIR+=	pam_self
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
-SUBDIR+=	pam_ssh
-.endif
-SUBDIR+=	pam_tacplus
-SUBDIR+=	pam_unix
-SUBDIR+=	pam_wheel
+LIB=		pam_self
+SHLIB_NAME=	pam_self.so
+SRCS=		pam_self.c
+MAN=		pam_self.8
 
-.include <bsd.subdir.mk>
+.include <bsd.lib.mk>
