@@ -343,7 +343,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkin_no, 0,
 				     &sc->sc_bulkin_pipe);
 		if (err) {
-			printf("%s: open bulk out error (addr %d): %s\n",
+			printf("%s: open bulk in error (addr %d): %s\n",
 			       USBDEVNAME(sc->sc_dev), sc->sc_bulkin_no, 
 			       usbd_errstr(err));
 			error = EIO;
@@ -353,7 +353,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkout_no,
 				     USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 		if (err) {
-			printf("%s: open bulk in error (addr %d): %s\n",
+			printf("%s: open bulk out error (addr %d): %s\n",
 			       USBDEVNAME(sc->sc_dev), sc->sc_bulkout_no,
 			       usbd_errstr(err));
 			error = EIO;
