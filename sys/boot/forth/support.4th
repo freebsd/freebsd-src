@@ -1218,17 +1218,277 @@ variable current_conf_files
   repeat
 ;
 
-\ Additional functions used in "start"
+\ h00h00 magic used to try loading either a kernel with a given name,
+\ or a kernel with the default name in a directory of a given name
+\ (the pain!)
+
+: bootpath s" /boot/" ;
+: modulepath s" module_path" ;
+
+\ Functions used to save and restore module_path's value.
+: saveenv ( addr len | -1 -- addr' len | 0 -1 )
+  dup -1 = if 0 swap exit then
+  strdup
+;
+: freeenv ( addr len | 0 -1 )
+  -1 = if drop else free abort" Freeing error" then
+;
+: restoreenv  ( addr len | 0 -1 -- )
+  dup -1 = if ( it wasn't set )
+    2drop
+    modulepath unsetenv
+  else
+    over >r
+    modulepath setenv
+    r> free abort" Freeing error"
+  then
+;
+
+: clip_args   \ Drop second string if only one argument is passed
+  1 = if
+    2swap 2drop
+    1
+  else
+    2
+  then
+;
+
+also builtins
+
+\ Parse filename from a comma-separated list
+
+: parse-; ( addr len -- addr' len-x addr x )
+  over 0 2swap
+  begin
+    dup 0 <>
+  while
+    over c@ [char] ; <>
+  while
+    1- swap 1+ swap
+    2swap 1+ 2swap
+  repeat then
+  dup 0 <> if
+    1- swap 1+ swap
+  then
+  2swap
+;
+
+\ Try loading one of multiple kernels specified
+
+: try_multiple_kernels ( addr len addr' len' args -- flag )
+  >r
+  begin
+    parse-; 2>r
+    2over 2r>
+    r@ clip_args 1 load
+  while
+    dup 0=
+  until
+    1 >r \ Failure
+  else
+    0 >r \ Success
+  then
+  2drop 2drop
+  r>
+  r> drop
+;
+
+\ Try to load a kernel; the kernel name is taken from one of
+\ the following lists, as ordered:
+\
+\   1. The "kernel" environment variable
+\   2. The "bootfile" environment variable
+\
+\ Flags are passed, if available. The parameter args must be 2
+\ if flags are being passed, or 1 if they should be ignored.
+\ Dummy flags and len must be passed in the latter case.
+\
+\ The kernel gets loaded from the current module_path.
+
+: load_a_kernel ( flags len args -- flag )
+  local args
+  2local flags
+  0 0 2local kernel
+  end-locals
+
+  \ Check if a default kernel name exists at all, exits if not
+  s" kernel" getenv dup -1 <> if
+    to kernel
+    flags kernel args try_multiple_kernels
+    dup 0= if exit then
+  then
+  drop
+
+  s" bootfile" getenv dup -1 <> if
+    to kernel
+  else
+    drop
+    1 exit \ Failure
+  then
+
+  \ Try all default kernel names
+  flags kernel args try_multiple_kernels
+;
+
+\ Try to load a kernel; the kernel name is taken from one of
+\ the following lists, as ordered:
+\
+\   1. The "kernel" environment variable
+\   2. The "bootfile" environment variable
+\
+\ Flags are passed, if provided.
+\
+\ The kernel will be loaded from a directory computed from the
+\ path given. Two directories will be tried in the following order:
+\
+\   1. /boot/path
+\   2. path
+\
+\ The module_path variable is overridden if load is succesful, by
+\ prepending the successful path.
+
+: load_from_directory ( path len 1 | flags len' path len 2 -- flag )
+  local args
+  2local path
+  args 1 = if 0 0 then
+  2local flags
+  0 0 2local oldmodulepath
+  0 0 2local newmodulepath
+  end-locals
+
+  \ Set the environment variable module_path, and try loading
+  \ the kernel again.
+  modulepath getenv saveenv to oldmodulepath
+
+  \ Try prepending /boot/ first
+  bootpath nip path nip + 
+  oldmodulepath nip dup -1 = if
+    drop
+  else
+    1+ +
+  then
+  allocate
+  if ( out of memory )
+    1 exit
+  then
+
+  0
+  bootpath strcat
+  path strcat
+  2dup to newmodulepath
+  modulepath setenv
+
+  \ Try all default kernel names
+  flags args load_a_kernel
+  0= if ( success )
+    oldmodulepath nip -1 <> if
+      newmodulepath s" ;" strcat
+      oldmodulepath strcat
+      modulepath setenv
+      newmodulepath drop free-memory
+      oldmodulepath drop free-memory
+    then
+    0 exit
+  then
+
+  \ Well, try without the prepended /boot/
+  path newmodulepath drop swap move
+  path nip
+  2dup to newmodulepath
+  modulepath setenv
+
+  \ Try all default kernel names
+  flags args load_a_kernel
+  if ( failed once more )
+    oldmodulepath restoreenv
+    newmodulepath drop free-memory
+    1
+  else
+    oldmodulepath nip -1 <> if
+      newmodulepath s" ;" strcat
+      oldmodulepath strcat
+      modulepath setenv
+      newmodulepath drop free-memory
+      oldmodulepath drop free-memory
+    then
+    0
+  then
+;
+
+\ Try to load a kernel; the kernel name is taken from one of
+\ the following lists, as ordered:
+\
+\   1. The "kernel" environment variable
+\   2. The "bootfile" environment variable
+\   3. The "path" argument
+\
+\ Flags are passed, if provided.
+\
+\ The kernel will be loaded from a directory computed from the
+\ path given. Two directories will be tried in the following order:
+\
+\   1. /boot/path
+\   2. path
+\
+\ Unless "path" is meant to be kernel name itself. In that case, it
+\ will first be tried as a full path, and, next, search on the
+\ directories pointed by module_path.
+\
+\ The module_path variable is overridden if load is succesful, by
+\ prepending the successful path.
+
+: load_directory_or_file ( path len 1 | flags len' path len 2 -- flag )
+  local args
+  2local path
+  args 1 = if 0 0 then
+  2local flags
+  end-locals
+
+  \ First, assume path is an absolute path to a directory
+  flags path args clip_args load_from_directory
+  dup 0= if exit else drop then
+
+  \ Next, assume path points to the kernel
+  flags path args try_multiple_kernels
+;
+
+: load_kernel_and_modules ( flags len path len' 2 | path len' 1 -- flag )
+  load_directory_or_file
+  0= if ['] load_modules catch then
+;
 
 : initialize  ( addr len -- )
   strdup conf_files .len ! conf_files .addr !
 ;
 
-: load_kernel  ( -- ) ( throws: abort )
-  s" load ${kernel} ${kernel_options}" ['] evaluate catch
-  if s" echo Unable to load kernel: ${kernel}" evaluate abort then
+: kernel_options ( -- addr len 2 | 0 0 1 )
+  s" kernel_options" getenv
+  dup -1 = if 0 0 1 else 2 then
 ;
 
+: kernel_and_options
+  kernel_options
+  s" kernel" getenv
+  rot
+;
+
+: load_kernel  ( -- ) ( throws: abort )
+  s" kernel" getenv
+  dup -1 = if
+    \ If unset, try any kernel
+    drop
+    kernel_options load_a_kernel
+  else
+    \ If set, try first directory, next file name
+    kernel_options >r 2swap r> clip_args load_from_directory
+    dup if
+      drop
+      kernel_and_options try_multiple_kernels
+    then
+  then
+  abort" Unable to load a kernel!"
+;
+ 
 : read-password { size | buf len -- }
   size allocate if out_of_memory throw then
   to buf
