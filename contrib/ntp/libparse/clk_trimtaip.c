@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/clk_trimtaip.c,v 4.6 1998/08/16 18:46:27 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/clk_trimtaip.c,v 4.7 1999/11/28 09:13:51 kardel RELEASE_19991128_A
  *
- * clk_trimtaip.c,v 4.6 1998/08/16 18:46:27 kardel RELEASE_19990228_A
+ * clk_trimtaip.c,v 4.7 1999/11/28 09:13:51 kardel RELEASE_19991128_A
  *
  * Trimble SV6 clock support - several collected codepieces
  */
@@ -161,6 +161,9 @@ int clk_trimtaip_bs;
  * History:
  *
  * clk_trimtaip.c,v
+ * Revision 4.7  1999/11/28 09:13:51  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.6  1998/08/16 18:46:27  kardel
  * (clock_trimtaip =): changed format name
  *

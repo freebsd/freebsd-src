@@ -14,9 +14,13 @@ that you will have problems; upgrading would be a really good plan.
 <P>
 <H3>All Solaris versions</H3>
 <P>
-Proper operation of ntp under Solaris requires setting the kernel
+      We have a report that says starting with Solaris 2.6 we should leave
+      <I>dosynctodr</I> alone.
+      <A HREF="solaris-dosynctodr.html">Here is the report</A>.
+<P>
+Proper operation of ntp under Solaris may require setting the kernel
 variable <I>dosynctodr</I> to zero (meaning "do not synchronize the clock
-to the hardware time-of-day clock"). This can be done with the
+to the hardware time-of-day clock").  This can be done with the
 tickadj utility:
 <BLOCKQUOTE><TT>
 tickadj -s

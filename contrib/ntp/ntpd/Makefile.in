@@ -63,15 +63,18 @@ host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+AMDEP = @AMDEP@
 AMTAR = @AMTAR@
-AMTARFLAGS = @AMTARFLAGS@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DCFD = @DCFD@
+DEPDIR = @DEPDIR@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -93,6 +96,7 @@ RSAREF = @RSAREF@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
 
@@ -110,22 +114,19 @@ ETAGS_ARGS = Makefile.am
 check_PROGRAMS = @MAKE_CHECK_Y2K@
 EXTRA_PROGRAMS = check_y2k
 
-ntpd_SOURCES = map_vme.c ntp_config.c ntp_control.c ntp_io.c \
-	ntp_loopfilter.c ntp_monitor.c ntp_peer.c ntp_proto.c \
-	ntp_refclock.c ntp_request.c ntp_restrict.c ntp_timer.c \
-	ntp_util.c ntp_intres.c ntp_filegen.c ntpd.c \
-	refclock_conf.c refclock_chu.c refclock_local.c \
-	refclock_pst.c refclock_wwvb.c refclock_mx4200.c \
-	refclock_parse.c refclock_as2201.c refclock_bancomm.c \
-	refclock_tpro.c refclock_leitch.c refclock_irig.c \
-	refclock_msfees.c refclock_trak.c refclock_datum.c \
-	refclock_acts.c refclock_heath.c refclock_nmea.c \
-	refclock_atom.c refclock_ptbacts.c refclock_jupiter.c \
-	refclock_usno.c refclock_true.c refclock_hpgps.c \
-	refclock_shm.c refclock_gpsvme.c refclock_arbiter.c \
-	refclock_arc.c refclock_palisade.c refclock_palisade.h \
-	refclock_oncore.c refclock_chronolog.c refclock_dumbclock.c \
-	refclock_ulink.c jupiter.h
+ntpd_SOURCES = jupiter.h map_vme.c ntp_config.c ntp_control.c ntp_filegen.c \
+	ntp_intres.c ntp_io.c ntp_loopfilter.c ntp_monitor.c ntp_peer.c \
+	ntp_proto.c ntp_refclock.c ntp_request.c ntp_restrict.c ntp_timer.c \
+	ntp_util.c ntpd.c refclock_acts.c refclock_arbiter.c refclock_arc.c \
+	refclock_as2201.c refclock_atom.c refclock_bancomm.c \
+	refclock_chronolog.c refclock_chu.c refclock_conf.c refclock_datum.c \
+	refclock_dumbclock.c refclock_fg.c refclock_gpsvme.c refclock_heath.c \
+	refclock_hpgps.c refclock_irig.c refclock_jupiter.c refclock_leitch.c \
+	refclock_local.c refclock_msfees.c refclock_mx4200.c refclock_nmea.c \
+	refclock_oncore.c refclock_palisade.c refclock_palisade.h \
+	refclock_parse.c refclock_pcf.c refclock_pst.c refclock_ptbacts.c \
+	refclock_shm.c refclock_tpro.c refclock_trak.c refclock_true.c \
+	refclock_ulink.c refclock_usno.c refclock_wwv.c refclock_wwvb.c
 
 subdir = ntpd
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -143,21 +144,22 @@ check_y2k_OBJECTS =  check_y2k$U.o
 check_y2k_LDADD = $(LDADD)
 check_y2k_DEPENDENCIES =  version.o ../libntp/libntp.a
 check_y2k_LDFLAGS = 
-am_ntpd_OBJECTS =  map_vme$U.o ntp_config$U.o ntp_control$U.o ntp_io$U.o \
-ntp_loopfilter$U.o ntp_monitor$U.o ntp_peer$U.o ntp_proto$U.o \
-ntp_refclock$U.o ntp_request$U.o ntp_restrict$U.o ntp_timer$U.o \
-ntp_util$U.o ntp_intres$U.o ntp_filegen$U.o ntpd$U.o refclock_conf$U.o \
-refclock_chu$U.o refclock_local$U.o refclock_pst$U.o refclock_wwvb$U.o \
-refclock_mx4200$U.o refclock_parse$U.o refclock_as2201$U.o \
-refclock_bancomm$U.o refclock_tpro$U.o refclock_leitch$U.o \
-refclock_irig$U.o refclock_msfees$U.o refclock_trak$U.o \
-refclock_datum$U.o refclock_acts$U.o refclock_heath$U.o \
-refclock_nmea$U.o refclock_atom$U.o refclock_ptbacts$U.o \
-refclock_jupiter$U.o refclock_usno$U.o refclock_true$U.o \
-refclock_hpgps$U.o refclock_shm$U.o refclock_gpsvme$U.o \
-refclock_arbiter$U.o refclock_arc$U.o refclock_palisade$U.o \
-refclock_oncore$U.o refclock_chronolog$U.o refclock_dumbclock$U.o \
-refclock_ulink$U.o
+am_ntpd_OBJECTS =  map_vme$U.o ntp_config$U.o ntp_control$U.o \
+ntp_filegen$U.o ntp_intres$U.o ntp_io$U.o ntp_loopfilter$U.o \
+ntp_monitor$U.o ntp_peer$U.o ntp_proto$U.o ntp_refclock$U.o \
+ntp_request$U.o ntp_restrict$U.o ntp_timer$U.o ntp_util$U.o ntpd$U.o \
+refclock_acts$U.o refclock_arbiter$U.o refclock_arc$U.o \
+refclock_as2201$U.o refclock_atom$U.o refclock_bancomm$U.o \
+refclock_chronolog$U.o refclock_chu$U.o refclock_conf$U.o \
+refclock_datum$U.o refclock_dumbclock$U.o refclock_fg$U.o \
+refclock_gpsvme$U.o refclock_heath$U.o refclock_hpgps$U.o \
+refclock_irig$U.o refclock_jupiter$U.o refclock_leitch$U.o \
+refclock_local$U.o refclock_msfees$U.o refclock_mx4200$U.o \
+refclock_nmea$U.o refclock_oncore$U.o refclock_palisade$U.o \
+refclock_parse$U.o refclock_pcf$U.o refclock_pst$U.o \
+refclock_ptbacts$U.o refclock_shm$U.o refclock_tpro$U.o \
+refclock_trak$U.o refclock_true$U.o refclock_ulink$U.o \
+refclock_usno$U.o refclock_wwv$U.o refclock_wwvb$U.o
 ntpd_OBJECTS =  $(am_ntpd_OBJECTS)
 ntpd_DEPENDENCIES =  version.o ../libntp/libntp.a
 ntpd_LDFLAGS = 
@@ -171,16 +173,43 @@ DIST_COMMON =  Makefile.am Makefile.in
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
 GZIP_ENV = --best
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+DEP_FILES =  @AMDEP@ $(DEPDIR)/check_y2k$U.Po $(DEPDIR)/map_vme$U.Po \
+$(DEPDIR)/ntp_config$U.Po $(DEPDIR)/ntp_control$U.Po \
+$(DEPDIR)/ntp_filegen$U.Po $(DEPDIR)/ntp_intres$U.Po \
+$(DEPDIR)/ntp_io$U.Po $(DEPDIR)/ntp_loopfilter$U.Po \
+$(DEPDIR)/ntp_monitor$U.Po $(DEPDIR)/ntp_peer$U.Po \
+$(DEPDIR)/ntp_proto$U.Po $(DEPDIR)/ntp_refclock$U.Po \
+$(DEPDIR)/ntp_request$U.Po $(DEPDIR)/ntp_restrict$U.Po \
+$(DEPDIR)/ntp_timer$U.Po $(DEPDIR)/ntp_util$U.Po $(DEPDIR)/ntpd$U.Po \
+$(DEPDIR)/refclock_acts$U.Po $(DEPDIR)/refclock_arbiter$U.Po \
+$(DEPDIR)/refclock_arc$U.Po $(DEPDIR)/refclock_as2201$U.Po \
+$(DEPDIR)/refclock_atom$U.Po $(DEPDIR)/refclock_bancomm$U.Po \
+$(DEPDIR)/refclock_chronolog$U.Po $(DEPDIR)/refclock_chu$U.Po \
+$(DEPDIR)/refclock_conf$U.Po $(DEPDIR)/refclock_datum$U.Po \
+$(DEPDIR)/refclock_dumbclock$U.Po $(DEPDIR)/refclock_fg$U.Po \
+$(DEPDIR)/refclock_gpsvme$U.Po $(DEPDIR)/refclock_heath$U.Po \
+$(DEPDIR)/refclock_hpgps$U.Po $(DEPDIR)/refclock_irig$U.Po \
+$(DEPDIR)/refclock_jupiter$U.Po $(DEPDIR)/refclock_leitch$U.Po \
+$(DEPDIR)/refclock_local$U.Po $(DEPDIR)/refclock_msfees$U.Po \
+$(DEPDIR)/refclock_mx4200$U.Po $(DEPDIR)/refclock_nmea$U.Po \
+$(DEPDIR)/refclock_oncore$U.Po $(DEPDIR)/refclock_palisade$U.Po \
+$(DEPDIR)/refclock_parse$U.Po $(DEPDIR)/refclock_pcf$U.Po \
+$(DEPDIR)/refclock_pst$U.Po $(DEPDIR)/refclock_ptbacts$U.Po \
+$(DEPDIR)/refclock_shm$U.Po $(DEPDIR)/refclock_tpro$U.Po \
+$(DEPDIR)/refclock_trak$U.Po $(DEPDIR)/refclock_true$U.Po \
+$(DEPDIR)/refclock_ulink$U.Po $(DEPDIR)/refclock_usno$U.Po \
+$(DEPDIR)/refclock_wwv$U.Po $(DEPDIR)/refclock_wwvb$U.Po
 SOURCES = check_y2k.c $(ntpd_SOURCES)
 OBJECTS = check_y2k$U.o $(am_ntpd_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .c .o
+.SUFFIXES: .c .h .o
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps ntpd/Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu ntpd/Makefile
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
@@ -222,9 +251,6 @@ distclean-checkPROGRAMS:
 
 maintainer-clean-checkPROGRAMS:
 
-.c.o:
-	$(COMPILE) -c $<
-
 mostlyclean-compile:
 	-rm -f *.o core *.core
 
@@ -249,60 +275,10 @@ clean-kr:
 distclean-kr:
 
 maintainer-clean-kr:
-check_y2k$U.o:
 
 check_y2k: $(check_y2k_OBJECTS) $(check_y2k_DEPENDENCIES)
 	@rm -f check_y2k
 	$(LINK) $(check_y2k_LDFLAGS) $(check_y2k_OBJECTS) $(check_y2k_LDADD) $(LIBS)
-map_vme$U.o:
-ntp_config$U.o:
-ntp_control$U.o:
-ntp_io$U.o:
-ntp_loopfilter$U.o:
-ntp_monitor$U.o:
-ntp_peer$U.o:
-ntp_proto$U.o:
-ntp_refclock$U.o:
-ntp_request$U.o:
-ntp_restrict$U.o:
-ntp_timer$U.o:
-ntp_util$U.o:
-ntp_intres$U.o:
-ntp_filegen$U.o:
-ntpd$U.o:
-refclock_conf$U.o:
-refclock_chu$U.o:
-refclock_local$U.o:
-refclock_pst$U.o:
-refclock_wwvb$U.o:
-refclock_mx4200$U.o:
-refclock_parse$U.o:
-refclock_as2201$U.o:
-refclock_bancomm$U.o:
-refclock_tpro$U.o:
-refclock_leitch$U.o:
-refclock_irig$U.o:
-refclock_msfees$U.o:
-refclock_trak$U.o:
-refclock_datum$U.o:
-refclock_acts$U.o:
-refclock_heath$U.o:
-refclock_nmea$U.o:
-refclock_atom$U.o:
-refclock_ptbacts$U.o:
-refclock_jupiter$U.o:
-refclock_usno$U.o:
-refclock_true$U.o:
-refclock_hpgps$U.o:
-refclock_shm$U.o:
-refclock_gpsvme$U.o:
-refclock_arbiter$U.o:
-refclock_arc$U.o:
-refclock_palisade$U.o:
-refclock_oncore$U.o:
-refclock_chronolog$U.o:
-refclock_dumbclock$U.o:
-refclock_ulink$U.o:
 
 ntpd: $(ntpd_OBJECTS) $(ntpd_DEPENDENCIES)
 	@rm -f ntpd
@@ -363,6 +339,8 @@ refclock_datum_.c: refclock_datum.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_datum.c; then echo $(srcdir)/refclock_datum.c; else echo refclock_datum.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_datum_.c
 refclock_dumbclock_.c: refclock_dumbclock.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_dumbclock.c; then echo $(srcdir)/refclock_dumbclock.c; else echo refclock_dumbclock.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_dumbclock_.c
+refclock_fg_.c: refclock_fg.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_fg.c; then echo $(srcdir)/refclock_fg.c; else echo refclock_fg.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_fg_.c
 refclock_gpsvme_.c: refclock_gpsvme.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_gpsvme.c; then echo $(srcdir)/refclock_gpsvme.c; else echo refclock_gpsvme.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_gpsvme_.c
 refclock_heath_.c: refclock_heath.c $(ANSI2KNR)
@@ -389,6 +367,8 @@ refclock_palisade_.c: refclock_palisade.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_palisade.c; then echo $(srcdir)/refclock_palisade.c; else echo refclock_palisade.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_palisade_.c
 refclock_parse_.c: refclock_parse.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_parse.c; then echo $(srcdir)/refclock_parse.c; else echo refclock_parse.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_parse_.c
+refclock_pcf_.c: refclock_pcf.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_pcf.c; then echo $(srcdir)/refclock_pcf.c; else echo refclock_pcf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_pcf_.c
 refclock_pst_.c: refclock_pst.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_pst.c; then echo $(srcdir)/refclock_pst.c; else echo refclock_pst.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_pst_.c
 refclock_ptbacts_.c: refclock_ptbacts.c $(ANSI2KNR)
@@ -405,6 +385,8 @@ refclock_ulink_.c: refclock_ulink.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_ulink.c; then echo $(srcdir)/refclock_ulink.c; else echo refclock_ulink.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_ulink_.c
 refclock_usno_.c: refclock_usno.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_usno.c; then echo $(srcdir)/refclock_usno.c; else echo refclock_usno.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_usno_.c
+refclock_wwv_.c: refclock_wwv.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_wwv.c; then echo $(srcdir)/refclock_wwv.c; else echo refclock_wwv.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_wwv_.c
 refclock_wwvb_.c: refclock_wwvb.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_wwvb.c; then echo $(srcdir)/refclock_wwvb.c; else echo refclock_wwvb.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_wwvb_.c
 check_y2k_.o map_vme_.o ntp_config_.o ntp_control_.o ntp_filegen_.o \
@@ -413,34 +395,38 @@ ntp_proto_.o ntp_refclock_.o ntp_request_.o ntp_restrict_.o \
 ntp_timer_.o ntp_util_.o ntpd_.o refclock_acts_.o refclock_arbiter_.o \
 refclock_arc_.o refclock_as2201_.o refclock_atom_.o refclock_bancomm_.o \
 refclock_chronolog_.o refclock_chu_.o refclock_conf_.o \
-refclock_datum_.o refclock_dumbclock_.o refclock_gpsvme_.o \
-refclock_heath_.o refclock_hpgps_.o refclock_irig_.o \
+refclock_datum_.o refclock_dumbclock_.o refclock_fg_.o \
+refclock_gpsvme_.o refclock_heath_.o refclock_hpgps_.o refclock_irig_.o \
 refclock_jupiter_.o refclock_leitch_.o refclock_local_.o \
 refclock_msfees_.o refclock_mx4200_.o refclock_nmea_.o \
 refclock_oncore_.o refclock_palisade_.o refclock_parse_.o \
-refclock_pst_.o refclock_ptbacts_.o refclock_shm_.o refclock_tpro_.o \
-refclock_trak_.o refclock_true_.o refclock_ulink_.o refclock_usno_.o \
-refclock_wwvb_.o : $(ANSI2KNR)
+refclock_pcf_.o refclock_pst_.o refclock_ptbacts_.o refclock_shm_.o \
+refclock_tpro_.o refclock_trak_.o refclock_true_.o refclock_ulink_.o \
+refclock_usno_.o refclock_wwv_.o refclock_wwvb_.o : $(ANSI2KNR)
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -f$$here/ID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -457,356 +443,84 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir); \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-check_y2k.o: check_y2k.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_malloc.h \
-	../include/ntp_refclock.h ../include/recvbuff.h \
-	../include/ntp_calendar.h ../include/parse.h \
-	../include/parse_conf.h
-map_vme.o: map_vme.c ../config.h
-ntp_config.o: ntp_config.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_filegen.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-ntp_control.o: ntp_control.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_control.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_filegen.o: ntp_filegen.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_string.h ../include/ntp_calendar.h \
-	../include/ntp_filegen.h ../include/ntp_stdlib.h \
-	../include/l_stdlib.h
-ntp_intres.o: ntp_intres.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_request.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_io.o: ntp_io.c ../config.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h ../include/iosignal.h \
-	../include/ntp_if.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_loopfilter.o: ntp_loopfilter.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_syscall.h
-ntp_monitor.o: ntp_monitor.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h ../include/ntp_if.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-ntp_peer.o: ntp_peer.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_proto.o: ntp_proto.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_unixtime.h ../include/ntp_control.h
-ntp_refclock.o: ntp_refclock.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_request.o: ntp_request.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_request.h ../include/ntp_control.h \
-	../include/ntp_if.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_syscall.h
-ntp_restrict.o: ntp_restrict.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_if.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-ntp_timer.o: ntp_timer.c ../config.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntp_util.o: ntp_util.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_filegen.h \
-	../include/ntp_if.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-ntpd.o: ntpd.c ../config.h ../include/ntpd.h ../include/ntp_syslog.h \
-	../include/ntp_fp.h ../include/ntp_types.h \
-	../include/ntp_machine.h ../include/ntp_proto.h \
-	../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_acts.o: refclock_acts.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_control.h
-refclock_arbiter.o: refclock_arbiter.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_arc.o: refclock_arc.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_as2201.o: refclock_as2201.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_atom.o: refclock_atom.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_bancomm.o: refclock_bancomm.c ../config.h
-refclock_chronolog.o: refclock_chronolog.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_chu.o: refclock_chu.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_conf.o: refclock_conf.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_datum.o: refclock_datum.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_dumbclock.o: refclock_dumbclock.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_gpsvme.o: refclock_gpsvme.c ../config.h
-refclock_heath.o: refclock_heath.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_hpgps.o: refclock_hpgps.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_irig.o: refclock_irig.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_jupiter.o: refclock_jupiter.c ../config.h
-refclock_leitch.o: refclock_leitch.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_local.o: refclock_local.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_syscall.h
-refclock_msfees.o: refclock_msfees.c ../config.h
-refclock_mx4200.o: refclock_mx4200.c ../config.h
-refclock_nmea.o: refclock_nmea.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_oncore.o: refclock_oncore.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_palisade.o: refclock_palisade.c ../config.h refclock_palisade.h \
-	../include/ntpd.h ../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_control.h ../include/ntp_unixtime.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_parse.o: refclock_parse.c ../config.h
-refclock_pst.o: refclock_pst.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h
-refclock_ptbacts.o: refclock_ptbacts.c ../config.h refclock_acts.c \
-	../include/ntpd.h ../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_control.h
-refclock_shm.o: refclock_shm.c ../config.h
-refclock_tpro.o: refclock_tpro.c ../config.h
-refclock_trak.o: refclock_trak.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h \
-	../include/l_stdlib.h ../include/ntp_unixtime.h
-refclock_true.o: refclock_true.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_ulink.o: refclock_ulink.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-refclock_usno.o: refclock_usno.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_unixtime.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h \
-	../include/ntp_control.h
-refclock_wwvb.o: refclock_wwvb.c ../config.h ../include/ntpd.h \
-	../include/ntp_syslog.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp.h ../include/ntp_select.h \
-	../include/ntp_malloc.h ../include/ntp_refclock.h \
-	../include/recvbuff.h ../include/ntp_io.h \
-	../include/ntp_calendar.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
+
+@AMDEP@include $(DEPDIR)/check_y2k$U.Po
+@AMDEP@include $(DEPDIR)/map_vme$U.Po
+@AMDEP@include $(DEPDIR)/ntp_config$U.Po
+@AMDEP@include $(DEPDIR)/ntp_control$U.Po
+@AMDEP@include $(DEPDIR)/ntp_filegen$U.Po
+@AMDEP@include $(DEPDIR)/ntp_intres$U.Po
+@AMDEP@include $(DEPDIR)/ntp_io$U.Po
+@AMDEP@include $(DEPDIR)/ntp_loopfilter$U.Po
+@AMDEP@include $(DEPDIR)/ntp_monitor$U.Po
+@AMDEP@include $(DEPDIR)/ntp_peer$U.Po
+@AMDEP@include $(DEPDIR)/ntp_proto$U.Po
+@AMDEP@include $(DEPDIR)/ntp_refclock$U.Po
+@AMDEP@include $(DEPDIR)/ntp_request$U.Po
+@AMDEP@include $(DEPDIR)/ntp_restrict$U.Po
+@AMDEP@include $(DEPDIR)/ntp_timer$U.Po
+@AMDEP@include $(DEPDIR)/ntp_util$U.Po
+@AMDEP@include $(DEPDIR)/ntpd$U.Po
+@AMDEP@include $(DEPDIR)/refclock_acts$U.Po
+@AMDEP@include $(DEPDIR)/refclock_arbiter$U.Po
+@AMDEP@include $(DEPDIR)/refclock_arc$U.Po
+@AMDEP@include $(DEPDIR)/refclock_as2201$U.Po
+@AMDEP@include $(DEPDIR)/refclock_atom$U.Po
+@AMDEP@include $(DEPDIR)/refclock_bancomm$U.Po
+@AMDEP@include $(DEPDIR)/refclock_chronolog$U.Po
+@AMDEP@include $(DEPDIR)/refclock_chu$U.Po
+@AMDEP@include $(DEPDIR)/refclock_conf$U.Po
+@AMDEP@include $(DEPDIR)/refclock_datum$U.Po
+@AMDEP@include $(DEPDIR)/refclock_dumbclock$U.Po
+@AMDEP@include $(DEPDIR)/refclock_fg$U.Po
+@AMDEP@include $(DEPDIR)/refclock_gpsvme$U.Po
+@AMDEP@include $(DEPDIR)/refclock_heath$U.Po
+@AMDEP@include $(DEPDIR)/refclock_hpgps$U.Po
+@AMDEP@include $(DEPDIR)/refclock_irig$U.Po
+@AMDEP@include $(DEPDIR)/refclock_jupiter$U.Po
+@AMDEP@include $(DEPDIR)/refclock_leitch$U.Po
+@AMDEP@include $(DEPDIR)/refclock_local$U.Po
+@AMDEP@include $(DEPDIR)/refclock_msfees$U.Po
+@AMDEP@include $(DEPDIR)/refclock_mx4200$U.Po
+@AMDEP@include $(DEPDIR)/refclock_nmea$U.Po
+@AMDEP@include $(DEPDIR)/refclock_oncore$U.Po
+@AMDEP@include $(DEPDIR)/refclock_palisade$U.Po
+@AMDEP@include $(DEPDIR)/refclock_parse$U.Po
+@AMDEP@include $(DEPDIR)/refclock_pcf$U.Po
+@AMDEP@include $(DEPDIR)/refclock_pst$U.Po
+@AMDEP@include $(DEPDIR)/refclock_ptbacts$U.Po
+@AMDEP@include $(DEPDIR)/refclock_shm$U.Po
+@AMDEP@include $(DEPDIR)/refclock_tpro$U.Po
+@AMDEP@include $(DEPDIR)/refclock_trak$U.Po
+@AMDEP@include $(DEPDIR)/refclock_true$U.Po
+@AMDEP@include $(DEPDIR)/refclock_ulink$U.Po
+@AMDEP@include $(DEPDIR)/refclock_usno$U.Po
+@AMDEP@include $(DEPDIR)/refclock_wwv$U.Po
+@AMDEP@include $(DEPDIR)/refclock_wwvb$U.Po
+
+mostlyclean-depend:
+
+clean-depend:
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+maintainer-clean-depend:
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ $<
 
 info-am:
 info: info-am
@@ -847,27 +561,29 @@ distclean-generic:
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-checkPROGRAMS \
 		mostlyclean-compile mostlyclean-kr mostlyclean-tags \
-		mostlyclean-generic
+		mostlyclean-depend mostlyclean-generic
 
 mostlyclean: mostlyclean-am
 
 clean-am:  clean-binPROGRAMS clean-checkPROGRAMS clean-compile clean-kr \
-		clean-tags clean-generic mostlyclean-am
+		clean-tags clean-depend clean-generic mostlyclean-am
 
 clean: clean-am
 
 distclean-am:  distclean-binPROGRAMS distclean-checkPROGRAMS \
 		distclean-compile distclean-kr distclean-tags \
-		distclean-generic clean-am
+		distclean-depend distclean-generic clean-am
 
 distclean: distclean-am
 
 maintainer-clean-am:  maintainer-clean-binPROGRAMS \
 		maintainer-clean-checkPROGRAMS maintainer-clean-compile \
 		maintainer-clean-kr maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
+		maintainer-clean-depend maintainer-clean-generic \
+		distclean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -879,10 +595,11 @@ mostlyclean-checkPROGRAMS distclean-checkPROGRAMS clean-checkPROGRAMS \
 maintainer-clean-checkPROGRAMS mostlyclean-compile distclean-compile \
 clean-compile maintainer-clean-compile mostlyclean-kr distclean-kr \
 clean-kr maintainer-clean-kr tags mostlyclean-tags distclean-tags \
-clean-tags maintainer-clean-tags distdir info-am info dvi-am dvi \
-check-local check check-am installcheck-am installcheck install-exec-am \
-install-exec install-data-am install-data install-am install \
-uninstall-am uninstall all-redirect all-am all install-strip \
+clean-tags maintainer-clean-tags distdir mostlyclean-depend \
+distclean-depend clean-depend maintainer-clean-depend info-am info \
+dvi-am dvi check-local check check-am installcheck-am installcheck \
+install-exec-am install-exec install-data-am install-data install-am \
+install uninstall-am uninstall all-redirect all-am all install-strip \
 installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 

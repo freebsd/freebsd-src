@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19991128_A
  *  
- * parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19990228_A
+ * parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19991128_A
  *
  * STREAMS module for reference clocks
  *
@@ -19,7 +19,7 @@
 #define _KERNEL			/* it is a _KERNEL module */
 
 #ifndef lint
-static char rcsid[] = "parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19990228_A";
+static char rcsid[] = "parsesolaris.c,v 4.6 1998/11/15 21:56:08 kardel RELEASE_19991128_A";
 #endif
 
 #include <sys/types.h>

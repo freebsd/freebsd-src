@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/parse.c,v 4.13 1999/02/28 11:50:20 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/parse.c,v 4.14 1999/11/28 09:13:52 kardel RELEASE_19991128_A
  *  
- * parse.c,v 4.13 1999/02/28 11:50:20 kardel RELEASE_19990228_A
+ * parse.c,v 4.14 1999/11/28 09:13:52 kardel RELEASE_19991128_A
  *
  * Parser module for reference clock
  *
@@ -27,7 +27,7 @@
 #if defined(REFCLOCK) && defined(CLOCK_PARSE)
 
 #if	!(defined(lint) || defined(__GNUC__))
-static char rcsid[] = "parse.c,v 4.13 1999/02/28 11:50:20 kardel RELEASE_19990228_A";
+static char rcsid[] = "parse.c,v 4.14 1999/11/28 09:13:52 kardel RELEASE_19991128_A";
 #endif
 
 #include <sys/types.h>
@@ -869,6 +869,9 @@ int parse_bs;
  * History:
  *
  * parse.c,v
+ * Revision 4.14  1999/11/28 09:13:52  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.13  1999/02/28 11:50:20  kardel
  * (timepacket): removed unecessary code
  *

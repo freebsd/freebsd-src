@@ -1,13 +1,6 @@
 #! /bin/sh
 
 LOGF=make.log
-case "$1" in
- -l) LOG=1
-    shift
-    ;;
- *) LOG=0
-    ;;
-esac
 
 CONFIG_ARGS="$@"
 
@@ -52,8 +45,6 @@ BDIR="$BDIR$CCSUF"
 cd $BDIR
 
 (
-cp /dev/null $LOGF
-
 [ -f config.status ] || ../configure $CONFIG_ARGS
 
 case "$MAKE" in
@@ -62,5 +53,4 @@ case "$MAKE" in
  *)  $MAKE && $MAKE check
      ;;
 esac
-) >> $LOGF 2>&1
-
+) > $LOGF 2>&1

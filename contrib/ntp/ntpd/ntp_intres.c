@@ -152,7 +152,7 @@ ntp_intres(void)
 #endif /* NTP_POSIX_SOURCE */
 
 #ifdef DEBUG
-	if (debug) {
+	if (debug > 1) {
 		msyslog(LOG_INFO, "NTP_INTRES running");
 	}
 #endif

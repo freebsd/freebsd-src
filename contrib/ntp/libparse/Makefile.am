@@ -1,12 +1,4 @@
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
-#
-# this is sick - i want the source to be compile with
-# two time with different flags resulting different
-# objects - still need to find a way to communicate
-# that to automake/autoconf
-#
-# Frank Kardel
-#
 AUTOMAKE_OPTIONS = ../util/ansi2knr
 noinst_LIBRARIES = @MAKE_LIBPARSE@ @MAKE_LIBPARSE_KERNEL@
 EXTRA_LIBRARIES = libparse.a libparse_kernel.a
@@ -31,19 +23,20 @@ libparse_a_SOURCES = parse.c \
 		     info_trimble.c \
 		     trim_info.c
 
-libparse_kernel_a_SOURCES = kparse.c \
-                            kparse_conf.c \
-                            kclk_meinberg.c \
-                            kclk_schmid.c \
-		            kclk_rawdcf.c \
-		            kclk_trimtsip.c \
-	                    kclk_dcf7000.c \
-                            kclk_trimtaip.c \
-                            kclk_rcc8000.c \
-                            kclk_hopf6021.c \
-	                    kclk_computime.c \
-		     	    kclk_wharton.c \
-		     	    kclk_varitext.c
+libparse_kernel_a_SOURCES = 
+libparse_kernel_a_LIBADD = kparse$U.o \
+			    kparse_conf$U.o \
+			    kclk_computime$U.o \
+			    kclk_dcf7000$U.o \
+			    kclk_hopf6021$U.o \
+			    kclk_meinberg$U.o \
+			    kclk_rawdcf$U.o \
+			    kclk_rcc8000$U.o \
+			    kclk_schmid$U.o \
+			    kclk_trimtaip$U.o \
+			    kclk_trimtsip$U.o \
+			    kclk_varitext$U.o \
+			    kclk_wharton$U.o
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/kernel
 ETAGS_ARGS = Makefile.am
@@ -58,24 +51,44 @@ info_trimble.c: $(top_srcdir)/include/trimble.h mkinfo_rcmd.sed mkinfo_scmd.sed
 	sed -n -f mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.c || rm -f info_trimble.c
 	sed -n -f mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.c || rm -f info_trimble.c
 
-#
-# HACK following below...
-#
-kparse_conf.o: parse_conf.c
-kparse.o: parse.c
-kclk_rawdcf.o: clk_rawdcf.c
-kclk_trimtsip.o: clk_trimtsip.c
-kclk_meinberg.o: clk_meinberg.c
-kclk_schmid.o: clk_schmid.c
-kclk_rawdcf.o: clk_rawdcf.c
-kclk_trimtsip.o: clk_trimtsip.c
-kclk_dcf7000.o: clk_dcf7000.c
-kclk_trimtaip.o: clk_trimtaip.c
-kclk_rcc8000.o: clk_rcc8000.c
-kclk_hopf6021.o: clk_hopf6021.c
-kclk_computime.o: clk_computime.c
-kclk_wharton.o: clk_wharton.c
-kclk_varitext.o: clk_varitext.c
+kclk_computime$U.o: clk_computime$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_dcf7000$U.o: clk_dcf7000$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_hopf6021$U.o: clk_hopf6021$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_meinberg$U.o: clk_meinberg$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_rawdcf$U.o: clk_rawdcf$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_rcc8000$U.o: clk_rcc8000$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_schmid$U.o: clk_schmid$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_trimtaip$U.o: clk_trimtaip$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_trimtsip$U.o: clk_trimtsip$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_varitext$U.o: clk_varitext$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kclk_wharton$U.o: clk_wharton$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kparse$U.o: parse$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
+
+kparse_conf$U.o: parse_conf$U.c
+	$(COMPILE) -DPARSESTREAM -c $< -o $@
 
 parsestreams.loadable_module.o: $(parsestreams_OBJECTS) libparse_kernel.a ../libntp/libntp.a
 	$(LD) -r -o $@ $(parsestreams_OBJECTS) libparse_kernel.a ../libntp/libntp.a

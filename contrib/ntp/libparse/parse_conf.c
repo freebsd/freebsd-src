@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/parse_conf.c,v 4.4 1999/02/28 15:27:25 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/parse_conf.c,v 4.5 1999/11/28 09:13:53 kardel RELEASE_19991128_A
  *  
- * parse_conf.c,v 4.4 1999/02/28 15:27:25 kardel RELEASE_19990228_A
+ * parse_conf.c,v 4.5 1999/11/28 09:13:53 kardel RELEASE_19991128_A
  *
  * Parser configuration module for reference clocks
  *
@@ -131,6 +131,9 @@ int parse_conf_bs;
  * History:
  *
  * parse_conf.c,v
+ * Revision 4.5  1999/11/28 09:13:53  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.4  1999/02/28 15:27:25  kardel
  * wharton clock integration
  *

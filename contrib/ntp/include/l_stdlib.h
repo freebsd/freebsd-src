@@ -169,6 +169,10 @@ extern	int	vsprintf	P((char *, const char *, ...));
 extern	int	stime		P((const time_t *));
 #endif
 
+#ifdef DECL_STIME_1
+extern	int	stime		P((long *));
+#endif
+
 #ifdef DECL_STRERROR_0
 extern	char *	strerror		P((int errnum));
 #endif

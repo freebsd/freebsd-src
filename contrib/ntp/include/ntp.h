@@ -343,10 +343,10 @@ struct peer {
 #define	REFCLK_LOCALCLOCK	1	/* external (e.g., lockclock) */
 #define	REFCLK_GPS_TRAK		2	/* TRAK 8810 GPS Receiver */
 #define	REFCLK_WWV_PST		3	/* PST/Traconex 1020 WWV/H */
-#define	REFCLK_WWVB_SPECTRACOM	4	/* Spectracom 8170/Netclock WWVB */
+#define	REFCLK_SPECTRACOM	4	/* Spectracom (generic) Receivers */
 #define	REFCLK_TRUETIME		5	/* TrueTime (generic) Receivers */
-#define REFCLK_IRIG_AUDIO	6       /* IRIG-B audio decoder */
-#define	REFCLK_CHU		7	/* scratchbuilt CHU (Canada) */
+#define REFCLK_IRIG_AUDIO	6       /* IRIG-B/W audio decoder */
+#define	REFCLK_CHU_AUDIO	7	/* CHU audio demodulator/decoder */
 #define REFCLK_PARSE		8	/* generic driver (usually DCF77,GPS,MSF) */
 #define	REFCLK_GPS_MX4200	9	/* Magnavox MX4200 GPS */
 #define REFCLK_GPS_AS2201	10	/* Austron 2201A GPS */
@@ -373,7 +373,10 @@ struct peer {
 #define REFCLK_CHRONOLOG        32	/* Chrono-log K WWVB receiver */
 #define REFCLK_DUMBCLOCK        33	/* Dumb localtime clock */
 #define REFCLK_ULINK            34      /* Ultralink M320 WWVB receiver */
-#define REFCLK_MAX		34	/* Grow as needed... */
+#define REFCLK_PCF		35	/* Conrad parallel port radio clock */
+#define REFCLK_WWV_AUDIO	36	/* WWV/H audio demodulator/decoder */
+#define REFCLK_FG		37	/* Forum Graphic GPS */
+#define REFCLK_MAX		37	/* Grow as needed... */
 
 /*
  * We tell reference clocks from real peers by giving the reference

@@ -40,9 +40,10 @@
 
 extern int init_vme();		/* This is just a call to map_vme() */
 				/* It doesn't have to be extern */
-unsigned short  *greg[NREGS];	/* GPS registers defined in gps.h */
-void *gps_base;			/* Base address of GPS VME card returned by */
 				/* the map_vme() call */
+extern unsigned short *greg[NREGS];   /* made extern to avoid being in both map_vme.c and this file */
+extern void *gps_base;                /*  mjb lmco 12/20/99 */
+
 extern caddr_t map_vme ();   
 extern void unmap_vme();	/* Unmaps the VME space */
 
@@ -57,6 +58,8 @@ struct vmedate {		/* structure needed by ntp */
 };
 
 struct vmedate *get_gpsvme_time();
+struct vmedate * time_vme;  /* added to emulate LM refclock_gpsvme
+                  (Made global per RES suggestion to fix mem leak DW lmco)  mjb lmco 12/15/99 */
 
 /* END OF STUFF FROM RES */
 
@@ -134,13 +137,13 @@ static u_char sloppyclockflag[MAXUNITS];
  * Function prototypes
  */
 static  void    vme_init        (void);
-static  int     vme_start       (u_int, struct peer *);
-static  void    vme_shutdown    (int);
+static  int     vme_start       (int, struct peer *);
+static  void    vme_shutdown    (int, struct peer *);
 static  void    vme_report_event        (struct vmeunit *, int);
 static  void    vme_receive     (struct recvbuf *);
 static  void    vme_poll        (int unit, struct peer *);
-static  void    vme_control     (u_int, struct refclockstat *, struct refclockstat *);
-static  void    vme_buginfo     (int, struct refclockbug *);
+static  void    vme_control     (int, struct refclockstat *, struct refclockstat *, struct peer *);
+static  void    vme_buginfo     (int, struct refclockbug *, struct peer *);
 
 /*
  * Transfer vector
@@ -233,6 +236,8 @@ vme_start(
 		} else {
 			vme = (struct vmeunit *)
 				emalloc(sizeof(struct vmeunit));
+         time_vme = (struct vmedate *)malloc(sizeof(struct vmedate)); /* Added to emulate LM's refclock_gpsvme
+                                                        (added to fix mem lead DW lmco)  mjb lmco 12/22/99 */
 		}
 	}
 	bzero((char *)vme, sizeof(struct vmeunit));
@@ -347,9 +352,6 @@ vme_poll(
 	struct tm *tadr;
 
         
-	vme = (struct vmeunit *)emalloc(sizeof(struct vmeunit *));
-	tptr = (struct vmedate *)emalloc(sizeof(struct vmedate *));
-
  
 	if (unit >= MAXUNITS) {
 		msyslog(LOG_ERR, "vme_poll: unit %d invalid", unit);
@@ -435,13 +437,14 @@ vme_poll(
 }
 
 /*
- * vme_control - set fudge factors, return statistics
+ * vme_control - set fudge factors, return statistics2
  */
 static void
 vme_control(
 	u_int unit,
 	struct refclockstat *in,
-	struct refclockstat *out
+	struct refclockstat *out,
+   struct peer * peer
 	)
 {
 	register struct vmeunit *vme;
@@ -453,7 +456,8 @@ vme_control(
 
 	if (in != 0) {
 		if (in->haveflags & CLK_HAVETIME1)
-		    fudgefactor[unit] = in->fudgetime1;
+		   DTOLFP(in->fudgetime1, &fudgefactor[unit]);  /* added mjb lmco 12/20/99 */
+
 		if (in->haveflags & CLK_HAVEVAL1) {
 			stratumtouse[unit] = (u_char)(in->fudgeval1 & 0xf);
 			if (unitinuse[unit]) {
@@ -482,16 +486,19 @@ vme_control(
 		out->haveflags
 			= CLK_HAVETIME1|CLK_HAVEVAL1|CLK_HAVEVAL2|CLK_HAVEFLAG1;
 		out->clockdesc = VMEDESCRIPTION;
-		out->fudgetime1 = fudgefactor[unit];
-		out->fudgetime2.l_ui = 0;
-		out->fudgetime2.l_uf = 0;
-		out->fudgeval1 = (LONG)stratumtouse[unit];
+      LFPTOD(&fudgefactor[unit], out->fudgetime1);  /* added mjb lmco 12/20/99 */
+
+      out ->fudgetime2 = 0;  /* should do what above was supposed to do  mjb lmco 12/20/99 */
+
+		out->fudgeval1 = (long)stratumtouse[unit];  /*changed from above LONG was not
+                                                                      defined  mjb lmco 12/15/99 */
+
 		out->fudgeval2 = 0;
 		out->flags = sloppyclockflag[unit];
 		if (unitinuse[unit]) {
 			vme = vmeunits[unit];
 			out->lencode = vme->lencode;
-			out->lastcode = vme->lastcode;
+         out->p_lastcode = vme->lastcode;
 			out->timereset = current_time - vme->timestarted;
 			out->polls = vme->polls;
 			out->noresponse = vme->noreply;
@@ -501,7 +508,7 @@ vme_control(
 			out->currentstatus = vme->status;
 		} else {
 			out->lencode = 0;
-			out->lastcode = "";
+         out->p_lastcode = "";
 			out->polls = out->noresponse = 0;
 			out->badformat = out->baddata = 0;
 			out->timereset = 0;
@@ -516,7 +523,8 @@ vme_control(
 static void
 vme_buginfo(
 	int unit,
-	register struct refclockbug *bug
+ 	register struct refclockbug *bug,
+ 	struct peer * peer
 	)
 {
 	register struct vmeunit *vme;
@@ -559,7 +567,7 @@ vme_buginfo(
 struct vmedate *
 get_gpsvme_time(void)
 {
-	struct vmedate  *time_vme;
+	extern struct vmedate  *time_vme;
 	unsigned short set, hr, min, sec, ums, hms, status;
 	int ret;
 	char ti[3];
@@ -570,7 +578,6 @@ get_gpsvme_time(void)
 	char  *gpsmicro;
 	gpsmicro = (char *) malloc(7);  
 
-	time_vme = (struct vmedate *)malloc(sizeof(struct vmedate ));
 	*greg = (unsigned short *)malloc(sizeof(short) * NREGS);
 
 
@@ -602,7 +609,7 @@ get_gpsvme_time(void)
 	/*      unmap_vme(); */
 
 	if (!status) { 
-		return ((void *)NULL);
+      return (NULL);  /* fixed mjb lmco 12/20/99 */
 	}
 	else
 	    return (time_vme);

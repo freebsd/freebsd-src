@@ -6,11 +6,10 @@
 
 <H4>Synopsis</H4>
 
-<TT>ntpd [ -aAbdm ] [ -c <I>conffile</I> ] [ -f <I>driftfile</I> ] [ -k
-<I>keyfile</I> ] [ -l <I>logfile</I> ] [ -p <I>pidfile</I> ] [ -r
+<TT>ntpd [ -aAbdm ] [ -c <I>conffile</I> ] [ -f <I>driftfile</I> ] [ -g
+] [ -k <I>keyfile</I> ] [ -l <I>logfile</I> ] [ -p <I>pidfile</I> ] [ -r
 <I>broadcastdelay</I> ] [ -s <I>statsdir</I> ] [ -t <I>key</I> ] [ -v
-<I>variable</I> ] [ -V
-<I>variable</I> ]</TT>
+<I>variable</I> ] [ -V <I>variable</I> ] [ -x ]</TT>
 
 <H4>Description</H4>
 
@@ -43,9 +42,10 @@ local host is to be configured as a broadcast/multicast client or
 manycast client, with all peers being determined by listening to
 broadcasts at run time.
 
-<P>If NetInfo support is built into <TT>ntpd</TT>, then <TT>ntpd</TT> will
-attempt to read its configuration from the NetInfo if the default ntp.conf
-file cannot be read and no file is specified by the <TT>-c</TT> option.
+<P>If NetInfo support is built into <TT>ntpd</TT>, then <TT>ntpd</TT>
+will attempt to read its configuration from the NetInfo if the default
+ntp.conf file cannot be read and no file is specified by the <TT>-c</TT>
+option.
 
 <P>Various internal <TT>ntpd</TT> variables can be displayed and
 configuration options altered while the daemon is running using the
@@ -85,7 +85,8 @@ each occurrence indicating greater detail of display.</DD>
 <DT><TT>-g</TT></DT>
 <DD>Normally, the daemon exits if the offset exceeds a 1000-s sanity
 limit. This option overrides this limit and allows the time to be set to
-any value without restriction.</DD>
+any value without restriction; however, this can happen only once. After
+that, the daemon will exit of the limit is exceeded.
 
 <DT><TT>-k <I>keyfile</I></TT></DT>
 <DD>Specify the name and path of the file containing the NTP
@@ -128,7 +129,6 @@ stepped, not gradually slewed. This option forces the time to be slewed
 in all cases. Note: Since the slew rate is limited to 0.5 ms/s, each
 second of adjustment requires an amortization interval of 2000 s. Thus,
 an adjustment of many seconds can take hours or days to amortize.</DD>
-
 </DL>
 
 <H4>The Configuration File</H4>
