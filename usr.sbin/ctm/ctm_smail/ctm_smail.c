@@ -10,7 +10,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $Id: ctm_smail.c,v 1.6 1996/07/01 20:54:11 gpalmer Exp $
+ * $Id: ctm_smail.c,v 1.7 1996/09/07 18:48:44 peter Exp $
  */
 
 #include <stdio.h>
@@ -104,6 +104,7 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
     FILE *sfp;
     FILE *dfp;
     unsigned sum;
+    char *deltaname;
 
 #ifdef howmany
 #undef howmany
@@ -130,6 +131,12 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
 	exit(1);
 	}
 
+    deltaname = strrchr(delta, '/');
+    if (deltaname)
+	deltaname++;	/* skip slash */
+    else
+	deltaname = delta;
+
     for (pce = 1; pce <= npieces; pce++)
 	{
 	sfp = open_sendmail();
@@ -140,7 +147,7 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
 	write_trailer(sfp, sum);
 	if (!close_sendmail(sfp))
 	    exit(1);
-	err("%s %d/%d sent to %s", delta, pce, npieces, mail_alias);
+	err("%s %d/%d sent to %s", deltaname, pce, npieces, mail_alias);
 	}
 
     fclose(dfp);
@@ -578,7 +585,6 @@ add_to_queue(char *queue_dir, char *mail_alias, char *delta, int npieces, char *
 	}
 
 	rename(tempnames[pce], queuefile);
-	err("Queue file %s now exists", queuefile);
     }
     
     free_lock(lockf, queue_dir);
