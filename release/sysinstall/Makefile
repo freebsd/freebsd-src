@@ -30,6 +30,9 @@ LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
 makedevs.c:	Makefile rtermcap keymap.h
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
+	./rtermcap ansi | \
+		file2c 'const char termcap_ansi[] = {' ',0};' \
+		>> makedevs.tmp
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp
