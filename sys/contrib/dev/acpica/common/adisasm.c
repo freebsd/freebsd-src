@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: adisasm - Application-level disassembler routines
- *              $Revision: 67 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -880,6 +880,7 @@ AdGetLocalTables (
     ACPI_TABLE_HEADER       *NewTable;
     UINT32                  NumTables;
     UINT32                  PointerSize;
+    char                    *FacsSuffix = "";
 
 
     if (GetAllTables)
@@ -923,6 +924,10 @@ AdGetLocalTables (
             AcpiGbl_FADT = (void *) NewTable;
             AdWriteTable (NewTable, NewTable->Length,
                 FADT_SIG, NewTable->OemTableId);
+
+            /* Use the FADT tableID for the FACS, since FACS has no ID */
+
+            FacsSuffix = AcpiGbl_FADT->OemTableId;
         }
         AcpiOsPrintf ("\n");
 
@@ -934,7 +939,7 @@ AdGetLocalTables (
         {
             AcpiGbl_FACS = (void *) NewTable;
             AdWriteTable (NewTable, AcpiGbl_FACS->Length,
-                FACS_SIG, AcpiGbl_FADT->OemTableId);
+                FACS_SIG, FacsSuffix);
         }
         AcpiOsPrintf ("\n");
     }

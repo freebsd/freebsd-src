@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nswalk - Functions for walking the ACPI namespace
- *              $Revision: 36 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -265,7 +265,7 @@ AcpiNsWalkNamespace (
     /* Null child means "get first node" */
 
     ParentNode  = StartNode;
-    ChildNode   = 0;
+    ChildNode   = NULL;
     ChildType   = ACPI_TYPE_ANY;
     Level       = 1;
 
@@ -350,15 +350,15 @@ AcpiNsWalkNamespace (
              */
             if ((Level < MaxDepth) && (Status != AE_CTRL_DEPTH))
             {
-                if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, 0))
+                if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, NULL))
                 {
                     /*
                      * There is at least one child of this
                      * node, visit the onde
                      */
                     Level++;
-                    ParentNode    = ChildNode;
-                    ChildNode     = 0;
+                    ParentNode = ChildNode;
+                    ChildNode  = NULL;
                 }
             }
         }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -600,15 +600,15 @@ AcpiNsDeleteNamespaceSubtree (
 
             /* Check if this node has any children */
 
-            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, 0))
+            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, NULL))
             {
                 /*
                  * There is at least one child of this node,
                  * visit the node
                  */
                 Level++;
-                ParentNode    = ChildNode;
-                ChildNode     = 0;
+                ParentNode = ChildNode;
+                ChildNode  = NULL;
             }
         }
         else
@@ -763,8 +763,8 @@ AcpiNsDeleteNamespaceByOwner (
                  * visit the node
                  */
                 Level++;
-                ParentNode    = ChildNode;
-                ChildNode     = NULL;
+                ParentNode = ChildNode;
+                ChildNode  = NULL;
             }
             else if (ChildNode->OwnerId == OwnerId)
             {

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 60 $
+ *              $Revision: 62 $
  *
  ******************************************************************************/
 
@@ -395,7 +395,7 @@ AcpiDbExecute (
      * Allow any handlers in separate threads to complete.
      * (Such as Notify handlers invoked from AML executed above).
      */
-    AcpiOsSleep (0, 10);
+    AcpiOsSleep (10);
 
 
 #ifdef ACPI_DEBUG_OUTPUT
@@ -408,7 +408,7 @@ AcpiDbExecute (
 
     if (Allocations > 0)
     {
-        AcpiOsPrintf ("Outstanding: %u allocations after execution\n",
+        AcpiOsPrintf ("Outstanding: 0x%X allocations after execution\n",
                         Allocations);
     }
 #endif

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 74 $
+ *       $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -180,6 +180,10 @@ AcpiDbMethodEnd (
 /*
  * dbcmds - debug commands and output routines
  */
+
+ACPI_STATUS
+AcpiDbDisassembleMethod (
+    char                    *Name);
 
 void
 AcpiDbDisplayTableInfo (

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 66 $
+ *              $Revision: 68 $
  *
  ******************************************************************************/
 
@@ -121,6 +121,7 @@
 #include "acnamesp.h"
 #include "acdebug.h"
 #include "acdispat.h"
+#include "acdisasm.h"
 
 
 #ifdef ACPI_DEBUGGER
@@ -261,7 +262,8 @@ AcpiDbDumpObject (
     {
     case ACPI_TYPE_ANY:
 
-        AcpiOsPrintf ("[Object Reference] = %p\n", ObjDesc->Reference.Handle);
+        AcpiOsPrintf ("[Object Reference] = ", ObjDesc->Reference.Handle);
+        AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
 
@@ -312,7 +314,8 @@ AcpiDbDumpObject (
 
     case ACPI_TYPE_LOCAL_REFERENCE:
 
-        AcpiOsPrintf ("[Object Reference] = %p\n", ObjDesc->Reference.Handle);
+        AcpiOsPrintf ("[Object Reference] = ", ObjDesc->Reference.Handle);
+        AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
 

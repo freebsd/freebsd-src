@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslmain - compiler main and utilities
- *              $Revision: 76 $
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -161,16 +161,17 @@ Options (
     printf ("  -vr            Disable remarks\n");
     printf ("  -vs            Disable signon\n");
 
-    printf ("\nAML Output:\n");
+    printf ("\nAML Output Files:\n");
     printf ("  -s<a|c>        Create AML in assembler or C source file (*.asm or *.c)\n");
     printf ("  -i<a|c>        Create assembler or C include file (*.inc or *.h)\n");
     printf ("  -t<a|c>        Create AML in assembler or C hex table (*.hex)\n");
 
-    printf ("\nAML Optimization:\n");
+    printf ("\nAML Code Generation:\n");
     printf ("  -oa            Disable all optimizations (compatibility mode)\n");
     printf ("  -of            Disable constant folding\n");
     printf ("  -oi            Disable integer optimization to Zero/One/Ones\n");
     printf ("  -on            Disable named reference string optimization\n");
+    printf ("  -r<Revision>   Override table header Revision (1-255)\n");
 
     printf ("\nListings:\n");
     printf ("  -l             Create mixed listing file (ASL source and AML) (*.lst)\n");
@@ -321,8 +322,13 @@ AslCommandLine (
 
     /* Get the command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "b:cd^efgh^i^l^o:p:rs:t:v:x:")) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, "ab:cd^efgh^i^l^o:p:r:s:t:v:x:")) != EOF) switch (j)
     {
+    case 'a':
+        AslToFile = FALSE;
+        break;
+
+
     case 'b':
 
         switch (AcpiGbl_Optarg[0])
@@ -544,7 +550,7 @@ AslCommandLine (
 
 
     case 'r':
-        AslToFile = FALSE;
+        Gbl_RevisionOverride = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
         break;
 
 

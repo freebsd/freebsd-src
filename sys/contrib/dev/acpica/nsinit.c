@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 60 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -152,7 +152,8 @@ AcpiNsInitializeObjects (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Starting initialization of namespace objects ****\n"));
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "Completing Region/Field/Buffer/Package initialization:"));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
+        "Completing Region/Field/Buffer/Package initialization:"));
 
     /* Set all init info to zero */
 
@@ -218,7 +219,8 @@ AcpiNsInitializeDevices (
     Info.Num_STA = 0;
     Info.Num_INI = 0;
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "Executing all Device _STA and_INI methods:"));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
+        "Executing all Device _STA and_INI methods:"));
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
@@ -339,8 +341,8 @@ AcpiNsInitOneObject (
     }
 
     /*
-     * Each of these types can contain executable AML code within
-     * the declaration.
+     * Each of these types can contain executable AML code within the
+     * declaration.
      */
     switch (Type)
     {
@@ -350,20 +352,17 @@ AcpiNsInitOneObject (
         Status = AcpiDsGetRegionArguments (ObjDesc);
         break;
 
-
     case ACPI_TYPE_BUFFER_FIELD:
 
         Info->FieldInit++;
         Status = AcpiDsGetBufferFieldArguments (ObjDesc);
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         Info->BufferInit++;
         Status = AcpiDsGetBufferArguments (ObjDesc);
         break;
-
 
     case ACPI_TYPE_PACKAGE:
 
@@ -385,16 +384,18 @@ AcpiNsInitOneObject (
                 AcpiFormatException (Status)));
     }
 
-    /* Print a dot for each object unless we are going to print the entire pathname */
-
+    /*
+     * Print a dot for each object unless we are going to print the entire
+     * pathname
+     */
     if (!(AcpiDbgLevel & ACPI_LV_INIT_NAMES))
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
     }
 
     /*
-     * We ignore errors from above, and always return OK, since
-     * we don't want to abort the walk on any single error.
+     * We ignore errors from above, and always return OK, since we don't want
+     * to abort the walk on any single error.
      */
     AcpiExExitInterpreter ();
     return (AE_OK);
@@ -450,7 +451,8 @@ AcpiNsInitOneDevice (
         return_ACPI_STATUS (AE_OK);
     }
 
-    if ((AcpiDbgLevel <= ACPI_LV_ALL_EXCEPTIONS) && (!(AcpiDbgLevel & ACPI_LV_INFO)))
+    if ((AcpiDbgLevel <= ACPI_LV_ALL_EXCEPTIONS) &&
+        (!(AcpiDbgLevel & ACPI_LV_INFO)))
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
     }
@@ -524,7 +526,6 @@ AcpiNsInitOneDevice (
 
         Status = AcpiGbl_InitHandler (Pinfo.Node, ACPI_INIT_DEVICE_INI);
     }
-
 
     return_ACPI_STATUS (Status);
 }

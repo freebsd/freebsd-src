@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 201 $
+ *       $Revision: 202 $
  *
  *****************************************************************************/
 
@@ -126,7 +126,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x7E
+#define AML_NUM_OPCODES                 0x7F
 
 
 /*****************************************************************************
@@ -1050,8 +1050,7 @@ typedef struct acpi_debug_print_info
     UINT32                      Component; \
     UINT32                      Line; \
     char                        Module[ACPI_MAX_MODULE_NAME]; \
-    UINT8                       AllocType; \
-    UINT8                       Padding[3];
+    UINT8                       AllocType;
 
 typedef struct acpi_debug_mem_header
 {

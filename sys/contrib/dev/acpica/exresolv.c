@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 124 $
+ *              $Revision: 125 $
  *
  *****************************************************************************/
 
@@ -412,10 +412,47 @@ AcpiExResolveMultiple (
     ACPI_OPERAND_OBJECT     *ObjDesc = (void *) Operand;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OBJECT_TYPE        Type;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE ("AcpiExResolveMultiple");
 
+
+
+    /* 
+     * Operand can be either a namespace node or an operand descriptor
+     */
+    switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc))
+    {
+    case ACPI_DESC_TYPE_OPERAND:
+        Type = ObjDesc->Common.Type;
+        break;
+
+    case ACPI_DESC_TYPE_NAMED:
+        Type = ((ACPI_NAMESPACE_NODE *) ObjDesc)->Type;
+        ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ObjDesc);
+
+        /* If we had an Alias node, use the attached object for type info */
+
+        if (Type == ACPI_TYPE_LOCAL_ALIAS)
+        {
+            Type = ((ACPI_NAMESPACE_NODE *) ObjDesc)->Type;
+            ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ObjDesc);
+        }
+        break;
+
+    default:
+        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+    }
+
+
+    /*
+     * If type is anything other than a reference, we are done 
+     */
+    if (Type != ACPI_TYPE_LOCAL_REFERENCE)
+    {
+        goto Exit;
+    }
 
     /*
      * For reference objects created via the RefOf or Index operators,
@@ -514,6 +551,38 @@ AcpiExResolveMultiple (
             if (ObjDesc == Operand)
             {
                 return_ACPI_STATUS (AE_AML_CIRCULAR_REFERENCE);
+            }
+            break;
+
+
+        case AML_LOCAL_OP:
+        case AML_ARG_OP:
+
+            if (ReturnDesc)
+            {
+                Status = AcpiDsMethodDataGetValue (ObjDesc->Reference.Opcode,
+                                ObjDesc->Reference.Offset, WalkState, &ObjDesc);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+                AcpiUtRemoveReference (ObjDesc);
+            }
+            else
+            {
+                Status = AcpiDsMethodDataGetNode (ObjDesc->Reference.Opcode,
+                            ObjDesc->Reference.Offset, WalkState, &Node);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+
+                ObjDesc = AcpiNsGetAttachedObject (Node);
+                if (!ObjDesc)
+                {
+                    Type = ACPI_TYPE_ANY;
+                    goto Exit;
+                }
             }
             break;
 
