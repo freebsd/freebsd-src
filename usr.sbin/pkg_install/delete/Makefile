@@ -1,6 +1,8 @@
 PROG= pkg_delete
-
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
+
+LDADD+=		-lftp
+DPADD+=		${LIBFTP}
 
 .if exists(${.CURDIR}/../lib/obj)
 LDADD+=		-L${.CURDIR}/../lib/obj -linstall
