@@ -794,6 +794,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 * added to the run queue and selected.
 	 */
 	if (newtd) {
+		KASSERT((newtd->td_inhibitors == 0),
+			("trying to run inhibitted thread"));
 		newtd->td_ksegrp->kg_avail_opennings--;
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
