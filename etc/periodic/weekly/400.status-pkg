@@ -18,7 +18,7 @@ case "$weekly_status_pkg_enable" in
 
 	rc=$(pkg_version -v |
 	    sed -n -e 's/^\([^ ]*\)  *<  */  \1 /p' \
-		-e '/^[^-]*-\([^ ]*\)  *\* *multiple versions.*[ ,]\1[,)].*/d' \
+		-e '/^[^ ]*-\([^ ]*\)  *\* *multiple versions.*[ ,]\1[,)].*/d' \
 		-e 's/^\([^ ]*\)  *\* *multiple versions.*\((.*\)/  \1 needs updating \2/p' |
 	    tee /dev/stderr |
 	    wc -l)
