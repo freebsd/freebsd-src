@@ -1,4 +1,4 @@
-# @(#)australasia	7.27
+# @(#)australasia	7.29
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -143,7 +143,7 @@ Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 # Australian miscellany
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
-			7:00	-	JVT
+			7:00	-	CXT	# Christmas Island Time
 #
 # Ashmore Is, Cartier
 # no indigenous inhabitants; only seasonal caretakers
@@ -159,32 +159,32 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 
 # Cook Is
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Cook	1978	only	-	Nov	12	0:00	0:30	HD
-Rule	Cook	1979	max	-	Mar	Sun>=1	0:00	0	H
-Rule	Cook	1979	max	-	Oct	lastSun	0:00	0:30	HD
+Rule	Cook	1978	only	-	Nov	12	0:00	0:30	HS
+Rule	Cook	1979	max	-	Mar	Sun>=1	0:00	0	-
+Rule	Cook	1979	max	-	Oct	lastSun	0:00	0:30	HS
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
-			-10:30	-	CIST	1978 Nov 12	# Cook Is ST
-			-10:00	Cook	T%sT
+			-10:30	-	CKT	1978 Nov 12	# Cook Is Time
+			-10:00	Cook	CK%sT
 
 # Cocos
 # From USNO (1989):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Cocos	6:30	-	CCT
+Zone	Indian/Cocos	6:30	-	CCT	# Cocos Islands Time
 
 # Fiji
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
-			12:00	-	NZST
+			12:00	-	FJT	# Fiji Time
 
 # French Polynesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Gambier	 -8:59:48 -	LMT	1912 Oct	# Rikitea
-			 -9:00	-	GBT
+			 -9:00	-	GAMT	# Gambier Time
 Zone	Pacific/Marquesas -9:18:00 -	LMT	1912 Oct
-			 -9:30	-	MQT
+			 -9:30	-	MART	# Marquesas Time
 Zone	Pacific/Tahiti	 -9:58:16 -	LMT	1912 Oct	# Papeete
-			-10:00	-	THT
+			-10:00	-	TAHT	# Tahiti Time
 
 # Guam
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -209,57 +209,57 @@ Zone Pacific/Johnston	-10:00	-	HST
 # Kiribati
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tarawa	 11:32:04 -	LMT	1901		# Bairiki
-			 12:00	-	NZST
+			 12:00	-	GILT		 # Gilbert Is Time
 Zone Pacific/Enderbury	-11:24:20 -	LMT	1901
-			-12:00	-	KJT	1979 Oct
-			-11:00	-	SST	1995
-			 13:00	-	TGT
+			-12:00	-	PHOT	1979 Oct # Phoenix Is Time
+			-11:00	-	PHOT	1995
+			 13:00	-	PHOT
 Zone Pacific/Kiritimati	-10:29:20 -	LMT	1901
-			-10:40	-	LIT	1979 Oct	# Line Is Time
-			-10:00	-	THT	1995
-			 14:00	-	KRT
+			-10:40	-	LINT	1979 Oct # Line Is Time
+			-10:00	-	LINT	1995
+			 14:00	-	LINT
 
 # N Mariana Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Saipan	 9:43:00 -	LMT	1901
-			 9:00	-	PLT	1969 Oct
-			10:00	-	GST
+			 9:00	-	MPT	1969 Oct # N Mariana Is Time
+			10:00	-	MPT
 
 # Marshall Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Majuro	11:24:48 -	LMT	1901
-			11:00	-	NCST	1969 Oct
-			12:00	-	NZST
+			11:00	-	MHT	1969 Oct # Marshall Islands Time
+			12:00	-	MHT
 Zone Pacific/Kwajalein	11:09:20 -	LMT	1901
-			11:00	-	NCST	1969 Oct
-			-12:00	-	KJT	1993 Aug 20
-			12:00	-	NZST
+			11:00	-	MHT	1969 Oct
+			-12:00	-	KWAT	1993 Aug 20	# Kwajalein Time
+			12:00	-	MHT
 
 # Micronesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Yap	9:12:32	-	LMT	1901		# Colonia
-			9:00	-	PLT	1969 Oct
-			10:00	-	GST
+			9:00	-	YAPT	1969 Oct	# Yap Time
+			10:00	-	YAPT
 Zone Pacific/Truk	10:07:08 -	LMT	1901
-			10:00	-	GST
+			10:00	-	TRUT			# Truk Time
 Zone Pacific/Ponape	10:32:52 -	LMT	1901		# Kolonia
-			11:00	-	NCST
+			11:00	-	PONT			# Ponape Time
 Zone Pacific/Kosrae	10:51:56 -	LMT	1901
-			11:00	-	NCST	1969 Oct
-			12:00	-	NZST
+			11:00	-	PONT	1969 Oct
+			12:00	-	KOST			# Kosrae Time
 
 # Nauru
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
-			11:30	-	NST	1942 Mar 15
+			11:30	-	NRT	1942 Mar 15	# Nauru Time
 			9:00	-	JST	1944 Aug 15
-			11:30	-	NST	1979 May
-			12:00	-	NZST
+			11:30	-	NRT	1979 May
+			12:00	-	NRT
 
 # New Caledonia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	NC	1977	1978	-	Dec	Sun>=1	0:00	1:00	D
-Rule	NC	1978	1979	-	Feb	27	0:00	0	S
+Rule	NC	1977	1978	-	Dec	Sun>=1	0:00	1:00	S
+Rule	NC	1978	1979	-	Feb	27	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 			11:00	NC	NC%sT
@@ -293,11 +293,11 @@ Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 Zone Pacific/Auckland	11:39:04 -	LMT	1868
 			11:30	NZ	NZ%sT	1940 Sep 29 2:00
 			12:00	NZ	NZ%sT
-Zone Pacific/Chatham	12:45	NZ	CH%sT
+Zone Pacific/Chatham	12:45	NZ	CHA%sT
 
 
 # Antipodes Is, Kermadec Is
-# no information; probably like Pacific/Auckland
+# uninhabited except by research personnel; probably like Pacific/Auckland
 
 ###############################################################################
 
@@ -305,20 +305,20 @@ Zone Pacific/Chatham	12:45	NZ	CH%sT
 # Niue
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Niue	-11:19:40 -	LMT	1901		# Alofi
-			-11:20	-	NIT	1951	    # Niue I Time
-			-11:30	-	NIT	1978 Oct 1
-			-11:00	-	SST
+			-11:20	-	NUT	1951	# Niue Time
+			-11:30	-	NUT	1978 Oct 1
+			-11:00	-	NUT
 
 # Norfolk
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Norfolk	11:11:52 -	LMT	1901		# Kingston
-			11:12	-	NMT	1951
-			11:30	-	NRFT
+			11:12	-	NMT	1951	# Norfolk Mean Time
+			11:30	-	NFT		# Norfolk Time
 
 # Palau
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
-			9:00	-	PLT
+			9:00	-	PWT	# Palau Time
 
 # Palmyra
 # uninhabited since World War II; was probably like Pacific/Kiritmati
@@ -326,18 +326,18 @@ Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 # Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Port_Moresby 9:48:40 -	LMT	1880
-			9:49	-	PMMT	1895
-			10:00	-	EST
+			9:48:40	-	PMMT	1895	# Port Moresby Mean Time
+			10:00	-	PGT		# Papua New Guinea Time
 
 # Pitcairn
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Pitcairn	-8:40:20 -	LMT	1901		# Adamstown
-			-8:30	-	PIT
+			-8:30	-	PNT	# Pitcairn Time
 
 # American Samoa
 Zone Pacific/Pago_Pago	 12:37:12 -	LMT	1879 Jul  5
 			-11:22:48 -	LMT	1911
-			-11:30	-	SST	1950
+			-11:30	-	SAMT	1950		# Samoa Time
 			-11:00	-	NST	1967 Apr	# N=Nome
 			-11:00	-	BST	1983 Nov 30	# B=Bering
 			-11:00	-	SST			# S=Samoa
@@ -345,52 +345,52 @@ Zone Pacific/Pago_Pago	 12:37:12 -	LMT	1879 Jul  5
 # W Samoa
 Zone Pacific/Apia	 12:33:04 -	LMT	1879 Jul  5
 			-11:26:56 -	LMT	1911
-			-11:30	-	SST	1950
-			-11:00	-	SST
+			-11:30	-	SAMT	1950		# Samoa Time
+			-11:00	-	WST			# W Samoa Time
 
 # Solomon Is
 # excludes Bougainville, for which see Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Guadalcanal 10:39:48 -	LMT	1912 Oct	# Honiara
-			11:00	-	NCST
+			11:00	-	SBT	# Solomon Is Time
 
 # Tokelau Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
-			-10:00	-	THT
+			-10:00	-	TKT	# Tokelau Time
 
 # Tonga
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
-			12:20	-	TMT	1968 Oct
-			13:00	-	TGT
+			12:20	-	TOT	1968 Oct # Tonga Time
+			13:00	-	TOT
 
 # Tuvalu
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Funafuti	11:56:52 -	LMT	1901
-			12:00	-	NZST
+			12:00	-	TVT	# Tuvalu Time
 
 # Vanuatu
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Vanuatu	1983	only	-	Sep	25	0:00	1:00	D
-Rule	Vanuatu	1984	1991	-	Mar	Sun>=23	0:00	0	S
-Rule	Vanuatu	1984	only	-	Oct	23	0:00	1:00	D
-Rule	Vanuatu	1985	1990	-	Sep	Sun>=23	0:00	1:00	D
-Rule	Vanuatu	1991	max	-	Sep	lastSun	0:00	1:00	D
-Rule	Vanuatu	1992	max	-	Mar	lastSun	0:00	0	S
+Rule	Vanuatu	1983	only	-	Sep	25	0:00	1:00	S
+Rule	Vanuatu	1984	1991	-	Mar	Sun>=23	0:00	0	-
+Rule	Vanuatu	1984	only	-	Oct	23	0:00	1:00	S
+Rule	Vanuatu	1985	1990	-	Sep	Sun>=23	0:00	1:00	S
+Rule	Vanuatu	1991	max	-	Sep	lastSun	0:00	1:00	S
+Rule	Vanuatu	1992	max	-	Mar	lastSun	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Efate	11:13:16 -	LMT	1912 Jan 13		# Vila
-			11:00	-	NCST
+			11:00	Vanuatu	VU%sT	# Vanuatu Time
 
 # Wake
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Wake	11:06:28 -	LMT	1901
-			12:00	-	NZST
+			12:00	-	WAKT	# Wake Time
 
 # Wallis and Futuna
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Wallis	12:15:20 -	LMT	1901
-			12:00	-	NZST
+			12:00	-	WFT	# Wallis & Futuna Time
 
 ###############################################################################
 
@@ -419,40 +419,27 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Corrections are welcome!
 #		std dst
 #		LMT	Local Mean Time
-#	  6:30	CCT	Cocos*
-#	  7:00	JVT	Java*
 #	  8:00	WST WST	Western Australia
 #	  9:00	JST	Japan
-#	  9:00	PLT	Palau*
 #	  9:30	CST CST	Central Australia
 #	 10:00	EST EST	Eastern Australia
-#	 10:00	GST	Guam*
+#	 10:00	GST	Guam
 #	 10:30	LHST LHST Lord Howe*
-#	 11:00	NCST NCDT New Caledonia*
-#	 11:30	NRFT	Norfolk*
 #	 12:00	NZST NZDT New Zealand
-#	 12:45	CHST CHDT Chatham*
-#	 13:00	TGT	Tongatapu*
-#	 14:00	KRT	Kiritimati*
-#	-12:00	KJT	Kwajalein (no longer used)*
+#	 12:45	CHAST CHADT Chatham*
 #	-11:00	SST	Samoa
-#	-10:40	LIT	Line Is (no longer used)*
-#	-10:00	THT	Tahiti*
 #	-10:00	HST	Hawaii
-#	- 9:30	MQT	Marquesas*
-#	- 9:00	GBT	Gambier*
-#	- 8:30	PIT	Pitcairn*
 #
 # See the `northamerica' file for Hawaii.
 # See the `southamerica' file for Easter I and the Galapagos Is.
 #
-# See the `africa' file for Zone naming conventions.
+# See the `africa' file for time zone naming and abbreviation conventions.
 
 ###############################################################################
 
 # Australia
 
-# From John Mackin (March 6, 1991):
+# From John Mackin (1991-03-06):
 # We in Australia have _never_ referred to DST as `daylight' time.
 # It is called `summer' time.  Now by a happy coincidence, `summer'
 # and `standard' happen to start with the same letter; hence, the
@@ -486,20 +473,20 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Northern Territory
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # # The NORTHERN TERRITORY..  [ Courtesy N.T. Dept of the Chief Minister ]
 # #					[ Nov 1990 ]
 # #	N.T. have never utilised any DST due to sub-tropical/tropical location.
 # ...
 # Zone        Australia/North         9:30    -       CST
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # the Northern Territory do[es] not have daylight saving.
 
 # Western Australia
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # #  The state of WESTERN AUSTRALIA..  [ Courtesy W.A. dept Premier+Cabinet ]
 # #						[ Nov 1990 ]
 # #	W.A. suffers from a great deal of public and political opposition to
@@ -514,23 +501,23 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	AW	1983	only	-	Oct	lastSun	2:00	1:00	D
 # Rule	AW	1984	only	-	Mar	Sun>=1	3:00	0	W
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # Western Australia...do[es] not have daylight saving.
 
-# From John D. Newman via Bradley White (November 2, 1991):
+# From John D. Newman via Bradley White (1991-11-02):
 # Western Australia is still on "winter time". Some DH in Sydney
 # rang me at home a few days ago at 6.00am. (He had just arrived at
 # work at 9.00am.)
 # W.A. is switching to Summer Time on Nov 17th just to confuse
 # everybody again.
 
-# From Arthur David Olson (March 8, 1992):
+# From Arthur David Olson (1992-03-08):
 # The 1992 ending date used in the rules is a best guess;
 # it matches what was used in the past.
 
 # Queensland
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # #   The state of QUEENSLAND.. [ Courtesy Qld. Dept Premier Econ&Trade Devel ]
 # #						[ Dec 1990 ]
 # ...
@@ -541,21 +528,21 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	AQ	1989	max	-	Oct	lastSun	2:00	1:00	D
 # Rule	AQ	1990	max	-	Mar	Sun>=1	3:00	0	E
 
-# From Bradley White (December 24, 1989):
+# From Bradley White (1989-12-24):
 # "Australia/Queensland" now observes daylight time (i.e. from
 # October 1989).
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # ...Queensland...[has] agreed to end daylight saving
 # at 3am tomorrow (March 3)...
 
-# From John Mackin (March 6, 1991):
+# From John Mackin (1991-03-06):
 # I can certainly confirm for my part that Daylight Saving in NSW did in fact
 # end on Sunday, 3 March.  I don't know at what hour, though.  (It surprised
 # me.)
 
-# From Bradley White (March 8, 1992):
+# From Bradley White (1992-03-08):
 # ...there was recently a referendum in Queensland which resulted
 # in the experimental daylight saving system being abandoned. So, ...
 # ...
@@ -563,12 +550,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	QLD	1990	1992	-	Mar	Sun>=1	3:00	0	S
 # ...
 
-# From Arthur David Olson (March 8, 1992):
+# From Arthur David Olson (1992-03-08):
 # The chosen rules the union of the 1971/1972 change and the 1989-1992 changes.
 
 # South Australia, Tasmania, Victoria
 
-# From Arthur David Olson (March 8, 1992):
+# From Arthur David Olson (1992-03-08):
 # The rules from version 7.1 follow.
 # There are lots of differences between these rules and
 # the Shepherd et al. rules.  Since the Shepherd et al. rules
@@ -586,7 +573,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #				10:00	1:00	EST	1986 Mar Sun<=21 3:00
 #				10:00	Oz	EST
 
-# From Robert Elz (March 6, 1991):
+# From Robert Elz (1991-03-06):
 # I believe that the current start date for DST is "lastSun" in Oct...
 # that changed Oct 89.  That is, we're back to the
 # original rule, and that rule currently applies in all the states
@@ -596,12 +583,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # South Australia
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # ...South Australia...[has] agreed to end daylight saving
 # at 3am tomorrow (March 3)...
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # #   The state of SOUTH AUSTRALIA....[ Courtesy of S.A. Dept of Labour ]
 # #						[ Nov 1990 ]
 # ...
@@ -612,23 +599,23 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	 AS	1986	1990	-	Mar	Sun<=21	3:00	0	C
 # Rule	 AS	1991	max	-	Mar	Sun>=1	3:00	0	C
 
-# From Bradley White (March 11, 1992):
+# From Bradley White (1992-03-11):
 # Recent correspondence with a friend in Adelaide
 # contained the following exchange:  "Due to the Adelaide Festival,
 # South Australia delays setting back our clocks for a few weeks."
 
-# From Robert Elz (March 13, 1992):
+# From Robert Elz (1992-03-13):
 # I heard that apparently (or at least, it appears that)
 # South Aus will have an extra 3 weeks daylight saving every even
 # numbered year (from 1990).  That's when the Adelaide Festival
 # is on...
 
-# From Robert Elz (March 16, 1992, 00:57:07 +1000):
+# From Robert Elz (1992-03-16, 00:57:07 +1000):
 # DST didn't end in Adelaide today (yesterday)....
 # But whether it's "4th Sunday" or "2nd last Sunday" I have no idea whatever...
 # (it's just as likely to be "the Sunday we pick for this year"...).
 
-# From Bradley White (April 11, 1994):
+# From Bradley White (1994-04-11):
 # If Sun, 15 March, 1992 was at +1030 as kre asserts, but yet Sun, 20 March,
 # 1994 was at +0930 as John Connolly's customer seems to assert, then I can
 # only conclude that the actual rule is more complicated....
@@ -640,11 +627,11 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Tasmania
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # ...Tasmania will revert to Australian Eastern Standard Time on March 31...
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # #  The state of TASMANIA.. [Courtesy Tasmanian Dept of Premier + Cabinet ]
 # #					[ Nov 1990 ]
 # ...
@@ -665,7 +652,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	AT	1991	max	-	Oct	Sun>=1	2:00	1:00	D
 # Rule	AT	1991	max	-	Mar	lastSun	3:00	0	E
 
-# From Bill Hart via Alexander Dupuy and Guy Harris (October 10, 1991):
+# From Bill Hart via Alexander Dupuy and Guy Harris (1991-10-10):
 # My state Government in there eagerness to get a few more bucks for the
 # tourist industry industry decided to change the daylight savings times
 # yet again (we now have almost 6 months per year)...
@@ -676,18 +663,18 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule  Oz      1987    1990    -       Mar     Sun<=21 3:00    0       -
 # Rule  Oz      1991    max     -       Mar     Sun<=31 3:00    0       -
 
-# From Bill Hart via Guy Harris (October 10, 1991):
+# From Bill Hart via Guy Harris (1991-10-10):
 # Oh yes, the new daylight savings rules are uniquely tasmanian, we have
 # 6 weeks a year now when we are out of sync with the rest of Australia
 # (but nothing new about that).
 
 # Victoria
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # ...Victoria...[has] agreed to end daylight saving at 3am tomorrow (March 3)...
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # #   The state of VICTORIA.. [ Courtesy of Vic. Dept of Premier + Cabinet ]
 # #						[ Nov 1990 ]
 # ...
@@ -714,26 +701,26 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	legislation.  This is very important to understand.
 #	I have researched New South Wales time only...
 
-# From Dave Davey (March 3, 1990):
+# From Dave Davey (1990-03-03):
 # Rule	NSW	1988	only	-	Mar	Sun>=1	3:00	0	-
 # Rule	NSW	1989	only	-	Mar	Sun<=21	3:00	0	-
 
-# From Bradley White (March 4, 1991):
+# From Bradley White (1991-03-04):
 # A recent excerpt from an Australian newspaper...
 # NSW...[has] agreed to end daylight saving at 3am tomorrow (March 3)...
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # # The state of NEW SOUTH WALES.. [confirmed by Attorney General's Dept N.S.W]
 # #					[ Dec 1990 ]
 # ...
 # Rule	 AN	1988	1989	-	Mar	Sun<=21	3:00	0	E
 # ...
 
-# From John Mackin (March 9, 1991)
+# From John Mackin (1991-03-09)
 # I have confirmed the accuracy of the historical data for NSW in the
 # file Robert forwarded
 
-# From Arthur David Olson (March 8, 1992):
+# From Arthur David Olson (1992-03-08):
 # Sources differ on whether DST ended March 6 or March 20 in 1988;
 # March 20 (the "confirmed" date) is in the chosen rules.
 
@@ -743,10 +730,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Yancowinna
 
-# From John Basser (January 4, 1989):
+# From John Basser (1989-01-04):
 # `Broken Hill' means the County of Yancowinna.
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # # YANCOWINNA..  [ Confirmation courtesy of Broken Hill Postmaster ]
 # #					[ Dec 1990 ]
 # ...
@@ -764,7 +751,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Lord Howe Island
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # LHI...		[ Courtesy of Pauline Van Winsen.. pauline@Aus ]
 #					[ Dec 1990 ]
 # Lord Howe Island is located off the New South Wales coast, and is half an
@@ -781,13 +768,13 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # New Zealand, from Elz' asia 1.1
 # Elz says "no guarantees"
 
-# From Mark Davies (October 3, 1990):
+# From Mark Davies (1990-10-03):
 # the 1989/90 year was a trial of an extended "daylight saving" period.
 # This trial was deemed successful and the extended period adopted for
 # subsequent years (with the addition of a further week at the start).
 # source -- phone call to Ministry of Internal Affairs Head Office.
 
-# From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
+# From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
 # # The Country of New Zealand   (Australia's east island -) Gee they hate that!
 # #				   or is Australia the west island of N.Z.
 # #	[ courtesy of Geoff Tribble.. Geofft@Aus.. Auckland N.Z. ]
@@ -801,7 +788,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Zone	NZ			12:00	NZ		NZ%sT	# New Zealand
 # Zone	NZ-CHAT			12:45	-		NZ-CHAT # Chatham Island
 
-# From Arthur David Olson (March 8, 1992):
+# From Arthur David Olson (1992-03-08):
 # The chosen rules use the Davies October 8 values for the start of DST in 1989
 # rather than the October 1 value.
 
@@ -838,7 +825,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # In comp.risks 14.87 (26 August 1993), Peter Neumann writes:
 # I wonder what happened in Kwajalein, where there was NO Friday,
-# August 20, 1993.  Thursday night at midnight Kwajalein switched sides with
+# 1993-08-20.  Thursday night at midnight Kwajalein switched sides with
 # respect to the International Date Line, to rejoin its fellow islands,
 # going from 11:59 p.m. Thursday to 12:00 m. Saturday in a blink.
 
