@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.5 1997/02/28 15:41:25 bde Exp $
+#	$Id: options,v 1.18.2.6 1997/08/17 14:12:59 joerg Exp $
 
 # Format:
 # Option name	filename
@@ -96,3 +96,4 @@ MROUTING		opt_mrouting.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
+TCPDEBUG
