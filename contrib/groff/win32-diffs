@@ -1,7 +1,7 @@
 diff -aruN groff/Makefile.msc groff.win32/Makefile.msc
 --- groff/Makefile.msc	Thu Jan  1 00:00:00 1970
 +++ groff.win32/Makefile.msc	Wed May 17 09:15:07 2000
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,36 @@
 +
 +
 +MAKECMD = $(MAKE) -nologo -f makefile.msc
@@ -38,7 +38,6 @@ diff -aruN groff/Makefile.msc groff.win32/Makefile.msc
 +	copy src\preproc\pic\pic.exe bin
 +	copy src\preproc\tbl\tbl.exe bin
 +	copy src\roff\troff\troff.exe bin
-+	copy src\roff\troff\hyphen.us tmac
 diff -aruN groff/bin/gs.cmd groff.win32/bin/gs.cmd
 --- groff/bin/gs.cmd	Thu Jan  1 00:00:00 1970
 +++ groff.win32/bin/gs.cmd	Wed May 17 08:57:48 2000
@@ -2891,9 +2890,9 @@ diff -aruN groff/src/libs/libgroff/version.cc groff.win32/src/libs/libgroff/vers
 --- groff/src/libs/libgroff/version.cc	Thu Jan  1 00:00:00 1970
 +++ groff.win32/src/libs/libgroff/version.cc	Wed May 17 08:57:48 2000
 @@ -0,0 +1,3 @@
-+const char *version_string = "1.16";
-+const char *revision_string = "1";
-+const char *Version_string = "1.16";
++const char *version_string = "1.17";
++const char *revision_string = "0";
++const char *Version_string = "1.17";
 diff -aruN groff/src/preproc/eqn/Makefile.msc groff.win32/src/preproc/eqn/Makefile.msc
 --- groff/src/preproc/eqn/Makefile.msc	Thu Jan  1 00:00:00 1970
 +++ groff.win32/src/preproc/eqn/Makefile.msc	Wed May 17 08:57:48 2000
@@ -3045,5 +3044,5 @@ diff -aruN groff/src/roff/troff/majorminor.cc groff.win32/src/roff/troff/majormi
 +++ groff.win32/src/roff/troff/majorminor.cc	Wed May 17 08:57:48 2000
 @@ -0,0 +1,3 @@
 +const char *major_version = "1";
-+const char *minor_version = "16";
++const char *minor_version = "17";
 +const char *revision = "0";

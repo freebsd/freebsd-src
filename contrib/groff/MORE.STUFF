@@ -12,8 +12,7 @@ Here two ports using the gcc compiler and other GNU tools:
 
   Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
 
-    ftp://ftp.franken.de/pub/win32/develop/gnuwin32/
-          cygwin/porters/Zeelenberg_Kees/B20/index.html
+    http://gnuwin32.sourceforge.net/
 
 dos
 ---
@@ -34,6 +33,13 @@ can be found at
 
   http://www.lunabase.org/~faber/Vault/software/grap/
 
+A djgpp port which runs on MS-DOS and all Win32 systems (Win95, Win98,
+WinNT) done by Kees Zeelenberg <c.zeelenberg@hccnet.nl> is available from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
+
+It is intended to be used with the djgpp port of groff.
+
 plot2dev
 --------
 
@@ -43,6 +49,59 @@ and Daniel Senderowicz <daniel@synchrods.com> (who has added the gremlin
 driver).  The actual version can be found as
 
   ftp://ftp.ffii.org/pub/groff/plot2dev-x.x.tar.gz
+
+troffcvt
+--------
+
+From the web page:
+
+  troffcvt is a translator that turns troff input into a form that can be
+  more easily processed.  The troffcvt distribution comes with
+  postprocessors that turn troffcvt into various destination formats such
+  as HTML (Hypertext Markup Language), RTF (Rich Text Format) or plain
+  text.
+
+Note that you need a lot of additional packages to compile troffcvt;
+everything is available from
+
+  http://www.primate.wisc.edu/software/troffcvt/
+
+unroff
+______
+
+From the README file:
+
+  Unroff is a Scheme-based, programmable, extensible troff translator with
+  a back-end for the Hypertext Markup Language.  Unroff is free software
+  and is distributed both as source and as precompiled binaries.
+
+    http://www.informatik.uni-bremen.de/~net/unroff/unroff.html
+
+You need als Elk, the Scheme based Extension Language Kit, which is
+available from
+
+  http://www.informatik.uni-bremen.de/~net/elk
+
+deroff
+------
+
+Deroff removes roff constructs from documents for the purpose of indexing,
+spell checking etc.
+
+Michael Haardt's <michael@moria.de> implementation is a little smarter than
+traditional implementations, because it knows about certain -man and
+-mm macros.  It is able to generate a word list for spell checking tools
+or omit headers for sentence analysis tools.  It can further generate
+cpp-style #line lines.
+
+  http://www.moria.de/deroff/
+
+Version 1.6 compiled with DJGPP (for MS-DOS and all Win32 systems, i.e.
+Win95, Win98, WinNT) is available from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
+
+and its mirrors.
 
 miscellaneous
 -------------
@@ -79,6 +138,12 @@ miscellaneous
     Australian Journal of Management.  They use the Memorandum Macros (mm)
     of AT&T, and so should be invoked with the UNIX troff -mm flag; they
     should also work with the GNU troff -mm flag.
+
+. Thomas Baruchel <baruchel@libertysurf.fr> has developed Meta-tbl, a tbl
+  postprocessor to manipulate table cells (like adding gray shades).  The
+  latest version can be found at
+
+    http://perso.libertysurf.fr/baruchel/
 
 documentation
 -------------

@@ -24,16 +24,16 @@ groff_me \- troff macros for formatting papers
 .SH SYNOPSIS
 .B "groff \-me"
 [ options ]
-file ... 
+file ...
 .br
-.B "troff \-me"
+.B "groff \-m\ me"
 [ options ]
-file ... 
+file ...
 .SH DESCRIPTION
 This manual page describes the GNU version of the \-me macros,
 which is part of the groff document formatting system.
 This version can be used with both GNU troff and Unix troff.
-This package of 
+This package of
 .I troff
 macro definitions provides a canned formatting
 facility for tech%nical papers in various formats.
@@ -65,7 +65,9 @@ and
 preprocessors
 is acceptable as input.
 .SH FILES
-@MACRODIR@/tmac.e
+@MACRODIR@/me.tmac (a wrapper file for e.tmac)
+.br
+@MACRODIR@/e.tmac
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@)
@@ -74,7 +76,7 @@ is acceptable as input.
 .br
 Writing Papers with Groff Using \-me
 .tr &.
-.SH REQUESTS 
+.SH REQUESTS
 This list is incomplete;
 see
 .I "The \-me Reference Manual"
@@ -86,6 +88,7 @@ for interesting details.
 			\ka
 .br
 .di
+.na
 .in \nau
 .ti 0
 Request	Initial	Cause	Explanation
@@ -272,3 +275,4 @@ points.
 .ti 0
 \&.xp \fIx\fR	-	no	Print index
 .I x.
+.ad

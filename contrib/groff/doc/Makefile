@@ -26,7 +26,7 @@ MEMACROS=../tmac/tmac.e
 SOELIM=../src/preproc/soelim/soelim
 
 version=`cat ../VERSION`
-# No additional number for the groff archive if revision is zero
+# No additional number if revision is zero
 revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' ../REVISION`
 
 all: $(DOCS)
@@ -54,13 +54,13 @@ all: $(DOCS)
 	GROFF_TMAC_PATH=../tmac; \
 	export GROFF_TMAC_PATH; \
 	sed -e "s;@VERSION@;$(version)$(revision);" $< \
-	| $(GROFF) -Tascii $(FFLAG) -U -ms -markup >$@
+	| $(GROFF) -Tascii $(FFLAG) -U -ms -mwww >$@
 
 .ms.ps:
 	GROFF_TMAC_PATH=../tmac; \
 	export GROFF_TMAC_PATH; \
 	sed -e "s;@VERSION@;$(version)$(revision);" $< \
-	| $(GROFF) -Tps $(FFLAG) -U -ms -markup >$@
+	| $(GROFF) -Tps $(FFLAG) -U -ms -mwww >$@
 
 .texinfo.dvi:
 	texi2dvi -e $<
