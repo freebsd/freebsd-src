@@ -72,9 +72,9 @@ static _thread_init_invoker the_thread_init_invoker;
  * Namely, we must arrange for this particular module to be pulled in from
  * the archive library at link time.  To accomplish that, we define and
  * initialize a variable, "_thread_autoinit_dummy_decl".  This variable is
- * referenced (as an extern) from the module "uthread_init.c".  So, if
- * that module is used, then it will create a need for this module as well,
- * ensuring that this module will be present in the executable.
+ * referenced (as an extern) from libc/stdlib/exit.c. This will always
+ * create a need for this module, ensuring that it is present in the
+ * executable.
  *
  * We know that, if the user does _anything_ at all with threads, then the
  * "uthread_init.c" module will be linked in.  That is the case because
