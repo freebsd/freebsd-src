@@ -51,7 +51,7 @@ d
 }
 /^:[a-z]*:[a-z]*:[a-z]*:$/!{a\
 Incorrect format: use\
-\	: string1 : string2 : string3 :<CR><CR>\
+\	: string1 : string2 : string3 :<CR>\
 Try again.
 d
 }
