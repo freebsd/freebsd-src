@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.110 1996/12/10 07:29:39 davidg Exp $
+ *	$Id: if_ed.c,v 1.111 1996/12/13 21:28:19 wollman Exp $
  */
 
 /*
@@ -2673,21 +2673,11 @@ ed_ioctl(ifp, command, data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/*
-		 * Update out multicast list.
+		 * Multicast list has changed; set the hardware filter
+		 * accordingly.
 		 */
-		error = (command == SIOCADDMULTI) ?
-		    ether_addmulti(ifr, &sc->arpcom) :
-		    ether_delmulti(ifr, &sc->arpcom);
-
-		if (error == ENETRESET) {
-
-			/*
-			 * Multicast list has changed; set the hardware filter
-			 * accordingly.
-			 */
-			ed_setrcr(sc);
-			error = 0;
-		}
+		ed_setrcr(sc);
+		error = 0;
 		break;
 
 	default:
@@ -3420,22 +3410,17 @@ ds_getmcaf(sc, mcaf)
 {
 	register u_int index;
 	register u_char *af = (u_char *) mcaf;
-	register struct ether_multi *enm;
-	register struct ether_multistep step;
+	struct ifmultiaddr *ifma;
 
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 
-	ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
-	while (enm != NULL) {
-		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-			mcaf[0] = 0xffffffff;
-			mcaf[1] = 0xffffffff;
-			return;
-		}
-		index = ds_crc(enm->enm_addrlo) >> 26;
+	for (ifma = sc->arpcom.ac_if.if_multiaddrs.lh_first; ifma;
+	     ifma = ifma->ifma_link.le_next) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		index = ds_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
+			>> 26;
 		af[index >> 3] |= 1 << (index & 7);
-
-		ETHER_NEXT_MULTI(step, enm);
 	}
 }

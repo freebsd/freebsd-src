@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.21 1996/12/11 20:38:16 wollman Exp $
+ *	$Id: rtsock.c,v 1.22 1996/12/13 21:28:41 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -416,6 +416,11 @@ rt_msg1(type, rtinfo)
 		len = sizeof(struct ifa_msghdr);
 		break;
 
+	case RTM_DELMADDR:
+	case RTM_NEWMADDR:
+		len = sizeof(struct ifma_msghdr);
+		break;
+
 	case RTM_IFINFO:
 		len = sizeof(struct if_msghdr);
 		break;
@@ -637,6 +642,40 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 	}
 }
 
+/*
+ * This is the analogue to the rt_newaddrmsg which performs the same
+ * function but for multicast group memberhips.  This is easier since
+ * there is no route state to worry about.
+ */
+void
+rt_newmaddrmsg(cmd, ifma)
+	int cmd;
+	struct ifmultiaddr *ifma;
+{
+	struct rt_addrinfo info;
+	struct mbuf *m = 0;
+	struct ifnet *ifp = ifma->ifma_ifp;
+	struct ifma_msghdr *ifmam;
+
+	if (route_cb.any_count == 0)
+		return;
+
+	bzero((caddr_t)&info, sizeof(info));
+	ifaaddr = ifma->ifma_addr;
+	ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+	/*
+	 * If a link-layer address is present, present it as a ``gateway''
+	 * (similarly to how ARP entries, e.g., are presented).
+	 */
+	gate = ifma->ifma_lladdr;
+	if ((m = rt_msg1(cmd, &info)) == NULL)
+		return;
+	ifmam = mtod(m, struct ifma_msghdr *);
+	ifmam->ifmam_index = ifp->if_index;
+	ifmam->ifmam_addrs = info.rti_addrs;
+	route_proto.sp_protocol = ifma->ifma_addr->sa_family;
+	raw_input(m, &route_proto, &route_src, &route_dst);
+}
 
 /*
  * This is used in dumping the kernel table via sysctl().

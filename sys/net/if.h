@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.41 1996/12/13 21:28:37 wollman Exp $
+ *	$Id: if.h,v 1.42 1997/01/03 19:50:25 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -121,6 +121,19 @@ struct ifa_msghdr {
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
 	int	ifam_metric;	/* value of ifa_metric */
+};
+
+/*
+ * Message format for use in obtaining information about multicast addresses
+ * from the routing socket
+ */
+struct ifma_msghdr {
+	u_short	ifmam_msglen;	/* to skip over non-understood messages */
+	u_char	ifmam_version;	/* future binary compatability */
+	u_char	ifmam_type;	/* message type */
+	int	ifmam_addrs;	/* like rtm_addrs */
+	int	ifmam_flags;	/* value of ifa_flags */
+	u_short	ifmam_index;	/* index for associated ifp */
 };
 
 /*
