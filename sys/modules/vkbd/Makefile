@@ -4,7 +4,7 @@
 .PATH:	${.CURDIR}/../../dev/vkbd
 
 KMOD=	vkbd
-SRCS=	vkbd.c vnode_if.h opt_kbd.h
+SRCS=	vkbd.c opt_kbd.h
 
 opt_kbd.h:
 	echo "#define KBD_INSTALL_CDEV 1" > ${.TARGET}
