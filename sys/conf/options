@@ -1,4 +1,4 @@
-#	$Id: options,v 1.66 1998/03/10 15:55:38 eivind Exp $
+#	$Id: options,v 1.67 1998/03/14 04:13:50 tegge Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -212,6 +212,7 @@ SI_DEBUG		opt_debug_si.h
 DEBUG			opt_global.h
 DIAGNOSTIC		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
+ENABLE_VFS_IOOPT	opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE	opt_vm.h
