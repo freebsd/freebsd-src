@@ -195,6 +195,10 @@
       additional configuration from the administrator.  Work on this
       feature was sponsored by DARPA and NAI Labs.</para>
 
+    <para arch="ia64">Machine Check Architecture (MCA) records are now
+      collected at boot time and made available through the
+      <varname>hw.mca.*</varname> sysctl variables.</para>
+
     <para role="historic">The <varname>maxusers</varname> kernel configuration
       parameter is now a boot-time tunable variable.  The kernel
       parameters derived from <varname>maxusers</varname> are now also
@@ -732,6 +736,9 @@
 	&man.ray.4; interfaces can be modified by
 	&man.raycontrol.8;. &merged;</para>
 
+      <para arch="i386">The &man.rp.4; driver has been updated to
+        version 3.02 and can now be built as a module. &merged;</para>
+
       <para arch="i386" role="historic">The sbni driver, for supporting the Granch
 	SBNI12 series of ISA and PCI point-to-point communications
 	interfaces, has been added.  The <filename
@@ -762,6 +769,9 @@
 	Gigabit cards. &merged;</para>
 
       <para role="historic">The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
+
+      <para>The &man.tx.4; driver now supports true multicast
+        filtering.</para>
 
       <para role="historic">The &man.txp.4; driver has been added to support NICs
 	based on the 3Com 3XP Typhoon/Sidewinder (3CR990)
@@ -1046,6 +1056,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	as performance improvements. Some bugs were also fixed,
 	including a rare hang on Ultra2/U160
 	controllers. &merged;</para>
+
+      <para arch="i386">The ahd driver, which supports the Adaptec
+        AIC7902 Ultra320 PCI-X SCSI Controller chip, has been
+        added.</para>
 
       <para arch="i386" role="historic">The &man.asr.4; driver, which provides support
 	for the Adaptec SCSI RAID controller family, as well as the
@@ -1903,6 +1917,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.c89.1; has been converted from a shell script to a
       binary executable, fixing some minor bugs. &merged;</para>
 
+    <para>&man.calendar.1; now takes a <option>-W</option> option,
+      which operates similar to <option>-A</option> but without
+      special treatment at weekends, and a <option>-F</option>option
+      to change the notion of <quote>Friday</quote>.</para>
+
     <para arch="i386,pc98" role="historic">A minimalized version of &man.camcontrol.8; is
       now available on the installation floppy.  This allows it to
       rescan for devices that have been connected after booting, or to
@@ -2589,6 +2608,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.ngctl.8; now supports a <option>write</option> command
       to send a data packet down a given hook. &merged;</para>
 
+    <para>&man.nice.1; now uses the <option>-n</option> option to
+      specify the <quote>niceness</quote> of the utility being
+      run. &merged;</para>
+
     <para role="historic">&man.nl.1;, a line numbering filter program, has been
       added. &merged;</para>
 
@@ -2606,6 +2629,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       specified by files in <filename>/etc/pam.d/</filename>, rather
       than a single <filename>/etc/pam.conf</filename> file.
       <filename>/etc/pam.d/README</filename> has more details.</para>
+
+    <para>A &man.pam.echo.8; echo service module has been added.</para>
+
+    <para>A &man.pam.exec.8; program execution service module has been
+      added.</para>
 
     <para>A &man.pam.ftp.8; module has been added to allow
       authentication of anonymous FTP users.</para>
@@ -2717,6 +2745,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">The <option>-W</option> option to &man.ps.1; (to extract
       information from a specified swap device) has been useless for
       some time; it has been removed. &merged;</para>
+
+    <para>The &man.pselect.3; library function (introduced by POSIX.1
+      as a slightly stronger version of &man.select.2;) has been
+      added.</para>
 
     <para role="historic">&man.pwd.1; can now double as &man.realpath.1;, a program to
       resolve pathnames to their underlying physical
@@ -3079,6 +3111,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para role="historic">&man.watch.8; now takes a <option>-f</option> option to
       specify a &man.snp.4; device to use. &merged;</para>
+
+    <para>&man.wc.1; now supports a <option>-m</option> flag to
+      count characters, rather than bytes.</para>
 
     <para>&man.which.1; is now a C program, rather than a Perl
       script.</para>
@@ -3806,6 +3841,78 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.release.7; for details.</para>
 
   </sect2>
+
+  <sect2>
+    <title>Documentation</title>
+
+    <para>A number of formerly-encumbered documents from the 4.4 BSD
+      Programmer's Supplementary Documents have been restored to
+      <filename>/usr/share/doc/psd</filename>.  These include:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><emphasis>The UNIX Time-Sharing System</emphasis>
+	  (<filename>01.cacm</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>UNIX Implementation</emphasis>
+	  (<filename>02.implement</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The UNIX I/O System</emphasis>
+	  (<filename>03.iosys</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>UNIX Programming &mdash; Second Edition</emphasis>
+	  (<filename>04.uprog</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The C Programming Language &mdash; Reference Manual</emphasis>
+	  (<filename>06.Clang</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>An Introduction to the Source Code Control System</emphasis>
+	  (<filename>14.sccs</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>Yacc: Yet Another Compiler-Compiler</emphasis>
+	  (<filename>15.yacc</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>Lex &mdash; A Lexical Analyzer Generator</emphasis>
+	  (<filename>16.lex</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The M4 Macro Processor</emphasis>
+	  (<filename>17.m4</filename>)</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Several formerly-encumbered documents from the 4.4 BSD
+      User's Supplementary Documents have been restored to
+      <filename>/usr/share/doc/usd</filename>.  They include:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><emphasis>NROFF/TROFF User's Manual</emphasis>
+	  (<filename>21.troff</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>A TROFF Tutorial</emphasis>
+	  (<filename>22.trofftut</filename>)</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
 </sect1>
 
 <sect1>
