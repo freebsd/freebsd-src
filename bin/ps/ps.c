@@ -81,6 +81,8 @@ int	sumrusage;		/* -S */
 int	termwidth;		/* width of screen (0 == infinity) */
 int	totwidth;		/* calculated width of requested variables */
 
+time_t	now;			/* current time(3) value */
+
 static int needuser, needcomm, needenv;
 #if defined(LAZY_PS)
 static int forceuread=0;
@@ -128,6 +130,8 @@ main(int argc, char *argv[])
 	const char *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
+	/* Set the time to what it is right now. */
+	time(&now);
 
 	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0')
 		termwidth = atoi(cols);
