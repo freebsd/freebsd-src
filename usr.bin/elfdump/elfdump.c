@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 David O'Brien.  All rights reserved.
  * Copyright (c) 2001 Jake Burkholder
  * All rights reserved.
  *
@@ -351,17 +352,17 @@ u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
 u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
 u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
 
-void elf_print_ehdr(void *e);
-void elf_print_phdr(void *e, void *p);
-void elf_print_shdr(void *e, void *sh);
-void elf_print_symtab(void *e, void *sh, char *str);
-void elf_print_dynamic(void *e, void *sh);
-void elf_print_rel(void *e, void *r);
-void elf_print_rela(void *e, void *ra);
-void elf_print_interp(void *e, void *p);
-void elf_print_got(void *e, void *sh);
-void elf_print_hash(void *e, void *sh);
-void elf_print_note(void *e, void *sh);
+void elf_print_ehdr(Elf32_Ehdr *e);
+void elf_print_phdr(Elf32_Ehdr *e, void *p);
+void elf_print_shdr(Elf32_Ehdr *e, void *sh);
+void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
+void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
+void elf_print_rel(Elf32_Ehdr *e, void *r);
+void elf_print_rela(Elf32_Ehdr *e, void *ra);
+void elf_print_interp(Elf32_Ehdr *e, void *p);
+void elf_print_got(Elf32_Ehdr *e, void *sh);
+void elf_print_hash(Elf32_Ehdr *e, void *sh);
+void elf_print_note(Elf32_Ehdr *e, void *sh);
 
 void usage(void);
 
@@ -380,7 +381,7 @@ main(int ac, char **av)
 	u_int64_t type;
 	struct stat sb;
 	u_int flags;
-	void *e;
+	Elf32_Ehdr *e;
 	void *p;
 	void *sh;
 	void *v;
@@ -452,17 +453,17 @@ main(int ac, char **av)
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_quarter(e, e, E_SHNUM);
 	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
-	p = e + phoff;
-	sh = e + shoff;
+	p = (void *)e + phoff;
+	sh = (void *)e + shoff;
 	offset = elf_get_off(e, sh + shstrndx * shentsize, SH_OFFSET);
-	shstrtab = e + offset;
+	shstrtab = (char *)e + offset;
 	for (i = 0; i < shnum; i++) {
 		name = elf_get_word(e, sh + i * shentsize, SH_NAME);
 		offset = elf_get_off(e, sh + i * shentsize, SH_OFFSET);
 		if (strcmp(shstrtab + name, ".strtab") == 0)
-			strtab = e + offset;
+			strtab = (char *)e + offset;
 		if (strcmp(shstrtab + name, ".dynstr") == 0)
-			dynstr = e + offset;
+			dynstr = (char *)e + offset;
 	}
 	if (flags & ED_EHDR)
 		elf_print_ehdr(e);
@@ -539,7 +540,7 @@ main(int ac, char **av)
 }
 
 void
-elf_print_ehdr(void *e)
+elf_print_ehdr(Elf32_Ehdr *e)
 {
 	u_int64_t class;
 	u_int64_t data;
@@ -594,7 +595,7 @@ elf_print_ehdr(void *e)
 }
 
 void
-elf_print_phdr(void *e, void *p)
+elf_print_phdr(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t phentsize;
 	u_int64_t phnum;
@@ -636,7 +637,7 @@ elf_print_phdr(void *e, void *p)
 }
 
 void
-elf_print_shdr(void *e, void *sh)
+elf_print_shdr(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t shentsize;
 	u_int64_t shnum;
@@ -684,7 +685,7 @@ elf_print_shdr(void *e, void *sh)
 }
 
 void
-elf_print_symtab(void *e, void *sh, char *str)
+elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 {
 	u_int64_t offset;
 	u_int64_t entsize;
@@ -704,7 +705,7 @@ elf_print_symtab(void *e, void *sh, char *str)
 	len = size / entsize;
 	fprintf(out, "\nsymbol table (%s):\n", shstrtab + name);
 	for (i = 0; i < len; i++) {
-		st = e + offset + i * entsize;
+		st = (void *)e + offset + i * entsize;
 		name = elf_get_word(e, st, ST_NAME);
 		value = elf_get_addr(e, st, ST_VALUE);
 		size = elf_get_size(e, st, ST_SIZE);
@@ -723,7 +724,7 @@ elf_print_symtab(void *e, void *sh, char *str)
 }
 
 void
-elf_print_dynamic(void *e, void *sh)
+elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
 	u_int64_t entsize;
@@ -739,7 +740,7 @@ elf_print_dynamic(void *e, void *sh)
 	size = elf_get_size(e, sh, SH_SIZE);
 	fprintf(out, "\ndynamic:\n");
 	for (i = 0; i < size / entsize; i++) {
-		d = e + offset + i * entsize;
+		d = (void *)e + offset + i * entsize;
 		tag = elf_get_size(e, d, D_TAG);
 		ptr = elf_get_size(e, d, D_PTR);
 		val = elf_get_addr(e, d, D_VAL);
@@ -783,7 +784,7 @@ elf_print_dynamic(void *e, void *sh)
 }
 
 void
-elf_print_rela(void *e, void *sh)
+elf_print_rela(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
 	u_int64_t entsize;
@@ -799,7 +800,7 @@ elf_print_rela(void *e, void *sh)
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
-	v = e + offset;
+	v = (void *)e + offset;
 	fprintf(out, "\nrelocation with addend (%s):\n", shstrtab + name);
 	for (i = 0; i < size / entsize; i++) {
 		ra = v + i * entsize;
@@ -815,7 +816,7 @@ elf_print_rela(void *e, void *sh)
 }
 
 void
-elf_print_rel(void *e, void *sh)
+elf_print_rel(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
 	u_int64_t entsize;
@@ -844,19 +845,19 @@ elf_print_rel(void *e, void *sh)
 }
 
 void
-elf_print_interp(void *e, void *p)
+elf_print_interp(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t offset;
 	char *s;
 
 	offset = elf_get_off(e, p, P_OFFSET);
-	s = e + offset;
+	s = (char *)e + offset;
 	fprintf(out, "\ninterp:\n");
 	fprintf(out, "\t%s\n", s);
 }
 
 void
-elf_print_got(void *e, void *sh)
+elf_print_got(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
 	u_int64_t addralign;
@@ -868,7 +869,7 @@ elf_print_got(void *e, void *sh)
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	addralign = elf_get_size(e, sh, SH_ADDRALIGN);
 	size = elf_get_size(e, sh, SH_SIZE);
-	v = e + offset;
+	v = (void *)e + offset;
 	fprintf(out, "\nglobal offset table:\n");
 	for (i = 0; i < size / addralign; i++) {
 		addr = elf_get_addr(e, v + i * addralign, 0);
@@ -879,12 +880,12 @@ elf_print_got(void *e, void *sh)
 }
 
 void
-elf_print_hash(void *e, void *sh)
+elf_print_hash(Elf32_Ehdr *e, void *sh)
 {
 }
 
 void
-elf_print_note(void *e, void *sh)
+elf_print_note(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
 	u_int64_t size;
@@ -899,9 +900,9 @@ elf_print_note(void *e, void *sh)
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
-	n = e + offset;
+	n = (void *)e + offset;
 	fprintf(out, "\nnote (%s):\n", shstrtab + name);
-	while (n < e + offset + size) {
+	while (n < (void *)e + offset + size) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
 		type = elf_get_word(e, n, N_TYPE);
