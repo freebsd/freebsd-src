@@ -245,9 +245,7 @@ doadump(void)
 static void
 boot(int howto)
 {
-	int first_buf_printf;
-
-	first_buf_printf = 1;
+	static int first_buf_printf = 1;
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
@@ -595,9 +593,9 @@ kproc_shutdown(void *arg, int howto)
 	error = kthread_suspend(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
-		printf("Stop of '%s' timed out\n", procname);
+		printf("Stop of '%s' timed out.\n", procname);
 	else
-		printf("Process '%s' stopped\n", procname);
+		printf("Process '%s' stopped.\n", procname);
 }
 
 /* Registration of dumpers */
