@@ -1,6 +1,6 @@
-<!-- $Id: cvsup.sgml,v 1.13 1997/03/18 04:14:30 hanai Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.14 1997/03/21 09:22:20 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.13 -->
+<!-- Original revision: 1.14 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
@@ -219,6 +219,8 @@ branch tag は特定のリビジョンを指定している訳ではないので, 今日と明日では
 <p>以下はユーザが興味を持っていると思われる revision tag です:
 
 <descrip>
+  <tag/tag=RELENG_2_2_1_RELEASE/
+  FreeBSD-2.2.1.
   <tag/tag=RELENG_2_2_0_RELEASE/
   FreeBSD-2.2.0.
   <tag/tag=RELENG_2_1_7_RELEASE/
