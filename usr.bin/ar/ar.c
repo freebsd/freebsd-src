@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)ar.c	8.3 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <locale.h>
 
 #include "archive.h"
 #include "extern.h"
@@ -78,6 +79,8 @@ main(argc, argv)
 	int c;
 	char *p;
 	int (*fcall) __P((char **));
+
+	(void) setlocale(LC_TIME, "");;
 
 	if (argc < 3)
 		usage();
