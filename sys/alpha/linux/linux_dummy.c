@@ -104,7 +104,6 @@ DUMMY(pread);
 DUMMY(pwrite);
 DUMMY(capget);
 DUMMY(capset);
-DUMMY(sigaltstack);
 DUMMY(sendfile);
 DUMMY(getpmsg);
 DUMMY(putpmsg);
