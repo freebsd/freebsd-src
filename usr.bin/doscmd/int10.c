@@ -56,6 +56,8 @@ int10(regcontext_t *REGS)
 
 	switch (R_AH) {
 	case 0x00:		/* Set display mode */
+		if (!xmode)
+			goto unsupported;
 		init_mode(R_AL);
 		break;
 	case 0x01:		/* Define cursor */
