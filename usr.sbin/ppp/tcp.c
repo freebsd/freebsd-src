@@ -100,6 +100,7 @@ tcp_OpenConnection(const char *name, char *host, char *port)
 static struct device tcpdevice = {
   TCP_DEVICE,
   "tcp",
+  0,
   { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,

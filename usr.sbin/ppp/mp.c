@@ -167,6 +167,8 @@ static void
 mp_LayerUp(void *v, struct fsm *fp)
 {
   /* The given fsm (ccp) is now up */
+
+  bundle_CalculateBandwidth(fp->bundle);	/* Against ccp_MTUOverhead */
 }
 
 static void
@@ -645,6 +647,11 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
     log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
                mp->out.seq, m_length(m), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
+
+  if (l->ccp.fsm.state != ST_OPENED && ccp_Required(&l->ccp)) {
+    log_Printf(LogPHASE, "%s: Not transmitting... waiting for CCP\n", l->name);
+    return;
+  }
 
   link_PushPacket(l, m, bundle, LINK_QUEUES(l) - 1, PROTO_MP);
 }

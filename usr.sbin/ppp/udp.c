@@ -154,6 +154,7 @@ udp_device2iov(struct device *d, struct iovec *iov, int *niov,
 static const struct device baseudpdevice = {
   UDP_DEVICE,
   "udp",
+  0,
   { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,

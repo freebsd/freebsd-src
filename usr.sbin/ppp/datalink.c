@@ -570,7 +570,8 @@ datalink_LayerUp(void *v, struct fsm *fp)
         auth_StartReq(&dl->chap.auth);
     } else
       datalink_AuthOk(dl);
-  }
+  } else if (fp->proto == PROTO_CCP)
+    (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.ccp.fsm);
 }
 
 static void

@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 #ifdef __FreeBSD__
 #include <sha.h>
@@ -61,23 +62,54 @@
  * draft-ietf-pppext-mppe-keys-02.txt
  */
 
+#define	MPPE_OPT_STATELESS	0x1000000
+#define	MPPE_OPT_COMPRESSED	0x01
+#define	MPPE_OPT_40BIT		0x20
+#define	MPPE_OPT_56BIT		0x80
+#define	MPPE_OPT_128BIT		0x40
+#define	MPPE_OPT_BITMASK	0xe0
+#define	MPPE_OPT_MASK		(MPPE_OPT_STATELESS | MPPE_OPT_BITMASK)
+
+#define	MPPE_FLUSHED			0x8000
+#define	MPPE_ENCRYPTED			0x1000
+#define	MPPE_HEADER_BITMASK		0xf000
+#define	MPPE_HEADER_FLAG		0x00ff
+#define	MPPE_HEADER_FLAGMASK		0x00ff
+#define	MPPE_HEADER_FLAGSHIFT		8
+#define	MPPE_HEADER_STATEFUL_KEYCHANGES	16
+
 struct mppe_state {
-	int	cohnum;
-	int	keylen;			/* 8 or 16 bytes */
-	int 	keybits;		/* 40, 56 or 128 bits */
-	char	sesskey[MPPE_KEY_LEN];
-	char	mastkey[MPPE_KEY_LEN];
-	RC4_KEY	rc4key;
+  unsigned	stateless : 1;
+  unsigned	flushnext : 1;
+  unsigned	flushrequired : 1;
+  int		cohnum;
+  int		keylen;			/* 8 or 16 bytes */
+  int 		keybits;		/* 40, 56 or 128 bits */
+  char		sesskey[MPPE_KEY_LEN];
+  char		mastkey[MPPE_KEY_LEN];
+  RC4_KEY	rc4key;
 };
 
 int MPPE_MasterKeyValid = 0;
 int MPPE_IsServer = 0;
 char MPPE_MasterKey[MPPE_KEY_LEN];
 
-static void
+/*
+ * The peer has missed a packet.  Mark the next output frame to be FLUSHED
+ */
+static int
 MPPEResetOutput(void *v)
 {
-  log_Printf(LogCCP, "MPPE: Output channel reset\n");
+  struct mppe_state *mop = (struct mppe_state *)v;
+
+  if (mop->stateless)
+    log_Printf(LogCCP, "MPPE: Unexpected output channel reset\n");
+  else {
+    log_Printf(LogCCP, "MPPE: Output channel reset\n");
+    mop->flushnext = 1;
+  }
+
+  return 0;		/* Ask FSM not to ACK */
 }
 
 static void
@@ -112,17 +144,18 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
 {
   struct mppe_state *mop = (struct mppe_state *)v;
   struct mbuf *mo;
-  u_short nproto;
-  int ilen;
+  u_short nproto, prefix;
+  int dictinit, ilen, len;
   char *rp;
 
-  log_Printf(LogCCP, "MPPE: Output\n");
-
   ilen = m_length(mp);
+  dictinit = 0;
 
   log_Printf(LogDEBUG, "MPPE: Output: Proto %02x (%d bytes)\n", *proto, ilen);
   if (*proto < 0x21 && *proto > 0xFA) {
     log_Printf(LogDEBUG, "MPPE: Output: Not encrypting\n");
+    ccp->compout += ilen;
+    ccp->uncompout += ilen;
     return mp;
   }
 
@@ -132,12 +165,32 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   mo = m_get(4, MB_CCPOUT);
   mo->m_next = mp;
 
-  /* Init RC4 keys */
-  RC4_set_key(&mop->rc4key, mop->keylen, mop->sesskey);
+  rp = MBUF_CTOP(mo);
+  prefix = MPPE_ENCRYPTED | mop->cohnum;
+
+  if (mop->stateless ||
+      (mop->cohnum & MPPE_HEADER_FLAGMASK) == MPPE_HEADER_FLAG) {
+    /* Change our key */
+    log_Printf(LogDEBUG, "MPPEOutput: Key changed [%d]\n", mop->cohnum);
+    MPPEKeyChange(mop);
+    dictinit = 1;
+  }
+
+  if (mop->stateless || mop->flushnext) {
+    prefix |= MPPE_FLUSHED;
+    dictinit = 1;
+    mop->flushnext = 0;
+  }
+
+  if (dictinit) {
+    /* Initialise our dictionary */
+    log_Printf(LogDEBUG, "MPPEOutput: Dictionary initialised [%d]\n",
+               mop->cohnum);
+    RC4_set_key(&mop->rc4key, mop->keylen, mop->sesskey);
+  }
 
   /* Set MPPE packet prefix */
-  rp = MBUF_CTOP(mo);
-  *(u_short *)rp = htons(0x9000 | mop->cohnum);
+  *(u_short *)rp = htons(prefix);
 
   /* Save encrypted protocol number */
   nproto = htons(*proto);
@@ -147,15 +200,17 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   rp = MBUF_CTOP(mp);
   RC4(&mop->rc4key, ilen, rp, rp);
 
-  /* Rotate keys */
-  MPPEKeyChange(mop);
-  mop->cohnum ++; mop->cohnum &= 0xFFF;
+  mop->cohnum++;
+  mop->cohnum &= ~MPPE_HEADER_BITMASK;
 
-  /* Chage protocol number */
+  /* Set the protocol number */
   *proto = ccp_Proto(ccp);
+  len = m_length(mo);
+  ccp->uncompout += ilen;
+  ccp->compout += len;
 
   log_Printf(LogDEBUG, "MPPE: Output: Encrypted: Proto %02x (%d bytes)\n",
-             *proto, m_length(mo));
+             *proto, len);
 
   return mo;
 }
@@ -163,7 +218,7 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
 static void
 MPPEResetInput(void *v)
 {
-  log_Printf(LogCCP, "MPPE: Input channel reset\n");
+  log_Printf(LogCCP, "MPPE: Unexpected input channel ack\n");
 }
 
 static struct mbuf *
@@ -172,43 +227,128 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
   struct mppe_state *mip = (struct mppe_state *)v;
   u_short prefix;
   char *rp;
-  int ilen;
-
-  log_Printf(LogCCP, "MPPE: Input\n");
+  int dictinit, flushed, ilen, len, n;
 
   ilen = m_length(mp);
+  dictinit = 0;
+  ccp->compin += ilen;
 
   log_Printf(LogDEBUG, "MPPE: Input: Proto %02x (%d bytes)\n", *proto, ilen);
-
   log_DumpBp(LogDEBUG, "MPPE: Input: Packet:", mp);
 
   mp = mbuf_Read(mp, &prefix, 2);
   prefix = ntohs(prefix);
-  if ((prefix & 0xF000) != 0x9000) {
-    log_Printf(LogERROR, "MPPE: Input: Invalid packet\n");
+  flushed = prefix & MPPE_FLUSHED;
+  prefix &= ~flushed;
+  if ((prefix & MPPE_HEADER_BITMASK) != MPPE_ENCRYPTED) {
+    log_Printf(LogERROR, "MPPE: Input: Invalid packet (flags = 0x%x)\n",
+               (prefix & MPPE_HEADER_BITMASK) | flushed);
     m_freem(mp);
     return NULL;
   }
 
-  prefix &= 0xFFF;
-  while (prefix != mip->cohnum) {
-    MPPEKeyChange(mip);
-    mip->cohnum ++; mip->cohnum &= 0xFFF;
+  prefix &= ~MPPE_HEADER_BITMASK;
+
+  if (!flushed && mip->stateless) {
+    log_Printf(LogCCP, "MPPEInput: Packet without MPPE_FLUSHED set"
+               " in stateless mode\n");
+    flushed = MPPE_FLUSHED;
+    /* Should we really continue ? */
   }
 
-  RC4_set_key(&mip->rc4key, mip->keylen, mip->sesskey);
+  if (mip->stateless) {
+    /* Change our key for each missed packet in stateless mode */
+    while (prefix != mip->cohnum) {
+      log_Printf(LogDEBUG, "MPPEInput: Key changed [%u]\n", prefix);
+      MPPEKeyChange(mip);
+      /*
+       * mip->cohnum contains what we received last time in stateless
+       * mode.
+       */
+      mip->cohnum++;
+      mip->cohnum &= ~MPPE_HEADER_BITMASK;
+    }
+    dictinit = 1;
+  } else {
+    if (flushed) {
+      /*
+       * We can always process a flushed packet.
+       * Catch up on any outstanding key changes.
+       */
+      n = (prefix >> MPPE_HEADER_FLAGSHIFT) -
+          (mip->cohnum >> MPPE_HEADER_FLAGSHIFT);
+      if (n < 0)
+        n += MPPE_HEADER_STATEFUL_KEYCHANGES;
+      while (n--) {
+        log_Printf(LogDEBUG, "MPPEInput: Key changed during catchup [%u]\n",
+                   prefix);
+        MPPEKeyChange(mip);
+      }
+      mip->flushrequired = 0;
+      mip->cohnum = prefix;
+      dictinit = 1;
+    }
+
+    if (mip->flushrequired) {
+      /*
+       * Perhaps we should be lenient if
+       * (prefix & MPPE_HEADER_FLAGMASK) == MPPE_HEADER_FLAG
+       * The spec says that we shouldn't be though....
+       */
+      log_Printf(LogDEBUG, "MPPE: Not flushed - discarded\n");
+      m_freem(mp);
+      return NULL;
+    }
+
+    if (prefix != mip->cohnum) {
+      /*
+       * We're in stateful mode and didn't receive the expected
+       * packet.  Send a reset request, but don't tell the CCP layer
+       * about it as we don't expect to receive a Reset ACK !
+       * Guess what... M$ invented this !
+       */
+      log_Printf(LogCCP, "MPPE: Input: Got seq %u, not %u\n",
+                 prefix, mip->cohnum);
+      fsm_Output(&ccp->fsm, CODE_RESETREQ, ccp->fsm.reqid++, NULL, 0,
+                 MB_CCPOUT);
+      mip->flushrequired = 1;
+      m_freem(mp);
+      return NULL;
+    }
+
+    if ((prefix & MPPE_HEADER_FLAGMASK) == MPPE_HEADER_FLAG) {
+      log_Printf(LogDEBUG, "MPPEInput: Key changed [%u]\n", prefix);
+      MPPEKeyChange(mip);
+      dictinit = 1;
+    } else if (flushed)
+      dictinit = 1;
+
+    /*
+     * mip->cohnum contains what we expect to receive next time in stateful
+     * mode.
+     */
+    mip->cohnum++;
+    mip->cohnum &= ~MPPE_HEADER_BITMASK;
+  }
+
+  if (dictinit) {
+    log_Printf(LogDEBUG, "MPPEInput: Dictionary initialised [%u]\n", prefix);
+    RC4_set_key(&mip->rc4key, mip->keylen, mip->sesskey);
+  }
 
   mp = mbuf_Read(mp, proto, 2);
   RC4(&mip->rc4key, 2, (char *)proto, (char *)proto);
   *proto = ntohs(*proto);
 
   rp = MBUF_CTOP(mp);
-  RC4(&mip->rc4key, m_length(mp), rp, rp);
+  len = m_length(mp);
+  RC4(&mip->rc4key, len, rp, rp);
 
-  log_Printf(LogDEBUG, "MPPE: Input: Decrypted: Proto %02x (%d bytes)\n",
-             *proto, m_length(mp));
+  log_Printf(LogDEBUG, "MPPEInput: Decrypted: Proto %02x (%d bytes)\n",
+             *proto, len);
+  log_DumpBp(LogDEBUG, "MPPEInput: Decrypted: Packet:", mp);
 
-  log_DumpBp(LogDEBUG, "MPPE: Input: Decrypted: Packet:", mp);
+  ccp->uncompin += len;
 
   return mp;
 }
@@ -216,14 +356,51 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
 static void
 MPPEDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 {
-  log_Printf(LogCCP, "MPPE: DictSetup\n");
 }
 
 static const char *
 MPPEDispOpts(struct lcp_opt *o)
 {
-  static char buf[32];
-  sprintf(buf, "value 0x%08x", (int)ntohl(*(u_int32_t *)(o->data)));
+  static char buf[70];
+  u_int32_t val = ntohl(*(u_int32_t *)o->data);
+  char ch;
+  int len;
+
+  snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val);
+  len = strlen(buf);
+  if (!(val & MPPE_OPT_BITMASK)) {
+    snprintf(buf + len, sizeof buf - len, "(0");
+    len++;
+  } else {
+    ch = '(';
+    if (val & MPPE_OPT_128BIT) {
+      snprintf(buf + len, sizeof buf - len, "%c128", ch);
+      len += strlen(buf + len);
+      ch = '/';
+    }
+    if (val & MPPE_OPT_56BIT) {
+      snprintf(buf + len, sizeof buf - len, "%c56", ch);
+      len += strlen(buf + len);
+      ch = '/';
+    }
+    if (val & MPPE_OPT_40BIT) {
+      snprintf(buf + len, sizeof buf - len, "%c40", ch);
+      len += strlen(buf + len);
+      ch = '/';
+    }
+  }
+
+  snprintf(buf + len, sizeof buf - len, " bits, state%s",
+           (val & MPPE_OPT_STATELESS) ? "less" : "ful");
+  len += strlen(buf + len);
+
+  if (val & MPPE_OPT_COMPRESSED) {
+    snprintf(buf + len, sizeof buf - len, ", compressed");
+    len += strlen(buf + len);
+  }
+
+  snprintf(buf + len, sizeof buf - len, ")");
+
   return buf;
 }
 
@@ -242,120 +419,213 @@ MPPEUsable(struct fsm *fp)
   return ok;
 }
 
+static int
+MPPERequired(struct fsm *fp)
+{
+  return fp->link->ccp.cfg.mppe.required;
+}
+
+static u_int32_t
+MPPE_ConfigVal(const struct ccp_config *cfg)
+{
+  u_int32_t val;
+
+  val = cfg->mppe.state == MPPE_STATELESS ? MPPE_OPT_STATELESS : 0;
+  switch(cfg->mppe.keybits) {
+  case 128:
+    val |= MPPE_OPT_128BIT;
+    break;
+  case 56:
+    val |= MPPE_OPT_56BIT;
+    break;
+  case 40:
+    val |= MPPE_OPT_40BIT;
+    break;
+  case 0:
+    val |= MPPE_OPT_128BIT | MPPE_OPT_56BIT | MPPE_OPT_40BIT;
+    break;
+  }
+
+  return val;
+}
+
+/*
+ * What options should we use for our first configure request
+ */
 static void
 MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  u_long val;
+  u_int32_t *p = (u_int32_t *)o->data;
 
   o->len = 6;
-
-  log_Printf(LogCCP, "MPPE: InitOptsOutput\n");
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
                " MPPE is available only with CHAP81 authentication\n");
-    *(u_int32_t *)o->data = htonl(0x0);
+    *p = htonl(0x0);
     return;
   }
 
-  val = 0x1000000;
-  switch(cfg->mppe.keybits) {
-  case 128:
-    val |= 0x40; break;
-  case 56:
-    val |= 0x80; break;
-  case 40:
-    val |= 0x20; break;
-  }
-  *(u_int32_t *)o->data = htonl(val);
+  *p = htonl(MPPE_ConfigVal(cfg));
 }
 
+/*
+ * Our CCP request was NAK'd with the given options
+ */
 static int
-MPPESetOptsOutput(struct lcp_opt *o)
+MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  u_long *p = (u_long *)(o->data);
-  u_long val = ntohl(*p);
+  u_int32_t *p = (u_int32_t *)o->data;
+  u_int32_t peer = ntohl(*p);
+  u_int32_t mval;
 
-  log_Printf(LogCCP, "MPPE: SetOptsOutput\n");
+  if (!MPPE_MasterKeyValid)
+    /* Treat their NAK as a REJ */
+    return MODE_NAK;
 
-  if (!MPPE_MasterKeyValid) {
-    if (*p != 0x0) {
-      *p = 0x0;
-      return MODE_NAK;
-    } else {
-      return MODE_ACK;
-    }
+  mval = MPPE_ConfigVal(cfg);
+
+  /*
+   * If we haven't been configured with a specific number of keybits, allow
+   * whatever the peer asks for.
+   */
+  if (!cfg->mppe.keybits) {
+    mval &= ~MPPE_OPT_BITMASK;
+    mval |= (peer & MPPE_OPT_BITMASK);
+    if (!(mval & MPPE_OPT_BITMASK))
+      mval |= MPPE_OPT_128BIT;
   }
 
-  if (val == 0x01000020 ||
-      val == 0x01000040 ||
-      val == 0x01000080)
-    return MODE_ACK;
-
-  return MODE_NAK;
-}
-
-static int
-MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
-{
-  u_long *p = (u_long *)(o->data);
-  u_long val = ntohl(*p);
-  u_long mval;
-
-  log_Printf(LogCCP, "MPPE: SetOptsInput\n");
-
-  if (!MPPE_MasterKeyValid) {
-    if (*p != 0x0) {
-      *p = 0x0;
-      return MODE_NAK;
-    } else {
-      return MODE_ACK;
-    }
+  /* Adjust our statelessness */
+  if (cfg->mppe.state == MPPE_ANYSTATE) {
+    mval &= ~MPPE_OPT_STATELESS;
+    mval |= (peer & MPPE_OPT_STATELESS);
   }
-
-  mval = 0x01000000;
-  switch(cfg->mppe.keybits) {
-  case 128:
-    mval |= 0x40; break;
-  case 56:
-    mval |= 0x80; break;
-  case 40:
-    mval |= 0x20; break;
-  }
-
-  if (val == mval)
-    return MODE_ACK;
 
   *p = htonl(mval);
 
-  return MODE_NAK;
+  return MODE_ACK;
+}
+
+/*
+ * The peer has requested the given options
+ */
+static int
+MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+{
+  u_int32_t *p = (u_int32_t *)(o->data);
+  u_int32_t peer = ntohl(*p);
+  u_int32_t mval;
+  int res = MODE_ACK;
+
+  if (!MPPE_MasterKeyValid) {
+    if (*p != 0x0) {
+      *p = 0x0;
+      return MODE_NAK;
+    } else
+      return MODE_ACK;
+  }
+
+  mval = MPPE_ConfigVal(cfg);
+
+  if (peer & ~MPPE_OPT_MASK)
+    /* He's asking for bits we don't know about */
+    res = MODE_NAK;
+
+  if (peer & MPPE_OPT_STATELESS) {
+    if (cfg->mppe.state == MPPE_STATEFUL)
+      /* Peer can't have stateless */
+      res = MODE_NAK;
+    else
+      /* Peer wants stateless, that's ok */
+      mval |= MPPE_OPT_STATELESS;
+  } else {
+    if (cfg->mppe.state == MPPE_STATELESS)
+      /* Peer must have stateless */
+      res = MODE_NAK;
+    else
+      /* Peer doesn't want stateless, that's ok */
+      mval &= ~MPPE_OPT_STATELESS;
+  }
+
+  /* If we've got a configured number of keybits - the peer must use that */
+  if (cfg->mppe.keybits) {
+    *p = htonl(mval);
+    return peer == mval ? res : MODE_NAK;
+  }
+
+  /* If a specific number of bits hasn't been requested, we'll need to NAK */
+  switch (peer & MPPE_OPT_BITMASK) {
+  case MPPE_OPT_128BIT:
+  case MPPE_OPT_56BIT:
+  case MPPE_OPT_40BIT:
+    break;
+  default:
+    res = MODE_NAK;
+  }
+
+  /* Suggest the best number of bits */
+  mval &= ~MPPE_OPT_BITMASK;
+  if (peer & MPPE_OPT_128BIT)
+    mval |= MPPE_OPT_128BIT;
+  else if (peer & MPPE_OPT_56BIT)
+    mval |= MPPE_OPT_56BIT;
+  else if (peer & MPPE_OPT_40BIT)
+    mval |= MPPE_OPT_40BIT;
+  else
+    mval |= MPPE_OPT_128BIT;
+  *p = htonl(mval);
+
+  return res;
+}
+
+static struct mppe_state *
+MPPE_InitState(struct lcp_opt *o)
+{
+  struct mppe_state *mp;
+  u_int32_t val;
+
+  if ((mp = calloc(1, sizeof *mp)) != NULL) {
+    val = ntohl(*(u_int32_t *)o->data);
+
+    switch (val & MPPE_OPT_BITMASK) {
+    case MPPE_OPT_128BIT:
+      mp->keylen = 16;
+      mp->keybits = 128;
+      break;
+    case MPPE_OPT_56BIT:
+      mp->keylen = 8;
+      mp->keybits = 56;
+      break;
+    case MPPE_OPT_40BIT:
+      mp->keylen = 8;
+      mp->keybits = 40;
+      break;
+    default:
+      log_Printf(LogWARN, "Unexpected MPPE options 0x%08x\n", val);
+      free(mp);
+      return NULL;
+    }
+
+    mp->stateless = !!(val & MPPE_OPT_STATELESS);
+  }
+
+  return mp;
 }
 
 static void *
 MPPEInitInput(struct lcp_opt *o)
 {
   struct mppe_state *mip;
-  u_int32_t val = ntohl(*(unsigned long *)o->data);
-
-  log_Printf(LogCCP, "MPPE: InitInput\n");
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
-  mip = malloc(sizeof(*mip));
-  memset(mip, 0, sizeof(*mip));
-
-  if (val & 0x20) {		/* 40-bits */
-    mip->keylen = 8;
-    mip->keybits = 40;
-  } else if (val & 0x80) {	/* 56-bits */
-    mip->keylen = 8;
-    mip->keybits = 56;
-  } else {			/* 128-bits */
-    mip->keylen = 16;
-    mip->keybits = 128;
+  if ((mip = MPPE_InitState(o)) == NULL) {
+    log_Printf(LogWARN, "MPPEInput: Cannot initialise - unexpected options\n");
+    return NULL;
   }
 
   log_Printf(LogDEBUG, "MPPE: InitInput: %d-bits\n", mip->keybits);
@@ -366,9 +636,25 @@ MPPEInitInput(struct lcp_opt *o)
 
   MPPEReduceSessionKey(mip);
 
-  MPPEKeyChange(mip);
+  log_Printf(LogCCP, "MPPE: Input channel initiated\n");
 
-  mip->cohnum = 0;
+  if (!mip->stateless) {
+    /*
+     * We need to initialise our dictionary here as the first packet we
+     * receive is unlikely to have the FLUSHED bit set.
+     */
+    log_Printf(LogDEBUG, "MPPEInitInput: Dictionary initialised [%d]\n",
+               mip->cohnum);
+    RC4_set_key(&mip->rc4key, mip->keylen, mip->sesskey);
+  } else {
+    /*
+     * We do the first key change here as the first packet is expected
+     * to have a sequence number of 0 and we'll therefore not expect
+     * to have to change the key at that point.
+     */
+    log_Printf(LogDEBUG, "MPPEInitInput: Key changed [%d]\n", mip->cohnum);
+    MPPEKeyChange(mip);
+  }
 
   return mip;
 }
@@ -377,27 +663,15 @@ static void *
 MPPEInitOutput(struct lcp_opt *o)
 {
   struct mppe_state *mop;
-  u_int32_t val = ntohl(*(unsigned long *)o->data);
-
-  log_Printf(LogCCP, "MPPE: InitOutput\n");
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
-  mop = malloc(sizeof(*mop));
-  memset(mop, 0, sizeof(*mop));
-
-  if (val & 0x20) {		/* 40-bits */
-    mop->keylen = 8;
-    mop->keybits = 40;
-  } else if (val & 0x80) {	/* 56-bits */
-    mop->keylen = 8;
-    mop->keybits = 56;
-  } else {			/* 128-bits */
-    mop->keylen = 16;
-    mop->keybits = 128;
+  if ((mop = MPPE_InitState(o)) == NULL) {
+    log_Printf(LogWARN, "MPPEOutput: Cannot initialise - unexpected options\n");
+    return NULL;
   }
 
   log_Printf(LogDEBUG, "MPPE: InitOutput: %d-bits\n", mop->keybits);
@@ -408,9 +682,17 @@ MPPEInitOutput(struct lcp_opt *o)
 
   MPPEReduceSessionKey(mop);
 
-  MPPEKeyChange(mop);
+  log_Printf(LogCCP, "MPPE: Output channel initiated\n");
 
-  mop->cohnum = 0;
+  if (!mop->stateless) {
+    /*
+     * We need to initialise our dictionary now as the first packet we
+     * send won't have the FLUSHED bit set.
+     */
+    log_Printf(LogDEBUG, "MPPEInitOutput: Dictionary initialised [%d]\n",
+               mop->cohnum);
+    RC4_set_key(&mop->rc4key, mop->keylen, mop->sesskey);
+  }
 
   return mop;
 }
@@ -418,14 +700,12 @@ MPPEInitOutput(struct lcp_opt *o)
 static void
 MPPETermInput(void *v)
 {
-  log_Printf(LogCCP, "MPPE: TermInput\n");
   free(v);
 }
 
 static void
 MPPETermOutput(void *v)
 {
-  log_Printf(LogCCP, "MPPE: TermOutput\n");
   free(v);
 }
 
@@ -434,6 +714,7 @@ const struct ccp_algorithm MPPEAlgorithm = {
   CCP_NEG_MPPE,
   MPPEDispOpts,
   MPPEUsable,
+  MPPERequired,
   {
     MPPESetOptsInput,
     MPPEInitInput,
@@ -443,6 +724,7 @@ const struct ccp_algorithm MPPEAlgorithm = {
     MPPEDictSetup
   },
   {
+    2,
     MPPEInitOptsOutput,
     MPPESetOptsOutput,
     MPPEInitOutput,

@@ -54,6 +54,14 @@
 #define CCP_NEG_TOTAL		3
 #endif
 
+#ifdef HAVE_DES
+enum mppe_negstate {
+  MPPE_ANYSTATE,
+  MPPE_STATELESS,
+  MPPE_STATEFUL
+};
+#endif
+
 struct mbuf;
 struct link;
 
@@ -66,6 +74,8 @@ struct ccp_config {
 #ifdef HAVE_DES
   struct {
     int keybits;
+    enum mppe_negstate state;
+    unsigned required : 1;
   } mppe;
 #endif
   struct fsm_retry fsm;	/* How often/frequently to resend requests */
@@ -115,6 +125,7 @@ struct ccp_algorithm {
   int Neg;					/* ccp_config neg array item */
   const char *(*Disp)(struct lcp_opt *);	/* Use result immediately !  */
   int (*Usable)(struct fsm *);			/* Ok to negotiate ? */
+  int (*Required)(struct fsm *);		/* Must negotiate ? */
   struct {
     int (*Set)(struct lcp_opt *, const struct ccp_config *);
     void *(*Init)(struct lcp_opt *);
@@ -124,11 +135,12 @@ struct ccp_algorithm {
     void (*DictSetup)(void *, struct ccp *, u_short, struct mbuf *);
   } i;
   struct {
+    int MTUOverhead;
     void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
-    int (*Set)(struct lcp_opt *);
+    int (*Set)(struct lcp_opt *, const struct ccp_config *);
     void *(*Init)(struct lcp_opt *);
     void (*Term)(void *);
-    void (*Reset)(void *);
+    int (*Reset)(void *);
     struct mbuf *(*Write)(void *, struct ccp *, struct link *, int, u_short *,
                           struct mbuf *);
   } o;
@@ -137,6 +149,8 @@ struct ccp_algorithm {
 extern void ccp_Init(struct ccp *, struct bundle *, struct link *,
                      const struct fsm_parent *);
 extern void ccp_Setup(struct ccp *);
+extern int ccp_Required(struct ccp *);
+extern int ccp_MTUOverhead(struct ccp *);
 
 extern void ccp_SendResetReq(struct fsm *);
 extern struct mbuf *ccp_Input(struct bundle *, struct link *, struct mbuf *);
@@ -144,6 +158,7 @@ extern int ccp_ReportStatus(struct cmdargs const *);
 extern u_short ccp_Proto(struct ccp *);
 extern void ccp_SetupCallbacks(struct ccp *);
 extern int ccp_SetOpenMode(struct ccp *);
-extern int ccp_IsUsable(struct fsm *);
+extern int ccp_DefaultUsable(struct fsm *);
+extern int ccp_DefaultRequired(struct fsm *);
 
 extern struct layer ccplayer;
