@@ -400,7 +400,7 @@ bfe_attach(device_t dev)
 	ifp->if_watchdog = bfe_watchdog;
 	ifp->if_init = bfe_init;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = 10000000;
+	ifp->if_baudrate = 100000000;
 	ifp->if_snd.ifq_maxlen = BFE_TX_QLEN;
 
 	bfe_get_config(sc);
@@ -417,6 +417,12 @@ bfe_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	callout_handle_init(&sc->bfe_stat_ch);
+
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	/*
 	 * Hook interrupt last to avoid having to lock softc
