@@ -136,7 +136,8 @@ struct uuidgen_args {
 };
 #endif
 
-int uuidgen(struct thread *td, struct uuidgen_args *uap)
+int
+uuidgen(struct thread *td, struct uuidgen_args *uap)
 {
 	struct uuid_private uuid;
 	uint64_t time;
