@@ -1509,19 +1509,17 @@ ip6_ctloutput(so, sopt)
 #ifdef IPSEC
 			case IPV6_IPSEC_POLICY:
 			  {
-				caddr_t req = NULL;
-				int len = 0;
-				struct mbuf *m;
-				struct mbuf **mp = &m;
 
-				if (m != 0) {
+				struct mbuf *m = NULL;
+				caddr_t req = NULL;
+
+				if (m != 0)
 					req = mtod(m, caddr_t);
-					len = m->m_len;
-				}
-				error = ipsec6_get_policy(in6p, req, mp);
+				error = ipsec6_get_policy(in6p, req, &m);
 				if (error == 0)
 					error = soopt_mcopyout(sopt, m); /*XXX*/
-				m_freem(m);
+				if (error == 0)
+					m_freem(m);
 				break;
 			  }
 #endif /* IPSEC */
