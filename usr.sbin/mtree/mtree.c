@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 extern long int crc_total;
 
 int ftsoptions = FTS_PHYSICAL;
-int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag;
+int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
 u_short keys;
 char fullpath[MAXPATHLEN];
 
@@ -68,10 +68,11 @@ main(argc, argv)
 	extern char *optarg;
 	int ch;
 	char *dir, *p;
+	int status;
 
 	dir = NULL;
 	keys = KEYDEFAULT;
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:ux")) != EOF)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) != EOF)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -114,6 +115,10 @@ main(argc, argv)
 			crc_total = ~strtol(optarg, &p, 0);
 			if (*p)
 				err("illegal seed value -- %s", optarg);
+		case 'U':
+			Uflag = 1;
+			uflag = 1;
+			break;
 		case 'u':
 			uflag = 1;
 			break;
@@ -140,13 +145,16 @@ main(argc, argv)
 		cwalk();
 		exit(0);
 	}
-	exit(verify());
+	status = verify();
+	if (Uflag & (status == MISMATCHEXIT))
+		status = 0;
+	exit(status);
 }
 
 static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-cdeinrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n");
+"usage: mtree [-cdeinrUux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n");
 	exit(1);
 }
