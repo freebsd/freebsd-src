@@ -95,7 +95,13 @@ enum keyword {
     kw_v,
     kw_w,
     kw_round,						    /* round robin */
+    /*
+     * The first of these is a volume attibute ("prefer plex"), and the
+     * second is a plex attribute ("preferred" means that the volume
+     * prefers this plex).
+     */
     kw_prefer,						    /* prefer plex */
+    kw_preferred,					    /* preferred plex */
     kw_device,
     kw_init,
     kw_label,
