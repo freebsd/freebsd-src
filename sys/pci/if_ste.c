@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ste.c,v 1.6 1999/08/20 15:20:08 wpaul Exp $
+ *	$Id: if_ste.c,v 1.1 1999/08/21 18:34:44 wpaul Exp $
  */
 
 
@@ -82,7 +82,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ste.c,v 1.6 1999/08/20 15:20:08 wpaul Exp $";
+	"$Id: if_ste.c,v 1.1 1999/08/21 18:34:44 wpaul Exp $";
 #endif
 
 /*
@@ -824,9 +824,7 @@ static void ste_txeoc(sc)
 			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
 			    (STE_PACKET_SIZE >> 4));
 		}
-		STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_ENABLE);
-		if (CSR_READ_4(sc, STE_TX_DMALIST_PTR))
-			CSR_WRITE_4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
+		ste_init(sc);
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
 
