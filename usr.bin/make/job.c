@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/event.h>
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
@@ -237,8 +238,12 @@ STATIC Boolean	jobFull;    	/* Flag to tell when the job table is full. It
 				 * (2) a job can only be run locally, but
 				 * nLocal equals maxLocal */
 #ifndef RMT_WILL_WATCH
+#ifdef USE_KQUEUE
+static int	kqfd;		/* File descriptor obtained by kqueue() */
+#else
 static fd_set  	outputs;    	/* Set of descriptors of pipes connected to
 				 * the output channels of children */
+#endif
 #endif
 
 STATIC GNode   	*lastNode;	/* The node for which output was most recently
@@ -692,7 +697,7 @@ JobClose(job)
     if (usePipes) {
 #ifdef RMT_WILL_WATCH
 	Rmt_Ignore(job->inPipe);
-#else
+#elif !defined(USE_KQUEUE)
 	FD_CLR(job->inPipe, &outputs);
 #endif
 	if (job->outPipe != job->inPipe) {
@@ -1267,10 +1272,22 @@ JobExec(job, argv)
 	     * position in the buffer to the beginning and mark another
 	     * stream to watch in the outputs mask
 	     */
+#ifdef USE_KQUEUE
+	    struct kevent	kev[2];
+#endif
 	    job->curPos = 0;
 
 #ifdef RMT_WILL_WATCH
 	    Rmt_Watch(job->inPipe, JobLocalInput, job);
+#elif defined(USE_KQUEUE)
+	    EV_SET(&kev[0], job->inPipe, EVFILT_READ, EV_ADD, 0, 0, job);
+	    EV_SET(&kev[1], job->pid, EVFILT_PROC, EV_ADD | EV_ONESHOT,
+		NOTE_EXIT, 0, NULL);
+	    if (kevent(kqfd, kev, 2, NULL, 0, NULL) != 0) {
+		/* kevent() will fail if the job is already finished */
+		if (errno != EBADF && errno != ESRCH)
+		    Punt("kevent: %s", strerror(errno));
+	    }
 #else
 	    FD_SET(job->inPipe, &outputs);
 #endif /* RMT_WILL_WATCH */
@@ -2229,10 +2246,16 @@ void
 Job_CatchOutput()
 {
     int           	  nfds;
+#ifdef USE_KQUEUE
+#define KEV_SIZE	4
+    struct kevent	  kev[KEV_SIZE];
+    int			  i;
+#else
     struct timeval	  timeout;
     fd_set           	  readfds;
     LstNode		  ln;
     Job		   	  *job;
+#endif
 #ifdef RMT_WILL_WATCH
     int	    	  	  pnJobs;   	/* Previous nJobs */
 #endif
@@ -2262,6 +2285,27 @@ Job_CatchOutput()
     }
 #else
     if (usePipes) {
+#ifdef USE_KQUEUE
+	if ((nfds = kevent(kqfd, NULL, 0, kev, KEV_SIZE, NULL)) == -1) {
+	    Punt("kevent: %s", strerror(errno));
+	} else {
+	    for (i = 0; i < nfds; i++) {
+		if (kev[i].flags & EV_ERROR) {
+		    warnc(kev[i].data, "kevent");
+		    continue;
+		}
+		switch (kev[i].filter) {
+		case EVFILT_READ:
+		    JobDoOutput(kev[i].udata, FALSE);
+		    break;
+		case EVFILT_PROC:
+		    /* Just wake up and let Job_CatchChildren() collect the
+		     * terminated job. */
+		    break;
+		}
+	    }
+	}
+#else
 	readfds = outputs;
 	timeout.tv_sec = SEL_SEC;
 	timeout.tv_usec = SEL_USEC;
@@ -2282,6 +2326,7 @@ Job_CatchOutput()
 	    }
 	    Lst_Close(jobs);
 	}
+#endif /* !USE_KQUEUE */
     }
 #endif /* RMT_WILL_WATCH */
 }
@@ -2408,6 +2453,12 @@ Job_Init(maxproc, maxlocal)
     }
     if (signal(SIGWINCH, SIG_IGN) != SIG_IGN) {
 	(void) signal(SIGWINCH, JobPassSig);
+    }
+#endif
+
+#ifdef USE_KQUEUE
+    if ((kqfd = kqueue()) == -1) {
+	Punt("kqueue: %s", strerror(errno));
     }
 #endif
 
