@@ -153,3 +153,26 @@ ENTRY(get_pc_str_offset)
 	ldr	r0, [sp]
 	sub	r0, r0, r1
 	ldmdb	fp, {fp, sp, pc}
+
+/* Allocate and lock a cacheline for the specified address. */
+
+#define CPWAIT_BRANCH			\
+	sub	pc, pc, #4
+#define CPWAIT() \
+	mrc	p15, 0, r2, c2, c0, 0;	\
+	mov	r2, r2;			\
+	CPWAIT_BRANCH
+
+ENTRY(arm_lock_cache_line)
+	mcr	p15, 0, r0, c7, c10, 4 /* Drain write buffer */
+	mov	r1, #1
+	mcr	p15, 0, r1, c9, c2, 0 /* Enable data cache lock mode */
+	CPWAIT()
+	mcr	p15, 0, r0, c7, c2, 5 /* Allocate the cache line */
+	mcr	p15, 0, r0, c7, c10, 4 /* Drain write buffer */
+	mov	r1, #0
+	str	r1, [r0]
+	mcr	p15, 0, r0, c7, c10, 4 /* Drain write buffer */
+	mcr	p15, 0, r1, c9, c2, 0 /* Disable data cache lock mode */
+	CPWAIT()
+	RET

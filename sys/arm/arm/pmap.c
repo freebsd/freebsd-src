@@ -353,6 +353,7 @@ struct l2_dtable {
 
 /* pmap_kenter_internal flags */
 #define KENTER_CACHE	0x1
+#define KENTER_USER	0x2
 
 /*
  * Given an L1 table index, calculate the corresponding l2_dtable index
@@ -2818,6 +2819,8 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	if (flags & KENTER_CACHE)
 		*pte |= pte_l2_s_cache_mode;
+	if (flags & KENTER_USER)
+		*pte |= L2_S_PROT_U;
 	PTE_SYNC(pte);
 }
 
@@ -2827,7 +2830,11 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	pmap_kenter_internal(va, pa, KENTER_CACHE);
 }
 
-
+void
+pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
+{
+	pmap_kenter_internal(va, pa, KENTER_CACHE|KENTER_USER);
+}
 
 /*
  * remove a page rom the kernel pagetables

@@ -10,4 +10,6 @@ void data_abort_handler (trapframe_t *);
 void prefetch_abort_handler (trapframe_t *);
 void undefinedinstruction_bounce (trapframe_t *);
 
+void arm_lock_cache_line(vm_offset_t);
+
 #endif /* !_MACHINE_MACHDEP_H_ */
