@@ -340,6 +340,13 @@ struct mbstat {
 		("%s: no mbuf packet header!", __func__))
 
 /*
+ * Ensure that the supplied mbuf is a valid, non-free mbuf.
+ */
+#define M_ASSERTVALID(m)					\
+	KASSERT((((struct mbuf *)m)->m_flags & M_FREELIST) == 0,			\
+		("%s: attempted use of a free mbuf!", __func__))
+
+/*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
  * an object of the specified size at the end of the mbuf, longword aligned.
  */
