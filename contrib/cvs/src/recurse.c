@@ -158,10 +158,10 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 #ifdef CLIENT_SUPPORT
 	if (!just_subdirs
 	    && CVSroot_cmdline == NULL
-	    && client_active)
+	    && current_parsed_root->isremote)
 	{
 	    char *root = Name_Root (NULL, update_dir);
-	    if (root && strcmp (root, current_root) != 0)
+	    if (root && strcmp (root, current_parsed_root->original) != 0)
 		/* We're skipping this directory because it is for
 		   a different root.  Therefore, we just want to
 		   do the subdirectories only.  Processing files would
@@ -205,7 +205,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		       program_name);
 	    }
 #ifdef CLIENT_SUPPORT
-	    else if (client_active && server_started)
+	    else if (current_parsed_root->isremote && server_started)
 	    {
 		/* In the the case "cvs update foo bar baz", a call to
 		   send_file_names in update.c will have sent the
@@ -291,7 +291,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	    {
 		if ((which & W_LOCAL) && isdir (CVSADM)
 #ifdef CLIENT_SUPPORT
-		    && !client_active
+		    && !current_parsed_root->isremote
 #endif
 		    )
 		{
@@ -364,8 +364,8 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	/* FIXME (njc): in the multiroot case, we don't want to send
 	   argument commands for those top-level directories which do
 	   not contain any subdirectories which have files checked out
-	   from current_root.  If we do, and two repositories have a
-	   module with the same name, nasty things could happen.
+	   from current_parsed_root->original.  If we do, and two repositories
+	   have a module with the same name, nasty things could happen.
 
 	   This is hard.  Perhaps we should send the Argument commands
 	   later in this procedure, after we've had a chance to notice
@@ -441,7 +441,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	   "Directory xxx" command, which forces the server to descend
 	   and serve the files there.  client.c (send_file_names) has
 	   also been modified to send only those arguments which are
-	   appropriate to current_root.
+	   appropriate to current_parsed_root->original.
 
 	*/
 		
@@ -600,8 +600,9 @@ do_recursion (frame)
 	
 	    }
 	
-	    process_this_directory = (strcmp (current_root, this_root) == 0);
-	
+	    process_this_directory =
+		    (strcmp (current_parsed_root->original, this_root) == 0);
+
 	    free (this_root);
 	}
     }
@@ -711,7 +712,7 @@ do_recursion (frame)
 	   place (server_notify).  For local, we can't do them here--we don't
 	   have writelocks in place, and there is no way to get writelocks
 	   here.  */
-	if (client_active)
+	if (current_parsed_root->isremote)
 	    notify_check (repository, update_dir);
 #endif /* CLIENT_SUPPORT */
 
@@ -1025,7 +1026,8 @@ but CVS uses %s for its own purposes; skipping %s directory",
 
 	    }
 
-	    process_this_directory = (strcmp (current_root, this_root) == 0);
+	    process_this_directory = (strcmp (current_parsed_root->original, this_root) == 0);
+
 	    free (this_root);
 	}
     }

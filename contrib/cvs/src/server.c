@@ -20,6 +20,38 @@
 #include "getline.h"
 #include "buffer.h"
 
+#if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
+# ifdef HAVE_GSSAPI
+/* This stuff isn't included solely with SERVER_SUPPORT since some of these
+ * functions (encryption & the like) get compiled with or without server
+ * support.
+ *
+ * FIXME - They should be in a different file.
+ */
+#   include <netdb.h>
+#   include "xgssapi.h"
+/* We use Kerberos 5 routines to map the GSSAPI credential to a user
+   name.  */
+#   include <krb5.h>
+
+/* We need this to wrap data.  */
+static gss_ctx_id_t gcontext;
+
+static void gserver_authenticate_connection PROTO((void));
+
+/* Whether we are already wrapping GSSAPI communication.  */
+static int cvs_gssapi_wrapping;
+
+#   ifdef ENCRYPTION
+/* Whether to encrypt GSSAPI communication.  We use a global variable
+   like this because we use the same buffer type (gssapi_wrap) to
+   handle both authentication and encryption, and we don't want
+   multiple instances of that buffer in the communication stream.  */
+int cvs_gssapi_encrypt;
+#   endif
+# endif	/* HAVE_GSSAPI */
+#endif	/* defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT) */
+
 #ifdef SERVER_SUPPORT
 
 #ifdef HAVE_WINSOCK_H
@@ -30,12 +62,16 @@
 #include <sys/socket.h>
 #endif
 
+#ifdef HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
+
 #ifdef HAVE_KERBEROS
-#  include <netinet/in.h>
-#  include <krb.h>
-#  ifndef HAVE_KRB_GET_ERR_TEXT
-#    define krb_get_err_text(status) krb_err_txt[status]
-#  endif
+# include <netinet/in.h>
+# include <krb.h>
+# ifndef HAVE_KRB_GET_ERR_TEXT
+#   define krb_get_err_text(status) krb_err_txt[status]
+# endif
 
 /* Information we need if we are going to use Kerberos encryption.  */
 static C_Block kblock;
@@ -43,66 +79,8 @@ static Key_schedule sched;
 
 #endif
 
-#ifdef HAVE_GSSAPI
-
-#include <netdb.h>
-
-#ifdef HAVE_GSSAPI_H
-#include <gssapi.h>
-#endif
-#ifdef HAVE_GSSAPI_GSSAPI_H
-#include <gssapi/gssapi.h>
-#endif
-#ifdef HAVE_GSSAPI_GSSAPI_GENERIC_H
-#include <gssapi/gssapi_generic.h>
-#endif
-
-#ifndef HAVE_GSS_C_NT_HOSTBASED_SERVICE
-#define GSS_C_NT_HOSTBASED_SERVICE gss_nt_service_name
-#endif
-
-/* We use Kerberos 5 routines to map the GSSAPI credential to a user
-   name.  */
-#include <krb5.h>
-
-/* We need this to wrap data.  */
-static gss_ctx_id_t gcontext;
-
-static void gserver_authenticate_connection PROTO((void));
-
-/* Whether we are already wrapping GSSAPI communication.  */
-static int cvs_gssapi_wrapping;
-
-#  ifdef ENCRYPTION
-/* Whether to encrypt GSSAPI communication.  We use a global variable
-   like this because we use the same buffer type (gssapi_wrap) to
-   handle both authentication and encryption, and we don't want
-   multiple instances of that buffer in the communication stream.  */
-int cvs_gssapi_encrypt;
-#  endif
-
-#endif
-
 /* for select */
-#include <sys/types.h>
-#ifdef HAVE_SYS_BSDTYPES_H
-#include <sys/bsdtypes.h>
-#endif
-
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-
-#if HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
+#include "xselect.h"
 
 #ifndef O_NONBLOCK
 #define O_NONBLOCK O_NDELAY
@@ -116,18 +94,16 @@ int cvs_gssapi_encrypt;
 #define blocking_error(err) ((err) == EAGAIN)
 #endif
 
-#ifdef AUTH_SERVER_SUPPORT
-#ifdef HAVE_GETSPNAM
-#include <shadow.h>
-#endif
-#endif /* AUTH_SERVER_SUPPORT */
-
 /* For initgroups().  */
 #if HAVE_INITGROUPS
 #include <grp.h>
 #endif /* HAVE_INITGROUPS */
-
-#ifdef AUTH_SERVER_SUPPORT
+
+# ifdef AUTH_SERVER_SUPPORT
+
+#   ifdef HAVE_GETSPNAM
+#     include <shadow.h>
+#   endif
 
 /* The cvs username sent by the client, which might or might not be
    the same as the system username the server eventually switches to
@@ -143,7 +119,7 @@ static char *Pserver_Repos = NULL;
    CVSROOT/config.  */
 int system_auth = 1;
 
-#endif /* AUTH_SERVER_SUPPORT */
+# endif /* AUTH_SERVER_SUPPORT */
 
 
 /* While processing requests, this buffer accumulates data to be sent to
@@ -424,10 +400,10 @@ create_adm_p (base_dir, dir)
 	       differently.  */
 
 	    char *empty;
-	    empty = malloc (strlen (CVSroot_directory)
+	    empty = malloc (strlen (current_parsed_root->directory)
 			    + sizeof (CVSROOTADM)
 			    + sizeof (CVSNULLREPOS)
-			    + 10);
+			    + 3);
 	    if (! empty)
 	    {
 		retval = ENOMEM;
@@ -435,7 +411,7 @@ create_adm_p (base_dir, dir)
 	    }
 
 	    /* Create the directory name. */
-	    (void) sprintf (empty, "%s/%s/%s", CVSroot_directory,
+	    (void) sprintf (empty, "%s/%s/%s", current_parsed_root->directory,
 			    CVSROOTADM, CVSNULLREPOS);
 
 	    /* Create the directory if it doesn't exist. */
@@ -601,10 +577,16 @@ print_error (status)
     int status;
 {
     char *msg;
+    char tmpstr[80];
+
     buf_output0 (buf_to_net, "error  ");
     msg = strerror (status);
-    if (msg)
-	buf_output0 (buf_to_net, msg);
+    if (msg == NULL)
+    {
+       sprintf (tmpstr, "unknown error %d", status);
+       msg = tmpstr;
+    }
+    buf_output0 (buf_to_net, msg);
     buf_append_char (buf_to_net, '\n');
 
     buf_flush (buf_to_net, 0);
@@ -771,7 +753,7 @@ serve_root (arg)
        new connection.  Doing this would cause interoperability
        headaches, so it should be a different request, if there is
        any reason why such a feature is needed.  */
-    if (CVSroot_directory != NULL)
+    if (current_parsed_root != NULL)
     {
 	if (alloc_pending (80 + strlen (arg)))
 	    sprintf (pending_error_text,
@@ -794,24 +776,27 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
 	}
     }
 #endif
-    set_local_cvsroot (arg);
+
+    if (current_parsed_root != NULL)
+	free_cvsroot_t (current_parsed_root);
+    current_parsed_root = local_cvsroot (arg);
 
     /* For pserver, this will already have happened, and the call will do
        nothing.  But for rsh, we need to do it now.  */
-    parse_config (CVSroot_directory);
+    parse_config (current_parsed_root->directory);
 
     /* Now is a good time to read CVSROOT/options too. */
-    parseopts(CVSroot_directory);
+    parseopts(current_parsed_root->directory);
 
-    path = malloc (strlen (CVSroot_directory)
+    path = malloc (strlen (current_parsed_root->directory)
 		   + sizeof (CVSROOTADM)
-		   + 10);
+		   + 2);
     if (path == NULL)
     {
 	pending_error = ENOMEM;
 	return;
     }
-    (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
+    (void) sprintf (path, "%s/%s", current_parsed_root->directory, CVSROOTADM);
     if (!isaccessible (path, R_OK | X_OK))
     {
 	int save_errno = errno;
@@ -822,13 +807,13 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
     free (path);
 
 #ifdef HAVE_PUTENV
-    env = malloc (strlen (CVSROOT_ENV) + strlen (CVSroot_directory) + 1 + 1);
+    env = malloc (strlen (CVSROOT_ENV) + strlen (current_parsed_root->directory) + 2);
     if (env == NULL)
     {
 	pending_error = ENOMEM;
 	return;
     }
-    (void) sprintf (env, "%s=%s", CVSROOT_ENV, CVSroot_directory);
+    (void) sprintf (env, "%s=%s", CVSROOT_ENV, current_parsed_root->directory);
     (void) putenv (env);
     /* do not free env, as putenv has control of it */
 #endif
@@ -871,14 +856,14 @@ server_pathname_check (path)
 static int outside_root PROTO ((char *));
 
 /* Is file or directory REPOS an absolute pathname within the
-   CVSroot_directory?  If yes, return 0.  If no, set pending_error
+   current_parsed_root->directory?  If yes, return 0.  If no, set pending_error
    and return 1.  */
 static int
 outside_root (repos)
     char *repos;
 {
     size_t repos_len = strlen (repos);
-    size_t root_len = strlen (CVSroot_directory);
+    size_t root_len = strlen (current_parsed_root->directory);
 
     /* I think isabsolute (repos) should always be true, and that
        any RELATIVE_REPOS stuff should only be in CVS/Repository
@@ -893,15 +878,15 @@ E protocol error: %s is not absolute", repos);
     }
 
     if (repos_len < root_len
-	|| strncmp (CVSroot_directory, repos, root_len) != 0)
+	|| strncmp (current_parsed_root->directory, repos, root_len) != 0)
     {
     not_within:
-	if (alloc_pending (strlen (CVSroot_directory)
+	if (alloc_pending (strlen (current_parsed_root->directory)
 			   + strlen (repos)
 			   + 80))
 	    sprintf (pending_error_text, "\
 E protocol error: directory '%s' not within root '%s'",
-		     repos, CVSroot_directory);
+		     repos, current_parsed_root->directory);
 	return 1;
     }
     if (repos_len > root_len)
@@ -1104,8 +1089,9 @@ dirswitch (dir, repos)
        (e.g., an entry like ``world -a .'') by putting /. at the end
        of the Repository file, so we do the same.  */
     if (strcmp (dir, ".") == 0
-	&& CVSroot_directory != NULL
-	&& strcmp (CVSroot_directory, repos) == 0)
+	&& current_parsed_root != NULL
+	&& current_parsed_root->directory != NULL
+	&& strcmp (current_parsed_root->directory, repos) == 0)
     {
         if (fprintf (f, "/.") < 0)
 	{
@@ -2435,6 +2421,9 @@ error ENOMEM Virtual memory exhausted.\n";
 
     /* If this gives an error, not much we could do.  syslog() it?  */
     write (STDOUT_FILENO, msg, sizeof (msg) - 1);
+#ifdef HAVE_SYSLOG_H
+    syslog (LOG_DAEMON | LOG_ERR, "virtual memory exhausted");
+#endif
     error_exit ();
 }
 
@@ -2492,13 +2481,13 @@ check_command_legal_p (cmd_name)
          int found_it = 0;
          
          /* else */
-         flen = strlen (CVSroot_directory)
+         flen = strlen (current_parsed_root->directory)
                 + strlen (CVSROOTADM)
                 + strlen (CVSROOTADM_READERS)
                 + 3;
 
          fname = xmalloc (flen);
-         (void) sprintf (fname, "%s/%s/%s", CVSroot_directory,
+         (void) sprintf (fname, "%s/%s/%s", current_parsed_root->directory,
 			CVSROOTADM, CVSROOTADM_READERS);
 
          fp = fopen (fname, "r");
@@ -2544,13 +2533,13 @@ check_command_legal_p (cmd_name)
 
 	 /* Now check the writers file.  */
 
-         flen = strlen (CVSroot_directory)
+         flen = strlen (current_parsed_root->directory)
                 + strlen (CVSROOTADM)
                 + strlen (CVSROOTADM_WRITERS)
                 + 3;
 
          fname = xmalloc (flen);
-         (void) sprintf (fname, "%s/%s/%s", CVSroot_directory,
+         (void) sprintf (fname, "%s/%s/%s", current_parsed_root->directory,
 			CVSROOTADM, CVSROOTADM_WRITERS);
 
          fp = fopen (fname, "r");
@@ -2792,7 +2781,9 @@ error  \n");
 	close (stderr_pipe[0]);
 	close (stderr_pipe[1]);
 	close (protocol_pipe[0]);
+	close_on_exec (protocol_pipe[1]);
 #ifdef SERVER_FLOWCONTROL
+	close_on_exec (flowcontrol_pipe[0]);
 	close (flowcontrol_pipe[1]);
 #endif /* SERVER_FLOWCONTROL */
 
@@ -2809,11 +2800,11 @@ error  \n");
 	exitstatus = (*command) (argument_count, argument_vector);
 
 	/* Output any partial lines.  If the client doesn't support
-	   "MT", we just throw out the partial line, like old versions
-	   of CVS did, since the protocol can't support this.  */
-	if (supported_response ("MT") && ! buf_empty_p (saved_output))
+	   "MT", we go ahead and just tack on a newline since the
+	   protocol doesn't support anything better.  */
+	if (! buf_empty_p (saved_output))
 	{
-	    buf_output0 (protocol, "MT text ");
+	    buf_output0 (protocol, supported_response ("MT") ? "MT text " : "M ");
 	    buf_append_buffer (protocol, saved_output);
 	    buf_output (protocol, "\n", 1);
 	    buf_send_counted (protocol);
@@ -2836,7 +2827,7 @@ error  \n");
 	struct buffer *protocol_inbuf;
 	/* Number of file descriptors to check in select ().  */
 	int num_to_check;
-	int count_needed = 0;
+	int count_needed = 1;
 #ifdef SERVER_FLOWCONTROL
 	int have_flowcontrolled = 0;
 #endif /* SERVER_FLOWCONTROL */
@@ -2924,13 +2915,16 @@ error  \n");
 
 	while (stdout_pipe[0] >= 0
 	       || stderr_pipe[0] >= 0
-	       || protocol_pipe[0] >= 0)
+	       || protocol_pipe[0] >= 0
+	       || count_needed <= 0)
 	{
 	    fd_set readfds;
 	    fd_set writefds;
 	    int numfds;
 #ifdef SERVER_FLOWCONTROL
 	    int bufmemsize;
+	    struct timeval *timeout_ptr;
+	    struct timeval timeout;
 
 	    /*
 	     * See if we are swamping the remote client and filling our VM.
@@ -2951,8 +2945,24 @@ error  \n");
 
 	    FD_ZERO (&readfds);
 	    FD_ZERO (&writefds);
+
+	    if (count_needed <= 0)
+	    {
+		/* there is data pending which was read from the protocol pipe
+		 * so don't block if we don't find any data
+		 */
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 0;
+		timeout_ptr = &timeout;
+	    }
+	    else
+	    {
+		/* block indefinately */
+		timeout_ptr = NULL;
+	    }
+
 	    if (! buf_empty_p (buf_to_net))
-	        FD_SET (STDOUT_FILENO, &writefds);
+		FD_SET (STDOUT_FILENO, &writefds);
 
 	    if (stdout_pipe[0] >= 0)
 	    {
@@ -2968,28 +2978,34 @@ error  \n");
 	    }
 
 	    /* This process of selecting on the three pipes means that
-	       we might not get output in the same order in which it
-	       was written, thus producing the well-known
-	       "out-of-order" bug.  If the child process uses
-	       cvs_output and cvs_outerr, it will send everything on
-	       the protocol_pipe and avoid this problem, so the
-	       solution is to use cvs_output and cvs_outerr in the
-	       child process.  */
+	     we might not get output in the same order in which it
+	     was written, thus producing the well-known
+	     "out-of-order" bug.  If the child process uses
+	     cvs_output and cvs_outerr, it will send everything on
+	     the protocol_pipe and avoid this problem, so the
+	     solution is to use cvs_output and cvs_outerr in the
+	     child process.  */
 	    do {
 		/* This used to select on exceptions too, but as far
                    as I know there was never any reason to do that and
                    SCO doesn't let you select on exceptions on pipes.  */
 		numfds = select (num_to_check, &readfds, &writefds,
-				 (fd_set *)0, (struct timeval *)NULL);
+				 (fd_set *)0, timeout_ptr);
 		if (numfds < 0
-		    && errno != EINTR)
+			&& errno != EINTR)
 		{
 		    buf_output0 (buf_to_net, "E select failed\n");
 		    print_error (errno);
 		    goto error_exit;
 		}
 	    } while (numfds < 0);
-	    
+
+	    if (numfds == 0)
+	    {
+		FD_ZERO (&readfds);
+		FD_ZERO (&writefds);
+	    }
+
 	    if (FD_ISSET (STDOUT_FILENO, &writefds))
 	    {
 		/* What should we do with errors?  syslog() them?  */
@@ -3001,7 +3017,6 @@ error  \n");
 	    {
 		int status;
 		int count_read;
-		int special;
 		
 		status = buf_input_data (protocol_inbuf, &count_read);
 
@@ -3024,29 +3039,49 @@ error  \n");
 		 * have.
 		 */
 		count_needed -= count_read;
-		while (count_needed <= 0)
-		{
-		    count_needed = buf_copy_counted (buf_to_net,
+	    }
+	    /* this is still part of the protocol pipe procedure, but it is
+	     * outside the above conditional so that unprocessed data can be
+	     * left in the buffer and stderr/stdout can be read when a flush
+	     * signal is received and control can return here without passing
+	     * through the select code and maybe blocking
+	     */
+	    while (count_needed <= 0)
+	    {
+		int special = 0;
+
+		count_needed = buf_copy_counted (buf_to_net,
 						     protocol_inbuf,
 						     &special);
 
-		    /* What should we do with errors?  syslog() them?  */
-		    buf_send_output (buf_to_net);
+		/* What should we do with errors?  syslog() them?  */
+		buf_send_output (buf_to_net);
 
-		    /* If SPECIAL got set to -1, it means that the child
-		       wants us to flush the pipe.  We don't want to block
-		       on the network, but we flush what we can.  If the
-		       client supports the 'F' command, we send it.  */
-		    if (special == -1)
+		/* If SPECIAL got set to <0, it means that the child
+		 * wants us to flush the pipe & maybe stderr or stdout.
+		 *
+		 * After that we break to read stderr & stdout again before
+		 * going back to the protocol pipe
+		 *
+		 * Upon breaking, count_needed = 0, so the next pass will only
+		 * perform a non-blocking select before returning here to finish
+		 * processing data we already read from the protocol buffer
+		 */
+		 if (special == -1)
+		 {
+		     cvs_flushout();
+		     break;
+		 }
+		if (special == -2)
+		{
+		    /* If the client supports the 'F' command, we send it. */
+		    if (supported_response ("F"))
 		    {
-			if (supported_response ("F"))
-			{
-			    buf_append_char (buf_to_net, 'F');
-			    buf_append_char (buf_to_net, '\n');
-			}
-
-			cvs_flusherr ();
+			buf_append_char (buf_to_net, 'F');
+			buf_append_char (buf_to_net, '\n');
 		    }
+		    cvs_flusherr ();
+		    break;
 		}
 	    }
 
@@ -3433,6 +3468,11 @@ server_scratch (fname)
      * two different cases.  Using the last one which happens is almost
      * surely correct; I haven't tracked down why they both happen (or
      * even verified that they are for the same file).
+     *
+     * Don't know if this is what whoever wrote the above comment was
+     * talking about, but this can happen in the case where a join
+     * removes a file - the call to Register puts the '-vers' into the
+     * Entries file after the file is removed
      */
     if (entries_line != NULL)
     {
@@ -3592,6 +3632,15 @@ serve_log (arg)
 }
 
 static void
+serve_rlog (arg)
+    char *arg;
+{
+    /* Tell cvslog() to behave like rlog not log.  */
+    command_name = "rlog";
+    do_cvs_command ("rlog", cvslog);
+}
+
+static void
 serve_add (arg)
     char *arg;
 {
@@ -3630,7 +3679,9 @@ static void
 serve_rtag (arg)
     char *arg;
 {
-    do_cvs_command ("rtag", rtag);
+    /* Tell cvstag() to behave like rtag not tag.  */
+    command_name = "rtag";
+    do_cvs_command ("rtag", cvstag);
 }
 
 static void
@@ -3754,7 +3805,10 @@ serve_init (arg)
 	/* Fall through to do_cvs_command which will return the
 	   actual error.  */
     }
-    set_local_cvsroot (arg);
+
+    if (current_parsed_root != NULL)
+	free_cvsroot_t (current_parsed_root);
+    current_parsed_root = local_cvsroot (arg);
 
     do_cvs_command ("init", init);
 }
@@ -3766,6 +3820,17 @@ serve_annotate (arg)
     char *arg;
 {
     do_cvs_command ("annotate", annotate);
+}
+
+static void serve_rannotate PROTO ((char *));
+
+static void
+serve_rannotate (arg)
+    char *arg;
+{
+    /* Tell annotate() to behave like rannotate not annotate.  */
+    command_name = "rannotate";
+    do_cvs_command ("rannotate", annotate);
 }
 
 static void
@@ -4164,6 +4229,23 @@ CVS server internal error: unhandled case in server_updated");
 	output_dir (finfo->update_dir, finfo->repository);
 	buf_output0 (protocol, finfo->file);
 	buf_output (protocol, "\n", 1);
+	/* keep the vers structure up to date in case we do a join
+	 * - if there isn't a file, it can't very well have a version number, can it?
+	 *
+	 * we do it here on the assumption that since we just told the client
+	 * to remove the file/entry, it will, and we want to remember that.
+	 * If it fails, that's the client's problem, not ours
+	 */
+	if (vers && vers->vn_user != NULL)
+	{
+	    free (vers->vn_user);
+	    vers->vn_user = NULL;
+	}
+	if (vers && vers->ts_user != NULL)
+	{
+	    free (vers->ts_user);
+	    vers->ts_user = NULL;
+	}
     }
     else if (scratched_file == NULL && entries_line == NULL)
     {
@@ -4497,7 +4579,7 @@ serve_expand_modules (arg)
     for (i = 1; i < argument_count; i++)
 	err += do_module (db, argument_vector[i],
 			  CHECKOUT, "Updating", expand_proc,
-			  NULL, 0, 0, 0,
+			  NULL, 0, 0, 0, 0,
 			  (char *) NULL);
     close_module (db);
     server_expanding = 0;
@@ -4698,6 +4780,7 @@ struct request requests[] =
   REQ_LINE("update", serve_update, RQ_ESSENTIAL),
   REQ_LINE("diff", serve_diff, 0),
   REQ_LINE("log", serve_log, 0),
+  REQ_LINE("rlog", serve_rlog, 0),
   REQ_LINE("add", serve_add, 0),
   REQ_LINE("remove", serve_remove, 0),
   REQ_LINE("update-patches", serve_ignore, 0),
@@ -4719,6 +4802,7 @@ struct request requests[] =
   REQ_LINE("editors", serve_editors, 0),
   REQ_LINE("init", serve_init, RQ_ROOTLESS),
   REQ_LINE("annotate", serve_annotate, 0),
+  REQ_LINE("rannotate", serve_rannotate, 0),
   REQ_LINE("noop", serve_noop, RQ_ROOTLESS),
   REQ_LINE("version", serve_version, RQ_ROOTLESS),
   REQ_LINE(NULL, NULL, 0)
@@ -4752,7 +4836,7 @@ serve_valid_requests (arg)
     buf_flush (buf_to_net, 1);
 }
 
-#ifdef sun
+#ifdef SUNOS_KLUDGE
 /*
  * Delete temporary files.  SIG is the signal making this happen, or
  * 0 if not called as a result of a signal.
@@ -4766,7 +4850,7 @@ static void wait_sig (sig)
     if (r == command_pid)
 	command_pid_is_dead++;
 }
-#endif
+#endif /* SUNOS_KLUDGE */
 
 void
 server_cleanup (sig)
@@ -4810,7 +4894,7 @@ server_cleanup (sig)
     /* What a bogus kludge.  This disgusting code makes all kinds of
        assumptions about SunOS, and is only for a bug in that system.
        So only enable it on Suns.  */
-#ifdef sun
+#ifdef SUNOS_KLUDGE
     if (command_pid > 0)
     {
 	/* To avoid crashes on SunOS due to bugs in SunOS tmpfs
@@ -4883,7 +4967,7 @@ server_cleanup (sig)
 	    }
 	}
     }
-#endif
+#endif /* SUNOS_KLUDGE */
 
     CVS_CHDIR (Tmpdir);
     /* Temporarily clear noexec, so that we clean up our temp directory
@@ -5021,19 +5105,25 @@ error ENOMEM Virtual memory exhausted.\n");
 		pending_error = status;
 	    }
 #ifndef CHMOD_BROKEN
-	    else
+	    else if (chmod (server_temp_dir, S_IRWXU) < 0)
 	    {
-		if (chmod (server_temp_dir, S_IRWXU) < 0)
-		{
-		    int save_errno = errno;
-		    if (alloc_pending (80 + strlen (server_temp_dir)))
-			sprintf (pending_error_text,
+		int save_errno = errno;
+		if (alloc_pending (80 + strlen (server_temp_dir)))
+		    sprintf (pending_error_text,
 "E cannot change permissions on temporary directory %s",
-				server_temp_dir);
-		    pending_error = save_errno;
-		}
+			     server_temp_dir);
+		pending_error = save_errno;
 	    }
 #endif
+	    else if (CVS_CHDIR (server_temp_dir) < 0)
+	    {
+		int save_errno = errno;
+		if (alloc_pending (80 + strlen (server_temp_dir)))
+		    sprintf (pending_error_text,
+"E cannot change to temporary directory %s",
+			     server_temp_dir);
+		pending_error = save_errno;
+	    }
 	}
     }
 
@@ -5129,7 +5219,7 @@ error ENOMEM Virtual memory exhausted.\n");
 		    continue;
 
 		if (!(rq->flags & RQ_ROOTLESS)
-		    && CVSroot_directory == NULL)
+		    && current_parsed_root == NULL)
 		{
 		    /* For commands which change the way in which data
 		       is sent and received, for example Gzip-stream,
@@ -5263,10 +5353,10 @@ error 0 %s: no such user\n", username);
 #endif
       
 #if HAVE_PUTENV
-    /* Set LOGNAME and USER in the environment, in case they are
-       already set to something else.  */
+    /* Set LOGNAME, USER and CVS_USER in the environment, in case they
+       are already set to something else.  */
     {
-	char *env;
+	char *env, *cvs_user;
 
 	env = xmalloc (sizeof "LOGNAME=" + strlen (username));
 	(void) sprintf (env, "LOGNAME=%s", username);
@@ -5275,6 +5365,11 @@ error 0 %s: no such user\n", username);
 	env = xmalloc (sizeof "USER=" + strlen (username));
 	(void) sprintf (env, "USER=%s", username);
 	(void) putenv (env);
+
+        cvs_user = NULL != CVS_Username ? CVS_Username : "";
+        env = xmalloc (sizeof "CVS_USER=" + strlen (cvs_user));
+        (void) sprintf (env, "CVS_USER=%s", cvs_user);
+        (void) putenv (env);
     }
 #endif /* HAVE_PUTENV */
 }
@@ -5309,7 +5404,7 @@ check_repository_password (username, password, repository, host_user_ptr)
     int found_it = 0;
     int namelen;
 
-    /* We don't use CVSroot_directory because it hasn't been set yet
+    /* We don't use current_parsed_root->directory because it hasn't been set yet
      * -- our `repository' argument came from the authentication
      * protocol, not the regular CVS protocol.
      */
@@ -5642,8 +5737,13 @@ pserver_authenticate_connection ()
     {
 	int on = 1;
 
-	(void) setsockopt (STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE,
-			   (char *) &on, sizeof on);
+	if (setsockopt (STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE,
+			   (char *) &on, sizeof on) < 0)
+	{
+#ifdef HAVE_SYSLOG_H
+	    syslog (LOG_DAEMON | LOG_ERR, "error setting KEEPALIVE: %m");
+#endif
+	}
     }
 #endif
 
@@ -5699,13 +5799,13 @@ pserver_authenticate_connection ()
 	error (1, 0, "bad auth protocol end: %s", tmp);
     }
     if (!root_allow_ok (repository))
-	/* Just give a generic I HATE YOU.  This is because CVS 1.9.10
-	   and older clients do not support "error".  Once more recent
-	   clients are more widespread, probably want to fix this (it is
-	   a real pain to track down why it isn't letting you in if it
-	   won't say why, and I am not convinced that the potential
-	   information disclosure to an attacker outweighs this).  */
+    {
+	printf ("error 0 %s: no such repository\n", repository);
+#ifdef HAVE_SYSLOG_H
+	syslog (LOG_DAEMON | LOG_NOTICE, "login refused for %s", repository);
+#endif
 	goto i_hate_you;
+    }
 
     /* OK, now parse the config file, so we can use it to control how
        to check passwords.  If there was an error parsing the config
@@ -5721,6 +5821,13 @@ pserver_authenticate_connection ()
     free (descrambled_password);
     if (host_user == NULL)
     {
+#ifdef HAVE_SYSLOG_H
+	syslog (LOG_DAEMON | LOG_NOTICE, "login failure (for %s)", repository);
+#ifdef LOG_AUTHPRIV
+        syslog (LOG_AUTHPRIV | LOG_NOTICE, "login failure by %s / %s (for %s)",
+        	username, descrambled_password, repository);
+#endif
+#endif
     i_hate_you:
 	printf ("I HATE YOU\n");
 	fflush (stdout);
@@ -5802,8 +5909,13 @@ error %s getpeername or getsockname failed\n", strerror (errno));
     {
 	int on = 1;
 
-	(void) setsockopt (STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE,
-			   (char *) &on, sizeof on);
+	if (setsockopt (STDIN_FILENO, SOL_SOCKET, SO_KEEPALIVE,
+			   (char *) &on, sizeof on) < 0)
+	{
+#ifdef HAVE_SYSLOG_H
+	    syslog (LOG_DAEMON | LOG_ERR, "error setting KEEPALIVE: %m");
+#endif
+	}
     }
 #endif
 
@@ -6399,13 +6511,20 @@ cvs_flusherr ()
 #ifdef SERVER_SUPPORT
     if (error_use_protocol)
     {
+	/* skip the actual stderr flush in this case since the parent process
+	 * on the server should only be writing to stdout anyhow
+	 */
 	/* Flush what we can to the network, but don't block.  */
 	buf_flush (buf_to_net, 0);
     }
     else if (server_active)
     {
+	/* make sure stderr is flushed before we send the flush count on the
+	 * protocol pipe
+	 */ 
+	fflush (stderr);
 	/* Send a special count to tell the parent to flush.  */
-	buf_send_special_count (protocol, -1);
+	buf_send_special_count (protocol, -2);
     }
     else
 #endif
@@ -6431,7 +6550,13 @@ cvs_flushout ()
 	   cvs_flushout replaces, setting stdout to line buffering in
 	   main.c, didn't get called in the server child process.  But
 	   in the future it is quite plausible that we'll want to make
-	   this case work analogously to cvs_flusherr.  */
+	   this case work analogously to cvs_flusherr.
+	 
+	   FIXME - DRP - I tried to implement this and triggered the following
+	   error: "Protocol error: uncounted data discarded".  I don't need
+	   this feature right now, so I'm not going to bother with it yet.
+	 */
+	buf_send_special_count (protocol, -1);
     }
     else
 #endif
