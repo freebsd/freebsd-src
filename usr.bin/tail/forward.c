@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -42,6 +44,7 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/event.h>
 
 #include <limits.h>
 #include <fcntl.h>
@@ -54,6 +57,11 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 static void rlines __P((FILE *, long, struct stat *));
+
+/* defines for inner loop actions */
+#define USE_SLEEP	0
+#define USE_KQUEUE	1
+#define ADD_EVENTS	2
 
 /*
  * forward -- display the file, from an offset, forward.
@@ -84,8 +92,9 @@ forward(fp, style, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	register int ch;
-	struct timeval interval;
+	int ch, kq = -1;
+	int action = USE_SLEEP;
+	struct kevent ev[2];
 	struct stat sb2;
 
 	switch(style) {
@@ -161,10 +170,12 @@ forward(fp, style, off, sbp)
 		break;
 	}
 
-	/*
-	 * We pause for 1/4 second after displaying any data that has
-	 * accumulated since we read the file.
-	 */
+	if (fflag) {
+		kq = kqueue();
+		if (kq < 0)
+			err(1, "kqueue");
+		action = ADD_EVENTS;
+	}
 
 	for (;;) {
 		while ((ch = getc(fp)) != EOF)
@@ -175,25 +186,74 @@ forward(fp, style, off, sbp)
 			return;
 		}
 		(void)fflush(stdout);
-		if (!fflag)
+		if (! fflag)
 			break;
-
-		(void) usleep(250000);
 		clearerr(fp);
 
-		if (Fflag && fileno(fp) != STDIN_FILENO &&
-		    stat(fname, &sb2) != -1) {
-			if (sb2.st_ino != sbp->st_ino ||
-			    sb2.st_dev != sbp->st_dev ||
-			    sb2.st_rdev != sbp->st_rdev ||
-			    sb2.st_nlink == 0) {
-				fp = freopen(fname, "r", fp);
-				if (fp == NULL) {
-					ierr();
-					break;
-				}
-				*sbp = sb2;
+		switch (action) {
+		case ADD_EVENTS: {
+			int n = 0;
+			struct timespec ts = { 0, 0 };
+
+			if (Fflag && fileno(fp) != STDIN_FILENO) {
+				ev[n].ident = fileno(fp);
+				ev[n].filter = EVFILT_VNODE;
+				ev[n].flags = EV_ADD | EV_ENABLE | EV_CLEAR;
+				ev[n].fflags = NOTE_DELETE | NOTE_RENAME;
+				n++;
 			}
+			ev[n].ident = fileno(fp);
+			ev[n].filter = EVFILT_READ;
+			ev[n].flags = EV_ADD | EV_ENABLE;
+			n++;
+
+			if (kevent(kq, ev, n, NULL, 0, &ts) < 0) {
+				close(kq);
+				kq = -1;
+				action = USE_SLEEP;
+			} else {
+				action = USE_KQUEUE;
+			}
+			break;
+		}
+
+		case USE_KQUEUE:
+			if (kevent(kq, NULL, 0, ev, 1, NULL) < 0)
+				err(1, "kevent");
+
+			if (ev->filter == EVFILT_VNODE) {
+				/* file was rotated, wait until it reappears */
+				action = USE_SLEEP;
+			} else if (ev->data < 0) {
+				/* file shrank, reposition to end */
+				if (fseek(fp, 0L, SEEK_END) == -1) {
+					ierr();
+					return;
+				}
+			}
+			break;
+
+		case USE_SLEEP:
+                	(void) usleep(250000);
+	                clearerr(fp);
+
+			if (Fflag && fileno(fp) != STDIN_FILENO &&
+			    stat(fname, &sb2) != -1) {
+				if (sb2.st_ino != sbp->st_ino ||
+				    sb2.st_dev != sbp->st_dev ||
+				    sb2.st_rdev != sbp->st_rdev ||
+				    sb2.st_nlink == 0) {
+					fp = freopen(fname, "r", fp);
+					if (fp == NULL) {
+						ierr();
+						break;
+					}
+					*sbp = sb2;
+					if (kq != -1)
+						action = ADD_EVENTS;
+				}
+			}
+			break;
 		}
 	}
 }
