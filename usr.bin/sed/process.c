@@ -491,7 +491,11 @@ lputs(s)
 		if (isprint((unsigned char)*s) && *s != '\\') {
 			(void)putchar(*s);
 			count++;
-		} else if (*s != '\n') {
+		} else if (*s == '\n') {
+			(void)putchar('$');
+			(void)putchar('\n');
+			count = 0;
+		} else {
 			escapes = "\\\a\b\f\r\t\v";
 			(void)putchar('\\');
 			if ((p = strchr(escapes, *s))) {
