@@ -360,6 +360,9 @@ substitute(cp)
 				s += match[0].rm_eo;
 				slen -= match[0].rm_eo;
 				lastempty = 0;
+			} else if (match[0].rm_so == slen) {
+				s += match[0].rm_so;
+				slen = 0;
 			} else {
 				if (match[0].rm_so == 0)
 					cspace(&SS, s, match[0].rm_so + 1,
