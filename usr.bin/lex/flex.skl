@@ -26,7 +26,8 @@
 
 #include <stdlib.h>
 %+
-class istream;
+#include <iosfwd>
+using namespace std;
 %*
 #include <unistd.h>
 
