@@ -47,6 +47,12 @@ fetchGetFile(struct url *u, char *flags)
     
     if (f == NULL)
 	_fetch_syserr();
+
+    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+	fclose(f);
+	_fetch_syserr();
+    }
+    
     return f;
 }
 
@@ -58,10 +64,16 @@ fetchPutFile(struct url *u, char *flags)
     if (flags && strchr(flags, 'a'))
 	f = fopen(u->doc, "a");
     else
-	f = fopen(u->doc, "w");
+	f = fopen(u->doc, "w+");
     
     if (f == NULL)
 	_fetch_syserr();
+    
+    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+	fclose(f);
+	_fetch_syserr();
+    }
+    
     return f;
 }
 
