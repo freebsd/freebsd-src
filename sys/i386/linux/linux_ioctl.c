@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.20 1997/07/20 16:05:59 bde Exp $
+ *  $Id: linux_ioctl.c,v 1.21 1997/11/06 19:28:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -661,6 +661,22 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	}
 	return copyout(&linux_line, (caddr_t)args->arg, 
 		       sizeof(int));
+
+    case LINUX_SNDCTL_DSP_GETOPTR :
+	args->cmd = SNDCTL_DSP_GETOPTR;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_DSP_GETIPTR :
+	args->cmd = SNDCTL_DSP_GETIPTR;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_DSP_SETTRIGGER:
+	args->cmd = SNDCTL_DSP_SETTRIGGER;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_DSP_GETCAPS:
+	args->cmd = SNDCTL_DSP_GETCAPS;
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_RESET:
 	args->cmd = SNDCTL_DSP_RESET;
