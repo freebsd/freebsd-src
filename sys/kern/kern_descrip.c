@@ -1315,7 +1315,7 @@ fdopen(dev, mode, type, p)
 	 * actions in dupfdopen below. Other callers of vn_open or VOP_OPEN
 	 * will simply report the error.
 	 */
-	p->p_dupfd = minor(dev);
+	p->p_dupfd = dev2unit(dev);
 	return (ENODEV);
 }
 
@@ -1478,6 +1478,13 @@ fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	if (u <= 2)
 		return;
+	/* Don't clone higher than it makes sense */
+	if (u >= maxfilesperproc)
+		return;
+	/* And don't clone higher than our minors will support */
+	if (u > 0xffffff)
+		return;
+	u = unit2minor(u);
 	*dev = make_dev(&fildesc_cdevsw, u, UID_BIN, GID_BIN, 0666, name);
 	return;
 }
