@@ -93,14 +93,14 @@ void	mac_destroy_label(struct label *label);
 int	mac_check_structmac_consistent(struct mac *mac);
 int	mac_allocate_slot(void);
 
-/* 
+/*
  * MAC Framework per-object type functions.  It's not yet clear how
  * the namespaces, etc, should work for these, so for now, sort by
  * object type.
  */
 int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
 void	mac_destroy_cred_label(struct label *label);
-int	mac_externalize_cred_label(struct label *label, char *elements, 
+int	mac_externalize_cred_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 void	mac_init_cred_label(struct label *label);
 int	mac_internalize_cred_label(struct label *label, char *string);
