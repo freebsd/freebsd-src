@@ -160,10 +160,12 @@ brk_string(char *str, int *store_argc, Boolean expand)
 		case '"':
 		case '\'':
 			if (inquote) {
-				if (ch == inquote)
-					inquote = '\0';
-				else
+				if (ch != inquote)
 					break;
+				inquote = '\0';
+				/* Don't miss "" or '' */
+				if (!start)
+					start = t;
 			} else
 				inquote = (char) ch;
 			if (expand)
