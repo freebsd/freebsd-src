@@ -5,7 +5,7 @@ GREP_LIBZ=YES
 PROG=	grep
 SRCS=   dfa.c grep.c kwset.c obstack.c savedir.c search.c
 
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../../../../include/gnu -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
 
 LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
