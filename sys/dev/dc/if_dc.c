@@ -1943,7 +1943,7 @@ static int dc_attach(dev)
 	case DC_DEVICEID_X3201:
 		sc->dc_type = DC_TYPE_XIRCOM;
 		sc->dc_flags |= DC_TX_INTR_ALWAYS | DC_TX_COALESCE |
-				DC_TX_ALIGN ;
+				DC_TX_ALIGN;
 		/*
 		 * We don't actually need to coalesce, but we're doing
 		 * it to obtain a double word aligned buffer.
@@ -2799,7 +2799,7 @@ static poll_handler_t dc_poll;
 static void
 dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct  dc_softc *sc = ifp->if_softc;
+	struct	dc_softc *sc = ifp->if_softc;
 
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		/* Re-enable interrupts. */
@@ -2820,11 +2820,11 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			DC_ISR_TX_NOBUF|DC_ISR_TX_IDLE|DC_ISR_TX_UNDERRUN|
 			DC_ISR_BUS_ERR);
 		if (!status)
-			return ;
+			return;
 		/* ack what we have */
 		CSR_WRITE_4(sc, DC_ISR, status);
 
-		if (status & (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF) ) {
+		if (status & (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF)) {
 			u_int32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
 			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
 
@@ -2856,8 +2856,8 @@ static void dc_intr(arg)
 
 	sc = arg;
 
-	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
-		return ;
+	if ((CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
+		return;
 
 	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
@@ -3070,7 +3070,7 @@ static void dc_start(ifp)
 
 		if (sc->dc_flags & DC_TX_COALESCE &&
 		    (m_head->m_next != NULL ||
-		     sc->dc_flags & DC_TX_ALIGN) ) {
+		     sc->dc_flags & DC_TX_ALIGN)) {
 			if (dc_coal(sc, &m_head)) {
 				IF_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_flags |= IFF_OACTIVE;
