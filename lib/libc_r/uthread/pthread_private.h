@@ -75,12 +75,6 @@ struct pthread_queue {
 /* 
  * Mutex definitions.
  */
-enum pthread_mutextype {
-	MUTEX_TYPE_FAST		= 1,
-	MUTEX_TYPE_COUNTING_FAST	= 2,	/* Recursive */
-	MUTEX_TYPE_MAX
-};
-
 union pthread_mutex_data {
 	void	*m_ptr;
 	int	m_count;
@@ -507,6 +501,14 @@ SCLASS struct pthread_attr pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = { SCHED_RR, PTHREAD_DEFAULT_PRIORITY, PTHREAD_CREATE_RUNNING,
 	PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL, PTHREAD_STACK_DEFAULT };
+#else
+;
+#endif
+
+/* Default thread attributes: */
+SCLASS struct pthread_mutex_attr pthread_mutexattr_default
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= { MUTEX_TYPE_FAST, 0 };
 #else
 ;
 #endif
