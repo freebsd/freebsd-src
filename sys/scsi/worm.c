@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.20 1996/01/27 17:48:12 joerg Exp $
+ *      $Id: worm.c,v 1.21 1996/01/28 09:56:04 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -144,7 +144,7 @@ static	d_open_t	wormopen;
 static	d_close_t	wormclose;
 static	d_ioctl_t	wormioctl;
 static	d_strategy_t	wormstrategy;
-static	void		worminit (void);
+void			worminit (void);
 
 #define CDEV_MAJOR 62
 static struct cdevsw worm_cdevsw = 
@@ -383,6 +383,11 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 		return;
 	}
 
+	/*
+	 * check it's not too big a transfer for our adapter
+	 */
+        wormminphys(bp);
+
 	opri = splbio();
 
 	/*
@@ -498,7 +503,6 @@ static int
 worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	   struct scsi_link *sc_link)
 {
-	errval error;
 	struct scsi_data *worm = sc_link->sd;
 
 	scsi_stop_unit(sc_link, 0, SCSI_SILENT);
@@ -752,7 +756,6 @@ rf4100_prepare_disk(struct scsi_link *sc_link, int dummy, int speed)
 		struct plasmon_rf4100_pages page;
 	} dat;
 	u_int32 pagelen, dat_len;
-	struct scsi_data *worm = sc_link->sd;
 
 	pagelen = sizeof(dat.page.pages.page_0x23) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header) + pagelen;
@@ -799,7 +802,6 @@ rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 		struct plasmon_rf4100_pages page;
 	} dat;
 	u_int32 pagelen, dat_len, blk_len;
-	struct scsi_data *worm = sc_link->sd;
 
 	pagelen = sizeof(dat.page.pages.page_0x21) + PAGE_HEADERLEN;
 	dat_len = sizeof(struct scsi_mode_header)
@@ -862,7 +864,6 @@ rf4100_prepare_track(struct scsi_link *sc_link, int audio, int preemp)
 static errval
 rf4100_finalize_track(struct scsi_link *sc_link)
 {
-	struct scsi_data *worm = sc_link->sd;
 	struct scsi_synchronize_cache cmd;
 	
 	SC_DEBUG(sc_link, SDEV_DB2, ("rf4100_finalize_track"));
@@ -887,7 +888,6 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 static errval
 rf4100_finalize_disk(struct scsi_link *sc_link, int toc_type, int onp)
 {
-	struct scsi_data *worm = sc_link->sd;
 	struct scsi_fixation cmd;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("rf4100_finalize_disk"));
