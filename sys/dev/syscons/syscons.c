@@ -176,6 +176,7 @@ static int finish_vt_rel(scr_stat *scp, int release, int *s);
 static int finish_vt_acq(scr_stat *scp);
 static void exchange_scr(sc_softc_t *sc);
 static void update_cursor_image(scr_stat *scp);
+static void change_cursor_shape(scr_stat *scp, int flags, int base, int height);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
@@ -697,26 +698,29 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	splx(s);
 	return 0;
 
-    case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
+    case CONS_CURSORTYPE:   	/* set cursor type (obsolete) */
 	s = spltty();
-	if (!ISGRAPHSC(sc->cur_scp))
-	    sc_remove_cursor_image(sc->cur_scp);
-	if ((*(int*)data) & 0x01)
-	    sc->flags |= SC_BLINK_CURSOR;
-	else
-	    sc->flags &= ~SC_BLINK_CURSOR;
-	if ((*(int*)data) & 0x02) {
-	    sc->flags |= SC_CHAR_CURSOR;
-	} else
-	    sc->flags &= ~SC_CHAR_CURSOR;
-	/* 
-	 * The cursor shape is global property; all virtual consoles
-	 * are affected. Update the cursor in the current console...
-	 */
-	if (!ISGRAPHSC(sc->cur_scp)) {
-	    sc_set_cursor_image(sc->cur_scp);
-	    sc_draw_cursor_image(sc->cur_scp);
+	*(int *)data &= CONS_CURSOR_ATTRS;
+	sc_change_cursor_shape(scp, *(int *)data, -1, -1);
+	splx(s);
+	return 0;
+
+    case CONS_GETCURSORSHAPE:   /* get cursor shape (new interface) */
+	if (((int *)data)[0] & CONS_LOCAL_CURSOR) {
+	    ((int *)data)[0] = scp->curr_curs_attr.flags;
+	    ((int *)data)[1] = scp->curr_curs_attr.base;
+	    ((int *)data)[2] = scp->curr_curs_attr.height;
+	} else {
+	    ((int *)data)[0] = sc->curs_attr.flags;
+	    ((int *)data)[1] = sc->curs_attr.base;
+	    ((int *)data)[2] = sc->curs_attr.height;
 	}
+	return 0;
+
+    case CONS_SETCURSORSHAPE:   /* set cursor shape (new interface) */
+	s = spltty();
+	sc_change_cursor_shape(scp, ((int *)data)[0],
+	    ((int *)data)[1], ((int *)data)[2]);
 	splx(s);
 	return 0;
 
@@ -1791,7 +1795,7 @@ scrn_update(scr_stat *scp, int show_cursor)
             if (and_region(&s, &e, scp->cursor_pos, scp->cursor_pos))
 		/* cursor didn't move, but has been overwritten */
 		sc_draw_cursor_image(scp);
-	    else if (scp->sc->flags & SC_BLINK_CURSOR)
+	    else if (scp->curs_attr.flags & CONS_BLINK_CURSOR)
 		/* if it's a blinking cursor, update it */
 		(*scp->rndr->blink_cursor)(scp, scp->cursor_pos,
 					   sc_inside_cutmark(scp,
@@ -2408,7 +2412,7 @@ sc_draw_cursor_image(scr_stat *scp)
     /* assert(scp == scp->sc->cur_scp); */
     ++scp->sc->videoio_in_progress;
     (*scp->rndr->draw_cursor)(scp, scp->cursor_pos,
-			      scp->sc->flags & SC_BLINK_CURSOR, TRUE,
+			      scp->curs_attr.flags & CONS_BLINK_CURSOR, TRUE,
 			      sc_inside_cutmark(scp, scp->cursor_pos));
     scp->cursor_oldpos = scp->cursor_pos;
     --scp->sc->videoio_in_progress;
@@ -2420,7 +2424,7 @@ sc_remove_cursor_image(scr_stat *scp)
     /* assert(scp == scp->sc->cur_scp); */
     ++scp->sc->videoio_in_progress;
     (*scp->rndr->draw_cursor)(scp, scp->cursor_oldpos,
-			      scp->sc->flags & SC_BLINK_CURSOR, FALSE,
+			      scp->curs_attr.flags & CONS_BLINK_CURSOR, FALSE,
 			      sc_inside_cutmark(scp, scp->cursor_oldpos));
     --scp->sc->videoio_in_progress;
 }
@@ -2428,43 +2432,96 @@ sc_remove_cursor_image(scr_stat *scp)
 static void
 update_cursor_image(scr_stat *scp)
 {
-    int blink;
-
-    if (scp->sc->flags & SC_CHAR_CURSOR) {
-	scp->cursor_base = imax(0, scp->sc->cursor_base);
-	scp->cursor_height = imin(scp->sc->cursor_height, scp->font_size);
-    } else {
-	scp->cursor_base = 0;
-	scp->cursor_height = scp->font_size;
-    }
-    blink = scp->sc->flags & SC_BLINK_CURSOR;
-
     /* assert(scp == scp->sc->cur_scp); */
-    ++scp->sc->videoio_in_progress;
-    (*scp->rndr->draw_cursor)(scp, scp->cursor_oldpos, blink, FALSE, 
-			      sc_inside_cutmark(scp, scp->cursor_pos));
-    (*scp->rndr->set_cursor)(scp, scp->cursor_base, scp->cursor_height, blink);
-    (*scp->rndr->draw_cursor)(scp, scp->cursor_pos, blink, TRUE, 
-			      sc_inside_cutmark(scp, scp->cursor_pos));
-    --scp->sc->videoio_in_progress;
+    sc_remove_cursor_image(scp);
+    sc_set_cursor_image(scp);
+    sc_draw_cursor_image(scp);
 }
 
 void
 sc_set_cursor_image(scr_stat *scp)
 {
-    if (scp->sc->flags & SC_CHAR_CURSOR) {
-	scp->cursor_base = imax(0, scp->sc->cursor_base);
-	scp->cursor_height = imin(scp->sc->cursor_height, scp->font_size);
-    } else {
-	scp->cursor_base = 0;
-	scp->cursor_height = scp->font_size;
+    scp->curs_attr.flags = scp->curr_curs_attr.flags;
+    if (scp->curs_attr.flags & CONS_HIDDEN_CURSOR) {
+	/* hidden cursor is internally represented as zero-height underline */
+	scp->curs_attr.flags = CONS_CHAR_CURSOR;
+	scp->curs_attr.base = scp->curs_attr.height = 0;
+    } else if (scp->curs_attr.flags & CONS_CHAR_CURSOR) {
+	scp->curs_attr.base = imin(scp->curr_curs_attr.base,
+				  scp->font_size - 1);
+	scp->curs_attr.height = imin(scp->curr_curs_attr.height,
+				    scp->font_size - scp->curs_attr.base);
+    } else {	/* block cursor */
+	scp->curs_attr.base = 0;
+	scp->curs_attr.height = scp->font_size;
     }
 
     /* assert(scp == scp->sc->cur_scp); */
     ++scp->sc->videoio_in_progress;
-    (*scp->rndr->set_cursor)(scp, scp->cursor_base, scp->cursor_height,
-			     scp->sc->flags & SC_BLINK_CURSOR);
+    (*scp->rndr->set_cursor)(scp, scp->curs_attr.base, scp->curs_attr.height,
+			     scp->curs_attr.flags & CONS_BLINK_CURSOR);
     --scp->sc->videoio_in_progress;
+}
+
+static void
+change_cursor_shape(scr_stat *scp, int flags, int base, int height)
+{
+    if ((scp == scp->sc->cur_scp) && !ISGRAPHSC(scp))
+	sc_remove_cursor_image(scp);
+
+    if (base >= 0)
+	scp->curr_curs_attr.base = base;
+    if (height >= 0)
+	scp->curr_curs_attr.height = height;
+    if (flags & CONS_RESET_CURSOR)
+	scp->curr_curs_attr = scp->dflt_curs_attr;
+    else
+	scp->curr_curs_attr.flags = flags & CONS_CURSOR_ATTRS;
+
+    if ((scp == scp->sc->cur_scp) && !ISGRAPHSC(scp)) {
+	sc_set_cursor_image(scp);
+	sc_draw_cursor_image(scp);
+    }
+}
+
+void
+sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
+{
+    sc_softc_t *sc;
+    dev_t dev;
+    int s;
+    int i;
+
+    s = spltty();
+    if ((flags != -1) && (flags & CONS_LOCAL_CURSOR)) {
+	/* local (per vty) change */
+	change_cursor_shape(scp, flags, base, height);
+	splx(s);
+	return;
+    }
+
+    /* global change */
+    sc = scp->sc;
+    if (base >= 0)
+	sc->curs_attr.base = base;
+    if (height >= 0)
+	sc->curs_attr.height = height;
+    if (flags != -1) {
+	if (flags & CONS_RESET_CURSOR)
+	    sc->curs_attr = sc->dflt_curs_attr;
+	else
+	    sc->curs_attr.flags = flags & CONS_CURSOR_ATTRS;
+    }
+
+    for (i = sc->first_vty; i < sc->first_vty + sc->vtys; ++i) {
+	if ((dev = SC_DEV(sc, i)) == NODEV)
+	    continue;
+	if ((scp = SC_STAT(dev)) == NULL)
+	    continue;
+	scp->dflt_curs_attr = sc->curs_attr;
+	change_cursor_shape(scp, CONS_RESET_CURSOR, -1, -1);
+    }
+    splx(s);
 }
 
 static void
@@ -2595,12 +2652,18 @@ scinit(int unit, int flags)
 	scp->xpos = col;
 	scp->ypos = row;
 	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
+
 	if (bios_value.cursor_end < scp->font_size)
-	    sc->cursor_base = scp->font_size - bios_value.cursor_end - 1;
+	    sc->dflt_curs_attr.base = scp->font_size - 
+					  bios_value.cursor_end - 1;
 	else
-	    sc->cursor_base = 0;
+	    sc->dflt_curs_attr.base = 0;
 	i = bios_value.cursor_end - bios_value.cursor_start + 1;
-	sc->cursor_height = imin(i, scp->font_size);
+	sc->dflt_curs_attr.height = imin(i, scp->font_size);
+	sc->dflt_curs_attr.flags = 0;
+	sc->curs_attr = sc->dflt_curs_attr;
+	scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
+
 #ifndef SC_NO_SYSMOUSE
 	sc_mouse_move(scp, scp->xpixel/2, scp->ypixel/2);
 #endif
@@ -2868,8 +2931,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->ts = NULL;
     scp->rndr = NULL;
     scp->border = BG_BLACK;
-    scp->cursor_base = sc->cursor_base;
-    scp->cursor_height = imin(sc->cursor_height, scp->font_size);
+    scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
     scp->mouse_cut_start = scp->xsize*scp->ysize;
     scp->mouse_cut_end = -1;
     scp->mouse_signal = 0;
