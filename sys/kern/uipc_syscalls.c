@@ -1677,13 +1677,15 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct vnode *vp;
 	struct vm_object *obj;
 	struct socket *so = NULL;
-	struct mbuf *m;
+	struct mbuf *m, *m_header = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
+	struct uio hdr_uio;
 	off_t off, xfsize, hdtr_size, sbytes = 0;
-	int error, s;
+	int error, s, headersize = 0, headersent = 0;
+	struct iovec *hdr_iov = NULL;
 
 	mtx_lock(&Giant);
 
@@ -1731,19 +1733,25 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		if (error)
 			goto done;
 		/*
-		 * Send any headers. Wimp out and use writev(2).
+		 * Send any headers.
 		 */
 		if (hdtr.headers != NULL) {
-			nuap.fd = uap->s;
-			nuap.iovp = hdtr.headers;
-			nuap.iovcnt = hdtr.hdr_cnt;
-			error = writev(td, &nuap);
+			hdr_uio.uio_td = td;
+			hdr_uio.uio_rw = UIO_WRITE;
+			error = iov_to_uio(hdtr.headers, hdtr.hdr_cnt,
+				&hdr_uio);
 			if (error)
 				goto done;
-			if (compat)
-				sbytes += td->td_retval[0];
-			else
-				hdtr_size += td->td_retval[0];
+			/* Cache hdr_iov, m_uiotombuf may change it. */
+			hdr_iov = hdr_uio.uio_iov;
+			if (hdr_uio.uio_resid > 0) {
+				m_header = m_uiotombuf(&hdr_uio, M_DONTWAIT, 0);
+				if (m_header == NULL)
+					goto done;
+				headersize = m_header->m_pkthdr.len;
+				if (compat)
+					sbytes += headersize;
+			}
 		}
 	}
 
@@ -1901,7 +1909,10 @@ retry_lookup:
 		/*
 		 * Get an mbuf header and set it up as having external storage.
 		 */
-		MGETHDR(m, M_TRYWAIT, MT_DATA);
+		if (m_header)
+			MGET(m, M_TRYWAIT, MT_DATA);
+		else
+			MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			sf_buf_free((void *)sf_buf_kva(sf), sf);
@@ -1915,6 +1926,14 @@ retry_lookup:
 		    EXT_SFBUF);
 		m->m_data = (char *)sf_buf_kva(sf) + pgoff;
 		m->m_pkthdr.len = m->m_len = xfsize;
+
+		if (m_header) {
+			m_cat(m_header, m);
+			m = m_header;
+			m_header = NULL;
+			m_fixhdr(m);
+		}
+
 		/*
 		 * Add the buffer to the socket buffer chain.
 		 */
@@ -1976,6 +1995,7 @@ retry_space:
 			sbunlock(&so->so_snd);
 			goto done;
 		}
+		headersent = 1;
 	}
 	sbunlock(&so->so_snd);
 
@@ -1996,6 +2016,13 @@ retry_space:
 	}
 
 done:
+	if (headersent) {
+		if (!compat)
+			hdtr_size += headersize;
+	} else {
+		if (compat)
+			sbytes -= headersize;
+	}
 	/*
 	 * If there was no error we have to clear td->td_retval[0]
 	 * because it may have been set by writev.
@@ -2012,6 +2039,10 @@ done:
 		vrele(vp);
 	if (so)
 		fputsock(so);
+	if (hdr_iov)
+		FREE(hdr_iov, M_IOV);
+	if (m_header)
+		m_freem(m_header);
 
 	mtx_unlock(&Giant);
 
