@@ -671,6 +671,7 @@ create_init(const void *udata __unused)
 	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);
 	crfree(oldcred);
+	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
 	mtx_lock_spin(&sched_lock);
 	initproc->p_sflag |= PS_INMEM;
 	mtx_unlock_spin(&sched_lock);
