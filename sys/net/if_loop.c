@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.35 1998/06/14 20:58:15 julian Exp $
+ * $Id: if_loop.c,v 1.36 1998/06/14 23:53:43 julian Exp $
  */
 
 /*
@@ -216,8 +216,19 @@ if_simloop(ifp, m, dst, hlen)
 #endif
 
 	/* Strip away media header */
-	if (hlen > 0)
+	if (hlen > 0) {
+#ifdef __alpha__
+		/* The alpha doesn't like unaligned data.
+		 * We move data down in the first mbuf */
+		if (hlen & 3) {
+			bcopy(m->m_data + hlen, m->m_data, m->m_len - hlen);
+			m->m_len -= hlen;
+			if (m->m_flags & M_PKTHDR)
+				m->m_pkthdr.len -= hlen;
+		} else
+#endif
 		m_adj(m, hlen);
+	}
 
 	switch (dst->sa_family) {
 #ifdef INET
