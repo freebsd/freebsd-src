@@ -122,7 +122,6 @@ MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 NDGBPORTS	opt_dgb.h
 NSWBUF_MIN	opt_swap.h
-NTIMECOUNTER	opt_ntp.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 PPS_SYNC	opt_ntp.h
 PUC_FASTINTR	opt_puc.h
@@ -345,7 +344,6 @@ IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
-IPFIREWALL_FORWARD		opt_ipfw.h
 IPV6FIREWALL		opt_ip6fw.h
 IPV6FIREWALL_VERBOSE	opt_ip6fw.h
 IPV6FIREWALL_VERBOSE_LIMIT	opt_ip6fw.h
@@ -427,8 +425,6 @@ ATM_UNI			opt_atm.h
 # This makes "atm.h" unusable.
 NATM
 
-DPT_ALLOW_MEMIO		opt_dpt.h	# Allow PCI devices to use memory
-					# mapped I/O
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
 DPT_HANDLE_TIMEOUTS	opt_dpt.h
@@ -553,23 +549,12 @@ UART_PPS_ON_CTS		opt_uart.h
 BUS_DEBUG		opt_bus.h
 
 # options for USB support
-UHCI_DEBUG		opt_usb.h
-OHCI_DEBUG		opt_usb.h
 USB_DEBUG		opt_usb.h
-UGEN_DEBUG		opt_usb.h
-UHID_DEBUG		opt_usb.h
-UHUB_DEBUG		opt_usb.h
-UKBD_DEBUG		opt_usb.h
-ULPT_DEBUG		opt_usb.h
-UMASS_DEBUG		opt_usb.h
-UMS_DEBUG		opt_usb.h
-URIO_DEBUG		opt_usb.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
-VINUM_AUTOSTART		opt_vinum.h
 
 # Embedded system options
 INIT_PATH		opt_init_path.h
@@ -633,7 +618,6 @@ UBSEC_NO_RNG		opt_ubsec.h
 # options for hifn driver
 HIFN_DEBUG		opt_hifn.h
 HIFN_RNDTEST		opt_hifn.h
-HIFN_NO_RNG		opt_hifn.h
 
 # options for safenet driver
 SAFE_DEBUG		opt_safe.h
