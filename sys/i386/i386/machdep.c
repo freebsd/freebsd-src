@@ -2808,13 +2808,13 @@ ioapic_set_nmi(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_polarity(void *cookie, u_int pin, char activehi)
+ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 {
 	return (ENXIO);
 }
 
 int
-ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger)
+ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 {
 	return (ENXIO);
 }
@@ -2836,13 +2836,13 @@ lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode)
 }
 
 int
-lapic_set_lvt_polarity(u_int apic_id, u_int lvt, u_char activehi)
+lapic_set_lvt_polarity(u_int apic_id, u_int lvt, enum intr_polarity pol)
 {
 	return (ENXIO);
 }
 
 int
-lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, u_char edgetrigger)
+lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
 {
 	return (ENXIO);
 }
