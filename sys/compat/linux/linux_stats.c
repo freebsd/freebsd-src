@@ -37,15 +37,16 @@
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+
 #include <compat/linux/linux_util.h>
 
 static int
