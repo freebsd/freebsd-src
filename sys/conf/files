@@ -305,7 +305,6 @@ kern/subr_log.c		standard
 kern/subr_module.c	standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
-kern/subr_rlist.c	standard
 kern/subr_blist.c	standard
 kern/subr_scanf.c	standard
 kern/subr_xxx.c		standard
