@@ -28,6 +28,9 @@
 
 #include "kgz.h"
 
+#define F_AOUT	1		/* Format: a.out */
+#define F_ELF	2		/* Format: ELF32 */
+
 /* Used by I/O routines */
 struct iodesc {
     const char *fname;		/* File name */
@@ -35,6 +38,7 @@ struct iodesc {
 };
 
 extern const char *loader;	/* Default loader */
+extern int format;		/* Output format */
 
 void kgzcmp(struct kgz_hdr *, const char *, const char *);
 void kgzld(struct kgz_hdr *, const char *, const char *);
