@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.25 1999/05/15 17:56:34 dfr Exp $
+ *	$Id: autoconf.c,v 1.26 1999/05/24 00:54:17 jb Exp $
  */
 
 #include "opt_bootp.h"
@@ -171,7 +171,8 @@ alpha_register_pci_scsi(int bus, int slot, struct cam_sim *sim)
 {
 	if (!strcmp(bootdev_protocol(), "SCSI")) {
 		int boot_slot = bootdev_slot();
-		if (bus == boot_slot / 1000
+		if (((bus == boot_slot / 1000 )
+		     || (bus == 1 && (boot_slot < 1000)))
 		    && slot == boot_slot % 1000)
 			boot_sim = sim;
 	}
