@@ -37,35 +37,33 @@
 The
 .Nm
 driver provides support for the Escalade 3W-5x00 series of ATA RAID
-controllers.  These devices support 2, 4 or 8 ATA disk drives and provide
-RAID0 (striping) and RAID1 (mirroring) functionality.  
+controllers.
+These devices support 2, 4 or 8 ATA disk drives
+and provide RAID0 (striping) and RAID1 (mirroring) functionality.  
 .Sh DIAGNOSTICS
-Controller initialisation phase:
+.Ss Controller initialisation phase
 .Bl -diag
 .It twe%d: microcontroller not ready
-.El
 .Pp
-The controller's onboard CPU is not reporting that it is ready; this may be
-due to either a board or system failure.  Initialisation has failed.
-.Bl -diag
+The controller's onboard CPU is not reporting that it is ready;
+this may be due to either a board or system failure.
+Initialisation has failed.
 .It twe%d: no attention interrupt
 .It twe%d: can't drain AEN queue
 .It twe%d: reset not reported
 .It twe%d: controller errors detected
 .It twe%d: can't drain response queue
 .It twe%d: reset %d failed, trying again
-.El
 .Pp
-The controller is not responding correctly to the driver's attempts to reset
-and initialise it.  This process is retried several times.
-.Bl -diag
+The controller is not responding correctly to
+the driver's attempts to reset and initialise it.
+This process is retried several times.
 .It twe%d: can't initialise controller, giving up
-.El
 .Pp
 Several attempts to reset and initialise the controller have failed;
-initialisation has failed and the driver will not attach to this controller.
-.Pp
-Driver initialisation/shutdown phase:
+initialisation has failed
+and the driver will not attach to this controller.
+.Ss Driver initialisation/shutdown phase
 .Bl -diag
 .It twe%d: register window not available
 .It twe%d: can't allocate register window
@@ -73,70 +71,59 @@ Driver initialisation/shutdown phase:
 .It twe%d: can't allocate interrupt
 .It twe%d: can't set up interrupt
 .It twe%d: can't establish configuration hook
-.El
 .Pp
 A resource allocation error occurred while initialising the driver;
-initialisation has failed and the driver will not attach to this
-controller.
-.Bl -diag
+initialisation has failed
+and the driver will not attach to this controller.
 .It twe%d: can't detect attached units
-.El
 .Pp
 Fetching the list of attached units failed; initialisation has failed.
-.Bl -diag
 .It twe%d: error fetching capacity for unit %d
 .It twe%d: device_add_child failed
 .It twe%d: bus_generic_attach returned %d
-.El
 .Pp
-Creation of the disk devices failed; attachment of one or more units may have
-been aborted.
-.Bl -diag
+Creation of the disk devices failed;
+attachment of one or more units may have been aborted.
 .It twe%d: command failed - 0x%x
 .It twe%d: command failed - controller wedged
-.El
 .Pp
-A command was reported as failed by the controller, or could not be delivered to
-the controller.
-.Bl -diag
+A command was reported as failed by the controller,
+or could not be delivered to the controller.
 .It twe%d: host interrupt
-.El
 .Pp
-The controller has signalled a host interrupt.  This serves an unknown purpose
-and is ignored.
-.Bl -diag
+The controller has signalled a host interrupt.
+This serves an unknown purpose and is ignored.
 .It twe%d: command interrupt
-.El
 .Pp
-The controller has signalled a command interrupt.  This is not used, and will
-be disabled.
-.Bl -diag
+The controller has signalled a command interrupt.
+This is not used, and will be disabled.
 .It twe%d: error polling for signalled AENs
-.El
 .Pp
-The controller has reported that one or more status messages are ready for the
-driver, but attempting to fetch one of these has returned an error.
-.Bl -diag
+The controller has reported
+that one or more status messages are ready for the driver,
+but attempting to fetch one of these has returned an error.
 .It twe%d: AEN queue overflow, lost AEN <%s>
-.El
 .Pp
-A status message was retrieved from the controller, but there is no more room
-to queue it in the driver.  The message is lost.
-.Bl -diag
+A status message was retrieved from the controller,
+but there is no more room to queue it in the driver.
+The message is lost.
 .It twe%d: missing expected status bits %s
 .It twe%d: unexpected status bits %s
-.El
 .Pp
-A check of the controller's status bits indicates an unexpected condition.
+A check of the controller's status bits
+indicates an unexpected condition.
 .Sh BUGS
-Much of the controller's status cannot currently be interpreted due to
-lack of information from 3ware.
+Much of the controller's status cannot currently be interpreted,
+due to lack of information from 3ware.
 .Pp
-The controller cannot handle I/O transfers that are not aligned to a 512-byte
-boundary.  In order to support raw device access from user-space, the driver will
-perform alignment fixup on non-aligned data.  This process is inefficient, and
-thus in order to obtain best performance user-space applications accessing the 
-device should do so with aligned buffers.
+The controller cannot handle I/O transfers
+that are not aligned to a 512-byte boundary.
+In order to support raw device access from user-space,
+the driver will perform alignment fixup on non-aligned data.
+This process is inefficient,
+and thus in order to obtain best performance
+user-space applications accessing the device
+should do so with aligned buffers.
 .Sh AUTHORS
 The 
 .Nm
