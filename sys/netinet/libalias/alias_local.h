@@ -107,6 +107,12 @@ FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
 struct alias_link *
 FindUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
 
+struct alias_link *
+FindPptpIn(struct in_addr, struct in_addr, u_short);
+
+struct alias_link *
+FindPptpOut(struct in_addr, struct in_addr, u_short);
+
 struct in_addr
 FindOriginalAddress(struct in_addr);
 
@@ -158,6 +164,12 @@ void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 
 /* IRC routines */
 void AliasHandleIrcOut(struct ip *, struct alias_link *, int);
+
+/* PPTP routines */
+int  PptpGetCallID(struct ip *, u_short *);
+void PptpSetCallID(struct ip *, u_short);
+void AliasHandlePptpOut(struct ip *, struct alias_link *);
+void AliasHandlePptpIn(struct ip *, struct alias_link *);
 
 /* NetBIOS routines */
 int AliasHandleUdpNbt(struct ip *, struct alias_link *, struct in_addr *, u_short);

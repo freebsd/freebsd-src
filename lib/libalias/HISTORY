@@ -134,3 +134,8 @@ Version 3.0: January 1, 1999
     - Transparent proxying support added.
     - PPTP redirecting support added based on patches
       contributed by Dru Nelson <dnelson@redwoodsoft.com>.
+
+Version 3.1: May, 2000 (Erik Salander, erik@whistle.com)
+    - Added support to alias 227 replies, allows aliasing for
+      FTP servers in passive mode.
+    - Added support for PPTP aliasing.

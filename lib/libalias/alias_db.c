@@ -147,6 +147,7 @@
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
+#define PPTP_EXPIRE_TIME             60
 #define PROTO_EXPIRE_TIME            60
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
@@ -265,6 +266,7 @@ struct alias_link                /* Main data structure */
 #define LINK_FRAGMENT_ID              (IPPROTO_MAX + 1)
 #define LINK_FRAGMENT_PTR             (IPPROTO_MAX + 2)
 #define LINK_ADDR                     (IPPROTO_MAX + 3)
+#define LINK_PPTP                     (IPPROTO_MAX + 4)
 
     int flags;                   /* indicates special characteristics   */
 
@@ -329,6 +331,7 @@ linkTableIn[LINK_TABLE_IN_SIZE];     /*   into input and output lookup  */
 static int icmpLinkCount;            /* Link statistics                 */
 static int udpLinkCount;
 static int tcpLinkCount;
+static int pptpLinkCount;
 static int protoLinkCount;
 static int fragmentIdLinkCount;
 static int fragmentPtrLinkCount;
@@ -455,10 +458,11 @@ ShowAliasStats(void)
 
    if (monitorFile)
    {
-      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, proto=%d, frag_id=%d frag_ptr=%d",
+      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, pptp=%d, proto=%d, frag_id=%d frag_ptr=%d",
               icmpLinkCount,
               udpLinkCount,
               tcpLinkCount,
+              pptpLinkCount,
               protoLinkCount,
               fragmentIdLinkCount,
               fragmentPtrLinkCount);
@@ -466,6 +470,7 @@ ShowAliasStats(void)
       fprintf(monitorFile, " / tot=%d  (sock=%d)\n",
               icmpLinkCount + udpLinkCount
                             + tcpLinkCount
+                            + pptpLinkCount
                             + protoLinkCount
                             + fragmentIdLinkCount
                             + fragmentPtrLinkCount,
@@ -550,7 +555,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
    the port number.  GetNewPort() will return this number
    without check that it is in use.
 
-   When this parameter is -1, it indicates to get a randomly
+   When this parameter is GET_ALIAS_PORT, it indicates to get a randomly
    selected port number.
 */
  
@@ -618,7 +623,9 @@ GetNewPort(struct alias_link *link, int alias_port_param)
         if (go_ahead)
         {
             if ((packetAliasMode & PKT_ALIAS_USE_SOCKETS)
-             && (link->flags & LINK_PARTIALLY_SPECIFIED))
+             && (link->flags & LINK_PARTIALLY_SPECIFIED)
+	     && ((link->link_type == LINK_TCP) || 
+		 (link->link_type == LINK_UDP)))
             {
                 if (GetSocket(port_net, &link->sockfd, link->link_type))
                 {
@@ -838,6 +845,9 @@ DeleteLink(struct alias_link *link)
             if (link->data.tcp != NULL)
                 free(link->data.tcp);
             break;
+        case LINK_PPTP:
+            pptpLinkCount--;
+            break;
         case LINK_FRAGMENT_ID:
             fragmentIdLinkCount--;
             break;
@@ -905,6 +915,9 @@ AddLink(struct in_addr  src_addr,
             break;
         case LINK_TCP:
             link->expire_time = TCP_EXPIRE_INITIAL;
+            break;
+        case LINK_PPTP:
+            link->expire_time = PPTP_EXPIRE_TIME;
             break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
@@ -993,6 +1006,9 @@ AddLink(struct in_addr  src_addr,
                     fprintf(stderr, " cannot allocate auxiliary TCP data\n");
 #endif
                 }
+                break;
+            case LINK_PPTP:
+                pptpLinkCount++;
                 break;
             case LINK_FRAGMENT_ID:
                 fragmentIdLinkCount++;
@@ -1307,6 +1323,7 @@ FindLinkIn(struct in_addr dst_addr,
     AddFragmentPtrLink(), FindFragmentPtr()
     FindProtoIn(), FindProtoOut()
     FindUdpTcpIn(), FindUdpTcpOut()
+    FindPptpIn(), FindPptpOut()
     FindOriginalAddress(), FindAliasAddress()
 
 (prototypes in alias_local.h)
@@ -1527,6 +1544,56 @@ FindUdpTcpOut(struct in_addr  src_addr,
         link = AddLink(src_addr, dst_addr, alias_addr,
                        src_port, dst_port, GET_ALIAS_PORT,
                        link_type);
+    }
+
+    return(link);
+}
+
+
+struct alias_link *
+FindPptpIn(struct in_addr dst_addr,
+          struct in_addr alias_addr,
+          u_short call_id)
+{
+    struct alias_link *link;
+
+    link = FindLinkIn(dst_addr, alias_addr,
+                      NO_DEST_PORT, call_id,
+                      LINK_PPTP, 1);
+
+    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
+    {
+        struct in_addr target_addr;
+
+        target_addr = FindOriginalAddress(alias_addr);
+        link = AddLink(target_addr, dst_addr, alias_addr,
+                       call_id, NO_DEST_PORT, call_id,
+                       LINK_PPTP);
+    }
+
+    return(link);
+}
+
+
+struct alias_link * 
+FindPptpOut(struct in_addr  src_addr,
+            struct in_addr  dst_addr,
+            u_short         call_id)
+{
+    struct alias_link *link;
+
+    link = FindLinkOut(src_addr, dst_addr,
+                       call_id, NO_DEST_PORT,
+                       LINK_PPTP, 1);
+
+    if (link == NULL)
+    {
+        struct in_addr alias_addr;
+
+        alias_addr = FindAliasAddress(src_addr);
+        link = AddLink(src_addr, dst_addr, alias_addr,
+                       call_id, NO_DEST_PORT, GET_ALIAS_PORT,
+                       LINK_PPTP);
     }
 
     return(link);
@@ -2308,6 +2375,7 @@ PacketAliasInit(void)
     icmpLinkCount = 0;
     udpLinkCount = 0;
     tcpLinkCount = 0;
+    pptpLinkCount = 0;
     protoLinkCount = 0;
     fragmentIdLinkCount = 0;
     fragmentPtrLinkCount = 0;
