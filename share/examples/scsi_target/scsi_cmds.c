@@ -258,7 +258,7 @@ tcmd_sense(u_int init_id, struct ccb_scsiio *ctio, u_int8_t flags,
 		bcopy(sense, &ctio->sense_data, sizeof(*sense));
 		ctio->sense_len = sizeof(*sense);  /* XXX */
 		ctio->ccb_h.flags &= ~CAM_DIR_MASK;
-		ctio->ccb_h.flags |= CAM_DIR_NONE | /* CAM_SEND_SENSE | */
+		ctio->ccb_h.flags |= CAM_DIR_NONE | CAM_SEND_SENSE |
 				     CAM_SEND_STATUS;
 		ctio->dxfer_len = 0;
 		ctio->scsi_status = SCSI_STATUS_CHECK_COND;
