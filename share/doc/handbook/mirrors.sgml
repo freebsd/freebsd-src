@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.28 1996/03/21 05:27:46 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.29 1996/03/21 05:50:27 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -253,6 +253,18 @@ for this domain.
 	name="ftp://ftp.nl.net/pub/os/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:archive@nl.net"
 	name="archive@nl.net">.
+
+</itemize>
+
+<tag>Poland</tag>
+
+<itemize>
+     
+<item>
+<htmlurl url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
+	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp@SunSITE.icm.edu.pl"
+	name="ftp@SunSITE.icm.edu.pl">.
 
 </itemize>
 
