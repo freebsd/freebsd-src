@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.21 1997/02/22 09:28:56 peter Exp $ */
+/* $Id: ccd.c,v 1.22 1997/03/24 11:23:21 bde Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -484,7 +484,7 @@ ccdinit(ccd, cpaths, p)
 	 * Create pseudo-geometry based on 1MB cylinders.  It's
 	 * pretty close.
 	 */
-	ccg->ccg_secsize = DEV_BSIZE;
+	ccg->ccg_secsize = maxsecsize;
 	ccg->ccg_ntracks = 1;
 	ccg->ccg_nsectors = 1024 * (1024 / ccg->ccg_secsize);
 	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
