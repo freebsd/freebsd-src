@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.26 1999/02/22 16:57:47 bde Exp $
+ * $Id: kern_subr.c,v 1.27 1999/02/22 18:39:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,12 +63,18 @@ uiomove(cp, n, uio)
 {
 	register struct iovec *iov;
 	u_int cnt;
-	int error;
+	int error = 0;
+	int save = 0;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
 	    ("uiomove proc"));
+
+	if (curproc) {
+		save = curproc->p_flag & P_DEADLKTREAT;
+		curproc->p_flag |= P_DEADLKTREAT;
+	}
 
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
@@ -92,7 +98,7 @@ uiomove(cp, n, uio)
 			else
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error)
-				return (error);
+				break;
 			break;
 
 		case UIO_SYSSPACE:
@@ -111,7 +117,9 @@ uiomove(cp, n, uio)
 		cp += cnt;
 		n -= cnt;
 	}
-	return (0);
+	if (curproc)
+		curproc->p_flag = (curproc->p_flag & ~P_DEADLKTREAT) | save;
+	return (error);
 }
 
 int
