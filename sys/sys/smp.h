@@ -15,7 +15,7 @@
 
 #ifdef _KERNEL
 
-#if defined(SMP) && defined(I386_CPU)
+#if defined(SMP) && defined(I386_CPU) && !defined(COMPILING_LINT)
 #error SMP not supported with I386_CPU
 #endif
 #if defined(SMP) && !defined(APIC_IO)

@@ -41,8 +41,6 @@
  * $FreeBSD$
  */
 
-#include "opt_lint.h"
-
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
