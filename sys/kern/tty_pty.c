@@ -71,11 +71,6 @@ struct	pt_ioctl {
 	u_char	pt_ucntl;
 } pt_ioctl[NPTY];		/* XXX */
 int	npty = NPTY;		/* for pstat -t */
-static int validspeed[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
-	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200
-};
-#define MAX_SPEED (sizeof(validspeed)/sizeof(*validspeed) - 1)
 
 #define	PF_PKT		0x08		/* packet mode */
 #define	PF_STOPPED	0x10		/* user told stopped */
@@ -649,32 +644,10 @@ ptyioctl(dev, cmd, data, flag, p)
 		case TIOCSETN:
 #endif
 		case TIOCSETD:
-			ndflush(&tp->t_outq, tp->t_outq.c_cc);
-			break;
-
 		case TIOCSETA:
 		case TIOCSETAW:
-		case TIOCSETAF: {
-			register struct termios *t = (struct termios *)data;
-			register int i;
-
-			for (i = MAX_SPEED; i >= 0; i--)
-				if (t->c_ispeed == validspeed[i])
-					break;
-				else if (t->c_ispeed > validspeed[i])
-					return (EINVAL);
-			if (i < 0)
-				return (EINVAL);
-			for (i = MAX_SPEED; i >= 0; i--)
-				if (t->c_ospeed == validspeed[i])
-					break;
-				else if (t->c_ospeed > validspeed[i])
-					return (EINVAL);
-			if (i < 0)
-				return (EINVAL);
-
+		case TIOCSETAF:
 			ndflush(&tp->t_outq, tp->t_outq.c_cc);
-			}
 			break;
 
 		case TIOCSIG:
