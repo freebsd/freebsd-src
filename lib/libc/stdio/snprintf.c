@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)snprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: snprintf.c,v 1.7 1997/12/24 14:32:39 ache Exp $";
+		"$Id: snprintf.c,v 1.8 1997/12/24 20:24:05 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -65,10 +65,12 @@ snprintf(str, n, fmt, va_alist)
 	int ret;
 	va_list ap;
 	FILE f;
+	int on;
 
-	if (n == 0)
-		return (0);
-	if (--n > INT_MAX)
+	on = n;
+	if (n > 0)
+		n--;
+	if (n > INT_MAX)
 		return (EOF);
 #if __STDC__
 	va_start(ap, fmt);
@@ -80,7 +82,8 @@ snprintf(str, n, fmt, va_alist)
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
 	ret = vfprintf(&f, fmt, ap);
-	*f._p = 0;
+	if (on > 0)
+		*f._p = '\0';
 	va_end(ap);
-	return (ret > (int)n ? n : ret);
+	return (ret);
 }
