@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.h,v 1.1 1997/01/04 16:43:58 davidn Exp $
+ *	$Id: login_cap.h,v 1.2 1997/01/05 18:31:56 davidn Exp $
  */
 
 #ifndef _LOGIN_CAP_H_
@@ -44,7 +44,7 @@
 #define LOGIN_SETUMASK		0x0020	/* set umask, obviously */
 #define LOGIN_SETUSER		0x0040	/* set user (via setuid) */
 #define LOGIN_SETENV		0x0080	/* set user environment */
-#define	LOGIN_SETALL		0x008f	/* set everything */
+#define	LOGIN_SETALL		0x00ff	/* set everything */
 
 #define BI_AUTH			"authorize"
 #define BI_REJECT		"reject"
