@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.85 1997/05/26 14:42:24 se Exp $
+ *	$Id: isa.c,v 1.86 1997/05/29 04:55:39 peter Exp $
  */
 
 /*
@@ -1076,7 +1076,7 @@ isa_irq_pending(dvp)
 	struct isa_device *dvp;
 {
 	/* read APIC IRR containing the 16 ISA INTerrupts */
-	return ((apic_base[APIC_IRR1] & 0x00ffffff)
+	return ((lapic__irr1 & 0x00ffffff)
 		& (u_int32_t)dvp->id_irq) ? 1 : 0;
 }
 
