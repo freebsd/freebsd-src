@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.9 1995/10/11 09:57:21 jkh Exp $
+ * $Id: config.c,v 1.16.2.10 1995/10/14 09:30:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,21 @@ chunk_compare(const void *p1, const void *p2)
 	return 1;
     else
 	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
+}
+
+static char *
+name_of(Chunk *c1)
+{
+    static char rootname[64];
+
+    /* Our boot blocks can't deal with root partitions on slices - need the comp
+atbility name */
+    if (c1->type == part && c1->flags & CHUNK_IS_ROOT) {
+        sprintf(rootname, "%sa", c1->disk->name);
+        return rootname;
+    }
+    else
+        return c1->name;
 }
 
 static char *
@@ -166,14 +181,15 @@ configFstab(void)
 
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
-	msgConfirm("Unable to create a new /etc/fstab file!\nManual intervention will be required.");
+	msgConfirm("Unable to create a new /etc/fstab file!\n"
+		   "Manual intervention will be required.");
 	return RET_FAIL;
     }
 
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", chunk_list[i]->name, mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc", NULL);
     fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
@@ -217,7 +233,8 @@ configSysconfig(void)
 
     fp = fopen("/etc/sysconfig", "r");
     if (!fp) {
-	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\nrather strangely as a result of this.");
+	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
+		   "rather strangely as a result of this.");
 	return;
     }
     for (i = 0; i < 5000; i++) {
@@ -248,7 +265,8 @@ configSysconfig(void)
     }
     fp = fopen("/etc/sysconfig", "w");
     if (!fp) {
-	msgConfirm("Unable to re-write /etc/sysconfig file!  Things may work\nrather strangely as a result of this.");
+	msgConfirm("Unable to re-write /etc/sysconfig file!  Things may work\n"
+		   "rather strangely as a result of this.");
 	return;
     }
     for (i = 0; i < nlines; i++) {
@@ -277,7 +295,15 @@ configSysconfig(void)
 
     /* If we're an NFS server, we need an exports file */
     if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
-	msgConfirm("You have chosen to be an NFS server but have not yet configured\nthe /etc/exports file.  The format for an exports entry is:\n     <mountpoint> <opts> <host [..host]>\nWhere <mounpoint> is the name of a filesystem as specified\nin the Label editor, <opts> is a list of special options we\nwon't concern ourselves with here (``man exports'' when the\nsystem is fully installed) and <host> is one or more host\nnames who are allowed to mount this file system.  Press\n[ENTER] now to invoke the editor on /etc/exports");
+	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
+		   "the /etc/exports file.  The format for an exports entry is:\n"
+		   "<mountpoint> <opts> <host [..host]>\n"
+		   "Where <mounpoint> is the name of a filesystem as specified\n"
+		   "in the Label editor, <opts> is a list of special options we\n"
+		   "won't concern ourselves with here (``man exports'' when the\n"
+		   "system is fully installed) and <host> is one or more host\n"
+		   "names who are allowed to mount this file system.  Press\n"
+		   "[ENTER] now to invoke the editor on /etc/exports");
 	systemExecute("ee /etc/exports");
     }
 }
@@ -315,7 +341,8 @@ configResolv(void)
 
     if (!variable_get(VAR_NAMESERVER)) {
 	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
-	    msgConfirm("Warning:  Missing name server value - network operations\nmay fail as a result!");
+	    msgConfirm("Warning:  Missing name server value - network operations\n"
+		       "may fail as a result!");
 	goto skip;
     }
     Mkdir("/etc", NULL);

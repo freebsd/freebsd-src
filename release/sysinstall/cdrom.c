@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.5 1995/10/04 12:08:06 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.6 1995/10/07 11:55:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,7 +90,8 @@ mediaInitCDROM(Device *dev)
     snprintf(specialrel, 80, "/cdrom/%s/dists", variable_get(RELNAME));
     if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
-	    msgConfirm("Couldn't locate the directory `dists' on the CD.\nIs this a FreeBSD CDROM?\n");
+	    msgConfirm("Couldn't locate the directory `dists' on the CD.\n"
+		       "Is this a FreeBSD CDROM?\n");
 	    return FALSE;
 	}
 	else {

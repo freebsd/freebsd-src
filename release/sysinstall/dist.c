@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.5 1995/10/04 10:33:53 jkh Exp $
+ * $Id: dist.c,v 1.36.2.6 1995/10/07 11:55:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -336,7 +336,8 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Parsing attributes file for %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (attr_parse(&dist_attr, buf) == 0) {
-		msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
+		msgConfirm("Cannot load information file for %s distribution!\n"
+			   "Please verify that your media is valid and try again.", dist);
 		return FALSE;
 	    }
 
@@ -402,11 +403,17 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {
-		    msgConfirm("Unable to transfer all components of the %s distribution.\nIf this is a CDROM install, it may be because export restrictions prohibit\nDES code from being shipped from the U.S.  Try to get this code from a\nlocal FTP site instead!");
+		    msgConfirm("Unable to transfer all components of the %s distribution.\n"
+			       "If this is a CDROM install, it may be because export restrictions prohibit\n"
+			       "DES code from being shipped from the U.S.  Try to get this code from a\n"
+			       "local FTP site instead!");
 		    status = TRUE;
 		}
-		else
-		    status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to try to retrieve it again?", me[i].my_name, mediaDevice->name);
+		else {
+		    status = msgYesNo("Unable to transfer the %s distribution from %s.\n"
+				      "Do you want to try to retrieve it again?",
+				      me[i].my_name, mediaDevice->name);
+		}
 	    }
 	}
 	/* Extract was successful, remove ourselves from further consideration */
@@ -434,6 +441,8 @@ distExtractAll(char *ptr)
 
     /* Anything left? XXX lose the funky residue and convert back to distribution names soon! XXX */
     if (Dists)
-	msgConfirm("Couldn't extract all of the distributions.  This may\nbe because the specified distributions are not available from the\ninstallation media you've chosen (residue: %0x)", Dists);
+	msgConfirm("Couldn't extract all of the distributions.  This may\n"
+		   "be because the specified distributions are not available from the\n"
+		   "installation media you've chosen (residue: %0x)", Dists);
     return RET_SUCCESS;
 }

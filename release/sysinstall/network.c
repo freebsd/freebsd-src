@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.4 1995/09/25 00:52:12 jkh Exp $
+ * $Id: network.c,v 1.7.2.5 1995/10/04 12:08:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,9 +65,11 @@ mediaInitNetwork(Device *dev)
 
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
-	if (!msgYesNo("You have selected a serial-line network interface.\nDo you want to use PPP with it?")) {
+	if (!msgYesNo("You have selected a serial-line network interface.\n"
+		      "Do you want to use PPP with it?")) {
 	    if (!(dev->private = (void *)startPPP(dev))) {
-		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
+		msgConfirm("Unable to start PPP!  This installation method\n"
+			   "cannot be used.");
 		return FALSE;
 	    }
 	    networkInitialized = TRUE;
@@ -79,7 +81,15 @@ mediaInitNetwork(Device *dev)
 
 	    /* Cheesy slip attach */
 	    snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
-	    val = msgGetInput(attach, "Warning:  SLIP is rather poorly supported in this revision\nof the installation due to the lack of a dialing utility.\nIf you can use PPP for this instead then you're much better\noff doing so, otherwise SLIP works fairly well for *hardwired*\nlinks.  Please edit the following slattach command for\ncorrectness (default here is VJ compression, Hardware flow-control,\nignore carrier and 9600 baud data rate) and hit return to execute it.");
+	    val = msgGetInput(attach,
+			      "Warning:  SLIP is rather poorly supported in this revision\n"
+			      "of the installation due to the lack of a dialing utility.\n"
+			      "If you can use PPP for this instead then you're much better\n"
+			      "off doing so, otherwise SLIP works fairly well for *hardwired*\n"
+			      "links.  Please edit the following slattach command for\n"
+			      "correctness (default here is: VJ compression, Hardware flow-\n"
+			      "control, ignore carrier and 9600 baud data rate).  When you're\n"
+			      "ready, press [ENTER] to execute it.");
 	    if (!val)
 		return FALSE;
 	    else
@@ -218,6 +228,12 @@ startPPP(Device *devp)
 	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
 	exit(1);
     }
-    msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\ninteract with it, ALT-F1 to switch back here). The only command\nyou'll probably want or need to use is the \"term\" command\nwhich starts a terminal emulator you can use to talk to your\nmodem and dial the service provider.  Once you're connected,\ncome back to this screen and press return.  DO NOT PRESS RETURN\nHERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
+    msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\n"
+	       "interact with it, ALT-F1 to switch back here). The only command\n"
+	       "you'll probably want or need to use is the \"term\" command\n"
+	       "which starts a terminal emulator you can use to talk to your\n"
+	       "modem and dial the service provider.  Once you're connected,\n"
+	       "come back to this screen and press return.  DO NOT PRESS [ENTER]\n"
+	       "HERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
     return pid;
 }

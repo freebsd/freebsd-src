@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.11 1995/10/11 10:00:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.12 1995/10/13 08:19:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,7 +235,7 @@ typedef struct _opt {
     char * (*check)();
 } Option;
 
-/* Weird index nodey things we use for keeping track of information */
+/* Weird index nodey things we use for keeping track of package information */
 typedef enum { PACKAGE, PLACE } node_type;	/* Types of nodes */
 
 typedef struct _pkgnode {	/* A node in the reconstructed hierarchy */

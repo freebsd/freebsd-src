@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.11 1995/10/13 08:19:21 jkh Exp $
+ * $Id: disks.c,v 1.31.2.12 1995/10/14 09:30:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -183,13 +183,13 @@ diskPartition(Disk *d)
 	    systemDisplayFile("slice");
 	    break;
 
-	case 'A':
-	    if(!msgYesNo("Do you want to do this with a true partition entry\n"
-			 "so as to keep this cooperative with any future poss-\n"
-			 "ible operating systems on the drive(s)?"))
-		All_FreeBSD(d, 0);
-	    else {
-		int rv;
+	case 'A': {
+	    int rv;
+
+	    rv = msgYesNo("Do you want to do this with a true partition entry\n"
+			  "so as to remain cooperative with any future possible\n"
+			  "operating systems on the drive(s)?");
+	    if (rv) {
 		rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
 			       "uncooperative with other potential operating systems on the\n"
 			       "same disk.  It will lead instead to a totally dedicated disk,\n"
@@ -200,22 +200,25 @@ diskPartition(Disk *d)
 			       "control of sort of disk manager).  SCSI drives are considerably\n"
 			       "less at risk.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
-		if(rv)
-		    msgInfo("Well OK, but you can't say you haven't been warned!");
-		All_FreeBSD(d, rv);
 	    }
+	    if (rv)
+		msgInfo("Well OK, but you can't say you haven't been warned!");
+	    All_FreeBSD(d, rv);
 	    record_chunks(d);
+	}
 	    break;
 
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
 	    else if (strncmp(name, "sd", 2) ||
-		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\nAre you sure you want to do this on a SCSI disk?"))
+		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\n"
+			       "Are you sure you want to do this on a SCSI disk?")) {
 		if (chunk_info[current_chunk]->flags & CHUNK_BAD144)
 		    chunk_info[current_chunk]->flags &= ~CHUNK_BAD144;
 		else
 		    chunk_info[current_chunk]->flags |= CHUNK_BAD144;
+	    }
 	    break;
 
 	case 'C':
@@ -226,7 +229,8 @@ diskPartition(Disk *d)
 		int size;
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
-		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
+		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks, or append\n"
+				  "a trailing `M' for megabytes (e.g. 20M).");
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= 2048;
@@ -259,14 +263,14 @@ diskPartition(Disk *d)
 		d->bios_sect = strtol(val + 1, 0, 0);
 	    }
 	}
-	    break;
+	break;
 
-	case 'S':
-	    /* Set Bootable */
-	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
-	    break;
-
-	case 'U':
+    case 'S':
+	/* Set Bootable */
+	chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
+	break;
+	
+    case 'U':
 	    Free_Disk(d);
 	    d = Open_Disk(name);
 	    if (!d)
