@@ -62,10 +62,11 @@ representation.
 It is equivalent to:
 .Bd -literal -offset indent
 strtod(nptr, (char **)NULL);
+.Ed
 .Pp
 The decimal point
-character is defined in the program's locale (category LC_NUMERIC).
-.Ed
+character is defined in the program's locale (category
+.Dv LC_NUMERIC ) .
 .Sh SEE ALSO
 .Xr atoi 3 ,
 .Xr atol 3 ,
