@@ -60,6 +60,10 @@ for signals and processes.
 1.3. USERLAND CHANGES
 ---------------------
 
+mtree(8) now includes support for a file listing pathnames to be excluded
+when creating and verifying prototypes.  This makes it easier to use
+mtree as a part of an intrusion-detection system.
+
 The OPIE one-time-password suite has been updated to 2.32.
 
 OpenSSH has been upgraded to 2.1.0, which provides support for the
