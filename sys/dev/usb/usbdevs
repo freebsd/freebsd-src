@@ -108,6 +108,7 @@ vendor MEGATRENDS	0x046b	American Megatrends
 vendor LOGITECH		0x046d	Logitech
 vendor BTC		0x046e	Behavior Tech. Computer
 vendor PHILIPS		0x0471	Philips
+vendor SANYO		0x0474	Sanyo Electric
 vendor CONNECTIX	0x0478	Connectix
 vendor KENSINGTON	0x047d	Kensington
 vendor LUCENT		0x047e	Lucent
@@ -328,6 +329,7 @@ vendor BOCASYSTEMS	0x0a43	Boca Systems
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
@@ -624,6 +626,14 @@ product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial converter
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
 
+/* Fujitsu protducts */
+product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
+
+/* Genesys Logic products */
+product	GENESYS GL650		0x0604	GL650 Hub
+product	GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
+product	GENESYS GL641USB2IDE	0x0702	GL641USB USB-IDE Bridge
+
 /* Hagiwara products */
 product HAGIWARA FGSM		0x0002  FlashGate SmartMedia Card Reader
 product HAGIWARA FGCF		0x0003  FlashGate CompactFlash Card Reader
@@ -800,6 +810,7 @@ product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
 product MELCO LUATX1		0x0001	LUA-TX Ethernet
 product MELCO LUATX5		0x0005	LUA-TX Ethernet
 product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
+product	MELCO DUBPXXG		0x001c	USB-IDE Bridge: DUB-PxxG
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
@@ -866,6 +877,9 @@ product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
 /* NEC products */
 product NEC HUB			0x55aa	hub
 product NEC HUB_B		0x55ab	hub
+
+/* NEODIO products */
+product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
@@ -973,6 +987,9 @@ product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 
+/* Sanyo Electric products */
+product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
+
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
@@ -1032,6 +1049,7 @@ product STMICRO COMMUNICATOR	0x7554	USB Communicator
 product STSN STSN0001		0x0001	Internet Access Device
 
 /* SUN Corporation products */
+product	SUNTAC DS96L		0x0003	SUNTAC U-Cable type D2
 product SUNTAC PS64P1		0x0005	SUNTAC U-Cable type P1
 product SUNTAC VS10U		0x0009	SUNTAC Slipper U
 
@@ -1070,7 +1088,7 @@ product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
-product TREK THUMBDRIVE		0x9988	ThumbDrive
+product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
