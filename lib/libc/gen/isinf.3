@@ -30,19 +30,23 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)isinf.3	8.2 (Berkeley) 1/29/94
+.\" $FreeBSD$
 .\"
 .Dd January 29, 1994
 .Dt ISINF 3
 .Os
 .Sh NAME
 .Nm isinf ,
-.Nm isnan
+.Nm isnan ,
+.Nm isnanf
 .Nd test for infinity or not-a-number
 .Sh SYNOPSIS
 .Ft int 
 .Fn isinf double
 .Ft int 
 .Fn isnan double
+.Ft int
+.Fn isnanf float
 .Sh DESCRIPTION
 The
 .Fn isinf
@@ -53,8 +57,10 @@ otherwise 0.
 .Pp
 The
 .Fn isnan
-function
-returns 1 if the number is
+and
+.Fn isnanf
+functions
+return 1 if the double or float (respectively) is
 .Dq not-a-number ,
 otherwise 0.
 .Sh SEE ALSO

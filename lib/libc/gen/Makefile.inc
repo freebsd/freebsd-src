@@ -89,7 +89,7 @@ MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
 	getvfsent.3 setvfsent.3 getvfsent.3 vfsisloadable.3 \
 	getvfsent.3 vfsload.3
 MLINKS+=glob.3 globfree.3
-MLINKS+=isinf.3 isnan.3
+MLINKS+=isinf.3 isnan.3 isinf.3 isnanf.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
