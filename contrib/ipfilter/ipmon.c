@@ -1,14 +1,13 @@
-/* $FreeBSD$ */
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1998 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.4 2000/01/24 12:45:25 darrenr Exp $";
+static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #ifndef SOLARIS
@@ -121,7 +120,7 @@ static	void	dumphex __P((FILE *, u_char *, int));
 static	int	read_log __P((int, int *, char *, int));
 static	void	write_pid __P((char *));
 
-char	*hostname __P((int, struct in_addr));
+char	*hostname __P((int, int, u_32_t *));
 char	*portname __P((int, char *, u_int));
 int	main __P((int, char *[]));
 
@@ -146,6 +145,8 @@ static	char	**tcp_ports = NULL;
 #define	OPT_PORTNUM	0x400
 #define	OPT_LOGALL	(OPT_NAT|OPT_STATE|OPT_FILTER)
 
+#define	HOSTNAME_V4(a,b)	hostname((a), 4, (u_32_t *)&(b))
+
 #ifndef	LOGFAC
 #define	LOGFAC	LOG_LOCAL0
 #endif
@@ -169,7 +170,7 @@ static void init_tabs()
 	struct	protoent	*p;
 	struct	servent	*s;
 	char	*name, **tab;
-	u_int	port;
+	int	port;
 
 	if (protocols != NULL) {
 		free(protocols);
@@ -208,11 +209,11 @@ static void init_tabs()
 		if (s->s_proto == NULL)
 			continue;
 		else if (!strcmp(s->s_proto, "tcp")) {
-			port = (u_int)s->s_port;
+			port = s->s_port;
 			name = s->s_name;
 			tab = tcp_ports;
 		} else if (!strcmp(s->s_proto, "udp")) {
-			port = (u_int)s->s_port;
+			port = s->s_port;
 			name = s->s_name;
 			tab = udp_ports;
 		} else
@@ -257,18 +258,33 @@ char *buf;
 }
 
 
-char	*hostname(res, ip)
-int	res;
-struct	in_addr	ip;
+char	*hostname(res, v, ip)
+int	res, v;
+u_32_t	*ip;
 {
+#ifdef	USE_INET6
+	static char hostbuf[MAXHOSTNAMELEN+1];
+#endif
 	struct hostent *hp;
+	struct in_addr ipa;
 
-	if (!res)
-		return inet_ntoa(ip);
-	hp = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET);
-	if (!hp)
-		return inet_ntoa(ip);
-	return hp->h_name;
+	if (v == 4) {
+		ipa.s_addr = *ip;
+		if (!res)
+			return inet_ntoa(ipa);
+		hp = gethostbyaddr((char *)ip, sizeof(ip), AF_INET);
+		if (!hp)
+			return inet_ntoa(ipa);
+		return hp->h_name;
+
+	}
+#ifdef	USE_INET6
+	(void) inet_ntop(AF_INET6, ip, hostbuf, sizeof(hostbuf) - 1);
+	hostbuf[MAXHOSTNAMELEN] = '\0';
+	return hostbuf;
+#else
+	return "IPv6";
+#endif
 }
 
 
@@ -391,22 +407,24 @@ int	blen;
 
 	proto = getproto(nl->nl_p);
 
-	(void) sprintf(t, "%s,%s <- -> ", hostname(res, nl->nl_inip),
+	(void) sprintf(t, "%s,%s <- -> ", HOSTNAME_V4(res, nl->nl_inip),
 		portname(res, proto, (u_int)nl->nl_inport));
 	t += strlen(t);
-	(void) sprintf(t, "%s,%s ", hostname(res, nl->nl_outip),
+	(void) sprintf(t, "%s,%s ", HOSTNAME_V4(res, nl->nl_outip),
 		portname(res, proto, (u_int)nl->nl_outport));
 	t += strlen(t);
-	(void) sprintf(t, "[%s,%s]", hostname(res, nl->nl_origip),
+	(void) sprintf(t, "[%s,%s]", HOSTNAME_V4(res, nl->nl_origip),
 		portname(res, proto, (u_int)nl->nl_origport));
 	t += strlen(t);
 	if (nl->nl_type == NL_EXPIRE) {
 #ifdef	USE_QUAD_T
 		(void) sprintf(t, " Pkts %qd Bytes %qd",
+				(long long)nl->nl_pkts,
+				(long long)nl->nl_bytes);
 #else
 		(void) sprintf(t, " Pkts %ld Bytes %ld",
-#endif
 				nl->nl_pkts, nl->nl_bytes);
+#endif
 		t += strlen(t);
 	}
 
@@ -456,6 +474,8 @@ int	blen;
 			strcpy(t, "STATE:EXPIRE ");
 	} else if (sl->isl_type == ISL_FLUSH)
 		strcpy(t, "STATE:FLUSH ");
+	else if (sl->isl_type == ISL_REMOVE)
+		strcpy(t, "STATE:REMOVE ");
 	else
 		sprintf(t, "Type: %d ", sl->isl_type);
 	t += strlen(t);
@@ -464,26 +484,30 @@ int	blen;
 
 	if (sl->isl_p == IPPROTO_TCP || sl->isl_p == IPPROTO_UDP) {
 		(void) sprintf(t, "%s,%s -> ",
-			hostname(res, sl->isl_src),
+			hostname(res, sl->isl_v, (u_32_t *)&sl->isl_src),
 			portname(res, proto, (u_int)sl->isl_sport));
 		t += strlen(t);
 		(void) sprintf(t, "%s,%s PR %s",
-			hostname(res, sl->isl_dst),
+			hostname(res, sl->isl_v, (u_32_t *)&sl->isl_dst),
 			portname(res, proto, (u_int)sl->isl_dport), proto);
 	} else if (sl->isl_p == IPPROTO_ICMP) {
-		(void) sprintf(t, "%s -> ", hostname(res, sl->isl_src));
+		(void) sprintf(t, "%s -> ", hostname(res, sl->isl_v,
+						     (u_32_t *)&sl->isl_src));
 		t += strlen(t);
 		(void) sprintf(t, "%s PR icmp %d",
-			hostname(res, sl->isl_dst), sl->isl_itype);
+			hostname(res, sl->isl_v, (u_32_t *)&sl->isl_dst),
+			sl->isl_itype);
 	}
 	t += strlen(t);
 	if (sl->isl_type != ISL_NEW) {
 #ifdef	USE_QUAD_T
 		(void) sprintf(t, " Pkts %qd Bytes %qd",
+				(long long)sl->isl_pkts,
+				(long long)sl->isl_bytes);
 #else
 		(void) sprintf(t, " Pkts %ld Bytes %ld",
-#endif
 				sl->isl_pkts, sl->isl_bytes);
+#endif
 		t += strlen(t);
 	}
 
@@ -555,23 +579,27 @@ int	blen;
 	struct	icmp	*ic;
 	struct	tm	*tm;
 	char	*t, *proto;
-	u_short	hl, p;
-	int	i, lvl, res, len;
+	int	i, v, lvl, res, len, off, plen, ipoff;
 	ip_t	*ipc, *ip;
-	iplog_t	*ipl;
+	u_short	hl, p;
 	ipflog_t *ipf;
+	iplog_t	*ipl;
+	u_32_t	*s, *d;
+#ifdef	USE_INET6
+	ip6_t *ip6;
+#endif
 
 	ipl = (iplog_t *)buf;
 	ipf = (ipflog_t *)((char *)buf + sizeof(*ipl));
 	ip = (ip_t *)((char *)ipf + sizeof(*ipf));
+	v = ip->ip_v;
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
 	t = line;
 	*t = '\0';
-	hl = (ip->ip_hl << 2);
-	p = (u_short)ip->ip_p;
 	tm = localtime((time_t *)&ipl->ipl_sec);
 #ifdef	linux
-	ip->ip_len = ntohs(ip->ip_len);
+	if (v == 4)
+		ip->ip_len = ntohs(ip->ip_len);
 #endif
 
 	len = sizeof(line);
@@ -610,7 +638,6 @@ int	blen;
 #endif
 	(void) sprintf(t, " @%hu:%hu ", ipf->fl_group, ipf->fl_rule + 1);
 	t += strlen(t);
-	proto = getproto(p);
 
  	if (ipf->fl_flags & FF_SHORT) {
 		*t++ = 'S';
@@ -639,18 +666,43 @@ int	blen;
 	*t++ = ' ';
 	*t = '\0';
 
-	if ((p == IPPROTO_TCP || p == IPPROTO_UDP) &&
-	    !(ip->ip_off & IP_OFFMASK)) {
+	if (v == 6) {
+#ifdef	USE_INET6
+		off = 0;
+		ipoff = 0;
+		hl = sizeof(ip6_t);
+		ip6 = (ip6_t *)ip;
+		p = (u_short)ip6->ip6_nxt;
+		s = (u_32_t *)&ip6->ip6_src;
+		d = (u_32_t *)&ip6->ip6_dst;
+		plen = ntohs(ip6->ip6_plen);
+#else
+		sprintf(t, "ipv6");
+		goto printipflog;
+#endif
+	} else if (v == 4) {
+		hl = (ip->ip_hl << 2);
+		ipoff = ip->ip_off;
+		off = ipoff & IP_OFFMASK;
+		p = (u_short)ip->ip_p;
+		s = (u_32_t *)&ip->ip_src;
+		d = (u_32_t *)&ip->ip_dst;
+		plen = ntohs(ip->ip_len);
+	} else {
+		goto printipflog;
+	}
+	proto = getproto(p);
+
+	if ((p == IPPROTO_TCP || p == IPPROTO_UDP) && !off) {
 		tp = (tcphdr_t *)((char *)ip + hl);
 		if (!(ipf->fl_flags & (FI_SHORT << 16))) {
-			(void) sprintf(t, "%s,%s -> ",
-				hostname(res, ip->ip_src),
+			(void) sprintf(t, "%s,%s -> ", hostname(res, v, s),
 				portname(res, proto, (u_int)tp->th_sport));
 			t += strlen(t);
 			(void) sprintf(t, "%s,%s PR %s len %hu %hu ",
-				hostname(res, ip->ip_dst),
+				hostname(res, v, d),
 				portname(res, proto, (u_int)tp->th_dport),
-				proto, hl, ip->ip_len);
+				proto, hl, plen);
 			t += strlen(t);
 
 			if (p == IPPROTO_TCP) {
@@ -668,18 +720,17 @@ int	blen;
 			}
 			*t = '\0';
 		} else {
-			(void) sprintf(t, "%s -> ", hostname(res, ip->ip_src));
+			(void) sprintf(t, "%s -> ", hostname(res, v, s));
 			t += strlen(t);
 			(void) sprintf(t, "%s PR %s len %hu %hu",
-				hostname(res, ip->ip_dst), proto,
-				hl, ip->ip_len);
+				hostname(res, v, d), proto, hl, plen);
 		}
-	} else if ((p == IPPROTO_ICMP) && !(ip->ip_off & IP_OFFMASK)) {
+	} else if ((p == IPPROTO_ICMP) && !off && (v == 4)) {
 		ic = (struct icmp *)((char *)ip + hl);
-		(void) sprintf(t, "%s -> ", hostname(res, ip->ip_src));
+		(void) sprintf(t, "%s -> ", hostname(res, v, s));
 		t += strlen(t);
 		(void) sprintf(t, "%s PR icmp len %hu %hu icmp %d/%d",
-			hostname(res, ip->ip_dst), hl, ip->ip_len,
+			hostname(res, v, d), hl, plen,
 			ic->icmp_type, ic->icmp_code);
 		if (ic->icmp_type == ICMP_UNREACH ||
 		    ic->icmp_type == ICMP_SOURCEQUENCH ||
@@ -693,26 +744,25 @@ int	blen;
 
 			t += strlen(t);
 			(void) sprintf(t, " for %s,%s -",
-				hostname(res, ipc->ip_src),
+				HOSTNAME_V4(res, ipc->ip_src),
 				portname(res, proto, (u_int)tp->th_sport));
 			t += strlen(t);
 			(void) sprintf(t, " %s,%s PR %s len %hu %hu",
-				hostname(res, ipc->ip_dst),
+				HOSTNAME_V4(res, ipc->ip_dst),
 				portname(res, proto, (u_int)tp->th_dport),
 				proto, ipc->ip_hl << 2, ipc->ip_len);
 		}
 	} else {
-		(void) sprintf(t, "%s -> ", hostname(res, ip->ip_src));
+		(void) sprintf(t, "%s -> ", hostname(res, v, s));
 		t += strlen(t);
 		(void) sprintf(t, "%s PR %s len %hu (%hu)",
-			hostname(res, ip->ip_dst), proto, hl, ip->ip_len);
+			hostname(res, v, d), proto, hl, plen);
 		t += strlen(t);
-		if (ip->ip_off & IP_OFFMASK)
+		if (off & IP_OFFMASK)
 			(void) sprintf(t, " frag %s%s%hu@%hu",
-				ip->ip_off & IP_MF ? "+" : "",
-				ip->ip_off & IP_DF ? "-" : "",
-				ip->ip_len - hl,
-				(ip->ip_off & IP_OFFMASK) << 3);
+				ipoff & IP_MF ? "+" : "",
+				ipoff & IP_DF ? "-" : "",
+				plen - hl, (off & IP_OFFMASK) << 3);
 	}
 	t += strlen(t);
 
@@ -731,6 +781,7 @@ int	blen;
 	else if (ipf->fl_flags & FR_OUTQUE)
 		strcpy(t, " OUT");
 	t += strlen(t);
+printipflog:
 	*t++ = '\n';
 	*t++ = '\0';
 	if (opts & OPT_SYSLOG)
