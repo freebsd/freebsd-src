@@ -109,7 +109,7 @@ __FBSDID("$FreeBSD$");
 #elif defined(__alpha__)
 #define	NUMBOOT	1
 #else
-#error	I do not know about this architecture.
+#error	I do not know about this architecture, and shall probably not be compiled for it.
 #endif
 
 void	makelabel(const char *, const char *, struct disklabel *);
@@ -1653,16 +1653,14 @@ usage(void)
 #endif
 	);
 #else
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: disklabel [-r] disk", "(to read label)",
 		"       disklabel -w [-r] [-n] disk type [ packid ]",
 		"\t\t(to write label)",
 		"       disklabel -e [-r] [-n] disk",
 		"\t\t(to edit label)",
 		"       disklabel -R [-r] [-n] disk protofile",
-		"\t\t(to restore label)",
-		"       disklabel [-NW] disk",
-		"\t\t(to write disable/enable label)");
+		"\t\t(to restore label)");
 #endif
 	exit(1);
 }
