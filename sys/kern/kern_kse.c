@@ -455,10 +455,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		bcopy(&ke->ke_startcopy, &newke->ke_startcopy,
 		      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
 #endif
-		PROC_LOCK(p);
-		if (SIGPENDING(p))
-			newke->ke_flags |= KEF_ASTPENDING;
-		PROC_UNLOCK(p);
 		/* For the first call this may not have been set */
 		if (td->td_standin == NULL) {
 			td->td_standin = thread_alloc();
@@ -469,6 +465,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		else
 			newkg = kg;
 		kse_link(newke, newkg);
+		if (p->p_sflag & PS_NEEDSIGCHK)
+			newke->ke_flags |= KEF_ASTPENDING;
 		newke->ke_mailbox = uap->mbx;
 		newke->ke_upcall = mbx.km_func;
 		bcopy(&mbx.km_stack, &newke->ke_stack, sizeof(stack_t));
