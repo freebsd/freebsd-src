@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/iso88025.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -489,6 +490,7 @@ print_entry(struct sockaddr_dl *sdl,
 {
 	const char *host;
 	struct hostent *hp;
+	struct iso88025_sockaddr_dl_data *trld;
 	char ifname[IF_NAMESIZE];
 	int seg;
 
@@ -529,6 +531,14 @@ print_entry(struct sockaddr_dl *sdl,
                 break;
             case IFT_ISO88025:
                 printf(" [token-ring]");
+		trld = SDL_ISO88025(sdl);
+		if (trld->trld_rcf != 0) {
+			printf(" rt=%x", ntohs(trld->trld_rcf));
+			for (seg = 0;
+			     seg < ((TR_RCF_RIFLEN(trld->trld_rcf) - 2 ) / 2);
+			     seg++) 
+				printf(":%x", ntohs(trld->trld_route[seg]));
+		}
                 break;
             case IFT_FDDI:
                 printf(" [fddi]");
@@ -542,11 +552,6 @@ print_entry(struct sockaddr_dl *sdl,
             default:
 		break;
         }
-	if (sdl->sdl_rcf != NULL) {
-		printf(" rt=%x", ntohs(sdl->sdl_rcf));
-		for (seg = 0; seg < ((((ntohs(sdl->sdl_rcf) & 0x1f00) >> 8) - 2 ) / 2); seg++) 
-			printf(":%x", ntohs(sdl->sdl_route[seg]));
-	}
 		
 	printf("\n");
 
