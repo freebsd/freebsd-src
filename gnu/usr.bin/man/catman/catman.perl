@@ -32,7 +32,7 @@
 sub usage {
 
 warn <<EOF;
-usage: catman [-h|-help] [-f|-force] [-p|-print] [-r|remove]
+usage: catman [-f|-force] [-h|-help] [-L|-locale] [-p|-print] [-r|remove]
 	      [-v|-verbose] [directories ...]
 EOF
 
@@ -44,6 +44,16 @@ sub variables {
     $verbose = 0;		# more warnings
     $print = 0;			# show only, do nothing
     $remove = 0;		# unlink forgotten man/catpages
+    $locale = 0;		# go through localized man directories only
+
+    # choose localized man directories suffix. If $LC_CTYPE is set, then
+    # its value should be used as suffix, otherwise $LANG (if set)
+    $local_suffix = "";
+    if ($ENV{'LC_CTYPE'}) {
+	$local_suffix = $ENV{'LC_CTYPE'}
+    } elsif ($ENV{'LANG'}) {
+	$local_suffix = $ENV{'LANG'}
+    }
 
     # if no argument for directories given
     @defaultmanpath = ( '/usr/share/man' ); 
@@ -78,8 +88,11 @@ sub parse {
 	elsif (/^--?(p|print)$/)     { $print = 1 }
 	elsif (/^--?(r|remove)$/)    { $remove = 1 }
 	elsif (/^--?(v|verbose)$/)   { $verbose = 1 }
+	elsif (/^--?(L|locale)$/)    { $locale = 1 }
 	else { &usage }
     }
+    warn "Localized man directory suffix is $local_suffix\n"
+	if $verbose && $locale;
 
     return &absolute_path(@argv) if $#argv >= 0;
     return @defaultmanpath if $#defaultmanpath >= 0;
@@ -134,8 +147,10 @@ sub parse_dir {
     }
     $dir_visit{$dev,$ino} = $dir;
     
-    # Manpath, /usr/local/man
-    if ($dir =~ /man$/) {
+    # Manpath, /usr/local/man or
+    # localized manpath /usr/local/man/{$LC_CTYPE|$LANG}
+    if (($dir =~ /man$/) ||
+       (($locale) && ($dir =~ /man/) && ($dir =~ $local_suffix))) {
 	warn "open manpath directory ``$dir''\n" if $verbose;
 	if (!opendir(DIR, $dir)) {
 	    warn "opendir ``$dir'':$!\n"; $exit = 1; return 0;
@@ -210,7 +225,6 @@ sub parse_subdir {
     local($file, $f, $catdir, $catdir_short, $mandir, $mandir_short);
     local($mtime_man, $mtime_cat);
     local(%read);
-
     
     $mandir = $subdir;
     $catdir = &man2cat($mandir);
@@ -323,7 +337,7 @@ sub garbage {
 
 sub nroff {
     local($man,$cat) = @_;
-    local($nroff) = "nroff -Tascii -man | col";
+    local($nroff) = "nroff -T" . $dev_name . " -man | col";
     local($dev, $ino) = (stat($man))[01];
 
     # It's a link
@@ -366,21 +380,64 @@ sub nroff {
     $link{"$dev.$ino"} = $cat;
 }
 
+# Set correct [gn]roff output device name ([ng]roff's "-T" option)
+sub nroff_device {
+  # Choose default output device name. 
+  $dev_name = "ascii";
+
+  if ($locale) {
+     # Use "nroff -Tkoi8-r -man" to format russian manpages (if catman "-L"
+     # option specified only).
+     if ($local_suffix =~ '\.KOI8-R$') {
+          $dev_name = "koi8-r";
+     }
+     # Use "nroff -Tlatin1 -man" to format ISO 8859-1 manpages
+     elsif ($local_suffix =~ '\.ISO_8859-1$') {
+	  $dev_name = "latin1";
+    }
+  }
+  warn "nroff output device name is $dev_name\n" if $verbose;
+}
+
+# process directory
+sub process_dir {
+  local($dir) = @_;
+
+  if (-e $dir && -d _ && -r _ && -x _) {
+	warn "``$dir'' is not writable for you,\n" .
+	   "can only write to existing cat subdirs (if any)\n"
+	if ! -w _ && $verbose;
+	&parse_dir(&stripdir($dir));
+  } else {
+	warn "``$dir'' is not a directory or not read-/searchable for you\n";
+	$exit = 1;
+  }
+}
+
+# convert locale name to short notation (ru_RU.KOI8-R -> ru.KOI8-R)
+sub short_locale_name {
+  local($lname) = @_;
+
+  $lname =~ s|_[A-Z][A-Z]||;
+  warn "short locale name is $lname\n" if $verbose && $locale;
+}
+
 #############
 # main
 warn "Don't start this program as root, use:\n" .
     "echo $0 @ARGV | nice -5 su -m man\n" unless $>;
 
 &variables;
-foreach $dir (&parse(split(/[ :]/, join($", @ARGV)))) {	#" 
-    if (-e $dir && -d _ && -r _ && -x _) {
-	warn "``$dir'' is not writable for you,\n" .
-	    "can only write to existing cat subdirs (if any)\n"
-		if ! -w _ && $verbose;
-	&parse_dir(&stripdir($dir));
+@argv = &parse(split(/[ :]/, join($", @ARGV)));
+&nroff_device;
+foreach $dir (@argv) {
+    if ($locale) {
+       if ($local_suffix ne "") {
+	  &process_dir($dir.'/'.$local_suffix);
+	  &process_dir($dir.'/'.&short_locale_name($local_suffix));
+       }
     } else {
-	warn "``$dir'' is not a directory or not read-/searchable for you\n";
-	$exit = 1;
+      &process_dir($dir);
     }
 }
 exit($exit);

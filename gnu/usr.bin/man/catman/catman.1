@@ -35,6 +35,7 @@
 .Nm catman
 .Op Fl f | Fl force
 .Op Fl h | Fl help
+.Op Fl L | Fl locale
 .Op Fl p | Fl print
 .Op Fl r | Fl remove
 .Op Fl v | Fl verbose
@@ -60,6 +61,9 @@ Force overwriting old cat pages.  Normally only those pages will be formatted
 which are not up to date.  This option is a waste of time, CPU and RAM.
 .It Fl h , Fl help
 Print options and exit.
+.It Fl L , Fl locale
+Sense locale environment variables for possible localized man subdirectoris
+and process this entries only.
 .It Fl p , Fl print
 Don't actually format man pages. Show what would be done.
 .It Fl r , Fl remove
