@@ -42,26 +42,18 @@
  */
 enum rwlock_type {RWT_READ, RWT_WRITE};
 
-/* hack to accomodate libc */
+/* Support for staticaly initialized mutexes. */
 static struct umtx init_lock = UMTX_INITIALIZER;
 
-/*
- * Single underscore versions are for libc useage. So, use double
- * underscores for applications.
- */
-__weak_reference(__pthread_rwlock_rdlock, pthread_rwlock_rdlock);
-__weak_reference(__pthread_rwlock_timedrdlock, pthread_rwlock_timedrdlock);
-__weak_reference(__pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
-__weak_reference(__pthread_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
-__weak_reference(__pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
-__weak_reference(__pthread_rwlock_wrlock, pthread_rwlock_wrlock);
-
-/*
- * No difference between libc and application usage.
- */
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
+__weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);
+__weak_reference(_pthread_rwlock_timedrdlock, pthread_rwlock_timedrdlock);
+__weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
+__weak_reference(_pthread_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
+__weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
 __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
+__weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 
 static int	insert_rwlock(struct pthread_rwlock *, enum rwlock_type);
 static int	rwlock_init_static(struct pthread_rwlock **rwlock);
@@ -149,7 +141,7 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	int			ret;
 
 	rh = NULL;
-	if (rwlock == NULL || *rwlock == NULL)
+	if (rwlock == NULL)
 		return(EINVAL);
 
 	/*
@@ -159,6 +151,8 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	    (timeout->tv_nsec < 0 || timeout->tv_nsec >= 1000000000))
 		return (EINVAL);
 
+	if ((ret = rwlock_init_static(rwlock)) !=0 )
+		return (ret);
 	prwlock = *rwlock;
 
 	/* grab the monitor lock */
@@ -224,56 +218,22 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 }
 
 int
-__pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
-{
-	return (rwlock_rdlock_common(rwlock, 0, NULL));
-}
-
-int
 _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		error = rwlock_rdlock_common(rwlock, 0, NULL);
-	return (error);
-}
-
-int
-__pthread_rwlock_timedrdlock(pthread_rwlock_t *rwlock,
-    const struct timespec *timeout)
-{
-	return (rwlock_rdlock_common(rwlock, 0, timeout));
+	return (rwlock_rdlock_common(rwlock, 0, NULL));
 }
 
 int
 _pthread_rwlock_timedrdlock(pthread_rwlock_t *rwlock,
     const struct timespec *timeout)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		rwlock_rdlock_common(rwlock, 0, timeout);
-	return (error);
-}
-
-int
-__pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
-{
-	return (rwlock_rdlock_common(rwlock, 1, NULL));
+	return (rwlock_rdlock_common(rwlock, 0, timeout));
 }
 
 int
 _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		rwlock_rdlock_common(rwlock, 1, NULL);
-	return (error);
+	return (rwlock_rdlock_common(rwlock, 1, NULL));
 }
 
 int
@@ -339,56 +299,22 @@ out:
 }
 
 int
-__pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
-{
-	return (rwlock_wrlock_common(rwlock, 0, NULL));
-}
-
-int
 _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		error = rwlock_wrlock_common(rwlock, 0, NULL);
-	return (error);
-}
-
-int
-__pthread_rwlock_timedwrlock (pthread_rwlock_t *rwlock,
-    const struct timespec *timeout)
-{
-	return (rwlock_wrlock_common(rwlock, 0, timeout));
+	return (rwlock_wrlock_common(rwlock, 0, NULL));
 }
 
 int
 _pthread_rwlock_timedwrlock (pthread_rwlock_t *rwlock,
     const struct timespec *timeout)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		rwlock_wrlock_common(rwlock, 0, timeout);
-	return (error);
-}
-
-int
-__pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
-{
-	return (rwlock_wrlock_common(rwlock, 1, NULL));
+	return (rwlock_wrlock_common(rwlock, 0, timeout));
 }
 
 int
 _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 {
-	int error;
-
-	error = rwlock_init_static(rwlock);
-	if (error == 0)
-		rwlock_wrlock_common(rwlock, 1, NULL);
-	return (error);
+	return (rwlock_wrlock_common(rwlock, 1, NULL));
 }
 
 /*
@@ -404,7 +330,7 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	int			ret;
 
 	rh = NULL;
-	if (rwlock == NULL || *rwlock == NULL)
+	if (rwlock == NULL)
 		return(EINVAL);
 
 	/*
@@ -414,6 +340,8 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	    (timeout->tv_nsec < 0 || timeout->tv_nsec >= 1000000000))
 		return (EINVAL);
 
+	if ((ret = rwlock_init_static(rwlock)) !=0 )
+		return (ret);
 	prwlock = *rwlock;
 
 	/* grab the monitor lock */
@@ -522,12 +450,12 @@ insert_rwlock(struct pthread_rwlock *prwlock, enum rwlock_type rwt)
 }
 
 /*
- * libc version.
- * There are several users of rwlocks in libc that depend on
- * a bogus PTHREAD_RWLOCK_INITIALIZER to do for rwlocks that
+ * There are consumers of rwlocks, inluding our own libc, that depend on
+ * a PTHREAD_RWLOCK_INITIALIZER to do for rwlocks what
  * a similarly named symbol does for statically initialized mutexes.
- * However, this symbol does not seem to be a valid POSIX symbol. Rather
- * than fix libc, I choose to "fix" libthr.
+ * This symbol was dropped in The Open Group Base Specifications Issue 6
+ * and does not exist in IEEE Std 1003.1, 2003, but it should still be
+ * supported for backwards compatibility.
  */
 static int
 rwlock_init_static(struct pthread_rwlock **rwlock)
