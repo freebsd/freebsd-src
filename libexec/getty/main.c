@@ -344,6 +344,8 @@ main(int argc, char *argv[])
 			signal(SIGALRM, dingdong);
 			alarm(TO);
 		}
+
+		rval = 0;
 		if (AL) {
 			const char *p = AL;
 			char *q = name;
@@ -374,12 +376,20 @@ main(int argc, char *argv[])
 			oflush();
 			alarm(0);
 			signal(SIGALRM, SIG_DFL);
+			if (name[0] == '\0')
+				continue;
 			if (name[0] == '-') {
 				puts("user names may not start with '-'.");
 				continue;
 			}
-			if (!(upper || lower || digit))
-				continue;
+			if (!(upper || lower || digit)) {
+				if (AL) {
+					syslog(LOG_ERR,
+					    "invalid auto-login name: %s", AL);
+					exit(1);
+				} else
+					continue;
+			}
 			set_flags(2);
 			if (crmod) {
 				tmode.c_iflag |= ICRNL;
@@ -564,7 +574,7 @@ getname(void)
 		}
 
 		if (c == EOT || c == CTRL('d'))
-			exit(1);
+			exit(0);
 		if (c == '\r' || c == '\n' || np >= &name[sizeof name-1]) {
 			putf("\r\n");
 			break;
@@ -590,6 +600,7 @@ getname(void)
 			else if (np > name)
 				puts("                                     \r");
 			prompt();
+			digit = lower = upper = 0;
 			np = name;
 			continue;
 		} else if (isdigit(c))
