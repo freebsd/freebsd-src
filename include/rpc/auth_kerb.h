@@ -38,8 +38,6 @@
 
 #ifdef KERBEROS
 
-#pragma ident	"@(#)auth_kerb.h	1.10	94/04/25 SMI"
-
 #include <kerberos/krb.h>
 #include <sys/socket.h>
 #include <sys/t_kuser.h>
