@@ -123,6 +123,6 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: rmdir [-p] directory ...\n");
+	(void)fprintf(stderr, "usage: rmdir [-pv] directory ...\n");
 	exit(1);
 }
