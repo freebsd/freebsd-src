@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: main.c,v 1.38 1997/02/22 19:54:57 peter Exp $ */
 
 #include <sys/types.h>
 
@@ -49,11 +49,11 @@ static sigjmp_buf sigbuf;
 static int get(struct fetch_state *volatile fs);
 
 static void
-usage(const char *argv0)
+usage()
 {
-	fprintf(stderr, 
-		"%s: usage:\n\t%s [-DHILMNPRTValmnpqrv] [-o outputfile] "
-		"[-f file -h host [-c dir] | URL]\n", argv0, argv0);
+	fprintf(stderr, "%s\n%s\n", 
+		"usage: fetch [-DHILMNPRTValmnpqrv] [-o outputfile]",
+		"             [-f file -h host [-c dir] | URL]\n");
 	exit(EX_USAGE);
 }
 
@@ -144,7 +144,7 @@ main(int argc, char *const *argv)
 
 	    default: 	
 	    case '?':
-		    usage(argv[0]);
+		    usage();
 	    }
     }
 
@@ -152,7 +152,7 @@ main(int argc, char *const *argv)
 
     if (argv[optind] && (hostname || change_to_dir || file_to_get)) {
 	    warnx("cannot use -h, -c, or -f with a URI argument");
-	    usage(argv[0]);
+	    usage();
     }
 
     if (fs.fs_mirror && fs.fs_restart)
@@ -164,7 +164,7 @@ main(int argc, char *const *argv)
 	    if (hostname == 0) hostname = "localhost";
 	    if (change_to_dir == 0) change_to_dir = "";
 	    if (file_to_get == 0) {
-		    usage(argv[0]);
+		    usage();
 	    }
 
 	    uri = alloca(sizeof("ftp://") + strlen(hostname) + 
