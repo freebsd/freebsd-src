@@ -76,7 +76,8 @@ MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errc.3 err.3 errx.3 \
 	err.3 vwarnx.3 err.3 warnc.3 err.3 warn.3 err.3 warnx.3
 MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
 	exec.3 execv.3 exec.3 execvp.3
-MLINKS+=fpclassify.3 isfinite.3 fpclassify.3 isinf.3 fpclassify.3 isnan.3 \
+MLINKS+=fpclassify.3 finite.3 fpclassify.3 finitef.3 \
+	fpclassify.3 isfinite.3 fpclassify.3 isinf.3 fpclassify.3 isnan.3 \
 	fpclassify.3 isnormal.3
 MLINKS+=fts.3 fts_children.3 fts.3 fts_close.3 fts.3 fts_open.3 \
 	fts.3 fts_read.3 fts.3 fts_set.3
