@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.48 1997/08/02 14:31:43 bde Exp $
+ * $Id: vfs_cluster.c,v 1.49 1997/11/07 08:53:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -492,8 +492,13 @@ cluster_write(bp, filesize)
 	int async;
 
 	vp = bp->b_vp;
-	async = vp->v_mount->mnt_flag & MNT_ASYNC;
-	lblocksize = vp->v_mount->mnt_stat.f_iosize;
+	if (vp->v_type == VREG) {
+		async = vp->v_mount->mnt_flag & MNT_ASYNC;
+		lblocksize = vp->v_mount->mnt_stat.f_iosize;
+	} else {
+		async = 0;
+		lblocksize = bp->b_bufsize;
+	}
 	lbn = bp->b_lblkno;
 
 	/* Initialize vnode to beginning of file. */
@@ -565,7 +570,8 @@ cluster_write(bp, filesize)
 		 * cluster as large as possible, otherwise find size of
 		 * existing cluster.
 		 */
-		if (((u_quad_t) (lbn + 1) * lblocksize) != filesize &&
+		if ((vp->v_type == VREG) &&
+			((u_quad_t) (lbn + 1) * lblocksize) != filesize &&
 		    (bp->b_blkno == bp->b_lblkno) &&
 		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen, NULL) ||
 		     bp->b_blkno == -1)) {
@@ -621,7 +627,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int dbsize = btodb(size);
 	while (len > 0) {
 		s = splbio();
-		if ( ((tbp = gbincore(vp, start_lbn)) == NULL) ||
+		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
 			((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
 			++start_lbn;
 			--len;
@@ -672,7 +678,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
 		(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
-		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER | (tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
+		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
+						(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
 

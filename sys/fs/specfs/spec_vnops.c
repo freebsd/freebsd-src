@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.51 1997/10/27 13:33:42 bde Exp $
+ * $Id: spec_vnops.c,v 1.52 1997/12/29 00:23:16 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -232,6 +232,7 @@ spec_open(ap)
 		    (ap->a_mode & FWRITE) &&
 		    (bdevsw[maj]->d_flags & D_TYPEMASK) == D_DISK)
 			return (EPERM);
+
 		/*
 		 * Do not allow opens of block devices that are
 		 * currently mounted.
@@ -392,10 +393,14 @@ spec_write(ap)
 				brelse(bp);
 				return (error);
 			}
+			if (vp->v_flag & VOBJBUF)
+				bp->b_flags |= B_CLUSTEROK;
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize) {
-				/* bawrite(bp); */
-				cluster_write(bp, 0);
+				if ((vp->v_flag & VOBJBUF) && (on == 0))
+					vfs_bio_awrite(bp);
+				else
+					bawrite(bp);
 			} else
 				bdwrite(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
@@ -499,10 +504,15 @@ loop:
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("spec_fsync: not dirty");
-		bremfree(bp);
-		bp->b_flags |= B_BUSY;
-		splx(s);
-		bawrite(bp);
+		if ((vp->v_flag & VOBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
+			vfs_bio_awrite(bp);
+			splx(s);
+		} else {
+			bremfree(bp);
+			bp->b_flags |= B_BUSY;
+			splx(s);
+			bawrite(bp);
+		}
 		goto loop;
 	}
 	if (ap->a_waitfor == MNT_WAIT) {
@@ -631,6 +641,7 @@ spec_close(ap)
 		error = vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 0, 0);
 		if (error)
 			return (error);
+
 		/*
 		 * We do not want to really close the device if it
 		 * is still in use unless we are trying to close it

@@ -189,7 +189,13 @@ vop_stdlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {               
-	struct lock *l = (struct lock*)ap->a_vp->v_data;
+	struct lock *l;
+
+	if ((l = (struct lock *)ap->a_vp->v_data) == NULL) {
+		if (ap->a_flags & LK_INTERLOCK)
+			simple_unlock(&ap->a_vp->v_interlock);
+		return 0;
+	}
 
 	return (lockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p));
 }
@@ -202,7 +208,13 @@ vop_stdunlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct lock *l = (struct lock*)ap->a_vp->v_data;
+	struct lock *l;
+
+	if ((l = (struct lock *)ap->a_vp->v_data) == NULL) {
+		if (ap->a_flags & LK_INTERLOCK)
+			simple_unlock(&ap->a_vp->v_interlock);
+		return 0;
+	}
 
 	return (lockmgr(l, ap->a_flags | LK_RELEASE, &ap->a_vp->v_interlock, 
 	    ap->a_p));
@@ -214,7 +226,10 @@ vop_stdislocked(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-	struct lock *l = (struct lock*)ap->a_vp->v_data;
+	struct lock *l;
+
+	if ((l = (struct lock *)ap->a_vp->v_data) == NULL)
+		return 0;
 
 	return (lockstatus(l));
 }

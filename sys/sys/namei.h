@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.5 (Berkeley) 1/9/95
- * $Id: namei.h,v 1.16 1997/09/07 05:27:18 bde Exp $
+ * $Id: namei.h,v 1.17 1997/09/07 17:08:32 bde Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -109,6 +109,7 @@ struct nameidata {
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	NOCACHE		0x0020	/* name must not be left in cache */
 #define	FOLLOW		0x0040	/* follow symbolic links */
+#define	NOOBJ		0x0080	/* don't create object */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	MODMASK		0x00fc	/* mask of operational modifiers */
 /*

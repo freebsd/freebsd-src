@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.28 1997/10/16 10:49:28 phk Exp $
+ * $Id: ffs_inode.c,v 1.29 1997/10/16 20:32:34 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -134,7 +134,8 @@ ffs_update(vp, access, modify, waitfor)
 	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
-		bp->b_flags |= B_CLUSTEROK;
+		if (bp->b_bufsize == fs->fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
 		bdwrite(bp);
 		return (0);
 	}
@@ -214,6 +215,8 @@ ffs_truncate(vp, length, flags, cred, p)
 			return (error);
 		oip->i_size = length;
 		vnode_pager_setsize(ovp, length);
+		if (bp->b_bufsize == fs->fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
 		if (aflags & B_SYNC)
 			bwrite(bp);
 		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)
@@ -245,6 +248,8 @@ ffs_truncate(vp, length, flags, cred, p)
 		size = blksize(fs, oip, lbn);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
 		allocbuf(bp, size);
+		if (bp->b_bufsize == fs->fs_bsize)
+			bp->b_flags |= B_CLUSTEROK;
 		if (aflags & B_SYNC)
 			bwrite(bp);
 		else if (ovp->v_mount->mnt_flag & MNT_ASYNC)

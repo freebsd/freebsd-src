@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.15 1997/08/02 14:33:18 bde Exp $
+ * $Id: ffs_balloc.c,v 1.16 1997/12/05 19:55:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -237,6 +237,8 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		if (flags & B_SYNC) {
 			bwrite(bp);
 		} else {
+			if (bp->b_bufsize == fs->fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
 	}
@@ -265,6 +267,8 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		if (flags & B_SYNC) {
 			bwrite(bp);
 		} else {
+			if (bp->b_bufsize == fs->fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
 		*bpp = nbp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.36 1997/10/16 20:32:35 phk Exp $
+ * $Id: ffs_vnops.c,v 1.37 1997/10/27 13:33:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -124,6 +124,16 @@ ffs_fsync(ap)
 	struct buf *nbp;
 	int pass;
 	int s;
+	daddr_t lbn;
+
+
+	if (vp->v_type == VBLK) {
+		lbn = INT_MAX;
+	} else {
+		struct inode *ip;
+		ip = VTOI(vp);
+		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
+	}
 
 	pass = 0;
 	/*
@@ -133,24 +143,40 @@ loop:
 	s = splbio();
 	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
 		nbp = bp->b_vnbufs.le_next;
-		if ((bp->b_flags & B_BUSY) || (pass == 0 && (bp->b_blkno < 0)))
+		if ((bp->b_flags & B_BUSY) || (pass == 0 && (bp->b_lblkno < 0)))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 
-		if (bp->b_vp != vp || ap->a_waitfor != MNT_NOWAIT) {
+		if (((bp->b_vp != vp) || (ap->a_waitfor != MNT_NOWAIT)) ||
+			((vp->v_type != VREG) && (vp->v_type != VBLK))) {
 
 			bremfree(bp);
 			bp->b_flags |= B_BUSY;
 			splx(s);
+
 			/*
 			 * Wait for I/O associated with indirect blocks to complete,
 			 * since there is no way to quickly wait for them below.
 			 */
-			if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
-				(void) bawrite(bp);
-			else
+			if ((bp->b_vp == vp) && (ap->a_waitfor == MNT_NOWAIT)) {
+				if (bp->b_flags & B_CLUSTEROK) {
+					bdwrite(bp);
+					(void) vfs_bio_awrite(bp);
+				} else {
+					(void) bawrite(bp);
+				}
+			} else {
 				(void) bwrite(bp);
+			}
+
+		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
+
+			bremfree(bp);
+			bp->b_flags |= B_BUSY | B_INVAL | B_NOCACHE;
+			brelse(bp);
+			splx(s);
+
 		} else {
 			vfs_bio_awrite(bp);
 			splx(s);
@@ -182,4 +208,3 @@ loop:
 	gettime(&tv);
 	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
-
