@@ -599,3 +599,34 @@ vm/vm_swap.c		standard
 vm/vm_unix.c		standard
 vm/vnode_pager.c	standard
 vm/vm_zone.c		standard
+#
+# USB support
+dev/pci/uhci_pci.c	optional uhci device-driver
+usb_if.o		optional uhci device-driver			\
+	dependency	"usb_if.c"					\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+usb_if.c		optional uhci device-driver			\ 
+	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/usb/usb_if.m"	\
+	no-obj no-implicit-rule before-depend local			\
+	clean		"usb_if.c"
+usb_if.h		optional uhci device-driver			\ 
+	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/usb/usb_if.m"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"usb_if.h"
+dev/usb/uhci.c		optional uhci device-driver
+dev/usb/usb.c		optional usb device-driver
+dev/usb/usbdi.c		optional usb device-driver
+dev/usb/usbdi_util.c	optional usb device-driver
+#dev/usb/usb_mem.c	optional usb device-driver
+dev/usb/usb_subr.c	optional usb device-driver
+dev/usb/usb_quirks.c	optional usb device-driver
+dev/usb/hid.c		optional usb device-driver
+dev/usb/uhub.c		optional uhub device-driver
+dev/usb/ukbd.c		optional ukbd device-driver
+dev/usb/ulpt.c		optional ulpt device-driver
+dev/usb/ums.c		optional ums device-driver
+dev/usb/ugen.c		optional ugen device-driver
+#dev/usb/uhid.c		optional hid device-driver
