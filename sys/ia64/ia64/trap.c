@@ -628,7 +628,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	}
 #endif
 }
-}
 
 /*
  * Process the tail end of a fork() for the child.
