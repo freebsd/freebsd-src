@@ -1,7 +1,7 @@
 /* 
  * implement arrays for dc
  *
- * Copyright (C) 1994 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,20 +39,12 @@ struct dc_array {
 	dc_data value;
 	struct dc_array *next;
 };
-typedef struct dc_array dc_array;
-
-/* I can find no reason not to place arrays in their own namespace... */
-static dc_array *dc_array_register[DC_REGCOUNT];
 
 
-/* initialize the arrays to their initial values */
+/* initialize the arrays */
 void
 dc_array_init DC_DECLVOID()
 {
-	int i;
-
-	for (i=0; i<DC_REGCOUNT; ++i)
-		dc_array_register[i] = NULL;
 }
 
 /* store value into array_id[Index] */
@@ -62,12 +54,11 @@ dc_array_set DC_DECLARG((array_id, Index, value))
 	int Index DC_DECLSEP
 	dc_data value DC_DECLEND
 {
-	dc_array *cur;
-	dc_array *prev=NULL;
-	dc_array *newentry;
+	struct dc_array *cur;
+	struct dc_array *prev=NULL;
+	struct dc_array *newentry;
 
-	array_id = regmap(array_id);
-	cur = dc_array_register[array_id];
+	cur = dc_get_stacked_array(array_id);
 	while (cur && cur->Index < Index){
 		prev = cur;
 		cur = cur->next;
@@ -88,7 +79,7 @@ dc_array_set DC_DECLARG((array_id, Index, value))
 		if (prev)
 			prev->next = newentry;
 		else
-			dc_array_register[array_id] = newentry;
+			dc_set_stacked_array(array_id, newentry);
 	}
 }
 
@@ -99,10 +90,30 @@ dc_array_get DC_DECLARG((array_id, Index))
 	int array_id DC_DECLSEP
 	int Index DC_DECLEND
 {
-	dc_array *cur;
+	struct dc_array *cur;
 
-	for (cur=dc_array_register[regmap(array_id)]; cur; cur=cur->next)
+	for (cur=dc_get_stacked_array(array_id); cur; cur=cur->next)
 		if (cur->Index == Index)
 			return dc_dup(cur->value);
 	return dc_int2data(0);
+}
+
+/* free an array chain */
+void
+dc_array_free DC_DECLARG((a_head))
+	struct dc_array *a_head DC_DECLEND
+{
+	struct dc_array *cur;
+	struct dc_array *next;
+
+	for (cur=a_head; cur; cur=next) {
+		next = cur->next;
+		if (cur->value.dc_type == DC_NUMBER)
+			dc_free_num(&cur->value.v.number);
+		else if (cur->value.dc_type == DC_STRING)
+			dc_free_str(&cur->value.v.string);
+		else
+			dc_garbage("in stack", -1);
+		free(cur);
+	}
 }

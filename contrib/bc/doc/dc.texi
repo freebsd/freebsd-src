@@ -27,7 +27,7 @@ Published by the Free Software Foundation,
 675 Massachusetts Avenue,
 Cambridge, MA 02139 USA
 
-Copyright (C) 1984 Free Software Foundation, Inc.
+Copyright (C) 1984, 1994, 1997, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -60,7 +60,7 @@ by the Foundation.
 @author original manual by Richard Stallman
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1994, 1997 Free Software Foundation, Inc.
+Copyright @copyright{} 1994, 1997, 1998 Free Software Foundation, Inc.
 
 @sp 2
 Published by the Free Software Foundation, @*
@@ -97,7 +97,7 @@ by the Foundation.
 * Strings::                     Strings
 * Status Inquiry::              Status Inquiry
 * Miscellaneous::               Other commands
-* Notes::                       Notes
+* Reporting bugs::              Reporting bugs
 @end menu
 
 @node Introduction, Invocation, Top, Top
@@ -172,9 +172,23 @@ Prints the value on the top of the stack,
 without altering the stack.
 A newline is printed after the value.
 
-@item P
+@item n
 Prints the value on the top of the stack, popping it off,
 and does not print a newline after.
+(This command is a GNU extension.)
+
+@item P
+Pops off the value on top of the stack.
+If it it a string, it is simply printed without a trailing newline.
+Otherwise it is a number, and the integer portion of its absolute
+value is printed out as a "base (UCHAR_MAX+1)" byte stream.
+Assuming that (UCHAR_MAX+1) is 256
+(as it is on most machines with 8-bit bytes),
+the sequence
+@code{KSK 0k1/ [_1*]sx d0>x [256~aPd0<x]dsxx sxLKk}
+could also accomplish this function,
+except for the side-effect of clobbering the x register.
+(Details of the behavior with a number are a GNU extension.)
 
 @item f
 Prints the entire contents of the stack
@@ -199,9 +213,12 @@ from the second one popped, and pushes the result.
 
 @item *
 Pops two values, multiplies them, and pushes the result.
-The number of fraction digits in the result is controlled
-by the current precision value (see below) and does not
-depend on the values being multiplied.
+The number of fraction digits in the result is the largest of
+the precision value,
+the number of fraction digits in the multiplier,
+or the number of fraction digits in the multiplicand;
+but in no event exceeding the number of digits required for
+an exact result.
 
 @item /
 Pops two values, divides the second one popped
@@ -213,9 +230,8 @@ Pops two values,
 computes the remainder of the division that
 the @samp{/} command would do,
 and pushes that.
-The division is done with as many fraction digits
-as the precision value specifies,
-and the remainder is also computed with that many fraction digits.
+The value computed is the same as that computed by
+the sequence @code{Sd dld/ Ld*-} .
 
 @item ~
 Pops two values,
@@ -244,11 +260,11 @@ is not an integer.
 The second popped is used as the exponent;
 this value must be a non-negative number,
 and any fractional part of this exponent will be ignored.
-The third value popped is the base which gets exponentiated.
-The precision value specifies the number of fraction
-digits in the result.
-For small numbers this is like the sequence @code{Sm lble^ Lm%},
+The third value popped is the base which gets exponentiated,
+which should be an integer.
+For small integers this is like the sequence @code{Sm^Lm%},
 but, unlike @code{^}, this command will work with arbritrarily large exponents.
+(This command is a GNU extension.)
 
 @item v
 Pops one value, computes its square root, and pushes that.
@@ -261,11 +277,6 @@ which you can set with the @samp{k} command.
 The default precision value is zero,
 which means that all arithmetic except for
 addition and subtraction produces integer results.
-
-The remainder operation (@samp{%}) requires some explanation:
-applied to arguments @samp{a} and @samp{b}
-it produces @samp{a - (b * (a / b))},
-where @samp{a / b} is computed in the current precision.
 
 @node Stack Control, Registers, Arithmetic, Top
 @chapter Stack Control
@@ -287,7 +298,8 @@ Reverses the order of (swaps) the top two values on the stack.
 @node Registers, Parameters, Stack Control, Top
 @chapter Registers
 
-@sc{dc} provides 256 memory registers, each named by a single character.
+@sc{dc} provides at least 256 memory registers,
+each named by a single character.
 You can store a number in a register and retrieve it later.
 
 @table @samp
@@ -333,7 +345,7 @@ The output radix is used for printing numbers.
 
 The input and output radices are separate parameters;
 you can make them unequal, which can be useful or confusing.
-The input radix must be between 2 and 36 inclusive.
+The input radix must be between 2 and 16 inclusive.
 The output radix must be at least 2.
 The precision must be zero or greater.
 The precision is always measured in decimal digits,
@@ -412,11 +424,23 @@ if the original top-of-stack is greater.
 Thus, @samp{1 2>a} will invoke register @samp{a}'s contents
 and @samp{2 1>a} will not.
 
+@item !>@var{r}
+Similar but invokes the macro if the original top-of-stack is not greater
+(is less than or equal to) what was the second-to-top.
+
 @item <@var{r}
 Similar but invokes the macro if the original top-of-stack is less.
 
+@item !<@var{r}
+Similar but invokes the macro if the original top-of-stack is not less
+(is greater than or equal to) what was the second-to-top.
+
 @item =@var{r}
 Similar but invokes the macro if the two numbers popped are equal.
+@c This can also be validly used to compare two strings for equality.
+
+@item !=@var{r}
+Similar but invokes the macro if the two numbers popped are not equal.
 @c This can also be validly used to compare two strings for equality.
 
 @item ?
@@ -455,17 +479,20 @@ For a string, the value pushed is
 0.
 
 @item z
-Pushes the current stack depth;
+Pushes the current stack depth:
 the number of objects on the stack
 before the execution of the @samp{z} command.
 @end table
 
-@node Miscellaneous, Notes, Status Inquiry, Top
+@node Miscellaneous, Reporting bugs, Status Inquiry, Top
 @chapter Miscellaneous
 
 @table @samp
 @item !
 Will run the rest of the line as a system command.
+Note that parsing of the !<, !=, and !> commands take precidence,
+so if you want to run a command starting with <, =, or > you will
+need to add a space after the !.
 
 @item #
 Will interpret the rest of the line as a comment.
@@ -482,13 +509,14 @@ the array @var{r}.
 The selected value is then pushed onto the stack.
 @end table
 
-@node Notes,  , Miscellaneous, Top
-@chapter Notes
+Note that each stacked instance of a register has its own
+array associated with it.
+Thus @samp{1 @var{0:a} 0S@var{a} 2 @var{0:a} L@var{a} @var{0;a}p}
+will print 1, because the 2 was stored in an instance of @var{0:a}
+that was later popped.
 
-The array operations @samp{:} and @samp{;} are usually
-only used by traditional implementations of BC.
-(The GNU implementation of BC is self contained
-and does not need any version of @sc{dc} to run.)
+@node Reporting bugs,  , Miscellaneous, Top
+@chapter Reporting bugs
 
 Email bug reports to @code{bug-gnu-utils@@prep.ai.mit.edu}.
 Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.
