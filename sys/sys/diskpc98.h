@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.16 1995/05/30 08:14:17 rgrimes Exp $
+ * $Id: disklabel.h,v 1.17 1995/09/16 17:03:57 bde Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -397,6 +397,7 @@ void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
 char	*readdisklabel __P((dev_t dev, d_strategy_t *strat,
 			    struct disklabel *lp));
+void	tqdisksort __P((struct buf_queue_head *ap, struct buf *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
 int	writedisklabel __P((dev_t dev, d_strategy_t *strat,
