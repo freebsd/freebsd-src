@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.2 1998/11/15 18:25:15 dfr Exp $
+ *	$Id: sys_machdep.c,v 1.3 1998/12/23 11:50:50 dfr Exp $
  *
  */
 
@@ -102,14 +102,16 @@ alpha_sethae(struct proc *p, char *args)
 	int error;
 	struct alpha_sethae_args ua;
 
-	if (error = copyin(args, &ua, sizeof(struct alpha_sethae_args)))
+	error = copyin(args, &ua, sizeof(struct alpha_sethae_args));
+	if (error)
 		return (error);
 
 	if (securelevel > 0)
 		return (EPERM);
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
-		return error;
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
+		return (error);
 
 	p->p_md.md_flags |= MDP_HAEUSED;
 	p->p_md.md_hae = ua.hae;
@@ -140,7 +142,8 @@ alpha_set_fpmask(struct proc *p, char *args)
 	u_int64_t oldmask, *fp_control;
 	struct alpha_fpmask_args ua;
 	
-	if (error = copyin(args, &ua, sizeof(struct alpha_fpmask_args)))
+	error = copyin(args, &ua, sizeof(struct alpha_fpmask_args));
+	if (error)
 		return (error);
 
 	fp_control = &p->p_addr->u_pcb.pcb_fp_control;

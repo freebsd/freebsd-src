@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.12 1999/04/19 14:14:12 peter Exp $
+ *	$Id: vm_machdep.c,v 1.13 1999/04/20 22:53:54 dt Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -118,7 +118,6 @@ cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
 	struct user *up = p2->p_addr;
-	int i;
 
 	p2->p_md.md_tf = p1->p_md.md_tf;
 	p2->p_md.md_flags = p1->p_md.md_flags & MDP_FPUSED;

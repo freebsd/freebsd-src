@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: dec_axppci_33.c,v 1.1 1998/08/10 07:53:58 dfr Exp $ */
 /* $NetBSD: dec_axppci_33.c,v 1.38 1998/07/07 08:49:12 ross Exp $ */
 
 /*
@@ -116,7 +116,6 @@ static void
 dec_axppci_33_cons_init()
 {
 	struct ctb *ctb;
-	struct lca_config *lcp;
 
 	lca_init();
 
@@ -159,8 +158,7 @@ dec_axppci_33_cons_init()
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
-		panic("consinit: unknown console type %d\n",
-		    ctb->ctb_term_type);
+		panic("consinit: unknown console type");
 	}
 }
 
