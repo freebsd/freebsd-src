@@ -208,20 +208,8 @@ main(argc, argv)
 static void
 get_srcdir()
 {
-	int i;
-	char *p;
-
-	(void)getcwd(srcdir, sizeof(srcdir));
-	for (i = 0; i < 2; i++) {
-		p = strrchr(srcdir, '/');
-		if (p != NULL)
-			*p = '\0';
-	}
-
-	/* Sanity check */
-	p = strrchr(srcdir, '/');
-	if (p == NULL || strcmp(p + 1, "sys"))
-		errx(2, "non-standard kernel source tree");
+	if (realpath("../..", srcdir) == NULL)
+		errx(2, "Unable to find root of source tree");
 }
 
 static void
