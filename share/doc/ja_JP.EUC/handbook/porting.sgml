@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.2 1996/12/02 13:49:26 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.44 -->
 
@@ -938,8 +938,8 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	<p>MAN[1-9LN] 変数を使用すると, マニュアルの圧縮を自動的に行う
 	  ことができます. この方法を使うと, ユーザが
 	  <tt>/etc/make.conf</tt>中で<tt>NOMANCOMPRESS</tt>を設定し,
-	  マニュアルの圧縮を無効にしているかどうかを, 確認
-	  します. これらの変数の指定は, <tt>MAINTAINER</tt> の指定の後
+	  マニュアルの圧縮を無効にしているかどうかを確認できます.
+	  これらの変数の指定は, <tt>MAINTAINER</tt> の指定の後
 	  のセクションの一番最後で行ってください. こんな風に指定します:
 <tscreen><verb>
 MAN1=      foo.1 bar.1
