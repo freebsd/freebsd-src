@@ -601,7 +601,7 @@ Structures are defined in
 and
 .Pa sys/netgraph/ng_message.h 
 (for message definitions also of interest to user programs).
-
+.Pp
 The two basic object types that are of interest to node authors are 
 .Em nodes
 and
@@ -609,7 +609,6 @@ and
 These two objects have the following
 properties that are also of interest to the node writers.
 .Bl -tag -width xxx
-./.Bl  -bullet -compact -offset 2n
 .It struct  ng_node
 Node authors should always use the following typedef to declare
 their pointers, and should never actually declare the structure.
@@ -619,7 +618,6 @@ typedef struct ng_node *node_p;
 The following properties are associated with a node, and can be
 accessed in the following manner:
 .Bl -bullet -compact -offset 2n
-./.Bl -tag -width xxx
 .Pp
 .It
 Validity
@@ -697,7 +695,6 @@ typedef struct ng_hook *hook_p;
 The following properties are associated with a hook, and can be
 accessed in the following manner:
 .Bl -bullet -compact -offset 2n
-./.Bl -tag -width xxx
 .Pp
 .It
 A node dependent opaque cookie.
@@ -755,6 +752,7 @@ a node, it is possible to traverse all the active hooks.
 A current example of how to define a node can always be seen in 
 .Em sys/netgraph/ng_sample.c
 and should be used as a starting point for new node writers.
+.El
 .Sh Netgraph Message Structure
 Control messages have the following structure:
 .Bd -literal
