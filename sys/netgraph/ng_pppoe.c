@@ -748,8 +748,8 @@ AAA
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
 	uniqtag.data.pointer = sp;
 	init_tags(sp);
-	insert_tag(sp, &sp->neg->service.hdr);
 	insert_tag(sp, &uniqtag.hdr);
+	insert_tag(sp, &sp->neg->service.hdr);
 	make_packet(sp);
 	sendpacket(sp);
 }
@@ -905,12 +905,12 @@ AAA
 				neg->timeout = 0;
 				neg->pkt->pkt_header.ph.code = PADR_CODE;
 				init_tags(sp);
-				insert_tag(sp, &neg->service.hdr); /* Service */
+				insert_tag(sp, utag);      /* Host Unique */
 				if ((tag = get_tag(ph, PTT_AC_COOKIE)))
 					insert_tag(sp, tag); /* return cookie */
 				if ((tag = get_tag(ph, PTT_AC_NAME)))
 					insert_tag(sp, tag); /* return it */
-				insert_tag(sp, utag);      /* Host Unique */
+				insert_tag(sp, &neg->service.hdr); /* Service */
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
