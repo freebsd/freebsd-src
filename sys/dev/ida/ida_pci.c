@@ -148,6 +148,7 @@ static struct ida_board board_id[] = {
 	{ 0x4040, "Compaq Integrated Array controller",	    &ida_v4_access },
 	{ 0x4050, "Compaq Smart Array 4200 controller",	    &ida_v4_access },
 	{ 0x4051, "Compaq Smart Array 4250ES controller",   &ida_v4_access },
+	{ 0x4058, "Compaq Smart Array 431 controller",      &ida_v4_access },
 
 	{ IDA_DEVICEID_DEC_SMART,
 		  "DEC/Compaq Smart Array 4200 controller", &ida_v4_access },
