@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.3 1994/08/21 04:42:15 paul Exp $
+ * $Id: vnode.h,v 1.4 1994/08/29 06:09:11 davidg Exp $
  */
 
 #ifndef _SYS_VNODE_H_
-#define _SYS_VNODE_H_
+#define	_SYS_VNODE_H_
 
 #include <sys/queue.h>
 
@@ -357,6 +357,7 @@ struct vop_generic_args {
 /*
  * Public vnode manipulation functions.
  */
+struct componentname;
 struct file;
 struct mount;
 struct nameidata;
@@ -369,6 +370,12 @@ struct vnode;
 struct vop_bwrite_args;
 
 int 	bdevvp __P((dev_t dev, struct vnode **vpp));
+/* cache_* may belong in namei.h. */
+void	cache_enter __P((struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp));
+int	cache_lookup __P((struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp));
+void	cache_purge __P((struct vnode *vp));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, int (**vops)(), struct vnode **vpp));
 int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
@@ -393,9 +400,10 @@ int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
+void	vprint __P((char *, struct vnode *));
 void 	vput __P((struct vnode *vp));
 void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 #endif /* KERNEL */
 
-#endif
+#endif /* !_SYS_VNODE_H_ */
