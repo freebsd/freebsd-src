@@ -51,7 +51,7 @@ ENTRY(cpu_switch)
 	call	choosethread
 	 ldx	[PCPU(CURTHREAD)], %l0
 	cmp	%l0, %o0
-	be,a,pn	%xcc, 6f
+	be,a,pn	%xcc, 4f
 	 nop
 	ldx	[%l0 + TD_PCB], %l1
 
@@ -128,15 +128,18 @@ ENTRY(cpu_switch)
 	 * If they're the same we are done.
 	 */
 	cmp	%l2, %o2
-	be,a,pn %xcc, 6f
+	be,a,pn %xcc, 4f
 	 nop
 
 	/*
 	 * If the old process has nucleus context we can skip demapping the
 	 * tsb.
 	 */
-	lduw	[%l2 + VM_PMAP + PM_CONTEXT], %l3
-	brz,a,pn %l3, 3f
+	lduw	[PCPU(CPUID)], %l3
+	sllx	%l3, 2, %l3
+	add	%l2, VM_PMAP + PM_CONTEXT, %l4
+	lduw	[%l3 + %l4], %l5
+	brz,a,pn %l5, 3f
 	 nop
 
 	/*
@@ -160,23 +163,18 @@ ENTRY(cpu_switch)
 	/*
 	 * If the new process has nucleus context we are done.
 	 */
-3:	lduw	[%o2 + VM_PMAP + PM_CONTEXT], %o3
-	brz,a,pn %o3, 6f
+3:	lduw	[PCPU(CPUID)], %o3
+	sllx	%o3, 2, %o3
+	add	%o2, VM_PMAP + PM_CONTEXT, %o4
+	lduw	[%o3 + %o4], %o5
+	brz,a,pn %o5, 4f
 	 nop
-
-	/*
-	 * If the new process has had its context stolen, get one.
-	 */
-	cmp	%o3, -1
-	bne,a,pt %xcc, 4f
-	 nop
-	PANIC("cpu_switch: steal context", %o4)
 
 	/*
 	 * Install the new primary context.
 	 */
-4:	mov	AA_DMMU_PCXR, %o4
-	stxa	%o3, [%o4] ASI_DMMU
+	mov	AA_DMMU_PCXR, %o4
+	stxa	%o5, [%o4] ASI_DMMU
 	flush	%o0
 
 	/*
@@ -200,7 +198,7 @@ ENTRY(cpu_switch)
 	/*
 	 * Done.  Return and load the new process's window from the stack.
 	 */
-6:	ret
+4:	ret
 	 restore
 END(cpu_switch)
 
