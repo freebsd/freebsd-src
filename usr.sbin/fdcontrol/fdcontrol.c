@@ -92,7 +92,9 @@ main(int argc, char **argv)
 			break;
 
 		case 'f':
-			if (getnum(optarg, &format)) {
+			if (!strcmp(optarg, "auto")) {
+				format = -1;
+			} else if (getnum(optarg, &format)) {
 				fprintf(stderr,
 			"Bad argument %s to -f option; must be numeric\n",
 					optarg);
@@ -124,6 +126,7 @@ main(int argc, char **argv)
 		mode = O_RDONLY | O_NONBLOCK;
 	else
 		mode = O_RDWR;
+mode = O_RDONLY | O_NONBLOCK;
 
 	if((fd = open(argv[0], mode)) < 0)
 		err(EX_UNAVAILABLE, "open(%s)", argv[0]);
@@ -154,10 +157,48 @@ main(int argc, char **argv)
 	}
 
 	if (showfmt) {
-		if (verbose)
-			printf("%s: %d KB media type, fmt = ",
-			       argv[0], ft.size / 2);
-		print_fmt(ft);
+		if (verbose) {
+			char *s;
+
+			printf("%s: %d KB media type\n", argv[0],
+			    (128 << ft.secsize) * ft.size / 1024);
+			printf("\tFormat:\t\t");
+			print_fmt(ft);
+			if (ft.datalen != 0xff &&
+			    ft.datalen != (128 << ft.secsize))
+				printf("\tData length:\t%d\n", ft.datalen);
+			printf("\tSector size:\t%d\n", 128 << ft.secsize);
+			printf("\tSectors/track:\t%d\n", ft.sectrac);
+			printf("\tHeads/cylinder:\t%d\n", ft.heads);
+			printf("\tCylinders/disk:\t%d\n", ft.tracks);
+			switch (ft.trans) {
+			case 0: printf("\tTransfer rate:\t500 kbps\n"); break;
+			case 1: printf("\tTransfer rate:\t300 kbps\n"); break;
+			case 2: printf("\tTransfer rate:\t250 kbps\n"); break;
+			case 3: printf("\tTransfer rate:\t1 Mbps\n"); break;
+			}
+			printf("\tSector gap:\t%d\n", ft.gap);
+			printf("\tFormat gap:\t%d\n", ft.f_gap);
+			printf("\tInterleave:\t%d\n", ft.f_inter);
+			printf("\tSide offset:\t%d\n", ft.offset_side2);
+			printf("\tFlags\t\t<");
+			s = "";
+			if (ft.flags & FL_MFM) {
+				printf("%sMFM", s);
+				s = ",";
+			}
+			if (ft.flags & FL_2STEP) {
+				printf("%s2STEP", s);
+				s = ",";
+			}
+			if (ft.flags & FL_PERPND) {
+				printf("%sPERPENDICULAR", s);
+				s = ",";
+			}
+			printf(">\n");
+		} else {
+			print_fmt(ft);
+		}
 		return (0);
 	}
 
