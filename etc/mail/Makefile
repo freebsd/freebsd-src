@@ -65,8 +65,8 @@ SENDMAIL_ALIASES?=	/etc/mail/aliases
 #
 .if exists(/usr/share/sendmail/cf)
 SENDMAIL_CF_DIR?=	/usr/share/sendmail/cf
-.elif exists(${.CURDIR}/../../contrib/sendmail/cf)
-SENDMAIL_CF_DIR?=	${.CURDIR}/../../contrib/sendmail/cf
+.elif exists(/usr/src/contrib/sendmail/cf)
+SENDMAIL_CF_DIR?=	/usr/src/contrib/sendmail/cf
 .endif
 
 #
