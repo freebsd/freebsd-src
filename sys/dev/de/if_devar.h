@@ -1,5 +1,6 @@
 /*	$NetBSD: if_devar.h,v 1.32 1999/04/01 14:55:25 tsubai Exp $	*/
-/*	$Id: if_devar.h,v 1.15 1999/08/08 19:56:06 peter Exp $ */
+
+/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
