@@ -172,13 +172,14 @@ struct ohci_registers {
 	fwohcireg_t	dummy1[3];	/* dummy 0x44-0x4c */
 	fwohcireg_t	hcc_cntl_set;	/* HCC control set 0x50 */
 	fwohcireg_t	hcc_cntl_clr;	/* HCC control clr 0x54 */
-#define	OHCI_HCC_BIGEND	(1 << 30)
-#define	OHCI_HCC_PRPHY	(1 << 23)
-#define	OHCI_HCC_PHYEN	(1 << 22)
-#define	OHCI_HCC_LPS	(1 << 19)
-#define	OHCI_HCC_POSTWR	(1 << 18)
-#define	OHCI_HCC_LINKEN	(1 << 17)
-#define	OHCI_HCC_RESET	(1 << 16)
+#define	OHCI_HCC_BIBIV	(1 << 31)	/* BIBimage Valid */
+#define	OHCI_HCC_BIGEND	(1 << 30)	/* noByteSwapData */
+#define	OHCI_HCC_PRPHY	(1 << 23)	/* programPhyEnable */
+#define	OHCI_HCC_PHYEN	(1 << 22)	/* aPhyEnhanceEnable */
+#define	OHCI_HCC_LPS	(1 << 19)	/* LPS */
+#define	OHCI_HCC_POSTWR	(1 << 18)	/* postedWriteEnable */
+#define	OHCI_HCC_LINKEN	(1 << 17)	/* linkEnable */
+#define	OHCI_HCC_RESET	(1 << 16)	/* softReset */
 	fwohcireg_t	dummy2[2];	/* dummy 0x58-0x5c */
 	fwohcireg_t	dummy3[1];	/* dummy 0x60 */
 	fwohcireg_t	sid_buf;	/* self id buffer 0x64 */

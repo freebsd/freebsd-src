@@ -832,11 +832,6 @@ error:
 		bcopy(sc->fc->topology_map, data,
 				(sc->fc->topology_map->crc_len + 1) * 4);
 		break;
-	case FW_GSPMAP:
-		/* speed_map is larger than a page */
-		err = copyout(sc->fc->speed_map, *(void **)data,
-				(sc->fc->speed_map->crc_len + 1) * 4);
-		break;
 	case FW_GCROM:
 		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
 			fwdev = TAILQ_NEXT(fwdev, link)) {
