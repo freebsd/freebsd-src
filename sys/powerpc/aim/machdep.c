@@ -131,8 +131,6 @@ static int cacheline_size = CACHELINESIZE;
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
-char		bootpath[256];
-
 #ifdef DDB
 /* start and end of kernel symbol table */
 void		*ksym_start, *ksym_end;

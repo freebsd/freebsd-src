@@ -52,8 +52,6 @@
 
 #define	DELAY(n)		delay(n)
 
-extern char bootpath[];
-
 #if defined(_KERNEL) || defined(_STANDALONE)
 #define	CACHELINESIZE	32
 #endif
