@@ -266,8 +266,14 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported release of <application>GNOME</application>
+      has been updated from 2.6 to 2.8.2.
+      The list of changes for each component can be found at
+      <a href="http://mail.gnome.org/archives/gnome-announce-list/2004-December/msg00026.html">
+	http://mail.gnome.org/archives/gnome-announce-list/2004-December/msg00026.html</a></para>
 
+    <para>The supported release of <application>KDE</application>
+      has been updated from 3.2.2 to 3.3.2.</para>
   </sect2>
 </sect1>
 
@@ -328,4 +334,3 @@
       files.</para>
   </important>
 </sect1>
-
