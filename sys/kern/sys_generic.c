@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.33 1997/11/23 10:30:50 bde Exp $
+ * $Id: sys_generic.c,v 1.34 1998/03/30 09:50:29 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -600,11 +600,9 @@ select(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		timo = tvtohz(&atv);
+		term = ticks + tvtohz(&atv);
 	} else
-		timo = 0;
-	if (timo)
-		term = timo + ticks;
+		term = 0;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
@@ -612,10 +610,11 @@ retry:
 	if (error || p->p_retval[0])
 		goto done;
 	s = splhigh();
-	if (timo && term <= ticks) {
+	if (term && term <= ticks) {
 		splx(s);
 		goto done;
 	}
+	timo = term ? term - ticks : 0;
 	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
 		splx(s);
 		goto retry;
@@ -725,11 +724,9 @@ poll(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		timo = tvtohz(&atv);
+		term = ticks + tvtohz(&atv);
 	} else
-		timo = 0;
-	if (timo)
-		term = timo + ticks;
+		term = 0;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
@@ -737,10 +734,11 @@ retry:
 	if (error || p->p_retval[0])
 		goto done;
 	s = splhigh(); 
-	if (timo && term <= ticks) {
+	if (term && term <= ticks) {
 		splx(s);
 		goto done;
 	}
+	timo = term ? term - ticks : 0;
 	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
 		splx(s);
 		goto retry;
