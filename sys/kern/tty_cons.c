@@ -97,7 +97,7 @@ static d_open_t *cn_phys_open;		/* physical device open function */
 struct consdev *cn_tab;			/* physical console device info */
 static dev_t condev_t;			/* represents the device private info */
 
-CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
+CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 void
 cninit()
@@ -421,6 +421,22 @@ cnputc(c)
 			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
 		(*cn_tab->cn_putc)(cn_tab->cn_dev, c);
 	}
+}
+
+void
+cndbctl(on)
+	int on;
+{
+	static int refcount;
+
+	if (cn_tab == NULL)
+		return;
+	if (!on)
+		refcount--;
+	if (refcount == 0 && cn_tab->cn_dbctl != NULL)
+		(*cn_tab->cn_dbctl)(cn_tab->cn_dev, on);
+	if (on)
+		refcount++;
 }
 
 static void

@@ -49,6 +49,7 @@ typedef	void	cn_term_t __P((struct consdev *));
 typedef	int	cn_getc_t __P((dev_t));
 typedef	int	cn_checkc_t __P((dev_t));
 typedef	void	cn_putc_t __P((dev_t, int));
+typedef	void	cn_dbctl_t __P((dev_t, int));
 
 struct consdev {
 	cn_probe_t	*cn_probe;
@@ -63,6 +64,8 @@ struct consdev {
 				/* kernel "return char if available" interface */
 	cn_putc_t	*cn_putc;
 				/* kernel putchar interface */
+	cn_dbctl_t	*cn_dbctl;
+				/* debugger control interface */
 	struct	tty *cn_tp;	/* tty structure for console device */
 	dev_t	cn_dev;		/* major/minor of device */
 	short	cn_pri;		/* pecking order; the higher the better */
@@ -79,9 +82,9 @@ extern	struct linker_set cons_set;
 extern	int cons_unavail;
 extern	struct consdev *cn_tab;
 
-#define CONS_DRIVER(name, probe, init, term, getc, checkc, putc)	\
+#define CONS_DRIVER(name, probe, init, term, getc, checkc, putc, dbctl)	\
 	static struct consdev name##_consdev = {			\
-		probe, init, term, getc, checkc, putc			\
+		probe, init, term, getc, checkc, putc, dbctl		\
 	};								\
 	DATA_SET(cons_set, name##_consdev)
 
@@ -90,6 +93,7 @@ int	cncheckc __P((void));
 int	cngetc __P((void));
 void	cninit __P((void));
 void	cninit_finish __P((void));
+void	cndbctl __P((int));
 void	cnputc __P((int));
 
 #endif /* _KERNEL */
