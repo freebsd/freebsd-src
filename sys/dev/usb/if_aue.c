@@ -175,8 +175,6 @@ Static const struct aue_type aue_devs[] = {
 };
 #define aue_lookup(v, p) ((const struct aue_type *)usb_lookup(aue_devs, v, p))
 
-Static struct usb_qdat aue_qdat;
-
 Static int aue_match(device_ptr_t);
 Static int aue_attach(device_ptr_t);
 Static int aue_detach(device_ptr_t);
@@ -769,8 +767,8 @@ USB_ATTACH(aue)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	aue_qdat.ifp = ifp;
-	aue_qdat.if_rxstart = aue_rxstart;
+	sc->aue_qdat.ifp = ifp;
+	sc->aue_qdat.if_rxstart = aue_rxstart;
 
 	/*
 	 * Call MI attach routine.
@@ -1036,7 +1034,7 @@ aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	total_len -= (4 + ETHER_CRC_LEN);
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&aue_qdat;
+	m->m_pkthdr.rcvif = (struct ifnet *)&sc->aue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
