@@ -153,8 +153,9 @@ struct vm_object {
 
 #ifdef	KERNEL
 
-#define	OBJPC_SYNC	0x1			/* sync I/O */
-#define	OBJPC_INVAL	0x2			/* invalidate */
+#define OBJPC_SYNC	0x1			/* sync I/O */
+#define OBJPC_INVAL	0x2			/* invalidate */
+#define OBJPC_NOSYNC	0x4			/* skip if PG_NOSYNC */
 
 TAILQ_HEAD(object_q, vm_object);
 

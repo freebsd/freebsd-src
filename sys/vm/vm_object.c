@@ -478,8 +478,10 @@ vm_object_terminate(object)
 /*
  *	vm_object_page_clean
  *
- *	Clean all dirty pages in the specified range of object.
- *	Leaves page on whatever queue it is currently on.
+ *	Clean all dirty pages in the specified range of object.  Leaves page 
+ * 	on whatever queue it is currently on.   If NOSYNC is set then do not
+ *	write out pages with PG_NOSYNC set (originally comes from MAP_NOSYNC),
+ *	leaving the object dirty.
  *
  *	Odd semantics: if start == end, we clean everything.
  *
@@ -503,6 +505,7 @@ vm_object_page_clean(object, start, end, flags)
 	int chkb;
 	int maxb;
 	int i;
+	int clearobjflags;
 	int pagerflags;
 	vm_page_t maf[vm_pageout_page_count];
 	vm_page_t mab[vm_pageout_page_count];
@@ -527,12 +530,26 @@ vm_object_page_clean(object, start, end, flags)
 		tend = end;
 	}
 
+	/*
+	 * Generally set CLEANCHK interlock and make the page read-only so
+	 * we can then clear the object flags.
+	 *
+	 * However, if this is a nosync mmap then the object is likely to 
+	 * stay dirty so do not mess with the page and do not clear the
+	 * object flags.
+	 */
+
+	clearobjflags = 1;
+
 	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq)) {
 		vm_page_flag_set(p, PG_CLEANCHK);
-		vm_page_protect(p, VM_PROT_READ);
+		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
+			clearobjflags = 0;
+		else
+			vm_page_protect(p, VM_PROT_READ);
 	}
 
-	if ((tstart == 0) && (tend == object->size)) {
+	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
 
@@ -553,6 +570,16 @@ rescan:
 
 		vm_page_test_dirty(p);
 		if ((p->dirty & p->valid) == 0) {
+			vm_page_flag_clear(p, PG_CLEANCHK);
+			continue;
+		}
+
+		/*
+		 * If we have been asked to skip nosync pages and this is a
+		 * nosync page, skip it.  Note that the object flags were
+		 * not cleared in this case so we do not have to set them.
+		 */
+		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC)) {
 			vm_page_flag_clear(p, PG_CLEANCHK);
 			continue;
 		}
