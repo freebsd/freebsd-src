@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.17 1997/11/07 08:53:10 phk Exp $
+ * $Id: vfs_conf.c,v 1.19 1997/12/01 11:34:41 julian Exp $
  */
 
 /*
@@ -51,6 +51,8 @@
  *		as an aid to conversion for kernel multithreading
  *		on SMP reentrancy
  */
+#include "opt_bootp.h"
+
 #include <sys/param.h>		/* dev_t (types.h)*/
 #include <sys/kernel.h>
 #include <sys/systm.h>		/* rootvp*/
