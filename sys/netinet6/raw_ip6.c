@@ -503,6 +503,8 @@ rip6_detach(struct socket *so)
 	if (inp == 0)
 		panic("rip6_detach");
 	/* xxx: RSVP */
+	if (so == ip6_mrouter)
+		ip6_mrouter_done();
 	if (inp->in6p_icmp6filt) {
 		FREE(inp->in6p_icmp6filt, M_PCB);
 		inp->in6p_icmp6filt = NULL;
