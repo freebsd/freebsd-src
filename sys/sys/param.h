@@ -262,7 +262,6 @@ void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
  */
 #ifdef _KERNEL
 double memset __P((int dont_use_memset_in_kernel, int a, int b, int c));
-double memcpy __P((int dont_use_memcpy_in_kernel, int a, int b, int c));
 #endif
 
 
