@@ -341,7 +341,7 @@ syscall(struct trapframe *frame)
 	atomic_add_int(&cnt.v_syscall, 1);
 
 	if (p->p_flag & P_SA)
-		thread_user_enter(p, td);
+		thread_user_enter(td);
 
 	code = frame->fixreg[0];
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
