@@ -37,9 +37,9 @@
 #ifndef _SYS_MALLOC_H_
 #define	_SYS_MALLOC_H_
 
-#include <vm/uma.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 #define splmem splhigh
 
