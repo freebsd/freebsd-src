@@ -1,11 +1,19 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		34
+#define	patchlevel		35
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.34 2001/03/12 05:05:57 christos Exp $
+ * $Id: patchlevel.h,v 1.35 2001/04/24 14:40:25 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.35  2001/04/24 14:40:25  christos
+ * - rename magic file sgi to mips and fix it
+ * - add support for building magic.mgc
+ * - portability fixes for mmap()
+ * - try gzip before uncompress, because uncompress sometimes hangs
+ * - be more conservative about pipe reads and writes
+ * - many magic fixes
+ *
  * Revision 1.34  2001/03/12 05:05:57  christos
  * - new compiled magic format
  * - lots of magic additions
