@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/sync.c,v 1.6.2.1 2004/08/04 14:36:40 brian Exp $
  */
 
 #include <sys/types.h>

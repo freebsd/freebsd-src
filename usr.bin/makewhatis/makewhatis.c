@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/makewhatis/makewhatis.c,v 1.9.8.1 2003/12/13 15:56:51 des Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

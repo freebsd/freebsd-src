@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pccard/pccardc/power.c,v 1.2.2.1 2003/07/19 19:37:18 imp Exp $ */
 
 /*
  * Code cleanup, bug-fix and extension

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/mss/Makefile,v 1.1.2.4 2002/12/01 09:01:08 nyan Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/isa
 KMOD		= snd_mss

@@ -1,7 +1,7 @@
 /*
  * gamesupport.c - auxiliary routines for support of Phantasia
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/gamesupport.c,v 1.6 1999/11/16 02:57:33 billf Exp $
  */
 
 #include <string.h>

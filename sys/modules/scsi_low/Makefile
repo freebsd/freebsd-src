@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/scsi_low/Makefile,v 1.1.2.1 2001/12/17 13:32:31 non Exp $
 
 .PATH: ${.CURDIR}/../../cam/scsi
 KMOD=	scsi_low

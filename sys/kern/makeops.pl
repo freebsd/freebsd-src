@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/makeops.pl,v 1.1.2.2 2001/02/05 23:04:57 dirk Exp $
 
 # Process the command line
 #

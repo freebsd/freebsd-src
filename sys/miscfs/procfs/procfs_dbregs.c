@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_dbregs.c,v 1.4.2.4 2003/10/02 16:49:48 nectar Exp $
  */
 
 #include <sys/param.h>

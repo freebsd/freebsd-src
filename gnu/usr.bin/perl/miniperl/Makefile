@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/miniperl/Makefile,v 1.11.2.2 2002/02/19 16:21:34 ru Exp $
 
 PROG=	miniperl
 NOMAN=	true

@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.birthday,v 1.12.2.6 2004/06/01 09:45:56 tanimura Exp $
  */
 
 #ifndef _calendar_birthday_

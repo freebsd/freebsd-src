@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $Id: ip_proxy.h,v 2.8.2.13 2002/07/04 11:07:37 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/ip_proxy.h,v 1.1.1.4.2.7 2004/12/16 20:48:05 darrenr Exp $
  */
 
 #ifndef	__IP_PROXY_H__

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_subs.c,v 1.90.2.3.2.1 2005/01/14 00:07:56 kensmith Exp $
  */
 
 /*

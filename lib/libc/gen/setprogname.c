@@ -1,6 +1,6 @@
 #if defined(LIBC_RCS) && !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/setprogname.c,v 1.1.2.4 2002/02/11 01:18:35 dd Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdlib.h>

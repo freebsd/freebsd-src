@@ -18,7 +18,7 @@
  * $Cronyx: cpddk.c,v 1.13.4.37 2004/12/11 16:14:39 rik Exp $
  */									
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cp/cpddk.c,v 1.1.2.2 2004/12/12 11:38:05 rik Exp $");
 
 #include <dev/cx/machdep.h>
 

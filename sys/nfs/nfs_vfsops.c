@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_vfsops.c,v 1.91.2.8 2004/07/10 10:28:08 ps Exp $
  */
 
 #include "opt_bootp.h"

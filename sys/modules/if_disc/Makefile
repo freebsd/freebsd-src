@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_disc/Makefile,v 1.12 1999/12/07 17:39:01 shin Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_disc

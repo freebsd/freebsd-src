@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/gauge.c,v 1.2.12.2 2002/06/18 07:55:55 dougb Exp $");
 
 #include <stdlib.h>
 

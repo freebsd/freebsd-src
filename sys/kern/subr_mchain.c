@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_mchain.c,v 1.2.2.4 2004/01/10 01:13:53 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

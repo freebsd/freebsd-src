@@ -1,5 +1,5 @@
 /*	$NetBSD: uhcireg.h,v 1.15 2002/02/11 11:41:30 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uhcireg.h,v 1.14.2.2 2004/03/01 00:07:22 julian Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

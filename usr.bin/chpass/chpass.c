@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/chpass/chpass.c,v 1.16.2.4 2002/08/11 14:16:42 dwmalone Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

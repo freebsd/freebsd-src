@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.i386,v 1.8.2.2 2002/09/01 23:39:15 obrien Exp $
 
 SRCS+=	cpu-i386.c elf32-i386.c elf32-target.h elf32.c elflink.c
 VECS+=	bfd_elf32_i386_vec

@@ -39,7 +39,7 @@
 static const char sccsid[] = "@(#)function.c  8.10 (Berkeley) 5/4/95";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/find/function.c,v 1.22.2.12 2004/06/11 09:40:17 eik Exp $";
 #endif
 #endif /* not lint */
 

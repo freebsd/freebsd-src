@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ar/if_ar_pci.c,v 1.6.2.1 2002/06/17 15:10:57 jhay Exp $
  */
 
 #include <sys/param.h>

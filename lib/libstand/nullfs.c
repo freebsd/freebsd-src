@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/nullfs.c,v 1.3.2.2 2004/01/28 17:34:26 jhb Exp $ */
 /*	$NetBSD: nullfs.c,v 1.1 1996/01/13 22:25:39 leo Exp $	*/
 
 /*-

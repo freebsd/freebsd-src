@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/gnu/lib/libdialog/checklist.c,v 1.35.2.2.16.1 2005/01/12 21:01:20 phantom Exp $";
 #endif
 
 #include <dialog.h>

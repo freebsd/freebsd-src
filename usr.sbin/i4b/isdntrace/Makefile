@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/isdntrace/Makefile,v 1.2.2.2 2001/08/01 17:45:08 obrien Exp $
 
 PROG=	isdntrace
 MAN=	isdntrace.8

@@ -29,7 +29,7 @@
 
 #include <dev/sound/pcm/sound.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/dsp.c,v 1.15.2.14 2004/07/20 14:29:34 netchild Exp $");
 
 #define OLDPCM_IOCTL
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/netinet/accf_data.c,v 1.1.2.2 2000/09/20 21:34:13 ps Exp $
  */
 
 #define ACCEPT_FILTER_MOD

@@ -5,7 +5,7 @@
  *
  * @(#)ip_fil.h	1.35 6/5/96
  * $Id: ip_fil.h,v 2.29.2.33 2002/06/04 14:46:28 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/ip_fil.h,v 1.1.1.9.2.8 2004/12/16 20:48:05 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__

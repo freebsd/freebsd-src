@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tftpsubs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/tftp/tftpsubs.c,v 1.3.2.1 2002/04/26 17:22:43 ume Exp $";
 #endif /* not lint */
 
 /* Simple minded read-ahead/write-behind subroutines for tftp user and

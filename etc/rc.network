@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.network,v 1.74.2.46 2004/04/07 09:27:30 krion Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 #
 

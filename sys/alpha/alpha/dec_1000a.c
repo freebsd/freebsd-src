@@ -70,7 +70,7 @@
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/dec_1000a.c,v 1.2.2.3 2001/02/17 00:04:03 gallatin Exp $
  */
 
 #include "opt_ddb.h"

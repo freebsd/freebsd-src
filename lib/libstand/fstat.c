@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/fstat.c,v 1.1.1.1.6.1 2004/01/28 17:34:26 jhb Exp $ */
 /*	$NetBSD: fstat.c,v 1.1 1996/01/13 22:25:38 leo Exp $	*/
 
 /*-

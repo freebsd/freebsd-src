@@ -1,7 +1,7 @@
 /* portnm.c
    Get the port name of stdin.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/libunix/portnm.c,v 1.1.16.1 2000/12/11 01:03:17 obrien Exp $ */
 
 #include "uucp.h"
 

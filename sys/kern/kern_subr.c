@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_subr.c,v 1.31.2.3 2003/10/02 16:49:48 nectar Exp $
  */
 
 #include <sys/param.h>

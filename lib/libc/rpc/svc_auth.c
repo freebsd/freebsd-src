@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
 #else
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/lib/libc/rpc/svc_auth.c,v 1.7 1999/12/29 05:04:16 peter Exp $";
 #endif
 #endif
 

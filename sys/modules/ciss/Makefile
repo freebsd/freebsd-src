@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ciss/Makefile,v 1.1.2.2 2004/05/28 01:53:47 ps Exp $
 
 KMOD		=  ciss
 .PATH:		${.CURDIR}/../../dev/${KMOD}

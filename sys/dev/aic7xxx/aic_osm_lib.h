@@ -32,7 +32,7 @@
  *
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic_osm_lib.h#4 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic_osm_lib.h,v 1.1.2.1 2004/02/15 19:30:03 gibbs Exp $
  */
 
 /******************************** OS Includes *********************************/

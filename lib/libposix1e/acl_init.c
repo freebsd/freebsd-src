@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libposix1e/acl_init.c,v 1.3 2000/01/26 04:19:37 rwatson Exp $
  */
 /*
  * acl_init -- return a fresh acl structure

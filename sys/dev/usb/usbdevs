@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/usb/usbdevs,v 1.11.2.67 2004/12/08 22:11:11 rsm Exp $
 
 /*
  * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.

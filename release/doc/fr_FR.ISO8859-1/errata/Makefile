@@ -3,7 +3,7 @@
 #      The FreeBSD French Documentation Project
 #
 #      $Id$
-#      $FreeBSD$
+#      $FreeBSD: src/release/doc/fr_FR.ISO8859-1/errata/Makefile,v 1.1.2.2 2002/10/19 15:53:18 gioria Exp $
 #      Original revision: 1.3.2.3
 
 RELN_ROOT?= ${.CURDIR}/../..

@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/flags.h,v 1.4.2.1 2002/06/21 22:38:04 obrien Exp $ */
 
 /* Name of the input .c file being compiled.  */
 extern char *main_input_filename;

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile.inc1,v 1.141.2.70.2.1 2004/12/17 13:41:58 kensmith Exp $
 #
 # Make command line options:
 #	-DMAKE_KERBEROS4 to build KerberosIV

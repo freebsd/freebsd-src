@@ -1,7 +1,7 @@
 /*
  * ntp_proto.c - NTP version 4 protocol machinery
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ntp/ntpd/ntp_proto.c,v 1.3.2.1 2001/12/21 17:39:13 roberto Exp $
  */
 #ifdef HAVE_CONFIG_H
 #include <config.h>

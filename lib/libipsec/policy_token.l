@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/policy_token.l,v 1.2.2.3 2004/02/14 22:28:29 bms Exp $	*/
 /*	$KAME: policy_token.l,v 1.11 2000/12/01 10:08:29 sakane Exp $	*/
 
 /*

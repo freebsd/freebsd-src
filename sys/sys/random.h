@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/random.h,v 1.19.2.2 2002/09/17 17:11:54 sam Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/libntp/Makefile,v 1.4.2.2 2002/07/19 18:46:29 ru Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/libntp
 

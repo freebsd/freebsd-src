@@ -14,7 +14,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/socket.c,v 1.2.2.4 2004/01/18 21:58:33 ceri Exp $
   */
 
 #ifndef lint

@@ -8,7 +8,7 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/deflate.h,v 1.5.2.1 2003/02/01 13:33:12 sobomax Exp $ */
 
 #ifndef _DEFLATE_H
 #define _DEFLATE_H

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/asr/Makefile,v 1.1.2.1 2000/09/21 20:33:53 msmith Exp $
 
 .PATH:		${.CURDIR}/../../dev/asr
 KMOD		=  asr

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uustat_rcsid[] = "$FreeBSD$";
+const char uustat_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/uustat/uustat.c,v 1.7 1999/08/27 23:34:03 peter Exp $";
 #endif
 
 #include <ctype.h>

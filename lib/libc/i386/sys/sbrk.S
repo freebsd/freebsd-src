@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/sys/sbrk.S,v 1.7.2.2 2002/08/22 20:21:17 kan Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libc/i386/sys/sbrk.S,v 1.7.2.2 2002/08/22 20:21:17 kan Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

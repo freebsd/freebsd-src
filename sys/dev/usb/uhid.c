@@ -5,7 +5,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uhid.c,v 1.27.2.15 2004/11/12 20:33:13 julian Exp $");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_targetio.h,v 1.5.2.3 2003/02/18 22:07:10 njl Exp $
  */
 
 #ifndef _CAM_SCSI_SCSI_TARGETIO_H_

@@ -29,7 +29,7 @@
 
 #include <dev/sound/pcm/sound.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/mss.c,v 1.48.2.11 2002/12/24 21:17:41 semenu Exp $");
 
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>

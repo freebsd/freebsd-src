@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/snc/Makefile,v 1.1.2.1 2000/10/21 03:30:04 nyan Exp $
 
 .PATH:	${.CURDIR}/../../dev/snc
 KMOD	= if_snc

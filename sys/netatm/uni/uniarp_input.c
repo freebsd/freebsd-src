@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/uniarp_input.c,v 1.6.2.2 2003/08/08 15:45:37 harti Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/uniarp_input.c,v 1.6.2.2 2003/08/08 15:45:37 harti Exp $");
 #endif
 
 

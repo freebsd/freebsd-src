@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/reboot.c,v 1.2 1999/08/28 00:39:29 peter Exp $
  */
 
 #include <stand.h>

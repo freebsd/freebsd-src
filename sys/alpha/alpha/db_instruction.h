@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/db_instruction.h,v 1.2.6.2 2001/03/05 21:24:16 gallatin Exp $ */
 /* $NetBSD: db_instruction.h,v 1.4 1997/09/16 22:53:32 thorpej Exp $ */
 
 /* 

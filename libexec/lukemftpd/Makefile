@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-# $FreeBSD$
+# $FreeBSD: src/libexec/lukemftpd/Makefile,v 1.5.2.3 2003/08/24 17:46:47 obrien Exp $
 
 MAINTAINER=	obrien
 

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uvscom.c,v 1.9.2.11 2004/06/13 07:35:47 sanpei Exp $");
 
 /*
  * uvscom: SUNTAC Slipper U VS-10U driver.

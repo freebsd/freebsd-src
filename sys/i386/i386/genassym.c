@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/genassym.c,v 1.86.2.5 2003/08/30 15:39:07 tegge Exp $
  */
 
 #include "opt_user_ldt.h"

@@ -1,5 +1,5 @@
 /*	$NetBSD: twalk.c,v 1.1 1999/02/22 10:33:16 christos Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/stdlib/twalk.c,v 1.1.2.1 2000/08/17 07:38:39 jhb Exp $ */
 
 /*
  * Tree search generalized from Knuth (6.2.2) Algorithm T just like

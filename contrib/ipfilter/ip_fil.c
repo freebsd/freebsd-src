@@ -127,7 +127,7 @@ extern	int	ip6_getpmtu(struct route_in6 *, struct route_in6 *,
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
 /*static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.60 2002/08/28 12:40:39 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/contrib/ipfilter/ip_fil.c,v 1.1.1.10.2.9 2004/12/16 20:48:05 darrenr Exp $";
 #endif
 
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/300.calendar,v 1.3.2.2 2000/09/20 02:46:15 jkh Exp $
 #
 # `calendar -a' needs to die. Why? Because it's a bad idea, particular
 # with networked home directories, but also in general.  If you want the

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/apm/apm_bioscall.s,v 1.1.2.1 2001/02/08 13:43:41 nyan Exp $
  */
 
 /*

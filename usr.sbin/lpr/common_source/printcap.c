@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)printcap.c	8.2 (Berkeley) 4/28/95";
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/common_source/printcap.c,v 1.6.2.4 2003/07/29 01:02:08 gad Exp $");
 
 #include <errno.h>
 #include <stdio.h>

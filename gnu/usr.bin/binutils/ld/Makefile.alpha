@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.alpha,v 1.7.2.5 2002/09/01 23:39:14 obrien Exp $
 
 TARGET_TUPLE?=	alpha-unknown-freebsd
 

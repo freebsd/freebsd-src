@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/types.h,v 1.19.2.2 2003/08/09 16:21:19 luoqi Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_

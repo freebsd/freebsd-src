@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/recno/rec_put.c,v 1.4.6.1 2001/01/02 05:13:25 peter Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

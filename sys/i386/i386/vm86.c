@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/vm86.c,v 1.31.2.3 2003/08/09 16:21:18 luoqi Exp $
  */
 
 #include <sys/param.h>

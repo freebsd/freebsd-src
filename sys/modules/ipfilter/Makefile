@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ipfilter/Makefile,v 1.2.2.3 2004/07/05 16:23:17 darrenr Exp $ 
 
 .PATH: ${.CURDIR}/../../contrib/ipfilter/netinet
 KMOD=	ipl

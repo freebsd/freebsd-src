@@ -9,7 +9,7 @@
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/sendmail/cf/m4/cfhead.m4,v 1.3.6.11 2004/08/09 00:15:35 gshapiro Exp $
 #
 
 ######################################################################

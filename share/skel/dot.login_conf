@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/skel/dot.login_conf,v 1.2.2.1 2002/01/05 16:10:01 phantom Exp $
 #
 # see login.conf(5)
 #

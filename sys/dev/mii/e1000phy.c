@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mii/e1000phy.c,v 1.1.2.3 2003/10/14 18:22:42 wilko Exp $ */
 /*
  * Principal Author: Parag Patel
  * Copyright (c) 2001

@@ -13,7 +13,7 @@
  * works or modified versions.
  * 
  * Cronyx Id: ng_ct.h,v 1.1.2.3 2004/01/27 14:39:11 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/ng_ct.h,v 1.1.2.1 2004/04/07 08:11:57 rik Exp $
  */
 
 #ifdef NETGRAPH

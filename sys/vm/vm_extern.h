@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_extern.h,v 1.46.2.5 2004/11/16 19:48:09 ps Exp $
  */
 
 #ifndef _VM_EXTERN_H_

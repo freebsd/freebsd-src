@@ -6,7 +6,7 @@
  * compile, and copying as an aid for testing and porting.  xoxorich.
  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/config/te-generic.h,v 1.4 1999/08/27 23:34:31 peter Exp $
  */
 
 

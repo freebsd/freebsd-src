@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nge/if_nge.c,v 1.13.2.15 2004/04/22 22:03:27 ru Exp $
  */
 
 /*
@@ -132,7 +132,7 @@ MODULE_DEPEND(nge, miibus, 1, 1, 1);
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/nge/if_nge.c,v 1.13.2.15 2004/04/22 22:03:27 ru Exp $";
 #endif
 
 #define NGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)

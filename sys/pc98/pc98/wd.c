@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/wd.c,v 1.104.2.3 2003/08/12 02:21:17 nyan Exp $
  */
 
 /* TODO:

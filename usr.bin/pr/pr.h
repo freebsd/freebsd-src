@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)pr.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/pr/pr.h,v 1.3.2.1 2002/03/12 19:40:01 phantom Exp $
  */
 
 /*

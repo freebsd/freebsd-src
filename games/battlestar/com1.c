@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)com1.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/battlestar/com1.c,v 1.7.2.1 2001/03/05 11:45:35 kris Exp $";
 #endif /* not lint */
 
 #include "externs.h"

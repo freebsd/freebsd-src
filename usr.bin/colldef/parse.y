@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/colldef/parse.y,v 1.15.2.6 2004/02/19 18:54:27 ru Exp $");
 
 #include <sys/param.h>
 #include <err.h>

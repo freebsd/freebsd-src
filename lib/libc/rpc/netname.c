@@ -27,7 +27,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/netname.c,v 1.2.6.1 2000/08/23 00:05:29 jhb Exp $
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/errno.h,v 1.14.2.2.14.1 2005/01/14 00:07:56 kensmith Exp $
  */
 
 #ifndef _SYS_ERRNO_H_

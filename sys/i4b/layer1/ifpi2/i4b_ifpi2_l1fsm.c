@@ -29,7 +29,7 @@
  *
  *	$Id$ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c,v 1.1.2.1 2002/04/25 20:26:50 gj Exp $
  *
  *      last edit-date: [Mon May 29 15:23:15 2000]
  *

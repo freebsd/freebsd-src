@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/getconf/Makefile,v 1.3.2.2 2002/11/25 09:02:40 ru Exp $
 
 PROG=	getconf
 

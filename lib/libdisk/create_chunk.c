@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libdisk/create_chunk.c,v 1.46.2.8.16.1 2005/01/14 03:07:41 scottl Exp $
  *
  */
 

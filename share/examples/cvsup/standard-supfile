@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/cvsup/standard-supfile,v 1.17.2.6.10.2 2004/12/17 06:37:50 kensmith Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-4.11 source tree.

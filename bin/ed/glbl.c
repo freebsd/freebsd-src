@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)glob.c,v 1.1 1994/02/01 00:34:40 alm Exp";
 #else
 static char * const rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ed/glbl.c,v 1.9.2.1 2001/01/23 14:38:31 asmodai Exp $";
 #endif
 #endif /* not lint */
 

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_dirhash.c,v 1.3.2.8 2004/12/08 11:54:13 dwmalone Exp $
  */
 
 /*

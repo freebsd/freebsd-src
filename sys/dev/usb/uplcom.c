@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uplcom.c,v 1.8.2.8 2004/09/20 04:50:09 sanpei Exp $");
 
 /*
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

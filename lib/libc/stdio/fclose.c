@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fclose.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdio/fclose.c,v 1.8.2.2 2004/06/09 19:24:22 hmp Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>

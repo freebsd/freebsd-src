@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/killall/killall.c,v 1.5.2.8 2004/08/05 04:06:41 maxim Exp $
  */
 
 #include <sys/cdefs.h>

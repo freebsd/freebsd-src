@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdump/tcpdump/Makefile,v 1.25.2.7 2004/12/13 13:50:02 marius Exp $
 
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump

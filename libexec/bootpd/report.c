@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/report.c,v 1.2.6.2 2001/03/05 10:58:59 kris Exp $ */
 
 /*
  * report() - calls syslog

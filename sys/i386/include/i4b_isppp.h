@@ -20,7 +20,7 @@
  *
  * $Id: i4b_isppp.h,v 1.5 2000/07/18 15:05:37 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_isppp.h,v 1.1.2.2 2001/09/28 07:43:19 gj Exp $
  */
 
 #ifndef _I4B_ISPPP_H_

@@ -31,7 +31,7 @@
  *
  * Ken Hornstein <kenh@cmf.nrl.navy.mil>
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-rx.c,v 1.1.1.1.2.5 2003/03/03 05:11:02 fenner Exp $
  */
 
 #ifndef lint

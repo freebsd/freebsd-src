@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/pbio.c,v 1.1.2.2 2004/10/15 16:22:30 dds Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ums.c,v 1.36.2.7 2004/03/01 00:07:22 julian Exp $");
 
 /*
  * HID spec: http://www.usb.org/developers/data/devclass/hid1_1.pdf

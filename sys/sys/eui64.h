@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/eui64.h,v 1.1.6.1 2004/10/23 15:43:20 simokawa Exp $
  */
 #ifndef _SYS_EUI64_H
 #define _SYS_EUI64_H

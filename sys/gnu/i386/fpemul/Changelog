@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/gnu/i386/fpemul/Changelog,v 1.1.20.1 2000/08/03 00:53:55 peter Exp $
 
 This file contains the changes made to W. Metzenthem's 387 FPU
 emulator to make it work under NetBSD.

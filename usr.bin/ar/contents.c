@@ -33,13 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ar/contents.c,v 1.5.6.2 2002/03/12 19:33:00 phantom Exp $
  */
 
 #ifndef lint
 static const char sccsid[] = "@(#)contents.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ar/contents.c,v 1.5.6.2 2002/03/12 19:33:00 phantom Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

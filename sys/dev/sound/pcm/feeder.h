@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/feeder.h,v 1.2.2.5 2003/12/11 14:41:12 dds Exp $
  */
 
 struct pcm_feederdesc {

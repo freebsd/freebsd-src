@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/lib/match.c,v 1.2.2.10 2004/08/11 16:16:23 eik Exp $");
 
 #include "lib.h"
 #include <err.h>

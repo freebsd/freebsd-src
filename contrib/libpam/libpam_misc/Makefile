@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/libpam_misc/Makefile,v 1.1.1.1.6.2 2001/06/11 15:28:15 markm Exp $
 # $Header: /home/morgan/pam/Linux-PAM-0.57/libpam_misc/RCS/Makefile,v 1.10 1997/04/05 07:00:18 morgan Exp $
 #
 # $Log: Makefile,v $

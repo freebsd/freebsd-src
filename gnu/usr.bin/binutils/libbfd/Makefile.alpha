@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.alpha,v 1.5.2.2 2002/09/01 23:39:15 obrien Exp $
 
 SRCS+=	coff-alpha.c cpu-alpha.c ecoff.c ecofflink.c elf64-alpha.c \
 	elf64-target.h elf64.c elflink.c

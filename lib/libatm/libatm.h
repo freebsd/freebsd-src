@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/lib/libatm/libatm.h,v 1.3 1999/08/27 23:58:05 peter Exp $
  *
  */
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/rpcsvc/ypclnt.h,v 1.11.2.1 2002/02/15 00:46:53 des Exp $
  */
 
 #ifndef _RPCSVC_YPCLNT_H_

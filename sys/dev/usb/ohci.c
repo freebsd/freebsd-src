@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ohci.c,v 1.39.2.13 2004/11/24 19:04:30 julian Exp $");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,7 +1,7 @@
 /* pam_strerror.c */
 
 /* $Id: pam_strerror.c,v 1.6 1997/01/04 20:12:02 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_strerror.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_strerror.c,v $
  * Revision 1.6  1997/01/04 20:12:02  morgan

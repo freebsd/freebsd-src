@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arc/lib/arcdisk.c,v 1.3.2.1 2001/01/05 17:37:51 mjacob Exp $
  */
 
 /*

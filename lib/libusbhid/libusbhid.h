@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libusbhid/libusbhid.h,v 1.7.2.2 2004/06/10 06:49:10 des Exp $
  *
  */
 

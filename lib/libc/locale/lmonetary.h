@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/lmonetary.h,v 1.3.2.1 2002/03/12 17:17:48 phantom Exp $
  */
 
 #ifndef _LMONETARY_H_

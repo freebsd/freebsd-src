@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/version/perform.c,v 1.10.2.1 2004/08/11 16:16:24 eik Exp $");
 
 #include "lib.h"
 #include "version.h"

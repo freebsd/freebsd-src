@@ -42,7 +42,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/als4000.c,v 1.2.2.5 2002/04/22 15:49:31 cg Exp $");
 
 /* Debugging macro's */
 #undef DEB

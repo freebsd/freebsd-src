@@ -1,6 +1,6 @@
 
 ### $Id: Makefile,v 1.9 1997/01/04 21:55:52 morgan Exp $
-### $FreeBSD$
+### $FreeBSD: src/contrib/libpam/doc/Makefile,v 1.1.1.1.6.2 2001/06/11 15:28:10 markm Exp $
 
 TXTER=sgml2txt
 HTMLER=sgml2html

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/canfield/canfield/Makefile,v 1.5.2.3 2002/08/07 16:31:41 ru Exp $
 
 PROG=	canfield
 MAN=	canfield.6

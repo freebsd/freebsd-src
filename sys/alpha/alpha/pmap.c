@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/pmap.c,v 1.35.2.11 2004/06/02 07:04:20 phk Exp $
  */
 
 /*

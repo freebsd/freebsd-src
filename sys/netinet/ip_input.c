@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_input.c,v 1.130.2.54.6.1 2005/01/02 05:03:16 silby Exp $
  */
 
 #define	_IP_VHL

@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $Id: ip_auth.h,v 2.1 1999/08/04 17:29:54 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/ip_auth.h,v 1.1.1.2.2.6 2004/12/16 20:48:05 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_autoconf.c,v 1.14 1999/10/05 21:19:41 n_hibma Exp $
  */
 
 #include <sys/param.h>

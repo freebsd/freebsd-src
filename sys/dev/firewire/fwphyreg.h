@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwphyreg.h,v 1.1.2.1 2003/11/14 11:34:29 simokawa Exp $
  */
 
 struct phyreg_base {

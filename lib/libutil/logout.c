@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logout.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libutil/logout.c,v 1.6.2.2 2000/09/20 09:54:16 jkh Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

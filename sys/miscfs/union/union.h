@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.9 (Berkeley) 12/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/union/union.h,v 1.17.2.1 2003/06/18 07:55:47 das Exp $
  */
 
 struct union_args {

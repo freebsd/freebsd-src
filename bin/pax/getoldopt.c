@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/bin/pax/getoldopt.c,v 1.1.2.1 2001/08/01 05:03:11 obrien Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

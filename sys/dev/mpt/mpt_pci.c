@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt_pci.c,v 1.3.2.3.10.1 2005/01/03 16:39:20 sobomax Exp $ */
 /*
  * PCI specific probe and attach routines for LSI '909 FC  adapters.
  * FreeBSD Version.

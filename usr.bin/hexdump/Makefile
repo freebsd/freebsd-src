@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/hexdump/Makefile,v 1.3.8.1 2001/04/25 11:29:22 ru Exp $
 
 PROG=	hexdump
 SRCS=	conv.c display.c hexdump.c hexsyntax.c odsyntax.c parse.c

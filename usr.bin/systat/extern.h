@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/extern.h,v 1.7.6.2 2003/08/15 15:09:52 dwmalone Exp $
  */
 
 #include <sys/cdefs.h>

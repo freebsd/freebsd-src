@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/cd.h,v 1.5.2.1 2002/07/19 04:38:51 tjr Exp $
  */
 
 char	*getpwd(void);

@@ -31,7 +31,7 @@
 
 <sect1>
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/common/dev.sgml,v 1.13.2.95 2004/12/13 19:55:06 rik Exp $</pubdate>
   </sect1info>
 
   <title>Supported Devices</title>

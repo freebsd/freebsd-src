@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/ipsec_dump_policy.c,v 1.1.2.2 2004/02/14 22:28:29 bms Exp $	*/
 /*	$KAME: ipsec_dump_policy.c,v 1.11 2000/05/07 05:29:47 itojun Exp $	*/
 
 /*

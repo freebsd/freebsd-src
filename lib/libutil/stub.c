@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/stub.c,v 1.1.2.1 2000/10/27 01:50:31 green Exp $
  */
 
 #include <stdio.h>

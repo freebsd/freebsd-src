@@ -50,4 +50,4 @@ $_fini..ng:
 
 
 .section	.rodata
-	.ascii "$FreeBSD$\0"
+	.ascii "$FreeBSD: src/lib/csu/alpha/crti.S,v 1.1.2.2 2001/08/01 09:30:36 obrien Exp $\0"

@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr_pci.c,v 1.1.2.10 2004/12/08 18:53:23 mp Exp $
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/nwfs/nwfs_vfsops.c,v 1.6.2.6.14.1 2004/12/19 15:20:10 bp Exp $
  */
 #include "opt_ncp.h"
 #ifndef NCP

@@ -25,7 +25,7 @@
  *
  * @(#) pmap_check.h 1.3 93/11/21 16:18:53
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/portmap/pmap_check.h,v 1.3 2000/01/15 23:08:28 brian Exp $
  */
 
 extern int from_local __P((struct sockaddr_in *));

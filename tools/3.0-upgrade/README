@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/3.0-upgrade/README,v 1.2.2.1 2002/08/08 10:05:55 ru Exp $
 
 By 1996/12/04, the utmp element size has been changed, in order to
 allow for longer usernames.  This change renders all existing wtmp

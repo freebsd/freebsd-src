@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/timer.h,v 1.9.2.1 2001/06/13 21:56:36 brian Exp $
  */
 
 #define	TICKUNIT	100000			/* usec's per Unit */

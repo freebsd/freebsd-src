@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_page.c,v 1.147.2.22.2.1 2005/01/01 10:29:04 julian Exp $
  */
 
 /*

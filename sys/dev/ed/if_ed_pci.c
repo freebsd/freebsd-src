@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/if_ed_pci.c,v 1.23.2.2 2003/10/06 02:53:52 imp Exp $
  */
 
 #include <sys/param.h>

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/rthdr.c,v 1.2.2.1 2002/04/28 05:40:24 suz Exp $
  */
 
 #include <sys/param.h>

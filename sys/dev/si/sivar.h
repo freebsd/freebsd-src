@@ -17,7 +17,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/si/sivar.h,v 1.1 2000/01/24 07:24:02 peter Exp $
  */
 
 int	siattach(device_t dev);

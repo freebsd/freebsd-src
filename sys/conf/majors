@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/conf/majors,v 1.98.2.27.2.1 2005/01/14 03:07:39 scottl Exp $
 
 This list is obsoleted by DEVFS in 5.x and later and is only here for
 major number allocation for drivers on the RELENG_4 and earlier branches.

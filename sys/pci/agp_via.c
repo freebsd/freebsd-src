@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agp_via.c,v 1.1.2.3 2003/08/24 06:16:53 gad Exp $
  */
 
 #include "opt_bus.h"

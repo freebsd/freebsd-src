@@ -19,7 +19,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/md5/md5.c,v 1.20.2.6 2004/06/25 16:35:12 eik Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

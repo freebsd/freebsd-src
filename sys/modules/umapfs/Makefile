@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/umapfs/Makefile,v 1.8 1999/12/12 16:47:33 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/umapfs
 KMOD=	umap

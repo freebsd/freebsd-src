@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/boot/biosboot/Makefile,v 1.70.2.2 2002/08/07 16:31:55 ru Exp $
 #
 
 PROG=	boot

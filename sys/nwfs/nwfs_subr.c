@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/nwfs/nwfs_subr.c,v 1.2.2.2 2000/10/25 02:11:10 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

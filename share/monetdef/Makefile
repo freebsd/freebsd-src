@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/monetdef/Makefile,v 1.37.2.6 2003/11/04 05:03:27 murray Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

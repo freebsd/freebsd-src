@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/via8233/Makefile,v 1.1.2.1 2002/08/22 17:32:49 orion Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/pci
 KMOD		= snd_via8233

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ancontrol/ancontrol.c,v 1.1.2.11 2004/11/28 17:51:05 ceri Exp $
  */
 
 #include <sys/types.h>
@@ -58,7 +58,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-  "@(#) $FreeBSD$";
+  "@(#) $FreeBSD: src/usr.sbin/ancontrol/ancontrol.c,v 1.1.2.11 2004/11/28 17:51:05 ceri Exp $";
 #endif
 
 static int an_getval		__P((const char *, struct an_req *));

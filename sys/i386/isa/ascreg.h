@@ -31,7 +31,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ascreg.h,v 1.5 1999/08/28 00:44:37 peter Exp $
  */
 
     /***    Registers (base=3EB): ************/

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/nfs.c,v 1.21.2.3 2003/10/23 20:55:54 des Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/popen.c,v 1.14.2.1 2004/12/15 12:39:52 yar Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

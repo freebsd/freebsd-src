@@ -23,7 +23,7 @@
   *
   * Author: Wietse Venema, Eindhoven University of Technology.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/lib/libskey/skeyaccess.c,v 1.9.6.2 2002/08/12 19:42:24 iedowse Exp $
   */
 
 #include <sys/types.h>

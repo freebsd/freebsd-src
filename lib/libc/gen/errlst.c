@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/errlst.c,v 1.2.20.1 2005/01/14 00:07:56 kensmith Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/readline.h,v 1.9.2.3 2004/10/20 19:58:02 obrien Exp $ */
 /* Readline.h -- the names of functions callable from within readline. */
 
 /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.

@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/add/futil.c,v 1.9.2.5 2004/08/11 16:16:22 eik Exp $");
 
 #include <err.h>
 #include "lib.h"

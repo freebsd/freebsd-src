@@ -1,5 +1,5 @@
 # From: Id: Makefile.maninc,v 8.1 1994/12/15 06:23:43 vixie Exp
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/named/Makefile.maninc,v 1.5 1999/08/28 01:17:22 peter Exp $
 
 # (the BIND kit's man page Makefile has gotten bad and crazy over the years.
 #  this file has to be included AFTER bsd.prog.mk (which includes bsd.man.mk))

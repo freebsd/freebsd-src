@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/wd.c,v 1.219.2.4 2003/08/31 00:16:28 luoqi Exp $
  */
 
 /* TODO:

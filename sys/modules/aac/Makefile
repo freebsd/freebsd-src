@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aac/Makefile,v 1.2.2.4 2003/03/28 19:51:37 scottl Exp $
 
 .PATH: ${.CURDIR}/../../dev/aac
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wi/if_wavelan_ieee.h,v 1.12.2.2 2002/08/02 07:11:34 imp Exp $
  */
 
 #ifndef _IF_WAVELAN_IEEE_H

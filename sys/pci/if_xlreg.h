@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_xlreg.h,v 1.25.2.8 2003/08/10 21:55:57 silby Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/uhci_pci.c,v 1.26.2.9 2004/03/01 00:07:26 julian Exp $");
 
 /* Universal Host Controller Interface
  *

@@ -2,7 +2,7 @@
  * pam_tokens.h
  *
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_tokens.h,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * This is a Linux-PAM Library Private Header file. It contains tokens
  * that are used when we parse the configuration file(s).

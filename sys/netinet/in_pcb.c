@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_pcb.c,v 1.59.2.30.2.1 2005/01/02 05:03:16 silby Exp $
  */
 
 #include "opt_ipsec.h"

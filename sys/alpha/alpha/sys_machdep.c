@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/sys_machdep.c,v 1.7 2000/01/16 07:07:28 gallatin Exp $
  *
  */
 

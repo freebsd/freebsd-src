@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gperf/Makefile,v 1.4.2.2 2002/08/09 06:52:41 ru Exp $
 
 GPROFDIR=	${.CURDIR}/../../../contrib/gperf
 

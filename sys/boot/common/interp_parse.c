@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/interp_parse.c,v 1.8.2.1 2000/12/28 13:12:35 ps Exp $
  * 
  * The meat of the simple parser.
  */

@@ -35,7 +35,7 @@ eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/vnode_if.pl,v 1.21.2.1 2002/01/06 06:46:21 silby Exp $
 #
 # Script to produce VFS front-end sugar.
 #
@@ -83,7 +83,7 @@ if ($hfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from $FreeBSD$
+ * Created from $FreeBSD: src/sys/kern/vnode_if.pl,v 1.21.2.1 2002/01/06 06:46:21 silby Exp $
  */
 
 extern struct vnodeop_desc vop_default_desc;
@@ -99,7 +99,7 @@ if ($cfile) {
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from $FreeBSD$
+ * Created from $FreeBSD: src/sys/kern/vnode_if.pl,v 1.21.2.1 2002/01/06 06:46:21 silby Exp $
  */
 
 #include <sys/param.h>

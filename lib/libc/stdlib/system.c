@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdlib/system.c,v 1.5.2.2 2001/10/10 12:50:22 alfred Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

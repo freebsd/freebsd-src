@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/faithd/rsh.c,v 1.2.2.4 2002/04/28 05:40:29 suz Exp $
  */
 
 #include <sys/param.h>

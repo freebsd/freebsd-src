@@ -36,7 +36,7 @@
  *      using byte-swap instructions
  *      polynomial $edb88320
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/crc32.c,v 1.1.2.1 2002/07/31 09:08:34 imp Exp $
  *
  * CRC32 code derived from work by Gary S. Brown.
  */

@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_pcn.c,v 1.5.2.11 2004/09/09 13:22:18 brueffer Exp $
  */
 
 /*
@@ -96,7 +96,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_pcn.c,v 1.5.2.11 2004/09/09 13:22:18 brueffer Exp $";
 #endif
 
 /*

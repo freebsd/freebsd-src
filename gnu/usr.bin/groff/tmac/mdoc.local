@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/gnu/usr.bin/groff/tmac/mdoc.local,v 1.2.2.24.2.2 2004/12/19 05:04:28 kensmith Exp $
 .\"
 .\"     %beginstrip%
 .

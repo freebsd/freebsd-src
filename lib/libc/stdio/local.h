@@ -35,7 +35,7 @@
  *
  *	@(#)local.h	8.3 (Berkeley) 7/3/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/local.h,v 1.1.1.2.6.1 2001/03/05 11:27:49 obrien Exp $
  */
 
 /*

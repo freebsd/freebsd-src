@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_poll.c,v 1.2.2.6 2004/04/15 08:37:34 ru Exp $
  */
 
 #include <sys/param.h>

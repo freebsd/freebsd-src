@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/pfkey.c,v 1.1.2.3 2004/02/14 22:28:29 bms Exp $	*/
 /*	$KAME: pfkey.c,v 1.39 2001/03/05 18:22:17 thorpej Exp $	*/
 
 /*

@@ -36,7 +36,7 @@
  *
  *	@(#)regex2.h	8.4 (Berkeley) 3/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/regex2.h,v 1.3.6.1 2000/07/31 06:30:37 dcs Exp $
  */
 
 /*

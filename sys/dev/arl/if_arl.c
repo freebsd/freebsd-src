@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/arl/if_arl.c,v 1.7.2.3 2004/07/31 20:58:50 fjoe Exp $");
 
 #include "opt_inet.h"
 

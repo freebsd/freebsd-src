@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/ixgb_hw.c,v 1.1.2.1 2004/06/17 18:07:40 tackerman Exp $*/
 
 /* ixgb_hw.c
  * Shared functions for accessing and configuring the adapter

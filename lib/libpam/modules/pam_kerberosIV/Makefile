@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libpam/modules/pam_kerberosIV/Makefile,v 1.5.2.5 2004/12/13 13:49:59 marius Exp $
 
 
 LIB=		pam_kerberosIV

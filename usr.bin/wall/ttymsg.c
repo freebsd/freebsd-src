@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ttymsg.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/wall/ttymsg.c,v 1.4.2.3 2001/10/18 08:08:17 des Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

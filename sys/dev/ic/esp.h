@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ic/esp.h,v 1.6.2.1 2002/02/03 14:52:02 nyan Exp $
  */
 
 #ifndef _IC_ESP_H_

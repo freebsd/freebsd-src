@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ngctl/Makefile,v 1.4.2.5 2004/08/20 14:34:44 ru Exp $
 # $Whistle: Makefile,v 1.3 1999/01/16 00:10:11 archie Exp $
 
 PROG=	ngctl

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip.h,v 1.17.2.2 2004/02/16 14:41:46 bms Exp $
  */
 
 #ifndef _NETINET_IP_H_
