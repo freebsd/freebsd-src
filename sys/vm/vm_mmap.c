@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.50 1996/09/19 10:12:41 davidg Exp $
+ * $Id: vm_mmap.c,v 1.51 1996/10/13 07:16:50 phk Exp $
  */
 
 /*
@@ -843,7 +843,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	vm_ooffset_t foff;
 {
 	boolean_t fitit;
-	vm_object_t object, object2;
+	vm_object_t object;
 	struct vnode *vp = NULL;
 	objtype_t type;
 	int rv = KERN_SUCCESS;
@@ -915,28 +915,12 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		flags |= MAP_SHARED;
 	}
 
-	object2 = NULL;
 	docow = 0;
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
-		docow = MAP_COPY_ON_WRITE;
-		if (objsize < size) {
-			object2 = vm_object_allocate( OBJT_DEFAULT,
-				OFF_TO_IDX(size - (foff & ~PAGE_MASK)));
-			object2->backing_object = object;
-			object2->backing_object_offset = foff;
-			TAILQ_INSERT_TAIL(&object->shadow_head,
-				object2, shadow_list);
-			++object->shadow_count;
-		} else {
-			docow |= MAP_COPY_NEEDED;
-		}
+		docow = MAP_COPY_ON_WRITE | MAP_COPY_NEEDED;
 	}
 
-	if (object2)
-		rv = vm_map_find(map, object2, 0, addr, size, fitit,
-			prot, maxprot, docow);
-	else
-		rv = vm_map_find(map, object, foff, addr, size, fitit,
+	rv = vm_map_find(map, object, foff, addr, size, fitit,
 			prot, maxprot, docow);
 
 
@@ -946,10 +930,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
 		 */
-		if (object2)
-			vm_object_deallocate(object2);
-		else
-			vm_object_deallocate(object);
+		vm_object_deallocate(object);
 		goto out;
 	}
 
