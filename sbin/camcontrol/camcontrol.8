@@ -103,8 +103,10 @@
 .Nm
 .Ic debug
 .Op Fl I
+.Op Fl P
 .Op Fl T
 .Op Fl S
+.Op Fl X
 .Op Fl c
 .Aq all|off|bus Ns Op :target Ns Op :lun
 .Nm
@@ -385,10 +387,14 @@ function takes a number of arguments:
 .Bl -tag -width 18n
 .It Fl I
 Enable CAM_DEBUG_INFO printfs.
+.It Fl P
+Enable CAM_DEBUG_PERIPH printfs.
 .It Fl T
 Enable CAM_DEBUG_TRACE printfs.
 .It Fl S
 Enable CAM_DEBUG_SUBTRACE printfs.
+.It Fl X
+Enable CAM_DEBUG_XPT printfs.
 .It Fl c
 Enable CAM_DEBUG_CDB printfs.  This will cause the kernel to print out the
 SCSI CDBs sent to the specified device(s).
