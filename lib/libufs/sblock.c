@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -94,18 +93,12 @@ int
 sbwrite(struct uufsd *disk, int all)
 {
 	struct fs *fs;
-	int i, rofd;
+	int i;
 
 	ERROR(disk, NULL);
 
 	fs = &disk->d_fs;
 
-	rofd = disk->d_fd;
-	disk->d_fd = open(disk->d_name, O_WRONLY);
-	if (disk->d_fd < 0) {
-		ERROR(disk, "failed to open disk");
-		return -1;
-	}
 	if (bwrite(disk, disk->d_sblock, fs, SBLOCKSIZE) == -1) {
 		ERROR(disk, "failed to write superblock");
 		return -1;
@@ -118,7 +111,5 @@ sbwrite(struct uufsd *disk, int all)
 				return -1;
 			}
 	}
-	close(disk->d_fd);
-	disk->d_fd = rofd;
 	return 0;
 }
