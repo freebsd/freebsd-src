@@ -860,14 +860,14 @@ mi_switch()
 	    p->p_comm);
 	sched_crit = sched_lock.mtx_savecrit;
 	sched_nest = sched_lock.mtx_recurse;
-	curproc->p_lastcpu = curproc->p_oncpu;
-	curproc->p_oncpu = NOCPU;
-	clear_resched(curproc);
+	p->p_lastcpu = p->p_oncpu;
+	p->p_oncpu = NOCPU;
+	clear_resched(p);
 	cpu_switch();
-	curproc->p_oncpu = PCPU_GET(cpuid);
+	p->p_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_savecrit = sched_crit;
 	sched_lock.mtx_recurse = sched_nest;
-	sched_lock.mtx_lock = (uintptr_t)curproc;
+	sched_lock.mtx_lock = (uintptr_t)p;
 	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.tv_sec) == 0)
