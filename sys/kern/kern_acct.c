@@ -92,6 +92,9 @@ static struct	vnode *savacctp;
 static struct	ucred *savacctcred;
 static int	savacctflags;
 
+static struct mtx	acct_mtx;
+MTX_SYSINIT(acct, &acct_mtx, "accounting", MTX_DEF);
+
 /*
  * Values associated with enabling and disabling accounting
  */
@@ -153,6 +156,8 @@ acct(td, uap)
 	 * If accounting was previously enabled, kill the old space-watcher,
 	 * close the file, and (if no new file was specified, leave).
 	 */
+
+	mtx_lock(&acct_mtx);
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp),
@@ -175,6 +180,7 @@ acct(td, uap)
 	callout_init(&acctwatch_callout, 0);
 	acctwatch(NULL);
 done2:
+	mtx_unlock(&acct_mtx);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -194,13 +200,18 @@ acct_process(td)
 	struct acct acct;
 	struct rusage *r;
 	struct timeval ut, st, tmp;
-	int t;
+	int t, ret;
 	struct vnode *vp;
+	struct ucred *uc;
+
+	mtx_lock(&acct_mtx);
 
 	/* If accounting isn't enabled, don't bother */
 	vp = acctp;
-	if (vp == NULLVP)
+	if (vp == NULLVP) {
+		mtx_unlock(&acct_mtx);
 		return (0);
+	}
 
 	/*
 	 * Get process accounting information.
@@ -266,9 +277,15 @@ acct_process(td)
 	 * Write the accounting information to the file.
 	 */
 	VOP_LEASE(vp, td, acctcred, LEASE_WRITE);
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acctcred, NOCRED,
-	    (int *)0, td));
+	uc = crhold(acctcred);
+	vref(vp);
+	mtx_unlock(&acct_mtx);
+	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, NOCRED,
+	    (int *)0, td);
+	vrele(vp);
+	crfree(uc);
+	return (ret);
 }
 
 /*
@@ -323,12 +340,15 @@ acctwatch(a)
 {
 	struct statfs sb;
 
+	mtx_lock(&acct_mtx);
+
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
 			(void) vn_close(savacctp, savacctflags, savacctcred,
 			    NULL);
 			savacctp = NULLVP;
 			savacctcred = NOCRED;
+			mtx_unlock(&acct_mtx);
 			return;
 		}
 		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct thread *)0);
@@ -348,6 +368,7 @@ acctwatch(a)
 			acctp = NULLVP;
 			crfree(acctcred);
 			acctcred = NOCRED;
+			mtx_unlock(&acct_mtx);
 			return;
 		}
 		(void)VFS_STATFS(acctp->v_mount, &sb, (struct thread *)0);
@@ -360,4 +381,5 @@ acctwatch(a)
 		}
 	}
 	callout_reset(&acctwatch_callout, acctchkfreq * hz, acctwatch, NULL);
+	mtx_unlock(&acct_mtx);
 }
