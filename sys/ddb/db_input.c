@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.20 1997/11/07 02:34:50 msmith Exp $
+ *	$Id: db_input.c,v 1.21 1997/11/09 06:30:29 msmith Exp $
  */
 
 /*
@@ -57,8 +57,7 @@ static char *	db_le;		/* one past last character */
 /*
  * Simple input line history support.
  */
-static char *	db_lhistory;
-static char	db_lhistory_buffer[2048];
+static char	db_lhistory[2048];
 static int	db_lhistlsize, db_lhistidx, db_lhistcur;
 static int	db_lhist_nlines;
 
@@ -160,7 +159,7 @@ db_inputchar(c)
 		escstate = 1;
 		break;
 #if __i386__ && __FreeBSD__
-	    case 591:		/* syscons's idea of an arrow key... */
+	    case 591:		/* syscons's idea of left arrow key */
 #endif
 	    case CTRL('b'):
 		/* back up one character */
@@ -170,7 +169,7 @@ db_inputchar(c)
 		}
 		break;
 #if __i386__ && __FreeBSD__
-	    case 593:		/* syscons's idea of an arrow key... */
+	    case 593:		/* syscons's idea of right arrow key */
 #endif
 	    case CTRL('f'):
 		/* forward one character */
@@ -230,7 +229,7 @@ db_inputchar(c)
 		}
 		break;
 #if __i386__ && __FreeBSD__
-	    case 588:		/* syscons's idea of an arrow key... */
+	    case 588:		/* syscons's idea of up arrow key */
 #endif
 	    case CTRL('p'):
 		/* Make previous history line the active one. */
@@ -242,7 +241,7 @@ db_inputchar(c)
 		}
 		break;
 #if __i386__ && __FreeBSD__
-	    case 596:		/* syscons's idea of an arrow key... */
+	    case 596:		/* syscons's idea of down arrow key */
 #endif
 	    case CTRL('n'):
 		/* Make next history line the active one. */
@@ -311,14 +310,12 @@ db_readline(lstart, lsize)
 	char *	lstart;
 	int	lsize;
 {
-	if (db_lhistory && lsize != db_lhistlsize) {
-		/* Should not happen, but to be sane, throw history away. */
-		db_lhistory = NULL;
-	}
-	if (db_lhistory == NULL) {
-		/* Initialize input line history. */
-		db_lhistory = db_lhistory_buffer;
-		db_lhist_nlines = (sizeof db_lhistory_buffer) / lsize;
+	if (lsize != db_lhistlsize) {
+		/*
+		 * (Re)initialize input line history.  Throw away any
+		 * existing history.
+		 */
+		db_lhist_nlines = sizeof(db_lhistory) / lsize;
 		db_lhistlsize = lsize;
 		db_lhistidx = -1;
 	}
@@ -337,7 +334,7 @@ db_readline(lstart, lsize)
 	db_printf("\n");	/* synch output position */
 	*db_le = 0;
 
-	if (db_lhistory && (db_le - db_lbuf_start > 1)) {
+	if (db_le - db_lbuf_start > 1) {
 	    /* Maintain input line history for non-empty lines. */
 	    if (++db_lhistidx == db_lhist_nlines) {
 		/* Rotate history. */
@@ -345,7 +342,7 @@ db_readline(lstart, lsize)
 			db_lhistlsize * (db_lhist_nlines - 1));
 		db_lhistidx--;
 	    }
-	    bcopy(lstart, db_lhistory + (db_lhistidx * db_lhistlsize),
+	    bcopy(lstart, db_lhistory + db_lhistidx * db_lhistlsize,
 		  db_lhistlsize);
 	}
 
