@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: sr.4,v 1.7 1998/02/28 07:06:25 jhay Exp $
+.\" $Id: sr.4,v 1.8 1998/03/12 07:30:38 charnier Exp $
 .\"
 .Dd July 4, 1996
 .Dt SR 4 i386
@@ -36,7 +36,7 @@
 .Sh NAME
 .Nm sr
 .Nd synchronous RISCom/N2 / WANic 400/405 device driver.
-.Sh SYNOPSYS
+.Sh SYNOPSIS
 .Cd "device sr0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector srintr"
 .Cd "device sr1 at isa? port 0x310 net irq 11 flags 0x1 iomem 0xd0000 vector srintr"
 .Pp
@@ -76,9 +76,9 @@ behaviour than the default.
 .It Em 0x01
 The card has only one port.
 .It Em 0x10
-Use sepperate external clocks for transmit and receive on port 0.
+Use separate external clocks for transmit and receive on port 0.
 .It Em 0x40
-Use sepperate external clocks for transmit and receive on port 1.
+Use separate external clocks for transmit and receive on port 1.
 .El
 .Pp
 .Sh NUMBERING

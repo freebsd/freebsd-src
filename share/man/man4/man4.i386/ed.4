@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ed.4,v 1.10 1997/03/21 20:13:43 mpp Exp $
+.\"	$Id: ed.4,v 1.11 1998/03/12 07:30:31 charnier Exp $
 .\"
 .Dd October 28, 1995
 .Dt ED 4 i386
@@ -46,7 +46,7 @@ The
 driver provides support for 8 and 16bit ISA ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by other companies.
 .Pp
-It supports all 80x3 series ISA ethernet cards manufatured by Western Digital and SMC,
+It supports all 80x3 series ISA ethernet cards manufactured by Western Digital and SMC,
 the SMC Ultra, the 3Com 3c503, the Novell NE1000/NE2000, and HP PC Lan+.
 .Pp
 The
@@ -64,7 +64,7 @@ interface type (AUI/BNC, and for cards with twisted pair, AUI/10BaseT).
 .Pp
 The
 .Em flags
-are a bit field, and are summerized as follows:
+are a bit field, and are summarized as follows:
 .Pp
 .Bl -hang -offset indent
 .It Em 0x01
@@ -135,7 +135,7 @@ too fast.
 .El
 .Sh CAVEATS
 Early revision DS8390 chips have problems. They lock up whenever the receive
-ring-buffer overflows. They occassionally switch the byte order
+ring-buffer overflows. They occasionally switch the byte order
 of the length field in the packet ring header (several different causes
 of this related to an off-by-one byte alignment) - resulting in "NIC
 memory corrupt - invalid packet length" messages. The card is reset
@@ -148,7 +148,7 @@ on the 16bit cards. This can lead to ring-buffer overruns resulting in
 dropped packets during heavy network traffic.
 .Pp
 16bit Compex cards identify themselves as being 8bit. While these cards will
-work in 8bit mode, much higher performance can be acheived by specifying
+work in 8bit mode, much higher performance can be achieved by specifying
 .Em "flags 0x04"
 (force 16bit mode) in your kernel config file. In addition, you should also specify
 .Em "iosize 16384"
