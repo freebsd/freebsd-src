@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.136 (Berkeley) 1/17/97 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.146 (Berkeley) 6/11/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.136 (Berkeley) 1/17/97 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.146 (Berkeley) 6/11/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -153,6 +153,7 @@ smtp(nullserver, e)
 	volatile int n_noop = 0;	/* count of NOOP/VERB/ONEX etc cmds */
 	volatile int n_helo = 0;	/* count of HELO/EHLO commands */
 	bool ok;
+	int lognullconnection = TRUE;
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
 	extern ENVELOPE BlankEnvelope;
@@ -160,7 +161,7 @@ smtp(nullserver, e)
 	extern void settime __P((ENVELOPE *));
 	extern bool enoughdiskspace __P((long));
 	extern int runinchild __P((char *, ENVELOPE *));
-	extern void checksmtpattack __P((volatile int *, int, char *));
+	extern void checksmtpattack __P((volatile int *, int, char *, ENVELOPE *));
 
 	if (fileno(OutChannel) != fileno(stdout))
 	{
@@ -177,11 +178,12 @@ smtp(nullserver, e)
 		CurSmtpClient = CurHostName;
 
 	setproctitle("server %s startup", CurSmtpClient);
-#if defined(LOG) && DAEMON
+#if DAEMON
 	if (LogLevel > 11)
 	{
 		/* log connection information */
-		syslog(LOG_INFO, "SMTP connect from %.100s (%.100s)",
+		sm_syslog(LOG_INFO, NOQID,
+			"SMTP connect from %.100s (%.100s)",
 			CurSmtpClient, anynet_ntoa(&RealHostAddr));
 	}
 #endif
@@ -231,7 +233,9 @@ smtp(nullserver, e)
 		}
 		QuickAbort = FALSE;
 		HoldErrs = FALSE;
+		SuprErrs = FALSE;
 		LogUsrErrs = FALSE;
+		OnlyOneError = TRUE;
 		e->e_flags &= ~(EF_VRFYONLY|EF_GLOBALERRS);
 
 		/* setup for the read */
@@ -252,11 +256,10 @@ smtp(nullserver, e)
 			disconnect(1, e);
 			message("421 %s Lost input channel from %s",
 				MyHostName, CurSmtpClient);
-#ifdef LOG
 			if (LogLevel > (gotmail ? 1 : 19))
-				syslog(LOG_NOTICE, "lost input channel from %.100s",
+				sm_syslog(LOG_NOTICE, e->e_id,
+					"lost input channel from %.100s",
 					CurSmtpClient);
-#endif
 			if (InChild)
 				ExitStat = EX_QUIT;
 			finis();
@@ -269,10 +272,10 @@ smtp(nullserver, e)
 		if (e->e_xfp != NULL)
 			fprintf(e->e_xfp, "<<< %s\n", inp);
 
-#ifdef LOG
 		if (LogLevel >= 15)
-			syslog(LOG_INFO, "<-- %s", inp);
-#endif
+			sm_syslog(LOG_INFO, e->e_id,
+				"<-- %s",
+				inp);
 
 		if (e->e_id == NULL)
 			setproctitle("%s: %.80s", CurSmtpClient, inp);
@@ -324,12 +327,21 @@ smtp(nullserver, e)
 			  default:
 				if (++badcommands > MAXBADCOMMANDS)
 					sleep(1);
-				message("550 Access denied");
+				usrerr("550 Access denied");
 				continue;
 			}
 		}
 
 		/* non-null server */
+		switch (c->cmdcode)
+		{
+		  case CMDMAIL:
+		  case CMDEXPN:
+		  case CMDVRFY:
+		  case CMDETRN:
+			lognullconnection = FALSE;
+		}
+
 		switch (c->cmdcode)
 		{
 		  case CMDHELO:		/* hello -- introduce yourself */
@@ -346,12 +358,12 @@ smtp(nullserver, e)
 			}
 
 			/* avoid denial-of-service */
-			checksmtpattack(&n_helo, MAXHELOCOMMANDS, "HELO/EHLO");
+			checksmtpattack(&n_helo, MAXHELOCOMMANDS, "HELO/EHLO", e);
 
 			/* check for duplicate HELO/EHLO per RFC 1651 4.2 */
 			if (gothello)
 			{
-				message("503 %s Duplicate HELO/EHLO",
+				usrerr("503 %s Duplicate HELO/EHLO",
 					MyHostName);
 				break;
 			}
@@ -359,7 +371,7 @@ smtp(nullserver, e)
 			/* check for valid domain name (re 1123 5.2.5) */
 			if (*p == '\0' && !AllowBogusHELO)
 			{
-				message("501 %s requires domain address",
+				usrerr("501 %s requires domain address",
 					cmdbuf);
 				break;
 			}
@@ -384,7 +396,7 @@ smtp(nullserver, e)
 				if (*q != '\0')
 				{
 					if (!AllowBogusHELO)
-						message("501 Invalid domain name");
+						usrerr("501 Invalid domain name");
 					else
 					{
 						message("250 %s Invalid domain name, accepting anyway",
@@ -442,13 +454,13 @@ smtp(nullserver, e)
 
 				if (bitset(PRIV_NEEDMAILHELO, PrivacyFlags))
 				{
-					message("503 Polite people say HELO first");
+					usrerr("503 Polite people say HELO first");
 					break;
 				}
 			}
 			if (gotmail)
 			{
-				message("503 Sender already specified");
+				usrerr("503 Sender already specified");
 				if (InChild)
 					finis();
 				break;
@@ -578,7 +590,7 @@ smtp(nullserver, e)
 				
 			if (!enoughdiskspace(e->e_msgsize))
 			{
-				message("452 Insufficient disk space; try again later");
+				usrerr("452 Insufficient disk space; try again later");
 				break;
 			}
 			message("250 Sender ok");
@@ -599,6 +611,13 @@ smtp(nullserver, e)
 			}
 			QuickAbort = TRUE;
 			LogUsrErrs = TRUE;
+
+			/* limit flooding of our machine */
+			if (MaxRcptPerMsg > 0 && nrcpts >= MaxRcptPerMsg)
+			{
+				usrerr("450 Too many recipients");
+				break;
+			}
 
 			if (e->e_sendmode != SM_DELIVER)
 				e->e_flags |= EF_VRFYONLY;
@@ -674,21 +693,20 @@ smtp(nullserver, e)
 			else
 			{
 				/* punt -- should keep message in ADDRESS.... */
-				message("550 Addressee unknown");
+				usrerr("550 Addressee unknown");
 			}
-			e->e_to = NULL;
 			break;
 
 		  case CMDDATA:		/* data -- text of mail */
 			SmtpPhase = "server DATA";
 			if (!gotmail)
 			{
-				message("503 Need MAIL command");
+				usrerr("503 Need MAIL command");
 				break;
 			}
 			else if (nrcpts <= 0)
 			{
-				message("503 Need RCPT (recipient)");
+				usrerr("503 Need RCPT (recipient)");
 				break;
 			}
 
@@ -713,7 +731,7 @@ smtp(nullserver, e)
 			/* collect the text of the message */
 			SmtpPhase = "collect";
 			buffer_errors();
-			collect(InChannel, TRUE, doublequeue, NULL, e);
+			collect(InChannel, TRUE, NULL, e);
 			flush_errors(TRUE);
 			if (Errors != 0)
 				goto abortmessage;
@@ -785,7 +803,10 @@ smtp(nullserver, e)
 			break;
 
 		  case CMDRSET:		/* rset -- reset state */
-			message("250 Reset state");
+			if (tTd(94, 100))
+				message("451 Test failure");
+			else
+				message("250 Reset state");
 
 			/* arrange to ignore any current send list */
 			e->e_sendqueue = NULL;
@@ -795,6 +816,7 @@ smtp(nullserver, e)
 
 			/* clean up a bit */
 			gotmail = FALSE;
+			SuprErrs = TRUE;
 			dropenvelope(e, TRUE);
 			CurEnv = e = newenvelope(e, CurEnv);
 			break;
@@ -802,7 +824,7 @@ smtp(nullserver, e)
 		  case CMDVRFY:		/* vrfy -- verify address */
 		  case CMDEXPN:		/* expn -- expand address */
 			checksmtpattack(&nverifies, MAXVRFYCOMMANDS,
-				c->cmdcode == CMDVRFY ? "VRFY" : "EXPN");
+				c->cmdcode == CMDVRFY ? "VRFY" : "EXPN", e);
 			vrfy = c->cmdcode == CMDVRFY;
 			if (bitset(vrfy ? PRIV_NOVRFY : PRIV_NOEXPN,
 						PrivacyFlags))
@@ -811,39 +833,35 @@ smtp(nullserver, e)
 					message("252 Cannot VRFY user; try RCPT to attempt delivery (or try finger)");
 				else
 					message("502 Sorry, we do not allow this operation");
-#ifdef LOG
 				if (LogLevel > 5)
-					syslog(LOG_INFO, "%.100s: %s [rejected]",
+					sm_syslog(LOG_INFO, e->e_id,
+						"%.100s: %s [rejected]",
 						CurSmtpClient,
 						shortenstring(inp, 203));
-#endif
 				break;
 			}
 			else if (!gothello &&
 				 bitset(vrfy ? PRIV_NEEDVRFYHELO : PRIV_NEEDEXPNHELO,
 						PrivacyFlags))
 			{
-				message("503 I demand that you introduce yourself first");
+				usrerr("503 I demand that you introduce yourself first");
 				break;
 			}
 			if (runinchild(vrfy ? "SMTP-VRFY" : "SMTP-EXPN", e) > 0)
 				break;
-#ifdef LOG
 			if (LogLevel > 5)
-				syslog(LOG_INFO, "%.100s: %s",
+				sm_syslog(LOG_INFO, e->e_id,
+					"%.100s: %s",
 					CurSmtpClient,
 					shortenstring(inp, 203));
-#endif
 			vrfyqueue = NULL;
-			QuickAbort = TRUE;
 			if (vrfy)
 				e->e_flags |= EF_VRFYONLY;
 			while (*p != '\0' && isascii(*p) && isspace(*p))
 				p++;
 			if (*p == '\0')
 			{
-				message("501 Argument required");
-				Errors++;
+				usrerr("501 Argument required");
 			}
 			else
 			{
@@ -857,7 +875,7 @@ smtp(nullserver, e)
 			}
 			if (vrfyqueue == NULL)
 			{
-				message("554 Nothing to %s", vrfy ? "VRFY" : "EXPN");
+				usrerr("554 Nothing to %s", vrfy ? "VRFY" : "EXPN");
 			}
 			while (vrfyqueue != NULL)
 			{
@@ -878,24 +896,23 @@ smtp(nullserver, e)
 		  case CMDETRN:		/* etrn -- force queue flush */
 			if (strlen(p) <= 0)
 			{
-				message("500 Parameter required");
+				usrerr("500 Parameter required");
 				break;
 			}
 
 			/* crude way to avoid denial-of-service attacks */
-			checksmtpattack(&n_etrn, MAXETRNCOMMANDS, "ETRN");
+			checksmtpattack(&n_etrn, MAXETRNCOMMANDS, "ETRN", e);
 
 			id = p;
 			if (*id == '@')
 				id++;
 			else
 				*--id = '@';
-#ifdef LOG
 			if (LogLevel > 5)
-				syslog(LOG_INFO, "%.100s: ETRN %s",
+				sm_syslog(LOG_INFO, e->e_id,
+					"%.100s: ETRN %s",
 					CurSmtpClient,
 					shortenstring(id, 203));
-#endif
 			QueueLimitRecipient = id;
 			ok = runqueue(TRUE, TRUE);
 			QueueLimitRecipient = NULL;
@@ -908,7 +925,7 @@ smtp(nullserver, e)
 			break;
 
 		  case CMDNOOP:		/* noop -- do nothing */
-			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "NOOP");
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "NOOP", e);
 			message("250 OK");
 			break;
 
@@ -924,6 +941,10 @@ doquit:
 
 			if (InChild)
 				ExitStat = EX_QUIT;
+			if (lognullconnection && LogLevel > 5)
+				sm_syslog(LOG_INFO, NULL,
+					"Null connection from %.100s",
+					CurSmtpClient);
 			finis();
 
 		  case CMDVERB:		/* set verbose mode */
@@ -933,20 +954,20 @@ doquit:
 				message("502 Verbose unavailable");
 				break;
 			}
-			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "VERB");
-			Verbose = TRUE;
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "VERB", e);
+			Verbose = 1;
 			e->e_sendmode = SM_DELIVER;
 			message("250 Verbose mode");
 			break;
 
 		  case CMDONEX:		/* doing one transaction only */
-			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "ONEX");
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "ONEX", e);
 			OneXact = TRUE;
 			message("250 Only one transaction");
 			break;
 
 		  case CMDXUSR:		/* initial (user) submission */
-			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "XUSR");
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "XUSR", e);
 			UserSubmission = TRUE;
 			message("250 Initial submission");
 			break;
@@ -968,13 +989,11 @@ doquit:
 		  case CMDDBGDEBUG:	/* set debug mode */
 # endif /* SMTPDEBUG */
 		  case CMDLOGBOGUS:	/* bogus command */
-# ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_CRIT,
+				sm_syslog(LOG_CRIT, e->e_id,
 				    "\"%s\" command from %.100s (%.100s)",
 				    c->cmdname, CurSmtpClient,
 				    anynet_ntoa(&RealHostAddr));
-# endif
 			/* FALL THROUGH */
 
 		  case CMDERROR:	/* unknown command */
@@ -985,7 +1004,8 @@ doquit:
 				goto doquit;
 			}
 
-			message("500 Command unrecognized");
+			usrerr("500 Command unrecognized: \"%s\"",
+				shortenstring(inp, 203));
 			break;
 
 		  default:
@@ -1003,6 +1023,7 @@ doquit:
 **		maxcount -- maximum value for this counter before we
 **			slow down.
 **		cname -- command name for logging.
+**		e -- the current envelope.
 **
 **	Returns:
 **		none.
@@ -1012,20 +1033,20 @@ doquit:
 */
 
 void
-checksmtpattack(pcounter, maxcount, cname)
+checksmtpattack(pcounter, maxcount, cname, e)
 	volatile int *pcounter;
 	int maxcount;
 	char *cname;
+	ENVELOPE *e;
 {
 	if (++(*pcounter) >= maxcount)
 	{
-#ifdef LOG
 		if (*pcounter == maxcount && LogLevel > 5)
 		{
-			syslog(LOG_INFO, "%.100s: %.40s attack?",
+			sm_syslog(LOG_INFO, e->e_id,
+				"%.100s: %.40s attack?",
 			       CurSmtpClient, cname);
 		}
-#endif
 		sleep(*pcounter / maxcount);
 	}
 }
@@ -1065,9 +1086,8 @@ skipword(p, w)
 	if (*p != ':')
 	{
 	  syntax:
-		message("501 Syntax error in parameters scanning \"%s\"",
+		usrerr("501 Syntax error in parameters scanning \"%s\"",
 			shortenstring(firstp, 203));
-		Errors++;
 		return (NULL);
 	}
 	*p++ = '\0';
@@ -1411,7 +1431,8 @@ help(topic)
 	extern char Version[];
 
 
-	if (HelpFile == NULL || (hf = fopen(HelpFile, "r")) == NULL)
+	if (HelpFile == NULL ||
+	    (hf = safefopen(HelpFile, O_RDONLY, 0444, SFF_OPENASROOT|SFF_REGONLY|SFF_NOLOCK)) == NULL)
 	{
 		/* no help */
 		errno = 0;

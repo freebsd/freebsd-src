@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1993, 1996 Eric P. Allman
+# Copyright (c) 1993, 1996-1997 Eric P. Allman
 # Copyright (c) 1993 The Regents of the University of California.
 # All rights reserved.
 #
@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#       @(#)makesendmail	8.42 (Berkeley) 11/10/96
+#       @(#)makesendmail	8.45 (Berkeley) 4/12/97
 #
 
 #
@@ -115,6 +115,16 @@ then
 	# old versions of SCO UNIX set uname -s the same as uname -n
 	os=SCO_SV
 fi
+if [ "$os" = "$node" -a "$rel" = 4.0 -a "$arch" = "3360,3430-R" ]
+then
+	# AT&T/NCR Machines also set uname -s == uname -n
+	if [ -d /usr/sadm/sysadm/add-ons/WIN-TCP ]
+	then
+		os=NCR.MP-RAS.2.x
+	else
+		os=NCR.MP-RAS.3.x
+	fi
+fi
 
 case $os
 in
@@ -133,6 +143,7 @@ in
 			os="UXPDS"
 			rel=`uname -v | sed -e 's/\(V.*\)L.*/\1/'`
 		fi;;
+  SINIX-?)	os=SINIX;;
 esac
 
 # get "base part" of operating system release

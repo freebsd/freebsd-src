@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.333 (Berkeley) 1/21/97";
+static char sccsid[] = "@(#)conf.c	8.362 (Berkeley) 6/14/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -140,6 +140,9 @@ struct prival PrivacyValues[] =
 	{ "novrfy",		PRIV_NOVRFY		},
 	{ "restrictmailq",	PRIV_RESTRICTMAILQ	},
 	{ "restrictqrun",	PRIV_RESTRICTQRUN	},
+#if _FFR_PRIVACY_NOETRN
+	{ "noetrn",		PRIV_NOETRN		},
+#endif
 	{ "authwarnings",	PRIV_AUTHWARNINGS	},
 	{ "noreceipts",		PRIV_NORECEIPTS		},
 	{ "goaway",		PRIV_GOAWAY		},
@@ -187,6 +190,7 @@ setdefaults(e)
 	extern void setdefuser();
 	extern void setupmaps();
 	extern void setupmailers();
+	extern void setupheaders();
 
 	SpaceSub = ' ';				/* option B */
 	QueueLA = 8;				/* option x */
@@ -233,6 +237,7 @@ setdefaults(e)
 	setdefuser();
 	setupmaps();
 	setupmailers();
+	setupheaders();
 }
 
 
@@ -250,48 +255,6 @@ setdefuser()
 	defpwent = sm_getpwuid(DefUid);
 	snprintf(defuserbuf, sizeof defuserbuf, "%s",
 		defpwent == NULL ? "nobody" : defpwent->pw_name);
-}
-/*
-**  HOST_MAP_INIT -- initialize host class structures
-*/
-
-bool	host_map_init __P((MAP *map, char *args));
-
-bool
-host_map_init(map, args)
-	MAP *map;
-	char *args;
-{
-	register char *p = args;
-
-	for (;;)
-	{
-		while (isascii(*p) && isspace(*p))
-			p++;
-		if (*p != '-')
-			break;
-		switch (*++p)
-		{
-		  case 'a':
-			map->map_app = ++p;
-			break;
-
-		  case 'm':
-			map->map_mflags |= MF_MATCHONLY;
-			break;
-
-		  case 't':
-			map->map_mflags |= MF_NODEFER;
-			break;
-		}
-		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
-			p++;
-		if (*p != '\0')
-			*p++ = '\0';
-	}
-	if (map->map_app != NULL)
-		map->map_app = newstr(map->map_app);
-	return TRUE;
 }
 /*
 **  SETUPMAILERS -- initialize default mailers
@@ -368,8 +331,8 @@ setupmaps()
 #endif
 #ifdef LDAPMAP
 	MAPDEF("ldapx", NULL, 0,
-	        ldap_map_parseargs, ldap_map_open, ldap_map_close,
-	        ldap_map_lookup, null_map_store);
+		ldap_map_parseargs, ldap_map_open, ldap_map_close,
+		ldap_map_lookup, null_map_store);
 #endif
 
 #ifdef HESIOD
@@ -1062,7 +1025,11 @@ setsignal(sig, handler)
 	sigfunc_t handler;
 {
 #if defined(SYS5SIGNALS) || defined(BSD4_3)
+# ifdef BSD4_3
 	return signal(sig, handler);
+# else
+	return sigset(sig, handler);
+# endif
 #else
 	struct sigaction n, o;
 
@@ -1525,8 +1492,8 @@ getla()
 	dg_sys_info((long *)&load_info,
 		DG_SYS_INFO_LOAD_INFO_TYPE, DG_SYS_INFO_LOAD_VERSION_0);
 
-        if (tTd(3, 1))
-                printf("getla: %d\n", (int) (load_info.one_minute + 0.5));
+	if (tTd(3, 1))
+		printf("getla: %d\n", (int) (load_info.one_minute + 0.5));
 
 	return((int) (load_info.one_minute + 0.5));
 }
@@ -1557,8 +1524,8 @@ getla()
 			     (size_t) 1, 0) == -1)
 		return 0;
 
-        if (tTd(3, 1))
-                printf("getla: %d\n", (int) (pstd.psd_avg_1_min + 0.5));
+	if (tTd(3, 1))
+		printf("getla: %d\n", (int) (pstd.psd_avg_1_min + 0.5));
 
 	return (int) (pstd.psd_avg_1_min + 0.5);
 }
@@ -1699,8 +1666,7 @@ int getla(void)
 	static int kmem = -1;
 	static enum { getla_none, getla_32, getla_64 } kernel_type =
 					getla_none;
-	uint32_t avenrun32[3];
-	uint64_t avenrun64[3];
+	uint32_t avenrun[3];
 
 	if (kernel_type == getla_none)
 	{
@@ -1783,57 +1749,47 @@ int getla(void)
 
 	switch (kernel_type)
 	{
+	  case getla_none:
+		return -1;
+
 	  case getla_32:
 		if (lseek(kmem, (off_t) Nl32[X_AVENRUN].n_value, SEEK_SET) == -1 ||
-		    read(kmem, (char *) avenrun32, sizeof(avenrun32)) < sizeof(avenrun32))
+		    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
 		{
 			if (tTd(3, 1))
 				printf("getla: lseek or read: %s\n",
 					errstring(errno));
 			return -1;
 		}
-		if (tTd(3, 5))
-		{
-			printf("getla: avenrun{32} = %ld",
-				(long int) avenrun32[0]);
-			if (tTd(3, 15))
-				printf(", %ld, %ld",
-					(long int)avenrun32[1],
-					(long int)avenrun32[2]);
-			printf("\n");
-		}
-		if (tTd(3, 1))
-			printf("getla: %d\n",
-				(int) (avenrun32[0] + FSCALE/2) >> FSHIFT);
-		return ((int) (avenrun32[0] + FSCALE/2) >> FSHIFT);
+		break;
 
 	  case getla_64:
 		/* Using of lseek64 is perhaps overkill ... */
 		if (lseek64(kmem, (off64_t) Nl64[X_AVENRUN].n_value, SEEK_SET) == -1 ||
-		    read(kmem, (char *) avenrun64, sizeof(avenrun64)) <
-					sizeof(avenrun64))
+		    read(kmem, (char *) avenrun, sizeof(avenrun)) <
+					sizeof(avenrun))
 		{
 			if (tTd(3, 1))
 				printf("getla: lseek64 or read: %s\n",
 					errstring(errno));
 			return -1;
 		}
-		if (tTd(3, 5))
-		{
-			printf("getla: avenrun{64} = %lld",
-				(long long int) avenrun64[0]);
-			if (tTd(3, 15))
-				printf(", %lld, %lld",
-					(long long int) avenrun64[1],
-					(long long int) avenrun64[2]);
-			printf("\n");
-		}
-		if (tTd(3, 1))
-			printf("getla: %d\n",
-				(int) (avenrun64[0] + FSCALE/2) >> FSHIFT);
-		return ((int) (avenrun64[0] + FSCALE/2) >> FSHIFT);
+		break;
 	}
-	return -1;
+	if (tTd(3, 5))
+	{
+		printf("getla: avenrun = %ld",
+			(long int) avenrun[0]);
+		if (tTd(3, 15))
+			printf(", %ld, %ld",
+				(long int)avenrun[1],
+				(long int)avenrun[2]);
+		printf("\n");
+	}
+	if (tTd(3, 1))
+		printf("getla: %d\n",
+			(int) (avenrun[0] + FSCALE/2) >> FSHIFT);
+	return ((int) (avenrun[0] + FSCALE/2) >> FSHIFT);
 }
 #endif
 
@@ -1913,7 +1869,9 @@ getla()
 		afd = open(_PATH_AVENRUN, O_RDONLY|O_SYNC);
 		if (afd < 0)
 		{
-			syslog(LOG_ERR, "can't open %s: %m", _PATH_AVENRUN);
+			sm_syslog(LOG_ERR, NOQID,
+				"can't open %s: %m",
+				_PATH_AVENRUN);
 			return -1;
 		}
 	}
@@ -2036,16 +1994,19 @@ int getloadavg( call_data )
 **		none.
 */
 
+extern int	get_num_procs_online __P((void));
+
 bool
 shouldqueue(pri, ctime)
 	long pri;
 	time_t ctime;
 {
 	bool rval;
+	int queuela = QueueLA * get_num_procs_online();
 
 	if (tTd(3, 30))
 		printf("shouldqueue: CurrentLA=%d, pri=%ld: ", CurrentLA, pri);
-	if (CurrentLA < QueueLA)
+	if (CurrentLA < queuela)
 	{
 		if (tTd(3, 30))
 			printf("FALSE (CurrentLA < QueueLA)\n");
@@ -2059,7 +2020,7 @@ shouldqueue(pri, ctime)
 		return (TRUE);
 	}
 #endif
-	rval = pri > (QueueFactor / (CurrentLA - QueueLA + 1));
+	rval = pri > (QueueFactor / (CurrentLA - queuela + 1));
 	if (tTd(3, 30))
 		printf("%s (by calculation)\n", rval ? "TRUE" : "FALSE");
 	return rval;
@@ -2083,6 +2044,7 @@ bool
 refuseconnections(port)
 	int port;
 {
+	int refusela = RefuseLA * get_num_procs_online();
 	time_t now;
 	static time_t lastconn = (time_t) 0;
 	static int conncnt = 0;
@@ -2105,24 +2067,22 @@ refuseconnections(port)
 		/* sleep to flatten out connection load */
 		setproctitle("deferring connections on port %d: %d per second",
 			port, ConnRateThrottle);
-#ifdef LOG
 		if (LogLevel >= 14)
-			syslog(LOG_INFO, "deferring connections on port %d: %d per second",
+			sm_syslog(LOG_INFO, NOQID,
+				"deferring connections on port %d: %d per second",
 				port, ConnRateThrottle);
-#endif
 		sleep(1);
 	}
 
 	CurrentLA = getla();
-	if (CurrentLA >= RefuseLA)
+	if (CurrentLA >= refusela)
 	{
 		setproctitle("rejecting connections on port %d: load average: %d",
 			port, CurrentLA);
-#ifdef LOG
 		if (LogLevel >= 14)
-			syslog(LOG_INFO, "rejecting connections on port %d: load average: %d",
+			sm_syslog(LOG_INFO, NOQID,
+				"rejecting connections on port %d: load average: %d",
 				port, CurrentLA);
-#endif
 		return TRUE;
 	}
 
@@ -2130,11 +2090,10 @@ refuseconnections(port)
 	{
 		setproctitle("rejecting connections on port %d: min free: %d",
 			port, MinBlocksFree);
-#ifdef LOG
 		if (LogLevel >= 14)
-			syslog(LOG_INFO, "rejecting connections on port %d: min free: %d",
+			sm_syslog(LOG_INFO, NOQID,
+				"rejecting connections on port %d: min free: %d",
 				port, MinBlocksFree);
-#endif
 		return TRUE;
 	}
 
@@ -2147,11 +2106,10 @@ refuseconnections(port)
 		{
 			setproctitle("rejecting connections on port %d: %d children, max %d",
 				port, CurChildren, MaxChildren);
-#ifdef LOG
 			if (LogLevel >= 14)
-				syslog(LOG_INFO, "rejecting connections on port %d: %d children, max %d",
+				sm_syslog(LOG_INFO, NOQID,
+					"rejecting connections on port %d: %d children, max %d",
 					port, CurChildren, MaxChildren);
-#endif
 			return TRUE;
 		}
 	}
@@ -2180,6 +2138,7 @@ refuseconnections(port)
 #define SPT_PSSTRINGS	4	/* use PS_STRINGS->... */
 #define SPT_SYSMIPS	5	/* use sysmips() supported by NEWS-OS 6 */
 #define SPT_SCO		6	/* write kernel u. area */
+#define SPT_CHANGEARGV	7	/* write our own strings into argv[] */
 
 #ifndef SPT_TYPE
 # define SPT_TYPE	SPT_REUSEARGV
@@ -2204,7 +2163,7 @@ typedef unsigned int	*pt_entry_t;
 #  endif
 # endif
 
-# if SPT_TYPE == SPT_PSSTRINGS
+# if SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV
 #  define SETPROC_STATIC	static
 # else
 #  define SETPROC_STATIC
@@ -2253,7 +2212,7 @@ initsetproctitle(argc, argv, envp)
 	extern char **environ;
 
 	/*
-        **  Move the environment so setproctitle can use the space at
+	**  Move the environment so setproctitle can use the space at
 	**  the top of memory.
 	*/
 
@@ -2355,10 +2314,64 @@ setproctitle(fmt, va_alist)
 		*p++ = SPT_PADCHAR;
 	Argv[1] = NULL;
 #  endif
+#  if SPT_TYPE == SPT_CHANGEARGV
+	Argv[0] = buf;
+	Argv[1] = 0;
+#  endif
 # endif /* SPT_TYPE != SPT_NONE */
 }
 
 #endif /* SPT_TYPE != SPT_BUILTIN */
+/*
+**  WAITFOR -- wait for a particular process id.
+**
+**	Parameters:
+**		pid -- process id to wait for.
+**
+**	Returns:
+**		status of pid.
+**		-1 if pid never shows up.
+**
+**	Side Effects:
+**		none.
+*/
+
+int
+waitfor(pid)
+	pid_t pid;
+{
+#ifdef WAITUNION
+	union wait st;
+#else
+	auto int st;
+#endif
+	pid_t i;
+#if defined(ISC_UNIX) || defined(_SCO_unix_)
+	int savesig;
+#endif
+
+	do
+	{
+		errno = 0;
+#if defined(ISC_UNIX) || defined(_SCO_unix_)
+		savesig = releasesignal(SIGCHLD);
+#endif
+		i = wait(&st);
+#if defined(ISC_UNIX) || defined(_SCO_unix_)
+		if (savesig > 0)
+			blocksignal(SIGCHLD);
+#endif
+		if (i > 0)
+			proc_list_drop(i);
+	} while ((i >= 0 || errno == EINTR) && i != pid);
+	if (i < 0)
+		return -1;
+#ifdef WAITUNION
+	return st.w_status;
+#else
+	return st;
+#endif
+}
 /*
 **  REAPCHILD -- pick up the body of my child, lest it become a zombie
 **
@@ -2387,12 +2400,10 @@ reapchild(sig)
 	{
 		if (count++ > 1000)
 		{
-#ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_ALERT,
+				sm_syslog(LOG_ALERT, NOQID,
 					"reapchild: waitpid loop: pid=%d, status=%x",
 					pid, status);
-#endif
 			break;
 		}
 		proc_list_drop(pid);
@@ -2406,7 +2417,14 @@ reapchild(sig)
 # else /* WNOHANG */
 	auto int status;
 
-	while ((pid = wait(&status)) > 0)
+	/*
+	**  Catch one zombie -- we will be re-invoked (we hope) if there
+	**  are more.  Unreliable signals probably break this, but this
+	**  is the "old system" situation -- waitpid or wait3 are to be
+	**  strongly preferred.
+	*/
+
+	if ((pid = wait(&status)) > 0)
 		proc_list_drop(pid);
 # endif /* WNOHANG */
 # endif
@@ -2880,12 +2898,10 @@ vsprintf(s, fmt, ap)
 **	%lx has been added.
 */
 
-#if !HASSNPRINTF
-
 /**************************************************************
  * Original:
  * Patrick Powell Tue Apr 11 09:48:21 PDT 1995
- * A bombproof version of doprnt (dopr) included.
+ * A bombproof version of doprnt (sm_dopr) included.
  * Sigh.  This sort of thing is always nasty do deal with.  Note that
  * the version here does not include floating point...
  *
@@ -2897,9 +2913,11 @@ vsprintf(s, fmt, ap)
  **************************************************************/
 
 /*static char _id[] = "$Id: snprintf.c,v 1.2 1995/10/09 11:19:47 roberto Exp $";*/
-static void dopr();
-static char *end;
+static void	sm_dopr();
+static char	*DoprEnd;
 static int	SnprfOverflow;
+
+#if !HASSNPRINTF
 
 /* VARARGS3 */
 int
@@ -2932,19 +2950,22 @@ vsnprintf(str, count, fmt, args)
 	va_list args;
 {
 	str[0] = 0;
-	end = str + count - 1;
+	DoprEnd = str + count - 1;
 	SnprfOverflow = 0;
-	dopr( str, fmt, args );
+	sm_dopr( str, fmt, args );
 	if (count > 0)
-		end[0] = 0;
+		DoprEnd[0] = 0;
 	if (SnprfOverflow && tTd(57, 2))
 		printf("\nvsnprintf overflow, len = %d, str = %s",
 			count, shortenstring(str, 203));
 	return strlen(str);
 }
 
+# endif /* !luna2 */
+#endif /* !HASSNPRINTF */
+
 /*
- * dopr(): poor man's version of doprintf
+ * sm_dopr(): poor man's version of doprintf
  */
 
 static void fmtstr __P((char *value, int ljust, int len, int zpad, int maxwidth));
@@ -2952,9 +2973,10 @@ static void fmtnum __P((long value, int base, int dosign, int ljust, int len, in
 static void dostr __P(( char * , int ));
 static char *output;
 static void dopr_outch __P(( int c ));
+static int	SyslogErrno;
 
 static void
-dopr( buffer, format, args )
+sm_dopr( buffer, format, args )
        char *buffer;
        const char *format;
        va_list args;
@@ -2968,30 +2990,35 @@ dopr( buffer, format, args )
        int ljust;
        int len;
        int zpad;
+# if !HASSTRERROR && !defined(ERRLIST_PREDEFINED)
+	extern char *sys_errlist[];
+	extern int sys_nerr;
+# endif
+
 
        output = buffer;
        while( (ch = *format++) ){
-               switch( ch ){
-               case '%':
-                       ljust = len = zpad = maxwidth = 0;
-                       longflag = pointflag = 0;
-               nextch:
-                       ch = *format++;
-                       switch( ch ){
-                       case 0:
-                               dostr( "**end of format**" , 0);
-                               return;
-                       case '-': ljust = 1; goto nextch;
-                       case '0': /* set zero padding if len not set */
-                               if(len==0 && !pointflag) zpad = '0';
-                       case '1': case '2': case '3':
-                       case '4': case '5': case '6':
-                       case '7': case '8': case '9':
+	       switch( ch ){
+	       case '%':
+		       ljust = len = zpad = maxwidth = 0;
+		       longflag = pointflag = 0;
+	       nextch:
+		       ch = *format++;
+		       switch( ch ){
+		       case 0:
+			       dostr( "**end of format**" , 0);
+			       return;
+		       case '-': ljust = 1; goto nextch;
+		       case '0': /* set zero padding if len not set */
+			       if(len==0 && !pointflag) zpad = '0';
+		       case '1': case '2': case '3':
+		       case '4': case '5': case '6':
+		       case '7': case '8': case '9':
 			       if (pointflag)
 				 maxwidth = maxwidth*10 + ch - '0';
 			       else
 				 len = len*10 + ch - '0';
-                               goto nextch;
+			       goto nextch;
 		       case '*': 
 			       if (pointflag)
 				 maxwidth = va_arg( args, int );
@@ -2999,64 +3026,78 @@ dopr( buffer, format, args )
 				 len = va_arg( args, int );
 			       goto nextch;
 		       case '.': pointflag = 1; goto nextch;
-                       case 'l': longflag = 1; goto nextch;
-                       case 'u': case 'U':
-                               /*fmtnum(value,base,dosign,ljust,len,zpad) */
-                               if( longflag ){
-                                       value = va_arg( args, long );
-                               } else {
-                                       value = va_arg( args, int );
-                               }
-                               fmtnum( value, 10,0, ljust, len, zpad ); break;
-                       case 'o': case 'O':
-                               /*fmtnum(value,base,dosign,ljust,len,zpad) */
-                               if( longflag ){
-                                       value = va_arg( args, long );
-                               } else {
-                                       value = va_arg( args, int );
-                               }
-                               fmtnum( value, 8,0, ljust, len, zpad ); break;
-                       case 'd': case 'D':
-                               if( longflag ){
-                                       value = va_arg( args, long );
-                               } else {
-                                       value = va_arg( args, int );
-                               }
-                               fmtnum( value, 10,1, ljust, len, zpad ); break;
-                       case 'x':
-                               if( longflag ){
-                                       value = va_arg( args, long );
-                               } else {
-                                       value = va_arg( args, int );
-                               }
-                               fmtnum( value, 16,0, ljust, len, zpad ); break;
-                       case 'X':
-                               if( longflag ){
-                                       value = va_arg( args, long );
-                               } else {
-                                       value = va_arg( args, int );
-                               }
-                               fmtnum( value,-16,0, ljust, len, zpad ); break;
-                       case 's':
-                               strvalue = va_arg( args, char *);
+		       case 'l': longflag = 1; goto nextch;
+		       case 'u': case 'U':
+			       /*fmtnum(value,base,dosign,ljust,len,zpad) */
+			       if( longflag ){
+				       value = va_arg( args, long );
+			       } else {
+				       value = va_arg( args, int );
+			       }
+			       fmtnum( value, 10,0, ljust, len, zpad ); break;
+		       case 'o': case 'O':
+			       /*fmtnum(value,base,dosign,ljust,len,zpad) */
+			       if( longflag ){
+				       value = va_arg( args, long );
+			       } else {
+				       value = va_arg( args, int );
+			       }
+			       fmtnum( value, 8,0, ljust, len, zpad ); break;
+		       case 'd': case 'D':
+			       if( longflag ){
+				       value = va_arg( args, long );
+			       } else {
+				       value = va_arg( args, int );
+			       }
+			       fmtnum( value, 10,1, ljust, len, zpad ); break;
+		       case 'x':
+			       if( longflag ){
+				       value = va_arg( args, long );
+			       } else {
+				       value = va_arg( args, int );
+			       }
+			       fmtnum( value, 16,0, ljust, len, zpad ); break;
+		       case 'X':
+			       if( longflag ){
+				       value = va_arg( args, long );
+			       } else {
+				       value = va_arg( args, int );
+			       }
+			       fmtnum( value,-16,0, ljust, len, zpad ); break;
+		       case 's':
+			       strvalue = va_arg( args, char *);
 			       if (maxwidth > 0 || !pointflag) {
 				 if (pointflag && len > maxwidth)
 				   len = maxwidth; /* Adjust padding */
 				 fmtstr( strvalue,ljust,len,zpad, maxwidth);
 			       }
 			       break;
-                       case 'c':
-                               ch = va_arg( args, int );
-                               dopr_outch( ch ); break;
-                       case '%': dopr_outch( ch ); continue;
-                       default:
-                               dostr(  "???????" , 0);
-                       }
-                       break;
-               default:
-                       dopr_outch( ch );
-                       break;
-               }
+		       case 'c':
+			       ch = va_arg( args, int );
+			       dopr_outch( ch ); break;
+                       case 'm':
+#if HASSTRERROR
+                               dostr(strerror(SyslogErrno), 0);
+#else
+                               if (SyslogErrno < 0 || SyslogErrno > sys_nerr) 
+                               {
+                                   dostr("Error ", 0);
+                                   fmtnum(SyslogErrno, 10, 0, 0, 0, 0);
+                               }
+                               else 
+                                   dostr(sys_errlist[SyslogErrno], 0);
+#endif
+			       break;
+
+		       case '%': dopr_outch( ch ); continue;
+		       default:
+			       dostr(  "???????" , 0);
+		       }
+		       break;
+	       default:
+		       dopr_outch( ch );
+		       break;
+	       }
        }
        *output = 0;
 }
@@ -3069,7 +3110,7 @@ fmtstr(  value, ljust, len, zpad, maxwidth )
        int padlen, strlen;     /* amount to pad */
 
        if( value == 0 ){
-               value = "<NULL>";
+	       value = "<NULL>";
        }
        for( strlen = 0; value[strlen]; ++ strlen ); /* strlen */
        if (strlen > maxwidth && maxwidth)
@@ -3078,13 +3119,13 @@ fmtstr(  value, ljust, len, zpad, maxwidth )
        if( padlen < 0 ) padlen = 0;
        if( ljust ) padlen = -padlen;
        while( padlen > 0 ) {
-               dopr_outch( ' ' );
-               --padlen;
+	       dopr_outch( ' ' );
+	       --padlen;
        }
        dostr( value, maxwidth );
        while( padlen < 0 ) {
-               dopr_outch( ' ' );
-               ++padlen;
+	       dopr_outch( ' ' );
+	       ++padlen;
        }
 }
 
@@ -3101,50 +3142,50 @@ fmtnum(  value, base, dosign, ljust, len, zpad )
        int caps = 0;
 
        /* DEBUGP(("value 0x%x, base %d, dosign %d, ljust %d, len %d, zpad %d\n",
-               value, base, dosign, ljust, len, zpad )); */
+	       value, base, dosign, ljust, len, zpad )); */
        uvalue = value;
        if( dosign ){
-               if( value < 0 ) {
-                       signvalue = '-';
-                       uvalue = -value;
-               }
+	       if( value < 0 ) {
+		       signvalue = '-';
+		       uvalue = -value;
+	       }
        }
        if( base < 0 ){
-               caps = 1;
-               base = -base;
+	       caps = 1;
+	       base = -base;
        }
        do{
-               convert[place++] =
-                       (caps? "0123456789ABCDEF":"0123456789abcdef")
-                        [uvalue % (unsigned)base  ];
-               uvalue = (uvalue / (unsigned)base );
+	       convert[place++] =
+		       (caps? "0123456789ABCDEF":"0123456789abcdef")
+			[uvalue % (unsigned)base  ];
+	       uvalue = (uvalue / (unsigned)base );
        }while(uvalue);
        convert[place] = 0;
        padlen = len - place;
        if( padlen < 0 ) padlen = 0;
        if( ljust ) padlen = -padlen;
        /* DEBUGP(( "str '%s', place %d, sign %c, padlen %d\n",
-               convert,place,signvalue,padlen)); */
+	       convert,place,signvalue,padlen)); */
        if( zpad && padlen > 0 ){
-               if( signvalue ){
-                       dopr_outch( signvalue );
-                       --padlen;
-                       signvalue = 0;
-               }
-               while( padlen > 0 ){
-                       dopr_outch( zpad );
-                       --padlen;
-               }
+	       if( signvalue ){
+		       dopr_outch( signvalue );
+		       --padlen;
+		       signvalue = 0;
+	       }
+	       while( padlen > 0 ){
+		       dopr_outch( zpad );
+		       --padlen;
+	       }
        }
        while( padlen > 0 ) {
-               dopr_outch( ' ' );
-               --padlen;
+	       dopr_outch( ' ' );
+	       --padlen;
        }
        if( signvalue ) dopr_outch( signvalue );
        while( place > 0 ) dopr_outch( convert[--place] );
        while( padlen < 0 ){
-               dopr_outch( ' ' );
-               ++padlen;
+	       dopr_outch( ' ' );
+	       ++padlen;
        }
 }
 
@@ -3166,20 +3207,16 @@ dopr_outch( c )
 {
 #if 0
        if( iscntrl(c) && c != '\n' && c != '\t' ){
-               c = '@' + (c & 0x1F);
-               if( end == 0 || output < end )
-                       *output++ = '^';
+	       c = '@' + (c & 0x1F);
+	       if( DoprEnd == 0 || output < DoprEnd )
+		       *output++ = '^';
        }
 #endif
-       if( end == 0 || output < end )
-               *output++ = c;
+       if( DoprEnd == 0 || output < DoprEnd )
+	       *output++ = c;
        else
 		SnprfOverflow++;
 }
-
-# endif /* !luna2 */
-
-#endif /* !HASSNPRINTF */
 /*
 **  USERSHELLOK -- tell if a user's shell is ok for unrestricted use
 **
@@ -3434,7 +3471,7 @@ freediskspace(dir, bsize)
 	{
 		if (bsize != NULL)
 			*bsize = FSBLOCKSIZE;
-		if (fs.SFS_BAVAIL < 0)
+		if (fs.SFS_BAVAIL <= 0)
 			return 0;
 		else
 			return fs.SFS_BAVAIL;
@@ -3483,15 +3520,12 @@ enoughdiskspace(msize)
 
 		if (bfree < msize)
 		{
-#ifdef LOG
 			if (LogLevel > 0)
-				syslog(LOG_ALERT,
-					"%s: low on space (have %ld, %s needs %ld in %s)",
-					CurEnv->e_id == NULL ? "[NOQUEUE]" : CurEnv->e_id,
+				sm_syslog(LOG_ALERT, CurEnv->e_id,
+					"low on space (have %ld, %s needs %ld in %s)",
 					bfree,
 					CurHostName == NULL ? "SMTP-DAEMON" : CurHostName,
 					msize, QueueDir);
-#endif
 			return FALSE;
 		}
 	}
@@ -3597,7 +3631,7 @@ transienterror(err)
 #if defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR))
 	  case ENOSR:			/* Out of streams resources */
 #endif
-	  case EOPENTIMEOUT:		/* PSEUDO: open timed out */
+	  case E_SM_OPENTIMEOUT:	/* PSEUDO: open timed out */
 		return TRUE;
 	}
 
@@ -3627,6 +3661,7 @@ lockfile(fd, filename, ext, type)
 	char *ext;
 	int type;
 {
+	int i;
 # if !HASFLOCK
 	int action;
 	struct flock lfd;
@@ -3651,7 +3686,9 @@ lockfile(fd, filename, ext, type)
 		printf("lockfile(%s%s, action=%d, type=%d): ",
 			filename, ext, action, lfd.l_type);
 
-	if (fcntl(fd, action, &lfd) >= 0)
+	while ((i = fcntl(fd, action, &lfd)) < 0 && errno == EINTR)
+		continue;
+	if (i >= 0)
 	{
 		if (tTd(55, 60))
 			printf("SUCCESS\n");
@@ -3697,7 +3734,9 @@ lockfile(fd, filename, ext, type)
 	if (tTd(55, 60))
 		printf("lockfile(%s%s, type=%o): ", filename, ext, type);
 
-	if (flock(fd, type) >= 0)
+	while ((i = flock(fd, type)) < 0 && errno == EINTR)
+		continue;
+	if (i >= 0)
 	{
 		if (tTd(55, 60))
 			printf("SUCCESS\n");
@@ -3728,52 +3767,72 @@ lockfile(fd, filename, ext, type)
 /*
 **  CHOWNSAFE -- tell if chown is "safe" (executable only by root)
 **
+**	Unfortunately, given that we can't predict other systems on which
+**	a remote mounted (NFS) filesystem will be mounted, the answer is
+**	almost always that this is unsafe.
+**
+**	Note also that many operating systems have non-compliant
+**	implementations of the _POSIX_CHOWN_RESTRICTED variable and the
+**	fpathconf() routine.  According to IEEE 1003.1-1990, if
+**	_POSIX_CHOWN_RESTRICTED is defined and not equal to -1, then
+**	no non-root process can give away the file.  However, vendors
+**	don't take NFS into account, so a comfortable value of
+**	_POSIX_CHOWN_RESTRICTED tells us nothing.
+**
+**	Also, some systems (e.g., IRIX 6.2) return 1 from fpathconf()
+**	even on files where chown is not restricted.  Many systems get
+**	this wrong on NFS-based filesystems (that is, they say that chown
+**	is restricted [safe] on NFS filesystems where it may not be, since
+**	other systems can access the same filesystem and do file giveaway;
+**	only the NFS server knows for sure!)  Hence, it is important to
+**	get the value of SAFENFSPATHCONF correct -- it should be defined
+**	_only_ after testing (see test/t_pathconf.c) a system on an unsafe
+**	NFS-based filesystem to ensure that you can get meaningful results.
+**	If in doubt, assume unsafe!
+**
+**	You may also need to tweak IS_SAFE_CHOWN -- it should be a
+**	condition indicating whether the return from pathconf indicates
+**	that chown is safe (typically either > 0 or >= 0 -- there isn't
+**	even any agreement about whether a zero return means that a file
+**	is or is not safe).  It defaults to "> 0".
+**
+**	If the parent directory is safe (writable only by owner back
+**	to the root) then we can relax slightly and trust fpathconf
+**	in more circumstances.  This is really a crock -- if this is an
+**	NFS mounted filesystem then we really know nothing about the
+**	underlying implementation.  However, most systems pessimize and
+**	return an error (EINVAL or EOPNOTSUPP) on NFS filesystems, which
+**	we interpret as unsafe, as we should.  Thus, this heuristic gets
+**	us into a possible problem only on systems that have a broken
+**	pathconf implementation and which are also poorly configured
+**	(have :include: files in group- or world-writable directories).
+**
 **	Parameters:
 **		fd -- the file descriptor to check.
+**		safedir -- set if the parent directory is safe.
 **
 **	Returns:
-**		TRUE -- if only root can chown the file to an arbitrary
-**			user.
+**		TRUE -- if the chown(2) operation is "safe" -- that is,
+**			only root can chown the file to an arbitrary user.
 **		FALSE -- if an arbitrary user can give away a file.
 */
 
-bool
-chownsafe(fd)
-	int fd;
-{
-#ifdef __hpux
-	char *s;
-	int tfd;
-	uid_t o_uid, o_euid;
-	gid_t o_gid, o_egid;
-	bool rval;
-	struct stat stbuf;
+#ifndef IS_SAFE_CHOWN
+# define IS_SAFE_CHOWN	> 0
+#endif
 
-	o_uid = getuid();
-	o_euid = geteuid();
-	o_gid = getgid();
-	o_egid = getegid();
-	fstat(fd, &stbuf);
-	setresuid(stbuf.st_uid, stbuf.st_uid, -1);
-	setresgid(stbuf.st_gid, stbuf.st_gid, -1);
-	s = tmpnam(NULL);
-	tfd = open(s, O_RDONLY|O_CREAT, 0600);
-	rval = fchown(tfd, DefUid, DefGid) != 0;
-	close(tfd);
-	setresuid(o_uid, o_euid, -1);
-	setresgid(o_gid, o_egid, -1);
-	unlink(s);
-	return rval;
-#else
-# ifdef _POSIX_CHOWN_RESTRICTED
-#  if _POSIX_CHOWN_RESTRICTED == -1
-	return FALSE;
-#  else
-	return TRUE;
-#  endif
-# else
-#  ifdef _PC_CHOWN_RESTRICTED
+bool
+chownsafe(fd, safedir)
+	int fd;
+	bool safedir;
+{
+#if !defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1
+# if defined(_PC_CHOWN_RESTRICTED)
 	int rval;
+
+	/* give the system administrator a chance to override */
+	if (ChownAlwaysSafe)
+		return TRUE;
 
 	/*
 	**  Some systems (e.g., SunOS) seem to have the call and the
@@ -3783,15 +3842,14 @@ chownsafe(fd)
 
 	errno = 0;
 	rval = fpathconf(fd, _PC_CHOWN_RESTRICTED);
-	if (errno == 0)
-		return rval > 0;
-#  endif
-#  ifdef BSD
-	return TRUE;
+#  if SAFENFSPATHCONF
+	return errno == 0 && rval IS_SAFE_CHOWN;
 #  else
-	return FALSE;
+	return safedir && errno == 0 && rval IS_SAFE_CHOWN;
 #  endif
 # endif
+#else
+	return ChownAlwaysSafe;
 #endif
 }
 /*
@@ -4028,11 +4086,10 @@ validate_connection(sap, hostname, e)
 #if TCPWRAPPERS
 	if (!hosts_ctl("sendmail", hostname, anynet_ntoa(sap), STRING_UNKNOWN))
 	{
-# ifdef LOG
 		if (LogLevel >= 4)
-			syslog(LOG_NOTICE, "tcpwrappers (%s, %s) rejection",
+			sm_syslog(LOG_NOTICE, NOQID,
+				"tcpwrappers (%s, %s) rejection",
 				hostname, anynet_ntoa(sap));
-# endif
 		return FALSE;
 	}
 #endif
@@ -4385,7 +4442,7 @@ secureware_setup_secure(uid)
 **		Loads $=w with the names of all the interfaces.
 */
 
-#ifdef SIOCGIFCONF
+#if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
 struct rtentry;
 struct mbuf;
 # include <arpa/inet.h>
@@ -4398,19 +4455,38 @@ struct mbuf;
 void
 load_if_names()
 {
-#ifdef SIOCGIFCONF
+#if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
 	int s;
 	int i;
-        struct ifconf ifc;
-	char interfacebuf[10240];
+	struct ifconf ifc;
+	int numifs;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s == -1)
 		return;
 
 	/* get the list of known IP address from the kernel */
-        ifc.ifc_buf = interfacebuf;
-        ifc.ifc_len = sizeof interfacebuf;
+# ifdef SIOCGIFNUM
+	if (ioctl(s, SIOCGIFNUM, (char *) &numifs) < 0)
+	{
+		/* can't get number of interfaces -- fall back */
+		if (tTd(0, 4))
+			printf("SIOCGIFNUM failed: %s\n", errstring(errno));
+		numifs = -1;
+	}
+	else if (tTd(0, 42))
+		printf("system has %d interfaces\n", numifs);
+	if (numifs < 0)
+# endif
+		numifs = 512;
+
+	if (numifs <= 0)
+	{
+		close(s);
+		return;
+	}
+	ifc.ifc_len = numifs * sizeof (struct ifreq);
+	ifc.ifc_buf = xalloc(ifc.ifc_len);
 	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0)
 	{
 		if (tTd(0, 4))
@@ -4435,7 +4511,6 @@ load_if_names()
 #endif
 		char ip_addr[256];
 		extern char *inet_ntoa();
-		extern struct hostent *gethostbyaddr();
 
 #ifdef BSD4_4_SOCKADDR
 		if (sa->sa_len > sizeof ifr->ifr_addr)
@@ -4456,12 +4531,12 @@ load_if_names()
 		ioctl(s, SIOCGIFFLAGS, (char *) &ifrf);
 		if (tTd(0, 41))
 			printf("\tflags: %x\n", ifrf.ifr_flags);
-		if (!bitset(IFF_UP, ifrf.ifr_flags))
-			continue;
+# define IFRFREF ifrf
 #else
-		if (!bitset(IFF_UP, ifr->ifr_flags))
-			continue;
+# define IFRFREF (*ifr)
 #endif
+		if (!bitset(IFF_UP, IFRFREF.ifr_flags))
+			continue;
 
 		/* extract IP address from the list*/
 		ia = (((struct sockaddr_in *) sa)->sin_addr);
@@ -4484,18 +4559,21 @@ load_if_names()
 		}
 
 		/* skip "loopback" interface "lo" */
-		if (strcmp("lo0", ifr->ifr_name) == 0)
+		if (bitset(IFF_LOOPBACK, IFRFREF.ifr_flags))
 			continue;
 
 		/* lookup name with IP address */
 		hp = sm_gethostbyaddr((char *) &ia, sizeof(ia), AF_INET);
 		if (hp == NULL)
 		{
-#ifdef LOG
 			if (LogLevel > 3)
-				syslog(LOG_WARNING,
-					"gethostbyaddr() failed for %.100s\n",
-					inet_ntoa(ia));
+				sm_syslog(LOG_WARNING, NOQID,
+					"gethostbyaddr(%.100s) failed: %d\n",
+					inet_ntoa(ia),
+#if NAMED_BIND
+					h_errno);
+#else
+					-1);
 #endif
 			continue;
 		}
@@ -4520,7 +4598,166 @@ load_if_names()
 			hp->h_aliases++;
 		}
 	}
+	free(ifc.ifc_buf);
 	close(s);
+# undef IFRFREF
+#endif
+}
+/*
+**  GET_NUM_PROCS_ONLINE -- return the number of processors currently online
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		The number of processors online.
+*/
+
+int
+get_num_procs_online()
+{
+	int nproc = 0;
+
+#if _FFR_SCALE_LA_BY_NUM_PROCS
+#ifdef _SC_NPROCESSORS_ONLN
+	nproc = (int) sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+#endif
+	if (nproc <= 0)
+		nproc = 1;
+	return nproc;
+}
+/*
+**  SM_SYSLOG -- syslog wrapper to keep messages under SYSLOG_BUFSIZE
+**
+**	Parameters:
+**		level -- syslog level
+**		id -- envelope ID or NULL (NOQUEUE)
+**		fmt -- format string
+**		arg... -- arguments as implied by fmt.
+**
+**	Returns:
+**		none
+*/
+
+/* VARARGS3 */
+void
+# ifdef __STDC__
+sm_syslog(int level, const char *id, const char *fmt, ...)
+# else
+sm_syslog(level, id, fmt, va_alist)
+	int level;
+	const char *id;
+	const char *fmt;
+	va_dcl
+#endif
+{
+	static char *buf = NULL;
+	static size_t bufsize = MAXLINE;
+	char *begin, *end;
+	int seq = 1;
+	int idlen;
+	extern int SnprfOverflow;
+	VA_LOCAL_DECL
+	
+	SyslogErrno = errno;
+	if (id == NULL)
+	{
+		id = "NOQUEUE";
+		idlen = 9;
+	}
+	else if (strcmp(id, NOQID) == 0)
+	{
+		id = "";
+		idlen = 0;
+	}
+	else
+		idlen = strlen(id + 2);
+bufalloc:
+	if (buf == NULL)
+		buf = (char *) xalloc(sizeof(char) * bufsize);
+
+	/* do a virtual vsnprintf into buf */
+	VA_START(fmt);
+	buf[0] = 0;
+	DoprEnd = buf + bufsize - 1;
+	SnprfOverflow = 0;
+	sm_dopr(buf, fmt, ap);
+	*DoprEnd = '\0';
+	VA_END;
+	/* end of virtual vsnprintf */
+
+	if (SnprfOverflow)
+	{
+		/* String too small, redo with correct size */
+		bufsize += SnprfOverflow + 1;
+		free(buf);
+		buf = NULL;
+		goto bufalloc;
+	}
+	if ((strlen(buf) + idlen + 1) < SYSLOG_BUFSIZE)
+	{
+#if LOG
+		if (*id == '\0')
+			syslog(level, "%s", buf);
+		else
+			syslog(level, "%s: %s", id, buf);
+#else
+		/*XXX should do something more sensible */
+		if (*id == '\0')
+			fprintf(stderr, "%s\n", buf);
+		else
+			fprintf(stderr, "%s: %s\n", id, buf);
+#endif
+		return;
+	}
+
+	begin = buf;
+	while (*begin != '\0' &&
+	       (strlen(begin) + idlen + 5) > SYSLOG_BUFSIZE) 
+	{
+		char save;
+	
+		if (seq == 999)
+		{
+			/* Too many messages */
+			break;
+		}
+		end = begin + SYSLOG_BUFSIZE - idlen - 12;
+		while (end > begin)
+		{
+			/* Break on comma or space */
+			if (*end == ',' || *end == ' ')
+			{
+				end++;	  /* Include separator */
+				break;
+			}
+			end--;
+		}
+		/* No separator, break midstring... */
+		if (end == begin)
+			end = begin + SYSLOG_BUFSIZE - idlen - 12;
+		save = *end;
+		*end = 0;
+#if LOG
+		syslog(level, "%s[%d]: %s ...", id, seq++, begin);
+#else
+		fprintf(stderr, "%s[%d]: %s ...\n", id, seq++, begin);
+#endif
+		*end = save;
+		begin = end;
+	}
+	if (seq == 999)
+#if LOG
+		syslog(level, "%s[%d]: log terminated, too many parts", id, seq);
+#else
+		fprintf(stderr, "%s[%d]: log terminated, too many parts\n", id, seq);
+#endif
+	else if (*begin != '\0')
+#if LOG
+		syslog(level, "%s[%d]: %s", id, seq, begin);
+#else
+		fprintf(stderr, "%s[%d]: %s\n", id, seq, begin);
 #endif
 }
 /*
@@ -4553,7 +4790,7 @@ hard_syslog(pri, msg, va_alist)
 # endif
 {
 	int i;
-	char buf[SYSLOG_BUFSIZE * 2];
+	char buf[SYSLOG_BUFSIZE];
 	VA_LOCAL_DECL;
 
 	VA_START(msg);
@@ -4613,7 +4850,7 @@ char	*CompileOptions[] =
 #if LDAPMAP
 	"LDAPMAP",
 #endif
-#ifdef LOG
+#if LOG
 	"LOG",
 #endif
 #if MATCHGECOS
@@ -4695,6 +4932,9 @@ char	*CompileOptions[] =
 
 char	*OsCompileOptions[] =
 {
+#if BOGUS_O_EXCL
+	"BOGUS_O_EXCL",
+#endif
 #if HASFCHMOD
 	"HASFCHMOD",
 #endif
@@ -4731,6 +4971,9 @@ char	*OsCompileOptions[] =
 #if HASSNPRINTF
 	"HASSNPRINTF",
 #endif
+#if HASSTRERROR
+	"HASSTRERROR",
+#endif
 #if HASULIMIT
 	"HASULIMIT",
 #endif
@@ -4758,11 +5001,17 @@ char	*OsCompileOptions[] =
 #if RLIMIT_NEEDS_SYS_TIME_H
 	"RLIMIT_NEEDS_SYS_TIME_H",
 #endif
+#if SAFENFSPATHCONF
+	"SAFENFSPATHCONF",
+#endif
 #if SECUREWARE
 	"SECUREWARE",
 #endif
 #if SHARE_V1
 	"SHARE_V1",
+#endif
+#if SIOCGIFCONF_IS_BROKEN
+	"SIOCGIFCONF_IS_BROKEN",
 #endif
 #if SYS5SETPGRP
 	"SYS5SETPGRP",

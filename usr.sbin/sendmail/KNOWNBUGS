@@ -1,13 +1,13 @@
 
 
 	     K N O W N   B U G S   I N   S E N D M A I L
-			     (for 8.8)
+			     (for 8.8.6)
 
 
 The following are bugs or deficiencies in sendmail that I am aware of
 but which have not been fixed in the current release.  You probably
-want to get the most up to date version of this from FTP.CS.Berkeley.EDU
-in /ucb/sendmail/KNOWNBUGS.  For descriptions of bugs that have been
+want to get the most up to date version of this from ftp.sendmail.org	
+in /pub/sendmail/KNOWNBUGS.  For descriptions of bugs that have been
 fixed, see the file RELEASE_NOTES (in the root directory of the sendmail
 distribution).
 
@@ -40,20 +40,6 @@ This list is not guaranteed to be complete.
   this address.  It's not clear what the right behaviour is in this
   circumstance.
 
-* MX records that point at non-existent hosts work strangly.
-
-  Consider the DNS records:
-
-	hostH	MX	1 hostA
-		MX	2 hostB
-	hostA	A	128.32.8.9
-
-  (note that there is no A record for hostB).  If hostA is down,
-  an attempt to send to hostH gives "host unknown" -- that is, it
-  reflects out the status on the last host it tries, which in this
-  case is hostB, which is unknown.  It probably ought to eliminate
-  hostB early in processing.
-
 * \231 considered harmful.
 
   Header addresses that have the \231 character (and possibly others
@@ -76,6 +62,18 @@ This list is not guaranteed to be complete.
   on all the systems I have available, including Solaris 2.x.)
   Apparently, this problem is due to linking -lc before -lsocket;
   if you are having this problem, check your Makefile.
+
+* accept() problem on Linux.
+
+  Apparently, the accept() in sendmail daemon loop can return ETIMEDOUT
+  and cause sendmail to sleep for 5 seconds during which time no new
+  connections will be accepted.  An error is reported to syslog:
+
+  Jun  9 17:14:12 hostname sendmail[207]: NOQUEUE: SYSERR(root):
+			getrequests: accept: Connection timed out
+
+  "Connection timed out" is not documented as a valid return from
+  accept(2) and this is believed to be a bug in the Linux kernel.
 
 * Excessive mailing list nesting can run out of file descriptors.
 
@@ -106,4 +104,4 @@ This list is not guaranteed to be complete.
   allow for 8->7 bit MIME conversions either.
 
 
-(Version 8.23, last updated 10/15/96)
+(Version 8.25, last updated 6/13/97)

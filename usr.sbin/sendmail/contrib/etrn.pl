@@ -7,7 +7,8 @@
 #
 
 # hardcoded constants, should work fine for BSD-based systems
-require 'sys/socket.ph';
+use Socket;
+use Getopt::Std;
 $sockaddr = 'S n a4 x8';
 
 # system requirements:
@@ -61,53 +62,56 @@ chop($name = `hostname || uname -n`);
 $0 = "$av0 - lookup host FQDN and IP addr";
 ($hostname,$aliases,$type,$len,$thisaddr) = gethostbyname($name);
 
-push(@hosts,$hostname);
-
-$0 = "$av0 - parsing sendmail.cf";
-open(CF, "</etc/sendmail.cf") || die "open /etc/sendmail.cf: $!";
-while (<CF>){
-	if (/^Fw.*$/){			# look for a line starting with "Fw"
-		$cwfile = $_;
-		chop($cwfile);
-		$optional = /^Fw-o/;
-		$cwfile =~ s,^Fw[^/]*,,;	# extract the file name
-	}
-}
-close(CF);
-
-$0 = "$av0 - reading $cwfile";
-if (open(CW, "<$cwfile")){
-	while (<CW>){
-		$thishost = $_;
-		chop($thishost);
-		push(@hosts, $thishost) unless $thishost =~ $hostname;
-	}
-	close(CW);
-} else {
-        die "open $cwfile: $!" unless optional;
-}
-
 $0 = "$av0 - parsing args";
-$usage = "Usage: $av0 [-wd] host";
-for $a (@ARGV) {
-	die $usage if $a eq "-";
-	while ($a =~ s/^(-.*)([wd])/$1/) {
-		eval '$'."flag_$2 += 1";
-	}
-	next if $a eq "-";
-	die $usage if $a =~ /^-/;
-	$server = $a;
-}
-$watch = $flag_w;
-$debug = $flag_d;
-
+$usage = "Usage: $av0 [-wd] host [args]";
+getopts('dw');
+$watch = $opt_w;
+$debug = $opt_d;
+$server = shift(@ARGV);
+@hosts = @ARGV;
 die $usage unless $server;
+
+if (!@hosts) {
+	push(@hosts,$hostname);
+
+	$0 = "$av0 - parsing sendmail.cf";
+	open(CF, "</etc/sendmail.cf") || die "open /etc/sendmail.cf: $!";
+	while (<CF>){
+		if (/^Fw.*$/){			# look for a line starting with "Fw"
+			$cwfile = $_;
+			chop($cwfile);
+			$optional = /^Fw-o/;
+			$cwfile =~ s,^Fw[^/]*,,;	# extract the file name
+		}
+		if (/^Cw(.*)$/){		# look for a line starting with "Cw"
+			@cws = split (' ', $1);
+			while (@cws) {
+				$thishost = shift(@cws);
+				push(@hosts, $thishost) unless $thishost =~ "$hostname|localhost";
+			}
+		}
+	}
+	close(CF);
+
+	if ($cwfile){
+		$0 = "$av0 - reading $cwfile";
+		if (open(CW, "<$cwfile")){
+			while (<CW>){
+				$thishost = $_;
+				chop($thishost);
+				push(@hosts, $thishost) unless $thishost =~ $hostname;
+			}
+			close(CW);
+		} else {
+			die "open $cwfile: $!" unless $optional;
+		}
+	}
+}
 
 $0 = "$av0 - building local socket";
 ($name,$aliases,$proto) = getprotobyname('tcp');
 ($name,$aliases,$port) = getservbyname($port,'tcp')
 	unless $port =~ /^\d+/;
-$this = pack($sockaddr, &AF_INET, 0, $thisaddr);
 
 # look it up
 $0 = "$av0 - gethostbyname($server)";
@@ -119,9 +123,6 @@ $0 = "$av0 - socket to $server";
 $that = pack($sockaddr, &AF_INET, $port, $thataddr);
 socket(S, &AF_INET, &SOCK_STREAM, $proto)
 	|| die "socket: $!";
-$0 = "$av0 - bind to $server";
-bind(S, $this) 
-	|| die "bind $hostname,0: $!";
 $0 = "$av0 - connect to $server";
 print "debug = $debug server = $server\n" if $debug > 8;
 if (! connect(S, $that)) {
@@ -170,7 +171,7 @@ while(<S>) {
 alarm(0);
 
 if ($etrn_support){
-	print "ETRN supported\n" if ($debug)
+	print "ETRN supported\n" if ($debug);
 	&alarm("sending etrn to $server",'');
 	while (@hosts) {
 		$server = shift(@hosts);
@@ -244,7 +245,7 @@ $flag_d;
 .nr % 0
 .\\"'; __END__ 
 .\" ############## END PERL/TROFF TRANSITION
-.TH ETRN 1 "November 16, 1996"
+.TH ETRN 1 "January 25, 1997"
 .AT 3
 .SH NAME
 etrn \- start mail queue run
@@ -253,11 +254,22 @@ etrn \- start mail queue run
 .RI [ -w ]
 .RI [ -d ]
 .IR hostname
+.RI [ args ]
 .SH DESCRIPTION
 .B etrn
 will use the SMTP
 .B etrn
 command to start mail delivery from the host given on the command line.
+.B etrn
+usually sends an
+.B etrn
+for each host the local sendmail accepts e-mail for, but if
+.IR args
+are specified,
+.B etrn
+uses these as arguments for the SMTP
+.B etrn
+commands passed to the host given on the command line.
 .SH OPTIONS
 .LP
 The normal mode of operation for
@@ -291,6 +303,9 @@ Not all mail daemons will implement
 It is assumed that you are running domain names.
 .SH CREDITS
 Leveraged from David Muir Sharnoff's expn.pl script.
+Christian von Roques added support for
+.IR args
+and fixed a couple of bugs.
 .SH AVAILABILITY
 The latest version of 
 .B etrn

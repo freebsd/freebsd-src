@@ -35,7 +35,7 @@ divert(-1)
 
 #
 #  This is a Berkeley-specific configuration file for Solaris 2.x.
-#  It applies only the the Computer Science Division at Berkeley,
+#  It applies only to the Computer Science Division at Berkeley,
 #  and should not be used elsewhere.   It is provided on the sendmail
 #  distribution as a sample only.  To create your own configuration
 #  file, create an appropriate domain file in ../domain, change the
@@ -44,7 +44,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)cs-solaris2.mc	8.3 (Berkeley) 3/23/96')
+VERSIONID(`@(#)cs-solaris2.mc	8.4 (Berkeley) 6/3/97')
 OSTYPE(solaris2)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

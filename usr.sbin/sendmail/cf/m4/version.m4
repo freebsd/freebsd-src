@@ -32,8 +32,8 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-VERSIONID(`@(#)version.m4	8.8.5.3 (Berkeley) 1/21/97')
+VERSIONID(`@(#)version.m4	8.8.6.1 (Berkeley) 6/14/97')
 #
 divert(0)
 # Configuration version number
-DZ8.8.5`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+DZ8.8.6`'ifdef(`confCF_VERSION', `/confCF_VERSION')
