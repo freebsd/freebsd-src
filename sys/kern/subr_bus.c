@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.4 1998/07/22 08:35:52 dfr Exp $
+ *	$Id: subr_bus.c,v 1.5 1998/09/05 13:24:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -202,7 +202,7 @@ devclass_delete_driver(devclass_t dc, driver_t *driver)
 	    for (dev = TAILQ_FIRST(&bus->children); dev;
 		 dev = TAILQ_NEXT(dev, link))
 		if (dev->driver == driver) {
-		    if (error = DEVICE_DETACH(dev))
+		    if (error = device_detach(dev))
 			return error;
 		    device_set_driver(dev, NULL);
 		}
@@ -458,7 +458,7 @@ device_delete_child(device_t dev, device_t child)
 {
     int error;
 
-    if (error = DEVICE_DETACH(child))
+    if (error = device_detach(child))
 	return error;
     if (child->devclass)
 	devclass_delete_device(child->devclass, child);
@@ -898,7 +898,7 @@ bus_generic_detach(device_t dev)
 
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
-	DEVICE_DETACH(child);
+	device_detach(child);
 
     return 0;
 }
