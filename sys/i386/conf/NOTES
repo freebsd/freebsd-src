@@ -621,7 +621,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # cy: Cyclades serial driver
 # digi: Digiboard driver
-# gsc: Genius GS-4500 hand scanner.
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 
 # Notes on APM
@@ -667,10 +666,6 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-device		gsc	1
-hint.gsc.0.at="isa"
-hint.gsc.0.port="0x270"
-hint.gsc.0.drq="3"
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
