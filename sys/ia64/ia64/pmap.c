@@ -2558,8 +2558,9 @@ pmap_switch(pmap_t pm)
 			    (pm->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 		}
 		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
-		PCPU_SET(current_pmap, pm);
 	}
+	PCPU_SET(current_pmap, pm);
+	__asm __volatile("srlz.d");
 	return (prevpm);
 }
 
