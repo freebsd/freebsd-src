@@ -58,24 +58,12 @@ cpu_unpend(void)
 
 /*
  * cpu_critical_fork_exit() - cleanup after fork
- *
- *	For i386 we do not have to do anything, td_critnest is
- *	handled by the fork trampoline code.
  */
 void
 cpu_critical_fork_exit(void)
 {
-}
 
-/*
- * cpu_thread_link() - thread linkup, initialize machine-dependant fields
- *
- *	There are currently no machine-dependant fields that require 
- *	initialization.
- */
-void
-cpu_thread_link(struct thread *td)
-{
+	enable_intr();
 }
 
 /*
