@@ -49,23 +49,25 @@
 .Op Fl s Ar size
 .Ar special
 .Sh DESCRIPTION
+The
 .Nm
-extends the
+utility extends the
 .Xr newfs 8
 program.
 Before starting
 .Nm
 the disk must be labeled to a bigger size using
 .Xr disklabel 8 .
-If you wish to grow a filesystem beyond the boundary of
+If you wish to grow a file system beyond the boundary of
 the slice it resides in, you must re-size the slice using
 .Xr fdisk 8
 before running
 .Nm .
 If you are using volumes you must enlarge them by using
 .Xr vinum 8 .
+The
 .Nm
-extends the size of the file system on the specified special file.
+utility extends the size of the file system on the specified special file.
 Currently
 .Nm
 can only enlarge unmounted file systems.
@@ -73,7 +75,7 @@ Do not try enlarging a mounted file system, your system may panic and you will
 not be able to use the file system any longer.
 Most of the
 .Xr newfs 8
-options can not be changed by
+options cannot be changed by
 .Nm .
 In fact, you can only increase the size of the file system.
 Use
@@ -115,20 +117,21 @@ will enlarge
 up to 2GB if there is enough space in
 .Pa /dev/vinum/testvol .
 .Sh BUGS
+The
 .Nm
-works starting with
+utility works starting with
 .Fx
 3.x.
 There may be cases on
 .Fx
 3.x only, when
 .Nm
-does not recognize exactly, whether the file system is mounted or not and
+does not recognize properly whether or not the file system is mounted and
 exits with an error message.
 Then please use
 .Nm
 .Fl y
-if you are sure, that the file system is not mounted.
+if you are sure that the file system is not mounted.
 It is also recommended to always use
 .Xr fsck 8
 after enlarging (just to be on the safe side).
@@ -168,9 +171,9 @@ Normally
 .Nm
 writes this critical structure to disk and reads it again later for doing more
 updates.
-This read operation will provide unexpected data, when using
+This read operation will provide unexpected data when using
 .Fl N .
-Therefore, this part can not really be simulated and will be skiped in test
+Therefore, this part cannot really be simulated and will be skipped in test
 mode.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
@@ -188,5 +191,5 @@ mode.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 4.4 .
