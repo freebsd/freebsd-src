@@ -117,6 +117,9 @@
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#ifdef linux
+#include <sys/sysmacros.h>
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -189,6 +192,9 @@ Config_spec:
 		} else if (!strcmp($2, "news3400")) {
 			machine = MACHINE_NEWS3400;
 			machinename = "news3400";
+		} else if (!strcmp($2, "alpha")) {
+			machine = MACHINE_ALPHA;
+			machinename = "alpha";
 		} else
 			yyerror("Unknown machine type");
 	      } |
