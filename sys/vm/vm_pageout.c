@@ -801,8 +801,7 @@ rescan0:
 		 * far as the VM code knows, any partially dirty pages are 
 		 * fully dirty.
 		 */
-		if (m->dirty == 0) {
-			vm_page_test_dirty(m);
+		if (m->dirty == 0 && !pmap_is_modified(m)) {
 			/*
 			 * Avoid a race condition: Unless write access is
 			 * removed from the page, another processor could
@@ -816,7 +815,7 @@ rescan0:
 			 * to the page, removing all access will be cheaper
 			 * overall.
 			 */
-			if (m->dirty == 0 && (m->flags & PG_WRITEABLE) != 0)
+			if ((m->flags & PG_WRITEABLE) != 0)
 				pmap_remove_all(m);
 		} else {
 			vm_page_dirty(m);
