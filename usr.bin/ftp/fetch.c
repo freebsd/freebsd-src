@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id: fetch.c,v 1.4 1997/12/16 08:22:35 ache Exp $");
+__RCSID("$Id: fetch.c,v 1.5 1997/12/16 08:58:15 ache Exp $");
 __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #endif /* not lint */
 
@@ -220,6 +220,12 @@ url_get(origline, proxyenv)
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s == -1) {
 		warn("Can't create socket");
+		goto cleanup_url_get;
+	}
+
+	if (dobind && bind(s, (struct sockaddr *)&bindto,
+			sizeof(bindto)) == -1) {
+		warn("Can't bind to %s", inet_ntoa(bindto.sin_addr));
 		goto cleanup_url_get;
 	}
 

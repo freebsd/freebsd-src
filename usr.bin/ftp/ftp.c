@@ -1,4 +1,4 @@
-/*	$Id: ftp.c,v 1.14 1998/07/26 18:49:36 imp Exp $	*/
+/*	$Id: ftp.c,v 1.15 1998/12/09 20:49:20 eivind Exp $	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-__RCSID("$Id: ftp.c,v 1.14 1998/07/26 18:49:36 imp Exp $");
+__RCSID("$Id: ftp.c,v 1.15 1998/12/09 20:49:20 eivind Exp $");
 __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -110,34 +110,30 @@ hookup(host, port)
 	}
 	hostnamebuf[sizeof(hostnamebuf) - 1] = '\0';
 	hostname = hostnamebuf;
-	s = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
-	if (s < 0) {
-		warn("socket");
-		code = -1;
-		return (0);
-	}
 	hisctladdr.sin_port = port;
-	while (connect(s, (struct sockaddr *)&hisctladdr,
-			sizeof(hisctladdr)) < 0) {
-		if (hp && hp->h_addr_list[1]) {
-			int oerrno = errno;
-			char *ia;
-
-			ia = inet_ntoa(hisctladdr.sin_addr);
-			errno = oerrno;
-			warn("connect to address %s", ia);
-			hp->h_addr_list++;
+	while (1) {
+		if ((s = socket(hisctladdr.sin_family, SOCK_STREAM, 0)) == -1) {
+			warn("socket");
+			code = -1;
+			return (0);
+		}
+		if (dobind && bind(s, (struct sockaddr *)&bindto,
+				sizeof(bindto)) == -1) {
+			warn("bind");
+			code = -1;
+			goto bad;
+		}
+		if (connect(s, (struct sockaddr *)&hisctladdr,
+				sizeof(hisctladdr)) == 0)
+			break;
+		if (hp && *++hp->h_addr_list) {
+			warnc(errno, "connect to address %s",
+				inet_ntoa(hisctladdr.sin_addr));
 			memcpy(&hisctladdr.sin_addr, hp->h_addr_list[0], 
 				MIN(hp->h_length,sizeof(hisctladdr.sin_addr)));
 			printf("Trying %s...\n",
 			    inet_ntoa(hisctladdr.sin_addr));
 			(void)close(s);
-			s = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
-			if (s < 0) {
-				warn("socket");
-				code = -1;
-				return (0);
-			}
 			continue;
 		}
 		warn("connect");
@@ -1092,6 +1088,11 @@ initconn()
 		if (data < 0) {
 			warn("socket");
 			return (1);
+		}
+		if (dobind && bind(data, (struct sockaddr *)&bindto,
+				sizeof(bindto)) == -1) {
+			warn("bind");
+			goto bad;
 		}
 		if ((options & SO_DEBUG) &&
 		    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on,
