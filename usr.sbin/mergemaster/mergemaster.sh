@@ -528,6 +528,9 @@ esac
 #
 rm -f ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
 
+# We only need to compare things like freebsd.cf once
+find ${TEMPROOT}/usr/obj -type f -delete
+
 # Get ready to start comparing files
 
 # Check umask if not specified on the command line,
