@@ -220,7 +220,6 @@ i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		count		bs
-i386/isa/asc.c			count		asc
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			count		ctx
 i386/isa/cx.c			count		cx
@@ -228,7 +227,6 @@ i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/gpib.c			optional	gp
-i386/isa/gsc.c			count		gsc
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
@@ -241,7 +239,6 @@ i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
 i386/isa/npx.c			optional	npx
-i386/isa/pcf.c			optional	pcf
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/spigot.c		count		spigot
@@ -391,9 +388,9 @@ pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
 pccard/mecia.c			optional	mecia card
 pci/cy_pci.c			optional	cy pci
-pci/agp_intel.c			optional agp
-pci/agp_via.c			optional agp
-pci/agp_sis.c			optional agp
-pci/agp_ali.c			optional agp
-pci/agp_amd.c			optional agp
-pci/agp_i810.c			optional agp
+pci/agp_intel.c			optional	agp
+pci/agp_via.c			optional	agp
+pci/agp_sis.c			optional	agp
+pci/agp_ali.c			optional	agp
+pci/agp_amd.c			optional	agp
+pci/agp_i810.c			optional	agp
