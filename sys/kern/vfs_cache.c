@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.17 1995/10/29 15:31:18 phk Exp $
+ * $Id: vfs_cache.c,v 1.18 1995/12/14 09:52:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,6 @@ struct nchstats nchstats;		/* cache effectiveness statistics */
 static struct vnode nchENOENT;		/* our own "novnode" */
 static int doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
-u_long	nextvnodeid;
 static u_long	numcache;
 u_long	numvnodes;
 
@@ -255,14 +254,14 @@ nchinit()
 
 	TAILQ_INIT(&nclruhead);
 	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
-	nchENOENT.v_id = 1;
+	cache_purge(&nchENOENT);	/* Initialize v_id */
 }
 
 /*
- * Invalidate a all entries to particular vnode.
+ * Invalidate all entries to a particular vnode.
  *
- * We actually just increment the v_id, that will do it.  The entries will
- * be purged by lookup as they get found.
+ * We actually just increment the v_id, that will do it.  The stale entries 
+ * will be purged by lookup as they get found.
  * If the v_id wraps around, we need to ditch the entire cache, to avoid
  * confusion.
  * No valid vnode will ever have (v_id == 0).
@@ -273,6 +272,7 @@ cache_purge(vp)
 	struct vnode *vp;
 {
 	struct nchashhead *ncpp;
+	static u_long nextvnodeid;
 
 	vp->v_id = ++nextvnodeid;
 	if (nextvnodeid != 0)
@@ -281,6 +281,7 @@ cache_purge(vp)
 		while(ncpp->lh_first)
 			PURGE(ncpp->lh_first);
 	}
+	nchENOENT.v_id = ++nextvnodeid;
 	vp->v_id = ++nextvnodeid;
 }
 
@@ -288,7 +289,7 @@ cache_purge(vp)
  * Flush all entries referencing a particular filesystem.
  *
  * Since we need to check it anyway, we will flush all the invalid
- * entriess at the same time.
+ * entries at the same time.
  *
  * If we purge anything, we scan the hash-bucket again.  There is only
  * a handful of entries, so it cheap and simple.
