@@ -71,15 +71,15 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 struct vmstate {
-	pd_entry_t	*PTD;
+	pml4_entry_t	*PML4;
 };
 
 void
 _kvm_freevtop(kvm_t *kd)
 {
 	if (kd->vmst != 0) {
-		if (kd->vmst->PTD) {
-			free(kd->vmst->PTD);
+		if (kd->vmst->PML4) {
+			free(kd->vmst->PML4);
 		}
 		free(kd->vmst);
 	}
@@ -92,7 +92,7 @@ _kvm_initvtop(kvm_t *kd)
 	struct nlist nlist[2];
 	u_long pa;
 	u_long kernbase;
-	pd_entry_t	*PTD;
+	pml4_entry_t	*PML4;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
 	if (vm == 0) {
@@ -100,34 +100,35 @@ _kvm_initvtop(kvm_t *kd)
 		return (-1);
 	}
 	kd->vmst = vm;
-	vm->PTD = 0;
+	vm->PML4 = 0;
 
 	nlist[0].n_name = "kernbase";
 	nlist[1].n_name = 0;
 
-	if (kvm_nlist(kd, nlist) != 0)
-		kernbase = KERNBASE;	/* for old kernels */
-	else
-		kernbase = nlist[0].n_value;
+	if (kvm_nlist(kd, nlist) != 0) {
+		_kvm_err(kd, kd->program, "bad namelist - no kernbase");
+		return (-1);
+	}
+	kernbase = nlist[0].n_value;
 
-	nlist[0].n_name = "IdlePTD";
+	nlist[0].n_name = "KPML4phys";
 	nlist[1].n_name = 0;
 
 	if (kvm_nlist(kd, nlist) != 0) {
-		_kvm_err(kd, kd->program, "bad namelist");
+		_kvm_err(kd, kd->program, "bad namelist - no KPML4phys");
 		return (-1);
 	}
 	if (kvm_read(kd, (nlist[0].n_value - kernbase), &pa, sizeof(pa)) !=
 	    sizeof(pa)) {
-		_kvm_err(kd, kd->program, "cannot read IdlePTD");
+		_kvm_err(kd, kd->program, "cannot read KPML4phys");
 		return (-1);
 	}
-	PTD = _kvm_malloc(kd, PAGE_SIZE);
-	if (kvm_read(kd, pa, PTD, PAGE_SIZE) != PAGE_SIZE) {
-		_kvm_err(kd, kd->program, "cannot read PTD");
+	PML4 = _kvm_malloc(kd, PAGE_SIZE);
+	if (kvm_read(kd, pa, PML4, PAGE_SIZE) != PAGE_SIZE) {
+		_kvm_err(kd, kd->program, "cannot read KPML4phys");
 		return (-1);
 	}
-	vm->PTD = PTD;
+	vm->PML4 = PML4;
 	return (0);
 }
 
@@ -136,15 +137,21 @@ _kvm_vatop(kvm_t *kd, u_long va, u_long *pa)
 {
 	struct vmstate *vm;
 	u_long offset;
+	u_long pdpe_pa;
+	u_long pde_pa;
 	u_long pte_pa;
+	pml4_entry_t pml4e;
+	pdp_entry_t pdpe;
 	pd_entry_t pde;
 	pt_entry_t pte;
+	u_long pml4eindex;
+	u_long pdpeindex;
 	u_long pdeindex;
 	u_long pteindex;
 	int i;
 
 	if (ISALIVE(kd)) {
-		_kvm_err(kd, 0, "vatop called in live kernel!");
+		_kvm_err(kd, 0, "kvm_vatop called in live kernel!");
 		return((off_t)0);
 	}
 
@@ -155,27 +162,55 @@ _kvm_vatop(kvm_t *kd, u_long va, u_long *pa)
 	 * If we are initializing (kernel page table descriptor pointer
 	 * not yet set) then return pa == va to avoid infinite recursion.
 	 */
-	if (vm->PTD == 0) {
+	if (vm->PML4 == 0) {
 		*pa = va;
 		return (PAGE_SIZE - offset);
 	}
 
-	pdeindex = va >> PDRSHIFT;
-	pde = vm->PTD[pdeindex];
+	pml4eindex = (va >> PML4SHIFT) & (NPML4EPG - 1);
+	pml4e = vm->PML4[pml4eindex];
+	if (((u_long)pml4e & PG_V) == 0)
+		goto invalid;
+
+	pdpeindex = (va >> PDPSHIFT) & (NPDPEPG-1);
+	pdpe_pa = ((u_long)pml4e & PG_FRAME) + (pdpeindex * sizeof(pdp_entry_t));
+
+	/* XXX This has to be a physical address read, kvm_read is virtual */
+	if (lseek(kd->pmfd, pdpe_pa, 0) == -1) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: lseek pdpe_pa");
+		goto invalid;
+	}
+	if (read(kd->pmfd, &pdpe, sizeof pdpe) != sizeof pdpe) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: read pdpe");
+		goto invalid;
+	}
+	if (((u_long)pdpe & PG_V) == 0)
+		goto invalid;
+
+
+	pdeindex = (va >> PDRSHIFT) & (NPDEPG-1);
+	pde_pa = ((u_long)pdpe & PG_FRAME) + (pdeindex * sizeof(pd_entry_t));
+
+	/* XXX This has to be a physical address read, kvm_read is virtual */
+	if (lseek(kd->pmfd, pde_pa, 0) == -1) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: lseek pde_pa");
+		goto invalid;
+	}
+	if (read(kd->pmfd, &pde, sizeof pde) != sizeof pde) {
+		_kvm_syserr(kd, kd->program, "_kvm_vatop: read pde");
+		goto invalid;
+	}
 	if (((u_long)pde & PG_V) == 0)
 		goto invalid;
 
 	if ((u_long)pde & PG_PS) {
 	      /*
-	       * No second-level page table; ptd describes one 4MB page.
-	       * (We assume that the kernel wouldn't set PG_PS without enabling
-	       * it cr0, and that the kernel doesn't support 36-bit physical
-	       * addresses).
+	       * No final-level page table; ptd describes one 2MB page.
 	       */
-#define	PAGE4M_MASK	(NBPDR - 1)
-#define	PG_FRAME4M	(~PAGE4M_MASK)
-		*pa = ((u_long)pde & PG_FRAME4M) + (va & PAGE4M_MASK);
-		return (NBPDR - (va & PAGE4M_MASK));
+#define	PAGE2M_MASK	(NBPDR - 1)
+#define	PG_FRAME2M	(~PAGE2M_MASK)
+		*pa = ((u_long)pde & PG_FRAME2M) + (va & PAGE2M_MASK);
+		return (NBPDR - (va & PAGE2M_MASK));
 	}
 
 	pteindex = (va >> PAGE_SHIFT) & (NPTEPG-1);
