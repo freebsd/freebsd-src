@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.12 1994/01/14 16:23:37 davidg Exp $
+ *	$Id: pmap.c,v 1.13 1994/01/17 09:32:20 davidg Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ pmap_extract(pmap, va)
 	
 }
 
-int
+static inline int
 pmap_is_managed(pa)
 	vm_offset_t pa;
 {
