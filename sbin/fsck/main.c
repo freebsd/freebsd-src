@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/proc.h>
 #include <sys/mount.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -67,7 +68,7 @@ main(argc, argv)
 	extern int optind;
 
 	sync();
-	while ((ch = getopt(argc, argv, "dpnNyYb:c:l:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != EOF) {
 		switch (ch) {
 		case 'p':
 			preen++;
@@ -84,6 +85,10 @@ main(argc, argv)
 		
 		case 'd':
 			debug++;
+			break;
+
+		case 'f':
+			fflag++;
 			break;
 
 		case 'l':
@@ -182,6 +187,18 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
 		return (0);
 	}
+
+	if (preen && sblock.fs_clean && !fflag) {
+		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
+			sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
+		printf("(%ld frags, %ld blocks, %.1f%% fragmentation)\n",
+			sblock.fs_cstotal.cs_nffree,
+			sblock.fs_cstotal.cs_nbfree,
+			(float)(sblock.fs_cstotal.cs_nffree * 100) /
+			sblock.fs_dsize);
+		return(0);
+	}
+
 	/*
 	 * 1: scan inodes tallying blocks used
 	 */
@@ -268,7 +285,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	duplist = (struct dups *)0;
 	muldup = (struct dups *)0;
 	inocleanup();
-	if (fsmodified) {
+	if (fsmodified || (!sblock.fs_clean && preen && !nflag && !hotroot)) {
+		sblock.fs_clean = 1;
 		(void)time(&sblock.fs_time);
 		sbdirty();
 	}

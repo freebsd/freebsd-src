@@ -164,6 +164,7 @@ long numdirs, listmax, inplast;
 char	*cdevname;		/* name of device being checked */
 long	dev_bsize;		/* computed value of DEV_BSIZE */
 long	secsize;		/* actual disk sector size */
+char	fflag;			/* force fs check (ignore clean flag) */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bflag;			/* location of alternate super block */
