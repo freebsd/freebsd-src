@@ -47,7 +47,7 @@
   information on obtaining this (or other) &release.type; distributions of
   &os; can be found in the <ulink
   url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
-  FreeBSD</quote> appendix</ulink> to the <ulink
+  FreeBSD</quote></ulink> appendix in the <ulink
   url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
 
 ]]>
@@ -110,7 +110,7 @@
     <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
     port.</para>
 
-    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    <para>A <varname>MAXMEM</varname> kernel option,
     along with the <varname>hw.physmem</varname> environment variable, can be
     used to artificially reduce the memory size of a machine for
     testing (or other purposes).</para>
@@ -175,10 +175,8 @@
     without <quote>time warps</quote>.</para>
 
     <para>The kernel on the installation CDs is now separated from the
-    <filename>mfsroot</filename> image.  This permits the use of a
-    full kernel when installing from CD on machines that support CD
-    booting (instead of the stripped-down kernel used on
-    floppies).</para>
+    <filename>mfsroot</filename> image.  This provides more
+    flexibility when building custom &os; distributions.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -198,7 +196,17 @@
       completely implement the El Torito bootable CDROM standard.  This
       boot loader supports <quote>no emulation</quote> mode booting,
       thus eliminating the need for an emulated floppy disk image on
-      a bootable CDROM.</para>
+      a bootable CDROM.  This in turn permits the use of a
+      full kernel when installing from CD on machines that support CD
+      booting (instead of the stripped-down kernel used on
+      floppies).
+	<note>
+	  <para>While this functionality is not used in the &os;
+	  &release.current; ISO images, it may be used for future
+	  releases.  In the meantime, this feature is available for 
+	  users constructing custom distributions.</para>
+	</note>
+      </para>
 
       <para arch="i386">The &man.loader.8; now has optional support
       (enabled at compile-time, off by default) for loading
@@ -597,7 +605,7 @@
     statistics.</para>
 
     <para>&man.netstat.1; now has a <option>-S</option> flag to print
-    address numerically but port names symbolically.</para>
+    addresses numerically but port names symbolically.</para>
 
     <para>The default number of cylinders per group in &man.newfs.8;
     is now computed to be the maximum allowable given the current
