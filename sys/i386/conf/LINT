@@ -1463,6 +1463,10 @@ options 	PUC_FASTINTR
 # arl:	Aironet Arlan 655 wireless adapters.
 # cm: Arcnet SMC COM90c26 / SMC COM90c56
 #     (and SMC COM90c66 in '56 compatibility mode) adapters.
+# cp: Cronyx Tau-PCI sync single/dual/four port
+#     V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
+#     serial adaptor (requires sppp (default), or NETGRAPH if
+#     NETGRAPH_CRONYX is configured)
 # cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # ctau: Cronyx Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
@@ -1497,6 +1501,7 @@ options 	PUC_FASTINTR
 device ar0 at isa? port 0x300 irq 10 iomem 0xd0000
 device arl0 at isa? irq 9 iomem 0xd0000
 device cm0 at isa? port 0x2e0 irq 9 iomem 0xdc000
+device cp
 device cs0 at isa? port 0x300
 device ctau0 at isa? port 0x240 irq 15 drq 7
 device cx0 at isa? port 0x240 irq 15 drq 7
