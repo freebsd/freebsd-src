@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.26 1996/10/18 15:59:25 jkh Exp $
+ * $Id: if_ethersubr.c,v 1.27 1996/11/18 04:55:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -848,11 +848,12 @@ ether_delmulti(ifr, ac)
 
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 
-void
+int
 ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
+	int error = 0;
 
 	switch (command) {
 	case SIOCSIFADDR:
@@ -931,6 +932,17 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
+
+	case SIOCSIFMTU:
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
 	}
-	return;
+	return (error);
 }

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.18 1996/09/06 23:07:31 phk Exp $
+ * $Id: if_eg.c,v 1.19 1996/10/30 08:50:26 phk Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -730,7 +730,8 @@ egioctl(ifp, command, data)
 
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-		ether_ioctl(ifp, command, data);
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
