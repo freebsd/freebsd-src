@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.7 2002/03/14 23:05:36 ue Exp $
-  basiert auf: 1.37
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.8 2002/03/16 03:34:19 ue Exp $
+  basiert auf: 1.38
 -->
 
 <sect1>
@@ -711,7 +711,7 @@ cpu     EV4</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>hints</filename> zus&auml;tzlich noch
+        m&uuml;ssen in <filename>device.hints</filename> zus&auml;tzlich noch
         <literal>flags 0x15</literal> angeben.</para>
 
       <para>Bis jetzt hat es noch niemand geschafft, einer Multia mit
@@ -1949,7 +1949,7 @@ cpu             EV5</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>hints</filename> zus&auml;tzlich noch
+        m&uuml;ssen in <filename>device.hints</filename> zus&auml;tzlich noch
         <literal>flags 0x10011</literal> angeben.</para>
 
       <para>Die Modelle AlphaStation 200 und 250 verf&uuml;gen
@@ -2221,7 +2221,7 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
 
       <para>Benutzen Sie danach das ECU, um die Audio-Hardware auf IRQ
         10, Port 0x530 und DRQ 0 einzustellen.  Sie m&uuml;ssen diese
-        Werte ebenfalls in <filename>hints</filename> angeben, dazu
+        Werte ebenfalls in <filename>device.hints</filename> angeben, dazu
         kommt noch die Angabe flags 0x10011.</para>
 
       <para>Die PCI Steckpl&auml;tze der AS600 zeigen eine
