@@ -44,6 +44,8 @@ static char sccsid[] = "@(#)mount.c	8.19 (Berkeley) 4/19/94";
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
@@ -245,6 +247,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	const char *vfstype, *spec, *name, *options, *mntopts;
 	int flags;
 {
+	struct stat sb;
+
 	/* List of directories containing mount_xxx subcommands. */
 	static const char *edirs[] = {
 		_PATH_SBIN,
@@ -257,10 +261,16 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	int argc, i, status;
 	char *optbuf, execname[MAXPATHLEN + 1], mntpath[MAXPATHLEN];
 
-	if (realpath(name, mntpath) == NULL) {
+	if ((realpath(name, mntpath) != NULL) && (stat(mntpath, &sb) == NULL)) {
+		if ((sb.st_mode & S_IFDIR) == 0) {
+			warnx("%s: Not a directory", mntpath);
+			return (1);
+		}
+	} else {
 		warn("%s", mntpath);
 		return (1);
 	}
+
 	if (mntopts == NULL)
 		mntopts = "";
 
