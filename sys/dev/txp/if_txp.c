@@ -486,6 +486,7 @@ txp_reset_adapter(sc)
 	u_int32_t r;
 	int i;
 
+	r = 0;
 	WRITE_REG(sc, TXP_SRR, TXP_SRR_ALL);
 	DELAY(1000);
 	WRITE_REG(sc, TXP_SRR, 0);
@@ -515,6 +516,7 @@ txp_download_fw(sc)
 	int sect;
 	u_int32_t r, i, ier, imr;
 
+	r = 0;
 	ier = READ_REG(sc, TXP_IER);
 	WRITE_REG(sc, TXP_IER, ier | TXP_INT_A2H_0);
 
@@ -586,6 +588,7 @@ txp_download_fw_wait(sc)
 {
 	u_int32_t i, r;
 
+	r = 0;
 	for (i = 0; i < 10000; i++) {
 		r = READ_REG(sc, TXP_ISR);
 		if (r & TXP_INT_A2H_0)
@@ -960,6 +963,7 @@ txp_alloc_rings(sc)
 	u_int32_t r;
 	int i;
 
+	r = 0;
 	ld = sc->sc_ldata;
 	boot = &ld->txp_boot;
 
