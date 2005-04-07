@@ -37,8 +37,6 @@
 #include <stddef.h>
 #include <errno.h>
 
-static __inline int atomic_cmpset_32(volatile uint32_t *, uint32_t, uint32_t);
-
 #include <sys/umtx.h>
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
@@ -86,21 +84,5 @@ _get_curthread(void)
 }
 
 extern struct umtx arm_umtx;
-
-static __inline int
-atomic_cmpset_32(volatile uint32_t *dst, uint32_t old, uint32_t newval)
-{						
-	int ret;				
-
-	_umtx_lock(&arm_umtx);
-	arm_umtx.u_owner = (void*)((uint32_t)arm_umtx.u_owner | UMTX_CONTESTED);
-	if (*dst == old) {
-		*dst = newval;
-		ret = 1;
-	} else
-		ret = 0;
-	_umtx_unlock(&arm_umtx);
-	return (ret);
-}
 
 #endif /* _PTHREAD_MD_H_ */
