@@ -85,7 +85,7 @@ int ata_wc = 1;
 /* local vars */
 static struct intr_config_hook *ata_delayed_attach = NULL;
 static int ata_dma = 1;
-static int atapi_dma = 1;
+static int atapi_dma = 0;
 static int ata_resuming = 0;
 
 /* sysctl vars */
