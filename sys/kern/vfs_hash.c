@@ -150,7 +150,7 @@ vfs_hash_rehash(struct vnode *vp, u_int hash)
 
 	mtx_lock(&vfs_hash_mtx);
 	LIST_REMOVE(vp, v_hashlist);
-	LIST_INSERT_HEAD(&vfs_hash_tbl[hash & vfs_hash_mask], vp, v_hashlist);
+	LIST_INSERT_HEAD(vfs_hash_index(vp->v_mount, hash), vp, v_hashlist);
 	vp->v_hash = hash;
 	mtx_unlock(&vfs_hash_mtx);
 }
