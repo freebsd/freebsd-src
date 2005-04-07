@@ -155,7 +155,7 @@ RELEASEDISTFILES?=	${.CURDIR}/../../ports/distfiles
 AUTO_KEYBOARD_DETECT?= 0
 
 .if !defined(NODOC)
-DIST_DOCS_ARCH_INDEP=	readme errata early-adopter
+DIST_DOCS_ARCH_INDEP=	readme errata
 DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 .endif
 
@@ -730,8 +730,6 @@ release.8:
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT \
 	    ${RD}/mfsfd/stand/help/INSTALL.TXT
-	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT \
-	    ${RD}/mfsfd/stand/help/MIGRATE5.TXT
 .endif
 	-test -f ${.CURDIR}/install.cfg \
 	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
@@ -875,8 +873,6 @@ ftp.1:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
-	@mv ${FD}/EARLY-ADOPTER.TXT ${FD}/MIGRATE5.TXT
-	@mv ${FD}/EARLY-ADOPTER.HTM ${FD}/MIGRATE5.HTM
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 	touch ${.TARGET}
@@ -939,8 +935,6 @@ cdrom.2:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
-	@mv ${CD_DISC1}/EARLY-ADOPTER.TXT ${CD_DISC1}/MIGRATE5.TXT
-	@mv ${CD_DISC1}/EARLY-ADOPTER.HTM ${CD_DISC1}/MIGRATE5.HTM
 .endif
 	@echo "CD_VOLUME = 1" >> ${CD_DISC1}/cdrom.inf
 .if defined(SEPARATE_LIVEFS)
