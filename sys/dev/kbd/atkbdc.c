@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <machine/bus_pio.h>
@@ -942,26 +941,12 @@ test_controller(KBDC p)
     return (c == KBD_DIAG_DONE);
 }
 
-
 int
 test_kbd_port(KBDC p)
 {
     int retry = KBD_MAXRETRY;
     int again = KBD_MAXWAIT;
     int c = -1;
-    int broken_kit_cmd = 0;
-
-    /*
-     * Provide a way to disable using Keyboard Interface Test command, which
-     * may cause problems with some non-compliant hardware, resulting in
-     * machine being powered down early in the boot process.
-     *
-     * Particularly it's known that HP ZV5000 and Compaq R3000Z notebooks are
-     * affected.
-     */
-    TUNABLE_INT_FETCH("hw.atkbdc.broken_kit_cmd", &broken_kit_cmd);
-    if (broken_kit_cmd != 0)
-	return 0;
 
     while (retry-- > 0) {
         empty_both_buffers(p, 10);
