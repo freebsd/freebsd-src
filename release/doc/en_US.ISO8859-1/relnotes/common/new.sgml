@@ -231,7 +231,7 @@
 	  manually backup and restore the contents of
 	  <filename>/etc</filename>.  However, it may be useful in
 	  cases where you want (or need) to change the partitioning of
-	  your disks.
+	  your disks.</para>
       </listitem>
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
