@@ -119,7 +119,7 @@ main(int argc, char *argv[])
 	len = sizeof iodmax;
 	error = sysctlbyname("vfs.nfs.iodmax", &iodmax, &len, NULL, 0);
 	if (error < 0)
-		err(1, "sysctlbyname(\"vfs.nfs.iodmin\")");
+		err(1, "sysctlbyname(\"vfs.nfs.iodmax\")");
 	/* Catch the case where we're lowering num_servers below iodmin */
 	if (iodmin > num_servers) {
 		iodmin = num_servers;
