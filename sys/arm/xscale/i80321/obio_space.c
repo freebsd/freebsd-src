@@ -166,7 +166,6 @@ obio_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 		*pte &= ~L2_S_CACHE_MASK;
 		PTE_SYNC(pte);
 	}
-	pmap_update(pmap_kernel());
 
 	return (0);
 }
