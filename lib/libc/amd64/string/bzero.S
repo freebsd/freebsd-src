@@ -12,8 +12,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ENTRY(bzero)
-	movq	%rsi,%rdx
-
 	cld				/* set fill direction forward */
 	xorq	%rax,%rax		/* set fill data to 0 */
 
@@ -22,23 +20,23 @@ ENTRY(bzero)
 	 * of aligning to word boundries, etc.  So we jump to a plain
 	 * unaligned set.
 	 */
-	cmpq	$16,%rdx
+	cmpq	$16,%rsi
 	jb	L1
 
 	movq	%rdi,%rcx		/* compute misalignment */
 	negq	%rcx
 	andq	$7,%rcx
-	subq	%rcx,%rdx
+	subq	%rcx,%rsi
 	rep				/* zero until word aligned */
 	stosb
 
-	movq	%rdx,%rcx		/* zero by words */
+	movq	%rsi,%rcx		/* zero by words */
 	shrq	$3,%rcx
-	andq	$7,%rdx
+	andq	$7,%rsi
 	rep
 	stosq
 
-L1:	movq	%rdx,%rcx		/* zero remainder by bytes */
+L1:	movq	%rsi,%rcx		/* zero remainder by bytes */
 	rep
 	stosb
 
