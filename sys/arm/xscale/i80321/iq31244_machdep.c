@@ -459,11 +459,11 @@ initarm(void *arg, void *arg2)
 	
 	freemempos &= ~(PAGE_SIZE - 1);
 	phys_avail[0] = SDRAM_START;
-	phys_avail[1] = freemempos;
-	phys_avail[2] = round_page(virtual_avail - KERNBASE + SDRAM_START);
-	phys_avail[3] = trunc_page(0xa0000000 + memsize - 1);
-	phys_avail[4] = 0;
-	phys_avail[5] = 0;
+	phys_avail[1] = freemempos - PAGE_SIZE;
+	phys_avail[0] = round_page(virtual_avail - KERNBASE + SDRAM_START);
+	phys_avail[1] = trunc_page(0xa0000000 + memsize - 1);
+	phys_avail[2] = 0;
+	phys_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
