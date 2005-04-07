@@ -51,18 +51,3 @@ atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res)
 	atomic_swap32((intptr_t *)d, (intptr_t)v, (intptr_t *)r)
 #endif
 
-static inline u_int32_t
-atomic_cmpset_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
-{
-	kse_critical_t crit = _kse_critical_enter();
-	int ret;
-
-	if (*p == cmpval) {
-		*p = newval;
-		ret = 1;
-	} else
-		ret = 0;
-	_kse_critical_leave(crit);
-	return (ret);
-}
-
