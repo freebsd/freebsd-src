@@ -37,7 +37,7 @@ _amd64_get_gsbase(void **addr)
 	int ret;
 
 	addr64 = 0;
-	ret = sysarch(_AMD64_GET_GSBASE, (void **)(&addr64));
+	ret = sysarch(_AMD64_GET_GSBASE, &addr64);
 	if (ret != -1)
 		*addr = (void *)(uintptr_t)addr64;
 	return ret;
