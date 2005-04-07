@@ -69,7 +69,16 @@
 
 static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
 
-#define	DEHASH(dcl, doff)	((dcl) + (doff) / sizeof(struct direntry))
+static int
+de_vncmpf(struct vnode *vp, void *arg)
+{
+	struct denode *de;
+	uint64_t *a;
+
+	a = arg;
+	de = VTODE(vp);
+	return (de->de_inode != *a);
+}
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
@@ -91,14 +100,12 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode **depp;		/* returns the addr of the gotten denode */
 {
 	int error;
-	u_int hash;
+	uint64_t inode;
 	struct mount *mntp = pmp->pm_mountp;
 	struct direntry *direntptr;
 	struct denode *ldep;
 	struct vnode *nvp, *xvp;
 	struct buf *bp;
-
-	hash = DEHASH(dirclust, diroffset);
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
@@ -124,12 +131,16 @@ deget(pmp, dirclust, diroffset, depp)
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
 	 */
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE, curthread, &nvp,
-	    NULL, NULL);
+	inode = pmp->pm_bpcluster * dirclust + diroffset;
+
+	error = vfs_hash_get(mntp, inode, LK_EXCLUSIVE, curthread, &nvp,
+	    de_vncmpf, &inode);
 	if (error)
 		return(error);
 	if (nvp != NULL) {
 		*depp = VTODE(nvp);
+		KASSERT((*depp)->de_dirclust == dirclust, ("wrong dirclust"));
+		KASSERT((*depp)->de_diroffset == diroffset, ("wrong diroffset"));
 		return (0);
 	}
 
@@ -157,10 +168,11 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_flag = 0;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
+	ldep->de_inode = inode;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
-	error = vfs_hash_insert(nvp, hash, LK_EXCLUSIVE, curthread, &xvp,
-	    NULL, NULL);
+	error = vfs_hash_insert(nvp, inode, LK_EXCLUSIVE, curthread, &xvp,
+	    de_vncmpf, &inode);
 	if (error) {
 		*depp = NULL;
 		return (error);
@@ -510,10 +522,14 @@ reinsert(dep)
 	 * so we must remove it from the cache and re-enter it with the
 	 * hash based on the new location of the directory entry.
 	 */
+#if 0
 	if (dep->de_Attributes & ATTR_DIRECTORY)
 		return;
+#endif
 	vp = DETOV(dep);
-	vfs_hash_rehash(vp, DEHASH(dep->de_dirclust, dep->de_diroffset));
+	dep->de_inode = dep->de_pmp->pm_bpcluster * dep->de_dirclust +
+	     dep->de_diroffset;
+	vfs_hash_rehash(vp, dep->de_inode);
 }
 
 int
