@@ -1813,18 +1813,18 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 		goto out;
 	}
 
+	/*
+	 * To avoid a race with its completion interrupt, place this command on
+	 * the busy queue prior to advertising it to the controller.
+	 */
+	aac_enqueue_busy(cm);
+
 	/* populate queue entry */
 	(sc->aac_qentries[queue] + pi)->aq_fib_size = fib_size;
 	(sc->aac_qentries[queue] + pi)->aq_fib_addr = fib_addr;
 
 	/* update producer index */
 	sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX] = pi + 1;
-
-	/*
-	 * To avoid a race with its completion interrupt, place this command on
-	 * the busy queue prior to advertising it to the controller.
-	 */
-	aac_enqueue_busy(cm);
 
 	/* notify the adapter if we know how */
 	if (aac_qinfo[queue].notify != 0)
@@ -1964,6 +1964,7 @@ aac_timeout(struct aac_softc *sc)
 	int s;
 	struct aac_command *cm;
 	time_t deadline;
+	int timedout, code;
 
 #if 0
 	/* simulate an interrupt to handle possibly-missed interrupts */
@@ -1985,6 +1986,7 @@ aac_timeout(struct aac_softc *sc)
 	 * traverse the busy command list, bitch about late commands once
 	 * only.
 	 */
+	timedout = 0;
 	deadline = time_second - AAC_CMD_TIMEOUT;
 	s = splbio();
 	TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
@@ -1995,6 +1997,14 @@ aac_timeout(struct aac_softc *sc)
 				      "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
 				      cm, (int)(time_second-cm->cm_timestamp));
 			AAC_PRINT_FIB(sc, cm->cm_fib);
+			timedout++;
+		}
+	}
+	if (timedout) {
+		code = AAC_GET_FWSTATUS(sc);
+		if (code != AAC_UP_AND_RUNNING) {
+			device_printf(sc->aac_dev, "WARNING! Controller is no "
+				      "longer running! code= 0x%x\n", code);
 		}
 	}
 	splx(s);
