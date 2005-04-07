@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2005
+.Dd April 7, 2005
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -70,6 +70,23 @@ is the master for a virtual host, and
 which is used to authenticate
 .Nm
 advertisements.
+The
+.Cm advbase
+parameter stands for
+.Qq advertisement base .
+It is measured in seconds and specifies the base of the adverisement interval.
+The
+.Cm advskew
+parameter stands for
+.Qq advertisement skew .
+It is measured in 1/256 of seconds.
+It is added to the base advertisement interval to make one host advertise
+a bit slower that the other does.
+Both
+.Cm advbase
+and
+.Cm advskew
+are put inside CARP advertisments.
 These configurations can be done using
 .Xr ifconfig 8 ,
 or through the
@@ -127,22 +144,18 @@ configured on one physical interface and 192.168.2.y/24 on another.
 This is the setup for host A:
 .Bd -literal -offset indent
 ifconfig carp0 create
-ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.1 \e
-	255.255.255.0
+ifconfig carp0 vhid 1 pass foobar 192.168.1.1/24
 ifconfig carp1 create
-ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.2.1 \e
-	255.255.255.0
+ifconfig carp1 vhid 2 pass foobar 192.168.2.1/24
 .Ed
 .Pp
 The setup for host B is identical, but it has a higher
 .Cm advskew :
 .Bd -literal -offset indent
 ifconfig carp0 create
-ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
-	192.168.1.1 255.255.255.0
+ifconfig carp0 vhid 1 advskew 100 pass foobar 192.168.1.1/24
 ifconfig carp1 create
-ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
-	192.168.2.1 255.255.255.0
+ifconfig carp1 vhid 2 advskew 100 pass foobar 192.168.2.1/24
 .Ed
 .Pp
 Because of the preempt option, when one of the physical interfaces of
@@ -169,11 +182,9 @@ of 100 on the second virtual host means that its advertisements will be sent
 out slightly less frequently.
 .Bd -literal -offset indent
 ifconfig carp0 create
-ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10 \e
-	255.255.255.0
+ifconfig carp0 vhid 1 pass foobar 192.168.1.10/24
 ifconfig carp1 create
-ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
-	192.168.1.10 255.255.255.0
+ifconfig carp1 vhid 2 advskew 100 pass foobar 192.168.1.10/24
 .Ed
 .Pp
 The configuration for host B is identical, except the
@@ -181,11 +192,9 @@ The configuration for host B is identical, except the
 is on virtual host 1 rather than virtual host 2.
 .Bd -literal -offset indent
 ifconfig carp0 create
-ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
-	192.168.1.10 255.255.255.0
+ifconfig carp0 vhid 1 advskew 100 pass foobar 192.168.1.10/24
 ifconfig carp1 create
-ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10 \e
-	255.255.255.0
+ifconfig carp1 vhid 2 pass foobar 192.168.1.10/24
 .Ed
 .Pp
 Finally, the ARP balancing feature must be enabled on both hosts:
