@@ -330,6 +330,33 @@ Attributes are named by ascii strings and they will be discussed in
 a separate section below.
 .Pp
 (stay tuned while the author rests his brain and fingers: more to come.)
+.Sh DIAGNOSTICS
+Several flags are provided for tracing GEOM operations and unlocking
+protection mechanisms via the
+.Va kern.geom.debugflags
+sysctl.
+All of these flags are off by default, and great care should be taken in
+turning them on.
+.Bl -tag -width FAIL
+.It 0x01 (G_T_TOPOLOGY)
+Provide tracing of topology change events.
+.It 0x02 (G_T_BIO)
+Provide tracing of buffer I/O requests.
+.It 0x04 (G_T_ACCESS)
+Provide tracing of access check controls.
+.It 0x08 (unused)
+.It 0x10 (allow foot shooting)
+Allow writing to Rank 1 providers.
+This would, for example, allow the super-user to overwrite the MBR on the root
+disk or write random sectors elsewhere to a mounted disk.  The implications
+are obvious.
+.It 0x20 (G_T_DETAILS)
+This appears to be unused at this time.
+.It 0x40 (G_F_DISKIOCTL)
+This appears to be unused at this time.
+.It 0x80 (G_F_CTLDUMP)
+Dump contents of gctl requests.
+.El
 .Sh HISTORY
 This software was developed for the FreeBSD Project by Poul-Henning Kamp
 and NAI Labs, the Security Research Division of Network Associates, Inc.
