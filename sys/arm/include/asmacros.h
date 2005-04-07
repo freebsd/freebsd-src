@@ -113,6 +113,21 @@
 	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
+	ldr	r5, =0xe0000004;	/* Check if there's any RAS */	   \
+	ldr	r3, [r5];						   \
+	cmp	r3, #0;			/* Is the update needed ? */	   \
+	beq	1f;							   \
+	ldr	lr, [r0, #16];						   \
+	ldr	r1, =0xe0000008;					   \
+	ldr	r4, [r1];		/* Get the end of the RAS */	   \
+	mov	r2, #0;			/* Reset the magic addresses */	   \
+	str	r2, [r5];						   \
+	str	r2, [r1];						   \
+	cmp	lr, r3;			/* Were we in the RAS ? */	   \
+	blt	1f;							   \
+	cmp	lr, r4;							   \
+	strlt	r3, [r0, #16];		/* Yes, update the pc */	   \
+	1:								   \
 	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!
 
@@ -168,7 +183,6 @@ name:
 #define	AST_LOCALS							;\
 .Lcurthread:								;\
 	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
-		
 
 #endif /* LOCORE */
 
