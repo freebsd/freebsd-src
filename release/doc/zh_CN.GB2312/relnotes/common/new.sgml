@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.829
+     Original revision: 1.843
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -117,6 +117,25 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>。
       &merged;</para>
 
+    <para>修正了 TELNET 客户端程序中的两处缓冲区溢出问题.
+      这些问题有可能导致恶意的 TELNET 服务器或主动地网络攻击者，
+      使 &man.telnet.1; 以执行它的用户的身份执行任意的代码。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>。
+      &merged;</para>
+
+    <para>修正了 &man.sendfile.2; 系统调用中的一处信息泄露问题，
+      这一问题可能导致内核中的一段随机的部分被传递出去。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>。
+      &merged;</para>
+
+    <para>修正了在 &os;/amd64 中的一处特权提升问题。
+      这一问题可能导致没有特权的用户访问某些在没有特权时无法访问的硬件。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>。
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -139,7 +158,7 @@
       则 jail 中的 root 用户会被视为与未 jail 的 <username>root</username>
       用户一样。  &merged;</para>
 
-    <para arch="alpha,amd64,i386">加载器变量 <varname>debug.mpsafevm</varname>
+    <para arch="alpha,amd64,i386,sparc64">加载器变量 <varname>debug.mpsafevm</varname>
       默认置为启用了。 &merged;</para>
 
     <para>加入了 &man.memguard.9;， 一种用来帮助检测
@@ -333,7 +352,7 @@
 	  框架了。</para>
 
 	<para>加入了用于支持 USB Communication Device Class Ethernet
-	  的 &man.cdce.4; 驱动。</para>
+	  的 &man.cdce.4; 驱动。 &merged;</para>
 
 	<para>&man.cp.4; 驱动现在 MPSAFE 了。 &merged;</para>
 
@@ -357,7 +376,9 @@
 	  而且 &man.em.4; 驱动能够支持它支持的全部硬件，
 	  删去了 gx(4) 驱动。</para>
 	  
-	<para>The &man.hme.4; 驱动现在 MPSAFE 了。 &merged;</para>
+	<para>&man.hme.4; 驱动现在 MPSAFE 了。 &merged;</para>
+
+	<para>&man.ixgb.4; 驱动现在 MPSAFE 了。</para>
 
 	<para arch="amd64">现在 &man.ndis.4; 设备驱动 wrapper
 	  在 amd64 系统上能够支持 &windows;/x86-64 的二进制驱动了。
@@ -367,7 +388,7 @@
 	  nVidia nForce MCP Networking Adapter 的 nve 驱动。</para>
 
 	<para>现在 &man.re.4; 驱动能够支持 &man.altq.4;
-	  框架了。</para>
+	  框架了。 &merged;</para>
 
 	<para>现在 &man.sf.4; 驱动支持设备混合轮询 (device polling)
 	  和 &man.altq.4; 了。 &merged;</para>
@@ -393,6 +414,9 @@
 	  WME/WMM、 AP-端节能， 以及用于加密模块的插件框架、
 	  验证和访问控制。 清特别注意， WEP 现在需要加载
 	  <filename>wlan_wep</filename> 模块 (或连入内核)。</para>
+
+	<para>&man.xl.4; 驱动现在能够支持
+	  &man.polling.4; 了。</para>
 
       </sect4>
     </sect3>
@@ -499,6 +523,11 @@
 
       <para>现在 &man.amr.4; 可以安全地在使用了
 	&man.pae.4; 的系统上使用了。 &merged;</para>
+
+      <para arch="i386,ia64">加入了 &man.arcmsr.4; 驱动。
+	它用于支持 Areca ARC-11<replaceable>xx</replaceable> 和
+	ARC-12<replaceable>xx</replaceable> 系列的 SATA RAID
+	控制器。 &merged;</para>
 
       <para>加入了 SHSEC GEOM 类。 它提供了在多个 GEOM
 	提供者之间实现秘密分享的能力。 所有提供者必须都存在，
@@ -609,11 +638,19 @@
     <para>磁盘上的 <literal>LC_CTYPE</literal> 文件格式，
       现在已经改为机器无关的格式了。</para>
 
+    <para>修正了 <filename>libalias</filename> 函数库中的一处问题，
+      该问题可能导致使用 &man.natd.8; 的 <option>-reverse</option>
+      选项时出现 core dump。</para>
+
     <para><filename>libarchive</filename> 库 (以及使用它的
       &man.tar.1; 命令) 现在能够读取 ISO
       镜像文件 (包括可选的 RockRidge 扩展) 和 ZIP 压缩文件
       (采用 <literal>deflate</literal> 和 <literal>none</literal>
       的压缩) 了。 &merged;</para>
+
+    <para><filename>libarchive</filename>
+      库现在能够支持处理包含压缩容量超过 4GB 的 ZIP 文件项 (ZIP64
+      扩展) 和 Unix 扩展了。</para>
 
     <para>加入了用于访问 GPIB 设备 (通过使用 pcii 驱动程序) 的
       <function>ib<replaceable>foo</replaceable></function> API 的
@@ -742,6 +779,12 @@
     <para>在 <filename>/rescue</filename> 中的 &man.rescue.8; 工具，
       现在使用 &man.bsdtar.1; 代替了 GNU tar。</para>
 
+    <para>&man.restore.8; 工具又能够处理
+      &os; 版本 1 的转储磁带了。</para>
+
+    <para>修正了一个导致 &man.rexecd.8; 工具总是以 <option>-i</option>
+      参数运行的问题。 &merged;</para>
+
     <para>现在 &man.rm.1; 工具提供了一个 <option>-I</option>
       选项。 如果选择递归地删除目录，
       或者在命令行上指定一次删除超过 3 个文件，
@@ -805,7 +848,7 @@
       这一标准要求创建的参数不能超过 255 字节。</para>
 
     <para>修正了一个导致类似 &man.hosts.5;， &man.services.5;
-      等配置文件在结尾处不是一个新的换行符时被忽略的问题。</para>
+      等配置文件在结尾处不是一个新的换行符时被忽略的问题。 &merged;</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
@@ -923,7 +966,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
       ports tree， 以及现场文件系统， 使得它适合于初始安装，
       以及修复工作。 (在 ia64 上， 由于现场文件系统的尺寸太大，
       以至于不得不将其放到另一张盘上。)
-      第三方 package 都在另一张盘上。 &merged;</para>
+      第三方 package 都在另一张盘上； 特别地，
+      在 <filename>disc2</filename> 上提供了常用的第三方软件包，
+      例如桌面环境等。 来自 &os; Documentation Project 的文档， 也都在
+      <filename>disc2</filename> 上。 &merged;</para>
 
     <para>受支持的
       <application>GNOME</application> 桌面环境的版本， 由 2.6.2
@@ -987,7 +1033,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       &man.inet6.rth.space.3;,
       &man.inet6.rthdr.space.3;,
       &man.icmp6.4;, 和
-      &man.ip6.4;。</para>
+      &man.ip6.4;。 &merged;</para>
 
   </sect2>
 </sect1>
