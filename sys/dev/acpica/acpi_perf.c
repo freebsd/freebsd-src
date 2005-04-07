@@ -298,12 +298,12 @@ acpi_perf_evaluate(device_t dev)
 
 		count++;
 	}
+	sc->px_count = count;
 
-	/* No valid Px state found. */
+	/* No valid Px state found so give up. */
 	if (count == 0)
 		goto out;
 	AcpiOsFree(buf.Pointer);
-	sc->px_count = count;
 
 	/* Get the control and status registers (one of each). */
 	buf.Pointer = NULL;
