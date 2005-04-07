@@ -158,6 +158,7 @@ struct denode {
 	struct fatcache de_fc[FC_SIZE];	/* fat cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
 	struct lockf *de_lockf; /* lockf */
+	u_int64_t de_inode;	/* Inode number (really byte offset of direntry) */
 };
 
 /*
