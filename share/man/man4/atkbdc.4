@@ -42,13 +42,6 @@ In
 .Pa /boot/device.hints :
 .Cd hint.atkbdc.0.at="isa"
 .Cd hint.atkbdc.0.port="0x060"
-.Pp
-The following tunables are settable from the loader:
-.Bl -ohang
-.It Va hw.atkbdc.broken_kit_cmd
-set to 1 to disable using Keyboard Interface Test command, which
-may cause problems with some non-compliant hardware, resulting in
-machine being powered down early in the boot process.
 .Sh DESCRIPTION
 The keyboard controller
 .Nm
