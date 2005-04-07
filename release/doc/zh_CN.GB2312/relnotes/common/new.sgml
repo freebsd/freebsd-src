@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.41.2.1
+     Original revision: 1.761.2.41.2.3
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -112,6 +112,18 @@
       使 &man.telnet.1; 以运行它的用户的身份执行任意的代码。
       要了解更多信息， 请参见安全公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>。
+      </para>
+
+    <para>修正了 &man.sendfile.2; 系统调用中的一处信息泄露问题，
+      这一问题可能导致内核中的一段随机的部分被传递出去。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>。
+      </para>
+
+    <para>修正了在 &os;/amd64 中的一处特权提升问题。
+      这一问题可能导致没有特权的用户访问某些在没有特权时无法访问的硬件。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>。
       </para>
 
   </sect2>
