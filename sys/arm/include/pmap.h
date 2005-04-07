@@ -143,6 +143,7 @@ struct	pmap {
 	int			pm_count;	/* reference count */
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
+	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 };
 
@@ -163,6 +164,7 @@ typedef struct pv_entry {
 	pmap_t          pv_pmap;        /* pmap where mapping lies */
 	vm_offset_t     pv_va;          /* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)   pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_plist;
 	int		pv_flags;	/* flags (wired, etc...) */
 } *pv_entry_t;
 
