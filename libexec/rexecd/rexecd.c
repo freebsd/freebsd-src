@@ -136,9 +136,9 @@ doit(struct sockaddr *fromp)
 {
 	char *cmdbuf, *cp;
 	int maxcmdlen;
-	char user[16], pass[16];
+	char userbuf[16], pass[16];
 	struct passwd *pwd, pwd_storage;
-	char *pwdbuf;
+	char *pwdbuf, *user;
 	size_t pwdbuflen;
 	int fd, r, sd;
 	u_short port;
@@ -189,7 +189,8 @@ doit(struct sockaddr *fromp)
 		if (connect(sd, fromp, fromp->sa_len) < 0)
 			exit(1);
 	}
-	getstr(user, sizeof(user), "username");
+	user = userbuf;
+	getstr(userbuf, sizeof(userbuf), "username");
 	getstr(pass, sizeof(pass), "password");
 	getstr(cmdbuf, maxcmdlen, "command");
 	(void) alarm(0);
