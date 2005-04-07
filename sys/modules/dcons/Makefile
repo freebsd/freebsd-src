@@ -4,7 +4,7 @@
 .PATH:	${.CURDIR}/../../dev/dcons
 
 KMOD	= dcons
-SRCS	= dcons.c dcons.h \
+SRCS	= dcons.c dcons.h dcons_os.c dcons_os.h \
 		opt_dcons.h opt_ddb.h opt_comconsole.h
 
 opt_ddb.h:
