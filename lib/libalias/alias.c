@@ -1170,7 +1170,7 @@ LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 
 	if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
 		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
-		iresult = PacketAliasOut(ptr, maxpacketsize);
+		iresult = LibAliasOut(la, ptr, maxpacketsize);
 		la->packetAliasMode |= PKT_ALIAS_REVERSE;
 		return (iresult);
 	}
@@ -1264,7 +1264,7 @@ LibAliasOutTry(struct libalias *la, char *ptr,	/* valid IP packet */
 
 	if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
 		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
-		iresult = PacketAliasIn(ptr, maxpacketsize);
+		iresult = LibAliasIn(la, ptr, maxpacketsize);
 		la->packetAliasMode |= PKT_ALIAS_REVERSE;
 		return (iresult);
 	}
