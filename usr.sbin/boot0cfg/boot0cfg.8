@@ -164,11 +164,22 @@ To enable just slices 1 and 2 in the menu:
 .Pp
 .Dl "boot0cfg -m 0x3 ad0"
 .Sh SEE ALSO
+.Xr geom 4 ,
 .Xr boot 8 ,
 .Xr fdisk 8
 .Sh AUTHORS
 .An Robert Nordier Aq rnordier@FreeBSD.org .
 .Sh BUGS
+Protection mechanisms in the
+.Xr geom 4
+subsystem might prevent
+.Nm
+from being able to update the MBR on a mounted disk.
+Instructions for temporarily disabling these protection mechanisms
+can be found in the
+.Xr geom 4
+manpage.
+.Pp
 Use of the
 .Sq packet
 option may cause
