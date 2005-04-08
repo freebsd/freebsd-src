@@ -428,14 +428,18 @@ long double	ldexpl(long double, int);
 #if 0
 long double	lgammal(long double);
 long long	llrintl(long double);
+#endif
 long long	llroundl(long double);
+#if 0
 long double	log10l(long double);
 long double	log1pl(long double);
 long double	log2l(long double);
 long double	logbl(long double);
 long double	logl(long double);
 long		lrintl(long double);
+#endif
 long		lroundl(long double);
+#if 0
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
 long double	nanl(const char *) __pure2;
 long double	nearbyintl(long double);
@@ -449,8 +453,8 @@ long double	powl(long double, long double);
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
 long double	rintl(long double);
-long double	roundl(long double);
 #endif
+long double	roundl(long double);
 long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
 #if 0
