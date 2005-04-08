@@ -193,7 +193,7 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, MPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
-	sbuf_printf(sb, "%6s %12s %11s %5s %12s %12s %s\n",
+	sbuf_printf(sb, "\n%6s %12s %11s %5s %12s %12s %s\n",
 	    "max", "total", "count", "avg", "cnt_hold", "cnt_lock", "name");
 	/*
 	 * XXX this spinlock seems to be by far the largest perpetrator
