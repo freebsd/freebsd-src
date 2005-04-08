@@ -241,11 +241,11 @@ ata_dmaload(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 
     cba.dmatab = ch->dma->sg;
 
-    bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_PREWRITE);
-
     if (bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map, data, count,
 			ch->dma->setprd, &cba, 0) || cba.error)
 	return -1;
+
+    bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_PREWRITE);
 
     bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
 		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
