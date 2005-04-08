@@ -418,6 +418,12 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			dorandom = 1;
 		else
 			dorandom = 0;
+		/*
+		 * It makes no sense to do random port allocation if
+		 * we have the only port available.
+		 */
+		if (first == last)
+			dorandom = 0;
 		/* Make sure to not include UDP packets in the count. */
 		if (pcbinfo != &udbinfo)
 			ipport_tcpallocs++;
