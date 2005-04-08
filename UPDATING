@@ -6,7 +6,7 @@ done items, please see the COMMON ITEMS: section later in the file.
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
-portupgrade.  Important recent entries: 20040724 (default X changes).
+portupgrade.
 
 20050302:
 	The full packet destination manipulation for 'ipfw fwd' is
@@ -1872,12 +1872,16 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	The following items are known to cause problems with the upgrade:
+	If you have any ports or packages installed on the system, please
+	see /usr/ports/UPDATING.  The following items are known to cause
+	problems with the upgrade:
 	(a) Kerberos upgrades are hard, and evidentally don't work.  More
 	    on this later.
 	(b) Old ports and packages can sometimes have subtle problems with
-	    newer libraries.  portupgrade is recommended where possible after
-	    the upgrade.
+	    newer libraries.  portupgrade -f is recommended where possible
+	    after the upgrade.  portupgrade -P will be faster since it uses
+	    packages.  There are many known issues with running a mix of
+	    4.x built packages and 5.x built packages, and this avoids them.
 	(c) Perl based ports may also have the wrong version of perl hard
 	    coded into the headers.  Spamassassin is one such port.
 	(d) Startup scripts have significantly changed.  Make sure that you
