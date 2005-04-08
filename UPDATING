@@ -1845,19 +1845,19 @@ COMMON ITEMS:
 	# space on /.
 
 	<make sure you have good level 0 dumps>
-	<maybe fix /etc/fstab>				[7]
-	make buildworld					[9]
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
+	<maybe fix /etc/fstab>					[1]
+	make buildworld						[2]
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE		[3]
+	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [4]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
-	cd sys/boot ; make STRIP="" install			[6]
-							[1]
-	<reboot in single user>				[3]
-	/usr/src/etc/rc.d/preseedrandom				[10]
-	mergemaster -p					[5]
+	cd sys/boot ; make STRIP="" install			[5]
+								[6]
+	<reboot in single user>					[7]
+	/usr/src/etc/rc.d/preseedrandom				[8]
+	mergemaster -p						[9]
 	rm -rf /usr/include/g++
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -i						[10]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1872,72 +1872,88 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	[1] If you have third party modules, such as vmware, you
-	should disable them at this point so they don't crash your
-	system on reboot.
+	The following items are known to cause problems with the upgrade:
+	(a) Kerberos upgrades are hard, and evidentally don't work.  More
+	    on this later.
+	(b) Old ports and packages can sometimes have subtle problems with
+	    newer libraries.  portupgrade is recommended where possible after
+	    the upgrade.
+	(c) Perl based ports may also have the wrong version of perl hard
+	    coded into the headers.  Spamassassin is one such port.
+	(d) Startup scripts have significantly changed.  Make sure that you
+	    verify that all expected daemons start.  Modifications of /etc/rc*
+	    (except rc.conf) may cause problems.
+	(e) Device names have changed and MAKEDEV is gone.
+	(f) The boot loader defaults have changed, which may cause confusion.
 
-	[2] If you have legacy ISA devices, you may need to create
-	your own device.hints to reflect your unique hardware
-	configuration.
+	[1] Before you upgrade, please make sure that you are not using
+	compatibility slices.  These are device names of the form, on i386 and
+	other architectures that use MBR slicing, /dev/ad0a without the actual
+	slice name.  Chances are excellent that these will break.  You
+	generally must update these entries to use the post FreeBSD 2.x form
+	of /dev/ad0s1a.
 
-	[3] From the bootblocks, boot -s, and then do
+	[2] When checking out sources, you must include the -P flag to have
+	cvs prune empty directories. Also, if CPUTYPE is defined in your
+	/etc/make.conf, make sure to use the "?=" instead of the "="
+	assignment operator, so that buildworld can override the CPUTYPE if it
+	needs to.  In case you would like to avoid installing new packages of
+	everything, you might want to uncomment the "COMPAT4X= YES" entry, so
+	that 4.x compatibility libraries are built which should allow you to
+	continue using your existing software for a while.
+
+	[3] In order to have a kernel that can run the 4.x or earlier binaries
+	needed to do an installworld, you must include the COMPAT_FREEBSD4
+	option in your kernel.  Failure to do so may leave you with a system
+	that is hard to boot to recover.  If you have a.out binaries, then you
+	need to add COMPAT_AOUT option too.  If you are updating a system
+	that's been updated from 2.x and/or 3.x in the past, enable both of
+	these to be safe.
+
+	[4] If you have legacy ISA devices, you may need to create your own
+	device.hints to reflect your unique hardware configuration.
+
+	[5] 4.x boot loader can be used to boot a 5.x system, however it is
+	difficult to do that at best.  If you wish to try, then you should
+	interrupt the boot and at the ok prompt type:
+		ok unload
+		ok boot /boot/kernel/kernel
+	If this fails to work, you must install a new boot loader as described
+	here.
+
+	[6] If you have third party modules, such as vmware, you should
+	disable them at this point so they don't crash your system on reboot.
+
+	[7] From the bootblocks, boot -s, and then do
 		fsck -p
 		mount -u /
 		mount -a
 		cd /usr/src
 		adjkerntz -i		# if CMOS is wall time
-	Also, when doing a major release upgrade, it is required that
-	you boot into single user mode to do the installworld.
-	For the 4.x -> 5.x upgrade, you will also see many messages about
-	needing to recompile your userland.  These are harmless and can
-	be ignored while you proceed to the next step.
+	Also, when doing a major release upgrade, it is required that you boot
+	into single user mode to do the installworld.  For the 4.x -> 5.x
+	upgrade, you will also see many messages about needing to recompile
+	your userland.  These are harmless and can be ignored while you
+	proceed to the next step.
 
-	[4] Note: This step is non-optional.  Failure to do this step
-	can result in a significant reduction in the functionality of the
-	system.  Attempting to do it by hand is not recommended and those
-	that pursue this avenue should read this file carefully, as well
-	as the archives of freebsd-current and freebsd-hackers mailing lists
-	for potential gotchas.
-
-	[5] Usually this step is a noop.  However, from time to time
-	you may need to do this if you get unknown user in the following
-	step.  It never hurts to do it all the time.  You may need to
-	install a new mergemaster (cd src/usr.sbin/mergemaster && make
-	install) after the buildworld before this step if you last updated
-	from current before 20020224 or from -stable before 20020408.
-
-	[6] 4.x boot loader can be used to boot a 5.x system, however
-	it is difficult to do that at best.  If you wish to try, then
-	you should interrupt the boot and at the ok prompt type:
-		ok unload
-		ok boot /boot/kernel/kernel
-	If this fails to work, you must install a new boot loader as
-	described here.
-
-	[7] Before you upgrade, please make sure that you are not using
-	compatibility slices.  These are device names of the form, on i386
-	and other architectures that use MBR slicing, /dev/ad0a without the
-	actual slice name.  Chances are excellent that these will break.
-	You generally must update these entries to use the post FreeBSD
-	2.x form of /dev/ad0s1a.
-
-	[8] In order to have a kernel that can run the 4.x binaries
-	needed to do an installworld, you must include the COMPAT_FREEBSD4
-	option in your kernel.  Failure to do so may leave you with a system
-	that is hard to boot to recover.
-
-	[9] When checking out sources, you must include the -P flag to have
-	cvs prune empty directories. Also, if CPUTYPE is defined in your
-	/etc/make.conf, make sure to use the "?=" instead of the "=" assignment
-	operator, so that buildworld can override the CPUTYPE if it needs to.
-	In case you would like to avoid installing new packages of everything,
-	you might want to uncomment the "COMPAT4X=	YES" entry, so that 4.x
-	compatibility libraries are built which should allow you to continue
-	using your existing software for a while.
-
-	[10] In order to create temporary files, /dev/random must be
+	[8] In order to create temporary files, /dev/random must be
 	initialized by feeding data into it.  /usr/src/etc/rc.d/preseedrandom
 	takes care of this.
+
+	[9] Usually this step is a noop.  However, from time to time you may
+	need to do this if you get unknown user in the following step.  It
+	never hurts to do it all the time.  You may need to install a new
+	mergemaster (cd src/usr.sbin/mergemaster && make install) after the
+	buildworld before this step if you last updated from current before
+	20020224 or from -stable before 20020408.
+
+	[10] Note: This step is non-optional.  Failure to do this step can
+	result in a significant reduction in the functionality of the system.
+	Attempting to do it by hand is not recommended and those that pursue
+	this avenue should read this file carefully, as well as the archives
+	of freebsd-current and freebsd-hackers mailing lists for potential
+	gotchas.
+
 FORMAT:
 
 This file contains a list, in reverse chronological order, of major
