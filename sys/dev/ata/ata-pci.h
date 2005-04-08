@@ -139,6 +139,7 @@ struct ata_connect_task {
 #define ATA_I82801FB            0x266f8086
 #define ATA_I82801FB_S1         0x26518086
 #define ATA_I82801FB_R1         0x26528086
+#define ATA_I82801FBM           0x26538086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8212F             0x82121283
@@ -347,7 +348,7 @@ struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type,
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
-extern driver_t ata_channel_driver;
+int ata_pci_allocate(device_t dev);
 
 /* global prototypes ata-chipset.c */
 int ata_generic_ident(device_t);
