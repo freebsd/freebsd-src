@@ -135,7 +135,7 @@ mse_common_attach(device_t dev)
 	}
 
 	if (BUS_SETUP_INTR(device_get_parent(dev), dev, sc->sc_intr,
-			   INTR_TYPE_TTY, mseintr, sc, &sc->sc_ih)) {
+	    INTR_TYPE_TTY, mseintr, sc, &sc->sc_ih)) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
 		return ENXIO;
@@ -145,9 +145,9 @@ mse_common_attach(device_t dev)
 	callout_handle_init(&sc->sc_callout);
 
 	sc->sc_dev = make_dev(&mse_cdevsw, unit << 1, 0, 0, 0600,
-			      "mse%d", unit);
+	  "mse%d", unit);
 	sc->sc_ndev = make_dev(&mse_cdevsw, (unit<<1)+1, 0, 0, 0600,
-			       "nmse%d", unit);
+	  "nmse%d", unit);
 	return 0;
 }
 
@@ -155,11 +155,7 @@ mse_common_attach(device_t dev)
  * Exclusive open the mouse, initialize it and enable interrupts.
  */
 static	int
-mseopen(dev, flags, fmt, td)
-	struct cdev *dev;
-	int flags;
-	int fmt;
-	struct thread *td;
+mseopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	mse_softc_t *sc;
 	int s;
@@ -195,11 +191,7 @@ mseopen(dev, flags, fmt, td)
  * mseclose: just turn off mouse innterrupts.
  */
 static	int
-mseclose(dev, flags, fmt, td)
-	struct cdev *dev;
-	int flags;
-	int fmt;
-	struct thread *td;
+mseclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int s;
@@ -219,10 +211,7 @@ mseclose(dev, flags, fmt, td)
  * (Yes this is cheesy, but it makes the X386 server happy, so...)
  */
 static	int
-mseread(dev, uio, ioflag)
-	struct cdev *dev;
-	struct uio *uio;
-	int ioflag;
+mseread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int xfer, s, error;
@@ -286,12 +275,7 @@ mseread(dev, uio, ioflag)
  * mseioctl: process ioctl commands.
  */
 static int
-mseioctl(dev, cmd, addr, flag, td)
-	struct cdev *dev;
-	u_long cmd;
-	caddr_t addr;
-	int flag;
-	struct thread *td;
+mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	mousestatus_t status;
@@ -403,10 +387,7 @@ mseioctl(dev, cmd, addr, flag, td)
  * msepoll: check for mouse input to be processed.
  */
 static	int
-msepoll(dev, events, td)
-	struct cdev *dev;
-	int events;
-	struct thread *td;
+msepoll(struct cdev *dev, int events, struct thread *td)
 {
 	mse_softc_t *sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	int s;
@@ -434,8 +415,7 @@ msepoll(dev, events, td)
  * msetimeout: watchdog timer routine.
  */
 static void
-msetimeout(arg)
-	void *arg;
+msetimeout(void *arg)
 {
 	struct cdev *dev;
 	mse_softc_t *sc;
@@ -455,8 +435,7 @@ msetimeout(arg)
  * mseintr: update mouse status. sc_deltax and sc_deltay are accumulative.
  */
 static void
-mseintr(arg)
-	void *arg;
+mseintr(void *arg)
 {
 	/*
 	 * the table to turn MouseSystem button bits (MOUSE_MSC_BUTTON?UP)
