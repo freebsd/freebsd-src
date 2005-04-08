@@ -103,15 +103,90 @@
 #define         ATA_A_4BIT              0x08    /* 4 head bits */
 #define         ATA_A_HOB               0x80    /* High Order Byte enable */
 
-/* ATAPI misc defines */
-#define ATAPI_MAGIC_LSB                 0x14
-#define ATAPI_MAGIC_MSB                 0xeb
-#define ATAPI_P_READ                    (ATA_S_DRQ | ATA_I_IN)
-#define ATAPI_P_WRITE                   (ATA_S_DRQ)
-#define ATAPI_P_CMDOUT                  (ATA_S_DRQ | ATA_I_CMD)
-#define ATAPI_P_DONEDRQ                 (ATA_S_DRQ | ATA_I_CMD | ATA_I_IN)
-#define ATAPI_P_DONE                    (ATA_I_CMD | ATA_I_IN)
-#define ATAPI_P_ABORT                   0
+/* SATA register defines */
+#define ATA_SSTATUS			13
+#define 	ATA_SS_DET_MASK		0x0000000f
+#define		ATA_SS_DET_NO_DEVICE	0x00000000
+#define		ATA_SS_DET_DEV_PRESENT	0x00000001
+#define		ATA_SS_DET_PHY_ONLINE	0x00000003
+#define		ATA_SS_DET_PHY_OFFLINE	0x00000004
+
+#define 	ATA_SS_SPD_MASK		0x000000f0
+#define 	ATA_SS_SPD_NO_SPEED	0x00000000
+#define 	ATA_SS_SPD_GEN1		0x00000010
+#define 	ATA_SS_SPD_GEN2		0x00000020
+
+#define 	ATA_SS_IPM_MASK		0x00000f00
+#define 	ATA_SS_IPM_NO_DEVICE	0x00000000
+#define 	ATA_SS_IPM_ACTIVE	0x00000100
+#define 	ATA_SS_IPM_PARTIAL	0x00000200
+#define 	ATA_SS_IPM_SLUMBER	0x00000600
+
+#define		ATA_SS_CONWELL_MASK \
+		    (ATA_SS_DET_MASK|ATA_SS_SPD_MASK|ATA_SS_IPM_MASK)
+#define		ATA_SS_CONWELL_GEN1 \
+		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN1|ATA_SS_IPM_ACTIVE)
+#define		ATA_SS_CONWELL_GEN2 \
+		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN2|ATA_SS_IPM_ACTIVE)
+
+#define ATA_SERROR			14
+#define 	ATA_SE_DATA_CORRECTED	0x00000001
+#define		ATA_SE_COMM_CORRECTED	0x00000002
+#define		ATA_SE_DATA_ERR		0x00000100
+#define		ATA_SE_COMM_ERR		0x00000200
+#define		ATA_SE_PROT_ERR		0x00000400
+#define		ATA_SE_HOST_ERR		0x00000800
+#define		ATA_SE_PHY_CHANGED	0x00010000
+#define		ATA_SE_PHY_IERROR	0x00020000
+#define		ATA_SE_COMM_WAKE	0x00040000
+#define		ATA_SE_DECODE_ERR	0x00080000
+#define		ATA_SE_PARITY_ERR	0x00100000
+#define		ATA_SE_CRC_ERR		0x00200000
+#define		ATA_SE_HANDSHAKE_ERR	0x00400000
+#define		ATA_SE_LINKSEQ_ERR	0x00800000
+#define		ATA_SE_TRANSPORT_ERR	0x01000000
+#define		ATA_SE_UNKNOWN_FIS	0x02000000
+
+#define ATA_SCONTROL			15
+#define 	ATA_SC_DET_MASK		0x0000000f
+#define		ATA_SC_DET_NO_DEVICE	0x00000000
+#define		ATA_SC_DET_RESET	0x00000001
+#define		ATA_SC_DET_DISABLE	0x00000004
+
+#define 	ATA_SC_SPD_MASK		0x000000f0
+#define 	ATA_SC_SPD_NO_SPEED	0x00000000
+#define 	ATA_SC_SPD_SPEED_GEN1	0x00000010
+#define 	ATA_SC_SPD_SPEED_GEN2	0x00000020
+
+#define 	ATA_SC_IPM_MASK		0x00000f00
+#define 	ATA_SC_IPM_NONE		0x00000000
+#define 	ATA_SC_IPM_DIS_PARTIAL	0x00000100
+#define 	ATA_SC_IPM_DIS_SLUMBER	0x00000200
+
+/* DMA register defines */
+#define ATA_DMA_ENTRIES                 256
+#define ATA_DMA_EOT                     0x80000000
+
+#define ATA_BMCMD_PORT                  16
+#define         ATA_BMCMD_START_STOP    0x01
+#define         ATA_BMCMD_WRITE_READ    0x08
+
+#define ATA_BMDEVSPEC_0                 17
+#define ATA_BMSTAT_PORT                 18
+#define         ATA_BMSTAT_ACTIVE       0x01
+#define         ATA_BMSTAT_ERROR        0x02
+#define         ATA_BMSTAT_INTERRUPT    0x04
+#define         ATA_BMSTAT_MASK         0x07
+#define         ATA_BMSTAT_DMA_MASTER   0x20
+#define         ATA_BMSTAT_DMA_SLAVE    0x40
+#define         ATA_BMSTAT_DMA_SIMPLEX  0x80
+
+#define ATA_BMDEVSPEC_1                 19
+#define ATA_BMDTP_PORT                  20
+
+#define ATA_IDX_ADDR                    21
+#define ATA_IDX_DATA                    22
+#define ATA_MAX_RES                     23
 
 /* misc defines */
 #define ATA_PRIMARY                     0x1f0
@@ -127,39 +202,19 @@
 #define ATA_BMADDR_RID                  0x20
 #define ATA_PC98_CTLADDR_RID            8
 #define ATA_PC98_BANKADDR_RID           9
-
 #define ATA_IRQ_RID                     0
 #define ATA_DEV(device)                 ((device == ATA_MASTER) ? 0 : 1)
-
-/* busmaster DMA related defines */
-#define ATA_DMA_ENTRIES                 256
-#define ATA_DMA_EOT                     0x80000000
-
-#define ATA_BMCMD_PORT                  13
-#define         ATA_BMCMD_START_STOP    0x01
-#define         ATA_BMCMD_WRITE_READ    0x08
-
-#define ATA_BMDEVSPEC_0                 14
-#define ATA_BMSTAT_PORT                 15
-#define         ATA_BMSTAT_ACTIVE       0x01
-#define         ATA_BMSTAT_ERROR        0x02
-#define         ATA_BMSTAT_INTERRUPT    0x04
-#define         ATA_BMSTAT_MASK         0x07
-#define         ATA_BMSTAT_DMA_MASTER   0x20
-#define         ATA_BMSTAT_DMA_SLAVE    0x40
-#define         ATA_BMSTAT_DMA_SIMPLEX  0x80
-
-#define ATA_BMDEVSPEC_1                 16
-#define ATA_BMDTP_PORT                  17
-
-#define ATA_IDX_ADDR                    18
-#define ATA_IDX_DATA                    19
-#define ATA_MAX_RES                     20
-
+#define ATAPI_MAGIC_LSB                 0x14
+#define ATAPI_MAGIC_MSB                 0xeb
+#define ATAPI_P_READ                    (ATA_S_DRQ | ATA_I_IN)
+#define ATAPI_P_WRITE                   (ATA_S_DRQ)
+#define ATAPI_P_CMDOUT                  (ATA_S_DRQ | ATA_I_CMD)
+#define ATAPI_P_DONEDRQ                 (ATA_S_DRQ | ATA_I_CMD | ATA_I_IN)
+#define ATAPI_P_DONE                    (ATA_I_CMD | ATA_I_IN)
+#define ATAPI_P_ABORT                   0
 #define ATA_INTR_FLAGS                  (INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY)
 #define ATA_OP_CONTINUES                0
 #define ATA_OP_FINISHED                 1
-
 #define ATA_MAX_28BIT_LBA               268435455
 
 /* ATAPI request sense structure */

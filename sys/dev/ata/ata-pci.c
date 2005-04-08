@@ -60,7 +60,6 @@ static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
 #define IOMASK                  0xfffffffc
 
 /* prototypes */
-static int ata_pci_allocate(device_t dev);
 static void ata_pci_dmainit(struct ata_channel *);
 
 int
@@ -382,7 +381,7 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
     }
 }
     
-static int
+int
 ata_pci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -569,6 +568,15 @@ ata_pcichannel_reset(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
+    /* if DMA functionality present stop it  */
+    if (ch->dma) {
+        if (ch->dma->stop)
+            ch->dma->stop(ch);
+        if (ch->dma->flags & ATA_DMA_LOADED)
+            ch->dma->unload(ch);
+    }
+
+    /* reset the controller HW */
     if (ctlr->reset)
 	ctlr->reset(ch);
 }

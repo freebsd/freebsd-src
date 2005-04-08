@@ -122,7 +122,7 @@ ata_attach(device_t dev)
     mtx_init(&ch->queue_mtx, "ATA queue lock", NULL, MTX_DEF);
     TAILQ_INIT(&ch->ata_queue);
 
-    /* initialise device(s) on this channel */
+    /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&error, PRIBIO, "ataatch", 1);
     ch->hw.reset(ch);
@@ -205,7 +205,7 @@ ata_reinit(device_t dev)
     ch->state = ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
 
-    /* reset the channel and devices */
+    /* reset the controller HW, the channel and device(s) */
     ch->hw.reset(ch);
 
     /* reinit the children and delete any that fails */
