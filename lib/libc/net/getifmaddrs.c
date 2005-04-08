@@ -60,14 +60,12 @@ getifmaddrs(struct ifmaddrs **pif)
 	int icnt = 1;
 	int dcnt = 0;
 	int ntry = 0;
-	u_short idx = 0;
 	size_t len;
 	size_t needed;
 	int mib[6];
 	int i;
 	char *buf;
 	char *data;
-	char *names;
 	char *next;
 	char *p;
 	struct ifma_msghdr *ifmam;
@@ -128,12 +126,10 @@ getifmaddrs(struct ifmaddrs **pif)
 
 	ifa = (struct ifmaddrs *)(void *)data;
 	data += sizeof(struct ifmaddrs) * icnt;
-	names = data + dcnt;
 
 	memset(ifa, 0, sizeof(struct ifmaddrs) * icnt);
 	ift = ifa;
 
-	idx = 0;
 	for (next = buf; next < buf + needed; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)(void *)next;
 		if (rtm->rtm_version != RTM_VERSION)

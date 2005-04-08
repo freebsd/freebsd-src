@@ -254,7 +254,6 @@ rangematch(pattern, test, flags, newp, patmbs)
 		} else if (*pattern == '\0') {
 			return (RANGE_ERROR);
 		} else if (*pattern == '/' && (flags & FNM_PATHNAME)) {
-			pattern++;
 			return (RANGE_NOMATCH);
 		} else if (*pattern == '\\' && !(flags & FNM_NOESCAPE))
 			pattern++;
