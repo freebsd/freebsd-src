@@ -411,7 +411,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 		 * For UDP, use random port allocation as long as the user
 		 * allows it.  For TCP (and as of yet unknown) connections,
 		 * use random port allocation only if the user allows it AND
-		 * ipport_tick allows it.
+		 * ipport_tick() allows it.
 		 */
 		if (ipport_randomized &&
 			(!ipport_stoprandom || pcbinfo == &udbinfo))
