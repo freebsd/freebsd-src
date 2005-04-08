@@ -801,8 +801,8 @@ ip_reass(struct mbuf *m)
 	u_int8_t ecn, ecn0;
 	u_short hash;
 
-	/* If maxnipq is 0, never accept fragments. */
-	if (maxnipq == 0) {
+	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
+	if (maxnipq == 0 || maxfragsperpacket == 0) {
 		ipstat.ips_fragments++;
 		ipstat.ips_fragdropped++;
 		m_freem(m);
@@ -918,7 +918,7 @@ found:
 		fp->ipq_dst = ip->ip_dst;
 		fp->ipq_frags = m;
 		m->m_nextpkt = NULL;
-		goto inserted;
+		goto done;
 	} else {
 		fp->ipq_nfrags++;
 #ifdef MAC
@@ -997,8 +997,6 @@ found:
 		fp->ipq_nfrags--;
 		m_freem(q);
 	}
-
-inserted:
 
 	/*
 	 * Check for complete reassembly and perform frag per packet
