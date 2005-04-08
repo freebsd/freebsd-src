@@ -742,7 +742,7 @@ cpu_idle(void)
 #ifdef INVARIANTS
 	if ((mfmsr() & PSL_EE) != PSL_EE) {
 		struct thread *td = curthread;
-		printf("td crit %x\n", td->td_md.md_savecrit);
+		printf("td msr %x\n", td->td_md.md_saved_msr);
 		panic("ints disabled in idleproc!");
 	}
 #endif
