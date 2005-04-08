@@ -283,6 +283,7 @@ struct ata_connect_task {
 #define ATA_VIA8662             0x31021106
 #define ATA_VIA6410             0x31641106
 #define ATA_VIA6420             0x31491106
+#define ATA_VIA6421             0x32491106
 
 /* chipset setup related defines */
 #define ATPOLD          1
@@ -334,11 +335,14 @@ struct ata_connect_task {
 #define VIA100          2
 #define VIA133          3
 #define AMDNVIDIA       4
+
 #define AMDCABLE        0x01
 #define AMDBUG          0x02
 #define NVIDIA          0x04
-#define VIACLK          0x08
-#define VIABUG          0x10
+#define NV4OFF          0x08
+#define VIACLK          0x10
+#define VIABUG          0x20
+
 
 /* global prototypes ata-pci.c */
 int ata_pci_probe(device_t dev);
