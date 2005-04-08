@@ -51,14 +51,14 @@ ENTRY(bcopy)
 #endif
 #endif
 #if defined(MEMCOPY) || defined(MEMMOVE)
-	movq	%rdi,%r11	/* save dest */
+	movq	%rdi,%rax	/* return dst */
 #else
 	xchgq	%rdi,%rsi
 #endif
 	movq	%rdx,%rcx
-	movq	%rdi,%rax
-	subq	%rsi,%rax
-	cmpq	%rcx,%rax	/* overlapping? */
+	movq	%rdi,%r8
+	subq	%rsi,%r8
+	cmpq	%rcx,%r8	/* overlapping? */
 	jb	1f
 	cld			/* nope, copy forwards. */
 	shrq	$3,%rcx		/* copy by words */
@@ -68,9 +68,6 @@ ENTRY(bcopy)
 	andq	$7,%rcx		/* any bytes left? */
 	rep
 	movsb
-#if defined(MEMCOPY) || defined(MEMMOVE)
-	movq	%r11,%rax
-#endif
 	ret
 1:
 	addq	%rcx,%rdi	/* copy backwards. */
@@ -87,8 +84,5 @@ ENTRY(bcopy)
 	subq	$7,%rdi
 	rep
 	movsq
-#if defined(MEMCOPY) || defined(MEMMOVE)
-	movq	%r11,%rax
-#endif
 	cld
 	ret
