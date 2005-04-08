@@ -133,6 +133,7 @@ static devclass_t	atapi_cam_devclass;
 DRIVER_MODULE(atapicam, ata, atapi_cam_driver, atapi_cam_devclass, 0, 0);
 MODULE_VERSION(atapicam, 1);
 MODULE_DEPEND(atapicam, ata, 1, 1, 1);
+MODULE_DEPEND(atapicam, cam, 1, 1, 1);
 
 static int
 atapi_cam_identify(device_t *dev, device_t parent)
