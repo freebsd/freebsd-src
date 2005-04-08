@@ -82,9 +82,9 @@ static void ata_ite_setmode(struct ata_device *, int);
 static int ata_national_chipinit(device_t);
 static void ata_national_setmode(struct ata_device *, int);
 static int ata_nvidia_chipinit(device_t);
-static int ata_via_chipinit(device_t);
-static void ata_via_family_setmode(struct ata_device *, int);
-static void ata_via_southbridge_fixup(device_t);
+static int ata_nvidia_allocate(device_t);
+static void ata_nvidia_intr(void *);
+static void ata_nvidia_reset(struct ata_channel *);
 static int ata_promise_chipinit(device_t);
 static int ata_promise_mio_allocate(device_t);
 static void ata_promise_mio_intr(void *);
@@ -104,14 +104,21 @@ static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
 static int ata_sii_allocate(device_t);
-static void ata_sii_reset(struct ata_channel *);
 static void ata_sii_intr(void *);
+static void ata_sii_reset(struct ata_channel *);
 static void ata_cmd_intr(void *);
 static void ata_cmd_old_intr(void *);
 static void ata_sii_setmode(struct ata_device *, int);
 static void ata_cmd_setmode(struct ata_device *, int);
 static int ata_sis_chipinit(device_t);
+static int ata_sis_allocate(device_t dev);
+static void ata_sis_reset(struct ata_channel *);
 static void ata_sis_setmode(struct ata_device *, int);
+static int ata_via_chipinit(device_t);
+static int ata_via_allocate(device_t dev);
+static void ata_via_reset(struct ata_channel *);
+static void ata_via_southbridge_fixup(device_t);
+static void ata_via_family_setmode(struct ata_device *, int);
 static void ata_print_cable(device_t dev, u_int8_t *who);
 static int ata_atapi(struct ata_device *atadev);
 static int ata_check_80pin(struct ata_device *, int);
@@ -244,7 +251,7 @@ ata_sata_connect(struct ata_channel *ch)
 }
 
 static void
-ata_sata_enable_phy(struct ata_channel *ch)
+ata_sata_phy_enable(struct ata_channel *ch)
 {
     int loop, retry;
 
@@ -395,7 +402,7 @@ ata_acard_850_setmode(struct ata_device *atadev, int mode)
     mode = ata_limit_mode(atadev, mode,
 			  ata_atapi(atadev) ? ATA_PIO_MAX:ctlr->chip->max_dma);
 
-    /* XXX missing WDMA0+1 + PIO modes */
+    /* XXX SOS missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
 	error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,mode);
 	if (bootverbose)
@@ -433,7 +440,7 @@ ata_acard_86X_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_check_80pin(atadev, mode);
 
-    /* XXX missing WDMA0+1 + PIO modes */
+    /* XXX SOS missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
 	error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,mode);
 	if (bootverbose)
@@ -455,6 +462,7 @@ ata_acard_86X_setmode(struct ata_device *atadev, int mode)
     }
     /* we could set PIO mode timings, but we assume the BIOS did that */
 }
+
 
 /*
  * Acer Labs Inc (ALI) chipset support functions
@@ -498,7 +506,6 @@ ata_ali_chipinit(device_t dev)
     case ALISATA:
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	/* XXX SOS PHY handling missing */
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->allocate = ata_ali_allocate;
 	ctlr->channels = ctlr->chip->cfg1;
@@ -560,7 +567,7 @@ ata_ali_allocate(device_t dev)
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
     }
-
+    /* XXX SOS PHY handling awkward in ALI chip */
     ch->flags |= ATA_NO_SLAVE;
     ata_generic_hw(ch);
     return 0;
@@ -629,6 +636,7 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /*
  * American Micro Devices (AMD) chipset support functions
  */
@@ -672,6 +680,7 @@ ata_amd_chipinit(device_t dev)
     ctlr->setmode = ata_via_family_setmode;
     return 0;
 }
+
 
 /*
  * Cyrix chipset support functions
@@ -742,6 +751,7 @@ ata_cyrix_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /*
  * Cypress chipset support functions
  */
@@ -788,7 +798,7 @@ ata_cypress_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ATA_WDMA2);
 
-/* XXX missing WDMA0+1 + PIO modes */
+    /* XXX missing WDMA0+1 + PIO modes */
     if (mode == ATA_WDMA2) { 
 	error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,mode);
 	if (bootverbose)
@@ -802,6 +812,7 @@ ata_cypress_setmode(struct ata_device *atadev, int mode)
     }
     /* we could set PIO mode timings, but we assume the BIOS did that */
 }
+
 
 /*
  * HighPoint chipset support functions
@@ -983,6 +994,7 @@ ata_highpoint_check_80pin(struct ata_device *atadev, int mode)
     }
     return mode;
 }
+
 
 /*
  * Intel chipset support functions
@@ -1207,6 +1219,7 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
     atadev->mode = mode;
 }
 
+
 /*
  * Integrated Technology Express Inc. (ITE) chipset support functions
  */
@@ -1302,6 +1315,7 @@ ata_ite_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /*
  * National chipset support functions
  */
@@ -1389,6 +1403,7 @@ ata_national_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /*
  * nVidia chipset support functions
  */
@@ -1406,11 +1421,11 @@ ata_nvidia_ident(device_t dev)
      { ATA_NFORCE3_PRO_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce3 Pro" },
      { ATA_NFORCE3_PRO_S2, 0, 0,      0,      ATA_SA150, "nVidia nForce3 Pro" },
      { ATA_NFORCE3_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 MCP" },
-     { ATA_NFORCE3_MCP_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce3 MCP" },
-     { ATA_NFORCE3_MCP_S2, 0, 0,      0,      ATA_SA150, "nVidia nForce3 MCP" },
+     { ATA_NFORCE3_MCP_S1, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
+     { ATA_NFORCE3_MCP_S2, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
      { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
-     { ATA_NFORCE4_S1,  0, 0,         0,      ATA_SA150, "nVidia nForce4" },
-     { ATA_NFORCE4_S1,  0, 0,         0,      ATA_SA150, "nVidia nForce4" },
+     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
+     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1433,9 +1448,15 @@ ata_nvidia_chipinit(device_t dev)
 	return ENXIO;
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
+	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			    ata_nvidia_intr, ctlr, &ctlr->handle))) {
+	    device_printf(dev, "unable to setup interrupt\n");
+	    return ENXIO;
+        }
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	/* XXX SOS PHY handling missing */
+	ctlr->allocate = ata_nvidia_allocate;
+	ctlr->reset = ata_nvidia_reset;
 	ctlr->setmode = ata_sata_setmode;
     }
     else {
@@ -1445,6 +1466,124 @@ ata_nvidia_chipinit(device_t dev)
     }
     return 0;
 }
+
+static int
+ata_nvidia_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0441 : 0x0011;
+
+    if (pci_read_config(dev, PCIR_BAR(5), 1) & 1)
+	ctlr->r_type2 = SYS_RES_IOPORT;
+    else
+	ctlr->r_type2 = SYS_RES_MEMORY;
+    ctlr->r_rid2 = PCIR_BAR(5);
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						&ctlr->r_rid2, RF_ACTIVE)))
+	return ENXIO;
+
+    /* setup the usual register normal pci style */
+    ata_pci_allocate(dev);
+
+    ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
+    ch->r_io[ATA_SSTATUS].offset = (ch->unit << 6);
+    ch->r_io[ATA_SERROR].res = ctlr->r_res2;
+    ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << 6);
+    ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
+    ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << 6);
+    ch->flags |= ATA_NO_SLAVE;
+
+    /* enable PHY state change interrupts */
+    ATA_OUTB(ctlr->r_res2, offset,
+	     ATA_INB(ctlr->r_res2, offset) | (0x0c << (ch->unit << 2)));
+    return 0;
+}
+
+static void 
+ata_nvidia_intr(void *data)
+{
+    struct ata_pci_controller *ctlr = data;
+    struct ata_channel *ch;
+    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+    u_int8_t status;
+    int unit;
+
+    /* implement this as a toggle instead to balance load XXX */
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+
+	if ((status = ATA_INB(ctlr->r_res2, offset))) {
+	    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
+	    struct ata_connect_task *tp;
+
+	    /* clear error bits/interrupt */
+	    ATA_IDX_OUTL(ch, ATA_SERROR, error);
+	    ATA_OUTB(ctlr->r_res2, offset, status);
+
+	    /* check for and handle connect events */
+	    if ((status & (0x04 << (ch->unit << 2))) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
+
+		device_printf(ch->dev, "CONNECT requested\n");
+		tp->action = ATA_C_ATTACH;
+		tp->dev = ch->dev;
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+		taskqueue_enqueue(taskqueue_thread, &tp->task);
+
+	    }
+
+	    /* check for and handle disconnect events */
+	    if ((status & (0x08 << (ch->unit << 2))) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			   M_ATA, M_NOWAIT | M_ZERO))) {
+
+		device_printf(ch->dev, "DISCONNECT requested\n");
+		tp->action = ATA_C_DETACH;
+		tp->dev = ch->dev;
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+		taskqueue_enqueue(taskqueue_thread, &tp->task);
+	    }
+
+	    /* any drive action to take care of ? */
+	    if (status & (0x01 << (ch->unit << 2))) {
+		if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
+		    int bmstat = 
+			ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+
+		    if (!(bmstat & ATA_BMSTAT_INTERRUPT))
+			continue;
+		    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat&~ATA_BMSTAT_ERROR);
+		    DELAY(1);
+		}
+	        ctlr->interrupt[unit].function(ch);
+	    }
+	}
+    }
+}
+
+static void
+ata_nvidia_reset(struct ata_channel *ch)
+{
+    struct ata_pci_controller *ctlr =
+        device_get_softc(device_get_parent(ch->dev));
+    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0441 : 0x0011;
+
+    /* disable PHY state change interrupt */
+    ATA_OUTB(ctlr->r_res2, offset,
+	     ATA_INB(ctlr->r_res2, offset) & (~0x0c << (ch->unit << 2)));
+
+    ata_sata_phy_enable(ch);
+
+    /* enable PHY state change interrupt */
+    ATA_OUTB(ctlr->r_res2, offset,
+	     ATA_INB(ctlr->r_res2, offset) | (0x0c << (ch->unit << 2)));
+}
+
 
 /*
  * Promise chipset support functions
@@ -1773,12 +1912,13 @@ ata_promise_mio_intr(void *data)
     for (unit = 0; unit < ctlr->channels; unit++) {
 
 	if ((ch = ctlr->interrupt[unit].argument)) {
+	    struct ata_connect_task *tp;
 
 	    /* check for and handle disconnect events */
-	    if (status & (0x00000001 << unit)) {
-		struct ata_connect_task *tp = (struct ata_connect_task *)
-		    malloc(sizeof(struct ata_connect_task),
-			   M_ATA, M_NOWAIT | M_ZERO);
+	    if ((status & (0x00000001 << unit)) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
 
 		if (bootverbose)
 		    device_printf(ch->dev, "DISCONNECT requested\n");
@@ -1789,10 +1929,10 @@ ata_promise_mio_intr(void *data)
 	    }
 
 	    /* check for and handle connect events */
-	    if (status & (0x00000010 << unit)) {
-		struct ata_connect_task *tp = (struct ata_connect_task *)
-		    malloc(sizeof(struct ata_connect_task),
-			   M_ATA, M_NOWAIT | M_ZERO);
+	    if ((status & (0x00000010 << unit)) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
 
 		if (bootverbose)
 		    device_printf(ch->dev, "CONNECT requested\n");
@@ -1915,7 +2055,7 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	if ((ctlr->chip->cfg2 == PRSATA) ||
 	    ((ctlr->chip->cfg2 == PRCMBO) && (ch->unit < 2))) {
 
-	    ata_sata_enable_phy(ch);
+	    ata_sata_phy_enable(ch);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
@@ -1948,7 +2088,7 @@ ata_promise_mio_reset(struct ata_channel *ch)
 		     (ATA_INL(ctlr->r_res2, 0x414 + (ch->unit << 8)) &
 		     ~0x00000003) | 0x00000001);
 
-	    ata_sata_enable_phy(ch);
+	    ata_sata_phy_enable(ch);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
@@ -2381,6 +2521,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
     return;
 }
 
+
 /*
  * ServerWorks chipset support functions
  */
@@ -2500,6 +2641,7 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
 	atadev->mode = mode;
     }
 }
+
 
 /*
  * Silicon Image Inc. (SiI) (former CMD) chipset support functions
@@ -2661,22 +2803,6 @@ ata_sii_allocate(device_t dev)
 }
 
 static void
-ata_sii_reset(struct ata_channel *ch)
-{
-    struct ata_pci_controller *ctlr = 
-	device_get_softc(device_get_parent(ch->dev));
-    int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
-
-    /* disable PHY state change interrupt */
-    ATA_OUTL(ctlr->r_res2, 0x148 + offset, ~(1 << 16));
-
-    ata_sata_enable_phy(ch);
-
-    /* enable PHY state change interrupt */
-    ATA_OUTL(ctlr->r_res2, 0x148 + offset, (1 << 16));
-}
-
-static void
 ata_sii_intr(void *data)
 {
     struct ata_pci_controller *ctlr = data;
@@ -2692,16 +2818,17 @@ ata_sii_intr(void *data)
 	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
 	    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
+	    struct ata_connect_task *tp;
 
 	    if (error) {
 		/* clear error bits/interrupt */
 		ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
 		/* if we have a connection event deal with it */
-		if (error & (1 << 16)) {
-		    struct ata_connect_task *tp = (struct ata_connect_task *)
-			malloc(sizeof(struct ata_connect_task),
-			       M_ATA, M_NOWAIT | M_ZERO);
+		if ((error & ATA_SE_PHY_CHANGED) &&
+		    (tp = (struct ata_connect_task *)
+			  malloc(sizeof(struct ata_connect_task),
+			         M_ATA, M_NOWAIT | M_ZERO))) {
 
 		    if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) {
 			device_printf(ch->dev, "CONNECT requested\n");
@@ -2786,6 +2913,22 @@ ata_cmd_old_intr(void *data)
 	}
 	ctlr->interrupt[unit].function(ch);
     }
+}
+
+static void
+ata_sii_reset(struct ata_channel *ch)
+{
+    struct ata_pci_controller *ctlr = 
+	device_get_softc(device_get_parent(ch->dev));
+    int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
+
+    /* disable PHY state change interrupt */
+    ATA_OUTL(ctlr->r_res2, 0x148 + offset, ~(1 << 16));
+
+    ata_sata_phy_enable(ch);
+
+    /* enable PHY state change interrupt */
+    ATA_OUTL(ctlr->r_res2, 0x148 + offset, (1 << 16));
 }
 
 static void
@@ -2906,6 +3049,7 @@ ata_cmd_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /*
  * Silicon Integrated Systems Corp. (SiS) chipset support functions
  */
@@ -3016,7 +3160,8 @@ ata_sis_chipinit(device_t dev)
     case SISSATA:
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	/* XXX SOS PHY handling missing */
+	ctlr->allocate = ata_sis_allocate;
+	ctlr->reset = ata_sis_reset;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     default:
@@ -3025,6 +3170,41 @@ ata_sis_chipinit(device_t dev)
     ctlr->setmode = ata_sis_setmode;
     return 0;
 }
+
+static int
+ata_sis_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ctlr->r_type2 = SYS_RES_IOPORT;
+    ctlr->r_rid2 = PCIR_BAR(5);
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+                                                &ctlr->r_rid2, RF_ACTIVE)))
+	return ENXIO;
+
+    /* setup the usual register normal pci style */
+    ata_pci_allocate(dev);
+
+    ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
+    ch->r_io[ATA_SSTATUS].offset = (ch->unit << 4);
+    ch->r_io[ATA_SERROR].res = ctlr->r_res2;
+    ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << 4);
+    ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
+    ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << 4);
+    ch->flags |= ATA_NO_SLAVE;
+
+    /* XXX SOS PHY hotplug handling missing in SiS chip ?? */
+    /* XXX SOS unknown how to enable PHY state change interrupt */
+    return 0;
+}
+
+static void
+ata_sis_reset(struct ata_channel *ch)
+{
+    ata_sata_phy_enable(ch);
+}
+
 
 static void
 ata_sis_setmode(struct ata_device *atadev, int mode)
@@ -3106,6 +3286,7 @@ ata_sis_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+
 /* VIA Technologies Inc. chipset support functions */
 int
 ata_via_ident(device_t dev)
@@ -3128,8 +3309,9 @@ ata_via_ident(device_t dev)
      { ATA_VIA8237,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8237" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
-    {{ ATA_VIA6410, 0x00, 0x00,   0x00,   ATA_UDMA6, "VIA 6410" },
-     { ATA_VIA6420, 0x00, 0x00,   0x00,   ATA_SA150, "VIA 6420" },
+    {{ ATA_VIA6410,   0x00, 0,      0x00,   ATA_UDMA6, "VIA 6410" },
+     { ATA_VIA6420,   0x00, 7,      0x00,   ATA_SA150, "VIA 6420" },
+     { ATA_VIA6421,   0x00, 6,      0x00,   ATA_SA150, "VIA 6421" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -3160,7 +3342,8 @@ ata_via_chipinit(device_t dev)
     if (ctlr->chip->max_dma >= ATA_SA150) {
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	/* XXX SOS PHY handling missing */
+	ctlr->allocate = ata_via_allocate;
+	ctlr->reset = ata_via_reset;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
@@ -3192,6 +3375,40 @@ ata_via_chipinit(device_t dev)
     return 0;
 }
 
+static int
+ata_via_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ctlr->r_type2 = SYS_RES_IOPORT;
+    ctlr->r_rid2 = PCIR_BAR(5);
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						&ctlr->r_rid2, RF_ACTIVE)))
+	return ENXIO;
+
+    /* setup the usual register normal pci style */
+    ata_pci_allocate(dev);
+
+    ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
+    ch->r_io[ATA_SSTATUS].offset = (ch->unit << ctlr->chip->cfg1);
+    ch->r_io[ATA_SERROR].res = ctlr->r_res2;
+    ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << ctlr->chip->cfg1);
+    ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
+    ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << ctlr->chip->cfg1);
+    ch->flags |= ATA_NO_SLAVE;
+
+    /* XXX SOS PHY hotplug handling missing in VIA chip ?? */
+    /* XXX SOS unknown how to enable PHY state change interrupt */
+    return 0;
+}
+
+static void
+ata_via_reset(struct ata_channel *ch)
+{
+    ata_sata_phy_enable(ch);
+}
+
 static void
 ata_via_southbridge_fixup(device_t dev)
 {
@@ -3219,6 +3436,7 @@ ata_via_southbridge_fixup(device_t dev)
     }
     free(children, M_TEMP);
 }
+
 
 /* common code for VIA, AMD & nVidia */
 static void
@@ -3272,6 +3490,7 @@ ata_via_family_setmode(struct ata_device *atadev, int mode)
 	atadev->mode = mode;
     }
 }
+
 
 /* misc functions */
 struct ata_chip_id *
