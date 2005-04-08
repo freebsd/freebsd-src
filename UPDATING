@@ -17,6 +17,16 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050408:	p14	FreeBSD-SA-04:17.procfs, FreeBSD-SA-05:01.telnet,
+    			FreeBSD-SA-05:02.sendfile
+	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
+	which could allow a local attacker to panic a system and/or read
+	from kernel memory.
+
+	Correct buffer overflows in telnet(1).
+
+	Correct kernel memory disclosure bug in sendfile(2).
+
 20041118:	p13	FreeBSD-SA-04:16.fetch
 	Correct a buffer overflow in fetch(1) which could allow a
 	mallicious server to execute arbitrary code on the client.
