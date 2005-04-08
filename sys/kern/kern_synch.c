@@ -286,7 +286,7 @@ mi_switch(int flags, struct thread *newtd)
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
 	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
-	    (td->td_pflags & TDP_OWEPREEMPT) != 0 && (flags & SW_INVOL) != 0 &&
+	    (td->td_owepreempt) && (flags & SW_INVOL) != 0 &&
 	    newtd == NULL) || panicstr,
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
