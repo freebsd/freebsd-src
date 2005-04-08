@@ -84,6 +84,8 @@ agp_amd64_match(device_t dev)
 		return ("SiS 755 host to AGP bridge");
 	case 0x00d110de:
 		return ("NVIDIA nForce3 AGP Controller");
+	case 0x00e110de:
+		return ("NVIDIA nForce3-250 AGP Controller");
 	case 0x02041106:
 		return ("VIA 8380 host to PCI bridge");
 	case 0x02821106:
