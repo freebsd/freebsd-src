@@ -357,7 +357,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 		return;
 #ifdef PREEMPTION
 	if (running_thread->td_critnest > 1) 
-		running_thread->td_pflags |= TDP_OWEPREEMPT;
+		running_thread->td_owepreempt = 1;
 	 else 		
 		 mi_switch(SW_INVOL, NULL);
 	
@@ -446,7 +446,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 		return;
 #ifdef PREEMPTION
 	if (running_thread->td_critnest > 1) 
-		running_thread->td_pflags |= TDP_OWEPREEMPT;
+		running_thread->td_owepreempt = 1;
 	 else 		
 		 mi_switch(SW_INVOL, NULL);
 	
@@ -598,15 +598,21 @@ critical_exit(void)
 			td->td_pflags &= ~TDP_WAKEPROC0;
 			wakeup(&proc0);
 		}
+		
+		td->td_critnest = 0;
+
 #ifdef PREEMPTION
 		mtx_assert(&sched_lock, MA_NOTOWNED);
-		if (td->td_pflags & TDP_OWEPREEMPT) {
+		if (td->td_owepreempt) {
+			td->td_critnest = 1;
 			mtx_lock_spin(&sched_lock);
+			td->td_critnest--;
 			mi_switch(SW_INVOL, NULL);
 			mtx_unlock_spin(&sched_lock);
 		}
+	             
 #endif
-		td->td_critnest = 0;
+
 	} else {
 		td->td_critnest--;
 	}
@@ -672,7 +678,7 @@ maybe_preempt(struct thread *td)
 	if (ctd->td_critnest > 1) {
 		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
 		    ctd->td_critnest);
-		ctd->td_pflags |= TDP_OWEPREEMPT;
+		ctd->td_owepreempt = 1;
 		return (0);
 	}
 
