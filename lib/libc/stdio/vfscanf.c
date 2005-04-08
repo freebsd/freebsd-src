@@ -138,7 +138,6 @@ __svfscanf(FILE *fp, const char *fmt0, va_list ap)
 	char ccltab[256];	/* character class table for %[...] */
 	char buf[BUF];		/* buffer for numeric and mb conversions */
 	wchar_t *wcp;		/* handy wide character pointer */
-	wchar_t *wcp0;		/* saves original value of wcp */
 	size_t nconv;		/* length of multibyte sequence converted */
 	static const mbstate_t initial;
 	mbstate_t mbs;
@@ -434,9 +433,9 @@ literal:
 				int nchars;
 
 				if ((flags & SUPPRESS) == 0)
-					wcp = wcp0 = va_arg(ap, wchar_t *);
+					wcp = va_arg(ap, wchar_t *);
 				else
-					wcp = wcp0 = &twc;
+					wcp = &twc;
 				n = 0;
 				nchars = 0;
 				while (width != 0) {
