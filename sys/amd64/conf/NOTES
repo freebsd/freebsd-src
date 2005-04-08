@@ -21,11 +21,6 @@ machine		amd64
 #####################################################################
 # SMP OPTIONS:
 #
-# The apic device enables the use of the I/O APIC for interrupt delivery.
-# The apic device can be used in both UP and SMP kernels, but is required
-# for SMP kernels.  Thus, the apic device is not strictly an SMP option,
-# but it is a prerequisite for SMP.
-#
 # Notes:
 #
 # By default, mixed mode is used to route IRQ0 from the AT timer via
