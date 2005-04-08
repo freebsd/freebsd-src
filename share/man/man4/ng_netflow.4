@@ -218,7 +218,7 @@ node in this example is connected to
 The latter sends us a copy of IP packets, which we analyze and free.
 On
 .Va fxp0:
-we don't use tee, but send packets back to ether node.
+we do not use tee, but send packets back to ether node.
 .Bd -literal -offset indent
 /usr/sbin/ngctl -f- <<-SEQ
 	# connect ng0's tee to iface0 hook
