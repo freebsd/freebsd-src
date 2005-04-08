@@ -216,7 +216,8 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
-	if (!dumping)
+	/* reset timeout and put on the proper taskqueue for completition */
+	if (!dumping && !(request->flags & ATA_R_TIMEOUT))
 	    callout_reset(&request->callout, request->timeout * hz,
 			  (timeout_t*)ata_timeout, request);
 	if (request->bio && !(request->flags & ATA_R_TIMEOUT)) {
