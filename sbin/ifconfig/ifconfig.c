@@ -467,7 +467,7 @@ callback_register(callback_func *func, void *arg)
 	callbacks = cb;
 }
 
-/* specially-handled comamnds */
+/* specially-handled commands */
 static void setifaddr(const char *, int, int, const struct afswtch *);
 static const struct cmd setifaddr_cmd = DEF_CMD("ifaddr", 0, setifaddr);
 
