@@ -2017,7 +2017,6 @@ ParseReadLine(void)
 				 * shell command */
 	char	*line;		/* Result */
 	char	*ep;		/* to strip trailing blanks */
-	int	lineno;		/* Saved line # */
 
   again:
 	semiNL = FALSE;
@@ -2219,61 +2218,6 @@ ParseReadLine(void)
 		goto again;
 	}
 
-	if (line[0] == '.') {
-		/*
-		 * The line might be a conditional. Ask the
-		 * conditional module about it and act accordingly
-		 */
-		switch (Cond_Eval(line, CURFILE->lineno)) {
-		  case COND_SKIP:
-			/*
-			 * Skip to next conditional that evaluates to
-			 * COND_PARSE.
-			 */
-			do {
-				free(line);
-				line = ParseSkipLine(1, 0);
-			} while (line &&
-			    Cond_Eval(line, CURFILE->lineno) != COND_PARSE);
-			if (line == NULL) {
-				/* try to pop input stack */
-				goto again;
-			}
-			/*FALLTHRU*/
-
-		  case COND_PARSE:
-			free(line);
-			goto again;
-
-		  case COND_INVALID:
-			if (For_Eval(line)) {
-				int ok;
-				free(line);
-				lineno = CURFILE->lineno;
-				do {
-					/*
-					 * Skip after the matching end
-					 */
-					line = ParseSkipLine(0, 1);
-					if (line == NULL) {
-						Parse_Error(PARSE_FATAL,
-						    "Unexpected end of"
-						    " file in for loop.\n");
-						break;
-					}
-					ok = For_Eval(line);
-					free(line);
-				} while (ok);
-				if (line != NULL)
-					For_Run(lineno);
-				goto again;
-			}
-			break;
-
-		  default:
-			break;
-		}
-	}
 	return (line);
 }
 
@@ -2327,6 +2271,7 @@ Parse_File(const char *name, FILE *stream)
 	char	*cp;	/* pointer into the line */
 	char	*line;	/* the line we're working on */
 	Buffer	*buf;
+	int	lineno;
 
 	inLine = FALSE;
 	fatals = 0;
@@ -2370,6 +2315,47 @@ Parse_File(const char *name, FILE *stream)
 
 				Var_Delete(cp, VAR_GLOBAL);
 				goto nextLine;
+
+			} else if (For_Eval(line)) {
+				lineno = CURFILE->lineno;
+				do {
+					/*
+					 * Skip after the matching end.
+					 */
+					free(line);
+					line = ParseSkipLine(0, 1);
+					if (line == NULL) {
+						Parse_Error(PARSE_FATAL,
+						    "Unexpected end of"
+						    " file in for loop.\n");
+						goto nextLine;
+					}
+				} while (For_Eval(line));
+				For_Run(lineno);
+				goto nextLine;
+
+			} else {
+				/*
+				 * The line might be a conditional. Ask the
+				 * conditional module about it and act
+				 * accordingly
+				 */
+				int cond = Cond_Eval(line, CURFILE->lineno);
+
+				if (cond == COND_SKIP) {
+					/*
+					 * Skip to next conditional that
+					 * evaluates to COND_PARSE.
+					 */
+					do {
+						free(line);
+						line = ParseSkipLine(1, 0);
+					} while (line && Cond_Eval(line,
+					    CURFILE->lineno) != COND_PARSE);
+					goto nextLine;
+				}
+				if (cond == COND_PARSE)
+					goto nextLine;
 			}
 		}
 		if (*line == '#') {
