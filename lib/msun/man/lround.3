@@ -24,14 +24,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2005
+.Dd April 7, 2005
 .Dt LROUND 3
 .Os
 .Sh NAME
 .Nm llround ,
 .Nm llroundf ,
+.Nm llroundl ,
 .Nm lround ,
-.Nm lroundf
+.Nm lroundf ,
+.Nm lroundl
 .Nd "convert to nearest integral value"
 .Sh LIBRARY
 .Lb libm
@@ -41,10 +43,14 @@
 .Fn llround "double x"
 .Ft "long long"
 .Fn llroundf "float x"
+.Ft "long long"
+.Fn llroundl "long double x"
 .Ft long
 .Fn lround "double x"
 .Ft long
 .Fn lroundf "float x"
+.Ft long
+.Fn lroundl "long double x"
 .Sh DESCRIPTION
 The
 .Fn lround
@@ -70,8 +76,10 @@ is equivalent to
 The
 .Fn llround ,
 .Fn llroundf ,
-and
+.Fn llroundl ,
 .Fn lroundf
+and
+.Fn lroundl
 functions differ from
 .Fn lround
 only in their input and output types.
@@ -84,11 +92,21 @@ only in their input and output types.
 The
 .Fn llround ,
 .Fn llroundf ,
+.Fn llroundl ,
 .Fn lround ,
+.Fn lroundf ,
 and
-.Fn lroundf
+.Fn lroundl
 functions conform to
 .St -isoC-99 .
 .Sh HISTORY
-These routines first appeared in
+The
+.Ft float
+and
+.Ft double
+versions of these routines first appeared in
 .Fx 5.4 .
+The
+.Ft long double
+versions appeared in
+.Fx 6.0 .

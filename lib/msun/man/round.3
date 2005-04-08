@@ -24,12 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2003
+.Dd April 7, 2005
 .Dt ROUND 3
 .Os
 .Sh NAME
 .Nm round ,
-.Nm roundf
+.Nm roundf ,
+.Nm roundl
 .Nd round to nearest integral value
 .Sh LIBRARY
 .Lb libm
@@ -39,11 +40,14 @@
 .Fn round "double x"
 .Ft float
 .Fn roundf "float x"
+.Ft long double
+.Fn roundl "long double x"
 .Sh DESCRIPTION
 The
-.Fn round
+.Fn round ,
+.Fn roundf ,
 and
-.Fn roundf
+.Fn roundl
 functions return the nearest integral value to
 .Fa x ;
 if
@@ -61,9 +65,7 @@ absolute value (i.e., they round away from zero).
 .Xr rint 3 ,
 .Xr trunc 3
 .Sh STANDARDS
-The
-.Fn round
-function conforms to
+These functions conform to
 .St -isoC-99 .
 .Sh HISTORY
 The
@@ -72,3 +74,7 @@ and
 .Fn roundf
 functions appeared in
 .Fx 5.3 .
+The
+.Fn roundl
+function appeared in
+.Fx 6.0 .
