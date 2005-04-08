@@ -90,14 +90,14 @@
 
 #include <dev/mse/msevar.h>
 
-static	int		mse_probe(device_t dev);
-static	int		mse_attach(device_t dev);
-static	int		mse_detach(device_t dev);
+static	int		mse_cbus_probe(device_t dev);
+static	int		mse_cbus_attach(device_t dev);
+static	int		mse_cbus_detach(device_t dev);
 
 static	device_method_t	mse_methods[] = {
-	DEVMETHOD(device_probe,		mse_probe),
-	DEVMETHOD(device_attach,	mse_attach),
-	DEVMETHOD(device_detach,	mse_detach),
+	DEVMETHOD(device_probe,		mse_cbus_probe),
+	DEVMETHOD(device_attach,	mse_cbus_attach),
+	DEVMETHOD(device_detach,	mse_cbus_detach),
 	{ 0, 0 }
 };
 
@@ -151,9 +151,8 @@ static struct mse_types mse_types[] = {
 	{ 0, },
 };
 
-static	int
-mse_probe(dev)
-	device_t dev;
+static int
+mse_cbus_probe(device_t dev)
 {
 	mse_softc_t *sc;
 	int error;
@@ -201,9 +200,8 @@ mse_probe(dev)
 	return ENXIO;
 }
 
-static	int
-mse_attach(dev)
-	device_t dev;
+static int
+mse_cbus_attach(device_t dev)
 {
 	mse_softc_t *sc;
 	int rid;
@@ -225,9 +223,8 @@ mse_attach(dev)
 	return (mse_common_attach(dev));
 }
 
-static	int
-mse_detach(dev)
-	device_t dev;
+static int
+mse_cbus_detach(device_t dev)
 {
 	mse_softc_t *sc;
 	int rid;
@@ -256,9 +253,7 @@ mse_detach(dev)
  * (do not enable interrupts)
  */
 static int
-mse_probe98m(dev, sc)
-	device_t dev;
-	mse_softc_t *sc;
+mse_probe98m(device_t dev, mse_softc_t *sc)
 {
 	/* mode set */
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, MODE, 0x93);
@@ -278,9 +273,7 @@ mse_probe98m(dev, sc)
  * Initialize PC98 bus mouse and enable interrupts.
  */
 static void
-mse_enable98m(tag, handle)
-	bus_space_tag_t tag;
-	bus_space_handle_t handle;
+mse_enable98m(bus_space_tag_t tag, bus_space_handle_t handle)
 {
 	bus_space_write_1(tag, handle, INT, INT_ENABLE);    /* INT enable */
 	bus_space_write_1(tag, handle, HC, HC_NO_CLEAR);    /* HC = 0 */
@@ -291,9 +284,7 @@ mse_enable98m(tag, handle)
  * Disable interrupts for PC98 Bus mouse.
  */
 static void
-mse_disable98m(tag, handle)
-        bus_space_tag_t tag;
-        bus_space_handle_t handle;
+mse_disable98m(bus_space_tag_t tag, bus_space_handle_t handle)
 {
 	bus_space_write_1(tag, handle, INT, INT_DISABLE);   /* INT disable */
 	bus_space_write_1(tag, handle, HC, HC_NO_CLEAR);    /* HC = 0 */
@@ -304,12 +295,8 @@ mse_disable98m(tag, handle)
  * Get current dx, dy and up/down button state.
  */
 static void
-mse_get98m(tag, handle, dx, dy, but)
-        bus_space_tag_t tag;
-        bus_space_handle_t handle;
-        int *dx;
-        int *dy;
-        int *but;
+mse_get98m(bus_space_tag_t tag, bus_space_handle_t handle, int *dx, int *dy,
+    int *but)
 {
 	register char x, y;
 
