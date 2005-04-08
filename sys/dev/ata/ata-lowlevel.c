@@ -79,6 +79,9 @@ ata_getparam(device_t parent, struct ata_device *atadev, u_int8_t command)
 	/* select device */
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | atadev->unit);
 
+	/* wait a bit to let slow devices settle */
+	DELAY(100);
+
 	/* disable interrupt */
 	ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT | ATA_A_IDS);
 
@@ -610,15 +613,7 @@ ata_generic_reset(struct ata_channel *ch)
     u_int8_t err = 0, lsb = 0, msb = 0;
     int mask = 0, timeout;
 
-    /* if DMA functionality present stop it  */
-    if (ch->dma) {
-	if (ch->dma->stop)
-	    ch->dma->stop(ch);
-	if (ch->dma->flags & ATA_DMA_LOADED)
-	    ch->dma->unload(ch);
-    }
-
-    /* reset host end of channel (if supported) */
+    /* reset controller (host) */
     ATA_RESET(ch->dev);
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
@@ -752,8 +747,8 @@ ata_wait(struct ata_channel *ch, struct ata_device *atadev, u_int8_t mask)
     
     DELAY(1);
 
-    /* wait 5 seconds for device to get !BUSY */
-    while (timeout < 5000000) {
+    /* wait at max 1 second for device to get !BUSY */ 
+    while (timeout < 1000000) {
 	status = ATA_IDX_INB(ch, ATA_ALTSTAT);
 
 	/* if drive fails status, reselect the drive and try again */
@@ -777,7 +772,7 @@ ata_wait(struct ata_channel *ch, struct ata_device *atadev, u_int8_t mask)
 	    DELAY(10);
 	}
     }    
-    if (timeout >= 5000000)      
+    if (timeout >= 1000000)      
 	return -2;          
     if (!mask)     
 	return (status & ATA_S_ERROR);   

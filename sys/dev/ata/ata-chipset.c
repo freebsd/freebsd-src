@@ -112,28 +112,13 @@ static void ata_sii_setmode(struct ata_device *, int);
 static void ata_cmd_setmode(struct ata_device *, int);
 static int ata_sis_chipinit(device_t);
 static void ata_sis_setmode(struct ata_device *, int);
+static void ata_print_cable(device_t dev, u_int8_t *who);
+static int ata_atapi(struct ata_device *atadev);
 static int ata_check_80pin(struct ata_device *, int);
 static struct ata_chip_id *ata_find_chip(device_t, struct ata_chip_id *, int);
 static int ata_setup_interrupt(device_t);
 static int ata_serialize(struct ata_channel *, int);
 static int ata_mode2idx(int);
-
-
-static void
-ata_print_cable(device_t dev, u_int8_t *who)
-{
-    device_printf(dev,
-		  "DMA limited to UDMA33, %s found non-ATA66 cable\n", who);
-}
-
-static int
-ata_atapi(struct ata_device *atadev)
-{
-    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
-
-    return ((atadev->unit == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
-	    (atadev->unit == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE));
-}
 
 
 /* generic or unknown ATA chipset support functions */
@@ -215,8 +200,79 @@ ata_sata_setmode(struct ata_device *atadev, int mode)
     }
 }
 
+static int
+ata_sata_connect(struct ata_channel *ch)
+{
+    u_int32_t status;
+    int timeout;
+
+    /* wait up to 1 second for "connect well" */
+    for (timeout = 0; timeout < 100 ; timeout++) {
+	status = ATA_IDX_INL(ch, ATA_SSTATUS);
+	if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1 ||
+	    (status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)
+	    break;
+	ata_udelay(10000);
+    }
+    if (timeout >= 100) {
+        if (1 | bootverbose)
+	    device_printf(ch->dev, "SATA connect status=%08x\n", status);
+        return 0;
+    }
+
+    /* clear SATA error register */
+    ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
+
+    /* find out what type device we got poll for spec'd 31 seconds */
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM);
+    DELAY(10);
+    for (timeout = 0; timeout < 3100; timeout++) {
+ 	if (ATA_IDX_INB(ch, ATA_STATUS) & ATA_S_BUSY) 
+	    DELAY(10000);
+	else
+	    break;
+    }
+    if (1 | bootverbose)
+	device_printf(ch->dev, "SATA connect ready time=%dms\n", timeout * 10);
+    if ((ATA_IDX_INB(ch, ATA_CYL_LSB) == ATAPI_MAGIC_LSB) &&
+	(ATA_IDX_INB(ch, ATA_CYL_MSB) == ATAPI_MAGIC_MSB))
+	ch->devices = ATA_ATAPI_MASTER;
+    else
+	ch->devices = ATA_ATA_MASTER;
+
+    return 1;
+}
+
 static void
-ata_sata_connect(void *context, int dummy)
+ata_sata_enable_phy(struct ata_channel *ch)
+{
+    int loop, retry;
+
+    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0 &&
+	ata_sata_connect(ch))
+	return;
+
+    for (retry = 0; retry < 10; retry++) {
+	for (loop = 0; loop < 10; loop++) {
+	    ATA_IDX_OUTL(ch, ATA_SCONTROL, 1);
+	    ata_udelay(100);
+	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 1)
+		break;
+	}
+	ata_udelay(5000);
+	for (loop = 0; loop < 10; loop++) {
+	    ATA_IDX_OUTL(ch, ATA_SCONTROL, 0);
+	    ata_udelay(100);
+	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0)
+		break;
+	}
+	if (ata_sata_connect(ch))
+	    break;
+    }
+}
+
+static void
+ata_sata_phy_event(void *context, int dummy)
 {
     struct ata_connect_task *tp = (struct ata_connect_task *)context;
     device_t *children;
@@ -224,9 +280,12 @@ ata_sata_connect(void *context, int dummy)
 
     mtx_lock(&Giant);   /* newbus suckage it needs Giant */
     if (tp->action == ATA_C_ATTACH) {
+	struct ata_channel *ch = device_get_softc(tp->dev);
+
+	device_printf(tp->dev, "CONNECTED\n");
+	ata_sata_connect(ch);
 	bus_generic_probe(tp->dev);
 	bus_generic_attach(tp->dev);
-	device_printf(tp->dev, "CONNECTED\n");
     }
     if (tp->action == ATA_C_DETACH) {
 	if (!device_get_children(tp->dev, &children, &nchildren)) {
@@ -336,7 +395,7 @@ ata_acard_850_setmode(struct ata_device *atadev, int mode)
     mode = ata_limit_mode(atadev, mode,
 			  ata_atapi(atadev) ? ATA_PIO_MAX:ctlr->chip->max_dma);
 
-/* XXX missing WDMA0+1 + PIO modes */
+    /* XXX missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
 	error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,mode);
 	if (bootverbose)
@@ -374,7 +433,7 @@ ata_acard_86X_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_check_80pin(atadev, mode);
 
-/* XXX missing WDMA0+1 + PIO modes */
+    /* XXX missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
 	error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,mode);
 	if (bootverbose)
@@ -957,6 +1016,7 @@ ata_intel_ident(device_t dev)
      { ATA_I82801FB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
      { ATA_I82801FB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { ATA_I82801FB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FBM,  0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1659,11 +1719,17 @@ ata_promise_mio_allocate(device_t dev)
     ch->r_io[ATA_CONTROL].offset = offset + 0x0238 + (ch->unit << 7);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
     ata_default_registers(ch);
-
-    ch->flags |= ATA_USE_16BIT;
     if ((ctlr->chip->cfg2 & (PRSATA | PRSATA2)) ||
-	((ctlr->chip->cfg2 & (PRCMBO | PRCMBO2)) && ch->unit < 2))
+	((ctlr->chip->cfg2 & (PRCMBO | PRCMBO2)) && ch->unit < 2)) {
+	ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
+	ch->r_io[ATA_SSTATUS].offset = 0x400 + (ch->unit << 8);
+	ch->r_io[ATA_SERROR].res = ctlr->r_res2;
+	ch->r_io[ATA_SERROR].offset = 0x404 + (ch->unit << 8);
+	ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
+	ch->r_io[ATA_SCONTROL].offset = 0x408 + (ch->unit << 8);
 	ch->flags |= ATA_NO_SLAVE;
+    }
+    ch->flags |= ATA_USE_16BIT;
 
     ata_generic_hw(ch);
     if (offset)
@@ -1718,7 +1784,7 @@ ata_promise_mio_intr(void *data)
 		    device_printf(ch->dev, "DISCONNECT requested\n");
 		tp->action = ATA_C_DETACH;
 		tp->dev = ch->dev;
-		TASK_INIT(&tp->task, 0, ata_sata_connect, tp);
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		taskqueue_enqueue(taskqueue_thread, &tp->task);
 	    }
 
@@ -1730,14 +1796,9 @@ ata_promise_mio_intr(void *data)
 
 		if (bootverbose)
 		    device_printf(ch->dev, "CONNECT requested\n");
-
-		/* if we dont get "connect well" reset the channel */
-		if (!(status & (0x00000100 << unit)))
-		    ctlr->reset(ch);
-
 		tp->action = ATA_C_ATTACH;
 		tp->dev = ch->dev;
-		TASK_INIT(&tp->task, 0, ata_sata_connect, tp);
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		taskqueue_enqueue(taskqueue_thread, &tp->task);
 	    }
 
@@ -1806,51 +1867,18 @@ ata_promise_mio_dmainit(struct ata_channel *ch)
     }
 }
 
-static int
-ata_promise_connect(struct ata_channel *ch)
-{
-    struct ata_pci_controller *ctlr = 
-	device_get_softc(device_get_parent(ch->dev));
-    u_int32_t status;
-    int loop, retry;
-
-    if ((ATA_INL(ctlr->r_res2, 0x408 + (ch->unit << 8)) & 0x07) == 0) {
-	status = ATA_INL(ctlr->r_res2, 0x400 + (ch->unit << 8));
-	if ((status & 0x737) == 0x113 || (status & 0x737) == 0x123)
-	    return 1;
-    }
-    for (retry = 0; retry < 10; retry++) {
-	for (loop = 0; loop < 10; loop++) {
-	    ATA_OUTL(ctlr->r_res2, 0x408 + (ch->unit << 8), 1);
-	    ata_udelay(100);
-	    if ((ATA_INL(ctlr->r_res2, 0x408 + (ch->unit << 8)) & 0x07) == 1)
-		break;
-	}
-	ata_udelay(1000);
-	for (loop = 0; loop < 10; loop++) {
-	    ATA_OUTL(ctlr->r_res2, 0x408 + (ch->unit << 8), 0);
-	    ata_udelay(100);
-	    if ((ATA_INL(ctlr->r_res2, 0x408 + (ch->unit << 8)) & 0x07) == 0)
-		break;
-	}
-	status = ATA_INL(ctlr->r_res2, 0x400 + (ch->unit << 8));
-	if ((status & 0x737) == 0x113 || (status & 0x737) == 0x123)
-	    return 1;
-    }
-    return 0;
-}
-
 static void
 ata_promise_mio_reset(struct ata_channel *ch)
 {
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
+    struct ata_promise_sx4 *hpktp;
 
     switch (ctlr->chip->cfg2) {
-    case PRSX4X: {
-	struct ata_promise_sx4 *hpktp = device_get_ivars(ctlr->dev);
+    case PRSX4X:
 
 	/* softreset channel ATA module */
+	hpktp = device_get_ivars(ctlr->dev);
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), ch->unit + 1);
 	ata_udelay(1000);
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7),
@@ -1866,14 +1894,10 @@ ata_promise_mio_reset(struct ata_channel *ch)
 		 (ATA_INL(ctlr->r_res2, 0xc012c) & ~0x00000f9f));
 	hpktp->busy = 0;
 	mtx_unlock(&hpktp->mtx);
-	}
 	break;
 
     case PRCMBO:
-    case PRSATA: {
-	u_int32_t status = 0;
-	int timeout;
-
+    case PRSATA:
 	if ((ctlr->chip->cfg2 == PRSATA) ||
 	    ((ctlr->chip->cfg2 == PRCMBO) && (ch->unit < 2))) {
 
@@ -1891,31 +1915,15 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	if ((ctlr->chip->cfg2 == PRSATA) ||
 	    ((ctlr->chip->cfg2 == PRCMBO) && (ch->unit < 2))) {
 
-	    /* enable PHY and try to connect */
-	    ata_promise_connect(ch);
-
-	    /* wait up to 1 sec for "connect well" */
-	    for (timeout = 0; timeout < 100 ; timeout++) {
-		status = ATA_INL(ctlr->r_res2, 0x400 + (ch->unit << 8));
-		if (((status & 0x717) == 0x113) &&
-		    (ATA_IDX_INB(ch, ATA_STATUS) != 0xff))
-		    break;
-		ata_udelay(10000);
-	    }
-	    if (timeout >= 100)
-		device_printf(ch->dev, "connect status=%08x\n", status);
+	    ata_sata_enable_phy(ch);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
 	}
-	}
 	break;
 
     case PRCMBO2:
-    case PRSATA2: {
-	u_int32_t status = 0;
-	int timeout;
-
+    case PRSATA2:
 	if ((ctlr->chip->cfg2 == PRSATA2) ||
 	    ((ctlr->chip->cfg2 == PRCMBO2) && (ch->unit < 2))) {
 	    /* set portmultiplier port */
@@ -1940,26 +1948,13 @@ ata_promise_mio_reset(struct ata_channel *ch)
 		     (ATA_INL(ctlr->r_res2, 0x414 + (ch->unit << 8)) &
 		     ~0x00000003) | 0x00000001);
 
-	    /* enable PHY and try to connect */
-	    ata_promise_connect(ch);
-
-	    /* wait up to 1 sec for "connect well" */
-	    for (timeout = 0; timeout < 100 ; timeout++) {
-		status = ATA_INL(ctlr->r_res2, 0x400 + (ch->unit << 8));
-		if (((status & 0x737) == 0x113 || (status & 0x737) == 0x123) &&
-		    (ATA_IDX_INB(ch, ATA_STATUS) != 0xff))
-		    break;
-		ata_udelay(10000);
-	    }
-	    if (timeout >= 100)
-		device_printf(ch->dev, "connect status=%08x\n", status);
+	    ata_sata_enable_phy(ch);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
 
 	    /* set portmultiplier port */
 	    ATA_OUTL(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x00);
-	}
 	}
 	break;
     }
@@ -2641,10 +2636,14 @@ ata_sii_allocate(device_t dev)
     ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (unit01 << 3) + (unit10 << 8);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_res2;
     ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 8);
-    ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_res2;
-    ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 8);
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
+	ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
+	ch->r_io[ATA_SSTATUS].offset = 0x104 + (unit01 << 7) + (unit10 << 8);
+	ch->r_io[ATA_SERROR].res = ctlr->r_res2;
+	ch->r_io[ATA_SERROR].offset = 0x108 + (unit01 << 7) + (unit10 << 8);
+	ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
+	ch->r_io[ATA_SCONTROL].offset = 0x100 + (unit01 << 7) + (unit10 << 8);
 	ch->flags |= ATA_NO_SLAVE;
 
 	/* enable PHY state change interrupt */
@@ -2667,31 +2666,11 @@ ata_sii_reset(struct ata_channel *ch)
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
     int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
-    u_int32_t status = 0, error;
-    int timeout;
 
     /* disable PHY state change interrupt */
     ATA_OUTL(ctlr->r_res2, 0x148 + offset, ~(1 << 16));
 
-    /* flip reset bit */
-    ATA_OUTL(ctlr->r_res2, 0x100 + offset, 0x00000001);
-    ata_udelay(25000);
-    ATA_OUTL(ctlr->r_res2, 0x100 + offset, 0x00000000);
-
-    /* enable PHY and try to connect XXX SOS */
-    /* wait up to 1 sec for "connect well" */
-    for (timeout = 0; timeout < 100 ; timeout++) {
-	status = ATA_INL(ctlr->r_res2, 0x104 + offset);
-	if (((status & 0x717) == 0x113) && ATA_IDX_INB(ch, ATA_STATUS) != 0xff)
-	    break;
-	ata_udelay(10000);
-    }
-    if (timeout >= 100)
-	device_printf(ch->dev, "connect status=%08x\n", status);
-
-    /* clear error register */
-    error = ATA_INL(ctlr->r_res2, 0x108 + offset);
-    ATA_OUTL(ctlr->r_res2, 0x108 + offset, error);
+    ata_sata_enable_phy(ch);
 
     /* enable PHY state change interrupt */
     ATA_OUTL(ctlr->r_res2, 0x148 + offset, (1 << 16));
@@ -2711,21 +2690,20 @@ ata_sii_intr(void *data)
 
 	/* check for PHY related interrupts on SATA capable HW */
 	if (ctlr->chip->max_dma >= ATA_SA150) {
-	    int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
-	    u_int32_t status = ATA_INL(ctlr->r_res2, 0x104 + offset);
-	    u_int32_t error = ATA_INL(ctlr->r_res2, 0x108 + offset);
+	    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
+	    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
 
 	    if (error) {
 		/* clear error bits/interrupt */
-		ATA_OUTL(ctlr->r_res2, 0x108 + offset, error);
+		ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
-		/* if we have a connection "surprise" deal with it */
+		/* if we have a connection event deal with it */
 		if (error & (1 << 16)) {
 		    struct ata_connect_task *tp = (struct ata_connect_task *)
 			malloc(sizeof(struct ata_connect_task),
 			       M_ATA, M_NOWAIT | M_ZERO);
 
-		    if ((status & 0x717) == 0x113) {
+		    if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) {
 			device_printf(ch->dev, "CONNECT requested\n");
 			tp->action = ATA_C_ATTACH;
 		    }
@@ -2734,7 +2712,7 @@ ata_sii_intr(void *data)
 			tp->action = ATA_C_DETACH;
 		    }
 		    tp->dev = ch->dev;
-		    TASK_INIT(&tp->task, 0, ata_sata_connect, tp);
+		    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		    taskqueue_enqueue(taskqueue_thread, &tp->task);
 		}
 	    }
@@ -3410,6 +3388,22 @@ ata_serialize(struct ata_channel *ch, int flags)
     res = serial->locked_ch;
     mtx_unlock(&serial->locked_mtx);
     return res;
+}
+
+static void
+ata_print_cable(device_t dev, u_int8_t *who)
+{
+    device_printf(dev,
+		  "DMA limited to UDMA33, %s found non-ATA66 cable\n", who);
+}
+
+static int
+ata_atapi(struct ata_device *atadev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
+
+    return ((atadev->unit == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
+	    (atadev->unit == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE));
 }
 
 static int
