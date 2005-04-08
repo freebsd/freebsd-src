@@ -500,9 +500,7 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	 */
 	size = IOCPARM_LEN(com);
 	if ((size > IOCPARM_MAX) ||
-	    ((com & (IOC_VOID  | IOC_IN | IOC_OUT)) == 0) ||
-	    ((com & IOC_VOID) && size > 0) ||
-	    ((com & (IOC_IN | IOC_OUT)) && size == 0)) {
+	    ((com & (IOC_VOID | IOC_IN | IOC_OUT)) == 0)) {
 		fdrop(fp, td);
 		return (ENOTTY);
 	}
