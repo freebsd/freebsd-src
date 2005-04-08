@@ -51,7 +51,7 @@ struct cmd {
 	union {
 		c_func	*c_func;
 		c_func2	*c_func2;
-	};
+	} c_u;
 	struct cmd *c_next;
 };
 void	cmd_register(struct cmd *);
