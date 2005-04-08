@@ -44,12 +44,11 @@ __FBSDID("$FreeBSD$");
  * of the form xxx.5; they are "out of range" because lround() rounds away
  * from 0.  On the other hand, if type has less precision than dtype, then
  * all values that are out of range are integral, so we might as well assume
- * that everything is in range.  (The correct condition in this case is
- * harder to express.)  At compile time, INRANGE(x) should reduce to two
- * floating-point comparisons in the former case, or TRUE otherwise.
+ * that everything is in range.  At compile time, INRANGE(x) should reduce to
+ * two floating-point comparisons in the former case, or TRUE otherwise.
  */
-static const double dtype_min = DTYPE_MIN - 0.5;
-static const double dtype_max = DTYPE_MAX + 0.5;
+static const type dtype_min = DTYPE_MIN - 0.5;
+static const type dtype_max = DTYPE_MAX + 0.5;
 #define	INRANGE(x)	(dtype_max - DTYPE_MAX != 0.5 || \
 			 ((x) > dtype_min && (x) < dtype_max))
 
