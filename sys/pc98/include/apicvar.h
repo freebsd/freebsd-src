@@ -1,6 +1,6 @@
 /*-
  * This file is in the public domain.
  */
-/* $FreeBSD$ */
+/* $FreeBSD$
 
-#include <i386/pvct_ioctl.h>
+#include <i386/apicvar.h>
