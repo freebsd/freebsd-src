@@ -256,6 +256,8 @@ static const struct uplcom_product {
 	  -1, TYPE_PL2303 },
 	/* HAL Corporation Crossam2+USB */
 	{ USB_VENDOR_HAL, USB_PRODUCT_HAL_IMR001, -1, TYPE_PL2303 },
+	/* Sitecom USB to Serial */
+	{ USB_VENDOR_SITECOM, USB_PRODUCT_SITECOM_SERIAL, -1, TYPE_PL2303 },
 	{ 0, 0 }
 };
 
