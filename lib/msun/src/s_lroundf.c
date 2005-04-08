@@ -8,4 +8,4 @@ __FBSDID("$FreeBSD$");
 #define	DTYPE_MAX	LONG_MAX
 #define	fn		lroundf
 
-#include "s_lrint.c"
+#include "s_lround.c"
