@@ -389,7 +389,6 @@ hint.mse.0.irq="13"
 #       OC-3141, OC-3540 and OC-3250.
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
-# wl:   Lucent Wavelan (ISA card only).
 
 # Order for ISA/EISA devices is important here
 
@@ -423,11 +422,6 @@ hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
 device		sr
 device		oltr
-device		wl
-hint.wl.0.at="isa"
-hint.wl.0.port="0x300"
-options 	WLCACHE		# enables the signal-strength cache
-options 	WLDEBUG		# enables verbose debugging output
 
 #
 # SCSI host adapters:
