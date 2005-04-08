@@ -134,6 +134,7 @@ struct pargs {
  *      i - by curproc or the master session mtx
  *      j - locked by sched_lock mtx
  *      k - only accessed by curthread
+ *	k*- only accessed by curthread and from an interrupt
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
@@ -263,6 +264,7 @@ struct thread {
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
+	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks. */
 	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
@@ -317,7 +319,7 @@ struct thread {
 	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* (a) Size of alternate kstack. */
-	u_int		td_critnest;	/* (k) Critical section nest level. */
+	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
@@ -366,7 +368,7 @@ struct thread {
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
-#define	TDP_OWEPREEMPT	0x00000100 /* Thread has a pending preemption. */
+#define	TDP_UNUSED8	0x00000100 /* --available -- */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_WAKEPROC0	0x00000400 /* Wants caller to wakeup(&proc0) */
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */

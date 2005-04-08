@@ -911,7 +911,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
-	td->td_pflags &= ~TDP_OWEPREEMPT;
+	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,

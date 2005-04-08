@@ -1346,7 +1346,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
-	td->td_pflags &= ~TDP_OWEPREEMPT;
+	td->td_owepreempt = 0;
 
 	/*
 	 * If the KSE has been assigned it may be in the process of switching
