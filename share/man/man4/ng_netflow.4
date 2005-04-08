@@ -24,12 +24,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2004
+.Dd April 8, 2004
 .Os
 .Dt NG_NETFLOW 4
 .Sh NAME
 .Nm ng_netflow
 .Nd Cisco's NetFlow implementation
+.Sh SYNOPSIS
+.In sys/types.h
+.In netinet/in.h
+.In netgraph/netflow/ng_netflow.h
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,9 +52,11 @@ RST or FIN TCP segment.
 .It
 Active timeout.
 Flows cannot live more than the specified period of time.
+The default is 1800 seconds (30 minutes).
 .It
 Inactive timeout.
 A flow was inactive for the specified period of time.
+The default is 15 seconds.
 .El
 .Pp
 Export information is stored in NetFlow version 5 datagrams.
@@ -163,7 +169,7 @@ commands are:
 .It Dv NGM_NETFLOW_INFO
 .Qq Li info
 .It Dv NGM_NETFLOW_IFINFO
-.Qq Li ifinfo
+.Qq Li "ifinfo %u"
 .It Dv NGM_NETFLOW_SETDLT
 .Qq Li "setdlt { iface = %u dlt = %u }"
 .It Dv NGM_NETFLOW_SETIFINDEX
@@ -220,15 +226,8 @@ node in this example is connected to
 	msg netflow:export connect inet/10.0.0.1:4444
 SEQ
 .Ed
-.Sh BUGS
-The
-.Nm
-node type does not fill in AS numbers.
-This is due to the lack of necessary information in the kernel routing table.
-However, this information can be injected into the kernel from a routing daemon
-such as GNU Zebra.
-This functionality may become available in future releases.
 .Sh SEE ALSO
+.Xr flowctl 4 ,
 .Xr netgraph 4 ,
 .Xr ng_ksocket 4 ,
 .Xr ng_tee 4 ,
@@ -245,3 +244,11 @@ based on
 .Nm ng_ipacct
 written by
 .An Roman V. Palagin Aq romanp@unshadow.net .
+.Sh BUGS
+The
+.Nm
+node type does not fill in AS numbers.
+This is due to the lack of necessary information in the kernel routing table.
+However, this information can be injected into the kernel from a routing daemon
+such as GNU Zebra.
+This functionality may become available in future releases.
