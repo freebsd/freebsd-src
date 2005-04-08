@@ -243,7 +243,7 @@ bluetooth_modevent(module_t mod, int event, void *data)
  */
 
 static moduledata_t	bluetooth_mod = {
-	"bluetooth",
+	"ng_bluetooth",
 	bluetooth_modevent,
 	NULL
 };
