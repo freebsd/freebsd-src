@@ -101,11 +101,8 @@ struct bufcookie {
  * XXX: Maybe one day, dynamically allocate it so that the line length
  *      is `unlimited'.
  */
-static
-int writehook(cookie, buf, len)
-	void	*cookie;	/* really [struct bufcookie *] */
-	char	*buf;		/* characters to copy */
-	int	len;		/* length to copy */
+static int
+writehook(void *cookie, const char *buf, int len)
 {
 	struct bufcookie *h;	/* private `handle' */
 
@@ -137,10 +134,7 @@ syslog(int pri, const char *fmt, ...)
 }
 
 void
-vsyslog(pri, fmt, ap)
-	int pri;
-	const char *fmt;
-	va_list ap;
+vsyslog(int pri, const char *fmt, va_list ap)
 {
 	int cnt;
 	char ch, *p;
@@ -329,7 +323,7 @@ vsyslog(pri, fmt, ap)
 
 /* Should be called with mutex acquired */
 static void
-disconnectlog()
+disconnectlog(void)
 {
 	/*
 	 * If the user closed the FD and opened another in the same slot,
@@ -345,7 +339,7 @@ disconnectlog()
 
 /* Should be called with mutex acquired */
 static void
-connectlog()
+connectlog(void)
 {
 	struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
 
@@ -396,9 +390,7 @@ connectlog()
 }
 
 static void
-openlog_unlocked(ident, logstat, logfac)
-	const char *ident;
-	int logstat, logfac;
+openlog_unlocked(const char *ident, int logstat, int logfac)
 {
 	if (ident != NULL)
 		LogTag = ident;
@@ -413,9 +405,7 @@ openlog_unlocked(ident, logstat, logfac)
 }
 
 void
-openlog(ident, logstat, logfac)
-	const char *ident;
-	int logstat, logfac;
+openlog(const char *ident, int logstat, int logfac)
 {
 	THREAD_LOCK();
 	openlog_unlocked(ident, logstat, logfac);
@@ -424,7 +414,7 @@ openlog(ident, logstat, logfac)
 
 
 void
-closelog()
+closelog(void)
 {
 	THREAD_LOCK();
 	(void)_close(LogFile);
@@ -436,8 +426,7 @@ closelog()
 
 /* setlogmask -- set the log mask level */
 int
-setlogmask(pmask)
-	int pmask;
+setlogmask(int pmask)
 {
 	int omask;
 

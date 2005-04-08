@@ -83,9 +83,7 @@ static void	 dumpmode(BITCMD *);
  * bits) followed by a '+' (set bits).
  */
 mode_t
-getmode(bbox, omode)
-	const void *bbox;
-	mode_t omode;
+getmode(const void *bbox, mode_t omode)
 {
 	const BITCMD *set;
 	mode_t clrval, newmode, value;
@@ -172,8 +170,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 void *
-setmode(p)
-	const char *p;
+setmode(const char *p)
 {
 	int perm, who;
 	char op, *ep;
@@ -340,11 +337,7 @@ apply:		if (!*p)
 }
 
 static BITCMD *
-addcmd(set, op, who, oparg, mask)
-	BITCMD *set;
-	int oparg, who;
-	int op;
-	u_int mask;
+addcmd(BITCMD *set, int op, int who, int oparg, u_int mask)
 {
 	switch (op) {
 	case '=':
@@ -388,8 +381,7 @@ addcmd(set, op, who, oparg, mask)
 
 #ifdef SETMODE_DEBUG
 static void
-dumpmode(set)
-	BITCMD *set;
+dumpmode(BITCMD *set)
 {
 	for (; set->cmd; ++set)
 		(void)printf("cmd: '%c' bits %04o%s%s%s%s%s%s\n",
@@ -409,8 +401,7 @@ dumpmode(set)
  * compacted, but it's not worth the effort.
  */
 static void
-compress_mode(set)
-	BITCMD *set;
+compress_mode(BITCMD *set)
 {
 	BITCMD *nset;
 	int setbits, clrbits, Xbits, op;
