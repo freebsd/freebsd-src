@@ -39,9 +39,9 @@
 
 #include <sys/resource.h>
 #include <sys/bus.h>
-#include <i386/include/bus.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
-#include <i386/include/resource.h>
+#include <machine/resource.h>
 
 #include <i4b/include/i4b_l3l4.h>
 
