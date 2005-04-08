@@ -129,8 +129,10 @@ again:
 		if (divert) {
 			*m0 = NULL;
 			return 0;	/* packet consumed */
-		} else
+		} else {
+			args.rule = NULL;
 			goto again;	/* continue with packet */
+		}
 	}
 
 #ifdef IPFIREWALL_FORWARD
@@ -214,8 +216,10 @@ again:
 		if (divert) {
 			*m0 = NULL;
 			return 0;	/* packet consumed */
-		} else
+		} else {
+			args.rule = NULL;
 			goto again;	/* continue with packet */
+		}
         }
 
 #ifdef IPFIREWALL_FORWARD
