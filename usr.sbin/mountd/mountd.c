@@ -568,7 +568,6 @@ mntsrv(rqstp, transp)
 	struct fhreturn fhr;
 	struct stat stb;
 	struct statfs fsb;
-	struct addrinfo *ai;
 	char host[NI_MAXHOST], numerichost[NI_MAXHOST];
 	int lookup_failed = 1;
 	struct sockaddr *saddr;
@@ -595,7 +594,6 @@ mntsrv(rqstp, transp)
 	    NULL, 0, 0);
 	getnameinfo(saddr, saddr->sa_len, numerichost,
 	    sizeof numerichost, NULL, 0, NI_NUMERICHOST);
-	ai = NULL;
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_void, NULL))
