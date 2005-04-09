@@ -477,7 +477,7 @@ donames(fd, super, name)
 	char *name;
 {
 	int c;
-	ino_t inode, inode1;
+	ino_t inode;
 	ino_t maxino;
 	union dinode *dp;
 	
@@ -486,7 +486,6 @@ donames(fd, super, name)
 	while ((c = getchar()) != EOF && (c < '0' || c > '9'))
 		while ((c = getchar()) != EOF && c != '\n');
 	ungetc(c,stdin);
-	inode1 = -1;
 	while (scanf("%u",&inode) == 1) {
 		if (inode > maxino) {
 			warnx("illegal inode %d",inode);
@@ -504,7 +503,6 @@ donames(fd, super, name)
 				c = getchar();
 			}
 			putchar('\n');
-			inode1 = inode;
 		} else {
 			if (errno) {
 				err(1, "%s", name);

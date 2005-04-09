@@ -336,7 +336,6 @@ static void
 ttyprt(struct xtty *xt)
 {
 	int i, j;
-	pid_t pgid;
 	char *name, state[20];
 
 	if (xt->xt_size != sizeof *xt)
@@ -357,7 +356,6 @@ ttyprt(struct xtty *xt)
 		state[j++] = '-';
 	state[j] = '\0';
 	(void)printf("%-6s %8d", state, xt->xt_sid);
-	pgid = 0;
 	(void)printf("%6d ", xt->xt_pgid);
 	switch (xt->xt_line) {
 	case TTYDISC:
