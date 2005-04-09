@@ -118,7 +118,6 @@ namei(ndp)
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
-	struct mount *mp;
 	int vfslocked;
 
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
@@ -229,8 +228,6 @@ namei(ndp)
 				ndp->ni_cnd.cn_flags |= GIANTHELD;
 			return (0);
 		}
-		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
 			error = ELOOP;
 			break;
@@ -290,11 +287,10 @@ namei(ndp)
 	cnp->cn_pnbuf = NULL;
 	cnp->cn_nameptr = NULL;
 #endif
-	vrele(ndp->ni_dvp);
-	mp = ndp->ni_vp->v_mount;
 	vput(ndp->ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	ndp->ni_vp = NULL;
+	vrele(ndp->ni_dvp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -498,12 +494,12 @@ dirloop:
 				goto bad;
 			}
 			tdp = dp;
-			tvfslocked = vfslocked;
 			dp = dp->v_mount->mnt_vnodecovered;
-			vput(tdp);
+			tvfslocked = vfslocked;
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
+			vput(tdp);
+			VFS_UNLOCK_GIANT(tvfslocked);
 			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
 		}
 	}
@@ -548,12 +544,12 @@ unionlookup:
 		    (dp->v_vflag & VV_ROOT) && (dp->v_mount != NULL) &&
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
-			tvfslocked = vfslocked;
 			dp = dp->v_mount->mnt_vnodecovered;
-			vput(tdp);
+			tvfslocked = vfslocked;
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
+			vput(tdp);
+			VFS_UNLOCK_GIANT(tvfslocked);
 			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
 			goto unionlookup;
 		}
@@ -596,22 +592,11 @@ unionlookup:
 	printf("found\n");
 #endif
 	/*
-	 * In the DOTDOT case dp is unlocked, we may have to relock it if
-	 * this is the parent of the last component.  Otherwise, we have to
-	 * unlock if this is not the last component, or if it is and
-	 * LOCKPARENT is set.
+	 * In the DOTDOT case dp is unlocked, we relock it here even if we
+	 * may not need it to simplify the code below.
 	 */
-	if (cnp->cn_flags & ISDOTDOT) {
-		if ((cnp->cn_flags & (ISLASTCN | LOCKPARENT)) ==
-		    (ISLASTCN | LOCKPARENT))
-			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
-	} else if (dp != ndp->ni_vp) {
-		if ((cnp->cn_flags & (ISLASTCN | LOCKPARENT)) == ISLASTCN)
-			VOP_UNLOCK(dp, 0, td);
-		else if ((cnp->cn_flags & ISLASTCN) == 0)
-			VOP_UNLOCK(dp, 0, td);
-	}
-
+	if (cnp->cn_flags & ISDOTDOT)
+		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * Take into account any additional components consumed by
 	 * the underlying filesystem.
@@ -631,21 +616,20 @@ unionlookup:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
+		KASSERT(dp != ndp->ni_dvp, ("XXX"));
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
-		VOP_UNLOCK(dp, 0, td);
+		vput(dp);
 		tvfslocked = VFS_LOCK_GIANT(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = tvfslocked;
 		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error) {
-			VFS_UNLOCK_GIANT(tvfslocked);
 			dpunlocked = 1;
 			goto bad2;
 		}
-		vrele(dp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		ndp->ni_vp = dp = tdp;
-		vfslocked = tvfslocked;
 	}
 
 	/*
@@ -665,6 +649,11 @@ unionlookup:
 			error = EACCES;
 			goto bad2;
 		}
+		/*
+		 * Symlink code always expects an unlocked dvp.
+		 */
+		if (ndp->ni_dvp != ndp->ni_vp)
+			VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		goto success;
 	}
 
@@ -689,9 +678,10 @@ nextname:
 			cnp->cn_nameptr++;
 			ndp->ni_pathlen--;
 		}
-		if (ndp->ni_dvp != ndp->ni_vp)
-			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "lookup");
-		vrele(ndp->ni_dvp);
+		if (ndp->ni_dvp != dp)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
 		goto dirloop;
 	}
 	/*
@@ -706,8 +696,13 @@ nextname:
 		ndp->ni_startdir = ndp->ni_dvp;
 		VREF(ndp->ni_startdir);
 	}
-	if (!wantparent)
-		vrele(ndp->ni_dvp);
+	if (!wantparent) {
+		if (ndp->ni_dvp != dp)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp)
+		VOP_UNLOCK(ndp->ni_dvp, 0, td);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
@@ -717,14 +712,12 @@ success:
 	return (0);
 
 bad2:
-	if ((cnp->cn_flags & LOCKPARENT) && *ndp->ni_next == '\0')
+	if (dp != ndp->ni_dvp)
 		vput(ndp->ni_dvp);
 	else
 		vrele(ndp->ni_dvp);
 bad:
-	if (dpunlocked)
-		vrele(dp);
-	else
+	if (!dpunlocked)
 		vput(dp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
@@ -887,29 +880,45 @@ NDFREE(ndp, flags)
      struct nameidata *ndp;
      const u_int flags;
 {
+	int unlock_dvp;
+	int unlock_vp;
+
+	unlock_dvp = 0;
+	unlock_vp = 0;
 
 	if (!(flags & NDF_NO_FREE_PNBUF) &&
 	    (ndp->ni_cnd.cn_flags & HASBUF)) {
 		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 		ndp->ni_cnd.cn_flags &= ~HASBUF;
 	}
+	if (!(flags & NDF_NO_VP_UNLOCK) &&
+	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
+		unlock_vp = 1;
+	if (!(flags & NDF_NO_VP_RELE) && ndp->ni_vp) {
+		if (unlock_vp) {
+			vput(ndp->ni_vp);
+			unlock_vp = 0;
+		} else
+			vrele(ndp->ni_vp);
+		ndp->ni_vp = NULL;
+	}
+	if (unlock_vp)
+		VOP_UNLOCK(ndp->ni_vp, 0, ndp->ni_cnd.cn_thread);
 	if (!(flags & NDF_NO_DVP_UNLOCK) &&
 	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
 	    ndp->ni_dvp != ndp->ni_vp)
-		VOP_UNLOCK(ndp->ni_dvp, 0, ndp->ni_cnd.cn_thread);
+		unlock_dvp = 1;
 	if (!(flags & NDF_NO_DVP_RELE) &&
 	    (ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {
-		vrele(ndp->ni_dvp);
+		if (unlock_dvp) {
+			vput(ndp->ni_dvp);
+			unlock_dvp = 0;
+		} else
+			vrele(ndp->ni_dvp);
 		ndp->ni_dvp = NULL;
 	}
-	if (!(flags & NDF_NO_VP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
-		VOP_UNLOCK(ndp->ni_vp, 0, ndp->ni_cnd.cn_thread);
-	if (!(flags & NDF_NO_VP_RELE) &&
-	    ndp->ni_vp) {
-		vrele(ndp->ni_vp);
-		ndp->ni_vp = NULL;
-	}
+	if (unlock_dvp)
+		VOP_UNLOCK(ndp->ni_dvp, 0, ndp->ni_cnd.cn_thread);
 	if (!(flags & NDF_NO_STARTDIR_RELE) &&
 	    (ndp->ni_cnd.cn_flags & SAVESTART)) {
 		vrele(ndp->ni_startdir);
