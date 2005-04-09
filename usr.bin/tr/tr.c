@@ -76,7 +76,7 @@ main(int argc, char **argv)
 	struct cset *delete, *squeeze;
 	int n, *p;
 	int Cflag, cflag, dflag, sflag, isstring2;
-	wint_t ch, cnt, i, lastch;
+	wint_t ch, cnt, lastch;
 
 	(void)setlocale(LC_ALL, "");
 
