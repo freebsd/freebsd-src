@@ -91,7 +91,9 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#if defined(YP) || defined(ICMPNL)
 #include "reentrant.h"
+#endif
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -235,9 +237,11 @@ static int	 _icmp_ghbyaddr(void *, void *, va_list);
  * XXX: Many dependencies are not thread-safe.  Still, we cannot use
  * getipnodeby*() in conjunction with other functions which call them.
  */
+#if defined(YP) || defined(ICMPNL)
 static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
 #define THREAD_LOCK()	mutex_lock(&_getipnodeby_thread_lock);
 #define THREAD_UNLOCK()	mutex_unlock(&_getipnodeby_thread_lock);
+#endif
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
 static const ns_src default_src[] = { 
