@@ -370,9 +370,8 @@ main(argc, argv)
 {
 	int fd, s, ldisc;
 	char *name;
-	struct termios tios, otios;
+	struct termios tios;
 	char logincmd[2*BUFSIZ+32];
-	extern uid_t getuid();
 
 	FILE *pidfile;				/* pid file */
 	FILE *iffile;				/* interfaces file */
@@ -434,7 +433,6 @@ main(argc, argv)
 		syslog(LOG_ERR, "tcgetattr: %m");
 		exit(1);
 	}
-	otios = tios;
 	cfmakeraw(&tios);
 	if (tcsetattr(0, TCSAFLUSH, &tios) < 0) {
 		syslog(LOG_ERR, "tcsetattr: %m");
