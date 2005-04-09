@@ -358,7 +358,7 @@ bail_out(int c)
 }
 
 static void
-get_arg(c)
+get_arg(int c)
 {
 
     if (argc < 0)
