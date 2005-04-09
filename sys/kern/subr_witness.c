@@ -331,6 +331,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * CDEV
+	 */
+	{ "cdev", &lock_class_mtx_sleep },
+	{ "system map", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP
