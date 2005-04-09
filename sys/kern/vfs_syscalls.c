@@ -1402,7 +1402,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	int error;
 
 	bwillwrite();
-	NDINIT(&nd, LOOKUP, FOLLOW | NOOBJ | MPSAFE, segflg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, segflg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -1418,7 +1418,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, segflg, link, td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, segflg, link, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
@@ -1494,7 +1494,7 @@ kern_symlink(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	}
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME | MPSAFE,
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE,
 	    segflg, link, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
@@ -1878,8 +1878,7 @@ kern_access(struct thread *td, char *path, enum uio_seg pathseg, int flags)
 	tmpcred->cr_uid = cred->cr_ruid;
 	tmpcred->cr_groups[0] = cred->cr_rgid;
 	td->td_ucred = tmpcred;
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, pathseg,
-	    path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		goto out1;
 	vfslocked = NDHASGIANT(&nd);
@@ -1917,7 +1916,7 @@ eaccess(td, uap)
 	int vfslocked;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE,
 	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -2052,7 +2051,7 @@ kern_stat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
 	struct stat sb;
 	int error, vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ | MPSAFE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE,
 	    pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -2101,7 +2100,7 @@ kern_lstat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp
 	struct nameidata nd;
 	int error, vfslocked;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED | NOOBJ | MPSAFE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED | MPSAFE,
 	    pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -2226,8 +2225,7 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name)
 	struct nameidata nd;
 	int error, vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, pathseg, path,
-	    td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -2278,8 +2276,7 @@ kern_readlink(struct thread *td, char *path, enum uio_seg pathseg, char *buf,
 	struct nameidata nd;
 	int vfslocked;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ | MPSAFE,
-	    pathseg, path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -3211,7 +3208,7 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 		goto out1;
 	}
 	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART |
-	    NOOBJ | MPSAFE, pathseg, to, td);
+	    MPSAFE, pathseg, to, td);
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&tond)) != 0) {
