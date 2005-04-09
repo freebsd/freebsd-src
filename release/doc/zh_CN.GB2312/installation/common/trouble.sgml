@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.14
+	Original Revision: 1.17
 	$FreeBSD$
 
 	This file contains the comments of the old TROUBLE.TXT file.
@@ -12,21 +12,48 @@
   <sect2 id="repairing">
     <title>修复现有的 &os; 安装</title>
 
-    <para>在安装软盘中的顶级菜单上， &os; 提供了一个
-    <quote>Fixit</quote> 选项。
-    要使用它， 您还需要一张和启动用的那张软盘同样的方法生成的
-    <filename>fixit.flp</filename> 镜像软盘，
-    或 <quote>live filesystem</quote>
-    CDROM； 第二种通常是 &os; 发行版本的一部分。</para>
+    <para>&os; 在其安装程序 &man.sysinstall.8; 的顶级菜单上， 提供了一个
+      <quote>fixit</quote> 选项。 它提供了一个包含 &os;
+      基本系统中常用程序的 shell； 这个环境对于修复或排除现有的 &os;
+      安装中的故障十分有用。 要使用 fixit 模式，
+      您需要按照和其他引导盘相同的方式制作 <filename>fixit.flp</filename> 软盘，
+      或者使用 <quote>现场文件系统</quote> CDROM。
+      一般来说， 现场文件系统应该在 &os; 安装光盘中的第一张上。
+      请注意， 使用 fixit 选项需要一些 UNIX 系统管理的经验。</para>
 
-    <para>要启动 fixit， 只需简单地从
-    <filename>kern.flp</filename> 这张软盘启动， 选择
-    <quote>Fixit</quote> 这一项， 并根据提示插入 fixit 软盘或 CDROM。
-    接下来您将进入一个提供了很多命令的命令行界面
-    (在 <filename>/stand</filename>
-    和 <filename>/mnt2/stand</filename> 目录中) 来检查、
-    修复和检验文件系统及其内容。 使用 fixit <emphasis>是</emphasis> 
-    需要一些 UNIX 系统管理的经验的。</para>
+    <para>一般来说， 有两种方法来启动 fixit 模式。
+      能够从 &os; 安装 CDROM 启动的用户， 应该这样做并在
+      &man.sysinstall.8; 的主菜单选择 <quote>fixit</quote>。
+      然后， 再选择其中的
+      <quote>CDROM/DVD</quote> 选项。</para>
+
+    <para>无法从 CDROM 启动， 但可以从软盘启动的用户，
+      则需要更多的步骤。 除了安装过程所需要的
+      <filename>boot.flp</filename> 和
+      <filename>kern<replaceable>X</replaceable>.flp</filename> 之外，
+      还需要制作一张
+      <filename>fixit.flp</filename> 软盘， 方法和其他软盘无异。
+      按照启动安装程序的步骤进行， 直到出现
+      &man.sysinstall.8; 菜单为止。 这时， 选择其中的
+      <quote>fixit</quote> 项， 随后的菜单中，
+      选择 <quote>Floppy</quote>， 并依提示插入 <filename>fixit.flp</filename>
+      软盘。</para>
+
+    <para>尽管 CDROM 和软盘上的 fixit 环境很相似， 但并非一模一样。
+      它们都提供了一系列用于检查、 修复文件系统及其内容的命令。
+      在 CDROM 上的 fixit 版本提供了全部 &os; 基本系统中的命令，
+      因为它是一个现场文件系统。 与此相反， 由于空间限制， 软盘 fixit 环境，
+      则只能提供它的一个子集。</para>
+
+    <para>软盘版本的 fixit 中，
+      可以在 <filename>/stand</filename> 或
+      <filename>/mnt2/stand</filename> 找到一些常用的独立的应用程序。
+      而在 CDROM 版本的 fixit 中， 这些程序可以在
+      <filename>/stand</filename> 或
+      <filename>/mnt2/rescue</filename> 中找到 (余下的程序，
+      可以在现场文件系统中找到， 其位置是
+      <filename>/mnt</filename>)。</para>
+
   </sect2>
 
   <sect2>
@@ -50,9 +77,9 @@
           <para>在每次启动时这个选项都会被复位，
             因此有必要把 <literal>hint.acpi.0.disabled="1"</literal>
             加入到
-            <filename>/boot/loader.conf</filename>
-            中。 要了解关于启动加载器的进一步详情， 请参考
-            FreeBSD 使用手册。</para>
+            <filename>/boot/loader.conf</filename>中。
+            要了解关于启动加载器的进一步详情， 请参考
+            &os; 使用手册。</para>
         </answer>
       </qandaentry>
       <qandaentry arch="amd64">
@@ -181,10 +208,11 @@
 	  Intel EtherExpress 网卡无法正常工作。</para>
 	</question>
 	<answer>
-	  <para>用 UserConfig 工具 (参见
-          <filename>HARDWARE.TXT</filename>) 并禁用对
-          <devicename>mcd0</devicename> 和
-          <devicename>mcd1</devicename> 设备的探测。 一般而言，
+	  <para>在引导加载的第三阶段， 设置 hint
+          <quote>hint.mcd.0.disabled="1"</quote> 和
+          <quote>hint.mcd.1.disabled="1"</quote>，
+          就可以禁止探测 <devicename>mcd0</devicename> 和
+          <devicename>mcd1</devicename> 设备。 一般而言，
           在内核配置文件中您应该只保留和启用那些将要用到的设备。</para>
 	</answer>
       </qandaentry>
@@ -194,16 +222,14 @@
           设备超时错误。</para>
 	</question>
 	<answer>
-	  <para>您的卡可能与在内核配置中指定的 IRQ 号不同。
-	   ed 驱动默认并不使用软件配置 (DOS 下在 EZSETUP
-	   中输入的值)， 但但如果您在内核配置文件中将 IRQ 指定为
-	   <literal>?</literal> 则它会使用软件的配置。</para>
+	  <para>您的卡可能使用了与 <filename>/boot/device.hints</filename>
+	  文件中指定的不同的 IRQ。 ed 驱动默认并不使用‘软’配置 (在 DOS 下使用
+	  EZSETUP 进行的配置)， 但如果您在接口的 hint 上指定
+	  <literal>-1</literal>， 就会使用软配置。</para>
 
-	  <para>另外， 也可以通过跳线来改变硬件设置
-	  (如果需要， 相应地修改内核配置)，
-	  或在 UserConfig 中将 IRQ 指定为 <literal>-1</literal>，
-	  或在您的内核配置文件中使用 <literal>?</literal>
-          来告诉内核使用软件配置。</para>
+	  <para>可以通过跳线来改变硬件的设定 (并根据需要修改内核配置)
+          或通过设置 hint <quote>hint.ed.0.irq="-1"</quote> 将
+          IRQ 指定为 <literal>-1</literal>。 后者将让内核使用软件配置。</para>
 
           <para>另一种可能是您的卡使用了 IRQ 9， 而这是和 IRQ 2 共用的，
           这也是经常造成问题的原因
@@ -217,11 +243,10 @@
           键盘的输入一团糟。</para>
 	</question>
 	<answer>
-          <para>以前的 IBM 膝上型电脑使用非标准的键盘控制器，
-          所以您必须告诉键盘驱动程序 (atkbd0) 进入一个特定的模式
-          使它能够在 ThinkPads 上工作。 在 UserConfig 文件中将
-          atkbd0 'Flags' 设置为 0x4， 它就应该能正常的工作了。
-          (参见 'Keyboard' 输入菜单)</para>
+          <para>较早的 IBM 笔记本使用了非标准的键盘控制器，
+          因此您必须告诉键盘驱动 (atkbd0) 进入与 ThinkPad
+          协同工作的一个特殊模式。 设置
+          hint <quote>hint.atkbd.0.flags="4"</quote> 应该能让其正常工作。</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -241,20 +266,8 @@
         </question>
 	<answer>
 	  <para>这是一个已知问题， 并用会在将来对其进行修复。
-	  为了使您的系统完全安装， 使用 <option>-c</option> 引导选项进入
-	  UserConfig， 但是 <emphasis>不能</emphasis> 使用好看的可视化模式，
-	  而必须使用旧式的文本 CLI 模式。 在提示符下输入：</para>
-
-          <screen><userinput>eisa 12</userinput>
-<userinput>quit</userinput></screen>
-
-          <para>。 (您也可以用 ‘visual’ 代替 ‘quit’，
-          在接下来的配置对话在可视化模式。)
-          尽管我们推荐您编译定制的内核， 但 dset 现在也能够保存这些值了。</para>
-
-          <para>参考 FAQ 主题 5.3 解释的问题和怎样继续。
-          在您的本地系统 /usr/share/doc/FAQ 目录中可以找到 FAQ，
-          如果您安装了 ‘doc’ 软件包的话。</para>
+	  要让系统能够正常安装，
+          需要在加载器第三阶段设置 hint <quote>hw.eisa_slots="12"</quote>。</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -265,16 +278,8 @@
 	<answer>
 	  <para>由于某些原因， 您的机器可能不喜欢新的
           <literal>i586_copyout</literal> 和
-          <literal>i586_copyin</literal> 代码。 要禁止它，
-          用安装软盘进行引导， 当它进入第一个菜单 (选择是否进入 UserConfig)
-          时选择命令行界面
-          (<quote>专家模式, Expert Mode</quote>)，
-          并且输入下面的语句：</para>
-
-          <screen><userinput>flags npx0 1</userinput></screen>
-
-          <para>继续正常的引导过程。 这些设置将保存在您的内核中，
-          因此您只需做一次就可以了。</para>
+          <literal>i586_copyin</literal> 代码。
+          要禁用它们， 需要设置 hint <quote>hint.npx.0.flags="1"</quote>。</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -292,8 +297,8 @@
         </question>
 	<answer>
 	  <para>Compaq 系统总是与其它系统有点不同， 他们没有在笔记本的 CMOS RAM
-          中说明软驱的存在。 因此， 驱动程序会认为没有配置软驱。
-          进入 UserConfig 屏幕， 将 fdc0 驱动标志值设置为 0x1。
+          中说明软驱的存在。 因此， 驱动程序会认为没有配置软驱。 您需要设置 hint
+          <quote>hint.fdc.0.flags="1"</quote>
           这样驱动程序将认为第一个软驱存在， 而不去查询 CMOS。</para>
 	</answer>
       </qandaentry>
