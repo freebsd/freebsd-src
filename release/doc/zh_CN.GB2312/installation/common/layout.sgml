@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.8
+	Original Revision: 1.10
 	$FreeBSD$
 
 	This section contains the contents of the old LAYOUT.TXT file.
@@ -20,13 +20,19 @@ INSTALL.HTM     boot            compat3x        floppies        proflibs
 INSTALL.TXT     catpages        compat4x        games           src
 README.HTM      cdrom.inf       crypto          info            tools</screen>
 
-  <para>如果想从 CDROM、 FTP 或 NFS 从发布目录中安装，
-  只需从软盘镜像目录制作 1.44MB 引导盘 (参见
-  <xref linkend="floppies"> 以了解如何完成它)，
-  从制作的引导盘启动， 并按照屏幕的指示去做就可以了。
-  安装过程中所需要的数据会根据您的选择自动获取。
-  如果您之前从没安装过 &os;， 则建议您完整地阅读这份文档
-  (安装指引)。</para>
+  <para>这些文件也可以在多碟组的第一张 CDROM 上找到，
+    只是格局略有不同。 在多数平台上， 安装 CDROM 在安装包文件之外，
+    也提供了一个 <quote>现场文件系统</quote>。 现场文件系统，
+    对于修复或排出现有的 &os; 安装的问题非常有用 (参见 <xref
+    linkend="trouble"> 以了解如何完成这项工作)。</para>
+
+  <para>对于无法从 CDROM 介质引导系统 (但可以通过其它手段来读取 CDROM)
+  的用户来说， 应关注一下 <filename>floppies</filename> 目录。
+  很容易从 <filename>floppies</filename> 提供的文件来自行制作 1.44MB 引导盘
+  (参见 <xref linkend="floppies"> 以了解如何这样做)， 并用它来开始从 CDROM、
+  FTP， 或者 NFS 的安装。 在安装过程中所需要的其他数据，
+  将自动地根据您的选择获得。 如果您之前从未安装过 &os;，
+  则应完整地阅读这份文档 (安装指引)。</para>
 
   <para>如果您在尝试进行某种其他类型的安装，
   或对于发布目录是如何组织的感到好奇， 请参考下面的说明以了解进一步的内容：
@@ -89,7 +95,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para>Ports Collection 可以通过与其他组件相同的方法来安装，
 	解压缩后它需要大约 190MB 的磁盘空间。 关于
 	ports collection 的更多资料可以在
-	<ulink url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink>
+	<ulink url="&url.base;/ports/">http://www.FreeBSD.org/ports/</ulink>
 	或本地的
 	<filename>/usr/share/doc/handbook</filename> 找到，
 	当然， 后者的前提是您安装了 <filename>doc</filename>
