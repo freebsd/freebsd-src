@@ -92,9 +92,8 @@ process(void)
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t len, oldpsl = 0;
+	size_t oldpsl = 0;
 	char *p;
-	char nc;
 
 	p = NULL;
 

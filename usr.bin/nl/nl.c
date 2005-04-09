@@ -144,7 +144,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int c, n;
+	int c;
 	long val;
 	unsigned long uval;
 	char *ep;

@@ -307,7 +307,7 @@ linkchk(FTSENT *p)
 	struct links_entry *le, **new_buckets;
 	struct stat *st;
 	size_t i, new_size;
-	int count, hash;
+	int hash;
 
 	st = p->fts_statp;
 
@@ -325,7 +325,6 @@ linkchk(FTSENT *p)
 	if (number_entries > number_buckets * 10 && !stop_allocating) {
 		new_size = number_buckets * 2;
 		new_buckets = malloc(new_size * sizeof(struct links_entry *));
-		count = 0;
 
 		/* Try releasing the free list to see if that helps. */
 		if (new_buckets == NULL && free_list != NULL) {
