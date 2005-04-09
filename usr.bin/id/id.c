@@ -379,10 +379,9 @@ who(char *u)
 void
 pline(struct passwd *pw)
 {
-	u_int rid;
 
 	if (!pw) {
-		if ((pw = getpwuid(rid = getuid())) == NULL)
+		if ((pw = getpwuid(getuid())) == NULL)
 			err(1, "getpwuid");
 	}
 

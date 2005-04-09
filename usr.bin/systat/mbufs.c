@@ -168,7 +168,6 @@ showmbufs()
 int
 initmbufs()
 {
-	int i;
 	size_t len;
 
 	len = sizeof *mbstat;
