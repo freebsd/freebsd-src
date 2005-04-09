@@ -32,7 +32,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2004
+.Dd April 9, 2005
 .Dt INET 4
 .Os
 .Sh NAME
@@ -248,6 +248,15 @@ In the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
 IPv6 flow IDs and fragment IDs are always random.
+.It Va ip.maxfragpackets
+Integer: maximum number of fragmented packets the host will accept and hold
+in the reassembling queue simultaneously.
+0 means that the host will not accept any fragmented packets.
+\-1 means that the host will accept as many fragmented packets as it receives.
+.It Va ip.maxfragsperpacket
+Integer: maximum number of fragments the host will accept and hold
+in the reassembling queue for a packet.
+0 means that the host will not accept any fragmented packets.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
