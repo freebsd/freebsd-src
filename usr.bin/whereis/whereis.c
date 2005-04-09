@@ -102,10 +102,9 @@ usage(void)
 void
 scanopts(int argc, char **argv)
 {
-	int c, i, opt_f;
+	int c, i;
 	ccharp **dirlist;
 
-	opt_f = 0;
 	while ((c = getopt(argc, argv, "BMSabfmqsux")) != -1)
 		switch (c) {
 		case 'B':
