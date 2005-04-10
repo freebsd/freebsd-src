@@ -2,8 +2,9 @@
 # $FreeBSD$
 
 PROG=	mount_portal
-SRCS=	mount_portal.c activate.c conf.c getmntopts.c pt_conf.c \
-	pt_exec.c pt_file.c pt_tcp.c pt_tcplisten.c
+SRCS=	mount_portal.c activate.c conf.c cred.c getmntopts.c \
+	pt_conf.c pt_exec.c pt_file.c pt_pipe.c pt_tcp.c \
+	pt_tcplisten.c
 MAN=	mount_portal.8
 
 MOUNT=	${.CURDIR}/../mount

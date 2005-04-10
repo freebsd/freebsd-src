@@ -71,6 +71,8 @@ extern int portal_exec __P((struct portal_cred *,
 				char *key, char **v, int so, int *fdp));
 extern int portal_file __P((struct portal_cred *,
 				char *key, char **v, int so, int *fdp));
+extern int portal_pipe __P((struct portal_cred *,
+				char *key, char **v, int so, int *fdp));
 extern int portal_tcp __P((struct portal_cred *,
 				char *key, char **v, int so, int *fdp));
 extern int portal_tcplisten __P((struct portal_cred *,
@@ -82,3 +84,6 @@ extern int portal_tcplisten __P((struct portal_cred *,
 extern void activate __P((qelem *q, int so));
 extern char **conf_match __P((qelem *q, char *key));
 extern void conf_read __P((qelem *q, char *conf));
+extern int set_user_credentials __P((struct portal_cred *user,
+    struct portal_cred *save_area));
+extern int restore_credentials __P((struct portal_cred *save_area));

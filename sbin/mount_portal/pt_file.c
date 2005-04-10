@@ -14,10 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -37,14 +33,13 @@
  *	@(#)pt_file.c	8.3 (Berkeley) 7/3/94
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -62,7 +57,7 @@ int *fdp;
 	int fd;
 	char pbuf[MAXPATHLEN];
 	int error;
-	gid_t gidset[NGROUPS];
+	struct portal_cred save_area;
 	int i;
 
 	pbuf[0] = '/';
@@ -73,13 +68,7 @@ int *fdp;
 	printf ("fflag = %x, oflag = %x\n", pcr->pcr_flag, (pcr->pcr_flag)-1);
 #endif
 
-	for (i = 0; i < pcr->pcr_ngroups; i++)
-		gidset[i] = pcr->pcr_groups[i];
-
-	if (setgroups(pcr->pcr_ngroups, gidset) < 0)
-		return (errno);
-
-	if (seteuid(pcr->pcr_uid) < 0)
+	if (set_user_credentials(pcr, &save_area) < 0)
 		return (errno);
 
 	/* dmb convert kernel flags to oflags, see <fcntl.h> */
@@ -89,9 +78,8 @@ int *fdp;
 	else
 		error = 0;
 
-	if (seteuid((uid_t) 0) < 0) {	/* XXX - should reset gidset too */
+	if (restore_credentials(&save_area) < 0) {
 		error = errno;
-		syslog(LOG_ERR, "setcred: %s", strerror(error));
 		if (fd >= 0) {
 			(void) close(fd);
 			fd = -1;

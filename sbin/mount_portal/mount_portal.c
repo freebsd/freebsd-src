@@ -142,6 +142,12 @@ main(argc, argv)
 	 * Get config file and mount point
 	 */
 	conf = argv[optind];
+	if (conf[0] != '/') {
+		(void)fprintf(stderr,
+		    "The configuration file must be specified"
+		    "through an absolute file path.\n");
+		exit(EX_USAGE);
+	}
 
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(argv[optind+1], mountpt);

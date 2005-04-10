@@ -49,6 +49,7 @@ static const char rcsid[] =
 provider providers[] = {
 	{ "exec",	portal_exec },
 	{ "file",	portal_file },
+	{ "pipe",	portal_pipe },
 	{ "tcp",	portal_tcp },
 	{ "tcplisten",	portal_tcplisten },
 	{ 0, 0 }
