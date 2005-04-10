@@ -145,9 +145,6 @@
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
-
-u_char tcp_saveipgen[40]; /* the size must be of max ip header, now IPv6 */
-struct tcphdr tcp_savetcp;
 #endif /* TCPDEBUG */
 
 #ifdef FAST_IPSEC
