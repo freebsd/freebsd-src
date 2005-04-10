@@ -806,6 +806,7 @@ tcp_drain()
 					tcpb->t_segqlen--;
 					tcp_reass_qsize--;
 				}
+				tcp_clean_sackreport(tcpb);
 			}
 			INP_UNLOCK(inpb);
 		}
