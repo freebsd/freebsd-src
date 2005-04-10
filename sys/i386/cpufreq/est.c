@@ -738,24 +738,24 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		goto out;
 
 	/* Parse settings into our local table format. */
-	table = malloc(count * sizeof(freq_info), M_DEVBUF, M_NOWAIT);
+	table = malloc((count + 1) * sizeof(freq_info), M_DEVBUF, M_NOWAIT);
 	if (table == NULL) {
 		error = ENOMEM;
 		goto out;
 	}
 	for (i = 0; i < count; i++) {
 		/*
-		 * XXX Figure out validity checks for id16.  At least some
-		 * systems support both SMM access via SystemIO and the
-		 * direct MSR access but only report the SystemIO values
-		 * via _PSS.  However, since we don't know what should be
-		 * valid for this processor, it's hard to know what to check.
+		 * TODO: Figure out validity checks for id16.  Linux checks
+		 * that the control and status values match.
 		 */
 		table[i].freq = sets[i].freq;
 		table[i].volts = sets[i].volts;
 		table[i].id16 = sets[i].spec[0];
 		table[i].power = sets[i].power;
 	}
+
+	/* Mark end of table with a terminator. */
+	bzero(&table[i], sizeof(freq_info));
 
 	sc->acpi_settings = TRUE;
 	*freqs = table;
