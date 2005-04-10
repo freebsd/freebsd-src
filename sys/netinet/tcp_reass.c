@@ -256,6 +256,7 @@ tcp_reass(tp, th, tlenp, m)
 		tcp_reass_overflows++;
 		tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
+		*tlenp = 0;
 		return (0);
 	}
 
@@ -267,6 +268,7 @@ tcp_reass(tp, th, tlenp, m)
 	if (te == NULL) {
 		tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
+		*tlenp = 0;
 		return (0);
 	}
 	tp->t_segqlen++;
@@ -2295,7 +2297,7 @@ dodata:							/* XXX */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-		if (tp->sack_enable)
+		if (tlen > 0 && tp->sack_enable)
 			tcp_update_sack_list(tp, th->th_seq, th->th_seq + tlen);
 		/*
 		 * Note the amount of data that peer has sent into
