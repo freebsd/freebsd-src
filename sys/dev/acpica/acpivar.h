@@ -168,6 +168,8 @@ extern struct mtx			acpi_mutex;
 /*
  * Various features and capabilities for the acpi_get_features() method.
  * In particular, these are used for the ACPI 3.0 _PDC and _OSC methods.
+ * See the Intel document titled "Processor Driver Capabilities Bit
+ * Definitions", number 302223-002.
  */
 #define ACPI_CAP_PERF_MSRS	(1 << 0) /* Intel SpeedStep PERF_CTL MSRs */
 #define ACPI_CAP_C1_IO_HALT	(1 << 1) /* Intel C1 "IO then halt" sequence */
