@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 
+#include <contrib/dev/acpica/acpi.h>
+#include <dev/acpica/acpivar.h>
+#include "acpi_if.h"
+ 
 struct p4tcc_softc {
 	device_t	dev;
 	int		set_count;
@@ -64,6 +68,7 @@ struct p4tcc_softc {
 #define TCC_REG_OFFSET		1
 #define TCC_SPEED_PERCENT(x)	((10000 * (x)) / TCC_NUM_SETTINGS)
 
+static int	p4tcc_features(driver_t *driver, u_int *features);
 static void	p4tcc_identify(driver_t *driver, device_t parent);
 static int	p4tcc_probe(device_t dev);
 static int	p4tcc_attach(device_t dev);
@@ -84,6 +89,10 @@ static device_method_t p4tcc_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	p4tcc_get),
 	DEVMETHOD(cpufreq_drv_type,	p4tcc_type),
 	DEVMETHOD(cpufreq_drv_settings,	p4tcc_settings),
+
+	/* ACPI interface */
+	DEVMETHOD(acpi_get_features,	p4tcc_features),
+
 	{0, 0}
 };
 
@@ -95,6 +104,15 @@ static driver_t p4tcc_driver = {
 
 static devclass_t p4tcc_devclass;
 DRIVER_MODULE(p4tcc, cpu, p4tcc_driver, p4tcc_devclass, 0, 0);
+
+static int
+p4tcc_features(driver_t *driver, u_int *features)
+{
+
+	/* Notify the ACPI CPU that we support direct access to MSRs */
+	*features = ACPI_CAP_THR_MSRS;
+	return (0);
+}
 
 static void
 p4tcc_identify(driver_t *driver, device_t parent)
