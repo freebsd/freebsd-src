@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 
-#define DEFAULT_ACTIVE_PERCENT	80
+#define DEFAULT_ACTIVE_PERCENT	65
 #define DEFAULT_IDLE_PERCENT	90
-#define DEFAULT_POLL_INTERVAL	500
+#define DEFAULT_POLL_INTERVAL	500	/* Poll interval in milliseconds */
 
 enum modes_t {
 	MODE_MIN,
