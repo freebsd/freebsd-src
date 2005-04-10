@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,10 +70,11 @@ const char *modes[] = {
 #define APMDEV		"/dev/apm"
 
 static int	read_usage_times(long *idle, long *total);
-static int	read_freqs(int *numfreqs, int **freqs);
+static int	read_freqs(int *numfreqs, int **freqs, int **power);
 static int	set_freq(int freq);
 static void	acline_init(void);
 static int	acline_read(void);
+static void	handle_sigs(int sig);
 static void	parse_mode(char *arg, int *mode, int ch);
 static void	usage(void);
 
@@ -88,6 +90,7 @@ static int	cpu_idle_mark;
 static int	poll_ival;
 
 static int	apm_fd;
+static int	exit_requested;
 
 static int
 read_usage_times(long *idle, long *total)
@@ -116,7 +119,7 @@ read_usage_times(long *idle, long *total)
 }
 
 static int
-read_freqs(int *numfreqs, int **freqs)
+read_freqs(int *numfreqs, int **freqs, int **power)
 {
 	char *freqstr, *p, *q;
 	int i;
@@ -138,13 +141,19 @@ read_freqs(int *numfreqs, int **freqs)
 		free(freqstr);
 		return (-1);
 	}
+	if ((*power = malloc(*numfreqs * sizeof(int))) == NULL) {
+		free(freqstr);
+		free(*freqs);
+		return (-1);
+	}
 	for (i = 0, p = freqstr; i < *numfreqs; i++) {
 		q = strchr(p, ' ');
 		if (q != NULL)
 			*q = '\0';
-		if (sscanf(p, "%d/%*d", &(*freqs)[i]) != 1) {
+		if (sscanf(p, "%d/%d", &(*freqs)[i], &(*power)[i]) != 2) {
 			free(freqstr);
 			free(*freqs);
+			free(*power);
 			return (-1);
 		}
 		p = q + 1;
@@ -225,6 +234,12 @@ parse_mode(char *arg, int *mode, int ch)
 }
 
 static void
+handle_sigs(int __unused sig)
+{
+	exit_requested = 1;
+}
+
+static void
 usage(void)
 {
 
@@ -237,8 +252,9 @@ int
 main(int argc, char * argv[])
 {
 	long idle, total;
-	int curfreq, *freqs, i, numfreqs;
+	int curfreq, *freqs, i, *mwatts, numfreqs;
 	int ch, mode_ac, mode_battery, mode_none, acline, mode, vflag;
+	uint64_t mjoules_used;
 	size_t len;
 
 	/* Default mode for all AC states is adaptive. */
@@ -246,6 +262,7 @@ main(int argc, char * argv[])
 	cpu_running_mark = DEFAULT_ACTIVE_PERCENT;
 	cpu_idle_mark = DEFAULT_IDLE_PERCENT;
 	poll_ival = DEFAULT_POLL_INTERVAL;
+	mjoules_used = 0;
 	vflag = 0;
 	apm_fd = -1;
 
@@ -307,7 +324,7 @@ main(int argc, char * argv[])
 	/* Check if we can read the idle time and supported freqs. */
 	if (read_usage_times(NULL, NULL))
 		err(1, "read_usage_times");
-	if (read_freqs(&numfreqs, &freqs))
+	if (read_freqs(&numfreqs, &freqs, &mwatts))
 		err(1, "error reading supported CPU frequencies");
 
 	/* Decide whether to use ACPI or APM to read the AC line status. */
@@ -316,11 +333,22 @@ main(int argc, char * argv[])
 	/* Run in the background unless in verbose mode. */
 	if (!vflag)
 		daemon(0, 0);
+	signal(SIGINT, handle_sigs);
+	signal(SIGTERM, handle_sigs);
 
 	/* Main loop. */
 	for (;;) {
 		/* Check status every few milliseconds. */
 		usleep(poll_ival);
+
+		/* If the user requested we quit, print some statistics. */
+		if (exit_requested) {
+			if (vflag && mjoules_used != 0)
+				printf("total joules used: %u.%03u\n",
+				    (u_int)(mjoules_used / 1000),
+				    (int)mjoules_used % 1000);
+			break;
+		}
 
 		/* Read the current AC status and record the mode. */
 		acline = acline_read();
@@ -342,6 +370,18 @@ main(int argc, char * argv[])
 		len = sizeof(curfreq);
 		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0))
 			err(1, "error reading current CPU frequency");
+
+		if (vflag) {
+			for (i = 0; i < numfreqs; i++) {
+				if (freqs[i] == curfreq)
+					break;
+			}
+
+			/* Keep a sum of all power actually used. */
+			if (i < numfreqs && mwatts[i] != -1)
+				mjoules_used +=
+				    (mwatts[i] * (poll_ival / 1000)) / 1000;
+		}
 
 		/* Always switch to the lowest frequency in min mode. */
 		if (mode == MODE_MIN) {
@@ -409,7 +449,8 @@ main(int argc, char * argv[])
 				    freqs[i]);
 		}
 	}
-	/* NOTREACHED */
+	free(freqs);
+	free(mwatts);
 
 	exit(0);
 }
