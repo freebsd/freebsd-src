@@ -86,8 +86,6 @@ ENTRY(pagezero)
 	ret
 
 ENTRY(bcmp)
-	xorq	%rax,%rax
-
 	movq	%rdx,%rcx
 	shrq	$3,%rcx
 	cld					/* compare forwards */
@@ -99,10 +97,9 @@ ENTRY(bcmp)
 	andq	$7,%rcx
 	repe
 	cmpsb
-	je	2f
 1:
-	incq	%rax
-2:
+	setne	%al
+	movsbl	%al,%eax
 	ret
 
 /*
