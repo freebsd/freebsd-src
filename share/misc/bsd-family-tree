@@ -185,7 +185,7 @@ FreeBSD 5.2           |      |                 |                       |
  *---FreeBSD 5.3      |      |                 |                       |
  |      |             |      |             OpenBSD 3.6                 |
  |      v             |   NetBSD 2.0           |                       |
- |                    |      |                 |                       |
+ |                    |      |                 |                 DragonFly 1.2.0
 FreeBSD 6 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
  v                    v      v                 v                       v
@@ -201,7 +201,7 @@ was the announcement in Usenet or if it was available as tape.
 	the 4.4BSD Operating System.
 [APL] Apple website [http://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
-[DFD] DragonFlyBSD Project, The.
+[DFB] DragonFlyBSD Project, The.
 [DOC] README, COPYRIGHT on tape.
 [FBD] FreeBSD Project, The.
 [KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
@@ -410,11 +410,12 @@ FreeBSD 5.2.1		2004-02-22 [FBD] (patch release)
 NetBSD 1.6.2		2004-03-01 [NBD] (patch release)
 OpenBSD 3.5		2004-04-01 [OBD]
 FreeBSD 4.10		2004-05-27 [FBD]
-DragonFly 1.0		2004-07-12 [DFD]
+DragonFly 1.0		2004-07-12 [DFB]
 OpenBSD 3.6		2004-10-29 [OBD]
 FreeBSD 5.3		2004-11-06 [FBD]
 NetBSD 2.0		2004-12-09 [NBD]
 FreeBSD 4.11		2005-01-25 [FBD]
+DragonFly 1.2.0		2005-04-08 [DFB]
 
 Bibliography
 ------------------------
