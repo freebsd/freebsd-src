@@ -247,7 +247,8 @@ static int
 acpi_cpu_attach(device_t dev)
 {
     ACPI_BUFFER		   buf;
-    ACPI_OBJECT		   *obj;
+    ACPI_OBJECT		   arg, *obj;
+    ACPI_OBJECT_LIST	   arglist;
     struct pcpu		   *pcpu_data;
     struct acpi_cpu_softc *sc;
     struct acpi_softc	  *acpi_sc;
@@ -255,6 +256,7 @@ acpi_cpu_attach(device_t dev)
     u_int		   features;
     int			   cpu_id, drv_count, i;
     driver_t 		  **drivers;
+    uint32_t		   cap_set[3];
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -295,6 +297,7 @@ acpi_cpu_attach(device_t dev)
      * Before calling any CPU methods, collect child driver feature hints
      * and notify ACPI of them.
      */
+    sc->cpu_features = 0;
     if (devclass_get_drivers(acpi_cpu_devclass, &drivers, &drv_count) == 0) {
 	for (i = 0; i < drv_count; i++) {
 	    if (ACPI_GET_FEATURES(drivers[i], &features) == 0)
@@ -302,8 +305,24 @@ acpi_cpu_attach(device_t dev)
 	}
 	free(drivers, M_TEMP);
     }
-    if (sc->cpu_features)
-	acpi_SetInteger(sc->cpu_dev, "_PDC", sc->cpu_features);
+
+    /*
+     * CPU capabilities are specified as a buffer of 32-bit integers:
+     * revision, count, and one or more capabilities.  The revision of
+     * "1" is not specified anywhere but seems to match Linux.  We should
+     * also support _OSC here.
+     */
+    if (sc->cpu_features) {
+	arglist.Pointer = &arg;
+	arglist.Count = 1;
+	arg.Type = ACPI_TYPE_BUFFER;
+	arg.Buffer.Length = sizeof(cap_set);
+	arg.Buffer.Pointer = (uint8_t *)cap_set;
+	cap_set[0] = 1; /* revision */
+	cap_set[1] = 1; /* number of capabilities integers */
+	cap_set[2] = sc->cpu_features;
+	AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
+    }
 
     /*
      * Probe for Cx state support.  If it isn't present, free up unused
