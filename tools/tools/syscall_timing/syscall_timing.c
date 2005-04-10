@@ -128,16 +128,24 @@ test_socket(int num)
 	}
 }
 
+static void
+usage(void)
+{
+
+	fprintf(stderr, "syscall_timing [iterations] [test]\n");
+	fprintf(stderr, "supported tests: getuid getppid clock_gettime "
+	    "pipe socket\n");
+	exit(-1);
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct timespec ts_start, ts_end, ts_res;
 	int count;
 
-	if (argc != 3) {
-		fprintf(stderr, "syscall_timing [iterations] [test]\n");
-		exit(-1);
-	}
+	if (argc != 3)
+		usage();
 	count = atoi(argv[1]);
 
 	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
@@ -163,12 +171,12 @@ main(int argc, char *argv[])
 		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
 		test_socket(count);
 		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	 } else {
-		fprintf(stderr, "syscal [iterations] [test]\n");
-		exit(-1);
-	}
+	 } else
+		usage();
 
 	timespecsub(&ts_end, &ts_start);
+
+	printf("test: %s\n", argv[2]);
 
 	printf("%d.%09lu for %d iterations\n", ts_end.tv_sec,
 	    ts_end.tv_nsec, count);
