@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2005
+.Dd April 10, 2005
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -86,7 +86,11 @@ driver for debugging purposes.
 .It Va debug.cpufreq.lowest
 Lowest CPU frequency in MHz to offer to users.
 This setting is also accessible via a tunable with the same name.
-This can be used to disable very low levels that may be unusable.
+This can be used to disable very low levels that may be unusable on
+some systems.
+.It Va debug.cpufreq.verbose
+Print verbose messages.
+This setting is also accessible via a tunable with the same name.
 .El
 .Sh SUPPORTED DRIVERS
 The following device drivers offer absolute frequency control via the
@@ -273,6 +277,10 @@ then it should set all elements to
 .Xr sysctl 8
 .Sh AUTHORS
 .An Nate Lawson
+.An Bruno Ducrot
+contributed the
+.Pa powernow
+driver.
 .Sh BUGS
 The following drivers have not yet been converted to the
 .Nm
@@ -283,7 +291,3 @@ Notification of CPU and bus frequency changes is not implemented yet.
 .Pp
 When multiple CPUs offer frequency control, they cannot be set to different
 levels and must all offer the same frequency settings.
-.Pp
-Some very low frequency levels can result in hangs on some systems.
-Such levels should be disabled with
-.Va debug.cpufreq.lowest .
