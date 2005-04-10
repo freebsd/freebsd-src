@@ -6,7 +6,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ENTRY(bcmp)
-	xorl	%eax,%eax		/* clear return value */
 	cld				/* set compare direction forward */
 
 	movq	%rdx,%rcx		/* compare by words */
@@ -19,7 +18,7 @@ ENTRY(bcmp)
 	andq	$7,%rcx
 	repe
 	cmpsb
-	je	L2
-
-L1:	incl	%eax
-L2:	ret
+L1:
+	setne	%al
+	movsbl	%al,%eax
+	ret
