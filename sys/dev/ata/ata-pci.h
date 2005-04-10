@@ -155,6 +155,7 @@ struct ata_connect_task {
 #define ATA_NFORCE1             0x01bc10de
 #define ATA_NFORCE2             0x006510de
 #define ATA_NFORCE2_MCP         0x008510de
+#define ATA_NFORCE2_MCP_S1      0x008e10de
 #define ATA_NFORCE3             0x00d510de
 #define ATA_NFORCE3_PRO         0x00e510de
 #define ATA_NFORCE3_PRO_S1      0x00e310de

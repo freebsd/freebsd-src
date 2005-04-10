@@ -255,26 +255,29 @@ ata_sata_phy_enable(struct ata_channel *ch)
 {
     int loop, retry;
 
-    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0 &&
-	ata_sata_connect(ch))
+    if ((ATA_IDX_INL(ch, ATA_SCONTROL) &
+	 ATA_SC_DET_MASK) == ATA_SC_DET_IDLE) {
+	ata_sata_connect(ch);
 	return;
+    }
 
     for (retry = 0; retry < 10; retry++) {
 	for (loop = 0; loop < 10; loop++) {
-	    ATA_IDX_OUTL(ch, ATA_SCONTROL, 1);
+	    ATA_IDX_OUTL(ch, ATA_SCONTROL, ATA_SC_DET_RESET);
 	    ata_udelay(100);
-	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 1)
+	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) &
+		 ATA_SC_DET_MASK) == ATA_SC_DET_RESET)
 		break;
 	}
 	ata_udelay(5000);
 	for (loop = 0; loop < 10; loop++) {
-	    ATA_IDX_OUTL(ch, ATA_SCONTROL, 0);
+	    ATA_IDX_OUTL(ch, ATA_SCONTROL, ATA_SC_DET_IDLE);
 	    ata_udelay(100);
-	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0)
-		break;
+	    if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == 0) {
+		ata_sata_connect(ch);
+		return;
+	    }
 	}
-	if (ata_sata_connect(ch))
-	    break;
     }
 }
 
@@ -1416,6 +1419,7 @@ ata_nvidia_ident(device_t dev)
     {{ ATA_NFORCE1,     0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nVidia nForce" },
      { ATA_NFORCE2,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2" },
      { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2 MCP" },
+     { ATA_NFORCE2_MCP_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce2 MCP" },
      { ATA_NFORCE3,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3" },
      { ATA_NFORCE3_PRO, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 Pro" },
      { ATA_NFORCE3_PRO_S1, 0, 0,      0,      ATA_SA150, "nVidia nForce3 Pro" },
