@@ -599,8 +599,8 @@ static device_method_t ata_pcichannel_methods[] = {
     DEVMETHOD(device_attach,    ata_pcichannel_attach),
     DEVMETHOD(device_detach,    ata_pcichannel_detach),
     DEVMETHOD(device_shutdown,  bus_generic_shutdown),
-    DEVMETHOD(device_suspend,   bus_generic_suspend),
-    DEVMETHOD(device_resume,    bus_generic_resume),
+    DEVMETHOD(device_suspend,   ata_suspend),
+    DEVMETHOD(device_resume,    ata_resume),
 
     /* ATA methods */
     DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
