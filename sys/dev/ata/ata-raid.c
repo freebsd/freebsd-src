@@ -115,8 +115,10 @@ ata_raid_attach(struct ar_softc *rdp, int update)
     ata_raid_config_changed(rdp, update);
 
     /* sanitize arrays total_size % (width * interleave) == 0 */
-    rdp->total_sectors = (rdp->total_sectors / (rdp->interleave * rdp->width)) *
-			 (rdp->interleave * rdp->width);
+    if (rdp->type == AR_T_RAID0 || rdp->type == AR_T_RAID01 ||
+	rdp->type == AR_T_RAID5)
+        rdp->total_sectors = (rdp->total_sectors/(rdp->interleave*rdp->width))*
+			     (rdp->interleave * rdp->width);
     rdp->disk = disk_alloc();
     rdp->disk->d_strategy = ata_raid_strategy;
     //rdp->disk->d_dump = ata_raid_dump;
@@ -2368,10 +2370,11 @@ ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native)
 	    }
 	}
 	raid = raidp[array];
-	if (raid->format && (raid->format != AR_F_PROMISE_RAID))
+	if (raid->format &&
+	    (raid->format != (native ? AR_F_FREEBSD_RAID : AR_F_PROMISE_RAID)))
 	    continue;
 
-	if ((raid->format == AR_F_PROMISE_RAID) &&
+	if ((raid->format == (native ? AR_F_FREEBSD_RAID : AR_F_PROMISE_RAID))&&
 	    !(meta->raid.magic_1 == (raid->magic_1)))
 	    continue;
 
@@ -2408,10 +2411,7 @@ ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native)
 		goto promise_out;
 	    }
 	    raid->magic_1 = meta->raid.magic_1;
-	    if (native)
-		raid->format = AR_F_FREEBSD_RAID;
-	    else
-		raid->format = AR_F_PROMISE_RAID;
+	    raid->format = (native ? AR_F_FREEBSD_RAID : AR_F_PROMISE_RAID);
 	    raid->generation = meta->raid.generation;
 	    raid->interleave = 1 << meta->raid.stripe_shift;
 	    raid->width = meta->raid.array_width;
