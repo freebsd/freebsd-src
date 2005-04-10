@@ -917,6 +917,7 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376,1,0);
 	}
 	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl);
+	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(5), rl);
 }
 
 static void
