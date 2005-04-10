@@ -295,9 +295,11 @@ acpi_cpu_attach(device_t dev)
 
     /*
      * Before calling any CPU methods, collect child driver feature hints
-     * and notify ACPI of them.
+     * and notify ACPI of them.  We support unified SMP power control
+     * so advertise this ourselves.  Note this is not the same as independent
+     * SMP control where each CPU can have different settings.
      */
-    sc->cpu_features = 0;
+    sc->cpu_features = ACPI_CAP_SMP_SAME | ACPI_CAP_SMP_SAME_C3;
     if (devclass_get_drivers(acpi_cpu_devclass, &drivers, &drv_count) == 0) {
 	for (i = 0; i < drv_count; i++) {
 	    if (ACPI_GET_FEATURES(drivers[i], &features) == 0)
