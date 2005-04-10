@@ -1120,6 +1120,7 @@ smbfs_lookup(ap)
 		struct vattr vattr;
 
 		killit = 0;
+		vp = *vpp;
 		error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
 		/*
 		 * If the file type on the server is inconsistent
