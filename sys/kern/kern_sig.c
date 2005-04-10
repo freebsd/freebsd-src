@@ -2430,7 +2430,16 @@ sigexit(td, sig)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_acflag |= AXSIG;
-	if (sigprop(sig) & SA_CORE) {
+	/*
+	 * We must be single-threading to generate a core dump.  This
+	 * ensures that the registers in the core file are up-to-date.
+	 * Also, the ELF dump handler assumes that the thread list doesn't
+	 * change out from under it.
+	 *
+	 * XXX If another thread attempts to single-thread before us
+	 *     (e.g. via fork()), we won't get a dump at all.
+	 */
+	if ((sigprop(sig) & SA_CORE) && (thread_single(SINGLE_NO_EXIT) == 0)) {
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
@@ -2553,6 +2562,7 @@ coredump(struct thread *td)
 	off_t limit;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
 	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0) {
