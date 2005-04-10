@@ -175,7 +175,8 @@ acpi_throttle_probe(device_t dev)
 	 * Since p4tcc uses the same mechanism (but internal to the CPU),
 	 * we disable acpi_throttle when p4tcc is also present.
 	 */
-	if (device_find_child(device_get_parent(dev), "p4tcc", -1))
+	if (device_find_child(device_get_parent(dev), "p4tcc", -1) &&
+	    !resource_disabled("p4tcc", 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "ACPI CPU Throttling");
@@ -186,6 +187,7 @@ static int
 acpi_throttle_attach(device_t dev)
 {
 	struct acpi_throttle_softc *sc;
+	struct cf_setting set;
 	ACPI_BUFFER buf;
 	ACPI_OBJECT *obj;
 	ACPI_STATUS status;
@@ -216,6 +218,13 @@ acpi_throttle_attach(device_t dev)
 	error = acpi_throttle_evaluate(sc);
 	if (error)
 		return (error);
+
+	/*
+	 * Set our initial frequency to the highest since some systems
+	 * seem to boot with this at the lowest setting.
+	 */
+	set.freq = 10000;
+	acpi_thr_set(dev, &set);
 
 	/* Everything went ok, register with cpufreq(4). */
 	cpufreq_register(dev);
