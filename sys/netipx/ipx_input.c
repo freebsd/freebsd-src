@@ -152,7 +152,7 @@ ipxintr(struct mbuf *m)
 	ipxstat.ipxs_total++;
 
 	if ((m->m_flags & M_EXT || m->m_len < sizeof(struct ipx)) &&
-	    (m = m_pullup(m, sizeof(struct ipx))) == 0) {
+	    (m = m_pullup(m, sizeof(struct ipx))) == NULL) {
 		ipxstat.ipxs_toosmall++;
 		return;
 	}
