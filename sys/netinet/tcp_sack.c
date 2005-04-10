@@ -463,6 +463,8 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 			tp->snd_numholes++;
 			tcp_sack_globalholes++;
 		}
+		if (SEQ_LT(tp->rcv_lastsack, sack.end))
+			tp->rcv_lastsack = sack.end;
 	}
 	return (0);
 }
