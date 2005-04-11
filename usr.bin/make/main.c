@@ -618,8 +618,6 @@ main(int argc, char **argv)
 	 */
 	Dir_Init();		/* Initialize directory structures so -I flags
 				 * can be processed correctly */
-	Parse_Init();		/* Need to initialize the paths of #include
-				 * directories */
 	Var_Init();		/* As well as the lists of variables for
 				 * parsing arguments */
         str_init();
