@@ -76,24 +76,23 @@ __FBSDID("$FreeBSD$");
 
 #define NDIS_DUMMY_PATH "\\\\some\\bogus\\path"
 
-__stdcall static void ndis_status_func(ndis_handle, ndis_status,
-	void *, uint32_t);
-__stdcall static void ndis_statusdone_func(ndis_handle);
-__stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
-__stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
-__stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
-__stdcall static void ndis_sendrsrcavail_func(ndis_handle);
-__stdcall static void ndis_intrhand(kdpc *, device_object *,
+static void ndis_status_func(ndis_handle, ndis_status, void *, uint32_t);
+static void ndis_statusdone_func(ndis_handle);
+static void ndis_setdone_func(ndis_handle, ndis_status);
+static void ndis_getdone_func(ndis_handle, ndis_status);
+static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
+static void ndis_sendrsrcavail_func(ndis_handle);
+static void ndis_intrhand(kdpc *, device_object *,
 	irp *, struct ndis_softc *);
 
 static image_patch_table kernndis_functbl[] = {
-	IMPORT_FUNC(ndis_status_func),
-	IMPORT_FUNC(ndis_statusdone_func),
-	IMPORT_FUNC(ndis_setdone_func),
-	IMPORT_FUNC(ndis_getdone_func),
-	IMPORT_FUNC(ndis_resetdone_func),
-	IMPORT_FUNC(ndis_sendrsrcavail_func),
-	IMPORT_FUNC(ndis_intrhand),
+	IMPORT_SFUNC(ndis_status_func, 4),
+	IMPORT_SFUNC(ndis_statusdone_func, 1),
+	IMPORT_SFUNC(ndis_setdone_func, 2),
+	IMPORT_SFUNC(ndis_getdone_func, 2),
+	IMPORT_SFUNC(ndis_resetdone_func, 3),
+	IMPORT_SFUNC(ndis_sendrsrcavail_func, 1),
+	IMPORT_SFUNC(ndis_intrhand, 4),
 
 	{ NULL, NULL, NULL }
 };
@@ -156,7 +155,8 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		patch = kernndis_functbl;
 		while (patch->ipt_func != NULL) {
 			windrv_wrap((funcptr)patch->ipt_func,
-			    (funcptr *)&patch->ipt_wrap);
+			    (funcptr *)&patch->ipt_wrap,
+			    patch->ipt_argcnt, patch->ipt_ftype);
 			patch++;
 		}
 
@@ -559,14 +559,14 @@ ndis_thresume(p)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_sendrsrcavail_func(adapter)
 	ndis_handle		adapter;
 {
 	return;
 }
 
-__stdcall static void
+static void
 ndis_status_func(adapter, status, sbuf, slen)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -585,7 +585,7 @@ ndis_status_func(adapter, status, sbuf, slen)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_statusdone_func(adapter)
 	ndis_handle		adapter;
 {
@@ -601,7 +601,7 @@ ndis_statusdone_func(adapter)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_setdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -614,7 +614,7 @@ ndis_setdone_func(adapter, status)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_getdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -627,7 +627,7 @@ ndis_getdone_func(adapter, status)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_resetdone_func(adapter, status, addressingreset)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -818,7 +818,7 @@ ndis_return(arg)
 	void			*arg;
 {
 	struct ndis_softc	*sc;
-	__stdcall ndis_return_handler	returnfunc;
+	ndis_return_handler	returnfunc;
 	ndis_handle		adapter;
 	ndis_packet		*p;
 	uint8_t			irql;
@@ -1166,7 +1166,7 @@ ndis_set_info(arg, oid, buf, buflen)
 	struct ndis_softc	*sc;
 	ndis_status		rval;
 	ndis_handle		adapter;
-	__stdcall ndis_setinfo_handler	setfunc;
+	ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
 	uint8_t			irql;
@@ -1244,8 +1244,8 @@ ndis_send_packets(arg, packets, cnt)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_sendmulti_handler	sendfunc;
-	__stdcall ndis_senddone_func		senddonefunc;
+	ndis_sendmulti_handler	sendfunc;
+	ndis_senddone_func		senddonefunc;
 	int			i;
 	ndis_packet		*p;
 	uint8_t			irql;
@@ -1289,8 +1289,8 @@ ndis_send_packet(arg, packet)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_status		status;
-	__stdcall ndis_sendsingle_handler	sendfunc;
-	__stdcall ndis_senddone_func		senddonefunc;
+	ndis_sendsingle_handler	sendfunc;
+	ndis_senddone_func		senddonefunc;
 	uint8_t			irql;
 
 	sc = arg;
@@ -1381,7 +1381,7 @@ ndis_reset_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_reset_handler	resetfunc;
+	ndis_reset_handler	resetfunc;
 	uint8_t			addressing_reset;
 	struct ifnet		*ifp;
 	int			rval;
@@ -1419,7 +1419,7 @@ ndis_halt_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_halt_handler	haltfunc;
+	ndis_halt_handler	haltfunc;
 	struct ifnet		*ifp;
 
 	sc = arg;
@@ -1456,7 +1456,7 @@ ndis_shutdown_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_shutdown_handler	shutdownfunc;
+	ndis_shutdown_handler	shutdownfunc;
 
 	sc = arg;
 	NDIS_LOCK(sc);
@@ -1483,7 +1483,7 @@ ndis_init_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
-        __stdcall ndis_init_handler	initfunc;
+        ndis_init_handler	initfunc;
 	ndis_status		status, openstatus = 0;
 	ndis_medium		mediumarray[NdisMediumMax];
 	uint32_t		chosenmedium, i;
@@ -1524,7 +1524,7 @@ ndis_enable_intr(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_enable_interrupts_handler	intrenbfunc;
+	ndis_enable_interrupts_handler	intrenbfunc;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1542,7 +1542,7 @@ ndis_disable_intr(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_disable_interrupts_handler	intrdisfunc;
+	ndis_disable_interrupts_handler	intrdisfunc;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1563,7 +1563,7 @@ ndis_isr(arg, ourintr, callhandler)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_isr_handler	isrfunc;
+	ndis_isr_handler	isrfunc;
 	uint8_t			accepted, queue;
 
 	if (arg == NULL || ourintr == NULL || callhandler == NULL)
@@ -1584,7 +1584,7 @@ ndis_isr(arg, ourintr, callhandler)
 	return(0);
 }
 
-__stdcall static void
+static void
 ndis_intrhand(dpc, dobj, ip, sc)
 	kdpc			*dpc;
 	device_object		*dobj;
@@ -1592,7 +1592,7 @@ ndis_intrhand(dpc, dobj, ip, sc)
 	struct ndis_softc	*sc;
 {
 	ndis_handle		adapter;
-	__stdcall ndis_interrupt_handler	intrfunc;
+	ndis_interrupt_handler	intrfunc;
 	uint8_t			irql;
 
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1626,7 +1626,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	struct ndis_softc	*sc;
 	ndis_status		rval;
 	ndis_handle		adapter;
-	__stdcall ndis_queryinfo_handler	queryfunc;
+	ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
 	uint8_t			irql;
@@ -1688,7 +1688,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	return(0);
 }
 
-__stdcall uint32_t
+uint32_t
 NdisAddDevice(drv, pdo)
 	driver_object		*drv;
 	device_object		*pdo;

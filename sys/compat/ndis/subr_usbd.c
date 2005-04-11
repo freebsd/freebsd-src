@@ -59,10 +59,10 @@ __FBSDID("$FreeBSD$");
 
 static driver_object usbd_driver;
 
-__stdcall static uint32_t usbd_iodispatch(device_object *, irp *);
+static uint32_t usbd_iodispatch(device_object *, irp *);
 
-__stdcall static void USBD_GetUSBDIVersion(usbd_version_info *);
-__stdcall static void dummy(void);
+static void USBD_GetUSBDIVersion(usbd_version_info *);
+static void dummy(void);
 
 int
 usbd_libinit(void)
@@ -72,7 +72,8 @@ usbd_libinit(void)
 	patch = usbd_functbl;
 	while (patch->ipt_func != NULL) {
 		windrv_wrap((funcptr)patch->ipt_func,
-		    (funcptr *)&patch->ipt_wrap);
+		    (funcptr *)&patch->ipt_wrap,
+		    patch->ipt_argcnt, patch->ipt_ftype);
 		patch++;
 	}
 
@@ -104,7 +105,7 @@ usbd_libfini(void)
 	return(0);
 }
 
-__stdcall static uint32_t
+static uint32_t
 usbd_iodispatch(dobj, ip)
 	device_object		*dobj;
 	irp			*ip;
@@ -112,7 +113,7 @@ usbd_iodispatch(dobj, ip)
 	return(0);
 }
 
-__stdcall static void
+static void
 USBD_GetUSBDIVersion(ui)
 	usbd_version_info	*ui;
 {
@@ -124,7 +125,7 @@ USBD_GetUSBDIVersion(ui)
 	return;
 }
 
-__stdcall static void
+static void
 dummy(void)
 {
 	printf("USBD dummy called\n");
@@ -132,7 +133,8 @@ dummy(void)
 }
 
 image_patch_table usbd_functbl[] = {
-	IMPORT_FUNC(USBD_GetUSBDIVersion),
+	IMPORT_SFUNC(USBD_GetUSBDIVersion, 0),
+	IMPORT_SFUNC(usbd_iodispatch, 2),
 #ifdef notyet
 	IMPORT_FUNC_MAP(_USBD_ParseConfigurationDescriptorEx@28,
 	    USBD_ParseConfigurationDescriptorEx),
@@ -147,7 +149,7 @@ image_patch_table usbd_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy, NULL },
+	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_CDECL },
 
 	/* End of list. */
 
