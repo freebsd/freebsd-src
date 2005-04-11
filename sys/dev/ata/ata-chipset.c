@@ -1483,8 +1483,9 @@ ata_nvidia_allocate(device_t dev)
     else
 	ctlr->r_type2 = SYS_RES_MEMORY;
     ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						&ctlr->r_rid2, RF_ACTIVE)))
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(device_get_parent(dev),
+						ctlr->r_type2, &ctlr->r_rid2,
+						RF_ACTIVE)))
 	return ENXIO;
 
     /* setup the usual register normal pci style */
@@ -3183,8 +3184,9 @@ ata_sis_allocate(device_t dev)
 
     ctlr->r_type2 = SYS_RES_IOPORT;
     ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-                                                &ctlr->r_rid2, RF_ACTIVE)))
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(device_get_parent(dev),
+						ctlr->r_type2, &ctlr->r_rid2,
+						RF_ACTIVE)))
 	return ENXIO;
 
     /* setup the usual register normal pci style */
