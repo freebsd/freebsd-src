@@ -3261,12 +3261,12 @@ out:
 	} else {
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		NDFREE(&tond, NDF_ONLY_PNBUF);
+		if (tvp)
+			vput(tvp);
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
-		if (tvp)
-			vput(tvp);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
