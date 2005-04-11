@@ -275,7 +275,6 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    break;
 	}
     }
-
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
 	if (ata_legacy(dev)) {
 #ifdef __alpha__
@@ -290,7 +289,6 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	else
 	    res = controller->r_irq;
     }
-
     return res;
 }
 
