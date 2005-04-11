@@ -269,9 +269,9 @@ _kldxref:
 	fi
 .endif
 .endif
-.endif !target(realinstall)
+.endif # !target(realinstall)
 
-.endif !target(install)
+.endif # !target(install)
 
 .if !target(load)
 load: ${PROG}
