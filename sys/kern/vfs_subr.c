@@ -1770,55 +1770,59 @@ vget(vp, flags, td)
 	int flags;
 	struct thread *td;
 {
+	int oweinact;
+	int oldflags;
 	int error;
 
 	error = 0;
+	oldflags = flags;
+	oweinact = 0;
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 	/*
-	 * If the vnode is in the process of being cleaned out for
-	 * another use, we wait for the cleaning to finish and then
-	 * return failure. Cleaning is determined by checking that
-	 * the VI_DOOMED flag is set.
+	 * If the inactive call was deferred because vput() was called
+	 * with a shared lock, we have to do it here before another thread
+	 * gets a reference to data that should be dead.
 	 */
-	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td &&
-	    ((flags & LK_NOWAIT) || (flags & LK_TYPE_MASK) == 0)) {
-		VI_UNLOCK(vp);
-		return (EBUSY);
+	if (vp->v_iflag & VI_OWEINACT) {
+		if (flags & LK_NOWAIT) {
+			VI_UNLOCK(vp);
+			return (EBUSY);
+		}
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+		oweinact = 1;
 	}
 	v_incr_usecount(vp, 1);
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-	if ((flags & LK_TYPE_MASK) == 0) {
+	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
+		VI_LOCK(vp);
+		/*
+		 * must expand vrele here because we do not want
+		 * to call VOP_INACTIVE if the reference count
+		 * drops back to zero since it was never really
+		 * active.
+		 */
+		v_incr_usecount(vp, -1);
+		if (VSHOULDFREE(vp))
+			vfree(vp);
+		else
+			vlruvp(vp);
 		VI_UNLOCK(vp);
-		return (0);
+		return (error);
 	}
-	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0)
-		goto drop;
-	if (vp->v_iflag & VI_DOOMED && vp->v_vxthread != td) {
-		VOP_UNLOCK(vp, 0, td);
-		error = ENOENT;
-		goto drop;
+	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
+		panic("vget: vn_lock failed to return ENOENT\n");
+	if (oweinact) {
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_OWEINACT)
+			vinactive(vp, td);
+		VI_UNLOCK(vp);
+		if ((oldflags & LK_TYPE_MASK) == 0)
+			VOP_UNLOCK(vp, 0, td);
 	}
 	return (0);
-
-drop:
-	/*
-	 * must expand vrele here because we do not want
-	 * to call VOP_INACTIVE if the reference count
-	 * drops back to zero since it was never really
-	 * active. We must remove it from the free list
-	 * before sleeping so that multiple processes do
-	 * not try to recycle it.
-	 */
-	VI_LOCK(vp);
-	v_incr_usecount(vp, -1);
-	if (VSHOULDFREE(vp))
-		vfree(vp);
-	else
-		vlruvp(vp);
-	VI_UNLOCK(vp);
-	return (error);
 }
 
 /*
@@ -1941,15 +1945,15 @@ vput(vp)
 	v_incr_usecount(vp, -1);
 	vp->v_iflag |= VI_OWEINACT;
 	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK, td);
+		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
 		VI_LOCK(vp);
+		if (error)
+			goto done;
 	}
-	/*
-	 * OWEINACT may be cleared while we're sleeping in EXCLUPGRADE.
-	 */
-	if (!error && vp->v_iflag & VI_OWEINACT)
+	if (vp->v_iflag & VI_OWEINACT)
 		vinactive(vp, td);
 	VOP_UNLOCK(vp, 0, td);
+done:
 	if (VSHOULDFREE(vp))
 		vfree(vp);
 	else
