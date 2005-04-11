@@ -127,18 +127,21 @@ static Token CondT(Boolean);
 static Token CondF(Boolean);
 static Token CondE(Boolean);
 
-static struct If {
-	char	*form;		/* Form of if */
-	int	formlen;	/* Length of form */
+static const struct If {
 	Boolean	doNot;		/* TRUE if default function should be negated */
 	CondProc *defProc;	/* Default function to apply */
+	Boolean	isElse;		/* actually el<XXX> */
 } ifs[] = {
-	{ "ifdef",	5,	FALSE,	CondDoDefined },
-	{ "ifndef",	6,	TRUE,	CondDoDefined },
-	{ "ifmake",	6,	FALSE,	CondDoMake },
-	{ "ifnmake",	7,	TRUE,	CondDoMake },
-	{ "if",		2,	FALSE,	CondDoDefined },
-	{ NULL,		0,	FALSE,	NULL }
+	[COND_IF] =		{ FALSE,	CondDoDefined,	FALSE },
+	[COND_IFDEF] =		{ FALSE,	CondDoDefined,	FALSE },
+	[COND_IFNDEF] =		{ TRUE,		CondDoDefined,	FALSE },
+	[COND_IFMAKE] =		{ FALSE,	CondDoMake,	FALSE },
+	[COND_IFNMAKE] =	{ TRUE,		CondDoMake,	FALSE },
+	[COND_ELIF] =		{ FALSE,	CondDoDefined,	TRUE },
+	[COND_ELIFDEF] =	{ FALSE,	CondDoDefined,	TRUE },
+	[COND_ELIFNDEF] =	{ TRUE,		CondDoDefined,	TRUE },
+	[COND_ELIFMAKE] =	{ FALSE,	CondDoMake,	TRUE },
+	[COND_ELIFNMAKE] =	{ TRUE,		CondDoMake,	TRUE },
 };
 
 static Boolean	condInvert;	/* Invert the default function */
@@ -153,7 +156,7 @@ static int	condLineno[MAXIF];	/* Line numbers of the opening .if */
 static int	condTop = MAXIF;	/* Top-most conditional */
 static int	skipIfLevel = 0;	/* Depth of skipped conditionals */
 static int	skipIfLineno[MAXIF];	/* Line numbers of skipped .ifs */
-static Boolean	skipLine = FALSE;	/* Whether the parse module is skipping
+Boolean		skipLine = FALSE;	/* Whether the parse module is skipping
 					 * lines */
 
 /**
@@ -1005,171 +1008,84 @@ CondE(Boolean doEval)
 }
 
 /**
- * Cond_Eval --
- *	Evaluate the conditional in the passed line. The line
- *	looks like this:
- *	    .<cond-type> <expr>
- *	where <cond-type> is any of if, ifmake, ifnmake, ifdef,
- *	ifndef, elif, elifmake, elifnmake, elifdef, elifndef
- *	and <expr> consists of &&, ||, !, make(target), defined(variable)
- *	and parenthetical groupings thereof.
- *
- * Results:
- *	COND_PARSE	if should parse lines after the conditional
- *	COND_SKIP	if should skip lines after the conditional
- *	COND_INVALID  	if not a valid conditional.
+ * Cond_If
+ *	Handle .if<X> and .elif<X> directives.
+ *	This function is called even when we're skipping.
  */
-int
-Cond_Eval(char *line, int lineno)
+void
+Cond_If(char *line, int code, int lineno)
 {
-	struct If	*ifp;
-	Boolean		isElse;
-	Boolean		value = FALSE;
-	int		level;		/* Level at which to report errors. */
+	const struct If	*ifp;
+	Boolean value;
 
-	level = PARSE_FATAL;
+	ifp = &ifs[code];
 
-	for (line++; *line == ' ' || *line == '\t'; line++) {
-		continue;
-	}
-
-	/*
-	 * Find what type of if we're dealing with. The result is left
-	 * in ifp and isElse is set TRUE if it's an elif line.
-	 */
-	if (line[0] == 'e' && line[1] == 'l') {
-		line += 2;
-		isElse = TRUE;
-
-	} else if (strncmp(line, "endif", 5) == 0) {
-		/*
-		 * End of a conditional section. If skipIfLevel is non-zero,
-		 * that conditional was skipped, so lines following it should
-		 * also be skipped. Hence, we return COND_SKIP. Otherwise,
-		 * the conditional was read so succeeding lines should be
-		 * parsed (think about it...) so we return COND_PARSE, unless
-		 * this endif isn't paired with a decent if.
-		 */
+	if (ifp->isElse) {
+		if (condTop == MAXIF) {
+			Parse_Error(PARSE_FATAL, "if-less elif");
+			return;
+		}
 		if (skipIfLevel != 0) {
-			skipIfLevel -= 1;
-			return (COND_SKIP);
-		} else {
-			if (condTop == MAXIF) {
-				Parse_Error(level, "if-less endif");
-				return (COND_INVALID);
-			} else {
-				skipLine = FALSE;
-				condTop += 1;
-				return (COND_PARSE);
-			}
+			/*
+			 * If skipping this conditional, just ignore
+			 * the whole thing. If we don't, the user
+			 * might be employing a variable that's
+			 * undefined, for which there's an enclosing
+			 * ifdef that we're skipping...
+			 */
+			skipIfLineno[skipIfLevel - 1] = lineno;
+			return;
 		}
-	} else {
-		isElse = FALSE;
+
+	} else if (skipLine) {
+		/*
+		 * Don't even try to evaluate a conditional that's
+		 * not an else if we're skipping things...
+		 */
+		skipIfLineno[skipIfLevel] = lineno;
+		skipIfLevel += 1;
+		return;
 	}
 
 	/*
-	 * Figure out what sort of conditional it is -- what its default
-	 * function is, etc. -- by looking in the table of valid "ifs"
+	 * Initialize file-global variables for parsing
 	 */
-	for (ifp = ifs; ifp->form != NULL; ifp++) {
-		if (strncmp(ifp->form, line, ifp->formlen) == 0) {
-			break;
-		}
+	condDefProc = ifp->defProc;
+	condInvert = ifp->doNot;
+
+	while (*line == ' ' || *line == '\t') {
+		line++;
 	}
 
-	if (ifp->form == NULL) {
-		/*
-		 * Nothing fit. If the first word on the line is actually
-		 * "else", it's a valid conditional whose value is the inverse
-		 * of the previous if we parsed.
-		 */
-		if (isElse && (line[0] == 's') && (line[1] == 'e')) {
-			if (condTop == MAXIF) {
-				Parse_Error(level, "if-less else");
-				return (COND_INVALID);
-			} else if (skipIfLevel == 0) {
-				value = !condStack[condTop];
-				lineno = condLineno[condTop];
-			} else {
-				return (COND_SKIP);
-			}
-		} else {
-			/*
-			 * Not a valid conditional type. No error...
-			 */
-			return (COND_INVALID);
-		}
+	condExpr = line;
+	condPushBack = None;
 
-	} else {
-		if (isElse) {
-			if (condTop == MAXIF) {
-				Parse_Error(level, "if-less elif");
-				return (COND_INVALID);
-
-			} else if (skipIfLevel != 0) {
-				/*
-				 * If skipping this conditional, just ignore
-				 * the whole thing. If we don't, the user
-				 * might be employing a variable that's
-				 * undefined, for which there's an enclosing
-				 * ifdef that we're skipping...
-				 */
-				skipIfLineno[skipIfLevel - 1] = lineno;
-				return (COND_SKIP);
-			}
-		} else if (skipLine) {
-			/*
-			 * Don't even try to evaluate a conditional that's
-			 * not an else if we're skipping things...
-			 */
-			skipIfLineno[skipIfLevel] = lineno;
-			skipIfLevel += 1;
-			return (COND_SKIP);
-		}
-
-		/*
-		 * Initialize file-global variables for parsing
-		 */
-		condDefProc = ifp->defProc;
-		condInvert = ifp->doNot;
-
-		line += ifp->formlen;
-
-		while (*line == ' ' || *line == '\t') {
-			line++;
-		}
-
-		condExpr = line;
-		condPushBack = None;
-
-		switch (CondE(TRUE)) {
-		  case True:
-			if (CondToken(TRUE) == EndOfFile) {
-				value = TRUE;
-				break;
-			}
+	switch (CondE(TRUE)) {
+	  case True:
+		if (CondToken(TRUE) != EndOfFile)
 			goto err;
-			/*FALLTHRU*/
+		value = TRUE;
+		break;
 
-		  case False:
-			if (CondToken(TRUE) == EndOfFile) {
-				value = FALSE;
-				break;
-			}
-			/*FALLTHRU*/
+	  case False:
+		if (CondToken(TRUE) != EndOfFile)
+			goto err;
+		value = FALSE;
+		break;
 
-		  case Err:
-	err:
-			Parse_Error(level, "Malformed conditional (%s)", line);
-			return (COND_INVALID);
-		  default:
-			break;
-		}
+	  case Err:
+  err:		Parse_Error(PARSE_FATAL, "Malformed conditional (%s)", line);
+		return;
+
+	  default:
+		abort();
 	}
-	if (!isElse) {
+
+	if (!ifp->isElse) {
+		/* push this value */
 		condTop -= 1;
 
-	} else if ((skipIfLevel != 0) || condStack[condTop]) {
+	} else if (skipIfLevel != 0 || condStack[condTop]) {
 		/*
 		 * If this is an else-type conditional, it should only take
 		 * effect if its corresponding if was evaluated and FALSE.
@@ -1178,7 +1094,7 @@ Cond_Eval(char *line, int lineno)
 		 * stack unmolested so later elif's don't screw up...
 		 */
 		skipLine = TRUE;
-		return (COND_SKIP);
+		return;
 	}
 
 	if (condTop < 0) {
@@ -1186,15 +1102,91 @@ Cond_Eval(char *line, int lineno)
 		 * This is the one case where we can definitely proclaim a fatal
 		 * error. If we don't, we're hosed.
 		 */
-		Parse_Error(PARSE_FATAL, "Too many nested if's. %d max.",
-		    MAXIF);
-		return (COND_INVALID);
-	} else {
-		condStack[condTop] = value;
-		condLineno[condTop] = lineno;
-		skipLine = !value;
-		return (value ? COND_PARSE : COND_SKIP);
+		Parse_Error(PARSE_FATAL, "Too many nested if's. %d max.",MAXIF);
+		return;
 	}
+
+	/* push */
+	condStack[condTop] = value;
+	condLineno[condTop] = lineno;
+	skipLine = !value;
+}
+
+/**
+ * Cond_Else
+ *	Handle .else statement.
+ */
+void
+Cond_Else(char *line __unused, int code __unused, int lineno __unused)
+{
+
+	while (isspace((u_char)*line))
+		line++;
+
+	if (*line != '\0') {
+		Parse_Error(PARSE_WARNING, "junk after .else ignored '%s'", line);
+	}
+
+	if (condTop == MAXIF) {
+		Parse_Error(PARSE_FATAL, "if-less else");
+		return;
+	}
+	if (skipIfLevel != 0)
+		return;
+
+	if (skipIfLevel != 0 || condStack[condTop]) {
+		/*
+		 * An else should only take effect if its corresponding if was
+		 * evaluated and FALSE.
+		 * If its if was TRUE or skipped, we return COND_SKIP (and
+		 * start skipping in case we weren't already), leaving the
+		 * stack unmolested so later elif's don't screw up...
+		 * XXX How does this work with two .else's?
+		 */
+		skipLine = TRUE;
+		return;
+	}
+
+	/* inverse value */
+	condStack[condTop] = !condStack[condTop];
+	skipLine = !condStack[condTop];
+}
+
+/**
+ * Cond_Endif
+ *	Handle .endif statement.
+ */
+void
+Cond_Endif(char *line __unused, int code __unused, int lineno __unused)
+{
+
+	while (isspace((u_char)*line))
+		line++;
+
+	if (*line != '\0') {
+		Parse_Error(PARSE_WARNING, "junk after .endif ignored '%s'", line);
+	}
+	/*
+	 * End of a conditional section. If skipIfLevel is non-zero,
+	 * that conditional was skipped, so lines following it should
+	 * also be skipped. Hence, we return COND_SKIP. Otherwise,
+	 * the conditional was read so succeeding lines should be
+	 * parsed (think about it...) so we return COND_PARSE, unless
+	 * this endif isn't paired with a decent if.
+	 */
+	if (skipIfLevel != 0) {
+		skipIfLevel -= 1;
+		return;
+	}
+
+	if (condTop == MAXIF) {
+		Parse_Error(PARSE_FATAL, "if-less endif");
+		return;
+	}
+
+	/* pop */
+	skipLine = FALSE;
+	condTop += 1;
 }
 
 /**

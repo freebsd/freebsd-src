@@ -78,144 +78,142 @@ static char	*forVar;	/* Iteration variable */
 static Buffer	*forBuf;	/* Commands in loop */
 static Lst	forLst;		/* List of items */
 
-/*-
- *-----------------------------------------------------------------------
- * For_Eval --
+/**
+ * For_For
  *	Evaluate the for loop in the passed line. The line
  *	looks like this:
  *	    .for <variable> in <varlist>
+ *	The line pointer points just behind the for.
  *
  * Results:
- *	TRUE: We found a for loop, or we are inside a for loop
- *	FALSE: We did not find a for loop, or we found the end of the for
- *	       for loop.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
+ *	TRUE: Syntax ok.
+ *	FALSE: Syntax error.
  */
-int
-For_Eval(char *line)
+Boolean
+For_For(char *line)
 {
 	char	*ptr;
-	char	*sub;
 	char	*wrd;
-	int	level;	/* Level at which to report errors. */
+	char	*sub;
+	Buffer	*buf;
+	size_t	varlen;
 
 	ptr = line;
-	level = PARSE_FATAL;
 
-	if (forLevel == 0) {
-		/*
-		 * maybe start of a for loop
-		 */
-		Buffer	*buf;
-		size_t	varlen;
+	/*
+	 * Skip space between for and the variable.
+	 */
+	for (ptr++; *ptr && isspace((u_char)*ptr); ptr++)
+		;
 
-		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
-			;
-		/*
-		 * If we are not in a for loop quickly determine if
-		 * the statement is a for.
-		 */
-		if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' ||
-		    !isspace((unsigned char)ptr[3]))
-			return (FALSE);
-		ptr += 3;
+	/*
+	 * Grab the variable
+	 */
+	for (wrd = ptr; *ptr && !isspace((u_char)*ptr); ptr++)
+		;
 
-		/*
-		 * we found a for loop, and now we are going to parse it.
-		 */
-		while (*ptr && isspace((unsigned char)*ptr))
-			ptr++;
+	buf = Buf_Init(0);
+	Buf_AppendRange(buf, wrd, ptr);
+	forVar = Buf_GetAll(buf, &varlen);
 
-		/*
-		 * Grab the variable
-		 */
-		buf = Buf_Init(0);
-		for (wrd = ptr; *ptr && !isspace((unsigned char)*ptr); ptr++)
-			;
-		Buf_AppendRange(buf, wrd, ptr);
+	if (varlen == 0) {
+		Buf_Destroy(buf, TRUE);
+		Parse_Error(PARSE_FATAL, "missing variable in for");
+		return (FALSE);
+	}
+	Buf_Destroy(buf, FALSE);
 
-		forVar = (char *)Buf_GetAll(buf, &varlen);
-		if (varlen == 0) {
-			/* XXXHB Buf_Destroy(buf, TRUE) */
-			Parse_Error(level, "missing variable in for");
-			return (0);
-		}
-		Buf_Destroy(buf, FALSE);
+	/*
+	 * Skip to 'in'.
+	 */
+	while (*ptr && isspace((u_char)*ptr))
+		ptr++;
 
-		while (*ptr && isspace((unsigned char)*ptr))
-			ptr++;
+	/*
+	 * Grab the `in'
+	 */
+	if (ptr[0] != 'i' || ptr[1] != 'n' || !isspace((u_char)ptr[2])) {
+		free(forVar);
+		Parse_Error(PARSE_FATAL, "missing `in' in for");
+		fprintf(stderr, "%s\n", ptr);
+		return (FALSE);
+	}
+	ptr += 3;
 
-		/*
-		 * Grab the `in'
-		 */
-		if (ptr[0] != 'i' || ptr[1] != 'n' ||
-		    !isspace((unsigned char)ptr[2])) {
-			/* XXXHB free(forVar) */
-			Parse_Error(level, "missing `in' in for");
-			printf("%s\n", ptr);
-			return (0);
-		}
-		ptr += 3;
+	/*
+	 * Skip to values
+	 */
+	while (*ptr && isspace((u_char)*ptr))
+		ptr++;
 
-		while (*ptr && isspace((unsigned char)*ptr))
-			ptr++;
+	/*
+	 * Make a list with the remaining words
+	 * XXX should use brk_string here.
+	 */
+	sub = Buf_Peel(Var_Subst(NULL, ptr, VAR_CMD, FALSE));
+	for (ptr = sub; *ptr != '\0' && isspace((u_char)*ptr); ptr++)
+		;
 
-		/*
-		 * Make a list with the remaining words
-		 */
-		sub = Buf_Peel(Var_Subst(NULL, ptr, VAR_CMD, FALSE));
-		for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
-			;
-
-		Lst_Init(&forLst);
-		buf = Buf_Init(0);
-		for (wrd = ptr; *ptr != '\0'; ptr++) {
-			if (isspace((unsigned char)*ptr)) {
-				Buf_AppendRange(buf, wrd, ptr);
-				Lst_AtFront(&forLst, Buf_Peel(buf));
-
-				buf = Buf_Init(0);
-				while (*ptr && isspace((unsigned char)*ptr))
-					ptr++;
-				wrd = ptr--;
-			}
-		}
-		DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
-		if (ptr - wrd > 0) {
+	Lst_Init(&forLst);
+	buf = Buf_Init(0);
+	for (wrd = ptr; *ptr != '\0'; ptr++) {
+		if (isspace((u_char)*ptr)) {
 			Buf_AppendRange(buf, wrd, ptr);
 			Lst_AtFront(&forLst, Buf_Peel(buf));
-		} else {
-			Buf_Destroy(buf, TRUE);
-		}
-		free(sub);
 
-		forBuf = Buf_Init(0);
-		forLevel++;
-		return (1);
+			buf = Buf_Init(0);
+			while (*ptr != '\0' && isspace((u_char)*ptr))
+				ptr++;
+			wrd = ptr--;
+		}
 	}
+	DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
+
+	if (ptr - wrd > 0) {
+		Buf_AppendRange(buf, wrd, ptr);
+		Lst_AtFront(&forLst, Buf_Peel(buf));
+	} else {
+		Buf_Destroy(buf, TRUE);
+	}
+	free(sub);
+
+	forBuf = Buf_Init(0);
+	forLevel++;
+	return (TRUE);
+}
+
+/**
+ * For_Eval
+ *	Eat a line of the .for body looking for embedded .for loops
+ *	and the .endfor
+ */
+Boolean
+For_Eval(char *line)
+{
+	char *ptr;
+
+	ptr = line;
 
 	if (*ptr == '.') {
 		/*
 		 * Need to check for 'endfor' and 'for' to find the end
 		 * of our loop or to find embedded for loops.
 		 */
-		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
+		for (ptr++; *ptr != '\0' && isspace((u_char)*ptr); ptr++)
 			;
 
+		/* XXX the isspace is wrong */
 		if (strncmp(ptr, "endfor", 6) == 0 &&
-		    (isspace((unsigned char)ptr[6]) || !ptr[6])) {
+		    (isspace((u_char)ptr[6]) || ptr[6] == '\0')) {
 			DEBUGF(FOR, ("For: end for %d\n", forLevel));
-			if (--forLevel < 0) {
-				Parse_Error(level, "for-less endfor");
-				return (0);
+			if (forLevel == 0) {
+				/* should not be here */
+				abort();
 			}
+			forLevel--;
 
 		} else if (strncmp(ptr, "for", 3) == 0 &&
-		    isspace((unsigned char)ptr[3])) {
+		    isspace((u_char)ptr[3])) {
 			forLevel++;
 			DEBUGF(FOR, ("For: new loop %d\n", forLevel));
 		}
@@ -227,10 +225,10 @@ For_Eval(char *line)
 		 */
 		Buf_Append(forBuf, line);
 		Buf_AddByte(forBuf, (Byte)'\n');
-		return (1);
+		return (TRUE);
 	}
 
-	return (0);
+	return (FALSE);
 }
 
 /*-
