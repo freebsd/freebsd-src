@@ -133,6 +133,12 @@ loop:
 				VOP_UNLOCK(vp, 0, td);
 				goto loop;
 			}
+			/*
+			 * We need to clear the OWEINACT flag here as this
+			 * may lead vget() to try to lock our vnode which
+			 * is already locked via lowervp.
+			 */
+			vp->v_iflag &= ~VI_OWEINACT;
 			vget(vp, LK_INTERLOCK, td);
 			return (vp);
 		}
@@ -174,6 +180,7 @@ loop:
 				VOP_UNLOCK(ovp, 0, td);
 				goto loop;
 			}
+			ovp->v_iflag &= ~VI_OWEINACT; /* see hashget comment */
 			vget(ovp, LK_INTERLOCK, td);
 			return (ovp);
 		}
