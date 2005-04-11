@@ -878,7 +878,7 @@ struct ndis_timer {
 
 typedef struct ndis_timer ndis_timer;
 
-typedef __stdcall void (*ndis_timer_function)(void *, void *, void *, void *);
+typedef void (*ndis_timer_function)(void *, void *, void *, void *);
 
 struct ndis_miniport_timer {
 	struct ktimer		nmt_ktimer;
@@ -1497,7 +1497,7 @@ typedef void (*ndis_allocdone_handler)(ndis_handle, void *,
 		ndis_physaddr *, uint32_t, void *);
 typedef uint8_t (*ndis_checkforhang_handler)(ndis_handle);
 
-typedef __stdcall ndis_status (*driver_entry)(void *, unicode_string *);
+typedef ndis_status (*driver_entry)(void *, unicode_string *);
 
 extern image_patch_table ndis_functbl[];
 
@@ -1593,16 +1593,16 @@ extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
 extern int ndis_strncasecmp(const char *, const char *, size_t);
 
-__stdcall extern uint32_t NdisAddDevice(driver_object *, device_object *);
-__stdcall extern void NdisAllocatePacketPool(ndis_status *,
+extern uint32_t NdisAddDevice(driver_object *, device_object *);
+extern void NdisAllocatePacketPool(ndis_status *,
         ndis_handle *, uint32_t, uint32_t);
-__stdcall extern void NdisAllocatePacketPoolEx(ndis_status *,
+extern void NdisAllocatePacketPoolEx(ndis_status *,
         ndis_handle *, uint32_t, uint32_t, uint32_t);
-__stdcall extern uint32_t NdisPacketPoolUsage(ndis_handle);
-__stdcall extern void NdisFreePacketPool(ndis_handle);
-__stdcall extern void NdisAllocatePacket(ndis_status *,
+extern uint32_t NdisPacketPoolUsage(ndis_handle);
+extern void NdisFreePacketPool(ndis_handle);
+extern void NdisAllocatePacket(ndis_status *,
 	ndis_packet **, ndis_handle);
-__stdcall extern void NdisFreePacket(ndis_packet *);
+extern void NdisFreePacket(ndis_packet *);
 
 __END_DECLS
 

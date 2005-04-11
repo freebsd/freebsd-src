@@ -94,13 +94,10 @@ void ndis_shutdown		(device_t);
 
 int ndisdrv_modevent		(module_t, int, void *);
 
-static __stdcall void ndis_txeof	(ndis_handle,
-	ndis_packet *, ndis_status);
-static __stdcall void ndis_rxeof	(ndis_handle,
-	ndis_packet **, uint32_t);
-static __stdcall void ndis_linksts	(ndis_handle,
-	ndis_status, void *, uint32_t);
-static __stdcall void ndis_linksts_done	(ndis_handle);
+static void ndis_txeof		(ndis_handle, ndis_packet *, ndis_status);
+static void ndis_rxeof		(ndis_handle, ndis_packet **, uint32_t);
+static void ndis_linksts	(ndis_handle, ndis_status, void *, uint32_t);
+static void ndis_linksts_done	(ndis_handle);
 
 /* We need to wrap these functions for amd64. */
 
@@ -157,12 +154,16 @@ ndisdrv_modevent(mod, cmd, arg)
 		ndisdrv_loaded++;
                 if (ndisdrv_loaded > 1)
 			break;
-		windrv_load(mod, (vm_offset_t)drv_data, 0);
-		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap);
-		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap);
-		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap);
+		if (windrv_load(mod, (vm_offset_t)drv_data, 0))
+			return(EINVAL);
+		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap,
+		    3, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap,
+		    3, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap,
+		    4, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_linksts_done,
-		    &ndis_linksts_done_wrap);
+		    &ndis_linksts_done_wrap, 1, WINDRV_WRAP_STDCALL);
 		break;
 	case MOD_UNLOAD:
 		ndisdrv_loaded--;
@@ -493,7 +494,15 @@ ndis_attach(dev)
 	 */
 
 	img = drv_data;
+
 	drv = windrv_lookup((vm_offset_t)img, NULL);
+
+	if (drv == NULL) {
+		device_printf(dev, "failed to find driver_object!\n");
+		error = ENXIO;
+		goto fail;
+	}
+
 	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
 		device_printf(dev, "failed to create FDO!\n");
 		error = ENXIO;
@@ -950,7 +959,7 @@ ndis_resume(dev)
  * copy the packet data into local storage and let the driver keep the
  * packet.
  */
-__stdcall static void
+static void
 ndis_rxeof(adapter, packets, pktcnt)
 	ndis_handle		adapter;
 	ndis_packet		**packets;
@@ -1030,7 +1039,7 @@ ndis_rxeof(adapter, packets, pktcnt)
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
-__stdcall static void
+static void
 ndis_txeof(adapter, packet, status)
 	ndis_handle		adapter;
 	ndis_packet		*packet;
@@ -1072,7 +1081,7 @@ ndis_txeof(adapter, packet, status)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_linksts(adapter, status, sbuf, slen)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -1090,7 +1099,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_linksts_done(adapter)
 	ndis_handle		adapter;
 {
@@ -1178,7 +1187,7 @@ ndis_ticktask(xsc)
 	void			*xsc;
 {
 	struct ndis_softc	*sc;
-	__stdcall ndis_checkforhang_handler hangfunc;
+	ndis_checkforhang_handler hangfunc;
 	uint8_t			rval;
 	ndis_media_state	linkstate;
 	int			error, len;
