@@ -187,10 +187,12 @@ ENTRY(x86_fastcall_wrap)
 x86_fastcall_wrap_call:
 	mov	$0,%eax
 	call	*%eax		# branch to fastcall routine
+	push	%eax		# preserve return val
 
 	movl	$ctxsw_utow, %eax
 	call	*%eax		# thunk
 
+	pop	%eax		# restore return val
 	add	$12,%esp	# clean the stack
 x86_fastcall_wrap_arg:
 	ret	$0xFF
@@ -212,11 +214,11 @@ ENTRY(x86_fastcall_call)
 	mov	12(%esp),%ecx
 	mov	16(%esp),%edx
 	call	*8(%esp)	# branch to fastcall routine
-	mov	%eax,%esi	# preserve return val
+	push	%eax		# preserve return val
 
 	call	ctxsw_wtou	# unthunk
 
-	mov	%esi,%eax	# restore return val
+	pop	%eax		# restore return val
 	add	$4,%esp		# clean the stack
 	ret
 
@@ -242,14 +244,14 @@ ENTRY(x86_regparm_wrap)
 x86_regparm_wrap_call:
 	movl	$0,%eax
 	call	*%eax		# jump to routine
-	mov	%eax,%esi	# preserve return val
-	mov	%edx,%edi	# preserve return val
+	push	%eax		# preserve return val
+	push	%edx		# preserve return val
 
 	movl	$ctxsw_utow, %eax
 	call	*%eax		# thunk
 
-	mov	%esi,%eax	# restore return val
-	mov	%edi,%edx	# restore return val
+	pop	%edx		# restore return val
+	pop	%eax		# restore return val
 	add	$12,%esp	# restore stack
 	ret
 x86_regparm_wrap_end:
@@ -268,13 +270,13 @@ ENTRY(x86_regparm_call)
 	mov	12(%esp),%edx
 	mov	16(%esp),%ecx
 	call	*4(%esp)	# branch to fastcall routine
-	mov	%eax,%esi	# preserve return val
-	mov	%edx,%edi	# preserve return val
+	push	%eax		# preserve return val
+	push	%edx		# preserve return val
 
 	call	ctxsw_wtou	# unthunk
 
-	mov	%esi,%eax	# restore return val
-	mov	%edi,%edx	# restore return val
+	pop	%edx		# restore return val
+	pop	%eax		# restore return val
 	ret
 
 /*
