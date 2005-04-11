@@ -78,6 +78,8 @@ function add_debug_code(name, arg, pos, ind)
 			printc(ind"ASSERT_VOP_LOCKED(" star "a->a_"arg", \""uname"\");");
 		else if (lockdata[name, arg, pos] == "U")
 			printc(ind"ASSERT_VOP_UNLOCKED(" star "a->a_"arg", \""uname"\");");
+		else if (lockdata[name, arg, pos] == "E")
+			printc(ind"ASSERT_VOP_ELOCKED(" star "a->a_"arg", \""uname"\");");
 		else if (0) {
 			# XXX More checks!
 		}
