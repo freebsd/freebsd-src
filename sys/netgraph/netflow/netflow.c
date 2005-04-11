@@ -432,26 +432,22 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 	 * ip packet assebmling here. Anyway, (in)famous trafd works this way -
 	 * and nobody complains yet :)
 	 */
-	if(ip->ip_off & htons(IP_OFFMASK))
-		goto flow_rec_done;
+	if ((ip->ip_off & htons(IP_OFFMASK)) == 0)
+		switch(r.r_ip_p) {
+		case IPPROTO_TCP:
+		{
+			register struct tcphdr *tcp;
 
-	switch(r.r_ip_p) {
-	case IPPROTO_TCP:
-	{
-		register struct tcphdr *tcp;
-
-		tcp = (struct tcphdr *)((caddr_t )ip + hlen);
-		r.r_sport = tcp->th_sport;
-		r.r_dport = tcp->th_dport;
-		tcp_flags = tcp->th_flags;
-		break;
-	}
-	case IPPROTO_UDP:
-		r.r_ports = *(uint32_t *)((caddr_t )ip + hlen);
-		break;
-	}
-
-flow_rec_done:
+			tcp = (struct tcphdr *)((caddr_t )ip + hlen);
+			r.r_sport = tcp->th_sport;
+			r.r_dport = tcp->th_dport;
+			tcp_flags = tcp->th_flags;
+			break;
+		}
+			case IPPROTO_UDP:
+			r.r_ports = *(uint32_t *)((caddr_t )ip + hlen);
+			break;
+		}
 
 	slot = ip_hash(&r);
 
