@@ -478,8 +478,8 @@ extern struct vnodeop_desc *vnodeop_descs[];
  */
 void	assert_vi_locked(struct vnode *vp, const char *str);
 void	assert_vi_unlocked(struct vnode *vp, const char *str);
-#if 0
 void	assert_vop_elocked(struct vnode *vp, const char *str);
+#if 0
 void	assert_vop_elocked_other(struct vnode *vp, const char *str);
 #endif
 void	assert_vop_locked(struct vnode *vp, const char *str);
@@ -500,8 +500,8 @@ void	vop_unlock_pre(void *a);
 
 #define	ASSERT_VI_LOCKED(vp, str)	assert_vi_locked((vp), (str))
 #define	ASSERT_VI_UNLOCKED(vp, str)	assert_vi_unlocked((vp), (str))
-#if 0
 #define	ASSERT_VOP_ELOCKED(vp, str)	assert_vop_elocked((vp), (str))
+#if 0
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str) assert_vop_locked_other((vp), (str))
 #endif
 #define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
