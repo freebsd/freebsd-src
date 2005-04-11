@@ -59,7 +59,7 @@ _${group}INS: ${_${group}INCS}
 .endif
 .endif
 
-.endif defined(${group}) && !empty(${group})
+.endif # defined(${group}) && !empty(${group})
 .endfor
 
 .if defined(INCSLINKS) && !empty(INCSLINKS)
@@ -74,7 +74,7 @@ installincludes:
 		ln -fs $$l $$t; \
 	done; true
 .endif
-.endif !target(installincludes)
+.endif # !target(installincludes)
 
 realinstall: installincludes
 .ORDER: beforeinstall installincludes
