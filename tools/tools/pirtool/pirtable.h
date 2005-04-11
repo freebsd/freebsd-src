@@ -47,6 +47,10 @@
 #define PIR_DEV(x)	(((x) & 0xF8) >> 3)
 #define PIR_FUNC(x)	((x) & 0x7)
 
+#ifndef	__packed
+#define	__packed __attribute__ ((packed))
+#endif
+
 typedef struct {
 	u_int8_t	bus;		/* bus number of this device */
 	u_int8_t	devfunc;	/* only upper 5 device bits valid */

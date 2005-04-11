@@ -20,6 +20,7 @@ kdrv		KernelDriver; add/list/remove third-party kernel driver
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 kerninclude	Shellscript to find unused #includes in the kernel.
 mid	 	Create a Message-ID database for mailing lists.
+pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 tcl_bmake	Generates a bmake Makefile for src/lib/libtcl.
