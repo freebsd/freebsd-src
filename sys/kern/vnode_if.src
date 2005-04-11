@@ -93,7 +93,7 @@ vop_cachedlookup {
 };
 
 #
-#% create	dvp	L L L
+#% create	dvp	E E E
 #% create	vpp	- L -
 #
 vop_create {
@@ -104,7 +104,7 @@ vop_create {
 };
 
 #
-#% whiteout	dvp	L L L
+#% whiteout	dvp	E E E
 #
 vop_whiteout {
 	IN struct vnode *dvp;
@@ -113,7 +113,7 @@ vop_whiteout {
 };
 
 #
-#% mknod	dvp	L L L
+#% mknod	dvp	E E E
 #% mknod	vpp	- L -
 #
 vop_mknod {
@@ -135,7 +135,7 @@ vop_open {
 };
 
 #
-#% close	vp	L L L
+#% close	vp	E E E
 #
 vop_close {
 	IN struct vnode *vp;
@@ -165,7 +165,7 @@ vop_getattr {
 };
 
 #
-#% setattr	vp	L L L
+#% setattr	vp	E E E
 #
 vop_setattr {
 	IN struct vnode *vp;
@@ -185,7 +185,7 @@ vop_read {
 };
 
 #
-#% write	vp	L L L
+#% write	vp	E E E
 #
 vop_write {
 	IN struct vnode *vp;
@@ -243,7 +243,7 @@ vop_revoke {
 };
 
 #
-#% fsync	vp	L L L
+#% fsync	vp	E E E
 #
 vop_fsync {
 	IN struct vnode *vp;
@@ -252,8 +252,8 @@ vop_fsync {
 };
 
 #
-#% remove	dvp	L L L
-#% remove	vp	L L L
+#% remove	dvp	E E E
+#% remove	vp	E E E
 #
 vop_remove {
 	IN struct vnode *dvp;
@@ -262,8 +262,8 @@ vop_remove {
 };
 
 #
-#% link		tdvp	L L L
-#% link		vp	L L L
+#% link		tdvp	E E E
+#% link		vp	E E E
 #
 vop_link {
 	IN struct vnode *tdvp;
@@ -274,7 +274,7 @@ vop_link {
 #
 # rename	fdvp	U U U
 # rename	fvp	U U U
-# rename	tdvp	L U U
+# rename	tdvp	E U U
 # rename	tvp	X U U
 #! rename	pre	vop_rename_pre
 #
@@ -288,8 +288,8 @@ vop_rename {
 };
 
 #
-#% mkdir	dvp	L L L
-#% mkdir	vpp	- L -
+#% mkdir	dvp	E E E
+#% mkdir	vpp	- E -
 #
 vop_mkdir {
 	IN struct vnode *dvp;
@@ -299,8 +299,8 @@ vop_mkdir {
 };
 
 #
-#% rmdir	dvp	L L L
-#% rmdir	vp	L L L
+#% rmdir	dvp	E E E
+#% rmdir	vp	E E E
 #
 vop_rmdir {
 	IN struct vnode *dvp;
@@ -309,8 +309,8 @@ vop_rmdir {
 };
 
 #
-#% symlink	dvp	L L L
-#% symlink	vpp	- L -
+#% symlink	dvp	E E E
+#% symlink	vpp	- E -
 #
 vop_symlink {
 	IN struct vnode *dvp;
@@ -342,7 +342,7 @@ vop_readlink {
 };
 
 #
-#% inactive	vp	L L L
+#% inactive	vp	E E E
 #
 vop_inactive {
 	IN struct vnode *vp;
@@ -350,7 +350,7 @@ vop_inactive {
 };
 
 #
-#% reclaim	vp	L L L
+#% reclaim	vp	E E E
 #
 vop_reclaim {
 	IN struct vnode *vp;
@@ -436,7 +436,7 @@ vop_advlock {
 };
 
 #
-#% reallocblks	vp	L L L
+#% reallocblks	vp	E E E
 #
 vop_reallocblks {
 	IN struct vnode *vp;
@@ -455,7 +455,7 @@ vop_getpages {
 };
 
 #
-#% putpages	vp	L L L
+#% putpages	vp	E E E
 #
 vop_putpages {
 	IN struct vnode *vp;
@@ -478,7 +478,7 @@ vop_getacl {
 };
 
 #
-#% setacl	vp	L L L
+#% setacl	vp	E E E
 #
 vop_setacl {
 	IN struct vnode *vp;
@@ -544,7 +544,7 @@ vop_openextattr {
 };
 
 #
-#% deleteextattr	vp	L L L
+#% deleteextattr	vp	E E E
 #
 vop_deleteextattr {
 	IN struct vnode *vp;
@@ -555,7 +555,7 @@ vop_deleteextattr {
 };
 
 #
-#% setextattr	vp	L L L
+#% setextattr	vp	E E E
 #
 vop_setextattr {
 	IN struct vnode *vp;
@@ -567,7 +567,7 @@ vop_setextattr {
 };
 
 #
-#% setlabel	vp	L L L
+#% setlabel	vp	E E E
 #
 vop_setlabel {
 	IN struct vnode *vp;
