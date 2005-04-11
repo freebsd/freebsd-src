@@ -54,7 +54,6 @@ Boolean Parse_IsVar(char *);
 void Parse_DoVar(char *, struct GNode *);
 void Parse_AddIncludeDir(char *);
 void Parse_File(const char *, FILE *);
-void Parse_Init(void);
 void Parse_FromString(char *, int);
 void Parse_MainName(struct Lst *);
 

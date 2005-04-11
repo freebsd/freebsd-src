@@ -41,7 +41,10 @@
 #ifndef for_h_9d770f33
 #define	for_h_9d770f33
 
-int For_Eval(char *);
+#include "sprite.h"
+
+Boolean For_For(char *);
+Boolean For_Eval(char *);
 void For_Run(int);
 
 #endif /* for_h_9d770f33 */

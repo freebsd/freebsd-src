@@ -48,7 +48,26 @@
 #define	COND_SKIP	1	/* Skip the next lines */
 #define	COND_INVALID	2	/* Not a conditional statement */
 
-int Cond_Eval(char *, int);
+enum {
+	COND_IF,
+	COND_IFDEF,
+	COND_IFNDEF,
+	COND_IFMAKE,
+	COND_IFNMAKE,
+	COND_ELSE,
+	COND_ELIF,
+	COND_ELIFDEF,
+	COND_ELIFNDEF,
+	COND_ELIFMAKE,
+	COND_ELIFNMAKE,
+	COND_ENDIF,
+};
+
+void Cond_If(char *, int, int);
+void Cond_Else(char *, int, int);
+void Cond_Endif(char *, int, int);
 void Cond_End(void);
+
+extern Boolean skipLine;
 
 #endif /* cond_h_6e96ad7c */

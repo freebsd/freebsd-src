@@ -242,6 +242,79 @@ static struct {
 	{ ".WAIT",		Wait,		0 },
 };
 
+/*
+ * Directive table. We use a hash table. This hash table has been generated
+ * with mph which can be found on the usual GNU mirrors. If you change the
+ * directives (adding, deleting, reordering) you need to create a new table
+ * and hash function (directive_hash). The command line to generate the
+ * table is:
+ *
+ * mph -d2 -m1 <tab | emitc -l -s
+ *
+ * Where tab is a file containing just the directive strings, one per line.
+ *
+ * While inporting the result of this the following changes have been made
+ * to the generated code:
+ *
+ *	prefix the names of the g, T0 and T1 arrays with 'directive_'.
+ *
+ *	make the type of the tables 'const [un]signed char'.
+ *
+ *	make the hash function use the length for termination,
+ *	not the trailing '\0'.
+ */
+static void parse_include(char *, int, int);
+static void parse_message(char *, int, int);
+static void parse_undef(char *, int, int);
+static void parse_for(char *, int, int);
+static void parse_endfor(char *, int, int);
+
+static const signed char directive_g[] = {
+	16, 0, -1, 14, 5, 2, 2, -1, 0, 0,
+	-1, -1, 16, 11, -1, 15, -1, 14, 7, -1,
+	8, 6, 1, -1, -1, 0, 4, 6, -1, 0,
+	0, 2, 0, 13, -1, 14, -1, 0, 
+};
+
+static const unsigned char directive_T0[] = {
+	11, 25, 14, 30, 14, 26, 23, 15, 9, 37,
+	27, 32, 27, 1, 17, 27, 35, 13, 8, 22,
+	8, 28, 7, 
+};
+
+static const unsigned char directive_T1[] = {
+	19, 20, 31, 17, 29, 2, 7, 12, 1, 31,
+	11, 18, 11, 20, 10, 2, 15, 19, 4, 10,
+	13, 36, 3, 
+};
+
+static const struct directive {
+	const char	*name;
+	int		code;
+	Boolean		skip_flag;	/* execute even when skipped */
+	void		(*func)(char *, int, int);
+} directives[] = {
+	{ "elif",	COND_ELIF,	TRUE,	Cond_If },
+	{ "elifdef",	COND_ELIFDEF,	TRUE,	Cond_If },
+	{ "elifmake",	COND_ELIFMAKE,	TRUE,	Cond_If },
+	{ "elifndef",	COND_ELIFNDEF,	TRUE,	Cond_If },
+	{ "elifnmake",	COND_ELIFNMAKE,	TRUE,	Cond_If },
+	{ "else",	COND_ELSE,	TRUE,	Cond_Else },
+	{ "endfor",	0,		FALSE,	parse_endfor },
+	{ "endif",	COND_ENDIF,	TRUE,	Cond_Endif },
+	{ "error",	1,		FALSE,	parse_message },
+	{ "for",	0,		FALSE,	parse_for },
+	{ "if",		COND_IF,	TRUE,	Cond_If },
+	{ "ifdef",	COND_IFDEF,	TRUE,	Cond_If },
+	{ "ifmake",	COND_IFMAKE,	TRUE,	Cond_If },
+	{ "ifndef",	COND_IFNDEF,	TRUE,	Cond_If },
+	{ "ifnmake",	COND_IFNMAKE,	TRUE,	Cond_If },
+	{ "include",	0,		FALSE,	parse_include },
+	{ "undef",	0,		FALSE,	parse_undef },
+	{ "warning",	0,		FALSE,	parse_message },
+};
+#define	NDIRECTS	(sizeof(directives) / sizeof(directives[0]))
+
 /*-
  *----------------------------------------------------------------------
  * ParseFindKeyword --
@@ -1551,220 +1624,6 @@ Parse_AddIncludeDir(char *dir)
 	Path_AddDir(&parseIncPath, dir);
 }
 
-/*---------------------------------------------------------------------
- * ParseDoError  --
- *	Handle error directive
- *
- *	The input is the line minus the ".error".  We substitute variables,
- *	print the message and exit(1) or just print a warning if the ".error"
- *	directive is malformed.
- *
- *---------------------------------------------------------------------
- */
-static void
-ParseDoError(char *errmsg)
-{
-	Buffer *buf;
-
-	if (!isspace((unsigned char)*errmsg)) {
-		Parse_Error(PARSE_WARNING, "invalid syntax: .error%s", errmsg);
-		return;
-	}
-
-	while (isspace((unsigned char)*errmsg))
-		errmsg++;
-
-	buf = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
-	Parse_Error(PARSE_FATAL, "%s", Buf_Data(buf));
-	Buf_Destroy(buf, TRUE);
-
-	/* Terminate immediately. */
-	exit(1);
-}
-
-/*---------------------------------------------------------------------
- * ParseDoWarning  --
- *	Handle warning directive
- *
- *	The input is the line minus the ".warning".  We substitute variables
- *	and print the message or just print a warning if the ".warning"
- *	directive is malformed.
- *
- *---------------------------------------------------------------------
- */
-static void
-ParseDoWarning(char *warnmsg)
-{
-	Buffer *buf;
-
-	if (!isspace((unsigned char)*warnmsg)) {
-		Parse_Error(PARSE_WARNING, "invalid syntax: .warning%s",
-		    warnmsg);
-		return;
-	}
-
-	while (isspace((unsigned char)*warnmsg))
-		warnmsg++;
-
-	buf = Var_Subst(NULL, warnmsg, VAR_GLOBAL, FALSE);
-	Parse_Error(PARSE_WARNING, "%s", Buf_Data(buf));
-	Buf_Destroy(buf, TRUE);
-}
-
-/*-
- *---------------------------------------------------------------------
- * ParseDoInclude  --
- *	Push to another file.
- *
- *	The input is the line minus the #include. A file spec is a string
- *	enclosed in <> or "". The former is looked for only in sysIncPath.
- *	The latter in . and the directories specified by -I command line
- *	options
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	A structure is added to the includes Lst and readProc.
- *---------------------------------------------------------------------
- */
-static void
-ParseDoInclude(char *file)
-{
-	char	*fullname;	/* full pathname of file */
-	char	endc;		/* the character which ends the file spec */
-	char	*cp;		/* current position in file spec */
-	Boolean	isSystem;	/* TRUE if makefile is a system makefile */
-	Buffer	*buf;
-
-	/*
-	 * Skip to delimiter character so we know where to look
-	 */
-	while (*file == ' ' || *file == '\t') {
-		file++;
-	}
-
-	if (*file != '"' && *file != '<') {
-		Parse_Error(PARSE_FATAL,
-		    ".include filename must be delimited by '\"' or '<'");
-		return;
-	}
-
-	/*
-	 * Set the search path on which to find the include file based on the
-	 * characters which bracket its name. Angle-brackets imply it's
-	 * a system Makefile while double-quotes imply it's a user makefile
-	 */
-	if (*file == '<') {
-		isSystem = TRUE;
-		endc = '>';
-	} else {
-		isSystem = FALSE;
-		endc = '"';
-	}
-
-	/*
-	* Skip to matching delimiter
-	*/
-	for (cp = ++file; *cp && *cp != endc; cp++) {
-		continue;
-	}
-
-	if (*cp != endc) {
-		Parse_Error(PARSE_FATAL,
-		    "Unclosed %cinclude filename. '%c' expected", '.', endc);
-		return;
-	}
-	*cp = '\0';
-
-	/*
-	 * Substitute for any variables in the file name before trying to
-	 * find the thing.
-	 */
-	buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
-	file = Buf_Peel(buf);
-
-	/*
-	 * Now we know the file's name and its search path, we attempt to
-	 * find the durn thing. A return of NULL indicates the file don't
-	 * exist.
-	 */
-	if (!isSystem) {
-		/*
-		 * Include files contained in double-quotes are first searched
-		 * for relative to the including file's location. We don't want
-		 * to cd there, of course, so we just tack on the old file's
-		 * leading path components and call Dir_FindFile to see if
-		 * we can locate the beast.
-		 */
-		char	*prefEnd, *Fname;
-
-		/* Make a temporary copy of this, to be safe. */
-		Fname = estrdup(CURFILE->fname);
-
-		prefEnd = strrchr(Fname, '/');
-		if (prefEnd != (char *)NULL) {
-			char	*newName;
-
-			*prefEnd = '\0';
-			if (file[0] == '/')
-				newName = estrdup(file);
-			else
-				newName = str_concat(Fname, file, STR_ADDSLASH);
-			fullname = Path_FindFile(newName, &parseIncPath);
-			if (fullname == NULL) {
-				fullname = Path_FindFile(newName,
-				    &dirSearchPath);
-			}
-			free(newName);
-			*prefEnd = '/';
-		} else {
-			fullname = NULL;
-		}
-		free(Fname);
-	} else {
-		fullname = NULL;
-	}
-
-	if (fullname == NULL) {
-		/*
-		 * System makefile or makefile wasn't found in same directory as
-		 * included makefile. Search for it first on the -I search path,
-		 * then on the .PATH search path, if not found in a -I
-		 * directory.
-		 * XXX: Suffix specific?
-		 */
-		fullname = Path_FindFile(file, &parseIncPath);
-		if (fullname == NULL) {
-			fullname = Path_FindFile(file, &dirSearchPath);
-		}
-	}
-
-	if (fullname == NULL) {
-		/*
-		 * Still haven't found the makefile. Look for it on the system
-		 * path as a last resort.
-		 */
-		fullname = Path_FindFile(file, &sysIncPath);
-	}
-
-	if (fullname == NULL) {
-		*cp = endc;
-		Parse_Error(PARSE_FATAL, "Could not find %s", file);
-		/* XXXHB free(file) */
-		return;
-	}
-
-	free(file);
-
-	/*
-	 * We set up the name of the file to be the absolute
-	 * name of the include file so error messages refer to the right
-	 * place.
-	 */
-	ParsePushInput(fullname, NULL, NULL, 0);
-}
-
 /*-
  *---------------------------------------------------------------------
  * Parse_FromString  --
@@ -1809,7 +1668,6 @@ ParseTraditionalInclude(char *file)
 {
 	char	*fullname;	/* full pathname of file */
 	char	*cp;		/* current position in file spec */
-	Buffer	*buf;
 
 	/*
 	 * Skip over whitespace
@@ -1836,8 +1694,7 @@ ParseTraditionalInclude(char *file)
 	 * Substitute for any variables in the file name before trying to
 	 * find the thing.
 	 */
-	buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
-	file = Buf_Peel(buf);
+	file = Buf_Peel(Var_Subst(NULL, file, VAR_CMD, FALSE));
 
 	/*
 	 * Now we know the file's name, we attempt to find the durn thing.
@@ -2249,6 +2106,312 @@ ParseFinishLine(void)
 	}
 }
 
+/**
+ * parse_include
+ *	Parse an .include directive and push the file onto the input stack.
+ *	The input is the line minus the .include. A file spec is a string
+ *	enclosed in <> or "". The former is looked for only in sysIncPath.
+ *	The latter in . and the directories specified by -I command line
+ *	options
+ */
+static void
+parse_include(char *file, int code __unused, int lineno __unused)
+{
+	char	*fullname;	/* full pathname of file */
+	char	endc;		/* the character which ends the file spec */
+	char	*cp;		/* current position in file spec */
+	Boolean	isSystem;	/* TRUE if makefile is a system makefile */
+	char	*prefEnd, *Fname;
+	char	*newName;
+
+	/*
+	 * Skip to delimiter character so we know where to look
+	 */
+	while (*file == ' ' || *file == '\t') {
+		file++;
+	}
+
+	if (*file != '"' && *file != '<') {
+		Parse_Error(PARSE_FATAL,
+		    ".include filename must be delimited by '\"' or '<'");
+		return;
+	}
+
+	/*
+	 * Set the search path on which to find the include file based on the
+	 * characters which bracket its name. Angle-brackets imply it's
+	 * a system Makefile while double-quotes imply it's a user makefile
+	 */
+	if (*file == '<') {
+		isSystem = TRUE;
+		endc = '>';
+	} else {
+		isSystem = FALSE;
+		endc = '"';
+	}
+
+	/*
+	* Skip to matching delimiter
+	*/
+	for (cp = ++file; *cp != endc; cp++) {
+		if (*cp == '\0') {
+			Parse_Error(PARSE_FATAL,
+			    "Unclosed .include filename. '%c' expected", endc);
+			return;
+		}
+	}
+	*cp = '\0';
+
+	/*
+	 * Substitute for any variables in the file name before trying to
+	 * find the thing.
+	 */
+	file = Buf_Peel(Var_Subst(NULL, file, VAR_CMD, FALSE));
+
+	/*
+	 * Now we know the file's name and its search path, we attempt to
+	 * find the durn thing. A return of NULL indicates the file don't
+	 * exist.
+	 */
+	if (!isSystem) {
+		/*
+		 * Include files contained in double-quotes are first searched
+		 * for relative to the including file's location. We don't want
+		 * to cd there, of course, so we just tack on the old file's
+		 * leading path components and call Dir_FindFile to see if
+		 * we can locate the beast.
+		 */
+
+		/* Make a temporary copy of this, to be safe. */
+		Fname = estrdup(CURFILE->fname);
+
+		prefEnd = strrchr(Fname, '/');
+		if (prefEnd != NULL) {
+			*prefEnd = '\0';
+			if (file[0] == '/')
+				newName = estrdup(file);
+			else
+				newName = str_concat(Fname, file, STR_ADDSLASH);
+			fullname = Path_FindFile(newName, &parseIncPath);
+			if (fullname == NULL) {
+				fullname = Path_FindFile(newName,
+				    &dirSearchPath);
+			}
+			free(newName);
+			*prefEnd = '/';
+		} else {
+			fullname = NULL;
+		}
+		free(Fname);
+	} else {
+		fullname = NULL;
+	}
+
+	if (fullname == NULL) {
+		/*
+		 * System makefile or makefile wasn't found in same directory as
+		 * included makefile. Search for it first on the -I search path,
+		 * then on the .PATH search path, if not found in a -I
+		 * directory.
+		 * XXX: Suffix specific?
+		 */
+		fullname = Path_FindFile(file, &parseIncPath);
+		if (fullname == NULL) {
+			fullname = Path_FindFile(file, &dirSearchPath);
+		}
+	}
+
+	if (fullname == NULL) {
+		/*
+		 * Still haven't found the makefile. Look for it on the system
+		 * path as a last resort.
+		 */
+		fullname = Path_FindFile(file, &sysIncPath);
+	}
+
+	if (fullname == NULL) {
+		*cp = endc;
+		Parse_Error(PARSE_FATAL, "Could not find %s", file);
+		free(file);
+		return;
+	}
+	free(file);
+
+	/*
+	 * We set up the name of the file to be the absolute
+	 * name of the include file so error messages refer to the right
+	 * place.
+	 */
+	ParsePushInput(fullname, NULL, NULL, 0);
+}
+
+/**
+ * parse_message
+ *	Parse a .warning or .error directive
+ *
+ *	The input is the line minus the ".error"/".warning".  We substitute
+ *	variables, print the message and exit(1) (for .error) or just print
+ *	a warning if the directive is malformed.
+ */
+static void
+parse_message(char *line, int iserror, int lineno __unused)
+{
+
+	if (!isspace((u_char)*line)) {
+		Parse_Error(PARSE_WARNING, "invalid syntax: .%s%s",
+		    iserror ? "error" : "warning", line);
+		return;
+	}
+
+	while (isspace((u_char)*line))
+		line++;
+
+	line = Buf_Peel(Var_Subst(NULL, line, VAR_GLOBAL, FALSE));
+	Parse_Error(iserror ? PARSE_FATAL : PARSE_WARNING, "%s", line);
+	free(line);
+
+	if (iserror) {
+		/* Terminate immediately. */
+		exit(1);
+	}
+}
+
+/**
+ * parse_undef
+ *	Parse an .undef directive.
+ */
+static void
+parse_undef(char *line, int code __unused, int lineno __unused)
+{
+	char *cp;
+
+	while (isspace((u_char)*line))
+		line++;
+
+	for (cp = line; !isspace((u_char)*cp) && *cp != '\0'; cp++) {
+		;
+	}
+	*cp = '\0';
+
+	cp = Buf_Peel(Var_Subst(NULL, line, VAR_CMD, FALSE));
+	Var_Delete(cp, VAR_GLOBAL);
+	free(cp);
+}
+
+/**
+ * parse_for
+ *	Parse a .for directive.
+ */
+static void
+parse_for(char *line, int code __unused, int lineno)
+{
+
+	if (!For_For(line)) {
+		/* syntax error */
+		return;
+	}
+	line = NULL;
+
+	/*
+	 * Skip after the matching endfor.
+	 */
+	do {
+		free(line);
+		line = ParseSkipLine(0, 1);
+		if (line == NULL) {
+			Parse_Error(PARSE_FATAL,
+			    "Unexpected end of file in for loop.\n");
+			return;
+		}
+	} while (For_Eval(line));
+	free(line);
+
+	/* execute */
+	For_Run(lineno);
+}
+
+/**
+ * parse_endfor
+ *	Parse endfor. This may only happen if there was no matching .for.
+ */
+static void
+parse_endfor(char *line __unused, int code __unused, int lineno __unused)
+{
+
+	Parse_Error(PARSE_FATAL, "for-less endfor");
+}
+
+/**
+ * directive_hash
+ */
+static int
+directive_hash(const u_char *key, size_t len)
+{
+	unsigned f0, f1;
+	const u_char *kp = key;
+
+	if (len < 2 || len > 9)
+		return (-1);
+
+	for (f0 = f1 = 0; kp < key + len; ++kp) {
+		if (*kp < 97 || *kp > 119)
+			return (-1);
+		f0 += directive_T0[-97 + *kp];
+		f1 += directive_T1[-97 + *kp];
+	}
+
+	f0 %= 38;
+	f1 %= 38;
+
+	return (directive_g[f0] + directive_g[f1]) % 18;
+}
+
+/**
+ * parse_directive
+ *	Got a line starting with a '.'. Check if this is a directive
+ *	and parse it.
+ *
+ * return:
+ *	TRUE if line was a directive, FALSE otherwise.
+ */
+static Boolean
+parse_directive(char *line)
+{
+	char	*start;
+	char	*cp;
+	int	dir;
+
+	/*
+	 * Get the keyword:
+	 *	.[[:space:]]*\([[:alpha:]][[:alnum:]_]*\).*
+	 * \1 is the keyword.
+	 */
+	for (start = line; isspace((u_char)*start); start++) {
+		;
+	}
+
+	if (!isalpha((u_char)*start)) {
+		return (FALSE);
+	}
+
+	cp = start + 1;
+	while (isalnum((u_char)*cp) || *cp == '_') {
+		cp++;
+	}
+
+	dir = directive_hash(start, cp - start);
+	if (dir < 0 || dir >= (int)NDIRECTS ||
+	    (size_t)(cp - start) != strlen(directives[dir].name) ||
+	    strncmp(start, directives[dir].name, cp - start) != 0) {
+		/* not actually matched */
+		return (FALSE);
+	}
+
+	if (!skipLine || directives[dir].skip_flag)
+		(*directives[dir].func)(cp, directives[dir].code,
+		    CURFILE->lineno);
+	return (TRUE);
+}
 
 /*-
  *---------------------------------------------------------------------
@@ -2270,8 +2433,6 @@ Parse_File(const char *name, FILE *stream)
 {
 	char	*cp;	/* pointer into the line */
 	char	*line;	/* the line we're working on */
-	Buffer	*buf;
-	int	lineno;
 
 	inLine = FALSE;
 	fatals = 0;
@@ -2279,90 +2440,12 @@ Parse_File(const char *name, FILE *stream)
 	ParsePushInput(estrdup(name), stream, NULL, 0);
 
 	while ((line = ParseReadLine()) != NULL) {
-		if (*line == '.') {
-			/*
-			 * Lines that begin with the special character
-			 * are either include or undef directives.
-			 */
-			for (cp = line + 1; isspace((unsigned char)*cp); cp++) {
-				continue;
-			}
-			if (strncmp(cp, "include", 7) == 0) {
-				ParseDoInclude(cp + 7);
-				goto nextLine;
-			} else if (strncmp(cp, "error", 5) == 0) {
-				ParseDoError(cp + 5);
-				goto nextLine;
-			} else if (strncmp(cp, "warning", 7) == 0) {
-				ParseDoWarning(cp + 7);
-				goto nextLine;
-			} else if (strncmp(cp, "undef", 5) == 0) {
-				char *cp2;
-				for (cp += 5; isspace((unsigned char)*cp);
-				    cp++) {
-					continue;
-				}
-
-				for (cp2 = cp; !isspace((unsigned char)*cp2) &&
-				   *cp2 != '\0'; cp2++) {
-					continue;
-				}
-
-				*cp2 = '\0';
-
-				buf = Var_Subst(NULL, cp, VAR_CMD, FALSE);
-				cp = Buf_Peel(buf);
-
-				Var_Delete(cp, VAR_GLOBAL);
-				goto nextLine;
-
-			} else if (For_Eval(line)) {
-				lineno = CURFILE->lineno;
-				do {
-					/*
-					 * Skip after the matching end.
-					 */
-					free(line);
-					line = ParseSkipLine(0, 1);
-					if (line == NULL) {
-						Parse_Error(PARSE_FATAL,
-						    "Unexpected end of"
-						    " file in for loop.\n");
-						goto nextLine;
-					}
-				} while (For_Eval(line));
-				For_Run(lineno);
-				goto nextLine;
-
-			} else {
-				/*
-				 * The line might be a conditional. Ask the
-				 * conditional module about it and act
-				 * accordingly
-				 */
-				int cond = Cond_Eval(line, CURFILE->lineno);
-
-				if (cond == COND_SKIP) {
-					/*
-					 * Skip to next conditional that
-					 * evaluates to COND_PARSE.
-					 */
-					do {
-						free(line);
-						line = ParseSkipLine(1, 0);
-					} while (line && Cond_Eval(line,
-					    CURFILE->lineno) != COND_PARSE);
-					goto nextLine;
-				}
-				if (cond == COND_PARSE)
-					goto nextLine;
-			}
+		if (*line == '.' && parse_directive(line + 1)) {
+			/* directive consumed */
+			goto nextLine;
 		}
-		if (*line == '#') {
-			/*
-			 * If we're this far, the line must be
-			 * a comment.
-			 */
+		if (skipLine || *line == '#') {
+			/* Skipping .if block or comment. */
 			goto nextLine;
 		}
 
@@ -2434,7 +2517,7 @@ Parse_File(const char *name, FILE *stream)
 			 * have an operator and we're in a dependency
 			 * line's script, we assume it's actually a
 			 * shell command and add it to the current
-			 * list of targets.
+			 * list of targets. XXX this comment seems wrong.
 			 */
 			cp = line;
 			if (isspace((unsigned char)line[0])) {
@@ -2449,8 +2532,7 @@ Parse_File(const char *name, FILE *stream)
 
 			ParseFinishLine();
 
-			buf = Var_Subst(NULL, line, VAR_CMD, TRUE);
-			cp = Buf_Peel(buf);
+			cp = Buf_Peel(Var_Subst(NULL, line, VAR_CMD, TRUE));
 
 			free(line);
 			line = cp;
@@ -2477,25 +2559,6 @@ Parse_File(const char *name, FILE *stream)
 
 	if (fatals)
 		errx(1, "fatal errors encountered -- cannot continue");
-}
-
-/*-
- *---------------------------------------------------------------------
- * Parse_Init --
- *	initialize the parsing module
- *
- * Results:
- *	none
- *
- * Side Effects:
- *	the parseIncPath list is initialized...
- *---------------------------------------------------------------------
- */
-void
-Parse_Init(void)
-{
-
-	mainNode = NULL;
 }
 
 /*-
