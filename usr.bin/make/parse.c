@@ -45,23 +45,12 @@ __FBSDID("$FreeBSD$");
  * parse.c --
  *	Functions to parse a makefile.
  *
- *	One function, Parse_Init, must be called before any functions
- *	in this module are used. After that, the function Parse_File is the
- *	main entry point and controls most of the other functions in this
- *	module.
- *
  *	Most important structures are kept in Lsts. Directories for
  *	the #include "..." function are kept in the 'parseIncPath' Lst, while
  *	those for the #include <...> are kept in the 'sysIncPath' Lst. The
  *	targets currently being defined are kept in the 'targets' Lst.
  *
- *	The variables 'curFile.fname' and 'curFile.lineno' are used to track
- *	the name of the current file and the line number in that file so that
- *	error messages can be more meaningful.
- *
  * Interface:
- *	Parse_Init	Initialization function which must be
- *			called before anything else in this module is used.
  *
  *	Parse_File	Function used to parse a makefile. It must
  *			be given the name of the file, which should
