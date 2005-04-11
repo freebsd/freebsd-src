@@ -3243,7 +3243,6 @@ assert_vop_unlocked(struct vnode *vp, const char *str)
 		vfs_badlock("is locked but should not be", str, vp);
 }
 
-#if 0
 void
 assert_vop_elocked(struct vnode *vp, const char *str)
 {
@@ -3253,6 +3252,7 @@ assert_vop_elocked(struct vnode *vp, const char *str)
 		vfs_badlock("is not exclusive locked but should be", str, vp);
 }
 
+#if 0
 void
 assert_vop_elocked_other(struct vnode *vp, const char *str)
 {
