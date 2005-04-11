@@ -161,7 +161,7 @@ server.
 .Pp
 Implement a (single-threaded) echo server:
 .Pp
-.Bd -unfilled -literal -offset indent
+.Bd -literal -offset indent
 while :
 do
     (exec 3<>/p/tcplisten/ANY/echo && cat -u <&3 >&3)
@@ -171,7 +171,7 @@ done
 Gather data from two sources.
 Verify that two remote files are identical:
 .Pp
-.Bd -unfilled -literal -offset indent
+.Bd -literal -offset indent
 diff -q '/p/pipe/usr/bin/fetch -o - \\
         ftp://ftp1.freebsd.org/pub/FreeBSD/README.TXT' \\
     '/p/pipe/usr/bin/fetch -o - \\
@@ -184,7 +184,7 @@ Record a remote
 .Tn ISO
 image and calculate its checksum:
 .Pp
-.Bd -unfilled -literal -offset indent
+.Bd -literal -offset indent
 fetch -o - ftp://ftp5.freebsd.org/.../disc.iso |
 tee '/p/pipe/usr/local/bin/cdrecord -' |
 md5
@@ -194,7 +194,7 @@ Create an
 .Tn XML
 view of the password file:
 .Pp
-.Bd -unfilled -literal -offset indent
+.Bd -literal -offset indent
 ln -s '/p/pipe/usr/local/bin/passwd2xml /etc/passwd' \\
     /etc/passwd.xml"
 .Ed
