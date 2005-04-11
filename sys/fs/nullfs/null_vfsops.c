@@ -248,7 +248,7 @@ nullfs_root(mp, flags, vpp, td)
 		return (EDEADLK);
 	}
 #endif
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, flags | LK_RETRY, td);
 	*vpp = vp;
 	return 0;
 }
