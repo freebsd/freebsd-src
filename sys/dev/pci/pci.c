@@ -1629,16 +1629,18 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 	if (pci_maptype(testval) & PCI_MAPMEM) {
 		if (type != SYS_RES_MEMORY) {
-			device_printf(child,
-			    "failed: rid %#x is memory, requested %d\n",
-			    *rid, type);
+			if (bootverbose)
+				device_printf(child,
+				    "rid %#x is memory, requested %d\n",
+				    *rid, type);
 			goto out;
 		}
 	} else {
 		if (type != SYS_RES_IOPORT) {
-			device_printf(child,
-			    "failed: rid %#x is ioport, requested %d\n",
-			    *rid, type);
+			if (bootverbose)
+				device_printf(child,
+				    "rid %#x is ioport, requested %d\n",
+				    *rid, type);
 			goto out;
 		}
 	}
