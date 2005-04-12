@@ -309,6 +309,7 @@ _libpthread_init(struct pthread *curthread)
 		_thr_initial = curthread;
 		SIGDELSET(oldset, SIGCANCEL);
 		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+		_thr_report_creation(curthread, curthread);
 	}
 }
 
@@ -384,6 +385,7 @@ init_private(void)
 	_thr_umtx_init(&_rwlock_static_lock);
 	_thr_umtx_init(&_keytable_lock);
 	_thr_umtx_init(&_thr_atfork_lock);
+	_thr_umtx_init(&_thr_event_lock);
 	_thr_spinlock_init();
 	_thr_list_init();
 

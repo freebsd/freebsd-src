@@ -56,7 +56,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	ucontext_t uc;
 	sigset_t sigmask, oldsigmask;
 	struct pthread *curthread, *new_thread;
-	int ret = 0;
+	int ret = 0, locked;
 
 	_thr_check_init();
 
@@ -92,9 +92,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	else if (_thr_scope_system < 0)
 		new_thread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
 
+	new_thread->tid = TID_TERMINATED;
+
 	if (create_stack(&new_thread->attr) != 0) {
 		/* Insufficient memory to create a stack: */
-		new_thread->terminated = 1;
 		_thr_free(curthread, new_thread);
 		return (EAGAIN);
 	}
@@ -151,20 +152,31 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	 * it can not handle signal, so we should masks all signals here.
 	 */
 	SIGFILLSET(sigmask);
+	SIGDELSET(sigmask, SIGTRAP);
 	__sys_sigprocmask(SIG_SETMASK, &sigmask, &oldsigmask);
 	new_thread->sigmask = oldsigmask;
 	/* Add the new thread. */
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
+	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE)) {
+		THR_THREAD_LOCK(curthread, new_thread);
+		locked = 1;
+	} else
+		locked = 0;
 	/* Schedule the new thread. */
 	ret = thr_create(&uc, &new_thread->tid, 0);
 	__sys_sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 	if (ret != 0) {
+		if (locked)
+			THR_THREAD_UNLOCK(curthread, new_thread);
 		_thr_unlink(curthread, new_thread);
 		free_thread(curthread, new_thread);
 		(*thread) = 0;
 		ret = EAGAIN;
+	} else if (locked) {
+		_thr_report_creation(curthread, new_thread);
+		THR_THREAD_UNLOCK(curthread, new_thread);
 	}
 	return (ret);
 }
@@ -173,7 +185,7 @@ static void
 free_thread(struct pthread *curthread, struct pthread *thread)
 {
 	free_stack(curthread, &thread->attr);
-	curthread->terminated = 1;
+	curthread->tid = TID_TERMINATED;
 	_thr_free(curthread, thread);
 }
 
@@ -214,6 +226,9 @@ thread_start(struct pthread *curthread)
 
 	if (curthread->flags & THR_FLAGS_NEED_SUSPEND)
 		_thr_suspend_check(curthread);
+
+	THR_LOCK(curthread);
+	THR_UNLOCK(curthread);
 
 	/* Run the current thread's start routine with argument: */
 	pthread_exit(curthread->start_routine(curthread->arg));

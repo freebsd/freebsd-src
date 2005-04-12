@@ -130,7 +130,9 @@ _pthread_exit(void *status)
 	THREAD_LIST_UNLOCK(curthread);
 	if (curthread->joiner)
 		_thr_umtx_wake(&curthread->state, INT_MAX);
-	thr_exit(&curthread->terminated);
+	if (SHOULD_REPORT_EVENT(curthread, TD_DEATH))
+		_thr_report_death(curthread);
+	thr_exit(&curthread->tid);
 	PANIC("thr_exit() returned");
 	/* Never reach! */
 }
