@@ -39,6 +39,7 @@ mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
 pciid		Generate src/share/misc/pci_vendors.
+pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
 prstats		Generate statistics about the PR database.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
