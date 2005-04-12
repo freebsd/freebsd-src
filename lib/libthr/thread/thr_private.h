@@ -56,6 +56,7 @@
 
 #include "pthread_md.h"
 #include "thr_umtx.h"
+#include "thread_db.h"
 
 /*
  * Evaluate the storage class specifier.
@@ -345,11 +346,9 @@ struct pthread {
 	 */
 	umtx_t			lock;
 
-	/* Thread is terminated in kernel, written by kernel. */
-	long			terminated;
-
 	/* Kernel thread id. */
 	long			tid;
+#define	TID_TERMINATED		1
 
 	/* Internal condition variable cycle number. */
 	umtx_t			cycle;
@@ -491,6 +490,15 @@ struct pthread {
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup	*cleanup;
+
+	/* Enable event reporting */
+	int			report_events;
+
+	/* Event mask */
+	int			event_mask;
+
+	/* Event */
+	td_event_msg_t		event_buf;
 };
 
 #define THR_UMTX_TRYLOCK(thrd, lck)			\
@@ -573,6 +581,10 @@ do {								\
 
 #define	THR_IN_SYNCQ(thrd)	(((thrd)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
 
+#define SHOULD_REPORT_EVENT(curthr, e)			\
+	(curthr->report_events && 			\
+	 (((curthr)->event_mask | _thread_event_mask ) & e) != 0)
+
 extern int __isthreaded;
 
 /*
@@ -581,9 +593,12 @@ extern int __isthreaded;
 
 SCLASS void		*_usrstack	SCLASS_PRESET(NULL);
 SCLASS struct pthread	*_thr_initial	SCLASS_PRESET(NULL);
+SCLASS int		_thr_scope_system	SCLASS_PRESET(0);
+
 /* For debugger */
 SCLASS int		_libthr_debug		SCLASS_PRESET(0);
-SCLASS int		_thr_scope_system	SCLASS_PRESET(0);
+SCLASS int		_thread_event_mask	SCLASS_PRESET(0);
+SCLASS struct pthread	*_thread_last_event;
 
 /* List of all threads: */
 SCLASS TAILQ_HEAD(, pthread)	_thread_list
@@ -643,6 +658,7 @@ SCLASS umtx_t		_cond_static_lock;
 SCLASS umtx_t		_rwlock_static_lock;
 SCLASS umtx_t		_keytable_lock;
 SCLASS umtx_t		_thr_list_lock;
+SCLASS umtx_t		_thr_event_lock;
 
 /* Undefine the storage class and preset specifiers: */
 #undef  SCLASS
@@ -720,6 +736,11 @@ void	_thr_link(struct pthread *curthread, struct pthread *thread);
 void	_thr_unlink(struct pthread *curthread, struct pthread *thread);
 void	_thr_suspend_check(struct pthread *curthread);
 void	_thr_assert_lock_level() __dead2;
+void	_thr_report_creation(struct pthread *curthread,
+			   struct pthread *newthread);
+void	_thr_report_death(struct pthread *curthread);
+void	_thread_bp_create(void);
+void	_thread_bp_death(void);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
