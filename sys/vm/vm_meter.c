@@ -255,22 +255,19 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 static int
 vcnt(SYSCTL_HANDLER_ARGS)
 {
-        int error = 0;
 	int count = *(int *)arg1;
+	int offset = (char *)arg1 - (char *)&cnt;
 #ifdef SMP
 	int i;
-	int offset = (char *)arg1 - (char *)&cnt;
 
 	for (i = 0; i < mp_ncpus; ++i) {
 		struct pcpu *pcpu = pcpu_find(i);
 		count += *(int *)((char *)&pcpu->pc_cnt + offset);
 	}
 #else
-	int offset = (char *)arg1 - (char *)&cnt;
 	count += *(int *)((char *)PCPU_PTR(cnt) + offset);
 #endif
-	error = SYSCTL_OUT(req, &count, sizeof(int));
-	return(error);
+	return (SYSCTL_OUT(req, &count, sizeof(int)));
 }
 
 SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD,
