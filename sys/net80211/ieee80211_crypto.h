@@ -74,8 +74,9 @@ struct ieee80211_key {
 	u_int8_t	wk_flags;
 #define	IEEE80211_KEY_XMIT	0x01	/* key used for xmit */
 #define	IEEE80211_KEY_RECV	0x02	/* key used for recv */
-#define	IEEE80211_KEY_SWCRYPT	0x04	/* host-based encrypt/decrypt */
-#define	IEEE80211_KEY_SWMIC	0x08	/* host-based enmic/demic */
+#define	IEEE80211_KEY_GROUP	0x04	/* key used for WPA group operation */
+#define	IEEE80211_KEY_SWCRYPT	0x10	/* host-based encrypt/decrypt */
+#define	IEEE80211_KEY_SWMIC	0x20	/* host-based enmic/demic */
 	u_int16_t	wk_keyix;	/* key index */
 	u_int8_t	wk_key[IEEE80211_KEYBUF_SIZE+IEEE80211_MICBUF_SIZE];
 #define	wk_txmic	wk_key+IEEE80211_KEYBUF_SIZE+0	/* XXX can't () right */
@@ -85,6 +86,8 @@ struct ieee80211_key {
 	const struct ieee80211_cipher *wk_cipher;
 	void		*wk_private;	/* private cipher state */
 };
+#define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
+	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
 
 /*
  * NB: these values are ordered carefully; there are lots of
@@ -133,7 +136,7 @@ struct ieee80211_crypto_state {
 void	ieee80211_crypto_attach(struct ieee80211com *);
 void	ieee80211_crypto_detach(struct ieee80211com *);
 int	ieee80211_crypto_newkey(struct ieee80211com *,
-		int cipher, struct ieee80211_key *);
+		int cipher, int flags, struct ieee80211_key *);
 int	ieee80211_crypto_delkey(struct ieee80211com *,
 		struct ieee80211_key *);
 int	ieee80211_crypto_setkey(struct ieee80211com *,
