@@ -453,11 +453,12 @@ pccard_function_init(struct pccard_function *pf)
 			    rman_make_alignment_flags(cfe->iospace[i].length));
 			if (cfe->iores[i] == NULL)
 				goto not_this_one;
-			resource_list_add(rl, SYS_RES_IOPORT, cfe->iorid[i],
-			    rman_get_start(r), rman_get_end(r),
+			rle = resource_list_add(rl, SYS_RES_IOPORT,
+			    cfe->iorid[i], rman_get_start(r), rman_get_end(r),
 			    cfe->iospace[i].length);
-			rle = resource_list_find(rl, SYS_RES_IOPORT,
-			    cfe->iorid[i]);
+			if (rle == NULL)
+				panic("Cannot add resource rid %d IOPORT",
+				    cfe->iorid[i]);
 			rle->res = r;
 			spaces++;
 		}
@@ -477,10 +478,11 @@ pccard_function_init(struct pccard_function *pf)
 				SYS_RES_IRQ, &cfe->irqrid, 0);
 			if (cfe->irqres == NULL)
 				goto not_this_one;
-			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
+			rle = resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
 			    rman_get_start(r), rman_get_end(r), 1);
-			rle = resource_list_find(rl, SYS_RES_IRQ,
-			    cfe->irqrid);
+			if (rle == NULL)
+				panic("Cannot add resource rid %d IRQ",
+				    cfe->irqrid);
 			rle->res = r;
 		}
 		/* If we get to here, we've allocated all we need */
@@ -733,6 +735,8 @@ pccard_function_disable(struct pccard_function *pf)
 		struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 		struct resource_list_entry *rle =
 		    resource_list_find(&devi->resources, SYS_RES_IRQ, 0);
+		if (rle == NULL)
+			panic("Can't disable an interrupt with no IRQ res\n");
 		BUS_TEARDOWN_INTR(dev, pf->dev, rle->res,
 		    pf->intr_handler_cookie);
 	}
