@@ -514,8 +514,8 @@ void	vop_unlock_pre(void *a);
 
 #define	ASSERT_VI_LOCKED(vp, str)
 #define	ASSERT_VI_UNLOCKED(vp, str)
-#if 0
 #define	ASSERT_VOP_ELOCKED(vp, str)
+#if 0
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
 #endif
 #define	ASSERT_VOP_LOCKED(vp, str)
