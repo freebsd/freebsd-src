@@ -57,6 +57,7 @@ typedef enum {
 	TD_PARTIALREG
 } td_err_e;
 
+struct ps_prochandle;
 typedef struct td_thragent td_thragent_t;
 typedef long thread_t;			/* Must be an integral type. */
 

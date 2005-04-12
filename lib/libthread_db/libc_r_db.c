@@ -58,7 +58,7 @@ libc_r_db_init()
 static td_err_e
 libc_r_db_ta_clear_event(const td_thragent_t *ta, td_thr_events_t *ev)
 {
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
@@ -160,7 +160,7 @@ libc_r_db_ta_new(struct ps_prochandle *ph, td_thragent_t **ta_p)
 static td_err_e
 libc_r_db_ta_set_event(const td_thragent_t *ta, td_thr_events_t *ev)
 {
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
@@ -192,13 +192,13 @@ libc_r_db_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *cb, void *data,
 static td_err_e
 libc_r_db_thr_clear_event(const td_thrhandle_t *th, td_thr_events_t *ev)
 {
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
 libc_r_db_thr_event_enable(const td_thrhandle_t *th, int oo)
 {
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
@@ -281,7 +281,7 @@ libc_r_db_thr_getgregs(const td_thrhandle_t *th, prgregset_t r)
 static td_err_e
 libc_r_db_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *ev)
 {
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
