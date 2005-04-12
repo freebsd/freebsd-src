@@ -1,5 +1,6 @@
-/*-
- * Copyright (c) 2003-04 3ware, Inc.
+/*
+ * Copyright (c) 2004-05 Applied Micro Circuits Corporation.
+ * Copyright (c) 2004-05 Vinod Kashyap.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,38 +28,36 @@
  */
 
 /*
- * 3ware driver for 9000 series storage controllers.
+ * AMCC'S 3ware driver for 9000 series storage controllers.
  *
  * Author: Vinod Kashyap
  */
 
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/libkern.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/disk.h>
-#include <sys/stat.h>
-#include <sys/devicestat.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <machine/clock.h>
+#ifndef TW_OSL_TYPES_H
 
-#include <vm/vm.h>
+#define TW_OSL_TYPES_H
 
-#include <sys/rman.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+/*
+ * typedefs shared between OSL and CL, and defined by OSL.
+ */
 
-#include <opt_twa.h>
-#include <dev/twa/twa_reg.h>
-#include <dev/twa/twa_ioctl.h>
-#include <dev/twa/twa.h>
-#include <dev/twa/twa_externs.h>
+
+typedef void			TW_VOID;
+typedef char			TW_INT8;
+typedef unsigned char		TW_UINT8;
+typedef short			TW_INT16;
+typedef unsigned short		TW_UINT16;
+typedef int			TW_INT32;
+typedef unsigned int		TW_UINT32;
+typedef long long		TW_INT64;
+typedef unsigned long long	TW_UINT64;
+
+typedef time_t			TW_TIME;
+typedef struct mtx		TW_LOCK_HANDLE;
+
+
+
+#endif /* TW_OSL_TYPES_H */
