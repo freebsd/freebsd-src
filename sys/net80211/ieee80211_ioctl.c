@@ -1525,18 +1525,19 @@ ieee80211_ioctl_setkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 			return EINVAL;
 		wk = &ic->ic_nw_keys[kid];
 		ni = NULL;
+		/* XXX auto-add group key flag until applications are updated */
+		if ((ik.ik_flags & IEEE80211_KEY_XMIT) == 0)	/* XXX */
+			ik.ik_flags |= IEEE80211_KEY_GROUP;	/* XXX */
 	}
 	error = 0;
 	ieee80211_key_update_begin(ic);
-	if (ieee80211_crypto_newkey(ic, ik.ik_type, wk)) {
+	if (ieee80211_crypto_newkey(ic, ik.ik_type, ik.ik_flags, wk)) {
 		wk->wk_keylen = ik.ik_keylen;
 		/* NB: MIC presence is implied by cipher type */
 		if (wk->wk_keylen > IEEE80211_KEYBUF_SIZE)
 			wk->wk_keylen = IEEE80211_KEYBUF_SIZE;
 		wk->wk_keyrsc = ik.ik_keyrsc;
 		wk->wk_keytsc = 0;			/* new key, reset */
-		wk->wk_flags |=
-			ik.ik_flags & (IEEE80211_KEY_XMIT|IEEE80211_KEY_RECV);
 		memset(wk->wk_key, 0, sizeof(wk->wk_key));
 		memcpy(wk->wk_key, ik.ik_keydata, ik.ik_keylen);
 		if (!ieee80211_crypto_setkey(ic, wk,
@@ -1958,10 +1959,10 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		if (error)
 			break;
 		ieee80211_key_update_begin(ic);
-		if (ieee80211_crypto_newkey(ic, IEEE80211_CIPHER_WEP, k)) {
+		k->wk_keyix = kid;	/* NB: force fixed key id */
+		if (ieee80211_crypto_newkey(ic, IEEE80211_CIPHER_WEP,
+		    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, k)) {
 			k->wk_keylen = ireq->i_len;
-			k->wk_flags |=
-			    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
 			memcpy(k->wk_key, tmpkey, sizeof(tmpkey));
 			if  (!ieee80211_crypto_setkey(ic, k, ic->ic_myaddr))
 				error = EINVAL;
