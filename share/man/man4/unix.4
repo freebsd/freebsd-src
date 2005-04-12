@@ -83,6 +83,24 @@ removed when the socket is closed \(em
 .Xr unlink 2
 must be used to remove the file.
 .Pp
+The length of
+.Ux Ns -domain
+address, required by
+.Xr bind 2
+and
+.Xr connect 2 ,
+can be calculated by the macro
+.Fn SUN_LEN
+defined in
+.In sys/un.h .
+The
+.Ar sun_path
+field must be terminated by a NUL character to be used with
+.Fn SUN_LEN ,
+but the terminating NUL is
+.Em not
+part of the address.
+.Pp
 The
 .Ux Ns -domain
 protocol family does not support broadcast addressing or any form
