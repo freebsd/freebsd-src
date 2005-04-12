@@ -916,12 +916,19 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		fac = LOG_NFACILITIES;
 	else
 		fac = LOG_FAC(pri);
+
+	/* Check maximum facility number. */
+	if (fac > LOG_NFACILITIES) {
+		(void)sigsetmask(omask);
+		return;
+	}
+
 	prilev = LOG_PRI(pri);
 
 	/* extract program name */
 	for (i = 0; i < NAME_MAX; i++) {
 		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[' ||
-		    msg[i] == '/')
+		    msg[i] == '/' || isspace(msg[i]))
 			break;
 		prog[i] = msg[i];
 	}
@@ -1593,7 +1600,7 @@ init(int signo)
 				p = LocalHostName;
 			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
 				if (!isalnum(*p) && *p != '.' && *p != '-'
-				    && *p != ',')
+				    && *p != ',' && *p != ':' && *p != '%')
 					break;
 				host[i] = *p++;
 			}
@@ -1608,7 +1615,7 @@ init(int signo)
 				continue;
 			}
 			for (i = 0; i < NAME_MAX; i++) {
-				if (!isprint(p[i]))
+				if (!isprint(p[i]) || isspace(p[i]))
 					break;
 				prog[i] = p[i];
 			}
