@@ -218,7 +218,7 @@ static struct protosw		ng_btsocket_protosw[] = {
 	SOCK_STREAM,			/* protocol type */
 	&ng_btsocket_domain,		/* backpointer to domain */
 	BLUETOOTH_PROTO_RFCOMM,		/* protocol */
-	PR_ATOMIC | PR_CONNREQUIRED,	/* flags */
+	PR_CONNREQUIRED,		/* flags */
 	NULL, NULL, NULL,		/* input, output, ctlinput */
 	ng_btsocket_rfcomm_ctloutput,	/* ctloutput */
 	NULL,				/* ousrreq() */
