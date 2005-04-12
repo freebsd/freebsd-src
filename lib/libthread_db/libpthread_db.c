@@ -428,21 +428,21 @@ static td_err_e
 pt_ta_event_addr(const td_thragent_t *ta, td_event_e event, td_notify_t *ptr)
 {
 	TDBG_FUNC();
-	return (TD_NOEVENT);
+	return (TD_ERR);
 }
 
 static td_err_e
 pt_ta_set_event(const td_thragent_t *ta, td_thr_events_t *events)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
 pt_ta_clear_event(const td_thragent_t *ta, td_thr_events_t *events)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
@@ -821,21 +821,21 @@ static td_err_e
 pt_thr_event_enable(const td_thrhandle_t *th, int en)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
 pt_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *setp)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
 pt_thr_clear_event(const td_thrhandle_t *th, td_thr_events_t *setp)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+	return (0);
 }
 
 static td_err_e
