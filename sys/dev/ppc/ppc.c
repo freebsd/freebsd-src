@@ -1343,8 +1343,8 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 /* microsequence registers are equivalent to PC-like port registers */
 
-#define r_reg(register,ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, register))
-#define w_reg(register, ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, register, byte))
+#define r_reg(reg,ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, reg))
+#define w_reg(reg, ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, reg, byte))
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
