@@ -268,8 +268,10 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
-		if ((lkp->lk_lockholder == thr) || (lkp->lk_sharecount <= 0))
+		if (lkp->lk_lockholder == thr)
 			panic("lockmgr: upgrade exclusive lock");
+		if (lkp->lk_sharecount <= 0)
+			panic("lockmgr: upgrade without shared");
 		shareunlock(td, lkp, 1);
 		/*
 		 * If we are just polling, check to see if we will block.
