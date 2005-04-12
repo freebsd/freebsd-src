@@ -240,7 +240,7 @@ trap(struct trapframe *tf)
 	    trap_msg[tf->tf_type & ~T_KERNEL],
 	    (TRAPF_USERMODE(tf) ? "user" : "kernel"), rdpr(pil));
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 
 	if ((tf->tf_tstate & TSTATE_PRIV) == 0) {
 		KASSERT(td != NULL, ("trap: curthread NULL"));
@@ -510,7 +510,7 @@ syscall(struct trapframe *tf)
 
 	p = td->td_proc;
 
-	atomic_add_int(&cnt.v_syscall, 1);
+	PCPU_LAZY_INC(cnt.v_syscall);
 
 	narg = 0;
 	error = 0;

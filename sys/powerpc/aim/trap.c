@@ -147,7 +147,7 @@ trap(struct trapframe *frame)
 	int		sig, type, user;
 	u_int		sticks, ucode;
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 
 	td = PCPU_GET(curthread);
 	p = td->td_proc;
@@ -338,7 +338,7 @@ syscall(struct trapframe *frame)
 	td = PCPU_GET(curthread);
 	p = td->td_proc;
 
-	atomic_add_int(&cnt.v_syscall, 1);
+	PCPU_LAZY_INC(cnt.v_syscall);
 
 	if (p->p_flag & P_SA)
 		thread_user_enter(td);
