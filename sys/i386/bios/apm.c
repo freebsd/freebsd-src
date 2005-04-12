@@ -478,28 +478,26 @@ apm_do_suspend(void)
 	struct apm_softc *sc = &apm_softc;
 	int error;
 
-	if (!sc)
+	if (sc == NULL || sc->initialized == 0)
 		return;
 
 	apm_op_inprog = 0;
 	sc->suspends = sc->suspend_countdown = 0;
 
-	if (sc->initialized) {
-		error = DEVICE_SUSPEND(root_bus);
-		if (error) {
-			DEVICE_RESUME(root_bus);
-		} else {
-			apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-			if (apm_suspend_system(PMST_SUSPEND) == 0) {
-				sc->suspending = 1;
-				apm_processevent();
-			} else {
-				/* Failure, 'resume' the system again */
-				apm_execute_hook(hook[APM_HOOK_RESUME]);
-				DEVICE_RESUME(root_bus);
-			}
-		}
+	error = DEVICE_SUSPEND(root_bus);
+	if (error)
+		return;
+
+	apm_execute_hook(hook[APM_HOOK_SUSPEND]);
+	if (apm_suspend_system(PMST_SUSPEND) == 0) {
+		sc->suspending = 1;
+		apm_processevent();
+	} else {
+		/* Failure, 'resume' the system again */
+		apm_execute_hook(hook[APM_HOOK_RESUME]);
+		DEVICE_RESUME(root_bus);
 	}
+	return;
 }
 
 static void
@@ -507,20 +505,19 @@ apm_do_standby(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (!sc)
+	if (sc == NULL || sc->initialized == 0)
 		return;
 
 	apm_op_inprog = 0;
 	sc->standbys = sc->standby_countdown = 0;
 
-	if (sc->initialized) {
-		/*
-		 * As far as standby, we don't need to execute 
-		 * all of suspend hooks.
-		 */
-		if (apm_suspend_system(PMST_STANDBY) == 0)
-			apm_processevent();
-	}
+	/*
+	 * As far as standby, we don't need to execute 
+	 * all of suspend hooks.
+	 */
+	if (apm_suspend_system(PMST_STANDBY) == 0)
+		apm_processevent();
+	return;
 }
 
 static void
@@ -569,7 +566,7 @@ apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (!sc->initialized)
+	if (sc == NULL || sc->initialized == 0)
 		return;
 
 	switch (state) {
@@ -599,17 +596,13 @@ apm_resume(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (!sc)
-		return;
-
-	if (sc->suspending == 0)
+	if (sc == NULL || sc->initialized == 0 || sc->suspending == 0)
 		return;
 
 	sc->suspending = 0;
-	if (sc->initialized) {
-		apm_execute_hook(hook[APM_HOOK_RESUME]);
-		DEVICE_RESUME(root_bus);
-	}
+	apm_execute_hook(hook[APM_HOOK_RESUME]);
+	DEVICE_RESUME(root_bus);
+	return;
 }
 
 
@@ -769,10 +762,14 @@ apm_event_enable(void)
 	struct apm_softc *sc = &apm_softc;
 
 	APM_DPRINT("called apm_event_enable()\n");
-	if (sc->initialized) {
-		sc->active = 1;
-		apm_timeout(sc);
-	}
+
+	if (sc == NULL || sc->initialized == 0)
+		return;
+
+	sc->active = 1;
+	apm_timeout(sc);
+
+	return;
 }
 
 /* disable APM BIOS */
@@ -782,10 +779,14 @@ apm_event_disable(void)
 	struct apm_softc *sc = &apm_softc;
 
 	APM_DPRINT("called apm_event_disable()\n");
-	if (sc->initialized) {
-		untimeout(apm_timeout, NULL, apm_timeout_ch);
-		sc->active = 0;
-	}
+
+	if (sc == NULL || sc->initialized == 0)
+		return;
+
+	untimeout(apm_timeout, NULL, apm_timeout_ch);
+	sc->active = 0;
+
+	return;
 }
 
 /* halt CPU in scheduling loop */
@@ -794,8 +795,12 @@ apm_halt_cpu(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->initialized)
-		sc->always_halt_cpu = 1;
+	if (sc == NULL || sc->initialized == 0)
+		return;
+
+	sc->always_halt_cpu = 1;
+
+	return;
 }
 
 /* don't halt CPU in scheduling loop */
@@ -804,8 +809,12 @@ apm_not_halt_cpu(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->initialized)
-		sc->always_halt_cpu = 0;
+	if (sc == NULL || sc->initialized == 0)
+		return;
+
+	sc->always_halt_cpu = 0;
+
+	return;
 }
 
 /* device driver definitions */
@@ -1226,7 +1235,7 @@ apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct apm_softc *sc = &apm_softc;
 	int ctl = APMDEV(dev);
 
-	if (!sc->initialized)
+	if (sc == NULL || sc->initialized == 0)
 		return (ENXIO);
 
 	switch (ctl) {
@@ -1280,8 +1289,9 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	int ret;
 	int newstate;
 
-	if (!sc->initialized)
+	if (sc == NULL || sc->initialized == 0)
 		return (ENXIO);
+
 	APM_DPRINT("APM ioctl: cmd = 0x%lx\n", cmd);
 	switch (cmd) {
 	case APMIO_SUSPEND:
