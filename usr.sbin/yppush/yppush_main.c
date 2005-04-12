@@ -208,7 +208,7 @@ static void
 handler(int sig)
 {
 	if (sig == SIGTERM || sig == SIGINT || sig == SIGABRT) {
-		yppush_jobs = 0;
+		yppush_joblist = NULL;
 		yppush_exit(1);
 	}
 
