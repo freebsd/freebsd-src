@@ -2805,6 +2805,27 @@ resource_list_print_type(struct resource_list *rl, const char *name, int type,
 }
 
 /**
+ * @brief Releases all the resources in a list.
+ *
+ * @param rl		The resource list to purge.
+ * 
+ * @returns		nothing
+ */
+void
+resource_list_purge(struct resource_list *rl)
+{
+	struct resource_list_entry *rle;
+
+	STAILQ_FOREACH(rle, rl, link) {
+		if (rle->res)
+			bus_release_resource(rman_get_device(rle->res),
+			    rle->type, rle->rid, rle->res);
+		STAILQ_REMOVE_HEAD(rl, link);
+		free(rle, M_BUS);
+	}
+}
+
+/**
  * @brief Helper function for implementing DEVICE_PROBE()
  *
  * This function can be used to help implement the DEVICE_PROBE() for

@@ -227,6 +227,7 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+void	resource_list_purge(struct resource_list *rl);
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,
 				 const char *format);
