@@ -721,16 +721,7 @@
 
     &hwlist.snd.cmi;
 
-    <para arch="i386,amd64">Crystal Semiconductor (&man.csa.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>CS461x/462x Audio Accelerator</para>
-	</listitem>
-	<listitem>
-	  <para>CS428x Audio Controller</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.csa;
 
     &hwlist.snd.es137x;
 
@@ -742,16 +733,7 @@
 
     <para arch="i386,amd64">ForteMedia fm801</para>
 
-    <para arch="i386,amd64">Gravis (&man.gusc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>UltraSound MAX</para>
-	</listitem>
-        <listitem>
-	  <para>UltraSound PnP</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.gusc;
 
     <para arch="i386,amd64">Intel 443MX, 810, 815, and 815E integrated sound
     devices (&man.pcm.4; driver)</para>
