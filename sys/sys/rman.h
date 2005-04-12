@@ -152,6 +152,7 @@ struct resource *rman_reserve_resource_bound(struct rman *rm, u_long start,
 					u_int flags, struct device *dev);
 void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
+void	rman_set_device(struct resource *_r, struct device *_dev);
 void	rman_set_end(struct resource *_r, u_long _end);
 void	rman_set_rid(struct resource *_r, int _rid);
 void	rman_set_start(struct resource *_r, u_long _start);
