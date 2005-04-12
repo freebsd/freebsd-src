@@ -99,11 +99,8 @@ struct pccard_config_entry {
 	} memspace[2];		/* XXX this could be as high as 8 */
 	int		maxtwins;
 	struct resource *iores[4];
-	int		iorid[4];
 	struct resource *irqres;
-	int		irqrid;
 	struct resource *memres[2];
-	int		memrid[2];
 	STAILQ_ENTRY(pccard_config_entry) cfe_list;
 };
 
