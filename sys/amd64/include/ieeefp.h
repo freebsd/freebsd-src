@@ -126,10 +126,10 @@ typedef enum {
 
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
-#define	__fldcw(addr)	__asm __volatile("fldcw %0" : "=m" (*(addr)))
+#define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
-#define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : "=m" (*(addr)))
+#define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : : "m" (*(addr)))
 #define	__stmxcsr(addr)	__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
 
 /*
