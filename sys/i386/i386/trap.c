@@ -180,7 +180,7 @@ trap(frame)
 	static int lastalert = 0;
 #endif
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 	type = frame.tf_trapno;
 
 #ifdef KDB

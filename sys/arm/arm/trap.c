@@ -251,7 +251,7 @@ data_abort_handler(trapframe_t *tf)
 	td = curthread;
 	p = td->td_proc;
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 	/* Data abort came from user mode? */
 	user = TRAP_USERMODE(tf);
 
@@ -716,7 +716,7 @@ prefetch_abort_handler(trapframe_t *tf)
 	
  	td = curthread;
 	p = td->td_proc;
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 
 	if (TRAP_USERMODE(tf)) {
 		td->td_frame = tf;
@@ -867,7 +867,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	int locked = 0;
 	u_int sticks = 0;
 
-	atomic_add_int(&cnt.v_syscall, 1);
+	PCPU_LAZY_INC(cnt.v_syscall);
 	sticks = td->td_sticks;
 	if (td->td_ucred != td->td_proc->p_ucred)
 		cred_update_thread(td);

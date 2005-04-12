@@ -332,7 +332,7 @@ trap(int vector, struct trapframe *tf)
 
 	user = TRAPF_USERMODE(tf) ? 1 : 0;
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 
 	td = curthread;
 	p = td->td_proc;
@@ -896,7 +896,7 @@ syscall(struct trapframe *tf)
 	code = tf->tf_scratch.gr15;
 	args = &tf->tf_scratch.gr16;
 
-	atomic_add_int(&cnt.v_syscall, 1);
+	PCPU_LAZY_INC(cnt.v_syscall);
 
 	td = curthread;
 	td->td_frame = tf;
