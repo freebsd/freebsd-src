@@ -139,7 +139,7 @@ interrupt(a0, a1, a2, framep)
 		break;
 
 	case ALPHA_INTR_DEVICE:	/* I/O device interrupt */
-		cnt.v_intr++;
+		PCPU_LAZY_INC(cnt.v_intr);
 		if (platform.iointr)
 			(*platform.iointr)(framep, a1);
 		break;
@@ -462,7 +462,7 @@ static void
 alpha_clock_interrupt(struct trapframe *framep)
 {
 
-	cnt.v_intr++;
+	PCPU_LAZY_INC(cnt.v_intr);
 #ifdef EVCNT_COUNTERS
 	clock_intr_evcnt.ev_count++;
 #else
