@@ -151,7 +151,7 @@ the base port number used in probes (default is 33434).
 Traceroute hopes that nothing is listening on UDP ports
 .I base
 to
-.I base + nhops - 1
+.I base + nhops * nprobes - 1
 at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
