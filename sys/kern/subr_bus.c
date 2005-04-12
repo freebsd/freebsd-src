@@ -2562,7 +2562,7 @@ resource_list_add_next(struct resource_list *rl, int type, u_long start,
  * If an existing entry exists with the same type and rid, it will be
  * modified using the given values of @p start, @p end and @p
  * count. If no entry exists, a new one will be created using the
- * given values.
+ * given values.  The resource list entry that matches is then returned.
  *
  * @param rl		the resource list to edit
  * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
@@ -2571,7 +2571,7 @@ resource_list_add_next(struct resource_list *rl, int type, u_long start,
  * @param end		the end address of the resource
  * @param count		XXX end-start+1
  */
-void
+struct resource_list_entry *
 resource_list_add(struct resource_list *rl, int type, int rid,
     u_long start, u_long end, u_long count)
 {
@@ -2595,6 +2595,7 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 	rle->start = start;
 	rle->end = end;
 	rle->count = count;
+	return (rle);
 }
 
 /**

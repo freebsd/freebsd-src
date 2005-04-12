@@ -206,7 +206,8 @@ STAILQ_HEAD(resource_list, resource_list_entry);
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
-void	resource_list_add(struct resource_list *rl,
+struct resource_list_entry *
+	resource_list_add(struct resource_list *rl,
 			  int type, int rid,
 			  u_long start, u_long end, u_long count);
 int	resource_list_add_next(struct resource_list *rl,
