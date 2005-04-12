@@ -77,6 +77,7 @@ static int ata_raid_lsiv3_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_promise_read_meta(device_t dev, struct ar_softc **raidp, int native);
 static int ata_raid_promise_write_meta(struct ar_softc *rdp);
 static int ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp);
 static struct ata_request *ata_raid_init_request(struct ar_softc *rdp, struct bio *bio);
 static int ata_raid_send_request(struct ata_request *request);
 static int ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags);
@@ -95,6 +96,7 @@ static void ata_raid_lsiv2_print_meta(struct lsiv2_raid_conf *meta);
 static void ata_raid_lsiv3_print_meta(struct lsiv3_raid_conf *meta);
 static void ata_raid_promise_print_meta(struct promise_raid_conf *meta);
 static void ata_raid_sii_print_meta(struct sii_raid_conf *meta);
+static void ata_raid_via_print_meta(struct via_raid_conf *meta);
 
 /* internal vars */   
 static struct ar_softc *ata_raid_arrays[MAX_ARRAYS];
@@ -958,18 +960,6 @@ ata_raid_create(struct raid_setup *setup)
 	rdp->interleave = min(max(32, rdp->interleave), 128); /*+*/
 	break;
 
-    case AR_F_INTEL_RAID:
-	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
-	break;
-
-    case AR_F_ITE_RAID:
-	rdp->interleave = min(max(2, rdp->interleave), 128); /*+*/
-	break;
-
-    case AR_F_SII_RAID:
-	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
-	break;
-
     case AR_F_HPTV2_RAID:
 	rdp->interleave = min(max(8, rdp->interleave), 128); /*+*/
 	rdp->offset_sectors = HPTV2_LBA(x) + 1;
@@ -977,6 +967,14 @@ ata_raid_create(struct raid_setup *setup)
 
     case AR_F_HPTV3_RAID:
 	rdp->interleave = min(max(32, rdp->interleave), 4096); /*+*/
+	break;
+
+    case AR_F_INTEL_RAID:
+	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
+	break;
+
+    case AR_F_ITE_RAID:
+	rdp->interleave = min(max(2, rdp->interleave), 128); /*+*/
 	break;
 
     case AR_F_LSIV2_RAID:
@@ -989,6 +987,14 @@ ata_raid_create(struct raid_setup *setup)
 
     case AR_F_PROMISE_RAID:
 	rdp->interleave = min(max(2, rdp->interleave), 2048); /*+*/
+	break;
+
+    case AR_F_SII_RAID:
+	rdp->interleave = min(max(8, rdp->interleave), 256); /*+*/
+	break;
+
+    case AR_F_VIA_RAID:
+	rdp->interleave = min(max(8, rdp->interleave), 128); /*+*/
 	break;
     }
 
@@ -1177,6 +1183,11 @@ ata_raid_read_metadata(device_t subdisk)
 	    if (ata_raid_sii_read_meta(subdisk, ata_raid_arrays))
 		return 0;
 	    break;
+
+	case ATA_VIA_ID:
+	    if (ata_raid_via_read_meta(subdisk, ata_raid_arrays))
+		return 0;
+	    break;
 	}
     }
     
@@ -1219,10 +1230,10 @@ ata_raid_write_metadata(struct ar_softc *rdp)
     case AR_F_ADAPTEC_RAID:
 	return ata_raid_adaptec_write_meta(rdp);
 
-    case ATA_INTEL_ID:
+    case AR_F_INTEL_RAID:
 	return ata_raid_intel_write_meta(rdp);
 
-    case ATA_ITE_ID:
+    case AR_F_ITE_RAID:
 	return ata_raid_ite_write_meta(rdp);
 
     case AR_F_LSIV2_RAID:
@@ -1231,7 +1242,10 @@ ata_raid_write_metadata(struct ar_softc *rdp)
     case AR_F_LSIV3_RAID:
 	return ata_raid_lsiv3_write_meta(rdp);
 
-    case ATA_SILICON_IMAGE_ID:
+    case AR_F_SII_RAID:
+	return ata_raid_sii_write_meta(rdp);
+
+    case AR_F_VIA_RAID:
 	return ata_raid_sii_write_meta(rdp);
 #endif
     default:
@@ -2762,7 +2776,7 @@ ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp)
 
 		raid->disks[disk_number].dev = parent;
 		raid->disks[disk_number].sectors = 
-		    raid->total_sectors / raid->total_disks;
+		    raid->total_sectors / raid->width;
 		raid->disks[disk_number].flags =
 		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
 		ars->raid = raid;
@@ -2774,6 +2788,123 @@ ata_raid_sii_read_meta(device_t dev, struct ar_softc **raidp)
     }
 
 sii_out:
+    free(meta, M_AR);
+    return retval;
+}
+
+/* VIA Tech Metadata */
+static int
+ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars = device_get_softc(dev);
+    device_t parent = device_get_parent(dev);
+    struct via_raid_conf *meta;
+    struct ar_softc *raid = NULL;
+    u_int8_t checksum, *ptr;
+    int array, count, disk, retval = 0;
+
+    if (!(meta = (struct via_raid_conf *)
+	  malloc(sizeof(struct via_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, VIA_LBA(parent),
+		    meta, sizeof(struct via_raid_conf), ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "VIA read metadata failed\n");
+	goto via_out;
+    }
+
+    /* check if this is a VIA RAID struct */
+    if (meta->magic != VIA_MAGIC) {
+	if (testing || bootverbose)
+	    device_printf(parent, "VIA check1 failed\n");
+	goto via_out;
+    }
+
+    /* calc the checksum and compare for valid */
+    for (checksum = 0, ptr = (u_int8_t *)meta, count = 0; count < 50; count++)
+	checksum += *ptr++;
+    if (checksum != meta->checksum) {  
+	if (testing || bootverbose)
+	    device_printf(parent, "VIA check2 failed\n");
+	goto via_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_via_print_meta(meta);
+
+    /* now convert VIA meta into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raidp[array] = 
+		(struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto via_out;
+	    }
+	}
+	raid = raidp[array];
+	if (raid->format && (raid->format != AR_F_VIA_RAID))
+	    continue;
+
+	if (raid->format == AR_F_VIA_RAID && (raid->magic_0 != meta->disks[0]))
+	    continue;
+
+	switch (meta->type) {
+	case VIA_T_RAID0:
+	    raid->type = AR_T_RAID0;
+	    raid->width = meta->stripe_layout & VIA_L_MASK;
+	    raid->total_sectors = meta->total_sectors;
+	    break;
+
+	case VIA_T_RAID1:
+	    raid->type = AR_T_RAID1;
+	    raid->width = 1;
+	    raid->total_sectors = meta->total_sectors;
+	    break;
+
+	case VIA_T_SPAN:
+	    raid->type = AR_T_SPAN;
+	    raid->width = 1;
+	    raid->total_sectors += meta->total_sectors;
+	    break;
+
+	default:
+	    device_printf(parent,"VIA unknown RAID type 0x%02x\n", meta->type);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto via_out;
+	}
+	raid->magic_0 = meta->disks[0]; /* XXX SOS hackish */
+	raid->format = AR_F_VIA_RAID;
+	raid->generation = 0;
+	raid->interleave = 0x08 << (meta->stripe_layout >> VIA_L_SHIFT);
+	for (count = 0, disk = 0; disk < 8; disk++)
+	    if (meta->disks[disk])
+		count++;
+	raid->total_disks = count;
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = raid->total_sectors / (63 * 255);
+
+	for (disk = 0; disk < 8; disk++) {
+	    if ((meta->disks[disk] == meta->disk_id) &&
+		((disk << 2) == meta->disk_index)) {
+		raid->disks[disk].dev = parent;
+		raid->disks[disk].sectors = meta->total_sectors / raid->width;
+		raid->disks[disk].flags =
+		    (AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+		ars->raid = raid;
+		ars->disk_number = disk;
+		retval = 1;
+		break;
+	    }
+	}
+	break;
+    }
+
+via_out:
     free(meta, M_AR);
     return retval;
 }
@@ -3019,6 +3150,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_LSIV3_RAID:       return "LSILogic v3 MegaRAID";
     case AR_F_PROMISE_RAID:     return "Promise Fasttrak";
     case AR_F_SII_RAID:         return "Silicon Image Medley";
+    case AR_F_VIA_RAID:         return "VIA Tech";
     default:                    return "UNKNOWN";
     }
 }
@@ -3601,5 +3733,42 @@ ata_raid_sii_print_meta(struct sii_raid_conf *meta)
     printf("name                <%.16s>\n", meta->name);
     printf("checksum_0          0x%04x\n", meta->checksum_0);
     printf("checksum_1          0x%04x\n", meta->checksum_1);
+    printf("=================================================\n");
+}
+
+static char *
+ata_raid_via_type(int type)
+{
+    static char buffer[16];
+
+    switch (type) {
+    case VIA_T_RAID0:   return "RAID0";
+    case VIA_T_RAID1:   return "RAID1";
+    case VIA_T_SPAN:    return "SPAN";
+    default:            sprintf(buffer, "UNKNOWN 0x%02x", type);
+			return buffer;
+    }
+}
+
+static void
+ata_raid_via_print_meta(struct via_raid_conf *meta)
+{
+    int i;
+  
+    printf("*************** ATA VIA Metadata ****************\n");
+    printf("magic               0x%02x\n", meta->magic);
+    printf("dummy_0             0x%02x\n", meta->dummy_0);
+    printf("type                %s\n", ata_raid_via_type(meta->type));
+    printf("disk_index          0x%02x\n", meta->disk_index);
+    printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
+    printf("stripe_sectors      %d\n", (meta->stripe_layout >> VIA_L_SHIFT));
+    printf("total_sectors       %llu\n", meta->total_sectors);
+    printf("disk_id             0x%08x\n", meta->disk_id);
+    printf("DISK#   disk_id\n");
+    for (i = 0; i < 8; i++) {
+	if (meta->disks[i])
+	    printf("  %d    0x%08x\n", i, meta->disks[i]);
+    }    
+    printf("checksum            0x%02x\n", meta->checksum);
     printf("=================================================\n");
 }
