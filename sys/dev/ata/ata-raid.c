@@ -2792,7 +2792,7 @@ sii_out:
     return retval;
 }
 
-/* VIA Tech Metadata */
+/* VIA Tech V-RAID Metadata */
 static int
 ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 {
@@ -3150,7 +3150,7 @@ ata_raid_format(struct ar_softc *rdp)
     case AR_F_LSIV3_RAID:       return "LSILogic v3 MegaRAID";
     case AR_F_PROMISE_RAID:     return "Promise Fasttrak";
     case AR_F_SII_RAID:         return "Silicon Image Medley";
-    case AR_F_VIA_RAID:         return "VIA Tech";
+    case AR_F_VIA_RAID:         return "VIA Tech V-RAID";
     default:                    return "UNKNOWN";
     }
 }

@@ -639,7 +639,7 @@ struct sii_raid_conf {
 } __packed;
 
 
-/* VIA Tech Metadata */
+/* VIA Tech V-RAID Metadata */
 #define VIA_LBA(dev) \
 	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
 
