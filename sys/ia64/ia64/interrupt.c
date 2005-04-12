@@ -108,20 +108,22 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU",
     "");
 #endif
 
+SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
+
 static int adjust_edges = 0;
-SYSCTL_INT(_debug, OID_AUTO, clock_adjust_edges, CTLFLAG_RW,
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_edges, CTLFLAG_RD,
     &adjust_edges, 0, "Number of times ITC got more than 12.5% behind");
 
 static int adjust_excess = 0;
-SYSCTL_INT(_debug, OID_AUTO, clock_adjust_excess, CTLFLAG_RW,
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_excess, CTLFLAG_RD,
     &adjust_excess, 0, "Total number of ignored ITC interrupts");
 
 static int adjust_lost = 0;
-SYSCTL_INT(_debug, OID_AUTO, clock_adjust_lost, CTLFLAG_RW,
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_lost, CTLFLAG_RD,
     &adjust_lost, 0, "Total number of lost ITC interrupts");
 
 static int adjust_ticks = 0;
-SYSCTL_INT(_debug, OID_AUTO, clock_adjust_ticks, CTLFLAG_RW,
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
 int
@@ -187,7 +189,7 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 				if (adj == 0)
 					adjust_edges++;
 				adj = ia64_clock_reload >> 4;
-			} else if (delta < (ia64_clock_reload >> 3))
+			} else
 				adj = 0;
 		} else {
 			adj = 0;
