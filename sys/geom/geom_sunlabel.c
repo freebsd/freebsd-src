@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/md5.h>
 #include <sys/sun_disklabel.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
@@ -57,6 +58,7 @@ struct g_sunlabel_softc {
 	int nheads;
 	int nsects;
 	int nalt;
+	u_char labelsum[16];
 };
 
 static int
@@ -65,6 +67,7 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 	int i, error;
 	u_int u, v, csize;
 	struct sun_disklabel sl;
+	MD5_CTX md5sum;
 
 	error = sunlabel_dec(sec0, &sl);
 	if (error)
@@ -95,6 +98,14 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 	ms->nalt = sl.sl_acylinders;
 	ms->nheads = sl.sl_ntracks;
 	ms->nsects = sl.sl_nsectors;
+
+	/*
+	 * Calculate MD5 from the first sector and use it for avoiding
+	 * recursive labels creation.
+	 */
+	MD5Init(&md5sum);
+	MD5Update(&md5sum, sec0, ms->sectorsize);
+	MD5Final(ms->labelsum, &md5sum);
 
 	return (0);
 }
@@ -224,28 +235,43 @@ g_sunlabel_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	}
 }
 
+static int
+g_sunlabel_start(struct bio *bp)
+{
+	struct g_sunlabel_softc *mp;
+	struct g_slicer *gsp;
+
+	gsp = bp->bio_to->geom->softc;
+	mp = gsp->softc;
+	if (bp->bio_cmd == BIO_GETATTR) {
+		if (g_handleattr(bp, "SUN::labelsum", mp->labelsum,
+		    sizeof(mp->labelsum)))
+			return (1);
+	}
+	return (0);
+}
+
 static struct g_geom *
 g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error;
-	u_char *buf;
 	struct g_sunlabel_softc *ms;
 	struct g_slicer *gsp;
+	u_char *buf, hash[16];
+	MD5_CTX md5sum;
+	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_sunlabel_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, SUNLABEL_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, NULL);
+	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_sunlabel_start);
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
 	do {
-		if (gp->rank != 2 && flags == G_TF_NORMAL)
-			break;
 		ms->sectorsize = cp->provider->sectorsize;
 		if (ms->sectorsize < 512)
 			break;
@@ -254,7 +280,21 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_topology_lock();
 		if (buf == NULL || error != 0)
 			break;
-		
+
+		/*
+		 * Calculate MD5 from the first sector and use it for avoiding
+		 * recursive labels creation.
+		 */
+		MD5Init(&md5sum);
+		MD5Update(&md5sum, buf, ms->sectorsize);
+		MD5Final(ms->labelsum, &md5sum);
+ 
+		error = g_getattr("SUN::labelsum", cp, &hash);
+		if (!error && !bcmp(ms->labelsum, hash, sizeof(hash))) {
+			g_free(buf);
+			break;
+		}
+
 		g_sunlabel_modify(gp, ms, buf);
 		g_free(buf);
 
