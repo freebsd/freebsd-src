@@ -99,7 +99,7 @@ _thr_gc(struct pthread *curthread)
 	/* Check the threads waiting for GC. */
 	for (td = TAILQ_FIRST(&_thread_gc_list); td != NULL; td = td_next) {
 		td_next = TAILQ_NEXT(td, gcle);
-		if (td->terminated == 0) {
+		if (td->tid != TID_TERMINATED) {
 			/* make sure we are not still in userland */
 			continue;
 		}
