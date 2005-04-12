@@ -55,7 +55,6 @@ libkern/arm/ffs.S		standard
 libkern/arm/muldi3.c		standard
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
-libkern/bcmp.c			standard
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard

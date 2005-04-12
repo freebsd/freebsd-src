@@ -192,7 +192,7 @@ do_memset:
 	strgtb	r3, [ip]		/* and a third */
 	RET			/* Exit */
 
-ENTRY(memcmp)
+ENTRY(bcmp)
 	mov	ip, r0
 	cmp	r2, #0x06
 	beq	.Lmemcmp_6bytes
