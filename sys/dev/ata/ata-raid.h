@@ -72,7 +72,8 @@ struct ar_softc {
 #define AR_F_LSIV3_RAID         0x0080
 #define AR_F_PROMISE_RAID       0x0100
 #define AR_F_SII_RAID           0x0200
-#define AR_F_FORMAT_MASK        0x03ff
+#define AR_F_VIA_RAID           0x0400
+#define AR_F_FORMAT_MASK        0x07ff
 
     u_int               generation;     /* generation of this array */
     u_int64_t           total_sectors;
@@ -108,7 +109,7 @@ struct ar_softc {
 
 /* note all entries are big endian */
 struct adaptec_raid_conf {
-    u_int32_t           magic_0;                /* 0x0000 */
+    u_int32_t           magic_0;
 #define ADP_MAGIC_0             0xc4650790
 
     u_int32_t           generation;
@@ -116,13 +117,13 @@ struct adaptec_raid_conf {
     u_int16_t           total_configs;
     u_int16_t           dummy_1;
     u_int16_t           checksum;
-    u_int32_t           dummy_2;                /* 0x0010 */
+    u_int32_t           dummy_2;
     u_int32_t           dummy_3;
     u_int32_t           flags;
     u_int32_t           timestamp;
-    u_int32_t           dummy_4[4];             /* 0x0020 */
-    u_int32_t           dummy_5[4];             /* 0x0030 */
-    struct {                                    /* 0x0040 */
+    u_int32_t           dummy_4[4];
+    u_int32_t           dummy_5[4];
+    struct {
 	u_int16_t       total_disks;
 	u_int16_t       generation;
 	u_int32_t       magic_0;
@@ -146,9 +147,8 @@ struct adaptec_raid_conf {
 
 	u_int32_t       dummy_8[4];
 	u_int8_t        name[16];
-    } configs[127];                             /* x 0x40 bytes */
-    
-    u_int32_t           dummy_6[13];            /* 0x2000 */
+    } configs[127];
+    u_int32_t           dummy_6[13];
     u_int32_t           magic_1;
 #define ADP_MAGIC_1             0x9ff85009
     u_int32_t           dummy_7[3];
@@ -283,7 +283,7 @@ struct hptv3_raid_conf {
 
 struct intel_raid_conf {
     u_int8_t            intel_id[24];
-#define INTEL_MAGIC     "Intel Raid ISM Cfg Sig. "
+#define INTEL_MAGIC     	"Intel Raid ISM Cfg Sig. "
 
     u_int8_t            version[6];
     u_int8_t            dummy_0[2];
@@ -344,12 +344,12 @@ struct intel_raid_mapping {
 
 struct ite_raid_conf {
     u_int32_t           filler_1[5];
-    u_int8_t            timestamp_0[8];         /* BCD coded y:Y:M:D:m:h:f:s */
+    u_int8_t            timestamp_0[8];
     u_int32_t           dummy_1;
     u_int32_t           filler_2[5];
     u_int16_t           filler_3;
-    u_int8_t            ite_id[40];             /* byte swapped */
-#define ITE_MAGIC       "Integrated Technology Express Inc      "
+    u_int8_t            ite_id[40];
+#define ITE_MAGIC       	"Integrated Technology Express Inc      "
 
     u_int16_t           filler_4;
     u_int32_t           filler_5[6];
@@ -361,7 +361,7 @@ struct ite_raid_conf {
     u_int64_t           total_sectors __packed;
     u_int32_t           filler_8[12];
     
-    u_int16_t           filler_9;               /* 0x100 */
+    u_int16_t           filler_9;
     u_int8_t            type;
 #define ITE_T_RAID0             0x00
 #define ITE_T_RAID1             0x01
@@ -374,8 +374,8 @@ struct ite_raid_conf {
     u_int8_t            filler_11[3];
     u_int32_t           filler_12[54];
 
-    u_int32_t           dummy_6[4];             /* 0x200 */
-    u_int8_t            timestamp_1[8];         /* same as timestamp_0 */
+    u_int32_t           dummy_6[4];
+    u_int8_t            timestamp_1[8];
     u_int32_t           filler_13[9];
     u_int8_t            stripe_sectors;
     u_int8_t            filler_14[3];
@@ -397,7 +397,7 @@ struct ite_raid_conf {
 
 struct lsiv2_raid_conf {
     u_int8_t            lsi_id[6];
-#define LSIV2_MAGIC     "$XIDE$"
+#define LSIV2_MAGIC     	"$XIDE$"
 
     u_int8_t            dummy_0;
     u_int8_t            flags;
@@ -470,7 +470,7 @@ struct lsiv3_raid_conf {
     u_int8_t            checksum_0;
     u_int8_t            filler_5[512*2];
     u_int8_t            lsi_id[6];
-#define LSIV3_MAGIC     "$_IDE$"
+#define LSIV3_MAGIC     	"$_IDE$"
 
     u_int16_t           dummy_2;        /* 0x33de for OK disk */
     u_int16_t           version;        /* 0x0131 for this version */
@@ -523,18 +523,15 @@ struct lsiv3_raid_conf {
 /* Promise FastTrak Metadata */
 #define PR_LBA(dev) \
 	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 63)
-#if 0
-	(((((struct ad_softc *)device_get_ivars(dev))->total_secs / (((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors)) * ((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors) - ((struct ad_softc *)device_get_ivars(dev))->sectors)
-#endif
 
 struct promise_raid_conf {
     char                promise_id[24];
-#define PR_MAGIC        "Promise Technology, Inc."
+#define PR_MAGIC        	"Promise Technology, Inc."
 
     u_int32_t           dummy_0;
     u_int64_t           magic_0;
-#define PR_MAGIC0(x)    (((u_int64_t)(x.channel) << 48) | \
-			((u_int64_t)(x.device != 0) << 56))
+#define PR_MAGIC0(x)    	(((u_int64_t)(x.channel) << 48) | \
+				((u_int64_t)(x.device != 0) << 56))
     u_int16_t           magic_1;
     u_int32_t           magic_2;
     u_int8_t            filler1[470];
@@ -612,7 +609,7 @@ struct sii_raid_conf {
     u_int32_t   controller_pci_id;
     u_int16_t   version_minor;
     u_int16_t   version_major;
-    u_int8_t    timestamp[6];           /* BCD coded s:m:h:D:M:Y */
+    u_int8_t    timestamp[6];
     u_int16_t   stripe_sectors;
     u_int16_t   dummy_2;
     u_int8_t    disk_number;
@@ -638,5 +635,32 @@ struct sii_raid_conf {
     u_int8_t    name[16];
     u_int16_t   checksum_0;
     int8_t      filler1[190];
-    u_int16_t   checksum_1;             /* sum of all 128 shorts == 0 */
+    u_int16_t   checksum_1;
+} __packed;
+
+
+/* VIA Tech Metadata */
+#define VIA_LBA(dev) \
+	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
+
+struct via_raid_conf {
+    u_int16_t	magic;
+#define VIA_MAGIC		0xaa55
+
+    u_int8_t	dummy_0;
+    u_int8_t	type;
+#define	VIA_T_RAID0		0x04
+#define	VIA_T_RAID1		0x0c
+#define	VIA_T_SPAN		0x44
+
+    u_int8_t	disk_index;
+    u_int8_t	stripe_layout;
+#define	VIA_L_MASK		0x07
+#define	VIA_L_SHIFT		4
+
+    u_int64_t	total_sectors;
+    u_int32_t	disk_id;
+    u_int32_t	disks[8];
+    u_int8_t	checksum;
+    u_int8_t	filler_1[461];
 } __packed;
