@@ -328,7 +328,7 @@ cpu_thread_clean(struct thread *td)
 	struct pcb *pcb;
 
 	pcb = td->td_pcb; 
-	if (pcb->pcb_ext != 0) {
+	if (pcb->pcb_ext != NULL) {
 		/* XXXKSE  XXXSMP  not SMP SAFE.. what locks do we have? */
 		/* if (pcb->pcb_ext->ext_refcount-- == 1) ?? */
 		/*
@@ -337,7 +337,7 @@ cpu_thread_clean(struct thread *td)
 		 */
 		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
-		pcb->pcb_ext = 0;
+		pcb->pcb_ext = NULL;
 	}
 }
 
