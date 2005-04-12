@@ -598,6 +598,14 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	               &state, sizeof(state));
 	if (ret != 0)
 		return (P2T(ret));
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_report_events,
+		&info->ti_traceme, sizeof(int));
+	if (ret != 0)
+		return (P2T(ret));
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_event_mask,
+		&info->ti_events, sizeof(td_thr_events_t));
+	if (ret != 0)
+		return (P2T(ret));
 	info->ti_lid = ta->map[th->th_tid].lwp;
 	info->ti_tid = th->th_tid;
 	info->ti_thread = ta->map[th->th_tid].thr;
