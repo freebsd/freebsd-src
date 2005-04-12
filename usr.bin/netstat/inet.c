@@ -540,7 +540,8 @@ carp_stats(u_long off, const char *name, int af1 __unused)
 		memset(&zerostat, 0, len);
 	if (sysctlbyname("net.inet.carp.stats", &carpstat, &len,
 	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.carp.stats");
+		if (errno != ENOENT)
+			warn("sysctl: net.inet.carp.stats");
 		return;
 	}
 
