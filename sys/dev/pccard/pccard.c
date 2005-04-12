@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 #include "power_if.h"
 #include "card_if.h"
@@ -417,7 +418,7 @@ static void
 pccard_function_init(struct pccard_function *pf)
 {
 	struct pccard_config_entry *cfe;
-	int i;
+	int i, rid;
 	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
@@ -434,8 +435,12 @@ pccard_function_init(struct pccard_function *pf)
 	bus = device_get_parent(pf->dev);
 	/* Remember which configuration entry we are using. */
 	STAILQ_FOREACH(cfe, &pf->cfe_head, cfe_list) {
+		if (cfe->iftype != PCCARD_IFTYPE_IO)
+			continue;
 		for (i = 0; i < cfe->num_iospace; i++)
 			cfe->iores[i] = NULL;
+		for (i = 0; i < cfe->num_memspace; i++)
+			cfe->memres[i] = NULL;
 		cfe->irqres = NULL;
 		spaces = 0;
 		for (i = 0; i < cfe->num_iospace; i++) {
@@ -443,46 +448,61 @@ pccard_function_init(struct pccard_function *pf)
 			if (start)
 				end = start + cfe->iospace[i].length - 1;
 			else
-				end = ~0;
-			cfe->iorid[i] = i;
+				end = ~0UL;
 			DEVPRINTF((bus, "I/O rid %d start %x end %x\n",
 			    i, start, end));
+			rid = i;
 			r = cfe->iores[i] = bus_alloc_resource(bus,
-			    SYS_RES_IOPORT, &cfe->iorid[i], start, end,
+			    SYS_RES_IOPORT, &rid, start, end,
 			    cfe->iospace[i].length,
 			    rman_make_alignment_flags(cfe->iospace[i].length));
 			if (cfe->iores[i] == NULL)
 				goto not_this_one;
 			rle = resource_list_add(rl, SYS_RES_IOPORT,
-			    cfe->iorid[i], rman_get_start(r), rman_get_end(r),
+			    rid, rman_get_start(r), rman_get_end(r),
 			    cfe->iospace[i].length);
 			if (rle == NULL)
-				panic("Cannot add resource rid %d IOPORT",
-				    cfe->iorid[i]);
+				panic("Cannot add resource rid %d IOPORT", rid);
 			rle->res = r;
 			spaces++;
 		}
-		if (cfe->num_memspace > 0) {
-			/*
-			 * Not implement yet, Fix me.
-			 */
-			DEVPRINTF((bus, "Memory space not yet implemented.\n"));
+		for (i = 0; i < cfe->num_memspace; i++) {
+			start = cfe->memspace[i].hostaddr;
+			if (start)
+				end = start + cfe->memspace[i].length - 1;
+			else
+				end = ~0UL;
+			DEVPRINTF((bus, "Memory rid %d start %x end %x\n",
+			    i, start, end));
+			rid = i;
+			r = cfe->memres[i] = bus_alloc_resource(bus,
+			    SYS_RES_MEMORY, &rid, start, end,
+			    cfe->memspace[i].length,
+			    rman_make_alignment_flags(cfe->memspace[i].length));
+			if (cfe->memres[i] == NULL)
+				goto not_this_one;
+			rle = resource_list_add(rl, SYS_RES_MEMORY,
+			    rid, rman_get_start(r), rman_get_end(r),
+			    cfe->memspace[i].length);
+			if (rle == NULL)
+				panic("Cannot add resource rid %d MEM", rid);
+			rle->res = r;
+			spaces++;
 		}
 		if (spaces == 0) {
 			DEVPRINTF((bus, "Neither memory nor I/O mapped\n"));
 			goto not_this_one;
 		}
 		if (cfe->irqmask) {
-			cfe->irqrid = 0;
+			rid = 0;
 			r = cfe->irqres = bus_alloc_resource_any(bus,
-				SYS_RES_IRQ, &cfe->irqrid, 0);
+				SYS_RES_IRQ, &rid, 0);
 			if (cfe->irqres == NULL)
 				goto not_this_one;
-			rle = resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
+			rle = resource_list_add(rl, SYS_RES_IRQ, rid,
 			    rman_get_start(r), rman_get_end(r), 1);
 			if (rle == NULL)
-				panic("Cannot add resource rid %d IRQ",
-				    cfe->irqrid);
+				panic("Cannot add resource rid %d IRQ", rid);
 			rle->res = r;
 		}
 		/* If we get to here, we've allocated all we need */
@@ -496,24 +516,34 @@ pccard_function_init(struct pccard_function *pf)
 		 * from this config entry.
 		 */
 		for (i = 0; i < cfe->num_iospace; i++) {
-			if (cfe->iores[i] != NULL) {
-				bus_release_resource(bus, SYS_RES_IOPORT,
-				    cfe->iorid[i], cfe->iores[i]);
-				rle = resource_list_find(rl, SYS_RES_IOPORT,
-				    cfe->iorid[i]);
-				rle->res = NULL;
-				resource_list_delete(rl, SYS_RES_IOPORT,
-				    cfe->iorid[i]);
-			}
+			r = cfe->iores[i];
+			if (r == NULL)
+				continue;
+			rid = rman_get_rid(r);
+			bus_release_resource(bus, SYS_RES_IOPORT, rid, r);
+			rle = resource_list_find(rl, SYS_RES_IOPORT, rid);
+			rle->res = NULL;
+			resource_list_delete(rl, SYS_RES_IOPORT, rid);
 			cfe->iores[i] = NULL;
 		}
-		if (cfe->irqmask && cfe->irqres != NULL) {
-			bus_release_resource(bus, SYS_RES_IRQ,
-			    cfe->irqrid, cfe->irqres);
-			rle = resource_list_find(rl, SYS_RES_IRQ,
-			    cfe->irqrid);
+		for (i = 0; i < cfe->num_memspace; i++) {
+			r = cfe->memres[i];
+			if (r == NULL)
+				continue;
+			rid = rman_get_rid(r);
+			bus_release_resource(bus, SYS_RES_MEMORY, rid, r);
+			rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
 			rle->res = NULL;
-			resource_list_delete(rl, SYS_RES_IRQ, cfe->irqrid);
+			resource_list_delete(rl, SYS_RES_MEMORY, rid);
+			cfe->memres[i] = NULL;
+		}
+		if (cfe->irqmask && cfe->irqres != NULL) {
+			r = cfe->irqres;
+			rid = rman_get_rid(r);
+			bus_release_resource(bus, SYS_RES_IRQ, rid, r);
+			rle = resource_list_find(rl, SYS_RES_IRQ, rid);
+			rle->res = NULL;
+			resource_list_delete(rl, SYS_RES_IRQ, rid);
 			cfe->irqres = NULL;
 		}
 	}
