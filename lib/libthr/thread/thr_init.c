@@ -309,7 +309,8 @@ _libpthread_init(struct pthread *curthread)
 		_thr_initial = curthread;
 		SIGDELSET(oldset, SIGCANCEL);
 		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
-		_thr_report_creation(curthread, curthread);
+		if (_thread_event_mask & TD_CREATE)
+			_thr_report_creation(curthread, curthread);
 	}
 }
 
