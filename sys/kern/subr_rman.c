@@ -714,6 +714,12 @@ rman_get_device(struct resource *r)
 	return (r->r_dev);
 }
 
+void
+rman_set_device(struct resource *r, struct device *dev)
+{
+	r->r_dev = dev;
+}
+
 /*
  * Sysctl interface for scanning the resource lists.
  *
