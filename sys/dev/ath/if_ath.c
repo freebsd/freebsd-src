@@ -1453,6 +1453,35 @@ ath_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	/*
+	 * Group key allocation must be handled specially for
+	 * parts that do not support multicast key cache search
+	 * functionality.  For those parts the key id must match
+	 * the h/w key index so lookups find the right key.  On
+	 * parts w/ the key search facility we install the sender's
+	 * mac address (with the high bit set) and let the hardware
+	 * find the key w/o using the key id.  This is preferred as
+	 * it permits us to support multiple users for adhoc and/or
+	 * multi-station operation.
+	 */
+	if ((k->wk_flags & IEEE80211_KEY_GROUP) && !sc->sc_mcastkey) {
+		u_int keyix;
+
+		if (!(&ic->ic_nw_keys[0] <= k &&
+		      k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])) {
+			/* should not happen */
+			DPRINTF(sc, ATH_DEBUG_KEYCACHE,
+				"%s: bogus group key\n", __func__);
+			return IEEE80211_KEYIX_NONE;
+		}
+		keyix = k - ic->ic_nw_keys;
+		/*
+		 * XXX we pre-allocate the global keys so
+		 * have no way to check if they've already been allocated.
+		 */
+		return keyix;
+	}
+
+	/*
 	 * We allocate two pair for TKIP when using the h/w to do
 	 * the MIC.  For everything else, including software crypto,
 	 * we allocate a single entry.  Note that s/w crypto requires
