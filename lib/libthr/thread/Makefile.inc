@@ -15,6 +15,7 @@ SRCS+= \
 	thr_create.c \
 	thr_detach.c \
 	thr_equal.c \
+	thr_event.c \
 	thr_exit.c \
 	thr_fork.c \
 	thr_getprio.c \

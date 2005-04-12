@@ -16,6 +16,7 @@ CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
 
 # CFLAGS+=-DSYSTEM_SCOPE_ONLY
