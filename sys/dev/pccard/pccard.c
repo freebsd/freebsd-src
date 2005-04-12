@@ -418,15 +418,13 @@ static void
 pccard_function_init(struct pccard_function *pf)
 {
 	struct pccard_config_entry *cfe;
-	int i, rid;
 	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 	struct resource *r = 0;
 	device_t bus;
-	int start;
-	int end;
-	int spaces;
+	u_long start, end, len;
+	int i, rid, spaces;
 
 	if (pf->pf_flags & PFF_ENABLED) {
 		printf("pccard_function_init: function is enabled");
@@ -437,11 +435,6 @@ pccard_function_init(struct pccard_function *pf)
 	STAILQ_FOREACH(cfe, &pf->cfe_head, cfe_list) {
 		if (cfe->iftype != PCCARD_IFTYPE_IO)
 			continue;
-		for (i = 0; i < cfe->num_iospace; i++)
-			cfe->iores[i] = NULL;
-		for (i = 0; i < cfe->num_memspace; i++)
-			cfe->memres[i] = NULL;
-		cfe->irqres = NULL;
 		spaces = 0;
 		for (i = 0; i < cfe->num_iospace; i++) {
 			start = cfe->iospace[i].start;
@@ -449,14 +442,13 @@ pccard_function_init(struct pccard_function *pf)
 				end = start + cfe->iospace[i].length - 1;
 			else
 				end = ~0UL;
-			DEVPRINTF((bus, "I/O rid %d start %x end %x\n",
+			DEVPRINTF((bus, "I/O rid %d start %lx end %lx\n",
 			    i, start, end));
 			rid = i;
-			r = cfe->iores[i] = bus_alloc_resource(bus,
-			    SYS_RES_IOPORT, &rid, start, end,
-			    cfe->iospace[i].length,
-			    rman_make_alignment_flags(cfe->iospace[i].length));
-			if (cfe->iores[i] == NULL)
+			len = cfe->iospace[i].length;
+			r = bus_alloc_resource(bus, SYS_RES_IOPORT, &rid,
+			    start, end, len, rman_make_alignment_flags(len));
+			if (r == NULL)
 				goto not_this_one;
 			rle = resource_list_add(rl, SYS_RES_IOPORT,
 			    rid, rman_get_start(r), rman_get_end(r),
@@ -472,14 +464,13 @@ pccard_function_init(struct pccard_function *pf)
 				end = start + cfe->memspace[i].length - 1;
 			else
 				end = ~0UL;
-			DEVPRINTF((bus, "Memory rid %d start %x end %x\n",
+			DEVPRINTF((bus, "Memory rid %d start %lx end %lx\n",
 			    i, start, end));
 			rid = i;
-			r = cfe->memres[i] = bus_alloc_resource(bus,
-			    SYS_RES_MEMORY, &rid, start, end,
-			    cfe->memspace[i].length,
-			    rman_make_alignment_flags(cfe->memspace[i].length));
-			if (cfe->memres[i] == NULL)
+			len = cfe->memspace[i].length;
+			r = bus_alloc_resource(bus, SYS_RES_MEMORY, &rid,
+			    start, end, len, rman_make_alignment_flags(len));
+			if (r == NULL)
 				goto not_this_one;
 			rle = resource_list_add(rl, SYS_RES_MEMORY,
 			    rid, rman_get_start(r), rman_get_end(r),
@@ -495,9 +486,9 @@ pccard_function_init(struct pccard_function *pf)
 		}
 		if (cfe->irqmask) {
 			rid = 0;
-			r = cfe->irqres = bus_alloc_resource_any(bus,
-				SYS_RES_IRQ, &rid, 0);
-			if (cfe->irqres == NULL)
+			r = bus_alloc_resource_any(bus, SYS_RES_IRQ, &rid,
+			    RF_SHAREABLE);
+			if (r == NULL)
 				goto not_this_one;
 			rle = resource_list_add(rl, SYS_RES_IRQ, rid,
 			    rman_get_start(r), rman_get_end(r), 1);
@@ -511,41 +502,7 @@ pccard_function_init(struct pccard_function *pf)
 	    not_this_one:;
 		DEVPRVERBOSE((bus, "Allocation failed for cfe %d\n",
 		    cfe->number));
-		/*
-		 * Release resources that we partially allocated
-		 * from this config entry.
-		 */
-		for (i = 0; i < cfe->num_iospace; i++) {
-			r = cfe->iores[i];
-			if (r == NULL)
-				continue;
-			rid = rman_get_rid(r);
-			bus_release_resource(bus, SYS_RES_IOPORT, rid, r);
-			rle = resource_list_find(rl, SYS_RES_IOPORT, rid);
-			rle->res = NULL;
-			resource_list_delete(rl, SYS_RES_IOPORT, rid);
-			cfe->iores[i] = NULL;
-		}
-		for (i = 0; i < cfe->num_memspace; i++) {
-			r = cfe->memres[i];
-			if (r == NULL)
-				continue;
-			rid = rman_get_rid(r);
-			bus_release_resource(bus, SYS_RES_MEMORY, rid, r);
-			rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
-			rle->res = NULL;
-			resource_list_delete(rl, SYS_RES_MEMORY, rid);
-			cfe->memres[i] = NULL;
-		}
-		if (cfe->irqmask && cfe->irqres != NULL) {
-			r = cfe->irqres;
-			rid = rman_get_rid(r);
-			bus_release_resource(bus, SYS_RES_IRQ, rid, r);
-			rle = resource_list_find(rl, SYS_RES_IRQ, rid);
-			rle->res = NULL;
-			resource_list_delete(rl, SYS_RES_IRQ, rid);
-			cfe->irqres = NULL;
-		}
+		resource_list_purge(rl);
 	}
 }
 
@@ -1146,10 +1103,9 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (rle == NULL && isdefault)
 		return (NULL);	/* no resource of that type/rid */
 	if (rle == NULL || rle->res == NULL) {
-		/* Do we want this device to own it? */
-		/* XXX I think so, but that might be lame XXX */
+		/* XXX Need to adjust flags */
 		r = bus_alloc_resource(dev, type, rid, start, end,
-		  count, flags /* XXX aligment? */);
+		  count, flags);
 		if (r == NULL)
 		    goto bad;
 		resource_list_add(&dinfo->resources, type, *rid,
@@ -1160,26 +1116,14 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = r;
 	}
 	/*
-	 * XXX the following looks wrong, in theory, but likely it is
-	 * XXX needed because of how the CIS code allocates resources
-	 * XXX for this device.
+	 * If dev doesn't own the device, then we can't give this device
+	 * out.
 	 */
 	if (rman_get_device(rle->res) != dev)
 		return (NULL);
-	bus_release_resource(dev, type, *rid, rle->res);
-	rle->res = NULL;
-	switch(type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		if (!(flags & RF_ALIGNMENT_MASK))
-			flags |= rman_make_alignment_flags(rle->count);
-		break;
-	case SYS_RES_IRQ:
-		flags |= RF_SHAREABLE;
-		break;
-	}
-	rle->res = resource_list_alloc(&dinfo->resources, dev, child,
-	    type, rid, rle->start, rle->end, rle->count, flags);
+	rman_set_device(rle->res, child);
+	if (flags & RF_ACTIVE)
+		BUS_ACTIVATE_RESOURCE(dev, child, type, *rid, rle->res);
 	return (rle->res);
 bad:;
 	device_printf(dev, "WARNING: Resource not reserved by pccard\n");
@@ -1193,8 +1137,6 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 	struct pccard_ivar *dinfo;
 	int passthrough = (device_get_parent(child) != dev);
 	struct resource_list_entry *rle = 0;
-	int ret;
-	int flags;
 
 	if (passthrough)
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
@@ -1214,26 +1156,13 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 		device_printf(dev, "Allocated resource not recorded\n");
 		return ENOENT;
 	}
-
-	ret = BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-	    type, rid, r);
-	switch(type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		flags = rman_make_alignment_flags(rle->count);
-		break;
-	case SYS_RES_IRQ:
-		flags = RF_SHAREABLE;
-		break;
-	default:
-		flags = 0;
-	}
-	rle->res = bus_alloc_resource(dev, type, &rid,
-	    rle->start, rle->end, rle->count, flags);
-	if (rle->res == NULL)
-		device_printf(dev, "release_resource: "
-		    "unable to reaquire resource\n");
-	return ret;
+	/*
+	 * Deactivate the resource (since it is being released), and
+	 * assign it to the bus.
+	 */
+	BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, rle->res);
+	rman_set_device(rle->res, dev);
+	return (0);
 }
 
 static void
