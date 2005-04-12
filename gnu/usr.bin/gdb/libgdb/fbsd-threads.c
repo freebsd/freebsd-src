@@ -130,9 +130,17 @@ static td_err_e (*td_thr_tls_get_addr_p) (const td_thrhandle_t *th,
 static td_err_e (*td_thr_dbsuspend_p) (const td_thrhandle_t *);
 static td_err_e (*td_thr_dbresume_p) (const td_thrhandle_t *);
 
+static CORE_ADDR td_create_bp_addr;
+
+/* Location of the thread death event breakpoint.  */
+static CORE_ADDR td_death_bp_addr;
+
 /* Prototypes for local functions.  */
 static void fbsd_thread_find_new_threads (void);
 static int fbsd_thread_alive (ptid_t ptid);
+static void attach_thread (ptid_t ptid, const td_thrhandle_t *th_p,
+               const td_thrinfo_t *ti_p, int verbose);
+static void fbsd_thread_detach (char *args, int from_tty);
 
 /* Building process ids.  */
 
@@ -228,23 +236,21 @@ thread_db_state_str (td_thr_state_e state)
 
 /* Convert LWP to user-level thread id. */
 static ptid_t
-thread_from_lwp (ptid_t ptid)
+thread_from_lwp (ptid_t ptid, td_thrhandle_t *th, td_thrinfo_t *ti)
 {
-  td_thrinfo_t ti;
-  td_thrhandle_t th;
   td_err_e err;
  
   gdb_assert (IS_LWP (ptid));
 
   if (fbsd_thread_active)
     {
-      err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), &th);
+      err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), th);
       if (err == TD_OK)
         {
-          err = td_thr_get_info_p (&th, &ti);
+          err = td_thr_get_info_p (th, ti);
           if (err != TD_OK)
             error ("Cannot get thread info: %s", thread_db_err_str (err));
-          return BUILD_THREAD (ti.ti_tid, GET_PID (ptid));
+          return BUILD_THREAD (ti->ti_tid, GET_PID (ptid));
         }
     }
 
@@ -285,17 +291,105 @@ get_current_lwp (int pid)
 static void
 get_current_thread ()
 {
+  td_thrhandle_t th;
+  td_thrinfo_t ti;
   long lwp;
   ptid_t tmp, ptid;
 
   lwp = get_current_lwp (proc_handle.pid);
   tmp = BUILD_LWP (lwp, proc_handle.pid);
-  ptid = thread_from_lwp (tmp);
+  ptid = thread_from_lwp (tmp, &th, &ti);
   if (!in_thread_list (ptid))
     {
-      add_thread (ptid);
+      attach_thread (ptid, &th, &ti, 1);
     }
   inferior_ptid = ptid;
+}
+
+static td_err_e
+enable_thread_event (td_thragent_t *thread_agent, int event, CORE_ADDR *bp)
+{
+  td_notify_t notify;
+  td_err_e err;
+
+  /* Get the breakpoint address for thread EVENT.  */
+  err = td_ta_event_addr_p (thread_agent, event, &notify);
+  if (err != TD_OK)
+    return err;
+
+  /* Set up the breakpoint.  */
+  (*bp) = gdbarch_convert_from_func_ptr_addr (current_gdbarch,
+				      (CORE_ADDR)notify.u.bptaddr,
+				      &current_target);
+  create_thread_event_breakpoint ((*bp));
+
+  return TD_OK;
+}
+
+static void
+enable_thread_event_reporting (void)
+{
+  td_thr_events_t events;
+  td_notify_t notify;
+  td_err_e err;
+
+  /* We cannot use the thread event reporting facility if these
+     functions aren't available.  */
+  if (td_ta_event_addr_p == NULL || td_ta_set_event_p == NULL
+      || td_ta_event_getmsg_p == NULL || td_thr_event_enable_p == NULL)
+    return;
+
+  /* Set the process wide mask saying which events we're interested in.  */
+  td_event_emptyset (&events);
+  td_event_addset (&events, TD_CREATE);
+  td_event_addset (&events, TD_DEATH);
+
+  err = td_ta_set_event_p (thread_agent, &events);
+  if (err != TD_OK)
+    {
+      warning ("Unable to set global thread event mask: %s",
+	       thread_db_err_str (err));
+      return;
+    }
+
+  /* Delete previous thread event breakpoints, if any.  */
+  remove_thread_event_breakpoints ();
+  td_create_bp_addr = 0;
+  td_death_bp_addr = 0;
+
+  /* Set up the thread creation event.  */
+  err = enable_thread_event (thread_agent, TD_CREATE, &td_create_bp_addr);
+  if (err != TD_OK)
+    {
+      warning ("Unable to get location for thread creation breakpoint: %s",
+	       thread_db_err_str (err));
+      return;
+    }
+
+  /* Set up the thread death event.  */
+  err = enable_thread_event (thread_agent, TD_DEATH, &td_death_bp_addr);
+  if (err != TD_OK)
+    {
+      warning ("Unable to get location for thread death breakpoint: %s",
+	       thread_db_err_str (err));
+      return;
+    }
+}
+
+static void
+disable_thread_event_reporting (void)
+{
+  td_thr_events_t events;
+
+  /* Set the process wide mask saying we aren't interested in any
+     events anymore.  */
+  td_event_emptyset (&events);
+  td_ta_set_event_p (thread_agent, &events);
+
+  /* Delete thread event breakpoints, if any.  */
+  remove_thread_event_breakpoints ();
+  td_create_bp_addr = 0;
+  td_death_bp_addr = 0;
 }
 
 static void
@@ -303,6 +397,8 @@ fbsd_thread_activate (void)
 {
   fbsd_thread_active = 1;
   init_thread_list();
+  if (fbsd_thread_core == 0)
+    enable_thread_event_reporting ();
   fbsd_thread_find_new_threads ();
   get_current_thread ();
 }
@@ -310,6 +406,8 @@ fbsd_thread_activate (void)
 static void
 fbsd_thread_deactivate (void)
 {
+  if (fbsd_thread_core == 0)
+    disable_thread_event_reporting();
   td_ta_delete_p (thread_agent);
 
   inferior_ptid = pid_to_ptid (proc_handle.pid);
@@ -544,20 +642,111 @@ fbsd_thread_resume (ptid_t ptid, int step, enum target_signal signo)
     perror_with_name ("PT_CONTINUE");
 }
 
+static void
+attach_thread (ptid_t ptid, const td_thrhandle_t *th_p,
+               const td_thrinfo_t *ti_p, int verbose)
+{
+  td_err_e err;
+
+  /* Add the thread to GDB's thread list.  */
+  if (!in_thread_list (ptid)) {
+    add_thread (ptid);
+    if (verbose)
+      printf_unfiltered ("[New %s]\n", target_pid_to_str (ptid));
+  }
+
+  if (ti_p->ti_state == TD_THR_UNKNOWN || ti_p->ti_state == TD_THR_ZOMBIE)
+    return;                     /* A zombie thread -- do not attach.  */
+
+  if (! IS_THREAD(ptid))
+    return;
+  /* Enable thread event reporting for this thread. */
+  err = td_thr_event_enable_p (th_p, 1);
+  if (err != TD_OK)
+    error ("Cannot enable thread event reporting for %s: %s",
+           target_pid_to_str (ptid), thread_db_err_str (err));
+}
+
+static void
+detach_thread (ptid_t ptid, int verbose)
+{
+  if (verbose)
+    printf_unfiltered ("[%s exited]\n", target_pid_to_str (ptid));
+}
+
+static void
+check_event (ptid_t ptid)
+{
+  td_event_msg_t msg;
+  td_thrinfo_t ti;
+  td_err_e err;
+  CORE_ADDR stop_pc;
+  int loop = 0;
+
+  /* Bail out early if we're not at a thread event breakpoint.  */
+  stop_pc = read_pc_pid (ptid) - DECR_PC_AFTER_BREAK;
+  if (stop_pc != td_create_bp_addr && stop_pc != td_death_bp_addr)
+    return;
+  loop = 1;
+
+  do
+    {
+      err = td_ta_event_getmsg_p (thread_agent, &msg);
+      if (err != TD_OK)
+        {
+	  if (err == TD_NOMSG)
+	    return;
+          error ("Cannot get thread event message: %s",
+		 thread_db_err_str (err));
+        }
+      err = td_thr_get_info_p (msg.th_p, &ti);
+      if (err != TD_OK)
+        error ("Cannot get thread info: %s", thread_db_err_str (err));
+      ptid = BUILD_THREAD (ti.ti_tid, GET_PID (ptid));
+      switch (msg.event)
+        {
+        case TD_CREATE:
+          /* We may already know about this thread, for instance when the
+             user has issued the `info threads' command before the SIGTRAP
+             for hitting the thread creation breakpoint was reported.  */
+          attach_thread (ptid, msg.th_p, &ti, 1);
+          break;
+       case TD_DEATH:
+         if (!in_thread_list (ptid))
+           error ("Spurious thread death event.");
+         detach_thread (ptid, 1);
+         break;
+       default:
+          error ("Spurious thread event.");
+       }
+    }
+  while (loop);
+}
+
 static ptid_t
 fbsd_thread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
 {
   ptid_t ret;
   long lwp;
   CORE_ADDR stop_pc;
+  td_thrhandle_t th;
+  td_thrinfo_t ti;
 
   ret = child_ops.to_wait (ptid, ourstatus);
   if (GET_PID(ret) >= 0 && ourstatus->kind == TARGET_WAITKIND_STOPPED)
     {
       lwp = get_current_lwp (GET_PID(ret));
-      ret = thread_from_lwp (BUILD_LWP (lwp, GET_PID (ret)));
-      if (!in_thread_list (ret))
-        add_thread (ret);
+      ret = thread_from_lwp (BUILD_LWP(lwp, GET_PID(ret)),
+         &th, &ti);
+      if (!in_thread_list(ret)) {
+        /*
+         * We have to enable event reporting for initial thread
+         * which was not mapped before.
+	 */
+        attach_thread(ret, &th, &ti, 1);
+      }
+      if (ourstatus->value.sig == TARGET_SIGNAL_TRAP)
+        check_event(ret);
       /* this is a hack, if an event won't cause gdb to stop, for example,
          SIGARLM, gdb resumes the process immediatly without setting
          inferior_ptid to the new thread returned here, this is a bug
@@ -567,7 +756,7 @@ fbsd_thread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
         {
           delete_thread (inferior_ptid);
           inferior_ptid = ret;
-       }
+        }
     }
 
   return (ret);
@@ -873,9 +1062,7 @@ find_new_threads_callback (const td_thrhandle_t *th_p, void *data)
     return 0;
 
   ptid = BUILD_THREAD (ti.ti_tid, proc_handle.pid);
-
-  if (!in_thread_list (ptid))
-      add_thread (ptid);
+  attach_thread (ptid, th_p, &ti, 1);
   return 0;
 }
 
@@ -968,7 +1155,7 @@ fbsd_thread_get_local_address(ptid_t ptid, struct objfile *objfile,
       ret = td_ta_map_id2thr_p (thread_agent, GET_THREAD(ptid), &th);
 
       /* get the address of the variable. */
-      ret = td_thr_tls_get_addr_p (&th, (void *) lm, offset, &address);
+      ret = td_thr_tls_get_addr_p (&th, (void *)lm, offset, &address);
 
       if (ret != TD_OK)
         {
@@ -1180,6 +1367,13 @@ thread_db_load (void)
       return 0;
     }
 
+  /* These are not essential.  */
+  td_ta_event_addr_p = dlsym (handle, "td_ta_event_addr");
+  td_ta_set_event_p = dlsym (handle, "td_ta_set_event");
+  td_ta_event_getmsg_p = dlsym (handle, "td_ta_event_getmsg");
+  td_thr_event_enable_p = dlsym (handle, "td_thr_event_enable");
+  td_thr_tls_get_addr_p = dlsym (handle, "td_thr_tls_get_addr");
+  
   return 1;
 }
 
