@@ -98,6 +98,10 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 		return (EINVAL);
 
 	/* We only record the first error */
+	if (sbuf_done(req->serror)) {
+		if (!req->nerror)
+			req->nerror = EEXIST;
+	}
 	if (req->nerror)
 		return (req->nerror);
 
@@ -107,11 +111,7 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	sbuf_finish(req->serror);
 	if (g_debugflags & G_F_CTLDUMP)
 		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));
-	req->nerror = copyout(sbuf_data(req->serror), req->error,
-	    imin(req->lerror, sbuf_len(req->serror) + 1));
-	if (!req->nerror)
-		req->nerror = EINVAL;
-	return (req->nerror);
+	return (0);
 }
 
 /*
@@ -472,6 +472,10 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 	if (!req->nerror) {
 		g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
 		gctl_copyout(req);
+	}
+	if (sbuf_done(req->serror)) {
+		req->nerror = copyout(sbuf_data(req->serror), req->error,
+		    imin(req->lerror, sbuf_len(req->serror) + 1));
 	}
 
 	nerror = req->nerror;
