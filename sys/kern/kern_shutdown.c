@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/vnode.h>
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
