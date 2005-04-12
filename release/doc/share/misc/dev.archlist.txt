@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004 The FreeBSD Project
+# Copyright (c) 2004-2005 The FreeBSD Project
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -119,8 +119,8 @@ snd_maestro3	i386,alpha,amd64
 snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
-snd_via82c686.4	i386,amd64
-snd_vibes.4	i386,amd64
+snd_via82c686	i386,amd64
+snd_vibes	i386,amd64
 sr	i386
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
