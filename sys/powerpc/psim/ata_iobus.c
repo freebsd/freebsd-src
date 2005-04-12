@@ -168,11 +168,11 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 						 start, end, count, flags);
 			break;
 
-		case ATA_ALTADDR_RID:
+		case ATA_CTLADDR_RID:
 			myrid = 0;
 			start = ofw_regs[10];
-			end = start + ATA_ALTIOSIZE - 1;
-			count = ATA_ALTIOSIZE;
+			end = start + ATA_CTLIOSIZE - 1;
+			count = ATA_CTLIOSIZE;
 			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 						 SYS_RES_MEMORY, &myrid,
 						 start, end, count, flags);
