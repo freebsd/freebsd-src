@@ -1276,6 +1276,7 @@ net/if_stf.c		optional stf
 net/if_tun.c		optional tun
 net/if_tap.c		optional tap
 net/if_vlan.c		optional vlan
+net/net_osdep.c		standard
 net/netisr.c		standard
 net/ppp_deflate.c	optional ppp_deflate
 net/ppp_tty.c		optional ppp

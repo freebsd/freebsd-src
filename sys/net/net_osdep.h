@@ -319,7 +319,8 @@
 #define __NET_NET_OSDEP_H_DEFINED_
 #ifdef _KERNEL
 
-#define if_name(ifp)	((ifp)->if_xname)
+struct ifnet;
+extern const char *if_name(struct ifnet *);
 
 #define HAVE_NEW_BPFATTACH
 
