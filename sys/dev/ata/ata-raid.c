@@ -3762,7 +3762,8 @@ ata_raid_via_print_meta(struct via_raid_conf *meta)
     printf("disk_index          0x%02x\n", meta->disk_index);
     printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
     printf("stripe_sectors      %d\n", (meta->stripe_layout >> VIA_L_SHIFT));
-    printf("total_sectors       %llu\n", meta->total_sectors);
+    printf("total_sectors       %llu\n",
+	   (unsigned long long)meta->total_sectors);
     printf("disk_id             0x%08x\n", meta->disk_id);
     printf("DISK#   disk_id\n");
     for (i = 0; i < 8; i++) {
