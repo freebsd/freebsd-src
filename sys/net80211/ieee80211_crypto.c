@@ -128,7 +128,8 @@ ieee80211_crypto_attach(struct ieee80211com *ic)
 	cs->cs_def_txkey = IEEE80211_KEYIX_NONE;
 	ciphers[IEEE80211_CIPHER_NONE] = &ieee80211_cipher_none;
 	for (i = 0; i < IEEE80211_WEP_NKID; i++)
-		ieee80211_crypto_resetkey(ic, &cs->cs_nw_keys[i], i);
+		ieee80211_crypto_resetkey(ic, &cs->cs_nw_keys[i],
+			IEEE80211_KEYIX_NONE);
 	/*
 	 * Initialize the driver key support routines to noop entries.
 	 * This is useful especially for the cipher test modules.
@@ -206,10 +207,9 @@ static const char *cipher_modnames[] = {
 
 /*
  * Establish a relationship between the specified key and cipher
- * and, if not a global key, allocate a hardware index from the
- * driver.  Note that we may be called for global keys but they
- * should have a key index already setup so the only work done
- * is to setup the cipher reference.
+ * and, if necessary, allocate a hardware index from the driver.
+ * Note that when a fixed key index is required it must be specified
+ * and we blindly assign it w/o consulting the driver (XXX).
  *
  * This must be the first call applied to a key; all the other key
  * routines assume wk_cipher is setup.
@@ -220,7 +220,7 @@ static const char *cipher_modnames[] = {
  */
 int
 ieee80211_crypto_newkey(struct ieee80211com *ic,
-	int cipher, struct ieee80211_key *key)
+	int cipher, int flags, struct ieee80211_key *key)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	const struct ieee80211_cipher *cip;
@@ -268,16 +268,16 @@ ieee80211_crypto_newkey(struct ieee80211com *ic,
 	}
 
 	oflags = key->wk_flags;
+	flags &= IEEE80211_KEY_COMMON;
 	/*
 	 * If the hardware does not support the cipher then
 	 * fallback to a host-based implementation.
 	 */
-	key->wk_flags &= ~(IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC);
 	if ((ic->ic_caps & (1<<cipher)) == 0) {
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
 		    "%s: no h/w support for cipher %s, falling back to s/w\n",
 		    __func__, cip->ic_name);
-		key->wk_flags |= IEEE80211_KEY_SWCRYPT;
+		flags |= IEEE80211_KEY_SWCRYPT;
 	}
 	/*
 	 * Hardware TKIP with software MIC is an important
@@ -289,7 +289,7 @@ ieee80211_crypto_newkey(struct ieee80211com *ic,
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
 		    "%s: no h/w support for TKIP MIC, falling back to s/w\n",
 		    __func__);
-		key->wk_flags |= IEEE80211_KEY_SWMIC;
+		flags |= IEEE80211_KEY_SWMIC;
 	}
 
 	/*
@@ -298,8 +298,18 @@ ieee80211_crypto_newkey(struct ieee80211com *ic,
 	 * cipher module can optimize space usage based on
 	 * whether or not it needs to do the cipher work.
 	 */
-	if (key->wk_cipher != cip || key->wk_flags != oflags) {
+	if (key->wk_cipher != cip || key->wk_flags != flags) {
 again:
+		/*
+		 * Fillin the flags so cipher modules can see s/w
+		 * crypto requirements and potentially allocate
+		 * different state and/or attach different method
+		 * pointers.
+		 *
+		 * XXX this is not right when s/w crypto fallback
+		 *     fails and we try to restore previous state.
+		 */
+		key->wk_flags = flags;
 		keyctx = cip->ic_attach(ic, key);
 		if (keyctx == NULL) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
@@ -313,6 +323,10 @@ again:
 		key->wk_cipher = cip;		/* XXX refcnt? */
 		key->wk_private = keyctx;
 	}
+	/*
+	 * Commit to requested usage so driver can see the flags.
+	 */
+	key->wk_flags = flags;
 
 	/*
 	 * Ask the driver for a key index if we don't have one.
@@ -340,9 +354,9 @@ again:
 				    "falling back to s/w\n", __func__,
 				    cip->ic_name);
 				oflags = key->wk_flags;
-				key->wk_flags |= IEEE80211_KEY_SWCRYPT;
+				flags |= IEEE80211_KEY_SWCRYPT;
 				if (cipher == IEEE80211_CIPHER_TKIP)
-					key->wk_flags |= IEEE80211_KEY_SWMIC;
+					flags |= IEEE80211_KEY_SWMIC;
 				goto again;
 			}
 			ic->ic_stats.is_crypto_keyfail++;
@@ -388,14 +402,7 @@ _ieee80211_crypto_delkey(struct ieee80211com *ic, struct ieee80211_key *key)
 	}
 	cipher_detach(key);
 	memset(key, 0, sizeof(*key));
-	key->wk_cipher = &ieee80211_cipher_none;
-	key->wk_private = cipher_attach(ic, key);
-	/* NB: cannot depend on key index to decide this */
-	if (&ic->ic_nw_keys[0] <= key &&
-	    key < &ic->ic_nw_keys[IEEE80211_WEP_NKID])
-		key->wk_keyix = keyix;		/* preserve shared key state */
-	else
-		key->wk_keyix = IEEE80211_KEYIX_NONE;
+	ieee80211_crypto_resetkey(ic, key, IEEE80211_KEYIX_NONE);
 	return 1;
 }
 
@@ -480,7 +487,7 @@ ieee80211_crypto_encap(struct ieee80211com *ic,
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
 	const struct ieee80211_cipher *cip;
-	u_int8_t keyix;
+	u_int8_t keyid;
 
 	/*
 	 * Multicast traffic always uses the multicast key.
@@ -499,14 +506,14 @@ ieee80211_crypto_encap(struct ieee80211com *ic,
 			ic->ic_stats.is_tx_nodefkey++;
 			return NULL;
 		}
-		keyix = ic->ic_def_txkey;
+		keyid = ic->ic_def_txkey;
 		k = &ic->ic_nw_keys[ic->ic_def_txkey];
 	} else {
-		keyix = 0;
+		keyid = 0;
 		k = &ni->ni_ucastkey;
 	}
 	cip = k->wk_cipher;
-	return (cip->ic_encap(k, m, keyix<<6) ? k : NULL);
+	return (cip->ic_encap(k, m, keyid<<6) ? k : NULL);
 }
 
 /*
