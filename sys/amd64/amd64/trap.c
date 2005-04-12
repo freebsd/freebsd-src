@@ -162,7 +162,7 @@ trap(frame)
 	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
 
-	atomic_add_int(&cnt.v_trap, 1);
+	PCPU_LAZY_INC(cnt.v_trap);
 	type = frame.tf_trapno;
 
 #ifdef KDB

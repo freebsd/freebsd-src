@@ -106,7 +106,7 @@ ia32_syscall(struct trapframe frame)
 	 * note: PCPU_LAZY_INC() can only be used if we can afford
 	 * occassional inaccuracy in the count.
 	 */
-	cnt.v_syscall++;
+	PCPU_LAZY_INC(cnt.v_syscall);
 
 	sticks = td->td_sticks;
 	td->td_frame = &frame;

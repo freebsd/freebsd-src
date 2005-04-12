@@ -167,7 +167,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	 * processed too.
 	 */
 	(*isrc->is_count)++;
-	cnt.v_intr++;
+	PCPU_LAZY_INC(cnt.v_intr);
 
 	it = isrc->is_ithread;
 	if (it == NULL)

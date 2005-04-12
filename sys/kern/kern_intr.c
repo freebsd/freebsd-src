@@ -457,7 +457,7 @@ swi_sched(void *cookie, int flags)
 	struct ithd *it = ih->ih_ithread;
 	int error;
 
-	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
+	PCPU_LAZY_INC(cnt.v_intr);
 		
 	CTR3(KTR_INTR, "swi_sched pid %d(%s) need=%d",
 		it->it_td->td_proc->p_pid, it->it_td->td_proc->p_comm, it->it_need);

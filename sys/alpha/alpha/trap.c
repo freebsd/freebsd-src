@@ -295,7 +295,7 @@ trap(a0, a1, a2, entry, framep)
 	 * Giant hasn't been acquired yet.
 	 */
 
-	cnt.v_trap++;
+	PCPU_LAZY_INC(cnt.v_trap);
 	ucode = 0;
 	user = (framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0;
 	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
@@ -655,7 +655,7 @@ syscall(code, framep)
 		panic("syscall");
 #endif
 
-	cnt.v_syscall++;
+	PCPU_LAZY_INC(cnt.v_syscall);
 	td->td_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	sticks = td->td_sticks;
