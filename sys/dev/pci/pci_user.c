@@ -166,7 +166,7 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	device_t pci, pcib;
+	device_t pcidev;
 	struct pci_io *io;
 	const char *name;
 	int error;
@@ -379,20 +379,23 @@ getconfexit:
 				    io->pi_reg + io->pi_width > PCI_REGMAX ||
 				    io->pi_reg & (io->pi_width - 1))
 					error = EINVAL;
-
 			/*
 			 * Assume that the user-level bus number is
-			 * actually the pciN instance number. We map
-			 * from that to the real pcib+bus combination.
+			 * in fact the physical PCI bus number.
+			 * Look up the grandparent, i.e. the bridge device,
+			 * so that we can issue configuration space cycles.
 			 */
-			pci = devclass_get_device(devclass_find("pci"),
-						  io->pi_sel.pc_bus);
-			if (pci) {
-				int b = pcib_get_bus(pci);
-				pcib = device_get_parent(pci);
+			pcidev = pci_find_bsf(io->pi_sel.pc_bus,
+			    io->pi_sel.pc_dev, io->pi_sel.pc_func);
+			if (pcidev) {
+				device_t busdev, brdev;
+
+				busdev = device_get_parent(pcidev);
+				brdev = device_get_parent(busdev);
+
 				if (cmd == PCIOCWRITE)
-					PCIB_WRITE_CONFIG(pcib,
-							  b,
+					PCIB_WRITE_CONFIG(brdev,
+							  io->pi_sel.pc_bus,
 							  io->pi_sel.pc_dev,
 							  io->pi_sel.pc_func,
 							  io->pi_reg,
@@ -400,8 +403,8 @@ getconfexit:
 							  io->pi_width);
 				else
 					io->pi_data =
-						PCIB_READ_CONFIG(pcib,
-							  b,
+						PCIB_READ_CONFIG(brdev,
+							  io->pi_sel.pc_bus,
 							  io->pi_sel.pc_dev,
 							  io->pi_sel.pc_func,
 							  io->pi_reg,
