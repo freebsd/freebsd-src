@@ -51,6 +51,7 @@
 	struct	i386tss pc_common_tss;					\
 	struct	segment_descriptor pc_common_tssd;			\
 	struct	segment_descriptor *pc_tss_gdt;				\
+	struct	segment_descriptor *pc_fsgs_gdt;			\
 	int	pc_currentldt;						\
 	u_int	pc_acpi_id;						\
 	u_int	pc_apic_id
