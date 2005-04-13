@@ -85,6 +85,34 @@
 #define	ISO88025_IS_VALID_LEN(foo)	\
 	((foo) >= ISO88025_MIN_LEN && (foo) <= ISO88025_MAX_LEN)
 
+/* Access Control field */
+#define	AC_PRI_MASK		0xe0	/* Priority bits 		*/
+#define	AC_TOKEN		0x10	/* Token bit: 0=Token, 1=Frame	*/
+#define	AC_MONITOR		0x08	/* Monitor			*/
+#define	AC_RESV_MASK		0x07	/* Reservation bits		*/
+
+/* Frame Control field */
+#define	FC_FT_MASK		0xc0	/* Frame Type			*/
+#define	FC_FT_MAC		0x00	/* MAC frame			*/
+#define	FC_FT_LLC		0x40	/* LLC frame			*/
+#define	FC_ATTN_MASK		0x0f	/* Attention bits		*/
+#define	FC_ATTN_EB		0x01	/* Express buffer		*/
+#define	FC_ATTN_BE		0x02	/* Beacon			*/
+#define	FC_ATTN_CT		0x03	/* Claim token			*/
+#define	FC_ATTN_RP		0x04	/* Ring purge			*/
+#define	FC_ATTN_AMP		0x05	/* Active monitor present	*/
+#define	FC_ATTN_SMP		0x06	/* Standby monitor present	*/
+
+/* Token Ring destination address */
+#define	DA_IG			0x80	/* Individual/group address.	*/
+					/* 0=Individual, 1=Group	*/
+#define	DA_UL			0x40	/* Universal/local address.	*/
+					/* 0=Universal, 1=Local		*/
+/* Token Ring source address */
+#define	SA_RII			0x80	/* Routing information indicator */
+#define	SA_IG			0x40	/* Individual/group address	*/
+					/* 0=Group, 1=Individual	*/
+
 /*
  * ISO 802.5 physical header
  */
