@@ -560,10 +560,9 @@ found:
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, dp->i_ino,
 		    cnp->cn_lkflags, &tdp);
-		if (error) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return (error);
-		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */

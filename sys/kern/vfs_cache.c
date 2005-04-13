@@ -344,6 +344,7 @@ cache_lookup(dvp, vpp, cnp)
 {
 	struct namecache *ncp;
 	u_int32_t hash;
+	int error;
 
 	if (!doingcache) {
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -447,9 +448,10 @@ success:
 		VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 	VI_LOCK(*vpp);
 	CACHE_UNLOCK();
-	if (vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread)) {
-		if (cnp->cn_flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, cnp->cn_thread);
+	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread);
+	if (cnp->cn_flags & ISDOTDOT)
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, cnp->cn_thread);
+	if (error) {
 		*vpp = NULL;
 		goto retry;
 	}

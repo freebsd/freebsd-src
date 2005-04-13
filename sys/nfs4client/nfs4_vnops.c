@@ -1050,10 +1050,9 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		VOP_UNLOCK(dvp, 0, td);
 
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
-		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return (error);
-		}
 		newvp = NFSTOV(np);
 
 		nfs4_vnop_loadattrcache(newvp, &ga.fa, NULL);
