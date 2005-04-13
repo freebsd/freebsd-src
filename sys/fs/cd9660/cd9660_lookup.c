@@ -353,10 +353,9 @@ found:
 					     LK_EXCLUSIVE, &tdp,
 					     dp->i_ino != ino, ep);
 		brelse(bp);
-		if (error) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return (error);
-		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		brelse(bp);

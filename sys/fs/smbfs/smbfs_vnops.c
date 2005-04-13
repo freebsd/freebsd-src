@@ -1155,9 +1155,6 @@ smbfs_lookup(ap)
 			vput(vp);
 		else
 			vrele(vp);
-		if (flags & ISDOTDOT)
-			if (vn_lock(dvp, LK_EXCLUSIVE, td))
-				panic("smbfs_lookup: Can't relock directory.");
 		*vpp = NULLVP;
 	}
 	/* 
@@ -1229,10 +1226,9 @@ smbfs_lookup(ap)
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
-		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return error;
-		}
 		*vpp = vp;
 	} else if (isdot) {
 		vref(dvp);

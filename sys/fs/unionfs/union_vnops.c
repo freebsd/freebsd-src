@@ -226,18 +226,7 @@ union_lookup1(udvp, pdvp, vpp, cnp)
 		*vpp = NULL;
 		return (error);
 	}
-
-	/*
-	 * The parent directory will have been unlocked, unless this is a
-	 * dotdot lookup or if dvp == tdvp (tdvp must be locked).
-	 *
-	 * We want our dvp to remain locked and ref'd.  We also want tdvp
-	 * to remain locked and ref'd.
-	 */
 	UDEBUG(("parentdir %p result %p flag %lx\n", dvp, tdvp, cnp->cn_flags));
-
-	if (dvp != tdvp && (cnp->cn_flags & ISDOTDOT))
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/*
 	 * Lastly check if the current node is a mount point in

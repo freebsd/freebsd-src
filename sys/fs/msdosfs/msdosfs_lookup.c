@@ -516,10 +516,9 @@ foundroot:
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);
 		error = deget(pmp, cluster, blkoff,  &tdp);
-		if (error) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td); 
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td); 
+		if (error)
 			return (error);
-		}
 		*vpp = DETOV(tdp);
 	} else if (dp->de_StartCluster == scn && isadir) {
 		VREF(vdp);	/* we want ourself, ie "." */
