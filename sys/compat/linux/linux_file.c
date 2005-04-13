@@ -979,6 +979,14 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 			td->td_retval[0] |= LINUX_O_SYNC;
 		if (result & O_ASYNC)
 			td->td_retval[0] |= LINUX_FASYNC;
+#ifdef LINUX_O_NOFOLLOW
+		if (result & O_NOFOLLOW)
+			td->td_retval[0] |= LINUX_O_NOFOLLOW;
+#endif
+#ifdef LINUX_O_DIRECT
+		if (result & O_DIRECT)
+			td->td_retval[0] |= LINUX_O_DIRECT;
+#endif
 		return (error);
 
 	case LINUX_F_SETFL:
@@ -991,6 +999,14 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 			arg |= O_FSYNC;
 		if (args->arg & LINUX_FASYNC)
 			arg |= O_ASYNC;
+#ifdef LINUX_O_NOFOLLOW
+		if (args->arg & LINUX_O_NOFOLLOW)
+			arg |= O_NOFOLLOW;
+#endif
+#ifdef LINUX_O_DIRECT
+		if (args->arg & LINUX_O_DIRECT)
+			arg |= O_DIRECT;
+#endif
 		return (kern_fcntl(td, args->fd, F_SETFL, arg));
 
 	case LINUX_F_GETLK:
