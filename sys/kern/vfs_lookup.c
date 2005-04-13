@@ -592,12 +592,6 @@ unionlookup:
 	printf("found\n");
 #endif
 	/*
-	 * In the DOTDOT case dp is unlocked, we relock it here even if we
-	 * may not need it to simplify the code below.
-	 */
-	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
-	/*
 	 * Take into account any additional components consumed by
 	 * the underlying filesystem.
 	 */
@@ -746,6 +740,7 @@ relookup(dvp, vpp, cnp)
 	 * Setup: break out flag bits into variables.
 	 */
 	wantparent = cnp->cn_flags & (LOCKPARENT|WANTPARENT);
+	KASSERT(wantparent, ("relookup: parent not wanted."));
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = dvp;
@@ -826,46 +821,44 @@ relookup(dvp, vpp, cnp)
 		 */
 		return (0);
 	}
-	/*
-	 * In the DOTDOT case dp is unlocked, we may have to relock it if
-	 * LOCKPARENT is set.  Otherwise, unlock the parent.
-	 */
-	if ((cnp->cn_flags & (ISDOTDOT | LOCKPARENT)) ==
-	    (ISDOTDOT | LOCKPARENT))
-		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
-	else if ((cnp->cn_flags & (ISDOTDOT | LOCKPARENT)) == 0 && dp != *vpp)
-		VOP_UNLOCK(dp, 0, td);
 	dp = *vpp;
-
-	/*
-	 * Check for symbolic link
-	 */
-	KASSERT(dp->v_type != VLNK || !(cnp->cn_flags & FOLLOW),
-	    ("relookup: symlink found.\n"));
 
 	/*
 	 * Disallow directory write attempts on read-only filesystems.
 	 */
 	if (rdonly &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		printf("this is it?\n");
+		if (dvp == dp)
+			vrele(dvp);
+		else
+			vput(dvp);
 		error = EROFS;
-		goto bad2;
+		goto bad;
 	}
+	/*
+	 * Set the parent lock/ref state to the requested state.
+	 */
+	if ((cnp->cn_flags & LOCKPARENT) == 0 && dvp != dp) {
+		if (wantparent)
+			VOP_UNLOCK(dvp, 0, td);
+		else
+			vput(dvp);
+	} else if (!wantparent)
+		vrele(dvp);
+	/*
+	 * Check for symbolic link
+	 */
+	KASSERT(dp->v_type != VLNK || !(cnp->cn_flags & FOLLOW),
+	    ("relookup: symlink found.\n"));
+
 	/* ASSERT(dvp == ndp->ni_startdir) */
 	if (cnp->cn_flags & SAVESTART)
 		VREF(dvp);
 	
-	if (!wantparent)
-		vrele(dvp);
-
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
 	return (0);
-
-bad2:
-	if (cnp->cn_flags & LOCKPARENT)
-		VOP_UNLOCK(dvp, 0, td);
-	vrele(dvp);
 bad:
 	vput(dp);
 	*vpp = NULL;
