@@ -356,7 +356,7 @@ main(int argc, char *argv[])
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "46Aa:b:cdf:kl:m:nop:P:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:b:cdf:kl:m:nop:P:sS:uv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -444,6 +444,11 @@ main(int argc, char *argv[])
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
+			break;
+		case 'S':		/* path for privileged originator */
+			if (strlen(optarg) >= sizeof(sunx.sun_path))
+				errx(1, "%s path too long, exiting", optarg);
+			funix_secure.name = optarg;
 			break;
 		case 'u':		/* only log specified priority */
 			UniquePriority++;
