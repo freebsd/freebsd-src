@@ -100,14 +100,25 @@
 #define	CMD_WRITE		0x30	/* Write */
 #define	CMD_WRITE_MEDIA		0x31	/* Write media */
 #define	CMD_RESET_CTRL		0x40	/* Reset controller */
+#define	CMD_DIAG_PASS_THRU	0x41	/* ??? */
 #define	CMD_GET_CONFIG		0x50	/* Sense configuration */
 #define	CMD_SET_CONFIG		0x51	/* Set configuration */
+
+#define	CMD_BYPASS_VOL_STATE	0x52	/* ??? */
+#define	CMD_SS_CREATE_VOL	0x53	/* ??? */
+#define	CMD_CHANGE_CONFIG	0x54	/* ??? */
+#define	CMD_SENSE_ORIG_CONF	0x55	/* ??? */
+#define	CMD_REORDER_LOG_DRV	0x56	/* ??? */
+
 #define	CMD_LABEL_LOG_DRV	0x57	/* Label logical drive */
+#define	CMD_SS_TO_VOL		0x58	/* ??? */
 #define	CMD_SET_SURFACE_DELAY	0x60	/* Set surface delay */
+#define	CMD_SET_OVERHEAT_DELAY	0x61	/* ??? */
 #define	CMD_SENSE_BUS_PARAMS	0x65	/* Sense bus parameters */
 #define	CMD_SENSE_SUBSYS_INFO	0x66	/* Sense Subsystem Information */
 #define	CMD_SENSE_SURFACE_ATS	0x70	/* Sense surface analysis task status */
 #define	CMD_PASSTHROUGH		0x90	/* Pass-through operation */
+#define	CMD_PASSTHROUGH_A	0x91	/* ??? */
 #define	CMD_RESET_SCSI_DEV	0x94	/* Reset SCSI device */
 #define	CMD_PAUSE_BG_ACT	0x98	/* Pause Background Activity */
 #define	CMD_RESUME_BG_ACT	0x99	/* Resume Background Activity */
@@ -117,7 +128,11 @@
 #define	CMD_SENSE_CP		0xa8	/* Sense controller performance */
 #define	CMD_STOP_CPM		0xa9	/* Stop controller performance monitoring */
 #define	CMD_FLUSH_CACHE		0xc2	/* Flush/disable write cache */
+#define	CMD_COLLECT_BUFFER	0xd2	/* ??? */
 #define	CMD_ACCEPT_MEDIA_EXCH	0xe0	/* Accept Media Exchange */	
+
+#define	CMD_FLASH_READ		0xf6	/* Read FLASH */
+#define	CMD_FLASH_WRITE		0xf7	/* Write FLASH */
 
 /* logical drive parameter table */
 struct ida_drive_param {
