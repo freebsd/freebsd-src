@@ -78,6 +78,8 @@ isahint_add_device(device_t parent, const char *name, int unit)
 
 	if (resource_disabled(name, unit))
 		device_disable(child);
+
+	isa_set_configattr(child, (isa_get_configattr(child)|ISACFGATTR_HINTS));
 }
 
 static void
