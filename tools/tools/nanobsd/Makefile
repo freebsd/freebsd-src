@@ -163,6 +163,9 @@ _.md:	_.cs
 .if exists(${WD}/etc/mtree/BSD.sendmail.dist)
 	mtree -deU -f ${WD}/etc/mtree/BSD.sendmail.dist -p ${WD}/
 .endif
+.if defined(NANOBSD_PRUNE)
+	( cd ${WD} ; rm -rf ${NANOBSD_PRUNE} )
+.endif
 	(cd ${WD} && mtree -c -Kmd5digest ) > _.mtree.tmp
 	sh -e ${.CURDIR}/i386.diskimage \
 		${SECTS} \
