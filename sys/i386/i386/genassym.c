@@ -134,7 +134,7 @@ ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
-ASSYM(PCB_SPARE, offsetof(struct pcb, __pcb_spare));
+ASSYM(PCB_VM86, offsetof(struct pcb, pcb_vm86));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
