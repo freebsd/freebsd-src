@@ -1944,7 +1944,7 @@ vput(vp)
 	}
 	v_incr_usecount(vp, -1);
 	vp->v_iflag |= VI_OWEINACT;
-	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
+	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
 		VI_LOCK(vp);
 		if (error)
@@ -3336,25 +3336,15 @@ void
 vop_lookup_post(void *ap, int rc)
 {
 	struct vop_lookup_args *a;
-	struct componentname *cnp;
 	struct vnode *dvp;
 	struct vnode *vp;
-	int flags;
 
 	a = ap;
 	dvp = a->a_dvp;
-	cnp = a->a_cnp;
 	vp = *(a->a_vpp);
-	flags = cnp->cn_flags;
 
 	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
-
-	if (rc)
-		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (error)");
-	else if (flags & ISDOTDOT)
-		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (ISDOTDOT)");
-	else
-		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
+	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
 
 	if (!rc)
 		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (child)");
