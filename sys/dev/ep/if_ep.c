@@ -650,7 +650,8 @@ rescan:
 		         */
 			while ((status = CSR_READ_1(sc, EP_W1_TX_STATUS)) &
 			    TXS_COMPLETE) {
-				if (status & TXS_SUCCES_INTR_REQ);
+				if (status & TXS_SUCCES_INTR_REQ)
+					;	/* nothing */
 				else if (status &
 				    (TXS_UNDERRUN | TXS_JABBER |
 				    TXS_MAX_COLLISION)) {
