@@ -35,8 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_atalk.h"
 #include "opt_compat.h"
@@ -100,12 +102,8 @@
 #include <ddb/db_sym.h>
 #endif
 
-#ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/pc98.h>
-#else
-#include <isa/rtc.h>
-#endif
 
 #include <net/netisr.h>
 
@@ -166,10 +164,8 @@ static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
 #endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-#ifdef PC98
 int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
-#endif
 
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
@@ -178,11 +174,7 @@ extern vm_offset_t ksym_start, ksym_end;
 int	_udatasel, _ucodesel;
 u_int	basemem;
 
-#ifdef PC98
 static int	ispc98 = 1;
-#else
-static int	ispc98 = 0;
-#endif
 SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
 int cold = 1;
@@ -1584,25 +1576,13 @@ sdtossd(sd, ssd)
 static void
 getmemsize(int first)
 {
-#ifdef PC98
 	int i, physmap_idx, pa_indx, pg_n;
 	u_long physmem_tunable;
 	u_int extmem, under16;
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
-#else
-	int i, physmap_idx, pa_indx;
-	u_long physmem_tunable;
-	u_int extmem;
-	struct vm86frame vmf;
-	struct vm86context vmc;
-	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
-	pt_entry_t *pte;
-	struct bios_smap *smap;
-#endif
 	quad_t dcons_addr, dcons_size;
 
-#ifdef PC98
 	/* XXX - some of EPSON machines can't use PG_N */
 	pg_n = PG_N;
 	if (pc98_machine_type & M_EPSON_PC98) {
@@ -1661,173 +1641,12 @@ getmemsize(int first)
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
 
-#else /* PC98 */
-
-	bzero(&vmf, sizeof(struct vm86frame));
-	bzero(physmap, sizeof(physmap));
-	basemem = 0;
-
-	/*
-	 * map page 1 R/W into the kernel page table so we can use it
-	 * as a buffer.  The kernel will unmap this page later.
-	 */
-	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
-
-	/*
-	 * get memory map with INT 15:E820
-	 */
-	vmc.npages = 0;
-	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
-	physmap_idx = 0;
-	vmf.vmf_ebx = 0;
-	do {
-		vmf.vmf_eax = 0xE820;
-		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = sizeof(struct bios_smap);
-		i = vm86_datacall(0x15, &vmf, &vmc);
-		if (i || vmf.vmf_eax != SMAP_SIG)
-			break;
-		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%016llx len=%016llx\n",
-			    smap->type, smap->base, smap->length);
-
-		if (smap->type != 0x01)
-			continue;
-
-		if (smap->length == 0)
-			continue;
-
-		if (smap->base >= 0xffffffff) {
-			printf("%uK of memory above 4GB ignored\n",
-			    (u_int)(smap->length / 1024));
-			continue;
-		}
-
-		for (i = 0; i <= physmap_idx; i += 2) {
-			if (smap->base < physmap[i + 1]) {
-				if (boothowto & RB_VERBOSE)
-					printf(
-	"Overlapping or non-montonic memory region, ignoring second region\n");
-				continue;
-			}
-		}
-
-		if (smap->base == physmap[physmap_idx + 1]) {
-			physmap[physmap_idx + 1] += smap->length;
-			continue;
-		}
-
-		physmap_idx += 2;
-		if (physmap_idx == PHYSMAP_SIZE) {
-			printf(
-		"Too many segments in the physical address map, giving up\n");
-			break;
-		}
-		physmap[physmap_idx] = smap->base;
-		physmap[physmap_idx + 1] = smap->base + smap->length;
-	} while (vmf.vmf_ebx != 0);
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	for (i = 0; i <= physmap_idx; i += 2) {
-		if (physmap[i] == 0x00000000) {
-			basemem = physmap[i + 1] / 1024;
-			break;
-		}
-	}
-
-	/* Fall back to the old compatibility function for base memory */
-	if (basemem == 0) {
-		vm86_intcall(0x12, &vmf);
-		basemem = vmf.vmf_ax;
-	}
-
-	if (basemem > 640) {
-		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
-			basemem);
-		basemem = 640;
-	}
-
-	/*
-	 * XXX if biosbasemem is now < 640, there is a `hole'
-	 * between the end of base memory and the start of
-	 * ISA memory.  The hole may be empty or it may
-	 * contain BIOS code or data.  Map it read/write so
-	 * that the BIOS can write to it.  (Memory from 0 to
-	 * the physical end of the kernel is mapped read-only
-	 * to begin with and then parts of it are remapped.
-	 * The parts that aren't remapped form holes that
-	 * remain read-only and are unused by the kernel.
-	 * The base memory area is below the physical end of
-	 * the kernel and right now forms a read-only hole.
-	 * The part of it from PAGE_SIZE to
-	 * (trunc_page(biosbasemem * 1024) - 1) will be
-	 * remapped and used by the kernel later.)
-	 *
-	 * This code is similar to the code used in
-	 * pmap_mapdev, but since no memory needs to be
-	 * allocated we simply change the mapping.
-	 */
-	for (pa = trunc_page(basemem * 1024);
-	     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-		pmap_kenter(KERNBASE + pa, pa);
-
-	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so
-	 * that the bios can scribble on it.
-	 */
-	pte = (pt_entry_t *)vm86paddr;
-	for (i = basemem / 4; i < 160; i++)
-		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
-
-	if (physmap[1] != 0)
-		goto physmap_done;
-
-	/*
-	 * If we failed above, try memory map with INT 15:E801
-	 */
-	vmf.vmf_ax = 0xE801;
-	if (vm86_intcall(0x15, &vmf) == 0) {
-		extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
-	} else {
-#if 0
-		vmf.vmf_ah = 0x88;
-		vm86_intcall(0x15, &vmf);
-		extmem = vmf.vmf_ax;
-#else
-		/*
-		 * Prefer the RTC value for extended memory.
-		 */
-		extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
-#endif
-	}
-
-	/*
-	 * Special hack for chipsets that still remap the 384k hole when
-	 * there's 16MB of memory - this really confuses people that
-	 * are trying to use bus mastering ISA controllers with the
-	 * "16MB limit"; they only have 16MB, but the remapping puts
-	 * them beyond the limit.
-	 *
-	 * If extended memory is between 15-16MB (16-17MB phys address range),
-	 *	chop it to 15MB.
-	 */
-	if ((extmem > 15 * 1024) && (extmem < 16 * 1024))
-		extmem = 15 * 1024;
-#endif /* PC98 */
-
 	physmap[0] = 0;
 	physmap[1] = basemem * 1024;
 	physmap_idx = 2;
 	physmap[physmap_idx] = 0x100000;
 	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
 
-#ifndef PC98
-physmap_done:
-#endif
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
@@ -1863,7 +1682,6 @@ physmap_done:
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
-#ifdef PC98
 	/*
 	 * We need to divide chunk if Maxmem is larger than 16MB and
 	 * under 16MB area is not full of memory.
@@ -1877,7 +1695,6 @@ physmap_done:
 		physmap[physmap_idx] = 0x1000000;
 		physmap[physmap_idx + 1] = physmap[2] + extmem * 1024;
 	}
-#endif
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(first, 0);
@@ -1931,11 +1748,7 @@ physmap_done:
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
 			 */
-#ifdef PC98
 			*pte = pa | PG_V | PG_RW | pg_n;
-#else
-			*pte = pa | PG_V | PG_RW | PG_N;
-#endif
 			invltlb();
 
 			tmp = *(int *)ptr;
@@ -2047,12 +1860,10 @@ init386(first)
 	 */
 	proc_linkup(&proc0, &ksegrp0, &thread0);
 
-#ifdef PC98
 	/*
 	 * Initialize DMAC
 	 */
 	pc98_init_dmac();
-#endif
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
@@ -2537,7 +2348,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esi = tp->tf_esi;
 	mcp->mc_ebp = tp->tf_ebp;
 	mcp->mc_isp = tp->tf_isp;
-	mcp->mc_ebx = tp->tf_ebx;
 	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_eax = 0;
 		mcp->mc_edx = 0;
@@ -2545,6 +2355,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		mcp->mc_eax = tp->tf_eax;
 		mcp->mc_edx = tp->tf_edx;
 	}
+	mcp->mc_ebx = tp->tf_ebx;
 	mcp->mc_ecx = tp->tf_ecx;
 	mcp->mc_eip = tp->tf_eip;
 	mcp->mc_cs = tp->tf_cs;
