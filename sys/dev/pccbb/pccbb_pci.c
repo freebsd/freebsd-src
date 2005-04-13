@@ -603,6 +603,14 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, CBBR_IOLIMIT1, 0, 4);
 }
 
+static int
+cbb_route_interrupt(device_t pcib, device_t dev, int pin)
+{
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(pcib);
+
+	return (rman_get_start(sc->irq_res));
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_pci_probe),
@@ -638,6 +646,8 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(pcib_maxslots,		cbb_maxslots),
 	DEVMETHOD(pcib_read_config,		cbb_read_config),
 	DEVMETHOD(pcib_write_config,		cbb_write_config),
+	DEVMETHOD(pcib_route_interrupt,		cbb_route_interrupt),
+
 	{0,0}
 };
 
