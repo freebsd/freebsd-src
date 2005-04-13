@@ -194,6 +194,56 @@ system call (e.g.,
 or
 .Xr listen 2 )
 under different effective credentials.
+.Pp
+
+.Tn UNIX
+domain sockets support a number of socket options which can be set with
+.Xr setsockopt 2
+and tested with
+.Xr getsockopt 2 :
+.Bl -tag -width ".Dv LOCAL_CONNWAIT"
+.It Dv LOCAL_CREDS
+This option may be enabled on a
+.Dv SOCK_DGRAM
+or a
+.Dv SOCK_STREAM
+socket.  This option provides a mechanism for the receiver to
+receive the credentials of the process as a
+.Xr recvmsg 2
+control message.  The msg_control field in the msghdr structure points
+to a buffer that contains a cmsghdr structure followed by a variable
+length sockcred structure, defined in
+.Pa \*[Lt]sys/socket.h\*[Gt]
+as follows:
+.Bd -literal
+struct sockcred {
+  id_t	sc_uid;		/* real user id */
+  uid_t	sc_euid;	/* effective user id */
+  gid_t	sc_gid;		/* real group id */
+  gid_t	sc_egid;	/* effective group id */
+  int	sc_ngroups;	/* number of supplemental groups */
+  gid_t	sc_groups[1];	/* variable length */
+};
+.Ed
+.Pp
+The
+.Fn SOCKCREDSIZE
+macro computes the size of the sockcred structure for a specified number
+of groups.
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = sizeof(struct cmsghdr) + SOCKCREDSIZE(ngroups)
+cmsg_level = SOL_SOCKET
+cmsg_type = SCM_CREDS
+.Ed
+.It Dv LOCAL_CONNWAIT
+Used with 
+.Dv SOCK_STREAM
+sockets, this option causes the
+.Xr connect 2
+function to block until
+.Xr accept 2
+has been called on the listening socket.
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr intro 4
