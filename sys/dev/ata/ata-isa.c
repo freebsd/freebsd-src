@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <isa/isavar.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 /* local vars */
 static struct isa_pnp_id ata_ids[] = {
@@ -109,12 +110,25 @@ ata_isa_probe(device_t dev)
     return ata_probe(dev);
 }
 
+static void
+ata_isa_setmode(device_t parent, device_t dev)
+{
+    struct ata_device *atadev = device_get_softc(dev);
+    int mode = atadev->mode;
+
+    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
+}
+
+
 static device_method_t ata_isa_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_isa_probe),
     DEVMETHOD(device_attach,    ata_attach),
     DEVMETHOD(device_suspend,   ata_suspend),
     DEVMETHOD(device_resume,    ata_resume),
+
+    /* ATA methods */
+    DEVMETHOD(ata_setmode,      ata_isa_setmode),
     { 0, 0 }
 };
 
