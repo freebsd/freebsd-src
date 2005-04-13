@@ -127,14 +127,6 @@
 #define	LPPRI		(PZERO+8)
 #define	BUFSIZE		1024
 
-#ifndef PC98
-/* BIOS printer list - used by BIOS probe*/
-#define	BIOS_LPT_PORTS	0x408
-#define	BIOS_PORTS	(short *)(KERNBASE+BIOS_LPT_PORTS)
-#define	BIOS_MAX_LPT	4
-#endif
-
-
 #ifndef DEBUG
 #define lprintf(args)
 #else
@@ -193,13 +185,7 @@ struct lpt_softc {
 
 /* Printer Ready condition  - from lpa.c */
 /* Only used in polling code */
-#ifdef PC98
 #define	NOT_READY(x)	((inb(x) & LPS_NBSY) != LPS_NBSY)
-#else	/* IBM-PC */
-#define	LPS_INVERT	(LPS_NBSY | LPS_NACK |           LPS_SEL | LPS_NERR)
-#define	LPS_MASK	(LPS_NBSY | LPS_NACK | LPS_OUT | LPS_SEL | LPS_NERR)
-#define	NOT_READY(x)	((inb(x)^LPS_INVERT)&LPS_MASK)
-#endif
 
 #define	MAX_SLEEP	(hz*5)	/* Timeout while waiting for device ready */
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
@@ -241,29 +227,6 @@ static struct cdevsw lpt_cdevsw = {
 };
 
 static bus_addr_t lpt_iat[] = {0, 2, 4, 6};
-
-#ifndef PC98
-/*
- * Internal routine to lptprobe to do port tests of one byte value
- */
-static int
-lpt_port_test (int port, u_char data, u_char mask)
-{
-	int	temp, timeout;
-
-	data = data & mask;
-	outb(port, data);
-	timeout = 10000;
-	do {
-		DELAY(10);
-		temp = inb(port) & mask;
-	}
-	while (temp != data && --timeout);
-	lprintf(("Port 0x%x\tout=%x\tin=%x\ttout=%d\n",
-		port, data, temp, timeout));
-	return (temp == data);
-}
-#endif /* PC98 */
 
 /*
  * New lpt port probe Geoff Rehmet - Rhodes University - 14/2/94
@@ -313,7 +276,6 @@ lpt_port_test (int port, u_char data, u_char mask)
 int
 lpt_probe(device_t dev)
 {
-#ifdef PC98
 #define PC98_OLD_LPT 0x40
 #define PC98_IEEE_1284_FUNCTION 0x149
 	int rid;
@@ -349,55 +311,6 @@ lpt_probe(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	return 0;
-#else
-	int		port;
-	static short	next_bios_lpt = 0;
-	int		status;
-	static u_char	testbyte[18] = {
-		0x55,			/* alternating zeros */
-		0xaa,			/* alternating ones */
-		0xfe, 0xfd, 0xfb, 0xf7,
-		0xef, 0xdf, 0xbf, 0x7f,	/* walking zero */
-		0x01, 0x02, 0x04, 0x08,
-		0x10, 0x20, 0x40, 0x80	/* walking one */
-	};
-	int		i;
-
-	/*
-	 * Make sure there is some way for lptopen to see that
-	 * the port is not configured
-	 * This 0 will remain if the port isn't attached
-	 */
-	(lpt_sc + dvp->id_unit)->sc_port = 0;
-
-	status = IO_LPTSIZE;
-	/* If port not specified, use bios list */
-	if(dvp->id_iobase < 0) {	/* port? */
-		if((next_bios_lpt < BIOS_MAX_LPT) &&
-				(*(BIOS_PORTS+next_bios_lpt) != 0) ) {
-			dvp->id_iobase = *(BIOS_PORTS+next_bios_lpt++);
-			goto end_probe;
-		} else
-			return (0);
-	}
-
-	/* Port was explicitly specified */
-	/* This allows probing of ports unknown to the BIOS */
-	port = dvp->id_iobase + lpt_data;
-	for (i = 0; i < 18; i++) {
-		if (!lpt_port_test(port, testbyte[i], 0xff)) {
-			status = 0;
-			goto end_probe;
-		}
-	}
-
-end_probe:
-	/* write 0's to control and data ports */
-	outb(dvp->id_iobase+lpt_data, 0);
-	outb(dvp->id_iobase+lpt_control, 0);
-
-	return (status);
-#endif
 }
 
 /* XXX Todo - try and detect if interrupt is working */
@@ -419,15 +332,12 @@ lpt_attach(device_t dev)
 
 	sc->sc_port = rman_get_start(sc->res_port);
 	sc->sc_primed = 0;	/* not primed yet */
-#ifdef PC98
+
 	outb(sc->sc_port+lpt_pstb_ctrl,	LPC_DIS_PSTB);	/* PSTB disable */
 	outb(sc->sc_port+lpt_control,	LPC_MODE8255);	/* 8255 mode set */
 	outb(sc->sc_port+lpt_control,	LPC_NIRQ8);	/* IRQ8 inactive */
 	outb(sc->sc_port+lpt_control,	LPC_NPSTB);	/* PSTB inactive */
 	outb(sc->sc_port+lpt_pstb_ctrl,	LPC_EN_PSTB);	/* PSTB enable */
-#else
-	outb(sc->sc_port+lpt_control, LPC_NINIT);
-#endif
 
 	sc->sc_irq = 0;
 	if (isa_get_irq(dev) != -1) {
@@ -470,11 +380,7 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_softc *sc;
 	int s;
-#ifdef PC98
 	int port;
-#else
-	int trys, port;
-#endif
 
 	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if (sc->sc_port == 0)
@@ -505,51 +411,6 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 		sc->sc_irq &= ~LP_USE_IRQ;
 
 	/* init printer */
-#ifndef PC98
-	if ((sc->sc_flags & LP_NO_PRIME) == 0) {
-		if((sc->sc_flags & LP_PRIMEOPEN) || sc->sc_primed == 0) {
-			outb(port+lpt_control, 0);
-			sc->sc_primed++;
-			DELAY(500);
-		}
-	}
-
-	outb (port+lpt_control, LPC_SEL|LPC_NINIT);
-
-	/* wait till ready (printer running diagnostics) */
-	trys = 0;
-	do {
-		/* ran out of waiting for the printer */
-		if (trys++ >= LPINITRDY*4) {
-			splx(s);
-			sc->sc_state = 0;
-			lprintf(("status %x\n", inb(port+lpt_status)));
-			return (EBUSY);
-		}
-
-		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep (sc, LPPRI|PCATCH, "lptinit", hz/4) !=
-		    EWOULDBLOCK) {
-			sc->sc_state = 0;
-			splx(s);
-			return (EBUSY);
-		}
-
-		/* is printer online and ready for output */
-	} while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
-		 (LPS_SEL|LPS_NBSY|LPS_NERR));
-
-	sc->sc_control = LPC_SEL|LPC_NINIT;
-	if (sc->sc_flags & LP_AUTOLF)
-		sc->sc_control |= LPC_AUTOL;
-
-	/* enable interrupt if interrupt-driven */
-	if (sc->sc_irq & LP_USE_IRQ)
-		sc->sc_control |= LPC_ENA;
-
-	outb(port+lpt_control, sc->sc_control);
-#endif
-
 	sc->sc_state = OPEN;
 	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
 	sc->sc_xfercnt = 0;
@@ -608,31 +469,12 @@ static	int
 lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_softc *sc;
-#ifndef PC98
-	int port;
-#endif
 
 	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
-#ifndef PC98
-	port = sc->sc_port;
-#endif
 	sc->sc_state &= ~OPEN;
-
-#ifndef PC98
-	/* if the last write was interrupted, don't complete it */
-	if((!(sc->sc_state  & INTERRUPTED)) && (sc->sc_irq & LP_USE_IRQ))
-		while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
-			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
-			/* wait 1/4 second, give up if we get a signal */
-			if (tsleep (sc, LPPRI|PCATCH,
-				"lpclose", hz) != EWOULDBLOCK)
-				break;
-
-	outb(sc->sc_port+lpt_control, LPC_NINIT);
-#endif
 	free(sc->sc_inbuf, M_DEVBUF);
 
 end_close:
@@ -695,17 +537,10 @@ pushbytes(struct lpt_softc * sc)
 
 		/* output data */
 		outb(port+lpt_data, ch);
-#ifdef PC98
 		DELAY(1);
 		outb(port+lpt_control, LPC_PSTB);
 		DELAY(1);
 		outb(port+lpt_control, LPC_NPSTB);
-#else
-		/* strobe */
-		outb(port+lpt_control, sc->sc_control|LPC_STB);
-		outb(port+lpt_control, sc->sc_control);
-#endif
-
 	}
 	return(0);
 }
