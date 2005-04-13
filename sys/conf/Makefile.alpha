@@ -87,6 +87,4 @@ __reml.S: $S/$M/$M/divrem.m4
 
 %RULES
 
-CFLAGS+=-I/sys/dev/twa
-
 .include "$S/conf/kern.post.mk"
