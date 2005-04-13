@@ -38,8 +38,8 @@
 #define SCR_STACK	PCB_ESP
 #define SCR_PGTABLE	PCB_EBX
 #define SCR_ARGFRAME	PCB_EIP
-#define SCR_TSS0	PCB_SPARE
-#define SCR_TSS1	(PCB_SPARE+4)
+#define SCR_TSS0	PCB_VM86
+#define SCR_TSS1	(PCB_VM86+4)
 
 	.data
 	ALIGN_DATA
