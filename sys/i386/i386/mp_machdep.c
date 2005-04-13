@@ -467,6 +467,8 @@ init_secondary(void)
 	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	ltr(gsel_tss);
 
+	PCPU_SET(fsgs_gdt, &gdt[myid * NGDT + GUFS_SEL].sd);
+
 	/*
 	 * Set to a known state:
 	 * Set by mpboot.s: CR0_PG, CR0_PE
