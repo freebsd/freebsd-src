@@ -1007,22 +1007,22 @@ pcn_encap(sc, m_head, txidx)
 	cur = frag = *txidx;
 
 	for (m = m_head; m != NULL; m = m->m_next) {
-		if (m->m_len != 0) {
-			if ((PCN_TX_LIST_CNT -
-			    (sc->pcn_cdata.pcn_tx_cnt + cnt)) < 2)
-				return(ENOBUFS);
-			f = &sc->pcn_ldata->pcn_tx_list[frag];
-			f->pcn_txctl = (~(m->m_len) + 1) & PCN_TXCTL_BUFSZ;
-			f->pcn_txctl |= PCN_TXCTL_MBO;
-			f->pcn_tbaddr = vtophys(mtod(m, vm_offset_t));
-			if (cnt == 0)
-				f->pcn_txctl |= PCN_TXCTL_STP;
-			else
-				f->pcn_txctl |= PCN_TXCTL_OWN;
-			cur = frag;
-			PCN_INC(frag, PCN_TX_LIST_CNT);
-			cnt++;
-		}
+		if (m->m_len == 0)
+			continue;
+
+		if ((PCN_TX_LIST_CNT - (sc->pcn_cdata.pcn_tx_cnt + cnt)) < 2)
+			return(ENOBUFS);
+		f = &sc->pcn_ldata->pcn_tx_list[frag];
+		f->pcn_txctl = (~(m->m_len) + 1) & PCN_TXCTL_BUFSZ;
+		f->pcn_txctl |= PCN_TXCTL_MBO;
+		f->pcn_tbaddr = vtophys(mtod(m, vm_offset_t));
+		if (cnt == 0)
+			f->pcn_txctl |= PCN_TXCTL_STP;
+		else
+			f->pcn_txctl |= PCN_TXCTL_OWN;
+		cur = frag;
+		PCN_INC(frag, PCN_TX_LIST_CNT);
+		cnt++;
 	}
 
 	if (m != NULL)
