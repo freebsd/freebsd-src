@@ -579,6 +579,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 		if (ida->flags & IDA_INTERRUPTS)
 			wakeup(qcb);
 	} else {
+		KASSERT(qcb->buf != NULL, ("ida_done(): qcb->buf is NULL!"));
 		if (error)
 			qcb->buf->bio_flags |= BIO_ERROR;
 		idad_intr(qcb->buf);
