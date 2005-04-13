@@ -495,8 +495,10 @@ getfloating(long double *dp, int mod_ldbl)
 	char *ep;
 	int rval;
 
-	if (!*gargv)
+	if (!*gargv) {
+		*dp = 0.0;
 		return (0);
+	}
 	if (**gargv == '"' || **gargv == '\'') {
 		*dp = asciicode();
 		return (0);
