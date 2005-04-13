@@ -30,9 +30,6 @@
 /*
  * PC-9801 specific definitions for DP8390/SMC8216 NICs.
  */
-#ifndef PC98
-#error Why you include if_ed98.h?
-#endif
 
 /*
  * Vendor types
