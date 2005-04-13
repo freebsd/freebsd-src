@@ -126,6 +126,9 @@ double student [NSTUDENT + 1][NCONF] = {
 /* 100. */	{	1.290,	1.660,	1.984,	2.364,	2.626,	3.174  }
 };
 
+#define	MAX_DS	8
+static char symbol[MAX_DS] = { ' ', 'x', '+', '*', '%', '#', '@', 'O' };
+
 TAILQ_HEAD(pointlist, point);
 
 struct dataset {
@@ -234,8 +237,7 @@ Vitals(struct dataset *ds, int flag)
 {
 	double a;
 
-	printf("%c %3d %13.8g %13.8g %13.8g %13.8g %13.8g",
-	    flag == 1 ? 'x' : '+',
+	printf("%c %3d %13.8g %13.8g %13.8g %13.8g %13.8g", symbol[flag],
 	    ds->n, Min(ds), Max(ds), Median(ds), Avg(ds), Stddev(ds));
 	printf("\n");
 }
@@ -416,14 +418,10 @@ DumpPlot(void)
 		putchar('|');
 		for (j = 0; j < pl->width; j++) {
 			k = pl->data[(pl->height - i) * pl->width + j];
-			switch (k) {
-			case 0: putchar(' '); break;
-			case 1: putchar('x'); break;
-			case 2: putchar('+'); break;
-			case 3: putchar('*'); break;
-			default: printf("[%02x]", k); break;
-
-			}
+			if (k >= 0 && k < MAX_DS)
+				putchar(symbol[k]);
+			else
+				printf("[%02x]", k);
 		}
 		putchar('|');
 		putchar('\n');
@@ -503,7 +501,7 @@ usage(char const *whine)
 
 	fprintf(stderr, "%s\n", whine);
 	fprintf(stderr,
-	    "Usage: ministat [ -c confidence ] [-s] [file 1 [file 2]]\n");
+	    "Usage: ministat [ -c confidence ] [-s] [file [file ...]]\n");
 	fprintf(stderr, "\tconfidence = {");
 	for (i = 0; i < NCONF; i++) {
 		fprintf(stderr, "%s%g%%",
@@ -518,7 +516,8 @@ usage(char const *whine)
 int
 main(int argc, char **argv)
 {
-	struct dataset *ds1, *ds2, *ds3;
+	struct dataset *ds[7];
+	int nds;
 	double a;
 	char *p;
 	int c, i, ci;
@@ -550,29 +549,30 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0) {
-		ds1 = ReadSet(NULL);
+		ds[0] = ReadSet(NULL);
 		printf("x stdin\n");
-	} else if (argc > 0) {
-		ds1 = ReadSet(argv[0]);
-		printf("x %s\n", argv[0]);
-	} if (argc > 1) {
-		ds2 = ReadSet(argv[1]);
-		printf("+ %s\n", argv[1]);
+		nds = 1;
+	} else {
+		if (argc > (MAX_DS - 1))
+			usage("Too many datasets.");
+		nds = argc;
+		for (i = 0; i < nds; i++) {
+			ds[i] = ReadSet(argv[i]);
+			printf("%c %s\n", symbol[i+1], argv[i]);
+		}
 	}
 
 	SetupPlot(74, flag_s);
-	DimPlot(ds1);
-	if (argc > 1)
-		DimPlot(ds2);
-	PlotSet(ds1, 1);
-	if (argc > 1)
-		PlotSet(ds2, 2);
+	for (i = 0; i < nds; i++)
+		DimPlot(ds[i]);
+	for (i = 0; i < nds; i++)
+		PlotSet(ds[i], i + 1);
 	DumpPlot();
 	VitalsHead();
-	Vitals(ds1, 1);
-	if (argc > 1) {
-		Vitals(ds2, 2);
-		Relative(ds2, ds1, ci);
+	Vitals(ds[0], 1);
+	for (i = 1; i < nds; i++) {
+		Vitals(ds[i], i + 1);
+		Relative(ds[i], ds[0], ci);
 	}
 	exit(0);
 }
