@@ -116,12 +116,21 @@ static struct cdevsw	tap_cdevsw = {
  */
 static struct mtx		tapmtx;
 static int			tapdebug = 0;        /* debug flag   */
+static int			tapuopen = 0;        /* allow user open() */	     
 static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
 static struct clonedevs 	*tapclones;
 
 MALLOC_DECLARE(M_TAP);
 MALLOC_DEFINE(M_TAP, CDEV_NAME, "Ethernet tunnel interface");
 SYSCTL_INT(_debug, OID_AUTO, if_tap_debug, CTLFLAG_RW, &tapdebug, 0, "");
+
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
+    "Ethernet tunnel software network interface");
+SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
+	"Allow user to open /dev/tap (based on node permissions)");
+SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
+
 DEV_MODULE(if_tap, tapmodevent, NULL);
 
 /*
@@ -345,10 +354,10 @@ tapopen(dev, flag, mode, td)
 {
 	struct tap_softc	*tp = NULL;
 	struct ifnet		*ifp = NULL;
-	int			 error, s;
+	int			 s;
 
-	if ((error = suser(td)) != 0)
-		return (error);
+	if (tapuopen == 0 && suser(td) != 0)
+		return (EPERM);
 
 	if ((dev2unit(dev) & CLONE_UNITMASK) > TAPMAXUNIT)
 		return (ENXIO);
