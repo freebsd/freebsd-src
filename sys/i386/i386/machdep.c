@@ -1286,7 +1286,12 @@ static char dblfault_stack[PAGE_SIZE];
 extern  vm_offset_t	proc0kstack;
 
 
-/* software prototypes -- in more palatable form */
+/*
+ * software prototypes -- in more palatable form.
+ *
+ * GCODE_SEL through GUDATA_SEL must be in this order for syscall/sysret
+ * GUFS_SEL and GUGS_SEL must be in this order (swtch.s knows it)
+ */
 struct soft_segment_descriptor gdt_segs[] = {
 /* GNULL_SEL	0 Null Descriptor */
 {	0x0,			/* segment base address  */
@@ -1297,7 +1302,34 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GCODE_SEL	1 Code Descriptor for kernel */
+/* GPRIV_SEL	1 SMP Per-Processor Private Data Descriptor */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUFS_SEL	2 %fs Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUGS_SEL	3 %gs Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GCODE_SEL	4 Code Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMERA,		/* segment type */
@@ -1306,7 +1338,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GDATA_SEL	2 Data Descriptor for kernel */
+/* GDATA_SEL	5 Data Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
@@ -1315,52 +1347,24 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GPRIV_SEL	3 SMP Per-Processor Private Data Descriptor */
+/* GUCODE_SEL	6 Code Descriptor for user */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
-	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GPROC0_SEL	4 Proc 0 Tss Descriptor */
-{
-	0x0,			/* segment base address */
-	sizeof(struct i386tss)-1,/* length  */
-	SDT_SYS386TSS,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GLDT_SEL	5 LDT Descriptor */
-{	(int) ldt,		/* segment base address  */
-	sizeof(ldt)-1,		/* length - all address space */
-	SDT_SYSLDT,		/* segment type */
+	SDT_MEMERA,		/* segment type */
 	SEL_UPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GUSERLDT_SEL	6 User LDT Descriptor per process */
-{	(int) ldt,		/* segment base address  */
-	(512 * sizeof(union descriptor)-1),		/* length */
-	SDT_SYSLDT,		/* segment type */
-	0,			/* segment descriptor priority level */
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUDATA_SEL	7 Data Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GTGATE_SEL	7 Null Descriptor - Placeholder */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
 /* GBIOSLOWMEM_SEL 8 BIOS access to realmode segment 0x40, must be #8 in GDT */
 {	0x400,			/* segment base address */
 	0xfffff,		/* length */
@@ -1370,7 +1374,35 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GPANIC_SEL	9 Panic Tss Descriptor */
+/* GPROC0_SEL	9 Proc 0 Tss Descriptor */
+{
+	0x0,			/* segment base address */
+	sizeof(struct i386tss)-1,/* length  */
+	SDT_SYS386TSS,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GLDT_SEL	10 LDT Descriptor */
+{	(int) ldt,		/* segment base address  */
+	sizeof(ldt)-1,		/* length - all address space */
+	SDT_SYSLDT,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GUSERLDT_SEL	11 User LDT Descriptor per process */
+{	(int) ldt,		/* segment base address  */
+	(512 * sizeof(union descriptor)-1),		/* length */
+	SDT_SYSLDT,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GPANIC_SEL	12 Panic Tss Descriptor */
 {	(int) &dblfault_tss,	/* segment base address  */
 	sizeof(struct i386tss)-1,/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
@@ -1379,7 +1411,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GBIOSCODE32_SEL 10 BIOS 32-bit interface (32bit Code) */
+/* GBIOSCODE32_SEL 13 BIOS 32-bit interface (32bit Code) */
 {	0,			/* segment base address (overwritten)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
@@ -1388,7 +1420,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSCODE16_SEL 11 BIOS 32-bit interface (16bit Code) */
+/* GBIOSCODE16_SEL 14 BIOS 32-bit interface (16bit Code) */
 {	0,			/* segment base address (overwritten)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
@@ -1397,7 +1429,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSDATA_SEL 12 BIOS 32-bit interface (Data) */
+/* GBIOSDATA_SEL 15 BIOS 32-bit interface (Data) */
 {	0,			/* segment base address (overwritten) */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
@@ -1406,7 +1438,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSUTIL_SEL 13 BIOS 16-bit interface (Utility) */
+/* GBIOSUTIL_SEL 16 BIOS 16-bit interface (Utility) */
 {	0,			/* segment base address (overwritten) */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
@@ -1415,7 +1447,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSARGS_SEL 14 BIOS 16-bit interface (Arguments) */
+/* GBIOSARGS_SEL 17 BIOS 16-bit interface (Arguments) */
 {	0,			/* segment base address (overwritten) */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
@@ -1424,6 +1456,15 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
+/* GNDIS_SEL	18 NDIS Descriptor */
+{	0x0,			/* segment base address  */
+	0x0,			/* length */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
 };
 
 static struct soft_segment_descriptor ldt_segs[] = {
@@ -1999,25 +2040,22 @@ init386(first)
 	init_param1();
 
 	/*
-	 * make gdt memory segments, the code segment goes up to end of the
-	 * page with etext in it, the data segment goes to the end of
-	 * the address space
-	 */
-	/*
-	 * XXX text protection is temporarily (?) disabled.  The limit was
-	 * i386_btop(round_page(etext)) - 1.
+	 * Make gdt memory segments.  All segments cover the full 4GB
+	 * of address space and permissions are enforced at page level.
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUCODE_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUDATA_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
+
 #ifdef SMP
 	pc = &SMP_prvspace[0].pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct privatespace) - 1);
 #else
 	pc = &__pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct pcpu) - 1);
 #endif
+	gdt_segs[GPRIV_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
@@ -2046,12 +2084,8 @@ init386(first)
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
 
 	/* make ldt memory segments */
-	/*
-	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  And it
-	 * should be spelled ...MAX_USER...
-	 */
-	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
-	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
+	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
+	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
@@ -2151,6 +2185,9 @@ init386(first)
 	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
 	ltr(gsel_tss);
 
+	/* pointer to selector slot for %fs/%gs */
+	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
+
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
@@ -2193,13 +2230,14 @@ init386(first)
 	gdp->gd_hioffset = x >> 16;
 
 	/* XXX does this work? */
+	/* XXX yes! */
 	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
 	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
 
 	/* transfer to user mode */
 
-	_ucodesel = LSEL(LUCODE_SEL, SEL_UPL);
-	_udatasel = LSEL(LUDATA_SEL, SEL_UPL);
+	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
+	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
