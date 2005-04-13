@@ -27,6 +27,7 @@
 #
 
 #include <sys/bus.h>
+#include <dev/pci/pcivar.h>
 
 INTERFACE pcib;
 
@@ -86,4 +87,4 @@ METHOD int route_interrupt {
 	device_t pcib;
 	device_t dev;
 	int pin;
-} default null_route_interrupt;
+} DEFAULT null_route_interrupt;
