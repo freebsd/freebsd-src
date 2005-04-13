@@ -189,6 +189,11 @@ parse(char *string)
 
 	if (newval == NULL) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
+			if (dflag) {
+				i = show_var(mib, len);
+				if (!i && !bflag)
+					putchar('\n');
+			}
 			sysctl_all(mib, len);
 		} else {
 			i = show_var(mib, len);
