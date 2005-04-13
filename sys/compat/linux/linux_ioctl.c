@@ -1628,6 +1628,18 @@ linux_ioctl_vfat(struct thread *td, struct linux_ioctl_args *args)
  * Sound related ioctls
  */
 
+struct linux_mixer_info {
+	char	id[16];
+	char	name[32];
+	int	modify_counter;
+	int	fillers[10];
+};
+
+struct linux_old_mixer_info {
+	char	id[16];
+	char	name[32];
+};
+
 static u_int32_t dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
 
 #define	SETDIR(c)	(((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
@@ -1706,9 +1718,30 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE3);
 		return (ioctl(td, (struct ioctl_args *)args));
 
-	case LINUX_SOUND_MIXER_INFO:
-		args->cmd = SETDIR(SOUND_MIXER_INFO);
-		return (ioctl(td, (struct ioctl_args *)args));
+	case LINUX_SOUND_MIXER_INFO: {
+		/* Key on encoded length */
+		switch ((args->cmd >> 16) & 0x1fff) {
+		case 0x005c: {	/* SOUND_MIXER_INFO */
+			struct linux_mixer_info info;
+			bzero(&info, sizeof(info));
+			strncpy(info.id, "OSS", sizeof(info.id) - 1);
+			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
+			copyout(&info, (void *)args->arg, sizeof(info));
+			break;
+		}
+		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
+			struct linux_old_mixer_info info;
+			bzero(&info, sizeof(info));
+			strncpy(info.id, "OSS", sizeof(info.id) - 1);
+			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
+			copyout(&info, (void *)args->arg, sizeof(info));
+			break;
+		}
+		default:
+			return (ENOIOCTL);
+		}
+		break;
+	}
 
 	case LINUX_OSS_GETVERSION: {
 		int version = linux_get_oss_version(td);
