@@ -203,6 +203,7 @@ static char *rnames[] = {
 #if notyet
     "mariqua",
 #endif
+    "gtco_digipad",
     NULL
 };
 
@@ -367,6 +368,7 @@ static unsigned short rodentcflags[] =
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL),	/* Mariqua */
 #endif
+    (CS8		   | CREAD |	      HUPCL ),	/* GTCO Digi-Pad */
 };
 
 static struct rodentparam {
@@ -506,6 +508,7 @@ static void	mremote_serversetup();
 static void	mremote_clientchg(int add);
 
 static int	kidspad(u_char rxc, mousestatus_t *act);
+static int	gtco_digipad(u_char, mousestatus_t *);
 
 static int	usbmodule(void);
 
@@ -1696,6 +1699,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     debug("received char 0x%x",(int)rBuf);
     if (rodent.rtype == MOUSE_PROTO_KIDSPAD)
 	return kidspad(rBuf, act) ;
+    if (rodent.rtype == MOUSE_PROTO_GTCO_DIGIPAD)
+	return gtco_digipad(rBuf, act);
 
     /*
      * Hack for resyncing: We check here for a package that is:
@@ -3064,6 +3069,78 @@ kidspad(u_char rxc, mousestatus_t *act)
     }
     b_prev = buf[0] ;
     return act->flags ;
+}
+
+static int
+gtco_digipad (u_char rxc, mousestatus_t *act)
+{
+	static u_char buf[5];
+ 	static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
+	static k_status status = S_IDLE ;
+        int x, y;
+
+#define	GTCO_HEADER	0x80
+#define	GTCO_PROXIMITY	0x40
+#define	GTCO_START	(GTCO_HEADER|GTCO_PROXIMITY)
+#define	GTCO_BUTTONMASK	0x3c
+
+    
+	if (buflen > 0 && ((rxc & GTCO_HEADER) != GTCO_HEADER)) {
+		fprintf(stderr, "invalid code %d 0x%x\n", buflen, rxc);
+		buflen = 0 ;
+	}
+	if (buflen == 0 && (rxc & GTCO_START) != GTCO_START) {
+		fprintf(stderr, "invalid code 0 0x%x\n", rxc);
+		return 0 ; /* invalid code, no action */
+	}
+
+	buf[buflen++] = rxc ;
+	if (buflen < 5)
+		return 0 ;
+
+	buflen = 0 ; /* for next time... */
+
+	x = ((buf[2] & ~GTCO_START) << 6 | (buf[1] & ~GTCO_START));
+	y = 4768 - ((buf[4] & ~GTCO_START) << 6 | (buf[3] & ~GTCO_START));
+
+	x /= 2.5;
+	y /= 2.5;
+    
+	act->flags = 0 ;
+	act->obutton = act->button ;
+	act->dx = act->dy = act->dz = 0 ;
+    
+	if ((buf[0] & 0x40) == 0) /* pen went out of reach */
+		status = S_IDLE ;
+	else if (status == S_IDLE) { /* pen is newly near the tablet */
+		act->flags |= MOUSE_POSCHANGED ; /* force update */
+		status = S_PROXY ;
+		x_prev = x ;
+		y_prev = y ;
+	}
+
+	act->dx = x - x_prev ;
+	act->dy = y - y_prev ;
+	if (act->dx || act->dy)
+		act->flags |= MOUSE_POSCHANGED ;
+	x_prev = x ;
+	y_prev = y ;
+    
+	/* possibly record button change */
+	if (b_prev != 0 && b_prev != buf[0]) { 
+		act->button = 0 ;
+		if (buf[0] & 0x04) /* tip pressed/yellow */
+			act->button |= MOUSE_BUTTON1DOWN ;
+		if (buf[0] & 0x08) /* grey/white */
+			act->button |= MOUSE_BUTTON2DOWN ;
+		if (buf[0] & 0x10) /* black/green */
+			act->button |= MOUSE_BUTTON3DOWN ;
+		if (buf[0] & 0x20) /* tip+grey/blue */
+			act->button |= MOUSE_BUTTON4DOWN ;
+		act->flags |= MOUSE_BUTTONSCHANGED ;
+	}
+	b_prev = buf[0] ;
+	return act->flags ;
 }
 
 static void
