@@ -484,6 +484,11 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
 #define	LINUX_O_SYNC		010000
 #define	LINUX_FASYNC		020000
+#define	LINUX_O_DIRECT		040000	/* direct disk access hint */
+#define	LINUX_O_LARGEFILE	0100000
+#define	LINUX_O_DIRECTORY	0200000	/* must be a directory */
+#define	LINUX_O_NOFOLLOW	0400000	/* don't follow links */
+#define	LINUX_O_NOATIME		01000000
 
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
