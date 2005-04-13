@@ -33,12 +33,7 @@ struct clockframe;
 
 int	acquire_timer2(int mode);
 int	release_timer2(void);
-#ifndef PC98
 int	rtcin(int val);
-#else
-int	acquire_timer1(int mode);
-int	release_timer1(void);
-#endif
 int	sysbeep(int pitch, int period);
 void	timer_restore(void);
 void	init_TSC(void);
