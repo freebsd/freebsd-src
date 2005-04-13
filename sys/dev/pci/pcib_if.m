@@ -30,6 +30,14 @@
 
 INTERFACE pcib;
 
+CODE {
+	static int
+	null_route_interrupt(device_t pcib, device_t dev, int pin)
+	{
+		return (PCI_INVALID_IRQ);
+	}
+};
+
 #
 # Return the number of slots on the attached PCI bus.
 #
@@ -78,4 +86,4 @@ METHOD int route_interrupt {
 	device_t pcib;
 	device_t dev;
 	int pin;
-};
+} default null_route_interrupt;
