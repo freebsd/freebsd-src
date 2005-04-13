@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -54,15 +53,10 @@ static void aic_isa_release_resources(device_t);
 static int aic_isa_probe(device_t);
 static int aic_isa_attach(device_t);
 
-#ifdef PC98
 static u_int aic_isa_ports[] = { 0x1840 };
-#else
-static u_int aic_isa_ports[] = { 0x340, 0x140 };
-#endif
 #define	AIC_ISA_NUMPORTS (sizeof(aic_isa_ports) / sizeof(aic_isa_ports[0]))
 #define	AIC_ISA_PORTSIZE 0x20
 
-#ifdef PC98
 #define	AIC98_GENERIC		0x00
 #define	AIC98_NEC100		0x01
 #define	AIC_TYPE98(x)		(((x) >> 16) & 0x01)
@@ -79,7 +73,6 @@ static bus_addr_t aicport_100[AIC_ISA_PORTSIZE] = {
 	0x20, 0x22, 0x24, 0x26, 0x28, 0x2a, 0x2c, 0x2e,
 	0x30, 0x32, 0x34, 0x36, 0x38, 0x3a, 0x3c, 0x3e,
 };
-#endif
 
 static struct isa_pnp_id aic_ids[] = {
 	{ 0xa180a3b8, "NEC PC9801-100" },
@@ -91,7 +84,6 @@ aic_isa_alloc_resources(device_t dev)
 {
 	struct aic_isa_softc *sc = device_get_softc(dev);
 	int rid;
-#ifdef PC98
 	bus_addr_t *bs_iat;
 
 	if ((isa_get_logicalid(dev) == 0xa180a3b8) ||
@@ -99,25 +91,17 @@ aic_isa_alloc_resources(device_t dev)
 		bs_iat = aicport_100;
 	else
 		bs_iat = aicport_generic;
-#endif
 
 	sc->sc_port = sc->sc_irq = sc->sc_drq = 0;
 
 	rid = 0;
-#ifdef PC98
 	sc->sc_port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
 					  bs_iat, AIC_ISA_PORTSIZE, RF_ACTIVE);
-#else
-	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					0ul, ~0ul, AIC_ISA_PORTSIZE, RF_ACTIVE);
-#endif
 	if (!sc->sc_port) {
 		device_printf(dev, "I/O port allocation failed\n");
 		return (ENOMEM);
 	}
-#ifdef PC98
 	isa_load_resourcev(sc->sc_port, bs_iat, AIC_ISA_PORTSIZE);
-#endif
 
 	if (isa_get_irq(dev) != -1) {
 		rid = 0;
@@ -183,14 +167,8 @@ aic_isa_probe(device_t dev)
 	}
 
 	for (i = 0; i < numports; i++) {
-#ifdef PC98
 		if (bus_set_resource(dev, SYS_RES_IOPORT, 0, ports[i], 1))
 			continue;
-#else
-		if (bus_set_resource(dev, SYS_RES_IOPORT, 0, ports[i],
-				     AIC_ISA_PORTSIZE))
-			continue;
-#endif
 		if (aic_isa_alloc_resources(dev))
 			continue;
 		if (!aic_probe(aic)) {
