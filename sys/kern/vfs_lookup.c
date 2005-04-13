@@ -828,7 +828,6 @@ relookup(dvp, vpp, cnp)
 	 */
 	if (rdonly &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
-		printf("this is it?\n");
 		if (dvp == dp)
 			vrele(dvp);
 		else
