@@ -58,6 +58,4 @@ ldscript.$M: $S/conf/ldscript.$M
 	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M
 %RULES
 	
-CFLAGS+=-I/sys/dev/twa
-
 .include "$S/conf/kern.post.mk"
