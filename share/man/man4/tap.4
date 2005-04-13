@@ -85,7 +85,11 @@ The Ethernet tunnel device, normally
 .Pa /dev/tap Ns Sy N ,
 is exclusive-open
 (it cannot be opened if it is already open)
-and is restricted to the super-user.
+and is restricted to the super-user, unless the
+.Xr sysctl 8
+variable
+.Va net.link.tap.user_open
+is non-zero.
 A
 .Fn read
 call will return an error
