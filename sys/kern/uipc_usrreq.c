@@ -81,6 +81,7 @@ static	struct unp_head unp_shead, unp_dhead;
  */
 static const struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 static ino_t	unp_ino;		/* prototype for fake inode numbers */
+struct mbuf *unp_addsockcred(struct thread *, struct mbuf *);
 
 /*
  * Currently, UNIX domain sockets are protected by a single subsystem lock,
@@ -114,7 +115,7 @@ static int     unp_attach(struct socket *);
 static void    unp_detach(struct unpcb *);
 static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
 static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
-static int     unp_connect2(struct socket *so, struct socket *so2);
+static int     unp_connect2(struct socket *so, struct socket *so2, int);
 static void    unp_disconnect(struct unpcb *);
 static void    unp_shutdown(struct unpcb *);
 static void    unp_drop(struct unpcb *, int);
@@ -233,7 +234,7 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 		UNP_UNLOCK();
 		return (EINVAL);
 	}
-	error = unp_connect2(so1, so2);
+	error = unp_connect2(so1, so2, PRU_CONNECT2);
 	UNP_UNLOCK();
 	return (error);
 }
@@ -421,6 +422,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			from = (struct sockaddr *)unp->unp_addr;
 		else
 			from = &sun_noname;
+		if (unp->unp_conn->unp_flags & UNP_WANTCRED)
+			control = unp_addsockcred(td, control);
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (sbappendaddr_locked(&so2->so_rcv, from, m, control)) {
 			sorwakeup_locked(so2);
@@ -462,6 +465,14 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			panic("uipc_send connected but no connection?");
 		so2 = unp->unp_conn->unp_socket;
 		SOCKBUF_LOCK(&so2->so_rcv);
+		if (unp->unp_conn->unp_flags & UNP_WANTCRED) {
+			/*
+			 * Credentials are passed only once on
+			 * SOCK_STREAM.
+			 */
+			unp->unp_conn->unp_flags &= ~UNP_WANTCRED;
+			control = unp_addsockcred(td, control);
+		}
 		/*
 		 * Send to paired receive port, and then reduce
 		 * send buffer hiwater marks to maintain backpressure.
@@ -604,20 +615,20 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct unpcb *unp;
 	struct xucred xu;
-	int error;
+	int error, optval;
+
+	UNP_LOCK();
+	unp = sotounpcb(so);
+	if (unp == NULL) {
+		UNP_UNLOCK();
+		return (EINVAL);
+	}
+	error = 0;
 
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 		case LOCAL_PEERCRED:
-			error = 0;
-			UNP_LOCK();
-			unp = sotounpcb(so);
-			if (unp == NULL) {
-				UNP_UNLOCK();
-				error = EINVAL;
-				break;
-			}
 			if (unp->unp_flags & UNP_HAVEPC)
 				xu = unp->unp_peercred;
 			else {
@@ -626,9 +637,16 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 				else
 					error = EINVAL;
 			}
-			UNP_UNLOCK();
 			if (error == 0)
 				error = sooptcopyout(sopt, &xu, sizeof(xu));
+			break;
+		case LOCAL_CREDS:
+			optval = unp->unp_flags & UNP_WANTCRED ? 1 : 0;
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+		case LOCAL_CONNWAIT:
+			optval = unp->unp_flags & UNP_CONNWAIT ? 1 : 0;
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 		default:
 			error = EOPNOTSUPP;
@@ -636,10 +654,41 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 		}
 		break;
 	case SOPT_SET:
+		switch (sopt->sopt_name) {
+		case LOCAL_CREDS:
+		case LOCAL_CONNWAIT:
+			error = sooptcopyin(sopt, &optval, sizeof(optval),
+					    sizeof(optval));
+			if (error)
+				break;
+
+#define	OPTSET(bit) \
+	if (optval) \
+		unp->unp_flags |= bit; \
+	else \
+		unp->unp_flags &= ~bit;
+
+			switch (sopt->sopt_name) {
+			case LOCAL_CREDS:
+				OPTSET(UNP_WANTCRED);
+				break;
+			case LOCAL_CONNWAIT:
+				OPTSET(UNP_CONNWAIT);
+				break;
+			default:
+				break;
+			}
+			break;
+#undef	OPTSET
+		default:
+			error = ENOPROTOOPT;
+			break;
+		}
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
+	UNP_UNLOCK();
 	return (error);
 }
 
@@ -965,7 +1014,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 		so2 = so3;
 	}
-	error = unp_connect2(so, so2);
+	error = unp_connect2(so, so2, PRU_CONNECT);
 bad2:
 	UNP_UNLOCK();
 	mtx_lock(&Giant);
@@ -980,7 +1029,7 @@ bad:
 }
 
 static int
-unp_connect2(struct socket *so, struct socket *so2)
+unp_connect2(struct socket *so, struct socket *so2, int req)
 {
 	struct unpcb *unp = sotounpcb(so);
 	struct unpcb *unp2;
@@ -1000,7 +1049,11 @@ unp_connect2(struct socket *so, struct socket *so2)
 
 	case SOCK_STREAM:
 		unp2->unp_conn = unp;
-		soisconnected(so);
+		if (req == PRU_CONNECT &&
+		    ((unp->unp_flags | unp2->unp_flags) & UNP_CONNWAIT))
+			soisconnecting(so);
+		else
+			soisconnected(so);
 		soisconnected(so2);
 		break;
 
@@ -1482,6 +1535,43 @@ out:
 	m_freem(control);
 
 	return (error);
+}
+
+struct mbuf *
+unp_addsockcred(struct thread *td, struct mbuf *control)
+{
+	struct mbuf *m, *n;
+	struct sockcred *sc;
+	int ngroups;
+	int i;
+
+	ngroups = MIN(td->td_ucred->cr_ngroups, CMGROUP_MAX);
+
+	m = sbcreatecontrol(NULL, SOCKCREDSIZE(ngroups), SCM_CREDS, SOL_SOCKET);
+	if (m == NULL)
+		return (control);
+	m->m_next = NULL;
+
+	sc = (struct sockcred *) CMSG_DATA(mtod(m, struct cmsghdr *));
+	sc->sc_uid = td->td_ucred->cr_ruid;
+	sc->sc_euid = td->td_ucred->cr_uid;
+	sc->sc_gid = td->td_ucred->cr_rgid;
+	sc->sc_egid = td->td_ucred->cr_gid;
+	sc->sc_ngroups = ngroups;
+	for (i = 0; i < sc->sc_ngroups; i++)
+		sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+
+	/*
+	 * If a control message already exists, append us to the end.
+	 */
+	if (control != NULL) {
+		for (n = control; n->m_next != NULL; n = n->m_next)
+			;
+		n->m_next = m;
+	} else
+		control = m;
+
+	return (control);
 }
 
 /*

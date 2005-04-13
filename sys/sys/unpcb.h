@@ -95,6 +95,8 @@ struct unpcb {
  */
 #define UNP_HAVEPC			0x001
 #define UNP_HAVEPCCACHED		0x002
+#define	UNP_WANTCRED			0x004	/* credentials wanted */
+#define	UNP_CONNWAIT			0x008	/* connect blocks until accepted */
 
 #define	sotounpcb(so)	((struct unpcb *)((so)->so_pcb))
 
