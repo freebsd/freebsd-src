@@ -1010,6 +1010,7 @@ coda_lookup(struct vop_lookup_args *ap)
 		    return (error);
 		}
 	    }
+	    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
 	} else {
 	    /* The parent is locked, and may be the same as the child */
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {

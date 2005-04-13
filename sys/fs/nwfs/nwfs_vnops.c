@@ -883,8 +883,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		} else if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0, td);	/* unlock parent */
 			error = vget(vp, LK_EXCLUSIVE, td);
-			if (error)
-				vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		} else
 			error = vget(vp, LK_EXCLUSIVE, td);
 		if (!error) {
@@ -901,8 +900,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 				vput(vp);
 			else
 				vrele(vp);
-			if (flags & ISDOTDOT)
-				vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		}
 		vdrop(vp);
 		*vpp = NULLVP;
@@ -978,10 +975,9 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);		/* race to get the inode */
 		error = nwfs_nget(mp, fid, NULL, NULL, &vp);
-		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return (error);
-		}
 		*vpp = vp;
 	} else if (NWCMPF(&dnp->n_fid, &fid)) {
 		vref(dvp);

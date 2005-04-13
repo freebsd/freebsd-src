@@ -618,8 +618,7 @@ devfs_lookupx(ap)
 		de = TAILQ_NEXT(de, de_list);		/* ".." */
 		de = de->de_dir;
 		error = devfs_allocv(de, dvp->v_mount, vpp, td);
-		if (error)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		return (error);
 	}
 

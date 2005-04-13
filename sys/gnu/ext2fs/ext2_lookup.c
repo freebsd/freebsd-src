@@ -656,11 +656,10 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
-		    &tdp)) != 0) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE, &tdp);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error != 0)
 			return (error);
-		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */

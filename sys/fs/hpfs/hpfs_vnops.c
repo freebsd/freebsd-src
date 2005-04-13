@@ -1060,11 +1060,9 @@ hpfs_lookup(ap)
 			VOP_UNLOCK(dvp,0,cnp->cn_thread);
 			error = VFS_VGET(hpmp->hpm_mp,
 				 dhp->h_fn.fn_parent, LK_EXCLUSIVE, ap->a_vpp); 
-			if (error) {
-				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY,
-				    cnp->cn_thread);
+			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
+			if (error)
 				return(error);
-			}
 		}
 		return (0);
 	} else {

@@ -860,10 +860,9 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
-		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
 			return (error);
-		}
 		newvp = NFSTOV(np);
 	} else if (NFS_CMPFH(np, fhp, fhsize)) {
 		VREF(dvp);
