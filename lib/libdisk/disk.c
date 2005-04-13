@@ -324,28 +324,6 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	return 0;
 }
 
-#ifdef PC98
-const char *
-slice_type_name( int type, int subtype )
-{
-
-	switch (type) {
-	case whole:
-		return "whole";
-	case fat:
-		return "fat";
-	case freebsd:
-		switch (subtype) {
-		case 0xc494:	return "freebsd";
-		default:	return "unknown";
-		}
-	case unused:
-		return "unused";
-	default:
-		return "unknown";
-	}
-}
-#else /* PC98 */
 const char *
 slice_type_name( int type, int subtype )
 {
@@ -392,7 +370,11 @@ slice_type_name( int type, int subtype )
 		return "fat";
 	case freebsd:
 		switch (subtype) {
+#ifdef PC98
+		case 0xc494:	return "freebsd";
+#else
 		case 165:	return "freebsd";
+#endif
 		default:	return "unknown";
 		}
 	case extended:
@@ -407,4 +389,3 @@ slice_type_name( int type, int subtype )
 		return "unknown";
 	}
 }
-#endif /* PC98 */
