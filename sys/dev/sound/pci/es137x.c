@@ -466,7 +466,8 @@ es_intr(void *p)
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 
 	if (intsrc & STAT_ADC) chn_intr(es->rch.channel);
-	if (intsrc & STAT_DAC1);
+	if (intsrc & STAT_DAC1)
+		;	/* nothing */
 	if (intsrc & STAT_DAC2)	chn_intr(es->pch.channel);
 }
 
