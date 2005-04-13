@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Op Fl s
+.Op Fl s | Fl S
 .Oo
 .Ar dev
 .Sm off
@@ -50,12 +50,12 @@
 .Ar ...
 .Nm
 .Op Fl f Ar device
-.Op Fl s
+.Op Fl s | Fl S
 .Cm recsrc
 .Ar ...
 .Nm
 .Op Fl f Ar device
-.Op Fl s
+.Op Fl s | Fl S
 .Sm off
 .Bro
 .Cm ^ | + | - | =
@@ -117,6 +117,10 @@ flag is used, the current mixer values will be displayed in a format suitable
 for use as the command-line arguments to a future invocation of
 .Nm
 (as above).
+.Pp
+The
+.Fl S
+flag provides the above output without mixing field separators.
 .Pp
 To change the recording device you use one of:
 .Bl -tag -width =rec -offset indent
