@@ -56,6 +56,8 @@
 
 #include "../../../sys/net80211/ieee80211_ioctl.h"
 
+const char *progname;
+
 static void
 printstats(FILE *fd, const struct ieee80211_stats *stats)
 {
@@ -229,6 +231,8 @@ main(int argc, char *argv[])
 	struct ieee80211req ireq;
 	int allnodes = 0;
 
+	progname = argv[0];
+
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0)
 		err(1, "socket");
@@ -242,7 +246,7 @@ main(int argc, char *argv[])
 			strncpy(ifr.ifr_name, optarg, sizeof (ifr.ifr_name));
 			break;
 		default:
-			errx(1, "usage: %s [-a] [-i device] [mac...]\n");
+			errx(1, "usage: %s [-a] [-i device] [mac...]\n", progname);
 			/*NOTREACHED*/
 		}
 
