@@ -77,7 +77,7 @@ struct ida_hardware_qcb {
 	struct 	ida_hdr hdr;			/*   4 */
 	struct 	ida_req req;			/*  12 */
 	struct 	ida_sgb seg[IDA_NSEG];		/* 256 */
-	struct	ida_qcb *qcb;			/*   4 - qcb backpointer */ 
+	struct	ida_qcb *qcb;			/*   4 - qcb backpointer */
 };
 
 typedef enum {
@@ -117,7 +117,7 @@ struct ida_access {
 };
 
 /*
- * flags for the controller 
+ * flags for the controller
  */
 #define	IDA_ATTACHED	0x01		/* attached */
 #define	IDA_FIRMWARE	0x02		/* firmware must be started */
@@ -197,7 +197,7 @@ extern struct ida_softc *ida_alloc(device_t dev, struct resource *regs,
 	int regs_type, int regs_id, bus_dma_tag_t parent_dmat);
 extern void ida_free(struct ida_softc *ida);
 extern int ida_init(struct ida_softc *ida);
-extern void ida_attach(struct ida_softc *ida); 
+extern void ida_attach(struct ida_softc *ida);
 extern int ida_command(struct ida_softc *ida, int command, void *data,
 	int datasize, int drive, u_int32_t pblkno, int flags);
 extern void ida_submit_buf(struct ida_softc *ida, struct bio *bp);

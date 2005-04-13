@@ -86,7 +86,7 @@
 #define	CMD_REJECTED	0x14
 
 /*
- * command types 
+ * command types
  */
 #define	CMD_GET_LOG_DRV_INFO	0x10	/* Identify controller */
 #define	CMD_GET_CTRL_INFO	0x11	/* Identify logical driver */
@@ -211,7 +211,7 @@ struct ida_controller_info {
 	u_int8_t	reserved[403];
 } __packed;
 
-/* 
+/*
  * CMD_SENSE_DRV_STATUS (0x12)
  * Sense logical drive status
  */
