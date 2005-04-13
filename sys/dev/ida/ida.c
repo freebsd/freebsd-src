@@ -100,7 +100,7 @@ ida_free(struct ida_softc *ida)
 		free(ida->qcbs, M_DEVBUF);
 
 	if (ida->ih != NULL)
-                bus_teardown_intr(ida->dev, ida->irq, ida->ih);
+		bus_teardown_intr(ida->dev, ida->irq, ida->ih);
 
 	if (ida->irq != NULL)
 		bus_release_resource(ida->dev, ida->irq_res_type,
@@ -118,12 +118,12 @@ ida_free(struct ida_softc *ida)
  * record bus address from bus_dmamap_load
  */
 static void
-ida_dma_map_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error) 
+ida_dma_map_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-        bus_addr_t *baddr;
+	bus_addr_t *baddr;
 
-        baddr = (bus_addr_t *)arg;
-        *baddr = segs->ds_addr;
+	baddr = (bus_addr_t *)arg;
+	*baddr = segs->ds_addr;
 }
 
 static __inline struct ida_qcb *
@@ -197,7 +197,7 @@ ida_init(struct ida_softc *ida)
 
 	SLIST_INIT(&ida->free_qcbs);
 	STAILQ_INIT(&ida->qcb_queue);
-        bioq_init(&ida->bio_queue);
+	bioq_init(&ida->bio_queue);
 
 	ida->qcbs = (struct ida_qcb *)
 	    malloc(IDA_QCB_MAX * sizeof(struct ida_qcb), M_DEVBUF,
@@ -226,7 +226,7 @@ ida_init(struct ida_softc *ida)
 		/* lockarg	*/ &Giant,
 		&ida->hwqcb_dmat);
 	if (error)
-                return (ENOMEM);
+		return (ENOMEM);
 
 	/* DMA tag for mapping buffers into device space */
 	error = bus_dma_tag_create(
@@ -245,17 +245,17 @@ ida_init(struct ida_softc *ida)
 		/* lockarg	*/ &Giant,
 		&ida->buffer_dmat);
 	if (error)
-                return (ENOMEM);
+		return (ENOMEM);
 
-        /* Allocation of hardware QCBs */
+	/* Allocation of hardware QCBs */
 	/* XXX allocation is rounded to hardware page size */
 	error = bus_dmamem_alloc(ida->hwqcb_dmat,
 	    (void **)&ida->hwqcbs, BUS_DMA_NOWAIT, &ida->hwqcb_dmamap);
 	if (error)
-                return (ENOMEM);
+		return (ENOMEM);
 
-        /* And permanently map them in */
-        bus_dmamap_load(ida->hwqcb_dmat, ida->hwqcb_dmamap,
+	/* And permanently map them in */
+	bus_dmamap_load(ida->hwqcb_dmat, ida->hwqcb_dmamap,
 	    ida->hwqcbs, IDA_QCB_MAX * sizeof(struct ida_hardware_qcb),
 	    ida_dma_map_cb, &ida->hwqcb_busaddr, /*flags*/0);
 
@@ -318,11 +318,11 @@ ida_detach(device_t dev)
 	struct ida_softc *ida;
 	int error = 0;
 
-        ida = (struct ida_softc *)device_get_softc(dev);
+	ida = (struct ida_softc *)device_get_softc(dev);
 
 	/*
 	 * XXX
-	 * before detaching, we must make sure that the system is 
+	 * before detaching, we must make sure that the system is
 	 * quiescent; nothing mounted, no pending activity.
 	 */
 
@@ -343,7 +343,7 @@ ida_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	struct ida_hardware_qcb *hwqcb = (struct ida_hardware_qcb *)arg;
 	int i;
 
-	hwqcb->hdr.size = htole16((sizeof(struct ida_req) + 
+	hwqcb->hdr.size = htole16((sizeof(struct ida_req) +
 	    sizeof(struct ida_sgb) * IDA_NSEG) >> 2);
 
 	for (i = 0; i < nsegments; i++) {
@@ -402,8 +402,8 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 void
 ida_submit_buf(struct ida_softc *ida, struct bio *bp)
 {
-        bioq_insert_tail(&ida->bio_queue, bp);
-        ida_construct_qcb(ida);
+	bioq_insert_tail(&ida->bio_queue, bp);
+	ida_construct_qcb(ida);
 	ida_start(ida);
 }
 
