@@ -166,7 +166,6 @@ sa11x0_bs_map(t, bpa, size, cacheable, bshp)
 			PTE_SYNC(pte);
 		}
 	}
-	pmap_update(pmap_kernel());
 	return(0);
 }
 
