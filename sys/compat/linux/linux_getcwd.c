@@ -185,7 +185,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 
 	/* If we don't care about the pathname, we're done */
 	if (bufp == NULL) {
-		vrele(lvp);
+		vput(lvp);
 		*lvpp = NULL;
 		return 0;
 	}
@@ -281,7 +281,7 @@ unionread:
 	error = ENOENT;
 		
 out:
-	vrele(lvp);
+	vput(lvp);
 	*lvpp = NULL;
 	free(dirbuf, M_TEMP);
 	return error;

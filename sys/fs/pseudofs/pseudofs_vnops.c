@@ -413,6 +413,8 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	if (error)
 		goto failed;
 
+	if (cnp->cn_flags & ISDOTDOT)
+		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
