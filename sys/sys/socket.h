@@ -439,6 +439,25 @@ struct cmsgcred {
 	short	cmcred_ngroups;		/* number or groups */
 	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
 };
+
+/*
+ * Socket credentials.
+ */
+struct sockcred {
+	uid_t	sc_uid;			/* real user id */
+	uid_t	sc_euid;		/* effective user id */
+	gid_t	sc_gid;			/* real group id */
+	gid_t	sc_egid;		/* effective group id */
+	int	sc_ngroups;		/* number of supplemental groups */
+	gid_t	sc_groups[1];		/* variable length */
+};
+
+/*
+ * Compute size of a sockcred structure with groups.
+ */
+#define	SOCKCREDSIZE(ngrps) \
+	(sizeof(struct sockcred) + (sizeof(gid_t) * ((ngrps) - 1)))
+
 #endif /* __BSD_VISIBLE */
 
 /* given pointer to struct cmsghdr, return pointer to data */
