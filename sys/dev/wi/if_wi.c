@@ -327,11 +327,11 @@ wi_attach(device_t dev)
 
 	val <<= 1;			/* shift for base 1 indices */
 	for (i = 1; i < 16; i++) {
-		if (isset((u_int8_t*)&val, i)) {
-			ic->ic_channels[i].ic_freq =
-				ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
-			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
-		}
+		if (!isset((u_int8_t*)&val, i))
+			continue;
+		ic->ic_channels[i].ic_freq =
+			ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
+		ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
 	}
 
 	/*
