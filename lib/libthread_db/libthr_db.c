@@ -41,12 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #define	TERMINATED	1
 
-struct pt_map {
-	int		used;
-	lwpid_t		lwp;
-	psaddr_t	thr;
-};
-
 struct td_thragent {
 	TD_THRAGENT_FIELDS;
 	psaddr_t	libthr_debug_addr;
@@ -74,13 +68,10 @@ struct td_thragent {
 	int		thread_off_event_buf;
 	int		thread_state_zoombie;
 	int		thread_state_running;
-	struct pt_map	*map;
-	int		map_len;
 };
 
 #define P2T(c) ps2td(c)
 
-static void pt_unmap_lwp(const td_thragent_t *ta, lwpid_t lwp);
 static int pt_validate(const td_thrhandle_t *th);
 
 static int
@@ -104,50 +95,6 @@ ps2td(int c)
 	default:
 		return TD_ERR;
 	}
-}
-
-static long
-pt_map_thread(const td_thragent_t *const_ta, long lwp, psaddr_t pt)
-{
-	td_thragent_t *ta = __DECONST(td_thragent_t *, const_ta);
-	struct pt_map *new;
-	int i, first = -1;
-
-	/* leave zero out */
-	for (i = 1; i < ta->map_len; ++i) {
-		if (ta->map[i].used == 0) {
-			if (first == -1)
-				first = i;
-		} else if (ta->map[i].lwp == lwp) {
-			ta->map[i].thr = pt;
-			return (i);
-		}
-	}
-
-	if (first == -1) {
-		if (ta->map_len == 0) {
-			ta->map = calloc(20, sizeof(struct pt_map));
-			if (ta->map == NULL)
-				return (-1);
-			ta->map_len = 20;
-			first = 1;
-		} else {
-			new = realloc(ta->map,
-			              sizeof(struct pt_map) * ta->map_len * 2);
-			if (new == NULL)
-				return (-1);
-			memset(new + ta->map_len, 0, sizeof(struct pt_map) *
-			       ta->map_len);
-			first = ta->map_len;
-			ta->map = new;
-			ta->map_len *= 2;
-		}
-	}
-
-	ta->map[first].used = 1;
-	ta->map[first].thr  = pt;
-	ta->map[first].lwp  = lwp;
-	return (first);
 }
 
 static td_err_e
@@ -193,8 +140,6 @@ pt_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 		return (TD_MALLOC);
 
 	ta->ph = ph;
-	ta->map = NULL;
-	ta->map_len = 0;
 
 	LOOKUP_SYM(ph, "_libthr_debug",		&ta->libthr_debug_addr);
 	LOOKUP_SYM(ph, "_thread_list",		&ta->thread_list_addr);
@@ -248,8 +193,6 @@ pt_ta_delete(td_thragent_t *ta)
 	 * the process doesn't exist any more.
 	 */
 	ps_pwrite(ta->ph, ta->libthr_debug_addr, &dbg, sizeof(int));
-	if (ta->map)
-		free(ta->map);
 	free(ta);
 	return (TD_OK);
 }
@@ -260,52 +203,36 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 	prgregset_t gregs;
 	TAILQ_HEAD(, pthread) thread_list;
 	psaddr_t pt;
-	int ret;
 	long lwp;
+	int ret;
 
 	TDBG_FUNC();
 
-	if (id < 0 || id >= ta->map_len || ta->map[id].used == 0)
+	if (id == 0)
 		return (TD_NOTHR);
-
-	if (ta->map[id].thr == NULL) {
-		/* check lwp */
-		ret = ptrace(PT_GETREGS, ta->map[id].lwp, (caddr_t)&gregs, 0);
-		if (ret != 0) {
-			/* no longer exists */
-			ta->map[id].used = 0;
-			return (TD_NOTHR);
-		}
-	} else {
-		ret = ps_pread(ta->ph, ta->thread_list_addr, &thread_list,
-		       sizeof(thread_list));
+	ret = ps_pread(ta->ph, ta->thread_list_addr, &thread_list,
+		sizeof(thread_list));
+	if (ret != 0)
+		return (P2T(ret));
+	/* Iterate through thread list to find pthread */
+	pt = (psaddr_t)thread_list.tqh_first;
+	while (pt != NULL) {
+		ret = ps_pread(ta->ph, pt + ta->thread_off_tid,
+			       &lwp, sizeof(lwp));
 		if (ret != 0)
 			return (P2T(ret));
-		pt = (psaddr_t)thread_list.tqh_first;
-		while (pt != 0 && ta->map[id].thr != pt) {
-			/* get next thread */
-			ret = ps_pread(ta->ph,
+		if (lwp == id)
+			break;
+		/* get next thread */
+		ret = ps_pread(ta->ph,
 				pt + ta->thread_off_next,
 				&pt, sizeof(pt));
-			if (ret != 0)
-				return (P2T(ret));
-		}
-		if (pt == 0) {
-			/* no longer exists */
-			ta->map[id].used = 0;
-			return (TD_NOTHR);
-		}
-		ret = ps_pread(ta->ph,
-			pt + ta->thread_off_tid,
-			&lwp, sizeof(long));
 		if (ret != 0)
 			return (P2T(ret));
-		if (lwp == TERMINATED) {
-			ta->map[id].used = 0;
-			return (TD_NOTHR);
-		}
 	}
-	th->th_ta  = ta;
+	if (pt == NULL)
+		return (TD_NOTHR);
+	th->th_ta = ta;
 	th->th_tid = id;
 	th->th_thread = pt;
 	return (TD_OK);
@@ -314,41 +241,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 static td_err_e
 pt_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwp, td_thrhandle_t *th)
 {
-	TAILQ_HEAD(, pthread) thread_list;
-	psaddr_t pt;
-	long tmp_lwp; 
-	int ret;
-	
-	TDBG_FUNC();
-
-	ret = ps_pread(ta->ph, ta->thread_list_addr, &thread_list,
-	               sizeof(thread_list));
-	if (ret != 0)
-		return (P2T(ret));
-	pt = (psaddr_t)thread_list.tqh_first;
-	while (pt != 0) {
-		ret = ps_pread(ta->ph, pt + ta->thread_off_tid,
-			       &tmp_lwp, sizeof(tmp_lwp));
-		if (ret != 0)
-			return (P2T(ret));
-		if (tmp_lwp == (long)lwp)
-			break;
-
-		/* get next thread */
-		ret = ps_pread(ta->ph,
-		           pt + ta->thread_off_next,
-		           &pt, sizeof(pt));
-		if (ret != 0)
-			return (P2T(ret));
-	}
-	if (pt == 0)
-		return (TD_NOTHR);
-	th->th_ta  = ta;
-	th->th_tid = pt_map_thread(ta, lwp, pt);
-	th->th_thread = pt;
-	if (th->th_tid == -1)
-		return (TD_MALLOC);
-	return (TD_OK);
+	return (pt_ta_map_id2thr(ta, lwp, th));
 }
 
 static td_err_e
@@ -360,9 +253,9 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 {
 	TAILQ_HEAD(, pthread) thread_list;
 	td_thrhandle_t th;
-	long tmp_lwp;
 	psaddr_t pt;
-	int ret, isdead;
+	long lwp;
+	int ret;
 
 	TDBG_FUNC();
 
@@ -370,19 +263,16 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 		       sizeof(thread_list));
 	if (ret != 0)
 		return (P2T(ret));
-
 	pt = (psaddr_t)thread_list.tqh_first;
 	while (pt != 0) {
-		ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &tmp_lwp, 
-			      sizeof(tmp_lwp));
+		ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp,
+			      sizeof(lwp));
 		if (ret != 0)
 			return (P2T(ret));
-		if (tmp_lwp != 0 && tmp_lwp != TERMINATED) {
-			th.th_ta  = ta;
-			th.th_tid = pt_map_thread(ta, tmp_lwp, pt);
+		if (lwp != 0 && lwp != TERMINATED) {
+			th.th_ta = ta;
+			th.th_tid = (thread_t)lwp;
 			th.th_thread = pt;
-			if (th.th_tid == -1)
-				return (TD_MALLOC);
 			if ((*callback)(&th, cbdata_p))
 				return (TD_DBERR);
 		}
@@ -412,7 +302,7 @@ pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 	if (ret != 0) {
 		free(keytable);
 		return (P2T(ret));
-	}	
+	}
 	for (i = 0; i < ta->thread_max_keys; i++) {
 		allocated = *(int *)(keytable + i * ta->thread_size_key +
 			ta->thread_off_key_allocated);
@@ -433,6 +323,7 @@ pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 static td_err_e
 pt_ta_event_addr(const td_thragent_t *ta, td_event_e event, td_notify_t *ptr)
 {
+
 	TDBG_FUNC();
 
 	switch (event) {
@@ -452,8 +343,8 @@ pt_ta_event_addr(const td_thragent_t *ta, td_event_e event, td_notify_t *ptr)
 static td_err_e
 pt_ta_set_event(const td_thragent_t *ta, td_thr_events_t *events)
 {
-	int ret;
 	td_thr_events_t mask;
+	int ret;
 
 	TDBG_FUNC();
 	ret = ps_pread(ta->ph, ta->thread_event_mask_addr, &mask,
@@ -469,8 +360,8 @@ pt_ta_set_event(const td_thragent_t *ta, td_thr_events_t *events)
 static td_err_e
 pt_ta_clear_event(const td_thragent_t *ta, td_thr_events_t *events)
 {
-	int ret;
 	td_thr_events_t mask;
+	int ret;
 
 	TDBG_FUNC();
 	ret = ps_pread(ta->ph, ta->thread_event_mask_addr, &mask,
@@ -489,9 +380,9 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 	static td_thrhandle_t handle;
 
 	psaddr_t pt, pt_temp;
+	td_thr_events_e	tmp;
 	long lwp;
 	int ret;
-	td_thr_events_e	tmp;
 
 	TDBG_FUNC();
 
@@ -500,24 +391,29 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 		return (P2T(ret));
 	if (pt == NULL)
 		return (TD_NOMSG);
-	/* At the time, libthr only reports event once a time. */
+	/*
+	 * Take the event pointer, at the time, libthr only reports event
+	 * once a time, so it is not a link list.
+	 */
 	pt_temp = NULL;
 	ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
 
+	/* Read event info */
 	ret = ps_pread(ta->ph, pt + ta->thread_off_event_buf, msg, sizeof(*msg));
 	if (ret != 0)
 		return (P2T(ret));
 	if (msg->event == 0)
 		return (TD_NOMSG);
-	/* clear event */
+	/* Clear event */
 	tmp = 0;
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
+	/* Convert event */
 	pt = (psaddr_t)msg->th_p;
 	ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp, sizeof(lwp));
 	if (ret != 0)
 		return (P2T(ret));
 	handle.th_ta = ta;
-	handle.th_tid = pt_map_thread(ta, lwp, pt);
+	handle.th_tid = lwp;
 	handle.th_thread = pt;
 	msg->th_p = &handle;
 	return (0);
@@ -536,9 +432,9 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 		return (ret);
 
 	if (suspend)
-		ret = ps_lstop(ta->ph, ta->map[th->th_tid].lwp);
+		ret = ps_lstop(ta->ph, th->th_tid);
 	else
-		ret = ps_lcontinue(ta->ph, ta->map[th->th_tid].lwp);
+		ret = ps_lcontinue(ta->ph, th->th_tid);
 	return (P2T(ret));
 }
 
@@ -566,8 +462,7 @@ pt_thr_validate(const td_thrhandle_t *th)
 
 	TDBG_FUNC();
 
-	ret = pt_ta_map_id2thr(th->th_ta, th->th_tid,
-	                       &temp);
+	ret = pt_ta_map_id2thr(th->th_ta, th->th_tid, &temp);
 	return (ret);
 }
 
@@ -583,32 +478,23 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	ret = pt_validate(th);
 	if (ret)
 		return (ret);
-
-	memset(info, 0, sizeof(*info));
-	if (ta->map[th->th_tid].thr == 0) {
-		info->ti_type = TD_THR_SYSTEM;
-		info->ti_lid = ta->map[th->th_tid].lwp;
-		info->ti_tid = th->th_tid;
-		info->ti_state = TD_THR_RUN;
-		info->ti_type = TD_THR_SYSTEM;
-		info->ti_thread = NULL;
-		return (TD_OK);
-	}
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_state,
+	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_state,
 	               &state, sizeof(state));
 	if (ret != 0)
 		return (P2T(ret));
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_report_events,
+	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_report_events,
 		&info->ti_traceme, sizeof(int));
 	if (ret != 0)
 		return (P2T(ret));
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_event_mask,
+	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_event_mask,
 		&info->ti_events, sizeof(td_thr_events_t));
 	if (ret != 0)
 		return (P2T(ret));
-	info->ti_lid = ta->map[th->th_tid].lwp;
+	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_tcb,
+		&info->ti_tls, sizeof(void *));
+	info->ti_lid = th->th_tid;
 	info->ti_tid = th->th_tid;
-	info->ti_thread = ta->map[th->th_tid].thr;
+	info->ti_thread = th->th_thread;
 	info->ti_ta_p = th->th_ta;
 	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;
@@ -632,7 +518,7 @@ pt_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregs)
 	if (ret)
 		return (ret);
 
-	ret = ps_lgetfpregs(ta->ph, ta->map[th->th_tid].lwp, fpregs);
+	ret = ps_lgetfpregs(ta->ph, th->th_tid, fpregs);
 	return (P2T(ret));
 }
 
@@ -648,8 +534,7 @@ pt_thr_getgregs(const td_thrhandle_t *th, prgregset_t gregs)
 	if (ret)
 		return (ret);
 
-	ret = ps_lgetregs(ta->ph,
-	                  ta->map[th->th_tid].lwp, gregs);
+	ret = ps_lgetregs(ta->ph, th->th_tid, gregs);
 	return (P2T(ret));
 }
 
@@ -665,7 +550,7 @@ pt_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
 	if (ret)
 		return (ret);
 
-	ret = ps_lsetfpregs(ta->ph, ta->map[th->th_tid].lwp, fpregs);
+	ret = ps_lsetfpregs(ta->ph, th->th_tid, fpregs);
 	return (P2T(ret));
 }
 
@@ -681,7 +566,7 @@ pt_thr_setgregs(const td_thrhandle_t *th, const prgregset_t gregs)
 	if (ret)
 		return (ret);
 
-	ret = ps_lsetregs(ta->ph, ta->map[th->th_tid].lwp, gregs);
+	ret = ps_lsetregs(ta->ph, th->th_tid, gregs);
 	return (P2T(ret));
 }
 
@@ -744,26 +629,30 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	ret = ps_pread(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
 	if (ret != 0)
 		return (P2T(ret));
-	/* get event */
+	/* Get event */
 	ret = ps_pread(ta->ph, pt + ta->thread_off_event_buf, msg, sizeof(*msg));
 	if (ret != 0)
 		return (P2T(ret));
 	if (msg->event == 0)
 		return (TD_NOMSG);
-	/* clear event, at the time, libthr only reports event once a time. */
+	/*
+	 * Take the event pointer, at the time, libthr only reports event
+	 * once a time, so it is not a link list.
+	 */
 	if (pt == pt_temp) {
 		pt_temp = NULL;
 		ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
 	}
+	/* Clear event */
 	tmp = 0;
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
-	/* convert event */
+	/* Convert event */
 	pt = (psaddr_t)msg->th_p;
 	ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp, sizeof(lwp));
 	if (ret != 0)
 		return (P2T(ret));
 	handle.th_ta = ta;
-	handle.th_tid = pt_map_thread(ta, lwp, pt);
+	handle.th_tid = lwp;
 	handle.th_thread = pt;
 	msg->th_p = &handle;
 	return (0);
@@ -772,28 +661,17 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 static td_err_e
 pt_thr_sstep(const td_thrhandle_t *th, int step)
 {
-	const td_thragent_t *ta = th->th_ta;
-	int ret;
-
 	TDBG_FUNC();
 
-	ret = pt_validate(th);
-	if (ret)
-		return (ret);
-
-	if (ta->map[th->th_tid].thr == 0)
-		return (TD_BADTH);
-
-	return (0);
+	return pt_validate(th);
 }
 
 static int
 pt_validate(const td_thrhandle_t *th)
 {
 
-	if (th->th_tid <= 0 || th->th_tid >= th->th_ta->map_len ||
-	    th->th_ta->map[th->th_tid].used == 0)
-		return (TD_NOTHR);
+	if (th->th_tid == 0 || th->th_thread == NULL)
+		return (TD_ERR);
 	return (TD_OK);
 }
 
@@ -817,8 +695,7 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 		return (P2T(ret));
 
 	/* get thread tcb */
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-		ta->thread_off_tcb,
+	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_tcb,
 		&tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
