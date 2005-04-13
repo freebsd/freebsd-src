@@ -447,6 +447,7 @@ _cbb=		cbb
 _ciss=		ciss
 _cm=		cm
 _coff=		coff
+_cpufreq=	cpufreq
 _el=		el
 _em=		em
 _ep=		ep
