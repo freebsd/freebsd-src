@@ -501,6 +501,8 @@ show_var(int *oid, int nlen)
 	u_int kind;
 	int (*func)(int, void *);
 
+	bzero(buf, BUFSIZ);
+	bzero(name, BUFSIZ);
 	qoid[0] = 0;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
 
