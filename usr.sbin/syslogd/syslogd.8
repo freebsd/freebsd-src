@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2004
+.Dd April 13, 2005
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -202,6 +202,10 @@ the default is
 Specify an alternative file in which to store the process ID.
 The default is
 .Pa /var/run/syslog.pid .
+.It Fl S
+Specify the pathname of an alternate log socket for privileged
+applications to be used instead; the default is
+.Pa /var/run/logpriv .
 .It Fl l
 Specify a location where
 .Nm
