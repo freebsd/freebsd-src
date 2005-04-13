@@ -199,24 +199,30 @@ struct region_descriptor {
 
 /*
  * Entries in the Global Descriptor Table (GDT)
+ * Note that each 4 entries share a single 32 byte L1 cache line.
+ * Some of the fast syscall instructions require a specific order here.
  */
 #define	GNULL_SEL	0	/* Null Descriptor */
-#define	GCODE_SEL	1	/* Kernel Code Descriptor */
-#define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GPRIV_SEL	3	/* SMP Per-Processor Private Data */
-#define	GPROC0_SEL	4	/* Task state process slot zero and up */
-#define	GLDT_SEL	5	/* LDT - eventually one per process */
-#define	GUSERLDT_SEL	6	/* User LDT */
-#define	GTGATE_SEL	7	/* Process task switch gate */
+#define	GPRIV_SEL	1	/* SMP Per-Processor Private Data */
+#define	GUFS_SEL	2	/* User %fs Descriptor (order critical: 1) */
+#define	GUGS_SEL	3	/* User %gs Descriptor (order critical: 2) */
+#define	GCODE_SEL	4	/* Kernel Code Descriptor (order critical: 1) */
+#define	GDATA_SEL	5	/* Kernel Data Descriptor (order critical: 2) */
+#define	GUCODE_SEL	6	/* User Code Descriptor (order critical: 3) */
+#define	GUDATA_SEL	7	/* User Data Descriptor (order critical: 4) */
 #define	GBIOSLOWMEM_SEL	8	/* BIOS low memory access (must be entry 8) */
-#define	GPANIC_SEL	9	/* Task state to consider panic from */
-#define GBIOSCODE32_SEL	10	/* BIOS interface (32bit Code) */
-#define GBIOSCODE16_SEL	11	/* BIOS interface (16bit Code) */
-#define GBIOSDATA_SEL	12	/* BIOS interface (Data) */
-#define GBIOSUTIL_SEL	13	/* BIOS interface (Utility) */
-#define GBIOSARGS_SEL	14	/* BIOS interface (Arguments) */
+#define	GPROC0_SEL	9	/* Task state process slot zero and up */
+#define	GLDT_SEL	10	/* Default User LDT */
+#define	GUSERLDT_SEL	11	/* User LDT */
+#define	GPANIC_SEL	12	/* Task state to consider panic from */
+#define	GBIOSCODE32_SEL	13	/* BIOS interface (32bit Code) */
+#define	GBIOSCODE16_SEL	14	/* BIOS interface (16bit Code) */
+#define	GBIOSDATA_SEL	15	/* BIOS interface (Data) */
+#define	GBIOSUTIL_SEL	16	/* BIOS interface (Utility) */
+#define	GBIOSARGS_SEL	17	/* BIOS interface (Arguments) */
+#define	GNDIS_SEL	18	/* For the NDIS layer */
 
-#define NGDT 		15
+#define	NGDT 		19
 
 /*
  * Entries in the Local Descriptor Table (LDT)

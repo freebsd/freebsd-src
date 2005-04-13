@@ -67,6 +67,8 @@ struct pcb {
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	int	pcb_gs;
+	struct segment_descriptor pcb_fsd;
+	struct segment_descriptor pcb_gsd;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
 	int	pcb_psl;	/* process status long */
 	void	(*pcb_switchout)(void);	/* Special switchout function. */

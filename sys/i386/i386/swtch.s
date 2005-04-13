@@ -220,12 +220,24 @@ sw1:
 	/* Move correct tss descriptor into GDT slot, then reload tr. */
 	movl	PCPU(TSS_GDT), %ebx		/* entry in GDT */
 	movl	0(%edi), %eax
+	movl	4(%edi), %esi
 	movl	%eax, 0(%ebx)
-	movl	4(%edi), %eax
-	movl	%eax, 4(%ebx)
+	movl	%esi, 4(%ebx)
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
+
+	/* Copy the %fs and %gs selectors into this pcpu gdt */
+	leal	PCB_FSD(%edx), %esi
+	movl	PCPU(FSGS_GDT), %edi
+	movl	0(%esi), %eax		/* %fs selector */
+	movl	4(%esi), %ebx
+	movl	%eax, 0(%edi)
+	movl	%ebx, 4(%edi)
+	movl	8(%esi), %eax		/* %gs selector, comes straight after */
+	movl	12(%esi), %ebx
+	movl	%eax, 8(%edi)
+	movl	%ebx, 12(%edi)
 
 	/* Restore context. */
 	movl	PCB_EBX(%edx),%ebx

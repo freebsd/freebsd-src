@@ -43,6 +43,10 @@
 #define I386_SET_IOPERM	4
 				/* xxxxx */
 #define I386_VM86	6
+#define I386_GET_FSBASE	7
+#define I386_SET_FSBASE	8
+#define I386_GET_GSBASE	9
+#define I386_SET_GSBASE	10
 
 /* These four only exist when running an i386 binary on amd64 */
 #define	_AMD64_GET_FSBASE	128
@@ -84,6 +88,10 @@ int i386_set_ldt(int, union descriptor *, int);
 int i386_get_ioperm(unsigned int, unsigned int *, int *);
 int i386_set_ioperm(unsigned int, unsigned int, int);
 int i386_vm86(int, void *);
+int i386_get_fsbase(void **);
+int i386_get_gsbase(void **);
+int i386_set_fsbase(void *);
+int i386_set_gsbase(void *);
 int i386_set_watch(int, unsigned int, int, int, struct dbreg *);
 int i386_clr_watch(int, struct dbreg *);
 int sysarch(int, void *);
