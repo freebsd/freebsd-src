@@ -3134,7 +3134,8 @@ open_top:
 		 */
 		tp->t_termios = ISCALLOUT(dev) ? tp->t_init_out : tp->t_init_in;
 		tp->t_cflag = tp->t_termios.c_cflag;
-		tp->t_modem(tp, SER_DTR | SER_RTS, 0);
+		if (tp->t_modem != NULL)
+			tp->t_modem(tp, SER_DTR | SER_RTS, 0);
 		++tp->t_wopeners;
 		error = tp->t_param(tp, &tp->t_termios);
 		--tp->t_wopeners;
@@ -3142,7 +3143,8 @@ open_top:
 			error = tp->t_open(tp, dev);
 		if (error != 0)
 			goto out;
-		if (ISCALLOUT(dev) || (tp->t_modem(tp, 0, 0) & SER_DCD))
+		if (ISCALLOUT(dev) || (tp->t_modem != NULL &&
+		    (tp->t_modem(tp, 0, 0) & SER_DCD)))
 			ttyld_modem(tp, 1);
 	}
 	/*
