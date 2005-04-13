@@ -148,7 +148,6 @@ dpt_pci_attach (device_t dev)
 				/* lockfunc  */ busdma_lock_mutex,
 				/* lockarg   */ &Giant,
 				&dpt->parent_dmat) != 0) {
-		dpt_free(dpt);
 		error = ENXIO;
 		goto bad;
 	}
