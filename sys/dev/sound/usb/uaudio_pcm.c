@@ -314,7 +314,7 @@ ua_attach(device_t dev)
 				/*highaddr*/BUS_SPACE_MAXADDR,
 				/*filter*/NULL, /*filterarg*/NULL,
 				/*maxsize*/bufsz, /*nsegments*/1,
-				/*maxsegz*/0x3fff, /*flags*/0,
+				/*maxsegz*/0x4000, /*flags*/0,
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/&Giant,
 				&ua->parent_dmat) != 0) {
