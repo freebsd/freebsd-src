@@ -33,9 +33,9 @@ usage(int devmask, int recmask)
 {
 	int i, n;
 
-	printf("usage: mixer [-f device] [-s] [dev [+|-][voll[:[+|-]volr]] ...\n"
-	       "       mixer [-f device] [-s] recsrc ...\n"
-	       "       mixer [-f device] [-s] {^|+|-|=}rec rdev ... \n");
+	printf("usage: mixer [-f device] [-s | -S] [dev [+|-][voll[:[+|-]volr]] ...\n"
+	       "       mixer [-f device] [-s | -S] recsrc ...\n"
+	       "       mixer [-f device] [-s | -S] {^|+|-|=}rec rdev ... \n");
 	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -89,7 +89,7 @@ main(int argc, char *argv[])
 {
 	int foo, bar, baz, dev;
 	int devmask = 0, recmask = 0, recsrc = 0, orecsrc;
-	int dusage = 0, drecsrc = 0, shortflag = 0;
+	int dusage = 0, drecsrc = 0, shortflag = 0, Shortflag = 0;
 	int l = 0, r = 0, t = 0;
 	char lstr[5], rstr[5];
 	int n = 0, lrel = 0, rrel = 0;
@@ -104,13 +104,16 @@ main(int argc, char *argv[])
 	else if (!strcmp(argv[0], "mixer3"))
 		name = strdup("/dev/mixer2");
 
-	while ((ch = getopt(argc, argv, "f:s")) != -1)
+	while ((ch = getopt(argc, argv, "f:sS")) != -1)
 		switch (ch) {
 			case 'f':
 				name = strdup(optarg);
 				break;
 			case 's':
 				shortflag = 1;
+				break;
+			case 'S':
+				Shortflag = 1;
 				break;
 			default:
 				dusage = 1;
@@ -137,7 +140,10 @@ main(int argc, char *argv[])
 			   	warn("MIXER_READ");
 				continue;
 			}
-			if (shortflag)
+			if (Shortflag)
+				printf("%s:%d:%d ", names[foo], bar & 0x7f,
+				       (bar >> 8) & 0x7f);
+			else if (shortflag)
 				printf("%s %d:%d ", names[foo], bar & 0x7f,
 				       (bar >> 8) & 0x7f);
 			else
@@ -221,7 +227,10 @@ main(int argc, char *argv[])
 				argc--; argv++;
 				continue;
 			}
-			if (shortflag)
+			if (Shortflag)
+				printf("%s:%d:%d ", names[dev], bar & 0x7f,
+				       (bar >> 8) & 0x7f);
+			else if (shortflag)
 				printf("%s %d:%d ", names[dev], bar & 0x7f,
 				       (bar >> 8) & 0x7f);
 			else
@@ -253,8 +262,9 @@ main(int argc, char *argv[])
 			else if (r > 100)
 				r = 100;
 
-			printf("Setting the mixer %s from %d:%d to %d:%d.\n",
-			    names[dev], bar & 0x7f, (bar >> 8) & 0x7f, l, r);
+			if (!Shortflag)
+				printf("Setting the mixer %s from %d:%d to %d:%d.\n",
+				       names[dev], bar & 0x7f, (bar >> 8) & 0x7f, l, r);
 
 			l |= r << 8;
 			if (ioctl(baz, MIXER_WRITE(dev), &l) == -1)
