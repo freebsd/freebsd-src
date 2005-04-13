@@ -80,21 +80,20 @@ ida_free(struct ida_softc *ida)
 
 	callout_stop(&ida->ch);
 
-	for (i = 0; i < ida->num_qcbs; i++)
-		bus_dmamap_destroy(ida->buffer_dmat, ida->qcbs[i].dmamap);
-
-	if (ida->hwqcb_busaddr)
-		bus_dmamap_unload(ida->hwqcb_dmat, ida->hwqcb_dmamap);
-
-	if (ida->hwqcbs)
-		bus_dmamem_free(ida->hwqcb_dmat, ida->hwqcbs,
-		    ida->hwqcb_dmamap);
-
-	if (ida->buffer_dmat)
+	if (ida->buffer_dmat) {
+		for (i = 0; i < ida->num_qcbs; i++)
+			bus_dmamap_destroy(ida->buffer_dmat, ida->qcbs[i].dmamap);
 		bus_dma_tag_destroy(ida->buffer_dmat);
+	}
 
-	if (ida->hwqcb_dmat)
+	if (ida->hwqcb_dmat) {
+		if (ida->hwqcb_busaddr)
+			bus_dmamap_unload(ida->hwqcb_dmat, ida->hwqcb_dmamap);
+		if (ida->hwqcbs)
+			bus_dmamem_free(ida->hwqcb_dmat, ida->hwqcbs,
+			    ida->hwqcb_dmamap);
 		bus_dma_tag_destroy(ida->hwqcb_dmat);
+	}
 
 	if (ida->qcbs != NULL)
 		free(ida->qcbs, M_DEVBUF);
