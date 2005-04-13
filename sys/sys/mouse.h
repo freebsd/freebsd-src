@@ -181,6 +181,7 @@ typedef struct mousemode {
 #define MOUSE_PROTO_KIDSPAD	14	/* Genius Kidspad */
 #define MOUSE_PROTO_VERSAPAD	15	/* Interlink VersaPad, 6 bytes */
 #define MOUSE_PROTO_JOGDIAL	16	/* Vaio's JogDial */
+#define MOUSE_PROTO_GTCO_DIGIPAD	17
 
 #define MOUSE_RES_UNKNOWN	(-1)
 #define MOUSE_RES_DEFAULT	0
