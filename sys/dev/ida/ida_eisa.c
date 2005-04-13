@@ -102,7 +102,7 @@ ida_v1_done(struct ida_softc *ida)
 	ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_CLEAR);
 
 	if (completed != 0) {
-        	hwqcb = (struct ida_hardware_qcb *)
+		hwqcb = (struct ida_hardware_qcb *)
 		    ((bus_addr_t)ida->hwqcbs +
 		    ((completed & ~3) - ida->hwqcb_busaddr));
 		hwqcb->req.error = status;
@@ -264,7 +264,7 @@ ida_eisa_probe(device_t dev)
 	eisa_add_iospace(dev, (io_base + IDA_EISA_IOPORT_START),
 			 IDA_EISA_IOPORT_LEN, RESVADDR_NONE);
 
-        eisa_add_intr(dev, irq, EISA_TRIGGER_LEVEL);		/* XXX ??? */
+	eisa_add_intr(dev, irq, EISA_TRIGGER_LEVEL);		/* XXX ??? */
 
 	return (0);
 }

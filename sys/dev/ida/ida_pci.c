@@ -249,7 +249,7 @@ ida_pci_attach(device_t dev)
 	 * it appears that this board only does MEMIO access.
 	 */
 	if ((command & PCIM_CMD_MEMEN) == 0) {
-                device_printf(dev, "Only memory mapped I/O is supported\n");
+	        device_printf(dev, "Only memory mapped I/O is supported\n");
 		return (ENXIO);
 	}
 
@@ -292,13 +292,13 @@ ida_pci_attach(device_t dev)
 	}
 
 	rid = 0;
-        ida->irq_res_type = SYS_RES_IRQ;
+	ida->irq_res_type = SYS_RES_IRQ;
 	ida->irq = bus_alloc_resource_any(dev, ida->irq_res_type, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
-        if (ida->irq == NULL) {
-                ida_free(ida);
-                return (ENOMEM);
-        }
+	if (ida->irq == NULL) {
+	        ida_free(ida);
+	        return (ENOMEM);
+	}
 	error = bus_setup_intr(dev, ida->irq, INTR_TYPE_BIO | INTR_ENTROPY,
 	    ida_intr, ida, &ida->ih);
 	if (error) {
@@ -309,9 +309,9 @@ ida_pci_attach(device_t dev)
 
 	error = ida_init(ida);
 	if (error) {
-                ida_free(ida);
-                return (error);
-        }
+	        ida_free(ida);
+	        return (error);
+	}
 	ida_attach(ida);
 	ida->flags |= IDA_ATTACHED;
 
