@@ -4,7 +4,7 @@
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
 SUBDIR=	colldef \
-	dict \
+	${_dict} \
 	${_doc} \
 	examples \
 	${_isdn} \
@@ -27,6 +27,10 @@ SUBDIR=	colldef \
 
 .if !defined(NO_I4B)
 _isdn=		isdn
+.endif
+
+.if !defined(NO_DICT)
+_dict=	 	dict
 .endif
 
 .if !defined(NO_SENDMAIL)
