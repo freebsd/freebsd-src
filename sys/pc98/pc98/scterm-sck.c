@@ -1080,7 +1080,6 @@ ascii_end:
 			scp->xpos = 0;
 			break;
 
-#ifdef PC98
 		case 0x0e:	/* ^N */
 			tcp->kanji_type = KTYPE_JKANA;
 			tcp->esc = 0;
@@ -1092,7 +1091,6 @@ ascii_end:
 			tcp->esc = 0;
 			tcp->kanji_1st_char = 0;
 			break;
-#endif /* PC98 */
 
 		case 0x1b:	/* start escape sequence */
 			tcp->esc = 1;

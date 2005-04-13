@@ -30,8 +30,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * code to manage AT bus
@@ -43,9 +45,7 @@
  * isa_dmastart()
  */
 
-#ifdef PC98
 #include "opt_pc98.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -56,17 +56,11 @@
 #include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
-#ifdef PC98
 #include <machine/md_var.h>
-#endif
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#ifdef PC98
 #include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
 #include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 
@@ -81,30 +75,17 @@
 
 static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 
-#ifdef PC98
 static caddr_t	dma_bouncebuf[4];
 static u_int	dma_bouncebufsize[4];
-#else
-static caddr_t	dma_bouncebuf[8];
-static u_int	dma_bouncebufsize[8];
-#endif
 static u_int8_t	dma_bounced = 0;
 static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
 static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 static u_int8_t dma_auto_mode = 0;
 
-#ifdef PC98
 #define VALID_DMA_MASK (3)
-#else
-#define VALID_DMA_MASK (7)
-#endif
 
 /* high byte of address is stored in this port for i-th dma channel */
-#ifdef PC98
 static int dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
-#else
-static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
-#endif
 
 /*
  * Setup a DMA channel's bounce buffer.
@@ -114,26 +95,11 @@ isa_dma_init(int chan, u_int bouncebufsize, int flag)
 {
 	void *buf;
 
-#ifndef PC98
-	/*
-	 * If a DMA channel is shared, both drivers have to call isa_dma_init
-	 * since they don't know that the other driver will do it.
-	 * Just return if we're already set up good.
-	 * XXX: this only works if they agree on the bouncebuf size.  This
-	 * XXX: is typically the case since they are multiple instances of
-	 * XXX: the same driver.
-	 */
-	if (dma_bouncebuf[chan] != NULL)
-		return (0);
-#endif
-
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dma_init: channel out of range");
-#ifdef PC98
 	if (dma_bouncebuf[chan] != NULL)
 		panic("isa_dma_init: impossible request"); 
-#endif
 #endif
 
 	dma_bouncebufsize[chan] = bouncebufsize;
@@ -208,31 +174,6 @@ isa_dma_release(chan)
 	dma_auto_mode &= ~(1 << chan);
 }
 
-#ifndef PC98
-/*
- * isa_dmacascade(): program 8237 DMA controller channel to accept
- * external dma control by a board.
- */
-void
-isa_dmacascade(chan)
-	int chan;
-{
-#ifdef DIAGNOSTIC
-	if (chan & ~VALID_DMA_MASK)
-		panic("isa_dmacascade: channel out of range");
-#endif
-
-	/* set dma channel mode, and set dma channel mode */
-	if ((chan & 4) == 0) {
-		outb(DMA1_MODE, DMA37MD_CASCADE | chan);
-		outb(DMA1_SMSK, chan);
-	} else {
-		outb(DMA2_MODE, DMA37MD_CASCADE | (chan & 3));
-		outb(DMA2_SMSK, chan & 3);
-	}
-}
-#endif
-
 /*
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
@@ -240,7 +181,7 @@ isa_dmacascade(chan)
 void
 isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 {
-	vm_offset_t phys;
+	vm_paddr_t phys;
 	int waport;
 	caddr_t newaddr;
 
@@ -292,100 +233,48 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	    dma_auto_mode &= ~(1 << chan);
 	}
 
-#ifdef PC98
 	if (need_pre_dma_flush)
 		wbinvd();		/* wbinvd (WB cache flush) */
-#endif
 
-#ifndef PC98
-	if ((chan & 4) == 0) {
-		/*
-		 * Program one of DMA channels 0..3.  These are
-		 * byte mode channels.
-		 */
-#endif
-		/* set dma channel mode, and reset address ff */
+	/* set dma channel mode, and reset address ff */
 
-		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
-		if (flags & ISADMA_RAW) {
-		  if (flags & ISADMA_READ)
+	/* If ISADMA_RAW flag is set, then use autoinitialise mode */
+	if (flags & ISADMA_RAW) {
+		if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_WRITE|chan);
-		  else
-			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_READ|chan);
-		}
 		else
+			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_READ|chan);
+	} else {
 		if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|chan);
 		else
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_READ|chan);
-		outb(DMA1_FFC, 0);
-
-		/* send start address */
-		waport =  DMA1_CHN(chan);
-		outb(waport, phys);
-		outb(waport, phys>>8);
-		outb(dmapageport[chan], phys>>16);
-
-		/* send count */
-#ifdef PC98
-		outb(waport + 2, --nbytes);
-		outb(waport + 2, nbytes>>8);
-#else
-		outb(waport + 1, --nbytes);
-		outb(waport + 1, nbytes>>8);
-#endif
-
-		/* unmask channel */
-		outb(DMA1_SMSK, chan);
-#ifndef PC98
-	} else {
-		/*
-		 * Program one of DMA channels 4..7.  These are
-		 * word mode channels.
-		 */
-		/* set dma channel mode, and reset address ff */
-
-		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
-		if (flags & ISADMA_RAW) {
-		  if (flags & ISADMA_READ)
-			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_WRITE|(chan&3));
-		  else
-			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_READ|(chan&3));
-		}
-		else
-		if (flags & ISADMA_READ)
-			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|(chan&3));
-		else
-			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_READ|(chan&3));
-		outb(DMA2_FFC, 0);
-
-		/* send start address */
-		waport = DMA2_CHN(chan - 4);
-		outb(waport, phys>>1);
-		outb(waport, phys>>9);
-		outb(dmapageport[chan], phys>>16);
-
-		/* send count */
-		nbytes >>= 1;
-		outb(waport + 2, --nbytes);
-		outb(waport + 2, nbytes>>8);
-
-		/* unmask channel */
-		outb(DMA2_SMSK, chan & 3);
 	}
-#endif
+	outb(DMA1_FFC, 0);
+
+	/* send start address */
+	waport =  DMA1_CHN(chan);
+	outb(waport, phys);
+	outb(waport, phys>>8);
+	outb(dmapageport[chan], phys>>16);
+
+	/* send count */
+	outb(waport + 2, --nbytes);
+	outb(waport + 2, nbytes>>8);
+
+	/* unmask channel */
+	outb(DMA1_SMSK, chan);
 }
 
 void
 isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {  
-#ifdef PC98
+
 	if (flags & ISADMA_READ) {
 		/* cache flush only after reading 92/12/9 by A.Kojima */
 		if (need_post_dma_flush)
 			invd();
 	}
-#endif
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
@@ -399,13 +288,8 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
 
-#ifdef PC98
 	if ((dma_auto_mode & (1 << chan)) == 0)
 		outb(DMA1_SMSK, (chan & 3) | 4);
-#else
-	if ((dma_auto_mode & (1 << chan)) == 0)
-		outb(chan & 4 ? DMA2_SMSK : DMA1_SMSK, (chan & 3) | 4);
-#endif
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
@@ -427,7 +311,8 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 static int
 isa_dmarangecheck(caddr_t va, u_int length, int chan)
 {
-	vm_offset_t phys, priorpage = 0, endva;
+	vm_paddr_t phys, priorpage = 0;
+	vm_offset_t endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
 	GIANT_REQUIRED;
@@ -507,18 +392,8 @@ isa_dmastatus(int chan)
 	    printf("chan %d not busy\n", chan);
 	    return -2 ;
 	}	
-#ifdef PC98
 	ffport = DMA1_FFC;
 	waport = DMA1_CHN(chan) + 2;
-#else
-	if (chan < 4) {			/* low DMA controller */
-		ffport = DMA1_FFC;
-		waport = DMA1_CHN(chan) + 1;
-	} else {			/* high DMA controller */
-		ffport = DMA2_FFC;
-		waport = DMA2_CHN(chan - 4) + 2;
-	}
-#endif
 
 	disable_intr();			/* no interrupts Mr Jones! */
 	outb(ffport, 0);		/* clear register LSB flipflop */
@@ -570,13 +445,9 @@ isa_dmastop(int chan)
 		return -2 ;
 	}
     
-	if ((chan & 4) == 0) {
+	if ((chan & 4) == 0)
 		outb(DMA1_SMSK, (chan & 3) | 4 /* disable mask */);
-	} else {
-#ifndef PC98
-		outb(DMA2_SMSK, (chan & 3) | 4 /* disable mask */);
-#endif
-	}
+
 	return(isa_dmastatus(chan));
 }
 
@@ -624,6 +495,3 @@ static driver_t atdma_driver = {
 static devclass_t atdma_devclass;
 
 DRIVER_MODULE(atdma, isa, atdma_driver, atdma_devclass, 0, 0);
-#ifndef PC98
-DRIVER_MODULE(atdma, acpi, atdma_driver, atdma_devclass, 0, 0);
-#endif
