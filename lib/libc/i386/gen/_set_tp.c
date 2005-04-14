@@ -36,8 +36,11 @@ _set_tp(void *tp)
 {
 #ifndef COMPAT_32BIT
 	union descriptor ldt;
-	int sel;
+	int error, sel;
 
+	error = i386_set_gsbase(tp);
+	if (error == 0)
+		return;
 	memset(&ldt, 0, sizeof(ldt));
 	ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
 	ldt.sd.sd_lobase = ((uintptr_t)tp) & 0xffffff;
