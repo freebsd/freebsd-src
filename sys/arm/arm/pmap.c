@@ -2276,7 +2276,7 @@ pmap_set_pcb_pagedir(pmap_t pm, struct pcb *pcb)
 		pcb->pcb_pl1vec = &pm->pm_l1->l1_kva[L1_IDX(vector_page)];
 		l2b = pmap_get_l2_bucket(pm, vector_page);
 		pcb->pcb_l1vec = l2b->l2b_phys | L1_C_PROTO |
-	 	    L1_C_DOM(pm->pm_domain);
+	 	    L1_C_DOM(pm->pm_domain) | L1_C_DOM(PMAP_DOMAIN_KERNEL);
 	} else
 		pcb->pcb_pl1vec = NULL;
 }
@@ -2731,7 +2731,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 
 	/* Distribute new L1 entry to all other L1s */
 	SLIST_FOREACH(l1, &l1_list, l1_link) {
-			pl1pd = &l1->l1_kva[L1_IDX(pmap_curmaxkvaddr)];
+			pl1pd = &l1->l1_kva[L1_IDX(va)];
 			*pl1pd = l2b->l2b_phys | L1_C_DOM(PMAP_DOMAIN_KERNEL) |
 			    L1_C_PROTO;
 			PTE_SYNC(pl1pd);
@@ -2919,6 +2919,8 @@ pmap_kremove(vm_offset_t va)
 	pt_entry_t *pte, opte;
 		
 	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+	if (!l2b)
+		return;
 	KASSERT(l2b != NULL, ("No L2 Bucket"));
 	pte = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *pte;
