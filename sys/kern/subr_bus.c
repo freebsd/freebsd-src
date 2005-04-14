@@ -1062,6 +1062,47 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 }
 
 /**
+ * @brief Get a list of drivers in the devclass
+ *
+ * An array containing a list of pointers to all the drivers in the
+ * given devclass is allocated and returned in @p *listp.  The number
+ * of drivers in the array is returned in @p *countp. The caller should
+ * free the array using @c free(p, M_TEMP).
+ *
+ * @param dc		the devclass to examine
+ * @param listp		gives location for array pointer return value
+ * @param countp	gives location for number of array elements
+ *			return value
+ *
+ * @retval 0		success
+ * @retval ENOMEM	the array allocation failed
+ */
+int
+devclass_get_drivers(devclass_t dc, driver_t ***listp, int *countp)
+{
+	driverlink_t dl;
+	driver_t **list;
+	int count;
+
+	count = 0;
+	TAILQ_FOREACH(dl, &dc->drivers, link)
+		count++;
+	list = malloc(count * sizeof(driver_t *), M_TEMP, M_NOWAIT);
+	if (list == NULL)
+		return (ENOMEM);
+
+	count = 0;
+	TAILQ_FOREACH(dl, &dc->drivers, link) {
+		list[count] = dl->driver;
+		count++;
+	}
+	*listp = list;
+	*countp = count;
+
+	return (0);
+}
+
+/**
  * @brief Get the number of devices in a devclass
  *
  * @param dc		the devclass to examine
@@ -1080,6 +1121,9 @@ devclass_get_count(devclass_t dc)
 
 /**
  * @brief Get the maximum unit number used in a devclass
+ *
+ * Note that this is one greater than the highest currently-allocated
+ * unit.
  *
  * @param dc		the devclass to examine
  */
@@ -1518,7 +1562,7 @@ device_find_child(device_t dev, const char *classname, int unit)
 		if (child && child->parent == dev)
 			return (child);
 	} else {
-		for (unit = 0; unit <= devclass_get_maxunit(dc); unit++) {
+		for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
 			child = devclass_get_device(dc, unit);
 			if (child && child->parent == dev)
 				return (child);
