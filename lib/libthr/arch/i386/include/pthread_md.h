@@ -39,6 +39,8 @@
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
+extern int _thr_using_setbase;
+
 /*
  * Variant II tcb, first two members are required by rtld,
  * %gs points to the structure.
@@ -88,8 +90,12 @@ _tcb_set(struct tcb *tcb)
 #ifndef COMPAT_32BIT
 	int val;
 
-	val = (tcb->tcb_ldt << 3) | 7;
-	__asm __volatile("movl %0, %%gs" : : "r" (val));
+ 	if (_thr_using_setbase == 1) {
+ 		i386_set_gsbase(tcb);
+ 	} else {
+		val = (tcb->tcb_ldt << 3) | 7;
+		__asm __volatile("movl %0, %%gs" : : "r" (val));
+ 	}
 #else
 	_amd64_set_gsbase(tcb);
 #endif
