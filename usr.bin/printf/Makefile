@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	printf
+WARNS?=	6
 
 .include <bsd.prog.mk>
