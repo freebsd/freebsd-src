@@ -213,6 +213,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Doesn't like the synchronize cache command.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "LPS540S", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Doesn't work correctly with 6 byte reads/writes.
 		 * Returns illegal request, and points to byte 9 of the
 		 * 6-byte CDB.
