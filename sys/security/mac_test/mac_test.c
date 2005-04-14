@@ -1995,7 +1995,7 @@ mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_test_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
-    struct label *label, int prot)
+    struct label *label, int prot, int flags)
 {
 
 	ASSERT_CRED_LABEL(cred->cr_label);
