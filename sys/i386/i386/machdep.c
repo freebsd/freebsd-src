@@ -2886,11 +2886,6 @@ ioapic_disable_pin(void *cookie, u_int pin)
 	return (ENXIO);
 }
 
-void
-ioapic_enable_mixed_mode(void)
-{
-}
-
 int
 ioapic_get_vector(void *cookie, u_int pin)
 {

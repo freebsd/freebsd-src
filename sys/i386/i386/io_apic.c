@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
-#include "opt_no_mixed_mode.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #define	VECTOR_DISABLED		255
 
 #define	DEST_NONE		-1
-#define	DEST_EXTINT		-2
 
 #define	TODO		printf("%s: not implemented!\n", __func__)
 
@@ -80,15 +78,6 @@ static MALLOC_DEFINE(M_IOAPIC, "I/O APIC", "I/O APIC structures");
  * APIC's actually has the ISA interrupts routed to it.  As far as interrupt
  * pin numbers, we use the ACPI System Interrupt number model where each
  * IO APIC has a contiguous chunk of the System Interrupt address space.
- */
-
-/*
- * Direct the ExtINT pin on the first I/O APIC to a logical cluster of
- * CPUs rather than a physical destination of just the BSP.
- *
- * Note: This is disabled by default as test systems seem to croak with it
- * enabled.
-#define ENABLE_EXTINT_LOGICAL_DESTINATION
  */
 
 struct ioapic_intsrc {
@@ -129,7 +118,6 @@ static void	ioapic_suspend(struct intsrc *isrc);
 static void	ioapic_resume(struct intsrc *isrc);
 static void	ioapic_program_destination(struct ioapic_intsrc *intpin);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
-static void	ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
@@ -139,13 +127,7 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_config_intr };
 	
 static int bsp_id, current_cluster, logical_clusters, next_ioapic_base;
-static u_int mixed_mode_enabled, next_id, program_logical_dest;
-#ifdef NO_MIXED_MODE
-static int mixed_mode_active = 0;
-#else
-static int mixed_mode_active = 1;
-#endif
-TUNABLE_INT("hw.apic.mixed_mode", &mixed_mode_active);
+static u_int next_id, program_logical_dest;
 
 static __inline void
 _ioapic_eoi_source(struct intsrc *isrc)
@@ -269,12 +251,8 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
 	uint32_t low, high, value;
 
-	/*
-	 * For pins routed via mixed mode or disabled, just ensure that
-	 * they are masked.
-	 */
-	if (intpin->io_dest == DEST_EXTINT ||
-	    intpin->io_vector == VECTOR_DISABLED) {
+	/* For disabled pins, just ensure that they are masked. */
+	if (intpin->io_vector == VECTOR_DISABLED) {
 		low = ioapic_read(io->io_addr,
 		    IOAPIC_REDTBL_LO(intpin->io_intpin));
 		if ((low & IOART_INTMASK) == IOART_INTMCLR)
@@ -345,8 +323,6 @@ ioapic_program_destination(struct ioapic_intsrc *intpin)
 
 	KASSERT(intpin->io_dest != DEST_NONE,
 	    ("intpin not assigned to a cluster"));
-	KASSERT(intpin->io_dest != DEST_EXTINT,
-	    ("intpin routed via ExtINT"));
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
 		    intpin->io_intpin);
@@ -382,8 +358,6 @@ ioapic_enable_intr(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
-	KASSERT(intpin->io_dest != DEST_EXTINT,
-	    ("ExtINT pin trying to use ioapic enable_intr method"));
 	if (intpin->io_dest == DEST_NONE) {
 		ioapic_assign_cluster(intpin);
 		lapic_enable_intr(intpin->io_vector);
@@ -461,17 +435,6 @@ ioapic_resume(struct intsrc *isrc)
 {
 
 	ioapic_program_intpin((struct ioapic_intsrc *)isrc);
-}
-
-/*
- * APIC enumerators call this function to indicate that the 8259A AT PICs
- * are available and that mixed mode can be used.
- */
-void
-ioapic_enable_mixed_mode(void)
-{
-
-	mixed_mode_enabled = 1;
 }
 
 /*
@@ -555,12 +518,11 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		intpin->io_vector = intbase + i;
 
 		/*
-		 * Assume that pin 0 on the first I/O APIC is an ExtINT pin
-		 * if mixed mode is enabled and an ISA interrupt if not.
+		 * Assume that pin 0 on the first I/O APIC is an ExtINT pin.
 		 * Assume that pins 1-15 are ISA interrupts and that all
 		 * other pins are PCI interrupts.
 		 */
-		if (intpin->io_vector == 0 && mixed_mode_enabled)
+		if (intpin->io_vector == 0)
 			ioapic_set_extint(io, i);
 		else if (intpin->io_vector < IOAPIC_ISA_INTS) {
 			intpin->io_bus = APIC_BUS_ISA;
@@ -718,12 +680,7 @@ ioapic_set_extint(void *cookie, u_int pin)
 		return (EINVAL);
 	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_vector = VECTOR_EXTINT;
-
-	/* Enable this pin if mixed mode is available and active. */
-	if (mixed_mode_enabled && mixed_mode_active)
-		io->io_pins[pin].io_masked = 0;
-	else
-		io->io_pins[pin].io_masked = 1;
+	io->io_pins[pin].io_masked = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
@@ -798,15 +755,7 @@ ioapic_register(void *cookie)
 		ioapic_program_intpin(pin);
 		if (pin->io_vector >= NUM_IO_INTS)
 			continue;
-		/*
-		 * Route IRQ0 via the 8259A using mixed mode if mixed mode
-		 * is available and turned on.
-		 */
-		if (pin->io_vector == 0 && mixed_mode_active &&
-		    mixed_mode_enabled)
-			ioapic_setup_mixed_mode(pin);
-		else
-			intr_register_source(&pin->io_intsrc);
+		intr_register_source(&pin->io_intsrc);
 	}
 }
 
@@ -823,38 +772,8 @@ ioapic_set_logical_destinations(void *arg __unused)
 	program_logical_dest = 1;
 	STAILQ_FOREACH(io, &ioapic_list, io_next)
 	    for (i = 0; i < io->io_numintr; i++)
-		    if (io->io_pins[i].io_dest != DEST_NONE &&
-			io->io_pins[i].io_dest != DEST_EXTINT)
+		    if (io->io_pins[i].io_dest != DEST_NONE)
 			    ioapic_program_destination(&io->io_pins[i]);
 }
 SYSINIT(ioapic_destinations, SI_SUB_SMP, SI_ORDER_SECOND,
     ioapic_set_logical_destinations, NULL)
-
-/*
- * Support for mixed-mode interrupt sources.  These sources route an ISA
- * IRQ through the 8259A's via the ExtINT on pin 0 of the I/O APIC that
- * routes the ISA interrupts.  We just ignore the intpins that use this
- * mode and allow the atpic driver to register its interrupt source for
- * that IRQ instead.
- */
-
-static void
-ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin)
-{
-	struct ioapic_intsrc *extint;
-	struct ioapic *io;
-
-	/*
-	 * Mark the associated I/O APIC intpin as being delivered via
-	 * ExtINT and enable the ExtINT pin on the I/O APIC if needed.
-	 */
-	intpin->io_dest = DEST_EXTINT;
-	io = (struct ioapic *)intpin->io_intsrc.is_pic;
-	extint = &io->io_pins[0];
-	if (extint->io_vector != VECTOR_EXTINT)
-		panic("Can't find ExtINT pin to route through!");
-#ifdef ENABLE_EXTINT_LOGICAL_DESTINATION
-	if (extint->io_dest == DEST_NONE)
-		ioapic_assign_cluster(extint);
-#endif
-}

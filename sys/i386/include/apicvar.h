@@ -176,7 +176,6 @@ u_int	apic_idt_to_irq(u_int vector);
 void	apic_register_enumerator(struct apic_enumerator *enumerator);
 void	*ioapic_create(uintptr_t addr, int32_t id, int intbase);
 int	ioapic_disable_pin(void *cookie, u_int pin);
-void	ioapic_enable_mixed_mode(void);
 int	ioapic_get_vector(void *cookie, u_int pin);
 int	ioapic_next_logical_cluster(void);
 void	ioapic_register(void *cookie);
