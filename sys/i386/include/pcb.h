@@ -39,6 +39,9 @@
 /*
  * Intel 386 process control block
  */
+#ifndef _KERNEL
+#include <machine/segments.h>
+#endif
 #include <machine/npx.h>
 
 struct pcb {
