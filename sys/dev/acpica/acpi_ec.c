@@ -733,7 +733,7 @@ EcGpeQueryHandler(void *Context)
 
     /* Evaluate _Qxx to respond to the controller. */
     sprintf(qxx, "_Q%02x", Data);
-    strupr(qxx);
+    AcpiUtStrupr(qxx);
     Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL);
     if (ACPI_FAILURE(Status) && Status != AE_NOT_FOUND) {
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
