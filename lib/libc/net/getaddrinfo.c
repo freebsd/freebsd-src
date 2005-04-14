@@ -2310,11 +2310,6 @@ res_queryN(name, target)
 	rcode = NOERROR;
 	ancount = 0;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
-	}
-
 	buf = malloc(MAXPACKET);
 	if (!buf) {
 		h_errno = NETDB_INTERNAL;
@@ -2561,10 +2556,6 @@ res_querydomainN(name, domain, target)
 	const char *longname = nbuf;
 	size_t n, d;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
-	}
 #ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_querydomain(%s, %s)\n",
