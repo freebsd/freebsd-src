@@ -325,6 +325,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FL" , "Nex*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * ZICPlay USB MP3 Player with FM
+		 * PR: kern/75057
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ACTIONS*" , "USB DISK*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
