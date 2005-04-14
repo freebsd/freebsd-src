@@ -200,6 +200,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Doesn't like the synchronize cache command.
+		 * Reported by: Blaz Zupan <blaz@gold.amis.net>
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "MAVERICK 540S", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
@@ -214,6 +215,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Doesn't like the synchronize cache command.
+		 * Reported by: walter@pelissero.de
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "LPS540S", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
@@ -234,6 +236,10 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
+		/*
+		 * Doesn't like the synchronize cache command.
+		 * Reported by: walter@pelissero.de
+		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CP3500*", "*"},
                 /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
