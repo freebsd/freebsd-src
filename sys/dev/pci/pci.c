@@ -1011,8 +1011,8 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dinfo->cfg.dev, dinfo, 0);
 	pci_cfg_restore(dinfo->cfg.dev, dinfo);
-	pci_add_resources(pcib, bus, dinfo->cfg.dev);
 	pci_print_verbose(dinfo);
+	pci_add_resources(pcib, bus, dinfo->cfg.dev);
 }
 
 static int
