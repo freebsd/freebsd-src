@@ -510,7 +510,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 
 	/* If it's version register doesn't seem to work, punt. */
 	if (value == 0xffffff) {
-		pmap_unmapdev(apic, IOAPIC_MEM_REGION);
+		pmap_unmapdev((vm_offset_t)apic, IOAPIC_MEM_REGION);
 		return (NULL);
 	}
 
