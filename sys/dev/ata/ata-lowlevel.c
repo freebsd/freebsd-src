@@ -391,11 +391,28 @@ ata_end_transaction(struct ata_request *request)
 
 	/* on control commands read back registers to the request struct */
 	if (request->flags & ATA_R_CONTROL) {
-	    request->u.ata.count = ATA_IDX_INB(ch, ATA_COUNT);
-	    request->u.ata.lba = ATA_IDX_INB(ch, ATA_SECTOR) |
-				 (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
-				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16) |
-				 ((ATA_IDX_INB(ch, ATA_DRIVE) & 0x0f) << 24);
+	    if (ch->flags & ATA_48BIT_ACTIVE) {
+		ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT | ATA_A_HOB);
+		request->u.ata.count = (ATA_IDX_INB(ch, ATA_COUNT) << 8);
+		request->u.ata.lba =
+		    ((u_int64_t)(ATA_IDX_INB(ch, ATA_SECTOR)) << 24) |
+		    ((u_int64_t)(ATA_IDX_INB(ch, ATA_CYL_LSB)) << 32) |
+		    ((u_int64_t)(ATA_IDX_INB(ch, ATA_CYL_MSB)) << 40);
+
+		ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT);
+		request->u.ata.count |= ATA_IDX_INB(ch, ATA_COUNT);
+		request->u.ata.lba |= 
+		    (ATA_IDX_INB(ch, ATA_SECTOR) |
+		     (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
+		     (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16));
+	    }
+	    else {
+	        request->u.ata.count = ATA_IDX_INB(ch, ATA_COUNT);
+	        request->u.ata.lba = ATA_IDX_INB(ch, ATA_SECTOR) |
+				     (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
+				     (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16) |
+				     ((ATA_IDX_INB(ch, ATA_DRIVE) & 0xf) << 24);
+	    }
 	}
 
 	/* if we got an error we are done with the HW */
