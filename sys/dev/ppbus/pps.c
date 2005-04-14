@@ -206,7 +206,7 @@ ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		/* attach the interrupt handler */
 		if ((error = bus_setup_intr(ppsdev, sc->intr_resource,
 		    (INTR_TYPE_TTY | INTR_MPSAFE | INTR_FAST), ppsintr,
-		    ppsdev, &sc->intr_cookie))) {
+		    sc, &sc->intr_cookie))) {
 			ppb_release_bus(ppbus, ppsdev);
 			return (error);
 		}
@@ -279,22 +279,18 @@ ppshcpoll(void *arg)
 static void
 ppsintr(void *arg)
 {
-	device_t ppsdev = (device_t)arg;
-	struct pps_data *sc = DEVTOSOFTC(ppsdev);
-	device_t ppbus = sc->ppbus;
+	struct pps_data *sc = (struct pps_data *)arg;
 
-	mtx_lock_spin(&sc->mtx);
 	pps_capture(&sc->pps[0]);
-	if (!(ppb_rstr(ppbus) & nACK)) {
-		mtx_unlock_spin(&sc->mtx);
+	if (!(ppb_rstr(sc->ppbus) & nACK))
 		return;
-	}
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
-		ppb_wctr(ppbus, IRQENABLE | AUTOFEED);
+		ppb_wctr(sc->ppbus, IRQENABLE | AUTOFEED);
+	mtx_lock_spin(&sc->mtx);
 	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
-	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
-		ppb_wctr(ppbus, IRQENABLE);
 	mtx_unlock_spin(&sc->mtx);
+	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
+		ppb_wctr(sc->ppbus, IRQENABLE);
 }
 
 static int
