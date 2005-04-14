@@ -502,11 +502,20 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 	u_int numintr, i;
 	uint32_t value;
 
+	/* Map the register window so we can access the device. */
 	apic = (ioapic_t *)pmap_mapdev(addr, IOAPIC_MEM_REGION);
 	mtx_lock_spin(&icu_lock);
-	numintr = ((ioapic_read(apic, IOAPIC_VER) & IOART_VER_MAXREDIR) >>
-	    MAXREDIRSHIFT) + 1;
+	value = ioapic_read(apic, IOAPIC_VER);
 	mtx_unlock_spin(&icu_lock);
+
+	/* If it's version register doesn't seem to work, punt. */
+	if (value == 0xffffff) {
+		pmap_unmapdev(apic, IOAPIC_MEM_REGION);
+		return (NULL);
+	}
+
+	/* Determine the number of vectors and set the APIC ID. */
+	numintr = ((value & IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) + 1;
 	io = malloc(sizeof(struct ioapic) +
 	    numintr * sizeof(struct ioapic_intsrc), M_IOAPIC, M_WAITOK);
 	io->io_pic = ioapic_template;
