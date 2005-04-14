@@ -40,6 +40,8 @@
 extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int _thr_getcontext(mcontext_t *);
 
+extern int _thr_using_setbase;
+
 #define	KSE_STACKSIZE		16384
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
@@ -155,8 +157,12 @@ _kcb_set(struct kcb *kcb)
 #ifndef COMPAT_32BIT
 	int val;
 
-	val = (kcb->kcb_ldt << 3) | 7;
-	__asm __volatile("movl %0, %%gs" : : "r" (val));
+	if (_thr_using_setbase == 1) {
+		i386_set_gsbase(kcb);
+	} else {
+		val = (kcb->kcb_ldt << 3) | 7;
+		__asm __volatile("movl %0, %%gs" : : "r" (val));
+	}
 #else
 	_amd64_set_gsbase(kcb);
 #endif
