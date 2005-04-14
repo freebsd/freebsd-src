@@ -236,11 +236,13 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		td->td_md.md_saved_pil = rdpr(pil);
+		pil = rdpr(pil);
 		wrpr(pil, 0, 14);
+		td->td_md.md_saved_pil = pil;
 	}
 	td->td_md.md_spinlock_count++;
 	critical_enter();
