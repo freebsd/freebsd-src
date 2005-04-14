@@ -314,7 +314,7 @@ struct fileid_desc {
 	uint8_t		file_char;
 	uint8_t		l_fi;	/* Length of file identifier area */
 	struct long_ad	icb;
-	uint16_t	l_iu;	/* Length of implementaion use area */
+	uint16_t	l_iu;	/* Length of implementation use area */
 	uint8_t		data[1];
 } __packed;
 #define	UDF_FID_SIZE	38
