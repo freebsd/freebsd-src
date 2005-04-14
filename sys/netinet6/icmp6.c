@@ -524,15 +524,6 @@ icmp6_input(mp, offp, proto)
 			const int maxlen = sizeof(*nip6) + sizeof(*nicmp6);
 			int n0len;
 
-			/*
-			 * Prepare an internal mbuf.  m_pullup() doesn't
-			 * always copy the length we specified.
-			 */
-			if (maxlen >= MCLBYTES) {
-				/* Give up remote */
-				m_freem(n0);
-				break;
-			}
 			MGETHDR(n, M_DONTWAIT, n0->m_type);
 			n0len = n0->m_pkthdr.len;	/* save for use below */
 			if (n)
@@ -1943,9 +1934,14 @@ icmp6_rip6_input(mp, off)
 			    m->m_len <= MHLEN) {
 				MGET(n, M_DONTWAIT, m->m_type);
 				if (n != NULL) {
-					m_dup_pkthdr(n, m, M_NOWAIT);
-					bcopy(m->m_data, n->m_data, m->m_len);
-					n->m_len = m->m_len;
+					if (m_dup_pkthdr(n, m, M_NOWAIT)) {
+						bcopy(m->m_data, n->m_data, 
+						      m->m_len);
+						n->m_len = m->m_len;
+					} else {
+						m_free(n);
+						n = NULL;
+					}
 				}
 			}
 			if (n != NULL ||
@@ -1983,12 +1979,16 @@ icmp6_rip6_input(mp, off)
 
 			MGET(n, M_DONTWAIT, m->m_type);
 			if (n != NULL) {
-				m_dup_pkthdr(n, m, M_NOWAIT);
-				bcopy(m->m_data, n->m_data, m->m_len);
-				n->m_len = m->m_len;
-
-				m_freem(m);
-				m = n;
+				if (m_dup_pkthdr(n, m, M_NOWAIT)) {
+					bcopy(m->m_data, n->m_data, m->m_len);
+					n->m_len = m->m_len;
+					
+					m_freem(m);
+					m = n;
+				} else {
+					m_freem(n);
+					n = NULL;
+				}
 			}
 		}
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
