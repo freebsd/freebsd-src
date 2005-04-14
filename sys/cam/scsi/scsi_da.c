@@ -234,6 +234,10 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
+		{T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CP3500*", "*"},
+                /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
 		/*
 		 * The CISS RAID controllers do not support SYNC_CACHE
 		 */
