@@ -35,7 +35,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd April 14, 2005
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -341,11 +341,9 @@ modifier may produce additional precision, depending on the hardware platform.)
 hexadecimal character constants were deliberately not provided.
 .Pp
 The escape sequence \e000 is the string terminator.
-When present in the
-.Ar format ,
-the
-.Ar format
-will be truncated at the \e000 character.
+When present in the argument for the
+.Cm b
+format, the argument will be truncated at the \e000 character.
 .Pp
 Multibyte characters are not recognized in format strings (this is only
 a problem if
