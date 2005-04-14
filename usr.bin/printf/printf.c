@@ -89,6 +89,7 @@ static const char rcsid[] =
 } while (0)
 
 static int	 asciicode(void);
+static char	*doformat(char *, int *);
 static int	 escape(char *, int);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
@@ -108,10 +109,8 @@ progprintf(int argc, char *argv[])
 main(int argc, char *argv[])
 #endif
 {
-	static const char *skip1, *skip2;
-	int ch, chopped, end, fieldwidth, haveprec, havewidth, precision, rval;
-	int mod_ldbl;
-	char convch, nextch, *format, *fmt, *start;
+	int ch, chopped, end, rval;
+	char *format, *fmt, *start;
 
 #ifndef BUILTIN
 	(void) setlocale(LC_NUMERIC, "");
@@ -139,182 +138,190 @@ main(int argc, char *argv[])
 	 * arguments, arguments of zero/null string are provided to use
 	 * up the format string.
 	 */
-	skip1 = "#'-+ 0";
-	skip2 = "0123456789";
-
 	chopped = escape(fmt = format = *argv, 1);/* backslash interpretation */
-	rval = 0;
+	rval = end = 0;
 	gargv = ++argv;
 	for (;;) {
-		end = 0;
-		/* find next format specification */
-next:		for (start = fmt;; ++fmt) {
-			if (!*fmt) {
-				/* avoid infinite loop */
-				if (chopped) {
-					(void)printf("%s", start);
-					return (rval);
+		start = fmt;
+		while (*fmt != '\0') {
+			if (fmt[0] == '%') {
+				fwrite(start, 1, fmt - start, stdout);
+				if (fmt[1] == '%') {
+					/* %% prints a % */
+					putchar('%');
+					fmt += 2;
+				} else {
+					fmt = doformat(fmt, &rval);
+					if (fmt == NULL)
+						return (1);
+					end = 0;
 				}
-				if (end == 1) {
-					warnx1("missing format character",
-					    NULL, NULL);
-					return (1);
-				}
-				end = 1;
-				if (fmt > start)
-					(void)printf("%s", start);
-				if (!*gargv)
-					return (rval);
-				fmt = format;
-				goto next;
-			}
-			/* %% prints a % */
-			if (*fmt == '%') {
-				if (*++fmt != '%')
-					break;
-				(void)printf("%.*s", (int)(fmt - start), start);
+				start = fmt;
+			} else
 				fmt++;
-				goto next;
-			}
 		}
 
-		/* skip to field width */
-		fmt += strspn(fmt, skip1);
-		if (*fmt == '*') {
-			if (getint(&fieldwidth))
-				return (1);
-			havewidth = 1;
-			++fmt;
-		} else {
-			havewidth = 0;
-
-			/* skip to possible '.', get following precision */
-			fmt += strspn(fmt, skip2);
-		}
-		if (*fmt == '.') {
-			/* precision present? */
-			++fmt;
-			if (*fmt == '*') {
-				if (getint(&precision))
-					return (1);
-				haveprec = 1;
-				++fmt;
-			} else {
-				haveprec = 0;
-
-				/* skip to conversion char */
-				fmt += strspn(fmt, skip2);
-			}
-		} else
-			haveprec = 0;
-		if (!*fmt) {
+		if (end == 1) {
 			warnx1("missing format character", NULL, NULL);
 			return (1);
 		}
-
-		/*
-		 * Look for a length modifier.  POSIX doesn't have these, so
-		 * we only support them for floating-point conversions, which
-		 * are extensions.  This is useful because the L modifier can
-		 * be used to gain extra range and precision, while omitting
-		 * it is more likely to produce consistent results on different
-		 * architectures.  This is not so important for integers
-		 * because overflow is the only bad thing that can happen to
-		 * them, but consider the command  printf %a 1.1
-		 */
-		if (*fmt == 'L') {
-			mod_ldbl = 1;
-			fmt++;
-			if (!strchr("aAeEfFgG", *fmt)) {
-				warnx2("bad modifier L for %%%c", *fmt, NULL);
-				return (1);
-			}
-		} else {
-			mod_ldbl = 0;
-		}
-
-		convch = *fmt;
-		nextch = *++fmt;
-		*fmt = '\0';
-		switch(convch) {
-		case 'b': {
-			char *p;
-			int getout;
-
-#ifdef SHELL
-			p = savestr(getstr());
-#else
-			p = strdup(getstr());
-#endif
-			if (p == NULL) {
-				warnx2("%s", strerror(ENOMEM), NULL);
-				return (1);
-			}
-			getout = escape(p, 0);
-			*(fmt - 1) = 's';
-			PF(start, p);
-			*(fmt - 1) = 'b';
-#ifdef SHELL
-			ckfree(p);
-#else
-			free(p);
-#endif
-			if (getout)
-				return (rval);
-			break;
-		}
-		case 'c': {
-			char p;
-
-			p = getchr();
-			PF(start, p);
-			break;
-		}
-		case 's': {
-			const char *p;
-
-			p = getstr();
-			PF(start, p);
-			break;
-		}
-		case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
-			char *f;
-			quad_t val;
-			u_quad_t uval;
-			int signedconv;
-
-			signedconv = (convch == 'd' || convch == 'i');
-			if ((f = mkquad(start, convch)) == NULL)
-				return (1);
-			if (getquads(&val, &uval, signedconv))
-				rval = 1;
-			if (signedconv)
-				PF(f, val);
-			else
-				PF(f, uval);
-			break;
-		}
-		case 'e': case 'E':
-		case 'f': case 'F':
-		case 'g': case 'G':
-		case 'a': case 'A': {
-			long double p;
-
-			if (getfloating(&p, mod_ldbl))
-				rval = 1;
-			if (mod_ldbl)
-				PF(start, p);
-			else
-				PF(start, (double)p);
-			break;
-		}
-		default:
-			warnx2("illegal format character %c", convch, NULL);
-			return (1);
-		}
-		*fmt = nextch;
+		fwrite(start, 1, fmt - start, stdout);
+		if (chopped || !*gargv)
+			return (rval);
+		/* Restart at the beginning of the format string. */
+		fmt = format;
+		end = 1;
 	}
 	/* NOTREACHED */
+}
+
+
+static char *
+doformat(char *start, int *rval)
+{
+	static const char skip1[] = "#'-+ 0";
+	static const char skip2[] = "0123456789";
+	char *fmt;
+	int fieldwidth, haveprec, havewidth, mod_ldbl, precision;
+	char convch, nextch;
+
+	fmt = start + 1;
+	/* skip to field width */
+	fmt += strspn(fmt, skip1);
+	if (*fmt == '*') {
+		if (getint(&fieldwidth))
+			return (NULL);
+		havewidth = 1;
+		++fmt;
+	} else {
+		havewidth = 0;
+
+		/* skip to possible '.', get following precision */
+		fmt += strspn(fmt, skip2);
+	}
+	if (*fmt == '.') {
+		/* precision present? */
+		++fmt;
+		if (*fmt == '*') {
+			if (getint(&precision))
+				return (NULL);
+			haveprec = 1;
+			++fmt;
+		} else {
+			haveprec = 0;
+
+			/* skip to conversion char */
+			fmt += strspn(fmt, skip2);
+		}
+	} else
+		haveprec = 0;
+	if (!*fmt) {
+		warnx1("missing format character", NULL, NULL);
+		return (NULL);
+	}
+
+	/*
+	 * Look for a length modifier.  POSIX doesn't have these, so
+	 * we only support them for floating-point conversions, which
+	 * are extensions.  This is useful because the L modifier can
+	 * be used to gain extra range and precision, while omitting
+	 * it is more likely to produce consistent results on different
+	 * architectures.  This is not so important for integers
+	 * because overflow is the only bad thing that can happen to
+	 * them, but consider the command  printf %a 1.1
+	 */
+	if (*fmt == 'L') {
+		mod_ldbl = 1;
+		fmt++;
+		if (!strchr("aAeEfFgG", *fmt)) {
+			warnx2("bad modifier L for %%%c", *fmt, NULL);
+			return (NULL);
+		}
+	} else {
+		mod_ldbl = 0;
+	}
+
+	convch = *fmt;
+	nextch = *++fmt;
+	*fmt = '\0';
+	switch (convch) {
+	case 'b': {
+		char *p;
+		int getout;
+
+#ifdef SHELL
+		p = savestr(getstr());
+#else
+		p = strdup(getstr());
+#endif
+		if (p == NULL) {
+			warnx2("%s", strerror(ENOMEM), NULL);
+			return (NULL);
+		}
+		getout = escape(p, 0);
+		*(fmt - 1) = 's';
+		PF(start, p);
+		*(fmt - 1) = 'b';
+#ifdef SHELL
+		ckfree(p);
+#else
+		free(p);
+#endif
+		if (getout)
+			return (fmt);
+		break;
+	}
+	case 'c': {
+		char p;
+
+		p = getchr();
+		PF(start, p);
+		break;
+	}
+	case 's': {
+		const char *p;
+
+		p = getstr();
+		PF(start, p);
+		break;
+	}
+	case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
+		char *f;
+		quad_t val;
+		u_quad_t uval;
+		int signedconv;
+
+		signedconv = (convch == 'd' || convch == 'i');
+		if ((f = mkquad(start, convch)) == NULL)
+			return (NULL);
+		if (getquads(&val, &uval, signedconv))
+			*rval = 1;
+		if (signedconv)
+			PF(f, val);
+		else
+			PF(f, uval);
+		break;
+	}
+	case 'e': case 'E':
+	case 'f': case 'F':
+	case 'g': case 'G':
+	case 'a': case 'A': {
+		long double p;
+
+		if (getfloating(&p, mod_ldbl))
+			*rval = 1;
+		if (mod_ldbl)
+			PF(start, p);
+		else
+			PF(start, (double)p);
+		break;
+	}
+	default:
+		warnx2("illegal format character %c", convch, NULL);
+		return (NULL);
+	}
+	*fmt = nextch;
+	return (fmt);
 }
 
 static char *
