@@ -376,7 +376,7 @@ escape(char *fmt, int percent)
 			*store = *fmt;
 			break;
 		case 'a':		/* bell/alert */
-			*store = '\7';
+			*store = '\a';
 			break;
 		case 'b':		/* backspace */
 			*store = '\b';
@@ -397,7 +397,7 @@ escape(char *fmt, int percent)
 			*store = '\t';
 			break;
 		case 'v':		/* vertical tab */
-			*store = '\13';
+			*store = '\v';
 			break;
 					/* octal constant */
 		case '0': case '1': case '2': case '3':
