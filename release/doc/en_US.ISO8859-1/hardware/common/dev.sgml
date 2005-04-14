@@ -731,7 +731,9 @@
 
     &hwlist.snd.maestro3;
 
-    <para arch="i386,amd64">ForteMedia fm801</para>
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.fm801;
 
     &hwlist.snd.gusc;
 
@@ -749,6 +751,8 @@
     &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
+
+    &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
 

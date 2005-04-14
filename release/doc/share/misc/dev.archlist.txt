@@ -104,6 +104,7 @@ sk	i386,pc98,alpha,amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
+snd_als4000	i386
 snd_audiocs	sparc64
 snd_cmi	i386,amd64
 snd_cs4281	i386,amd64
@@ -112,6 +113,7 @@ snd_ds1	i386,amd64
 snd_emu10k1	i386,amd64
 snd_es137x	i386,amd64
 snd_ess	i386,amd64
+snd_fm801	i386,amd64
 snd_gusc	i386,amd64
 snd_ich	i386,amd64
 snd_maestro	i386,alpha,amd64
@@ -119,6 +121,7 @@ snd_maestro3	i386,alpha,amd64
 snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
+snd_via8233	i386
 snd_via82c686	i386,amd64
 snd_vibes	i386,amd64
 sr	i386
