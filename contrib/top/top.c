@@ -84,6 +84,7 @@ void quit();
 static int max_topn;		/* maximum displayable processes */
 
 /* miscellaneous things */
+struct process_select ps;
 char *myname = "top";
 jmp_buf jmp_int;
 
@@ -179,7 +180,6 @@ char *argv[];
     char *iptr;
     char no_command = 1;
     struct timeval timeout;
-    struct process_select ps;
 #ifdef ORDER
     char *order_name = NULL;
     int order_index = 0;
@@ -987,8 +987,10 @@ restart:
 			    case CMD_thrtog:
 				ps.thread = !ps.thread;
 				new_message(MT_standout | MT_delayed,
-				    " %sisplaying threads.",
-				    ps.thread ? "D" : "Not d");
+				    "Displaying threads %s",
+				    ps.thread ? "separately" : "as a count");
+				header_text = format_header(uname_field);
+				reset_display();
 				putchar('\r');
 				break;
 			    case CMD_viewtog:
