@@ -2312,6 +2312,15 @@ scsi_calc_syncsrate(u_int period_factor)
 	int i;
 	int num_syncrates;
 
+	/*
+	 * It's a bug if period is zero, but if it is anyway, don't
+	 * die with a divide fault- instead return something which
+	 * 'approximates' async
+	 */
+	if (period_factor == 0) {
+		return (3300);
+	}
+
 	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
