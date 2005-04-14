@@ -529,7 +529,7 @@ i386_set_ldt(td, uap, descs)
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
-		if (uap->start <= LUDATA_SEL || uap->num <= 0)
+		if (uap->num <= 0)
 			return (EINVAL);
 		mtx_lock_spin(&sched_lock);
 		pldt = mdp->md_ldt;
