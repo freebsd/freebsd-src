@@ -101,11 +101,9 @@ static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
 static u_int16_t win2unixchr(u_int16_t, struct msdosfsmount *);
 static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
 
-struct mbnambuf {
-	char *		p;
-	size_t		n;
-};
-static struct mbnambuf subent[WIN_MAXSUBENTRIES];
+static char	*nambuf_ptr;
+static size_t	nambuf_len;
+static int	nambuf_max_id;
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in
@@ -909,18 +907,27 @@ win2unixfn(wep, chksum, pmp)
 }
 
 /*
- * Compute the checksum of a DOS filename for Win95 use
+ * Compute the unrolled checksum of a DOS filename for Win95 LFN use.
  */
 u_int8_t
 winChksum(name)
 	u_int8_t *name;
 {
-	int i;
 	u_int8_t s;
 
-	for (s = 0, i = 11; --i >= 0; s += *name++)
-		s = (s << 7)|(s >> 1);
-	return s;
+	s = name[0];
+	s = ((s << 7) | (s >> 1)) + name[1];
+	s = ((s << 7) | (s >> 1)) + name[2];
+	s = ((s << 7) | (s >> 1)) + name[3];
+	s = ((s << 7) | (s >> 1)) + name[4];
+	s = ((s << 7) | (s >> 1)) + name[5];
+	s = ((s << 7) | (s >> 1)) + name[6];
+	s = ((s << 7) | (s >> 1)) + name[7];
+	s = ((s << 7) | (s >> 1)) + name[8];
+	s = ((s << 7) | (s >> 1)) + name[9];
+	s = ((s << 7) | (s >> 1)) + name[10];
+
+	return (s);
 }
 
 /*
@@ -1186,59 +1193,66 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 }
 
 /*
- * Make subent empty
+ * Initialize the temporary concatenation buffer (once) and mark it as
+ * empty on subsequent calls.
  */
 void
 mbnambuf_init(void)
 {
-	int i;
 
-	for (i = 0; i < WIN_MAXSUBENTRIES; i++) {
-		if (subent[i].p) {
-			free(subent[i].p, M_MSDOSFSMNT);
-			subent[i].p = NULL;
-			subent[i].n = 0;
-		}
+        if (nambuf_ptr == NULL) { 
+		nambuf_ptr = malloc(MAXNAMLEN + 1, M_MSDOSFSMNT, M_WAITOK);
+		nambuf_ptr[MAXNAMLEN] = '\0';
 	}
+	nambuf_len = 0;
+	nambuf_max_id = -1;
 }
 
 /*
- * Write a subent entry from a slot
+ * Fill out our concatenation buffer with the given substring, at the
+ * offset specified by its id.  For the last substring (i.e., the one with
+ * the maximum id), use it to calculate the length of the entire string.
+ * Since this function is usually called with ids in descending order, this
+ * reduces the number of times we need to call strlen() since we know that
+ * all previous substrings are exactly WIN_CHARS in length.
  */
 void
 mbnambuf_write(char *name, int id)
 {
-	if (subent[id].p) {
-		printf("mbnambuf_write(): %s -> %s\n", subent[id].p, name);
-		free(subent[id].p, M_MSDOSFSMNT);
+	size_t count;
+
+	count = WIN_CHARS;
+	if (id > nambuf_max_id) {
+		count = strlen(name);
+		nambuf_len = id * WIN_CHARS + count;
+		if (nambuf_len > MAXNAMLEN) {
+			printf("msdosfs: file name %zu too long\n", nambuf_len);
+			return;
+		}
+		nambuf_max_id = id;
 	}
-	subent[id].n = strlen(name);
-	subent[id].p = malloc(subent[id].n + 1, M_MSDOSFSMNT, M_WAITOK);
-	strcpy(subent[id].p, name);
+	memcpy(nambuf_ptr + (id * WIN_CHARS), name, count);
 }
 
 /*
- * Combine each subents to the *dp and initialize subent
+ * Take the completed string and use it to setup the struct dirent.
+ * Be sure to always nul-terminate the d_name and then copy the string
+ * from our buffer.  Note that this function assumes the full string has
+ * been reassembled in the buffer.  If it's called before all substrings
+ * have been written via mbnambuf_write(), the result will be incorrect.
  */
 char *
 mbnambuf_flush(struct dirent *dp)
 {
-	int i;
-	char *name = dp->d_name;
 
-	*name = '\0';
-	dp->d_namlen = 0;
-	for (i = 0; i < WIN_MAXSUBENTRIES; i++) {
-		if (subent[i].p) {
-			if (dp->d_namlen + subent[i].n > sizeof(dp->d_name) - 1) {
-				mbnambuf_init();
-				return (NULL);
-			}
-			strcpy(name, subent[i].p);
-			dp->d_namlen += subent[i].n;
-			name += subent[i].n;
-		}
+	if (nambuf_len > sizeof(dp->d_name) - 1) {
+		mbnambuf_init();
+		return (NULL);
 	}
+	memcpy(dp->d_name, nambuf_ptr, nambuf_len);
+	dp->d_name[nambuf_len] = '\0';
+	dp->d_namlen = nambuf_len;
+
 	mbnambuf_init();
 	return (dp->d_name);
 }
