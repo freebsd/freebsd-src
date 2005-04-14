@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2001  The FreeBSD Project
+# Copyright (c) 2001-2005 Douglas Barton, DougB@FreeBSD.org
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ it will not be rotated. Entropy file harvesting is aborted."
 done
 
 dd if=/dev/random of="${entropy_dir}/saved-entropy.1" \
-    bs=2048 count=1 2> /dev/null
+    bs="$entropy_save_sz" count=1 2> /dev/null
 
 exit 0
 
