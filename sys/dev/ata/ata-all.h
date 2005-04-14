@@ -258,7 +258,7 @@ struct ata_request {
     union {
 	struct {
 	    u_int8_t            command;        /* command reg */
-	    u_int8_t            feature;        /* feature reg */
+	    u_int16_t           feature;        /* feature reg */
 	    u_int16_t           count;          /* count reg */
 	    u_int64_t           lba;            /* lba reg */
 	} ata;
