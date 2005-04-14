@@ -335,10 +335,6 @@ lapic_setup_clock(void)
 	if (lapic == NULL)
 		return (0);
 
-	/* If we've only got one CPU, then use the RTC and ISA timer instead. */
-	if (mp_ncpus == 1)
-		return (0);
-
 	/* Start off with a divisor of 2 (power on reset default). */
 	lapic_timer_divisor = 2;
 
