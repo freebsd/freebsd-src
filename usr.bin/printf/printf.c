@@ -90,7 +90,7 @@ static const char rcsid[] =
 
 static int	 asciicode(void);
 static char	*doformat(char *, int *);
-static int	 escape(char *, int);
+static int	 escape(char *, int, size_t *);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
 static int	 getint(int *);
@@ -109,6 +109,7 @@ progprintf(int argc, char *argv[])
 main(int argc, char *argv[])
 #endif
 {
+	size_t len;
 	int ch, chopped, end, rval;
 	char *format, *fmt, *start;
 
@@ -138,12 +139,13 @@ main(int argc, char *argv[])
 	 * arguments, arguments of zero/null string are provided to use
 	 * up the format string.
 	 */
-	chopped = escape(fmt = format = *argv, 1);/* backslash interpretation */
+	fmt = format = *argv;
+	chopped = escape(fmt, 1, &len);		/* backslash interpretation */
 	rval = end = 0;
 	gargv = ++argv;
 	for (;;) {
 		start = fmt;
-		while (*fmt != '\0') {
+		while (fmt < format + len) {
 			if (fmt[0] == '%') {
 				fwrite(start, 1, fmt - start, stdout);
 				if (fmt[1] == '%') {
@@ -246,6 +248,7 @@ doformat(char *start, int *rval)
 	*fmt = '\0';
 	switch (convch) {
 	case 'b': {
+		size_t len;
 		char *p;
 		int getout;
 
@@ -258,7 +261,7 @@ doformat(char *start, int *rval)
 			warnx2("%s", strerror(ENOMEM), NULL);
 			return (NULL);
 		}
-		getout = escape(p, 0);
+		getout = escape(p, 0, &len);
 		*(fmt - 1) = 's';
 		PF(start, p);
 		*(fmt - 1) = 'b';
@@ -356,12 +359,12 @@ mkquad(char *str, int ch)
 }
 
 static int
-escape(char *fmt, int percent)
+escape(char *fmt, int percent, size_t *len)
 {
-	char *store;
+	char *save, *store;
 	int value, c;
 
-	for (store = fmt; (c = *fmt); ++fmt, ++store) {
+	for (save = store = fmt; (c = *fmt); ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;
@@ -370,6 +373,7 @@ escape(char *fmt, int percent)
 		case '\0':		/* EOS, user error */
 			*store = '\\';
 			*++store = '\0';
+			*len = store - save;
 			return (0);
 		case '\\':		/* backslash */
 		case '\'':		/* single quote */
@@ -383,6 +387,7 @@ escape(char *fmt, int percent)
 			break;
 		case 'c':
 			*store = '\0';
+			*len = store - save;
 			return (1);
 		case 'f':		/* form-feed */
 			*store = '\f';
@@ -420,6 +425,7 @@ escape(char *fmt, int percent)
 		}
 	}
 	*store = '\0';
+	*len = store - save;
 	return (0);
 }
 
