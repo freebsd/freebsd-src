@@ -329,7 +329,7 @@ allocate_initial_tls(Obj_Entry *objs)
     void* tls;
 #ifndef COMPAT_32BIT
     union descriptor ldt;
-    int sel;
+    int error, sel;
 #endif
 
     /*
@@ -341,18 +341,21 @@ allocate_initial_tls(Obj_Entry *objs)
     tls = allocate_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
 
 #ifndef COMPAT_32BIT
-    memset(&ldt, 0, sizeof(ldt));
-    ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
-    ldt.sd.sd_lobase = ((Elf_Addr)tls) & 0xffffff;
-    ldt.sd.sd_type = SDT_MEMRWA;
-    ldt.sd.sd_dpl = SEL_UPL;
-    ldt.sd.sd_p = 1;		/* present */
-    ldt.sd.sd_hilimit = 0xf;	/* 4G limit */
-    ldt.sd.sd_def32 = 1;	/* 32 bit */
-    ldt.sd.sd_gran = 1;		/* limit in pages */
-    ldt.sd.sd_hibase = (((Elf_Addr)tls) >> 24) & 0xff;
-    sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
-    __asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
+    error = i386_set_gsbase(tls);
+    if (error) {
+	memset(&ldt, 0, sizeof(ldt));
+	ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
+	ldt.sd.sd_lobase = ((Elf_Addr)tls) & 0xffffff;
+	ldt.sd.sd_type = SDT_MEMRWA;
+	ldt.sd.sd_dpl = SEL_UPL;
+	ldt.sd.sd_p = 1;		/* present */
+	ldt.sd.sd_hilimit = 0xf;	/* 4G limit */
+	ldt.sd.sd_def32 = 1;	/* 32 bit */
+	ldt.sd.sd_gran = 1;		/* limit in pages */
+	ldt.sd.sd_hibase = (((Elf_Addr)tls) >> 24) & 0xff;
+	sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
+	__asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
+    }
 #else
     _amd64_set_gsbase(tls);
 #endif
