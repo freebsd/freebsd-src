@@ -55,6 +55,7 @@ static void getsysctl(char *, void *, size_t);
 
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 
+extern struct process_select ps;
 extern char* printable(char *);
 int swapmode(int *retavail, int *retfree);
 static int smpmode;
@@ -101,18 +102,21 @@ static char io_header[] =
 #define io_Proc_format \
 	"%5d %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
+static char smp_header_thr[] =
+	"  PID %-*.*s   THR PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
 static char smp_header[] =
-	"  PID %-*.*s PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s "    "PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
 
 #define smp_Proc_format \
-	"%5d %-*.*s %3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
+	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
 
+static char up_header_thr[] =
+	"  PID %-*.*s   THR PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 static char up_header[] =
-	"  PID %-*.*s PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s "    "PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 
 #define up_Proc_format \
-	"%5d %-*.*s %3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
-
+	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -208,11 +212,10 @@ long percentages();
 
 #ifdef ORDER
 /*
- * Sorting orders.  One vector per display mode.
- * The first element is the default for each mode.
+ * Sorting orders.  The first element is the default.
  */
 char *ordernames[] = {
-	"cpu", "size", "res", "time", "pri", 
+	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw", NULL
 };
 #endif
@@ -286,7 +289,15 @@ format_header(char *uname_field)
 
 	switch (displaymode) {
 	case DISP_CPU:
-		prehead = smpmode ? smp_header : up_header;
+		/*
+		 * The logic of picking the right header format seems reverse
+		 * here because we only want to display a THR column when
+		 * "thread mode" is off (and threads are not listed as
+		 * separate lines).
+		 */
+		prehead = smpmode ?
+		    (ps.thread ? smp_header : smp_header_thr) :
+		    (ps.thread ? up_header : up_header_thr);
 		break;
 	case DISP_IO:
 		prehead = io_header;
@@ -646,6 +657,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	int state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
+	char *proc_fmt, thr_buf[7];
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
@@ -737,12 +749,20 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 		    printable(pp->ki_comm));
 		return (fmt);
 	}
+
 	/* format this entry */
-	sprintf(fmt,
-	    smpmode ? smp_Proc_format : up_Proc_format,
+	proc_fmt = smpmode ? smp_Proc_format : up_Proc_format;
+	if (ps.thread != 0)
+		thr_buf[0] = '\0';
+	else
+		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
+		    sizeof(thr_buf) - 2, pp->ki_numthreads);
+
+	sprintf(fmt, proc_fmt,
 	    pp->ki_pid,
 	    namelength, namelength,
 	    (*get_userid)(pp->ki_ruid),
+	    thr_buf,
 	    pp->ki_pri.pri_level - PZERO,
 
 	    /*
@@ -849,6 +869,12 @@ static int sorted_state[] =
 		return (diff > 0 ? 1 : -1); \
 } while (0)
 
+#define	ORDERKEY_THREADS(a, b) do { \
+	int diff = (int)(b)->ki_numthreads - (int)(a)->ki_numthreads; \
+	if (diff != 0) \
+		return (diff > 0 ? 1 : -1); \
+} while (0)
+
 #define ORDERKEY_RSSIZE(a, b) do { \
 	long diff = (long)(b)->ki_rssize - (long)(a)->ki_rssize; \
 	if (diff != 0) \
@@ -885,7 +911,7 @@ proc_compare(void *arg1, void *arg2)
 
 #ifdef ORDER
 /* compare routines */
-int compare_size(), compare_res(), compare_time(), compare_prio();
+int compare_size(), compare_res(), compare_time(), compare_prio(), compare_threads();
 /* io compare routines */
 int compare_iototal(), compare_ioread(), compare_iowrite(), compare_iofault(), compare_vcsw(), compare_ivcsw();
 
@@ -895,6 +921,7 @@ int (*compares[])() = {
 	compare_res,
 	compare_time,
 	compare_prio,
+	compare_threads,
 	compare_iototal,
 	compare_ioread,
 	compare_iowrite,
@@ -970,6 +997,24 @@ compare_prio(void *arg1, void *arg2)
 	ORDERKEY_CPTICKS(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
 	ORDERKEY_STATE(p1, p2);
+	ORDERKEY_RSSIZE(p1, p2);
+	ORDERKEY_MEM(p1, p2);
+
+	return (0);
+}
+
+/* compare_threads - the comparison function for sorting by threads */
+int
+compare_threads(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+
+	ORDERKEY_THREADS(p1, p2);
+	ORDERKEY_PCTCPU(p1, p2);
+	ORDERKEY_CPTICKS(p1, p2);
+	ORDERKEY_STATE(p1, p2);
+	ORDERKEY_PRIO(p1, p2);
 	ORDERKEY_RSSIZE(p1, p2);
 	ORDERKEY_MEM(p1, p2);
 
