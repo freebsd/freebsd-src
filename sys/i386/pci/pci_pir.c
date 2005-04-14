@@ -324,22 +324,50 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
 	pin = intpin - entry->pe_intpin;
 	pci_link = pci_pir_find_link(intpin->link);
 	irq = pci_pir_search_irq(entry->pe_bus, entry->pe_device, pin);
-	if (irq == PCI_INVALID_IRQ)
+	if (irq == PCI_INVALID_IRQ || irq == pci_link->pl_irq)
 		return;
-	if (pci_pir_valid_irq(pci_link, irq)) {
-		if (pci_link->pl_irq == PCI_INVALID_IRQ) {
-			pci_link->pl_irq = irq;
-			pci_link->pl_routed = 1;
-		} else if (pci_link->pl_irq != irq)
+
+	/*
+	 * If we don't have an IRQ for this link yet, then we trust the
+	 * BIOS, even if it seems invalid from the $PIR entries.
+	 */
+	if (pci_link->pl_irq == PCI_INVALID_IRQ) {
+		if (!pci_pir_valid_irq(pci_link, irq))
 			printf(
-	"$PIR: BIOS IRQ %d for %d.%d.INT%c does not match link %#x irq %d\n",
+	"$PIR: Using invalid BIOS IRQ %d from %d.%d.INT%c is for link %#x\n",
 			    irq, entry->pe_bus, entry->pe_device, pin + 'A',
-			    pci_link->pl_id, pci_link->pl_irq);
-	} else
+			    pci_link->pl_id);
+		pci_link->pl_irq = irq;
+		pci_link->pl_routed = 1;
+		return;
+	}
+
+	/*
+	 * We have an IRQ and it doesn't match the current IRQ for this
+	 * link.  If the new IRQ is invalid, then warn about it and ignore
+	 * it.  If the old IRQ is invalid and the new IRQ is valid, then
+	 * prefer the new IRQ instead.  If both IRQs are valid, then just
+	 * use the first one.  Note that if we ever get into this situation
+	 * we are having to guess which setting the BIOS actually routed.
+	 * Perhaps we should just give up instead.
+	 */
+	if (!pci_pir_valid_irq(pci_link, irq)) {
 		printf(
 		"$PIR: BIOS IRQ %d for %d.%d.INT%c is not valid for link %#x\n",
 		    irq, entry->pe_bus, entry->pe_device, pin + 'A',
 		    pci_link->pl_id);
+	} else if (!pci_pir_valid_irq(pci_link, pci_link->pl_irq)) {
+		printf(
+"$PIR: Preferring valid BIOS IRQ %d from %d.%d.INT%c for link %#x to IRQ %d\n", 
+		    irq, entry->pe_bus, entry->pe_device, pin + 'A',
+		    pci_link->pl_id, pci_link->pl_irq);
+		pci_link->pl_irq = irq;
+		pci_link->pl_routed = 1;
+	} else
+		printf(
+	"$PIR: BIOS IRQ %d for %d.%d.INT%c does not match link %#x irq %d\n",
+		    irq, entry->pe_bus, entry->pe_device, pin + 'A',
+		    pci_link->pl_id, pci_link->pl_irq);
 }
 
 /*
@@ -386,9 +414,9 @@ pci_pir_parse(void)
 	}
 
 	/*
-	 * Allow the user to override the IRQ for a given link device as
-	 * long as the override is valid or is 255 or 0 to clear a preset
-	 * IRQ.
+	 * Allow the user to override the IRQ for a given link device.  We
+	 * allow invalid IRQs to be specified but warn about them.  An IRQ
+	 * of 255 or 0 clears any preset IRQ.
 	 */
 	i = 0;
 	TAILQ_FOREACH(pci_link, &pci_links, pl_links) {
@@ -398,12 +426,14 @@ pci_pir_parse(void)
 			continue;
 		if (irq == 0)
 			irq = PCI_INVALID_IRQ;
-		if (irq == PCI_INVALID_IRQ ||
-		    pci_pir_valid_irq(pci_link, irq)) {
-			pci_link->pl_routed = 0;
-			pci_link->pl_irq = irq;
-			i = 1;
-		}
+		if (irq != PCI_INVALID_IRQ &&
+		    !pci_pir_valid_irq(pci_link, irq) && bootverbose)
+			printf(
+		"$PIR: Warning, IRQ %d for link %#x is not listed as valid\n",
+			    irq, pci_link->pl_id);
+		pci_link->pl_routed = 0;
+		pci_link->pl_irq = irq;
+		i = 1;
 	}
 	if (bootverbose && i) {
 		printf("$PIR: Links after tunable overrides:\n");
