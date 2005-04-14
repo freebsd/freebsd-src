@@ -2,9 +2,9 @@
 The FreeBSD Russian Documentation Project
 
 $FreeBSD$
-$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.5 2004/09/06 14:05:03 den Exp $
+$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.7 2005/04/14 13:30:11 den Exp $
 
-Original revision: 1.30
+Original revision: 1.31
 
 install.sgml
 
@@ -142,12 +142,12 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386,alpha">Для большинства установок с CDROM или по сети,
       вам потребуются скопировать образы дискет
-      <filename>boot.flp</filename> и <filename>kernX.flp</filename>
+      <filename>boot.flp</filename> и <filename>kern<replaceable>X</replaceable>.flp</filename>
       из каталога <filename>floppies/</filename> (для 1.44MB дискет).</para>
 
     <para arch="pc98">Для обычной установки с CDROM или по сети, вам
       потребуется скопировать образы дискет <filename>boot.flp</filename>
-      и <filename>kernX.flp</filename> из каталога
+      и <filename>kern<replaceable>X</replaceable>.flp</filename> из каталога
       <filename>floppies/</filename> (для 1.44MB дискет) или
       <filename>boot-small.flp</filename> и
       <filename>kern-small.flp</filename> (для 1.2MB дискет).</para>
@@ -156,17 +156,17 @@ from {alpha,i386}/INSTALL.TXT.
       Загрузите
       <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>
       и все
-      <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
+      <replaceable>release</replaceable><filename>/floppies/kern<replaceable>X</replaceable>.flp</filename>
       с <ulink url="&release.url;"></ulink> или с одного из зеркал,
       перечисленных в разделе <ulink
       url="&url.books.handbook;/mirrors-ftp.html">FTP
       зеркала</ulink> Руководства или, или на страницах
       <ulink url="http://mirrorlist.FreeBSD.org/"></ulink>.</para>
 
-    <para arch="i386,alpha">Возьмите три (или сколько потребуется) чистых,
+    <para arch="i386,alpha">Возьмите несколько чистых,
       только что отформатированных
       дискет и поместите образ <filename>boot.flp</filename> на первую,
-      а <filename>kernX.flp</filename> на остальные.  Эти образы
+      а <filename>kern<replaceable>X</replaceable>.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>fdimage.exe</filename>
@@ -174,10 +174,10 @@ from {alpha,i386}/INSTALL.TXT.
       или на FTP зеркалах &os;) или с помощью команды &man.dd.1;
       в UNIX.</para>
 
-    <para arch="pc98">Возьмите три (или сколько потребуется) чистых,
+    <para arch="pc98">Возьмите несколько чистых,
       только что отформатированных
       дискет и поместите образ <filename>boot.flp</filename> на первую,
-      а <filename>kernX.flp</filename> на остальные.  Эти образы
+      а <filename>kern<replaceable>X</replaceable>.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>rawrite.exe</filename>
@@ -193,12 +193,12 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386,alpha">Предполагается, что вы скопировали
       <filename>fdimage.exe</filename> и <filename>boot.flp</filename>
-      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kern<replaceable>X</replaceable>.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="pc98">Предполагается, что вы скопировали
       <filename>rawrite.exe</filename> и <filename>boot.flp</filename>
-      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kern<replaceable>X</replaceable>.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="i386,alpha,pc98">Если вы создаете загрузочную дискету на
@@ -271,7 +271,7 @@ from {alpha,i386}/INSTALL.TXT.
       через сеть, используя PPP, SLIP или выделенное соединение.
       Начните установку, создав набор загрузочных дискет &os;
       из файлов <filename>floppies/boot.flp</filename> и
-      <filename>floppies/kernX.flp</filename>, используя инструкции
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции
       в <xref linkend="floppies">.  Перезагрузите компьютер,
       диск <filename>boot.flp</filename>; после запроса вставьте
       последовательно остальные диски.  Прочтите
@@ -303,7 +303,7 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="alpha">В качестве альтернативы вы можете начать установку
       с дискеты.  Для начала вам потребуется создать набор загрузочных
       дискет из <filename>floppies/boot.flp</filename> и файлов
-      <filename>floppies/kernX.flp</filename>, используя инструкции из
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции из
       <xref linkend="floppies">.  Вставьте <filename>boot.flp</filename>,
       для запуска установки из приглашения SRM консоли
       (<literal>&gt;&gt;&gt;</literal>) наберите следующую команду:</para>
@@ -837,11 +837,11 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</step>
 	<step>
 	  <para>При загрузке с дискет, после остановки чтения с диска
-	    вставьте первый диск <filename>kernX.flp</filename> и нажмите
+	    вставьте первый диск <filename>kern<replaceable>X</replaceable>.flp</filename> и нажмите
 	    <keycap>Enter</keycap>.  После остановки чтения с диска
-	    вставьте следующий диск <filename>kernX.flp</filename> и нажмите
+	    вставьте следующий диск <filename>kern<replaceable>X</replaceable>.flp</filename> и нажмите
 	    <keycap>Enter</keycap>, и так далее для всех дисков
-	    <filename>kernX.flp</filename>.  Когда загрузка завершится,
+	    <filename>kern<replaceable>X</replaceable>.flp</filename>.  Когда загрузка завершится,
 	    вставьте опять <filename>boot.flp</filename> и нажмите
 	    <keycap>Enter</keycap>.</para>
 	</step>
