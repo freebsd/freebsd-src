@@ -35,6 +35,11 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
+#define	I386_GET_FSBASE		7
+#define	I386_SET_FSBASE		8
+#define	I386_GET_GSBASE		9
+#define	I386_SET_GSBASE		10
+
 /* Leave space for 0-127 for to avoid translating syscalls */
 #define	AMD64_GET_FSBASE	128
 #define	AMD64_SET_FSBASE	129
