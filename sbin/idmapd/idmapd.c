@@ -339,12 +339,6 @@ main(int argc, char ** argv)
 
 	TAILQ_INIT(&upcall_q);
 
-	if (error) {
-	  	perror("sigaction");
-		exit(1);
-	}
-
-
 	fd = open(DEV_PATH, O_RDWR, S_IRUSR | S_IWUSR);
 
 	if (fd < 0) {
