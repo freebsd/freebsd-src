@@ -311,7 +311,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Frontier Labs NEX IA+ Digital Audio Player, rev 1.10/0.01
 		 * PR: kern/70158
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FL" , "NexIA+*", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FL" , "Nex*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 };
