@@ -536,10 +536,10 @@ tcp_sack_partialack(tp, th)
 	struct tcpcb *tp;
 	struct tcphdr *th;
 {
-	INP_LOCK_ASSERT(tp->t_inpcb);
 	int num_segs = 1;
 	int sack_bytes_rxmt = 0;
 
+	INP_LOCK_ASSERT(tp->t_inpcb);
 	callout_stop(tp->tt_rexmt);
 	tp->t_rtttime = 0;
 	/* send one or 2 segments based on how much new data was acked */
@@ -548,6 +548,8 @@ tcp_sack_partialack(tp, th)
 	(void)tcp_sack_output(tp, &sack_bytes_rxmt);
 	tp->snd_cwnd = sack_bytes_rxmt + (tp->snd_nxt - tp->sack_newdata) +
 		num_segs * tp->t_maxseg;
+	if (tp->snd_cwnd > tp->snd_ssthresh)
+		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 }
@@ -631,4 +633,34 @@ tcp_sack_adjust(struct tcpcb *tp)
 		return;
 	tp->snd_nxt = tp->rcv_lastsack;
 	return;
+}
+
+/*
+ * Calculate the number of SACKed bytes in the scoreboard by
+ * subtracting the amount of data accounted for in sackholes
+ * from the total span of the scoreboard. Also returns the 
+ * amount of data that is "lost" and has not yet been retransmitted.
+ */
+int
+tcp_sacked_bytes(struct tcpcb *tp, int *lost_not_rexmitted)
+{
+	INP_LOCK_ASSERT(tp->t_inpcb);
+	struct sackhole *cur = tp->snd_holes;
+	int sacked = 0;
+	u_long lost = 0;
+
+	if (cur == NULL) /* Scoreboard empty. */
+		goto out;
+	if (SEQ_GEQ(tp->snd_una, tp->rcv_lastsack)) /* Scoreboard is stale. */
+		goto out;
+	sacked = tp->rcv_lastsack - cur->start;
+	while (cur) {
+		lost += (cur->end - cur->rxmit);
+		sacked -= (cur->end - cur->start);
+		cur = cur->next;
+	}
+out:
+	if (lost_not_rexmitted)
+		*lost_not_rexmitted = lost;
+	return (sacked);
 }
