@@ -56,8 +56,29 @@ sysarch(td, uap)
 {
 	int error = 0;
 	struct pcb *pcb = curthread->td_pcb;
+	uint32_t i386base;
 
 	switch(uap->op) {
+	case I386_GET_FSBASE:
+		i386base = pcb->pcb_fsbase;
+		error = copyout(&i386base, uap->parms, sizeof(i386base));
+		break;
+	case I386_SET_FSBASE:
+		error = copyin(uap->parms, &i386base, sizeof(i386base));
+		pcb->pcb_fsbase = i386base;
+		if (!error)
+			wrmsr(MSR_FSBASE, pcb->pcb_fsbase);
+		break;
+	case I386_GET_GSBASE:
+		i386base = pcb->pcb_gsbase;
+		error = copyout(&i386base, uap->parms, sizeof(i386base));
+		break;
+	case I386_SET_GSBASE:
+		error = copyin(uap->parms, &i386base, sizeof(i386base));
+		pcb->pcb_gsbase = i386base;
+		if (!error)
+			wrmsr(MSR_KGSBASE, pcb->pcb_gsbase);
+		break;
 	case AMD64_GET_FSBASE:
 		error = copyout(&pcb->pcb_fsbase, uap->parms, sizeof(pcb->pcb_fsbase));
 		break;
