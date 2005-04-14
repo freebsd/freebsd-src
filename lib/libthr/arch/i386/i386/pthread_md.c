@@ -35,14 +35,18 @@
 
 #include "pthread_md.h"
 
+int _thr_using_setbase;
+
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 #ifndef COMPAT_32BIT
 	union descriptor ldt;
+	void *base;
 #endif
 	struct tcb *tcb;
 	void *oldtls;
+	int error;
 
 	if (initial)
 		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
@@ -53,20 +57,35 @@ _tcb_ctor(struct pthread *thread, int initial)
 	if (tcb) {
 		tcb->tcb_thread = thread;
 #ifndef COMPAT_32BIT
-		ldt.sd.sd_hibase = (unsigned int)tcb >> 24;
-		ldt.sd.sd_lobase = (unsigned int)tcb & 0xFFFFFF;
-		ldt.sd.sd_hilimit = (sizeof(struct tcb) >> 16) & 0xF;
-		ldt.sd.sd_lolimit = sizeof(struct tcb) & 0xFFFF;
-		ldt.sd.sd_type = SDT_MEMRWA;
-		ldt.sd.sd_dpl = SEL_UPL;
-		ldt.sd.sd_p = 1;
-		ldt.sd.sd_xx = 0;
-		ldt.sd.sd_def32 = 1;
-		ldt.sd.sd_gran = 0;	/* no more than 1M */
-		tcb->tcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
-		if (tcb->tcb_ldt < 0) {
-			_rtld_free_tls(tcb, sizeof(struct tcb), 16);
-			tcb = NULL;
+		tcb->tcb_ldt = -1;
+		switch (_thr_using_setbase) {
+		case 1:	/* use i386_set_gsbase() in _kcb_set */
+			break;
+		case 0:	/* Untested, try the get/set_gsbase routines once */
+			error = i386_get_gsbase(&base);
+			if (error == 0) {
+				_thr_using_setbase = 1;
+				break;
+			}
+			/* fall through */
+		case 2:	/* Use the user_ldt code, we must have an old kernel */
+			_thr_using_setbase = 2;
+			ldt.sd.sd_hibase = (unsigned int)tcb >> 24;
+			ldt.sd.sd_lobase = (unsigned int)tcb & 0xFFFFFF;
+			ldt.sd.sd_hilimit = (sizeof(struct tcb) >> 16) & 0xF;
+			ldt.sd.sd_lolimit = sizeof(struct tcb) & 0xFFFF;
+			ldt.sd.sd_type = SDT_MEMRWA;
+			ldt.sd.sd_dpl = SEL_UPL;
+			ldt.sd.sd_p = 1;
+			ldt.sd.sd_xx = 0;
+			ldt.sd.sd_def32 = 1;
+			ldt.sd.sd_gran = 0;	/* no more than 1M */
+			tcb->tcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
+			if (tcb->tcb_ldt < 0) {
+				_rtld_free_tls(tcb, sizeof(struct tcb), 16);
+				tcb = NULL;
+			}
+			break;
 		}
 #endif
 	}
