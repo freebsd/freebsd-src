@@ -51,6 +51,7 @@ MAN=	accept_filter.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
 	devclass_get_devices.9 \
+	devclass_get_drivers.9 \
 	devclass_get_maxunit.9 \
 	devclass_get_name.9 \
 	devclass_get_softc.9 \
