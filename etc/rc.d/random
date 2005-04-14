@@ -68,15 +68,14 @@ random_stop()
 		else
 			# Try this as a reasonable alternative for read-only
 			# roots, diskless workstations, etc.
-			rm -f /var/db/entropy
-			if touch /var/db/entropy; then
-				entropy_file_confirmed=/var/db/entropy
+			rm -f /var/db/entropy-file
+			if touch /var/db/entropy-file; then
+				entropy_file_confirmed=/var/db/entropy-file
 			fi
 		fi
 		case ${entropy_file_confirmed} in
 		'')
-			err 1 '${entropy_file_confirmed}:' \
-			    ' entropy file write failed.'
+			err 1 'entropy file write failed.'
 			;;
 		*)
 			dd if=/dev/random of=${entropy_file_confirmed} \
