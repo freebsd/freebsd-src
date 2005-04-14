@@ -810,10 +810,29 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			}
 			break;
 
+		case MTIOCTOP:
+		{
+			struct mtop *mt = (struct mtop *) arg;
+
+			/*
+			 * Check to make sure it's an OP we can perform
+			 * with no media inserted.
+			 */
+			switch (mt->mt_op) {
+			case MTSETBSIZ:
+			case MTSETDNSTY:
+			case MTCOMP:
+				mt = NULL;
+				/* FALLTHROUGH */
+			default:
+				break;
+			}
+			if (mt != NULL) {
+				break;
+			}
+			/* FALLTHROUGH */
+		}
 		case MTIOCSETEOTMODEL:
-		case MTSETBSIZ:
-		case MTSETDNSTY:
-		case MTCOMP:
 			/*
 			 * We need to acquire the peripheral here rather
 			 * than at open time because we are sharing writable
