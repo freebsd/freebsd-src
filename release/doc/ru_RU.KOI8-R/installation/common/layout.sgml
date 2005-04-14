@@ -2,9 +2,9 @@
 	The FreeBSD Russian Documentation Project
 
 	$FreeBSD$
-	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/layout.sgml,v 1.4 2004/09/06 14:05:03 den Exp $
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/layout.sgml,v 1.5 2005/04/14 13:30:11 den Exp $
 
-	Original revision: 1.9
+	Original revision: 1.8.2.1
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
@@ -23,10 +23,21 @@ INSTALL.HTM     boot            compat3x        floppies        proflibs
 INSTALL.TXT     catpages        compat4x        games           src
 README.HTM      cdrom.inf       crypto          info            tools</screen>
 
-  <para>Если вы хотите выполнить CDROM, FTP или NFS установку из этого
-    каталога, все, что потребуется, это сделать 1.44MB загрузочные дискеты
-    (см. <xref linkend="floppies">), загрузиться с них и следовать
-    инструкциям.  Остальные файлы, необходимые для установки, будут
+
+  <para>Те же файлы находятся на первом диске мультидискового набора,
+    но расположены там немного по-другому.  Для большинства архитектур
+    на диске с установкой находится также <quote>live filesystem</quote>.
+    Она полезна при восстановлении или решении проблем с существующей
+    установкой &os; (обратитесь к <xref
+    linkend="trouble"> за инструкциями по ее использованию).</para>
+
+  <para>Каталог <filename>floppies</filename> представляет определенный
+    интерес для пользователей, которые не могут выполнить загрузку с
+    компакт-диска (но могут прочитать его содержимое.  Несложно
+    создать набор 1.44Мб загрузочных дискет, воспользовавшись каталогом
+    <filename>floppies</filename> (см. <xref linkend="floppies">), и
+    использовать их для запуска установки с CDROM, FTP, или NFS.
+    Остальные файлы, необходимые для установки, будут
     получены автоматически на основе вашего выбора.  Если вы никогда раньше
     не устанавливали &os;, потребуется также полностью прочитать этот
     документ (файл инструкций по установке).</para>
