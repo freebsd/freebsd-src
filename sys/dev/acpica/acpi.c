@@ -1495,6 +1495,7 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
     /*
      * 1. I/O port and memory system resource holders
      * 2. Embedded controllers (to handle early accesses)
+     * 3. PCI Link Devices
      */
     ret = 0;
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02")) {
@@ -1502,6 +1503,9 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 	ret = 1;
     } else if (acpi_MatchHid(handle, "PNP0C09")) {
 	*order = 2;
+	ret = 1;
+    } else if (acpi_MatchHid(handle, "PNP0C0F")) {
+	*order = 3;
 	ret = 1;
     }
 
