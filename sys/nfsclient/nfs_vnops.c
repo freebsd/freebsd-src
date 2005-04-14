@@ -809,8 +809,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 			vput(newvp);
 		else 
 			vrele(newvp);
-		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
 		*vpp = NULLVP;
 	}
 	error = 0;
