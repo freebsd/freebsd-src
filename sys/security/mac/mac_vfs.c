@@ -598,7 +598,8 @@ mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 int
-mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot)
+mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+    int prot, int flags)
 {
 	int error;
 
@@ -607,7 +608,7 @@ mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot)
 	if (!mac_enforce_fs || !mac_enforce_vm)
 		return (0);
 
-	MAC_CHECK(check_vnode_mmap, cred, vp, vp->v_label, prot);
+	MAC_CHECK(check_vnode_mmap, cred, vp, vp->v_label, prot, flags);
 	return (error);
 }
 

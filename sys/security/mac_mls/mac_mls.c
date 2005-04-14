@@ -46,6 +46,7 @@
 #include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
+#include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -2380,7 +2381,7 @@ mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
-    struct label *label, int prot)
+    struct label *label, int prot, int flags)
 {
 	struct mac_mls *subj, *obj;
 
@@ -2398,7 +2399,7 @@ mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 		if (!mac_mls_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	if (prot & VM_PROT_WRITE) {
+	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
 		if (!mac_mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}
