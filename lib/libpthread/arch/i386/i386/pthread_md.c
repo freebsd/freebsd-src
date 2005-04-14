@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include "rtld_tls.h"
 #include "pthread_md.h"
 
+int _thr_using_setbase;
+
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
@@ -78,8 +80,10 @@ _kcb_ctor(struct kse *kse)
 {
 #ifndef COMPAT_32BIT
 	union descriptor ldt;
+	void *base;
 #endif
 	struct kcb *kcb;
+	int error;
 
 	kcb = malloc(sizeof(struct kcb));
 	if (kcb != NULL) {
@@ -87,20 +91,35 @@ _kcb_ctor(struct kse *kse)
 		kcb->kcb_self = kcb;
 		kcb->kcb_kse = kse;
 #ifndef COMPAT_32BIT
-		ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
-		ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
-		ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
-		ldt.sd.sd_lolimit = sizeof(struct kcb) & 0xFFFF;
-		ldt.sd.sd_type = SDT_MEMRWA;
-		ldt.sd.sd_dpl = SEL_UPL;
-		ldt.sd.sd_p = 1;
-		ldt.sd.sd_xx = 0;
-		ldt.sd.sd_def32 = 1;
-		ldt.sd.sd_gran = 0;	/* no more than 1M */
-		kcb->kcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
-		if (kcb->kcb_ldt < 0) {
-			free(kcb);
-			return (NULL);
+		switch (_thr_using_setbase) {
+		case 1:	/* use i386_set_gsbase() in _kcb_set */
+			kcb->kcb_ldt = -1;
+			break;
+		case 0:	/* Untested, try the get/set_gsbase routines once */
+			error = i386_get_gsbase(&base);
+			if (error == 0) {
+				_thr_using_setbase = 1;
+				break;
+			}
+			/* fall through */
+		case 2:	/* Use the user_ldt code, we must have an old kernel */
+			_thr_using_setbase = 2;
+			ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
+			ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
+			ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
+			ldt.sd.sd_lolimit = sizeof(struct kcb) & 0xFFFF;
+			ldt.sd.sd_type = SDT_MEMRWA;
+			ldt.sd.sd_dpl = SEL_UPL;
+			ldt.sd.sd_p = 1;
+			ldt.sd.sd_xx = 0;
+			ldt.sd.sd_def32 = 1;
+			ldt.sd.sd_gran = 0;	/* no more than 1M */
+			kcb->kcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
+			if (kcb->kcb_ldt < 0) {
+				free(kcb);
+				return (NULL);
+			}
+			break;
 		}
 #endif
 	}
