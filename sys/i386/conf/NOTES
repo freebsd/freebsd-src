@@ -53,7 +53,6 @@ device		apic			# I/O apic
 
 # Optional:
 options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
-options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 #
 # Watchdog routines.
