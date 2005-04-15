@@ -105,9 +105,38 @@ vm_pageq_enqueue(int queue, vm_page_t m)
 vm_page_t
 vm_pageq_add_new_page(vm_paddr_t pa)
 {
+	vm_paddr_t bad;
 	vm_page_t m;
+	char *cp, *list, *pos;
 
 	GIANT_REQUIRED;
+
+	/*
+	 * See if a physical address in this page has been listed
+	 * in the blacklist tunable.  Entries in the tunable are
+	 * separated by spaces or commas.  If an invalid integer is
+	 * encountered then the rest of the string is skipped.
+	 */
+	if (testenv("vm.blacklist")) {
+		list = getenv("vm.blacklist");
+		for (pos = list; *pos != '\0'; pos = cp) {
+			bad = strtoq(pos, &cp, 0);
+			if (*cp != '\0') {
+				if (*cp == ' ' || *cp == ',') {
+					cp++;
+					if (cp == pos)
+						continue;
+				} else
+					break;
+			}
+			if (pa == trunc_page(bad)) {
+				printf("Skipping page with pa 0x%x\n", pa);
+				freeenv(list);
+				return (NULL);
+			}
+		}
+		freeenv(list);
+	}
 
 	++cnt.v_page_count;
 	m = PHYS_TO_VM_PAGE(pa);
