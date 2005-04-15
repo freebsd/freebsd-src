@@ -28,22 +28,9 @@ profile         2
 # for SMP kernels.  Thus, the apic device is not strictly an SMP option,
 # but it is a prerequisite for SMP.
 #
-# Notes:
-#
-# By default, mixed mode is used to route IRQ0 from the AT timer via
-# the 8259A master PIC through the ExtINT pin on the first I/O APIC.
-# This can be disabled via the NO_MIXED_MODE option.  In that case,
-# IRQ0 will be routed via an intpin on the first I/O APIC.  Not all
-# motherboards hook IRQ0 up to the first I/O APIC even though their
-# MP table or MADT may claim to do so.  That is why mixed mode is
-# enabled by default.
-#
 
 # Mandatory:
 device		apic			# I/O apic
-
-# Optional:
-options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 #
 # Watchdog routines.
