@@ -83,6 +83,13 @@
 .Op Fl fv
 .Ar name ...
 .Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
 .Cm list
 .Nm
 .Cm status
@@ -201,6 +208,10 @@ Additional options include:
 .It Fl f
 Stop the given mirror even if it is opened.
 .El
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm dump
+Dump metadata stored on the given providers.
 .It Cm list
 See
 .Xr geom 8 .
