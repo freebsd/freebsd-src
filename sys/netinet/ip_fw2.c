@@ -318,14 +318,18 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
 
 
 /*
- * This macro maps an ip pointer into a layer3 header pointer of type T
+ * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
+ * Other macros just cast void * into the appropriate type
  */
-#define	L3HDR(T, ip) ((T *)((u_int32_t *)(ip) + (ip)->ip_hl))
+#define	L3HDR(T, ip)	((T *)((u_int32_t *)(ip) + (ip)->ip_hl))
+#define	TCP(p)		((struct tcphdr *)(p))
+#define	UDP(p)		((struct udphdr *)(p))
+#define	ICMP(p)		((struct icmp *)(p))
 
 static __inline int
-icmptype_match(struct ip *ip, ipfw_insn_u32 *cmd)
+icmptype_match(struct icmp *icmp, ipfw_insn_u32 *cmd)
 {
-	int type = L3HDR(struct icmp,ip)->icmp_type;
+	int type = icmp->icmp_type;
 
 	return (type <= ICMP_MAXTYPE && (cmd->d[0] & (1<<type)) );
 }
@@ -334,9 +338,10 @@ icmptype_match(struct ip *ip, ipfw_insn_u32 *cmd)
     (1 << ICMP_TSTAMP) | (1 << ICMP_IREQ) | (1 << ICMP_MASKREQ) )
 
 static int
-is_icmp_query(struct ip *ip)
+is_icmp_query(struct icmp *icmp)
 {
-	int type = L3HDR(struct icmp, ip)->icmp_type;
+	int type = icmp->icmp_type;
+
 	return (type <= ICMP_MAXTYPE && (TT & (1<<type)) );
 }
 #undef TT
@@ -412,10 +417,9 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 }
 
 static int
-tcpopts_match(struct ip *ip, ipfw_insn *cmd)
+tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 {
 	int optlen, bits = 0;
-	struct tcphdr *tcp = L3HDR(struct tcphdr,ip);
 	u_char *cp = (u_char *)(tcp + 1);
 	int x = (tcp->th_off << 2) - sizeof(struct tcphdr);
 
@@ -1809,97 +1813,112 @@ ipfw_chk(struct ip_fw_args *args)
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
 	u_int16_t ip_len=0;
 	int pktlen;
-	int dyn_dir = MATCH_UNKNOWN;
-	ipfw_dyn_rule *q = NULL;
-	struct ip_fw_chain *chain = &layer3_chain;
-	struct m_tag *mtag;
 
-	if (m->m_flags & M_SKIP_FIREWALL)
-		return (IP_FW_PASS);	/* accept */
 	/*
 	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
 	 * 	MATCH_NONE when checked and not matched (q = NULL),
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
-
-	pktlen = m->m_pkthdr.len;
-	if (args->eh == NULL ||		/* layer 3 packet */
-		( m->m_pkthdr.len >= sizeof(struct ip) &&
-		    ntohs(args->eh->ether_type) == ETHERTYPE_IP))
-			hlen = ip->ip_hl << 2;
+	int dyn_dir = MATCH_UNKNOWN;
+	ipfw_dyn_rule *q = NULL;
+	struct ip_fw_chain *chain = &layer3_chain;
+	struct m_tag *mtag;
 
 	/*
-	 * Collect parameters into local variables for faster matching.
+	 * We store in ulp a pointer to the upper layer protocol header.
+	 * In the ipv4 case this is easy to determine from the header,
+	 * but for ipv6 we might have some additional headers in the middle.
+	 * ulp is NULL if not found.
 	 */
-	if (hlen == 0) {	/* do not grab addresses for non-ip pkts */
-		proto = args->f_id.proto = 0;	/* mark f_id invalid */
-		goto after_ip_checks;
-	}
+	void *ulp = NULL;		/* upper layer protocol pointer. */
 
-	proto = args->f_id.proto = ip->ip_p;
-	src_ip = ip->ip_src;
-	dst_ip = ip->ip_dst;
-	if (args->eh != NULL) { /* layer 2 packets are as on the wire */
-		offset = ntohs(ip->ip_off) & IP_OFFMASK;
-		ip_len = ntohs(ip->ip_len);
-	} else {
-		offset = ip->ip_off & IP_OFFMASK;
-		ip_len = ip->ip_len;
-	}
-	pktlen = ip_len < pktlen ? ip_len : pktlen;
+	if (m->m_flags & M_SKIP_FIREWALL)
+		return (IP_FW_PASS);	/* accept */
 
-#define PULLUP_TO(len)						\
-		do {						\
-			if ((m)->m_len < (len)) {		\
-			    args->m = m = m_pullup(m, (len));	\
-			    if (m == 0)				\
-				goto pullup_failed;		\
-			    ip = mtod(m, struct ip *);		\
-			}					\
-		} while (0)
+	pktlen = m->m_pkthdr.len;
+	proto = args->f_id.proto = 0;	/* mark f_id invalid */
 
-	if (offset == 0) {
-		switch (proto) {
-		case IPPROTO_TCP:
-		    {
-			struct tcphdr *tcp;
+/*
+ * PULLUP_TO(len, p, T) makes sure that len + sizeof(T) is contiguous,
+ * then it sets p to point at the offset "len" in the mbuf. WARNING: the
+ * pointer might become stale after other pullups (but we never use it
+ * this way).
+ */
+#define PULLUP_TO(len, p, T)						\
+do {									\
+	int x = (len) + sizeof(T);					\
+	if ((m)->m_len < x) {						\
+		args->m = m = m_pullup(m, x);				\
+		if (m == NULL)						\
+			goto pullup_failed;				\
+	}								\
+	p = (mtod(m, char *) + (len));					\
+} while (0)
 
-			PULLUP_TO(hlen + sizeof(struct tcphdr));
-			tcp = L3HDR(struct tcphdr, ip);
-			dst_port = tcp->th_dport;
-			src_port = tcp->th_sport;
-			args->f_id.flags = tcp->th_flags;
-			}
-			break;
+	/* Identify IP packets and fill up veriables. */
+	if (pktlen >= sizeof(struct ip) &&
+	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
+	    mtod(m, struct ip *)->ip_v == 4) {
+		ip = mtod(m, struct ip *);
+		hlen = ip->ip_hl << 2;
+#ifdef NOTYET
+		args->f_id.addr_type = 4;
+#endif
 
-		case IPPROTO_UDP:
-		    {
-			struct udphdr *udp;
-
-			PULLUP_TO(hlen + sizeof(struct udphdr));
-			udp = L3HDR(struct udphdr, ip);
-			dst_port = udp->uh_dport;
-			src_port = udp->uh_sport;
-			}
-			break;
-
-		case IPPROTO_ICMP:
-			PULLUP_TO(hlen + 4);	/* type, code and checksum. */
-			args->f_id.flags = L3HDR(struct icmp, ip)->icmp_type;
-			break;
-
-		default:
-			break;
+		/*
+		 * Collect parameters into local variables for faster matching.
+		 */
+		proto = ip->ip_p;
+		src_ip = ip->ip_src;
+		dst_ip = ip->ip_dst;
+		if (args->eh != NULL) { /* layer 2 packets are as on the wire */
+			offset = ntohs(ip->ip_off) & IP_OFFMASK;
+			ip_len = ntohs(ip->ip_len);
+		} else {
+			offset = ip->ip_off & IP_OFFMASK;
+			ip_len = ip->ip_len;
 		}
+		pktlen = ip_len < pktlen ? ip_len : pktlen;
+
+		if (offset == 0) {
+			switch (proto) {
+			case IPPROTO_TCP:
+				PULLUP_TO(hlen, ulp, struct tcphdr);
+				dst_port = TCP(ulp)->th_dport;
+				src_port = TCP(ulp)->th_sport;
+				args->f_id.flags = TCP(ulp)->th_flags;
+				break;
+
+			case IPPROTO_UDP:
+				PULLUP_TO(hlen, ulp, struct udphdr);
+				dst_port = UDP(ulp)->uh_dport;
+				src_port = UDP(ulp)->uh_sport;
+				break;
+
+			case IPPROTO_ICMP:
+				/*
+				 * we only care for 4 bytes: type, code,
+				 * checksum
+				 */
+				PULLUP_TO(hlen, ulp, struct icmp);
+				args->f_id.flags = ICMP(ulp)->icmp_type;
+				break;
+
+			default:
+				break;
+			}
+		}
+
+		args->f_id.src_ip = ntohl(src_ip.s_addr);
+		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
+	}
 #undef PULLUP_TO
+	if (proto) { /* we may have port numbers, store them */
+		args->f_id.proto = proto;
+		args->f_id.src_port = src_port = ntohs(src_port);
+		args->f_id.dst_port = dst_port = ntohs(dst_port);
 	}
 
-	args->f_id.src_ip = ntohl(src_ip.s_addr);
-	args->f_id.dst_ip = ntohl(dst_ip.s_addr);
-	args->f_id.src_port = src_port = ntohs(src_port);
-	args->f_id.dst_port = dst_port = ntohs(dst_port);
-
-after_ip_checks:
 	IPFW_RLOCK(chain);
 	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
 	if (args->rule) {
@@ -2196,7 +2215,7 @@ check_body:
 
 			case O_ICMPTYPE:
 				match = (offset == 0 && proto==IPPROTO_ICMP &&
-				    icmptype_match(ip, (ipfw_insn_u32 *)cmd) );
+				    icmptype_match(ICMP(ulp), (ipfw_insn_u32 *)cmd) );
 				break;
 
 			case O_IPOPT:
@@ -2250,7 +2269,7 @@ check_body:
 				    uint16_t *p;
 				    int i;
 
-				    tcp = L3HDR(struct tcphdr,ip);
+				    tcp = TCP(ulp);
 				    x = ip_len -
 					((ip->ip_hl + tcp->th_off) << 2);
 				    if (cmdlen == 1) {
@@ -2267,38 +2286,36 @@ check_body:
 
 			case O_TCPFLAGS:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    flags_match(cmd,
-					L3HDR(struct tcphdr,ip)->th_flags));
+				    flags_match(cmd, TCP(ulp)->th_flags));
 				break;
 
 			case O_TCPOPTS:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    tcpopts_match(ip, cmd));
+				    tcpopts_match(TCP(ulp), cmd));
 				break;
 
 			case O_TCPSEQ:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    ((ipfw_insn_u32 *)cmd)->d[0] ==
-					L3HDR(struct tcphdr,ip)->th_seq);
+					TCP(ulp)->th_seq);
 				break;
 
 			case O_TCPACK:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    ((ipfw_insn_u32 *)cmd)->d[0] ==
-					L3HDR(struct tcphdr,ip)->th_ack);
+					TCP(ulp)->th_ack);
 				break;
 
 			case O_TCPWIN:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    cmd->arg1 ==
-					L3HDR(struct tcphdr,ip)->th_win);
+				    cmd->arg1 == TCP(ulp)->th_win);
 				break;
 
 			case O_ESTAB:
 				/* reject packets which have SYN only */
 				/* XXX should i also check for TH_ACK ? */
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    (L3HDR(struct tcphdr,ip)->th_flags &
+				    (TCP(ulp)->th_flags &
 				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
 				break;
 
@@ -2437,7 +2454,7 @@ check_body:
 				if (dyn_dir == MATCH_UNKNOWN &&
 				    (q = lookup_dyn_rule(&args->f_id,
 				     &dyn_dir, proto == IPPROTO_TCP ?
-					L3HDR(struct tcphdr, ip) : NULL))
+					TCP(ulp) : NULL))
 					!= NULL) {
 					/*
 					 * Found dynamic entry, update stats
@@ -2518,7 +2535,7 @@ check_body:
 				 */
 				if (hlen > 0 &&
 				    (proto != IPPROTO_ICMP ||
-				     is_icmp_query(ip)) &&
+				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
 					send_reject(args, cmd->arg1,
