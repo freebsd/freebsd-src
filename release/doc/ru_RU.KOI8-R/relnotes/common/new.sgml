@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.26 2005/04/15 11:41:53 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.27 2005/04/15 13:13:30 den Exp $
 
      Original revision: 1.843
 -->
@@ -109,7 +109,7 @@
 
   <para>Обычно в информации о релизе последовательно включены
     последние сообщения безопасности, выпущенные после
-    &release.prev.historic;, информация о поддержки новых драйверов или
+    &release.prev.historic;, информация о поддержке новых драйверов или
     оборудования, новых команд или параметров, информация о основных
     исправлениях ошибок, или обновлениях стороннего программного
     обеспечения.  В нем могут также перечисляться изменения важнейших
