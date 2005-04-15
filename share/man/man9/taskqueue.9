@@ -231,6 +231,10 @@ The thread queue can be used, for instance, by interrupt level routines
 that need to call kernel functions that do things that can only be done
 from a thread context.
 (e.g., call malloc with the M_WAITOK flag.)
+.Sh SEE ALSO
+.Xr ithread 9 ,
+.Xr kthread 9 ,
+.Xr swi 9
 .Sh HISTORY
 This interface first appeared in
 .Fx 5.0 .
