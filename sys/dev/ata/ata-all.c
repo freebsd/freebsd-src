@@ -632,7 +632,7 @@ ata_identify(device_t dev)
     if (ch->devices & ATA_ATA_SLAVE) {
 	slave_res = ata_getparam(dev, slave, ATA_ATA_IDENTIFY);
 #ifdef ATA_STATIC_ID
-	slave_unit = (device_get_unit(parent) << 1) + 1;
+	slave_unit = (device_get_unit(dev) << 1) + 1;
 #endif
     }
     else if (ch->devices & ATA_ATAPI_SLAVE)
@@ -641,7 +641,7 @@ ata_identify(device_t dev)
     if (ch->devices & ATA_ATA_MASTER) {
 	master_res = ata_getparam(dev, master, ATA_ATA_IDENTIFY);
 #ifdef ATA_STATIC_ID
-	master_unit = (device_get_unit(parent) << 1);
+	master_unit = (device_get_unit(dev) << 1);
 #endif
     }
     else if (ch->devices & ATA_ATAPI_MASTER)
