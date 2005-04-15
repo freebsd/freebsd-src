@@ -48,41 +48,85 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-static int serv_stepping_yp = 0;
 #endif
-#include "libc_private.h"
+#include "namespace.h"
+#include "reentrant.h"
+#include "un-namespace.h"
+#include "netdb_private.h"
 
-#define	MAXALIASES	35
+static struct servdata servdata;
+static thread_key_t servdata_key;
+static once_t servdata_init_once = ONCE_INITIALIZER;
+static int servdata_thr_keycreated = 0;
 
-static FILE *servf = NULL;
-static char line[BUFSIZ+1];
-static struct servent serv;
-static char *serv_aliases[MAXALIASES];
-int _serv_stayopen;
+static void
+servent_data_clear(struct servent_data *sed)
+{
+	if (sed->fp) {
+		fclose(sed->fp);
+		sed->fp = NULL;
+	}
+	if (sed->key) {
+		free(sed->key);
+		sed->key = NULL;
+	}
+}
+
+static void
+servdata_free(void *ptr)
+{
+	struct servdata *sd = ptr;
+
+	if (sd == NULL)
+		return;
+	servent_data_clear(&sd->data);
+	free(sd);
+}
+
+static void
+servdata_keycreate(void)
+{
+	servdata_thr_keycreated =
+	    (thr_keycreate(&servdata_key, servdata_free) == 0);
+}
+
+struct servdata *
+_servdata_init(void)
+{
+	struct servdata *sd;
+
+	if (thr_main() != 0)
+		return (&servdata);
+	if (thr_once(&servdata_init_once, servdata_keycreate) != 0 ||
+	    !servdata_thr_keycreated)
+		return (NULL);
+	if ((sd = thr_getspecific(servdata_key)) != NULL)
+		return (sd);
+	if ((sd = calloc(1, sizeof(*sd))) == NULL)
+		return (NULL);
+	if (thr_setspecific(servdata_key, sd) == 0)
+		return (sd);
+	free(sd);
+	return (NULL);
+}
 
 #ifdef YP
-char *___getservbyname_yp = NULL;
-char *___getservbyproto_yp = NULL;
-int ___getservbyport_yp = 0;
-static char *yp_domain = NULL;
-
 static int
-_getservbyport_yp(line)
-	char *line;
+_getservbyport_yp(struct servent_data *sed)
 {
 	char *result;
 	int resultlen;
 	char buf[YPMAXRECORD + 2];
 	int rv;
 
-	snprintf(buf, sizeof(buf), "%d/%s", ntohs(___getservbyport_yp),
-						___getservbyproto_yp);
+	snprintf(buf, sizeof(buf), "%d/%s",
+	    ntohs(sed->getservbyport_yp), sed->getservbyproto_yp);
 
-	___getservbyport_yp = 0;
-	___getservbyproto_yp = NULL;
+	sed->getservbyport_yp = 0;
+	sed->getservbyproto_yp = NULL;
 
-	if(!yp_domain) {
-		if(yp_get_default_domain(&yp_domain))
+	if (!sed->yp_domain) {
+		if (yp_get_default_domain(&sed->yp_domain))
 			return (0);
 	}
 
@@ -95,10 +139,10 @@ _getservbyport_yp(line)
 	 * possibilities here: if there is no services.byport map, we try
 	 * services.byname instead.
 	 */
-	if ((rv = yp_match(yp_domain, "services.byport", buf, strlen(buf),
+	if ((rv = yp_match(sed->yp_domain, "services.byport", buf, strlen(buf),
 						&result, &resultlen))) {
 		if (rv == YPERR_MAP) {
-			if (yp_match(yp_domain, "services.byname", buf,
+			if (yp_match(sed->yp_domain, "services.byname", buf,
 					strlen(buf), &result, &resultlen))
 			return(0);
 		} else
@@ -106,80 +150,77 @@ _getservbyport_yp(line)
 	}
 		
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
 
 	free(result);
 	return(1);
 }
 
 static int
-_getservbyname_yp(line)
-	char *line;
+_getservbyname_yp(struct servent_data *sed)
 {
 	char *result;
 	int resultlen;
 	char buf[YPMAXRECORD + 2];
 
-	if(!yp_domain) {
-		if(yp_get_default_domain(&yp_domain))
+	if(!sed->yp_domain) {
+		if(yp_get_default_domain(&sed->yp_domain))
 			return (0);
 	}
 
-	snprintf(buf, sizeof(buf), "%s/%s", ___getservbyname_yp,
-						___getservbyproto_yp);
+	snprintf(buf, sizeof(buf), "%s/%s", sed->getservbyname_yp,
+	    sed->getservbyproto_yp);
 
-	___getservbyname_yp = 0;
-	___getservbyproto_yp = NULL;
+	sed->getservbyname_yp = 0;
+	sed->getservbyproto_yp = NULL;
 
-	if (yp_match(yp_domain, "services.byname", buf, strlen(buf),
-						&result, &resultlen)) {
+	if (yp_match(sed->yp_domain, "services.byname", buf, strlen(buf),
+	    &result, &resultlen)) {
 		return(0);
 	}
 		
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
 
 	free(result);
 	return(1);
 }
 
 static int
-_getservent_yp(line)
-	char *line;
+_getservent_yp(struct servent_data *sed)
 {
-	static char *key = NULL;
-	static int keylen;
 	char *lastkey, *result;
 	int resultlen;
 	int rv;
 
-	if(!yp_domain) {
-		if(yp_get_default_domain(&yp_domain))
+	if (!sed->yp_domain) {
+		if (yp_get_default_domain(&sed->yp_domain))
 			return (0);
 	}
 
-	if (!serv_stepping_yp) {
-		if (key)
-			free(key);
-		if ((rv = yp_first(yp_domain, "services.byname", &key, &keylen,
-			     &result, &resultlen))) {
-			serv_stepping_yp = 0;
+	if (!sed->stepping_yp) {
+		if (sed->key)
+			free(sed->key);
+		rv = yp_first(sed->yp_domain, "services.byname", &sed->key,
+		    &sed->keylen, &result, &resultlen);
+		if (rv) {
+			sed->stepping_yp = 0;
 			return(0);
 		}
-		serv_stepping_yp = 1;
+		sed->stepping_yp = 1;
 	} else {
-		lastkey = key;
-		rv = yp_next(yp_domain, "services.byname", key, keylen, &key,
-			     &keylen, &result, &resultlen);
+		lastkey = sed->key;
+		rv = yp_next(sed->yp_domain, "services.byname", sed->key,
+		    sed->keylen, &sed->key, &sed->keylen, &result, &resultlen);
 		free(lastkey);
 		if (rv) {
-			serv_stepping_yp = 0;
+			sed->stepping_yp = 0;
 			return (0);
 		}
 	}
 
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
 
 	free(result);
 
@@ -188,55 +229,54 @@ _getservent_yp(line)
 #endif
 
 void
-setservent(f)
-	int f;
+setservent_r(int f, struct servent_data *sed)
 {
-	if (servf == NULL)
-		servf = fopen(_PATH_SERVICES, "r" );
+	if (sed->fp == NULL)
+		sed->fp = fopen(_PATH_SERVICES, "r");
 	else
-		rewind(servf);
-	_serv_stayopen |= f;
+		rewind(sed->fp);
+	sed->stayopen |= f;
 }
 
 void
-endservent()
+endservent_r(struct servent_data *sed)
 {
-	if (servf) {
-		fclose(servf);
-		servf = NULL;
-	}
-	_serv_stayopen = 0;
+	servent_data_clear(sed);
+	sed->stayopen = 0;
+	sed->stepping_yp = 0;
+	sed->yp_domain = NULL;
 }
 
-struct servent *
-getservent()
+int
+getservent_r(struct servent *se, struct servent_data *sed)
 {
 	char *p;
-	char *cp, **q;
+	char *cp, **q, *endp;
+	long l;
 
 #ifdef YP
-	if (serv_stepping_yp && _getservent_yp(line)) {
-		p = (char *)&line;
+	if (sed->stepping_yp && _getservent_yp(sed)) {
+		p = sed->line;
 		goto unpack;
 	}
 tryagain:
 #endif
-	if (servf == NULL && (servf = fopen(_PATH_SERVICES, "r" )) == NULL)
-		return (NULL);
+	if (sed->fp == NULL && (sed->fp = fopen(_PATH_SERVICES, "r")) == NULL)
+		return (-1);
 again:
-	if ((p = fgets(line, BUFSIZ, servf)) == NULL)
-		return (NULL);
+	if ((p = fgets(sed->line, BUFSIZ, sed->fp)) == NULL)
+		return (-1);
 #ifdef YP
 	if (*p == '+' && _yp_check(NULL)) {
-		if (___getservbyname_yp != NULL) {
-			if (!_getservbyname_yp(line))
+		if (sed->getservbyname_yp != NULL) {
+			if (!_getservbyname_yp(sed))
 				goto tryagain;
 		} 
-		else if (___getservbyport_yp != 0) {
-			if (!_getservbyport_yp(line))
+		else if (sed->getservbyport_yp != 0) {
+			if (!_getservbyport_yp(sed))
 				goto tryagain;
 		}
-		else if (!_getservent_yp(line))
+		else if (!_getservent_yp(sed))
 			goto tryagain;
 	}
 unpack:
@@ -246,7 +286,7 @@ unpack:
 	cp = strpbrk(p, "#\n");
 	if (cp != NULL)
 		*cp = '\0';
-	serv.s_name = p;
+	se->s_name = p;
 	p = strpbrk(p, " \t");
 	if (p == NULL)
 		goto again;
@@ -257,9 +297,12 @@ unpack:
 	if (cp == NULL)
 		goto again;
 	*cp++ = '\0';
-	serv.s_port = htons((u_short)atoi(p));
-	serv.s_proto = cp;
-	q = serv.s_aliases = serv_aliases;
+	l = strtol(p, &endp, 10);
+	if (endp == p || *endp != '\0' || l < 0 || l > USHRT_MAX)
+		goto again;
+	se->s_port = htons((in_port_t)l);
+	se->s_proto = cp;
+	q = se->s_aliases = sed->aliases;
 	cp = strpbrk(cp, " \t");
 	if (cp != NULL)
 		*cp++ = '\0';
@@ -268,12 +311,44 @@ unpack:
 			cp++;
 			continue;
 		}
-		if (q < &serv_aliases[MAXALIASES - 1])
+		if (q < &sed->aliases[SERVENT_MAXALIASES - 1])
 			*q++ = cp;
 		cp = strpbrk(cp, " \t");
 		if (cp != NULL)
 			*cp++ = '\0';
 	}
 	*q = NULL;
-	return (&serv);
+	return (0);
+}
+
+void
+setservent(int f)
+{
+	struct servdata *sd;
+
+	if ((sd = _servdata_init()) == NULL)
+		return;
+	setservent_r(f, &sd->data);
+}
+
+void
+endservent(void)
+{
+	struct servdata *sd;
+
+	if ((sd = _servdata_init()) == NULL)
+		return;
+	endservent_r(&sd->data);
+}
+
+struct servent *
+getservent(void)
+{
+	struct servdata *sd;
+
+	if ((sd = _servdata_init()) == NULL)
+		return (NULL);
+	if (getservent_r(&sd->serv, &sd->data) != 0)
+		return (NULL);
+	return (&sd->serv);
 }
