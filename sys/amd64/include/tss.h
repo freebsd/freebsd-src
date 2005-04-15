@@ -57,9 +57,9 @@ struct amd64tss {
 	u_int64_t	tss_ist5 __packed;	/* Interrupt stack table 5 */
 	u_int64_t	tss_ist6 __packed;	/* Interrupt stack table 6 */
 	u_int64_t	tss_ist7 __packed;	/* Interrupt stack table 7 */
+	u_int32_t	tss_rsvd3;
 	u_int32_t	tss_rsvd4;
-	u_int32_t	tss_rsvd5;
-	u_int16_t	tss_rsvd6;
+	u_int16_t	tss_rsvd5;
 	u_int16_t	tss_iobase;	/* io bitmap offset */
 };
 
