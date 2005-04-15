@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.25 2005/03/22 07:45:00 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.26 2005/04/15 11:41:53 den Exp $
 
-     Original revision: 1.832
+     Original revision: 1.843
 -->
 
 <articleinfo>
@@ -135,6 +135,30 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       &merged;</para>
 
+    <para>В клиенте TELNET были исправлены две ошибки переполнения буфера.
+      Они могут позволить злонамеренному серверу TELNET или активному
+      атакующему в сети между клиентом и сервером заставить
+      &man.telnet.1; выполнить произвольный код с привилегиями пользователя,
+      запустившего клиент.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
+      &merged;</para>
+
+    <para>В системном вызове &man.sendfile.2; была исправлена ошибка,
+      связанная с раскрытием информации, которая могла позволить передачу
+      произвольных частей памяти ядра.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
+      &merged;</para>
+
+    <para>Было исправлено возможное расширение привилегий в &os;/amd64.
+      Ошибка позволяла непривилегированным пользователям получать прямой
+      доступ к некоторому оборудованию, доступ к которому не мог быть
+      получен без соответствующего уровня привилегий.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -160,7 +184,7 @@
       <username>root</username> внутри jail и вне jail не делается.
       &merged;</para>
 
-    <para arch="alpha,amd64,i386">Переменная загрузчика
+    <para arch="alpha,amd64,i386,sparc64">Переменная загрузчика
       <varname>debug.mpsafevm</varname> была включена по
       умолчанию.  &merged;</para>
 
@@ -379,6 +403,9 @@
 	<para>Драйвер &man.bge.4; теперь поддерживает инфраструктуру
 	  &man.altq.4;.</para>
 
+	<para>Был добавлен USB Communication Device Class Ethernet
+	  драйвер &man.cdce.4;. &merged;</para>
+
 	<para>Драйвер &man.cp.4; теперь MPSAFE. &merged;</para>
 
 	<para>Драйвер &man.ctau.4; теперь MPSAFE. &merged;</para>
@@ -404,6 +431,8 @@
 	  поддерживаемое им оборудование.</para>
 
 	<para>Драйвер &man.hme.4; теперь MPSAFE. &merged;</para>
+
+	<para>Драйвер &man.ixgb.4; теперь MPSAFE.</para>
 
 	<para arch="amd64">Конвертер драйверов устройств &man.ndis.4;
 	  теперь поддерживает бинарные файлы &windows;/x86-64 на системах
@@ -441,6 +470,9 @@
 	  Обратите внимание, что для WEP, в частности, необходима загрузка
 	  (или компиляция) модуля <filename>wlan_wep</filename>
 	  в ядро.</para>
+
+	<para>Драйвер &man.xl.4; теперь поддерживает
+	  &man.polling.4;.</para>
 
       </sect4>
     </sect3>
@@ -563,6 +595,10 @@
       <para>Драйвер &man.amr.4; теперь может безопасно использоваться
 	на системах с &man.pae.4;. &merged;</para>
 
+      <para arch="i386,ia64">Был добавлен драйвер &man.arcmsr.4;.
+	Он поддерживает контроллеры SATA RAID серий Areca ARC-11<replaceable>xx</replaceable>
+	и ARC-12<replaceable>xx</replaceable>.  &merged;</para>
+
       <para>Был добавлен класс SHSEC GEOM.  Он предоставлен для
 	разделения секретного ключа (<quote>secret</quote>)
 	между несколькими провайдерами GEOM.  Все эти провайдеры
@@ -680,11 +716,19 @@
     <para>Дисковый формат файлов <literal>LC_CTYPE</literal> был изменен
       к машино-независимому виду.</para>
 
+    <para>Была исправлена ошибка в библиотеке <filename>libalias</filename>,
+      приводившая к дампу памяти при указании в &man.natd.8;
+      опции <option>-reverse</option>.</para>
+
     <para>Библиотека <filename>libarchive</filename> (как и команда
       &man.tar.1;, ее использующая) теперь поддерживает чтение образов
       ISO (с опциональным расширением RockRidge) и архивов ZIP
       (со сжатием <literal>deflate</literal> и <literal>none</literal>).
       &merged;</para>
+
+    <para>Библиотека <filename>libarchive</filename> теперь поддерживает
+      ZIP архивы с вхождениями более 4GB в упакованном виде (расширение
+      ZIP64) и расширение Unix.</para>
 
     <para>Была добавлена библиотека <filename>libgpib</filename>,
       чтобы предоставить доступ уровня пользователя к устройствам
@@ -837,6 +881,13 @@
     <para>Утилиты &man.rescue.8; в каталоге <filename>/rescue</filename>
       теперь включают &man.bsdtar.1; вместо GNU tar.</para>
 
+    <para>Утилита &man.restore.8; опять может читать ленты с дампами
+      &os; версии 1.</para>
+
+    <para>Была исправлена ошибка в утилите &man.rexecd.8;, из-за
+      которой считалось, что опция <option>-i</option> всегда
+      указана.  &merged;</para>
+
     <para>Утилита &man.rm.1; теперь поддерживает параметр
       <option>-I</option>, с которым (однократно) запрашивается
       подтверждение при рекурсивном удалении каталогов или
@@ -913,7 +964,7 @@
 
     <para>Была исправлена ошибка чтения файлов конфигурации,
       таких как &man.hosts.5;, &man.services.5; и так далее, которые
-      не заканчивались символом новой строки.</para>
+      не заканчивались символом новой строки. &merged;</para>
 
     <sect3 id="rc-scripts">
       <title>Скрипты <filename>/etc/rc.d</filename></title>
@@ -957,7 +1008,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <title>Стороннее программное обеспечение</title>
 
     <para><application>BIND</application> был обновлен с версии
-      9.3.0 до версии 9.3.1.</para>
+      9.3.0 до версии 9.3.1. &merged;</para>
 
     <para><application>FILE</application> был обновлен с 4.10
       до 4.12.</para>
@@ -1045,7 +1096,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
       как установку с этого диска, так и восстановление после
       сбоев.  (На ia64, live filesystem находится на отдельном
       диске, поскольку не умещается на первый).  Пакеты помещаются
-      на отдельный диск. &merged;</para>
+      на отдельный диск; в частности, образ <filename>disc2</filename>
+      содержит общеиспользуемые пакеты, такие как десктоп-приложения.
+      Документы Проекта документирования &os; также помещаются на
+      <filename>disc2</filename>. &merged;</para>
 
     <para>Поддерживаемая версия десктопа
       <application>GNOME</application> была обновлена с
@@ -1112,7 +1166,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       &man.inet6.rth.space.3;,
       &man.inet6.rthdr.space.3;,
       &man.icmp6.4; и
-      &man.ip6.4;.</para>
+      &man.ip6.4;.  &merged;</para>
 
   </sect2>
 
