@@ -54,5 +54,4 @@ PPC_DEBUG		opt_ppc.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
-NO_MIXED_MODE
 DEV_ATPIC		opt_atpic.h
