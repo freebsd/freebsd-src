@@ -73,6 +73,7 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
+	ch->dir = dir;
 
 	pa_dev = device_get_parent(sc->sc_dev);
      	/* Create ua_playfmt[] & ua_recfmt[] */
@@ -89,7 +90,7 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 
 	buf = end = sndbuf_getbuf(b);
 	end += sndbuf_getsize(b);
-	uaudio_chan_set_param_pcm_dma_buff(pa_dev, buf, end, ch->channel);
+	uaudio_chan_set_param_pcm_dma_buff(pa_dev, buf, end, ch->channel, dir);
 
 	ch->dir = dir;
 #ifndef NO_RECORDING
@@ -113,7 +114,7 @@ ua_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_format(pa_dev, format);
+	uaudio_chan_set_param_format(pa_dev, format, ch->dir);
 
 	ch->fmt = format;
 	return 0;
@@ -130,7 +131,7 @@ ua_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_speed(pa_dev, speed);
+	uaudio_chan_set_param_speed(pa_dev, speed, ch->dir);
 
 	return ch->spd;
 }
@@ -151,7 +152,7 @@ ua_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	/* XXXXX */
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_blocksize(pa_dev, blocksize);
+	uaudio_chan_set_param_blocksize(pa_dev, blocksize, ch->dir);
 
 	return ch->blksz;
 }
@@ -198,7 +199,7 @@ ua_chan_getptr(kobj_t obj, void *data)
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
 
-	return uaudio_chan_getptr(pa_dev);
+	return uaudio_chan_getptr(pa_dev, ch->dir);
 }
 
 static struct pcmchan_caps *
@@ -235,6 +236,9 @@ ua_mixer_init(struct snd_mixer *m)
 	mask = uaudio_query_mix_info(pa_dev);
 	mix_setdevs(m,	mask);
 
+	mask = uaudio_query_recsrc_info(pa_dev);
+	mix_setrecdevs(m, mask);
+
 	return 0;
 }
 
@@ -253,7 +257,11 @@ ua_mixer_set(struct snd_mixer *m, unsigned type, unsigned left, unsigned right)
 static int
 ua_mixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
-	return src;
+	device_t pa_dev;
+	struct ua_info *ua = mix_getdevinfo(m);
+
+	pa_dev = device_get_parent(ua->sc_dev);
+	return uaudio_mixer_setrecsrc(pa_dev, src);
 }
 
 static kobj_method_t ua_mixer_methods[] = {
@@ -306,7 +314,7 @@ ua_attach(device_t dev)
 				/*highaddr*/BUS_SPACE_MAXADDR,
 				/*filter*/NULL, /*filterarg*/NULL,
 				/*maxsize*/bufsz, /*nsegments*/1,
-				/*maxsegz*/0x3fff, /*flags*/0,
+				/*maxsegz*/0x4000, /*flags*/0,
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/&Giant,
 				&ua->parent_dmat) != 0) {
@@ -320,7 +328,11 @@ ua_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "at addr ?");
 
+#ifndef NO_RECORDING
+	if (pcm_register(dev, ua, 1, 1)) {
+#else
 	if (pcm_register(dev, ua, 1, 0)) {
+#endif
 		return(ENXIO);
 	}
 
