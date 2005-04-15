@@ -62,16 +62,16 @@ static int afd_test_ready(device_t);
 /* internal vars */
 static MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
-static void
-afd_identify(driver_t *driver, device_t parent)
-{
-    ata_identify(driver, parent, ATA_ATAPI_TYPE_DIRECT, "afd");
-}
-
 static int 
 afd_probe(device_t dev)
 {
-    return 0;
+    struct ata_device *atadev = device_get_softc(dev);
+
+    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
+	(atadev->param.config & ATA_ATAPI_TYPE_MASK) == ATA_ATAPI_TYPE_DIRECT)
+	return 0;  
+    else
+	return ENXIO;
 }
 
 static int 
@@ -83,8 +83,6 @@ afd_attach(device_t dev)
 
     if (!(fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO))) {
 	device_printf(dev, "out of memory\n");
-	device_set_softc(dev, NULL);
-	free(atadev, M_ATA);
 	return ENOMEM;
     }
     device_set_ivars(dev, fdp);
@@ -93,8 +91,6 @@ afd_attach(device_t dev)
     if (afd_sense(dev)) {
 	device_set_ivars(dev, NULL);
 	free(fdp, M_AFD);
-	device_set_softc(dev, NULL); 
-	free(atadev, M_ATA);  
 	return ENXIO;
     }
     atadev->flags |= ATA_D_MEDIA_CHANGED;
@@ -122,7 +118,6 @@ static int
 afd_detach(device_t dev)
 {   
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
     struct afd_softc *fdp = device_get_ivars(dev);
     
     /* detroy disk from the system so we dont get any further requests */
@@ -134,8 +129,6 @@ afd_detach(device_t dev)
     /* dont leave anything behind */
     device_set_ivars(dev, NULL);
     free(fdp, M_AFD);
-    device_set_softc(dev, NULL);
-    free(atadev, M_ATA);
     return 0;
 }
 
@@ -400,7 +393,6 @@ afd_describe(device_t dev)
 
 static device_method_t afd_methods[] = {
     /* device interface */
-    DEVMETHOD(device_identify,  afd_identify),
     DEVMETHOD(device_probe,     afd_probe),
     DEVMETHOD(device_attach,    afd_attach),
     DEVMETHOD(device_detach,    afd_detach),
@@ -420,23 +412,7 @@ static driver_t afd_driver = {
 
 static devclass_t afd_devclass;
 
-static int
-afd_modevent(module_t mod, int what, void *arg)  
-{
-    device_t *devs;
-    int ndevs, i;
-
-    if (what == MOD_UNLOAD) {
-	if (!devclass_get_devices(afd_devclass, &devs, &ndevs) && devs) {
-	    for (i = 0; i < ndevs; i++)  
-		device_delete_child(device_get_parent(devs[i]), devs[i]);
-	    free(devs, M_TEMP);
-	}
-    }
-    return 0;
-}
-
-DRIVER_MODULE(afd, ata, afd_driver, afd_devclass, afd_modevent, NULL);
+DRIVER_MODULE(afd, ata, afd_driver, afd_devclass, NULL, NULL);
 MODULE_VERSION(afd, 1);
 MODULE_DEPEND(afd, ata, 1, 1, 1);
 
