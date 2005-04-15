@@ -624,7 +624,7 @@ sched_setup(void *dummy)
 /* External interfaces start here */
 /*
  * Very early in the boot some setup of scheduler-specific
- * parts of proc0 and of soem scheduler resources needs to be done.
+ * parts of proc0 and of some scheduler resources needs to be done.
  * Called from:
  *  proc0_init()
  */
