@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2001-2005 Marcel Moolenaar
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -22,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_kstack_pages.h"
 
@@ -104,16 +106,16 @@ ia64_ap_startup(void)
 
 	__asm __volatile("ssm psr.i;; srlz.d;;");
 
+	/* Initialize curthread. */
+	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	PCPU_SET(curthread, PCPU_GET(idlethread));
+
 	/*
 	 * Get and save the CPU specific MCA records. Should we get the
 	 * MCA state for each processor, or just the CMC state?
 	 */
 	ia64_mca_save_state(SAL_INFO_MCA);
 	ia64_mca_save_state(SAL_INFO_CMC);
-
-	/* Initialize curthread. */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
-	PCPU_SET(curthread, PCPU_GET(idlethread));
 
 	ap_awake++;
 	while (!smp_started)
