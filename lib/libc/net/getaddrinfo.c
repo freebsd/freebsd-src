@@ -66,7 +66,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -285,14 +284,6 @@ static int res_queryN(const char *, struct res_target *);
 static int res_searchN(const char *, struct res_target *);
 static int res_querydomainN(const char *, const char *,
 	struct res_target *);
-
-/*
- * XXX: Many dependencies are not thread-safe.  Still, we cannot use
- * getaddrinfo() in conjunction with other functions which call them.
- */
-static mutex_t _getaddrinfo_thread_lock = MUTEX_INITIALIZER;
-#define THREAD_LOCK()	mutex_lock(&_getaddrinfo_thread_lock);
-#define THREAD_UNLOCK()	mutex_unlock(&_getaddrinfo_thread_lock);
 
 /* XXX macros that make external reference is BAD. */
 
@@ -1441,13 +1432,9 @@ get_port(ai, servname, matchonly)
 			break;
 		}
 
-		THREAD_LOCK();
-		if ((sp = getservbyname(servname, proto)) == NULL) {
-			THREAD_UNLOCK();
+		if ((sp = getservbyname(servname, proto)) == NULL)
 			return EAI_SERVICE;
-		}
 		port = sp->s_port;
-		THREAD_UNLOCK();
 	}
 
 	if (!matchonly) {
