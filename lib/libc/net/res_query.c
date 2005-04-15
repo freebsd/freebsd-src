@@ -97,6 +97,8 @@ __FBSDID("$FreeBSD$");
 #define MAXPACKET	1024
 #endif
 
+const char *_res_hostalias(const char *, char *, size_t);
+
 /*
  * Formulate a normal query, send, and await answer.
  * Returned answer is placed in supplied buffer "answer".
@@ -193,6 +195,7 @@ res_search(name, class, type, answer, anslen)
 	int anslen;		/* size of answer */
 {
 	const char *cp, * const *domain;
+	char tmp[MAXDNAME];
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
@@ -211,7 +214,7 @@ res_search(name, class, type, answer, anslen)
 		trailing_dot++;
 
 	/* If there aren't any dots, it could be a user-level alias */
-	if (!dots && (cp = hostalias(name)) != NULL)
+	if (!dots && (cp = _res_hostalias(name, tmp, sizeof tmp)) != NULL)
 		return (res_query(cp, class, type, answer, anslen));
 
 	/*
@@ -384,14 +387,11 @@ res_querydomain(name, domain, class, type, answer, anslen)
 }
 
 const char *
-hostalias(name)
-	const char *name;
+_res_hostalias(const char *name, char *dst, size_t siz)
 {
-	char *cp1, *cp2;
-	FILE *fp;
-	char *file;
+	char *file, *cp1, *cp2;
 	char buf[BUFSIZ];
-	static char abuf[MAXDNAME];
+	FILE *fp;
 
 	if (_res.options & RES_NOALIASES)
 		return (NULL);
@@ -413,16 +413,26 @@ hostalias(name)
 				;
 			if (!*cp1)
 				break;
-			for (cp2 = cp1 + 1; *cp2 && !isspace((unsigned char)*cp2); ++cp2)
+			for (cp2 = cp1 + 1; *cp2 &&
+			     !isspace((unsigned char)*cp2); ++cp2)
 				;
-			abuf[sizeof(abuf) - 1] = *cp2 = '\0';
-			strncpy(abuf, cp1, sizeof(abuf) - 1);
+			*cp2 = '\0';
+			strncpy(dst, cp1, siz - 1);
+			dst[siz - 1] = '\0';
 			fclose(fp);
-			return (abuf);
+			return (dst);
 		}
 	}
 	fclose(fp);
 	return (NULL);
+}
+
+const char *
+hostalias(const char *name)
+{
+	static char abuf[MAXDNAME];
+
+	return (_res_hostalias(name, abuf, sizeof abuf));
 }
 
 /*
