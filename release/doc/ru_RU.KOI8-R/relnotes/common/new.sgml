@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.39
+     Original revision: 1.761.2.41
 -->
 
 <articleinfo>
@@ -209,6 +209,9 @@
       <sect4 id="net-if">
 	<title>Поддержка сетевых интерфейсов</title>
 
+	<para>Был добавлен USB Communication Device Class Ethernet
+	  драйвер &man.cdce.4;.</para>
+
 	<para>Драйвер &man.cp.4; теперь MPSAFE.</para>
 
 	<para>Драйвер &man.ctau.4; теперь MPSAFE.</para>
@@ -324,6 +327,10 @@
 
       <para>Драйвер &man.amr.4; теперь может безопасно использоваться
 	на системах с &man.pae.4;.</para>
+
+      <para arch="i386,ia64">Был добавлен драйвер &man.arcmsr.4;.
+	Он поддерживает контроллеры SATA RAID серий Areca ARC-11<replaceable>xx</replaceable>
+	и ARC-12<replaceable>xx</replaceable>.</para>
 
       <para>Был добавлен драйвер &man.hptmv.4;, поддерживающий
 	HighPoint RocketRAID 182x series.</para>
@@ -619,7 +626,10 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
       как установку с этого диска, так и восстановление после
       сбоев.  (На ia64, live filesystem находится на отдельном
       диске, поскольку не умещается на первый).  Пакеты помещаются
-      на отдельный диск.</para>
+      на отдельный диск; в частности, образ <filename>disc2</filename>
+      содержит общеиспользуемые пакеты, такие как десктоп-приложения.
+      Документы Проекта документирования &os; также помещаются на
+      <filename>disc2</filename>.</para>
 
     <para>Поддерживаемая версия десктопа
       <application>GNOME</application> была обновлена с
