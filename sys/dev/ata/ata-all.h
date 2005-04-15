@@ -452,7 +452,6 @@ int ata_detach(device_t dev);
 int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
-void ata_identify(driver_t *driver, device_t parent, int type, const char *name);
 void ata_default_registers(struct ata_channel *ch);
 void ata_udelay(int interval);
 char *ata_mode2str(int mode);

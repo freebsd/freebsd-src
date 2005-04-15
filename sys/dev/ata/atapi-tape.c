@@ -87,16 +87,16 @@ static int ast_wait_dsc(device_t, int);
 static u_int64_t ast_total = 0;
 static MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
-static void
-ast_identify(driver_t *driver, device_t parent)
-{
-    ata_identify(driver, parent, ATA_ATAPI_TYPE_TAPE, "ast");
-}
-
 static int
 ast_probe(device_t dev)
 {
-    return 0;
+    struct ata_device *atadev = device_get_softc(dev);
+
+    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
+	(atadev->param.config & ATA_ATAPI_TYPE_MASK) == ATA_ATAPI_TYPE_TAPE)
+	return 0;
+    else
+	return ENXIO;
 }
 
 static int
@@ -110,8 +110,6 @@ ast_attach(device_t dev)
 
     if (!(stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO))) {
 	device_printf(dev, "out of memory\n");
-	device_set_softc(dev, NULL);
-	free(atadev, M_ATA);
 	return ENOMEM;
     }
     device_set_ivars(dev, stp);
@@ -120,8 +118,6 @@ ast_attach(device_t dev)
     if (ast_sense(dev)) {
 	device_set_ivars(dev, NULL);
 	free(stp, M_AST);
-	device_set_softc(dev, NULL);
-	free(atadev, M_ATA);
 	return ENXIO;
     }
     if (!strcmp(atadev->param.model, "OnStream DI-30")) {
@@ -172,7 +168,6 @@ static int
 ast_detach(device_t dev)
 {   
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
     struct ast_softc *stp = device_get_ivars(dev);
     
     /* detroy devices from the system so we dont get any further requests */
@@ -186,8 +181,6 @@ ast_detach(device_t dev)
     devstat_remove_entry(stp->stats);
     device_set_ivars(dev, NULL);
     free(stp, M_AST);
-    device_set_softc(dev, NULL);
-    free(atadev, M_ATA);
     return 0;
 }
 
@@ -752,7 +745,6 @@ ast_describe(device_t dev)
 
 static device_method_t ast_methods[] = {
     /* device interface */
-    DEVMETHOD(device_identify,  ast_identify),
     DEVMETHOD(device_probe,     ast_probe),
     DEVMETHOD(device_attach,    ast_attach),
     DEVMETHOD(device_detach,    ast_detach),
@@ -772,22 +764,6 @@ static driver_t ast_driver = {
 
 static devclass_t ast_devclass;
 
-static int
-ast_modevent(module_t mod, int what, void *arg)  
-{
-    device_t *devs;
-    int ndevs, i;
-
-    if (what == MOD_UNLOAD) {
-	if (!devclass_get_devices(ast_devclass, &devs, &ndevs) && devs) {
-	    for (i = 0; i < ndevs; i++)  
-		device_delete_child(device_get_parent(devs[i]), devs[i]);
-	    free(devs, M_TEMP);
-	}
-    }
-    return 0;
-}
-	    
-DRIVER_MODULE(ast, ata, ast_driver, ast_devclass, ast_modevent, NULL);
+DRIVER_MODULE(ast, ata, ast_driver, ast_devclass, NULL, NULL);
 MODULE_VERSION(ast, 1);
 MODULE_DEPEND(ast, ata, 1, 1, 1);
