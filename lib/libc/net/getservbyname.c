@@ -39,43 +39,51 @@ __FBSDID("$FreeBSD$");
 
 #include <netdb.h>
 #include <string.h>
+#include "netdb_private.h"
 
-extern int _serv_stayopen;
-
-struct servent *
-getservbyname(name, proto)
-	const char *name, *proto;
+int
+getservbyname_r(const char *name, const char *proto, struct servent *se,
+    struct servent_data *sed)
 {
-	struct servent *p;
 	char **cp;
+	int error;
 
 #ifdef YP
-	extern char *___getservbyname_yp;
-	extern char *___getservbyproto_yp;
-
-	___getservbyname_yp = (char *)name;
-	___getservbyproto_yp = (char *)proto;
+	sed->getservbyname_yp = (char *)name;
+	sed->getservbyproto_yp = (char *)proto;
 #endif
 
-	setservent(_serv_stayopen);
-	while ( (p = getservent()) ) {
-		if (strcmp(name, p->s_name) == 0)
+	setservent_r(sed->stayopen, sed);
+	while ((error = getservent_r(se, sed)) == 0) {
+		if (strcmp(name, se->s_name) == 0)
 			goto gotname;
-		for (cp = p->s_aliases; *cp; cp++)
+		for (cp = se->s_aliases; *cp; cp++)
 			if (strcmp(name, *cp) == 0)
 				goto gotname;
 		continue;
 gotname:
-		if (proto == 0 || strcmp(p->s_proto, proto) == 0)
+		if (proto == 0 || strcmp(se->s_proto, proto) == 0)
 			break;
 	}
-	if (!_serv_stayopen)
-		endservent();
+	if (!sed->stayopen)
+		endservent_r(sed);
 
 #ifdef YP
-	___getservbyname_yp = NULL;
-	___getservbyproto_yp = NULL;
+	sed->getservbyname_yp = NULL;
+	sed->getservbyproto_yp = NULL;
 #endif
 
-	return (p);
+	return (error);
+}
+
+struct servent *
+getservbyname(const char *name, const char *proto)
+{
+	struct servdata *sd;
+
+	if ((sd = _servdata_init()) == NULL)
+		return (NULL);
+	if (getservbyname_r(name, proto, &sd->serv, &sd->data) != 0)
+		return (NULL);
+	return (&sd->serv);
 }
