@@ -196,6 +196,12 @@ Flag variables for export when assignments are made to them.
 Enable asynchronous notification of background job
 completion.
 (UNIMPLEMENTED)
+.It Fl c Li string
+Read commands from the
+.Ar string
+operand instead of from the standard input.
+Keep in mind that this option only accepts a single string as its
+argument, hence multi-word strings must be quoted.
 .It Fl C Li noclobber
 Do not overwrite existing files with
 .Dq Li > .
@@ -301,13 +307,6 @@ Write each command
 to standard error before it is executed.
 Useful for debugging.
 .El
-.Pp
-The
-.Fl c
-option may be used to pass its string argument to the shell
-to be interpreted as input.
-Keep in mind that this option only accepts a single string as its
-argument, hence multi-word strings must be quoted.
 .Pp
 The
 .Fl /+o
@@ -1643,9 +1642,9 @@ the string form of the first operand cannot contain an embedded equal sign.
 .Pp
 The following environment variables affect the execution of
 .Ic fc :
-.Bl -tag -width indent
+.Bl -tag -width ".Ev HISTSIZE"
 .It Ev FCEDIT
-Name of the editor to use.
+Name of the editor to use for history editing.
 .It Ev HISTSIZE
 The number of previous commands that are accessible.
 .El
@@ -2051,12 +2050,86 @@ file will be aborted.
 Otherwise the shell will return the exit status of the last command
 executed, or if the exit builtin is used with a numeric argument, it
 will return the argument.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev HISTSIZE"
+.It Ev CDPATH
+The search path used with the
+.Ic cd
+built-in.
+.It Ev EDITOR
+The fallback editor used with the
+.Ic fc
+built-in.
+If not set, the default editor is
+.Xr ed 1 .
+.It Ev FCEDIT
+The default editor used with the
+.Ic fc
+built-in.
+.It Ev HISTSIZE
+The number of previous commands that are accessible.
+.It Ev HOME
+The starting directory of
+.Nm .
+.It Ev IFS
+Input Field Separators.
+This is normally set to
+.Aq space ,
+.Aq tab ,
+and
+.Aq newline .
+See the
+.Sx White Space Splitting
+section for more details.
+.It Ev MAIL
+The name of a mail file, that will be checked for the arrival of new
+mail.
+Overridden by
+.Ev MAILPATH .
+.It Ev MAILPATH
+A colon
+.Pq Ql \&:
+separated list of file names, for the shell to check for incoming
+mail.
+This environment setting overrides the
+.Ev MAIL
+setting.
+There is a maximum of 10 mailboxes that can be monitored at once.
+.It Ev PATH
+The default search path for executables.
+See the
+.Sx Path Search
+section for details.
+.It Ev PS1
+The primary prompt string, which defaults to
+.Dq $ \  ,
+unless you are the superuser, in which case it defaults to
+.Dq # \  .
+.It Ev PS2
+The secondary prompt string, which defaults to
+.Dq \*[Gt] \  .
+.It Ev TERM
+The default terminal setting for the shell.
+This is inherited by children of the shell, and is used in the history
+editing modes.
+.El
 .Sh SEE ALSO
 .Xr builtin 1 ,
+.Xr chsh 1 ,
 .Xr echo 1 ,
+.Xr ed 1 ,
+.Xr emacs 1 ,
 .Xr expr 1 ,
+.Xr getopt 1 ,
 .Xr pwd 1 ,
-.Xr test 1
+.Xr test 1 ,
+.Xr umask 2 ,
+.Xr vi 1 ,
+.Xr execve 2 ,
+.Xr getrlimit 2 ,
+.Xr editrc 5
 .Sh HISTORY
 A
 .Nm
