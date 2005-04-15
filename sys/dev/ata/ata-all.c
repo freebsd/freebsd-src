@@ -68,7 +68,8 @@ static struct cdevsw ata_cdevsw = {
 /* prototypes */
 static void ata_interrupt(void *);
 static void ata_boot_attach(void);
-device_t ata_add_child(driver_t *driver, device_t parent, struct ata_device *atadev, const char *name, int unit);
+device_t ata_add_child(device_t parent, struct ata_device *atadev, int unit);
+static int ata_identify(device_t dev);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
@@ -147,8 +148,7 @@ ata_attach(device_t dev)
 	return 0;
 
     /* probe and attach devices on this channel */
-    bus_generic_probe(dev);
-    bus_generic_attach(dev);
+    ata_identify(dev);
     return 0;
 }
 
@@ -170,9 +170,6 @@ ata_detach(device_t dev)
 		device_delete_child(dev, children[i]);
 	free(children, M_TEMP);
     } 
-
-    /* fail outstanding requests on this channel (SOS shouldn't be any XXX ) */
-    ata_fail_requests(ch, NULL);
 
     /* release resources */
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
@@ -558,8 +555,7 @@ ata_boot_attach(void)
     /* kick of probe and attach on all channels */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
 	if ((ch = devclass_get_softc(ata_devclass, ctlr))) {
-	    bus_generic_probe(ch->dev);
-	    bus_generic_attach(ch->dev);
+	    ata_identify(ch->dev);
 	}
     }
 }
@@ -568,16 +564,14 @@ ata_boot_attach(void)
  * misc support functions
  */
 device_t
-ata_add_child(driver_t *driver, device_t parent, struct ata_device *atadev,
-	      const char *name, int unit)
+ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
     struct ata_channel *ch = device_get_softc(parent);
     device_t child;
 
-    if ((child = device_add_child(parent, name, unit))) {
+    if ((child = device_add_child(parent, NULL, unit))) {
 	char buffer[64];
 
-	device_set_driver(child, driver);
 	device_set_softc(child, atadev);
 	sprintf(buffer, "%.40s/%.8s",
 		atadev->param.model, atadev->param.revision);
@@ -586,7 +580,7 @@ ata_add_child(driver_t *driver, device_t parent, struct ata_device *atadev,
 	atadev->dev = child;
 	atadev->max_iosize = DEV_BSIZE;
 	atadev->mode = ATA_PIO_MAX;
-	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12) {
+	if (atadev->param.config & ATA_PROTO_ATAPI) {
 	    if (atapi_dma && ch->dma && 
 		(atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
 		ata_umode(&atadev->param) >= ATA_UDMA2) 
@@ -600,30 +594,30 @@ ata_add_child(driver_t *driver, device_t parent, struct ata_device *atadev,
     return child;
 }
 
-void
-ata_identify(driver_t *driver, device_t parent, int type, const char *name)
+static int
+ata_identify(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *master, *slave;
     int master_res = EIO, slave_res = EIO, master_unit = -1, slave_unit = -1;
 
     if (!(master = malloc(sizeof(struct ata_device),
 			  M_ATA, M_NOWAIT | M_ZERO))) {
-	device_printf(parent, "out of memory\n");
-	return;
+	device_printf(dev, "out of memory\n");
+	return ENOMEM;
     }
     master->unit = ATA_MASTER;
     if (!(slave = malloc(sizeof(struct ata_device),
 			 M_ATA, M_NOWAIT | M_ZERO))) {
 	free(master, M_ATA);
-	device_printf(parent, "out of memory\n");
-	return;
+	device_printf(dev, "out of memory\n");
+	return ENOMEM;
     }
     slave->unit = ATA_SLAVE;
 
     /* wait for the channel to be IDLE then grab it before touching HW */
-    while (ATA_LOCKING(parent, ATA_LF_LOCK) != ch->unit)
-	tsleep(ch, PRIBIO, "ataidnt2", 1);
+    while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
+	tsleep(ch, PRIBIO, "ataidnt1", 1);
     while (1) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
@@ -632,40 +626,41 @@ ata_identify(driver_t *driver, device_t parent, int type, const char *name)
 	    break;
 	}
 	mtx_unlock(&ch->state_mtx);
-	tsleep(ch, PRIBIO, "ataidnt1", 1);
+	tsleep(ch, PRIBIO, "ataidnt2", 1);
     }
 
-    if (type < 0) {
-	if (ch->devices & ATA_ATA_SLAVE)
-	    slave_res = ata_getparam(parent, slave, ATA_ATA_IDENTIFY);
-	if (ch->devices & ATA_ATA_MASTER)
-	    master_res = ata_getparam(parent, master, ATA_ATA_IDENTIFY);
+    if (ch->devices & ATA_ATA_SLAVE) {
+	slave_res = ata_getparam(dev, slave, ATA_ATA_IDENTIFY);
 #ifdef ATA_STATIC_ID
-	master_unit = (device_get_unit(parent) << 1);
 	slave_unit = (device_get_unit(parent) << 1) + 1;
 #endif
     }
-    else {
-	if (ch->devices & ATA_ATAPI_SLAVE)
-	    slave_res = ata_getparam(parent, slave, ATA_ATAPI_IDENTIFY);
-	if (ch->devices & ATA_ATAPI_MASTER)
-	    master_res = ata_getparam(parent, master, ATA_ATAPI_IDENTIFY);
-    }
+    else if (ch->devices & ATA_ATAPI_SLAVE)
+	slave_res = ata_getparam(dev, slave, ATA_ATAPI_IDENTIFY);
 
-    if (master_res ||
-	!(type < 0 || (master->param.config & ATA_ATAPI_TYPE_MASK) == type) ||
-	!ata_add_child(driver, parent, master, name, master_unit))
+    if (ch->devices & ATA_ATA_MASTER) {
+	master_res = ata_getparam(dev, master, ATA_ATA_IDENTIFY);
+#ifdef ATA_STATIC_ID
+	master_unit = (device_get_unit(parent) << 1);
+#endif
+    }
+    else if (ch->devices & ATA_ATAPI_MASTER)
+	master_res = ata_getparam(dev, master, ATA_ATAPI_IDENTIFY);
+
+    if (master_res || !ata_add_child(dev, master, master_unit))
 	free(master, M_ATA);
     
-    if (slave_res ||
-	!(type < 0 || (slave->param.config & ATA_ATAPI_TYPE_MASK) == type) ||
-	!ata_add_child(driver, parent, slave, name, slave_unit))
+    if (slave_res || !ata_add_child(dev, slave, slave_unit))
 	free(slave, M_ATA);
 
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
-    ATA_LOCKING(parent, ATA_LF_UNLOCK);
+    ATA_LOCKING(dev, ATA_LF_UNLOCK);
+
+    bus_generic_probe(dev);
+    bus_generic_attach(dev);
+    return 0;
 }
 
 void
