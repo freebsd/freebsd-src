@@ -66,16 +66,15 @@ static dumper_t ad_dump;
 /* local vars */
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
-static void
-ad_identify(driver_t *driver, device_t parent)
-{
-    ata_identify(driver, parent, -1, "ad");
-}
-
 static int
 ad_probe(device_t dev)
 {
-    return 0;
+    struct ata_device *atadev = device_get_softc(dev);
+
+    if (!(atadev->param.config & ATA_PROTO_ATAPI))
+	return 0;
+    else
+	return ENXIO;
 }
 
 static int
@@ -93,8 +92,6 @@ ad_attach(device_t dev)
 
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
 	device_printf(dev, "out of memory\n");
-	device_set_softc(dev, NULL);
-	free(atadev, M_ATA);
 	return ENOMEM;
     }
     device_set_ivars(dev, adp);
@@ -161,7 +158,6 @@ static int
 ad_detach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
     struct ad_softc *adp = device_get_ivars(dev);
     device_t *children;
     int nchildren, i;
@@ -187,8 +183,6 @@ ad_detach(device_t dev)
     /* dont leave anything behind */
     device_set_ivars(dev, NULL);
     free(adp, M_AD);
-    device_set_softc(dev, NULL);
-    free(atadev, M_ATA);
     return 0;
 }
 
@@ -419,7 +413,6 @@ ad_version(u_int16_t version)
 
 static device_method_t ad_methods[] = {
     /* device interface */
-    DEVMETHOD(device_identify,  ad_identify),
     DEVMETHOD(device_probe,     ad_probe),
     DEVMETHOD(device_attach,    ad_attach),
     DEVMETHOD(device_detach,    ad_detach),
@@ -439,22 +432,6 @@ static driver_t ad_driver = {
 
 devclass_t ad_devclass;
 
-static int
-ad_modevent(module_t mod, int what, void *arg)
-{
-    device_t *devs;
-    int ndevs, i;
-
-    if (what == MOD_UNLOAD) {
-	if (!devclass_get_devices(ad_devclass, &devs, &ndevs) && devs) {
-	    for (i = 0; i < ndevs; i++)
-		device_delete_child(device_get_parent(devs[i]), devs[i]);
-	    free(devs, M_TEMP);
-	}
-    }
-    return 0;
-}
-
-DRIVER_MODULE(ad, ata, ad_driver, ad_devclass, ad_modevent, NULL);
+DRIVER_MODULE(ad, ata, ad_driver, ad_devclass, NULL, NULL);
 MODULE_VERSION(ad, 1);
 MODULE_DEPEND(ad, ata, 1, 1, 1);

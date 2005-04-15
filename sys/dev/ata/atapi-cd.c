@@ -104,28 +104,25 @@ static struct g_class acd_class = {
 };
 //DECLARE_GEOM_CLASS(acd_class, acd);
 
-static void
-acd_identify(driver_t *driver, device_t parent)
-{
-    ata_identify(driver, parent, ATA_ATAPI_TYPE_CDROM, "acd");
-}
-
 static int
 acd_probe(device_t dev)
 {
-    return 0;
+    struct ata_device *atadev = device_get_softc(dev);
+
+    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
+	(atadev->param.config & ATA_ATAPI_TYPE_MASK) == ATA_ATAPI_TYPE_CDROM)
+	return 0;
+    else
+	return ENXIO;
 }
 
 static int
 acd_attach(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct acd_softc *cdp;
 
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO))) {
 	device_printf(dev, "out of memory\n");
-	device_set_softc(dev, NULL);
-	free(atadev, M_ATA);
 	return ENOMEM;
     }
     cdp->block_size = 2048;
@@ -196,7 +193,6 @@ static void
 acd_geom_detach(void *arg, int flag)
 {   
     struct ata_channel *ch = device_get_softc(device_get_parent(arg));
-    struct ata_device *atadev = device_get_softc(arg);
     struct acd_softc *cdp = device_get_ivars(arg);
 
     /* signal geom so we dont get any further requests */
@@ -208,8 +204,6 @@ acd_geom_detach(void *arg, int flag)
     /* dont leave anything behind */
     device_set_ivars(arg, NULL);
     free(cdp, M_ACD);
-    device_set_softc(arg, NULL);
-    free(atadev, M_ATA);
 }
 
 static int 
@@ -1920,7 +1914,6 @@ acd_describe(device_t dev)
 
 static device_method_t acd_methods[] = {
     /* device interface */
-    DEVMETHOD(device_identify,  acd_identify),
     DEVMETHOD(device_probe,     acd_probe),
     DEVMETHOD(device_attach,    acd_attach),
     DEVMETHOD(device_detach,    acd_detach),
@@ -1943,20 +1936,7 @@ static devclass_t acd_devclass;
 static int
 acd_modevent(module_t mod, int what, void *arg)  
 {
-    device_t *devs;
-    int ndevs, i;
-
-    if (what == MOD_LOAD) {
-	g_modevent(0, what, &acd_class);
-    }
-    if (what == MOD_UNLOAD) {
-	if (!devclass_get_devices(acd_devclass, &devs, &ndevs) && devs) {
-	    for (i = 0; i < ndevs; i++)  
-		device_delete_child(device_get_parent(devs[i]), devs[i]);
-	    free(devs, M_TEMP);
-	}
-	g_modevent(0, what, &acd_class);
-    }
+    g_modevent(0, what, &acd_class);
     return 0;
 }
  

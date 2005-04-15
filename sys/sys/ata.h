@@ -37,7 +37,7 @@
 struct ata_params {
 /*000*/ u_int16_t	config;		/* configuration info */
 #define ATA_PROTO_MASK			0x8003
-#define ATA_PROTO_ATA			0x0000
+#define ATA_PROTO_ATAPI			0x8000
 #define ATA_PROTO_ATAPI_12		0x8000
 #define ATA_PROTO_ATAPI_16		0x8001
 #define ATA_ATAPI_TYPE_MASK		0x1f00
