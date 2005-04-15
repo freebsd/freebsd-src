@@ -77,7 +77,6 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
 device		atpic			# 8259A compatability
-options 	NO_MIXED_MODE		# Don't penalize working chipsets
 
 # Linux 32-bit ABI support
 options 	LINPROCFS		# Cannot be a module yet.
