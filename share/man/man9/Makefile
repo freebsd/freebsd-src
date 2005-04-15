@@ -795,11 +795,16 @@ MLINKS+=runqueue.9 chooseproc.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
 	runqueue.9 setrunqueue.9
-MLINKS+=sbuf.9 sbuf_cat.9 \
+MLINKS+=sbuf.9 sbuf_bcat.9 \
+	sbuf.9 sbuf_bcopyin.9 \
+	sbuf.9 sbuf_bcpy.9 \
+	sbuf.9 sbuf_cat.9 \
 	sbuf.9 sbuf_clear.9 \
+	sbuf.9 sbuf_copyin.9 \
 	sbuf.9 sbuf_cpy.9 \
 	sbuf.9 sbuf_data.9 \
 	sbuf.9 sbuf_delete.9 \
+	sbuf.9 sbuf_done.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
