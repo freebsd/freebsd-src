@@ -153,6 +153,12 @@ main(int argc, char *argv[])
 	if (argc != 1)
 		usage();
 
+	/* Print an error if a non-root user attemps to run the tests. */
+	if (getuid() != 0) {
+		fprintf(stderr, "Error!  Only root may run this utility\n");
+		return (EXIT_FAILURE);
+	}
+
 	/*
 	 * We can test some parts of the library without the MAC Framework
 	 * and policy loaded, so run those tests before calling
