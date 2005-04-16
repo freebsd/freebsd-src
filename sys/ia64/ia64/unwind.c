@@ -380,10 +380,21 @@ unw_step(struct unw_regstate *rs)
 {
 	int err;
 
-	err = uwx_step(rs->env);
-	if (err == UWX_ABI_FRAME)
-		return (EOVERFLOW);
-	return ((err != 0) ? EINVAL : 0);	/* XXX */
+	switch (uwx_step(rs->env)) {
+	case UWX_ABI_FRAME:
+		err = ERESTART;
+		break;
+	case UWX_BOTTOM:
+		err = EJUSTRETURN;
+		break;
+	case UWX_OK:
+		err = 0;
+		break;
+	default:
+		err = EINVAL;		/* XXX */
+		break;
+	}
+	return (err);
 }
 
 int
