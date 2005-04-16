@@ -130,7 +130,8 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 					break;
 			}
 			if (pa == trunc_page(bad)) {
-				printf("Skipping page with pa 0x%x\n", pa);
+				printf("Skipping page with pa 0x%jx\n",
+				    (uintmax_t)pa);
 				freeenv(list);
 				return (NULL);
 			}
