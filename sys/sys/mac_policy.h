@@ -408,6 +408,20 @@ struct mac_policy_ops {
 		    struct proc *proc);
 	int	(*mpo_check_proc_sched)(struct ucred *cred,
 		    struct proc *proc);
+	int	(*mpo_check_proc_setuid)(struct ucred *cred, uid_t uid);
+	int	(*mpo_check_proc_seteuid)(struct ucred *cred, uid_t euid);
+	int	(*mpo_check_proc_setgid)(struct ucred *cred, gid_t gid);
+	int	(*mpo_check_proc_setegid)(struct ucred *cred, gid_t egid);
+	int	(*mpo_check_proc_setgroups)(struct ucred *cred, int ngroups,
+		    gid_t *gidset);
+	int	(*mpo_check_proc_setreuid)(struct ucred *cred, uid_t ruid,
+		    uid_t euid);
+	int	(*mpo_check_proc_setregid)(struct ucred *cred, gid_t rgid,
+		    gid_t egid);
+	int	(*mpo_check_proc_setresuid)(struct ucred *cred, uid_t ruid,
+		    uid_t euid, uid_t suid);
+	int	(*mpo_check_proc_setresgid)(struct ucred *cred, gid_t rgid,
+		    gid_t egid, gid_t sgid);
 	int	(*mpo_check_proc_signal)(struct ucred *cred,
 		    struct proc *proc, int signum);
 	int	(*mpo_check_socket_bind)(struct ucred *cred,
