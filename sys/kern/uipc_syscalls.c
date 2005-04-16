@@ -315,6 +315,13 @@ accept1(td, uap, compat)
 		error = EINVAL;
 		goto done;
 	}
+#ifdef MAC
+	SOCK_LOCK(head);
+	error = mac_check_socket_accept(td->td_ucred, head);
+	SOCK_UNLOCK(head);
+	if (error != 0)
+		goto done;
+#endif
 	error = falloc(td, &nfp, &fd);
 	if (error)
 		goto done;

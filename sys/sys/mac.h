@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -39,6 +39,7 @@
  * The POSIX.1e implementation page may be reached at:
  * http://www.trustedbsd.org/
  */
+
 #ifndef _SYS_MAC_H_
 #define	_SYS_MAC_H_
 
@@ -350,14 +351,17 @@ int	mac_check_proc_setresgid(struct proc *proc, struct ucred *cred,
 	    gid_t rgid, gid_t egid, gid_t sgid);
 int	mac_check_proc_signal(struct ucred *cred, struct proc *proc,
 	    int signum);
+int	mac_check_socket_accept(struct ucred *cred, struct socket *so);
 int	mac_check_socket_bind(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sockaddr);
 int	mac_check_socket_connect(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sockaddr);
 int	mac_check_socket_deliver(struct socket *so, struct mbuf *m);
 int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
+int	mac_check_socket_poll(struct ucred *cred, struct socket *so);
 int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
 int	mac_check_socket_send(struct ucred *cred, struct socket *so);
+int	mac_check_socket_stat(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
 int	mac_check_sysarch_ioperm(struct ucred *cred);
 int	mac_check_system_acct(struct ucred *cred, struct vnode *vp);
