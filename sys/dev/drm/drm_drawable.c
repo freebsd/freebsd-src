@@ -1,5 +1,6 @@
 /* drm_drawable.h -- IOCTLs for drawables -*- linux-c -*-
- * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com */
+ * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -33,7 +34,7 @@
 
 #include "dev/drm/drmP.h"
 
-int DRM(adddraw)( DRM_IOCTL_ARGS )
+int drm_adddraw(DRM_IOCTL_ARGS)
 {
 	drm_draw_t draw;
 
@@ -45,7 +46,7 @@ int DRM(adddraw)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int DRM(rmdraw)( DRM_IOCTL_ARGS )
+int drm_rmdraw(DRM_IOCTL_ARGS)
 {
 	return 0;		/* NOOP */
 }

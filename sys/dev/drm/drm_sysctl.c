@@ -16,57 +16,49 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * ERIC ANHOLT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  * $FreeBSD$
  */
 
-#ifdef __FreeBSD__
+#include "dev/drm/drmP.h"
+#include "dev/drm/drm.h"
 
 #include <sys/sysctl.h>
 
-static int	   DRM(name_info)DRM_SYSCTL_HANDLER_ARGS;
-static int	   DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS;
-static int	   DRM(clients_info)DRM_SYSCTL_HANDLER_ARGS;
-#if __HAVE_DMA
-static int	   DRM(bufs_info)DRM_SYSCTL_HANDLER_ARGS;
-#endif
+static int	   drm_name_info DRM_SYSCTL_HANDLER_ARGS;
+static int	   drm_vm_info DRM_SYSCTL_HANDLER_ARGS;
+static int	   drm_clients_info DRM_SYSCTL_HANDLER_ARGS;
+static int	   drm_bufs_info DRM_SYSCTL_HANDLER_ARGS;
 
-struct DRM(sysctl_list) {
+struct drm_sysctl_list {
 	const char *name;
 	int	   (*f) DRM_SYSCTL_HANDLER_ARGS;
-} DRM(sysctl_list)[] = {
-	{ "name",    DRM(name_info)    },
-#ifdef DEBUG_MEMORY
-	{ "mem",     DRM(mem_info)     },
-#endif
-	{ "vm",	     DRM(vm_info)      },
-	{ "clients", DRM(clients_info) },
-#if __HAVE_DMA
-	{ "bufs",    DRM(bufs_info)    },
-#endif
+} drm_sysctl_list[] = {
+	{"name",    drm_name_info},
+	{"vm",	    drm_vm_info},
+	{"clients", drm_clients_info},
+	{"bufs",    drm_bufs_info},
 };
-#define DRM_SYSCTL_ENTRIES (sizeof(DRM(sysctl_list))/sizeof(DRM(sysctl_list)[0]))
+#define DRM_SYSCTL_ENTRIES (sizeof(drm_sysctl_list)/sizeof(drm_sysctl_list[0]))
 
 struct drm_sysctl_info {
 	struct sysctl_ctx_list ctx;
 	char		       name[2];
 };
 
-int DRM(sysctl_init)(drm_device_t *dev)
+int drm_sysctl_init(drm_device_t *dev)
 {
 	struct drm_sysctl_info *info;
 	struct sysctl_oid *oid;
 	struct sysctl_oid *top, *drioid;
 	int		  i;
 
-	info = DRM(alloc)(sizeof *info, DRM_MEM_DRIVER);
+	info = malloc(sizeof *info, M_DRM, M_WAITOK | M_ZERO);
 	if ( !info )
 		return 1;
-	bzero(info, sizeof *info);
 	dev->sysctl = info;
 
 	/* Add the sysctl node for DRI if it doesn't already exist */
@@ -91,28 +83,32 @@ int DRM(sysctl_init)(drm_device_t *dev)
 		return 1;
 	
 	for (i = 0; i < DRM_SYSCTL_ENTRIES; i++) {
-		oid = SYSCTL_ADD_OID( &info->ctx, 
+		oid = SYSCTL_ADD_OID(&info->ctx, 
 			SYSCTL_CHILDREN(top), 
 			OID_AUTO, 
-			DRM(sysctl_list)[i].name, 
+			drm_sysctl_list[i].name, 
 			CTLTYPE_INT | CTLFLAG_RD, 
 			dev, 
 			0, 
-			DRM(sysctl_list)[i].f, 
+			drm_sysctl_list[i].f, 
 			"A", 
 			NULL);
 		if (!oid)
 			return 1;
 	}
+	SYSCTL_ADD_INT(&info->ctx, SYSCTL_CHILDREN(top), OID_AUTO, "debug",
+	    CTLFLAG_RW, &drm_debug_flag, sizeof(drm_debug_flag),
+	    "Enable debugging output");
+
 	return 0;
 }
 
-int DRM(sysctl_cleanup)(drm_device_t *dev)
+int drm_sysctl_cleanup(drm_device_t *dev)
 {
 	int error;
 	error = sysctl_ctx_free( &dev->sysctl->ctx );
 
-	DRM(free)(dev->sysctl, sizeof *dev->sysctl, DRM_MEM_DRIVER);
+	free(dev->sysctl, M_DRM);
 	dev->sysctl = NULL;
 
 	return error;
@@ -126,14 +122,14 @@ do {								\
 		goto done;					\
 } while (0)
 
-static int DRM(name_info)DRM_SYSCTL_HANDLER_ARGS
+static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 {
 	drm_device_t *dev = arg1;
 	char buf[128];
 	int retcode;
 	int hasunique = 0;
 
-	DRM_SYSCTL_PRINT("%s 0x%x", dev->name, dev2udev(dev->devnode));
+	DRM_SYSCTL_PRINT("%s 0x%x", dev->driver_name, dev2udev(dev->devnode));
 	
 	DRM_LOCK();
 	if (dev->unique) {
@@ -151,11 +147,10 @@ done:
 	return retcode;
 }
 
-static int DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS
+static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 {
 	drm_device_t *dev = arg1;
 	drm_local_map_t *map, *tempmaps;
-	drm_map_list_entry_t    *listentry;
 	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG" };
 	const char *type, *yesno;
 	int i, mapcount;
@@ -168,18 +163,18 @@ static int DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS
 	DRM_LOCK();
 
 	mapcount = 0;
-	TAILQ_FOREACH(listentry, dev->maplist, link)
+	TAILQ_FOREACH(map, &dev->maplist, link)
 		mapcount++;
 
-	tempmaps = DRM(alloc)(sizeof(drm_local_map_t) * mapcount, DRM_MEM_MAPS);
+	tempmaps = malloc(sizeof(drm_local_map_t) * mapcount, M_DRM, M_NOWAIT);
 	if (tempmaps == NULL) {
 		DRM_UNLOCK();
 		return ENOMEM;
 	}
 
 	i = 0;
-	TAILQ_FOREACH(listentry, dev->maplist, link)
-		tempmaps[i++] = *listentry->map;
+	TAILQ_FOREACH(map, &dev->maplist, link)
+		tempmaps[i++] = *map;
 
 	DRM_UNLOCK();
 
@@ -207,12 +202,11 @@ static int DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS
 	SYSCTL_OUT(req, "", 1);
 
 done:
-	DRM(free)(tempmaps, sizeof(drm_local_map_t) * mapcount, DRM_MEM_MAPS);
+	free(tempmaps, M_DRM);
 	return retcode;
 }
 
-#if __HAVE_DMA
-static int DRM(bufs_info) DRM_SYSCTL_HANDLER_ARGS
+static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 {
 	drm_device_t	 *dev = arg1;
 	drm_device_dma_t *dma = dev->dma;
@@ -232,7 +226,7 @@ static int DRM(bufs_info) DRM_SYSCTL_HANDLER_ARGS
 	}
 	DRM_SPINLOCK(&dev->dma_lock);
 	tempdma = *dma;
-	templists = DRM(alloc)(sizeof(int) * dma->buf_count, DRM_MEM_BUFS);
+	templists = malloc(sizeof(int) * dma->buf_count, M_DRM, M_NOWAIT);
 	for (i = 0; i < dma->buf_count; i++)
 		templists[i] = dma->buflist[i]->list;
 	dma = &tempdma;
@@ -264,12 +258,11 @@ static int DRM(bufs_info) DRM_SYSCTL_HANDLER_ARGS
 
 	SYSCTL_OUT(req, "", 1);
 done:
-	DRM(free)(templists, sizeof(int) * dma->buf_count, DRM_MEM_BUFS);
+	free(templists, M_DRM);
 	return retcode;
 }
-#endif
 
-static int DRM(clients_info)DRM_SYSCTL_HANDLER_ARGS
+static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 {
 	drm_device_t *dev = arg1;
 	drm_file_t *priv, *tempprivs;
@@ -283,7 +276,7 @@ static int DRM(clients_info)DRM_SYSCTL_HANDLER_ARGS
 	TAILQ_FOREACH(priv, &dev->files, link)
 		privcount++;
 
-	tempprivs = DRM(alloc)(sizeof(drm_file_t) * privcount, DRM_MEM_FILES);
+	tempprivs = malloc(sizeof(drm_file_t) * privcount, M_DRM, M_NOWAIT);
 	if (tempprivs == NULL) {
 		DRM_UNLOCK();
 		return ENOMEM;
@@ -308,19 +301,6 @@ static int DRM(clients_info)DRM_SYSCTL_HANDLER_ARGS
 
 	SYSCTL_OUT(req, "", 1);
 done:
-	DRM(free)(tempprivs, sizeof(drm_file_t) * privcount, DRM_MEM_FILES);
+	free(tempprivs, M_DRM);
 	return retcode;
 }
-
-#elif defined(__NetBSD__)
-/* stub it out for now, sysctl is only for debugging */
-int DRM(sysctl_init)(drm_device_t *dev)
-{
-	return 0;
-}
-
-int DRM(sysctl_cleanup)(drm_device_t *dev)
-{
-	return 0;
-}
-#endif

@@ -1,5 +1,6 @@
 /* drm_agpsupport.h -- DRM support for AGP/GART backend -*- linux-c -*-
- * Created: Mon Dec 13 09:56:45 1999 by faith@precisioninsight.com */
+ * Created: Mon Dec 13 09:56:45 1999 by faith@precisioninsight.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -33,7 +34,50 @@
 
 #include "dev/drm/drmP.h"
 
-int DRM(agp_info)(DRM_IOCTL_ARGS)
+#ifdef __FreeBSD__
+#include <pci/agpreg.h>
+#include <dev/pci/pcireg.h>
+#endif
+
+int
+drm_device_is_agp(drm_device_t *dev)
+{
+#ifdef __FreeBSD__
+	/* Code taken from agp.c.  IWBNI that was a public interface. */
+	u_int32_t status;
+	u_int8_t ptr, next;
+
+	/*
+	 * Check the CAP_LIST bit of the PCI status register first.
+	 */
+	status = pci_read_config(dev->device, PCIR_STATUS, 2);
+	if (!(status & 0x10))
+		return 0;
+
+	/*
+	 * Traverse the capabilities list.
+	 */
+	for (ptr = pci_read_config(dev->device, AGP_CAPPTR, 1);
+	     ptr != 0;
+	     ptr = next) {
+		u_int32_t capid = pci_read_config(dev->device, ptr, 4);
+		next = AGP_CAPID_GET_NEXT_PTR(capid);
+
+		/*
+		 * If this capability entry ID is 2, then we are done.
+		 */
+		if (AGP_CAPID_GET_CAP_ID(capid) == 2)
+			return 1;
+	}
+
+	return 0;
+#else
+	/* XXX: fill me in for non-FreeBSD */
+	return 1;
+#endif
+}
+
+int drm_agp_info(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	struct agp_info *kern;
@@ -58,7 +102,7 @@ int DRM(agp_info)(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int DRM(agp_acquire)(DRM_IOCTL_ARGS)
+int drm_agp_acquire(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	int          retcode;
@@ -72,7 +116,7 @@ int DRM(agp_acquire)(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int DRM(agp_release)(DRM_IOCTL_ARGS)
+int drm_agp_release(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
@@ -84,7 +128,7 @@ int DRM(agp_release)(DRM_IOCTL_ARGS)
 	
 }
 
-void DRM(agp_do_release)(void)
+void drm_agp_do_release(void)
 {
 	device_t agpdev;
 
@@ -93,7 +137,7 @@ void DRM(agp_do_release)(void)
 		agp_release(agpdev);
 }
 
-int DRM(agp_enable)(DRM_IOCTL_ARGS)
+int drm_agp_enable(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_mode_t mode;
@@ -110,7 +154,7 @@ int DRM(agp_enable)(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int DRM(agp_alloc)(DRM_IOCTL_ARGS)
+int drm_agp_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_buffer_t request;
@@ -125,16 +169,15 @@ int DRM(agp_alloc)(DRM_IOCTL_ARGS)
 
 	request = *(drm_agp_buffer_t *) data;
 
-	if (!(entry = DRM(alloc)(sizeof(*entry), DRM_MEM_AGPLISTS)))
+	entry = malloc(sizeof(*entry), M_DRM, M_NOWAIT | M_ZERO);
+	if (entry == NULL)
 		return ENOMEM;
-   
-   	bzero(entry, sizeof(*entry));
 
 	pages = (request.size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u_int32_t) request.type;
 
-	if (!(handle = DRM(alloc_agp)(pages, type))) {
-		DRM(free)(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
+	if (!(handle = drm_agp_allocate_memory(pages, type))) {
+		free(entry, M_DRM);
 		return ENOMEM;
 	}
 	
@@ -157,7 +200,7 @@ int DRM(agp_alloc)(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-static drm_agp_mem_t * DRM(agp_lookup_entry)(drm_device_t *dev, void *handle)
+static drm_agp_mem_t * drm_agp_lookup_entry(drm_device_t *dev, void *handle)
 {
 	drm_agp_mem_t *entry;
 
@@ -167,7 +210,7 @@ static drm_agp_mem_t * DRM(agp_lookup_entry)(drm_device_t *dev, void *handle)
 	return NULL;
 }
 
-int DRM(agp_unbind)(DRM_IOCTL_ARGS)
+int drm_agp_unbind(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_binding_t request;
@@ -177,10 +220,10 @@ int DRM(agp_unbind)(DRM_IOCTL_ARGS)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 	request = *(drm_agp_binding_t *) data;
-	if (!(entry = DRM(agp_lookup_entry)(dev, (void *) request.handle)))
+	if (!(entry = drm_agp_lookup_entry(dev, (void *)request.handle)))
 		return EINVAL;
 	if (!entry->bound) return EINVAL;
-	retcode=DRM(unbind_agp)(entry->handle);
+	retcode = drm_agp_unbind_memory(entry->handle);
 	if (!retcode)
 	{
 		entry->bound=0;
@@ -190,7 +233,7 @@ int DRM(agp_unbind)(DRM_IOCTL_ARGS)
 		return retcode;
 }
 
-int DRM(agp_bind)(DRM_IOCTL_ARGS)
+int drm_agp_bind(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_binding_t request;
@@ -202,17 +245,17 @@ int DRM(agp_bind)(DRM_IOCTL_ARGS)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 	request = *(drm_agp_binding_t *) data;
-	if (!(entry = DRM(agp_lookup_entry)(dev, (void *) request.handle)))
+	if (!(entry = drm_agp_lookup_entry(dev, (void *)request.handle)))
 		return EINVAL;
 	if (entry->bound) return EINVAL;
 	page = (request.offset + PAGE_SIZE - 1) / PAGE_SIZE;
-	if ((retcode = DRM(bind_agp)(entry->handle, page)))
+	if ((retcode = drm_agp_bind_memory(entry->handle, page)))
 		return retcode;
 	entry->bound = dev->agp->base + (page << PAGE_SHIFT);
 	return 0;
 }
 
-int DRM(agp_free)(DRM_IOCTL_ARGS)
+int drm_agp_free(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_agp_buffer_t request;
@@ -221,10 +264,10 @@ int DRM(agp_free)(DRM_IOCTL_ARGS)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 	request = *(drm_agp_buffer_t *) data;
-	if (!(entry = DRM(agp_lookup_entry)(dev, (void*) request.handle)))
+	if (!(entry = drm_agp_lookup_entry(dev, (void*)request.handle)))
 		return EINVAL;
 	if (entry->bound)
-		DRM(unbind_agp)(entry->handle);
+		drm_agp_unbind_memory(entry->handle);
    
 	if (entry->prev)
 		entry->prev->next = entry->next;
@@ -232,12 +275,12 @@ int DRM(agp_free)(DRM_IOCTL_ARGS)
 		dev->agp->memory  = entry->next;
 	if (entry->next)
 		entry->next->prev = entry->prev;
-	DRM(free_agp)(entry->handle, entry->pages);
-	DRM(free)(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
+	drm_agp_free_memory(entry->handle);
+	free(entry, M_DRM);
 	return 0;
 }
 
-drm_agp_head_t *DRM(agp_init)(void)
+drm_agp_head_t *drm_agp_init(void)
 {
 	device_t agpdev;
 	drm_agp_head_t *head   = NULL;
@@ -250,9 +293,9 @@ drm_agp_head_t *DRM(agp_init)(void)
 	DRM_DEBUG("agp_available = %d\n", agp_available);
 
 	if (agp_available) {
-		if (!(head = DRM(alloc)(sizeof(*head), DRM_MEM_AGPLISTS)))
+		head = malloc(sizeof(*head), M_DRM, M_NOWAIT | M_ZERO);
+		if (head == NULL)
 			return NULL;
-		bzero((void *)head, sizeof(*head));
 		head->agpdev = agpdev;
 		agp_get_info(agpdev, &head->info);
 		head->memory = NULL;
@@ -263,13 +306,13 @@ drm_agp_head_t *DRM(agp_init)(void)
 	return head;
 }
 
-void DRM(agp_uninit)(void)
+void drm_agp_uninit(void)
 {
 /* FIXME: What goes here */
 }
 
 
-agp_memory *DRM(agp_allocate_memory)(size_t pages, u32 type)
+void *drm_agp_allocate_memory(size_t pages, u32 type)
 {
 	device_t agpdev;
 
@@ -280,7 +323,7 @@ agp_memory *DRM(agp_allocate_memory)(size_t pages, u32 type)
 	return agp_alloc_memory(agpdev, type, pages << AGP_PAGE_SHIFT);
 }
 
-int DRM(agp_free_memory)(agp_memory *handle)
+int drm_agp_free_memory(void *handle)
 {
 	device_t agpdev;
 
@@ -292,7 +335,7 @@ int DRM(agp_free_memory)(agp_memory *handle)
 	return 1;
 }
 
-int DRM(agp_bind_memory)(agp_memory *handle, off_t start)
+int drm_agp_bind_memory(void *handle, off_t start)
 {
 	device_t agpdev;
 
@@ -303,7 +346,7 @@ int DRM(agp_bind_memory)(agp_memory *handle, off_t start)
 	return agp_bind_memory(agpdev, handle, start * PAGE_SIZE);
 }
 
-int DRM(agp_unbind_memory)(agp_memory *handle)
+int drm_agp_unbind_memory(void *handle)
 {
 	device_t agpdev;
 

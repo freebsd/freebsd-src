@@ -1,5 +1,6 @@
 /* r128_drv.c -- ATI Rage 128 driver -*- linux-c -*-
- * Created: Mon Dec 13 09:47:27 1999 by faith@precisioninsight.com */
+ * Created: Mon Dec 13 09:47:27 1999 by faith@precisioninsight.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -31,36 +32,87 @@
  * $FreeBSD$
  */
 
-#include "dev/drm/r128.h"
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 #include "dev/drm/r128_drm.h"
 #include "dev/drm/r128_drv.h"
-#if __REALLY_HAVE_SG
-#include "dev/drm/ati_pcigart.h"
-#endif
+#include "dev/drm/drm_pciids.h"
 
-#include "dev/drm/drm_agpsupport.h"
-#include "dev/drm/drm_auth.h"
-#include "dev/drm/drm_bufs.h"
-#include "dev/drm/drm_context.h"
-#include "dev/drm/drm_dma.h"
-#include "dev/drm/drm_drawable.h"
-#include "dev/drm/drm_drv.h"
-#include "dev/drm/drm_fops.h"
-#include "dev/drm/drm_ioctl.h"
-#include "dev/drm/drm_irq.h"
-#include "dev/drm/drm_lock.h"
-#include "dev/drm/drm_memory.h"
-#include "dev/drm/drm_pci.h"
-#include "dev/drm/drm_sysctl.h"
-#include "dev/drm/drm_vm.h"
-#if __HAVE_SG
-#include "dev/drm/drm_scatter.h"
-#endif
+/* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
+static drm_pci_id_list_t r128_pciidlist[] = {
+	r128_PCI_IDS
+};
+
+extern drm_ioctl_desc_t r128_ioctls[];
+extern int r128_max_ioctl;
+
+static void r128_configure(drm_device_t *dev)
+{
+	dev->dev_priv_size = sizeof(drm_r128_buf_priv_t);
+	dev->prerelease = r128_driver_prerelease;
+	dev->pretakedown = r128_driver_pretakedown;
+	dev->vblank_wait = r128_driver_vblank_wait;
+	dev->irq_preinstall = r128_driver_irq_preinstall;
+	dev->irq_postinstall = r128_driver_irq_postinstall;
+	dev->irq_uninstall = r128_driver_irq_uninstall;
+	dev->irq_handler = r128_driver_irq_handler;
+	dev->dma_ioctl = r128_cce_buffers;
+
+	dev->driver_ioctls = r128_ioctls;
+	dev->max_driver_ioctl = r128_max_ioctl;
+
+	dev->driver_name = DRIVER_NAME;
+	dev->driver_desc = DRIVER_DESC;
+	dev->driver_date = DRIVER_DATE;
+	dev->driver_major = DRIVER_MAJOR;
+	dev->driver_minor = DRIVER_MINOR;
+	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+
+	dev->use_agp = 1;
+	dev->use_mtrr = 1;
+	dev->use_pci_dma = 1;
+	dev->use_sg = 1;
+	dev->use_dma = 1;
+	dev->use_irq = 1;
+	dev->use_vbl_irq = 1;
+}
 
 #ifdef __FreeBSD__
-DRIVER_MODULE(r128, pci, r128_driver, r128_devclass, 0, 0);
-#elif defined(__NetBSD__)
+static int
+r128_probe(device_t dev)
+{
+	return drm_probe(dev, r128_pciidlist);
+}
+
+static int
+r128_attach(device_t nbdev)
+{
+	drm_device_t *dev = device_get_softc(nbdev);
+
+	bzero(dev, sizeof(drm_device_t));
+	r128_configure(dev);
+	return drm_attach(nbdev, r128_pciidlist);
+}
+
+static device_method_t r128_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		r128_probe),
+	DEVMETHOD(device_attach,	r128_attach),
+	DEVMETHOD(device_detach,	drm_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t r128_driver = {
+	"drm",
+	r128_methods,
+	sizeof(drm_device_t)
+};
+
+extern devclass_t drm_devclass;
+DRIVER_MODULE(r128, pci, r128_driver, drm_devclass, 0, 0);
+MODULE_DEPEND(r128, drm, 1, 1, 1);
+
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
 CFDRIVER_DECL(r128, DV_TTY, NULL);
-#endif /* __FreeBSD__ */
+#endif

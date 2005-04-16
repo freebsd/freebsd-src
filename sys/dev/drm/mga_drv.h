@@ -33,6 +33,19 @@
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
 
+/* General customization:
+ */
+
+#define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
+
+#define DRIVER_NAME		"mga"
+#define DRIVER_DESC		"Matrox G200/G400"
+#define DRIVER_DATE		"20021029"
+
+#define DRIVER_MAJOR		3
+#define DRIVER_MINOR		1
+#define DRIVER_PATCHLEVEL	0
+
 typedef struct drm_mga_primary_buffer {
 	u8 *start;
 	u8 *end;
@@ -51,14 +64,14 @@ typedef struct drm_mga_primary_buffer {
 } drm_mga_primary_buffer_t;
 
 typedef struct drm_mga_freelist {
-   	struct drm_mga_freelist *next;
-   	struct drm_mga_freelist *prev;
+	struct drm_mga_freelist *next;
+	struct drm_mga_freelist *prev;
 	drm_mga_age_t age;
-   	drm_buf_t *buf;
+	drm_buf_t *buf;
 } drm_mga_freelist_t;
 
 typedef struct {
-   	drm_mga_freelist_t *list_entry;
+	drm_mga_freelist_t *list_entry;
 	int discard;
 	int dispatched;
 } drm_mga_buf_priv_t;
@@ -67,8 +80,8 @@ typedef struct drm_mga_private {
 	drm_mga_primary_buffer_t prim;
 	drm_mga_sarea_t *sarea_priv;
 
-   	drm_mga_freelist_t *head;
-   	drm_mga_freelist_t *tail;
+	drm_mga_freelist_t *head;
+	drm_mga_freelist_t *tail;
 
 	unsigned int warp_pipe;
 	unsigned long warp_pipe_phys[MGA_MAX_WARP_PIPES];
@@ -102,35 +115,30 @@ typedef struct drm_mga_private {
 } drm_mga_private_t;
 
 				/* mga_dma.c */
-extern int mga_dma_init( DRM_IOCTL_ARGS );
-extern int mga_dma_flush( DRM_IOCTL_ARGS );
-extern int mga_dma_reset( DRM_IOCTL_ARGS );
-extern int mga_dma_buffers( DRM_IOCTL_ARGS );
+extern int mga_dma_init(DRM_IOCTL_ARGS);
+extern int mga_dma_flush(DRM_IOCTL_ARGS);
+extern int mga_dma_reset(DRM_IOCTL_ARGS);
+extern int mga_dma_buffers(DRM_IOCTL_ARGS);
+extern void mga_driver_pretakedown(drm_device_t * dev);
+extern int mga_driver_dma_quiescent(drm_device_t * dev);
 
-extern int mga_do_wait_for_idle( drm_mga_private_t *dev_priv );
-extern int mga_do_dma_idle( drm_mga_private_t *dev_priv );
-extern int mga_do_dma_reset( drm_mga_private_t *dev_priv );
-extern int mga_do_engine_reset( drm_mga_private_t *dev_priv );
-extern int mga_do_cleanup_dma( drm_device_t *dev );
+extern int mga_do_wait_for_idle(drm_mga_private_t * dev_priv);
 
-extern void mga_do_dma_flush( drm_mga_private_t *dev_priv );
-extern void mga_do_dma_wrap_start( drm_mga_private_t *dev_priv );
-extern void mga_do_dma_wrap_end( drm_mga_private_t *dev_priv );
+extern void mga_do_dma_flush(drm_mga_private_t * dev_priv);
+extern void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv);
+extern void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv);
 
-extern int mga_freelist_put( drm_device_t *dev, drm_buf_t *buf );
-
-				/* mga_state.c */
-extern int  mga_dma_clear( DRM_IOCTL_ARGS );
-extern int  mga_dma_swap( DRM_IOCTL_ARGS );
-extern int  mga_dma_vertex( DRM_IOCTL_ARGS );
-extern int  mga_dma_indices( DRM_IOCTL_ARGS );
-extern int  mga_dma_iload( DRM_IOCTL_ARGS );
-extern int  mga_dma_blit( DRM_IOCTL_ARGS );
-extern int  mga_getparam( DRM_IOCTL_ARGS );
+extern int mga_freelist_put(drm_device_t * dev, drm_buf_t * buf);
 
 				/* mga_warp.c */
-extern int mga_warp_install_microcode( drm_mga_private_t *dev_priv );
-extern int mga_warp_init( drm_mga_private_t *dev_priv );
+extern int mga_warp_install_microcode(drm_mga_private_t * dev_priv);
+extern int mga_warp_init(drm_mga_private_t * dev_priv);
+
+extern int mga_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence);
+extern irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS);
+extern void mga_driver_irq_preinstall(drm_device_t * dev);
+extern void mga_driver_irq_postinstall(drm_device_t * dev);
+extern void mga_driver_irq_uninstall(drm_device_t * dev);
 
 #define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 
@@ -146,7 +154,7 @@ extern int mga_warp_init( drm_mga_private_t *dev_priv );
 #define MGA_WRITE( reg, val )	do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF( reg ) = val; } while (0)
 #define MGA_WRITE8( reg, val )  do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF8( reg ) = val; } while (0)
 
-static inline u32 _MGA_READ(u32 *addr)
+static inline u32 _MGA_READ(u32 * addr)
 {
 	DRM_MEMORYBARRIER();
 	return *(volatile u32 *)addr;
@@ -167,8 +175,6 @@ static inline u32 _MGA_READ(u32 *addr)
 #define DMAREG0(r)	(u8)((r - DWGREG0) >> 2)
 #define DMAREG1(r)	(u8)(((r - DWGREG1) >> 2) | 0x80)
 #define DMAREG(r)	(ISREG0(r) ? DMAREG0(r) : DMAREG1(r))
-
-
 
 /* ================================================================
  * Helper macross...
@@ -210,7 +216,6 @@ do {									\
 		mga_do_dma_wrap_end( dev_priv );			\
 	}								\
 } while (0)
-
 
 /* ================================================================
  * Primary DMA command stream
@@ -296,7 +301,6 @@ do {									\
 	write += DMA_BLOCK_SIZE;					\
 } while (0)
 
-
 /* Buffer aging via primary DMA stream head pointer.
  */
 
@@ -323,7 +327,6 @@ do {									\
 	}								\
 } while (0)
 
-
 #define MGA_ENGINE_IDLE_MASK		(MGA_SOFTRAPEN |		\
 					 MGA_DWGENGSTS |		\
 					 MGA_ENDPRDMASTS)
@@ -331,8 +334,6 @@ do {									\
 					 MGA_ENDPRDMASTS)
 
 #define MGA_DMA_DEBUG			0
-
-
 
 /* A reduced set of the mga registers.
  */
@@ -588,7 +589,6 @@ do {									\
 #	define MGA_G400_WR_MAGIC		(1 << 6)
 #	define MGA_G400_WR56_MAGIC		0x46480000	/* 12800.0f */
 
-
 #define MGA_ILOAD_ALIGN		64
 #define MGA_ILOAD_MASK		(MGA_ILOAD_ALIGN - 1)
 
@@ -623,10 +623,10 @@ do {									\
 
 /* Simple idle test.
  */
-static __inline__ int mga_is_idle( drm_mga_private_t *dev_priv )
+static __inline__ int mga_is_idle(drm_mga_private_t * dev_priv)
 {
-	u32 status = MGA_READ( MGA_STATUS ) & MGA_ENGINE_IDLE_MASK;
-	return ( status == MGA_ENDPRDMASTS );
+	u32 status = MGA_READ(MGA_STATUS) & MGA_ENGINE_IDLE_MASK;
+	return (status == MGA_ENDPRDMASTS);
 }
 
 #endif

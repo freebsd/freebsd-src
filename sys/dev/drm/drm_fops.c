@@ -1,5 +1,6 @@
 /* drm_fops.h -- File operations for DRM -*- linux-c -*-
- * Created: Mon Jan  4 08:58:31 1999 by faith@valinux.com */
+ * Created: Mon Jan  4 08:58:31 1999 by faith@valinux.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -34,7 +35,7 @@
 
 #include "dev/drm/drmP.h"
 
-drm_file_t *DRM(find_file_by_proc)(drm_device_t *dev, DRM_STRUCTPROC *p)
+drm_file_t *drm_find_file_by_proc(drm_device_t *dev, DRM_STRUCTPROC *p)
 {
 #if __FreeBSD_version >= 500021
 	uid_t uid = p->td_ucred->cr_svuid;
@@ -53,12 +54,13 @@ drm_file_t *DRM(find_file_by_proc)(drm_device_t *dev, DRM_STRUCTPROC *p)
 	return NULL;
 }
 
-/* DRM(open_helper) is called whenever a process opens /dev/drm. */
-int DRM(open_helper)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
+/* drm_open_helper is called whenever a process opens /dev/drm. */
+int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    drm_device_t *dev)
 {
 	int	     m = minor(kdev);
 	drm_file_t   *priv;
+	int retcode;
 
 	if (flags & O_EXCL)
 		return EBUSY; /* No exclusive opens */
@@ -67,16 +69,15 @@ int DRM(open_helper)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 	DRM_DEBUG("pid = %d, minor = %d\n", DRM_CURRENTPID, m);
 
 	DRM_LOCK();
-	priv = DRM(find_file_by_proc)(dev, p);
+	priv = drm_find_file_by_proc(dev, p);
 	if (priv) {
 		priv->refs++;
 	} else {
-		priv = (drm_file_t *) DRM(alloc)(sizeof(*priv), DRM_MEM_FILES);
+		priv = malloc(sizeof(*priv), M_DRM, M_NOWAIT | M_ZERO);
 		if (priv == NULL) {
 			DRM_UNLOCK();
 			return DRM_ERR(ENOMEM);
 		}
-		bzero(priv, sizeof(*priv));
 #if __FreeBSD_version >= 500000
 		priv->uid		= p->td_ucred->cr_svuid;
 		priv->pid		= p->td_proc->p_pid;
@@ -87,11 +88,17 @@ int DRM(open_helper)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 
 		priv->refs		= 1;
 		priv->minor		= m;
-		priv->devXX		= dev;
 		priv->ioctl_count 	= 0;
 		priv->authenticated	= !DRM_SUSER(p);
 
-		DRIVER_OPEN_HELPER( priv, dev );
+		if (dev->open_helper) {
+			retcode = dev->open_helper(dev, priv);
+			if (retcode != 0) {
+				free(priv, M_DRM);
+				DRM_UNLOCK();
+				return retcode;
+			}
+		}
 
 		TAILQ_INSERT_TAIL(&dev->files, priv, link);
 	}
@@ -103,15 +110,15 @@ int DRM(open_helper)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 }
 
 
-/* The DRM(read) and DRM(poll) are stubs to prevent spurious errors
+/* The drm_read and drm_poll are stubs to prevent spurious errors
  * on older X Servers (4.3.0 and earlier) */
 
-int DRM(read)(struct cdev *kdev, struct uio *uio, int ioflag)
+int drm_read(struct cdev *kdev, struct uio *uio, int ioflag)
 {
 	return 0;
 }
 
-int DRM(poll)(struct cdev *kdev, int events, DRM_STRUCTPROC *p)
+int drm_poll(struct cdev *kdev, int events, DRM_STRUCTPROC *p)
 {
 	return 0;
 }

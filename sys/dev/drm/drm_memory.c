@@ -1,7 +1,8 @@
 /* drm_memory.h -- Memory management wrappers for DRM -*- linux-c -*-
- * Created: Thu Feb  4 14:00:34 1999 by faith@valinux.com */
+ * Created: Thu Feb  4 14:00:34 1999 by faith@valinux.com
+ */
 /*-
- * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
+ *Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *
@@ -33,103 +34,73 @@
 
 #include "dev/drm/drmP.h"
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-#define malloctype DRM(M_DRM)
-/* The macros conflicted in the MALLOC_DEFINE */
-MALLOC_DEFINE(malloctype, "drm", "DRM Data Structures");
-#undef malloctype
-#endif
+MALLOC_DEFINE(M_DRM, "drm", "DRM Data Structures");
 
-#ifdef DEBUG_MEMORY
-#include "drm_memory_debug.h"
-#else
-void DRM(mem_init)(void)
+void drm_mem_init(void)
 {
-#ifdef __NetBSD__
-	malloc_type_attach(DRM(M_DRM));
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+	malloc_type_attach(M_DRM);
 #endif
 }
 
-void DRM(mem_uninit)(void)
+void drm_mem_uninit(void)
 {
 }
 
-void *DRM(alloc)(size_t size, int area)
+void *drm_alloc(size_t size, int area)
 {
-	return malloc(size, DRM(M_DRM), M_NOWAIT);
+	return malloc(size, M_DRM, M_NOWAIT);
 }
 
-void *DRM(calloc)(size_t nmemb, size_t size, int area)
+void *drm_calloc(size_t nmemb, size_t size, int area)
 {
-	return malloc(size * nmemb, DRM(M_DRM), M_NOWAIT | M_ZERO);
+	return malloc(size * nmemb, M_DRM, M_NOWAIT | M_ZERO);
 }
 
-void *DRM(realloc)(void *oldpt, size_t oldsize, size_t size, int area)
+void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 {
 	void *pt;
 
-	pt = malloc(size, DRM(M_DRM), M_NOWAIT);
+	pt = malloc(size, M_DRM, M_NOWAIT);
 	if (pt == NULL)
 		return NULL;
 	if (oldpt && oldsize) {
 		memcpy(pt, oldpt, oldsize);
-		free(oldpt, DRM(M_DRM));
+		free(oldpt, M_DRM);
 	}
 	return pt;
 }
 
-void DRM(free)(void *pt, size_t size, int area)
+void drm_free(void *pt, size_t size, int area)
 {
-	free(pt, DRM(M_DRM));
+	free(pt, M_DRM);
 }
 
-void *DRM(ioremap)( drm_device_t *dev, drm_local_map_t *map )
+void *drm_ioremap(drm_device_t *dev, drm_local_map_t *map)
 {
 #ifdef __FreeBSD__
 	return pmap_mapdev(map->offset, map->size);
-#elif defined(__NetBSD__)
-	map->iot = dev->pa.pa_memt;
-	if (bus_space_map(map->iot, map->offset, map->size, 
-	    BUS_SPACE_MAP_LINEAR, &map->ioh))
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+	map->bst = dev->pa.pa_memt;
+	if (bus_space_map(map->bst, map->offset, map->size, 
+	    BUS_SPACE_MAP_LINEAR, &map->bsh))
 		return NULL;
-	return bus_space_vaddr(map->iot, map->ioh);
+	return bus_space_vaddr(map->bst, map->bsh);
 #endif
 }
 
-void DRM(ioremapfree)(drm_local_map_t *map)
+void drm_ioremapfree(drm_local_map_t *map)
 {
 #ifdef __FreeBSD__
 	pmap_unmapdev((vm_offset_t) map->handle, map->size);
-#elif defined(__NetBSD__)
-	bus_space_unmap(map->iot, map->ioh, map->size);
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+	bus_space_unmap(map->bst, map->bsh, map->size);
 #endif
 }
 
-#if __REALLY_HAVE_AGP
-agp_memory *DRM(alloc_agp)(int pages, u32 type)
-{
-	return DRM(agp_allocate_memory)(pages, type);
-}
-
-int DRM(free_agp)(agp_memory *handle, int pages)
-{
-	return DRM(agp_free_memory)(handle);
-}
-
-int DRM(bind_agp)(agp_memory *handle, unsigned int start)
-{
-	return DRM(agp_bind_memory)(handle, start);
-}
-
-int DRM(unbind_agp)(agp_memory *handle)
-{
-	return DRM(agp_unbind_memory)(handle);
-}
-#endif /* __REALLY_HAVE_AGP */
-
 #ifdef __FreeBSD__
 int
-DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
+drm_mtrr_add(unsigned long offset, size_t size, int flags)
 {
 	int act;
 	struct mem_range_desc mrdesc;
@@ -138,12 +109,12 @@ DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
 	mrdesc.mr_len = size;
 	mrdesc.mr_flags = flags;
 	act = MEMRANGE_SET_UPDATE;
-	bcopy(DRIVER_NAME, &mrdesc.mr_owner, strlen(DRIVER_NAME));
+	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return mem_range_attr_set(&mrdesc, &act);
 }
 
 int
-DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
+drm_mtrr_del(unsigned long offset, size_t size, int flags)
 {
 	int act;
 	struct mem_range_desc mrdesc;
@@ -152,12 +123,12 @@ DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
 	mrdesc.mr_len = size;
 	mrdesc.mr_flags = flags;
 	act = MEMRANGE_SET_REMOVE;
-	bcopy(DRIVER_NAME, &mrdesc.mr_owner, strlen(DRIVER_NAME));
+	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return mem_range_attr_set(&mrdesc, &act);
 }
-#elif defined(__NetBSD__)
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
 int
-DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
+drm_mtrr_add(unsigned long offset, size_t size, int flags)
 {
 	struct mtrr mtrrmap;
 	int one = 1;
@@ -170,7 +141,7 @@ DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
 }
 
 int
-DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
+drm_mtrr_del(unsigned long offset, size_t size, int flags)
 {
 	struct mtrr mtrrmap;
 	int one = 1;
@@ -182,5 +153,3 @@ DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
 	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
 }
 #endif
-
-#endif /* DEBUG_MEMORY */
