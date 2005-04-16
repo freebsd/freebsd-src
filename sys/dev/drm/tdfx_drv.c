@@ -1,5 +1,6 @@
 /* tdfx_drv.c -- tdfx driver -*- linux-c -*-
- * Created: Thu Oct  7 10:38:32 1999 by faith@precisioninsight.com */
+ * Created: Thu Oct  7 10:38:32 1999 by faith@precisioninsight.com
+ */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -32,24 +33,70 @@
  * $FreeBSD$
  */
 
-#include "dev/drm/tdfx.h"
+#include "dev/drm/tdfx_drv.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/drm_pciids.h"
 
-#include "dev/drm/drm_auth.h"
-#include "dev/drm/drm_bufs.h"
-#include "dev/drm/drm_context.h"
-#include "dev/drm/drm_dma.h"
-#include "dev/drm/drm_drawable.h"
-#include "dev/drm/drm_drv.h"
-#include "dev/drm/drm_fops.h"
-#include "dev/drm/drm_ioctl.h"
-#include "dev/drm/drm_lock.h"
-#include "dev/drm/drm_memory.h"
-#include "dev/drm/drm_vm.h"
-#include "dev/drm/drm_sysctl.h"
+/* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
+static drm_pci_id_list_t tdfx_pciidlist[] = {
+	tdfx_PCI_IDS
+};
+
+extern drm_ioctl_desc_t tdfx_ioctls[];
+extern int tdfx_max_ioctl;
+
+static void tdfx_configure(drm_device_t *dev)
+{
+	dev->dev_priv_size = 1; /* No dev_priv */
+
+	dev->max_driver_ioctl = 0;
+
+	dev->driver_name = DRIVER_NAME;
+	dev->driver_desc = DRIVER_DESC;
+	dev->driver_date = DRIVER_DATE;
+	dev->driver_major = DRIVER_MAJOR;
+	dev->driver_minor = DRIVER_MINOR;
+	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
+
+	dev->use_mtrr = 1;
+}
 
 #ifdef __FreeBSD__
-DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_devclass, 0, 0);
-#elif defined(__NetBSD__)
+static int
+tdfx_probe(device_t dev)
+{
+	return drm_probe(dev, tdfx_pciidlist);
+}
+
+static int
+tdfx_attach(device_t nbdev)
+{
+	drm_device_t *dev = device_get_softc(nbdev);
+
+	bzero(dev, sizeof(drm_device_t));
+	tdfx_configure(dev);
+	return drm_attach(nbdev, tdfx_pciidlist);
+}
+
+static device_method_t tdfx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		tdfx_probe),
+	DEVMETHOD(device_attach,	tdfx_attach),
+	DEVMETHOD(device_detach,	drm_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t tdfx_driver = {
+	"drm",
+	tdfx_methods,
+	sizeof(drm_device_t)
+};
+
+extern devclass_t drm_devclass;
+DRIVER_MODULE(tdfx, pci, tdfx_driver, drm_devclass, 0, 0);
+MODULE_DEPEND(tdfx, drm, 1, 1, 1);
+
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
 CFDRIVER_DECL(tdfx, DV_TTY, NULL);
-#endif /* __FreeBSD__ */
+#endif

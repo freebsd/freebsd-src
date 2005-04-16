@@ -1,7 +1,7 @@
 /* radeon_irq.c -- IRQ handling for radeon -*- linux-c -*- */
 /*-
  * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
- * 
+ *
  * The Weather Channel (TM) funded Tungsten Graphics to develop the
  * initial release of the Radeon 8500 driver under the XFree86 license.
  * This notice must be preserved.
@@ -27,12 +27,11 @@
  *
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
- *    Michel Dänzer <michel@daenzer.net>
+ *    Michel Dï¿½zer <michel@daenzer.net>
  *
  * $FreeBSD$
  */
 
-#include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 #include "dev/drm/radeon_drm.h"
@@ -56,31 +55,31 @@
  * tied to dma at all, this is just a hangover from dri prehistory.
  */
 
-irqreturn_t DRM(irq_handler)( DRM_IRQ_ARGS )
+irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	drm_device_t *dev = (drm_device_t *) arg;
-	drm_radeon_private_t *dev_priv = 
-	   (drm_radeon_private_t *)dev->dev_private;
-   	u32 stat;
+	drm_radeon_private_t *dev_priv =
+	    (drm_radeon_private_t *) dev->dev_private;
+	u32 stat;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
 	 */
 	stat = RADEON_READ(RADEON_GEN_INT_STATUS)
-	     & (RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT);
+	    & (RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT);
 	if (!stat)
 		return IRQ_NONE;
 
 	/* SW interrupt */
 	if (stat & RADEON_SW_INT_TEST) {
-		DRM_WAKEUP( &dev_priv->swi_queue );
+		DRM_WAKEUP(&dev_priv->swi_queue);
 	}
 
 	/* VBLANK interrupt */
 	if (stat & RADEON_CRTC_VBLANK_STAT) {
 		atomic_inc(&dev->vbl_received);
 		DRM_WAKEUP(&dev->vbl_queue);
-		DRM(vbl_send_signals)( dev );
+		drm_vbl_send_signals(dev);
 	}
 
 	/* Acknowledge interrupts we handle */
@@ -88,15 +87,15 @@ irqreturn_t DRM(irq_handler)( DRM_IRQ_ARGS )
 	return IRQ_HANDLED;
 }
 
-static __inline__ void radeon_acknowledge_irqs(drm_radeon_private_t *dev_priv)
+static __inline__ void radeon_acknowledge_irqs(drm_radeon_private_t * dev_priv)
 {
-	u32 tmp = RADEON_READ( RADEON_GEN_INT_STATUS )
-		& (RADEON_SW_INT_TEST_ACK | RADEON_CRTC_VBLANK_STAT);
+	u32 tmp = RADEON_READ(RADEON_GEN_INT_STATUS)
+	    & (RADEON_SW_INT_TEST_ACK | RADEON_CRTC_VBLANK_STAT);
 	if (tmp)
-		RADEON_WRITE( RADEON_GEN_INT_STATUS, tmp );
+		RADEON_WRITE(RADEON_GEN_INT_STATUS, tmp);
 }
 
-int radeon_emit_irq(drm_device_t *dev)
+static int radeon_emit_irq(drm_device_t * dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int ret;
@@ -105,156 +104,148 @@ int radeon_emit_irq(drm_device_t *dev)
 	atomic_inc(&dev_priv->swi_emitted);
 	ret = atomic_read(&dev_priv->swi_emitted);
 
-	BEGIN_RING( 4 );
-	OUT_RING_REG( RADEON_LAST_SWI_REG, ret );
-	OUT_RING_REG( RADEON_GEN_INT_STATUS, RADEON_SW_INT_FIRE );
-	ADVANCE_RING(); 
- 	COMMIT_RING();
+	BEGIN_RING(4);
+	OUT_RING_REG(RADEON_LAST_SWI_REG, ret);
+	OUT_RING_REG(RADEON_GEN_INT_STATUS, RADEON_SW_INT_FIRE);
+	ADVANCE_RING();
+	COMMIT_RING();
 
 	return ret;
 }
 
-
-int radeon_wait_irq(drm_device_t *dev, int swi_nr)
+static int radeon_wait_irq(drm_device_t * dev, int swi_nr)
 {
-  	drm_radeon_private_t *dev_priv = 
-	   (drm_radeon_private_t *)dev->dev_private;
+	drm_radeon_private_t *dev_priv =
+	    (drm_radeon_private_t *) dev->dev_private;
 	int ret = 0;
 
- 	if (RADEON_READ( RADEON_LAST_SWI_REG ) >= swi_nr)  
- 		return 0; 
+	if (RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr)
+		return 0;
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
 	/* This is a hack to work around mysterious freezes on certain
 	 * systems:
-	 */ 
-	radeon_acknowledge_irqs( dev_priv );
+	 */
+	radeon_acknowledge_irqs(dev_priv);
 
-	DRM_WAIT_ON( ret, dev_priv->swi_queue, 3 * DRM_HZ, 
-		     RADEON_READ( RADEON_LAST_SWI_REG ) >= swi_nr );
+	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * DRM_HZ,
+		    RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr);
 
 	return ret;
 }
 
-int radeon_emit_and_wait_irq(drm_device_t *dev)
+int radeon_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 {
-	return radeon_wait_irq( dev, radeon_emit_irq(dev) );
-}
-
-
-int DRM(vblank_wait)(drm_device_t *dev, unsigned int *sequence)
-{
-  	drm_radeon_private_t *dev_priv = 
-	   (drm_radeon_private_t *)dev->dev_private;
+	drm_radeon_private_t *dev_priv =
+	    (drm_radeon_private_t *) dev->dev_private;
 	unsigned int cur_vblank;
 	int ret = 0;
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
 
-	radeon_acknowledge_irqs( dev_priv );
+	radeon_acknowledge_irqs(dev_priv);
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
 	/* Assume that the user has missed the current sequence number
 	 * by about a day rather than she wants to wait for years
-	 * using vertical blanks... 
+	 * using vertical blanks...
 	 */
-	DRM_WAIT_ON( ret, dev->vbl_queue, 3*DRM_HZ, 
-		     ( ( ( cur_vblank = atomic_read(&dev->vbl_received ) )
-			 - *sequence ) <= (1<<23) ) );
+	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
+		    (((cur_vblank = atomic_read(&dev->vbl_received))
+		      - *sequence) <= (1 << 23)));
 
 	*sequence = cur_vblank;
 
 	return ret;
 }
 
-
 /* Needs the lock as it touches the ring.
  */
-int radeon_irq_emit( DRM_IOCTL_ARGS )
+int radeon_irq_emit(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_irq_emit_t emit;
 	int result;
 
-	LOCK_TEST_WITH_RETURN( dev, filp );
+	LOCK_TEST_WITH_RETURN(dev, filp);
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL( emit, (drm_radeon_irq_emit_t *)data,
-				  sizeof(emit) );
+	DRM_COPY_FROM_USER_IOCTL(emit, (drm_radeon_irq_emit_t __user *) data,
+				 sizeof(emit));
 
-	result = radeon_emit_irq( dev );
+	result = radeon_emit_irq(dev);
 
-	if ( DRM_COPY_TO_USER( emit.irq_seq, &result, sizeof(int) ) ) {
-		DRM_ERROR( "copy_to_user\n" );
+	if (DRM_COPY_TO_USER(emit.irq_seq, &result, sizeof(int))) {
+		DRM_ERROR("copy_to_user\n");
 		return DRM_ERR(EFAULT);
 	}
 
 	return 0;
 }
 
-
 /* Doesn't need the hardware lock.
  */
-int radeon_irq_wait( DRM_IOCTL_ARGS )
+int radeon_irq_wait(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_irq_wait_t irqwait;
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL( irqwait, (drm_radeon_irq_wait_t *)data,
-				  sizeof(irqwait) );
+	DRM_COPY_FROM_USER_IOCTL(irqwait, (drm_radeon_irq_wait_t __user *) data,
+				 sizeof(irqwait));
 
-	return radeon_wait_irq( dev, irqwait.irq_seq );
+	return radeon_wait_irq(dev, irqwait.irq_seq);
 }
-
 
 /* drm_dma.h hooks
 */
-void DRM(driver_irq_preinstall)( drm_device_t *dev ) {
+void radeon_driver_irq_preinstall(drm_device_t * dev)
+{
 	drm_radeon_private_t *dev_priv =
-		(drm_radeon_private_t *)dev->dev_private;
+	    (drm_radeon_private_t *) dev->dev_private;
 
- 	/* Disable *all* interrupts */
-      	RADEON_WRITE( RADEON_GEN_INT_CNTL, 0 );
+	/* Disable *all* interrupts */
+	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
 
 	/* Clear bits if they're already high */
-	radeon_acknowledge_irqs( dev_priv );
+	radeon_acknowledge_irqs(dev_priv);
 }
 
-void DRM(driver_irq_postinstall)( drm_device_t *dev ) {
+void radeon_driver_irq_postinstall(drm_device_t * dev)
+{
 	drm_radeon_private_t *dev_priv =
-		(drm_radeon_private_t *)dev->dev_private;
+	    (drm_radeon_private_t *) dev->dev_private;
 
-   	atomic_set(&dev_priv->swi_emitted, 0);
-	DRM_INIT_WAITQUEUE( &dev_priv->swi_queue );
+	atomic_set(&dev_priv->swi_emitted, 0);
+	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
 
 	/* Turn on SW and VBL ints */
-   	RADEON_WRITE( RADEON_GEN_INT_CNTL,
-		      RADEON_CRTC_VBLANK_MASK |	
-		      RADEON_SW_INT_ENABLE );
+	RADEON_WRITE(RADEON_GEN_INT_CNTL,
+		     RADEON_CRTC_VBLANK_MASK | RADEON_SW_INT_ENABLE);
 }
 
-void DRM(driver_irq_uninstall)( drm_device_t *dev ) {
+void radeon_driver_irq_uninstall(drm_device_t * dev)
+{
 	drm_radeon_private_t *dev_priv =
-		(drm_radeon_private_t *)dev->dev_private;
+	    (drm_radeon_private_t *) dev->dev_private;
 	if (!dev_priv)
 		return;
 
 	/* Disable *all* interrupts */
-	RADEON_WRITE( RADEON_GEN_INT_CNTL, 0 );
+	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
 }

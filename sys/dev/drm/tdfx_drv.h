@@ -1,6 +1,6 @@
 /* tdfx.h -- 3dfx DRM template customization -*- linux-c -*-
- * Created: Wed Feb 14 12:32:32 2001 by gareth@valinux.com */
-/*-
+ * Created: Wed Feb 14 12:32:32 2001 by gareth@valinux.com
+ *
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *
@@ -32,14 +32,8 @@
 #ifndef __TDFX_H__
 #define __TDFX_H__
 
-/* This remains constant for all DRM template files.
- */
-#define DRM(x) tdfx_##x
-
 /* General customization:
  */
-#define __HAVE_MTRR		1
-#define __HAVE_CTX_BITMAP	1
 
 #define DRIVER_AUTHOR		"VA Linux Systems Inc."
 

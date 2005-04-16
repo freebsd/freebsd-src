@@ -10,11 +10,11 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -22,27 +22,32 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
- * 
+ *
  * $FreeBSD$
  */
 
 #ifndef _SIS_DRV_H_
 #define _SIS_DRV_H_
 
+/* General customization:
+ */
+
+#define DRIVER_AUTHOR		"SIS"
+#define DRIVER_NAME		"sis"
+#define DRIVER_DESC		"SIS 300/630/540"
+#define DRIVER_DATE		"20030826"
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		1
+#define DRIVER_PATCHLEVEL	0
+
 #include "dev/drm/sis_ds.h"
 
 typedef struct drm_sis_private {
-	drm_map_t *buffers;
-
 	memHeap_t *AGPHeap;
 	memHeap_t *FBHeap;
 } drm_sis_private_t;
 
-extern int sis_fb_alloc( DRM_IOCTL_ARGS );
-extern int sis_fb_free( DRM_IOCTL_ARGS );
-extern int sis_ioctl_agp_init( DRM_IOCTL_ARGS );
-extern int sis_ioctl_agp_alloc( DRM_IOCTL_ARGS );
-extern int sis_ioctl_agp_free( DRM_IOCTL_ARGS );
-extern int sis_fb_init( DRM_IOCTL_ARGS );
+extern int sis_init_context(drm_device_t * dev, int context);
+extern int sis_final_context(drm_device_t * dev, int context);
 
 #endif

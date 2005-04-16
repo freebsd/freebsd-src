@@ -1,5 +1,6 @@
 /* ati_pcigart.h -- ATI PCI GART support -*- linux-c -*-
- * Created: Wed Dec 13 21:52:19 2000 by gareth@valinux.com */
+ * Created: Wed Dec 13 21:52:19 2000 by gareth@valinux.com
+ */
 /*-
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
@@ -44,9 +45,8 @@
 # define ATI_MAX_PCIGART_PAGES		8192	/* 32 MB aperture, 4K pages */
 # define ATI_PCIGART_PAGE_SIZE		4096	/* PCI GART page size */
 
-int DRM(ati_pcigart_init)( drm_device_t *dev,
-			   unsigned long *addr,
-			   dma_addr_t *bus_addr)
+int drm_ati_pcigart_init(drm_device_t *dev, unsigned long *addr,
+			 dma_addr_t *bus_addr)
 {
 	drm_sg_mem_t *entry = dev->sg;
 	unsigned long address = 0;
@@ -60,7 +60,7 @@ int DRM(ati_pcigart_init)( drm_device_t *dev,
 	}
 
 	address = (long)contigmalloc((1 << ATI_PCIGART_TABLE_ORDER) * PAGE_SIZE, 
-	    DRM(M_DRM), M_NOWAIT, 0ul, 0xfffffffful, PAGE_SIZE, 0);
+	    M_DRM, M_NOWAIT, 0ul, 0xfffffffful, PAGE_SIZE, 0);
 	if ( !address ) {
 		DRM_ERROR( "cannot allocate PCI GART page!\n" );
 		goto done;
@@ -96,9 +96,8 @@ done:
 	return ret;
 }
 
-int DRM(ati_pcigart_cleanup)( drm_device_t *dev,
-			      unsigned long addr,
-			      dma_addr_t bus_addr)
+int drm_ati_pcigart_cleanup(drm_device_t *dev, unsigned long addr,
+			    dma_addr_t bus_addr)
 {
 	drm_sg_mem_t *entry = dev->sg;
 
@@ -109,7 +108,9 @@ int DRM(ati_pcigart_cleanup)( drm_device_t *dev,
 	}
 
 #if __FreeBSD_version > 500000
-	contigfree( (void *)addr, (1 << ATI_PCIGART_TABLE_ORDER) * PAGE_SIZE, DRM(M_DRM));	/* Not available on 4.x */
+	/* Not available on 4.x */
+	contigfree((void *)addr, (1 << ATI_PCIGART_TABLE_ORDER) * PAGE_SIZE,
+		   M_DRM);
 #endif
 	return 1;
 }

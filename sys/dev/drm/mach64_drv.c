@@ -1,5 +1,5 @@
-/* mga_drv.c -- Matrox G200/G400 driver -*- linux-c -*-
- * Created: Mon Dec 13 01:56:22 1999 by jhartmann@precisioninsight.com
+/* mach64_drv.c -- ATI Rage 128 driver -*- linux-c -*-
+ * Created: Mon Dec 13 09:47:27 1999 by faith@precisioninsight.com
  */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -32,35 +32,36 @@
  * $FreeBSD$
  */
 
+
+#include <sys/types.h>
+
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
-#include "dev/drm/mga_drm.h"
-#include "dev/drm/mga_drv.h"
+#include "dev/drm/mach64_drm.h"
+#include "dev/drm/mach64_drv.h"
 #include "dev/drm/drm_pciids.h"
 
 /* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
-static drm_pci_id_list_t mga_pciidlist[] = {
-	mga_PCI_IDS
+static drm_pci_id_list_t mach64_pciidlist[] = {
+	mach64_PCI_IDS
 };
 
-extern drm_ioctl_desc_t mga_ioctls[];
-extern int mga_max_ioctl;
+extern drm_ioctl_desc_t mach64_ioctls[];
+extern int mach64_max_ioctl;
 
-static void mga_configure(drm_device_t *dev)
+static void mach64_configure(drm_device_t *dev)
 {
-	dev->dev_priv_size = sizeof(drm_mga_buf_priv_t);
-	/* XXX dev->prerelease = mga_driver_prerelease; */
-	dev->pretakedown = mga_driver_pretakedown;
-	dev->vblank_wait = mga_driver_vblank_wait;
-	dev->irq_preinstall = mga_driver_irq_preinstall;
-	dev->irq_postinstall = mga_driver_irq_postinstall;
-	dev->irq_uninstall = mga_driver_irq_uninstall;
-	dev->irq_handler = mga_driver_irq_handler;
-	dev->dma_ioctl = mga_dma_buffers;
-	dev->dma_quiescent = mga_driver_dma_quiescent;
+	dev->dev_priv_size = 1; /* No dev_priv */
+	dev->pretakedown = mach64_driver_pretakedown;
+	dev->vblank_wait = mach64_driver_vblank_wait;
+	dev->irq_preinstall = mach64_driver_irq_preinstall;
+	dev->irq_postinstall = mach64_driver_irq_postinstall;
+	dev->irq_uninstall = mach64_driver_irq_uninstall;
+	dev->irq_handler = mach64_driver_irq_handler;
+	dev->dma_ioctl = mach64_dma_buffers;
 
-	dev->driver_ioctls = mga_ioctls;
-	dev->max_driver_ioctl = mga_max_ioctl;
+	dev->driver_ioctls = mach64_ioctls;
+	dev->max_driver_ioctl = mach64_max_ioctl;
 
 	dev->driver_name = DRIVER_NAME;
 	dev->driver_desc = DRIVER_DESC;
@@ -70,8 +71,8 @@ static void mga_configure(drm_device_t *dev)
 	dev->driver_patchlevel = DRIVER_PATCHLEVEL;
 
 	dev->use_agp = 1;
-	dev->require_agp = 1;
 	dev->use_mtrr = 1;
+	dev->use_pci_dma = 1;
 	dev->use_dma = 1;
 	dev->use_irq = 1;
 	dev->use_vbl_irq = 1;
@@ -79,40 +80,40 @@ static void mga_configure(drm_device_t *dev)
 
 #ifdef __FreeBSD__
 static int
-mga_probe(device_t dev)
+mach64_probe(device_t dev)
 {
-	return drm_probe(dev, mga_pciidlist);
+	return drm_probe(dev, mach64_pciidlist);
 }
 
 static int
-mga_attach(device_t nbdev)
+mach64_attach(device_t nbdev)
 {
 	drm_device_t *dev = device_get_softc(nbdev);
 
 	bzero(dev, sizeof(drm_device_t));
-	mga_configure(dev);
-	return drm_attach(nbdev, mga_pciidlist);
+	mach64_configure(dev);
+	return drm_attach(nbdev, mach64_pciidlist);
 }
 
-static device_method_t mga_methods[] = {
+static device_method_t mach64_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mga_probe),
-	DEVMETHOD(device_attach,	mga_attach),
+	DEVMETHOD(device_probe,		mach64_probe),
+	DEVMETHOD(device_attach,	mach64_attach),
 	DEVMETHOD(device_detach,	drm_detach),
 
 	{ 0, 0 }
 };
 
-static driver_t mga_driver = {
+static driver_t mach64_driver = {
 	"drm",
-	mga_methods,
+	mach64_methods,
 	sizeof(drm_device_t)
 };
 
 extern devclass_t drm_devclass;
-DRIVER_MODULE(mga, pci, mga_driver, drm_devclass, 0, 0);
-MODULE_DEPEND(mga, drm, 1, 1, 1);
+DRIVER_MODULE(mach64, pci, mach64_driver, drm_devclass, 0, 0);
+MODULE_DEPEND(mach64, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
-CFDRIVER_DECL(mga, DV_TTY, NULL);
+CFDRIVER_DECL(mach64, DV_TTY, NULL);
 #endif
