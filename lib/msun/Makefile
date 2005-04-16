@@ -55,7 +55,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c s_roundl.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
-	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
+	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c s_truncl.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # Location of fpmath.h and _fpmath.h
@@ -153,6 +153,6 @@ MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
 MLINKS+=tan.3 tanf.3
 MLINKS+=tanh.3 tanhf.3
-MLINKS+=trunc.3 truncf.3
+MLINKS+=trunc.3 truncf.3 truncl.3
 
 .include <bsd.lib.mk>
