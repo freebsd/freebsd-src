@@ -139,6 +139,11 @@
       without the elevated privilege level.  More details are in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>.</para>
 
+    <para>An information leak vulnerability in the
+      <literal>SIOCGIFCONF</literal> &man.ioctl.2;, which leaked 12
+      bytes of kernel memory, has been fixed.  More details are in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
