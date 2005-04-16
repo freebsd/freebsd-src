@@ -16,71 +16,62 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- *
+ * ERIC ANHOLT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  * $FreeBSD$
  */
 
+#include "dev/drm/drmP.h"
+#include "dev/drm/drm.h"
+
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-static int DRM(dma_mmap)(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, 
+int drm_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr,
     int prot)
 #elif defined(__FreeBSD__)
-static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
-#elif defined(__NetBSD__)
-static paddr_t DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
+int drm_mmap(dev_t kdev, vm_offset_t offset, int prot)
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 #endif
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma = dev->dma;
-	unsigned long physical;
-	unsigned long page;
-
-	if (dma == NULL || dma->pagelist == NULL)
-		return -1;
-
-	page	 = offset >> PAGE_SHIFT;
-	physical = dma->pagelist[page];
-
-	DRM_DEBUG("0x%08lx (page %lu) => 0x%08lx\n", (long)offset, page, physical);
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-	*paddr = physical;
-	return 0;
-#else
-	return atop(physical);
-#endif
-}
-
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-int DRM(mmap)(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, 
-    int prot)
-#elif defined(__FreeBSD__)
-int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)
-#elif defined(__NetBSD__)
-paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
-#endif
-{
-	DRM_DEVICE;
-	drm_local_map_t *map = NULL;
-	drm_map_list_entry_t *listentry = NULL;
+	drm_local_map_t *map;
 	drm_file_t *priv;
+	drm_map_type_t type;
 
-	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)(uintptr_t)DRM_CURRENTPID);
+	DRM_LOCK();
+	priv = drm_find_file_by_proc(dev, DRM_CURPROC);
+	DRM_UNLOCK();
+	if (priv == NULL) {
+		DRM_ERROR("can't find authenticator\n");
+		return EINVAL;
+	}
 
 	if (!priv->authenticated)
 		return DRM_ERR(EACCES);
 
-	if (dev->dma
-	    && offset >= 0
-	    && offset < ptoa(dev->dma->page_count))
+	DRM_SPINLOCK(&dev->dma_lock);
+	if (dev->dma && offset >= 0 && offset < ptoa(dev->dma->page_count)) {
+		drm_device_dma_t *dma = dev->dma;
+
+		if (dma->pagelist != NULL) {
+			unsigned long page = offset >> PAGE_SHIFT;
+			unsigned long phys = dma->pagelist[page];
+
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102
-		return DRM(dma_mmap)(kdev, offset, paddr, prot);
+			*paddr = phys;
+			DRM_SPINUNLOCK(&dev->dma_lock);
+			return 0;
 #else
-		return DRM(dma_mmap)(kdev, offset, prot);
+			return atop(phys);
 #endif
+		} else {
+			DRM_SPINUNLOCK(&dev->dma_lock);
+			return -1;
+		}
+	}
+	DRM_SPINUNLOCK(&dev->dma_lock);
 
 				/* A sequential search of a linked list is
 				   fine here because: 1) there will only be
@@ -89,23 +80,26 @@ paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
 				   once, so it doesn't have to be optimized
 				   for performance, even if the list was a
 				   bit longer. */
-	TAILQ_FOREACH(listentry, dev->maplist, link) {
-		map = listentry->map;
-/*		DRM_DEBUG("considering 0x%x..0x%x\n", map->offset, map->offset + map->size - 1);*/
-		if (offset >= map->offset
-		    && offset < map->offset + map->size) break;
+	DRM_LOCK();
+	TAILQ_FOREACH(map, &dev->maplist, link) {
+		if (offset >= map->offset && offset < map->offset + map->size)
+			break;
 	}
-	
-	if (!listentry) {
+
+	if (map == NULL) {
+		DRM_UNLOCK();
 		DRM_DEBUG("can't find map\n");
 		return -1;
 	}
 	if (((map->flags&_DRM_RESTRICTED) && DRM_SUSER(DRM_CURPROC))) {
+		DRM_UNLOCK();
 		DRM_DEBUG("restricted map\n");
 		return -1;
 	}
+	type = map->type;
+	DRM_UNLOCK();
 
-	switch (map->type) {
+	switch (type) {
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 	case _DRM_AGP:
@@ -127,7 +121,7 @@ paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
 		return -1;	/* This should never happen. */
 	}
 	DRM_DEBUG("bailing out\n");
-	
+
 	return -1;
 }
 

@@ -1,7 +1,7 @@
 /* mga_irq.c -- IRQ handling for radeon -*- linux-c -*- */
 /*-
  * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
- * 
+ *
  * The Weather Channel (TM) funded Tungsten Graphics to develop the
  * initial release of the Radeon 8500 driver under the XFree86 license.
  * This notice must be preserved.
@@ -32,74 +32,72 @@
  * $FreeBSD$
  */
 
-#include "dev/drm/mga.h"
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 #include "dev/drm/mga_drm.h"
 #include "dev/drm/mga_drv.h"
 
-irqreturn_t mga_irq_handler( DRM_IRQ_ARGS )
+irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	drm_device_t *dev = (drm_device_t *) arg;
-	drm_mga_private_t *dev_priv = 
-	   (drm_mga_private_t *)dev->dev_private;
+	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	int status;
 
-	status = MGA_READ( MGA_STATUS );
-	
+	status = MGA_READ(MGA_STATUS);
+
 	/* VBLANK interrupt */
-	if ( status & MGA_VLINEPEN ) {
-		MGA_WRITE( MGA_ICLEAR, MGA_VLINEICLR );
+	if (status & MGA_VLINEPEN) {
+		MGA_WRITE(MGA_ICLEAR, MGA_VLINEICLR);
 		atomic_inc(&dev->vbl_received);
 		DRM_WAKEUP(&dev->vbl_queue);
-		DRM(vbl_send_signals)( dev );
+		drm_vbl_send_signals(dev);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
 
-int mga_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+int mga_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 {
 	unsigned int cur_vblank;
 	int ret = 0;
 
 	/* Assume that the user has missed the current sequence number
 	 * by about a day rather than she wants to wait for years
-	 * using vertical blanks... 
+	 * using vertical blanks...
 	 */
-	DRM_WAIT_ON( ret, dev->vbl_queue, 3*DRM_HZ, 
-		     ( ( ( cur_vblank = atomic_read(&dev->vbl_received ) )
-			 - *sequence ) <= (1<<23) ) );
+	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
+		    (((cur_vblank = atomic_read(&dev->vbl_received))
+		      - *sequence) <= (1 << 23)));
 
 	*sequence = cur_vblank;
 
 	return ret;
 }
 
-void mga_driver_irq_preinstall( drm_device_t *dev ) {
-  	drm_mga_private_t *dev_priv = 
-	   (drm_mga_private_t *)dev->dev_private;
+void mga_driver_irq_preinstall(drm_device_t * dev)
+{
+	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
 	/* Disable *all* interrupts */
-      	MGA_WRITE( MGA_IEN, 0 );
+	MGA_WRITE(MGA_IEN, 0);
 	/* Clear bits if they're already high */
-   	MGA_WRITE( MGA_ICLEAR, ~0 );
+	MGA_WRITE(MGA_ICLEAR, ~0);
 }
 
-void mga_driver_irq_postinstall( drm_device_t *dev ) {
-  	drm_mga_private_t *dev_priv = 
-	   (drm_mga_private_t *)dev->dev_private;
+void mga_driver_irq_postinstall(drm_device_t * dev)
+{
+	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
 	/* Turn on VBL interrupt */
-   	MGA_WRITE( MGA_IEN, MGA_VLINEIEN );
+	MGA_WRITE(MGA_IEN, MGA_VLINEIEN);
 }
 
-void mga_driver_irq_uninstall( drm_device_t *dev ) {
-  	drm_mga_private_t *dev_priv = 
-	   (drm_mga_private_t *)dev->dev_private;
+void mga_driver_irq_uninstall(drm_device_t * dev)
+{
+	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	if (!dev_priv)
 		return;
 
 	/* Disable *all* interrupts */
-	MGA_WRITE( MGA_IEN, 0 );
+	MGA_WRITE(MGA_IEN, 0);
 }

@@ -196,24 +196,15 @@ options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
-# DRM options:
-# mgadrm:    AGP Matrox G200, G400, G450, G550
-# r128drm:   ATI Rage 128
-# radeondrm: ATI Radeon up to 9000/9100
-# sisdrm:    SiS 300/305,540,630
-# tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee
-# DRM_DEBUG: include debug printfs, very slow
-#
-# mga requires AGP in the kernel, and it is recommended
-# for AGP r128 and radeon cards.
-
-device		mgadrm
-device		r128drm
-device		radeondrm
-device		sisdrm
-device		tdfxdrm
-
-options 	DRM_DEBUG
+# Direct Rendering modules for 3D acceleration.
+device		drm		# DRM core module required by DRM drivers
+device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
+device		mgadrm		# AGP Matrox G200, G400, G450, G550
+device		r128drm		# ATI Rage 128
+device		radeondrm	# ATI Radeon up to 9200
+device		sisdrm		# SiS 300/305, 540, 630
+device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
+options 	DRM_DEBUG	# Include debug printfs (slow)
 
 #
 # Network interfaces:
