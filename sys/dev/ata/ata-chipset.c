@@ -1429,7 +1429,7 @@ ata_nvidia_ident(device_t dev)
      { ATA_NFORCE3_MCP_S2, 0, 0,      NV4OFF, ATA_SA150, "nVidia nForce3 MCP" },
      { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
      { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
-     { ATA_NFORCE4_S1,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
+     { ATA_NFORCE4_S2,  0, 0,         NV4OFF, ATA_SA150, "nVidia nForce4" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
