@@ -91,12 +91,14 @@
 	.globl x86_64_wrap_end
 
 ENTRY(x86_64_wrap)
+	push	%rbp		# insure that the stack
+	mov	%rsp,%rbp	# is 16-byte aligned
+	and	$-16,%rsp	#
 	subq	$96,%rsp	# allocate space on stack
 	mov     %rsi,96-8(%rsp)	# save %rsi
 	mov     %rdi,96-16(%rsp)# save %rdi
 	mov	%rcx,%r10	# temporarily save %rcx in scratch
-	mov	%rsp,%rsi
-	add	$96+56,%rsi	# source == old stack top (stack+56)
+	lea	56+8(%rbp),%rsi	# source == old stack top (stack+56)
 	mov	%rsp,%rdi	# destination == new stack top
 	mov	$10,%rcx	# count == 10 quadwords
 	rep
@@ -105,15 +107,15 @@ ENTRY(x86_64_wrap)
 	mov     %rdx,%rsi	# set up arg1 (%rdx -> %rsi)
 	mov     %r8,%rdx	# set up arg2 (%r8 -> %rdx)
 	mov     %r9,%rcx	# set up arg3 (%r9 -> %rcx)
-	mov	96+40(%rsp),%r8	# set up arg4 (stack+40 -> %r8)
-	mov	96+48(%rsp),%r9	# set up arg5 (stack+48 -> %r9)
+	mov	40+8(%rbp),%r8	# set up arg4 (stack+40 -> %r8)
+	mov	48+8(%rbp),%r9	# set up arg5 (stack+48 -> %r9)
 	xor	%rax,%rax	# clear return value
 x86_64_wrap_call:
 	mov	$0xFF00FF00FF00FF00,%r11
 	callq	*%r11		# call routine
 	mov	96-16(%rsp),%rdi# restore %rdi
 	mov	96-8(%rsp),%rsi	# restore %rsi
-	addq	$96,%rsp	# delete space on stack
+	leave			# delete space on stack
 	ret
 x86_64_wrap_end:
 
