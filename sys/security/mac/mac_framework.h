@@ -330,6 +330,24 @@ int	mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_write(struct ucred *cred, struct pipepair *pp);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *proc);
+int	mac_check_proc_setuid(struct proc *proc,  struct ucred *cred,
+	    uid_t uid);
+int	mac_check_proc_seteuid(struct proc *proc, struct ucred *cred,
+	    uid_t euid);
+int	mac_check_proc_setgid(struct proc *proc, struct ucred *cred,
+	    gid_t gid);
+int	mac_check_proc_setegid(struct proc *proc, struct ucred *cred,
+	    gid_t egid);
+int	mac_check_proc_setgroups(struct proc *proc, struct ucred *cred,
+	    int ngroups, gid_t *gidset);
+int	mac_check_proc_setreuid(struct proc *proc, struct ucred *cred,
+	    uid_t ruid, uid_t euid);
+int	mac_check_proc_setregid(struct proc *proc, struct ucred *cred,
+	    gid_t rgid, gid_t egid);
+int	mac_check_proc_setresuid(struct proc *proc, struct ucred *cred,
+	    uid_t ruid, uid_t euid, uid_t suid);
+int	mac_check_proc_setresgid(struct proc *proc, struct ucred *cred,
+	    gid_t rgid, gid_t egid, gid_t sgid);
 int	mac_check_proc_signal(struct ucred *cred, struct proc *proc,
 	    int signum);
 int	mac_check_socket_bind(struct ucred *cred, struct socket *so,
