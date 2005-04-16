@@ -106,18 +106,19 @@ inode information
 indirect block dump
 .El
 .It Fl o Ar outfile
-This allows to change the output filename where the dump is written to.
-The current default is
-.Pa /var/tmp/ffsinfo .
+This allows to set the output filename where the dump is written to, and
+must be specified.
 If
 .Fl
 is provided, output will be sent to stdout.
 .El
 .Sh EXAMPLES
-.Dl ffsinfo -l 1023 /dev/vinum/testvol
+.Dl ffsinfo -o /var/tmp/ffsinfo -l 1023 /dev/vinum/testvol
 .Pp
 will dump
 .Pa /dev/vinum/testvol
+to
+.Pa /var/tmp/ffsinfo
 with all available information.
 .Sh BUGS
 Snapshots are handled like plain files.
