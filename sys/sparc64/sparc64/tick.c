@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -32,34 +33,43 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
+#include <sys/sysctl.h>
 #include <sys/timetc.h>
-#ifdef SMP
-#include <sys/ktr.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#endif
-
-#include <dev/ofw/openfirm.h>
 
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
 #include <machine/ver.h>
-#ifdef SMP
-#include <machine/cpu.h>
-#endif
-
-int tick_missed;	/* statistics */
 
 #define	TICK_GRACE	10000
+
+SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
+
+static int adjust_edges = 0;
+SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_edges, CTLFLAG_RD, &adjust_edges,
+    0, "total number of times tick interrupts got more than 12.5% behind");
+
+static int adjust_excess = 0;
+SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_excess, CTLFLAG_RD, &adjust_excess,
+    0, "total number of ignored tick interrupts");
+
+static int adjust_missed = 0;
+SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_missed, CTLFLAG_RD, &adjust_missed,
+    0, "total number of missed tick interrupts");
+
+static int adjust_ticks = 0;
+SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
+    0, "total number of tick interrupts with adjustment");
+
+static void tick_hardclock(struct clockframe *);
 
 void
 cpu_initclocks(void)
 {
+
 	stathz = hz;
-	tick_start(tick_hardclock);
+	tick_start();
 }
 
 static __inline void
@@ -75,72 +85,100 @@ tick_process(struct clockframe *cf)
 	statclock(cf);
 }
 
-void
+static void
 tick_hardclock(struct clockframe *cf)
 {
-	int missed;
-	u_long next;
-	register_t i;
+	u_long adj, s, tick, ref;
+	long delta;
+	int count;
 
-	tick_process(cf);
 	/*
-	 * Avoid stopping of hardclock in case we missed one tick period by
-	 * ensuring that the the value of the next tick is at least TICK_GRACE
-	 * ticks in the future.
-	 * Missed ticks need to be accounted for by repeatedly calling
-	 * hardclock.
+	 * The sequence of reading the TICK register, calculating the value
+	 * of the next tick and writing it to the TICK_CMPR register must not
+	 * be interrupted, not even by an IPI, otherwise a value that is in
+	 * the past could be written in the worst case, causing hardclock to
+	 * stop.
 	 */
-	missed = 0;
-	next = rd(asr23) + tick_increment;
-	i = intr_disable();
-	while (next < rd(tick) + TICK_GRACE) {
-		next += tick_increment;
-		missed++;
-	}
-	wr(asr23, next, 0);
-	intr_restore(i);
-	atomic_add_int(&tick_missed, missed);
-	for (; missed > 0; missed--)
+	adj = PCPU_GET(tickadj);
+	s = intr_disable();
+	tick = rd(tick);
+	wrtickcmpr(tick + tick_increment - adj, 0);
+	intr_restore(s);
+	ref = PCPU_GET(tickref);
+	delta = tick - ref;
+	count = 0;
+	while (delta >= tick_increment) {
 		tick_process(cf);
+		delta -= tick_increment;
+		ref += tick_increment;
+		if (adj != 0)
+			adjust_ticks++;
+		count++;
+	}
+	if (count > 0) {
+		adjust_missed += count - 1;
+		if (delta > (tick_increment >> 3)) {
+			if (adj == 0)
+				adjust_edges++;
+			adj = tick_increment >> 4;
+		} else
+			adj = 0;
+	} else {
+		adj = 0;
+		adjust_excess++;
+	}
+	PCPU_SET(tickref, ref);
+	PCPU_SET(tickadj, adj);
 }
 
 void
 tick_init(u_long clock)
 {
+
 	tick_freq = clock;
 	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
 	/*
+	 * Avoid stopping of hardclock in terms of a lost tick interrupt
+	 * by ensuring that the tick period is at least TICK_GRACE ticks.
+	 */
+	if (tick_increment < TICK_GRACE)
+		panic("%s: HZ to high, decrease to at least %ld", __func__,
+		    clock / TICK_GRACE);
+
+	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
 	 * enabled and a handler that resets the tick counter, causing DELAY()
 	 * to not work properly when used early in boot.
+	 * UltraSPARC III based systems come up with the system tick interrupt
+	 * enabled, causing an interrupt storm on startup since they are not
+	 * handled.
 	 */
-	wr(asr23, 1L << 63, 0);
+	tick_stop();
 }
 
 void
-tick_start(tick_func_t *func)
+tick_start(void)
 {
-	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
-	wrpr(tick, 0, 0);
-	wr(asr23, tick_increment, 0);
-}
+	u_long base, s;
 
-#ifdef SMP
-void
-tick_start_ap(void)
-{
-	u_long base;
+	if (PCPU_GET(cpuid) == 0)
+		intr_setup(PIL_TICK, (ih_func_t *)tick_hardclock, -1, NULL,
+		    NULL);
 
 	/*
-	 * Try to make the ticks interrupt as synchronously as possible to
-	 * avoid inaccuracies for migrating processes. Leave out one tick to
-	 * make sure that it is not missed.
+	 * Try to make the tick interrupts as synchronously as possible on
+	 * all CPUs to avoid inaccuracies for migrating processes. Leave out
+	 * one tick to make sure that it is not missed.
 	 */
+	PCPU_SET(tickadj, 0);
+	s = intr_disable();
 	base = rd(tick);
-	wr(asr23, roundup(base, tick_increment) + tick_increment, 0);
+	base = roundup(base, tick_increment);
+	PCPU_SET(tickref, base);
+	wrtickcmpr(base + tick_increment, 0);
+	intr_restore(s);
 }
-#endif
 
 void
 tick_stop(void)
@@ -148,5 +186,5 @@ tick_stop(void)
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		wr(asr24, 1L << 63, 0);
-	wr(asr23, 1L << 63, 0);
+	wrtickcmpr(1L << 63, 0);
 }

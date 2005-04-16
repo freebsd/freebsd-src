@@ -29,15 +29,8 @@
 #ifndef _MACHINE_TICK_H_
 #define	_MACHINE_TICK_H_
 
-typedef void tick_func_t(struct clockframe *);
-
 void	tick_init(u_long clock);
-void	tick_start(tick_func_t *func);
-#ifdef SMP
-void	tick_start_ap(void);
-#endif
+void	tick_start(void);
 void	tick_stop(void);
-
-tick_func_t tick_hardclock;
 
 #endif

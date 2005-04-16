@@ -51,9 +51,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -342,7 +343,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	csa = &cpu_start_args;
 	pmap_map_tsb();
 	cpu_setregs(pc);
-	tick_start_ap();
+	tick_start();
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("cpu_mp_bootstrap: curthread"));
