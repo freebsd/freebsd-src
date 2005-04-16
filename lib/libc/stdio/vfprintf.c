@@ -1093,16 +1093,22 @@ number:			if ((dprec = prec) >= 0)
 			 * ``The result of converting a zero value with an
 			 * explicit precision of zero is no characters.''
 			 *	-- ANSI X3J11
+			 *
+			 * ``The C Standard is clear enough as is.  The call
+			 * printf("%#.0o", 0) should print 0.''
+			 *	-- Defect Report #151
 			 */
 			cp = buf + BUF;
 			if (flags & INTMAX_SIZE) {
-				if (ujval != 0 || prec != 0)
+				if (ujval != 0 || prec != 0 ||
+				    (flags & ALT && base == 8))
 					cp = __ujtoa(ujval, cp, base,
 					    flags & ALT, xdigs,
 					    flags & GROUPING, thousands_sep,
 					    grouping);
 			} else {
-				if (ulval != 0 || prec != 0)
+				if (ulval != 0 || prec != 0 ||
+				    (flags & ALT && base == 8))
 					cp = __ultoa(ulval, cp, base,
 					    flags & ALT, xdigs,
 					    flags & GROUPING, thousands_sep,
