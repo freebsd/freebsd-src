@@ -103,7 +103,7 @@ static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount
 
 static char	*nambuf_ptr;
 static size_t	nambuf_len;
-static int	nambuf_max_id;
+static int	nambuf_last_id;
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in
@@ -1205,33 +1205,43 @@ mbnambuf_init(void)
 		nambuf_ptr[MAXNAMLEN] = '\0';
 	}
 	nambuf_len = 0;
-	nambuf_max_id = -1;
+	nambuf_last_id = -1;
 }
 
 /*
- * Fill out our concatenation buffer with the given substring, at the
- * offset specified by its id.  For the last substring (i.e., the one with
- * the maximum id), use it to calculate the length of the entire string.
- * Since this function is usually called with ids in descending order, this
- * reduces the number of times we need to call strlen() since we know that
- * all previous substrings are exactly WIN_CHARS in length.
+ * Fill out our concatenation buffer with the given substring, at the offset
+ * specified by its id.  Since this function must be called with ids in
+ * descending order, we take advantage of the fact that ASCII substrings are
+ * exactly WIN_CHARS in length.  For non-ASCII substrings, we shift all
+ * previous (i.e. higher id) substrings upwards to make room for this one.
+ * This only penalizes portions of substrings that contain more than
+ * WIN_CHARS bytes when they are first encountered.
  */
 void
 mbnambuf_write(char *name, int id)
 {
 	size_t count;
+	char *slot;
 
-	count = WIN_CHARS;
-	if (id > nambuf_max_id) {
-		count = strlen(name);
-		nambuf_len = id * WIN_CHARS + count;
-		if (nambuf_len > MAXNAMLEN) {
-			printf("msdosfs: file name %zu too long\n", nambuf_len);
-			return;
-		}
-		nambuf_max_id = id;
+	KASSERT(nambuf_len == 0 || id == nambuf_last_id - 1,
+	    ("non-decreasing id, id %d last id %d", id, nambuf_last_id));
+
+	/* Store this substring in a WIN_CHAR-aligned slot. */
+	slot = nambuf_ptr + (id * WIN_CHARS);
+	count = strlen(name);
+	if (nambuf_len + count > MAXNAMLEN) {
+		printf("msdosfs: file name %zu too long\n", nambuf_len + count);
+		return;
 	}
-	memcpy(nambuf_ptr + (id * WIN_CHARS), name, count);
+
+	/* Shift suffix upwards by the amount length exceeds WIN_CHARS. */
+	if (count > WIN_CHARS && nambuf_len != 0)
+		bcopy(slot + WIN_CHARS, slot + count, nambuf_len);
+
+	/* Copy in the substring to its slot and update length so far. */
+	bcopy(name, slot, count);
+	nambuf_len += count;
+	nambuf_last_id = id;
 }
 
 /*
@@ -1249,7 +1259,7 @@ mbnambuf_flush(struct dirent *dp)
 		mbnambuf_init();
 		return (NULL);
 	}
-	memcpy(dp->d_name, nambuf_ptr, nambuf_len);
+	bcopy(nambuf_ptr, dp->d_name, nambuf_len);
 	dp->d_name[nambuf_len] = '\0';
 	dp->d_namlen = nambuf_len;
 
