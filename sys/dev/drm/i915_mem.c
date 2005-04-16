@@ -1,42 +1,73 @@
-/* radeon_mem.c -- Simple GART/fb memory manager for radeon -*- linux-c -*- */
-/*-
- * Copyright (C) The Weather Channel, Inc.  2002.  All Rights Reserved.
- *
- * The Weather Channel (TM) funded Tungsten Graphics to develop the
- * initial release of the Radeon 8500 driver under the XFree86 license.
- * This notice must be preserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- *
- * Authors:
- *    Keith Whitwell <keith@tungstengraphics.com>
+/* i915_mem.c -- Simple agp/fb memory manager for i915 -*- linux-c -*-
  *
  * $FreeBSD$
  */
+/**************************************************************************
+ *
+ * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
+ * All Rights Reserved.
+ *
+ **************************************************************************/
 
-#include "dev/drm/drmP.h"
-#include "dev/drm/drm.h"
-#include "dev/drm/radeon_drm.h"
-#include "dev/drm/radeon_drv.h"
+#include "drmP.h"
+#include "drm.h"
+#include "i915_drm.h"
+#include "i915_drv.h"
 
-/* Very simple allocator for GART memory, working on a static range
+/* This memory manager is integrated into the global/local lru
+ * mechanisms used by the clients.  Specifically, it operates by
+ * setting the 'in_use' fields of the global LRU to indicate whether
+ * this region is privately allocated to a client.
+ *
+ * This does require the client to actually respect that field.
+ *
+ * Currently no effort is made to allocate 'private' memory in any
+ * clever way - the LRU information isn't used to determine which
+ * block to allocate, and the ring is drained prior to allocations --
+ * in other words allocation is expensive.
+ */
+static void mark_block(drm_device_t * dev, struct mem_block *p, int in_use)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_tex_region_t *list;
+	unsigned shift, nr;
+	unsigned start;
+	unsigned end;
+	unsigned i;
+	int age;
+
+	shift = dev_priv->tex_lru_log_granularity;
+	nr = I915_NR_TEX_REGIONS;
+
+	start = p->start >> shift;
+	end = (p->start + p->size - 1) >> shift;
+
+	age = ++sarea_priv->texAge;
+	list = sarea_priv->texList;
+
+	/* Mark the regions with the new flag and update their age.  Move
+	 * them to head of list to preserve LRU semantics.
+	 */
+	for (i = start; i <= end; i++) {
+		list[i].in_use = in_use;
+		list[i].age = age;
+
+		/* remove_from_list(i)
+		 */
+		list[(unsigned)list[i].next].prev = list[i].prev;
+		list[(unsigned)list[i].prev].next = list[i].next;
+
+		/* insert_at_head(list, i)
+		 */
+		list[i].prev = nr;
+		list[i].next = list[nr].next;
+		list[(unsigned)list[nr].next].prev = i;
+		list[nr].next = i;
+	}
+}
+
+/* Very simple allocator for agp memory, working on a static range
  * already mapped into each client's address space.
  */
 
@@ -46,7 +77,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
 		struct mem_block *newblock =
-		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFS);
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start;
@@ -63,7 +94,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 	/* Maybe cut off the end of an existing block */
 	if (size < p->size) {
 		struct mem_block *newblock =
-		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFS);
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start + size;
@@ -88,9 +119,9 @@ static struct mem_block *alloc_block(struct mem_block *heap, int size,
 	struct mem_block *p;
 	int mask = (1 << align2) - 1;
 
-	list_for_each(p, heap) {
+	for (p = heap->next; p != heap; p = p->next) {
 		int start = (p->start + mask) & ~mask;
-		if (p->filp == 0 && start + size <= p->start + p->size)
+		if (p->filp == NULL && start + size <= p->start + p->size)
 			return split_block(p, start, size, filp);
 	}
 
@@ -101,7 +132,7 @@ static struct mem_block *find_block(struct mem_block *heap, int start)
 {
 	struct mem_block *p;
 
-	list_for_each(p, heap)
+	for (p = heap->next; p != heap; p = p->next)
 		if (p->start == start)
 			return p;
 
@@ -115,20 +146,20 @@ static void free_block(struct mem_block *p)
 	/* Assumes a single contiguous range.  Needs a special filp in
 	 * 'heap' to stop it being subsumed.
 	 */
-	if (p->next->filp == 0) {
+	if (p->next->filp == NULL) {
 		struct mem_block *q = p->next;
 		p->size += q->size;
 		p->next = q->next;
 		p->next->prev = p;
-		drm_free(q, sizeof(*q), DRM_MEM_BUFS);
+		drm_free(q, sizeof(*q), DRM_MEM_BUFLISTS);
 	}
 
-	if (p->prev->filp == 0) {
+	if (p->prev->filp == NULL) {
 		struct mem_block *q = p->prev;
 		q->size += p->size;
 		q->next = p->next;
 		q->next->prev = q;
-		drm_free(p, sizeof(*q), DRM_MEM_BUFS);
+		drm_free(p, sizeof(*q), DRM_MEM_BUFLISTS);
 	}
 }
 
@@ -136,15 +167,15 @@ static void free_block(struct mem_block *p)
  */
 static int init_heap(struct mem_block **heap, int start, int size)
 {
-	struct mem_block *blocks = drm_alloc(sizeof(*blocks), DRM_MEM_BUFS);
+	struct mem_block *blocks = drm_alloc(sizeof(*blocks), DRM_MEM_BUFLISTS);
 
 	if (!blocks)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
-	*heap = drm_alloc(sizeof(**heap), DRM_MEM_BUFS);
+	*heap = drm_alloc(sizeof(**heap), DRM_MEM_BUFLISTS);
 	if (!*heap) {
-		drm_free(blocks, sizeof(*blocks), DRM_MEM_BUFS);
-		return DRM_ERR(ENOMEM);
+		drm_free(blocks, sizeof(*blocks), DRM_MEM_BUFLISTS);
+		return -ENOMEM;
 	}
 
 	blocks->start = start;
@@ -160,35 +191,37 @@ static int init_heap(struct mem_block **heap, int start, int size)
 
 /* Free all blocks associated with the releasing file.
  */
-void radeon_mem_release(DRMFILE filp, struct mem_block *heap)
+void i915_mem_release(drm_device_t * dev, DRMFILE filp, struct mem_block *heap)
 {
 	struct mem_block *p;
 
 	if (!heap || !heap->next)
 		return;
 
-	list_for_each(p, heap) {
-		if (p->filp == filp)
+	for (p = heap->next; p != heap; p = p->next) {
+		if (p->filp == filp) {
 			p->filp = NULL;
+			mark_block(dev, p, 0);
+		}
 	}
 
 	/* Assumes a single contiguous range.  Needs a special filp in
 	 * 'heap' to stop it being subsumed.
 	 */
-	list_for_each(p, heap) {
-		while (p->filp == 0 && p->next->filp == 0) {
+	for (p = heap->next; p != heap; p = p->next) {
+		while (p->filp == NULL && p->next->filp == NULL) {
 			struct mem_block *q = p->next;
 			p->size += q->size;
 			p->next = q->next;
 			p->next->prev = p;
-			drm_free(q, sizeof(*q), DRM_MEM_DRIVER);
+			drm_free(q, sizeof(*q), DRM_MEM_BUFLISTS);
 		}
 	}
 }
 
 /* Shutdown.
  */
-void radeon_mem_takedown(struct mem_block **heap)
+void i915_mem_takedown(struct mem_block **heap)
 {
 	struct mem_block *p;
 
@@ -198,32 +231,30 @@ void radeon_mem_takedown(struct mem_block **heap)
 	for (p = (*heap)->next; p != *heap;) {
 		struct mem_block *q = p;
 		p = p->next;
-		drm_free(q, sizeof(*q), DRM_MEM_DRIVER);
+		drm_free(q, sizeof(*q), DRM_MEM_BUFLISTS);
 	}
 
-	drm_free(*heap, sizeof(**heap), DRM_MEM_DRIVER);
+	drm_free(*heap, sizeof(**heap), DRM_MEM_BUFLISTS);
 	*heap = NULL;
 }
 
-/* IOCTL HANDLERS */
-
-static struct mem_block **get_heap(drm_radeon_private_t * dev_priv, int region)
+static struct mem_block **get_heap(drm_i915_private_t * dev_priv, int region)
 {
 	switch (region) {
-	case RADEON_MEM_REGION_GART:
-		return &dev_priv->gart_heap;
-	case RADEON_MEM_REGION_FB:
-		return &dev_priv->fb_heap;
+	case I915_MEM_REGION_AGP:
+		return &dev_priv->agp_heap;
 	default:
 		return NULL;
 	}
 }
 
-int radeon_mem_alloc(DRM_IOCTL_ARGS)
+/* IOCTL HANDLERS */
+
+int i915_mem_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_alloc_t alloc;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_mem_alloc_t alloc;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -231,7 +262,7 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_radeon_mem_alloc_t __user *) data,
+	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_i915_mem_alloc_t __user *) data,
 				 sizeof(alloc));
 
 	heap = get_heap(dev_priv, alloc.region);
@@ -249,6 +280,8 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 	if (!block)
 		return DRM_ERR(ENOMEM);
 
+	mark_block(dev, block, 1);
+
 	if (DRM_COPY_TO_USER(alloc.region_offset, &block->start, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return DRM_ERR(EFAULT);
@@ -257,11 +290,11 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int radeon_mem_free(DRM_IOCTL_ARGS)
+int i915_mem_free(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_free_t memfree;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_mem_free_t memfree;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -269,7 +302,7 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_mem_free_t __user *) data,
+	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_i915_mem_free_t __user *) data,
 				 sizeof(memfree));
 
 	heap = get_heap(dev_priv, memfree.region);
@@ -283,15 +316,16 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 	if (block->filp != filp)
 		return DRM_ERR(EPERM);
 
+	mark_block(dev, block, 0);
 	free_block(block);
 	return 0;
 }
 
-int radeon_mem_init_heap(DRM_IOCTL_ARGS)
+int i915_mem_init_heap(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_init_heap_t initheap;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_mem_init_heap_t initheap;
 	struct mem_block **heap;
 
 	if (!dev_priv) {
@@ -300,7 +334,7 @@ int radeon_mem_init_heap(DRM_IOCTL_ARGS)
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(initheap,
-				 (drm_radeon_mem_init_heap_t __user *) data,
+				 (drm_i915_mem_init_heap_t __user *) data,
 				 sizeof(initheap));
 
 	heap = get_heap(dev_priv, initheap.region);

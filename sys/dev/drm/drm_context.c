@@ -1,5 +1,6 @@
 /* drm_context.h -- IOCTLs for generic contexts -*- linux-c -*-
- * Created: Fri Nov 24 18:31:37 2000 by gareth@valinux.com */
+ * Created: Fri Nov 24 18:31:37 2000 by gareth@valinux.com
+ */
 /*-
  * Copyright 1999, 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -33,15 +34,11 @@
 
 #include "dev/drm/drmP.h"
 
-#if !__HAVE_CTX_BITMAP
-#error "__HAVE_CTX_BITMAP must be defined"
-#endif
-
 /* ================================================================
  * Context bitmap support
  */
 
-void DRM(ctxbitmap_free)( drm_device_t *dev, int ctx_handle )
+void drm_ctxbitmap_free(drm_device_t *dev, int ctx_handle)
 {
 	if (ctx_handle < 0 || ctx_handle >= DRM_MAX_CTXBITMAP || 
 	    dev->ctx_bitmap == NULL) {
@@ -57,7 +54,7 @@ void DRM(ctxbitmap_free)( drm_device_t *dev, int ctx_handle )
 	return;
 }
 
-int DRM(ctxbitmap_next)( drm_device_t *dev )
+int drm_ctxbitmap_next(drm_device_t *dev)
 {
 	int bit;
 
@@ -78,12 +75,9 @@ int DRM(ctxbitmap_next)( drm_device_t *dev )
 		if (dev->context_sareas != NULL) {
 			drm_local_map_t **ctx_sareas;
 
-			ctx_sareas = DRM(realloc)(dev->context_sareas,
-					(dev->max_context - 1) * 
-					sizeof(*dev->context_sareas),
-					dev->max_context * 
-					sizeof(*dev->context_sareas),
-					DRM_MEM_MAPS);
+			ctx_sareas = realloc(dev->context_sareas,
+			    dev->max_context * sizeof(*dev->context_sareas),
+			    M_DRM, M_NOWAIT);
 			if (ctx_sareas == NULL) {
 				clear_bit(bit, dev->ctx_bitmap);
 				DRM_UNLOCK();
@@ -93,8 +87,8 @@ int DRM(ctxbitmap_next)( drm_device_t *dev )
 			dev->context_sareas[bit] = NULL;
 		} else {
 			/* max_context == 1 at this point */
-			dev->context_sareas = DRM(alloc)(dev->max_context * 
-			    sizeof(*dev->context_sareas), DRM_MEM_MAPS);
+			dev->context_sareas = malloc(dev->max_context * 
+			    sizeof(*dev->context_sareas), M_DRM, M_NOWAIT);
 			if (dev->context_sareas == NULL) {
 				clear_bit(bit, dev->ctx_bitmap);
 				DRM_UNLOCK();
@@ -107,14 +101,13 @@ int DRM(ctxbitmap_next)( drm_device_t *dev )
 	return bit;
 }
 
-int DRM(ctxbitmap_init)( drm_device_t *dev )
+int drm_ctxbitmap_init(drm_device_t *dev)
 {
 	int i;
    	int temp;
 
 	DRM_LOCK();
-	dev->ctx_bitmap = (atomic_t *)DRM(calloc)(1, PAGE_SIZE,
-	    DRM_MEM_CTXBITMAP);
+	dev->ctx_bitmap = malloc(PAGE_SIZE, M_DRM, M_NOWAIT | M_ZERO);
 	if ( dev->ctx_bitmap == NULL ) {
 		DRM_UNLOCK();
 		return DRM_ERR(ENOMEM);
@@ -124,20 +117,19 @@ int DRM(ctxbitmap_init)( drm_device_t *dev )
 	DRM_UNLOCK();
 
 	for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
-		temp = DRM(ctxbitmap_next)( dev );
+		temp = drm_ctxbitmap_next(dev);
 	   	DRM_DEBUG( "drm_ctxbitmap_init : %d\n", temp );
 	}
 
 	return 0;
 }
 
-void DRM(ctxbitmap_cleanup)( drm_device_t *dev )
+void drm_ctxbitmap_cleanup(drm_device_t *dev)
 {
 	DRM_LOCK();
 	if (dev->context_sareas != NULL)
-		DRM(free)(dev->context_sareas, sizeof(*dev->context_sareas) * 
-		    dev->max_context, DRM_MEM_MAPS);
-	DRM(free)( (void *)dev->ctx_bitmap, PAGE_SIZE, DRM_MEM_CTXBITMAP );
+		free(dev->context_sareas, M_DRM);
+	free(dev->ctx_bitmap, M_DRM);
 	DRM_UNLOCK();
 }
 
@@ -145,7 +137,7 @@ void DRM(ctxbitmap_cleanup)( drm_device_t *dev )
  * Per Context SAREA Support
  */
 
-int DRM(getsareactx)( DRM_IOCTL_ARGS )
+int drm_getsareactx( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_ctx_priv_map_t request;
@@ -170,19 +162,17 @@ int DRM(getsareactx)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int DRM(setsareactx)( DRM_IOCTL_ARGS )
+int drm_setsareactx( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_ctx_priv_map_t request;
 	drm_local_map_t *map = NULL;
-	drm_map_list_entry_t *list;
 
 	DRM_COPY_FROM_USER_IOCTL( request, (drm_ctx_priv_map_t *)data,
 			   sizeof(request) );
 
 	DRM_LOCK();
-	TAILQ_FOREACH(list, dev->maplist, link) {
-		map=list->map;
+	TAILQ_FOREACH(map, &dev->maplist, link) {
 		if (map->handle == request.handle) {
 			if (dev->max_context < 0)
 				goto bad;
@@ -203,7 +193,7 @@ bad:
  * The actual DRM context handling routines
  */
 
-int DRM(context_switch)( drm_device_t *dev, int old, int new )
+int drm_context_switch(drm_device_t *dev, int old, int new)
 {
         if ( test_and_set_bit( 0, &dev->context_flag ) ) {
                 DRM_ERROR( "Reentering -- FIXME\n" );
@@ -220,7 +210,7 @@ int DRM(context_switch)( drm_device_t *dev, int old, int new )
         return 0;
 }
 
-int DRM(context_switch_complete)( drm_device_t *dev, int new )
+int drm_context_switch_complete(drm_device_t *dev, int new)
 {
         dev->last_context = new;  /* PRE/POST: This is the _only_ writer. */
 
@@ -236,18 +226,15 @@ int DRM(context_switch_complete)( drm_device_t *dev, int new )
         return 0;
 }
 
-int DRM(resctx)( DRM_IOCTL_ARGS )
+int drm_resctx(DRM_IOCTL_ARGS)
 {
 	drm_ctx_res_t res;
-	drm_ctx_t ctx;
 	int i;
 
 	DRM_COPY_FROM_USER_IOCTL( res, (drm_ctx_res_t *)data, sizeof(res) );
 
 	if ( res.count >= DRM_RESERVED_CONTEXTS ) {
-		bzero(&ctx, sizeof(ctx));
 		for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
-			ctx.handle = i;
 			if ( DRM_COPY_TO_USER( &res.contexts[i],
 					   &i, sizeof(i) ) )
 				return DRM_ERR(EFAULT);
@@ -260,17 +247,17 @@ int DRM(resctx)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int DRM(addctx)( DRM_IOCTL_ARGS )
+int drm_addctx(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_ctx_t ctx;
 
 	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
 
-	ctx.handle = DRM(ctxbitmap_next)( dev );
+	ctx.handle = drm_ctxbitmap_next(dev);
 	if ( ctx.handle == DRM_KERNEL_CONTEXT ) {
 				/* Skip kernel's context and get a new one. */
-		ctx.handle = DRM(ctxbitmap_next)( dev );
+		ctx.handle = drm_ctxbitmap_next(dev);
 	}
 	DRM_DEBUG( "%d\n", ctx.handle );
 	if ( ctx.handle == -1 ) {
@@ -279,23 +266,24 @@ int DRM(addctx)( DRM_IOCTL_ARGS )
 		return DRM_ERR(ENOMEM);
 	}
 
-#ifdef DRIVER_CTX_CTOR
-	if ( ctx.handle != DRM_KERNEL_CONTEXT )
-		DRIVER_CTX_CTOR(ctx.handle); /* XXX: also pass dev ? */
-#endif
+	if (dev->context_ctor && ctx.handle != DRM_KERNEL_CONTEXT) {
+		DRM_LOCK();
+		dev->context_ctor(dev, ctx.handle);
+		DRM_UNLOCK();
+	}
 
 	DRM_COPY_TO_USER_IOCTL( (drm_ctx_t *)data, ctx, sizeof(ctx) );
 
 	return 0;
 }
 
-int DRM(modctx)( DRM_IOCTL_ARGS )
+int drm_modctx(DRM_IOCTL_ARGS)
 {
 	/* This does nothing */
 	return 0;
 }
 
-int DRM(getctx)( DRM_IOCTL_ARGS )
+int drm_getctx(DRM_IOCTL_ARGS)
 {
 	drm_ctx_t ctx;
 
@@ -309,7 +297,7 @@ int DRM(getctx)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int DRM(switchctx)( DRM_IOCTL_ARGS )
+int drm_switchctx(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_ctx_t ctx;
@@ -317,10 +305,10 @@ int DRM(switchctx)( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
 
 	DRM_DEBUG( "%d\n", ctx.handle );
-	return DRM(context_switch)( dev, dev->last_context, ctx.handle );
+	return drm_context_switch(dev, dev->last_context, ctx.handle);
 }
 
-int DRM(newctx)( DRM_IOCTL_ARGS )
+int drm_newctx(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_ctx_t ctx;
@@ -328,12 +316,12 @@ int DRM(newctx)( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
 
 	DRM_DEBUG( "%d\n", ctx.handle );
-	DRM(context_switch_complete)( dev, ctx.handle );
+	drm_context_switch_complete(dev, ctx.handle);
 
 	return 0;
 }
 
-int DRM(rmctx)( DRM_IOCTL_ARGS )
+int drm_rmctx(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_ctx_t ctx;
@@ -342,10 +330,13 @@ int DRM(rmctx)( DRM_IOCTL_ARGS )
 
 	DRM_DEBUG( "%d\n", ctx.handle );
 	if ( ctx.handle != DRM_KERNEL_CONTEXT ) {
-#ifdef DRIVER_CTX_DTOR
-		DRIVER_CTX_DTOR(ctx.handle); /* XXX: also pass dev ? */
-#endif
-		DRM(ctxbitmap_free)( dev, ctx.handle );
+		if (dev->context_dtor) {
+			DRM_LOCK();
+			dev->context_dtor(dev, ctx.handle);
+			DRM_UNLOCK();
+		}
+
+		drm_ctxbitmap_free(dev, ctx.handle);
 	}
 
 	return 0;
