@@ -103,17 +103,17 @@ static char io_header[] =
 	"%5d %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
-	"  PID %-*.*s   THR PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
 static char smp_header[] =
-	"  PID %-*.*s "    "PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
 
 #define smp_Proc_format \
 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
 
 static char up_header_thr[] =
-	"  PID %-*.*s   THR PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 static char up_header[] =
-	"  PID %-*.*s "    "PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 
 #define up_Proc_format \
 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
@@ -657,7 +657,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	int state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
-	char *proc_fmt, thr_buf[7];
+	char *proc_fmt, thr_buf[6];
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
