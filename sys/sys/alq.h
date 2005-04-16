@@ -53,12 +53,17 @@ struct ale {
 #define	ALQ_NOWAIT	0x0001
 #define	ALQ_WAITOK	0x0002
 
+/* Suggested mode for file creation. */
+#define	ALQ_DEFAULT_CMODE	0600
+
 /*
  * alq_open:  Creates a new queue
  *
  * Arguments:
  *	alq	Storage for a pointer to the newly created queue.
  *	file	The filename to open for logging.
+ *	cred	Credential to authorize open and I/O with.
+ *	cmode	Creation mode for file, if new.
  *	size	The size of each entry in the queue.
  *	count	The number of items in the buffer, this should be large enough
  *		to store items over the period of a disk write.
@@ -66,8 +71,8 @@ struct ale {
  *	error from open or 0 on success
  */
 struct ucred;
-int alq_open(struct alq **, const char *file, struct ucred *cred, int size,
-	    int count);
+int alq_open(struct alq **, const char *file, struct ucred *cred, int cmode,
+	    int size, int count);
 
 /*
  * alq_write:  Write data into the queue

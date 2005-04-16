@@ -44,6 +44,7 @@
 .Fa "struct alq **app"
 .Fa "const char *file"
 .Fa "struct ucred *cred"
+.Fa "int cmode"
 .Fa "int size"
 .Fa "int count"
 .Fc
@@ -98,10 +99,22 @@ The
 function creates a new logging queue.
 The
 .Fa file
-argument is the name of the file to open for logging.
+argument is the name of the file to open for logging; if the file does not
+yet exist,
+.Fn alq_open
+will attempt to create it.
+The
+.Fa cmode
+argument will be passed to
+.Fn vn_open
+as the requested creation mode, to be used if the file will be created by
+.Fn alq_open .
+Consumers of this API may wish to pass
+.Dv ALQ_DEFAULT_CMODE ,
+a default creation mode suitable for most applications.
 The argument
 .Fa cred
-specifies the credentials to use when opening the file.
+specifies the credentials to use when opening and performing I/O on the file.
 The size of each entry in the queue is determined by
 .Fa size .
 The
