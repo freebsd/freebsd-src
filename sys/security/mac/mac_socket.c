@@ -1,16 +1,16 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
- * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
  * TrustedBSD Project.
  *
- * This software was developed for the FreeBSD Project in part by Network
- * Associates Laboratories, the Security Research Division of Network
- * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
- * as part of the DARPA CHATS research program.
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Technology Research Division of Network Associates, Inc.
+ * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+ * DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -273,6 +273,21 @@ mac_create_mbuf_from_socket(struct socket *socket, struct mbuf *mbuf)
 }
 
 int
+mac_check_socket_accept(struct ucred *cred, struct socket *socket)
+{
+	int error;
+
+	SOCK_LOCK_ASSERT(socket);
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_accept, cred, socket, socket->so_label);
+
+	return (error);
+}
+
+int
 mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
     struct sockaddr *sockaddr)
 {
@@ -340,6 +355,20 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 }
 
 int
+mac_check_socket_poll(struct ucred *cred, struct socket *so)
+{
+	int error;
+
+	SOCK_LOCK_ASSERT(so);
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_poll, cred, so, so->so_label);
+	return (error);
+}
+
+int
 mac_check_socket_receive(struct ucred *cred, struct socket *so)
 {
 	int error;
@@ -379,6 +408,21 @@ mac_check_socket_send(struct ucred *cred, struct socket *so)
 		return (0);
 
 	MAC_CHECK(check_socket_send, cred, so, so->so_label);
+
+	return (error);
+}
+
+int
+mac_check_socket_stat(struct ucred *cred, struct socket *so)
+{
+	int error;
+
+	SOCK_LOCK_ASSERT(so);
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_stat, cred, so, so->so_label);
 
 	return (error);
 }

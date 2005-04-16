@@ -234,6 +234,15 @@ soo_poll(fp, events, active_cred, td)
 	int error;
 
 	NET_LOCK_GIANT();
+#ifdef MAC
+	SOCK_LOCK(so);
+	error = mac_check_socket_poll(active_cred, so);
+	SOCK_UNLOCK(so);
+	if (error) {
+		NET_UNLOCK_GIANT();
+		return (error);
+	}
+#endif
 	error = (so->so_proto->pr_usrreqs->pru_sopoll)
 	    (so, events, fp->f_cred, td);
 	NET_UNLOCK_GIANT();
@@ -254,6 +263,15 @@ soo_stat(fp, ub, active_cred, td)
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
 	NET_LOCK_GIANT();
+#ifdef MAC
+	SOCK_LOCK(so);
+	error = mac_check_socket_stat(active_cred, so);
+	SOCK_UNLOCK(so);
+	if (error) {
+		NET_UNLOCK_GIANT();
+		return (error);
+	}
+#endif
 	/*
 	 * If SBS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.

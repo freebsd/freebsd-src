@@ -1791,6 +1791,17 @@ mac_test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 }
 
 static int
+mac_test_check_socket_accept(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_SOCKET_LABEL(socketlabel);
+
+	return (0);
+}
+
+static int
 mac_test_check_socket_bind(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
@@ -1835,7 +1846,18 @@ mac_test_check_socket_listen(struct ucred *cred, struct socket *socket,
 }
 
 static int
-mac_test_check_socket_visible(struct ucred *cred, struct socket *socket,
+mac_test_check_socket_poll(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_SOCKET_LABEL(socketlabel);
+
+	return (0);
+}
+
+static int
+mac_test_check_socket_receive(struct ucred *cred, struct socket *socket,
     struct label *socketlabel)
 {
 
@@ -1853,6 +1875,39 @@ mac_test_check_socket_relabel(struct ucred *cred, struct socket *socket,
 	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_SOCKET_LABEL(socketlabel);
 	ASSERT_SOCKET_LABEL(newlabel);
+
+	return (0);
+}
+
+static int
+mac_test_check_socket_send(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_SOCKET_LABEL(socketlabel);
+
+	return (0);
+}
+
+static int
+mac_test_check_socket_stat(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_SOCKET_LABEL(socketlabel);
+
+	return (0);
+}
+
+static int
+mac_test_check_socket_visible(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_SOCKET_LABEL(socketlabel);
 
 	return (0);
 }
@@ -2451,11 +2506,16 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_proc_setresuid = mac_test_check_proc_setresuid,
 	.mpo_check_proc_setresgid = mac_test_check_proc_setresgid,
 	.mpo_check_proc_signal = mac_test_check_proc_signal,
+	.mpo_check_socket_accept = mac_test_check_socket_accept,
 	.mpo_check_socket_bind = mac_test_check_socket_bind,
 	.mpo_check_socket_connect = mac_test_check_socket_connect,
 	.mpo_check_socket_deliver = mac_test_check_socket_deliver,
 	.mpo_check_socket_listen = mac_test_check_socket_listen,
+	.mpo_check_socket_poll = mac_test_check_socket_poll,
+	.mpo_check_socket_receive = mac_test_check_socket_receive,
 	.mpo_check_socket_relabel = mac_test_check_socket_relabel,
+	.mpo_check_socket_send = mac_test_check_socket_send,
+	.mpo_check_socket_stat = mac_test_check_socket_stat,
 	.mpo_check_socket_visible = mac_test_check_socket_visible,
 	.mpo_check_sysarch_ioperm = mac_test_check_sysarch_ioperm,
 	.mpo_check_system_acct = mac_test_check_system_acct,
