@@ -380,11 +380,18 @@ notfound:
 		cnp->cn_flags |= SAVENAME;
 		return (EJUSTRETURN);
 	}
+#if 0
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
+	 *
+	 * XXX Negative caching is broken for msdosfs because the name
+	 * cache doesn't understand peculiarities such as case insensitivity
+	 * and 8.3 filenames.  Hence, it may not invalidate all negative
+	 * entries if a file with this name is later created.
 	 */
 	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
 		cache_enter(vdp, *vpp, cnp);
+#endif
 	return (ENOENT);
 
 found:
