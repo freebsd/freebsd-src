@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
- * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -802,11 +802,11 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_SOCKET:
 		so = fp->f_data;
 		intlabel = mac_socket_label_alloc(M_WAITOK);
-		mtx_lock(&Giant);				/* Sockets */
-		/* XXX: Socket lock here. */
+		NET_LOCK_GIANT();
+		SOCK_LOCK(so);
 		mac_copy_socket_label(so->so_label, intlabel);
-		/* XXX: Socket unlock here. */
-		mtx_unlock(&Giant);				/* Sockets */
+		SOCK_UNLOCK(so);
+		NET_UNLOCK_GIANT();
 		error = mac_externalize_socket_label(intlabel, elements,
 		    buffer, mac.m_buflen);
 		mac_socket_label_free(intlabel);
@@ -1012,12 +1012,10 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		error = mac_internalize_socket_label(intlabel, buffer);
 		if (error == 0) {
 			so = fp->f_data;
-			mtx_lock(&Giant);			/* Sockets */
-			/* XXX: Socket lock here. */
+			NET_LOCK_GIANT();
 			error = mac_socket_label_set(td->td_ucred, so,
 			    intlabel);
-			/* XXX: Socket unlock here. */
-			mtx_unlock(&Giant);			/* Sockets */
+			NET_UNLOCK_GIANT();
 		}
 		mac_socket_label_free(intlabel);
 		break;
