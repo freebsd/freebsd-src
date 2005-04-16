@@ -106,7 +106,7 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
 
-		if (error != EOVERFLOW)
+		if (error != ERESTART)
 			continue;
 		if (sp < IA64_RR_BASE(5))
 			break;
@@ -123,7 +123,11 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 	}
 
 	unw_delete(&rs);
-	return (error);
+	/*
+	 * EJUSTRETURN and ERESTART signal the end of a trace and
+	 * are not really errors.
+	 */
+	return ((error > 0) ? error : 0);
 }
 
 void
