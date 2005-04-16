@@ -33,8 +33,10 @@
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
  * 	from: FreeBSD: src/sys/i386/i386/machdep.c,v 1.477 2001/08/27
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
@@ -241,7 +243,7 @@ spinlock_enter(void)
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = rdpr(pil);
-		wrpr(pil, 0, 14);
+		wrpr(pil, 0, PIL_TICK);
 		td->td_md.md_saved_pil = pil;
 	}
 	td->td_md.md_spinlock_count++;
@@ -375,11 +377,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);
 	}
-
-	/*
-	 * Disable tick for now.
-	 */
-	tick_stop();
 
 	/*
 	 * Initialize the interrupt tables.
