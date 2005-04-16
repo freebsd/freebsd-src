@@ -185,7 +185,7 @@ ath_hal_setlogging(int enable)
 		error = suser(curthread);
 		if (error == 0) {
 			error = alq_open(&ath_hal_alq, ath_hal_logfile,
-				curthread->td_ucred,
+				curthread->td_ucred, ALQ_DEFAULT_CMODE,
 				sizeof (struct athregrec), ath_hal_alq_qsize);
 			ath_hal_alq_lost = 0;
 			ath_hal_alq_emitdev = 1;
