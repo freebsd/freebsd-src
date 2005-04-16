@@ -842,6 +842,72 @@ stub_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 }
 
 static int
+stub_check_proc_setuid(struct ucred *cred, uid_t uid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setgid(struct ucred *cred, gid_t gid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setegid(struct ucred *cred, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	return (0);
+}
+
+static int
+stub_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	return (0);
+}
+
+static int
 stub_check_socket_bind(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
@@ -1341,6 +1407,15 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_pipe_write = stub_check_pipe_write,
 	.mpo_check_proc_debug = stub_check_proc_debug,
 	.mpo_check_proc_sched = stub_check_proc_sched,
+	.mpo_check_proc_setuid = stub_check_proc_setuid,
+	.mpo_check_proc_seteuid = stub_check_proc_seteuid,
+	.mpo_check_proc_setgid = stub_check_proc_setgid,
+	.mpo_check_proc_setegid = stub_check_proc_setegid,
+	.mpo_check_proc_setgroups = stub_check_proc_setgroups,
+	.mpo_check_proc_setreuid = stub_check_proc_setreuid,
+	.mpo_check_proc_setregid = stub_check_proc_setregid,
+	.mpo_check_proc_setresuid = stub_check_proc_setresuid,
+	.mpo_check_proc_setresgid = stub_check_proc_setresgid,
 	.mpo_check_proc_signal = stub_check_proc_signal,
 	.mpo_check_socket_bind = stub_check_socket_bind,
 	.mpo_check_socket_connect = stub_check_socket_connect,

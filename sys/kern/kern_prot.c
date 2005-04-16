@@ -500,6 +500,12 @@ setuid(struct thread *td, struct setuid_args *uap)
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
+#ifdef MAC
+	error = mac_check_proc_setuid(p, oldcred, uid);
+	if (error)
+		goto fail;
+#endif
+
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
@@ -524,12 +530,8 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		uifree(uip);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
 
 	/*
 	 * Copy credentials so other references do not see our changes.
@@ -579,6 +581,12 @@ setuid(struct thread *td, struct setuid_args *uap)
 	uifree(uip);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	uifree(uip);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -604,14 +612,18 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	euip = uifind(euid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_seteuid(p, oldcred, euid);
+	if (error)
+		goto fail;
+#endif
+
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		uifree(euip);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
+
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
 	 * not see our changes.
@@ -626,6 +638,12 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	uifree(euip);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	uifree(euip);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -650,6 +668,12 @@ setgid(struct thread *td, struct setgid_args *uap)
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
+#ifdef MAC
+	error = mac_check_proc_setgid(p, oldcred, gid);
+	if (error)
+		goto fail;
+#endif
+
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
@@ -668,11 +692,8 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
 
 	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
@@ -718,6 +739,11 @@ setgid(struct thread *td, struct setgid_args *uap)
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -741,13 +767,18 @@ setegid(struct thread *td, struct setegid_args *uap)
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setegid(p, oldcred, egid);
+	if (error)
+		goto fail;
+#endif
+
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
+
 	crcopy(newcred, oldcred);
 	if (oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -757,6 +788,11 @@ setegid(struct thread *td, struct setegid_args *uap)
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -789,14 +825,18 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setgroups(p, oldcred, ngrp,
+	    tempcred->cr_groups);
+	if (error)
+		goto fail;
+#endif
+
 	error = suser_cred(oldcred, SUSER_ALLOWJAIL);
-	if (error) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		crfree(tempcred);
-		return (error);
-	}
-		
+	if (error)
+		goto fail;
+
 	/*
 	 * XXX A little bit lazy here.  We could test if anything has
 	 * changed before crcopy() and setting P_SUGID.
@@ -821,6 +861,12 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 	crfree(tempcred);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	crfree(newcred);
+	crfree(tempcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -849,17 +895,20 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setreuid(p, oldcred, ruid, euid);
+	if (error)
+		goto fail;
+#endif
+
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		uifree(ruip);
-		uifree(euip);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
+
 	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euip);
@@ -880,6 +929,13 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	uifree(euip);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	uifree(ruip);
+	uifree(euip);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -905,15 +961,19 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setregid(p, oldcred, rgid, egid);
+	if (error)
+		goto fail;
+#endif
+
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
 
 	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
@@ -933,6 +993,11 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	crfree(newcred);
+	return (error);
 }
 
 /*
@@ -968,6 +1033,13 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setresuid(p, oldcred, ruid, euid, suid);
+	if (error)
+		goto fail;
+#endif
+
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	     ruid != oldcred->cr_svuid &&
 	      ruid != oldcred->cr_uid) ||
@@ -977,13 +1049,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		uifree(ruip);
-		uifree(euip);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
 
 	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
@@ -1004,6 +1071,14 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	uifree(euip);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	uifree(ruip);
+	uifree(euip);
+	crfree(newcred);
+	return (error);
+
 }
 
 /*
@@ -1036,6 +1111,13 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+
+#ifdef MAC
+	error = mac_check_proc_setresgid(p, oldcred, rgid, egid, sgid);
+	if (error)
+		goto fail;
+#endif
+
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	      rgid != oldcred->cr_svgid &&
 	      rgid != oldcred->cr_groups[0]) ||
@@ -1045,11 +1127,8 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		return (error);
-	}
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+		goto fail;
 
 	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
@@ -1068,6 +1147,11 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
+
+fail:
+	PROC_UNLOCK(p);
+	crfree(newcred);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
