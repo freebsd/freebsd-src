@@ -1447,7 +1447,7 @@ ufs_mkdir(ap)
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			FREE(acl, M_ACL);
-				FREE(dacl, M_ACL);
+			FREE(dacl, M_ACL);
 			return (error);
 		}
 	} else {
@@ -1519,18 +1519,19 @@ ufs_mkdir(ap)
 		default:
 			FREE(acl, M_ACL);
 			FREE(dacl, M_ACL);
+			dacl = acl = NULL;
 			goto bad;
 		}
 		FREE(acl, M_ACL);
 		FREE(dacl, M_ACL);
+		dacl = acl = NULL;
 	}
 #endif /* !UFS_ACL */
 
 	/*
 	 * Initialize directory with "." and ".." from static template.
 	 */
-	if (dvp->v_mount->mnt_maxsymlinklen > 0
-	)
+	if (dvp->v_mount->mnt_maxsymlinklen > 0)
 		dtp = &mastertemplate;
 	else
 		dtp = (struct dirtemplate *)&omastertemplate;
@@ -1587,6 +1588,12 @@ bad:
 		VN_KNOTE_UNLOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 		*ap->a_vpp = tvp;
 	} else {
+#ifdef UFS_ACL
+		if (acl != NULL)
+			FREE(acl, M_ACL);
+		if (dacl != NULL)
+			FREE(dacl, M_ACL);
+#endif
 		dp->i_effnlink--;
 		dp->i_nlink--;
 		DIP_SET(dp, i_nlink, dp->i_nlink);
