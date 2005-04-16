@@ -233,10 +233,7 @@ malloc_type_freed(struct malloc_type *ksp, unsigned long size)
  *	the allocation fails.
  */
 void *
-malloc(size, type, flags)
-	unsigned long size;
-	struct malloc_type *type;
-	int flags;
+malloc(unsigned long size, struct malloc_type *type, int flags)
 {
 	int indx;
 	caddr_t va;
@@ -320,9 +317,7 @@ malloc(size, type, flags)
  *	This routine may not block.
  */
 void
-free(addr, type)
-	void *addr;
-	struct malloc_type *type;
+free(void *addr, struct malloc_type *type)
 {
 	uma_slab_t slab;
 	u_long size;
@@ -375,11 +370,7 @@ free(addr, type)
  *	realloc: change the size of a memory block
  */
 void *
-realloc(addr, size, type, flags)
-	void *addr;
-	unsigned long size;
-	struct malloc_type *type;
-	int flags;
+realloc(void *addr, unsigned long size, struct malloc_type *type, int flags)
 {
 	uma_slab_t slab;
 	unsigned long alloc;
@@ -420,11 +411,7 @@ realloc(addr, size, type, flags)
  *	reallocf: same as realloc() but free memory on failure.
  */
 void *
-reallocf(addr, size, type, flags)
-	void *addr;
-	unsigned long size;
-	struct malloc_type *type;
-	int flags;
+reallocf(void *addr, unsigned long size, struct malloc_type *type, int flags)
 {
 	void *mem;
 
@@ -438,8 +425,7 @@ reallocf(addr, size, type, flags)
  */
 /* ARGSUSED*/
 static void
-kmeminit(dummy)
-	void *dummy;
+kmeminit(void *dummy)
 {
 	u_int8_t indx;
 	u_long mem_size;
@@ -523,8 +509,7 @@ kmeminit(dummy)
 }
 
 void
-malloc_init(data)
-	void *data;
+malloc_init(void *data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 
@@ -545,8 +530,7 @@ malloc_init(data)
 }
 
 void
-malloc_uninit(data)
-	void *data;
+malloc_uninit(void *data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 	struct malloc_type *t;
