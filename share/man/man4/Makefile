@@ -21,6 +21,7 @@ MAN=	aac.4 \
 	asr.4 \
 	ata.4 \
 	atapicam.4 \
+	ataraid.4 \
 	ath.4 \
 	ath_hal.4 \
 	atkbd.4 \

@@ -1,0 +1,131 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 12, 2005
+.Dt ATARAID 4
+.Os
+.Sh NAME
+.Nm ataraid
+.Nd "ATA RAID support"
+.Sh SYNOPSIS
+.Cd "device ata"
+.Cd "device ataraid"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for so-called software RAID
+(sometimes referred to as fake RAID or pseudo RAID).
+.Pp
+When a controller that supports software RAID is instructed to
+create a RAID array, its BIOS writes data structures in a specific
+metadata format to the disks.
+These data structures are picked up by the
+.Nm
+driver, so that
+.Fx
+can work with the array.
+The
+.Nm
+driver has to understand the specific metadata format of a
+controller BIOS in order to support its RAID capabilities.
+.Pp
+Read-only support for a metadata format means that
+.Fx
+can use the given RAID array for normal read/write operations.
+Creation and rebuild of such arrays has to be done from the
+controller BIOS.
+.Pp
+Read and write support for a metadata format means that
+.Fx
+can use the given RAID array for normal read/write operations.
+Additionally, the
+.Xr atacontrol 8
+utility can be used to create, rebuild, update and fail such
+RAID arrays.
+.Pp
+The
+.Nm
+driver can read the following metadata formats:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec HostRAID
+.It
+Highpoint V2 RocketRAID
+.It
+Highpoint V3 RocketRAID
+.It
+Intel MatrixRAID
+.It
+Integrated Technology Express (ITE)
+.It
+LSI Logic V2 MegaRAID
+.It
+LSI Logic V3 MegaRAID
+.It
+Promise FastTrak
+.It
+Silicon Image Medley
+.It
+VIA Tech V-RAID
+.It
+FreeBSD PseudoRAID
+.El
+.Pp
+The
+.Nm
+driver can write the following metadata formats:
+.Pp
+.Bl -bullet -compact
+.It
+Highpoint V2 RocketRAID
+.It
+Promise FastTrak
+.It
+FreeBSD PseudoRAID
+.El
+.Pp
+It is also possible to use software RAID on controllers
+that do not have special software RAID capabilities.
+See
+.Xr atacontrol 8
+for details.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ar*" -compact
+.It Pa /dev/ar*
+ATA RAID device nodes
+.El
+.Sh SEE ALSO
+.Xr ata 4 ,
+.Xr atacontrol 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An S\(/oren Schmidt Aq sos@FreeBSD.org .
+This manual page was written by
+.An Christian Brueffer Aq brueffer@FreeBSD.org .
