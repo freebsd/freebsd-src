@@ -356,6 +356,15 @@ options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
 
 #
+# ALQ(9) is a facilty for the asynchronous queuing of records from the kernel
+# to a vnode, and is employed by services such as KTR(4) to produce trace
+# files based on a kernel event stream.  Records are written asynchronously
+# in a worker thread.
+#
+options 	ALQ
+options 	KTR_ALQ
+
+#
 # The INVARIANTS option is used in a number of source files to enable
 # extra sanity checking of internal structures.  This support is not
 # enabled by default because of the extra time it would take to check
