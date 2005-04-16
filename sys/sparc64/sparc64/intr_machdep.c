@@ -199,7 +199,7 @@ intr_stray_vector(void *cookie)
 	iv = cookie;
 	if (intr_stray_count[iv->iv_vec] < MAX_STRAY_LOG) {
 		printf("stray vector interrupt %d\n", iv->iv_vec);
-		atomic_add_long(&intr_stray_count[iv->iv_vec], 1);
+		intr_stray_count[iv->iv_vec]++;
 		if (intr_stray_count[iv->iv_vec] >= MAX_STRAY_LOG)
 			printf("got %d stray interrupt %d's: not logging "
 			    "anymore\n", MAX_STRAY_LOG, iv->iv_vec);

@@ -24,8 +24,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_kstack_pages.h"
 
@@ -197,6 +199,7 @@ ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
 ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
+ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
