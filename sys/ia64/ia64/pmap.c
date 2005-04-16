@@ -2348,4 +2348,24 @@ DB_COMMAND(ttag, db_ttag)
 	db_printf("0x%lx\n", ia64_ttag(addr));
 }
 
+DB_COMMAND(kpte, db_kpte)
+{
+	struct ia64_lpte *pte;
+
+	if (!have_addr) {
+		db_printf("usage: kpte <kva>\n");
+		return;
+	}
+	if (addr < VM_MIN_KERNEL_ADDRESS) {
+		db_printf("kpte: error: invalid <kva>\n");
+		return;
+	}
+	pte = &ia64_kptdir[KPTE_DIR_INDEX(addr)][KPTE_PTE_INDEX(addr)];
+	db_printf("kpte at %p:\n", pte);
+	db_printf("  pte  =%016lx\n", pte->pte);
+	db_printf("  itir =%016lx\n", pte->itir);
+	db_printf("  tag  =%016lx\n", pte->tag);
+	db_printf("  chain=%016lx\n", pte->chain);
+}
+
 #endif
