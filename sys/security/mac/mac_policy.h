@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -424,6 +424,8 @@ struct mac_policy_ops {
 		    gid_t egid, gid_t sgid);
 	int	(*mpo_check_proc_signal)(struct ucred *cred,
 		    struct proc *proc, int signum);
+	int	(*mpo_check_socket_accept)(struct ucred *cred,
+		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_bind)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel,
 		    struct sockaddr *sockaddr);
@@ -435,12 +437,16 @@ struct mac_policy_ops {
 		    struct label *mbuflabel);
 	int	(*mpo_check_socket_listen)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_socket_poll)(struct ucred *cred,
+		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_receive)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_relabel)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel,
 		    struct label *newlabel);
 	int	(*mpo_check_socket_send)(struct ucred *cred,
+		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_socket_stat)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_visible)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
