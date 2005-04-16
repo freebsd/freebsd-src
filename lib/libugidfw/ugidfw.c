@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Network Associates
@@ -341,13 +341,19 @@ bsde_parse_identity(int argc, char *argv[],
 				len = snprintf(errstr, buflen, "uid short");
 				return (-1);
 			}
-			value = strtol(argv[current+1], &endp, 10);
-			if (*endp != '\0') {
-				len = snprintf(errstr, buflen, "invalid uid: '%s'",
-				    argv[current+1]);
-				return (-1);
+			pwd = getpwnam(argv[current+1]);
+			if (pwd != NULL)
+				uid = pwd->pw_uid;
+			else {
+				value = strtol(argv[current+1], &endp, 10);
+				if (*endp != '\0') {
+					len = snprintf(errstr, buflen,
+					    "invalid uid: '%s'",
+					    argv[current+1]);
+					return (-1);
+				}
+				uid = value;
 			}
-			uid = value;
 			uid_seen = 1;
 			current += 2;
 		} else if (strcmp("gid", argv[current]) == 0) {
@@ -360,13 +366,19 @@ bsde_parse_identity(int argc, char *argv[],
 				len = snprintf(errstr, buflen, "gid short");
 				return (-1);
 			}
-			value = strtol(argv[current+1], &endp, 10);
-			if (*endp != '\0') {
-				len = snprintf(errstr, buflen, "invalid gid: '%s'",
-				    argv[current+1]);
-				return (-1);
+			grp = getgrnam(argv[current+1]);
+			if (grp != NULL)
+				gid = grp->gr_gid;
+			else {
+				value = strtol(argv[current+1], &endp, 10);
+				if (*endp != '\0') {
+					len = snprintf(errstr, buflen,
+					    "invalid gid: '%s'",
+					    argv[current+1]);
+					return (-1);
+				}
+				gid = value;
 			}
-			gid = value;
 			gid_seen = 1;
 			current += 2;
 		} else {
