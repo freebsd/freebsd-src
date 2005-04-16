@@ -2320,14 +2320,16 @@ ENTRY(tl0_intr)
 	lduh	[%l0 + %l1], %l0
 	sllx	%l0, 3, %l0
 	add	%l0, %l2, %l0
-
-	ATOMIC_INC_ULONG(%l0, %l1, %l2)
+	ldx	[%l0], %l1
+	inc	%l1
+	stx	%l1, [%l0]
 
 	call	critical_enter
 	 nop
 
-	SET(cnt+V_INTR, %l1, %l0)
-	ATOMIC_INC_INT(%l0, %l1, %l2)
+	lduw	[PCPU(CNT) + V_INTR], %l0
+	inc	%l0
+	stw	%l0, [PCPU(CNT) + V_INTR]
 
 	SET(intr_handlers, %l1, %l0)
 	sllx	%l3, IH_SHIFT, %l1
@@ -2779,7 +2781,7 @@ ENTRY(tl1_intr)
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR,
-	    "tl1_intr: td=%p level=%#lx pil=%#lx pc=%#lx sp=%#lx"
+	    "tl1_intr: td=%p level=%#x pil=%#lx pc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -2827,7 +2829,7 @@ ENTRY(tl1_intr)
 	mov	%l5, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
-	/* %l3 contains PIL */
+	/* %l7 contains PIL */
 	SET(intrcnt, %l5, %l4)
 	prefetcha [%l4] ASI_N, 1
 	SET(pil_countp, %l5, %l6)
@@ -2835,14 +2837,16 @@ ENTRY(tl1_intr)
 	lduh	[%l5 + %l6], %l5
 	sllx	%l5, 3, %l5
 	add	%l5, %l4, %l4
-
-	ATOMIC_INC_ULONG(%l4, %l5, %l6)
+	ldx	[%l4], %l5
+	inc	%l5
+	stx	%l5, [%l4]
 
 	call	critical_enter
 	 nop
 
-	SET(cnt+V_INTR, %l5, %l4)
-	ATOMIC_INC_INT(%l4, %l5, %l6)
+	lduw	[PCPU(CNT) + V_INTR], %l4
+	inc	%l4
+	stw	%l4, [PCPU(CNT) + V_INTR]
 
 	SET(intr_handlers, %l5, %l4)
 	sllx	%l7, IH_SHIFT, %l5
@@ -2880,7 +2884,7 @@ ENTRY(tl1_intr)
 	wrpr	%g3, 0, %tnpc
 
 #if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl1_intr: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_INTR, "tl1_intr: td=%#x pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
