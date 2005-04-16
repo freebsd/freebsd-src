@@ -362,7 +362,7 @@ struct tunable_str {
 
 void	net_warn_not_mpsafe(const char *component);
 #define	NET_NEEDS_GIANT(component)					\
-	SYSINIT(__net_warn_not_mpsafe_ ## __FILE__,			\
+	SYSINIT(__CONCAT(__net_warn_not_mpsafe_, __LINE__),		\
 	    SI_SUB_SETTINGS, SI_ORDER_SECOND, net_warn_not_mpsafe, component);
 
 struct intr_config_hook {
