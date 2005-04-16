@@ -194,7 +194,8 @@ intr_disable(void)
  * between. We also need to disable interrupts completely.
  */
 #define	stxa_sync(va, asi, val) do {					\
-	u_long s = intr_disable();					\
+	u_long s;							\
+	s = intr_disable();						\
 	__asm __volatile("stxa %0, [%1] %2; membar #Sync"		\
 	    : : "r" (val), "r" (va), "n" (asi));			\
 	intr_restore(s);						\
