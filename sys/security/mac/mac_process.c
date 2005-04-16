@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2005 Samy Al Bahra
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -84,6 +85,11 @@ static int	mac_mmap_revocation_via_cow = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
+
+static int	mac_enforce_suid = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, enforce_suid, CTLFLAG_RW,
+    &mac_enforce_suid, 0, "Enforce MAC policy on suid/sgid operations");
+TUNABLE_INT("security.mac.enforce_suid", &mac_enforce_suid);
 
 #ifdef MAC_DEBUG
 static unsigned int nmaccreds, nmacprocs;
@@ -511,5 +517,136 @@ mac_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 
 	MAC_CHECK(check_proc_signal, cred, proc, signum);
 
+	return (error);
+}
+
+int
+mac_check_proc_setuid(struct proc *proc, struct ucred *cred, uid_t uid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setuid, cred, uid);
+	return (error);
+}
+
+int
+mac_check_proc_seteuid(struct proc *proc, struct ucred *cred, uid_t euid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_seteuid, cred, euid);
+	return (error);
+}
+
+int
+mac_check_proc_setgid(struct proc *proc, struct ucred *cred, gid_t gid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setgid, cred, gid);
+	return (error);
+}
+
+int
+mac_check_proc_setegid(struct proc *proc, struct ucred *cred, gid_t egid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setegid, cred, egid);
+	return (error);
+}
+
+int
+mac_check_proc_setgroups(struct proc *proc, struct ucred *cred,
+	int ngroups, gid_t *gidset)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setgroups, cred, ngroups, gidset);
+	return (error);
+}
+
+int
+mac_check_proc_setreuid(struct proc *proc, struct ucred *cred, uid_t ruid,
+	uid_t euid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setreuid, cred, ruid, euid);
+	return (error);
+}
+
+int
+mac_check_proc_setregid(struct proc *proc, struct ucred *cred, gid_t rgid,
+	gid_t egid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setregid, cred, rgid, egid);
+	return (error);
+}
+
+int
+mac_check_proc_setresuid(struct proc *proc, struct ucred *cred, uid_t ruid,
+	uid_t euid, uid_t suid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setresuid, cred, ruid, euid, suid);
+	return (error);
+}
+
+int
+mac_check_proc_setresgid(struct proc *proc, struct ucred *cred, gid_t rgid,
+	gid_t egid, gid_t sgid)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_suid)
+		return (0);
+
+	MAC_CHECK(check_proc_setresgid, cred, rgid, egid, sgid);
 	return (error);
 }

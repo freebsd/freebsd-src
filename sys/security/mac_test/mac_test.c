@@ -1707,6 +1707,90 @@ mac_test_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 }
 
 static int
+mac_test_check_proc_setuid(struct ucred *cred, uid_t uid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setgid(struct ucred *cred, gid_t gid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setegid(struct ucred *cred, gid_t egid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
+mac_test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+
+	return (0);
+}
+
+static int
 mac_test_check_socket_bind(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct sockaddr *sockaddr)
 {
@@ -2357,6 +2441,15 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_pipe_write = mac_test_check_pipe_write,
 	.mpo_check_proc_debug = mac_test_check_proc_debug,
 	.mpo_check_proc_sched = mac_test_check_proc_sched,
+	.mpo_check_proc_setuid = mac_test_check_proc_setuid,
+	.mpo_check_proc_seteuid = mac_test_check_proc_seteuid,
+	.mpo_check_proc_setgid = mac_test_check_proc_setgid,
+	.mpo_check_proc_setegid = mac_test_check_proc_setegid,
+	.mpo_check_proc_setgroups = mac_test_check_proc_setgroups,
+	.mpo_check_proc_setreuid = mac_test_check_proc_setreuid,
+	.mpo_check_proc_setregid = mac_test_check_proc_setregid,
+	.mpo_check_proc_setresuid = mac_test_check_proc_setresuid,
+	.mpo_check_proc_setresgid = mac_test_check_proc_setresgid,
 	.mpo_check_proc_signal = mac_test_check_proc_signal,
 	.mpo_check_socket_bind = mac_test_check_socket_bind,
 	.mpo_check_socket_connect = mac_test_check_socket_connect,
