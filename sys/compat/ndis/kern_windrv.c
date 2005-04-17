@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/queue.h>
 
+#ifdef __i386__
+#include <machine/segments.h>
+#endif
+
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
@@ -545,7 +549,19 @@ extern void x86_setldt(struct gdt *, uint16_t);
 
 #define SEL_LDT	4		/* local descriptor table */
 #define SEL_TO_FS(x)		(((x) << 3))
-#define FREEBSD_EMPTYSEL	7
+
+/*
+ * FreeBSD 6.0 and later has a special GDT segment reserved
+ * specifically for us, so if GNDIS_SEL is defined, use that.
+ * If not, use GTGATE_SEL, which is uninitialized and infrequently
+ * used.
+ */
+
+#ifdef GNDIS_SEL
+#define FREEBSD_EMPTYSEL	GNDIS_SEL
+#else
+#define FREEBSD_EMPTYSEL	GTGATE_SEL	/* slot 7 */
+#endif
 
 /*
  * The meanings of various bits in a descriptor vary a little
