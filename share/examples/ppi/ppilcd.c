@@ -248,7 +248,7 @@ do_char(struct lcd_driver *driver, char ch)
  * --------------------------------
  * Strobe (1)		Enable (6)
  * Data (2-9)		Data (7-14)
- * Select(13)		RS (4)
+ * Select In (17)	RS (4)
  * Auto Feed (14)	R/W (5)
  *
  * In addition, power must be supplied to the module, normally with
