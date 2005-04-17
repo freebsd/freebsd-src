@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2005 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -690,7 +690,7 @@ version(void)
 {
 	printf("bsdtar %s, ", PACKAGE_VERSION);
 	printf("%s\n", archive_version());
-	printf("Copyright (C) 2003-2004 Tim Kientzle\n");
+	printf("Copyright (C) 2003-2005 Tim Kientzle\n");
 	exit(1);
 }
 
