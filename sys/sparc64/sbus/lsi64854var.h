@@ -1,4 +1,4 @@
-/*	$NetBSD: lsi64854var.h,v 1.4 2001/03/29 02:58:39 petrov Exp $ */
+/*	$NetBSD: lsi64854var.h,v 1.6 2005/02/04 02:10:36 perry Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -40,7 +40,6 @@
 
 struct lsi64854_softc {
 	device_t		sc_dev;
-	const char		*dv_name;
 
 	int			sc_rid;
 	struct resource		*sc_res;

@@ -1,4 +1,4 @@
-/*	$NetBSD: lsi64854reg.h,v 1.4 1998/09/21 21:26:52 pk Exp $ */
+/*	$NetBSD: lsi64854reg.h,v 1.5 2001/03/29 02:58:39 petrov Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
