@@ -91,7 +91,7 @@ servdata_keycreate(void)
 }
 
 struct servdata *
-_servdata_init(void)
+__servdata_init(void)
 {
 	struct servdata *sd;
 
@@ -326,7 +326,7 @@ setservent(int f)
 {
 	struct servdata *sd;
 
-	if ((sd = _servdata_init()) == NULL)
+	if ((sd = __servdata_init()) == NULL)
 		return;
 	setservent_r(f, &sd->data);
 }
@@ -336,7 +336,7 @@ endservent(void)
 {
 	struct servdata *sd;
 
-	if ((sd = _servdata_init()) == NULL)
+	if ((sd = __servdata_init()) == NULL)
 		return;
 	endservent_r(&sd->data);
 }
@@ -346,7 +346,7 @@ getservent(void)
 {
 	struct servdata *sd;
 
-	if ((sd = _servdata_init()) == NULL)
+	if ((sd = __servdata_init()) == NULL)
 		return (NULL);
 	if (getservent_r(&sd->serv, &sd->data) != 0)
 		return (NULL);
