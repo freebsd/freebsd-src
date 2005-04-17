@@ -153,6 +153,6 @@ MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
 MLINKS+=tan.3 tanf.3
 MLINKS+=tanh.3 tanhf.3
-MLINKS+=trunc.3 truncf.3 truncl.3
+MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
 .include <bsd.lib.mk>
