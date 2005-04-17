@@ -25,7 +25,7 @@
  *
  */
 
-/*	$NetBSD: ncr53c9x.c,v 1.106 2003/04/16 18:53:50 petrov Exp $	*/
+/*	$NetBSD: ncr53c9x.c,v 1.110 2003/11/02 11:07:45 wiz Exp $	*/
 
 /*-
  * Copyright (c) 1998, 2002 The NetBSD Foundation, Inc.
@@ -185,7 +185,7 @@ static __inline void ncr53c9x_setsync(struct ncr53c9x_softc *,
 #endif
 
 /*
- * Names for the NCR53c9x variants, correspnding to the variant tags
+ * Names for the NCR53c9x variants, corresponding to the variant tags
  * in ncr53c9xvar.h.
  */
 static const char *ncr53c9x_variant_names[] = {
@@ -334,7 +334,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	TAILQ_INIT(&sc->free_list);
 	if ((sc->ecb_array = malloc(sizeof(struct ncr53c9x_ecb) * NCR_TAG_DEPTH,
 				    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL) {
-		device_printf(sc->sc_dev, "Cannot allocate ecb array!\n");
+		device_printf(sc->sc_dev, "cannot allocate ECB array\n");
 		return (ENOMEM);
 	}
 	for (i = 0; i < NCR_TAG_DEPTH; i++) {
@@ -558,7 +558,7 @@ ncr53c9x_readregs(struct ncr53c9x_softc *sc)
 	/* Only the stepo bits are of interest */
 	sc->sc_espstep = NCR_READ_REG(sc, NCR_STEP) & NCRSTEP_MASK;
 
-	if (sc->sc_rev == NCR_VARIANT_FAS366) 
+	if (sc->sc_rev == NCR_VARIANT_FAS366)
 		sc->sc_espstat2 = NCR_READ_REG(sc, NCR_STAT2);
 
 	sc->sc_espintr = NCR_READ_REG(sc, NCR_INTR);
@@ -1064,7 +1064,7 @@ ncr53c9x_poll(struct cam_sim *sim)
 /*
  * Schedule a scsi operation.  This has now been pulled out of the interrupt
  * handler so that we may call it from ncr53c9x_scsipi_request and
- * ncr53c9x_done.  This may save us an unecessary interrupt just to get
+ * ncr53c9x_done.  This may save us an unnecessary interrupt just to get
  * things going.  Should only be called when state == NCR_IDLE and at bio pl.
  */
 static void
@@ -1849,7 +1849,7 @@ gotit:
 	case NCR_IDENTIFIED:
 		/*
 		 * IDENTIFY message was received and queue tag is expected now
-		 */ 
+		 */
 		if ((sc->sc_imess[0] != MSG_SIMPLE_Q_TAG) ||
 		    (sc->sc_msgify == 0)) {
 			device_printf(sc->sc_dev, "TAG reselect without "
@@ -2031,15 +2031,15 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 #ifdef DEBUG
 	if (ncr53c9x_debug & NCR_SHOWMSGS) {
 		int i;
-		
+
 		NCR_MSGS(("<msgout:"));
-		for (i = 0; i < sc->sc_omlen; i++) 
+		for (i = 0; i < sc->sc_omlen; i++)
 			NCR_MSGS((" %02x", sc->sc_omess[i]));
 		NCR_MSGS(("> "));
 	}
 #endif
 	if (sc->sc_rev == NCR_VARIANT_FAS366) {
-		/*	
+		/*
 		 * XXX fifo size
 		 */
 		ncr53c9x_flushfifo(sc);
@@ -2369,7 +2369,7 @@ again:
 		if (sc->sc_phase != MESSAGE_IN_PHASE) {
 			int i = (NCR_READ_REG(sc, NCR_FFLAG) & NCRFIFO_FF);
  			/*
-			 * Things are seriously fucked up.
+			 * Things are seriously screwed up.
 			 * Pull the brakes, i.e. reset
 			 */
 			device_printf(sc->sc_dev, "target didn't send tag: %d "
@@ -2382,8 +2382,6 @@ again:
 			goto out;
 		} else
 			goto msgin;
-
-		break;
 
 	case NCR_IDLE:
 	case NCR_SELECTING:
@@ -2408,7 +2406,7 @@ again:
 			sc->sc_state = NCR_RESELECTED;
 			if (sc->sc_phase != MESSAGE_IN_PHASE) {
 				/*
-				 * Things are seriously fucked up.
+				 * Things are seriously screwed up.
 				 * Pull the brakes, i.e. reset
 				 */
 				device_printf(sc->sc_dev, "target didn't "
@@ -2682,7 +2680,7 @@ msgin:
 			}
 			sc->sc_flags &= ~NCR_WAITI;
 			ncr53c9x_rdfifo(sc,
-			    (sc->sc_prevphase == sc->sc_phase) ? 
+			    (sc->sc_prevphase == sc->sc_phase) ?
 			    NCR_RDFIFO_CONTINUE : NCR_RDFIFO_START);
 			ncr53c9x_msgin(sc);
 		} else {
@@ -2692,7 +2690,6 @@ msgin:
 		}
 		sc->sc_prevphase = MESSAGE_IN_PHASE;
 		goto shortcut;	/* i.e. expect data to be ready */
-		break;
 
 	case COMMAND_PHASE:
 		/*
@@ -2775,7 +2772,6 @@ msgin:
 		NCRCMD(sc, NCRCMD_ICCS);
 		sc->sc_prevphase = STATUS_PHASE;
 		goto shortcut;	/* i.e. expect status results soon */
-		break;
 
 	case INVALID_PHASE:
 		break;
