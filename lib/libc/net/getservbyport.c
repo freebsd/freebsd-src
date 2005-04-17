@@ -75,7 +75,7 @@ getservbyport(int port, const char *proto)
 {
 	struct servdata *sd;
 
-	if ((sd = _servdata_init()) == NULL)
+	if ((sd = __servdata_init()) == NULL)
 		return (NULL);
 	if (getservbyport_r(port, proto, &sd->serv, &sd->data) != 0)
 		return (NULL);

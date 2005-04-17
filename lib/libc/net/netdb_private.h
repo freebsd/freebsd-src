@@ -53,13 +53,13 @@ struct servdata {
 	struct servent_data data;
 };
 
-#define	endservent_r		_endservent_r
-#define	getservbyname_r		_getservbyname_r
-#define	getservbyport_r		_getservbyport_r
-#define	getservent_r		_getservent_r
-#define	setservent_r		_setservent_r
+#define	endservent_r		__endservent_r
+#define	getservbyname_r		__getservbyname_r
+#define	getservbyport_r		__getservbyport_r
+#define	getservent_r		__getservent_r
+#define	setservent_r		__setservent_r
 
-struct servdata *_servdata_init(void);
+struct servdata *__servdata_init(void);
 void endservent_r(struct servent_data *);
 int getservbyname_r(const char *, const char *, struct servent *,
 	struct servent_data *);
