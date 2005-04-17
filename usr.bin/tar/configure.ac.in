@@ -27,7 +27,7 @@ AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
-AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec])
+AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec, struct dirent.d_namlen])
 AC_CHECK_DECL([D_MD_ORDER],
 		[AC_DEFINE(HAVE_D_MD_ORDER, 1, [Define to 1 if nl_langinfo supports D_MD_ORDER])],
 		[],
