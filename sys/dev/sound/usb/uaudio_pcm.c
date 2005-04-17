@@ -329,7 +329,6 @@ ua_attach(device_t dev)
 	ua->bufsz = pcm_getbuffersize(dev, 4096, UAUDIO_DEFAULT_BUFSZ, 65536);
 	if (bootverbose)
 		device_printf(dev, "using a default buffer size of %jd\n", (intmax_t)ua->bufsz);
-	ua->bufsz = pcm_getbuffersize(dev, 4096, UAUDIO_DEFAULT_BUFSZ, 65536);
 
 	if (mixer_init(dev, &ua_mixer_class, ua)) {
 		return(ENXIO);
