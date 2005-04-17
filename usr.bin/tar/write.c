@@ -126,7 +126,7 @@ static void		 write_entry(struct bsdtar *, struct archive *,
 			     unsigned pathlen, const char *accpath);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     int fd);
-static void		 write_heirarchy(struct bsdtar *, struct archive *,
+static void		 write_hierarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
 void
@@ -393,7 +393,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				if (append_archive(bsdtar, a, arg + 1) != 0)
 					break;
 			} else
-				write_heirarchy(bsdtar, a, arg);
+				write_hierarchy(bsdtar, a, arg);
 		}
 		bsdtar->argv++;
 	}
@@ -434,7 +434,7 @@ archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
 	else {
 		if (*line != '/')
 			do_chdir(bsdtar); /* Handle a deferred -C */
-		write_heirarchy(bsdtar, bsdtar->archive, line);
+		write_hierarchy(bsdtar, bsdtar->archive, line);
 	}
 	return (0);
 }
@@ -509,10 +509,10 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 }
 
 /*
- * Add the file or dir heirarchy named by 'path' to the archive
+ * Add the file or dir hierarchy named by 'path' to the archive
  */
 static void
-write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
+write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 {
 	FTS	*fts;
 	FTSENT	*ftsent;
@@ -701,7 +701,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			break;
 		default:
 			bsdtar_warnc(bsdtar, 0,
-			    "%s: Heirarchy traversal error %d\n",
+			    "%s: Hierarchy traversal error %d\n",
 			    ftsent->fts_path,
 			    ftsent->fts_info);
 			break;
@@ -736,25 +736,14 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	fd = -1;
 	entry = archive_entry_new();
 
-	/* Strip redundant "./" from start of filename. */
-	if (pathname != NULL && pathname[0] == '.' && pathname[1] == '/') {
-		pathname += 2;
-		if (*pathname == '\0')	/* This is the "./" directory. */
-			goto cleanup;	/* Don't archive it ever. */
-	}
-
-	/* Strip leading '/' unless user has asked us not to. */
-	if (pathname && pathname[0] == '/' && !bsdtar->option_absolute_paths) {
-		/* Generate a warning the first time this happens. */
-		if (!bsdtar->warned_lead_slash) {
-			bsdtar_warnc(bsdtar, 0,
-			    "Removing leading '/' from member names");
-			bsdtar->warned_lead_slash = 1;
-		}
-		pathname++;
-	}
-
 	archive_entry_set_pathname(entry, pathname);
+
+	/*
+	 * Rewrite the pathname to be archived.  If rewrite
+	 * fails, skip the entry.
+	 */
+	if (edit_pathname(bsdtar, entry))
+		goto abort;
 
 	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
 		lookup_hardlink(bsdtar, entry, st);
@@ -847,14 +836,15 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 		write_file_data(bsdtar, a, fd);
 
 cleanup:
+	if (bsdtar->verbose)
+		fprintf(stderr, "\n");
+
+abort:
 	if (fd >= 0)
 		close(fd);
 
 	if (entry != NULL)
 		archive_entry_free(entry);
-
-	if (bsdtar->verbose)
-		fprintf(stderr, "\n");
 }
 
 

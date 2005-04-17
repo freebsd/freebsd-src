@@ -6,7 +6,7 @@
 #
 
 PROG=	bsdtar
-VERSION=	1.01.022
+VERSION=	1.01.023
 DIST_SRCS=	bsdtar.c getdate.y matching.c read.c util.c write.c
 SRCS=	${DIST_SRCS}
 WARNS?=	5
