@@ -84,7 +84,7 @@ struct	sockaddr_storage sa;
 char	default_shell[] = _PATH_BSHELL;
 
 static void doit(struct sockaddr *);
-static void getstr(char *, int, const char *);
+static void getstr(char *, size_t, const char *);
 static void error(const char *fmt, ...);
 
 int no_uid_0 = 1;
@@ -133,7 +133,7 @@ static void
 doit(struct sockaddr *fromp)
 {
 	char *cmdbuf, *cp;
-	int maxcmdlen;
+	size_t maxcmdlen;
 	char user[16], pass[16];
 	struct passwd *pwd;
 	const void *item;
@@ -144,7 +144,7 @@ doit(struct sockaddr *fromp)
 	char buf[BUFSIZ], sig;
 	int one = 1;
 
-	maxcmdlen = (int)sysconf(_SC_ARG_MAX);
+	maxcmdlen = sysconf(_SC_ARG_MAX);
 	if (maxcmdlen <= 0 || (cmdbuf = malloc(maxcmdlen)) == NULL)
 		exit(1);
 
@@ -310,7 +310,7 @@ error(const char *fmt, ...)
 }
 
 static void
-getstr(char *buf, int cnt, const char *field)
+getstr(char *buf, size_t cnt, const char *field)
 {
 	char c;
 
