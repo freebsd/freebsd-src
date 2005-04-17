@@ -89,12 +89,9 @@ def disc2_packages():
             'www/lynx',
             'x11/rxvt',
             # Formerly on disc3
-            'lang/gnat',
             'lang/php4',
             'lang/php5',
-            'print/teTeX',
             'security/portaudit',
-            'textproc/docproj-jadetex',
             'www/apache13',
             'www/apache13-modssl',
             'www/apache2']
