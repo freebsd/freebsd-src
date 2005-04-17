@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 
 static void	cleanup_security(struct bsdtar *);
-static int	edit_pathname(struct bsdtar *, struct archive_entry *);
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
@@ -73,6 +72,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	FILE			 *out;
 	struct archive		 *a;
 	struct archive_entry	 *entry;
+	const struct stat	 *st;
 	int			  r;
 
 	while (*bsdtar->argv) {
@@ -117,16 +117,37 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 
 		/*
-		 * Note that exclusions are checked before pathname
-		 * rewrites are handled.  This gives more control over
-		 * exclusions, since rewrites always lose information.
-		 * (For example, consider a rewrite s/foo[0-9]/foo/.
-		 * If we check exclusions after the rewrite, there
-		 * would be no way to exclude foo1/bar while allowing
-		 * foo2/bar.)
+		 * Exclude entries that are too old.
+		 */
+		st = archive_entry_stat(entry);
+		if (bsdtar->newer_ctime_sec > 0) {
+			if (st->st_ctime < bsdtar->newer_ctime_sec)
+				continue; /* Too old, skip it. */
+			if (st->st_ctime == bsdtar->newer_ctime_sec
+			    && ARCHIVE_STAT_CTIME_NANOS(st)
+			    <= bsdtar->newer_ctime_nsec)
+				continue; /* Too old, skip it. */
+		}
+		if (bsdtar->newer_mtime_sec > 0) {
+			if (st->st_mtime < bsdtar->newer_mtime_sec)
+				continue; /* Too old, skip it. */
+			if (st->st_mtime == bsdtar->newer_mtime_sec
+			    && ARCHIVE_STAT_MTIME_NANOS(st)
+			    <= bsdtar->newer_mtime_nsec)
+				continue; /* Too old, skip it. */
+		}
+
+		/*
+		 * Note that pattern exclusions are checked before
+		 * pathname rewrites are handled.  This gives more
+		 * control over exclusions, since rewrites always lose
+		 * information.  (For example, consider a rewrite
+		 * s/foo[0-9]/foo/.  If we check exclusions after the
+		 * rewrite, there would be no way to exclude foo1/bar
+		 * while allowing foo2/bar.)
 		 */
 		if (excluded(bsdtar, archive_entry_pathname(entry)))
-			continue;
+			continue; /* Excluded by a pattern test. */
 
 		/*
 		 * Modify the pathname as requested by the user.  We
@@ -137,7 +158,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		 * failures prevent extraction.
 		 */
 		if (edit_pathname(bsdtar, entry))
-			continue;
+			continue; /* Excluded by a rewrite failure. */
 
 		if (mode == 't') {
 			/* Perversely, gtar uses -O to mean "send to stderr"
@@ -169,11 +190,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			}
 			fprintf(out, "\n");
 		} else {
-			if (bsdtar->option_interactive &&
-			    !yes("extract '%s'", archive_entry_pathname(entry)))
+			/*
+			 * Skip security problems before prompting.
+			 * Otherwise, the user may be confused that a
+			 * file they wanted to extract was
+			 * subsequently skipped.
+			 */
+			if (security_problem(bsdtar, entry))
 				continue;
 
-			if (security_problem(bsdtar, entry))
+			if (bsdtar->option_interactive &&
+			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
 
 			/*
@@ -317,40 +344,6 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 }
 
 /*
- * Handle --strip-components and any future path-rewriting options.
- * Returns non-zero if the pathname should not be extracted.
- */
-static int
-edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
-{
-	/* Strip leading dir names as per --strip-components option. */
-	if (bsdtar->strip_components > 0) {
-		int r = bsdtar->strip_components;
-		const char *name = archive_entry_pathname(entry);
-		const char *p = name;
-		char *q;
-
-		while (r > 0) {
-			switch (*p++) {
-			case '/':
-				r--;
-				name = p;
-				break;
-			case '\0':
-				/* Path is too short, skip it. */
-				return (1);
-			}
-		}
-		/* Safely replace name in archive_entry. */
-		q = strdup(name);
-		archive_entry_copy_pathname(entry, q);
-		free(q);
-	}
-
-	return (0);
-}
-
-/*
  * Structure for storing path of last successful security check.
  */
 struct security {
@@ -371,23 +364,11 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	char *p;
 	int r;
 
-	/* -P option forces us to just accept all pathnames. */
+	/* -P option forces us to just accept all pathnames as-is. */
 	if (bsdtar->option_absolute_paths)
 		return (0);
 
-	/* Strip leading '/'. */
 	name = archive_entry_pathname(entry);
-	if (name[0] == '/') {
-		/* Generate a warning the first time this happens. */
-		if (!bsdtar->warned_lead_slash) {
-			bsdtar_warnc(bsdtar, 0,
-			    "Removing leading '/' from member names");
-			bsdtar->warned_lead_slash = 1;
-		}
-		while (name[0] == '/')
-			name++;
-		archive_entry_set_pathname(entry, name);
-	}
 
 	/* Reject any archive entry with '..' as a path element. */
 	pn = name;

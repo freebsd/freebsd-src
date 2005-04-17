@@ -380,3 +380,56 @@ do_chdir(struct bsdtar *bsdtar)
 	free(bsdtar->pending_chdir);
 	bsdtar->pending_chdir = NULL;
 }
+
+/*
+ * Handle --strip-components and any future path-rewriting options.
+ * Returns non-zero if the pathname should not be extracted.
+ */
+int
+edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	const char *name = archive_entry_pathname(entry);
+
+	/* Strip leading dir names as per --strip-components option. */
+	if (bsdtar->strip_components > 0) {
+		int r = bsdtar->strip_components;
+		const char *p = name;
+
+		while (r > 0) {
+			switch (*p++) {
+			case '/':
+				r--;
+				name = p;
+				break;
+			case '\0':
+				/* Path is too short, skip it. */
+				return (1);
+			}
+		}
+	}
+
+	/* Strip redundant "./" from start of filename. */
+	if (name[0] == '.' && name[1] == '/' && name[2] != '\0')
+		name += 2;
+
+	/* Strip leading '/' unless user has asked us not to. */
+	if (name[0] == '/' && !bsdtar->option_absolute_paths) {
+		/* Generate a warning the first time this happens. */
+		if (!bsdtar->warned_lead_slash) {
+			bsdtar_warnc(bsdtar, 0,
+			    "Removing leading '/' from member names");
+			bsdtar->warned_lead_slash = 1;
+		}
+		name++;
+		if (*name == '\0')  /* Strip '/' from "/" yields "." */
+			name = ".";
+	}
+
+	/* Safely replace name in archive_entry. */
+	if (name != archive_entry_pathname(entry)) {
+		char *q = strdup(name);
+		archive_entry_copy_pathname(entry, q);
+		free(q);
+	}
+	return (0);
+}
