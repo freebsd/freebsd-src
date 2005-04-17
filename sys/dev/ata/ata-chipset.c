@@ -1663,6 +1663,7 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20621,  0, PRMIO, PRSX4X,  ATA_UDMA5, "Promise PDC20621" },
      { ATA_PDC20622,  0, PRMIO, PRSX4X,  ATA_SA150, "Promise PDC20622" },
      { ATA_PDC40518,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40518" },
+     { ATA_PDC40519,  0, PRMIO, PRSATA2, ATA_SA150, "Promise PDC40519" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
     uintptr_t devid = 0;
