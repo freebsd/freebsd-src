@@ -116,7 +116,7 @@ int lsi64854debug = 0;
 void
 lsi64854_attach(struct lsi64854_softc *sc)
 {
-	u_int32_t csr;
+	uint32_t csr;
 
 	sc->dv_name = device_get_nameunit(sc->sc_dev);
 
@@ -205,7 +205,7 @@ lsi64854_attach(struct lsi64854_softc *sc)
 } while (0)
 
 #define DMA_DRAIN(sc, dontpanic) do {					\
-	u_int32_t csr;							\
+	uint32_t csr;							\
 	/*								\
 	 * DMA rev0 & rev1: we are not allowed to touch the DMA "flush"	\
 	 *     and "drain" bits while it is still thinking about a	\
@@ -228,13 +228,13 @@ lsi64854_attach(struct lsi64854_softc *sc)
 	}								\
 	/*								\
 	 * Wait for draining to finish					\
-	 *  rev0 & rev1 call this PACKCNT				\
+	 * rev0 & rev1 call this PACKCNT				\
 	 */								\
 	DMAWAIT(sc, L64854_GCSR(sc) & L64854_DRAINING, "DRAINING", dontpanic);\
 } while(0)
 
 #define DMA_FLUSH(sc, dontpanic) do {					\
-	u_int32_t csr;							\
+	uint32_t csr;							\
 	/*								\
 	 * DMA rev0 & rev1: we are not allowed to touch the DMA "flush"	\
 	 *     and "drain" bits while it is still thinking about a	\
@@ -251,7 +251,7 @@ lsi64854_attach(struct lsi64854_softc *sc)
 void
 lsi64854_reset(struct lsi64854_softc *sc)
 {
-	u_int32_t csr;
+	uint32_t csr;
 
 	DMA_FLUSH(sc, 1);
 	csr = L64854_GCSR(sc);
@@ -346,7 +346,7 @@ int
 lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
 	       int datain, size_t *dmasize)
 {
-	u_int32_t csr;
+	uint32_t csr;
 
 	DMA_FLUSH(sc, 0);
 
@@ -358,7 +358,7 @@ lsi64854_setup(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
 	sc->sc_datain = datain;
 
 	/*
-	 * the rules say we cannot transfer more than the limit
+	 * The rules say we cannot transfer more than the limit
 	 * of this DMA chip (64k for old and 16Mb for new),
 	 * and we cannot cross a 16Mb boundary.
 	 */
@@ -427,7 +427,7 @@ lsi64854_scsi_intr(void *arg)
 	struct lsi64854_softc *sc = arg;
 	struct ncr53c9x_softc *nsc = sc->sc_client;
 	int trans, resid;
-	u_int32_t csr;
+	uint32_t csr;
 
 	csr = L64854_GCSR(sc);
 
@@ -550,7 +550,7 @@ int
 lsi64854_enet_intr(void *arg)
 {
 	struct lsi64854_softc *sc = arg;
-	u_int32_t csr;
+	uint32_t csr;
 	static int dodrain = 0;
 	int rv;
 
@@ -608,7 +608,7 @@ int
 lsi64854_setup_pp(struct lsi64854_softc *sc, caddr_t *addr, size_t *len,
 		  int datain, size_t *dmasize)
 {
-	u_int32_t csr;
+	uint32_t csr;
 
 	DMA_FLUSH(sc, 0);
 
@@ -668,7 +668,7 @@ lsi64854_pp_intr(void *arg)
 {
 	struct lsi64854_softc *sc = arg;
 	int ret, trans, resid = 0;
-	u_int32_t csr;
+	uint32_t csr;
 
 	csr = L64854_GCSR(sc);
 
