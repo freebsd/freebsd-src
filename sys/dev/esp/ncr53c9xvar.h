@@ -1,4 +1,4 @@
-/*	$NetBSD: ncr53c9xvar.h,v 1.41 2003/02/04 20:05:11 pk Exp $	*/
+/*	$NetBSD: ncr53c9xvar.h,v 1.46 2005/02/04 02:10:36 perry Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -285,7 +285,7 @@ struct ncr53c9x_softc {
 	struct cam_path	*sc_path;		/* our scsi channel */
 	struct callout sc_watchdog;		/* periodic timer */
 
-	struct ncr53c9x_glue *sc_glue;		/* glue to MD code */
+	const struct ncr53c9x_glue *sc_glue;	/* glue to MD code */
 
 	int	sc_cfflags;			/* Copy of config flags */
 
@@ -453,7 +453,7 @@ struct ncr53c9x_softc {
 
 /*
  * Macro to convert the chip register Clock Per Byte value to
- * Sunchronous Transfer Period.
+ * Synchronous Transfer Period.
  */
 #define	ncr53c9x_cpb2stp(sc, cpb)	\
 	((250 * (cpb)) / (sc)->sc_freq)
