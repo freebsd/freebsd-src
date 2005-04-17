@@ -13,7 +13,7 @@ AC_PROG_YACC
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
-AC_CHECK_HEADERS([bzlib.h fcntl.h inttypes.h langinfo.h limits.h locale.h paths.h stdint.h stdlib.h string.h sys/acl.h sys/ioctl.h sys/param.h unistd.h zlib.h])
+AC_CHECK_HEADERS([bzlib.h fcntl.h inttypes.h langinfo.h limits.h locale.h paths.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h unistd.h zlib.h])
 
 # Checks for libraries.
 AC_CHECK_LIB([z], [inflate])
@@ -27,18 +27,63 @@ AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
-AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec, struct dirent.d_namlen])
+AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec])
+
+
 AC_CHECK_DECL([D_MD_ORDER],
-		[AC_DEFINE(HAVE_D_MD_ORDER, 1, [Define to 1 if nl_langinfo supports D_MD_ORDER])],
-		[],
-		[#include <langinfo.h>])
+[AC_DEFINE(HAVE_D_MD_ORDER, 1, [Define to 1 if nl_langinfo supports D_MD_ORDER])],
+[],
+[#if HAVE_LANGINFO_H
+#include <langinfo.h>
+#endif
+])
+
+AC_FUNC_FNMATCH
 AC_CHECK_DECL([FNM_LEADING_DIR],
-		[AC_DEFINE(HAVE_FNM_LEADING_DIR, 1, [Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag])],
-		[],
-		[#include <fnmatch.h>])
+[AC_DEFINE(HAVE_FNM_LEADING_DIR, 1, [Define to 1 if fnmatch(3) supports the FNM_LEADING_DIR flag])],
+[],
+[#if HAVE_FNMATCH
+#define _GNU_SOURCE /* Required on Linux to get GNU extensions */
+#include <fnmatch.h>
+#endif
+])
+
+# Check for dirent.d_namlen field explicitly
+AC_CHECK_MEMBER(struct dirent.d_namlen,,,
+[#if HAVE_DIRENT_H
+#include <dirent.h>
+#endif
+])
+
+# Check for ACL support
+AC_CHECK_HEADERS([sys/acl.h])
+
+AC_CHECK_TYPES(acl_permset_t,,,
+[#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
+])
+
+# The "acl_get_perm()" function was omitted from the POSIX draft.
+# (It's a pretty obvious oversight; otherwise, there's no way to
+# test for specific permissions in a permset.)  Linux uses the obvious
+# name, FreeBSD adds _np to mark it as "non-Posix extension."
+# Test for both as a double-check that we really have POSIX-style ACL support.
+AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm,,,
+[#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
+])
+
+AC_CHECK_LIB(acl,acl_get_file)
 
 # Checks for library functions.
-AC_FUNC_FNMATCH
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_LSTAT
 AC_HEADER_MAJOR
@@ -46,9 +91,8 @@ AC_FUNC_MALLOC
 AC_FUNC_STAT
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_TYPE([uintmax_t])
-AC_CHECK_TYPE([unsigned long long])
-AC_CHECK_FUNCS([chflags fchdir ftruncate getopt_long memmove memset nl_langinfo setlocale strchr strdup strerror strrchr sys/acl.h])
+AC_CHECK_TYPES([uintmax_t, unsigned long long])
+AC_CHECK_FUNCS([chflags fchdir ftruncate getopt_long memmove memset nl_langinfo reallocf setlocale strchr strdup strerror strrchr])
 
 #
 # If any of the common 64-bit types is defined, set "int64_t"

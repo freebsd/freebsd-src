@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_GETOPT_LONG
