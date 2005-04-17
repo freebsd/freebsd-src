@@ -95,12 +95,13 @@
  *
  *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: sbus.c,v 1.46 2001/10/07 20:30:41 eeh Exp
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- * Sbus support.
+ * SBus support.
  */
 
 #include <sys/param.h>
@@ -119,7 +120,6 @@
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
 #include <machine/bus_common.h>
-#include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
 #include <machine/ofw_upa.h>
@@ -132,15 +132,6 @@
 #include <sparc64/sbus/ofw_sbus.h>
 #include <sparc64/sbus/sbusreg.h>
 #include <sparc64/sbus/sbusvar.h>
-
-#ifdef DEBUG
-#define SDB_DVMA	0x1
-#define SDB_INTR	0x2
-int sbus_debug = 0;
-#define DPRINTF(l, s)   do { if (sbus_debug & l) printf s; } while (0)
-#else
-#define DPRINTF(l, s)
-#endif
 
 struct sbus_devinfo {
 	int			sdi_burstsz;
@@ -177,12 +168,11 @@ struct sbus_softc {
 	int			sc_nreg;
 	int			sc_nrange;
 	struct sbus_rd		*sc_rd;
-	int			sc_burst;	/* burst transfer sizes supported */
-	int			*sc_intr_compat;/* `intr' property to sbus compat */
+	int			sc_burst;	/* burst transfer sizes supp. */
 
 	struct resource		*sc_sysio_res;
-	int			sc_ign;		/* Interrupt group number for this sysio */
-	struct iommu_state	sc_is;		/* IOMMU state, see iommureg.h */
+	int			sc_ign;		/* IGN for this sysio */
+	struct iommu_state	sc_is;		/* IOMMU state (iommuvar.h) */
 
 	struct resource		*sc_ot_ires;
 	void			*sc_ot_ihand;
@@ -192,10 +182,10 @@ struct sbus_softc {
 
 struct sbus_clr {
 	struct sbus_softc	*scl_sc;
-	bus_addr_t	scl_clr;		/* clear register */
-	driver_intr_t	*scl_handler;		/* handler to call */
-	void		*scl_arg;		/* argument for the handler */
-	void		*scl_cookie;		/* interrupt cookie of parent bus */
+	bus_addr_t		scl_clr;	/* clear register */
+	driver_intr_t		*scl_handler;	/* handler to call */
+	void			*scl_arg;	/* argument for the handler */
+	void			*scl_cookie;	/* parent bus int. cookie */
 };
 
 #define	SYSIO_READ8(sc, off) \
@@ -203,23 +193,17 @@ struct sbus_clr {
 #define	SYSIO_WRITE8(sc, off, v) \
 	bus_space_write_8((sc)->sc_bustag, (sc)->sc_bushandle, (off), (v))
 
-static int sbus_probe(device_t dev);
-static int sbus_print_child(device_t dev, device_t child);
-static void sbus_probe_nomatch(device_t dev, device_t child);
-static int sbus_read_ivar(device_t, device_t, int, u_long *);
-static struct resource_list *sbus_get_resource_list(device_t dev,
-    device_t child);
-static int sbus_setup_intr(device_t, device_t, struct resource *, int,
-    driver_intr_t *, void *, void **);
-static int sbus_teardown_intr(device_t, device_t, struct resource *, void *);
-static struct resource *sbus_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
-static int sbus_activate_resource(device_t, device_t, int, int,
-    struct resource *);
-static int sbus_deactivate_resource(device_t, device_t, int, int,
-    struct resource *);
-static int sbus_release_resource(device_t, device_t, int, int,
-    struct resource *);
+static device_probe_t sbus_probe;
+static bus_print_child_t sbus_print_child;
+static bus_probe_nomatch_t sbus_probe_nomatch;
+static bus_read_ivar_t sbus_read_ivar;
+static bus_get_resource_list_t sbus_get_resource_list;
+static bus_setup_intr_t sbus_setup_intr;
+static bus_teardown_intr_t sbus_teardown_intr;
+static bus_alloc_resource_t sbus_alloc_resource;
+static bus_release_resource_t sbus_release_resource;
+static bus_activate_resource_t sbus_activate_resource;
+static bus_deactivate_resource_t sbus_deactivate_resource;
 static ofw_bus_get_compat_t sbus_get_compat;
 static ofw_bus_get_model_t sbus_get_model;
 static ofw_bus_get_name_t sbus_get_name;
@@ -278,7 +262,7 @@ DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 static int
 sbus_probe(device_t dev)
 {
-	struct sbus_softc *sc = device_get_softc(dev);
+	struct sbus_softc *sc;
 	struct sbus_devinfo *sdi;
 	struct sbus_ranges *range;
 	struct resource *res;
@@ -286,7 +270,7 @@ sbus_probe(device_t dev)
 	bus_addr_t phys;
 	bus_size_t size;
 	char *name, *cname, *t;
-	phandle_t child, node = nexus_get_node(dev);
+	phandle_t child, node;
 	u_int64_t mr;
 	int intr, clock, rid, vec, i;
 
@@ -296,12 +280,15 @@ sbus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "U2S UPA-SBus bridge");
 
+	sc = device_get_softc(dev);
+	node = nexus_get_node(dev);
+
 	if ((sc->sc_nreg = OF_getprop_alloc(node, "reg", sizeof(*sc->sc_reg),
 	    (void **)&sc->sc_reg)) == -1) {
-		panic("sbus_probe: error getting reg property");
+		panic("%s: error getting reg property", __func__);
 	}
 	if (sc->sc_nreg < 1)
-		panic("sbus_probe: bogus properties");
+		panic("%s: bogus properties", __func__);
 	phys = UPA_REG_PHYS(&sc->sc_reg[0]);
 	size = UPA_REG_SIZE(&sc->sc_reg[0]);
 	rid = 0;
@@ -309,12 +296,12 @@ sbus_probe(device_t dev)
 	    phys + size - 1, size, RF_ACTIVE);
 	if (sc->sc_sysio_res == NULL ||
 	    rman_get_start(sc->sc_sysio_res) != phys)
-		panic("sbus_probe: can't allocate device memory");
+		panic("%s: cannot allocate device memory", __func__);
 	sc->sc_bustag = rman_get_bustag(sc->sc_sysio_res);
 	sc->sc_bushandle = rman_get_bushandle(sc->sc_sysio_res);
 
 	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
-		panic("sbus_probe: cannot get IGN");
+		panic("%s: cannot get IGN", __func__);
 	sc->sc_ign = intr & INTMAP_IGN_MASK;	/* Find interrupt group no */
 	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
@@ -333,13 +320,12 @@ sbus_probe(device_t dev)
 	 */
 	if ((sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*range), (void **)&range)) == -1) {
-		panic("%s: error getting ranges property",
-		    device_get_name(dev));
+		panic("%s: error getting ranges property", __func__);
 	}
 	sc->sc_rd = (struct sbus_rd *)malloc(sizeof(*sc->sc_rd) * sc->sc_nrange,
 	    M_DEVBUF, M_NOWAIT);
 	if (sc->sc_rd == NULL)
-		panic("sbus_probe: could not allocate rmans");
+		panic("%s: cannot allocate rmans", __func__);
 	/*
 	 * Preallocate all space that the SBus bridge decodes, so that nothing
 	 * else gets in the way; set up rmans etc.
@@ -353,13 +339,13 @@ sbus_probe(device_t dev)
 		rid = 0;
 		if ((res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, phys,
 		    phys + size - 1, size, RF_ACTIVE)) == NULL)
-			panic("sbus_probe: could not allocate decoded range");
+			panic("%s: cannot allocate decoded range", __func__);
 		sc->sc_rd[i].rd_bushandle = rman_get_bushandle(res);
 		sc->sc_rd[i].rd_rman.rm_type = RMAN_ARRAY;
 		sc->sc_rd[i].rd_rman.rm_descr = "SBus Device Memory";
 		if (rman_init(&sc->sc_rd[i].rd_rman) != 0 ||
 		    rman_manage_region(&sc->sc_rd[i].rd_rman, 0, size) != 0)
-			panic("sbus_probe: failed to set up memory rman");
+			panic("%s: failed to set up memory rman", __func__);
 		sc->sc_rd[i].rd_poffset = phys;
 		sc->sc_rd[i].rd_pend = phys + size;
 		sc->sc_rd[i].rd_res = res;
@@ -390,8 +376,8 @@ sbus_probe(device_t dev)
 
 	/* give us a nice name.. */
 	name = (char *)malloc(32, M_DEVBUF, M_NOWAIT);
-	if (name == 0)
-		panic("sbus_probe: couldn't malloc iommu name");
+	if (name == NULL)
+		panic("%s: cannot malloc iommu name", __func__);
 	snprintf(name, 32, "%s dvma", device_get_name(dev));
 
 	/*
@@ -405,20 +391,20 @@ sbus_probe(device_t dev)
 	sc->sc_dmatag = nexus_get_dmatag(dev);
 	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
 	    0x3ffffffff, 0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_cdmatag) != 0)
-		panic("bus_dma_tag_create failed");
+		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
 	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
 	/* XXX: register as root dma tag (kludge). */
 	sparc64_root_dma_tag = sc->sc_cdmatag;
 
-	/* Enable the over-temperature and power-fail intrrupts. */
+	/* Enable the over-temperature and power-fail interrupts. */
 	rid = 0;
 	mr = SYSIO_READ8(sc, SBR_THERM_INT_MAP);
 	vec = INTVEC(mr);
 	if ((sc->sc_ot_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
 	    vec, 1, RF_ACTIVE)) == NULL)
-		panic("sbus_probe: failed to get temperature interrupt");
+		panic("%s: failed to get temperature interrupt", __func__);
 	bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
 	    sbus_overtemp, sc, &sc->sc_ot_ihand);
 	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
@@ -427,7 +413,7 @@ sbus_probe(device_t dev)
 	vec = INTVEC(mr);
 	if ((sc->sc_pf_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
 	    vec, 1, RF_ACTIVE)) == NULL)
-		panic("sbus_probe: failed to get power fail interrupt");
+		panic("%s: failed to get power fail interrupt", __func__);
 	bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
 	    sbus_pwrfail, sc, &sc->sc_pf_ihand);
 	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
@@ -451,7 +437,7 @@ sbus_probe(device_t dev)
 			continue;
 		}
 		if ((cdev = device_add_child(dev, NULL, -1)) == NULL)
-			panic("sbus_probe: device_add_child failed");
+			panic("%s: device_add_child failed", __func__);
 		device_set_ivars(cdev, sdi);
 	}
 	return (0);
@@ -491,7 +477,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 			} else
 				rslot = reg[i].sbr_slot;
 			if (slot != -1 && slot != rslot)
-				panic("sbus_setup_dinfo: multiple slots");
+				panic("%s: multiple slots", __func__);
 			slot = rslot;
 
 			resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY, i,
@@ -502,14 +488,15 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 	sdi->sdi_slot = slot;
 
 	/*
-	 * The `interrupts' property contains the Sbus interrupt level.
+	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr), (void **)&intr);
+	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {
 			iv = intr[i];
 			/*
-			 * Sbus card devices need the slot number encoded into
+			 * SBus card devices need the slot number encoded into
 			 * the vector as this is generally not done.
 			 */
 			if ((iv & INTMAP_OBIO_MASK) == 0)
@@ -569,15 +556,16 @@ sbus_probe_nomatch(device_t dev, device_t child)
 	if ((type = ofw_bus_get_type(child)) == NULL)
 		type = "(unknown)";
 	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-            ofw_bus_get_name(child), type);
+	    ofw_bus_get_name(child), type);
 }
 
 static int
 sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct sbus_softc *sc = device_get_softc(dev);
+	struct sbus_softc *sc;
 	struct sbus_devinfo *dinfo;
 
+	sc = device_get_softc(dev);
 	if ((dinfo = device_get_ivars(child)) == NULL)
 		return (ENOENT);
 	switch (which) {
@@ -617,9 +605,8 @@ sbus_intr_stub(void *arg)
 }
 
 static int
-sbus_setup_intr(device_t dev, device_t child,
-    struct resource *ires,  int flags, driver_intr_t *intr, void *arg,
-    void **cookiep)
+sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct sbus_softc *sc;
 	struct sbus_clr *scl;
@@ -629,7 +616,7 @@ sbus_setup_intr(device_t dev, device_t child,
 	int error, i;
 	long vec = rman_get_start(ires);
 
-	sc = (struct sbus_softc *)device_get_softc(dev);
+	sc = device_get_softc(dev);
 	scl = (struct sbus_clr *)malloc(sizeof(*scl), M_DEVBUF, M_NOWAIT);
 	if (scl == NULL)
 		return (0);
@@ -638,7 +625,7 @@ sbus_setup_intr(device_t dev, device_t child,
 	inr = INTVEC(vec);
 	if ((inr & INTMAP_OBIO_MASK) == 0) {
 		/*
-		 * We're in an SBUS slot, register the map and clear
+		 * We're in an SBus slot, register the map and clear
 		 * intr registers.
 		 */
 		slot = INTSLOT(vec);
@@ -661,7 +648,7 @@ sbus_setup_intr(device_t dev, device_t child,
 			intrclrptr = SBR_SCSI_INT_CLR + i * 8;
 			/* Enable the interrupt */
 		} else
-			panic("sbus_setup_intr: IRQ not found!");
+			panic("%s: IRQ not found!", __func__);
 	}
 
 	scl->scl_sc = sc;
@@ -703,7 +690,7 @@ sbus_teardown_intr(device_t dev, device_t child,
 	error = BUS_TEARDOWN_INTR(device_get_parent(dev), child, vec,
 	    scl->scl_cookie);
 	/*
-	 * Don't disable the interrupt for now, so that stray interupts get
+	 * Don't disable the interrupt for now, so that stray interrupts get
 	 * detected...
 	 */
 	if (error != 0)
@@ -729,9 +716,10 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bus_addr_t toffs;
 	bus_size_t tend;
 	int i;
-	int isdefault = (start == 0UL && end == ~0UL);
-	int needactivate = flags & RF_ACTIVE;
+	int isdefault, needactivate;
 
+	isdefault = (start == 0UL && end == ~0UL);
+	needactivate = flags & RF_ACTIVE;
 	sc = (struct sbus_softc *)device_get_softc(bus);
 	sdi = device_get_ivars(child);
 	rl = &sdi->sdi_rl;
@@ -739,7 +727,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rle == NULL)
 		return (NULL);
 	if (rle->res != NULL)
-		panic("sbus_alloc_resource: resource entry is busy");
+		panic("%s: resource entry is busy", __func__);
 	if (isdefault) {
 		start = rle->start;
 		count = ulmax(count, rle->count);
@@ -839,9 +827,9 @@ sbus_release_resource(device_t bus, device_t child, int type, int rid,
 	sdi = device_get_ivars(child);
 	rle = resource_list_find(&sdi->sdi_rl, type, rid);
 	if (rle == NULL)
-		panic("sbus_release_resource: can't find resource");
+		panic("%s: cannot find resource", __func__);
 	if (rle->res == NULL)
-		panic("sbus_release_resource: resource entry is not busy");
+		panic("%s: resource entry is not busy", __func__);
 	rle->res = NULL;
 	return (0);
 }
@@ -879,16 +867,15 @@ sbus_alloc_bustag(struct sbus_softc *sc)
 	sbt = (bus_space_tag_t)malloc(sizeof(struct bus_space_tag), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (sbt == NULL)
-		panic("sbus_alloc_bustag: out of memory");
+		panic("%s: out of memory", __func__);
 
-	bzero(sbt, sizeof *sbt);
 	sbt->bst_cookie = sc;
 	sbt->bst_parent = sc->sc_bustag;
 	sbt->bst_type = SBUS_BUS_SPACE;
 	return (sbt);
 }
 
-const char *
+static const char *
 sbus_get_compat(device_t bus, device_t dev)
 {
 	struct sbus_devinfo *dinfo;
@@ -897,7 +884,7 @@ sbus_get_compat(device_t bus, device_t dev)
 	return (dinfo->sdi_compat);
 }
 
-const char *
+static const char *
 sbus_get_model(device_t bus, device_t dev)
 {
 	struct sbus_devinfo *dinfo;
@@ -906,7 +893,7 @@ sbus_get_model(device_t bus, device_t dev)
 	return (dinfo->sdi_model);
 }
 
-const char *
+static const char *
 sbus_get_name(device_t bus, device_t dev)
 {
 	struct sbus_devinfo *dinfo;
@@ -924,7 +911,7 @@ sbus_get_node(device_t bus, device_t dev)
 	return (dinfo->sdi_node);
 }
 
-const char *
+static const char *
 sbus_get_type(device_t bus, device_t dev)
 {
 	struct sbus_devinfo *dinfo;
