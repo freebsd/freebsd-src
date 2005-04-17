@@ -66,10 +66,12 @@ servent_data_clear(struct servent_data *sed)
 		fclose(sed->fp);
 		sed->fp = NULL;
 	}
+#ifdef YP
 	if (sed->key) {
 		free(sed->key);
 		sed->key = NULL;
 	}
+#endif
 }
 
 static void
@@ -243,8 +245,10 @@ endservent_r(struct servent_data *sed)
 {
 	servent_data_clear(sed);
 	sed->stayopen = 0;
+#ifdef YP
 	sed->stepping_yp = 0;
 	sed->yp_domain = NULL;
+#endif
 }
 
 int
