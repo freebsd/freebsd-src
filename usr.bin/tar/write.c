@@ -1103,11 +1103,15 @@ setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
 
 			acl_get_permset(acl_entry, &acl_permset);
 			ae_perm = 0;
-			if (acl_get_perm_np(acl_permset, ACL_EXECUTE))
+			/*
+			 * acl_get_perm() is spelled differently on different
+			 * platforms; see bsdtar_platform.h for details.
+			 */
+			if (ACL_GET_PERM(acl_permset, ACL_EXECUTE))
 				ae_perm |= ARCHIVE_ENTRY_ACL_EXECUTE;
-			if (acl_get_perm_np(acl_permset, ACL_READ))
+			if (ACL_GET_PERM(acl_permset, ACL_READ))
 				ae_perm |= ARCHIVE_ENTRY_ACL_READ;
-			if (acl_get_perm_np(acl_permset, ACL_WRITE))
+			if (ACL_GET_PERM(acl_permset, ACL_WRITE))
 				ae_perm |= ARCHIVE_ENTRY_ACL_WRITE;
 
 			archive_entry_acl_add_entry(entry,
