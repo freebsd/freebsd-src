@@ -1301,6 +1301,28 @@ nfsmout:
 }
 
 /*
+ * For the purposes of write gathering, we must decide if the credential
+ * associated with two pending requests have equivilent privileges.  Since
+ * NFS only uses a subset of the BSD ucred -- the effective uid and group
+ * IDs -- we have a compare routine that checks only the relevant fields.
+ */
+static int
+nfsrv_samecred(struct ucred *cr1, struct ucred *cr2)
+{
+	int i;
+
+	if (cr1->cr_uid != cr2->cr_uid)
+		return (0);
+	if (cr1->cr_ngroups != cr2->cr_ngroups)
+		return (0);
+	for (i = 0; i < cr1->cr_ngroups; i++) {
+		if (cr1->cr_groups[i] != cr2->cr_groups[i])
+			return (0);
+	}
+	return (1);
+}
+
+/*
  * NFS write service with write gathering support. Called when
  * nfsrvw_procrastinate > 0.
  * See: Chet Juszczak, "Improving the Write Performance of an NFS Server",
@@ -1451,7 +1473,7 @@ nfsmout:
 		     */
 		    for(; nfsd && NFSW_CONTIG(owp, nfsd); nfsd = wp) {
 			wp = LIST_NEXT(nfsd, nd_hash);
-			if (NFSW_SAMECRED(owp, nfsd))
+			if (nfsrv_samecred(&owp->nd_cr, &nfsd->nd_cr))
 			    nfsrvw_coalesce(owp, nfsd);
 		    }
 		} else {
