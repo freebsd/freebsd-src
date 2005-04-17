@@ -135,6 +135,7 @@ __FBSDID("$FreeBSD$");
 
 struct sbus_devinfo {
 	int			sdi_burstsz;
+	int			sdi_clockfreq;
 	char			*sdi_compat;	/* PROM compatible */
 	char			*sdi_model;	/* PROM model */
 	char			*sdi_name;	/* PROM name */
@@ -194,6 +195,7 @@ struct sbus_clr {
 	bus_space_write_8((sc)->sc_bustag, (sc)->sc_bushandle, (off), (v))
 
 static device_probe_t sbus_probe;
+static device_attach_t sbus_attach;
 static bus_print_child_t sbus_print_child;
 static bus_probe_nomatch_t sbus_probe_nomatch;
 static bus_read_ivar_t sbus_read_ivar;
@@ -221,7 +223,7 @@ static void sbus_pwrfail(void *);
 static device_method_t sbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbus_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	sbus_attach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	sbus_print_child),
@@ -262,6 +264,19 @@ DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 static int
 sbus_probe(device_t dev)
 {
+	char *t;
+
+	t = nexus_get_device_type(dev);
+	if (((t == NULL || strcmp(t, OFW_SBUS_TYPE) != 0)) &&
+	    strcmp(nexus_get_name(dev), OFW_SBUS_NAME) != 0)
+		return (ENXIO);
+	device_set_desc(dev, "U2S UPA-SBus bridge");
+	return (0);
+}
+
+static int
+sbus_attach(device_t dev)
+{
 	struct sbus_softc *sc;
 	struct sbus_devinfo *sdi;
 	struct sbus_ranges *range;
@@ -269,16 +284,10 @@ sbus_probe(device_t dev)
 	device_t cdev;
 	bus_addr_t phys;
 	bus_size_t size;
-	char *name, *cname, *t;
+	char *name, *cname;
 	phandle_t child, node;
 	u_int64_t mr;
 	int intr, clock, rid, vec, i;
-
-	t = nexus_get_device_type(dev);
-	if (((t == NULL || strcmp(t, OFW_SBUS_TYPE) != 0)) &&
-	    strcmp(nexus_get_name(dev), OFW_SBUS_NAME) != 0)
-		return (ENXIO);
-	device_set_desc(dev, "U2S UPA-SBus bridge");
 
 	sc = device_get_softc(dev);
 	node = nexus_get_node(dev);
@@ -440,7 +449,7 @@ sbus_probe(device_t dev)
 			panic("%s: device_add_child failed", __func__);
 		device_set_ivars(cdev, sdi);
 	}
-	return (0);
+	return (bus_generic_attach(dev));
 }
 
 static struct sbus_devinfo *
@@ -513,6 +522,9 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 		sdi->sdi_burstsz = sc->sc_burst;
 	else
 		sdi->sdi_burstsz &= sc->sc_burst;
+	if (OF_getprop(node, "clock-frequency", &sdi->sdi_clockfreq,
+	    sizeof(sdi->sdi_clockfreq)) == -1)
+		sdi->sdi_clockfreq = sc->sc_clockfreq;
 
 	return (sdi);
 }
@@ -551,21 +563,23 @@ sbus_print_child(device_t dev, device_t child)
 static void
 sbus_probe_nomatch(device_t dev, device_t child)
 {
-	const char *type;
+	struct sbus_devinfo *dinfo;
+	struct resource_list *rl;
 
-	if ((type = ofw_bus_get_type(child)) == NULL)
-		type = "(unknown)";
-	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-	    ofw_bus_get_name(child), type);
+	dinfo = device_get_ivars(child);
+	rl = &dinfo->sdi_rl;
+	device_printf(dev, "<%s>", dinfo->sdi_name);
+	resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+	resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	printf(" type %s (no driver attached)\n",
+	    dinfo->sdi_type != NULL ? dinfo->sdi_type : "unknown");
 }
 
 static int
 sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct sbus_softc *sc;
 	struct sbus_devinfo *dinfo;
 
-	sc = device_get_softc(dev);
 	if ((dinfo = device_get_ivars(child)) == NULL)
 		return (ENOENT);
 	switch (which) {
@@ -573,7 +587,7 @@ sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		*result = dinfo->sdi_burstsz;
 		break;
 	case SBUS_IVAR_CLOCKFREQ:
-		*result = sc->sc_clockfreq;
+		*result = dinfo->sdi_clockfreq;
 		break;
 	case SBUS_IVAR_SLOT:
 		*result = dinfo->sdi_slot;
@@ -698,53 +712,53 @@ sbus_teardown_intr(device_t dev, device_t child,
 	return (error);
 }
 
-/*
- * There is no need to handle pass-throughs here; there are no bridges to
- * SBuses.
- */
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct sbus_softc *sc;
-	struct sbus_devinfo *sdi;
 	struct rman *rm;
 	struct resource *rv;
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
+	device_t schild;
 	bus_space_handle_t bh;
 	bus_addr_t toffs;
 	bus_size_t tend;
-	int i;
-	int isdefault, needactivate;
+	int i, slot;
+	int isdefault, needactivate, passthrough;
 
 	isdefault = (start == 0UL && end == ~0UL);
 	needactivate = flags & RF_ACTIVE;
-	sc = (struct sbus_softc *)device_get_softc(bus);
-	sdi = device_get_ivars(child);
-	rl = &sdi->sdi_rl;
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		return (NULL);
-	if (rle->res != NULL)
-		panic("%s: resource entry is busy", __func__);
-	if (isdefault) {
-		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
-	}
+	passthrough = (device_get_parent(child) != bus);
+	rle = NULL;
+	sc = device_get_softc(bus);
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	switch (type) {
 	case SYS_RES_IRQ:
-		rv = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
-		    rid, start, end, count, flags);
-		if (rv == NULL)
-			return (NULL);
-		break;
+		return (resource_list_alloc(rl, bus, child, type, rid, start,
+		    end, count, flags));
 	case SYS_RES_MEMORY:
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, *rid);
+			if (rle == NULL)
+				return (NULL);
+			if (rle->res != NULL)
+				panic("%s: resource entry is busy", __func__);
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
+		}
 		rm = NULL;
 		bh = toffs = tend = 0;
+		schild = child;
+		while (device_get_parent(schild) != bus)
+			schild = device_get_parent(child);
+		slot = sbus_get_slot(schild);
 		for (i = 0; i < sc->sc_nrange; i++) {
-			if (sc->sc_rd[i].rd_slot != sdi->sdi_slot ||
+			if (sc->sc_rd[i].rd_slot != slot ||
 			    start < sc->sc_rd[i].rd_coffset ||
 			    start > sc->sc_rd[i].rd_cend)
 				continue;
@@ -772,12 +786,12 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				return (NULL);
 			}
 		}
-		break;
+		if (!passthrough)
+			rle->res = rv;
+		return (rv);
 	default:
 		return (NULL);
 	}
-	rle->res = rv;
-	return (rv);
 }
 
 static int
@@ -808,24 +822,23 @@ static int
 sbus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct sbus_devinfo *sdi;
+	struct resource_list *rl;
 	struct resource_list_entry *rle;
-	int error = 0;
+	int error, passthrough;
 
+	passthrough = (device_get_parent(child) != bus);
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	if (type == SYS_RES_IRQ)
-		error = BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
-		    type, rid, r);
-	else {
-		if ((rman_get_flags(r) & RF_ACTIVE) != 0)
-			error = bus_deactivate_resource(child, type, rid, r);
+		return (resource_list_release(rl, bus, child, type, rid, r));
+	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
+		error = bus_deactivate_resource(child, type, rid, r);
 		if (error != 0)
 			return (error);
-		error = rman_release_resource(r);
 	}
-	if (error != 0)
+	error = rman_release_resource(r);
+	if (error != 0 || passthrough)
 		return (error);
-	sdi = device_get_ivars(child);
-	rle = resource_list_find(&sdi->sdi_rl, type, rid);
+	rle = resource_list_find(rl, type, rid);
 	if (rle == NULL)
 		panic("%s: cannot find resource", __func__);
 	if (rle->res == NULL)
