@@ -412,6 +412,10 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (name[0] == '.' && name[1] == '/' && name[2] != '\0')
 		name += 2;
 
+	/* Strip redundant leading '/' characters. */
+	while (name[0] == '/' && name[1] == '/')
+		name++;
+
 	/* Strip leading '/' unless user has asked us not to. */
 	if (name[0] == '/' && !bsdtar->option_absolute_paths) {
 		/* Generate a warning the first time this happens. */
@@ -421,7 +425,8 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			bsdtar->warned_lead_slash = 1;
 		}
 		name++;
-		if (*name == '\0')  /* Strip '/' from "/" yields "." */
+		/* Special case: Stripping leading '/' from "/" yields ".". */
+		if (*name == '\0')
 			name = ".";
 	}
 
