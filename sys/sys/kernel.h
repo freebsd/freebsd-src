@@ -277,17 +277,13 @@ struct tunable_int {
 	int *var;
 };
 #define	TUNABLE_INT(path, var)					\
-	_TUNABLE_INT((path), (var), __LINE__)
-#define _TUNABLE_INT(path, var, line)				\
-	__TUNABLE_INT((path), (var), line)
-
-#define	__TUNABLE_INT(path, var, line)				\
-	static struct tunable_int __tunable_int_ ## line = {	\
-		path,						\
-		var,						\
+	static struct tunable_int __CONCAT(__tunable_int_, __LINE__) = { \
+		(path),						\
+		(var),						\
 	};							\
-	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
-	     tunable_int_init, &__tunable_int_ ## line)
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_int_init,	\
+	    &__CONCAT(__tunable_int_, __LINE__))
 
 #define	TUNABLE_INT_FETCH(path, var)	getenv_int((path), (var))
 
@@ -300,17 +296,13 @@ struct tunable_long {
 	long *var;
 };
 #define	TUNABLE_LONG(path, var)					\
-	_TUNABLE_LONG((path), (var), __LINE__)
-#define _TUNABLE_LONG(path, var, line)				\
-	__TUNABLE_LONG((path), (var), line)
-
-#define	__TUNABLE_LONG(path, var, line)				\
-	static struct tunable_long __tunable_long_ ## line = {	\
-		path,						\
-		var,						\
+	static struct tunable_long __CONCAT(__tunable_long_, __LINE__) = { \
+		(path),						\
+		(var),						\
 	};							\
-	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
-	     tunable_long_init, &__tunable_long_ ## line)
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_long_init,\
+	    &__CONCAT(__tunable_long_, __LINE__))
 
 #define	TUNABLE_LONG_FETCH(path, var)	getenv_long((path), (var))
 
@@ -323,17 +315,13 @@ struct tunable_ulong {
 	unsigned long *var;
 };
 #define	TUNABLE_ULONG(path, var)				\
-	_TUNABLE_ULONG((path), (var), __LINE__)
-#define _TUNABLE_ULONG(path, var, line)				\
-	__TUNABLE_ULONG((path), (var), line)
-
-#define	__TUNABLE_ULONG(path, var, line)			\
-	static struct tunable_ulong __tunable_ulong_ ## line = {\
-		path,						\
-		var,						\
+	static struct tunable_ulong __CONCAT(__tunable_ulong_, __LINE__) = { \
+		(path),						\
+		(var),						\
 	};							\
-	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
-	     tunable_ulong_init, &__tunable_ulong_ ## line)
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_ulong_init, \
+	    &__CONCAT(__tunable_ulong_, __LINE__))
 
 #define	TUNABLE_ULONG_FETCH(path, var)	getenv_ulong((path), (var))
 
@@ -344,18 +332,14 @@ struct tunable_str {
 	int size;
 };
 #define	TUNABLE_STR(path, var, size)				\
-	_TUNABLE_STR((path), (var), (size), __LINE__)
-#define	_TUNABLE_STR(path, var, size, line)			\
-	__TUNABLE_STR((path), (var), (size), line)
-
-#define	__TUNABLE_STR(path, var, size, line)			\
-	static struct tunable_str __tunable_str_ ## line = {	\
-		path,						\
-		var,						\
-		size,						\
+	static struct tunable_str __CONCAT(__tunable_str_, __LINE__) = { \
+		(path),						\
+		(var),						\
+		(size),						\
 	};							\
-	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
-	     tunable_str_init, &__tunable_str_ ## line)
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_str_init,	\
+	    &__CONCAT(__tunable_str_, __LINE__))
 
 #define	TUNABLE_STR_FETCH(path, var, size)			\
 	getenv_string((path), (var), (size))
