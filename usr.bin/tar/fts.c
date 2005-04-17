@@ -65,8 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-
-#include <dirent.h>
+/* #include <dirent.h> */ /* bsdtar: see bsdtar_platform.h */
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
@@ -740,11 +739,8 @@ fts_build(sp, type)
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
 	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
-#ifdef HAVE_STRUCT_DIRENT_D_NAMLEN /* bsdtar: Not everyone has d_namlen. */
-#define	dnamlen dp->d_namlen
-#else
-		int dnamlen = strlen(dp->d_name);
-#endif
+		/* See bsdtar_platform.h for DIRENT_NAMLEN. */
+		int dnamlen = DIRENT_NAMLEN(dp);
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
