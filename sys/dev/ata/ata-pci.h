@@ -194,6 +194,7 @@ struct ata_connect_task {
 #define ATA_PDC20579            0x3574105a
 #define ATA_PDC20580            0x3570105a
 #define ATA_PDC40518            0x3d18105a
+#define ATA_PDC40519            0x3519105a
 #define ATA_PDC20617            0x6617105a
 #define ATA_PDC20618            0x6626105a
 #define ATA_PDC20619            0x6629105a
