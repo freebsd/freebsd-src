@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.27 2005/04/15 13:13:30 den Exp $
 
-     Original revision: 1.843
+     Original revision: 1.845
 -->
 
 <articleinfo>
@@ -151,12 +151,19 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
       &merged;</para>
 
-    <para>Было исправлено возможное расширение привилегий в &os;/amd64.
+    <para arch="amd64">Было исправлено возможное расширение привилегий в &os;/amd64.
       Ошибка позволяла непривилегированным пользователям получать прямой
       доступ к некоторому оборудованию, доступ к которому не мог быть
       получен без соответствующего уровня привилегий.
       За дальнейшей информацией обращайтесь к сообщению безопасности
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>.
+      &merged;</para>
+
+    <para>Была исправлена ошибка в <literal>SIOCGIFCONF</literal> &man.ioctl.2;,
+      приводившая к утечке информации, из-за которой подвергались утечке 12
+      байт памяти ядра.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
       &merged;</para>
 
   </sect2>
