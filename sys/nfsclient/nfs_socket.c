@@ -392,7 +392,7 @@ nfs_reconnect(struct nfsreq *rep)
  	 * torn down. The first one to acquire the sndlock will 
  	 * retry the connection. The others block on the sndlock
  	 * until the connection is established successfully, and 
- 	 * the re-transmit the request.
+ 	 * then re-transmit the request.
  	 */
 	mtx_lock(&nmp->nm_nfstcpstate.mtx);
 	nmp->nm_nfstcpstate.flags &= ~NFS_TCP_FORCE_RECONNECT;
@@ -805,7 +805,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			 */
 			if (error || auio.uio_resid > 0) {
 				if (auio.uio_resid > 0) {
-					log(LOG_ERR, 
+					log(LOG_INFO, 
 					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
 				} else {
 					log(LOG_ERR, 
@@ -851,7 +851,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 				 &auio, &mp, (struct mbuf **)0, &rcvflg);
 			if (error || auio.uio_resid > 0) {
 				if (auio.uio_resid > 0) {
-					log(LOG_ERR, 
+					log(LOG_INFO, 
 					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
 				} else {
 					log(LOG_ERR, 
