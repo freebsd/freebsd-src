@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050415:
+	The NO_MIXED_MODE kernel option has been removed from the i386
+	amd64 platforms as its use has been superceded by the new local
+	APIC timer code.  Any kernel config files containing this option
+	should be updated.
+
 20050227:
 	The on-disk format of LC_CTYPE files was changed to be machine
 	independent.  Please make sure NOT to use NO_CLEAN buildworld
