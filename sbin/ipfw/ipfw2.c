@@ -49,10 +49,12 @@
 
 #include <net/if.h>
 #include <net/pfvar.h>
+#include <net/route.h> /* def. of struct route */
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
@@ -266,6 +268,13 @@ enum tokens {
 	TOK_DROPTAIL,
 	TOK_PROTO,
 	TOK_WEIGHT,
+
+	TOK_IPV6,
+	TOK_FLOWID,
+	TOK_ICMP6TYPES,
+	TOK_EXT6HDR,
+	TOK_DSTIP6,
+	TOK_SRCIP6,
 };
 
 struct _s_x dummynet_params[] = {
@@ -288,6 +297,11 @@ struct _s_x dummynet_params[] = {
 	{ "delay",		TOK_DELAY },
 	{ "pipe",		TOK_PIPE },
 	{ "queue",		TOK_QUEUE },
+	{ "flow-id",		TOK_FLOWID},
+	{ "dst-ipv6",		TOK_DSTIP6},
+	{ "dst-ip6",		TOK_DSTIP6},
+	{ "src-ipv6",		TOK_SRCIP6},
+	{ "src-ip6",		TOK_SRCIP6},
 	{ "dummynet-params",	TOK_NULL },
 	{ NULL, 0 }	/* terminator */
 };
@@ -375,6 +389,16 @@ struct _s_x rule_options[] = {
 	{ "versrcreach",	TOK_VERSRCREACH },
 	{ "antispoof",		TOK_ANTISPOOF },
 	{ "ipsec",		TOK_IPSEC },
+	{ "icmp6type",		TOK_ICMP6TYPES },
+	{ "icmp6types",		TOK_ICMP6TYPES },
+	{ "ext6hdr",		TOK_EXT6HDR},
+	{ "flow-id",		TOK_FLOWID},
+	{ "ipv6",		TOK_IPV6},
+	{ "ip6",		TOK_IPV6},
+	{ "dst-ipv6",		TOK_DSTIP6},
+	{ "dst-ip6",		TOK_DSTIP6},
+	{ "src-ipv6",		TOK_SRCIP6},
+	{ "src-ip6",		TOK_SRCIP6},
 	{ "//",			TOK_COMMENT },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -1025,6 +1049,199 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 	}
 }
 
+/* 
+ * Print the ip address contained in a command.
+ */
+static void
+print_ip6(ipfw_insn_ip6 *cmd, char const *s)
+{
+       struct hostent *he = NULL;
+       int len = F_LEN((ipfw_insn *) cmd) - 1;
+       struct in6_addr *a = &(cmd->addr6);
+       char trad[255];
+
+       printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
+
+       if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
+               printf("me6");
+               return;
+       }
+       if (cmd->o.opcode == O_IP6) {
+               printf(" ipv6");
+               return;
+       }
+
+       /*
+        * len == 4 indicates a single IP, whereas lists of 1 or more
+        * addr/mask pairs have len = (2n+1). We convert len to n so we
+        * use that to count the number of entries.
+        */
+
+       for (len = len / 4; len > 0; len -= 2, a += 2) {
+           int mb =        /* mask length */
+               (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
+               128 : contigmask((uint8_t *)&(a[1]), 128);
+
+           if (mb == 128 && do_resolv)
+               he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
+           if (he != NULL)             /* resolved to name */
+               printf("%s", he->h_name);
+           else if (mb == 0)           /* any */
+               printf("any");
+           else {          /* numeric IP followed by some kind of mask */
+               if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
+                   printf("Error ntop in print_ip6\n");
+               printf("%s",  trad );
+               if (mb < 0)     /* XXX not really legal... */
+                   printf(":%s",
+                       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
+               else if (mb < 128)
+                   printf("/%d", mb);
+           }
+           if (len > 2)
+               printf(",");
+       }
+}
+
+static void
+fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av)
+{
+       uint8_t type;
+
+       cmd->d[0] = 0;
+       while (*av) {
+           if (*av == ',')
+               av++;
+           type = strtoul(av, &av, 0);
+           if (*av != ',' && *av != '\0')
+               errx(EX_DATAERR, "invalid ICMP6 type");
+	   /*
+	    * XXX: shouldn't this be 0xFF?  I can't see any reason why
+	    * we shouldn't be able to filter all possiable values
+	    * regardless of the ability of the rest of the kernel to do
+	    * anything useful with them.
+	    */
+           if (type > ICMP6_MAXTYPE)
+               errx(EX_DATAERR, "ICMP6 type out of range");
+           cmd->d[type / 32] |= ( 1 << (type % 32));
+       }
+       cmd->o.opcode = O_ICMP6TYPE;
+       cmd->o.len |= F_INSN_SIZE(ipfw_insn_icmp6);
+}
+
+
+static void
+print_icmp6types(ipfw_insn_u32 *cmd)
+{
+       int i, j;
+       char sep= ' ';
+
+       printf(" ipv6 icmp6types");
+       for (i = 0; i < 7; i++)
+               for (j=0; j < 32; ++j) {
+                       if ( (cmd->d[i] & (1 << (j))) == 0)
+                               continue;
+                       printf("%c%d", sep, (i*32 + j));
+                       sep = ',';
+               }
+}
+
+static void
+print_flow6id( ipfw_insn_u32 *cmd)
+{
+       uint16_t i, limit = cmd->o.arg1;
+       char sep = ',';
+
+       printf(" flow-id ");
+       for( i=0; i < limit; ++i) {
+               if (i == limit - 1)
+                       sep = ' ';
+               printf("%d%c", cmd->d[i], sep);
+       }
+}
+
+/* structure and define for the extension header in ipv6 */
+static struct _s_x ext6hdrcodes[] = {
+       { "frag",       EXT_FRAGMENT },
+       { "hopopt",     EXT_HOPOPTS },
+       { "route",      EXT_ROUTING },
+       { "ah",         EXT_AH },
+       { "esp",        EXT_ESP },
+       { NULL,         0 }
+};
+
+/* fills command for the extension header filtering */
+int
+fill_ext6hdr( ipfw_insn *cmd, char *av)
+{
+       int tok;
+       char *s = av;
+
+       cmd->arg1 = 0;
+
+       while(s) {
+           av = strsep( &s, ",") ;
+           tok = match_token(ext6hdrcodes, av);
+           switch (tok) {
+           case EXT_FRAGMENT:
+               cmd->arg1 |= EXT_FRAGMENT;
+               break;
+
+           case EXT_HOPOPTS:
+               cmd->arg1 |= EXT_HOPOPTS;
+               break;
+
+           case EXT_ROUTING:
+               cmd->arg1 |= EXT_ROUTING;
+               break;
+
+           case EXT_AH:
+               cmd->arg1 |= EXT_AH;
+               break;
+
+           case EXT_ESP:
+               cmd->arg1 |= EXT_ESP;
+               break;
+
+           default:
+               errx( EX_DATAERR, "invalid option for ipv6 exten header" );
+               break;
+           }
+       }
+       if (cmd->arg1 == 0 )
+           return 0;
+       cmd->opcode = O_EXT_HDR;
+       cmd->len |= F_INSN_SIZE( ipfw_insn );
+       return 1;
+}
+
+void
+print_ext6hdr( ipfw_insn *cmd )
+{
+       char sep = ' ';
+
+       printf(" extension header:");
+       if (cmd->arg1 & EXT_FRAGMENT ) {
+           printf("%cfragmentation", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_HOPOPTS ) {
+           printf("%chop options", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_ROUTING ) {
+           printf("%crouting options", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_AH ) {
+           printf("%cauthentication header", sep);
+           sep = ',';
+       }
+       if (cmd->arg1 & EXT_ESP ) {
+           printf("%cencapsulated security payload", sep);
+       }
+}
+
 /*
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
@@ -1043,6 +1260,7 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 #define	HAVE_DSTIP	0x0004
 #define	HAVE_MAC	0x0008
 #define	HAVE_MACTYPE	0x0010
+#define	HAVE_PROTO6	0x0080
 #define	HAVE_OPTIONS	0x8000
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
@@ -1065,6 +1283,9 @@ show_prerequisites(int *flags, int want, int cmd)
 		return;
 	}
 	if ( !(*flags & HAVE_OPTIONS)) {
+		/* XXX BED: !(*flags & HAVE_PROTO) in patch */
+		if ( !(*flags & HAVE_PROTO6) && (want & HAVE_PROTO6))
+			printf(" ipv6");
 		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
 			printf(" ip");
 		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
@@ -1329,6 +1550,37 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			flags |= HAVE_DSTIP;
 			break;
 
+		case O_IP6_SRC:
+		case O_IP6_SRC_MASK:
+		case O_IP6_SRC_ME:
+			show_prerequisites(&flags, HAVE_PROTO6, 0);
+			if (!(flags & HAVE_SRCIP))
+				printf(" from");
+			if ((cmd->len & F_OR) && !or_block)
+				printf(" {");
+			print_ip6((ipfw_insn_ip6 *)cmd,
+			    (flags & HAVE_OPTIONS) ? " src-ip6" : "");
+			flags |= HAVE_SRCIP | HAVE_PROTO;
+			break;
+
+		case O_IP6_DST:
+		case O_IP6_DST_MASK:
+		case O_IP6_DST_ME:
+			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
+			if (!(flags & HAVE_DSTIP))
+				printf(" to");
+			if ((cmd->len & F_OR) && !or_block)
+				printf(" {");
+			print_ip6((ipfw_insn_ip6 *)cmd,
+			    (flags & HAVE_OPTIONS) ? " dst-ip6" : "");
+			flags |= HAVE_DSTIP;
+			break;
+
+		case O_FLOW6ID:
+		print_flow6id( (ipfw_insn_u32 *) cmd );
+		flags |= HAVE_OPTIONS;
+		break;
+
 		case O_IP_DSTPORT:
 			show_prerequisites(&flags, HAVE_IP, 0);
 		case O_IP_SRCPORT:
@@ -1340,14 +1592,15 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_PROTO: {
-			struct protoent *pe;
+			struct protoent *pe = NULL;
 
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT)
 				printf(" not");
 			proto = cmd->arg1;
-			pe = getprotobynumber(cmd->arg1);
+			if (proto != 41)	/* XXX: IPv6 is special */
+				pe = getprotobynumber(cmd->arg1);
 			if (flags & HAVE_OPTIONS)
 				printf(" proto");
 			if (pe)
@@ -1558,6 +1811,18 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			    }
 				break;
 
+			case O_IP6:   
+				printf(" ipv6");
+				break;
+
+			case O_ICMP6TYPE:
+				print_icmp6types((ipfw_insn_u32 *)cmd);
+				break;
+
+			case O_EXT_HDR:
+				print_ext6hdr( (ipfw_insn *) cmd );
+				break;
+
 			default:
 				printf(" [opcode %d len %d]",
 				    cmd->opcode, cmd->len);
@@ -1655,29 +1920,48 @@ static void
 list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
 {
 	int l;
+	int index_printed, indexes = 0;
+	char buff[255];
+	struct protoent *pe;
 
-	printf("    mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
-	    fs->flow_mask.proto,
-	    fs->flow_mask.src_ip, fs->flow_mask.src_port,
-	    fs->flow_mask.dst_ip, fs->flow_mask.dst_port);
 	if (fs->rq_elements == 0)
 		return;
 
-	printf("BKT Prot ___Source IP/port____ "
-	    "____Dest. IP/port____ Tot_pkt/bytes Pkt/Byte Drp\n");
 	if (do_sort != 0)
 		heapsort(q, fs->rq_elements, sizeof *q, sort_q);
+
+	/* Print IPv4 flows */
+	index_printed = 0;
 	for (l = 0; l < fs->rq_elements; l++) {
 		struct in_addr ina;
-		struct protoent *pe;
 
-		ina.s_addr = htonl(q[l].id.src_ip);
+		/* XXX: Should check for IPv4 flows */
+		if (IS_IP6_FLOW_ID(&(q[l].id)))
+			continue;
+
+		if (!index_printed) {
+			index_printed = 1;
+			if (indexes > 0)	/* currently a no-op */
+				printf("\n");
+			indexes++;
+			printf("    "
+			    "mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+			    fs->flow_mask.proto,
+			    fs->flow_mask.src_ip, fs->flow_mask.src_port,
+			    fs->flow_mask.dst_ip, fs->flow_mask.dst_port);
+
+			printf("BKT Prot ___Source IP/port____ "
+			    "____Dest. IP/port____ "
+			    "Tot_pkt/bytes Pkt/Byte Drp\n");
+		}
+
 		printf("%3d ", q[l].hash_slot);
 		pe = getprotobynumber(q[l].id.proto);
 		if (pe)
 			printf("%-4s ", pe->p_name);
 		else
 			printf("%4u ", q[l].id.proto);
+		ina.s_addr = htonl(q[l].id.src_ip);
 		printf("%15s/%-5d ",
 		    inet_ntoa(ina), q[l].id.src_port);
 		ina.s_addr = htonl(q[l].id.dst_ip);
@@ -1689,6 +1973,50 @@ list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
 		if (verbose)
 			printf("   S %20qd  F %20qd\n",
 			    q[l].S, q[l].F);
+	}
+
+	/* Print IPv6 flows */
+	index_printed = 0;
+	for (l = 0; l < fs->rq_elements; l++) {
+		if (!IS_IP6_FLOW_ID(&(q[l].id)))
+			continue;
+
+		if (!index_printed) {
+			index_printed = 1;
+			if (indexes > 0)
+				printf("\n");
+			indexes++;
+			printf("\n        mask: proto: 0x%02x, flow_id: 0x%08x,  ",
+			    fs->flow_mask.proto, fs->flow_mask.flow_id6);
+			inet_ntop(AF_INET6, &(fs->flow_mask.src_ip6),
+			    buff, sizeof(buff));
+			printf("%s/0x%04x -> ", buff, fs->flow_mask.src_port);
+			inet_ntop( AF_INET6, &(fs->flow_mask.dst_ip6),
+			    buff, sizeof(buff) );
+			printf("%s/0x%04x\n", buff, fs->flow_mask.dst_port);
+
+			printf("BKT ___Prot___ _flow-id_ "
+			    "______________Source IPv6/port_______________ "
+			    "_______________Dest. IPv6/port_______________ "
+			    "Tot_pkt/bytes Pkt/Byte Drp\n");
+		}
+		printf("%3d ", q[l].hash_slot);
+		pe = getprotobynumber(q[l].id.proto);
+		if (pe != NULL)
+			printf("%9s ", pe->p_name);
+		else
+			printf("%9u ", q[l].id.proto);
+		printf("%7d  %39s/%-5d ", q[l].id.flow_id6,
+		    inet_ntop(AF_INET6, &(q[l].id.src_ip6), buff, sizeof(buff)),
+		    q[l].id.src_port);
+		printf(" %39s/%-5d ",
+		    inet_ntop(AF_INET6, &(q[l].id.dst_ip6), buff, sizeof(buff)),
+		    q[l].id.dst_port);
+		printf(" %4qu %8qu %2u %4u %3u\n",
+		    q[l].tot_pkts, q[l].tot_bytes,
+		    q[l].len, q[l].len_bytes, q[l].drops);
+		if (verbose)
+			printf("   S %20qd  F %20qd\n", q[l].S, q[l].F);
 	}
 }
 
@@ -2082,7 +2410,7 @@ list(int ac, char *av[], int show_counters)
 	if (do_dynamic && ndyn) {
 		printf("## Dynamic rules:\n");
 		for (lac = ac, lav = av; lac != 0; lac--) {
-			rnum = strtoul(*lav++, &endptr, 10);
+			last = rnum = strtoul(*lav++, &endptr, 10);
 			if (*endptr == '-')
 				last = strtoul(endptr+1, &endptr, 10);
 			if (*endptr)
@@ -2132,19 +2460,24 @@ help(void)
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
-"ACTION:	check-state | allow | count | deny | reject | skipto N |\n"
+"ACTION:	check-state | allow | count | deny | unreach CODE | skipto N |\n"
 "		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
 "PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
-"		[ from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
+"		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
+"		[ ipv6|ip6 from IP6ADDR [ PORT ] to IP6ADDR [ PORTLIST ] ]\n"
 "IPADDR:	[not] { any | me | ip/bits{x,y,z} | table(t[,v]) | IPLIST }\n"
+"IP6ADDR:	[not] { any | me | me6 | ip6/bits | IP6LIST }\n"
+"IP6LIST:	{ ip6 | ip6/bits }[,IP6LIST]\n"
 "IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
 "OPTION_LIST:	OPTION [OPTION_LIST]\n"
 "OPTION:	bridged | diverted | diverted-loopback | diverted-output |\n"
-"	{dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
+"	{dst-ip|src-ip} IPADDR | {dst-ip6|src-ip6|dst-ipv6|src-ipv6} IP6ADDR |\n"
+"	{dst-port|src-port} LIST |\n"
 "	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
 "	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
+"	icmp6types LIST | ext6hdr LIST | flow-id N[,N] |\n"
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
 "	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
@@ -2170,7 +2503,6 @@ lookup_host (char *host, struct in_addr *ipaddr)
  * fills the addr and mask fields in the instruction as appropriate from av.
  * Update length as appropriate.
  * The following formats are allowed:
- *	any	matches any IP. Actually returns an empty instruction.
  *	me	returns O_IP_*_ME
  *	1.2.3.4		single IP address
  *	1.2.3.4:5.6.7.8	address:mask
@@ -2357,6 +2689,231 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 }
 
 
+/* Try to find ipv6 address by hostname */
+static int
+lookup_host6 (char *host, struct in6_addr *ip6addr)
+{
+	struct hostent *he;
+
+	if (!inet_pton(AF_INET6, host, ip6addr)) {
+		if ((he = gethostbyname2(host, AF_INET6)) == NULL)
+			return(-1);
+		memcpy(ip6addr, he->h_addr_list[0], sizeof( struct in6_addr));
+	}
+	return(0);
+}
+
+
+/* n2mask sets n bits of the mask */
+static void
+n2mask(struct in6_addr *mask, int n)
+{
+	static int	minimask[9] =
+	    { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff };
+	u_char		*p;
+
+	memset(mask, 0, sizeof(struct in6_addr));
+	p = (u_char *) mask;
+	for (; n > 0; p++, n -= 8) {
+		if (n >= 8)
+			*p = 0xff;
+		else
+			*p = minimask[n];
+	}
+	return;
+}
+ 
+
+/*
+ * fill the addr and mask fields in the instruction as appropriate from av.
+ * Update length as appropriate.
+ * The following formats are allowed:
+ *     any     matches any IP6. Actually returns an empty instruction.
+ *     me      returns O_IP6_*_ME
+ *
+ *     03f1::234:123:0342                single IP6 addres
+ *     03f1::234:123:0342/24            address/mask
+ *     03f1::234:123:0342/24,03f1::234:123:0343/               List of address
+ *
+ * Set of address (as in ipv6) not supported because ipv6 address
+ * are typically random past the initial prefix.
+ * Return 1 on success, 0 on failure.
+ */
+static int
+fill_ip6(ipfw_insn_ip6 *cmd, char *av)
+{
+	int len = 0;
+	struct in6_addr *d = &(cmd->addr6);
+	/*
+	 * Needed for multiple address.
+	 * Note d[1] points to struct in6_add r mask6 of cmd
+	 */
+
+       cmd->o.len &= ~F_LEN_MASK;	/* zero len */
+
+       if (strcmp(av, "any") == 0)
+	       return (1);
+
+
+       if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
+	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+	       return (1);
+       }
+
+       if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
+	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+	       return (1);
+       }
+
+       av = strdup(av);
+       while (av) {
+		/*
+		 * After the address we can have '/' indicating a mask,
+		 * or ',' indicating another address follows.
+		 */
+
+		char *p;
+		int masklen;
+		char md = '\0';
+
+		if ((p = strpbrk(av, "/,")) ) {
+			md = *p;	/* save the separator */
+			*p = '\0';	/* terminate address string */
+			p++;		/* and skip past it */
+		}
+		/* now p points to NULL, mask or next entry */
+
+		/* lookup stores address in *d as a side effect */
+		if (lookup_host6(av, d) != 0) {
+			/* XXX: failed. Free memory and go */
+			errx(EX_DATAERR, "bad address \"%s\"", av);
+		}
+		/* next, look at the mask, if any */
+		masklen = (md == '/') ? atoi(p) : 128;
+		if (masklen > 128 || masklen < 0)
+			errx(EX_DATAERR, "bad width \"%s\''", p);
+		else
+			n2mask(&d[1], masklen);
+
+		APPLY_MASK(d, &d[1])   /* mask base address with mask */
+
+		/* find next separator */
+
+		if (md == '/') {	/* find separator past the mask */
+			p = strpbrk(p, ",");
+			if (p != NULL)
+				p++;
+		}
+		av = p;
+
+		/* Check this entry */
+		if (masklen == 0) {
+			/*
+			 * 'any' turns the entire list into a NOP.
+			 * 'not any' never matches, so it is removed from the
+			 * list unless it is the only item, in which case we
+			 * report an error.
+			 */
+			if (cmd->o.len & F_NOT && av == NULL && len == 0)
+				errx(EX_DATAERR, "not any never matches");
+			continue;
+		}
+
+		/*
+		 * A single IP can be stored alone
+		 */
+		if (masklen == 128 && av == NULL && len == 0) {
+			len = F_INSN_SIZE(struct in6_addr);
+			break;
+		}
+
+		/* Update length and pointer to arguments */
+		len += F_INSN_SIZE(struct in6_addr)*2;
+		d += 2;
+	} /* end while */
+
+	/*
+	 * Total length of the command, remember that 1 is the size of
+	 * the base command.
+	 */
+	cmd->o.len |= len+1;
+	free(av);
+	return (1);
+}
+
+/*
+ * fills command for ipv6 flow-id filtering
+ * note that the 20 bit flow number is stored in a array of u_int32_t
+ * it's supported lists of flow-id, so in the o.arg1 we store how many
+ * additional flow-id we want to filter, the basic is 1
+ */
+void
+fill_flow6( ipfw_insn_u32 *cmd, char *av )
+{
+	u_int32_t type;	 /* Current flow number */
+	u_int16_t nflow = 0;    /* Current flow index */
+	char *s = av;
+	cmd->d[0] = 0;	  /* Initializing the base number*/
+
+	while (s) {
+		av = strsep( &s, ",") ;
+		type = strtoul(av, &av, 0);
+		if (*av != ',' && *av != '\0')
+			errx(EX_DATAERR, "invalid ipv6 flow number %s", av);
+		if (type > 0xfffff)
+			errx(EX_DATAERR, "flow number out of range %s", av);
+		cmd->d[nflow] |= type;
+		nflow++;
+	}
+	if( nflow > 0 ) {
+		cmd->o.opcode = O_FLOW6ID;
+		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + nflow;
+		cmd->o.arg1 = nflow;
+	}
+	else {
+		errx(EX_DATAERR, "invalid ipv6 flow number %s", av);
+	}
+}
+
+static ipfw_insn *
+add_srcip6(ipfw_insn *cmd, char *av)
+{
+
+	fill_ip6((ipfw_insn_ip6 *)cmd, av);
+	if (F_LEN(cmd) == 0)				/* any */
+		;
+	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
+		cmd->opcode = O_IP6_SRC_ME;
+	} else if (F_LEN(cmd) ==
+	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
+		/* single IP, no mask*/
+		cmd->opcode = O_IP6_SRC;
+	} else {					/* addr/mask opt */
+		cmd->opcode = O_IP6_SRC_MASK;
+	}
+	return cmd;
+}
+
+static ipfw_insn *
+add_dstip6(ipfw_insn *cmd, char *av)
+{
+
+	fill_ip6((ipfw_insn_ip6 *)cmd, av);
+	if (F_LEN(cmd) == 0)				/* any */
+		;
+	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
+		cmd->opcode = O_IP6_DST_ME;
+	} else if (F_LEN(cmd) ==
+	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
+		/* single IP, no mask*/
+		cmd->opcode = O_IP6_DST;
+	} else {					/* addr/mask opt */
+		cmd->opcode = O_IP6_DST_MASK;
+	}
+	return cmd;
+}
+
+
 /*
  * helper function to process a set of flags and set bits in the
  * appropriate masks.
@@ -2468,7 +3025,6 @@ config_pipe(int ac, char **av)
 	struct dn_pipe p;
 	int i;
 	char *end;
-	uint32_t a;
 	void *par = NULL;
 
 	memset(&p, 0, sizeof p);
@@ -2531,16 +3087,15 @@ config_pipe(int ac, char **av)
 			 */
 			par = NULL;
 
-			p.fs.flow_mask.dst_ip = 0;
-			p.fs.flow_mask.src_ip = 0;
-			p.fs.flow_mask.dst_port = 0;
-			p.fs.flow_mask.src_port = 0;
-			p.fs.flow_mask.proto = 0;
+			bzero(&p.fs.flow_mask, sizeof(p.fs.flow_mask));
 			end = NULL;
 
 			while (ac >= 1) {
 			    uint32_t *p32 = NULL;
 			    uint16_t *p16 = NULL;
+			    uint32_t *p20 = NULL;
+			    struct in6_addr *pa6 = NULL;
+			    uint32_t a;
 
 			    tok = match_token(dummynet_params, *av);
 			    ac--; av++;
@@ -2554,6 +3109,9 @@ config_pipe(int ac, char **av)
 				    p.fs.flow_mask.dst_port = ~0;
 				    p.fs.flow_mask.src_port = ~0;
 				    p.fs.flow_mask.proto = ~0;
+				    n2mask(&(p.fs.flow_mask.dst_ip6), 128);
+				    n2mask(&(p.fs.flow_mask.src_ip6), 128);
+				    p.fs.flow_mask.flow_id6 = ~0;
 				    p.fs.flags_fs |= DN_HAVE_FLOW_MASK;
 				    goto end_mask;
 
@@ -2563,6 +3121,18 @@ config_pipe(int ac, char **av)
 
 			    case TOK_SRCIP:
 				    p32 = &p.fs.flow_mask.src_ip;
+				    break;
+
+			    case TOK_DSTIP6:
+				    pa6 = &(p.fs.flow_mask.dst_ip6);
+				    break;
+			    
+			    case TOK_SRCIP6:
+				    pa6 = &(p.fs.flow_mask.src_ip6);
+				    break;
+
+			    case TOK_FLOWID:
+				    p20 = &p.fs.flow_mask.flow_id6;
 				    break;
 
 			    case TOK_DSTPORT:
@@ -2584,7 +3154,8 @@ config_pipe(int ac, char **av)
 				    errx(EX_USAGE, "mask: value missing");
 			    if (*av[0] == '/') {
 				    a = strtoul(av[0]+1, &end, 0);
-				    a = (a == 32) ? ~0 : (1 << a) - 1;
+				    if (pa6 == NULL)
+					    a = (a == 32) ? ~0 : (1 << a) - 1;
 			    } else
 				    a = strtoul(av[0], &end, 0);
 			    if (p32 != NULL)
@@ -2594,6 +3165,17 @@ config_pipe(int ac, char **av)
 					    errx(EX_DATAERR,
 						"port mask must be 16 bit");
 				    *p16 = (uint16_t)a;
+			    } else if (p20 != NULL) {
+				    if (a > 0xfffff)
+					errx(EX_DATAERR,
+					    "flow_id mask must be 20 bit");
+				    *p20 = (uint32_t)a;
+			    } else if (pa6 != NULL) {
+				    if (a < 0 || a > 128)
+					errx(EX_DATAERR,
+					    "in6addr invalid mask len");
+				    else
+					n2mask(pa6, a);
 			    } else {
 				    if (a > 0xFF)
 					    errx(EX_DATAERR,
@@ -2918,21 +3500,25 @@ add_mactype(ipfw_insn *cmd, int ac, char *av)
 }
 
 static ipfw_insn *
-add_proto(ipfw_insn *cmd, char *av)
+add_proto(ipfw_insn *cmd, char *av, u_char *proto)
 {
 	struct protoent *pe;
-	u_char proto = 0;
+
+	*proto = IPPROTO_IP;
 
 	if (_substrcmp(av, "all") == 0)
 		; /* same as "ip" */
-	else if ((proto = atoi(av)) > 0)
+	else if ((*proto = atoi(av)) > 0)
 		; /* all done! */
 	else if ((pe = getprotobyname(av)) != NULL)
-		proto = pe->p_proto;
+		*proto = pe->p_proto;
+	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6"))
+		*proto = IPPROTO_IPV6;
 	else
 		return NULL;
-	if (proto != IPPROTO_IP)
-		fill_cmd(cmd, O_PROTO, 0, proto);
+	if (*proto != IPPROTO_IP && *proto != IPPROTO_IPV6)
+		fill_cmd(cmd, O_PROTO, 0, *proto);
+
 	return cmd;
 }
 
@@ -2980,6 +3566,42 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
 		cmd->opcode = opcode;
 		return cmd;
 	}
+	return NULL;
+}
+
+static ipfw_insn *
+add_src(ipfw_insn *cmd, char *av, u_char proto)
+{
+	struct in6_addr a;
+
+	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
+	    inet_pton(AF_INET6, av, &a))
+		return add_srcip6(cmd, av);
+	/* XXX: should check for IPv4, not !IPv6 */
+	if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    !inet_pton(AF_INET6, av, &a))
+		return add_srcip(cmd, av);
+	if (strcmp(av, "any") != 0)
+		return cmd;
+
+	return NULL;
+}
+
+static ipfw_insn *
+add_dst(ipfw_insn *cmd, char *av, u_char proto)
+{
+	struct in6_addr a;
+
+	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
+	    inet_pton(AF_INET6, av, &a))
+		return add_dstip6(cmd, av);
+	/* XXX: should check for IPv4, not !IPv6 */
+	if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    !inet_pton(AF_INET6, av, &a))
+		return add_dstip(cmd, av);
+	if (strcmp(av, "any") != 0)
+		return cmd;
+
 	return NULL;
 }
 
@@ -3327,7 +3949,7 @@ add(int ac, char *av[])
     OR_START(get_proto);
 	NOT_BLOCK;
 	NEED1("missing protocol");
-	if (add_proto(cmd, *av)) {
+	if (add_proto(cmd, *av, &proto)) {
 		av++; ac--;
 		if (F_LEN(cmd) == 0)	/* plain IP */
 			proto = 0;
@@ -3355,13 +3977,14 @@ add(int ac, char *av[])
     OR_START(source_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing source address");
-	if (add_srcip(cmd, *av)) {
+	if (add_src(cmd, *av, proto)) {
 		ac--; av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
 			cmd = next_cmd(cmd);
 		}
-	}
+	} else
+		errx(EX_USAGE, "bad source address %s", *av);
     OR_BLOCK(source_ip);
 
 	/*
@@ -3390,13 +4013,14 @@ add(int ac, char *av[])
     OR_START(dest_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing dst address");
-	if (add_dstip(cmd, *av)) {
+	if (add_dst(cmd, *av, proto)) {
 		ac--; av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
 			cmd = next_cmd(cmd);
 		}
-	}
+	} else
+		errx( EX_USAGE, "bad destination address %s", *av);
     OR_BLOCK(dest_ip);
 
 	/*
@@ -3511,6 +4135,12 @@ read_options:
 		case TOK_ICMPTYPES:
 			NEED1("icmptypes requires list of types");
 			fill_icmptypes((ipfw_insn_u32 *)cmd, *av);
+			av++; ac--;
+			break;
+		
+		case TOK_ICMP6TYPES:
+			NEED1("icmptypes requires list of types");
+			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av);
 			av++; ac--;
 			break;
 
@@ -3717,8 +4347,9 @@ read_options:
 
 		case TOK_PROTO:
 			NEED1("missing protocol");
-			if (add_proto(cmd, *av)) {
-				proto = cmd->arg1;
+			if (add_proto(cmd, *av, &proto)) {
+				if (proto == IPPROTO_IPV6)
+					fill_cmd(cmd, O_IP6, 0, 0);
 				ac--; av++;
 			} else
 				errx(EX_DATAERR, "invalid protocol ``%s''",
@@ -3735,6 +4366,20 @@ read_options:
 		case TOK_DSTIP:
 			NEED1("missing destination IP");
 			if (add_dstip(cmd, *av)) {
+				ac--; av++;
+			}
+			break;
+
+		case TOK_SRCIP6:
+			NEED1("missing source IP6");
+			if (add_srcip6(cmd, *av)) {
+				ac--; av++;
+			}
+			break;
+				
+		case TOK_DSTIP6:
+			NEED1("missing destination IP6");
+			if (add_dstip6(cmd, *av)) {
 				ac--; av++;
 			}
 			break;
@@ -3785,6 +4430,24 @@ read_options:
 
 		case TOK_IPSEC:
 			fill_cmd(cmd, O_IPSEC, 0, 0);
+			break;
+
+		case TOK_IPV6:
+			fill_cmd(cmd, O_IP6, 0, 0);
+			ac--; av++;
+			break;
+
+		case TOK_EXT6HDR:
+			fill_ext6hdr( cmd, *av );
+			ac--; av++;
+			break;
+
+		case TOK_FLOWID:
+			if (proto != IPPROTO_IPV6 )
+				errx( EX_USAGE, "flow-id filter is active "
+				    "only for ipv6 protocol\n");
+			fill_flow6( (ipfw_insn_u32 *) cmd, *av );
+			ac--; av++;
 			break;
 
 		case TOK_COMMENT:
