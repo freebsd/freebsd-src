@@ -597,6 +597,10 @@ loop:
 			PROC_UNLOCK(p);
 			continue;
 		}
+		if (p_canwait(td, p)) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 
 		/*
 		 * This special case handles a kthread spawned by linux_clone

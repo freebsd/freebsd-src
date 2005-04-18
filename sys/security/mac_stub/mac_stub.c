@@ -842,6 +842,13 @@ stub_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 }
 
 static int
+stub_check_proc_wait(struct ucred *cred, struct proc *proc)
+{
+
+	return (0);
+}
+
+static int
 stub_check_proc_setuid(struct ucred *cred, uid_t uid)
 {
 
@@ -1456,6 +1463,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_proc_setresuid = stub_check_proc_setresuid,
 	.mpo_check_proc_setresgid = stub_check_proc_setresgid,
 	.mpo_check_proc_signal = stub_check_proc_signal,
+	.mpo_check_proc_wait = stub_check_proc_wait,
 	.mpo_check_socket_accept = stub_check_socket_accept,
 	.mpo_check_socket_bind = stub_check_socket_bind,
 	.mpo_check_socket_connect = stub_check_socket_connect,
