@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/user.h>
 #include <sys/jail.h>
+#include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -1183,6 +1184,47 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/*
+ * This sysctl allows a process to retrieve the path of the executable for
+ * itself or another process.
+ */
+static int
+sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
+{
+	pid_t *pidp = (pid_t *)arg1;
+	unsigned int arglen = arg2;
+	struct proc *p;
+	struct vnode *vp;
+	char *retbuf, *freebuf;
+	int error;
+
+	if (arglen != 1)
+		return (EINVAL);
+	if (*pidp == -1) {	/* -1 means this process */
+		p = req->td->td_proc;
+	} else {
+		p = pfind(*pidp);
+		if (p == NULL)
+			return (ESRCH);
+		if ((error = p_cansee(curthread, p)) != 0) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
+	}
+
+	vp = p->p_textvp;
+	vref(vp);
+	if (*pidp != -1)
+		PROC_UNLOCK(p);
+	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
+	vrele(vp);
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, retbuf, strlen(retbuf) + 1);
+	free(freebuf, M_TEMP);
+	return (error);
+}
+
 static int
 sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 {
@@ -1244,6 +1286,9 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
 	CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD,
+	sysctl_kern_proc_pathname, "Process executable path");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
 	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");

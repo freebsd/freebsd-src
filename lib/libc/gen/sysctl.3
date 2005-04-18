@@ -436,14 +436,14 @@ The version of
 with which the system
 attempts to comply.
 .It Li KERN_PROC
-Return the entire process table, or a subset of it.
-An array of pairs of
+Return selected information about specific running processes.
+.Pp
+For the following names, an array of pairs of
 .Va struct proc
 followed by corresponding
 .Va struct eproc
 structures is returned,
 whose size depends on the current number of such objects in the system.
-The third and fourth level names are as follows:
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
 .It "Third level name	Fourth level is:"
 .It "KERN_PROC_ALL	None"
@@ -459,9 +459,15 @@ array is returned in a flattened form, i.e., zero-terminated arguments
 follow each other.
 The total size of array is returned.
 It is also possible for a process to set its own process title this way.
+If the third level name is KERN_PROC_PATHNAME, the path of the
+process' text file is stored.
+For KERN_PROC_PATHNAME, a process ID of
+.Li -1
+implies the current process.
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
 .It Sy "Third level name	Fourth level is:"
 .It "KERN_PROC_ARGS	A process ID"
+.It "KERN_PROC_PATHNAME	A process ID"
 .El
 .It Li KERN_PROF
 Return profiling information about the kernel.
