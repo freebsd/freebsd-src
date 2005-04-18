@@ -81,6 +81,7 @@ int ata_wc = 1;
 
 /* local vars */
 static struct intr_config_hook *ata_delayed_attach = NULL;
+static struct root_hold_token *ata_root_hold_token;
 static int ata_dma = 1;
 static int atapi_dma = 1;
 
@@ -559,6 +560,7 @@ ata_boot_attach(void)
 	    ata_identify(ch->dev);
 	}
     }
+    root_mount_rel(ata_root_hold_token);
 }
 
 /*
@@ -814,6 +816,7 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 		return EIO;
 	    }
 	    ata_delayed_attach->ich_func = (void*)ata_boot_attach;
+	    ata_root_hold_token = root_mount_hold("ATA");
 	    if (config_intrhook_establish(ata_delayed_attach) != 0) {
 		printf("ata: config_intrhook_establish failed\n");
 		free(ata_delayed_attach, M_TEMP);
