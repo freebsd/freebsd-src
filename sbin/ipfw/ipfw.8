@@ -346,18 +346,18 @@ in the protocol stack, under control of several sysctl variables.
 These places and variables are shown below, and it is important to
 have this picture in mind in order to design a correct ruleset.
 .Bd -literal -offset indent
-      ^	    to upper layers   V
-      |                       |
-      +----------->-----------+
-      ^                       V
- [ip_input]              [ip_output]   net.inet.ip.fw.enable=1
-      |                       |
-      ^                       V
-[ether_demux]    [ether_output_frame]  net.link.ether.ipfw=1
-      |                       |
-      +-->--[bdg_forward]-->--+        net.link.ether.bridge_ipfw=1
-      ^                       V
-      |      to devices       |
+       ^    to upper layers    V
+       |                       |
+       +----------->-----------+
+       ^                       V
+ [ip(6)_input]           [ip(6)_output]     net.inet.ip.fw.enable=1
+       |                       |
+       ^                       V
+ [ether_demux]        [ether_output_frame]  net.link.ether.ipfw=1
+       |                       |
+       +-->--[bdg_forward]-->--+            net.link.ether.bridge_ipfw=1
+       ^                       V
+       |      to devices       |
 .Ed
 .Pp
 As can be noted from the above picture, the number of
@@ -375,13 +375,17 @@ is invoked from
 but the same packets will have the MAC header stripped off when
 .Nm
 is invoked from
-.Cm ip_input() .
+.Cm ip_input() 
+or
+.Cm ip6_input() .
 .Pp
 Also note that each packet is always checked against the complete ruleset,
 irrespective of the place where the check occurs, or the source of the packet.
 If a rule contains some match patterns or actions which are not valid
 for the place of invocation (e.g.\& trying to match a MAC header within
-.Fn ip_input ) ,
+.Cm ip_input
+or
+.Cm ip6_input ),
 the match pattern will not match, but a
 .Cm not
 operator in front of such patterns
@@ -448,7 +452,7 @@ for filtering packets, among the following:
 .Bl -tag -width "Source and dest. addresses and ports" -offset XXX -compact
 .It Layer-2 header fields
 When available
-.It IPv4 Protocol
+.It IPv4 and IPv6 Protocol
 TCP, UDP, ICMP, etc.
 .It Source and dest. addresses and ports
 .It Direction
@@ -461,6 +465,10 @@ Version, type of service, datagram length, identification,
 fragment flag (non-zero IP offset),
 Time To Live
 .It IP options
+.It IPv6 Extension headers
+Fragmentation, Hop-by-Hop options,
+source routing, IPSec options.
+.It IPv6 Flow-ID
 .It Misc. TCP header fields
 TCP flags (SYN, FIN, ACK, RST, etc.),
 sequence number, acknowledgment number,
@@ -468,6 +476,8 @@ window
 .It TCP options
 .It ICMP types
 for ICMP packets
+.It ICMP6 types
+for ICMP6 packets
 .It User/group ID
 When the packet can be associated with a local socket.
 .It Divert status
@@ -806,7 +816,7 @@ compatibility with
 .Nm ipfw1 .
 In
 .Nm ipfw2
-any match pattern (including MAC headers, IPv4 protocols,
+any match pattern (including MAC headers, IP protocols,
 addresses and ports) can be specified in the
 .Ar options
 section.
@@ -815,11 +825,13 @@ Rule fields have the following meaning:
 .Bl -tag -width indent
 .It Ar proto : protocol | Cm { Ar protocol Cm or ... }
 .It Ar protocol : Oo Cm not Oc Ar protocol-name | protocol-number
-An IPv4 protocol specified by number or name
+An IP protocol specified by number or name
 (for a complete list see
 .Pa /etc/protocols ) .
 The
-.Cm ip
+.Cm ip ,
+.Cm ip6 ,
+.Cm ipv6 ,
 or
 .Cm all
 keywords mean any protocol will match.
@@ -840,7 +852,7 @@ The second format
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
-.Cm any | me |
+.Cm any | me | me6
 .Cm table Ns Pq Ar number Ns Op , Ns Ar value
 .Ar | addr-list | addr-set
 .Brc
@@ -848,10 +860,12 @@ its use is discouraged.
 matches any IP address.
 .It Cm me
 matches any IP address configured on an interface in the system.
+.It Cm me6
+matches any IPv6 address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
 .It Cm table Ns Pq Ar number Ns Op , Ns Ar value
-Matches any IP address for which an entry exists in the lookup table
+Matches any IPv4 address for which an entry exists in the lookup table
 .Ar number .
 If an optional 32-bit unsigned
 .Ar value
@@ -918,6 +932,30 @@ As an example, an address specified as 1.2.3.4/24{128,35-55,89}
 will match the following IP addresses:
 .br
 1.2.3.128, 1.2.3.35 to 1.2.3.55, 1.2.3.89 .
+.It Ar addr6-list : ip6-addr Ns Op Ns , Ns Ar addr6-list
+.It Ar ip6-addr :
+A host or subnet specified one of the following ways:
+.Pp
+.Bl -tag -width indent
+.It Ar numeric-ip | hostname
+Matches a single IPv6 address as allowed by
+.Xr inet_pton 3
+or a hostname.
+Hostnames are resolved at the time the rule is added to the firewall
+list.
+.It Ar addr Ns / Ns Ar masklen
+Matches all IPv6 addresses with base
+.Ar addr
+(specified as allowed by
+.Xr inet_pton
+or a hostname)
+and mask width of
+.Cm masklen
+bits.
+.El
+.Pp
+No support for sets of IPv6 addresses is provided because IPv6 addresses
+are typically random past the initial prefix.
 .It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Ns Op , Ns Ar ports
 For protocols which support port numbers (such as TCP and UDP), optional
 .Cm ports
@@ -986,13 +1024,36 @@ input for delivery.
 Matches only packets going from a divert socket back outward to the IP
 stack output for delivery.
 .It Cm dst-ip Ar ip-address
-Matches IP packets whose destination IP is one of the address(es)
+Matches IPv4 packets whose destination IP is one of the address(es)
+specified as argument.
+.It Bro Cm dst-ip6 | dst-ipv6 Brc Ar ip6-address
+Matches IPv6 packets whose destination IP is one of the address(es)
 specified as argument.
 .It Cm dst-port Ar ports
 Matches IP packets whose destination port is one of the port(s)
 specified as argument.
 .It Cm established
 Matches TCP packets that have the RST or ACK bits set.
+.It Cm ext6hdr Ar header
+Matches IPv6 packets containing the extended header given by
+.Ar header .
+Supported headers are:
+.Pp
+Fragment,
+.Pq Cm frag ,
+Hop-to-hop options
+.Pq Cm hopopt ,
+Source routing
+.Pq Cm route ,
+IPSec authentication headers
+.Pq Cm ah ,
+and IPSec encapsulated security payload headers
+.Pq Cm esp .
+.It Cm flow-id Ar labels
+Matches IPv6 packets containing any of the flow labels given in
+.Ar labels .
+.Ar labels
+is a comma seperate list of numeric flow labels.
 .It Cm frag
 Matches packets that are fragments and not the first
 fragment of an IP datagram.
@@ -1047,6 +1108,12 @@ address mask request
 .Pq Cm 17
 and address mask reply
 .Pq Cm 18 .
+.It Cm icmp6types Ar types
+Matches ICMP6 packets whose ICMP6 type is in the list of
+.Ar types .
+The list may be specified as any combination of
+individual types (numeric) separated by commas.
+.Em Ranges are not allowed.
 .It Cm in | out
 Matches incoming or outgoing packets, respectively.
 .Cm in
@@ -1057,7 +1124,7 @@ are mutually exclusive (in fact,
 is implemented as
 .Cm not in Ns No ).
 .It Cm ipid Ar id-list
-Matches IP packets whose
+Matches IPv4 packets whose
 .Cm ip_id
 field has value included in
 .Ar id-list ,
@@ -1072,7 +1139,7 @@ which is either a single value or a list of values or ranges
 specified in the same way as
 .Ar ports .
 .It Cm ipoptions Ar spec
-Matches packets whose IP header contains the comma separated list of
+Matches packets whose IPv4 header contains the comma separated list of
 options specified in
 .Ar spec .
 The supported IP options are:
@@ -1089,7 +1156,7 @@ The absence of a particular option may be denoted
 with a
 .Ql \&! .
 .It Cm ipprecedence Ar precedence
-Matches IP packets whose precedence field is equal to
+Matches IPv4 packets whose precedence field is equal to
 .Ar precedence .
 .It Cm ipsec
 Matches packets that have IPSEC history associated with them
@@ -1111,7 +1178,7 @@ rules are handled as if with no
 .Cm ipsec
 flag.
 .It Cm iptos Ar spec
-Matches IP packets whose
+Matches IPv4 packets whose
 .Cm tos
 field contains the comma separated list of
 service types specified in
@@ -1132,7 +1199,7 @@ The absence of a particular type may be denoted
 with a
 .Ql \&! .
 .It Cm ipttl Ar ttl-list
-Matches IP packets whose time to live is included in
+Matches IPv4 packets whose time to live is included in
 .Ar ttl-list ,
 which is either a single value or a list of values or ranges
 specified in the same way as
@@ -1160,6 +1227,8 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
+Currently,
+only IPv4 flows are supported.
 .It Cm { MAC | mac } Ar dst-mac src-mac
 Match packets with a given
 .Ar dst-mac
@@ -1212,7 +1281,7 @@ and they are always printed as hexadecimal (unless the
 .Cm -N
 option is used, in which case symbolic resolution will be attempted).
 .It Cm proto Ar protocol
-Matches packets with the corresponding IPv4 protocol.
+Matches packets with the corresponding IP protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
@@ -1260,8 +1329,11 @@ Matches TCP packets that have the SYN bit set but no ACK bit.
 This is the short form of
 .Dq Li tcpflags\ syn,!ack .
 .It Cm src-ip Ar ip-address
-Matches IP packets whose source IP is one of the address(es)
-specified as argument.
+Matches IPv4 packets whose source IP is one of the address(es)
+specified as an argument.
+.It Cm src-ip6 Ar ip6-address
+Matches IPv6 packets whose source IP is one of the address(es)
+specified as an argument.
 .It Cm src-port Ar ports
 Matches IP packets whose source port is one of the port(s)
 specified as argument.
@@ -1388,7 +1460,7 @@ connected networks instead of all source addresses.
 .Sh LOOKUP TABLES
 Lookup tables are useful to handle large sparse address sets,
 typically from a hundred to several thousands of entries.
-There could be 128 different lookup tables, numbered 0 to 127.
+There may be up to 128 different lookup tables, numbered 0 to 127.
 .Pp
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
@@ -1422,6 +1494,8 @@ or flushed
 Internally, each table is stored in a Radix tree, the same way as
 the routing table (see
 .Xr route 4 ) .
+.Pp
+Lookup tables currently support IPv4 addresses only.
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
 .Em sets
@@ -1694,9 +1768,12 @@ with different weights might be connected to the same pipe).
 Available mask specifiers are a combination of one or more of the following:
 .Pp
 .Cm dst-ip Ar mask ,
+.Cm dst-ip6 Ar mask ,
 .Cm src-ip Ar mask ,
+.Cm src-ip6 Ar mask ,
 .Cm dst-port Ar mask ,
 .Cm src-port Ar mask ,
+.Cm flow-id Ar mask ,
 .Cm proto Ar mask
 or
 .Cm all ,
@@ -1767,6 +1844,14 @@ specifies the expected maximum packet size, only used when queue
 thresholds are in bytes (defaults to 1500, must be greater than zero).
 .El
 .El
+.Pp
+When used with IPv6 data, dummynet currently has several limitations.
+First, debug.mpsafenet=0 must be set.
+Second, the information necessicary to route link-local packets to an
+interface is not avalable after processing by dummynet so those packets
+are dropped in the output path.
+Care should be taken to insure that link-local packets are not passed to
+dummynet.
 .Sh CHECKLIST
 Here are some important points to consider when designing your
 rules:
@@ -2092,6 +2177,9 @@ The following option for
 .Nm dummynet
 pipes/queues is not supported:
 .Cm noerror .
+.It IPv6 Support
+There was no IPv6 support in
+.Nm ipfw1 .
 .El
 .Sh EXAMPLES
 There are far too many possible uses of
@@ -2396,6 +2484,8 @@ Work on
 .Xr dummynet 4
 traffic shaper supported by Akamba Corp.
 .Sh BUGS
+Use of dummynet with IPv6 requires that debug.mpsafenet be set to 0.
+.Pp
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
 made in the definition of the syntax.
@@ -2424,3 +2514,5 @@ If a packet is reinserted in this manner, later rules may be incorrectly
 applied, making the order of
 .Cm divert
 rules in the rule sequence very important.
+.Pp
+Dummynet drops all packets with IPv6 link-local addresses.

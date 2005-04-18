@@ -86,6 +86,9 @@
 #include <netinet6/ipsec.h>
 #endif
 
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
+
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
@@ -325,6 +328,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
 #define	TCP(p)		((struct tcphdr *)(p))
 #define	UDP(p)		((struct udphdr *)(p))
 #define	ICMP(p)		((struct icmp *)(p))
+#define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
 static __inline int
 icmptype_match(struct icmp *icmp, ipfw_insn_u32 *cmd)
@@ -555,6 +559,83 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 	return 1;
 }
 
+/*
+ * ipv6 specific rules here...
+ */
+static __inline int
+icmp6type_match (int type, ipfw_insn_u32 *cmd)
+{
+       return (type <= ICMP6_MAXTYPE && (cmd->d[type/32] & (1<<(type%32)) ) );
+}
+
+static int
+flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
+{
+       int i;
+       for (i=0; i <= cmd->o.arg1; ++i )
+               if (curr_flow == cmd->d[i] )
+                       return 1;
+       return 0;
+}
+
+/* support for IP6_*_ME opcodes */
+static int
+search_ip6_addr_net (struct in6_addr * ip6_addr)
+{
+       struct ifnet *mdc;
+       struct ifaddr *mdc2;
+       struct in6_ifaddr *fdm;
+       struct in6_addr copia;
+
+       TAILQ_FOREACH(mdc, &ifnet, if_link)
+               for (mdc2 = mdc->if_addrlist.tqh_first; mdc2;
+                   mdc2 = mdc2->ifa_list.tqe_next) {
+                       if (!mdc2->ifa_addr)
+                               continue;
+                       if (mdc2->ifa_addr->sa_family == AF_INET6) {
+                               fdm = (struct in6_ifaddr *)mdc2;
+                               copia = fdm->ia_addr.sin6_addr;
+                               /* need for leaving scope_id in the sock_addr */
+                               in6_clearscope(&copia);
+                               if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia))
+                                       return 1;
+                       }
+               }
+       return 0;
+}
+
+static int
+verify_rev_path6(struct in6_addr *src, struct ifnet *ifp)
+{
+       static struct route_in6 ro;
+       struct sockaddr_in6 *dst;
+
+       dst = (struct sockaddr_in6 * )&(ro.ro_dst);
+
+       if ( !(IN6_ARE_ADDR_EQUAL (src, &dst->sin6_addr) )) {
+               bzero(dst, sizeof(*dst));
+               dst->sin6_family = AF_INET6;
+               dst->sin6_len = sizeof(*dst);
+               dst->sin6_addr = *src;
+               rtalloc_ign((struct route *)&ro, RTF_CLONING);
+       }
+       if ((ro.ro_rt == NULL) || (ifp == NULL) ||
+           (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+               return 0;
+       return 1;
+}
+static __inline int
+hash_packet6(struct ipfw_flow_id *id)
+{
+       u_int32_t i;
+       i= (id->dst_ip6.__u6_addr.__u6_addr32[0]) ^
+       (id->dst_ip6.__u6_addr.__u6_addr32[1]) ^
+       (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
+       (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
+       (id->dst_port) ^ (id->src_port) ^ (id->flow_id6);
+       return i;
+}
+/* end of ipv6 opcodes */
 
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
@@ -773,7 +854,8 @@ hash_packet(struct ipfw_flow_id *id)
 {
 	u_int32_t i;
 
-	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
+	i = IS_IP6_FLOW_ID(id) ? hash_packet6(id):
+	    (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
 	i &= (curr_dyn_buckets - 1);
 	return i;
 }
@@ -912,19 +994,40 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
 		}
 		if (pkt->proto == q->id.proto &&
 		    q->dyn_type != O_LIMIT_PARENT) {
-			if (pkt->src_ip == q->id.src_ip &&
-			    pkt->dst_ip == q->id.dst_ip &&
+			if (IS_IP6_FLOW_ID(pkt)) {
+			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
+				&(q->id.src_ip6)) &&
+			    IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
+				&(q->id.dst_ip6)) &&
 			    pkt->src_port == q->id.src_port &&
 			    pkt->dst_port == q->id.dst_port ) {
 				dir = MATCH_FORWARD;
 				break;
-			}
-			if (pkt->src_ip == q->id.dst_ip &&
-			    pkt->dst_ip == q->id.src_ip &&
-			    pkt->src_port == q->id.dst_port &&
-			    pkt->dst_port == q->id.src_port ) {
-				dir = MATCH_REVERSE;
-				break;
+			    }
+			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
+				    &(q->id.dst_ip6)) &&
+				IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
+				    &(q->id.src_ip6)) &&
+				pkt->src_port == q->id.dst_port &&
+				pkt->dst_port == q->id.src_port ) {
+				    dir = MATCH_REVERSE;
+				    break;
+			    }
+			} else {
+			    if (pkt->src_ip == q->id.src_ip &&
+				pkt->dst_ip == q->id.dst_ip &&
+				pkt->src_port == q->id.src_port &&
+				pkt->dst_port == q->id.dst_port ) {
+				    dir = MATCH_FORWARD;
+				    break;
+			    }
+			    if (pkt->src_ip == q->id.dst_ip &&
+				pkt->dst_ip == q->id.src_ip &&
+				pkt->src_port == q->id.dst_port &&
+				pkt->dst_port == q->id.src_port ) {
+				    dir = MATCH_REVERSE;
+				    break;
+			    }
 			}
 		}
 next:
@@ -1122,15 +1225,25 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 	IPFW_DYN_LOCK_ASSERT();
 
 	if (ipfw_dyn_v) {
+		int is_v6 = IS_IP6_FLOW_ID(pkt);
 		i = hash_packet( pkt );
 		for (q = ipfw_dyn_v[i] ; q != NULL ; q=q->next)
 			if (q->dyn_type == O_LIMIT_PARENT &&
 			    rule== q->rule &&
 			    pkt->proto == q->id.proto &&
-			    pkt->src_ip == q->id.src_ip &&
-			    pkt->dst_ip == q->id.dst_ip &&
 			    pkt->src_port == q->id.src_port &&
-			    pkt->dst_port == q->id.dst_port) {
+			    pkt->dst_port == q->id.dst_port &&
+			    (
+				(is_v6 &&
+				 IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
+					&(q->id.src_ip6)) &&
+				 IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
+					&(q->id.dst_ip6))) ||
+				(!is_v6 &&
+				 pkt->src_ip == q->id.src_ip &&
+				 pkt->dst_ip == q->id.dst_ip)
+			    )
+			) {
 				q->expire = time_second + dyn_short_lifetime;
 				DEB(printf("ipfw: lookup_dyn_parent found 0x%p\n",q);)
 				return q;
@@ -1204,10 +1317,17 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		id.dst_port = id.src_port = 0;
 		id.proto = args->f_id.proto;
 
-		if (limit_mask & DYN_SRC_ADDR)
-			id.src_ip = args->f_id.src_ip;
-		if (limit_mask & DYN_DST_ADDR)
-			id.dst_ip = args->f_id.dst_ip;
+		if (IS_IP6_FLOW_ID (&(args->f_id))) {
+			if (limit_mask & DYN_SRC_ADDR)
+				id.src_ip6 = args->f_id.src_ip6;
+			if (limit_mask & DYN_DST_ADDR)
+				id.dst_ip6 = args->f_id.dst_ip6;
+		} else {
+			if (limit_mask & DYN_SRC_ADDR)
+				id.src_ip = args->f_id.src_ip;
+			if (limit_mask & DYN_DST_ADDR)
+				id.dst_ip = args->f_id.dst_ip;
+		}
 		if (limit_mask & DYN_SRC_PORT)
 			id.src_port = args->f_id.src_port;
 		if (limit_mask & DYN_DST_PORT)
@@ -1831,6 +1951,10 @@ ipfw_chk(struct ip_fw_args *args)
 	 * ulp is NULL if not found.
 	 */
 	void *ulp = NULL;		/* upper layer protocol pointer. */
+	/* XXX ipv6 variables */
+	int is_ipv6 = 0;
+	u_int16_t ext_hd = 0;	/* bits vector for extension header filtering */
+	/* end of ipv6 variables */
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (IP_FW_PASS);	/* accept */
@@ -1855,15 +1979,95 @@ do {									\
 	p = (mtod(m, char *) + (len));					\
 } while (0)
 
-	/* Identify IP packets and fill up veriables. */
-	if (pktlen >= sizeof(struct ip) &&
+	/* Identify IP packets and fill up variables. */
+	if (pktlen >= sizeof(struct ip6_hdr) &&
+	    (args->eh == NULL || ntohs(args->eh->ether_type)==ETHERTYPE_IPV6) &&
+	    mtod(m, struct ip *)->ip_v == 6) {
+		is_ipv6 = 1;
+		args->f_id.addr_type = 6;
+		hlen = sizeof(struct ip6_hdr);
+		proto = mtod(m, struct ip6_hdr *)->ip6_nxt;
+
+		/* Search extension headers to find upper layer protocols */
+		while (ulp == NULL) {
+			switch (proto) {
+			case IPPROTO_ICMPV6:
+				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
+				args->f_id.flags = ICMP6(ulp)->icmp6_type;
+				break;
+
+			case IPPROTO_TCP:
+				PULLUP_TO(hlen, ulp, struct tcphdr);
+				dst_port = TCP(ulp)->th_dport;
+				src_port = TCP(ulp)->th_sport;
+				args->f_id.flags = TCP(ulp)->th_flags;
+				break;
+
+			case IPPROTO_UDP:
+				PULLUP_TO(hlen, ulp, struct udphdr);
+				dst_port = UDP(ulp)->uh_dport;
+				src_port = UDP(ulp)->uh_sport;
+				break;
+
+			case IPPROTO_HOPOPTS:
+				PULLUP_TO(hlen, ulp, struct ip6_hbh);
+				ext_hd |= EXT_HOPOPTS;
+				hlen += sizeof(struct ip6_hbh);
+				proto = ((struct ip6_hbh *)ulp)->ip6h_nxt;
+				ulp = NULL;
+				break;
+
+			case IPPROTO_ROUTING:
+				PULLUP_TO(hlen, ulp, struct ip6_rthdr);
+				ext_hd |= EXT_ROUTING;
+				hlen += sizeof(struct ip6_rthdr);
+				proto = ((struct ip6_rthdr *)ulp)->ip6r_nxt;
+				ulp = NULL;
+				break;
+
+			case IPPROTO_FRAGMENT:
+				PULLUP_TO(hlen, ulp, struct ip6_frag);
+				ext_hd |= EXT_FRAGMENT;
+				hlen += sizeof (struct ip6_frag);
+				proto = ((struct ip6_frag *)ulp)->ip6f_nxt;
+				offset = 1;
+				ulp = NULL; /* XXX is it correct ? */
+				break;
+
+			case IPPROTO_AH:
+			case IPPROTO_NONE:
+			case IPPROTO_ESP:
+				PULLUP_TO(hlen, ulp, struct ip6_ext);
+				if (proto == IPPROTO_AH)
+				ext_hd |= EXT_AH;
+				else if (proto == IPPROTO_ESP)
+				ext_hd |= EXT_ESP;
+				hlen += ((struct ip6_ext *)ulp)->ip6e_len +
+					    sizeof (struct ip6_ext);
+				proto = ((struct ip6_ext *)ulp)->ip6e_nxt;
+				ulp = NULL;
+				break;
+
+			default:
+				printf( "IPFW2: IPV6 - Unknown Extension Header (%d)\n",
+				    proto);
+				return 0; /* deny */
+				break;
+			} /*switch */
+		}
+		args->f_id.src_ip6 = mtod(m,struct ip6_hdr *)->ip6_src;
+		args->f_id.dst_ip6 = mtod(m,struct ip6_hdr *)->ip6_dst;
+		args->f_id.src_ip = 0;
+		args->f_id.dst_ip = 0;
+		args->f_id.flow_id6 = ntohs(mtod(m, struct ip6_hdr *)->ip6_flow);
+		/* hlen != 0 is used to detect ipv4 packets, so clear it now */
+		hlen = 0;
+	} else if (pktlen >= sizeof(struct ip) &&
 	    (args->eh == NULL || ntohs(args->eh->ether_type) == ETHERTYPE_IP) &&
 	    mtod(m, struct ip *)->ip_v == 4) {
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
-#ifdef NOTYET
 		args->f_id.addr_type = 4;
-#endif
 
 		/*
 		 * Collect parameters into local variables for faster matching.
@@ -2027,10 +2231,12 @@ check_body:
 			case O_JAIL:
 				/*
 				 * We only check offset == 0 && proto != 0,
-				 * as this ensures that we have an IPv4
+				 * as this ensures that we have a
 				 * packet with the ports info.
 				 */
 				if (offset!=0)
+					break;
+				if (is_ipv6) /* XXX to be fixed later */
 					break;
 				if (proto == IPPROTO_TCP ||
 				    proto == IPPROTO_UDP)
@@ -2086,7 +2292,7 @@ check_body:
 				break;
 
 			case O_FRAG:
-				match = (hlen > 0 && offset != 0);
+				match = (offset != 0);
 				break;
 
 			case O_IN:	/* "out" is "not in" */
@@ -2195,7 +2401,7 @@ check_body:
 			case O_IP_DSTPORT:
 				/*
 				 * offset == 0 && proto != 0 is enough
-				 * to guarantee that we have an IPv4
+				 * to guarantee that we have a
 				 * packet with port info.
 				 */
 				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP)
@@ -2218,12 +2424,22 @@ check_body:
 				    icmptype_match(ICMP(ulp), (ipfw_insn_u32 *)cmd) );
 				break;
 
+			case O_ICMP6TYPE:
+				match = is_ipv6 && offset == 0 &&
+				    proto==IPPROTO_ICMPV6 &&
+				    icmp6type_match(
+					ICMP6(ulp)->icmp6_type,
+					(ipfw_insn_u32 *)cmd);
+				break;
+
 			case O_IPOPT:
-				match = (hlen > 0 && ipopts_match(ip, cmd) );
+				match = (hlen > 0 &&
+				    ipopts_match(mtod(m, struct ip *), cmd) );
 				break;
 
 			case O_IPVER:
-				match = (hlen > 0 && cmd->arg1 == ip->ip_v);
+				match = (hlen > 0 &&
+				    cmd->arg1 == mtod(m, struct ip *)->ip_v);
 				break;
 
 			case O_IPID:
@@ -2237,9 +2453,9 @@ check_body:
 				    if (cmd->opcode == O_IPLEN)
 					x = ip_len;
 				    else if (cmd->opcode == O_IPTTL)
-					x = ip->ip_ttl;
+					x = mtod(m, struct ip *)->ip_ttl;
 				    else /* must be IPID */
-					x = ntohs(ip->ip_id);
+					x = ntohs(mtod(m, struct ip *)->ip_id);
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
 					break;
@@ -2254,12 +2470,12 @@ check_body:
 
 			case O_IPPRECEDENCE:
 				match = (hlen > 0 &&
-				    (cmd->arg1 == (ip->ip_tos & 0xe0)) );
+				    (cmd->arg1 == (mtod(m, struct ip *)->ip_tos & 0xe0)) );
 				break;
 
 			case O_IPTOS:
 				match = (hlen > 0 &&
-				    flags_match(cmd, ip->ip_tos));
+				    flags_match(cmd, mtod(m, struct ip *)->ip_tos));
 				break;
 
 			case O_TCPDATALEN:
@@ -2357,8 +2573,12 @@ check_body:
 
 			case O_VERREVPATH:
 				/* Outgoing packets automatically pass/match */
-				match = (hlen > 0 && ((oif != NULL) ||
+				/* XXX BED: verify_path was verify_rev_path in the diff... */
+				match = ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
+				    (is_ipv6 ?
+					verify_rev_path6(&(args->f_id.src_ip6),
+					    m->m_pkthdr.rcvif) :
 				    verify_path(src_ip, m->m_pkthdr.rcvif)));
 				break;
 
@@ -2387,6 +2607,60 @@ check_body:
 				match = (ipsec_getnhist(m) != 0);
 #endif
 				/* otherwise no match */
+				break;
+
+			case O_IP6_SRC:
+				match = is_ipv6 &&
+				    IN6_ARE_ADDR_EQUAL(&args->f_id.src_ip6,
+				    &((ipfw_insn_ip6 *)cmd)->addr6);
+				break;
+
+			case O_IP6_DST:
+				match = is_ipv6 &&
+				IN6_ARE_ADDR_EQUAL(&args->f_id.dst_ip6,
+				    &((ipfw_insn_ip6 *)cmd)->addr6);
+				break;
+			case O_IP6_SRC_MASK:
+				if (is_ipv6) {
+					ipfw_insn_ip6 *te = (ipfw_insn_ip6 *)cmd;
+					struct in6_addr p = args->f_id.src_ip6;
+
+					APPLY_MASK(&p, &te->mask6);
+					match = IN6_ARE_ADDR_EQUAL(&te->addr6, &p);
+				}
+				break;
+
+			case O_IP6_DST_MASK:
+				if (is_ipv6) {
+					ipfw_insn_ip6 *te = (ipfw_insn_ip6 *)cmd;
+					struct in6_addr p = args->f_id.dst_ip6;
+
+					APPLY_MASK(&p, &te->mask6);
+					match = IN6_ARE_ADDR_EQUAL(&te->addr6, &p);
+				}
+				break;
+
+			case O_IP6_SRC_ME:
+				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
+			break;
+
+			case O_IP6_DST_ME:
+				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
+			break;
+
+			case O_FLOW6ID:
+				match = is_ipv6 &&
+				    flow6id_match(args->f_id.flow_id6,
+				    (ipfw_insn_u32 *) cmd);
+				break;
+
+			case O_EXT_HDR:
+				match = is_ipv6 &&
+				    (ext_hd & ((ipfw_insn *) cmd)->arg1);
+				break;
+
+			case O_IP6:
+				match = is_ipv6;
 				break;
 
 			/*
@@ -3030,6 +3304,10 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_VERSRCREACH:
 		case O_ANTISPOOF:
 		case O_IPSEC:
+		case O_IP6_SRC_ME:
+		case O_IP6_DST_ME:
+		case O_EXT_HDR:
+		case O_IP6:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -3177,6 +3455,29 @@ check_action:
 				return EINVAL;
 			}
 			break;
+		case O_IP6_SRC:
+		case O_IP6_DST:
+			if (cmdlen != F_INSN_SIZE(struct in6_addr) +
+			    F_INSN_SIZE(ipfw_insn))
+				goto bad_size;
+			break;
+
+		case O_FLOW6ID:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) +
+			    ((ipfw_insn_u32 *)cmd)->o.arg1)
+				goto bad_size;
+			break;
+
+		case O_IP6_SRC_MASK:
+		case O_IP6_DST_MASK:
+			if ( !(cmdlen & 1) || cmdlen > 127)
+				goto bad_size;
+			break;
+		case O_ICMP6TYPE:
+			if( cmdlen != F_INSN_SIZE( ipfw_insn_icmp6 ) )
+				goto bad_size;
+			break;
+
 		default:
 			printf("ipfw: opcode %d, unknown opcode\n",
 				cmd->opcode);
@@ -3577,7 +3878,7 @@ ipfw_init(void)
 	}
 
 	ip_fw_default_rule = layer3_chain.rules;
-	printf("ipfw2 initialized, divert %s, "
+	printf("ipfw2 (+ipv6) initialized, divert %s, "
 		"rule-based forwarding "
 #ifdef IPFIREWALL_FORWARD
 		"enabled, "
