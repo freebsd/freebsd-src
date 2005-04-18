@@ -181,14 +181,13 @@ static int tcp_sack_globalholes = 0;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_RD,
     &tcp_sack_globalholes, 0,
     "Global number of TCP SACK holes currently allocated");
+
 /*
  * This function is called upon receipt of new valid data (while not in header
  * prediction mode), and it updates the ordered list of sacks.
  */
 void
-tcp_update_sack_list(tp, rcv_laststart, rcv_lastend)
-	struct tcpcb *tp;
-	tcp_seq rcv_laststart, rcv_lastend;
+tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_start, tcp_seq rcv_end)
 {
 	/*
 	 * First reported block MUST be the most recent one.  Subsequent
@@ -196,86 +195,79 @@ tcp_update_sack_list(tp, rcv_laststart, rcv_lastend)
 	 * receiver.  These two conditions make the implementation fully
 	 * compliant with RFC 2018.
 	 */
-	int i, j = 0, count = 0, lastpos = -1;
-	struct sackblk sack, firstsack, temp[MAX_SACK_BLKS];
+	struct sackblk head_blk, saved_blks[MAX_SACK_BLKS];
+	int num_head, num_saved, i;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	/* First clean up current list of sacks */
-	for (i = 0; i < tp->rcv_numsacks; i++) {
-		sack = tp->sackblks[i];
-		if (sack.start == 0 && sack.end == 0) {
-			count++; /* count = number of blocks to be discarded */
-			continue;
-		}
-		if (SEQ_LEQ(sack.end, tp->rcv_nxt)) {
-			tp->sackblks[i].start = tp->sackblks[i].end = 0;
-			count++;
-		} else {
-			temp[j].start = tp->sackblks[i].start;
-			temp[j++].end = tp->sackblks[i].end;
-		}
-	}
-	tp->rcv_numsacks -= count;
-	if (tp->rcv_numsacks == 0) { /* no sack blocks currently (fast path) */
-		tcp_clean_sackreport(tp);
-		if (SEQ_LT(tp->rcv_nxt, rcv_laststart)) {
-			/* ==> need first sack block */
-			tp->sackblks[0].start = rcv_laststart;
-			tp->sackblks[0].end = rcv_lastend;
-			tp->rcv_numsacks = 1;
-		}
-		return;
-	}
-	/* Otherwise, sack blocks are already present. */
-	for (i = 0; i < tp->rcv_numsacks; i++)
-		tp->sackblks[i] = temp[i]; /* first copy back sack list */
-	if (SEQ_GEQ(tp->rcv_nxt, rcv_lastend))
-		return;     /* sack list remains unchanged */
+
+	/* Check arguments */
+	KASSERT(SEQ_LT(rcv_start, rcv_end), ("rcv_start < rcv_end"));
+
+	/* SACK block for the received segment. */
+	head_blk.start = rcv_start;
+	head_blk.end = rcv_end;
+
 	/*
-	 * From here, segment just received should be (part of) the 1st sack.
-	 * Go through list, possibly coalescing sack block entries.
+	 * Merge updated SACK blocks into head_blk, and
+	 * save unchanged SACK blocks into saved_blks[].
+	 * num_saved will have the number of the saved SACK blocks.
 	 */
-	firstsack.start = rcv_laststart;
-	firstsack.end = rcv_lastend;
+	num_saved = 0;
 	for (i = 0; i < tp->rcv_numsacks; i++) {
-		sack = tp->sackblks[i];
-		if (SEQ_LT(sack.end, firstsack.start) ||
-		    SEQ_GT(sack.start, firstsack.end))
-			continue; /* no overlap */
-		if (sack.start == firstsack.start && sack.end == firstsack.end){
+		tcp_seq start = tp->sackblks[i].start;
+		tcp_seq end = tp->sackblks[i].end;
+		if (SEQ_GEQ(start, end) || SEQ_LEQ(start, tp->rcv_nxt)) {
 			/*
-			 * identical block; delete it here since we will
-			 * move it to the front of the list.
+			 * Discard this SACK block.
 			 */
-			tp->sackblks[i].start = tp->sackblks[i].end = 0;
-			lastpos = i;    /* last posn with a zero entry */
-			continue;
+		} else if (SEQ_LEQ(head_blk.start, end) &&
+			   SEQ_GEQ(head_blk.end, start)) {
+			/*
+			 * Merge this SACK block into head_blk.
+			 * This SACK block itself will be discarded.
+			 */
+			if (SEQ_GT(head_blk.start, start))
+				head_blk.start = start;
+			if (SEQ_LT(head_blk.end, end))
+				head_blk.end = end;
+		} else {
+			/*
+			 * Save this SACK block.
+			 */
+			saved_blks[num_saved].start = start;
+			saved_blks[num_saved].end = end;
+			num_saved++;
 		}
-		if (SEQ_LEQ(sack.start, firstsack.start))
-			firstsack.start = sack.start; /* merge blocks */
-		if (SEQ_GEQ(sack.end, firstsack.end))
-			firstsack.end = sack.end;     /* merge blocks */
-		tp->sackblks[i].start = tp->sackblks[i].end = 0;
-		lastpos = i;    /* last posn with a zero entry */
 	}
-	if (lastpos != -1) {    /* at least one merge */
-		for (i = 0, j = 1; i < tp->rcv_numsacks; i++) {
-			sack = tp->sackblks[i];
-			if (sack.start == 0 && sack.end == 0)
-				continue;
-			temp[j++] = sack;
-		}
-		tp->rcv_numsacks = j; /* including first blk (added later) */
-		for (i = 1; i < tp->rcv_numsacks; i++) /* now copy back */
-			tp->sackblks[i] = temp[i];
-	} else {        /* no merges -- shift sacks by 1 */
-		if (tp->rcv_numsacks < MAX_SACK_BLKS)
-			tp->rcv_numsacks++;
-		for (i = tp->rcv_numsacks-1; i > 0; i--)
-			tp->sackblks[i] = tp->sackblks[i-1];
+
+	/*
+	 * Update SACK list in tp->sackblks[].
+	 */
+	num_head = 0;
+	if (SEQ_GT(head_blk.start, tp->rcv_nxt)) {
+		/*
+		 * The received data segment is an out-of-order segment.
+		 * Put head_blk at the top of SACK list.
+		 */
+		tp->sackblks[0] = head_blk;
+		num_head = 1;
+		/*
+		 * If the number of saved SACK blocks exceeds its limit,
+		 * discard the last SACK block.
+		 */
+		if (num_saved >= MAX_SACK_BLKS)
+			num_saved--;
 	}
-	tp->sackblks[0] = firstsack;
-	return;
+	if (num_saved > 0) {
+		/*
+		 * Copy the saved SACK blocks back.
+		 */
+		bcopy(saved_blks, &tp->sackblks[num_head],
+		      sizeof(struct sackblk) * num_saved);
+	}
+
+	/* Save the number of SACK blocks. */
+	tp->rcv_numsacks = num_head + num_saved;
 }
 
 /*
@@ -608,8 +600,9 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 void
 tcp_sack_adjust(struct tcpcb *tp)
 {
-	INP_LOCK_ASSERT(tp->t_inpcb);
 	struct sackhole *cur = tp->snd_holes;
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (cur == NULL)
 		return; /* No holes */
 	if (SEQ_GEQ(tp->snd_nxt, tp->rcv_lastsack))
