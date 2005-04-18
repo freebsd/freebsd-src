@@ -623,7 +623,7 @@ __semctl(td, uap)
 	}
 	mtx_unlock(sema_mtxp);
 #endif
-		
+
 	error = 0;
 	rval = 0;
 
