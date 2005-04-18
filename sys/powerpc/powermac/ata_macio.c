@@ -110,10 +110,11 @@ ata_macio_probe(device_t dev)
 	/*
 	 * Set up the resource vectors
 	 */
-	for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 		ch->r_io[i].res = mem;
 		ch->r_io[i].offset = i * ATA_MACIO_REGGAP;
 	}
+	ata_default_registers(ch);
 	ch->r_io[ATA_ALTSTAT].res = mem;
 	ch->r_io[ATA_ALTSTAT].offset = ATA_MACIO_ALTOFFSET;
 
