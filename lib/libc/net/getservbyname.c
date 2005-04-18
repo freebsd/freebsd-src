@@ -49,8 +49,8 @@ getservbyname_r(const char *name, const char *proto, struct servent *se,
 	int error;
 
 #ifdef YP
-	sed->getservbyname_yp = (char *)name;
-	sed->getservbyproto_yp = (char *)proto;
+	sed->yp_name = (char *)name;
+	sed->yp_proto = (char *)proto;
 #endif
 
 	setservent_r(sed->stayopen, sed);
@@ -69,8 +69,8 @@ gotname:
 		endservent_r(sed);
 
 #ifdef YP
-	sed->getservbyname_yp = NULL;
-	sed->getservbyproto_yp = NULL;
+	sed->yp_name = NULL;
+	sed->yp_proto = NULL;
 #endif
 
 	return (error);
