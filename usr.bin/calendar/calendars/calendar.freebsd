@@ -222,5 +222,6 @@
 12/23	Sean Chittenden <seanc@FreeBSD.org> born in Seattle, Washington, United States, 1979
 12/28	Soren Schmidt <sos@FreeBSD.org> born in Maribo, Denmark, 1960
 12/28	Marius Strobl <marius@FreeBSD.org> born in Cham, Bavaria, Germany, 1978
+12/31	Edwin Groothuis <edwin@FreeBSD.org> born in Geldrop, the Netherlands, 1970
 
 #endif /* !_calendar_freebsd_ */
