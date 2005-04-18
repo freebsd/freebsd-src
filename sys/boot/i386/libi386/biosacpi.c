@@ -51,7 +51,7 @@ void
 biosacpi_detect(void)
 {
     RSDP_DESCRIPTOR	*rsdp;
-    char		buf[16];
+    char		buf[24];
     int			revision;
 
     /* XXX check the BIOS datestamp */
