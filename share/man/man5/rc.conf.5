@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2005
+.Dd April 18, 2005
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1745,6 +1745,24 @@ If set to
 run the
 .Nm rpc.ypupdated
 daemon at system boot time.
+.It Va bsnmpd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr bsnmpd 1
+daemon at system boot time.
+Be sure to understand the security implications of running SNMP daemon
+on your host.
+.It Va bsnmpd_flags
+.Pq Vt str
+If
+.Va bsnmpd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr bsnmpd 1
+daemon.
 .It Va defaultrouter
 .Pq Vt str
 If not set to
