@@ -32,8 +32,6 @@
 	
 #include <machine/asmacros.h>
 
-#include "assym.s"
-
 	.text
 
 /*
