@@ -104,6 +104,7 @@
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
 
+#include <machine/_bus.h>
 #include <machine/cpufunc.h>
 
 /*
@@ -121,16 +122,6 @@
 #define	I386_BUS_SPACE_IO	0	/* space is i/o space */
 #define I386_BUS_SPACE_MEM	1	/* space is mem space */
 
-/*
- * Bus address and size types
- */
-#ifdef PAE
-typedef uint64_t bus_addr_t;
-#else
-typedef uint32_t bus_addr_t;
-#endif
-typedef uint32_t bus_size_t;
-
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE	0xFFFFFFFF
@@ -143,12 +134,6 @@ typedef uint32_t bus_size_t;
 #endif
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
-
-/*
- * Access methods for bus resources and address space.
- */
-typedef	int bus_space_tag_t;
-typedef	u_int bus_space_handle_t;
 
 /*
  * Map a region of device bus space into CPU virtual address space.

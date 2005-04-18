@@ -80,13 +80,8 @@
 
 #include <sys/systm.h>
 
+#include <machine/_bus.h>
 #include <machine/cpufunc.h>
-
-/*
- * Bus address and size types
- */
-typedef u_int bus_addr_t;
-typedef u_int bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
@@ -153,19 +148,6 @@ struct bus_space_access_methods {
 	_BUS_SPACE_CALL_FUNCS(bs,u_int32_t,4)
 };
 
-struct bus_space_tag {
-#define	BUS_SPACE_IO	0
-#define	BUS_SPACE_MEM	1
-	u_int	bs_tag;			/* bus space flags */
-
-	struct bus_space_access_methods bs_da;	/* direct access */
-	struct bus_space_access_methods bs_ra;	/* relocate access */
-#if	0
-	struct bus_space_access_methods bs_ida;	/* indexed direct access */
-#endif
-};
-typedef struct bus_space_tag *bus_space_tag_t;
-
 /*
  * Values for the i386 bus space tag, not to be used directly by MI code.
  */
@@ -174,24 +156,6 @@ extern struct bus_space_tag SBUS_mem_space_tag;
 
 #define I386_BUS_SPACE_IO	(&SBUS_io_space_tag)
 #define I386_BUS_SPACE_MEM	(&SBUS_mem_space_tag)
-
-/*
- * bus space handle
- */
-struct bus_space_handle {
-	bus_addr_t	bsh_base;
-	size_t		bsh_sz;
-
-	bus_addr_t	bsh_iat[BUS_SPACE_IAT_MAXSIZE];
-	size_t		bsh_maxiatsz;
-	size_t		bsh_iatsz;
-
-	struct resource	**bsh_res;
-	size_t		bsh_ressz;
-
-	struct bus_space_access_methods bsh_bam;
-};
-typedef struct bus_space_handle *bus_space_handle_t;
 
 /*
  * Allocate/Free bus_space_handle
