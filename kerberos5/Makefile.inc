@@ -48,4 +48,4 @@ CLEANFILES+=	${_ET}.h ${_ET}.c
 .endfor
 .endfor
 
-.endif defined(SRCS)
+.endif # defined(SRCS)
