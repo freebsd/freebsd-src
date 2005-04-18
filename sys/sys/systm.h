@@ -315,6 +315,13 @@ const char *devtoname(struct cdev *cdev);
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
 
+/* Root mount holdback API */
+struct root_hold_token;
+
+struct root_hold_token *root_mount_hold(const char *identifier);
+void root_mount_rel(struct root_hold_token *h);
+
+
 /*
  * Unit number allocation API. (kern/subr_unit.c)
  */
