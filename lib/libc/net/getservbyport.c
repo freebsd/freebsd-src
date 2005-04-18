@@ -48,8 +48,8 @@ getservbyport_r(int port, const char *proto, struct servent *se,
 	int error;
 
 #ifdef YP
-	sed->getservbyport_yp = port;
-	sed->getservbyproto_yp = (char *)proto;
+	sed->yp_port = port;
+	sed->yp_proto = (char *)proto;
 #endif
 
 	setservent_r(sed->stayopen, sed);
@@ -63,8 +63,8 @@ getservbyport_r(int port, const char *proto, struct servent *se,
 		endservent_r(sed);
 
 #ifdef YP
-	sed->getservbyport_yp = 0;
-	sed->getservbyproto_yp = NULL;
+	sed->yp_port = 0;
+	sed->yp_proto = NULL;
 #endif
 
 	return (error);

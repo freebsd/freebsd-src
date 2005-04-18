@@ -67,8 +67,8 @@ servent_data_clear(struct servent_data *sed)
 		sed->fp = NULL;
 	}
 #ifdef YP
-	free(sed->key);
-	sed->key = NULL;
+	free(sed->yp_key);
+	sed->yp_key = NULL;
 #endif
 }
 
@@ -119,11 +119,11 @@ _getservbyport_yp(struct servent_data *sed)
 	char buf[YPMAXRECORD + 2];
 	int rv;
 
-	snprintf(buf, sizeof(buf), "%d/%s",
-	    ntohs(sed->getservbyport_yp), sed->getservbyproto_yp);
+	snprintf(buf, sizeof(buf), "%d/%s", ntohs(sed->yp_port),
+	    sed->yp_proto);
 
-	sed->getservbyport_yp = 0;
-	sed->getservbyproto_yp = NULL;
+	sed->yp_port = 0;
+	sed->yp_proto = NULL;
 
 	if (!sed->yp_domain) {
 		if (yp_get_default_domain(&sed->yp_domain))
@@ -168,11 +168,10 @@ _getservbyname_yp(struct servent_data *sed)
 			return (0);
 	}
 
-	snprintf(buf, sizeof(buf), "%s/%s", sed->getservbyname_yp,
-	    sed->getservbyproto_yp);
+	snprintf(buf, sizeof(buf), "%s/%s", sed->yp_name, sed->yp_proto);
 
-	sed->getservbyname_yp = 0;
-	sed->getservbyproto_yp = NULL;
+	sed->yp_name = 0;
+	sed->yp_proto = NULL;
 
 	if (yp_match(sed->yp_domain, "services.byname", buf, strlen(buf),
 	    &result, &resultlen)) {
@@ -198,22 +197,23 @@ _getservent_yp(struct servent_data *sed)
 			return (0);
 	}
 
-	if (!sed->stepping_yp) {
-		free(sed->key);
-		rv = yp_first(sed->yp_domain, "services.byname", &sed->key,
-		    &sed->keylen, &result, &resultlen);
+	if (!sed->yp_stepping) {
+		free(sed->yp_key);
+		rv = yp_first(sed->yp_domain, "services.byname", &sed->yp_key,
+		    &sed->yp_keylen, &result, &resultlen);
 		if (rv) {
-			sed->stepping_yp = 0;
+			sed->yp_stepping = 0;
 			return(0);
 		}
-		sed->stepping_yp = 1;
+		sed->yp_stepping = 1;
 	} else {
-		lastkey = sed->key;
-		rv = yp_next(sed->yp_domain, "services.byname", sed->key,
-		    sed->keylen, &sed->key, &sed->keylen, &result, &resultlen);
+		lastkey = sed->yp_key;
+		rv = yp_next(sed->yp_domain, "services.byname", sed->yp_key,
+		    sed->yp_keylen, &sed->yp_key, &sed->yp_keylen, &result,
+		    &resultlen);
 		free(lastkey);
 		if (rv) {
-			sed->stepping_yp = 0;
+			sed->yp_stepping = 0;
 			return (0);
 		}
 	}
@@ -243,7 +243,7 @@ endservent_r(struct servent_data *sed)
 	servent_data_clear(sed);
 	sed->stayopen = 0;
 #ifdef YP
-	sed->stepping_yp = 0;
+	sed->yp_stepping = 0;
 	sed->yp_domain = NULL;
 #endif
 }
@@ -256,7 +256,7 @@ getservent_r(struct servent *se, struct servent_data *sed)
 	long l;
 
 #ifdef YP
-	if (sed->stepping_yp && _getservent_yp(sed)) {
+	if (sed->yp_stepping && _getservent_yp(sed)) {
 		p = sed->line;
 		goto unpack;
 	}
@@ -269,11 +269,11 @@ again:
 		return (-1);
 #ifdef YP
 	if (*p == '+' && _yp_check(NULL)) {
-		if (sed->getservbyname_yp != NULL) {
+		if (sed->yp_name != NULL) {
 			if (!_getservbyname_yp(sed))
 				goto tryagain;
 		} 
-		else if (sed->getservbyport_yp != 0) {
+		else if (sed->yp_port != 0) {
 			if (!_getservbyport_yp(sed))
 				goto tryagain;
 		}
