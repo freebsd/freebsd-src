@@ -113,8 +113,10 @@ MAN=	aac.4 \
 	ipfirewall.4 \
 	ips.4 \
 	ipsec.4 \
+	ipw.4 \
 	isp.4 \
 	ispfw.4 \
+	iwi.4 \
 	ixgb.4 \
 	joy.4 \
 	kame.4 \
@@ -236,6 +238,7 @@ MAN=	aac.4 \
 	pt.4 \
 	pty.4 \
 	puc.4 \
+	ral.4 \
 	random.4 \
 	rc.4 \
 	re.4 \
@@ -338,6 +341,7 @@ MAN=	aac.4 \
 	ums.4 \
 	unix.4 \
 	uplcom.4 \
+	ural.4 \
 	urio.4 \
 	usb.4 \
 	uscanner.4 \
@@ -410,6 +414,8 @@ MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
 	ipfirewall.4 ipfw.4
+MLINKS+=ipw.4 if_ipw.4
+MLINKS+=iwi.4 if_iwi.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
@@ -428,6 +434,7 @@ MLINKS+=pcm.4 snd.4 \
 MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4
+MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
@@ -454,6 +461,7 @@ MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=udav.4 if_udav.4
+MLINKS+=ural.4 if_ural.4
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
