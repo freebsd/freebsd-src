@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.843
+     Original revision: 1.845
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -71,7 +71,7 @@
     url="&release.url;"></ulink> 或其他镜像那里得到它的副本。
     关于这个 (或其他) &release.type; 发布包的更多信息，可以在
     <ulink url="&url.books.handbook;/">&os; 手册</ulink>
-    中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>如何获得
     &os;</quote>附录</ulink> 中找到。</para>
 
 ]]>
@@ -130,10 +130,17 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>。
       &merged;</para>
 
-    <para>修正了在 &os;/amd64 中的一处特权提升问题。
+    <para arch="amd64">修正了在 &os;/amd64 中的一处特权提升问题。
       这一问题可能导致没有特权的用户访问某些在没有特权时无法访问的硬件。
       要了解更多信息， 请参见安全公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>。
+      &merged;</para>
+
+    <para>修正了
+      <literal>SIOCGIFCONF</literal> &man.ioctl.2; 的一个信息泄露问题，
+      这一问题可能导致 12 字节的内核内存被泄露。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>。
       &merged;</para>
 
   </sect2>
@@ -971,7 +978,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       例如桌面环境等。 来自 &os; Documentation Project 的文档， 也都在
       <filename>disc2</filename> 上。 &merged;</para>
 
-    <para>受支持的
+    <para>支持的
       <application>GNOME</application> 桌面环境的版本， 由 2.6.2
       升级到了 2.10。 更多关于在 &os; 上运行 <application>GNOME</application>
       的详细资料， 可以在
@@ -994,7 +1001,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 	</note>
       </para>
 
-    <para>受支持的 <application>KDE</application>
+    <para>支持的 <application>KDE</application>
       桌面环境的版本， 从 3.3.0 升级到了
       3.4.0。 更多关于在 &os; 上运行
       <application>KDE</application> 的信息， 可以在
@@ -1011,7 +1018,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 	</note>
       </para>
 
-    <para>受支持的 <application>Xorg</application>
+    <para>支持的 <application>Xorg</application>
       从 6.7.0 升级到了 6.8.2。 &merged;</para>
 
   </sect2>
