@@ -72,6 +72,7 @@
 #ifndef	_MACPPC_BUS_H_
 #define	_MACPPC_BUS_H_
 
+#include <machine/_bus.h>
 #include <machine/pio.h>
 
 #define BUS_SPACE_MAXSIZE_24BIT 0xFFFFFF
@@ -90,22 +91,10 @@
 #define	__BUS_SPACE_HAS_STREAM_METHODS 1
 
 /*
- * Bus address and size types
- */
-typedef u_int32_t bus_addr_t;
-typedef u_int32_t bus_size_t;
-
-/*
  * Define the PPC tag values
  */
 #define PPC_BUS_SPACE_MEM	1	/* space is mem space */
 #define PPC_BUS_SPACE_IO	2	/* space is io space */
-
-/*
- * Access methods for bus resources and address space.
- */
-typedef u_int32_t bus_space_tag_t;
-typedef u_int32_t bus_space_handle_t;
 
 static __inline void *
 __ppc_ba(bus_space_tag_t tag __unused, bus_space_handle_t handle, 
