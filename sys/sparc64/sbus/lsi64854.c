@@ -658,7 +658,7 @@ lsi64854_pp_intr(void *arg)
 
 	DPRINTF(LDB_PP, ("%s: addr 0x%x, csr %b\n", __func__,
 	    bus_space_read_4(sc->sc_regt, sc->sc_regh, L64854_REG_ADDR), csr,
-	    csr, PDMACSR_BITS));
+	    PDMACSR_BITS));
 
 	if (csr & (P_ERR_PEND|P_SLAVE_ERR)) {
 		resid = bus_space_read_4(sc->sc_regt, sc->sc_regh,
