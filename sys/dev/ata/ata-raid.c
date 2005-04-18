@@ -381,8 +381,7 @@ ata_raid_strategy(struct bio *bp)
 
 		    /* do we have a spare to rebuild on ? */
 		    if (rdp->disks[this].flags & AR_DF_SPARE) {
-			if ((composite = malloc(sizeof(struct ata_composite),  
-						M_AR, M_NOWAIT | M_ZERO))) {
+			if ((composite = ata_alloc_composite())) {
 			    if ((rebuild = ata_alloc_request())) {
 				rdp->rebuild_lba = blk + chunk;
 				bcopy(request, rebuild,
@@ -404,12 +403,13 @@ ata_raid_strategy(struct bio *bp)
 				ata_raid_send_request(rebuild);
 			    }
 			    else {
-				free(composite, M_AR);
+				ata_free_composite(composite);
 				printf("DOH! ata_alloc_request failed!\n");
 			    }
 			}
-			else
-			    printf("DOH! composite malloc failed!\n");
+			else {
+			    printf("DOH! ata_alloc_composite failed!\n");
+			}
 		    }
 		    else if (rdp->disks[this].flags & AR_DF_ONLINE) {
 			/*
@@ -441,9 +441,8 @@ ata_raid_strategy(struct bio *bp)
 			struct ata_composite *composite;
 			int this = drv + rdp->width;
 
-			if ((composite = malloc(sizeof(struct ata_composite),
-						M_AR, M_NOWAIT | M_ZERO)) &&
-			    (mirror = ata_alloc_request())) {
+			if ((composite = ata_alloc_composite())) {
+			    if ((mirror = ata_alloc_request())) {
 			    rdp->rebuild_lba = blk + chunk;
 			    bcopy(request, mirror, sizeof(struct ata_request));
 			    mirror->this = this;
@@ -459,6 +458,14 @@ ata_raid_strategy(struct bio *bp)
 			    mirror->composite = composite;
 			    ata_raid_send_request(mirror);
 			    rdp->disks[this].last_lba = bp->bio_pblkno + chunk;
+			}
+			    else {
+				ata_free_composite(composite);
+				printf("DOH! ata_alloc_request failed!\n");
+			    }
+			}
+			else {
+			    printf("DOH! ata_alloc_composite failed!\n");
 			}
 		    }
 		    else
@@ -694,7 +701,7 @@ ata_raid_done(struct ata_request *request)
 		}
 	    }
 	    mtx_destroy(&composite->lock);
-	    free(composite, M_AR);
+	    ata_free_composite(composite);
 	}
     }
     else
@@ -2921,7 +2928,7 @@ ata_raid_init_request(struct ar_softc *rdp, struct bio *bio)
 
     if (!(request = ata_alloc_request())) {
 	printf("FAILURE - out of memory in ata_raid_init_request\n");
-	return 0;
+	return NULL;
     }
     request->timeout = 5;
     request->retries = 2;
