@@ -298,7 +298,6 @@ vntblinit(void *dummy __unused)
 		desiredvnodes = MAXVNODES_MAX;
 	}
 	wantfreevnodes = desiredvnodes / 4; 
-	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
