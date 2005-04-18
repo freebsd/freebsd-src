@@ -78,6 +78,7 @@
 #include <sys/kernel.h>
 
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
 
@@ -167,6 +168,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	int hlen, tlen, len, off;
 	struct route_in6 ip6route;
 	struct sockaddr_in6 *dst;
+	struct in6_addr odst;
 	int error = 0;
 	struct in6_ifaddr *ia = NULL;
 	u_long mtu;
@@ -524,6 +526,7 @@ skip_ipsec2:;
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 
+again:
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -937,11 +940,34 @@ skip_ipsec2:;
 	if (inet6_pfil_hook.ph_busy_count == -1)
 		goto passout;
 
+	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
 	error = pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 	ip6 = mtod(m, struct ip6_hdr *);
+
+	/* See if destination IP address was changed by packet filter. */
+	if (!IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		/* If destination is now ourself drop to ip6_input(). */
+		if (in6_localaddr(&ip6->ip6_dst)) {
+			if (m->m_pkthdr.rcvif == NULL)
+				m->m_pkthdr.rcvif = loif;
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+			m->m_pkthdr.csum_flags |=
+			    CSUM_IP_CHECKED | CSUM_IP_VALID;
+			error = netisr_queue(NETISR_IPV6, m);
+			goto done;
+		} else
+			goto again;	/* Redo the routing table lookup. */
+	}
+
+	/* XXX: IPFIREWALL_FORWARD */
 
 passout:
 	/*

@@ -137,6 +137,16 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_ALTQ,			/* u32 = altq classif. qid	*/
 	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
 	O_TCPDATALEN,		/* arg1 = tcp data len		*/
+	O_IP6_SRC,		/* address without mask		*/
+	O_IP6_SRC_ME,		/* my addresses			*/
+	O_IP6_SRC_MASK,		/* address with the mask	*/
+	O_IP6_DST,
+	O_IP6_DST_ME,
+	O_IP6_DST_MASK,
+	O_FLOW6ID,		/* for flow id tag in the ipv6 pkt */
+	O_ICMP6TYPE,		/* icmp6 packet type filtering	*/
+	O_EXT_HDR,		/* filtering for ipv6 extension header */
+	O_IP6,
 
 	/*
 	 * actions for ng_ipfw
@@ -146,6 +156,16 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
+
+/*
+ * The extension header are filtered only for presence using a bit
+ * vector with a flag for each header.
+ */
+#define EXT_FRAGMENT	0x1
+#define EXT_HOPOPTS	0x2
+#define EXT_ROUTING	0x4
+#define EXT_AH		0x8
+#define EXT_ESP		0x10
 
 /*
  * Template for instructions.
@@ -291,6 +311,30 @@ typedef struct  _ipfw_insn_log {
 	u_int32_t log_left;	/* how many left to log 	*/
 } ipfw_insn_log;
 
+/* Apply ipv6 mask on ipv6 addr */
+#define APPLY_MASK(addr,mask)                          \
+    (addr)->__u6_addr.__u6_addr32[0] &= (mask)->__u6_addr.__u6_addr32[0]; \
+    (addr)->__u6_addr.__u6_addr32[1] &= (mask)->__u6_addr.__u6_addr32[1]; \
+    (addr)->__u6_addr.__u6_addr32[2] &= (mask)->__u6_addr.__u6_addr32[2]; \
+    (addr)->__u6_addr.__u6_addr32[3] &= (mask)->__u6_addr.__u6_addr32[3];
+
+/* Structure for ipv6 */
+typedef struct _ipfw_insn_ip6 {
+       ipfw_insn o;
+       struct in6_addr addr6;
+       struct in6_addr mask6;
+} ipfw_insn_ip6;
+
+/* Used to support icmp6 types */
+typedef struct _ipfw_insn_icmp6 {
+       ipfw_insn o;
+       uint32_t d[7]; /* XXX This number si related to the netinet/icmp6.h
+                       *     define ICMP6_MAXTYPE
+                       *     as follows: n = ICMP6_MAXTYPE/32 + 1
+                        *     Actually is 203 
+                       */
+} ipfw_insn_icmp6;
+
 /*
  * Here we have the structure representing an ipfw rule.
  *
@@ -354,7 +398,13 @@ struct ipfw_flow_id {
 	u_int16_t	src_port;
 	u_int8_t	proto;
 	u_int8_t	flags;	/* protocol-specific flags */
+	uint8_t		addr_type; /* 4 = ipv4, 6 = ipv6, 1=ether ? */
+	struct in6_addr dst_ip6;	/* could also store MAC addr! */
+	struct in6_addr src_ip6;
+	u_int32_t	flow_id6;
 };
+
+#define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
 /*
  * Dynamic ipfw rule.
@@ -439,6 +489,21 @@ enum {
 #define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
 
 /*
+ * Structure for collecting parameters to dummynet for ip6_output forwarding
+ */
+struct _ip6dn_args {
+       struct ip6_pktopts *opt_or;
+       struct route_in6 ro_or;
+       int flags_or;
+       struct ip6_moptions *im6o_or;
+       struct ifnet *origifp_or;
+       struct ifnet *ifp_or;
+       struct sockaddr_in6 dst_or;
+       u_long mtu_or;
+       struct route_in6 ro_pmtu_or;
+};
+
+/*
  * Arguments for calling ipfw_chk() and dummynet_io(). We put them
  * all into a structure because this way it is easier and more
  * efficient to pass variables around and extend the interface.
@@ -455,6 +520,8 @@ struct ip_fw_args {
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
 	u_int32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
+
+	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
 };
 
 /*

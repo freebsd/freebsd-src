@@ -30,6 +30,7 @@
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
@@ -155,7 +156,10 @@ again:
 	case IP_FW_DUMMYNET:
 		if (!DUMMYNET_LOADED)
 			goto drop;
-		ip_dn_io_ptr(*m0, DN_TO_IP_IN, &args);
+		if (mtod(*m0, struct ip *)->ip_v == 4)
+			ip_dn_io_ptr(*m0, DN_TO_IP_IN, &args);
+		else if (mtod(*m0, struct ip *)->ip_v == 6)
+			ip_dn_io_ptr(*m0, DN_TO_IP6_IN, &args);
 		*m0 = NULL;
 		return 0;		/* packet consumed */
 
@@ -278,7 +282,10 @@ again:
 	case IP_FW_DUMMYNET:
 		if (!DUMMYNET_LOADED)
 			break;
-		ip_dn_io_ptr(*m0, DN_TO_IP_OUT, &args);
+		if (mtod(*m0, struct ip *)->ip_v == 4)
+			ip_dn_io_ptr(*m0, DN_TO_IP_OUT, &args);
+		else if (mtod(*m0, struct ip *)->ip_v == 6)
+			ip_dn_io_ptr(*m0, DN_TO_IP6_OUT, &args);
 		*m0 = NULL;
 		return 0;		/* packet consumed */
 
@@ -410,6 +417,9 @@ static int
 ipfw_hook(void)
 {
 	struct pfil_head *pfh_inet;
+#ifdef INET6
+	struct pfil_head *pfh_inet6;
+#endif
 
 	if (ipfw_pfil_hooked)
 		return EEXIST;
@@ -417,9 +427,18 @@ ipfw_hook(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return ENOENT;
+#ifdef INET6
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL)
+		return ENOENT;
+#endif
 
 	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+#ifdef INET6
+	pfil_add_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
+	pfil_add_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+#endif
 
 	return 0;
 }
@@ -428,6 +447,9 @@ static int
 ipfw_unhook(void)
 {
 	struct pfil_head *pfh_inet;
+#ifdef INET6
+	struct pfil_head *pfh_inet6;
+#endif
 
 	if (!ipfw_pfil_hooked)
 		return ENOENT;
@@ -435,9 +457,18 @@ ipfw_unhook(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return ENOENT;
+#ifdef INET6
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL)
+		return ENOENT;
+#endif
 
 	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+#ifdef INET6
+	pfil_remove_hook(ipfw_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
+	pfil_remove_hook(ipfw_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+#endif
 
 	return 0;
 }

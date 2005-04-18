@@ -77,6 +77,9 @@
 #include <netinet/if_ether.h> /* for struct arpcom */
 #include <net/bridge.h>
 
+#include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
+#include <netinet6/ip6_var.h>
+
 /*
  * We keep a private variable for the simulation time, but we could
  * probably use an existing one ("softticks" in sys/kern/kern_timeout.c)
@@ -459,6 +462,14 @@ transmit_event(struct dn_pipe *pipe)
 	    ip->ip_len = htons(ip->ip_len);
 	    ip->ip_off = htons(ip->ip_off);
 	    ip_input(m) ;
+	    break ;
+
+	case DN_TO_IP6_IN:
+	    ip6_input(m) ;
+	    break ;
+
+	case DN_TO_IP6_OUT:
+	    (void)ip6_output(m, NULL, NULL, pkt->flags, NULL, NULL, NULL);
 	    break ;
 
 	case DN_TO_BDG_FWD :
@@ -898,37 +909,80 @@ find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 {
     int i = 0 ; /* we need i and q for new allocations */
     struct dn_flow_queue *q, *prev;
+    int is_v6 = IS_IP6_FLOW_ID(id);
 
     if ( !(fs->flags_fs & DN_HAVE_FLOW_MASK) )
 	q = fs->rq[0] ;
     else {
-	/* first, do the masking */
-	id->dst_ip &= fs->flow_mask.dst_ip ;
-	id->src_ip &= fs->flow_mask.src_ip ;
+	/* first, do the masking, then hash */
 	id->dst_port &= fs->flow_mask.dst_port ;
 	id->src_port &= fs->flow_mask.src_port ;
 	id->proto &= fs->flow_mask.proto ;
 	id->flags = 0 ; /* we don't care about this one */
-	/* then, hash function */
-	i = ( (id->dst_ip) & 0xffff ) ^
-	    ( (id->dst_ip >> 15) & 0xffff ) ^
-	    ( (id->src_ip << 1) & 0xffff ) ^
-	    ( (id->src_ip >> 16 ) & 0xffff ) ^
-	    (id->dst_port << 1) ^ (id->src_port) ^
-	    (id->proto );
+	if (is_v6) {
+	    APPLY_MASK(&id->dst_ip6, &fs->flow_mask.dst_ip6);
+	    APPLY_MASK(&id->src_ip6, &fs->flow_mask.src_ip6);
+	    id->flow_id6 &= fs->flow_mask.flow_id6;
+
+	    i = ((id->dst_ip6.__u6_addr.__u6_addr32[0]) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[1]) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[2]) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[3]) & 0xffff)^
+
+		((id->dst_ip6.__u6_addr.__u6_addr32[0] >> 15) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[1] >> 15) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[2] >> 15) & 0xffff)^
+		((id->dst_ip6.__u6_addr.__u6_addr32[3] >> 15) & 0xffff)^
+
+		((id->src_ip6.__u6_addr.__u6_addr32[0] << 1) & 0xfffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[1] << 1) & 0xfffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[2] << 1) & 0xfffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[3] << 1) & 0xfffff)^
+
+		((id->src_ip6.__u6_addr.__u6_addr32[0] << 16) & 0xffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[1] << 16) & 0xffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[2] << 16) & 0xffff)^
+		((id->src_ip6.__u6_addr.__u6_addr32[3] << 16) & 0xffff)^
+
+		(id->dst_port << 1) ^ (id->src_port) ^
+		(id->proto ) ^
+		(id->flow_id6);
+	} else {
+	    id->dst_ip &= fs->flow_mask.dst_ip ;
+	    id->src_ip &= fs->flow_mask.src_ip ;
+
+	    i = ( (id->dst_ip) & 0xffff ) ^
+		( (id->dst_ip >> 15) & 0xffff ) ^
+		( (id->src_ip << 1) & 0xffff ) ^
+		( (id->src_ip >> 16 ) & 0xffff ) ^
+		(id->dst_port << 1) ^ (id->src_port) ^
+		(id->proto );
+	}
 	i = i % fs->rq_size ;
 	/* finally, scan the current list for a match */
 	searches++ ;
 	for (prev=NULL, q = fs->rq[i] ; q ; ) {
 	    search_steps++;
-	    if (id->dst_ip == q->id.dst_ip &&
+	    if (is_v6 &&
+		    IN6_ARE_ADDR_EQUAL(&id->dst_ip6,&q->id.dst_ip6) &&  
+		    IN6_ARE_ADDR_EQUAL(&id->src_ip6,&q->id.src_ip6) &&  
+		    id->dst_port == q->id.dst_port &&
+		    id->src_port == q->id.src_port &&
+		    id->proto == q->id.proto &&
+		    id->flags == q->id.flags &&
+		    id->flow_id6 == q->id.flow_id6)
+		break ; /* found */
+
+	    if (!is_v6 && id->dst_ip == q->id.dst_ip &&
 		    id->src_ip == q->id.src_ip &&
 		    id->dst_port == q->id.dst_port &&
 		    id->src_port == q->id.src_port &&
 		    id->proto == q->id.proto &&
 		    id->flags == q->id.flags)
 		break ; /* found */
-	    else if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
+
+	    /* No match. Check if we can expire the entry */
+	    if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
 		/* entry is idle and not in any heap, expire it */
 		struct dn_flow_queue *old_q = q ;
 
@@ -1200,8 +1254,9 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
     pkt->dn_dir = dir ;
 
     pkt->ifp = fwa->oif;
-    if (dir == DN_TO_IP_OUT)
+    if (dir == DN_TO_IP_OUT || dir == DN_TO_IP6_OUT)
 	pkt->flags = fwa->flags;
+
     if (q->head == NULL)
 	q->head = m;
     else
@@ -2015,7 +2070,7 @@ static void
 ip_dn_init(void)
 {
     if (bootverbose)
-	    printf("DUMMYNET initialized (011031)\n");
+	    printf("DUMMYNET with IPv6 initialized (040826)\n");
 
     DUMMYNET_LOCK_INIT();
 

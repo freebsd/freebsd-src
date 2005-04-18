@@ -124,10 +124,13 @@ struct dn_pkt_tag {
 #define DN_TO_BDG_FWD	3
 #define DN_TO_ETH_DEMUX	4
 #define DN_TO_ETH_OUT	5
+#define DN_TO_IP6_IN	6
+#define DN_TO_IP6_OUT	7
 
     dn_key output_time;		/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/
     int flags ;			/* flags, for ip_output (IPv6 ?)	*/
+    struct _ip6dn_args ip6opt;	/* XXX ipv6 options			*/
 };
 #endif /* _KERNEL */
 
