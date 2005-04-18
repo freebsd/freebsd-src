@@ -173,10 +173,11 @@ ata_kauai_probe(device_t dev)
 	/*
 	 * Set up the resource vectors
 	 */
-        for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+        for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
                 ch->r_io[i].res = mem;
                 ch->r_io[i].offset = i*ATA_KAUAI_REGGAP + ATA_KAUAI_REGOFFSET;
         }
+	ata_default_registers(ch);
         ch->r_io[ATA_ALTSTAT].res = mem;
         ch->r_io[ATA_ALTSTAT].offset = ATA_KAUAI_ALTOFFSET;
 
