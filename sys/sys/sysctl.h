@@ -428,6 +428,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_SV_NAME	9	/* get syscall vector name */
 #define	KERN_PROC_RGID		10	/* by real group id */
 #define	KERN_PROC_GID		11	/* by effective group id */
+#define	KERN_PROC_PATHNAME	12	/* path to executable */
 #define	KERN_PROC_INC_THREAD	0x10	/*
 					 * modifier for pid, pgrp, tty,
 					 * uid, ruid, gid, rgid and proc
