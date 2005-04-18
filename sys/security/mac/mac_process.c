@@ -650,3 +650,18 @@ mac_check_proc_setresgid(struct proc *proc, struct ucred *cred, gid_t rgid,
 	MAC_CHECK(check_proc_setresgid, cred, rgid, egid, sgid);
 	return (error);
 }
+
+int
+mac_check_proc_wait(struct ucred *cred, struct proc *proc)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
+	if (!mac_enforce_process)
+		return (0);
+
+	MAC_CHECK(check_proc_wait, cred, proc);
+
+	return (error);
+}

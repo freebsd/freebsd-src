@@ -1791,6 +1791,16 @@ mac_test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 }
 
 static int
+mac_test_check_proc_wait(struct ucred *cred, struct proc *proc)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_CRED_LABEL(proc->p_ucred->cr_label);
+
+	return (0);
+}
+
+static int
 mac_test_check_socket_accept(struct ucred *cred, struct socket *socket,
     struct label *socketlabel)
 {
@@ -2506,6 +2516,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_proc_setresuid = mac_test_check_proc_setresuid,
 	.mpo_check_proc_setresgid = mac_test_check_proc_setresgid,
 	.mpo_check_proc_signal = mac_test_check_proc_signal,
+	.mpo_check_proc_wait = mac_test_check_proc_wait,
 	.mpo_check_socket_accept = mac_test_check_socket_accept,
 	.mpo_check_socket_bind = mac_test_check_socket_bind,
 	.mpo_check_socket_connect = mac_test_check_socket_connect,
