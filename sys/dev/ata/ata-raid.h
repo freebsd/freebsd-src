@@ -649,6 +649,8 @@ struct via_raid_conf {
 
     u_int8_t	dummy_0;
     u_int8_t	type;
+#define	VIA_T_MASK		0xfe
+#define	VIA_T_BOOTABLE		0x01
 #define	VIA_T_RAID0		0x04
 #define	VIA_T_RAID1		0x0c
 #define	VIA_T_SPAN		0x44

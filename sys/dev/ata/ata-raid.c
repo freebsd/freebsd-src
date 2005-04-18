@@ -109,12 +109,12 @@ static disk_strategy_t ata_raid_strategy;
 //static dumper_t ata_raid_dump;
 
 static void
-ata_raid_attach(struct ar_softc *rdp, int update)
+ata_raid_attach(struct ar_softc *rdp, int writeback)
 {
     int disk;
 
     mtx_init(&rdp->lock, "ATA PseudoRAID metadata lock", NULL, MTX_DEF);
-    ata_raid_config_changed(rdp, update);
+    ata_raid_config_changed(rdp, writeback);
 
     /* sanitize arrays total_size % (width * interleave) == 0 */
     if (rdp->type == AR_T_RAID0 || rdp->type == AR_T_RAID01 ||
@@ -859,6 +859,11 @@ ata_raid_create(struct raid_setup *setup)
 		rdp->disks[disk].sectors = PR_LBA(rdp->disks[disk].dev);
 		break;
 
+	    case ATA_VIA_ID:        
+		ctlr = AR_F_VIA_RAID;
+		rdp->disks[disk].sectors = VIA_LBA(rdp->disks[disk].dev);
+		break;
+
 	    default:
 		/* XXX SOS
 		 * right, so here we are, we have an ATA chip and we want
@@ -870,8 +875,8 @@ ata_raid_create(struct raid_setup *setup)
 		 * setup the RAID from there, in that case we pickup the
 		 * metadata format from the disks (if we support it).
 		 */
-		printf("WARNING!! - using FreeBSD PsuedoRAID metadata "
-		       "since BIOS format is unknown on this hardware.\n"
+		printf("WARNING!! - not able to determine metadata format\n"
+		       "WARNING!! - Using FreeBSD PsuedoRAID metadata\n"
 		       "If that is not what you want, use the BIOS to "
 		       "create the array\n");
 		ctlr = AR_F_FREEBSD_RAID;
@@ -1246,7 +1251,7 @@ ata_raid_write_metadata(struct ar_softc *rdp)
 	return ata_raid_sii_write_meta(rdp);
 
     case AR_F_VIA_RAID:
-	return ata_raid_sii_write_meta(rdp);
+	return ata_raid_via_write_meta(rdp);
 #endif
     default:
 	printf("ar%d: writing of %s metadata is NOT supported yet\n",
@@ -2851,7 +2856,7 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	if (raid->format == AR_F_VIA_RAID && (raid->magic_0 != meta->disks[0]))
 	    continue;
 
-	switch (meta->type) {
+	switch (meta->type & VIA_T_MASK) {
 	case VIA_T_RAID0:
 	    raid->type = AR_T_RAID0;
 	    raid->width = meta->stripe_layout & VIA_L_MASK;
@@ -3758,10 +3763,13 @@ ata_raid_via_print_meta(struct via_raid_conf *meta)
     printf("*************** ATA VIA Metadata ****************\n");
     printf("magic               0x%02x\n", meta->magic);
     printf("dummy_0             0x%02x\n", meta->dummy_0);
-    printf("type                %s\n", ata_raid_via_type(meta->type));
+    printf("type                %s\n",
+	   ata_raid_via_type(meta->type & VIA_T_MASK));
+    printf("bootable            %d\n", meta->type & VIA_T_BOOTABLE);
     printf("disk_index          0x%02x\n", meta->disk_index);
     printf("stripe_disks        %d\n", meta->stripe_layout & VIA_L_MASK);
-    printf("stripe_sectors      %d\n", (meta->stripe_layout >> VIA_L_SHIFT));
+    printf("stripe_sectors      %d\n",
+	   0x08 << (meta->stripe_layout >> VIA_L_SHIFT));
     printf("total_sectors       %llu\n",
 	   (unsigned long long)meta->total_sectors);
     printf("disk_id             0x%08x\n", meta->disk_id);
