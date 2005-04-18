@@ -132,13 +132,19 @@ g_event_procbody(void)
 {
 	struct proc *p = g_event_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
+	struct root_hold_token *t;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
 	sched_prio(tp, PRIBIO);
 	mtx_unlock_spin(&sched_lock);
+	t = root_mount_hold("GEOM");
 	for(;;) {
 		g_run_events();
+		if (t != 0) {
+			root_mount_rel(t);
+			t = NULL;
+		}
 		tsleep(&g_wait_event, PRIBIO, "-", hz/10);
 	}
 }

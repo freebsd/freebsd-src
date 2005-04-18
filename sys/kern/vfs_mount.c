@@ -1004,6 +1004,54 @@ dounmount(mp, flags, td)
  *
  */
 
+struct root_hold_token {
+	const char 			*who;
+	LIST_ENTRY(root_hold_token)	list;
+};
+
+static LIST_HEAD(, root_hold_token)	root_holds =
+    LIST_HEAD_INITIALIZER(&root_holds);
+
+struct root_hold_token *
+root_mount_hold(const char *identifier)
+{
+	struct root_hold_token *h;
+
+	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
+	h->who = identifier;
+	mtx_lock(&mountlist_mtx);
+	LIST_INSERT_HEAD(&root_holds, h, list);
+	mtx_unlock(&mountlist_mtx);
+	return (h);
+}
+
+void
+root_mount_rel(struct root_hold_token *h)
+{
+
+	mtx_lock(&mountlist_mtx);
+	LIST_REMOVE(h, list);
+	wakeup(&root_holds);
+	mtx_unlock(&mountlist_mtx);
+	free(h, M_DEVBUF);
+}
+
+static void
+root_mount_wait(void)
+{
+	struct root_hold_token *h;
+
+	mtx_lock(&mountlist_mtx);
+	while (!LIST_EMPTY(&root_holds)) {
+		printf("Root mount waiting for:");
+		LIST_FOREACH(h, &root_holds, list)
+			printf(" %s", h->who);
+		printf("\n");
+		msleep(&root_holds, &mountlist_mtx, PZERO, "roothold", hz);
+	}
+	mtx_unlock(&mountlist_mtx);
+}
+
 static void
 set_rootvnode(struct thread *td)
 {
@@ -1140,12 +1188,7 @@ vfs_mountroot(void)
 	int error, i, asked = 0;
 	struct mount *mp;
 
-	/*
-	 * Wait for GEOM to settle down
-	 */
-	DROP_GIANT();
-	g_waitidle();
-	PICKUP_GIANT();
+	root_mount_wait();
 
 	mp = devfs_first();
 
