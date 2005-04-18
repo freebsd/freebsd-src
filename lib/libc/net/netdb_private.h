@@ -38,13 +38,13 @@ struct servent_data {
 	int stayopen;
 	char line[BUFSIZ + 1];
 #ifdef YP
-	int stepping_yp;
-	char *getservbyname_yp;
-	char *getservbyproto_yp;
-	int getservbyport_yp;
+	int yp_stepping;
+	char *yp_name;
+	char *yp_proto;
+	int yp_port;
 	char *yp_domain;
-	char *key;
-	int keylen;
+	char *yp_key;
+	int yp_keylen;
 #endif
 };
 
