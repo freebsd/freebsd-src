@@ -1800,6 +1800,37 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	return (0);
 }
 
+/*-
+ * Determine whether td can wait for the exit of p.
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of td and p
+ *        must be held.  td must be curthread, and a lock must
+ *        be held for p.
+ * References: td and p must be valid for the lifetime of the call
+
+ */
+int
+p_canwait(struct thread *td, struct proc *p)
+{
+	int error;
+
+	KASSERT(td == curthread, ("%s: td not curthread", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((error = prison_check(td->td_ucred, p->p_ucred)))
+		return (error);
+#ifdef MAC
+	if ((error = mac_check_proc_wait(td->td_ucred, p)))
+		return (error);
+#endif
+#if 0
+	/* XXXMAC: This could have odd effects on some shells. */
+	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+		return (error);
+#endif
+
+	return (0);
+}
+
 /*
  * Allocate a zeroed cred structure.
  * MPSAFE
