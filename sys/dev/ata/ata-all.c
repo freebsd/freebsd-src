@@ -75,7 +75,8 @@ static int ata_identify(device_t dev);
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 int (*ata_ioctl_func)(struct ata_cmd *iocmd) = NULL;
 devclass_t ata_devclass;
-uma_zone_t ata_zone;
+uma_zone_t ata_request_zone;
+uma_zone_t ata_composite_zone;
 int ata_wc = 1;
 
 /* local vars */
@@ -837,9 +838,18 @@ MODULE_VERSION(ata, 1);
 static void
 ata_init(void)
 {
-    /* init our UMA zone for ATA requests */
-    ata_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
-			   NULL, NULL, NULL, NULL, 0, 0);
+    ata_request_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
+				   NULL, NULL, NULL, NULL, 0, 0);
+    ata_composite_zone = uma_zcreate("ata_composite",
+	                             sizeof(struct ata_composite),
+	                             NULL, NULL, NULL, NULL, 0, 0);
 }
+SYSINIT(ata_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL);
 
-SYSINIT(atadev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL)
+static void
+ata_uninit(void)
+{
+    uma_zdestroy(ata_composite_zone);
+    uma_zdestroy(ata_request_zone);
+}
+SYSUNINIT(ata_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_uninit, NULL);

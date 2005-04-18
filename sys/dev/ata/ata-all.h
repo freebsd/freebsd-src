@@ -475,10 +475,16 @@ void ata_generic_hw(struct ata_channel *ch);
 int ata_generic_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 int ata_getparam(device_t parent, struct ata_device *atadev, u_int8_t command);
 
-/* macros for alloc/free of ata_requests */
-extern uma_zone_t ata_zone;
-#define ata_alloc_request() uma_zalloc(ata_zone, M_NOWAIT | M_ZERO)
-#define ata_free_request(request) uma_zfree(ata_zone, request)
+/* macros for alloc/free of struct ata_request */
+extern uma_zone_t ata_request_zone;
+#define ata_alloc_request() uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO)
+#define ata_free_request(request) uma_zfree(ata_request_zone, request)
+
+/* macros for alloc/free of struct ata_composite */
+extern uma_zone_t ata_composite_zone;
+#define ata_alloc_composite() uma_zalloc(ata_composite_zone, M_NOWAIT | M_ZERO)
+#define ata_free_composite(composite) uma_zfree(ata_composite_zone, composite)
+
 MALLOC_DECLARE(M_ATA);
 
 /* misc newbus defines */
