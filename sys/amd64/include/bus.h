@@ -104,6 +104,7 @@
 #ifndef _AMD64_BUS_H_
 #define _AMD64_BUS_H_
 
+#include <machine/_bus.h>
 #include <machine/cpufunc.h>
 
 /*
@@ -124,9 +125,6 @@
 /*
  * Bus address and size types
  */
-typedef uint64_t bus_addr_t;
-typedef uint64_t bus_size_t;
-
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE	0xFFFFFFFF
@@ -135,12 +133,6 @@ typedef uint64_t bus_size_t;
 #define BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFFULL
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
-
-/*
- * Access methods for bus resources and address space.
- */
-typedef	uint64_t bus_space_tag_t;
-typedef	uint64_t bus_space_handle_t;
 
 /*
  * Map a region of device bus space into CPU virtual address space.

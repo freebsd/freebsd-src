@@ -79,6 +79,7 @@
 #include <sys/ktr.h>
 #endif
 
+#include <machine/_bus.h>
 #include <machine/cpufunc.h>
 #include <machine/upa.h>
 
@@ -99,14 +100,6 @@ extern int bus_type_asi[];
 extern int bus_stream_asi[];
 
 #define __BUS_SPACE_HAS_STREAM_METHODS	1
-
-/*
- * Bus address and size types
- */
-typedef	u_long		bus_space_handle_t;
-typedef int		bus_type_t;
-typedef u_long		bus_addr_t;
-typedef u_long		bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
