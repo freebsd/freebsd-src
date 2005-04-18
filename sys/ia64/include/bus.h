@@ -86,6 +86,7 @@
 #define	_MACHINE_BUS_MEMIO_H_
 #define	_MACHINE_BUS_PIO_H_
 
+#include <machine/_bus.h>
 #include <machine/cpufunc.h>
 
 /*
@@ -93,12 +94,6 @@
  */
 #define	IA64_BUS_SPACE_IO	0	/* space is i/o space */
 #define IA64_BUS_SPACE_MEM	1	/* space is mem space */
-
-/*
- * Bus address and size types
- */
-typedef u_long bus_addr_t;
-typedef u_long bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
@@ -108,13 +103,6 @@ typedef u_long bus_size_t;
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
-
-/*
- * Access methods for bus resources and address space.
- */
-typedef	int bus_space_tag_t;
-typedef	u_long bus_space_handle_t;
-
 
 /*
  * Map a region of device bus space into CPU virtual address space.

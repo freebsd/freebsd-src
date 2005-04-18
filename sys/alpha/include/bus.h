@@ -72,13 +72,7 @@
 #ifndef _ALPHA_BUS_H_
 #define _ALPHA_BUS_H_
 
-/*
- * Bus address and size types
- */
-typedef u_int64_t		bus_addr_t;
-typedef u_int64_t		bus_size_t;
-typedef struct alpha_busspace	*bus_space_tag_t;
-typedef u_int32_t		bus_space_handle_t;
+#include <machine/_bus.h>
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF

@@ -73,17 +73,7 @@
 #ifndef _MACHINE_BUS_H_
 #define _MACHINE_BUS_H_
 
-/*
- * Addresses (in bus space).
- */
-typedef u_long bus_addr_t;
-typedef u_long bus_size_t;
-
-/*
- * Access methods for bus space.
- */
-typedef struct bus_space *bus_space_tag_t;
-typedef u_long bus_space_handle_t;
+#include <machine/_bus.h>
 
 /*
  *	int bus_space_map  (bus_space_tag_t t, bus_addr_t addr,
