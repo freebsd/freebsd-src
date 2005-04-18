@@ -213,7 +213,7 @@ void
 var_list::set_variable(const string &var, const string &val)
 {
 	if (Dflag)
-		fprintf(stderr, "%s=%s\n", var.c_str(), val.c_str());
+		fprintf(stderr, "setting %s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
 
@@ -563,8 +563,11 @@ process_event(char *buffer)
 		sp = cfg.set_vars(sp);
 		break;
 	case nomatch:
-		//?vars at location on bus
-		sp = cfg.set_vars(sp);
+		//? at location pnp-info on bus
+		sp = strchr(sp, ' ');
+		if (sp == NULL)
+			return;	/* Can't happen? */
+		*sp++ = '\0';
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
