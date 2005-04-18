@@ -154,6 +154,7 @@ vendor ELSA			0xd601	Elsa
 vendor NEWMEDIA2		0x10cd	NewMedia
 vendor PLANEX			0x14ea	PLANEX
 vendor ACTIONTEC		0x1668	ACTIONTEC
+vendor RALINK			0x1814	Ralink Technology
 
 /*
  * The following vendor IDs are not, as far as I can tell, actually
@@ -454,6 +455,9 @@ product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530
 /* Racore Computer Products */
 product RACORE ETHERNET		0x2216 Racore PC Card Ethernet
 product RACORE FASTENET		0x2328 Racore PC Card Fast Ethernet
+
+/* Ralink Technology products */
+product RALINK RT2560		0x0201 RT2500 wireless adapter
 
 /* Raylink/WebGear */
 product RAYTHEON WLAN		0x0000 WLAN Adapter

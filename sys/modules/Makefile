@@ -116,8 +116,10 @@ SUBDIR=	${_3dfx} \
 	ipfw \
 	ip_mroute_mod \
 	${_ips} \
+	ipw \
 	isp \
 	ispfw \
+	iwi \
 	joy \
 	kue \
 	lge \
@@ -181,6 +183,7 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	ral \
 	${_random} \
 	${_ray} \
 	rc \
@@ -243,6 +246,7 @@ SUBDIR=	${_3dfx} \
 	ums \
 	unionfs \
 	uplcom \
+	ural \
 	urio \
 	usb \
 	uscanner \
