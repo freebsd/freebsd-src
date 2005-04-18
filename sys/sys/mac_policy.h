@@ -424,6 +424,8 @@ struct mac_policy_ops {
 		    gid_t egid, gid_t sgid);
 	int	(*mpo_check_proc_signal)(struct ucred *cred,
 		    struct proc *proc, int signum);
+	int	(*mpo_check_proc_wait)(struct ucred *cred,
+		    struct proc *proc);
 	int	(*mpo_check_socket_accept)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_bind)(struct ucred *cred,
