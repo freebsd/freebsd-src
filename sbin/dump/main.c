@@ -659,29 +659,19 @@ sig(int signo)
 char *
 rawname(char *cp)
 {
-	static char rawbuf[MAXPATHLEN];
-	char *dp;
 	struct stat sb;
 
-	if (stat(cp, &sb) == 0) {
-		/*
-		 * If the name already refers to a raw device, return
-		 * it immediately without tampering.
-		 */
-		if ((sb.st_mode & S_IFMT) == S_IFCHR)
-			return (cp);
-	}
+	/*
+	 * Ensure that the device passed in is a raw device.
+	 */
+	if (stat(cp, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFCHR)
+		return (cp);
 
-	dp = strrchr(cp, '/');
-
-	if (dp == NULL)
-		return (NULL);
-	*dp = '\0';
-	(void)strlcpy(rawbuf, cp, MAXPATHLEN - 1);
-	*dp = '/';
-	(void)strlcat(rawbuf, "/r", MAXPATHLEN - 1 - strlen(rawbuf));
-	(void)strlcat(rawbuf, dp + 1, MAXPATHLEN - 1 - strlen(rawbuf));
-	return (rawbuf);
+	/*
+	 * Since there's only one device type now, we can't construct any
+	 * better name, so we have to return NULL.
+	 */
+	return (NULL);
 }
 
 /*
