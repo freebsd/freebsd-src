@@ -67,10 +67,8 @@ servent_data_clear(struct servent_data *sed)
 		sed->fp = NULL;
 	}
 #ifdef YP
-	if (sed->key) {
-		free(sed->key);
-		sed->key = NULL;
-	}
+	free(sed->key);
+	sed->key = NULL;
 #endif
 }
 
@@ -201,8 +199,7 @@ _getservent_yp(struct servent_data *sed)
 	}
 
 	if (!sed->stepping_yp) {
-		if (sed->key)
-			free(sed->key);
+		free(sed->key);
 		rv = yp_first(sed->yp_domain, "services.byname", &sed->key,
 		    &sed->keylen, &result, &resultlen);
 		if (rv) {
