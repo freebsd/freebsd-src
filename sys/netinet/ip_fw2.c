@@ -860,7 +860,7 @@ hash_packet(struct ipfw_flow_id *id)
 
 #ifdef INET6
 	if (IS_IP6_FLOW_ID(id)) 
-		i = hash_packet6(id):
+		i = hash_packet6(id);
 	else
 #endif /* INET6 */
 	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
