@@ -36,6 +36,7 @@
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipsec.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
@@ -559,6 +560,7 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 	return 1;
 }
 
+#ifdef INET6
 /*
  * ipv6 specific rules here...
  */
@@ -636,6 +638,8 @@ hash_packet6(struct ipfw_flow_id *id)
        return i;
 }
 /* end of ipv6 opcodes */
+
+#endif /* INET6 */
 
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
@@ -854,8 +858,12 @@ hash_packet(struct ipfw_flow_id *id)
 {
 	u_int32_t i;
 
-	i = IS_IP6_FLOW_ID(id) ? hash_packet6(id):
-	    (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
+#ifdef INET6
+	if (IS_IP6_FLOW_ID(id)) 
+		i = hash_packet6(id):
+	else
+#endif /* INET6 */
+	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
 	i &= (curr_dyn_buckets - 1);
 	return i;
 }
@@ -2424,6 +2432,7 @@ check_body:
 				    icmptype_match(ICMP(ulp), (ipfw_insn_u32 *)cmd) );
 				break;
 
+#ifdef INET6
 			case O_ICMP6TYPE:
 				match = is_ipv6 && offset == 0 &&
 				    proto==IPPROTO_ICMPV6 &&
@@ -2431,6 +2440,7 @@ check_body:
 					ICMP6(ulp)->icmp6_type,
 					(ipfw_insn_u32 *)cmd);
 				break;
+#endif /* INET6 */
 
 			case O_IPOPT:
 				match = (hlen > 0 &&
@@ -2576,9 +2586,12 @@ check_body:
 				/* XXX BED: verify_path was verify_rev_path in the diff... */
 				match = ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
-				    (is_ipv6 ?
+				    (
+#ifdef INET6
+				    is_ipv6 ?
 					verify_rev_path6(&(args->f_id.src_ip6),
 					    m->m_pkthdr.rcvif) :
+#endif
 				    verify_path(src_ip, m->m_pkthdr.rcvif)));
 				break;
 
@@ -2640,6 +2653,7 @@ check_body:
 				}
 				break;
 
+#ifdef INET6
 			case O_IP6_SRC_ME:
 				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
 			break;
@@ -2662,6 +2676,7 @@ check_body:
 			case O_IP6:
 				match = is_ipv6;
 				break;
+#endif
 
 			/*
 			 * The second set of opcodes represents 'actions',
