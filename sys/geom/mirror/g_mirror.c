@@ -1890,12 +1890,17 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 * Disks went down in starting phase, so destroy
 			 * device.
 			 */
+			root_mount_rel(sc->sc_rootmount);
+			sc->sc_rootmount = NULL;
 			callout_drain(&sc->sc_callout);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 			return;
 		} else {
 			return;
 		}
+
+		root_mount_rel(sc->sc_rootmount);
+		sc->sc_rootmount = NULL;
 
 		/*
 		 * Activate all disks with the biggest syncid.
@@ -2567,6 +2572,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 
 	G_MIRROR_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
 
+	sc->sc_rootmount = root_mount_hold("GMIRROR");
 	/*
 	 * Run timeout.
 	 */
@@ -2857,54 +2863,5 @@ g_mirror_fini(struct g_class *mp)
 		return;
 	EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_mirror_ehtag);
 }
-
-static int
-g_mirror_can_go(void)
-{
-	struct g_mirror_softc *sc;
-	struct g_geom *gp;
-	struct g_provider *pp;
-	int can_go;
-
-	DROP_GIANT();
-	can_go = 1;
-	g_topology_lock();
-	LIST_FOREACH(gp, &g_mirror_class.geom, geom) {
-		sc = gp->softc;
-		if (sc == NULL) {
-			can_go = 0;
-			break;
-		}
-		pp = sc->sc_provider;
-		if (pp == NULL || pp->error != 0) {
-			can_go = 0;
-			break;
-		}
-	}
-	g_topology_unlock();
-	PICKUP_GIANT();
-	return (can_go);
-}
-
-static void
-g_mirror_rootwait(void)
-{
-
-	/*
-	 * HACK: Wait for GEOM, because g_mirror_rootwait() can be called,
-	 * HACK: before we get providers for tasting.
-	 */
-	tsleep(&g_mirror_class, PRIBIO, "mroot", hz * 3);
-	/*
-	 * Wait for mirrors in degraded state.
-	 */
-	for (;;) {
-		if (g_mirror_can_go())
-			break;
-		tsleep(&g_mirror_class, PRIBIO, "mroot", hz);
-	}
-}
-
-SYSINIT(g_mirror_root, SI_SUB_RAID, SI_ORDER_FIRST, g_mirror_rootwait, NULL)
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
