@@ -443,22 +443,24 @@ ata_raid_strategy(struct bio *bp)
 
 			if ((composite = ata_alloc_composite())) {
 			    if ((mirror = ata_alloc_request())) {
-			    rdp->rebuild_lba = blk + chunk;
-			    bcopy(request, mirror, sizeof(struct ata_request));
-			    mirror->this = this;
-			    mirror->dev = rdp->disks[this].dev;
-			    mtx_init(&composite->lock,
-				     "ATA PseudoRAID mirror lock",
-				     NULL, MTX_DEF);
-			    composite->wr_needed |= (1 << drv);
-			    composite->wr_needed |= (1 << this);
-			    composite->request[drv] = request;
-			    composite->request[this] = mirror;
-			    request->composite = composite;
-			    mirror->composite = composite;
-			    ata_raid_send_request(mirror);
-			    rdp->disks[this].last_lba = bp->bio_pblkno + chunk;
-			}
+				rdp->rebuild_lba = blk + chunk;
+				bcopy(request, mirror,
+				      sizeof(struct ata_request));
+				mirror->this = this;
+				mirror->dev = rdp->disks[this].dev;
+				mtx_init(&composite->lock,
+					 "ATA PseudoRAID mirror lock",
+					 NULL, MTX_DEF);
+				composite->wr_needed |= (1 << drv);
+				composite->wr_needed |= (1 << this);
+				composite->request[drv] = request;
+				composite->request[this] = mirror;
+				composite = composite;
+				mirror->composite = composite;
+				ata_raid_send_request(mirror);
+				rdp->disks[this].last_lba =
+				    bp->bio_pblkno + chunk;
+			    }
 			    else {
 				ata_free_composite(composite);
 				printf("DOH! ata_alloc_request failed!\n");
