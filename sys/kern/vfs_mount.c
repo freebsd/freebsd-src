@@ -1041,15 +1041,22 @@ root_mount_wait(void)
 {
 	struct root_hold_token *h;
 
-	mtx_lock(&mountlist_mtx);
-	while (!LIST_EMPTY(&root_holds)) {
+	for (;;) {
+		DROP_GIANT();
+		g_waitidle();
+		PICKUP_GIANT();
+		mtx_lock(&mountlist_mtx);
+		if (LIST_EMPTY(&root_holds)) {
+			mtx_unlock(&mountlist_mtx);
+			break;
+		}
 		printf("Root mount waiting for:");
 		LIST_FOREACH(h, &root_holds, list)
 			printf(" %s", h->who);
 		printf("\n");
-		msleep(&root_holds, &mountlist_mtx, PZERO, "roothold", hz);
+		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
+		    hz);
 	}
-	mtx_unlock(&mountlist_mtx);
 }
 
 static void
@@ -1189,9 +1196,6 @@ vfs_mountroot(void)
 	struct mount *mp;
 
 	root_mount_wait();
-	DROP_GIANT();
-	g_waitidle();
-	PICKUP_GIANT();
 
 	mp = devfs_first();
 
