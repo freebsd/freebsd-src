@@ -83,6 +83,7 @@
 #include <sys/stat.h>
 #include <sys/kthread.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -130,6 +131,8 @@ static int	ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld);
 static int	ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld);
 static int	ciss_update_config(struct ciss_softc *sc);
 static int	ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld);
+static void	ciss_init_sysctl(struct ciss_softc *sc);
+static void	ciss_soft_reset(struct ciss_softc *sc);
 static void	ciss_free(struct ciss_softc *sc);
 static void	ciss_spawn_notify_thread(struct ciss_softc *sc);
 static void	ciss_kill_notify_thread(struct ciss_softc *sc);
@@ -408,6 +411,11 @@ ciss_attach(device_t dev)
     ciss_initq_notify(sc);
 
     /*
+     * Initalize device sysctls.
+     */
+    ciss_init_sysctl(sc);
+
+    /*
      * Initialise command/request pool.
      */
     if ((error = ciss_init_requests(sc)) != 0)
@@ -505,7 +513,19 @@ ciss_shutdown(device_t dev)
     /* flush adapter cache */
     ciss_flush_adapter(sc);
 
+    if (sc->ciss_soft_reset)
+	ciss_soft_reset(sc);
+
     return(0);
+}
+
+static void
+ciss_init_sysctl(struct ciss_softc *sc)
+{
+
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->ciss_dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ciss_dev)),
+	OID_AUTO, "soft_reset", CTLFLAG_RW, &sc->ciss_soft_reset, 0, "");
 }
 
 /************************************************************************
@@ -765,6 +785,41 @@ out:
     if (cr != NULL)
 	ciss_release_request(cr);
     return(error);
+}
+
+static void
+ciss_soft_reset(struct ciss_softc *sc)
+{
+    struct ciss_request		*cr = NULL;
+    struct ciss_command		*cc;
+    int				i, error = 0;
+
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
+	/* only reset proxy controllers */
+	if (sc->ciss_controllers[i].physical.bus == 0)
+	    continue;
+
+	if ((error = ciss_get_request(sc, &cr)) != 0)
+	    break;
+
+	if ((error = ciss_get_bmic_request(sc, &cr, CISS_BMIC_SOFT_RESET,
+					   NULL, 0)) != 0)
+	    break;
+
+	cc = CISS_FIND_COMMAND(cr);
+	cc->header.address = sc->ciss_controllers[i];
+
+	if ((error = ciss_synch_request(cr, 60 * 1000)) != 0)
+	    break;
+
+	ciss_release_request(cr);
+    }
+
+    if (error)
+	ciss_printf(sc, "error resetting controller (%d)\n", error);
+
+    if (cr != NULL)
+	ciss_release_request(cr);
 }
 
 /************************************************************************
