@@ -743,7 +743,11 @@ loop:
 	}
 	PROC_LOCK(q);
 	sx_xunlock(&proctree_lock);
-	error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
+	if (q->p_flag & P_STATCHILD) {
+		q->p_flag &= ~P_STATCHILD;
+		error = 0;
+	} else
+		error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
 	PROC_UNLOCK(q);
 	if (error)
 		return (error);	
