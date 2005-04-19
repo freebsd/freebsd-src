@@ -171,11 +171,11 @@ sysarch(td, uap)
 			sd.sd_xx    = 0;
 			sd.sd_def32 = 1;
 			sd.sd_gran  = 1;
-			mtx_lock_spin(&sched_lock);
+			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
 			PCPU_GET(fsgs_gdt)[0] = sd;
 			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
-			mtx_unlock_spin(&sched_lock);
+			critical_exit();
 		}
 		break;
 	case I386_GET_GSBASE:
@@ -201,11 +201,11 @@ sysarch(td, uap)
 			sd.sd_xx    = 0;
 			sd.sd_def32 = 1;
 			sd.sd_gran  = 1;
-			mtx_lock_spin(&sched_lock);
+			critical_enter();
 			td->td_pcb->pcb_gsd = sd;
 			PCPU_GET(fsgs_gdt)[1] = sd;
+			critical_exit();
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
-			mtx_unlock_spin(&sched_lock);
 		}
 		break;
 	default:
