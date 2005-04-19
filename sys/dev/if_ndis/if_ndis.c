@@ -28,6 +28,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * WPA support added by Arvind Srinivasan <arvind@celar.us>
  */
 
 #include <sys/cdefs.h>
@@ -126,6 +128,8 @@ static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
 static void ndis_getstate_80211	(struct ndis_softc *);
 static void ndis_setstate_80211	(struct ndis_softc *);
+static int ndis_add_key		(struct ndis_softc *,
+	struct ieee80211req_key *, int16_t);
 static void ndis_media_status	(struct ifnet *, struct ifmediareq *);
 
 static void ndis_setmulti	(struct ndis_softc *);
@@ -2092,6 +2096,10 @@ ndis_ioctl(ifp, command, data)
 			error = ENOTTY;
 		break;
 	case SIOCS80211:
+		if (!NDIS_INITIALIZED(sc)) {
+			error = 0;
+			break;
+		}
 		if (sc->ndis_80211)
 			error = ndis_80211_ioctl_set(ifp, command, data);
 		else
@@ -2250,7 +2258,9 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ndis_softc	*sc;
 	struct ieee80211req	*ireq;
-	ndis_80211_bssid_list_ex	*bl;
+	ndis_80211_bssid_list_ex *bl;
+	ndis_80211_ssid		ssid;
+	ndis_80211_macaddr	bssid;
 	ndis_wlan_bssid_ex	*wb;
 	struct ieee80211req_scan_result	*sr, *bsr;
 	int			error, len, i, j;
@@ -2263,6 +2273,31 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 	ireq = (struct ieee80211req *) data;
 		
 	switch (ireq->i_type) {
+	case IEEE80211_IOC_MLME:
+		error = 0;
+		break;
+	case IEEE80211_IOC_BSSID:
+		len = sizeof(bssid);
+		bzero((char*)&bssid, len);
+		error = ndis_get_info(sc, OID_802_11_BSSID, &bssid, &len);
+		if (error) {
+			device_printf(sc->ndis_dev, "failed to get bssid\n");
+			return(error);
+		}
+		ireq->i_len = len;
+		error = copyout(&bssid, ireq->i_data, len);
+		break;
+	case IEEE80211_IOC_SSID:
+		len = sizeof(ssid);
+		bzero((char*)&ssid, len);
+		error = ndis_get_info(sc, OID_802_11_SSID, &ssid, &len);
+		if (error) {
+			device_printf(sc->ndis_dev, "failed to get ssid: %d\n", error);
+			return(error);
+		}
+		ireq->i_len = ssid.ns_ssidlen;
+		error = copyout(&ssid.ns_ssid, ireq->i_data, ssid.ns_ssidlen);
+		break;
 	case IEEE80211_IOC_SCAN_RESULTS:
 		len = 0;
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
@@ -2350,19 +2385,301 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static int
+ndis_add_key(sc, wk, i_len)
+	struct ndis_softc	*sc;
+	struct ieee80211req_key	*wk;
+	int16_t			i_len;
+{
+	ndis_80211_key		*rkey;
+	ndis_80211_wep		*wep;
+	int			len, error;
+	uint32_t		arg;
+
+	/* infrastructure mode only supported for now */
+	len = sizeof(arg);
+	arg = NDIS_80211_NET_INFRA_BSS;
+	error = ndis_set_info(sc, OID_802_11_INFRASTRUCTURE_MODE, &arg, &len);
+	if (error) {
+		device_printf(sc->ndis_dev,
+		    "setting infrastructure mode failed\n");
+		return(error);
+	}
+
+	switch(wk->ik_type) {
+	case IEEE80211_CIPHER_WEP:
+		len = 12 + wk->ik_keylen;
+		wep = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
+		if(!wep)
+			return(ENOSPC);
+		wep->nw_length = len;
+		wep->nw_keyidx = wk->ik_keyix;
+		wep->nw_keylen = wk->ik_keylen;
+		if(wk->ik_flags & IEEE80211_KEY_XMIT)
+			wep->nw_keyidx |= 1 << 31;
+		device_printf(sc->ndis_dev, "setting wep key\n");
+		error = copyin(wk->ik_keydata, wep->nw_keydata, wk->ik_keylen);
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "copyin of wep key to kernel space failed\n");
+			free(wep, M_TEMP);
+			break;
+		}
+		error = ndis_set_info(sc, OID_802_11_ADD_WEP, wep, &len);
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "setting wep key failed\n");
+			break;
+		}
+		free(wep, M_TEMP);
+
+		/* set the authentication mode */
+
+		arg = NDIS_80211_AUTHMODE_OPEN;
+		error = ndis_set_info(sc,
+		    OID_802_11_AUTHENTICATION_MODE, &arg, &len);
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "setting authentication mode failed\n");
+		}
+
+		/* set the encryption */
+
+		len = sizeof(arg);
+		arg = NDIS_80211_WEPSTAT_ENABLED;
+		error = ndis_set_info(sc,
+		    OID_802_11_ENCRYPTION_STATUS, &arg, &len);
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "setting encryption status failed\n");
+			return(error);
+		}
+		break;
+	case IEEE80211_CIPHER_TKIP:
+		len = 12 + 6 + 6 + 8 + wk->ik_keylen;
+		rkey = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
+		if(!rkey)
+			return(ENOSPC);
+		rkey->nk_len = len;
+		error = copyin(wk->ik_macaddr,
+		    rkey->nk_bssid, IEEE80211_ADDR_LEN);
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "copyin of bssid to kernel space failed\n");
+			free(rkey, M_TEMP);
+			break;
+		}
+
+		/* keyrsc needs to be fixed: need to do some shifting */
+		error = copyin(&(wk->ik_keyrsc),
+		    &(rkey->nk_keyrsc), sizeof(rkey->nk_keyrsc));
+		if(error) {
+			device_printf(sc->ndis_dev,
+			    "copyin of keyrsc to kernel space failed\n");
+			free(rkey, M_TEMP);
+			break;
+		}
+
+		/* key index - gets weird in NDIS */
+
+		rkey->nk_keyidx = wk->ik_keyix;
+		if(wk->ik_flags & IEEE80211_KEY_XMIT)
+			rkey->nk_keyidx |= 1 << 31;
+		if((bcmp(rkey->nk_bssid, "\xff\xff\xff\xff\xff\xff",
+		    IEEE80211_ADDR_LEN) == 0) ||
+		   (bcmp(rkey->nk_bssid, "\x0\x0\x0\x0\x0\x0",
+		    IEEE80211_ADDR_LEN) == 0)) {
+			/* group key - nothing to do in ndis */
+		} else {
+			/* pairwise key */
+			rkey->nk_keyidx |= 1 << 30;
+		}
+
+		/* need to set bit 29 based on keyrsc */
+
+		rkey->nk_keylen = wk->ik_keylen;
+		if (wk->ik_type == IEEE80211_CIPHER_TKIP &&
+		    wk->ik_keylen == 32) {
+			/*
+			 * key data needs to be offset by 4 due
+			 * to mismatch between NDIS spec and BSD??
+			 */
+			error = copyin(wk->ik_keydata,
+			    rkey->nk_keydata + 4, 16);
+			if(error) {
+				device_printf(sc->ndis_dev, "copyin of "
+				    "keydata(0) to kernel space failed\n");
+				free(rkey, M_TEMP);
+				break;
+			}
+			error = copyin(wk->ik_keydata + 24,
+			    rkey->nk_keydata + 20, 8);
+			if(error) {
+				device_printf(sc->ndis_dev, "copyin of "
+				    "keydata(1) to kernel space failed\n");
+				free(rkey, M_TEMP);
+				break;
+			}
+			error = copyin(wk->ik_keydata + 16,
+			    rkey->nk_keydata + 28, 8);
+			if(error) {
+				device_printf(sc->ndis_dev, "copyin of "
+				    "keydata(2) to kernel space failed\n");
+				free(rkey, M_TEMP);
+				break;
+			}
+		} else {
+			error = copyin(wk->ik_keydata,
+			    rkey->nk_keydata + 4, wk->ik_keylen);
+			if(error) {
+				device_printf(sc->ndis_dev, "copyin of "
+				    "keydata(CCMP) to kernel space failed\n");
+				free(rkey, M_TEMP);
+				break;
+			}
+		}
+		error = ndis_set_info(sc, OID_802_11_ADD_KEY, rkey, &len);
+		break;
+	case IEEE80211_CIPHER_AES_CCM:
+		return(ENOTTY);
+	default:
+		return(ENOTTY);
+	}
+	return(error);
+}
+
+static int
 ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ndis_softc	*sc;
 	struct ieee80211req	*ireq;
-	int			error, len;
+	int			error, len, arg, ucnt;
 	uint8_t			nodename[IEEE80211_NWID_LEN];
 	uint16_t		nodename_u[IEEE80211_NWID_LEN + 1];
 	uint16_t		*ucode;
+	struct ieee80211req_del_key *rk;
+	struct ieee80211req_key	*wk;
+	unsigned char		*wpa_ie;
+	ndis_80211_ssid		ssid;
+	ndis_80211_remove_key	rkey;
 
 	sc = ifp->if_softc;
 	ireq = (struct ieee80211req *) data;
 		
 	switch (ireq->i_type) {
+	case IEEE80211_IOC_MLME:
+	case IEEE80211_IOC_ROAMING:
+	case IEEE80211_IOC_COUNTERMEASURES:
+	case IEEE80211_IOC_DROPUNENCRYPTED:
+		error = 0;
+		break;
+	case IEEE80211_IOC_PRIVACY:
+		len = sizeof(arg);
+		arg = NDIS_80211_PRIVFILT_8021XWEP;
+		error = ndis_set_info(sc,
+		    OID_802_11_PRIVACY_FILTER, &arg, &len);
+		if (error) {
+			device_printf(sc->ndis_dev,
+			    "setting wep privacy filter failed\n");
+			error = 0;
+		}
+		break;
+	case IEEE80211_IOC_WPA:
+		/* nothing to do */
+		error = 0;
+		break;
+	case IEEE80211_IOC_OPTIE:
+		wpa_ie = (char*)ireq->i_data;
+		if (ireq->i_len < 14 || !wpa_ie) {
+			/* cannot figure out anything */ 
+			arg = NDIS_80211_AUTHMODE_OPEN;
+			error = ndis_set_info(sc,
+			    OID_802_11_AUTHENTICATION_MODE, &arg, &len);
+			return(error);
+		}
+		if (wpa_ie[0] == IEEE80211_ELEMID_RSN) {
+			error = ENOTTY;
+			break;
+		} else if (wpa_ie[0] == IEEE80211_ELEMID_VENDOR) {
+
+			/* set the encryption based on multicast cipher */
+
+			if (!memcmp(wpa_ie + 8, "\x00\x50\xf2\x02", 4)) {
+				len = sizeof(arg);
+				arg = NDIS_80211_WEPSTAT_ENC2ENABLED;
+				error = ndis_set_info(sc,
+				    OID_802_11_ENCRYPTION_STATUS, &arg, &len);
+				if (error) {
+					device_printf(sc->ndis_dev, "setting "
+					    "encryption status to "
+					    "ENC2 failed\n");
+					/* continue anyway */
+				}
+			}
+		}
+
+		/* set the authentication mode */
+
+		ucnt = wpa_ie[12] + 256* wpa_ie[13];
+
+		/* 4 bytes per unicast cipher */
+
+		ucnt = 14 + 4*ucnt + 2; /* account for number of authsels */
+
+		if (ireq->i_len < ucnt) {
+			arg = NDIS_80211_AUTHMODE_WPANONE;
+		} else {
+			if (!memcmp((void*)(&wpa_ie[ucnt]),
+			    "\x00\x50\xf2\x02", 4)) {
+				arg = NDIS_80211_AUTHMODE_WPAPSK;
+			} else if (!memcmp((void*)(&wpa_ie[ucnt]),
+			    "\x00\x50\xf2\x01", 4)) {
+				arg = NDIS_80211_AUTHMODE_WPA;
+			} else {
+				arg = NDIS_80211_AUTHMODE_WPANONE;
+			}
+		}
+		len = sizeof(arg);
+		error = ndis_set_info(sc,
+		    OID_802_11_AUTHENTICATION_MODE, &arg, &len);
+		if (error) {
+			device_printf(sc->ndis_dev,
+			    "setting authentication mode to WPA-PSK failed\n");
+			break;
+		}
+		break;
+	case IEEE80211_IOC_SSID:
+		len = sizeof(ssid);
+		bzero((char*)&ssid, len);
+		ssid.ns_ssidlen = ireq->i_len;
+		error = copyin(ireq->i_data, &(ssid.ns_ssid), ireq->i_len);
+		if (error)
+			break;
+		device_printf(sc->ndis_dev,
+		    "setting SSID to %s\n", ssid.ns_ssid);
+		error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
+		if (error) {
+			device_printf(sc->ndis_dev,
+			    "setting SSID to %s\n", ssid.ns_ssid);
+		}
+		break;
+	case IEEE80211_IOC_DELKEY:
+		len = sizeof(rkey);
+		bzero((char*)&rkey, len);
+		rk = (struct ieee80211req_del_key*)ireq->i_data;
+		rkey.nk_len = len;
+		rkey.nk_keyidx = rk->idk_keyix;
+		error = copyin(rk->idk_macaddr,
+		    &(rkey.nk_bssid), sizeof(ndis_80211_macaddr));
+		if (error)
+			break;
+		error = ndis_set_info(sc, OID_802_11_REMOVE_KEY, &rkey, &len);
+		if (error)
+			device_printf(sc->ndis_dev, "deleting key\n");
+		break;
+	case IEEE80211_IOC_WPAKEY:
+		wk = (struct ieee80211req_key*)ireq->i_data;
+		error = ndis_add_key(sc, wk, ireq->i_len);
+		break;
 	case IEEE80211_IOC_SCAN_REQ:
 		len = 0;
 		error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
