@@ -725,8 +725,11 @@
       <literal>AF_INET6</literal> records before
       <literal>AF_INET</literal> records.  &merged;</para>
 
+    <para>The &man.getprotoent.3;, &man.getprotobyname.3;, and
+      &man.getprotobynumber.3; functions are now thread-safe.</para>
+
     <para>The &man.getservent.3;, &man.getservbyname.3;, and
-      &man.getservbyport.3; functions are now MPSAFE.</para>
+      &man.getservbyport.3; functions are now thread-safe.</para>
 
     <para>The gvinum(8) utility now supports
       <command>checkparity</command>,
