@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.41.2.3
+     Original revision: 1.761.2.41.2.5
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -120,11 +120,17 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>。
       </para>
 
-    <para>修正了在 &os;/amd64 中的一处特权提升问题。
+    <para arch="amd64">修正了在 &os;/amd64 中的一处特权提升问题。
       这一问题可能导致没有特权的用户访问某些在没有特权时无法访问的硬件。
       要了解更多信息， 请参见安全公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:03.amd64.asc">FreeBSD-SA-05:03.amd64</ulink>。
       </para>
+
+    <para>修正了
+      <literal>SIOCGIFCONF</literal> &man.ioctl.2; 的一个信息泄露问题，
+      这一问题可能导致 12 字节的内核内存被泄露。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>。</para>
 
   </sect2>
 
@@ -588,7 +594,7 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
       来自 &os; 文档计划的各类文档， 也被置于
       <filename>disc2</filename>。</para>
 
-    <para>受支持的
+    <para>支持的
       <application>GNOME</application> 桌面环境的版本， 由 2.6.2
       升级到了 2.10。 更多关于在 &os; 上运行 <application>GNOME</application>
       的详细资料， 可以在
@@ -611,7 +617,7 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 	</note>
       </para>
 
-    <para>受支持的 <application>KDE</application>
+    <para>支持的 <application>KDE</application>
       桌面环境的版本， 从 3.3.0 升级到了
       3.4.0。 更多关于在 &os; 上运行
       <application>KDE</application> 的信息， 可以在
@@ -628,7 +634,7 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 	</note>
       </para>
 
-    <para>受支持的 <application>Xorg</application>
+    <para>支持的 <application>Xorg</application>
       从 6.7.0 升级到了 6.8.2。</para>
 
   </sect2>
