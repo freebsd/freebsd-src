@@ -5,12 +5,10 @@
 PROG=	pmcstat
 MAN=	pmcstat.8
 
-DPADD=	${LIBPMC}
+DPADD=	${LIBPMC} ${LIBM}
 LDADD=	-lpmc -lm
 
-WARNS=	6
-
-CFLAGS+=	-I${.CURDIR}/../../sys -I${.CURDIR}/../../lib/libpmc
+WARNS?=	6
 
 SRCS=	pmcstat.c
 
