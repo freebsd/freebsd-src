@@ -16,4 +16,8 @@ SRCS+=	acpi_if.h opt_acpi.h
 SRCS+=	est.c p4tcc.c powernow.c
 .endif
 
+.if ${MACHINE} == "i386"
+SRCS+=	smist.c
+.endif
+
 .include <bsd.kmod.mk>
