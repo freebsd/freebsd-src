@@ -1189,6 +1189,9 @@ vfs_mountroot(void)
 	struct mount *mp;
 
 	root_mount_wait();
+	DROP_GIANT();
+	g_waitidle();
+	PICKUP_GIANT();
 
 	mp = devfs_first();
 
