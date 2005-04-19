@@ -588,6 +588,11 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
 		return (EINVAL);
 loop:
+	if (q->p_flag & P_STATCHILD) {
+		PROC_LOCK(q);
+		q->p_flag &= ~P_STATCHILD;
+		PROC_UNLOCK(q);
+	}
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
