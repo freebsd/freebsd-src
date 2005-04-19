@@ -1967,7 +1967,27 @@ trimthenstep6:
 				else if (++tp->t_dupacks > tcprexmtthresh ||
 					 ((tcp_do_newreno || tp->sack_enable) &&
 					  IN_FASTRECOVERY(tp))) {
-					tp->snd_cwnd += tp->t_maxseg;
+
+                                        if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
+						int data_in_pipe;
+						int sacked, lost_not_rexmitted;
+						
+						/*
+						 * Compute the amount of data in flight first.
+						 * We can inject new data into the pipe iff 
+						 * we have less than 1/2 the original window's 	
+						 * worth of data in flight.
+						 */
+						sacked = tcp_sacked_bytes(tp, &lost_not_rexmitted);
+						data_in_pipe = (tp->snd_nxt - tp->snd_una) -
+							(sacked + lost_not_rexmitted);
+						if (data_in_pipe < tp->snd_ssthresh) {
+							tp->snd_cwnd += tp->t_maxseg;
+							if (tp->snd_cwnd > tp->snd_ssthresh)
+								tp->snd_cwnd = tp->snd_ssthresh;
+						}
+					} else
+						tp->snd_cwnd += tp->t_maxseg;
 					(void) tcp_output(tp);
 					goto drop;
 				} else if (tp->t_dupacks == tcprexmtthresh) {
