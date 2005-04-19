@@ -1203,7 +1203,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       and SCHED_ULE and some sysctls applicable.</para>
 
     <para>The &man.ataraid.4; manual page
-      have been added.  This explain the &man.ata.4; software
+      has been added.  It explains the &man.ata.4; software
       RAID driver.</para>
 
     <para>Manual pages in the base system have received a number of
