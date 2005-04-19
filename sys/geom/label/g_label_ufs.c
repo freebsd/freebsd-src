@@ -86,8 +86,8 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 		} else if (fs->fs_magic == FS_UFS2_MAGIC) {
 			G_LABEL_DEBUG(1, "UFS2 file system detected on %s.",
 			    pp->name);
-			if (fs->fs_size * fs->fs_fsize !=
-			    (int64_t)pp->mediasize) {
+			if (fs->fs_fsize <= 0 ||
+			    pp->mediasize / fs->fs_fsize != fs->fs_size) {
 				g_free(fs);
 				continue;
 			}
