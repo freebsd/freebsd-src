@@ -638,6 +638,7 @@ struct proc {
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
+#define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
