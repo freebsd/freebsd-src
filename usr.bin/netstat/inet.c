@@ -464,6 +464,7 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(tcps_sack_rcv_blocks,
 		"\t%lu SACK option%s (SACK blocks) received\n"); 
 	p(tcps_sack_send_blocks, "\t%lu SACK option%s (SACK blocks) sent\n"); 
+	p1a(tcps_sack_sboverflow, "\t%lu SACK scoreboard overflow\n"); 
 
 #undef p
 #undef p1a

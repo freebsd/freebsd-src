@@ -167,6 +167,20 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
 	&tcp_do_sack, 0, "Enable/Disable TCP SACK support");
 TUNABLE_INT("net.inet.tcp.sack.enable", &tcp_do_sack);
 
+static int tcp_sack_maxholes = 128;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_RW,
+	&tcp_sack_maxholes, 0, 
+    "Maximum number of TCP SACK holes allowed per connection");
+
+static int tcp_sack_globalmaxholes = 65536;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalmaxholes, CTLFLAG_RW,
+	&tcp_sack_globalmaxholes, 0, 
+    "Global maximum number of TCP SACK holes");
+
+static int tcp_sack_globalholes = 0;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_RD,
+    &tcp_sack_globalholes, 0,
+    "Global number of TCP SACK holes currently allocated");
 /*
  * This function is called upon receipt of new valid data (while not in header
  * prediction mode), and it updates the ordered list of sacks.
@@ -294,14 +308,18 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (!tp->sack_enable)
 		return (1);
-
+	if ((th->th_flags & TH_ACK) == 0)
+		return (1);
 	/* Note: TCPOLEN_SACK must be 2*sizeof(tcp_seq) */
 	if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)
+		return (1);
+	/* If ack is outside [snd_una, snd_max], ignore the SACK options */
+	if (SEQ_LT(th->th_ack, tp->snd_una) || SEQ_GT(th->th_ack, tp->snd_max))
 		return (1);
 	tmp_cp = cp + 2;
 	tmp_olen = optlen - 2;
 	tcpstat.tcps_sack_rcv_blocks++;
-	if (tp->snd_numholes < 0)
+	if (tp->snd_numholes < 0) /* XXX panic? */
 		tp->snd_numholes = 0;
 	if (tp->t_maxseg == 0)
 		panic("tcp_sack_option"); /* Should never happen */
@@ -326,6 +344,11 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		if (SEQ_GT(sack.end, tp->snd_max))
 			continue;
 		if (tp->snd_holes == NULL) { /* first hole */
+			if (tcp_sack_globalholes >= tcp_sack_globalmaxholes ||
+			    tcp_sack_maxholes == 0) {
+				tcpstat.tcps_sack_sboverflow++;
+				continue;
+			}
 			tp->snd_holes = (struct sackhole *)
 				uma_zalloc(sack_hole_zone,M_NOWAIT);
 			if (tp->snd_holes == NULL) {
@@ -338,6 +361,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 			cur->rxmit = cur->start;
 			cur->next = NULL;
 			tp->snd_numholes = 1;
+			tcp_sack_globalholes++;
 			tp->rcv_lastsack = sack.end;
 			continue; /* with next sack block */
 		}
@@ -368,6 +392,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 						tp->snd_holes = p;
 					}
 					tp->snd_numholes--;
+					tcp_sack_globalholes--;
 					continue;
 				}
 				/* otherwise, move start of hole forward */
@@ -391,6 +416,12 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 				 * ACKs some data in middle of a hole; need to
 				 * split current hole
 				 */
+				if (tp->snd_numholes >= tcp_sack_maxholes ||
+					tcp_sack_globalholes >= 
+					 tcp_sack_globalmaxholes) {
+					tcpstat.tcps_sack_sboverflow++;
+					continue;
+				}
 				temp = (struct sackhole *)
 					uma_zalloc(sack_hole_zone,M_NOWAIT);
 				if (temp == NULL)
@@ -405,6 +436,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 				p = temp;
 				cur = p->next;
 				tp->snd_numholes++;
+				tcp_sack_globalholes++;
 			}
 		}
 		/* At this point, p points to the last hole on the list */
@@ -413,6 +445,11 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 			 * Need to append new hole at end.
 			 * Last hole is p (and it's not NULL).
 			 */
+			if (tp->snd_numholes >= tcp_sack_maxholes ||
+			    tcp_sack_globalholes >= tcp_sack_globalmaxholes) {
+				tcpstat.tcps_sack_sboverflow++;
+				continue;
+			}
 			temp = (struct sackhole *)
 				uma_zalloc(sack_hole_zone,M_NOWAIT);
 			if (temp == NULL)
@@ -424,6 +461,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 			p->next = temp;
 			tp->rcv_lastsack = sack.end;
 			tp->snd_numholes++;
+			tcp_sack_globalholes++;
 		}
 		if (SEQ_LT(tp->rcv_lastsack, sack.end))
 			tp->rcv_lastsack = sack.end;
@@ -454,6 +492,7 @@ tcp_del_sackholes(tp, th)
 				cur = cur->next;
 				uma_zfree(sack_hole_zone, prev);
 				tp->snd_numholes--;
+				tcp_sack_globalholes--;
 			} else if (SEQ_LT(cur->start, lastack)) {
 				cur->start = lastack;
 				if (SEQ_LT(cur->rxmit, cur->start))
@@ -476,8 +515,10 @@ tcp_free_sackholes(struct tcpcb *tp)
 		p = q;
 		q = q->next;
 		uma_zfree(sack_hole_zone, p);
+		tcp_sack_globalholes--;
 	}
 	tp->snd_holes = 0;
+	tp->snd_numholes = 0;
 }
 
 /*
