@@ -154,6 +154,11 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
+hwpmc/hwpmc_amd.c		optional hwpmc
+hwpmc/hwpmc_intel.c		optional hwpmc
+hwpmc/hwpmc_pentium.c		optional hwpmc
+hwpmc/hwpmc_piv.c		optional hwpmc
+hwpmc/hwpmc_ppro.c		optional hwpmc
 i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard				\
