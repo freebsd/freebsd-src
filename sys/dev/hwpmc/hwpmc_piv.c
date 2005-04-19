@@ -1065,9 +1065,6 @@ p4_start_pmc(int cpu, int ri)
 	struct p4_cpu *pc;
 	struct pmc_hw *phw;
 	struct p4pmc_descr *pd;
-#if	DEBUG
-	pmc_value_t tmp;
-#endif
 
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[p4,%d] illegal CPU value %d", __LINE__, cpu));
@@ -1218,9 +1215,9 @@ p4_start_pmc(int cpu, int ri)
 		wrmsr(pd->pm_cccr_msr, cccrvalue);
 
 		PMCDBG(MDP,STA,2,"p4-start/2 cpu=%d rc=%d ri=%d escr=%d"
-		    "escrmsr=0x%x escrvalue=0x%x cccr_config=0x%x pmc=0x%jx",
+		    "escrmsr=0x%x escrvalue=0x%x cccr_config=0x%x",
 		    cpu, rc, ri, pm->pm_md.pm_p4.pm_p4_escr, escrmsr,
-		    escrvalue, cccrvalue, tmp);
+		    escrvalue, cccrvalue);
 
 	} else
 		panic("invalid runcount %d\n", rc);
