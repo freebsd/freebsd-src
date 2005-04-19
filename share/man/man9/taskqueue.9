@@ -65,6 +65,8 @@ struct task {
 .Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
+.Ft void
+.Fn taskqueue_run_fast "struct taskqueue *queue"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -131,7 +133,10 @@ interrupt context.
 .Pp
 To execute all the tasks on a queue,
 call
-.Fn taskqueue_run .
+.Fn taskqueue_run
+or
+.Fn taskqueue_run_fast
+depending on the flavour of the queue.
 When a task is executed,
 first it is removed from the queue,
 the value of
@@ -194,20 +199,38 @@ is defined which contains the kernel thread serving the tasks.
 The variable
 .Vt struct taskqueue *taskqueue_name
 is used to enqueue tasks onto the queue.
-.Pp
-The system provides three global taskqueues,
+.Ss Predefined Task Queues
+The system provides four global taskqueues,
+.Va taskqueue_fast ,
 .Va taskqueue_swi ,
 .Va taskqueue_swi_giant ,
 and
 .Va taskqueue_thread .
+The
+.Va taskqueue_fast
+queue is for swi handlers dispatched from fast interrupt handlers,
+where sleep mutexes cannot be used.
 The swi taskqueues are run via a software interrupt mechanism.
-The taskqueue_swi queue runs without the protection of the Giant kernel lock,
-and the taskqueue_swi_giant queue runs with the protection of the Giant
+The
+.Va taskqueue_swi
+queue runs without the protection of the
+.Va Giant
+kernel lock, and the
+.Va taskqueue_swi_giant
+queue runs with the protection of the
+.Va Giant
 kernel lock.
-The thread taskqueue runs in a kernel thread context, and tasks run from
-this thread do not run under the Giant kernel lock.
-If the caller wants to run under Giant, he should explicitly acquire and
-release Giant in his taskqueue handler routine.
+The thread taskqueue
+.Va taskqueue_thread
+runs in a kernel thread context, and tasks run from this thread do
+not run under the
+.Va Giant
+kernel lock.
+If the caller wants to run under
+.Va Giant ,
+he should explicitly acquire and release
+.Va Giant
+in his taskqueue handler routine.
 .Pp
 To use these queues,
 call
@@ -218,6 +241,10 @@ use
 .Va taskqueue_swi_giant ,
 or
 .Va taskqueue_thread ) .
+Use
+.Fn taskqueue_enqueue_fast
+for the global taskqueue variable
+.Va taskqueue_fast .
 .Pp
 The software interrupt queues can be used,
 for instance, for implementing interrupt handlers which must perform a
@@ -242,3 +269,6 @@ There is a similar facility called tqueue in the Linux kernel.
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
+.Sh BUGS
+There is no
+.Fn taskqueue_create_fast .
