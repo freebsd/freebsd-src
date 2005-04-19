@@ -174,8 +174,8 @@ sysarch(td, uap)
 			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
 			PCPU_GET(fsgs_gdt)[0] = sd;
-			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 			critical_exit();
+			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 		}
 		break;
 	case I386_GET_GSBASE:
