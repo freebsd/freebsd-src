@@ -453,35 +453,6 @@ freehostent(struct hostent *ptr)
 	free(ptr);
 }
 
-#if 0
-
-/* XXX: should be deprecated */
-struct hostent *
-getnodebyname(const char *name, int af, int flags)
-{
-	return getipnodebyname(name, af, flags, &h_errno);
-}
-
-#ifdef __warn_references
-__warn_references(getnodebyname,
-	"warning: getnodebyname() deprecated, "
-	"should use getaddrinfo() or getipnodebyname()");
-#endif
-
-struct hostent *
-getnodebyaddr(const void *src, size_t len, int af)
-{
-	return getipnodebyaddr(src, len, af, &h_errno);
-}
-
-#ifdef __warn_references
-__warn_references(getnodebyaddr,
-	"warning: getnodebyaddr() deprecated, "
-	"should use getnameinfo() or getipnodebyaddr()");
-#endif
-
-#endif
-
 /*
  * Private utility functions
  */
@@ -1814,7 +1785,6 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	u_char c, *cp;
 	char *bp;
 	struct hostent hbuf;
-	int na;
 #ifdef INET6
 	static const char hex[] = "0123456789abcdef";
 #endif
@@ -1861,7 +1831,6 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	hbuf.h_name = NULL;
 	hbuf.h_addrtype = af;
 	hbuf.h_length = addrlen;
-	na = 0;
 
 	buf = malloc(sizeof(*buf));
 	if (buf == NULL) {
