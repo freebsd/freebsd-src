@@ -8,9 +8,7 @@ MAN=	pmccontrol.8
 DPADD=	${LIBPMC}
 LDADD=	-lpmc
 
-WARNS=	6
-
-CFLAGS+=	-I${.CURDIR}/../../sys -I${.CURDIR}/../../lib/libpmc
+WARNS?=	6
 
 SRCS=	pmccontrol.c
 
