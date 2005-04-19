@@ -237,6 +237,7 @@ i386/bios/vpd.c			optional vpd
 i386/cpufreq/est.c		optional cpufreq
 i386/cpufreq/p4tcc.c		optional cpufreq
 i386/cpufreq/powernow.c		optional cpufreq
+i386/cpufreq/smist.c		optional cpufreq
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
