@@ -5,8 +5,6 @@ LIB=	pmc
 SRCS=	libpmc.c
 INCS=	pmc.h
 
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
-
 WARNS?=	6
 
 MAN=	pmc.3
