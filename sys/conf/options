@@ -699,3 +699,6 @@ NI4BISPPP		opt_i4b.h
 
 # VFS options
 LOOKUP_SHARED		opt_vfs.h
+
+# HWPMC options
+HWPMC_HOOKS		opt_global.h

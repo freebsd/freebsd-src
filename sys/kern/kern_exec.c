@@ -72,6 +72,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #include <machine/reg.h>
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
@@ -662,7 +666,25 @@ interpret:
 		p->p_args = newargs;
 		newargs = NULL;
 	}
+
+#ifdef	HWPMC_HOOKS
+	/*
+	 * Check if the process is using PMCs and if so do exec() time
+	 * processing.  This processing needs to happen AFTER the
+	 * P_INEXEC flag is cleared.
+	 *
+	 * The proc lock needs to be released before taking the PMC
+	 * SX.
+	 */
+	if (PMC_PROC_IS_USING_PMCS(p)) {
+		PROC_UNLOCK(p);
+		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC,
+		    (void *) &credential_changing);
+	} else
+		PROC_UNLOCK(p);
+#else  /* !HWPMC_HOOKS */
 	PROC_UNLOCK(p);
+#endif
 
 	/* Set values passed into the program in registers. */
 	if (p->p_sysent->sv_setregs)
