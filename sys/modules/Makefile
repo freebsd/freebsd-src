@@ -91,6 +91,7 @@ SUBDIR=	${_3dfx} \
 	hifn \
 	hme \
 	${_hptmv} \
+	hwpmc \
 	${_i2c} \
 	${_ibcs2} \
 	${_ichwd} \
