@@ -30,7 +30,20 @@
 
 #include <stdio.h>				/* XXX: for BUFSIZ */
 
+#define	PROTOENT_MAXALIASES	35
 #define	SERVENT_MAXALIASES	35
+
+struct protoent_data {
+	FILE *fp;
+	char *aliases[PROTOENT_MAXALIASES];
+	int stayopen;
+	char line[BUFSIZ + 1];
+};
+
+struct protodata {
+	struct protoent proto;
+	struct protoent_data data;
+};
 
 struct servent_data {
 	FILE *fp;
@@ -53,19 +66,30 @@ struct servdata {
 	struct servent_data data;
 };
 
+#define	endprotoent_r		__endprotoent_r
 #define	endservent_r		__endservent_r
+#define	getprotobyname_r	__getprotobyname_r
+#define	getprotobynumber_r	__getprotobynumber_r
+#define	getprotoent_r		__getprotoent_r
 #define	getservbyname_r		__getservbyname_r
 #define	getservbyport_r		__getservbyport_r
 #define	getservent_r		__getservent_r
+#define	setprotoent_r		__setprotoent_r
 #define	setservent_r		__setservent_r
 
+struct protodata *__protodata_init(void);
 struct servdata *__servdata_init(void);
+void endprotoent_r(struct protoent_data *);
 void endservent_r(struct servent_data *);
+int getprotobyname_r(const char *, struct protoent *, struct protoent_data *);
+int getprotobynumber_r(int, struct protoent *, struct protoent_data *);
+int getprotoent_r(struct protoent *, struct protoent_data *);
 int getservbyname_r(const char *, const char *, struct servent *,
 	struct servent_data *);
 int getservbyport_r(int, const char *, struct servent *,
 	struct servent_data *);
 int getservent_r(struct servent *, struct servent_data *);
+void setprotoent_r(int, struct protoent_data *);
 void setservent_r(int, struct servent_data *);
 
 #endif /* _NETDB_PRIVATE_H_ */

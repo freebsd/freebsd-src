@@ -38,20 +38,30 @@ static char sccsid[] = "@(#)getproto.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <netdb.h>
+#include "netdb_private.h"
 
-extern int _proto_stayopen;
+int
+getprotobynumber_r(int proto, struct protoent *pe, struct protoent_data *ped)
+{
+	int error;
+
+	setprotoent_r(ped->stayopen, ped);
+	while ((error = getprotoent_r(pe, ped)) == 0)
+		if (pe->p_proto == proto)
+			break;
+	if (!ped->stayopen)
+		endprotoent_r(ped);
+	return (error);
+}
 
 struct protoent *
-getprotobynumber(proto)
-	int proto;
+getprotobynumber(int proto)
 {
-	struct protoent *p;
+	struct protodata *pd;
 
-	setprotoent(_proto_stayopen);
-	while ( (p = getprotoent()) )
-		if (p->p_proto == proto)
-			break;
-	if (!_proto_stayopen)
-		endprotoent();
-	return (p);
+	if ((pd = __protodata_init()) == NULL)
+		return (NULL);
+	if (getprotobynumber_r(proto, &pd->proto, &pd->data) != 0)
+		return (NULL);
+	return (&pd->proto);
 }
