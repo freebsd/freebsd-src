@@ -323,6 +323,14 @@
 	in the &man.acpi.4; driver.  These can individually be disabled by setting device
 	hints such as <varname>hint.<replaceable>ichss</replaceable>.0.disabled="1"</varname>.</para>
 
+      <para arch="amd64,i386">The &man.hwpmc.4;, hardware performance
+	monitoring counter driver has been added.
+	This driver virtualizes the hardware performance monitoring
+	facilities in modern CPUs and provides support for using
+	these facilities from user level processes.  For more details,
+	see manual pages of &man.hwpmc.4;, associated libraries,
+	and associated userland utilities.</para>
+
       <para arch="i386">Support for the OLDCARD subsystem has
 	been removed.  The NEWCARD system is now used for all PCCARD
 	device support.</para>
@@ -421,6 +429,12 @@
 	  
 	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
+	<para>The &man.ipw.4; (for Intel PRO/Wireless 2100),
+	  &man.iwi.4; (for Intel PRO/Wireless 2200BG/2225BG/2915ABG),
+	  &man.ral.4; (for Ralink Technology RT2500),
+	  and &man.ural.4; (for Ralink Technology RT2500USB)
+	  drivers have been added.</para>
+
 	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
@@ -490,6 +504,9 @@
 	when the <literal>gid</literal>, <literal>jail</literal>,
 	and/or <literal>uid</literal> rule options are used.  &merged;</para>
 
+      <para>The &man.ipfw.4; and &man.dummynet.4; system now
+	support IPv6.</para>
+
       <para>&man.ipfw.8; now supports classification and tagging
 	of &man.altq.4; packets via a divert socket,
 	as well as the TCP data length.</para>
@@ -522,6 +539,10 @@
 	support. &merged;</para>
 
       <para>The &man.sppp.4; driver is now MPSAFE.</para>
+
+      <para>The new sysctl <varname>net.link.tap.user_open</varname>
+	has been implemented.  This allows unprivileged access to
+	&man.tap.4; device nodes based on the file system permission.</para>
 
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
@@ -574,6 +595,16 @@
 	<varname>debug.mpsafenet</varname> sysctl variable may be set
 	to <literal>1</literal>).</para>
 
+      <para>The Unix domain socket now supports
+	<literal>LOCAL_CREDS</literal> and
+	<literal>LOCAL_CONNWAIT</literal>.
+	The <literal>LOCAL_CREDS</literal> option provides
+	a mechanism for the receiver to receive the credentials
+	of the process as a &man.recvmsg.2; control message.
+	The <literal>LOCAL_CONNWAIT</literal>
+	option causes the &man.connect.2; function to block
+	until &man.accept.2; has been called on the listening socket.
+	For more details, see &man.unix.4; manual page.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -607,6 +638,10 @@
 
       <para>The old vinum(4) subsystem has been removed
 	in favor of the new &man.geom.4;-based version.</para>
+
+      <para>The &man.twa.4; driver has been updated to
+	the 9.2 release (for &os; 5.2.1) distributed from
+	the 3ware website.</para>
 
       <para arch="pc98">The &man.wd.4; driver has been removed.  The
 	&man.ata.4; driver has been found to work well enough on the
@@ -656,6 +691,11 @@
       <command>eject</command>) to take place after fixating a
       disk.</para>
 
+    <para arch="amd64">The machine-specific optimized version of
+      &man.bcmp.3;, &man.bcopy.3;, &man.bzero.3;, &man.memcmp.3;,
+      &man.memcpy.3;, &man.memmove.3;, &man.memset.3;, &man.strcat.3;
+      and &man.strcpy.3; have been implemented.</para>
+
     <para>The &man.ftpd.8; program now uses the <literal>212</literal>
       and <literal>213</literal> status codes for directory
       and file status correctly (<literal>211</literal> was used in
@@ -685,6 +725,9 @@
       <literal>AF_INET6</literal> records before
       <literal>AF_INET</literal> records.  &merged;</para>
 
+    <para>The &man.getservent.3;, &man.getservbyname.3;, and
+      &man.getservbyport.3; functions are now MPSAFE.</para>
+
     <para>The gvinum(8) utility now supports
       <command>checkparity</command>,
       <command>rebuildparity</command>, and
@@ -704,6 +747,10 @@
 
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
+
+    <para>The &man.mixer.8; utility now supports <option>-S</option>
+      option.  This is the same as the <option>-s</option> option
+      but does not output mixing field separators.</para>
 
     <para>A bug in the <filename>libalias</filename> library
       which causes a core dump when the <option>-reverse</option>
@@ -886,6 +933,11 @@
       specified.  This behavior is required by
       Version 3 of the Single UNIX Specification (SUSv3).</para>
 
+    <para>The following ISO/IEC 9899:1999 standard functions
+      have been implemented: <function>roundl()</function>,
+      <function>lroundl()</function>, <function>llroundl()</function>,
+      <function>truncl()</function>, and <function>floorl()</function>.</para>
+
     <para>An &man.rpmatch.3; library function has been added to check
       a string for being an affirmative or negative response in the
       current locale.</para>
@@ -912,6 +964,14 @@
       programs from locking when the domain sockets
       run out of buffer space due to a
       local denial-of-service attack. &merged;</para>
+
+    <para>The &man.syslogd.8; now supports <option>-S</option> option
+      which allows to change the pathname of the privileged
+      socket.  This is useful when you do not want the daemon
+      to receive any messages from the local sockets
+      (<filename>/var/run/log</filename> and
+      <filename>/var/run/logpriv</filename> are used by default).
+      &merged;</para>
 
     <para>The &man.syslogd.8; utility now allows
       <literal>:</literal> and <literal>%</literal>
@@ -956,6 +1016,9 @@
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para>The <filename>rc.d/bsnmpd</filename> startup script
+	for &man.bsnmpd.1; has been added.</para>
 
       <para>&man.rc.conf.5; now supports changes of network interface names
 	at boot time. &merged;  For example:</para>
@@ -1131,6 +1194,14 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
   <sect2 id="doc">
     <title>Documentation</title>
+
+    <para>The &man.sched.4bsd.4; and &man.sched.ule.4; manual pages
+      have been added.  These explain the kernel options SCHED_4BSD
+      and SCHED_ULE and some sysctls applicable.</para>
+
+    <para>The &man.ataraid.4; manual page
+      have been added.  This explain the &man.ata.4; software
+      RAID driver.</para>
 
     <para>Manual pages in the base system have received a number of
       cleanups, both for content and presentation.  Cross-references
