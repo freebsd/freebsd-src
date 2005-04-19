@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
@@ -1391,8 +1395,18 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	} else
 		newtd = choosethread();
-	if (td != newtd)
+	if (td != newtd) {
+#ifdef	HWPMC_HOOKS
+		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
+#endif
 		cpu_switch(td, newtd);
+#ifdef	HWPMC_HOOKS
+		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
+#endif
+	}
+
 	sched_lock.mtx_lock = (uintptr_t)td;
 
 	td->td_oncpu = PCPU_GET(cpuid);
@@ -1949,6 +1963,13 @@ sched_unbind(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_kse->ke_flags &= ~KEF_BOUND;
+}
+
+int
+sched_is_bound(struct thread *td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	return (td->td_kse->ke_flags & KEF_BOUND);
 }
 
 int

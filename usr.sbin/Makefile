@@ -112,6 +112,8 @@ SUBDIR=	ac \
 	${_pcvt} \
 	periodic \
 	pkg_install \
+	pmccontrol \
+	pmcstat \
 	${_pnpinfo} \
 	powerd \
 	ppp \

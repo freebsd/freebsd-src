@@ -112,6 +112,7 @@ MINUSLPAM+=	-lypclnt
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
+LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
 LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a

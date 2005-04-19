@@ -170,6 +170,7 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
+hwpmc/hwpmc_amd.c		optional	hwpmc
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/psm.c			optional	psm

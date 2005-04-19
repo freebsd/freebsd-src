@@ -31,7 +31,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	${_libio} libipsec \
 	libipx libkiconv libmagic libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
-	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
+	${_libpmc} ${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
 	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
 
@@ -59,6 +59,7 @@ _libsdp=	libsdp
 
 .if ${MACHINE_ARCH} == "i386"
 _libncp=	libncp
+_libpmc=	libpmc
 _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
@@ -89,6 +90,7 @@ _libmp=		libmp
 
 .if ${MACHINE_ARCH} == "amd64"
 _libncp=	libncp
+_libpmc=	libpmc
 _libsmb=	libsmb
 .endif
 

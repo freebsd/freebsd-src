@@ -422,6 +422,19 @@ options 	COMPILING_LINT
 
 
 #####################################################################
+# PERFORMANCE MONITORING OPTIONS
+
+#
+# The hwpmc driver that allows the use of in-CPU performance monitoring
+# counters for performance monitoring.  The base kernel needs to configured
+# with the 'options' line, while the hwpmc device can be either compiled
+# in or loaded as a loadable kernel module.
+#
+device  	hwpmc			# Driver (also a loadable module)
+options 	HWPMC_HOOKS		# Other necessary kernel hooks
+
+
+#####################################################################
 # NETWORKING OPTIONS
 
 #

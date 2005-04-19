@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/turnstile.h>
 #include <machine/smp.h>
 
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
@@ -959,8 +963,18 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		newtd = choosethread();
 	}
 
-	if (td != newtd)
+	if (td != newtd) {
+#ifdef	HWPMC_HOOKS
+		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
+#endif
 		cpu_switch(td, newtd);
+#ifdef	HWPMC_HOOKS
+		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
+#endif
+	}
+
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
 }
@@ -1281,6 +1295,13 @@ sched_unbind(struct thread* td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_kse->ke_flags &= ~KEF_BOUND;
+}
+
+int
+sched_is_bound(struct thread *td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	return (td->td_kse->ke_flags & KEF_BOUND);
 }
 
 int

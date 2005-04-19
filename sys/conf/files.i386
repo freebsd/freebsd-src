@@ -216,6 +216,8 @@ geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
 dev/acpica/acpi_if.m		standard
+hwpmc/hwpmc_amd.c		optional hwpmc
+hwpmc/hwpmc_intel.c		optional hwpmc
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
 i386/acpica/acpi_wakeup.c	optional acpi

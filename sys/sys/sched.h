@@ -87,6 +87,7 @@ void	sched_bind(struct thread *td, int cpu);
 static __inline void sched_pin(void);
 void	sched_unbind(struct thread *td);
 static __inline void sched_unpin(void);
+int	sched_is_bound(struct thread *td);
 
 /*
  * These procedures tell the process data structure allocation code how
