@@ -35,6 +35,7 @@
 .Nm sleepq_calc_signal_retval ,
 .Nm sleepq_catch_signals ,
 .Nm sleepq_free ,
+.Nm sleepq_lock ,
 .Nm sleepq_lookup ,
 .Nm sleepq_release ,
 .Nm sleepq_remove ,
@@ -53,7 +54,7 @@
 .Ft void
 .Fn sleepq_abort "struct thread *td"
 .Ft void
-.Fn sleepq_add "struct sleepqueue *sq" "void *wchan" "struct mtx *lock" "const char *wmesg" "int flags"
+.Fn sleepq_add "void *wchan" "struct mtx *lock" "const char *wmesg" "int flags"
 .Ft struct sleepqueue *
 .Fn sleepq_alloc "void"
 .Ft void
@@ -66,6 +67,8 @@
 .Fn sleepq_free "struct sleepqueue *sq"
 .Ft struct sleepqueue *
 .Fn sleepq_lookup "void *wchan"
+.Ft void
+.Fn sleepq_lock "void *wchan"
 .Ft void
 .Fn sleepq_release "void *wchan"
 .Ft void
@@ -97,10 +100,11 @@ to the wait channel.
 When a thread is resumed,
 the wait channel that it was blocked on gives it an inactive sleep queue for
 later use.
+.Pp
 The
 .Fn sleepq_alloc
-allocates an inactive sleep queue and is used to assign a sleep queue to a
-thread during thread creation.
+function allocates an inactive sleep queue and is used to assign a
+sleep queue to a thread during thread creation.
 The
 .Fn sleepq_free
 function frees the resources associated with an inactive sleep queue and is
@@ -117,13 +121,25 @@ The
 function initializes the hash table of sleep queue chains.
 .Pp
 The
+.Fn sleepq_lock
+function locks the sleep queue chain associated with wait channel
+.Fa wchan .
+.Pp
+The
 .Fn sleepq_lookup
-function locks the sleep queue chain associated with
+returns a pointer to the currently active sleep queue for that wait
+channel associated with
 .Fa wchan
-and returns a pointer to the current active sleep queue for that wait channel
 or
 .Dv NULL
-if there currently is not an active sleep queue.
+if there is no active sleep queue associated with
+argument
+.Fa wchan .
+It requires the sleep queue chain associated with
+.Fa wchan
+to have been locked by a prior call to
+.Fn sleepq_lock .
+.Pp
 The
 .Fn sleepq_release
 function unlocks the sleep queue chain associated with
@@ -136,15 +152,17 @@ The
 function places the current thread on the sleep queue associated with the
 wait channel
 .Fa wchan .
-The associated sleep queue chain must be locked by a call to
-.Fn sleepq_lookup
-when this function is called and its return value should be passed as the
-.Fa sq
-parameter.
+The sleep queue chain associated with argument
+.Fa wchan
+must be locked by a prior call to
+.Fn sleepq_lock
+when this function is called.
 If a mutex is specified via the
 .Fa lock
-argument, then the sleep queue code will perform extra checks to ensure that
-the mutex is held for all threads sleeping on
+argument, and if the kernel was compiled with
+.Cd "options INVARIANTS" ,
+then the sleep queue code will perform extra checks to ensure that
+the mutex is used by all threads sleeping on
 .Fa wchan .
 The
 .Fa wmesg
@@ -154,8 +172,10 @@ The
 .Fa flags
 parameter is a bitmask consisting of the type of sleep queue being slept on
 and zero or more optional flags.
+.Pp
 There are currently two types of sleep queues:
-.Bl -tag -width ".Dv SLEEPQ_CONDVAR"
+.Pp
+.Bl -tag -width ".Dv SLEEPQ_CONDVAR" -compact
 .It Dv SLEEPQ_CONDVAR
 A sleep queue used to implement condition variables.
 .It Dv SLEEPQ_MSLEEP
@@ -167,7 +187,8 @@ and
 .El
 .Pp
 There is currently only one optional flag:
-.Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE"
+.Pp
+.Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE" -compact
 .It Dv SLEEPQ_INTERRUPTIBLE
 The current thread is entering an interruptible sleep.
 .El
@@ -179,21 +200,30 @@ after
 The
 .Fa wchan
 parameter should be the same value from the preceding call to
-.Fn sleepq_add .
+.Fn sleepq_add ,
+and the sleep queue chain associated with
+.Fa wchan
+must have been locked by a prior call to
+.Fn sleepq_lock .
 The
 .Fa timo
 parameter should specify the timeout value in ticks.
-The thread may be marked interruptible by calling
+.Pp
+The current thread may be marked interruptible by calling
 .Fn sleepq_catch_signals
 with
 .Fa wchan
 set to the wait channel.
-The function returns a signal number if there are any pending signals for
+This function returns a signal number if there are any pending signals for
 the current thread and 0 if there is not a pending signal.
+The sleep queue chain associated with argument
+.Fa wchan
+should have been locked by a prior call to
+.Fn sleepq_lock .
 .Pp
 Once the thread is ready to suspend,
-one of the wait functions is called to put the thread to sleep until it is
-awakened and context switch to another thread.
+one of the wait functions is called to put the current thread to sleep
+until it is awakened and to context switch to another thread.
 The
 .Fn sleepq_wait
 function is used for non-interruptible sleeps that do not have a timeout.
@@ -209,7 +239,12 @@ The
 function is used for interruptible sleeps that do have a timeout set.
 The
 .Fa wchan
-argument to all of the wait functions is the wait channel being slept on.
+argument to all of the wait functions is the wait channel being slept
+on.
+The sleep queue chain associated with argument
+.Fa wchan
+needs to have been locked with a prior call to
+.Fn sleepq_lock .
 The
 .Fa signal_caught
 parameter to
@@ -267,6 +302,11 @@ argument does not equal \-1,
 then each thread that is awakened will have its priority raised to
 .Fa pri
 if it has a lower priority.
+The sleep queue chain associated with argument
+.Fa wchan
+must be locked by a prior call to
+.Fn sleepq_lock
+before calling any of these functions.
 .Pp
 A thread in an interruptible sleep can be interrupted by another thread via
 the
