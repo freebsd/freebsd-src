@@ -312,6 +312,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 	level = 0xF;	/* max verbosity */
 
 	p = newstr;
+	e = newstr + strlen(p);
 
 	for (; p < fence && (c = *p);) {
 
@@ -1841,7 +1842,7 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 	/*
 	 * First, we take the PMC off hardware.
 	 */
-
+	cpu = 0;
 	if (PMC_IS_SYSTEM_MODE(pm->pm_mode)) {
 
 		/*
@@ -2978,6 +2979,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error = copyin(arg, &prw, sizeof(prw))) != 0)
 			break;
 
+		ri = 0;
 		PMCDBG(PMC,OPS,1, "rw id=%d flags=0x%x", prw.pm_pmcid,
 		    prw.pm_flags);
 
