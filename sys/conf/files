@@ -1044,6 +1044,10 @@ gnu/ext2fs/ext2_subr.c		optional ext2fs
 gnu/ext2fs/ext2_vfsops.c	optional ext2fs
 gnu/ext2fs/ext2_vnops.c		optional ext2fs
 #
+# Support for hardware performance monitoring counters
+#
+hwpmc/hwpmc_mod.c		optional hwpmc
+#
 # isdn4bsd device drivers
 #
 i4b/driver/i4b_trace.c		optional i4btrc
@@ -1157,6 +1161,7 @@ kern/kern_mtxpool.c		standard
 kern/kern_mutex.c		standard
 kern/kern_ntptime.c		standard
 kern/kern_physio.c		standard
+kern/kern_pmc.c			standard
 kern/kern_poll.c		optional device_polling
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard

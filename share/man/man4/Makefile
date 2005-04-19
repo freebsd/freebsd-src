@@ -92,6 +92,7 @@ MAN=	aac.4 \
 	hifn.4 \
 	hme.4 \
 	hptmv.4 \
+	hwpmc.4 \
 	ichsmb.4 \
 	icmp.4 \
 	icmp6.4 \
