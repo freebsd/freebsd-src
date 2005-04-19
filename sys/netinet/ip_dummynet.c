@@ -29,6 +29,12 @@
 
 #define	DUMMYNET_DEBUG
 
+#if !defined(KLD_MODULE)
+#include "opt_inet6.h"
+#endif
+
+#define IPFW2	1
+
 /*
  * This module implements IP dummynet, a bandwidth limiter/delay emulator
  * used in conjunction with the ipfw package.
@@ -464,6 +470,7 @@ transmit_event(struct dn_pipe *pipe)
 	    ip_input(m) ;
 	    break ;
 
+#ifdef INET6
 	case DN_TO_IP6_IN:
 	    ip6_input(m) ;
 	    break ;
@@ -471,6 +478,7 @@ transmit_event(struct dn_pipe *pipe)
 	case DN_TO_IP6_OUT:
 	    (void)ip6_output(m, NULL, NULL, pkt->flags, NULL, NULL, NULL);
 	    break ;
+#endif
 
 	case DN_TO_BDG_FWD :
 	    /*
