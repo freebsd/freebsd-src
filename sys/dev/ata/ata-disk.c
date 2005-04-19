@@ -71,7 +71,8 @@ ad_probe(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
-    if (!(atadev->param.config & ATA_PROTO_ATAPI))
+    if (!(atadev->param.config & ATA_PROTO_ATAPI) ||
+	(atadev->param.config == ATA_CFA_MAGIC))
 	return 0;
     else
 	return ENXIO;

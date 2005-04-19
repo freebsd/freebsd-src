@@ -204,6 +204,7 @@
 #define ATA_PC98_BANKADDR_RID           9
 #define ATA_IRQ_RID                     0
 #define ATA_DEV(device)                 ((device == ATA_MASTER) ? 0 : 1)
+#define ATA_CFA_MAGIC			0x848A
 #define ATAPI_MAGIC_LSB                 0x14
 #define ATAPI_MAGIC_MSB                 0xeb
 #define ATAPI_P_READ                    (ATA_S_DRQ | ATA_I_IN)
