@@ -194,7 +194,7 @@ _ILINKS+=${MACHINE_ARCH}
 
 all: objwarn ${PROG}
 
-beforedepend: ${_ILINKS} cleandepend
+beforedepend: ${_ILINKS}
 beforedepend: cleandepend
 
 # Ensure that the links exist without depending on it when it exists which
