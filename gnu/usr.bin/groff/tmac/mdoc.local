@@ -48,7 +48,7 @@
 .ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
 .ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
-.ds doc-str-Lb-libpmc      Performance monitoring counters API (libpmc, \-lpmc)
+.ds doc-str-Lb-libpmc      Performance Monitoring Counters API (libpmc, \-lpmc)
 .ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libthr      1:1 Threading Library (libthr, \-lthr)
