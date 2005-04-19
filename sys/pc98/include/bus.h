@@ -92,13 +92,96 @@
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
+#define BUS_SPACE_IAT_MAXSIZE	33
+
 /*
  * Access methods for bus resources and address space.
  */
 struct resource;
 
 /*
- * Values for the i386 bus space tag, not to be used directly by MI code.
+ * bus space tag
+ */
+#define	_PASCAL_CALL	(void)
+
+#define	_BUS_SPACE_CALL_FUNCS_TAB(NAME,TYPE,BWN) \
+	NAME##_space_read_##BWN, 				\
+	NAME##_space_read_multi_##BWN, 				\
+	NAME##_space_read_region_##BWN,				\
+	NAME##_space_write_##BWN, 				\
+	NAME##_space_write_multi_##BWN, 			\
+	NAME##_space_write_region_##BWN,			\
+	NAME##_space_set_multi_##BWN,				\
+	NAME##_space_set_region_##BWN,				\
+	NAME##_space_copy_region_##BWN
+
+#define	_BUS_SPACE_CALL_FUNCS_PROTO(NAME,TYPE,BWN) \
+	TYPE NAME##_space_read_##BWN _PASCAL_CALL;		\
+	void NAME##_space_read_multi_##BWN _PASCAL_CALL;	\
+	void NAME##_space_read_region_##BWN _PASCAL_CALL;	\
+	void NAME##_space_write_##BWN _PASCAL_CALL;		\
+	void NAME##_space_write_multi_##BWN _PASCAL_CALL;	\
+	void NAME##_space_write_region_##BWN _PASCAL_CALL;	\
+	void NAME##_space_set_multi_##BWN _PASCAL_CALL;		\
+	void NAME##_space_set_region_##BWN _PASCAL_CALL;	\
+	void NAME##_space_copy_region_##BWN _PASCAL_CALL;
+
+#define	_BUS_SPACE_CALL_FUNCS(NAME,TYPE,BWN) \
+	TYPE (* NAME##_read_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_read_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_read_region_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_region_##BWN) _PASCAL_CALL;	\
+	void (* NAME##_set_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_set_region_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_copy_region_##BWN) _PASCAL_CALL;	
+
+struct bus_space_access_methods {
+	/* 8 bits access methods */
+	_BUS_SPACE_CALL_FUNCS(bs,u_int8_t,1)
+
+	/* 16 bits access methods */
+	_BUS_SPACE_CALL_FUNCS(bs,u_int16_t,2)
+
+	/* 32 bits access methods */
+	_BUS_SPACE_CALL_FUNCS(bs,u_int32_t,4)
+};
+
+/*
+ * Access methods for bus resources and address space.
+ */
+struct bus_space_tag {
+#define	BUS_SPACE_IO	0
+#define	BUS_SPACE_MEM	1
+	u_int	bs_tag;			/* bus space flags */
+
+	struct bus_space_access_methods bs_da;	/* direct access */
+	struct bus_space_access_methods bs_ra;	/* relocate access */
+#if	0
+	struct bus_space_access_methods bs_ida;	/* indexed direct access */
+#endif
+};
+
+/*
+ * bus space handle
+ */
+struct bus_space_handle {
+	bus_addr_t	bsh_base;
+	size_t		bsh_sz;
+
+	bus_addr_t	bsh_iat[BUS_SPACE_IAT_MAXSIZE];
+	size_t		bsh_maxiatsz;
+	size_t		bsh_iatsz;
+
+	struct resource	**bsh_res;
+	size_t		bsh_ressz;
+
+	struct bus_space_access_methods bsh_bam;
+};
+
+/*
+ * Values for the pc98 bus space tag, not to be used directly by MI code.
  */
 extern struct bus_space_tag SBUS_io_space_tag;
 extern struct bus_space_tag SBUS_mem_space_tag;
