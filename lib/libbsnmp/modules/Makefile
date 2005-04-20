@@ -8,7 +8,8 @@ _snmp_atm= snmp_atm
 
 SUBDIR=	${_snmp_atm} \
 	snmp_mibII \
-	snmp_netgraph
+	snmp_netgraph \
+	snmp_pf
 
 INCS=	snmpmod.h
 INCSDIR= ${INCLUDEDIR}/bsnmp
