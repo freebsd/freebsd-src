@@ -150,7 +150,6 @@ struct carp_if {
 	TAILQ_HEAD(, carp_softc) vhif_vrs;
 	int vhif_nvrs;
 
-	struct callout	 cif_tmo;
 	struct ifnet 	*vhif_ifp;
 	struct mtx	 vhif_mtx;
 };
@@ -209,7 +208,6 @@ enum	{ CARP_COUNT_MASTER, CARP_COUNT_RUNNING };
 
 static int	carp_set_addr(struct carp_softc *, struct sockaddr_in *);
 static int	carp_del_addr(struct carp_softc *, struct sockaddr_in *);
-static void	carp_carpdev_state1(void *);
 static void	carp_carpdev_state_locked(struct carp_if *);
 static void	carp_sc_state_locked(struct carp_softc *);
 #ifdef INET6
@@ -426,7 +424,6 @@ carp_clone_destroy(struct ifnet *ifp)
 		CARP_LOCK(cif);
 		TAILQ_REMOVE(&cif->vhif_vrs, sc, sc_list);
 		if (!--cif->vhif_nvrs) {
-			callout_drain(&cif->cif_tmo);
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
 			FREE(cif, M_CARP);
@@ -1428,7 +1425,6 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		CARP_LOCK(cif);
 		cif->vhif_ifp = ifp;
 		TAILQ_INIT(&cif->vhif_vrs);
-		callout_init(&cif->cif_tmo, NET_CALLOUT_MPSAFE);
 		ifp->if_carp = cif;
 
 	} else {
@@ -1505,7 +1501,6 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		imo->imo_multicast_ifp = NULL;
 		TAILQ_REMOVE(&cif->vhif_vrs, sc, sc_list);
 		if (!--cif->vhif_nvrs) {
-			callout_drain(&cif->cif_tmo);
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
 			FREE(cif, M_IFADDR);
@@ -1614,7 +1609,6 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		CARP_LOCK(cif);
 		cif->vhif_ifp = ifp;
 		TAILQ_INIT(&cif->vhif_vrs);
-		callout_init(&cif->cif_tmo, NET_CALLOUT_MPSAFE);
 		ifp->if_carp = cif;
 
 	} else {
@@ -1702,7 +1696,6 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		im6o->im6o_multicast_ifp = NULL;
 		TAILQ_REMOVE(&cif->vhif_vrs, sc, sc_list);
 		if (!--cif->vhif_nvrs) {
-			callout_drain(&cif->cif_tmo);
 			CARP_LOCK_DESTROY(cif);
 			sc->sc_carpdev->if_carp = NULL;
 			FREE(cif, M_IFADDR);
@@ -2053,20 +2046,6 @@ carp_set_state(struct carp_softc *sc, int state)
 
 void
 carp_carpdev_state(void *v)
-{
-	struct carp_if *cif = v;
-
-	/*
-	 * We came here from interrupt handler of network
-	 * card. To avoid multiple LORs, we will queue function
-	 * for later.
-	 */
-
-	callout_reset(&cif->cif_tmo, 1, carp_carpdev_state1, v);
-}
-
-void
-carp_carpdev_state1(void *v)
 {
 	struct carp_if *cif = v;
 
