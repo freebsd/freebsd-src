@@ -71,7 +71,6 @@ extern db_expr_t db_maxoff;
 extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
-extern int debugger_on_panic;
 extern int db_store_count;
 extern db_expr_t db_radix;
 extern db_expr_t db_max_width;
