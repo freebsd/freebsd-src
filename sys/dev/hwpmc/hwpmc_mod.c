@@ -303,7 +303,7 @@ MODULE_VERSION(pmc, PMC_VERSION);
 static int
 pmc_debugflags_parse(char *newstr, char *fence)
 {
-	char c, *e, *p, *q;
+	char c, *p, *q;
 	unsigned int tmpflags;
 	int level;
 	char tmpbuf[4];		/* 3 character keyword + '\0' */
@@ -312,7 +312,6 @@ pmc_debugflags_parse(char *newstr, char *fence)
 	level = 0xF;	/* max verbosity */
 
 	p = newstr;
-	e = newstr + strlen(p);
 
 	for (; p < fence && (c = *p);) {
 
@@ -331,7 +330,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 		else if (strncmp(tmpbuf, S, 3) == 0)		\
 			tmpflags |= __PMCDFMIN(F)
 
-		if (e - p > 6 && strncmp(p, "level=", 6) == 0) {
+		if (fence - p > 6 && strncmp(p, "level=", 6) == 0) {
 			p += 6;	/* skip over keyword */
 			level = strtoul(p, &q, 16);
 		}
