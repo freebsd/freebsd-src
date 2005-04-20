@@ -178,7 +178,7 @@ next:		for (start = fmt;; ++fmt) {
 		}
 
 		/* skip to field width */
-		for (; strchr(skip1, *fmt); ++fmt);
+		fmt += strspn(fmt, skip1);
 		if (*fmt == '*') {
 			if (getint(&fieldwidth))
 				return (1);
@@ -188,7 +188,7 @@ next:		for (start = fmt;; ++fmt) {
 			havewidth = 0;
 
 			/* skip to possible '.', get following precision */
-			for (; strchr(skip2, *fmt); ++fmt);
+			fmt += strspn(fmt, skip2);
 		}
 		if (*fmt == '.') {
 			/* precision present? */
@@ -202,7 +202,7 @@ next:		for (start = fmt;; ++fmt) {
 				haveprec = 0;
 
 				/* skip to conversion char */
-				for (; strchr(skip2, *fmt); ++fmt);
+				fmt += strspn(fmt, skip2);
 			}
 		} else
 			haveprec = 0;
@@ -470,8 +470,10 @@ getdouble(double *dp)
 	char *ep;
 	int rval;
 
-	if (!*gargv)
+	if (!*gargv) {
+		*dp = 0.0;
 		return (0);
+	}
 	if (**gargv == '"' || **gargv == '\'') {
 		*dp = asciicode();
 		return (0);
