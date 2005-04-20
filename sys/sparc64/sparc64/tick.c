@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -33,23 +34,12 @@
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/timetc.h>
-#ifdef SMP
-#include <sys/ktr.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#endif
-
-#include <dev/ofw/openfirm.h>
 
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
 #include <machine/ver.h>
-#ifdef SMP
-#include <machine/cpu.h>
-#endif
 
 int tick_missed;	/* statistics */
 
@@ -58,6 +48,7 @@ int tick_missed;	/* statistics */
 void
 cpu_initclocks(void)
 {
+
 	stathz = hz;
 	tick_start(tick_hardclock);
 }
@@ -79,8 +70,7 @@ void
 tick_hardclock(struct clockframe *cf)
 {
 	int missed;
-	u_long next;
-	register_t i;
+	u_long next, s;
 
 	tick_process(cf);
 	/*
@@ -92,13 +82,13 @@ tick_hardclock(struct clockframe *cf)
 	 */
 	missed = 0;
 	next = rd(asr23) + tick_increment;
-	i = intr_disable();
+	s = intr_disable();
 	while (next < rd(tick) + TICK_GRACE) {
 		next += tick_increment;
 		missed++;
 	}
-	wr(asr23, next, 0);
-	intr_restore(i);
+	wrtickcmpr(next, 0);
+	intr_restore(s);
 	atomic_add_int(&tick_missed, missed);
 	for (; missed > 0; missed--)
 		tick_process(cf);
@@ -107,6 +97,7 @@ tick_hardclock(struct clockframe *cf)
 void
 tick_init(u_long clock)
 {
+
 	tick_freq = clock;
 	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
@@ -114,31 +105,40 @@ tick_init(u_long clock)
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
 	 * enabled and a handler that resets the tick counter, causing DELAY()
 	 * to not work properly when used early in boot.
+	 * UltraSPARC III based systems come up with the system tick interrupt
+	 * enabled, causing an interrupt storm on startup since they are not
+	 * handled.
 	 */
-	wr(asr23, 1L << 63, 0);
+	tick_stop();
 }
 
 void
 tick_start(tick_func_t *func)
 {
+	u_long s;
+
 	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
+	s = intr_disable();
 	wrpr(tick, 0, 0);
-	wr(asr23, tick_increment, 0);
+	wrtickcmpr(tick_increment, 0);
+	intr_restore(s);
 }
 
 #ifdef SMP
 void
 tick_start_ap(void)
 {
-	u_long base;
+	u_long base, s;
 
 	/*
 	 * Try to make the ticks interrupt as synchronously as possible to
 	 * avoid inaccuracies for migrating processes. Leave out one tick to
 	 * make sure that it is not missed.
 	 */
+	s = intr_disable();
 	base = rd(tick);
-	wr(asr23, roundup(base, tick_increment) + tick_increment, 0);
+	wrtickcmpr(roundup(base, tick_increment) + tick_increment, 0);
+	intr_restore(s);
 }
 #endif
 
@@ -148,5 +148,5 @@ tick_stop(void)
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		wr(asr24, 1L << 63, 0);
-	wr(asr23, 1L << 63, 0);
+	wrtickcmpr(1L << 63, 0);
 }
