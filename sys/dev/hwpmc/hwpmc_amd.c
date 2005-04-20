@@ -34,12 +34,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pmc.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
-#include <machine/pmc_mdep.h>
-#include <machine/specialreg.h>
 
 /* AMD K7 and K8 PMCs */
 

@@ -30,14 +30,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
-#include <machine/pmc_mdep.h>
-#include <machine/specialreg.h>
 
 /*
  * PENTIUM PRO SUPPORT
