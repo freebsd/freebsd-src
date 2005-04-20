@@ -378,6 +378,7 @@ static int
 ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 {
 	priv_p priv = NG_NODE_PRIVATE(node);
+	struct ifnet *ifp = &priv->sc_ifp;
 
 	if (strcmp(name, NG_EIFACE_HOOK_ETHER))
 		return (EPFNOSUPPORT);
@@ -385,6 +386,8 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	priv->ether = hook;
 	NG_HOOK_SET_PRIVATE(hook, &priv->ether);
+
+	if_link_state_change(ifp, LINK_STATE_UP);
 
 	return (0);
 }
@@ -484,10 +487,10 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_FLOW_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_LINK_IS_UP:
-			ifp->if_flags |= IFF_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_UP);
 			break;
 		case NGM_LINK_IS_DOWN:
-			ifp->if_flags &= ~IFF_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_DOWN);
 			break;
 		default:
 			break;
