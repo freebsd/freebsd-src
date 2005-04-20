@@ -798,7 +798,7 @@ trap_fatal(frame, eva)
 	}
 
 #ifdef KDB
-	if (kdb_trap(type, 0, frame))
+	if ((debugger_on_panic || kdb_active) && kdb_trap(type, 0, frame))
 		return;
 #endif
 	printf("trap number		= %d\n", type);
