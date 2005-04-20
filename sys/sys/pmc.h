@@ -29,6 +29,8 @@
 #ifndef _SYS_PMC_H_
 #define	_SYS_PMC_H_
 
+#include <machine/pmc_mdep.h>
+
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		16 /* HW counter name size */
 #define	PMC_CLASS_MAX		4  /* #classes of PMCs in a CPU */
@@ -1114,10 +1116,6 @@ struct pmc {
 			uint32_t	pm_amd_evsel;
 		} pm_amd;
 	} pm_md;
-
-#else
-
-#error	Unsupported PMC architecture.
 
 #endif
 };
