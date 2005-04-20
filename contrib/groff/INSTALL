@@ -1,0 +1,50 @@
+To install groff, follow the instructions in the file INSTALL.gen.
+
+This file contains information that supplements those instructions.
+
+(For instructions how to build groff with DJGPP tools for MS-DOS and
+MS-Windows, see the file arch/djgpp/README.)
+
+groff is written in C++, so you will need a C++ compiler.  The C++
+source files use a suffix of `.cpp', so your C++ compiler must be able
+to handle this.  If you don't already have a C++ compiler, I suggest
+gcc 2.7.1 or later (gcc version 2 includes GNU C++ as well as GNU C).
+From gcc 2.5, it is no longer necessary to install libg++: the C++
+header files needed by groff are created by the gcc installation
+process.  To override configure's choice of C++ compiler, you can set
+the CXX environment variable.
+
+If you have a library that provides a faster malloc than your system's
+usual malloc, it is good idea to include it in LIBS.  For example,
+using the malloc that comes with GNU Emacs version 20 can give a
+worthwhile (and sometimes spectacular) performance improvement.
+
+If you want A4 or letter paper format and the configure script produces
+an incorrect guess, say
+
+  PAGE=xxx ./configure
+
+where `xxx' should be either `A4' or `letter'.  Note that this will only
+affect the paper selection for grops.  For compatibility with ditroff,
+the default page length in gtroff is always 11 inches.  The page length
+can be changed with the `pl' request.
+
+When you have built groff, you can use the test-groff script to try
+groff out on one of the man pages.  (Use the .n files not the .man
+files.)  The test-groff script sets up environment variables to allow
+groff to run without being installed.  The current directory must be
+the build directory when the script is run.  For example, you could do
+
+  ./test-groff -man -Tascii src/roff/groff/groff.n | less
+
+If you want to compile and install gxditview (an X11 previewer),
+follow the instructions in the INSTALL file in the src/xditview
+subdirectory.
+
+To get a DVI, PDF, or HTML version of the groff texinfo manual, say `make
+groff.dvi', `make groff.pdf', or `make groff.html', respectively, in the
+`doc' subdirectory (after compiling the groff package).  Note that you
+need texinfo version 4.3 or newer as a prerequisite.
+
+If you have problems, read the PROBLEMS file.  If this doesn't help
+send a bug report using the form in the file BUG-REPORT.

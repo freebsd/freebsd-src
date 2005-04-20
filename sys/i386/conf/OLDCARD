@@ -1,0 +1,17 @@
+#
+# OLDCARD -- Generic kernel configuration file for FreeBSD/i386
+#            using the OLDCARD pccard system.
+#
+# $FreeBSD$
+
+include GENERIC
+
+ident		OLDCARD
+
+# PCCARD (PCMCIA) support
+nodevice	cbb		# cardbus (yenta) bridge
+#nodevice	pcic		# ExCA ISA and PCI bridges
+nodevice	pccard		# PC Card (16-bit) bus
+nodevice	cardbus		# CardBus (32-bit) bus
+device		card		# pccard bus
+device		pcic		# PCMCIA bridge

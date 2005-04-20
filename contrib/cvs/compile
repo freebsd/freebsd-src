@@ -1,0 +1,82 @@
+#! /bin/sh
+
+# Wrapper for compilers which do not understand `-c -o'.
+
+# Copyright 1999, 2000 Free Software Foundation, Inc.
+# Written by Tom Tromey <tromey@cygnus.com>.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Usage:
+# compile PROGRAM [ARGS]...
+# `-o FOO.o' is removed from the args passed to the actual compile.
+
+prog=$1
+shift
+
+ofile=
+cfile=
+args=
+while test $# -gt 0; do
+   case "$1" in
+    -o)
+       ofile=$2
+       shift
+       ;;
+    *.c)
+       cfile=$1
+       args="$args $1"
+       ;;
+    *)
+       args="$args $1"
+       ;;
+   esac
+   shift
+done
+
+test -z "$ofile" && {
+   echo "compile: no \`-o' option seen" 1>&2
+   exit 1
+}
+
+test -z "$cfile" && {
+   echo "compile: no \`.c' file seen" 1>&2
+   exit 1
+}
+
+# Name of file we expect compiler to create.
+cofile=`echo $cfile | sed -e 's|^.*/||' -e 's/\.c$/.o/'`
+
+# Create the lock directory.
+lockdir=`echo $ofile | sed -e 's|/|_|g'`
+while true; do
+   if mkdir $lockdir > /dev/null 2>&1; then
+      break
+   fi
+   sleep 1
+done
+# FIXME: race condition here if user kills between mkdir and trap.
+trap "rmdir $lockdir; exit 1" 1 2 15
+
+# Run the compile.
+"$prog" $args
+status=$?
+
+if test -f "$cofile"; then
+   mv "$cofile" "$ofile"
+fi
+
+rmdir $lockdir
+exit $status

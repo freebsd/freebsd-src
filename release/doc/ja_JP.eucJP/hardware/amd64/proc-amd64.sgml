@@ -1,0 +1,69 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.5
+-->
+
+<sect1 id="proc">
+  <title>対応プロセッサおよびマザーボード</title>
+
+  <para>&os;/&arch; は 2003 年の半ばに誕生したもので、&arch.print;
+    (<quote>Hammer</quote>) アーキテクチャと Intel EM64T
+    アーキテクチャに対応している、Tier-1 (完全対応)
+    プラットフォームのひとつです。Tier-1 プラットフォームは、
+    &os; のインストールから開発環境としての利用に至るまで、
+    あらゆる面においてプロダクション品質を備えているというものです。</para>
+
+  <para>このアーキテクチャには、AMD64 (AMD) と Intel EM64T
+    (Extended Memory 64-bit Technology) という、
+    2 つの呼び名があることに注意してください。
+    この 2 つのアーキテクチャの 64 ビットモードはほぼ互換性があり、
+    &os;/&arch; は、両方に対応しています。</para>
+
+  <para>執筆時点では、次のプロセッサに対応しています。</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>AMD Athlon64 (<quote>Clawhammer</quote>).</para>
+    </listitem>
+
+    <listitem>
+      <para>AMD Opteron (<quote>Sledgehammer</quote>).</para>
+    </listitem>
+
+    <listitem>
+      <para>Intel 64-bit Xeon (<quote>Nacona</quote>).
+	この CPU は 90nm プロセスで製造されています。
+	動作周波数は 2.80 から 3.60 GHz (FSB 800MHz)、
+	チップセットは Intel E7520/E7525/E7320 です。</para>
+    </listitem>
+
+    <listitem>
+      <para>Intel EM64T 対応 Intel Pentium 4 Processor
+	(<quote>Prescott</quote>).
+	この CPU は 90nm プロセスで製造されています。
+	外装は FC-LGA775、動作周波数は 3.20F/3.40F/3.60F GHz、チップセットは
+	Intel 925X Express です。
+	対応する S-Spec 番号は、SL7L9, SL7L8, SL7LA, SL7NZ, SL7PZ, SL7PX になります。
+	5xx というプロセッサ番号の CPU は、EM64T
+	に対応していないので注意してください。</para>
+    </listitem>
+  </itemizedlist>
+
+  <para>Intel EM64T は、IA-32 (x86) の拡張版であり、
+    &os;/ia64 が対応している Intel IA-64 (Itanium) アーキテクチャとは異なるものです。
+    Intel の古い資料には、Intel EM64T を「64-bit extension technology」、
+    あるいは「IA-32e」などと表現しているものもあります。</para>
+
+  <para>これまでに試験されている
+    最大のメモリ構成は 8GB です。SMP 対応も完了し、十分に安定しています。</para>
+
+  <para>&os;/&arch; が対応するドライバについては、ほぼ &os;/i386 と同じです。
+    ドライバ (特に古いもの) によっては、64 ビットに対応していないという問題がありますが、
+    他の 64ビットプラットフォームで正しく動作しているドライバなら、
+    だいたい動作するでしょう。</para>
+
+  <para>&os;/&arch; はまだまだ開発されたばかりのプラットフォームです。
+    &os; カーネルとベースシステムのほとんどの部分は非常に安定していますが、
+    特にサードパーティ製のパッケージに対しては、
+    まだ問題が発生しやすいかも知れません。</para>
+</sect1>

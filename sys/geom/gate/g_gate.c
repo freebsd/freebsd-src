@@ -1,0 +1,666 @@
+/*-
+ * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/fcntl.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/limits.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
+#include <sys/signalvar.h>
+#include <sys/time.h>
+#include <machine/atomic.h>
+
+#include <geom/geom.h>
+#include <geom/gate/g_gate.h>
+
+static MALLOC_DEFINE(M_GATE, "gg data", "GEOM Gate Data");
+
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0, "GEOM_GATE stuff");
+static u_int g_gate_debug = 0;
+SYSCTL_UINT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RW, &g_gate_debug, 0,
+    "Debug level");
+
+static int g_gate_destroy_geom(struct gctl_req *, struct g_class *,
+    struct g_geom *);
+struct g_class g_gate_class = {
+	.name = G_GATE_CLASS_NAME,
+	.version = G_VERSION,
+	.destroy_geom = g_gate_destroy_geom
+};
+
+static struct cdev *status_dev;
+static d_ioctl_t g_gate_ioctl;
+static struct cdevsw g_gate_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_ioctl =	g_gate_ioctl,
+	.d_name =	G_GATE_CTL_NAME
+};
+
+
+static LIST_HEAD(, g_gate_softc) g_gate_list =
+    LIST_HEAD_INITIALIZER(&g_gate_list);
+static struct mtx g_gate_list_mtx;
+
+
+static void
+g_gate_wither(struct g_gate_softc *sc)
+{
+
+	atomic_set_32(&sc->sc_flags, G_GATE_FLAG_DESTROY);
+}
+
+static int
+g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
+{
+	struct g_provider *pp;
+	struct bio *bp;
+
+	g_topology_assert();
+	mtx_assert(&g_gate_list_mtx, MA_OWNED);
+	pp = sc->sc_provider;
+	if (!force && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
+		mtx_unlock(&g_gate_list_mtx);
+		return (EBUSY);
+	}
+	if ((sc->sc_flags & G_GATE_FLAG_DESTROY) == 0) {
+		g_gate_wither(sc);
+		LIST_REMOVE(sc, sc_next);
+	}
+	mtx_unlock(&g_gate_list_mtx);
+	mtx_lock(&sc->sc_inqueue_mtx);
+	wakeup(sc);
+	mtx_unlock(&sc->sc_inqueue_mtx);
+	if (sc->sc_ref > 0) {
+		G_GATE_DEBUG(1, "Cannot destroy %s yet.", sc->sc_name);
+		return (0);
+	}
+	callout_drain(&sc->sc_callout);
+	mtx_lock(&sc->sc_inqueue_mtx);
+	for (;;) {
+		bp = bioq_first(&sc->sc_inqueue);
+		if (bp != NULL) {
+			bioq_remove(&sc->sc_inqueue, bp);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+			G_GATE_LOGREQ(1, bp, "Request canceled.");
+			g_io_deliver(bp, ENXIO);
+		} else {
+			break;
+		}
+	}
+	mtx_destroy(&sc->sc_inqueue_mtx);
+	mtx_lock(&sc->sc_outqueue_mtx);
+	for (;;) {
+		bp = bioq_first(&sc->sc_outqueue);
+		if (bp != NULL) {
+			bioq_remove(&sc->sc_outqueue, bp);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+			G_GATE_LOGREQ(1, bp, "Request canceled.");
+			g_io_deliver(bp, ENXIO);
+		} else {
+			break;
+		}
+	}
+	mtx_destroy(&sc->sc_outqueue_mtx);
+	G_GATE_DEBUG(0, "Device %s destroyed.", sc->sc_name);
+	pp->geom->softc = NULL;
+	g_wither_geom(pp->geom, ENXIO);
+	sc->sc_provider = NULL;
+	free(sc, M_GATE);
+	return (0);
+}
+
+static void
+g_gate_destroy_it(void *arg, int flag __unused)
+{
+	struct g_gate_softc *sc;
+
+	g_topology_assert();
+	sc = arg;
+	mtx_lock(&g_gate_list_mtx);
+	g_gate_destroy(sc, 1);
+}
+
+static int
+g_gate_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+{
+
+	g_topology_assert();
+	mtx_lock(&g_gate_list_mtx);
+	return (g_gate_destroy(gp->softc, 0));
+}
+
+static int
+g_gate_access(struct g_provider *pp, int dr, int dw, int de)
+{
+	struct g_gate_softc *sc;
+
+	if (dr <= 0 && dw <= 0 && de <= 0)
+		return (0);
+	sc = pp->geom->softc;
+	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0)
+		return (ENXIO);
+	/* XXX: Hack to allow read-only mounts. */
+#if 0
+	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0 && dw > 0)
+		return (EPERM);
+#endif
+	if ((sc->sc_flags & G_GATE_FLAG_WRITEONLY) != 0 && dr > 0)
+		return (EPERM);
+	return (0);
+}
+
+static void
+g_gate_start(struct bio *bp)
+{
+	struct g_gate_softc *sc;
+	uint32_t qcount;
+
+	sc = bp->bio_to->geom->softc;
+	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
+	G_GATE_LOGREQ(2, bp, "Request received.");
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		break;
+	case BIO_DELETE:
+	case BIO_WRITE:
+		/* XXX: Hack to allow read-only mounts. */
+		if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
+			g_io_deliver(bp, EPERM);
+			return;
+		}
+		break;
+	case BIO_GETATTR:
+	default:
+		G_GATE_LOGREQ(2, bp, "Ignoring request.");
+		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
+
+	atomic_store_rel_32(&qcount, sc->sc_queue_count);
+	if (qcount > sc->sc_queue_size) {
+		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
+		g_io_deliver(bp, EIO);
+		return;
+	}
+	atomic_add_acq_32(&sc->sc_queue_count, 1);
+	bp->bio_driver1 = (void *)sc->sc_seq;
+	sc->sc_seq++;
+
+	mtx_lock(&sc->sc_inqueue_mtx);
+	bioq_disksort(&sc->sc_inqueue, bp);
+	wakeup(sc);
+	mtx_unlock(&sc->sc_inqueue_mtx);
+}
+
+static struct g_gate_softc *
+g_gate_find(u_int unit)
+{
+	struct g_gate_softc *sc;
+
+	mtx_assert(&g_gate_list_mtx, MA_OWNED);
+	LIST_FOREACH(sc, &g_gate_list, sc_next) {
+		if (sc->sc_unit == unit)
+			break;
+	}
+	return (sc);
+}
+
+static struct g_gate_softc *
+g_gate_hold(u_int unit)
+{
+	struct g_gate_softc *sc;
+
+	mtx_lock(&g_gate_list_mtx);
+	sc = g_gate_find(unit);
+	if (sc != NULL) {
+		if ((sc->sc_flags & G_GATE_FLAG_DESTROY) != 0)
+			sc = NULL;
+		else
+			sc->sc_ref++;
+	}
+	mtx_unlock(&g_gate_list_mtx);
+	return (sc);
+}
+
+static void
+g_gate_release(struct g_gate_softc *sc)
+{
+
+	g_topology_assert_not();
+	mtx_lock(&g_gate_list_mtx);
+	sc->sc_ref--;
+	KASSERT(sc->sc_ref >= 0, ("Negative sc_ref for %s.", sc->sc_name));
+	if (sc->sc_ref == 0 && (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
+		mtx_unlock(&g_gate_list_mtx);
+		g_waitfor_event(g_gate_destroy_it, sc, M_WAITOK, NULL);
+	} else {
+		mtx_unlock(&g_gate_list_mtx);
+	}
+}
+
+static int
+g_gate_getunit(int unit)
+{
+	struct g_gate_softc *sc;
+
+	mtx_assert(&g_gate_list_mtx, MA_OWNED);
+	if (unit >= 0) {
+		LIST_FOREACH(sc, &g_gate_list, sc_next) {
+			if (sc->sc_unit == unit)
+				return (-1);
+		}
+	} else {
+		unit = 0;
+once_again:
+		LIST_FOREACH(sc, &g_gate_list, sc_next) {
+			if (sc->sc_unit == unit) {
+				if (++unit > 666)
+					return (-1);
+				goto once_again;
+			}
+		}
+	}
+	return (unit);
+}
+
+static void
+g_gate_guard(void *arg)
+{
+	struct g_gate_softc *sc;
+	struct bintime curtime;
+	struct bio *bp, *bp2;
+
+	sc = arg;
+	binuptime(&curtime);
+	g_gate_hold(sc->sc_unit);
+	mtx_lock(&sc->sc_inqueue_mtx);
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_inqueue.queue, bio_queue, bp2) {
+		if (curtime.sec - bp->bio_t0.sec < 5)
+			continue;
+		bioq_remove(&sc->sc_inqueue, bp);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		G_GATE_LOGREQ(1, bp, "Request timeout.");
+		g_io_deliver(bp, EIO);
+	}
+	mtx_unlock(&sc->sc_inqueue_mtx);
+	mtx_lock(&sc->sc_outqueue_mtx);
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_outqueue.queue, bio_queue, bp2) {
+		if (curtime.sec - bp->bio_t0.sec < 5)
+			continue;
+		bioq_remove(&sc->sc_outqueue, bp);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		G_GATE_LOGREQ(1, bp, "Request timeout.");
+		g_io_deliver(bp, EIO);
+	}
+	mtx_unlock(&sc->sc_outqueue_mtx);
+	if ((sc->sc_flags & G_GATE_FLAG_DESTROY) == 0) {
+		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
+		    g_gate_guard, sc);
+	}
+	g_gate_release(sc);
+}
+
+static void
+g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
+    struct g_consumer *cp, struct g_provider *pp)
+{
+	struct g_gate_softc *sc;
+
+	sc = gp->softc;
+	if (sc == NULL || pp != NULL || cp != NULL)
+		return;
+	g_gate_hold(sc->sc_unit);
+	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
+		sbuf_printf(sb, "%s<access>%s</access>\n", indent, "read-only");
+	} else if ((sc->sc_flags & G_GATE_FLAG_WRITEONLY) != 0) {
+		sbuf_printf(sb, "%s<access>%s</access>\n", indent,
+		    "write-only");
+	} else {
+		sbuf_printf(sb, "%s<access>%s</access>\n", indent,
+		    "read-write");
+	}
+	sbuf_printf(sb, "%s<timeout>%u</timeout>\n", indent, sc->sc_timeout);
+	sbuf_printf(sb, "%s<info>%s</info>\n", indent, sc->sc_info);
+	sbuf_printf(sb, "%s<queue_count>%u</queue_count>\n", indent,
+	    sc->sc_queue_count);
+	sbuf_printf(sb, "%s<queue_size>%u</queue_size>\n", indent,
+	    sc->sc_queue_size);
+	sbuf_printf(sb, "%s<ref>%u</ref>\n", indent, sc->sc_ref);
+	g_topology_unlock();
+	g_gate_release(sc);
+	g_topology_lock();
+}
+
+static int
+g_gate_create(struct g_gate_ctl_create *ggio)
+{
+	struct g_gate_softc *sc;
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	if (ggio->gctl_mediasize == 0) {
+		G_GATE_DEBUG(1, "Invalid media size.");
+		return (EINVAL);
+	}
+	if (ggio->gctl_sectorsize > 0 && !powerof2(ggio->gctl_sectorsize)) {
+		G_GATE_DEBUG(1, "Invalid sector size.");
+		return (EINVAL);
+	}
+	if ((ggio->gctl_mediasize % ggio->gctl_sectorsize) != 0) {
+		G_GATE_DEBUG(1, "Invalid media size.");
+		return (EINVAL);
+	}
+	if ((ggio->gctl_flags & G_GATE_FLAG_READONLY) != 0 &&
+	    (ggio->gctl_flags & G_GATE_FLAG_WRITEONLY) != 0) {
+		G_GATE_DEBUG(1, "Invalid flags.");
+		return (EINVAL);
+	}
+	if (ggio->gctl_unit < -1) {
+		G_GATE_DEBUG(1, "Invalid unit number.");
+		return (EINVAL);
+	}
+
+	sc = malloc(sizeof(*sc), M_GATE, M_WAITOK | M_ZERO);
+	sc->sc_flags = (ggio->gctl_flags & G_GATE_USERFLAGS);
+	strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
+	sc->sc_seq = 0;
+	bioq_init(&sc->sc_inqueue);
+	mtx_init(&sc->sc_inqueue_mtx, "gg:inqueue", NULL, MTX_DEF);
+	bioq_init(&sc->sc_outqueue);
+	mtx_init(&sc->sc_outqueue_mtx, "gg:outqueue", NULL, MTX_DEF);
+	sc->sc_queue_count = 0;
+	sc->sc_queue_size = ggio->gctl_maxcount;
+	if (sc->sc_queue_size > G_GATE_MAX_QUEUE_SIZE)
+		sc->sc_queue_size = G_GATE_MAX_QUEUE_SIZE;
+	sc->sc_timeout = ggio->gctl_timeout;
+	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	mtx_lock(&g_gate_list_mtx);
+	ggio->gctl_unit = g_gate_getunit(ggio->gctl_unit);
+	if (ggio->gctl_unit == -1) {
+		mtx_unlock(&g_gate_list_mtx);
+		mtx_destroy(&sc->sc_inqueue_mtx);
+		mtx_destroy(&sc->sc_outqueue_mtx);
+		free(sc, M_GATE);
+		return (EBUSY);
+	}
+	sc->sc_unit = ggio->gctl_unit;
+	LIST_INSERT_HEAD(&g_gate_list, sc, sc_next);
+	mtx_unlock(&g_gate_list_mtx);
+
+	g_topology_lock();
+	gp = g_new_geomf(&g_gate_class, "%s%d", G_GATE_PROVIDER_NAME,
+	    sc->sc_unit);
+	gp->start = g_gate_start;
+	gp->access = g_gate_access;
+	gp->dumpconf = g_gate_dumpconf;
+	gp->softc = sc;
+	pp = g_new_providerf(gp, "%s%d", G_GATE_PROVIDER_NAME, sc->sc_unit);
+	pp->mediasize = ggio->gctl_mediasize;
+	pp->sectorsize = ggio->gctl_sectorsize;
+	sc->sc_provider = pp;
+	g_error_provider(pp, 0);
+	g_topology_unlock();
+
+	if (sc->sc_timeout > 0) {
+		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
+		    g_gate_guard, sc);
+	}
+	return (0);
+}
+
+#define	G_GATE_CHECK_VERSION(ggio)	do {				\
+	if ((ggio)->gctl_version != G_GATE_VERSION)			\
+		return (EINVAL);					\
+} while (0)
+static int
+g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+{
+	struct g_gate_softc *sc;
+	struct bio *bp;
+	int error = 0;
+
+	G_GATE_DEBUG(4, "ioctl(%s, %lx, %p, %x, %p)", devtoname(dev), cmd, addr,
+	    flags, td);
+
+	switch (cmd) {
+	case G_GATE_CMD_CREATE:
+	    {
+		struct g_gate_ctl_create *ggio = (void *)addr;
+
+		G_GATE_CHECK_VERSION(ggio);
+		DROP_GIANT();
+		error = g_gate_create(ggio);
+		PICKUP_GIANT();
+		/*
+		 * Reset TDP_GEOM flag.
+		 * There are pending events for sure, because we just created
+		 * new provider and other classes want to taste it, but we
+		 * cannot answer on I/O requests until we're here.
+		 */
+		td->td_pflags &= ~TDP_GEOM;
+		return (error);
+	    }
+	case G_GATE_CMD_DESTROY:
+	    {
+		struct g_gate_ctl_destroy *ggio = (void *)addr;
+
+		G_GATE_CHECK_VERSION(ggio);
+		sc = g_gate_hold(ggio->gctl_unit);
+		if (sc == NULL)
+			return (ENXIO);
+		DROP_GIANT();
+		g_topology_lock();
+		mtx_lock(&g_gate_list_mtx);
+		error = g_gate_destroy(sc, ggio->gctl_force);
+		if (error == 0)
+			g_gate_wither(sc);
+		g_topology_unlock();
+		PICKUP_GIANT();
+		g_gate_release(sc);
+		return (error);
+	    }
+	case G_GATE_CMD_START:
+	    {
+		struct g_gate_ctl_io *ggio = (void *)addr;
+
+		G_GATE_CHECK_VERSION(ggio);
+		sc = g_gate_hold(ggio->gctl_unit);
+		if (sc == NULL)
+			return (ENXIO);
+		for (;;) {
+			mtx_lock(&sc->sc_inqueue_mtx);
+			bp = bioq_first(&sc->sc_inqueue);
+			if (bp != NULL)
+				break;
+			if (msleep(sc, &sc->sc_inqueue_mtx,
+			    PPAUSE | PDROP | PCATCH, "ggwait", 0) != 0) {
+				g_gate_release(sc);
+				ggio->gctl_error = ECANCELED;
+				return (0);
+			}
+			if ((sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
+				g_gate_release(sc);
+				ggio->gctl_error = ECANCELED;
+				return (0);
+			}
+		}
+		ggio->gctl_cmd = bp->bio_cmd;
+		if ((bp->bio_cmd == BIO_DELETE || bp->bio_cmd == BIO_WRITE) &&
+		    bp->bio_length > ggio->gctl_length) {
+			mtx_unlock(&sc->sc_inqueue_mtx);
+			g_gate_release(sc);
+			ggio->gctl_length = bp->bio_length;
+			ggio->gctl_error = ENOMEM;
+			return (0);
+		}
+		bioq_remove(&sc->sc_inqueue, bp);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		mtx_unlock(&sc->sc_inqueue_mtx);
+		ggio->gctl_seq = (uintptr_t)bp->bio_driver1;
+		ggio->gctl_offset = bp->bio_offset;
+		ggio->gctl_length = bp->bio_length;
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			break;
+		case BIO_DELETE:
+		case BIO_WRITE:
+			error = copyout(bp->bio_data, ggio->gctl_data,
+			    bp->bio_length);
+			if (error != 0) {
+				mtx_lock(&sc->sc_inqueue_mtx);
+				bioq_disksort(&sc->sc_inqueue, bp);
+				mtx_unlock(&sc->sc_inqueue_mtx);
+				g_gate_release(sc);
+				return (error);
+			}
+			break;
+		}
+		mtx_lock(&sc->sc_outqueue_mtx);
+		bioq_insert_tail(&sc->sc_outqueue, bp);
+		atomic_add_acq_32(&sc->sc_queue_count, 1);
+		mtx_unlock(&sc->sc_outqueue_mtx);
+		g_gate_release(sc);
+		return (0);
+	    }
+	case G_GATE_CMD_DONE:
+	    {
+		struct g_gate_ctl_io *ggio = (void *)addr;
+
+		G_GATE_CHECK_VERSION(ggio);
+		sc = g_gate_hold(ggio->gctl_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		mtx_lock(&sc->sc_outqueue_mtx);
+		TAILQ_FOREACH(bp, &sc->sc_outqueue.queue, bio_queue) {
+			if (ggio->gctl_seq == (uintptr_t)bp->bio_driver1)
+				break;
+		}
+		if (bp != NULL) {
+			bioq_remove(&sc->sc_outqueue, bp);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		}
+		mtx_unlock(&sc->sc_outqueue_mtx);
+		if (bp == NULL) {
+			/*
+			 * Request was probably canceled.
+			 */
+			g_gate_release(sc);
+			return (0);
+		}
+		if (ggio->gctl_error == EAGAIN) {
+			bp->bio_error = 0;
+			G_GATE_LOGREQ(1, bp, "Request desisted.");
+			atomic_add_acq_32(&sc->sc_queue_count, 1);
+			mtx_lock(&sc->sc_inqueue_mtx);
+			bioq_disksort(&sc->sc_inqueue, bp);
+			wakeup(sc);
+			mtx_unlock(&sc->sc_inqueue_mtx);
+		} else {
+			bp->bio_error = ggio->gctl_error;
+			if (bp->bio_error == 0) {
+				bp->bio_completed = bp->bio_length;
+				switch (bp->bio_cmd) {
+				case BIO_READ:
+					error = copyin(ggio->gctl_data,
+					    bp->bio_data, bp->bio_length);
+					if (error != 0)
+						bp->bio_error = error;
+					break;
+				case BIO_DELETE:
+				case BIO_WRITE:
+					break;
+				}
+			}
+			G_GATE_LOGREQ(2, bp, "Request done.");
+			g_io_deliver(bp, bp->bio_error);
+		}
+		g_gate_release(sc);
+		return (error);
+	    }
+	}
+	return (ENOIOCTL);
+}
+
+static void
+g_gate_device(void)
+{
+
+	status_dev = make_dev(&g_gate_cdevsw, 0x0, UID_ROOT, GID_WHEEL, 0600,
+	    G_GATE_CTL_NAME);
+}
+
+static int
+g_gate_modevent(module_t mod, int type, void *data)
+{
+	int error = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+		mtx_init(&g_gate_list_mtx, "gg_list_lock", NULL, MTX_DEF);
+		g_gate_device();
+		break;
+	case MOD_UNLOAD:
+		mtx_lock(&g_gate_list_mtx);
+		if (!LIST_EMPTY(&g_gate_list)) {
+			mtx_unlock(&g_gate_list_mtx);
+			error = EBUSY;
+			break;
+		}
+		mtx_unlock(&g_gate_list_mtx);
+		mtx_destroy(&g_gate_list_mtx);
+		if (status_dev != 0)
+			destroy_dev(status_dev);
+		break;
+	default:
+		return (EOPNOTSUPP);
+		break;
+	}
+
+	return (error);
+}
+static moduledata_t g_gate_module = {
+	G_GATE_MOD_NAME,
+	g_gate_modevent,
+	NULL
+};
+DECLARE_MODULE(geom_gate, g_gate_module, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+DECLARE_GEOM_CLASS(g_gate_class, g_gate);

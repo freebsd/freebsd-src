@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $NetBSD: mopd,v 1.5 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: mopd
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="mopd"
+rcvar=$name
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

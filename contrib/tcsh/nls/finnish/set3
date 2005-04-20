@@ -1,0 +1,124 @@
+$ $Id: set3,v 1.2 2001/04/26 19:07:49 kim Exp $
+$ Editor function descriptions
+$set 3 
+1 Siirry taaksep‰in yksi merkki
+2 Poista kursoria edelt‰v‰ merkki
+3 Leikkaa sanan alusta kursoriin - talleteta leikkauspuskuriin
+4 Leikkaa rivin alusta kursoriin - talleteta leikkauspuskuriin
+5 Siirry sanan alkuun
+6 Siirry rivin alkuun
+7 Vaihda isoiksi kirjaimiksi kursorista sanan loppuun
+8 Vi: Vaihda kirjain kursorin alla ison ja pienen v‰lill‰, ja etene merkki
+9 Vi: muuta rivin loppuun
+10 Puhdista kuvaruutu j‰tt‰en keskener‰inen rivi ylimm‰ksi
+11 T‰ydenn‰ sana
+12 Etene tiedostojen l‰pi yksi kerrallaan
+13 Peruuta tiedostojen l‰pi yksi kerrallaan
+14 T‰ydenn‰ sana huomioimatta ohjelmoitavia t‰ydennyksi‰
+15 Kopioi sana kursoriin saakka
+16 Kopioi leikkauspuskuriin alue merkist‰ kursoriin
+17 Laajenna edelliseksi sanaksi, miss‰ on t‰m‰ alkuosa
+18 Poista merkki kursorin alta
+19 Poista merkki kursorin alta ja ilmoita tiedoston loppu tyhj‰ll‰ rivill‰
+20 Poista merkki kursorin alta ja n‰yt‰ t‰ydennykset, mik‰li rivin lopussa
+21 Poista merkki kursorin alta ja ilmoita t‰ydennykset tai tiedoston loppu
+22 Leikkaa kursorista sanan loppuun - talleteta leikkauspuskuriin
+23 Lis‰‰ argumenttiin, mik‰li sekvenssi on aloitettu tai kyseess‰ on numero
+24 Numero, mik‰ aloittaa argumentin
+25 Siirry seuraavalle riville historiassa
+26 Muuta pieniksi kirjaimiksi kursorista sanan loppuun
+27 Ilmoita tiedoston loppu
+28 Siirr‰ kursori rivin loppuun
+29 Vaihda kursorin ja merkin paikkaa
+30 Laajenna tiedoston nimen jokerimerkit
+31 Laajenna viittaukset komentohistoriaan
+32 Laajenna viittaukset komentohistoriaan suoraan paikallaan
+33 Laajenna muuttujat
+34 Siirry eteenp‰in yksi merkki
+35 Siirry eteenp‰in sanan loppuun
+36 Vaihda kesken‰‰n kursoria edelt‰v‰t kaksi merkki‰
+37 Etsi historiasta taaksep‰in rivi‰, mik‰ alkaa kuten t‰m‰
+38 Etsi historiasta eteenp‰in rivi‰, mik‰ alkaa kuten t‰m‰
+39 Lis‰‰ viimeisen komennon viimeinen osa
+40 T‰smentyv‰ haku eteenp‰in
+41 T‰smentyv‰ haku taaksep‰in
+42 Tyhjenn‰ rivi
+43 Leikkaa kursorista rivin loppuun ja talleta leikkauspuskuriin
+44 Leikkaa alue merkist‰ kursoriin ja talleta leikkauspuskuriin
+45 Leikkaa koko rivi ja talleta leikkauspuskuriin
+46 N‰yt‰ t‰ydennysvaihtoehdot
+47 N‰yt‰ t‰ydennysvaihtoehdot ohittaen ohjelmoitavat taydennykset
+48 N‰yt‰ tiedostojen nimien jokerimerkkivastaavuudet
+49 N‰yt‰ t‰ydennysvaihtoehdot tai ilmoita tiedoston loppu, jos rivi on tyhj‰
+50 N‰yt‰ kuormituskeskiarvot ja t‰m‰nhetkisen prosessin tila
+51 Laajenna historiaviittaukset ja lis‰‰ v‰lilyˆnti
+52 Suorita komento
+53 Laajenna hakupolut ja korvaa tai taydenn‰ jokainen '.' ja '..'
+54 Laajenna komennot kokonaisiksi hakupoluiksi tai alias-vastineiksi
+55 Vaihda toimintatilaa lis‰yksen ja p‰‰llekirjoituksen v‰lill‰
+56 Lis‰‰ 8. bitti seuraavaan merkkiin (meta)
+57 Lis‰‰ seuraava merkki riville sellaisenaan ilman tulkintaa
+58 N‰yt‰ kaikki uudestaan
+59 Jatka pys‰ytetty‰ tekstink‰sittely‰
+60 Etsi aputietoja t‰st‰ komennosta
+61 T‰m‰ merkki lis‰t‰‰n riville
+62 T‰m‰ merkki aloittaa merkkisarjan
+63 Aseta merkki kursorin kohdalle
+64 Korjaa sanan kirjoitusasu
+65 Korjaa koko rivin kirjoitusasu
+66 L‰het‰ merkki p‰‰tteelle erikoismerkkien tulkinnan ja muunnoksien j‰lkeen
+67 Vaihda esityst‰ raa'an ja t‰ydennetyn historiarivin v‰lill‰
+68 Vaihda kursoria edelt‰v‰ merkki ja kursorin alla oleva merkki kesken‰‰n
+69 Vaihda kursoria edelt‰v‰t kaksi merkki‰ kesken‰‰n
+70 Tty viiv‰stetty pys‰ytysmerkki (TSTP)
+71 Tty tulosteen h‰vitt‰mismerkki
+72 Tty keskeytysmerkki (INT)
+73 Tty lopetusmerkki (QUIT)
+74 Tty pys‰ytysmerkki (STOP)
+75 Tty salli tulostus -merkki
+76 Tty est‰ tulostus -merkki
+77 Ilmoitus sitomattomasta merkist‰
+78 Emacs-tyylin toistettava argumentti (4 kertaa argumentti)
+79 Siirry edelliselle historiariville
+80 Muuta kirjaimet kursorista sanan loppuun isoiksi
+81 Vi: siirry seuraavan sanan alkuun
+82 Vi: vaihda lis‰ystilaan kursorin j‰lkeen
+83 Vi: vaihda lis‰ystilaan rivin lopussa
+84 Vi: vaihda kirjain kursorin alla ison ja pienen v‰lill‰, ja etene merkki
+85 Vi: vaihda (sanan) alkuliite/-osa
+86 Vi: vaihda kursorista rivin loppuun
+87 Vaihda vi:n komentotilaan (vaihtoehtoisin n‰pp‰inm‰‰rittelyin)
+88 Vi: komentotilan t‰ydenn‰ sana
+89 Vi: siirry edelliseen merkkiin (backspace, v‰lilyˆnti taaksep‰in)
+90 Vi: poista (sanan) alkuliite/-osa
+91 Vi: siirry seuraavaan v‰lilyˆnnin rajoittamaan sanan loppuun
+92 Vi: siirry seuraavaan sanan loppuun
+93 Vi: siirry edelliseen annetun mallin mukaiseen merkkiin
+94 Vi: siirry seuraavaan annetun mallin mukaiseen merkkiin
+95 Vi: siirry edelliseen annetun mallin mukaisen merkin j‰lkeiseen merkkiin
+96 Vi: siirry seuraavaan annetun mallin mukaista merkki‰ edelt‰v‰‰n merkkiin
+97 Vaihda vi-tilaan
+98 Vaihda vi:n lis‰ystilaan rivin alussa
+99 Vi: toista viimeinen merkkihaku jatkaen etsint‰‰ samaan suuntaan
+100 Vi: toista viimeinen merkkihaku jatkaen etsint‰‰ p‰invastaiseen suuntaan
+101 Vi: toista viimeinen haku jatkaen etsint‰‰ samaan suuntaan
+102 Vi: toista viimeinen haku jatkaen etsint‰‰ p‰invastaiseen suuntaan
+103 Vi: vaihda kursorin alla oleva merkki seuraavaan n‰pp‰iltyyn merkkiin
+104 Vi: korvaustila
+105 Vi: etsi historiasta taaksep‰in
+106 Vi: etsi historiasta eteenp‰in
+107 Vi: korvaa kursorin alla oleva merkki ja siirry lis‰ystilaan
+108 Vi: korvaa koko rivi
+109 Vi: siirry edelliseen sanaan
+110 Vi: siirry seuraavaan sanaan
+111 Vi: peruuta muutos
+112 Vi: siirry rivin alkuun
+113 Suorita 'which' t‰lle komennolle
+114 Liimaa/lis‰‰ leikkauspuskurin sis‰ltˆ kursorin paikalle
+115 Korvaa viimeksi liimattu teksti aikaisemmalla leikkauksella
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

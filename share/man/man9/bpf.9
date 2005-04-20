@@ -1,0 +1,228 @@
+.\" Copyright (c) 2004 FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 19, 2004
+.Dt BPF 9
+.Os
+.\"
+.Sh NAME
+.Nm bpf
+.Nd "Berkeley Packet Filter"
+.\"
+.Sh SYNOPSIS
+.In net/bpf.h
+.\"
+.Ft void
+.Fn bpfattach "struct ifnet *ifp" "u_int dlt" "u_int hdrlen"
+.Ft void
+.Fn bpfattach2 "struct ifnet *ifp" "u_int dlt" "u_int hdrlen" "struct bpf_if **driverp"
+.Ft void
+.Fn bpfdetach "struct ifnet *ifp"
+.Ft void
+.Fn bpf_tap "struct ifnet *ifp" "u_char *pkt" "u_int *pktlen"
+.Ft void
+.Fn bpf_mtap "struct ifnet *ifp" "struct mbuf *m"
+.Ft void
+.Fn bpf_mtap2 "struct bpf_if *bp" "void *data" "u_int dlen" "struct mbuf *m"
+.Ft u_int
+.Fn bpf_filter "const struct bpf_insn *pc " "u_char *pkt" "u_int *wirelen" "u_int *buflen"
+.Ft int
+.Fn bpf_validate "const struct bpf_insn *fcode" "int flen"
+.\"
+.Sh DESCRIPTION
+The Berkeley Packet Filter provides a raw interface,
+that is protocol independent,
+to data link layers.
+It allows all packets on the network,
+even those destined for other hosts,
+to be passed from a network interface to user programs.
+Each program may specify a filter,
+in the form of a bpf filter machine program.
+.Xr bpf 4
+describes the interface used by user programs.
+This man page describes the functions used by interfaces to pass packets to
+.Nm
+and the functions for testing and running
+.Nm
+filter machine programs.
+.Pp
+.Fn bpfattach
+attaches a network interface to
+.Nm .
+.Em ifp
+is a pointer to the structure that defines the interface to be
+attached to an interface.
+.Em dlt
+is the data link-layer type:
+DLT_NULL
+.Po no link-layer encapsulation
+.Pc ,
+DLT_EN10MB
+.Po Ethernet
+.Pc ,
+DLT_IEEE802_11
+.Po 802.11 wireless networks
+.Pc ,
+etc.
+The rest of the link layer types can be found in
+.Pa /usr/src/sys/net/bpf.h .
+.Em hdrlen
+is the fixed size of the link header;
+variable length headers are not yet supported.
+The
+.Nm
+system will hold a pointer to
+.Em ifp->if_bpf .
+This variable will set to a non-NULL value when
+.Nm
+requires packets from this interface to be tapped using the functions below.
+.Pp
+.Fn bpfattach2
+allows multiple bpf instances to be attached to a single interface,
+by registering an explicit
+.Em if_bpf
+rather than using
+.Em ifp->if_bpf .
+It is then possible to run
+.Xr tcpdump 1
+on the interface for any data link-layer types attached.
+.Pp
+.Fn bpfdetach
+detaches a
+.Nm
+instance from an interface,
+specified by
+.Em ifp .
+.Fn bpfdetach
+should be called once for each
+.Nm bpf
+instance attached.
+.Pp
+.Fn bpf_tap
+is used by an interface to pass the packet to
+.Nm .
+The packet data (including link-header),
+pointed to by
+.Em pkt ,
+is of length
+.Em pktlen ,
+which must be a contiguous buffer.
+.Em ifp
+is a pointer to the structure that defines the interface to be tapped.
+The packet is parsed by each processes filter,
+and if accepted,
+it is buffered for the process to read.
+.Pp
+.Fn bpf_mtap
+is
+like
+.Fn bpf_tap
+except that it is used to tap packets that are in an mbuf chain,
+.Em m .
+.Em ifp
+is a pointer to the structure that defines the interface to be tapped.
+Like
+.Fn bpf_tap ,
+.Fn bpf_mtap
+requires a link-header for whatever data link layer type is specified.
+Note that
+.Nm
+only reads from the mbuf chain,
+it does not free it or keep a pointer to it.
+This means that a mbuf containing the link-header
+can be prepended to the chain if necessary.
+A cleaner interface to achieve this is provided by
+.Fn bpf_mtap2 .
+.Pp
+.Fn bpf_mtap2
+allows the user to pass a link-header
+.Em data ,
+of length
+.Em dlen ,
+independent of the mbuf
+.Em m ,
+containing the packet.
+This simplifies the passing of some link-headers.
+.Pp
+.Fn bpf_filter
+executes the filter program starting at
+.Em pc
+on the packet
+.Em pkt .
+.Em wirelen
+is the length of the original packet and
+.Em buflen
+is the amount of data present.
+.Pp
+.Fn bpf_validate
+checks that the filter code
+.Em fcode ,
+of length
+.Em flen ,
+is valid.
+.\"
+.Sh RETURN VALUES
+.Fn bpf_filter
+returns -1
+.Po cast to an unsigned integer
+.Pc
+if there is no filter.
+Otherwise, it returns the result of the filter program.
+.Pp
+.Fn bpf_validate
+returns 0 when the program is not a valid filter program.
+.\"
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 4 .
+.\"
+.Sh HISTORY
+The Enet packet filter was created in 1980 by Mike Accetta and
+Rick Rashid at Carnegie-Mellon University.
+Jeffrey Mogul,
+at Stanford,
+ported the code to
+.Bx
+and continued its development from 1983 on.
+Since then,
+it has evolved into the Ultrix Packet Filter at
+.Tn DEC ,
+a
+.Tn STREAMS
+.Tn NIT
+module under
+.Tn SunOS 4.1 ,
+and
+.Tn BPF .
+.\"
+.Sh AUTHORS
+.An -nosplit
+.An Steven McCanne ,
+of Lawrence Berkeley Laboratory, implemented BPF in Summer 1990.
+Much of the design is due to
+.An Van Jacobson .
+This manpage by was written by
+.An Orla McGann .

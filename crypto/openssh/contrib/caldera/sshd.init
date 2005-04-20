@@ -1,0 +1,125 @@
+#! /bin/bash
+#
+# $Id: sshd.init,v 1.4 2003/11/21 12:48:57 djm Exp $
+#
+### BEGIN INIT INFO
+# Provides:
+# Required-Start: $network
+# Required-Stop:
+# Default-Start:  3 4 5
+# Default-Stop:   0 1 2 6
+# Description: sshd
+#                Bring up/down the OpenSSH secure shell daemon.
+### END INIT INFO
+#
+# Written by Miquel van Smoorenburg <miquels@drinkel.ow.org>.
+# Modified for Debian GNU/Linux by Ian Murdock <imurdock@gnu.ai.mit.edu>.
+# Modified for OpenLinux by Raymund Will <ray@caldera.de>
+
+NAME=sshd
+DAEMON=/usr/sbin/$NAME
+# Hack-Alert(TM)!  This is necessary to get around the 'reload'-problem
+# created by recent OpenSSH daemon/ssd combinations. See Caldera internal
+# PR [linux/8278] for details...
+PIDF=/var/run/$NAME.pid
+NAME=$DAEMON
+
+_status() {
+  [ -z "$1" ] || local pidf="$1"
+  local ret=-1
+  local pid
+  if [ -n "$pidf" ] && [  -r "$pidf" ]; then
+    pid=$(head -1 $pidf)
+  else
+    pid=$(pidof $NAME)
+  fi
+
+  if [ ! -e $SVIlock ]; then
+    # no lock-file => not started == stopped?
+    ret=3
+  elif [ -n "$pidf" -a ! -f "$pidf" ] || [ -z "$pid" ]; then
+    # pid-file given but not present or no pid => died, but was not stopped
+    ret=2
+  elif [ -r /proc/$pid/cmdline ] &&
+       echo -ne $NAME'\000' | cmp -s - /proc/$pid/cmdline; then
+    # pid-file given and present or pid found => check process...
+    # but don't compare exe, as this will fail after an update!
+    # compares OK => all's well, that ends well...
+    ret=0
+  else
+    # no such process or exe does not match => stale pid-file or process died
+    #   just recently...
+    ret=1
+  fi
+  return $ret
+}
+
+# Source function library (and set vital variables).
+. @SVIdir@/functions
+
+case "$1" in
+ start)
+  [ ! -e $SVIlock ] || exit 0
+  [ -x $DAEMON ] || exit 5
+  SVIemptyConfig @sysconfdir@/sshd_config && exit 6
+
+  if [ ! \( -f @sysconfdir@/ssh_host_key -a            \
+	    -f @sysconfdir@/ssh_host_key.pub \) -a     \
+       ! \( -f @sysconfdir@/ssh_host_rsa_key -a        \
+	    -f @sysconfdir@/ssh_host_rsa_key.pub \) -a \
+       ! \( -f @sysconfdir@/ssh_host_dsa_key -a        \
+	    -f @sysconfdir@/ssh_host_dsa_key.pub \) ]; then
+
+    echo "$SVIsubsys: host key not initialized: skipped!"
+    echo "$SVIsubsys: use ssh-host-keygen to generate one!"
+    exit 6
+  fi
+
+  echo -n "Starting $SVIsubsys services: "
+  ssd -S -x $DAEMON -n $NAME -- $OPTIONS
+  ret=$?
+
+  echo  "."
+  touch $SVIlock
+  ;;
+
+ stop)
+  [ -e $SVIlock ] || exit 0
+
+  echo -n "Stopping $SVIsubsys services: "
+  ssd -K -p $PIDF -n $NAME
+  ret=$?
+
+  echo "."
+  rm -f $SVIlock
+  ;;
+
+ force-reload|reload)
+  [ -e $SVIlock ] || exit 0
+
+  echo "Reloading $SVIsubsys configuration files: "
+  ssd -K --signal 1 -q -p $PIDF -n $NAME
+  ret=$?
+  echo "done."
+  ;;
+
+ restart)
+  $0 stop
+  $0 start
+  ret=$?
+  ;;
+
+ status)
+  _status $PIDF
+  ret=$?
+  ;;
+
+ *)
+  echo "Usage: $SVIscript {[re]start|stop|[force-]reload|status}"
+  ret=2
+  ;;
+
+esac
+
+exit $ret
+

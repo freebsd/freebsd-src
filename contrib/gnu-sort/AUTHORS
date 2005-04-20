@@ -1,0 +1,86 @@
+Here are the names of the programs in this package,
+each followed by the name(s) of its author(s).
+
+basename: FIXME unknown
+cat: Torbjorn Granlund and Richard M. Stallman
+chgrp: David MacKenzie
+chmod: David MacKenzie
+chown: David MacKenzie
+chroot: Roland McGrath
+cksum: Q. Frank Xia
+comm: Richard Stallman and David MacKenzie
+cp: Torbjorn Granlund, David MacKenzie, and Jim Meyering
+csplit: Stuart Kemp and David MacKenzie
+cut: David Ihnat, David MacKenzie, and Jim Meyering
+date: David MacKenzie
+dd: Paul Rubin, David MacKenzie, and Stuart Kemp
+df: Torbjorn Granlund, David MacKenzie, Larry McVoy, and Paul Eggert
+dircolors: H. Peter Anvin
+dirname: David MacKenzie and Jim Meyering
+du: Torbjorn Granlund, David MacKenzie, Larry McVoy, and Paul Eggert
+echo: FIXME unknown
+env: Richard Mlynarik and David MacKenzie
+expand: David MacKenzie
+expr: Mike Parker
+factor: Paul Rubin
+false: no one
+fmt: Ross Paterson
+fold: David MacKenzie
+head: David MacKenzie
+hostid: Jim Meyering
+hostname: Jim Meyering
+id: Arnold Robbins and David MacKenzie
+install: David MacKenzie
+join: Mike Haertel
+kill: Paul Eggert
+link: Michael Stone
+ln: Mike Parker and David MacKenzie
+logname: FIXME: unknown
+ls: Richard Stallman and David MacKenzie
+md5sum: Ulrich Drepper and Scott Miller
+mkdir: David MacKenzie
+mkfifo: David MacKenzie
+mknod: David MacKenzie
+mv: Mike Parker, David MacKenzie, and Jim Meyering
+nice: David MacKenzie
+nl: Scott Bartram and David MacKenzie
+od: Jim Meyering
+paste: David M. Ihnat and David MacKenzie
+pathchk: David MacKenzie and Jim Meyering
+pinky: Joseph Arceneaux, David MacKenzie, and Kaveh Ghazi
+pr: Pete TerMaat and Roland Huebner
+printenv: David MacKenzie and Richard Mlynarik
+printf: David MacKenzie
+ptx: François Pinard
+pwd: Jim Meyering
+rm: Paul Rubin, David MacKenzie, Richard Stallman, and Jim Meyering
+rmdir: David MacKenzie
+seq: Ulrich Drepper
+shred: Colin Plumb
+sleep: Jim Meyering and Paul Eggert
+sort: Mike Haertel and Paul Eggert
+split: Torbjorn Granlund and Richard M. Stallman
+stat: Michael Meskes
+stty: David MacKenzie
+su: David MacKenzie
+sum: Kayvan Aghaiepour and David MacKenzie
+sync: Jim Meyering
+tac: Jay Lepreau and David MacKenzie
+tail: Paul Rubin, David MacKenzie, Ian Lance Taylor, and Jim Meyering
+tee: Mike Parker, Richard M. Stallman, and David MacKenzie
+test: FIXME: ksb and mjb
+touch: Paul Rubin, Arnold Robbins, Jim Kingdon, David MacKenzie, and Randy Smith
+tr: Jim Meyering
+true: no one
+tsort: Mark Kettenis
+tty: David MacKenzie
+uname: David MacKenzie
+unexpand: David MacKenzie
+uniq: Richard Stallman and David MacKenzie
+unlink: Michael Stone
+uptime: Joseph Arceneaux, David MacKenzie, and Kaveh Ghazi
+users: Joseph Arceneaux and David MacKenzie
+wc: Paul Rubin and David MacKenzie
+who: Joseph Arceneaux, David MacKenzie, and Michael Stone
+whoami: Richard Mlynarik
+yes: David MacKenzie

@@ -1,0 +1,350 @@
+.\" Copyright 2002 Sandvine Inc.
+.\" All rights reserved.
+.\"
+.\" Subject to the following obligations and disclaimer of warranty, use and
+.\" redistribution of this software, in source or object code forms, with or
+.\" without modifications are expressly permitted by Sandvine Inc.; provided,
+.\" however, that:
+.\" 1. Any and all reproductions of the source or object code must include the
+.\"    copyright notice above and the following disclaimer of warranties; and
+.\" 2. No rights are granted, in any manner or form, to use Sandvine Inc.
+.\"    trademarks, including the mark "SANDVINE" on advertising, endorsements,
+.\"    or otherwise except as such appears in the above copyright notice or in
+.\"    the software.
+.\"
+.\" THIS SOFTWARE IS BEING PROVIDED BY SANDVINE "AS IS", AND TO THE MAXIMUM
+.\" EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR WARRANTIES,
+.\" EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT LIMITATION,
+.\" ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+.\" PURPOSE, OR NON-INFRINGEMENT.  SANDVINE DOES NOT WARRANT, GUARANTEE, OR
+.\" MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE
+.\" USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY
+.\" OR OTHERWISE.  IN NO EVENT SHALL SANDVINE BE LIABLE FOR ANY DAMAGES
+.\" RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
+.\" WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+.\" PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" Author: Dave Chapeskie <dchapeskie@sandvine.com>
+.\" $FreeBSD$
+.\"
+.Dd November 1, 2002
+.Dt NG_SOURCE 4
+.Os
+.Sh NAME
+.Nm ng_source
+.Nd netgraph discard node type
+.Sh SYNOPSIS
+.In netgraph/ng_source.h
+.Sh DESCRIPTION
+The
+.Nm source
+node acts as a source of packets according to the parameters set up
+using control messages and input packets.
+The
+.Dv output
+hook must also be connected to a node that responds to the
+.Dv NGM_ETHER_COOKIE Ns / Ns
+.Dv NGM_ETHER_GET_IFINDEX
+message (e.g., an
+.Xr ng_ether 4
+node).
+This type is used for testing and debugging.
+.Pp
+The operation of the node is as follows:
+.Bl -bullet
+.It
+Packets received on the
+.Dv input
+hook are queued internally.
+.It
+On reception of a
+.Dv NGM_SOURCE_START
+message the node starts sending
+the queued packets out the
+.Dv output
+hook on every clock tick as fast
+as the connect interface will take them.
+.It
+While active, on every clock tick the node checks the available space
+in the
+.Va ifqueue
+of the interface connected to the output hook and sends
+that many packets out its
+.Dv output
+hook.
+.It
+Once the number of packets indicated in the start message have been
+sent, or on reception of a stop message, the node stops sending data.
+.El
+.Sh HOOKS
+The
+.Nm source
+node has two hooks:
+.Dv input
+and
+.Dv output .
+The
+.Dv output
+hook must remain connected, its disconnection will shutdown the node.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages as well as the following,
+which must be sent with the
+.Dv NGM_SOURCE_COOKIE
+attached.
+.Bl -tag -width indent
+.It Dv NGM_SOURCE_GET_STATS Pq Ic getstats
+Returns a structure containing the following fields:
+.Bl -tag -width indent
+.It Va outOctets
+The number of octets/bytes sent out the
+.Dv output
+hook.
+.It Va outFrames
+The number of frames/packets sent out the
+.Dv output
+hook.
+.It Va queueOctets
+The number of octets queued from the
+.Dv input
+hook.
+.It Va queueFrames
+The number of frames queued from the
+.Dv input
+hook.
+.It Va startTime
+The time the last start message was received.
+.It Va endTime
+The time the last end message was received or
+the output packet count was reached.
+.It Va elapsedTime
+Either
+.Va endTime Li \- Va startTime
+or current time
+\-
+.Va startTime .
+.El
+.It Dv NGM_SOURCE_CLR_STATS Pq Ic clrstats
+Clears and resets the statistics returned by
+.Ic getstats
+(except
+.Va queueOctets
+and
+.Va queueFrames ) .
+.It Dv NGM_SOURCE_GETCLR_STATS Pq Ic getclrstats
+As
+.Ic getstats
+but clears the statistics at the same time.
+.It Dv NGM_SOURCE_START Pq Ic start
+.Bl -bullet
+.It
+Takes a single
+.Vt u_int64_t
+parameter which is the number of packets to
+send before stopping.
+.It
+Starts sending the queued packets out the output hook.
+.It
+The output hook must be connected or
+.Er EINVAL
+is returned.
+.It
+The node connected to the output hook must respond to
+.Dv NGM_ETHER_GET_IFINDEX
+which is used to get the
+.Va ifqueue
+of the attached interface.
+.It
+.Dv NGM_ETHER_SET_AUTOSRC
+is sent to the node connected to the
+.Dv output
+hook
+to turn off automatic Ethernet source address overwriting (any errors
+from this message are ignored).
+.El
+.It Dv NGM_SOURCE_STOP Pq Ic stop
+Stops the node if it is active.
+.It Dv NGM_SOURCE_CLR_DATA Pq Ic clrdata
+Clears the packets queued from the
+.Dv input
+hook.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when the
+.Dv output
+hook has been disconnected.
+.Sh EXAMPLES
+Attach the node to an
+.Xr ng_ether 4
+node for an interface.
+If
+.Nm ng_ether
+is
+not already loaded you will need to do so.
+For example, these commands
+load the
+.Nm ng_ether
+module and attach the
+.Dv output
+hook of a new
+.Nm source
+node to
+.Dv orphans
+hook of the
+.Li bge0:
+.Nm ng_ether
+node.
+.Bd -literal -offset indent
+kldload ng_ether
+ngctl mkpeer bge0: source orphans output
+.Ed
+.Pp
+At this point the new node can be referred to as
+.Dq Li bge0:orphans .
+The
+node can be given its own name like this:
+.Pp
+.Dl "ngctl name bge0:orphans src0"
+.Pp
+After which it can be referred to as
+.Dq Li src0: .
+.Pp
+Once created, packets need to be sent to the node, the TCL net package
+can be used to generate these packets:
+.Pp
+[Sandvine specific TCL code example omitted]
+.Pp
+To feed the output of the above TCL script to the
+.Nm source
+node's
+.Dv input
+hook via
+.Xr nghook 8 :
+.Pp
+.Dl "tcl genPacket | nghook bge0:orphans input"
+.Pp
+To check that the node has queued these packets you can get the node
+statistics:
+.Bd -literal -offset indent
+ngctl msg bge0:orphans getstats
+Args:   { queueOctets=64 queueFrames=1 }
+.Ed
+.Pp
+Send as many packets as required out the
+.Dv output
+hook:
+.Pp
+.Dl "ngctl msg bge0:orphans start 16"
+.Pp
+Either wait for them to be sent (periodically fetching stats if desired)
+or send the stop message:
+.Pp
+.Dl "ngctl msg bge0:orphans stop"
+.Pp
+Check the statistics (here we use
+.Ic getclrstats
+to also clear the statistics):
+.Bd -literal -offset indent
+ngctl msg bge0:orphans getclrstats
+Args:   { outOctets=1024 outFrames=16 queueOctets=64 queueFrames=1
+startTime={ tv_sec=1035305880 tv_usec=758036 } endTime={ tv_sec=1035305880
+tv_usec=759041 } elapsedTime={ tv_usec=1005 } }
+.Ed
+.Pp
+The times are from
+.Vt "struct timeval" Ns s ,
+the
+.Va tv_sec
+field is seconds since
+the Epoch and can be converted into a date string via TCL's [clock
+format] or via the
+.Xr date 1
+command:
+.Bd -literal -offset indent
+date -r 1035305880
+Tue Oct 22 12:58:00 EDT 2002
+.Ed
+.Sh IMPLEMENTATION NOTES
+.No ( Fx 4.4
+version)
+.Pp
+The use of
+.Xr splimp 9
+around the
+.Dv NG_SEND_DATA
+loop is important.
+Without it,
+the time taken by a single invocation of
+.Fn ng_source_intr
+becomes too
+large and the packet rate drops.
+Probably due to the NIC starting to
+send the packets right away.
+.Pp
+Copying all the packets in one loop and sending them in another inside
+of
+.Fn ng_source_send
+is done to limit how long we are at
+.Xr splimp 9
+and gave
+minor packet rate increases (~5% at 256 byte packets).
+However note
+that if there are errors in the send loop, the remaining copied packets
+are simply freed and discarded; thus we skip those packets, and ordering
+of the input queue to the output is not maintained.
+.Pp
+Calling
+.Xr timeout 9
+at the end of
+.Fn ng_source_intr
+instead of near the
+beginning is done to help avoid CPU starvation if
+.Fn ng_source_intr
+takes a long time to run.
+.Pp
+The use of
+.Xr splnet 9
+may be sub-optimal.
+It is used for synchronization
+within the node (e.g., data received on the
+.Dv input
+hook while
+.Fn ng_source_send
+is active) but we do not want to hold it too long and risk
+starving the NIC.
+.Pp
+For clarity and simplicity, debugging messages and instrumentation code
+has been removed.
+On i386 one can include
+.In machine/cpufunc.h
+to have access to the
+.Fn rdtsc
+function to read the instruction counter at the
+start and end of
+.Fn ng_source_intr .
+Also useful is the packet count returned by
+.Fn ng_source_send .
+Do not try to report such things from within
+.Fn ng_source_intr ,
+instead include the values in
+.Va sc->stats .
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ng_echo 4 ,
+.Xr ng_hole 4 ,
+.Xr ng_tee 4 ,
+.Xr ngctl 8 ,
+.Xr nghook 8
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.8 .
+.Sh AUTHORS
+.An Dave Chapeskie Aq dchapeskie@SANDVINE.com

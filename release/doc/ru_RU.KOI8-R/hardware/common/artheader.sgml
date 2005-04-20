@@ -1,0 +1,24 @@
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/artheader.sgml,v 1.1 2004/05/27 06:09:42 den Exp $
+
+     Original revision: 1.5.2.1
+-->
+
+<articleinfo>
+  <title>Информация о оборудовании &os;/&arch; &release.current;</title>
+
+  <corpauthor>Проект документирования FreeBSD</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <holder role="mailto:doc@FreeBSD.org">Проект документирования FreeBSD</holder>
+  </copyright>
+</articleinfo>

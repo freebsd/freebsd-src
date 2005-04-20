@@ -1,0 +1,136 @@
+2004-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2004-04-07  Benjamin Monate  <benjamin.monate@cea.fr>
+	PR 86
+	* arsup.c (ar_save): Use smart_rename.
+
+	2004-04-01  Dean Luick <luick@cray.com>
+	* readelf.c (display_debug_pubnames): Align offset and data
+	columns.
+	(read_and_display_attr_value): Add missing break;
+	(debug_displays): Enable the display of the .debug_pubtypes
+	section.
+
+	2004-03-21  Richard Henderson  <rth@redhat.com>
+	* readelf.c (display_debug_frames): Don't crash for mismatched
+	DW_CFA_restore_state.
+
+	2004-03-10  Ben Elliston  <bje@gnu.org>
+	* MAINTAINERS: Update my mail address.
+
+	2004-03-08  Danny Smith  <dannysmith@users.sourceforge.net>
+	* deflex.l: Handle "PRIVATE" string.
+	* defparse.y (%token): Add PRIVATE.
+	(%type): Add opt_PRIVATE.
+	(expline): Pass opt_PRIVATE to def_exports.
+	(opt_PRIVATE): Handle PRIVATE token.
+	* dlltool.h (def_exports): Add 7th param for private flag to
+	declaration.
+	* dlltool.c: Add PRIVATE to comment on EXPORTS syntax.
+	(struct export): Add 'private' field.
+	(def_exports): Set 'private' field of struct exports.
+	(scan_drectve_symbols): Adjust calls to def_exports.
+	(scan_filtered_symbols): Likewise.
+	(dump_def_info): Print 'private' field.
+	(gen_def_file): Likewise.
+	(gen_lib_file): Skip generation of lib object if private.
+	Delete tmp object files in same order as they were generated.
+	Don't delete non-existent private object files.
+
+	2004-02-27  Andreas Schwab  <schwab@suse.de>
+	* ar.c (main): Support POSIX-compatible argument parsing.
+
+	2004-02-23  Daniel Lucq  <daniel@lucq.org>
+	* readelf.c (process_mips_specific): Print conflictsno as an
+	unsigned long.
+
+	2004-02-21  Dmitry Timoshkov  <dmitry@baikal.ru>
+	* dlltool.c (gen_exp_file): Always output names for forwarded symbols.
+
+	2004-02-19  Jakub Jelinek  <jakub@redhat.com>
+	* objcopy.c (copy_section): Avoid warnings.
+
+2004-02-14  Andrew Cagney  <cagney@redhat.com>
+
+	* ar.c (remove_output): Use bfd_cache_close.
+	* arsup.c (ar_end): Ditto.
+
+2004-01-21  Roland McGrath  <roland@redhat.com>
+
+	* readelf.c (get_note_type): Match NT_AUXV.
+
+2004-01-20  Nick Clifton  <nickc@redhat.com>
+
+	* version.c (print_version): Update copyright year to 2004.
+
+2004-01-14  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* acinclude.m4: Quote names of macros to be defined by AC_DEFUN
+	throughout.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2004-01-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* objcopy.c: Include elf-bfd.h.
+	(is_strip_section): Don't strip debugging sections if
+	STRIP_NONDEBUG.
+	(setup_section): If STRIP_NONDEBUG make SEC_ALLOC sections
+	~(SEC_LOAD | SEC_HAS_CONTENTS) and on ELF targets also SHT_NOBITS.
+
+	* objcopy.c (copy_section): Free relpp if relcount == 0.
+
+2004-01-12  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* stabs.c (parse_stab_argtypes): Handle g++ ABI version 3 names.
+	(stab_demangle_argtypes): Likewise.
+	(stab_demangle_v3_argtypes): New static function.
+	(stab_demangle_v3_arg): New static function.
+
+2004-01-12  Nick Clifton  <nickc@redhat.com>
+
+	* objcopy.c (copy_object): Make the function boolean, returning
+	FALSE upon failure.
+        (copy_archive): Handle the return value from copy_object.
+        (copy_file): Likewise.
+
+2004-01-07  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (find_section): New function.  Locates a named
+	section.
+	(get_debug_line_pointer_sizes): New function:  Initialises the
+	debug_line_pointer_sizes array.
+        (display_debug_lines): Call get_debug_line_pointer_sizes.
+        (display_debug_loc): Likewise.
+        (load_debug_loc): Use find_section.
+        (load_debug_str): Likewise.
+        (display_debug_info): Likewise.
+        (prescan_debug_info): Delete.
+        (debug_displays): Remove prescan field.
+        (process_section_contents): Do not perform prescans.
+
+2004-01-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (filter_bytes): Delete.  Move code to..
+	(copy_section): ..here.  Simplify size adjustment.  Divide
+	section lma by interleave.
+
+2004-01-02  Nick Clifton  <nickc@redhat.com>
+
+	* po/ru.po: New file: Russian translation.
+	* configure.in (ALL_LINGUAS): Add ru
+	* configure: Regenerate.
+
+For older changes see ChangeLog-0203
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

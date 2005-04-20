@@ -1,0 +1,113 @@
+#!/bin/sh
+#
+# $NetBSD: dhclient,v 1.8 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: dhclient
+# REQUIRE: netif ipfw ipfilter mountcritlocal
+# BEFORE:  NETWORKING
+# KEYWORD: nojail
+#
+#	Note that there no syslog logging of dhclient messages at boot because
+#	dhclient needs to start before services that syslog depends upon do.
+#
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="dhclient"
+rcvar=
+pidfile="/var/run/${name}.pid"
+start_precmd="dhclient_prestart"
+start_postcmd="dhclient_poststart"
+stop_precmd="dhclient_prestop"
+stop_postcmd="dhclient_poststop"
+
+dhclient_common()
+{
+	dhcp_list="`list_net_interfaces dhcp`"
+	if [ -z "$dhcp_list" ]; then
+		return 1
+	fi
+
+	# Determine the scope of the command
+	#
+	_cooked_list="$dhcp_list"
+	if [ -n "$_cmdifn" ]; then
+		eval _cooked_list=\"`expr "$dhcp_list" : ".*\($_cmdifn\).*"`\"
+		if [ -z "$_cooked_list" ]; then
+			err 1 "No such network interface: $_cmdifn"
+		fi
+	fi
+}
+
+dhclient_prestart()
+{
+	if [ $dhclient_common_error -eq 1 ]; then
+		return 1
+	fi
+	for ifn in ${_cooked_list}; do
+		ifscript_up ${ifn}
+	done
+
+	if checkyesno background_dhclient; then
+		rc_flags="${rc_flags} -nw"
+	fi
+
+	rc_flags="${rc_flags} ${_cooked_list}"
+	return 0
+}
+
+dhclient_poststart()
+{
+	for ifn in ${_cooked_list}; do
+		ifalias_up ${ifn}
+		ipx_up ${ifn}
+		ifconfig ${ifn}
+	done
+}
+
+dhclient_prestop()
+{
+	if [ $dhclient_common_error -eq 1 ]; then
+		return 1
+	fi
+	for ifn in ${_cooked_list}; do
+		ipx_down ${ifn}
+		ifalias_down ${ifn}
+	done
+	echo -n "Releasing DHCP leases:"
+	for ifn in $_cooked_list ; do
+		${command} -r $ifn
+		if [ $? -eq 0 ]; then
+			echo -n " $ifn"
+		else
+			_fail="$_fail $ifn"
+		fi
+	done
+	echo '.'
+	debug "The following leases failed to release: $_fail"
+}
+
+dhclient_poststop()
+{
+	for ifn in ${_cooked_list}; do
+		ifscript_down ${ifn}
+	done
+}
+
+if [ -n "$2" ]; then
+	_cmdifn="$2"
+	stop_cmd=":"
+fi
+
+load_rc_config $name
+dhclient_common_error=0
+dhclient_common || dhclient_common_error=1;
+if [ -n "$_cooked_list" ]; then
+	if [ -s $pidfile ]; then
+		stop_cmd=":"
+	fi
+fi
+run_rc_command "$1"

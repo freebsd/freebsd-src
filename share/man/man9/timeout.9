@@ -1,0 +1,506 @@
+.\"	$NetBSD: timeout.9,v 1.2 1996/06/23 22:32:34 pk Exp $
+.\"
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Paul Kranenburg.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2005
+.Dt TIMEOUT 9
+.Os
+.Sh NAME
+.Nm timeout ,
+.Nm untimeout ,
+.Nm callout_handle_init ,
+.Nm callout_init ,
+.Nm callout_stop ,
+.Nm callout_drain ,
+.Nm callout_reset ,
+.Nm callout_pending ,
+.Nm callout_active ,
+.Nm callout_deactivate
+.Nd execute a function after a specified length of time
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Pp
+.Bd -literal
+typedef void timeout_t (void *);
+.Ed
+.Ft struct callout_handle
+.Fn timeout "timeout_t *func" "void *arg" "int ticks"
+.Ft void
+.Fn callout_handle_init "struct callout_handle *handle"
+.Pp
+.Bd -literal
+struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
+.Ed
+.Ft void
+.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
+.Ft void
+.Fn callout_init "struct callout *c" "int mpsafe"
+.Ft int
+.Fn callout_stop "struct callout *c"
+.Ft int
+.Fn callout_drain "struct callout *c"
+.Ft void
+.Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Ft int
+.Fn callout_pending "struct callout *c"
+.Ft int
+.Fn callout_active "struct callout *c"
+.Fn callout_deactivate "struct callout *c"
+.Sh DESCRIPTION
+The function
+.Fn timeout
+schedules a call to the function given by the argument
+.Fa func
+to take place after
+.Fa ticks Ns No /hz
+seconds.
+Non-positive values of
+.Fa ticks
+are silently converted to the value
+.Sq 1 .
+.Fa func
+should be a pointer to a function that takes a
+.Fa void *
+argument.
+Upon invocation,
+.Fa func
+will receive
+.Fa arg
+as its only argument.
+The return value from
+.Fn timeout
+is a
+.Ft struct callout_handle
+which can be used in conjunction with the
+.Fn untimeout
+function to request that a scheduled timeout be canceled.
+The
+.Fn timeout
+call is the old style and new code should use the
+.Fn callout_*
+functions.
+.Pp
+The function
+.Fn callout_handle_init
+can be used to initialize a handle to a state which will cause
+any calls to untimeout with that handle to return with no side
+effects.
+.Pp
+Assigning a callout handle the value of
+.Fn CALLOUT_HANDLE_INITIALIZER
+performs the same function as
+.Fn callout_handle_init
+and is provided for use on statically declared or global callout handles.
+.Pp
+The function
+.Fn untimeout
+cancels the timeout associated with
+.Fa handle
+using the
+.Fa func
+and
+.Fa arg
+arguments to validate the handle.
+If the handle does not correspond to a timeout with
+the function
+.Fa func
+taking the argument
+.Fa arg
+no action is taken.
+.Fa handle
+must be initialized by a previous call to
+.Fn timeout ,
+.Fn callout_handle_init ,
+or assigned the value of
+.Fn CALLOUT_HANDLE_INITIALIZER "&handle"
+before being passed to
+.Fn untimeout .
+The behavior of calling untimeout without a previously initialized handle
+is undefined.
+The
+.Fn untimeout
+call is the old style and new code should use the
+.Fn callout_*
+functions.
+.Pp
+As handles are recycled by the system, it is possible (although unlikely)
+that a handle from one invocation of
+.Fn timeout
+may match the handle of another invocation of
+.Fn timeout
+if both calls used the same function pointer and argument, and the first
+timeout is expired or canceled before the second call.
+The timeout facility offers O(1) running time for
+.Fn timeout
+and
+.Fn untimeout .
+Timeouts are executed from
+.Fn softclock
+with the
+.Va Giant
+lock held.
+Thus they are protected from re-entrancy.
+.Pp
+The functions
+.Fn callout_init ,
+.Fn callout_stop ,
+.Fn callout_drain
+and
+.Fn callout_reset
+are low-level routines for clients who wish to allocate their own
+callout structures.
+.Pp
+The function
+.Fn callout_init
+initializes a callout so it can be passed to
+.Fn callout_stop ,
+.Fn callout_drain
+or
+.Fn callout_reset
+without any side effects.
+If the
+.Fa mpsafe
+argument is zero,
+the callout structure is not considered to be
+.Dq multi-processor safe ;
+that is,
+the Giant lock will be acquired before calling the callout function,
+and released when the callout function returns.
+.Pp
+The function
+.Fn callout_stop
+cancels a callout if it is currently pending.
+If the callout is pending, then
+.Fn callout_stop
+will return a non-zero value.
+If the callout is not set, has already been serviced or is currently
+being serviced, then zero will be returned.
+If the callout is protected by the
+.Va Giant
+mutex, then
+.Va Giant
+must be held when this function is called.
+.Pp
+The function
+.Fn callout_drain
+is identical to
+.Fn callout_stop
+except that it will wait for the callout to be completed if it is
+already in progress.
+This function MUST NOT be called while holding any
+locks on which the callout might block, or deadlock will result.
+Note that if the callout subsystem has already begun processing this
+callout, then the callout function may be invoked during the execution of
+.Fn callout_drain .
+However, the callout subsystem does guarantee that the callout will be
+fully stopped before
+.Fn callout_drain
+returns.
+.Pp
+The function
+.Fn callout_reset
+first performs the equivalent of
+.Fn callout_stop
+to disestablish the callout, and then establishes a new callout in the
+same manner as
+.Fn timeout .
+If the callout is protected by the
+.Va Giant
+mutex, then
+.Va Giant
+must be held when this function is called.
+.Pp
+The macros
+.Fn callout_pending ,
+.Fn callout_active
+and
+.Fn callout_deactivate
+provide access to the current state of the callout.
+Careful use of these macros can avoid many of the race conditions
+that are inherent in asynchronous timer facilities; see
+.Sx "Avoiding Race Conditions"
+below for further details.
+The
+.Fn callout_pending
+macro checks whether a callout is
+.Em pending ;
+a callout is considered
+.Em pending
+when a timeout has been set but the time has not yet arrived.
+Note that once the timeout time arrives and the callout subsystem
+starts to process this callout,
+.Fn callout_pending
+will return
+.Dv FALSE
+even though the callout function may not have finished (or even begun)
+executing.
+The
+.Fn callout_active
+macro checks whether a callout is marked as
+.Em active ,
+and the
+.Fn callout_deactivate
+macro clears the callout's
+.Em active
+flag.
+The callout subsystem marks a callout as
+.Em active
+when a timeout is set and it clears the
+.Em active
+flag in
+.Fn callout_stop
+and
+.Fn callout_drain ,
+but it
+.Em does not
+clear it when a callout expires normally via the execution of the
+callout function.
+.Ss "Avoiding Race Conditions"
+The callout subsystem invokes callout functions from its own timer
+context.
+Without some kind of synchronization it is possible that a callout
+function will be invoked concurrently with an attempt to stop or reset
+the callout by another thread.
+In particular, since callout functions typically acquire a mutex as
+their first action, the callout function may have already been invoked,
+but be blocked waiting for that mutex at the time that another thread
+tries to reset or stop the callout.
+.Pp
+The callout subsystem provides a number of mechanisms to address these
+synchronization concerns:
+.Bl -enum -offset indent
+.It
+If the callout is protected by the
+.Va Giant
+mutex (specified using
+.Fn callout_init
+with
+.Fa mpsafe
+set to
+.Dv FALSE ) ,
+then this mutex is used to avoid the race conditions.
+The
+.Va Giant
+mutex must be acquired by the caller before calling
+.Fn callout_stop
+or
+.Fn callout_reset
+and it is guaranteed that the callout will be correctly stopped
+or reset as expected.
+Note that it is still necessary to use
+.Fn callout_drain
+before destroying the callout or its associated mutex.
+.It
+The return value from
+.Fn callout_stop
+indicates whether or not the callout was removed.
+If it is known that the callout was set and the callout function has
+not yet executed, then a return value of
+.Dv FALSE
+indicates that the callout function is about to be called.
+For example:
+.Bd -literal -offset indent
+if (sc->sc_flags & SCFLG_CALLOUT_RUNNING) {
+	if (callout_stop(&sc->sc_callout)) {
+		sc->sc_flags &= ~SCFLG_CALLOUT_RUNNING;
+		/* successfully stopped */
+	} else {
+		/*
+		 * callout has expired and callout
+		 * function is about to be executed
+		 */
+	}
+}
+.Ed
+.Pp
+Note that there is no equivalent mechanism to determine whether or not
+.Fn callout_reset
+stopped the callout.
+.It
+The
+.Fn callout_pending ,
+.Fn callout_active
+and
+.Fn callout_deactivate
+macros can be used together to work around the race conditions.
+When a callout's timeout is set, the callout subsystem marks the
+callout as both
+.Em active
+and
+.Em pending .
+When the timeout time arrives, the callout subsystem begins processing
+the callout by first clearing the
+.Em pending
+flag.
+It then invokes the callout function without changing the
+.Em active
+flag, and does not clear the
+.Em active
+flag even after the callout function returns.
+The mechanism described here requires the callout function itself to
+clear the
+.Em active
+flag using the
+.Fn callout_deactivate
+macro.
+The
+.Fn callout_stop
+and
+.Fn callout_drain
+functions always clear both the
+.Em active
+and
+.Em pending
+flags before returning.
+.Pp
+The callout function should first check the
+.Em pending
+flag and return without action if
+.Fn callout_pending
+returns
+.Dv TRUE .
+This indicates that the callout was rescheduled using
+.Fn callout_reset
+just before the callout function was invoked.
+If
+.Fn callout_active
+returns
+.Dv FALSE
+then the callout function should also return without action.
+This indicates that the callout has been stopped.
+Finally, the callout function should call
+.Fn callout_deactivate
+to clear the
+.Em active
+flag.
+For example:
+.Bd -literal -offset indent
+mtx_lock(&sc->sc_mtx);
+if (callout_pending(&sc->sc_callout)) {
+	/* callout was reset */
+	mtx_unlock(&sc->sc_mtx);
+	return;
+}
+if (!callout_active(&sc->sc_callout)) {
+	/* callout was stopped */
+	mtx_unlock(&sc->sc_mtx);
+	return;
+}
+callout_deactivate(&sc->sc_callout);
+/* rest of callout function */
+.Ed
+.Pp
+Together with appropriate synchronization, such as the mutex used above,
+this approach permits the
+.Fn callout_stop
+and
+.Fn callout_reset
+functions to be used at any time without races.
+For example:
+.Bd -literal -offset indent
+mtx_lock(&sc->sc_mtx);
+callout_stop(&sc->sc_callout);
+/* The callout is effectively stopped now. */
+.Ed
+.Pp
+If the callout is still pending then these functions operate normally,
+but if processing of the callout has already begun then the tests in
+the callout function cause it to return without further action.
+Synchronization between the callout function and other code ensures that
+stopping or resetting the callout will never be attempted while the
+callout function is past the
+.Fn callout_deactivate
+call.
+.Pp
+The above technique additionally ensures that the
+.Em active
+flag always reflects whether the callout is effectively enabled or
+disabled.
+If
+.Fn callout_active
+returns false, then the callout is effectively disabled, since even if
+the callout subsystem is actually just about to invoke the callout
+function, the callout function will return without action.
+.El
+.Pp
+There is one final race condition that must be considered when a
+callout is being stopped for the last time.
+In this case it may not be safe to let the callout function itself
+detect that the callout was stopped, since it may need to access
+data objects that have already been destroyed or recycled.
+To ensure that the callout is completely finished, a call to
+.Fn callout_drain
+should be used.
+.Sh RETURN VALUES
+The
+.Fn timeout
+function returns a
+.Ft struct callout_handle
+that can be passed to
+.Fn untimeout .
+The
+.Fn callout_stop
+and
+.Fn callout_drain
+functions return non-zero if the callout was still pending when it was
+called or zero otherwise.
+.Sh HISTORY
+The current timeout and untimeout routines are based on the work of
+.An Adam M. Costello
+and
+.An George Varghese ,
+published in a technical report entitled
+.%T "Redesigning the BSD Callout and Timer Facilities"
+and modified slightly for inclusion in
+.Fx
+by
+.An Justin T. Gibbs .
+The original work on the data structures used in this implementation
+was published by
+.An G. Varghese
+and
+.An A. Lauck
+in the paper
+.%T "Hashed and Hierarchical Timing Wheels: Data Structures for the Efficient Implementation of a Timer Facility"
+in the
+.%B "Proceedings of the 11th ACM Annual Symposium on Operating Systems Principles" .
+The current implementation replaces the long standing
+.Bx
+linked list
+callout mechanism which offered O(n) insertion and removal running time
+but did not generate or require handles for untimeout operations.

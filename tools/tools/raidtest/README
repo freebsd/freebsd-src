@@ -1,0 +1,29 @@
+[ $FreeBSD$ ]
+
+This utility can be used to test performance of storage devices.
+First, one need to generate file with I/O operations:
+
+	# set mediasize=`diskinfo /dev/<device> | awk '{print $3}'`
+	# set sectorsize=`diskinfo /dev/<device> | awk '{print $2}'`
+	# raidtest genfile -s $mediasize -S $sectorsize -n 50000
+
+It will generate test which contains 50000 I/O requests with random
+size and random offset. Size is a multiple of sectorsize, but less than or
+equal to 128kB (maxium size of I/O request). I/O request type (READ or WRITE)
+is random as well.
+All test data are stored in 'raidtest.data' file in current working directory.
+
+To run test, one should type:
+
+	# raidtest test -d /dev/<device> -n 10
+
+This command will read test data from 'raidtest.data' file, run 10 processes
+which will be used to send requests to the given device in parallel.
+When test is finished you will see statistics:
+
+	Bytes per second: <x>
+	Requests per second: <y>
+
+If you compare performance of two storage devices, use the same data file!
+
+	-- Pawel Jakub Dawidek <pjd@FreeBSD.org>

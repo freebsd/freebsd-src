@@ -1,0 +1,466 @@
+
+
+INTERNET-DRAFT                                    Donald E. Eastlake 3rd
+UPDATES RFC 2845                                   Motorola Laboratories
+Expires: February 2005                                       August 2004
+
+
+                  HMAC SHA TSIG Algorithm Identifiers
+                  ---- --- ---- --------- -----------
+                  <draft-ietf-dnsext-tsig-sha-00.txt>
+
+
+Status of This Document
+
+   By submitting this Internet-Draft, I certify that any applicable
+   patent or other IPR claims of which I am aware have been disclosed,
+   or will be disclosed, and any of which I become aware will be
+   disclosed, in accordance with RFC 3668.
+
+   This draft is intended to be become a Proposed Standard RFC.
+   Distribution of this document is unlimited. Comments should be sent
+   to the DNSEXT working group mailing list <namedroppers@ops.ietf.org>.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than a "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/1id-abstracts.html
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html
+
+
+Abstract
+
+   Use of the TSIG DNS resource record requires specification of a
+   cryptographic message authentication code.  Currently identifiers
+   have been specified only for the HMAC-MD5 and GSS TSIG algorithms.
+   This document standardizes identifiers for additional HMAC SHA TSIG
+   algorithms and standardizes how to specify the truncation of HMAC
+   values.
+
+
+Copyright Notice
+
+   Copyright (C) The Internet Society 2004. All Rights Reserved.
+
+
+
+
+D. Eastlake 3rd                                                 [Page 1]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+Table of Contents
+
+      Status of This Document....................................1
+      Abstract...................................................1
+      Copyright Notice...........................................1
+
+      Table of Contents..........................................2
+
+      1. Introduction............................................3
+
+      2. Algorithms and Identifiers..............................4
+
+      3. Specifying Truncation...................................5
+
+      4. IANA Considerations.....................................6
+      5. Security Considerations.................................6
+      6. Copyright and Disclaimer................................6
+
+      7. Normative References....................................7
+      8. Informative References..................................7
+
+      Authors Address............................................8
+      Expiration and File Name...................................8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 2]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+1. Introduction
+
+   [RFC 2845] specifies a TSIG Resource Record (RR) that can be used to
+   authenticate DNS queries and responses. This RR contains a domain
+   name syntax data item which names the authentication algorithm used.
+   [RFC 2845] defines the HMAC-MD5.SIG-ALG.REG.INT name for
+   authentication codes using the HMAC [RFC 2104] algorithm with the MD5
+   [RFC 1321] hash algorithm. IANA has also registered "gss-tsig" as an
+   identifier for TSIG authentication where the cryptographic operations
+   are delegated to GSS [RFC 3645].
+
+   In section 2, this document specifies additional names for TSIG
+   authentication algorithms based on US NIST SHA algorithms and HMAC.
+
+   In section 3, this document specifies the meaning of inequality
+   between the normal output size of the specified hash function and the
+   length of MAC (message authentication code) data given in the TSIG
+   RR. In particular, it specifies that a shorter length field value
+   specifies truncation and a longer length field is an error.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 3]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+2. Algorithms and Identifiers
+
+   TSIG Resource Records (RRs) [RFC 2845] are used to authenticate DNS
+   queries and responses.  They are intended to be efficient symmetric
+   authentication codes based on a shared secret. (Asymmetric signatures
+   can be provided using the SIG RR [RFC 2931]. In particular, SIG(0)
+   can be used for transaction signatures.) Used with a strong hash
+   function, HMAC [RFC 2104] provides a way to calculate such symmetric
+   authentication codes. The only specified HMAC based TSIG algorithm
+   identifier has been HMAC-MD5.SIG-ALG.REG.INT based on MD5 [RFC 1321].
+
+   The use of SHA-1 [FIPS 180-1, RFC 3174], which is a 160 bit hash, as
+   compared with the 128 bits for MD5, and additional hash algorithms in
+   the SHA family [FIPS 180-2, RFC sha224] with 224, 256, 384, and 512
+   bits, may be preferred in some case. Use of TSIG between a DNS
+   resolver and server is by mutual agreement. That agreement can
+   include the support of additional algorithms.
+
+   For completeness in relation to HMAC based algorithms, the current
+   HMAC-MD5.SIG-ALG.REG.INT identifier is included in the table below.
+   Implementations which support TSIG MUST implement HMAC MD5, SHOULD
+   implement HMAC SHA-1, and MAY implement gss-tsig and the other
+   algorithms listed below.
+
+         Mandatory      HMAC-MD5.SIG-ALG.REG.INT
+         Recommended    hmac-sha1
+         Optional       hmac-sha224
+         Optional       hmac-sha256
+         Optional       hamc-sha384
+         Optional       hmac-sha512
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 4]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+3. Specifying Truncation
+
+   In some cases, it is reasonable to truncate the output of HMAC and
+   use the truncated value for authentication. HMAC SHA-1 truncated to
+   96 bits is an optional available in several IETF protocols including
+   IPSEC and TLS.
+
+   The TSIG RR [RFC 2845] includes a "MAC size" field, which gives the
+   size of the MAC field in octets. But [RFC 2845] does not specify what
+   to do if this MAC size differs from the length of the output of HMAC
+   for a particular hash function.
+
+   The specification for TSIG handling is changed as follows:
+
+   1. If The "MAC size" field is larger than the HMAC output length or
+      is zero: This case MUST NOT be generated and if received MUST
+      cause the packet to be dropped and RCODE 1 (FORMERR) to be
+      returned.
+
+   2. If the "MAC size" field equals the HMAC output length: Operation
+      is as described in [RFC 2845].
+
+   3. If the "MAC size" field is less than the HMAC output length but is
+      not zero: This is sent when the signer has truncated the HMAC
+      output as described in RFC 2104, taking initial octets and
+      discarding trailing octets. TSIG truncation can only be to an
+      integral number of octets. On receipt of a packet with truncation
+      thus indicated, the locally calculated MAC is similarly truncated
+      and only the truncated values compared for authentication.
+
+   TSIG implementations SHOULD implement SHA-1 truncated to 96 bits (12
+   octets) and MAY implement any or all other truncations valid under
+   case 3 above.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 5]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+4. IANA Considerations
+
+   This document, on approval for publication as a standards track RFC,
+   registers the new TSIG algorithm identifiers listed in Section 2 with
+   IANA.
+
+
+
+5. Security Considerations
+
+   For all of the message authentication code algorithms listed herein,
+   those producing longer values are believed to be stronger; however,
+   while there are some arguments that mild truncation can strengthen a
+   MAC by reducing the information available to an attacker, excessive
+   truncation clearly weakens authentication by reducing the number of
+   bits an attacker has to try to force. See [RFC 2104] which recommends
+   that ah HMAC never be truncated to less than half its length nor to
+   less than 80 bits (10 octets).
+
+   See also the Security Considerations section of [RFC 2845].
+
+
+
+6. Copyright and Disclaimer
+
+   Copyright (C) The Internet Society 2004.  This document is subject to
+   the rights, licenses and restrictions contained in BCP 78 and except
+   as set forth therein, the authors retain all their rights.
+
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 6]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+7. Normative References
+
+   [FIPS 180-2] - "Secure Hash Standard", (SHA-1/256/384/512) US Federal
+   Information Processing Standard, Draft, 1 August 2002.
+
+   [RFC 1321] - Rivest, R., "The MD5 Message-Digest Algorithm ", RFC
+   1321, April 1992.
+
+   [RFC 2104] - Krawczyk, H., Bellare, M., and R. Canetti, "HMAC: Keyed-
+   Hashing for Message Authentication", RFC 2104, February 1997.
+
+   [RFC 2434] - Narten, T. and H. Alvestrand, "Guidelines for Writing an
+   IANA Considerations Section in RFCs", BCP 26, RFC 2434, October 1998.
+
+   [RFC 2845] - Vixie, P., Gudmundsson, O., Eastlake 3rd, D., and B.
+   Wellington, "Secret Key Transaction Authentication for DNS (TSIG)",
+   RFC 2845, May 2000.
+
+   [RFC sha224] - "A 224-bit One-way Hash Function: SHA-224", R.
+   Housley, December 2003, work in progress, draft-ietf-pkix-
+   sha224-*.txt.
+
+
+
+8. Informative References.
+
+   [FIPS 180-1] - Secure Hash Standard, (SHA-1) US Federal Information
+   Processing Standard, 17 April 1995.
+
+   [RFC 2931] - Eastlake 3rd, D., "DNS Request and Transaction
+   Signatures ( SIG(0)s )", RFC 2931, September 2000.
+
+   [RFC 3174] - Eastlake 3rd, D. and P. Jones, "US Secure Hash Algorithm
+   1 (SHA1)", RFC 3174, September 2001.
+
+   [RFC 3645] - Kwan, S., Garg, P., Gilroy, J., Esibov, L., Westhead,
+   J., and R. Hall, "Generic Security Service Algorithm for Secret Key
+   Transaction Authentication for DNS (GSS-TSIG)", RFC 3645, October
+   2003.
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 7]
+
+
+INTERNET-DRAFT                                 HMAC-SHA TSIG Identifiers
+
+
+Authors Address
+
+   Donald E. Eastlake 3rd
+   Motorola Laboratories
+   155 Beaver Street
+   Milford, MA 01757 USA
+
+   Telephone:   +1-508-786-7554 (w)
+                +1-508-634-2066 (h)
+   EMail:       Donald.Eastlake@motorola.com
+
+
+
+Expiration and File Name
+
+   This draft expires in February 2005.
+
+   Its file name is draft-ietf-dnsext-tsig-sha-00.txt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+D. Eastlake 3rd                                                 [Page 8]
+
+

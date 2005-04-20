@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: disks
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="vinum"
+rcvar="start_vinum"
+start_cmd="vinum start"
+stop_cmd=":"
+
+load_rc_config $name
+run_rc_command "$1"

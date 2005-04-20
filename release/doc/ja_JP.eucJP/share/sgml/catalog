@@ -1,0 +1,12 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Language-specific --
+
+  -- $FreeBSD$ --
+
+PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
+       "release.dsl"
+PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA"
+       "dev-auto-ja.sgml"
+
+
+

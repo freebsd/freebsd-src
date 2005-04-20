@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $NetBSD: swap2,v 1.6 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: nonlocalswap
+# REQUIRE: mountcritremote
+# BEFORE:  DAEMON
+
+. /etc/rc.subr
+
+name="swap2"
+start_cmd="swap2_start"
+
+swap2_start()
+{
+	#	"Critical" file systems are now mounted.  Go ahead and swap
+	#	to files now, since they will be residing in the critical file
+	#	systems (or, at least, they should be...).
+	#	Check for no swap, and warn about it unless that is desired.
+	#
+	swapctl -A -t noblk;
+	if ! checkyesno no_swap; then
+		if swapctl -s | grep "no swap devices configured" > /dev/null;
+		then
+			warn "No swap space configured!"
+		fi
+	fi
+}
+
+#		Remove all non-block-type swap devices
+#
+stop_cmd="swapctl -U -t noblk"
+
+load_rc_config swap
+run_rc_command "$1"

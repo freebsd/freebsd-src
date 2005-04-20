@@ -1,0 +1,12 @@
+$FreeBSD$
+
+GNU regex (from grep):
+
+originals can be found at:
+http://download.fedora.redhat.com/pub/fedora/linux/core/2/SRPMS/grep-2.5.1-26.src.rpm
+
+Imported by:
+
+cvs import \
+	-m "Import of GNU regex from GNU grep 2.5.1 (trimmed)." \
+	src/gnu/lib/libregex FSF from_grep_v2_5_1

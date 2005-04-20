@@ -1,0 +1,27 @@
+$Id: INSTALL,v 1.2 2002/09/11 16:32:09 karl Exp $
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.
+
+For generic installation instructions on compiling and installing this
+Automake-based distribution, please read the file `INSTALL.generic'.
+
+Installation notes specific to Texinfo:
+
+* The Info tree uses a file `dir' as its root node; the `dir-example'
+  file in this distribution is included as a possible starting point.
+  Use it, modify it, or ignore it just as you like.
+
+* You can create a file texinfo.cnf to be read by TeX when
+  processing Texinfo manuals.  For example, you might like to use
+  @afourpaper by default.  See the `Preparing for TeX' node in
+  texinfo.txi for more details.  You don't have to create the file if
+  you have nothing to put in it.
+
+* If your info files are not in $prefix/info, you may wish to add a line
+#define DEFAULT_INFOPATH "/mydir1:/mydir2:..."
+  to config.h after running configure.
+
+* For instructions on compiling this distribution with DJGPP tools
+  for MS-DOS and MS-Windows, see the file djgpp/README.

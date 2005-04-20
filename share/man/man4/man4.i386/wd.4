@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 1994 Wilko Bulte
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 31, 1994
+.Dt WD 4 i386
+.Os
+.Sh NAME
+.Nm wd ,
+.Nm wdc
+.Nd generic WD100x/IDE disk controller driver
+.Sh SYNOPSIS
+.Cd "device wdc0 at isa? port IO_WD1 irq 14" Op flags Ar flags
+.Cd device wd0 at wdc0 drive 0
+.Cd "device wd1 at wdc0 drive 1" Op flags Ar flags
+.Sh DESCRIPTION
+This driver provides access to disks connected to controllers that emulate
+the Western Digital WD100x series.
+This range of controllers includes WD1003
+type ST412 controllers, WD1007 ESDI controllers and also the generic IDE
+controllers found on most motherboards.
+.Pp
+Your controller documentation is usually quick to point out any WD100x
+compatibility.
+.Pp
+You can convey a number of hints and instructions to the driver using
+the
+.Ar flags
+parameter.
+.Pp
+For each drive there are six bit-fields encoded in a 16 bit integer:
+.Bl -tag -width 0x0000
+.It 0x8000
+Test and use the 32bit transfer capability of the drive.
+.It 0x4000
+If drive looks like it's coming out of sleep mode, assume it's
+confused and reinitialize it.
+.It 0x2000
+Probe for and use the bus-mastering DMA capabilities of modern
+PCI chipsets.
+.It 0x1000
+Use LBA addressing instead of the default CHS addressing.
+.It 0x0f00
+Force number of heads to ((flags & 0xf00)>>8), recalculate number
+of cylinders to match.
+.It 0x00ff
+Test and use multi-sector transfer mode of this drive, max number of
+sectors attempted is (flags & 0x00ff).
+.El
+.Pp
+The flags can be specified on the line for the drive as a 16 bit int,
+or on the controller line as a 32 bit int, where the top 16 bit is
+relevant to the highest numbered drive.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /dev/wd*
+wd device nodes
+.It Pa /sys/i386/conf/GENERIC
+sample generic kernel config file for (a.o.) wd based systems
+.It Pa /sys/i386/isa/wd.c
+driver source
+.El
+.Sh NOTES
+This driver will soon be completely replaced by the ata and ad drivers.

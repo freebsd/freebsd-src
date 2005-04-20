@@ -1,0 +1,428 @@
+<!--
+	$FreeBSD$
+
+	This file contains the comments of the old TROUBLE.TXT file.
+-->
+<sect1 id="trouble">
+  <title>Troubleshooting</title>
+
+  <sect2 id="repairing">
+    <title>Repairing an Existing &os; Installation</title>
+
+    <para>&os; features a <quote>fixit</quote> option in the top menu
+      of the &man.sysinstall.8; installation program.  It provides a
+      shell with common programs from the &os; base system; this
+      environment is useful for repairing or troubleshooting an
+      existing &os; installation.  To use fixit mode, you will also
+      need either the <filename>fixit.flp</filename> floppy, generated
+      in the same fashion as the boot floppies, or the <quote>live
+      filesystem</quote> CDROM.  In multi-disk &os; distributions, the
+      live filesystem image is typically located on the installation
+      disk.  Note that some UNIX system administration experience is
+      required to use the fixit option.</para>
+
+    <para>Generally, there are two ways of invoking fixit mode.  Users
+      who can boot from the &os; installation CDROM, should do so and
+      then choose the <quote>fixit</quote> item from the main
+      &man.sysinstall.8; menu.  Then select the
+      <quote>CDROM/DVD</quote> option from the fixit menu.</para>
+
+    <para>Users who cannot boot from CDROM, but can boot from floppy
+      disk, require a few more steps.  In addition to the
+      <filename>boot.flp</filename> and
+      <filename>kern<replaceable>X</replaceable>.flp</filename> disks
+      required for installation, create the
+      <filename>fixit.flp</filename> floppy disk, in the same way as
+      the other floppy disks.  Follow the instructions for booting the
+      installation program from floppy disk until reaching the main
+      &man.sysinstall.8; menu.  At that point, choose the
+      <quote>fixit</quote> item from the main &man.sysinstall.8; menu.
+      Then select the <quote>Floppy</quote> option from the fixit
+      menu, and insert the <filename>fixit.flp</filename> floppy disk
+      when prompted to do so.</para>
+
+    <para>The CDROM and floppy fixit environments are similar, but not
+      identical.  Both offer a shell with a variety of commands
+      available for checking, repairing and examining filesystems and
+      their contents.  The CDROM version of fixit provides all of the
+      commands and programs available in the &os; base system, through
+      the live filesystem.  By contrast, the floppy fixit environment
+      can only offer a subset of commands due to space constraints.</para>
+
+    <para>In the floppy version of fixit, some standalone utilities
+      can be found in <filename>/stand</filename> or
+      <filename>/mnt2/stand</filename>.  In the CDROM version of
+      fixit, these same programs can be found in
+      <filename>/stand</filename> or
+      <filename>/mnt2/rescue</filename> (as well as the rest of
+      the programs from the live filesystem, which can be found under
+      <filename>/mnt</filename>).</para>
+
+  </sect2>
+
+  <sect2>
+    <title>Common Installation Problems for &arch.print; Architecture Users</title>
+
+    <qandaset arch="i386,amd64">
+      <qandaentry>
+        <question>
+          <para>My system hangs while probing hardware during boot, or it
+            behaves strangely during install, or the floppy drive isn't
+            probed.</para>
+        </question>
+        <answer>
+          <para>&os; 5.0 and above makes extensive use of the system ACPI
+            service on the i386 platform to aid in system configuration if it's
+            detected during boot.  Unfortunately, some bugs still exist in both
+            the ACPI driver and within system motherboards and BIOS.  The use
+            of ACPI can be disabled by setting the
+            <quote>hint.acpi.0.disabled</quote> hint in the third stage boot
+            loader:</para>
+
+          <screen>set hint.acpi.0.disabled="1"</screen>
+
+          <para>This is reset each time the system is booted, so it is
+            necessary to add <literal>hint.acpi.0.disabled="1"</literal>
+            to the file
+            <filename>/boot/loader.conf</filename>.  More information about the
+            boot loader can be found in the FreeBSD Handbook.</para>
+        </answer>
+      </qandaentry>
+      <qandaentry arch="amd64">
+        <question>
+          <para>My system uses the nVidia nForce3 Pro-150 chipset and I get hangs
+	    at the end of boot or suddenly starts losing interrupts.</para>
+	</question>
+	<answer>
+	  <para>There are problems with the apic on this chipset and/or the
+	    bios on every machine that we had seen at the time of release.
+	    While disabling ACPI as above will work, a less drastic option may
+	    be to set the <quote>hint.apic.0.disabled</quote> hint instead.
+	    If you have the option in the bios, try disabling the APIC support.
+	    Unfortunately some machines lack this option.
+	  </para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>My legacy ISA device used to be recognized in previous versions
+            of &os;, but now it's not.  What happened?</para>
+        </question>
+        <answer>
+          <para>Some device drivers, like matcd, were removed over time due to
+            lack of maintainership or other reasons.  Others still exist but
+            are disabled because of their intrusive hardware probe routines.
+            The following ISA device drivers fall into this category and can
+            re-enabled from the third stage boot loader: aha, ahv, aic, bt, ed,
+            cs, sn, ie, fe, le, and lnc.  To do this, stop the loader during
+            it's 10 second countdown and enter the following at the
+            prompt:</para>
+
+          <screen>unset hint.foo.0.disabled</screen>
+
+          <para>where <replaceable>foo</replaceable> is the name of the driver
+            to re-enable.  This can be set permanently by editing the file
+            <filename>/boot/device.hints</filename> and removing the appropriate
+            <quote>disabled</quote> entry.</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>I go to boot from the hard disk for the first time
+          after installing &os;, the kernel loads and probes my
+          hardware, but stops with messages like:</para>
+
+          <screen>changing root device to ad1s1a panic: cannot mount root</screen>
+          <para>What is wrong?  What can I do?</para>
+
+          <para>What is this
+          <literal>bios_drive:interface(unit,partition)kernel_name</literal>
+          thing that is displayed with the boot help?</para>
+        </question>
+        <answer>
+          <para>There is a longstanding problem in the case where the
+          boot disk is not the first disk in the system.  The BIOS
+          uses a different numbering scheme to &os;, and working
+          out which numbers correspond to which is difficult to get
+          right.</para>
+
+          <para>In the case where the boot disk is not the first disk
+          in the system, &os; can need some help finding it.  There
+          are two common situations here, and in both of these cases,
+          you need to tell &os; where the root filesystem is.  You
+          do this by specifying the BIOS disk number, the disk type
+          and the &os; disk number for that type.</para>
+
+          <para>The first situation is where you have two IDE disks,
+          each configured as the master on their respective IDE
+          busses, and wish to boot &os; from the second disk.  The
+          BIOS sees these as disk 0 and disk 1, while &os; sees
+          them as <devicename>ad0</devicename> and
+          <devicename>ad2</devicename>.</para>
+
+          <para>&os; is on BIOS disk 1, of type
+          <literal>ad</literal> and the &os; disk number is 2, so
+          you would say:</para>
+
+          <screen><userinput>1:ad(2,a)kernel</userinput></screen>
+
+          <para>Note that if you have a slave on the primary bus, the
+          above is not necessary (and is effectively wrong).</para>
+
+          <para>The second situation involves booting from a SCSI disk
+          when you have one or more IDE disks in the system.  In this
+          case, the &os; disk number is lower than the BIOS disk
+          number.  If you have two IDE disks as well as the SCSI disk,
+          the SCSI disk is BIOS disk 2, type <literal>da</literal> and
+          &os; disk number 0, so you would say:</para>
+
+          <screen><userinput>2:da(0,a)kernel</userinput></screen>
+
+          <para>To tell &os; that you want to boot from BIOS disk
+          2, which is the first SCSI disk in the system.  If you only
+          had one IDE disk, you would use '1:' instead.</para>
+
+          <para>Once you have determined the correct values to use,
+          you can put the command exactly as you would have typed it
+          in the <filename>/boot.config</filename> file using a
+          standard text editor.  Unless instructed otherwise, &os;
+          will use the contents of this file as the default response
+          to the <literal>boot:</literal> prompt.</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>I go to boot from the hard disk for the first time
+          after installing &os;, but the Boot Manager prompt just
+          prints <literal>F?</literal> at the boot menu each time but
+          the boot won't go any further.</para>
+	</question>
+	<answer>
+          <para>The hard disk geometry was set incorrectly in the
+          Partition editor when you installed &os;.  Go back into
+          the partition editor and specify the actual geometry of your
+          hard disk.  You must reinstall &os; again from the
+          beginning with the correct geometry.</para>
+
+          <para>If you are failing entirely in figuring out the
+	  correct geometry for your machine, here's a tip: Install a
+	  small DOS partition at the beginning of the disk and install
+	  &os; after that.  The install program will see the DOS
+	  partition and try to infer the correct geometry from it,
+	  which usually works.</para>
+
+	  <para>The following tip is no longer recommended, but is left here
+	  for reference:</para>
+
+	  <blockquote>
+            <para>If you are setting up a truly dedicated &os;
+	    server or workstation where you don't care for (future)
+	    compatibility with DOS, Linux or another operating system,
+	    you've also got the option to use the entire disk (`A' in
+	    the partition editor), selecting the non-standard option
+	    where &os; occupies the entire disk from the very first
+	    to the very last sector.  This will leave all geometry
+	    considerations aside, but is somewhat limiting unless
+	    you're never going to run anything other than &os; on a
+	    disk.</para>
+	  </blockquote>
+ 	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>The &man.mcd.4; driver keeps thinking that it has
+	  found a device and this stops my Intel EtherExpress card
+	  from working.</para>
+	</question>
+	<answer>
+	  <para>Use the UserConfig utility (see
+          <filename>HARDWARE.TXT</filename>) and disable the probing
+          of the <devicename>mcd0</devicename> and
+          <devicename>mcd1</devicename> devices.  Generally speaking,
+          you should only leave the devices that you will be using
+          enabled in your kernel.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>The system finds my &man.ed.4; network card, but I
+          keep getting device timeout errors.</para>
+	</question>
+	<answer>
+	  <para>Your card is probably on a different IRQ from what is
+	  specified in the kernel configuration.  The ed driver does
+	  not use the `soft' configuration by default (values entered
+	  using EZSETUP in DOS), but it will use the software
+	  configuration if you specify <literal>?</literal> in the IRQ field of your
+	  kernel config file.</para>
+
+	  <para>Either move the jumper on the card to a hard
+          configuration setting (altering the kernel settings if
+          necessary), or specify the IRQ as <literal>-1</literal> in UserConfig or <literal>?</literal> 
+          in your kernel config file.  This will tell the kernel to
+          use the soft configuration.</para>
+
+          <para>Another possibility is that your card is at IRQ 9,
+          which is shared by IRQ 2 and frequently a cause of problems
+          (especially when you have a VGA card using IRQ 2!).  You
+          should not use IRQ 2 or 9 if at all possible.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>I booted the install floppy on my IBM ThinkPad (tm)
+          laptop, and the keyboard is all messed up.</para>
+	</question>
+	<answer>
+          <para>Older IBM laptops use a non-standard keyboard
+          controller, so you must tell the keyboard driver (atkbd0) to
+          go into a special mode which works on the ThinkPads.  Change
+          the atkbd0 'Flags' to 0x4 in UserConfig and it should work
+          fine.  (Look in the Input Menu for 'Keyboard'.)</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>My system can not find my Intel EtherExpress 16 card.</para>
+        </question>
+	<answer>
+	  <para>You must set your Intel EtherExpress 16 card to be
+          memory mapped at address 0xD0000, and set the amount of
+          mapped memory to 32K using the Intel supplied
+          <filename>softset.exe</filename> program.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>When installing on an EISA HP Netserver, my on-board
+	  AIC-7xxx SCSI controller isn't detected.</para>
+        </question>
+	<answer>
+	  <para>This is a known problem, and will hopefully be fixed
+	  in the future.  In order to get your system installed at
+	  all, boot with the <option>-c</option> option into
+	  UserConfig, but <emphasis>don't</emphasis> use the pretty
+	  visual mode but the plain old CLI mode.  Type:</para>
+
+          <screen><userinput>eisa 12</userinput>
+<userinput>quit</userinput></screen>
+
+          <para>at the prompt.  (Instead of `quit', you might also
+          type `visual', and continue the rest of the configuration
+          session in visual mode.)  While it's recommended to compile
+          a custom kernel, dset now also understands to save
+          this value.</para>
+
+          <para>Refer to the FAQ topic 5.3 for an explanation of the
+          problem, and for how to continue.  Remember that you can
+          find the FAQ on your local system in /usr/share/doc/FAQ,
+          provided you have installed the `doc' distribution.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>I have a Panasonic AL-N1 or Rios Chandler Pentium
+          machine and I find that the system hangs before ever getting
+          into the installation now.</para>
+        </question>
+	<answer>
+	  <para>Your machine doesn't like the new
+          <literal>i586_copyout</literal> and
+          <literal>i586_copyin</literal> code for some reason.  To
+          disable this, boot the installation boot floppy and when it
+          comes to the very first menu (the choice to drop into kernel
+          UserConfig mode or not) choose the command-line interface
+          (<quote>expert mode</quote>) version and type the following
+          at it:</para>
+
+          <screen><userinput>flags npx0 1</userinput></screen>
+
+          <para>Then proceed normally to boot.  This will be saved
+          into your kernel, so you only need to do it once.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>I have this CMD640 IDE controller that is said to be
+	  broken.</para>
+        </question>
+	<answer>
+	  <para>&os; does not support this controller.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>On a Compaq Aero notebook, I get the message <quote>No
+          floppy devices found!  Please check ...</quote> when trying to
+          install from floppy.</para>
+        </question>
+	<answer>
+	  <para>With Compaq being always a little different from other
+          systems, they do not announce their floppy drive in the CMOS
+          RAM of an Aero notebook.  Therefore, the floppy disk driver
+          assumes there is no drive configured.  Go to the UserConfig
+          screen, and set the Flags value of the fdc0 device to 0x1.
+          This pretends the existence of the first floppy drive (as a
+          1.44 MB drive) to the driver without asking the CMOS at
+          all.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>When installing on a Dell Poweredge XE, Dell
+          proprietary RAID controller DSA (Dell SCSI Array) isn't
+          recognized.</para>
+        </question>
+	<answer>
+	  <para>Configure the DSA to use AHA-1540 emulation using EISA
+          configuration utility.  After that &os; detects the DSA
+          as an Adaptec AHA-1540 SCSI controller, with irq 11 and port
+          340. Under emulation mode system will use DSA RAID disks,
+          but you cannot use DSA-specific features such as watching
+          RAID health.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>I have an IBM EtherJet PCI card, it is detected by the
+          &man.fxp.4; driver correctly, but the lights on the card don't
+          come on and it doesn't connect to the network.</para>
+        </question>
+	<answer>
+	  <para>We don't understand why this happens.  Neither do IBM
+          (we asked them).  The card is a standard Intel EtherExpress
+          Pro/100 with an IBM label on it, and these cards normally
+          work just fine.  You may see these symptoms only in some IBM
+          Netfinity servers.  The only solution is to install a
+          different Ethernet adapter.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>When I configure the network during installation on an
+          IBM Netfinity 3500, the system freezes.</para>
+        </question>
+	<answer>
+	  <para>There is a problem with the onboard Ethernet in the
+          Netfinity 3500 which we have not been able to identify at
+          this time.  It may be related to the SMP features of the
+          system being misconfigured.  You will have to install
+          another Ethernet adapter and avoid attempting to configure
+          the onboard adapter at any time.</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>When I install onto a drive managed by a Mylex PCI
+          RAID controller, the system fails to boot (eg. with a
+          <literal>read error</literal> message).</para>
+        </question>
+	<answer>
+	  <para>There is a bug in the Mylex driver which results in it
+          ignoring the <quote>8GB</quote> geometry mode setting in the
+          BIOS.  Use the 2GB mode instead.</para>
+	</answer>
+      </qandaentry>
+    </qandaset>
+  </sect2>
+</sect1>

@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# $NetBSD: securelevel,v 1.4 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: securelevel
+
+. /etc/rc.subr
+
+name="securelevel"
+rcvar='kern_securelevel_enable'
+start_cmd="securelevel_start"
+stop_cmd=":"
+
+# Last chance to set sysctl variables that failed the first time.
+#
+/etc/rc.d/sysctl lastload
+
+securelevel_start()
+{
+	if [ ${kern_securelevel} -ge 0 ]; then
+		echo 'Raising kernel security level: '
+		${SYSCTL_W} kern.securelevel=${kern_securelevel}
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

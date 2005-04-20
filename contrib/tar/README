@@ -1,0 +1,196 @@
+README for GNU tar
+
+	Copyright 1990, 1991, 1992, 1994, 1997, 1998, 1999, 2000, 2001
+	Free Software Foundation, Inc.
+
+	This file is part of GNU tar.
+
+	GNU tar is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
+
+	GNU tar is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with tar; see the file COPYING.  If not, write to
+	the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+	Boston, MA 02111-1307, USA.
+
+
+Please glance through *all* sections of this
+`README' file before starting configuration.  Also make sure you read files
+`ABOUT-NLS' and `INSTALL' if you are not familiar with them already.
+
+If you got the `tar' distribution in `shar' format, time stamps ought to be
+properly restored; do not ignore such complaints at `unshar' time.
+
+GNU `tar' saves many files together into a single tape or disk
+archive, and can restore individual files from the archive.  It includes
+multivolume support, the ability to archive sparse files, automatic archive
+compression/decompression, remote archives and special features that allow
+`tar' to be used for incremental and full backups.  This distribution
+also includes `rmt', the remote tape server.  The `mt' tape drive control
+program is in the GNU `cpio' distribution.
+
+GNU `tar' is derived from John Gilmore's public domain `tar'.
+
+See file `ABOUT-NLS' for how to customize this program to your language.
+See file `COPYING' for copying conditions.
+See file `INSTALL' for compilation and installation instructions.
+See file `PORTS' for various ports of GNU tar to non-Unix systems.
+See file `NEWS' for a list of major changes in the current release.
+See file `THANKS' for a list of contributors.
+
+Besides those configure options documented in files `INSTALL' and
+`ABOUT-NLS', an extra option may be accepted after `./configure':
+
+* `--disable-largefile' omits support for large files, even if the
+operating system supports large files.  Typically, large files are
+those larger on 2 GB on a 32-bit host.
+
+The default archive device is now `stdin' on read and `stdout' on write.
+The installer can still override this by presetting `DEFAULT_ARCHIVE'
+in the environment before configuring (the behavior of `-[0-7]' or
+`-[0-7]lmh' options in `tar' are then derived automatically).  Similarly,
+`DEFAULT_BLOCKING' can be preset to something else than 20.
+
+For comprehensive modifications to GNU tar, you might need tools beyond
+those used in simple installations.  Fully install GNU m4 1.4 first,
+and only then, Autoconf 2.13 or later.  Install Perl, then Automake
+1.4 or later.  You might need Bison 1.28 or later, and GNU tar itself.
+All are available on GNU archive sites, like in
+ftp://ftp.gnu.org/pub/gnu/.
+
+Send bug reports to `bug-tar@gnu.org'.  (Beware, old-timers: it is
+`@gnu', not `@prep'; and not `bug-gnu-utils' anymore.)  A bug report is
+an adequate description of the problem: your input, what you expected,
+what you got, and why this is wrong.  Diffs are welcome, but they only
+describe a solution, from which the problem might be uneasy to infer.
+If needed, submit actual data files with your report.  Small data files
+are preferred.  Big files may sometimes be necessary, but do not send them
+to the report address; rather take special arrangement with the maintainer.
+
+Your feedback will help us to make a better and more portable package.
+Consider documentation errors as bugs, and report them as such.  If you
+develop anything pertaining to `tar' or have suggestions, let us know
+and share your findings by writing to <bug-tar@gnu.org>.
+
+
+Installation hints
+------------------
+
+Here are a few hints which might help installing `tar' on some systems.
+
+* gzip and bzip2.
+
+GNU tar uses the gzip and bzip2 programs to read and write compressed
+archives.  If you don't have these programs already, you need to
+install them.  Their sources can be found at:
+
+ftp://ftp.gnu.org/gnu/gzip/
+http://sourceware.cygnus.com/bzip2/
+
+If you see the following symptoms:
+
+   $ tar -xzf file.tar.gz
+   gzip: stdin: decompression OK, trailing garbage ignored
+   tar: Child returned status 2
+
+then you have encountered a gzip incompatibility that should be fixed
+in gzip test version 1.3, which as of this writing is available at
+<ftp://alpha.gnu.org/gnu/gzip/>.  You can work around the
+incompatibility by using a shell command like
+ `gzip -d <file.tar.gz | tar -xzf -'.
+
+* Solaris issues.
+
+GNU tar exercises many features that can cause problems with older GCC
+versions.  In particular, GCC 2.8.1 (sparc, -O1 or -O2) is known to
+miscompile GNU tar.  No compiler-related problems have been reported
+when using GCC 2.95.2 or later.
+
+Recent versions of Solaris tar sport a new -E option to generate
+extended headers in an undocumented format.  GNU tar does not
+understand these headers.
+
+* Static linking.
+
+Some platform will, by default, prepare a smaller `tar' executable
+which depends on shared libraries.  Since GNU `tar' may be used for
+system-level backups and disaster recovery, installers might prefer to
+force static linking, making a bigger `tar' executable maybe, but able to
+work standalone, in situations where shared libraries are not available.
+The way to achieve static linking varies between systems.  Set LDFLAGS
+to a value from the table below, before configuration (see `INSTALL').
+
+	Platform	Compiler	LDFLAGS
+
+	(any)		Gnu C		-static
+	AIX		(vendor)	-bnso -bI:/lib/syscalls.exp
+	HPUX		(vendor)	-Wl,-a,archive
+	IRIX		(vendor)	-non_shared
+	OSF		(vendor)	-non_shared
+	SCO 3.2v5	(vendor)	-dn
+	Solaris		(vendor)	-Bstatic
+	SunOS		(vendor)	-Bstatic
+
+* Failed tests `ignfail.sh' or `incremen.sh'.
+
+In an NFS environment, lack of synchronization between machine clocks
+might create difficulties to any tool comparing dates and file time stamps,
+like `tar' in incremental dumps.  This has been a recurrent problem with
+GNU Make for the last few years.  We would like a general solution.
+
+* BSD compatibility matters.
+
+Set LIBS to `-lbsd' before configuration (see `INSTALL') if the linker
+complains about `bsd_ioctl' (Slackware).  Also set CPPFLAGS to
+`-I/usr/include/bsd' if <sgtty.h> is not found (Slackware).
+
+* OPENStep 4.2 swap files
+
+Tar cannot read the file /private/vm/swapfile.front (even as root).
+This file is not a real file, but some kind of uncompressed view of
+the real compressed swap file; there is no reason to back it up, so
+the simplest workaround is to avoid tarring this file.
+
+
+Special topics
+--------------
+
+Here are a few special matters about GNU `tar', not related to build
+matters.  See previous section for such.
+
+* File attributes.
+
+About *security*, it is probable that future releases of `tar' will have
+some behavior changed.  There are many pending suggestions to choose from.
+Today, extracting an archive not being `root', `tar' will restore suid/sgid
+bits on files but owned by the extracting user.  `root' automatically gets
+a lot of special privileges, `-p' might later become required to get them.
+
+GNU `tar' does not properly restore symlink attributes.  Various systems
+implement flavors of symbolic links showing different behavior and
+properties.  We did not successfully sorted all these out yet.  Currently,
+the `lchown' call will be used if available, but that's all.
+
+* POSIX compliance.
+
+GNU `tar' implements an early draft of the POSIX 1003.1 `ustar' standard
+which is different from the final standard.  This will be progressively
+corrected over the incoming few years.  Don't be mislead by the mere
+existence of the --posix option.  Later releases will become able to
+read truly POSIX archives, and also to produce them under option.  (Also,
+if you look at the internals, don't take the GNU extensions you see for
+granted, as they are planned to change.)  GNU tar 2.0 will produce POSIX
+archives by default, but there is a long way before we get there.
+
+* What's next?
+
+In the future we will try to release tar-1.14 as soon as possible and
+start merging with paxutils afterwards.  We'll also try to rewrite
+some parts of the documentation after paxutils has been merged.

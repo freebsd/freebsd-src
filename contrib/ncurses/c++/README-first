@@ -1,0 +1,58 @@
+                  C++ interface to ncurses routines
+-----------------------------------------------------------------------
+
+This directory contains the source code for several C++ classes which
+ease the use of writing ncurses-based programs.  The code is derived
+from the libg++ CursesWindow class but enhanced for ncurses.
+
+The classes simplify the use of window specific functions by
+encapsulating them in the window object.  Function overloading is
+used in order to narrow the interface.  E.g. you don't have the
+distinction between `printw' and `mvprintw' anymore.
+
+A second benefit is the removal of all #defines which are included in
+the curses.h file.  This is a steady cause of trouble because many
+common identifiers are used.  Instead now all #defines are inline
+functions which also allows strict type checking of arguments.
+
+The next enhancement is color support. It was originally provided by a 
+derived class. This caused some trouble if you think about Panels or
+Menus and Forms with colors. We decided to put color support into the
+base class so that any derived class may use color support also.
+The implementation chosen here is directed to unrestricted use
+of mixes of color and monochrome windows. The original NCursesColorWindow
+class is maintained for compatibility reasons.
+
+The last point to mention is the support of other packages that are
+distributed with the ncurses package: the panels library, the menu library
+and the form library. This support is provided by the NCursesPanel class, 
+which is also derived from the NCursesWindow class and the NCursesMenu
+and NCursesForm classes which are derived from NCursesPanel. This allows 
+building interfaces with windows.
+
+Please see the example program for a quick introduction.
+
+Note that at this point, there is no documentation for these classes.
+Hopefully some will be written in the not too distant future.  For now,
+to find out how to use the classes, read the code and the example program.
+
+Suggestions for enhancements and contributions of code (and docs) are
+welcome.  Please let us know which functionality you miss.
+
+	ATTENTION LINUX USERS:  There is currently some discussion of
+	replacing the BSD curses in the Linux libc with ncurses.  If
+	this is done we could perhaps include these classes in the Linux
+	libg++ replacing the original CursesWindow class (and renaming it
+	to CursesWindow).  This could be done because NCursesWindow can
+	be made easily to a superset of the CursesWindow class.
+
+
+Original author:
+     Eric Newton         <newton@rocky.oswego.edu> for FSF's libg++
+
+Authors of first ncurses based release (NCursesWindow, NCursesPanel):
+     Ulrich Drepper      <drepper@ira.uka.de>
+ and Anatoly Ivasyuk     <anatoly@nick.csh.rit.edu>
+
+Author of this release:
+     Juergen Pfeifer     <juergen.pfeifer@gmx.net>

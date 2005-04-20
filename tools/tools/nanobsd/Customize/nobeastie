@@ -1,0 +1,25 @@
+#! /bin/sh
+#
+# Customize a nanoBSD flash image to disable the loaders ascii-art beastie
+#
+# Copyright (c) 2004 Poul-Henning Kamp
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+# 
+# Usage:
+#
+# ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR} [ ${LOCAL_FILES_LIST} ]
+
+WD=$1
+WORLDDIR=$2
+CURDIR=$3
+LOCAL_FILES_LIST=$4
+
+PKG_DBDIR=${WD}/var/db/pkg
+export PKG_DBDIR
+
+touch ${WD}/boot/loader.conf
+sed -i "" -e '/beastie_disable/d' ${WD}/boot/loader.conf
+echo 'beastie_disable="YES"' >> ${WD}/boot/loader.conf

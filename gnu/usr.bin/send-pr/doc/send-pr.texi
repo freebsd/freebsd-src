@@ -1,0 +1,658 @@
+@c $FreeBSD$
+
+\input texinfo   @c -*-texinfo-*-
+@setfilename send-pr.info
+@settitle Reporting Problems Using send-pr
+
+@setchapternewpage odd
+
+@include version.texi
+@set SENDPR
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* send-pr: (send-pr).		Reporting problems--using send-pr
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@ifinfo
+Copyright @copyright{} 1993, 1994, 1995 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries a copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+@end ifinfo
+
+@titlepage
+@finalout
+@title Reporting Problems
+@subtitle Using @code{send-pr}, version @value{VERSION}
+@subtitle October 1993
+@author Jeffrey M. Osier
+@author Cygnus Support
+@page
+
+@vskip 0pt plus 1filll
+
+Copyright @copyright{} 1993, 1994, 1995 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+
+@end titlepage
+
+@c ---------------------------------------------------------------
+@node Top
+@top Overview
+@cindex foreword to @code{send-pr}
+@cindex overview to @code{send-pr}
+@cindex introduction to @code{send-pr}
+
+This manual documents @code{send-pr}, 
+@ifinfo
+version @value{VERSION},
+@end ifinfo
+which uses electronic mail to submit support questions and problem
+reports to a central Support Site.  No body of work is perfect, and
+support organizations understand this; @code{send-pr} is designed to
+allow users who have problems to submit reports of these problems to
+sites responsible for supporting the products in question, in a defined
+form which can be read by an electronically managed database.
+
+@cindex GNATS
+@code{send-pr} is part of a suite of programs known collectively as
+@sc{gnats}, the @sc{gnu} Problem Report Management System.  @sc{gnats}
+consists of several programs which, used in concert, formulate and
+partially administer a database of @dfn{Problem Reports}, or @dfn{PRs},
+at a central Support Site.  A PR goes through several states in its
+lifetime; @sc{gnats} tracks the PR and all information associated with it
+through each state and finally acts as an archive for PRs which have
+been @dfn{closed}.
+
+Because @code{send-pr} exists as a shell (@file{/bin/sh}) script and as
+an Elisp file for use with @sc{gnu} Emacs, it can be used from any
+machine on your network which can run a shell script and/or Emacs.
+
+In general, you can use any editor and mailer to submit valid Problem
+Reports, as long as the format required by @sc{gnats} is preserved.
+@code{send-pr} automates the process, however, and ensures that certain
+fields necessary for automatic processing are present.  @code{send-pr}
+is strongly recommended for all initial problem-oriented correspondence
+with your Support Site.  The organization you submit Problem Reports to
+supplies an address to which further information can be sent; the person
+responsible for the category of the problem you report contacts you
+directly.
+
+@menu
+* send-pr in detail::     Details about send-pr and GNATS
+* Invoking send-pr::      Editing and sending PRs
+* An Example::            A working example
+* Installing send-pr::    Installing send-pr on your system
+* Index::
+@end menu
+
+@node send-pr in detail
+@chapter Details about send-pr and GNATS
+
+@cindex details about @code{send-pr}
+@cindex Problem Reports
+A @dfn{Problem Report} is a message that describes a problem you are
+having with a body of work.  @code{send-pr} organizes this message into
+a form which can be understood and automatically processed by @sc{gnats},
+the @sc{gnu} Problem Report Management System.  A Problem Report is
+organized into @dfn{fields} which contain data describing you, your
+organization, and the problem you are announcing (@pxref{Fields,,Problem
+Report format}).  Problem Reports go through several defined states in
+their lifetimes, from @dfn{open} to @dfn{closed} (@pxref{States,,States
+of Problem Reports}).
+
+@menu
+* States::                     States of Problem Reports
+* Fields::                     Problem Report format
+@end menu
+
+@include states.texi
+
+@include fields.texi
+
+@node Invoking send-pr
+@chapter Editing and sending PRs
+@cindex editing and sending PRs
+@cindex sending PRs
+@cindex invoking send-pr
+@cindex using send-pr
+@cindex generating new PRs
+
+@include s-usage.texi
+
+@node An Example
+@chapter An Example
+@cindex an example
+@cindex example PR
+@cindex Cygnus Solutions
+@cindex @sc{gnu} software support
+Cygnus Solutions in Sunnyvale, CA, uses @sc{gnats} and @code{send-pr}
+extensively for their support activities.  As a support company, Cygnus
+finds problem tracking to be a crucial part of everyday business.
+Cygnus supports the @sc{gnu} compiling tools (including @sc{gnats} and
+@code{send-pr}) over several many platforms
+
+With each shipment of the Cygnus Solutions Developer's Kit, customers
+receive the latest version of @code{send-pr}, which contains an
+up-to-date listing of valid categories (values for the @code{>Category:}
+field).  Using these tools, Cygnus' customers can communicate their
+problems to Cygnus effectively and receive automatic confirmation of
+receipt as well as notification of changes in the status of their
+reported problems.  Much of Cygnus' support mechanism relies on
+electronic mail.
+
+As an example, let's pretend we're a customer of Cygnus Solutions, and
+that we're having a problem compiling some of our software using the
+@sc{gnu} C compiler, which Cygnus supports.
+
+Assume that we're getting an error in our @code{bifrabulator} program
+wherein the @samp{prestidigitation} routines don't match with the
+@samp{whatsitsname}.  We've made sure we're following the rules of the
+program and checked the Release Notes from Cygnus and found that the bug
+isn't already known.  In other words, we're pretty sure we've found a
+bug.
+
+@cindex Imaginary Software, Ltd.
+Our first step is to call @code{send-pr}.  It really doesn't matter
+whether we use @code{send-pr} from the shell or from within Emacs.
+Indeed, if we use Emacs as a primary editor, calling @code{send-pr} from
+the shell is likely to start @code{send-pr} in an Emacs buffer anyway.
+So, since our company, @emph{Imaginary Software, Ltd.}, uses @sc{gnu}
+software extensively, we're pretty familiar with Emacs, so from within
+Emacs we type
+@smallexample
+M-x send-pr
+@end smallexample
+@noindent
+and we're greeted with the following screen:
+
+@cindex default PR template
+@cindex example of a default template
+@cindex blank PR template
+@cindex @code{bifrabulator}
+@cartouche
+@smallexample
+SEND-PR: -*- text  -*-
+SEND-PR: Lines starting with `SEND-PR' will be removed 
+SEND-PR: automatically as well as all comments (the text
+SEND-PR: below enclosed in `<' and `>').
+SEND-PR: Please consult the manual if you are not sure
+SEND-PR: how to fill out a problem report.
+SEND-PR:
+SEND-PR: Choose from the following categories:
+SEND-PR:
+SEND-PR:           bfd       binutils  bison       
+SEND-PR: byacc     clib      config    cvs         diff        
+SEND-PR: doc       emacs     flex      g++         gas         
+SEND-PR: gcc       gdb       glob      gprof       grep        
+SEND-PR: info      ispell    kerberos  ld          libg++      
+SEND-PR: libiberty make      makeinfo  mas         newlib      
+SEND-PR: other     patch     rcs       readline    send-pr     
+SEND-PR: test      texindex  texinfo   texinfo.tex 
+SEND-PR: bifrabulator  <---@emph{note: this one is fake}
+SEND-PR:
+To: cygnus-bugs@@cygnus.com 
+Subject: 
+From: jeffrey@@imaginary.com
+Reply-To: jeffrey@@imaginary.com
+X-send-pr-version: send-pr @value{VERSION}
+
+>Submitter-Id:  imaginary
+>Originator:    Jeffrey Osier
+>Organization:  
+Imaginary Software, Ltd.
+>Confidential:  <[ yes | no ] (one line)>
+>Synopsis:      <synopsis of the problem (one line)>
+>Severity:      <[ non-critical | serious | critical ] (one line)>
+>Priority:      <[ low | medium | high ] (one line)>
+>Category:      <name of the product (one line)>
+>Class:         <[sw-bug|doc-bug|change-request|support](oneline)>
+>Release:       <release number or tag (one line)>
+>Environment:
+         <machine, os, target, libraries (multiple lines)>
+System: SunOS imaginary.com 4.1.1 1 sun4
+Architecture: sun4
+
+>Description:
+       <precise description of the problem (multiple lines)>
+>How-To-Repeat:
+       <code/input/activities to reproduce (multiple lines)>
+>Fix:
+@iftex
+@hrule
+@end iftex
+-----Emacs: *send-pr*   (send-pr Fill)----All------------------
+@iftex
+@hrule
+@end iftex
+>Category: other[]
+@end smallexample
+@end cartouche
+@page
+We know from past experience that we need to set certain information into
+each field, so we compile all the information we know about our problem.
+We have some sample code which we know should work, even though it
+doesn't, so we'll include that.  Below is the completed PR; we send this
+using @kbd{C-c C-c}.  (The comments have been truncated).
+
+@cindex completed Problem Report
+@cindex example of a completed PR
+@cartouche
+@smallexample
+SEND-PR: Lines starting with `SEND-PR' will be removed
+SEND-PR: automatically as well as all comments (the text
+SEND-PR: @dots{}
+SEND-PR:
+To: cygnus-bugs@@cygnus.com 
+Subject: bifrabulator routines don't match
+From: jeffrey@@imaginary.com
+Reply-To: jeffrey@@imaginary.com
+X-send-pr-version: send-pr @value{VERSION}
+
+>Submitter-Id:  imaginary
+>Originator:    Jeffrey Osier
+>Organization:  
+Imaginary Software, Ltd.
+>Confidential:  no
+>Synopsis:      bifrabulator routines don't match
+>Severity:      serious
+>Priority:      medium
+>Category:      bifrabulator
+>Class:         sw-bug
+>Release:       progressive-930101
+>Environment:   
+System: SunOS imaginary.com 4.1.1 1 sun4
+Architecture: sun4 (SPARC)
+
+>Description:
+   the following code I fed into the bifrabulator came back 
+   with a strange error.  apparently, the prestidigitation 
+   routine doesn't match with the whatsitsname in all cases.
+
+>How-To-Repeat:
+   call the bifrabulator on the following code.
+   @emph{code sample@dots{}}
+
+>Fix:
+@iftex
+@hrule
+@end iftex
+-----Emacs: *send-pr*   (send-pr Fill)----All------------------
+@iftex
+@hrule
+@end iftex
+To send the problem report use: C-c C-c
+@end smallexample
+@end cartouche
+
+We type @kbd{C-c C-c}, and off it goes.  Now, we depend on Cygnus
+Support to figure out the answer to our problem.
+
+Soon afterward, we get the following message from Cygnus:
+
+@smallexample
+@group
+From: gnats (GNATS management)
+Sender: gnats-admin
+Reply-To: hacker@@cygnus.com
+To: jeffrey@@imaginary.com
+Subject: Re: bifrabulator/1425: routines don't match
+
+Thank you very much for your problem report.
+It has the internal identification: g++/1425.
+The individual assigned to look at your bug is:  hacker
+(F.B. Hacker)
+
+Category: bifrabulator
+Responsible: hacker
+Synopsis: bifrabulator routines don't match
+Arrival-Date: Sat Feb 30 03:12:55 1993
+@end group
+@end smallexample
+
+@noindent
+This is our receipt that the bug has been accepted and forwarded to the
+responsible party.
+
+@noindent
+A while later, we get the analysis:
+
+@smallexample
+@group
+To:  jeffrey@@imaginary.com
+From:  hacker@@cygnus.com
+Subject:  Re: bifrabulator/1425: routines don't match
+Reply-To: hacker@@cygnus.com
+
+Got your message, Jeff.  It seems that the bifrabulator was 
+confusing the prestidigitation routines with the realitychecker
+when lexically parsing the whatsitsname.
+
+I'm working on robustisizing the bifrabulator now.
+
+How about lunch next week?
+--
+F.B. Hacker
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
+#include <std-disclaimer.h>
+@end group
+@end smallexample
+
+@noindent
+About the same time, we get another message from Cygnus.
+
+@cindex state change example
+@cindex example of a state change
+@smallexample
+@group
+From: hacker@@cygnus.com
+To:  jeffrey@@imaginary.com
+Subject:  Re: bifrabulator/1425: doesn't match prestidig
+Reply-To:  hacker@@cygnus.com
+
+
+             `F.B. Hacker' changed the state to `analyzed'.
+
+State-Changed-From-To: open-analyzed
+State-Changed-By: hacker
+State-Changed-When: Fri Feb 31 1993 08:59:16 1993
+State-Changed-Why:
+    figured out the problem, working on a patch this afternoon
+--
+F.B. Hacker
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
+#include <std-disclaimer.h>
+@end group
+@end smallexample
+
+@noindent
+The bug has now been analyzed, and Cygnus is working on a solution.
+
+@noindent
+Sometime later, we get more mail from F.B.:
+
+@smallexample
+@group
+To:  jeffrey@@imaginary.com
+From:  hacker@@cygnus.com
+Subject:  Re: bifrabulator/1425: routines don't match
+Reply-To: hacker@@cygnus.com
+
+There's a patch now that you can ftp over and check out.
+
+Hey, that joke you sent me was great!  The one about the
+strings walking into a bar...  my boss laughed for an hour!
+--
+F.B. Hacker
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
+#include <std-disclaimer.h>
+@end group
+@end smallexample
+@sp 2
+@smallexample
+@group
+From: hacker@@cygnus.com
+To:  jeffrey@@imaginary.com
+Subject:  Re: bifrabulator/1425: doesn't match prestidig
+Reply-To:  hacker@@cygnus.com
+
+
+             `F.B. Hacker' changed the state to `feedback'.
+
+State-Changed-From-To: analyzed-feedback
+State-Changed-By: hacker
+State-Changed-When: Fri Feb 31 1993 23:43:16 1993
+State-Changed-Why:
+    got the patch finished, notified Jeff at Imaginary Software
+--
+F.B. Hacker
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
+#include <std-disclaimer.h>
+@end group
+@end smallexample
+
+@noindent
+The bug has gone into @dfn{feedback} status now, until we get the patch,
+install it and test it.  When everything tests well, we can mail F.B.
+back and tell him the bug's been fixed, and he can change the state of
+the PR from @dfn{feedback} to @dfn{closed}.
+
+Following is a list of valid @samp{>Category:} entries that are
+supported by Cygnus.
+
+@menu
+* Valid Categories::
+@end menu
+
+@c FIXME - is this list up to date?
+@include categ.texi
+
+@node Installing send-pr
+@appendix Installing @code{send-pr} on your system
+@cindex installation
+
+If you receive @code{send-pr} as part of a larger software distribution,
+it probably gets installed when the full distribution is installed.  If
+you are using @sc{gnats} at your site as well, you must decide where
+@code{send-pr} sends Problem Reports by default; see @ref{default site,,
+Setting a default @var{site}}.
+
+@menu
+* installation::   installing `send-pr' by itself
+* default site::   setting a default site
+@end menu
+
+@node installation
+@section Installing @code{send-pr} by itself
+@cindex installation procedure
+
+Install @code{send-pr} by following these steps (you may need
+@code{root} access in order to change the @file{aliases} file and to
+install @code{send-pr}):
+
+@itemize @bullet
+@item
+Unpack the distribution into a directory which we refer to as
+@var{srcdir}.
+
+@item
+Edit the file @file{Makefile} to reflect local conventions.
+Specifically, you should edit the variable @samp{prefix} to alter the
+installation location.  The default is @file{/usr/local}.  All files are
+installed under @samp{prefix} (see below).
+
+@item @emph{Run}
+@smallexample
+make all install [ info ] [ install-info ] [ clean ]
+@end smallexample
+
+@noindent
+The targets mean the following:
+
+@table @code
+@item all
+Builds @code{send-pr} and @code{install-sid}
+
+@item install
+Installs the following:
+
+@table @code
+@item install-sid
+@itemx send-pr
+into @file{@var{prefix}/bin}
+
+@item send-pr.1
+into @file{@var{prefix}/man/man1}
+
+@item @var{site}
+the list of valid @var{categories} for the Support Site from which you
+received @code{send-pr}, installed as
+@w{@file{@var{prefix}/share/gnats/@var{site}}}
+
+@item send-pr.el
+into @w{@file{@var{prefix}/share/emacs/lisp}}@footnote{If your main Emacs
+lisp repository is in a different directory from this, substitute that
+directory for @w{@file{@var{prefix}/share/emacs/lisp}}.}
+@end table
+
+@item info (@emph{optional})
+Builds @file{send-pr.info} from @file{send-pr.texi}@*
+@c FIXME - is this still true?
+(@file{send-pr.info} is included with this distribution)
+
+@item install-info (@emph{optional})
+Installs @file{send-pr.info} into @w{@file{@var{prefix}/info}}
+
+@item clean (@emph{optional})
+Removes all intermediary build files that can be rebuilt from source
+code
+@end table
+
+@item
+Run
+
+@smallexample
+install-sid @var{your-sid}
+@end smallexample
+
+@noindent
+where @var{your-sid} is the identification code you received with
+@w{@code{send-pr}}.  @code{send-pr} automatically inserts this value
+into the template field @samp{>Submitter-Id:}.  If you've downloaded
+@code{send-pr} from the Net, use @samp{net} for this value.
+
+@item 
+Place the following line in
+@w{@file{@var{prefix}/share/emacs/lisp/default.el}}, or instruct your
+users to place the following line in their @file{.emacs} files:
+
+@smallexample
+(autoload 'send-pr "send-pr" "Submit a Problem Report." t)
+@end smallexample
+
+@item 
+Create a mail alias for the Support Site from which you received
+@code{send-pr}, and for every site with which you wish to use
+@code{send-pr} to communicate.  Each alias must have a suffix of
+@samp{-gnats}.  The Support Site(s) will provide the correct addresses
+where these aliases should point.  For instance, edit your mail aliases
+file to contain something like:
+
+@smallexample
+# support sites; for use with send-pr
+cygnus-gnats:     bugs@@cygnus.com            # Cygnus Solutions
+bumblebee-gnats:  bumblebugs@@bumblebee.com   # Bumblebee Inc.
+mycompany-gnats:  bugs@@my.company.com (@emph{if you use @sc{gnats} locally})
+@end smallexample
+
+@code{send-pr} automatically searches for these aliases when you type
+
+@smallexample
+send-pr cygnus
+send-pr bumblebee
+send-pr @var{site}@dots{}
+@end smallexample
+
+@noindent
+@code{send-pr} also uses @var{site} to determine the categories of
+problems accepted by the site in question by looking in
+
+@smallexample
+@var{prefix}/share/gnats/@var{site}
+@end smallexample
+
+@end itemize
+
+@node default site
+@section Setting a default @var{site}
+@cindex default @var{site}
+@cindex setting a default @var{site}
+
+@code{send-pr} is capable of sending Problem Reports to any number of
+Support Sites, using mail aliases which have @samp{-gnats} appended them.
+@code{send-pr} automatically appends the suffix, so that when you type
+
+@smallexample
+send-pr @var{site}
+@end smallexample
+
+@noindent
+the Problem Report goes to the address noted in the @file{aliases} file
+as @w{@samp{@var{site}-gnats}}.  You can do this in the Emacs version of
+@code{send-pr} by invoking the program with
+
+@smallexample
+C-u M-x send-pr
+@end smallexample
+
+@noindent
+You are prompted for @var{site}.
+
+@var{site} is also used to error-check the @samp{>Category:} field, as a
+precaution against sending mistaken information (and against sending
+information to the wrong site).
+
+You may also simply type
+
+@smallexample
+send-pr
+@end smallexample
+
+@noindent
+from the shell (or @w{@samp{M-x send-pr}} in Emacs), and the Problem
+Report you generate will be sent to the @var{site}, which is usually the
+site from which you received your distribution of @w{@code{send-pr}}.
+If you use @sc{gnats} at your own organization, the default is usually
+your local address for reporting problems.
+
+To change this, simply edit the file @file{Makefile} before installing
+and change the line 
+
+@smallexample
+GNATS_SITE = @var{site}
+@end smallexample
+
+@noindent
+to reflect the site where you wish to send PRs by default.
+
+@c ---------------------------------------------------------------
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@c ---------------------------------------------------------------
+@contents
+@bye

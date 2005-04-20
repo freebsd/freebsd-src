@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ipfw
+# REQUIRE: ppp-user
+# BEFORE: NETWORKING
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="ipfw"
+rcvar="firewall_enable"
+start_cmd="ipfw_start"
+start_precmd="ipfw_precmd"
+stop_cmd="ipfw_stop"
+
+ipfw_precmd()
+{
+	if ! ${SYSCTL} net.inet.ip.fw.enable > /dev/null 2>&1; then
+		if ! kldload ipfw; then
+			warn unable to load firewall module.
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+ipfw_start()
+{
+	# set the firewall rules script if none was specified
+	[ -z "${firewall_script}" ] && firewall_script=/etc/rc.firewall
+
+	if [ -r "${firewall_script}" ]; then
+		. "${firewall_script}"
+		echo -n 'Firewall rules loaded, starting divert daemons:'
+		if [ -f /etc/rc.d/natd ] ; then
+			/etc/rc.d/natd start
+		fi
+	elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
+		echo 'Warning: kernel has firewall functionality, but' \
+		    ' firewall rules are not enabled.'
+		echo '           All ip services are disabled.'
+	fi
+	echo '.'
+
+	# Firewall logging
+	#
+	if checkyesno firewall_logging; then
+		echo 'Firewall logging enabled'
+		sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	fi
+
+	# Enable the firewall
+	#
+	${SYSCTL_W} net.inet.ip.fw.enable=1
+}
+
+ipfw_stop()
+{
+	# Disable the firewall
+	#
+	${SYSCTL_W} net.inet.ip.fw.enable=0
+	if [ -f /etc/rc.d/natd ] ; then
+		/etc/rc.d/natd stop
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

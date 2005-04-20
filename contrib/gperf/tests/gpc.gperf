@@ -1,0 +1,48 @@
+%{
+/* ISO Pascal 7185 reserved words.
+ *
+ * For GNU Pascal compiler (GPC) by jtv@hut.fi
+ *
+ * run this through the Doug Schmidt's gperf program
+ * with command
+ * gperf  -g -o -j1 -t -p -N is_reserved_word
+ *
+ */
+%}
+struct resword { char *name; short token; short iclass;};
+%%
+And,  AND,  PASCAL_ISO
+Array,  ARRAY,  PASCAL_ISO
+Begin,  BEGIN_, PASCAL_ISO
+Case, CASE, PASCAL_ISO
+Const,  CONST,  PASCAL_ISO
+Div,  DIV,  PASCAL_ISO
+Do, DO, PASCAL_ISO
+Downto, DOWNTO, PASCAL_ISO
+Else, ELSE, PASCAL_ISO
+End,  END,  PASCAL_ISO
+File, FILE_,  PASCAL_ISO
+For,  FOR,  PASCAL_ISO
+Function, FUNCTION, PASCAL_ISO
+Goto, GOTO, PASCAL_ISO
+If, IF, PASCAL_ISO
+In, IN, PASCAL_ISO
+Label,  LABEL,  PASCAL_ISO
+Mod,  MOD,  PASCAL_ISO
+Nil,  NIL,  PASCAL_ISO
+Not,  NOT,  PASCAL_ISO
+Of, OF, PASCAL_ISO
+Or, OR, PASCAL_ISO
+Packed, PACKED, PASCAL_ISO
+Procedure, PROCEDURE, PASCAL_ISO
+Program,PROGRAM,PASCAL_ISO
+Record, RECORD, PASCAL_ISO
+Repeat, REPEAT, PASCAL_ISO
+Set,  SET,  PASCAL_ISO
+Then, THEN, PASCAL_ISO
+To, TO, PASCAL_ISO
+Type, TYPE, PASCAL_ISO
+Until,  UNTIL,  PASCAL_ISO
+Var,  VAR,  PASCAL_ISO
+While,  WHILE,  PASCAL_ISO
+With, WITH, PASCAL_ISO

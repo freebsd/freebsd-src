@@ -1,0 +1,80 @@
+#! /bin/sh
+# Copyright (c) 1995-1998 SuSE GmbH Nuernberg, Germany.
+#
+# Author: Chris Saia <csaia@wtower.com>
+#
+# /sbin/init.d/sshd
+#
+#   and symbolic its link
+#
+# /sbin/rcsshd
+#
+
+. /etc/rc.config
+
+# Determine the base and follow a runlevel link name.
+base=${0##*/}
+link=${base#*[SK][0-9][0-9]}
+
+# Force execution if not called by a runlevel directory.
+test $link = $base && START_SSHD=yes
+test "$START_SSHD" = yes || exit 0
+
+# The echo return value for success (defined in /etc/rc.config).
+return=$rc_done
+case "$1" in
+    start)
+	echo -n "Starting service sshd"
+	## Start daemon with startproc(8). If this fails
+	## the echo return value is set appropriate.
+
+	startproc /usr/sbin/sshd || return=$rc_failed
+
+	echo -e "$return"
+	;;
+    stop)
+	echo -n "Stopping service sshd"
+	## Stop daemon with killproc(8) and if this fails
+	## set echo the echo return value.
+
+	killproc -TERM /usr/sbin/sshd || return=$rc_failed
+
+	echo -e "$return"
+	;;
+    restart)
+	## If first returns OK call the second, if first or
+	## second command fails, set echo return value.
+	$0 stop  &&  $0 start  ||  return=$rc_failed
+	;;
+    reload)
+	## Choose ONE of the following two cases:
+
+	## First possibility: A few services accepts a signal
+	## to reread the (changed) configuration.
+
+	echo -n "Reload service sshd"
+	killproc -HUP /usr/sbin/sshd || return=$rc_failed
+	echo -e "$return"
+	;;
+    status)
+	echo -n "Checking for service sshd"
+	## Check status with checkproc(8), if process is running
+	## checkproc will return with exit status 0.
+
+	checkproc /usr/sbin/sshd && echo OK || echo No process
+	;;
+    probe)
+	## Optional: Probe for the necessity of a reload,
+	## give out the argument which is required for a reload.
+
+	test /etc/ssh/sshd_config -nt /var/run/sshd.pid && echo reload
+	;;
+    *)
+	echo "Usage: $0 {start|stop|status|restart|reload[|probe]}"
+	exit 1
+	;;
+esac
+
+# Inform the caller not only verbosely and set an exit status.
+test "$return" = "$rc_done" || exit 1
+exit 0

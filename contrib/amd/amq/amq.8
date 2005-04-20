@@ -1,0 +1,214 @@
+.\"
+.\" Copyright (c) 1997-2004 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	%W% (Berkeley) %G%
+.\"
+.\" $Id: amq.8,v 1.3.2.8 2004/01/06 03:15:16 ezk Exp $
+.\" $FreeBSD$
+.\"
+.Dd March 16, 1991
+.Dt AMQ 8
+.Os
+.Sh NAME
+.Nm amq
+.Nd automounter query tool
+.Sh SYNOPSIS
+.Nm amq
+.Op Fl fmpsuvTU
+.Op Fl h Ar hostname
+.Op Fl l Ar log_file
+.Op Fl x Ar log_options
+.Op Fl D Ar debug_options
+.Op Fl M Ar mountmap_entry
+.Op Fl P Ar program_number
+.Op Ar directory
+.Ar ...
+.Sh DESCRIPTION
+.Nm Amq
+provides a simple way of determining the current state of the
+.Xr amd 8
+program.
+Communication is by
+.Tn RPC .
+Three modes of operation are supported by the current protocol.
+By default a list of mount points and auto-mounted file systems
+is output.
+An alternative host can be specified using the
+.Fl h
+option.
+.Pp
+If directory names are given, as output by default,
+then per file system information is displayed.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+Request automounter to flush the internal caches.
+.It Fl h Ar hostname
+Query alternate host
+.Ar hostname .
+By default the local host is used.  In an
+.Tn HP-UX
+cluster, the root server is queried by default, since
+that is the system on which the automounter is normally run.
+.It Fl l Ar log_file
+Tell amd to use
+.Ar log_file
+as the log file name. 
+For security reasons, this must be the same log file which
+.Nm amd
+used when started.  This option is therefore only useful to 
+refresh
+.Nm amd Ns \'s
+open file handle on the log file, so that it can be rotated and compressed via
+daily cron jobs.
+.It Fl m
+Request the automounter to provide a list of mounted file systems,
+including the number of references to each file system and any error
+which occurred while mounting.
+.It Fl p
+Return the process ID of the remote or locally running
+.Nm amd .  
+Useful when you need to send a signal to the local
+.Nm amd
+process, and would rather not have to search through the process table.  This
+option is used in the
+.Pa ctl-amd
+script.
+.It Fl s
+Request the automounter to provide system-wide mount statistics.
+.It Fl u
+Request the automounter to unmount the named file systems
+instead of providing information about them.  Unmounts are requested,
+not forced.  They merely cause the mounted file system to timeout,
+which will be picked up by
+.Nm amd Ns \'s
+main scheduler thus causing the normal timeout action to be taken.
+.It Fl v
+Request the automounter to provide version information.  This is a subset
+of the information provided by
+.Nm amd Ns \'s Fl v
+option.
+.It Fl x Ar log_options
+Ask the automounter to use the logging options specified in 
+.Ar log_options
+from now on.
+.It Fl D Ar log_options
+Ask the automounter to use the debugging options specified in 
+.Ar debug_options
+from now on.
+.It Fl M
+Pass a mount map entry to 
+.Nm amd
+and wait for it to be evaluated, possibly causing a mount.
+This option is highly insecure.  
+By default,
+.Nm amd
+and 
+.Nm amq
+do not support it.
+It is necessary to configure
+.Nm am-utils
+with 
+.Ar --enable-amq-mount
+to enable this option.
+.It Fl P Ar program_number
+Contact an alternate running 
+.Nm amd 
+that had registered itself on a different RPC
+.Ar program_number 
+and apply all other operations to that instance of the automounter.  
+This is useful when running multiple copies of 
+.Nm amd , 
+and need to manage each one separately.  
+If not specified, 
+.Nm amq
+will use the default program number for 
+.Nm amd ,
+300019.
+For security reasons, the only alternate program numbers
+.Nm amd
+can use range from 300019 to 300029, inclusive.
+.It Fl T
+Contact
+.Nm amd
+using the TCP transport only.  
+Normally 
+.Nm amq
+will try TCP, and if that fails, will try UDP.
+.It Fl U
+Contact 
+.Nm amd
+using UDP (connectionless) transport only. 
+Normally
+.Nm amq
+will try TCP, and if that fails, will try UDP.
+.El
+.Sh FILES
+.Bl -tag -width amq.x -compact
+.It Pa amq.x
+.Tn RPC
+protocol description.
+.El
+.Sh CAVEATS
+.Nm Amq
+uses a Sun registered
+.Tn RPC
+program number (300019 decimal) which may not
+be in the
+.Pa /etc/rpc
+database.
+.Sh SEE ALSO
+.Xr amd.conf 5 ,
+.Xr amd 8
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to 
+.Nm am-utils
+are listed in the
+.Nm AUTHORS 
+file distributed with
+.Nm am-utils .
+.Sh HISTORY
+.Nm Amq
+first appeared in
+.Bx 4.4 .

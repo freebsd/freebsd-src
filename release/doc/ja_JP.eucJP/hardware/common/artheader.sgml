@@ -1,0 +1,19 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.5
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; ハードウェアノート</title>
+
+  <corpauthor>The FreeBSD Documentation Project</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+  </copyright>
+</articleinfo>

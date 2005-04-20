@@ -1,0 +1,273 @@
+.\"-
+.\" Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
+.\" by permission.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 11, 2003
+.Dt FETCH 1
+.Os
+.Sh NAME
+.Nm fetch
+.Nd retrieve a file by Uniform Resource Locator
+.Sh SYNOPSIS
+.Nm
+.Op Fl 146AFMPRUadlmnpqrsv
+.Op Fl B Ar bytes
+.Op Fl S Ar bytes
+.Op Fl T Ar seconds
+.Op Fl N Ar file
+.Op Fl o Ar file
+.Op Fl w Ar seconds
+.Op Fl h Ar host
+.Op Fl c Ar dir
+.Op Fl f Ar file
+.Op Ar URL ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides a command-line interface to the
+.Xr fetch 3
+library.
+Its purpose is to retrieve the file(s) pointed to by the URL(s) on the
+command line.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl \&1
+Stop and return exit code 0 at the first successfully retrieved file.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.It Fl A
+Do not automatically follow ``temporary'' (302) redirects.
+Some broken Web sites will return a redirect instead of a not-found
+error when the requested object does not exist.
+.It Fl a
+Automatically retry the transfer upon soft failures.
+.It Fl B Ar bytes
+Specify the read buffer size in bytes.
+The default is 4096 bytes.
+Attempts to set a buffer size lower than this will be silently
+ignored.
+The number of reads actually performed is reported at verbosity level
+two or higher (see the
+.Fl v
+flag).
+.It Fl c Ar dir
+The file to retrieve is in directory
+.Ar dir
+on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl d
+Use a direct connection even if a proxy is configured.
+.It Fl F
+In combination with the
+.Fl r
+flag, forces a restart even if the local and remote files have
+different modification times.
+Implies
+.Fl R .
+.It Fl f Ar file
+The file to retrieve is named
+.Ar file
+on the remote host.
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl h Ar host
+The file to retrieve is located on the host
+.Ar host .
+This option is deprecated and is provided for backward compatibility
+only.
+.It Fl l
+If the target is a file-scheme URL, make a symbolic link to the target
+rather than trying to copy it.
+.It Fl M
+.It Fl m
+Mirror mode: if the file already exists locally and has the same size
+and modification time as the remote file, it will not be fetched.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
+.It Fl N Ar file
+Use
+.Ar file
+instead of
+.Pa ~/.netrc
+to look up login names and passwords for FTP sites.
+See
+.Xr ftp 1
+for a description of the file format.
+This feature is experimental.
+.It Fl n
+Don't preserve the modification time of the transferred file.
+.It Fl o Ar file
+Set the output file name to
+.Ar file .
+By default, a ``pathname'' is extracted from the specified URI, and
+its basename is used as the name of the output file.
+A
+.Ar file
+argument of
+.Sq Li \&-
+indicates that results are to be directed to the standard output.
+If the
+.Ar file
+argument is a directory, fetched file(s) will be placed within the
+directory, with name(s) selected as in the default behaviour.
+.It Fl P
+.It Fl p
+Use passive FTP.
+This is useful if you are behind a firewall which blocks incoming
+connections.
+Try this flag if
+.Nm
+seems to hang when retrieving FTP URLs.
+.It Fl q
+Quiet mode.
+.It Fl R
+The output files are precious, and should not be deleted under any
+circumstances, even if the transfer failed or was incomplete.
+.It Fl r
+Restart a previously interrupted transfer.
+Note that the
+.Fl m
+and
+.Fl r
+flags are mutually exclusive.
+.It Fl S Ar bytes
+Require the file size reported by the server to match the specified
+value.
+If it does not, a message is printed and the file is not fetched.
+If the server does not support reporting file sizes, this option is
+ignored and the file is fetched unconditionally.
+.It Fl s
+Print the size in bytes of each requested file, without fetching it.
+.It Fl T Ar seconds
+Set timeout value to
+.Ar seconds .
+Overrides the environment variables
+.Ev FTP_TIMEOUT
+for FTP transfers or
+.Ev HTTP_TIMEOUT
+for HTTP transfers if set.
+.It Fl U
+When using passive FTP, allocate the port for the data connection from
+the low (default) port range.
+See
+.Xr ip 4
+for details on how to specify which port range this corresponds to.
+.It Fl v
+Increase verbosity level.
+.It Fl w Ar seconds
+When the
+.Fl a
+flag is specified, wait this many seconds between successive retries.
+.El
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+the current transfer rate statistics will be written to the
+standard error output, in the same format as the standard completion
+message.
+.Sh DIAGNOSTICS
+The
+.Nm
+command returns zero on success, or one on failure.
+If multiple URLs are listed on the command line,
+.Nm
+will attempt to retrieve them each of them in turn, and return zero
+only if they were all successfully retrieved.
+.Sh ENVIRONMENT
+.Bl -tag -width HTTP_TIMEOUT
+.It Ev FTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an FTP connection.
+.It Ev HTTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an HTTP connection.
+.El
+.Pp
+All environment variables mentioned in the documentation for the
+.Xr fetch 3
+library are supported.
+A number of these are quite important to the proper operation of
+.Nm ;
+you are strongly encouraged to read
+.Xr fetch 3
+as well.
+.Sh SEE ALSO
+.Xr fetch 3
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1.5 .
+This implementation first appeared in
+.Fx 4.1 .
+.Sh AUTHORS
+.An -nosplit
+The original implementation of
+.Nm
+was done by
+.An Jean-Marc Zucconi Aq jmz@FreeBSD.org .
+It was extensively re-worked for
+.Fx 2.2
+by
+.An Garrett Wollman Aq wollman@FreeBSD.org ,
+and later completely rewritten to use the
+.Xr fetch 3
+library by
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.Sh NOTES
+The
+.Fl b
+and
+.Fl t
+options are no longer supported and will generate warnings.
+They were workarounds for bugs in other OSes which this implementation
+does not trigger.
+.Pp
+One cannot both use the
+.Fl h ,
+.Fl c
+and
+.Fl f
+options and specify URLs on the command line.

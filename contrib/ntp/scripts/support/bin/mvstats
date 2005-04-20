@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# mvstats,v 3.1 1993/07/06 01:10:24 jbj Exp
+#
+# mvstats is called by cron for keeping the log files together
+# usually only used on reference hosts
+#
+# Files reside in /var/NTP
+# Files older than 2 days will be compressed,
+# Files older than 64 days will be removed.
+#
+# mvstats,v
+# Revision 3.1  1993/07/06  01:10:24  jbj
+# XNTP release 3.1
+#
+#
+# Revision 1.1  1992/12/10  12:58:24  kardel
+# Prerelease NTP V3 / DCF
+#
+#
+cd /var/NTP
+find . ! -name '*.Z' -mtime +2 -exec compress -f {} \;
+find . -mtime +64 -exec rm -f {} \;

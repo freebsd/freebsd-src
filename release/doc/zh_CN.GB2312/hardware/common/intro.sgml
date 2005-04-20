@@ -1,0 +1,24 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.6
+	$FreeBSD$
+-->
+
+<sect1 id="intro">
+  <title>介绍</title>
+
+  <para>这份文档包含了 &os; &release.current; (也记为 &os;/&arch; &release.current;)
+  在 &arch.print; 硬件平台上的兼容硬件说明。 它列出了已知能够在这一平台上使用的硬件，
+  以及一些有用的启动时内核定制项， 用以支持新的设备。</para>
+
+  <note>
+    <para>这份文档包含的信息是 &arch.print;
+    硬件平台所专用的。 不同硬件架构上的硬件兼容说明可能有一些细节上的差异。</para>
+  </note>
+
+  <para arch="ia64">关于 &os;/&arch; 的更多信息可以在
+    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+    Project</ulink> 上找到。</para>
+
+</sect1>

@@ -1,0 +1,19 @@
+DEFAULT -A -p -s -q
+Lucifer 55406cfa -a 1 -p -s -q -t 10001
+faui45  24000f9b -a 1 -p -s -q
+faui10  2440213c -a 1 -p -s -q
+faui1b  54001418 -A -p -s -q -t 10001
+faui4p  5100344d -A -p -s -q -t 9999
+faui02g 1200be20 -A -p -s -q -t 9999
+faui02e 1200bbab -A -p -s -q -t 9999
+faui02f 1200bedb -A -p -s -q -t 9999
+faui03b 1200b92b -A -p -s -q -t 9999
+faui45m 726001ac -A -p -s -q -t 10001
+faui45o 72600272 -A -p -s -q -t 10001
+faui45p 7260028f -A -p -s -q -t 10001
+faui45r 72400cc7 -A -p -s -q -t 10001
+faui45s 726045be -A -p -s -q -t 10001
+faui45v 72604487 -A -p -s -q -t 10001
+faui45x 726044eb -A -p -s -q -t 10001
+faui45y 7260476d -A -p -s -q -t 10001
+faui45z 726045a1 -A -p -s -q -t 10001

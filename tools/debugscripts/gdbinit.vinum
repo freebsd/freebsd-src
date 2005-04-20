@@ -1,0 +1,329 @@
+# $FreeBSD$
+# gdb macros for debugging Vinum.
+# This file gets included from the .gdbinit files in 
+# the kernel build directory and /var/crash.
+# Normally you won't need to include it directly.
+# see gdbinit(9) for further details.
+
+# Show information about the request pointed to by the variable rq in the current frame.
+define rq
+rqq rq
+end
+document rq
+Show information about the request pointed to by the variable rq in the current frame.
+end
+
+# Show information about the request (struct rq) pointed at by the parameter
+define rqq
+set $rq = (struct request *) $arg0
+printf "Request: \n" 
+output/x *$rq
+printf "\n"
+bpp $rq->bp
+set $rqg = $rq->rqg
+while ($rqg != 0)
+  printf "\nRequest group at %x:\n", $rqg
+  output/x *$rqg
+  printf "\n"
+  set $rqno = 0
+  while ($rqno < $rqg->count)
+    printf "rqg->rqe [%d]: ", $rqno
+    rrqe &$rqg->rqe[$rqno]
+    set $rqno = $rqno + 1
+    end
+  set $rqg = $rqg->next
+  end
+end
+document rqq
+Show information about the request (struct rq) pointed at by the parameter
+end
+
+# Show information about the request element pointed to by the variable rqe in the current frame.
+define rqe
+rrqe rqe
+end
+document rqe
+Show information about the request element pointed to by the variable rqe in the current frame.
+end
+
+# Show information about the request element (struct rqe) pointed at by the parameter.
+define rrqe
+set $rqe = (struct rqelement *) $arg0
+    printf "sdoffset 0x%x, useroffset 0x%x, dataoffset 0x%x, datalen 0x%x, groupoffset 0x%x, grouplen 0x%x, buflen 0x%x\n", \
+      $rqe->sdoffset, \
+      $rqe->useroffset, \
+      $rqe->dataoffset, \
+      $rqe->datalen, \
+      $rqe->groupoffset, \
+      $rqe->grouplen, \
+      $rqe->buflen
+    printf "  Flags 0x%x,  Subdisk %d  Drive %d\n", \
+      $rqe->flags, \
+      $rqe->sdno, \
+      $rqe->driveno
+    bpp &$rqe->b
+end
+document rrqe
+Show information about the request element (struct rqe) pointed at by the parameter.
+end
+
+define rqq0
+printf "rq->prq [0].rqe[0].sdno: " 
+output/x rq->prq[0].rqe[0].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[0].rqe[0].b.b_dev
+printf " data: " 
+output/x rq->prq[0].rqe[0].b.b_data
+printf " length: " 
+output/x rq->prq[0].rqe[0].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[0].rqe[0].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[0].rqe[0].sdoffset
+printf "\nFlags: " 
+if (rq->prq[0].rqe[0].b.b_flags & 0x10)
+printf "busy "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x200)
+printf "done "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x800)
+printf "error "
+end
+if (rq->prq[0].rqe[0].b.b_flags & 0x100000)
+printf "read "
+end
+output/x rq->prq[0].rqe[0].b.b_flags
+printf "\nrq->prq [0].rqe[1].sdno: " 
+output/x rq->prq[0].rqe[1].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[0].rqe[1].b.b_dev
+printf " data: " 
+output/x rq->prq[0].rqe[1].b.b_data
+printf " length: " 
+output/x rq->prq[0].rqe[1].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[0].rqe[1].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[0].rqe[1].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[0].rqe[1].b.b_flags
+echo \n
+end
+document rqq0
+Print important information on Vinum request structures.
+end
+
+define rqq1
+printf "\nrq->prq [1].rqe[0].sdno: " 
+output/x rq->prq[1].rqe[0].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[1].rqe[0].b.b_dev
+printf " data: " 
+output/x rq->prq[1].rqe[0].b.b_data
+printf " length: " 
+output/x rq->prq[1].rqe[0].b.b_bcount
+printf " drive offset: " 
+output/x rq->prq[1].rqe[0].b.b_blkno
+printf " subdisk offset: " 
+output/x rq->prq[1].rqe[0].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[1].rqe[0].b.b_flags
+printf "\nrq->prq [1].rqe[1].sdno: " 
+output/x rq->prq[1].rqe[1].sdno
+printf "\nBuffer: device: " 
+output/x rq->prq[1].rqe[1].b.b_dev
+printf " data: 0x%x  length 0x%x  drive offset 0x%x  sd offset 0x%x\n" rq->prq[1].rqe[1].b.b_data,
+ rq->prq[1].rqe[1].b.b_bcount,
+ rq->prq[1].rqe[1].b.b_blkno,
+ rq->prq[1].rqe[1].sdoffset
+printf "\nFlags: " 
+output/x rq->prq[1].rqe[1].b.b_flags
+echo \n
+end
+document rqq1
+Print important information on Vinum request structures.
+end
+
+# kernel equivalent of 'info -V'
+define rqi
+   set $rqipe = rqip
+   set $rqip = $rqipe + 1
+   set $rqend  = rqinfo + 128
+   if ($rqip == $rqend)
+      set $rqip = rqinfo
+   end
+   set $done = 0
+   while ($done == 0)
+     if ($rqip->bp != 0)
+        printf "%X:\t%d.%06d\tUBP: %x\t", $rqip, $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec, $rqip->bp
+        p $rqip->type
+	printf " user  "
+        bpp $rqip->bp
+        if ($rqip->type < loginfo_rqe)
+	   printf " copied"
+           bpp &$rqip->info
+        else 
+           rrqe &$rqip->info
+        end
+      end
+      set $rqip = $rqip + 1
+      if ($rqip == $rqipe)
+         set $done = 1
+      end
+      if ($rqip == $rqend)
+         set $rqip = rqinfo
+      end
+   end
+end
+document rqi
+Print out the same information as 'vinum info -V'.
+end
+
+define rqinfo
+   set $rqipe = rqip
+   set $rqip = $rqipe + 1
+   set $rqend  = rqinfo + 128
+   if ($rqip == $rqend)
+      set $rqip = rqinfo
+   end
+   set $done = 0
+   printf "\nTime\t\t\t Event\t\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n"
+   while ($done == 0)
+     if ($rqip->bp != 0)
+        printf "%d.%06d\t", $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec
+	if ($rqip->type ==  loginfo_user_bp)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "1VS Read"
+	  else
+	    printf "1VS Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	
+      if ($rqip->type == loginfo_user_bpl)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "2LR Read"
+	  else
+	    printf "2LR Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	 
+      if ($rqip->type == loginfo_rqe)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "3RQ Read"
+	  else
+	    printf "3RQ Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_iodone)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "4DN Read"
+	  else
+	    printf "4DN Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_raid5_data)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "5RD Read"
+	  else
+	    printf "5RD Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_raid5_parity)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "6RP Read"
+	  else
+	    printf "6RP Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+
+      if ($rqip->type == loginfo_sdio)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "7VS Read"
+	  else
+	    printf "7VS Write"
+	  end
+	printf "\t%p\t\t  0x%-9x\t%ld\t%d\n", $rqip->bp, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount, $rqip->devminor & 0xff
+	end
+
+      if ($rqip->type == loginfo_sdiol)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "8LR Read"
+	  else
+	    printf "8LR Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	 
+      if ($rqip->type == loginfo_lockwait)
+	printf "Lockwait  %p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+      if ($rqip->type == loginfo_lock)
+	printf "Lock      \t%p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+      if ($rqip->type == loginfo_unlock)
+	printf "Unlock    \t%p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+	if ($rqip->type == loginfo_sdiodone)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "9DN Read"
+	  else
+	    printf "9DN Write"
+	  end
+	printf "\t%p\t\t  0x%-9x\t%ld\t%d\n", $rqip->bp, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount, $rqip->devminor
+	end
+
+	end
+      set $rqip = $rqip + 1
+      if ($rqip == $rqipe)
+         set $done = 1
+      end
+      if ($rqip == $rqend)
+         set $rqip = rqinfo
+      end
+   end
+end 
+document rqinfo
+Show the Vinum request log buffer like 'vinum info -V'
+end
+define meminfo
+printf "Block\t\tTime\t\tSequence\t  size\t  address\t  line\t\tfile\n"
+set $i = 0
+while $i < malloccount
+  printf "%6d\t%10d.%06d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n", $i, malloced [$i].time.tv_sec, malloced [$i].time.tv_usec, malloced [$i].seq, malloced[$i].size, malloced[$i].address, malloced[$i].line, &malloced[$i].file
+  set $i = $i + 1
+end
+end
+document meminfo
+Equivalent of 'vinum info -v' command
+end
+define finfo
+printf "Block\t\tTime\t\tSequence\t  size\t  address\t  line\t\tfile\n"
+set $i = lastfree
+set $j = 0
+while $j < 64
+  if $i == 64
+    set $i = 0
+  end
+  if freeinfo[$i].line != 0
+    printf "%6d\t%10d.%06d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n", $i, freeinfo [$i].time.tv_sec, freeinfo [$i].time.tv_usec, freeinfo [$i].seq, freeinfo[$i].size, freeinfo[$i].address, freeinfo[$i].line, &freeinfo[$i].file
+  end
+  set $i = $i + 1
+  set $j = $j + 1
+end
+end
+document finfo
+Show recently freed Vinum memory blocks.
+end

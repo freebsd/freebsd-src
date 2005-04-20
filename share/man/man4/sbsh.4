@@ -1,0 +1,89 @@
+.\" Written by Denis I. Timofeev, 2003.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 11, 2003
+.Dt SBSH 4
+.Os
+.Sh NAME
+.Nm sbsh
+.Nd "Granch SBNI16 SHDSL modem device driver"
+.Sh SYNOPSIS
+.Cd "device sbsh"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for an internal PCI modem SBNI16-SHDSL.
+A device is introduced to the OS as a common Ethernet-like network
+card which must be configured with
+.Xr ifconfig 8
+(all standard network interface parameters could be set).
+Modem-specific
+parameters (master/slave mode, line rate, etc.) must be set with the
+.Nm sb16config
+utility before interface activation.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sbsh%d: couldn't map memory"
+.It "sbsh%d: couldn't map interrupt"
+.It "sbsh%d: couldn't set up irq"
+A fatal initialization error has occurred.
+.It "sbsh%d: unable to load firmware"
+A fatal error has occurred while
+.Nm sb16config
+was running.
+.It "sbsh%d: firmware wasn't loaded"
+.Dq Nm ifconfig Ar ... Cm up
+has failed because device has not been configured with
+.Nm sb16config .
+.It "sbsh%d: transmit timeout"
+.It "sbsh%d: interrupt posted but not delivered"
+Probably, a hardware error or incompatibility.
+.It "sbsh%d: unable to get mbuf"
+.It "sbsh%d: unable to get mbuf cluster"
+The driver failed to allocate a memory buffer.
+.El
+.Sh FILES
+The sources for the driver reside in:
+.Pp
+.Bl -tag -compact
+.It Pa /sys/dev/sbsh/if_sbsh.c
+.It Pa /sys/dev/sbsh/if_sbshreg.h
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Pp
+.Pa ports/sysutils/sb16config
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.9 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Denis I. Timofeev Aq timofeev@granch.ru .

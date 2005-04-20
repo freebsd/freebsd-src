@@ -1,0 +1,23 @@
+The `groffer' program is the easiest way to read `groff' documents.
+All input is sent to `grog' and then to `groff' such that no special
+`groff' arguments must be determined.
+
+`groffer' also has many built-in `man' functionalities to find and
+read the manual pages on UNIX and similar operating systems.  It
+accepts the information from an installed `man' program, but tries to
+find a man path by itself if there isn't any.
+
+So far, `groffer' is a shell script.  It should run on any POSIX or
+Bourne style shell, but it runs the fastest if the `ash' shell is
+installed on the system.  This shell is found out and started
+automatically.  There are efforts to port part of the shell script to
+C/C++ to increase the speed independent of the shell.
+
+For reporting bugs of `groffer', groff's free mailing list
+<bug-groff@gnu.org> can be used.  For a general discussion, the
+<groff@gnu.org> is more useful; see the `README' file in the top
+directory of the `groff' source package for more details on this
+mailing list.
+
+`groffer' is a `groff contrib' project that was written by Bernd
+Warken <bwarken@mayn.de>.

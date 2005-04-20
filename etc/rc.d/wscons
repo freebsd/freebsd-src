@@ -1,0 +1,170 @@
+#!/bin/sh
+#
+# $NetBSD: wscons,v 1.9 2002/04/26 00:06:54 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: wscons
+# REQUIRE: mountcritremote
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="wscons"
+rcvar=$name
+start_cmd="wscons_start"
+stop_cmd=":"
+
+wscons_start()
+{
+	wscfg=/usr/sbin/wsconscfg
+	wsfld=/usr/sbin/wsfontload
+	wsctl=/sbin/wsconsctl
+	config=/etc/wscons.conf
+	usage="Usage: wsconfig [-n] [-f configfile] [-font fontpgm] [-screen screenpgm]"
+	DOIT=
+
+	while [ $# -gt 0 ]; do
+		case $1 in
+			-n)
+				DOIT=echo
+				;;
+			-f)
+				config=$2
+				shift
+				;;
+			-font)
+				wsfld=$2
+				shift
+				;;
+			-screen)
+				wscfg=$2
+				shift
+				;;
+			*)
+				echo $usage
+				exit 1
+				;;
+		esac
+		shift
+	done
+
+
+	# args mean:
+	#	screen idx scr emul
+	#	font   name width height enc file
+	( while read type arg1 arg2 arg3 arg4 arg5; do
+		case "$type" in
+			\#*|"")
+				continue
+				;;
+
+			font)
+				name=$arg1
+				width=$arg2
+				height=$arg3
+				enc=$arg4
+				file=$arg5
+				cmd=$wsfld
+
+				case $width in
+					-)
+						;;
+					*)
+						cmd="$cmd -w $width"
+						;;
+				esac
+				case $height in
+					-)
+						;;
+					*)
+						cmd="$cmd -h $height"
+						;;
+				esac
+				case $enc in
+					-)
+						;;
+					*)
+						cmd="$cmd -e $enc"
+						;;
+				esac
+				cmd="$cmd -N $name $file"
+				eval $DOIT $cmd
+				;;
+
+			screen)
+				idx=$arg1
+				scr=$arg2
+				emul=$arg3
+				cmd=$wscfg
+
+				case $scr in
+					-)
+						;;
+					*)
+						cmd="$cmd -t $scr"
+						;;
+				esac
+				case $emul in
+					-)
+						;;
+					*)
+						cmd="$cmd -e $emul"
+						;;
+				esac
+				cmd="$cmd $idx"
+				eval $DOIT $cmd
+				;;
+
+			keyboard)
+				kbd=$arg1
+				cmd=$wscfg
+				case $kbd in
+					-|auto)
+						cmd="$cmd -k"
+						;;
+					*)
+						cmd="$cmd -k $kbd"
+						;;
+				esac
+				eval $DOIT $cmd
+				;;
+
+			encoding)
+				map=$arg1
+				cmd="$wsctl -w \"encoding=$map\""
+				eval $DOIT $cmd
+				;;
+
+			mapfile)
+				mapfile=$arg1
+				( while read entry; do
+					case "$entry" in
+						\#*|"")
+						continue
+						;;
+					*)
+						cmd="$wsctl -w \"map+=$entry\""
+						cmd="$cmd >/dev/null"
+						eval $DOIT $cmd
+						;;
+					esac
+				done ) < $mapfile
+				;;
+
+			mux)
+				cmd="$wscfg -m $arg1"
+				eval $DOIT $cmd
+				;;
+
+			setvar)
+				cmd="$wsctl -w $arg1"
+				eval $DOIT $cmd
+				;;
+
+		esac
+	done ) < $config
+}
+
+load_rc_config $name
+run_rc_command "$1"

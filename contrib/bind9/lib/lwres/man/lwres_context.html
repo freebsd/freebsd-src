@@ -1,0 +1,478 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: lwres_context.html,v 1.5.2.2.2.3 2004/08/22 23:39:03 marka Exp $ -->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>lwres_context</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+></A
+>lwres_context</H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN8"
+></A
+><H2
+>Name</H2
+>lwres_context_create, lwres_context_destroy, lwres_context_nextserial, lwres_context_initserial, lwres_context_freemem, lwres_context_allocmem, lwres_context_sendrecv&nbsp;--&nbsp;lightweight resolver context management</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN17"
+></A
+><H2
+>Synopsis</H2
+><DIV
+CLASS="FUNCSYNOPSIS"
+><P
+></P
+><A
+NAME="AEN18"
+></A
+><PRE
+CLASS="FUNCSYNOPSISINFO"
+>#include &lt;lwres/lwres.h&gt;</PRE
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>lwres_result_t
+lwres_context_create</CODE
+>(lwres_context_t **contextp, void *arg, lwres_malloc_t malloc_function, lwres_free_t free_function);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>lwres_result_t
+lwres_context_destroy</CODE
+>(lwres_context_t **contextp);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>void
+lwres_context_initserial</CODE
+>(lwres_context_t *ctx, lwres_uint32_t serial);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>lwres_uint32_t
+lwres_context_nextserial</CODE
+>(lwres_context_t *ctx);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>void
+lwres_context_freemem</CODE
+>(lwres_context_t *ctx, void *mem, size_t len);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>void
+lwres_context_allocmem</CODE
+>(lwres_context_t *ctx, size_t len);</CODE
+></P
+><P
+><CODE
+><CODE
+CLASS="FUNCDEF"
+>void *
+lwres_context_sendrecv</CODE
+>(lwres_context_t *ctx, void *sendbase, int sendlen, void *recvbase, int recvlen, int *recvd_len);</CODE
+></P
+><P
+></P
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN60"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+><CODE
+CLASS="FUNCTION"
+>lwres_context_create()</CODE
+>
+creates a
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>
+structure for use in lightweight resolver operations.
+It holds a socket and other data needed for communicating
+with a resolver daemon.
+The new
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>
+is returned through
+<VAR
+CLASS="PARAMETER"
+>contextp</VAR
+>,
+
+a pointer to a
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>
+pointer.  This 
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>
+pointer must initially be NULL, and is modified 
+to point to the newly created
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>.&#13;</P
+><P
+>When the lightweight resolver needs to perform dynamic memory
+allocation, it will call
+<VAR
+CLASS="PARAMETER"
+>malloc_function</VAR
+>
+to allocate memory and
+<VAR
+CLASS="PARAMETER"
+>free_function</VAR
+>
+
+to free it.  If 
+<VAR
+CLASS="PARAMETER"
+>malloc_function</VAR
+>
+and
+<VAR
+CLASS="PARAMETER"
+>free_function</VAR
+>
+
+are NULL, memory is allocated using
+.Xr malloc 3
+and
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>free</SPAN
+>(3)</SPAN
+>.
+
+It is not permitted to have a NULL
+<VAR
+CLASS="PARAMETER"
+>malloc_function</VAR
+>
+and a non-NULL
+<VAR
+CLASS="PARAMETER"
+>free_function</VAR
+>
+or vice versa.
+<VAR
+CLASS="PARAMETER"
+>arg</VAR
+>
+is passed as the first parameter to the memory
+allocation functions.  
+If
+<VAR
+CLASS="PARAMETER"
+>malloc_function</VAR
+>
+and
+<VAR
+CLASS="PARAMETER"
+>free_function</VAR
+>
+are NULL,
+<VAR
+CLASS="PARAMETER"
+>arg</VAR
+>
+
+is unused and should be passed as NULL.</P
+><P
+>Once memory for the structure has been allocated,
+it is initialized using
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>lwres_conf_init</SPAN
+>(3)</SPAN
+>
+
+and returned via
+<VAR
+CLASS="PARAMETER"
+>*contextp</VAR
+>.&#13;</P
+><P
+><CODE
+CLASS="FUNCTION"
+>lwres_context_destroy()</CODE
+>
+destroys a 
+<SPAN
+CLASS="TYPE"
+>lwres_context_t</SPAN
+>,
+
+closing its socket.
+<VAR
+CLASS="PARAMETER"
+>contextp</VAR
+>
+is a pointer to a pointer to the context that is to be destroyed.
+The pointer will be set to NULL when the context has been destroyed.</P
+><P
+>The context holds a serial number that is used to identify resolver
+request packets and associate responses with the corresponding requests.
+This serial number is controlled using
+<CODE
+CLASS="FUNCTION"
+>lwres_context_initserial()</CODE
+>
+and
+<CODE
+CLASS="FUNCTION"
+>lwres_context_nextserial()</CODE
+>.
+<CODE
+CLASS="FUNCTION"
+>lwres_context_initserial()</CODE
+>
+sets the serial number for context
+<VAR
+CLASS="PARAMETER"
+>*ctx</VAR
+>
+to
+<VAR
+CLASS="PARAMETER"
+>serial</VAR
+>.
+
+<CODE
+CLASS="FUNCTION"
+>lwres_context_nextserial()</CODE
+>
+increments the serial number and returns the previous value.</P
+><P
+>Memory for a lightweight resolver context is allocated and freed using
+<CODE
+CLASS="FUNCTION"
+>lwres_context_allocmem()</CODE
+>
+and
+<CODE
+CLASS="FUNCTION"
+>lwres_context_freemem()</CODE
+>.
+These use whatever allocations were defined when the context was
+created with
+<CODE
+CLASS="FUNCTION"
+>lwres_context_create()</CODE
+>.
+<CODE
+CLASS="FUNCTION"
+>lwres_context_allocmem()</CODE
+>
+allocates
+<VAR
+CLASS="PARAMETER"
+>len</VAR
+>
+bytes of memory and if successful returns a pointer to the allocated
+storage.
+<CODE
+CLASS="FUNCTION"
+>lwres_context_freemem()</CODE
+>
+frees
+<VAR
+CLASS="PARAMETER"
+>len</VAR
+>
+bytes of space starting at location
+<VAR
+CLASS="PARAMETER"
+>mem</VAR
+>.&#13;</P
+><P
+><CODE
+CLASS="FUNCTION"
+>lwres_context_sendrecv()</CODE
+>
+performs I/O for the context
+<VAR
+CLASS="PARAMETER"
+>ctx</VAR
+>.
+
+Data are read and written from the context's socket.
+It writes data from
+<VAR
+CLASS="PARAMETER"
+>sendbase</VAR
+>
+&mdash; typically a lightweight resolver query packet &mdash;
+and waits for a reply which is copied to the receive buffer at
+<VAR
+CLASS="PARAMETER"
+>recvbase</VAR
+>.
+
+The number of bytes that were written to this receive buffer is
+returned in
+<VAR
+CLASS="PARAMETER"
+>*recvd_len</VAR
+>.&#13;</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN115"
+></A
+><H2
+>RETURN VALUES</H2
+><P
+><CODE
+CLASS="FUNCTION"
+>lwres_context_create()</CODE
+>
+returns
+<SPAN
+CLASS="ERRORCODE"
+>LWRES_R_NOMEMORY</SPAN
+>
+if memory for the
+<SPAN
+CLASS="TYPE"
+>struct lwres_context</SPAN
+>
+could not be allocated, 
+<SPAN
+CLASS="ERRORCODE"
+>LWRES_R_SUCCESS</SPAN
+>
+otherwise.</P
+><P
+>Successful calls to the memory allocator
+<CODE
+CLASS="FUNCTION"
+>lwres_context_allocmem()</CODE
+>
+return a pointer to the start of the allocated space.
+It returns NULL if memory could not be allocated.</P
+><P
+><SPAN
+CLASS="ERRORCODE"
+>LWRES_R_SUCCESS</SPAN
+>
+is returned when
+<CODE
+CLASS="FUNCTION"
+>lwres_context_sendrecv()</CODE
+>
+completes successfully.
+<SPAN
+CLASS="ERRORCODE"
+>LWRES_R_IOERROR</SPAN
+>
+is returned if an I/O error occurs and
+<SPAN
+CLASS="ERRORCODE"
+>LWRES_R_TIMEOUT</SPAN
+>
+is returned if
+<CODE
+CLASS="FUNCTION"
+>lwres_context_sendrecv()</CODE
+>
+times out waiting for a response.</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN130"
+></A
+><H2
+>SEE ALSO</H2
+><P
+><SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>lwres_conf_init</SPAN
+>(3)</SPAN
+>,
+
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>malloc</SPAN
+>(3)</SPAN
+>,
+
+<SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>free</SPAN
+>(3)</SPAN
+>.</P
+></DIV
+></BODY
+></HTML
+>

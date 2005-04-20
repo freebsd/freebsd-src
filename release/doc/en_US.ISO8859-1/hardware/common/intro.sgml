@@ -1,0 +1,24 @@
+<!-- $FreeBSD$ -->
+
+<sect1 id="intro">
+  <title>Introduction</title>
+
+  <para>This document contains the hardware compatibility notes for
+  &os; &release.current; on the &arch.print; hardware platform
+  (also referred to as &os;/&arch; &release.current;).  It lists
+  devices known to work on this platform, as well as some notes on
+  boot-time kernel customization that may be useful when attempting to
+  configure support for new devices.</para>
+
+  <note>
+    <para>This document includes information specific to the &arch.print;
+    hardware platform.  Versions of the hardware compatibility notes
+    for other architectures will differ in some details.</para>
+  </note>
+
+  <para arch="ia64">More information on &os;/&arch; is contained on
+    the
+    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch; 
+    Project</ulink> page.</para>
+
+</sect1>

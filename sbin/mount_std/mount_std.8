@@ -1,0 +1,168 @@
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 13, 1996
+.Dt MOUNT_STD 8
+.Os
+.Sh NAME
+.Nm mount_std ,
+.Nm mount_devfs ,
+.Nm mount_fdescfs ,
+.Nm mount_linprocfs ,
+.Nm mount_procfs
+.Nd mount
+.Dq standard
+file systems
+.Sh SYNOPSIS
+.Nm mount_ Ns Ar fsname
+.Op Fl o Ar options
+.Ar "fs"
+.Ar mount_point
+.Sh DESCRIPTION
+The
+.Nm
+utility is a generic mechanism for attaching ``standard'' file systems to
+the file system.
+The
+.Nm
+utility currently supports the following file systems:
+.Nm devfs ,
+.Nm fdescfs ,
+.Nm linprocfs
+and
+.Nm procfs .
+A ``standard'' file system is one which:
+.Bl -enum -offset indent
+.It
+accepts only the standard
+.Fl o
+options
+.Dq ro ,
+.Dq rw ,
+.Dq nodev ,
+.Dq noexec ,
+.Dq nosuid ,
+and
+.Dq union .
+.It
+has a kernel file system module name the same as its user-visible name.
+.It
+requires no other special processing on the part of the
+.Nm
+utility.
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Pp
+The
+.Nm
+utility examines its zeroth command-line argument (the name by which
+it was called) to determine the type of file system to be mounted.
+If
+it is called by a name which does not end in
+.Dq Li _ Ns Ar fsname ,
+.Nm
+will assume (for compatibility
+with
+.Xr mount 8 )
+that the zeroth argument contains only the name of the file system type.
+The
+.Nm
+utility is normally installed with appropriate links to commands for
+the distributed file systems which can be mounted in this way;
+for information on the function of each file system, see the manual page
+for that specific
+.Nm mount_ Ns Ar fsname
+utility.
+.Pp
+Refer to the following manual pages for detailed information
+on these file system:
+.Xr devfs 5 ,
+.Xr fdescfs 5 ,
+.Xr linprocfs 5
+and
+.Xr procfs 5 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It argv[0] must end in _fsname
+The
+.Nm
+utility was called with a zeroth argument of
+.Dq Li mount_std .
+.It %s file system not available
+The specified file system type was not present in the kernel and no
+loadable module for it was found.
+.El
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr getvfsbyname 3 ,
+.Xr devfs 5 ,
+.Xr fdescfs 5 ,
+.Xr fstab 5 ,
+.Xr linprocfs 5 ,
+.Xr procfs 5 ,
+.Xr mount 8
+.Sh CAVEATS
+None of the ``standard'' file systems may be NFS-exported.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.2 .
+Loadable file system modules first appeared in
+.Fx 2.0 .
+The
+.Dq fdescfs
+and
+.Dq procfs
+file system types first appeared in
+.Fx 2.0 ;
+the
+.Dq devfs
+file system type first appeared in
+.Fx 2.2 ;
+the
+.Dq linprocfs
+file system type first appeared in
+.Fx 4.0 .

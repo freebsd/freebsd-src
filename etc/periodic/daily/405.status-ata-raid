@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_ata_raid_enable" in
+    [Yy][Ee][Ss])
+	echo
+	echo 'Checking status of ATA raid partitions:'
+
+	rc=0
+	for raid in `find /dev/ -name 'ar[0-9]*' -type c | egrep '[0-9]$' \
+		| egrep -v 's[0-9]' | cut -d / -f 3`
+	     do
+		status=`/sbin/atacontrol status $raid`
+		echo $status
+		raid_rc=`echo $status | grep -v READY | wc -l`
+		[ $rc -eq 0 ] && [ $raid_rc -gt 0 ] && rc=3
+	     done
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

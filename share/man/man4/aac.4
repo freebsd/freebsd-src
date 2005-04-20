@@ -1,0 +1,177 @@
+.\" Copyright (c) 2000 Scott Long
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd January 4, 2005
+.Dt AAC 4
+.Os
+.Sh NAME
+.Nm aac
+.Nd Adaptec AdvancedRAID Controller driver
+.Sh SYNOPSIS
+.Cd options AAC_DEBUG=N
+.Cd device pci
+.Cd device aac
+.Cd device aacp
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Adaptec AAC family of SCSI Ultra2, Ultra160,
+and Ultra320, and SATA RAID controllers.
+.Pp
+Access to RAID containers is available via the
+.Pa /dev/aacd?
+device nodes.
+The
+.Nm aacp
+device enables the SCSI pass-thru interface and allows devices connected
+to the card such as CD-ROMs to be available via the CAM
+.Xr scsi 4
+subsystem.
+Note that not all cards allow this interface to be enabled.
+.Pp
+The
+.Pa /dev/aac?
+device nodes provide access to the management interface of the controller.
+One node exists per installed card.
+The aliases
+.Pa /dev/afa?
+and
+.Pa /dev/hpn?
+exist for compatibilty with the Dell and HP versions of management tools,
+respectively.
+If the kernel is compiled with the
+.Dv COMPAT_LINUX
+option, or the
+.Pa aac_linux.ko
+and
+.Pa linux.ko
+modules are loaded, the
+Linux-compatible
+.Xr ioctl 2
+interface for the management device will be enabled and will allow
+Linux-based management applications to control the card.
+.Ss Tuning
+The read-only sysctl
+.Va hw.aac.iosize_max
+defaults to 65536 and may be set at boot time to another value via
+.Xr loader 8 .
+This value determines the maximum data transfer size allowed
+to/from an array.
+Setting it higher will result in better performance,
+especially for large sequential access patterns.
+.Em Beware :
+internal limitations
+of the card limit this value to 64K for arrays with many members.
+While it may be safe to raise this value, this is done
+.Em at the operator's own risk .
+Note also that
+performance peaks at a value of 96K,
+and drops off dramatically at 128K,
+due to other limitations of the card.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec AAC-364
+.It
+Adaptec SATA RAID 2410SA
+.It
+Adaptec SATA RAID 2810SA
+.It
+Adaptec SATA RAID 21610SA
+.It
+Adaptec SCSI RAID 2120S
+.It
+Adaptec SCSI RAID 2130S
+.It
+Adaptec SCSI RAID 2200S
+.It
+Adaptec SCSI RAID 2130SLP
+.It
+Adaptec SCSI RAID 2230SLP
+.It
+Adaptec SCSI RAID 5400S
+.It
+Dell CERC SATA RAID 2
+.It
+Dell PERC 2/Si
+.It
+Dell PERC 2/QC
+.It
+Dell PERC 3/Si
+.It
+Dell PERC 3/Di
+.It
+Dell PERC 320/DC
+.It
+HP NetRAID 4M
+.El
+.Sh FILES
+.Bl -tag -width /boot/kernel/aac.ko -compact
+.It Pa /dev/aac?
+aac management interface
+.It Pa /dev/aacd?
+disk/container interface
+.It Pa /boot/kernel/aac.ko
+aac loadable module
+.El
+.Sh DIAGNOSTICS
+Compiling with
+.Dv AAC_DEBUG
+set to a number between 0 and 3
+will enable increasingly verbose debug messages.
+.Pp
+The adapter can send status and alert messages asynchronously
+to the driver.
+These messages are printed on the system console,
+and are also queued for retrieval by a management application.
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr linux 4 ,
+.Xr scsi 4 ,
+.Xr kldload 8 ,
+.Xr loader 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.3 .
+.Sh AUTHORS
+.An Mike Smith
+.Aq msmith@FreeBSD.org
+.An Scott Long
+.Aq scottl@FreeBSD.org
+.Sh BUGS
+This driver is not compatible with Dell controllers that have version 1.x
+firmware.
+The firmware version is the same as the kernel version printed in the BIOS
+POST and driver attach messages.
+.Pp
+The controller is not actually paused on suspend/resume.
+.Pp

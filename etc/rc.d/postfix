@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# $NetBSD: postfix,v 1.6 2002/02/12 02:19:27 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: mail
+# REQUIRE: LOGIN
+#	we make mail start late, so that things like .forward's are not
+#	processed until the system is fully operational
+
+. /etc/rc.subr
+
+name="postfix"
+rcvar=$name
+required_files="/etc/${name}/main.cf"
+start_precmd="postfix_precmd"
+start_cmd="${name} start"
+stop_cmd="${name} stop"
+reload_cmd="${name} reload"
+extra_commands="reload"
+spooletcdir="/var/spool/${name}/etc"
+required_dirs=$spooletcdir
+
+postfix_precmd()
+{
+	# As this is called after the is_running and required_dir checks
+	# are made in run_rc_command(), we can safely assume ${spooletcdir}
+	# exists and postfix isn't running at this point (unless forcestart
+	# is used).
+	#
+
+	for f in localtime resolv.conf services; do
+		if [ -f /etc/$f ]; then
+			cmp -s /etc/$f ${spooletcdir}/$f || \
+			    cp -p /etc/$f ${spooletcdir}/$f
+		fi
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"

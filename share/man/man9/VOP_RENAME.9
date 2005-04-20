@@ -1,0 +1,316 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Os
+.Dt VOP_RENAME 9
+.Sh NAME
+.Nm VOP_RENAME
+.Nd rename a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_RENAME "struct vnode *fdvp" "struct vnode *fvp" "struct componentname *fcnp" "struct vnode *tdvp" "struct vnode *tvp" "struct componentname *tcnp"
+.Sh DESCRIPTION
+This renames a file and possibly changes its parent directory.
+If the destination object exists, it will be removed first.
+.Pp
+Its arguments are:
+.Bl -tag -width fdvp
+.It Fa fdvp
+the vnode of the old parent directory
+.It Fa fvp
+the vnode of the file to be renamed
+.It Fa fcnp
+pathname information about the file's current name
+.It Fa tdvp
+the vnode of the new parent directory
+.It Fa tvp
+the vnode of the target file (if it exists)
+.It Fa tcnp
+pathname information about the file's new name
+.El
+.Sh LOCKS
+The source directory and file are unlocked but are expected to have their
+ref count bumped on entry.
+The VOP routine is expected to
+.Xr vrele 9
+both prior
+to returning.
+.Pp
+The destination directory and file are locked as well as having their ref
+count bumped.
+The VOP routine is expected to
+.Xr vput 9
+both prior to
+returning.
+.Sh PSEUDOCODE
+.Bd -literal
+int
+vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
+	   struct vnode *tdvp, struct vnode *tvp, struct componentname *tcnp)
+{
+    int doingdirectory = 0;
+    int error = 0;
+
+    /*
+     * Check for cross-device rename.
+     */
+    if (fvp->v_mount != tdvp->v_mount) {
+	error = EXDEV;
+    abortit:
+	if (tdvp == tvp)
+	    vrele(tdvp);
+	else
+	    vput(tdvp);
+	if (tvp)
+	    vput(tvp);
+	vrele(fdvp);
+	vrele(fvp);
+	return error;
+    }
+
+    if (tvp exists and is immutable) {
+	error = EPERM;
+	goto abortit;
+    }
+
+    /*
+     * Check if just deleting a link name.
+     */
+    if (fvp == tvp) {
+	if (fvp->v_type == VDIR) {
+	    error = EINVAL;
+	    goto abortit;
+	}
+
+	/*
+	 * Release destination.
+	 */
+	vput(tdvp);
+	vput(tvp);
+
+	/*
+	 * Delete source.  Pretty bizarre stuff.
+	 */
+	vrele(fdvp);
+	vrele(fvp);
+	fcnp->cn_flags &= ~MODMASK;
+	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
+	fcnp->cn_nameiop = DELETE;
+	VREF(fdvp);
+	error = relookup(fdvp, &fvp, fcnp);
+	if (error == 0)
+	    vrele(fdvp);
+	return VOP_REMOVE(fdvp, fvp, fcnp);
+    }
+
+    if (fvp is immutable) {
+	error = EPERM;
+	goto abortit;
+    }
+
+    error = VOP_LOCK(fvp);
+    if (error)
+	goto abortit;
+
+    if (vp is a directory) {
+	/*
+	 * Avoid ".", "..", and aliases of "." for obvious reasons.
+	 */
+	if ((fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.')
+	    || fdvp == fvp
+	    || ((fcnp->cn_flags | tcnp->cn_flags) & ISDOTDOT)) {
+	    VOP_UNLOCK(fvp);
+	    error = EINVAL;
+	    goto abortit;
+	}
+	doingdirectory = 1;
+    }
+    vrele(fdvp);
+
+    /*
+     * Bump link count on fvp while we are moving stuff around.  If we
+     * crash before completing the work, the link count may be wrong
+     * but correctable.
+     */
+    ...;
+
+    /*
+     * If ".." must be changed (ie the directory gets a new
+     * parent) then the source directory must not be in the
+     * directory hierarchy above the target, as this would
+     * orphan everything below the source directory. Also
+     * the user must have write permission in the source so
+     * as to be able to change "..".
+     */
+    error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+    VOP_UNLOCK(fvp);
+    if (doingdirectory && fdvp != tdvp) {
+	/*
+	 * Check for pathname conflict.
+	 */
+	...;
+    }
+
+    /*
+     * If the target doesn't exist, link the target to the source and
+     * unlink the source.  Otherwise, rewrite the target directory to
+     * reference the source and remove the original entry.
+     */
+    if (tvp == NULL) {
+	/*
+	 * Account for ".." in new directory.
+	 */
+	if (doingdirectory && fdvp != tdvp) {
+	    /*
+	     * Increase link count of tdvp.
+	     */
+	    ...;
+	}
+
+	/*
+	 * Add name in new directory.
+	 */
+	...;
+
+	if (error) {
+	    if (doingdirectory && fdvp != tdvp) {
+		/*
+		 * Decrease link count if tdvp.
+		 */
+		...;
+	    }
+	    goto bad;
+	}
+	vput(tdvp);
+    } else {
+	/*
+	 * Target must be empty if a directory and have no links
+	 * to it. Also, ensure source and target are compatible
+	 * (both directories, or both not directories).
+	 */
+	if (tvp is a directory) {
+	    if (tvp is not empty) {
+		error = ENOTEMPTY;
+		goto bad;
+	    }
+	    if (!doingdirectory) {
+		error = ENOTDIR;
+		goto bad;
+	    }
+	    /*
+	     * Update name cache since directory is going away.
+	     */
+	    cache_purge(tdvp);
+	} else if (doingdirectory) {
+	    error = ENOTDIR;
+	    goto bad;
+	}
+
+	/*
+	 * Change name tcnp in tdvp to point at fvp.
+	 */
+	...;
+
+	/*
+	 * If the target directory is in same directory as the source
+	 * directory, decrement the link count on the parent of the
+	 * target directory.  This accounts for the fact that a
+	 * directory links back to its parent with "..".
+	 */
+	if (doingdirectory && fdvp == tdvp) {
+	    /*
+	     * Decrement link count of tdvp.
+	     */
+	    ...;
+	}
+	vput(tdvp);
+
+	/*
+	 * Decrement the link count of tvp since the directory no
+	 * longer points at it.
+	 */
+	...;
+	if (doingdirectory) {
+	    /*
+	     * Clean up the old directory tvp.
+	     */
+	    ...;
+	}
+	vput(tvp);
+    }
+
+    /*
+     * Unlink the source.  If a directory was moved to a new parent,
+     * update its ".." entry.  Gobs of ugly UFS code omitted here.
+     */
+    ...;
+
+bad:
+    if (tvp)
+	vput(tvp);
+    vput(tdvp);
+out:
+    if (VOP_LOCK(fvp) == 0) {
+	/*
+	 * Decrement link count of fvp.
+	 */
+	...;
+        vput(fvp);
+    } else
+	vrele(fvp);
+
+    return error;
+}
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+The file is immutable.
+.It Bq Er EXDEV
+It is not possible to rename a file between different file systems.
+.It Bq Er EINVAL
+An attempt was made to rename
+.Pa \&.
+or
+.Pa .. ,
+or to perform an operation which would break the directory tree structure.
+.It Bq Er ENOTDIR
+An attempt was made to rename a directory to a file or vice versa.
+.It Bq Er ENOTEMPTY
+An attempt was made to remove a directory which is not empty.
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

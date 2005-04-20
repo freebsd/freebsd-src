@@ -1,0 +1,179 @@
+#!/bin/sh
+#
+# Copyright (c) 2003 The FreeBSD Project. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE PROJECT BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: netif
+# REQUIRE: atm1 ipfilter mountcritlocal pccard serial sppp sysctl
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="network"
+start_cmd="network_start"
+stop_cmd="network_stop"
+cloneup_cmd="clone_up"
+clonedown_cmd="clone_down"
+extra_commands="cloneup clonedown"
+_cmdifn=
+
+network_start()
+{
+	# Set the list of interfaces to work on.
+	#
+	_cmdifn=$*
+
+	if [ -z "$_cmdifn" ]; then
+		#
+		# We're operating as a general network start routine.
+		#
+
+		# Create cloned interfaces
+		clone_up
+
+		# Create IPv6<-->IPv4 tunnels
+		gif_up
+
+		# Rename interfaces.
+		ifnet_rename
+	fi
+
+	# Configure the interface(s).
+	network_common ifn_start verbose
+
+	if [ -f /etc/rc.d/ipfilter ] ; then
+		# Resync ipfilter
+		/etc/rc.d/ipfilter resync
+	fi
+}
+
+network_stop()
+{
+	# Set the list of interfaces to work on.
+	#
+	_cmdifn=$*
+
+	echo -n "Stopping network:"
+
+	# Deconfigure the interface(s)
+	network_common ifn_stop
+	echo '.'
+}
+
+# network_common routine verbose
+#	Common configuration subroutine for network interfaces. This
+#	routine takes all the preparatory steps needed for configuriing
+#	an interface and then calls $routine. If $verbose is specified,
+#	it will call ifconfig(8) to show, in long format, the configured
+#	interfaces. If $verbose is not given, it will simply output the
+#	configured interface(s).
+network_common()
+{
+	_func=
+	_verbose=
+
+	if [ -z "$1" ]; then
+		err 1 "network_common(): No function name specified."
+	else
+		_func="$1"
+	fi
+	[ -n "$2" ] && _verbose=yes
+
+	# Get a list of network interfaces. Do not include dhcp interfaces.
+	_ifn_list="`list_net_interfaces nodhcp`"
+
+	# Set the scope of the command (all interfaces or just one).
+	#
+	_cooked_list=
+	if [ -n "$_cmdifn" ]; then
+		for i in $_cmdifn ; do
+			eval _if=\"`expr "$_ifn_list" : ".*\(${i}\).*"`\"
+			if [ -z "$_if" ]; then
+				err 1 "No such network interface: $i"
+			fi
+			_cooked_list="$_cooked_list $_if"
+		done
+	else
+		_cooked_list="$_ifn_list"
+	fi
+
+	for ifn in ${_cooked_list}; do
+		if ${_func} ${ifn} ; then
+			eval showstat_$ifn=1
+		else
+			_fail="$_fail $ifn"
+		fi
+	done
+
+	# Display interfaces configured by this script
+	#
+	for ifn in ${_cooked_list}; do
+		eval showstat=\$showstat_${ifn}
+		if [ ! -z ${showstat} ]; then
+			if [ -n "$_verbose" ]; then
+				ifconfig ${ifn}
+			else
+				echo -n " ${ifn}"
+			fi
+		fi
+	done
+	debug "The following interfaces were not configured: $_fail"
+}
+
+ifn_start()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && return 1
+
+	ifscript_up ${ifn} && cfg=0
+	ifconfig_up ${ifn} && cfg=0
+	ifalias_up ${ifn} && cfg=0
+	ipx_up ${ifn} && cfg=0
+
+	return $cfg
+}
+
+ifn_stop()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && return 1
+
+	ipx_down ${ifn} && cfg=0
+	ifalias_down ${ifn} && cfg=0
+	ifconfig_down ${ifn} && cfg=0
+	ifscript_down ${ifn} && cfg=0
+
+	return $cfg
+}
+
+load_rc_config $name
+run_rc_command $*

@@ -1,0 +1,99 @@
+# $FreeBSD$
+#
+# Short month names
+#
+Sty
+Lut
+Mar
+Kwi
+Maj
+Cze
+Lip
+Sie
+Wrz
+Paz
+Lis
+Gru
+#
+# Long month names
+#
+Styczeń
+Luty
+Marzec
+Kwiecień
+Maj
+Czerwiec
+Lipiec
+Sierpień
+Wrzesień
+Październik
+Listopad
+Grudzień
+#
+# Short weekday names
+#
+Ndz
+Pon
+Wto
+Śro
+Czw
+Pią
+Sob
+#
+# Long weekday names
+#
+Niedziela
+Poniedziałek
+Wtorek
+Środa
+Czwartek
+Piątek
+Sobota
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%Y.%m.%d
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+
+#
+# pm
+#
+
+#
+# date_fmt
+#
+%a %e %b %X %Y %Z
+#
+# Long months names (alternative)
+#
+Styczeń
+Luty
+Marzec
+Kwiecień
+Maj
+Czerwiec
+Lipiec
+Sierpień
+Wrzesień
+Październik
+Listopad
+Grudzień
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+#
+
+# EOF

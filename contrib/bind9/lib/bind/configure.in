@@ -1,0 +1,2423 @@
+# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2001  Internet Software Consortium.
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+AC_REVISION($Revision: 1.83.2.5.2.10 $)
+
+AC_INIT(resolv/herror.c)
+AC_PREREQ(2.13)
+
+AC_CONFIG_HEADER(config.h)
+
+AC_CANONICAL_HOST
+
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+
+AC_SUBST(STD_CINCLUDES)
+AC_SUBST(STD_CDEFINES)
+AC_SUBST(STD_CWARNINGS)
+AC_SUBST(CCOPT)
+
+AC_PATH_PROG(AR, ar)
+ARFLAGS="cruv"
+AC_SUBST(AR)
+AC_SUBST(ARFLAGS)
+
+# The POSIX ln(1) program.  Non-POSIX systems may substitute
+# "copy" or something.
+LN=ln
+AC_SUBST(LN)
+
+case "$AR" in
+	"")
+		AC_MSG_ERROR([
+ar program not found.  Please fix your PATH to include the directory in
+which ar resides, or set AR in the environment with the full path to ar.
+])
+
+		;;
+esac
+
+#
+# Etags.
+#
+AC_PATH_PROGS(ETAGS, etags emacs-etags)
+
+#
+# Some systems, e.g. RH7, have the Exuberant Ctags etags instead of
+# GNU emacs etags, and it requires the -L flag.
+#
+if test "X$ETAGS" != "X"; then
+	AC_MSG_CHECKING(for Exuberant Ctags etags)
+	if $ETAGS --version 2>&1 | grep 'Exuberant Ctags' >/dev/null 2>&1; then
+		AC_MSG_RESULT(yes)
+		ETAGS="$ETAGS -L"
+	else
+		AC_MSG_RESULT(no)
+	fi
+fi
+AC_SUBST(ETAGS)
+
+#
+# Perl is optional; it is used only by some of the system test scripts.
+#
+AC_PATH_PROGS(PERL, perl5 perl)
+AC_SUBST(PERL)
+
+#
+# isc/list.h and others clash with the rest of BIND 9
+#
+case "$includedir" in
+	'${prefix}/include')
+		includedir='${prefix}/bind/include'
+		;;
+esac
+case "$libdir" in
+	'${prefix}/lib')
+		libdir='${prefix}/bind/lib'
+		;;
+esac
+
+#
+# Make sure INSTALL uses an absolute path, else it will be wrong in all
+# Makefiles, since they use make/rules.in and INSTALL will be adjusted by
+# configure based on the location of the file where it is substituted.
+# Since in BIND9 INSTALL is only substituted into make/rules.in, an immediate
+# subdirectory of install-sh, This relative path will be wrong for all
+# directories more than one level down from install-sh.
+#
+case "$INSTALL" in
+	/*)
+                ;;
+        *)
+                #
+                # Not all systems have dirname.
+                #
+                changequote({, })
+                ac_dir="`echo $INSTALL | sed 's%/[^/]*$%%'`"
+                changequote([, ])
+
+                ac_prog="`echo $INSTALL | sed 's%.*/%%'`"
+                test "$ac_dir" = "$ac_prog" && ac_dir=.
+                test -d "$ac_dir" && ac_dir="`(cd \"$ac_dir\" && pwd)`"
+                INSTALL="$ac_dir/$ac_prog"
+                ;;
+esac
+
+#
+# On these hosts, we really want to use cc, not gcc, even if it is
+# found.  The gcc that these systems have will not correctly handle
+# pthreads.
+#
+# However, if the user sets $CC to be something, let that override
+# our change.
+#
+if test "X$CC" = "X" ; then
+	case "$host" in
+		*-dec-osf*)
+			CC="cc"
+			;;
+		*-solaris*)
+                        # Use Sun's cc if it is available, but watch
+                        # out for /usr/ucb/cc; it will never be the right
+                        # compiler to use.
+                        #
+                        # If setting CC here fails, the AC_PROG_CC done
+                        # below might still find gcc.
+			IFS="${IFS=	}"; ac_save_ifs="$IFS"; IFS=":"
+			for ac_dir in $PATH; do
+				test -z "$ac_dir" && ac_dir=.
+				case "$ac_dir" in
+				/usr/ucb)
+					# exclude
+					;;
+				*)
+					if test -f "$ac_dir/cc"; then
+						CC="$ac_dir/cc"
+						break
+					fi
+					;;
+				esac
+			done
+			IFS="$ac_save_ifs"
+			;;
+		*-hp-hpux*)
+			CC="cc"
+			;;
+		mips-sgi-irix*)
+			CC="cc"
+			;;
+	esac
+fi
+
+
+AC_PROG_CC
+
+AC_HEADER_STDC
+
+
+AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/timers.h)
+
+
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+#
+# check if we need to #include sys/select.h explicitly
+#
+case $ac_cv_header_unistd_h in
+yes)
+AC_MSG_CHECKING(if unistd.h defines fd_set)
+AC_TRY_COMPILE([
+#include <unistd.h>],
+[fd_set read_set; return (0);],
+	[AC_MSG_RESULT(yes)
+	 ISC_PLATFORM_NEEDSYSSELECTH="#undef ISC_PLATFORM_NEEDSYSSELECTH"
+	 ],
+	[AC_MSG_RESULT(no)
+	case ac_cv_header_sys_select_h in
+	yes)
+         ISC_PLATFORM_NEEDSYSSELECTH="#define ISC_PLATFORM_NEEDSYSSELECTH 1"
+		;;
+	no)
+		AC_MSG_ERROR([need either working unistd.h or sys/select.h])
+		;;
+	esac
+	])
+	;;
+no)
+	case ac_cv_header_sys_select_h in
+	yes)
+             ISC_PLATFORM_NEEDSYSSELECTH="#define ISC_PLATFORM_NEEDSYSSELECTH 1"
+		;;
+	no)
+		AC_MSG_ERROR([need either unistd.h or sys/select.h])
+		;;
+	esac
+	;;
+esac
+AC_SUBST(ISC_PLATFORM_NEEDSYSSELECTH)
+
+#
+# Find the machine's endian flavor.
+#
+AC_C_BIGENDIAN
+
+AC_ARG_WITH(irs-gr,[ --with-irs-gr		Build ....],
+want_irs_gr="$withval", want_irs_gr="no")
+case "$want_irs_gr" in
+yes) WANT_IRS_GR="#define WANT_IRS_GR 1"
+     WANT_IRS_GR_OBJS="\${WANT_IRS_GR_OBJS}"
+	;;
+*) WANT_IRS_GR="#undef WANT_IRS_GR" WANT_IRS_GR_OBJS="";;
+esac
+AC_SUBST(WANT_IRS_GR)
+AC_SUBST(WANT_IRS_GR_OBJS)
+
+AC_ARG_WITH(irs-pw,[ --with-irs-pw		Build ....],
+want_irs_pw="$withval", want_irs_pw="no")
+case "$want_irs_pw" in
+yes) WANT_IRS_PW="#define WANT_IRS_PW 1"
+     WANT_IRS_PW_OBJS="\${WANT_IRS_PW_OBJS}";;
+*) WANT_IRS_PW="#undef WANT_IRS_PW" WANT_IRS_PW_OBJS="";;
+esac
+AC_SUBST(WANT_IRS_PW)
+AC_SUBST(WANT_IRS_PW_OBJS)
+
+AC_ARG_WITH(irs-nis,[ --with-irs-nis		Build ....],
+want_irs_nis="$withval", want_irs_nis="no")
+case "$want_irs_nis" in
+yes)
+	WANT_IRS_NIS="#define WANT_IRS_NIS 1"
+	WANT_IRS_NIS_OBJS="\${WANT_IRS_NIS_OBJS}"
+	case "$want_irs_gr" in
+	yes)
+		WANT_IRS_NISGR_OBJS="\${WANT_IRS_NISGR_OBJS}";;
+	*)
+		WANT_IRS_NISGR_OBJS="";;
+	esac
+	case "$want_irs_pw" in
+	yes)
+		WANT_IRS_NISPW_OBJS="\${WANT_IRS_NISPW_OBJS}";;
+	*)
+		WANT_IRS_NISPW_OBJS="";;
+	esac
+	;;
+*)
+	WANT_IRS_NIS="#undef WANT_IRS_NIS"
+	WANT_IRS_NIS_OBJS=""
+	WANT_IRS_NISGR_OBJS=""
+	WANT_IRS_NISPW_OBJS="";;
+esac
+AC_SUBST(WANT_IRS_NIS)
+AC_SUBST(WANT_IRS_NIS_OBJS)
+AC_SUBST(WANT_IRS_NISGR_OBJS)
+AC_SUBST(WANT_IRS_NISPW_OBJS)
+AC_TRY_RUN([
+#ifdef HAVE_DB_H
+int have_db_h = 1;
+#else
+int have_db_h = 0;
+#endif
+main() { return(!have_db_h); }
+],
+WANT_IRS_DBPW_OBJS="\${WANT_IRS_DBPW_OBJS}"
+,
+WANT_IRS_DBPW_OBJS=""
+,
+WANT_IRS_DBPW_OBJS=""
+)
+AC_SUBST(WANT_IRS_DBPW_OBJS)
+
+#
+# was --with-randomdev specified?
+#
+AC_MSG_CHECKING(for random device)
+AC_ARG_WITH(randomdev,
+[  --with-randomdev=PATH Specify path for random device],
+    use_randomdev="$withval", use_randomdev="unspec")
+
+case "$use_randomdev" in
+	unspec)
+		case "$host" in
+			*-openbsd*)
+				devrandom=/dev/srandom
+				;;
+			*)
+				devrandom=/dev/random
+				;;
+		esac
+		AC_MSG_RESULT($devrandom)
+		AC_CHECK_FILE($devrandom,
+			      AC_DEFINE_UNQUOTED(PATH_RANDOMDEV,
+						 "$devrandom"),)
+		;;
+	yes)
+		AC_MSG_ERROR([--with-randomdev must specify a path])
+		;;
+	*)
+		AC_DEFINE_UNQUOTED(PATH_RANDOMDEV, "$use_randomdev")
+		AC_MSG_RESULT(using "$use_randomdev")
+		;;
+esac
+
+#
+# Begin pthreads checking.
+#
+# First, decide whether to use multithreading or not.
+#
+AC_MSG_CHECKING(whether to look for thread support)
+AC_ARG_ENABLE(threads,
+	[  --disable-threads	disable multithreading])
+case "$enable_threads" in
+	yes|'')
+		AC_MSG_RESULT(yes)
+		use_threads=true
+		;;
+	no)
+		AC_MSG_RESULT(no)	
+		use_threads=false
+		;;
+	*)
+	    	AC_MSG_ERROR([--enable-threads takes yes or no])
+		;;
+esac
+
+if $use_threads
+then
+	#
+	# Search for / configure pthreads in a system-dependent fashion.
+	#
+	case "$host" in
+	  *-netbsd*)
+		# NetBSD has multiple pthreads implementations.	 The
+		# recommended one to use is "unproven-pthreads".  The
+		# older "mit-pthreads" may also work on some NetBSD
+		# versions.  The PTL2 thread library does not
+		# currently work with bind9, but can be chosen with
+		# the --with-ptl2 option for those who wish to
+		# experiment with it.
+		CC="gcc"
+		AC_MSG_CHECKING(which NetBSD thread library to use)
+
+		AC_ARG_WITH(ptl2,
+[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
+		    use_ptl2="$withval", use_ptl2="no")
+
+		: ${LOCALBASE:=/usr/pkg}
+
+		if test "X$use_ptl2" = "Xyes"
+		then
+			AC_MSG_RESULT(PTL2)
+			AC_MSG_WARN(
+[linking with PTL2 is highly experimental and not expected to work])
+			CC=ptlgcc
+		else
+			if test ! -d $LOCALBASE/pthreads
+			then
+				AC_MSG_RESULT(none)
+				use_threads=false
+			fi
+
+			if $use_threads
+			then
+				AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
+				pkg="$LOCALBASE/pthreads"
+				lib1="-L$pkg/lib -Wl,-R$pkg/lib"
+				lib2="-lpthread -lm -lgcc -lpthread"
+				LIBS="$lib1 $lib2 $LIBS"
+				CPPFLAGS="$CPPFLAGS -I$pkg/include"
+				STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+			fi
+		fi
+		;;
+		*)
+			AC_CHECK_LIB(pthread, pthread_create,,
+				AC_CHECK_LIB(pthread, __pthread_create,,
+				AC_CHECK_LIB(pthread, __pthread_create_system,,
+				AC_CHECK_LIB(c_r, pthread_create,,
+				AC_CHECK_LIB(c, pthread_create,,
+				use_threads=false)))))
+		;;
+	esac
+fi
+
+if $use_threads
+then
+	#
+	# We'd like to use sigwait() too
+	#
+	AC_CHECK_LIB(c, sigwait,
+		     AC_DEFINE(HAVE_SIGWAIT),
+		     AC_CHECK_LIB(pthread, sigwait,
+				  AC_DEFINE(HAVE_SIGWAIT),
+				  AC_CHECK_LIB(pthread, _Psigwait,
+					       AC_DEFINE(HAVE_SIGWAIT),))
+	)
+
+	AC_CHECK_FUNC(pthread_attr_getstacksize,
+		      AC_DEFINE(HAVE_PTHREAD_ATTR_GETSTACKSIZE),)
+
+	#
+	# Additional OS-specific issues related to pthreads and sigwait.
+	#
+	case "$host" in
+		#
+		# One more place to look for sigwait.
+		#
+		*-freebsd*)
+			AC_CHECK_LIB(c_r, sigwait, AC_DEFINE(HAVE_SIGWAIT),)
+			;;
+		#
+		# BSDI 3.0 through 4.0.1 needs pthread_init() to be
+		# called before certain pthreads calls.	 This is deprecated
+		# in BSD/OS 4.1.
+		#
+		*-bsdi3.*|*-bsdi4.0*)
+			AC_DEFINE(NEED_PTHREAD_INIT)
+			;;
+		#
+		# LinuxThreads requires some changes to the way we
+		# deal with signals.
+		#
+		*-linux*)
+			AC_DEFINE(HAVE_LINUXTHREADS)
+			;;
+		#
+		# Ensure the right sigwait() semantics on Solaris and make
+		# sure we call pthread_setconcurrency.
+		#
+		*-solaris*)
+			AC_DEFINE(_POSIX_PTHREAD_SEMANTICS)
+			AC_CHECK_FUNC(pthread_setconcurrency,
+				      AC_DEFINE(CALL_PTHREAD_SETCONCURRENCY))
+			AC_DEFINE(POSIX_GETPWUID_R)
+			AC_DEFINE(POSIX_GETPWNAM_R)
+			AC_DEFINE(POSIX_GETGRGID_R)
+			AC_DEFINE(POSIX_GETGRNAM_R)
+			;;
+		*hpux11*)
+			AC_DEFINE(_PTHREADS_DRAFT4)
+			;;
+		#
+		# UnixWare does things its own way.
+		#
+		*-UnixWare*)
+			AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
+			;;
+	esac
+
+	#
+	# Look for sysconf to allow detection of the number of processors.
+	#
+	AC_CHECK_FUNC(sysconf, AC_DEFINE(HAVE_SYSCONF),)
+
+	if test "X$GCC" = "Xyes"; then
+		case "$host" in
+		*-freebsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-openbsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			;;
+		*-solaris*)
+			LIBS="$LIBS -lthread"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		esac
+	else
+		case $host in
+		*-dec-osf*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			;;
+		*-solaris*)
+			CC="$CC -mt"
+			CCOPT="$CCOPT -mt"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-UnixWare*)
+			CC="$CC -Kthread"
+			CCOPT="$CCOPT -Kthread"
+			;;
+		esac
+	fi
+	ALWAYS_DEFINES="-D_REENTRANT"
+	DO_PTHREADS="#define DO_PTHREADS 1"
+	WANT_IRS_THREADSGR_OBJS="\${WANT_IRS_THREADSGR_OBJS}"
+	WANT_IRS_THREADSPW_OBJS="\${WANT_IRS_THREADSPW_OBJS}"
+	WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}"
+	WANT_THREADS_OBJS="\${WANT_THREADS_OBJS}"
+	thread_dir=pthreads
+else
+	ALWAYS_DEFINES=""
+	DO_PTHREADS="#undef DO_PTHREADS"
+	WANT_IRS_THREADSGR_OBJS=""
+	WANT_IRS_THREADSPW_OBJS=""
+	WANT_IRS_THREADS_OBJS=""
+	WANT_THREADS_OBJS=""
+	thread_dir=nothreads
+fi
+
+AC_CHECK_FUNC(strlcat, AC_DEFINE(HAVE_STRLCAT))
+
+AC_SUBST(ALWAYS_DEFINES)
+AC_SUBST(DO_PTHREADS)
+AC_SUBST(WANT_IRS_THREADSGR_OBJS)
+AC_SUBST(WANT_IRS_THREADSPW_OBJS)
+AC_SUBST(WANT_IRS_THREADS_OBJS)
+AC_SUBST(WANT_THREADS_OBJS)
+
+AC_CHECK_FUNC(if_nametoindex,
+	[USE_IFNAMELINKID="#define USE_IFNAMELINKID 1"],
+	[USE_IFNAMELINKID="#undef USE_IFNAMELINKID"])
+AC_SUBST(USE_IFNAMELINKID)
+
+ISC_THREAD_DIR=$thread_dir
+AC_SUBST(ISC_THREAD_DIR)
+
+AC_CHECK_FUNC(daemon,
+[DAEMON_OBJS="" NEED_DAEMON="#undef NEED_DAEMON"]
+,
+[DAEMON_OBJS="\${DAEMON_OBJS}" NEED_DAEMON="#define NEED_DAEMON 1"]
+)
+AC_SUBST(DAEMON_OBJS)
+AC_SUBST(NEED_DAEMON)
+
+AC_CHECK_FUNC(strsep,
+[STRSEP_OBJS="" NEED_STRSEP="#undef NEED_STRSEP"]
+,
+[STRSEP_OBJS="\${STRSEP_OBJS}" NEED_STRSEP="#define NEED_STRSEP 1"]
+)
+AC_SUBST(STRSEP_OBJS)
+AC_SUBST(NEED_STRSEP)
+
+AC_CHECK_FUNC(strerror, [NEED_STRERROR="#undef NEED_STRERROR"],
+[NEED_STRERROR="#define NEED_STRERROR 1"])
+AC_SUBST(NEED_STRERROR)
+
+#
+# flockfile is usually provided by pthreads, but we may want to use it
+# even if compiled with --disable-threads.
+#
+AC_CHECK_FUNC(flockfile, AC_DEFINE(HAVE_FLOCKFILE),)
+
+# 
+# Indicate what the final decision was regarding threads.
+#
+AC_MSG_CHECKING(whether to build with threads)
+if $use_threads; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+fi
+
+# 
+# End of pthreads stuff.
+#
+
+#
+# Additional compiler settings.
+#
+MKDEPCC="$CC"
+MKDEPCFLAGS="-M"
+IRIX_DNSSEC_WARNINGS_HACK=""
+
+if test "X$GCC" = "Xyes"; then
+	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings"
+else
+	case $host in
+	*-dec-osf*)
+		CC="$CC -std"
+		CCOPT="$CCOPT -std"
+		MKDEPCC="$CC"
+		;;
+	*-hp-hpux*)
+		CC="$CC -Ae -z"
+		# The version of the C compiler that constantly warns about
+                # 'const' as well as alignment issues is unfortunately not
+                # able to be discerned via the version of the operating
+                # system, nor does cc have a version flag.
+		case "`$CC +W 123 2>&1`" in
+		*Unknown?option*)
+			STD_CWARNINGS="+w1"
+			;;
+		*)
+			# Turn off the pointlessly noisy warnings.
+			STD_CWARNINGS="+w1 +W 474,530"
+			;;
+		esac
+		CCOPT="$CCOPT -Ae -z"
+		LIBS="-Wl,+vnocompatwarnings $LIBS"
+MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>&1 | awk '"'"'BEGIN {colon=0; rec="";} { for (i = 0 ; i < NF; i++) { if (colon && a[$i]) continue; if ($i == "\\") continue; if (!colon) { rec =  $i continue; } if ($i == ":") { rec = rec " :" colon = 1 continue; } if (length(rec $i) > 76) { print rec " \\"; rec = "\t" $i; a[$i] = 1; } else { rec = rec " " $i a[$i] = 1; } } } END {print rec}'"'"' >>$TMP'
+		MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
+		;;
+	*-sgi-irix*)
+		STD_CWARNINGS="-fullwarn -woff 1209"
+		#
+		# Silence more than 250 instances of
+		#   "prototyped function redeclared without prototype"
+		# and 11 instances of
+		#   "variable ... was set but never used"
+		# from lib/dns/sec/openssl.
+		#
+		IRIX_DNSSEC_WARNINGS_HACK="-woff 1692,1552"
+		;;
+	*-solaris*)
+		MKDEPCFLAGS="-xM"
+		;;
+	*-UnixWare*)
+		CC="$CC -w"
+		;;
+	esac
+fi
+
+#
+# _GNU_SOURCE is needed to access the fd_bits field of struct fd_set, which
+# is supposed to be opaque.
+#
+case $host in
+	*linux*)
+		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
+		;;
+esac
+
+AC_SUBST(MKDEPCC)
+AC_SUBST(MKDEPCFLAGS)
+AC_SUBST(MKDEPPROG)
+AC_SUBST(IRIX_DNSSEC_WARNINGS_HACK)
+
+#
+# NLS
+#
+AC_CHECK_FUNC(catgets, AC_DEFINE(HAVE_CATGETS),)
+
+#
+# -lxnet buys us one big porting headache...  standards, gotta love 'em.
+#
+# AC_CHECK_LIB(xnet, socket, ,
+#    AC_CHECK_LIB(socket, socket)
+#    AC_CHECK_LIB(nsl, inet_ntoa)
+# )
+#
+# Use this for now, instead:
+#
+case "$host" in
+	mips-sgi-irix*)
+		;;
+	*)
+		AC_CHECK_LIB(d4r, gethostbyname_r)
+		AC_CHECK_LIB(socket, socket)
+		AC_CHECK_LIB(nsl, inet_ntoa)
+		;;
+esac
+
+#
+# Purify support
+#
+AC_MSG_CHECKING(whether to use purify)
+AC_ARG_WITH(purify,
+	[  --with-purify[=PATH]	use Rational purify],
+	use_purify="$withval", use_purify="no")
+
+case "$use_purify" in
+	no)
+		;;
+	yes)
+		AC_PATH_PROG(purify_path, purify, purify)
+		;;
+	*)
+		purify_path="$use_purify"
+		;;
+esac
+
+case "$use_purify" in
+	no)
+		AC_MSG_RESULT(no)
+		PURIFY=""
+		;;
+	*)
+		if test -f $purify_path || test $purify_path = purify; then
+			AC_MSG_RESULT($purify_path)
+			PURIFYFLAGS="`echo $PURIFYOPTIONS`"
+			PURIFY="$purify_path $PURIFYFLAGS"
+		else
+			AC_MSG_ERROR([$purify_path not found.
+
+Please choose the proper path with the following command:
+
+    configure --with-purify=PATH
+])
+		fi
+		;;
+esac
+
+AC_SUBST(PURIFY)
+
+#
+# GNU libtool support
+#
+AC_ARG_WITH(libtool,
+	    [  --with-libtool	use GNU libtool (following indented options supported)],
+	    use_libtool="$withval", use_libtool="no")
+
+case $use_libtool in
+	yes)
+		AM_PROG_LIBTOOL
+		O=lo
+		A=la
+		LIBTOOL_MKDEP_SED='s;\.o;\.lo;'
+		LIBTOOL_MODE_COMPILE='--mode=compile'
+		LIBTOOL_MODE_INSTALL='--mode=install'
+		LIBTOOL_MODE_LINK='--mode=link'
+		;;
+	*)
+		O=o
+		A=a
+		LIBTOOL=
+		AC_SUBST(LIBTOOL)
+		LIBTOOL_MKDEP_SED=
+		LIBTOOL_MODE_COMPILE=
+		LIBTOOL_MODE_INSTALL=
+		LIBTOOL_MODE_LINK=
+		;;
+esac
+
+#
+# File name extension for static archive files, for those few places
+# where they are treated differently from dynamic ones.
+#
+SA=a
+
+AC_SUBST(O)
+AC_SUBST(A)
+AC_SUBST(SA)
+AC_SUBST(LIBTOOL_MKDEP_SED)
+AC_SUBST(LIBTOOL_MODE_COMPILE)
+AC_SUBST(LIBTOOL_MODE_INSTALL)
+AC_SUBST(LIBTOOL_MODE_LINK)
+
+#
+# Here begins a very long section to determine the system's networking
+# capabilities.  The order of the tests is signficant.
+#
+
+#
+# IPv6
+#
+AC_ARG_ENABLE(ipv6,
+	[  --enable-ipv6		use IPv6 [default=autodetect]])
+
+case "$enable_ipv6" in
+	yes|''|autodetect)
+		AC_DEFINE(WANT_IPV6)
+		;;
+	no)
+		;;
+esac
+
+#
+# We do the IPv6 compilation checking after libtool so that we can put
+# the right suffix on the files.
+#
+AC_MSG_CHECKING(for IPv6 structures)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>],
+[struct sockaddr_in6 sin6; return (0);],
+	[AC_MSG_RESULT(yes)
+	 found_ipv6=yes],
+	[AC_MSG_RESULT(no)
+	 found_ipv6=no])
+
+#
+# See whether IPv6 support is provided via a Kame add-on.
+# This is done before other IPv6 linking tests to LIBS is properly set.
+#
+AC_MSG_CHECKING(for Kame IPv6 support)
+AC_ARG_WITH(kame,
+	[  --with-kame[=PATH]	use Kame IPv6 [default path /usr/local/v6]],
+	use_kame="$withval", use_kame="no")
+
+case "$use_kame" in
+	no)
+		;;
+	yes)
+		kame_path=/usr/local/v6
+		;;
+	*)
+		kame_path="$use_kame"
+		;;
+esac
+
+case "$use_kame" in
+	no)
+		AC_MSG_RESULT(no)
+		;;
+	*)
+		if test -f $kame_path/lib/libinet6.a; then
+			AC_MSG_RESULT($kame_path/lib/libinet6.a)
+			LIBS="-L$kame_path/lib -linet6 $LIBS"
+		else
+			AC_MSG_ERROR([$kame_path/lib/libinet6.a not found.
+
+Please choose the proper path with the following command:
+
+    configure --with-kame=PATH
+])
+		fi
+		;;
+esac
+
+#
+# Whether netinet6/in6.h is needed has to be defined in isc/platform.h.
+# Including it on Kame-using platforms is very bad, though, because
+# Kame uses #error against direct inclusion.   So include it on only
+# the platform that is otherwise broken without it -- BSD/OS 4.0 through 4.1.
+# This is done before the in6_pktinfo check because that's what
+# netinet6/in6.h is needed for.
+#
+changequote({, })
+case "$host" in
+*-bsdi4.[01]*)
+	ISC_PLATFORM_NEEDNETINET6IN6H="#define ISC_PLATFORM_NEEDNETINET6IN6H 1"
+	isc_netinet6in6_hack="#include <netinet6/in6.h>"
+	;;
+*)
+	ISC_PLATFORM_NEEDNETINET6IN6H="#undef ISC_PLATFORM_NEEDNETINET6IN6H"
+	isc_netinet6in6_hack=""
+	;;
+esac
+changequote([, ])
+
+#
+# This is similar to the netinet6/in6.h issue.
+#
+case "$host" in
+*-UnixWare*)
+	ISC_PLATFORM_NEEDNETINETIN6H="#define ISC_PLATFORM_NEEDNETINETIN6H 1"
+        ISC_PLATFORM_FIXIN6ISADDR="#define ISC_PLATFORM_FIXIN6ISADDR 1"
+	isc_netinetin6_hack="#include <netinet/in6.h>"
+	;;
+*)
+	ISC_PLATFORM_NEEDNETINETIN6H="#undef ISC_PLATFORM_NEEDNETINETIN6H"
+        ISC_PLATFORM_FIXIN6ISADDR="#undef ISC_PLATFORM_FIXIN6ISADDR"
+	isc_netinetin6_hack=""
+	;;
+esac
+
+#
+# Now delve deeper into the suitability of the IPv6 support.
+#
+case "$found_ipv6" in
+	yes)
+		HAS_INET6_STRUCTS="#define HAS_INET6_STRUCTS 1"
+
+		AC_MSG_CHECKING(for in6_addr)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+[struct in6_addr in6; return (0);],
+		[AC_MSG_RESULT(yes)
+		 HAS_IN_ADDR6="#undef HAS_IN_ADDR6"
+		 isc_in_addr6_hack=""],
+		[AC_MSG_RESULT(no)
+		 HAS_IN_ADDR6="#define HAS_IN_ADDR6 1"
+		 isc_in_addr6_hack="#define in6_addr in_addr6"])
+
+		AC_MSG_CHECKING(for in6addr_any)
+		AC_TRY_LINK([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+$isc_in_addr6_hack
+],
+		[struct in6_addr in6; in6 = in6addr_any; return (0);],
+			[AC_MSG_RESULT(yes)
+			 NEED_IN6ADDR_ANY="#undef NEED_IN6ADDR_ANY"],
+			[AC_MSG_RESULT(no)
+			 NEED_IN6ADDR_ANY="#define NEED_IN6ADDR_ANY 1"])
+
+		AC_MSG_CHECKING(for sin6_scope_id in struct sockaddr_in6)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+		[struct sockaddr_in6 xyzzy; xyzzy.sin6_scope_id = 0; return (0);],
+			[AC_MSG_RESULT(yes)
+			 result="#define HAVE_SIN6_SCOPE_ID 1"],
+			[AC_MSG_RESULT(no)
+			 result="#undef HAVE_SIN6_SCOPE_ID"])
+		HAVE_SIN6_SCOPE_ID="$result"
+
+		AC_MSG_CHECKING(for in6_pktinfo)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+		[struct in6_pktinfo xyzzy; return (0);],
+			[AC_MSG_RESULT(yes)
+			 ISC_PLATFORM_HAVEIN6PKTINFO="#define ISC_PLATFORM_HAVEIN6PKTINFO 1"],
+			[AC_MSG_RESULT(no -- disabling runtime ipv6 support)
+			 ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"])
+
+		AC_MSG_CHECKING(for sockaddr_storage)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+		[struct sockaddr_storage xyzzy; return (0);],
+			[AC_MSG_RESULT(yes)
+			 HAVE_SOCKADDR_STORAGE="#define HAVE_SOCKADDR_STORAGE 1"],
+			[AC_MSG_RESULT(no)
+			 HAVE_SOCKADDR_STORAGE="#undef HAVE_SOCKADDR_STORAGE"])
+		;;
+	no)
+		HAS_INET6_STRUCTS="#undef HAS_INET6_STRUCTS"
+		NEED_IN6ADDR_ANY="#undef NEED_IN6ADDR_ANY"
+		ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"
+		HAVE_SIN6_SCOPE_ID="#define HAVE_SIN6_SCOPE_ID 1"
+		HAVE_SOCKADDR_STORAGE="#undef HAVE_SOCKADDR_STORAGE"
+		ISC_IPV6_H="ipv6.h"
+		ISC_IPV6_O="ipv6.$O"
+		ISC_ISCIPV6_O="unix/ipv6.$O"
+		ISC_IPV6_C="ipv6.c"
+		;;
+esac
+
+AC_SUBST(HAS_INET6_STRUCTS)
+AC_SUBST(ISC_PLATFORM_NEEDNETINETIN6H)
+AC_SUBST(ISC_PLATFORM_NEEDNETINET6IN6H)
+AC_SUBST(HAS_IN_ADDR6)
+AC_SUBST(NEED_IN6ADDR_ANY)
+AC_SUBST(ISC_PLATFORM_HAVEIN6PKTINFO)
+AC_SUBST(ISC_PLATFORM_FIXIN6ISADDR)
+AC_SUBST(ISC_IPV6_H)
+AC_SUBST(ISC_IPV6_O)
+AC_SUBST(ISC_ISCIPV6_O)
+AC_SUBST(ISC_IPV6_C)
+AC_SUBST(HAVE_SIN6_SCOPE_ID)
+AC_SUBST(HAVE_SOCKADDR_STORAGE)
+
+#
+# Check for network functions that are often missing.  We do this
+# after the libtool checking, so we can put the right suffix on
+# the files.  It also needs to come after checking for a Kame add-on,
+# which provides some (all?) of the desired functions.
+#
+AC_MSG_CHECKING([for inet_ntop])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [inet_ntop(0, 0, 0, 0); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
+        ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"])
+AC_MSG_CHECKING([for inet_pton])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [inet_pton(0, 0, 0); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
+        ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"])
+AC_MSG_CHECKING([for inet_aton])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [struct in_addr in; inet_aton(0, &in); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDATON="#undef ISC_PLATFORM_NEEDATON"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_aton.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_aton.c"
+        ISC_PLATFORM_NEEDATON="#define ISC_PLATFORM_NEEDATON 1"])
+
+AC_SUBST(ISC_PLATFORM_NEEDNTOP)
+AC_SUBST(ISC_PLATFORM_NEEDPTON)
+AC_SUBST(ISC_PLATFORM_NEEDATON)
+
+#
+# Look for a 4.4BSD-style sa_len member in struct sockaddr.
+#
+case "$host" in
+	*-dec-osf*)
+		# Turn on 4.4BSD style sa_len support.
+		AC_DEFINE(_SOCKADDR_LEN)
+		;;
+esac
+
+AC_MSG_CHECKING(for sa_len in struct sockaddr)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>],
+[struct sockaddr sa; sa.sa_len = 0; return (0);],
+	[AC_MSG_RESULT(yes)
+	HAVE_SA_LEN="#define HAVE_SA_LEN 1"],
+	[AC_MSG_RESULT(no)
+	HAVE_SA_LEN="#undef HAVE_SA_LEN"])
+AC_SUBST(HAVE_SA_LEN)
+
+# HAVE_MINIMUM_IFREQ
+
+case "$host" in
+	*-bsdi[2345]*)	have_minimum_ifreq=yes;;
+	*-darwin*)	have_minimum_ifreq=yes;;
+	*-freebsd*)	have_minimum_ifreq=yes;;
+	*-lynxos*)	have_minimum_ifreq=yes;;
+	*-netbsd*)	have_minimum_ifreq=yes;;
+	*-next*)	have_minimum_ifreq=yes;;
+	*-openbsd*)	have_minimum_ifreq=yes;;
+	*-rhapsody*)	have_minimum_ifreq=yes;;
+esac
+
+case "$have_minimum_ifreq" in
+	yes)
+		HAVE_MINIMUM_IFREQ="#define HAVE_MINIMUM_IFREQ 1";;
+	no)
+		HAVE_MINIMUM_IFREQ="#undef HAVE_MINIMUM_IFREQ";;
+	*)
+		HAVE_MINIMUM_IFREQ="#undef HAVE_MINIMUM_IFREQ";;
+esac
+AC_SUBST(HAVE_MINIMUM_IFREQ)
+
+# PORT_DIR
+PORT_DIR=port/unknown
+SOLARIS_BITTYPES="#undef NEED_SOLARIS_BITTYPES"
+BSD_COMP="#undef BSD_COMP"
+USE_FIONBIO_IOCTL="#undef USE_FIONBIO_IOCTL"
+case "$host" in
+	*aix3.2*)	PORT_DIR="port/aix32";;
+	*aix4*)		PORT_DIR="port/aix4";;
+	*aix5*)		PORT_DIR="port/aix5";;
+	*aux3*)		PORT_DIR="port/aux3";;
+	*-bsdi2*)	PORT_DIR="port/bsdos2";;
+	*-bsdi*)	PORT_DIR="port/bsdos";;
+	*-cygwin*)	PORT_DIR="port/cygwin";;
+	*-darwin*)	PORT_DIR="port/darwin";;
+	*-osf*)		PORT_DIR="port/decunix";;
+	*-freebsd*)	PORT_DIR="port/freebsd";;
+	*-hpux9*)	PORT_DIR="port/hpux9";;
+	*-hpux10*)	PORT_DIR="port/hpux10";;
+	*-hpux11*)	PORT_DIR="port/hpux";;
+	*-irix*)	PORT_DIR="port/irix";;
+	*-linux*)	PORT_DIR="port/linux";;
+	*-lynxos*)	PORT_DIR="port/lynxos";;
+	*-mpe*)		PORT_DIR="port/mpe";;
+	*-netbsd*)	PORT_DIR="port/netbsd";;
+	*-next*)	PORT_DIR="port/next";;
+	*-openbsd*)	PORT_DIR="port/openbsd";;
+	*-qnx*)		PORT_DIR="port/qnx";;
+	*-rhapsody*)	PORT_DIR="port/rhapsody";;
+	*-solaris2.[[01234]]*)
+			BSD_COMP="#define BSD_COMP 1"
+			SOLARIS_BITTYPES="#define NEED_SOLARIS_BITTYPES 1"
+			USE_FIONBIO_IOCTL="#define USE_FIONBIO_IOCTL 1"
+			PORT_DIR="port/solaris";;
+	*-solaris2.5*)
+			BSD_COMP="#define BSD_COMP 1"
+			SOLARIS_BITTYPES="#define NEED_SOLARIS_BITTYPES 1"
+			PORT_DIR="port/solaris";;
+	*-solaris2*)	BSD_COMP="#define BSD_COMP 1"
+			PORT_DIR="port/solaris";;
+	*-ultrix*)	PORT_DIR="port/ultrix";;
+	*-sco-sysv*uw2.0*)	PORT_DIR="port/unixware20";;
+	*-sco-sysv*uw2.1.2*)	PORT_DIR="port/unixware212";;
+	*-sco-sysv*uw7*)	PORT_DIR="port/unixware7";;
+esac
+AC_SUBST(BSD_COMP)
+AC_SUBST(SOLARIS_BITTYPES)
+AC_SUBST(USE_FIONBIO_IOCTL)
+AC_SUBST(PORT_DIR)
+PORT_INCLUDE=${PORT_DIR}/include
+AC_SUBST(PORT_INCLUDE)
+
+
+#
+# Look for a 4.4BSD or 4.3BSD struct msghdr
+#
+AC_MSG_CHECKING(for struct msghdr flavor)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>],
+[struct msghdr msg; msg.msg_flags = 0; return (0);],
+	[AC_MSG_RESULT(4.4BSD)
+	ISC_PLATFORM_MSGHDRFLAVOR="#define ISC_NET_BSD44MSGHDR 1"],
+	[AC_MSG_RESULT(4.3BSD)
+	ISC_PLATFORM_MSGHDRFLAVOR="#define ISC_NET_BSD43MSGHDR 1"])
+AC_SUBST(ISC_PLATFORM_MSGHDRFLAVOR)
+
+#
+# Look for in_port_t.
+#
+AC_MSG_CHECKING(for type in_port_t)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <netinet/in.h>],
+[in_port_t port = 25; return (0);],
+	[AC_MSG_RESULT(yes)
+	ISC_PLATFORM_NEEDPORTT="#undef ISC_PLATFORM_NEEDPORTT"],
+        [AC_MSG_RESULT(no)
+	ISC_PLATFORM_NEEDPORTT="#define ISC_PLATFORM_NEEDPORTT 1"])
+AC_SUBST(ISC_PLATFORM_NEEDPORTT)
+
+#
+# Check for addrinfo
+#
+AC_MSG_CHECKING(for struct addrinfo)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[struct addrinfo a; return (0);],
+	[AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_ADDRINFO)],
+	[AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for int sethostent)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[int i = sethostent(0); return(0);],
+	[AC_MSG_RESULT(yes)],
+	[AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for int endhostent)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[int i = endhostent(); return(0);],
+	[AC_MSG_RESULT(yes)
+	ISC_LWRES_ENDHOSTENTINT="#define ISC_LWRES_ENDHOSTENTINT 1"],
+	[AC_MSG_RESULT(no)
+	ISC_LWRES_ENDHOSTENTINT="#undef ISC_LWRES_ENDHOSTENTINT"])
+AC_SUBST(ISC_LWRES_ENDHOSTENTINT)
+
+AC_MSG_CHECKING(for int setnetent)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[int i = setnetent(0); return(0);],
+	[AC_MSG_RESULT(yes)
+	ISC_LWRES_SETNETENTINT="#define ISC_LWRES_SETNETENTINT 1"],
+	[AC_MSG_RESULT(no)
+	ISC_LWRES_SETNETENTINT="#undef ISC_LWRES_SETNETENTINT"])
+AC_SUBST(ISC_LWRES_SETNETENTINT)
+
+AC_MSG_CHECKING(for int endnetent)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[int i = endnetent(); return(0);],
+	[AC_MSG_RESULT(yes)
+	ISC_LWRES_ENDNETENTINT="#define ISC_LWRES_ENDNETENTINT 1"],
+	[AC_MSG_RESULT(no)
+	ISC_LWRES_ENDNETENTINT="#undef ISC_LWRES_ENDNETENTINT"])
+AC_SUBST(ISC_LWRES_ENDNETENTINT)
+
+AC_MSG_CHECKING(for gethostbyaddr(const void *, size_t, ...))
+AC_TRY_COMPILE([
+#include <netdb.h>
+struct hostent *gethostbyaddr(const void *, size_t, int);],
+[return(0);],
+	[AC_MSG_RESULT(yes)
+	ISC_LWRES_GETHOSTBYADDRVOID="#define ISC_LWRES_GETHOSTBYADDRVOID 1"],
+	[AC_MSG_RESULT(no)
+	ISC_LWRES_GETHOSTBYADDRVOID="#undef ISC_LWRES_GETHOSTBYADDRVOID"])
+AC_SUBST(ISC_LWRES_GETHOSTBYADDRVOID)
+
+AC_MSG_CHECKING(for h_errno in netdb.h)
+AC_TRY_COMPILE([
+#include <netdb.h>],
+[h_errno = 1; return(0);],
+	[AC_MSG_RESULT(yes)
+	ISC_LWRES_NEEDHERRNO="#undef ISC_LWRES_NEEDHERRNO"],
+	[AC_MSG_RESULT(no)
+	ISC_LWRES_NEEDHERRNO="#define ISC_LWRES_NEEDHERRNO 1"])
+AC_SUBST(ISC_LWRES_NEEDHERRNO)
+
+AC_CHECK_FUNC(getipnodebyname,
+        [ISC_LWRES_GETIPNODEPROTO="#undef ISC_LWRES_GETIPNODEPROTO"],
+        [ISC_LWRES_GETIPNODEPROTO="#define ISC_LWRES_GETIPNODEPROTO 1"])
+AC_CHECK_FUNC(getnameinfo,
+        [ISC_LWRES_GETNAMEINFOPROTO="#undef ISC_LWRES_GETNAMEINFOPROTO"],
+        [ISC_LWRES_GETNAMEINFOPROTO="#define ISC_LWRES_GETNAMEINFOPROTO 1"])
+AC_CHECK_FUNC(getaddrinfo,
+        [ISC_LWRES_GETADDRINFOPROTO="#undef ISC_LWRES_GETADDRINFOPROTO"
+	AC_DEFINE(HAVE_GETADDRINFO)],
+        [ISC_LWRES_GETADDRINFOPROTO="#define ISC_LWRES_GETADDRINFOPROTO 1"])
+AC_CHECK_FUNC(gai_strerror, AC_DEFINE(HAVE_GAISTRERROR))
+AC_SUBST(ISC_LWRES_GETIPNODEPROTO)
+AC_SUBST(ISC_LWRES_GETADDRINFOPROTO)
+AC_SUBST(ISC_LWRES_GETNAMEINFOPROTO)
+AC_CHECK_FUNC(pselect,
+	      [NEED_PSELECT="#undef NEED_PSELECT"],
+	      [NEED_PSELECT="#define NEED_PSELECT"])
+AC_SUBST(NEED_PSELECT)
+AC_CHECK_FUNC(gettimeofday,
+	      [NEED_GETTIMEOFDAY="#undef NEED_GETTIMEOFDAY"],
+	      [NEED_GETTIMEOFDAY="#define NEED_GETTIMEOFDAY 1"])
+AC_SUBST(NEED_GETTIMEOFDAY)
+AC_CHECK_FUNC(strndup,
+	      [HAVE_STRNDUP="#define HAVE_STRNDUP 1"],
+	      [HAVE_STRNDUP="#undef HAVE_STRNDUP"])
+AC_SUBST(HAVE_STRNDUP)
+
+#
+# Look for a sysctl call to get the list of network interfaces.
+#
+AC_MSG_CHECKING(for interface list sysctl)
+AC_EGREP_CPP(found_rt_iflist, [
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/socket.h>
+#ifdef NET_RT_IFLIST
+found_rt_iflist
+#endif
+],
+	[AC_MSG_RESULT(yes)
+	 AC_DEFINE(HAVE_IFLIST_SYSCTL)],
+	[AC_MSG_RESULT(no)])
+
+#
+# Check for some other useful functions that are not ever-present.
+#
+AC_CHECK_FUNC(strsep,
+	[ISC_PLATFORM_NEEDSTRSEP="#undef ISC_PLATFORM_NEEDSTRSEP"],
+	[ISC_PLATFORM_NEEDSTRSEP="#define ISC_PLATFORM_NEEDSTRSEP 1"])
+AC_CHECK_FUNC(vsnprintf,
+	[ISC_PLATFORM_NEEDVSNPRINTF="#undef ISC_PLATFORM_NEEDVSNPRINTF"],
+	[ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS print.$O"
+	 ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS print.c"
+	 ISC_PLATFORM_NEEDVSNPRINTF="#define ISC_PLATFORM_NEEDVSNPRINTF 1"])
+AC_SUBST(ISC_PLATFORM_NEEDSTRSEP)
+AC_SUBST(ISC_PLATFORM_NEEDVSNPRINTF)
+
+AC_SUBST(ISC_EXTRA_OBJS)
+AC_SUBST(ISC_EXTRA_SRCS)
+AC_CHECK_FUNC(strerror,
+	[USE_SYSERROR_LIST="#undef USE_SYSERROR_LIST"],
+	[USE_SYSERROR_LIST="#define USE_SYSERROR_LIST 1"])
+AC_SUBST(USE_SYSERROR_LIST)
+
+#
+# Determine the printf format characters to use when printing
+# values of type isc_int64_t.  We make the assumption that platforms
+# where a "long long" is the same size as a "long" (e.g., Alpha/OSF1)
+# want "%ld" and everyone else can use "%lld".  Win32 uses "%I64d",
+# but that's defined elsewhere since we don't use configure on Win32.
+#
+AC_MSG_CHECKING(printf format modifier for 64-bit integers)
+AC_TRY_RUN([main() { exit(!(sizeof(long long int) == sizeof(long int))); }],
+	[AC_MSG_RESULT(l)
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "l"'],
+	[AC_MSG_RESULT(ll)
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'],
+	[AC_MSG_RESULT(default ll)
+	ISC_PLATFORM_QUADFORMAT='#define ISC_PLATFORM_QUADFORMAT "ll"'])
+AC_SUBST(ISC_PLATFORM_QUADFORMAT)
+
+#
+# Security Stuff
+#
+AC_CHECK_FUNC(chroot, AC_DEFINE(HAVE_CHROOT))
+
+#
+# for accept, recvfrom, getpeername etc.
+#
+AC_MSG_CHECKING(for socket length type)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+int accept(int, struct sockaddr *, socklen_t *);
+],[],
+[ISC_SOCKLEN_T="#define ISC_SOCKLEN_T socklen_t"
+AC_MSG_RESULT(socklen_t)]
+,
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+int accept(int, struct sockaddr *, unsigned int *);
+],[],
+[ISC_SOCKLEN_T="#define ISC_SOCKLEN_T unsigned int"
+AC_MSG_RESULT(unsigned int)]
+,
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+int accept(int, struct sockaddr *, unsigned long *);
+],[],
+[ISC_SOCKLEN_T="#define ISC_SOCKLEN_T unsigned long"
+AC_MSG_RESULT(unsigned long)]
+,
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+int accept(int, struct sockaddr *, long *);
+],[],
+[ISC_SOCKLEN_T="#define ISC_SOCKLEN_T long"
+AC_MSG_RESULT(long)]
+,
+ISC_SOCKLEN_T="#define ISC_SOCKLEN_T int"
+AC_MSG_RESULT(int)
+))))
+AC_SUBST(ISC_SOCKLEN_T)
+
+AC_CHECK_FUNC(getgrouplist,
+AC_TRY_COMPILE(
+[#include <unistd.h>
+int
+getgrouplist(const char *name, int basegid, int *groups, int *ngroups) {
+}
+],
+[return (0);],
+GETGROUPLIST_ARGS="#define GETGROUPLIST_ARGS const char *name, int basegid, int *groups, int *ngroups"
+,
+GETGROUPLIST_ARGS="#define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, int *ngroups"
+),
+GETGROUPLIST_ARGS="#define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, int *ngroups"
+AC_DEFINE(NEED_GETGROUPLIST)
+)
+AC_SUBST(GETGROUPLIST_ARGS)
+
+AC_CHECK_FUNC(setgroupent,,AC_DEFINE(NEED_SETGROUPENT))
+
+AC_CHECK_FUNC(getnetbyaddr_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#define _OSF_SOURCE
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+struct netent *
+getnetbyaddr_r(long net, int type, struct netent *result, char *buffer,
+int buflen) {}
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS char *buf, int buflen"
+NET_R_BAD="#define NET_R_BAD NULL"
+NET_R_COPY="#define NET_R_COPY buf, buflen"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS NET_R_ARGS"
+NET_R_OK="#define NET_R_OK nptr"
+NET_R_SETANSWER="#undef NET_R_SETANSWER"
+NET_R_RETURN="#define NET_R_RETURN struct netent *"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
+NETENT_DATA="#undef NETENT_DATA"
+],
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#define _OSF_SOURCE
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int getnetbyaddr_r (unsigned long int, int, struct netent *,
+                    char *, size_t, struct netent **, int *);
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS char *buf, size_t buflen, struct netent **answerp, int *h_errnop"
+NET_R_BAD="#define NET_R_BAD ERANGE"
+NET_R_COPY="#define NET_R_COPY buf, buflen"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS char *buf, size_t buflen"
+NET_R_OK="#define NET_R_OK 0"
+NET_R_SETANSWER="#define NET_R_SETANSWER 1"
+NET_R_RETURN="#define NET_R_RETURN int"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T unsigned long int"
+NETENT_DATA="#undef NETENT_DATA"
+],
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#define _OSF_SOURCE
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int getnetbyaddr_r(int, int, struct netent *, struct netent_data *);
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS struct netent_data *ndptr"
+NET_R_BAD="#define NET_R_BAD (-1)"
+NET_R_COPY="#define NET_R_COPY ndptr"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS struct netent_data *ndptr"
+NET_R_OK="#define NET_R_OK 0"
+NET_R_SETANSWER="#undef NET_R_SETANSWER"
+NET_R_RETURN="#define NET_R_RETURN int"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T int"
+NETENT_DATA="#define NETENT_DATA 1"
+],
+AC_TRY_COMPILE(
+#undef __USE_MISC
+#define __USE_MISC
+[#include <netdb.h>
+int getnetbyaddr_r (long, int, struct netent *, struct netent_data *);
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS struct netent_data *ndptr"
+NET_R_BAD="#define NET_R_BAD (-1)"
+NET_R_COPY="#define NET_R_COPY ndptr"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS struct netent_data *ndptr"
+NET_R_OK="#define NET_R_OK 0"
+NET_R_SETANSWER="#undef NET_R_SETANSWER"
+NET_R_RETURN="#define NET_R_RETURN int"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
+NETENT_DATA="#define NETENT_DATA 1"
+],
+)
+)
+)
+)
+,
+NET_R_ARGS="#define NET_R_ARGS char *buf, int buflen"
+NET_R_BAD="#define NET_R_BAD NULL"
+NET_R_COPY="#define NET_R_COPY buf, buflen"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS NET_R_ARGS"
+NET_R_OK="#define NET_R_OK nptr"
+NET_R_SETANSWER="#undef NET_R_SETANSWER"
+NET_R_RETURN="#define NET_R_RETURN struct netent *"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
+NETENT_DATA="#undef NETENT_DATA"
+)
+case "$host" in
+*dec-osf*) GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T int" ;;
+esac
+AC_SUBST(NET_R_ARGS)
+AC_SUBST(NET_R_BAD)
+AC_SUBST(NET_R_COPY)
+AC_SUBST(NET_R_COPY_ARGS)
+AC_SUBST(NET_R_OK)
+AC_SUBST(NET_R_SETANSWER)
+AC_SUBST(NET_R_RETURN)
+AC_SUBST(GETNETBYADDR_ADDR_T)
+AC_SUBST(NETENT_DATA)
+
+AC_CHECK_FUNC(setnetent_r,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void  setnetent_r (int);
+] ,[return (0);],[
+NET_R_ENT_ARGS="#undef NET_R_ENT_ARGS /*empty*/"
+NET_R_SET_RESULT="#undef NET_R_SET_RESULT /*empty*/"
+NET_R_SET_RETURN="#define NET_R_SET_RETURN void"
+],
+AC_TRY_COMPILE(
+[
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int setnetent_r(int, struct netent_data *);
+] ,[return (0);],[
+NET_R_ENT_ARGS="#define NET_R_ENT_ARGS struct netent_data *ndptr"
+NET_R_SET_RESULT="#define NET_R_SET_RESULT NET_R_OK"
+NET_R_SET_RETURN="#define NET_R_SET_RETURN int"
+],
+)
+)
+,
+NET_R_ENT_ARGS="#undef NET_R_ENT_ARGS /*empty*/"
+NET_R_SET_RESULT="#undef NET_R_SET_RESULT /*empty*/"
+NET_R_SET_RETURN="#define NET_R_SET_RETURN void"
+)
+AC_SUBST(NET_R_ENT_ARGS)
+AC_SUBST(NET_R_SET_RESULT)
+AC_SUBST(NET_R_SET_RETURN)
+
+AC_CHECK_FUNC(endnetent_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void  endnetent_r (void);
+] ,[return (0);],[
+NET_R_END_RESULT="#define NET_R_END_RESULT(x) /*empty*/"
+NET_R_END_RETURN="#define NET_R_END_RETURN void"
+],
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int endnetent_r(struct netent_data *);
+] ,[return (0);],[
+NET_R_END_RESULT="#define NET_R_END_RESULT(x) return (x)"
+NET_R_END_RETURN="#define NET_R_END_RETURN int"
+],
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern void endnetent_r(struct netent_data *);
+] ,[return (0);],[
+NET_R_END_RESULT="#define NET_R_END_RESULT(x) /*empty*/"
+NET_R_END_RETURN="#define NET_R_END_RETURN void"
+],
+)
+)
+)
+,
+NET_R_END_RESULT="#define NET_R_END_RESULT(x) /*empty*/"
+NET_R_END_RETURN="#define NET_R_END_RETURN void"
+)
+AC_SUBST(NET_R_END_RESULT)
+AC_SUBST(NET_R_END_RETURN)
+
+AC_CHECK_FUNC(getgrnam_r,,AC_DEFINE(NEED_GETGRNAM_R))
+AC_CHECK_FUNC(getgrgid_r,,AC_DEFINE(NEED_GETGRGID_R))
+
+AC_CHECK_FUNC(getgrent_r,
+AC_TRY_COMPILE(
+[
+#include <grp.h>
+struct group *getgrent_r(struct group *grp, char *buffer,
+           int buflen) {}
+] ,[return (0);],[
+GROUP_R_ARGS="#define GROUP_R_ARGS char *buf, int buflen"
+GROUP_R_BAD="#define GROUP_R_BAD NULL"
+GROUP_R_OK="#define GROUP_R_OK gptr"
+GROUP_R_RETURN="#define GROUP_R_RETURN struct group *"
+],
+)
+,
+GROUP_R_ARGS="#define GROUP_R_ARGS char *buf, int buflen"
+GROUP_R_BAD="#define GROUP_R_BAD NULL"
+GROUP_R_OK="#define GROUP_R_OK gptr"
+GROUP_R_RETURN="#define GROUP_R_RETURN struct group *"
+AC_DEFINE(NEED_GETGRENT_R)
+)
+AC_SUBST(GROUP_R_ARGS)
+AC_SUBST(GROUP_R_BAD)
+AC_SUBST(GROUP_R_OK)
+AC_SUBST(GROUP_R_RETURN)
+
+AC_CHECK_FUNC(endgrent_r,
+,
+GROUP_R_END_RESULT="#define GROUP_R_END_RESULT(x) /*empty*/"
+GROUP_R_END_RETURN="#define GROUP_R_END_RETURN void"
+GROUP_R_ENT_ARGS="#define GROUP_R_ENT_ARGS void"
+AC_DEFINE(NEED_ENDGRENT_R)
+)
+AC_SUBST(GROUP_R_END_RESULT)
+AC_SUBST(GROUP_R_END_RETURN)
+AC_SUBST(GROUP_R_ENT_ARGS)
+
+AC_CHECK_FUNC(setgrent_r,
+,
+GROUP_R_SET_RESULT="#undef GROUP_R_SET_RESULT /*empty*/"
+GROUP_R_SET_RETURN="#define GROUP_R_SET_RETURN void"
+AC_DEFINE(NEED_SETGRENT_R)
+)
+AC_SUBST(GROUP_R_SET_RESULT)
+AC_SUBST(GROUP_R_SET_RETURN)
+
+
+AC_CHECK_FUNC(gethostbyname_r,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+struct hostent  *gethostbyname_r
+(const char *name, struct hostent *hp, char *buf, int len, int *h_errnop) {}
+],
+[return (0);],
+[
+HOST_R_ARGS="#define HOST_R_ARGS char *buf, int buflen, int *h_errnop"
+HOST_R_BAD="#define HOST_R_BAD NULL"
+HOST_R_COPY="#define HOST_R_COPY buf, buflen"
+HOST_R_COPY_ARGS="#define HOST_R_COPY_ARGS char *buf, int buflen"
+HOST_R_ERRNO="#define HOST_R_ERRNO *h_errnop = h_errno"
+HOST_R_OK="#define HOST_R_OK hptr"
+HOST_R_RETURN="#define HOST_R_RETURN struct hostent *"
+HOST_R_SETANSWER="#undef HOST_R_SETANSWER"
+HOSTENT_DATA="#undef HOSTENT_DATA"
+]
+,
+AC_TRY_COMPILE([
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int gethostbyname_r(const char *name,
+                          struct hostent *result,
+                          struct hostent_data *hdptr);
+],,[
+HOST_R_ARGS="#define HOST_R_ARGS struct hostent_data *hdptr"
+HOST_R_BAD="#define HOST_R_BAD (-1)"
+HOST_R_COPY="#define HOST_R_COPY hdptr"
+HOST_R_COPY_ARGS="#define HOST_R_COPY_ARGS HOST_R_ARGS"
+HOST_R_ERRNO="#define HOST_R_ERRNO NULL"
+HOST_R_OK="#define HOST_R_OK 0"
+HOST_R_RETURN="#define HOST_R_RETURN int"
+HOST_R_SETANSWER="#undef HOST_R_SETANSWER"
+HOSTENT_DATA="#define HOSTENT_DATA 1"
+],
+AC_TRY_COMPILE([
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int gethostbyname_r (const char *,
+                                 struct hostent *,
+                                 char *, size_t,
+                                 struct hostent **,
+                                 int *);
+],,[
+HOST_R_ARGS="#define HOST_R_ARGS char *buf, size_t buflen, struct hostent **answerp, int *h_errnop"
+HOST_R_BAD="#define HOST_R_BAD ERANGE"
+HOST_R_COPY="#define HOST_R_COPY buf, buflen"
+HOST_R_COPY_ARGS="#define HOST_R_COPY_ARGS char *buf, int buflen"
+HOST_R_ERRNO="#define HOST_R_ERRNO *h_errnop = h_errno"
+HOST_R_OK="#define HOST_R_OK 0"
+HOST_R_RETURN="#define HOST_R_RETURN int"
+HOST_R_SETANSWER="#define HOST_R_SETANSWER 1"
+HOSTENT_DATA="#undef HOSTENT_DATA"
+],
+)))
+,
+HOST_R_ARGS="#define HOST_R_ARGS char *buf, int buflen, int *h_errnop"
+HOST_R_BAD="#define HOST_R_BAD NULL"
+HOST_R_COPY="#define HOST_R_COPY buf, buflen"
+HOST_R_COPY_ARGS="#define HOST_R_COPY_ARGS char *buf, int buflen"
+HOST_R_ERRNO="#define HOST_R_ERRNO *h_errnop = h_errno"
+HOST_R_OK="#define HOST_R_OK hptr"
+HOST_R_RETURN="#define HOST_R_RETURN struct hostent *"
+HOST_R_SETANSWER="#undef HOST_R_SETANSWER"
+HOSTENT_DATA="#undef HOSTENT_DATA"
+)
+AC_SUBST(HOST_R_ARGS)
+AC_SUBST(HOST_R_BAD)
+AC_SUBST(HOST_R_COPY)
+AC_SUBST(HOST_R_COPY_ARGS)
+AC_SUBST(HOST_R_ERRNO)
+AC_SUBST(HOST_R_OK)
+AC_SUBST(HOST_R_RETURN)
+AC_SUBST(HOST_R_SETANSWER)
+AC_SUBST(HOSTENT_DATA)
+
+AC_CHECK_FUNC(endhostent_r,
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int endhostent_r(struct hostent_data *buffer);
+], ,
+HOST_R_END_RESULT="#define HOST_R_END_RESULT(x) return (x)"
+HOST_R_END_RETURN="#define HOST_R_END_RETURN int"
+HOST_R_ENT_ARGS="#define HOST_R_ENT_ARGS struct hostent_data *hdptr"
+,
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern void endhostent_r(struct hostent_data *ht_data);
+],[],[
+HOST_R_END_RESULT="#define HOST_R_END_RESULT(x)"
+HOST_R_END_RETURN="#define HOST_R_END_RETURN void"
+HOST_R_ENT_ARGS="#define HOST_R_ENT_ARGS struct hostent_data *hdptr"
+],
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern void endhostent_r(void);
+],[],[
+HOST_R_END_RESULT="#define HOST_R_END_RESULT(x) /*empty*/"
+HOST_R_END_RETURN="#define HOST_R_END_RETURN void"
+HOST_R_ENT_ARGS="#undef HOST_R_ENT_ARGS /*empty*/"
+],
+)
+)
+)
+,
+HOST_R_END_RESULT="#define HOST_R_END_RESULT(x) /*empty*/"
+HOST_R_END_RETURN="#define HOST_R_END_RETURN void"
+HOST_R_ENT_ARGS="#undef HOST_R_ENT_ARGS /*empty*/"
+)
+AC_SUBST(HOST_R_END_RESULT)
+AC_SUBST(HOST_R_END_RETURN)
+AC_SUBST(HOST_R_ENT_ARGS)
+
+AC_CHECK_FUNC(sethostent_r,
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern void sethostent_r(int flag, struct hostent_data *ht_data);],[],
+[HOST_R_SET_RESULT="#undef HOST_R_SET_RESULT /*empty*/"
+HOST_R_SET_RETURN="#define HOST_R_SET_RETURN void"],
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int sethostent_r(int flag, struct hostent_data *ht_data);],[],
+[HOST_R_SET_RESULT="#define HOST_R_SET_RESULT 0"
+HOST_R_SET_RETURN="#define HOST_R_SET_RETURN int"],
+AC_TRY_COMPILE([
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void            sethostent_r (int);],[],
+[HOST_R_SET_RESULT="#undef HOST_R_SET_RESULT"
+HOST_R_SET_RETURN="#define HOST_R_SET_RETURN void"],
+)
+)
+)
+,
+HOST_R_SET_RESULT="#undef HOST_R_SET_RESULT"
+HOST_R_SET_RETURN="#define HOST_R_SET_RETURN void"
+)
+AC_SUBST(HOST_R_SET_RESULT)
+AC_SUBST(HOST_R_SET_RETURN)
+
+
+AC_MSG_CHECKING(struct passwd element pw_class)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <pwd.h>
+],[struct passwd *pw; pw->pw_class = "";],
+AC_MSG_RESULT(yes)
+AC_DEFINE(HAS_PW_CLASS)
+,
+		AC_MSG_RESULT(no)
+)
+
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <pwd.h>
+void
+setpwent(void) {}
+],
+[return (0);],
+SETPWENT_VOID="#define SETPWENT_VOID 1"
+,
+SETPWENT_VOID="#undef SETPWENT_VOID"
+)
+AC_SUBST(SETPWENT_VOID)
+
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <grp.h>
+void
+setgrent(void) {}
+],
+[return (0);],
+SETGRENT_VOID="#define SETGRENT_VOID 1"
+,
+SETGRENT_VOID="#undef SETGRENT_VOID"
+)
+AC_SUBST(SETGRENT_VOID)
+
+AC_CHECK_FUNC(getnetgrent_r,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int getnetgrent_r(char **m, char **u, char **d, char *b, int l) {}
+]
+,
+[return (0);],
+[
+NGR_R_ARGS="#define NGR_R_ARGS char *buf, int buflen"
+NGR_R_BAD="#define NGR_R_BAD (0)"
+NGR_R_COPY="#define NGR_R_COPY buf, buflen"
+NGR_R_COPY_ARGS="#define NGR_R_COPY_ARGS NGR_R_ARGS"
+NGR_R_OK="#define NGR_R_OK 1"
+NGR_R_RETURN="#define NGR_R_RETURN int"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int getnetgrent_r(char **m, char **u, char **d, char *b, size_t l) {}
+]
+,
+[return (0);],
+[
+NGR_R_ARGS="#define NGR_R_ARGS char *buf, size_t buflen"
+NGR_R_BAD="#define NGR_R_BAD (0)"
+NGR_R_COPY="#define NGR_R_COPY buf, buflen"
+NGR_R_COPY_ARGS="#define NGR_R_COPY_ARGS NGR_R_ARGS"
+NGR_R_OK="#define NGR_R_OK 1"
+NGR_R_RETURN="#define NGR_R_RETURN int"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+extern int getnetgrent_r( char **, char **, char **, void **);
+]
+,
+[return (0);],
+[
+NGR_R_ARGS="#define NGR_R_ARGS void **buf"
+NGR_R_BAD="#define NGR_R_BAD (0)"
+NGR_R_COPY="#define NGR_R_COPY buf"
+NGR_R_COPY_ARGS="#define NGR_R_COPY_ARGS NGR_R_ARGS"
+NGR_R_OK="#define NGR_R_OK 1"
+NGR_R_RETURN="#define NGR_R_RETURN int"
+NGR_R_PRIVATE="#define NGR_R_PRIVATE 1"
+]
+,
+)
+)
+)
+,
+NGR_R_ARGS="#define NGR_R_ARGS char *buf, int buflen"
+NGR_R_BAD="#define NGR_R_BAD (0)"
+NGR_R_COPY="#define NGR_R_COPY buf, buflen"
+NGR_R_COPY_ARGS="#define NGR_R_COPY_ARGS NGR_R_ARGS"
+NGR_R_OK="#define NGR_R_OK 1"
+NGR_R_RETURN="#define NGR_R_RETURN int"
+)
+AC_SUBST(NGR_R_ARGS)
+AC_SUBST(NGR_R_BAD)
+AC_SUBST(NGR_R_COPY)
+AC_SUBST(NGR_R_COPY_ARGS)
+AC_SUBST(NGR_R_OK)
+AC_SUBST(NGR_R_RETURN)
+AC_SUBST(NGR_R_PRIVATE)
+
+AC_CHECK_FUNC(endnetgrent_r,
+NGR_R_END_RESULT="#define NGR_R_END_RESULT(x)  return (x)"
+NGR_R_END_RETURN="#define NGR_R_END_RETURN int"
+NGR_R_ENT_ARGS="#define NGR_R_ENT_ARGS NGR_R_ARGS"
+,
+NGR_R_END_RESULT="#define NGR_R_END_RESULT(x)  /*empty*/"
+NGR_R_END_RETURN="#define NGR_R_END_RETURN void"
+NGR_R_ENT_ARGS="#undef NGR_R_ENT_ARGS /*empty*/"
+AC_DEFINE(NEED_ENDNETGRENT_R)
+)
+AC_SUBST(NGR_R_END_RESULT)
+AC_SUBST(NGR_R_END_RETURN)
+AC_SUBST(NGR_R_ENT_ARGS)
+
+AC_CHECK_FUNC(setnetgrent_r,
+[
+case "$host" in
+*bsdi*)
+	NGR_R_SET_RESULT="#undef NGR_R_SET_RESULT /*empty*/"
+	NGR_R_SET_RETURN="#define NGR_R_SET_RETURN void"
+	;;
+*)
+	NGR_R_SET_RESULT="#define NGR_R_SET_RESULT NGR_R_OK"
+	NGR_R_SET_RETURN="#define NGR_R_SET_RETURN int"
+	;;
+esac
+]
+,
+NGR_R_SET_RESULT="#undef NGR_R_SET_RESULT /*empty*/"
+NGR_R_SET_RETURN="#define NGR_R_SET_RETURN void"
+)
+AC_SUBST(NGR_R_SET_RESULT)
+AC_SUBST(NGR_R_SET_RETURN)
+
+AC_CHECK_FUNC(innetgr_r,,AC_DEFINE(NEED_INNETGR_R))
+
+AC_CHECK_FUNC(getprotoent_r,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+struct protoent *getprotoent_r(struct protoent *result,
+		 char *buffer, int buflen) {}
+]
+,
+[return (0);]
+,
+[
+PROTO_R_ARGS="#define PROTO_R_ARGS char *buf, int buflen"
+PROTO_R_BAD="#define PROTO_R_BAD NULL"
+PROTO_R_COPY="#define PROTO_R_COPY buf, buflen"
+PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS PROTO_R_ARGS"
+PROTO_R_OK="#define PROTO_R_OK pptr"
+PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
+PROTO_R_RETURN="#define PROTO_R_RETURN struct protoent *"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int getprotoent_r (struct protoent *, char *, size_t, struct protoent **);
+
+]
+,
+[return (0);]
+,
+[
+PROTO_R_ARGS="#define PROTO_R_ARGS char *buf, size_t buflen, struct protoent **answerp"
+PROTO_R_BAD="#define PROTO_R_BAD ERANGE"
+PROTO_R_COPY="#define PROTO_R_COPY buf, buflen"
+PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS char *buf, size_t buflen"
+PROTO_R_OK="#define PROTO_R_OK 0"
+PROTO_R_SETANSWER="#define PROTO_R_SETANSWER 1"
+PROTO_R_RETURN="#define PROTO_R_RETURN int"
+]
+,
+)
+)
+,
+PROTO_R_ARGS="#define PROTO_R_ARGS char *buf, int buflen"
+PROTO_R_BAD="#define PROTO_R_BAD NULL"
+PROTO_R_COPY="#define PROTO_R_COPY buf, buflen"
+PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS PROTO_R_ARGS"
+PROTO_R_OK="#define PROTO_R_OK pptr"
+PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
+PROTO_R_RETURN="#define PROTO_R_RETURN struct protoent *"
+)
+AC_SUBST(PROTO_R_ARGS)
+AC_SUBST(PROTO_R_BAD)
+AC_SUBST(PROTO_R_COPY)
+AC_SUBST(PROTO_R_COPY_ARGS)
+AC_SUBST(PROTO_R_OK)
+AC_SUBST(PROTO_R_SETANSWER)
+AC_SUBST(PROTO_R_RETURN)
+
+AC_CHECK_FUNC(endprotoent_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void endprotoent_r(void);
+]
+,,
+[
+PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
+PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
+PROTO_R_ENT_ARGS="#undef PROTO_R_ENT_ARGS"
+]
+,
+)
+,
+PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
+PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
+PROTO_R_ENT_ARGS="#undef PROTO_R_ENT_ARGS /*empty*/"
+)
+AC_SUBST(PROTO_R_END_RESULT)
+AC_SUBST(PROTO_R_END_RETURN)
+AC_SUBST(PROTO_R_ENT_ARGS)
+
+AC_CHECK_FUNC(setprotoent_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void               setprotoent_r __P((int));
+],[],
+PROTO_R_SET_RESULT="#undef PROTO_R_SET_RESULT"
+PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN void"
+,
+)
+,
+PROTO_R_SET_RESULT="#undef PROTO_R_SET_RESULT"
+PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN void"
+)
+AC_SUBST(PROTO_R_SET_RESULT)
+AC_SUBST(PROTO_R_SET_RETURN)
+
+AC_CHECK_FUNC(getpwent_r,
+AC_TRY_COMPILE(
+[
+#include <sys/types.h>
+#include <pwd.h>
+struct passwd *
+getpwent_r(struct passwd *pwptr, char *buf, int buflen) {}
+]
+,
+[]
+,
+PASS_R_ARGS="#define PASS_R_ARGS char *buf, int buflen"
+PASS_R_BAD="#define PASS_R_BAD NULL"
+PASS_R_COPY="#define PASS_R_COPY buf, buflen"
+PASS_R_COPY_ARGS="#define PASS_R_COPY_ARGS PASS_R_ARGS"
+PASS_R_OK="#define PASS_R_OK pwptr"
+PASS_R_RETURN="#define PASS_R_RETURN struct passwd *"
+,
+)
+,
+PASS_R_ARGS="#define PASS_R_ARGS char *buf, int buflen"
+PASS_R_BAD="#define PASS_R_BAD NULL"
+PASS_R_COPY="#define PASS_R_COPY buf, buflen"
+PASS_R_COPY_ARGS="#define PASS_R_COPY_ARGS PASS_R_ARGS"
+PASS_R_OK="#define PASS_R_OK pwptr"
+PASS_R_RETURN="#define PASS_R_RETURN struct passwd *"
+AC_DEFINE(NEED_GETPWENT_R)
+)
+AC_SUBST(PASS_R_ARGS)
+AC_SUBST(PASS_R_BAD)
+AC_SUBST(PASS_R_COPY)
+AC_SUBST(PASS_R_COPY_ARGS)
+AC_SUBST(PASS_R_OK)
+AC_SUBST(PASS_R_RETURN)
+
+AC_CHECK_FUNC(endpwent_r,
+AC_TRY_COMPILE(
+[
+#include <pwd.h>
+void endpwent_r(FILE **pwfp);
+], ,
+PASS_R_END_RESULT="#define PASS_R_END_RESULT(x) /*empty*/"
+PASS_R_END_RETURN="#define PASS_R_END_RETURN void"
+PASS_R_ENT_ARGS="#define PASS_R_ENT_ARGS FILE **pwptr"
+,
+)
+,
+PASS_R_END_RESULT="#define PASS_R_END_RESULT(x) /*empty*/"
+PASS_R_END_RETURN="#define PASS_R_END_RETURN void"
+PASS_R_ENT_ARGS="#undef PASS_R_ENT_ARGS"
+AC_DEFINE(NEED_ENDPWENT_R)
+)
+AC_SUBST(PASS_R_END_RESULT)
+AC_SUBST(PASS_R_END_RETURN)
+AC_SUBST(PASS_R_ENT_ARGS)
+AC_CHECK_FUNC(setpassent_r,,AC_DEFINE(NEED_SETPASSENT_R))
+AC_CHECK_FUNC(setpassent,,AC_DEFINE(NEED_SETPASSENT))
+
+AC_CHECK_FUNC(setpwent_r,
+AC_TRY_COMPILE([
+#include <pwd.h>
+void setpwent_r(FILE **pwfp);
+], ,
+PASS_R_SET_RESULT="#undef PASS_R_SET_RESULT /* empty */"
+PASS_R_SET_RETURN="#define PASS_R_SET_RETURN int"
+,
+AC_TRY_COMPILE([
+#include <pwd.h>
+int setpwent_r(FILE **pwfp);
+], ,
+PASS_R_SET_RESULT="#define PASS_R_SET_RESULT 0"
+PASS_R_SET_RETURN="#define PASS_R_SET_RETURN int"
+,
+)
+)
+,
+PASS_R_SET_RESULT="#undef PASS_R_SET_RESULT /*empty*/"
+PASS_R_SET_RETURN="#define PASS_R_SET_RETURN void"
+AC_DEFINE(NEED_SETPWENT_R)
+)
+AC_SUBST(PASS_R_SET_RESULT)
+AC_SUBST(PASS_R_SET_RETURN)
+
+AC_CHECK_FUNC(getpwnam_r,,AC_DEFINE(NEED_GETPWNAM_R))
+AC_CHECK_FUNC(getpwuid_r,,AC_DEFINE(NEED_GETPWUID_R))
+
+AC_CHECK_FUNC(getservent_r,
+AC_TRY_COMPILE([
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+struct servent *
+getservent_r(struct servent *result, char *buffer, int buflen) {}
+],[return (0);],
+[
+SERV_R_ARGS="#define SERV_R_ARGS char *buf, int buflen"
+SERV_R_BAD="#define SERV_R_BAD NULL"
+SERV_R_COPY="#define SERV_R_COPY buf, buflen"
+SERV_R_COPY_ARGS="#define SERV_R_COPY_ARGS SERV_R_ARGS"
+SERV_R_OK="#define SERV_R_OK sptr"
+SERV_R_SETANSWER="#undef SERV_R_SETANSWER"
+SERV_R_RETURN="#define SERV_R_RETURN struct servent *"
+]
+,
+AC_TRY_COMPILE([
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int
+getservent_r (struct servent *, char *, size_t, struct servent **);
+],[return (0);],
+[
+SERV_R_ARGS="#define SERV_R_ARGS char *buf, size_t buflen, struct servent **answerp"
+SERV_R_BAD="#define SERV_R_BAD ERANGE"
+SERV_R_COPY="#define SERV_R_COPY buf, buflen"
+SERV_R_COPY_ARGS="#define SERV_R_COPY_ARGS char *buf, size_t buflen"
+SERV_R_OK="#define SERV_R_OK (0)"
+SERV_R_SETANSWER="#define SERV_R_SETANSWER 1"
+SERV_R_RETURN="#define SERV_R_RETURN int"
+]
+,
+)
+)
+,
+SERV_R_ARGS="#define SERV_R_ARGS char *buf, int buflen"
+SERV_R_BAD="#define SERV_R_BAD NULL"
+SERV_R_COPY="#define SERV_R_COPY buf, buflen"
+SERV_R_COPY_ARGS="#define SERV_R_COPY_ARGS SERV_R_ARGS"
+SERV_R_OK="#define SERV_R_OK sptr"
+SERV_R_SETANSWER="#undef SERV_R_SETANSWER"
+SERV_R_RETURN="#define SERV_R_RETURN struct servent *"
+)
+AC_SUBST(SERV_R_ARGS)
+AC_SUBST(SERV_R_BAD)
+AC_SUBST(SERV_R_COPY)
+AC_SUBST(SERV_R_COPY_ARGS)
+AC_SUBST(SERV_R_OK)
+AC_SUBST(SERV_R_SETANSWER)
+AC_SUBST(SERV_R_RETURN)
+
+AC_CHECK_FUNC(endservent_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void endservent_r(void);
+]
+,
+,
+[
+SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
+SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
+SERV_R_ENT_ARGS="#undef SERV_R_ENT_ARGS /*empty*/"
+]
+,
+)
+,
+SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
+SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
+SERV_R_ENT_ARGS="#undef SERV_R_ENT_ARGS /*empty*/"
+)
+AC_SUBST(SERV_R_END_RESULT)
+AC_SUBST(SERV_R_END_RETURN)
+AC_SUBST(SERV_R_ENT_ARGS)
+
+AC_CHECK_FUNC(setservent_r,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void            setservent_r(int);
+]
+,,
+[
+SERV_R_SET_RESULT="#undef SERV_R_SET_RESULT"
+SERV_R_SET_RETURN="#define SERV_R_SET_RETURN void"
+]
+,
+)
+,
+SERV_R_SET_RESULT="#undef SERV_R_SET_RESULT"
+SERV_R_SET_RETURN="#define SERV_R_SET_RETURN void"
+)
+AC_SUBST(SERV_R_SET_RESULT)
+AC_SUBST(SERV_R_SET_RETURN)
+
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <unistd.h>
+#include <netdb.h>
+int innetgr(const char *netgroup, const char *host, const char *user, const char *domain);
+]
+,,
+[
+INNETGR_ARGS="#undef INNETGR_ARGS"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <unistd.h>
+#include <netdb.h>
+int innetgr(char *netgroup, char *host, char *user, char *domain);
+]
+,,
+[
+INNETGR_ARGS="#define INNETGR_ARGS char *netgroup, char *host, char *user, char *domain"
+]
+,
+))
+
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <unistd.h>
+#include <netdb.h>
+void setnetgrent(const char *);
+]
+,,
+[
+SETNETGRENT_ARGS="#undef SETNETGRENT_ARGS"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <unistd.h>
+#include <netdb.h>
+void setnetgrent(char *);
+]
+,,
+[
+SETNETGRENT_ARGS="#define SETNETGRENT_ARGS char *netgroup"
+]
+,
+))
+AC_SUBST(SETNETGRENT_ARGS)
+AC_SUBST(INNETGR_ARGS)
+
+#
+# Random remaining OS-specific issues involving compiler warnings.
+# XXXDCL print messages to indicate some compensation is being done?
+#
+BROKEN_IN6ADDR_INIT_MACROS="#undef BROKEN_IN6ADDR_INIT_MACROS"
+
+case "$host" in
+	*-aix5.1.*)
+		hack_shutup_pthreadmutexinit=yes
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-bsdi3.1*)
+		hack_shutup_sputaux=yes
+		;;
+	*-bsdi4.0*)
+		hack_shutup_sigwait=yes
+		hack_shutup_sputaux=yes
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-bsdi4.1*)
+		hack_shutup_stdargcast=yes
+		;;
+	*-hpux11.11)
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-osf5.1|*-osf5.1b)
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-solaris2.8)
+		hack_shutup_pthreadmutexinit=yes
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-solaris2.9)
+		hack_shutup_in6addr_init_macros=yes
+		;;
+esac
+
+case "$hack_shutup_pthreadmutexinit" in
+	yes)
+		#
+		# Shut up PTHREAD_MUTEX_INITIALIZER unbraced
+		# initializer warnings.
+		#
+		AC_DEFINE(SHUTUP_MUTEX_INITIALIZER)
+		;;
+esac
+
+case "$hack_shutup_sigwait" in
+	yes)
+		#
+		# Shut up a -Wmissing-prototypes warning for sigwait().
+		#
+		AC_DEFINE(SHUTUP_SIGWAIT)
+		;;
+esac
+
+case "$hack_shutup_sputaux" in
+	yes)
+		#
+		# Shut up a -Wmissing-prototypes warning from <stdio.h>.
+		#
+		AC_DEFINE(SHUTUP_SPUTAUX)
+		;;
+esac
+
+case "$hack_shutup_stdargcast" in
+	yes)
+		#
+		# Shut up a -Wcast-qual warning from va_start().
+		#
+		AC_DEFINE(SHUTUP_STDARG_CAST)
+		;;
+esac
+
+case "$hack_shutup_in6addr_init_macros" in
+	yes)
+		AC_DEFINE(BROKEN_IN6ADDR_INIT_MACROS)
+		;;
+esac
+
+#
+# Substitutions
+#
+AC_SUBST(BIND9_TOP_BUILDDIR)
+BIND9_TOP_BUILDDIR=`pwd`
+
+AC_SUBST_FILE(BIND9_INCLUDES)
+BIND9_INCLUDES=$BIND9_TOP_BUILDDIR/make/includes
+
+AC_SUBST_FILE(BIND9_MAKE_RULES)
+BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
+
+. $srcdir/../../version
+BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}"
+AC_SUBST(BIND9_VERSION)
+
+AC_SUBST_FILE(LIBBIND_API)
+LIBBIND_API=$srcdir/api
+
+AC_OUTPUT(
+	make/rules
+	make/mkdep
+	make/includes
+	Makefile
+	bsd/Makefile
+	dst/Makefile
+	include/Makefile
+	inet/Makefile
+	irs/Makefile
+	isc/Makefile
+	nameser/Makefile
+	port_after.h
+	port_before.h
+	resolv/Makefile
+	port/Makefile
+	${PORT_DIR}/Makefile
+	${PORT_INCLUDE}/Makefile
+)
+
+# Tell Emacs to edit this file in shell mode.
+# Local Variables:
+# mode: sh
+# End:
