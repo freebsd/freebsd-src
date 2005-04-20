@@ -62,7 +62,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/route.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -224,7 +223,7 @@ vlan_setmulti(struct ifnet *ifp)
  */
 extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
-/* For MII eyes only... */
+/* For if_link_state_change() eyes only... */
 extern	void (*vlan_link_state_p)(struct ifnet *, int);
 
 static int
@@ -819,11 +818,9 @@ vlan_link_state(struct ifnet *ifp, int link)
 
 	VLAN_LOCK();
 	LIST_FOREACH(ifv, &ifv_list, ifv_list) {
-		if (ifv->ifv_p == ifp) {
-			ifv->ifv_if.if_link_state = ifv->ifv_p->if_link_state;
-			rt_ifmsg(&(ifv->ifv_if));
-			KNOTE_UNLOCKED(&ifp->if_klist, link);
-		}
+		if (ifv->ifv_p == ifp)
+			if_link_state_change(&ifv->ifv_if,
+			    ifv->ifv_p->if_link_state);
 	}
 	VLAN_UNLOCK();
 }
