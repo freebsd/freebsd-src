@@ -32,8 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmc.h>
 #include <sys/syscall.h>
 
-#include <machine/pmc_mdep.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -45,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 /* Function prototypes */
-#if	__i386__
+#if defined(__i386__)
 static int k7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
@@ -54,7 +52,7 @@ static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int p5_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
-#elif	__amd64__
+#elif defined(__amd64__)
 static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
@@ -152,6 +150,7 @@ struct pmc_masks {
 #define	PMCMASK(N,V)	{ .pm_name = #N, .pm_value = (V) }
 #define	NULLMASK	PMCMASK(NULL,0)
 
+#if defined(__i386__) || defined(__amd64__)
 static int
 pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
 {
@@ -175,12 +174,13 @@ pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
 	}
 	return c;
 }
+#endif
 
 #define	KWMATCH(p,kw)		(strcasecmp((p), (kw)) == 0)
 #define	KWPREFIXMATCH(p,kw)	(strncasecmp((p), (kw), sizeof((kw)) - 1) == 0)
 #define	EV_ALIAS(N,S)		{ .pm_alias = N, .pm_spec = S }
 
-#if	__i386__
+#if defined(__i386__)
 
 /*
  * AMD K7 (Athlon) CPUs.
@@ -1236,7 +1236,7 @@ p5_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	return -1 || pe || ctrspec || pmc_config; /* shut up gcc */
 }
 
-#elif	__amd64__
+#elif defined(__amd64__)
 
 /*
  * AMD K8 PMCs.
@@ -1634,7 +1634,7 @@ pmc_init(void)
 
 	/* set parser pointer */
 	switch (cpu_info.pm_cputype) {
-#if	__i386__
+#if defined(__i386__)
 	case PMC_CPU_AMD_K7:
 		pmc_mdep_event_aliases = k7_aliases;
 		pmc_mdep_allocate_pmc = k7_allocate_pmc;
@@ -1654,7 +1654,7 @@ pmc_init(void)
 		pmc_mdep_event_aliases = p4_aliases;
 		pmc_mdep_allocate_pmc = p4_allocate_pmc;
 		break;
-#elif	__amd64__
+#elif defined(__amd64__)
 	case PMC_CPU_AMD_K8:
 		pmc_mdep_event_aliases = k8_aliases;
 		pmc_mdep_allocate_pmc = k8_allocate_pmc;
@@ -2117,7 +2117,7 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
  * Architecture specific APIs
  */
 
-#if	__i386__ || __amd64__
+#if defined(__i386__) || defined(__amd64__)
 
 int
 pmc_x86_get_msr(pmc_id_t pmc, uint32_t *msr)
