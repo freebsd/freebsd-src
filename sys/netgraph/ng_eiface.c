@@ -74,7 +74,7 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 /* Node private data */
 struct ng_eiface_private {
 	struct arpcom	arpcom;		/* per-interface network data */
-	struct ifnet	*ifp;		/* This interface */
+#define	sc_ifp		arpcom.ac_if
 	int		unit;		/* Interface unit number */
 	node_p		node;		/* Our netgraph node */
 	hook_p		ether;		/* Hook for ethernet stream */
@@ -188,7 +188,7 @@ static void
 ng_eiface_init(void *xsc)
 {
 	priv_p sc = xsc;
-	struct ifnet *ifp = sc->ifp;
+	struct ifnet *ifp = &sc->sc_ifp;
 	int s;
 
 	s = splimp();
@@ -339,7 +339,6 @@ ng_eiface_constructor(node_p node)
 
 	/* Link them together */
 	ifp->if_softc = priv;
-	priv->ifp = ifp;
 
 	/* Get an interface unit number */
 	priv->unit = alloc_unr(ng_eiface_unit);
@@ -397,7 +396,7 @@ static int
 ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -510,7 +509,7 @@ static int
 ng_eiface_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -547,7 +546,7 @@ static int
 ng_eiface_rmnode(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = priv->ifp;
+	struct ifnet *const ifp = &priv->sc_ifp;
 
 	ether_ifdetach(ifp);
 	free_unr(ng_eiface_unit, priv->unit);
