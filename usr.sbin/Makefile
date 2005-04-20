@@ -112,8 +112,8 @@ SUBDIR=	ac \
 	${_pcvt} \
 	periodic \
 	pkg_install \
-	${_pmccontrol} \
-	${_pmcstat} \
+	pmccontrol \
+	pmcstat \
 	${_pnpinfo} \
 	powerd \
 	ppp \
@@ -286,8 +286,6 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pccard=	pccard
-_pmccontrol=	pmccontrol
-_pmcstat=	pmcstat
 _pnpinfo=	pnpinfo
 .if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
@@ -332,8 +330,6 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
-_pmccontrol=	pmccontrol
-_pmcstat=	pmcstat
 .if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
 .endif
