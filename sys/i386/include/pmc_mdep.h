@@ -31,7 +31,8 @@
 #ifndef _MACHINE_PMC_MDEP_H
 #define	_MACHINE_PMC_MDEP_H 1
 
-#include <sys/pmc.h>
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 
 /* AMD K7 PMCs */
 
