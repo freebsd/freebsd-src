@@ -690,8 +690,24 @@ ata_raid_done(struct ata_request *request)
 	printf("ar%d: unknown array type in ata_raid_done\n", rdp->lun);
     }
 
-    if (finished)
+    if (finished) {
+	if ((rdp->status & AR_S_REBUILDING) && 
+	    rdp->rebuild_lba >= rdp->total_sectors) {
+	    int disk;
+
+	    for (disk = 0; disk < rdp->total_disks; disk++) {
+		if ((rdp->disks[disk].flags &
+		     (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_SPARE)) ==
+		    (AR_DF_PRESENT | AR_DF_ASSIGNED | AR_DF_SPARE)) {
+		    rdp->disks[disk].flags &= ~AR_DF_SPARE;
+		    rdp->disks[disk].flags |= AR_DF_ONLINE;
+		}
+	    }
+	    rdp->status &= ~AR_S_REBUILDING;
+	    ata_raid_config_changed(rdp, 1);
+	}
 	biodone(bp);
+    }
 		 
     if (composite) {
 	if (finished) {
