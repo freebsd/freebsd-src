@@ -80,7 +80,6 @@ static struct cdevsw ata_cdevsw = {
 
 /* prototypes */
 static void ata_boot_attach(void);
-static void ata_intr(void *);
 static int ata_getparam(struct ata_device *, u_int8_t);
 static int ata_service(struct ata_channel *);
 static void bswap(int8_t *, int);
@@ -104,42 +103,126 @@ static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 #define DEV_ATAPIALL	NATAPICD > 0 || NATAPIFD > 0 || \
 			NATAPIST > 0 || NATAPICAM > 0
 
+/* For Promise SATA controllers */
+void
+ata_promise_init(struct ata_channel *ch)
+{
+     device_t parent = device_get_parent(ch->dev);
+     struct ata_pci_controller *ctlr = device_get_softc(parent);
+     int i;
+
+     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	ch->r_io[i].res = ctlr->bmio[ATA_IDX_DATA].res;
+	ch->r_io[i].offset = 0x200 + (i << 2) + (ch->unit << 7);
+     }
+
+     ch->r_altio[ATA_ALTSTAT].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_altio[ATA_ALTSTAT].offset = 0x238 + (ch->unit << 7);
+
+     ch->r_bmio[ATA_BMCTL_PORT].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_BMCTL_PORT].offset = 0x260 + (ch->unit << 7);
+     ch->r_bmio[ATA_BMDTP_PORT].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_BMDTP_PORT].offset = 0x244 + (ch->unit << 7);
+     ch->r_bmio[ATA_BMDEVSPEC_0].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_BMDEVSPEC_0].offset = ((ch->unit + 1) << 2);
+     ch->r_bmio[ATA_BTIMING_0].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_BTIMING_0].offset = 0x24c + (ch->unit << 7);
+     ch->r_bmio[ATA_BTIMING_1].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_BTIMING_1].offset = 0x250 + (ch->unit << 7);
+
+     ch->r_io[ATA_IDX_ADDR].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_altio[ATA_IDX_ADDR].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_IDX_ADDR].res = ctlr->bmio[ATA_IDX_DATA].res;
+
+     ch->r_io[ATA_IDX_DATA].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_altio[ATA_IDX_DATA].res = ctlr->bmio[ATA_IDX_DATA].res;
+     ch->r_bmio[ATA_IDX_DATA].res = ctlr->bmio[ATA_IDX_DATA].res;
+
+     /* Reset channel */
+     ATA_OUTL(ch->r_bmio, ATA_BMCMD_PORT, 0x800);
+     DELAY(10);
+
+     /* Define which sequencer to interrupt on */
+     ATA_OUTL(ch->r_bmio, ATA_BMCMD_PORT, 0x80008000 | (ch->unit + 1));
+     DELAY(10);
+
+     /* Note that ATA_BMCTL_PORT = ATA_BMCMD_PORT */
+     /* More set up of channel */
+     ATA_OUTL(ch->r_bmio, ATA_BMCMD_PORT,
+	(ATA_INL(ch->r_bmio, ATA_BMCMD_PORT) & ~0x00003f9f)
+	| (ch->unit + 1));
+
+     /* Allow one event */
+     ATA_OUTL(ch->r_bmio, ATA_BMDEVSPEC_0, 0x00000001);
+     ch->flags |= (ATA_NO_SLAVE | ATA_USE_16BIT);
+}
+
 int
 ata_probe(device_t dev)
 {
     struct ata_channel *ch;
-    int rid;
+    int rid, i;
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    if (ch->r_io || ch->r_altio || ch->r_irq)
+    if (ch->r_io[ATA_IDX_DATA].res || ch->r_altio[ATA_IDX_DATA].res
+	|| ch->r_irq)
 	return EEXIST;
 
     /* initialize the softc basics */
     ch->active = ATA_IDLE;
     ch->dev = dev;
 
-    rid = ATA_IOADDR_RID;
-    ch->r_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
+    switch (ch->chiptype) {
+    case 0x3318105a:  /* Promise SATA */
+    case 0x3319105a:  /* Promise SATA */
+    case 0x3371105a:  /* Promise SATA */
+    case 0x3373105a:  /* Promise SATA */
+    case 0x3376105a:  /* Promise SATA */
+	ata_promise_init(ch);
+	break;
+
+    default:
+	rid = ATA_IOADDR_RID;
+	ch->r_io[ATA_IDX_DATA].res
+	    = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
 				  ATA_IOSIZE, RF_ACTIVE);
-    if (!ch->r_io)
-	goto failure;
+	if (!ch->r_io[ATA_IDX_DATA].res)
+	    goto failure;
+	for (i = 0; i < ATA_MAX_RES; i++) {
+	    ch->r_io[i].res = ch->r_io[ATA_IDX_DATA].res;
+	    ch->r_io[i].offset = i;
+	}
 
-    rid = ATA_ALTADDR_RID;
-    ch->r_altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+	rid = ATA_ALTADDR_RID;
+	ch->r_altio[ATA_IDX_DATA].res
+	    = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 				     ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!ch->r_altio)
-	goto failure;
+	if (!ch->r_altio[ATA_IDX_DATA].res)
+	    goto failure;
+	for (i = 0; i < ATA_MAX_RES; i++) {
+	    ch->r_altio[i].res = ch->r_altio[ATA_IDX_DATA].res;
+	    ch->r_altio[i].offset = i;
+	}
 
-    rid = ATA_BMADDR_RID;
-    ch->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+	rid = ATA_BMADDR_RID;
+	ch->r_bmio[ATA_IDX_DATA].res
+		= bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 				    ATA_BMIOSIZE, RF_ACTIVE);
+	for (i = 0; i < ATA_MAX_RES; i++) {
+	    ch->r_bmio[i].res = ch->r_bmio[ATA_IDX_DATA].res;
+	    ch->r_bmio[i].offset = i;
+	}
+    }
+
     if (bootverbose)
 	ata_printf(ch, -1, "iobase=0x%04x altiobase=0x%04x bmaddr=0x%04x\n", 
-		   (int)rman_get_start(ch->r_io),
-		   (int)rman_get_start(ch->r_altio),
-		   (ch->r_bmio) ? (int)rman_get_start(ch->r_bmio) : 0);
+		   (int)rman_get_start(ch->r_io[ATA_IDX_DATA].res),
+		   (int)rman_get_start(ch->r_altio[ATA_IDX_DATA].res),
+		   (ch->r_bmio)
+			? (int)rman_get_start(ch->r_bmio[ATA_IDX_DATA].res)
+			: 0);
 
     ata_reset(ch);
 
@@ -154,12 +237,15 @@ ata_probe(device_t dev)
     return 0;
     
 failure:
-    if (ch->r_io)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ch->r_io);
-    if (ch->r_altio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ch->r_altio);
-    if (ch->r_bmio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, ch->r_bmio);
+    if (ch->r_io[ATA_IDX_DATA].res)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID,
+	    ch->r_io[ATA_IDX_DATA].res);
+    if (ch->r_altio[ATA_IDX_DATA].res)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,
+	    ch->r_altio[ATA_IDX_DATA].res);
+    if (ch->r_bmio[ATA_IDX_DATA].res)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID,
+	    ch->r_bmio[ATA_IDX_DATA].res);
     if (bootverbose)
 	ata_printf(ch, -1, "probe allocation failed\n");
     return ENXIO;
@@ -181,10 +267,44 @@ ata_attach(device_t dev)
 	ata_printf(ch, -1, "unable to allocate interrupt\n");
 	return ENXIO;
     }
-    if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO,
+
+    switch (ch->chiptype) {
+    case 0x3318105a: /* Promise SATA */
+    case 0x3319105a: /* Promise SATA */
+    case 0x3371105a: /* Promise SATA */
+    case 0x3373105a: /* Promise SATA */
+    case 0x3376105a: /* Promise SATA */
+     {
+	struct ata_pci_controller *ctlr;
+	ctlr = device_get_softc(device_get_parent(ch->dev));
+	if (ctlr->child_count == 3 && ch->unit != 2) {
+		ch->sata_master_idx = 1;
+	} else {
+	        ata_printf(ch, -1, "IDE port\n");
+	}
+	if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO,
+                                ata_promise_intr, ch, &ch->ih))) {
+	        ata_printf(ch, -1, "unable to setup interrupt\n");
+	        return error;
+	}
+     }
+	break;
+    case 0x25a38086: /* Intel 6300ESB SATA */
+    case 0x25b08086: /* Intel 6300ESB SATA RAID */
+    case 0x24d18086: /* Intel ICH5 SATA */
+    case 0x24df8086: /* Intel ICH5 SATA RAID */
+	if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO,
+                                ata_intr, ch, &ch->ih))) {
+	        ata_printf(ch, -1, "unable to setup interrupt\n");
+	        return error;
+	}
+	break;
+    default:
+	if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO,
 				ata_intr, ch, &ch->ih))) {
-	ata_printf(ch, -1, "unable to setup interrupt\n");
-	return error;
+	    ata_printf(ch, -1, "unable to setup interrupt\n");
+	    return error;
+	}
     }
 
     /*
@@ -231,7 +351,7 @@ int
 ata_detach(device_t dev)
 {
     struct ata_channel *ch;
-    int s;
+    int i, s;
  
     if (!dev || !(ch = device_get_softc(dev)) ||
 	!ch->r_io || !ch->r_altio || !ch->r_irq)
@@ -275,13 +395,24 @@ ata_detach(device_t dev)
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
-    if (ch->r_bmio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, ch->r_bmio);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ch->r_altio);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ch->r_io);
-    ch->r_io = NULL;
-    ch->r_altio = NULL;
-    ch->r_bmio = NULL;
+    if (ch->r_bmio[ATA_IDX_DATA].res)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID,
+	    ch->r_bmio[ATA_IDX_DATA].res);
+    if (ch->r_altio[ATA_IDX_DATA].res)
+    	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,
+	    ch->r_altio[ATA_IDX_DATA].res);
+    if (ch->r_io[ATA_IDX_DATA].res)
+    	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID,
+	    ch->r_io[ATA_IDX_DATA].res);
+    ch->r_io[ATA_IDX_DATA].res = NULL;
+    ch->r_altio[ATA_IDX_DATA].res = NULL;
+    ch->r_bmio[ATA_IDX_DATA].res = NULL;
+    for (i = 0; i < ATA_MAX_RES; i++) {
+	ch->r_io[i].res = ch->r_io[ATA_IDX_DATA].res;
+	ch->r_altio[i].res = ch->r_altio[ATA_IDX_DATA].res;
+	ch->r_bmio[i].res = ch->r_bmio[ATA_IDX_DATA].res;
+    }
+
     ch->r_irq = NULL;
     ATA_UNLOCK_CH(ch);
     return 0;
@@ -575,7 +706,7 @@ ata_boot_attach(void)
     splx(s);
 }
 
-static void
+void
 ata_intr(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
@@ -842,13 +973,14 @@ ata_reinit(struct ata_channel *ch)
 {
     int devices, misdev, newdev;
 
-    if (!ch->r_io || !ch->r_altio || !ch->r_irq)
+    if (!ch || !ch->r_io[ATA_IDX_DATA].res || !ch->r_altio[ATA_IDX_DATA].res
+	|| !ch->r_irq)
 	return ENXIO;
 
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
-    ch->running = NULL;
     devices = ch->devices;
     ata_printf(ch, -1, "resetting devices .. ");
+
     ata_reset(ch);
 
     if ((misdev = devices & ~ch->devices)) {

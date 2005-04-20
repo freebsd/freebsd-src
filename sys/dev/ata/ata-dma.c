@@ -147,6 +147,8 @@ ata_dmafree(struct ata_device *atadev)
 	bus_dma_tag_destroy(ds->ddmatag);
 	ds->ddmatag = NULL;
     }
+    ds->flags = 0;
+    atadev->channel->flags &= ~ATA_DMA_ACTIVE;
 }
 
 void
@@ -186,6 +188,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     int device = ATA_DEV(atadev->unit);
     int devno = (channel << 1) + device;
     int error;
+    int32_t mask54 = 0;;
 
     /* set our most pessimistic default mode */
     atadev->mode = ATA_PIO;
@@ -193,15 +196,35 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     if (!atadev->channel->r_bmio)
 	return;
 
-    /* if simplex controller, only allow DMA on primary channel */
-    if (channel == 1) {
-	ATA_OUTB(atadev->channel->r_bmio, ATA_BMSTAT_PORT,
+    switch (chiptype) {
+    case 0x24d18086:    /* Intel ICH5 SATA150 */
+    case 0x24df8086:    /* Intel ICH5 SATA150 RAID */
+    case 0x25a38086:    /* Intel 6300ESB SATA150 */
+    case 0x25b08086:    /* Intel 6300ESB SATA150 RAID */
+    case 0x3318105a:    /* Promise SATA */
+    case 0x3319105a:    /* Promise SATA */
+    case 0x3371105a:    /* Promise SATA */
+    case 0x3373105a:    /* Promise SATA */
+    case 0x3376105a:    /* Promise SATA */
+	if ((device == 0 && atadev->channel->sata_master_idx)
+	    || (device == 1 && atadev->channel->sata_slave_idx)){
+	    atadev->param->hwres_cblid = 1;
+	    ata_prtdev(atadev, "Force SATA cable UDMA okay\n");
+	}
+	if (!panicstr)
+	    udmamode = 5;
+	break;
+    default:
+	/* if simplex controller, only allow DMA on primary channel */
+	if (channel == 1) {
+	    ATA_OUTB(atadev->channel->r_bmio, ATA_BMSTAT_PORT,
 		 ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
 		 (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
-	if (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
-	    ATA_BMSTAT_DMA_SIMPLEX) {
-	    ata_prtdev(atadev, "simplex device, DMA on primary only\n");
-	    return;
+	    if (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) &
+		ATA_BMSTAT_DMA_SIMPLEX) {
+		ata_prtdev(atadev, "simplex device, DMA on primary only\n");
+		return;
+	    }
 	}
     }
 
@@ -217,21 +240,35 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     switch (chiptype) {
 
     case 0x24db8086:	/* Intel ICH5 */
-    case 0x24d18086:	/* Intel ICH5 SATA */
+    case 0x24d18086:	/* Intel ICH5 SATA150 */
+    case 0x24df8086:	/* Intel ICH5 SATA150 RAID */
+    case 0x25a28086:	/* Intel 6300ESB ICH */
+    case 0x25a38086:	/* Intel 6300ESB SATA150 */
+    case 0x25b08086:	/* Intel 6300ESB SATA150 RAID */
     case 0x24ca8086:	/* Intel ICH4 mobile */
     case 0x24cb8086:	/* Intel ICH4 */
-    case 0x248a8086:	/* Intel ICH3 mobile */ 
+	mask54 = 0x1000;
+    case 0x248a8086:	/* Intel ICH3 mobile */
     case 0x248b8086:	/* Intel ICH3 */
-    case 0x244a8086:	/* Intel ICH2 mobile */ 
+    case 0x244a8086:	/* Intel ICH2 mobile */
     case 0x244b8086:	/* Intel ICH2 */
+	if (!mask54)
+	    mask54 = 0x10;
+
 	if (udmamode >= 5) {
 	    int32_t mask48, new48;
-	    int16_t word54;
+	    int32_t word54;
+	    int dma_mode = ATA_UDMA5;
 
-	    word54 = pci_read_config(parent, 0x54, 2);
-	    if (word54 & (0x10 << devno)) {
+	    if (mask54 >= 0x1000 && !(chiptype == 0x24ca8086 ||
+		chiptype == 0x24cb8086 || chiptype == 0x24db8086 ||
+		chiptype == 0x25a28086))
+		dma_mode = ATA_UDMA5;
+
+	    word54 = pci_read_config(parent, 0x54, 4);
+	    if (word54 & (mask54 << devno)) {
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				    ATA_UDMA5,	ATA_C_F_SETXFER,ATA_WAIT_READY);
+				    dma_mode,	ATA_C_F_SETXFER,ATA_WAIT_READY);
 		if (bootverbose)
 		    ata_prtdev(atadev, "%s setting UDMA5 on Intel chip\n",
 			       (error) ? "failed" : "success");
@@ -242,7 +279,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 				     (pci_read_config(parent, 0x48, 4) &
 				     ~mask48) | new48, 4);
 		    pci_write_config(parent, 0x54, word54 | (0x1000<<devno), 2);
-		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
+		    ata_dmacreate(atadev, apiomode, dma_mode);
 		    return;
 		}
 	    }
@@ -1309,7 +1346,15 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	else
 	    atadev->mode = ATA_PIO;
 	return;
-
+    case 0x3318105a:   /* Promise SATA */
+    case 0x3319105a:   /* Promise SATA */
+    case 0x3371105a:   /* Promise SATA */
+    case 0x3373105a:   /* Promise SATA */
+    case 0x3376105a:    /* Promise SATA */
+	error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+		ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+        ata_dmacreate(atadev, apiomode, ATA_UDMA5);
+        return;
     default:		/* unknown controller chip */
 	/* better not try generic DMA on ATAPI devices it almost never works */
 	if (ATAPI_DEVICE(atadev))
@@ -1406,7 +1451,10 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     struct ata_channel *ch = atadev->channel;
     struct ata_dmastate *ds = &atadev->dmastate;
     struct ata_dmasetup_data_cb_args cba;
+    int s;
 
+    if (ch->active & ATA_DEAD)
+	return -1;
     if (ds->flags & ATA_DS_ACTIVE)
 	    panic("ata_dmasetup: transfer active on this device!");
 
@@ -1425,6 +1473,22 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     if (dir)
 	    ds->flags |= ATA_DS_READ;
 
+    switch (ch->chiptype) {
+    case 0x3318105a:  /* Promise SATA */
+    case 0x3319105a:  /* Promise SATA */
+    case 0x3371105a:  /* Promise SATA */
+    case 0x3373105a:  /* Promise SATA */
+    case 0x3376105a:  /* Promise SATA */
+	s = splbio();
+	ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
+	ATA_OUTL(ch->r_bmio, ATA_BMCTL_PORT,
+	    ((ds->flags & ATA_DS_READ)
+	     ? 0x00000080 : 0x000000c0) | (ch->unit+1));
+	splx(s);
+	return 0;
+    }
+
+    s = splbio();
     ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
@@ -1432,6 +1496,7 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 	  (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 	 ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    splx(s);
     return 0;
 }
 
@@ -1440,7 +1505,7 @@ ata_dmadone(struct ata_device *atadev)
 {
     struct ata_channel *ch;
     struct ata_dmastate *ds;
-    int error;
+    int error, s;
 
     ch = atadev->channel;
     ds = &atadev->dmastate;
@@ -1448,6 +1513,18 @@ ata_dmadone(struct ata_device *atadev)
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
 
+    switch (ch->chiptype) {
+    case 0x3318105a:  /* Promise SATA */
+    case 0x3319105a:  /* Promise SATA */
+    case 0x3371105a:  /* Promise SATA */
+    case 0x3373105a:  /* Promise SATA */
+    case 0x3376105a:  /* Promise SATA */
+	ch->flags &= ~ATA_DMA_ACTIVE;
+	ds->flags = 0;
+	return 0;
+    }
+
+    s = splbio();
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
@@ -1455,6 +1532,7 @@ ata_dmadone(struct ata_device *atadev)
 	     error | ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
     ch->flags &= ~ATA_DMA_ACTIVE;
     ds->flags = 0;
+    splx(s);
     return (error & ATA_BMSTAT_MASK);
 }
 
