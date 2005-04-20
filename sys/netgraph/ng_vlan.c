@@ -299,6 +299,34 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		}
 		break;
+	case NGM_FLOW_COOKIE:
+	    {
+		struct ng_mesg *copy;
+		struct filterhead *chain;
+		struct filter *f;
+
+		/*
+		 * Flow control messages should come only
+		 * from downstream.
+		 */
+
+		if (lasthook == NULL)
+			break;
+		if (lasthook != priv->downstream_hook)
+			break;
+
+		/* Broadcast the event to all uplinks. */
+		for (i = 0, chain = priv->hashtable; i < HASHSIZE;
+		    i++, chain++)
+		LIST_FOREACH(f, chain, next) {
+			NG_COPYMESSAGE(copy, msg, M_NOWAIT);
+			if (copy == NULL)
+				continue;
+			NG_SEND_MSG_HOOK(error, node, copy, f->hook, 0);
+		}
+
+		break;
+	    }
 	default:			/* Unknown type cookie. */
 		error = EINVAL;
 		break;
