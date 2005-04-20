@@ -346,7 +346,7 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pc98/apm/apm_bioscall.s		optional apm
+pc98/apm/apm_bioscall.S		optional apm
 pc98/i386/busio.s		standard
 pc98/i386/busiosubr.c		standard
 pc98/i386/machdep.c		standard
