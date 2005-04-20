@@ -172,7 +172,7 @@
 
     <para arch="i386">Memory allocation for legacy PCI bridges has
       been limited to the top 32MB of RAM.  Many older, legacy bridges
-      only allow allocation from this range.  This change only appies
+      only allow allocation from this range.  This change only applies
       to devices which don't have their memory assigned by the BIOS.
       This change fixes the <quote>bad Vcc</quote> error of CardBus
       bridges (&man.pccbb.4;).</para>
@@ -497,7 +497,7 @@
       enabled independently of LQR reports.  Older versions of
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
-      echo</command> to get this behaviour.</para>
+      echo</command> to get this behavior.</para>
 
     <para>Two bugs in the &man.pppd.8; program have been fixed.
       They may result in an incorrect CBCP response,
