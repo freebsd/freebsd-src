@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 2003 Bob Bishop
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 8, 2004
+.Dt STG 4
+.Os
+.Sh NAME
+.Nm stg
+.Nd driver for Future Domain based SCSI controllers
+.Sh SYNOPSIS
+.Cd "device stg"
+.Pp
+In
+.Pa /boot/device.hints
+(for ISA controllers):
+.Cd hint.stg.0.at="isa"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for ISA, PCCARD and PCI controllers based on
+Future Domain SCSI controller chips including the TMC-16C30, 16C50 and 32C60.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec 2920/A
+.It
+Future Domain SCSI2GO
+.It
+Future Domain TMC-18XX/3260
+.It
+IBM SCSI PCMCIA Card
+.It
+ICM PSC-2401 SCSI
+.It
+MELCO IFC-SC
+.It
+RATOC REX-5536, REX-5536AM, REX-5536M, REX-9836A
+.El
+.Pp
+Note that the Adaptec 2920C is supported by the
+.Xr ahc 4
+driver.
+.Sh SEE ALSO
+.Xr ahc 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+device driver has been developed for
+.Nx Ns / Ns Tn pc98
+and ported for
+.Fx .
+It first appeared in
+.Fx 2.2
+with PAO and merged in
+.Fx 4.2 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Naofumi HONDA .

@@ -1,0 +1,8 @@
+# $FreeBSD$
+kldload ./ng_fec.ko
+ngctl mkpeer fec dummy fec
+ngctl msg fec0: add_iface '"dc0"'
+ngctl msg fec0: add_iface '"dc1"'
+ngctl msg fec0: add_iface '"dc2"'
+ngctl msg fec0: add_iface '"dc3"'
+ngctl msg fec0: set_mode_inet

@@ -1,0 +1,111 @@
+Thank You,					    (in the order of appearance)
+
+
+	Lynne and Bill Jolitz
+
+		for your work on 386BSD and making all this possible !
+
+
+	Holger Veit		(veit@du9ds3.uni-duisburg.de)
+
+		for the permission to use a modified version of his keyboard
+		driver and utilities for keyboard remapping / multinational
+		keyboard support.
+
+
+	Per Lindberg
+
+		for the extremely helpful vt100 terminal testprogram found
+		in the directory vttest.
+
+
+	John Birchfield	
+
+		for the ncsa telnet package, which contains a vt100 emulation
+		and which was very helpful in studying some concepts.
+
+
+	Ralf Friedl		(friedl@informatik.uni-kl.de)
+
+		for making his implementation of multi-sceens for the net-2
+		distribution available.	i looked at this and took some ideas
+		and lines from his code.
+
+
+	Bruce Evans		(bde@runx.oz.au)
+
+		for contributing some bugfixes and a complete termcap entry
+
+
+	Brian H. Dunford-Shore  (brian@morpheus.wustl.edu)
+
+		for contributing most of the EGA/VGA screen switching code
+		and being a fast, reliable and responsive co-author. This
+		driver would not be what it is without Brian, Thank You !
+
+
+	Frank da Cruz		(fdc@columbia.edu)
+
+		for my famous datacomm program and for giving the permission
+		to redistribute files from the msdos kermit distribution
+		located in the directory support/demo.
+
+
+	Joerg Wunsch		(joerg_wunsch@uriah.sax.de)
+
+		for contributing precise bugreports and -fixes, the 8x10
+		EGA/VGA fonts and the color palette ioctls and for being
+		a very responsive contributor of various ideas.
+		Joerg wrote pcvt's interface to XFree86 1.2 and 1.3 and
+		the SYSV/syscons - like interface to XFree86 2.0.
+		There would be no support for X without Joerg's work!
+		    Thank you very much Joerg, i enjoy it !!! :-)
+
+
+	Scott Turner		(scotty@gagetalker.com)
+
+		for contributing code to change the winsize structure, many
+		discussions on the keyboard code and fine-tuning the driver
+		
+
+	Gordon L. Burditt	(gordon@sneaky.lonestar.org)
+
+		for the nicest and most complete bugreports i ever got
+
+
+	Theo Deraadt		(deraadt@fsa.ca)
+
+		for pushing me forward. There would be no 3.00 release
+		if Theo didn't asked for features ... ;-)
+
+
+	Onno van der Linden	(c/o frank@fwi.uva.nl)
+
+		for writing the 132 column support for the Cirrus
+		chipsets although he had no time to do it ... :-)
+
+
+	Wolfram Solfrank, Ingo Koenig
+
+		for putting some data onto tape (and handling and shipping
+		in the case of Wolfgang) to provide me with some latest
+		sources because i still have no ip-connectivity ....
+
+
+	Michael Havemester	(tik@abqhh.hanse.de)
+
+		for giving me a chance to stay up to date with NetBSD-
+		current, for programming the initial version of the fast
+		scrolling code and for the keyboard fifo code!
+
+
+	Charles Hannum		(mycroft@gnu.ai.mit.edu)
+
+		for getting bored by a slow-scrolling video driver and 
+		for leaving me some bugs to fix ;-)
+
+
+	The NetBSD and FreeBSD teams
+
+		for giving me something to play, work and learn with !
+		There would be nothing to write a driver for without you !!!

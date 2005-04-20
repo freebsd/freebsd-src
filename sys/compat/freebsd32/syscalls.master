@@ -1,0 +1,612 @@
+ $FreeBSD$
+;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
+;	from: src/sys/kern/syscalls.master 1.107
+;
+; System call name/number master file.
+; Processed to created init_sysent.c, syscalls.c and syscall.h.
+
+; Columns: number [M]type nargs name alt{name,tag,rtyp}/comments
+;	number	system call number, must be in order
+;	type	one of [M]STD, [M]OBSOL, [M]UNIMPL, [M]COMPAT, [M]CPT_NOA,
+;		[M]LIBCOMPAT, [M]NODEF,  [M]NOARGS,  [M]NOPROTO,  [M]NOIMPL,
+;		[M]NOSTD
+;	name	psuedo-prototype of syscall routine
+;		If one of the following alts is different, then all appear:
+;	altname	name of system call if different
+;	alttag	name of args struct tag if different from [o]`name'"_args"
+;	altrtyp	return type if not int (bogus - syscalls always return int)
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	[M]	e.g. like MSTD -- means the system call is MP-safe.  If no
+;		M prefix is used, the syscall wrapper will obtain the Giant
+;		lock for the syscall.
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+;	NOSTD	implemented but as a lkm that can be statically
+;			compiled in sysent entry will be filled with lkmsys
+;			so the SYSCALL_MODULE macro works
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+
+; Reserved/unimplemented system calls in the range 0-150 inclusive
+; are reserved for use in future Berkeley releases.
+; Additional system calls implemented in vendor and other
+; redistributions should be placed in the reserved range at the end
+; of the current calls.
+
+0	MNOPROTO { int nosys(void); } syscall nosys_args int
+1	MNOPROTO { void sys_exit(int rval); } exit sys_exit_args void
+2	MNOPROTO { int fork(void); }
+3	MNOPROTO { ssize_t read(int fd, void *buf, size_t nbyte); }
+4	MNOPROTO { ssize_t write(int fd, const void *buf, size_t nbyte); }
+5	NOPROTO	{ int open(char *path, int flags, int mode); }
+6	MNOPROTO { int close(int fd); }
+7	MSTD	{ int freebsd32_wait4(int pid, int *status, int options, \
+		    struct rusage32 *rusage); }
+8	OBSOL	old creat
+9	NOPROTO	{ int link(char *path, char *link); }
+10	NOPROTO	{ int unlink(char *path); }
+11	OBSOL	execv
+12	NOPROTO	{ int chdir(char *path); }
+13	NOPROTO	{ int fchdir(int fd); }
+14	NOPROTO	{ int mknod(char *path, int mode, int dev); }
+15	NOPROTO	{ int chmod(char *path, int mode); }
+16	NOPROTO	{ int chown(char *path, int uid, int gid); }
+17	MNOPROTO { int obreak(char *nsize); } break obreak_args int
+18	COMPAT4	{ int freebsd32_getfsstat(struct statfs32 *buf, \
+		    long bufsize, int flags); }
+19	OBSOL	olseek
+20	MNOPROTO { pid_t getpid(void); }
+21	NOPROTO	{ int mount(char *type, char *path, int flags, \
+		    caddr_t data); }
+22	NOPROTO	{ int unmount(char *path, int flags); }
+23	MNOPROTO { int setuid(uid_t uid); }
+24	MNOPROTO { uid_t getuid(void); }
+25	MNOPROTO { uid_t geteuid(void); }
+26	MNOPROTO { int ptrace(int req, pid_t pid, caddr_t addr, int data); }
+; XXX implement
+27	UNIMPL	recvmsg
+28	MNOPROTO { int sendmsg(int s, caddr_t msg, int flags); }
+29	MNOPROTO { int recvfrom(int s, caddr_t buf, size_t len, int flags, \
+		    caddr_t from, int *fromlenaddr); }
+30	MNOPROTO { int accept(int s, caddr_t name, int *anamelen); }
+31	MNOPROTO { int getpeername(int fdes, caddr_t asa, int *alen); }
+32	MNOPROTO { int getsockname(int fdes, caddr_t asa, int *alen); }
+33	NOPROTO	{ int access(char *path, int flags); }
+34	NOPROTO	{ int chflags(char *path, int flags); }
+35	NOPROTO	{ int fchflags(int fd, int flags); }
+36	NOPROTO	{ int sync(void); }
+37	MNOPROTO { int kill(int pid, int signum); }
+38	UNIMPL	ostat
+39	MNOPROTO { pid_t getppid(void); }
+40	UNIMPL	olstat
+41	MNOPROTO { int dup(u_int fd); }
+42	MNOPROTO { int pipe(void); }
+43	MNOPROTO { gid_t getegid(void); }
+44	MNOPROTO { int profil(caddr_t samples, size_t size, size_t offset, \
+		    u_int scale); }
+45	MNOPROTO { int ktrace(const char *fname, int ops, int facs, int pid); }
+46	UNIMPL	osigaction
+47	MNOPROTO { gid_t getgid(void); }
+48	UNIMPL	osigprocmask
+49	MNOPROTO { int getlogin(char *namebuf, u_int namelen); }
+50	MNOPROTO { int setlogin(char *namebuf); }
+51	MNOPROTO { int acct(char *path); }
+52	OBSOL	osigpending
+53	MSTD	{ int freebsd32_sigaltstack(struct sigaltstack32 *ss, \
+		    struct sigaltstack32 *oss); }
+54	MNOPROTO { int ioctl(int fd, u_long com, caddr_t data); }
+55	MNOPROTO { int reboot(int opt); }
+56	NOPROTO	{ int revoke(char *path); }
+57	NOPROTO	{ int symlink(char *path, char *link); }
+58	NOPROTO	{ int readlink(char *path, char *buf, int count); }
+59	STD	 { int freebsd32_execve(char *fname, u_int32_t *argv, \
+		    u_int32_t *envv); }
+60	MNOPROTO { int umask(int newmask); } umask umask_args int
+61	NOPROTO	{ int chroot(char *path); }
+62	OBSOL	ofstat
+63	OBSOL	ogetkerninfo
+64	OBSOL	ogetpagesize
+; XXX implement (not OBSOL at all)
+65	MNOPROTO { int msync(void *addr, size_t len, int flags); }
+66	MNOPROTO { int vfork(void); }
+67	OBSOL	vread
+68	OBSOL	vwrite
+69	MNOPROTO { int sbrk(int incr); }
+70	MNOPROTO { int sstk(int incr); }
+71	OBSOL	ommap
+72	MNOPROTO { int ovadvise(int anom); } vadvise ovadvise_args int
+73	MNOPROTO { int munmap(void *addr, size_t len); }
+74	MNOPROTO { int mprotect(const void *addr, size_t len, int prot); }
+75	MNOPROTO { int madvise(void *addr, size_t len, int behav); }
+76	OBSOL	vhangup
+77	OBSOL	vlimit
+78	MNOPROTO { int mincore(const void *addr, size_t len, char *vec); }
+79	MNOPROTO { int getgroups(u_int gidsetsize, gid_t *gidset); }
+80	MNOPROTO { int setgroups(u_int gidsetsize, gid_t *gidset); }
+81	MNOPROTO { int getpgrp(void); }
+82	MNOPROTO { int setpgid(int pid, int pgid); }
+83	STD	{ int freebsd32_setitimer(u_int which, \
+		    struct itimerval32 *itv, struct itimerval32 *oitv); }
+84	OBSOL	owait
+; XXX implement
+85	OBSOL	oswapon
+86	STD	{ int freebsd32_getitimer(u_int which, \
+		    struct itimerval32 *itv); }
+87	OBSOL	ogethostname
+88	OBSOL	osethostname
+89	MNOPROTO { int getdtablesize(void); }
+90	MNOPROTO { int dup2(u_int from, u_int to); }
+91	UNIMPL	getdopt
+92	MNOPROTO { int fcntl(int fd, int cmd, long arg); }
+93	STD	{ int freebsd32_select(int nd, fd_set *in, fd_set *ou, \
+		    fd_set *ex, struct timeval32 *tv); }
+; XXX need to override for big-endian - little-endian should work fine.
+94	UNIMPL	setdopt
+95	NOPROTO	{ int fsync(int fd); }
+96	MNOPROTO { int setpriority(int which, int who, int prio); }
+97	MNOPROTO { int socket(int domain, int type, int protocol); }
+98	MNOPROTO { int connect(int s, caddr_t name, int namelen); }
+99	OBSOL	oaccept
+100	MNOPROTO { int getpriority(int which, int who); }
+101	OBSOL	osend
+102	OBSOL	orecv
+103	OBSOL	osigreturn
+104	MNOPROTO { int bind(int s, caddr_t name, int namelen); }
+105	MNOPROTO { int setsockopt(int s, int level, int name, caddr_t val, \
+		    int valsize); }
+106	MNOPROTO { int listen(int s, int backlog); }
+107	OBSOL	vtimes
+108	OBSOL	osigvec
+109	OBSOL	osigblock
+110	OBSOL	osigsetmask
+111	OBSOL	osigsuspend
+112	OBSOL	osigstack
+113	OBSOL	orecvmsg
+114	OBSOL	osendmsg
+115	OBSOL	vtrace
+116	MSTD	{ int freebsd32_gettimeofday(struct timeval32 *tp, \
+		    struct timezone *tzp); }
+117	STD	{ int freebsd32_getrusage(int who, struct rusage32 *rusage); }
+118	MNOPROTO { int getsockopt(int s, int level, int name, caddr_t val, \
+		    int *avalsize); }
+119	UNIMPL	resuba (BSD/OS 2.x)
+120	STD	{ int freebsd32_readv(int fd, struct iovec32 *iovp, \
+		    u_int iovcnt); }
+121	STD	{ int freebsd32_writev(int fd, struct iovec32 *iovp, \
+		    u_int iovcnt); }
+122	STD	{ int freebsd32_settimeofday(struct timeval32 *tv, \
+		    struct timezone *tzp); }
+123	NOPROTO	{ int fchown(int fd, int uid, int gid); }
+124	NOPROTO	{ int fchmod(int fd, int mode); }
+125	OBSOL	orecvfrom
+126	MNOPROTO { int setreuid(int ruid, int euid); }
+127	MNOPROTO { int setregid(int rgid, int egid); }
+128	NOPROTO	{ int rename(char *from, char *to); }
+129	OBSOL	otruncate
+130	OBSOL	ftruncate
+131	MNOPROTO { int flock(int fd, int how); }
+132	NOPROTO	{ int mkfifo(char *path, int mode); }
+133	MNOPROTO { int sendto(int s, caddr_t buf, size_t len, int flags, \
+		    caddr_t to, int tolen); }
+134	MNOPROTO { int shutdown(int s, int how); }
+135	MNOPROTO { int socketpair(int domain, int type, int protocol, \
+		    int *rsv); }
+136	NOPROTO	{ int mkdir(char *path, int mode); }
+137	NOPROTO	{ int rmdir(char *path); }
+138	STD	{ int freebsd32_utimes(char *path, struct timeval32 *tptr); }
+139	OBSOL	4.2 sigreturn
+140	STD	{ int freebsd32_adjtime(struct timeval32 *delta, \
+		    struct timeval32 *olddelta); }
+141	OBSOL	ogetpeername
+142	OBSOL	ogethostid
+143	OBSOL	sethostid
+144	OBSOL	getrlimit
+145	OBSOL	setrlimit
+146	OBSOL	killpg
+147	MNOPROTO { int setsid(void); }
+148	NOPROTO	{ int quotactl(char *path, int cmd, int uid, caddr_t arg); }
+149	OBSOL oquota
+150	OBSOL ogetsockname
+
+; Syscalls 151-180 inclusive are reserved for vendor-specific
+; system calls.  (This includes various calls added for compatibity
+; with other Unix variants.)
+; Some of these calls are now supported by BSD...
+151	UNIMPL	sem_lock (BSD/OS 2.x)
+152	UNIMPL	sem_wakeup (BSD/OS 2.x)
+153	UNIMPL	asyncdaemon (BSD/OS 2.x)
+154	UNIMPL	nosys
+; 155 is initialized by the NFS code, if present.
+; XXX this is a problem!!!
+155	UNIMPL	nfssvc
+156	OBSOL	ogetdirentries
+157	COMPAT4	{ int freebsd32_statfs(char *path, \
+		    struct statfs32 *buf); }
+158	COMPAT4	{ int freebsd32_fstatfs(int fd, struct statfs32 *buf);}
+159	UNIMPL	nosys
+160	UNIMPL	nosys
+161	NOPROTO	{ int getfh(char *fname, struct fhandle *fhp); }
+162	MNOPROTO { int getdomainname(char *domainname, int len); }
+163	MNOPROTO { int setdomainname(char *domainname, int len); }
+164	MNOPROTO { int uname(struct utsname *name); }
+165	MNOPROTO { int sysarch(int op, char *parms); }
+166	MNOPROTO { int rtprio(int function, pid_t pid, \
+		    struct rtprio *rtp); }
+167	UNIMPL	nosys
+168	UNIMPL	nosys
+169	STD	{ int freebsd32_semsys(int which, int a2, int a3, int a4, \
+		    int a5); }
+170	STD	{ int freebsd32_msgsys(int which, int a2, int a3, int a4, \
+		    int a5, int a6); }
+171	STD	{ int freebsd32_shmsys(int which, int a2, int a3, int a4); }
+172	UNIMPL	nosys
+173	STD { ssize_t freebsd32_pread(int fd, void *buf, size_t nbyte, \
+		    int pad, u_int32_t offsetlo, u_int32_t offsethi); }
+; XXX note - bigendian is different
+174	STD	{ ssize_t freebsd32_pwrite(int fd, const void *buf, \
+		    size_t nbyte, int pad, u_int32_t offsetlo, \
+		    u_int32_t offsethi); }
+; XXX note - bigendian is different
+175	UNIMPL	nosys
+176	MNOPROTO { int ntp_adjtime(struct timex *tp); }
+177	UNIMPL	sfork (BSD/OS 2.x)
+178	UNIMPL	getdescriptor (BSD/OS 2.x)
+179	UNIMPL	setdescriptor (BSD/OS 2.x)
+180	UNIMPL	nosys
+
+; Syscalls 181-199 are used by/reserved for BSD
+181	MNOPROTO { int setgid(gid_t gid); }
+182	MNOPROTO { int setegid(gid_t egid); }
+183	MNOPROTO { int seteuid(uid_t euid); }
+184	UNIMPL	lfs_bmapv
+185	UNIMPL	lfs_markv
+186	UNIMPL	lfs_segclean
+187	UNIMPL	lfs_segwait
+188	STD	{ int freebsd32_stat(char *path, struct stat32 *ub); }
+189	MSTD	{ int freebsd32_fstat(int fd, struct stat32 *ub); }
+190	STD	{ int freebsd32_lstat(char *path, struct stat32 *ub); }
+191	NOPROTO	{ int pathconf(char *path, int name); }
+192	MNOPROTO { int fpathconf(int fd, int name); }
+193	UNIMPL	nosys
+194	MNOPROTO { int getrlimit(u_int which, struct rlimit *rlp); } \
+		    getrlimit __getrlimit_args int
+195	MNOPROTO { int setrlimit(u_int which, struct rlimit *rlp); } \
+		    setrlimit __setrlimit_args int
+196	NOPROTO	{ int getdirentries(int fd, char *buf, u_int count, \
+		    long *basep); }
+197	STD 	{ caddr_t freebsd32_mmap(caddr_t addr, size_t len, int prot, \
+		    int flags, int fd, int pad, u_int32_t poslo, \
+		    u_int32_t poshi); }
+198	NOPROTO	{ int nosys(void); } __syscall __syscall_args int
+; XXX note - bigendian is different
+199	STD	{ off_t freebsd32_lseek(int fd, int pad, u_int32_t offsetlo, \
+		    u_int32_t offsethi, int whence); }
+; XXX note - bigendian is different
+200	STD	{ int freebsd32_truncate(char *path, int pad, \
+		    u_int32_t lengthlo, u_int32_t lengthhi); }
+; XXX note - bigendian is different
+201	STD	{ int freebsd32_ftruncate(int fd, int pad, \
+		    u_int32_t lengthlo, u_int32_t lengthhi); }
+202	MSTD { int freebsd32_sysctl(int *name, u_int namelen, void *old, \
+		    u_int32_t *oldlenp, void *new, u_int32_t newlen); }
+203	MNOPROTO { int mlock(const void *addr, size_t len); }
+204	MNOPROTO { int munlock(const void *addr, size_t len); }
+205	NOPROTO	{ int undelete(char *path); }
+206	NOPROTO	{ int futimes(int fd, struct timeval *tptr); }
+207	MNOPROTO { int getpgid(pid_t pid); }
+208	UNIMPL	newreboot (NetBSD)
+209	MNOPROTO { int poll(struct pollfd *fds, u_int nfds, int timeout); }
+
+;
+; The following are reserved for loadable syscalls
+;
+210	UNIMPL
+211	UNIMPL
+212	UNIMPL
+213	UNIMPL
+214	UNIMPL
+215	UNIMPL
+216	UNIMPL
+217	UNIMPL
+218	UNIMPL
+219	UNIMPL
+
+;
+; The following were introduced with NetBSD/4.4Lite-2
+; They are initialized by thier respective modules/sysinits
+; XXX PROBLEM!!
+220	MNOPROTO { int __semctl(int semid, int semnum, int cmd, \
+		    union semun *arg); }
+221	MNOPROTO { int semget(key_t key, int nsems, int semflg); }
+222	MNOPROTO { int semop(int semid, struct sembuf *sops, u_int nsops); }
+223	UNIMPL	semconfig
+224	MNOPROTO { int msgctl(int msqid, int cmd, struct msqid_ds *buf); }
+225	MNOPROTO { int msgget(key_t key, int msgflg); }
+226	MNOPROTO { int msgsnd(int msqid, void *msgp, size_t msgsz, \
+		    int msgflg); }
+227	MNOPROTO { int msgrcv(int msqid, void *msgp, size_t msgsz, \
+		    long msgtyp, int msgflg); }
+228	MNOPROTO { int shmat(int shmid, void *shmaddr, int shmflg); }
+229	MNOPROTO { int shmctl(int shmid, int cmd, struct shmid_ds *buf); }
+230	MNOPROTO { int shmdt(void *shmaddr); }
+231	MNOPROTO { int shmget(key_t key, int size, int shmflg); }
+;
+232	MNOPROTO { int clock_gettime(clockid_t clock_id, struct timespec *tp); }
+233	MNOPROTO { int clock_settime(clockid_t clock_id, \
+		    const struct timespec *tp); }
+234	MNOPROTO { int clock_getres(clockid_t clock_id, struct timespec *tp); }
+235	UNIMPL	timer_create
+236	UNIMPL	timer_delete
+237	UNIMPL	timer_settime
+238	UNIMPL	timer_gettime
+239	UNIMPL	timer_getoverrun
+240	MSTD	{ int freebsd32_nanosleep(const struct timespec *rqtp, \
+		    struct timespec *rmtp); }
+241	UNIMPL	nosys
+242	UNIMPL	nosys
+243	UNIMPL	nosys
+244	UNIMPL	nosys
+245	UNIMPL	nosys
+246	UNIMPL	nosys
+247	UNIMPL	nosys
+248	UNIMPL	nosys
+249	UNIMPL	nosys
+; syscall numbers initially used in OpenBSD
+250	MNOPROTO { int minherit(void *addr, size_t len, int inherit); }
+251	MNOPROTO { int rfork(int flags); }
+252	MNOPROTO { int openbsd_poll(struct pollfd *fds, u_int nfds, \
+		    int timeout); }
+253	MNOPROTO { int issetugid(void); }
+254	NOPROTO	{ int lchown(char *path, int uid, int gid); }
+255	UNIMPL	nosys
+256	UNIMPL	nosys
+257	UNIMPL	nosys
+258	UNIMPL	nosys
+259	UNIMPL	nosys
+260	UNIMPL	nosys
+261	UNIMPL	nosys
+262	UNIMPL	nosys
+263	UNIMPL	nosys
+264	UNIMPL	nosys
+265	UNIMPL	nosys
+266	UNIMPL	nosys
+267	UNIMPL	nosys
+268	UNIMPL	nosys
+269	UNIMPL	nosys
+270	UNIMPL	nosys
+271	UNIMPL	nosys
+272	NOPROTO	{ int getdents(int fd, char *buf, size_t count); }
+273	UNIMPL	nosys
+274	NOPROTO	{ int lchmod(char *path, mode_t mode); }
+275	NOPROTO { int lchown(char *path, uid_t uid, gid_t gid); } \
+		    netbsd_lchown lchown_args int
+276	NOPROTO	{ int lutimes(char *path, struct timeval *tptr); }
+277	MNOPROTO { int msync(void *addr, size_t len, int flags); } \
+		    netbsd_msync msync_args int
+278	NOPROTO	{ int nstat(char *path, struct nstat *ub); }
+279	MNOPROTO { int nfstat(int fd, struct nstat *sb); }
+280	NOPROTO	{ int nlstat(char *path, struct nstat *ub); }
+281	UNIMPL	nosys
+282	UNIMPL	nosys
+283	UNIMPL	nosys
+284	UNIMPL	nosys
+285	UNIMPL	nosys
+286	UNIMPL	nosys
+287	UNIMPL	nosys
+288	UNIMPL	nosys
+289	UNIMPL	nosys
+290	UNIMPL	nosys
+291	UNIMPL	nosys
+292	UNIMPL	nosys
+293	UNIMPL	nosys
+294	UNIMPL	nosys
+295	UNIMPL	nosys
+296	UNIMPL	nosys
+; XXX 297 is 300 in NetBSD 
+297	COMPAT4	{ int freebsd32_fhstatfs(const struct fhandle *u_fhp, \
+		    struct statfs32 *buf); }
+298	NOPROTO	{ int fhopen(const struct fhandle *u_fhp, int flags); }
+299	NOPROTO	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
+; syscall numbers for FreeBSD
+300	MNOPROTO { int modnext(int modid); }
+301	MSTD	{ int freebsd32_modstat(int modid, struct module_stat32* stat); }
+302	MNOPROTO { int modfnext(int modid); }
+303	MNOPROTO { int modfind(const char *name); }
+304	MNOPROTO { int kldload(const char *file); }
+305	MNOPROTO { int kldunload(int fileid); }
+306	MNOPROTO { int kldfind(const char *file); }
+307	MNOPROTO { int kldnext(int fileid); }
+308	MNOPROTO { int kldstat(int fileid, struct kld_file_stat* stat); }
+309	MNOPROTO { int kldfirstmod(int fileid); }
+310	MNOPROTO { int getsid(pid_t pid); }
+311	MNOPROTO { int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+312	MNOPROTO { int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
+313	OBSOL	signanosleep
+314	UNIMPL	aio_return
+315	UNIMPL	aio_suspend
+316	UNIMPL	aio_cancel
+317	UNIMPL	aio_error
+318	UNIMPL	aio_read
+319	UNIMPL	aio_write
+320	UNIMPL	lio_listio
+321	MNOPROTO { int yield(void); }
+322	OBSOL	thr_sleep
+323	OBSOL	thr_wakeup
+324	MNOPROTO { int mlockall(int how); }
+325	MNOPROTO { int munlockall(void); }
+326	NOPROTO	{ int __getcwd(u_char *buf, u_int buflen); }
+
+327	MNOPROTO { int sched_setparam (pid_t pid, \
+		    const struct sched_param *param); }
+328	MNOPROTO { int sched_getparam (pid_t pid, struct sched_param *param); }
+
+329	MNOPROTO { int sched_setscheduler (pid_t pid, int policy, \
+		    const struct sched_param *param); }
+330	MNOPROTO { int sched_getscheduler (pid_t pid); }
+
+331	MNOPROTO { int sched_yield (void); }
+332	MNOPROTO { int sched_get_priority_max (int policy); }
+333	MNOPROTO { int sched_get_priority_min (int policy); }
+334	MNOPROTO { int sched_rr_get_interval (pid_t pid, \
+		    struct timespec *interval); }
+335	MNOPROTO { int utrace(const void *addr, size_t len); }
+; XXX note - bigendian is different
+336	MCOMPAT4 { int freebsd32_sendfile(int fd, int s, u_int32_t offsetlo, \
+		    u_int32_t offsethi, size_t nbytes, struct sf_hdtr *hdtr, \
+		    off_t *sbytes, int flags); }
+337	NOPROTO	{ int kldsym(int fileid, int cmd, void *data); }
+338	MNOPROTO { int jail(struct jail *jail); }
+339	UNIMPL	pioctl
+340	MNOPROTO { int sigprocmask(int how, const sigset_t *set, \
+		    sigset_t *oset); }
+341	MNOPROTO { int sigsuspend(const sigset_t *sigmask); }
+342	MCOMPAT4 { int freebsd32_sigaction(int sig, struct sigaction32 *act, \
+		    struct sigaction32 *oact); }
+343	MNOPROTO { int sigpending(sigset_t *set); }
+344	MCOMPAT4 { int freebsd32_sigreturn( \
+		    const struct freebsd4_freebsd32_ucontext *sigcntxp); }
+; XXX implement
+345	UNIMPL	sigtimedwait
+; XXX implement
+346	UNIMPL	sigwaitinfo
+347	MNOPROTO { int __acl_get_file(const char *path, acl_type_t type, \
+		    struct acl *aclp); }
+348	MNOPROTO { int __acl_set_file(const char *path, acl_type_t type, \
+		    struct acl *aclp); }
+349	MNOPROTO { int __acl_get_fd(int filedes, acl_type_t type, \
+		    struct acl *aclp); }
+350	MNOPROTO { int __acl_set_fd(int filedes, acl_type_t type, \
+		    struct acl *aclp); }
+351	MNOPROTO { int __acl_delete_file(const char *path, acl_type_t type); }
+352	MNOPROTO { int __acl_delete_fd(int filedes, acl_type_t type); }
+353	MNOPROTO { int __acl_aclcheck_file(const char *path, acl_type_t type, \
+		    struct acl *aclp); }
+354	MNOPROTO { int __acl_aclcheck_fd(int filedes, acl_type_t type, \
+		    struct acl *aclp); }
+355	NOPROTO	{ int extattrctl(const char *path, int cmd, \
+		    const char *filename, int attrnamespace, \
+		    const char *attrname); }
+356	NOPROTO	{ int extattr_set_file(const char *path, \
+		    int attrnamespace, const char *attrname, \
+		    void *data, size_t nbytes); }
+357	NOPROTO	{ ssize_t extattr_get_file(const char *path, \
+		    int attrnamespace, const char *attrname, \
+		    void *data, size_t nbytes); }
+358	NOPROTO	{ int extattr_delete_file(const char *path, \
+		    int attrnamespace, const char *attrname); }
+359	UNIMPL	aio_waitcomplete
+360	MNOPROTO { int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+361	MNOPROTO { int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+362	MNOPROTO { int kqueue(void); }
+363	MSTD { int freebsd32_kevent(int fd, \
+		    const struct kevent *changelist, int nchanges, \
+		    struct kevent *eventlist, int nevents, \
+		    const struct timespec *timeout); }
+364	UNIMPL	__cap_get_proc
+365	UNIMPL	__cap_set_proc
+366	UNIMPL	__cap_get_fd
+367	UNIMPL	__cap_get_file
+368	UNIMPL	__cap_set_fd
+369	UNIMPL	__cap_set_file
+370	UNIMPL	lkmressys
+371	NOPROTO	{ int extattr_set_fd(int fd, int attrnamespace, \
+		    const char *attrname, void *data, size_t nbytes); }
+372	NOPROTO	{ ssize_t extattr_get_fd(int fd, int attrnamespace, \
+		    const char *attrname, void *data, size_t nbytes); }
+373	NOPROTO	{ int extattr_delete_fd(int fd, int attrnamespace, \
+		    const char *attrname); }
+374	MNOPROTO { int __setugid(int flag); }
+375	UNIMPL	nfsclnt
+376	NOPROTO	{ int eaccess(char *path, int flags); }
+377	UNIMPL	afs_syscall
+378	NOPROTO	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
+		    int flags); }
+379	NOPROTO	{ int kse_exit(void); }
+380	NOPROTO	{ int kse_wakeup(struct kse_mailbox *mbx); }
+381	NOPROTO	{ int kse_create(struct kse_mailbox *mbx, int newgroup); }
+382	NOPROTO	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
+383	NOPROTO	{ int kse_release(void); }
+384	UNIMPL	__mac_get_proc
+385	UNIMPL	__mac_set_proc
+386	UNIMPL	__mac_get_fd
+387	UNIMPL	__mac_get_file
+388	UNIMPL	__mac_set_fd
+389	UNIMPL	__mac_set_file
+390	NOPROTO	{ int kenv(int what, const char *name, char *value, int len); }
+391	NOPROTO	{ int lchflags(const char *path, int flags); }
+392	NOPROTO	{ int uuidgen(struct uuid *store, int count); }
+393	MSTD	{ int freebsd32_sendfile(int fd, int s, u_int32_t offsetlo, \
+		    u_int32_t offsethi, size_t nbytes, struct sf_hdtr *hdtr, \
+		    off_t *sbytes, int flags); }
+394	UNIMPL	mac_syscall
+395	NOPROTO	{ int getfsstat(struct statfs *buf, long bufsize, \
+		    int flags); }
+396	NOPROTO	{ int statfs(char *path, struct statfs *buf); }
+397	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
+398	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
+		    struct statfs *buf); }
+399	UNIMPL	nosys
+; XXX implement these?
+400	UNIMPL	ksem_close
+401	UNIMPL	ksem_post
+402	UNIMPL	ksem_wait
+403	UNIMPL	ksem_trywait
+404	UNIMPL	ksem_init
+405	UNIMPL	ksem_open
+406	UNIMPL	ksem_unlink
+407	UNIMPL	ksem_getvalue
+408	UNIMPL	ksem_destroy
+409	UNIMPL	__mac_get_pid
+410	UNIMPL	__mac_get_link
+411	UNIMPL	__mac_set_link
+412	UNIMPL	extattr_set_link
+413	UNIMPL	extattr_get_link
+414	UNIMPL	extattr_delete_link
+415	UNIMPL	__mac_execve
+416	STD { int freebsd32_sigaction(int sig, struct sigaction32 *act, \
+		    struct sigaction32 *oact); }
+417	MSTD { int freebsd32_sigreturn( \
+		    const struct freebsd32_ucontext *sigcntxp); }
+418	UNIMPL	__xstat
+419	UNIMPL	__xfstat
+420	UNIMPL	__xlstat
+; XXX implement
+421	UNIMPL	getcontext
+; XXX implement
+422	UNIMPL	setcontext
+; XXX implement
+423	UNIMPL	swapcontext
+424	UNIMPL	swapoff
+425	UNIMPL	__acl_get_link
+426	UNIMPL	__acl_set_link
+427	UNIMPL	__acl_delete_link
+428	UNIMPL	__acl_aclcheck_link
+; XXX implement
+429	UNIMPL	sigwait
+430	MNOPROTO { int thr_create(ucontext_t *ctx, long *id, int flag s); }
+431	MNOPROTO { void thr_exit(long *state); }
+432	MNOPROTO { int thr_self(long *id); }
+433	MNOPROTO { int thr_kill(long id, int sig); }
+434	MNOPROTO { int _umtx_lock(struct umtx *umtx); }
+435	MNOPROTO { int _umtx_unlock(struct umtx *umtx); }
+436	MNOPROTO { int jail_attach(int jid); }
+437	UNIMPL	extattr_list_fd
+438	UNIMPL	extattr_list_file
+439	UNIMPL	extattr_list_link
+440	UNIMPL	kse_switchin
+441	UNIMPL	ksem_timedwait
+442	MNOPROTO { int thr_suspend(const struct timespec *timeout); }
+443	MNOPROTO { int thr_wake(long id); }
+444	MNOPROTO { int kldunloadf(int fileid, int flags); }

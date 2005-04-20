@@ -1,0 +1,247 @@
+.\"
+.\" Copyright (c) 2003 Hiten M. Pandya <hmp@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 16, 2003
+.Dt ALQ 9
+.Os
+.Sh NAME
+.Nm alq ,
+.Nm alq_open ,
+.Nm alq_write ,
+.Nm alq_flush ,
+.Nm alq_close ,
+.Nm alq_get ,
+.Nm alq_post
+.Nd Asynchronous Logging Queues
+.Sh SYNOPSIS
+.In sys/alq.h
+.Ft int
+.Fo alq_open
+.Fa "struct alq **app"
+.Fa "const char *file"
+.Fa "struct ucred *cred"
+.Fa "int size"
+.Fa "int count"
+.Fc
+.Ft int
+.Fn alq_write "struct alq *alq" "void *data" "int waitok"
+.Ft void
+.Fn alq_flush "struct alq *alq"
+.Ft void
+.Fn alq_close "struct alq *alq"
+.Ft struct ale *
+.Fn alq_get "struct alq *alq" "int waitok"
+.Ft void
+.Fn alq_post "struct alq *alq" "struct ale *ale"
+.Sh DESCRIPTION
+The
+.Nm
+facility provides an asynchronous fixed length recording
+mechanism, known as Asynchronous Logging Queues.
+It can record to any
+.Xr vnode 9 ,
+thus providing the ability to journal logs to character
+devices as well as regular files.
+All functions accept a
+.Vt "struct alq"
+argument, which is an opaque type that maintains state information
+for an Asynchronous Logging Queue.
+The logging facility runs in a separate kernel thread, which services
+all log entry requests.
+.Pp
+An
+.Dq asynchronous log entry
+is defined as
+.Vt "struct ale" ,
+which has the following members:
+.Bd -literal -offset indent
+struct ale {
+	struct ale	*ae_next;	/* Next Entry */
+	char		*ae_data;	/* Entry buffer */
+	int		ae_flags;	/* Entry flags */
+};
+.Ed
+.Pp
+The
+.Va ae_flags
+field is for internal use, clients of the
+.Nm
+interface should not modify this field.
+Behaviour is undefined if this field is modified.
+.Sh FUNCTIONS
+The
+.Fn alq_open
+function creates a new logging queue.
+The
+.Fa file
+argument is the name of the file to open for logging.
+The argument
+.Fa cred
+specifies the credentials to use when opening the file.
+The size of each entry in the queue is determined by
+.Fa size .
+The
+.Fa count
+argument determines the number of items to be stored in the
+asynchronous queue over an approximate period of a disk
+write operation.
+.Pp
+The
+.Fn alq_write
+function writes
+.Fa data
+to the designated queue,
+.Fa alq .
+In the event that
+.Fn alq_write
+could not write the entry immediately, and
+.Dv ALQ_WAITOK
+is passed to
+.Fa waitok ,
+then
+.Fn alq_write
+will be allowed to
+.Xr tsleep 9 .
+.Pp
+The
+.Fn alq_flush
+function is used for flushing
+.Fa alq
+to the log medium that was passed to
+.Fn alq_open .
+.Pp
+The
+.Fn alq_close
+function will close the asynchronous logging queue,
+.Fa alq ,
+and flush all pending write requests to the log medium.
+It will free all resources that were previously allocated.
+.Pp
+The
+.Fn alq_get
+function returns the next available asynchronous logging entry
+from the queue,
+.Fa alq .
+This function leaves the queue in a locked state, until a subsequent
+.Fn alq_post
+call is made.
+In the event that
+.Fn alq_get
+could not retrieve an entry immediately, it will
+.Xr tsleep 9
+with the
+.Dq Li alqget
+wait message.
+.Pp
+The
+.Fn alq_post
+function schedules the asynchronous logging entry,
+.Fa ale ,
+which is retrieved using the
+.Fn alq_get
+function,
+for writing to the asynchronous logging queue,
+.Fa alq .
+This function leaves the queue,
+.Fa alq ,
+in an unlocked state.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn alq_open
+function uses the credentials of the invoking thread
+for opening files.
+The
+.Fn alq_write
+function is a wrapper around the
+.Fn alq_get
+and
+.Fn alq_post
+functions; by using these functions separately, a call
+to
+.Fn bcopy
+can be avoided for performance critical code paths.
+.Sh LOCKING
+Each asynchronous queue is protected by a spin mutex.
+.Pp
+Functions
+.Fn alq_flush ,
+.Fn alq_open
+and
+.Fn alq_post
+may attempt to acquire an internal sleep mutex, and should
+consequently not be used in contexts where sleeping is
+not allowed.
+.Sh RETURN VALUES
+The
+.Fn alq_open
+function returns one of the error codes listed in
+.Xr open 2 ,
+if it fails to open
+.Fa file ,
+or else it returns 0.
+.Pp
+The
+.Fn alq_write
+function returns
+.Er EWOULDBLOCK
+if
+.Dv ALQ_NOWAIT
+was provided as a value to
+.Fa waitok
+and either the queue is full, or when the system is shutting down.
+.Pp
+The
+.Fn alq_get
+function returns
+.Dv NULL ,
+if
+.Dv ALQ_NOWAIT
+was provided as a value to
+.Fa waitok
+and either the queue is full, or when the system is shutting down.
+.Pp
+NOTE: invalid arguments to non-void functions will result in
+undefined behaviour.
+.Sh SEE ALSO
+.Xr syslog 3 ,
+.Xr kthread 9 ,
+.Xr ktr 9 ,
+.Xr tsleep 9 ,
+.Xr vnode 9
+.Sh HISTORY
+The
+Asynchronous Logging Queues (ALQ) facility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Jeffrey Roberson Aq jeff@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Hiten M. Pandya Aq hmp@FreeBSD.org .

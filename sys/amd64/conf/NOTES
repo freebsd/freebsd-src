@@ -1,0 +1,540 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+#
+# $FreeBSD$
+#
+
+#
+# This directive is mandatory; it defines the architecture to be
+# configured for; in this case, the AMD64 family based machines.
+#
+machine		amd64
+
+#
+# We want LINT to cover profiling as well.
+#XXX#profile         2
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# The apic device enables the use of the I/O APIC for interrupt delivery.
+# The apic device can be used in both UP and SMP kernels, but is required
+# for SMP kernels.  Thus, the apic device is not strictly an SMP option,
+# but it is a prerequisite for SMP.
+#
+# Notes:
+#
+# By default, mixed mode is used to route IRQ0 from the AT timer via
+# the 8259A master PIC through the ExtINT pin on the first I/O APIC.
+# This can be disabled via the NO_MIXED_MODE option.  In that case,
+# IRQ0 will be routed via an intpin on the first I/O APIC.  Not all
+# motherboards hook IRQ0 up to the first I/O APIC even though their
+# MP table or MADT may claim to do so.  That is why mixed mode is
+# enabled by default.
+#
+
+# Optional:
+device		atpic			# Optional legacy pic support
+device		mptable			# Optional MPSPEC mptable support
+options 	NO_MIXED_MODE		# Disable use of mixed mode
+
+#
+# Watchdog routines.
+#
+options 	MP_WATCHDOG
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+#
+cpu		HAMMER			# aka K8, aka Opteron & Athlon64
+
+#
+# Options for CPU features.
+#
+
+#
+# PERFMON causes the driver for Pentium/Pentium Pro performance counters
+# to be compiled.  See perfmon(4) for more information.
+#
+#XXX#options 	PERFMON
+
+
+#####################################################################
+# NETWORKING OPTIONS
+
+#
+# DEVICE_POLLING adds support for mixed interrupt-polling handling
+# of network device drivers, which has significant benefits in terms
+# of robustness to overloads and responsivity, as well as permitting
+# accurate scheduling of the CPU time between kernel network processing
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
+# potential increase in response times.
+# It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
+# to achieve smoother behaviour.
+# Additionally, you can enable/disable polling at runtime with the
+# sysctl variable kern.polling.enable (defaults off), and select
+# the CPU fraction reserved to userland with the sysctl variable
+# kern.polling.user_frac (default 50, range 0..100).
+#
+# Not all device drivers support this mode of operation at the time of
+# this writing.  See polling(4) for more details.
+
+options 	DEVICE_POLLING
+
+
+#####################################################################
+# CLOCK OPTIONS
+
+# The following options are used for debugging clock behavior only, and
+# should not be used for production systems.
+
+# CLK_CALIBRATION_LOOP causes clock calibration to be run in a loop at
+# startup until the user presses a key.  (The i8254 clock is always
+# calibrated relative to the RTC (mc146818a) and this option causes the
+# calibration to be repeated.)
+options 	CLK_CALIBRATION_LOOP
+
+# CLK_USE_I8254_CALIBRATION causes the calibrated frequency of the i8254
+# clock to actually be used.
+options 	CLK_USE_I8254_CALIBRATION
+
+
+#####################################################################
+# MISCELLANEOUS DEVICES AND OPTIONS
+
+device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+#
+# ISA bus
+#
+device		isa
+
+#
+# Options for `isa':
+#
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# This option breaks suspend/resume on some portables.
+#
+# AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
+# interrupt controller.  This saves about 0.7-1.25 usec for each interrupt.
+# Automatic EOI is documented not to work for for the slave with the
+# original i8259A, but it works for some clones and some integrated
+# versions.
+#
+# MAXMEM specifies the amount of RAM on the machine; if this is not
+# specified, FreeBSD will first read the amount of memory from the CMOS
+# RAM, so the amount of memory will initially be limited to 64MB or 16MB
+# depending on the BIOS.  If the BIOS reports 64MB, a memory probe will
+# then attempt to detect the installed amount of RAM.  If this probe
+# fails to detect >64MB RAM you will have to use the MAXMEM option.
+# The amount is in kilobytes, so for a machine with 128MB of RAM, it would
+# be 131072 (128 * 1024).
+#
+# BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
+# reset the CPU for reboot.  This is needed on some systems with broken
+# keyboard controllers.
+
+options 	AUTO_EOI_1
+#options 	AUTO_EOI_2
+
+options 	MAXMEM=(128*1024)
+#options 	BROKEN_KEYBOARD_RESET
+
+#
+# PCI bus & PCI options:
+#
+device		pci
+
+#
+# AGP GART support
+device		agp
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Optional devices:
+#
+
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
+# the tdfx DRI module from XFree86 and is completely unrelated.
+#
+# To enable Linuxulator support, one must also include COMPAT_LINUX in the
+# config as well, or you will not have the dependencies.  The other option
+# is to load both as modules.
+
+device		tdfx			# Enable 3Dfx Voodoo support
+#XXX#options 	TDFX_LINUX		# Enable Linuxulator support
+
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+#
+# ACPI_MAX_THREADS sets the number of task threads started.
+#
+# ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
+#
+# ACPICA_PEDANTIC enables strict checking of AML.  Our default is to
+# relax these checks to allow code generated by the Microsoft compiler
+# to still execute.
+#
+# Note that building ACPI into the kernel is deprecated; the module is
+# normally loaded automatically by the loader.
+
+device		acpi
+options 	ACPI_DEBUG
+options 	ACPI_MAX_THREADS=1
+#!options 	ACPI_NO_SEMAPHORES
+#!options 	ACPICA_PEDANTIC
+
+# DRM options:
+# mgadrm:    AGP Matrox G200, G400, G450, G550
+# r128drm:   ATI Rage 128
+# radeondrm: ATI Radeon up to 9000/9100
+# sisdrm:    SiS 300/305,540,630
+# tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee
+# DRM_DEBUG: include debug printfs, very slow
+#
+# mga requires AGP in the kernel, and it is recommended
+# for AGP r128 and radeon cards.
+
+device		mgadrm
+device		"r128drm"
+device		radeondrm
+device		sisdrm
+device		tdfxdrm
+
+options 	DRM_DEBUG
+
+#
+# Network interfaces:
+#
+
+# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
+# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
+#       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
+#       (requires miibus)
+# lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
+#       Am79C960)
+
+#XXX#	still calls MD i386 kvtop function instead of vtophys etc
+#XXX#device		ed
+#XXX#device		lnc
+
+#XXX#device	ath
+#XXX#device	ath_hal		# Atheros HAL (includes binary component)
+device		wlan		# 802.11 layer
+
+#
+# ATA raid adapters
+#
+#XXX this stores pointers in a 32bit field that is defined by the hardware
+#device	pst
+
+#
+# Areca 11xx and 12xx series of SATA II RAID controllers.
+# CAM is required.
+#
+device		arcmsr		# Areca SATA II RAID
+
+#
+# 3ware 9000 series PATA/SATA RAID controller driver and options.
+# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
+#
+options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
+options 	TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
+device		twa			# 3ware 9000 series PATA/SATA RAID
+
+#
+# SCSI host adapters:
+#
+# ncv: NCR 53C500 based SCSI host adapters.
+# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
+# stg: TMC 18C30, 18C50 based SCSI host adapters.
+
+device		ncv
+device		nsp
+device		stg
+
+#
+# Adaptec FSA RAID controllers, including integrated DELL controllers,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+device		aac
+device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# IBM (now Adaptec) ServeRAID controllers
+device		ips
+
+#
+# SafeNet crypto driver: can be moved to the MI NOTES as soon as
+# it's tested on a big-endian machine
+#
+device		safe		# SafeNet 1141
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
+
+#####################################################################
+
+#
+# Miscellaneous hardware:
+#
+# cy: Cyclades serial driver
+# digi: Digiboard driver
+
+# Notes on the Specialix SI/XIO driver:
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+
+device		cy
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+device		digi
+# BIOS & FEP/OS components of device digi.
+device		digi_CX
+device		digi_CX_PCI
+device		digi_EPCX
+device		digi_EPCX_PCI
+device		digi_Xe
+device		digi_Xem
+device		digi_Xr
+# sx device is i386 and pc98 only at the moment.
+device		sx
+options 	SX_DEBUG
+# HOT1 Xilinx 6200 card (http://www.vcc.com/)
+device		xrpu
+
+#
+# Laptop/Notebook options:
+#
+
+
+#
+# I2C Bus
+#
+
+#---------------------------------------------------------------------------
+# ISDN4BSD
+#
+# See /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
+#
+# i4b passive ISDN cards support contains the following hardware drivers:
+#
+#	isic  - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
+#	iwic  - Winbond W6692 PCI bus ISDN S/T interface controller
+#	ifpi  - AVM Fritz!Card PCI driver
+#	ifpi2  - AVM Fritz!Card PCI version 2 driver
+#	itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
+#
+# i4b active ISDN cards support contains the following hardware drivers:
+#
+#	iavc  - AVM B1 PCI, AVM B1 ISA, AVM T1
+#
+# Note that the ``options'' (if given) and ``device'' lines must BOTH
+# be uncommented to enable support for a given card !
+#
+# In addition to a hardware driver (and probably an option) the mandatory
+# ISDN protocol stack devices and the mandatory support device must be
+# enabled as well as one or more devices from the optional devices section.
+#
+#---------------------------------------------------------------------------
+#	isic driver (Siemens/Infineon chipsets)
+#
+#XXX#device	isic
+#
+# PCI bus Cards:
+# --------------
+#
+# ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
+options 	ELSA_QS1PCI
+#
+#---------------------------------------------------------------------------
+#	ifpi2 driver for AVM Fritz!Card PCI version 2
+#
+# AVM Fritz!Card PCI version 2
+#XXX#device	"ifpi2"
+#
+#---------------------------------------------------------------------------
+#	iwic driver for Winbond W6692 chipset
+#
+# ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
+#XXX#device	iwic
+#
+#---------------------------------------------------------------------------
+#	itjc driver for Siemens ISAC / TJNet Tiger300/320 chipset
+#
+# Traverse Technologies NETjet-S
+# Teles PCI-TJ
+#XXX#device	itjc
+#
+#---------------------------------------------------------------------------
+#	iavc driver (AVM active cards, needs i4bcapi driver!)
+#
+#XXX#device	iavc
+#
+#---------------------------------------------------------------------------
+#	ISDN Protocol Stack - mandatory for all hardware drivers
+#
+# Q.921 / layer 2 - i4b passive cards D channel handling
+#XXX#device		"i4bq921"
+#
+# Q.931 / layer 3 - i4b passive cards D channel handling
+#XXX#device		"i4bq931"
+#
+# layer 4 - i4b common passive and active card handling
+#XXX#device		"i4b"
+#
+#---------------------------------------------------------------------------
+#	ISDN devices - mandatory for all hardware drivers
+#
+# userland driver to do ISDN tracing (for passive cards only)
+#XXX#device		"i4btrc"	4
+#
+# userland driver to control the whole thing
+#XXX#device		"i4bctl"
+#
+#---------------------------------------------------------------------------
+#	ISDN devices - optional
+#
+# userland driver for access to raw B channel
+#XXX#device		"i4brbch"	4
+#
+# userland driver for telephony
+#XXX#device		"i4btel"	2
+#
+# network driver for IP over raw HDLC ISDN
+#XXX#device		"i4bipr"	4
+# enable VJ header compression detection for ipr i/f
+options 	IPR_VJ
+# enable logging of the first n IP packets to isdnd (n=32 here)
+options 	IPR_LOG=32
+#
+# network driver for sync PPP over ISDN; requires an equivalent
+# number of sppp device to be configured
+#XXX#device		"i4bisppp"	4
+#
+# B-channel interface to the netgraph subsystem
+#XXX#device		"i4bing"	2
+#
+#---------------------------------------------------------------------------
+
+#
+# System Management Bus (SMB)
+#
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
+# Set the number of PV entries per process.  Increasing this can
+# stop panics related to heavy use of shared memory.  However, that can
+# (combined with large amounts of physical memory) cause panics at
+# boot time due the kernel running out of VM space.
+#
+# If you're tweaking this, you might also want to increase the sysctls
+# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
+#
+# The value below is the one more than the default.
+#
+options 	PMAP_SHPGPERPROC=201
+
+
+#####################################################################
+# ABI Emulation
+
+#XXX keep these here for now and reactivate when support for emulating
+#XXX these 32 bit binaries is added.
+
+# Enable 32-bit runtime support for FreeBSD/i386 binaries.
+options 	COMPAT_IA32
+
+# Enable iBCS2 runtime support for SCO and ISC binaries
+#XXX#options 	IBCS2
+
+# Emulate spx device for client side of SVR3 local X interface
+#XXX#options 	SPX_HACK
+
+# Enable Linux ABI emulation
+#XXX#options 	COMPAT_LINUX
+
+# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and COMPAT_IA32)
+options 	COMPAT_LINUX32
+
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX32
+# and PSEUDOFS)
+options 	LINPROCFS
+
+#
+# SysVR4 ABI emulation
+#
+# The svr4 ABI emulator can be statically compiled into the kernel or loaded as
+# a KLD module.
+# The STREAMS network emulation code can also be compiled statically or as a
+# module.  If loaded as a module, it must be loaded before the svr4 module
+# (the /usr/sbin/svr4 script does this for you).  If compiling statically,
+# the `streams' device must be configured into any kernel which also
+# specifies COMPAT_SVR4.  It is possible to have a statically-configured
+# STREAMS device and a dynamically loadable svr4 emulator;  the /usr/sbin/svr4
+# script understands that it doesn't need to load the `streams' module under
+# those circumstances.
+# Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
+# (whether static or dynamic).
+#
+#XXX#options 	COMPAT_SVR4	# build emulator statically
+#XXX#options 	DEBUG_SVR4	# enable verbose debugging
+#XXX#device	streams		# STREAMS network driver (required for svr4).
+
+
+#####################################################################
+# VM OPTIONS
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=3
+
+#####################################################################
+
+# More undocumented options for linting.
+# Note that documenting these are not considered an affront.
+
+options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
+
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+
+options 	PSM_DEBUG=1
+
+options 	TIMER_FREQ=((14318182+6)/12)
+
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE
+
+
+# The I/O device
+device		io

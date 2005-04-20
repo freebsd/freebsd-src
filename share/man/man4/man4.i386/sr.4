@@ -1,0 +1,162 @@
+.\"
+.\" Copyright (c) 1996 John Hay.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by John Hay.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY John Hay ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL John Hay BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 18, 2005
+.Dt SR 4 i386
+.Os
+.Sh NAME
+.Nm sr
+.Nd synchronous RISCom/N2 / WANic 400/405 device driver
+.Sh SYNOPSIS
+.Cd "device sr"
+.Pp
+For ISA cards, in
+.Pa /boot/device.hints :
+.Cd hint.sr.0.at="isa"
+.Cd hint.sr.0.port="0x300"
+.Cd hint.sr.0.irq="10"
+.Cd hint.sr.0.maddr="0xd0000"
+.Cd hint.sr.0.flags="0x0"
+.Pp
+.Cd "device sppp"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the RISCom/N2 ISA cards and the WANic 400/405 PCI cards
+that are based on the HD64570 chip.
+.Pp
+If you have ISA cards, you need to specify the resources for them in
+.Pa /boot/device.hints .
+If you have the second ISA card, add
+.Pp
+.Dl hint.sr.1.at="isa"
+.Dl hint.sr.1.port="0x310"
+.Dl hint.sr.1.irq="11"
+.Dl hint.sr.1.maddr="0xd0000"
+.Dl hint.sr.1.flags="0x0"
+.Pp
+The standard
+.Fx
+sppp code is used for the link level layer.
+The
+default protocol used is PPP.
+The Cisco HDLC protocol can be used by
+adding
+.Em link2
+to
+.Xr ifconfig 8 .
+.Pp
+Alternately, the driver can be compiled to support
+.Xr netgraph 4
+(see below).
+.Pp
+The
+.Em flags
+specification in
+.Pa /boot/device.hints
+is optional.
+If it isn't specified, the driver will
+assume the following:
+.Pp
+.Bl -hang -offset indent
+.It "The card has 2 ports."
+.It "The clock for the serial ports is external and the transmitter uses"
+the same clock as the receiver.
+.El
+.Pp
+The
+.Em flags
+are a bit field and can be used to force a different
+behaviour than the default.
+.Pp
+.Bl -hang -offset indent
+.It Em 0x01
+The card has only one port.
+.It Em 0x10
+Use separate external clocks for transmit and receive on port 0.
+.It Em 0x40
+Use separate external clocks for transmit and receive on port 1.
+.El
+.Pp
+The card only supports IRQ 3, 4, 5, 7, 10, 11, 12 and 15.
+.Pp
+The iomem area is a 16Kb block and must start at a 16Kb boundary.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+RISCom/N2 ISA card
+.It
+WANic 400/405 PCI cards
+.El
+.Sh NETGRAPH SUPPORT
+If the kernel is compiled with
+.Dv "options NETGRAPH"
+then the sppp and Cisco HDLC modes are disabled (and the sppp driver
+is unneeded), and this driver functions as a
+.Xr netgraph 4
+node with a single hook named
+.Dv rawdata .
+Connecting to this hook enables the transmission of raw HDLC frames.
+The node will have the same name as the device with ``sync_''
+prepended, e.g.,
+.Dv sync_sr0 .
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sr%d: Warning illegal interrupt %d."
+The card cannot use the specified interrupt.
+Choose a different one.
+.El
+.Sh BUGS
+At the moment only the X.21 interface is tested.
+The others
+may need tweaks to the clock selection code.
+.Pp
+The code can probably stand some optimizing.
+.Sh SEE ALSO
+.Xr ar 4 ,
+.Xr cx 4 ,
+.Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An John Hay Aq jhay@FreeBSD.org .
+.Pp
+Netgraph support was added by
+.An Julian Elischer Aq julian@FreeBSD.org .

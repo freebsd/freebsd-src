@@ -1,0 +1,113 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2000 Boris Popov
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 10, 2000
+.Os
+.Dt VOP_CREATEVOBJECT 9
+.Sh NAME
+.Nm VOP_CREATEVOBJECT ,
+.Nm VOP_DESTROYVOBJECT ,
+.Nm VOP_GETVOBJECT
+.Nd VM object interaction
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_CREATEVOBJECT "struct vnode *vp" "struct ucred *cred" "struct thread *td"
+.Ft int
+.Fn VOP_DESTROYVOBJECT "struct vnode *vp"
+.Ft int
+.Fn VOP_GETVOBJECT "struct vnode *vp" "struct vm_object **objpp"
+.Sh DESCRIPTION
+These calls are used to control the association of a VM object
+with a particular vnode.
+.Pp
+The arguments specific to these functions are:
+.Bl -tag -width objpp
+.It Fa vp
+the vnode of the file
+.It Fa objpp
+the VM object being returned, or
+.Dv NULL
+if the caller wants to test for the existence
+of the VM object).
+.El
+.Pp
+.Xr VFS 9
+invokes
+.Fn VOP_CREATEVOBJECT
+when it needs to create a VM object for the given
+.Xr vnode 9 .
+File system code may pass this call down to the underlying file system.
+This VOP can be called multiple times,
+and file system code should ignore any additional calls,
+exiting with a zero return code.
+.Pp
+.Fn VOP_DESTROYVOBJECT
+is called when a
+.Xr vnode 9
+is recycled.
+.Pp
+.Fn VOP_GETVOBJECT
+should be used by all kernel code to get a VM object.
+.\" XXX What is the next sentence trying to tell people?
+The returned VM object may belong to a different file system in the case
+of stacked mounts.
+.Pp
+.Xr VFS 9
+has three functions which perform standard operations by creating
+and destroying VM objects.
+These functions are:
+.Fn vop_stdcreatevobject ,
+.Fn vop_stddestroyvobject
+and
+.Fn vop_stdgetvobject .
+.Pp
+.Em Note :
+a
+.Xr vnode 9
+should be locked on entry and must be left locked on exit.
+.Sh RETURN VALUES
+The
+.Fn VOP_CREATEVOBJECT ,
+.Fn VOP_DESTROYVOBJECT
+and
+.Fn VOP_GETVOBJECT
+functions return zero on success, or a non-zero value on failure.
+Zero is returned on success, otherwise an error is returned.
+.Sh EXAMPLES
+.\" XXX Why is this code here when it does not use the functions
+.\" described in this manual page?
+By default, file systems leave VM object handling to the
+.Fn vop_std*
+functions.
+.Sh SEE ALSO
+.Xr vnode 9 ,
+.Xr VOP_GETPAGES 9 ,
+.Xr VOP_PUTPAGES 9
+.Sh AUTHORS
+This man page was written by
+.An Boris Popov .

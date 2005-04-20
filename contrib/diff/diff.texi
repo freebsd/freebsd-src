@@ -1,0 +1,3916 @@
+\input texinfo @c -*-texinfo-*-
+@c %**start of header
+@setfilename diff.info
+@settitle Comparing and Merging Files
+@setchapternewpage odd
+@c %**end of header
+
+@ifinfo
+This file documents the the GNU @code{diff}, @code{diff3}, @code{sdiff},
+and @code{cmp} commands for showing the differences between text files
+and the @code{patch} command for using their output to update files.
+
+Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@titlepage
+@title Comparing and Merging Files
+@subtitle @code{diff}, @code{diff3}, @code{sdiff}, @code{cmp}, and @code{patch}
+@subtitle Edition 1.3, for @code{diff} 2.5 and @code{patch} 2.1
+@subtitle September 1993
+@author by David MacKenzie, Paul Eggert, and Richard Stallman
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1992, 1993, 1994 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end titlepage
+
+@node Top, , , (dir)
+
+@ifinfo
+This file documents the the GNU @code{diff}, @code{diff3}, @code{sdiff},
+and @code{cmp} commands for showing the differences between text files
+and the @code{patch} command for using their output to update files.
+
+This is Edition 1.2, for @code{diff} 2.4 and @code{patch} 2.1.
+@end ifinfo
+
+@menu
+* Overview::		Preliminary information.
+
+* Comparison::		What file comparison means.
+* Output Formats::	Formats for difference reports.
+* Comparing Directories::	Comparing files and directories.
+* Adjusting Output::	Making @code{diff} output prettier.
+* diff Performance::	Making @code{diff} smarter or faster.
+* Comparing Three Files:: Formats for three-way difference reports.
+
+* diff3 Merging::	Merging from a common ancestor.
+* Interactive Merging::	Interactive merging with @code{sdiff}.
+* Merging with patch::	Using @code{patch} to change old files into new ones.
+* Making Patches::	Tips for making patch distributions.
+
+* Invoking cmp::	How to run @code{cmp} and a summary of its options.
+* Invoking diff::	How to run @code{diff} and a summary of its options.
+* Invoking diff3::	How to run @code{diff3} and a summary of its options.
+* Invoking patch::	How to run @code{patch} and a summary of its options.
+* Invoking sdiff::	How to run @code{sdiff} and a summary of its options.
+
+* Incomplete Lines::	Lines that lack trailing newlines.
+* Projects::		If you think you've found a bug or other shortcoming.
+
+* Concept Index::	Index of concepts.
+@end menu
+
+@node Overview, Comparison, , Top
+@unnumbered Overview
+@cindex overview of @code{diff} and @code{patch}
+
+Computer users often find occasion to ask how two files differ.  Perhaps
+one file is a newer version of the other file.  Or maybe the two files
+started out as identical copies but were changed by different people.
+
+You can use the @code{diff} command to show differences between two
+files, or each corresponding file in two directories.  @code{diff}
+outputs differences between files line by line in any of several
+formats, selectable by command line options.  This set of differences is
+often called a @dfn{diff} or @dfn{patch}.  For files that are identical,
+@code{diff} normally produces no output; for binary (non-text) files,
+@code{diff} normally reports only that they are different.
+
+You can use the @code{cmp} command to show the offsets and line numbers
+where two files differ.  @code{cmp} can also show all the characters
+that differ between the two files, side by side.  Another way to compare
+two files character by character is the Emacs command @kbd{M-x
+compare-windows}.  @xref{Other Window, , Other Window, emacs, The GNU
+Emacs Manual}, for more information on that command.
+
+You can use the @code{diff3} command to show differences among three
+files.  When two people have made independent changes to a common
+original, @code{diff3} can report the differences between the original
+and the two changed versions, and can produce a merged file that
+contains both persons' changes together with warnings about conflicts.
+
+You can use the @code{sdiff} command to merge two files interactively.
+
+You can use the set of differences produced by @code{diff} to distribute
+updates to text files (such as program source code) to other people.
+This method is especially useful when the differences are small compared
+to the complete files.  Given @code{diff} output, you can use the
+@code{patch} program to update, or @dfn{patch}, a copy of the file.  If you
+think of @code{diff} as subtracting one file from another to produce
+their difference, you can think of @code{patch} as adding the difference
+to one file to reproduce the other.
+
+This manual first concentrates on making diffs, and later shows how to
+use diffs to update files.
+
+GNU @code{diff} was written by Mike Haertel, David Hayes, Richard
+Stallman, Len Tower, and Paul Eggert.  Wayne Davison designed and
+implemented the unified output format.  The basic algorithm is described
+in ``An O(ND) Difference Algorithm and its Variations'', Eugene W. Myers,
+@cite{Algorithmica} Vol.@: 1 No.@: 2, 1986, pp.@: 251--266; and in ``A File
+Comparison Program'', Webb Miller and Eugene W. Myers,
+@cite{Software---Practice and Experience} Vol.@: 15 No.@: 11, 1985,
+pp.@: 1025--1040.
+@c From: "Gene Myers" <gene@cs.arizona.edu>
+@c They are about the same basic algorithm; the Algorithmica
+@c paper gives a rigorous treatment and the sub-algorithm for
+@c delivering scripts and should be the primary reference, but
+@c both should be mentioned.
+The algorithm was independently discovered as described in
+``Algorithms for Approximate String Matching'',
+E. Ukkonen, @cite{Information and Control} Vol.@: 64, 1985, pp.@: 100--118.
+@c From: "Gene Myers" <gene@cs.arizona.edu>
+@c Date: Wed, 29 Sep 1993 08:27:55 MST
+@c Ukkonen should be given credit for also discovering the algorithm used
+@c in GNU diff.
+
+GNU @code{diff3} was written by Randy Smith.  GNU @code{sdiff} was
+written by Thomas Lord.  GNU @code{cmp} was written by Torbjorn Granlund
+and David MacKenzie.
+
+@code{patch} was written mainly by Larry Wall; the GNU enhancements were
+written mainly by Wayne Davison and David MacKenzie.  Parts of this
+manual are adapted from a manual page written by Larry Wall, with his
+permission.
+
+@node Comparison, Output Formats, Overview, Top
+@chapter What Comparison Means
+@cindex introduction
+
+There are several ways to think about the differences between two files.
+One way to think of the differences is as a series of lines that were
+deleted from, inserted in, or changed in one file to produce the other
+file.  @code{diff} compares two files line by line, finds groups of
+lines that differ, and reports each group of differing lines.  It can
+report the differing lines in several formats, which have different
+purposes.
+
+GNU @code{diff} can show whether files are different without detailing
+the differences.  It also provides ways to suppress certain kinds of
+differences that are not important to you.  Most commonly, such
+differences are changes in the amount of white space between words or
+lines.  @code{diff} also provides ways to suppress differences in
+alphabetic case or in lines that match a regular expression that you
+provide.  These options can accumulate; for example, you can ignore
+changes in both white space and alphabetic case.
+
+Another way to think of the differences between two files is as a
+sequence of pairs of characters that can be either identical or
+different.  @code{cmp} reports the differences between two files
+character by character, instead of line by line.  As a result, it is
+more useful than @code{diff} for comparing binary files.  For text
+files, @code{cmp} is useful mainly when you want to know only whether
+two files are identical.
+
+To illustrate the effect that considering changes character by character
+can have compared with considering them line by line, think of what
+happens if a single newline character is added to the beginning of a
+file.  If that file is then compared with an otherwise identical file
+that lacks the newline at the beginning, @code{diff} will report that a
+blank line has been added to the file, while @code{cmp} will report that
+almost every character of the two files differs.
+
+@code{diff3} normally compares three input files line by line, finds
+groups of lines that differ, and reports each group of differing lines.
+Its output is designed to make it easy to inspect two different sets of
+changes to the same file.
+
+@menu
+* Hunks::		Groups of differing lines.
+* White Space::		Suppressing differences in white space.
+* Blank Lines::		Suppressing differences in blank lines.
+* Case Folding::	Suppressing differences in alphabetic case.
+* Specified Folding::	Suppressing differences that match regular expressions.
+* Brief::		Summarizing which files are different.
+* Binary::		Comparing binary files or forcing text comparisons.
+@end menu
+
+@node Hunks, White Space, , Comparison
+@section Hunks
+@cindex hunks
+
+When comparing two files, @code{diff} finds sequences of lines common to
+both files, interspersed with groups of differing lines called
+@dfn{hunks}.  Comparing two identical files yields one sequence of
+common lines and no hunks, because no lines differ.  Comparing two
+entirely different files yields no common lines and one large hunk that
+contains all lines of both files.  In general, there are many ways to
+match up lines between two given files.  @code{diff} tries to minimize
+the total hunk size by finding large sequences of common lines
+interspersed with small hunks of differing lines.
+
+For example, suppose the file @file{F} contains the three lines
+@samp{a}, @samp{b}, @samp{c}, and the file @file{G} contains the same
+three lines in reverse order @samp{c}, @samp{b}, @samp{a}.  If
+@code{diff} finds the line @samp{c} as common, then the command
+@samp{diff F G} produces this output:
+
+@example
+1,2d0
+< a
+< b
+3a2,3
+> b
+> a
+@end example
+
+@noindent
+But if @code{diff} notices the common line @samp{b} instead, it produces
+this output:
+
+@example
+1c1
+< a
+---
+> c
+3c3
+< c
+---
+> a
+@end example
+
+@noindent
+It is also possible to find @samp{a} as the common line.  @code{diff}
+does not always find an optimal matching between the files; it takes
+shortcuts to run faster.  But its output is usually close to the
+shortest possible.  You can adjust this tradeoff with the
+@samp{--minimal} option (@pxref{diff Performance}).
+
+@node White Space, Blank Lines, Hunks, Comparison
+@section Suppressing Differences in Blank and Tab Spacing
+@cindex blank and tab difference suppression
+@cindex tab and blank difference suppression
+
+The @samp{-b} and @samp{--ignore-space-change} options ignore white space
+at line end, and considers all other sequences of one or more
+white space characters to be equivalent.  With these options,
+@code{diff} considers the following two lines to be equivalent, where
+@samp{$} denotes the line end:
+
+@example
+Here lyeth  muche rychnesse  in lytell space.   -- John Heywood$
+Here lyeth muche rychnesse in lytell space. -- John Heywood   $
+@end example
+
+The @samp{-w} and @samp{--ignore-all-space} options are stronger than
+@samp{-b}.  They ignore difference even if one file has white space where
+the other file has none.  @dfn{White space} characters include
+tab, newline, vertical tab, form feed, carriage return, and space;
+some locales may define additional characters to be white space.
+With these options, @code{diff} considers the
+following two lines to be equivalent, where @samp{$} denotes the line
+end and @samp{^M} denotes a carriage return:
+
+@example
+Here lyeth  muche  rychnesse in lytell space.--  John Heywood$
+  He relyeth much erychnes  seinly tells pace.  --John Heywood   ^M$
+@end example
+
+@node Blank Lines, Case Folding, White Space, Comparison
+@section Suppressing Differences in Blank Lines
+@cindex blank line difference suppression
+
+The @samp{-B} and @samp{--ignore-blank-lines} options ignore insertions
+or deletions of blank lines.  These options normally affect only lines
+that are completely empty; they do not affect lines that look empty but
+contain space or tab characters.  With these options, for example, a
+file containing
+@example
+1.  A point is that which has no part.
+
+2.  A line is breadthless length.
+-- Euclid, The Elements, I
+@end example
+@noindent
+is considered identical to a file containing
+@example
+1.  A point is that which has no part.
+2.  A line is breadthless length.
+
+
+-- Euclid, The Elements, I
+@end example
+
+@node Case Folding, Specified Folding, Blank Lines, Comparison
+@section Suppressing Case Differences
+@cindex case difference suppression
+
+GNU @code{diff} can treat lowercase letters as equivalent to their
+uppercase counterparts, so that, for example, it considers @samp{Funky
+Stuff}, @samp{funky STUFF}, and @samp{fUNKy stuFf} to all be the same.
+To request this, use the @samp{-i} or @samp{--ignore-case} option.
+
+@node Specified Folding, Brief, Case Folding, Comparison
+@section Suppressing Lines Matching a Regular Expression
+@cindex regular expression suppression
+
+To ignore insertions and deletions of lines that match a regular
+expression, use the @samp{-I @var{regexp}} or
+@samp{--ignore-matching-lines=@var{regexp}} option.  You should escape
+regular expressions that contain shell metacharacters to prevent the
+shell from expanding them.  For example, @samp{diff -I '^[0-9]'} ignores
+all changes to lines beginning with a digit.
+
+However, @samp{-I} only ignores the insertion or deletion of lines that
+contain the regular expression if every changed line in the hunk---every
+insertion and every deletion---matches the regular expression.  In other
+words, for each nonignorable change, @code{diff} prints the complete set
+of changes in its vicinity, including the ignorable ones.
+
+You can specify more than one regular expression for lines to ignore by
+using more than one @samp{-I} option.  @code{diff} tries to match each
+line against each regular expression, starting with the last one given.
+
+@node Brief, Binary, Specified Folding, Comparison
+@section Summarizing Which Files Differ
+@cindex summarizing which files differ
+@cindex brief difference reports
+
+When you only want to find out whether files are different, and you
+don't care what the differences are, you can use the summary output
+format.  In this format, instead of showing the differences between the
+files, @code{diff} simply reports whether files differ.  The @samp{-q}
+and @samp{--brief} options select this output format.
+
+This format is especially useful when comparing the contents of two
+directories.  It is also much faster than doing the normal line by line
+comparisons, because @code{diff} can stop analyzing the files as soon as
+it knows that there are any differences.
+
+You can also get a brief indication of whether two files differ by using
+@code{cmp}.  For files that are identical, @code{cmp} produces no
+output.  When the files differ, by default, @code{cmp} outputs the byte
+offset and line number where the first difference occurs.  You can use
+the @samp{-s} option to suppress that information, so that @code{cmp}
+produces no output and reports whether the files differ using only its
+exit status (@pxref{Invoking cmp}).
+
+@c Fix this.
+Unlike @code{diff}, @code{cmp} cannot compare directories; it can only
+compare two files.
+
+@node Binary, , Brief, Comparison
+@section Binary Files and Forcing Text Comparisons
+@cindex binary file diff
+@cindex text versus binary diff
+
+If @code{diff} thinks that either of the two files it is comparing is
+binary (a non-text file), it normally treats that pair of files much as
+if the summary output format had been selected (@pxref{Brief}), and
+reports only that the binary files are different.  This is because line
+by line comparisons are usually not meaningful for binary files.
+
+@code{diff} determines whether a file is text or binary by checking the
+first few bytes in the file; the exact number of bytes is system
+dependent, but it is typically several thousand.  If every character in
+that part of the file is non-null, @code{diff} considers the file to be
+text; otherwise it considers the file to be binary.
+
+Sometimes you might want to force @code{diff} to consider files to be
+text.  For example, you might be comparing text files that contain
+null characters; @code{diff} would erroneously decide that those are
+non-text files.  Or you might be comparing documents that are in a
+format used by a word processing system that uses null characters to
+indicate special formatting.  You can force @code{diff} to consider all
+files to be text files, and compare them line by line, by using the
+@samp{-a} or @samp{--text} option.  If the files you compare using this
+option do not in fact contain text, they will probably contain few
+newline characters, and the @code{diff} output will consist of hunks
+showing differences between long lines of whatever characters the files
+contain.
+
+You can also force @code{diff} to consider all files to be binary files,
+and report only whether they differ (but not how).  Use the
+@samp{--brief} option for this.
+
+In operating systems that distinguish between text and binary files,
+@code{diff} normally reads and writes all data as text.  Use the
+@samp{--binary} option to force @code{diff} to read and write binary
+data instead.  This option has no effect on a Posix-compliant system
+like GNU or traditional Unix.  However, many personal computer
+operating systems represent the end of a line with a carriage return
+followed by a newline.  On such systems, @code{diff} normally ignores
+these carriage returns on input and generates them at the end of each
+output line, but with the @samp{--binary} option @code{diff} treats
+each carriage return as just another input character, and does not
+generate a carriage return at the end of each output line.  This can be
+useful when dealing with non-text files that are meant to be
+interchanged with Posix-compliant systems.
+
+If you want to compare two files byte by byte, you can use the
+@code{cmp} program with the @samp{-l} option to show the values of each
+differing byte in the two files.  With GNU @code{cmp}, you can also use
+the @samp{-c} option to show the ASCII representation of those bytes.
+@xref{Invoking cmp}, for more information.
+
+If @code{diff3} thinks that any of the files it is comparing is binary
+(a non-text file), it normally reports an error, because such
+comparisons are usually not useful.  @code{diff3} uses the same test as
+@code{diff} to decide whether a file is binary.  As with @code{diff}, if
+the input files contain a few non-text characters but otherwise are like
+text files, you can force @code{diff3} to consider all files to be text
+files and compare them line by line by using the @samp{-a} or
+@samp{--text} options.
+
+@node Output Formats, Comparing Directories, Comparison, Top
+@chapter @code{diff} Output Formats
+@cindex output formats
+@cindex format of @code{diff} output
+
+@code{diff} has several mutually exclusive options for output format.
+The following sections describe each format, illustrating how
+@code{diff} reports the differences between two sample input files.
+
+@menu
+* Sample diff Input::	Sample @code{diff} input files for examples.
+* Normal::		Showing differences without surrounding text.
+* Context::		Showing differences with the surrounding text.
+* Side by Side::        Showing differences in two columns.
+* Scripts::		Generating scripts for other programs.
+* If-then-else::	Merging files with if-then-else.
+@end menu
+
+@node Sample diff Input, Normal, , Output Formats
+@section Two Sample Input Files
+@cindex @code{diff} sample input
+@cindex sample input for @code{diff}
+
+Here are two sample files that we will use in numerous examples to
+illustrate the output of @code{diff} and how various options can change
+it.
+
+This is the file @file{lao}:
+
+@example
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+The Nameless is the origin of Heaven and Earth;
+The Named is the mother of all things.
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+@end example
+
+This is the file @file{tzu}:
+
+@example
+The Nameless is the origin of Heaven and Earth;
+The named is the mother of all things.
+
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+@end example
+
+In this example, the first hunk contains just the first two lines of
+@file{lao}, the second hunk contains the fourth line of @file{lao}
+opposing the second and third lines of @file{tzu}, and the last hunk
+contains just the last three lines of @file{tzu}.
+
+@node Normal, Context, Sample diff Input, Output Formats
+@section Showing Differences Without Context
+@cindex normal output format
+@cindex @samp{<} output format
+
+The ``normal'' @code{diff} output format shows each hunk of differences
+without any surrounding context.  Sometimes such output is the clearest
+way to see how lines have changed, without the clutter of nearby
+unchanged lines (although you can get similar results with the context
+or unified formats by using 0 lines of context).  However, this format
+is no longer widely used for sending out patches; for that purpose, the
+context format (@pxref{Context Format}) and the unified format
+(@pxref{Unified Format}) are superior.  Normal format is the default for
+compatibility with older versions of @code{diff} and the Posix standard.
+
+@menu
+* Detailed Normal::	A detailed description of normal output format.
+* Example Normal::	Sample output in the normal format.
+@end menu
+
+@node Detailed Normal, Example Normal, , Normal
+@subsection Detailed Description of Normal Format
+
+The normal output format consists of one or more hunks of differences;
+each hunk shows one area where the files differ.  Normal format hunks
+look like this:
+
+@example
+@var{change-command}
+< @var{from-file-line}
+< @var{from-file-line}@dots{}
+---
+> @var{to-file-line}
+> @var{to-file-line}@dots{}
+@end example
+
+There are three types of change commands.  Each consists of a line
+number or comma-separated range of lines in the first file, a single
+character indicating the kind of change to make, and a line number or
+comma-separated range of lines in the second file.  All line numbers are
+the original line numbers in each file.  The types of change commands
+are:
+
+@table @samp
+@item @var{l}a@var{r}
+Add the lines in range @var{r} of the second file after line @var{l} of
+the first file.  For example, @samp{8a12,15} means append lines 12--15
+of file 2 after line 8 of file 1; or, if changing file 2 into file 1,
+delete lines 12--15 of file 2.
+
+@item @var{f}c@var{t}
+Replace the lines in range @var{f} of the first file with lines in range
+@var{t} of the second file.  This is like a combined add and delete, but
+more compact.  For example, @samp{5,7c8,10} means change lines 5--7 of
+file 1 to read as lines 8--10 of file 2; or, if changing file 2 into
+file 1, change lines 8--10 of file 2 to read as lines 5--7 of file 1.
+
+@item @var{r}d@var{l}
+Delete the lines in range @var{r} from the first file; line @var{l} is where
+they would have appeared in the second file had they not been deleted.
+For example, @samp{5,7d3} means delete lines 5--7 of file 1; or, if
+changing file 2 into file 1, append lines 5--7 of file 1 after line 3 of
+file 2.
+@end table
+
+@node Example Normal, , Detailed Normal, Normal
+@subsection An Example of Normal Format
+
+Here is the output of the command @samp{diff lao tzu}
+(@pxref{Sample diff Input}, for the complete contents of the two files).
+Notice that it shows only the lines that are different between the two
+files.
+
+@example
+1,2d0
+< The Way that can be told of is not the eternal Way;
+< The name that can be named is not the eternal name.
+4c2,3
+< The Named is the mother of all things.
+---
+> The named is the mother of all things.
+> 
+11a11,13
+> They both may be called deep and profound.
+> Deeper and more profound,
+> The door of all subtleties!
+@end example
+
+@node Context, Side by Side, Normal, Output Formats
+@section Showing Differences in Their Context
+@cindex context output format
+@cindex @samp{!} output format
+
+Usually, when you are looking at the differences between files, you will
+also want to see the parts of the files near the lines that differ, to
+help you understand exactly what has changed.  These nearby parts of the
+files are called the @dfn{context}.
+
+GNU @code{diff} provides two output formats that show context around the
+differing lines: @dfn{context format} and @dfn{unified format}.  It can
+optionally show in which function or section of the file the differing
+lines are found.
+
+If you are distributing new versions of files to other people in the
+form of @code{diff} output, you should use one of the output formats
+that show context so that they can apply the diffs even if they have
+made small changes of their own to the files.  @code{patch} can apply
+the diffs in this case by searching in the files for the lines of
+context around the differing lines; if those lines are actually a few
+lines away from where the diff says they are, @code{patch} can adjust
+the line numbers accordingly and still apply the diff correctly.
+@xref{Imperfect}, for more information on using @code{patch} to apply
+imperfect diffs.
+
+@menu
+* Context Format::	An output format that shows surrounding lines.
+* Unified Format::	A more compact output format that shows context.
+* Sections::		Showing which sections of the files differences are in.
+* Alternate Names::	Showing alternate file names in context headers.
+@end menu
+
+@node Context Format, Unified Format, , Context
+@subsection Context Format
+
+The context output format shows several lines of context around the
+lines that differ.  It is the standard format for distributing updates
+to source code.
+
+To select this output format, use the @samp{-C @var{lines}},
+@samp{--context@r{[}=@var{lines}@r{]}}, or @samp{-c} option.  The
+argument @var{lines} that some of these options take is the number of
+lines of context to show.  If you do not specify @var{lines}, it
+defaults to three.  For proper operation, @code{patch} typically needs
+at least two lines of context.
+
+@menu
+* Detailed Context::	A detailed description of the context output format.
+* Example Context::	Sample output in context format.
+* Less Context::	Another sample with less context.
+@end menu
+
+@node Detailed Context, Example Context, , Context Format
+@subsubsection Detailed Description of Context Format
+
+The context output format starts with a two-line header, which looks
+like this:
+
+@example
+*** @var{from-file} @var{from-file-modification-time}
+--- @var{to-file} @var{to-file-modification time}
+@end example
+
+@noindent
+You can change the header's content with the @samp{-L @var{label}} or
+@samp{--label=@var{label}} option; see @ref{Alternate Names}.
+
+Next come one or more hunks of differences; each hunk shows one area
+where the files differ.  Context format hunks look like this:
+
+@example
+***************
+*** @var{from-file-line-range} ****
+  @var{from-file-line}
+  @var{from-file-line}@dots{}
+--- @var{to-file-line-range} ----
+  @var{to-file-line}
+  @var{to-file-line}@dots{}
+@end example
+
+The lines of context around the lines that differ start with two space
+characters.  The lines that differ between the two files start with one
+of the following indicator characters, followed by a space character:
+
+@table @samp
+@item !
+A line that is part of a group of one or more lines that changed between
+the two files.  There is a corresponding group of lines marked with
+@samp{!} in the part of this hunk for the other file.
+
+@item +
+An ``inserted'' line in the second file that corresponds to nothing in
+the first file.
+
+@item -
+A ``deleted'' line in the first file that corresponds to nothing in the
+second file.
+@end table
+
+If all of the changes in a hunk are insertions, the lines of
+@var{from-file} are omitted.  If all of the changes are deletions, the
+lines of @var{to-file} are omitted.
+
+@node Example Context, Less Context, Detailed Context, Context Format
+@subsubsection An Example of Context Format
+
+Here is the output of @samp{diff -c lao tzu} (@pxref{Sample diff Input},
+for the complete contents of the two files).  Notice that up to three
+lines that are not different are shown around each line that is
+different; they are the context lines.  Also notice that the first two
+hunks have run together, because their contents overlap.
+
+@example
+*** lao	Sat Jan 26 23:30:39 1991
+--- tzu	Sat Jan 26 23:30:50 1991
+***************
+*** 1,7 ****
+- The Way that can be told of is not the eternal Way;
+- The name that can be named is not the eternal name.
+  The Nameless is the origin of Heaven and Earth;
+! The Named is the mother of all things.
+  Therefore let there always be non-being,
+    so we may see their subtlety,
+  And let there always be being,
+--- 1,6 ----
+  The Nameless is the origin of Heaven and Earth;
+! The named is the mother of all things.
+! 
+  Therefore let there always be non-being,
+    so we may see their subtlety,
+  And let there always be being,
+***************
+*** 9,11 ****
+--- 8,13 ----
+  The two are the same,
+  But after they are produced,
+    they have different names.
++ They both may be called deep and profound.
++ Deeper and more profound,
++ The door of all subtleties!
+@end example
+
+@node Less Context, , Example Context, Context Format
+@subsubsection An Example of Context Format with Less Context
+
+Here is the output of @samp{diff --context=1 lao tzu} (@pxref{Sample
+diff Input}, for the complete contents of the two files).  Notice that
+at most one context line is reported here.
+
+@example
+*** lao	Sat Jan 26 23:30:39 1991
+--- tzu	Sat Jan 26 23:30:50 1991
+***************
+*** 1,5 ****
+- The Way that can be told of is not the eternal Way;
+- The name that can be named is not the eternal name.
+  The Nameless is the origin of Heaven and Earth;
+! The Named is the mother of all things.
+  Therefore let there always be non-being,
+--- 1,4 ----
+  The Nameless is the origin of Heaven and Earth;
+! The named is the mother of all things.
+! 
+  Therefore let there always be non-being,
+***************
+*** 11 ****
+--- 10,13 ----
+    they have different names.
++ They both may be called deep and profound.
++ Deeper and more profound,
++ The door of all subtleties!
+@end example
+
+@node Unified Format, Sections, Context Format, Context
+@subsection Unified Format
+@cindex unified output format
+@cindex @samp{+-} output format
+
+The unified output format is a variation on the context format that is
+more compact because it omits redundant context lines.  To select this
+output format, use the @samp{-U @var{lines}},
+@samp{--unified@r{[}=@var{lines}@r{]}}, or @samp{-u}
+option.  The argument @var{lines} is the number of lines of context to
+show.  When it is not given, it defaults to three.
+
+At present, only GNU @code{diff} can produce this format and only GNU
+@code{patch} can automatically apply diffs in this format.  For proper
+operation, @code{patch} typically needs at least two lines of context.
+
+@menu
+* Detailed Unified::	A detailed description of unified format.
+* Example Unified::	Sample output in unified format.
+@end menu
+
+@node Detailed Unified, Example Unified, , Unified Format
+@subsubsection Detailed Description of Unified Format
+
+The unified output format starts with a two-line header, which looks
+like this:
+
+@example
+--- @var{from-file} @var{from-file-modification-time}
++++ @var{to-file} @var{to-file-modification-time}
+@end example
+
+@noindent
+You can change the header's content with the @samp{-L @var{label}} or
+@samp{--label=@var{label}} option; see @xref{Alternate Names}.
+
+Next come one or more hunks of differences; each hunk shows one area
+where the files differ.  Unified format hunks look like this:
+
+@example
+@@@@ @var{from-file-range} @var{to-file-range} @@@@
+ @var{line-from-either-file}
+ @var{line-from-either-file}@dots{}
+@end example
+
+The lines common to both files begin with a space character.  The lines
+that actually differ between the two files have one of the following
+indicator characters in the left column:
+
+@table @samp
+@item +
+A line was added here to the first file.
+
+@item -
+A line was removed here from the first file.
+@end table
+
+@node Example Unified, , Detailed Unified, Unified Format
+@subsubsection An Example of Unified Format
+
+Here is the output of the command @samp{diff -u lao tzu}
+(@pxref{Sample diff Input}, for the complete contents of the two files):
+
+@example
+--- lao	Sat Jan 26 23:30:39 1991
++++ tzu	Sat Jan 26 23:30:50 1991
+@@@@ -1,7 +1,6 @@@@
+-The Way that can be told of is not the eternal Way;
+-The name that can be named is not the eternal name.
+ The Nameless is the origin of Heaven and Earth;
+-The Named is the mother of all things.
++The named is the mother of all things.
++
+ Therefore let there always be non-being,
+   so we may see their subtlety,
+ And let there always be being,
+@@@@ -9,3 +8,6 @@@@
+ The two are the same,
+ But after they are produced,
+   they have different names.
++They both may be called deep and profound.
++Deeper and more profound,
++The door of all subtleties!
+@end example
+
+@node Sections, Alternate Names, Unified Format, Context
+@subsection Showing Which Sections Differences Are in
+@cindex headings
+@cindex section headings
+
+Sometimes you might want to know which part of the files each change
+falls in.  If the files are source code, this could mean which function
+was changed.  If the files are documents, it could mean which chapter or
+appendix was changed.  GNU @code{diff} can show this by displaying the
+nearest section heading line that precedes the differing lines.  Which
+lines are ``section headings'' is determined by a regular expression.
+
+@menu
+* Specified Headings::	Showing headings that match regular expressions.
+* C Function Headings::	Showing headings of C functions.
+@end menu
+
+@node Specified Headings, C Function Headings, , Sections
+@subsubsection Showing Lines That Match Regular Expressions
+@cindex specified headings
+@cindex regular expression matching headings
+
+To show in which sections differences occur for files that are not
+source code for C or similar languages, use the @samp{-F @var{regexp}}
+or @samp{--show-function-line=@var{regexp}} option.  @code{diff}
+considers lines that match the argument @var{regexp} to be the beginning
+of a section of the file.  Here are suggested regular expressions for
+some common languages:
+
+@c Please add to this list, e.g. Fortran, Pascal.
+@table @samp
+@item ^[A-Za-z_]
+C, C++, Prolog
+@item ^(
+Lisp
+@item ^@@\(chapter\|appendix\|unnumbered\|chapheading\)
+Texinfo
+@end table
+
+This option does not automatically select an output format; in order to
+use it, you must select the context format (@pxref{Context Format}) or
+unified format (@pxref{Unified Format}).  In other output formats it
+has no effect.
+
+The @samp{-F} and @samp{--show-function-line} options find the nearest
+unchanged line that precedes each hunk of differences and matches the
+given regular expression.  Then they add that line to the end of the
+line of asterisks in the context format, or to the @samp{@@@@} line in
+unified format.  If no matching line exists, they leave the output for
+that hunk unchanged.  If that line is more than 40 characters long, they
+output only the first 40 characters.  You can specify more than one
+regular expression for such lines; @code{diff} tries to match each line
+against each regular expression, starting with the last one given.  This
+means that you can use @samp{-p} and @samp{-F} together, if you wish.
+
+@node C Function Headings, , Specified Headings, Sections
+@subsubsection Showing C Function Headings
+@cindex C function headings
+@cindex function headings, C
+
+To show in which functions differences occur for C and similar
+languages, you can use the @samp{-p} or @samp{--show-c-function} option.
+This option automatically defaults to the context output format
+(@pxref{Context Format}), with the default number of lines of context.
+You can override that number with @samp{-C @var{lines}} elsewhere in the
+command line.  You can override both the format and the number with
+@samp{-U @var{lines}} elsewhere in the command line.
+
+The @samp{-p} and @samp{--show-c-function} options are equivalent to
+@samp{-F'^[_a-zA-Z$]'} if the unified format is specified, otherwise
+@samp{-c -F'^[_a-zA-Z$]'} (@pxref{Specified Headings}).  GNU @code{diff}
+provides them for the sake of convenience.
+
+@node Alternate Names, , Sections, Context
+@subsection Showing Alternate File Names
+@cindex alternate file names
+@cindex file name alternates
+
+If you are comparing two files that have meaningless or uninformative
+names, you might want @code{diff} to show alternate names in the header
+of the context and unified output formats.  To do this, use the @samp{-L
+@var{label}} or @samp{--label=@var{label}} option.  The first time
+you give this option, its argument replaces the name and date of the
+first file in the header; the second time, its argument replaces the
+name and date of the second file.  If you give this option more than
+twice, @code{diff} reports an error.  The @samp{-L} option does not
+affect the file names in the @code{pr} header when the @samp{-l} or
+@samp{--paginate} option is used (@pxref{Pagination}).
+
+Here are the first two lines of the output from @samp{diff -C2
+-Loriginal -Lmodified lao tzu}:
+
+@example
+*** original
+--- modified
+@end example
+
+@node Side by Side, Scripts, Context, Output Formats
+@section Showing Differences Side by Side
+@cindex side by side
+@cindex two-column output
+@cindex columnar output
+
+@code{diff} can produce a side by side difference listing of two files.
+The files are listed in two columns with a gutter between them.  The
+gutter contains one of the following markers:
+
+@table @asis
+@item white space
+The corresponding lines are in common.  That is, either the lines are
+identical, or the difference is ignored because of one of the
+@samp{--ignore} options (@pxref{White Space}).
+
+@item @samp{|}
+The corresponding lines differ, and they are either both complete
+or both incomplete.
+
+@item @samp{<}
+The files differ and only the first file contains the line.
+
+@item @samp{>}
+The files differ and only the second file contains the line.
+
+@item @samp{(}
+Only the first file contains the line, but the difference is ignored.
+
+@item @samp{)}
+Only the second file contains the line, but the difference is ignored.
+
+@item @samp{\}
+The corresponding lines differ, and only the first line is incomplete.
+
+@item @samp{/}
+The corresponding lines differ, and only the second line is incomplete.
+@end table
+
+Normally, an output line is incomplete if and only if the lines that it
+contains are incomplete; @xref{Incomplete Lines}.  However, when an
+output line represents two differing lines, one might be incomplete
+while the other is not.  In this case, the output line is complete,
+but its the gutter is marked @samp{\} if the first line is incomplete,
+@samp{/} if the second line is.
+
+Side by side format is sometimes easiest to read, but it has limitations.
+It generates much wider output than usual, and truncates lines that are
+too long to fit.  Also, it relies on lining up output more heavily than
+usual, so its output looks particularly bad if you use varying
+width fonts, nonstandard tab stops, or nonprinting characters.
+
+You can use the @code{sdiff} command to interactively merge side by side
+differences.  @xref{Interactive Merging}, for more information on merging files.
+
+@menu
+* Side by Side Format::		Controlling side by side output format.
+* Example Side by Side::	Sample side by side output.
+@end menu
+
+@node Side by Side Format, Example Side by Side, , Side by Side
+@section Controlling Side by Side Format
+@cindex side by side format
+
+The @samp{-y} or @samp{--side-by-side} option selects side by side
+format.  Because side by side output lines contain two input lines, they
+are wider than usual.  They are normally 130 columns, which can fit onto
+a traditional printer line.  You can set the length of output lines with
+the @samp{-W @var{columns}} or @samp{--width=@var{columns}} option.  The
+output line is split into two halves of equal length, separated by a
+small gutter to mark differences; the right half is aligned to a tab
+stop so that tabs line up.  Input lines that are too long to fit in half
+of an output line are truncated for output.
+
+The @samp{--left-column} option prints only the left column of two
+common lines.  The @samp{--suppress-common-lines} option suppresses
+common lines entirely.
+
+@node Example Side by Side, , Side by Side Format, Side by Side
+@subsection An Example of Side by Side Format
+
+Here is the output of the command @samp{diff -y -W 72 lao tzu}
+(@pxref{Sample diff Input}, for the complete contents of the two files).
+
+@example
+The Way that can be told of is n   <
+The name that can be named is no   <
+The Nameless is the origin of He        The Nameless is the origin of He
+The Named is the mother of all t   |    The named is the mother of all t
+                                   >
+Therefore let there always be no        Therefore let there always be no
+  so we may see their subtlety,           so we may see their subtlety,
+And let there always be being,          And let there always be being,
+  so we may see their outcome.            so we may see their outcome.
+The two are the same,                   The two are the same,
+But after they are produced,            But after they are produced,
+  they have different names.              they have different names.
+                                   >    They both may be called deep and
+                                   >    Deeper and more profound,
+                                   >    The door of all subtleties!
+@end example
+
+@node Scripts, If-then-else, Side by Side, Output Formats
+@section Making Edit Scripts
+@cindex script output formats
+
+Several output modes produce command scripts for editing @var{from-file}
+to produce @var{to-file}.
+
+@menu
+* ed Scripts::		Using @code{diff} to produce commands for @code{ed}.
+* Forward ed::		Making forward @code{ed} scripts.
+* RCS::			A special @code{diff} output format used by RCS.
+@end menu
+
+@node ed Scripts, Forward ed, , Scripts
+@subsection @code{ed} Scripts
+@cindex @code{ed} script output format
+
+@code{diff} can produce commands that direct the @code{ed} text editor
+to change the first file into the second file.  Long ago, this was the
+only output mode that was suitable for editing one file into another
+automatically; today, with @code{patch}, it is almost obsolete.  Use the
+@samp{-e} or @samp{--ed} option to select this output format.
+
+Like the normal format (@pxref{Normal}), this output format does not
+show any context; unlike the normal format, it does not include the
+information necessary to apply the diff in reverse (to produce the first
+file if all you have is the second file and the diff).
+
+If the file @file{d} contains the output of @samp{diff -e old new}, then
+the command @samp{(cat d && echo w) | ed - old} edits @file{old} to make
+it a copy of @file{new}.  More generally, if @file{d1}, @file{d2},
+@dots{}, @file{dN} contain the outputs of @samp{diff -e old new1},
+@samp{diff -e new1 new2}, @dots{}, @samp{diff -e newN-1 newN},
+respectively, then the command @samp{(cat d1 d2 @dots{} dN && echo w) |
+ed - old} edits @file{old} to make it a copy of @file{newN}.
+
+@menu
+* Detailed ed::		A detailed description of @code{ed} format.
+* Example ed::		A sample @code{ed} script.
+@end menu
+
+@node Detailed ed, Example ed, , ed Scripts
+@subsubsection Detailed Description of @code{ed} Format
+
+The @code{ed} output format consists of one or more hunks of
+differences.  The changes closest to the ends of the files come first so
+that commands that change the number of lines do not affect how
+@code{ed} interprets line numbers in succeeding commands.  @code{ed}
+format hunks look like this:
+
+@example
+@var{change-command}
+@var{to-file-line}
+@var{to-file-line}@dots{}
+.
+@end example
+
+Because @code{ed} uses a single period on a line to indicate the end of
+input, GNU @code{diff} protects lines of changes that contain a single
+period on a line by writing two periods instead, then writing a
+subsequent @code{ed} command to change the two periods into one.  The
+@code{ed} format cannot represent an incomplete line, so if the second
+file ends in a changed incomplete line, @code{diff} reports an error and
+then pretends that a newline was appended.
+
+There are three types of change commands.  Each consists of a line
+number or comma-separated range of lines in the first file and a single
+character indicating the kind of change to make.  All line numbers are
+the original line numbers in the file.  The types of change commands
+are:
+
+@table @samp
+@item @var{l}a
+Add text from the second file after line @var{l} in the first file.  For
+example, @samp{8a} means to add the following lines after line 8 of file
+1.
+
+@item @var{r}c
+Replace the lines in range @var{r} in the first file with the following
+lines.  Like a combined add and delete, but more compact.  For example,
+@samp{5,7c} means change lines 5--7 of file 1 to read as the text file
+2.
+
+@item @var{r}d
+Delete the lines in range @var{r} from the first file.  For example,
+@samp{5,7d} means delete lines 5--7 of file 1.
+@end table
+
+@node Example ed, , Detailed ed, ed Scripts
+@subsubsection Example @code{ed} Script
+
+Here is the output of @samp{diff -e lao tzu} (@pxref{Sample
+diff Input}, for the complete contents of the two files):
+
+@example
+11a
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+.
+4c
+The named is the mother of all things.
+
+.
+1,2d
+@end example
+
+@node Forward ed, RCS, ed Scripts, Scripts
+@subsection Forward @code{ed} Scripts
+@cindex forward @code{ed} script output format
+
+@code{diff} can produce output that is like an @code{ed} script, but
+with hunks in forward (front to back) order.  The format of the commands
+is also changed slightly: command characters precede the lines they
+modify, spaces separate line numbers in ranges, and no attempt is made
+to disambiguate hunk lines consisting of a single period.  Like
+@code{ed} format, forward @code{ed} format cannot represent incomplete
+lines.
+
+Forward @code{ed} format is not very useful, because neither @code{ed}
+nor @code{patch} can apply diffs in this format.  It exists mainly for
+compatibility with older versions of @code{diff}.  Use the @samp{-f} or
+@samp{--forward-ed} option to select it.
+
+@node RCS, , Forward ed, Scripts
+@subsection RCS Scripts
+@cindex RCS script output format
+
+The RCS output format is designed specifically for use by the Revision
+Control System, which is a set of free programs used for organizing
+different versions and systems of files.  Use the @samp{-n} or
+@samp{--rcs} option to select this output format.  It is like the
+forward @code{ed} format (@pxref{Forward ed}), but it can represent
+arbitrary changes to the contents of a file because it avoids the
+forward @code{ed} format's problems with lines consisting of a single
+period and with incomplete lines.  Instead of ending text sections with
+a line consisting of a single period, each command specifies the number
+of lines it affects; a combination of the @samp{a} and @samp{d}
+commands are used instead of @samp{c}.  Also, if the second file ends
+in a changed incomplete line, then the output also ends in an
+incomplete line.
+
+Here is the output of @samp{diff -n lao tzu} (@pxref{Sample
+diff Input}, for the complete contents of the two files):
+
+@example
+d1 2
+d4 1
+a4 2
+The named is the mother of all things.
+
+a11 3
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+@end example
+
+@node If-then-else, , Scripts, Output Formats
+@section Merging Files with If-then-else
+@cindex merged output format
+@cindex if-then-else output format
+@cindex C if-then-else output format
+@cindex @code{ifdef} output format
+
+You can use @code{diff} to merge two files of C source code.  The output
+of @code{diff} in this format contains all the lines of both files.
+Lines common to both files are output just once; the differing parts are
+separated by the C preprocessor directives @code{#ifdef @var{name}} or
+@code{#ifndef @var{name}}, @code{#else}, and @code{#endif}.  When
+compiling the output, you select which version to use by either defining
+or leaving undefined the macro @var{name}.
+
+To merge two files, use @code{diff} with the @samp{-D @var{name}} or
+@samp{--ifdef=@var{name}} option.  The argument @var{name} is the C
+preprocessor identifier to use in the @code{#ifdef} and @code{#ifndef}
+directives.
+
+For example, if you change an instance of @code{wait (&s)} to
+@code{waitpid (-1, &s, 0)} and then merge the old and new files with
+the @samp{--ifdef=HAVE_WAITPID} option, then the affected part of your code
+might look like this:
+
+@example
+    do @{
+#ifndef HAVE_WAITPID
+        if ((w = wait (&s)) < 0  &&  errno != EINTR)
+#else /* HAVE_WAITPID */
+        if ((w = waitpid (-1, &s, 0)) < 0  &&  errno != EINTR)
+#endif /* HAVE_WAITPID */
+            return w;
+    @} while (w != child);
+@end example
+
+You can specify formats for languages other than C by using line group
+formats and line formats, as described in the next sections.
+
+@menu
+* Line Group Formats::		Formats for general if-then-else line groups.
+* Line Formats::		Formats for each line in a line group.
+* Detailed If-then-else::	A detailed description of if-then-else format.
+* Example If-then-else::	Sample if-then-else format output.
+@end menu
+
+@node Line Group Formats, Line Formats, , If-then-else
+@subsection Line Group Formats
+@cindex line group formats
+@cindex formats for if-then-else line groups
+
+Line group formats let you specify formats suitable for many
+applications that allow if-then-else input, including programming
+languages and text formatting languages.  A line group format specifies
+the output format for a contiguous group of similar lines.
+
+For example, the following command compares the TeX files @file{old}
+and @file{new}, and outputs a merged file in which old regions are
+surrounded by @samp{\begin@{em@}}-@samp{\end@{em@}} lines, and new
+regions are surrounded by @samp{\begin@{bf@}}-@samp{\end@{bf@}} lines.
+
+@example
+diff \
+   --old-group-format='\begin@{em@}
+%<\end@{em@}
+' \
+   --new-group-format='\begin@{bf@}
+%>\end@{bf@}
+' \
+   old new
+@end example
+
+The following command is equivalent to the above example, but it is a
+little more verbose, because it spells out the default line group formats.
+
+@example
+diff \
+   --old-group-format='\begin@{em@}
+%<\end@{em@}
+' \
+   --new-group-format='\begin@{bf@}
+%>\end@{bf@}
+' \
+   --unchanged-group-format='%=' \
+   --changed-group-format='\begin@{em@}
+%<\end@{em@}
+\begin@{bf@}
+%>\end@{bf@}
+' \
+   old new
+@end example
+
+Here is a more advanced example, which outputs a diff listing with
+headers containing line numbers in a ``plain English'' style.
+
+@example
+diff \
+   --unchanged-group-format='' \
+   --old-group-format='-------- %dn line%(n=1?:s) deleted at %df:
+%<' \
+   --new-group-format='-------- %dN line%(N=1?:s) added after %de:
+%>' \
+   --changed-group-format='-------- %dn line%(n=1?:s) changed at %df:
+%<-------- to:
+%>' \
+   old new
+@end example
+
+To specify a line group format, use @code{diff} with one of the options
+listed below.  You can specify up to four line group formats, one for
+each kind of line group.  You should quote @var{format}, because it
+typically contains shell metacharacters.
+
+@table @samp
+@item --old-group-format=@var{format}
+These line groups are hunks containing only lines from the first file.
+The default old group format is the same as the changed group format if
+it is specified; otherwise it is a format that outputs the line group as-is.
+
+@item --new-group-format=@var{format}
+These line groups are hunks containing only lines from the second
+file.  The default new group format is same as the the changed group
+format if it is specified; otherwise it is a format that outputs the
+line group as-is.
+
+@item --changed-group-format=@var{format}
+These line groups are hunks containing lines from both files.  The
+default changed group format is the concatenation of the old and new
+group formats.
+
+@item --unchanged-group-format=@var{format}
+These line groups contain lines common to both files.  The default
+unchanged group format is a format that outputs the line group as-is.
+@end table
+
+In a line group format, ordinary characters represent themselves;
+conversion specifications start with @samp{%} and have one of the
+following forms.
+
+@table @samp
+@item %<
+stands for the lines from the first file, including the trailing newline.
+Each line is formatted according to the old line format (@pxref{Line Formats}).
+
+@item %>
+stands for the lines from the second file, including the trailing newline.
+Each line is formatted according to the new line format.
+
+@item %=
+stands for the lines common to both files, including the trailing newline.
+Each line is formatted according to the unchanged line format.
+
+@item %%
+stands for @samp{%}.
+
+@item %c'@var{C}'
+where @var{C} is a single character, stands for @var{C}.
+@var{C} may not be a backslash or an apostrophe.
+For example, @samp{%c':'} stands for a colon, even inside
+the then-part of an if-then-else format, which a colon would
+normally terminate.
+
+@item %c'\@var{O}'
+where @var{O} is a string of 1, 2, or 3 octal digits,
+stands for the character with octal code @var{O}.
+For example, @samp{%c'\0'} stands for a null character.
+
+@item @var{F}@var{n}
+where @var{F} is a @code{printf} conversion specification and @var{n} is one
+of the following letters, stands for @var{n}'s value formatted with @var{F}.
+
+@table @samp
+@item e
+The line number of the line just before the group in the old file.
+
+@item f
+The line number of the first line in the group in the old file;
+equals @var{e} + 1.
+
+@item l
+The line number of the last line in the group in the old file.
+
+@item m
+The line number of the line just after the group in the old file;
+equals @var{l} + 1.
+
+@item n
+The number of lines in the group in the old file; equals @var{l} - @var{f} + 1.
+
+@item E, F, L, M, N
+Likewise, for lines in the new file.
+
+@end table
+
+The @code{printf} conversion specification can be @samp{%d},
+@samp{%o}, @samp{%x}, or @samp{%X}, specifying decimal, octal,
+lower case hexadecimal, or upper case hexadecimal output
+respectively.  After the @samp{%} the following options can appear in
+sequence: a @samp{-} specifying left-justification; an integer
+specifying the minimum field width; and a period followed by an
+optional integer specifying the minimum number of digits.
+For example, @samp{%5dN} prints the number of new lines in the group
+in a field of width 5 characters, using the @code{printf} format @code{"%5d"}.
+
+@item (@var{A}=@var{B}?@var{T}:@var{E})
+If @var{A} equals @var{B} then @var{T} else @var{E}.
+@var{A} and @var{B} are each either a decimal constant
+or a single letter interpreted as above.
+This format spec is equivalent to @var{T} if
+@var{A}'s value equals @var{B}'s; otherwise it is equivalent to @var{E}.
+
+For example, @samp{%(N=0?no:%dN) line%(N=1?:s)} is equivalent to
+@samp{no lines} if @var{N} (the number of lines in the group in the the
+new file) is 0, to @samp{1 line} if @var{N} is 1, and to @samp{%dN lines}
+otherwise.
+@end table
+
+@node Line Formats, Detailed If-then-else, Line Group Formats, If-then-else
+@subsection Line Formats
+@cindex line formats
+
+Line formats control how each line taken from an input file is
+output as part of a line group in if-then-else format.
+
+For example, the following command outputs text with a one-column
+change indicator to the left of the text.  The first column of output
+is @samp{-} for deleted lines, @samp{|} for added lines, and a space
+for unchanged lines.  The formats contain newline characters where
+newlines are desired on output.
+
+@example
+diff \
+   --old-line-format='-%l
+' \
+   --new-line-format='|%l
+' \
+   --unchanged-line-format=' %l
+' \
+   old new
+@end example
+
+To specify a line format, use one of the following options.  You should
+quote @var{format}, since it often contains shell metacharacters.
+
+@table @samp
+@item --old-line-format=@var{format}
+formats lines just from the first file.
+
+@item --new-line-format=@var{format}
+formats lines just from the second file.
+
+@item --unchanged-line-format=@var{format}
+formats lines common to both files.
+
+@item --line-format=@var{format}
+formats all lines; in effect, it sets all three above options simultaneously.
+@end table
+
+In a line format, ordinary characters represent themselves;
+conversion specifications start with @samp{%} and have one of the
+following forms.
+
+@table @samp
+@item %l
+stands for the the contents of the line, not counting its trailing
+newline (if any).  This format ignores whether the line is incomplete;
+@xref{Incomplete Lines}.
+
+@item %L
+stands for the the contents of the line, including its trailing newline
+(if any).  If a line is incomplete, this format preserves its
+incompleteness.
+
+@item %%
+stands for @samp{%}.
+
+@item %c'@var{C}'
+where @var{C} is a single character, stands for @var{C}.
+@var{C} may not be a backslash or an apostrophe.
+For example, @samp{%c':'} stands for a colon.
+
+@item %c'\@var{O}'
+where @var{O} is a string of 1, 2, or 3 octal digits,
+stands for the character with octal code @var{O}.
+For example, @samp{%c'\0'} stands for a null character.
+
+@item @var{F}n
+where @var{F} is a @code{printf} conversion specification,
+stands for the line number formatted with @var{F}.
+For example, @samp{%.5dn} prints the line number using the
+@code{printf} format @code{"%.5d"}.  @xref{Line Group Formats}, for
+more about printf conversion specifications.
+
+@end table
+
+The default line format is @samp{%l} followed by a newline character.
+
+If the input contains tab characters and it is important that they line
+up on output, you should ensure that @samp{%l} or @samp{%L} in a line
+format is just after a tab stop (e.g.@: by preceding @samp{%l} or
+@samp{%L} with a tab character), or you should use the @samp{-t} or
+@samp{--expand-tabs} option.
+
+Taken together, the line and line group formats let you specify many
+different formats.  For example, the following command uses a format
+similar to @code{diff}'s normal format.  You can tailor this command
+to get fine control over @code{diff}'s output.
+
+@example
+diff \
+   --old-line-format='< %l
+' \
+   --new-line-format='> %l
+' \
+   --old-group-format='%df%(f=l?:,%dl)d%dE
+%<' \
+   --new-group-format='%dea%dF%(F=L?:,%dL)
+%>' \
+   --changed-group-format='%df%(f=l?:,%dl)c%dF%(F=L?:,%dL)
+%<---
+%>' \
+   --unchanged-group-format='' \
+   old new
+@end example
+
+@node Detailed If-then-else, Example If-then-else, Line Formats, If-then-else
+@subsection Detailed Description of If-then-else Format
+
+For lines common to both files, @code{diff} uses the unchanged line
+group format.  For each hunk of differences in the merged output
+format, if the hunk contains only lines from the first file,
+@code{diff} uses the old line group format; if the hunk contains only
+lines from the second file, @code{diff} uses the new group format;
+otherwise, @code{diff} uses the changed group format.
+
+The old, new, and unchanged line formats specify the output format of
+lines from the first file, lines from the second file, and lines common
+to both files, respectively.
+
+The option @samp{--ifdef=@var{name}} is equivalent to
+the following sequence of options using shell syntax:
+
+@example
+--old-group-format='#ifndef @var{name}
+%<#endif /* not @var{name} */
+' \
+--new-group-format='#ifdef @var{name}
+%>#endif /* @var{name} */
+' \
+--unchanged-group-format='%=' \
+--changed-group-format='#ifndef @var{name}
+%<#else /* @var{name} */
+%>#endif /* @var{name} */
+'
+@end example
+
+You should carefully check the @code{diff} output for proper nesting.
+For example, when using the the @samp{-D @var{name}} or
+@samp{--ifdef=@var{name}} option, you should check that if the
+differing lines contain any of the C preprocessor directives
+@samp{#ifdef}, @samp{#ifndef}, @samp{#else}, @samp{#elif}, or
+@samp{#endif}, they are nested properly and match.  If they don't, you
+must make corrections manually.  It is a good idea to carefully check
+the resulting code anyway to make sure that it really does what you
+want it to; depending on how the input files were produced, the output
+might contain duplicate or otherwise incorrect code.
+
+The @code{patch} @samp{-D @var{name}} option behaves just like
+the @code{diff} @samp{-D @var{name}} option, except it operates on
+a file and a diff to produce a merged file; @xref{patch Options}.
+
+@node Example If-then-else, , Detailed If-then-else, If-then-else
+@subsection An Example of If-then-else Format
+
+Here is the output of @samp{diff -DTWO lao tzu} (@pxref{Sample
+diff Input}, for the complete contents of the two files):
+
+@example
+#ifndef TWO
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+#endif /* not TWO */
+The Nameless is the origin of Heaven and Earth;
+#ifndef TWO
+The Named is the mother of all things.
+#else /* TWO */
+The named is the mother of all things.
+
+#endif /* TWO */
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their outcome.
+The two are the same,
+But after they are produced,
+  they have different names.
+#ifdef TWO
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+#endif /* TWO */
+@end example
+
+@node Comparing Directories, Adjusting Output, Output Formats, Top
+@chapter Comparing Directories
+
+You can use @code{diff} to compare some or all of the files in two
+directory trees.  When both file name arguments to @code{diff} are
+directories, it compares each file that is contained in both
+directories, examining file names in alphabetical order.  Normally
+@code{diff} is silent about pairs of files that contain no differences,
+but if you use the @samp{-s} or @samp{--report-identical-files} option,
+it reports pairs of identical files.  Normally @code{diff} reports
+subdirectories common to both directories without comparing
+subdirectories' files, but if you use the @samp{-r} or
+@samp{--recursive} option, it compares every corresponding pair of files
+in the directory trees, as many levels deep as they go.
+
+For file names that are in only one of the directories, @code{diff}
+normally does not show the contents of the file that exists; it reports
+only that the file exists in that directory and not in the other.  You
+can make @code{diff} act as though the file existed but was empty in the
+other directory, so that it outputs the entire contents of the file that
+actually exists.  (It is output as either an insertion or a
+deletion, depending on whether it is in the first or the second
+directory given.)  To do this, use the @samp{-N} or @samp{--new-file}
+option.
+
+If the older directory contains one or more large files that are not in
+the newer directory, you can make the patch smaller by using the
+@samp{-P} or @samp{--unidirectional-new-file} option instead of @samp{-N}.
+This option is like @samp{-N} except that it only inserts the contents
+of files that appear in the second directory but not the first (that is,
+files that were added).  At the top of the patch, write instructions for
+the user applying the patch to remove the files that were deleted before
+applying the patch.  @xref{Making Patches}, for more discussion of
+making patches for distribution.
+
+To ignore some files while comparing directories, use the @samp{-x
+@var{pattern}} or @samp{--exclude=@var{pattern}} option.  This option
+ignores any files or subdirectories whose base names match the shell
+pattern @var{pattern}.  Unlike in the shell, a period at the start of
+the base of a file name matches a wildcard at the start of a pattern.
+You should enclose @var{pattern} in quotes so that the shell does not
+expand it.  For example, the option @samp{-x '*.[ao]'} ignores any file
+whose name ends with @samp{.a} or @samp{.o}.
+
+This option accumulates if you specify it more than once.  For example,
+using the options @samp{-x 'RCS' -x '*,v'} ignores any file or
+subdirectory whose base name is @samp{RCS} or ends with @samp{,v}.
+
+If you need to give this option many times, you can instead put the
+patterns in a file, one pattern per line, and use the @samp{-X
+@var{file}} or @samp{--exclude-from=@var{file}} option.
+
+If you have been comparing two directories and stopped partway through,
+later you might want to continue where you left off.  You can do this by
+using the @samp{-S @var{file}} or @samp{--starting-file=@var{file}}
+option.  This compares only the file @var{file} and all alphabetically
+later files in the topmost directory level.
+
+@node Adjusting Output, diff Performance, Comparing Directories, Top
+@chapter Making @code{diff} Output Prettier
+
+@code{diff} provides several ways to adjust the appearance of its output.
+These adjustments can be applied to any output format.
+
+@menu
+* Tabs::		Preserving the alignment of tabstops.
+* Pagination::		Page numbering and timestamping @code{diff} output.
+@end menu
+
+@node Tabs, Pagination, , Adjusting Output
+@section Preserving Tabstop Alignment
+@cindex tabstop alignment
+@cindex aligning tabstops
+
+The lines of text in some of the @code{diff} output formats are preceded
+by one or two characters that indicate whether the text is inserted,
+deleted, or changed.  The addition of those characters can cause tabs to
+move to the next tabstop, throwing off the alignment of columns in the
+line.  GNU @code{diff} provides two ways to make tab-aligned columns
+line up correctly.
+
+The first way is to have @code{diff} convert all tabs into the correct
+number of spaces before outputting them; select this method with the
+@samp{-t} or @samp{--expand-tabs} option.  @code{diff} assumes that
+tabstops are set every 8 columns.  To use this form of output with
+@code{patch}, you must give @code{patch} the @samp{-l} or
+@samp{--ignore-white-space} option (@pxref{Changed White Space}, for more
+information).
+
+The other method for making tabs line up correctly is to add a tab
+character instead of a space after the indicator character at the
+beginning of the line.  This ensures that all following tab characters
+are in the same position relative to tabstops that they were in the
+original files, so that the output is aligned correctly.  Its
+disadvantage is that it can make long lines too long to fit on one line
+of the screen or the paper.  It also does not work with the unified
+output format, which does not have a space character after the change
+type indicator character.  Select this method with the @samp{-T} or
+@samp{--initial-tab} option.
+
+@node Pagination, , Tabs, Adjusting Output
+@section Paginating @code{diff} Output
+@cindex paginating @code{diff} output
+
+It can be convenient to have long output page-numbered and time-stamped.
+The @samp{-l} and @samp{--paginate} options do this by sending the
+@code{diff} output through the @code{pr} program.  Here is what the page
+header might look like for @samp{diff -lc lao tzu}:
+
+@example
+Mar 11 13:37 1991  diff -lc lao tzu Page 1
+@end example
+
+@node diff Performance, Comparing Three Files, Adjusting Output, Top
+@chapter @code{diff} Performance Tradeoffs
+@cindex performance of @code{diff}
+
+GNU @code{diff} runs quite efficiently; however, in some circumstances
+you can cause it to run faster or produce a more compact set of changes.
+There are two ways that you can affect the performance of GNU
+@code{diff} by changing the way it compares files.
+
+Performance has more than one dimension.  These options improve one
+aspect of performance at the cost of another, or they improve
+performance in some cases while hurting it in others.
+
+The way that GNU @code{diff} determines which lines have changed always
+comes up with a near-minimal set of differences.  Usually it is good
+enough for practical purposes.  If the @code{diff} output is large, you
+might want @code{diff} to use a modified algorithm that sometimes
+produces a smaller set of differences.  The @samp{-d} or
+@samp{--minimal} option does this; however, it can also cause
+@code{diff} to run more slowly than usual, so it is not the default
+behavior.
+
+When the files you are comparing are large and have small groups of
+changes scattered throughout them, you can use the @samp{-H} or
+@samp{--speed-large-files} option to make a different modification to
+the algorithm that @code{diff} uses.  If the input files have a constant
+small density of changes, this option speeds up the comparisons without
+changing the output.  If not, @code{diff} might produce a larger set of
+differences; however, the output will still be correct.
+
+Normally @code{diff} discards the prefix and suffix that is common to
+both files before it attempts to find a minimal set of differences.
+This makes @code{diff} run faster, but occasionally it may produce
+non-minimal output.  The @samp{--horizon-lines=@var{lines}} option
+prevents @code{diff} from discarding the last @var{lines} lines of the
+prefix and the first @var{lines} lines of the suffix.  This gives
+@code{diff} further opportunities to find a minimal output.
+
+@node Comparing Three Files, diff3 Merging, diff Performance, Top
+@chapter Comparing Three Files
+@cindex comparing three files
+@cindex format of @code{diff3} output
+
+Use the program @code{diff3} to compare three files and show any
+differences among them.  (@code{diff3} can also merge files; see
+@ref{diff3 Merging}).
+
+The ``normal'' @code{diff3} output format shows each hunk of
+differences without surrounding context.  Hunks are labeled depending
+on whether they are two-way or three-way, and lines are annotated by
+their location in the input files.
+
+@xref{Invoking diff3}, for more information on how to run @code{diff3}.
+
+@menu
+* Sample diff3 Input::		Sample @code{diff3} input for examples.
+* Detailed diff3 Normal::	A detailed description of normal output format.
+* diff3 Hunks::			The format of normal output format.
+* Example diff3 Normal::	Sample output in the normal format.
+@end menu
+
+@node Sample diff3 Input, Detailed diff3 Normal, , Comparing Three Files
+@section A Third Sample Input File
+@cindex @code{diff3} sample input
+@cindex sample input for @code{diff3}
+
+Here is a third sample file that will be used in examples to illustrate
+the output of @code{diff3} and how various options can change it.  The
+first two files are the same that we used for @code{diff} (@pxref{Sample
+diff Input}).  This is the third sample file, called @file{tao}:
+
+@example
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+The Nameless is the origin of Heaven and Earth;
+The named is the mother of all things.
+
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their result.
+The two are the same,
+But after they are produced,
+  they have different names.
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+@end example
+
+@node Detailed diff3 Normal, diff3 Hunks, Sample diff3 Input, Comparing Three Files
+@section Detailed Description of @code{diff3} Normal Format
+
+Each hunk begins with a line marked @samp{====}.  Three-way hunks have
+plain @samp{====} lines, and two-way hunks have @samp{1}, @samp{2}, or
+@samp{3} appended to specify which of the three input files differ in
+that hunk.  The hunks contain copies of two or three sets of input
+lines each preceded by one or two commands identifying where the lines
+came from.
+
+Normally, two spaces precede each copy of an input line to distinguish
+it from the commands.  But with the @samp{-T} or @samp{--initial-tab}
+option, @code{diff3} uses a tab instead of two spaces; this lines up
+tabs correctly.  @xref{Tabs}, for more information.
+
+Commands take the following forms:
+
+@table @samp
+@item @var{file}:@var{l}a
+This hunk appears after line @var{l} of file @var{file}, and
+contains no lines in that file.  To edit this file to yield the other
+files, one must append hunk lines taken from the other files.  For
+example, @samp{1:11a} means that the hunk follows line 11 in the first
+file and contains no lines from that file.
+
+@item @var{file}:@var{r}c
+This hunk contains the lines in the range @var{r} of file @var{file}.
+The range @var{r} is a comma-separated pair of line numbers, or just one
+number if the range is a singleton.  To edit this file to yield the
+other files, one must change the specified lines to be the lines taken
+from the other files.  For example, @samp{2:11,13c} means that the hunk
+contains lines 11 through 13 from the second file.
+@end table
+
+If the last line in a set of input lines is incomplete
+(@pxref{Incomplete Lines}), it is distinguished on output from a full
+line by a following line that starts with @samp{\}.
+
+@node diff3 Hunks, Example diff3 Normal, Detailed diff3 Normal, Comparing Three Files
+@section @code{diff3} Hunks
+@cindex hunks for @code{diff3}
+@cindex @code{diff3} hunks
+
+Groups of lines that differ in two or three of the input files are
+called @dfn{diff3 hunks}, by analogy with @code{diff} hunks
+(@pxref{Hunks}).  If all three input files differ in a @code{diff3}
+hunk, the hunk is called a @dfn{three-way hunk}; if just two input files
+differ, it is a @dfn{two-way hunk}.
+
+As with @code{diff}, several solutions are possible.  When comparing the
+files @samp{A}, @samp{B}, and @samp{C}, @code{diff3} normally finds
+@code{diff3} hunks by merging the two-way hunks output by the two
+commands @samp{diff A B} and @samp{diff A C}.  This does not necessarily
+minimize the size of the output, but exceptions should be rare.
+
+For example, suppose @file{F} contains the three lines @samp{a},
+@samp{b}, @samp{f}, @file{G} contains the lines @samp{g}, @samp{b},
+@samp{g}, and @file{H} contains the lines @samp{a}, @samp{b},
+@samp{h}.  @samp{diff3 F G H} might output the following:
+
+@example
+====2
+1:1c
+3:1c
+  a
+2:1c
+  g
+====
+1:3c
+  f
+2:3c
+  g
+3:3c
+  h
+@end example
+
+@noindent
+because it found a two-way hunk containing @samp{a} in the first and
+third files and @samp{g} in the second file, then the single line
+@samp{b} common to all three files, then a three-way hunk containing
+the last line of each file.
+
+@node Example diff3 Normal, , diff3 Hunks, Comparing Three Files
+@section An Example of @code{diff3} Normal Format
+
+Here is the output of the command @samp{diff3 lao tzu tao}
+(@pxref{Sample diff3 Input}, for the complete contents of the files).
+Notice that it shows only the lines that are different among the three
+files.
+
+@example
+====2
+1:1,2c
+3:1,2c
+  The Way that can be told of is not the eternal Way;
+  The name that can be named is not the eternal name.
+2:0a
+====1
+1:4c
+  The Named is the mother of all things.
+2:2,3c
+3:4,5c
+  The named is the mother of all things.
+  
+====3
+1:8c
+2:7c
+    so we may see their outcome.
+3:9c
+    so we may see their result.
+====
+1:11a
+2:11,13c
+  They both may be called deep and profound.
+  Deeper and more profound,
+  The door of all subtleties!
+3:13,14c
+  
+    -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+@end example
+
+@node diff3 Merging, Interactive Merging, Comparing Three Files, Top
+@chapter Merging From a Common Ancestor
+@cindex merging from a common ancestor
+
+When two people have made changes to copies of the same file,
+@code{diff3} can produce a merged output that contains both sets of
+changes together with warnings about conflicts.
+
+One might imagine programs with names like @code{diff4} and @code{diff5}
+to compare more than three files simultaneously, but in practice the
+need rarely arises.  You can use @code{diff3} to merge three or more
+sets of changes to a file by merging two change sets at a time.
+
+@code{diff3} can incorporate changes from two modified versions into a
+common preceding version.  This lets you merge the sets of changes
+represented by the two newer files.  Specify the common ancestor version
+as the second argument and the two newer versions as the first and third
+arguments, like this:
+
+@example
+diff3 @var{mine} @var{older} @var{yours}
+@end example
+
+@noindent
+You can remember the order of the arguments by noting that they are in
+alphabetical order.
+
+@cindex conflict
+@cindex overlap
+You can think of this as subtracting @var{older} from @var{yours} and
+adding the result to @var{mine}, or as merging into @var{mine} the
+changes that would turn @var{older} into @var{yours}.  This merging is
+well-defined as long as @var{mine} and @var{older} match in the
+neighborhood of each such change.  This fails to be true when all three
+input files differ or when only @var{older} differs; we call this
+a @dfn{conflict}.  When all three input files differ, we call the
+conflict an @dfn{overlap}.
+
+@code{diff3} gives you several ways to handle overlaps and conflicts.
+You can omit overlaps or conflicts, or select only overlaps,
+or mark conflicts with special @samp{<<<<<<<} and @samp{>>>>>>>} lines.
+
+@code{diff3} can output the merge results as an @code{ed} script that
+that can be applied to the first file to yield the merged output.
+However, it is usually better to have @code{diff3} generate the merged
+output directly; this bypasses some problems with @code{ed}.
+
+@menu
+* Which Changes::		Selecting changes to incorporate.
+* Marking Conflicts::		Marking conflicts.
+* Bypassing ed::		Generating merged output directly.
+* Merging Incomplete Lines::	How @code{diff3} merges incomplete lines.
+* Saving the Changed File::	Emulating System V behavior.
+@end menu
+
+@node Which Changes, Marking Conflicts, , diff3 Merging
+@section Selecting Which Changes to Incorporate
+@cindex overlapping change, selection of
+@cindex unmerged change
+
+You can select all unmerged changes from @var{older} to @var{yours} for merging
+into @var{mine} with the @samp{-e} or @samp{--ed} option.  You can
+select only the nonoverlapping unmerged changes with @samp{-3} or
+@samp{--easy-only}, and you can select only the overlapping changes with
+@samp{-x} or @samp{--overlap-only}.
+
+The @samp{-e}, @samp{-3} and @samp{-x} options select only
+@dfn{unmerged changes}, i.e.@: changes where @var{mine} and @var{yours}
+differ; they ignore changes from @var{older} to @var{yours} where
+@var{mine} and @var{yours} are identical, because they assume that such
+changes have already been merged.  If this assumption is not a safe
+one, you can use the @samp{-A} or @samp{--show-all} option
+(@pxref{Marking Conflicts}).
+
+Here is the output of the command @code{diff3} with each of these three
+options (@pxref{Sample diff3 Input}, for the complete contents of the files).
+Notice that @samp{-e} outputs the union of the disjoint sets of changes
+output by @samp{-3} and @samp{-x}.
+
+Output of @samp{diff3 -e lao tzu tao}:
+@example
+11a
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+.
+8c
+  so we may see their result.
+.
+@end example
+
+Output of @samp{diff3 -3 lao tzu tao}:
+@example
+8c
+  so we may see their result.
+.
+@end example
+
+Output of @samp{diff3 -x lao tzu tao}:
+@example
+11a
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+.
+@end example
+
+@node Marking Conflicts, Bypassing ed, Which Changes, diff3 Merging
+@section Marking Conflicts
+@cindex conflict marking
+@cindex @samp{<<<<<<<} for marking conflicts
+
+@code{diff3} can mark conflicts in the merged output by
+bracketing them with special marker lines.  A conflict
+that comes from two files @var{A} and @var{B} is marked as follows:
+
+@example
+<<<<<<< @var{A}
+@r{lines from @var{A}}
+=======
+@r{lines from @var{B}}
+>>>>>>> @var{B}
+@end example
+
+A conflict that comes from three files @var{A}, @var{B} and @var{C} is
+marked as follows:
+
+@example
+<<<<<<< @var{A}
+@r{lines from @var{A}}
+||||||| @var{B}
+@r{lines from @var{B}}
+=======
+@r{lines from @var{C}}
+>>>>>>> @var{C}
+@end example
+
+The @samp{-A} or @samp{--show-all} option acts like the @samp{-e}
+option, except that it brackets conflicts, and it outputs all changes
+from @var{older} to @var{yours}, not just the unmerged changes.  Thus,
+given the sample input files (@pxref{Sample diff3 Input}), @samp{diff3
+-A lao tzu tao} puts brackets around the conflict where only @file{tzu}
+differs:
+
+@example
+<<<<<<< tzu
+=======
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+>>>>>>> tao
+@end example
+
+And it outputs the three-way conflict as follows:
+
+@example
+<<<<<<< lao
+||||||| tzu
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+@end example
+
+The @samp{-E} or @samp{--show-overlap} option outputs less information
+than the @samp{-A} or @samp{--show-all} option, because it outputs only
+unmerged changes, and it never outputs the contents of the second
+file.  Thus the @samp{-E} option acts like the @samp{-e} option,
+except that it brackets the first and third files from three-way
+overlapping changes.  Similarly, @samp{-X} acts like @samp{-x}, except
+it brackets all its (necessarily overlapping) changes.  For example,
+for the three-way overlapping change above, the @samp{-E} and @samp{-X}
+options output the following:
+
+@example
+<<<<<<< lao
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+@end example
+
+If you are comparing files that have meaningless or uninformative names,
+you can use the @samp{-L @var{label}} or @samp{--label=@var{label}}
+option to show alternate names in the @samp{<<<<<<<}, @samp{|||||||}
+and @samp{>>>>>>>} brackets.  This option can be given up to three
+times, once for each input file.  Thus @samp{diff3 -A -L X -L Y -L Z A
+B C} acts like @samp{diff3 -A A B C}, except that the output looks like
+it came from files named @samp{X}, @samp{Y} and @samp{Z} rather than
+from files named @samp{A}, @samp{B} and @samp{C}.
+
+@node Bypassing ed, Merging Incomplete Lines, Marking Conflicts, diff3 Merging
+@section Generating the Merged Output Directly
+@cindex merged @code{diff3} format
+
+With the @samp{-m} or @samp{--merge} option, @code{diff3} outputs the
+merged file directly.  This is more efficient than using @code{ed} to
+generate it, and works even with non-text files that @code{ed} would
+reject.  If you specify @samp{-m} without an @code{ed} script option,
+@samp{-A} (@samp{--show-all}) is assumed.
+
+For example, the command @samp{diff3 -m lao tzu tao}
+(@pxref{Sample diff3 Input} for a copy of the input files) would output
+the following:
+
+@example
+<<<<<<< tzu
+=======
+The Way that can be told of is not the eternal Way;
+The name that can be named is not the eternal name.
+>>>>>>> tao
+The Nameless is the origin of Heaven and Earth;
+The Named is the mother of all things.
+Therefore let there always be non-being,
+  so we may see their subtlety,
+And let there always be being,
+  so we may see their result.
+The two are the same,
+But after they are produced,
+  they have different names.
+<<<<<<< lao
+||||||| tzu
+They both may be called deep and profound.
+Deeper and more profound,
+The door of all subtleties!
+=======
+
+  -- The Way of Lao-Tzu, tr. Wing-tsit Chan
+>>>>>>> tao
+@end example
+
+@node Merging Incomplete Lines, Saving the Changed File, Bypassing ed, diff3 Merging
+@section How @code{diff3} Merges Incomplete Lines
+@cindex incomplete line merging
+
+With @samp{-m}, incomplete lines (@pxref{Incomplete Lines}) are simply
+copied to the output as they are found; if the merged output ends in an
+conflict and one of the input files ends in an incomplete
+line, succeeding @samp{|||||||}, @samp{=======} or @samp{>>>>>>>}
+brackets appear somewhere other than the start of a line because
+they are appended to the incomplete line.
+
+Without @samp{-m}, if an @code{ed} script option is specified and an
+incomplete line is found, @code{diff3} generates a warning and acts as
+if a newline had been present.
+
+@node Saving the Changed File, , Merging Incomplete Lines, diff3 Merging
+@section Saving the Changed File
+@cindex System V @code{diff3} compatibility
+
+Traditional Unix @code{diff3} generates an @code{ed} script without the
+trailing @samp{w} and and @samp{q} commands that save the changes.
+System V @code{diff3} generates these extra commands.  GNU @code{diff3}
+normally behaves like traditional Unix @code{diff3}, but with the
+@samp{-i} option it behaves like System V @code{diff3} and appends the
+@samp{w} and @samp{q} commands.
+
+The @samp{-i} option requires one of the @code{ed} script options
+@samp{-AeExX3}, and is incompatible with the merged output option
+@samp{-m}.
+
+@node Interactive Merging, Merging with patch, diff3 Merging, Top
+@chapter Interactive Merging with @code{sdiff}
+@cindex diff merging
+@cindex interactive merging
+
+With @code{sdiff}, you can merge two files interactively based on a
+side-by-side @samp{-y} format comparison (@pxref{Side by Side}).  Use
+@samp{-o @var{file}} or @samp{--output=@var{file}} to specify where to
+put the merged text.  @xref{Invoking sdiff}, for more details on the
+options to @code{sdiff}.
+
+Another way to merge files interactively is to use the Emacs Lisp
+package @code{emerge}.  @xref{emerge, , emerge, emacs, The GNU Emacs
+Manual}, for more information.
+
+@menu
+* sdiff Option Summary::Summary of @code{sdiff} options.
+* Merge Commands::	Merging two files interactively.
+@end menu
+
+@node sdiff Option Summary, Merge Commands, , Interactive Merging
+@section Specifying @code{diff} Options to @code{sdiff}
+@cindex @code{sdiff} output format
+
+The following @code{sdiff} options have the same meaning as for
+@code{diff}.  @xref{diff Options}, for the use of these options.
+
+@example
+-a -b -d -i -t -v
+-B -H -I @var{regexp}
+
+--ignore-blank-lines  --ignore-case
+--ignore-matching-lines=@var{regexp}  --ignore-space-change
+--left-column  --minimal  --speed-large-files
+--suppress-common-lines  --expand-tabs
+--text  --version  --width=@var{columns}
+@end example
+
+For historical reasons, @code{sdiff} has alternate names for some
+options.  The @samp{-l} option is equivalent to the @samp{--left-column}
+option, and similarly @samp{-s} is equivalent to
+@samp{--suppress-common-lines}.  The meaning of the @code{sdiff}
+@samp{-w} and @samp{-W} options is interchanged from that of
+@code{diff}: with @code{sdiff}, @samp{-w @var{columns}} is equivalent to
+@samp{--width=@var{columns}}, and @samp{-W} is equivalent to
+@samp{--ignore-all-space}.  @code{sdiff} without the @samp{-o} option is
+equivalent to @code{diff} with the @samp{-y} or @samp{--side-by-side}
+option (@pxref{Side by Side}).
+
+@node Merge Commands, , sdiff Option Summary, Interactive Merging
+@section Merge Commands
+@cindex merge commands
+@cindex merging interactively
+
+Groups of common lines, with a blank gutter, are copied from the first
+file to the output.  After each group of differing lines, @code{sdiff}
+prompts with @samp{%} and pauses, waiting for one of the following
+commands.  Follow each command with @key{RET}.
+
+@table @samp
+@item e
+Discard both versions.
+Invoke a text editor on an empty temporary file,
+then copy the resulting file to the output.
+
+@item eb
+Concatenate the two versions, edit the result in a temporary file,
+then copy the edited result to the output.
+
+@item el
+Edit a copy of the left version, then copy the result to the output.
+
+@item er
+Edit a copy of the right version, then copy the result to the output.
+
+@item l
+Copy the left version to the output.
+
+@item q
+Quit.
+
+@item r
+Copy the right version to the output.
+
+@item s
+Silently copy common lines.
+
+@item v
+Verbosely copy common lines.  This is the default.
+@end table
+
+The text editor invoked is specified by the @code{EDITOR} environment
+variable if it is set.  The default is system-dependent.
+
+@node Merging with patch, Making Patches, Interactive Merging, Top
+@chapter Merging with @code{patch}
+
+@code{patch} takes comparison output produced by @code{diff} and applies
+the differences to a copy of the original file, producing a patched
+version.  With @code{patch}, you can distribute just the changes to a
+set of files instead of distributing the entire file set; your
+correspondents can apply @code{patch} to update their copy of the files
+with your changes.  @code{patch} automatically determines the diff
+format, skips any leading or trailing headers, and uses the headers to
+determine which file to patch.  This lets your correspondents feed an
+article or message containing a difference listing directly to
+@code{patch}.
+
+@code{patch} detects and warns about common problems like forward
+patches.  It saves the original version of the files it patches, and
+saves any patches that it could not apply.  It can also maintain a
+@code{patchlevel.h} file to ensures that your correspondents apply
+diffs in the proper order.
+
+@code{patch} accepts a series of diffs in its standard input, usually
+separated by headers that specify which file to patch.  It applies
+@code{diff} hunks (@pxref{Hunks}) one by one.  If a hunk does not
+exactly match the original file, @code{patch} uses heuristics to try to
+patch the file as well as it can.  If no approximate match can be found,
+@code{patch} rejects the hunk and skips to the next hunk.  @code{patch}
+normally replaces each file @var{f} with its new version, saving the
+original file in @samp{@var{f}.orig}, and putting reject hunks (if any)
+into @samp{@var{f}.rej}.
+
+@xref{Invoking patch}, for detailed information on the options to
+@code{patch}.  @xref{Backups}, for more information on how
+@code{patch} names backup files.  @xref{Rejects}, for more information
+on where @code{patch} puts reject hunks.
+
+@menu
+* patch Input::		Selecting the type of @code{patch} input.
+* Imperfect::		Dealing with imperfect patches.
+* Empty Files::		Removing empty files after patching.
+* Multiple Patches::	Handling multiple patches in a file specially.
+* patch Messages::	Messages and questions @code{patch} can produce.
+@end menu
+
+@node patch Input, Imperfect, , Merging with patch
+@section Selecting the @code{patch} Input Format
+@cindex @code{patch} input format
+
+@code{patch} normally determines which @code{diff} format the patch
+file uses by examining its contents.  For patch files that contain
+particularly confusing leading text, you might need to use one of the
+following options to force @code{patch} to interpret the patch file as a
+certain format of diff.  The output formats listed here are the only
+ones that @code{patch} can understand.
+
+@table @samp
+@item -c
+@itemx --context
+context diff.
+
+@item -e
+@itemx --ed
+@code{ed} script.
+
+@item -n
+@itemx --normal
+normal diff.
+
+@item -u
+@itemx --unified
+unified diff.
+@end table
+
+@node Imperfect, Empty Files, patch Input, Merging with patch
+@section Applying Imperfect Patches
+@cindex imperfect patch application
+
+@code{patch} tries to skip any leading text in the patch file, apply the
+diff, and then skip any trailing text.  Thus you can feed a news article
+or mail message directly to @code{patch}, and it should work.  If the
+entire diff is indented by a constant amount of white space, @code{patch}
+automatically ignores the indentation.
+
+However, certain other types of imperfect input require user
+intervention.
+
+@menu
+* Changed White Space::	When tabs and spaces don't match exactly.
+* Reversed Patches::	Applying reversed patches correctly.
+* Inexact::		Helping @code{patch} find close matches.
+@end menu
+
+@node Changed White Space, Reversed Patches, , Imperfect
+@subsection Applying Patches with Changed White Space
+@cindex white space in patches
+
+Sometimes mailers, editors, or other programs change spaces into tabs,
+or vice versa.  If this happens to a patch file or an input file, the
+files might look the same, but @code{patch} will not be able to match
+them properly.  If this problem occurs, use the @samp{-l} or
+@samp{--ignore-white-space} option, which makes @code{patch} compare
+white space loosely so that any sequence of white space in the patch file
+matches any sequence of white space in the input files.  Non-white-space
+characters must still match exactly.  Each line of the context must
+still match a line in the input file.
+
+@node Reversed Patches, Inexact, Changed White Space, Imperfect
+@subsection Applying Reversed Patches
+@cindex reversed patches
+
+Sometimes people run @code{diff} with the new file first instead of
+second.  This creates a diff that is ``reversed''.  To apply such
+patches, give @code{patch} the @samp{-R} or @samp{--reverse} option.
+@code{patch} then attempts to swap each hunk around before applying it.
+Rejects come out in the swapped format.  The @samp{-R} option does not
+work with @code{ed} scripts because there is too little information in
+them to reconstruct the reverse operation.
+
+Often @code{patch} can guess that the patch is reversed.  If the first
+hunk of a patch fails, @code{patch} reverses the hunk to see if it can
+apply it that way.  If it can, @code{patch} asks you if you want to have
+the @samp{-R} option set; if it can't, @code{patch} continues to apply
+the patch normally.  This method cannot detect a reversed patch if it is
+a normal diff and the first command is an append (which should have been
+a delete) since appends always succeed, because a null context matches
+anywhere.  But most patches add or change lines rather than delete them,
+so most reversed normal diffs begin with a delete, which fails, and
+@code{patch} notices.
+
+If you apply a patch that you have already applied, @code{patch} thinks
+it is a reversed patch and offers to un-apply the patch.  This could be
+construed as a feature.  If you did this inadvertently and you don't
+want to un-apply the patch, just answer @samp{n} to this offer and to
+the subsequent ``apply anyway'' question---or type @kbd{C-c} to kill the
+@code{patch} process.
+
+@node Inexact, , Reversed Patches, Imperfect
+@subsection Helping @code{patch} Find Inexact Matches
+@cindex inexact patches
+@cindex fuzz factor when patching
+
+For context diffs, and to a lesser extent normal diffs, @code{patch} can
+detect when the line numbers mentioned in the patch are incorrect, and
+it attempts to find the correct place to apply each hunk of the patch.
+As a first guess, it takes the line number mentioned in the hunk, plus
+or minus any offset used in applying the previous hunk.  If that is not
+the correct place, @code{patch} scans both forward and backward for a
+set of lines matching the context given in the hunk.
+
+First @code{patch} looks for a place where all lines of the context
+match.  If it cannot find such a place, and it is reading a context or
+unified diff, and the maximum fuzz factor is set to 1 or more, then
+@code{patch} makes another scan, ignoring the first and last line of
+context.  If that fails, and the maximum fuzz factor is set to 2 or
+more, it makes another scan, ignoring the first two and last two lines
+of context are ignored.  It continues similarly if the maximum fuzz
+factor is larger.
+
+The @samp{-F @var{lines}} or @samp{--fuzz=@var{lines}} option sets the
+maximum fuzz factor to @var{lines}.  This option only applies to context
+and unified diffs; it ignores up to @var{lines} lines while looking for
+the place to install a hunk.  Note that a larger fuzz factor increases
+the odds of making a faulty patch.  The default fuzz factor is 2; it may
+not be set to more than the number of lines of context in the diff,
+ordinarily 3.
+
+If @code{patch} cannot find a place to install a hunk of the patch, it
+writes the hunk out to a reject file (@pxref{Rejects}, for information
+on how reject files are named).  It writes out rejected hunks in context
+format no matter what form the input patch is in.  If the input is a
+normal or @code{ed} diff, many of the contexts are simply null.  The
+line numbers on the hunks in the reject file may be different from those
+in the patch file: they show the approximate location where @code{patch}
+thinks the failed hunks belong in the new file rather than in the old
+one.
+
+As it completes each hunk, @code{patch} tells you whether the hunk
+succeeded or failed, and if it failed, on which line (in the new file)
+@code{patch} thinks the hunk should go.  If this is different from the
+line number specified in the diff, it tells you the offset.  A single
+large offset @emph{may} indicate that @code{patch} installed a hunk in
+the wrong place.  @code{patch} also tells you if it used a fuzz factor
+to make the match, in which case you should also be slightly suspicious.
+
+@code{patch} cannot tell if the line numbers are off in an @code{ed}
+script, and can only detect wrong line numbers in a normal diff when it
+finds a change or delete command.  It may have the same problem with a
+context diff using a fuzz factor equal to or greater than the number of
+lines of context shown in the diff (typically 3).  In these cases, you
+should probably look at a context diff between your original and patched
+input files to see if the changes make sense.  Compiling without errors
+is a pretty good indication that the patch worked, but not a guarantee.
+
+@code{patch} usually produces the correct results, even when it must
+make many guesses.  However, the results are guaranteed only when
+the patch is applied to an exact copy of the file that the patch was
+generated from.
+
+@node Empty Files, Multiple Patches, Imperfect, Merging with patch
+@section Removing Empty Files
+@cindex empty files, removing
+@cindex removing empty files
+
+Sometimes when comparing two directories, the first directory contains a
+file that the second directory does not.  If you give @code{diff} the
+@samp{-N} or @samp{--new-file} option, it outputs a diff that deletes
+the contents of this file.  By default, @code{patch} leaves an empty
+file after applying such a diff.  The @samp{-E} or
+@samp{--remove-empty-files} option to @code{patch} deletes output files
+that are empty after applying the diff.
+
+@node Multiple Patches, patch Messages, Empty Files, Merging with patch
+@section Multiple Patches in a File
+@cindex multiple patches
+
+If the patch file contains more than one patch, @code{patch} tries to
+apply each of them as if they came from separate patch files.  This
+means that it determines the name of the file to patch for each patch,
+and that it examines the leading text before each patch for file names
+and prerequisite revision level (@pxref{Making Patches}, for more on
+that topic).
+
+For the second and subsequent patches in the patch file, you can give
+options and another original file name by separating their argument
+lists with a @samp{+}.  However, the argument list for a second or
+subsequent patch may not specify a new patch file, since that does not
+make sense.
+
+For example, to tell @code{patch} to strip the first three slashes from
+the name of the first patch in the patch file and none from subsequent
+patches, and to use @file{code.c} as the first input file, you can use:
+
+@example
+patch -p3 code.c + -p0 < patchfile
+@end example
+
+The @samp{-S} or @samp{--skip} option ignores the current patch from the
+patch file, but continue looking for the next patch in the file.  Thus,
+to ignore the first and third patches in the patch file, you can use:
+
+@example
+patch -S + + -S + < patch file
+@end example
+
+@node patch Messages, , Multiple Patches, Merging with patch
+@section Messages and Questions from @code{patch}
+@cindex @code{patch} messages and questions
+@cindex diagnostics from @code{patch}
+@cindex messages from @code{patch}
+
+@code{patch} can produce a variety of messages, especially if it has
+trouble decoding its input.  In a few situations where it's not sure how
+to proceed, @code{patch} normally prompts you for more information from
+the keyboard.  There are options to suppress printing non-fatal messages
+and stopping for keyboard input.
+
+The message @samp{Hmm...} indicates that @code{patch} is reading text in
+the patch file, attempting to determine whether there is a patch in that
+text, and if so, what kind of patch it is.
+
+You can inhibit all terminal output from @code{patch}, unless an error
+occurs, by using the @samp{-s}, @samp{--quiet}, or @samp{--silent}
+option.
+
+There are two ways you can prevent @code{patch} from asking you any
+questions.  The @samp{-f} or @samp{--force} option assumes that you know
+what you are doing.  It assumes the following:
+
+@itemize @bullet
+@item
+skip patches that do not contain file names in their headers;
+
+@item
+patch files even though they have the wrong version for the
+@samp{Prereq:} line in the patch;
+
+@item
+assume that patches are not reversed even if they look like they are.
+@end itemize
+
+The @samp{-t} or @samp{--batch} option is similar to @samp{-f}, in that
+it suppresses questions, but it makes somewhat different assumptions:
+
+@itemize @bullet
+@item
+skip patches that do not contain file names in their headers
+(the same as @samp{-f});
+
+@item
+skip patches for which the file has the wrong version for the
+@samp{Prereq:} line in the patch;
+
+@item
+assume that patches are reversed if they look like they are.
+@end itemize
+
+@code{patch} exits with a non-zero status if it creates any reject
+files.  When applying a set of patches in a loop, you should check the
+exit status, so you don't apply a later patch to a partially patched
+file.
+
+@node Making Patches, Invoking cmp, Merging with patch, Top
+@chapter Tips for Making Patch Distributions
+@cindex patch making tips
+@cindex tips for patch making
+
+Here are some things you should keep in mind if you are going to
+distribute patches for updating a software package.
+
+Make sure you have specified the file names correctly, either in a
+context diff header or with an @samp{Index:} line.  If you are patching
+files in a subdirectory, be sure to tell the patch user to specify a
+@samp{-p} or @samp{--strip} option as needed.  Take care to not send out
+reversed patches, since these make people wonder whether they have
+already applied the patch.
+
+To save people from partially applying a patch before other patches that
+should have gone before it, you can make the first patch in the patch
+file update a file with a name like @file{patchlevel.h} or
+@file{version.c}, which contains a patch level or version number.  If
+the input file contains the wrong version number, @code{patch} will
+complain immediately.
+
+An even clearer way to prevent this problem is to put a @samp{Prereq:}
+line before the patch.  If the leading text in the patch file contains a
+line that starts with @samp{Prereq:}, @code{patch} takes the next word
+from that line (normally a version number) and checks whether the next
+input file contains that word, preceded and followed by either
+white space or a newline.  If not, @code{patch} prompts you for
+confirmation before proceeding.  This makes it difficult to accidentally
+apply patches in the wrong order.
+
+Since @code{patch} does not handle incomplete lines properly, make sure
+that all the source files in your program end with a newline whenever
+you release a version.
+
+To create a patch that changes an older version of a package into a
+newer version, first make a copy of the older version in a scratch
+directory.  Typically you do that by unpacking a @code{tar} or
+@code{shar} archive of the older version.
+
+You might be able to reduce the size of the patch by renaming or
+removing some files before making the patch.  If the older version of
+the package contains any files that the newer version does not, or if
+any files have been renamed between the two versions, make a list of
+@code{rm} and @code{mv} commands for the user to execute in the old
+version directory before applying the patch.  Then run those commands
+yourself in the scratch directory.
+
+If there are any files that you don't need to include in the patch
+because they can easily be rebuilt from other files (for example,
+@file{TAGS} and output from @code{yacc} and @code{makeinfo}), replace
+the versions in the scratch directory with the newer versions, using
+@code{rm} and @code{ln} or @code{cp}.
+
+Now you can create the patch.  The de-facto standard @code{diff} format
+for patch distributions is context format with two lines of context,
+produced by giving @code{diff} the @samp{-C 2} option.  Do not use less
+than two lines of context, because @code{patch} typically needs at
+least two lines for proper operation.  Give @code{diff} the @samp{-P}
+option in case the newer version of the package contains any files that
+the older one does not.  Make sure to specify the scratch directory
+first and the newer directory second.
+
+Add to the top of the patch a note telling the user any @code{rm} and
+@code{mv} commands to run before applying the patch.  Then you can
+remove the scratch directory.
+
+@node Invoking cmp, Invoking diff, Making Patches, Top
+@chapter Invoking @code{cmp}
+@cindex invoking @code{cmp}
+@cindex @code{cmp} invocation
+
+The @code{cmp} command compares two files, and if they differ, tells the
+first byte and line number where they differ.  Its arguments are as
+follows:
+
+@example
+cmp @var{options}@dots{} @var{from-file} @r{[}@var{to-file}@var{]}
+@end example
+
+The file name @samp{-} is always the standard input.  @code{cmp} also
+uses the standard input if one file name is omitted.
+
+An exit status of 0 means no differences were found, 1 means some
+differences were found, and 2 means trouble.
+
+@menu
+* cmp Options::		Summary of options to @code{cmp}.
+@end menu
+
+@node cmp Options, , , Invoking cmp
+@section Options to @code{cmp}
+@cindex @code{cmp} options
+@cindex options for @code{cmp}
+
+Below is a summary of all of the options that GNU @code{cmp} accepts.
+Most options have two equivalent names, one of which is a single letter
+preceded by @samp{-}, and the other of which is a long name preceded by
+@samp{--}.  Multiple single letter options (unless they take an
+argument) can be combined into a single command line word: @samp{-cl} is
+equivalent to @samp{-c -l}.
+
+@table @samp
+@item -c
+Print the differing characters.  Display control characters as a
+@samp{^} followed by a letter of the alphabet and precede characters
+that have the high bit set with @samp{M-} (which stands for ``meta'').
+
+@item --ignore-initial=@var{bytes}
+Ignore any differences in the the first @var{bytes} bytes of the input files.
+Treat files with fewer than @var{bytes} bytes as if they are empty.
+
+@item -l
+Print the (decimal) offsets and (octal) values of all differing bytes.
+
+@item --print-chars
+Print the differing characters.  Display control characters as a
+@samp{^} followed by a letter of the alphabet and precede characters
+that have the high bit set with @samp{M-} (which stands for ``meta'').
+
+@item --quiet
+@itemx -s
+@itemx --silent
+Do not print anything; only return an exit status indicating whether
+the files differ.
+
+@item --verbose
+Print the (decimal) offsets and (octal) values of all differing bytes.
+
+@item -v
+@item --version
+Output the version number of @code{cmp}.
+@end table
+
+@node Invoking diff, Invoking diff3, Invoking cmp, Top
+@chapter Invoking @code{diff}
+@cindex invoking @code{diff}
+@cindex @code{diff} invocation
+
+The format for running the @code{diff} command is:
+
+@example
+diff @var{options}@dots{} @var{from-file} @var{to-file}
+@end example
+
+In the simplest case, @code{diff} compares the contents of the two files
+@var{from-file} and @var{to-file}.  A file name of @samp{-} stands for
+text read from the standard input.  As a special case, @samp{diff - -}
+compares a copy of standard input to itself.
+
+If @var{from-file} is a directory and @var{to-file} is not, @code{diff}
+compares the file in @var{from-file} whose file name is that of @var{to-file},
+and vice versa.  The non-directory file must not be @samp{-}.
+
+If both @var{from-file} and @var{to-file} are directories,
+@code{diff} compares corresponding files in both directories, in
+alphabetical order; this comparison is not recursive unless the
+@samp{-r} or @samp{--recursive} option is given.  @code{diff} never
+compares the actual contents of a directory as if it were a file.  The
+file that is fully specified may not be standard input, because standard
+input is nameless and the notion of ``file with the same name'' does not
+apply.
+
+@code{diff} options begin with @samp{-}, so normally @var{from-file} and
+@var{to-file} may not begin with @samp{-}.  However, @samp{--} as an
+argument by itself treats the remaining arguments as file names even if
+they begin with @samp{-}.
+
+An exit status of 0 means no differences were found, 1 means some
+differences were found, and 2 means trouble.
+
+@menu
+* diff Options::	Summary of options to @code{diff}.
+@end menu
+
+@node diff Options, , , Invoking diff
+@section Options to @code{diff}
+@cindex @code{diff} options
+@cindex options for @code{diff}
+
+Below is a summary of all of the options that GNU @code{diff} accepts.
+Most options have two equivalent names, one of which is a single letter
+preceded by @samp{-}, and the other of which is a long name preceded by
+@samp{--}.  Multiple single letter options (unless they take an
+argument) can be combined into a single command line word: @samp{-ac} is
+equivalent to @samp{-a -c}.  Long named options can be abbreviated to
+any unique prefix of their name.  Brackets ([ and ]) indicate that an
+option takes an optional argument.
+
+@table @samp
+@item -@var{lines}
+Show @var{lines} (an integer) lines of context.  This option does not
+specify an output format by itself; it has no effect unless it is
+combined with @samp{-c} (@pxref{Context Format}) or @samp{-u}
+(@pxref{Unified Format}).  This option is obsolete.  For proper
+operation, @code{patch} typically needs at least two lines of context.
+
+@item -a
+Treat all files as text and compare them line-by-line, even if they
+do not seem to be text.  @xref{Binary}.
+
+@item -b
+Ignore changes in amount of white space.  @xref{White Space}.
+
+@item -B
+Ignore changes that just insert or delete blank lines.  @xref{Blank
+Lines}.
+
+@item --binary
+Read and write data in binary mode.  @xref{Binary}.
+
+@item --brief
+Report only whether the files differ, not the details of the
+differences.  @xref{Brief}.
+
+@item -c
+Use the context output format.  @xref{Context Format}.
+
+@item -C @var{lines}
+@itemx --context@r{[}=@var{lines}@r{]}
+Use the context output format, showing @var{lines} (an integer) lines of
+context, or three if @var{lines} is not given.  @xref{Context Format}.
+For proper operation, @code{patch} typically needs at least two lines of
+context.
+
+@item --changed-group-format=@var{format}
+Use @var{format} to output a line group containing differing lines from
+both files in if-then-else format.  @xref{Line Group Formats}.
+
+@item -d
+Change the algorithm perhaps find a smaller set of changes.  This makes
+@code{diff} slower (sometimes much slower).  @xref{diff Performance}.
+
+@item -D @var{name}
+Make merged @samp{#ifdef} format output, conditional on the preprocessor
+macro @var{name}.  @xref{If-then-else}.
+
+@item -e
+@itemx --ed
+Make output that is a valid @code{ed} script.  @xref{ed Scripts}.
+
+@item --exclude=@var{pattern}
+When comparing directories, ignore files and subdirectories whose basenames
+match @var{pattern}.  @xref{Comparing Directories}.
+
+@item --exclude-from=@var{file}
+When comparing directories, ignore files and subdirectories whose basenames
+match any pattern contained in @var{file}.  @xref{Comparing Directories}.
+
+@item --expand-tabs
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.  @xref{Tabs}.
+
+@item -f
+Make output that looks vaguely like an @code{ed} script but has changes
+in the order they appear in the file.  @xref{Forward ed}.
+
+@item -F @var{regexp}
+In context and unified format, for each hunk of differences, show some
+of the last preceding line that matches @var{regexp}.  @xref{Specified
+Headings}.
+
+@item --forward-ed
+Make output that looks vaguely like an @code{ed} script but has changes
+in the order they appear in the file.  @xref{Forward ed}.
+
+@item -h
+This option currently has no effect; it is present for Unix
+compatibility.
+
+@item -H
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.  @xref{diff Performance}.
+
+@item --horizon-lines=@var{lines}
+Do not discard the last @var{lines} lines of the common prefix
+and the first @var{lines} lines of the common suffix.
+@xref{diff Performance}.
+
+@item -i
+Ignore changes in case; consider upper- and lower-case letters
+equivalent.  @xref{Case Folding}.
+
+@item -I @var{regexp}
+Ignore changes that just insert or delete lines that match @var{regexp}.
+@xref{Specified Folding}.
+
+@item --ifdef=@var{name}
+Make merged if-then-else output using @var{name}.  @xref{If-then-else}.
+
+@item --ignore-all-space
+Ignore white space when comparing lines.  @xref{White Space}.
+
+@item --ignore-blank-lines
+Ignore changes that just insert or delete blank lines.  @xref{Blank
+Lines}.
+
+@item --ignore-case
+Ignore changes in case; consider upper- and lower-case to be the same.
+@xref{Case Folding}.
+
+@item --ignore-matching-lines=@var{regexp}
+Ignore changes that just insert or delete lines that match @var{regexp}.
+@xref{Specified Folding}.
+
+@item --ignore-space-change
+Ignore changes in amount of white space.
+@xref{White Space}.
+
+@item --initial-tab
+Output a tab rather than a space before the text of a line in normal or
+context format.  This causes the alignment of tabs in the line to look
+normal.  @xref{Tabs}.
+
+@item -l
+Pass the output through @code{pr} to paginate it.  @xref{Pagination}.
+
+@item -L @var{label}
+Use @var{label} instead of the file name in the context format
+(@pxref{Context Format}) and unified format (@pxref{Unified Format})
+headers.  @xref{RCS}.
+
+@item --label=@var{label}
+Use @var{label} instead of the file name in the context format
+(@pxref{Context Format}) and unified format (@pxref{Unified Format})
+headers.
+
+@item --left-column
+Print only the left column of two common lines in side by side format.
+@xref{Side by Side Format}.
+
+@item --line-format=@var{format}
+Use @var{format} to output all input lines in if-then-else format.
+@xref{Line Formats}.
+
+@item --minimal
+Change the algorithm to perhaps find a smaller set of changes.  This
+makes @code{diff} slower (sometimes much slower).  @xref{diff
+Performance}.
+
+@item -n
+Output RCS-format diffs; like @samp{-f} except that each command
+specifies the number of lines affected.  @xref{RCS}.
+
+@item -N
+@itemx --new-file
+In directory comparison, if a file is found in only one directory,
+treat it as present but empty in the other directory.  @xref{Comparing
+Directories}.
+
+@item --new-group-format=@var{format}
+Use @var{format} to output a group of lines taken from just the second
+file in if-then-else format.  @xref{Line Group Formats}.
+
+@item --new-line-format=@var{format}
+Use @var{format} to output a line taken from just the second file in
+if-then-else format.  @xref{Line Formats}.
+
+@item --old-group-format=@var{format}
+Use @var{format} to output a group of lines taken from just the first
+file in if-then-else format.  @xref{Line Group Formats}.
+
+@item --old-line-format=@var{format}
+Use @var{format} to output a line taken from just the first file in
+if-then-else format.  @xref{Line Formats}.
+
+@item -p
+Show which C function each change is in.  @xref{C Function Headings}.
+
+@item -P
+When comparing directories, if a file appears only in the second
+directory of the two, treat it as present but empty in the other.
+@xref{Comparing Directories}.
+
+@item --paginate
+Pass the output through @code{pr} to paginate it.  @xref{Pagination}.
+
+@item -q
+Report only whether the files differ, not the details of the
+differences.  @xref{Brief}.
+
+@item -r
+When comparing directories, recursively compare any subdirectories
+found.  @xref{Comparing Directories}.
+
+@item --rcs
+Output RCS-format diffs; like @samp{-f} except that each command
+specifies the number of lines affected.  @xref{RCS}.
+
+@item --recursive
+When comparing directories, recursively compare any subdirectories
+found.  @xref{Comparing Directories}.
+
+@item --report-identical-files
+Report when two files are the same.  @xref{Comparing Directories}.
+
+@item -s
+Report when two files are the same.  @xref{Comparing Directories}.
+
+@item -S @var{file}
+When comparing directories, start with the file @var{file}.  This is
+used for resuming an aborted comparison.  @xref{Comparing Directories}.
+
+@item --sdiff-merge-assist
+Print extra information to help @code{sdiff}.  @code{sdiff} uses this
+option when it runs @code{diff}.  This option is not intended for users
+to use directly.
+
+@item --show-c-function
+Show which C function each change is in.  @xref{C Function Headings}.
+
+@item --show-function-line=@var{regexp}
+In context and unified format, for each hunk of differences, show some
+of the last preceding line that matches @var{regexp}.  @xref{Specified
+Headings}.
+
+@item --side-by-side
+Use the side by side output format.  @xref{Side by Side Format}.
+
+@item --speed-large-files
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.  @xref{diff Performance}.
+
+@item --starting-file=@var{file}
+When comparing directories, start with the file @var{file}.  This is
+used for resuming an aborted comparison.  @xref{Comparing Directories}.
+
+@item --suppress-common-lines
+Do not print common lines in side by side format.
+@xref{Side by Side Format}.
+
+@item -t
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.  @xref{Tabs}.
+
+@item -T
+Output a tab rather than a space before the text of a line in normal or
+context format.  This causes the alignment of tabs in the line to look
+normal.  @xref{Tabs}.
+
+@item --text
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.  @xref{Binary}.
+
+@item -u
+Use the unified output format.  @xref{Unified Format}.
+
+@item --unchanged-group-format=@var{format}
+Use @var{format} to output a group of common lines taken from both files
+in if-then-else format.  @xref{Line Group Formats}.
+
+@item --unchanged-line-format=@var{format}
+Use @var{format} to output a line common to both files in if-then-else
+format.  @xref{Line Formats}.
+
+@item --unidirectional-new-file
+When comparing directories, if a file appears only in the second
+directory of the two, treat it as present but empty in the other.
+@xref{Comparing Directories}.
+
+@item -U @var{lines}
+@itemx --unified@r{[}=@var{lines}@r{]}
+Use the unified output format, showing @var{lines} (an integer) lines of
+context, or three if @var{lines} is not given.  @xref{Unified Format}.
+For proper operation, @code{patch} typically needs at least two lines of
+context.
+
+@item -v
+@itemx --version
+Output the version number of @code{diff}.
+
+@item -w
+Ignore white space when comparing lines.  @xref{White Space}.
+
+@item -W @var{columns}
+@itemx --width=@var{columns}
+Use an output width of @var{columns} in side by side format.
+@xref{Side by Side Format}.
+
+@item -x @var{pattern}
+When comparing directories, ignore files and subdirectories whose basenames
+match @var{pattern}.  @xref{Comparing Directories}.
+
+@item -X @var{file}
+When comparing directories, ignore files and subdirectories whose basenames
+match any pattern contained in @var{file}.  @xref{Comparing Directories}.
+
+@item -y
+Use the side by side output format.  @xref{Side by Side Format}.
+@end table
+
+@node Invoking diff3, Invoking patch, Invoking diff, Top
+@chapter Invoking @code{diff3}
+@cindex invoking @code{diff3}
+@cindex @code{diff3} invocation
+
+The @code{diff3} command compares three files and outputs descriptions
+of their differences.  Its arguments are as follows:
+
+@example
+diff3 @var{options}@dots{} @var{mine} @var{older} @var{yours}
+@end example
+
+The files to compare are @var{mine}, @var{older}, and @var{yours}.
+At most one of these three file names may be @samp{-},
+which tells @code{diff3} to read the standard input for that file.
+
+An exit status of 0 means @code{diff3} was successful, 1 means some
+conflicts were found, and 2 means trouble.
+
+@menu
+* diff3 Options::		Summary of options to @code{diff3}.
+@end menu
+
+@node diff3 Options, , , Invoking diff3
+@section Options to @code{diff3}
+@cindex @code{diff3} options
+@cindex options for @code{diff3}
+
+Below is a summary of all of the options that GNU @code{diff3}
+accepts.  Multiple single letter options (unless they take an argument)
+can be combined into a single command line argument.
+
+@table @samp
+@item -a
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.  @xref{Binary}.
+
+@item -A
+Incorporate all changes from @var{older} to @var{yours} into @var{mine},
+surrounding all conflicts with bracket lines.
+@xref{Marking Conflicts}.
+
+@item -e
+Generate an @code{ed} script that incorporates all the changes from
+@var{older} to @var{yours} into @var{mine}.  @xref{Which Changes}.
+
+@item -E
+Like @samp{-e}, except bracket lines from overlapping changes' first
+and third files.
+@xref{Marking Conflicts}.
+With @samp{-e}, an overlapping change looks like this:
+
+@example
+<<<<<<< @var{mine}
+@r{lines from @var{mine}}
+=======
+@r{lines from @var{yours}}
+>>>>>>> @var{yours}
+@end example
+
+@item --ed
+Generate an @code{ed} script that incorporates all the changes from
+@var{older} to @var{yours} into @var{mine}.  @xref{Which Changes}.
+
+@item --easy-only
+Like @samp{-e}, except output only the nonoverlapping changes.
+@xref{Which Changes}.
+
+@item -i
+Generate @samp{w} and @samp{q} commands at the end of the @code{ed}
+script for System V compatibility.  This option must be combined with
+one of the @samp{-AeExX3} options, and may not be combined with @samp{-m}.
+@xref{Saving the Changed File}.
+
+@item --initial-tab
+Output a tab rather than two spaces before the text of a line in normal format.
+This causes the alignment of tabs in the line to look normal.  @xref{Tabs}.
+
+@item -L @var{label}
+@itemx --label=@var{label}
+Use the label @var{label} for the brackets output by the @samp{-A},
+@samp{-E} and @samp{-X} options.  This option may be given up to three
+times, one for each input file.  The default labels are the names of
+the input files.  Thus @samp{diff3 -L X -L Y -L Z -m A B C} acts like
+@samp{diff3 -m A B C}, except that the output looks like it came from
+files named @samp{X}, @samp{Y} and @samp{Z} rather than from files
+named @samp{A}, @samp{B} and @samp{C}.  @xref{Marking Conflicts}.
+
+@item -m
+@itemx --merge
+Apply the edit script to the first file and send the result to standard
+output.  Unlike piping the output from @code{diff3} to @code{ed}, this
+works even for binary files and incomplete lines.  @samp{-A} is assumed
+if no edit script option is specified.  @xref{Bypassing ed}.
+
+@item --overlap-only
+Like @samp{-e}, except output only the overlapping changes.
+@xref{Which Changes}.
+
+@item --show-all
+Incorporate all unmerged changes from @var{older} to @var{yours} into
+@var{mine}, surrounding all overlapping changes with bracket lines.
+@xref{Marking Conflicts}.
+
+@item --show-overlap
+Like @samp{-e}, except bracket lines from overlapping changes' first
+and third files.
+@xref{Marking Conflicts}.
+
+@item -T
+Output a tab rather than two spaces before the text of a line in normal format.
+This causes the alignment of tabs in the line to look normal.  @xref{Tabs}.
+
+@item --text
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.  @xref{Binary}.
+
+@item -v
+@itemx --version
+Output the version number of @code{diff3}.
+
+@item -x
+Like @samp{-e}, except output only the overlapping changes.
+@xref{Which Changes}.
+
+@item -X
+Like @samp{-E}, except output only the overlapping changes.
+In other words, like @samp{-x}, except bracket changes as in @samp{-E}.
+@xref{Marking Conflicts}.
+
+@item -3
+Like @samp{-e}, except output only the nonoverlapping changes.
+@xref{Which Changes}.
+@end table
+
+@node Invoking patch, Invoking sdiff, Invoking diff3, Top
+@chapter Invoking @code{patch}
+@cindex invoking @code{patch}
+@cindex @code{patch} invocation
+
+Normally @code{patch} is invoked like this:
+
+@example
+patch <@var{patchfile}
+@end example
+
+The full format for invoking @code{patch} is:
+
+@example
+patch @var{options}@dots{} @r{[}@var{origfile} @r{[}@var{patchfile}@r{]}@r{]} @r{[}+ @var{options}@dots{} @r{[}@var{origfile}@r{]}@r{]}@dots{}
+@end example
+
+If you do not specify @var{patchfile}, or if @var{patchfile} is
+@samp{-}, @code{patch} reads the patch (that is, the @code{diff} output)
+from the standard input.
+
+You can specify one or more of the original files as @var{orig} arguments;
+each one and options for interpreting it is separated from the others with a
+@samp{+}.  @xref{Multiple Patches}, for more information.
+
+If you do not specify an input file on the command line, @code{patch}
+tries to figure out from the @dfn{leading text} (any text in the patch
+that comes before the @code{diff} output) which file to edit.  In the
+header of a context or unified diff, @code{patch} looks in lines
+beginning with @samp{***}, @samp{---}, or @samp{+++}; among those, it
+chooses the shortest name of an existing file.  Otherwise, if there is
+an @samp{Index:} line in the leading text, @code{patch} tries to use the
+file name from that line.  If @code{patch} cannot figure out the name of
+an existing file from the leading text, it prompts you for the name of
+the file to patch.
+
+If the input file does not exist or is read-only, and a suitable RCS or
+SCCS file exists, @code{patch} attempts to check out or get the file
+before proceeding.
+
+By default, @code{patch} replaces the original input file with the
+patched version, after renaming the original file into a backup file
+(@pxref{Backups}, for a description of how @code{patch} names backup
+files).  You can also specify where to put the output with the @samp{-o
+@var{output-file}} or @samp{--output=@var{output-file}} option.
+
+@menu
+* patch Directories::	Changing directory and stripping directories.
+* Backups::		Backup file names.
+* Rejects::		Reject file names.
+* patch Options::	Summary table of options to @code{patch}.
+@end menu
+
+@node patch Directories, Backups, , Invoking patch
+@section Applying Patches in Other Directories
+@cindex directories and patch
+@cindex patching directories
+
+The @samp{-d @var{directory}} or @samp{--directory=@var{directory}}
+option to @code{patch} makes directory @var{directory} the current
+directory for interpreting both file names in the patch file, and file
+names given as arguments to other options (such as @samp{-B} and
+@samp{-o}).  For example, while in a news reading program, you can patch
+a file in the @file{/usr/src/emacs} directory directly from the article
+containing the patch like this:
+
+@example
+| patch -d /usr/src/emacs
+@end example
+
+Sometimes the file names given in a patch contain leading directories,
+but you keep your files in a directory different from the one given in
+the patch.  In those cases, you can use the
+@samp{-p@r{[}@var{number}@r{]}} or @samp{--strip@r{[}=@var{number}@r{]}}
+option to set the file name strip count to @var{number}.  The strip
+count tells @code{patch} how many slashes, along with the directory
+names between them, to strip from the front of file names.  @samp{-p}
+with no @var{number} given is equivalent to @samp{-p0}.  By default,
+@code{patch} strips off all leading directories, leaving just the base file
+names, except that when a file name given in the patch is a relative
+file name and all of its leading directories already exist, @code{patch} does
+not strip off the leading directory.  (A @dfn{relative} file name is one
+that does not start with a slash.)
+
+@code{patch} looks for each file (after any slashes have been stripped)
+in the current directory, or if you used the @samp{-d @var{directory}}
+option, in that directory.
+
+For example, suppose the file name in the patch file is
+@file{/gnu/src/emacs/etc/NEWS}.  Using @samp{-p} or @samp{-p0} gives the
+entire file name unmodified, @samp{-p1} gives
+@file{gnu/src/emacs/etc/NEWS} (no leading slash), @samp{-p4} gives
+@file{etc/NEWS}, and not specifying @samp{-p} at all gives @file{NEWS}.
+
+@node Backups, Rejects, patch Directories, Invoking patch
+@section Backup File Names
+@cindex backup file names
+
+Normally, @code{patch} renames an original input file into a backup file
+by appending to its name the extension @samp{.orig}, or @samp{~} on
+systems that do not support long file names.  The @samp{-b
+@var{backup-suffix}} or @samp{--suffix=@var{backup-suffix}} option uses
+@var{backup-suffix} as the backup extension instead.
+
+Alternately, you can specify the extension for backup files with the
+@code{SIMPLE_BACKUP_SUFFIX} environment variable, which the options
+override.
+
+@code{patch} can also create numbered backup files the way GNU Emacs
+does.  With this method, instead of having a single backup of each file,
+@code{patch} makes a new backup file name each time it patches a file.
+For example, the backups of a file named @file{sink} would be called,
+successively, @file{sink.~1~}, @file{sink.~2~}, @file{sink.~3~}, etc.
+
+The @samp{-V @var{backup-style}} or
+@samp{--version-control=@var{backup-style}} option takes as an argument
+a method for creating backup file names.  You can alternately control
+the type of backups that @code{patch} makes with the
+@code{VERSION_CONTROL} environment variable, which the @samp{-V} option
+overrides.  The value of the @code{VERSION_CONTROL} environment variable
+and the argument to the @samp{-V} option are like the GNU Emacs
+@code{version-control} variable (@pxref{Backups,
+emacs, The GNU Emacs Manual}, for more information on backup versions in
+Emacs).  They also recognize synonyms that are more descriptive.  The
+valid values are listed below; unique abbreviations are acceptable.
+
+@table @samp
+@item t
+@itemx numbered
+Always make numbered backups.
+
+@item nil
+@itemx existing
+Make numbered backups of files that already have them, simple backups of
+the others.  This is the default.
+
+@item never
+@itemx simple
+Always make simple backups.
+@end table
+
+Alternately, you can tell @code{patch} to prepend a prefix, such as a
+directory name, to produce backup file names.  The @samp{-B
+@var{backup-prefix}} or @samp{--prefix=@var{backup-prefix}} option makes
+backup files by prepending @var{backup-prefix} to them.  If you use this
+option, @code{patch} ignores any @samp{-b} option that you give.
+
+If the backup file already exists, @code{patch} creates a new backup
+file name by changing the first lowercase letter in the last component
+of the file name into uppercase.  If there are no more lowercase letters
+in the name, it removes the first character from the name.  It repeats
+this process until it comes up with a backup file name that does not
+already exist.
+
+If you specify the output file with the @samp{-o} option, that file is
+the one that is backed up, not the input file.
+
+@node Rejects, patch Options, Backups, Invoking patch
+@section Reject File Names
+@cindex reject file names
+
+The names for reject files (files containing patches that @code{patch}
+could not find a place to apply) are normally the name of the output
+file with @samp{.rej} appended (or @samp{#} on systems that do not
+support long file names).
+
+Alternatively, you can tell @code{patch} to place all of the rejected
+patches in a single file.  The @samp{-r @var{reject-file}} or
+@samp{--reject-file=@var{reject-file}} option uses @var{reject-file} as
+the reject file name.
+
+@node patch Options, , Rejects, Invoking patch
+@section Options to @code{patch}
+@cindex @code{patch} options
+@cindex options for @code{patch}
+
+Here is a summary of all of the options that @code{patch} accepts.
+Older versions of @code{patch} do not accept long-named options or the
+@samp{-t}, @samp{-E}, or @samp{-V} options.
+
+Multiple single-letter options that do not take an argument can be
+combined into a single command line argument (with only one dash).
+Brackets ([ and ]) indicate that an option takes an optional argument.
+
+@table @samp
+@item -b @var{backup-suffix}
+Use @var{backup-suffix} as the backup extension instead of
+@samp{.orig} or @samp{~}.  @xref{Backups}.
+
+@item -B @var{backup-prefix}
+Use @var{backup-prefix} as a prefix to the backup file name.  If this
+option is specified, any @samp{-b} option is ignored.  @xref{Backups}.
+
+@item --batch
+Do not ask any questions.  @xref{patch Messages}.
+
+@item -c
+@itemx --context
+Interpret the patch file as a context diff.  @xref{patch Input}.
+
+@item -d @var{directory}
+@itemx --directory=@var{directory}
+Makes directory @var{directory} the current directory for interpreting
+both file names in the patch file, and file names given as arguments to
+other options.  @xref{patch Directories}.
+
+@item -D @var{name}
+Make merged if-then-else output using @var{format}.  @xref{If-then-else}.
+
+@item --debug=@var{number}
+Set internal debugging flags.  Of interest only to @code{patch}
+patchers.
+
+@item -e
+@itemx --ed
+Interpret the patch file as an @code{ed} script.  @xref{patch Input}.
+
+@item -E
+Remove output files that are empty after the patches have been applied.
+@xref{Empty Files}.
+
+@item -f
+Assume that the user knows exactly what he or she is doing, and do not
+ask any questions.  @xref{patch Messages}.
+
+@item -F @var{lines}
+Set the maximum fuzz factor to @var{lines}.  @xref{Inexact}.
+
+@item --force
+Assume that the user knows exactly what he or she is doing, and do not
+ask any questions.  @xref{patch Messages}.
+
+@item --forward
+Ignore patches that @code{patch} thinks are reversed or already applied.
+See also @samp{-R}.  @xref{Reversed Patches}.
+
+@item --fuzz=@var{lines}
+Set the maximum fuzz factor to @var{lines}.  @xref{Inexact}.
+
+@item --help
+Print a summary of the options that @code{patch} recognizes, then exit.
+
+@item --ifdef=@var{name}
+Make merged if-then-else output using @var{format}.  @xref{If-then-else}.
+
+@item --ignore-white-space
+@itemx -l
+Let any sequence of white space in the patch file match any sequence of
+white space in the input file.  @xref{Changed White Space}.
+
+@item -n
+@itemx --normal
+Interpret the patch file as a normal diff.  @xref{patch Input}.
+
+@item -N
+Ignore patches that @code{patch} thinks are reversed or already applied.
+See also @samp{-R}.  @xref{Reversed Patches}.
+
+@item -o @var{output-file}
+@itemx --output=@var{output-file}
+Use @var{output-file} as the output file name.  @xref{patch Options}.
+
+@item -p@r{[}@var{number}@r{]}
+Set the file name strip count to @var{number}.  @xref{patch Directories}.
+
+@item --prefix=@var{backup-prefix}
+Use @var{backup-prefix} as a prefix to the backup file name.  If this
+option is specified, any @samp{-b} option is ignored.  @xref{Backups}.
+
+@item --quiet
+Work silently unless an error occurs.  @xref{patch Messages}.
+
+@item -r @var{reject-file}
+Use @var{reject-file} as the reject file name.  @xref{Rejects}.
+
+@item -R
+Assume that this patch was created with the old and new files swapped.
+@xref{Reversed Patches}.
+
+@item --reject-file=@var{reject-file}
+Use @var{reject-file} as the reject file name.  @xref{Rejects}.
+
+@item --remove-empty-files
+Remove output files that are empty after the patches have been applied.
+@xref{Empty Files}.
+
+@item --reverse
+Assume that this patch was created with the old and new files swapped.
+@xref{Reversed Patches}.
+
+@item -s
+Work silently unless an error occurs.  @xref{patch Messages}.
+
+@item -S
+Ignore this patch from the patch file, but continue looking for the next
+patch in the file.  @xref{Multiple Patches}.
+
+@item --silent
+Work silently unless an error occurs.  @xref{patch Messages}.
+
+@item --skip
+Ignore this patch from the patch file, but continue looking for the next
+patch in the file.  @xref{Multiple Patches}.
+
+@item --strip@r{[}=@var{number}@r{]}
+Set the file name strip count to @var{number}.  @xref{patch Directories}.
+
+@item --suffix=@var{backup-suffix}
+Use @var{backup-suffix} as the backup extension instead of
+@samp{.orig} or @samp{~}.  @xref{Backups}.
+
+@item -t
+Do not ask any questions.  @xref{patch Messages}.
+
+@item -u
+@itemx --unified
+Interpret the patch file as a unified diff.  @xref{patch Input}.
+
+@item -v
+Output the revision header and patch level of @code{patch}.
+
+@item -V @var{backup-style}
+Select the kind of backups to make.  @xref{Backups}.
+
+@item --version
+Output the revision header and patch level of @code{patch}, then exit.
+
+@item --version=control=@var{backup-style}
+Select the kind of backups to make.  @xref{Backups}.
+
+@item -x @var{number}
+Set internal debugging flags.  Of interest only to @code{patch}
+patchers.
+@end table
+
+@node Invoking sdiff, Incomplete Lines, Invoking patch, Top
+@chapter Invoking @code{sdiff}
+@cindex invoking @code{sdiff}
+@cindex @code{sdiff} invocation
+
+The @code{sdiff} command merges two files and interactively outputs the
+results.  Its arguments are as follows:
+
+@example
+sdiff -o @var{outfile} @var{options}@dots{} @var{from-file} @var{to-file}
+@end example
+
+This merges @var{from-file} with @var{to-file}, with output to @var{outfile}.
+If @var{from-file} is a directory and @var{to-file} is not, @code{sdiff}
+compares the file in @var{from-file} whose file name is that of @var{to-file},
+and vice versa.  @var{from-file} and @var{to-file} may not both be
+directories.
+
+@code{sdiff} options begin with @samp{-}, so normally @var{from-file}
+and @var{to-file} may not begin with @samp{-}.  However, @samp{--} as an
+argument by itself treats the remaining arguments as file names even if
+they begin with @samp{-}.  You may not use @samp{-} as an input file.
+
+An exit status of 0 means no differences were found, 1 means some
+differences were found, and 2 means trouble.
+
+@code{sdiff} without @samp{-o} (or @samp{--output}) produces a
+side-by-side difference.  This usage is obsolete; use @samp{diff
+--side-by-side} instead.
+
+@menu
+* sdiff Options::	Summary of options to @code{diff}.
+@end menu
+
+@node sdiff Options, , , Invoking sdiff
+@section Options to @code{sdiff}
+@cindex @code{sdiff} options
+@cindex options for @code{sdiff}
+
+Below is a summary of all of the options that GNU @code{sdiff} accepts.
+Each option has two equivalent names, one of which is a single
+letter preceded by @samp{-}, and the other of which is a long name
+preceded by @samp{--}.  Multiple single letter options (unless they take
+an argument) can be combined into a single command line argument.  Long
+named options can be abbreviated to any unique prefix of their name.
+
+@table @samp
+@item -a
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.  @xref{Binary}.
+
+@item -b
+Ignore changes in amount of white space.  @xref{White Space}.
+
+@item -B
+Ignore changes that just insert or delete blank lines.  @xref{Blank
+Lines}.
+
+@item -d
+Change the algorithm to perhaps find a smaller set of changes.  This
+makes @code{sdiff} slower (sometimes much slower).  @xref{diff
+Performance}.
+
+@item -H
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.  @xref{diff Performance}.
+
+@item --expand-tabs
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.  @xref{Tabs}.
+
+@item -i
+Ignore changes in case; consider upper- and lower-case to be the same.
+@xref{Case Folding}.
+
+@item -I @var{regexp}
+Ignore changes that just insert or delete lines that match @var{regexp}.
+@xref{Specified Folding}.
+
+@item --ignore-all-space
+Ignore white space when comparing lines.  @xref{White Space}.
+
+@item --ignore-blank-lines
+Ignore changes that just insert or delete blank lines.  @xref{Blank
+Lines}.
+
+@item --ignore-case
+Ignore changes in case; consider upper- and lower-case to be the same.
+@xref{Case Folding}.
+
+@item --ignore-matching-lines=@var{regexp}
+Ignore changes that just insert or delete lines that match @var{regexp}.
+@xref{Specified Folding}.
+
+@item --ignore-space-change
+Ignore changes in amount of white space.
+@xref{White Space}.
+
+@item -l
+@itemx --left-column
+Print only the left column of two common lines.
+@xref{Side by Side Format}.
+
+@item --minimal
+Change the algorithm to perhaps find a smaller set of changes.  This
+makes @code{sdiff} slower (sometimes much slower).  @xref{diff
+Performance}.
+
+@item -o @var{file}
+@itemx --output=@var{file}
+Put merged output into @var{file}.  This option is required for merging.
+
+@item -s
+@itemx --suppress-common-lines
+Do not print common lines.  @xref{Side by Side Format}.
+
+@item --speed-large-files
+Use heuristics to speed handling of large files that have numerous
+scattered small changes.  @xref{diff Performance}.
+
+@item -t
+Expand tabs to spaces in the output, to preserve the alignment of tabs
+in the input files.  @xref{Tabs}.
+
+@item --text
+Treat all files as text and compare them line-by-line, even if they
+do not appear to be text.  @xref{Binary}.
+
+@item -v
+@itemx --version
+Output the version number of @code{sdiff}.
+
+@item -w @var{columns}
+@itemx --width=@var{columns}
+Use an output width of @var{columns}.  @xref{Side by Side Format}.
+Note that for historical reasons, this option is @samp{-W} in @code{diff},
+@samp{-w} in @code{sdiff}.
+
+@item -W
+Ignore horizontal white space when comparing lines.  @xref{White Space}.
+Note that for historical reasons, this option is @samp{-w} in @code{diff},
+@samp{-W} in @code{sdiff}.
+@end table
+
+@node Incomplete Lines, Projects, Invoking sdiff, Top
+@chapter Incomplete Lines
+@cindex incomplete lines
+@cindex full lines
+@cindex newline treatment by @code{diff}
+
+When an input file ends in a non-newline character, its last line is
+called an @dfn{incomplete line} because its last character is not a
+newline.  All other lines are called @dfn{full lines} and end in a
+newline character.  Incomplete lines do not match full lines unless
+differences in white space are ignored (@pxref{White Space}).
+
+An incomplete line is normally distinguished on output from a full line
+by a following line that starts with @samp{\}.  However, the RCS format
+(@pxref{RCS}) outputs the incomplete line as-is, without any trailing
+newline or following line.  The side by side format normally represents
+incomplete lines as-is, but in some cases uses a @samp{\} or @samp{/}
+gutter marker; @xref{Side by Side}.  The if-then-else line format
+preserves a line's incompleteness with @samp{%L}, and discards the
+newline with @samp{%l}; @xref{Line Formats}.  Finally, with the
+@code{ed} and forward @code{ed} output formats (@pxref{Output Formats})
+@code{diff} cannot represent an incomplete line, so it pretends there
+was a newline and reports an error.
+
+For example, suppose @file{F} and @file{G} are one-byte files that
+contain just @samp{f} and @samp{g}, respectively.  Then @samp{diff F G}
+outputs
+
+@example
+1c1
+< f
+\ No newline at end of file
+---
+> g
+\ No newline at end of file
+@end example
+
+@noindent
+(The exact message may differ in non-English locales.)
+@samp{diff -n F G} outputs the following without a trailing newline:
+
+@example
+d1 1
+a1 1
+g
+@end example
+
+@samp{diff -e F G} reports two errors and outputs the following:
+
+@example
+1c
+g
+.
+@end example
+
+@node Projects, Concept Index, Incomplete Lines, Top
+@chapter Future Projects
+
+Here are some ideas for improving GNU @code{diff} and @code{patch}.  The
+GNU project has identified some improvements as potential programming
+projects for volunteers.  You can also help by reporting any bugs that
+you find.
+
+If you are a programmer and would like to contribute something to the
+GNU project, please consider volunteering for one of these projects.  If
+you are seriously contemplating work, please write to
+@samp{gnu@@prep.ai.mit.edu} to coordinate with other volunteers.
+
+@menu
+* Shortcomings::	Suggested projects for improvements.
+* Bugs::		Reporting bugs.
+@end menu
+
+@node Shortcomings, Bugs, , Projects
+@section Suggested Projects for Improving GNU @code{diff} and @code{patch}
+@cindex projects for directories
+
+One should be able to use GNU @code{diff} to generate a patch from any
+pair of directory trees, and given the patch and a copy of one such
+tree, use @code{patch} to generate a faithful copy of the other.
+Unfortunately, some changes to directory trees cannot be expressed using
+current patch formats; also, @code{patch} does not handle some of the
+existing formats.  These shortcomings motivate the following suggested
+projects.
+
+@menu
+* Changing Structure::	Handling changes to the directory structure.
+* Special Files::	Handling symbolic links, device special files, etc.
+* Unusual File Names::	Handling file names that contain unusual characters.
+* Arbitrary Limits::	Patching non-text files.
+* Large Files::		Handling files that do not fit in memory.
+* Ignoring Changes::	Ignoring certain changes while showing others.
+@end menu
+
+@node Changing Structure, Special Files, , Shortcomings
+@subsection Handling Changes to the Directory Structure
+@cindex directory structure changes
+
+@code{diff} and @code{patch} do not handle some changes to directory
+structure.  For example, suppose one directory tree contains a directory
+named @samp{D} with some subsidiary files, and another contains a file
+with the same name @samp{D}.  @samp{diff -r} does not output enough
+information for @code{patch} to transform the the directory subtree into
+the file.
+
+There should be a way to specify that a file has been deleted without
+having to include its entire contents in the patch file.  There should
+also be a way to tell @code{patch} that a file was renamed, even if
+there is no way for @code{diff} to generate such information.
+
+These problems can be fixed by extending the @code{diff} output format
+to represent changes in directory structure, and extending @code{patch}
+to understand these extensions.
+
+@node Special Files, Unusual File Names, Changing Structure, Shortcomings
+@subsection Files that are Neither Directories Nor Regular Files
+@cindex special files
+
+Some files are neither directories nor regular files: they are unusual
+files like symbolic links, device special files, named pipes, and
+sockets.  Currently, @code{diff} treats symbolic links like regular files;
+it treats other special files like regular files if they are specified
+at the top level, but simply reports their presence when comparing
+directories.  This means that @code{patch} cannot represent changes
+to such files.  For example, if you change which file a symbolic link
+points to, @code{diff} outputs the difference between the two files,
+instead of the change to the symbolic link.
+
+@c This might not be a good idea; is it wise for root to install devices
+@c this way?
+@code{diff} should optionally report changes to special files specially,
+and @code{patch} should be extended to understand these extensions.
+
+@node Unusual File Names, Arbitrary Limits, Special Files, Shortcomings
+@subsection File Names that Contain Unusual Characters
+@cindex file names with unusual characters
+
+When a file name contains an unusual character like a newline or
+white space, @samp{diff -r} generates a patch that @code{patch} cannot
+parse.  The problem is with format of @code{diff} output, not just with
+@code{patch}, because with odd enough file names one can cause
+@code{diff} to generate a patch that is syntactically correct but
+patches the wrong files.  The format of @code{diff} output should be
+extended to handle all possible file names.
+
+@node Arbitrary Limits, Large Files, Unusual File Names, Shortcomings
+@subsection Arbitrary Limits
+@cindex binary file patching
+
+GNU @code{diff} can analyze files with arbitrarily long lines and files
+that end in incomplete lines.  However, @code{patch} cannot patch such
+files.  The @code{patch} internal limits on line lengths should be
+removed, and @code{patch} should be extended to parse @code{diff}
+reports of incomplete lines.
+
+@node Large Files, Ignoring Changes, Arbitrary Limits, Shortcomings
+@subsection Handling Files that Do Not Fit in Memory
+@cindex large files
+
+@code{diff} operates by reading both files into memory.  This method
+fails if the files are too large, and @code{diff} should have a fallback.
+
+One way to do this is to scan the files sequentially to compute hash
+codes of the lines and put the lines in equivalence classes based only
+on hash code.  Then compare the files normally.  This does produce some
+false matches.
+
+Then scan the two files sequentially again, checking each match to see
+whether it is real.  When a match is not real, mark both the
+``matching'' lines as changed.  Then build an edit script as usual.
+
+The output routines would have to be changed to scan the files
+sequentially looking for the text to print.
+
+@node Ignoring Changes,, Large Files, Shortcomings
+@subsection Ignoring Certain Changes
+
+It would be nice to have a feature for specifying two strings, one in
+@var{from-file} and one in @var{to-file}, which should be considered to
+match.  Thus, if the two strings are @samp{foo} and @samp{bar}, then if
+two lines differ only in that @samp{foo} in file 1 corresponds to
+@samp{bar} in file 2, the lines are treated as identical.
+
+It is not clear how general this feature can or should be, or
+what syntax should be used for it.
+
+@node Bugs, , Shortcomings, Projects
+@section Reporting Bugs
+@cindex bug reports
+@cindex reporting bugs
+
+If you think you have found a bug in GNU @code{cmp}, @code{diff},
+@code{diff3}, @code{sdiff}, or @code{patch}, please report it by
+electronic mail to @samp{bug-gnu-utils@@prep.ai.mit.edu}.  Send as
+precise a description of the problem as you can, including sample input
+files that produce the bug, if applicable.
+
+Because Larry Wall has not released a new version of @code{patch} since
+mid 1988 and the GNU version of @code{patch} has been changed since
+then, please send bug reports for @code{patch} by electronic mail to
+both @samp{bug-gnu-utils@@prep.ai.mit.edu} and
+@samp{lwall@@netlabs.com}.
+
+@node Concept Index, , Projects, Top
+@unnumbered Concept Index
+
+@printindex cp
+
+@shortcontents
+@contents
+@bye

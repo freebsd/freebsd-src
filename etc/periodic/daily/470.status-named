@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+catmsgs() {
+	find /var/log -name 'messages.*' -mtime -2 |
+	    sort -t. -r -n -k 2,2 |
+	    while read f
+	    do
+		case $f in
+		    *.gz)	zcat -f $f;;
+		    *.bz2)	bzcat -f $f;;
+		esac
+	    done
+	[ -f /var/log/messages ] && cat /var/log/messages
+}
+
+case "$daily_status_named_enable" in
+    [Yy][Ee][Ss])
+	echo
+	echo 'Checking for denied zone transfers (AXFR and IXFR):'
+
+	start=`date -v-1d '+%b %e'`
+	rc=$(catmsgs |
+	    fgrep '^'"$start"'.*named\[[[:digit:]]\+\]: denied [AI]XFR from \[.*\]\.[[:digit:]]\+ for' | \
+	    sed -e 's/.*: denied [AI]XFR from \[\(.*\)\]\.[[:digit:]]* for "\(.*\)".*$/\2 from \1/'
+	    sort -f | uniq -ic | (
+		usedns=0
+		if [ X"${daily_status_named_usedns}" != X"" ]; then
+			case $daily_status_named_usedns in
+			[yY][eE][sS])   usedns=1 ;;
+			esac
+		fi
+
+		while read line ;do
+			ipaddr=`echo "$line" | sed -e 's/^.*from //'`
+			if [ $usedns -eq 1 ]; then
+				name=`host "${ipaddr}" 2>/dev/null | \
+				   grep 'domain name pointer' | \
+				   sed -e 's/^.* //'`
+			fi
+			if [ X"${name}" != X"" ]; then
+				echo "${line} (${name})"
+			else
+				echo "${line}"
+			fi
+		done ) | \
+		tee /dev/stderr | wc -l)
+	[ $rc -gt 0 ] && rc=1
+	;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

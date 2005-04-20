@@ -1,0 +1,40 @@
+# $FreeBSD$
+
+This directory contains sample "supfiles" for obtaining and updating
+the FreeBSD sources via the Internet.  These supfiles will work
+with CVSup version 14.0 or later.  For general information on CVSup
+itself, please see http://www.freebsd.org/doc/handbook/cvsup.html
+
+To track the Errata/Security fixes for this version of the FreeBSD-stable
+release, use:
+
+    standard-supfile		Main source tree
+
+    ports-supfile		Ports collection
+
+To track the sources for the Development Branch of this FreeBSD-stable
+release (not recommended unless you read the freebsd-stable@FreeBSD.ORG
+mailing list), use:
+
+    stable-supfile		Main source tree
+
+To maintain a copy of the CVS repository containing all versions of
+FreeBSD, use:
+
+    cvs-supfile			Main source tree and ports collection
+
+To maintain a copy of the FreeBSD bug database, use the file:
+
+    gnats-supfile               FreeBSD bug database
+
+IMPORTANT: Before you use any of the supfiles in this directory,
+you will need to edit in an appropriate "host" setting.  See:
+
+    http://www.freebsd.org/doc/handbook/mirrors.html
+
+for an up-to-date list of public CVSup mirror sites.
+
+To prevent CVSup from updating particular directories and files, use
+this file:
+
+    refuse

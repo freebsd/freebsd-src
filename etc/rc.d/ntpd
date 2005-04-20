@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $NetBSD: ntpd,v 1.6 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: ntpd
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name=ntpd
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/ntp.conf"
+
+ntpd_precmd()
+{
+	if [ -z "$ntpd_chrootdir" ]; then
+		return 0;
+	fi
+
+	# If running in a chroot cage, ensure that the appropriate files
+	# exist inside the cage, as well as helper symlinks into the cage
+	# from outside.
+	#
+	# As this is called after the is_running and required_dir checks
+	# are made in run_rc_command(), we can safely assume ${ntpd_chrootdir}
+	# exists and ntpd isn't running at this point (unless forcestart
+	# is used).
+	#
+	if [ ! -c "${ntpd_chrootdir}/dev/clockctl" ]; then
+		rm -f "${ntpd_chrootdir}/dev/clockctl"
+		( cd /dev ; /bin/pax -rw -pe clockctl "${ntpd_chrootdir}/dev" )
+	fi
+	ln -fs "${ntpd_chrootdir}/var/db/ntp.drift" /var/db/ntp.drift
+
+	#	Change run_rc_commands()'s internal copy of $ntpd_flags
+	#
+	rc_flags="-u ntpd:ntpd -i ${ntpd_chrootdir} $rc_flags"
+}
+
+load_rc_config $name
+run_rc_command "$1"

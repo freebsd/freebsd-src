@@ -1,0 +1,407 @@
+.\"
+.\" Copyright (C) 2000
+.\" Dr. Duncan McLennan Barclay, dmlb@ragnet.demon.co.uk.
+.\"
+.\"  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY DUNCAN BARCLAY AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DUNCAN BARCLAY OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"  $FreeBSD$
+.\"
+.Dd March 21, 2000
+.Dt RAY 4 i386
+.Os
+.Sh NAME
+.Nm ray
+.Nd Raytheon Raylink/Webgear Aviator PCCard driver
+.Sh SYNOPSIS
+.Cd "device ray"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Tn "Raytheon Raylink"
+adapters (commonly available as
+.Tn "Webgear Aviator" ,
+.Tn "Webgear Aviator Pro"
+and
+.Tn "Raylink PC Card"
+devices.)
+The core of the
+.Tn Raylink
+cards is a frequency hopping PHY with an
+.Tn IEEE
+802.11
+style MAC that interacts with the host using shared memory and mailboxes.
+.Pp
+The
+.Nm
+driver currently supports ad-hoc operation mode and the
+.Tn Aviator
+cards.
+Infrastructure mode, interworking with
+.Tn "Windows 2000" Ns / Ns Tn Linux Ns / Ns Nx ,
+.Tn "Raylink PC Cards"
+and
+.Tn "Aviator Pros"
+is rudimentary and in active development.
+The
+.Nm
+driver currently encapsulates all IP and ARP traffic as
+.Tn Ethernet
+2 frames within an
+.Tn IEEE
+802.11
+frame.
+Other translations will be forthcoming as needed.
+Transmit speed is
+selectable between 0.5Mbps, 1Mbp , 1.5Mbps or 2Mbps all with auto fallback.
+.Pp
+By default, the
+.Nm
+driver configures the card for ad-hoc operation.
+In this mode,
+stations can communicate amongst each other without the aid of an access
+point.
+To join a managed service set, the driver must be set for infrastructure mode
+using the
+.Xr raycontrol 8
+utility.
+.Pp
+There are two known firmware versions; version 4 and version 5.
+Version 4 firmware was shipped on the orignal
+.Tn "Webgear Aviators"
+Version 5 firmware is
+used as part of the
+.Tn "Windows 2000"
+upgrade from
+.Tn Webgear
+and on the
+.Tn "Aviator Pro" ,
+and
+.Tn "Raylink PC Cards"
+cards.
+Version 4 is not likely to be 100%
+.Tn IEEE
+802.11
+compliant - version 5 should be.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8
+and
+.Xr raycontrol 8 .
+.Sh DIAGNOSTICS
+The following messages occur when there are problems
+setting up the memory mapped buffers due to nits in
+.Xr pccardd 8 .
+.Bl -diag
+.It "ray?: pccardd did not map CM - giving up"
+See the
+.Sx BUGS
+section and contact the author for help enclosing a copy
+of the output from
+.Xr dmesg 8 .
+This message only occurs on 3.x systems.
+.It "ray?: fixing up CM ..."
+.It "ray?: fixing up AM ..."
+The driver is fixing up PCCard memory management after mis-configuration
+by
+.Xr pccardd 8 ,
+benign.
+.El
+.Pp
+.Bl -diag
+On 4.x and -current systems the following messages can occur when the
+memory mapped buffers are set up.
+.It "ray?: allocated common memory:"
+.It ".  start 0xd0000 count 0xc0000 flags 0x40"
+Benign.
+.It "ray?: allocated attribute memory:"
+.It ".  start 0xdc000 count 0x1000 flags 0x50"
+Benign.
+.It "ray?: allocated irq:"
+.It ".  start 0x9 count 0x1"
+Benign.
+.It "ray?: Cannot allocate attribute memory"
+.It "ray?: Cannot allocate common memory"
+.It "ray?: Cannot allocate irq"
+.It "ray?: Failed to setup irq"
+.It "ray?: CARD_SET_MEMORY_OFFSET returned 0x??"
+.It "ray?: CARD_SET_RES_FLAGS returned 0x??"
+See the
+.Sx BUGS
+section and contact the author for help enclosing a copy
+of the output from
+.Xr dmesg 8
+in your email.
+.El
+.Pp
+.Bl -diag
+If the kernel is booted with the verbose flag turned on then the
+extra information is printed when the driver is probed.
+These messages are also seen when the
+.Dv RAY_DBG_BOOTPARAM
+bit in the
+.Dv RAY_DEBUG
+option is turned on, as is the case for all existing
+versions of the driver.
+.It "ray?: memory start 0x???? count 0x???? flags 0x???? offset 0x????"
+Description of memory map settings on entry to the driver.
+.It "ray?: irq start 0x???? count 0x????"
+Description of irq settings on entry to the driver (only on 4.1 and
+above).
+.El
+.Pp
+On start-up the driver will report hardware failures thus:
+.Bl -diag
+.It "ray?: card failed self test: status 0x??<???>"
+The card failed to come ready after it was plugged in to the PCCard
+slot.
+The most common cause of this message is incorrect PCCard memory
+management (indicated by a status of 0xff or 0x55).
+Bent cards might say that the receiver calibration failed.
+If you are brave enough removing the
+base of the case can resurrect cards (no warranties etc.).
+.It "ray?: unsupported firmware version 0x??"
+Self explanatory.
+Contact the author for help enclosing a copy
+of the output from
+.Xr dmesg 8 .
+.El
+.Pp
+The following messages are enabled using the
+.Cm debug
+option of
+.Xr ifconfig 8 .
+.Bl -diag
+.It "ray?: cannot transmit - not running"
+A packet was ready for transmission but the NIC is not connected to a
+BSS.
+May occur when removing the PCCard.
+.It "ray?: cannot transmit - no network"
+The wireless NIC has roamed from an access point and not connected with a new
+one yet.
+.It "ray?: cannot transmit - ECF busy"
+The controller firmware was busy when a packet was about to be sent out.
+It will be retried automatically.
+.It "ray?: mbuf too long ??"
+Should never happen, and if it does represents something wrong in the
+generic Ethernet driver in the kernel.
+.It "ray?: could not pullup ether"
+Problem with re-aligning mbufs.
+Very unlikely to happen.
+.It "ray?: unknown framing type ??"
+An impossible error - mail the author.
+.It "ray?: could not translate packet"
+An error occurred when trying to re-frame a packet for transmission.
+.It "ray?: ECF busy, dropping packet"
+The NIC was busy just before a packet was to be transmitted.
+.It "ray?: tx completed but status is fail"
+Typically associated with transmissions to out of range NICs.
+.It "ray?: packet too big or too small"
+A received packet was impossibly small or too large to fit into an mbuf.
+.It "ray?: MGETHDR failed"
+The driver could not get a mbuf to store a received packet into.
+Try increasing
+.Dv MAXUSERS
+in your kernel configuration.
+.It "ray?: MCLGET failed"
+The driver could not get a mbuf to store a received packet into.
+Try increasing
+.Dv MAXUSERS
+in your kernel configuration.
+.It "ray?: bad length current 0x?? pktlen 0x??"
+The lengths of a fragmented packet were inconsistent.
+.It "ray?: bad rcs index 0x??"
+The index of the buffer used for part of a fragmented packet is
+outside of the usable range.
+.It "ray?: header not version 0 fc0 0x??"
+The received
+.Tn IEEE
+802.11
+packet had an unknown header type.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: unknown packet fc0 0x??"
+The received
+.Tn IEEE
+802.11
+packet type is unknown.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: reserved DATA packet subtype 0x??"
+The received
+.Tn IEEE
+802.11
+data packet has a reserved (i.e., not allowed) subtype.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: MGT TODS/FROMDS wrong fc1 0x??"
+The received
+.Tn IEEE
+802.11
+management packet had a malformed header.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: unexpected MGT packet subtype 0x??"
+The received
+.Tn IEEE
+802.11
+management packet was of a subtype that the NIC
+should have processed.
+Benign, but might represent buggy firmware.
+.It "ray?: reserved MGT packet subtype 0x??"
+The received
+.Tn IEEE
+802.11
+management packet has a reserved (i.e., not allowed)
+subtype.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: open system authentication request"
+Self explanatory and for testing
+.Tn "Aviator Pro"
+interworking.
+.It "ray?: authentication failed with status ??"
+Self explanatory and currently represents a bug as the driver never
+requests authentication.
+.It "ray?: shared key authentication request"
+Self explanatory and for testing
+.Tn "Aviator Pro"
+interworking.
+.It "ray?: reserved authentication subtype 0x??"
+An authentication request has been received for a reserved (i.e., not allowed)
+subtype.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: CTL TODS/FROMDS wrong fc1 0x??"
+The received
+.Tn IEEE
+802.11
+management packet had a malformed header.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: unexpected CTL packet subtype 0x??"
+The received
+.Tn IEEE
+802.11
+control packet was of a subtype that the NIC
+should have processed.
+Benign, but might represent buggy firmware.
+.It "ray?: reserved CTL packet subtype 0x??"
+The received
+.Tn IEEE
+802.11
+control packet has a reserved (i.e., not allowed)
+subtype.
+Represents link corruption or non standard nodes in the network.
+.It "ray?: bad ccs index 0x??"
+The NIC has generated an interrupt with an incorrect control block.
+.It "ray?: unexpected UPDATE_APM"
+.It "ray?: unexpected TEST_MEM"
+.It "ray?: unexpected SHUTDOWN"
+.It "ray?: unexpected DUMP_MEM"
+.It "ray?: unexpected START_TIMER"
+The NIC has generated an interrupt signalling that
+the indicated command has completed.
+At present these commands are never
+issued by the driver, so they represent firmware/hardware/driver bugs.
+.It "ray?: unknown command 0x??"
+The NIC has generated an interrupt for an unknown command completion.
+Represents firmware/hardware/driver bugs.
+.It "ray?: unexpected JAPAN_CALL_SIGNAL"
+The NIC has generated an interrupt with a control block requesting
+processing of a packet that is only ever used in Japanese RCR
+certification tests.
+Represents firmware/hardware/driver bugs unless you
+are trying to certify the NICs in Japan (in which case you would have to
+of modified the driver and this manual is out of date).
+.It "ray?: spinning"
+The controller firmware was busy when a command was about to be issued.
+If the driver spins for too long then it will panic.
+See the
+.Sx BUGS
+section for details.
+.It "ray?: freeing free ccs 0x??"
+Benign warning that may occur when the NIC is ejected.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr pccardd 8 ,
+.Xr raycontrol 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.3 .
+.Sh AUTHORS
+.An -nosplit
+Early versions of this
+.Nm
+driver were a port of the
+.Nx
+driver by
+.An "Christian E. Hopps" .
+The driver
+was re-structured by
+.An Duncan Barclay Aq dmlb@FreeBSD.org ,
+so that
+.Xr dhclient 8
+would work.
+.Sh BUGS
+Infra-structure mode is not supported yet.
+The driver is likely to panic if it is set into this mode.
+Testers are encouraged to contact the
+author.
+.Pp
+Currently
+.Fx
+has a small problem managing and setting up the correct memory maps.
+However, this driver should reset the
+memory maps correctly - it works around
+.Xr pccardd 8
+(where it reads the CIS for common memory, sets it all up
+and then throws it all away assuming the card is an
+.Xr ed 4
+driver...).
+Note that this could be dangerous (because it doesn't interact with
+.Xr pccardd 8 )
+if you use other memory mapped cards at the same time or have
+SCSI cards with on-board BIOS.
+.Pp
+More encapsulations and translations could be supported, but they have
+little value unless someone can demonstrate that the
+.Nm
+cards will communicate with other manufacturers cards.
+Version 4 and
+firmware is not
+.Tn IEEE
+802.11
+compliant, but version 5 is.
+.Pp
+To communicate with
+.Tn Windows
+machines ensure that the
+.Tn Windows
+machine
+creates the BSS/IBSS.
+.Pp
+The driver currently panics on some errors that it should recover from.
+These will be removed RSN.

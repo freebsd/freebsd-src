@@ -1,0 +1,46 @@
+Replied: Fri, 16 Feb 2001 14:12:54 -0500
+Replied: "Darren Reed <darrenr@reed.wattle.id.au> "
+Received: from [139.134.6.79] by whimsy.udel.edu id aa15476;
+          16 Feb 2001 04:21 EST
+Received: from CPE-61-9-164-106.vic.bigpond.net.au
+          ([139.134.4.52]) by mailin6.bigpond.com (Netscape Messaging
+          Server 4.15) with SMTP id G8UFIB00.4QI for
+          <stenn@whimsy.udel.edu>; Fri, 16 Feb 2001 19:25:23 +1000 
+Received: from CPE-61-9-164-110.vic.bigpond.net.au ([61.9.164.110]) by mail5.bigpond.com (Claudes-Retiring-MailRouter V2.9c 9/11963672); 16 Feb 2001 19:20:45
+Received: (from root@localhost)
+	by CPE-61-9-164-106.vic.bigpond.net.au (8.11.0/8.11.0) id f1G92GC29158
+	for <stenn@whimsy.udel.edu>; Fri, 16 Feb 2001 20:02:16 +1100
+From: Darren Reed <darrenr@reed.wattle.id.au>
+Message-Id: <200102160901.UAA23657@avalon.reed.wattle.id.au>
+Subject: Re: arlib?
+In-Reply-To: <901.982219274@whimsy.udel.edu> from Harlan Stenn at "Feb 15, 1 01:41:14 am"
+To: Harlan Stenn <stenn@whimsy.udel.edu>
+Date: Fri, 16 Feb 2001 20:01:46 +1100
+X-Mailer: ELM [version 2.4ME+ PL37 (25)]
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+
+In some email I received from Harlan Stenn, sie wrote:
+> Darren,
+> 
+> I'm looking for an async resolver library that I can use with NTP.
+> 
+> I noticed your code in the contrib/ subdir of later bind8 distribution
+> and I noticed the Copyright notice in arlib.c:
+> 
+>  * arlib.c (C)opyright 1993 Darren Reed. All rights reserved.
+>  * This file may not be distributed without the author's permission in any
+>  * shape or form. The author takes no responsibility for any damage or loss
+>  * of property which results from the use of this software.
+> 
+> so I thought I'd ask your permission to distribute your files if I can
+> figure out how to make it all work with ntpd.
+
+http://coombs.anu.edu.au/~avalon/arlib.tar.gz
+
+a few bug fixes (inc. buffer overflow :) and stuff in there.
+
+But otherwise, go for it.
+
+Darren

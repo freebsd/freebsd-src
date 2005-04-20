@@ -1,0 +1,419 @@
+.\"	$OpenBSD: ssh-keygen.1,v 1.61 2003/12/22 09:16:58 djm Exp $
+.\"
+.\"  -*- nroff -*-
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 25, 1999
+.Dt SSH-KEYGEN 1
+.Os
+.Sh NAME
+.Nm ssh-keygen
+.Nd authentication key generation, management and conversion
+.Sh SYNOPSIS
+.Nm ssh-keygen
+.Bk -words
+.Op Fl q
+.Op Fl b Ar bits
+.Fl t Ar type
+.Op Fl N Ar new_passphrase
+.Op Fl C Ar comment
+.Op Fl f Ar output_keyfile
+.Ek
+.Nm ssh-keygen
+.Fl p
+.Op Fl P Ar old_passphrase
+.Op Fl N Ar new_passphrase
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl i
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl e
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl y
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl c
+.Op Fl P Ar passphrase
+.Op Fl C Ar comment
+.Op Fl f Ar keyfile
+.Nm ssh-keygen
+.Fl l
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl B
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl D Ar reader
+.Nm ssh-keygen
+.Fl U Ar reader
+.Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl r Ar hostname
+.Op Fl f Ar input_keyfile
+.Op Fl g
+.Nm ssh-keygen
+.Fl G Ar output_file
+.Op Fl v
+.Op Fl b Ar bits
+.Op Fl M Ar memory
+.Op Fl S Ar start_point
+.Nm ssh-keygen
+.Fl T Ar output_file
+.Fl f Ar input_file
+.Op Fl v
+.Op Fl a Ar num_trials
+.Op Fl W Ar generator
+.Sh DESCRIPTION
+.Nm
+generates, manages and converts authentication keys for
+.Xr ssh 1 .
+.Nm
+can create RSA keys for use by SSH protocol version 1 and RSA or DSA
+keys for use by SSH protocol version 2.
+The type of key to be generated is specified with the
+.Fl t
+option.
+.Pp
+.Nm
+is also used to generate groups for use in Diffie-Hellman group
+exchange (DH-GEX).
+See the
+.Sx MODULI GENERATION
+section for details.
+.Pp
+Normally each user wishing to use SSH
+with RSA or DSA authentication runs this once to create the authentication
+key in
+.Pa $HOME/.ssh/identity ,
+.Pa $HOME/.ssh/id_dsa
+or
+.Pa $HOME/.ssh/id_rsa .
+Additionally, the system administrator may use this to generate host keys,
+as seen in
+.Pa /etc/rc .
+.Pp
+Normally this program generates the key and asks for a file in which
+to store the private key.
+The public key is stored in a file with the same name but
+.Dq .pub
+appended.
+The program also asks for a passphrase.
+The passphrase may be empty to indicate no passphrase
+(host keys must have an empty passphrase), or it may be a string of
+arbitrary length.
+A passphrase is similar to a password, except it can be a phrase with a
+series of words, punctuation, numbers, whitespace, or any string of
+characters you want.
+Good passphrases are 10-30 characters long, are
+not simple sentences or otherwise easily guessable (English
+prose has only 1-2 bits of entropy per character, and provides very bad
+passphrases), and contain a mix of upper and lowercase letters,
+numbers, and non-alphanumeric characters.
+The passphrase can be changed later by using the
+.Fl p
+option.
+.Pp
+There is no way to recover a lost passphrase.
+If the passphrase is
+lost or forgotten, a new key must be generated and copied to the
+corresponding public key to other machines.
+.Pp
+For RSA1 keys,
+there is also a comment field in the key file that is only for
+convenience to the user to help identify the key.
+The comment can tell what the key is for, or whatever is useful.
+The comment is initialized to
+.Dq user@host
+when the key is created, but can be changed using the
+.Fl c
+option.
+.Pp
+After a key is generated, instructions below detail where the keys
+should be placed to be activated.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar trials
+Specifies the number of primality tests to perform when screening DH-GEX
+candidates using the
+.Fl T
+command.
+.It Fl b Ar bits
+Specifies the number of bits in the key to create.
+Minimum is 512 bits.
+Generally, 1024 bits is considered sufficient.
+The default is 1024 bits.
+.It Fl c
+Requests changing the comment in the private and public key files.
+This operation is only supported for RSA1 keys.
+The program will prompt for the file containing the private keys, for
+the passphrase if the key has one, and for the new comment.
+.It Fl e
+This option will read a private or public OpenSSH key file and
+print the key in a
+.Sq SECSH Public Key File Format
+to stdout.
+This option allows exporting keys for use by several commercial
+SSH implementations.
+.It Fl g
+Use generic DNS resource record format.
+.It Fl f Ar filename
+Specifies the filename of the key file.
+.It Fl i
+This option will read an unencrypted private (or public) key file
+in SSH2-compatible format and print an OpenSSH compatible private
+(or public) key to stdout.
+.Nm
+also reads the
+.Sq SECSH Public Key File Format .
+This option allows importing keys from several commercial
+SSH implementations.
+.It Fl l
+Show fingerprint of specified public key file.
+Private RSA1 keys are also supported.
+For RSA and DSA keys
+.Nm
+tries to find the matching public key file and prints its fingerprint.
+.It Fl p
+Requests changing the passphrase of a private key file instead of
+creating a new private key.
+The program will prompt for the file
+containing the private key, for the old passphrase, and twice for the
+new passphrase.
+.It Fl q
+Silence
+.Nm ssh-keygen .
+Used by
+.Pa /etc/rc
+when creating a new key.
+.It Fl y
+This option will read a private
+OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl t Ar type
+Specifies the type of the key to create.
+The possible values are
+.Dq rsa1
+for protocol version 1 and
+.Dq rsa
+or
+.Dq dsa
+for protocol version 2.
+.It Fl B
+Show the bubblebabble digest of specified private or public key file.
+.It Fl C Ar comment
+Provides the new comment.
+.It Fl D Ar reader
+Download the RSA public key stored in the smartcard in
+.Ar reader .
+.It Fl G Ar output_file
+Generate candidate primes for DH-GEX.
+These primes must be screened for
+safety (using the
+.Fl T
+option) before use.
+.It Fl M Ar memory
+Specify the amount of memory to use (in megabytes) when generating
+candidate moduli for DH-GEX.
+.It Fl N Ar new_passphrase
+Provides the new passphrase.
+.It Fl P Ar passphrase
+Provides the (old) passphrase.
+.It Fl S Ar start
+Specify start point (in hex) when generating candidate moduli for DH-GEX.
+.It Fl T Ar output_file
+Test DH group exchange candidate primes (generated using the
+.Fl G
+option) for safety.
+.It Fl W Ar generator
+Specify desired generator when testing candidate moduli for DH-GEX.
+.It Fl U Ar reader
+Upload an existing RSA private key into the smartcard in
+.Ar reader .
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+to print debugging messages about its progress.
+This is helpful for debugging moduli generation.
+Multiple
+.Fl v
+options increase the verbosity.
+The maximum is 3.
+.It Fl r Ar hostname
+Print DNS resource record with the specified
+.Ar hostname .
+.El
+.Sh MODULI GENERATION
+.Nm
+may be used to generate groups for the Diffie-Hellman Group Exchange
+(DH-GEX) protocol.
+Generating these groups is a two-step process: first, candidate
+primes are generated using a fast, but memory intensive process.
+These candidate primes are then tested for suitability (a CPU-intensive
+process).
+.Pp
+Generation of primes is performed using the
+.Fl G
+option.
+The desired length of the primes may be specified by the
+.Fl b
+option.
+For example:
+.Pp
+.Dl ssh-keygen -G moduli-2048.candidates -b 2048
+.Pp
+By default, the search for primes begins at a random point in the
+desired length range.
+This may be overridden using the
+.Fl S
+option, which specifies a different start point (in hex).
+.Pp
+Once a set of candidates have been generated, they must be tested for
+suitability.
+This may be performed using the
+.Fl T
+option.
+In this mode
+.Nm
+will read candidates from standard input (or a file specified using the
+.Fl f
+option).
+For example:
+.Pp
+.Dl ssh-keygen -T moduli-2048 -f moduli-2048.candidates
+.Pp
+By default, each candidate will be subjected to 100 primality tests.
+This may be overridden using the
+.Fl a
+option.
+The DH generator value will be chosen automatically for the
+prime under consideration.
+If a specific generator is desired, it may be requested using the
+.Fl W
+option.
+Valid generator values are 2, 3 and 5.
+.Pp
+Screened DH groups may be installed in
+.Pa /etc/moduli .
+It is important that this file contains moduli of a range of bit lengths and
+that both ends of a connection share common moduli.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $HOME/.ssh/identity
+Contains the protocol version 1 RSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 3DES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr ssh 1
+will read this file when a login attempt is made.
+.It Pa $HOME/.ssh/identity.pub
+Contains the protocol version 1 RSA public key for authentication.
+The contents of this file should be added to
+.Pa $HOME/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using RSA authentication.
+There is no need to keep the contents of this file secret.
+.It Pa $HOME/.ssh/id_dsa
+Contains the protocol version 2 DSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 3DES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr ssh 1
+will read this file when a login attempt is made.
+.It Pa $HOME/.ssh/id_dsa.pub
+Contains the protocol version 2 DSA public key for authentication.
+The contents of this file should be added to
+.Pa $HOME/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using public key authentication.
+There is no need to keep the contents of this file secret.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 3DES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr ssh 1
+will read this file when a login attempt is made.
+.It Pa $HOME/.ssh/id_rsa.pub
+Contains the protocol version 2 RSA public key for authentication.
+The contents of this file should be added to
+.Pa $HOME/.ssh/authorized_keys
+on all machines
+where the user wishes to log in using public key authentication.
+There is no need to keep the contents of this file secret.
+.It Pa /etc/moduli
+Contains Diffie-Hellman groups used for DH-GEX.
+The file format is described in
+.Xr moduli 5 .
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr moduli 5 ,
+.Xr sshd 8
+.Rs
+.%A J. Galbraith
+.%A R. Thayer
+.%T "SECSH Public Key File Format"
+.%N draft-ietf-secsh-publickeyfile-01.txt
+.%D March 2001
+.%O work in progress material
+.Re
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.

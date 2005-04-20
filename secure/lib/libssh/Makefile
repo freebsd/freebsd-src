@@ -1,0 +1,40 @@
+# $FreeBSD$
+
+LIB=	ssh
+SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
+	canohost.c channels.c cipher.c cipher-acss.c cipher-aes.c \
+	cipher-bf1.c cipher-ctr.c cipher-3des1.c cleanup.c \
+	compat.c compress.c crc32.c deattack.c fatal.c hostfile.c \
+	log.c match.c moduli.c mpaux.c nchan.c packet.c \
+	readpass.c rsa.c tildexpand.c ttymodes.c xmalloc.c \
+	atomicio.c key.c dispatch.c kex.c mac.c uuencode.c misc.c \
+	rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c kexgex.c \
+	kexdhc.c kexgexc.c scard.c msg.c progressmeter.c dns.c \
+	entropy.c scard-opensc.c
+# Portability layer
+SRCS+=	bsd-misc.c getrrsetbyname.c vis.c xcrypt.c xmmap.c
+# FreeBSD additions
+SRCS+=	version.c
+
+.if defined(COMPAT_GETADDRINFO)
+SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
+.endif
+
+CFLAGS+= -I${SSHDIR}
+DPADD=	${LIBZ}
+LDADD=	-lz
+
+.if !defined(NO_KERBEROS)
+CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
+DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
+LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+.endif
+
+NOLINT=
+
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
+LDADD+=	-lcrypto -lcrypt
+
+.include <bsd.lib.mk>
+
+.PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat

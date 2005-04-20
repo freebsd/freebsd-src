@@ -1,0 +1,30 @@
+$Id: README,v 1.2 2002/09/11 16:32:09 karl Exp $
+texinfo/info/README
+
+  Copyright (C) 2002 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Info 2.0 is a complete rewrite of the original standalone Info I wrote in
+1987, the first program I wrote for rms.  That program was something like
+my second Unix program ever, and my die-hard machine language coding habits
+tended to show through.  I found the original Info hard to read and
+maintain, and thus decided to write this one.
+
+The rewrite consists of about 12,000 lines of code written in about 12
+days.  I believe this version of Info to be in much better shape than the
+original Info.
+
+Info 2.0 is substantially different from its original standalone
+predecessor.  It appears almost identical to the GNU Emacs version, but has
+the advantages of smaller size, ease of portability, and a built in library
+which can be used in other programs (to get or display documentation from
+Info files, for example).
+
+A full listing of the commands available in Info can be gotten by typing
+`?' while within an Info window.  This produces a node in a window which
+can be viewed just like any Info node.
+
+--Brian Fox <bfox@gnu.org>

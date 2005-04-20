@@ -1,0 +1,45 @@
+-- $Id: README.emx,v 1.4 2000/09/16 19:28:28 tom Exp $
+-- Author: Thomas Dickey
+-------------------------------------------------------------------------------
+
+You can build ncurses on OS/2 in the EMX environment.  But you must build and
+acquire tools.  Not all of the tools distributed with EMX work properly, and
+some additional ones are required.
+
+First, the configure script distributed with ncurses will not run as-is in EMX. 
+You can generate a new one if you have autoconf built for EMX.  You will need
+the EMX development tools, of course.  Get these programs to start:
+
+	GNU m4 program (version 1.4)
+	GNU autoconf (version 2.13).
+	GNU patch (version 2.5)
+
+Apply the autoconf patches from
+
+	http://dickey.his.com/autoconf
+	ftp://dickey.his.com/autoconf
+
+These are ordered by date:
+
+	autoconf-2.13-20000819.patch.gz
+	autoconf-2.13-20000819-emx.patch.gz
+
+I built my development environment for ncurses using EMX 0.9c at the end of
+1997.  Much of the EMX patch for autoconf was done originally by J.J.G.Ripoll,
+using a similar environment (he prefers using the 'ash' shell).  Newer versions
+may fix these problems:
+
+	+ The pdksh program distributed at Hobbes and Leo (with a 1996 date) is
+	  defective.  It does not process "here documents" correctly (which
+	  renders it useless for running the autoconf script).  I built my own
+	  copy of pdksh 5.2.13, which does have the bug corrected (documented
+	  in the change log for pdksh).
+
+	+ I also built from sources (because the distributed binaries did not
+	  work) the cmp, diff programs.
+	  
+	  Other required utilities such as ar, cat, chmod, cp, gawk, grep, mv,
+	  ls, rm, mkdir, sed, sort and tr worked.
+
+Once you have autoconf patched and installed, run 'autoconf' from the top-level
+directory of ncurses to generate the EMX-specific configure script.

@@ -1,0 +1,66 @@
+<html>
+<head><title>smfi_settimeout</title></head>
+<body>
+<!--
+$Id: smfi_settimeout.html,v 1.11 2003/03/05 19:57:54 ca Exp $
+-->
+<h1>smfi_settimeout</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_settimeout(
+	int otimeout
+);
+</pre>
+Set the filter's connection timeout value.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>smfi_settimeout should only be called before <a href="smfi_main.html">smfi_main</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>Sets the number of seconds libmilter will wait for an MTA connection before
+timing out a socket.
+If smfi_settimeout is not called, a default timeout of 7210 seconds is used.
+</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>otimeout</td>
+	<td>The number of seconds to wait before timing out (&gt; 0).  Zero means
+no wait, <b>not</b> "wait forever".
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_settimeout always returns MI_SUCCESS.</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2002-2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

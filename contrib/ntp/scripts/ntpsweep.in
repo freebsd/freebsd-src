@@ -1,0 +1,301 @@
+#! @PATH_PERL@ -w
+#
+# $Id$
+#
+# DISCLAIMER
+# 
+# Copyright (C) 1999,2000 Hans Lambermont and Origin B.V.
+# 
+# Permission to use, copy, modify and distribute this software and its
+# documentation for any purpose and without fee is hereby granted,
+# provided that the above copyright notice appears in all copies and
+# that both the copyright notice and this permission notice appear in
+# supporting documentation. This software is supported as is and without
+# any express or implied warranties, including, without limitation, the
+# implied warranties of merchantability and fitness for a particular
+# purpose. The name Origin B.V. must not be used to endorse or promote
+# products derived from this software without prior written permission.
+#
+# Hans Lambermont <Hans.Lambermont@nl.origin-it.com>/<H.Lambermont@chello.nl>
+# 14 Jan 2000
+
+require 5.0;		# But actually tested on 5.004 ;)
+use Getopt::Long;       # GetOptions()
+use strict;
+
+my $version = 1.3;
+(my $program = $0) =~ s%.*/(.+?)(.pl)?$%$1%;
+
+# Hardcoded paths/program names
+my $ntpdate = "ntpdate";
+my $ntpq = "ntpq";
+
+# no STDOUT buffering
+$| = 1;
+
+my ($help, $single_host, $showpeers, $maxlevel, $strip, $askversion);
+my $res = GetOptions("help!"      => \$help,
+		     "host=s"     => \$single_host,
+		     "peers!"     => \$showpeers,
+		     "maxlevel=s" => \$maxlevel,
+		     "strip=s"    => \$strip,
+		     "version!"   => \$askversion);
+
+if ($askversion) {
+    print("$version\n");
+    exit 0;
+}
+
+if ($help || ((@ARGV != 1) && !$single_host)) {
+    warn <<EOF;
+This is $program, version $version
+Copyright (C) 1999,2000 Hans Lambermont and Origin B.V.  Disclaimer inside.
+
+Usage:
+  $program [--help|--peers|--strip <string>|--maxlevel <level>|--version] \\
+    <file>|[--host <hostname>]
+
+Description:
+  $program prints per host given in <file> the NTP stratum level, the
+  clock offset in seconds, the daemon version, the operating system and
+  the processor. Optionally recursing through all peers.
+
+Options:
+--help
+    Print this short help text and exit.
+--version
+    Print version ($version) and exit.
+<file>
+    Specify hosts file. File format is one hostname or ip number per line.
+    Lines beginning with # are considered as comment.
+--host <hostname>
+    Speficy a single host, bypassing the need for a hosts file.
+--peers
+    Recursively list all peers a host synchronizes to.
+    An '= ' before a peer means a loop. Recursion stops here.
+--maxlevel <level>
+    Traverse peers up to this level (4 is a reasonable number).
+--strip <string>
+    Strip <string> from hostnames.
+
+Examples:
+    $program myhosts.txt --strip .foo.com
+    $program --host some.host --peers --maxlevel 4
+EOF
+    exit 1;
+}
+
+my $hostsfile = shift;
+my (@hosts, @known_hosts);
+my (%known_host_info, %known_host_peers);
+
+sub read_hosts()
+{
+    local *HOSTS;
+    open (HOSTS, $hostsfile) ||
+	die "$program: FATAL: unable to read $hostsfile: $!\n";
+    while (<HOSTS>) {
+	next if /^\s*(#|$)/; # comment/empty
+	chomp;
+	push(@hosts, $_);
+    }
+    close(HOSTS);
+}
+
+# translate IP to hostname if possible
+sub ip2name {
+    my($ip) = @_;
+    my($addr, $name, $aliases, $addrtype, $length, @addrs);
+    $addr = pack('C4', split(/\./, $ip));
+    ($name, $aliases, $addrtype, $length, @addrs) = gethostbyaddr($addr, 2);
+    if ($name) {
+        # return lower case name
+	return("\L$name");
+    } else {
+	return($ip);
+    }
+}
+
+# item_in_list($item, @list): returns 1 if $item is in @list, 0 if not
+sub item_in_list {
+    my($item, @list) = @_;
+    my($i);
+    foreach $i (@list) {
+	return 1 if ($item eq $i);
+    }
+    return 0;
+}
+
+sub scan_host($;$;$) {
+    my($host, $level, @trace) = @_;
+    my $stratum = 0;
+    my $offset = 0;
+    my $daemonversion = "";
+    my $system = "";
+    my $processor = "";
+    my @peers;
+    my $known_host = 0;
+
+    if (&item_in_list($host, @known_hosts)) {
+	$known_host = 1;
+    } else {
+	# ntpdate part
+	open(NTPDATE, "$ntpdate -bd $host 2>/dev/null |") ||
+    	die "Cannot open ntpdate pipe: $!\n";
+	while (<NTPDATE>) {
+	    /^stratum\s+(\d+).*$/ && do {
+		$stratum = $1;
+	    };
+	    /^offset\s+([0-9.-]+)$/ && do {
+		$offset = $1;
+	    };
+	}
+	close(NTPDATE);
+    
+	# got answers ? If so, go on.
+	if ($stratum) {
+	    # ntpq part
+	    my $ntpqparams = "-c 'rv 0 processor,system,daemon_version'";
+	    open(NTPQ, "$ntpq $ntpqparams $host 2>/dev/null |") ||
+		die "Cannot open ntpq pipe: $!\n";
+	    while (<NTPQ>) {
+		/daemon_version="(.*)"/ && do {
+		    $daemonversion = $1;
+		};
+		/system="([^"]*)"/ && do {
+		    $system = $1;
+		};
+		/processor="([^"]*)"/ && do {
+		    $processor = $1;
+		};
+	    }
+	    close(NTPQ);
+	    
+	    # Shorten daemon_version string.
+	    $daemonversion =~ s/(;|Mon|Tue|Wed|Thu|Fri|Sat|Sun).*$//;
+	    $daemonversion =~ s/version=//;
+	    $daemonversion =~ s/(x|)ntpd //;
+	    $daemonversion =~ s/(\(|\))//g;
+	    $daemonversion =~ s/beta/b/;
+	    $daemonversion =~ s/multicast/mc/;
+	
+	    # Shorten system string
+	    $system =~ s/UNIX\///;
+	    $system =~ s/RELEASE/r/;
+	    $system =~ s/CURRENT/c/;
+
+	    # Shorten processor string
+	    $processor =~ s/unknown//;
+	}
+    
+	# got answers ? If so, go on.
+	if ($daemonversion) {
+	    # ntpq again, find out the peers this time
+	    if ($showpeers) {
+		my $ntpqparams = "-pn";
+		open(NTPQ, "$ntpq $ntpqparams $host 2>/dev/null |") ||
+		    die "Cannot open ntpq pipe: $!\n";
+		while (<NTPQ>) {
+		    /^No association ID's returned$/ && do {
+			last;
+		    };
+		    /^     remote/ && do {
+			next;
+		    };
+		    /^==/ && do {
+			next;
+		    };
+		    /^( |x|\.|-|\+|#|\*|o)([^ ]+)/ && do {
+			push(@peers, ip2name($2));
+			next;
+		    };
+		    print "ERROR: $_";
+		}
+		close(NTPQ);
+	    }
+	}
+    
+	# Add scanned host to known_hosts array
+	push(@known_hosts, $host);
+	if ($stratum) {
+	    $known_host_info{$host} = sprintf("%2d %9.3f %-11s %-12s %s",
+		$stratum, $offset, substr($daemonversion,0,11),
+		substr($system,0,12), substr($processor,0,9));
+	} else {
+	    # Stratum level 0 is consider invalid
+	    $known_host_info{$host} = sprintf(" ?");
+	}
+	$known_host_peers{$host} = [@peers];
+    }
+
+    if ($stratum || $known_host) { # Valid or known host
+	my $printhost = ' ' x $level . $host;
+	# Shorten host string
+	if ($strip) {
+	    $printhost =~ s/$strip//;
+	}
+	# append number of peers in brackets if requested and valid
+	if ($showpeers && ($known_host_info{$host} ne " ?")) {
+	    $printhost .= " (" . @{$known_host_peers{$host}} . ")";
+	}
+	# Finally print complete host line
+	printf("%-32s %s\n",
+	    substr($printhost,0,32), $known_host_info{$host});
+	if ($showpeers && (eval($maxlevel ? $level < $maxlevel : 1))) {
+	    my $peer;
+	    push(@trace, $host);
+	    # Loop through peers
+	    foreach $peer (@{$known_host_peers{$host}}) {
+		if (&item_in_list($peer, @trace)) {
+		    # we've detected a loop !
+		    $printhost = ' ' x ($level + 1) . "= " . $peer;
+		    # Shorten host string
+		    if ($strip) {
+			$printhost =~ s/$strip//;
+		    }
+		    printf("%-32s %s\n",
+			substr($printhost,0,32));
+		} else {
+		    if (substr($peer,0,3) ne "127") {
+			&scan_host($peer, $level + 1, @trace);
+		    }
+		}
+	    }
+	}
+    } else { # We did not get answers from this host
+	my $printhost = ' ' x $level . $host;
+	# Shorten host string
+	if ($strip) {
+	    $printhost =~ s/$strip//;
+	}
+	printf("%-32s  ?\n", substr($printhost,0,32));
+    }
+}
+
+sub scan_hosts()
+{
+    my $host;
+    for $host (@hosts) {
+	my @trace;
+	push(@trace, $host);
+	scan_host($host, 0, @trace);
+    }
+}
+
+# Main program
+
+if ($single_host) {
+    push(@hosts, $single_host);
+} else {
+    &read_hosts($hostsfile);
+}
+
+# Print header
+print <<EOF;
+Host                             st offset(s) version     system       processor
+--------------------------------+--+---------+-----------+------------+---------
+EOF
+
+&scan_hosts();
+
+exit 0;

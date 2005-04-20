@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pflog
+# REQUIRE: root mountcritlocal netif
+# BEFORE:  DAEMON LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="pflog"
+rcvar=`set_rcvar`
+load_rc_config $name
+stop_precmd="test -x ${pflog_program}"
+start_precmd="pflog_prestart"
+start_cmd="pflog_start"
+stop_cmd="pflog_stop"
+resync_precmd="$stop_precmd"
+resync_cmd="pflog_resync"
+status_precmd="$stop_precmd"
+status_cmd="pflog_status"
+extra_commands="resync status"
+
+pflog_prestart()
+{
+	# load pflog kernel module if needed
+	if ! kldstat -v | grep -q pflog\$; then
+		if kldload pf; then
+			info 'pflog module loaded.'
+		else
+			err 1 'pflog module failed to load.'
+		fi
+	fi
+
+	# set pflog0 interface to up state
+	if ! ifconfig pflog0 up; then
+		warn 'pflog: COULD NOT SET UP pflog0'
+	fi
+
+	# check for pflogd binary
+	if [ ! -x "${pflog_program:-/sbin/pflogd}" ]
+	then
+		warn 'pflog: NO PFLOGD BINARY FOUND'
+		return 1
+	fi
+}
+
+pflog_start()
+{
+	echo -n "Enabling pflogd"
+	if ! ${pflog_program:-/sbin/pflogd} ${pflog_flags} \
+	    -f ${pflog_logfile:-/var/log/pflog}; then
+		echo " failed!"
+	else
+		echo "."
+	fi
+}
+
+pflog_stop()
+{
+	if [ -r /var/run/pflogd.pid ]; then
+		echo "Stopping pflogd."
+		kill `cat /var/run/pflogd.pid`
+	fi
+}
+
+pflog_resync()
+{
+	if [ -r /var/run/pflogd.pid ]; then
+		kill -SIGHUP `cat /var/run/pflogd.pid`
+	fi
+}
+
+pflog_status()
+{
+	if [ -r /var/run/pflogd.pid ]; then
+		ps -p `cat /var/run/pflogd.pid` | tail -n 1
+	else
+		echo 'pflogd not running.'
+	fi
+}
+
+run_rc_command "$1"

@@ -1,0 +1,130 @@
+.\" Copyright (c) 1992, 2000 Hellmuth Michaelis
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Last Edit-Date: [Mon Mar 27 17:04:14 2000]
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2000
+.Dt KCON 1
+.Os
+.Sh NAME
+.Nm kcon
+.Nd pcvt keyboard control and remapping
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar delay
+.Op Fl l
+.Op Fl m Ar map
+.Op Fl o
+.Op Fl p
+.Op Fl R
+.Op Fl r Ar rate
+.Op Fl s
+.Op Fl t Ns Ar +/-
+.Op Fl x
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is used for controlling all aspects of keyboard configuration for the 'pcvt'
+video driver.
+.Pp
+The available options are:
+.Bl -tag -width flag
+.It Fl d Ar delay
+Specifies the delay after which the last key entered will be repeated by the
+Keyboard.
+Valid values are 0..3 corresponding to delays of 250, 500, 750 and
+1000 milliseconds.
+.It Fl l
+Displays the current keyboard map in use by the driver.
+.It Fl m Ar map
+Specifies the map entry to be searched in the keyboard capabilities database
+.Nm keycap .
+The database is searched for the entry and if found, the mapping
+is loaded and is used in the driver from then on.
+.It Fl o
+Switches display of control codes to octal in the listing of the current map.
+To be used in conjunction with the
+.Fl l
+option.
+.It Fl p
+Uses 'pure' output when listing - the Escape character is displayed in either
+octal or hexadecimal and not as 'ESC'.
+To be used in conjunction with the
+.Fl l
+option.
+.It Fl r Ar rate
+Specifies the character repetition rate.
+Valid argument values are 0...31
+corresponding to rates of 30 characters/second ...\& 2 characters/second.
+.It Fl R
+Reset the Keyboard.
+.It Fl s
+Displays the current settings of the rate and delay values.
+.It Fl t Ar +/-
+Specify this option to enable
+.Pq Ar +
+or disable
+.Pq Ar -
+the repetition of keys.
+.It Fl x
+Switches display of control codes to hexadecimal in the listing of the current map.
+To be used in conjunction with the
+.Fl l
+option.
+This is the default behaviour.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/keycap.pcvt -compact
+.It Pa /usr/share/misc/keycap.pcvt
+Keyboard capabilities data base file if nothing else was chosen during installation.
+.It Pa /dev/console
+Keyboard raw device.
+.El
+.Sh SEE ALSO
+.Xr keycap 3 ,
+.Xr keycap 5
+.Sh BUGS
+The
+.Nm
+utility detects several inconsistencies in the keycap database.
+In case of errors
+.Nm
+exits with an error message.
+If this happens, the keyboard may remain in
+an undefined state.
+To recover from such situation, execute
+.Dq Li kcon -m default .
+.Sh EXAMPLES
+The command
+.Dq Li kcon -m gb
+loads the entry 'gb' from the keycap file into the keyboard to switch to
+a british keyboard behaviour.
+.Pp
+The command
+.Dq Li kcon -r 0 -d 0
+switches the keyboard to emit characters at a rate of 30 characters per second
+after a key has been held down for 250 milliseconds.

@@ -1,0 +1,1072 @@
+.\" Copyright (c) 2000 FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 27, 2004
+.Dt MBUF 9
+.Os
+.\"
+.Sh NAME
+.Nm mbuf
+.Nd "memory management in the kernel IPC subsystem"
+.\"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/mbuf.h
+.\"
+.Ss Mbuf allocation macros
+.Fn MGET "struct mbuf *mbuf" "int how" "short type"
+.Fn MGETHDR "struct mbuf *mbuf" "int how" "short type"
+.Fn MCLGET "struct mbuf *mbuf" "int how"
+.Fo MEXTADD
+.Fa "struct mbuf *mbuf"
+.Fa "caddr_t buf"
+.Fa "u_int size"
+.Fa "void (*free)(void *opt_args)"
+.Fa "void *opt_args"
+.Fa "short flags"
+.Fa "int type"
+.Fc
+.Fn MEXTFREE "struct mbuf *mbuf"
+.Fn MEXT_ADD_REF "struct mbuf *mbuf"
+.Fn MEXT_REM_REF "struct mbuf *mbuf"
+.Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
+.\"
+.Ss Mbuf utility macros
+.Fn mtod "struct mbuf *mbuf" "type"
+.Ft int
+.Fn MEXT_IS_REF "struct mbuf *mbuf"
+.Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
+.Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
+.Ft int
+.Fn M_LEADINGSPACE "struct mbuf *mbuf"
+.Ft int
+.Fn M_TRAILINGSPACE "struct mbuf *mbuf"
+.Fn M_MOVE_PKTHDR "struct mbuf *to" "struct mbuf *from"
+.Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
+.Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.Ft int
+.Fn M_WRITABLE "struct mbuf *mbuf"
+.\"
+.Ss Mbuf allocation functions
+.Ft struct mbuf *
+.Fn m_get "int how" "int type"
+.Ft struct mbuf *
+.Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
+.Ft struct mbuf *
+.Fn m_getcl "int how" "short type" "int flags"
+.Ft struct mbuf *
+.Fn m_getclr "int how" "int type"
+.Ft struct mbuf *
+.Fn m_gethdr "int how" "int type"
+.Ft struct mbuf *
+.Fn m_free "struct mbuf *mbuf"
+.Ft void
+.Fn m_freem "struct mbuf *mbuf"
+.\"
+.Ss Mbuf utility functions
+.Ft void
+.Fn m_adj "struct mbuf *mbuf" "int len"
+.Ft struct mbuf *
+.Fn m_prepend "struct mbuf *mbuf" "int len" "int how"
+.Ft struct mbuf *
+.Fn m_pullup "struct mbuf *mbuf" "int len"
+.Ft struct mbuf *
+.Fn m_copym "struct mbuf *mbuf" "int offset" "int len" "int how"
+.Ft struct mbuf *
+.Fn m_copypacket "struct mbuf *mbuf" "int how"
+.Ft struct mbuf *
+.Fn m_dup "struct mbuf *mbuf" "int how"
+.Ft void
+.Fn m_copydata "const struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
+.Ft void
+.Fn m_copyback "struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
+.Ft struct mbuf *
+.Fo m_devget
+.Fa "char *buf"
+.Fa "int len"
+.Fa "int offset"
+.Fa "struct ifnet *ifp"
+.Fa "void (*copy)(char *from, caddr_t to, u_int len)"
+.Fc
+.Ft void
+.Fn m_cat "struct mbuf *m" "struct mbuf *n"
+.Ft u_int
+.Fn m_fixhdr "struct mbuf *mbuf"
+.Ft void
+.Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from"
+.Ft void
+.Fn m_move_pkthdr "struct mbuf *to" "struct mbuf *from"
+.Ft u_int
+.Fn m_length "struct mbuf *mbuf" "struct mbuf **last"
+.Ft struct mbuf *
+.Fn m_split "struct mbuf *mbuf" "int len" "int how"
+.Ft int
+.Fn m_apply "struct mbuf *mbuf" "int off" "int len" "int (*f)(void *arg, void *data, u_int len)" "void *arg"
+.Ft struct mbuf *
+.Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
+.Ft struct mbuf *
+.Fn m_defrag "struct mbuf *m0" "int how"
+.\"
+.Sh DESCRIPTION
+An
+.Vt mbuf
+is a basic unit of memory management in the kernel IPC subsystem.
+Network packets and socket buffers are stored in
+.Vt mbufs .
+A network packet may span multiple
+.Vt mbufs
+arranged into a
+.Vt mbuf chain
+(linked list),
+which allows adding or trimming
+network headers with little overhead.
+.Pp
+While a developer should not bother with
+.Vt mbuf
+internals without serious
+reason in order to avoid incompatibilities with future changes, it
+is useful to understand the general structure of an
+.Vt mbuf .
+.Pp
+An
+.Vt mbuf
+consists of a variable-sized header and a small internal
+buffer for data.
+The total size of an
+.Vt mbuf ,
+.Dv MSIZE ,
+is a constant defined in
+.In sys/param.h .
+The
+.Vt mbuf
+header includes:
+.Pp
+.Bl -tag -width "m_nextpkt" -offset indent
+.It Va m_next
+.Pq Vt struct mbuf *
+A pointer to the next
+.Vt mbuf
+in the
+.Vt mbuf chain .
+.It Va m_nextpkt
+.Pq Vt struct mbuf *
+A pointer to the next
+.Vt mbuf chain
+in the queue.
+.It Va m_data
+.Pq Vt caddr_t
+A pointer to data attached to this
+.Vt mbuf .
+.It Va m_len
+.Pq Vt int
+The length of the data.
+.It Va m_type
+.Pq Vt short
+The type of the data.
+.It Va m_flags
+.Pq Vt int
+The
+.Vt mbuf
+flags.
+.El
+.Pp
+The
+.Vt mbuf
+flag bits are defined as follows:
+.Bd -literal
+/* mbuf flags */
+#define	M_EXT		0x0001	/* has associated external storage */
+#define	M_PKTHDR	0x0002	/* start of record */
+#define	M_EOR		0x0004	/* end of record */
+#define	M_RDONLY	0x0008	/* associated data marked read-only */
+#define	M_PROTO1	0x0010	/* protocol-specific */
+#define	M_PROTO2	0x0020 	/* protocol-specific */
+#define	M_PROTO3	0x0040	/* protocol-specific */
+#define	M_PROTO4	0x0080	/* protocol-specific */
+#define	M_PROTO5	0x0100	/* protocol-specific */
+#define	M_PROTO6	0x4000	/* protocol-specific (avoid M_BCAST conflict) */
+#define	M_FREELIST	0x8000	/* mbuf is on the free list */
+
+/* mbuf pkthdr flags (also stored in m_flags) */
+#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
+#define	M_MCAST		0x0400	/* send/received as link-level multicast */
+#define	M_FRAG		0x0800	/* packet is fragment of larger packet */
+#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
+#define	M_LASTFRAG	0x2000	/* packet is last fragment */
+.Ed
+.Pp
+The available
+.Vt mbuf
+types are defined as follows:
+.Bd -literal
+/* mbuf types */
+#define	MT_DATA		1	/* dynamic (data) allocation */
+#define	MT_HEADER	2	/* packet header */
+#define	MT_SONAME	8	/* socket name */
+#define	MT_FTABLE	11	/* fragment reassembly header */
+#define	MT_CONTROL	14	/* extra-data protocol message */
+#define	MT_OOBDATA	15	/* expedited data */
+.Ed
+.Pp
+If the
+.Dv M_PKTHDR
+flag is set, a
+.Vt struct pkthdr Va m_pkthdr
+is added to the
+.Vt mbuf
+header.
+It contains a pointer to the interface
+the packet has been received from
+.Pq Vt struct ifnet Va *rcvif ,
+and the total packet length
+.Pq Vt int Va len .
+Optionally, it may also contain an attached list of packet tags
+.Pq Vt "struct m_tag" .
+See
+.Xr mbuf_tags 9
+for details.
+Fields used in offloading checksum calculation to the hardware are kept in
+.Va m_pkthdr
+as well.
+See
+.Sx HARDWARE-ASSISTED CHECKSUM CALCULATION
+for details.
+.Pp
+If small enough, data is stored in the internal data buffer of an
+.Vt mbuf .
+If the data is sufficiently large, another
+.Vt mbuf
+may be added to the
+.Vt mbuf chain ,
+or external storage may be associated with the
+.Vt mbuf .
+.Dv MHLEN
+bytes of data can fit into an
+.Vt mbuf
+with the
+.Dv M_PKTHDR
+flag set,
+.Dv MLEN
+bytes can otherwise.
+.Pp
+If external storage is being associated with an
+.Vt mbuf ,
+the
+.Va m_ext
+header is added at the cost of losing the internal data buffer.
+It includes a pointer to external storage, the size of the storage,
+a pointer to a function used for freeing the storage,
+a pointer to an optional argument that can be passed to the function,
+and a pointer to a reference counter.
+An
+.Vt mbuf
+using external storage has the
+.Dv M_EXT
+flag set.
+.Pp
+The system supplies a macro for allocating the desired external storage
+buffer,
+.Dv MEXTADD .
+.Pp
+The allocation and management of the reference counter is handled by the
+subsystem.
+The developer can check whether the reference count for the
+external storage of a given
+.Vt mbuf
+is greater than 1 with the
+.Dv MEXT_IS_REF
+macro.
+Similarly, the developer can directly add and remove references,
+if absolutely necessary, with the use of the
+.Dv MEXT_ADD_REF
+and
+.Dv MEXT_REM_REF
+macros.
+.Pp
+The system also supplies a default type of external storage buffer called an
+.Vt mbuf cluster .
+.Vt Mbuf clusters
+can be allocated and configured with the use of the
+.Dv MCLGET
+macro.
+Each
+.Vt mbuf cluster
+is
+.Dv MCLBYTES
+in size, where MCLBYTES is a machine-dependent constant.
+The system defines an advisory macro
+.Dv MINCLSIZE ,
+which is the smallest amount of data to put into an
+.Vt mbuf cluster .
+It's equal to the sum of
+.Dv MLEN
+and
+.Dv MHLEN .
+It is typically preferable to store data into the data region of an
+.Vt mbuf ,
+if size permits, as opposed to allocating a separate
+.Vt mbuf cluster
+to hold the same data.
+.\"
+.Ss Macros and Functions
+There are numerous predefined macros and functions that provide the
+developer with common utilities.
+.\"
+.Bl -ohang -offset indent
+.It Fn mtod mbuf type
+Convert an
+.Fa mbuf
+pointer to a data pointer.
+The macro expands to the data pointer cast to the pointer of the specified
+.Fa type .
+.Sy Note :
+It is advisable to ensure that there is enough contiguous data in
+.Fa mbuf .
+See
+.Fn m_pullup
+for details.
+.It Fn MGET mbuf how type
+Allocate an
+.Vt mbuf
+and initialize it to contain internal data.
+.Fa mbuf
+will point to the allocated
+.Vt mbuf
+on success, or be set to
+.Dv NULL
+on failure.
+The
+.Fa how
+argument is to be set to
+.Dv M_TRYWAIT
+or
+.Dv M_DONTWAIT .
+It specifies whether the caller is willing to block if necessary.
+If
+.Fa how
+is set to
+.Dv M_TRYWAIT ,
+a failed allocation will result in the caller being put
+to sleep for a designated
+kern.ipc.mbuf_wait
+.Xr ( sysctl 8
+tunable)
+number of ticks.
+A number of other functions and macros related to
+.Vt mbufs
+have the same argument because they may
+at some point need to allocate new
+.Vt mbufs .
+.Pp
+Programmers should be careful not to confuse the
+.Vt mbuf
+allocation flag
+.Dv M_DONTWAIT
+with the
+.Xr malloc 9
+allocation flag,
+.Dv M_NOWAIT .
+They are not the same.
+.It Fn MGETHDR mbuf how type
+Allocate an
+.Vt mbuf
+and initialize it to contain a packet header
+and internal data.
+See
+.Fn MGET
+for details.
+.It Fn MCLGET mbuf how
+Allocate and attach an
+.Vt mbuf cluster
+to
+.Fa mbuf .
+If the macro fails, the
+.Dv M_EXT
+flag won't be set in
+.Fa mbuf .
+.It Fn M_ALIGN mbuf len
+Set the pointer
+.Fa mbuf->m_data
+to place an object of the size
+.Fa len
+at the end of the internal data area of
+.Fa mbuf ,
+long word aligned.
+Applicable only if
+.Fa mbuf
+is newly allocated with
+.Fn MGET
+or
+.Fn m_get .
+.It Fn MH_ALIGN mbuf len
+Serves the same purpose as
+.Fn M_ALIGN
+does, but only for
+.Fa mbuf
+newly allocated with
+.Fn MGETHDR
+or
+.Fn m_gethdr ,
+or initialized by
+.Fn m_dup_pkthdr
+or
+.Fn m_move_pkthdr .
+.It Fn M_LEADINGSPACE mbuf
+Returns the number of bytes available before the beginning
+of data in
+.Fa mbuf .
+.It Fn M_TRAILINGSPACE mbuf
+Returns the number of bytes available after the end of data in
+.Fa mbuf .
+.It Fn M_PREPEND mbuf len how
+This macro operates on an
+.Vt mbuf chain .
+It is an optimized wrapper for
+.Fn m_prepend
+that can make use of possible empty space before data
+(e.g.\& left after trimming of a link-layer header).
+The new
+.Vt mbuf chain
+pointer or
+.Dv NULL
+is in
+.Fa mbuf
+after the call.
+.It Fn M_MOVE_PKTHDR to from
+Using this macro is equivalent to calling
+.Fn m_move_pkthdr to from .
+.It Fn M_WRITABLE mbuf
+This macro will evaluate true if
+.Fa mbuf
+is not marked
+.Dv M_RDONLY
+and if either
+.Fa mbuf
+does not contain external storage or,
+if it does,
+then if the reference count of the storage is not greater than 1.
+The
+.Dv M_RDONLY
+flag can be set in
+.Fa mbuf->m_flags .
+This can be achieved during setup of the external storage,
+by passing the
+.Dv M_RDONLY
+bit as a
+.Fa flags
+argument to the
+.Fn MEXTADD
+macro, or can be directly set in individual
+.Vt mbufs .
+.It Fn MCHTYPE mbuf type
+Change the type of
+.Fa mbuf
+to
+.Fa type .
+This is a relatively expensive operation and should be avoided.
+.El
+.Pp
+The functions are:
+.Bl -ohang -offset indent
+.It Fn m_get how type
+A function version of
+.Fn MGET
+for non-critical paths.
+.It Fn m_getm orig len how type
+Allocate
+.Fa len
+bytes worth of
+.Vt mbufs
+and
+.Vt mbuf clusters
+if necessary and append the resulting allocated
+.Vt mbuf chain
+to the
+.Vt mbuf chain
+.Fa orig ,
+if it is
+.No non- Ns Dv NULL .
+If the allocation fails at any point,
+free whatever was allocated and return
+.Dv NULL .
+If
+.Fa orig
+is
+.No non- Ns Dv NULL ,
+it will not be freed.
+It is possible to use
+.Fn m_getm
+to either append
+.Fa len
+bytes to an existing
+.Vt mbuf
+or
+.Vt mbuf chain
+(for example, one which may be sitting in a pre-allocated ring)
+or to simply perform an all-or-nothing
+.Vt mbuf
+and
+.Vt mbuf cluster
+allocation.
+.It Fn m_gethdr how type
+A function version of
+.Fn MGETHDR
+for non-critical paths.
+.It Fn m_getcl how type flags
+Fetch an
+.Vt mbuf
+with a
+.Vt mbuf cluster
+attached to it.
+If one of the allocations fails, the entire allocation fails.
+This routine is the preferred way of fetching both the
+.Vt mbuf
+and
+.Vt mbuf cluster
+together, as it avoids having to unlock/relock between allocations.
+Returns
+.Dv NULL
+on failure.
+.It Fn m_getclr how type
+Allocate an
+.Vt mbuf
+and zero out the data region.
+.It Fn m_free mbuf
+Frees
+.Vt mbuf .
+Returns
+.Va m_next
+of the freed
+.Vt mbuf .
+.El
+.Pp
+The functions below operate on
+.Vt mbuf chains .
+.Bl -ohang -offset indent
+.It Fn m_freem mbuf
+Free an entire
+.Vt mbuf chain ,
+including any external storage.
+.\"
+.It Fn m_adj mbuf len
+Trim
+.Fa len
+bytes from the head of an
+.Vt mbuf chain
+if
+.Fa len
+is positive, from the tail otherwise.
+.\"
+.It Fn m_prepend mbuf len how
+Allocate a new
+.Vt mbuf
+and prepend it to the
+.Vt mbuf chain ,
+handle
+.Dv M_PKTHDR
+properly.
+.Sy Note :
+It doesn't allocate any
+.Vt mbuf clusters ,
+so
+.Fa len
+must be less than
+.Dv MLEN
+or
+.Dv MHLEN ,
+depending on the
+.Dv M_PKTHDR
+flag setting.
+.\"
+.It Fn m_pullup mbuf len
+Arrange that the first
+.Fa len
+bytes of an
+.Vt mbuf chain
+are contiguous and lay in the data area of
+.Fa mbuf ,
+so they are accessible with
+.Fn mtod mbuf type .
+Return the new
+.Vt mbuf chain
+on success,
+.Dv NULL
+on failure
+(the
+.Vt mbuf chain
+is freed in this case).
+.Sy Note :
+It doesn't allocate any
+.Vt mbuf clusters ,
+so
+.Fa len
+must be less than
+.Dv MHLEN .
+.\"
+.It Fn m_copym mbuf offset len how
+Make a copy of an
+.Vt mbuf chain
+starting
+.Fa offset
+bytes from the beginning, continuing for
+.Fa len
+bytes.
+If
+.Fa len
+is
+.Dv M_COPYALL ,
+copy to the end of the
+.Vt mbuf chain .
+.Sy Note :
+The copy is read-only, because the
+.Vt mbuf clusters
+are not copied, only their reference counts are incremented.
+.\"
+.It Fn m_copypacket mbuf how
+Copy an entire packet including header, which must be present.
+This is an optimized version of the common case
+.Fn m_copym mbuf 0 M_COPYALL how .
+.Sy Note :
+the copy is read-only, because the
+.Vt mbuf clusters
+are not copied, only their reference counts are incremented.
+.\"
+.It Fn m_dup mbuf how
+Copy a packet header
+.Vt mbuf chain
+into a completely new
+.Vt mbuf chain ,
+including copying any
+.Vt mbuf clusters .
+Use this instead of
+.Fn m_copypacket
+when you need a writable copy of an
+.Vt mbuf chain .
+.\"
+.It Fn m_copydata mbuf offset len buf
+Copy data from an
+.Vt mbuf chain
+starting
+.Fa off
+bytes from the beginning, continuing for
+.Fa len
+bytes, into the indicated buffer
+.Fa buf .
+.\"
+.It Fn m_copyback mbuf offset len buf
+Copy
+.Fa len
+bytes from the buffer
+.Fa buf
+back into the indicated
+.Vt mbuf chain ,
+starting at
+.Fa offset
+bytes from the beginning of the
+.Vt mbuf chain ,
+extending the
+.Vt mbuf chain
+if necessary.
+.Sy Note :
+It doesn't allocate any
+.Vt mbuf clusters ,
+just adds
+.Vt mbufs
+to the
+.Vt mbuf chain .
+It's safe to set
+.Fa offset
+beyond the current
+.Vt mbuf chain
+end: zeroed
+.Vt mbufs
+will be allocated to fill the space.
+.\"
+.It Fn m_length mbuf last
+Return the length of the
+.Vt mbuf chain ,
+and optionally a pointer to the last
+.Vt mbuf .
+.\"
+.It Fn m_dup_pkthdr to from how
+Upon the function's completion, the
+.Vt mbuf
+.Fa to
+will contain an identical copy of
+.Fa from->m_pkthdr
+and the per-packet attributes found in the
+.Vt mbuf chain
+.Fa from .
+The
+.Vt mbuf
+.Fa from
+must have the flag
+.Dv M_PKTHDR
+initially set, and
+.Fa to
+must be empty on entry.
+.\"
+.It Fn m_move_pkthdr to from
+Move
+.Va m_pkthdr
+and the per-packet attributes from the
+.Vt mbuf chain
+.Fa from
+to the
+.Vt mbuf
+.Fa to .
+The
+.Vt mbuf
+.Fa from
+must have the flag
+.Dv M_PKTHDR
+initially set, and
+.Fa to
+must be empty on entry.
+Upon the function's completion,
+.Fa from
+will have the flag
+.Dv M_PKTHDR
+and the per-packet attributes cleared.
+.\"
+.It Fn m_fixhdr mbuf
+Set the packet-header length to the length of the
+.Vt mbuf chain .
+.\"
+.It Fn m_devget buf len offset ifp copy
+Copy data from a device local memory pointed to by
+.Fa buf
+to an
+.Vt mbuf chain .
+The copy is done using a specified copy routine
+.Fa copy ,
+or
+.Fn bcopy
+if
+.Fa copy
+is
+.Dv NULL .
+.\"
+.It Fn m_cat m n
+Concatenate
+.Fa n
+to
+.Fa m .
+Both
+.Vt mbuf chains
+must be of the same type.
+.Fa N
+is still valid after the function returned.
+.Sy Note :
+It does not handle
+.Dv M_PKTHDR
+and friends.
+.\"
+.It Fn m_split mbuf len how
+Partition an
+.Vt mbuf chain
+in two pieces, returning the tail:
+all but the first
+.Fa len
+bytes.
+In case of failure, it returns
+.Dv NULL
+and attempts to restore the
+.Vt mbuf chain
+to its original state.
+.\"
+.It Fn m_apply mbuf off len f arg
+Apply a function to an
+.Vt mbuf chain ,
+at offset
+.Fa off ,
+for length
+.Fa len
+bytes.
+Typically used to avoid calls to
+.Fn m_pullup
+which would otherwise be unnecessary or undesirable.
+.Fa arg
+is a convenience argument which is passed to the callback function
+.Fa f .
+.Pp
+Each time
+.Fn f
+is called, it will be passed
+.Fa arg ,
+a pointer to the
+.Fa data
+in the current mbuf, and the length
+.Fa len
+of the data in this mbuf to which the function should be applied.
+.Pp
+The function should return zero to indicate success;
+otherwise, if an error is indicated, then
+.Fn m_apply
+will return the error and stop iterating through the
+.Vt mbuf chain .
+.\"
+.It Fn m_getptr mbuf loc off
+Return a pointer to the mbuf containing the data located at
+.Fa loc
+bytes from the beginning of the
+.Vt mbuf chain .
+The corresponding offset into the mbuf will be stored in
+.Fa *off .
+.It Fn m_defrag m0 how
+Defragment an mbuf chain, returning the shortest possible
+chain of mbufs and clusters.
+If allocation fails and this can not be completed,
+.Dv NULL
+will be returned and the original chain will be unchanged.
+Upon success, the original chain will be freed and the new
+chain will be returned.
+.Fa how
+should be either
+.Dv M_TRYWAIT
+or
+.Dv M_DONTWAIT ,
+depending on the caller's preference.
+.Pp
+This function is especially useful in network drivers, where
+certain long mbuf chains must be shortened before being added
+to TX descriptor lists.
+.El
+.Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
+This section currently applies to TCP/IP only.
+In order to save the host CPU resources, computing checksums is
+offloaded to the network interface hardware if possible.
+The
+.Va m_pkthdr
+member of the leading
+.Vt mbuf
+of a packet contains two fields used for that purpose,
+.Vt int Va csum_flags
+and
+.Vt int Va csum_data .
+The meaning of those fields depends on the direction a packet flows in,
+and on whether the packet is fragmented.
+Henceforth,
+.Va csum_flags
+or
+.Va csum_data
+of a packet
+will denote the corresponding field of the
+.Va m_pkthdr
+member of the leading
+.Vt mbuf
+in the
+.Vt mbuf chain
+containing the packet.
+.Pp
+On output, checksum offloading is attempted after the outgoing
+interface has been determined for a packet.
+The interface-specific field
+.Va ifnet.if_data.ifi_hwassist
+(see
+.Xr ifnet 9 )
+is consulted for the capabilities of the interface to assist in
+computing checksums.
+The
+.Va csum_flags
+field of the packet header is set to indicate which actions the interface
+is supposed to perform on it.
+The actions unsupported by the network interface are done in the
+software prior to passing the packet down to the interface driver;
+such actions will never be requested through
+.Va csum_flags .
+.Pp
+The flags demanding a particular action from an interface are as follows:
+.Bl -tag -width ".Dv CSUM_TCP" -offset indent
+.It Dv CSUM_IP
+The IP header checksum is to be computed and stored in the
+corresponding field of the packet.
+The hardware is expected to know the format of an IP header
+to determine the offset of the IP checksum field.
+.It Dv CSUM_TCP
+The TCP checksum is to be computed.
+(See below.)
+.It Dv CSUM_UDP
+The UDP checksum is to be computed.
+(See below.)
+.El
+.Pp
+Should a TCP or UDP checksum be offloaded to the hardware,
+the field
+.Va csum_data
+will contain the byte offset of the checksum field relative to the
+end of the IP header.
+In this case, the checksum field will be initially
+set by the TCP/IP module to the checksum of the pseudo header
+defined by the TCP and UDP specifications.
+.Pp
+For outbound packets which have been fragmented
+by the host CPU, the following will also be true,
+regardless of the checksum flag settings:
+.Bl -bullet -offset indent
+.It
+all fragments will have the flag
+.Dv M_FRAG
+set in their
+.Va m_flags
+field;
+.It
+the first and the last fragments in the chain will have
+.Dv M_FIRSTFRAG
+or
+.Dv M_LASTFRAG
+set in their
+.Va m_flags ,
+correspondingly;
+.It
+the first fragment in the chain will have the total number
+of fragments contained in its
+.Va csum_data
+field.
+.El
+.Pp
+The last rule for fragmented packets takes precedence over the one
+for a TCP or UDP checksum.
+Nevertheless, offloading a TCP or UDP checksum is possible for a
+fragmented packet if the flag
+.Dv CSUM_IP_FRAGS
+is set in the field
+.Va ifnet.if_data.ifi_hwassist
+associated with the network interface.
+However, in this case the interface is expected to figure out
+the location of the checksum field within the sequence of fragments
+by itself because
+.Va csum_data
+contains a fragment count instead of a checksum offset value.
+.Pp
+On input, an interface indicates the actions it has performed
+on a packet by setting one or more of the following flags in
+.Va csum_flags
+associated with the packet:
+.Bl -tag -width ".Dv CSUM_IP_CHECKED" -offset indent
+.It Dv CSUM_IP_CHECKED
+The IP header checksum has been computed.
+.It Dv CSUM_IP_VALID
+The IP header has a valid checksum.
+This flag can appear only in combination with
+.Dv CSUM_IP_CHECKED .
+.It Dv CSUM_DATA_VALID
+The checksum of the data portion of the IP packet has been computed
+and stored in the field
+.Va csum_data
+in network byte order.
+.It Dv CSUM_PSEUDO_HDR
+Can be set only along with
+.Dv CSUM_DATA_VALID
+to indicate that the IP data checksum found in
+.Va csum_data
+allows for the pseudo header defined by the TCP and UDP specifications.
+Otherwise the checksum of the pseudo header must be calculated by
+the host CPU and added to
+.Va csum_data
+to obtain the final checksum to be used for TCP or UDP validation purposes.
+.El
+.Pp
+If a particular network interface just indicates success or
+failure of TCP or UDP checksum validation without returning
+the exact value of the checksum to the host CPU, its driver can mark
+.Dv CSUM_DATA_VALID
+and
+.Dv CSUM_PSEUDO_HDR
+in
+.Va csum_flags ,
+and set
+.Va csum_data
+to
+.Li 0xFFFF
+hexadecimal to indicate a valid checksum.
+It is a peculiarity of the algorithm used that the Internet checksum
+calculated over any valid packet will be
+.Li 0xFFFF
+as long as the original checksum field is included.
+.Pp
+For inbound packets which are IP fragments, all
+.Va csum_data
+fields will be summed during reassembly to obtain the final checksum
+value passed to an upper layer in the
+.Va csum_data
+field of the reassembled packet.
+The
+.Va csum_flags
+fields of all fragments will be consolidated using logical AND
+to obtain the final value for
+.Va csum_flags .
+Thus, in order to successfully
+offload checksum computation for fragmented data,
+all fragments should have the same value of
+.Va csum_flags .
+.Sh STRESS TESTING
+When running a kernel compiled with the option
+.Dv MBUF_STRESS_TEST ,
+the following
+.Xr sysctl 8 Ns
+-controlled options may be used to create
+various failure/extreme cases for testing of network drivers
+and other parts of the kernel that rely on
+.Vt mbufs .
+.Bl -tag -width ident
+.It Va net.inet.ip.mbuf_frag_size
+Causes
+.Fn ip_output
+to fragment outgoing
+.Vt mbuf chains
+into fragments of the specified size.
+Setting this variable to 1 is an excellent way to
+test the long
+.Vt mbuf chain
+handling ability of network drivers.
+.It Va kern.ipc.m_defragrandomfailures
+Causes the function
+.Fn m_defrag
+to randomly fail, returning
+.Dv NULL .
+Any piece of code which uses
+.Fn m_defrag
+should be tested with this feature.
+.El
+.Sh RETURN VALUES
+See above.
+.Sh SEE ALSO
+.Xr ifnet 9 ,
+.Xr mbuf_tags 9
+.Sh HISTORY
+.\" Please correct me if I'm wrong
+.Vt Mbufs
+appeared in an early version of
+.Bx .
+Besides being used for network packets, they were used
+to store various dynamic structures, such as routing table
+entries, interface addresses, protocol control blocks, etc.
+.Sh AUTHORS
+The original
+.Nm
+man page was written by Yar Tikhiy.

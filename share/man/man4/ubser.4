@@ -1,0 +1,55 @@
+.\" Copyright (c) 2004 Bernd Walter <ticso@FreeBSD.org>
+.\"
+.\" $URL: https://devel.bwct.de/svn/projects/ubser/ubser.4 $
+.\" $Date: 2004-02-29 21:54:17 +0100 (Sun, 29 Feb 2004) $
+.\" $Author: ticso $
+.\" $Rev: 1130 $
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 12, 2004
+.Dt UBSER 4
+.Os
+.Sh NAME
+.Nm ubser
+.Nd USB support for BWCT console serial adapters
+.Sh SYNOPSIS
+.Cd "device ubser"
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the BWCT console management serial adapters.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/ubser?.?" -compact
+.It Pa /dev/ubser?.?
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 5.2 .

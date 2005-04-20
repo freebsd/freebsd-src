@@ -1,0 +1,628 @@
+/*-
+ * Copyright (c) 1982, 1986, 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include "opt_inet.h"
+#include "opt_ipfw.h"
+#include "opt_ipdivert.h"
+#include "opt_ipsec.h"
+#include "opt_mac.h"
+
+#ifndef INET
+#error "IPDIVERT requires INET."
+#endif
+
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mac.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+
+#include <vm/uma.h>
+
+#include <net/if.h>
+#include <net/route.h>
+
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_divert.h>
+#include <netinet/ip_var.h>
+
+/*
+ * Divert sockets
+ */
+
+/*
+ * Allocate enough space to hold a full IP packet
+ */
+#define	DIVSNDQ		(65536 + 100)
+#define	DIVRCVQ		(65536 + 100)
+
+/*
+ * Divert sockets work in conjunction with ipfw, see the divert(4)
+ * manpage for features.
+ * Internally, packets selected by ipfw in ip_input() or ip_output(),
+ * and never diverted before, are passed to the input queue of the
+ * divert socket with a given 'divert_port' number (as specified in
+ * the matching ipfw rule), and they are tagged with a 16 bit cookie
+ * (representing the rule number of the matching ipfw rule), which
+ * is passed to process reading from the socket.
+ *
+ * Packets written to the divert socket are again tagged with a cookie
+ * (usually the same as above) and a destination address.
+ * If the destination address is INADDR_ANY then the packet is
+ * treated as outgoing and sent to ip_output(), otherwise it is
+ * treated as incoming and sent to ip_input().
+ * In both cases, the packet is tagged with the cookie.
+ *
+ * On reinjection, processing in ip_input() and ip_output()
+ * will be exactly the same as for the original packet, except that
+ * ipfw processing will start at the rule number after the one
+ * written in the cookie (so, tagging a packet with a cookie of 0
+ * will cause it to be effectively considered as a standard packet).
+ */
+
+/* Internal variables */
+static struct inpcbhead divcb;
+static struct inpcbinfo divcbinfo;
+
+static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
+static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
+
+/*
+ * Initialize divert connection block queue.
+ */
+void
+div_init(void)
+{
+	INP_INFO_LOCK_INIT(&divcbinfo, "div");
+	LIST_INIT(&divcb);
+	divcbinfo.listhead = &divcb;
+	/*
+	 * XXX We don't use the hash list for divert IP, but it's easier
+	 * to allocate a one entry hash list than it is to check all
+	 * over the place for hashbase == NULL.
+	 */
+	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
+	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
+	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
+}
+
+/*
+ * IPPROTO_DIVERT is not in the real IP protocol number space; this
+ * function should never be called.  Just in case, drop any packets.
+ */
+void
+div_input(struct mbuf *m, int off)
+{
+	ipstat.ips_noproto++;
+	m_freem(m);
+}
+
+/*
+ * Divert a packet by passing it up to the divert socket at port 'port'.
+ *
+ * Setup generic address and protocol structures for div_input routine,
+ * then pass them along with mbuf chain.
+ */
+void
+divert_packet(struct mbuf *m, int incoming)
+{
+	struct ip *ip;
+	struct inpcb *inp;
+	struct socket *sa;
+	u_int16_t nport;
+	struct sockaddr_in divsrc;
+	struct m_tag *mtag;
+
+	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
+	if (mtag == NULL) {
+		printf("%s: no divert tag\n", __func__);
+		m_freem(m);
+		return;
+	}
+	/* Assure header */
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == 0)
+		return;
+	ip = mtod(m, struct ip *);
+
+	/* Delayed checksums are currently not compatible with divert. */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		ip->ip_len = ntohs(ip->ip_len);
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		ip->ip_len = htons(ip->ip_len);
+	}
+
+	/*
+	 * Record receive interface address, if any.
+	 * But only for incoming packets.
+	 */
+	bzero(&divsrc, sizeof(divsrc));
+	divsrc.sin_len = sizeof(divsrc);
+	divsrc.sin_family = AF_INET;
+	divsrc.sin_port = divert_cookie(mtag);	/* record matching rule */
+	if (incoming) {
+		struct ifaddr *ifa;
+
+		/* Sanity check */
+		M_ASSERTPKTHDR(m);
+
+		/* Find IP address for receive interface */
+		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr == NULL)
+				continue;
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			divsrc.sin_addr =
+			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
+			break;
+		}
+	}
+	/*
+	 * Record the incoming interface name whenever we have one.
+	 */
+	if (m->m_pkthdr.rcvif) {
+		/*
+		 * Hide the actual interface name in there in the 
+		 * sin_zero array. XXX This needs to be moved to a
+		 * different sockaddr type for divert, e.g.
+		 * sockaddr_div with multiple fields like 
+		 * sockaddr_dl. Presently we have only 7 bytes
+		 * but that will do for now as most interfaces
+		 * are 4 or less + 2 or less bytes for unit.
+		 * There is probably a faster way of doing this,
+		 * possibly taking it from the sockaddr_dl on the iface.
+		 * This solves the problem of a P2P link and a LAN interface
+		 * having the same address, which can result in the wrong
+		 * interface being assigned to the packet when fed back
+		 * into the divert socket. Theoretically if the daemon saves
+		 * and re-uses the sockaddr_in as suggested in the man pages,
+		 * this iface name will come along for the ride.
+		 * (see div_output for the other half of this.)
+		 */ 
+		strlcpy(divsrc.sin_zero, m->m_pkthdr.rcvif->if_xname,
+		    sizeof(divsrc.sin_zero));
+	}
+
+	/* Put packet on socket queue, if any */
+	sa = NULL;
+	nport = htons((u_int16_t)divert_info(mtag));
+	INP_INFO_RLOCK(&divcbinfo);
+	LIST_FOREACH(inp, &divcb, inp_list) {
+		INP_LOCK(inp);
+		/* XXX why does only one socket match? */
+		if (inp->inp_lport == nport) {
+			sa = inp->inp_socket;
+			SOCKBUF_LOCK(&sa->so_rcv);
+			if (sbappendaddr_locked(&sa->so_rcv,
+			    (struct sockaddr *)&divsrc, m,
+			    (struct mbuf *)0) == 0) {
+				SOCKBUF_UNLOCK(&sa->so_rcv);
+				sa = NULL;	/* force mbuf reclaim below */
+			} else
+				sorwakeup_locked(sa);
+			INP_UNLOCK(inp);
+			break;
+		}
+		INP_UNLOCK(inp);
+	}
+	INP_INFO_RUNLOCK(&divcbinfo);
+	if (sa == NULL) {
+		m_freem(m);
+		ipstat.ips_noproto++;
+		ipstat.ips_delivered--;
+        }
+}
+
+/*
+ * Deliver packet back into the IP processing machinery.
+ *
+ * If no address specified, or address is 0.0.0.0, send to ip_output();
+ * otherwise, send to ip_input() and mark as having been received on
+ * the interface with that address.
+ */
+static int
+div_output(struct socket *so, struct mbuf *m,
+	struct sockaddr_in *sin, struct mbuf *control)
+{
+	int error = 0;
+
+	m->m_pkthdr.rcvif = NULL;
+
+	if (control)
+		m_freem(control);		/* XXX */
+
+	/* Loopback avoidance and state recovery */
+	if (sin) {
+		struct m_tag *mtag;
+		struct divert_tag *dt;
+		int i;
+
+		mtag = m_tag_get(PACKET_TAG_DIVERT,
+				sizeof(struct divert_tag), M_NOWAIT);
+		if (mtag == NULL) {
+			error = ENOBUFS;
+			goto cantsend;
+		}
+		dt = (struct divert_tag *)(mtag+1);
+		dt->info = 0;
+		dt->cookie = sin->sin_port;
+		m_tag_prepend(m, mtag);
+
+		/*
+		 * Find receive interface with the given name, stuffed
+		 * (if it exists) in the sin_zero[] field.
+		 * The name is user supplied data so don't trust its size
+		 * or that it is zero terminated.
+		 */
+		for (i = 0; i < sizeof(sin->sin_zero) && sin->sin_zero[i]; i++)
+			;
+		if ( i > 0 && i < sizeof(sin->sin_zero))
+			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
+	}
+
+	/* Reinject packet into the system as incoming or outgoing */
+	if (!sin || sin->sin_addr.s_addr == 0) {
+		struct ip *const ip = mtod(m, struct ip *);
+		struct inpcb *inp;
+
+		INP_INFO_WLOCK(&divcbinfo);
+		inp = sotoinpcb(so);
+		INP_LOCK(inp);
+		/*
+		 * Don't allow both user specified and setsockopt options,
+		 * and don't allow packet length sizes that will crash
+		 */
+		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
+		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
+			error = EINVAL;
+			m_freem(m);
+		} else {
+			/* Convert fields to host order for ip_output() */
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+
+			/* Send packet to output processing */
+			ipstat.ips_rawout++;			/* XXX */
+
+#ifdef MAC
+			mac_create_mbuf_from_inpcb(inp, m);
+#endif
+			error = ip_output(m,
+				    inp->inp_options, NULL,
+				    (so->so_options & SO_DONTROUTE) |
+				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
+				    inp->inp_moptions, NULL);
+		}
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&divcbinfo);
+	} else {
+		if (m->m_pkthdr.rcvif == NULL) {
+			/*
+			 * No luck with the name, check by IP address.
+			 * Clear the port and the ifname to make sure
+			 * there are no distractions for ifa_ifwithaddr.
+			 */
+			struct	ifaddr *ifa;
+
+			bzero(sin->sin_zero, sizeof(sin->sin_zero));
+			sin->sin_port = 0;
+			ifa = ifa_ifwithaddr((struct sockaddr *) sin);
+			if (ifa == NULL) {
+				error = EADDRNOTAVAIL;
+				goto cantsend;
+			}
+			m->m_pkthdr.rcvif = ifa->ifa_ifp;
+		}
+#ifdef MAC
+		SOCK_LOCK(so);
+		mac_create_mbuf_from_socket(so, m);
+		SOCK_UNLOCK(so);
+#endif
+		/* Send packet to input processing */
+		ip_input(m);
+	}
+
+	return error;
+
+cantsend:
+	m_freem(m);
+	return error;
+}
+
+static int
+div_attach(struct socket *so, int proto, struct thread *td)
+{
+	struct inpcb *inp;
+	int error;
+
+	INP_INFO_WLOCK(&divcbinfo);
+	inp  = sotoinpcb(so);
+	if (inp != 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	if (td && (error = suser(td)) != 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return error;
+	}
+	error = soreserve(so, div_sendspace, div_recvspace);
+	if (error) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return error;
+	}
+	error = in_pcballoc(so, &divcbinfo, "divinp");
+	if (error) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return error;
+	}
+	inp = (struct inpcb *)so->so_pcb;
+	INP_LOCK(inp);
+	INP_INFO_WUNLOCK(&divcbinfo);
+	inp->inp_ip_p = proto;
+	inp->inp_vflag |= INP_IPV4;
+	inp->inp_flags |= INP_HDRINCL;
+	INP_UNLOCK(inp);
+	return 0;
+}
+
+static int
+div_detach(struct socket *so)
+{
+	struct inpcb *inp;
+
+	INP_INFO_WLOCK(&divcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
+	in_pcbdetach(inp);
+	INP_INFO_WUNLOCK(&divcbinfo);
+	return 0;
+}
+
+static int
+div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+	struct inpcb *inp;
+	int error;
+
+	INP_INFO_WLOCK(&divcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	/* in_pcbbind assumes that nam is a sockaddr_in
+	 * and in_pcbbind requires a valid address. Since divert
+	 * sockets don't we need to make sure the address is
+	 * filled in properly.
+	 * XXX -- divert should not be abusing in_pcbind
+	 * and should probably have its own family.
+	 */
+	if (nam->sa_family != AF_INET)
+		error = EAFNOSUPPORT;
+	else {
+		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
+		INP_LOCK(inp);
+		error = in_pcbbind(inp, nam, td->td_ucred);
+		INP_UNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&divcbinfo);
+	return error;
+}
+
+static int
+div_shutdown(struct socket *so)
+{
+	struct inpcb *inp;
+
+	INP_INFO_RLOCK(&divcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_RUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&divcbinfo);
+	socantsendmore(so);
+	INP_UNLOCK(inp);
+	return 0;
+}
+
+static int
+div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+	 struct mbuf *control, struct thread *td)
+{
+	/* Packet must have a header (but that's about it) */
+	if (m->m_len < sizeof (struct ip) &&
+	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
+		ipstat.ips_toosmall++;
+		m_freem(m);
+		return EINVAL;
+	}
+
+	/* Send packet */
+	return div_output(so, m, (struct sockaddr_in *)nam, control);
+}
+
+void
+div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+{
+        struct in_addr faddr;
+
+	faddr = ((struct sockaddr_in *)sa)->sin_addr;
+	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+        	return;
+	if (PRC_IS_REDIRECT(cmd))
+		return;
+}
+
+static int
+div_pcblist(SYSCTL_HANDLER_ARGS)
+{
+	int error, i, n;
+	struct inpcb *inp, **inp_list;
+	inp_gen_t gencnt;
+	struct xinpgen xig;
+
+	/*
+	 * The process of preparing the TCB list is too time-consuming and
+	 * resource-intensive to repeat twice on every request.
+	 */
+	if (req->oldptr == 0) {
+		n = divcbinfo.ipi_count;
+		req->oldidx = 2 * (sizeof xig)
+			+ (n + n/8) * sizeof(struct xinpcb);
+		return 0;
+	}
+
+	if (req->newptr != 0)
+		return EPERM;
+
+	/*
+	 * OK, now we're committed to doing something.
+	 */
+	INP_INFO_RLOCK(&divcbinfo);
+	gencnt = divcbinfo.ipi_gencnt;
+	n = divcbinfo.ipi_count;
+	INP_INFO_RUNLOCK(&divcbinfo);
+
+	error = sysctl_wire_old_buffer(req,
+	    2 * sizeof(xig) + n*sizeof(struct xinpcb));
+	if (error != 0)
+		return (error);
+
+	xig.xig_len = sizeof xig;
+	xig.xig_count = n;
+	xig.xig_gen = gencnt;
+	xig.xig_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error)
+		return error;
+
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
+	if (inp_list == 0)
+		return ENOMEM;
+	
+	INP_INFO_RLOCK(&divcbinfo);
+	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
+		INP_LOCK(inp);
+		if (inp->inp_gencnt <= gencnt &&
+		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
+			inp_list[i++] = inp;
+		INP_UNLOCK(inp);
+	}
+	INP_INFO_RUNLOCK(&divcbinfo);
+	n = i;
+
+	error = 0;
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		if (inp->inp_gencnt <= gencnt) {
+			struct xinpcb xi;
+			xi.xi_len = sizeof xi;
+			/* XXX should avoid extra copy */
+			bcopy(inp, &xi.xi_inp, sizeof *inp);
+			if (inp->inp_socket)
+				sotoxsocket(inp->inp_socket, &xi.xi_socket);
+			error = SYSCTL_OUT(req, &xi, sizeof xi);
+		}
+	}
+	if (!error) {
+		/*
+		 * Give the user an updated idea of our state.
+		 * If the generation differs from what we told
+		 * her before, she knows that something happened
+		 * while we were processing this request, and it
+		 * might be necessary to retry.
+		 */
+		INP_INFO_RLOCK(&divcbinfo);
+		xig.xig_gen = divcbinfo.ipi_gencnt;
+		xig.xig_sogen = so_gencnt;
+		xig.xig_count = divcbinfo.ipi_count;
+		INP_INFO_RUNLOCK(&divcbinfo);
+		error = SYSCTL_OUT(req, &xig, sizeof xig);
+	}
+	free(inp_list, M_TEMP);
+	return error;
+}
+
+/*
+ * This is the wrapper function for in_setsockaddr.  We just pass down
+ * the pcbinfo for in_setpeeraddr to lock.
+ */
+static int
+div_sockaddr(struct socket *so, struct sockaddr **nam)
+{
+	return (in_setsockaddr(so, nam, &divcbinfo));
+}
+
+/*
+ * This is the wrapper function for in_setpeeraddr. We just pass down
+ * the pcbinfo for in_setpeeraddr to lock.
+ */
+static int
+div_peeraddr(struct socket *so, struct sockaddr **nam)
+{
+	return (in_setpeeraddr(so, nam, &divcbinfo));
+}
+
+
+SYSCTL_DECL(_net_inet_divert);
+SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
+	    div_pcblist, "S,xinpcb", "List of active divert sockets");
+
+struct pr_usrreqs div_usrreqs = {
+	NULL, pru_accept_notsupp, div_attach, div_bind,
+	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
+	NULL, pru_listen_notsupp, div_peeraddr, pru_rcvd_notsupp,
+	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
+	div_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
+};

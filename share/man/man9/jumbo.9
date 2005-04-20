@@ -1,0 +1,151 @@
+.\"
+.\" Copyright (c) 2002 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 2002
+.Dt JUMBO 9
+.Os
+.Sh NAME
+.Nm jumbo ,
+.Nm jumbo_vm_init ,
+.Nm jumbo_pg_alloc ,
+.Nm jumbo_pg_free ,
+.Nm jumbo_freem ,
+.Nm jumbo_pg_steal ,
+.Nm jumbo_phys_to_kva
+.Nd kernel interface for allocating and freeing page-sized disposable buffers
+.Sh SYNOPSIS
+.In sys/jumbo.h
+.Ft int
+.Fn jumbo_vm_init void
+.Ft vm_page_t
+.Fn jumbo_pg_alloc void
+.Ft void
+.Fn jumbo_pg_free "vm_offset_t addr"
+.Ft void
+.Fn jumbo_freem "caddr_t addr" "void *args"
+.Ft void
+.Fn jumbo_pg_steal "vm_page_t pg"
+.Ft caddr_t
+.Fn jumbo_phys_to_kva "vm_offset_t pa"
+.Sh DESCRIPTION
+The
+.Nm
+buffer facility is designed for allocating disposable page-sized
+buffers.
+Buffers allocated via this facility can either be returned or not.
+This facility is primarily intended for use with network adapters
+that have MTUs of a page or greater size.
+The buffers will normally be disposed of by the
+.Xr zero_copy 9
+receive code.
+.Pp
+.Fn jumbo_vm_init
+initializes the pool of KVA the
+.Nm
+code needs to operate and does some
+other initialization to prepare the subsystem for operation.
+This routine only needs to be called once.
+Calling it multiple times will have no effect.
+It is recommended that this initialization routine be called in a
+device driver attach routine, so that resources are not allocated if the
+.Nm
+subsystem will not end up being used.
+.Fn jumbo_vm_init
+returns 1 upon successful completion, and 0 upon failure.
+.Pp
+.Fn jumbo_pg_alloc
+allocates a physical page and assigns a piece of KVA from the
+.Nm
+KVA pool.
+It returns the allocated page if successful, and
+.Dv NULL
+in the case of failure.
+.Pp
+.Fn jumbo_pg_free
+frees a page allocated by
+.Fn jumbo_pg_alloc .
+It takes the address of the memory in question as an argument.
+This routine will normally be used in cases where the allocated
+.Nm
+page cannot be used for some reason.
+The normal free path is via
+.Fn jumbo_freem .
+.Pp
+.Fn jumbo_freem
+is the routine that should be given as the external free routine when an
+external
+.Vt mbuf
+is allocated using pages from the
+.Nm
+allocator.
+It takes the virtual address of the page in question, and
+ignores the second argument.
+.Pp
+.Fn jumbo_pg_steal
+.Dq steals
+a page and recycles its KVA space.
+.Pp
+.Fn jumbo_phys_to_kva
+translates the physical address of a
+.Nm
+allocated page to the proper kernel virtual address.
+.Sh SEE ALSO
+.Xr ti 4 ,
+.Xr zero_copy 9
+.Sh HISTORY
+The
+.Nm
+allocator is primarily based on a page allocator system originally written
+by
+.An Andrew Gallatin Aq gallatin@FreeBSD.org
+as part of a set of zero copy patches for the
+.Xr ti 4
+driver.
+The allocator was taken out of the
+.Xr ti 4
+driver, cleaned up and ported to the new
+.Xr mutex 9
+interface by
+.An Kenneth Merry Aq ken@FreeBSD.org .
+.Pp
+The
+.Nm
+allocator first appeared in
+.Fx 5.0 ,
+and has existed in patch form since at least 1999.
+.Sh AUTHORS
+.An Andrew Gallatin Aq gallatin@FreeBSD.org
+.An Kenneth Merry Aq ken@FreeBSD.org
+.Sh BUGS
+There is currently a static number of KVA pages allocated by the
+.Nm
+allocator, with no real provision for increasing the number of pages
+allocated should demand exceed supply.
+.Pp
+The
+.Fn jumbo_pg_steal
+function is not currently used anywhere.

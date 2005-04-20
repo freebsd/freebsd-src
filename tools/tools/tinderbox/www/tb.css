@@ -1,0 +1,65 @@
+/*
+ * $FreeBSD$
+ */
+
+BODY, H1, H2, H3, H4, H5, H6, LI {
+    font-family: Helvetica, sans-serif;
+    font-style: normal;
+    background-color: white;
+    color: navy;
+}
+
+A:link {
+    background-color: white;
+    color: blue;
+}
+
+A:visited {
+    background-color: white;
+    color: gray;
+}
+
+A:active {
+    background-color: white;
+    color: red;
+}
+
+.tiny {
+    font-size: x-small;
+}
+
+.update {
+    font-style: italic;
+}
+
+.ok-0	{ background-color: white; color: #007700; }
+.ok-1	{ background-color: white; color: #117B11; }
+.ok-2	{ background-color: white; color: #227F22; }
+.ok-3	{ background-color: white; color: #338333; }
+.ok-4	{ background-color: white; color: #448744; }
+.ok-5	{ background-color: white; color: #558B55; }
+.ok-6	{ background-color: white; color: #668F66; }
+.ok-7	{ background-color: white; color: #779377; }
+.ok-8	{ background-color: white; color: #889788; }
+.ok-9	{ background-color: white; color: #999B99; }
+
+.fail-0	{ background-color: white; color: #ff0000; }
+.fail-1	{ background-color: white; color: #ff1111; }
+.fail-2	{ background-color: white; color: #ff2222; }
+.fail-3	{ background-color: white; color: #ff3333; }
+.fail-4	{ background-color: white; color: #ff4444; }
+.fail-5	{ background-color: white; color: #ff5555; }
+.fail-6	{ background-color: white; color: #ff6666; }
+.fail-7	{ background-color: white; color: #ff7777; }
+.fail-8	{ background-color: white; color: #ff8888; }
+.fail-9	{ background-color: white; color: #ff9999; }
+
+TD, TH {
+    width: 16ex;
+    text-align: center;
+    vertical-align: middle;
+}
+
+IMG {
+    border: none;
+}

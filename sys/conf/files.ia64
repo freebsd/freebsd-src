@@ -1,0 +1,149 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+#
+font8x16.o			optional	std8x16font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c"				\
+	no-implicit-rule before-depend					\
+	clean		"${STD8X16FONT}-8x16 font8x16.c"
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"									\
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
+compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32
+compat/ia32/ia32_sysvec.c		optional	compat_ia32
+contrib/ia64/libuwx/src/uwx_bstream.c		standard
+contrib/ia64/libuwx/src/uwx_context.c		standard
+contrib/ia64/libuwx/src/uwx_env.c		standard
+contrib/ia64/libuwx/src/uwx_scoreboard.c	standard
+contrib/ia64/libuwx/src/uwx_step.c		standard
+contrib/ia64/libuwx/src/uwx_str.c		standard
+contrib/ia64/libuwx/src/uwx_swap.c		standard
+contrib/ia64/libuwx/src/uwx_trace.c		standard
+contrib/ia64/libuwx/src/uwx_uinfo.c		standard
+contrib/ia64/libuwx/src/uwx_utable.c		standard
+crypto/blowfish/bf_enc.c	optional	crypto
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
+dev/advansys/adv_isa.c		optional	adv isa
+dev/aic/aic_isa.c		optional	aic isa
+dev/fb/fb.c			optional	fb
+dev/fb/fb.c			optional	vga
+dev/fb/splash.c			optional	splash
+dev/fb/vga.c			optional	vga
+dev/kbd/atkbd.c			optional	atkbd
+dev/kbd/atkbdc.c		optional	atkbdc
+dev/kbd/kbd.c			optional	atkbd
+dev/kbd/kbd.c			optional	kbd
+dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	ukbd
+dev/ppc/ppc.c			optional	ppc isa
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scvgarndr.c		optional	sc vga
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
+dev/uart/uart_cpu_ia64.c	optional	uart
+geom/geom_bsd.c			standard
+geom/geom_bsd_enc.c		standard
+geom/geom_gpt.c			standard
+geom/geom_mbr.c			standard
+geom/geom_mbr_enc.c		standard
+dev/acpica/acpi_if.m		standard
+ia64/acpica/OsdEnvironment.c	optional	acpi
+ia64/acpica/acpi_machdep.c	optional	acpi
+ia64/acpica/acpi_wakeup.c	optional	acpi
+ia64/acpica/madt.c		optional	acpi
+ia64/disasm/disasm_decode.c	standard
+ia64/disasm/disasm_extract.c	standard
+ia64/disasm/disasm_format.c	standard
+ia64/ia32/ia32_signal.c		optional	compat_ia32
+ia64/ia32/ia32_sigtramp.c	optional        compat_ia32
+ia64/ia64/autoconf.c		standard
+ia64/ia64/busdma_machdep.c	standard
+ia64/ia64/clock.c		standard
+ia64/ia64/clock_if.m		standard
+ia64/ia64/context.S		standard
+ia64/ia64/critical.c		standard
+ia64/ia64/db_interface.c	optional	ddb
+ia64/ia64/db_trace.c		optional	ddb
+ia64/ia64/dump_machdep.c	standard
+ia64/ia64/efi.c			standard
+ia64/ia64/eficlock.c		standard
+ia64/ia64/elf_machdep.c		standard
+ia64/ia64/exception.S		standard
+ia64/ia64/gdb_machdep.c		optional	gdb
+ia64/ia64/in_cksum.c		optional	inet
+ia64/ia64/interrupt.c		standard
+ia64/ia64/locore.S		standard	no-obj
+ia64/ia64/machdep.c		standard
+ia64/ia64/mca.c			standard
+ia64/ia64/mem.c			optional	mem
+ia64/ia64/mp_machdep.c		optional	smp
+ia64/ia64/nexus.c		standard
+ia64/ia64/pal.S			standard
+ia64/ia64/pmap.c		standard
+ia64/ia64/ptrace_machdep.c	standard
+ia64/ia64/sal.c			standard
+ia64/ia64/sapic.c		standard
+ia64/ia64/setjmp.S		standard
+ia64/ia64/ssc.c			optional	ski
+ia64/ia64/sscdisk.c		optional	ski
+ia64/ia64/support.S		standard
+ia64/ia64/sys_machdep.c		standard
+ia64/ia64/syscall.S		standard
+ia64/ia64/trap.c		standard
+ia64/ia64/uio_machdep.c		standard
+ia64/ia64/uma_machdep.c		standard
+ia64/ia64/unaligned.c		standard
+ia64/ia64/unwind.c		standard
+ia64/ia64/vm_machdep.c		standard
+ia64/isa/isa.c			optional	isa
+ia64/isa/isa_dma.c		optional	isa
+ia64/pci/pci_cfgreg.c		optional	pci
+isa/atkbd_isa.c			optional	atkbd
+isa/atkbdc_isa.c		optional	atkbdc
+isa/psm.c			optional	psm
+isa/syscons_isa.c		optional	sc
+isa/vga_isa.c			optional	vga
+kern/imgact_elf32.c		optional	compat_ia32
+libkern/bcmp.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+libkern/ia64/__divdi3.S		standard
+libkern/ia64/__divsi3.S		standard
+libkern/ia64/__moddi3.S		standard
+libkern/ia64/__modsi3.S		standard
+libkern/ia64/__udivdi3.S	standard
+libkern/ia64/__udivsi3.S	standard
+libkern/ia64/__umoddi3.S	standard
+libkern/ia64/__umodsi3.S	standard
+libkern/ia64/bswap16.S		standard
+libkern/ia64/bswap32.S		standard

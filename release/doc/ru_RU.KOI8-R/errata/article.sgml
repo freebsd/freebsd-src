@@ -1,0 +1,285 @@
+<!--
+   The FreeBSD Russian Documentation Project
+
+   $FreeBSD$
+   $FreeBSDru$
+
+   Original revision: 1.69.2.16
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "5.3-RELEASE">
+<!ENTITY release.bugfix.next "5.4-RELEASE">
+]>
+
+<article lang="ru">
+  <articleinfo>
+    <title>Список проблем &os; &release.bugfix;</title>
+
+    <corpauthor>
+    Проект &os;
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>В этом документе находится список проблем &os; &release.bugfix;,
+      содержащий важную информацию, полученную после релиза или на поздней
+      стадии выпуска релиза и не попавшую в документацию на релиз.
+      Эта информация включает сообщения безопасности, а также новости,
+      относящиеся к программному обеспечению и документации, которые
+      могут повлиять на использование системы.  Перед установкой этой версии
+      &os; необходимо сверяться с обновленной версией этого документа.</para>
+
+    <para>Этот список проблем &os; &release.bugfix; будет поддерживаться
+      до &os; &release.bugfix.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Введение</title>
+
+    <para>Этот документ содержит последние новости об &os; &release.bugfix;.
+      Перед установкой этой версии необходимо проконсультироваться с данным
+      документом для получения информации о обнаруженных после выпуска
+      релиза проблемах, которые уже могли быть найдены
+      и исправлены.</para>
+
+    <para>Любая версия этого документа, распространяемая с релизом
+      (например, на CDROM дистрибутиве), уже устарела по определению,
+      но другие копии обновляются в интернет и их необходимо прочесть
+      как <quote>текущие сообщения о проблемах</quote> этого релиза.
+      Эти копии находятся на <ulink
+      url="http://www.FreeBSD.org/ru/releases/"></ulink> и на любых
+      сайтах, поддерживающих обновляемые зеркала этой страницы.</para>
+
+    <para>Снэпшоты в исходных текстах и бинарные снэпшоты &os;
+      &release.branch; также содержат обновленные копии этого документа
+      (на время создания снэпшота).</para>
+
+    <para>За списком всех сообщений безопасности &os; CERT обращайтесь к <ulink
+      url="http://www.FreeBSD.org/ru/security/"></ulink> или <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Сообщения безопасности</title>
+
+    <para>(1 декабря 2004) Была исправлена ошибка в &man.procfs.5; и &man.linprocfs.5;,
+      позволявшая злонамеренному локальному пользователю читать части
+      памяти ядра или выполнять локальную DoS атаку путем вызова паники
+      системы.  За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.</para>
+
+    <para>(18 ноября 2004) Была исправлена ошибка в утилите
+      &man.fetch.1;; она позволяла злонамеренному HTTP серверу
+      перезапись произвольных участков памяти клиента.
+      За дальнейшей информацией обращайтесь к сообщению
+      безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16</ulink>.</para>
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>Актуальные проблемы</title>
+
+    <para>(31 октября 2004) Драйверы &man.re.4; и &man.em.4;
+      могут плохо работать под высокой нагрузкой.  В частности,
+      были сообщения, что &man.em.4; на IBM ThinkPad T40 блокировался
+      в таких условиях.</para>
+
+    <para>(31 октября 2004) Были сообщения, что драйвер &man.sk.4; блокировался
+      при высокой нагрузке, особенно при использовании встроенных
+      контроллеров ASUStek.  Для восстановления работоспособности
+      может потребоваться отключение и включение интерфейс (down, up) и/или
+      перезагрузка системы.</para>
+
+    <para>(31 октября 2004) В некоторых системах &man.burncd.8; может терять
+      управление.  При этом &man.burncd.8; не сообщает о завершении операции,
+      хотя на самом деле операция завершена, и индикатор выполнения не
+      показывает правильного значения.  Обходные пути решения проблемы:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Извлеките носитель и вставьте его обратно после записи
+	  CD.</para>
+      </listitem>
+
+      <listitem>
+	<para>Нажмите Ctrl-C, если &man.burncd.8; потерял управление, а
+	  индикатор погас.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>(31 октября 2004) При использовании пользовательских/групповых
+      правил в &man.pf.4; и &man.ipfw.4; переменная загрузчика
+      <varname>debug.mpsafenet</varname> должна быть установлена в
+      <literal>0</literal> (она установлена в <literal>1</literal> по
+      умолчанию).  Например, это касается следующих правил:</para>
+
+    <para>для &man.ipfw.4;:</para>
+
+    <programlisting>count ip from any to 192.168.2.1 uid root</programlisting>
+
+    <para>для &man.pf.4;:</para>
+
+    <programlisting>block log quick proto { tcp, udp } all user root</programlisting>
+
+    <para>Для установки <varname>debug.mpsafenet</varname> в <literal>0</literal>
+      при каждой загрузке, добавьте в
+      <filename>/boot/loader.conf</filename> следующую строку:</para>
+
+    <programlisting>debug.mpsafenet=0</programlisting>
+
+    <para>Говоря точнее, это относится к параметрам <literal>group</literal>
+      и <literal>user</literal> в &man.pf.4;, и к параметрам
+      <literal>gid</literal>,
+      <literal>jail</literal>, и <literal>uid</literal> в &man.ipfw.4;.
+      Если переменная <varname>debug.mpsafenet</varname> установлена в
+      <literal>1</literal>, система может зависнуть вследствие блокировки
+      в слое сокета.  Более подробная информация находится на страницах
+      справочной системы &man.ipfw.8; и &man.pf.conf.5;.</para>
+
+    <para>(31 октября 2004, обновлено 12 ноября 2004) Подсистема
+      &man.vinum.4; работает на
+      5.3, но может вызвать панику системы во время загрузки.
+      В качестве обходного пути вы можете добавить
+      <literal>vinum_load="YES"</literal>
+      в <filename>/boot/loader.conf</filename>.</para>
+
+    <para>В качестве альтернативы вы можете использовать новую,
+      основанную на &man.geom.4; подсистему &man.vinum.4;.  Для
+      активации основанной на &man.geom.4; подсистемы
+      vinum во время загрузки, добавьте <literal>geom_vinum_load="YES"</literal>
+      в <filename>/boot/loader.conf</filename> и удалите
+      переменную <literal>start_vinum="YES"</literal> из
+      <filename>/etc/rc.conf</filename>, если она там есть.</para>
+
+    <para>Хотя некоторые редко встречающиеся конфигурации, такие как
+      несколько приводов vinum на диске, не поддерживаются,
+      в основном это решение обратно совместимо.
+      Имейте ввиду, что с основанным на &man.geom.4; vinum должна
+      использоваться программа пользователя <command>gvinum</command>,
+      и она пока не поддерживает всех возможностей.</para>
+
+    <para>(31 октября 2004) Результат <command>netstat -m</command>
+      может быть некорректным на SMP системах, когда переменная
+      <varname>debug.mpsafenet</varname> установлена в
+      <literal>1</literal> (значение по умолчанию).  Это вызвано
+      ошибкой <quote>race condition</quote> в сборе статистики,
+      а не утечкой памяти.</para>
+
+    <para>(31 октября 2004, обновление 5 ноября 2004)
+      В &os;/i386 и &os;/amd64, при установке &os; 5.3
+      с использованием USB клавиатуры, клавиатура перестает
+      работать после загрузки ядра, поскольку считается,
+      что подключена клавиатура PS/2.  В качестве обходного пути,
+      выберите <quote>Escape to loader prompt</quote> в меню
+      загрузчика и введите в приглашение следующие строки:</para>
+
+    <screen>set hint.atkbd.0.flags="0x1"
+boot</screen>
+
+    <para>Обратите внимание, что при использовании загрузочных
+      дискет эти параметры установлены по умолчанию.</para>
+
+    <para>После установки добавьте в
+      <filename>/boot/loader.conf</filename> следующую строку:</para>
+
+    <programlisting>hint.atkbd.0.flags="0x1"</programlisting>
+
+    <para>(1 ноября 2004) Планировщик ULE, описанный в заметках о релизе,
+      был полностью отключен, поскольку имеются проблемы со
+      стабильностью.</para>
+
+    <para>(1 ноября 2004) Программы, подключающие
+      <application>libpthread</application>, могут не показывать статистику
+      использования в &man.top.1;, а программы, подключающие
+      <application>libthr</application>, показывают правильную
+      статистику.</para>
+
+    <para>(1 ноября 2004) Поддержка ATA RAID для CMD649 и SiI0680 ATA
+      контроллеров не функциональна в этом релизе.  Когда такие
+      контроллеры активируются под &man.ata.4; (ataraid) в 5.3,
+      настройки RAID, сохраненные в 5.2 или предыдущих релизах,
+      могут быть повреждены.</para>
+
+    <para>(3 ноября 2004) Для &os;/i386 и &os;/amd64, поддержка SMP
+      в ядре <filename>GENERIC</filename> была отключена по умолчанию,
+      поскольку SMP ядро может понижать производительность
+      упомянутых систем.  Был добавлен файл конфигурации ядра
+      <filename>SMP</filename>, который может быть использован для
+      включения поддержки SMP.  Дополнительные подробности по сборке
+      ядра находятся на странице
+      <ulink url="&url.books.handbook;/kernelconfig.html"></ulink>.</para>
+
+    <para>(4 ноября 2004) Утилита &man.tar.1; (известная также как &man.bsdtar.1;)
+      не определяет конец носителя, например ленты или дискеты
+      при указании его параметром <option>-f</option>.
+      В качестве альтернативы может быть использован &man.gtar.1;
+      (<application>GNU tar</application>).</para>
+
+    <para>(9 ноября 2004) Основанная на &man.geom.4; подсистема &man.vinum.4;
+      не работает для томов RAID5 на машинах с одним процессором.
+      Отличные от RAID5 конфигурации (такие как RAID1) должны работать правильно.
+      Проблема была исправлена в ветви RELENG_5.</para>
+
+    <para>(9 ноября 2004) В &os; Руководстве по миграции 5.3-RELEASE должно
+      упоминаться удаление <filename>/usr/sbin/nslookup</filename> и
+      <filename>/usr/sbin/nsupdate</filename>, включенных в
+      <application>BIND 8</application> в процессе обновления из исходных
+      текстов.</para>
+
+    <para>(9 ноября 2004) В заметках о релизе &os; 5.3-RELEASE должно упоминаться,
+      что <filename role="package">net/mpd</filename>, скомпилированный на
+      старых системах до 5.3-RELEASE должен быть перекомпилирован.</para>
+
+    <para>(10 ноября 2004) В заметках о релизе &os; 5.3-RELEASE должно явно
+      упоминаться, что порты/пакеты, собранные в старых системах до
+      5.3-RELEASE и подключающие старые потоковые библиотеки POSIX
+      (<application>libc_r</application> или
+      <application>libkse</application>) могут вызывать ошибку
+      <quote>Spinlock called when not threaded</quote> при запуске.
+      Это происходит, когда программа подключает несколько различных
+      потоковых библиотек (обычно когда старые порты подключают
+      <application>libc_r</application>, а новые порты подключают
+      <application>libpthread</application>).  Требуется либо перекомпиляция
+      портов/пакетов либо добавление необходимых строк в
+      <filename>/etc/libmap.conf</filename>.  Более детальная информация
+      находится в <filename>/usr/src/UPDATING</filename>
+      (20040303 и 20040130).</para>
+
+    <para>(12 ноября 2004) Драйвер &man.em.4; работает неправильно при
+      одновременном включении поддержки VLAN и promiscuous режима.
+      Исправление тестируется и будет включено в ветвь исправлений
+      5.3.</para>
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Последние новости</title>
+
+    <para>Нет новостей.</para>
+  </sect1>
+
+</article>

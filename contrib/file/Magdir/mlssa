@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# mlssa: file(1) magic for MLSSA datafiles
+#
+0		lelong		0xffffabcd	MLSSA datafile,
+>4		leshort		x		algorithm %d,
+>10		lelong		x		%d samples

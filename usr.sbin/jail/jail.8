@@ -1,0 +1,573 @@
+.\"
+.\" Copyright (c) 2000, 2003 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 8, 2003
+.Dt JAIL 8
+.Os
+.Sh NAME
+.Nm jail
+.Nd "imprison process and its descendants"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Op Fl l u Ar username | Fl U Ar username
+.Ar path hostname ip-number command ...
+.Sh DESCRIPTION
+The
+.Nm
+utility imprisons a process and all future descendants.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl u Ar username"
+.It Fl i
+Output the jail identifier of the newly created jail.
+.It Fl l
+Run program in the clean environment.
+The environment is discarded except for
+.Ev HOME , SHELL , TERM
+and
+.Ev USER .
+.Ev HOME
+and
+.Ev SHELL
+are set to the target login's default values.
+.Ev USER
+is set to the target login.
+.Ev TERM
+is imported from the current environment.
+The environment variables from the login class capability database for the
+target login are also set.
+.It Fl u Ar username
+The user name from host environment as whom the
+.Ar command
+should run.
+.It Fl U Ar username
+The user name from jailed environment as whom the
+.Ar command
+should run.
+.It Ar path
+Directory which is to be the root of the prison.
+.It Ar hostname
+Hostname of the prison.
+.It Ar ip-number
+IP number assigned to the prison.
+.It Ar command
+Pathname of the program which is to be executed.
+.El
+.Pp
+Jails are typically set up using one of two philosophies: either to
+constrain a specific application (possibly running with privilege), or
+to create a
+.Dq "virtual system image"
+running a variety of daemons and services.
+In both cases, a fairly complete file system install of
+.Fx
+is
+required, so as to provide the necessary command line tools, daemons,
+libraries, application configuration files, etc.
+However, for a virtual server configuration, a fair amount of
+additional work is required so as to configure the
+.Dq boot
+process.
+This manual page documents the configuration steps necessary to support
+either of these steps, although the configuration steps may be
+refined based on local requirements.
+.Pp
+Please see the
+.Xr jail 2
+man page for further details.
+.Sh EXAMPLES
+.Ss "Setting up a Jail Directory Tree"
+This example shows how to set up a jail directory tree
+containing an entire
+.Fx
+distribution:
+.Bd -literal
+D=/here/is/the/jail
+cd /usr/src
+mkdir -p $D
+make world DESTDIR=$D
+cd etc
+make distribution DESTDIR=$D
+mount_devfs devfs $D/dev
+cd $D
+ln -sf dev/null kernel
+.Ed
+.Pp
+NOTE: It is important that only appropriate device nodes in devfs be
+exposed to a jail; access to disk devices in the jail may permit processes
+in the jail to bypass the jail sandboxing by modifying files outside of
+the jail.
+See
+.Xr devfs 8
+for information on how to use devfs rules to limit access to entries
+in the per-jail devfs.
+.Pp
+In many cases this example would put far more in the jail than needed.
+In the other extreme case a jail might contain only one file:
+the executable to be run in the jail.
+.Pp
+We recommend experimentation and caution that it is a lot easier to
+start with a
+.Dq fat
+jail and remove things until it stops working,
+than it is to start with a
+.Dq thin
+jail and add things until it works.
+.Ss "Setting Up a Jail"
+Do what was described in
+.Sx "Setting Up a Jail Directory Tree"
+to build the jail directory tree.
+For the sake of this example, we will
+assume you built it in
+.Pa /data/jail/192.168.11.100 ,
+named for the jailed IP address.
+Substitute below as needed with your
+own directory, IP address, and hostname.
+.Ss "Setting up the Host Environment"
+First, you will want to set up your real system's environment to be
+.Dq jail-friendly .
+For consistency, we will refer to the parent box as the
+.Dq "host environment" ,
+and to the jailed virtual machine as the
+.Dq "jail environment" .
+Since jail is implemented using IP aliases, one of the first things to do
+is to disable IP services on the host system that listen on all local
+IP addresses for a service.
+If a network service is present in the host environment that binds all
+available IP addresses rather than specific IP addresses, it may service
+requests sent to jail IP addresses.
+This means changing
+.Xr inetd 8
+to only listen on the
+appropriate IP address, and so forth.
+Add the following to
+.Pa /etc/rc.conf
+in the host environment:
+.Bd -literal -offset indent
+sendmail_enable="NO"
+inetd_flags="-wW -a 192.168.11.23"
+rpcbind_enable="NO"
+.Ed
+.Pp
+.Li 192.168.11.23
+is the native IP address for the host system, in this example.
+Daemons that run out of
+.Xr inetd 8
+can be easily set to use only the specified host IP address.
+Other daemons
+will need to be manually configured\(emfor some this is possible through
+the
+.Xr rc.conf 5
+flags entries; for others it is necessary to modify per-application
+configuration files, or to recompile the applications.
+The following frequently deployed services must have their individual
+configuration files modified to limit the application to listening
+to a specific IP address:
+.Pp
+To configure
+.Xr sshd 8 ,
+it is necessary to modify
+.Pa /etc/ssh/sshd_config .
+.Pp
+To configure
+.Xr sendmail 8 ,
+it is necessary to modify
+.Pa /etc/mail/sendmail.cf .
+.Pp
+For
+.Xr named 8 ,
+it is necessary to modify
+.Pa /etc/namedb/named.conf .
+.Pp
+In addition, a number of services must be recompiled in order to run
+them in the host environment.
+This includes most applications providing services using
+.Xr rpc 3 ,
+such as
+.Xr rpcbind 8,
+.Xr nfsd 8 ,
+and
+.Xr mountd 8 .
+In general, applications for which it is not possible to specify which
+IP address to bind should not be run in the host environment unless they
+should also service requests sent to jail IP addresses.
+Attempting to serve
+NFS from the host environment may also cause confusion, and cannot be
+easily reconfigured to use only specific IPs, as some NFS services are
+hosted directly from the kernel.
+Any third-party network software running
+in the host environment should also be checked and configured so that it
+does not bind all IP addresses, which would result in those services' also
+appearing to be offered by the jail environments.
+.Pp
+Once
+these daemons have been disabled or fixed in the host environment, it is
+best to reboot so that all daemons are in a known state, to reduce the
+potential for confusion later (such as finding that when you send mail
+to a jail, and its sendmail is down, the mail is delivered to the host,
+etc.).
+.Ss "Configuring the Jail"
+Start any jail for the first time without configuring the network
+interface so that you can clean it up a little and set up accounts.
+As
+with any machine (virtual or not) you will need to set a root password, time
+zone, etc.
+Some of these steps apply only if you intend to run a full virtual server
+inside the jail; others apply both for constraining a particular application
+or for running a virtual server.
+.Pp
+Start a shell in the jail:
+.Pp
+.Dl "jail /data/jail/192.168.11.100 testhostname 192.168.11.100 /bin/sh"
+.Pp
+Assuming no errors, you will end up with a shell prompt within the jail.
+You can now run
+.Pa /usr/sbin/sysinstall
+and do the post-install configuration to set various configuration options,
+or perform these actions manually by editing
+.Pa /etc/rc.conf ,
+etc.
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Create an empty
+.Pa /etc/fstab
+to quell startup warnings about missing fstab (virtual server only)
+.It
+Disable the port mapper
+.Pa ( /etc/rc.conf :
+.Li rpcbind_enable="NO" )
+(virtual server only)
+.It
+Run
+.Xr newaliases 1
+to quell
+.Xr sendmail 8
+warnings.
+.It
+Disable interface configuration to quell startup warnings about
+.Xr ifconfig 8
+.Pq Li network_interfaces=""
+(virtual server only)
+.It
+Configure
+.Pa /etc/resolv.conf
+so that name resolution within the jail will work correctly
+.It
+Set a root password, probably different from the real host system
+.It
+Set the timezone
+.It
+Add accounts for users in the jail environment
+.It
+Install any packages the environment requires
+.El
+.Pp
+You may also want to perform any package-specific configuration (web servers,
+SSH servers, etc), patch up
+.Pa /etc/syslog.conf
+so it logs as you would like, etc.
+If you are not using a virtual server, you may wish to modify
+.Xr syslogd 8
+in the host environment to listen on the syslog socket in the jail
+environment; in this example, the syslog socket would be stored in
+.Pa /data/jail/192.168.11.100/var/run/log .
+.Pp
+Exit from the shell, and the jail will be shut down.
+.Ss "Starting the Jail"
+You are now ready to restart the jail and bring up the environment with
+all of its daemons and other programs.
+If you are running a single application in the jail, substitute the
+command used to start the application for
+.Pa /etc/rc
+in the examples below.
+To start a virtual server environment,
+.Pa /etc/rc
+is run to launch various daemons and services.
+To do this, first bring up the
+virtual host interface, and then start the jail's
+.Pa /etc/rc
+script from within the jail.
+.Pp
+NOTE: If you plan to allow untrusted users to have root access inside the
+jail, you may wish to consider setting the
+.Va security.jail.set_hostname_allowed
+sysctl variable to 0.
+Please see the management discussion later in this document as to why this
+may be a good idea.
+If you do decide to set this variable,
+it must be set before starting any jails, and once each boot.
+.Bd -literal -offset indent
+ifconfig ed0 inet alias 192.168.11.100/32
+mount -t procfs proc /data/jail/192.168.11.100/proc
+jail /data/jail/192.168.11.100 testhostname 192.168.11.100 \\
+	/bin/sh /etc/rc
+.Ed
+.Pp
+A few warnings will be produced, because most
+.Xr sysctl 8
+configuration variables cannot be set from within the jail, as they are
+global across all jails and the host environment.
+However, it should all
+work properly.
+You should be able to see
+.Xr inetd 8 ,
+.Xr syslogd 8 ,
+and other processes running within the jail using
+.Xr ps 1 ,
+with the
+.Ql J
+flag appearing beside jailed processes.
+To see an active list of jails, use the
+.Xr jls 8
+utility.
+You should also be able to
+.Xr telnet 1
+to the hostname or IP address of the jailed environment, and log
+in using the accounts you created previously.
+.Ss "Managing the Jail"
+Normal machine shutdown commands, such as
+.Xr halt 8 ,
+.Xr reboot 8 ,
+and
+.Xr shutdown 8 ,
+cannot be used successfully within the jail.
+To kill all processes in a
+jail, you may log into the jail and, as root, use one of the following
+commands, depending on what you want to accomplish:
+.Pp
+.Bd -literal -offset indent
+kill -TERM -1
+kill -KILL -1
+.Ed
+.Pp
+This will send the
+.Dv SIGTERM
+or
+.Dv SIGKILL
+signals to all processes in the jail from within the jail.
+Depending on
+the intended use of the jail, you may also want to run
+.Pa /etc/rc.shutdown
+from within the jail.
+To kill processes from outside the jail, use the
+.Xr jexec 8
+utility in conjuction with the one of the
+.Xr kill 1
+commands above, or use the
+.Xr killall 1
+utility with the
+.Fl j
+option.
+.Pp
+The
+.Pa /proc/ Ns Ar pid Ns Pa /status
+file contains, as its last field, the hostname of the jail in which the
+process runs, or
+.Dq Li -
+to indicate that the process is not running within a jail.
+The
+.Xr ps 1
+command also shows a
+.Ql J
+flag for processes in a jail.
+However, the hostname for a jail may be, by
+default, modified from within the jail, so the
+.Pa /proc
+status entry is unreliable by default.
+To disable the setting of the hostname
+from within a jail, set the
+.Va security.jail.set_hostname_allowed
+sysctl variable in the host environment to 0, which will affect all jails.
+You can have this sysctl set on each boot using
+.Xr sysctl.conf 5 .
+Just add the following line to
+.Pa /etc/sysctl.conf :
+.Pp
+.Dl security.jail.set_hostname_allowed=0
+.Ss "Sysctl MIB Entries"
+Certain aspects of the jail containments environment may be modified from
+the host environment using
+.Xr sysctl 8
+MIB variables.
+Currently, these variables affect all jails on the system, although in
+the future this functionality may be finer grained.
+.Bl -tag -width XXX
+.It Va security.jail.allow_raw_sockets
+This MIB entry determines whether or not prison root is allowed to
+create raw sockets.
+Setting this MIB to 1 allows utilities like
+.Xr ping 8
+and
+.Xr traceroute 8
+to operate inside the prison.
+If this MIB
+is set, the source IP addresses are enforced to comply
+with the IP address bound to the jail, regardless of whether or not
+the
+.Dv IP_HDRINCL
+flag has been set on the socket.
+Since raw sockets can be used to configure
+and interact with various network subsystems, extra caution should be used
+where privileged access to jails is given out to untrusted parties.
+As such,
+by default this option is disabled.
+.It Va security.jail.getfsstatroot_only
+This MIB entry determines whether or not processes within a jail are able
+to see data for all mountpoints.
+When set to 1 (default), the
+.Xr getfsstat 2
+system call returns only (when called by jailed processes) the data for
+the file system on which the jail's root vnode is located.
+Note: this also has the effect of hiding other mounts inside a jail,
+such as
+.Pa /dev ,
+.Pa /tmp ,
+and
+.Pa /proc ,
+but errs on the side of leaking less information.
+.It Va security.jail.set_hostname_allowed
+This MIB entry determines whether or not processes within a jail are
+allowed to change their hostname via
+.Xr hostname 1
+or
+.Xr sethostname 3 .
+In the current jail implementation, the ability to set the hostname from
+within the jail can impact management tools relying on the accuracy of jail
+information in
+.Pa /proc .
+As such, this should be disabled in environments where privileged access to
+jails is given out to untrusted parties.
+.It Va security.jail.socket_unixiproute_only
+The jail functionality binds an IPv4 address to each jail, and limits
+access to other network addresses in the IPv4 space that may be available
+in the host environment.
+However, jail is not currently able to limit access to other network
+protocol stacks that have not had jail functionality added to them.
+As such, by default, processes within jails may only access protocols
+in the following domains:
+.Dv PF_LOCAL , PF_INET ,
+and
+.Dv PF_ROUTE ,
+permitting them access to
+.Ux
+domain sockets,
+IPv4 addresses, and routing sockets.
+To enable access to other domains, this MIB variable may be set to
+0.
+.It Va security.jail.sysvipc_allowed
+This MIB entry determines whether or not processes within a jail have access
+to System V IPC primitives.
+In the current jail implementation, System V primitives share a single
+namespace across the host and jail environments, meaning that processes
+within a jail would be able to communicate with (and potentially interfere
+with) processes outside of the jail, and in other jails.
+As such, this functionality is disabled by default, but can be enabled
+by setting this MIB entry to 1.
+.It Va security.jail.chflags_allowed
+This MIB entry determines how a privileged user inside a jail will be 
+treated by
+.Xr chflags 2 .
+If zero, such users are treated as unprivileged, and are unable to set
+or clear system file flags; if non-zero, such users are treated as 
+privileged, and may manipulate system file flags subject to the usual
+constaints on
+.Va kern.securelevel .
+.El
+.Pp
+There are currently two MIB related variables that have per-jail settings.
+Changes to these variables by a jailed process do not effect the host
+environment, only the jail environment.
+The variables are
+.Va kern.securelevel
+and
+.Va kern.hostname .
+.Sh SEE ALSO
+.Xr killall 1 ,
+.Xr newaliases 1 ,
+.Xr ps 1 ,
+.Xr chroot 2 ,
+.Xr jail 2 ,
+.Xr jail_attach 2 ,
+.Xr procfs 5 ,
+.Xr rc.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr devfs 8 ,
+.Xr halt 8 ,
+.Xr inetd 8 ,
+.Xr jexec 8 ,
+.Xr jls 8 ,
+.Xr mount_devfs 8 ,
+.Xr named 8 ,
+.Xr reboot 8 ,
+.Xr rpcbind 8 ,
+.Xr sendmail 8 ,
+.Xr shutdown 8 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The jail feature was written by
+.An Poul-Henning Kamp
+for R&D Associates
+.Pa http://www.rndassociates.com/
+who contributed it to
+.Fx .
+.Pp
+.An Robert Watson
+wrote the extended documentation, found a few bugs, added
+a few new features, and cleaned up the userland jail environment.
+.Sh BUGS
+Jail currently lacks the ability to allow access to
+specific jail information via
+.Xr ps 1
+as opposed to
+.Xr procfs 5 .
+Similarly, it might be a good idea to add an
+address alias flag such that daemons listening on all IPs
+.Pq Dv INADDR_ANY
+will not bind on that address, which would facilitate building a safe
+host environment such that host daemons do not impose on services offered
+from within jails.
+Currently, the simplest answer is to minimize services
+offered on the host, possibly limiting it to services offered from
+.Xr inetd 8
+which is easily configurable.

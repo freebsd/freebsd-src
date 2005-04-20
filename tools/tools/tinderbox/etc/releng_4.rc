@@ -1,0 +1,9 @@
+#
+# RELENG_4 tinderbox setup
+#
+# $FreeBSD$
+#
+
+branches	= RELENG_4_8, RELENG_4_9
+platforms	= alpha, i386/i386, i386/pc98
+recipient	= %%SENDER%%,<stable@freebsd.org>,<%%arch%%@freebsd.org>

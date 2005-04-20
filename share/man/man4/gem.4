@@ -1,0 +1,113 @@
+.\" $NetBSD: gem.4,v 1.2 2003/02/14 15:20:18 grant Exp $
+.\"
+.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 15, 2004
+.Dt GEM 4
+.Os
+.Sh NAME
+.Nm gem
+.Nd ERI/GEM/GMAC Ethernet device driver
+.Sh SYNOPSIS
+.Cd "device miibus"
+.Cd "device gem"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the GMac Ethernet hardware found mostly in
+the last Apple PowerBooks G3s and most G4-based Apple hardware, as
+well as many Sun UltraSPARCs.
+.Sh HARDWARE
+.Pp
+Cards supported by
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Sun GEM gigabit Ethernet
+.It
+Sun ERI 10/100 Mbps Ethernet
+.It
+Apple GMAC
+.El
+.Sh NOTES
+On sparc64 the
+.Nm
+driver respects the
+.Va local-mac-address?
+system configuration variable which can be set in the Open Firmware boot
+monitor using the
+.Ic setenv
+command or by
+.Xr eeprom 8 .
+If set to
+.Dq Li false
+(the default), the
+.Nm
+driver will use the system's default MAC address for all of its devices.
+If set to
+.Dq Li true ,
+the unique MAC address of each interface is used if present rather than
+the system's default MAC address.
+.Pp
+Supported interfaces having their own MAC address include the on-board
+Sun ERI 10/100 Mbps and GEM gigabit Ethernet Interfaces on boards equipped
+with more than one Ethernet interface and the Sun GEM gigabit Ethernet
+add-on cards.
+.Sh SEE ALSO
+.Xr hme 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr eeprom 8 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver appeared in
+.Nx 1.6 .
+The first
+.Fx
+version to include it was
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Eduardo Horvath
+.Aq eeh@NetBSD.org .
+The man page was written by
+.An Thomas Klausner
+.Aq wiz@NetBSD.org .

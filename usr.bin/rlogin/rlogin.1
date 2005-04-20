@@ -1,0 +1,201 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rlogin.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2003
+.Dt RLOGIN 1
+.Os
+.Sh NAME
+.Nm rlogin
+.Nd remote login
+.Sh SYNOPSIS
+.Ar rlogin
+.Op Fl 468DEd
+.Op Fl e Ar char
+.Op Fl i Ar localname
+.Op Fl l Ar username
+.Ar host
+.Sh DESCRIPTION
+The
+.Nm
+utility starts a terminal session on a remote host
+.Ar host .
+.Pp
+The
+.Nm
+utility
+first attempts to use the Kerberos authorization mechanism, described below.
+If the remote host does not support Kerberos the standard Berkeley
+.Pa rhosts
+authorization mechanism is used.
+.Pp
+The following options are available:
+.Bl -tag -width flag
+.It Fl 4
+Use IPv4 addresses only.
+.It Fl 6
+Use IPv6 addresses only.
+.It Fl 8
+Allow an eight-bit input data path at all times; otherwise
+parity bits are stripped except when the remote side's stop and start
+characters are other than
+^S/^Q.
+.It Fl D
+Set the TCP_NODELAY socket option which can improve interactive response
+at the expense of increased network load.
+.It Fl E
+Stop any character from being recognized as an escape character.
+When used with the
+.Fl 8
+option, this provides a completely transparent connection.
+.It Fl d
+Turn on socket debugging (see
+.Xr setsockopt 2 )
+on the TCP sockets used for communication with the remote host.
+.It Fl e
+Allow user specification of the escape character, which is
+.Dq ~
+by default.
+This specification may be as a literal character, or as an octal
+value in the form \ennn.
+.It Fl i
+Allow the caller to specify a different local name to be used
+for authentication.
+This option is restricted to processes with uid 0.
+.It Fl l
+Specify a different
+.Ar username
+for the remote login.
+If this option is not specified, your local username will be used.
+.El
+.Pp
+A line of the form
+.Dq Ao escape char Ac Ns \&.
+disconnects from the remote host.
+Similarly, the line
+.Dq Ao escape char Ac Ns ^Z
+will suspend the
+.Nm
+session, and
+.Dq Ao escape\ char Ac Ns Ao delayed-suspend\ char Ac
+suspends the
+send portion of the
+.Nm
+session, but allows output from the remote system.
+By default, the tilde
+.Pq Dq ~
+character is the escape character, and
+normally control-Y
+.Pq Dq ^Y
+is the delayed-suspend character.
+.Pp
+All echoing takes place at the remote site, so that (except for delays)
+the
+.Nm
+is transparent.
+Flow control via ^S/^Q and flushing of input and output on interrupts
+are handled properly.
+.Sh KERBEROS AUTHENTICATION
+Each user may have a private authorization list in the file
+.Pa .klogin
+in their home directory.
+Each line in this file should contain a Kerberos principal name of the
+form
+.Ar principal.instance@realm .
+If the originating user is authenticated to one of the principals named
+in
+.Pa .klogin ,
+access is granted to the account.
+The principal
+.Ar accountname.@localrealm
+is granted access if
+there is no
+.Pa .klogin
+file.
+Otherwise a login and password will be prompted for on the remote machine
+as in
+.Xr login 1 .
+To avoid certain security problems, the
+.Pa .klogin
+file must be owned by
+the remote user.
+.Pp
+If Kerberos authentication fails, a warning message is printed and the
+standard Berkeley
+.Nm
+is used instead.
+.Sh ENVIRONMENT
+The following environment variable is utilized by
+.Nm :
+.Bl -tag -width TERM
+.It Ev TERM
+Determines the user's terminal type.
+.El
+.Sh SEE ALSO
+.Xr login 1 ,
+.Xr rsh 1 ,
+.Xr telnet 1 ,
+.Xr setsockopt 2 ,
+.Xr kerberos 3 ,
+.Xr krb_realmofhost 3 ,
+.Xr krb_sendauth 3 ,
+.Xr ruserok 3 ,
+.Xr tty 4 ,
+.Xr auth.conf 5 ,
+.Xr hosts 5 ,
+.Xr hosts.equiv 5 ,
+.Xr rlogind 8 ,
+.Xr rshd 8
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa /etc/auth.conf
+.It Ev $HOME Ns Pa /.rhosts
+.It Ev $HOME Ns Pa /.klogin
+.El
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
+.Pp
+IPv6 support was added by WIDE/KAME project.
+.Sh BUGS
+The
+.Nm
+utility will be replaced by
+.Xr telnet 1
+in the near future.
+.Pp
+More of the environment should be propagated.

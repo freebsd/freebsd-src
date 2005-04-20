@@ -1,0 +1,502 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2005
+.Dt PORTS 7
+.Os
+.Sh NAME
+.Nm ports
+.Nd contributed applications
+.Sh DESCRIPTION
+The
+.Fx
+Ports Collection
+offers a simple way for users and
+administrators to install applications.
+Each
+.Em port
+contains any patches necessary to make the original
+application source code compile and run on
+.Bx .
+Compiling an
+application is as simple as typing
+.Nm make Cm build
+in the port directory!
+The
+.Pa Makefile
+automatically fetches the
+application source code, either from a local disk or via FTP, unpacks it
+on your system, applies the patches, and compiles it.
+If all goes well,
+simply type
+.Nm make Cm install
+to install the application.
+.Pp
+It is possible to download and use ports from the
+.Fx
+repository
+that are newer than the installed system; however it is important to
+install the appropriate
+.Dq "Upgrade Kit"
+from
+.Pa http://www.FreeBSD.org/ports/
+first!
+The
+.Xr portcheckout 1
+script (also a port, of course!) will help to download new ports.
+.Pp
+For more information about using ports, see
+.Dq "Packages and Ports"
+in
+.%B "The FreeBSD Handbook" ,
+.Pa ( file:/usr/share/doc/en_US.ISO8859-1/books/handbook/ports.html
+or
+.Pa http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports.html ) .
+For information about creating new ports, see
+.%B "The Porter's Handbook"
+.Pa ( file:/usr/share/doc/en_US.ISO8859-1/books/porters-handbook/index.html
+or
+.Pa http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/porters-handbook/ ) .
+.Sh TARGETS
+Some of the targets work recursively through subdirectories.
+This lets you, for example, install all of the
+.Dq Li biology
+ports.
+The targets that do this are
+.Cm build , checksum , clean , configure ,
+.Cm depends , extract , fetch , install ,
+and
+.Cm package .
+.Pp
+The following targets will be run automatically by each proceeding
+target in order.
+That is,
+.Cm build
+will be run
+(if necessary)
+by
+.Cm install ,
+and so on all the way to
+.Cm fetch .
+Usually, you will only use the
+.Cm install
+target.
+.Bl -tag -width ".Cm configure"
+.It Cm config
+Configure
+.Va OPTIONS
+for this port using
+.Xr dialog 1 .
+.It Cm fetch
+Fetch all of the files needed to build this port from the sites
+listed in
+.Va MASTER_SITES
+and
+.Va PATCH_SITES .
+See
+.Va FETCH_CMD , MASTER_SITE_OVERRIDE
+and
+.Va MASTER_SITE_BACKUP .
+.It Cm checksum
+Verify that the fetched distfile's checksum matches the one the port was
+tested against.
+Defining
+.Va NO_CHECKSUM
+will skip this step.
+.It Cm depends
+Install
+(or compile if only compilation is necessary)
+any dependencies of the current port.
+When called by the
+.Cm extract
+or
+.Cm fetch
+targets, this is run in piecemeal as
+.Cm fetch-depends , build-depends ,
+etc.
+Defining
+.Va NO_DEPENDS
+will skip this step.
+.It Cm extract
+Expand the distfile into a work directory.
+.It Cm patch
+Apply any patches that are necessary for the port.
+.It Cm configure
+Configure the port.
+Some ports will ask you questions during this stage.
+See
+.Va INTERACTIVE
+and
+.Va BATCH .
+.It Cm build
+Build the port.
+This is the same as calling the
+.Cm all
+target.
+.It Cm install
+Install the port and register it with the package system.
+This is all you really need to do.
+.El
+.Pp
+The following targets are not run during the normal install process.
+.Bl -tag -width ".Cm fetch-recursive"
+.It Cm showconfig
+Display
+.Va OPTIONS
+config for this port.
+.It Cm showconfig-recursive
+Display
+.Va OPTIONS
+config for this port and all its dependencies.
+.It Cm rmconfig
+Remove
+.Va OPTIONS
+config for this port.
+.It Cm rmconfig-recursive
+Remove
+.Va OPTIONS
+config for this port and all its dependencies.
+.It Cm config-conditional
+Skip the ports which have already had their
+.Va OPTIONS
+configured.
+.It Cm fetch-list
+Show list of files to be fetched in order to build the port.
+.It Cm fetch-recursive
+Fetch the distfiles of the port and all its dependencies.
+.It Cm fetch-recursive-list
+Show list of files that would be retrieved by
+.Cm fetch-recursive .
+.It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
+Print a list of all the compile and run dependencies, and dependencies
+of those dependencies.
+.It Cm clean
+Remove the expanded source code.
+This recurses to dependencies unless
+.Va NOCLEANDEPENDS
+is defined.
+.It Cm distclean
+Remove the port's distfiles and perform the
+.Cm clean
+target.
+The
+.Cm clean
+portion recurses to dependencies unless
+.Va NOCLEANDEPENDS
+is defined, but the
+.Cm distclean
+portion never recurses
+(this is perhaps a bug).
+.It Cm reinstall
+Use this to restore a port after using
+.Xr pkg_delete 1
+when you should have used
+.Cm deinstall .
+.It Cm deinstall
+Remove an installed port from the system, similar to
+.Xr pkg_delete 1 .
+.It Cm deinstall-all
+Remove all installed ports with the same
+.Va PKGORIGIN
+from the system.
+.It Cm package
+Make a binary package for the port.
+The port will be installed if it has not already been.
+The package is a
+.Pa .tbz
+file that you can use to
+install the port on other machines with
+.Xr pkg_add 1 .
+If the directory specified by
+.Va PACKAGES
+does not exist, the package will be put into the current directory.
+See
+.Va PKGREPOSITORY
+and
+.Va PKGFILE .
+.It Cm package-recursive
+Like
+.Cm package ,
+but makes a package for each depending port as well.
+.It Cm readmes
+Create a port's
+.Pa README.html .
+This can be used from
+.Pa /usr/ports
+to create a browsable web of all ports on your system!
+.It Cm search
+Search the
+.Pa INDEX
+file for the pattern specified by the
+.Va key
+(searches the port name, comment, and dependencies),
+.Va name
+(searches the port name only),
+.Va path
+(searches the port path),
+.Va info
+(searches the port info),
+.Va maint
+(searches the port maintainer),
+.Va cat
+(searches the port category),
+.Va bdeps
+(searches the port build-time dependency),
+.Va rdeps
+(searches the port run-time dependency)
+.Xr make 1
+variables, and their exclusion counterparts:
+.Va xname , xkey
+etc.
+For example, one would type:
+.Pp
+.Dl "cd /usr/ports && make search name=query"
+.Pp
+to find all ports whose
+name matches
+.Dq Li query .
+Results include the matching ports' path, comment, maintainer,
+build dependencies, and run dependencies.
+.Bd -literal -offset indent
+cd /usr/ports && make search name=pear- \e
+    xbdeps=apache
+.Ed
+.Pp
+To find all ports whose
+names contain
+.Dq Li pear-
+and which do not have apache
+listed in build-time dependencies.
+.Bd -literal -offset indent
+cd /usr/ports && make search name=pear- \e
+    xname='ht(tp|ml)'
+.Ed
+.Pp
+To find all ports whose names contain
+.Dq Li pear- ,
+but not
+.Dq Li html
+or
+.Dq Li http .
+.Bd -literal -offset indent
+make search key=apache display=name,path,info keylim=1
+.Ed
+.Pp
+To find ports that contain
+.Dq Li apache
+in either of the name, path, info
+fields, ignore the rest of the record.
+.It Cm describe
+Generate a one-line description of each port for use in the
+.Pa INDEX
+file.
+.It Cm index
+Create
+.Pa /usr/ports/INDEX ,
+which is used by the
+.Cm pretty-print-*
+and
+.Cm search
+targets.
+Running the
+.Cm index
+target will ensure your
+.Pa INDEX
+file is up to date with your ports tree.
+.It Cm fetchindex
+Fetch the
+.Pa INDEX
+file from the
+.Fx
+cluster.
+.El
+.Sh ENVIRONMENT
+You can change all of these.
+.Bl -tag -width ".Va MASTER_SITES"
+.It Va PORTSDIR
+Location of the ports tree.
+This is
+.Pa /usr/ports
+on
+.Fx
+and
+.Ox ,
+and
+.Pa /usr/pkgsrc
+on
+.Nx .
+.It Va WRKDIRPREFIX
+Where to create any temporary files.
+Useful if
+.Va PORTSDIR
+is read-only (perhaps mounted from a CD-ROM).
+.It Va DISTDIR
+Where to find/put distfiles, normally
+.Pa distfiles/
+in
+.Va PORTSDIR .
+.It Va PACKAGES
+Used only for the
+.Cm package
+target; the base directory for the packages tree, normally
+.Pa packages/
+in
+.Va PORTSDIR .
+If this directory exists, the package tree will be (partially) constructed.
+This directory does not have to exist; if it does not, packages will be
+placed into the current directory, or you can define one of
+.Bl -tag -width ".Va PKGREPOSITORY"
+.It Va PKGREPOSITORY
+Directory to put the package in.
+.It Va PKGFILE
+The full path to the package.
+.El
+.It Va PREFIX
+Where to install things in general
+(usually
+.Pa /usr/local
+or
+.Pa /usr/X11R6 ) .
+.It Va MASTER_SITES
+Primary sites for distribution files if not found locally.
+.It Va PATCH_SITES
+Primary locations for distribution patch files if not found
+locally.
+.It Va MASTER_SITE_FREEBSD
+If set, go to the master
+.Fx
+site for all files.
+.It Va MASTER_SITE_OVERRIDE
+Try going to these sites for all files and patches, first.
+.It Va MASTER_SITE_BACKUP
+Try going to these sites for all files and patches, last.
+.It Va MASTER_SITE_INDEX
+Where to get
+.Pa INDEX
+source built on
+.Fx
+cluster (for
+.Cm fetchindex
+target).
+Defaults to
+.Pa http://www.FreeBSD.org/ports/ .
+.It Va FETCHINDEX
+Command to get
+.Pa INDEX
+(for
+.Cm fetchindex
+target).
+Defaults to
+.Dq Nm fetch Fl am .
+.It Va NOCLEANDEPENDS
+If defined, do not let
+.Cm clean
+recurse to dependencies.
+.It Va FETCH_CMD
+Command to use to fetch files.
+Normally
+.Xr fetch 1 .
+.It Va FORCE_PKG_REGISTER
+If set, overwrite any existing package registration on the system.
+.It Va MOTIFLIB
+Location of
+.Pa libXm. Ns Brq Pa a , Ns Pa so .
+.It Va INTERACTIVE
+If defined, only operate on a port if it requires interaction.
+.It Va BATCH
+If defined, only operate on a port if it can be installed 100% automatically.
+.It Va OPTIONS
+If defined, list of what
+.Va WITH_*
+options this port accepts.
+.Em Note :
+to make
+.Va OPTIONS
+actually work, it is necessary to include
+.Pa bsd.port.pre.mk
+before starting to test the
+.Va WITH_*
+variables.
+.It Va DISABLE_VULNERABILITIES
+If defined, disable check for security vulnerabilities using
+.Xr portaudit 1
+when installing new ports.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
+.It Pa /usr/ports
+The default ports directory
+.No ( Fx
+and
+.Ox ) .
+.It Pa /usr/pkgsrc
+The default ports directory
+.Pq Nx .
+.It Pa /usr/ports/Mk/bsd.port.mk
+The big Kahuna.
+.El
+.Sh SEE ALSO
+.Xr make 1 ,
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_version 1
+.Pp
+The following are part of the ports collection:
+.Pp
+.Xr pib 1 ,
+.Xr portcheckout 1 ,
+.Xr portlint 1
+.Rs
+.%B "The FreeBSD Handbook"
+.Re
+.Pp
+.Pa http://www.FreeBSD.org/ports
+(searchable index of all ports)
+.Sh AUTHORS
+.An -nosplit
+This manual page was originated by
+.An David O'Brien .
+.Sh HISTORY
+The Ports Collection
+appeared in
+.Fx 1.0 .
+It has since spread to
+.Nx
+and
+.Ox .
+.Sh BUGS
+Ports documentation is split over four places \(em
+.Pa /usr/ports/Mk/bsd.port.mk ,
+.%B "The Porter's Handbook" ,
+the
+.Dq "Packages and Ports"
+chapter of
+.%B "The FreeBSD Handbook" ,
+and
+this manual page.

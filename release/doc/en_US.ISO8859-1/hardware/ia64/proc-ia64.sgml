@@ -1,0 +1,83 @@
+<!--
+	$FreeBSD$
+-->
+<sect1 id="proc-ia64">
+  <title>Supported Processors and Motherboards</title>
+
+  <para>Currently supported processors are the 
+    <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
+    and the <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink>.</para>
+
+  <para>Supported chipsets include:</para>
+   <itemizedlist>
+     <listitem>
+       <para>HP zx1 (only on development branch, see the 
+         <ulink url="http://perforce.FreeBSD.org/">Perforce repository</ulink>)</para>
+     </listitem>
+     <listitem>
+       <para>HP i2000</para>
+     </listitem>
+     <listitem>
+       <para>Intel 460GX</para>
+     </listitem>
+     <listitem>
+       <para>Intel E8870</para>
+     </listitem>
+   </itemizedlist>
+
+  <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
+    configurations are under active development.  At this time,
+    SMP-enabled systems are considered less stable.  The current
+    priorities are UP fixes to improve stability.</para>
+
+  <sect2>
+    <title>Supported Devices Overview</title>
+
+    <para>This section contains additional information about what
+      devices may or may not be supported by &os;/&arch;.</para>
+
+    <para>Except for the PC chipset embedded &man.ata.4; controllers,
+      most should work out of the box.  Eventually, all
+      &arch;-compatible ATA controllers are expected to be fully
+      supported.  Refer to the following sections for various disk
+      controllers and their current status.</para>
+    
+    <para>In general, <quote>PC standard</quote> serial ports
+      supported by the &man.sio.4; driver are expected to work on
+      Intel legacy machines, but not PA legacy machines.  The reason
+      is that all devices on HP machines are memory-mapped and there
+      is <emphasis>no</emphasis> ISA device support other than the PCI
+      dictated VGA legacy.</para>
+
+    <para>In addition to &man.sio.4; devices, the following devices
+      fail on non-Intel legacy machines (but should work on boxes with
+      an Intel legacy) because their drivers make ISA-specific
+      assumptions that do not hold:</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<tbody>
+	  <row>
+            <entry>&man.sio.4;</entry>
+            <entry>No support for memory-mapped I/O</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.syscons.4;</entry>
+            <entry>Expect BIOS, VGA probes, etc.</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.pcm.4;</entry>
+            <entry>Probes MSS ISA ports <emphasis>ad nauseum</emphasis></entry>
+	  </row>
+
+	  <row>
+            <entry>&man.atkbd.4;, &man.psm.4;</entry>
+            <entry>Fixed ISA port locations</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+  </sect2>
+</sect1>

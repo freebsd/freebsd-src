@@ -1,0 +1,281 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "5.3-RELEASE">
+<!ENTITY release.bugfix.next "5.4-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.bugfix; Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; &release.bugfix;,
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os; &release.bugfix;
+      will be maintained until the release of &os; &release.bugfix.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os; &release.bugfix;.
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+    <para>(1 Dec 2004) A bug in &man.procfs.5; and &man.linprocfs.5;
+      which could cause a malicious local user could perform a local
+      denial of service attack by causing a system panic, or the user
+      could read parts of kernel memory, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17</ulink>.</para>
+
+    <para>(18 Nov 2004) A bug in the &man.fetch.1; utility which allows
+      a malicious HTTP server to cause arbitrary portions of the client's
+      memory to be overwritten, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16</ulink>.</para>
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>Open Issues</title>
+
+    <para>(31 Oct 2004) The &man.re.4; and &man.em.4;
+      drivers may behave poorly under heavy load.  In particular, there are
+      reports of &man.em.4; on the IBM ThinkPad T40 locking up
+      under such conditions.</para>
+
+    <para>(31 Oct 2004) There are reports of the &man.sk.4; driver
+      locking up under heavy load, especially when ASUStek on-board NICs
+      are used.  To clear the condition,
+      bringing the interface down then back up and/or rebooting
+      the system may be needed.</para>
+
+    <para>(31 Oct 2004) The &man.burncd.8; utility is functional but may behave erratically
+      on some systems.  Reported symptoms include that &man.burncd.8;
+      can appear to hang and never complete while the operation actually
+      does complete, and the progress indicator does not show the correct value.
+      Workarounds include:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Eject and re-insert the media after burning a CD.</para>
+      </listitem>
+
+      <listitem>
+	<para>Press Ctrl-C when &man.burncd.8; appears to hang up
+	  while the access LED goes inactive.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>(31 Oct 2004) When the user/group rule clauses in &man.pf.4; and &man.ipfw.4;
+      are used, the loader tunable <varname>debug.mpsafenet</varname>
+      must be set to <literal>0</literal> (this is <literal>1</literal> by
+      default).  For example, the following rules are affected:</para>
+
+    <para>for &man.ipfw.4;:</para>
+
+    <programlisting>count ip from any to 192.168.2.1 uid root</programlisting>
+
+    <para>for &man.pf.4;:</para>
+
+    <programlisting>block log quick proto { tcp, udp } all user root</programlisting>
+
+    <para>To set <varname>debug.mpsafenet</varname> to <literal>0</literal>
+      on every boot, add the following line into
+      <filename>/boot/loader.conf</filename>:</para>
+
+    <programlisting>debug.mpsafenet=0</programlisting>
+
+    <para>More specifically, the <literal>group</literal> and <literal>user</literal>
+      filter parameters in &man.pf.4;, and the <literal>gid</literal>,
+      <literal>jail</literal>, and <literal>uid</literal> rule options
+      in &man.ipfw.4; are affected.
+      If <varname>debug.mpsafenet</varname> is set to <literal>1</literal>,
+      the system can hang when the rule is evaluated due to a lock order
+      reversal with the socket layer.  More details can be found in the
+      &man.ipfw.8; and &man.pf.conf.5; manual pages.</para>
+
+    <para>(31 Oct 2004, updated on 12 Nov 2004) The &man.vinum.4; subsystem
+      works on 5.3, but it can cause a system panic at boot time.
+      As a workaround you can add <literal>vinum_load="YES"</literal>
+      to <filename>/boot/loader.conf</filename>.</para>
+
+    <para>As an alternative you can also use the new &man.geom.4;-based
+      &man.vinum.4; subsystem.  To activate the &man.geom.4;-aware
+      vinum at boot time, add <literal>geom_vinum_load="YES"</literal>
+      to <filename>/boot/loader.conf</filename> and remove
+      <literal>start_vinum="YES"</literal> in
+      <filename>/etc/rc.conf</filename> if it exists.</para>
+
+    <para>While some uncommon configurations, such as
+      multiple vinum drives on a disk, are not supported,
+      it is generally backward compatible.
+      Note that for the &man.geom.4;-aware vinum, its new userland
+      control program, <command>gvinum</command>, should be used,
+      and it is not yet feature-complete.</para>
+
+    <para>(31 Oct 2004) The results of <command>netstat -m</command>
+      can become incorrect on SMP systems when <varname>debug.mpsafenet</varname>
+      is set to <literal>1</literal> (default).  This is an error
+      in the statistics gathering because of a race condition in the
+      counters, not an actual memory leak.</para>
+
+    <para>(31 Oct 2004, updated on 5 Nov 2004)
+      For &os;/i386 and &os;/amd64, when installing &os; 5.3
+      using an USB keyboard the keyboard will stop
+      working once the kernel boots, because a PS/2 keyboard is
+      always considered to be attached.  As a workaround, select
+      <quote>Escape to loader prompt</quote> in the boot loader menu
+      and enter the following lines at the prompt:</para>
+
+    <screen>set hint.atkbd.0.flags="0x1"
+boot</screen>
+
+    <para>Note that if you use the boot floppies, this is set
+      by default.</para>
+
+    <para>After the installation, add the following line to
+      <filename>/boot/loader.conf</filename>:</para>
+
+    <programlisting>hint.atkbd.0.flags="0x1"</programlisting>
+
+    <para>(1 Nov 2004) The ULE scheduler described in the release notes
+      has been completely disabled to discourage its use because it has
+      stability problems.</para>
+
+    <para>(1 Nov 2004) Programs linked with <application>libpthread</application>
+      may not report any CPU usage statistics according to &man.top.1;,
+      while those linked with <application>libthr</application> show
+      the correct statistics.</para>
+
+    <para>(1 Nov 2004) ATA RAID support for the CMD649 and SiI0680 ATA
+      controllers is non-functional in this release. When such a
+      controller is brough up under &man.ata.4; (ataraid) on 5.3, the
+      RAID configuration stored under 5.2 or prior may be corrupted.</para>
+
+    <para>(3 Nov 2004) For &os;/i386 and &os;/amd64, SMP support
+      in the <filename>GENERIC</filename> kernel has been disabled
+      by default because the SMP kernel can degrade the performance
+      on UP machines.  A kernel configuration file <filename>SMP</filename>,
+      which can be used to enable SMP support, has been added.
+      More details on building the custom kernel can be found at
+      <ulink url="&url.books.handbook;/kernelconfig.html"></ulink>.</para>
+
+    <para>(4 Nov 2004) The &man.tar.1; utility (also known as &man.bsdtar.1;)
+      does not detect the end of media such as tape and
+      floppy disk properly when it is specified with the <option>-f</option>
+      option.  As an alternative &man.gtar.1; (<application>GNU tar</application>)
+      can be used.</para>
+
+    <para>(9 Nov 2004) The &man.geom.4;-aware &man.vinum.4; subsystem
+      does not work for RAID5 volumes on machines with a single processor.
+      The configurations other than RAID5 (such as RAID1) should work correctly.
+      This problem has been fixed on the RELENG_5 branch.</para>
+
+    <para>(9 Nov 2004) The &os; 5.3-RELEASE Migration Guide should have stated
+      that <filename>/usr/sbin/nslookup</filename> and
+      <filename>/usr/sbin/nsupdate</filename> included in
+      <application>BIND 8</application> have to be removed during
+      the source-based upgrade procedure.</para>
+
+    <para>(9 Nov 2004) The &os; 5.3-RELEASE Release Notes should have stated
+      that <filename role="package">net/mpd</filename> which was compiled
+      on the old systems prior to 5.3-RELEASE must be recompiled.</para>
+
+    <para>(10 Nov 2004) The &os; 5.3-RELEASE Release Notes should have stated
+      explicitly that ports/packages which were built on the old systems
+      prior to 5.3-RELEASE and linked with the old POSIX thread libraries
+      (<application>libc_r</application> or <application>libkse</application>)
+      can cause an error <quote>Spinlock called when not threaded.</quote>
+      at run time.  This happens when the program is linked with multiple
+      different threading libraries (typically the older ports will be linked with
+      <application>libc_r</application>, while newer ports will be linked with
+      <application>libpthread</application>).
+      Either recompile the ports/packages or add the necessary lines to
+      <filename>/etc/libmap.conf</filename>.
+      More details can be found in <filename>/usr/src/UPDATING</filename>
+      (20040303 and 20040130).</para>
+
+    <para>(12 Nov 2004) The &man.em.4; driver behaves incorrectly when
+      the VLAN support and promiscuous mode are enabled at the same time.
+      A fix is being tested and will be merged to the 5.3 errata branch.</para>
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News</title>
+
+    <para>No news.</para>
+  </sect1>
+
+</article>

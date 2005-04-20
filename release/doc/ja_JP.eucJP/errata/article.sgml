@@ -1,0 +1,384 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+    Original revision: 1.65
+-->
+
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
+%ja-authors;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
+%ja-mlists;
+<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
+%ja-trademarks;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
+%misc;
+
+<!ENTITY release.bugfix "5.2.1-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>&os; プロジェクト</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+
+    <para>この文書は &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+       &release.current;
+]]>
+      の公開後に判明した重要な情報、あるいはリリース工程の終盤で判明し、
+      リリース文書に収録できなかった重要な情報が書かれている errata リスト (正誤表) です。
+      これにはセキュリティ勧告および、
+      システムの運用・利用に影響を与えるような関連ソフトウェア、
+      関連文書の更新情報も含まれています。
+      このバージョンの &os; をインストールする前には必ず、
+      最新の errata を参照するようにしてください。</para>
+
+    <para>これは &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+ <![ %release.type.release [
+      &release.current;
+]]>
+      用の errata 文書です。&os; &release.next; の公開までの間、保守されます。</para>
+
+    <para>また、この文書には
+      &os; &release.prev; の約一カ月後に公開された
+      <quote>ポイントリリース</quote> である
+      &os; &release.bugfix; の errata リストも記載されています。
+      特に注記がない限り、すべての項目は
+      &release.prev; と &release.bugfix; の両方に該当します。</para>
+
+    <para>&release.branch;
+      ブランチは最新のブランチポイントであり、
+      ここからはまだリリース版が公開されていません。
+      そのため現時点の &release.current; には、
+      errata がありません
+      (最初のリリースは &release.next; になる予定です)。
+      このファイルは新たに作成されたブランチ用のひな型として用意されているものです
+      (当然ながら、この注意書きは他のブランチにある errata
+      文書には存在しません)。</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>はじめに</title>
+
+    <para>この errata 文書には &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      に関する
+      <quote>最新の障害情報</quote> が書かれています。
+      この文書を読み、
+      このバージョンのインストール前にリリース公開後に既に発見・修正された問題点について
+      知っておいてください。</para>
+
+    <para>リリースの公開 (たとえば CDROM による配布) には
+      errata 文書が同梱されていることがあります。
+      しかし、それは当然ながらその時点のものであり、
+      最新のものと同じであるとは限りません。
+      インターネット上に置かれている
+      このリリースに対応した <quote>errata 文書の最新版</quote>
+      を参照するようにしてください。
+      errata 文書は <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      をはじめ、最新の状態を維持している各ミラーサイトに置かれています。</para>
+
+    <para>&os; &release.branch; のソーススナップショット、
+      バイナリスナップショットにも、
+      (スナップショット作成時の) 最新版の
+      errata 文書が含まれています。</para>
+
+    <para>&os; CERT セキュリティ勧告の全リストは、
+      <ulink url="http://www.FreeBSD.org/security/"></ulink>
+      もしくは
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>
+      を参照してください。</para>
+  </sect1>
+
+  <sect1 id="security">
+    <title>セキュリティ勧告</title>
+
+<![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>(2004 年 1 月 30 日; 2004 年 2 月 28 日更新)
+      &man.mksnap.ffs.8; のバグが原因で、
+      ファイルシステムのスナップショットを作成すると、
+      対象ファイルシステムのフラグが初期値に戻ってしまいます。
+      これによる影響の大小はシステムの利用形態によりますが、
+      拡張アクセス制御リストを無効にしたり、信頼できないファイルシステムに
+      置かれている setuid 実行ファイルの実行が可能になるおそれがあります。
+      &man.dump.8; の <option>-L</option> オプションも、
+      &man.mksnap.ffs.8; を利用するため、このバグによる影響を受けます。
+      ただし通常、&man.mksnap.ffs.8; を実行可能なのは
+      スーパユーザと <groupname>operator</groupname> のメンバのみです。
+      このバグは &os; &release.prev; セキュリティブランチで修正され、
+      &os; &release.bugfix; に統合されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>
+      をご覧ください。</para>
+
+    <para>(2004 年 2 月 8日; 2004 年 2 月 28 日更新)
+      System V 共有メモリインタフェース
+      (のうち &man.shmat.2; システムコール) にバグがあり、
+      未割当のカーネルメモリを参照する共有メモリセグメントをつくることが
+      できてしまう可能性があります。
+      ローカルの攻撃者がこれを悪用すると、カーネルメモリの一部に不正に
+      アクセスすることが可能になるため、結果としてセキュリティ上重要な
+      情報の漏洩、アクセス制御機構の迂回や
+      高い権限の不正な獲得などに利用されるおそれがあります。
+      このバグは &os; &release.prev; セキュリティブランチで修正され、
+      &os; &release.bugfix; に統合されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>
+      をご覧ください。</para>
+
+    <para>(2004 年 2 月 28 日)
+      特定の条件下では、&man.jail.8; 環境の内側で
+      スーパユーザ権限を持つプロセスを悪用して
+      自身のルートディレクトリを異なる jail に変更することができます。
+      これにより、本来独立しているべき各 jail 間で、
+      ファイルやディレクトリの読み書きが可能になってしまうおそれがあります。
+      このぜい弱性は &os; &release.prev; セキュリティブランチで修正され、
+      &os; &release.bugfix; に統合されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.mail.asc">FreeBSD-SA-04:03</ulink>
+      をご覧ください。</para>
+
+]]>
+
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>未解決の問題</title>
+
+<![ %release.type.release [
+    <para>未解決の問題はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>(2004 年 1 月 9 日)
+      &man.cpp.1; の動作が変更されたことが原因で、
+      カラーディスプレイが接続されていても、
+      &man.xdm.1; のログイン画面が白黒になってしまいます。
+      新しいバージョンの
+      <filename role="package">x11/XFree86-4-clients</filename>
+      の port/package をインストールすることで、この問題は回避可能です。</para>
+
+    <para>(2004 年 1 月 9 日)
+      ACPI に関する問題が残っています。システムによっては起動時に
+      動作がおかしくなったり、ハングアップしてしまうものがあります。
+      この問題は、起動ローダの <quote>セーフモード</quote> オプションか、
+      カーネル環境変数 <varname>hint.acpi.0.disabled</varname>
+      を使って ACPI を無効にすることで回避することができます。
+      これらの問題は、現在調査中です。まだ報告されていない問題が
+      ありましたら、&man.dmesg.8; と &man.acpidump.8; の結果を
+      &a.current; に送ってください 
+      (<emphasis>送る前</emphasis>にメーリングリストのアーカイブを調べましょう)。
+      その報告が、問題の原因究明に役に立つかも知れません。</para>
+
+    <para>(2004 年 1 月 9 日; 2004 年 2 月 28 日更新)
+      ATA デバイス、特に SATA デバイスの場合、正常に動作しない場合があります。
+      報告されている症状は、コマンドがタイムアウトする、
+      あるいは割り込みがかからないというものです。
+      これらの問題はタイミングに依存しているらしく、特定が困難な状況です。
+      回避策としては、次のようなものがあります。</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>起動ローダの<quote>セーフモード</quote>オプション、
+          もしくは sysctl 変数 <varname>hw.ata.ata_dma</varname> を使って
+          ATA DMA を無効にする。</para>
+      </listitem>
+
+      <listitem>
+	<para>もし可能なら、ホストの BIOS 設定を変更して
+          ATA コントローラを <quote>legacy mode</quote> に切り替える。</para>
+      </listitem>
+
+      <listitem>
+	<para>たとえば起動ローダの<quote>セーフモード</quote>オプションや
+          カーネル環境変数 <varname>hint.acpi.0.disabled</varname>
+          を使って、ACPI を無効にする。</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>上記の問題のいくつかは、
+      &os; &release.bugfix; では
+      &release.current; から新しい &man.ata.4; ドライバを統合して
+      解決されています。</para>
+
+    <para>(2004 年 1 月 9 日)
+      インストールフロッピーを使って NFS 経由でインストールする場合、
+      3 枚目のフロッピーディスクから
+      <filename>nfsclient.ko</filename>
+      モジュールを手動でロードする必要があります。
+      &man.sysinstall.8; が 3 枚目のフロッピーディスクにある
+      ドライバを読み込む時に表示されるプロンプトの指示に従ってください。</para>
+
+    <para>(2004 年 1 月 9 日)
+      &man.pcm.4; ドライバで複数の vchans (ソフトウェアで動的にミキシングを
+      行なう仮想オーディオチャネル) を利用すると、
+      不安定になる場合があります。</para>
+
+    <para>(2004 年 1 月 10 日)
+      APIC 割り込みルーティングは多くのシステムで正常に動作していますが、
+      (ラップトップの一部など) システムによっては、たとえば
+      X11 の起動・終了時に &man.ata.4; のエラーやハングアップが発生すると
+      いった、さまざまなエラーが発生するようです。
+      こういった症状が現れる場合は、
+      起動ローダの<quote>セーフモード</quote>オプションや
+      ローダ変数 <varname>hint.apic.0.disabled</varname>
+      を使って、APIC ルーティングを無効にすると改善するかも知れません。
+      ただし、APIC を無効にすると SMP システムの利用はできなくなります。</para>
+
+    <para>(2004 年 1 月 10 日; 2004 年 2 月 28 日更新)
+      NFSv4 クライアントが NFSv3 のみ、あるいは NFSv2 のみに対応した
+      サーバに NFSv4 操作をおこなおうとした場合、
+      パニックが発生する場合があります。この問題は、
+      &os; &release.current; に含まれている
+      <filename>src/sys/rpc/rpcclnt.c</filename> のリビジョン
+      1.4 で修正されました。
+      この修正は &os; &release.bugfix; にも統合されています。</para>
+
+    <para>(2004 年 1 月 11 日; 2004 年 2 月 28 日更新)
+      <filename>nss_ldap</filename> などのサードパーティ製 NSS
+      モジュールを使い、大量のメンバリストを含むグループが存在する場合、
+      問題が発生することがあります。この問題は
+      &os; &release.current; に含まれる
+      <filename>src/include/nss.h</filename> のリビジョン 1.2,
+      <filename>src/lib/libc/net/nss_compat.c</filename> のリビジョン 1.2 で
+      修正され、&os; &release.bugfix; に統合されました。</para>
+
+    <para>(2004 年 1 月 13 日)
+      &os; &release.current; のリリースノートには、含まれている
+      <application>GCC</application> が post-release GCC 3.3.3 snapshot
+      と記載されていました。これは、<emphasis>pre-release</emphasis> GCC 3.3.3
+      snapshot の誤りです。</para>
+
+    <para>(2004 年 1 月 13 日; 2004 年 2 月 28 日更新)
+      <filename role="package">sysutils/kdeadmin3</filename> port/package には、
+      <application>KUser</application> を使うとシステムパスワードファイルに
+      ある <username>root</username> ユーザが削除されてしまう可能性のある
+      バグが含まれています。この port/package を使っている場合は、
+      ぜひバージョン 3.1.4_1 へアップグレードするようお願いします。
+      &os; &release.bugfix; にはこのバグが修正された package が
+      収録されてます。</para>
+
+    <para>(2004 年 1 月 21 日; 2004 年 2 月 28 日更新)
+      KAME プロジェクトから統合された IPSec 実装に、
+      まだ参照されているメモリオブジェクトを開放してしまう可能性のあるバグが
+      発見されました。今まで、セキュリティポリシデータベース
+      (SPD; Security Policy Database) をフラッシュした後に異常な動作をしたり、
+      カーネルパニックが発生するという症状が報告されています。
+      問題の一部は &os; &release.current; に含まれる
+      <filename>src/sys/netinet6/ipsec.c</filename> のリビジョン 1.31,
+      <filename>src/sys/netinet/in_pcb.c</filename> のリビジョン 1.136,
+      <filename>src/sys/netkey/key.c</filename> のリビジョン 1.64
+      で修正され、&os; &release.bugfix; に統合されました。
+      この問題の詳細については、
+      &a.current; の投稿、特に
+      <ulink url="http://lists.FreeBSD.org/pipermail/freebsd-current/2004-January/thread.html#18084">
+	<quote>[PATCH] IPSec fixes</quote></ulink>
+      という題名のついたスレッドをご覧ください。</para>
+
+    <para>(2004 年 2 月 28 日)
+      &os; &release.bugfix; に収録されている
+      FreeBSD port 作成者のためのハンドブックに、&release.bugfix; の
+      <varname>__FreeBSD_version</varname> の値に誤りがありました。
+      正しくは <literal>502010</literal> です。</para>
+
+]]>
+
+  <sect1 id="late-news">
+    <title>最新情報</title>
+
+<![ %release.type.release [
+    <para>情報はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>(2004 年 1 月 10 日; 2004 年 2 月 28 日更新)
+      &os; の TCP 実装に TCP セグメントのサイズと速度を制限するという形で、
+      ある種の TCP MSS 資源枯渇攻撃に対する対策が追加されました。
+      ひとつ目は TCP セグメントサイズの最大と最小を制限するもので、
+      sysctl 変数 <varname>net.inet.tcp.minmss</varname> (デフォルトは
+      <literal>216</literal>) で制御することができます。
+      ふたつ目は、セグメントの平均サイズが
+      <varname>net.inet.tcp.minmss</varname> より小さい接続の
+      最大通信速度を制限するもので、
+      <varname>net.inet.tcp.minmssoverload</varname>
+      変数で制御することができます。
+      設定されたパケット速度を超える接続は、reset されて切断されます。
+      この機能は &release.prev; リリースサイクルの終りごろに追加されたため、
+      デフォルトでは、この接続速度の制限は無効になっていますが、
+      <varname>net.inet.tcp.minmssoverload</varname> に 0 でない
+      値を設定することで、手動で有効にすることができます。
+      この機能は &os; &release.prev; のリリース工程の終盤で追加されたため、
+      リリースノートに記載されていませんでした。</para>
+]]>
+
+  </sect1>
+
+</article>

@@ -1,0 +1,304 @@
+.\"
+.\" Copyright (c) 1997 SigmaSoft, Th. Lockert
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by SigmaSoft, Th. Lockert.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"	$OpenBSD: cpio.1,v 1.16 2001/05/01 17:58:01 aaron Exp $
+.\"
+.Dd February 16, 1997
+.Dt CPIO 1
+.Os
+.Sh NAME
+.Nm cpio
+.Nd copy file archives in and out
+.Sh SYNOPSIS
+.Nm
+.Fl o
+.Op Fl aABcLvzZ
+.Op Fl C Ar bytes
+.Op Fl F Ar archive
+.Op Fl H Ar format
+.Op Fl O Ar archive
+.No < Ar name-list
+.Op No > Ar archive
+.Nm
+.Fl i
+.Op Fl bBcdfmrsStuvzZ6
+.Op Fl C Ar bytes
+.Op Fl E Ar file
+.Op Fl F Ar archive
+.Op Fl H Ar format
+.Op Fl I Ar archive
+.Op Ar pattern ...
+.Op No < Ar archive
+.Nm
+.Fl p
+.Op Fl adlLmuv
+.Ar destination-directory
+.No < Ar name-list
+.Sh DESCRIPTION
+The
+.Nm
+command copies files to and from a
+.Nm
+archive.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Create an archive.
+Reads the list of files to store in the
+archive from standard input, and writes the archive on standard
+output.
+.Bl -tag -width indent
+.It Fl a
+Reset the access times on files that have been copied to the
+archive.
+.It Fl A
+Append to the specified archive.
+.It Fl B
+Set block size of output to 5120 bytes.
+.It Fl c
+Use
+.Tn ASCII
+format for
+.Nm
+header for portability.
+.It Fl C Ar bytes
+Set the block size of output to
+.Ar bytes .
+.It Fl F Ar archive
+.It Fl O Ar archive
+Use the specified file name as the archive to write to.
+.It Fl H Ar format
+Write the archive in the specified format.
+Recognized formats are:
+.Pp
+.Bl -tag -width sv4cpio -compact
+.It Cm bcpio
+Old binary
+.Nm
+format.
+.It Cm cpio
+Old octal character
+.Nm
+format.
+.It Cm sv4cpio
+.Tn SVR4
+hex
+.Nm
+format.
+.It Cm tar
+Old tar format.
+.It Cm ustar
+.Tn POSIX
+ustar format.
+.El
+.It Fl L
+Follow symbolic links.
+.It Fl v
+Be verbose about operations.
+List filenames as they are written to the archive.
+.It Fl z
+Compress archive using
+.Xr gzip 1
+format.
+.It Fl Z
+Compress archive using
+.Xr compress 1
+format.
+.El
+.It Fl i
+Restore files from an archive.
+Reads the archive file from
+standard input and extracts files matching the
+.Ar patterns
+that were specified on the command line.
+.Bl -tag -width indent
+.It Fl b
+Do byte and word swapping after reading in data from the
+archive, for restoring archives created on systems with
+a different byte order.
+.It Fl B
+Set the block size of the archive being read to 5120 bytes.
+.It Fl c
+Expect the archive headers to be in
+.Tn ASCII
+format.
+.It Fl C Ar bytes
+Read archive written with a block size of
+.Ar bytes .
+.It Fl d
+Create any intermediate directories as needed during
+restore.
+.It Fl E Ar file
+Read list of file name patterns to extract or list from
+.Ar file .
+.It Fl f
+Restore all files except those matching the
+.Ar patterns
+given on the command line.
+.It Fl F Ar archive , Fl I Ar archive
+Use the specified file as the input for the archive.
+.It Fl H Ar format
+Read an archive of the specified format.
+Recognized formats are:
+.Pp
+.Bl -tag -width sv4cpio -compact
+.It Cm bcpio
+Old binary
+.Nm
+format.
+.It Cm cpio
+Old octal character
+.Nm
+format.
+.It Cm sv4cpio
+.Tn SVR4
+hex
+.Nm
+format.
+.It Cm tar
+Old tar format.
+.It Cm ustar
+.Tn POSIX
+ustar format.
+.El
+.It Fl m
+Restore modification times on files.
+.It Fl r
+Rename restored files interactively.
+.It Fl s
+Swap bytes after reading data from the archive.
+.It Fl S
+Swap words after reading data from the archive.
+.It Fl t
+Only list the contents of the archive, no files or
+directories will be created.
+.It Fl u
+Overwrite files even when the file in the archive is
+older than the one that will be overwritten.
+.It Fl v
+Be verbose about operations.
+List filenames as they are copied in from the archive.
+.It Fl z
+Uncompress archive using
+.Xr gzip 1
+format.
+.It Fl Z
+Uncompress archive using
+.Xr compress 1
+format.
+.It Fl 6
+Process old-style
+.Nm
+format archives.
+.El
+.It Fl p
+Copy files from one location to another in a single pass.
+The list of files to copy are read from standard input and
+written out to a directory relative to the specified
+.Ar directory
+argument.
+.Bl -tag -width indent
+.It Fl a
+Reset the access times on files that have been copied.
+.It Fl d
+Create any intermediate directories as needed to write
+the files at the new location.
+.It Fl l
+When possible, link files rather than creating an
+extra copy.
+.It Fl L
+Follow symbolic links.
+.It Fl m
+Restore modification times on files.
+.It Fl u
+Overwrite files even when the original file being copied is
+older than the one that will be overwritten.
+.It Fl v
+Be verbose about operations.
+List filenames as they are copied.
+.El
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width TMPDIR
+.It Ev TMPDIR
+Path in which to store temporary files.
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility will exit with one of the following values:
+.Bl -tag -width 2n
+.It 0
+All files were processed successfully.
+.It 1
+An error occurred.
+.El
+.Pp
+Whenever
+.Nm
+cannot create a file or a link when extracting an archive or cannot
+find a file while writing an archive, or cannot preserve the user
+ID, group ID, file mode, or access and modification times when the
+.Fl p
+option is specified, a diagnostic message is written to standard
+error and a non-zero exit value will be returned, but processing
+will continue.
+In the case where
+.Nm
+cannot create a link to a file,
+.Nm
+will not create a second copy of the file.
+.Pp
+If the extraction of a file from an archive is prematurely terminated
+by a signal or error,
+.Nm
+may have only partially extracted the file the user wanted.
+Additionally, the file modes of extracted files and directories may
+have incorrect file bits, and the modification and access times may
+be wrong.
+.Pp
+If the creation of an archive is prematurely terminated by a signal
+or error,
+.Nm
+may have only partially created the archive which may violate the
+specific archive format specification.
+.Sh SEE ALSO
+.Xr pax 1 ,
+.Xr tar 1
+.Sh AUTHORS
+.An Keith Muller
+at the University of California, San Diego.
+.Sh BUGS
+The
+.Fl s
+and
+.Fl S
+options are currently not implemented.

@@ -1,0 +1,326 @@
+.\" Copyright (c) 2000-2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 27, 2000
+.Os
+.Dt ATOMIC 9
+.Sh NAME
+.Nm atomic_add ,
+.Nm atomic_clear ,
+.Nm atomic_cmpset ,
+.Nm atomic_load ,
+.Nm atomic_readandclear ,
+.Nm atomic_set ,
+.Nm atomic_subtract ,
+.Nm atomic_store
+.Nd atomic operations
+.Sh SYNOPSIS
+.In sys/types.h
+.In machine/atomic.h
+.Ft void
+.Fn atomic_add_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_clear_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft int
+.Fo atomic_cmpset_[acq_|rel_]<type>
+.Fa "volatile <type> *dst"
+.Fa "<type> old"
+.Fa "<type> new"
+.Fc
+.Ft <type>
+.Fn atomic_load_acq_<type> "volatile <type> *p"
+.Ft <type>
+.Fn atomic_readandclear_<type> "volatile <type> *p"
+.Ft void
+.Fn atomic_set_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_subtract_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
+.Ft void
+.Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
+.rm LB RB La Ra
+.Sh DESCRIPTION
+Each of the atomic operations is guaranteed to be atomic in the presence of
+interrupts.
+They can be used to implement reference counts or as building blocks for more
+advanced synchronization primitives such as mutexes.
+.Ss Types
+Each atomic operation operates on a specific
+.Fa type .
+The type to use is indicated in the function name.
+The available types that can be used are:
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li int
+unsigned integer
+.It Li long
+unsigned long integer
+.It Li ptr
+unsigned integer the size of a pointer
+.It Li 32
+unsigned 32-bit integer
+.It Li 64
+unsigned 64-bit integer
+.El
+.Pp
+For example, the function to atomically add two integers is called
+.Fn atomic_add_int .
+.Pp
+Certain architectures also provide operations for types smaller than
+.Dq Li int .
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li char
+unsigned character
+.It Li short
+unsigned short integer
+.It Li 8
+unsigned 8-bit integer
+.It Li 16
+unsigned 16-bit integer
+.El
+.Pp
+These must not be used in MI code because the instructions to implement them
+efficiently may not be available.
+.Ss Memory Barriers
+Memory barriers are used to guarantee the order of data accesses in
+two ways.
+First, they specify hints to the compiler to not re-order or optimize the
+operations.
+Second, on architectures that do not guarantee ordered data accesses,
+special instructions or special variants of instructions are used to indicate
+to the processor that data accesses need to occur in a certain order.
+As a result, most of the atomic operations have three variants in order to
+include optional memory barriers.
+The first form just performs the operation without any explicit barriers.
+The second form uses a read memory barrier, and the third variant uses a write
+memory barrier.
+.Pp
+The second variant of each operation includes a read memory barrier.
+This barrier ensures that the effects of this operation are completed before the
+effects of any later data accesses.
+As a result, the operation is said to have acquire semantics as it acquires a
+pseudo-lock requiring further operations to wait until it has completed.
+To denote this, the suffix
+.Dq Li _acq
+is inserted into the function name immediately prior to the
+.Dq Li _ Ns Aq Fa type
+suffix.
+For example, to subtract two integers ensuring that any later writes will
+happen after the subtraction is performed, use
+.Fn atomic_subtract_acq_int .
+.Pp
+The third variant of each operation includes a write memory barrier.
+This ensures that all effects of all previous data accesses are completed
+before this operation takes place.
+As a result, the operation is said to have release semantics as it releases
+any pending data accesses to be completed before its operation is performed.
+To denote this, the suffix
+.Dq Li _rel
+is inserted into the function name immediately prior to the
+.Dq Li _ Ns Aq Fa type
+suffix.
+For example, to add two long integers ensuring that all previous
+writes will happen first, use
+.Fn atomic_add_rel_long .
+.Pp
+A practical example of using memory barriers is to ensure that data accesses
+that are protected by a lock are all performed while the lock is held.
+To achieve this, one would use a read barrier when acquiring the lock to
+guarantee that the lock is held before any protected operations are performed.
+Finally, one would use a write barrier when releasing the lock to ensure that
+all of the protected operations are completed before the lock is released.
+.Ss Multiple Processors
+The current set of atomic operations do not necessarily guarantee atomicity
+across multiple processors.
+To guarantee atomicity across processors, not only does the individual
+operation need to be atomic on the processor performing the operation, but
+the result of the operation needs to be pushed out to stable storage and the
+caches of all other processors on the system need to invalidate any cache
+lines that include the affected memory region.
+On the
+.Tn i386
+architecture, the cache coherency model requires that the hardware perform
+this task, thus the atomic operations are atomic across multiple processors.
+On the
+.Tn ia64
+architecture, coherency is only guaranteed for pages that are configured to
+using a caching policy of either uncached or write back.
+.Ss Semantics
+This section describes the semantics of each operation using a C like notation.
+.Bl -hang
+.It Fn atomic_add p v
+.Bd -literal -compact
+*p += v;
+.Ed
+.It Fn atomic_clear p v
+.Bd -literal -compact
+*p &= ~v;
+.Ed
+.It Fn atomic_cmpset dst old new
+.Bd -literal -compact
+if (*dst == old) {
+	*dst = new;
+	return 1;
+} else
+	return 0;
+.Ed
+.El
+.Pp
+The
+.Fn atomic_cmpset
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li 8 ,
+and
+.Dq Li 16 .
+.Bl -hang
+.It Fn atomic_load addr
+.Bd -literal -compact
+return (*addr)
+.Ed
+.El
+.Pp
+The
+.Fn atomic_load
+functions always have acquire semantics.
+.Bl -hang
+.It Fn atomic_readandclear addr
+.Bd -literal -compact
+temp = *addr;
+*addr = 0;
+return (temp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_readandclear
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li ptr ,
+.Dq Li 8 ,
+and
+.Dq Li 16
+and do
+not have any variants with memory barriers at this time.
+.Bl -hang
+.It Fn atomic_set p v
+.Bd -literal -compact
+*p |= v;
+.Ed
+.It Fn atomic_subtract p v
+.Bd -literal -compact
+*p -= v;
+.Ed
+.It Fn atomic_store p v
+.Bd -literal -compact
+*p = v;
+.Ed
+.El
+.Pp
+The
+.Fn atomic_store
+functions always have release semantics.
+.Pp
+The type
+.Dq Li 64
+is currently not implemented for any of the atomic operations on the
+.Tn i386
+architecture.
+.Sh RETURN VALUES
+The
+.Fn atomic_cmpset
+function
+returns the result of the compare operation.
+The
+.Fn atomic_load
+and
+.Fn atomic_readandclear
+functions
+return the value at the specified address.
+.Sh EXAMPLES
+This example uses the
+.Fn atomic_cmpset_acq_ptr
+and
+.Fn atomic_set_ptr
+functions to obtain a sleep mutex and handle recursion.
+Since the
+.Va mtx_lock
+member of a
+.Vt "struct mtx"
+is a pointer, the
+.Dq Li ptr
+type is used.
+.Bd -literal
+#define _obtain_lock(mp, tid)						\\
+	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED, (tid))
+
+/* Get a sleep lock, deal with recursion inline. */
+#define	_getlock_sleep(mp, tid, type) do {				\\
+	if (!_obtain_lock(mp, tid)) {					\\
+		if (((mp)->mtx_lock & MTX_FLAGMASK) != ((uintptr_t)(tid)))\\
+			mtx_enter_hard(mp, (type) & MTX_HARDOPTS, 0);	\\
+		else {							\\
+			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSE);	\\
+			(mp)->mtx_recurse++;				\\
+		}							\\
+	}								\\
+} while (0)
+.Ed
+.Sh HISTORY
+The
+.Fn atomic_add ,
+.Fn atomic_clear ,
+.Fn atomic_set ,
+and
+.Fn atomic_subtract
+operations were first introduced in
+.Fx 3.0 .
+This first set only supported the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li int ,
+and
+.Dq Li long .
+The
+.Fn atomic_cmpset ,
+.Fn atomic_load ,
+.Fn atomic_readandclear ,
+and
+.Fn atomic_store
+operations were added in
+.Fx 5.0 .
+The types
+.Dq Li 8 ,
+.Dq Li 16 ,
+.Dq Li 32 ,
+.Dq Li 64 ,
+and
+.Dq Li ptr ,
+and all of the acquire and release variants
+were added in
+.Fx 5.0
+as well.

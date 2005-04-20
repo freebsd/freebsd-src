@@ -1,0 +1,200 @@
+Installing Line Disciplines and Streams Modules
+
+Description
+
+Most radio and modem clocks used for a primary (stratum-1) NTP server
+utilize serial ports operating at speeds of 9600 baud or greater. The
+timing jitter contributed by the serial port hardware and software
+discipline can accumulate to several milliseconds on a typical Unix
+workstation. In order to reduce these errors, a set of special line
+disciplines can be configured in the operating system process. These
+disciplines intercept special characters or signals provided by the
+radio or modem clock and save a local timestamp for later processing.
+
+The disciplines can be compiled in the kernel in older BSD-derived
+systems, or installed as System V streams modules and either compiled in
+the kernel or dynamically loaded when required. In either case, they
+require reconfiguration of the Unix kernel and provisions in the NTP
+daemon xntpd. The streams modules can be pushed and popped from the
+streams stack using conventional System V streams program primitives.
+Note that not all Unix kernels support line disciplines and of those
+that do, not all support System V streams. The disciplines here are
+known to work correctly with SunOS 4.x kernels, but have not been tested
+for other kernels.
+
+There are two line disciplines included in the distribution. Support for
+each is enabled by adding flags to the DEFS_LOCAL line of the build
+configuration file ./Config.local. This can be done automatically by the
+autoconfiguration build procedures, or can be inserted/deleted after the
+process has completed.
+
+tty_clk (CLK)
+
+     This discipline intercepts characters received from the serial port
+     and passes unchanged all except a set of designated characters to
+     the generic serial port discipline. For each of the exception
+     characters, the character is inserted in the receiver buffer
+     followed by a timestamp in Unix timeval format. Both select() and
+     SIGIO are supported by the discipline. The -DCLK flag is used to
+     compile support for this disipline in the NTP daemon. This flag is
+     included if the clkdefs.h file is found in the /sys/sys directory,
+     or it can be added (or deleted) manually.
+
+tty_chu (CHU)
+
+     This discipline is a special purpose line discipline for receiving
+     a special timecode broadcast by Canadian time and frequency
+     standard station CHU. The radio signal is first demodulated by the
+     300-baud modem included in the gadget box, then processed by the
+     discipline and finally processed by the Scratchbuilt CHU Receiver
+     discipline (type 7). This discipline should be used in raw mode.
+     The -DCHU flag is used to compile support for this disipline in the
+     NTP daemon. This flag is included if the chudefs.h file is found in
+     the /sys/sys directory, or it can be added (or deleted) manually.
+
+There are two sets of line disciplines. The tty_clk.c and chu_clk.c are
+designed for use with older BSD systems and are compiled in the kernel.
+The tty_clk_STREAMS.c and chu_clk_STREAMS.c are designed for use with
+System V streams, in which case they can be either compiled in the
+kernel or dynamically loaded. Since these disciplines are small,
+unobtrusive, and to nothing unless specifically enabled by an
+application program, it probably doesn't matter which method is choosen.
+
+Compiling with the Kernel
+
+The following procedures are for the tty_clk line discipline; for the
+chu_clk, change "tty" to "chu".
+1.   Copy tty_clk.c into /sys/os and clkdefs.h into /sys/sys.
+
+2.   For SunOS 4.x systems, edit /sys/os/tty_conf.c using some facsimile
+     of the following lines:
+
+     #include "clk.h"
+     ...
+     #if NCLK > 0
+     int  clkopen(), clkclose(), clkwrite(), clkinput(), clkioctl();
+     #endif
+     ...
+     #if NCLK > 0
+          { clkopen, clkclose, ttread, clkwrite, clkioctl,
+            clkinput, nodev, nulldev, ttstart, nullmodem, /* 10 CLK */
+            ttselect },
+     #else
+          { nodev, nodev, nodev, nodev, nodev,
+            nodev, nodev, nodev, nodev, nodev,
+            nodev },
+     #endif
+
+     For Ultrix 4.x systems, edit /sys/data/tty_conf_data.c using some
+     facsimile of the following lines:
+
+     #include "clk.h"
+     ...
+     #if NCLK > 0
+     int  clkopen(), clkclose(), clkwrite(), clkinput(), clkioctl();
+     #endif
+     ...
+     #if NCLK > 0
+          clkopen, clkclose, ttread, clkwrite, clkioctl, /* 10 CLK */
+          clkinput, nodev, nulldev, ttstart, nulldev,
+     #else
+          nodev, nodev, nodev, nodev, nodev,
+          nodev, nodev, nodev, nodev, nodev,
+     #endif
+
+     If the kernel doesn't include the ??select() entry in the structure
+     (i.e., there are only ten entry points in the structure) just leave
+     it out. Also note that the number you give the line discipline (10
+     in most kernels) will be specific to that kernel and will depend on
+     what is in there already. The entries sould be in order with no
+     missing space; that is, if there are only seven disciplines already
+     defined and you want to use 10 for good reason, you should define a
+     dummy 9th entry like this:
+
+     nodev, nodev, nodev, nodev, nodev, /* 9 CLK */
+     nodev, nodev, nodev, nodev, nodev,
+
+3.   Edit /sys/h/ioctl.h and include a line somewhere near where other
+     line disciplines are defined like:
+
+     #define  CLKLDISC  10        /* clock line discipline */
+
+     The "10" should match what you used as the number in the preceding
+     step.
+
+4.   Edit /sys/conf/files and add a line which looks like:
+
+     sys/tty_clk.c     optional clk
+
+5.   Edit the kernel configuration file to include the following:
+
+     pseudo-device  tty 4  # TTY clock support
+6.   Run config, then make clean, then make depend, then make vmunix,
+     then reboot the new kernel.
+
+Installing as a streams module
+
+The following procedures are for the tty_clk_STREAMS line discipline;
+for the tty_chu_STREAMS, change "clk" to "chu".
+
+1.   Copy your choice to /sys/os, removing the "_STREAMS" in the
+     filename.
+
+2.   Copy the clkdefs.h file to /usr/include/sys, then construct a soft
+     link to /sys/sys.
+
+3.   Append to /sys/conf.common/files.cmn:
+
+     os/tty_tty.c  optional tty
+
+4.   Edit /sys/sun/str_conf.c. You'll want to add lines in three places.
+     It'll be sort of clear where when you see the file.
+
+     #include "tty.h"
+     ...
+     #if NTTY > 0
+     extern struct streamtab ttyinfo;
+     #endif
+     ...
+     #if NTTY > 0
+          { "tty", &ttyinfo },
+     #endif
+
+5.   Edit /sys/[arch]/conf/[k-name] (substituting the architecture and
+     kernel name) to stick in:
+
+     pseudo-device  tty 4  # TTY clock support
+
+     You can change "4" to anything you like. It will limit the number
+     of instantiations of the tty discipline you can use at the same
+     time.
+
+6.   Run config, then make clean, then make depend, then make vmunix,
+     then reboot the new kernel.
+
+Both disciplines can be dynamically loaded using streams procedures
+specific to the kernel. Before using the chu_clk discipline, all other
+streams modules that may already be on the stack should be popped, then
+the discipline should be pushed on the stack.
+
+How to Use the tty_clk Line Discipline
+
+The tty_clk line discipline defines a new ioctl(), CLK_SETSTR, which
+takes a pointer to a string of no more than CLK_MAXSTRSIZE characters.
+Until the first CLK_SETSTR is performed, the discipline will simply pass
+through characters. Once it is passed a string by CLK_SETSTR, any
+character in that string will be immediately followed by a timestamp in
+Unix timeval format. You can change the string whenever you want by
+doing another CLK_SETSTR. The character must be an exact, 8 bit match.
+The character '\000' cannot, unfortunately, be used, as it is the string
+terminator. Passing an empty string to CLK_SETSTR turns off stamping.
+Passing NULL will produce undefined results.
+
+How to Use the tty_chu Line Discipline
+The tty_chu line discipline translates data received from the CHU modem
+and returns chucode structures, as defined in chudefs.h, and expected by
+the Scratchbuilt CHU Receiver reference clock  driver. Depending on the
+settings of PEDANTIC and ANAL_RETENTIVE used when compiling the kernel,
+some checking of the data may or may not be necessary.
+
+David L. Mills (mills@udel.edu)

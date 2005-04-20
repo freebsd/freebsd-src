@@ -1,0 +1,69 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+set karch=`uname -m`
+set ipfdir=/sys/netinet
+set krev=`uname -r|sed -e 's/\([0-9\.]*\)-.*/\1/'`
+if ( -d /sys/arch/$karch ) set archdir="/sys/arch/$karch"
+if ( -d /sys/$karch ) set archdir="/sys/$karch"
+if ( -d /sys/contrib/ipfilter ) set ipfdir=/sys/contrib/ipfilter/netinet
+set confdir="$archdir/conf"
+
+if ( $dir =~ */FreeBSD* ) cd ..
+echo -n "Installing "
+foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
+	   ip_proxy.[ch] ip_*_pxy.c mlf_ipl.c mlfk_ipl.c \
+	   ipl.h ip_compat.h ip_auth.[ch] ip_log.c)
+	echo -n "$i ";
+	cp $i $ipfdir
+	chmod 644 $ipfdir/$i
+	switch ( $i )
+	case *.h:
+		/bin/cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+		breaksw
+	endsw
+end
+echo ""
+echo "Linking /usr/include/osreldate.h to /sys/sys/osreldate.h"
+ln -s /usr/include/osreldate.h /sys/sys/osreldate.h
+
+set patchfile=FreeBSD-4.0/ipv6-patch-$krev
+if ( -f $patchfile ) then
+	echo ""
+	echo "Patching ip6_input.c and ip6_output.c"
+	cat $patchfile | (cd /sys/netinet6; patch)
+else
+	echo "IPv6 patching not required for your OS version"
+endif
+
+set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" != "" ) then
+	set config="$confdir/$newconfig"
+else
+	set newconfig=$config
+endif
+grep -q IPFILTER $confdir/$newconfig
+if ($status == 0) then
+	echo "IPFilter already configured in kernel config file"
+	exit 0
+endif
+echo "Rewriting $newconfig..."
+if ( -f $confdir/$newconfig ) then
+	mv $confdir/$newconfig $confdir/$newconfig.bak
+endif
+if ( -d $archdir/../compile/$newconfig ) then
+	set bak=".bak"
+	set dot=0
+	while ( -d $archdir/../compile/${newconfig}.${bak} )
+		set bak=".bak.$dot"
+		set dot=`expr 1 + $dot`
+	end
+	mv $archdir/../compile/$newconfig $archdir/../compile/${newconfig}.${bak}
+endif
+awk '{print $0;if($2=="INET"){print"options IPFILTER\noptions IPFILTER_LOG"}}'\
+	$confdir/$newconfig.bak > $confdir/$newconfig
+echo "You will now need to run config on $newconfig and build a new kernel."
+exit 0

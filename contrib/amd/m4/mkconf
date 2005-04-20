@@ -1,0 +1,20 @@
+#!/bin/bash -norc
+# (re)make the autoconf configuration files.
+# Used by am-utils maintainers only!
+#
+# Erez Zadok <ezk@cs.columbia.edu>
+#
+#set -x
+
+if [ ! -f amd/amd.c ]; then
+	cd ..
+fi
+if [ ! -f amd/amd.c ]; then
+	cd ..
+fi
+if [ ! -f amd/amd.c ]; then
+	echo "wrong directory!"
+	exit 1
+fi
+
+cd m4 && make $*

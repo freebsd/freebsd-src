@@ -1,0 +1,89 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.7
+-->
+<sect1 id="proc-ia64">
+  <title>対応プロセッサおよびマザーボード</title>
+
+  <para>現在対応しているプロセッサは
+    <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
+    と <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink> です。</para>
+
+  <para>対応しているチップセットは以下のとおりです。</para>
+   <itemizedlist>
+     <listitem>
+       <para>HP zx1 (開発ブランチでのみ対応しています。
+         <ulink url="http://perforce.FreeBSD.org/">Perforce レポジトリ</ulink>
+         をご覧ください。)</para>
+     </listitem>
+     <listitem>
+       <para>HP i2000
+     </listitem>
+     <listitem>
+       <para>Intel 460GX</para>
+     </listitem>
+     <listitem>
+       <para>Intel E8870</para>
+     </listitem>
+   </itemizedlist>
+
+  <para>ユニプロセッサ (UP) および対称型マルチプロセッサ (SMP)
+    の両方の構成が活発に開発中です。
+    現時点では、SMP を有効にしたシステムはやや安定性に劣ると考えられています。
+    現在は UP の修正を行って安定性の向上を
+    優先する方向で開発が進められています。</para>
+
+  <sect2>
+    <title>対応しているデバイスの概観</title>
+
+    <para>この節には、&os;/&arch; がどのデバイスに
+      対応するか (そして対応しないか) についての情報が記載されています。</para>
+
+    <para>内蔵の &man.ata.4; コントローラを除き、
+      ほとんどの PC チップセットはうまく動作するはずです。
+      つまるところ、&arch; 互換の
+      ATA コントローラはすべて完全に対応するでしょう。
+      さまざまなディスクコントローラとその現状は次の節をご覧ください。</para>
+    
+    <para>一般に、&man.sio.4; ドライバが対応している
+      <quote>PC に標準で搭載されている</quote> シリアルポートは
+      Intel レガシマシンで動作するでしょうが、
+      PA レガシマシンでは動作しないでしょう。
+      HP マシンのすべてのデバイスは memory-mapped I/O を使用しており、
+      PCI 以外のISA デバイスには
+      対応<emphasis>していない</emphasis>のがその理由です。</para>
+
+    <para>&man.sio.4; デバイスに加え、
+      以下のデバイスは ISA バスに固有の仮定を行っているため、
+      非 Intel レガシマシンでは動作しません
+      (が Intel レガシマシンでは動作するはずです)。</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<tbody>
+	  <row>
+            <entry>&man.sio.4;</entry>
+            <entry>memory-mapped I/O に対応していません。</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.syscons.4;</entry>
+            <entry>BIOS、VGA などが検出できることを想定しています。</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.pcm.4;</entry>
+            <entry>MSS (Microsoft Sound System) 用の
+              ISA I/O ポートを検出してしまいます
+              (<emphasis>ああ、うんざり…</emphasis>)。</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.atkbd.4;, &man.psm.4;</entry>
+            <entry>固定された ISA I/O ポートの位置を想定しています。</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+  </sect2>
+</sect1>

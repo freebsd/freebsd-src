@@ -1,0 +1,142 @@
+Cscope Notes:
+
+The nvi tags structure has been reworked to handle the notion of multiple
+locations per tag.  This supports cscope, which returns multiple locations
+per query.  It will hopefully support ctags programs that create databases
+with multiple locations per tag as well.
+
+There is now a list of "tag queues" chained from each screen.  Each tag
+queue has one or more "tag locations".
+
+   +----+    +----+	+----+     +----+
+   | EP | -> | Q1 | <-- | T1 | <-- | T2 |
+   +----+    +----+ --> +----+ --> +----+
+  	     |
+  	     +----+     +----+
+  	     | Q2 | <-- | T1 |
+  	     +----+ --> +----+
+  	     |
+  	     +----+	+----+
+  	     | Q3 | <-- | T1 |
+  	     +----+ --> +----+
+  
+In the above diagram, each "Q" is a "tag queue", and each "T" is a
+tag location.  Generally, the commands:
+
+	:tag			create a new Q
+	^[			create a new Q
+	:cscope find		create a new Q
+	:tagnext		move to the next T
+	:tagprev		move to the previous T
+	:tagpop			discard one or more Q's
+	^T			discard the most recent Q
+	:tagtop			discard all Q's
+
+More specifically:
+
+:cs[cope] a[dd] cscope-dir
+
+	Attach to the cscope database in cscope-dir.
+
+:cs[cope] f[ind] c|d|e|f|g|i|s|t buffer|pattern
+
+	Query all attached cscopes for the pattern.  The pattern is a
+	regular expression.  If the pattern is a double-quote character
+	followed by a valid buffer name (e.g., "t), then the contents
+	of the named buffer are used as the pattern.
+
+	c: find callers of name
+	d: find all function calls made from name
+	e: find pattern
+	f: find files with name as substring
+	g: find definition of name
+	i: find files #including name
+	s: find all uses of name
+	t: find assignments to name
+
+	The find command pushes the current location onto the tags stack,
+	and switches to the first location resulting from the query, if
+	the query returned at least one result.
+
+:cs[cope] h[elp] [command]
+	
+	List the cscope commands, or usage help on one command.
+
+:display c[onnections]
+
+	Display the list of cscope connections
+
+:display t[ags]
+
+	The tags display has been enhanced to display multiple tag
+	locations per tag query.
+
+:cs[cope] k[ill] #
+
+	Kill cscope connection number #.
+
+:cs[cope] r[eset]
+	Kill all attached cscopes.  Useful if one got hung but you don't
+	know which one.
+
+:tagn[ext][!]
+
+	Move to the next tag resulting from a query.
+
+:tagpr[ev][!]
+
+	Return to the previous tag resulting from a query.
+
+:tagp[op], ^T
+
+	Return to the previous tag group (no change).
+
+:tagt[op]
+
+	Discard all tag groups (no change).
+
+Suggested maps:
+
+	" ^N: move to the next tag
+	map ^N :tagnext^M
+	" ^P: move to the previous tag
+	map ^P :tagprev^M
+
+	" Tab+letter performs a C-Scope query on the current word.
+	" C-Scope 12.9 has a text-string query (type t).
+	" C-Scope 13.3 replaces it with an assignment query; hence a==t.
+	map <tab>a "tye:csc find t"t
+	map <tab>c "tye:csc find c"t
+	map <tab>d "tye:csc find d"t
+	map <tab>e "tye:csc find e"t
+	map <tab>f "tye:csc find f"t
+	map <tab>g "tye:csc find g"t
+	map <tab>i "tye:csc find i"t
+	map <tab>s "tye:csc find s"t
+	map <tab>t "tye:csc find t"t
+
+To start nvi with an initial set of cscope directories, use the environment
+variable CSCOPE_DIRS.  This variable should contain a <blank>-separated
+list of directories containing cscope databases.  (This MAY be changed to
+be an edit option, I haven't really decided, yet.)
+
+Each cscope directory must contain a file named "cscope.out" which is the
+main cscope database, or nvi will not attempt to connect to a cscope to
+handle requests for that database.
+
+The file "cscope.tpath" may contain a colon-separated directory search
+path which will be used to find the files reported by cscope.  If this
+cscope.tpath does not exist, then the paths are assumed to be relative to
+the cscope directory itself.  This is an extension to the standard cscope,
+but seems important enough to keep.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Cscope Availability:
+
+UNIXWare System V Release 4.0 variants such as Sun Solaris 2.x
+(/opt/SUNWspro/bin) have version 11.5, and UNIXWare System V
+Release 4.1 has version 12.10 with an option for much faster
+searching.
+
+You can buy version 13.3 source with an unrestricted license
+for $400 from AT&T Software Solutions by calling +1-800-462-8146.

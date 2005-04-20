@@ -1,0 +1,922 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4last "4.11-RELEASE">
+<!ENTITY release.5branchpoint "5.3-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.current; Migration Guide</title>
+
+    <authorgroup>
+      <corpauthor>The &os; Release Engineering Team</corpauthor>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
+      <holder role="mailto:re@FreeBSD.org">The &os; Release
+	Engineering Team</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.apple;
+      &tm-attrib.ibm;
+      &tm-attrib.ieee;
+      &tm-attrib.intel;
+      &tm-attrib.microsoft;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+
+    <abstract>
+      <para>This article describes major differences between &os;
+	&release.4x; and &os; &release.current;, from the
+	viewpoint of a user or administrator upgrading an existing
+	system.  It provides a brief overview of &os; release
+	engineering.  It then describes some of the new features in
+	&os; &release.5x;, as well as some changes that might be of
+	particular interest to users accustomed to working with the
+	&release.4x; series of releases.  This article also describes
+	binary- and source-based upgrading procedures for existing
+	systems.  Earlier versions of this article appeared in prior
+	&os; &release.5x; releases.  Prior to &os; &release.5branchpoint;,
+	this article was known as the <quote>Early Adopters
+	Guide</quote>.</para>
+    </abstract>
+  </articleinfo>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>&os; &release.current; is the latest version of &os; in the
+      <quote>&os.stable;</quote> series of releases.  This and future
+      releases in the &release.5x; series are targeted
+      toward production usage in much the same way as the prior
+      &release.4x; series of releases.</para>
+
+    <para>This article addresses a number of topics and issues
+      of interest to users updating from a &release.4x; release to
+      &release.current;.  It begins with a brief overview of
+      current release engineering practices and then describes some of
+      the new features available with the &os; &release.5x; series.
+      Perhaps the most important section lists issues
+      where major changes have taken place, user-visible behavior has
+      changed, or external software interfaces have been modified.
+      Last are some notes on upgrading existing &os; &release.4x;
+      systems to &os; &release.current;, from binaries or
+      from source.</para>
+
+  </sect1>
+
+  <sect1 id="release-overview">
+    <title>An Overview of the &os; Release Process</title>
+
+    <para>&os; employs a development model relying on multiple
+      branches within the source code repository.  The main branch is called
+      <quote>CURRENT</quote>, and is referred to in the CVS repository
+      with the <literal>HEAD</literal> tag.  New features are
+      committed first to this branch; although CURRENT
+      is the first to see new functionality, it also
+      occasionally suffers from breakages as new features are
+      added and debugged.</para>
+
+    <para>Most &os; releases are made from one of several
+      <quote>STABLE</quote> branches.  Features are added to
+      these branches only after some amount of testing in CURRENT.  For the
+      past two years,
+      the only STABLE branch under active development
+      was known as <quote>4-STABLE</quote>, and all of the
+      &os; &release.4x; releases were based on
+      it.  This branch has the tag <literal>RELENG_4</literal> in the
+      CVS repository.</para>
+
+    <para>The past two stable branches (3-STABLE and 4-STABLE) were
+      created very early in their development cycles
+      (their branchpoints were 3.1 and 4.0, respectively).  In hindsight, this
+      practice did not give sufficient time for either CURRENT
+      to stabilize before the new branches were
+      created.  This in turn resulted in wasted effort porting bug
+      fixes between branches, as well as creating some architectural changes
+      that could not be ported between branches at all.</para>
+
+    <para>The &release.5x; releases have been handled slightly
+      differently.
+      &os; 5.0, 5.1, and 5.2 were based on the CURRENT branch.  The
+      first of these releases was made after over two years of development
+      (prior to these, the
+      last release from HEAD was &os; 4.0, in March 2000).</para>
+
+    <para>Unlike prior <quote>STABLE</quote> branches, the
+      <quote>5-STABLE</quote> branch in CVS (with the branch tag
+      <literal>RELENG_5</literal>) was created
+      more than a year after the first &release.5x; release
+      (specifically, during the 5.3 release cycle).  This delay gave
+      time for the development team to complete needed architectural
+      changes, stabilize the system, finalize various interfaces, and
+      create a good starting point for the remaining
+      &release.5x; releases.</para>
+
+    <para>Aside from general improvements and bug fixes, a major
+      priority for development on the 5-STABLE branch is
+      the preservation of Application Binary Interface (ABI) and
+      Application Program Interface (API) compatibility.  Any changes that
+      could break backward compatibility (including kernel or library
+      interfaces) are strongly discouraged, and will not be permitted
+      except as a last-resort solution to a critical problem.</para>
+
+    <para>The next release from CURRENT will likely be 6.0-RELEASE,
+      created from CVS <literal>HEAD</literal>.  There is no firm date for 6.0,
+      as of this writing, although it is
+      expected sometime in the third quarter of 2005.  Future release
+      engineering plans call for new major releases approximately
+      every eighteen months, with minor releases approximately every
+      four months.</para>
+
+    <para>The last planned release along the 4-STABLE development
+      branch was &release.4last;, which was announced in January 2005.
+      No new major features are planned for the 4-STABLE branch at
+      this time, and any future work will likely be limited to bug
+      fixes and security patches.  For especially
+      conservative users, it may be reasonable to continue using the
+      &release.4x; releases for a time.  The
+      &a.security-officer; will continue to support releases made from
+      the 4-STABLE branch in accordance with their published policies,
+      which can be found on the <ulink
+      url="&url.base;/security/index.html">Security page</ulink> on
+      the &os; web site.</para>
+
+    <para>More information on &os; release engineering processes can be found
+      on the <ulink
+      url="&url.base;/releng/index.html">Release
+      Engineering Web pages</ulink> and in the <ulink
+      url="&url.articles.releng;/index.html"><quote>&os; Release
+      Engineering</quote></ulink> article.</para>
+
+  </sect1>
+
+  <sect1 id="new">
+    <title>New Features</title>
+
+    <para>A major attraction of &os; &release.5x; is a number of new
+      features, generally involving
+      large architectural changes that were not feasible to port back to
+      the &os; 4-STABLE development branch.  (By contrast, many
+      self-contained enhancements, such as new device drivers or
+      updates to
+      userland utilities, have already been ported.)  A brief, but not
+      exhaustive list includes:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>SMPng: The <quote>next generation</quote> support for
+	  Symmetric MultiProcessor (SMP) machines.
+	  Ongoing work aims to perform fine-grained locking of various
+	  kernel subsystems to increase the number of threads of
+	  execution that can be running in the kernel.  Particular
+	  attention has been paid to the performance of the network
+	  stack and storage drivers.  More
+	  information can be found on the
+	  <ulink url="&url.base;/smp/index.html">FreeBSD SMP
+	  Project</ulink> page.</para>
+      </listitem>
+
+      <listitem>
+	<para>KSE:  Kernel Scheduled Entities allow a single process
+	  to have multiple kernel-level threads, similar to Scheduler
+	  Activations.  The <filename>libpthread</filename>
+	  and <filename>libthr</filename> threading libraries make this
+	  feature available to multi-threaded userland programs,
+	  using the &man.pthread.3; API.
+	  <filename>libpthread</filename> is now the default threading
+	  library.</para>
+      </listitem>
+
+      <listitem>
+	<para>New architectures:  Support for the amd64, ia64, pc98, and sparc64
+	  architectures, in addition to the i386 and
+	  alpha.  Other platforms under development include powerpc
+	  (which runs on many &powerpc;-based &macintosh; platforms) and arm.</para>
+      </listitem>
+
+      <listitem>
+	<para>GCC:  The compiler toolchain is now based on GCC
+	  3.4.<replaceable>X</replaceable>, rather than GCC
+	  2.95.<replaceable>X</replaceable>.</para>
+      </listitem>
+
+      <listitem>
+	<para>MAC:  Support for extensible, loadable Mandatory Access
+	  Control policies.</para>
+      </listitem>
+
+      <listitem>
+	<para>GEOM:  A flexible, modular framework for transformation of disk
+	  I/O requests.  This system supports a number of features
+	  related to disks and volumes, such as:  recognition of disk
+	  partitions, the &man.gbde.4; disk encryption facility,
+	  various levels of RAID functionality, network export of disk
+	  devices (with &man.ggated.8 and related utilities), and
+	  transparent disk decompression.  The geom_vinum system
+	  brings GEOM compatibility to the VINUM volume manager.</para>
+      </listitem>
+
+      <listitem>
+	<para>FFS: The FFS file system now supports background
+	  &man.fsck.8; operations (for faster crash recovery) and
+	  file system snapshots.</para>
+      </listitem>
+
+      <listitem>
+	<para>UFS2:  A new UFS2 on-disk format has been added, which
+	  supports extended per-file attributes and larger file
+	  sizes.  UFS2 is now the default format for &man.newfs.8;.
+	  On all platforms except pc98, file systems created from
+	  within &man.sysinstall.8; will use UFS2 by default.</para>
+      </listitem>
+
+      <listitem>
+	<para>New networking features:  A number of new networking
+	  features have made their debut in &release.5x; releases,
+	  including support for TCP SACK (selective acknowledgements),
+	  the &man.pf.4; packet filter from OpenBSD, and the
+	  ALTQ packet queueing system.
+      </listitem>
+
+      <listitem>
+	<para>New hardware support: Support for more hardware devices,
+	  such as Cardbus, Bluetooth devices, and IEEE 802.11a/b/g
+	  network interfaces based on Atheros chipsets.  Also,
+	  on the i386 architecture, some network devices not
+	  explicitly supported by &os; drivers may be supported using
+	  vendor drivers for &microsoft; &windows; and the
+	  &man.ndis.4; compatibility layer.</para> </listitem>
+
+    </itemizedlist>
+
+    <para>A more comprehensive list of new features can be found in
+      the release notes for the various &os; &release.5x; releases.</para>
+
+  </sect1>
+
+  <sect1 id="drawbacks">
+    <title>Notable Changes</title>
+
+    <para>Some of the differences between &os; &release.4x; and
+      &release.5x; deserve special mention because they involve
+      major architectural changes, or break backwards compatibility in
+      some way.  While these changes are unlikely to cause a loss of
+      data, they could cause some confusion for the unwary.  Some
+      notable examples are:</para>
+
+    <itemizedlist>
+
+<!-- General stuff -->
+
+      <listitem>
+	<para>Several parts of &os;'s base system functionality have
+	  been moved to the &os; Ports Collection, usually because
+	  they are easier to maintain in that form or because they
+	  were not really essential parts of the system.
+	  The most noticeable example of this is
+	  <application>Perl</application> (available in the &os; Ports
+	  Collection as <filename
+	  role="package">lang/perl5.8</filename>), whose former
+	  location in the base system made upgrades problematic.
+	  Utilities in the base system that formerly relied on
+	  <application>Perl</application> have been either rewritten
+	  (if still applicable) or removed (if obsolete).<para>
+
+	<para>Other examples include <application>UUCP</application>
+	  (available in the Ports Collection as <filename
+	  role="package">net/freebsd-uucp</filename>), the <command>doscmd</command>
+	  utility (<filename
+	  role="package">emulators/doscmd</filename>), and many of the
+	  traditional games (<filename
+	  role="package">games/freebsd-games</filename>).</para>
+	  </listitem>
+
+<!-- Kernel ABI changes -->
+
+      <listitem>
+	<para>Changes in kernel data structures and ABIs/APIs meant
+	  many third-party binary device drivers had to be modified before they would
+	  work correctly under &os; &release.5x;.
+	  In
+	  some (hopefully rare) cases, user-visible data structures
+	  have changed, requiring recompilation of applications or
+	  reinstallation of ports/packages.  As with the
+	  &release.4x; series, the &os; development team has
+	  the goal of not allowing incompatible changes in future
+	  releases on the &release.5x; branch.</para>
+      </listitem>
+
+      <listitem>
+	<para>A shortage of users and maintainers for some parts of
+	  the base system has caused them
+	  to fall into disrepair.
+	  These have been removed.  Examples include the
+	  generation of <filename>a.out</filename>-style executables,
+	    <footnote>
+	      <para>Note that execution of <filename>a.out</filename>
+		executables on the i386 and pc98 is still supported
+		with the <literal>COMPAT_AOUT</literal> kernel
+		option.  Some of the compilers in the Ports Collection
+		(for example,
+		<filename role="package">lang/gcc28</filename>) are
+		still capable of generating <filename>a.out</filename>
+		format executables.</para>
+	    </footnote>
+	  XNS networking
+	  support, and the X-10 controller driver.  A number of other
+	  drivers for old ISA-based devices have been discovered to be
+	  non-working and have been removed.  More details are given
+	  in the release notes.</para>
+      </listitem>
+
+      <listitem>
+	<para>On &os;/i386
+	  &release.4x;, the configuration of ISA devices was initially
+	  specified in the kernel configuration.  These could be
+	  modified at boot-time with an interactive
+	  <application>UserConfig</application> utility.  On &os;
+	  &release.5x;, both of these mechanisms have been replaced by
+	  the &man.device.hints.5; mechanism, which eliminates the
+	  need to hard-code ISA configuration parameters in the
+	  kernel.  Boot-time ISA configuration is no longer
+	  menu-driven, but is performed by entering new parameters to
+	  the boot loader command line prompt.</para>
+      </listitem>
+
+      <listitem>
+	<para><filename>MAKEDEV</filename> is no longer available, nor
+	  is it required.  &os; &release.5x; uses a device
+	  file system, which automatically creates device nodes on
+	  demand.  Configuration of the entries in the device
+	  filesystem can be performed with the &man.devfs.8; utility
+	  or with the <filename>/etc/devfs.conf</filename>
+	  mechanism.
+	  More information can be found in the &man.devfs.5;
+	  manual page.</para>
+      </listitem>
+
+      <listitem>
+	<para>UFS2 is the default on-disk format for file systems
+	  created using &man.newfs.8;.  For all platforms except pc98,
+	  it is also the default for file systems created using the
+	  disk labeling screen within &man.sysinstall.8;.  Because
+	  &os; &release.4x; only understands UFS1 (not UFS2), disk
+	  partitions that must be accessed by both &release.5x; and
+	  &release.4x; must be created with UFS1.  This can be
+	  specified using the <option>-O1</option> option to
+	  &man.newfs.8;, or on the disk labeling screen in
+	  &man.sysinstall.8;.  This situation most often arises with a
+	  a single machine that dual-boots &os; &release.4x; and &os;
+	  &release.5x;.  Note that there is no way to convert file
+	  systems between the two on-disk formats (other than backing
+	  up, re-creating the file system, and restoring).</para>
+      </listitem>
+
+<!-- Userland -->
+
+      <listitem>
+	<para>Due to the upgraded <application>GCC</application>
+	  compiler, C++ programs generally need to be recompiled and
+	  reinstalled.  This requirement comes from changes in the C++
+	  ABI.</para>
+      </listitem>
+
+      <listitem>
+	<para>Running executables compiled for &os; &release.4x; may
+	  be possible with the aid of the
+	  <filename>compat4x</filename> distribution (or the
+	  equivalent <filename role="package">misc/compat4x</filename>
+	  package/port).  However, if any of the ports or packages on
+	  a system require upgrading, rebuilding and reinstalling
+	  <emphasis>all</emphasis> of the installed ports on a system
+	  is generally advised.  This will prevent problems that can
+	  occur with programs being linked against some combination of
+	  old and new libraries.  The
+	  <filename role="package">sysutils/portupgrade</filename>
+	  utility may be helpful in reinstalling ports.</para>
+
+	<para>Note that in any case, there are a number of known instances of backward
+	  incompatibility.  For example, the <filename
+	  role="package">devel/gnomevfs2</filename>, <filename
+	  role="package">mail/postfix</filename>, and <filename
+	  role="package">security/cfs</filename> ports need to be
+	  recompiled due to changes in the <literal>statfs</literal>
+	  structure.</para>
+      </listitem>
+
+      <listitem>
+	<para>The <filename>host.conf</filename> resolver services
+	  configuration file has been replaced by the (much more
+	  general) &man.nsswitch.conf.5; name-service switch
+	  configuration mechanism.</para>
+      </listitem>
+
+      <listitem>
+	<para><application>BIND</application> has been updated from
+	  version 8 to version 9.  There are numerous differences
+	  between BIND 8 and 9.  Users with critical &man.named.8;
+	  installations should read the migration documentation in
+	  <filename>/usr/share/doc/bind9/misc/migration</filename>.
+	  There is also a new instruction manual in
+	  <filename>/usr/share/doc/bind9/arm</filename>.  On systems
+	  that run &man.named.8;, it now runs by default in a
+	  &man.chroot.8; environment in
+	  <filename>/var/named</filename>.  Users with existing
+	  &man.named.8; configurations in
+	  <filename>/var/named</filename> should back up the contents
+	  of this directory before upgrading to avoid them being
+	  overwritten by the &man.named.8; startup script.</para>
+      </listitem>
+
+<!-- Ports -->
+
+      <listitem>
+	<para>The <application>&xorg;</application> implementation of
+	  the X Window System is the default for &os; &release.5x;
+	  beginning with 5.3-RELEASE.  As of this writing,
+	  <application>&xfree86;</application> remains the default for
+	  &os; &release.4x;.  More information on the differences
+	  between these versions, as well as upgrade
+	  information for existing systems, can be found in the <ulink
+	  url="&url.books.handbook;/x11.html">X Window System</ulink>
+	  chapter in the &os; Handbook.</para>
+      </listitem>
+
+<!-- Documentation -->
+
+      <listitem>
+	<para>Documentation (such as the &os; <ulink
+	  url="&url.books.handbook;/index.html">Handbook</ulink>
+	  and <ulink
+	  url="&url.books.faq;/index.html">FAQ</ulink>)
+	  is still being updated to reflect changes recently made to &os; &release.5x;.</para>
+      </listitem>
+
+    </itemizedlist>
+
+    <para>More information can be found in the release notes for the
+      various &os; &release.5x; releases, as well as the
+      <filename>src/UPDATING</filename> file in the &os; source
+      tree.  Notable changes to the &os; Ports Collection are listed
+      in the <filename>ports/UPDATING</filename> and
+      <filename>ports/CHANGES</filename> files in the ports tree.</para>
+
+  </sect1>
+
+  <sect1 id="upgrade">
+    <title>Notes on Upgrading from &os; &release.4x;</title>
+
+    <para>For those users with existing &os; systems, this section
+      offers a few notes on upgrading a &os;
+      &release.4x; system to
+      &release.5x;.  As with any &os; upgrade, it
+      is crucial to read the release notes and the errata for the
+      version in question, as well as
+      <filename>src/UPDATING</filename> in the case of source upgrades.</para>
+
+    <sect2>
+      <title>Binary Upgrades</title>
+
+      <para>Probably the most straightforward approach is that of
+	<quote>backup everything, reformat, reinstall, and restore
+	user data</quote>.  This eliminates problems of incompatible
+	or obsolete executables and configuration files polluting the
+	new system.  It allows new file systems to be created to take
+	advantage of new functionality (most notably, the UFS2
+	defaults).</para>
+
+      <para>As of this writing, the binary upgrade option in
+	&man.sysinstall.8; has not been well-tested for
+	cross-major-version upgrades.  Use of this feature is not
+	recommended.</para>
+
+      <para>Several changes may be of interest to those users
+	accustomed to the &os; &release.4x; boot media.
+	Installation floppies (on platforms that support them,
+	such as i386), are organized somewhat differently than
+	on prior releases.  On &release.4x; releases, the floppy set
+	contained a stripped-down kernel with just
+	enough functionality to install the system.  This arrangement
+	allowed the kernel to fit on a single floppy
+	disk, but it lacked the device drivers required by
+	certain hardware configurations.  Beginning with &os;
+	5.3-RELEASE, the installation floppies contain a standard
+	<literal>GENERIC</literal> kernel segmented across multiple
+	disks, with a much more complete set of drivers
+	and features.  The boot loader prompts for the insertion of
+	additional disks as required.  Users downloading floppy images
+	(perhaps to perform a network-based installation) should
+	note that the floppy disk set now includes three
+	disks: <filename>boot.flp</filename>,
+	<filename>kern1.flp</filename>, and
+	<filename>kern2.flp</filename>.</para>
+
+      <para>The installation CDROMs for the i386 architecture now use
+	a <quote>no-emulation</quote> boot loader.  This allows, among
+	other things, the use of a <literal>GENERIC</literal> kernel,
+	rather than the stripped-down kernels used on the floppy
+	images in previous versions.
+	Generally, any system capable of booting the &microsoft;
+	&windowsnt;&nbsp;4, &windows2k;, or &windowsxp; installation
+	CDROMs should be able to boot the &os; &release.5x; CDROMs.</para>
+
+      <para>The layout of CDROMs has changed from the &release.4x;
+	series.  Beginning with 5.4-RELEASE, the installation image
+	and the <quote>live filesystem</quote> are now contained on
+	the first disk on all architectures except for ia64 (ia64
+	releases use separate installation and live filesystem disks
+	due to disk space constraints).  Common packages are now
+	contained on the second and succeeding disks of a release.</para>
+
+    </sect2>
+
+    <sect2>
+      <title>Source Upgrades</title>
+
+      <note>
+      <para>Many users and developers have found it easier
+	to backup all their data and configuration files (a wise
+	precaution in any case), perform a binary installation
+	(such as from CDROM), and restore their data.  Compared to a
+	source upgrade, the binary upgrade removes the need to deal
+	with leftover files and programs on the disk, and allows the
+	system to take advantage of new file system features such as the
+	UFS2 file system layout.</para>
+
+	<para>Users unfamiliar with the
+	  <literal>buildworld</literal>/<literal>installworld</literal> procedures for
+	  updating &os; from source should <emphasis>not</emphasis>
+	  attempt a source upgrade, but should instead perform a binary
+	  installation after backing up all data.</para>
+      </note>
+
+      <para>A source-based upgrade procedure builds and
+	installs a set of binaries compiled from source on the
+	local machine.  It is based on the
+	<literal>buildworld</literal>/<literal>installworld</literal>
+	procedure often used by advanced &os; users to track changes
+	along a development branch (such as &os.stable; or
+	&os.current;).  In general, this procedure involves more
+	effort than the binary upgrade procedure,
+	but may be useful when a system's
+	configuration files are complex or have been highly
+	customized.  A source upgrade can also be useful for
+	a remote system where an administrator has remote
+	console access but no physical access (and therefore cannot
+	insert installation media).</para>
+
+      <para>Reading <filename>src/UPDATING</filename> is absolutely
+	essential.  The section entitled <quote>To upgrade in-place from
+	4.x-stable to current</quote> contains a step-by-step update
+	procedure, which  must be followed exactly, without
+	making use of the <quote>shortcuts</quote> that some users
+	occasionally employ.  An annotated list of these steps is
+	presented below:</para>
+
+      <orderedlist>
+	<listitem>
+	  <para>Make backups.</para>
+
+	  <para>The importance of this step cannot be overstated.  It
+	    is important to make backups of all user data and
+	    configuration files.  Level zero dumps with &man.dump.8;
+	    are an excellent way to do this, although there are of
+	    course many workable alternatives.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Ensure that there is about 30MB of free disk space on
+	    the <filename>/</filename> file system.</para>
+
+	  <para>&os; &release.5x; uses more space than &os;
+	    &release.4x;.  If the <filename>/tmp</filename> directory
+	    resides on the <filename>/</filename> file system (as is
+	    frequently the case), deleting all of the content from
+	    this directory may help to free up needed space.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fix <filename>/etc/fstab</filename> if required.</para>
+
+	  <para>This item probably only affects older &os;/i386 systems.
+	    On systems that use MBR-style disk slices,
+	    &os; used to support <quote>compatibility
+	    slices</quote>, where disk partition names could take the
+	    form <filename>/dev/ad0a</filename> (without specifying a
+	    slice name explicitly).  These are no longer supported;
+	    disk partitions must be named according to the form
+	    <filename>/dev/ad0s1a</filename>.  In other words, disk
+	    partitions must now completely specify a disk device, a
+	    slice number, and a partition letter.</para>
+
+	  <para>Note that <quote>compatibility slices</quote> have
+	    generally not been used by default since &os;
+	    2.2.6-RELEASE.  This item does not apply to &os;/alpha at
+	    all, or to systems using <quote>dangerously dediated</quote>
+	    mode.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Using &man.cvs.1; or other means,
+	    obtain a copy of the &os; base system sources (the
+	    <filename>src/</filename> module).  To check out 5.4-RELEASE
+	    from the &os; CVS repository, use the
+	    <literal>RELENG_5_4_0_RELEASE</literal> tag.  For the 5.4
+	    release and errata branch, use the
+	    <literal>RELENG_5_4</literal> tag.  To track the &os;
+	    5-STABLE development branch, use the <literal>RELENG_5</literal> branch tag.
+	    When using CVS to
+	    check out the source tree, it is important to pass the
+	    <option>-P</option> flag to CVS so that it prunes away
+	    empty directories.</para>
+	</listitem>
+
+	<listitem>
+	  <para>&os; &release.5x; requires some new entries in
+	    the system password and group files,
+	    corresponding to various system services.  They should be
+	    installed by running:</para>
+
+	  <screen>&prompt.root; <userinput>mergemaster -p</userinput></screen>
+
+	  <para>This step must be performed to give some new files
+	    the correct usernames and groupnames.</para>
+
+	  <para>Note that in &os; &release.5x;, the location of the
+	    &man.nologin.8; utility has moved from
+	    <filename>/sbin/nologin</filename> to
+	    <filename>/usr/sbin/nologin</filename>.  Because a number
+	    of pseudo-users have &man.nologin.8; as their login shell,
+	    this change generates additional differences in
+	    <filename>/etc/passwd</filename>.</para>
+
+	</listitem>
+
+	<listitem>
+	  <para>Build the new userland using:</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
+&prompt.root; <userinput>make buildworld</userinput></screen>
+
+	  <para>If <varname>CPUTYPE</varname> is defined in
+	    <filename>/etc/make.conf</filename>, it should be defined
+	    using the <literal>?=</literal> operator, so the
+	    <literal>buildworld</literal> process can override this
+	    variable if necessary.</para>
+
+	  <para>Note that the <varname>MAKEOBJDIRPREFIX</varname> must
+	    <emphasis>not</emphasis> be defined in
+	    <filename>/etc/make.conf</filename>.</para>
+
+	  <para>In general, most of the build <quote>knobs</quote>
+	    defined in <filename>/etc/make.conf</filename> should be
+	    commented out or removed.  This statement especially
+	    applies to those that directly affect the build or basic
+	    operation of &os;, such as
+	    <varname>NO_TOOLCHAIN</varname>.</para>
+
+	</listitem>
+
+	<listitem>
+	  <para>Build and install a new kernel using:</para>
+
+	  <screen>&prompt.root; <userinput>make buildkernel</userinput></screen>
+
+	  <para>Note that the <literal>buildkernel</literal>
+	    &man.make.1; target must be used in order to ensure that
+	    the resulting kernel is compiled with the toolchain built
+	    in the <literal>buildworld</literal> step above.  Manually
+	    using &man.config.8; to set up a kernel build area and
+	    attempting to build a kernel will not work.</para>
+
+	  <para>Although building (and later installing) a custom
+	    kernel at this point is feasible, upgrading using the
+	    <literal>GENERIC</literal> kernel and installing a
+	    custom kernel configuration later may be less
+	    error-prone.  When trying to build a custom kernel for
+	    the first time, using the <literal>GENERIC</literal>
+	    kernel from &os; &release.5x; as a template is highly
+	    recommended, due to the number of device and options that
+	    have been added or changed since &release.4x;.  In any
+	    case, including the <literal>COMPAT_FREEBSD4</literal>
+	    kernel configuration option is crucial for a
+	    successful upgrade.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Set up a device hints file for ISA devices with a
+	    variant of the following command.  Substitute the appropriate
+	    architecture name (e.g. <literal>i386</literal>) for
+	    <replaceable>MACHINE</replaceable>.</para>
+
+	  <screen>&prompt.root; <userinput>cp sys/<replaceable>MACHINE</replaceable>/conf/GENERIC.hints /boot/device.hints</userinput></screen>
+
+	  <para>While an empty device hint file may be sufficient for
+	    modern hardware, ISA hints are needed for systems with
+	    custom ISA non-PNP cards (with custom hints being needed),
+	    for non-PNPBIOS systems, or for floppy disks to work
+	    correctly on PNPBIOS systems.</para>
+
+	</listitem>
+
+	<listitem>
+	  <para>Install the new kernel with:</para>
+
+	  <screen>&prompt.root; <userinput>make installkernel</userinput></screen>
+
+	  <para>Note that while the &os; &release.4x; kernel installs
+	    to <filename>/kernel</filename> by default, the &os;
+	    &release.5x; kernel installs to
+	    <filename>/boot/kernel/kernel</filename>.  Kernel modules
+	    under &release.4x; normally install to the
+	    <filename>/modules</filename> directory, whereas under
+	    &release.5x; they install to
+	    <filename>/boot/kernel</filename>.</para>
+
+	</listitem>
+
+	<listitem>
+	  <para>Install the &os; &release.5x; boot loader with:</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src/sys/boot</userinput>
+&prompt.root; <userinput>make STRIP="" install</userinput></screen>
+
+	  <para>This step, though optional, is highly recommended.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Disable third-party
+	    modules (such as those for VMware) to prevent crashes
+	    caused by changes in kernel ABIs or other
+	    incompatibilities.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Reboot to single-user mode.  Rebooting at this point
+	    is absolutely required because the new kernel must be running
+	    to install the new userland.  Being in
+	    single-user mode will drastically decrease the potential
+	    for unexpected things to happen during the upgrade because
+	    there will be no other programs running.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Mount the required file systems using:</para>
+
+	  <screen>&prompt.root; <userinput>fsck -p</userinput>
+&prompt.root; <userinput>mount -uw /</userinput>
+&prompt.root; <userinput>mount -at ufs</userinput></screen>
+
+	  <para>Note that the &man.fsck.8; invocation is necessary to
+	    update certain fields in the file system superblocks for
+	    &os; &release.5x;.
+	    If the system clock tracks local time rather than UTC
+	    time, also perform:</para>
+
+	  <screen>&prompt.root; <userinput>adjkerntz -i</userinput></screen>
+
+	  <para>During this step, the following warning message may
+	    appear on the console (numerous times).</para>
+
+<screen>WARNING: userland calling deprecated sysctl, please rebuild world</screen>
+
+	  <para>This message can be safely ignored.</para>
+
+	</listitem>
+
+	<listitem>
+	  <para>Delete the C++ header files with:</para>
+
+	  <screen>&prompt.root; <userinput>rm -rf /usr/include/g++</userinput></screen>
+
+	  <para>This step keeps future compilations from
+	    accidentally picking up old header files from the
+	    <application>GCC</application> 2.95 C++ compiler.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Install the new userland utilities with:</para>
+
+	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
+&prompt.root; <userinput>make installworld</userinput></screen>
+	</listitem>
+
+	<listitem>
+	  <para>On systems running &man.named.8;, its
+	    configuration files need to be moved into a
+	    &man.chroot.8; area in
+	    <filename>/var/named</filename>.  If any files exist in
+	    <filename>/var/named</filename>, they should be backed up
+	    at this point.</para>
+
+	  <screen>&prompt.root; <userinput>cd /etc</userinput>
+&prompt.root; <userinput>mv named named.bak</userinput>
+&prompt.root; <userinput>mkdir -p /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>cp -Rp named.bak/* /var/named/etc/namedb</userinput></screen>
+
+	  <para>If the configuration uses the generated
+	    <filename>localhost</filename> files, the following steps
+	    may be needed to regenerate them:</para>
+
+	  <screen>&prompt.root; <userinput>cd /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>/bin/sh make-localhost</userinput>
+&prompt.root; <userinput>rm -f localhost-v6.rev localhost.rev</userinput></screen>
+
+	  <para>Finally, two obsolete binaries from the prior
+	    <application>BIND</application> need to be removed:</para>
+
+	  <screen>&prompt.root; <userinput>rm /usr/sbin/nslookup</userinput>
+&prompt.root; <userinput>rm /usr/sbin/nsupdate</userinput></screen>
+
+	<listitem>
+	  <para>Update the system configuration files by running:</para>
+
+	  <screen>&prompt.root; <userinput>mergemaster -i</userinput></screen>
+
+	  <para>This step is non-optional.  It is required to
+	    make the startup and configuration files in
+	    <filename>/etc</filename> consistent with the new kernel
+	    and world.</para>
+
+	  <para>After invoking &man.mergemaster.8;, it is a good idea
+	    to inspect (and possibly modify)
+	    <filename>/etc/rc.conf</filename>.  A number of default
+	    values for the variables defined in this file have
+	    changed; in particular, some services that were enabled by
+	    default in &release.4x; are now disabled by default in
+	    &release.5x;.</para>
+	</listitem>
+
+	<listitem>
+
+	  <para>Remove leftover <application>BIND 8</application>
+	    files:</para>
+
+	    <screen>&prompt.root; <userinput>rm /usr/bin/dnskeygen /usr/bin/dnsquery</userinput>
+&prompt.root; <userinput>rm /usr/libexec/named-xfer</userinput>
+&prompt.root; <userinput>rm /usr/sbin/named.restart /usr/sbin/ndc</userinput></screen>
+	</listitem>
+
+	<listitem>
+	  <para>Reboot.</para>
+	</listitem>
+      </orderedlist>
+
+      <para>After upgrading the base system,
+	upgrades to some non-base-system components are generally
+	needed to restore normal functionality.  <application>Perl</application> is no longer a part
+	of the base system and should be installed from the Ports
+	Collection (specifically, the <filename
+	role="package">lang/perl5.8</filename> port) or from a
+	package.  After this installation, all ports and/or packages
+	depending on <application>Perl</application> need to be
+	reinstalled.</para>
+
+      <para>Running &os; &release.4x; binaries requires a set of
+	compatability libraries.  These are available
+	by installing the <filename
+	role="package">misc/compat4x</filename> package/port.</para>
+
+      <para>As mentioned in a prior section,
+	<application>&xorg;</application> is the default
+	implementation of the X Window System.  The Ports Collection
+	(as well as packages) rely on this change to satisfy dependencies.
+	To convert the installed windowing
+	system from <application>&xfree86;</application> to
+	<application>&xorg;</application>, refer to the <ulink
+	url="&url.books.handbook;/x-install.html">Installing
+	X11</ulink> section in the &os; Handbook.</para>
+
+    </sect2>
+  </sect1>
+
+  <sect1 id="summary">
+
+    <title>Summary</title>
+
+    <para>This article presents some of the more notable new features
+      in &os; &release.5x;, and lists some areas of particular
+      concern to those users upgrading existing &os; &release.4x;
+      systems.  It also presents two sets of upgrade instructions,
+      one using binaries from installation media and one based on
+      recompiling the base system from source code.</para>
+
+  </sect1>
+</article>

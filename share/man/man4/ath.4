@@ -1,0 +1,326 @@
+.\"-
+.\" Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+.\" All rights reserved.
+.\""
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\" 3. Neither the names of the above-listed copyright holders nor the names
+.\"    of any contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" $FreeBSD$
+.\"/
+.Dd December 29, 2004
+.Dt ATH 4
+.Os
+.Sh NAME
+.Nm ath
+.Nd "Atheros IEEE 802.11 wireless network driver"
+.Sh SYNOPSIS
+.Cd "device ath"
+.Cd "device ath_hal"
+.Cd "device wlan"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network adapters based on
+the Atheros AR5210, AR5211, and AR5212 chips.
+Chip-specific support is provided by the Atheros Hardware Access Layer
+(HAL), that is packaged separately.
+.Pp
+Supported features include 802.11 and 802.3 frames, power management, BSS,
+IBSS, and host-based access point operation modes.
+All host/device interaction is via DMA.
+.Pp
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, however
+it can receive either 802.11 or 802.3 frames.
+Transmit speed and operating mode is selectable
+and depends on the specific chipset.
+AR5210-based devices support 802.11a operation with transmit speeds
+of 6 Mbps, 9 Mbps, 12 Mbps, 18 Mbps, 24 Mbps, 36 Mbps, 48 Mbps, and 54 Mbps.
+AR5211-based devices support 802.11a and 802.11b operation with transmit
+speeds as above for 802.11a operation and
+1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
+AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
+with transmit speeds appropriate to each.
+All chips also support an Atheros Turbo Mode (TM) that operates in
+the 802.11a frequency range with 2x the transmit speeds.
+(This mode is, however, only interoperable with other Atheros-based devices.)
+The actual transmit speed used is dependent on signal quality and the
+.Dq "rate control"
+algorithm employed by the driver.
+All chips support WEP encryption.
+AR5211 and AR5212 support the AES, TKIP, and Michael cryptographic
+operations required for WPA but at this time the driver does not support them.
+To enable encryption, use
+.Xr ifconfig 8
+as shown below.
+.Pp
+By default, the
+.Nm
+driver configures the card for BSS operation (aka infrastructure
+mode).
+This mode requires the use of an access point (base station).
+.Pp
+The
+.Nm
+driver also supports the standard IBSS point-to-point mode
+where stations can communicate amongst themselves without the
+aid of an access point.
+.Pp
+The driver may also be configured to operate in hostap mode.
+In this mode a host may function as an access point (base station).
+Access points are different than operating in IBSS mode.
+They operate in BSS mode.
+They allow for easier roaming and bridge all Ethernet traffic such
+that machines connected via an access point appear to be on the local
+Ethernet segment.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+Devices supported by the
+.Nm
+driver come in either Cardbus or mini-PCI packages.
+Wireless cards in Cardbus slots may be inserted and ejected on the fly.
+.Sh HARDWARE
+The following cards are among those supported by the
+.Nm
+driver:
+.Pp
+.Bl -column -compact "Samsung SWL-5200N" "AR5212" "Cardbus" "a/b/g"
+.It Em "Card	Chip	Bus	Standard"
+.It Aztech WL830PC	AR5212	CardBus	b/g
+.It D-Link DWL-A650	AR5210	CardBus	a
+.It D-Link DWL-AB650	AR5211	CardBus	a/b
+.It D-Link DWL-A520	AR5210	PCI	a
+.It D-Link DWL-AG520	AR5212	PCI	a/b/g
+.It D-Link DWL-AG650	AR5212	CardBus	a/b/g
+.It D-Link DWL-G520B	AR5212	PCI	b/g
+.It D-Link DWL-G650B	AR5212	CardBus	b/g
+.It Elecom LD-WL54AG	AR5212	Cardbus	a/b/g
+.It Elecom LD-WL54	AR5211	Cardbus	a
+.It Fujitsu E5454	AR5212	Cardbus	a/b/g
+.It Fujitsu FMV-JW481	AR5212	Cardbus	a/b/g
+.It Fujitsu E5454	AR5212	Cardbus	a/b/g
+.It HP NC4000	AR5212	PCI	a/b/g
+.It I/O Data WN-AB	AR5212	CardBus	a/b
+.It I/O Data WN-AG	AR5212	CardBus	a/b/g
+.It I/O Data WN-A54	AR5212	CardBus	a
+.It Linksys WMP55AG	AR5212	PCI	a/b/g
+.It Linksys WPC51AB	AR5211	CardBus	a/b
+.It Linksys WPC55AG	AR5212	CardBus	a/b/g
+.It NEC PA-WL/54AG	AR5212	CardBus	a/b/g
+.It Netgear WAG311	AR5212	PCI	a/b/g
+.It Netgear WAB501	AR5211	CardBus	a/b
+.It Netgear WAG511	AR5212	CardBus	a/b/g
+.It Netgear WG311	AR5212	PCI	b/g
+.It Netgear WG311T	AR5212	PCI	b/g
+.It Netgear WG511T	AR5212	CardBus	b/g
+.It Orinoco 8480	AR5212	CardBus	a/b/g
+.It Orinoco 8470WD	AR5212	CardBus	a/b/g
+.It Proxim Skyline 4030	AR5210	CardBus	a
+.It Proxim Skyline 4032	AR5210	PCI	a
+.It Samsung SWL-5200N	AR5212	CardBus	a/b/g
+.It SMC SMC2536W-AG	AR5212	CardBus a/b/g
+.It SMC SMC2735W	AR5210	CardBus	a
+.It Sony PCWA-C700	AR5212	Cardbus	a/b
+.It Sony PCWA-C300S	AR5212	Cardbus	b/g
+.It Sony PCWA-C500	AR5210	Cardbus	a
+.It 3Com 3CRPAG175	AR5212	CardBus	a/b/g
+.El
+.Pp
+An up to date list can be found at
+.Pa http://customerproducts.atheros.com/customerproducts .
+.Sh EXAMPLES
+Join an existing BSS network (ie: connect to an access point):
+.Pp
+.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00"
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Pp
+Join a specific BSS network with WEP encryption:
+.Bd -literal -offset indent
+ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	wepmode on wepkey 0x8736639624
+.Ed
+.Pp
+Join/create an 802.11b IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig ath0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mode 11b mediaopt adhoc
+.Ed
+.Pp
+Create an 802.11g host-based access point:
+.Bd -literal -offset indent
+ifconfig ath0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mode 11g mediaopt hostap
+.Ed
+.Pp
+Create an 802.11a host-based access point with WEP enabled:
+.Bd -literal -offset indent
+ifconfig ath0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	wepmode on wepkey 0x1234567890 mode 11a mediaopt hostap
+.Ed
+.Pp
+Create a host-based wireless bridge to fxp0:
+.Bd -literal -offset indent
+Add BRIDGE to the kernel config.
+ifconfig ath0 inet up ssid my_ap media DS/11Mbps mediaopt hostap
+sysctl net.link.ether.bridge.enable=1
+sysctl net.link.ether.bridge.config="ath0 fxp0"
+sysctl net.inet.ip.check_interface=0
+.Ed
+.Pp
+This will give you the same functionality as an access point.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ath%d: unable to attach hardware; HAL status %u"
+The Atheros Hardware Access Layer was unable to configure the hardware
+as requested.
+The status code is explained in the HAL include file
+.Pa sys/contrib/dev/ath/ah.h .
+.It "ath%d: failed to allocate descriptors: %d"
+The driver was unable to allocate contiguous memory for the transmit
+and receive descriptors.
+This usually indicates system memory is scarce and/or fragmented.
+.It "ath%d: unable to setup a data xmit queue!"
+The request to the HAL to set up the transmit queue for normal
+data frames failed.
+This should not happen.
+.It "ath%d: unable to setup a beacon xmit queue!"
+The request to the HAL to set up the transmit queue for 802.11 beacon frames
+frames failed.
+This should not happen.
+.It "ath%d: 802.11 address: %s"
+The MAC address programmed in the EEPROM is displayed.
+.It "ath%d: hardware error; resetting"
+An unrecoverable error in the hardware occurred.
+Errors of this sort include unrecoverable DMA errors.
+The driver will reset the hardware and continue.
+.It "ath%d: rx FIFO overrun; resetting"
+The receive FIFO in the hardware overflowed before the data could be
+transferred to the host.
+This typically occurs because the hardware ran short of receive
+descriptors and had no place to transfer received data.
+The driver will reset the hardware and continue.
+.It "ath%d: unable to reset hardware; hal status %u"
+The Atheros Hardware Access Layer was unable to reset the hardware
+as requested.
+The status code is explained in the HAL include file
+.Pa sys/contrib/dev/ath/ah.h .
+This should not happen.
+.It "ath%d: unable to start recv logic"
+The driver was unable to restart frame reception.
+This should not happen.
+.It "ath%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware and continue.
+This should not happen.
+.It "ath%d: bogus xmit rate 0x%x"
+An invalid transmit rate was specified for an outgoing frame.
+The frame is discarded.
+This should not happen.
+.It "ath%d: ath_chan_set: unable to reset channel %u (%u Mhz)"
+The Atheros Hardware Access Layer was unable to reset the hardware
+when switching channels during scanning.
+This should not happen.
+.It "ath%d: unable to allocate channel table"
+The driver was unable to allocate memory for the table used to hold
+the set of available channels.
+.It "ath%d: unable to collect channel list from hal"
+A problem occurred while querying the HAL to find the set of available
+channels for the device.
+This should not happen.
+.It "ath%d: %s: %dM -> %dM (%d ok, %d err, %d retr)"
+The driver's rate control algorithm changed the current rate for transmitting
+frames.
+This message is temporarily enabled for normal use to help in diagnosing
+and improving the rate control algorithm.
+The message indicates the new and old transmit rates and the statistics
+it used to decide on this change.
+.It "ath%d: failed to enable memory mapping"
+The driver was unable to enable memory-mapped I/O to the PCI device registers.
+This should not happen.
+.It "ath%d: failed to enable bus mastering"
+The driver was unable to enable the device as a PCI bus master for doing DMA.
+This should not happen.
+.It "ath%d: cannot map register space"
+The driver was unable to map the device registers into the host address space.
+This should not happen.
+.It "ath%d: could not map interrupt"
+The driver was unable to allocate an IRQ for the device interrupt.
+This should not happen.
+.It "ath%d: could not establish interrupt"
+The driver was unable to install the device interrupt handler.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr arp 4 ,
+.Xr ath_hal 4 ,
+.Xr card 4 ,
+.Xr netintro 4 ,
+.Xr pcic 4 ,
+.Xr wi 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8 ,
+.Xr wicontrol 8
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.2 .
+.Sh CAVEATS
+Different regulatory domains have different default channels for adhoc
+mode.
+See
+.Xr ifconfig 8
+for information on how to change the channel.
+See
+.Xr wicontrol 8
+for information on different regulatory domains.
+Different regulatory domains may not be able to communicate with each
+other with 802.11a as different regulatory domains do not necessarily
+have overlapping channels.
+.Pp
+Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
+Intersil PrismGT chip and are not supported by this driver.
+.Sh BUGS
+Performance in lossy environments is suboptimal.
+The algorithm used to select the rate for transmitted packets is
+very simplistic.
+There is no software retransmit; only hardware retransmit is used.
+Contributors are encouraged to replace the existing rate control algorithm
+with a better one (hint: all the information needed is available to the driver).
+.Pp
+The driver does not fully enable power-save operation of the chip;
+consequently power use is suboptimal.

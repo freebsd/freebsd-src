@@ -1,0 +1,105 @@
+# Czech month and day names
+# by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz>
+#
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short months names
+#
+led
+úno
+bře
+dub
+kvě
+črv
+čvc
+srp
+zář
+říj
+lis
+pro
+#
+# Long months names
+#
+ledna
+února
+března
+dubna
+května
+června
+července
+srpna
+září
+října
+listopadu
+prosince
+#
+# Short weekdays names
+#
+ne
+po
+út
+st
+čt
+pá
+so
+#
+# Long weekdays names
+#
+neděle
+pondělí
+úterý
+středa
+čtvrtek
+pátek
+sobota
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%Y/%m/%d
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+dp
+#
+# pm
+#
+od
+#
+# date_fmt
+#
+%a %e. %B %Y %X %Z
+#
+# Long month names in alternative form
+#
+leden
+únor
+březen
+duben
+květen
+červen
+červenec
+srpen
+září
+říjen
+listopad
+prosinec
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+#
+%I:%M:%S %p
+# EOF
