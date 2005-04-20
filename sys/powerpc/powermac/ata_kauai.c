@@ -177,9 +177,9 @@ ata_kauai_probe(device_t dev)
                 ch->r_io[i].res = mem;
                 ch->r_io[i].offset = i*ATA_KAUAI_REGGAP + ATA_KAUAI_REGOFFSET;
         }
+        ch->r_io[ATA_CONTROL].res = mem;
+        ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
 	ata_default_registers(ch);
-        ch->r_io[ATA_ALTSTAT].res = mem;
-        ch->r_io[ATA_ALTSTAT].offset = ATA_KAUAI_ALTOFFSET;
 
         ch->unit = 0;
         ch->flags |= ATA_USE_16BIT|ATA_NO_SLAVE;
