@@ -405,7 +405,28 @@ struct flow_manager {
 	    sizeof((rsp)->header.cmdstr));				\
 	  (rsp)->header.flags |= NGF_RESP;				\
 	} while (0)
+
+/*
+ * Make a copy of message. Sets "copy" to NULL if fails.
+ */
+#define	NG_COPYMESSAGE(copy, msg, how)					\
+	do {								\
+	  MALLOC((copy), struct ng_mesg *, sizeof(struct ng_mesg) +	\
+	    (msg)->header.arglen, M_NETGRAPH_MSG, (how) | M_ZERO);	\
+	  if ((copy) == NULL)						\
+	    break;							\
+	  (copy)->header.version = NG_VERSION;				\
+	  (copy)->header.arglen = (msg)->header.arglen;			\
+	  (copy)->header.token = (msg)->header.token;			\
+	  (copy)->header.typecookie = (msg)->header.typecookie;		\
+	  (copy)->header.cmd = (msg)->header.cmd;			\
+	  (copy)->header.flags = (msg)->header.flags;			\
+	  bcopy((msg)->header.cmdstr, (copy)->header.cmdstr,		\
+	    sizeof((copy)->header.cmdstr));				\
+	  if ((msg)->header.arglen > 0)					\
+	    bcopy((msg)->data, (copy)->data, (msg)->header.arglen);	\
+	} while (0)
+
 #endif /* _KERNEL */
 
 #endif /* _NETGRAPH_NG_MESSAGE_H_ */
-
