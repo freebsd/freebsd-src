@@ -240,12 +240,13 @@ intr_execute_handlers(void *cookie)
 
 	iv = cookie;
 	ithd = iv->iv_ithd;
-	MPASS(ithd != NULL);
 
-	ih = TAILQ_FIRST(&ithd->it_handlers);
-	if (ih->ih_flags & IH_FAST) {
+	if (ithd == NULL)
+		ih = NULL;
+	else
+		ih = TAILQ_FIRST(&ithd->it_handlers);
+	if (ih != NULL && ih->ih_flags & IH_FAST) {
 		/* Execute fast interrupt handlers directly. */
-		critical_enter();
 		TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 			MPASS(ih->ih_flags & IH_FAST &&
 			    ih->ih_argument != NULL);
@@ -253,12 +254,11 @@ intr_execute_handlers(void *cookie)
 			    __func__, ih->ih_handler, ih->ih_argument);
 			ih->ih_handler(ih->ih_argument);
 		}
-		critical_exit();
 		return;
 	}
 
 	/* Schedule a heavyweight interrupt process. */
-	error = ithread_schedule(iv->iv_ithd);
+	error = ithread_schedule(ithd);
 	if (error == EINVAL)
 		intr_stray_vector(iv);
 }
