@@ -2090,16 +2090,16 @@ ndis_ioctl(ifp, command, data)
 		ndis_set_offload(sc);
 		break;
 	case SIOCG80211:
+		if (!NDIS_INITIALIZED(sc))
+			goto do_80211;
 		if (sc->ndis_80211)
 			error = ndis_80211_ioctl_get(ifp, command, data);
 		else
 			error = ENOTTY;
 		break;
 	case SIOCS80211:
-		if (!NDIS_INITIALIZED(sc)) {
-			error = 0;
-			break;
-		}
+		if (!NDIS_INITIALIZED(sc))
+			goto do_80211;
 		if (sc->ndis_80211)
 			error = ndis_80211_ioctl_set(ifp, command, data);
 		else
@@ -2117,6 +2117,7 @@ ndis_ioctl(ifp, command, data)
 		if (error != ENOTTY)
 			break;
 	default:
+do_80211:
 		sc->ndis_skip = 1;
 		if (sc->ndis_80211) {
 			error = ieee80211_ioctl(&sc->ic, command, data);
