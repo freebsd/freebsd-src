@@ -57,6 +57,7 @@ struct thread;
 struct trapframe;
 
 extern int kdb_active;			/* Non-zero while in debugger. */
+extern int debugger_on_panic;		/* enter the debugger on panic. */
 extern struct kdb_dbbe *kdb_dbbe;	/* Default debugger backend or NULL. */
 extern struct trapframe *kdb_frame;	/* Frame to kdb_trap(). */
 extern struct pcb *kdb_thrctx;		/* Current context. */
