@@ -69,7 +69,6 @@ static struct cdevsw ata_cdevsw = {
 static void ata_interrupt(void *);
 static void ata_boot_attach(void);
 device_t ata_add_child(device_t parent, struct ata_device *atadev, int unit);
-static int ata_identify(device_t dev);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
@@ -597,7 +596,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
     return child;
 }
 
-static int
+int
 ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
