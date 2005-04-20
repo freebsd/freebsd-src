@@ -194,6 +194,7 @@ struct ifnet {
 	int	if_afdata_initialized;
 	struct	mtx if_afdata_mtx;
 	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
+	struct	task if_linktask;	/* task for link change events */
 };
 
 typedef void if_init_f_t(void *);

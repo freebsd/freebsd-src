@@ -112,6 +112,7 @@ static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static void	if_start_deferred(void *context, int pending);
+static void	do_link_state_change(void *, int);
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -385,6 +386,7 @@ if_attach(struct ifnet *ifp)
 	struct ifaddr *ifa;
 
 	TASK_INIT(&ifp->if_starttask, 0, if_start_deferred, ifp);
+	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
 	IFNET_WLOCK();
@@ -541,6 +543,11 @@ if_detach(struct ifnet *ifp)
 	struct domain *dp;
  	struct ifnet *iter;
  	int found;
+
+	/*
+	 * Remove/wait for pending events.
+	 */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 #ifdef DEV_CARP
@@ -988,18 +995,29 @@ if_route(struct ifnet *ifp, int flag, int fam)
 void	(*vlan_link_state_p)(struct ifnet *, int);	/* XXX: private from if_vlan */
 
 /*
- * Handle a change in the interface link state.
+ * Handle a change in the interface link state. To avoid LORs
+ * between driver lock and upper layer locks, as well as possible
+ * recursions, we post event to taskqueue, and all job
+ * is done in static do_link_state_change().
  */
 void
 if_link_state_change(struct ifnet *ifp, int link_state)
 {
-	int link;
-
 	/* Return if state hasn't changed. */
 	if (ifp->if_link_state == link_state)
 		return;
 
 	ifp->if_link_state = link_state;
+
+	taskqueue_enqueue(taskqueue_swi, &ifp->if_linktask);
+}
+
+static void
+do_link_state_change(void *arg, int pending)
+{
+	struct ifnet *ifp = (struct ifnet *)arg;
+	int link_state = ifp->if_link_state;
+	int link;
 
 	/* Notify that the link state has changed. */
 	rt_ifmsg(ifp);
@@ -1020,6 +1038,8 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
 #endif
+	if (pending > 1)
+		if_printf(ifp, "%d link states coalesced\n", pending);
 	if (log_link_state_change)
 		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
