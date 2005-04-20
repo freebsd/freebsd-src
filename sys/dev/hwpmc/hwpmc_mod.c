@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
-#include <machine/pmc_mdep.h>
-#include <machine/specialreg.h>
 
 /*
  * Types
