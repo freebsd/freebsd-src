@@ -294,8 +294,7 @@ ata_sata_phy_event(void *context, int dummy)
 
 	device_printf(tp->dev, "CONNECTED\n");
 	ata_sata_connect(ch);
-	bus_generic_probe(tp->dev);
-	bus_generic_attach(tp->dev);
+	ata_identify(tp->dev);
     }
     if (tp->action == ATA_C_DETACH) {
 	if (!device_get_children(tp->dev, &children, &nchildren)) {
