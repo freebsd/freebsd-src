@@ -617,6 +617,9 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct xucred xu;
 	int error, optval;
 
+	if (sopt->sopt_level != 0)
+		return (EINVAL);
+
 	UNP_LOCK();
 	unp = sotounpcb(so);
 	if (unp == NULL) {
