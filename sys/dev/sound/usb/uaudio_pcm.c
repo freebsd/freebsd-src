@@ -78,9 +78,17 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	pa_dev = device_get_parent(sc->sc_dev);
      	/* Create ua_playfmt[] & ua_recfmt[] */
 	uaudio_query_formats(pa_dev, (u_int32_t *)&ua_playfmt, (u_int32_t *)&ua_recfmt);
-	if (ua_playfmt[0] == 0) {
-		printf("%s channel supported format list invalid\n", dir == PCMDIR_PLAY? "play" : "record");
-		return NULL;
+	if (dir == PCMDIR_PLAY) {
+		if (ua_playfmt[0] == 0) {
+			printf("play channel supported format list invalid\n");
+			return NULL;
+		}
+	} else {
+		if (ua_recfmt[0] == 0) {
+			printf("record channel supported format list invalid\n");
+			return NULL;
+		}
+
 	}
 
 	/* allocate PCM side DMA buffer */
