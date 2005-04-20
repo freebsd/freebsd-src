@@ -114,9 +114,9 @@ ata_macio_probe(device_t dev)
 		ch->r_io[i].res = mem;
 		ch->r_io[i].offset = i * ATA_MACIO_REGGAP;
 	}
+	ch->r_io[ATA_CONTROL].res = mem;
+	ch->r_io[ATA_CONTROL].offset = ATA_MACIO_ALTOFFSET;
 	ata_default_registers(ch);
-	ch->r_io[ATA_ALTSTAT].res = mem;
-	ch->r_io[ATA_ALTSTAT].offset = ATA_MACIO_ALTOFFSET;
 
 	ch->unit = 0;
 	ch->flags |= ATA_USE_16BIT;
