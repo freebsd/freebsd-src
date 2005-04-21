@@ -187,14 +187,14 @@ pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
  */
 
 static struct pmc_event_alias k7_aliases[] = {
-EV_ALIAS("branches",		"k7-retired-branches"),
-EV_ALIAS("branch-mispredicts",	"k7-retired-branches-mispredicted"),
-EV_ALIAS("cycles",		"tsc"),
-EV_ALIAS("dc-misses",		"k7-dc-misses,mask=moesi"),
-EV_ALIAS("ic-misses",		"k7-ic-misses"),
-EV_ALIAS("instructions",	"k7-retired-instructions"),
-EV_ALIAS("interrupts",		"k7-hardware-interrupts"),
-EV_ALIAS(NULL, NULL)
+	EV_ALIAS("branches",		"k7-retired-branches"),
+	EV_ALIAS("branch-mispredicts",	"k7-retired-branches-mispredicted"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-misses",		"k7-dc-misses,mask=moesi"),
+	EV_ALIAS("ic-misses",		"k7-ic-misses"),
+	EV_ALIAS("instructions",	"k7-retired-instructions"),
+	EV_ALIAS("interrupts",		"k7-hardware-interrupts"),
+	EV_ALIAS(NULL, NULL)
 };
 
 #define	K7_KW_COUNT	"count"
@@ -299,7 +299,11 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
  */
 
 static struct pmc_event_alias p4_aliases[] = {
-	EV_ALIAS("cycles", "tsc"),
+	EV_ALIAS("branches",		"p4-branch-retired,mask=mmtp+mmtm"),
+	EV_ALIAS("branch-mispredicts",	"p4-mispred-branch-retired"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("instructions",
+	    "p4-instr-retired,mask=nbogusntag+nbogustag"),
 	EV_ALIAS(NULL, NULL)
 };
 
@@ -512,7 +516,8 @@ static const struct pmc_masks p4_mask_uqw[] = { /* uop queue writes */
 	NULLMASK
 };
 
-static const struct pmc_masks p4_mask_rmbt[] = { /* retired mispred branch type */
+static const struct pmc_masks p4_mask_rmbt[] = {
+	/* retired mispred branch type */
 	__P4MASK(conditional, 1),
 	__P4MASK(call, 2),
 	__P4MASK(return, 3),
@@ -902,12 +907,14 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
  */
 
 static struct pmc_event_alias p6_aliases[] = {
-EV_ALIAS("branches",		"p6-br-inst-retired"),
-EV_ALIAS("branch-mispredicts",	"p6-br-miss-pred-retired"),
-EV_ALIAS("cycles",		"tsc"),
-EV_ALIAS("instructions",	"p6-inst-retired"),
-EV_ALIAS("interrupts",		"p6-hw-int-rx"),
-EV_ALIAS(NULL, NULL)
+	EV_ALIAS("branches",		"p6-br-inst-retired"),
+	EV_ALIAS("branch-mispredicts",	"p6-br-miss-pred-retired"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-misses",		"p6-dcu-lines-in"),
+	EV_ALIAS("ic-misses",		"p6-ifu-ifetch-miss"),
+	EV_ALIAS("instructions",	"p6-inst-retired"),
+	EV_ALIAS("interrupts",		"p6-hw-int-rx"),
+	EV_ALIAS(NULL, NULL)
 };
 
 #define	P6_KW_CMASK	"cmask"
@@ -1246,7 +1253,14 @@ p5_allocate_pmc(enum pmc_event pe, char *ctrspec,
  */
 
 static struct pmc_event_alias k8_aliases[] = {
-	EV_ALIAS("cycles", "tsc"),
+	EV_ALIAS("branches",		"k8-fr-retired-taken-branches"),
+	EV_ALIAS("branch-mispredicts",
+	    "k8-fr-retired-taken-branches-mispredicted"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-misses",		"k8-dc-miss"),
+	EV_ALIAS("ic-misses",		"k8-ic-miss"),
+	EV_ALIAS("instructions", 	"k8-fr-retired-x86-instructions"),
+	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
 	EV_ALIAS(NULL, NULL)
 };
 
