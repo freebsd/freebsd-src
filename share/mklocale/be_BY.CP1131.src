@@ -1,11 +1,11 @@
 /*
- * Belarusian language. Standard (1933) grammar.
+ * Belarusian language. Modern/standard (1959) grammar.
  * Prepared by Yury Tarasievich <spytar@yahoo.com>
  * $FreeBSD$
  */
 
 ENCODING	"NONE"
-VARIABLE        Belarusian CP1131 (based on: Russian Alternative code table (CP866) by <ache@nagual.pp.ru>)
+VARIABLE        Belarusian CP1131 (extending the and based on: Russian Alternative code table (CP866) by <ache@nagual.pp.ru>)
 
 #
 # This is a comment
