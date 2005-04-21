@@ -125,7 +125,6 @@ int	icmpprintfs = 0;
 
 static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
-static int	ip_next_mtu(int, int);
 
 extern	struct protosw inetsw[];
 
@@ -407,49 +406,6 @@ icmp_input(m, off)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
-
-		/*
-		 * MTU discovery:
-		 * If we got a needfrag and there is a host route to the
-		 * original destination, and the MTU is not locked, then
-		 * set the MTU in the route to the suggested new value
-		 * (if given) and then notify as usual.  The ULPs will
-		 * notice that the MTU has changed and adapt accordingly.
-		 * If no new MTU was suggested, then we guess a new one
-		 * less than the current value.  If the new MTU is
-		 * unreasonably small (defined by sysctl tcp_minmss), then
-		 * we don't update the MTU value.
-		 *
-		 * XXX: All this should be done in tcp_mtudisc() because
-		 * the way we do it now, everyone can send us bogus ICMP
-		 * MSGSIZE packets for any destination. By doing this far
-		 * higher in the chain we have a matching tcp connection.
-		 * Thus spoofing is much harder. However there is no easy
-		 * non-hackish way to pass the new MTU up to tcp_mtudisc().
-		 * Also see next XXX regarding IPv4 AH TCP.
-		 */
-		if (code == PRC_MSGSIZE) {
-			int mtu;
-			struct in_conninfo inc;
-
-			bzero(&inc, sizeof(inc));
-			inc.inc_flags = 0; /* IPv4 */
-			inc.inc_faddr = icmpsrc.sin_addr;
-
-			mtu = ntohs(icp->icmp_nextmtu);
-			if (!mtu)
-				mtu = ip_next_mtu(mtu, 1);
-
-			if (mtu >= max(296, (tcp_minmss +
-					sizeof(struct tcpiphdr))))
-				tcp_hc_updatemtu(&inc, mtu);
-
-#ifdef DEBUG_MTUDISC
-			printf("MTU for %s reduced to %d\n",
-				inet_ntoa(icmpsrc.sin_addr), mtu);
-#endif
-		}
-
 		/*
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
@@ -831,7 +787,7 @@ iptime()
  * given current value MTU.  If DIR is less than zero, a larger plateau
  * is returned; otherwise, a smaller value is returned.
  */
-static int
+int
 ip_next_mtu(mtu, dir)
 	int mtu;
 	int dir;
