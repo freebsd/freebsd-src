@@ -10,7 +10,7 @@ SRCS=	${PROG}.S
 # the modified boot0 back to disk after running so that the selection made is
 # saved), packet mode (detect and use the BIOS EDD extensions if we try to
 # boot past the 1024 cylinder liimt), and booting from all valid slices.
-BOOT_BOOT0_FLAGS?=	0xf
+BOOT_BOOT0_FLAGS?=	0x8f
 
 # The number of timer ticks to wait for a keypress before assuming the default
 # selection.  Since there are 18.2 ticks per second, the default value of
