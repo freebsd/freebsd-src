@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
@@ -680,99 +681,75 @@ struct iovec32 {
 	u_int32_t iov_base;
 	int	iov_len;
 };
-#define	STACKGAPLEN	400
 
 CTASSERT(sizeof(struct iovec32) == 8);
+
+static int
+freebsd32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
+{
+	struct iovec32 iov32;
+	struct iovec *iov;
+	struct uio *uio;
+	u_int iovlen;
+	int error, i;
+
+	*uiop = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (EINVAL);
+	iovlen = iovcnt * sizeof(struct iovec);
+	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	iov = (struct iovec *)(uio + 1);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		if (error) {
+			free(uio, M_IOV);
+			return (error);
+		}
+		iov[i].iov_base = PTRIN(iov32.iov_base);
+		iov[i].iov_len = iov32.iov_len;
+	}
+	uio->uio_iov = iov;
+	uio->uio_iovcnt = iovcnt;
+	uio->uio_segflg = UIO_USERSPACE;
+	uio->uio_offset = -1;
+	uio->uio_resid = 0;
+	for (i = 0; i < iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+			free(uio, M_IOV);
+			return (EINVAL);
+		}
+		uio->uio_resid += iov->iov_len;
+		iov++;
+	}
+	*uiop = uio;
+	return (0);
+}
 
 int
 freebsd32_readv(struct thread *td, struct freebsd32_readv_args *uap)
 {
-	int error, osize, nsize, i;
-	caddr_t sg;
-	struct readv_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct iovec32 *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = PTRIN(oio[i].iov_base);
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = readv(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_readv(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 
 int
 freebsd32_writev(struct thread *td, struct freebsd32_writev_args *uap)
 {
-	int error, i, nsize, osize;
-	caddr_t sg;
-	struct writev_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct iovec32 *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = PTRIN(oio[i].iov_base);
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = writev(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_writev(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 
@@ -780,26 +757,28 @@ int
 freebsd32_settimeofday(struct thread *td,
 		       struct freebsd32_settimeofday_args *uap)
 {
+	struct timeval32 tv32;
+	struct timeval tv, *tvp;
+	struct timezone tz, *tzp;
 	int error;
-	caddr_t sg;
-	struct timeval32 *p32, s32;
-	struct timeval *p = NULL, s;
 
-	p32 = uap->tv;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tv = (struct timeval32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->tv) {
+		error = copyin(uap->tv, &tv32, sizeof(tv32));
 		if (error)
 			return (error);
-		CP(s32, s, tv_sec);
-		CP(s32, s, tv_usec);
-		error = copyout(&s, p, sizeof(s));
+		CP(tv32, tv, tv_sec);
+		CP(tv32, tv, tv_usec);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+	if (uap->tzp) {
+		error = copyin(uap->tzp, &tz, sizeof(tz));
 		if (error)
 			return (error);
-	}
-	return (settimeofday(td, (struct settimeofday_args *) uap));
+		tzp = &tz;
+	} else
+		tzp = NULL;
+	return (kern_settimeofday(td, tvp, tzp));
 }
 
 int
@@ -832,41 +811,24 @@ freebsd32_utimes(struct thread *td, struct freebsd32_utimes_args *uap)
 int
 freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 {
+	struct timeval32 tv32;
+	struct timeval delta, olddelta, *deltap;
 	int error;
-	caddr_t sg;
-	struct timeval32 *p32, *op32, s32;
-	struct timeval *p = NULL, *op = NULL, s;
 
-	p32 = uap->delta;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->delta = (struct timeval32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->delta) {
+		error = copyin(uap->delta, &tv32, sizeof(tv32));
 		if (error)
 			return (error);
-		CP(s32, s, tv_sec);
-		CP(s32, s, tv_usec);
-		error = copyout(&s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
-	op32 = uap->olddelta;
-	if (op32) {
-		sg = stackgap_init();
-		op = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->olddelta = (struct timeval32 *)op;
-	}
-	error = utimes(td, (struct utimes_args *) uap);
-	if (error)
-		return error;
-	if (op32) {
-		error = copyin(op, &s, sizeof(s));
-		if (error)
-			return (error);
-		CP(s, s32, tv_sec);
-		CP(s, s32, tv_usec);
-		error = copyout(&s32, op32, sizeof(s32));
+		CP(tv32, delta, tv_sec);
+		CP(tv32, delta, tv_usec);
+		deltap = &delta;
+	} else
+		deltap = NULL;
+	error = kern_adjtime(td, deltap, &olddelta);
+	if (uap->olddelta && error == 0) {
+		CP(olddelta, tv32, tv_sec);
+		CP(olddelta, tv32, tv_usec);
+		error = copyout(&tv32, uap->olddelta, sizeof(tv32));
 	}
 	return (error);
 }

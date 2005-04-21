@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
@@ -305,35 +306,41 @@ int sched_get_priority_min(struct thread *td,
 int sched_rr_get_interval(struct thread *td,
 	struct sched_rr_get_interval_args *uap)
 {
+	struct timespec timespec;
+	int error;
+
+	error = kern_sched_rr_get_interval(td, uap->pid, &timespec);
+	if (error == 0)
+		error = copyout(&timespec, uap->interval, sizeof(timespec));
+	return (error);
+}
+
+int kern_sched_rr_get_interval(struct thread *td, pid_t pid,
+    struct timespec *ts)
+{
 	int e;
 	struct thread *targettd;
-	struct timespec timespec;
 	struct proc *targetp;
 
 	mtx_lock(&Giant);
-	if (uap->pid == 0) {
+	if (pid == 0) {
 		targettd = td;
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
 	} else {
-		targetp = pfind(uap->pid);
+		targetp = pfind(pid);
 		if (targetp == NULL) {
-			e = ESRCH;
-			goto done2;
+			mtx_unlock(&Giant);
+			return (ESRCH);
 		}
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansee(td, targetp);
-	PROC_UNLOCK(targetp);
-	if (e == 0) {
+	if (e == 0)
 		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,
-			&timespec);
-		if (e == 0)
-			e = copyout(&timespec, uap->interval,
-			    sizeof(timespec));
-	}
-done2:
+			ts);
+	PROC_UNLOCK(targetp);
 	mtx_unlock(&Giant);
 	return (e);
 }

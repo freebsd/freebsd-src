@@ -372,36 +372,53 @@ struct settimeofday_args {
 int
 settimeofday(struct thread *td, struct settimeofday_args *uap)
 {
-	struct timeval atv;
-	struct timezone atz;
-	int error = 0;
+	struct timeval atv, *tvp;
+	struct timezone atz, *tzp;
+	int error;
+
+	if (uap->tv) {
+		error = copyin(uap->tv, &atv, sizeof(atv));
+		if (error)
+			return (error);
+		tvp = &atv;
+	} else
+		tvp = NULL;
+	if (uap->tzp) {
+		error = copyin(uap->tzp, &atz, sizeof(atz));
+		if (error)
+			return (error);
+		tzp = &atz;
+	} else
+		tzp = NULL;
+	return (kern_settimeofday(td, tvp, tzp));
+}
+
+int
+kern_settimeofday(struct thread *td, struct timeval *tv, struct timezone *tzp)
+{
+	int error;
 
 #ifdef MAC
 	error = mac_check_system_settime(td->td_ucred);
 	if (error)
 		return (error);
 #endif
-	if ((error = suser(td)))
+	error = suser(td);
+	if (error)
 		return (error);
 	/* Verify all parameters before changing time. */
-	if (uap->tv) {
-		if ((error = copyin(uap->tv, &atv, sizeof(atv))))
-			return (error);
-		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
+	if (tv) {
+		if (tv->tv_usec < 0 || tv->tv_usec >= 1000000)
 			return (EINVAL);
+		error = settime(td, tv);
 	}
-	if (uap->tzp &&
-	    (error = copyin(uap->tzp, &atz, sizeof(atz))))
-		return (error);
-	
-	if (uap->tv && (error = settime(td, &atv)))
-		return (error);
-	if (uap->tzp) {
-		tz_minuteswest = atz.tz_minuteswest;
-		tz_dsttime = atz.tz_dsttime;
+	if (tzp && error == 0) {
+		tz_minuteswest = tzp->tz_minuteswest;
+		tz_dsttime = tzp->tz_dsttime;
 	}
 	return (error);
 }
+
 /*
  * Get value of an interval timer.  The process virtual and
  * profiling virtual time timers are kept in the p_stats area, since

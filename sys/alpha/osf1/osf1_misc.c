@@ -1132,52 +1132,61 @@ struct osf1_iovec {
 	char	*iov_base;
 	int	iov_len;
 };
-#define	STACKGAPLEN	400
+
+static int
+osf1_copyinuio(struct osf1_iovec *iovp, u_int iovcnt, struct uio **uiop)
+{
+	struct osf1_iovec oiov;
+	struct iovec *iov;
+	struct uio *uio;
+	u_int iovlen;
+	int error, i;
+
+	*uiop = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (EINVAL);
+	iovlen = iovcnt * sizeof(struct iovec);
+	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	iov = (struct iovec *)(uio + 1);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp[i], &oiov, sizeof(struct osf1_iovec));
+		if (error) {
+			free(uio, M_IOV);
+			return (error);
+		}
+		iov[i].iov_base = oiov.iov_base;
+		iov[i].iov_len = oiov.iov_len;
+	}
+	uio->uio_iov = iov;
+	uio->uio_iovcnt = iovcnt;
+	uio->uio_segflg = UIO_USERSPACE;
+	uio->uio_offset = -1;
+	uio->uio_resid = 0;
+	for (i = 0; i < iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+			free(uio, M_IOV);
+			return (EINVAL);
+		}
+		uio->uio_resid += iov->iov_len;
+		iov++;
+	}
+	*uiop = uio;
+	return (0);
+}
+
 int
 osf1_readv(td, uap)
 	struct thread *td;
 	struct osf1_readv_args *uap;
 {
-	int error, osize, nsize, i;
-	caddr_t sg;
-	struct readv_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct osf1_iovec *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct osf1_iovec);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = oio[i].iov_base;
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = readv(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = osf1_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_readv(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 
@@ -1187,46 +1196,14 @@ osf1_writev(td, uap)
 	struct thread *td;
 	struct osf1_writev_args *uap;
 {
-	int error, i, nsize, osize;
-	caddr_t sg;
-	struct writev_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct osf1_iovec *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct osf1_iovec);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = oio[i].iov_base;
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = writev(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = osf1_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_writev(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 

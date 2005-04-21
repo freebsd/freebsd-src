@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -161,99 +162,75 @@ struct iovec32 {
 	u_int32_t iov_base;
 	int	iov_len;
 };
-#define	STACKGAPLEN	400
 
 CTASSERT(sizeof(struct iovec32) == 8);
+
+static int
+linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
+{
+	struct iovec32 iov32;
+	struct iovec *iov;
+	struct uio *uio;
+	u_int iovlen;
+	int error, i;
+
+	*uiop = NULL;
+	if (iovcnt > UIO_MAXIOV)
+		return (EINVAL);
+	iovlen = iovcnt * sizeof(struct iovec);
+	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	iov = (struct iovec *)(uio + 1);
+	for (i = 0; i < iovcnt; i++) {
+		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
+		if (error) {
+			free(uio, M_IOV);
+			return (error);
+		}
+		iov[i].iov_base = PTRIN(iov32.iov_base);
+		iov[i].iov_len = iov32.iov_len;
+	}
+	uio->uio_iov = iov;
+	uio->uio_iovcnt = iovcnt;
+	uio->uio_segflg = UIO_USERSPACE;
+	uio->uio_offset = -1;
+	uio->uio_resid = 0;
+	for (i = 0; i < iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+			free(uio, M_IOV);
+			return (EINVAL);
+		}
+		uio->uio_resid += iov->iov_len;
+		iov++;
+	}
+	*uiop = uio;
+	return (0);
+}
 
 int
 linux_readv(struct thread *td, struct linux_readv_args *uap)
 {
-	int error, osize, nsize, i;
-	caddr_t sg;
-	struct readv_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct iovec32 *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = PTRIN(oio[i].iov_base);
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = readv(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = linux32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_readv(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 
 int
 linux_writev(struct thread *td, struct linux_writev_args *uap)
 {
-	int error, i, nsize, osize;
-	caddr_t sg;
-	struct writev_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct iovec *) iovp;
-		syscallarg(u_int) iovcnt;
-	} */ a;
-	struct iovec32 *oio;
-	struct iovec *nio;
+	struct uio *auio;
+	int error;
 
-	sg = stackgap_init();
-
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
-		return (EINVAL);
-
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
-
-	oio = malloc(osize, M_TEMP, M_WAITOK);
-	nio = malloc(nsize, M_TEMP, M_WAITOK);
-
-	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
-		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
-		nio[i].iov_base = PTRIN(oio[i].iov_base);
-		nio[i].iov_len = oio[i].iov_len;
-	}
-
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
-
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
-		goto punt;
-	error = writev(td, &a);
-
-punt:
-	free(oio, M_TEMP);
-	free(nio, M_TEMP);
+	error = linux32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	error = kern_writev(td, uap->fd, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 
@@ -988,20 +965,11 @@ int
 linux_sched_rr_get_interval(struct thread *td,
     struct linux_sched_rr_get_interval_args *uap)
 {
-	struct sched_rr_get_interval_args bsd_args;
-	caddr_t sg, psgts;
 	struct timespec ts;
 	struct l_timespec ts32;
 	int error;
 
-	sg = stackgap_init();
-	psgts = stackgap_alloc(&sg, sizeof(struct timespec));
-	bsd_args.pid = uap->pid;
-	bsd_args.interval = (void *)psgts;
-	error = sched_rr_get_interval(td, &bsd_args);
-	if (error != 0)
-		return (error);
-	error = copyin(psgts, &ts, sizeof(ts));
+	error = kern_sched_rr_get_interval(td, uap->pid, &ts);
 	if (error != 0)
 		return (error);
 	ts32.tv_sec = ts.tv_sec;

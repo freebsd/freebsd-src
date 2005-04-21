@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timex.h>
 #include <sys/timetc.h>
 #include <sys/timepps.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
 /*
@@ -902,6 +903,25 @@ struct adjtime_args {
 int
 adjtime(struct thread *td, struct adjtime_args *uap)
 {
+	struct timeval delta, olddelta, *deltap;
+	int error;
+
+	if (uap->delta) {
+		error = copyin(uap->delta, &delta, sizeof(delta));
+		if (error)
+			return (error);
+		deltap = &delta;
+	} else
+		deltap = NULL;
+	error = kern_adjtime(td, deltap, &olddelta);
+	if (uap->olddelta && error == 0)
+		error = copyout(&olddelta, uap->olddelta, sizeof(olddelta));
+	return (error);
+}
+
+int
+kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
+{
 	struct timeval atv;
 	int error;
 
@@ -909,24 +929,18 @@ adjtime(struct thread *td, struct adjtime_args *uap)
 		return (error);
 
 	mtx_lock(&Giant);
-	if (uap->olddelta) {
+	if (olddelta) {
 		atv.tv_sec = time_adjtime / 1000000;
 		atv.tv_usec = time_adjtime % 1000000;
 		if (atv.tv_usec < 0) {
 			atv.tv_usec += 1000000;
 			atv.tv_sec--;
 		}
-		error = copyout(&atv, uap->olddelta, sizeof(atv));
-		if (error)
-			goto done2;
+		*olddelta = atv;
 	}
-	if (uap->delta) {
-		error = copyin(uap->delta, &atv, sizeof(atv));
-		if (error)
-			goto done2;
-		time_adjtime = (int64_t)atv.tv_sec * 1000000 + atv.tv_usec;
-	}
-done2:
+	if (delta)
+		time_adjtime = (int64_t)delta->tv_sec * 1000000 +
+		    delta->tv_usec;
 	mtx_unlock(&Giant);
 	return (error);
 }
