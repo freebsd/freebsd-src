@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 static  d_ioctl_t       ata_ioctl;
 static struct cdevsw ata_cdevsw = {
 	.d_version =    D_VERSION,
-	.d_flags =      D_NEEDGIANT, /* we need this as newbus isn't safe */
+	.d_flags =      D_NEEDGIANT, /* we need this as newbus isn't mpsafe */
 	.d_ioctl =      ata_ioctl,
 	.d_name =       "ata",
 };
@@ -68,7 +68,7 @@ static struct cdevsw ata_cdevsw = {
 /* prototypes */
 static void ata_interrupt(void *);
 static void ata_boot_attach(void);
-device_t ata_add_child(device_t parent, struct ata_device *atadev, int unit);
+static device_t ata_add_child(device_t parent, struct ata_device *atadev, int unit);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
@@ -80,7 +80,6 @@ int ata_wc = 1;
 
 /* local vars */
 static struct intr_config_hook *ata_delayed_attach = NULL;
-static struct root_hold_token *ata_root_hold_token;
 static int ata_dma = 1;
 static int atapi_dma = 1;
 
@@ -144,12 +143,9 @@ ata_attach(device_t dev)
 	return error;
     }
 
-    /* do not attach devices if we are in early boot */
-    if (ata_delayed_attach)
-	return 0;
-
-    /* probe and attach devices on this channel */
-    ata_identify(dev);
+    /* probe and attach devices on this channel unless we are in early boot */
+    if (!ata_delayed_attach)
+	ata_identify(dev);
     return 0;
 }
 
@@ -188,6 +184,7 @@ ata_reinit(device_t dev)
     device_t *children;
     int nchildren, i;
 
+    /* check that we have a vaild channel to reinit */
     if (!ch || !ch->r_irq)
 	return ENXIO;
 
@@ -198,7 +195,7 @@ ata_reinit(device_t dev)
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&dev, PRIBIO, "atarini", 1);
 
-    /* grap the channel lock */
+    /* unconditionally grap the channel lock */
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
@@ -212,7 +209,12 @@ ata_reinit(device_t dev)
 	for (i = 0; i < nchildren; i++) {
 	    if (children[i] && device_is_attached(children[i]))
 		if (ATA_REINIT(children[i])) {
-		    if (ch->running->dev == children[i]) {
+		    /*
+		     * if we have a running request and its device matches
+		     * this child we need to inform the request that the 
+		     * device is gone and remove it from ch->running
+		     */
+		    if (ch->running && ch->running->dev == children[i]) {
 			device_printf(ch->running->dev,
 				      "FAILURE - device detached\n");
 			ch->running->dev = NULL;
@@ -225,7 +227,7 @@ ata_reinit(device_t dev)
 	mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
     }
 
-    /* catch running request if any */
+    /* catch request in ch->running if we havn't already */
     ata_catch_inflight(ch);
 
     /* we're done release the channel for new work */
@@ -247,10 +249,11 @@ ata_suspend(device_t dev)
 {
     struct ata_channel *ch;
 
+    /* check for valid device */
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    /* wait for the channel to be IDLE before when enter suspend mode */
+    /* wait for the channel to be IDLE before entering suspend mode */
     while (1) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
@@ -271,10 +274,11 @@ ata_resume(device_t dev)
     struct ata_channel *ch;
     int error;
 
+    /* check for valid device */
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    /* reinit the devices, we dont know what mode/state they have */
+    /* reinit the devices, we dont know what mode/state they are in */
     error = ata_reinit(dev);
 
     /* kick off requests on the queue */
@@ -304,18 +308,15 @@ ata_interrupt(void *data)
 	}
 
 	/* check for the right state */
-	if (ch->state == ATA_ACTIVE || ch->state == ATA_STALL_QUEUE) {
-	    request->flags |= ATA_R_INTR_SEEN;
-	}
-	else {
+	if (ch->state != ATA_ACTIVE && ch->state != ATA_STALL_QUEUE) {
 	    device_printf(request->dev,
 			  "interrupt state=%d unexpected\n", ch->state);
 	    break;
 	}
 
 	/*
-	 * we have the HW locks, so start the tranaction for this request
-	 * if it finishes immediately we dont need to wait for interrupt
+	 * we have the HW locks, so end the tranaction for this request
+	 * if it finishes immediately otherwise wait for next interrupt
 	 */
 	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
 	    ch->running = NULL;
@@ -325,9 +326,6 @@ ata_interrupt(void *data)
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
 	    return;
-	}
-	else {
-	    request->flags &= ~ATA_R_INTR_SEEN;
 	}
     } while (0);
     mtx_unlock(&ch->state_mtx);
@@ -559,13 +557,13 @@ ata_boot_attach(void)
 	    ata_identify(ch->dev);
 	}
     }
-    root_mount_rel(ata_root_hold_token);
 }
+
 
 /*
  * misc support functions
  */
-device_t
+static device_t
 ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
     struct ata_channel *ch = device_get_softc(parent);
@@ -815,7 +813,6 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 		return EIO;
 	    }
 	    ata_delayed_attach->ich_func = (void*)ata_boot_attach;
-	    ata_root_hold_token = root_mount_hold("ATA");
 	    if (config_intrhook_establish(ata_delayed_attach) != 0) {
 		printf("ata: config_intrhook_establish failed\n");
 		free(ata_delayed_attach, M_TEMP);
