@@ -277,12 +277,10 @@ struct ata_request {
 #define         ATA_R_CONTROL           0x00000001
 #define         ATA_R_READ              0x00000002
 #define         ATA_R_WRITE             0x00000004
-#define         ATA_R_DMA               0x00000008
-
-#define         ATA_R_ATAPI             0x00000010
+#define         ATA_R_ATAPI             0x00000008
+#define         ATA_R_DMA               0x00000010
 #define         ATA_R_QUIET             0x00000020
-#define         ATA_R_INTR_SEEN         0x00000040
-#define         ATA_R_TIMEOUT           0x00000080
+#define         ATA_R_TIMEOUT           0x00000040
 
 #define         ATA_R_ORDERED           0x00000100
 #define         ATA_R_AT_HEAD           0x00000200
@@ -468,6 +466,7 @@ int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int cou
 void ata_queue_request(struct ata_request *request);
 void ata_start(device_t dev);
 void ata_finish(struct ata_request *request);
+void ata_timeout(struct ata_request *);
 void ata_catch_inflight(struct ata_channel *ch);
 void ata_fail_requests(struct ata_channel *ch, device_t dev);
 char *ata_cmd2str(struct ata_request *request);
