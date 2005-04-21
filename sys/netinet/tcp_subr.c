@@ -76,6 +76,7 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #endif
+#include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -1110,8 +1111,10 @@ tcp_ctlinput(cmd, sa, vip)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
-	tcp_seq icmp_seq;
-	int s;
+	struct icmp *icp;
+	struct in_conninfo inc;
+	tcp_seq icmp_tcp_seq;
+	int mtu, s;
 
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
@@ -1143,6 +1146,8 @@ tcp_ctlinput(cmd, sa, vip)
 		return;
 	if (ip != NULL) {
 		s = splnet();
+		icp = (struct icmp *)((caddr_t)ip
+				      - offsetof(struct icmp, icmp_ip));
 		th = (struct tcphdr *)((caddr_t)ip
 				       + (ip->ip_hl << 2));
 		INP_INFO_WLOCK(&tcbinfo);
@@ -1151,17 +1156,41 @@ tcp_ctlinput(cmd, sa, vip)
 		if (inp != NULL)  {
 			INP_LOCK(inp);
 			if (inp->inp_socket != NULL) {
-				icmp_seq = htonl(th->th_seq);
+				icmp_tcp_seq = htonl(th->th_seq);
 				tp = intotcpcb(inp);
-				if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
-					SEQ_LT(icmp_seq, tp->snd_max))
+				if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
+				    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+					if (cmd == PRC_MSGSIZE) {
+					    /*
+					     * MTU discovery:
+					     * If we got a needfrag set the MTU
+					     * in the route to the suggested new
+					     * value (if given) and then notify.
+					     * If no new MTU was suggested, then
+					     * we guess a new one less than the
+					     * current value.
+					     * If the new MTU is unreasonably
+					     * small (defined by sysctl tcp_minmss),
+					     * then we up the MTU value to minimum.
+					     */
+					    bzero(&inc, sizeof(inc));
+					    inc.inc_flags = 0;	/* IPv4 */
+					    inc.inc_faddr = faddr;
+
+					    mtu = ntohs(icp->icmp_nextmtu);
+					    if (!mtu)
+						mtu = ip_next_mtu(mtu, 1);
+					    if (mtu >= max(296, (tcp_minmss
+						 + sizeof(struct tcpiphdr))))
+						tcp_hc_updatemtu(&inc, mtu);
+					}
+
 					inp = (*notify)(inp, inetctlerrmap[cmd]);
+				}
 			}
 			if (inp != NULL)
 				INP_UNLOCK(inp);
 		} else {
-			struct in_conninfo inc;
-
 			inc.inc_fport = th->th_dport;
 			inc.inc_lport = th->th_sport;
 			inc.inc_faddr = faddr;
