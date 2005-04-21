@@ -605,6 +605,8 @@ tcp_newtcpcb(inp)
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	tp->sack_enable = tcp_do_sack;
+	if (tp->sack_enable)
+		TAILQ_INIT(&tp->snd_holes);
 	tp->t_inpcb = inp;	/* XXX */
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
