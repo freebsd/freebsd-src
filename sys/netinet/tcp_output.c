@@ -1066,7 +1066,7 @@ out:
 			    !callout_active(tp->tt_persist))
 	                        callout_reset(tp->tt_rexmt, tp->t_rxtcur,
 				    tcp_timer_rexmt, tp);
-			tcp_quench(tp->t_inpcb, 0);
+			tp->snd_cwnd = tp->t_maxseg;
 			return (0);
 		}
 		if (error == EMSGSIZE) {
