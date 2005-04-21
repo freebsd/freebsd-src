@@ -35,6 +35,7 @@
 #include <arpa/inet.h>
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -131,8 +132,8 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 
 	if (timespec_ge(&tmptime, &interval))
 		fprintf(stderr,
-		    "warning: interval less than resolution (%d.%09lu)\n",
-		    tmptime.tv_sec, tmptime.tv_nsec);
+		    "warning: interval less than resolution (%jd.%09ld)\n",
+		    (intmax_t)tmptime.tv_sec, tmptime.tv_nsec);
 
 	if (clock_gettime(CLOCK_REALTIME, &starttime) == -1) {
 		perror("clock_gettime");
@@ -184,9 +185,9 @@ done:
 	}
 
 	printf("\n");
-	printf("start:             %d.%09lu\n", starttime.tv_sec,
+	printf("start:             %jd.%09ld\n", (intmax_t)starttime.tv_sec,
 	    starttime.tv_nsec);
-	printf("finish:            %d.%09lu\n", tmptime.tv_sec,
+	printf("finish:            %jd.%09ld\n", (intmax_t)tmptime.tv_sec,
 	    tmptime.tv_nsec);
 	printf("send calls:        %ld\n", send_calls);
 	printf("send errors:       %ld\n", send_errors);
@@ -194,8 +195,8 @@ done:
 	    duration);
 	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
-	printf("approx waits/sec:  %lld\n", waited / duration);
-	printf("approx wait rate:  %lld\n", waited / send_calls);
+	printf("approx waits/sec:  %lld\n", (long long)(waited / duration));
+	printf("approx wait rate:  %lld\n", (long long)(waited / send_calls));
 
 	return (0);
 }
@@ -267,9 +268,9 @@ main(int argc, char *argv[])
 		interval.tv_sec = 0;
 		interval.tv_nsec = ((1 * 1000000000) / rate);
 	}
-	printf("Sending packet of payload size %ld every %d.%09lu for %ld "
-	    "seconds\n", payloadsize, interval.tv_sec, interval.tv_nsec,
-	    duration);
+	printf("Sending packet of payload size %ld every %jd.%09ld for %ld "
+	    "seconds\n", payloadsize, (intmax_t)interval.tv_sec,
+	    interval.tv_nsec, duration);
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s == -1) {
