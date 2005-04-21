@@ -60,7 +60,7 @@ struct sackhole {
 	tcp_seq start;		/* start seq no. of hole */
 	tcp_seq end;		/* end seq no. */
 	tcp_seq rxmit;		/* next seq. no in hole to be retransmitted */
-	struct sackhole *next;	/* next in list */
+	TAILQ_ENTRY(sackhole) scblink;	/* scoreboard linkage */
 };
 
 struct tcptemp {
@@ -186,7 +186,7 @@ struct tcpcb {
 /* SACK related state */
 	int	sack_enable;		/* enable SACK for this connection */
 	int	snd_numholes;		/* number of holes seen by sender */
-	struct sackhole *snd_holes;	/* linked list of holes (sorted) */
+	TAILQ_HEAD(, sackhole) snd_holes;	/* SACK scoreboard (sorted) */
 	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
 	int	rcv_numsacks;		/* # distinct sack blks present */
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
@@ -582,9 +582,6 @@ void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 u_long	 tcp_seq_subtract(u_long, u_long );
-#ifdef TCP_SACK_DEBUG
-void	 tcp_print_holes(struct tcpcb *tp);
-#endif /* TCP_SACK_DEBUG */
 
 #endif /* _KERNEL */
 
