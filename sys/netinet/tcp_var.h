@@ -534,8 +534,6 @@ struct inpcb *
 struct tcpcb *
 	 tcp_newtcpcb(struct inpcb *);
 int	 tcp_output(struct tcpcb *);
-struct inpcb *
-	 tcp_quench(struct inpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 int	 tcp_twrespond(struct tcptw *, int);
