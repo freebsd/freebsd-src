@@ -515,7 +515,7 @@
 361	MSTD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 362	MSTD	{ int kqueue(void); }
 363	MSTD	{ int kevent(int fd, \
-		    const struct kevent *changelist, int nchanges, \
+		    struct kevent *changelist, int nchanges, \
 		    struct kevent *eventlist, int nevents, \
 		    const struct timespec *timeout); }
 364	UNIMPL	__cap_get_proc
