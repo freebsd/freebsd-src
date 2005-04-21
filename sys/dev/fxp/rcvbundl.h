@@ -40,7 +40,7 @@ Version: 3.28
 
 This file contains the loadable micro code arrays to implement receive bundling on the
 D101 A-step, D101 B-step, D101M (B-step only), D101S, D102 B-step, 
-D102 B-step with TCO work around and D012 C-step.
+D102 B-step with TCO work around, D102 C-step and D102 E-step.
 
 Each controller has its own specific micro code array.  The array for one controller
 is totally incompatible with any other controller, and if used will most likely
@@ -51,25 +51,6 @@ rcvbundl.h file given above).
 
 */
 
-/*  Size of loadable micro code image for each supported chip.  */
-#ifndef D100_NUM_MICROCODE_DWORDS
-#define     D100_NUM_MICROCODE_DWORDS    66
-#endif
-#ifndef D101_NUM_MICROCODE_DWORDS
-#define     D101_NUM_MICROCODE_DWORDS    102
-#endif
-#ifndef D101M_NUM_MICROCODE_DWORDS
-#define     D101M_NUM_MICROCODE_DWORDS   134
-#endif
-#ifndef D101S_NUM_MICROCODE_DWORDS
-#define     D101S_NUM_MICROCODE_DWORDS   134
-#endif
-#ifndef D102_NUM_MICROCODE_DWORDS
-#define     D102_NUM_MICROCODE_DWORDS    134
-#endif
-#ifndef D102_NUM_TCO_MICROCODE_DWORDS
-#define     D102_NUM_TCO_MICROCODE_DWORDS    134
-#endif
 
 
 /*************************************************************************
@@ -1069,6 +1050,153 @@ rcvbundl.h file given above).
 0x00000000, \
 0x00000000, \
 0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+}
+
+/********************************************************/
+/*  Micro code for the D102 E-step                      */
+/********************************************************/
+
+/*  Parameter values for the D102 E-step  */
+#define D102_E_CPUSAVER_DWORD			42
+#define D102_E_CPUSAVER_BUNDLE_MAX_DWORD	54
+#define D102_E_CPUSAVER_MIN_SIZE_DWORD		46
+
+#define     D102_E_RCVBUNDLE_UCODE \
+{\
+0x007D028F, \
+0x0E4204F9, \
+0x14ED0C85, \
+0x14FA14E9, \
+0x0EF70E36, \
+0x1FFF1FFF, \
+0x00E014B9, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00E014BD, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00E014D5, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00E014C1, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00E014C8, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00200600, \
+0x00E014EE, \
+0x00000000, \
+0x00000000, \
+0x0030FF80, \
+0x00940E46, \
+0x00038200, \
+0x00102000, \
+0x00E00E43, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00300006, \
+0x00E014FB, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00000000, \
+0x00906E41, \
+0x00800E3C, \
+0x00E00E39, \
+0x00000000, \
+0x00906EFD, \
+0x00900EFD, \
+0x00E00EF8, \
 0x00000000, \
 0x00000000, \
 0x00000000, \
