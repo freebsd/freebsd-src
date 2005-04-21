@@ -43,7 +43,6 @@ ENTRY(bcmp)
 	pushl	%esi
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
-	xorl	%eax,%eax		/* clear return value */
 	cld				/* set compare direction forward */
 
 	movl	20(%esp),%ecx		/* compare by words */
@@ -56,9 +55,9 @@ ENTRY(bcmp)
 	andl	$3,%ecx
 	repe
 	cmpsb
-	je	L2
-
-L1:	incl	%eax
-L2:	popl	%esi
+L1:
+	setne	%al
+	movsbl	%al,%eax
+	popl	%esi
 	popl	%edi
 	ret
