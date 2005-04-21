@@ -50,6 +50,13 @@
 ACPI_MODULE_NAME("SCHEDULE")
 
 /*
+ * Allow the user to tune the number of task threads we start.  It seems
+ * some systems have problems with increased parallelism.
+ */
+static int acpi_max_threads = ACPI_MAX_THREADS;
+TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
+
+/*
  * This is a little complicated due to the fact that we need to build and then
  * free a 'struct task' for each task we enqueue.
  */
@@ -130,7 +137,7 @@ acpi_task_thread_init(void)
     err = 0;
     STAILQ_INIT(&acpi_task_queue);
 
-    for (i = 0; i < ACPI_MAX_THREADS; i++) {
+    for (i = 0; i < acpi_max_threads; i++) {
 	err = kthread_create(acpi_task_thread, NULL, &acpi_kthread_proc,
 			     0, 0, "acpi_task%d", i);
 	if (err != 0) {
