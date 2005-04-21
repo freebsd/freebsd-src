@@ -545,19 +545,6 @@ send:
 			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
 
-			/*
-			 * If this is the first SYN of connection (not a SYN
-			 * ACK), include SACK_PERMIT_HDR option.  If this is a
-			 * SYN ACK, include SACK_PERMIT_HDR option if peer has
-			 * already done so. This is only for active connect,
-			 * since the syncache takes care of the passive connect.
-			 */
-			if (tp->sack_enable && ((flags & TH_ACK) == 0 ||
-			    (tp->t_flags & TF_SACK_PERMIT))) {
-				*((u_int32_t *) (opt + optlen)) =
-					htonl(TCPOPT_SACK_PERMIT_HDR);
-				optlen += 4;
-			}
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_RCVD_SCALE))) {
@@ -589,33 +576,6 @@ send:
 		optlen += TCPOLEN_TSTAMP_APPA;
 	}
 
-	/*
-	 * Send SACKs if necessary.  This should be the last option processed.
-	 * Only as many SACKs are sent as are permitted by the maximum options
-	 * size.  No more than three SACKs are sent.
-	 */
-	if (tp->sack_enable && tp->t_state == TCPS_ESTABLISHED &&
-	    (tp->t_flags & (TF_SACK_PERMIT|TF_NOOPT)) == TF_SACK_PERMIT &&
-	    tp->rcv_numsacks) {
-		u_int32_t *lp = (u_int32_t *)(opt + optlen);
-		u_int32_t *olp = lp++;
-		int count = 0;  /* actual number of SACKs inserted */
-		int maxsack = (MAX_TCPOPTLEN - (optlen + 4))/TCPOLEN_SACK;
-
-		tcpstat.tcps_sack_send_blocks++;
-		maxsack = min(maxsack, TCP_MAX_SACK);
-		for (i = 0; (i < tp->rcv_numsacks && count < maxsack); i++) {
-			struct sackblk sack = tp->sackblks[i];
-			if (sack.start == 0 && sack.end == 0)
-				continue;
-			*lp++ = htonl(sack.start);
-			*lp++ = htonl(sack.end);
-			count++;
-		}
-		*olp = htonl(TCPOPT_SACK_HDR|(TCPOLEN_SACK*count+2));
-		optlen += TCPOLEN_SACK*count + 4; /* including leading NOPs */
-	}
-
 #ifdef TCP_SIGNATURE
 #ifdef INET6
 	if (!isipv6)
@@ -632,13 +592,92 @@ send:
 		for (i = 0; i < TCP_SIGLEN; i++)
 			*bp++ = 0;
 		optlen += TCPOLEN_SIGNATURE;
-
-		/* Terminate options list and maintain 32-bit alignment. */
-		*bp++ = TCPOPT_NOP;
-		*bp++ = TCPOPT_EOL;
-		optlen += 2;
 	}
 #endif /* TCP_SIGNATURE */
+
+	if (tp->sack_enable && ((tp->t_flags & TF_NOOPT) == 0)) {
+		/* 
+		 * Tack on the SACK permitted option *last*.
+		 * And do padding of options after tacking this on.
+		 * This is because of MSS, TS, WinScale and Signatures are
+		 * all present, we have just 2 bytes left for the SACK
+		 * permitted option, which is just enough.
+		 */
+		/*
+		 * If this is the first SYN of connection (not a SYN
+		 * ACK), include SACK permitted option.  If this is a
+		 * SYN ACK, include SACK permitted option if peer has
+		 * already done so. This is only for active connect,
+		 * since the syncache takes care of the passive connect.
+		 */
+		if ((flags & TH_SYN) &&
+		    (!(flags & TH_ACK) || (tp->t_flags & TF_SACK_PERMIT))) {
+			u_char *bp;
+			bp = (u_char *)opt + optlen;
+
+			*bp++ = TCPOPT_SACK_PERMITTED;
+			*bp++ = TCPOLEN_SACK_PERMITTED;
+			optlen += TCPOLEN_SACK_PERMITTED;
+		}
+
+		/*
+		 * Send SACKs if necessary.  This should be the last
+		 * option processed.  Only as many SACKs are sent as
+		 * are permitted by the maximum options size.
+		 *
+		 * In general, SACK blocks consume 8*n+2 bytes.
+		 * So a full size SACK blocks option is 34 bytes
+		 * (to generate 4 SACK blocks).  At a minimum,
+		 * we need 10 bytes (to generate 1 SACK block).
+		 * If TCP Timestamps (12 bytes) and TCP Signatures
+		 * (18 bytes) are both present, we'll just have
+		 * 10 bytes for SACK options 40 - (12 + 18).
+		 */
+		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+		    (tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0 &&
+		    MAX_TCPOPTLEN - optlen - 2 >= TCPOLEN_SACK) {
+			int nsack, sackoptlen, padlen;
+			u_char *bp = (u_char *)opt + optlen;
+			u_int32_t *lp;
+
+			nsack = (MAX_TCPOPTLEN - optlen - 2) / TCPOLEN_SACK;
+			nsack = min(nsack, tp->rcv_numsacks);
+			sackoptlen = (2 + nsack * TCPOLEN_SACK);
+
+			/*
+			 * First we need to pad options so that the
+			 * SACK blocks can start at a 4-byte boundary
+			 * (sack option and length are at a 2 byte offset).
+			 */
+			padlen = (MAX_TCPOPTLEN - optlen - sackoptlen) % 4;
+			optlen += padlen;
+			while (padlen-- > 0)
+				*bp++ = TCPOPT_NOP;
+
+			tcpstat.tcps_sack_send_blocks++;
+			*bp++ = TCPOPT_SACK;
+			*bp++ = sackoptlen;
+			lp = (u_int32_t *)bp;
+			for (i = 0; i < nsack; i++) {
+				struct sackblk sack = tp->sackblks[i];
+				*lp++ = htonl(sack.start);
+				*lp++ = htonl(sack.end);
+			}
+			optlen += sackoptlen;
+		}
+	}
+
+	/* Pad TCP options to a 4 byte boundary */
+	if (optlen < MAX_TCPOPTLEN && (optlen % sizeof(u_int32_t))) {
+		int pad = sizeof(u_int32_t) - (optlen % sizeof(u_int32_t));
+		u_char *bp = (u_char *)opt + optlen;
+
+		optlen += pad;
+		while (pad) {
+			*bp++ = TCPOPT_EOL;
+			pad--;
+		}
+	}
 
 	hdrlen += optlen;
 
