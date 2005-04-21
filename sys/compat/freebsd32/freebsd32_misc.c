@@ -543,44 +543,34 @@ CTASSERT(sizeof(struct kevent32) == 20);
 int
 freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 {
-	int error;
-	caddr_t sg;
 	struct timespec32 ts32;
-	struct timespec ts;
-	struct kevent32 ks32;
+	struct timespec ts, *tsp;
 	struct kevent *ks;
-	struct kevent_args a;
-	int i;
+	struct kevent32 ks32;
+	struct kevent *changes, *events;
+	int error, i;
 
-	sg = stackgap_init();
-
-	a.fd = uap->fd;
-	a.changelist = uap->changelist;
-	a.nchanges = uap->nchanges;
-	a.eventlist = uap->eventlist;
-	a.nevents = uap->nevents;
-	a.timeout = NULL;
 
 	if (uap->timeout) {
-		a.timeout = stackgap_alloc(&sg, sizeof(struct timespec));
 		error = copyin(uap->timeout, &ts32, sizeof(ts32));
 		if (error)
 			return (error);
 		CP(ts32, ts, tv_sec);
 		CP(ts32, ts, tv_nsec);
-		error = copyout(&ts, (void *)(uintptr_t)a.timeout, sizeof(ts));
-		if (error)
-			return (error);
-	}
-	if (uap->changelist) {
-		a.changelist = (struct kevent *)stackgap_alloc(&sg,
-		    uap->nchanges * sizeof(struct kevent));
+		tsp = &ts;
+	} else
+		tsp = NULL;
+	if (uap->changelist && uap->nchanges > 0) {
+		changes = malloc(sizeof(struct kevent) * uap->nchanges, M_TEMP,
+		    M_WAITOK);
 		for (i = 0; i < uap->nchanges; i++) {
 			error = copyin(&uap->changelist[i], &ks32,
 			    sizeof(ks32));
-			if (error)
+			if (error) {
+				free(changes, M_TEMP);
 				return (error);
-			ks = (struct kevent *)(uintptr_t)&a.changelist[i];
+			}
+			ks = &changes[i];
 			CP(ks32, *ks, ident);
 			CP(ks32, *ks, filter);
 			CP(ks32, *ks, flags);
@@ -588,15 +578,19 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 			CP(ks32, *ks, data);
 			PTRIN_CP(ks32, *ks, udata);
 		}
-	}
-	if (uap->eventlist) {
-		a.eventlist = stackgap_alloc(&sg,
-		    uap->nevents * sizeof(struct kevent));
-	}
-	error = kevent(td, &a);
-	if (uap->eventlist && error > 0) {
-		for (i = 0; i < error; i++) {
-			ks = &a.eventlist[i];
+	} else
+		changes = NULL;
+	if (uap->eventlist && uap->nevents > 0)
+		events = malloc(sizeof(struct kevent) * uap->nevents, M_TEMP,
+		    M_WAITOK);
+	else
+		events = NULL;
+	error = kern_kevent(td, uap->fd, changes, uap->nchanges, UIO_SYSSPACE,
+	    events, uap->nevents, UIO_SYSSPACE, tsp);
+	free(changes, M_TEMP);
+	if (uap->eventlist && events && td->td_retval[0] > 0) {
+		for (i = 0; i < td->td_retval[0]; i++) {
+			ks = &events[i];
 			CP(*ks, ks32, ident);
 			CP(*ks, ks32, filter);
 			CP(*ks, ks32, flags);
@@ -606,10 +600,12 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 			error = copyout(&ks32, &uap->eventlist[i],
 			    sizeof(ks32));
 			if (error)
-				return (error);
+				break;
 		}
 	}
-	return error;
+	if (events)
+		free(events, M_TEMP);
+	return (error);
 }
 
 int
