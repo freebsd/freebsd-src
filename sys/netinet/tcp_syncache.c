@@ -983,8 +983,13 @@ syncache_add(inc, to, th, sop, m)
 	 * XXX Currently we always record the option by default and will
 	 * attempt to use it in syncache_respond().
 	 */
+#if 1
+	if (tp->t_flags & TF_SIGNATURE)
+		sc->sc_flags |= SCF_SIGNATURE;
+#else
 	if (to->to_flags & TOF_SIGNATURE)
 		sc->sc_flags = SCF_SIGNATURE;
+#endif
 #endif
 
 	if (to->to_flags & TOF_SACK)
@@ -1051,10 +1056,12 @@ syncache_respond(sc, m)
 		    ((sc->sc_flags & SCF_WINSCALE) ? 4 : 0) +
 		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0);
 #ifdef TCP_SIGNATURE
-		optlen += (sc->sc_flags & SCF_SIGNATURE) ?
-		    TCPOLEN_SIGNATURE + 2 : 0;
+		if (sc->sc_flags & SCF_SIGNATURE)
+			optlen += TCPOLEN_SIGNATURE;
 #endif
-		optlen += ((sc->sc_flags & SCF_SACK) ? 4 : 0);
+		if (sc->sc_flags & SCF_SACK)
+			optlen += TCPOLEN_SACK_PERMITTED;
+		optlen = roundup2(optlen, 4);
 	}
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
 
@@ -1175,16 +1182,21 @@ syncache_respond(sc, m)
 				*bp++ = 0;
 			tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
 			    optp + 2, IPSEC_DIR_OUTBOUND);
-			*bp++ = TCPOPT_NOP;
-			*bp++ = TCPOPT_EOL;
-			optp += TCPOLEN_SIGNATURE + 2;
+			optp += TCPOLEN_SIGNATURE;
 		}
 #endif /* TCP_SIGNATURE */
 
-	if (sc->sc_flags & SCF_SACK) {
-		*(u_int32_t *)optp = htonl(TCPOPT_SACK_PERMIT_HDR);
-		optp += 4;
-	}
+		if (sc->sc_flags & SCF_SACK) {
+			*optp++ = TCPOPT_SACK_PERMITTED;
+			*optp++ = TCPOLEN_SACK_PERMITTED;
+		}
+
+		{
+			/* Pad TCP options to a 4 byte boundary */
+			int padlen = optlen - (optp - (u_int8_t *)(th + 1));
+			while (padlen-- > 0)
+				*optp++ = TCPOPT_EOL;
+		}
 	}
 
 #ifdef INET6
