@@ -983,13 +983,8 @@ syncache_add(inc, to, th, sop, m)
 	 * XXX Currently we always record the option by default and will
 	 * attempt to use it in syncache_respond().
 	 */
-#if 1
-	if (tp->t_flags & TF_SIGNATURE)
-		sc->sc_flags |= SCF_SIGNATURE;
-#else
 	if (to->to_flags & TOF_SIGNATURE)
 		sc->sc_flags = SCF_SIGNATURE;
-#endif
 #endif
 
 	if (to->to_flags & TOF_SACK)
