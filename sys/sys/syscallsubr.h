@@ -35,6 +35,8 @@
 struct itimerval;
 struct mbuf;
 struct msghdr;
+struct rlimit;
+struct rusage;
 struct sockaddr;
 struct kevent;
 
@@ -92,6 +94,7 @@ int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
+int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 int	kern_setsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t valsize);
 int	kern_settimeofday(struct thread *td, struct timeval *tv,
@@ -113,6 +116,8 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
+	    struct rusage *rup);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
 
 /* flags for kern_sigaction */

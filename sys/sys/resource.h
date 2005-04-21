@@ -149,10 +149,9 @@ struct loadavg {
 #endif	/* __BSD_VISIBLE */
 
 #ifdef _KERNEL
+
 extern struct loadavg averunnable;
 extern long cp_time[CPUSTATES];
-
-int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 
 #else
 
