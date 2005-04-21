@@ -2622,6 +2622,7 @@ static uint32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
 
@@ -2642,6 +2643,8 @@ struct ucode {
 	    D102_B_CPUSAVER_DWORD, D102_B_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82550_C, UCODE(fxp_ucode_d102c),
 	    D102_C_CPUSAVER_DWORD, D102_C_CPUSAVER_BUNDLE_MAX_DWORD },
+	{ FXP_REV_82551, UCODE(fxp_ucode_d102e),
+	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ 0, NULL, 0, 0, 0 }
 };
 
