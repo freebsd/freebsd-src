@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050421:	p30	FreeBSD-SA-05:04.ifconf
+	Zero a buffer in ifconf() in order to avoid accidental
+	disclosure of kernel memory to userland.
+
 20050404:	p29	FreeBSD-SA-05:02.sendfile
 	Correct kernel memory disclosure bug in sendfile(2).
 

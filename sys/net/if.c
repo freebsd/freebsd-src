@@ -1302,6 +1302,12 @@ ifconf(cmd, data)
 		char workbuf[64];
 		int ifnlen, addrs;
 
+		/*
+		 * Zero the ifr_name buffer to make sure we don't
+		 * disclose the contents of the stack.
+		 */
+		memset(ifr.ifr_name, 0, sizeof(ifr.ifr_name));
+
 		if (space <= sizeof (ifr))
 			break;
 		ifnlen = snprintf(workbuf, sizeof(workbuf),
