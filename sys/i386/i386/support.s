@@ -1401,7 +1401,6 @@ ENTRY(bcmp)
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
 	movl	20(%esp),%edx
-	xorl	%eax,%eax
 
 	movl	%edx,%ecx
 	shrl	$2,%ecx
@@ -1414,10 +1413,9 @@ ENTRY(bcmp)
 	andl	$3,%ecx
 	repe
 	cmpsb
-	je	2f
 1:
-	incl	%eax
-2:
+	setne	%al
+	movsbl	%al,%eax
 	popl	%esi
 	popl	%edi
 	ret
