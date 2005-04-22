@@ -400,6 +400,20 @@ acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .endif
 
+.if ${SRCS:Massym.s} != ""
+CLEANFILES+=	assym.s genassym.o
+assym.s: genassym.o
+.if !exists(@)
+assym.s: @
+.else
+assym.s: @/kern/genassym.sh
+.endif
+	sh @/kern/genassym.sh genassym.o > ${.TARGET}
+genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c @ machine
+	${CC} -c ${CFLAGS:N-fno-common} \
+	    @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+.endif
+
 lint: ${SRCS}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
 
