@@ -195,7 +195,6 @@ _ILINKS+=${MACHINE_ARCH}
 all: objwarn ${PROG}
 
 beforedepend: ${_ILINKS}
-beforedepend: cleandepend
 
 # Ensure that the links exist without depending on it when it exists which
 # causes all the modules to be rebuilt when the directory pointed to changes.
