@@ -530,7 +530,7 @@ null_lock(struct vop_lock_args *ap)
 	 * vop lock.
 	 */
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
-		VI_LOCK(lvp);
+		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
 		VI_UNLOCK(vp);
 		/*
 		 * We have to hold the vnode here to solve a potential
