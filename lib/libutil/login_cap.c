@@ -341,7 +341,7 @@ login_getuserclass(const struct passwd *pwd)
 /*
  * login_getcapstr()
  * Given a login_cap entry, and a capability name, return the
- * value defined for that capability, a defualt if not found, or
+ * value defined for that capability, a default if not found, or
  * an error string on error.
  */
 
