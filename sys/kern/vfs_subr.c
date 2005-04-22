@@ -821,10 +821,12 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
+#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
 		if (numvnodes > desiredvnodes) {
 			mtx_unlock(&vnode_free_list_mtx);
 			return (ENFILE);
 		}
+#endif
 	}
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
