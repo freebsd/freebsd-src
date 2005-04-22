@@ -193,7 +193,9 @@ CRUNCH_PROGS_usr.bin+= bzip2
 CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
 
-CRUNCH_PROGS_gnu/usr.bin+= tar
+CRUNCH_PROGS_usr.bin+= tar
+CRUNCH_LIBS+= -larchive
+
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
 
