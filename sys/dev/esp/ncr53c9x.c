@@ -2228,6 +2228,11 @@ again:
 				 * a DATA transfer. Print a diagnostic
 				 * if the DMA counter and TC bit
 				 * appear to be out of sync.
+				 *
+				 * XXX This is fatal and usually means that
+				 *     the DMA engine is hopelessly out of
+				 *     sync with reality.  A disk is likely
+				 *     getting spammed at this point.
 				 */
 				device_printf(sc->sc_dev, "!TC on DATA XFER"
 				    " [intr %x, stat %x, step %d]"
@@ -2237,6 +2242,7 @@ again:
 				    sc->sc_espstep,
 				    sc->sc_prevphase,
 				    ecb ? ecb->dleft : -1);
+				panic("esp: unrecoverable DMA error");
 			}
 		}
 	}
