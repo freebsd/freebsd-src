@@ -109,8 +109,8 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	    ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	    vers.c vnode_if.c vnode_if.h \
+	    ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags vers.c \
+	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
 
