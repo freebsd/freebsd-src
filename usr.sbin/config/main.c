@@ -183,7 +183,7 @@ main(int argc, char **argv)
 	configfile();			/* put config file into kernel*/
 	cleanheaders(p);
 	printf("Kernel build directory is %s\n", p);
-	printf("Don't forget to do a ``make depend''\n");
+	printf("Don't forget to do ``make cleandepend; make depend''\n");
 	exit(0);
 }
 
