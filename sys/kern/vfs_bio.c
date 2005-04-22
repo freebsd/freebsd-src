@@ -1831,6 +1831,12 @@ restart:
 			buf_deallocate(bp);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 3");
+		KASSERT(bp->b_vp == NULL,
+		    ("bp: %p still has vnode %p.  qindex: %d",
+		    bp, bp->b_vp, qindex));
+		KASSERT((bp->b_xflags & (BX_VNCLEAN|BX_VNDIRTY)) == 0,
+		   ("bp: %p still on a buffer list. xflags %X",
+		    bp, bp->b_xflags));
 
 		if (bp->b_bufsize)
 			allocbuf(bp, 0);
