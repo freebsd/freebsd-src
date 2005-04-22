@@ -17,8 +17,8 @@ CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
 
-LDADD=		-lm
 DPADD=		${LIBM}
+LDADD=		-lm
 
 # libstdc++ sources
 SRCS+= 	allocator.cc codecvt.cc complex_io.cc ctype.cc debug.cc debug_list.cc \
