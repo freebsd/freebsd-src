@@ -65,7 +65,8 @@ nvenetlib.o			optional	nve pci			\
 os+%DIKED-nve.h		optional	nve pci			\
 	dependency	"$S/contrib/dev/nve/os.h"			\
 	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
-	no-implicit-rule no-obj before-depend
+	no-implicit-rule no-obj before-depend				\
+	clean		"os+%DIKED-nve.h"
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
