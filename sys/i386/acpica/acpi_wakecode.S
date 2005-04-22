@@ -30,8 +30,9 @@
 #define LOCORE
 
 #include <machine/asmacros.h>
-#include <machine/param.h>
 #include <machine/specialreg.h>
+
+#include "assym.s"
 
 	.align 4
 	.code16
@@ -99,7 +100,7 @@ wakeup_16_gdt:
 
 wakeup_sw32:
 	/* Switch to protected mode by intersegmental jump */
-	ljmpl	$0x8,$0x12345678	/* Code location, to be replaced */
+	ljmpl	$KCSEL,$0x12345678	/* Code location, to be replaced */
 
 	.code32
 wakeup_32:
@@ -111,12 +112,12 @@ wakeup_32:
 	nop
 
 	/* Set up segment registers for protected mode */
-	movw	$0x10,%ax		/* KDSEL to segment registers */
+	movw	$KDSEL,%ax		/* KDSEL to segment registers */
 	movw	%ax,%ds
 	movw	%ax,%es
 	movw	%ax,%gs
 	movw	%ax,%ss
-	movw	$0x18,%ax		/* KPSEL to %fs */
+	movw	$KPSEL,%ax		/* KPSEL to %fs */
 	movw	%ax,%fs
 	movl	%esi,%esp		/* physical address stack pointer */
 
