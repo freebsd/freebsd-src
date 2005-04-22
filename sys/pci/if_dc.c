@@ -2212,6 +2212,20 @@ dc_attach(device_t dev)
 		sc->dc_pmode = DC_PMODE_MII;
 	}
 
+	/*
+	 * Setup General Purpose port mode and data so the tulip can talk
+	 * to the MII.  This needs to be done before mii_phy_probe so that
+	 * we can actually see them.
+	 */
+	if (DC_IS_XIRCOM(sc)) {
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_WRITE_EN | DC_SIAGP_INT1_EN |
+		    DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_INT1_EN |
+		    DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
+	}
+
 	error = mii_phy_probe(dev, &sc->dc_miibus,
 	    dc_ifmedia_upd, dc_ifmedia_sts);
 
@@ -2237,19 +2251,6 @@ dc_attach(device_t dev)
 	if (error) {
 		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
 		goto fail;
-	}
-
-	if (DC_IS_XIRCOM(sc)) {
-		/*
-		 * setup General Purpose Port mode and data so the tulip
-		 * can talk to the MII.
-		 */
-		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_WRITE_EN | DC_SIAGP_INT1_EN |
-			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
-		DELAY(10);
-		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_INT1_EN |
-			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
-		DELAY(10);
 	}
 
 	if (DC_IS_ADMTEK(sc)) {
