@@ -579,7 +579,9 @@ fxp_attach(device_t dev)
 	 * too, but that's already enabled by the code above.
 	 * Be careful to do this only on the right devices.
 	 */
-	if (sc->revision >= FXP_REV_82550) {
+	if (sc->revision == FXP_REV_82550 || sc->revision == FXP_REV_82550_C ||
+	    sc->revision == FXP_REV_82551_E || sc->revision == FXP_REV_82551_F
+	    || sc->revision == FXP_REV_82551_10) {
 		sc->rfa_size = sizeof (struct fxp_rfa);
 		sc->tx_cmd = FXP_CB_COMMAND_IPCBXMIT;
 		sc->flags |= FXP_FLAG_EXT_RFA;
@@ -2643,7 +2645,7 @@ struct ucode {
 	    D102_B_CPUSAVER_DWORD, D102_B_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82550_C, UCODE(fxp_ucode_d102c),
 	    D102_C_CPUSAVER_DWORD, D102_C_CPUSAVER_BUNDLE_MAX_DWORD },
-	{ FXP_REV_82551, UCODE(fxp_ucode_d102e),
+	{ FXP_REV_82551_F, UCODE(fxp_ucode_d102e),
 	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ 0, NULL, 0, 0, 0 }
 };
