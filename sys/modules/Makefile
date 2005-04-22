@@ -184,6 +184,7 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	${_puc} \
 	ral \
 	${_random} \
 	${_ray} \
@@ -200,6 +201,7 @@ SUBDIR=	${_3dfx} \
 	scd \
 	${_scsi_low} \
 	sf \
+	${_sio} \
 	sis \
 	sk \
 	${_smbfs} \
@@ -346,10 +348,12 @@ _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
 _pst=		pst
+_puc=		puc
 _ray=		ray
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
+_sio=		sio
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -462,7 +466,6 @@ _hfa=		hfa
 _iir=		iir
 _mly=		mly
 _pccard=	pccard
-_ray=		ray
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
