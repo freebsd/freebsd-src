@@ -138,17 +138,12 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-kernel-depend:
-	rm -f .olddep
-	if [ -f .depend ]; then mv .depend .olddep; fi
-	${MAKE} _kernel-depend
-
+kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
-_kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
+.depend: assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	    ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	    ${MFILES:T:S/.m$/.h/}
-	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
 	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
