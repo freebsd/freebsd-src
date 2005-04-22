@@ -88,13 +88,11 @@ ia64/ia32/ia32_trap.c		optional	compat_ia32
 ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
-ia64/ia64/clock_if.m		standard
 ia64/ia64/context.S		standard
 ia64/ia64/db_interface.c	optional	ddb
 ia64/ia64/db_trace.c		optional	ddb
 ia64/ia64/dump_machdep.c	standard
 ia64/ia64/efi.c			standard
-ia64/ia64/eficlock.c		standard
 ia64/ia64/elf_machdep.c		standard
 ia64/ia64/exception.S		standard
 ia64/ia64/gdb_machdep.c		optional	gdb
