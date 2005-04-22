@@ -78,6 +78,7 @@ struct lock_class {
 #define	LOP_QUIET	0x00000002	/* Don't log locking operations. */
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
 #define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
+#define	LOP_DUPOK	0x00000010	/* Don't check for duplicate acquires */
 
 /* Flags passed to witness_assert. */
 #define	LA_UNLOCKED	0x00000000	/* Lock is unlocked. */

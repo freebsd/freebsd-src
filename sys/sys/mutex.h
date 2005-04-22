@@ -49,20 +49,20 @@
 #ifdef _KERNEL
 
 /*
- * Mutex types and options passed to mtx_init().  MTX_QUIET can also be
- * passed in.
+ * Mutex types and options passed to mtx_init().  MTX_QUIET and MTX_DUPOK
+ * can also be passed in.
  */
 #define	MTX_DEF		0x00000000	/* DEFAULT (sleep) lock */ 
 #define MTX_SPIN	0x00000001	/* Spin lock (disables interrupts) */
 #define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
-#define	MTX_DUPOK	0x00000020	/* Don't log a duplicate acquire */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use
  * of corresponding mtx_{lock,unlock}_flags() interface macros.
  */
 #define	MTX_QUIET	LOP_QUIET	/* Don't log a mutex event */
+#define	MTX_DUPOK	LOP_DUPOK	/* Don't log a duplicate acquire */
 
 /*
  * State bits kept in mutex->mtx_lock, for the DEFAULT lock type. None of this,
