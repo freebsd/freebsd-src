@@ -26,8 +26,8 @@ CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 ACCESSFILE?=	\"/etc/opieaccess\"
 CFLAGS+=	-DINSECURE_OVERRIDE -DPATH_ACCESS_FILE=${ACCESSFILE}
 
-LDADD=	-lmd
 DPADD=	${LIBMD}
+LDADD=	-lmd
 
 MAN=	${OPIE_DIST}/opie.4 ${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
 

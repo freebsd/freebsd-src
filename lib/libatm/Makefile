@@ -28,8 +28,8 @@ SHLIBDIR?= /lib
 SRCS=	atm_addr.c cache_key.c ioctl_subr.c ip_addr.c ip_checksum.c timer.c
 INCS=	libatm.h
 
-LDADD=	-lmd
 DPADD=	${LIBMD}
+LDADD=	-lmd
 
 .if ${MACHINE_ARCH} == "arm"
 WARNS?= 3
