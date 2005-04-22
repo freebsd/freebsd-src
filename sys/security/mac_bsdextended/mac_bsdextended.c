@@ -1,9 +1,11 @@
 /*-
+ * Copyright (c) 2005 Tom Rhodes
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
+ * It was later enhanced by Tom Rhodes for the TrustedBSD Project.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
@@ -38,8 +40,6 @@
  * Developed by the TrustedBSD Project.
  * "BSD Extended" MAC policy, allowing the administrator to impose
  * mandatory rules regarding users and some system objects.
- *
- * XXX: Much locking support required here.
  */
 
 #include <sys/types.h>
@@ -47,9 +47,11 @@
 #include <sys/acl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -71,6 +73,8 @@
 #include <sys/mac_policy.h>
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
+
+static struct mtx mac_bsdextended_mtx;
 
 SYSCTL_DECL(_security_mac);
 
@@ -95,7 +99,7 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_slots, CTLFLAG_RD,
     &rule_slots, 0, "Number of used rule slots\n");
 
 /*
- * This is just used for logging purposes as eventually we would like
+ * This is just used for logging purposes, eventually we would like
  * to log much more then failed requests.
  */
 static int mac_bsdextended_logging;
@@ -136,6 +140,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 	u_int namelen;
 	int error, index, *name;
 
+	error = 0;
 	name = (int *)arg1;
 	namelen = arg2;
 
@@ -145,53 +150,69 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	index = name[0];
-	if (index < 0 || index > rule_slots + 1)
-		return (ENOENT);
-	if (rule_slots >= MAC_BSDEXTENDED_MAXRULES)
+        if (index > MAC_BSDEXTENDED_MAXRULES)
 		return (ENOENT);
 
-	if (req->oldptr) {
-		if (rules[index] == NULL)
-			return (ENOENT);
-
-		error = SYSCTL_OUT(req, rules[index], sizeof(*rules[index]));
-		if (error)
-			return (error);
-	}
-
-	if (req->newptr) {
-		if (req->newlen == 0) {
-			/* printf("deletion\n"); */
-			ruleptr = rules[index];
-			if (ruleptr == NULL)
-				return (ENOENT);
-			rule_count--;
-			rules[index] = NULL;
-			FREE(ruleptr, M_MACBSDEXTENDED);
-			return(0);
-		}
+	ruleptr = NULL;
+	if (req->newptr && req->newlen != 0) {
 		error = SYSCTL_IN(req, &temprule, sizeof(temprule));
 		if (error)
 			return (error);
+		MALLOC(ruleptr, struct mac_bsdextended_rule *,
+		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
+	}
 
+	mtx_lock(&mac_bsdextended_mtx);
+
+	if (req->oldptr) {
+		if (index < 0 || index > rule_slots + 1) {
+			error = ENOENT;
+			goto out;
+		}
+		if (rules[index] == NULL) {
+			error = ENOENT;
+			goto out;
+		}
+		temprule = *rules[index];
+	}
+
+	if (req->newptr && req->newlen == 0) {
+		/* printf("deletion\n"); */
+		KASSERT(ruleptr == NULL, ("sysctl_rule: ruleptr != NULL"));
+		ruleptr = rules[index];
+		if (ruleptr == NULL) {
+			error = ENOENT;
+			goto out;
+		}
+		rule_count--;
+		rules[index] = NULL;
+	} else if (req->newptr) {
 		error = mac_bsdextended_rule_valid(&temprule);
 		if (error)
-			return (error);
+			goto out;
 
 		if (rules[index] == NULL) {
 			/* printf("addition\n"); */
-			MALLOC(ruleptr, struct mac_bsdextended_rule *,
-			    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK |
-			    M_ZERO);
 			*ruleptr = temprule;
 			rules[index] = ruleptr;
-			if (index+1 > rule_slots)
-				rule_slots = index+1;
+			ruleptr = NULL;
+			if (index + 1 > rule_slots)
+				rule_slots = index + 1;
 			rule_count++;
 		} else {
 			/* printf("replacement\n"); */
 			*rules[index] = temprule;
 		}
+	}
+
+out:
+	mtx_unlock(&mac_bsdextended_mtx);
+	if (ruleptr != NULL)
+		FREE(ruleptr, M_MACBSDEXTENDED);
+	if (req->oldptr && error == 0) {
+		error = SYSCTL_OUT(req, &temprule, sizeof(temprule));
+		if (error)
+			return (error);
 	}
 
 	return (0);
@@ -205,6 +226,8 @@ mac_bsdextended_init(struct mac_policy_conf *mpc)
 {
 
 	/* Initialize ruleset lock. */
+	mtx_init(&mac_bsdextended_mtx, "mac_bsdextended lock", NULL, MTX_DEF);
+
 	/* Register dynamic sysctl's for rules. */
 }
 
@@ -212,8 +235,10 @@ static void
 mac_bsdextended_destroy(struct mac_policy_conf *mpc)
 {
 
-	/* Tear down sysctls. */
 	/* Destroy ruleset lock. */
+	mtx_destroy(&mac_bsdextended_mtx);
+
+	/* Tear down sysctls. */
 }
 
 static int
@@ -225,6 +250,7 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 	/*
 	 * Is there a subject match?
 	 */
+	mtx_assert(&mac_bsdextended_mtx, MA_OWNED);
 	if (rule->mbr_subject.mbi_flags & MBI_UID_DEFINED) {
 		match =  (rule->mbr_subject.mbi_uid == cred->cr_uid ||
 		    rule->mbr_subject.mbi_uid == cred->cr_ruid ||
@@ -282,9 +308,10 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 			    cred->cr_rgid, acc_mode, object_uid, object_gid);
 		return (EACCES); /* Matching rule denies access */
 	}
+
 	/*
-	 * If the rule matched and allowed access and first match is
-	 * enabled, then return success.
+	 * If the rule matched, permits access, and first match is enabled,
+	 * return success.
 	 */
 	if (mac_bsdextended_firstmatch_enabled)
 		return (EJUSTRETURN);
@@ -301,12 +328,13 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 	if (suser_cred(cred, 0) == 0)
 		return (0);
 
+	mtx_lock(&mac_bsdextended_mtx);
 	for (i = 0; i < rule_slots; i++) {
 		if (rules[i] == NULL)
 			continue;
 
 		/*
-		 * Since we don't separately handle append, map append to
+		 * Since we do not separately handle append, map append to
 		 * write.
 		 */
 		if (acc_mode & MBI_APPEND) {
@@ -318,10 +346,12 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 		    object_gid, acc_mode);
 		if (error == EJUSTRETURN)
 			break;
-		if (error)
+		if (error) {
+			mtx_unlock(&mac_bsdextended_mtx);
 			return (error);
+		}
 	}
-
+	mtx_unlock(&mac_bsdextended_mtx);
 	return (0);
 }
 
