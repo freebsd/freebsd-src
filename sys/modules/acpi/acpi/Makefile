@@ -77,11 +77,11 @@ opt_ddb.h: Makefile
 # Machine-specific code such as sleep/wakeup
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 .if ${MACHINE} == "i386"
-SRCS+=	madt.c
+SRCS+=	madt.c assym.s
 .endif
 CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin ${DBSRC:.c=.o}
 
-acpi_wakecode.h: acpi_wakecode.S
+acpi_wakecode.h: acpi_wakecode.S assym.s
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
 		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_ARCH}/acpica
 
