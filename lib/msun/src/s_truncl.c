@@ -36,6 +36,8 @@ static char rcsid[] = "$FreeBSD$";
 #define	MANH_SIZE	LDBL_MANH_SIZE
 #endif
 
+static const long double huge = 1.0e300;
+
 long double
 truncl(long double x)
 {
@@ -44,19 +46,23 @@ truncl(long double x)
 
 	if (e < MANH_SIZE - 1) {
 		if (e < 0) {			/* raise inexact if x != 0 */
-			u.e = 0.0;
+			if (huge + x > 0.0)
+				u.e = 0.0;
 		} else {
 			uint64_t m = ((1llu << MANH_SIZE) - 1) >> (e + 1);
 			if (((u.bits.manh & m) | u.bits.manl) == 0)
 				return (x);	/* x is integral */
-			u.bits.manh &= ~m;
-			u.bits.manl = 0;
+			if (huge + x > 0.0) {	/* raise inexact flag */
+				u.bits.manh &= ~m;
+				u.bits.manl = 0;
+			}
 		}
 	} else if (e < LDBL_MANT_DIG - 1) {
 		uint64_t m = (uint64_t)-1 >> (64 - LDBL_MANT_DIG + e + 1);
 		if ((u.bits.manl & m) == 0)
 			return (x);	/* x is integral */
-		u.bits.manl &= ~m;
+		if (huge + x > 0.0)		/* raise inexact flag */
+			u.bits.manl &= ~m;
 	}
 	return (u.e);
 }
