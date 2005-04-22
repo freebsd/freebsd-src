@@ -391,6 +391,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 extern void	(*lease_updatetime)(int deltat);
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
+#define	VI_LOCK_FLAGS(vp, flags) mtx_lock_flags(&(vp)->v_interlock, (flags))
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
