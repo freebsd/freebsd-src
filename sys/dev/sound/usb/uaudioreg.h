@@ -1,7 +1,7 @@
-/*	$NetBSD: uaudioreg.h,v 1.7 2000/12/28 00:29:58 augustss Exp $	*/
+/*	$NetBSD: uaudioreg.h,v 1.12 2004/11/05 19:08:29 kent Exp $	*/
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -40,7 +40,6 @@
 
 #define UAUDIO_VERSION		0x100
 
-#define UDESC_CS_DEVICE		0x21
 #define UDESC_CS_CONFIG		0x22
 #define UDESC_CS_STRING		0x23
 #define UDESC_CS_INTERFACE	0x24
@@ -63,7 +62,7 @@ typedef struct {
 	uByte		bmAttributes;
 	uWord		wMaxPacketSize;
 	uByte		bInterval;
-	/* 
+	/*
 	 * The following two entries are only used by the Audio Class.
 	 * And according to the specs the Audio Class is the only one
 	 * allowed to extend the endpoint descriptor.
@@ -98,6 +97,9 @@ struct usb_audio_streaming_endpoint_descriptor {
 	uByte		bDescriptorType;
 	uByte		bDescriptorSubtype;
 	uByte		bmAttributes;
+#define UA_SED_FREQ_CONTROL	0x01
+#define UA_SED_PITCH_CONTROL	0x02
+#define UA_SED_MAXPACKETSONLY	0x80
 	uByte		bLockDelayUnits;
 	uWord		wLockDelay;
 } UPACKED;
@@ -121,8 +123,28 @@ struct usb_audio_streaming_type1_descriptor {
 struct usb_audio_cluster {
 	uByte		bNrChannels;
 	uWord		wChannelConfig;
+#define	UA_CHANNEL_LEFT		0x0001
+#define	UA_CHANNEL_RIGHT	0x0002
+#define	UA_CHANNEL_CENTER	0x0004
+#define	UA_CHANNEL_LFE		0x0008
+#define	UA_CHANNEL_L_SURROUND	0x0010
+#define	UA_CHANNEL_R_SURROUND	0x0020
+#define	UA_CHANNEL_L_CENTER	0x0040
+#define	UA_CHANNEL_R_CENTER	0x0080
+#define	UA_CHANNEL_SURROUND	0x0100
+#define	UA_CHANNEL_L_SIDE	0x0200
+#define	UA_CHANNEL_R_SIDE	0x0400
+#define	UA_CHANNEL_TOP		0x0800
 	uByte		iChannelNames;
 } UPACKED;
+
+/* Shared by all units and terminals */
+struct usb_audio_unit {
+	uByte		bLength;
+	uByte		bDescriptorType;
+	uByte		bDescriptorSubtype;
+	uByte		bUnitId;
+};
 
 /* UDESCSUB_AC_INPUT */
 struct usb_audio_input_terminal {
@@ -340,8 +362,11 @@ struct usb_audio_extension_unit_1 {
 #define UA_FMT_IEEE_FLOAT 3
 #define UA_FMT_ALAW	4
 #define UA_FMT_MULAW	5
+#define UA_FMT_MPEG	0x1001
+#define UA_FMT_AC3	0x1002
 
-#define SAMPLING_FREQ_CONTROL 0x01
+#define SAMPLING_FREQ_CONTROL	0x01
+#define PITCH_CONTROL		0x02
 
 #define FORMAT_TYPE_UNDEFINED 0
 #define FORMAT_TYPE_I 1
@@ -377,4 +402,3 @@ struct usb_audio_extension_unit_1 {
 #define  DR_THRESHOLD_CONTROL			4
 #define  DR_ATTACK_TIME_CONTROL			5
 #define  DR_RELEASE_TIME_CONTROL		6
-
