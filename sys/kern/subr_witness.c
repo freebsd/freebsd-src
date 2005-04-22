@@ -791,7 +791,8 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 	w1 = lock1->li_lock->lo_witness;
 	if (w1 == w) {
-		if (w->w_same_squawked || (lock->lo_flags & LO_DUPOK))
+		if (w->w_same_squawked || (lock->lo_flags & LO_DUPOK) ||
+		    (flags & LOP_DUPOK))
 			return;
 		w->w_same_squawked = 1;
 		printf("acquiring duplicate lock of same type: \"%s\"\n", 
