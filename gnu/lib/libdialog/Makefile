@@ -17,8 +17,8 @@ EXAMPLES= Makefile check1.c check2.c check3.c dselect.c fselect.c \
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
-LDADD=	-lncurses
 DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 
 .if !defined(NO_HTML)
 FILES=	${EXAMPLES:C;^;${.CURDIR}/TESTS/;}
