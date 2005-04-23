@@ -30,6 +30,7 @@ CFLAGS+=-g
 PRECIOUSLIB=
 
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
+.include "${.CURDIR}/support/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
