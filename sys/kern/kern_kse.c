@@ -780,7 +780,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			 * to the new thread, so we should clear single step
 			 * flag here.
 			 */
-			cpu_set_upcall_kse(newtd, newku);
+			cpu_set_upcall_kse(newtd, newku->ku_func,
+				newku->ku_mailbox, &newku->ku_stack);
 			if (p->p_flag & P_TRACED)
 				ptrace_clear_single_step(newtd);
 		}
@@ -1371,7 +1372,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * Set user context to the UTS
 		 */
 		if (!(ku->ku_mflags & KMF_NOUPCALL)) {
-			cpu_set_upcall_kse(td, ku);
+			cpu_set_upcall_kse(td, ku->ku_func, ku->ku_mailbox,
+				&ku->ku_stack);
 			if (p->p_flag & P_TRACED)
 				ptrace_clear_single_step(td);
 			error = suword32(&ku->ku_mailbox->km_lwp,

@@ -439,7 +439,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
  * in thread_userret() itself can be done as well.
  */
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+	stack_t *stack)
 {
 
 	/* 
@@ -457,15 +458,48 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	 */
 	td->td_frame->tf_ebp = 0; 
 	td->td_frame->tf_esp =
-	    (int)ku->ku_stack.ss_sp + ku->ku_stack.ss_size - 16;
-	td->td_frame->tf_eip = (int)ku->ku_func;
+	    (int)stack->ss_sp + stack->ss_size - 16;
+	td->td_frame->tf_eip = (int)entry;
 
 	/*
 	 * Pass the address of the mailbox for this kse to the uts
 	 * function as a parameter on the stack.
 	 */
 	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
-	    (int)ku->ku_mailbox);
+	    (int)arg);
+}
+
+void
+cpu_set_user_tls(struct thread *td, void *tls_base)
+{
+	struct segment_descriptor sd;
+	uint32_t base;
+
+	/*
+	 * Construct a descriptor and store it in the pcb for
+	 * the next context switch.  Also store it in the gdt
+	 * so that the load of tf_fs into %fs will activate it
+	 * at return to userland.
+	 */
+	base = (uint32_t)tls_base;
+	sd.sd_lobase = base & 0xffffff;
+	sd.sd_hibase = (base >> 24) & 0xff;
+	sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+	sd.sd_hilimit = 0xf;
+	sd.sd_type  = SDT_MEMRWA;
+	sd.sd_dpl   = SEL_UPL;
+	sd.sd_p     = 1;
+	sd.sd_xx    = 0;
+	sd.sd_def32 = 1;
+	sd.sd_gran  = 1;
+	critical_enter();
+	/* set %gs */
+	td->td_pcb->pcb_gsd = sd;
+	if (td == curthread) {
+		PCPU_GET(fsgs_gdt)[1] = sd;
+		load_gs(GSEL(GUGS_SEL, SEL_UPL));
+	}
+	critical_exit();
 }
 
 /*
