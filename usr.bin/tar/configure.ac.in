@@ -57,6 +57,7 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 
 # Check for ACL support
 AC_CHECK_HEADERS([sys/acl.h])
+AC_CHECK_LIB([acl],[acl_get_file])
 
 AC_CHECK_TYPES(acl_permset_t,,,
 [#if HAVE_SYS_TYPES_H
@@ -80,8 +81,6 @@ AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm,,,
 #include <sys/acl.h>
 #endif
 ])
-
-AC_CHECK_LIB(acl,acl_get_file)
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
