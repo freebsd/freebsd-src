@@ -1146,6 +1146,14 @@ These PMCs are documented in
 .%Q "Intel Corporation"
 .Re
 .Pp
+Some of these events are affected by processor errata described in
+.Rs
+.%B "Intel(R) Pentium(R) III Processor Specification Update"
+.%N "Document Number: 244453-054"
+.%D "April 2005"
+.%Q "Intel Corporation"
+.Re
+.Pp
 Event specifiers for Intel P6 PMCs can have the following common
 qualifiers:
 .Bl -tag -width indent
@@ -1691,6 +1699,8 @@ The default on
 .Tn "Pentium M"
 processors is to count both hardware-prefetched and
 non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E53.
 .It Li p6-l2-lines-in Op Li ,umask= Ns Ar qualifier
 Count the number of L2 lines allocated.
 An additional qualifier may be specified and comprises a list of the following
@@ -1723,6 +1733,8 @@ The default on
 .Tn "Pentium M"
 processors is to count both hardware-prefetched and
 non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E45.
 .It Li p6-l2-lines-out Op Li ,umask= Ns Ar qualifier
 Count the number of L2 lines evicted.
 An additional qualifier may be specified and comprises a list of the following
@@ -1755,6 +1767,8 @@ The default on
 .Tn "Pentium M"
 processors is to count both hardware-prefetched and
 non-hardware-prefetch operations on all (MESI) state lines.
+.Pq Errata
+This event is affected by processor errata E45.
 .It Li p6-l2-m-lines-inm
 Count the number of modified lines allocated in L2 cache.
 .It Li p6-l2-m-lines-outm Op Li ,umask= Ns Ar qualifier
@@ -1775,6 +1789,8 @@ Exclude hardware-prefetched lines.
 .El
 The default is to count both hardware-prefetched and
 non-hardware-prefetch operations.
+.Pq Errata
+This event is affected by processor errata E53.
 .It Li p6-l2-rqsts Op Li ,umask= Ns Ar qualifier
 Count the total number of L2 requests.
 An additional qualifier may be specified and comprises a list of the following
@@ -1924,6 +1940,13 @@ Further information about using these PMCs may be found in
 .%B "IA-32 Intel(R) Architecture Optimization Guide"
 .%D 2003
 .%N "Order Number 248966-009"
+.%Q "Intel Corporation"
+.Re
+Some of these events are affected by processor errata described in
+.Rs
+.%B "Intel(R) Pentium(R) 4 Processor Specification Update"
+.%N "Document Number:  249199-059"
+.%D "April 2005"
 .%Q "Intel Corporation"
 .Re
 .Pp
@@ -2918,6 +2941,8 @@ Count all x87 and SIMD store and move uops.
 Count all x87 and SIMD load uops.
 .El
 The default is to count all uops.
+.Pq Errata
+This event may be affected by processor errata N43.
 .El
 .Ss "Cascading P4 PMCs"
 To be filled in.
