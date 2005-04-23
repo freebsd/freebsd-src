@@ -60,9 +60,8 @@ static int		 archive_write_pax_finish(struct archive *);
 static int		 archive_write_pax_finish_entry(struct archive *);
 static int		 archive_write_pax_header(struct archive *,
 			     struct archive_entry *);
-static char		*build_pax_attribute_name(const char *abbreviated,
-			     struct archive_string *work);
-static char		*build_ustar_entry_name(char *dest, const char *src);
+static char		*build_pax_attribute_name(char *dest, const char *src);
+static char		*build_ustar_entry_name(char *dest, const char *src, const char *insert);
 static char		*format_int(char *dest, int64_t);
 static int		 write_nulls(struct archive *, size_t);
 
@@ -320,12 +319,11 @@ archive_write_pax_header(struct archive *a,
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
 
-	struct archive_string pax_entry_name;
 	char paxbuff[512];
 	char ustarbuff[512];
 	char ustar_entry_name[256];
+	char pax_entry_name[256];
 
-	archive_string_init(&pax_entry_name);
 	need_extension = 0;
 	pax = a->format_data;
 	pax->written = 1;
@@ -387,7 +385,7 @@ archive_write_pax_header(struct archive *a,
 	if (suffix_start == NULL || suffix_start - p > 155 || *wp2 != L'\0') {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
-		    build_ustar_entry_name(ustar_entry_name, p));
+		    build_ustar_entry_name(ustar_entry_name, p, NULL));
 		need_extension = 1;
 	}
 
@@ -638,14 +636,12 @@ archive_write_pax_header(struct archive *a,
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
-		const char *pax_attr_name;
 
 		memset(&st, 0, sizeof(st));
 		pax_attr_entry = archive_entry_new();
 		p = archive_entry_pathname(entry_main);
-		pax_attr_name = build_pax_attribute_name(p, &pax_entry_name);
-
-		archive_entry_set_pathname(pax_attr_entry, pax_attr_name);
+		archive_entry_set_pathname(pax_attr_entry,
+		    build_pax_attribute_name(pax_entry_name, p));
 		st.st_size = archive_strlen(&(pax->pax_header));
 		st.st_uid = st_main->st_uid;
 		if (st.st_uid >= 1 << 18)
@@ -665,7 +661,6 @@ archive_write_pax_header(struct archive *a,
 		    pax_attr_entry, 'x', 1);
 
 		archive_entry_free(pax_attr_entry);
-		archive_string_free(&pax_entry_name);
 
 		/* Note that the 'x' header shouldn't ever fail to format */
 		if (ret != 0) {
@@ -722,18 +717,19 @@ archive_write_pax_header(struct archive *a,
  * tries to hack something more-or-less reasonable.
  *
  * The approach here tries to preserve leading dir names.  We do so by
- * breaking the full path into three sections:
+ * working with four sections:
  *   1) "prefix" directory names,
  *   2) "suffix" directory names,
- *   3) filename.
+ *   3) inserted dir name (optional),
+ *   4) filename.
  *
- * These three sections must satisfy the following requirements:
+ * These sections must satisfy the following requirements:
  *   * Parts 1 & 2 together form an initial portion of the dir name.
- *   * Part 3 forms an initial portion of the base filename.
- *   * The filename must be <= 90 chars to fit the ustar 'name' field while
- *     allowing room for the '/PaxHeader' dir element (see below)
- *   * Parts 2 & 3 together must be <= 90 chars to fit the ustar 'name' field
- *     while allowing room for the '/PaxHeader' dir element.
+ *   * Part 3 is specified by the caller.  (It should not contain a leading
+ *     or trailing '/'.)
+ *   * Part 4 forms an initial portion of the base filename.
+ *   * The filename must be <= 99 chars to fit the ustar 'name' field.
+ *   * Parts 2, 3, 4 together must be <= 99 chars to fit the ustar 'name' fld.
  *   * Part 1 must be <= 155 chars to fit the ustar 'prefix' field.
  *   * If the original name ends in a '/', the new name must also end in a '/'
  *   * Trailing '/.' sequences may be stripped.
@@ -742,7 +738,7 @@ archive_write_pax_header(struct archive *a,
  * parts 1 & 2, but does store the '/' separating parts 2 & 3.
  */
 static char *
-build_ustar_entry_name(char *dest, const char *src)
+build_ustar_entry_name(char *dest, const char *src, const char *insert)
 {
 	const char *prefix, *prefix_end;
 	const char *suffix, *suffix_end;
@@ -750,11 +746,19 @@ build_ustar_entry_name(char *dest, const char *src)
 	char *p;
 	size_t s;
 	int need_slash = 0; /* Was there a trailing slash? */
-	size_t suffix_length = 90;
+	size_t suffix_length = 99;
+	int insert_length;
 
-	/* Step 0: Initial checks. */
+	/* Length of additional dir element to be added. */
+	if (insert == NULL)
+		insert_length = 0;
+	else
+		/* +2 here allows for '/' before and after the insert. */
+		insert_length = strlen(insert) + 2;
+
+	/* Step 0: Quick bailout in a common case. */
 	s = strlen(src);
-	if (s < 100) {
+	if (s < 100 && insert == NULL) {
 		strcpy(dest, src);
 		return (dest);
 	}
@@ -771,19 +775,25 @@ build_ustar_entry_name(char *dest, const char *src)
 		if (filename_end > src + 1 && filename_end[-1] == '.'
 		    && filename_end[-2] == '/') {
 			filename_end -= 2;
+			need_slash = 1; /* "foo/." will become "foo/" */
 			continue;
 		}
 		break;
 	}
-	filename = filename_end - 1;
 	if (need_slash)
 		suffix_length--;
+	/* Find start of filename. */
+	filename = filename_end - 1;
 	while ((filename > src) && (*filename != '/'))
 		filename --;
 	if ((*filename == '/') && (filename < filename_end - 1))
 		filename ++;
+	/* Adjust filename_end so that filename + insert fits in 99 chars. */
+	suffix_length -= insert_length;
 	if (filename_end > filename + suffix_length)
 		filename_end = filename + suffix_length;
+	/* Calculate max size for "suffix" section (#3 above). */
+	suffix_length -= filename_end - filename;
 
 	/* Step 2: Locate the "prefix" section of the dirname, including
 	 * trailing '/'. */
@@ -799,7 +809,7 @@ build_ustar_entry_name(char *dest, const char *src)
 	/* Step 3: Locate the "suffix" section of the dirname,
 	 * including trailing '/'. */
 	suffix = prefix_end;
-	suffix_end = suffix + 89 - (filename_end - filename);
+	suffix_end = suffix + suffix_length; /* Enforce limit. */
 	if (suffix_end > filename)
 		suffix_end = filename;
 	if (suffix_end < suffix)
@@ -820,6 +830,13 @@ build_ustar_entry_name(char *dest, const char *src)
 	if (suffix_end > suffix) {
 		strncpy(p, suffix, suffix_end - suffix);
 		p += suffix_end - suffix;
+	}
+	if (insert != NULL) {
+		if (prefix_end > prefix || suffix_end > suffix)
+			*p++ = '/';
+		strcpy(p, insert);
+		p += strlen(insert);
+		*p++ = '/';
 	}
 	strncpy(p, filename, filename_end - filename);
 	p += filename_end - filename;
@@ -842,70 +859,54 @@ build_ustar_entry_name(char *dest, const char *src)
  * I'm also uncomfortable with the fact that "/tmp" is a Unix-ism.
  *
  * The following routine implements the SUSv3 recommendation, and is
- * much simpler because we do the initial processing with
- * build_ustar_entry_name() above which results in something that is
- * already short enough to accomodate the extra '/PaxHeader'
- * addition.  We just need to separate dir and filename portions and
- * handle a few pathological cases.
+ * much simpler because build_ustar_entry_name() above already does
+ * most of the work (we just need to give it an extra path element to
+ * insert and handle a few pathological cases).
  */
 static char *
-build_pax_attribute_name(const char *src, /* ustar-compat name */
-    struct archive_string *work)
+build_pax_attribute_name(char *dest, const char *src)
 {
-	const char *filename, *filename_end;
+	char *p;
 
-	if (*src == '\0') {
-		archive_strcpy(work, "PaxHeader/blank");
-		return (work->s);
-	}
-	if (*src == '.' && src[1] == '\0') {
-		archive_strcpy(work, "PaxHeader/dot");
-		return (work->s);
+	/* Handle the null filename case. */
+	if (src == NULL || *src == '\0') {
+		strcpy(dest, "PaxHeader/blank");
+		return (dest);
 	}
 
-	/* Prune unwanted final path elements. */
-	filename_end = src + strlen(src);
+	/* Prune final '/' and other unwanted final elements. */
+	p = dest + strlen(dest);
 	for (;;) {
-		if (filename_end > src && filename_end[-1] == '/') {
-			filename_end --;
+		/* Ends in "/", remove the '/' */
+		if (p > dest && p[-1] == '/') {
+			*--p = '\0';
 			continue;
 		}
-		if (filename_end > src + 1 && filename_end[-1] == '.'
-		    && filename_end[-2] == '/') {
-			filename_end -= 2;
+		/* Ends in "/.", remove the '.' */
+		if (p > dest + 1 && p[-1] == '.'
+		    && p[-2] == '/') {
+			*--p = '\0';
 			continue;
 		}
 		break;
 	}
-	while ((filename_end > src) && (filename_end[-1] == '/'))
-		filename_end --;
 
-	/* Pathological case: Entire 'src' consists of '/' characters. */
-	if (filename_end == src) {
-		archive_strcpy(work, "/PaxHeader/rootdir");
-		return (work->s);
+	/* Pathological case: After above, there was nothing left. */
+	if (p == dest) {
+		strcpy(dest, "/PaxHeader/rootdir");
+		return (dest);
 	}
 
-	/* Find the '/' before the filename portion. */
-	filename = filename_end - 1;
-	while ((filename > src) && (*filename != '/'))
-		filename --;
-	if (*filename == '/')
-		filename ++;
-
-	/* Pathological case: filename is '.' */
-	if (filename_end == filename + 2
-	    && filename[0] == '/' && filename[1] == '.') {
-		archive_strncpy(work, src, filename - src);
-		archive_strcat(work, "PaxHeader/dot");
-		return (work->s);
+	/* Convert unadorned "." into "dot" */
+	if (*src == '.' && src[1] == '\0') {
+		strcpy(dest, "PaxHeader/currentdir");
+		return (dest);
 	}
 
-	/* Build the new name. */
-	archive_strncpy(work, src, filename - src);
-	archive_strcat(work, "PaxHeader/");
-	archive_strncat(work, filename, filename_end - filename);
-	return (work->s);
+	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
+	build_ustar_entry_name(dest, src, "PaxHeader");
+
+	return (dest);
 }
 
 /* Write two null blocks for the end of archive */
