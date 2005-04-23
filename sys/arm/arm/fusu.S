@@ -70,34 +70,29 @@ ENTRY(casuptr)
 	teq	r3, #0x00000000
 	beq	.Lfusupcbfault
 #endif
-	stmfd	sp!, {r4}
-	adr	r4, .Lfusufault
+	stmfd	sp!, {r4, r5}
+	adr	r4, .Lcasuptrfault
 	str	r4, [r3, #PCB_ONFAULT]
-	ldmfd	sp!, {r4}
-	ldrt	r3, [r0]
-	cmp	r3, r1
-	movne	r0, r3
-	bne	casuptr_end
-	strt	r2, [r0]
-	mov	r0, r1
-casuptr_end:
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r3, .Lcurpcb
-	ldr	r3, [r3]
-#endif
+	ldrt	r5, [r0]
+	cmp	r5, r1
+	movne	r0, r5
+	streqt	r2, [r0]
+	moveq	r0, r1
+	ldmfd	sp!, {r4, r5}
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]
 	RET
 
-	
+/*
+ * Handle faults from casuptr.  Clean up and return -1.
+ */
+
+.Lcasuptrfault:
+	mov	r0, #0x00000000
+	str	r0, [r3, #PCB_ONFAULT]
+	mvn	r0, #0x00000000
+	ldmfd	sp!, {r4, r5}
+	RET	
 /*
  * fuword(caddr_t uaddr);
  * Fetch an int from the user's address space.
