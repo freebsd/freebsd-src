@@ -49,7 +49,6 @@ struct tcb {
 	struct tcb		*tcb_self;	/* required by rtld */
 	void			*tcb_dtv;	/* required by rtld */
 	struct pthread		*tcb_thread;
-	int			tcb_ldt;
 };
 
 /*
@@ -88,14 +87,7 @@ static __inline void
 _tcb_set(struct tcb *tcb)
 {
 #ifndef COMPAT_32BIT
-	int val;
-
- 	if (_thr_using_setbase == 1) {
- 		i386_set_gsbase(tcb);
- 	} else {
-		val = (tcb->tcb_ldt << 3) | 7;
-		__asm __volatile("movl %0, %%gs" : : "r" (val));
- 	}
+ 	i386_set_gsbase(tcb);
 #else
 	_amd64_set_gsbase(tcb);
 #endif
