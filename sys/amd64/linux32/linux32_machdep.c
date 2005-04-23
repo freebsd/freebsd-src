@@ -883,36 +883,20 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 int
 linux_nanosleep(struct thread *td, struct linux_nanosleep_args *uap)
 {
-	struct timespec ats;
+	struct timespec rqt, rmt;
 	struct l_timespec ats32;
-	struct nanosleep_args bsd_args;
 	int error;
-	caddr_t sg;
-	caddr_t sarqts, sarmts;
 
-	sg = stackgap_init();
 	error = copyin(uap->rqtp, &ats32, sizeof(ats32));
 	if (error != 0)
 		return (error);
-	ats.tv_sec = ats32.tv_sec;
-	ats.tv_nsec = ats32.tv_nsec;
-	sarqts = stackgap_alloc(&sg, sizeof(ats));
-	error = copyout(&ats, sarqts, sizeof(ats));
-	if (error != 0)
-		return (error);
-	sarmts = stackgap_alloc(&sg, sizeof(ats));
-	bsd_args.rqtp = (void *)sarqts;
-	bsd_args.rmtp = (void *)sarmts;
-	error = nanosleep(td, &bsd_args);
+	rqt.tv_sec = ats32.tv_sec;
+	rqt.tv_nsec = ats32.tv_nsec;
+	error = kern_nanosleep(td, &rqt, &rmt);
 	if (uap->rmtp != NULL) {
-		error = copyin(sarmts, &ats, sizeof(ats));
-		if (error != 0)
-			return (error);
-		ats32.tv_sec = ats.tv_sec;
-		ats32.tv_nsec = ats.tv_nsec;
+		ats32.tv_sec = rmt.tv_sec;
+		ats32.tv_nsec = rmt.tv_nsec;
 		error = copyout(&ats32, uap->rmtp, sizeof(ats32));
-		if (error != 0)
-			return (error);
 	}
 	return (error);
 }
