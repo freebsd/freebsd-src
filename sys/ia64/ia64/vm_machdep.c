@@ -165,11 +165,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+	stack_t *stack)
 {
 	struct ia64_fdesc *fd;
 	struct trapframe *tf;
-	uint64_t ndirty, stack;
+	uint64_t ndirty, sp;
 
 	tf = td->td_frame;
 	ndirty = tf->tf_special.ndirty + (tf->tf_special.bspstore & 0x1ffUL);
@@ -177,13 +178,13 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	KASSERT((ndirty & ~PAGE_MASK) == 0,
 	    ("Whoa there! We have more than 8KB of dirty registers!"));
 
-	fd = ku->ku_func;
-	stack = (uint64_t)ku->ku_stack.ss_sp;
+	fd = (struct ia64_fdesc *)entry;
+	sp = (uint64_t)stack->ss_sp;
 
 	bzero(&tf->tf_special, sizeof(tf->tf_special));
 	tf->tf_special.iip = fuword(&fd->func);
 	tf->tf_special.gp = fuword(&fd->gp);
-	tf->tf_special.sp = (stack + ku->ku_stack.ss_size - 16) & ~15;
+	tf->tf_special.sp = (sp + stack->ss_size - 16) & ~15;
 	tf->tf_special.rsc = 0xf;
 	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;
 	tf->tf_special.psr = IA64_PSR_IC | IA64_PSR_I | IA64_PSR_IT |
@@ -192,20 +193,26 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 
 	if (tf->tf_flags & FRAME_SYSCALL) {
 		tf->tf_special.cfm = (3UL<<62) | (1UL<<7) | 1UL;
-		tf->tf_special.bspstore = stack + 8;
-		suword((caddr_t)stack, (uint64_t)ku->ku_mailbox);
+		tf->tf_special.bspstore = sp + 8;
+		suword((caddr_t)sp, (uint64_t)arg);
 	} else {
 		tf->tf_special.cfm = (1UL<<63) | (1UL<<7) | 1UL;
-		tf->tf_special.bspstore = stack;
+		tf->tf_special.bspstore = sp;
 		tf->tf_special.ndirty = 8;
-		stack = td->td_kstack + ndirty - 8;
-		if ((stack & 0x1ff) == 0x1f8) {
-			*(uint64_t*)stack = 0;
+		sp = td->td_kstack + ndirty - 8;
+		if ((sp & 0x1ff) == 0x1f8) {
+			*(uint64_t*)sp = 0;
 			tf->tf_special.ndirty += 8;
-			stack -= 8;
+			sp -= 8;
 		}
-		*(uint64_t*)stack = (uint64_t)ku->ku_mailbox;
+		*(uint64_t*)sp = (uint64_t)arg;
 	}
+}
+
+void
+cpu_set_user_tls(struct thread *td, void *tls_base)
+{
+	td->td_frame->tf_special.tp = (unsigned long)tls_base;
 }
 
 /*

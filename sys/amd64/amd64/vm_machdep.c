@@ -310,7 +310,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
  * in thread_userret() itself can be done as well.
  */
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+	stack_t *stack)
 {
 
 	/* 
@@ -326,18 +327,32 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	 * Set the trap frame to point at the beginning of the uts
 	 * function.
 	 */
-	td->td_frame->tf_rbp = 0; 
+	td->td_frame->tf_rbp = 0;
 	td->td_frame->tf_rsp =
-	    ((register_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size) & ~0x0f;
+	    ((register_t)stack->ss_sp + stack->ss_size) & ~0x0f;
 	td->td_frame->tf_rsp -= 8;
 	td->td_frame->tf_rbp = 0;
-	td->td_frame->tf_rip = (register_t)ku->ku_func;
+	td->td_frame->tf_rip = (register_t)entry;
 
 	/*
 	 * Pass the address of the mailbox for this kse to the uts
 	 * function as a parameter on the stack.
 	 */
-	td->td_frame->tf_rdi = (register_t)ku->ku_mailbox;
+	td->td_frame->tf_rdi = (register_t)arg;
+}
+
+void
+cpu_set_user_tls(struct thread *td, void *tls_base)
+{
+
+	if (td == curthread) {
+		critical_enter();
+		td->td_pcb->pcb_fsbase = (register_t)tls_base;
+		wrmsr(MSR_FSBASE, td->td_pcb->pcb_fsbase);
+		critical_exit();
+	} else {
+		td->td_pcb->pcb_fsbase = (register_t)tls_base;
+	}
 }
 
 #ifdef SMP
