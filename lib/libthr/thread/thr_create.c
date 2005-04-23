@@ -53,9 +53,8 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	ucontext_t uc;
-	sigset_t sigmask, oldsigmask;
 	struct pthread *curthread, *new_thread;
+	struct thr_param param;
 	int ret = 0, locked;
 
 	_thr_check_init();
@@ -69,6 +68,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	curthread = _get_curthread();
 	if ((new_thread = _thr_alloc(curthread)) == NULL)
 		return (EAGAIN);
+
+	memset(&param, 0, sizeof(param));
 
 	if (attr == NULL || *attr == NULL)
 		/* Use the default thread attributes: */
@@ -108,12 +109,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->arg = arg;
 	new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
 	    PTHREAD_CANCEL_DEFERRED;
-	getcontext(&uc);
-	SIGFILLSET(uc.uc_sigmask);
-	uc.uc_stack.ss_sp = new_thread->attr.stackaddr_attr;
-	uc.uc_stack.ss_size = new_thread->attr.stacksize_attr;
-	makecontext(&uc, (void (*)(void))thread_start, 1, new_thread);
-
 	/*
 	 * Check if this thread is to inherit the scheduling
 	 * attributes from its parent:
@@ -146,15 +141,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
 		new_thread->flags = THR_FLAGS_SUSPENDED;
 	new_thread->state = PS_RUNNING;
-	/*
-	 * Thread created by thr_create() inherits currrent thread
-	 * sigmask, however, before new thread setup itself correctly,
-	 * it can not handle signal, so we should masks all signals here.
-	 */
-	SIGFILLSET(sigmask);
-	SIGDELSET(sigmask, SIGTRAP);
-	__sys_sigprocmask(SIG_SETMASK, &sigmask, &oldsigmask);
-	new_thread->sigmask = oldsigmask;
+
 	/* Add the new thread. */
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
@@ -164,9 +151,19 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		locked = 1;
 	} else
 		locked = 0;
+	param.start_func = (void (*)(void *)) thread_start;
+	param.arg = new_thread;
+	param.stack_base = new_thread->attr.stackaddr_attr;
+	param.stack_size = new_thread->attr.stacksize_attr;
+	param.tls_base = (char *)new_thread->tcb;
+	param.tls_size = sizeof(struct tcb);
+	param.child_tid = &new_thread->tid;
+	param.parent_tid = &new_thread->tid;
+	param.flags = 0;
+	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		param.flags |= THR_SYSTEM_SCOPE;
 	/* Schedule the new thread. */
-	ret = thr_create(&uc, &new_thread->tid, 0);
-	__sys_sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
+	ret = thr_new(&param, sizeof(param));
 	if (ret != 0) {
 		if (locked)
 			THR_THREAD_UNLOCK(curthread, new_thread);
@@ -219,11 +216,6 @@ free_stack(struct pthread *curthread, struct pthread_attr *pattr)
 static void
 thread_start(struct pthread *curthread)
 {
-	_tcb_set(curthread->tcb);
-
-	/* Thread was created with all signals blocked, unblock them. */
-	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-
 	if (curthread->flags & THR_FLAGS_NEED_SUSPEND)
 		_thr_suspend_check(curthread);
 
