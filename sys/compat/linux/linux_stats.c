@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
@@ -103,7 +104,6 @@ int
 linux_newstat(struct thread *td, struct linux_newstat_args *args)
 {
 	struct stat buf;
-	struct nameidata nd;
 	char *path;
 	int error;
 
@@ -114,28 +114,19 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 		printf(ARGS(newstat, "%s, *"), path);
 #endif
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, path, td);
-	error = namei(&nd);
+	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
 	LFREEPATH(path);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	error = vn_stat(nd.ni_vp, &buf, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
-	if (error)
-		return (error);
-
 	return (newstat_copyout(&buf, args->buf));
 }
 
 int
 linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 {
-	int error;
 	struct stat sb;
-	struct nameidata nd;
 	char *path;
+	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -144,26 +135,16 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 		printf(ARGS(newlstat, "%s, *"), path);
 #endif
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, path,
-	    td);
-	error = namei(&nd);
+	error = kern_lstat(td, path, UIO_SYSSPACE, &sb);
 	LFREEPATH(path);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
-	if (error)
-		return (error);
-
 	return (newstat_copyout(&sb, args->buf));
 }
 
 int
 linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 {
-	struct file *fp;
 	struct stat buf;
 	int error;
 
@@ -172,11 +153,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 		printf(ARGS(newfstat, "%d, *"), args->fd);
 #endif
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
-		return (error);
-
-	error = fo_stat(fp, &buf, td->td_ucred, td);
-	fdrop(fp, td);
+	error = kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
@@ -232,14 +209,33 @@ bsd_to_linux_ftype(const char *fstypename)
 	return (0L);
 }
 
+static void
+bsd_to_linux_statfs(struct thread *td, struct statfs *bsd_statfs,
+    struct l_statfs *linux_statfs)
+{
+
+	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
+	linux_statfs->f_bsize = bsd_statfs->f_bsize;
+	linux_statfs->f_blocks = bsd_statfs->f_blocks;
+	linux_statfs->f_bfree = bsd_statfs->f_bfree;
+	linux_statfs->f_bavail = bsd_statfs->f_bavail;
+	linux_statfs->f_ffree = bsd_statfs->f_ffree;
+	linux_statfs->f_files = bsd_statfs->f_files;
+	if (suser(td)) {
+		linux_statfs->f_fsid.val[0] = 0;
+		linux_statfs->f_fsid.val[1] = 0;
+	} else {
+		linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+		linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
+	}
+	linux_statfs->f_namelen = MAXNAMLEN;
+}
+
 int
 linux_statfs(struct thread *td, struct linux_statfs_args *args)
 {
-	struct mount *mp;
-	struct nameidata *ndp;
-	struct statfs *bsd_statfs;
-	struct nameidata nd;
 	struct l_statfs linux_statfs;
+	struct statfs bsd_statfs;
 	char *path;
 	int error;
 
@@ -249,92 +245,30 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (ldebug(statfs))
 		printf(ARGS(statfs, "%s, *"), path);
 #endif
-	ndp = &nd;
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
-	error = namei(ndp);
+	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
 	LFREEPATH(path);
 	if (error)
-		return error;
-	NDFREE(ndp, NDF_ONLY_PNBUF);
-	mp = ndp->ni_vp->v_mount;
-	bsd_statfs = &mp->mnt_stat;
-	vrele(ndp->ni_vp);
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error)
 		return (error);
-#endif
-	error = VFS_STATFS(mp, bsd_statfs, td);
-	if (error)
-		return error;
-	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
-	linux_statfs.f_bsize = bsd_statfs->f_bsize;
-	linux_statfs.f_blocks = bsd_statfs->f_blocks;
-	linux_statfs.f_bfree = bsd_statfs->f_bfree;
-	linux_statfs.f_bavail = bsd_statfs->f_bavail;
-	linux_statfs.f_ffree = bsd_statfs->f_ffree;
-	linux_statfs.f_files = bsd_statfs->f_files;
-	if (suser(td)) {
-		linux_statfs.f_fsid.val[0] = 0;
-		linux_statfs.f_fsid.val[1] = 0;
-	} else {
-		linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
-		linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
-	}
-	linux_statfs.f_namelen = MAXNAMLEN;
+	bsd_to_linux_statfs(td, &bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
 int
 linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 {
-	struct file *fp;
-	struct mount *mp;
-	struct statfs *bsd_statfs;
 	struct l_statfs linux_statfs;
+	struct statfs bsd_statfs;
 	int error;
 
 #ifdef DEBUG
 	if (ldebug(fstatfs))
 		printf(ARGS(fstatfs, "%d, *"), args->fd);
 #endif
-	error = getvnode(td->td_proc->p_fd, args->fd, &fp);
+	error = kern_fstatfs(td, args->fd, &bsd_statfs);
 	if (error)
 		return error;
-	mp = fp->f_vnode->v_mount;
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		fdrop(fp, td);
-		return (error);
-	}
-#endif
-	bsd_statfs = &mp->mnt_stat;
-	error = VFS_STATFS(mp, bsd_statfs, td);
-	if (error) {
-		fdrop(fp, td);
-		return error;
-	}
-	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
-	linux_statfs.f_bsize = bsd_statfs->f_bsize;
-	linux_statfs.f_blocks = bsd_statfs->f_blocks;
-	linux_statfs.f_bfree = bsd_statfs->f_bfree;
-	linux_statfs.f_bavail = bsd_statfs->f_bavail;
-	linux_statfs.f_ffree = bsd_statfs->f_ffree;
-	linux_statfs.f_files = bsd_statfs->f_files;
-	if (suser(td)) {
-		linux_statfs.f_fsid.val[0] = 0;
-		linux_statfs.f_fsid.val[1] = 0;
-	} else {
-		linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
-		linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
-	}
-	linux_statfs.f_namelen = MAXNAMLEN;
-	error = copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
-	fdrop(fp, td);
-	return error;
+	bsd_to_linux_statfs(td, &bsd_statfs, &linux_statfs);
+	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
 struct l_ustat
@@ -455,9 +389,8 @@ int
 linux_stat64(struct thread *td, struct linux_stat64_args *args)
 {
 	struct stat buf;
-	struct nameidata nd;
-	int error;
 	char *filename;
+	int error;
 
 	LCONVPATHEXIST(td, args->filename, &filename);
 
@@ -466,29 +399,19 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 		printf(ARGS(stat64, "%s, *"), filename);
 #endif
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, filename,
-	    td);
-	error = namei(&nd);
+	error = kern_stat(td, filename, UIO_SYSSPACE, &buf);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	error = vn_stat(nd.ni_vp, &buf, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
-	if (error)
-		return (error);
-
 	return (stat64_copyout(&buf, args->statbuf));
 }
 
 int
 linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 {
-	int error;
 	struct stat sb;
-	struct nameidata nd;
 	char *filename;
+	int error;
 
 	LCONVPATHEXIST(td, args->filename, &filename);
 
@@ -497,27 +420,16 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 		printf(ARGS(lstat64, "%s, *"), args->filename);
 #endif
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, filename,
-	    td);
-	error = namei(&nd);
+	error = kern_lstat(td, filename, UIO_SYSSPACE, &sb);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
-	if (error)
-		return (error);
-
 	return (stat64_copyout(&sb, args->statbuf));
 }
 
 int
 linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 {
-	struct filedesc *fdp;
-	struct file *fp;
 	struct stat buf;
 	int error;
 
@@ -526,12 +438,7 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 		printf(ARGS(fstat64, "%d, *"), args->fd);
 #endif
 
-	fdp = td->td_proc->p_fd;
-	if ((unsigned)args->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
-		return (EBADF);
-
-	error = fo_stat(fp, &buf, td->td_ucred, td);
+	error = kern_fstat(td, args->fd, &buf);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
 
