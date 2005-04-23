@@ -89,6 +89,8 @@ int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
 int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags, int mode);
+int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
+	    int name);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 	    int data);
 int	kern_readlink(struct thread *td, char *path, enum uio_seg pathseg,
