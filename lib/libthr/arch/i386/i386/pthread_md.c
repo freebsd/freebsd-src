@@ -101,3 +101,17 @@ _tcb_dtor(struct tcb *tcb)
 #endif
 	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }
+
+int
+i386_get_gsbase(void **addr)
+{
+
+	return (sysarch(I386_GET_GSBASE, addr));
+}
+
+int
+i386_set_gsbase(void *addr)
+{
+
+	return (sysarch(I386_SET_GSBASE, &addr));
+}
