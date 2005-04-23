@@ -645,5 +645,7 @@
 453	MNOSTD	{ int auditctl(int cmd, char *path); }
 454	MSTD	{ int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr,\
 		    void *uaddr2); }
+455	MSTD	{ int thr_new(struct thr_param *param, int param_size); }
+
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
