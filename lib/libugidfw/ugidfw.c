@@ -46,7 +46,7 @@
 #include "ugidfw.h"
 
 /*
- * Text format for rules: rules contain subjectand object elements, mode.
+ * Text format for rules: rules contain subject and object elements, mode.
  * Each element takes the form "[not] [uid number] [gid number]".
  * The total form is "subject [element] object [element] mode [mode]".
  * At least * one of a uid or gid entry must be present; both may also be
@@ -281,7 +281,7 @@ bsde_parse_identity(int argc, char *argv[],
 	gid_seen = 0;
 	gid = 0;
 
-	/* First phrase: uid [uid] or gid[gid]. */
+	/* First phrase: uid [uid] or gid [gid]. */
 	if (strcmp("uid", argv[current]) == 0) {
 		if (current + 2 > argc) {
 			len = snprintf(errstr, buflen, "uid short");
