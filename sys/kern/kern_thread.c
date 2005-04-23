@@ -258,6 +258,8 @@ ksegrp_unlink(struct ksegrp *kg)
 	/*
 	 * Aggregate stats from the KSE
 	 */
+	if (p->p_procscopegrp == kg)
+		p->p_procscopegrp = NULL;
 }
 
 /*
@@ -990,6 +992,7 @@ thread_single_end(void)
 	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY);
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = NULL;
+	p->p_procscopegrp = NULL;
 	/*
 	 * If there are other threads they mey now run,
 	 * unless of course there is a blanket 'stop order'

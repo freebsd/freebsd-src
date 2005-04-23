@@ -333,23 +333,31 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+	stack_t *stack)
 {
         struct trapframe *tf;
         uint32_t sp;
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
-        sp = ((uint32_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size
+        sp = ((uint32_t)stack->ss_sp + stack->ss_size
 		- 2*sizeof(u_int32_t)) & ~0x1f;
 	bzero(tf, sizeof(struct trapframe));
 
 	tf->fixreg[1] = (register_t)sp;
-        tf->fixreg[3] = (register_t)ku->ku_mailbox;
-        tf->srr0 = (register_t)ku->ku_func;
+        tf->fixreg[3] = (register_t)arg;
+        tf->srr0 = (register_t)entry;
         tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
         td->td_pcb->pcb_flags = 0;
 
-        td->td_retval[0] = (register_t)ku->ku_func;
+        td->td_retval[0] = (register_t)entry;
         td->td_retval[1] = 0;
+}
+
+void
+cpu_set_user_tls(struct thread *td, void *tls_base)
+{
+
+	td->td_frame->fixreg[2] = (register_t)tls_base;
 }
