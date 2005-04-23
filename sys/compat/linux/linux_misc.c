@@ -186,8 +186,7 @@ int
 linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
-	struct timeval tv;
-	struct proc *p;
+	int error;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
@@ -195,32 +194,21 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 #endif
 
 	if (args->secs > 100000000)
-		return EINVAL;
+		return (EINVAL);
 
 	it.it_value.tv_sec = (long)args->secs;
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
-	p = td->td_proc;
-	PROC_LOCK(p);
-	old_it = p->p_realtimer;
-	getmicrouptime(&tv);
-	if (timevalisset(&old_it.it_value))
-		callout_stop(&p->p_itcallout);
-	if (it.it_value.tv_sec != 0) {
-		callout_reset(&p->p_itcallout, tvtohz(&it.it_value),
-		    realitexpire, p);
-		timevaladd(&it.it_value, &tv);
-	}
-	p->p_realtimer = it;
-	PROC_UNLOCK(p);
-	if (timevalcmp(&old_it.it_value, &tv, >)) {
-		timevalsub(&old_it.it_value, &tv);
+	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
+	if (error)
+		return (error);
+	if (timevalisset(&old_it.it_value)) {		
 		if (old_it.it_value.tv_usec != 0)
 			old_it.it_value.tv_sec++;
 		td->td_retval[0] = old_it.it_value.tv_sec;
 	}
-	return 0;
+	return (0);
 }
 #endif /*!__alpha__*/
 
