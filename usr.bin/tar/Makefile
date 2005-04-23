@@ -37,8 +37,8 @@ distfile:
 	cat ${.CURDIR}/configure.ac.in |			\
 		sed 's/@VERSION@/${VERSION}/' |			\
 		cat > ${DIST_BUILD_DIR}/configure.ac
-	(cd ${DIST_BUILD_DIR} && aclocal19 && autoheader259 && autoconf259 )
-	(cd ${DIST_BUILD_DIR} && automake19 -a --foreign)
+	(cd ${DIST_BUILD_DIR} && aclocal && autoheader && autoconf )
+	(cd ${DIST_BUILD_DIR} && automake -a --foreign)
 	(cd ${DIST_BUILD_DIR} && ./configure && make distcheck && make dist)
 	mv ${DIST_BUILD_DIR}/${DISTFILE} ${.OBJDIR}
 	@echo ==================================================
