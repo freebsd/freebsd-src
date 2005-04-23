@@ -434,99 +434,63 @@ CTASSERT(sizeof(struct itimerval32) == 16);
 int
 freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {
+	struct itimerval itv, oitv, *itvp;	
+	struct itimerval32 i32;
 	int error;
-	caddr_t sg;
-	struct itimerval32 *p32, *op32, s32;
-	struct itimerval *p = NULL, *op = NULL, s;
 
-	p32 = uap->itv;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->itv = (struct itimerval32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->itv != NULL) {
+		error = copyin(uap->itv, &i32, sizeof(i32));
 		if (error)
 			return (error);
-		TV_CP(s32, s, it_interval);
-		TV_CP(s32, s, it_value);
-		error = copyout(&s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
-	op32 = uap->oitv;
-	if (op32) {
-		sg = stackgap_init();
-		op = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->oitv = (struct itimerval32 *)op;
-	}
-	error = setitimer(td, (struct setitimer_args *) uap);
-	if (error)
+		TV_CP(i32, itv, it_interval);
+		TV_CP(i32, itv, it_value);
+		itvp = &itv;
+	} else
+		itvp = NULL;
+	error = kern_setitimer(td, uap->which, itvp, &oitv);
+	if (error || uap->oitv == NULL)
 		return (error);
-	if (op32) {
-		error = copyin(op, &s, sizeof(s));
-		if (error)
-			return (error);
-		TV_CP(s, s32, it_interval);
-		TV_CP(s, s32, it_value);
-		error = copyout(&s32, op32, sizeof(s32));
-	}
-	return (error);
+	TV_CP(oitv, i32, it_interval);
+	TV_CP(oitv, i32, it_value);
+	return (copyout(&i32, uap->oitv, sizeof(i32)));
 }
 
 int
 freebsd32_getitimer(struct thread *td, struct freebsd32_getitimer_args *uap)
 {
+	struct itimerval itv;
+	struct itimerval32 i32;
 	int error;
-	caddr_t sg;
-	struct itimerval32 *p32, s32;
-	struct itimerval *p = NULL, s;
 
-	p32 = uap->itv;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->itv = (struct itimerval32 *)p;
-	}
-	error = getitimer(td, (struct getitimer_args *) uap);
-	if (error)
+	error = kern_getitimer(td, uap->which, &itv);
+	if (error || uap->itv == NULL)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		TV_CP(s, s32, it_interval);
-		TV_CP(s, s32, it_value);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
-	return (error);
+	TV_CP(itv, i32, it_interval);
+	TV_CP(itv, i32, it_value);
+	return (copyout(&i32, uap->itv, sizeof(i32)));
 }
 
 int
 freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 {
+	struct timeval32 tv32;
+	struct timeval tv, *tvp;
 	int error;
-	caddr_t sg;
-	struct timeval32 *p32, s32;
-	struct timeval *p = NULL, s;
 
-	p32 = uap->tv;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tv = (struct timeval32 *)p;
-		error = copyin(p32, &s32, sizeof(s32));
+	if (uap->tv != NULL) {
+		error = copyin(uap->tv, &tv32, sizeof(tv32));
 		if (error)
 			return (error);
-		CP(s32, s, tv_sec);
-		CP(s32, s, tv_usec);
-		error = copyout(&s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
+		CP(tv32, tv, tv_sec);
+		CP(tv32, tv, tv_usec);
+		tvp = &tv;
+	} else
+		tvp = NULL;
 	/*
 	 * XXX big-endian needs to convert the fd_sets too.
+	 * XXX Do pointers need PTRIN()?
 	 */
-	return (select(td, (struct select_args *) uap));
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
 }
 
 struct kevent32 {
@@ -780,28 +744,22 @@ freebsd32_settimeofday(struct thread *td,
 int
 freebsd32_utimes(struct thread *td, struct freebsd32_utimes_args *uap)
 {
+	struct timeval32 s32[2];
+	struct timeval s[2], *sp;
 	int error;
-	caddr_t sg;
-	struct timeval32 *p32, s32[2];
-	struct timeval *p = NULL, s[2];
 
-	p32 = uap->tptr;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, 2*sizeof(struct timeval));
-		uap->tptr = (struct timeval32 *)p;
-		error = copyin(p32, s32, sizeof(s32));
+	if (uap->tptr != NULL) {
+		error = copyin(uap->tptr, s32, sizeof(s32));
 		if (error)
 			return (error);
 		CP(s32[0], s[0], tv_sec);
 		CP(s32[0], s[0], tv_usec);
 		CP(s32[1], s[1], tv_sec);
 		CP(s32[1], s[1], tv_usec);
-		error = copyout(s, p, sizeof(s));
-		if (error)
-			return (error);
-	}
-	return (utimes(td, (struct utimes_args *) uap));
+		sp = s;
+	} else
+		sp = NULL;
+	return (kern_utimes(td, uap->path, UIO_USERSPACE, sp, UIO_SYSSPACE));
 }
 
 int
@@ -833,28 +791,15 @@ freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 int
 freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_args *uap)
 {
+	struct statfs32 s32;
+	struct statfs s;
 	int error;
-	caddr_t sg;
-	struct statfs32 *p32, s32;
-	struct statfs *p = NULL, s;
 
-	p32 = uap->buf;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct statfs));
-		uap->buf = (struct statfs32 *)p;
-	}
-	error = statfs(td, (struct statfs_args *) uap);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, &s);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_statfs(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
-	return (error);
+	copy_statfs(&s, &s32);
+	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
 
@@ -862,28 +807,15 @@ freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_ar
 int
 freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_args *uap)
 {
+	struct statfs32 s32;
+	struct statfs s;
 	int error;
-	caddr_t sg;
-	struct statfs32 *p32, s32;
-	struct statfs *p = NULL, s;
 
-	p32 = uap->buf;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct statfs));
-		uap->buf = (struct statfs32 *)p;
-	}
-	error = fstatfs(td, (struct fstatfs_args *) uap);
+	error = kern_fstatfs(td, uap->fd, &s);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_statfs(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
-	return (error);
+	copy_statfs(&s, &s32);
+	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
 
@@ -891,28 +823,18 @@ freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_
 int
 freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatfs_args *uap)
 {
+	struct statfs32 s32;
+	struct statfs s;
+	fhandle_t fh;
 	int error;
-	caddr_t sg;
-	struct statfs32 *p32, s32;
-	struct statfs *p = NULL, s;
 
-	p32 = uap->buf;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct statfs));
-		uap->buf = (struct statfs32 *)p;
-	}
-	error = fhstatfs(td, (struct fhstatfs_args *) uap);
+	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
+		return (error);
+	error = kern_fhstatfs(td, fh, &s);
 	if (error)
 		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		copy_statfs(&s, &s32);
-		error = copyout(&s32, p32, sizeof(s32));
-	}
-	return (error);
+	copy_statfs(&s, &s32);
+	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
 
@@ -1088,20 +1010,8 @@ freebsd32_stat(struct thread *td, struct freebsd32_stat_args *uap)
 	struct stat sb;
 	struct stat32 sb32;
 	int error;
-	struct nameidata nd;
 
-#ifdef LOOKUP_SHARED
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
-	    UIO_USERSPACE, uap->path, td);
-#else
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-#endif
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_vp);
+	error = kern_stat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	copy_stat(&sb, &sb32);
@@ -1112,17 +1022,11 @@ freebsd32_stat(struct thread *td, struct freebsd32_stat_args *uap)
 int
 freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 {
-	struct file *fp;
 	struct stat ub;
 	struct stat32 ub32;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		return (error);
-	mtx_lock(&Giant);
-	error = fo_stat(fp, &ub, td->td_ucred, td);
-	mtx_unlock(&Giant);
-	fdrop(fp, td);
+	error = kern_fstat(td, uap->fd, &ub);
 	if (error)
 		return (error);
 	copy_stat(&ub, &ub32);
@@ -1133,20 +1037,11 @@ freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 int
 freebsd32_lstat(struct thread *td, struct freebsd32_lstat_args *uap)
 {
-	int error;
-	struct vnode *vp;
 	struct stat sb;
 	struct stat32 sb32;
-	struct nameidata nd;
+	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	vp = nd.ni_vp;
-	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(vp);
+	error = kern_lstat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	copy_stat(&sb, &sb32);
