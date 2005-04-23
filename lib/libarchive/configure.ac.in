@@ -12,6 +12,9 @@ AC_PROG_RANLIB
 AC_CHECK_TOOL([STRIP],[strip])
 
 # Checks for libraries.
+# Since libarchive is a library, we don't need this for linkage,
+# but we do need it for later ACL function tests.
+AC_CHECK_LIB(acl,acl_set_file)
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -69,6 +72,7 @@ AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_STAT
 AC_FUNC_STRERROR_R
+AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_file])
 AC_CHECK_FUNCS([chflags fchdir lchmod lchown lutimes memmove])
 AC_CHECK_FUNCS([memset mkdir mkfifo strchr strdup strerror strrchr])
 
