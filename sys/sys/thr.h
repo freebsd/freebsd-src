@@ -30,7 +30,23 @@
 #ifndef _SYS_THR_H_
 #define	_SYS_THR_H_
 
-#define	THR_SUSPENDED	0x0001	/* Create the thread in the suspended state. */
+/* Create the thread in the suspended state. */
+#define	THR_SUSPENDED		0x0001
+/* Create the system scope thread. */
+#define	THR_SYSTEM_SCOPE	0x0002
+
+struct thr_param {
+    void	(*start_func)(void *);	/* thread entry function. */
+    void	*arg;			/* argument for entry function. */
+    char	*stack_base;		/* stack base address. */
+    size_t	stack_size;		/* stack size. */
+    char	*tls_base;		/* tls base address. */
+    size_t	tls_size;		/* tls size. */
+    long	*child_tid;		/* address to store new TID. */
+    long	*parent_tid;		/* parent accesses the new TID here. */
+    int		flags;			/* thread flags. */
+    void	*spare[4];		/* TODO: cpu affinity mask etc. */
+};
 
 /* 
  * See pthread_*
@@ -38,6 +54,7 @@
 #ifndef _KERNEL
 
 int thr_create(ucontext_t *ctx, long *id, int flags);
+int thr_new(struct thr_param *param, int param_size);
 int thr_self(long *id);
 void thr_exit(long *state);
 int thr_kill(long id, int sig);

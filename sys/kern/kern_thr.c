@@ -49,13 +49,20 @@ extern int max_threads_per_proc;
 extern int max_groups_per_proc;
 
 SYSCTL_DECL(_kern_threads);
-static int thr_scope_sys = 0;
-SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope_sys, CTLFLAG_RW,
-	&thr_scope_sys, 0, "sys or proc scope scheduling");
+static int thr_scope = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope, CTLFLAG_RW,
+	&thr_scope, 0, "sys or proc scope scheduling");
 
 static int thr_concurrency = 0;
 SYSCTL_INT(_kern_threads, OID_AUTO, thr_concurrency, CTLFLAG_RW,
 	&thr_concurrency, 0, "a concurrency value if not default");
+
+static int create_thread(struct thread *td, mcontext_t *ctx,
+			 void (*start_func)(void *), void *arg,
+			 char *stack_base, size_t stack_size,
+			 char *tls_base,
+			 long *child_tid, long *parent_tid,
+			 int flags);
 
 /*
  * System call interface.
@@ -64,103 +71,179 @@ int
 thr_create(struct thread *td, struct thr_create_args *uap)
     /* ucontext_t *ctx, long *id, int flags */
 {
-	struct thread *newtd;
 	ucontext_t ctx;
-	long id;
 	int error;
-	struct ksegrp *kg, *newkg;
-	struct proc *p;
-	int scope_sys;
 
-	p = td->td_proc;
-	kg = td->td_ksegrp;
 	if ((error = copyin(uap->ctx, &ctx, sizeof(ctx))))
 		return (error);
 
-	/* Have race condition but it is cheap */
+	error = create_thread(td, &ctx.uc_mcontext, NULL, NULL,
+		NULL, 0, NULL, uap->id, NULL, uap->flags);
+	return (error);
+}
+
+int
+thr_new(struct thread *td, struct thr_new_args *uap)
+    /* struct thr_param * */
+{
+	struct thr_param param;
+	int error;
+
+	if (uap->param_size < sizeof(param))
+		return (EINVAL);
+	if ((error = copyin(uap->param, &param, sizeof(param))))
+		return (error);
+	error = create_thread(td, NULL, param.start_func, param.arg,
+		param.stack_base, param.stack_size, param.tls_base,
+		param.child_tid, param.parent_tid, param.flags);
+	return (error);
+}
+
+static int
+create_thread(struct thread *td, mcontext_t *ctx,
+	    void (*start_func)(void *), void *arg,
+	    char *stack_base, size_t stack_size,
+	    char *tls_base,
+	    long *child_tid, long *parent_tid,
+	    int flags)
+{
+	stack_t stack;
+	struct thread *newtd;
+	struct ksegrp *kg, *newkg;
+	struct proc *p;
+	long id;
+	int error, scope_sys, linkkg;
+
+	error = 0;
+	p = td->td_proc;
+	kg = td->td_ksegrp;
+
+	/* Have race condition but it is cheap. */
 	if ((p->p_numksegrps >= max_groups_per_proc) ||
 	    (p->p_numthreads >= max_threads_per_proc)) {
 		return (EPROCLIM);
 	}
 
-	scope_sys = thr_scope_sys;
+	/* Check PTHREAD_SCOPE_SYSTEM */
+	scope_sys = (flags & THR_SYSTEM_SCOPE) != 0;
+
+	/* sysctl overrides user's flag */
+	if (thr_scope == 1)
+		scope_sys = 0;
+	else if (thr_scope == 2)
+		scope_sys = 1;
+
 	/* Initialize our td and new ksegrp.. */
 	newtd = thread_alloc();
-	if (scope_sys)
-		newkg = ksegrp_alloc();
-	else
-		newkg = kg;
+
 	/*
-	 * Try the copyout as soon as we allocate the td so we don't have to
-	 * tear things down in a failure case below.
+	 * Try the copyout as soon as we allocate the td so we don't
+	 * have to tear things down in a failure case below.
+	 * Here we copy out tid to two places, one for child and one
+	 * for parent, because pthread can create a detached thread,
+	 * if parent wants to safely access child tid, it has to provide 
+	 * its storage, because child thread may exit quickly and
+	 * memory is freed before parent thread can access it.
 	 */
 	id = newtd->td_tid;
-	if ((error = copyout(&id, uap->id, sizeof(long)))) {
-		if (scope_sys)
-			ksegrp_free(newkg);
-		thread_free(newtd);
+	if ((child_tid != NULL &&
+	    (error = copyout(&id, child_tid, sizeof(long)))) ||
+	    (parent_tid != NULL &&
+	    (error = copyout(&id, parent_tid, sizeof(long))))) {
+	    	thread_free(newtd);
 		return (error);
 	}
-
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	newtd->td_proc = td->td_proc;
+	newtd->td_ucred = crhold(td->td_ucred);
 
+	cpu_set_upcall(newtd, td);
+
+	if (ctx != NULL) { /* old way to set user context */
+		error = set_mcontext(newtd, ctx);
+		if (error != 0) {
+			thread_free(newtd);
+			crfree(td->td_ucred);
+			return (error);
+		}
+	} else {
+		/* Set up our machine context. */
+		stack.ss_sp = stack_base;
+		stack.ss_size = stack_size;
+		/* Set upcall address to user thread entry function. */
+		cpu_set_upcall_kse(newtd, start_func, arg, &stack);
+		/* Setup user TLS address and TLS pointer register. */
+		cpu_set_user_tls(newtd, tls_base);
+	}
+
+	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
+		/* Treat initial thread as it has PTHREAD_SCOPE_PROCESS. */
+		p->p_procscopegrp = kg;
+		mtx_lock_spin(&sched_lock);
+		sched_set_concurrency(kg,
+		    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
+		mtx_unlock_spin(&sched_lock);
+	}
+
+	linkkg = 0;
 	if (scope_sys) {
+		linkkg = 1;
+		newkg = ksegrp_alloc();
 		bzero(&newkg->kg_startzero,
 		    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
 		    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
-	}
-
-	newtd->td_proc = td->td_proc;
-	newtd->td_ucred = crhold(td->td_ucred);
-
-	/* Set up our machine context. */
-	cpu_set_upcall(newtd, td);
-	error = set_mcontext(newtd, &ctx.uc_mcontext);
-	if (error != 0) {
-		if (scope_sys)
-			ksegrp_free(newkg);
-		thread_free(newtd);
-		crfree(td->td_ucred);
-		goto out;
-	}
-
-	/* Link the thread and kse into the ksegrp and make it runnable. */
-	PROC_LOCK(td->td_proc);
-	if (scope_sys) {
-			sched_init_concurrency(newkg);
+		sched_init_concurrency(newkg);
+		PROC_LOCK(td->td_proc);
 	} else {
-		if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
-			sched_set_concurrency(kg,
-			    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
+		/*
+		 * Try to create a KSE group which will be shared
+		 * by all PTHREAD_SCOPE_PROCESS threads.
+		 */
+retry:
+		PROC_LOCK(td->td_proc);
+		if ((newkg = p->p_procscopegrp) == NULL) {
+			PROC_UNLOCK(p);
+			newkg = ksegrp_alloc();
+			bzero(&newkg->kg_startzero,
+			    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
+			bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
+			    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
+			PROC_LOCK(p);
+			if (p->p_procscopegrp == NULL) {
+				p->p_procscopegrp = newkg;
+				sched_init_concurrency(newkg);
+				sched_set_concurrency(newkg,
+				    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
+				linkkg = 1;
+			} else {
+				PROC_UNLOCK(p);
+				ksegrp_free(newkg);
+				goto retry;
+			}
 		}
 	}
-			
-	td->td_proc->p_flag |= P_HADTHREADS; 
+
+	td->td_proc->p_flag |= P_HADTHREADS;
 	newtd->td_sigmask = td->td_sigmask;
 	mtx_lock_spin(&sched_lock);
-	if (scope_sys)
+	if (linkkg)
 		ksegrp_link(newkg, p);
 	thread_link(newtd, newkg);
-	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 
 	/* let the scheduler know about these things. */
-	mtx_lock_spin(&sched_lock);
-	if (scope_sys)
+	if (linkkg)
 		sched_fork_ksegrp(td, newkg);
 	sched_fork_thread(td, newtd);
-
 	TD_SET_CAN_RUN(newtd);
-	if ((uap->flags & THR_SUSPENDED) == 0)
+	/* if ((flags & THR_SUSPENDED) == 0) */
 		setrunqueue(newtd, SRQ_BORING);
-
 	mtx_unlock_spin(&sched_lock);
 
-out:
 	return (error);
 }
 
