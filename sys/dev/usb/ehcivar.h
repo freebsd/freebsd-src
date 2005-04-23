@@ -1,7 +1,7 @@
 /*	$NetBSD: ehcivar.h,v 1.12 2001/12/31 12:16:57 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
-/*
+/*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -65,10 +65,14 @@ struct ehci_xfer {
 	LIST_ENTRY(ehci_xfer) inext; /* list of active xfers */
 	ehci_soft_qtd_t *sqtdstart;
 	ehci_soft_qtd_t *sqtdend;
+	u_int32_t ehci_xfer_flags;
 #ifdef DIAGNOSTIC
 	int isdone;
 #endif
 };
+#define EHCI_XFER_ABORTING	0x0001	/* xfer is aborting. */
+#define EHCI_XFER_ABORTWAIT	0x0002	/* abort completion is being awaited. */
+
 #define EXFER(xfer) ((struct ehci_xfer *)(xfer))
 
 /*
@@ -148,8 +152,9 @@ typedef struct ehci_softc {
 
 	usb_callout_t sc_tmo_pcd;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;		/* /dev/usb# device */
-
+#endif
 	char sc_dying;
 } ehci_softc_t;
 

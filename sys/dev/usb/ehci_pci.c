@@ -80,22 +80,80 @@ __FBSDID("$FreeBSD$");
 #define PCI_EHCI_VENDORID_AMD		0x1022
 #define PCI_EHCI_VENDORID_APPLE		0x106b
 #define PCI_EHCI_VENDORID_CMDTECH	0x1095
+#define PCI_EHCI_VENDORID_INTEL		0x8086
 #define PCI_EHCI_VENDORID_NEC		0x1033
 #define PCI_EHCI_VENDORID_OPTI		0x1045
 #define PCI_EHCI_VENDORID_SIS		0x1039
 #define PCI_EHCI_VENDORID_NVIDIA	0x12D2
 #define PCI_EHCI_VENDORID_NVIDIA2	0x10DE
+#define PCI_EHCI_VENDORID_VIA		0x1106
 
 #define PCI_EHCI_DEVICEID_NEC		0x00e01033
 static const char *ehci_device_nec = "NEC uPD 720100 USB 2.0 controller";
+
+#define PCI_EHCI_DEVICEID_VIA		0x31041106
+static const char *ehci_device_via = "VIA VT6202 USB 2.0 controller";
 
 static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
 #define PCI_EHCI_BASE_REG	0x10
 
+#ifdef USB_DEBUG
+#define EHCI_DEBUG USB_DEBUG
+#define DPRINTF(x)	do { if (ehcidebug) logprintf x; } while (0)
+extern int ehcidebug;
+#else
+#define DPRINTF(x)
+#endif
 
 static int ehci_pci_attach(device_t self);
 static int ehci_pci_detach(device_t self);
+static int ehci_pci_shutdown(device_t self);
+static int ehci_pci_suspend(device_t self);
+static int ehci_pci_resume(device_t self);
+static void ehci_pci_givecontroller(device_t self);
+static void ehci_pci_takecontroller(device_t self);
+
+static int
+ehci_pci_suspend(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_suspend(self);
+	if (err)
+		return (err);
+	ehci_power(PWR_SUSPEND, sc);
+
+	return 0;
+}
+
+static int
+ehci_pci_resume(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+
+	ehci_pci_takecontroller(self);
+	ehci_power(PWR_RESUME, sc);
+	bus_generic_resume(self);
+
+	return 0;
+}
+
+static int
+ehci_pci_shutdown(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_shutdown(self);
+	if (err)
+		return (err);
+	ehci_shutdown(sc);
+	ehci_pci_givecontroller(self);
+
+	return 0;
+}
 
 static const char *
 ehci_pci_match(device_t self)
@@ -105,6 +163,8 @@ ehci_pci_match(device_t self)
 	switch (device_id) {
 	case PCI_EHCI_DEVICEID_NEC:
 		return (ehci_device_nec);
+	case PCI_EHCI_DEVICEID_VIA:
+		return (ehci_device_via);
 	default:
 		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
@@ -186,7 +246,7 @@ ehci_pci_attach(device_t self)
 		ehci_pci_detach(self);
 		return ENOMEM;
 	}
-	device_set_ivars(sc->sc_bus.bdev, sc);
+	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	/* ehci_pci_match will never return NULL if ehci_pci_probe succeeded */
 	device_set_desc(sc->sc_bus.bdev, ehci_pci_match(self));
@@ -203,6 +263,9 @@ ehci_pci_attach(device_t self)
 	case PCI_EHCI_VENDORID_CMDTECH:
 		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
+	case PCI_EHCI_VENDORID_INTEL:
+		sprintf(sc->sc_vendor, "Intel");
+		break;
 	case PCI_EHCI_VENDORID_NEC:
 		sprintf(sc->sc_vendor, "NEC");
 		break;
@@ -215,6 +278,9 @@ ehci_pci_attach(device_t self)
 	case PCI_EHCI_VENDORID_NVIDIA:
 	case PCI_EHCI_VENDORID_NVIDIA2:
 		sprintf(sc->sc_vendor, "nVidia");
+		break;
+	case PCI_EHCI_VENDORID_VIA:
+		sprintf(sc->sc_vendor, "VIA");
 		break;
 	default:
 		if (bootverbose)
@@ -254,8 +320,8 @@ ehci_pci_attach(device_t self)
 			if (res != 0 || buscount != 1)
 				continue;
 			bsc = device_get_softc(nbus[0]);
-			printf("ehci_pci_attach: companion %s\n",
-			USBDEVNAME(bsc->bdev));
+			DPRINTF(("ehci_pci_attach: companion %s\n",
+			    USBDEVNAME(bsc->bdev)));
 			sc->sc_comps[ncomp++] = bsc;
 			if (ncomp >= EHCI_COMPANION_MAX)
 				break;
@@ -263,9 +329,12 @@ ehci_pci_attach(device_t self)
 	}
 	sc->sc_ncomp = ncomp;
 
+	ehci_pci_takecontroller(self);
 	err = ehci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= EHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed err=%d\n", err);
@@ -282,10 +351,10 @@ ehci_pci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX this code is not yet fit to be used as detach for the EHCI
-	 * controller
-	 */
+	if (sc->sc_flags & EHCI_SCFLG_DONEINIT) {
+		ehci_detach(sc, 0);
+		sc->sc_flags &= ~EHCI_SCFLG_DONEINIT;
+	}
 
 	/*
 	 * disable interrupts that might have been switched on in ehci_init
@@ -319,11 +388,65 @@ ehci_pci_detach(device_t self)
 	return 0;
 }
 
+static void
+ehci_pci_takecontroller(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	u_int32_t cparams, eec, legsup;
+	int eecp, i;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
+			continue;
+		legsup = eec;
+		pci_write_config(self, eecp, legsup | EHCI_LEGSUP_OSOWNED, 4);
+		if (legsup & EHCI_LEGSUP_BIOSOWNED) {
+			printf("%s: waiting for BIOS to give up control\n",
+			    USBDEVNAME(sc->sc_bus.bdev));
+			for (i = 0; i < 5000; i++) {
+				legsup = pci_read_config(self, eecp, 4);
+				if ((legsup & EHCI_LEGSUP_BIOSOWNED) == 0)
+					break;
+				DELAY(1000);
+			}
+			if (legsup & EHCI_LEGSUP_BIOSOWNED)
+				printf("%s: timed out waiting for BIOS\n",
+				    USBDEVNAME(sc->sc_bus.bdev));
+		}
+	}
+}
+
+static void
+ehci_pci_givecontroller(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	u_int32_t cparams, eec, legsup;
+	int eecp;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
+			continue;
+		legsup = eec;
+		pci_write_config(self, eecp, legsup & ~EHCI_LEGSUP_OSOWNED, 4);
+	}
+}
+
 static device_method_t ehci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ehci_pci_probe),
 	DEVMETHOD(device_attach, ehci_pci_attach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_detach, ehci_pci_detach),
+	DEVMETHOD(device_suspend, ehci_pci_suspend),
+	DEVMETHOD(device_resume, ehci_pci_resume),
+	DEVMETHOD(device_shutdown, ehci_pci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
