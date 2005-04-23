@@ -1032,20 +1032,15 @@ struct ofstat_args {
 int
 ofstat(struct thread *td, struct ofstat_args *uap)
 {
-	struct file *fp;
-	struct stat ub;
 	struct ostat oub;
+	struct stat ub;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		goto done2;
-	error = fo_stat(fp, &ub, td->td_ucred, td);
+	error = kern_fstat(td, uap->fd, &ub);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
 		error = copyout(&oub, uap->sb, sizeof(oub));
 	}
-	fdrop(fp, td);
-done2:
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -1066,17 +1061,25 @@ struct fstat_args {
 int
 fstat(struct thread *td, struct fstat_args *uap)
 {
-	struct file *fp;
 	struct stat ub;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		goto done2;
-	error = fo_stat(fp, &ub, td->td_ucred, td);
+	error = kern_fstat(td, uap->fd, &ub);
 	if (error == 0)
 		error = copyout(&ub, uap->sb, sizeof(ub));
+	return (error);
+}
+
+int
+kern_fstat(struct thread *td, int fd, struct stat *sbp)
+{
+	struct file *fp;
+	int error;
+
+	if ((error = fget(td, fd, &fp)) != 0)
+		return (error);
+	error = fo_stat(fp, sbp, td->td_ucred, td);
 	fdrop(fp, td);
-done2:
 	return (error);
 }
 
@@ -1096,20 +1099,15 @@ struct nfstat_args {
 int
 nfstat(struct thread *td, struct nfstat_args *uap)
 {
-	struct file *fp;
-	struct stat ub;
 	struct nstat nub;
+	struct stat ub;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		goto done2;
-	error = fo_stat(fp, &ub, td->td_ucred, td);
+	error = kern_fstat(td, uap->fd, &ub);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout(&nub, uap->sb, sizeof(nub));
 	}
-	fdrop(fp, td);
-done2:
 	return (error);
 }
 

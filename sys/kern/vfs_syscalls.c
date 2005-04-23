@@ -220,12 +220,25 @@ statfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
+	struct statfs sf;
+	int error;
+
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
+	if (error == 0)
+		error = copyout(&sf, uap->buf, sizeof(sf));
+	return (error);
+}
+
+int
+kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
+    struct statfs *buf)
+{
 	struct mount *mp;
 	struct statfs *sp, sb;
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	mp = nd.ni_vp->v_mount;
@@ -251,7 +264,8 @@ statfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, uap->buf, sizeof(*sp)));
+	*buf = *sp;
+	return (0);
 }
 
 /*
@@ -271,12 +285,24 @@ fstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
+	struct statfs sf;
+	int error;
+
+	error = kern_fstatfs(td, uap->fd, &sf);
+	if (error == 0)
+		error = copyout(&sf, uap->buf, sizeof(sf));
+	return (error);
+}
+
+int
+kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
+{
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *sp, sb;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
 		return (error);
 	mp = fp->f_vnode->v_mount;
 	fdrop(fp, td);
@@ -302,7 +328,8 @@ fstatfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, uap->buf, sizeof(*sp)));
+	*buf = *sp;
+	return (0);
 }
 
 /*
@@ -415,29 +442,14 @@ freebsd4_statfs(td, uap)
 		struct ostatfs *buf;
 	} */ *uap;
 {
-	struct mount *mp;
-	struct statfs *sp;
 	struct ostatfs osb;
+	struct statfs sf;
 	int error;
-	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	mp = nd.ni_vp->v_mount;
-	sp = &mp->mnt_stat;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
 	if (error)
 		return (error);
-#endif
-	error = VFS_STATFS(mp, sp, td);
-	if (error)
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	cvtstatfs(td, sp, &osb);
+	cvtstatfs(td, &sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -458,29 +470,14 @@ freebsd4_fstatfs(td, uap)
 		struct ostatfs *buf;
 	} */ *uap;
 {
-	struct file *fp;
-	struct mount *mp;
-	struct statfs *sp;
 	struct ostatfs osb;
+	struct statfs sf;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
-		return (error);
-	mp = fp->f_vnode->v_mount;
-	fdrop(fp, td);
-	if (mp == NULL)
-		return (EBADF);
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = kern_fstatfs(td, uap->fd, &sf);
 	if (error)
 		return (error);
-#endif
-	sp = &mp->mnt_stat;
-	error = VFS_STATFS(mp, sp, td);
-	if (error)
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	cvtstatfs(td, sp, &osb);
+	cvtstatfs(td, &sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -582,34 +579,17 @@ freebsd4_fhstatfs(td, uap)
 		struct ostatfs *buf;
 	} */ *uap;
 {
-	struct statfs *sp;
-	struct mount *mp;
-	struct vnode *vp;
 	struct ostatfs osb;
+	struct statfs sf;
 	fhandle_t fh;
 	int error;
 
-	error = suser(td);
-	if (error)
-		return (error);
 	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
-		return (ESTALE);
-	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
-		return (error);
-	mp = vp->v_mount;
-	sp = &mp->mnt_stat;
-	vput(vp);
-#ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = kern_fhstatfs(td, fh, &sf);
 	if (error)
 		return (error);
-#endif
-	if ((error = VFS_STATFS(mp, sp, td)) != 0)
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	cvtstatfs(td, sp, &osb);
+	cvtstatfs(td, &sf, &osb);
 	return (copyout(&osb, uap->buf, sizeof(osb)));
 }
 
@@ -1903,15 +1883,8 @@ ostat(td, uap)
 	struct stat sb;
 	struct ostat osb;
 	int error;
-	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
+	error = kern_stat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
@@ -1936,20 +1909,11 @@ olstat(td, uap)
 		struct ostat *ub;
 	} */ *uap;
 {
-	struct vnode *vp;
 	struct stat sb;
 	struct ostat osb;
 	int error;
-	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	vp = nd.ni_vp;
-	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(vp);
+	error = kern_lstat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
@@ -2006,14 +1970,26 @@ stat(td, uap)
 {
 	struct stat sb;
 	int error;
+
+	error = kern_stat(td, uap->path, UIO_USERSPACE, &sb);
+	if (error == 0)
+		error = copyout(&sb, uap->ub, sizeof (sb));
+	return (error);
+}
+
+int
+kern_stat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
+{
 	struct nameidata nd;
+	struct stat sb;
+	int error;
 
 #ifdef LOOKUP_SHARED
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
-	    UIO_USERSPACE, uap->path, td);
+	    pathseg, path, td);
 #else
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, pathseg,
+	    path, td);
 #endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -2022,8 +1998,8 @@ stat(td, uap)
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, uap->ub, sizeof (sb));
-	return (error);
+	*sbp = sb;
+	return (0);
 }
 
 /*
@@ -2043,13 +2019,25 @@ lstat(td, uap)
 		struct stat *ub;
 	} */ *uap;
 {
+	struct stat sb;
 	int error;
+
+	error = kern_lstat(td, uap->path, UIO_USERSPACE, &sb);
+	if (error == 0)
+		error = copyout(&sb, uap->ub, sizeof (sb));
+	return (error);
+}
+
+int
+kern_lstat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
+{
 	struct vnode *vp;
 	struct stat sb;
 	struct nameidata nd;
+	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, pathseg,
+	    path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -2058,16 +2046,12 @@ lstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, uap->ub, sizeof (sb));
-	return (error);
+	*sbp = sb;
+	return (0);
 }
 
 /*
- * Implementation of the NetBSD stat() function.
- * XXX This should probably be collapsed with the FreeBSD version,
- * as the differences are only due to vn_stat() clearing spares at
- * the end of the structures.  vn_stat could be split to avoid this,
- * and thus collapse the following to close to zero code.
+ * Implementation of the NetBSD [l]stat() functions.
  */
 void
 cvtnstat(sb, nsb)
@@ -2110,15 +2094,8 @@ nstat(td, uap)
 	struct stat sb;
 	struct nstat nsb;
 	int error;
-	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
+	error = kern_stat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
@@ -2143,20 +2120,11 @@ nlstat(td, uap)
 		struct nstat *ub;
 	} */ *uap;
 {
-	int error;
-	struct vnode *vp;
 	struct stat sb;
 	struct nstat nsb;
-	struct nameidata nd;
+	int error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	vp = nd.ni_vp;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
-	vput(vp);
+	error = kern_lstat(td, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
@@ -4084,16 +4052,28 @@ fhstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
+	struct statfs sf;
+	fhandle_t fh;
+	int error;
+
+	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
+		return (error);
+	error = kern_fhstatfs(td, fh, &sf);
+	if (error == 0)
+		error = copyout(&sf, uap->buf, sizeof(sf));
+	return (error);
+}
+
+int
+kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
+{
 	struct statfs *sp;
 	struct mount *mp;
 	struct vnode *vp;
-	fhandle_t fh;
 	int error;
 
 	error = suser(td);
 	if (error)
-		return (error);
-	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
@@ -4115,7 +4095,8 @@ fhstatfs(td, uap)
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
-	return (copyout(sp, uap->buf, sizeof(*sp)));
+	*buf = *sp;
+	return (0);
 }
 
 /*

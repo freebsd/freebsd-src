@@ -31,13 +31,17 @@
 #include <sys/signal.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
+#include <sys/mac.h>
+#include <sys/mount.h>
 
 struct itimerval;
 struct mbuf;
 struct msghdr;
+struct msqid_ds;
 struct rlimit;
 struct rusage;
 struct sockaddr;
+struct stat;
 struct kevent;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
@@ -46,6 +50,8 @@ int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
 	    struct timeval *olddelta);
+int	kern_alternate_path(struct thread *td, const char *prefix, char *path,
+	    enum uio_seg pathseg, char **pathbuf, int create);
 int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
@@ -54,6 +60,9 @@ int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
 int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
+int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
+int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
+int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
@@ -66,6 +75,8 @@ int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
 int	kern_link(struct thread *td, char *path, char *link,
 	    enum uio_seg segflg);
+int	kern_lstat(struct thread *td, char *path, enum uio_seg pathseg,
+	    struct stat *sbp);
 int	kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_mkdir(struct thread *td, char *path, enum uio_seg segflg,
@@ -109,6 +120,10 @@ int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
 int	kern_sigprocmask(struct thread *td, int how,
 	    sigset_t *set, sigset_t *oset, int old);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
+int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
+	    struct stat *sbp);
+int	kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
+	    struct statfs *buf);
 int	kern_symlink(struct thread *td, char *path, char *link,
 	    enum uio_seg segflg);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
