@@ -32,7 +32,6 @@ ENTRY(strcpy)
 	 * Align source to a word boundary.
 	 * Consider unrolling loop?
 	 */
-	.align	4
 .Lalign:
 	testb	$7,%sil
 	je	.Lword_aligned
@@ -44,7 +43,7 @@ ENTRY(strcpy)
 	jne	.Lalign
 	ret
 
-	.align	4
+	.p2align 4
 .Lloop:
 	movq	%rdx,(%rdi)
 	addq	$8,%rdi
