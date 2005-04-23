@@ -7,7 +7,7 @@
 
 
 LIB=	archive
-VERSION=	1.02.017
+VERSION=	1.02.019
 ARCHIVE_API_FEATURE=	2
 ARCHIVE_API_VERSION=	1
 SHLIB_MAJOR=	${ARCHIVE_API_VERSION}
@@ -204,7 +204,8 @@ distfile:
 	cat ${.CURDIR}/configure.ac.in |			\
 		sed 's/@VERSION@/${VERSION}/' |			\
 		cat > ${DIST_WORK_DIR}/configure.ac
-	(cd ${DIST_WORK_DIR} && aclocal19 && autoheader259 && autoconf259 && automake19 -a --foreign)
+	(cd ${DIST_WORK_DIR} && aclocal && autoheader)
+	(cd ${DIST_WORK_DIR} && autoconf && automake -a --foreign)
 	(cd ${DIST_WORK_DIR} && ./configure && make distcheck && make dist)
 	mv ${DIST_WORK_DIR}/${DISTFILE} ${.OBJDIR}
 	@echo ==================================================
