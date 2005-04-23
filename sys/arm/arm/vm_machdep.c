@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
+#include <machine/sysarch.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/lock.h>
@@ -279,15 +280,29 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
  * in thread_userret() itself can be done as well.
  */
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+	stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_usr_sp = ((int)ku->ku_stack.ss_sp + ku->ku_stack.ss_size
+	tf->tf_usr_sp = ((int)stack->ss_sp + stack->ss_size
 	    - sizeof(struct trapframe)) & ~7;
-	tf->tf_pc = (int)ku->ku_func;
-	tf->tf_r0 = (int)ku->ku_mailbox;
+	tf->tf_pc = (int)entry;
+	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
+}
+
+void
+cpu_set_user_tls(struct thread *td, void *tls_base)
+{
+
+	if (td != curthread)
+		td->td_md.md_tp = tls_base;
+	else {
+		critical_enter();
+		*(void **)ARM_TP_ADDRESS = tls_base;
+		critical_exit();
+	}
 }
 
 void
