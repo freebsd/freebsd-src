@@ -452,8 +452,8 @@ struct getitimer_args {
 int
 getitimer(struct thread *td, struct getitimer_args *uap)
 {
-	int error;
 	struct itimerval aitv;
+	int error;
 
 	error = kern_getitimer(td, uap->which, &aitv);
 	if (error != 0)
@@ -508,8 +508,8 @@ struct setitimer_args {
 int
 setitimer(struct thread *td, struct setitimer_args *uap)
 {
-	int error;
 	struct itimerval aitv, oitv;
+	int error;
 
 	if (uap->itv == NULL) {
 		uap->itv = uap->oitv;
@@ -521,15 +521,18 @@ setitimer(struct thread *td, struct setitimer_args *uap)
 	error = kern_setitimer(td, uap->which, &aitv, &oitv);
 	if (error != 0 || uap->oitv == NULL)
 		return (error);
-
 	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
 }
 
 int
-kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv, struct itimerval *oitv)
+kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
+    struct itimerval *oitv)
 {
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
+
+	if (aitv == NULL)
+		return (kern_getitimer(td, which, oitv));
 
 	if (which > ITIMER_PROF)
 		return (EINVAL);
