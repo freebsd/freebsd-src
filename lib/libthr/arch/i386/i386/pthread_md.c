@@ -40,7 +40,6 @@ _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 	void *oldtls;
-	int error;
 
 	if (initial)
 		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
