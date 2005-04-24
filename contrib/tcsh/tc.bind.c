@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.bind.c,v 3.36 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.bind.c,v 3.39 2005/03/25 18:46:41 kim Exp $ */
 /*
  * tc.bind.c: Key binding functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.bind.c,v 3.36 2002/03/08 17:36:47 christos Exp $")
+RCSID("$Id: tc.bind.c,v 3.39 2005/03/25 18:46:41 kim Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -67,7 +67,7 @@ dobindkey(v, c)
     struct command *c;
 {
     KEYCMD *map;
-    int     ntype, no, remove, key, bind;
+    int     ntype, no, removeb, key, bindk;
     Char   *par;
     Char    p;
     KEYCMD  cmd;
@@ -87,7 +87,7 @@ dobindkey(v, c)
 
     map = CcKeyMap;
     ntype = XK_CMD;
-    key = remove = bind = 0;
+    key = removeb = bindk = 0;
     for (no = 1, par = v[no]; 
 	 par != NULL && (*par++ & CHAR) == '-'; no++, par = v[no]) {
 	if ((p = (*par & CHAR)) == '-') {
@@ -97,7 +97,7 @@ dobindkey(v, c)
 	else 
 	    switch (p) {
 	    case 'b':
-		bind = 1;
+		bindk = 1;
 		break;
 	    case 'k':
 		key = 1;
@@ -112,7 +112,7 @@ dobindkey(v, c)
 		ntype = XK_EXE;
 		break;
 	    case 'r':
-		remove = 1;
+		removeb = 1;
 		break;
 	    case 'v':
 		ed_InitVIMaps();
@@ -148,7 +148,7 @@ dobindkey(v, c)
 	in.len = Strlen(in.buf);
     }
     else {
-	if (bind) {
+	if (bindk) {
 	    if (parsebind(v[no++], &in) == NULL)
 		return;
 	}
@@ -158,9 +158,15 @@ dobindkey(v, c)
 	}
     }
 
+#ifndef WINNT_NATIVE
+    if (in.buf[0] > 0xFF) {
+	bad_spec(in.buf);
+	return;
+    }
+#endif
     ch = (uChar) in.buf[0];
 
-    if (remove) {
+    if (removeb) {
 	if (key) {
 	    (void) ClearArrowKeys(&in);
 	    return;
@@ -195,7 +201,7 @@ dobindkey(v, c)
 	    return;
 	if (key) {
 	    if (SetArrowKeys(&in, XmapStr(&out), ntype) == -1)
-		xprintf(CGETS(20, 2, "Bad key name: %S\n"), in);
+		xprintf(CGETS(20, 2, "Bad key name: %S\n"), in.buf);
 	}
 	else
 	    AddXkey(&in, XmapStr(&out), ntype);
@@ -231,7 +237,7 @@ printkey(map, in)
     CStr   *in;
 {
     unsigned char outbuf[100];
-    register struct KeyFuncs *fp;
+    struct KeyFuncs *fp;
 
     if (in->len < 2) {
 	(void) unparsestring(in, outbuf, STRQQ);
@@ -249,7 +255,7 @@ static  KEYCMD
 parsecmd(str)
     Char   *str;
 {
-    register struct KeyFuncs *fp;
+    struct KeyFuncs *fp;
 
     for (fp = FuncNames; fp->name; fp++) {
 	if (strcmp(short2str(str), fp->name) == 0) {
@@ -273,9 +279,6 @@ parsebind(s, str)
     Char *s;
     CStr *str;
 {
-#ifdef DSPMBYTE
-    extern bool NoNLSRebind;
-#endif /* DSPMBYTE */
     Char *b = str->buf;
 
     if (Iscntrl(*s)) {
@@ -336,20 +339,16 @@ parsebind(s, str)
 	    break;
 
 	case 'M' : case 'm':	/* Turn into 0x80|c */
-#ifdef DSPMBYTE
 	    if (!NoNLSRebind) {
 	    	*b++ = CTL_ESC('\033');
 	    	*b++ = *s;
 	    } else {
-#endif /* DSPMBYTE */
 #ifdef IS_ASCII
 	    *b++ = *s | 0x80;
 #else
 	    *b++ = _toebcdic[_toascii[*s] | 0x80];
 #endif
-#ifdef DSPMBYTE
 	    }
-#endif /* DSPMBYTE */
 	    *b = '\0';
 	    break;
 #ifdef WINNT_NATIVE
@@ -390,7 +389,7 @@ parsestring(str, buf)
 {
     Char   *b;
     const Char   *p;
-    int    es;
+    eChar  es;
 
     b = buf->buf;
     if (*str == 0) {
@@ -400,7 +399,7 @@ parsestring(str, buf)
 
     for (p = str; *p != 0; p++) {
 	if ((*p & CHAR) == '\\' || (*p & CHAR) == '^') {
-	    if ((es = parseescape(&p)) == -1)
+	    if ((es = parseescape(&p)) == CHAR_ERR)
 		return 0;
 	    else
 		*b++ = (Char) es;
@@ -452,7 +451,7 @@ printkeys(map, first, last)
     KEYCMD *map;
     int     first, last;
 {
-    register struct KeyFuncs *fp;
+    struct KeyFuncs *fp;
     Char    firstbuf[2], lastbuf[2];
     CStr fb, lb;
     unsigned char unparsbuf[10], extrabuf[10];
@@ -538,7 +537,7 @@ bindkey_usage()
 static void
 list_functions()
 {
-    register struct KeyFuncs *fp;
+    struct KeyFuncs *fp;
 
     for (fp = FuncNames; fp->name; fp++) {
 	xprintf("%s\n          %s\n", fp->name, fp->desc);
@@ -583,9 +582,9 @@ tocontrol(c)
 
 static char *
 unparsekey(c)			/* 'c' -> "c", '^C' -> "^" + "C" */
-    register int c;
+    int c;
 {
-    register char *cp;
+    char *cp;
     static char tmp[10];
 
     cp = tmp;
@@ -662,9 +661,9 @@ static  KEYCMD
 getkeycmd(sp)
     Char  **sp;
 {
-    register Char *s = *sp;
-    register char c;
-    register KEYCMD keycmd = F_UNASSIGNED;
+    Char *s = *sp;
+    char c;
+    KEYCMD keycmd = F_UNASSIGNED;
     KEYCMD *map;
     int     meta = 0;
     Char   *ret_sp = s;
@@ -709,7 +708,7 @@ parsekey(sp)
     Char  **sp;			/* Return position of first unparsed character
 				 * for return value -2 (xkeynext) */
 {
-    register int c, meta = 0, control = 0, ctrlx = 0;
+    int c, meta = 0, control = 0, ctrlx = 0;
     Char   *s = *sp;
     KEYCMD  keycmd;
 
@@ -858,12 +857,12 @@ parsekey(sp)
 /*ARGSUSED*/
 void
 dobind(v, dummy)
-    register Char **v;
+    Char **v;
     struct command *dummy;
 {
-    register int c;
-    register struct KeyFuncs *fp;
-    register int i, prev;
+    int c;
+    struct KeyFuncs *fp;
+    int i, prev;
     Char   *p, *l;
     CStr    cstr;
     Char    buf[1000];
@@ -1025,10 +1024,10 @@ dobind(v, dummy)
 
 static void
 pkeys(first, last)
-    register int first, last;
+    int first, last;
 {
-    register struct KeyFuncs *fp;
-    register KEYCMD *map;
+    struct KeyFuncs *fp;
+    KEYCMD *map;
     int mask;
     char    buf[8];
 

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.exec.c,v 3.58 2003/03/12 19:14:51 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.exec.c,v 3.63 2004/11/23 02:10:48 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.exec.c,v 3.58 2003/03/12 19:14:51 christos Exp $")
+RCSID("$Id: sh.exec.c,v 3.63 2004/11/23 02:10:48 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -93,9 +93,9 @@ static int hashdebug = 0;
 # define hash(a, b)	(((a) * HSHMUL + (b)) % (hashlength))
 # define widthof(t)	(sizeof(t) * BITS_PER_BYTE)
 # define tbit(f, i, t)	(((t *) xhash)[(f)] &  \
-			 (1L << (i & (widthof(t) - 1))))
+			 (1UL << (i & (widthof(t) - 1))))
 # define tbis(f, i, t)	(((t *) xhash)[(f)] |= \
-			 (1L << (i & (widthof(t) - 1))))
+			 (1UL << (i & (widthof(t) - 1))))
 # define cbit(f, i)	tbit(f, i, unsigned char)
 # define cbis(f, i)	tbis(f, i, unsigned char)
 # define sbit(f, i)	tbit(f, i, unsigned short)
@@ -148,12 +148,12 @@ static	int 	iscommand	__P((Char *));
 
 void
 doexec(t, do_glob)
-    register struct command *t;
-    bool do_glob;
+    struct command *t;
+    int do_glob;
 {
     Char *dp, **pv, **av, *sav;
     struct varent *v;
-    bool slash;
+    int slash;
     int hashval, i;
     Char   *blk[2];
 
@@ -385,11 +385,11 @@ pexerr()
 static void
 texec(sf, st)
     Char   *sf;
-    register Char **st;
+    Char **st;
 {
-    register char **t;
-    register char *f;
-    register struct varent *v;
+    char **t;
+    char *f;
+    struct varent *v;
     Char  **vp;
     Char   *lastsh[2];
     char    pref[2];
@@ -444,7 +444,8 @@ texec(sf, st)
 	    setmode(fd, O_TEXT);
 #endif
 	    if ((nread = read(fd, (char *) pref, 2)) == 2) {
-		if (!Isprint(pref[0]) && (pref[0] != '\n' && pref[0] != '\t')) {
+		if (!isprint((unsigned char)pref[0]) &&
+		    (pref[0] != '\n' && pref[0] != '\t')) {
 		    (void) close(fd);
 		    /*
 		     * We *know* what ENOEXEC means.
@@ -554,7 +555,7 @@ texec(sf, st)
 void
 execash(t, kp)
     Char  **t;
-    register struct command *kp;
+    struct command *kp;
 {
     int     saveIN, saveOUT, saveDIAG, saveSTD;
     int     oSHIN;
@@ -592,10 +593,10 @@ execash(t, kp)
     oSHDIAG = SHDIAG;
     oOLDSTD = OLDSTD;
 
-    saveIN = dcopy(SHIN, -1);
-    saveOUT = dcopy(SHOUT, -1);
-    saveDIAG = dcopy(SHDIAG, -1);
-    saveSTD = dcopy(OLDSTD, -1);
+    (void)close_on_exec (saveIN = dcopy(SHIN, -1), 1);
+    (void)close_on_exec (saveOUT = dcopy(SHOUT, -1), 1);
+    (void)close_on_exec (saveDIAG = dcopy(SHDIAG, -1), 1);
+    (void)close_on_exec (saveSTD = dcopy(OLDSTD, -1), 1);
 	
     lshift(kp->t_dcom, 1);
 
@@ -609,9 +610,9 @@ execash(t, kp)
 #else /* !cray */
     if ((my_reenter = setexit()) == 0) {
 #endif /* cray */
-	SHIN = dcopy(0, -1);
-	SHOUT = dcopy(1, -1);
-	SHDIAG = dcopy(2, -1);
+	(void)close_on_exec (SHIN = dcopy(0, -1), 1);
+	(void)close_on_exec (SHOUT = dcopy(1, -1), 1);
+	(void)close_on_exec (SHDIAG = dcopy(2, -1), 1);
 #ifndef CLOSE_ON_EXEC
 	didcch = 0;
 #endif /* CLOSE_ON_EXEC */
@@ -639,10 +640,10 @@ execash(t, kp)
     (void) close(SHOUT);
     (void) close(SHDIAG);
     (void) close(OLDSTD);
-    SHIN = dmove(saveIN, oSHIN);
-    SHOUT = dmove(saveOUT, oSHOUT);
-    SHDIAG = dmove(saveDIAG, oSHDIAG);
-    OLDSTD = dmove(saveSTD, oOLDSTD);
+    (void)close_on_exec(SHIN = dmove(saveIN, oSHIN), 1);
+    (void)close_on_exec(SHOUT = dmove(saveOUT, oSHOUT), 1);
+    (void)close_on_exec(SHDIAG = dmove(saveDIAG, oSHDIAG), 1);
+    (void)close_on_exec(OLDSTD = dmove(saveSTD, oOLDSTD), 1);
 
     resexit(osetexit);
     if (my_reenter)
@@ -675,7 +676,7 @@ dohash(vv, c)
     struct stat stb;
 #endif
     DIR    *dirp;
-    register struct dirent *dp;
+    struct dirent *dp;
     int     i = 0;
     struct varent *v = adrof(STRpath);
     Char  **pv;
@@ -839,9 +840,9 @@ hashstat(v, c)
  */
 int
 hashname(cp)
-    register Char *cp;
+    Char *cp;
 {
-    register unsigned long h;
+    unsigned long h;
 
     for (h = 0; *cp; cp++)
 	h = hash(h, *cp);
@@ -852,11 +853,11 @@ static int
 iscommand(name)
     Char   *name;
 {
-    register Char **pv;
-    register Char *sav;
-    register struct varent *v;
-    register bool slash = any(short2str(name), '/');
-    register int hashval, i;
+    Char **pv;
+    Char *sav;
+    struct varent *v;
+    int slash = any(short2str(name), '/');
+    int hashval, i;
 
     v = adrof(STRpath);
     if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
@@ -917,7 +918,7 @@ cont:
 int
 executable(dir, name, dir_ok)
     Char   *dir, *name;
-    bool    dir_ok;
+    int    dir_ok;
 {
     struct stat stbuf;
     Char    path[MAXPATHLEN + 1];
@@ -947,10 +948,10 @@ tellmewhat(lexp, str)
     struct wordent *lexp;
     Char *str;
 {
-    register int i;
-    register struct biltins *bptr;
-    register struct wordent *sp = lexp->next;
-    bool    aliased = 0, found;
+    int i;
+    struct biltins *bptr;
+    struct wordent *sp = lexp->next;
+    int    aliased = 0, found;
     Char   *s0, *s1, *s2, *cmd;
     Char    qc;
 
@@ -1023,9 +1024,9 @@ tellmewhat(lexp, str)
     sp->word = cmd = globone(sp->word, G_IGNORE);
 
     if ((i = iscommand(sp->word)) != 0) {
-	register Char **pv;
-	register struct varent *v;
-	bool    slash = any(short2str(sp->word), '/');
+	Char **pv;
+	struct varent *v;
+	int    slash = any(short2str(sp->word), '/');
 
 	v = adrof(STRpath);
 	if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
@@ -1083,7 +1084,7 @@ tellmewhat(lexp, str)
 /*ARGSUSED*/
 void
 dowhere(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
     int found = 1;

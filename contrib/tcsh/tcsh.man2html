@@ -1,5 +1,5 @@
 : # -*- perl -*-
-# $Id: tcsh.man2html,v 1.12 2001/04/28 05:20:42 kim Exp $
+# $Id: tcsh.man2html,v 1.13 2005/03/25 17:36:08 kim Exp $
 
 # tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
 #
@@ -800,22 +800,16 @@ There are three <I>tcsh</I> mailing lists:
 <DD>
 The <I>tcsh</I> maintainers and testers' mailing list.
 <DT>
-<I>tcsh-diffs@mx.gw.com</I>
-<DD>
-The same as <I>tcsh@mx.gw.com</I>, plus diffs for each new
-patchlevel of <I>tcsh</I>.
-<DT>
 <I>tcsh-bugs@mx.gw.com</I>
 <DD>
-Bug reports.
+Open bug and user comment discussion.
 </DL>
-You can subscribe to any of these lists by sending mail to
-<I><A HREF="mailto:listserv@mx.gw.com">listserv@mx.gw.com</A></I> with the
-text "subscribe &lt;list name&gt; &lt;your name&gt;" on a line by
-itself in the body. &lt;list name&gt; is the name of the mailing list,
-without "@mx.gw.com", and &lt;your name&gt; is your real name, not your
-email address. You can also ask the list server for help by sending
-only the word "help".
+You can subscribe to either of these lists by visiting
+<I><A HREF="http://mx.gw.com/">http://mx.gw.com/</A></I>
+<P>
+To file a bug report or a feature suggestion (preferably
+with code), please visit
+<I><A HREF="http://bugs.gw.com/">http://bugs.gw.com/</A></I>
 <P>
 <A HREF="TOPFILEHERE">Up</A>
 </BODY>

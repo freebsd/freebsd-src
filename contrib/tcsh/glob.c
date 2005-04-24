@@ -51,20 +51,14 @@ static char sccsid[] = "@(#)glob.c	5.12 (Berkeley) 6/24/91";
  *	Number of matches in the current invocation of glob.
  */
 
-#ifdef notdef
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <ctype.h>
-typedef void * ptr_t;
-#endif
 #ifdef WINNT_NATIVE
 	#pragma warning(disable:4244)
 #endif /* WINNT_NATIVE */
 
 #define Char __Char
 #include "sh.h"
+#include "glob.h"
+
 #undef Char
 #undef QUOTE
 #undef TILDE
@@ -72,8 +66,6 @@ typedef void * ptr_t;
 #undef CHAR
 #undef ismeta
 #undef Strchr
-
-#include "glob.h"
 
 #ifndef S_ISDIR
 #define S_ISDIR(a)	(((a) & S_IFMT) == S_IFDIR)
@@ -147,9 +139,31 @@ static	void	 qprintf	__P((Char *));
 
 int
 globcharcoll(c1, c2, cs)
-    int c1, c2, cs;
+    NLSChar c1, c2;
+    int cs;
 {
 #if defined(NLS) && defined(LC_COLLATE) && !defined(NOSTRCOLL)
+# if defined(SHORT_STRINGS)
+    wchar_t s1[2], s2[2];
+
+    if (c1 == c2)
+	return (0);
+    if (cs) {
+	c1 = towlower(c1);
+	c2 = towlower(c2);
+    } else {
+	/* This should not be here, but I'll rather leave it in than engage in
+	   a LC_COLLATE flamewar about a shell I don't use... */
+	if (iswlower(c1) && iswupper(c2))
+	    return (1);
+	if (iswupper(c1) && iswlower(c2))
+	    return (-1);
+    }
+    s1[0] = c1;
+    s2[0] = c2;
+    s1[1] = s2[1] = '\0';
+    return wcscoll(s1, s2);
+# else /* not SHORT_STRINGS */
     char s1[2], s2[2];
 
     if (c1 == c2)
@@ -164,11 +178,14 @@ globcharcoll(c1, c2, cs)
     } else {
 	if (islower(c1) && isupper(c2))
 	    return (1);
+	if (isupper(c1) && islower(c2))
+	    return (-1);
     }
     s1[0] = c1;
     s2[0] = c2;
     s1[1] = s2[1] = '\0';
     return strcoll(s1, s2);
+# endif
 #else
     return (c1 - c2);
 #endif
@@ -183,10 +200,10 @@ globcharcoll(c1, c2, cs)
 
 static DIR *
 Opendir(str)
-    register Char *str;
+    Char *str;
 {
     char    buf[GLOBBUFLEN];
-    register char *dc = buf;
+    char *dc = buf;
 #if defined(hpux) || defined(__hpux)
     struct stat st;
 #endif
@@ -208,11 +225,11 @@ Opendir(str)
 #ifdef S_IFLNK
 static int
 Lstat(fn, sb)
-    register Char *fn;
+    Char *fn;
     struct stat *sb;
 {
     char    buf[GLOBBUFLEN];
-    register char *dc = buf;
+    char *dc = buf;
 
     while ((*dc++ = *fn++) != '\0')
 	continue;
@@ -235,11 +252,11 @@ Lstat(fn, sb)
 
 static int
 Stat(fn, sb)
-    register Char *fn;
+    Char *fn;
     struct stat *sb;
 {
     char    buf[GLOBBUFLEN];
-    register char *dc = buf;
+    char *dc = buf;
 
     while ((*dc++ = *fn++) != '\0')
 	continue;
@@ -319,10 +336,15 @@ glob(pattern, flags, errfunc, pglob)
     Char *bufnext, *bufend, *compilebuf, m_not;
     const unsigned char *compilepat, *patnext;
     int     c, not;
-    Char patbuf[GLOBBUFLEN + 1], *qpatnext;
+    Char *qpatnext;
+#ifdef WIDE_STRINGS
+    Char patbuf[GLOBBUFLEN + MB_LEN_MAX + 1];
+#else
+    Char patbuf[GLOBBUFLEN + 1];
+#endif
     int     no_match;
 
-    patnext = (unsigned char *) pattern;
+    patnext = (const unsigned char *) pattern;
     if (!(flags & GLOB_APPEND)) {
 	pglob->gl_pathc = 0;
 	pglob->gl_pathv = NULL;
@@ -354,15 +376,19 @@ glob(pattern, flags, errfunc, pglob)
 
     if (flags & GLOB_QUOTE) {
 	/* Protect the quoted characters */
-	while (bufnext < bufend && (c = *patnext++) != EOS) 
-#ifdef DSPMBYTE
-	    if (Ismbyte1(c) && *patnext != EOS)
-	    {
-	      *bufnext++ = (Char) c;
-	      *bufnext++ = (Char) *patnext++;
-	    }
-	    else
-#endif /* DSPMBYTE */
+	while (bufnext < bufend && (c = *patnext++) != EOS) {
+#ifdef WIDE_STRINGS
+	    int len;
+	    
+	    len = mblen((const char *)(patnext - 1), MB_LEN_MAX);
+	    if (len == -1)
+		mblen(NULL, 0);
+	    if (len > 1) {
+		*bufnext++ = (Char) c;
+		while (--len != 0)
+		    *bufnext++ = (Char) (*patnext++ | M_PROTECT);
+	    } else
+#endif /* WIDE_STRINGS */
 	    if (c == QUOTE) {
 		if ((c = *patnext++) == EOS) {
 		    c = QUOTE;
@@ -372,6 +398,7 @@ glob(pattern, flags, errfunc, pglob)
 	    }
 	    else
 		*bufnext++ = (Char) c;
+	}
     }
     else 
 	while (bufnext < bufend && (c = *patnext++) != EOS) 
@@ -382,14 +409,6 @@ glob(pattern, flags, errfunc, pglob)
     qpatnext = patbuf;
     /* we don't need to check for buffer overflow any more */
     while ((c = *qpatnext++) != EOS) {
-#ifdef DSPMBYTE
-	if (Ismbyte1(c) && *qpatnext != EOS)
-	{
-	  *bufnext++ = CHAR(c);
-	  *bufnext++ = CHAR(*qpatnext++);
-	}
-	else
-#endif /* DSPMBYTE */
 	switch (c) {
 	case LBRACKET:
 	    c = *qpatnext;
@@ -593,8 +612,8 @@ glob3(pathbuf, pathend, pattern, restpattern, pglob, no_match)
 
     /* search directory for matching names */
     while ((dp = readdir(dirp)) != NULL) {
-	register unsigned char *sc;
-	register Char *dc;
+	unsigned char *sc;
+	Char *dc;
 
 	/* initial DOT must be matched literally */
 	if (dp->d_name[0] == DOT && *pattern != DOT)
@@ -635,8 +654,8 @@ globextend(path, pglob)
     Char *path;
     glob_t *pglob;
 {
-    register char **pathv;
-    register int i;
+    char **pathv;
+    int i;
     unsigned int newsize;
     char   *copy;
     Char *p;
@@ -659,8 +678,8 @@ globextend(path, pglob)
     for (p = path; *p++;)
 	continue;
     if ((copy = (char *) xmalloc((size_t) (p - path))) != NULL) {
-	register char *dc = copy;
-	register Char *sc = path;
+	char *dc = copy;
+	Char *sc = path;
 
 	while ((*dc++ = *sc++) != '\0')
 	    continue;
@@ -671,55 +690,88 @@ globextend(path, pglob)
 }
 
 
+static size_t
+One_mbtowc(NLSChar *pwc, const Char *s, size_t n)
+{
+#ifdef WIDE_STRINGS
+    char buf[MB_LEN_MAX], *p;
+
+    if (n > MB_LEN_MAX)
+	n = MB_LEN_MAX;
+    p = buf;
+    while (p < buf + n && (*p++ = CHAR(*s++)) != 0)
+	;
+    return one_mbtowc(pwc, buf, n);
+#else
+    return NLSFrom(s, n, pwc);
+#endif
+}
+
 /*
  * pattern matching function for filenames.  Each occurrence of the *
  * pattern causes a recursion level.
  */
 static  int
 match(name, pat, patend, m_not)
-    register Char *name, *pat, *patend;
+    Char *name, *pat, *patend;
     int m_not;
 {
     int ok, negate_range;
     Char c, k;
 
     while (pat < patend) {
-	c = *pat++;
+	size_t lwk;
+	NLSChar wc, wk;
+
+	USE(k);
+	c = *pat; /* Only for M_MASK bits */
+	pat += One_mbtowc(&wc, pat, MB_LEN_MAX);
+	lwk = One_mbtowc(&wk, name, MB_LEN_MAX);
 	switch (c & M_MASK) {
 	case M_ALL:
 	    if (pat == patend)
 		return (1);
-	    do 
+	    for (;;) {
 		if (match(name, pat, patend, m_not))
 		    return (1);
-	    while (*name++ != EOS);
+		if (*name == EOS)
+		    break;
+		name += lwk;
+		lwk = One_mbtowc(&wk, name, MB_LEN_MAX);
+	    }
 	    return (0);
 	case M_ONE:
-	    if (*name++ == EOS)
+	    if (*name == EOS)
 		return (0);
+	    name += lwk;
 	    break;
 	case M_SET:
 	    ok = 0;
-	    if ((k = *name++) == EOS)
+	    if (*name == EOS)
 		return (0);
+	    name += lwk;
 	    if ((negate_range = ((*pat & M_MASK) == m_not)) != 0)
 		++pat;
-	    while (((c = *pat++) & M_MASK) != M_END) {
+	    while ((*pat & M_MASK) != M_END) {
+		pat += One_mbtowc(&wc, pat, MB_LEN_MAX);
 		if ((*pat & M_MASK) == M_RNG) {
-		    if (globcharcoll(CHAR(c), CHAR(k), 0) <= 0 &&
-			globcharcoll(CHAR(k), CHAR(pat[1]), 0) <= 0)
+		    NLSChar wc2;
+		    
+		    pat++;
+		    pat += One_mbtowc(&wc2, pat, MB_LEN_MAX);
+		    if (globcharcoll(wc, wk, 0) <= 0 &&
+			globcharcoll(wk, wc2, 0) <= 0)
 			ok = 1;
-		    pat += 2;
-		}
-		else if (c == k)
+		} else if (wc == wk)
 		    ok = 1;
 	    }
+	    pat += One_mbtowc(&wc, pat, MB_LEN_MAX);
 	    if (ok == negate_range)
 		return (0);
 	    break;
 	default:
-	    k = *name++;
-	    if (samecase(k) != samecase(c))
+	    name += lwk;
+	    if (samecase(wk) != samecase(wc))
 		return (0);
 	    break;
 	}
@@ -732,8 +784,8 @@ void
 globfree(pglob)
     glob_t *pglob;
 {
-    register int i;
-    register char **pp;
+    int i;
+    char **pp;
 
     if (pglob->gl_pathv != NULL) {
 	pp = pglob->gl_pathv + pglob->gl_offs;

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.109 2004/02/21 20:34:24 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.123 2005/03/21 21:26:36 kim Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -39,15 +39,14 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.109 2004/02/21 20:34:24 christos Exp $")
+RCSID("$Id: sh.c,v 3.123 2005/03/21 21:26:36 kim Exp $")
 
 #include "tc.h"
 #include "ed.h"
 #include "tw.h"
 
-extern bool MapsAreInited;
-extern bool NLSMapsAreInited;
-extern bool NoNLSRebind;
+extern int MapsAreInited;
+extern int NLSMapsAreInited;
 
 /*
  * C Shell
@@ -94,7 +93,7 @@ int do_logout = 0;
 #endif /* TESLA */
 
 
-bool    use_fork = 0;		/* use fork() instead of vfork()? */
+int    use_fork = 0;		/* use fork() instead of vfork()? */
 
 /*
  * Magic pointer values. Used to specify other invalid conditions aside
@@ -105,20 +104,20 @@ Char    *INVPTR = &INVCHAR;
 Char    **INVPPTR = &INVPTR;
 
 static int     nofile = 0;
-static bool    reenter = 0;
-static bool    nverbose = 0;
-static bool    nexececho = 0;
-static bool    quitit = 0;
-static bool    rdirs = 0;
-bool    fast = 0;
-static bool    batch = 0;
-static bool    mflag = 0;
-static bool    prompt = 1;
-static int     enterhist = 0;
-bool    tellwhat = 0;
+static int    reenter = 0;
+static int    nverbose = 0;
+static int    nexececho = 0;
+static int    quitit = 0;
+static int    rdirs = 0;
+int    fast = 0;
+static int    batch = 0;
+static int    mflag = 0;
+static int    prompt = 1;
+int     enterhist = 0;
+int    tellwhat = 0;
 time_t  t_period;
 Char  *ffile = NULL;
-bool	dolzero = 0;
+int	dolzero = 0;
 int	insource = 0;
 int	exitset = 0;
 static time_t  chktim;		/* Time mail last checked */
@@ -145,10 +144,10 @@ struct saved_state {
     Char	 *alvecp;
     Char	**alvec;
     int		  onelflg;
-    bool	  enterhist;
+    int	  enterhist;
     Char	**argv;
     Char	  HIST;
-    bool	  cantell;
+    int	  cantell;
     struct Bin	  B;
     /* These keep signal state and setjump state */
 #ifdef BSDSIGS
@@ -160,12 +159,12 @@ struct saved_state {
 
 static	int		  srccat	__P((Char *, Char *));
 #ifndef WINNT_NATIVE
-static	int		  srcfile	__P((char *, bool, int, Char **));
+static	int		  srcfile	__P((const char *, int, int, Char **));
 #else
-int		  srcfile	__P((char *, bool, int, Char **));
+int		  srcfile	__P((const char *, int, int, Char **));
 #endif /*WINNT_NATIVE*/
-static	sigret_t	  phup		__P((int));
-static	void		  srcunit	__P((int, bool, int, Char **));
+static	RETSIGTYPE	  phup		__P((int));
+static	void		  srcunit	__P((int, int, int, Char **));
 static	void		  mailchk	__P((void));
 #ifndef _PATH_DEFPATH
 static	Char	 	**defaultpath	__P((void));
@@ -182,13 +181,13 @@ main(argc, argv)
     int     argc;
     char  **argv;
 {
-    register Char *cp;
+    Char *cp;
 #ifdef AUTOLOGOUT
-    register Char *cp2;
+    Char *cp2;
 #endif
-    register char *tcp, *ttyn;
-    register int f;
-    register char **tempv;
+    char *tcp, *ttyn;
+    int f;
+    char **tempv;
     int osetintr;
     signalfun_t oparintr;
 
@@ -212,10 +211,9 @@ main(argc, argv)
     nlsinit();
 
 #ifdef MALLOC_TRACE
-     mal_setstatsfile(fdopen(dup2(open("/tmp/tcsh.trace", 
-				       O_WRONLY|O_CREAT|O_LARGEFILE, 0666), 25),
-				       "w"));
-     mal_trace(1);
+    mal_setstatsfile(fdopen(dmove(open("/tmp/tcsh.trace", 
+	O_WRONLY|O_CREAT|O_LARGEFILE, 0666), 25), "w"));
+    mal_trace(1);
 #endif /* MALLOC_TRACE */
 
 #if !(defined(BSDTIMES) || defined(_SEQUENT_)) && defined(POSIX)
@@ -364,7 +362,7 @@ main(argc, argv)
 
 	for (k = 0200; k <= 0377 && !Isprint(k); k++)
 	    continue;
-	AsciiOnly = k > 0377;
+	AsciiOnly = MB_CUR_MAX == 1 && k > 0377;
     }
 #else
     AsciiOnly = getenv("LANG") == NULL && getenv("LC_CTYPE") == NULL;
@@ -676,6 +674,11 @@ main(argc, argv)
     set(STRaddsuffix, Strsave(STRNULL), VAR_READWRITE);
 
     /*
+     * Compatibility with tcsh >= 6.12 by default
+     */
+    set(STRcsubstnonl, Strsave(STRNULL), VAR_READWRITE);
+    
+    /*
      * Random default kill ring size
      */
     set(STRkillring, SAVE("30"), VAR_READWRITE);
@@ -801,6 +804,11 @@ main(argc, argv)
 	xprintf("%S\n", varval(STRversion));
 	xexit(0);
     }
+    if (argc > 1 && strcmp(argv[1], "--help") == 0) {
+	xprintf("%S\n\n", varval(STRversion));
+	xprintf(CGETS(11, 8, HELP_STRING));
+	xexit(0);
+    }
     /*
      * Process the arguments.
      * 
@@ -856,7 +864,7 @@ main(argc, argv)
 		 * ensure that you don't make * nonportable csh scripts.
 		 */
 		{
-		    register int count;
+		    int count;
 
 		    cp = arginp + Strlen(arginp);
 		    count = 0;
@@ -877,7 +885,7 @@ main(argc, argv)
 #ifdef apollo
 	    case 'D':		/* -D	Define environment variable */
 		{
-		    register Char *dp;
+		    Char *dp;
 
 		    cp = str2short(tcp);
 		    if (dp = Strchr(cp, '=')) {
@@ -1391,9 +1399,9 @@ void
 importpath(cp)
     Char   *cp;
 {
-    register int i = 0;
-    register Char *dp;
-    register Char **pv;
+    int i = 0;
+    Char *dp;
+    Char **pv;
     int     c;
 
     for (dp = cp; *dp; dp++)
@@ -1438,7 +1446,7 @@ srccat(cp, dp)
     if (cp[0] == '/' && cp[1] == '\0') 
 	return srcfile(short2str(dp), (mflag ? 0 : 1), 0, NULL);
     else {
-	register Char *ep;
+	Char *ep;
 	char   *ptr;
 	int rv;
 
@@ -1468,12 +1476,12 @@ static int
 int
 #endif /*WINNT_NATIVE*/
 srcfile(f, onlyown, flag, av)
-    char   *f;
-    bool    onlyown;
+    const char   *f;
+    int    onlyown;
     int flag;
     Char **av;
 {
-    register int unit;
+    int unit;
 
     if ((unit = open(f, O_RDONLY|O_LARGEFILE)) == -1) 
 	return 0;
@@ -1516,12 +1524,21 @@ st_save(st, unit, hflg, al, av)
     st->OLDSTD = st->SHOUT = st->SHDIAG = -1;/* test later to restore these */
     if (didfds) {
 	    struct stat s1, s2;
-	    if (NEED_SAVE_FD(0,OLDSTD))
-		    st->OLDSTD = OLDSTD, OLDSTD = dmove(0, -1);
-	    if (NEED_SAVE_FD(1,SHOUT))
-		    st->SHOUT = SHOUT, SHOUT = dmove(1, -1);
-	    if (NEED_SAVE_FD(2,SHDIAG))
-		    st->SHDIAG = SHDIAG, SHDIAG = dmove(2, -1);
+	    if (NEED_SAVE_FD(0,OLDSTD)) {
+		    st->OLDSTD = OLDSTD;
+		    OLDSTD = dmove(0, -1);
+		    (void)close_on_exec(OLDSTD, 1);
+	    }
+	    if (NEED_SAVE_FD(1,SHOUT)) {
+		    st->SHOUT = SHOUT;
+		    SHOUT = dmove(1, -1);
+		    (void)close_on_exec(SHOUT, 1);
+	    }
+	    if (NEED_SAVE_FD(2,SHDIAG)) {
+		    st->SHDIAG = SHDIAG;
+		    SHDIAG = dmove(2, -1);
+		    (void)close_on_exec(SHDIAG, 1);
+	    }
 	    donefds();
     }
 
@@ -1596,9 +1613,9 @@ st_restore(st, av)
 
     /* Reset input arena */
     {
-	register int i;
-	register Char** nfbuf = fbuf;
-	register int nfblocks = fblocks;
+	int i;
+	Char** nfbuf = fbuf;
+	int nfblocks = fblocks;
 
 	fblocks = 0;
 	fbuf = NULL;
@@ -1644,8 +1661,8 @@ st_restore(st, av)
  */
 static void
 srcunit(unit, onlyown, hflg, av)
-    register int unit;
-    bool    onlyown;
+    int unit;
+    int    onlyown;
     int hflg;
     Char **av;
 {
@@ -1731,6 +1748,7 @@ goodbye(v, c)
     Char **v;
     struct command *c;
 {
+    USE(v);
     USE(c);
     record();
 
@@ -1777,7 +1795,7 @@ exitstat()
 /*
  * in the event of a HUP we want to save the history
  */
-static  sigret_t
+static RETSIGTYPE
 phup(snum)
 int snum;
 {
@@ -1846,9 +1864,6 @@ int snum;
 #endif /* POSIXJOBS */
 
     xexit(snum);
-#ifndef SIGVOID
-    return (snum);
-#endif
 }
 
 static Char   *jobargv[2] = {STRjobs, 0};
@@ -1862,29 +1877,24 @@ static Char   *jobargv[2] = {STRjobs, 0};
  */
 int     just_signaled;		/* bugfix by Michael Bloom (mg@ttidca.TTI.COM) */
 
-#ifdef SIGVOID
-/*ARGSUSED*/
-#endif
-sigret_t
+RETSIGTYPE
 pintr(snum)
 int snum;
 {
+    USE(snum);
 #ifdef UNRELSIGS
     if (snum)
 	(void) sigset(snum, pintr);
 #endif /* UNRELSIGS */
     just_signaled = 1;
     pintr1(1);
-#ifndef SIGVOID
-    return (snum);
-#endif
 }
 
 void
 pintr1(wantnl)
-    bool    wantnl;
+    int    wantnl;
 {
-    register Char **v;
+    Char **v;
 #ifdef BSDSIGS
     sigmask_t omask;
 #endif
@@ -1907,15 +1917,11 @@ pintr1(wantnl)
     }
     /* MH - handle interrupted completions specially */
     {
-	extern int InsideCompletion;
-
 	if (InsideCompletion)
 	    stderror(ERR_SILENT);
     }
     /* JV - Make sure we shut off inputl */
     {
-	extern Char GettingInput;
-
 	(void) Cookedmode();
 	GettingInput = 0;
     }
@@ -1927,9 +1933,9 @@ pintr1(wantnl)
     (void) sigrelse(SIGCHLD);
 #endif
     drainoline();
-#if !defined(_VMS_POSIX) && !defined(WINNT_NATIVE)
+#ifdef HAVE_GETPWENT
     (void) endpwent();
-#endif /* !_VMS_POSIX && !WINNT_NATIVE */
+#endif
 
     /*
      * If we have an active "onintr" then we search for the label. Note that if
@@ -1982,9 +1988,8 @@ pintr1(wantnl)
 static struct command *savet = NULL;
 void
 process(catch)
-    bool    catch;
+    int    catch;
 {
-    extern char Expand;
     jmp_buf_t osetexit;
     /* PWP: This might get nuked my longjmp so don't make it a register var */
     struct command *t = savet;
@@ -2181,7 +2186,6 @@ process(catch)
 	freesyn(savet), savet = NULL;
 #ifdef SIG_WINDOW
 	if (windowchg || (catch && intty && !whyles && !tellwhat)) {
-	    windowchg = 0;
 	    (void) check_window_size(0);	/* for window systems */
 	}
 #endif /* SIG_WINDOW */
@@ -2194,12 +2198,11 @@ process(catch)
 /*ARGSUSED*/
 void
 dosource(t, c)
-    register Char **t;
+    Char **t;
     struct command *c;
 {
-    register Char *f;
-    bool    hflg = 0;
-    extern int bequiet;
+    Char *f;
+    int    hflg = 0;
     char    buf[BUFSIZE];
 
     USE(c);
@@ -2253,12 +2256,12 @@ dosource(t, c)
 static void
 mailchk()
 {
-    register struct varent *v;
-    register Char **vp;
+    struct varent *v;
+    Char **vp;
     time_t  t;
     int     intvl, cnt;
     struct stat stb;
-    bool    new;
+    int    new;
 
     v = adrof(STRmail);
     if (v == NULL || v->vec == NULL)
@@ -2328,16 +2331,18 @@ mailchk()
 			mailcount, filename);
 	}
 	else {
+	    char *type;
+	    
 	    if (stb.st_size == 0 || stb.st_atime > stb.st_mtime ||
 		(stb.st_atime <= chktim && stb.st_mtime <= chktim) ||
 		(loginsh && !new))
 		continue;
+	    type = strsave(new ? CGETS(11, 6, "new ") : "");
 	    if (cnt == 1)
-		xprintf(CGETS(11, 5, "You have %smail.\n"),
-			new ? CGETS(11, 6, "new ") : "");
+		xprintf(CGETS(11, 5, "You have %smail.\n"), type);
 	    else
-	        xprintf(CGETS(11, 7, "You have %smail in %s.\n"),
-			new ? CGETS(11, 6, "new ") : "", filename);
+	        xprintf(CGETS(11, 7, "You have %smail in %s.\n"), type, filename);
+	    xfree(type);
 	}
     }
     chktim = t;
@@ -2387,7 +2392,7 @@ initdesc()
 {
 #ifdef NLS_BUGS
 #ifdef NLS_CATALOGS
-    (void)catclose(catd);
+    nlsclose();
 #endif /* NLS_CATALOGS */
 #endif /* NLS_BUGS */
 
@@ -2462,7 +2467,7 @@ xexit(i)
      * because messages will stop working on the parent too.
      */
     if (child == 0)
-	(void) catclose(catd);
+	nlsclose();
 #endif /* NLS_CATALOGS */
 #ifdef WINNT_NATIVE
     nt_cleanup();

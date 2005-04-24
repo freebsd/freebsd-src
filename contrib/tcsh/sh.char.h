@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.char.h,v 3.20 2002/07/01 20:50:21 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.char.h,v 3.26 2005/03/03 16:49:15 kim Exp $ */
 /*
  * sh.char.h: Table for spotting special characters quickly
  * 	      Makes for very obscure but efficient coding.
@@ -37,6 +37,13 @@
 # include <appkit/NXCType.h>
 #else
 # include <ctype.h>
+# ifdef SHORT_STRINGS
+#  ifdef HAVE_WCTYPE_H
+#   include <wctype.h>
+#  else
+#   include <wchar.h>
+#  endif
+# endif
 #endif
 
 typedef unsigned char tcshuc;
@@ -45,7 +52,6 @@ typedef unsigned char tcshuc;
 #endif /* _MINIX */
 extern unsigned short _cmap[];
 #if defined(DSPMBYTE)
-extern unsigned short _mbmap[];
 # define CHECK_MBYTEVAR	STRdspmbyte
 #endif
 extern unsigned short _cmap_c[];
@@ -75,31 +81,26 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 #define	_ESC	0x0040		/* \ */
 #define	_DOL	0x0080		/* $ */
 #define	_DIG  	0x0100		/* 0-9 */
-#define	_LET  	0x0200		/* a-z, A-Z, _ */
-#define	_UP   	0x0400		/* A-Z */
-#define	_DOW  	0x0800		/* a-z */
+#define	_LET  	0x0200		/* a-z, A-Z, _, or locale-specific */
+#define	_UP   	0x0400		/* A-Z, or locale-specific */
+#define	_DOW  	0x0800		/* a-z, or locale-specific */
 #define	_XD 	0x1000		/* 0-9, a-f, A-F */
 #define	_CMD	0x2000		/* lex end of command chars, ;&(|` */
 #define _CTR	0x4000		/* control */
 #define _PUN	0x8000		/* punctuation */
 
-#if defined(SHORT_STRINGS) && defined(KANJI)
+#ifdef IS_ASCII
 # define ASC(ch) ch
 # define CTL_ESC(ch) ch
-# define cmap(c, bits)	\
-	((((c) & QUOTE) || ((c & 0x80) && adrof(STRnokanji))) ? \
-	0 : (_cmap[(tcshuc)(c)] & (bits)))
-#else /* SHORT_STRINGS && KANJI */
-# ifdef IS_ASCII
-#  define ASC(ch) ch
-#  define CTL_ESC(ch) ch
-#  define cmap(c, bits)	\
-	(((c) & QUOTE) ? 0 : (_cmap[(tcshuc)(c)] & (bits)))
-# else /* IS_ASCII */
+#else
+# ifdef _OSD_POSIX
 /* "BS2000 OSD" is a POSIX on a main frame using a EBCDIC char set */
+#   include <ascii_ebcdic.h>
+# else
 /* "OS/390 USS" is a POSIX on a main frame using an IBM1047 char set */
-extern unsigned short _toascii[256];
-extern unsigned short _toebcdic[256];
+# endif
+  extern unsigned short _toascii[256];
+  extern unsigned short _toebcdic[256];
 
 /* mainly for comparisons if (ASC(ch)=='\177')... */
 #  define ASC(ch)     _toascii[(tcshuc)ch]
@@ -108,27 +109,55 @@ extern unsigned short _toebcdic[256];
  * for C-Escapes   ('\b'), the compiler already does it.
  */
 #  define CTL_ESC(ch) _toebcdic[(tcshuc)ch]
+#endif /*IS_ASCII*/
 
+#ifdef WIDE_STRINGS
+# define cmap(c, bits)	\
+	(((c) & QUOTE) || (c) >= 0x0080 ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+#elif defined(SHORT_STRINGS) && defined(KANJI)
 #  define cmap(c, bits)	\
-	(((c) & QUOTE) ? 0 : (_cmap[_toascii[(tcshuc)(c)]] & (bits)))
-# endif /* IS_ASCII */
+	((((c) & QUOTE) || ((ASC(c) & 0x80) && adrof(STRnokanji))) ? \
+	0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+#else /* SHORT_STRINGS && KANJI */
+# define cmap(c, bits)	\
+	(((c) & QUOTE) ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #endif /* SHORT_STRINGS && KANJI */
 
 #define isglob(c)	cmap(c, _GLOB)
 #define isspc(c)	cmap(c, _SP)
 #define ismeta(c)	cmap(c, _META)
 #define iscmdmeta(c)	cmap(c, _CMD)
-#define letter(c)	(((Char)(c) & QUOTE) ? 0 : \
+#ifdef WIDE_STRINGS
+#define letter(c)	(((c) & QUOTE) ? 0 :  \
+			 (iswalpha((tcshuc) (c)) || (c) == '_'))
+#define alnum(c)	(((c) & QUOTE) ? 0 :  \
+		         (iswalnum((tcshuc) (c)) || (c) == '_'))
+#else
+#define letter(c)	(((Char)(c) & QUOTE) ? 0 :  \
 			 (isalpha((tcshuc) (c)) || (c) == '_'))
-#define alnum(c)	(((Char)(c) & QUOTE) ? 0 : \
+#define alnum(c)	(((Char)(c) & QUOTE) ? 0 :  \
 		         (isalnum((tcshuc) (c)) || (c) == '_'))
+#endif
 
 #if defined(DSPMBYTE)
 # define IsmbyteU(c)	(Ismbyte1((Char)(c))||(Ismbyte2((Char)(c))&&((c)&0200)))
 #endif
 
 #ifdef NLS
-# ifdef NeXT
+# ifdef WIDE_STRINGS
+#  define Isspace(c)	(((c) & QUOTE) ? 0 : iswspace(c))
+#  define Isdigit(c)	(((c) & QUOTE) ? 0 : iswdigit(c))
+#  define Isalpha(c)	(((c) & QUOTE) ? 0 : iswalpha(c))
+#  define Islower(c)	(((c) & QUOTE) ? 0 : iswlower(c))
+#  define Isupper(c)	(((c) & QUOTE) ? 0 : iswupper(c))
+#  define Tolower(c) 	(((c) & QUOTE) ? 0 : (wchar_t)towlower(c))
+#  define Toupper(c) 	(((c) & QUOTE) ? 0 : (wchar_t)towupper(c))
+#  define Isxdigit(c)	(((c) & QUOTE) ? 0 : iswxdigit(c))
+#  define Isalnum(c)	(((c) & QUOTE) ? 0 : iswalnum(c))
+#  define Iscntrl(c) 	(((c) & QUOTE) ? 0 : iswcntrl(c))
+#  define Isprint(c) 	(((c) & QUOTE) ? 0 : iswprint(c))
+#  define Ispunct(c) 	(((c) & QUOTE) ? 0 : iswpunct(c))
+# elif defined (NeXT)
 #  define Isspace(c)	(((Char)(c) & QUOTE) ? 0 : NXIsSpace((unsigned) (c)))
 #  define Isdigit(c)	(((Char)(c) & QUOTE) ? 0 : NXIsDigit((unsigned) (c)))
 #  define Isalpha(c)	(((Char)(c) & QUOTE) ? 0 : NXIsAlpha((unsigned) (c)))
@@ -218,14 +247,8 @@ extern unsigned short _toebcdic[256];
 # define Isalpha(c)	(cmap(c,_LET) && !(((c) & META) && AsciiOnly))
 # define Islower(c)	(cmap(c,_DOW) && !(((c) & META) && AsciiOnly))
 # define Isupper(c)	(cmap(c, _UP) && !(((c) & META) && AsciiOnly))
-# ifdef IS_ASCII
-#  define Tolower(c)	(_cmap_lower[(tcshuc)(c)])
-#  define Toupper(c)	(_cmap_upper[(tcshuc)(c)])
-# else
-/* "BS2000 OSD" is a POSIX on a main frame using a EBCDIC char set */
-#  define Tolower(c)	(_cmap_lower[_toascii[(tcshuc)(c)]])
-#  define Toupper(c)	(_cmap_upper[_toascii[(tcshuc)(c)]])
-# endif
+# define Tolower(c)	(_cmap_lower[ASC(c)])
+# define Toupper(c)	(_cmap_upper[ASC(c)])
 # define Isxdigit(c)	cmap(c, _XD)
 # define Isalnum(c)	(cmap(c, _DIG|_LET) && !(((Char)(c) & META) && AsciiOnly))
 #if defined(DSPMBYTE)
@@ -240,6 +263,14 @@ extern unsigned short _toebcdic[256];
 # define Ispunct(c)	(cmap(c,_PUN) && !(((c) & META) && AsciiOnly))
 
 #endif /* !NLS */
+
+#if defined (SHORT_STRINGS) && defined (NLS)
+# define Iswcntrl(c) 	(((c) & QUOTE) ? 0 : iswcntrl(c))
+# define Iswprint(c) 	(((c) & QUOTE) ? 0 : iswprint(c))
+#else
+# define Iswcntrl(c) 	Iscntrl(c)
+# define Iswprint(c) 	Isprint(c)
+#endif
 
 #if defined(DSPMBYTE)
 # define Ismbyte1(c)	((_mbmap[(c) & 0377] & _MB1) ? 1 : 0)

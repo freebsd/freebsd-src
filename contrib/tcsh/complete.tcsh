@@ -1,11 +1,11 @@
 #
-# $Id: complete.tcsh,v 1.43 2004/02/22 15:57:15 christos Exp $
+# $Id: complete.tcsh,v 1.46 2005/03/21 21:26:08 kim Exp $
 # example file using the new completion code
 #
 # Debian GNU/Linux
 # /usr/share/doc/tcsh/examples/complete.gz
 #
-# This file may be read from user's ~/.cshrc or ~/.tcsh file by
+# This file may be read from user's ~/.cshrc or ~/.tcshrc file by
 # decompressing it into the home directory as ~/.complete and
 # then adding the line "source ~/.complete" and maybe defining
 # some of the shell variables described below.
@@ -49,6 +49,7 @@ if ($?_complete) then
     endif
     if ( -r $HOME/.ssh/known_hosts ) then
 	set f=`cat $HOME/.ssh/known_hosts | cut -f 1 -d \ ` >& /dev/null
+	set f=`cat $HOME/.ssh/known_hosts | cut -f 1 -d \ | sed -e 's/,/ /g'` >& /dev/null
 	set hosts=($hosts $f)
     endif
     unset f
@@ -94,11 +95,11 @@ if ($?_complete) then
     complete unalias	n/*/a/
     complete xdvi 	n/*/f:*.dvi/	# Only files that match *.dvi
     complete dvips 	n/*/f:*.dvi/
-if ($?traditional_complete) then
-    complete tex 	n/*/f:*.tex/	# Only files that match *.tex
-else
-    complete tex 	n/*/f:*.{tex,texi}/	# Files that match *.tex and *.texi
-endif
+    if ($?traditional_complete) then
+        complete tex 	n/*/f:*.tex/	# Only files that match *.tex
+    else
+        complete tex 	n/*/f:*.{tex,texi}/	# Files that match *.tex and *.texi
+    endif
     complete latex 	n/*/f:*.{tex,ltx}/
     complete su		c/--/"(login fast preserve-environment command shell \
 			help version)"/	c/-/"(f l m p c s -)"/ \
@@ -178,20 +179,20 @@ endif
 
     complete -co*	p/0/"(compress)"/	# make compress completion
 						# not ambiguous
-if ($?traditional_complete) then
-    complete zcat	n/*/f:*.Z/
-else
-    # "zcat" may be linked to "compress" or "gzip"
-    if (-X zcat) then
-        zcat --version >& /dev/null
-        if ($status != 0) then
-            complete zcat	n/*/f:*.Z/
-        else
-            complete zcat	c/--/"(force help license quiet version)"/ \
+    if ($?traditional_complete) then
+        complete zcat	n/*/f:*.Z/
+    else
+        # "zcat" may be linked to "compress" or "gzip"
+        if (-X zcat) then
+            zcat --version >& /dev/null
+            if ($status != 0) then
+                complete zcat	n/*/f:*.Z/
+            else
+                complete zcat	c/--/"(force help license quiet version)"/ \
 				c/-/"(f h L q V -)"/ n/*/f:*.{gz,Z,z,zip}/
-	endif
+	    endif
+        endif
     endif
-endif
 
     complete finger	c/*@/\$hosts/ n/*/u/@ 
     complete ping	p/1/\$hosts/
@@ -246,8 +247,9 @@ endif
 
     # these from E. Jay Berkenbilt <ejb@ERA.COM>
     # = isn't always followed by a filename or a path anymore - jgotts
-if ($?traditional_complete) then
-    complete ./configure 'c/--*=/f/' 'c/--{cache-file,prefix,exec-prefix,\
+    if ($?traditional_complete) then
+        complete ./configure \
+			 'c/--*=/f/' 'c/--{cache-file,prefix,exec-prefix,\
     				bindir,sbindir,libexecdir,datadir,\
 				sysconfdir,sharedstatedir,localstatedir,\
 				libdir,includedir,oldincludedir,infodir,\
@@ -257,7 +259,7 @@ if ($?traditional_complete) then
 				sharedstatedir localstatedir libdir \
 				includedir oldincludedir infodir mandir \
 				srcdir)//'
-else
+    else
 	complete ./configure \
 			'c@--{prefix,exec-prefix,bindir,sbindir,libexecdir,datadir,sysconfdir,sharedstatedir,localstatedir,infodir,mandir,srcdir,x-includes,x-libraries}=*@x:<directory e.g. /usr/local>'@ \
  			'c/--cachefile=*/x:<filename>/' \
@@ -269,7 +271,7 @@ else
 			mandir= srcdir= x-includes= x-libraries= cachefile= \
  			enable- disable- with- \
  			help no-create quiet silent version verbose )//'
-endif
+    endif
     complete gs 'c/-sDEVICE=/(x11 cdjmono cdj550 epson eps9high epsonc \
 			      dfaxhigh dfaxlow laserjet ljet4 sparc pbm \
 			      pbmraw pgm pgmraw ppm ppmraw bit)/' \
@@ -476,8 +478,16 @@ endif
 			token-table verbose version yacc)/' \
 			'c/-/(b d h k l n o p t v y V)/' 'n/-b/f/' 'n/-o/f/' \
 			'n/-p/f/'
-    complete bunzip2	'p/*/f:*.bz2/' 
-    complete bzip2	'n/-9/f:^*.bz2/' 'n/-d/f:*.bz2/'
+    complete bzcat	c/--/"(help test quiet verbose license version)"/ \
+			c/-/"(h t L V -)"/ n/*/f:*.{bz2,tbz}/
+    complete bunzip2	c/--/"(help keep force test stdout quiet verbose \
+                        license version)"/ c/-/"(h k f t c q v L V -)"/ \
+			n/*/f:*.{bz2,tbz}/
+    complete bzip2	c/--/"(help decompress compress keep force test \
+			stdout quiet verbose license version small)"/ \
+			c/-/"(h d z k f t c q v L V s 1 2 3 4 5 6 7 8 9 -)"/ \
+			n/{-d,--decompress}/f:*.{bz2,tbz}/ \
+			N/{-d,--decompress}/f:*.{bz2,tbz}/ n/*/f:^*.{bz2,tbz}/
     complete c++	'p/*/f:*.{c++,cxx,c,cc,C,cpp}/'
     complete co		'p@1@`\ls -1a RCS | sed -e "s/\(.*\),v/\1/"`@'
     complete crontab	'n/-u/u/'
@@ -591,14 +601,16 @@ endif
 			n@*@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@
     complete ndc	'n/*/(status dumpdb reload stats trace notrace \
 			querylog start stop restart )/'
-	if ($?traditional_complete) then
-    complete nm		'c/--/(debug-syms defined-only demangle dynamic \
+    if ($?traditional_complete) then
+        complete nm \
+		'c/--/(debug-syms defined-only demangle dynamic \
 			extern-only format= help line-numbers no-demangle \
 			no-sort numeric-sort portability print-armap \
 			print-file-name reverse-sort size-sort undefined-only \
 			version)/' 'p/*/f:^*.{h,C,c,cc}/'
-	else
-	complete nm	'c/--radix=/x:<radix: _o_ctal _d_ecimal he_x_adecimal>/' \
+    else
+	complete nm \
+		'c/--radix=/x:<radix: _o_ctal _d_ecimal he_x_adecimal>/' \
 		'c/--target=/x:<bfdname>/' \
 		'c/--format=/(bsd sysv posix)/n/' \
 		'c/--/(debugsyms extern-only demangle dynamic print-armap \
@@ -607,7 +619,7 @@ endif
 			format= defined-only\ line-numbers no-demangle version \
 			help)//' \
 		'n/*/f:^*.{h,c,cc,s,S}/'
-	endif
+    endif
     complete nmap	'n@-e@`ifconfig -l`@' 'p/*/$hostnames/'
     complete perldoc 	'n@*@`\ls -1 /usr/libdata/perl/5.*/pod | sed s%\\.pod.\*\$%%`@'
     complete postfix    'n/*/(start stop reload abort flush check)/'
@@ -719,10 +731,10 @@ endif
 	endif
     endif
 
-	if ($?traditional_complete) then
-    # use of $MANPATH from Dan Nicolaescu <dann@ics.uci.edu>
-    # use of 'find' adapted from Lubomir Host <host8@kepler.fmph.uniba.sk>
-    complete man \
+    if ($?traditional_complete) then
+        # use of $MANPATH from Dan Nicolaescu <dann@ics.uci.edu>
+        # use of 'find' adapted from Lubomir Host <host8@kepler.fmph.uniba.sk>
+        complete man \
 	    'n@1@`set q = "$MANPATH:as%:%/man1 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.1.\*\$%%`@'\
 	    'n@2@`set q = "$MANPATH:as%:%/man2 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.2.\*\$%%`@'\
 	    'n@3@`set q = "$MANPATH:as%:%/man3 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.3.\*\$%%`@'\
@@ -742,8 +754,8 @@ endif
 	    'n@-[sS]@`\ls -1 $MANPATH:as%:% % |& sed -n s%^man%%p | sort -u`@'\
 	    'n@*@`find $MANPATH:as%:% % \( -type f -o -type l \) -printf "%f " |& sed -e "s%find: .*: No such file or directory%%" -e "s%\([^\.]\+\)\.\([^ ]*\) %\1 %g"`@'
 	    #n@*@c@ # old way -- commands only
-	else
-    complete man	    n@1@'`\ls -1 /usr/man/man1 | sed s%\\.1.\*\$%%`'@ \
+    else
+        complete man	    n@1@'`\ls -1 /usr/man/man1 | sed s%\\.1.\*\$%%`'@ \
 			    n@2@'`\ls -1 /usr/man/man2 | sed s%\\.2.\*\$%%`'@ \
 			    n@3@'`\ls -1 /usr/man/man3 | sed s%\\.3.\*\$%%`'@ \
 			    n@4@'`\ls -1 /usr/man/man4 | sed s%\\.4.\*\$%%`'@ \
@@ -759,7 +771,7 @@ n@local@'`[ -r /usr/man/manl ] && \ls -1 /usr/man/manl | sed s%\\.l.\*\$%%`'@ \
 n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 		c/-/"(- f k P s t)"/ n/-f/c/ n/-k/x:'<keyword>'/ n/-P/d/ \
 		N@-P@'`\ls -1 $:-1/man? | sed s%\\..\*\$%%`'@ n/*/c/
-	endif
+    endif
 
     complete ps	        c/-t/x:'<tty>'/ c/-/"(a c C e g k l S t u v w x)"/ \
 			n/-k/x:'<kernel>'/ N/-k/x:'<core_file>'/ n/*/x:'<PID>'/
@@ -1000,9 +1012,11 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			T v V w W X z Z 0 1 2 3 4 5 6 7 -)"/ \
 			C@/dev@f@ \
 			n/-c*f/x:'<new_tar_file, device_file, or "-">'/ \
+			n/{-[Adrtux]j*f,--file}/f:*.{tar.bz2,tbz}/ \
 			n/{-[Adrtux]z*f,--file}/f:*.{tar.gz,tgz}/ \
 			n/{-[Adrtux]Z*f,--file}/f:*.{tar.Z,taz}/ \
 			n/{-[Adrtux]*f,--file}/f:*.tar/ \
+			N/{-xj*f,--file}/'`tar -tjf $:-1`'/ \
 			N/{-xz*f,--file}/'`tar -tzf $:-1`'/ \
 			N/{-xZ*f,--file}/'`tar -tZf $:-1`'/ \
 			N/{-x*f,--file}/'`tar -tf $:-1`'/ \
@@ -1015,28 +1029,23 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			N/{-C,--directory}/'`\ls $:-1`'/ \
 			n/-[0-7]/"(l m h)"/
 
-    # SVR4 filesystems
-    complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
-    			n/-o/x:'<FSType_options>'/ \
-    			n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
-    complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
-    			n/*/'`mount | cut -d " " -f 1`'/
-    complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
-    complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
-    # BSD 4.3 filesystems
-    #complete  mount	c/-/"(a r t v)"/ n/-t/"(4.2 nfs)"/ \
-    #			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	" | cut -f 2`'@
-    #complete umount	c/-/"(a h t v)"/ n/-t/"(4.2 nfs)"/ \
-    #			n/-h/'`df | cut -s -d ":" -f 1 | sort -u`'/ \
-    #			n/*/'`mount | cut -d " " -f 3`'/
-    # BSD 4.2 filesystems
-    #complete  mount	c/-/"(a r t v)"/ n/-t/"(ufs nfs)"/ \
-    #			n@*@'`cut -d ":" -f 2 /etc/fstab`'@
-    #complete umount	c/-/"(a h t v)"/ n/-t/"(ufs nfs)"/ \
-    #			n/-h/'`df | cut -s -d ":" -f 1 | sort -u`'/ \
-    #			n/*/'`mount | cut -d " " -f 3`'/
+    # Linux filesystems
+    complete  mount	c/-/"(a f F h l n o r s t U v V w)"/ n/-[hV]/n/ \
+    			n/-o/x:'<options>'/ n/-t/x:'<vfstype>'/ \
+    			n/-L/x:'<label>'/ n/-U/x:'<uuid>'/ \
+    			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	 " | cut -f 2`'@
+    complete umount	c/-/"(a h n r t v V)"/ n/-t/x:'<vfstype>'/ \
+    			n/*/'`mount | cut -d " " -f 3`'/
+    # Solaris filesystems
+    #complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
+    #			n/-o/x:'<FSType_options>'/ \
+    #			n@-F@'`\ls -1 /usr/lib/fs`'@ \
+    #			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
+    #complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
+    #			n/*/'`mount | cut -d " " -f 1`'/
+    #complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
+    #complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
+    #			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
 
     # these deal with NIS (formerly YP); if it's not running you don't need 'em
     if (-X domainname) then
@@ -1097,19 +1106,19 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
     endif
 
 
-	if (! $?traditional_complete) then
-    uncomplete vi
-    uncomplete vim
-    complete {vi,vim,gvim,nvi,elvis} 	n/*/f:^*.{o,a,so,sa,aux,dvi,log,fig,bbl,blg,bst,idx,ilg,ind,toc}/
-    complete {ispell,spell,spellword}	'n@-d@`ls /usr/lib/ispell/*.aff | sed -e "s/\.aff//" `@' 'n/*/f:^*.{o,a,so,sa,aux,dvi,log,fig,bbl,blg,bst,idx,ilg,ind,toc}/'
-    complete elm	'n/-[Ai]/f/' 'c@=@F:$HOME/Mail/@' 'n/-s/x:\<subject\>/'
-    complete ncftp	'n@*@`sed -e '1,2d' $HOME/.ncftp/bookmarks | cut -f 1,2 -d "," | tr "," "\012" | sort | uniq ` '@
-    complete bibtex	'n@*@`ls *.aux | sed -e "s/\.aux//"`'@
-    complete dvi2tty	n/*/f:*.dvi/	# Only files that match *.dvi
+    if (! $?traditional_complete) then
+        uncomplete vi
+        uncomplete vim
+        complete {vi,vim,gvim,nvi,elvis} 	n/*/f:^*.{o,a,so,sa,aux,dvi,log,fig,bbl,blg,bst,idx,ilg,ind,toc}/
+        complete {ispell,spell,spellword}	'n@-d@`ls /usr/lib/ispell/*.aff | sed -e "s/\.aff//" `@' 'n/*/f:^*.{o,a,so,sa,aux,dvi,log,fig,bbl,blg,bst,idx,ilg,ind,toc}/'
+        complete elm	'n/-[Ai]/f/' 'c@=@F:$HOME/Mail/@' 'n/-s/x:\<subject\>/'
+        complete ncftp	'n@*@`sed -e '1,2d' $HOME/.ncftp/bookmarks | cut -f 1,2 -d "," | tr "," "\012" | sort | uniq ` '@
+        complete bibtex	'n@*@`ls *.aux | sed -e "s/\.aux//"`'@
+        complete dvi2tty	n/*/f:*.dvi/	# Only files that match *.dvi
 	uncomplete gv
 	uncomplete ghostview
-    complete {gv,ghostview}	'n/*/f:*.{ps,eps,epsi}/'
-    complete enscript \
+        complete {gv,ghostview}	'n/*/f:*.{ps,eps,epsi}/'
+        complete enscript \
 		'c/--/(columns= pages= header= no-header truncate-lines \
 			line-numbers setpagedevice= escapes font= \
 			header-font= fancy-header no-job-header \
@@ -1124,9 +1133,10 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			printer-options= ul-angle= ul-font= ul-gray= \
 			ul-position= ul-style= \
 		     )/'
-	endif
+    endif
 
-complete dpkg	'c/--{admindir,instdir,root}=/d/' \
+    complete dpkg \
+		'c/--{admindir,instdir,root}=/d/' \
 		'c/--debug=/n/' \
 		'c/--{admindir,debug,instdir,root}/(=)//' \
 		'c/--/(admindir= debug= instdir= root= \
@@ -1152,12 +1162,13 @@ complete dpkg	'c/--{admindir,instdir,root}=/d/' \
 		      )//' \
 		'n/{-l}/`dpkg -l|awk \{print\ \$2\}`/' \
 		'n/*/f:*.deb'/
-complete dpkg-deb 'c/--{build}=/d/' \
+    complete dpkg-deb 	   'c/--{build}=/d/' \
 			   'c/--/(build contents info field control extract \
 				 vextract fsys-tarfile help version \
 				 license)//' \
 			   'n/*/f:*.deb/'
-complete apt-get 'c/--/(build config-file diff-only download-only \
+    complete apt-get \
+	        'c/--/(build config-file diff-only download-only \
 		   fix-broken fix-missing force-yes help ignore-hold no-download \
 		   no-upgrade option print-uris purge reinstall quiet simulate \
 		   show-upgraded target-release tar-only version yes )/' \
@@ -1167,7 +1178,7 @@ complete apt-get 'c/--/(build config-file diff-only download-only \
  		'n/{install}/`apt-cache pkgnames | sort`/' \
  		'C/*/(update upgrade dselect-upgrade source \
 		   build-dep check clean autoclean install remove)/'
-complete apt-cache \
+    complete apt-cache \
  		'c/--/(all-versions config-file generate full help important \
  		names-only option pkg-cache quiet recurse src-cache version )/' \
  	    	'c/-/(c= h i o= p= q s= v)/' \

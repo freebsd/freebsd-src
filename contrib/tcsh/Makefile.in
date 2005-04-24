@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 3.20 2003/03/12 19:14:50 christos Exp $
+# $Id: Makefile.in,v 3.27 2005/03/23 13:20:30 kim Exp $
 #	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -247,7 +247,7 @@ CPP = @CPP@ # This is set by autoconf.
 # The -B tells gcc to use /bin/ld. This is to avoid using the gnu ld, which
 # on the suns does not know how to make dynamically linked binaries.
 CC = @CC@ # This is set by autoconf.
-#CC= gcc -Wall -Wmissing-prototypes -Wstrict-prototypes -Wpointer-arith -Werror
+#CC= gcc -Wall -Wmissing-prototypes -Wstrict-prototypes -Wpointer-arith -Werror -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wsign-compare -Wcast-qual -Wreturn-type -Wswitch -Wshadow -Wwrite-strings
 #CC=	gcc -Wall -pipe -B/bin/	# -ansi -pedantic
 #CC=	gcc -m486 -pipe -Wall # Generate code for Intel 486 (linux)
 #CC=	shlicc 	# BSDI2.1 w/ shared libraries
@@ -313,11 +313,11 @@ EDOBJS=	ed.chared.${SUF} ed.refresh.${SUF} ed.screen.${SUF} ed.init.${SUF} \
 	ed.inputl.${SUF} ed.defns.${SUF} ed.xmap.${SUF} ed.term.${SUF}
 
 TCSRCS= tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
-	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
+	tc.func.c tc.nls.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
 	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
 	tc.who.c tc.h
 TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.defs.${SUF} \
-	tc.disc.${SUF} tc.func.${SUF} tc.os.${SUF} tc.printf.${SUF} \
+	tc.disc.${SUF} tc.func.${SUF} tc.nls.${SUF} tc.os.${SUF} tc.printf.${SUF} \
 	tc.prompt.${SUF} tc.sched.${SUF} tc.sig.${SUF} tc.str.${SUF} \
 	tc.vers.${SUF} tc.who.${SUF} 
 
@@ -431,8 +431,8 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h
 	@echo '#ifndef _h_tc_const' >> $@
 	@echo '#define _h_tc_const' >> $@
 	${CPP} $(CPPFLAGS) ${DFLAGS} ${EXTRAFLAGS} -D_h_tc_const\
-	    $(srcdir)/tc.const.c | grep 'Char STR' | \
-	    sed -e 's/Char \([a-zA-Z0-9_]*\) *\[ *\].*/extern Char \1[];/' | \
+	    $(srcdir)/tc.const.c | \
+	    sed -n -e 's/^\(Char STR[a-zA-Z0-9_]*\) *\[ *\].*/extern \1[];/p' | \
 	    sort >> $@
 	@echo '#endif /* _h_tc_const */' >> $@
 
@@ -514,12 +514,15 @@ install.cygwin: install install.man
 #	chmod 444 ${DESTMAN}/tcsh.${MANSECT}.Z
 
 clean:
-	${RM} -f a.out strings x.c xs.c tcsh$(EXEEXT) tcsh.a _MAKE_LOG core gethost
+	${RM} -f a.out strings x.c xs.c tcsh$(EXEEXT) tcsh.a _MAKE_LOG gethost
 	${RM} -f *.${SUF} sh.prof.c ed.defns.h tc.const.h sh.err.h tc.defs.c
 	${RM} -f tcsh.*.m tcsh.*.cat
 
 veryclean: clean
-	${RM} -f config.h config.status config.cache config.log Makefile tcsh.ps
+	${RM} -f Makefile config.h config_p.h
+	${RM} -f config.status config.cache config.log tcsh.ps
+	${RM} -f missing
+	${RM} -rf autom4te.cache
 	${RM} -f *~ #*
 
 distclean: veryclean
@@ -623,7 +626,7 @@ $(srcdir)/stamp-h.in: $(srcdir)/configure.in
 #
 config.h: config_f.h
 
-TCH=tc.h tc.const.h tc.decls.h tc.os.h tc.sig.h
+TCH=tc.h tc.const.h tc.decls.h tc.nls.h tc.os.h tc.sig.h
 SHH=sh.h sh.types.h sh.char.h sh.err.h sh.dir.h sh.proc.h pathnames.h \
     sh.decls.h ${TCH}
 TWH=tw.h tw.decls.h
@@ -640,7 +643,7 @@ ${OBJS}: config.h ${SHH}
 
 # TWH
 TWINC=ed.chared.${SUF} ed.inputl.${SUF} sh.exec.${SUF} sh.func.${SUF} \
-      sh.set.${SUF} tc.func.${SUF} tw.color.${SUF}
+      sh.set.${SUF} tc.func.${SUF} tc.nls.${SUF} tw.color.${SUF}
 ${TWOBJS} ${TWINC}: ${TWH}
 
 # glob.h
