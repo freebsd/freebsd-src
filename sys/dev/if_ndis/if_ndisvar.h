@@ -122,6 +122,7 @@ struct ndis_softc {
 #endif
 	int			ndis_devidx;
 	interface_type		ndis_iftype;
+	driver_object		*ndis_dobj;
 
 	bus_dma_tag_t		ndis_parent_tag;
 	struct ndis_shmem	*ndis_shlist;

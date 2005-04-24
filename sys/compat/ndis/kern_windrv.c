@@ -64,22 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/usbd_var.h>
 
-struct windrv_type {
-	uint16_t		windrv_vid;	/* for PCI or USB */
-	uint16_t		windrv_did;	/* for PCI or USB */
-	uint32_t		windrv_subsys;	/* for PCI */
-	char			*windrv_vname;	/* for pccard */
-	char			*windrv_dname;	/* for pccard */
-	char			*windrv_name;	/* for pccard, PCI or USB */
-};
-
-struct drvdb_ent {
-	driver_object		*windrv_object;
-	struct windrv_type	*windrv_devlist;
-	ndis_cfg		*windrv_regvals;
-	STAILQ_ENTRY(drvdb_ent)	link;
-};
-
 struct mtx drvdb_mtx;
 static STAILQ_HEAD(drvdb, drvdb_ent) drvdb_head;
 
@@ -208,6 +192,29 @@ windrv_lookup(img, name)
 	return(NULL);
 }
 
+struct drvdb_ent *
+windrv_match(matchfunc, ctx)
+	matchfuncptr		matchfunc;
+	void			*ctx;
+{
+	struct drvdb_ent	*d;
+	int			match;
+
+	mtx_lock(&drvdb_mtx); 
+	STAILQ_FOREACH(d, &drvdb_head, link) {
+		if (d->windrv_devlist == NULL)
+			continue;
+		match = matchfunc(d->windrv_devlist, ctx);
+		if (match == TRUE) {
+			mtx_unlock(&drvdb_mtx);
+			return(d);
+		}
+	}
+	mtx_unlock(&drvdb_mtx);
+
+	return(NULL);
+}
+
 /*
  * Remove a driver_object from our datatabase and destroy it. Throw
  * away any custom driver extension info that may have been added.
@@ -219,15 +226,52 @@ windrv_unload(mod, img, len)
 	vm_offset_t		img;
 	int			len;
 {
-	struct drvdb_ent	*d, *r = NULL;
+	struct drvdb_ent	*db, *r = NULL;
 	driver_object		*drv;
+	device_object		*d, *pdo;
+	device_t		dev;
 	list_entry		*e, *c;
 
+	drv = windrv_lookup(img, NULL);
+
+	/*
+	 * When we unload a driver image, we need to force a
+	 * detach of any devices that might be using it. We
+	 * need the PDOs of all attached devices for this.
+	 * Getting at them is a little hard. We basically
+	 * have to walk the device lists of all our bus
+	 * drivers.
+	 */
+
 	mtx_lock(&drvdb_mtx); 
-	STAILQ_FOREACH(d, &drvdb_head, link) {
-		if (d->windrv_object->dro_driverstart == (void *)img) {
-			r = d;
-			STAILQ_REMOVE(&drvdb_head, d, drvdb_ent, link);
+	STAILQ_FOREACH(db, &drvdb_head, link) {
+		/*
+		 * Fake bus drivers have no devlist info.
+		 * If this driver has devlist info, it's
+		 * a loaded Windows driver and has no PDOs,
+		 * so skip it.
+		 */
+		if (db->windrv_devlist != NULL)
+			continue;
+		pdo = db->windrv_object->dro_devobj;
+		while (pdo != NULL) {
+			d = pdo->do_attacheddev;
+			if (d->do_drvobj != drv) {
+				pdo = pdo->do_nextdev;
+				continue;
+			}
+			dev = pdo->do_devext;
+			pdo = pdo->do_nextdev;
+			mtx_unlock(&drvdb_mtx); 
+			device_detach(dev);
+			mtx_lock(&drvdb_mtx);
+		}
+	}
+ 
+	STAILQ_FOREACH(db, &drvdb_head, link) {
+		if (db->windrv_object->dro_driverstart == (void *)img) {
+			r = db;
+			STAILQ_REMOVE(&drvdb_head, db, drvdb_ent, link);
 			break;
 		}
 	}
@@ -269,10 +313,13 @@ windrv_unload(mod, img, len)
  */
 
 int
-windrv_load(mod, img, len)
+windrv_load(mod, img, len, bustype, devlist, regvals)
 	module_t		mod;
 	vm_offset_t		img;
 	int			len;
+	interface_type		bustype;
+	void			*devlist;
+	ndis_cfg		*regvals;
 {
 	image_import_descriptor	imp_desc;
 	image_optional_header	opt_hdr;
@@ -350,6 +397,9 @@ windrv_load(mod, img, len)
 	    &drv->dro_drivername.us_buf);
 
 	new->windrv_object = drv;
+	new->windrv_regvals = regvals;
+	new->windrv_devlist = devlist;
+	new->windrv_bustype = bustype;
 
 	/* Now call the DriverEntry() function. */
 
@@ -433,13 +483,16 @@ windrv_find_pdo(drv, bsddev)
 
 	mtx_lock(&drvdb_mtx);
 	pdo = drv->dro_devobj;
-	if (pdo->do_devext != bsddev) {
-		mtx_unlock(&drvdb_mtx);
-		panic("PDO wasn't first device in list");
+	while (pdo != NULL) {
+		if (pdo->do_devext == bsddev) {
+			mtx_unlock(&drvdb_mtx);
+			return(pdo);
+		}
+		pdo = pdo->do_nextdev;
 	}
 	mtx_unlock(&drvdb_mtx);
 
-	return(pdo);
+	return(NULL);
 }
 
 /*
@@ -628,9 +681,8 @@ ctxsw_wtou(void)
 
 #ifdef EXTRA_SANITY
 	if (t->tid_cpu != curthread->td_oncpu)
-		panic("ctxswGOT MOVED TO OTHER CPU!");
+		panic("ctxsw GOT MOVED TO OTHER CPU!");
 #endif
-
 	return;
 }
 

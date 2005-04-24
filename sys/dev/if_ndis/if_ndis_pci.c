@@ -56,44 +56,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-#include "ndis_driver_data.h"
-
-#ifdef NDIS_PCI_DEV_TABLE 
-
 MODULE_DEPEND(ndis, pci, 1, 1, 1);
-MODULE_DEPEND(ndis, ether, 1, 1, 1);
-MODULE_DEPEND(ndis, wlan, 1, 1, 1);
-MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
-
-/*
- * Various supported device vendors/types and their names.
- * These are defined in the ndis_driver_data.h file.
- */
-static struct ndis_pci_type ndis_devs[] = {
-#ifdef NDIS_PCI_DEV_TABLE
-	NDIS_PCI_DEV_TABLE
-#endif
-	{ 0, 0, 0, NULL }
-};
 
 static int ndis_probe_pci	(device_t);
 static int ndis_attach_pci	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
+static int ndis_devcompare	(struct ndis_pci_type *, device_t);
 extern int ndisdrv_modevent	(module_t, int, void *);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
 extern int ndis_detach		(device_t);
 extern int ndis_suspend		(device_t);
 extern int ndis_resume		(device_t);
-
-extern unsigned char drv_data[];
 
 static device_method_t ndis_methods[] = {
 	/* Device interface */
@@ -111,29 +92,34 @@ static device_method_t ndis_methods[] = {
 };
 
 static driver_t ndis_driver = {
-#ifdef NDIS_DEVNAME
-	NDIS_DEVNAME,
-#else
 	"ndis",
-#endif
 	ndis_methods,
 	sizeof(struct ndis_softc)
 };
 
 static devclass_t ndis_devclass;
 
-#ifdef NDIS_MODNAME
-#define NDIS_MODNAME_OVERRIDE_PCI(x)					\
-	DRIVER_MODULE(x, pci, ndis_driver, ndis_devclass, ndisdrv_modevent, 0)
-#define NDIS_MODNAME_OVERRIDE_CARDBUS(x)				\
-	DRIVER_MODULE(x, cardbus, ndis_driver, ndis_devclass,		\
-		ndisdrv_modevent, 0)
-NDIS_MODNAME_OVERRIDE_PCI(NDIS_MODNAME);
-NDIS_MODNAME_OVERRIDE_CARDBUS(NDIS_MODNAME);
-#else
 DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
-#endif
+
+static int
+ndis_devcompare(t, dev)
+	struct ndis_pci_type	*t;
+	device_t		dev;
+{
+	while(t->ndis_name != NULL) {
+		if ((pci_get_vendor(dev) == t->ndis_vid) &&
+		    (pci_get_device(dev) == t->ndis_did) &&
+		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
+		    t->ndis_subsys) || t->ndis_subsys == 0)) {
+			device_set_desc(dev, t->ndis_name);
+			return(TRUE);
+		}
+		t++;
+	}
+
+	return(FALSE);
+}
 
 /*
  * Probe for an NDIS device. Check the PCI vendor and device
@@ -143,27 +129,20 @@ static int
 ndis_probe_pci(dev)
 	device_t		dev;
 {
-	struct ndis_pci_type	*t;
 	driver_object		*drv;
+	struct drvdb_ent	*db;
 
-	t = ndis_devs;
 	drv = windrv_lookup(0, "PCI Bus");
 
 	if (drv == NULL)
 		return(ENXIO);
 
-	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did) &&
-		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys) || t->ndis_subsys == 0)) {
-			device_set_desc(dev, t->ndis_name);
+	db = windrv_match((matchfuncptr)ndis_devcompare, dev);
 
-			/* Create PDO for this device instance */
-			windrv_create_pdo(drv, dev);
-			return(0);
-		}
-		t++;
+	if (db != NULL) {
+		/* Create PDO for this device instance */
+		windrv_create_pdo(drv, dev);
+		return(0);
 	}
 
 	return(ENXIO);
@@ -183,10 +162,17 @@ ndis_attach_pci(dev)
 	int			devidx = 0, defidx = 0;
 	struct resource_list	*rl;
 	struct resource_list_entry	*rle;
+	struct drvdb_ent	*db;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	sc->ndis_dev = dev;
+
+	db = windrv_match((matchfuncptr)ndis_devcompare, dev);
+	if (db == NULL)
+		return (ENXIO);
+	sc->ndis_dobj = db->windrv_object;
+	sc->ndis_regvals = db->windrv_regvals;
 
 	/*
 	 * Map control/status registers.
@@ -213,6 +199,7 @@ ndis_attach_pci(dev)
 					error = ENXIO;
 					goto fail;
 				}
+				pci_enable_io(dev, SYS_RES_IOPORT);
 				break;
 			case SYS_RES_MEMORY:
 				if (sc->ndis_res_altmem != NULL &&
@@ -250,6 +237,7 @@ ndis_attach_pci(dev)
 						goto fail;
 					}
 				}
+				pci_enable_io(dev, SYS_RES_MEMORY);
 				break;
 			case SYS_RES_IRQ:
 				rid = rle->rid;
@@ -312,7 +300,7 @@ ndis_attach_pci(dev)
 
 	/* Figure out exactly which device we matched. */
 
-	t = ndis_devs;
+	t = db->windrv_devlist;
 
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
@@ -329,7 +317,7 @@ ndis_attach_pci(dev)
 		devidx++;
 	}
 
-	if (ndis_devs[devidx].ndis_name == NULL)
+	if (t[devidx].ndis_name == NULL)
 		sc->ndis_devidx = defidx;
 	else
 		sc->ndis_devidx = devidx;
@@ -350,5 +338,3 @@ ndis_get_resource_list(dev, child)
 	sc = device_get_softc(dev);
 	return (BUS_GET_RESOURCE_LIST(device_get_parent(sc->ndis_dev), dev));
 }
-
-#endif /* NDIS_PCI_DEV_TABLE */

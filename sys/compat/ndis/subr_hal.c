@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/resource_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 
