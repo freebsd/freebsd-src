@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2004
+.Dd April 24, 2005
 .Dt SK 4
 .Os
 .Sh NAME
@@ -157,6 +157,8 @@ driver include:
 .It
 Belkin F5D5005 single port, 1000baseT adapter
 .It
+D-Link DGE-530T single port, 1000baseT adapter
+.It
 Linksys EG1032 single port, 1000baseT adapter
 .It
 SK-9521 SK-NET GE-T single port, 1000baseT adapter
@@ -174,6 +176,19 @@ SK-9843 SK-NET GE-SX single port, multimode fiber adapter
 SK-9844 SK-NET GE-SX dual port, multimode fiber adapter
 .It
 SMC 9452TX single port, 1000baseT adapter
+.El
+.Sh SYSCTL VARIABLES
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va dev.skc.%d.int_mod
+.Pp
+This variable controls interrupt moderation.
+The accepted range is 10 to 10000, default value is 100 microseconds.
+The interface has to be brought down and up again before a change takes effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
