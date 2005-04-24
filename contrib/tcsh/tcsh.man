@@ -72,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "19 May 2004" "Astron 6.13.00"
+.TH TCSH 1 "25 March 2005" "Astron 6.14.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -175,6 +175,13 @@ Sets the \fBverbose\fR shell variable even before executing \fI~/.tcshrc\fR.
 .TP 4
 .B \-X
 Is to \fB\-x\fR as \fB\-V\fR is to \fB\-v\fR.
+.TP 4
+.B \-\-help
+Print a help message on the standard output and exit. (+)
+.TP 4
+.B \-\-version
+Print the version/platform/compilation options on the standard output and exit.
+This information is also contained in the \fBversion\fR shell variable. (+)
 .PP
 After processing of flag arguments, if arguments remain but none of the
 \fB\-c\fR, \fB\-i\fR, \fB\-s\fR, or \fB\-t\fR options were given, the first
@@ -1308,6 +1315,10 @@ quotes (`"') retain blanks and tabs; only newlines force new words.  The single
 final newline does not force a new word in any case.  It is thus possible for a
 command substitution to yield only part of a word, even if the command outputs
 a complete line.
+.PP
+By default, the shell since version 6.12 replaces all newline and carriage 
+return characters in the command by spaces.  If this is switched off by
+unsetting \fBcsubstnonl\fR, newlines separate commands as usual.
 .SS "Filename substitution"
 If a word contains any of the characters `*', `?', `[' or `{' or begins with
 the character `~' it is a candidate for filename substitution, also known as
@@ -1915,13 +1926,14 @@ The shell is eight bit clean
 and thus supports character sets needing this capability.
 NLS support differs depending on whether or not
 the shell was compiled to use the system's NLS (again, see \fBversion\fR).
-In either case, 7-bit ASCII is the default for character classification
-(e.g., which characters are printable) and sorting,
+In either case, 7-bit ASCII is the default character code
+(e.g., the classification of which characters are printable) and sorting,
 and changing the \fBLANG\fR or \fBLC_CTYPE\fR environment variables
 causes a check for possible changes in these respects.
 .PP
 When using the system's NLS, the \fIsetlocale\fR(3) function is called
-to determine appropriate character classification and sorting.
+to determine appropriate character code/classification and sorting
+(e.g., a 'en_CA.UTF-8' would yield "UTF-8" as a character code).
 This function typically examines the \fBLANG\fR and \fBLC_CTYPE\fR
 environment variables; refer to the system documentation for further details.
 When not using the system's NLS, the shell simulates it by assuming that the
@@ -2879,6 +2891,10 @@ the size of the largest core dump that will be created
 the maximum amount of physical memory a process
 may have allocated to it at a given time
 .TP
+\fIheapsize\fR
+the maximum amount of memory a process
+may allocate per \fIbrk()\fR system call
+.TP
 \fIdescriptors\fR or \fIopenfiles\fR
 the maximum number of open files for this process
 .TP
@@ -3299,6 +3315,12 @@ there is no default, execution continues after the \fIendsw\fR.
 .B telltc \fR(+)
 Lists the values of all terminal capabilities (see \fItermcap\fR(5)).
 .TP 8
+.B termname \fR[\fIterminal type\fR] \fR(+)
+Tests if \fIterminal type\fR (or the current value of \fBTERM\fR if no
+\fIterminal type\fR is given) has an entry in the hosts termcap(5) or
+terminfo(5) database. Prints the terminal type to stdout and returns 0
+if an entry is present otherwise returns 1.
+.TP 8
 .B time \fR[\fIcommand\fR]
 Executes \fIcommand\fR (which must be a simple command, not an alias,
 a pipeline, a command list or a parenthesized command list)
@@ -3338,6 +3360,8 @@ Removes the limitation on \fIresource\fR or, if no \fIresource\fR is
 specified, all \fIresource\fR limitations.
 With \fB\-h\fR, the corresponding hard limits are removed.
 Only the super-user may do this.
+Note that \fBunlimit\fR may not exit successful, since most systems
+do not allow \fIdescriptors\fR to be unlimited.
 .TP 8
 .B unset \fIpattern
 Removes all variables whose names match \fIpattern\fR, unless they are read-only.
@@ -3491,7 +3515,7 @@ desired interpreter (e.g., `/bin/csh' or `/usr/local/bin/tcsh').
 .SS "Special shell variables"
 The variables described in this section have special meaning to the shell.
 .PP
-The shell sets \fBaddsuffix\fR, \fBargv\fR, \fBautologout\fR, \fBcommand\fR, \fBecho_style\fR,
+The shell sets \fBaddsuffix\fR, \fBargv\fR, \fBautologout\fR, \fBcsubstnonl\fR, \fBcommand\fR, \fBecho_style\fR,
 \fBedit\fR, \fBgid\fR, \fBgroup\fR, \fBhome\fR, \fBloginsh\fR, \fBoid\fR, \fBpath\fR,
 \fBprompt\fR, \fBprompt2\fR, \fBprompt3\fR, \fBshell\fR, \fBshlvl\fR,
 \fBtcsh\fR, \fBterm\fR, \fBtty\fR, \fBuid\fR, \fBuser\fR and \fBversion\fR at
@@ -3601,6 +3625,10 @@ If set to `cmd', commands are automatically spelling-corrected.
 If set to `complete', commands are automatically completed.
 If set to `all', the entire command line is corrected.
 .TP 8
+.B csubstnonl \fR(+)
+If set, newlines and carriage returns in command substitution are
+replaced by spaces.  Set by default.
+.TP 8
 .B cwd
 The full pathname of the current directory.
 See also the \fBdirstack\fR and \fBowd\fR shell variables.
@@ -3626,6 +3654,7 @@ but the first element (the current working directory) is always correct.
 See also the \fBcwd\fR and \fBowd\fR shell variables.
 .TP 8
 .B dspmbyte \fR(+)
+Has an affect iff 'dspm' is listed as part of the \fBversion\fR shell variable.
 If set to `euc', it enables display and editing EUC-kanji(Japanese) code.
 If set to `sjis', it enables display and editing Shift-JIS(Japanese) code.
 If set to `big5', it enables display and editing Big5(Chinese) code.
@@ -3662,7 +3691,7 @@ is set to number 0,1,2 and 3.  Each number has the following meaning:
 .br
 If set to `001322', the first character (means 0x00 of the ASCII code) and
 second character (means 0x01 of ASCII code) are set to `0'.  Then, it is not
-used for multi-byte characters.  The 3rd character (0x02) is set to '2',
+used for multi-byte characters.  The 3rd character (0x02) is set to '1',
 indicating that it is used for the first byte of a multi-byte character.
 The 4th character(0x03) is set '3'.  It is used for both the first byte and
 the second byte of a multi-byte character.  The 5th and 6th characters
@@ -4417,56 +4446,59 @@ Options which are set by default in the distribution are noted.
 .PP
 .RS +8
 .PD 0
-.TP 4
+.TP 6
 8b
 The shell is eight bit clean; default
-.TP 4
+.TP 6
 7b
 The shell is not eight bit clean
-.TP 4
+.TP 6
+wide
+The shell is multibyte encoding clean (like UTF-8)
+.TP 6
 nls
 The system's NLS is used; default for systems with NLS
-.TP 4
+.TP 6
 lf
 Login shells execute \fI/etc/csh.login\fR before instead of after
 \fI/etc/csh.cshrc\fR and \fI~/.login\fR before instead of after
 \fI~/.tcshrc\fR and \fI~/.history\fR.
-.TP 4
+.TP 6
 dl
 `.' is put last in \fBpath\fR for security; default
-.TP 4
+.TP 6
 nd
 `.' is omitted from \fBpath\fR for security
-.TP 4
+.TP 6
 vi
 \fIvi\fR-style editing is the default rather than \fIemacs\fR
-.TP 4
+.TP 6
 dtr
 Login shells drop DTR when exiting
-.TP 4
+.TP 6
 bye
 \fIbye\fR is a synonym for \fIlogout\fR and \fIlog\fR
 is an alternate name for \fIwatchlog\fR
-.TP 4
+.TP 6
 al
 \fBautologout\fR is enabled; default
-.TP 4
+.TP 6
 kan
 Kanji is used if appropriate according to locale settings,
 unless the \fBnokanji\fR shell variable is set
-.TP 4
+.TP 6
 sm
 The system's \fImalloc\fR(3) is used
-.TP 4
+.TP 6
 hb
 The `#!<program> <args>' convention is emulated when executing shell scripts
-.TP 4
+.TP 6
 ng
 The \fInewgrp\fR builtin is available
-.TP 4
+.TP 6
 rh
 The shell attempts to set the \fBREMOTEHOST\fR environment variable
-.TP 4
+.TP 6
 afs
 The shell verifies your password with the kerberos server if local
 authentication fails.  The \fBafsuser\fR shell variable or the
@@ -4967,12 +4999,12 @@ the expression is false and the command is not executed.
 and does not handle control characters in filenames well.  It cannot be
 interrupted.
 .PP
-Report bugs to tcsh-bugs@mx.gw.com, preferably with fixes.  If you want to
-help maintain and test tcsh, send mail to listserv@mx.gw.com with the text
-`subscribe tcsh <your name>' on a line by itself in the body.  You can
-also `subscribe tcsh-bugs <your name>' to get all bug reports, or
-`subscribe tcsh-diffs <your name>' to get the development list plus
-diffs for each patchlevel.
+Command substitution supports multiple commands and conditions, but not
+cycles or backward \fIgoto\fRs.
+.PP
+Report bugs at http://bugs.gw.com/, preferably with fixes.  If you want to
+help maintain and test tcsh, send mail to tcsh-request@mx.gw.com with the
+text `subscribe tcsh' on a line by itself in the body.
 .SH THE T IN TCSH
 In 1964, DEC produced the PDP-6.  The PDP-10 was a later re-implementation.  It
 was re-christened the DECsystem-10 in 1970 or so when DEC brought out the
@@ -5019,7 +5051,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.13.00 (Astron) 2004-05-19.
+This manual documents tcsh 6.14.00 (Astron) 2005-03-25.
 .SH AUTHORS
 .PD 0
 .TP 2

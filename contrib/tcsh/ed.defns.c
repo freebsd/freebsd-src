@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.defns.c,v 3.39 2002/03/08 17:36:45 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.defns.c,v 3.42 2005/03/03 16:49:15 kim Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.defns.c,v 3.39 2002/03/08 17:36:45 christos Exp $")
+RCSID("$Id: ed.defns.c,v 3.42 2005/03/03 16:49:15 kim Exp $")
 
 #include "ed.h"
 
@@ -1812,22 +1812,22 @@ CheckMaps()
 
 #endif
 
-bool    MapsAreInited = 0;
-bool    NLSMapsAreInited = 0;
-bool    NoNLSRebind;
+int    MapsAreInited = 0;
+int    NLSMapsAreInited = 0;
+int    NoNLSRebind;
 
 void
 ed_InitNLSMaps()
 {
-    register int i;
+    int i;
 
     if (AsciiOnly)
 	return;
     if (NoNLSRebind)
 	return;
     for (i = 0200; i <= 0377; i++) {
-	if (Isprint(i)) {
-	    CcKeyMap[i] = F_INSERT;
+	if (Isprint(CTL_ESC(i))) {
+	    CcKeyMap[CTL_ESC(i)] = F_INSERT;
 	}
     }
     NLSMapsAreInited = 1;
@@ -1842,13 +1842,13 @@ ed_InitMetaBindings()
     KEYCMD *map;
 
     map = CcKeyMap;
-    for (i = 0; i <= 0377 && CcKeyMap[i] != F_METANEXT; i++)
+    for (i = 0; i <= 0377 && CcKeyMap[CTL_ESC(i)] != F_METANEXT; i++)
 	continue;
     if (i > 0377) {
-	for (i = 0; i <= 0377 && CcAltMap[i] != F_METANEXT; i++)
+	for (i = 0; i <= 0377 && CcAltMap[CTL_ESC(i)] != F_METANEXT; i++)
 	    continue;
 	if (i > 0377) {
-	    i = CTL_ESC('\033');
+	    i = '\033';
 	    if (VImode)
 		map = CcAltMap;
 	}
@@ -1856,18 +1856,14 @@ ed_InitMetaBindings()
 	    map = CcAltMap;
 	}
     }
-    buf[0] = (Char) i;
+    buf[0] = (Char)CTL_ESC(i);
     buf[2] = 0;
     cstr.buf = buf;
     cstr.len = 2;
     for (i = 0200; i <= 0377; i++) {
-	if (map[i] != F_INSERT && map[i] != F_UNASSIGNED && map[i] != F_XKEY) {
-#ifdef IS_ASCII
-	    buf[1] = i & ASCII;
-#else
-	    buf[1] = _toebcdic[_toascii[i] & ASCII];
-#endif
-	    AddXkey(&cstr, XmapCmd((int) map[i]), XK_CMD);
+	if (map[CTL_ESC(i)] != F_INSERT && map[CTL_ESC(i)] != F_UNASSIGNED && map[CTL_ESC(i)] != F_XKEY) {
+	    buf[1] = CTL_ESC(i & ASCII);
+	    AddXkey(&cstr, XmapCmd((int) map[CTL_ESC(i)]), XK_CMD);
 	}
     }
     map[buf[0]] = F_XKEY;
@@ -1876,7 +1872,7 @@ ed_InitMetaBindings()
 void
 ed_InitVIMaps()
 {
-    register int i;
+    int i;
 
     VImode = 1;
     ResetXmap();
@@ -1948,7 +1944,7 @@ ed_InitMaps()
     {
 	KEYCMD temp[NT_NUM_KEYS];
 	static KEYCMD *const list[3] = { CcEmacsMap, CcViMap, CcViCmdMap };
-	register int i, table;
+	int i, table;
 
 	for (table=0; table<3; ++table)
 	{

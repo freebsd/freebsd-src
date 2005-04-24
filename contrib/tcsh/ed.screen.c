@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.screen.c,v 3.50 2003/02/08 20:03:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.screen.c,v 3.63 2005/01/18 20:43:30 christos Exp $ */
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */
@@ -32,34 +32,11 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.screen.c,v 3.50 2003/02/08 20:03:25 christos Exp $")
+RCSID("$Id: ed.screen.c,v 3.63 2005/01/18 20:43:30 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
 #include "ed.defns.h"
-
-#ifndef POSIX
-/*
- * We don't prototype these, cause some systems have them wrong!
- */
-extern int   tgetent	__P(());
-extern char *tgetstr	__P(());
-extern int   tgetflag	__P(());
-extern int   tgetnum	__P(());
-extern char *tgoto	__P(());
-# define PUTPURE putpure
-# define PUTRAW putraw
-#else
-extern int   tgetent	__P((char *, char *));
-extern char *tgetstr	__P((char *, char **));
-extern int   tgetflag	__P((char *));
-extern int   tgetnum	__P((char *));
-extern char *tgoto	__P((char *, int, int));
-extern void  tputs	__P((char *, int, void (*)(int)));
-# define PUTPURE ((void (*)__P((int))) putpure)
-# define PUTRAW ((void (*)__P((int))) putraw)
-#endif
-
 
 /* #define DEBUG_LITERAL */
 
@@ -77,8 +54,8 @@ extern void  tputs	__P((char *, int, void (*)(int)));
 #define Val(a) tval[a].val
 
 static struct {
-    char   *b_name;
-    int     b_rate;
+    const char   *b_name;
+    speed_t b_rate;
 }       baud_rate[] = {
 
 #ifdef B0
@@ -187,8 +164,8 @@ static struct {
 #define T_at7   37
 #define T_str   38
 static struct termcapstr {
-    char   *name;
-    char   *long_name;
+    const char   *name;
+    const char   *long_name;
     char   *str;
 } tstr[T_str + 1];
 
@@ -201,8 +178,8 @@ static struct termcapstr {
 #define T_xn	5
 #define T_val	6
 static struct termcapval {
-    char   *name;
-    char   *long_name;
+    const char   *name;
+    const char   *long_name;
     int     val;
 } tval[T_val + 1];
 
@@ -372,7 +349,7 @@ terminit()
  * No Wrap         no      --              yes             yes
  */
 
-static bool me_all = 0;		/* does two or more of the attributes use me */
+static int me_all = 0;		/* does two or more of the attributes use me */
 
 static	void	ReBufferDisplay	__P((void));
 static	void	TCalloc		__P((struct termcapstr *, char *)); 
@@ -445,33 +422,36 @@ TCalloc(t, cap)
 
 /*ARGSUSED*/
 void
-TellTC(what)
-    char   *what;
+TellTC()
 {
     struct termcapstr *t;
+    char *s;
 
-    USE(what);
     xprintf(CGETS(7, 1, "\n\tTcsh thinks your terminal has the\n"));
     xprintf(CGETS(7, 2, "\tfollowing characteristics:\n\n"));
     xprintf(CGETS(7, 3, "\tIt has %d columns and %d lines\n"),
 	    Val(T_co), Val(T_li));
-    xprintf(CGETS(7, 4, "\tIt has %s meta key\n"), T_HasMeta ?
-	    CGETS(7, 5, "a") : CGETS(7, 6, "no"));
-    xprintf(CGETS(7, 7, "\tIt can%s use tabs\n"), T_Tabs ?
-	    "" : CGETS(7, 8, " not"));
-    xprintf(CGETS(7, 9, "\tIt %s automatic margins\n"),
-		    (T_Margin&MARGIN_AUTO)?
-		    CGETS(7, 10, "has"):
-		    CGETS(7, 11, "does not have"));
-    if (T_Margin & MARGIN_AUTO)
-	xprintf(CGETS(7, 12, "\tIt %s magic margins\n"),
-			(T_Margin & MARGIN_MAGIC) ?
-			CGETS(7, 10, "has"):
-			CGETS(7, 11, "does not have"));
-
-    for (t = tstr; t->name != NULL; t++)
-	xprintf("\t%36s (%s) == %s\n", t->long_name, t->name,
-		t->str && *t->str ? t->str : CGETS(7, 13, "(empty)"));
+    s = strsave(T_HasMeta ? CGETS(7, 5, "a") : CGETS(7, 6, "no"));
+    xprintf(CGETS(7, 4, "\tIt has %s meta key\n"), s);
+    xfree(s);
+    s = strsave(T_Tabs ? "" : CGETS(7, 8, " not"));
+    xprintf(CGETS(7, 7, "\tIt can%s use tabs\n"), s);
+    xfree(s);
+    s = strsave((T_Margin&MARGIN_AUTO) ?
+		CGETS(7, 10, "has") : CGETS(7, 11, "does not have"));
+    xprintf(CGETS(7, 9, "\tIt %s automatic margins\n"), s);
+    xfree(s);
+    if (T_Margin & MARGIN_AUTO) {
+        s = strsave((T_Margin & MARGIN_MAGIC) ?
+			CGETS(7, 10, "has") : CGETS(7, 11, "does not have"));
+	xprintf(CGETS(7, 12, "\tIt %s magic margins\n"), s);
+	xfree(s);
+    }
+    for (t = tstr; t->name != NULL; t++) {
+        s = strsave(t->str && *t->str ? t->str : CGETS(7, 13, "(empty)"));
+	xprintf("\t%36s (%s) == %s\n", t->long_name, t->name, s);
+	xfree(s);
+    }
     xputchar('\n');
 }
 
@@ -479,9 +459,9 @@ TellTC(what)
 static void
 ReBufferDisplay()
 {
-    register int i;
-    Char  **b;
-    Char  **bufp;
+    int i;
+    Char **b;
+    Char **bufp;
 
     b = Display;
     Display = NULL;
@@ -499,14 +479,14 @@ ReBufferDisplay()
     }
     TermH = Val(T_co);
     TermV = (INBUFSIZE * 4) / TermH + 1;
-    b = (Char **) xmalloc((size_t) (sizeof(Char *) * (TermV + 1)));
+    b = (Char **) xmalloc((size_t) (sizeof(*b) * (TermV + 1)));
     for (i = 0; i < TermV; i++)
-	b[i] = (Char *) xmalloc((size_t) (sizeof(Char) * (TermH + 1)));
+	b[i] = (Char *) xmalloc((size_t) (sizeof(*b[i]) * (TermH + 1)));
     b[TermV] = NULL;
     Display = b;
-    b = (Char **) xmalloc((size_t) (sizeof(Char *) * (TermV + 1)));
+    b = (Char **) xmalloc((size_t) (sizeof(*b) * (TermV + 1)));
     for (i = 0; i < TermV; i++)
-	b[i] = (Char *) xmalloc((size_t) (sizeof(Char) * (TermH + 1)));
+	b[i] = (Char *) xmalloc((size_t) (sizeof(*b[i]) * (TermH + 1)));
     b[TermV] = NULL;
     Vdisplay = b;
 }
@@ -595,7 +575,7 @@ EchoTC(v)
     int     arg_need, arg_cols, arg_rows;
     int     verbose = 0, silent = 0;
     char   *area;
-    static char *fmts = "%s\n", *fmtd = "%d\n";
+    static const char *fmts = "%s\n", *fmtd = "%d\n";
     struct termcapstr *t;
     char    buf[TC_BUFSIZE];
 
@@ -798,7 +778,7 @@ EchoTC(v)
     }
 }
 
-bool    GotTermCaps = 0;
+int    GotTermCaps = 0;
 
 static struct {
     Char   *name;
@@ -807,17 +787,17 @@ static struct {
     int	    type;
 } arrow[] = {
 #define A_K_DN	0
-    { STRdown,	T_kd },
+    { STRdown,	T_kd, { 0 }, 0 },
 #define A_K_UP	1
-    { STRup,	T_ku },
+    { STRup,	T_ku, { 0 }, 0 },
 #define A_K_LT	2
-    { STRleft,	T_kl },
+    { STRleft,	T_kl, { 0 }, 0 },
 #define A_K_RT	3
-    { STRright, T_kr },
+    { STRright, T_kr, { 0 }, 0 },
 #define A_K_HO  4
-    { STRhome,  T_kh },
+    { STRhome,  T_kh, { 0 }, 0 },
 #define A_K_EN  5
-    { STRend,   T_at7}
+    { STRend,   T_at7, { 0 }, 0}
 };
 #define A_K_NKEYS 6
 
@@ -1021,7 +1001,7 @@ static Char cur_atr = 0;	/* current attributes */
 
 void
 SetAttributes(atr)
-    int     atr;
+    Char     atr;
 {
     atr &= ATTRIBUTES;
     if (atr != cur_atr) {
@@ -1115,9 +1095,14 @@ MoveToLine(where)		/* move to line <where> (first line == 0) */
     if (del > 0) {
 	while (del > 0) {
 	    if ((T_Margin & MARGIN_AUTO) && Display[CursorV][0] != '\0') {
+		size_t h;
+
+		for (h = TermH - 1; h > 0 && Display[CursorV][h] == CHAR_DBWIDTH;
+		     h--)
+		    ;
 		/* move without newline */
-		MoveToChar(TermH - 1);
-		so_write(&Display[CursorV][CursorH], 1); /* updates CursorH/V*/
+		MoveToChar(h);
+		so_write(&Display[CursorV][CursorH], TermH - CursorH); /* updates CursorH/V*/
 		del--;
 	    }
 	    else {
@@ -1182,16 +1167,13 @@ mc_again:
 		(void) tputs(tgoto(Str(T_RI), del, del), del, PUTPURE);
 	    else {
 		/* if I can do tabs, use them */
-		if (T_Tabs
-#ifdef DSPMBYTE
-		    && !_enable_mbdisp
-#endif /* DSPMBYTE */
-		) {
-		    if ((CursorH & 0370) != (where & 0370)) {
+		if (T_Tabs) {
+		    if ((CursorH & 0370) != (where & ~0x7)
+			&& Display[CursorV][where & ~0x7] != CHAR_DBWIDTH) {
 			/* if not within tab stop */
-			for (i = (CursorH & 0370); i < (where & 0370); i += 8)
+			for (i = (CursorH & 0370); i < (where & ~0x7); i += 8)
 			    (void) putraw('\t');	/* then tab over */
-			CursorH = where & 0370;
+			CursorH = where & ~0x7;
 			/* Note: considering that we often want to go to
 			   TermH - 1 for the wrapping, it would be nice to
 			   optimize this case by tabbing to the last column
@@ -1226,8 +1208,8 @@ mc_again:
 
 void
 so_write(cp, n)
-    register Char *cp;
-    register int n;
+    Char *cp;
+    int n;
 {
     if (n <= 0)
 	return;			/* catch bugs */
@@ -1241,21 +1223,19 @@ so_write(cp, n)
     }
 
     do {
-	if (*cp & LITERAL) {
-	    extern Char *litptr[];
-	    Char   *d;
-
+	if (*cp != CHAR_DBWIDTH) {
+	    if (*cp & LITERAL) {
+		Char   *d;
 #ifdef DEBUG_LITERAL
-	    xprintf("so: litnum %d, litptr %x\r\n",
-		    *cp & CHAR, litptr[*cp & CHAR]);
+		xprintf("so: litnum %d\r\n", (int)(*cp & ~LITERAL));
 #endif /* DEBUG_LITERAL */
-	    for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
-		(void) putraw(*d & CHAR);
-	    (void) putraw(*d);
-
+		for (d = litptr + (*cp & ~LITERAL) * LIT_FACTOR; *d; d++)
+		    (void) putwraw(*d);
+	    }
+	    else
+		(void) putwraw(*cp);
 	}
-	else
-	    (void) putraw(*cp++);
+	cp++;
 	CursorH++;
     } while (--n);
 
@@ -1266,11 +1246,15 @@ so_write(cp, n)
 	    if (T_Margin & MARGIN_MAGIC) {
 		/* force the wrap to avoid the "magic" situation */
 		Char c;
-		if ((c = Display[CursorV][CursorH]) != '\0')
+		if ((c = Display[CursorV][CursorH]) != '\0') {
 		    so_write(&c, 1);
-		else
+		    while(Display[CursorV][CursorH] == CHAR_DBWIDTH)
+			CursorH++;
+		}
+		else {
 		    (void) putraw(' ');
-		CursorH = 1;
+		    CursorH = 1;
+		}
 	    }
 	}
 	else			/* no wrap, but cursor stays on screen */
@@ -1321,8 +1305,8 @@ DeleteChars(num)		/* deletes <num> characters */
 
 void
 Insert_write(cp, num)		/* Puts terminal in insert character mode, */
-    register Char *cp;
-    register int num;		/* or inserts num characters in the line */
+    Char *cp;
+    int num;		/* or inserts num characters in the line */
 {
     if (num <= 0)
 	return;
@@ -1352,10 +1336,7 @@ Insert_write(cp, num)		/* Puts terminal in insert character mode, */
     if (GoodStr(T_im) && GoodStr(T_ei)) { /* if I have insert mode */
 	(void) tputs(Str(T_im), 1, PUTPURE);
 
-	CursorH += num;
-	do 
-	    (void) putraw(*cp++);
-	while (--num);
+	so_write(cp, num);	/* this updates CursorH/V */
 
 	if (GoodStr(T_ip))	/* have to make num chars insert */
 	    (void) tputs(Str(T_ip), 1, PUTPURE);
@@ -1368,9 +1349,7 @@ Insert_write(cp, num)		/* Puts terminal in insert character mode, */
 	if (GoodStr(T_ic))	/* have to make num chars insert */
 	    (void) tputs(Str(T_ic), 1, PUTPURE);	/* insert a char */
 
-	(void) putraw(*cp++);
-
-	CursorH++;
+	so_write(cp++, 1);	/* this updates CursorH/V */
 
 	if (GoodStr(T_ip))	/* have to make num chars insert */
 	    (void) tputs(Str(T_ip), 1, PUTPURE);/* pad the inserted char */
@@ -1383,7 +1362,7 @@ void
 ClearEOL(num)			/* clear to end of line.  There are num */
     int     num;		/* characters to clear */
 {
-    register int i;
+    int i;
 
     if (num <= 0)
 	return;
@@ -1442,8 +1421,8 @@ ClearToBottom()
 void
 GetTermCaps()
 {				/* read in the needed terminal capabilites */
-    register int i;
-    char   *ptr;
+    int i;
+    const char   *ptr;
     char    buf[TC_BUFSIZE];
     static char bp[TC_BUFSIZE];
     char   *area;
@@ -1657,7 +1636,6 @@ ChangeSize(lins, cols)
 	if ((tptr = getenv("TERMCAP")) != NULL) {
 	    /* Leave 64 characters slop in case we enlarge the termcap string */
 	    Char    termcap[1024+64], backup[1024+64], *ptr;
-	    int     i;
 
 	    ptr = str2short(tptr);
 	    (void) Strncpy(termcap, ptr, 1024);
@@ -1672,11 +1650,11 @@ ChangeSize(lins, cols)
 		(void) Strcpy(backup, termcap);
 	    }
 	    else {
-		i = (int) (ptr - termcap + Strlen(buf));
-		(void) Strncpy(backup, termcap, (size_t) i);
-		backup[i] = '\0';
+		size_t len = (ptr - termcap) + Strlen(buf);
+		(void) Strncpy(backup, termcap, len);
+		backup[len] = '\0';
 		(void) Itoa(Val(T_co), buf, 0, 0);
-		(void) Strcat(backup + i, buf);
+		(void) Strcat(backup + len, buf);
 		ptr = Strchr(ptr, ':');
 		(void) Strcat(backup, ptr);
 	    }
@@ -1690,9 +1668,9 @@ ChangeSize(lins, cols)
 		(void) Strcpy(termcap, backup);
 	    }
 	    else {
-		i = (int) (ptr - backup + Strlen(buf));
-		(void) Strncpy(termcap, backup, (size_t) i);
-		termcap[i] = '\0';
+		size_t len = (ptr - backup) + Strlen(buf);
+		(void) Strncpy(termcap, backup, len);
+		termcap[len] = '\0';
 		(void) Itoa(Val(T_li), buf, 0, 0);
 		(void) Strcat(termcap, buf);
 		ptr = Strchr(ptr, ':');

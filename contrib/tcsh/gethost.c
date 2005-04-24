@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/gethost.c,v 1.9 2002/12/04 12:30:55 christos Exp $ */
+/* $Header: /src/pub/tcsh/gethost.c,v 1.10 2005/01/05 16:06:13 christos Exp $ */
 /*
  * gethost.c: Create version file from prototype
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: gethost.c,v 1.9 2002/12/04 12:30:55 christos Exp $")
+RCSID("$Id: gethost.c,v 1.10 2005/01/05 16:06:13 christos Exp $")
 
 #ifdef SCO
 # define perror __perror
@@ -49,12 +49,6 @@ RCSID("$Id: gethost.c,v 1.9 2002/12/04 12:30:55 christos Exp $")
 #endif
 
 #include <ctype.h>
-
-/* Some people don't bother to declare these */
-#if defined(SUNOS4) || defined(ibm032)
-extern int fprintf();
-extern int fclose();
-#endif /* SUNOS4 || ibm032 */
 
 #define ISSPACE(p)	(isspace((unsigned char) (p)) && (p) != '\n')
 

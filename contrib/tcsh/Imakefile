@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Imakefile,v 1.83 2003/02/08 20:03:25 christos Exp $
+XCOMM $Id: Imakefile,v 1.84 2004/12/25 21:15:05 christos Exp $
 XCOMM
 XCOMM Imakefile for tcsh 6.12
 XCOMM Marc Horowitz, MIT SIPB
@@ -41,12 +41,12 @@ ones.  Please send in your fixes and additions! */
 #  define ConfigH sysv4
 # endif
 
-# ifdef LinuxArchitecture
+# if defined(LinuxArchitecture) || defined(GNUArchitecture)
 #  define ConfigH linux
 # endif
 
 # ifdef AlphaArchitecture
-#  ifndef LinuxArchitecture
+#  if !defined(LinuxArchitecture) && !defined(GNUArchitecture)
 #    define ConfigH decosf1
 #  endif
 #  if !HasGcc

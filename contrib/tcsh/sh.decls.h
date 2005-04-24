@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.decls.h,v 3.39 2004/03/21 16:48:14 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.decls.h,v 3.46 2005/03/03 17:04:01 kim Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */
@@ -42,9 +42,9 @@ extern	void		  exitstat	__P((void));
 extern	void		  goodbye	__P((Char **, struct command *));
 extern	void		  importpath	__P((Char *));
 extern	void		  initdesc	__P((void));
-extern	sigret_t	  pintr		__P((int));
-extern	void		  pintr1	__P((bool));
-extern	void		  process	__P((bool));
+extern	RETSIGTYPE	  pintr		__P((int));
+extern	void		  pintr1	__P((int));
+extern	void		  process	__P((int));
 extern	void		  untty		__P((void));
 #ifdef PROF
 extern	void		  done		__P((int));
@@ -87,13 +87,13 @@ extern	void		  stderror	__P((unsigned int, ...));
 /*
  * sh.exec.c
  */
-extern	void		  doexec	__P((struct command *, bool));
+extern	void		  doexec	__P((struct command *, int));
 extern	void		  dohash	__P((Char **, struct command *));
 extern	void		  dounhash	__P((Char **, struct command *));
 extern	void		  execash	__P((Char **, struct command *));
 extern	void		  hashstat	__P((Char **, struct command *));
 extern	void		  xechoit	__P((Char **));
-extern	int		  executable	__P((Char *, Char *, bool));
+extern	int		  executable	__P((Char *, Char *, int));
 extern	int		  tellmewhat	__P((struct wordent *, Char *));
 extern	void		  dowhere	__P((Char **, struct command *));
 extern	int		  find_cmd	__P((Char *, int));
@@ -101,9 +101,9 @@ extern	int		  find_cmd	__P((Char *, int));
 /*
  * sh.exp.c
  */
-extern  Char     *filetest       __P((Char *, Char ***, bool));
+extern  Char     *filetest       __P((Char *, Char ***, int));
 extern	int	 	  expr		__P((Char ***));
-extern	int		  exp0		__P((Char ***, bool));
+extern	int		  exp0		__P((Char ***, int));
 
 /*
  * sh.file.c
@@ -115,7 +115,7 @@ extern	int		  tenex		__P((Char *, int));
 /*
  * sh.func.c
  */
-extern	void		  tsetenv	__P((Char *, Char *));
+extern	void		  tsetenv	__P((const Char *, const Char *));
 extern	void		  Unsetenv	__P((Char *));
 extern	void		  doalias	__P((Char **, struct command *));
 extern	void		  dobreak	__P((Char **, struct command *));
@@ -165,31 +165,40 @@ extern	void		  reexecute	__P((struct command *));
  * sh.glob.c
  */
 extern	Char	 	 *globequal	__P((Char *, Char *));
-extern	Char		**dobackp	__P((Char *, bool));
+extern	Char		**dobackp	__P((Char *, int));
 extern	void		  Gcat		__P((Char *, Char *));
 extern	Char		 *globone	__P((Char *, int));
 extern	int		  Gmatch	__P((Char *, Char *));
 extern	int		  Gnmatch	__P((Char *, Char *, Char **));
 extern	void		  ginit		__P((void));
 extern	Char		**globall	__P((Char **));
-extern	void		  rscan		__P((Char **, void (*)(int)));
+extern	void		  rscan		__P((Char **, void (*)(Char)));
 extern	void		  tglob		__P((Char **));
 extern	void		  trim		__P((Char **));
 #if defined(FILEC) && defined(TIOCSTI)
 extern	int		  sortscmp	__P((Char **, Char **));
 #endif
+
+#ifndef WINNT_NATIVE
+#ifdef NLS_CATALOGS
+#ifdef HAVE_ICONV
+extern	char		 *iconv_catgets	__P((nl_catd, int, int, const char *));
+#endif
+#endif
+#endif
 extern	void		  nlsinit	__P((void));
+extern	void	          nlsclose	__P((void));
 extern  int	  	  t_pmatch	__P((Char *, Char *, Char **, int));
 
 /*
  * sh.hist.c
  */
 extern	void	 	  dohist	__P((Char **, struct command *));
-extern  struct Hist 	 *enthist	__P((int, struct wordent *, bool, bool));
-extern	void	 	  savehist	__P((struct wordent *, bool));
+extern  struct Hist 	 *enthist	__P((int, struct wordent *, int, int));
+extern	void	 	  savehist	__P((struct wordent *, int));
 extern	void		  fmthist	__P((int, ptr_t, char *, size_t));
 extern	void		  rechist	__P((Char *, int));
-extern	void		  loadhist	__P((Char *, bool));
+extern	void		  loadhist	__P((Char *, int));
 
 /*
  * sh.init.c
@@ -205,19 +214,19 @@ extern	void		  btell		__P((struct Ain *));
 extern	void		  btoeof	__P((void));
 extern	void		  copylex	__P((struct wordent *, 
 					     struct wordent *));
-extern	Char		 *domod		__P((Char *, int));
+extern	Char		 *domod		__P((Char *, Char));
 extern	void		  freelex	__P((struct wordent *));
 extern	int		  lex		__P((struct wordent *));
 extern	void		  prlex		__P((struct wordent *));
-extern	int		  readc		__P((bool));
+extern	eChar		  readc		__P((int));
 extern	void		  settell	__P((void));
-extern	void		  unreadc	__P((int));
+extern	void		  unreadc	__P((Char));
 
 
 /*
  * sh.misc.c
  */
-extern	int		  any		__P((char *, int));
+extern	int		  any		__P((const char *, Char));
 extern	Char		**blkcpy	__P((Char **, Char **));
 extern	void		  blkfree	__P((Char **));
 extern	int		  blklen	__P((Char **));
@@ -235,7 +244,7 @@ extern	void		  donefds	__P((void));
 extern	Char		  lastchr	__P((Char *));
 extern	void		  lshift	__P((Char **, int));
 extern	int		  number	__P((Char *));
-extern	int		  prefix	__P((Char *, Char *));
+extern	int		  prefix	__P((const Char *, const Char *));
 extern	Char		**saveblk	__P((Char **));
 extern	void		  setzero	__P((char *, int));
 extern	Char		 *strip		__P((Char *));
@@ -247,7 +256,7 @@ extern	void		  udvar		__P((Char *));
 extern  char   	  	 *strstr	__P((const char *, const char *));
 #endif /* !POSIX */
 #ifndef SHORT_STRINGS
-extern	char		 *strspl	__P((char *, char *));
+extern	char		 *strspl	__P((const char *, const char *));
 extern	char		 *strend	__P((char *));
 #endif /* SHORT_STRINGS */
 
@@ -265,7 +274,7 @@ extern struct command 	 *syntax	__P((struct wordent *,
 extern	void		  drainoline	__P((void));
 extern	void		  flush		__P((void));
 #ifdef BSDTIMES
-extern	void		  pcsecs	__P((long));
+extern	void		  pcsecs	__P((unsigned long));
 #else /* !BSDTIMES */
 # ifdef POSIX
 extern	void		  pcsecs	__P((clock_t));
@@ -274,11 +283,18 @@ extern	void		  pcsecs	__P((time_t));
 # endif /* !POSIX */
 #endif /* BSDTIMES */
 #ifdef BSDLIMIT
-extern	void		  psecs		__P((long));
+extern	void		  psecs		__P((unsigned long));
 #endif /* BSDLIMIT */
 extern	int		  putpure	__P((int));
 extern	int		  putraw	__P((int));
 extern	void		  xputchar	__P((int));
+#ifdef WIDE_STRINGS
+extern	void		  putwraw	__P((Char));
+extern	void		  xputwchar	__P((Char));
+#else
+# define putwraw(C) putraw(C)
+# define xputwchar(C) xputchar(C)
+#endif
 
 
 /*
@@ -294,8 +310,8 @@ extern	void		  donotify	__P((Char **, struct command *));
 extern	void		  dostop	__P((Char **, struct command *));
 extern	void		  dowait	__P((Char **, struct command *));
 extern	void		  palloc	__P((int, struct command *));
-extern	void		  panystop	__P((bool));
-extern	sigret_t	  pchild	__P((int));
+extern	void		  panystop	__P((int));
+extern	RETSIGTYPE	  pchild	__P((int));
 extern	void		  pendjob	__P((void));
 extern	int		  pfork		__P((struct command *, int));
 extern	void		  pgetty	__P((int, int));
@@ -311,7 +327,7 @@ extern  struct process   *pfind		__P((Char *));
  * sh.sem.c
  */
 extern	void		  execute	__P((struct command *, int, int *, 
-					     int *, bool));
+					     int *, int));
 extern	void		  mypipe	__P((int *));
 
 /*

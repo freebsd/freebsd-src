@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.types.h,v 3.40 2003/06/18 19:32:44 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.types.h,v 3.42 2005/03/03 19:57:07 kim Exp $ */
 /* sh.types.h: Do the necessary typedefs for each system.
  *             Up till now I avoided making this into a separate file
  *	       But I just wanted to eliminate the whole mess from sh.h
@@ -82,9 +82,6 @@
     typedef char * ptr_t;
 #   endif /* __GNUC__ */
 # endif /* _PTR_T */
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef __sys_stdtypes_h
 #  define __sys_stdtypes_h
 #   ifndef __lucid
@@ -98,18 +95,6 @@
 # ifndef _SPEED_T
 #  define _SPEED_T
 # endif /* _SPEED_T */
-# ifndef SUNOS4
-#  ifndef MACH
-#   ifndef _UID_T
-#    define _UID_T
-      typedef int uid_t;
-#   endif /* _UID_T */
-#   ifndef _GID_T
-#    define _GID_T
-      typedef int gid_t;
-#   endif /* _GID_T */
-#  endif /* !MACH */
-# endif /* !SUNOS4 */
 #endif /* (sun || __sun__) && SYSVREL == 0 */
 
 
@@ -117,10 +102,6 @@
  *** Hp's running hpux 7.0 or 8.0
  ***/
 #ifdef __hpux
-# ifndef _SIZE_T
-#  define _SIZE_T
-    typedef unsigned int size_t;
-# endif /* _SIZE_T */
 
 # ifndef _PTR_T
 #  define _PTR_T 
@@ -160,12 +141,6 @@ extern unsigned int sleep();
 # if HPUXVERSION < 800	/* XXX: Not true for 8.0 */
 extern void sigpause();
 extern sigmask_t sigspace();
-extern int lstat();
-extern int readlink();
-extern int sigvector();
-extern int gethostname();
-extern int ioctl();
-extern int nice();
 extern char *sbrk();
 # endif /* HPUXVERSION < 800 */
 #endif /* __hpux */
@@ -188,51 +163,10 @@ typedef char * caddr_t;
  *** Data General AViiON 88000 or Pentium, running dgux 5.4R3 or R4.11
  ***/
 #ifdef DGUX
-# ifndef _SIZE_T
-#  define _SIZE_T size_t
-    typedef unsigned int size_t;
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* DGUX */
-
-
-/***
- *** Intel 386, ISC 386/ix v2.0.2
- ***/
-#ifdef ISC202
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* ISC202 */
-
-/***
- *** a PFU/Fujitsu A-xx computer SX/A Edition 60 or later
- ***/
-#ifdef SXA
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* SXA */
-
-/***
- *** a stellar 2600, running stellix 2.3
- ***/
-#ifdef stellar
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* stellar */
-
-/***
- *** BSD systems, pre and post 4.3
- ***/
-#ifdef BSD
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* BSD */
 
 
 /***
@@ -284,9 +218,6 @@ typedef char * caddr_t;
  *** rs6000, ibm370, ps2, rt: running flavors of aix.
  ***/
 #ifdef IBMAIX
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef aiws
 #  ifndef _PID_T
 #   define _PID_T
@@ -304,9 +235,6 @@ typedef char * caddr_t;
  *** Ultrix...
  ***/
 #if defined(ultrix) || defined(__ultrix)
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
@@ -328,34 +256,13 @@ typedef char * caddr_t;
 
 
 /***
- *** Sequent
- ***/
-#ifdef sequent
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* sequent */
-
-/***
  *** Apple AUX.
  ***/
 #ifdef OREO
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* OREO */
-
-/***
- *** Intel 386, Hypercube
- ***/
-#ifdef INTEL
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* INTEL */
 
 /***
  *** Concurrent (Masscomp) running RTU 4.1A & RTU 5.0. 
@@ -363,9 +270,6 @@ typedef char * caddr_t;
  *** Added, DAS DEC-90.
  ***/
 #ifdef	masscomp
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifdef RTU6
 #  ifndef _PID_T
 #   define _PID_T
@@ -376,34 +280,10 @@ typedef char * caddr_t;
 #endif /* RTU6 */
 #endif	/* masscomp */
 
-/***
- *** Encore multimax running umax 4.2
- ***/
-#ifdef	ns32000
-# ifdef __TYPES_DOT_H__
-#  ifndef _SIZE_T
-#   define _SIZE_T
-#  endif /* _SIZE_T */
-# endif /* __TYPES_DOT_H__ */
-#endif	/* ns32000 */
-
-/***
- *** Silicon Graphics IRIS 3000
- ***
- ***/
-#ifdef IRIS3D
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* IRIS3D */
-
 /* 
  * Motorola MPC running R32V2 (sysV88)
  */
 #ifdef sysV88
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
@@ -413,62 +293,19 @@ typedef char * caddr_t;
  * Amdahl running UTS (Sys V3)
  */
 #ifdef uts
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* uts */
 
 /* 
- * Tektronix 4300 running UTek 4.0 (BSD 4.2)
- */
-#ifdef UTek
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-# ifndef _UID_T
-#  define _UID_T
-   typedef int uid_t;
-# endif /* _UID_T */
-# ifndef _GID_T
-#  define _GID_T
-   typedef int gid_t;
-# endif /* _GID_T */
-#endif /* UTek */
-
-/* 
  * Tektronix XD88/10 running UTekV (Sys V3)
  */
 #ifdef UTekV
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* UTekV*/
-
-/*
- * UnixPC aka u3b1
- */
-#ifdef UNIXPC
-# ifdef types_h
-#  ifndef _SIZE_T
-#   define _SIZE_T
-#  endif /* _SIZE_T */
-# endif /* types_h */
-#endif /* UNIXPC */
-
-/*
- * NS32000 OPUS
- */
-#ifdef OPUS
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* OPUS */
 
 /*
  * BBN Butterfly gp1000
@@ -478,15 +315,6 @@ typedef char * caddr_t;
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* butterfly */
-
-/*
- * Convex
- */
-#ifdef convex
-# if defined(__SIZE_T) && !defined(_SIZE_T)
-#  define _SIZE_T
-# endif /* __SIZE_T && !_SIZE_T */
-#endif /* convex */
 
 /*
  * Alliant FX-2800/FX-80
@@ -521,15 +349,6 @@ typedef char * caddr_t;
 # endif /* _PID_T */
 #endif /* apollo */
 
-/*
- *  Vax running VMS_POSIX
- */
-#ifdef _VMS_POSIX
-# ifndef _SIZE_T
-#  define _SIZE_T
-# endif /* _SIZE_T */
-#endif /* _VMS_POSIX */
-
 /***
  *** a pdp/11, running 2BSD
  ***/
@@ -553,15 +372,6 @@ typedef char * caddr_t;
  *** Systems up to spec *should* define these automatically
  *** I am open to suggestions on how to do this correctly!
  ***/
-
-#ifndef __STDC__
-
-# ifndef _SIZE_T
-#  define _SIZE_T
-   typedef int size_t;		/* As sun comments ??? : meaning I take it */
-# endif /* _SIZE_T */		/* Until we make the world ANSI... */
-
-#endif  /* ! __STDC__ */
 
 #ifndef POSIX
 

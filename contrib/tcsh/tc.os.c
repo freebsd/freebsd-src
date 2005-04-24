@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.os.c,v 3.55 2004/02/21 20:34:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.os.c,v 3.58 2005/01/18 20:24:51 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.os.c,v 3.55 2004/02/21 20:34:25 christos Exp $")
+RCSID("$Id: tc.os.c,v 3.58 2005/01/18 20:24:51 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -362,7 +362,7 @@ dosetspath(v, c)
     dont_free = 1;
     for (i = 0, v++; *v && *v[0] != '\0'; v++, i++) {
 	s = short2str(*v);
-	if (Isdigit(*s))
+	if (isdigit(*s))
 	    p[i] = atoi(s);
 	else if (strcmp(s, "LOCAL") == 0)
 	    p[i] = NULLSITE;
@@ -583,7 +583,7 @@ dodmmode(v, c)
 
 static jmp_buf sigsys_buf;
 
-static  sigret_t
+static RETSIGTYPE
 catch_sigsys()
 {
     longjmp(sigsys_buf, 1);
@@ -653,14 +653,14 @@ dowarp(v, c)
 /*ARGSUSED*/
 void
 douniverse(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
-    register Char *cp = v[1];
-    register Char *cp2;		/* dunno how many elements v comes in with */
+    Char *cp = v[1];
+    Char *cp2;		/* dunno how many elements v comes in with */
     char    ubuf[100];
 #ifdef BSDSIGS
-    register sigmask_t omask = 0;
+    sigmask_t omask = 0;
 #endif /* BSDSIGS */
 
     if (cp == 0) {
@@ -799,11 +799,11 @@ bs2cmdlist(char *str)
 /*ARGSUSED*/
 void
 dobs2cmd(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
-    register Char *cp;
-    register int  i = 0, len = 0;
+    Char *cp;
+    int  i = 0, len = 0;
     char *cmd = NULL;
     int     pvec[2];
     struct command faket;
@@ -840,7 +840,7 @@ dobs2cmd(v, c)
     /* 2nd round: fill cmd buffer */
     i = 0;
     while ((cp = *v++) != 0) {
-	register int c;
+	int c;
 	while (c = *cp++)
 	    cmd[i++] = (char)c;
         if (*v)
@@ -909,13 +909,13 @@ dobs2cmd(v, c)
 /*ARGSUSED*/
 void
 doatt(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
-    register Char *cp = v[1];
+    Char *cp = v[1];
     char    ubuf[100];
 #ifdef BSDSIGS
-    register sigmask_t omask = 0;
+    sigmask_t omask = 0;
 #endif /* BSDSIGS */
 
     if (cp == 0)
@@ -944,13 +944,13 @@ doatt(v, c)
 /*ARGSUSED*/
 void
 doucb(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
-    register Char *cp = v[1];
+    Char *cp = v[1];
     char    ubuf[100];
 #ifdef BSDSIGS
-    register sigmask_t omask = 0;
+    sigmask_t omask = 0;
 #endif /* BSDSIGS */
 
     if (cp == 0)
@@ -1020,7 +1020,7 @@ pr_stat_sub(p2, p1, pr)
 #endif /* _SEQUENT_ */
 
 
-#ifdef NEEDmemset
+#ifndef HAVE_MEMSET
 /* This is a replacement for a missing memset function */
 ptr_t xmemset(loc, value, len)
     ptr_t loc;
@@ -1033,10 +1033,10 @@ ptr_t xmemset(loc, value, len)
 	*ptr++ = value;
     return loc;
 }
-#endif /* NEEDmemset */
+#endif /* !HAVE_MEMSET */
 
 
-#ifdef NEEDmemmove
+#ifndef HAVE_MEMMOVE
 /* memmove():
  * 	This is the ANSI form of bcopy() with the arguments backwards...
  *	Unlike memcpy(), it handles overlaps between source and 
@@ -1066,11 +1066,11 @@ xmemmove(vdst, vsrc, len)
     }
     return vdst;
 }
-#endif /* NEEDmemmove */
+#endif /* HAVE_MEMMOVE */
 
 
 #ifndef WINNT_NATIVE
-#ifdef tcgetpgrp
+#ifdef NEEDtcgetpgrp
 int
 xtcgetpgrp(fd)
     int     fd;
@@ -1096,7 +1096,7 @@ xtcsetpgrp(fd, pgrp)
     return ioctl(fd, TIOCSPGRP, (ioctl_t) &pgrp);
 }
 
-#endif	/* tcgetpgrp */
+#endif	/* NEEDtcgetpgrp */
 #endif /* WINNT_NATIVE */
 
 
@@ -1189,7 +1189,7 @@ osinit()
 #endif /* _SX */
 }
 
-#ifdef strerror
+#ifndef HAVE_STRERROR
 char *
 xstrerror(i)
     int i;
@@ -1204,9 +1204,9 @@ xstrerror(i)
 	return errbuf;
     }
 }
-#endif /* strerror */
+#endif /* !HAVE_STRERROR */
     
-#ifdef gethostname
+#ifndef HAVE_GETHOSTNAME
 # if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT_NATIVE)
 #  include <sys/utsname.h>
 # endif /* !_MINIX && !__EMX__ && !WINNT_NATIVE */
@@ -1245,9 +1245,9 @@ xgethostname(name, namlen)
     return(0);
 #endif /* _MINIX && !__EMX__ */
 } /* end xgethostname */
-#endif /* gethostname */
+#endif /* !HAVE_GETHOSTNAME */
 
-#ifdef nice
+#ifndef HAVE_NICE
 # if defined(_MINIX) && defined(NICE)
 #  undef _POSIX_SOURCE	/* redefined in <lib.h> */
 #  undef _MINIX		/* redefined in <lib.h> */
@@ -1264,9 +1264,9 @@ xnice(incr)
     return /* incr ? 0 : */ 0;
 #endif /* _MINIX && NICE */
 } /* end xnice */
-#endif /* nice */
+#endif /* !HAVE_NICE */
 
-#ifdef NEEDgetcwd
+#ifndef HAVE_GETCWD
 static char *strnrcpy __P((char *, char *, size_t));
 
 /* xgetcwd():
@@ -1368,9 +1368,6 @@ fail:
 
 # else /* ! hp9000s500 */
 
-#  if (SYSVREL != 0 && !defined(d_fileno)) || defined(_VMS_POSIX) || defined(WINNT) || defined(_MINIX_VMD)
-#   define d_fileno d_ino
-#  endif
 
 char *
 xgetcwd(pathname, pathlen)
@@ -1436,10 +1433,10 @@ xgetcwd(pathname, pathlen)
 	    /* Parent has same device. No need to stat every member */
 	    for (d = readdir(dp); d != NULL; d = readdir(dp)) {
 #ifdef __clipper__
-		if (((unsigned long)d->d_fileno & 0xffff) == st_cur.st_ino)
+		if (((unsigned long)d->d_ino & 0xffff) == st_cur.st_ino)
 		    break;
 #else
-		if (d->d_fileno == st_cur.st_ino)
+		if (d->d_ino == st_cur.st_ino)
 		    break;
 #endif
 	    }
@@ -1495,10 +1492,10 @@ xgetcwd(pathname, pathlen)
  */
 static char *
 strnrcpy(ptr, str, siz)
-    register char *ptr, *str;
+    char *ptr, *str;
     size_t siz;
 {
-    register int len = strlen(str);
+    int len = strlen(str);
     if (siz == 0)
 	return ptr;
 
@@ -1507,7 +1504,7 @@ strnrcpy(ptr, str, siz)
 
     return (ptr);
 } /* end strnrcpy */
-#endif /* getcwd */
+#endif /* !HAVE_GETCWD */
 
 #ifdef apollo
 /***

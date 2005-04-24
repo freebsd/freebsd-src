@@ -1,3 +1,93 @@
+ 76. V6.14.00 - 20050325
+ 75. Additional messages for the ja (Japanese) locale (NAKAMURA Takeshi)
+ 74. V6.13.10 - 20050321
+ 73. Implement --help (Tom Warzeka)
+ 72. Clamp solaris autologout time
+ 71. Add support for "limit heapsize" (Martin Kraemer)
+ 70. Improved autoconf for utmp/utmpx (Miloslav Trmac)
+ 69. V6.13.09 - 20050303
+ 68. Autoconf additions (Miloslav Trmac and Jean-Luc Leger)
+ 67. Fix erroneous sign extension when printing huge numbers (Martin Kraemer)
+ 66. Handle delay in termcap entries (Martin Kraemer)
+ 65. EBCDIC and BS2000 fixes (Martin Kraemer)
+ 64. Avoid the SCCS percent-S-percent sequence differently (Kimmo Suominen)
+ 63. Mark position update fixes (Martin Kraemer)
+ 62. Define BSDLIMIT and BSDTIMES for Cygwin (Corinna Vinschen)
+ 61. Fix NLSFrom prototype (Martin Kraemer)
+ 60. V6.13.08 - 20050303
+ 59. Add test for socklen_t in autoconf
+ 58. Fix problems with NLSFrom prototype
+ 57. Deal with AIX's utmpx lossage
+ 56. V6.13.07 - 20050118
+ 55. constifications, XXX: duplicate prototype on setpgrp().
+ 54. iconv fixes (Miloslav Trmac)
+ 53. literal code cleanups (Miloslav Trmac)
+ 52. move intptr_t definition to sh.h and include both stdint.h and inttypes.h
+ 51. Fix dup2() issues, and introduce FSAFE as the highest file descriptor
+     to be left untouched. This is to avoid closing hesiod/nis etc file
+     descriptors behind their backs. I need to really fix file descriptor
+     handling one day.
+ 50. forward<->reverse char conversion verification (Miloslav Trmac)
+ 49. japanese locale additions (Yoshiyuki Sakakibara)
+ 48. wide character/utf 8 cleanups (Michael Schroeder)
+ 47. V6.13.06 - 20050105
+ 46. autoconf cleanup (Miloslav Trmac)
+ 45. Fix literal refresh code (Michael Schroeder)
+ 44. Fix history printing bug with WIDE_STRINGS
+ 43. V6.13.05 - 20041121
+ 42. deal with not having intptr_t
+ 41. get rid of bool.
+ 40. Protect HAVE_ICONV with NLS_CATALOGS
+ 39. Deal with wchar_t being unsigned.
+ 38. If we HAVEUTMPX redefine some utmp functions in terms of utmpx ones.
+ 37. V6.13.04 - 20041120
+ 36. Fix display problems with two-column characters when using WIDE_STRINGS.
+     (Miloslav Trmac)
+ 35. Change charset declarations for some of the translations.
+     (Miloslav Trmac)
+ 34. Set O_LARGEFILE properly (Miloslav Trmac)
+ 33. Use libc functions to access utmp data (Miloslav Trmac)
+ 32. t_pmatch() was not really case-insensitive when cs == 8
+     (Miloslav Trmac)
+ 31. Fix escaping of "control" bytes 0x80..0x9F when they are actually
+     parts of UTF-8 character representation.  (Miloslav Trmac)
+ 30. V6.13.03 - 20041120
+ 29. More close_on_exec fixes (Miloslav Trmac)
+ 28. SUSE dspmbyte fixes (via Harald)
+ 27. Newline handling in command substitution controlled by csubstnonl
+     (Miloslav Trmac)
+ 26. Fix UNC prompt expansion (WIN32) (Yasuhiro Matsumoto)
+ 25. Fix incorrect xprintf() usage (Miloslav Trmac)
+ 24. Additional architectures support for $HOSTTYPE and $MACHTYPE
+     (Miloslav Trmac)
+ 23. Use nl_langinfo(CODESET) to determine $dspmbyte (Miloslav Trmac)
+ 22. Complete arguments that contant a # (Steven Grady)
+ 21. Set close-on-exec in subshells
+ 20. Compilation fixes (Miloslav Trmac)
+ 19. V6.13.02 - 20040804
+ 18. de-register, de-extern, de-shadow, and const poison.
+ 17. WIDE_STRINGS support (Miloslav Trmac)
+ 16. warning cleanups (Miloslav Trmac)
+ 15. nlsclose() arg passing, exp2 is now a gcc builtin (Mark Peek)
+ 14. iconv malloc portability fix.
+ 13. make automatic dspmbyte determination case insensitive
+ 12. V6.13.01 - 20040724
+ 11. bug fix in automatic dspmbyte setting (Miloslav Trmac)
+ 10. iconv patches (Miloslav Trmac)
+  9. cygwin signal fixes; only init 32 signals, don't set bit flag on error;
+     breaks SIGHUP. (Corinna Vinschen)
+  8. Make sure terminal size change takes effect immediately.
+  7. Obey $printexitvalue for builtins.
+  6. FreeBSD PR/66420: Allow history parsing to be special so that it
+     can handle inline # characters (Oliver Eikemeier)
+  5. new termname builtin from (Andrew Stevenson)
+  4. if ($var =~ *[^0-9]*) echo not numeric, fix (Andrew Stevenson)
+  3. completion fix to avoid dup hosts from ssh_known_hosts
+     (Eric D. Hendrickson)
+  2. vc++ 7.1 compilation fix (Steve Schockley)
+  1. UTF-8 handling for both single and double width characters, but
+     no combining character support. (Michael Schroeder)
+
  36. V6.13.00 - 20040519
  35. V6.12.03 - 20040322
  34. turn on kanji and dspmbyte by default; add check for utf8 locales,

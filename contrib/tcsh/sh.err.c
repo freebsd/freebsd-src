@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.err.c,v 3.36 2002/03/08 17:36:46 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.err.c,v 3.39 2005/01/18 20:43:30 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -33,7 +33,7 @@
 #define _h_sh_err		/* Don't redefine the errors	 */
 #include "sh.h"
 
-RCSID("$Id: sh.err.c,v 3.36 2002/03/08 17:36:46 christos Exp $")
+RCSID("$Id: sh.err.c,v 3.39 2005/01/18 20:43:30 christos Exp $")
 
 /*
  * C Shell
@@ -188,7 +188,7 @@ char   *seterr = NULL;	/* Holds last error if there was one */
 #define ERR_BADCOLORVAR	134
 #define NO_ERRORS	135
 
-static char *elst[NO_ERRORS] INIT_ZERO_STRUCT;
+static const char *elst[NO_ERRORS] INIT_ZERO_STRUCT;
 
 /*
  * Init the elst depending on the locale
@@ -371,7 +371,7 @@ errinit()
  */
 void
 /*VARARGS1*/
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
 seterror(unsigned int id, ...)
 #else
 seterror(va_alist)
@@ -382,7 +382,7 @@ seterror(va_alist)
     if (seterr == 0) {
 	va_list va;
 	char    berr[BUFSIZE];
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
 	va_start(va, id);
 #else
 	unsigned int id;
@@ -419,7 +419,7 @@ seterror(va_alist)
  */
 void
 /*VARARGS*/
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
 stderror(unsigned int id, ...)
 #else
 stderror(va_alist)
@@ -427,11 +427,11 @@ stderror(va_alist)
 #endif
 {
     va_list va;
-    register Char **v;
+    Char **v;
     int flags;
     int vareturn;
 
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
     va_start(va, id);
 #else
     unsigned int id;

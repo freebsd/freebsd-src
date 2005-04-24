@@ -1,4 +1,4 @@
-This is tcsh version 6.12.  Tcsh is a version of the Berkeley
+This is tcsh version 6.14.  Tcsh is a version of the Berkeley
 C-Shell, with the addition of: a command line editor, command and file
 name completion, listing, etc. and a bunch of small additions to the
 shell itself.
@@ -86,15 +86,18 @@ To install tcsh:
     passwd appears on the screen, you have lost /dev/tty. Otherwise
     everything is fine.
 
-10)  Once satisfied that tcsh is working correctly, complete the installation
+10) Once satisfied that tcsh is working correctly, complete the installation
     by typing "make install" to install the binary, and "make install.man" to
     install the documentation. Don't forget to look at complete.tcsh for
     useful completions...
 
 11) Enjoy.
 
-12) PLEASE send any bug reports (and fixes), code for new features,
-    comments, questions, etc. (even flames) to:
+12) PLEASE file any bug reports (and fixes), code for new features at:
+
+	http://bugs.gw.com/
+
+    Comments, questions, etc. (even flames) are welcome via email to:
 
 	The tcsh bugs mailing list
 	tcsh-bugs@mx.gw.com
@@ -107,7 +110,7 @@ On sysv versions < 3.0 (not hpux) Doug Gwyn's public domain directory
 manipulation library has to be installed. This library is available
 for anonymous ftp from prep.ai.mit.edu:/pub/gnu/dirent.tar.Z
 If the network is not installed, then there is a gethostname()
-routine is tc.os.c, enabled by defining NEEDgethostname
+routine is tc.os.c
 
 ***************************************************************************
 

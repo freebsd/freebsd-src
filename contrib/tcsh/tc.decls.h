@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.decls.h,v 3.52 2004/02/21 20:34:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.decls.h,v 3.57 2005/01/18 20:24:51 christos Exp $ */
 /*
  * tc.decls.h: Function declarations from all the tcsh modules
  */
@@ -79,6 +79,7 @@ extern	Char		 *expand_lex	__P((Char *, size_t, struct wordent *,
 extern	Char		 *sprlex	__P((Char *, size_t, struct wordent *));
 extern	Char		 *Itoa		__P((int, Char *, int, int));
 extern	void		  dolist	__P((Char **, struct command *));
+extern	void		  dotermname	__P((Char **, struct command *));
 extern	void		  dotelltc	__P((Char **, struct command *));
 extern	void		  doechotc	__P((Char **, struct command *));
 extern	void		  dosettc	__P((Char **, struct command *));
@@ -86,7 +87,7 @@ extern	int		  cmd_expand	__P((Char *, Char *));
 extern	void		  dowhich	__P((Char **, struct command *));
 extern	struct process	 *find_stop_ed	__P((void));
 extern	void		  fg_proc_entry	__P((struct process *));
-extern	sigret_t	  alrmcatch	__P((int));
+extern	RETSIGTYPE	  alrmcatch	__P((int));
 extern	void		  precmd	__P((void));
 extern	void		  postcmd	__P((void));
 extern	void		  cwd_cmd	__P((void));
@@ -174,40 +175,40 @@ extern	void	 	  fix_strcoll_bug	__P((void));
 
 extern	void	 	  osinit	__P((void));
 
-#ifdef NEEDmemmove
+#ifndef HAVE_MEMMOVE
 extern ptr_t 		 xmemmove	__P((ptr_t, const ptr_t, size_t));
-# define memmove(a, b, c) xmemmove((a), (b), (c))
-#endif /* NEEDmemmove */
+# define memmove(a, b, c) xmemmove(a, b, c)
+#endif /* !HAVE_MEMMOVE */
 
-#ifdef NEEDmemset
+#ifndef HAVE_MEMSET
 extern ptr_t 		 xmemset	__P((ptr_t, int, size_t));
-# define memset(a, b, c) xmemset((a), (b), (c))
-#endif /* NEEDmemset */
+# define memset(a, b, c) xmemset(a, b, c)
+#endif /* !HAVE_MEMSET */
 
 
-#ifdef NEEDgetcwd
+#ifndef HAVE_GETCWD
 extern	char		 *xgetcwd	__P((char *, size_t));
 # undef getcwd
-# define getcwd(a, b) xgetcwd((a), (b))
-#endif /* NEEDgetcwd */
+# define getcwd(a, b) xgetcwd(a, b)
+#endif /* !HAVE_GETCWD */
 
-#ifdef NEEDgethostname
+#ifndef HAVE_GETHOSTNAME
 extern	int	 	  xgethostname	__P((char *, int));
 # undef gethostname
-# define gethostname(a, b) xgethostname((a), (b))
-#endif /* NEEDgethostname */
+# define gethostname(a, b) xgethostname(a, b)
+#endif /* !HAVE_GETHOSTNAME */
 
-#ifdef NEEDnice
+#ifndef HAVE_NICE
 extern	int	 	  xnice	__P((int));
 # undef nice
 # define nice(a)	  xnice(a)
-#endif /* NEEDnice */
+#endif /* !HAVE_NICE */
 
-#ifdef NEEDstrerror
+#ifndef HAVE_STRERROR
 extern	char	 	 *xstrerror	__P((int));
 # undef strerror
 # define strerror(a) 	  xstrerror(a)
-#endif /* NEEDstrerror */
+#endif /* !HAVE_STRERROR */
 
 #ifdef apollo
 extern	void		  doinlib	__P((Char **, struct command *));
@@ -230,11 +231,11 @@ extern	pret_t		  xvsnprintf	__P((char *, size_t, const char *,
  * tc.prompt.c
  */
 extern	void		  dateinit	__P((void));
-extern	void		  printprompt	__P((int, char *));
+extern	void		  printprompt	__P((int, const char *));
 extern  Char 		 *expdollar	__P((Char **, const Char **, size_t *,
 					     int));
 extern	void		  tprintf	__P((int, Char *, const Char *, size_t, 
-					     char *, time_t, ptr_t));
+					     const char *, time_t, ptr_t));
 
 /*
  * tc.sched.c
@@ -249,10 +250,10 @@ extern	void		  sched_run	__P((int));
 #ifndef BSDSIGS
 # ifdef UNRELSIGS
 #  ifdef COHERENT
-extern	sigret_t	(*xsignal	__P((int, sigret_t (*)(int)))) ();
+extern	RETSIGTYPE	(*xsignal	__P((int, RETSIGTYPE (*)(int)))) ();
 #   define signal(x,y)	  xsignal(x,y)
 #  endif /* COHERENT */
-extern	sigret_t	(*xsigset	__P((int, sigret_t (*)(int)))) ();
+extern	RETSIGTYPE	(*xsigset	__P((int, RETSIGTYPE (*)(int)))) ();
 #  define sigset(x,y)	  xsigset(x,y)
 extern	void		  xsigrelse	__P((int));
 #  define sigrelse(x)	  xsigrelse(x)
@@ -270,7 +271,7 @@ extern	void 		  sigpause	__P((int));
 #endif /* !BSDSIGS */
 
 #ifdef NEEDsignal
-extern	sigret_t	(*xsignal	__P((int, sigret_t (*)(int)))) ();
+extern	RETSIGTYPE	(*xsignal	__P((int, RETSIGTYPE (*)(int)))) ();
 # define signal(a, b)	  xsignal(a, b)
 #endif /* NEEDsignal */
 #if defined(_SEQUENT_) || ((SYSVREL > 3 || defined(_DGUX_SOURCE)) && defined(POSIXSIGS)) || ((defined(_AIX) || defined(__CYGWIN__)) && defined(POSIXSIGS)) || defined(WINNT_NATIVE)
@@ -279,17 +280,26 @@ extern	sigmask_t	  sigsetmask	__P((sigmask_t));
 extern	sigmask_t	  sigblock	__P((sigmask_t));
 # endif /* !DGUX */
 extern	void		  bsd_sigpause	__P((sigmask_t));
-extern  sigret_t        (*bsd_signal    __P((int, sigret_t (*)(int)))) __P((int));
+extern  RETSIGTYPE        (*bsd_signal    __P((int, RETSIGTYPE (*)(int)))) __P((int));
 #endif /* _SEQUENT_ */
 #ifdef SIGSYNCH
-extern	sigret_t	  synch_handler	__P((int));
+extern	RETSIGTYPE	  synch_handler	__P((int));
 #endif /* SIGSYNCH */
 
 
 /*
  * tc.str.c:
  */
+#ifdef WIDE_STRINGS
+extern	size_t		  one_mbtowc	__P((wchar_t *, const char *, size_t));
+extern	size_t		  one_wctomb	__P((char *, wchar_t));
+#else
+#define one_mbtowc(PWC, S, N) \
+	((void)(N), *(PWC) = (unsigned char)*(S), (size_t)1)
+#define one_wctomb(S, WCHAR) (*(S) = (WCHAR), (size_t)1)
+#endif
 #ifdef SHORT_STRINGS
+extern  int		  rt_mbtowc	__P((wchar_t *, const char *, size_t));
 extern	Char		 *s_strchr	__P((const Char *, int));
 extern	Char		 *s_strrchr	__P((const Char *, int));
 extern	Char		 *s_strcat	__P((Char *, const Char *));
@@ -323,16 +333,18 @@ extern	void		  fix_version	__P((void));
 /*
  * tc.who.c
  */
-#ifndef HAVENOUTMP
+#if defined (HAVE_UTMP_H) || defined (HAVE_UTMPX_H) || defined (WINNT_NATIVE)
 extern	void		  initwatch	__P((void));
 extern	void		  resetwatch	__P((void));
 extern	void		  watch_login	__P((int));
 extern	const char 	 *who_info	__P((ptr_t, int, char *, size_t));
 extern	void		  dolog		__P((Char **, struct command *));
-# ifdef UTHOST
+# ifdef HAVE_STRUCT_UTMP_UT_HOST
 extern	char		 *utmphost	__P((void));
 extern	size_t		  utmphostsize	__P((void));
-# endif /* UTHOST */
-#endif /* HAVENOUTMP */
+# endif /* HAVE_STRUCT_UTMP_UT_HOST */
+#else
+# define HAVENOUTMP
+#endif
 
 #endif /* _h_tc_decls */

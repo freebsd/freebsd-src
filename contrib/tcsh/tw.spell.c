@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.spell.c,v 3.15 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.spell.c,v 3.17 2004/11/23 02:10:50 christos Exp $ */
 /*
  * tw.spell.c: Spell check words
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.spell.c,v 3.15 2002/03/08 17:36:47 christos Exp $")
+RCSID("$Id: tw.spell.c,v 3.17 2004/11/23 02:10:50 christos Exp $")
 
 #include "tw.h"
 
@@ -46,9 +46,9 @@ spell_me(oldname, oldsize, looking, pat, suf)
 {
     /* The +1 is to fool hp's optimizer */
     Char    guess[FILSIZ + 1], newname[FILSIZ + 1];
-    register Char *new = newname, *old = oldname;
-    register Char *p, *cp, *ws;
-    bool    foundslash = 0;
+    Char *new = newname, *old = oldname;
+    Char *p, *cp, *ws;
+    int    foundslash = 0;
     int     retval;
 
     for (;;) {
@@ -111,7 +111,7 @@ spell_me(oldname, oldsize, looking, pat, suf)
 
 int
 spdist(s, t)
-    register Char *s, *t;
+    Char *s, *t;
 {
     for (; (*s & TRIM) == (*t & TRIM); t++, s++)
 	if (*t == '\0')
