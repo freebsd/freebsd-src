@@ -147,6 +147,8 @@ add(int fd)
 
 	gpt_write(fd, lbt);
 	gpt_write(fd, tpg);
+
+	printf("%sp%u added\n", device_name, i + 1);
 }
 
 int

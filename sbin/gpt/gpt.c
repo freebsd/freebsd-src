@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +47,8 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
-char	device_name[MAXPATHLEN];
+char	device_path[MAXPATHLEN];
+char	*device_name;
 
 off_t	mediasz;
 
@@ -374,24 +376,26 @@ int
 gpt_open(const char *dev)
 {
 	struct stat sb;
-	int fd;
+	int fd, mode;
 
-	if (!stat(dev, &sb)) {
-		strlcpy(device_name, dev, sizeof(device_name));
+	mode = readonly ? O_RDONLY : O_RDWR|O_EXCL;
+
+	strlcpy(device_path, dev, sizeof(device_path));
+	device_name = device_path;
+
+	if ((fd = open(device_path, mode)) != -1)
 		goto found;
-	}
 
-	snprintf(device_name, sizeof(device_name), "/dev/%s", dev);
-	if (!stat(device_name, &sb))
+	snprintf(device_path, sizeof(device_path), "%s%s", _PATH_DEV, dev);
+	device_name = device_path + strlen(_PATH_DEV);
+	if ((fd = open(device_path, mode)) != -1)
 		goto found;
 
-	strlcpy(device_name, dev, sizeof(device_name));
 	return (-1);
 
  found:
-	fd = open(device_name, (readonly) ? O_RDONLY : O_RDWR|O_EXCL);
-	if (fd == -1)
-		return (-1);
+	if (fstat(fd, &sb) == -1)
+		goto close;
 
 	if ((sb.st_mode & S_IFMT) != S_IFREG) {
 		if (ioctl(fd, DIOCGSECTORSIZE, &secsz) == -1 ||
