@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.alloc.c,v 3.36 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.alloc.c,v 3.39 2005/01/05 16:06:14 christos Exp $ */
 /*
  * tc.alloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
@@ -40,16 +40,12 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.alloc.c,v 3.36 2002/03/08 17:36:47 christos Exp $")
+RCSID("$Id: tc.alloc.c,v 3.39 2005/01/05 16:06:14 christos Exp $")
 
 static char   *memtop = NULL;		/* PWP: top of current memory */
 static char   *membot = NULL;		/* PWP: bottom of allocatable memory */
 
 int dont_free = 0;
-
-#if defined(_VMS_POSIX) || defined(_AMIGA_MEMORY)
-# define NO_SBRK
-#endif
 
 #ifdef WINNT_NATIVE
 # define malloc		fmalloc
@@ -161,12 +157,12 @@ static	void	morecore	__P((int));
 
 memalign_t
 malloc(nbytes)
-    register size_t nbytes;
+    size_t nbytes;
 {
 #ifndef lint
-    register union overhead *p;
-    register int bucket = 0;
-    register unsigned shiftr;
+    union overhead *p;
+    int bucket = 0;
+    unsigned shiftr;
 
     /*
      * Convert amount of memory requested into closest block size stored in
@@ -237,12 +233,12 @@ malloc(nbytes)
  */
 static void
 morecore(bucket)
-    register int bucket;
+    int bucket;
 {
-    register union overhead *op;
-    register int rnu;		/* 2^rnu bytes will be requested */
-    register int nblks;		/* become nblks blocks of the desired size */
-    register int siz;
+    union overhead *op;
+    int rnu;		/* 2^rnu bytes will be requested */
+    int nblks;		/* become nblks blocks of the desired size */
+    int siz;
 
     if (nextf[bucket])
 	return;
@@ -295,8 +291,8 @@ free(cp)
     ptr_t   cp;
 {
 #ifndef lint
-    register int size;
-    register union overhead *op;
+    int size;
+    union overhead *op;
 
     /*
      * the don't free flag is there so that we avoid os bugs in routines
@@ -338,7 +334,7 @@ calloc(i, j)
     size_t  i, j;
 {
 #ifndef lint
-    register char *cp, *scp;
+    char *cp, *scp;
 
     i *= j;
     scp = cp = (char *) xmalloc((size_t) i);
@@ -378,10 +374,10 @@ realloc(cp, nbytes)
     size_t  nbytes;
 {
 #ifndef lint
-    register U_int onb;
+    U_int onb;
     union overhead *op;
     ptr_t res;
-    register int i;
+    int i;
     int     was_alloced = 0;
 
     if (cp == NULL)
@@ -454,8 +450,9 @@ findbucket(freep, srchlen)
     union overhead *freep;
     int     srchlen;
 {
-    register union overhead *p;
-    register int i, j;
+    union overhead *p;
+    size_t i;
+    int j;
 
     for (i = 0; i < NBUCKETS; i++) {
 	j = 0;
@@ -493,21 +490,21 @@ smalloc(n)
 
     n = n ? n : 1;
 
-#ifndef NO_SBRK
+#ifdef HAVE_SBRK
     if (membot == NULL)
 	membot = (char*) sbrk(0);
-#endif /* !NO_SBRK */
+#endif /* HAVE_SBRK */
 
     if ((ptr = malloc(n)) == (ptr_t) 0) {
 	child++;
 	stderror(ERR_NOMEM);
     }
-#ifdef NO_SBRK
+#ifndef HAVE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = (char*) ptr;
-#endif /* NO_SBRK */
+#endif /* !HAVE_SBRK */
     return ((memalign_t) ptr);
 }
 
@@ -520,21 +517,21 @@ srealloc(p, n)
 
     n = n ? n : 1;
 
-#ifndef NO_SBRK
+#ifdef HAVE_SBRK
     if (membot == NULL)
 	membot = (char*) sbrk(0);
-#endif /* NO_SBRK */
+#endif /* HAVE_SBRK */
 
     if ((ptr = (p ? realloc(p, n) : malloc(n))) == (ptr_t) 0) {
 	child++;
 	stderror(ERR_NOMEM);
     }
-#ifdef NO_SBRK
+#ifndef HAVE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = (char*) ptr;
-#endif /* NO_SBRK */
+#endif /* !HAVE_SBRK */
     return ((memalign_t) ptr);
 }
 
@@ -548,10 +545,10 @@ scalloc(s, n)
     n *= s;
     n = n ? n : 1;
 
-#ifndef NO_SBRK
+#ifdef HAVE_SBRK
     if (membot == NULL)
 	membot = (char*) sbrk(0);
-#endif /* NO_SBRK */
+#endif /* HAVE_SBRK */
 
     if ((ptr = malloc(n)) == (ptr_t) 0) {
 	child++;
@@ -564,12 +561,12 @@ scalloc(s, n)
 	    *sptr++ = 0;
 	while (--n);
 
-#ifdef NO_SBRK
+#ifndef HAVE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = (char*) ptr;
-#endif /* NO_SBRK */
+#endif /* !HAVE_SBRK */
 
     return ((memalign_t) ptr);
 }
@@ -598,8 +595,8 @@ showall(v, c)
     struct command *c;
 {
 #ifndef SYSMALLOC
-    register int i, j;
-    register union overhead *p;
+    size_t i, j;
+    union overhead *p;
     int     totfree = 0, totused = 0;
 
     xprintf(CGETS(19, 8, "%s current memory allocation:\nfree:\t"), progname);
@@ -621,9 +618,9 @@ showall(v, c)
 	    (unsigned long) membot, (unsigned long) memtop,
 	    (unsigned long) sbrk(0));
 #else
-#ifndef NO_SBRK
+#ifdef HAVE_SBRK
     memtop = (char *) sbrk(0);
-#endif /* !NO_SBRK */
+#endif /* HAVE_SBRK */
     xprintf(CGETS(19, 12, "Allocated memory from 0x%lx to 0x%lx (%ld).\n"),
 	    (unsigned long) membot, (unsigned long) memtop, 
 	    (unsigned long) (memtop - membot));

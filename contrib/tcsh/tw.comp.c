@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.comp.c,v 1.34 2004/02/21 20:34:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.comp.c,v 1.37 2004/11/23 02:10:50 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.comp.c,v 1.34 2004/02/21 20:34:25 christos Exp $")
+RCSID("$Id: tw.comp.c,v 1.37 2004/11/23 02:10:50 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -44,12 +44,12 @@ struct varent completions;
 static int 	 	  tw_result	__P((Char *, Char **));
 static Char		**tw_find	__P((Char *, struct varent *, int));
 static Char 		 *tw_tok	__P((Char *));
-static bool	 	  tw_pos	__P((Char *, int));
+static int	 	  tw_pos	__P((Char *, int));
 static void	  	  tw_pr		__P((Char **));
 static int	  	  tw_match	__P((Char *, Char *));
 static void	 	  tw_prlist	__P((struct varent *));
 static Char  		 *tw_dollar	__P((Char *,Char **, int, Char *, 
-					     int, const char *));
+					     Char, const char *));
 
 /* docomplete():
  *	Add or list completions in the completion list
@@ -60,8 +60,8 @@ docomplete(v, t)
     Char **v;
     struct command *t;
 {
-    register struct varent *vp;
-    register Char *p;
+    struct varent *vp;
+    Char *p;
     Char **pp;
 
     USE(t);
@@ -109,7 +109,7 @@ static void
 tw_prlist(p)
     struct varent *p;
 {
-    register struct varent *c;
+    struct varent *c;
 
     if (setintr)
 #ifdef BSDSIGS
@@ -149,7 +149,7 @@ static void
 tw_pr(cmp)
     Char **cmp;
 {
-    bool sp, osp;
+    int sp, osp;
     Char *ptr;
 
     for (; *cmp; cmp++) {
@@ -158,7 +158,7 @@ tw_pr(cmp)
 	    sp = Isspace(*ptr);
 	    if (sp && osp)
 		continue;
-	    xputchar(*ptr);
+	    xputwchar(*ptr);
 	    osp = sp;
 	}
 	xputchar('\'');
@@ -175,10 +175,10 @@ tw_pr(cmp)
 static Char **
 tw_find(nam, vp, cmd)
     Char   *nam;
-    register struct varent *vp;
+    struct varent *vp;
     int cmd;
 {
-    register Char **rv;
+    Char **rv;
 
     for (vp = vp->v_left; vp; vp = vp->v_right) {
 	if (vp->v_left && (rv = tw_find(nam, vp, cmd)) != NULL)
@@ -200,7 +200,7 @@ tw_find(nam, vp, cmd)
 /* tw_pos():
  *	Return true if the position is within the specified range
  */
-static bool
+static int
 tw_pos(ran, wno)
     Char *ran;
     int	  wno;
@@ -245,7 +245,7 @@ tw_tok(str)
 	continue;
 
     for (str = bf; *bf && !Isspace(*bf); bf++) {
-	if (ismeta(*bf))
+	if (ismetahash(*bf))
 	    return INVPTR;
 	*bf = *bf & ~QUOTE;
     }
@@ -422,7 +422,7 @@ tw_dollar(str, wl, nwl, buffer, sep, msg)
     Char *str, **wl;
     int nwl;
     Char *buffer;
-    int sep;
+    Char sep;
     const char *msg;
 {
     Char *sp, *bp = buffer, *ebp = &buffer[MAXPATHLEN];
@@ -454,7 +454,8 @@ tw_dollar(str, wl, nwl, buffer, sep, msg)
     if (*sp++ == sep)
 	return sp;
 
-    stderror(ERR_COMPMIS, sep, msg, short2str(str));
+    /* Truncates data if WIDE_STRINGS */
+    stderror(ERR_COMPMIS, (int)sep, msg, short2str(str));
     return --sp;
 } /* end tw_dollar */
 		
@@ -530,7 +531,8 @@ tw_complete(line, word, pat, looking, suf)
 	Char  ran[MAXPATHLEN+1],/* The pattern or range X/<range>/XXXX/ */
 	      com[MAXPATHLEN+1],/* The completion X/XXXXX/<completion>/ */
 	     *pos = NULL;	/* scratch pointer 			*/
-	int   cmd, sep;		/* the command and separator characters */
+	int   cmd;
+        Char  sep;		/* the command and separator characters */
 
 	if (ptr[0] == '\0')
 	    continue;
@@ -559,7 +561,8 @@ tw_complete(line, word, pat, looking, suf)
 
 	sep = ptr[1];
 	if (!Ispunct(sep)) {
-	    stderror(ERR_COMPINV, CGETS(27, 2, "separator"), sep);
+	    /* Truncates data if WIDE_STRINGS */
+	    stderror(ERR_COMPINV, CGETS(27, 2, "separator"), (int)sep);
 	    return TW_ZERO;
 	}
 
@@ -584,7 +587,7 @@ tw_complete(line, word, pat, looking, suf)
 	    *suf = '\0';
 
 #ifdef TDEBUG
-	xprintf("command:    %c\nseparator:  %c\n", cmd, sep);
+	xprintf("command:    %c\nseparator:  %c\n", cmd, (int)sep);
 	xprintf("pattern:    %s\n", short2str(ran));
 	xprintf("completion: %s\n", short2str(com));
 	xprintf("suffix:     ");

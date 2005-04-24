@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.25 2002/03/08 17:36:45 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.28 2005/01/05 18:06:43 christos Exp $ */
 /*
  * ed.xmap.c: This module contains the procedures for maintaining
  *	      the extended-key map.
@@ -88,7 +88,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.xmap.c,v 3.25 2002/03/08 17:36:45 christos Exp $")
+RCSID("$Id: ed.xmap.c,v 3.28 2005/01/05 18:06:43 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -592,7 +592,7 @@ printOne(key, val, ntype)
 {
     struct KeyFuncs *fp;
     unsigned char unparsbuf[200];
-    static char *fmt = "%s\n";
+    static const char *fmt = "%s\n";
 
     xprintf("%-15S-> ", key->buf);
     if (val != NULL)
@@ -675,7 +675,7 @@ unparsech(cnt, ch)
     return cnt;
 }
 
-int
+eChar
 parseescape(ptr)
     const Char  **ptr;
 {
@@ -686,7 +686,7 @@ parseescape(ptr)
 
     if ((p[1] & CHAR) == 0) {
 	xprintf(CGETS(9, 8, "Something must follow: %c\n"), *p);
-	return -1;
+	return CHAR_ERR;
     }
     if ((*p & CHAR) == '\\') {
 	p++;
@@ -727,7 +727,8 @@ parseescape(ptr)
 	case '6':
 	case '7':
 	    {
-		register int cnt, val, ch;
+		int cnt, val;
+		Char ch;
 
 		for (cnt = 0, val = 0; cnt < 3; cnt++) {
 		    ch = *p++ & CHAR;
@@ -822,9 +823,8 @@ unparsestring(str, buf, sep)
 	    *b++ = '\\';
 	    *b++ = (unsigned char) p;
 	}
-	else if (p == ' ' || (Isprint(p) && !Isspace(p))) {
-	    *b++ = (unsigned char) p;
-	}
+	else if (p == ' ' || (Isprint(p) && !Isspace(p)))
+	    b += one_wctomb((char *)b, p & CHAR);
 	else {
 	    *b++ = '\\';
 	    *b++ = ((p >> 6) & 7) + '0';

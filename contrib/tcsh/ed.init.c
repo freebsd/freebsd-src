@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.init.c,v 3.48 2002/07/06 22:28:13 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.init.c,v 3.52 2005/01/18 20:24:50 christos Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.init.c,v 3.48 2002/07/06 22:28:13 christos Exp $")
+RCSID("$Id: ed.init.c,v 3.52 2005/01/18 20:24:50 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -50,12 +50,11 @@ static unsigned char vdisable;	/* The value of _POSIX_VDISABLE from
 
 int     Tty_eight_bit = -1;	/* does the tty handle eight bits */
 
-extern bool GotTermCaps;
+extern int GotTermCaps;
 
 static ttydata_t extty, edtty, tstty;
 #define qutty tstty
 
-extern int insource;
 #define SHTTY (insource ? OLDSTD : SHIN)
 
 #define uc unsigned char
@@ -127,9 +126,10 @@ check_window_size(force)
 #else				/* BSDSIGS */
     (void) sigrelse(SIG_WINDOW);
 #endif /* BSDSIGS */
+    windowchg = 0;
 }
 
-sigret_t
+RETSIGTYPE
 /*ARGSUSED*/
 window_change(snum)
 int snum;
@@ -141,9 +141,6 @@ int snum;
       sigset(snum, window_change);
 #endif /* UNRELSIGS */
     windowchg = 1;
-#ifndef SIGVOID
-    return (snum);
-#endif 
 }
 
 #endif /* SIG_WINDOW */
@@ -512,7 +509,6 @@ Rawmode()
 # endif /* TERMIO || POSIX */
 
 	{
-	    extern int didsetty;
 	    int i;
 
 	    tty_getchar(&tstty, ttychars[TS_IO]);
