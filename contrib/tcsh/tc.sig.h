@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.sig.h,v 3.26 2002/07/12 13:16:19 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.sig.h,v 3.28 2005/01/18 20:24:51 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *
@@ -133,6 +133,9 @@ typedef struct sigvec sigvec_t;
 #if !defined(NSIG) && defined(_NSIG)
 # define NSIG _NSIG
 #endif /* !NSIG && _NSIG */
+#if !defined(NSIG)
+#define NSIG (sizeof(sigset_t) * 8)
+#endif /* !NSIG */
 #if !defined(MAXSIG) && defined(NSIG)
 # define MAXSIG NSIG
 #endif /* !MAXSIG && NSIG */
@@ -187,7 +190,7 @@ typedef struct sigvec sigvec_t;
 # else
 #  define SYNCHMASK 	(sigmask(SIGCHLD))
 # endif
-extern sigret_t synch_handler();
+extern RETSIGTYPE synch_handler();
 #endif /* convex */
 
 #ifdef SAVESIGVEC

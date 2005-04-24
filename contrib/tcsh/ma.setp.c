@@ -82,7 +82,7 @@
  **********************************************************************
  */
 #include "sh.h"
-RCSID("$Id: ma.setp.c,v 1.13 2003/05/26 07:11:06 christos Exp $")
+RCSID("$Id: ma.setp.c,v 1.14 2004/08/04 17:12:28 christos Exp $")
 
 #ifdef MACH
 
@@ -153,11 +153,11 @@ static int locate	__P((struct pelem *, char *));
 
 int
 setpath(paths, cmds, localsyspath, dosuffix, printerrors)
-register char **paths, **cmds, *localsyspath;
+char **paths, **cmds, *localsyspath;
 int dosuffix, printerrors;
 {
-    register char *cmd, *cmd1, *cmd2;
-    register int ncmd;
+    char *cmd, *cmd1, *cmd2;
+    int ncmd;
 
     sflag = dosuffix;
     eflag = printerrors;
@@ -231,11 +231,11 @@ int dosuffix, printerrors;
 
 static int
 initpaths(paths)
-register char **paths;
+char **paths;
 {
-    register char *path, *val, *p, *q;
-    register int i, done;
-    register struct pelem *pe, *pathend;
+    char *path, *val, *p, *q;
+    int i, done;
+    struct pelem *pe, *pathend;
 
     freepaths();
     for (npaths = 0; path = paths[npaths]; npaths++) {
@@ -284,11 +284,11 @@ register char **paths;
 
 static void
 savepaths(paths)
-register char **paths;
+char **paths;
 {
-    register char *p, *q;
-    register int npath, i, len;
-    register struct pelem *pe;
+    char *p, *q;
+    int npath, i, len;
+    struct pelem *pe;
 
     for (npath = 0, pe = pathhead; pe; npath++, pe = pe->pnext) {
 	len = strlen(pe->pname) + 1;
@@ -314,9 +314,9 @@ register char **paths;
 static void
 freepaths()
 {
-    register char *p;
-    register int i;
-    register struct pelem *pe;
+    char *p;
+    int i;
+    struct pelem *pe;
 
     if (npaths == 0 || pathhead == NULL)
 	return;
@@ -348,9 +348,9 @@ static void
 rcmd(localsyspath)		/* reset path with localsyspath */
 char *localsyspath;
 {
-    register int n, done;
-    register char *new, *p;
-    register struct pelem *pe;
+    int n, done;
+    char *new, *p;
+    struct pelem *pe;
     char newbuf[MAXPATHLEN+1];
 
     for (pe = pathhead; pe; pe = pe->pnext) {
@@ -392,9 +392,9 @@ static void
 icmd(path, localsyspath)	/* insert path before localsyspath */
 char *path, *localsyspath;
 {
-    register int n;
-    register char *new;
-    register struct pelem *pe;
+    int n;
+    char *new;
+    struct pelem *pe;
     char newbuf[MAXPATHLEN+1];
 
     for (pe = pathhead; pe; pe = pe->pnext) {
@@ -417,8 +417,8 @@ static void
 iacmd(inpath, path)		/* insert path after inpath */
 char *inpath, *path;
 {
-    register int n;
-    register struct pelem *pe;
+    int n;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	n = locate(pe, inpath);
@@ -434,8 +434,8 @@ static void
 ibcmd(inpath, path)		/* insert path before inpath */
 char *inpath, *path;
 {
-    register int n;
-    register struct pelem *pe;
+    int n;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	n = locate(pe, inpath);
@@ -452,7 +452,7 @@ incmd(path, n)			/* insert path at position n */
 char *path;
 int n;
 {
-    register struct pelem *pe;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext)
 	insert(pe, n, path);
@@ -460,12 +460,12 @@ int n;
 
 static void
 insert(pe, loc, key)
-register struct pelem *pe;
-register int loc;
-register char *key;
+struct pelem *pe;
+int loc;
+char *key;
 {
-    register int i;
-    register char *new;
+    int i;
+    char *new;
     char newbuf[2000];
 
     if (sflag) {		/* add suffix */
@@ -491,8 +491,8 @@ static void
 dcmd(path)			/* delete path */
 char *path;
 {
-    register int n;
-    register struct pelem *pe;
+    int n;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	n = locate(pe, path);
@@ -508,7 +508,7 @@ static void
 dncmd(n)			/* delete at position n */
 int n;
 {
-    register struct pelem *pe;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	if (n < pe->pdirs)
@@ -522,10 +522,10 @@ int n;
 
 static void
 delete(pe, n)
-register struct pelem *pe;
+struct pelem *pe;
 int n;
 {
-    register int d;
+    int d;
 
     xfree((ptr_t) (pe->pdir[n]));
     for (d = n; d < pe->pdirs - 1; d++)
@@ -541,8 +541,8 @@ static void
 ccmd(inpath, path)		/* change inpath to path */
 char *inpath, *path;
 {
-    register int n;
-    register struct pelem *pe;
+    int n;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	n = locate(pe, inpath);
@@ -559,7 +559,7 @@ cncmd(path, n)		/* change at position n to path */
 char *path;
 int n;
 {
-    register struct pelem *pe;
+    struct pelem *pe;
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	if (n < pe->pdirs)
@@ -573,11 +573,11 @@ int n;
 
 static void
 change(pe, loc, key)
-register struct pelem *pe;
-register int loc;
-register char *key;
+struct pelem *pe;
+int loc;
+char *key;
 {
-    register char *new;
+    char *new;
     char newbuf[MAXPATHLEN+1];
 
     if (sflag) {		/* append suffix */
@@ -597,11 +597,11 @@ register char *key;
 
 static int
 locate(pe, key)
-register struct pelem *pe;
-register char *key;
+struct pelem *pe;
+char *key;
 {
-    register int i;
-    register char *realkey;
+    int i;
+    char *realkey;
     char keybuf[MAXPATHLEN+1];
 
     if (sflag) {

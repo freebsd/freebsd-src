@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.func.c,v 3.107 2003/05/16 18:10:29 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.119 2005/03/06 03:57:10 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.func.c,v 3.107 2003/05/16 18:10:29 christos Exp $")
+RCSID("$Id: tc.func.c,v 3.119 2005/03/06 03:57:10 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -58,19 +58,19 @@ extern int do_logout;
 #endif /* TESLA */
 extern time_t t_period;
 extern int just_signaled;
-static bool precmd_active = 0;
-static bool jobcmd_active = 0; /* GrP */
-static bool postcmd_active = 0;
-static bool periodic_active = 0;
-static bool cwdcmd_active = 0;	/* PWP: for cwd_cmd */
-static bool beepcmd_active = 0;
+static int precmd_active = 0;
+static int jobcmd_active = 0; /* GrP */
+static int postcmd_active = 0;
+static int periodic_active = 0;
+static int cwdcmd_active = 0;	/* PWP: for cwd_cmd */
+static int beepcmd_active = 0;
 static signalfun_t alm_fun = NULL;
 
 static	void	 auto_logout	__P((int));
-static	char	*xgetpass	__P((char *));
+static	char	*xgetpass	__P((const char *));
 static	void	 auto_lock	__P((int));
 #ifdef BSDJOBS
-static	void	 insert		__P((struct wordent *, bool));
+static	void	 insert		__P((struct wordent *, int));
 static	void	 insert_we	__P((struct wordent *, struct wordent *));
 static	int	 inlist		__P((Char *, Char *));
 #endif /* BSDJOBS */
@@ -78,7 +78,7 @@ struct tildecache;
 static	int	 tildecompare	__P((struct tildecache *, struct tildecache *));
 static  Char    *gethomedir	__P((Char *));
 #ifdef REMOTEHOST
-static	sigret_t palarm		__P((int));
+static	RETSIGTYPE palarm		__P((int));
 static	void	 getremotehost	__P((void));
 #endif /* REMOTEHOST */
 
@@ -109,10 +109,10 @@ expand_lex(buf, bufsiz, sp0, from, to)
     struct  wordent *sp0;
     int     from, to;
 {
-    register struct wordent *sp;
-    register Char *s, *d, *e;
-    register Char prev_c;
-    register int i;
+    struct wordent *sp;
+    Char *s, *d, *e;
+    Char prev_c;
+    int i;
 
     /*
      * Make sure we have enough space to expand into.  E.g. we may have
@@ -137,6 +137,19 @@ expand_lex(buf, bufsiz, sp0, from, to)
     for (i = 0; i < NCARGS; i++) {
 	if ((i >= from) && (i <= to)) {	/* if in range */
 	    for (s = sp->word; *s && d < e; s++) {
+
+		if (s[1] & QUOTE) {
+		    int l = NLSSize(s, -1);
+		    if (l > 1) {
+			while (l-- > 0) {
+			    if (d < e)
+				*d++ = (*s & TRIM);
+			    prev_c = *s++;
+			}
+			s--;
+			continue;
+		    }
+		}
 		/*
 		 * bugfix by Michael Bloom: anything but the current history
 		 * character {(PWP) and backslash} seem to be dealt with
@@ -201,7 +214,7 @@ Itoa(n, s, min_digits, attributes)
     unsigned int un;	/* handle most negative # too */
     int pad = (min_digits != 0);
 
-    if (sizeof(buf) - 1 < min_digits)
+    if ((int)(sizeof(buf) - 1) < min_digits)
 	min_digits = sizeof(buf) - 1;
 
     un = n;
@@ -227,17 +240,11 @@ Itoa(n, s, min_digits, attributes)
 /*ARGSUSED*/
 void
 dolist(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
     int     i, k;
     struct stat st;
-#if defined(KANJI) && defined(SHORT_STRINGS) && defined(DSPMBYTE)
-    extern bool dspmbyte_ls;
-#endif
-#ifdef COLOR_LS_F
-    extern bool color_context_ls;
-#endif /* COLOR_LS_F */
 
     USE(c);
     if (*++v == NULL) {
@@ -260,8 +267,6 @@ dolist(v, c)
 	/*
 	 * We cannot process a flag therefore we let ls do it right.
 	 */
-	static Char STRls[] = {'l', 's', '\0'};
-	static Char STRmCF[] = {'-', 'C', 'F', '\0', '\0' };
 	Char *lspath;
 	struct command *t;
 	struct wordent cmd, *nextword, *lastword;
@@ -423,35 +428,28 @@ dolist(v, c)
     }
 }
 
-static char *defaulttell = "ALL";
-extern bool GotTermCaps;
+extern int GotTermCaps;
 
 /*ARGSUSED*/
 void
 dotelltc(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
+    USE(v);
     USE(c);
     if (!GotTermCaps)
 	GetTermCaps();
-
-    /*
-     * Avoid a compiler bug on hpux 9.05
-     * Writing the following as func(a ? b : c) breaks
-     */
-    if (v[1])
-	TellTC(short2str(v[1]));
-    else
-	TellTC(defaulttell);
+    TellTC();
 }
 
 /*ARGSUSED*/
 void
 doechotc(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
+    USE(c);
     if (!GotTermCaps)
 	GetTermCaps();
     EchoTC(++v);
@@ -465,6 +463,7 @@ dosettc(v, c)
 {
     char    tv[2][BUFSIZE];
 
+    USE(c);
     if (!GotTermCaps)
 	GetTermCaps();
 
@@ -521,7 +520,7 @@ cmd_expand(cmd, str)
 /*ARGSUSED*/
 void
 dowhich(v, c)
-    register Char **v;
+    Char **v;
     struct command *c;
 {
     int rv = TRUE;
@@ -564,8 +563,9 @@ dowhich(v, c)
 struct process *
 find_stop_ed()
 {
-    register struct process *pp, *retp;
-    register char *ep, *vp, *cp, *p;
+    struct process *pp, *retp;
+    const char *ep, *vp;
+    char *cp, *p;
     int     epl, vpl, pstatus;
 
     if ((ep = getenv("EDITOR")) != NULL) {	/* if we have a value */
@@ -582,9 +582,9 @@ find_stop_ed()
     else 
 	vp = "vi";
 
-    for (vpl = 0; vp[vpl] && !Isspace(vp[vpl]); vpl++)
+    for (vpl = 0; vp[vpl] && !isspace((unsigned char)vp[vpl]); vpl++)
 	continue;
-    for (epl = 0; ep[epl] && !Isspace(ep[epl]); epl++)
+    for (epl = 0; ep[epl] && !isspace((unsigned char)ep[epl]); epl++)
 	continue;
 
     if (pcurrent == NULL)	/* see if we have any jobs */
@@ -636,13 +636,13 @@ find_stop_ed()
 
 void
 fg_proc_entry(pp)
-    register struct process *pp;
+    struct process *pp;
 {
 #ifdef BSDSIGS
     sigmask_t omask;
 #endif
     jmp_buf_t osetexit;
-    bool    ohaderr;
+    int    ohaderr;
     Char    oGettingInput;
 
     getexit(osetexit);
@@ -681,7 +681,7 @@ fg_proc_entry(pp)
 
 static char *
 xgetpass(prm)
-    char *prm;
+    const char *prm;
 {
     static char pass[PASSMAX + 1];
     int fd, i;
@@ -709,6 +709,15 @@ xgetpass(prm)
     return(pass);
 }
 	
+#ifndef NO_CRYPT
+#ifndef __STDC__
+    extern char *crypt __P(());
+#endif
+#ifdef __linux__
+#include <crypt.h>
+#endif
+#endif
+
 /*
  * Ask the user for his login password to continue working
  * On systems that have a shadow password, this will only 
@@ -727,15 +736,10 @@ auto_lock(n)
     int i;
     char *srpp = NULL;
     struct passwd *pw;
-#ifdef POSIX
-    extern char *crypt __P((const char *, const char *));
-#else
-    extern char *crypt __P(());
-#endif
 
 #undef XCRYPT
 
-#if defined(PW_AUTH) && !defined(XCRYPT)
+#if defined(HAVE_AUTH_H)
 
     struct authorization *apw;
     extern char *crypt16 __P((const char *, const char *));
@@ -746,9 +750,7 @@ auto_lock(n)
         (apw = getauthuid(euid)) != NULL) 	/* enhanced ultrix passwd */
 	srpp = apw->a_password;
 
-#endif /* PW_AUTH && !XCRYPT */
-
-#if defined(PW_SHADOW) && !defined(XCRYPT)
+#elif defined(HAVE_SHADOW_H)
 
     struct spwd *spw;
 
@@ -758,9 +760,7 @@ auto_lock(n)
 	(spw = getspnam(pw->pw_name)) != NULL)	/* shadowed passwd	  */
 	srpp = spw->sp_pwdp;
 
-#endif /* PW_SHADOW && !XCRYPT */
-
-#ifndef XCRYPT
+#else
 
 #define XCRYPT(a, b) crypt(a, b)
 
@@ -769,7 +769,7 @@ auto_lock(n)
 	srpp = pw->pw_passwd;
 #endif /* !MVS */
 
-#endif /* !XCRYPT */
+#endif
 
     if (srpp == NULL) {
 	auto_logout(0);
@@ -850,11 +850,12 @@ auto_logout(n)
     goodbye(NULL, NULL);
 }
 
-sigret_t
+RETSIGTYPE
 /*ARGSUSED*/
 alrmcatch(snum)
 int snum;
 {
+    USE(snum);
 #ifdef UNRELSIGS
     if (snum)
 	(void) sigset(SIGALRM, alrmcatch);
@@ -863,9 +864,6 @@ int snum;
     (*alm_fun)(0);
 
     setalarm(1);
-#ifndef SIGVOID
-    return (snum);
-#endif /* !SIGVOID */
 }
 
 /*
@@ -1004,7 +1002,7 @@ beep_cmd()
 void
 period_cmd()
 {
-    register Char *vp;
+    Char *vp;
     time_t  t, interval;
 #ifdef BSDSIGS
     sigmask_t omask;
@@ -1189,6 +1187,17 @@ setalarm(lck)
     if ((vp = adrof(STRautologout)) != NULL && vp->vec != NULL) {
 	if ((cp = vp->vec[0]) != 0) {
 	    if ((logout_time = (unsigned) atoi(short2str(cp)) * 60) > 0) {
+#ifdef SOLARIS2
+		/*
+		 * Solaris alarm(2) uses a timer based in clock ticks
+		 * internally so it multiplies our value with CLK_TCK...
+		 * Of course that can overflow leading to unexpected
+		 * results, so we clip it here. Grr. Where is that
+		 * documented folks?
+		 */
+		if (logout_time >= 0x7fffffff / CLK_TCK)
+			logout_time = 0x7fffffff / CLK_TCK;
+#endif /* SOLARIS2 */
 		alrm_time = logout_time;
 		alm_fun = auto_logout;
 	    }
@@ -1225,7 +1234,7 @@ rmstar(cp)
     struct wordent *cp;
 {
     struct wordent *we, *args;
-    register struct wordent *tmp, *del;
+    struct wordent *tmp, *del;
 
 #ifdef RMDEBUG
     static Char STRrmdebug[] = {'r', 'm', 'd', 'e', 'b', 'u', 'g', '\0'};
@@ -1332,7 +1341,7 @@ continue_jobs(cp)
     struct wordent *cp;
 {
     struct wordent *we;
-    register struct process *pp, *np;
+    struct process *pp, *np;
     Char   *cmd, *continue_list, *continue_args_list;
 
 #ifdef CNDEBUG
@@ -1340,7 +1349,7 @@ continue_jobs(cp)
     static Char STRcndebug[] =
     {'c', 'n', 'd', 'e', 'b', 'u', 'g', '\0'};
 #endif /* CNDEBUG */
-    bool    in_cont_list, in_cont_arg_list;
+    int    in_cont_list, in_cont_arg_list;
 
 
 #ifdef CNDEBUG
@@ -1402,13 +1411,13 @@ continue_jobs(cp)
 static void
 insert(pl, file_args)
     struct wordent *pl;
-    bool    file_args;
+    int    file_args;
 {
     struct wordent *now, *last;
     Char   *cmd, *bcmd, *cp1, *cp2;
     int     cmd_len;
-    Char   *pause = STRunderpause;
-    int     p_len = (int) Strlen(pause);
+    Char   *upause = STRunderpause;
+    int     p_len = (int) Strlen(upause);
 
     cmd_len = (int) Strlen(pl->word);
     cmd = (Char *) xcalloc(1, (size_t) ((cmd_len + 1) * sizeof(Char)));
@@ -1450,7 +1459,7 @@ insert(pl, file_args)
 	while ((*cp1++ = *cp2++) != '\0')
 	    continue;
 	cp1--;
-	cp2 = pause;
+	cp2 = upause;
 	while ((*cp1++ = *cp2++) != '\0')
 	    continue;
 	insert_we(now, last->prev);
@@ -1508,7 +1517,7 @@ static int
 inlist(list, name)
     Char   *list, *name;
 {
-    register Char *l, *n;
+    Char *l, *n;
 
     l = list;
     n = name;
@@ -1564,7 +1573,7 @@ static Char *
 gethomedir(us)
     Char   *us;
 {
-    register struct passwd *pp;
+    struct passwd *pp;
 #ifdef HESIOD
     char **res, **res1, *cp;
     Char *rp;
@@ -1643,7 +1652,7 @@ gettilde(us)
      * Binary search
      */
     for (bp1 = tcache, bp2 = tcache + tlength; bp1 < bp2;) {
-	register int i;
+	int i;
 
 	bp = bp1 + ((bp2 - bp1) >> 1);
 	if ((i = *us - *bp->user) == 0 && (i = Strcmp(us, bp->user)) == 0)
@@ -1737,7 +1746,7 @@ doaliases(v, c)
     int     fd;
     Char    buf[BUFSIZE], line[BUFSIZE];
     char    tbuf[BUFSIZE + 1], *tmp;
-    extern bool output_raw;	/* PWP: in sh.print.c */
+    extern int output_raw;	/* PWP: in sh.print.c */
 
     USE(c);
     v++;
@@ -2083,7 +2092,7 @@ hashbang(fd, vp)
 
 #ifdef REMOTEHOST
 
-static sigret_t
+static RETSIGTYPE
 palarm(snum)
     int snum;
 {
@@ -2094,10 +2103,6 @@ palarm(snum)
 #endif /* UNRELSIGS */
     (void) alarm(0);
     reset();
-
-#ifndef SIGVOID
-    return (snum);
-#endif
 }
 
 
@@ -2112,9 +2117,9 @@ getremotehost()
 #else
     struct hostent* hp;
     struct sockaddr_in saddr;
-    int len = sizeof(struct sockaddr_in);
+    socklen_t len = sizeof(struct sockaddr_in);
 #endif
-#if defined(UTHOST) && !defined(HAVENOUTMP)
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
     char *sptr = NULL;
 #endif
 
@@ -2141,7 +2146,7 @@ getremotehost()
 	    host = inet_ntoa(saddr.sin_addr);
 #endif
     }
-#if defined(UTHOST) && !defined(HAVENOUTMP)
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
     else {
 	char *ptr;
 	char *name = utmphost();
@@ -2176,11 +2181,7 @@ getremotehost()
 		    hints.ai_family = PF_UNSPEC;
 		    hints.ai_socktype = SOCK_STREAM;
 		    hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
-#if defined(UTHOST) && !defined(HAVENOUTMP)
 		    if (strlen(name) < utmphostsize())
-#else
-		    if (name != NULL)
-#endif
 		    {
 			if (getaddrinfo(name, NULL, &hints, &res) != 0)
 			    res = NULL;
@@ -2230,7 +2231,7 @@ getremotehost()
     if (host)
 	tsetenv(STRREMOTEHOST, str2short(host));
 
-#if defined(UTHOST) && !defined(HAVENOUTMP)
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
     if (sptr)
 	*sptr = ':';
 #endif
@@ -2266,3 +2267,49 @@ remotehost()
 
 }
 #endif /* REMOTEHOST */
+
+#ifndef WINNT_NATIVE
+/*
+ * indicate if a terminal type is defined in terminfo/termcap
+ * (by default the current term type). This allows ppl to look
+ * for a working term type automatically in their login scripts
+ * when using a terminal known as different things on different
+ * platforms
+ */
+void
+dotermname(v, c)
+    Char **v;
+    struct command *c;
+{
+    char *termtype;
+    /*
+     * Maximum size of a termcap record. We make it twice as large.
+     */
+    char termcap_buffer[2048];
+
+    USE(c);
+    /* try to find which entry we should be looking for */
+    termtype = (v[1] == NULL ? getenv("TERM") : short2str(v[1]));
+    if (termtype == NULL) {
+	/* no luck - the user didn't provide one and none is 
+	 * specified in the environment
+	 */
+	set(STRstatus, Strsave(STR1), VAR_READWRITE);
+	return;
+    }
+
+    /*
+     * we use the termcap function - if we are using terminfo we 
+     * will end up with it's compatibility function
+     * terminfo/termcap will be initialized with the new
+     * type but we don't care because tcsh has cached all the things
+     * it needs.
+     */
+    if (tgetent(termcap_buffer, termtype) == 1) {
+	xprintf("%s\n", termtype);
+	set(STRstatus, Strsave(STR0), VAR_READWRITE);
+    } else {
+	set(STRstatus, Strsave(STR1), VAR_READWRITE);
+    }
+}
+#endif /* WINNT_NATIVE */

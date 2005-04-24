@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.hist.c,v 3.29 2002/06/25 19:02:11 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.hist.c,v 3.33 2004/12/25 21:15:07 christos Exp $ */
 /*
  * sh.hist.c: Shell history expansions and substitutions
  */
@@ -32,15 +32,15 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.hist.c,v 3.29 2002/06/25 19:02:11 christos Exp $")
+RCSID("$Id: sh.hist.c,v 3.33 2004/12/25 21:15:07 christos Exp $")
 
 #include "tc.h"
 
-extern bool histvalid;
+extern int histvalid;
 extern Char histline[];
 Char HistLit = 0;
 
-static	bool	heq	__P((struct wordent *, struct wordent *));
+static	int	heq	__P((struct wordent *, struct wordent *));
 static	void	hfree	__P((struct Hist *));
 static	void	dohist1	__P((struct Hist *, int *, int));
 static	void	phist	__P((struct Hist *, int));
@@ -60,10 +60,10 @@ static	void	phist	__P((struct Hist *, int));
 void
 savehist(sp, mflg)
     struct wordent *sp;
-    bool mflg;
+    int mflg;
 {
-    register struct Hist *hp, *np;
-    register int histlen = 0;
+    struct Hist *hp, *np;
+    int histlen = 0;
     Char   *cp;
 
     /* throw away null lines */
@@ -71,7 +71,7 @@ savehist(sp, mflg)
 	return;
     cp = varval(STRhistory);
     if (*cp) {
-	register Char *p = cp;
+	Char *p = cp;
 
 	while (*p) {
 	    if (!Isdigit(*p)) {
@@ -90,7 +90,7 @@ savehist(sp, mflg)
 	    hp = np;
 }
 
-static bool
+static int
 heq(a0, b0)
     struct wordent *a0, *b0;
 {
@@ -112,14 +112,13 @@ heq(a0, b0)
 struct Hist *
 enthist(event, lp, docopy, mflg)
     int     event;
-    register struct wordent *lp;
-    bool    docopy;
-    bool    mflg;
+    struct wordent *lp;
+    int    docopy;
+    int    mflg;
 {
-    extern time_t Htime;
     struct Hist *p = NULL, *pp = &Histlist;
     int n, r;
-    register struct Hist *np;
+    struct Hist *np;
     Char *dp;
     
     if ((dp = varval(STRhistdup)) != STRNULL) {
@@ -210,7 +209,7 @@ enthist(event, lp, docopy, mflg)
 
 static void
 hfree(hp)
-    register struct Hist *hp;
+    struct Hist *hp;
 {
 
     freelex(&hp->Hlex);
@@ -296,7 +295,7 @@ dohist1(hp, np, hflg)
     struct Hist *hp;
     int    *np, hflg;
 {
-    bool    print = (*np) > 0;
+    int    print = (*np) > 0;
 
     for (; hp != 0; hp = hp->Hnext) {
 	(*np)--;
@@ -313,10 +312,9 @@ dohist1(hp, np, hflg)
 
 static void
 phist(hp, hflg)
-    register struct Hist *hp;
+    struct Hist *hp;
     int     hflg;
 {
-    extern bool output_raw;
     if (hflg & HIST_ONLY) {
        /*
         * Control characters have to be written as is (output_raw).
@@ -349,7 +347,7 @@ phist(hp, hflg)
 
 	tprintf(FMT_HISTORY, buf, cp, INBUFSIZE, NULL, hp->Htime, (ptr_t) hp);
 	for (cp = buf; *cp;)
-	    xputchar(*cp++);
+	    xputwchar(*cp++);
     }
 }
 
@@ -373,8 +371,20 @@ fmthist(fmt, ptr, buf, bufsiz)
 	    Char ibuf[INBUFSIZE], *ip;
 	    char *p;
 	    (void) sprlex(ibuf, sizeof(ibuf) / sizeof(Char), &hp->Hlex);
-	    for (p = buf, ip = ibuf; (*p++ = (CHAR & *ip++)) != '\0'; )
-		continue;
+	    p = buf;
+	    ip = ibuf;
+	    do {
+	        char xbuf[MB_LEN_MAX];
+		size_t len;
+
+		len = one_wctomb(xbuf, CHAR & *ip);
+		if ((size_t)((p - buf) + len) >= bufsiz)
+		    break;
+		memcpy(p, xbuf, len);
+		p += len;
+	    } while ((CHAR & *ip++) != 0);
+	    if (p <= buf + bufsiz - 1)
+	        *p = '\0';
 	}
 	break;
     default:
@@ -457,7 +467,7 @@ rechist(fname, ref)
 void
 loadhist(fname, mflg)
     Char *fname;
-    bool mflg;
+    int mflg;
 {
     static Char   *loadhist_cmd[] = {STRsource, NULL, NULL, NULL};
     loadhist_cmd[1] = mflg ? STRmm : STRmh;

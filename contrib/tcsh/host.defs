@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.36 2003/02/08 20:03:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.40 2005/03/03 16:49:15 kim Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -33,7 +33,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.36 2003/02/08 20:03:25 christos Exp $")
+RCSID("$Id: host.defs,v 1.40 2005/03/03 16:49:15 kim Exp $")
 
 endcode	:
 
@@ -174,10 +174,10 @@ newcode	:
 void
 getmachine()
 {
-     char *hosttype;
-     char *ostype;
-     char *vendor;
-     char *machtype;
+     const char *hosttype;
+     const char *ostype;
+     const char *vendor;
+     const char *machtype;
 
 endcode	:
 
@@ -435,14 +435,24 @@ machtype: defined(M_i386)				: "i386"
 enddef	:
 
 
-newdef	: defined(linux)
+newdef	: defined(linux) || defined(__GNU__) || defined(__GLIBC__)
 comment	: Linus Torvalds's linux
 vendor	: defined(M_intel)				: "intel"
+hosttype: defined(__ia64__)				: "ia64-linux"
+hosttype: defined(__powerpc64__)			: "powerpc64-linux"
+hosttype: defined(__s390x__)				: "s390x-linux"
+hosttype: defined(__s390__)				: "s390-linux"
+hosttype: defined(__x86_64__)				: "x86_64-linux"
 hosttype: defined(M_i586) 				: "i586-linux"
 hosttype: defined(M_i486) 				: "i486-linux"
 hosttype: defined(M_i386)				: "i386-linux"
 ostype	: !defined(PPC) 				: "linux"
 ostype	: defined(PPC)					: "mklinux"
+machtype: defined(__ia64__)				: "ia64"
+machtype: defined(__powerpc64__)			: "powerpc64"
+machtype: defined(__s390x__)				: "s390x"
+machtype: defined(__s390__)				: "s390"
+machtype: defined(__x86_64__)				: "x86_64"
 machtype: defined(M_i586) 				: "i586"
 machtype: defined(M_i486) 				: "i486"
 machtype: defined(M_i386)				: "i386"
@@ -996,9 +1006,9 @@ machtype:						: "clipper"
 enddef	:
 
 
-newdef	: defined(SNI) || defined(sinix)
-comment	: Siemens Nixdorf Informationssysteme SINIX
-vendor	:						: "sni"
+newdef	: (defined(SNI) || defined(sinix)) && !defined(_OSD_POSIX)
+comment	: Fujitsu Siemens Computers (former "Siemens Nixdorf Informationssysteme"): SINIX aka. ReliantUNIX, a SVR4 derivative
+vendor	:						: "fsc"
 hosttype: defined(M_intel)				: "wx200i"
 hosttype: defined(MIPSEB)				: "rm400"
 ostype	: defined(sinix)				: "sinix"
@@ -1011,10 +1021,13 @@ machtype:						: "mips"
 enddef	:
 
 newdef	: defined(_OSD_POSIX)
-comment	: Siemens Nixdorf Informationssysteme BS2000 POSIX (mainframe, EBCDIC)
-vendor	:						: "sni"
-hosttype: defined(M_intel)				: "bs2000"
-ostype	: 						: "posix"
+comment	: Fujitsu Siemens Computers (former "Siemens Nixdorf Informationssysteme"): BS2000 POSIX (mainframe, EBCDIC)
+vendor	:						: "fsc"
+hosttype:						: "bs2000"
+ostype	:						: "osdposix"
+machtype: #machine(7500)				: "s390"
+machtype: #machine(mips)				: "mips"
+machtype: #machine(sparc)				: "sparc"
 machtype:						: "bs2000"
 enddef	:
 

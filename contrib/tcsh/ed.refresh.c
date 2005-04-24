@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.refresh.c,v 3.30 2003/02/08 20:03:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.refresh.c,v 3.39 2005/02/15 21:09:02 christos Exp $ */
 /*
  * ed.refresh.c: Lower level screen refreshing functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.refresh.c,v 3.30 2003/02/08 20:03:25 christos Exp $")
+RCSID("$Id: ed.refresh.c,v 3.39 2005/02/15 21:09:02 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_UPDATE */
@@ -41,12 +41,13 @@ RCSID("$Id: ed.refresh.c,v 3.30 2003/02/08 20:03:25 christos Exp $")
 
 /* refresh.c -- refresh the current set of lines on the screen */
 
-Char   *litptr[256];
+Char   *litptr;
 static int vcursor_h, vcursor_v;
 static int rprompt_h, rprompt_v;
 
-static	void	Draw 			__P((int));
-static	void	Vdraw 			__P((int));
+static	int	MakeLiteral		__P((Char *, int, Char));
+static	int	Draw 			__P((Char *, int));
+static	void	Vdraw 			__P((Char, int));
 static	void	RefreshPromptpart	__P((Char *));
 static	void	update_line 		__P((Char *, Char *, int));
 static	void	str_insert		__P((Char *, int, int, Char *, int));
@@ -57,26 +58,27 @@ static
 #else
 extern
 #endif
-	void    PutPlusOne      __P((int));
+	void    PutPlusOne      __P((Char, int));
 static	void	cpy_pad_spaces		__P((Char *, Char *, int));
-#if defined(DSPMBYTE)
-static	Char 	*update_line_fix_mbyte_point __P((Char *, Char *, int));
-#endif
 #if defined(DEBUG_UPDATE) || defined(DEBUG_REFRESH) || defined(DEBUG_LITERAL)
 static	void	dprintf			__P((char *, ...));
 #ifdef DEBUG_UPDATE
-static	void	dprintstr		__P((char *, Char *, Char *));
+static	void	dprintstr		__P((char *, const Char *, const Char *));
 
 static void
 dprintstr(str, f, t)
 char *str;
-Char *f, *t;
+const Char *f, *t;
 {
     dprintf("%s:\"", str);
-    while (f < t)
-	dprintf("%c", *f++ & ASCII);
+    while (f < t) {
+	if (*f & ~ASCII)
+	  dprintf("[%x]", *f++);
+	else
+	  dprintf("%c", *f++ & ASCII);
+    }
     dprintf("\"\r\n");
-} 
+}
 #endif /* DEBUG_UPDATE */
 
 /* dprintf():
@@ -85,7 +87,7 @@ Char *f, *t;
  *	debugging cause you'll mangle up the file descriptors!
  */
 static void
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
 dprintf(char *fmt, ...)
 #else
 dprintf(va_list)
@@ -98,7 +100,7 @@ dprintf(va_list)
     if ((dtty = getenv("DEBUGTTY"))) {
 	int o;
 	va_list va;
-#ifdef FUNCPROTO
+#ifdef PROTOTYPES
 	va_start(va, fmt);
 #else
 	char *fmt;
@@ -119,101 +121,174 @@ dprintf(va_list)
 }
 #endif  /* DEBUG_UPDATE || DEBUG_REFRESH || DEBUG_LITERAL */
 
-static void
-Draw(c)				/* draw c, expand tabs, ctl chars */
-    register int c;
+static int litlen = 0, litalloc = 0;
+
+static int MakeLiteral(str, len, addlit)
+    Char *str;
+    int len;
+    Char addlit;
 {
-    register Char ch = c & CHAR;
-
-    if (Isprint(ch)) {
-	Vdraw(c);
-	return;
+    int i, addlitlen = 0;
+    Char *addlitptr = 0;
+    if (addlit) {
+	if ((addlit & LITERAL) != 0) {
+	    addlitptr = litptr + (addlit & ~LITERAL) * LIT_FACTOR;
+	    addlitlen = Strlen(addlitptr);
+	} else {
+	    addlitptr = &addlit;
+	    addlitlen = 1;
+	}
+	for (i = 0; i < litlen; i += LIT_FACTOR)
+	    if (!Strncmp(addlitptr, litptr + i, addlitlen) && !Strncmp(str, litptr + i + addlitlen, len) && litptr[i + addlitlen + len] == 0)
+		return (i / LIT_FACTOR) | LITERAL;
+    } else {
+	addlitlen = 0;
+	for (i = 0; i < litlen; i += LIT_FACTOR)
+	    if (!Strncmp(str, litptr + i, len) && litptr[i + len] == 0)
+		return (i / LIT_FACTOR) | LITERAL;
     }
-    /* from wolman%crltrx.DEC@decwrl.dec.com (Alec Wolman) */
-    if (ch == '\n') {		/* expand the newline	 */
-	/*
-	 * Don't force a newline if Vdraw does it (i.e. we're at end of line)
-	 * - or we will get two newlines and possibly garbage in between
-	 */
-	int oldv = vcursor_v;
+    if (litlen + addlitlen + len + 1 + (LIT_FACTOR - 1) > litalloc) {
+	Char *newlitptr;
+	int add = 256;
+	while (len + addlitlen + 1 + (LIT_FACTOR - 1) > add)
+	    add *= 2;
+	if (litptr)
+	    newlitptr = (Char *)xrealloc(litptr, (litalloc + add) * sizeof(Char));
+	else
+	    newlitptr = (Char *)xmalloc((litalloc + add) * sizeof(Char));
+	if (!newlitptr)
+	    return '?';
+	litptr = newlitptr;
+	litalloc += add;
+	if (addlitptr && addlitptr != &addlit)
+	    addlitptr = litptr + (addlit & ~LITERAL) * LIT_FACTOR;
+    }
+    i = litlen / LIT_FACTOR;
+    if (i >= LITERAL || i == CHAR_DBWIDTH)
+	return '?';
+    if (addlitptr) {
+	Strncpy(litptr + litlen, addlitptr, addlitlen);
+	litlen += addlitlen;
+    }
+    Strncpy(litptr + litlen, str, len);
+    litlen += len;
+    do
+	litptr[litlen++] = 0;
+    while (litlen % LIT_FACTOR);
+    return i | LITERAL;
+}
 
-	Vdraw('\0');		/* assure end of line	 */
-	if (oldv == vcursor_v) {
-	    vcursor_h = 0;	/* reset cursor pos	 */
+static int
+Draw(cp, nocomb)	/* draw char at cp, expand tabs, ctl chars */
+    Char *cp;
+    int nocomb;
+{
+    int l, w, i, lv, lh;
+    Char ch, attr;
+    NLSChar c;
+
+    attr = *cp & ~CHAR;
+    l = NLSFrom(cp, NLSZEROT, &c);
+    w = NLSClassify(c, nocomb);
+    switch (w) {
+	case NLSCLASS_NL:
+	    Vdraw('\0', 0);		/* assure end of line	 */
+	    vcursor_h = 0;		/* reset cursor pos	 */
 	    vcursor_v++;
-	}
-	return;
-    }
-    if (ch == '\t') {		/* expand the tab 	 */
-	for (;;) {
-	    Vdraw(' ');
-	    if ((vcursor_h & 07) == 0)
-		break;		/* go until tab stop	 */
-	}
-    }
-    else if (Iscntrl(ch)) {
+	    break;
+	case NLSCLASS_TAB:
+	    do {
+		Vdraw(' ', 1);
+	    } while ((vcursor_h & 07) != 0);
+	    break;
+	case NLSCLASS_CTRL:
+	    Vdraw('^' | attr, 1);
+	    if (c == CTL_ESC('\177')) {
+		Vdraw('?' | attr, 1);
+	    } else {
 #ifdef IS_ASCII
-	Vdraw('^');
-	if (ch == CTL_ESC('\177')) {
-	    Vdraw('?');
-	}
-	else {
-	    /* uncontrolify it; works only for iso8859-1 like sets */
-	    Vdraw((c | 0100));
+		/* uncontrolify it; works only for iso8859-1 like sets */
+		Vdraw(c | 0100 | attr, 1);
 #else
-	if (ch == CTL_ESC('\177')) {
-	    Vdraw('^');
-	    Vdraw('?');
-	}
-	else {
-	    if (Isupper(_toebcdic[_toascii[c]|0100])
-		|| strchr("@[\\]^_", _toebcdic[_toascii[c]|0100]) != NULL)
-	    {
-		Vdraw('^');
-		Vdraw(_toebcdic[_toascii[c]|0100]);
+		Vdraw(_toebcdic[_toascii[c]|0100] | attr, 1);
+#endif
 	    }
+	    break;
+	case NLSCLASS_ILLEGAL:
+	    ch = *cp & CHAR;
+	    Vdraw('\\' | attr, 1);
+	    Vdraw((((ch >> 6) & 7) + '0') | attr, 1);
+	    Vdraw((((ch >> 3) & 7) + '0') | attr, 1);
+	    Vdraw(((ch & 7) + '0') | attr, 1);
+	    break;
+	case NLSCLASS_ILLEGAL2:
+	case NLSCLASS_ILLEGAL3:
+	case NLSCLASS_ILLEGAL4:
+	    Vdraw('\\' | attr, 1);
+	    Vdraw('U' | attr, 1);
+	    Vdraw('+' | attr, 1);
+	    for (i = 8 * NLSCLASS_ILLEGAL_SIZE(w) - 4; i >= 0; i -= 4)
+		Vdraw("0123456789ABCDEF"[(c >> i) & 15] | attr, 1);
+	    break;
+	case 0:
+	    lv = vcursor_v;
+	    lh = vcursor_h;
+	    for (;;) {
+		lh--;
+		if (lh < 0) {
+		    lv--;
+		    if (lv < 0)
+			break;
+		    lh = Strlen(Vdisplay[lv]) - 1;
+		}
+		if (Vdisplay[lv][lh] != CHAR_DBWIDTH)
+		    break;
+	    }
+	    if (lv < 0) {
+		int l2 = l;
+		for (; l2-- > 0; cp++) {
+		    ch = *cp & CHAR;
+		    Vdraw('\\' | attr, 1);
+		    Vdraw((((ch >> 6) & 7) + '0') | attr, 1);
+		    Vdraw((((ch >> 3) & 7) + '0') | attr, 1);
+		    Vdraw(((ch & 7) + '0') | attr, 1);
+		}
+		return l;
+	    }
+	    Vdisplay[lv][lh] = MakeLiteral(cp, l, Vdisplay[lv][lh]);
+	    break;
+	default:
+	    if (l > 1)
+		Vdraw(MakeLiteral(cp, l, 0), w);
 	    else
-	    {
-		Vdraw('\\');
-		Vdraw(((c >> 6) & 7) + '0');
-		Vdraw(((c >> 3) & 7) + '0');
-		Vdraw((c & 7) + '0');
-	    }
-#endif
-	}
+		Vdraw(*cp, w);
+	    break;
     }
-#ifdef KANJI
-    else if (
-#ifdef DSPMBYTE
-	     _enable_mbdisp &&
-#endif
-	     !adrof(STRnokanji)) {
-	Vdraw(c);
-	return;
-    }
-#endif
-    else {
-	Vdraw('\\');
-	Vdraw(((c >> 6) & 7) + '0');
-	Vdraw(((c >> 3) & 7) + '0');
-	Vdraw((c & 7) + '0');
-    }
+    return l;
 }
 
 static void
-Vdraw(c)			/* draw char c onto V lines */
-    register int c;
+Vdraw(c, width)			/* draw char c onto V lines */
+    Char c;
+    int width;
 {
 #ifdef DEBUG_REFRESH
 # ifdef SHORT_STRINGS
-    dprintf("Vdrawing %6.6o '%c'\r\n", c, c & ASCII);
+    dprintf("Vdrawing %6.6o '%c' %d\r\n", (unsigned)c, (int)(c & ASCII), width);
 # else
-    dprintf("Vdrawing %3.3o '%c'\r\n", c, c);
+    dprintf("Vdrawing %3.3o '%c' %d\r\n", (unsigned)c, (int)c, width);
 # endif /* SHORT_STRNGS */
 #endif  /* DEBUG_REFRESH */
 
+    /* Hopefully this is what all the terminals do with multi-column characters
+       that "span line breaks". */
+    while (vcursor_h + width > TermH)
+	Vdraw(' ', 1);
     Vdisplay[vcursor_v][vcursor_h] = (Char) c;
-    vcursor_h++;		/* advance to next place */
+    if (width)
+	vcursor_h++;		/* advance to next place */
+    while (--width > 0)
+	Vdisplay[vcursor_v][vcursor_h++] = CHAR_DBWIDTH;
     if (vcursor_h >= TermH) {
 	Vdisplay[vcursor_v][TermH] = '\0';	/* assure end of line */
 	vcursor_h = 0;		/* reset it. */
@@ -236,27 +311,21 @@ static void
 RefreshPromptpart(buf)
     Char *buf;
 {
-    register Char *cp;
-    static unsigned int litnum = 0;
-    if (buf == NULL)
-    {
-      litnum = 0;
-      return;
-    }
+    Char *cp;
+    NLSChar c;
+    int l, w;
 
-    for (cp = buf; *cp; cp++) {
+    for (cp = buf; *cp; ) {
 	if (*cp & LITERAL) {
-	    if (litnum < (sizeof(litptr) / sizeof(litptr[0]))) {
-		litptr[litnum] = cp;
-#ifdef DEBUG_LITERAL
-		dprintf("litnum = %d, litptr = %x:\r\n",
-			litnum, litptr[litnum]);
-#endif /* DEBUG_LITERAL */
-	    }
+	    Char *litstart = cp;
 	    while (*cp & LITERAL)
 		cp++;
-	    if (*cp)
-		Vdraw((int) (litnum++ | LITERAL));
+	    if (*cp) {
+		l = NLSFrom(cp, NLSZEROT, &c);
+		w = NLSWidth(c);
+		Vdraw(MakeLiteral(litstart, cp + l - litstart, 0), w);
+		cp += l;
+	    }
 	    else {
 		/*
 		 * XXX: This is a bug, we lose the last literal, if it is not
@@ -266,7 +335,7 @@ RefreshPromptpart(buf)
 	    }
 	}
 	else
-	    Draw(*cp);
+	    cp += Draw(cp, cp == buf);
     }
 }
 
@@ -285,8 +354,8 @@ int OldvcV = 0;
 void
 Refresh()
 {
-    register int cur_line;
-    register Char *cp;
+    int cur_line;
+    Char *cp;
     int     cur_h, cur_v = 0, new_vcv;
     int     rhdiff;
     Char    oldgetting;
@@ -301,7 +370,6 @@ Refresh()
     /* reset the Vdraw cursor, temporarily draw rprompt to calculate its size */
     vcursor_h = 0;
     vcursor_v = 0;
-    RefreshPromptpart(NULL);
     RefreshPromptpart(RPromptBuf);
     rprompt_h = vcursor_h;
     rprompt_v = vcursor_v;
@@ -309,17 +377,17 @@ Refresh()
     /* reset the Vdraw cursor, draw prompt */
     vcursor_h = 0;
     vcursor_v = 0;
-    RefreshPromptpart(NULL);
     RefreshPromptpart(PromptBuf);
     cur_h = -1;			/* set flag in case I'm not set */
 
     /* draw the current input buffer */
-    for (cp = InputBuf; (cp < LastChar); cp++) {
-	if (cp == Cursor) {
+    for (cp = InputBuf; (cp < LastChar); ) {
+	if (cp >= Cursor && cur_h == -1) {
 	    cur_h = vcursor_h;	/* save for later */
 	    cur_v = vcursor_v;
+	    Cursor = cp;
 	}
-	Draw(*cp);
+	cp += Draw(cp, cp == InputBuf);
     }
 
     if (cur_h == -1) {		/* if I haven't been set yet, I'm at the end */
@@ -335,7 +403,7 @@ Refresh()
 			 * character gap to the input buffer.
 			 */
 	while (--rhdiff > 0)		/* pad out with spaces */
-	    Draw(' ');
+	    Vdraw(' ', 1);
 	RefreshPromptpart(RPromptBuf);
     }
     else {
@@ -344,9 +412,9 @@ Refresh()
     }
 
     new_vcv = vcursor_v;	/* must be done BEFORE the NUL is written */
-    Vdraw('\0');		/* put NUL on end */
+    Vdraw('\0', 1);		/* put NUL on end */
 
-#ifdef DEBUG_REFRESH
+#if defined (DEBUG_REFRESH)
     dprintf("TermH=%d, vcur_h=%d, vcur_v=%d, Vdisplay[0]=\r\n:%80.80s:\r\n",
 	    TermH, vcursor_h, vcursor_v, short2str(Vdisplay[0]));
 #endif /* DEBUG_REFRESH */
@@ -368,10 +436,6 @@ Refresh()
 	 * screen line, it won't be a NUL or some old leftover stuff.
 	 */
 	cpy_pad_spaces(Display[cur_line], Vdisplay[cur_line], TermH);
-#ifdef notdef
-	(void) Strncpy(Display[cur_line], Vdisplay[cur_line], (size_t) TermH);
-	Display[cur_line][TermH] = '\0';	/* just in case */
-#endif
     }
 #ifdef DEBUG_REFRESH
     dprintf("\r\nvcursor_v = %d, OldvcV = %d, cur_line = %d\r\n",
@@ -421,12 +485,12 @@ PastBottom()
    maximum length of d is dlen */
 static void
 str_insert(d, dat, dlen, s, num)
-    register Char *d;
-    register int dat, dlen;
-    register Char *s;
-    register int num;
+    Char *d;
+    int dat, dlen;
+    Char *s;
+    int num;
 {
-    register Char *a, *b;
+    Char *a, *b;
 
     if (num <= 0)
 	return;
@@ -467,10 +531,10 @@ str_insert(d, dat, dlen, s, num)
 /* delete num characters d at dat, maximum length of d is dlen */
 static void
 str_delete(d, dat, dlen, num)
-    register Char *d;
-    register int dat, dlen, num;
+    Char *d;
+    int dat, dlen, num;
 {
-    register Char *a, *b;
+    Char *a, *b;
 
     if (num <= 0)
 	return;
@@ -500,34 +564,13 @@ str_delete(d, dat, dlen, num)
 
 static void
 str_cp(a, b, n)
-    register Char *a, *b;
-    register int n;
+    Char *a, *b;
+    int n;
 {
     while (n-- && *b)
 	*a++ = *b++;
 }
 
-
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-static Char *
-update_line_fix_mbyte_point(start, target, d)
-     Char *start, *target;
-     int d;
-{
-    if (_enable_mbdisp) {
-	while (*start) {
-	    if (target == start)
-		break;
-	    if (target < start)
-		return target + d;
-	    if (Ismbyte1(*start) && Ismbyte2(*(start + 1)))
-		start++;
-	    start++;
-	}
-    }
-    return target;
-}
-#endif
 
 /* ****************************************************************
     update_line() is based on finding the middle difference of each line
@@ -555,16 +598,16 @@ new:	eddie> Oh, my little buggy says to me, as lurgid as
 
 static void			/* could be changed to make it smarter */
 update_line(old, new, cur_line)
-    register Char *old, *new;
+    Char *old, *new;
     int     cur_line;
 {
-    register Char *o, *n, *p, c;
-    Char   *ofd, *ols, *oe, *nfd, *nls, *ne;
-    Char   *osb, *ose, *nsb, *nse;
+    Char *o, *n, *p, c;
+    Char  *ofd, *ols, *oe, *nfd, *nls, *ne;
+    Char  *osb, *ose, *nsb, *nse;
     int     fx, sx;
 
     /*
-     * find first diff
+     * find first diff (won't be CHAR_DBWIDTH in either line)
      */
     for (o = old, n = new; *o && (*o == *n); o++, n++)
 	continue;
@@ -615,8 +658,16 @@ update_line(old, new, cur_line)
      */
     while ((o > ofd) && (n > nfd) && (*--o == *--n))
 	continue;
-    ols = ++o;
-    nls = ++n;
+    if (*o != *n) {
+	o++;
+	n++;
+    }
+    while (*o == CHAR_DBWIDTH) {
+	o++;
+	n++;
+    }
+    ols = o;
+    nls = n;
 
     /*
      * find same begining and same end
@@ -784,17 +835,6 @@ update_line(old, new, cur_line)
      * diff char
      */
     MoveToLine(cur_line);
-
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-    ofd = update_line_fix_mbyte_point(old, ofd, -1);
-    osb = update_line_fix_mbyte_point(old, osb,  1);
-    ose = update_line_fix_mbyte_point(old, ose, -1);
-    ols = update_line_fix_mbyte_point(old, ols,  1);
-    nfd = update_line_fix_mbyte_point(new, nfd, -1);
-    nsb = update_line_fix_mbyte_point(new, nsb,  1);
-    nse = update_line_fix_mbyte_point(new, nse, -1);
-    nls = update_line_fix_mbyte_point(new, nls,  1);
-#endif
 
     /*
      * at this point we have something like this:
@@ -1094,10 +1134,10 @@ update_line(old, new, cur_line)
 
 static void
 cpy_pad_spaces(dst, src, width)
-    register Char *dst, *src;
-    register int width;
+    Char *dst, *src;
+    int width;
 {
-    register int i;
+    int i;
 
     for (i = 0; i < width; i++) {
 	if (*src == (Char) 0)
@@ -1115,87 +1155,81 @@ cpy_pad_spaces(dst, src, width)
 void
 RefCursor()
 {				/* only move to new cursor pos */
-    register Char *cp, c;
-    register int h, th, v;
+    Char *cp;
+    NLSChar c;
+    int l, w, h, th, v;
 
     /* first we must find where the cursor is... */
     h = 0;
     v = 0;
     th = TermH;			/* optimize for speed */
 
-    for (cp = PromptBuf; *cp; cp++) {	/* do prompt */
-	if (*cp & LITERAL)
+    for (cp = PromptBuf; *cp; ) {	/* do prompt */
+	if (*cp & LITERAL) {
+	    cp++;
 	    continue;
-	c = *cp & CHAR;		/* extra speed plus strip the inverse */
-	h++;			/* all chars at least this long */
-
-	/* from wolman%crltrx.DEC@decwrl.dec.com (Alec Wolman) */
-	/* lets handle newline as part of the prompt */
-
-	if (c == '\n') {
-	    h = 0;
-	    v++;
 	}
-	else {
-	    if (c == '\t') {	/* if a tab, to next tab stop */
-		while (h & 07) {
-		    h++;
-		}
-	    }
-	    else if (Iscntrl(c)) {	/* if control char */
-		h++;
-		if (h > th) {	/* if overflow, compensate */
-		    h = 1;
-		    v++;
-		}
-	    }
-	    else if (!Isprint(c)) {
-		h += 3;
-		if (h > th) {	/* if overflow, compensate */
-		    h = h - th;
-		    v++;
-		}
-	    }
+	l = NLSFrom(cp, NLSZEROT, &c);
+	w = NLSClassify(c, cp == PromptBuf);
+	cp += l;
+	switch(w) {
+	    case NLSCLASS_NL:
+		h = 0;
+		v++;
+		break;
+	    case NLSCLASS_TAB:
+		while (++h & 07)
+		    ;
+		break;
+	    case NLSCLASS_CTRL:
+		h += 2;
+		break;
+	    case NLSCLASS_ILLEGAL:
+		h += 4;
+		break;
+	    case NLSCLASS_ILLEGAL2:
+	    case NLSCLASS_ILLEGAL3:
+	    case NLSCLASS_ILLEGAL4:
+		h += 3 + 2 * NLSCLASS_ILLEGAL_SIZE(w);
+		break;
+	    default:
+		h += w;
 	}
-
 	if (h >= th) {		/* check, extra long tabs picked up here also */
-	    h = 0;
+	    h -= th;
 	    v++;
 	}
     }
 
-    for (cp = InputBuf; cp < Cursor; cp++) {	/* do input buffer to Cursor */
-	c = *cp & CHAR;		/* extra speed plus strip the inverse */
-	h++;			/* all chars at least this long */
-
-	if (c == '\n') {	/* handle newline in data part too */
-	    h = 0;
-	    v++;
+    for (cp = InputBuf; cp < Cursor;) {	/* do input buffer to Cursor */
+	l = NLSFrom(cp, Cursor - cp, &c);
+	w = NLSClassify(c, cp == InputBuf);
+	cp += l;
+	switch(w) {
+	    case NLSCLASS_NL:
+		h = 0;
+		v++;
+		break;
+	    case NLSCLASS_TAB:
+		while (++h & 07)
+		    ;
+		break;
+	    case NLSCLASS_CTRL:
+		h += 2;
+		break;
+	    case NLSCLASS_ILLEGAL:
+		h += 4;
+		break;
+	    case NLSCLASS_ILLEGAL2:
+	    case NLSCLASS_ILLEGAL3:
+	    case NLSCLASS_ILLEGAL4:
+		h += 3 + 2 * NLSCLASS_ILLEGAL_SIZE(w);
+		break;
+	    default:
+		h += w;
 	}
-	else {
-	    if (c == '\t') {	/* if a tab, to next tab stop */
-		while (h & 07) {
-		    h++;
-		}
-	    }
-	    else if (Iscntrl(c)) {	/* if control char */
-		h++;
-		if (h > th) {	/* if overflow, compensate */
-		    h = 1;
-		    v++;
-		}
-	    }
-	    else if (!Isprint(c)) {
-		h += 3;
-		if (h > th) {	/* if overflow, compensate */
-		    h = h - th;
-		    v++;
-		}
-	    }
-	}
-
 	if (h >= th) {		/* check, extra long tabs picked up here also */
-	    h = 0;
+	    h -= th;
 	    v++;
 	}
     }
@@ -1208,11 +1242,22 @@ RefCursor()
 
 #ifndef WINTT_NATIVE
 static void
-PutPlusOne(c)
-    int    c;
+PutPlusOne(c, width)
+    Char   c;
+    int    width;
 {
-    (void) putraw(c);
+    while (width > 1 && CursorH + width > TermH)
+	PutPlusOne(' ', 1);
+    if ((c & LITERAL) != 0) {
+	Char *d;
+	for (d = litptr + (c & ~LITERAL) * LIT_FACTOR; *d; d++)
+	    (void) putwraw(*d);
+    } else {
+	(void) putwraw(c);
+    }
     Display[CursorV][CursorH++] = (Char) c;
+    while (--width > 0)
+	Display[CursorV][CursorH++] = CHAR_DBWIDTH;
     if (CursorH >= TermH) {	/* if we must overflow */
 	CursorH = 0;
 	CursorV++;
@@ -1232,62 +1277,53 @@ PutPlusOne(c)
 #endif
 
 void
-RefPlusOne()
+RefPlusOne(int l)
 {				/* we added just one char, handle it fast.
 				 * assumes that screen cursor == real cursor */
-    register Char c, mc;
+    Char *cp;
+    int w;
+    NLSChar c;
 
-    c = Cursor[-1] & CHAR;	/* the char we just added */
-
-    if (c == '\t' || Cursor != LastChar) {
+    if (Cursor != LastChar) {
 	Refresh();		/* too hard to handle */
 	return;
     }
-
     if (rprompt_h != 0 && (TermH - CursorH - rprompt_h < 3)) {
 	Refresh();		/* clear out rprompt if less than one char gap*/
 	return;
-    }				/* else (only do at end of line, no TAB) */
-
-    if (Iscntrl(c)) {		/* if control char, do caret */
+    }
+    cp = Cursor - l;
+    NLSFrom(cp, (size_t)l, &c);
+    w = NLSClassify(c, cp == InputBuf);
+    switch(w) {
+	case NLSCLASS_CTRL:
+	    PutPlusOne('^', 1);
+	    if (c == CTL_ESC('\177')) {
+		PutPlusOne('?', 1);
+		break;
+	    }
 #ifdef IS_ASCII
-	mc = (c == '\177') ? '?' : (c | 0100);
-	PutPlusOne('^');
-	PutPlusOne(mc);
+	    /* uncontrolify it; works only for iso8859-1 like sets */
+	    PutPlusOne((c | 0100), 1);
 #else
-	if (_toascii[c] == '\177' || Isupper(_toebcdic[_toascii[c]|0100])
-		|| strchr("@[\\]^_", _toebcdic[_toascii[c]|0100]) != NULL)
-	{
-	    mc = (_toascii[c] == '\177') ? '?' : _toebcdic[_toascii[c]|0100];
-	    PutPlusOne('^');
-	    PutPlusOne(mc);
-	}
-	else
-	{
-	    PutPlusOne('\\');
-	    PutPlusOne(((c >> 6) & 7) + '0');
-	    PutPlusOne(((c >> 3) & 7) + '0');
-	    PutPlusOne((c & 7) + '0');
-	}
+	    PutPlusOne(_toebcdic[_toascii[c]|0100], 1);
 #endif
-    }
-    else if (Isprint(c)) {	/* normal char */
-	PutPlusOne(c);
-    }
-#ifdef KANJI
-    else if (
-#ifdef DSPMBYTE
-	     _enable_mbdisp &&
-#endif
-	     !adrof(STRnokanji)) {
-	PutPlusOne(c);
-    }
-#endif
-    else {
-	PutPlusOne('\\');
-	PutPlusOne(((c >> 6) & 7) + '0');
-	PutPlusOne(((c >> 3) & 7) + '0');
-	PutPlusOne((c & 7) + '0');
+	    break;
+	case NLSCLASS_ILLEGAL:
+	    PutPlusOne('\\', 1);
+	    PutPlusOne(((c >> 6) & 7) + '0', 1);
+	    PutPlusOne(((c >> 3) & 7) + '0', 1);
+	    PutPlusOne((c & 7) + '0', 1);
+	    break;
+	case 1:
+	    if (l > 1)
+		PutPlusOne(MakeLiteral(cp, l, 0), 1);
+	    else
+		PutPlusOne(*cp, 1);
+	    break;
+	default:
+	    Refresh();		/* too hard to handle */
+	    return;
     }
     flush();
 }
@@ -1297,19 +1333,20 @@ RefPlusOne()
 void
 ClearDisp()
 {
-    register int i;
+    int i;
 
     CursorV = 0;		/* clear the display buffer */
     CursorH = 0;
     for (i = 0; i < TermV; i++)
 	(void) memset(Display[i], 0, TermH * sizeof(Display[0][0]));
     OldvcV = 0;
+    litlen = 0;
 }
 
 void
 ClearLines()
 {				/* Make sure all lines are *really* blank */
-    register int i;
+    int i;
 
     if (T_CanCEOL) {
 	/*
