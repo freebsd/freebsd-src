@@ -178,6 +178,7 @@ dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional ndis cardbus
 dev/if_ndis/if_ndis_pci.c	optional ndis pci
+dev/if_ndis/if_ndis_usb.c	optional ndis usb
 dev/io/iodev.c			optional io
 dev/kbd/atkbd.c			optional atkbd
 dev/kbd/atkbdc.c		optional atkbdc
