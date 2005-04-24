@@ -27,7 +27,7 @@ SRCS+=	tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c \
 SRCS+=	ed.chared.c ed.decls.h ed.defns.c ed.h ed.init.c ed.inputl.c \
 	ed.refresh.c ed.screen.c ed.xmap.c ed.term.c ed.term.h
 SRCS+=	tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
-	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
+	tc.func.c tc.nls.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
 	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
 	tc.who.c tc.h
 GENHDRS= ed.defns.h sh.err.h tc.const.h tc.defs.c
