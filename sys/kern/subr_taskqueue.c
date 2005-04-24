@@ -51,6 +51,7 @@ struct taskqueue {
 	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
+	struct task		*tq_running;
 	struct mtx		tq_mutex;
 };
 
@@ -186,13 +187,13 @@ taskqueue_run(struct taskqueue *queue)
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
-		task->ta_flags |= TAF_PENDING;
+		queue->tq_running = task;
 		mtx_unlock(&queue->tq_mutex);
 
 		task->ta_func(task->ta_context, pending);
 
 		mtx_lock(&queue->tq_mutex);
-		task->ta_flags &= ~TAF_PENDING;
+		queue->tq_running = NULL;
 		wakeup(task);
 	}
 
@@ -209,7 +210,7 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "taskqueue_drain");
 	mtx_lock(&queue->tq_mutex);
-	while (task->ta_pending != 0 || (task->ta_flags & TAF_PENDING)) {
+	while (task->ta_pending != 0 || task == queue->tq_running) {
 		msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
 	}
 	mtx_unlock(&queue->tq_mutex);
