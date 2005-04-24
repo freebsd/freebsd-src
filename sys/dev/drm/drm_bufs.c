@@ -205,7 +205,7 @@ int drm_addmap(DRM_IOCTL_ARGS)
 
 	switch ( map->type ) {
 	case _DRM_REGISTERS:
-		drm_ioremap(dev, map);
+		map->handle = drm_ioremap(dev, map);
 		if (!(map->flags & _DRM_WRITE_COMBINING))
 			break;
 		/* FALLTHROUGH */
