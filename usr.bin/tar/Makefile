@@ -6,8 +6,8 @@
 #
 
 PROG=	bsdtar
-VERSION=	1.01.023
-DIST_SRCS=	bsdtar.c getdate.y matching.c read.c util.c write.c
+VERSION=	1.02.022
+DIST_SRCS=	bsdtar.c getdate.y matching.c read.c tree.c util.c write.c
 SRCS=	${DIST_SRCS}
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
@@ -25,7 +25,7 @@ DIST_FILES=	${DIST_SRCS}
 DIST_FILES+=	${MAN}
 DIST_FILES+=	bsdtar.h bsdtar_platform.h
 DIST_FILES+=	Makefile.am
-DIST_FILES+=	fts.c fts.h
+DIST_FILES+=	tree.h
 
 distfile:
 	rm -rf ${DIST_BUILD_DIR}

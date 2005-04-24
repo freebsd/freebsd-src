@@ -7,11 +7,11 @@ bsdtar_SOURCES=				\
 		bsdtar.c		\
 		bsdtar.h		\
 		bsdtar_platform.h	\
-		fts.c			\
-		fts.h			\
 		getdate.y		\
 		matching.c		\
 		read.c			\
+		tree.c			\
+		tree.h			\
 		util.c			\
 		write.c
 bsdtar_LDADD=	-larchive -lbz2 -lz
