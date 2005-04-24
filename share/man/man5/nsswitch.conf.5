@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
+.Dd April 24, 2005
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -274,6 +274,12 @@ The criteria
 sets a policy of "if the user is notfound in nis, do not try files."
 This treats nis as the authoritative source of information, except
 when the server is down.
+.Sh NOTES
+If system got compiled with
+.Va NO_NIS
+you have to remove
+.Sq nis
+entries.
 .Sh SEE ALSO
 .Xr nsdispatch 3 ,
 .Xr resolv.conf 5 ,
