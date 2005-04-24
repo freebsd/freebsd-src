@@ -41,13 +41,10 @@ typedef void task_fn_t(void *context, int pending);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* link for queue */
-	int	ta_pending;		/* count times queued */
-	int	ta_priority;		/* priority of task in queue */
+	u_short	ta_pending;		/* count times queued */
+	u_short	ta_priority;		/* Priority */
 	task_fn_t *ta_func;		/* task handler */
 	void	*ta_context;		/* argument for handler */
-	int	ta_flags;		/* Flags */
 };
-
-#define TAF_PENDING	0x1		/* Task is being run now */
 
 #endif /* !_SYS__TASK_H_ */
