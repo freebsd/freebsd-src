@@ -84,8 +84,10 @@ typedef struct {
 #define	GLOB_ABEND	GLOB_ABORTED	/* source compatibility */
 /* #endif */
 
+#include "tc.nls.h"
+
 int	glob __P((const char *, int, int (*)(const char *, int), glob_t *));
 void	globfree __P((glob_t *));
-int	globcharcoll __P((int, int, int));
+int	globcharcoll __P((NLSChar, NLSChar, int));
 
 #endif /* !_GLOB_H_ */

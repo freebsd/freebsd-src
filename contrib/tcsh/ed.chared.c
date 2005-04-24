@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.chared.c,v 3.71 2002/03/08 17:36:45 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.chared.c,v 3.83 2005/03/03 16:21:08 kim Exp $ */
 /*
  * ed.chared.c: Character editing functions.
  */
@@ -72,7 +72,7 @@
 
 #include "sh.h"
 
-RCSID("$Id: ed.chared.c,v 3.71 2002/03/08 17:36:45 christos Exp $")
+RCSID("$Id: ed.chared.c,v 3.83 2005/03/03 16:21:08 kim Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -116,7 +116,7 @@ static	void	 c_alternativ_key_map	__P((int));
 void	 c_insert		__P((int));
 void	 c_delafter		__P((int));
 void	 c_delbefore		__P((int));
-static 	int	 c_to_class		__P((int));
+static 	int	 c_to_class		__P((Char));
 static	Char	*c_prev_word		__P((Char *, Char *, int));
 static	Char	*c_next_word		__P((Char *, Char *, int));
 static	Char	*c_number		__P((Char *, int *, int));
@@ -138,17 +138,11 @@ static  CCRETVAL c_get_histline		__P((void));
 static  CCRETVAL c_search_line		__P((Char *, int));
 static  CCRETVAL v_repeat_srch		__P((int));
 static	CCRETVAL e_inc_search		__P((int));
+static  CCRETVAL e_insert_str		__P((Char *));
 static	CCRETVAL v_search		__P((int));
-static	CCRETVAL v_csearch_fwd		__P((int, int, int));
+static	CCRETVAL v_csearch_fwd		__P((Char, int, int));
 static	CCRETVAL v_action		__P((int));
-static	CCRETVAL v_csearch_back		__P((int, int, int));
-
-#if defined(DSPMBYTE)
-static	void 	 e_charfwd_mbyte	__P((int));
-static	void 	 e_charback_mbyte	__P((int));
-static  int extdel;
-static  int extins = 0;
-#endif
+static	CCRETVAL v_csearch_back		__P((Char, int, int));
 
 static void
 c_alternativ_key_map(state)
@@ -180,6 +174,8 @@ c_insert(num)
     if (Cursor < LastChar) {	/* if I must move chars */
 	for (cp = LastChar; cp >= Cursor; cp--)
 	    cp[num] = *cp;
+	if (Mark && Mark > Cursor)
+		Mark += num;
     }
     LastChar += num;
 }
@@ -190,27 +186,11 @@ c_delafter(num)
 {
     Char *cp, *kp = NULL;
 
-#if defined(DSPMBYTE)
-    Char *wkcp;
-
-    extdel = 0;
-#endif
-
     if (num > LastChar - Cursor)
 	num = (int) (LastChar - Cursor);	/* bounds check */
 
     if (num > 0) {			/* if I can delete anything */
-#if defined(DSPMBYTE)
-	/* check for code of deleted character */
-	if (_enable_mbdisp) {
-	    for (wkcp = Cursor ; wkcp < Cursor + num; wkcp++) {
-		if (extdel == 0)
-		    extdel = Ismbyte1(*wkcp); /* check to 1st. byte */
-		else
-		    extdel = 0;	/* if 2nd. byte, force set to 0 */
-	    }
-	}
-#endif
+	num = NLSExtend(Cursor, LastChar - Cursor, num);
 	if (VImode) {
 	    kp = UndoBuf;		/* Set Up for VI undo command */
 	    UndoAction = TCSHOP_INSERT;
@@ -222,23 +202,11 @@ c_delafter(num)
 	    }
 	}
 	else
-	    for (cp = Cursor; cp <= LastChar; cp++)
+	    for (cp = Cursor; cp + num <= LastChar; cp++)
 		*cp = cp[num];
 	LastChar -= num;
-#if defined(DSPMBYTE)
-	if (_enable_mbdisp && extdel && Ismbyte2(*Cursor)) {
-	    if( VImode ) {
-		UndoSize++;
-		*kp++ = *Cursor; /* Save deleted chars into undobuf */
-	    }
-	    for (cp = Cursor; cp <= LastChar; cp++)
-		*cp = cp[1];
-	    LastChar--;
-	    e_redisp( 1 );
-	}
-	else
-	    extdel = 0;
-#endif
+	if (Mark && Mark > Cursor)
+		Mark -= num;
     }
 #ifdef notdef
     else {
@@ -257,21 +225,11 @@ c_delbefore(num)		/* delete before dot, with bounds checking */
 {
     Char *cp, *kp = NULL;
 
-#if defined(DSPMBYTE)
-    Char *nowcur, *wkcp;
-    Char delc;
-
-    extdel = 0;
-#endif
-
     if (num > Cursor - InputBuf)
 	num = (int) (Cursor - InputBuf);	/* bounds check */
 
     if (num > 0) {			/* if I can delete anything */
-#if defined(DSPMBYTE)
-	nowcur = Cursor - num;
-	delc = *nowcur;
-#endif
+	num = NLSExtend(Cursor, Cursor - InputBuf, -num);
 	if (VImode) {
 	    kp = UndoBuf;		/* Set Up for VI undo command */
 	    UndoAction = TCSHOP_INSERT;
@@ -283,32 +241,12 @@ c_delbefore(num)		/* delete before dot, with bounds checking */
 	    }
 	}
 	else
-	    for (cp = Cursor - num; cp <= LastChar; cp++)
+	    for (cp = Cursor - num; cp + num <= LastChar; cp++)
 		*cp = cp[num];
 	LastChar -= num;
-#if defined(DSPMBYTE)
-	if (_enable_mbdisp) {
-	    for (wkcp = InputBuf; wkcp < nowcur; wkcp++) {
-		if(extdel == 0)
-		    extdel = Ismbyte1(*wkcp); /* check to 1st. byte */
-		else
-		    extdel = 0;	/* if 2nd. byte, force set to 0 */
-	    }
-	    if (extdel && Ismbyte2(delc)) {
-		if( VImode ) {
-		    UndoSize++;
-		    UndoPtr--;
-		    *kp++ = *(nowcur-1);
-				/* Save deleted chars into undobuf */
-		}
-		for (cp = nowcur - 1; cp <= LastChar; cp++)
-		    *cp = cp[1];
-		LastChar--;
-	    }
-	}
-	else
-	    extdel = 0;
-#endif
+	Cursor -= num;
+	if (Mark && Mark > Cursor)
+		Mark -= num;
     }
 }
 
@@ -362,7 +300,7 @@ c_preword(p, low, n, delim)
  */
 static int
 c_to_class(ch)
-int  ch;
+Char ch;
 {
     if (Isspace(ch))
         return C_CLASS_WHITE;
@@ -540,8 +478,8 @@ c_expand(p)
     struct Hist *h = Histlist.Hnext;
     struct wordent *l;
     int     i, from, to, dval;
-    bool    all_dig;
-    bool    been_once = 0;
+    int    all_dig;
+    int    been_once = 0;
     Char   *op = p;
     Char    buf[INBUFSIZE];
     Char   *bend = buf;
@@ -843,13 +781,6 @@ c_delfini()		/* Finish up delete action */
     if (Cursor > ActionPos) {
 	Size = (int) (Cursor-ActionPos);
 	c_delbefore(Size); 
-	Cursor = ActionPos;
-#if defined(DSPMBYTE)
-	if (_enable_mbdisp && extdel) {
-	    Cursor--;
-	    e_redisp(1);
-	}
-#endif
 	RefCursor();
     }
     else if (Cursor < ActionPos) {
@@ -869,7 +800,7 @@ c_endword(p, high, n, delim)
     Char *p, *high, *delim;
     int n;
 {
-    int inquote = 0;
+    Char inquote = 0;
     p++;
 
     while (n--) {
@@ -1073,7 +1004,7 @@ c_get_histline()
 	if (LastChar < InputBuf)
 	    LastChar = InputBuf;
     }
-
+  
 #ifdef KSHVI
     if (VImode)
 	Cursor = InputBuf;
@@ -1153,7 +1084,8 @@ e_inc_search(dir)
 	if (GetNextChar(&ch) != 1)
 	    return(e_send_eof(0));
 
-	switch (CurrentKeyMap[(unsigned char) ch]) {
+	switch (ch > NT_NUM_KEYS
+		? F_INSERT : CurrentKeyMap[(unsigned char) ch]) {
 	case F_INSERT:
 	case F_DIGIT:
 	case F_MAGIC_SPACE:
@@ -1435,7 +1367,7 @@ v_search(dir)
 /*ARGSUSED*/
 CCRETVAL
 v_cmd_mode(c)
-    int c;
+    Char c;
 {
     USE(c);
     InsertPos = 0;
@@ -1464,7 +1396,7 @@ v_cmd_mode(c)
 /*ARGSUSED*/
 CCRETVAL
 e_unassigned(c)
-    int c;
+    Char c;
 {				/* bound to keys that arn't really assigned */
     USE(c);
     SoundBeep();
@@ -1472,21 +1404,33 @@ e_unassigned(c)
     return(CC_NORM);
 }
 
+static CCRETVAL
+e_insert_str(c)
+    Char *c;
+{
+    int i, n;
+
+    n = Strlen(c);
+    if (LastChar + Argument * n >= InputLim)
+	return(CC_ERROR);	/* end of buffer space */
+    if (inputmode != MODE_INSERT) {
+	c_delafter(Argument * NLSChars(c));
+    }
+    c_insert(Argument * n);
+    while (Argument--) {
+	for (i = 0; i < n; i++)
+	    *Cursor++ = c[i];
+    }
+    Refresh();
+    return(CC_NORM);
+}
+
 CCRETVAL
 e_insert(c)
-    int c;
+    Char c;
 {
-    int i;
-#if defined(DSPMBYTE)
-    CCRETVAL ret;
-    static Char savec;
-    static int exterr = 0;
-#endif
 #ifndef SHORT_STRINGS
     c &= ASCII;			/* no meta chars ever */
-#endif
-#if defined(DSPMBYTE)
-    ret = (CCRETVAL) CC_NORM;
 #endif
 
     if (!c)
@@ -1495,15 +1439,30 @@ e_insert(c)
     if (LastChar + Argument >= InputLim)
 	return(CC_ERROR);	/* end of buffer space */
 
+    if (!NLSFinished(Cursor, 0, c)) {
+	Char buf[MB_LEN_MAX + 1];
+	int f;
+	size_t i = 1;
+	buf[0] = c;
+	do {
+	    if (GetNextChar(&c) != 1)
+		break;
+	    f = NLSFinished(buf, i, (eChar)c);
+	    if (f == -1) {
+		UngetNextChar(c);
+		break;
+	    }
+	    buf[i++] = c;
+	} while (!f && i < MB_CUR_MAX);
+	if (i > 1) {
+	    buf[i] = 0;
+	    return e_insert_str(buf);
+	}
+	c = buf[0];
+    }
+
     if (Argument == 1) {  	/* How was this optimized ???? */
 
-#if defined(DSPMBYTE)
-	if(_enable_mbdisp && extins && exterr && Ismbyte2(c)) {
-	    extins = 0;
-	    exterr = 0;
-	    return(CC_ERROR);
-	}
-#endif
 	if (inputmode != MODE_INSERT) {
 	    UndoBuf[UndoSize++] = *Cursor;
 	    UndoBuf[UndoSize] = '\0';
@@ -1511,52 +1470,15 @@ e_insert(c)
     	}
 
         c_insert(1);
-
-#if defined(DSPMBYTE)
-	/* 1st. byte is store to special buffer, and replace space */
-	if(_enable_mbdisp && extins == 0 && Ismbyte1(c)) {
-	    extins++;
-	    savec = (Char) c;
-	    *Cursor++ = (Char) ' ';
-	}
-	else if (_enable_mbdisp && extins && Ismbyte2(c)) {
-	    *(Cursor-1) = savec;
-	    *Cursor++ = (Char) c;
-	    extins = 0;
-	    e_redisp(1);
-	    Refresh();
-	    ret = CC_REFRESH;
-	}
-	else
-	    *Cursor++ = (Char) c;
-	DoingArg = 0;		/* just in case */
-	if (ret != CC_REFRESH)
-	    RefPlusOne();	/* fast refresh for one char. */
-#else
 	*Cursor++ = (Char) c;
 	DoingArg = 0;		/* just in case */
-	RefPlusOne();		/* fast refresh for one char. */
-#endif
+	RefPlusOne(1);		/* fast refresh for one char. */
     }
     else {
-#if defined(DSPMBYTE)
-	/* Cannot use ESC-(number) for multi-byte */
-	if (_enable_mbdisp && extins == 0 && Ismbyte1(c)) {
-	    extins++;
-	    exterr++;
-	    return(CC_ERROR);
-	}
-	else if (_enable_mbdisp && extins && exterr && Ismbyte2(c))
-	{
-	    extins = 0;
-	    exterr = 0;
-	    return(CC_ERROR);
-	}
-#endif
 	if (inputmode != MODE_INSERT) {
-
-	    for(i=0;i<Argument;i++) 
-		UndoBuf[UndoSize++] = *(Cursor+i);
+	    int i;
+	    for(i = 0; i < Argument; i++) 
+		UndoBuf[UndoSize++] = *(Cursor + i);
 
 	    UndoBuf[UndoSize] = '\0';
 	    c_delafter(Argument);   /* Do NOT use the saving ONE */
@@ -1572,11 +1494,7 @@ e_insert(c)
     if (inputmode == MODE_REPLACE_1)
 	(void) v_cmd_mode(0);
 
-#if defined(DSPMBYTE)
-    return(ret);
-#else
     return(CC_NORM);
-#endif
 }
 
 int
@@ -1604,22 +1522,12 @@ DeleteBack(n)			/* delete the n characters before . */
 	return;
     if (Cursor >= &InputBuf[n]) {
 	c_delbefore(n);		/* delete before dot */
-	if (n > Cursor - InputBuf)
-	    Cursor = InputBuf;	/* bounds check */
-	else
-	    Cursor -= n;
-#if defined(DSPMBYTE)
-	if(_enable_mbdisp && extdel && Cursor > InputBuf) {
-	    Cursor--;
-	    e_redisp(1);
-	}
-#endif
     }
 }
 
 CCRETVAL
 e_digit(c)			/* gray magic here */
-    int c;
+    Char c;
 {
     if (!Isdigit(c))
 	return(CC_ERROR);	/* no NULs in the input ever!! */
@@ -1646,14 +1554,14 @@ e_digit(c)			/* gray magic here */
 	c_insert(1);
 	*Cursor++ = (Char) c;
 	DoingArg = 0;		/* just in case */
-	RefPlusOne();		/* fast refresh for one char. */
+	RefPlusOne(1);		/* fast refresh for one char. */
     }
     return(CC_NORM);
 }
 
 CCRETVAL
 e_argdigit(c)			/* for ESC-n */
-    int c;
+    Char c;
 {
     c &= ASCII;
 
@@ -1674,7 +1582,7 @@ e_argdigit(c)			/* for ESC-n */
 
 CCRETVAL
 v_zero(c)			/* command mode 0 for vi */
-    int c;
+    Char c;
 {
     if (DoingArg) {		/* if doing an arg, add this in... */
 	if (Argument > 1000000)
@@ -1696,7 +1604,7 @@ v_zero(c)			/* command mode 0 for vi */
 /*ARGSUSED*/
 CCRETVAL
 e_newline(c)
-    int c;
+    Char c;
 {				/* always ignore argument */
     USE(c);
   /*  PastBottom();  NOW done in ed.inputl.c */
@@ -1710,7 +1618,7 @@ e_newline(c)
 /*ARGSUSED*/
 CCRETVAL
 e_send_eof(c)
-    int c;
+    Char c;
 {				/* for when ^D is ONLY send-eof */
     USE(c);
     PastBottom();
@@ -1721,7 +1629,7 @@ e_send_eof(c)
 /*ARGSUSED*/
 CCRETVAL
 e_complete(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -1731,7 +1639,7 @@ e_complete(c)
 /*ARGSUSED*/
 CCRETVAL
 e_complete_back(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -1741,7 +1649,7 @@ e_complete_back(c)
 /*ARGSUSED*/
 CCRETVAL
 e_complete_fwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -1751,7 +1659,7 @@ e_complete_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 e_complete_all(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -1761,7 +1669,7 @@ e_complete_all(c)
 /*ARGSUSED*/
 CCRETVAL
 v_cm_complete(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor < LastChar)
@@ -1773,7 +1681,7 @@ v_cm_complete(c)
 /*ARGSUSED*/
 CCRETVAL
 e_toggle_hist(c)
-    int c;
+    Char c;
 {
     struct Hist *hp;
     int     h;
@@ -1830,7 +1738,7 @@ e_toggle_hist(c)
 /*ARGSUSED*/
 CCRETVAL
 e_up_hist(c)
-    int c;
+    Char c;
 {
     Char    beep = 0;
 
@@ -1860,7 +1768,7 @@ e_up_hist(c)
 /*ARGSUSED*/
 CCRETVAL
 e_down_hist(c)
-    int c;
+    Char c;
 {
     USE(c);
     UndoAction = TCSHOP_NOP;
@@ -1917,11 +1825,11 @@ c_hsetpat()
 /*ARGSUSED*/
 CCRETVAL
 e_up_search_hist(c)
-    int c;
+    Char c;
 {
     struct Hist *hp;
     int h;
-    bool    found = 0;
+    int    found = 0;
 
     USE(c);
     ActionFlag = TCSHOP_NOP;
@@ -1986,11 +1894,11 @@ e_up_search_hist(c)
 /*ARGSUSED*/
 CCRETVAL
 e_down_search_hist(c)
-    int c;
+    Char c;
 {
     struct Hist *hp;
     int h;
-    bool    found = 0;
+    int    found = 0;
 
     USE(c);
     ActionFlag = TCSHOP_NOP;
@@ -2040,7 +1948,7 @@ e_down_search_hist(c)
 /*ARGSUSED*/
 CCRETVAL
 e_helpme(c)
-    int c;
+    Char c;
 {
     USE(c);
     PastBottom();
@@ -2051,7 +1959,7 @@ e_helpme(c)
 /*ARGSUSED*/
 CCRETVAL
 e_correct(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2061,7 +1969,7 @@ e_correct(c)
 /*ARGSUSED*/
 CCRETVAL
 e_correctl(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2071,10 +1979,9 @@ e_correctl(c)
 /*ARGSUSED*/
 CCRETVAL
 e_run_fg_editor(c)
-    int c;
+    Char c;
 {
     struct process *pp;
-    extern bool tellwhat;
 
     USE(c);
     if ((pp = find_stop_ed()) != NULL) {
@@ -2103,7 +2010,7 @@ e_run_fg_editor(c)
 /*ARGSUSED*/
 CCRETVAL
 e_list_choices(c)
-    int c;
+    Char c;
 {
     USE(c);
     PastBottom();
@@ -2114,7 +2021,7 @@ e_list_choices(c)
 /*ARGSUSED*/
 CCRETVAL
 e_list_all(c)
-    int c;
+    Char c;
 {
     USE(c);
     PastBottom();
@@ -2125,7 +2032,7 @@ e_list_all(c)
 /*ARGSUSED*/
 CCRETVAL
 e_list_glob(c)
-    int c;
+    Char c;
 {
     USE(c);
     PastBottom();
@@ -2136,7 +2043,7 @@ e_list_glob(c)
 /*ARGSUSED*/
 CCRETVAL
 e_expand_glob(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2146,7 +2053,7 @@ e_expand_glob(c)
 /*ARGSUSED*/
 CCRETVAL
 e_normalize_path(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2156,7 +2063,7 @@ e_normalize_path(c)
 /*ARGSUSED*/
 CCRETVAL
 e_normalize_command(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2166,7 +2073,7 @@ e_normalize_command(c)
 /*ARGSUSED*/
 CCRETVAL
 e_expand_vars(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -2176,7 +2083,7 @@ e_expand_vars(c)
 /*ARGSUSED*/
 CCRETVAL
 e_which(c)
-    int c;
+    Char c;
 {				/* do a fast command line which(1) */
     USE(c);
     PastBottom();
@@ -2187,7 +2094,7 @@ e_which(c)
 /*ARGSUSED*/
 CCRETVAL
 e_last_item(c)
-    int c;
+    Char c;
 {				/* insert the last element of the prev. cmd */
     Char *cp;
     struct Hist *hp;
@@ -2227,12 +2134,12 @@ e_last_item(c)
 /*ARGSUSED*/
 CCRETVAL
 e_dabbrev_expand(c)
-    int c;
+    Char c;
 {				/* expand to preceding word matching prefix */
     Char *cp, *ncp, *bp;
     struct Hist *hp;
     int arg = 0, len = 0, i; /* len = 0 to shut up gcc -Wall */
-    bool found = 0;
+    int found = 0;
     Char hbuf[INBUFSIZE];
     static int oldevent, hist, word;
     static Char *start, *oldcursor;
@@ -2312,7 +2219,7 @@ e_dabbrev_expand(c)
 /*ARGSUSED*/
 CCRETVAL
 e_yank_kill(c)
-    int c;
+    Char c;
 {				/* almost like GnuEmacs */
     int len;
     Char *kp, *cp;
@@ -2344,7 +2251,7 @@ e_yank_kill(c)
 /*ARGSUSED*/
 CCRETVAL
 e_yank_pop(c)
-    int c;
+    Char c;
 {				/* almost like GnuEmacs */
     int m_bef_c, del_len, ins_len;
     Char *kp, *cp;
@@ -2382,7 +2289,6 @@ e_yank_pop(c)
 
     if (m_bef_c) {
 	c_delbefore(del_len);
-	Cursor = Mark;
     } else {
 	c_delafter(del_len);
     }
@@ -2405,7 +2311,7 @@ e_yank_pop(c)
 /*ARGSUSED*/
 CCRETVAL
 v_delprev(c) 		/* Backspace key in insert mode */
-    int c;
+    Char c;
 {
     int rc;
 
@@ -2415,13 +2321,6 @@ v_delprev(c) 		/* Backspace key in insert mode */
     if (InsertPos != 0) {
 	if (Argument <= Cursor - InsertPos) {
 	    c_delbefore(Argument);	/* delete before */
-	    Cursor -= Argument;
-#if defined(DSPMBYTE)
-	if (_enable_mbdisp && extdel) {
-	    Cursor--;
-	    e_redisp(c);
-	}
-#endif
 	    rc = CC_REFRESH;
 	}
     }
@@ -2431,21 +2330,11 @@ v_delprev(c) 		/* Backspace key in insert mode */
 /*ARGSUSED*/
 CCRETVAL
 e_delprev(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor > InputBuf) {
 	c_delbefore(Argument);	/* delete before dot */
-	if (Argument > Cursor - InputBuf)
-	    Cursor = InputBuf;	/* bounds check */
-	else
-	    Cursor -= Argument;
-#if defined(DSPMBYTE)
-	if (_enable_mbdisp && extdel && Cursor > InputBuf) {
-	    Cursor--;
-	    e_redisp(c);
-	}
-#endif
 	return(CC_REFRESH);
     }
     else {
@@ -2456,7 +2345,7 @@ e_delprev(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delwordprev(c)
-    int c;
+    Char c;
 {
     Char *cp;
 
@@ -2470,9 +2359,6 @@ e_delwordprev(c)
     c_push_kill(cp, Cursor);	/* save the text */
 
     c_delbefore((int)(Cursor - cp));	/* delete before dot */
-    Cursor = cp;
-    if (Cursor < InputBuf)
-	Cursor = InputBuf;	/* bounds check */
     return(CC_REFRESH);
 }
 
@@ -2507,7 +2393,7 @@ e_delwordprev(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delnext(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar) {/* if I'm at the end */
@@ -2531,7 +2417,7 @@ e_delnext(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delnext_eof(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar) {/* if I'm at the end */
@@ -2561,7 +2447,7 @@ e_delnext_eof(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delnext_list(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar) {	/* if I'm at the end */
@@ -2580,7 +2466,7 @@ e_delnext_list(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delnext_list_eof(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar) {	/* if I'm at the end */
@@ -2606,7 +2492,7 @@ e_delnext_list_eof(c)
 /*ARGSUSED*/
 CCRETVAL
 e_list_eof(c)
-    int c;
+    Char c;
 {
     CCRETVAL rv;
 
@@ -2627,7 +2513,7 @@ e_list_eof(c)
 /*ARGSUSED*/
 CCRETVAL
 e_delwordnext(c)
-    int c;
+    Char c;
 {
     Char *cp;
 
@@ -2649,7 +2535,7 @@ e_delwordnext(c)
 /*ARGSUSED*/
 CCRETVAL
 e_toend(c)
-    int c;
+    Char c;
 {
     USE(c);
     Cursor = LastChar;
@@ -2665,7 +2551,7 @@ e_toend(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tobeg(c)
-    int c;
+    Char c;
 {
     USE(c);
     Cursor = InputBuf;
@@ -2686,11 +2572,11 @@ e_tobeg(c)
 /*ARGSUSED*/
 CCRETVAL
 e_killend(c)
-    int c;
+    Char c;
 {
     USE(c);
     c_push_kill(Cursor, LastChar); /* copy it */
-    LastChar = Cursor;		/* zap! -- delete to end */
+    Mark = LastChar = Cursor;		/* zap! -- delete to end */
     return(CC_REFRESH);
 }
 
@@ -2698,31 +2584,31 @@ e_killend(c)
 /*ARGSUSED*/
 CCRETVAL
 e_killbeg(c)
-    int c;
+    Char c;
 {
     USE(c);
     c_push_kill(InputBuf, Cursor); /* copy it */
     c_delbefore((int)(Cursor - InputBuf));
-    Cursor = InputBuf;		/* zap! */
+    if (Mark && Mark > Cursor)
+        Mark -= Cursor-InputBuf;
     return(CC_REFRESH);
 }
 
 /*ARGSUSED*/
 CCRETVAL
 e_killall(c)
-    int c;
+    Char c;
 {
     USE(c);
     c_push_kill(InputBuf, LastChar); /* copy it */
-    LastChar = InputBuf;	/* zap! -- delete all of it */
-    Cursor = InputBuf;
+    Cursor = Mark = LastChar = InputBuf;	/* zap! -- delete all of it */
     return(CC_REFRESH);
 }
 
 /*ARGSUSED*/
 CCRETVAL
 e_killregion(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (!Mark)
@@ -2736,7 +2622,6 @@ e_killregion(c)
     else {			/* mark is before cursor */
 	c_push_kill(Mark, Cursor); /* copy it */
 	c_delbefore((int)(Cursor - Mark));
-	Cursor = Mark;
     }
     return(CC_REFRESH);
 }
@@ -2744,7 +2629,7 @@ e_killregion(c)
 /*ARGSUSED*/
 CCRETVAL
 e_copyregion(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (!Mark)
@@ -2762,7 +2647,7 @@ e_copyregion(c)
 /*ARGSUSED*/
 CCRETVAL
 e_charswitch(cc)
-    int cc;
+    Char cc;
 {
     Char c;
 
@@ -2785,7 +2670,7 @@ e_charswitch(cc)
 /*ARGSUSED*/
 CCRETVAL
 e_gcharswitch(cc)
-    int cc;
+    Char cc;
 {				/* gosmacs style ^T */
     Char c;
 
@@ -2801,46 +2686,19 @@ e_gcharswitch(cc)
     }
 }
 
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-/*ARGSUSED*/
-static void
-e_charback_mbyte(argument)
-     int argument;
-{
-    if (!_enable_mbdisp) {
-	if (Argument > Cursor - InputBuf)
-	    Cursor = InputBuf;
-	else
-	    Cursor -= Argument;
-    }
-    else {
-	while (0 < argument && Cursor > InputBuf) {
-	    if (Cursor - 1 != InputBuf &&
-		Ismbyte1(*(Cursor - 2)) && Ismbyte2(*(Cursor - 1))) {
-		Cursor--;
-	    }
-	    Cursor--;
-	    argument--;
-	}
-    }
-}
-#endif
-
 /*ARGSUSED*/
 CCRETVAL
 e_charback(c)
-    int c;
+    Char c;
 {
+    int     num;
     USE(c);
     if (Cursor > InputBuf) {
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-	e_charback_mbyte(Argument);
-#else
-	if (Argument > Cursor - InputBuf)
+	num = NLSExtend(Cursor, Cursor - InputBuf, -Argument);
+	if (num > Cursor - InputBuf)
 	    Cursor = InputBuf;
 	else
-	    Cursor -= Argument;
-#endif
+	    Cursor -= num;
 
 	if (VImode)
 	    if (ActionFlag & TCSHOP_DELETE) {
@@ -2859,7 +2717,7 @@ e_charback(c)
 /*ARGSUSED*/
 CCRETVAL
 v_wordback(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == InputBuf)
@@ -2880,7 +2738,7 @@ v_wordback(c)
 /*ARGSUSED*/
 CCRETVAL
 e_wordback(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == InputBuf)
@@ -2899,38 +2757,16 @@ e_wordback(c)
     return(CC_NORM);
 }
 
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-/*ARGSUSED*/
-static void
-e_charfwd_mbyte(argument)
-     int argument;
-{
-    if (!_enable_mbdisp)
-	Cursor += argument;
-    else
-	while (0 < argument && Cursor < LastChar) {
-	    if (Cursor + 1 != LastChar &&
-		Ismbyte1(*Cursor) && Ismbyte2(*(Cursor + 1))) {
-		Cursor++;
-	    }
-	    Cursor++;
-	    argument--;
-	}
-}
-#endif
-
 /*ARGSUSED*/
 CCRETVAL
 e_charfwd(c)
-    int c;
+    Char c;
 {
+    int     num;
     USE(c);
     if (Cursor < LastChar) {
-#if defined(DSPMBYTE) /* BY TAGA Nayuta VERY THANKS */
-	e_charfwd_mbyte(Argument);
-#else
-	Cursor += Argument;
-#endif
+	num = NLSExtend(Cursor, LastChar - Cursor, Argument);
+	Cursor += num;
 	if (Cursor > LastChar)
 	    Cursor = LastChar;
 
@@ -2951,7 +2787,7 @@ e_charfwd(c)
 /*ARGSUSED*/
 CCRETVAL
 e_wordfwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar)
@@ -2973,7 +2809,7 @@ e_wordfwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_wordfwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar)
@@ -2995,7 +2831,7 @@ v_wordfwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_wordbegnext(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar)
@@ -3044,7 +2880,8 @@ v_repeat_srch(c)
 
 static CCRETVAL
 v_csearch_back(ch, count, tflag)
-    int ch, count, tflag;
+    Char ch;
+    int count, tflag;
 {
     Char *cp;
 
@@ -3076,7 +2913,8 @@ v_csearch_back(ch, count, tflag)
 
 static CCRETVAL
 v_csearch_fwd(ch, count, tflag)
-    int ch, count, tflag;
+    Char ch;
+    int count, tflag;
 {
     Char *cp;
 
@@ -3172,7 +3010,7 @@ c_get_word(begin, end)
 /*ARGSUSED*/
 CCRETVAL
 e_uppercase(c)
-    int c;
+    Char c;
 {
     Char   *cp, *end;
 
@@ -3193,7 +3031,7 @@ e_uppercase(c)
 /*ARGSUSED*/
 CCRETVAL
 e_capitolcase(c)
-    int c;
+    Char c;
 {
     Char   *cp, *end;
 
@@ -3222,7 +3060,7 @@ e_capitolcase(c)
 /*ARGSUSED*/
 CCRETVAL
 e_lowercase(c)
-    int c;
+    Char c;
 {
     Char   *cp, *end;
 
@@ -3243,7 +3081,7 @@ e_lowercase(c)
 /*ARGSUSED*/
 CCRETVAL
 e_set_mark(c)
-    int c;
+    Char c;
 {
     USE(c);
     Mark = Cursor;
@@ -3253,7 +3091,7 @@ e_set_mark(c)
 /*ARGSUSED*/
 CCRETVAL
 e_exchange_mark(c)
-    int c;
+    Char c;
 {
     Char *cp;
 
@@ -3268,7 +3106,7 @@ e_exchange_mark(c)
 /*ARGSUSED*/
 CCRETVAL
 e_argfour(c)
-    int c;
+    Char c;
 {				/* multiply current argument by 4 */
     USE(c);
     if (Argument > 1000000)
@@ -3281,7 +3119,7 @@ e_argfour(c)
 /*ARGSUSED*/
 CCRETVAL
 e_quote(c)
-    int c;
+    Char c;
 {
     Char    ch;
     int     num;
@@ -3299,7 +3137,7 @@ e_quote(c)
 /*ARGSUSED*/
 CCRETVAL
 e_metanext(c)
-    int c;
+    Char c;
 {
     USE(c);
     MetaNext = 1;
@@ -3310,7 +3148,7 @@ e_metanext(c)
 /*ARGSUSED*/
 CCRETVAL
 e_extendnext(c)
-    int c;
+    Char c;
 {
     CurrentKeyMap = CcAltMap;
     return(CC_ARGHACK);	/* preserve argument */
@@ -3321,7 +3159,7 @@ e_extendnext(c)
 /*ARGSUSED*/
 CCRETVAL
 v_insbeg(c)
-    int c;
+    Char c;
 {				/* move to beginning of line and start vi
 				 * insert mode */
     USE(c);
@@ -3339,7 +3177,7 @@ v_insbeg(c)
 /*ARGSUSED*/
 CCRETVAL
 v_replone(c)
-    int c;
+    Char c;
 {				/* vi mode overwrite one character */
     USE(c);
     c_alternativ_key_map(0);
@@ -3353,7 +3191,7 @@ v_replone(c)
 /*ARGSUSED*/
 CCRETVAL
 v_replmode(c)
-    int c;
+    Char c;
 {				/* vi mode start overwriting */
     USE(c);
     c_alternativ_key_map(0);
@@ -3367,7 +3205,7 @@ v_replmode(c)
 /*ARGSUSED*/
 CCRETVAL
 v_substchar(c)
-    int c;
+    Char c;
 {				/* vi mode substitute for one char */
     USE(c);
     c_delafter(Argument);
@@ -3378,7 +3216,7 @@ v_substchar(c)
 /*ARGSUSED*/
 CCRETVAL
 v_substline(c)
-    int c;
+    Char c;
 {				/* vi mode replace whole line */
     USE(c);
     (void) e_killall(0);
@@ -3389,7 +3227,7 @@ v_substline(c)
 /*ARGSUSED*/
 CCRETVAL
 v_chgtoend(c)
-    int c;
+    Char c;
 {				/* vi mode change to end of line */
     USE(c);
     (void) e_killend(0);
@@ -3400,7 +3238,7 @@ v_chgtoend(c)
 /*ARGSUSED*/
 CCRETVAL
 v_insert(c)
-    int c;
+    Char c;
 {				/* vi mode start inserting */
     USE(c);
     c_alternativ_key_map(0);
@@ -3415,7 +3253,7 @@ v_insert(c)
 /*ARGSUSED*/
 CCRETVAL
 v_add(c)
-    int c;
+    Char c;
 {				/* vi mode start adding */
     USE(c);
     c_alternativ_key_map(0);
@@ -3437,7 +3275,7 @@ v_add(c)
 /*ARGSUSED*/
 CCRETVAL
 v_addend(c)
-    int c;
+    Char c;
 {				/* vi mode to add at end of line */
     USE(c);
     c_alternativ_key_map(0);
@@ -3454,9 +3292,9 @@ v_addend(c)
 /*ARGSUSED*/
 CCRETVAL
 v_change_case(cc)
-    int cc;
+    Char cc;
 {
-    char    c;
+    Char    c;
 
     USE(cc);
     if (Cursor < LastChar) {
@@ -3471,7 +3309,7 @@ v_change_case(cc)
 	    *Cursor++ = Toupper(c);
 	else
 	    Cursor++;
-	RefPlusOne();		/* fast refresh for one char */
+	RefPlusOne(1);		/* fast refresh for one char */
 	return(CC_NORM);
     }
     return(CC_ERROR);
@@ -3480,10 +3318,9 @@ v_change_case(cc)
 /*ARGSUSED*/
 CCRETVAL
 e_expand(c)
-    int c;
+    Char c;
 {
     Char *p;
-    extern bool justpr;
 
     USE(c);
     for (p = InputBuf; Isspace(*p); p++)
@@ -3499,7 +3336,7 @@ e_expand(c)
 /*ARGSUSED*/
 CCRETVAL
 e_startover(c)
-    int c;
+    Char c;
 {				/* erase all of current line, start again */
     USE(c);
     ResetInLine(0);		/* reset the input pointers */
@@ -3509,7 +3346,7 @@ e_startover(c)
 /*ARGSUSED*/
 CCRETVAL
 e_redisp(c)
-    int c;
+    Char c;
 {
     USE(c);
     ClearLines();
@@ -3520,7 +3357,7 @@ e_redisp(c)
 /*ARGSUSED*/
 CCRETVAL
 e_cleardisp(c)
-    int c;
+    Char c;
 {
     USE(c);
     ClearScreen();		/* clear the whole real screen */
@@ -3531,7 +3368,7 @@ e_cleardisp(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_int(c)
-    int c;
+    Char c;
 {			
     USE(c);
 #if defined(_MINIX) || defined(WINNT_NATIVE)
@@ -3554,18 +3391,20 @@ e_tty_int(c)
 /*ARGSUSED*/
 CCRETVAL
 e_stuff_char(c)
-     int c;
+     Char c;
 {
 #ifdef TIOCSTI
-     extern int Tty_raw_mode;
      int was_raw = Tty_raw_mode;
-     char ch = (char) c;
+     char buf[MB_LEN_MAX];
+     size_t i, len;
 
      if (was_raw)
          (void) Cookedmode();
 
      (void) write(SHIN, "\n", 1);
-     (void) ioctl(SHIN, TIOCSTI, (ioctl_t) &ch);
+     len = one_wctomb(buf, c & CHAR);
+     for (i = 0; i < len; i++)
+	 (void) ioctl(SHIN, TIOCSTI, (ioctl_t) &buf[i]);
 
      if (was_raw)
          (void) Rawmode();
@@ -3578,7 +3417,7 @@ e_stuff_char(c)
 /*ARGSUSED*/
 CCRETVAL
 e_insovr(c)
-    int c;
+    Char c;
 {
     USE(c);
     inputmode = (inputmode == MODE_INSERT ? MODE_REPLACE : MODE_INSERT);
@@ -3588,7 +3427,7 @@ e_insovr(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_dsusp(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3598,7 +3437,7 @@ e_tty_dsusp(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_flusho(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3608,7 +3447,7 @@ e_tty_flusho(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_quit(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3618,7 +3457,7 @@ e_tty_quit(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_tsusp(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3628,7 +3467,7 @@ e_tty_tsusp(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_stopo(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3638,7 +3477,7 @@ e_tty_stopo(c)
 /*ARGSUSED*/
 CCRETVAL
 e_expand_history(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -3649,7 +3488,7 @@ e_expand_history(c)
 /*ARGSUSED*/
 CCRETVAL
 e_magic_space(c)
-    int c;
+    Char c;
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
@@ -3660,7 +3499,7 @@ e_magic_space(c)
 /*ARGSUSED*/
 CCRETVAL
 e_inc_fwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     patlen = 0;
@@ -3671,7 +3510,7 @@ e_inc_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 e_inc_back(c)
-    int c;
+    Char c;
 {
     USE(c);
     patlen = 0;
@@ -3681,7 +3520,7 @@ e_inc_back(c)
 /*ARGSUSED*/
 CCRETVAL
 e_copyprev(c)
-    int c;
+    Char c;
 {
     Char *cp, *oldc, *dp;
 
@@ -3706,7 +3545,7 @@ e_copyprev(c)
 /*ARGSUSED*/
 CCRETVAL
 e_tty_starto(c)
-    int c;
+    Char c;
 {
     USE(c);
     /* do no editing */
@@ -3716,7 +3555,7 @@ e_tty_starto(c)
 /*ARGSUSED*/
 CCRETVAL
 e_load_average(c)
-    int c;
+    Char c;
 {
     USE(c);
     PastBottom();
@@ -3734,7 +3573,7 @@ e_load_average(c)
 /*ARGSUSED*/
 CCRETVAL
 v_chgmeta(c)
-    int c;
+    Char c;
 {
     USE(c);
     /*
@@ -3747,7 +3586,7 @@ v_chgmeta(c)
 /*ARGSUSED*/
 CCRETVAL
 v_delmeta(c)
-    int c;
+    Char c;
 {
     USE(c);
     return(v_action(TCSHOP_DELETE));
@@ -3757,7 +3596,7 @@ v_delmeta(c)
 /*ARGSUSED*/
 CCRETVAL
 v_endword(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar)
@@ -3780,7 +3619,7 @@ v_endword(c)
 /*ARGSUSED*/
 CCRETVAL
 v_eword(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (Cursor == LastChar)
@@ -3802,7 +3641,7 @@ v_eword(c)
 /*ARGSUSED*/
 CCRETVAL
 v_char_fwd(c)
-    int c;
+    Char c;
 {
     Char ch;
 
@@ -3820,7 +3659,7 @@ v_char_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_char_back(c)
-    int c;
+    Char c;
 {
     Char ch;
 
@@ -3837,7 +3676,7 @@ v_char_back(c)
 /*ARGSUSED*/
 CCRETVAL
 v_charto_fwd(c)
-    int c;
+    Char c;
 {
     Char ch;
 
@@ -3852,7 +3691,7 @@ v_charto_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_charto_back(c)
-    int c;
+    Char c;
 {
     Char ch;
 
@@ -3866,7 +3705,7 @@ v_charto_back(c)
 /*ARGSUSED*/
 CCRETVAL
 v_rchar_fwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (srch_char == 0)
@@ -3879,7 +3718,7 @@ v_rchar_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_rchar_back(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (srch_char == 0)
@@ -3892,7 +3731,7 @@ v_rchar_back(c)
 /*ARGSUSED*/
 CCRETVAL
 v_undo(c)
-    int c;
+    Char c;
 {
     int  loop;
     Char *kp, *cp;
@@ -3955,7 +3794,7 @@ v_undo(c)
 /*ARGSUSED*/
 CCRETVAL
 v_ush_meta(c)
-    int c;
+    Char c;
 {
     USE(c);
     return v_search(F_UP_SEARCH_HIST);
@@ -3964,7 +3803,7 @@ v_ush_meta(c)
 /*ARGSUSED*/
 CCRETVAL
 v_dsh_meta(c)
-    int c;
+    Char c;
 {
     USE(c);
     return v_search(F_DOWN_SEARCH_HIST);
@@ -3973,7 +3812,7 @@ v_dsh_meta(c)
 /*ARGSUSED*/
 CCRETVAL
 v_rsrch_fwd(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (patlen == 0) return(CC_ERROR);
@@ -3983,7 +3822,7 @@ v_rsrch_fwd(c)
 /*ARGSUSED*/
 CCRETVAL
 v_rsrch_back(c)
-    int c;
+    Char c;
 {
     USE(c);
     if (patlen == 0) return(CC_ERROR);
@@ -3997,7 +3836,7 @@ v_rsrch_back(c)
  */
 CCRETVAL
 e_copy_to_clipboard(c)
-    int c;
+    Char c;
 {
     USE(c);
     return CC_ERROR;
@@ -4005,7 +3844,7 @@ e_copy_to_clipboard(c)
 
 CCRETVAL
 e_paste_from_clipboard(c)
-    int c;
+    Char c;
 {
     USE(c);
     return (CC_ERROR);
@@ -4013,28 +3852,28 @@ e_paste_from_clipboard(c)
 
 CCRETVAL
 e_dosify_next(c)
-    int c;
+    Char c;
 {
     USE(c);
     return (CC_ERROR);
 }
 CCRETVAL
 e_dosify_prev(c)
-    int c;
+    Char c;
 {
     USE(c);
     return (CC_ERROR);
 }
 CCRETVAL
 e_page_up(c)
-    int c;
+    Char c;
 {
     USE(c);
     return (CC_ERROR);
 }
 CCRETVAL
 e_page_down(c)
-    int c;
+    Char c;
 {
     USE(c);
     return (CC_ERROR);

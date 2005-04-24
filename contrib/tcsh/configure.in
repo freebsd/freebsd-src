@@ -8,13 +8,13 @@ dnl
 dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 dnl
 
-AC_PREREQ(2.13)dnl Minimum Autoconf version required.
-AC_INIT(tc.vers.c)
+AC_PREREQ([2.59])dnl Minimum Autoconf version required.
+AC_INIT
+AC_CONFIG_SRCDIR([tc.vers.c])
+AC_CONFIG_HEADERS([config.h])
 
 AC_CANONICAL_HOST
 
-dnl We don't use AC_VALIDATE_CACHED_SYSTEM_TUPLE here because we only
-dnl care about the HOST value, not the HOST/BUILD/TARGET triplet.
 AC_MSG_CHECKING([cached host tuple])
 if { test x"${ac_cv_host_system_type+set}" = x"set" &&
      test x"$ac_cv_host_system_type" != x"$host"; }; then
@@ -78,7 +78,7 @@ case "${host}" in
   ;;
 
   ## Linux
-  *-*-linux* )
+  *-*-linux* | *-*-gnu* | *-*-k*bsd*-gnu)
     tcsh_config_file=linux
   ;;
 
@@ -198,7 +198,7 @@ case "${host}" in
   ;;
 
   ## Siemens BS2000 Mainframe
-  bs2000-siemens-posix)
+  bs2000-siemens-*)
     tcsh_config_file=bs2000
   ;;
 
@@ -212,7 +212,7 @@ case "${host}" in
     tcsh_config_file=cray
   ;;
 
-  ## Cygnus GNU Win32
+  ## Red Hat Cygwin
   *-cygwin)
     tcsh_config_file=cygwin32
   ;;
@@ -230,8 +230,8 @@ case "${host}" in
   * )
   changequote([, ])dnl
   AC_MSG_ERROR([Tcsh can't guess the configuration file name
-for \`${host}' systems.
-Check tcsh's \`Ported' file for manual configuration instructions.])
+for `${host}' systems.
+Check tcsh's `Ported' file for manual configuration instructions.])
   changequote(, )dnl
   ;;
 
@@ -239,32 +239,101 @@ esac
 
 echo "Tcsh will use configuration file \`$tcsh_config_file'."
 changequote([, ])dnl
+cp ${srcdir}/config/${tcsh_config_file} config_p.h
+AH_BOTTOM(
+[#include "config_p.h"
+#include "config_f.h"])
 
-AC_CONFIG_HEADER(config.h:config/${tcsh_config_file}:config.h.in)
+dnl Checks for programs
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
 
-if test $ac_cv_prog_gcc = no ; then
+if test "x$GCC" != xyes ; then
   DFLAGS="$DFLAGS $NON_GNU_DFLAGS"
   CFLAGS="$CFLAGS $NON_GNU_CFLAGS"
 fi
 
-case "${host}" in
-  ## Cygnus GNU Win32
-  *-cygwin)
-    CFLAGS="$CFLAGS -mno-win32"
-  ;;
-esac
-
+dnl Checks for libraries
 AC_SEARCH_LIBS(crypt, crypt)
-AC_SEARCH_LIBS(tgetent, termlib curses termcap)
+AC_SEARCH_LIBS(getspnam, sec)
+AC_SEARCH_LIBS(tgetent, termlib termcap curses ncurses)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
+AC_SEARCH_LIBS([iconv], [iconv], [AC_DEFINE([HAVE_ICONV], [1],
+	[Define to 1 if you have the iconv () interface])])
+
+dnl Checks for header files
+AC_CHECK_HEADERS([auth.h inttypes.h shadow.h stdint.h])
+AC_CHECK_HEADERS([utmpx.h utmp.h])
+AC_CHECK_HEADERS([wchar.h],
+	[AC_CHECK_SIZEOF([wchar_t], [], [dnl
+#include <stdio.h>
+#include <wchar.h>])
+	AC_CHECK_HEADERS([wctype.h])])
+AC_HEADER_DIRENT
+AC_HEADER_STAT
+AC_HEADER_STDC
+
+dnl Checks for types
+AC_CHECK_TYPES([long long])
+AC_TYPE_GETGROUPS
+AC_TYPE_MODE_T
+AC_TYPE_SIGNAL
+AC_TYPE_SIZE_T
+AC_TYPE_UID_T
+
+AC_DEFUN([AC_TYPE_SOCKLEN_T], [
+AC_CHECK_TYPE(socklen_t,,
+AC_DEFINE(socklen_t, int, [Define to `int' if neither <sys/types.h> nor <sys/socket.h> define.]),
+[
+#include <sys/types.h>
+#include <sys/socket.h>
+])
+])
+AC_TYPE_SOCKLEN_T
+
+
+dnl Checks for structures
+AC_CHECK_MEMBERS([struct dirent.d_ino], , ,
+[#ifdef HAVE_DIRENT_H
+# include <dirent.h>
+#else
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# else
+#  include <sys/dir.h>
+# endif
+# define dirent direct
+#endif])
+AC_CHECK_MEMBERS([struct utmp.ut_host, struct utmp.ut_user, struct utmp.ut_tv,
+		  struct utmp.ut_xtime], , ,
+[#ifdef HAVE_UTMPX_H
+#include <utmpx.h>
+#define utmp utmpx
+#elif defined HAVE_UTMP_H
+#include <utmp.h>
+#endif])
+AC_CHECK_MEMBERS([struct sockaddr_storage.ss_family], , ,
+[#include <sys/types.h>
+#include <sys/socket.h>])
+
+dnl Checks for compiler characteristics
+AC_C_CONST
+AC_C_PROTOTYPES
+AC_C_VOLATILE
+
+dnl checks for library functions
+AC_CHECK_DECLS([gethostname])
+AC_CHECK_FUNCS([dup2 getcwd gethostname getpwent getutent memmove memset] dnl
+	[nice nl_langinfo sbrk setpgid setpriority strerror strstr sysconf] dnl
+	[wcwidth])
+AC_FUNC_GETPGRP
+AC_FUNC_SETPGRP
 
 dnl This is not good enough; we need sockaddr_storage too.
 dnl See whether we can use IPv6 related functions
-dnl AC_DEFUN(IPv6_CHECK_FUNC, [
+dnl AC_DEFUN([IPv6_CHECK_FUNC], [
 dnl changequote(, )dnl
 dnl ac_tr_lib=HAVE_`echo $1 | sed -e 's/[^a-zA-Z0-9_]/_/g' \
 dnl   -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
@@ -308,15 +377,6 @@ dnl   ifelse([$3], , :, [$3])
 dnl fi])
 dnl IPv6_CHECK_FUNC(getnameinfo, DFLAGS="$DFLAGS -DINET6")
 
-AC_CACHE_CHECK([ss_family in sockaddr_storage], ac_cv_ss_family,
-[AC_TRY_COMPILE([#include <sys/types.h>
-#include <sys/socket.h>], [struct sockaddr_storage ss; ss.ss_family;],
-  ac_cv_ss_family=yes, ac_cv_ss_family=no)]
-if test "$ac_cv_ss_family" = no; then
-  DFLAGS="$DFLAGS -DNO_SS_FAMILY"
-fi
-)
-
 AC_SUBST(DFLAGS)
 
 AC_ARG_WITH(hesiod,
@@ -335,6 +395,5 @@ fi
 AC_SUBST(HESDEF)
 AC_SUBST(HESLIB)
 
-AC_EXEEXT
-
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

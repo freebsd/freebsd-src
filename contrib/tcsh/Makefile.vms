@@ -1,4 +1,4 @@
-# $Id: Makefile.vms,v 1.37 2002/07/23 16:13:21 christos Exp $
+# $Id: Makefile.vms,v 1.38 2004/12/25 21:15:05 christos Exp $
 #	Makefile.vms	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -286,11 +286,11 @@ EDOBJS=	ed.chared.${SUF} ed.refresh.${SUF} ed.screen.${SUF} ed.init.${SUF} \
 	ed.inputl.${SUF} ed.defns.${SUF} ed.xmap.${SUF} ed.term.${SUF}
 
 TCSRCS= tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
-	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
+	tc.func.c tc.os.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
 	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
 	tc.who.c tc.h
 TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.defs.${SUF} \
-	tc.disc.${SUF} tc.func.${SUF} tc.os.${SUF} tc.printf.${SUF} \
+	tc.disc.${SUF} tc.func.${SUF} tc.os.${SUF} tc.os.${SUF} tc.printf.${SUF} \
 	tc.prompt.${SUF} tc.sched.${SUF} tc.sig.${SUF} tc.str.${SUF} \
 	tc.vers.${SUF} tc.who.${SUF} 
 
@@ -563,7 +563,7 @@ ftp: tcsh-${VERSION}.tar.Z tcsh.tahoe-${VERSION}.tar.Z
 #
 config.h: config_f.h
 
-TCH=tc.h tc.const.h tc.decls.h tc.os.h tc.sig.h
+TCH=tc.h tc.const.h tc.decls.h tc.nls.h tc.os.h tc.sig.h
 SHH=sh.h sh.types.h sh.char.h sh.err.h sh.dir.h sh.proc.h pathnames.h \
     sh.decls.h ${TCH}
 TWH=tw.h tw.decls.h
@@ -580,7 +580,7 @@ ${OBJS}: config.h ${SHH}
 
 # TWH
 TWINC=ed.chared.${SUF} ed.inputl.${SUF} sh.exec.${SUF} sh.func.${SUF} \
-      sh.set.${SUF} tc.func.${SUF}
+      sh.set.${SUF} tc.func.${SUF} tc.nls.${SUF}
 ${TWOBJS} ${TWINC}: ${TWH}
 
 # glob.h
