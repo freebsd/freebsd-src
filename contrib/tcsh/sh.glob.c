@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.glob.c,v 3.55 2004/03/21 16:48:14 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.glob.c,v 3.62 2004/12/25 21:15:07 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.glob.c,v 3.55 2004/03/21 16:48:14 christos Exp $")
+RCSID("$Id: sh.glob.c,v 3.62 2004/12/25 21:15:07 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -80,8 +80,8 @@ static	Char	**globexpand	__P((Char **));
 static	int	  globbrace	__P((Char *, Char *, Char ***));
 static  void	  expbrace	__P((Char ***, Char ***, int));
 static	void	  pword		__P((int));
-static	void	  psave		__P((int));
-static	void	  backeval	__P((Char *, bool));
+static	void	  psave		__P((Char));
+static	void	  backeval	__P((Char *, int));
 
 static Char *
 globtilde(nv, s)
@@ -186,19 +186,9 @@ globbrace(s, p, bl)
 
     /* check for balanced braces */
     for (i = 0, pe = ++p; *pe; pe++)
-#ifdef DSPMBYTE
-	if (Ismbyte1(*pe) && *(pe + 1) != EOS)
-	    pe ++;
-	else
-#endif /* DSPMBYTE */
 	if (*pe == LBRK) {
 	    /* Ignore everything between [] */
 	    for (++pe; *pe != RBRK && *pe != EOS; pe++)
-#ifdef DSPMBYTE
-	      if (Ismbyte1(*pe) && *(pe + 1) != EOS)
-		pe ++;
-	      else
-#endif /* DSPMBYTE */
 		continue;
 	    if (*pe == EOS) {
 		blkfree(nv);
@@ -219,19 +209,9 @@ globbrace(s, p, bl)
     }
 
     for (i = 0, pl = pm = p; pm <= pe; pm++)
-#ifdef DSPMBYTE
-	if (Ismbyte1(*pm) && pm + 1 <= pe)
-	    pm ++;
-	else
-#endif /* DSPMBYTE */
 	switch (*pm) {
 	case LBRK:
 	    for (++pm; *pm != RBRK && *pm != EOS; pm++)
-#ifdef DSPMBYTE
-	      if (Ismbyte1(*pm) && *(pm + 1) != EOS)
-		pm ++;
-	      else
-#endif /* DSPMBYTE */
 		continue;
 	    if (*pm == EOS) {
 		*vl = NULL;
@@ -303,12 +283,6 @@ expbrace(nvp, elp, size)
 	    Char  **bl;
 	    int     len;
 
-#if defined (DSPMBYTE)
-	    if (b != s && Ismbyte2(*b) && Ismbyte1(*(b-1))) {
-		/* The "{" is the 2nd byte of a MB character */
-		continue;
-	    }
-#endif /* DSPMBYTE */
 	    if ((len = globbrace(s, b, &bl)) < 0) {
 		xfree((ptr_t) nv);
 		stderror(ERR_MISSING, -len);
@@ -652,10 +626,10 @@ ginit()
 
 void
 rscan(t, f)
-    register Char **t;
-    void    (*f) __P((int));
+    Char **t;
+    void    (*f) __P((Char));
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != '\0')
 	while (*p)
@@ -664,9 +638,9 @@ rscan(t, f)
 
 void
 trim(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != '\0')
 	while (*p)
@@ -675,9 +649,9 @@ trim(t)
 
 void
 tglob(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p, *c;
+    Char *p, *c;
 
     while ((p = *t++) != '\0') {
 	if (*p == '~' || *p == '=')
@@ -732,9 +706,9 @@ tglob(t)
 Char  **
 dobackp(cp, literal)
     Char   *cp;
-    bool    literal;
+    int    literal;
 {
-    register Char *lp, *rp;
+    Char *lp, *rp;
     Char   *ep, word[LONGBSIZE];
 
     if (pargv) {
@@ -750,15 +724,7 @@ dobackp(cp, literal)
     pargc = 0;
     pnleft = LONGBSIZE - 4;
     for (;;) {
-#if defined(DSPMBYTE)
-	for (lp = cp;; lp++) { /* } */
-	    if (*lp == '`' &&
-		(lp-1 < cp || !Ismbyte2(*lp) || !Ismbyte1(*(lp-1)))) {
-		break;
-	    }
-#else /* DSPMBYTE */
 	for (lp = cp; *lp != '`'; lp++) {
-#endif /* DSPMBYTE */
 	    if (*lp == 0) {
 		if (pargcp != pargs)
 		    pword(LONGBSIZE);
@@ -786,12 +752,12 @@ dobackp(cp, literal)
 static void
 backeval(cp, literal)
     Char   *cp;
-    bool    literal;
+    int    literal;
 {
-    register int icnt, c;
-    register Char *ip;
+    int icnt;
+    Char c, *ip;
     struct command faket;
-    bool    hadnl;
+    int    hadnl;
     int     pvec[2], quoted;
     Char   *fakecom[2], ibuf[BUFSIZE];
     char    tibuf[BUFSIZE];
@@ -824,7 +790,8 @@ backeval(cp, literal)
      */
     mypipe(pvec);
     if (pfork(&faket, -1) == 0) {
-	struct command *t;
+	jmp_buf_t osetexit;
+	struct command *volatile t;
 
 	(void) close(pvec[0]);
 	(void) dmove(pvec[1], 1);
@@ -841,7 +808,7 @@ backeval(cp, literal)
 	arginp = cp;
 	for (arginp = cp; *cp; cp++) {
 	    *cp &= TRIM;
-	    if (*cp == '\n' || *cp == '\r')
+	    if (is_set(STRcsubstnonl) && (*cp == '\n' || *cp == '\r'))
 		*cp = ' ';
 	}
 
@@ -853,26 +820,58 @@ backeval(cp, literal)
 	evalvec = NULL;
 	alvecp = NULL;
 	evalp = NULL;
-	(void) lex(&paraml);
-	if (seterr)
-	    stderror(ERR_OLD);
-	alias(&paraml);
-	t = syntax(paraml.next, &paraml, 0);
-	if (seterr)
-	    stderror(ERR_OLD);
-	if (t)
-	    t->t_dflg |= F_NOFORK;
+
+	t = NULL;
+	getexit(osetexit);
+	for (;;) {
+
+	    if (paraml.next && paraml.next != &paraml)
+		freelex(&paraml);
+	    
+	    paraml.next = paraml.prev = &paraml;
+	    paraml.word = STRNULL;
+	    (void) setexit();
+	    justpr = 0;
+	    
+	    /*
+	     * For the sake of reset()
+	     */
+	    freelex(&paraml);
+	    if (t)
+		freesyn(t), t = NULL;
+
+	    if (haderr) {
+		/* unwind */
+		doneinp = 0;
+		resexit(osetexit);
+		reset();
+	    }
+	    if (seterr) {
+		xfree((ptr_t) seterr);
+		seterr = NULL;
+	    }
+
+	    (void) lex(&paraml);
+	    if (seterr)
+		stderror(ERR_OLD);
+	    alias(&paraml);
+	    t = syntax(paraml.next, &paraml, 0);
+	    if (seterr)
+		stderror(ERR_OLD);
 #ifdef SIGTSTP
-	(void) sigignore(SIGTSTP);
+	    (void) sigignore(SIGTSTP);
 #endif
 #ifdef SIGTTIN
-	(void) sigignore(SIGTTIN);
+	    (void) sigignore(SIGTTIN);
 #endif
 #ifdef SIGTTOU
-	(void) sigignore(SIGTTOU);
+	    (void) sigignore(SIGTTOU);
 #endif
-	execute(t, -1, NULL, NULL, TRUE);
-	exitstat();
+	    execute(t, -1, NULL, NULL, TRUE);
+
+	    freelex(&paraml);
+	    freesyn(t), t = NULL;
+	}
     }
     xfree((ptr_t) cp);
     (void) close(pvec[1]);
@@ -880,21 +879,47 @@ backeval(cp, literal)
     ip = NULL;
     do {
 	int     cnt = 0;
+	char   *tmp;
 
+	tmp = tibuf;
 	for (;;) {
-	    if (icnt == 0) {
-		int     i;
+	    while (icnt == 0) {
+		int     i, eof;
 
 		ip = ibuf;
 		do
-		    icnt = read(pvec[0], tibuf, BUFSIZE);
+		    icnt = read(pvec[0], tmp, tibuf + BUFSIZE - tmp);
 		while (icnt == -1 && errno == EINTR);
+		eof = 0;
 		if (icnt <= 0) {
-		    c = -1;
-		    break;
+		    if (tmp == tibuf)
+			goto eof;
+		    icnt = 0;
+		    eof = 1;
 		}
-		for (i = 0; i < icnt; i++)
-		    ip[i] = (unsigned char) tibuf[i];
+		icnt += tmp - tibuf;
+		i = 0;
+		tmp = tibuf;
+		while (tmp < tibuf + icnt) {
+		    int len;
+
+		    len = normal_mbtowc(&ip[i], tmp, tibuf + icnt - tmp);
+		    if (len == -1) {
+		        reset_mbtowc();
+		        if (!eof && (size_t)(tibuf + icnt - tmp) < MB_CUR_MAX) {
+			    break; /* Maybe a partial character */
+			}
+			ip[i] = (unsigned char) *tmp | INVALID_BYTE; /* Error */
+		    }
+		    if (len <= 0)
+		        len = 1;
+		    i++;
+		    tmp += len;
+		}
+		if (tmp != tibuf)
+		    memmove (tibuf, tmp, tibuf + icnt - tmp);
+		tmp = tibuf + (tibuf + icnt - tmp);
+		icnt = i;
 	    }
 	    if (hadnl)
 		break;
@@ -925,10 +950,11 @@ backeval(cp, literal)
 	 * If we didn't make empty words here when literal was set then we
 	 * would lose blank lines.
 	 */
-	if (c != -1 && (cnt || literal))
+	if (c != 0 && (cnt || literal))
 	    pword(BUFSIZE);
 	hadnl = 0;
-    } while (c >= 0);
+    } while (c > 0);
+ eof:
     (void) close(pvec[0]);
     pwait();
     prestjob();
@@ -936,7 +962,7 @@ backeval(cp, literal)
 
 static void
 psave(c)
-    int    c;
+    Char   c;
 {
     if (--pnleft <= 0)
 	stderror(ERR_WTOOLONG);
@@ -953,6 +979,7 @@ pword(bufsiz)
 	pargv = (Char **) xrealloc((ptr_t) pargv,
 				   (size_t) (pargsiz * sizeof(Char *)));
     }
+    NLSQuote(pargs);
     pargv[pargc++] = Strsave(pargs);
     pargv[pargc] = NULL;
     pargcp = pargs;
@@ -987,12 +1014,12 @@ Gnmatch(string, pattern, endstr)
     if (endstr == NULL)
 	/* Exact matches only */
 	for (p = blk; *p; p++) 
-	    gres |= t_pmatch(string, *p, &tstring, 0) == 2 ? 1 : 0;
+	    gres |= t_pmatch(string, *p, &tstring, 1) == 2 ? 1 : 0;
     else {
 	/* partial matches */
 	int minc = 0x7fffffff;
 	for (p = blk; *p; p++) 
-	    if (t_pmatch(string, *p, &tstring, 0) != 0) {
+	    if (t_pmatch(string, *p, &tstring, 1) != 0) {
 		int t = (int) (tstring - string);
 		gres |= 1;
 		if (minc == -1 || minc > t)
@@ -1016,20 +1043,22 @@ t_pmatch(string, pattern, estr, cs)
     Char *string, *pattern, **estr;
     int cs;
 {
-    Char    stringc, patternc;
+    NLSChar stringc, patternc, rangec;
     int     match, negate_range;
-    Char    rangec, *oestr, *pestr;
+    Char    *oestr, *pestr, *nstring;
 
-    for (;; ++string) {
-	stringc = *string & TRIM;
+    for (nstring = string;; string = nstring) {
+	stringc = *nstring++;
+	TRIM_AND_EXTEND(nstring, stringc);
 	/*
 	 * apollo compiler bug: switch (patternc = *pattern++) dies
 	 */
 	patternc = *pattern++;
+	TRIM_AND_EXTEND(pattern, patternc);
 	switch (patternc) {
-	case 0:
+	case '\0':
 	    *estr = string;
-	    return (stringc == 0 ? 2 : 1);
+	    return (stringc == '\0' ? 2 : 1);
 	case '?':
 	    if (stringc == 0)
 		return (0);
@@ -1044,7 +1073,7 @@ t_pmatch(string, pattern, estr, cs)
 	    oestr = *estr;
 	    pestr = NULL;
 
-	    do {
+	    for (;;) {
 		switch(t_pmatch(string, pattern, estr, cs)) {
 		case 0:
 		    break;
@@ -1057,8 +1086,11 @@ t_pmatch(string, pattern, estr, cs)
 		    abort();	/* Cannot happen */
 		}
 		*estr = string;
+		stringc = *string++;
+		if (!stringc)
+		    break;
+		TRIM_AND_EXTEND(string, stringc);
 	    }
-	    while (*string++);
 
 	    if (pestr) {
 		*estr = pestr;
@@ -1078,22 +1110,34 @@ t_pmatch(string, pattern, estr, cs)
 		    break;
 		if (match)
 		    continue;
-		if (rangec == '-' && *(pattern-2) != '[' && *pattern  != ']') {
-		    match = (globcharcoll(stringc, *pattern & TRIM, cs) <= 0 &&
-		    globcharcoll(*(pattern-2) & TRIM, stringc, cs) <= 0);
+		TRIM_AND_EXTEND(pattern, rangec);
+		if (*pattern == '-' && pattern[1] != ']') {
+		    NLSChar rangec2;
 		    pattern++;
+		    rangec2 = *pattern++;
+		    TRIM_AND_EXTEND(pattern, rangec2);
+		    match = (globcharcoll(stringc, rangec2, 0) <= 0 &&
+			globcharcoll(rangec, stringc, 0) <= 0);
 		}
 		else 
-		    match = (stringc == (rangec & TRIM));
+		    match = (stringc == rangec);
 	    }
-	    if (rangec == 0)
+	    if (rangec == '\0')
 		stderror(ERR_NAME | ERR_MISSING, ']');
+	    if ((!match) && (stringc == '\0'))
+		return (0);
 	    if (match == negate_range)
 		return (0);
 	    *estr = string;
 	    break;
 	default:
-	    if ((patternc & TRIM) != stringc)
+	    TRIM_AND_EXTEND(pattern, patternc);
+	    if (cs ? patternc  != stringc
+#if defined (NLS) && defined (SHORT_STRINGS)
+		: towlower(patternc) != towlower(stringc))
+#else
+		: Tolower(patternc) != Tolower(stringc))
+#endif
 		return (0);
 	    *estr = string;
 	    break;
@@ -1105,7 +1149,7 @@ void
 Gcat(s1, s2)
     Char   *s1, *s2;
 {
-    register Char *p, *q;
+    Char *p, *q;
     int     n;
 
     for (p = s1; *p++;)
@@ -1129,7 +1173,7 @@ Gcat(s1, s2)
 #if defined(FILEC) && defined(TIOCSTI)
 int
 sortscmp(a, b)
-    register Char **a, **b;
+    Char **a, **b;
 {
     if (!a)			/* check for NULL */
 	return (b ? 1 : 0);

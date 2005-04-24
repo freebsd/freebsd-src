@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.const.c,v 3.74 2004/03/21 16:48:15 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.const.c,v 3.81 2004/12/25 21:15:08 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.const.c,v 3.74 2004/03/21 16:48:15 christos Exp $")
+RCSID("$Id: tc.const.c,v 3.81 2004/12/25 21:15:08 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -84,6 +84,8 @@ Char STROSTYPE[]	= { 'O', 'S', 'T', 'Y', 'P', 'E', '\0' };
 Char STRedit[]		= { 'e', 'd', 'i', 't', '\0' };
 Char STRaddsuffix[]	= { 'a', 'd', 'd', 's', 'u', 'f', 'f', 'i', 'x',
 			    '\0' };
+Char STRcsubstnonl[]	= { 'c', 's', 'u', 'b', 's', 't', 'n', 'o', 'n', 'l',
+			    '\0' };
 Char STRnostat[]	= { 'n', 'o', 's', 't', 'a', 't', '\0' };
 Char STRshell[]		= { 's', 'h', 'e', 'l', 'l', '\0' };
 Char STRtmpsh[]		= { '/', 't', 'm', 'p', '/', 's', 'h', '\0' };
@@ -124,11 +126,12 @@ Char STRmmliteral[]	= { '-', 'G', '\0' };
 # else
 Char STRmmliteral[]	= { '-', '-', 'l', 'i', 't', 'e', 'r', 'a', 'l', '\0' };
 # endif
-Char STRKEUC[]		= { 'e', 'u', 'c', '\0' };
-Char STRKSJIS[]		= { 's', 'j', 'i', 's', '\0' };
-Char STRKBIG5[]         = { 'b', 'i', 'g', '5', '\0' };
-Char STRKUTF8[]         = { 'u', 't', 'f', '8', '\0' };
-Char STRSTARKUTF8[]     = { '*', 'u', 't', 'f', '8', '\0' };
+Char STReuc[]		= { 'e', 'u', 'c', '\0' };
+Char STRsjis[]		= { 's', 'j', 'i', 's', '\0' };
+Char STRbig5[]		= { 'b', 'i', 'g', '5', '\0' };
+Char STRutf8[]		= { 'u', 't', 'f', '8', '\0' };
+Char STRstarutfstar8[]	= { '*', 'u', 't', 'f', '*', '8', '\0' };
+Char STRGB2312[]	= { 'g', 'b', '2', '3', '1', '2', '\0' };
 #  ifdef MBYTEDEBUG	/* Sorry, use for beta testing */
 Char STRmbytemap[]	= { 'm', 'b', 'y', 't', 'e', 'm', 'a', 'p', '\0' };
 #  endif /* MBYTEMAP */
@@ -158,7 +161,7 @@ Char STRLANGBIG5[]	= { 'z', 'h', '_', 'T', 'W', '.', 'B', 'i', 'g', '5',
 			    '\0' };
 Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCZHB[]	= { '\0' };
-#  elif defined(linux)
+#  elif defined(linux) || defined(__GNU__) || defined(__GLIBC__)
 Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'E', 'U', 'C', '-',
 			    'J', 'P', '\0' };
 Char STRLANGEUCKR[]	= { 'k', 'o', '_', 'K', 'R', '.', 'E', 'U', 'C', '\0' };
@@ -409,7 +412,6 @@ Char STRnohup[]		= { 'n', 'o', 'h', 'u', 'p', '\0' };
 Char STRhup[]		= { 'h', 'u', 'p', '\0' };
 Char STRnice[]		= { 'n', 'i', 'c', 'e', '\0' };
 Char STRthen[]		= { 't', 'h', 'e', 'n', '\0' };
-Char STReof[]		= { '^', 'D', '\b', '\b', '\0' };
 Char STRlistjobs[]	= { 'l', 'i', 's', 't', 'j', 'o', 'b', 's', '\0' };
 Char STRlistflags[]	= { 'l', 'i', 's', 't', 'f', 'l', 'a', 'g', 's', '\0' };
 Char STRlong[]		= { 'l', 'o', 'n', 'g', '\0' };
@@ -461,6 +463,7 @@ Char STRver[]		= { 'v', 'e', 'r', '\0' };
 Char STRwarnebcdic[]    = { 'w', 'a', 'r', 'n', 'e', 'b', 'c', 'd', 'i', 'c', '\0' };
 #endif
 
+Char STRmCF[]		= { '-', 'C', 'F', '\0', '\0' };
 #ifdef COLOR_LS_F
 Char STRlsmF[]		= { 'l', 's', '-', 'F', '\0' };
 Char STRcolor[]		= { 'c', 'o', 'l', 'o', 'r', '\0' };
@@ -487,3 +490,5 @@ Char STRcolorcat[]	= { 'c', 'o', 'l', 'o', 'r', 'c', 'a', 't', '\0' };
 Char STRshwspace[]	= { ' ', '\t', '\0' };
 Char STRshwordsep[]	= { ' ', '\t', '&', '|', ';', '<', '>', '(', ')', '\0' };
 Char STRrepeat[]	= { 'r', 'e', 'p', 'e', 'a', 't', '\0' };
+
+Char STReof[]		= { '^', 'D', '\b', '\b', '\0' };

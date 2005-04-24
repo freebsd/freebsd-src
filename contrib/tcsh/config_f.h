@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/config_f.h,v 3.26 2004/03/21 16:48:14 christos Exp $ */
+/* $Header: /src/pub/tcsh/config_f.h,v 3.32 2005/03/04 13:46:04 christos Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *
@@ -39,12 +39,20 @@
 #define _h_config_f
 
 /*
- * SHORT_STRINGS Use 16 bit characters instead of 8 bit chars
+ * SHORT_STRINGS Use at least 16 bit characters instead of 8 bit chars
  * 	         This fixes up quoting problems and eases implementation
  *	         of nls...
  *
  */
 #define SHORT_STRINGS
+
+/*
+ * WIDE_STRINGS	Represent strings using wide characters
+ *		Allows proper function in multibyte encodings like UTF-8
+ */
+#if defined (SHORT_STRINGS) && SIZEOF_WCHAR_T >= 4 && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
+# define WIDE_STRINGS
+#endif
 
 /*
  * NLS:		Use Native Language System
@@ -110,7 +118,7 @@
 
 /*
  * KANJI	Ignore meta-next, and the ISO character set. Should
- *		be used with SHORT_STRINGS
+ *		be used with SHORT_STRINGS (or WIDE_STRINGS)
  *
  */
 #define KANJI
@@ -120,7 +128,9 @@
  *		only output, when "dspmbyte" is set. Should be used with
  *		KANJI
  */
-#define DSPMBYTE
+#if defined (SHORT_STRINGS) && !defined (WIDE_STRINGS)
+# define DSPMBYTE
+#endif
 
 /*
  * MBYTEDEBUG	when "dspmbyte" is changed, set multi-byte checktable to
@@ -190,5 +200,32 @@
 #else
 # define RCSID(id)	/* Nothing */
 #endif /* !lint && !SABER */
+
+/* Consistency checks */
+#ifdef WIDE_STRINGS
+# if SIZEOF_WCHAR_T < 4
+    #error "wchar_t must be at least 4 bytes for WIDE_STRINGS"
+# endif
+
+# ifdef WINNT_NATIVE
+    #error "WIDE_STRINGS cannot be used together with WINNT_NATIVE"
+# endif
+
+# ifndef SHORT_STRINGS
+    #error "SHORT_STRINGS must be defined if WIDE_STRINGS is defined"
+# endif
+
+# ifndef NLS
+    #error "NLS must be defined if WIDE_STRINGS is defined"
+# endif
+
+# ifdef DSPMBYTE
+    #error "DSPMBYTE must not be defined if WIDE_STRINGS is defined"
+# endif
+#endif
+
+#if !defined (SHORT_STRINGS) && defined (DSPMBYTE)
+    #error "SHORT_STRINGS must be defined if DSPMBYTE is defined"
+#endif
 
 #endif /* _h_config_f */

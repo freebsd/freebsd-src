@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.parse.c,v 3.96 2004/01/23 16:21:33 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.parse.c,v 3.105 2005/03/03 16:40:53 kim Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -35,7 +35,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.parse.c,v 3.96 2004/01/23 16:21:33 christos Exp $")
+RCSID("$Id: tw.parse.c,v 3.105 2005/03/03 16:40:53 kim Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -89,7 +89,7 @@ int curchoice = -1;
 
 int match_unique_match = FALSE;
 int non_unique_match = FALSE;
-static bool SearchNoDirErr = 0;	/* t_search returns -2 if dir is unreadable */
+static int SearchNoDirErr = 0;	/* t_search returns -2 if dir is unreadable */
 
 /* state so if a completion is interrupted, the input line doesn't get
    nuked */
@@ -97,18 +97,13 @@ int InsideCompletion = 0;
 
 /* do the expand or list on the command line -- SHOULD BE REPLACED */
 
-extern Char NeedsRedraw;	/* from ed.h */
-extern int Tty_raw_mode;
-extern int TermH;		/* from the editor routines */
-extern int lbuffed;		/* from sh.print.c */
-
 static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
-static	int	 insert_meta		__P((Char *, Char *, Char *, bool));
+static	int	 insert_meta		__P((Char *, Char *, Char *, int));
 static	Char	*tilde			__P((Char *, Char *));
 #ifndef __MVS__
 static  int      expand_dir		__P((Char *, Char *, DIR  **, COMMAND));
 #endif
-static	bool	 nostat			__P((Char *));
+static	int	 nostat			__P((Char *));
 static	Char	 filetype		__P((Char *, Char *));
 static	int	 t_glob			__P((Char ***, int));
 static	int	 c_glob			__P((Char ***));
@@ -423,7 +418,7 @@ tenematch(inputline, num_read, command)
  */
 static int
 t_glob(v, cmd)
-    register Char ***v;
+    Char ***v;
     int cmd;
 {
     jmp_buf_t osetexit;
@@ -477,7 +472,7 @@ t_glob(v, cmd)
  */
 static int
 c_glob(v)
-    register Char ***v;
+    Char ***v;
 {
     Char *pat = **v, *cmd, **av;
     Char dir[MAXPATHLEN+1];
@@ -523,16 +518,14 @@ insert_meta(cp, cpend, word, closequotes)
     Char   *cp;
     Char   *cpend;
     Char   *word;
-    bool    closequotes;
+    int    closequotes;
 {
     Char buffer[2 * FILSIZ + 1], *bptr, *wptr;
     int in_sync = (cp != NULL);
-    int qu = 0;
+    Char qu = 0;
     int ndel = (int) (cp ? cpend - cp : 0);
     Char w, wq;
-#ifdef DSPMBYTE
-    int mbytepos = 1;
-#endif /* DSPMBYTE */
+    int l;
 
     for (bptr = buffer, wptr = word;;) {
 	if (bptr > buffer + 2 * FILSIZ - 5)
@@ -540,9 +533,6 @@ insert_meta(cp, cpend, word, closequotes)
 	  
 	if (cp >= cpend)
 	    in_sync = 0;
-#ifdef DSPMBYTE
-	if (mbytepos == 1)
-#endif /* DSPMBYTE */
 	if (in_sync && !cmap(qu, _ESC) && cmap(*cp, _QF|_ESC))
 	    if (qu == 0 || qu == *cp) {
 		qu ^= *cp;
@@ -556,10 +546,6 @@ insert_meta(cp, cpend, word, closequotes)
 	wq = w & QUOTE;
 	w &= ~QUOTE;
 
-#ifdef DSPMBYTE
-	if (mbytepos == 2)
-	  goto mbyteskip;
-#endif /* DSPMBYTE */
 	if (cmap(w, _ESC | _QF))
 	    wq = QUOTE;		/* quotes are always quoted */
 
@@ -601,18 +587,17 @@ insert_meta(cp, cpend, word, closequotes)
 	    *bptr++ = '\\';
 	    *bptr++ = w;
 	} else {
-#ifdef DSPMBYTE
-	  mbyteskip:
-#endif /* DSPMBYTE */
 	    if (in_sync && *cp++ != w)
 		in_sync = 0;
 	    *bptr++ = w;
-#ifdef DSPMBYTE
-	    if (mbytepos == 1 && Ismbyte1(w))
-	      mbytepos = 2;
-	    else
-	      mbytepos = 1;
-#endif /* DSPMBYTE */
+	    l = NLSSize(wptr, -1);
+	    while (--l > 0) {
+		wptr++;
+		w = *wptr & ~QUOTE;
+		if (in_sync && *cp++ != w)
+		    in_sync = 0;
+		*bptr++ = w;
+	    }
 	}
 	wptr++;
 	if (cmap(qu, _ESC))
@@ -635,7 +620,7 @@ insert_meta(cp, cpend, word, closequotes)
  */
 static int
 is_prefix(check, template)
-    register Char *check, *template;
+    Char *check, *template;
 {
     for (; *check; check++, template++)
 	if ((*check & TRIM) != (*template & TRIM))
@@ -695,9 +680,9 @@ is_prefixmatch(check, template, igncase)
  */
 static int
 is_suffix(check, template)
-    register Char *check, *template;
+    Char *check, *template;
 {
-    register Char *t, *c;
+    Char *t, *c;
 
     for (t = template; *t++;)
 	continue;
@@ -717,10 +702,10 @@ is_suffix(check, template)
  */
 static int
 ignored(item)
-    register Char *item;
+    Char *item;
 {
     struct varent *vp;
-    register Char **cp;
+    Char **cp;
 
     if ((vp = adrof(STRfignore)) == NULL || (cp = vp->vec) == NULL)
 	return (FALSE);
@@ -737,10 +722,10 @@ ignored(item)
  */
 int
 starting_a_command(wordstart, inputline)
-    register Char *wordstart, *inputline;
+    Char *wordstart, *inputline;
 {
-    register Char *ptr, *ncmdstart;
-    int     count;
+    Char *ptr, *ncmdstart;
+    int     count, bsl;
     static  Char
             cmdstart[] = {'`', ';', '&', '(', '|', '\0'},
             cmdalive[] = {' ', '\t', '\'', '"', '<', '>', '\0'};
@@ -770,8 +755,14 @@ starting_a_command(wordstart, inputline)
     for (count = 0; wordstart >= inputline; wordstart--) {
 	if (*wordstart == '\0')
 	    continue;
-	if (Strchr(ncmdstart, *wordstart))
-	    break;
+	if (Strchr(ncmdstart, *wordstart)) {
+	    for (ptr = wordstart, bsl = 0; *(--ptr) == '\\'; bsl++);
+	    if (bsl & 1) {
+		wordstart--;
+		continue;
+	    } else
+		break;
+	}
 	/*
 	 * found white space
 	 */
@@ -819,8 +810,8 @@ recognize(exp_name, item, name_length, numitems, enhanced, igncase)
     int     name_length, numitems, enhanced, igncase;
 {
     Char MCH1, MCH2;
-    register Char *x, *ent;
-    register int len = 0;
+    Char *x, *ent;
+    int len = 0;
 
     if (numitems == 1) {	/* 1st match */
 	copyn(exp_name, item, MAXNAMLEN);
@@ -1367,7 +1358,7 @@ tw_list_items(looking, numitems, list_max)
 
 
     if (max_items || max_rows) {
-	char    	 tc;
+	char    	 tc, *sname;
 	const char	*name;
 	int maxs;
 
@@ -1380,8 +1371,10 @@ tw_list_items(looking, numitems, list_max)
 	    maxs = max_rows;
 	}
 
+	sname = strsave(name);
 	xprintf(CGETS(30, 7, "There are %d %s, list them anyway? [n/y] "),
-		maxs, name);
+		maxs, sname);
+	xfree(sname);
 	flush();
 	/* We should be in Rawmode here, so no \n to catch */
 	(void) read(SHIN, &tc, 1);
@@ -1733,7 +1726,7 @@ static void
 extract_dir_and_name(path, dir, name)
     Char   *path, *dir, *name;
 {
-    register Char *p;
+    Char *p;
 
     p = Strrchr(path, '/');
 #ifdef WINNT_NATIVE
@@ -1786,7 +1779,7 @@ static Char *
 tilde(new, old)
     Char   *new, *old;
 {
-    register Char *o, *p;
+    Char *o, *p;
 
     switch (old[0]) {
     case '~':
@@ -1891,12 +1884,12 @@ expand_dir(dir, edir, dfd, cmd)
  *	This way, things won't grind to a halt when you complete in /afs
  *	or very large directories.
  */
-static bool
+static int
 nostat(dir)
      Char *dir;
 {
     struct varent *vp;
-    register Char **cp;
+    Char **cp;
 
     if ((vp = adrof(STRnostat)) == NULL || (cp = vp->vec) == NULL)
 	return FALSE;
@@ -2033,7 +2026,7 @@ find_rows(items, count, no_file_suffix)
     Char *items[];
     int     count, no_file_suffix;
 {
-    register int i, columns, rows;
+    int i, columns, rows;
     unsigned int maxwidth = 0;
 
     for (i = 0; i < count; i++)	/* find widest string */
@@ -2056,13 +2049,13 @@ find_rows(items, count, no_file_suffix)
  */
 void
 print_by_column(dir, items, count, no_file_suffix)
-    register Char *dir, *items[];
+    Char *dir, *items[];
     int     count, no_file_suffix;
 {
-    register int i, r, c, columns, rows;
-    unsigned int w, maxwidth = 0;
+    int i, r, c, columns, rows;
+    unsigned int w, wx, maxwidth = 0;
     Char *val;
-    bool across;
+    int across;
 
     lbuffed = 0;		/* turn off line buffering */
 
@@ -2070,8 +2063,9 @@ print_by_column(dir, items, count, no_file_suffix)
     across = ((val = varval(STRlistflags)) != STRNULL) && 
 	     (Strchr(val, 'x') != NULL);
 
-    for (i = 0; i < count; i++)	/* find widest string */
-	maxwidth = max(maxwidth, (unsigned int) Strlen(items[i]));
+    for (i = 0; i < count; i++)	{ /* find widest string */
+	maxwidth = max(maxwidth, (unsigned int) NLSStringWidth(items[i]));
+    }
 
     maxwidth += no_file_suffix ? 1 : 2;	/* for the file tag and space */
     columns = TermH / maxwidth;		/* PWP: terminal size change */
@@ -2085,6 +2079,7 @@ print_by_column(dir, items, count, no_file_suffix)
 	    i = across ? (i + 1) : (c * rows + r);
 
 	    if (i < count) {
+		wx = 0;
 		w = (unsigned int) Strlen(items[i]);
 
 #ifdef COLOR_LS_F
@@ -2097,7 +2092,7 @@ print_by_column(dir, items, count, no_file_suffix)
 		else {
 		    /* Print filename followed by '/' or '*' or ' ' */
 		    print_with_color(items[i], w, filetype(dir, items[i]));
-		    w++;
+		    wx++;
 		}
 #else /* ifndef COLOR_LS_F */
 		if (no_file_suffix) {
@@ -2106,15 +2101,17 @@ print_by_column(dir, items, count, no_file_suffix)
 		}
 		else {
 		    /* Print filename followed by '/' or '*' or ' ' */
-		    xprintf("\045S%c", items[i],
+		    xprintf("%-S%c", items[i],
 			    filetype(dir, items[i]));
-		    w++;
+		    wx++;
 		}
 #endif /* COLOR_LS_F */
 
-		if (c < (columns - 1))	/* Not last column? */
+		if (c < (columns - 1)) {	/* Not last column? */
+		    w = (unsigned int) NLSStringWidth(items[i]) + wx;
 		    for (; w < maxwidth; w++)
 			xputchar(' ');
+		}
 	    }
 	    else if (across)
 		break;
@@ -2134,7 +2131,7 @@ print_by_column(dir, items, count, no_file_suffix)
  */
 int
 StrQcmp(str1, str2)
-    register Char *str1, *str2;
+    const Char *str1, *str2;
 {
     for (; *str1 && samecase(*str1 & TRIM) == samecase(*str2 & TRIM); 
 	 str1++, str2++)
@@ -2173,7 +2170,8 @@ fcompare(file1, file2)
  */
 void
 catn(des, src, count)
-    register Char *des, *src;
+    Char *des;
+    const Char *src;
     int count;
 {
     while (--count >= 0 && *des)
@@ -2191,7 +2189,7 @@ catn(des, src, count)
  */
 void
 copyn(des, src, count)
-    register Char *des, *src;
+    Char *des, *src;
     int count;
 {
     while (--count >= 0)
@@ -2210,9 +2208,10 @@ tgetenv(str)
     Char   *str;
 {
     Char  **var;
-    int     len, res;
+    size_t  len;
+    int     res;
 
-    len = (int) Strlen(str);
+    len = Strlen(str);
     /* Search the STR_environ for the entry matching str. */
     for (var = STR_environ; var != NULL && *var != NULL; var++)
 	if (Strlen(*var) >= len && (*var)[len] == '=') {
