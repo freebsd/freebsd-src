@@ -1162,14 +1162,25 @@ typedef struct driver_object driver_object;
 #define WINDRV_WRAP_CDECL	4
 #define WINDRV_WRAP_AMD64	5
 
+struct drvdb_ent {
+	driver_object		*windrv_object;
+	void			*windrv_devlist;
+	ndis_cfg		*windrv_regvals;
+	interface_type		windrv_bustype;
+	STAILQ_ENTRY(drvdb_ent) link;
+};
+
 extern image_patch_table ntoskrnl_functbl[];
 typedef void (*funcptr)(void);
+typedef int (*matchfuncptr)(void *, void *);
 
 __BEGIN_DECLS
 extern int windrv_libinit(void);
 extern int windrv_libfini(void);
 extern driver_object *windrv_lookup(vm_offset_t, char *);
-extern int windrv_load(module_t, vm_offset_t, int);
+extern struct drvdb_ent *windrv_match(matchfuncptr, void *);
+extern int windrv_load(module_t, vm_offset_t, int, interface_type,
+	void *, ndis_cfg *);
 extern int windrv_unload(module_t, vm_offset_t, int);
 extern int windrv_create_pdo(driver_object *, device_t);
 extern void windrv_destroy_pdo(driver_object *, device_t);

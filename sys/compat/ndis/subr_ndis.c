@@ -99,11 +99,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 static char ndis_filepath[MAXPATHLEN];
@@ -1014,7 +1014,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 
 	block = (ndis_miniport_block *)adapter;
 	dev = block->nmb_physdeviceobj->do_devext;
-	drv = block->nmb_physdeviceobj->do_drvobj;
+	drv = block->nmb_deviceobj->do_drvobj;
 
 	error = pe_get_message((vm_offset_t)drv->dro_driverstart,
 	    code, &str, &i, &flags);
@@ -1262,7 +1262,6 @@ NdisMCancelTimer(timer, cancelled)
 	uint8_t			*cancelled;
 {
 	*cancelled = KeCancelTimer(&timer->nt_ktimer);
-
 	return;
 }
 
@@ -2346,10 +2345,18 @@ NdisMSleep(usecs)
 {
 	struct timeval		tv;
 
-	tv.tv_sec = 0;
-	tv.tv_usec = usecs;
+	/*
+	 * During system bootstrap, (i.e. cold == 1), we aren't
+	 * allowed to msleep(), so calling ndis_thsuspend() here
+	 * will return 0, and we won't actually have delayed. This
+	 * is a problem because some drivers expect NdisMSleep()
+	 * to always wait, and might fail if the expected delay
+	 * period does not in fact elapse. As a workaround, if the
+	 * attempt to sleep delay fails, we do a hard DELAY() instead.
+	 */
 
-	ndis_thsuspend(curthread->td_proc, NULL, tvtohz(&tv));
+	if (ndis_thsuspend(curthread->td_proc, NULL, tvtohz(&tv)) == 0)
+		DELAY(usecs);
 
 	return;
 }

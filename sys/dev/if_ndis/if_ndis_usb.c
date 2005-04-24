@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -56,26 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
-#include <dev/usb/usbdevs.h>
-#include <dev/usb/usb_ethersubr.h>
+#include "usbdevs.h"
 
 #include <net80211/ieee80211_var.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 MODULE_DEPEND(ndis, usb, 1, 1, 1);
-MODULE_DEPEND(ndis, ether, 1, 1, 1);
-MODULE_DEPEND(ndis, wlan, 1, 1, 1);
-MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
-
-#include "ndis_driver_data.h"
-
-#ifdef NDIS_USB_DEV_TABLE 
 
 Static int ndisusb_match	(device_ptr_t);
 Static int ndisusb_attach	(device_ptr_t);
@@ -107,24 +99,14 @@ Static device_method_t ndis_methods[] = {
 };
 
 Static driver_t ndis_driver = {
-#ifdef NDIS_DEVNAME
-	NDIS_DEVNAME,
-#else
 	"ndis",
-#endif
 	ndis_methods,
 	sizeof(struct ndis_softc)
 };
 
 Static devclass_t ndis_devclass;
 
-#ifdef NDIS_MODNAME
-#define NDIS_MODNAME_OVERRIDE_USB(x)
-	DRIVER_MODULE(x, usb, ndis_driver, ndis_devclass, ndisdrv_modevent, 0)
-NDIS_MODNAME_OVERRIDE_USB(NDIS_MODNAME);
-#else
 DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
-#endif
 
 USB_MATCH(ndisusb)
 {
@@ -146,6 +128,9 @@ USB_ATTACH(ndisusb)
 	driver_object		*drv;
 
 	sc = (struct ndis_softc *)dummy;
+
+	if (uaa->device == NULL)
+		USB_ATTACH_ERROR_RETURN;
 
 	sc->ndis_dev = self;
 
@@ -170,5 +155,3 @@ ndis_get_resource_list(dev, child)
 	sc = device_get_softc(dev);
 	return (BUS_GET_RESOURCE_LIST(device_get_parent(sc->ndis_dev), dev));
 }
-
-#endif /* NDIS_USB_DEV_TABLE */

@@ -76,17 +76,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-#define NDIS_IMAGE
-#define NDIS_REGVALS
+MODULE_DEPEND(ndis, ether, 1, 1, 1);
+MODULE_DEPEND(ndis, wlan, 1, 1, 1);
+MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
 
-#include "ndis_driver_data.h"
+MODULE_VERSION(ndis, 1);
 
 int ndis_attach			(device_t);
 int ndis_detach			(device_t);
@@ -158,8 +159,6 @@ ndisdrv_modevent(mod, cmd, arg)
 		ndisdrv_loaded++;
                 if (ndisdrv_loaded > 1)
 			break;
-		if (windrv_load(mod, (vm_offset_t)drv_data, 0))
-			return(EINVAL);
 		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap,
 		    3, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap,
@@ -173,7 +172,6 @@ ndisdrv_modevent(mod, cmd, arg)
 		ndisdrv_loaded--;
 		if (ndisdrv_loaded > 0)
 			break;
-		windrv_unload(mod, (vm_offset_t)drv_data, 0);
 		windrv_unwrap(ndis_rxeof_wrap);
 		windrv_unwrap(ndis_txeof_wrap);
 		windrv_unwrap(ndis_linksts_wrap);
@@ -432,11 +430,9 @@ ndis_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc	*sc;
-	driver_object		*drv;
 	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
-	void			*img;
 	int			error = 0, len;
 	int			i;
 
@@ -472,12 +468,10 @@ ndis_attach(dev)
 		}
 	}
 
-	sc->ndis_regvals = ndis_regvals;
-
 #if __FreeBSD_version < 502113
 	sysctl_ctx_init(&sc->ndis_ctx);
-
 #endif
+
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
@@ -497,17 +491,7 @@ ndis_attach(dev)
 	 * for this device instance.
 	 */
 
-	img = drv_data;
-
-	drv = windrv_lookup((vm_offset_t)img, NULL);
-
-	if (drv == NULL) {
-		device_printf(dev, "failed to find driver_object!\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
+	if (NdisAddDevice(sc->ndis_dobj, pdo) != STATUS_SUCCESS) {
 		device_printf(dev, "failed to create FDO!\n");
 		error = ENXIO;
 		goto fail;
