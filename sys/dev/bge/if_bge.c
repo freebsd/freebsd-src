@@ -1927,7 +1927,7 @@ bge_dma_alloc(dev)
 	error = bus_dma_tag_create(NULL,	/* parent */
 			PAGE_SIZE, 0,		/* alignment, boundary */
 			BUS_SPACE_MAXADDR,	/* lowaddr */
-			BUS_SPACE_MAXADDR_32BIT,/* highaddr */
+			BUS_SPACE_MAXADDR,	/* highaddr */
 			NULL, NULL,		/* filter, filterarg */
 			MAXBSIZE, BGE_NSEG_NEW,	/* maxsize, nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
