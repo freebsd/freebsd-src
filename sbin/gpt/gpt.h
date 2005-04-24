@@ -59,7 +59,7 @@ struct mbr {
 #define	MBR_SIG		0xAA55
 };
 
-extern char device_name[];
+extern char *device_name;
 extern off_t mediasz;
 extern u_int parts;
 extern u_int secsz;

@@ -206,6 +206,11 @@ the GPT equivalent of a slice.
 .It Xo
 .Nm
 .Ic remove
+.Op Fl a
+.Xc
+.It Xo
+.Nm
+.Ic remove
 .Op Fl b Ar number
 .Op Fl i Ar index
 .Op Fl s Ar count
@@ -215,8 +220,12 @@ the GPT equivalent of a slice.
 The
 .Ic remove
 command allows the user to remove any partitions that match the selection.
-BEWARE: when no options are given, all GPT partitions will match and thus
-will be deleted.
+At least one option must be specified.
+.Pp
+The
+.Fl a
+option specifies that all partitions should be removed.
+It is mutually exclusive with all other options.
 .Pp
 The
 .Fl b Ar number

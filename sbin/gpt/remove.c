@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
+static int all;
 static uuid_t type;
 static off_t block, size;
 static unsigned int entry;
@@ -48,8 +49,9 @@ usage_remove(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
-	    getprogname());
+	    "usage: %s -a device\n"
+	    "       %s [-b lba] [-i index] [-s lba] [-t uuid] device\n",
+	    getprogname(), getprogname());
 	exit(1);
 }
 
@@ -130,6 +132,8 @@ rem(int fd)
 		gpt_write(fd, lbt);
 		gpt_write(fd, tpg);
 
+		printf("%sp%u removed\n", device_name, m->map_index);
+
 		removed++;
 	}
 
@@ -144,8 +148,13 @@ cmd_remove(int argc, char *argv[])
 	uint32_t status;
 
 	/* Get the remove options */
-	while ((ch = getopt(argc, argv, "b:i:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "ab:i:s:t:")) != -1) {
 		switch(ch) {
+		case 'a':
+			if (all > 0)
+				usage_remove();
+			all = 1;
+			break;
 		case 'b':
 			if (block > 0)
 				usage_remove();
@@ -193,6 +202,10 @@ cmd_remove(int argc, char *argv[])
 			usage_remove();
 		}
 	}
+
+	if (!all ^
+	    (block > 0 || entry > 0 || size > 0 || !uuid_is_nil(&type, NULL)))
+		usage_remove();
 
 	if (argc == optind)
 		usage_remove();
