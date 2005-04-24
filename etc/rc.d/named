@@ -52,7 +52,7 @@ chroot_autoupdate()
 		fi
 	else
 		# Make sure it points to the right place.
-		ln -sf ${named_chrootdir}/etc/namedb /etc/namedb
+		ln -shf ${named_chrootdir}/etc/namedb /etc/namedb
 
 	fi
 
