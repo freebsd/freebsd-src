@@ -1,20 +1,18 @@
+/*	$NetBSD$	*/
+
 /*
  * sock.c (C) 1995-1998 Darren Reed
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+#if !defined(lint)
+static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)Id: sock.c,v 2.8.4.1 2004/03/23 12:58:06 darrenr Exp";
 #endif
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <pwd.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #ifndef	ultrix
 #include <fcntl.h>
@@ -24,21 +22,23 @@
 #else
 # include <sys/dir.h>
 #endif
-#define _KERNEL
-#define	KERNEL
-#ifdef	ultrix
-# undef	LOCORE
-# include <sys/smp_lock.h>
+#if !defined(__osf__)
+# define _KERNEL
+# define	KERNEL
+# ifdef	ultrix
+#  undef	LOCORE
+#  include <sys/smp_lock.h>
+# endif
+# include <sys/file.h>
+# undef  _KERNEL
+# undef  KERNEL
 #endif
-#include <sys/file.h>
-#undef  _KERNEL
-#undef  KERNEL
 #include <nlist.h>
 #include <sys/user.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/proc.h>
-#if !defined(ultrix) && !defined(hpux)
+#if !defined(ultrix) && !defined(hpux) && !defined(__osf__)
 # include <kvm.h>
 #endif
 #ifdef sun
@@ -56,17 +56,21 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
+#if defined(__FreeBSD__)
+# include "radix_ipf.h"
+#endif
 #include <net/route.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <pwd.h>
 #include "ipsend.h"
-
-#if !defined(lint)
-static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.6 2002/12/06 11:40:36 darrenr Exp $";
-#endif
 
 
 int	nproc;
@@ -379,7 +383,7 @@ struct	in_addr	gwip;
 	(void) getsockname(fd, (struct sockaddr *)&lsin, &len);
 	ti->ti_sport = lsin.sin_port;
 	printf("sport %d\n", ntohs(lsin.sin_port));
-	nfd = initdevice(dev, ntohs(lsin.sin_port), 1);
+	nfd = initdevice(dev, 1);
 
 	if (!(t = find_tcp(fd, ti)))
 		return -1;

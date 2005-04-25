@@ -1,4 +1,12 @@
 #!/bin/sh
+if [ $3 = hex ] ; then
+	format="-xF $2"
+else
+	format="-F $2"
+fi
+if [ "$4" != "" ] ; then
+	format="-T $4 $format"
+fi
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch
 else
@@ -13,7 +21,7 @@ fi
 echo "$1...";
 /bin/cp /dev/null results/$1
 ( while read rule; do
-	echo "$rule" | ../ipftest -Nbr - -i input/$1 >> results/$1;
+	echo "$rule" | ../ipftest $format -RbN - -i input/$1 >> results/$1;
 	if [ $? -ne 0 ] ; then
 		exit 1;
 	fi

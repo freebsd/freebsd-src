@@ -1,3 +1,5 @@
+.\"	$NetBSD$
+.\"
 .TH ipmon 8
 .SH NAME
 ipmon \- monitors /dev/ipl for logged packets
@@ -46,11 +48,8 @@ long).
 4. The group and rule number of the rule, e.g., \fB@0:17\fP. These can be
 viewed with \fBipfstat -n\fP.
 .LP
-5. The action: \fBp\fP for passed, \fBb\fP for blocked, \fBS\fP for a short
-packet, \fBn\fP did not match any rules, \fBL\fP for a log rule.  The order
-of precedence in showing flags is: S, p, b, n, L.  A capital \fBP\fP or
-\fBB\fP means that the packet has been logged due to a global logging
-setting, not a particular rule.
+5. The action: \fBp\fP for passed, \fBb\fP for blocked, \fB\fP for a short
+packet, \fBn\fP did not match any rules or \fBL\fP for a log rule.
 .LP
 6. The addresses.
 This is actually three fields: the source address and port

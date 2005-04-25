@@ -1,25 +1,21 @@
+/*	$NetBSD$	*/
+
 /*
  * ip.c (C) 1995-1998 Darren Reed
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C)1995";
+static const char rcsid[] = "@(#)Id: ip.c,v 2.8.2.1 2004/10/19 12:31:48 darrenr Exp";
 #endif
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
 #include <sys/param.h>
 #ifndef	linux
 # include <netinet/if_ether.h>
@@ -28,12 +24,13 @@
 #  include <net/if_var.h>
 # endif
 #endif
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include "ipsend.h"
 
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.1.4.5 2002/12/06 11:40:35 darrenr Exp $";
-#endif
 
 static	char	*ipbuf = NULL, *ethbuf = NULL;
 
@@ -71,7 +68,9 @@ struct	in_addr	gwip;
 
 	bcopy((char *)buf, s + sizeof(*eh), len);
 	if (gwip.s_addr == last_gw.s_addr)
+	    {
 		bcopy(last_arp, (char *)A_A eh->ether_dhost, 6);
+	    }
 	else if (arp((char *)&gwip, (char *)A_A eh->ether_dhost) == -1)
 	    {
 		perror("arp");
@@ -92,7 +91,8 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	frag;
 {
-	static	struct	in_addr	last_gw;
+	static	struct	in_addr	last_gw, local_ip;
+	static	char	local_arp[6] = { 0, 0, 0, 0, 0, 0};
 	static	char	last_arp[6] = { 0, 0, 0, 0, 0, 0};
 	static	u_short	id = 0;
 	ether_header_t	*eh;
@@ -102,7 +102,7 @@ int	frag;
 	if (!ipbuf)
 	  {
 		ipbuf = (char *)malloc(65536);
-		if(!ipbuf) 
+		if (!ipbuf)
 		  {
 			perror("malloc failed");
 			return -2;
@@ -113,7 +113,9 @@ int	frag;
 
 	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));
 	if (last_gw.s_addr && (gwip.s_addr == last_gw.s_addr))
+	    {
 		bcopy(last_arp, (char *)A_A eh->ether_dhost, 6);
+	    }
 	else if (arp((char *)&gwip, (char *)A_A eh->ether_dhost) == -1)
 	    {
 		perror("arp");
@@ -127,18 +129,25 @@ int	frag;
 	iplen = ip->ip_len;
 	ip->ip_len = htons(iplen);
 	if (!(frag & 2)) {
-		if (!ip->ip_v)
-			ip->ip_v   = IPVERSION;
+		if (!IP_V(ip))
+			IP_V_A(ip, IPVERSION);
 		if (!ip->ip_id)
 			ip->ip_id  = htons(id++);
 		if (!ip->ip_ttl)
 			ip->ip_ttl = 60;
 	}
 
+	if (ip->ip_src.s_addr != local_ip.s_addr) {
+		(void) arp((char *)&ip->ip_src, (char *)A_A local_arp);
+		bcopy(local_arp, (char *)A_A eh->ether_shost,sizeof(last_arp));
+		local_ip = ip->ip_src;
+	} else
+		bcopy(local_arp, (char *)A_A eh->ether_shost, 6);
+
 	if (!frag || (sizeof(*eh) + iplen < mtu))
 	    {
 		ip->ip_sum = 0;
-		ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
+		ip->ip_sum = chksum((u_short *)ip, IP_HL(ip) << 2);
 
 		bcopy((char *)ip, ipbuf + sizeof(*eh), iplen);
 		err =  sendip(nfd, ipbuf, sizeof(*eh) + iplen);
@@ -155,14 +164,14 @@ int	frag;
 		char	*s;
 		int	i, sent = 0, ts, hlen, olen;
 
-		hlen = ip->ip_hl << 2;
+		hlen = IP_HL(ip) << 2;
 		if (mtu < (hlen + 8)) {
 			fprintf(stderr, "mtu (%d) < ip header size (%d) + 8\n",
 				mtu, hlen);
 			fprintf(stderr, "can't fragment data\n");
 			return -2;
 		}
-		ol = (ip->ip_hl << 2) - sizeof(*ip);
+		ol = (IP_HL(ip) << 2) - sizeof(*ip);
 		for (i = 0, s = (char*)(ip + 1); ol > 0; )
 			if (*s == IPOPT_EOL) {
 				optcpy[i++] = *s;
@@ -223,7 +232,7 @@ int	frag;
 			else if (!(ip->ip_off & htons(0x1fff)))
 			    {
 				hlen = i + sizeof(*ip);
-				ip->ip_hl = (sizeof(*ip) + i) >> 2;
+				IP_HL_A(ip, (sizeof(*ip) + i) >> 2);
 				bcopy(optcpy, (char *)(ip + 1), i);
 			    }
 		    }
@@ -243,45 +252,46 @@ ip_t	*ip;
 struct	in_addr	gwip;
 {
 	static	tcp_seq	iss = 2;
-	struct	tcpiphdr *ti;
-	tcphdr_t *t;
+	tcphdr_t *t, *t2;
 	int	thlen, i, iplen, hlen;
 	u_32_t	lbuf[20];
+	ip_t	*ip2;
 
 	iplen = ip->ip_len;
-	hlen = ip->ip_hl << 2;
+	hlen = IP_HL(ip) << 2;
 	t = (tcphdr_t *)((char *)ip + hlen);
-	ti = (struct tcpiphdr *)lbuf;
-	thlen = t->th_off << 2;
+	ip2 = (struct ip *)lbuf;
+	t2 = (tcphdr_t *)((char *)ip2 + hlen);
+	thlen = TCP_OFF(t) << 2;
 	if (!thlen)
 		thlen = sizeof(tcphdr_t);
-	bzero((char *)ti, sizeof(*ti));
+	bzero((char *)ip2, sizeof(*ip2) + sizeof(*t2));
 	ip->ip_p = IPPROTO_TCP;
-	ti->ti_pr = ip->ip_p;
-	ti->ti_src = ip->ip_src;
-	ti->ti_dst = ip->ip_dst;
-	bcopy((char *)ip + hlen, (char *)&ti->ti_sport, thlen);
+	ip2->ip_p = ip->ip_p;
+	ip2->ip_src = ip->ip_src;
+	ip2->ip_dst = ip->ip_dst;
+	bcopy((char *)ip + hlen, (char *)t2, thlen);
 
-	if (!ti->ti_win)
-		ti->ti_win = htons(4096);
+	if (!t2->th_win)
+		t2->th_win = htons(4096);
 	iss += 63;
 
 	i = sizeof(struct tcpiphdr) / sizeof(long);
 
-	if ((ti->ti_flags == TH_SYN) && !ntohs(ip->ip_off) &&
+	if ((t2->th_flags == TH_SYN) && !ntohs(ip->ip_off) &&
 	    (lbuf[i] != htonl(0x020405b4))) {
 		lbuf[i] = htonl(0x020405b4);
 		bcopy((char *)ip + hlen + thlen, (char *)ip + hlen + thlen + 4,
 		      iplen - thlen - hlen);
 		thlen += 4;
 	    }
-	ti->ti_off = thlen >> 2;
-	ti->ti_len = htons(thlen);
+	TCP_OFF_A(t2, thlen >> 2);
+	ip2->ip_len = htons(thlen);
 	ip->ip_len = hlen + thlen;
-	ti->ti_sum = 0;
-	ti->ti_sum = chksum((u_short *)ti, thlen + sizeof(ip_t));
+	t2->th_sum = 0;
+	t2->th_sum = chksum((u_short *)ip2, thlen + sizeof(ip_t));
 
-	bcopy((char *)&ti->ti_sport, (char *)ip + hlen, thlen);
+	bcopy((char *)t2, (char *)ip + hlen, thlen);
 	return send_ip(nfd, mtu, ip, gwip, 1);
 }
 
@@ -304,16 +314,16 @@ struct	in_addr	gwip;
 	ti->ti_pr = ip->ip_p;
 	ti->ti_src = ip->ip_src;
 	ti->ti_dst = ip->ip_dst;
-	bcopy((char *)ip + (ip->ip_hl << 2),
+	bcopy((char *)ip + (IP_HL(ip) << 2),
 	      (char *)&ti->ti_sport, sizeof(udphdr_t));
 
 	ti->ti_len = htons(thlen);
-	ip->ip_len = (ip->ip_hl << 2) + thlen;
+	ip->ip_len = (IP_HL(ip) << 2) + thlen;
 	ti->ti_sum = 0;
 	ti->ti_sum = chksum((u_short *)ti, thlen + sizeof(ip_t));
 
 	bcopy((char *)&ti->ti_sport,
-	      (char *)ip + (ip->ip_hl << 2), sizeof(udphdr_t));
+	      (char *)ip + (IP_HL(ip) << 2), sizeof(udphdr_t));
 	return send_ip(nfd, mtu, ip, gwip, 1);
 }
 
@@ -328,7 +338,7 @@ struct	in_addr	gwip;
 {
 	struct	icmp	*ic;
 
-	ic = (struct icmp *)((char *)ip + (ip->ip_hl << 2));
+	ic = (struct icmp *)((char *)ip + (IP_HL(ip) << 2));
 
 	ic->icmp_cksum = 0;
 	ic->icmp_cksum = chksum((u_short *)ic, sizeof(struct icmp));

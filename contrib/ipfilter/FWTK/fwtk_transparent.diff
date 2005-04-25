@@ -124,7 +124,7 @@ diff -cr ../TIS.orig/fwtk/Makefile.config.solaris fwtk/Makefile.config.solaris
 ***************
 *** 11,30 ****
   #
-  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.1 1999/08/04 17:40:48 darrenr Exp $"
+  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.2 2001/02/28 09:36:06 darrenr Exp $"
   
   
   # Your C compiler (eg, "cc" or "gcc")
@@ -145,7 +145,7 @@ diff -cr ../TIS.orig/fwtk/Makefile.config.solaris fwtk/Makefile.config.solaris
   -Dgethostbyaddr=res_gethostbyaddr -Dgetnetbyname=res_getnetbyname	\
 --- 11,34 ----
   #
-  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.1 1999/08/04 17:40:48 darrenr Exp $"
+  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.2 2001/02/28 09:36:06 darrenr Exp $"
   
 + #
 + # Path to sources of ip_filter (ip_nat.h required in lib/hnam.c)
@@ -649,15 +649,15 @@ diff -cr ../TIS.orig/fwtk/lib/hnam.c fwtk/lib/hnam.c
 +   natlookup.nl_outport=rsin.sin_port;
 +   natlookup.nl_inip=sin.sin_addr;
 +   natlookup.nl_outip=rsin.sin_addr;
-+   if((natfd=open("/dev/ipl",O_RDONLY))<0) {
++   if((natfd=open("/dev/ipnat",O_RDONLY))<0) {
 +     return(NULL);
 +   }
 +   if(ioctl(natfd,SIOCGNATL,&natlookup)==(-1)) {
 +     return(NULL);
 +   }
 +   close(natfd);
-+   if(ptr) *ptr=ntohs(natlookup.nl_inport);
-+   sprintf(buf,"%s",inet_ntoa(natlookup.nl_inip));
++   if(ptr) *ptr=ntohs(natlookup.nl_realport);
++   sprintf(buf,"%s",inet_ntoa(natlookup.nl_realip));
 + #endif
 + 
 + #if defined(SOLARIS) /* for Solaris */
@@ -679,15 +679,15 @@ diff -cr ../TIS.orig/fwtk/lib/hnam.c fwtk/lib/hnam.c
 +   natlookup.nl_outport=rsin.sin_port;
 +   natlookup.nl_inip=sin.sin_addr;
 +   natlookup.nl_outip=rsin.sin_addr;
-+   if( (natfd=open("/dev/ipl",O_RDONLY)) < 0) {
++   if( (natfd=open(IPL_NAT,O_RDONLY)) < 0) {
 +     return(NULL);
 +   }
 +   if(ioctl(natfd, SIOCGNATL, &natlookup) == -1) {
 +     return(NULL);
 +   }
 +   close(natfd);
-+   if(ptr) *ptr=ntohs(natlookup.nl_inport);
-+   sprintf(buf,"%s",inet_ntoa(natlookup.nl_inip));
++   if(ptr) *ptr=ntohs(natlookup.nl_realport);
++   sprintf(buf,"%s",inet_ntoa(natlookup.nl_realip));
 + #endif
 +   
 +   /* No transparent proxy support */

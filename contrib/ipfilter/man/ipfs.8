@@ -1,3 +1,5 @@
+.\"	$NetBSD$
+.\"
 .TH IPFS 8
 .SH NAME
 ipfs \- saves and restores information for NAT and state tables.
@@ -54,7 +56,7 @@ and
 options for saving state information.
 .TP
 .B \-n
-Don't actually take any action that would effect information stored in
+Don't actually take any action that would affect information stored in
 the kernel or on disk.
 .TP
 .B \-v
@@ -90,17 +92,17 @@ and does not change the lock once complete.
 .B \-R
 Restores all saved state information, if any, from two files,
 \fIipstate.ipf\fP and \fIipnat.ipf\fP, stored in the \fI/var/db/ipf\fP
-directory unless otherwise specified the
+directory unless otherwise specified by the
 .B \-d
-option is used.  The state tables are locked at the beginning of this
+option.  The state tables are locked at the beginning of this
 operation and unlocked once complete.
 .TP
 .B \-W
 Saves in-kernel state information, if any, out to two files,
 \fIipstate.ipf\fP and \fIipnat.ipf\fP, stored in the \fI/var/db/ipf\fP
-directory unless otherwise specified the
+directory unless otherwise specified by the
 .B \-d
-option is used.  The state tables are locked at the beginning of this
+option.  The state tables are locked at the beginning of this
 operation and unlocked once complete.
 .DT
 .SH FILES

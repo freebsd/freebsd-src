@@ -1,18 +1,13 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)opyright 1995-1998 Darren Reed. (from tcplog)
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
-#include <stdio.h>
-#include <netdb.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
@@ -37,11 +32,21 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
+
+#include <stdio.h>
+#include <netdb.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <signal.h>
+#include <errno.h>
+
 #include "ipsend.h"
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sbpf.c	1.3 8/25/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sbpf.c,v 2.1.4.2 2001/09/30 04:04:28 darrenr Exp $";
+static const char rcsid[] = "@(#)Id: sbpf.c,v 2.5 2002/02/24 07:30:03 darrenr Exp";
 #endif
 
 /*
@@ -51,17 +56,15 @@ static	u_char	*buf = NULL;
 static	int	bufsize = 0, timeout = 1;
 
 
-int	initdevice(device, sport, tout)
+int	initdevice(device, tout)
 char	*device;
-int	sport, tout;
+int	tout;
 {
 	struct	bpf_version bv;
 	struct	timeval to;
 	struct	ifreq ifr;
 	char	bpfname[16];
-	int	fd, i;
-
-	fd = -1;
+	int	fd = 0, i;
 
 	for (i = 0; i < 16; i++)
 	    {

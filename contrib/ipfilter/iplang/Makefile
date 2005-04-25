@@ -1,36 +1,31 @@
 #
-# Redistribution and use in source and binary forms are permitted
-# provided that this notice is preserved and due credit is given
-# to the original author and the contributors.
+# See the IPFILTER.LICENCE file for details on licencing.
 #
 #CC=gcc -Wuninitialized -Wstrict-prototypes -Werror -O
 CFLAGS=-I..
 
-all: $(DESTDIR)/y.tab.o $(DESTDIR)/lex.yy.o
+all: $(DESTDIR)/iplang_y.o $(DESTDIR)/iplang_l.o
 
-$(DESTDIR)/y.tab.o: $(DESTDIR)/y.tab.c
-	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/y.tab.c -o $@
+$(DESTDIR)/iplang_y.o: $(DESTDIR)/iplang_y.c
+	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/iplang_y.c -o $@
 
-$(DESTDIR)/$(OBJ)/y.tab.o: $(DESTDIR)/y.tab.c
-	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/y.tab.c -o $@
+$(DESTDIR)/iplang_l.o: $(DESTDIR)/iplang_l.c
+	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/iplang_l.c -o $@
 
-$(DESTDIR)/lex.yy.o: $(DESTDIR)/lex.yy.c
-	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/lex.yy.c -o $@
+iplang_y.o: iplang_y.c
+	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c $< -o $@
 
-y.tab.o: y.tab.c
-	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c y.tab.c -o $@
+iplang_l.o: iplang_l.c
+	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c $< -o $@
 
-lex.yy.o: lex.yy.c
-	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c lex.yy.c -o $@
-
-$(DESTDIR)/lex.yy.c: iplang_l.l $(DESTDIR)/y.tab.h
+$(DESTDIR)/iplang_l.c: iplang_l.l $(DESTDIR)/iplang_y.h
 	lex iplang_l.l
-	mv lex.yy.c $(DESTDIR)
+	mv lex.yy.c $(DESTDIR)/iplang_l.c
 
-$(DESTDIR)/y.tab.c $(DESTDIR)/y.tab.h: iplang_y.y
+$(DESTDIR)/iplang_y.c $(DESTDIR)/iplang_y.h: iplang_y.y
 	yacc -d iplang_y.y
-	mv y.tab.c $(DESTDIR)
-	mv y.tab.h $(DESTDIR)
+	mv y.tab.c $(DESTDIR)/iplang_y.c
+	mv y.tab.h $(DESTDIR)/iplang_y.h
 
 clean:
 	/bin/rm -f *.o lex.yy.c y.tab.c y.tab.h

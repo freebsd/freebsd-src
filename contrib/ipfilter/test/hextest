@@ -13,7 +13,7 @@ fi
 echo "$1...";
 /bin/cp /dev/null results/$1
 ( while read rule; do
-	echo "$rule" | ../ipftest -br - -Hi input/$1 >> results/$1;
+	echo "$rule" | ../ipftest -br - -F hex -i input/$1 >> results/$1;
 	if [ $? -ne 0 ] ; then
 		exit 1;
 	fi

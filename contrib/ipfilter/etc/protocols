@@ -38,9 +38,12 @@ ddp		37	DDP		# Datagram Delivery Protocol
 idpr-cmtp	38	IDPR-CMTP	# IDPR Control Message Transport Proto
 tp++		39	TP++		# TP++ Transport Protocol
 il		40	IL		# IL Transport Protocol
+ipv6		41	IPv6		# Internet Protocol, version 6
 sip		41	SIP		# Simple Internet Protocol
 sdrp		42	SDRP		# Source Demand Routing Protocol
+ipv6-route	43	IPv6-Route	# Routing Header for IPv6
 sip-sr		43	SIP-SR		# SIP Source Route
+ipv6-frag	44	IPv6-Frag	# Fragment Hedaer for IPv6
 sip-frag	44	SIP-FRAG	# SIP Fragment
 idrp		45	IDRP		# Inter-Domain Routing Protocol
 rsvp		46	RSVP		# Reservation Protocol

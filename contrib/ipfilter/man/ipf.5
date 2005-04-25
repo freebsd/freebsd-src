@@ -1,3 +1,5 @@
+.\"	$NetBSD$
+.\"
 .TH IPF 5
 .SH NAME
 ipf, ipf.conf, ipf6.conf \- IP packet filter rule syntax
@@ -19,12 +21,13 @@ described using the following grammar in BNF:
 \fC
 .nf
 filter-rule = [ insert ] action in-out [ options ] [ tos ] [ ttl ]
-	      [ proto ] [ ip ] [ group ].
+	      [ proto ] ip [ group ].
 
 insert	= "@" decnumber .
 action	= block | "pass" | log | "count" | skip | auth | call .
 in-out	= "in" | "out" .
-options	= [ log ] [ "quick" ] [ "on" interface-name [ dup ] [ froute ] ] .
+options	= [ log ] [ tag ] [ "quick" ] [ "on" interface-name [ dup ]
+           [ froute ] [ replyto ] ] .
 tos	= "tos" decnumber | "tos" hexnumber .
 ttl	= "ttl" decnumber .
 proto	= "proto" protocol .
@@ -32,19 +35,24 @@ ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
 group	= [ "head" decnumber ] [ "group" decnumber ] .
 
 block	= "block" [ return-icmp[return-code] | "return-rst" ] .
-auth    = "auth" | "preauth" .
 log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
-call	= "call" [ "now" ] function-name .
+tag     = "tag" tagid .
 skip	= "skip" decnumber .
-dup	= "dup-to" interface-name[":"ipaddr] .
-froute	= "fastroute" | "to" interface-name[":"ipaddr] .
+auth	= "auth" | "preauth" .
+call	= "call" [ "now" ] function-name .
+dup	= "dup-to" interface-name [ ":" ipaddr ] .
+froute	= "fastroute" | "to" interface-name [ ":" ipaddr ] .
+replyto = "reply-to" interface-name [ ":" ipaddr ] .
 protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
 srcdst	= "all" | fromto .
 fromto	= "from" [ "!" ] object "to" [ "!" ] object .
 
 return-icmp = "return-icmp" | "return-icmp-as-dest" .
+return-code = "(" icmp-code ")" .
 object	= addr [ port-comp | port-range ] .
 addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+addr	= "any" | "<thishost>" | nummask |
+	  host-name [ "mask" ipaddr | "mask" hexnumber ] .
 port-comp = "port" compare port-num .
 port-range = "port" port-num range port-num .
 flags	= "flags" flag { flag } [ "/" flag { flag } ] .
@@ -204,6 +212,13 @@ are the currently supported options:
 indicates that, should this be the last matching rule, the packet
 header will be written to the \fBipl\fP log (as described in the
 LOGGING section below).
+.TP
+.B tag tagid
+indicates that, if this rule causes the packet to be logged or entered
+in the state table, the tagid will be logged as part of the log entry.
+This can be used to quickly match "similar" rules in scripts that post
+process the log files for e.g. generation of security reports or accounting
+purposes. The tagid is a 32 bit unsigned integer.
 .TP
 .B quick
 allows "short-cut" rules in order to speed up the filter or override
@@ -374,7 +389,7 @@ against, e.g.:
 			# packets with ONLY the SYN flag set.
 
 	... flags SA
-			# becomes "flags SA/AUPRFSC" and will match any
+			# becomes "flags SA/AUPRFS" and will match any
 			# packet with only the SYN and ACK flags set.
 
 	... flags S/SA
