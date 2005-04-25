@@ -1,12 +1,14 @@
 #!/usr/bin/perl
 # $FreeBSD$
-# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/examples/dev-auto-translate.pl,v 1.2 2005/03/10 13:27:36 den Exp $
+# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/examples/dev-auto-translate.pl,v 1.3 2005/04/25 12:23:23 den Exp $
 #
 # Auto-translate some device entities from English to Russian (KOI8-R)
 #
 # Example:
 # cd /usr/src/release/doc/ru_RU.KOI8-R
 # perl share/examples/dev-auto-translate.pl -o share/sgml/dev-auto-ru.sgml < ../share/sgml/dev-auto.sgml
+#
+# This script maintained in HEAD branch.
 
 use Getopt::Std;
 use POSIX qw(fprintf);
@@ -75,6 +77,7 @@ s/The (&man\..*\.[0-9];) driver supports the following hardware:/Драйвер $1 подд
 s/The adapters supported by the (&man\..*\.[0-9];) driver include:/Адаптеры, поддерживаемые драйвером $1, включают:/;
 s/The (&man\..*\.[0-9];) driver supports the following Ethernet adapters:/Драйвер $1 поддерживает следующие адаптеры Ethernet:/;
 s/Controllers and cards supported by the (&man\..*\.[0-9];) driver include:/Контроллеры и карты, поддерживаемые драйвером $1, включают:/;
+s/The (&man\..*\.[0-9];) driver supports the following audio chipsets:/Драйвер $1 поддерживает следующие аудио чипсеты:/;
 if($isOutputFile) {
   next if !/hwlist\.([0-9a-f]+)/;
   print OUTPUTFILE if !$translated{$1};
