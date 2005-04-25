@@ -96,8 +96,6 @@ static char *host_aliases[MAXALIASES];
 static char hostbuf[8*1024];
 static u_char host_addr[16];	/* IPv4 or IPv6 */
 
-extern const char *_res_hostalias(const char *, char *, size_t);
-
 #ifdef RESOLVSORT
 static void addrsort(char **, int);
 #endif
@@ -476,19 +474,11 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	const char *name;
 	int af;
 	querybuf *buf;
-	const char *cp;
-	char *bp, *ep;
 	int n, size, type;
-	char abuf[MAXDNAME];
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
 	*(struct hostent **)rval = NULL;
-
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return NS_UNAVAIL;
-	}
 
 	switch (af) {
 	case AF_INET:
@@ -507,83 +497,6 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 
 	host.h_addrtype = af;
 	host.h_length = size;
-
-	/*
-	 * if there aren't any dots, it could be a user-level alias.
-	 * this is also done in res_query() since we are not the only
-	 * function that looks up host names.
-	 */
-	if (!strchr(name, '.') &&
-	    (cp = _res_hostalias(name, abuf, sizeof abuf)))
-		name = cp;
-
-	/*
-	 * disallow names consisting only of digits/dots, unless
-	 * they end in a dot.
-	 */
-	if (isdigit((unsigned char)name[0]))
-		for (cp = name;; ++cp) {
-			if (!*cp) {
-				if (*--cp == '.')
-					break;
-				/*
-				 * All-numeric, no dot at the end.
-				 * Fake up a hostent as if we'd actually
-				 * done a lookup.
-				 */
-				if (inet_pton(af, name, host_addr) <= 0) {
-					h_errno = HOST_NOT_FOUND;
-					return NS_NOTFOUND;
-				}
-				strncpy(hostbuf, name, MAXDNAME);
-				hostbuf[MAXDNAME] = '\0';
-				bp = hostbuf + MAXDNAME;
-				ep = hostbuf + sizeof hostbuf;
-				host.h_name = hostbuf;
-				host.h_aliases = host_aliases;
-				host_aliases[0] = NULL;
-				h_addr_ptrs[0] = (char *)host_addr;
-				h_addr_ptrs[1] = NULL;
-				host.h_addr_list = h_addr_ptrs;
-				if (_res.options & RES_USE_INET6)
-					_map_v4v6_hostent(&host, &bp, &ep);
-				h_errno = NETDB_SUCCESS;
-				*(struct hostent **)rval = &host;
-				return NS_SUCCESS;
-			}
-			if (!isdigit((unsigned char)*cp) && *cp != '.')
-				break;
-		}
-	if ((isxdigit((unsigned char)name[0]) && strchr(name, ':') != NULL) ||
-	    name[0] == ':')
-		for (cp = name;; ++cp) {
-			if (!*cp) {
-				if (*--cp == '.')
-					break;
-				/*
-				 * All-IPv6-legal, no dot at the end.
-				 * Fake up a hostent as if we'd actually
-				 * done a lookup.
-				 */
-				if (inet_pton(af, name, host_addr) <= 0) {
-					h_errno = HOST_NOT_FOUND;
-					return NS_NOTFOUND;
-				}
-				strncpy(hostbuf, name, MAXDNAME);
-				hostbuf[MAXDNAME] = '\0';
-				host.h_name = hostbuf;
-				host.h_aliases = host_aliases;
-				host_aliases[0] = NULL;
-				h_addr_ptrs[0] = (char *)host_addr;
-				h_addr_ptrs[1] = NULL;
-				host.h_addr_list = h_addr_ptrs;
-				h_errno = NETDB_SUCCESS;
-				*(struct hostent **)rval = &host;
-				return NS_SUCCESS;
-			}
-			if (!isxdigit((unsigned char)*cp) && *cp != ':' && *cp != '.')
-				break;
-		}
 
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
 		h_errno = NETDB_INTERNAL;
