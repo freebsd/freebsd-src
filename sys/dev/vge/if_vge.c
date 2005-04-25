@@ -169,7 +169,9 @@ static void vge_shutdown	(device_t);
 static int vge_ifmedia_upd	(struct ifnet *);
 static void vge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
+#ifdef VGE_EEPROM
 static void vge_eeprom_getword	(struct vge_softc *, int, u_int16_t *);
+#endif
 static void vge_read_eeprom	(struct vge_softc *, caddr_t, int, int, int);
 
 static void vge_miipoll_start	(struct vge_softc *);
@@ -222,6 +224,7 @@ DRIVER_MODULE(vge, pci, vge_driver, vge_devclass, 0, 0);
 DRIVER_MODULE(vge, cardbus, vge_driver, vge_devclass, 0, 0);
 DRIVER_MODULE(miibus, vge, miibus_driver, miibus_devclass, 0, 0);
 
+#ifdef VGE_EEPROM
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
@@ -271,6 +274,7 @@ vge_eeprom_getword(sc, addr, dest)
 
 	return;
 }
+#endif
 
 /*
  * Read a sequence of words from the EEPROM.
@@ -284,6 +288,7 @@ vge_read_eeprom(sc, dest, off, cnt, swap)
 	int			swap;
 {
 	int			i;
+#ifdef VGE_EEPROM
 	u_int16_t		word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
@@ -294,6 +299,12 @@ vge_read_eeprom(sc, dest, off, cnt, swap)
 		else
 			*ptr = word;
 	}
+#else
+	CSR_SETBIT_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
+	DELAY(500);
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		dest[i] = CSR_READ_1(sc, VGE_PAR0 + i);
+#endif
 }
 
 static void
