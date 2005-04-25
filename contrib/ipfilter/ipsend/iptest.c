@@ -1,21 +1,15 @@
+/*	$NetBSD$	*/
+
 /*
  * ipsend.c (C) 1995-1998 Darren Reed
  *
- * This was written to test what size TCP fragments would get through
- * various TCP/IP packet filters, as used in IP firewalls.  In certain
- * conditions, enough of the TCP header is missing for unpredictable
- * results unless the filter is aware that this can happen.
- *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)Id: iptest.c,v 2.6 2004/01/08 13:34:31 darrenr Exp";
 #endif
-#include <stdio.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -24,21 +18,18 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
 #ifndef	linux
 #include <netinet/ip_var.h>
 #endif
 #ifdef	linux
 #include <linux/sockios.h>
 #endif
+#include <stdio.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include "ipsend.h"
-
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.2.2.4 2002/12/06 11:40:35 darrenr Exp $";
-#endif
 
 
 extern	char	*optarg;
@@ -111,7 +102,7 @@ char **argv;
 	ip = (ip_t *)calloc(1, 65536);
 	ti = (struct tcpiphdr *)ip;
 	ip->ip_len = sizeof(*ip);
-	ip->ip_hl = sizeof(*ip) >> 2;
+	IP_HL_A(ip, sizeof(*ip) >> 2);
 
 	while ((c = getopt(argc, argv, "1234567d:g:m:p:s:")) != -1)
 		switch (c)

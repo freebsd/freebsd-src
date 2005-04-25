@@ -1,0 +1,121 @@
+Script started on Mon Apr 25 17:24:29 2005
+/sbin /usr/sbin /bin /usr/bin /etc /usr/sbin 
+FreeBSD FreeBSD/i386.6.0 on /dev/ttyp0
+tcsh
+.cshrc
+(.cshrc)
+-done.
+/bin /sbin /etc /usr/bin /usr/sbin /usr/games 
+.cshrc done
+TERM = vt100
+/usr/X11R6/man /usr/share/man 
+(freebsd6:~) cd /usr/src/sy[K[Kcontrib/ipfilter
+(freebsd6:/usr/src/contrib/ipfilter) l
+./                      ip_compat.h             ipf.h
+../                     ip_fil.c                ipl.h
+.cvsignore              ip_fil.h                iplang/
+BNF                     ip_fil_freebsd.c        ipmon.h
+BSD/                    ip_frag.c               ipsd/
+BugReport               ip_frag.h               ipsend/
+CVS/                    ip_ftp_pxy.c            ipt.h
+FAQ.FreeBSD             ip_h323_pxy.c           kmem.h
+FWTK/                   ip_htable.c             l4check/
+FreeBSD/                ip_htable.h             lib/
+FreeBSD-2.2/            ip_ipsec_pxy.c          man/
+FreeBSD-3/              ip_irc_pxy.c            md5.c
+FreeBSD-4.0/            ip_log.c                md5.h
+HISTORY                 ip_lookup.c             mkfilters
+IMPORTANT               ip_lookup.h             mlf_ipl.c
+INST.FreeBSD-2.2        ip_msnrpc_pxy.c         mlf_rule.c
+INSTALL.FreeBSD         ip_nat.c                mlfk_ipl.c
+INSTALL.xBSD            ip_nat.h                mlfk_rule.c
+IPF.KANJI               ip_netbios_pxy.c        mlh_rule.c
+IPFILTER.LICENCE        ip_pool.c               net/
+Makefile                ip_pool.h               netinet/
+NAT.FreeBSD             ip_pptp_pxy.c           opts.h
+QNX_OCL.txt             ip_proxy.c              pcap-ipf.h
+README                  ip_proxy.h              perl/
+STYLE.TXT               ip_raudio_pxy.c         radix.c
+WhatsNew40.txt          ip_rcmd_pxy.c           radix_ipf.h
+Y2K                     ip_rpcb_pxy.c           rules/
+bpf-ipf.h               ip_rules.c              samples/
+bpf_filter.c            ip_rules.h              snoop.h
+bsdinstall              ip_scan.c               test/
+buildsunos              ip_scan.h               todo
+etc/                    ip_state.c              tools/
+fil.c                   ip_state.h              typescript
+ip_auth.c               ip_sync.c
+ip_auth.h               ip_sync.h
+(freebsd6:/usr/src/contrib/ipfilter) l CVS
+./              Entries         Repository
+../             Entries.Log     Root
+(freebsd6:/usr/src/contrib/ipfilter) \rm -rf CVS
+(freebsd6:/usr/src/contrib/ipfilter) l
+./                      ip_compat.h             ip_sync.h
+../                     ip_fil.c                ipf.h
+.cvsignore              ip_fil.h                ipl.h
+BNF                     ip_fil_freebsd.c        iplang/
+BSD/                    ip_frag.c               ipmon.h
+BugReport               ip_frag.h               ipsd/
+FAQ.FreeBSD             ip_ftp_pxy.c            ipsend/
+FWTK/                   ip_h323_pxy.c           ipt.h
+FreeBSD/                ip_htable.c             kmem.h
+FreeBSD-2.2/            ip_htable.h             l4check/
+FreeBSD-3/              ip_ipsec_pxy.c          lib/
+FreeBSD-4.0/            ip_irc_pxy.c            man/
+HISTORY                 ip_log.c                md5.c
+IMPORTANT               ip_lookup.c             md5.h
+INST.FreeBSD-2.2        ip_lookup.h             mkfilters
+INSTALL.FreeBSD         ip_msnrpc_pxy.c         mlf_ipl.c
+INSTALL.xBSD            ip_nat.c                mlf_rule.c
+IPF.KANJI               ip_nat.h                mlfk_ipl.c
+IPFILTER.LICENCE        ip_netbios_pxy.c        mlfk_rule.c
+Makefile                ip_pool.c               mlh_rule.c
+NAT.FreeBSD             ip_pool.h               net/
+QNX_OCL.txt             ip_pptp_pxy.c           netinet/
+README                  ip_proxy.c              opts.h
+STYLE.TXT               ip_proxy.h              pcap-ipf.h
+WhatsNew40.txt          ip_raudio_pxy.c         perl/
+Y2K                     ip_rcmd_pxy.c           radix.c
+bpf-ipf.h               ip_rpcb_pxy.c           radix_ipf.h
+bpf_filter.c            ip_rules.c              rules/
+bsdinstall              ip_rules.h              samples/
+buildsunos              ip_scan.c               snoop.h
+etc/                    ip_scan.h               test/
+fil.c                   ip_state.c              todo
+ip_auth.c               ip_state.h              tools/
+ip_auth.h               ip_sync.c               typescript
+(freebsd6:/usr/src/contrib/ipfilter) cd ..
+(freebsd6:/usr/src/contrib) mv ipfilter ipfilter.i
+(freebsd6:/usr/src/contrib) cd !$ipfilter.i 
+(freebsd6:/usr/src/contrib/ipfilter.i) l */CVS
+/bin/ls: No match.
+(freebsd6:/usr/src/contrib/ipfilter.i) cvs m[K[K
+(freebsd6:/usr/src/contrib/ipfilter.i) cvs import[10D[K
+(freebsd6:/usr/src/contrib/ipfilter.i) ~
+/home/darrenr: Permission denied.
+(freebsd6:/usr/src/contrib/ipfilter.i) ~[K
+(freebsd6:/usr/src/contrib/ipfilter.i) suspend
+(freebsd6:/usr/src/contrib/ipfilter.i) history
+     1  17:24   cd /usr/src/contrib/ipfilter
+     2  17:24   l
+     3  17:24   l CVS
+     4  17:24   \rm -rf CVS
+     5  17:24   l
+     6  17:24   cd ..
+     7  17:24   mv ipfilter ipfilter.i
+     8  17:24   cd ipfilter.i
+     9  17:24   l */CVS
+    10  17:25   ~
+    11  17:25   suspend
+    12  17:25   history
+(freebsd6:/usr/src/contrib/ipfilter.i) 
+(freebsd6:/usr/src/contrib/ipfilter.i) kill -STOP $$
+
+^C
+c
+
+
+[K(freebsd6:/usr/src/contrib/ipfilter.i) 
+(freebsd6:/usr/src/contrib/ipfilter.i) c
+

@@ -1,35 +1,38 @@
+/*	$NetBSD$	*/
+
 /*
  * Copyright (C) 1993-1998 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)Id: iptests.c,v 2.8.2.3 2004/04/16 23:33:04 darrenr Exp";
 #endif
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/param.h>
-#define _KERNEL
-#define KERNEL
-#if !defined(solaris) && !defined(linux) && !defined(__sgi)
-# include <sys/file.h>
-#else
-# ifdef solaris
-#  include <sys/dditypes.h>
+#if !defined(__osf__)
+# define _KERNEL
+# define KERNEL
+# if !defined(solaris) && !defined(linux) && !defined(__sgi) && !defined(hpux)
+#  include <sys/file.h>
+# else
+#  ifdef solaris
+#   include <sys/dditypes.h>
+#  endif
 # endif
+# undef  _KERNEL
+# undef  KERNEL
 #endif
-#undef  _KERNEL
-#undef  KERNEL
 #if !defined(solaris) && !defined(linux) && !defined(__sgi)
 # include <nlist.h>
 # include <sys/user.h>
 # include <sys/proc.h>
 #endif
-#if !defined(ultrix) && !defined(hpux) && !defined(linux) && !defined(__sgi)
+#if !defined(ultrix) && !defined(hpux) && !defined(linux) && \
+    !defined(__sgi) && !defined(__osf__)
 # include <kvm.h>
 #endif
 #ifndef	ultrix
@@ -50,11 +53,17 @@
 #endif
 #include <netinet/in_systm.h>
 #include <sys/socket.h>
+#ifdef __hpux
+# define _NET_ROUTE_INCLUDED
+#endif
 #include <net/if.h>
 #if defined(linux) && (LINUX >= 0200)
 # include <asm/atomic.h>
 #endif
 #if !defined(linux)
+# if defined(__FreeBSD__)
+#  include "radix_ipf.h"
+# endif
 # include <net/route.h>
 #else
 # define __KERNEL__	/* because there's a macro not wrapped by this */
@@ -63,35 +72,38 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
-#ifndef linux
+#if !defined(linux)
 # include <netinet/ip_var.h>
-# include <netinet/in_pcb.h>
-# include <netinet/tcp_timer.h>
-# include <netinet/tcp_var.h>
+# if !defined(__hpux)
+#  include <netinet/in_pcb.h>
+# endif
 #endif
 #if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
 # include <sys/sysmacros.h>
 #endif
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef __hpux
+# undef _NET_ROUTE_INCLUDED
+#endif
+#include "ipsend.h"
+#if !defined(linux) && !defined(__hpux)
+# include <netinet/tcp_timer.h>
+# include <netinet/tcp_var.h>
+#endif
 #if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 106000000)
 # define USE_NANOSLEEP
 #endif
-#include "ipsend.h"
-
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.8 2002/12/06 11:40:35 darrenr Exp $";
-#endif
 
 
-#ifdef	USE_NANOSLEEP
-# define	PAUSE()	ts.tv_sec = 0; ts.tv_nsec = 10000000; \
+#ifdef USE_NANOSLEEP
+# define	PAUSE() ts.tv_sec = 0; ts.tv_nsec = 10000000; \
 		  (void) nanosleep(&ts, NULL)
 #else
 # define	PAUSE()	tv.tv_sec = 0; tv.tv_usec = 10000; \
-				  (void) select(0, NULL, NULL, NULL, &tv)
+		  (void) select(0, NULL, NULL, NULL, &tv)
 #endif
 
 
@@ -102,7 +114,7 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -110,8 +122,8 @@ int	ptest;
 	udphdr_t *u;
 	int	nfd, i = 0, len, id = getpid();
 
-	ip->ip_hl = sizeof(*ip) >> 2;
-	ip->ip_v = IPVERSION;
+	IP_HL_A(ip, sizeof(*ip) >> 2);
+	IP_V_A(ip, IPVERSION);
 	ip->ip_tos = 0;
 	ip->ip_off = 0;
 	ip->ip_ttl = 60;
@@ -124,7 +136,7 @@ int	ptest;
 	u->uh_ulen = htons(sizeof(*u) + 4);
 	ip->ip_len = sizeof(*ip) + ntohs(u->uh_ulen);
 	len = ip->ip_len;
-	nfd = initdevice(dev, u->uh_sport, 1);
+	nfd = initdevice(dev, 1);
 
 	if (!ptest || (ptest == 1)) {
 		/*
@@ -133,7 +145,7 @@ int	ptest;
 		ip->ip_id = 0;
 		printf("1.1. sending packets with ip_hl < ip_len\n");
 		for (i = 0; i < ((sizeof(*ip) + ntohs(u->uh_ulen)) >> 2); i++) {
-			ip->ip_hl = i >> 2;
+			IP_HL_A(ip, i >> 2);
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -149,7 +161,7 @@ int	ptest;
 		ip->ip_id = 0;
 		printf("1.2. sending packets with ip_hl > ip_len\n");
 		for (; i < ((sizeof(*ip) * 2 + ntohs(u->uh_ulen)) >> 2); i++) {
-			ip->ip_hl = i >> 2;
+			IP_HL_A(ip, i >> 2);
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -164,9 +176,9 @@ int	ptest;
 		 */
 		ip->ip_id = 0;
 		printf("1.3. ip_v < 4\n");
-		ip->ip_hl = sizeof(*ip) >> 2;
+		IP_HL_A(ip, sizeof(*ip) >> 2);
 		for (i = 0; i < 4; i++) {
-			ip->ip_v = i;
+			IP_V_A(ip, i);
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -182,7 +194,7 @@ int	ptest;
 		ip->ip_id = 0;
 		printf("1.4. ip_v > 4\n");
 		for (i = 5; i < 16; i++) {
-			ip->ip_v = i;
+			IP_V_A(ip, i);
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -196,13 +208,13 @@ int	ptest;
 		 * Part5: len < packet
 		 */
 		ip->ip_id = 0;
-		ip->ip_v = IPVERSION;
+		IP_V_A(ip, IPVERSION);
 		i = ip->ip_len + 1;
 		printf("1.5.0 ip_len < packet size (size++, long packets)\n");
 		for (; i < (ip->ip_len * 2); i++) {
 			ip->ip_id = htons(id++);
 			ip->ip_sum = 0;
-			ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
+			ip->ip_sum = chksum((u_short *)ip, IP_HL(ip) << 2);
 			(void) send_ether(nfd, (char *)ip, i, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -214,7 +226,7 @@ int	ptest;
 			ip->ip_id = htons(id++);
 			ip->ip_len = i;
 			ip->ip_sum = 0;
-			ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
+			ip->ip_sum = chksum((u_short *)ip, IP_HL(ip) << 2);
 			(void) send_ether(nfd, (char *)ip, len, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -233,7 +245,7 @@ int	ptest;
 			ip->ip_id = htons(id++);
 			ip->ip_len = i;
 			ip->ip_sum = 0;
-			ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
+			ip->ip_sum = chksum((u_short *)ip, IP_HL(ip) << 2);
 			(void) send_ether(nfd, (char *)ip, len, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -245,7 +257,7 @@ int	ptest;
 		for (i = len; i > 0; i--) {
 			ip->ip_id = htons(id++);
 			ip->ip_sum = 0;
-			ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
+			ip->ip_sum = chksum((u_short *)ip, IP_HL(ip) << 2);
 			(void) send_ether(nfd, (char *)ip, i, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -314,14 +326,14 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (63 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
+			ip->ip_off = htons(IP_MF | (i >> 3));
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons((i >> 3) & 0x1fff);
+		ip->ip_off = htons(i >> 3);
 		(void) send_ip(nfd, mtu, ip, gwip, 1);
 		printf("%d\r", i);
 		putchar('\n');
@@ -348,7 +360,7 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (63 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
+			ip->ip_off = htons(IP_MF | (i >> 3));
 			if ((rand() & 0x1f) != 0) {
 				(void) send_ip(nfd, mtu, ip, gwip, 1);
 				printf("%d\r", i);
@@ -358,7 +370,7 @@ int	ptest;
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons((i >> 3) & 0x1fff);
+		ip->ip_off = htons(i >> 3);
 		if ((rand() & 0x1f) != 0) {
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
@@ -385,14 +397,14 @@ int	ptest;
 		ip->ip_len = MIN(768 + 20, mtu - 68);
 		i = 512;
 		for (; i < (32 * 1024 + 768); i += 768) {
-			ip->ip_off = htons(IP_MF | ((i >> 3) & 0x1fff));
+			ip->ip_off = htons(IP_MF | (i >> 3));
 			(void) send_ip(nfd, mtu, ip, gwip, 1);
 			printf("%d\r", i);
 			fflush(stdout);
 			PAUSE();
 		}
 		ip->ip_len = 896 + 20;
-		ip->ip_off = htons((i >> 3) & 0x1fff);
+		ip->ip_off = htons(i >> 3);
 		(void) send_ip(nfd, mtu, ip, gwip, 1);
 		printf("%d\r", i);
 		putchar('\n');
@@ -450,7 +462,7 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -459,10 +471,10 @@ int	ptest;
 	u_char	*s;
 
 	s = (u_char *)(ip + 1);
-	nfd = initdevice(dev, htons(1), 1);
+	nfd = initdevice(dev, 1);
 
-	ip->ip_hl = 6;
-	ip->ip_len = ip->ip_hl << 2;
+	IP_HL_A(ip, 6);
+	ip->ip_len = IP_HL(ip) << 2;
 	s[IPOPT_OPTVAL] = IPOPT_NOP;
 	s++;
 	if (!ptest || (ptest == 1)) {
@@ -480,8 +492,8 @@ int	ptest;
 		PAUSE();
 	}
 
-	ip->ip_hl = 7;
-	ip->ip_len = ip->ip_hl << 2;
+	IP_HL_A(ip, 7);
+	ip->ip_len = IP_HL(ip) << 2;
 	if (!ptest || (ptest == 1)) {
 		/*
 		 * Test 2: options have length = 0
@@ -545,7 +557,7 @@ int	ptest;
 {
 	static	int	ict1[10] = { 8, 9, 10, 13, 14, 15, 16, 17, 18, 0 };
 	static	int	ict2[8] = { 3, 9, 10, 13, 14, 17, 18, 0 };
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -553,16 +565,16 @@ int	ptest;
 	struct	icmp	*icp;
 	int	nfd, i;
 
-	ip->ip_hl = sizeof(*ip) >> 2;
-	ip->ip_v = IPVERSION;
+	IP_HL_A(ip, sizeof(*ip) >> 2);
+	IP_V_A(ip, IPVERSION);
 	ip->ip_tos = 0;
 	ip->ip_off = 0;
 	ip->ip_ttl = 60;
 	ip->ip_p = IPPROTO_ICMP;
 	ip->ip_sum = 0;
 	ip->ip_len = sizeof(*ip) + sizeof(*icp);
-	icp = (struct icmp *)((char *)ip + (ip->ip_hl << 2));
-	nfd = initdevice(dev, htons(1), 1);
+	icp = (struct icmp *)((char *)ip + (IP_HL(ip) << 2));
+	nfd = initdevice(dev, 1);
 
 	if (!ptest || (ptest == 1)) {
 		/*
@@ -741,7 +753,7 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -750,25 +762,25 @@ int	ptest;
 	int	nfd, i;
 
 
-	ip->ip_hl = sizeof(*ip) >> 2;
-	ip->ip_v = IPVERSION;
+	IP_HL_A(ip, sizeof(*ip) >> 2);
+	IP_V_A(ip, IPVERSION);
 	ip->ip_tos = 0;
 	ip->ip_off = 0;
 	ip->ip_ttl = 60;
 	ip->ip_p = IPPROTO_UDP;
 	ip->ip_sum = 0;
-	u = (udphdr_t *)((char *)ip + (ip->ip_hl << 2));
+	u = (udphdr_t *)((char *)ip + (IP_HL(ip) << 2));
 	u->uh_sport = htons(1);
 	u->uh_dport = htons(1);
 	u->uh_ulen = htons(sizeof(*u) + 4);
-	nfd = initdevice(dev, u->uh_sport, 1);
+	nfd = initdevice(dev, 1);
 
 	if (!ptest || (ptest == 1)) {
 		/*
 		 * Test 1. ulen > packet
 		 */
 		u->uh_ulen = htons(sizeof(*u) + 4);
-		ip->ip_len = (ip->ip_hl << 2) + ntohs(u->uh_ulen);
+		ip->ip_len = (IP_HL(ip) << 2) + ntohs(u->uh_ulen);
 		printf("4.1 UDP uh_ulen > packet size - short packets\n");
 		for (i = ntohs(u->uh_ulen) * 2; i > sizeof(*u) + 4; i--) {
 			u->uh_ulen = htons(i);
@@ -785,7 +797,7 @@ int	ptest;
 		 * Test 2. ulen < packet
 		 */
 		u->uh_ulen = htons(sizeof(*u) + 4);
-		ip->ip_len = (ip->ip_hl << 2) + ntohs(u->uh_ulen);
+		ip->ip_len = (IP_HL(ip) << 2) + ntohs(u->uh_ulen);
 		printf("4.2 UDP uh_ulen < packet size - short packets\n");
 		for (i = ntohs(u->uh_ulen) * 2; i > sizeof(*u) + 4; i--) {
 			ip->ip_len = i;
@@ -803,7 +815,7 @@ int	ptest;
 		 *         sport = 32768, sport = 65535
 		 */
 		u->uh_ulen = sizeof(*u) + 4;
-		ip->ip_len = (ip->ip_hl << 2) + ntohs(u->uh_ulen);
+		ip->ip_len = (IP_HL(ip) << 2) + ntohs(u->uh_ulen);
 		printf("4.3.1 UDP sport = 0\n");
 		u->uh_sport = 0;
 		(void) send_udp(nfd, 1500, ip, gwip);
@@ -844,7 +856,7 @@ int	ptest;
 		 */
 		u->uh_ulen = ntohs(sizeof(*u) + 4);
 		u->uh_sport = htons(1);
-		ip->ip_len = (ip->ip_hl << 2) + ntohs(u->uh_ulen);
+		ip->ip_len = (IP_HL(ip) << 2) + ntohs(u->uh_ulen);
 		printf("4.4.1 UDP dport = 0\n");
 		u->uh_dport = 0;
 		(void) send_udp(nfd, 1500, ip, gwip);
@@ -903,7 +915,7 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -911,11 +923,11 @@ int	ptest;
 	tcphdr_t *t;
 	int	nfd, i;
 
-	t = (tcphdr_t *)((char *)ip + (ip->ip_hl << 2));
-#ifndef	linux
+	t = (tcphdr_t *)((char *)ip + (IP_HL(ip) << 2));
+#if !defined(linux) && !defined(__osf__)
 	t->th_x2 = 0;
 #endif
-	t->th_off = 0;
+	TCP_OFF_A(t, 0);
 	t->th_sport = htons(1);
 	t->th_dport = htons(1);
 	t->th_win = htons(4096);
@@ -924,13 +936,13 @@ int	ptest;
 	t->th_seq = htonl(1);
 	t->th_ack = 0;
 	ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t);
-	nfd = initdevice(dev, t->th_sport, 1);
+	nfd = initdevice(dev, 1);
 
 	if (!ptest || (ptest == 1)) {
 		/*
 		 * Test 1: flags variations, 0 - 3f
 		 */
-		t->th_off = sizeof(*t) >> 2;
+		TCP_OFF_A(t, sizeof(*t) >> 2);
 		printf("5.1 Test TCP flag combinations\n");
 		for (i = 0; i <= (TH_URG|TH_ACK|TH_PUSH|TH_RST|TH_SYN|TH_FIN);
 		     i++) {
@@ -1054,14 +1066,13 @@ int	ptest;
 	}
 
 #if !defined(linux) && !defined(__SVR4) && !defined(__svr4__) && \
-    !defined(__sgi)
+    !defined(__sgi) && !defined(__hpux) && !defined(__osf__)
 	{
 	struct tcpcb *tcbp, tcb;
 	struct tcpiphdr ti;
 	struct sockaddr_in sin;
 	int fd, slen;
 
-	fd = -1;
 	bzero((char *)&sin, sizeof(sin));
 
 	for (i = 1; i < 63; i++) {
@@ -1130,7 +1141,7 @@ int	ptest;
 		t->th_flags = TH_ACK;
 		printf("5.6.1 TCP off = 1-15, len = 40\n");
 		for (i = 1; i < 16; i++) {
-			ti.ti_off = ntohs(i);
+			TCP_OFF_A(t, ntohs(i));
 			(void) send_tcp(nfd, mtu, ip, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -1146,7 +1157,7 @@ skip_five_and_six:
 #endif
 	t->th_seq = htonl(1);
 	t->th_ack = htonl(1);
-	t->th_off = 0;
+	TCP_OFF_A(t, 0);
 
 	if (!ptest || (ptest == 7)) {
 		t->th_flags = TH_SYN;
@@ -1250,7 +1261,7 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
@@ -1258,7 +1269,7 @@ int	ptest;
 	udphdr_t *u;
 	int	nfd, i, j, k;
 
-	ip->ip_v = IPVERSION;
+	IP_V_A(ip, IPVERSION);
 	ip->ip_tos = 0;
 	ip->ip_off = 0;
 	ip->ip_ttl = 60;
@@ -1269,7 +1280,7 @@ int	ptest;
 	u->uh_dport = htons(9);
 	u->uh_sum = 0;
 
-	nfd = initdevice(dev, u->uh_sport, 1);
+	nfd = initdevice(dev, 1);
 	u->uh_ulen = htons(7168);
 
 	printf("6. Exhaustive mbuf test.\n");
@@ -1280,7 +1291,7 @@ int	ptest;
 		 * First send the entire packet in 768 byte chunks.
 		 */
 		ip->ip_len = sizeof(*ip) + 768 + sizeof(*u);
-		ip->ip_hl = sizeof(*ip) >> 2;
+		IP_HL_A(ip, sizeof(*ip) >> 2);
 		ip->ip_off = htons(IP_MF);
 		(void) send_ip(nfd, 1500, ip, gwip, 1);
 		printf("%d %d\r", i, 0);
@@ -1298,7 +1309,7 @@ int	ptest;
 
 		for (j = 768; j < 3584; j += 768) {
 			ip->ip_len = sizeof(*ip) + 768;
-			ip->ip_off = htons(IP_MF|((j>>3) & 0x1fff));
+			ip->ip_off = htons(IP_MF|(j>>3));
 			(void) send_ip(nfd, 1500, ip, gwip, 1);
 			printf("%d %d\r", i, j);
 			fflush(stdout);
@@ -1306,7 +1317,7 @@ int	ptest;
 
 			ip->ip_len = sizeof(*ip) + 128;
 			for (k = j - 768; k < j; k += 128) {
-				ip->ip_off = htons(IP_MF|((k>>3) & 0x1fff));
+				ip->ip_off = htons(IP_MF|(k>>3));
 				(void) send_ip(nfd, 1500, ip, gwip, 1);
 				printf("%d %d\r", i, k);
 				fflush(stdout);
@@ -1329,16 +1340,16 @@ ip_t	*ip;
 struct	in_addr	gwip;
 int	ptest;
 {
-#ifdef	USE_NANOSLEEP
+	ip_t	*pip;
+#ifdef USE_NANOSLEEP
 	struct	timespec ts;
 #else
 	struct	timeval	tv;
 #endif
-	ip_t	*pip;
 	int	nfd, i, j;
 	u_char	*s;
 
-	nfd = initdevice(dev, 0, 1);
+	nfd = initdevice(dev, 1);
 	pip = (ip_t *)tbuf;
 
 	srand(time(NULL) ^ (getpid() * getppid()));
@@ -1348,7 +1359,7 @@ int	ptest;
 	for (i = 0; i < 512; i++) {
 		for (s = (u_char *)pip, j = 0; j < sizeof(tbuf); j++, s++)
 			*s = (rand() >> 13) & 0xff;
-		pip->ip_v = IPVERSION;
+		IP_V_A(pip, IPVERSION);
 		bcopy((char *)&ip->ip_dst, (char *)&pip->ip_dst,
 		      sizeof(struct in_addr));
 		pip->ip_sum = 0;
@@ -1363,7 +1374,7 @@ int	ptest;
 	for (i = 0; i < 512; i++) {
 		for (s = (u_char *)pip, j = 0; j < sizeof(tbuf); j++, s++)
 			*s = (rand() >> 13) & 0xff;
-		pip->ip_v = IPVERSION;
+		IP_V_A(pip, IPVERSION);
 		pip->ip_off &= htons(0xc000);
 		bcopy((char *)&ip->ip_dst, (char *)&pip->ip_dst,
 		      sizeof(struct in_addr));

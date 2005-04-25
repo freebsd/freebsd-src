@@ -1,17 +1,14 @@
+/*	$NetBSD$	*/
+
 %{
 /*
  * Copyright (C) 1997-1998 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: iplang_y.y,v 2.2.2.3 2002/12/06 11:41:14 darrenr Exp $
+ * Id: iplang_y.y,v 2.9.2.2 2004/12/09 19:41:10 darrenr Exp
  */
 
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -31,12 +28,9 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
 #ifndef	linux
 #include <netinet/ip_var.h>
 #endif
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
 #include <net/if.h>
 #ifndef	linux
 #include <netinet/if_ether.h>
@@ -52,7 +46,7 @@
 #include "iplang.h"
 
 #if !defined(__NetBSD__) && (!defined(__FreeBSD_version) && \
-    __FreeBSD_version < 400020 ) && SOLARIS2 < 10 
+    __FreeBSD_version < 400020) && (!SOLARIS || SOLARIS2 < 10)
 extern	struct ether_addr *ether_aton __P((char *));
 #endif
 
@@ -773,7 +767,7 @@ char **arg;
 
 	while ((c = *s++)) {
 		if (todo) {
-			if (isdigit(c)) {
+			if (ISDIGIT(c)) {
 				todo--;
 				if (c > '7') {
 					fprintf(stderr, "octal with %c!\n", c);
@@ -782,7 +776,7 @@ char **arg;
 				val <<= 3;
 				val |= (c - '0');
 			}
-			if (!isdigit(c) || !todo) {
+			if (!ISDIGIT(c) || !todo) {
 				*t++ = (u_char)(val & 0xff);
 				todo = 0;
 			}
@@ -790,7 +784,7 @@ char **arg;
 				continue;
 		}
 		if (quote) {
-			if (isdigit(c)) {
+			if (ISDIGIT(c)) {
 				todo = 2;
 				if (c > '7') {
 					fprintf(stderr, "octal with %c!\n", c);
@@ -1294,7 +1288,7 @@ void prep_packet()
 		return;
 	}
 	if (ifp->if_fd == -1)
-		ifp->if_fd = initdevice(ifp->if_name, 0, 5);
+		ifp->if_fd = initdevice(ifp->if_name, 5);
 	gwip = sending.snd_gw;
 	if (!gwip.s_addr)
 		gwip = aniphead->ah_ip->ip_dst;
@@ -1326,7 +1320,7 @@ void packet_done()
 				sprintf((char *)t, "	");
 				t += 8;
 				for (k = 16; k; k--, s++)
-					*t++ = (isprint(*s) ? *s : '.');
+					*t++ = (ISPRINT(*s) ? *s : '.');
 				s--;
 			}
 
@@ -1344,7 +1338,7 @@ void packet_done()
 			t += 7;
 			s -= j & 0xf;
 			for (k = j & 0xf; k; k--, s++)
-				*t++ = (isprint(*s) ? *s : '.');
+				*t++ = (ISPRINT(*s) ? *s : '.');
 			*t++ = '\n';
 			*t = '\0';
 		}
@@ -1518,11 +1512,6 @@ int type;
 }
 
 
-static	char	*icmpcodes[] = {
-	"net-unr", "host-unr", "proto-unr", "port-unr", "needfrag", "srcfail",
-	"net-unk", "host-unk", "isolate", "net-prohib", "host-prohib",
-	"net-tos", "host-tos", NULL };
-
 void set_icmpcodetok(code)
 char **code;
 {
@@ -1540,13 +1529,6 @@ char **code;
 	*code = NULL;
 }
 
-
-static	char	*icmptypes[] = {
-	"echorep", (char *)NULL, (char *)NULL, "unreach", "squench",
-	"redir", (char *)NULL, (char *)NULL, "echo", (char *)NULL,
-	(char *)NULL, "timex", "paramprob", "timest", "timestrep",
-	"inforeq", "inforep", "maskreq", "maskrep", "END"
-};
 
 void set_icmptypetok(type)
 char **type;

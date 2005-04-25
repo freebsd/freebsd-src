@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 /*
  * Common DLPI Test Suite header file
  *

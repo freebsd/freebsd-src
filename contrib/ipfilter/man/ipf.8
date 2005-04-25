@@ -1,13 +1,18 @@
+.\"	$NetBSD$
+.\"
 .TH IPF 8
 .SH NAME
 ipf \- alters packet filtering lists for IP packet input and output
 .SH SYNOPSIS
 .B ipf
 [
-.B \-6AdDEInoPrsUvVyzZ
+.B \-6AcdDEInoPrsvVyzZ
 ] [
 .B \-l
 <block|pass|nomatch>
+] [
+.B \-T
+<optionlist>
 ] [
 .B \-F
 <i|o|a|s|S>
@@ -36,6 +41,15 @@ This option is required to parse IPv6 rules and to have them loaded.
 .B \-A
 Set the list to make changes to the active list (default).
 .TP
+.B \-c <language>
+This option causes \fBipf\fP to generate output files for a compiler that
+supports \fBlanguage\fI.  At present, the only target language supported is
+\fBC\fB (-cc) for which two files - \fBip_rules.c\fP
+and \fBip_rules.h\fP are generated in the \fBCURRENT DIRECTORY\fP when
+\fBipf\fP is being run.  These files can be used with the
+\fBIPFILTER_COMPILED\fP kernel option to build filter rules staticly into
+the kernel.
+.TP
 .B \-d
 Turn debug mode on.  Causes a hexdump of filter rules to be generated as
 it processes each one.
@@ -58,7 +72,7 @@ To flush entries from the state table, the \fB-F\fP option is used in
 conjunction with either "s" (removes state information about any non-fully
 established connections) or "S" (deletes the entire state table).  Only
 one of the two options may be given.  A fully established connection
-will show up in \fBipfstat -s\fP output as 4/4, with deviations either
+will show up in \fBipfstat -s\fP output as 5/5, with deviations either
 way indicating it is not fully established any more.
 .TP
 .BR \-f \0<filename>
@@ -92,10 +106,22 @@ Remove matching filter rules rather than add them to the internal lists
 .TP
 .B \-s
 Swap the active filter list in use to be the "other" one.
-.TP
-.B \-U
-(SOLARIS 2 ONLY) Block packets travelling along the data stream which aren't
-recognised as IP packets.  They will be printed out on the console.
+.B \-T <optionlist>
+This option allows run-time changing of IPFilter kernel variables.  Some
+variables require IPFilter to be in a disabled state (\fB-D\fP) for changing,
+others do not.  The optionlist parameter is a comma separated list of tuning
+commands.  A tuning command is either "list" (retrieve a list of all variables
+in the kernel, their maximum, minimum and current value), a single variable
+name (retrieve its current value) and a variable name with a following
+assignment to set a new value.  Some examples follow.
+.nf
+# Print out all IPFilter kernel tunable parameters
+ipf -T list
+# Display the current TCP idle timeout and then set it to 3600
+ipf -D -T fr_tcpidletimeout,fr_tcpidletimeout=3600 -E
+# Display current values for fr_pass and fr_chksrc, then set fr_chksrc to 1.
+ipf -T fr_pass,fr_chksrc,fr_chksrc=1
+.fi
 .TP
 .B \-v
 Turn verbose mode on.  Displays information relating to rule processing.

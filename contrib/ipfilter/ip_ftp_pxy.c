@@ -1,18 +1,15 @@
+/*	$NetBSD$	*/
+
 /*
+ * Copyright (C) 1997-2003 by Darren Reed
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * $Id: ip_ftp_pxy.c,v 2.7.2.47 2004/06/21 11:48:07 darrenr Exp $
+ * Id: ip_ftp_pxy.c,v 2.88.2.15 2005/03/19 19:38:10 darrenr Exp
  */
-#if SOLARIS && defined(_KERNEL)
-extern	kmutex_t	ipf_rw;
-#endif
-
-#define	isdigit(x)	((x) >= '0' && (x) <= '9')
-#define	isupper(x)	(((unsigned)(x) >= 'A') && ((unsigned)(x) <= 'Z'))
-#define	islower(x)	(((unsigned)(x) >= 'a') && ((unsigned)(x) <= 'z'))
-#define	isalpha(x)	(isupper(x) || islower(x))
-#define	toupper(x)	(isupper(x) ? (x) : (x) - 'a' + 'A')
 
 #define	IPF_FTP_PROXY
 
@@ -20,7 +17,8 @@ extern	kmutex_t	ipf_rw;
 #define	IPF_MAXPORTLEN	30
 #define	IPF_MIN227LEN	39
 #define	IPF_MAX227LEN	51
-#define	IPF_FTPBUFSZ	96	/* This *MUST* be >= 53! */
+#define	IPF_MIN229LEN	47
+#define	IPF_MAX229LEN	51
 
 #define	FTPXY_GO	0
 #define	FTPXY_INIT	1
@@ -46,23 +44,53 @@ extern	kmutex_t	ipf_rw;
 
 int ippr_ftp_client __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_complete __P((char *, size_t));
-int ippr_ftp_in __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
+int ippr_ftp_in __P((fr_info_t *, ap_session_t *, nat_t *));
 int ippr_ftp_init __P((void));
-int ippr_ftp_new __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
-int ippr_ftp_out __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
+void ippr_ftp_fini __P((void));
+int ippr_ftp_new __P((fr_info_t *, ap_session_t *, nat_t *));
+int ippr_ftp_out __P((fr_info_t *, ap_session_t *, nat_t *));
 int ippr_ftp_pasv __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
+int ippr_ftp_epsv __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
 int ippr_ftp_port __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
-int ippr_ftp_process __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
+int ippr_ftp_process __P((fr_info_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_server __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_valid __P((ftpinfo_t *, int, char *, size_t));
 int ippr_ftp_server_valid __P((ftpside_t *, char *, size_t));
 int ippr_ftp_client_valid __P((ftpside_t *, char *, size_t));
 u_short ippr_ftp_atoi __P((char **));
+int ippr_ftp_pasvreply __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *,
+			    u_int, char *, char *, u_int));
+
+
+int	ftp_proxy_init = 0;
+int	ippr_ftp_pasvonly = 0;
+int	ippr_ftp_insecure = 0;	/* Do not require logins before transfers */
+int	ippr_ftp_pasvrdr = 0;
+int	ippr_ftp_forcepasv = 0;	/* PASV must be last command prior to 227 */
+#if defined(_KERNEL)
+int	ippr_ftp_debug = 0;
+#else
+int	ippr_ftp_debug = 2;
+#endif
+/*
+ * 1 - security
+ * 2 - errors
+ * 3 - error debugging
+ * 4 - parsing errors
+ * 5 - parsing info
+ * 6 - parsing debug
+ */
 
 static	frentry_t	ftppxyfr;
-int	ippr_ftp_pasvonly = 0;
-int	ippr_ftp_insecure = 0;
-int	ippr_ftp_forcepasv = 0;
+static	ipftuneable_t	ftptune = {
+	{ &ippr_ftp_debug },
+	"ippr_ftp_debug",
+	0,
+	10,
+	sizeof(ippr_ftp_debug),
+	0,
+	NULL
+};
 
 
 /*
@@ -73,13 +101,27 @@ int ippr_ftp_init()
 	bzero((char *)&ftppxyfr, sizeof(ftppxyfr));
 	ftppxyfr.fr_ref = 1;
 	ftppxyfr.fr_flags = FR_INQUE|FR_PASS|FR_QUICK|FR_KEEPSTATE;
+	MUTEX_INIT(&ftppxyfr.fr_lock, "FTP Proxy Mutex");
+	ftp_proxy_init = 1;
+	(void) fr_addipftune(&ftptune);
+
 	return 0;
 }
 
 
-int ippr_ftp_new(fin, ip, aps, nat)
+void ippr_ftp_fini()
+{
+	(void) fr_delipftune(&ftptune);
+
+	if (ftp_proxy_init == 1) {
+		MUTEX_DESTROY(&ftppxyfr.fr_lock);
+		ftp_proxy_init = 0;
+	}
+}
+
+
+int ippr_ftp_new(fin, aps, nat)
 fr_info_t *fin;
-ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
@@ -89,6 +131,10 @@ nat_t *nat;
 	KMALLOC(ftp, ftpinfo_t *);
 	if (ftp == NULL)
 		return -1;
+
+	fin = fin;	/* LINT */
+	nat = nat;	/* LINT */
+
 	aps->aps_data = ftp;
 	aps->aps_psiz = sizeof(ftpinfo_t);
 
@@ -100,6 +146,7 @@ nat_t *nat;
 	f->ftps_rptr = f->ftps_buf;
 	f->ftps_wptr = f->ftps_buf;
 	ftp->ftp_passok = FTPXY_INIT;
+	ftp->ftp_incok = 0;
 	return 0;
 }
 
@@ -113,30 +160,28 @@ int dlen;
 {
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	char newbuf[IPF_FTPBUFSZ], *s;
+	struct in_addr swip, swip2;
 	u_int a1, a2, a3, a4;
-	struct in_addr swip;
+	int inc, off, flags;
 	u_short a5, a6, sp;
 	size_t nlen, olen;
 	fr_info_t fi;
-	int inc, off;
-	nat_t *ipn;
+	nat_t *nat2;
 	mb_t *m;
-#if	SOLARIS && defined(_KERNEL)
-	mb_t *m1;
-#endif
 
+	m = fin->fin_m;
 	tcp = (tcphdr_t *)fin->fin_dp;
+	off = (char *)tcp - (char *)ip + (TCP_OFF(tcp) << 2) + fin->fin_ipoff;
+
 	/*
 	 * Check for client sending out PORT message.
 	 */
 	if (dlen < IPF_MINPORTLEN) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_port:dlen(%d) < IPF_MINPORTLEN\n", dlen);
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_port:dlen(%d) < IPF_MINPORTLEN\n",
+			       dlen);
 		return 0;
 	}
-	off = fin->fin_hlen + (tcp->th_off << 2);
 	/*
 	 * Skip the PORT command + space
 	 */
@@ -146,36 +191,36 @@ int dlen;
 	 */
 	a1 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:ippr_ftp_atoi(1) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_port:ippr_ftp_atoi(%d) failed\n", 1);
 		return 0;
 	}
 	a2 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:ippr_ftp_atoi(2) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_port:ippr_ftp_atoi(%d) failed\n", 2);
 		return 0;
 	}
+
 	/*
-	 * check that IP address in the PORT/PASV reply is the same as the
+	 * Check that IP address in the PORT/PASV reply is the same as the
 	 * sender of the command - prevents using PORT for port scanning.
 	 */
 	a1 <<= 16;
 	a1 |= a2;
-	if (a1 != ntohl(nat->nat_inip.s_addr)) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:a1 != nat->nat_inip\n");
-#endif
-		return 0;
+	if (((nat->nat_dir == NAT_OUTBOUND) &&
+	     (a1 != ntohl(nat->nat_inip.s_addr))) ||
+	    ((nat->nat_dir == NAT_INBOUND) &&
+	     (a1 != ntohl(nat->nat_oip.s_addr)))) {
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_port:%s != nat->nat_inip\n", "a1");
+		return APR_ERR(1);
 	}
 
 	a5 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:ippr_ftp_atoi(3) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_port:ippr_ftp_atoi(%d) failed\n", 3);
 		return 0;
 	}
 	if (*s == ')')
@@ -190,26 +235,39 @@ int dlen;
 		s += 2;
 		a6 = a5 & 0xff;
 	} else {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:missing cr-lf\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_port:missing %s\n", "cr-lf");
 		return 0;
 	}
+
 	a5 >>= 8;
 	a5 &= 0xff;
+	sp = a5 << 8 | a6;
+	/*
+	 * Don't allow the PORT command to specify a port < 1024 due to
+	 * security crap.
+	 */
+	if (sp < 1024) {
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_port:sp(%d) < 1024\n", sp);
+		return 0;
+	}
 	/*
 	 * Calculate new address parts for PORT command
 	 */
-	a1 = ntohl(ip->ip_src.s_addr);
+	if (nat->nat_dir == NAT_INBOUND)
+		a1 = ntohl(nat->nat_oip.s_addr);
+	else
+		a1 = ntohl(ip->ip_src.s_addr);
 	a2 = (a1 >> 16) & 0xff;
 	a3 = (a1 >> 8) & 0xff;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 	olen = s - f->ftps_rptr;
 	/* DO NOT change this to snprintf! */
-#if defined(OpenBSD) && (200311 >= 200311)
-	(void) snprintf(newbuf, sizeof(newbuf), "%s %u,%u,%u,%u,%u,%u\r\n",
-		        "PORT", a1, a2, a3, a4, a5, a6);
+#if defined(SNPRINTF) && defined(_KERNEL)
+	SNPRINTF(newbuf, sizeof(newbuf), "%s %u,%u,%u,%u,%u,%u\r\n",
+		 "PORT", a1, a2, a3, a4, a5, a6);
 #else
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
@@ -218,87 +276,34 @@ int dlen;
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
 	if ((inc + ip->ip_len) > 65535) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_port:inc(%d) + ip->ip_len > 65535\n", inc);
-#endif
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_port:inc(%d) + ip->ip_len > 65535\n",
+			       inc);
 		return 0;
 	}
 
 #if !defined(_KERNEL)
-	m = *fin->fin_mp;
-	bcopy(newbuf, (char *)m + off, nlen);
+	bcopy(newbuf, MTOD(m, char *) + off, nlen);
 #else
-# if SOLARIS
-	m = fin->fin_qfm;
-	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
-		;
-	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
-		mblk_t *nm;
-
-		/* alloc enough to keep same trailer space for lower driver */
-		nm = allocb(nlen, BPRI_MED);
-		PANIC((!nm),("ippr_ftp_out: allocb failed"));
-
-		nm->b_band = m1->b_band;
-		nm->b_wptr += nlen;
-
-		m1->b_wptr -= olen;
-		PANIC((m1->b_wptr < m1->b_rptr),
-		      ("ippr_ftp_out: cannot handle fragmented data block"));
-
-		linkb(m1, nm);
-	} else {
-		if (m1->b_datap->db_struiolim == m1->b_wptr)
-			m1->b_datap->db_struiolim += inc;
-		m1->b_datap->db_struioflag &= ~STRUIO_IP;
-		m1->b_wptr += inc;
-	}
-	copyin_mblk(m, off, nlen, newbuf);
-# else
-	m = *fin->fin_mp;
+# if defined(MENTAT)
+	if (inc < 0)
+		(void)adjmsg(m, inc);
+# else /* defined(MENTAT) */
+	/*
+	 * m_adj takes care of pkthdr.len, if required and treats inc<0 to
+	 * mean remove -len bytes from the end of the packet.
+	 * The mbuf chain will be extended if necessary by m_copyback().
+	 */
 	if (inc < 0)
 		m_adj(m, inc);
-	/* the mbuf chain will be extended if necessary by m_copyback() */
-	m_copyback(m, off, nlen, newbuf);
-#  ifdef	M_PKTHDR
-	if (!(m->m_flags & M_PKTHDR))
-		m->m_pkthdr.len += inc;
-#  endif
-# endif
-#endif
+# endif /* defined(MENTAT) */
+#endif /* !defined(_KERNEL) */
+	COPYBACK(m, off, nlen, newbuf);
+
 	if (inc != 0) {
-#if ((SOLARIS || defined(__sgi)) && defined(_KERNEL)) || !defined(_KERNEL)
-		register u_32_t	sum1, sum2;
-
-		sum1 = ip->ip_len;
-		sum2 = ip->ip_len + inc;
-
-		/* Because ~1 == -2, We really need ~1 == -1 */
-		if (sum1 > sum2)
-			sum2--;
-		sum2 -= sum1;
-		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
-
-		fix_outcksum(fin, &ip->ip_sum, sum2);
-#endif
 		ip->ip_len += inc;
-	}
-
-	/*
-	 * Add skeleton NAT entry for connection which will come back the
-	 * other way.
-	 */
-	sp = (a5 << 8 | a6);
-	/*
-	 * Don't allow the PORT command to specify a port < 1024 due to
-	 * security crap.
-	 */
-	if (sp < 1024) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_port:sp(%d) < 1024\n", sp);
-#endif
-		return 0;
+		fin->fin_dlen += inc;
+		fin->fin_plen += inc;
 	}
 
 	/*
@@ -307,11 +312,22 @@ int dlen;
 	 * mapping.
 	 */
 	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	fi.fin_state = NULL;
+	fi.fin_nat = NULL;
+	fi.fin_flx |= FI_IGNORE;
 	fi.fin_data[0] = sp;
 	fi.fin_data[1] = fin->fin_data[1] - 1;
-	ipn = nat_outlookup(&fi, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, 0);
-	if (ipn == NULL) {
+	/*
+	 * Add skeleton NAT entry for connection which will come back the
+	 * other way.
+	 */
+	if (nat->nat_dir == NAT_OUTBOUND)
+		nat2 = nat_outlookup(&fi, NAT_SEARCH|IPN_TCP, nat->nat_p,
+				     nat->nat_inip, nat->nat_oip);
+	else
+		nat2 = nat_inlookup(&fi, NAT_SEARCH|IPN_TCP, nat->nat_p,
+				    nat->nat_inip, nat->nat_oip);
+	if (nat2 == NULL) {
 		int slen;
 
 		slen = ip->ip_len;
@@ -319,28 +335,61 @@ int dlen;
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = htons(sp);
-		tcp2->th_off = 5;
+		TCP_OFF_A(tcp2, 5);
 		tcp2->th_flags = TH_SYN;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[1] = 0;
 		fi.fin_dlen = sizeof(*tcp2);
+		fi.fin_plen = fi.fin_hlen + sizeof(*tcp2);
 		fi.fin_dp = (char *)tcp2;
 		fi.fin_fr = &ftppxyfr;
-		fi.fin_out = 1;
+		fi.fin_out = nat->nat_dir;
+		fi.fin_flx &= FI_LOWTTL|FI_FRAG|FI_TCPUDP|FI_OPTIONS|FI_IGNORE;
 		swip = ip->ip_src;
-		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
-		ip->ip_src = nat->nat_inip;
-		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL, IPN_TCP|FI_W_DPORT,
-			      NAT_OUTBOUND);
-		if (ipn != NULL) {
-			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, NULL,
-					   FI_W_DPORT|FI_IGNOREPKT);
+		swip2 = ip->ip_dst;
+		if (nat->nat_dir == NAT_OUTBOUND) {
+			fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
+			ip->ip_src = nat->nat_inip;
+		} else if (nat->nat_dir == NAT_INBOUND) {
+			fi.fin_fi.fi_saddr = nat->nat_oip.s_addr;
+			ip->ip_src = nat->nat_oip;
+		}
+
+		flags = NAT_SLAVE|IPN_TCP|SI_W_DPORT;
+		if (nat->nat_dir == NAT_INBOUND)
+			flags |= NAT_NOTRULEPORT;
+		nat2 = nat_new(&fi, nat->nat_ptr, NULL, flags, nat->nat_dir);
+
+		if (nat2 != NULL) {
+			(void) nat_proto(&fi, nat2, IPN_TCP);
+			nat_update(&fi, nat2, nat->nat_ptr);
+			fi.fin_ifp = NULL;
+			if (nat->nat_dir == NAT_INBOUND) {
+				fi.fin_fi.fi_daddr = nat->nat_inip.s_addr;
+				ip->ip_dst = nat->nat_inip;
+			}
+			(void) fr_addstate(&fi, &nat2->nat_state, SI_W_DPORT);
+			if (fi.fin_state != NULL)
+				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
 		}
 		ip->ip_len = slen;
 		ip->ip_src = swip;
+		ip->ip_dst = swip2;
+	} else {
+		ipstate_t *is;
+
+		nat_update(&fi, nat2, nat->nat_ptr);
+		READ_ENTER(&ipf_state);
+		is = nat2->nat_state;
+		if (is != NULL) {
+			MUTEX_ENTER(&is->is_lock);
+			(void)fr_tcp_age(&is->is_sti, &fi, ips_tqtqb,
+					 is->is_flags);
+			MUTEX_EXIT(&is->is_lock);
+		}
+		RWLOCK_EXIT(&ipf_state);
 	}
-	return inc;
+	return APR_INC(inc);
 }
 
 
@@ -362,8 +411,8 @@ int dlen;
 
 	for (i = 0; (i < 5) && (i < dlen); i++) {
 		c = rptr[i];
-		if (isalpha(c)) {
-			cmd[i] = toupper(c);
+		if (ISALPHA(c)) {
+			cmd[i] = TOUPPER(c);
 		} else {
 			cmd[i] = c;
 		}
@@ -422,23 +471,17 @@ nat_t *nat;
 ftpinfo_t *ftp;
 int dlen;
 {
-	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
-	struct in_addr swip, swip2;
-	u_int a1, a2, a3, a4;
-	u_short a5, a6, dp;
-	fr_info_t fi;
+	u_int a1, a2, a3, a4, data_ip;
+	char newbuf[IPF_FTPBUFSZ];
+	char *s, *brackets[2];
+	u_short a5, a6;
 	ftpside_t *f;
-	nat_t *ipn;
-	int inc;
-	char *s;
 
 	if (ippr_ftp_forcepasv != 0 &&
 	    ftp->ftp_side[0].ftps_cmds != FTPXY_C_PASV) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_pasv:ftps_cmds(%d) != FTPXY_C_PASV\n",
-			ftp->ftp_side[0].ftps_cmds);
-#endif
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_pasv:ftps_cmds(%d) != FTPXY_C_PASV\n",
+			       ftp->ftp_side[0].ftps_cmds);
 		return 0;
 	}
 
@@ -449,63 +492,67 @@ int dlen;
 	 * Check for PASV reply message.
 	 */
 	if (dlen < IPF_MIN227LEN) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_pasv:dlen(%d) < IPF_MIN227LEN\n", dlen);
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_pasv:dlen(%d) < IPF_MIN227LEN\n",
+			       dlen);
 		return 0;
 	} else if (strncmp(f->ftps_rptr,
 			   "227 Entering Passive Mod", PASV_REPLEN)) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:227 reply wrong\n");
-#endif
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_pasv:%d reply wrong\n", 227);
 		return 0;
 	}
 
-	tcp = (tcphdr_t *)fin->fin_dp;
-
+	brackets[0] = "";
+	brackets[1] = "";
 	/*
 	 * Skip the PASV reply + space
 	 */
 	s = f->ftps_rptr + PASV_REPLEN;
-	while (*s && !isdigit(*s))
+	while (*s && !ISDIGIT(*s)) {
+		if (*s == '(') {
+			brackets[0] = "(";
+			brackets[1] = ")";
+		}
 		s++;
+	}
+
 	/*
 	 * Pick out the address components, two at a time.
 	 */
 	a1 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:ippr_ftp_atoi(1) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_pasv:ippr_ftp_atoi(%d) failed\n", 1);
 		return 0;
 	}
 	a2 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:ippr_ftp_atoi(2) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_pasv:ippr_ftp_atoi(%d) failed\n", 2);
 		return 0;
 	}
 
 	/*
-	 * check that IP address in the PORT/PASV reply is the same as the
-	 * sender of the command - prevents using PORT for port scanning.
+	 * check that IP address in the PASV reply is the same as the
+	 * sender of the command - prevents using PASV for port scanning.
 	 */
 	a1 <<= 16;
 	a1 |= a2;
-	if (a1 != ntohl(nat->nat_oip.s_addr)) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:a1 != nat->nat_oip\n");
-#endif
+
+	if (((nat->nat_dir == NAT_INBOUND) &&
+	     (a1 != ntohl(nat->nat_inip.s_addr))) ||
+	    ((nat->nat_dir == NAT_OUTBOUND) &&
+	     (a1 != ntohl(nat->nat_oip.s_addr)))) {
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_pasv:%s != nat->nat_oip\n", "a1");
 		return 0;
 	}
 
 	a5 = ippr_ftp_atoi(&s);
 	if (s == NULL) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:ippr_ftp_atoi(3) failed\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_pasv:ippr_ftp_atoi(%d) failed\n", 3);
 		return 0;
 	}
 
@@ -520,97 +567,123 @@ int dlen;
 	 */
 	if ((*s == '\r') && (*(s + 1) == '\n')) {
 		s += 2;
-		a6 = a5 & 0xff;
 	} else {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_pasv:missing cr-lf\n");
-#endif
+		if (ippr_ftp_debug > 1)
+			printf("ippr_ftp_pasv:missing %s", "cr-lf\n");
 		return 0;
 	}
+
+	a6 = a5 & 0xff;
 	a5 >>= 8;
 	/*
 	 * Calculate new address parts for 227 reply
 	 */
-	a1 = ntohl(ip->ip_src.s_addr);
+	if (nat->nat_dir == NAT_INBOUND) {
+		data_ip = nat->nat_outip.s_addr;
+		a1 = ntohl(data_ip);
+	} else
+		data_ip = htonl(a1);
+
 	a2 = (a1 >> 16) & 0xff;
 	a3 = (a1 >> 8) & 0xff;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
+
+#if defined(SNPRINTF) && defined(_KERNEL)
+	SNPRINTF(newbuf, sizeof(newbuf), "%s %s%u,%u,%u,%u,%u,%u%s\r\n",
+		"227 Entering Passive Mode", brackets[0], a1, a2, a3, a4,
+		a5, a6, brackets[1]);
+#else
+	(void) sprintf(newbuf, "%s %s%u,%u,%u,%u,%u,%u%s\r\n",
+		"227 Entering Passive Mode", brackets[0], a1, a2, a3, a4,
+		a5, a6, brackets[1]);
+#endif
+	return ippr_ftp_pasvreply(fin, ip, nat, f, (a5 << 8 | a6),
+				  newbuf, s, data_ip);
+}
+
+int ippr_ftp_pasvreply(fin, ip, nat, f, port, newmsg, s, data_ip)
+fr_info_t *fin;
+ip_t *ip;
+nat_t *nat;
+ftpside_t *f;
+u_int port;
+char *newmsg;
+char *s;
+u_int data_ip;
+{
+	int inc, off, nflags, sflags;
+	tcphdr_t *tcp, tcph, *tcp2;
+	struct in_addr swip, swip2;
+	struct in_addr data_addr;
+	size_t nlen, olen;
+	fr_info_t fi;
+	nat_t *nat2;
+	mb_t *m;
+
+	m = fin->fin_m;
+	tcp = (tcphdr_t *)fin->fin_dp;
+	off = (char *)tcp - (char *)ip + (TCP_OFF(tcp) << 2) + fin->fin_ipoff;
+
+	data_addr.s_addr = data_ip;
+	tcp2 = &tcph;
 	inc = 0;
-#if 0
+
+
 	olen = s - f->ftps_rptr;
-	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
-		       "227 Entering Passive Mode", a1, a2, a3, a4, a5, a6);
-	nlen = strlen(newbuf);
+	nlen = strlen(newmsg);
 	inc = nlen - olen;
-	if ((inc + ip->ip_len) > 65535)
+	if ((inc + ip->ip_len) > 65535) {
+		if (ippr_ftp_debug > 0)
+			printf("ippr_ftp_pasv:inc(%d) + ip->ip_len > 65535\n",
+			       inc);
 		return 0;
+	}
 
 #if !defined(_KERNEL)
-	m = *fin->fin_mp;
-	m_copyback(m, off, nlen, newbuf);
+	bcopy(newmsg, MTOD(m, char *) + off, nlen);
 #else
-# if SOLARIS
-	m = fin->fin_qfm;
-	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
-		;
-	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
-		mblk_t *nm;
-
-		/* alloc enough to keep same trailer space for lower driver */
-		nm = allocb(nlen, BPRI_MED);
-		PANIC((!nm),("ippr_ftp_out: allocb failed"));
-
-		nm->b_band = m1->b_band;
-		nm->b_wptr += nlen;
-
-		m1->b_wptr -= olen;
-		PANIC((m1->b_wptr < m1->b_rptr),
-		      ("ippr_ftp_out: cannot handle fragmented data block"));
-
-		linkb(m1, nm);
-	} else {
-		m1->b_wptr += inc;
-	}
-	/*copyin_mblk(m, off, nlen, newbuf);*/
-# else /* SOLARIS */
-	m = *fin->fin_mp;
+# if defined(MENTAT)
+	if (inc < 0)
+		(void)adjmsg(m, inc);
+# else /* defined(MENTAT) */
+	/*
+	 * m_adj takes care of pkthdr.len, if required and treats inc<0 to
+	 * mean remove -len bytes from the end of the packet.
+	 * The mbuf chain will be extended if necessary by m_copyback().
+	 */
 	if (inc < 0)
 		m_adj(m, inc);
-	/* the mbuf chain will be extended if necessary by m_copyback() */
-	/*m_copyback(m, off, nlen, newbuf);*/
-# endif /* SOLARIS */
-#endif /* _KERNEL */
+# endif /* defined(MENTAT) */
+#endif /* !defined(_KERNEL) */
+	COPYBACK(m, off, nlen, newmsg);
+
 	if (inc != 0) {
-#if ((SOLARIS || defined(__sgi)) && defined(_KERNEL)) || !defined(_KERNEL)
-		register u_32_t	sum1, sum2;
-
-		sum1 = ip->ip_len;
-		sum2 = ip->ip_len + inc;
-
-		/* Because ~1 == -2, We really need ~1 == -1 */
-		if (sum1 > sum2)
-			sum2--;
-		sum2 -= sum1;
-		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
-
-		fix_outcksum(fin, &ip->ip_sum, sum2);
-#endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
+		fin->fin_dlen += inc;
+		fin->fin_plen += inc;
 	}
-#endif /* 0 */
 
 	/*
 	 * Add skeleton NAT entry for connection which will come back the
 	 * other way.
 	 */
 	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	fi.fin_state = NULL;
+	fi.fin_nat = NULL;
+	fi.fin_flx |= FI_IGNORE;
 	fi.fin_data[0] = 0;
-	dp = htons(fin->fin_data[1] - 1);
-	fi.fin_data[1] = ntohs(dp);
-	ipn = nat_outlookup(&fi, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, 0);
-	if (ipn == NULL) {
+	fi.fin_data[1] = port;
+	nflags = IPN_TCP|SI_W_SPORT;
+	if (ippr_ftp_pasvrdr && f->ftps_ifp)
+		nflags |= SI_W_DPORT;
+	if (nat->nat_dir == NAT_OUTBOUND)
+		nat2 = nat_outlookup(&fi, nflags|NAT_SEARCH,
+				     nat->nat_p, nat->nat_inip, nat->nat_oip);
+	else
+		nat2 = nat_inlookup(&fi, nflags|NAT_SEARCH,
+				    nat->nat_p, nat->nat_inip, nat->nat_oip);
+	if (nat2 == NULL) {
 		int slen;
 
 		slen = ip->ip_len;
@@ -618,31 +691,65 @@ int dlen;
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
-		tcp2->th_off = 5;
+		TCP_OFF_A(tcp2, 5);
 		tcp2->th_flags = TH_SYN;
-		fi.fin_data[1] = a5 << 8 | a6;
+		fi.fin_data[1] = port;
 		fi.fin_dlen = sizeof(*tcp2);
-		tcp2->th_dport = htons(fi.fin_data[1]);
+		tcp2->th_dport = htons(port);
 		fi.fin_data[0] = 0;
 		fi.fin_dp = (char *)tcp2;
+		fi.fin_plen = fi.fin_hlen + sizeof(*tcp);
 		fi.fin_fr = &ftppxyfr;
-		fi.fin_out = 1;
+		fi.fin_out = nat->nat_dir;
+		fi.fin_flx &= FI_LOWTTL|FI_FRAG|FI_TCPUDP|FI_OPTIONS|FI_IGNORE;
 		swip = ip->ip_src;
 		swip2 = ip->ip_dst;
-		fi.fin_fi.fi_daddr = ip->ip_src.s_addr;
-		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
-		ip->ip_dst = ip->ip_src;
-		ip->ip_src = nat->nat_inip;
-		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL, IPN_TCP|FI_W_SPORT,
-			      NAT_OUTBOUND);
-		if (ipn != NULL) {
-			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, NULL,
-					   FI_W_SPORT|FI_IGNOREPKT);
+		if (nat->nat_dir == NAT_OUTBOUND) {
+			fi.fin_fi.fi_daddr = data_addr.s_addr;
+			fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
+			ip->ip_dst = data_addr;
+			ip->ip_src = nat->nat_inip;
+		} else if (nat->nat_dir == NAT_INBOUND) {
+			fi.fin_fi.fi_saddr = nat->nat_oip.s_addr;
+			fi.fin_fi.fi_daddr = nat->nat_outip.s_addr;
+			ip->ip_src = nat->nat_oip;
+			ip->ip_dst = nat->nat_outip;
 		}
+
+		sflags = nflags;
+		nflags |= NAT_SLAVE;
+		if (nat->nat_dir == NAT_INBOUND)
+			nflags |= NAT_NOTRULEPORT;
+		nat2 = nat_new(&fi, nat->nat_ptr, NULL, nflags, nat->nat_dir);
+		if (nat2 != NULL) {
+			(void) nat_proto(&fi, nat2, IPN_TCP);
+			nat_update(&fi, nat2, nat->nat_ptr);
+			fi.fin_ifp = NULL;
+			if (nat->nat_dir == NAT_INBOUND) {
+				fi.fin_fi.fi_daddr = nat->nat_inip.s_addr;
+				ip->ip_dst = nat->nat_inip;
+			}
+			(void) fr_addstate(&fi, &nat2->nat_state, sflags);
+			if (fi.fin_state != NULL)
+				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
+		}
+
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 		ip->ip_dst = swip2;
+	} else {
+		ipstate_t *is;
+
+		nat_update(&fi, nat2, nat->nat_ptr);
+		READ_ENTER(&ipf_state);
+		is = nat2->nat_state;
+		if (is != NULL) {
+			MUTEX_ENTER(&is->is_lock);
+			(void)fr_tcp_age(&is->is_sti, &fi, ips_tqtqb,
+					 is->is_flags);
+			MUTEX_EXIT(&is->is_lock);
+		}
+		RWLOCK_EXIT(&ipf_state);
 	}
 	return inc;
 }
@@ -664,13 +771,19 @@ int dlen;
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
 
-	if (!isdigit(*rptr) || !isdigit(*(rptr + 1)) || !isdigit(*(rptr + 2)))
+	if (*rptr == ' ')
+		goto server_cmd_ok;
+	if (!ISDIGIT(*rptr) || !ISDIGIT(*(rptr + 1)) || !ISDIGIT(*(rptr + 2)))
 		return 0;
 	if (ftp->ftp_passok == FTPXY_GO) {
 		if (!strncmp(rptr, "227 ", 4))
 			inc = ippr_ftp_pasv(fin, ip, nat, ftp, dlen);
+		else if (!strncmp(rptr, "229 ", 4))
+			inc = ippr_ftp_epsv(fin, ip, nat, f, dlen);
 	} else if (ippr_ftp_insecure && !strncmp(rptr, "227 ", 4)) {
 		inc = ippr_ftp_pasv(fin, ip, nat, ftp, dlen);
+	} else if (ippr_ftp_insecure && !strncmp(rptr, "229 ", 4)) {
+		inc = ippr_ftp_epsv(fin, ip, nat, f, dlen);
 	} else if (*rptr == '5' || *rptr == '4')
 		ftp->ftp_passok = FTPXY_INIT;
 	else if (ftp->ftp_incok) {
@@ -695,6 +808,7 @@ int dlen;
 			}
 		}
 	}
+server_cmd_ok:
 	ftp->ftp_incok = 0;
 
 	while ((*rptr++ != '\n') && (rptr < wptr))
@@ -713,35 +827,38 @@ ftpside_t *ftps;
 char *buf;
 size_t len;
 {
-	register char *s, c;
+	register char *s, c, pc;
 	register size_t i = len;
 	char cmd[5];
 
+	s = buf;
+
+	if (ftps->ftps_junk == 1)
+		return 1;
+
 	if (i < 5) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_client_valid:i(%lu) < 5\n",
-			(u_long)i);
-#endif
+		if (ippr_ftp_debug > 3)
+			printf("ippr_ftp_client_valid:i(%d) < 5\n", (int)i);
 		return 2;
 	}
-	s = buf;
-	c = *s++;
-	i--;
 
-	if (isalpha(c)) {
-		cmd[0] = toupper(c);
+	i--;
+	c = *s++;
+
+	if (ISALPHA(c)) {
+		cmd[0] = TOUPPER(c);
 		c = *s++;
 		i--;
-		if (isalpha(c)) {
-			cmd[1] = toupper(c);
+		if (ISALPHA(c)) {
+			cmd[1] = TOUPPER(c);
 			c = *s++;
 			i--;
-			if (isalpha(c)) {
-				cmd[2] = toupper(c);
+			if (ISALPHA(c)) {
+				cmd[2] = TOUPPER(c);
 				c = *s++;
 				i--;
-				if (isalpha(c)) {
-					cmd[3] = toupper(c);
+				if (ISALPHA(c)) {
+					cmd[3] = TOUPPER(c);
 					c = *s++;
 					i--;
 					if ((c != ' ') && (c != '\r'))
@@ -754,17 +871,18 @@ size_t len;
 			goto bad_client_command;
 	} else {
 bad_client_command:
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_client_valid:bad cmd:len %lu i %lu c 0x%x\n",
-			(u_long)i, (u_long)len, c);
-#endif
+		if (ippr_ftp_debug > 3)
+			printf("%s:bad:junk %d len %d/%d c 0x%x buf [%*.*s]\n",
+			       "ippr_ftp_client_valid",
+			       ftps->ftps_junk, (int)len, (int)i, c,
+			       (int)len, (int)len, buf);
 		return 1;
 	}
 
 	for (; i; i--) {
+		pc = c;
 		c = *s++;
-		if (c == '\n') {
+		if ((pc == '\r') && (c == '\n')) {
 			cmd[4] = '\0';
 			if (!strcmp(cmd, "PASV"))
 				ftps->ftps_cmds = FTPXY_C_PASV;
@@ -773,8 +891,9 @@ bad_client_command:
 			return 0;
 		}
 	}
-#if !defined(_KERNEL) && !defined(KERNEL)
-	fprintf(stdout, "ippr_ftp_client_valid:junk after cmd[%s]\n", buf);
+#if !defined(_KERNEL)
+	printf("ippr_ftp_client_valid:junk after cmd[%*.*s]\n",
+	       (int)len, (int)len, buf);
 #endif
 	return 2;
 }
@@ -785,26 +904,36 @@ ftpside_t *ftps;
 char *buf;
 size_t len;
 {
-	register char *s, c;
+	register char *s, c, pc;
 	register size_t i = len;
 	int cmd;
 
-	if (i < 5)
-		return 2;
 	s = buf;
-	c = *s++;
 	cmd = 0;
-	i--;
 
-	if (isdigit(c)) {
+	if (ftps->ftps_junk == 1)
+		return 1;
+
+	if (i < 5) {
+		if (ippr_ftp_debug > 3)
+			printf("ippr_ftp_servert_valid:i(%d) < 5\n", (int)i);
+		return 2;
+	}
+
+	c = *s++;
+	i--;
+	if (c == ' ')
+		goto search_eol;
+
+	if (ISDIGIT(c)) {
 		cmd = (c - '0') * 100;
 		c = *s++;
 		i--;
-		if (isdigit(c)) {
+		if (ISDIGIT(c)) {
 			cmd += (c - '0') * 10;
 			c = *s++;
 			i--;
-			if (isdigit(c)) {
+			if (ISDIGIT(c)) {
 				cmd += (c - '0');
 				c = *s++;
 				i--;
@@ -816,24 +945,25 @@ size_t len;
 			goto bad_server_command;
 	} else {
 bad_server_command:
-#if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout,
-			"ippr_ftp_server_valid:bad cmd:len %lu i %lu c 0x%x\n",
-			(u_long)i, (u_long)len, c);
-#endif
+		if (ippr_ftp_debug > 3)
+			printf("%s:bad:junk %d len %d/%d c 0x%x buf [%*.*s]\n",
+			       "ippr_ftp_server_valid",
+			       ftps->ftps_junk, (int)len, (int)i,
+			       c, (int)len, (int)len, buf);
 		return 1;
 	}
-
+search_eol:
 	for (; i; i--) {
+		pc = c;
 		c = *s++;
-		if (c == '\n') {
+		if ((pc == '\r') && (c == '\n')) {
 			ftps->ftps_cmds = cmd;
 			return 0;
 		}
 	}
-#if !defined(_KERNEL) && !defined(KERNEL)
-	fprintf(stdout, "ippr_ftp_server_valid:junk after cmd[%s]\n", buf);
-#endif
+	if (ippr_ftp_debug > 3)
+		printf("ippr_ftp_server_valid:junk after cmd[%*.*s]\n",
+		       (int)len, (int)len, buf);
 	return 2;
 }
 
@@ -858,48 +988,54 @@ size_t len;
 
 
 /*
+ * For map rules, the following applies:
  * rv == 0 for outbound processing,
  * rv == 1 for inbound processing.
+ * For rdr rules, the following applies:
+ * rv == 0 for inbound processing,
+ * rv == 1 for outbound processing.
  */
-int ippr_ftp_process(fin, ip, nat, ftp, rv)
+int ippr_ftp_process(fin, nat, ftp, rv)
 fr_info_t *fin;
-ip_t *ip;
 nat_t *nat;
 ftpinfo_t *ftp;
 int rv;
 {
 	int mlen, len, off, inc, i, sel, sel2, ok, ackoff, seqoff;
+	char *rptr, *wptr, *s;
 	u_32_t thseq, thack;
-	char *rptr, *wptr;
 	ap_session_t *aps;
 	ftpside_t *f, *t;
 	tcphdr_t *tcp;
+	ip_t *ip;
 	mb_t *m;
 
+	m = fin->fin_m;
+	ip = fin->fin_ip;
 	tcp = (tcphdr_t *)fin->fin_dp;
-	off = fin->fin_hlen + (tcp->th_off << 2);
-#if	SOLARIS && defined(_KERNEL)
-	m = fin->fin_qfm;
-#else
-	m = *fin->fin_mp;
-#endif
+	off = (char *)tcp - (char *)ip + (TCP_OFF(tcp) << 2) + fin->fin_ipoff;
 
-#ifndef	_KERNEL
-	mlen = mbuflen(m);
-#else
-# if	SOLARIS
-	mlen = msgdsize(m);
-# else
-	mlen = mbufchainlen(m);
-# endif
-#endif
-	mlen -= off;
-
-	aps = nat->nat_aps;
-	t = &ftp->ftp_side[1 - rv];
 	f = &ftp->ftp_side[rv];
+	t = &ftp->ftp_side[1 - rv];
 	thseq = ntohl(tcp->th_seq);
 	thack = ntohl(tcp->th_ack);
+
+#ifdef __sgi
+	mlen = fin->fin_plen - off;
+#else
+	mlen = MSGDSIZE(m) - off;
+#endif
+	if (ippr_ftp_debug > 4)
+		printf("ippr_ftp_process: mlen %d\n", mlen);
+
+	if (mlen <= 0) {
+		if ((tcp->th_flags & TH_OPENING) == TH_OPENING) {
+			f->ftps_seq[0] = thseq + 1;
+			t->ftps_seq[0] = thack;
+		}
+		return 0;
+	}
+	aps = nat->nat_aps;
 
 	sel = aps->aps_sel[1 - rv];
 	sel2 = aps->aps_sel[rv];
@@ -911,19 +1047,17 @@ int rv;
 		if (aps->aps_ackmin[sel2] > ackoff + thack)
 			ackoff = aps->aps_ackoff[!sel2];
 	} else {
-#if PROXY_DEBUG
-		printf("seqoff %d thseq %x ackmin %x\n", seqoff, thseq,
-			aps->aps_ackmin[sel]);
-#endif
 		seqoff = aps->aps_ackoff[sel];
+		if (ippr_ftp_debug > 2)
+			printf("seqoff %d thseq %x ackmin %x\n", seqoff, thseq,
+			       aps->aps_ackmin[sel]);
 		if (aps->aps_ackmin[sel] > seqoff + thseq)
 			seqoff = aps->aps_ackoff[!sel];
 
-#if PROXY_DEBUG
-		printf("ackoff %d thack %x seqmin %x\n", ackoff, thack,
-			aps->aps_seqmin[sel2]);
-#endif
 		ackoff = aps->aps_seqoff[sel2];
+		if (ippr_ftp_debug > 2)
+			printf("ackoff %d thack %x seqmin %x\n", ackoff, thack,
+			       aps->aps_seqmin[sel2]);
 		if (ackoff > 0) {
 			if (aps->aps_seqmin[sel2] > ackoff + thack)
 				ackoff = aps->aps_seqoff[!sel2];
@@ -932,26 +1066,27 @@ int rv;
 				ackoff = aps->aps_seqoff[!sel2];
 		}
 	}
-#if PROXY_DEBUG
-	printf("%s: %x seq %x/%d ack %x/%d len %d\n", rv ? "IN" : "OUT",
-		tcp->th_flags, thseq, seqoff, thack, ackoff, mlen);
-	printf("sel %d seqmin %x/%x offset %d/%d\n", sel,
-		aps->aps_seqmin[sel], aps->aps_seqmin[sel2],
-		aps->aps_seqoff[sel], aps->aps_seqoff[sel2]);
-	printf("sel %d ackmin %x/%x offset %d/%d\n", sel2,
-		aps->aps_ackmin[sel], aps->aps_ackmin[sel2],
-		aps->aps_ackoff[sel], aps->aps_ackoff[sel2]);
-#endif
+	if (ippr_ftp_debug > 2) {
+		printf("%s: %x seq %x/%d ack %x/%d len %d/%d off %d\n",
+		       rv ? "IN" : "OUT", tcp->th_flags, thseq, seqoff,
+		       thack, ackoff, mlen, fin->fin_plen, off);
+		printf("sel %d seqmin %x/%x offset %d/%d\n", sel,
+		       aps->aps_seqmin[sel], aps->aps_seqmin[sel2],
+		       aps->aps_seqoff[sel], aps->aps_seqoff[sel2]);
+		printf("sel %d ackmin %x/%x offset %d/%d\n", sel2,
+		       aps->aps_ackmin[sel], aps->aps_ackmin[sel2],
+		       aps->aps_ackoff[sel], aps->aps_ackoff[sel2]);
+	}
 
 	/*
 	 * XXX - Ideally, this packet should get dropped because we now know
 	 * that it is out of order (and there is no real danger in doing so
 	 * apart from causing packets to go through here ordered).
 	 */
-#if PROXY_DEBUG
-	printf("rv %d t:seq[0] %x seq[1] %x %d/%d\n",
-		rv, t->ftps_seq[0], t->ftps_seq[1], seqoff, ackoff);
-#endif
+	if (ippr_ftp_debug > 2) {
+		printf("rv %d t:seq[0] %x seq[1] %x %d/%d\n",
+		       rv, t->ftps_seq[0], t->ftps_seq[1], seqoff, ackoff);
+	}
 
 	ok = 0;
 	if (t->ftps_seq[0] == 0) {
@@ -980,33 +1115,35 @@ int rv;
 		}
 	}
 
-#if PROXY_DEBUG
-	if (!ok)
-		printf("not  ok\n");
-#endif
+	if (ippr_ftp_debug > 2) {
+		if (!ok)
+			printf("%s ok\n", "not");
+	}
 
 	if (!mlen) {
 		if (t->ftps_seq[0] + ackoff != thack) {
-#if !defined(_KERNEL) && !defined(KERNEL)
-			fprintf(stdout,
-		"ippr_ftp_process:seq[0](%x) + ackoff(%x) != thack(%x)\n",
-				t->ftps_seq[0], ackoff, thack);
-#endif
+			if (ippr_ftp_debug > 1) {
+				printf("%s:seq[0](%x) + (%x) != (%x)\n",
+				       "ippr_ftp_process", t->ftps_seq[0],
+				       ackoff, thack);
+			}
 			return APR_ERR(1);
 		}
 
-#if PROXY_DEBUG
-	printf("f:seq[0] %x seq[1] %x\n", f->ftps_seq[0], f->ftps_seq[1]);
-#endif
+		if (ippr_ftp_debug > 2) {
+			printf("ippr_ftp_process:f:seq[0] %x seq[1] %x\n",
+				f->ftps_seq[0], f->ftps_seq[1]);
+		}
+
 		if (tcp->th_flags & TH_FIN) {
 			if (thseq == f->ftps_seq[1]) {
 				f->ftps_seq[0] = f->ftps_seq[1] - seqoff;
 				f->ftps_seq[1] = thseq + 1 - seqoff;
 			} else {
-#if PROXY_DEBUG || (!defined(_KERNEL) && !defined(KERNEL))
-				printf("FIN: thseq %x seqoff %d ftps_seq %x\n",
-					thseq, seqoff, f->ftps_seq[0]);
-#endif
+				if (ippr_ftp_debug > 1) {
+					printf("FIN: thseq %x seqoff %d ftps_seq %x\n",
+					       thseq, seqoff, f->ftps_seq[0]);
+				}
 				return APR_ERR(1);
 			}
 		}
@@ -1027,15 +1164,15 @@ int rv;
 
 	if (ok == 0) {
 		inc = thseq - f->ftps_seq[0];
-#if PROXY_DEBUG || (!defined(_KERNEL) && !defined(KERNEL))
-		printf("inc %d sel %d rv %d\n", inc, sel, rv);
-		printf("th_seq %x ftps_seq %x/%x\n", thseq, f->ftps_seq[0],
-			f->ftps_seq[1]);
-		printf("ackmin %x ackoff %d\n", (u_int)aps->aps_ackmin[sel],
-			aps->aps_ackoff[sel]);
-		printf("seqmin %x seqoff %d\n", (u_int)aps->aps_seqmin[sel],
-			aps->aps_seqoff[sel]);
-#endif
+		if (ippr_ftp_debug > 1) {
+			printf("inc %d sel %d rv %d\n", inc, sel, rv);
+			printf("th_seq %x ftps_seq %x/%x\n",
+			       thseq, f->ftps_seq[0], f->ftps_seq[1]);
+			printf("ackmin %x ackoff %d\n", aps->aps_ackmin[sel],
+			       aps->aps_ackoff[sel]);
+			printf("seqmin %x seqoff %d\n", aps->aps_seqmin[sel],
+			       aps->aps_seqoff[sel]);
+		}
 
 		return APR_ERR(1);
 	}
@@ -1048,31 +1185,62 @@ int rv;
 	f->ftps_len = mlen;
 
 	while (mlen > 0) {
-		len = MIN(mlen, FTP_BUFSZ / 2);
-
-#if !defined(_KERNEL)
-		bcopy((char *)m + off, wptr, len);
-#else
-# if SOLARIS
-		copyout_mblk(m, off, len, wptr);
-# else
-		m_copydata(m, off, len, wptr);
-# endif
-#endif
+		len = MIN(mlen, sizeof(f->ftps_buf) - (wptr - rptr));
+		COPYDATA(m, off, len, wptr);
 		mlen -= len;
 		off += len;
 		wptr += len;
+
+		if (ippr_ftp_debug > 3)
+			printf("%s:len %d/%d off %d wptr %lx junk %d [%*.*s]\n",
+			       "ippr_ftp_process",
+			       len, mlen, off, (u_long)wptr, f->ftps_junk,
+			       len, len, rptr);
+
 		f->ftps_wptr = wptr;
-		if (f->ftps_junk == 2)
+		if (f->ftps_junk != 0) {
+			i = f->ftps_junk;
 			f->ftps_junk = ippr_ftp_valid(ftp, rv, rptr,
 						      wptr - rptr);
 
+			if (ippr_ftp_debug > 5)
+				printf("%s:junk %d -> %d\n",
+				       "ippr_ftp_process", i, f->ftps_junk);
+
+			if (f->ftps_junk != 0) {
+				if (wptr - rptr == sizeof(f->ftps_buf)) {
+					if (ippr_ftp_debug > 4)
+						printf("%s:full buffer\n",
+						       "ippr_ftp_process");
+					f->ftps_rptr = f->ftps_buf;
+					f->ftps_wptr = f->ftps_buf;
+					rptr = f->ftps_rptr;
+					wptr = f->ftps_wptr;
+					/*
+					 * Because we throw away data here that
+					 * we would otherwise parse, set the
+					 * junk flag to indicate just ignore
+					 * any data upto the next CRLF.
+					 */
+					f->ftps_junk = 1;
+					continue;
+				}
+			}
+		}
+
 		while ((f->ftps_junk == 0) && (wptr > rptr)) {
-			f->ftps_junk = ippr_ftp_valid(ftp, rv, rptr,
-						      wptr - rptr);
+			len = wptr - rptr;
+			f->ftps_junk = ippr_ftp_valid(ftp, rv, rptr, len);
+
+			if (ippr_ftp_debug > 3) {
+				printf("%s=%d len %d rv %d ptr %lx/%lx ",
+				       "ippr_ftp_valid",
+				       f->ftps_junk, len, rv, (u_long)rptr,
+				       (u_long)wptr);
+				printf("buf [%*.*s]\n", len, len, rptr);
+			}
+
 			if (f->ftps_junk == 0) {
-				f->ftps_cmds++;
-				len = wptr - rptr;
 				f->ftps_rptr = rptr;
 				if (rv)
 					inc += ippr_ftp_server(fin, ip, nat,
@@ -1091,66 +1259,56 @@ int rv;
 		 */
 		if ((f->ftps_cmds == 0) && (f->ftps_junk == 1)) {
 			/* f->ftps_seq[1] += inc; */
-#if !defined(_KERNEL) && !defined(KERNEL)
-			fprintf(stdout,
-				"ippr_ftp_process:cmds == 0 junk == 1\n");
-#endif
+
+			if (ippr_ftp_debug > 1)
+				printf("%s:cmds == 0 junk == 1\n",
+				       "ippr_ftp_process");
 			return APR_ERR(2);
 		}
 
-		while ((f->ftps_junk == 1) && (rptr < wptr)) {
-			while ((rptr < wptr) && (*rptr != '\r'))
-				rptr++;
-
-			if (*rptr == '\r') {
-				if (rptr + 1 < wptr) {
-					if (*(rptr + 1) == '\n') {
-						rptr += 2;
-						f->ftps_junk = 0;
-					} else
-						rptr++;
-				} else
+		if ((f->ftps_junk != 0) && (rptr < wptr)) {
+			for (s = rptr; s < wptr; s++) {
+				if ((*s == '\r') && (s + 1 < wptr) &&
+				    (*(s + 1) == '\n')) {
+					rptr = s + 2;
+					f->ftps_junk = 0;
 					break;
+				}
 			}
 		}
-		f->ftps_rptr = rptr;
 
 		if (rptr == wptr) {
 			rptr = wptr = f->ftps_buf;
 		} else {
-			if ((wptr > f->ftps_buf + FTP_BUFSZ / 2)) {
-				i = wptr - rptr;
-				if ((rptr == f->ftps_buf) ||
-				    (wptr - rptr > FTP_BUFSZ / 2)) {
-					f->ftps_junk = 1;
-					rptr = wptr = f->ftps_buf;
-				} else {
-					bcopy(rptr, f->ftps_buf, i);
-					wptr = f->ftps_buf + i;
-					rptr = f->ftps_buf;
-				}
+			/*
+			 * Compact the buffer back to the start.  The junk
+			 * flag should already be set and because we're not
+			 * throwing away any data, it is preserved from its
+			 * current state.
+			 */
+			if (rptr > f->ftps_buf) {
+				bcopy(rptr, f->ftps_buf, len);
+				wptr -= rptr - f->ftps_buf;
+				rptr = f->ftps_buf;
 			}
-			f->ftps_rptr = rptr;
-			f->ftps_wptr = wptr;
 		}
+		f->ftps_rptr = rptr;
+		f->ftps_wptr = wptr;
 	}
 
 	/* f->ftps_seq[1] += inc; */
 	if (tcp->th_flags & TH_FIN)
 		f->ftps_seq[1]++;
-#if PROXY_DEBUG
-# ifndef	_KERNEL
-	mlen = mbuflen(m);
-# else
-#  if	SOLARIS
-	mlen = msgdsize(m);
-#  else
-	mlen = mbufchainlen(m);
-#  endif
-# endif
-	mlen -= off;
-	printf("ftps_seq[1] = %x inc %d len %d\n", f->ftps_seq[1], inc, mlen);
+	if (ippr_ftp_debug > 3) {
+#ifdef __sgi
+		mlen = fin->fin_plen;
+#else
+		mlen = MSGDSIZE(m);
 #endif
+		mlen -= off;
+		printf("ftps_seq[1] = %x inc %d len %d\n",
+		       f->ftps_seq[1], inc, mlen);
+	}
 
 	f->ftps_rptr = rptr;
 	f->ftps_wptr = wptr;
@@ -1158,33 +1316,43 @@ int rv;
 }
 
 
-int ippr_ftp_out(fin, ip, aps, nat)
+int ippr_ftp_out(fin, aps, nat)
 fr_info_t *fin;
-ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
 	ftpinfo_t *ftp;
+	int rev;
 
 	ftp = aps->aps_data;
 	if (ftp == NULL)
 		return 0;
-	return ippr_ftp_process(fin, ip, nat, ftp, 0);
+
+	rev = (nat->nat_dir == NAT_OUTBOUND) ? 0 : 1;
+	if (ftp->ftp_side[1 - rev].ftps_ifp == NULL)
+		ftp->ftp_side[1 - rev].ftps_ifp = fin->fin_ifp;
+
+	return ippr_ftp_process(fin, nat, ftp, rev);
 }
 
 
-int ippr_ftp_in(fin, ip, aps, nat)
+int ippr_ftp_in(fin, aps, nat)
 fr_info_t *fin;
-ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
 	ftpinfo_t *ftp;
+	int rev;
 
 	ftp = aps->aps_data;
 	if (ftp == NULL)
 		return 0;
-	return ippr_ftp_process(fin, ip, nat, ftp, 1);
+
+	rev = (nat->nat_dir == NAT_OUTBOUND) ? 0 : 1;
+	if (ftp->ftp_side[rev].ftps_ifp == NULL)
+		ftp->ftp_side[rev].ftps_ifp = fin->fin_ifp;
+
+	return ippr_ftp_process(fin, nat, ftp, 1 - rev);
 }
 
 
@@ -1200,7 +1368,7 @@ char **ptr;
 	register char *s = *ptr, c;
 	register u_char i = 0, j = 0;
 
-	while ((c = *s++) && isdigit(c)) {
+	while (((c = *s++) != '\0') && ISDIGIT(c)) {
 		i *= 10;
 		i += c - '0';
 	}
@@ -1208,7 +1376,7 @@ char **ptr;
 		*ptr = NULL;
 		return 0;
 	}
-	while ((c = *s++) && isdigit(c)) {
+	while (((c = *s++) != '\0') && ISDIGIT(c)) {
 		j *= 10;
 		j += c - '0';
 	}
@@ -1216,4 +1384,71 @@ char **ptr;
 	i &= 0xff;
 	j &= 0xff;
 	return (i << 8) | j;
+}
+
+
+int ippr_ftp_epsv(fin, ip, nat, f, dlen)
+fr_info_t *fin;
+ip_t *ip;
+nat_t *nat;
+ftpside_t *f;
+int dlen;
+{
+	char newbuf[IPF_FTPBUFSZ];
+	char *s;
+	u_short ap = 0;
+
+#define EPSV_REPLEN	33
+	/*
+	 * Check for EPSV reply message.
+	 */
+	if (dlen < IPF_MIN229LEN)
+		return (0);
+	else if (strncmp(f->ftps_rptr,
+			 "229 Entering Extended Passive Mode", EPSV_REPLEN))
+		return (0);
+
+	/*
+	 * Skip the EPSV command + space
+	 */
+	s = f->ftps_rptr + 33;
+	while (*s && !ISDIGIT(*s))
+		s++;
+
+	/*
+	 * As per RFC 2428, there are no addres components in the EPSV
+	 * response.  So we'll go straight to getting the port.
+	 */
+	while (*s && ISDIGIT(*s)) {
+		ap *= 10;
+		ap += *s++ - '0';
+	}
+
+	if (!s)
+		return 0;
+
+	if (*s == '|')
+		s++;
+	if (*s == ')')
+		s++;
+	if (*s == '\n')
+		s--;
+	/*
+	 * check for CR-LF at the end.
+	 */
+	if ((*s == '\r') && (*(s + 1) == '\n')) {
+		s += 2;
+	} else
+		return 0;
+
+#if defined(SNPRINTF) && defined(_KERNEL)
+	SNPRINTF(newbuf, sizeof(newbuf), "%s (|||%u|)\r\n",
+		 "229 Entering Extended Passive Mode", ap);
+#else
+	(void) sprintf(newbuf, "%s (|||%u|)\r\n",
+		       "229 Entering Extended Passive Mode", ap);
+#endif
+
+	return ippr_ftp_pasvreply(fin, ip, nat, f, (u_int)ap, newbuf, s,
+				  ip->ip_src.s_addr);
 }

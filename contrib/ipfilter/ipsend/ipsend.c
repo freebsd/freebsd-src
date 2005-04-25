@@ -1,21 +1,14 @@
+/*	$NetBSD$	*/
+
 /*
  * ipsend.c (C) 1995-1998 Darren Reed
  *
- * This was written to test what size TCP fragments would get through
- * various TCP/IP packet filters, as used in IP firewalls.  In certain
- * conditions, enough of the TCP header is missing for unpredictable
- * results unless the filter is aware that this can happen.
- *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)Id: ipsend.c,v 2.8.2.2 2004/11/13 16:50:10 darrenr Exp";
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -23,20 +16,19 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <string.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/ip_icmp.h>
 #ifndef	linux
-#include <netinet/ip_var.h>
+# include <netinet/ip_var.h>
 #endif
 #include "ipsend.h"
-
-#if !defined(lint)
-static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.7 2004/04/10 11:50:52 darrenr Exp $";
+#include "ipf.h"
+#ifndef	linux
+# include <netinet/udp_var.h>
 #endif
 
 
@@ -46,27 +38,27 @@ extern	void	iplang __P((FILE *));
 
 char	options[68];
 int	opts;
-#ifdef	linux
+#ifdef linux
 char	default_device[] = "eth0";
 #else
-# ifdef	sun
-char	default_device[] = "le0";
-# else
-#  ifdef	ultrix
+# ifdef ultrix
 char	default_device[] = "ln0";
-#  else
-#   ifdef	__bsdi__
+# else
+#  ifdef __bsdi__
 char	default_device[] = "ef0";
-#   else
-#    ifdef	__sgi
+#  else
+#   ifdef __sgi
 char	default_device[] = "ec0";
-#    else
+#   else
+#    ifdef __hpux
 char	default_device[] = "lan0";
-#    endif
-#   endif
-#  endif
-# endif
-#endif
+#    else
+char	default_device[] = "le0";
+#    endif /* __hpux */
+#   endif /* __sgi */
+#  endif /* __bsdi__ */
+# endif /* ultrix */
+#endif /* linux */
 
 
 static	void	usage __P((char *));
@@ -161,13 +153,9 @@ int mtu;
 ip_t *ip;
 struct in_addr gwip;
 {
-	u_short	sport = 0;
-	int	wfd;
+	int wfd;
 
-	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
-		sport = ((struct tcpiphdr *)ip)->ti_sport;
-	wfd = initdevice(dev, sport, 5);
-
+	wfd = initdevice(dev, 5);
 	return send_packet(wfd, mtu, ip, gwip);
 }
 
@@ -185,7 +173,7 @@ udpcksum(ip_t *ip, struct udphdr *udp, int len)
 		u_short w[6];
 	} ph;
 	u_32_t temp32;
-	u_short cksum, *opts;
+	u_short *opts;
 
 	ph.h.len = htons(len);
 	ph.h.ttl = 0;
@@ -208,8 +196,6 @@ int	argc;
 char	**argv;
 {
 	FILE	*langfile = NULL;
-	struct	tcpiphdr *ti;
-	struct	udpiphdr *ui;
 	struct	in_addr	gwip;
 	tcphdr_t	*tcp;
 	udphdr_t	*udp;
@@ -223,15 +209,12 @@ char	**argv;
 	 * 65535 is maximum packet size...you never know...
 	 */
 	ip = (ip_t *)calloc(1, 65536);
-	ti = (struct tcpiphdr *)ip;
-	ui = (struct udpiphdr *)ip;
-	tcp = (tcphdr_t *)&ti->ti_sport;
-	udp = (udphdr_t *)&ui->ui_sport;
-	ui->ui_ulen = htons(sizeof(*udp));
+	tcp = (tcphdr_t *)(ip + 1);
+	udp = (udphdr_t *)tcp;
 	ip->ip_len = sizeof(*ip);
-	ip->ip_hl = sizeof(*ip) >> 2;
+	IP_HL_A(ip, sizeof(*ip) >> 2);
 
-	while ((c = getopt(argc, argv, "I:L:P:TUdf:i:g:m:o:s:t:vw:")) != -1)
+	while ((c = getopt(argc, argv, "I:L:P:TUdf:i:g:m:o:s:t:vw:")) != -1) {
 		switch (c)
 		{
 		case 'I' :
@@ -325,7 +308,7 @@ char	**argv;
 			break;
 		case 'o' :
 			nonl++;
-			olen = buildopts(optarg, options, (ip->ip_hl - 5) << 2);
+			olen = buildopts(optarg, options, (IP_HL(ip) - 5) << 2);
 			break;
 		case 's' :
 			nonl++;
@@ -350,6 +333,7 @@ char	**argv;
 			fprintf(stderr, "Unknown option \"%c\"\n", c);
 			usage(name);
 		}
+	}
 
 	if (argc - optind < 1)
 		usage(name);
@@ -381,11 +365,6 @@ char	**argv;
 		exit(2);
 	    }
 
-	if (ip->ip_p != IPPROTO_TCP && ip->ip_p != IPPROTO_UDP) {
-		fprintf(stderr,"Unsupported protocol %d\n", ip->ip_p);
-		exit(2);
-	}
-
 	if (olen)
 	    {
 		int hlen;
@@ -393,22 +372,24 @@ char	**argv;
 
 		printf("Options: %d\n", olen);
 		hlen = sizeof(*ip) + olen;
-		ip->ip_hl = hlen >> 2;
+		IP_HL_A(ip, hlen >> 2);
 		ip->ip_len += olen;
 		p = (char *)malloc(65536);
-		if(!p)
+		if (p == NULL)
 		    {
-			fprintf(stderr,"malloc failed\n");
+			fprintf(stderr, "malloc failed\n");
 			exit(2);
-		    } 
+		    }
+
 		bcopy(ip, p, sizeof(*ip));
 		bcopy(options, p + sizeof(*ip), olen);
 		bcopy(ip + 1, p + hlen, ip->ip_len - hlen);
 		ip = (ip_t *)p;
+
 		if (ip->ip_p == IPPROTO_TCP) {
-			tcp = (tcphdr_t *)((char *)ip + hlen);
-		} else {
-			udp = (udphdr_t *)((char *)ip + hlen);
+			tcp = (tcphdr_t *)(p + hlen);
+		} else if (ip->ip_p == IPPROTO_UDP) {
+			udp = (udphdr_t *)(p + hlen);
 		}
 	    }
 
@@ -448,11 +429,11 @@ char	**argv;
 
 	if (ip->ip_p == IPPROTO_UDP) {
 		udp->uh_sum = 0;
-		udpcksum(ip, udp, (ip->ip_len) - (ip->ip_hl << 2));
+		udpcksum(ip, udp, ip->ip_len - (IP_HL(ip) << 2));
 	}
 #ifdef	DOSOCKET
 	if (ip->ip_p == IPPROTO_TCP && tcp->th_dport)
-		return do_socket(dev, mtu, (struct tcpiphdr *)ip, gwip);
+		return do_socket(dev, mtu, ip, gwip);
 #endif
 	return send_packets(dev, mtu, ip, gwip);
 }

@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -21,7 +23,9 @@ main()
 	char yn[16];
 	int fd;
 
-	fd = open(IPL_AUTH, O_RDWR);
+	fd = open(IPL_NAME, O_RDWR);
+	fra.fra_len = 0;
+	fra.fra_buf = NULL;
 	while (ioctl(fd, SIOCAUTHW, &frap) == 0) {
 		if (fra.fra_info.fin_out)
 			fra.fra_pass = FR_OUTQUE;
@@ -29,10 +33,10 @@ main()
 			fra.fra_pass = FR_INQUE;
 
 		printf("%s ", inet_ntoa(fi->fi_src));
-		if (fi->fi_fl & FI_TCPUDP)
+		if (fi->fi_flx & FI_TCPUDP)
 			printf("port %d ", fin->fin_data[0]);
 		printf("-> %s ", inet_ntoa(fi->fi_dst));
-		if (fi->fi_fl & FI_TCPUDP)
+		if (fi->fi_flx & FI_TCPUDP)
 			printf("port %d ", fin->fin_data[1]);
 		printf("\n");
 		printf("Allow packet through ? [y/n]");
@@ -44,7 +48,7 @@ main()
 			fra.fra_pass |= FR_BLOCK;
 		else if (yn[0] == 'y' || yn[0] == 'Y') {
 			fra.fra_pass |= FR_PASS;
-			if (fra.fra_info.fin_fi.fi_fl & FI_TCPUDP)
+			if (fra.fra_info.fin_fi.fi_flx & FI_TCPUDP)
 				fra.fra_pass |= FR_KEEPSTATE;
 		} else
 			fra.fra_pass |= FR_NOMATCH;
