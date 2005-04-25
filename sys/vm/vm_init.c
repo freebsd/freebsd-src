@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/selinfo.h>
 #include <sys/pipe.h>
@@ -86,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 long physmem;
+
+static int exec_map_entries = 16;
+TUNABLE_INT("vm.exec_map_entries", &exec_map_entries);
+SYSCTL_INT(_vm, OID_AUTO, exec_map_entries, CTLFLAG_RD, &exec_map_entries, 0,
+    "Maximum number of simultaneous execs");
 
 /*
  * System initialization
@@ -188,7 +194,7 @@ again:
 				(nswbuf*MAXPHYS));
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(16*(ARG_MAX+(PAGE_SIZE*3))));
+				(exec_map_entries*(ARG_MAX+(PAGE_SIZE*3))));
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva);
 
 	/*
