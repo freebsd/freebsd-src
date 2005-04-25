@@ -300,8 +300,6 @@ vge_read_eeprom(sc, dest, off, cnt, swap)
 			*ptr = word;
 	}
 #else
-	CSR_SETBIT_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
-	DELAY(500);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		dest[i] = CSR_READ_1(sc, VGE_PAR0 + i);
 #endif
