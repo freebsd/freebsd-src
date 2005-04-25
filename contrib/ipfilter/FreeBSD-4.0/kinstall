@@ -11,31 +11,25 @@ set confdir="$archdir/conf"
 
 if ( $dir =~ */FreeBSD* ) cd ..
 echo -n "Installing "
-foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
-	   ip_proxy.[ch] ip_*_pxy.c mlf_ipl.c mlfk_ipl.c \
-	   ipl.h ip_compat.h ip_auth.[ch] ip_log.c)
+foreach i (ip_{auth,fil,nat,pool,proxy,scan,state,sync}.[ch] fil.c \
+	   ip_*_pxy.c mlfk_ipl.c ipl.h ip_compat.h ip_log.c )
 	echo -n "$i ";
-	cp $i $ipfdir
-	chmod 644 $ipfdir/$i
-	switch ( $i )
+	cp $i /sys/netinet
+	chmod 644 /sys/netinet/$i
+	switch ($i)
 	case *.h:
 		/bin/cp $i /usr/include/netinet/$i
 		chmod 644 /usr/include/netinet/$i
-		breaksw
-	endsw
+		breaksw 
+	endsw   
 end
 echo ""
 echo "Linking /usr/include/osreldate.h to /sys/sys/osreldate.h"
 ln -s /usr/include/osreldate.h /sys/sys/osreldate.h
 
-set patchfile=FreeBSD-4.0/ipv6-patch-$krev
-if ( -f $patchfile ) then
-	echo ""
-	echo "Patching ip6_input.c and ip6_output.c"
-	cat $patchfile | (cd /sys/netinet6; patch)
-else
-	echo "IPv6 patching not required for your OS version"
-endif
+echo ""
+echo "Patching ip6_input.c and ip6_output.c"
+cat FreeBSD-4.0/ipv6-patch-$krev | (cd /sys/netinet6; patch -N)
 
 set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
 echo -n "Kernel configuration to update [$config] "

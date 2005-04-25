@@ -1,10 +1,9 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)opyright 1995-1998 Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
- *
- *   The author of this software makes no garuntee about the
- * performance of this package or its suitability to fulfill any purpose.
  *
  * @(#)ipsd.h	1.3 12/3/95
  */

@@ -1,4 +1,4 @@
 pass in on ed0(!) proto tcp from 127.0.0.1/32 to 127.0.0.1/32 port = 23 flags S/SA
-block in on lo0(!) proto tcp from any to any flags A/FSRPAUC
+block in on lo0(!) proto tcp from any to any flags A/FSRPAU
 pass in on lo0(!) proto tcp from any to any flags /SPA
 block in on lo0(!) proto tcp from any to any flags C/A

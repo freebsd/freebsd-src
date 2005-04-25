@@ -1,9 +1,7 @@
 #
 # Copyright (C) 1993-1998 by Darren Reed.
 #
-# Redistribution and use in source and binary forms are permitted
-# provided that this notice is preserved and due credit is given
-# to the original author and the contributors.
+# See the IPFILTER.LICENCE file for details on licencing.
 #
 IPFT=ipft_ef.o ipft_hx.o ipft_pc.o ipft_sn.o ipft_td.o ipft_tx.o opt.o
 OBJS=ipsend.o ip.o ipsopt.o y.tab.o lex.yy.o
@@ -127,6 +125,14 @@ ultrix :
 		CFLAGS="$(CFLAGS)" "LIBS="
 
 hpux9 :
+	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
+		CFLAGS="$(CFLAGS) -DIPSEND" "LIBS="
+	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
+		CFLAGS="$(CFLAGS)" "LIBS="
+	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
+		CFLAGS="$(CFLAGS)" "LIBS="
+
+hpux11 :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
 		CFLAGS="$(CFLAGS) -DIPSEND" "LIBS="
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
