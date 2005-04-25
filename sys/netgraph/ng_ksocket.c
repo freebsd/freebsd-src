@@ -596,6 +596,14 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 
 	/* OK */
 	priv->hook = hook;
+
+	/*
+	 * In case of misconfigured routing a packet may reenter
+	 * ksocket node recursively. Decouple stack to avoid possible
+	 * panics about sleeping with locks held.
+	 */
+	NG_HOOK_FORCE_QUEUE(hook);
+
 	return(0);
 }
 
@@ -896,12 +904,6 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	int error;
 	struct mbuf *m;
 	struct sa_tag *stag;
-
-	/* Avoid reentrantly sending on the socket */
-	if (SOCKBUF_OWNED(&so->so_snd)) {
-		NG_FREE_ITEM(item);
-		return (EDEADLK);
-	}
 
 	/* Extract data */
 	NGI_GET_M(item, m);
