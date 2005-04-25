@@ -7,9 +7,10 @@
 
      Use release/doc/ru_RU.KOI8-R/share/examples/dev-auto-translate.pl
      script to update this file (-o option).
+     This script maintained in HEAD branch.
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.3 2005/03/21 15:08:45 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.4 2005/04/25 12:23:23 den Exp $
 -->
 <!ENTITY hwlist.62c9ec99a9ca598d738dcf66b339aa1e 'Контроллеры, поддерживаемые драйвером &man.aac.4;, включая:'>
 <!ENTITY hwlist.43922be022d49dabc274b2afffd0db8b 'Драйвер &man.adv.4; поддерживает следующие контроллеры SCSI:'>
@@ -149,3 +150,5 @@
 <!ENTITY hwlist.e688a5843719661e200e677735d50993 'Драйвер &man.snd.vibes.4; поддерживает звуковые устройства, основанные на следующем наборе микросхем:'>
 <!ENTITY hwlist.c2875a10d870ef5948a306802a3eb27c 'Драйвер &man.rc.4; поддерживает SDL Communications RISCom&#47;8 boards&#46;'>
 <!ENTITY hwlist.73c7ba1735e16bfd370f670d6f7f7ec1 'Драйвер &man.sr.4; поддерживает следующее оборудование:'>
+<!ENTITY hwlist.b15e9a237ad4fd8ff4d1e302d35b5d0e 'Драйвер &man.arcmsr.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.5a5c5b85e01adc2f0accbf531676d0b3 'Драйвер &man.snd.via8233.4; поддерживает следующие аудио чипсеты:'>
