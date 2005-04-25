@@ -2330,7 +2330,15 @@ again:
 				    sc->sc_espintr, sc->sc_espstat,
 				    sc->sc_phase, sc->sc_prevphase);
 
-				if ((ecb->flags & ECB_SENSE) != 0) {
+				/*
+				 * XXX This will cause a chip reset and will
+				 *     prevent us from finding out the real
+				 *     problem with the device.  However, it's
+				 *     neccessary until a way can be found to
+				 *     safely cancel the DMA that is in
+				 *     progress.
+				 */
+				if (1 || (ecb->flags & ECB_SENSE) != 0) {
 					printf("resetting\n");
 					goto reset;
 				}
