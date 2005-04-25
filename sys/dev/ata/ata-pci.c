@@ -388,13 +388,11 @@ ata_pci_allocate(device_t dev)
     int i, rid;
 
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!io)
+    if (!(io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE)))
 	return ENXIO;
 
     rid = ATA_CTLADDR_RID;
-    ctlio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!ctlio) {
+    if (!(ctlio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,RF_ACTIVE))){
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
     }
@@ -415,7 +413,6 @@ ata_pci_allocate(device_t dev)
     }
 
     ata_generic_hw(ch);
-
     return 0;
 }
 
