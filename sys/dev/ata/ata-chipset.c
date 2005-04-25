@@ -508,9 +508,9 @@ ata_ali_chipinit(device_t dev)
     case ALISATA:
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	ctlr->setmode = ata_sata_setmode;
-	ctlr->allocate = ata_ali_allocate;
 	ctlr->channels = ctlr->chip->cfg1;
+	ctlr->allocate = ata_ali_allocate;
+	ctlr->setmode = ata_sata_setmode;
 	break;
 
     case ALINEW:
@@ -569,8 +569,9 @@ ata_ali_allocate(device_t dev)
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
     }
-    /* XXX SOS PHY handling awkward in ALI chip */
     ch->flags |= ATA_NO_SLAVE;
+
+    /* XXX SOS PHY handling awkward in ALI chip not supported yet */
     ata_generic_hw(ch);
     return 0;
 }
@@ -1451,15 +1452,24 @@ ata_nvidia_chipinit(device_t dev)
 	return ENXIO;
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
-	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-			    ata_nvidia_intr, ctlr, &ctlr->handle))) {
-	    device_printf(dev, "unable to setup interrupt\n");
-	    return ENXIO;
-        }
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	ctlr->allocate = ata_nvidia_allocate;
-	ctlr->reset = ata_nvidia_reset;
+	if (pci_read_config(dev, PCIR_BAR(5), 1) & 1)
+            ctlr->r_type2 = SYS_RES_IOPORT;
+	else
+            ctlr->r_type2 = SYS_RES_MEMORY;
+        ctlr->r_rid2 = PCIR_BAR(5);
+        if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						   &ctlr->r_rid2, RF_ACTIVE))) {
+	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
+		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			        ata_nvidia_intr, ctlr, &ctlr->handle)) {
+	        device_printf(dev, "unable to setup interrupt\n");
+	        return ENXIO;
+            }
+	    pci_write_config(dev, PCIR_COMMAND,
+			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
+	    ctlr->allocate = ata_nvidia_allocate;
+	    ctlr->reset = ata_nvidia_reset;
+	}
 	ctlr->setmode = ata_sata_setmode;
     }
     else {
@@ -1476,16 +1486,6 @@ ata_nvidia_allocate(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0441 : 0x0011;
-
-    if (pci_read_config(dev, PCIR_BAR(5), 1) & 1)
-	ctlr->r_type2 = SYS_RES_IOPORT;
-    else
-	ctlr->r_type2 = SYS_RES_MEMORY;
-    ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(device_get_parent(dev),
-						ctlr->r_type2, &ctlr->r_rid2,
-						RF_ACTIVE)))
-	return ENXIO;
 
     /* setup the usual register normal pci style */
     ata_pci_allocate(dev);
@@ -3163,10 +3163,15 @@ ata_sis_chipinit(device_t dev)
 	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 2) | 0x0008, 2);
 	break;
     case SISSATA:
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	ctlr->allocate = ata_sis_allocate;
-	ctlr->reset = ata_sis_reset;
+	ctlr->r_type2 = SYS_RES_IOPORT;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						   &ctlr->r_rid2, RF_ACTIVE))) {
+	    pci_write_config(dev, PCIR_COMMAND,
+			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
+	    ctlr->allocate = ata_sis_allocate;
+	    ctlr->reset = ata_sis_reset;
+	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     default:
@@ -3181,13 +3186,6 @@ ata_sis_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-
-    ctlr->r_type2 = SYS_RES_IOPORT;
-    ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(device_get_parent(dev),
-						ctlr->r_type2, &ctlr->r_rid2,
-						RF_ACTIVE)))
-	return ENXIO;
 
     /* setup the usual register normal pci style */
     ata_pci_allocate(dev);
@@ -3346,10 +3344,15 @@ ata_via_chipinit(device_t dev)
 	return ENXIO;
     
     if (ctlr->chip->max_dma >= ATA_SA150) {
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
-	ctlr->allocate = ata_via_allocate;
-	ctlr->reset = ata_via_reset;
+	ctlr->r_type2 = SYS_RES_IOPORT;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						   &ctlr->r_rid2, RF_ACTIVE))) {
+	    pci_write_config(dev, PCIR_COMMAND,
+			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
+	    ctlr->allocate = ata_via_allocate;
+	    ctlr->reset = ata_via_reset;
+	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
@@ -3386,13 +3389,6 @@ ata_via_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-
-    ctlr->r_type2 = SYS_RES_IOPORT;
-    ctlr->r_rid2 = PCIR_BAR(5);
-    if (!(ctlr->r_res2 = bus_alloc_resource_any(device_get_parent(dev),
-						ctlr->r_type2, &ctlr->r_rid2,
-						RF_ACTIVE)))
-	return ENXIO;
 
     /* setup the usual register normal pci style */
     ata_pci_allocate(dev);
