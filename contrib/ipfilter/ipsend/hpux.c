@@ -1,4 +1,4 @@
-/*	$NetBSD$	*/
+/*	$FreeBSD$	*/
 
 /*
  * (C)opyright 1997-1998 Darren Reed. (from tcplog)
