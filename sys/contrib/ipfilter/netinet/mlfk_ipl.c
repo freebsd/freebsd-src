@@ -1,29 +1,9 @@
+/*	$FreeBSD$	*/
+
 /*
- * Copyright 1999 Guido van Rooij.  All rights reserved.
- * 
+ * Copyright (C) 2000 by Darren Reed.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER ``AS IS'' AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * $Id: mlfk_ipl.c,v 2.1.2.7 2001/08/27 21:14:04 darrenr Exp $
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 
 
@@ -37,13 +17,6 @@
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
-#if (__FreeBSD_version >= 199511)
-# include <net/route.h>
-# include <netinet/ip_var.h>
-# include <netinet/tcp.h>
-# include <netinet/tcpip.h>
-#endif
 
 
 #include <netinet/ipl.h>
@@ -53,62 +26,94 @@
 #include <netinet/ip_nat.h>
 #include <netinet/ip_auth.h>
 #include <netinet/ip_frag.h>
-#include <netinet/ip_proxy.h>
 
-static dev_t ipf_devs[IPL_LOGMAX + 1];
+#if __FreeBSD_version >= 502116
+static struct cdev *ipf_devs[IPL_LOGSIZE];
+#else
+static dev_t ipf_devs[IPL_LOGSIZE];
+#endif
+
+static int sysctl_ipf_int ( SYSCTL_HANDLER_ARGS );
+static int ipf_modload(void);
+static int ipf_modunload(void);
 
 SYSCTL_DECL(_net_inet);
+#define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		   ptr, val, sysctl_ipf_int, "I", descr);
+#define	CTLFLAG_OFF	0x00800000	/* IPFilter must be disabled */
+#define	CTLFLAG_RWO	(CTLFLAG_RW|CTLFLAG_OFF)
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &fr_flags, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_pass, CTLFLAG_RW, &fr_pass, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &fr_active, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpidletimeout, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &fr_flags, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_pass, CTLFLAG_RW, &fr_pass, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &fr_active, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpidletimeout, CTLFLAG_RWO,
 	   &fr_tcpidletimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpclosewait, CTLFLAG_RW,
-	   &fr_tcpclosewait, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcplastack, CTLFLAG_RW,
-	   &fr_tcplastack, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcptimeout, CTLFLAG_RW,
-	   &fr_tcptimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RW,
-	   &fr_tcpclosed, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RWO,
 	   &fr_tcphalfclosed, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosewait, CTLFLAG_RWO,
+	   &fr_tcpclosewait, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcplastack, CTLFLAG_RWO,
+	   &fr_tcplastack, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcptimeout, CTLFLAG_RWO,
+	   &fr_tcptimeout, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RWO,
+	   &fr_tcpclosed, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RWO,
 	   &fr_udptimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_udpacktimeout, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udpacktimeout, CTLFLAG_RWO,
 	   &fr_udpacktimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RWO,
 	   &fr_icmptimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_icmpacktimeout, CTLFLAG_RW,
-	   &fr_icmpacktimeout, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defnatage, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defnatage, CTLFLAG_RWO,
 	   &fr_defnatage, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,
 	   &fr_ipfrttl, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, ipl_unreach, CTLFLAG_RW,
-	   &ipl_unreach, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
 	   &fr_running, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authsize, CTLFLAG_RD,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statesize, CTLFLAG_RWO,
+	   &fr_statesize, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statemax, CTLFLAG_RWO,
+	   &fr_statemax, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_nattable_sz, CTLFLAG_RWO,
+	   &ipf_nattable_sz, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_natrules_sz, CTLFLAG_RWO,
+	   &ipf_natrules_sz, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_rdrrules_sz, CTLFLAG_RWO,
+	   &ipf_rdrrules_sz, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_hostmap_sz, CTLFLAG_RWO,
+	   &ipf_hostmap_sz, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authsize, CTLFLAG_RWO,
 	   &fr_authsize, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
 	   &fr_authused, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 	   &fr_defaultauthage, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &fr_chksrc, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, ippr_ftp_pasvonly, CTLFLAG_RW,
-	   &ippr_ftp_pasvonly, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
-	   &fr_minttllog, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &fr_chksrc, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
 
 #define CDEV_MAJOR 79
+#if __FreeBSD_version >= 501000
+static struct cdevsw ipl_cdevsw = {
+# if __FreeBSD_version >= 502103
+	.d_version =	D_VERSION,
+	.d_flags =	0,	/* D_NEEDGIANT - Should be SMP safe */
+# endif
+	.d_open =	iplopen,
+	.d_close =	iplclose,
+	.d_read =	iplread,
+	.d_ioctl =	iplioctl,
+	.d_name =	"ipl",
+# if __FreeBSD_version < 600000
+	.d_maj =	CDEV_MAJOR,
+# endif
+};
+#else
 static struct cdevsw ipl_cdevsw = {
 	/* open */	iplopen,
 	/* close */	iplclose,
 	/* read */	iplread,
-	/* write */	nowrite,
+	/* write */	iplwrite,
 	/* ioctl */	iplioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -118,73 +123,30 @@ static struct cdevsw ipl_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
+# if (__FreeBSD_version < 500043)
+	/* bmaj */	-1,
+# endif
+	/* kqfilter */	NULL
 };
+#endif
+
+static char *ipf_devfiles[] = {	IPL_NAME, IPNAT_NAME, IPSTATE_NAME, IPAUTH_NAME,
+				IPSYNC_NAME, IPSCAN_NAME, IPLOOKUP_NAME, NULL };
+
 
 static int
 ipfilter_modevent(module_t mod, int type, void *unused)
 {
-	char	*c;
-	int	i, error = 0;
+	int error = 0;
 
-	switch (type) {
+	switch (type)
+	{
 	case MOD_LOAD :
-
-		error = iplattach();
-		if (error)
-			break;
-
-		c = NULL;
-		for(i=strlen(IPL_NAME); i>0; i--)
-			if (IPL_NAME[i] == '/') {
-				c = &IPL_NAME[i+1];
-				break;
-			}
-		if (!c)
-			c = IPL_NAME;
-		ipf_devs[IPL_LOGIPF] =
-		    make_dev(&ipl_cdevsw, IPL_LOGIPF, 0, 0, 0600, c);
-
-		c = NULL;
-		for(i=strlen(IPL_NAT); i>0; i--)
-			if (IPL_NAT[i] == '/') {
-				c = &IPL_NAT[i+1];
-				break;
-			}
-		if (!c)
-			c = IPL_NAT;
-		ipf_devs[IPL_LOGNAT] =
-		    make_dev(&ipl_cdevsw, IPL_LOGNAT, 0, 0, 0600, c);
-
-		c = NULL;
-		for(i=strlen(IPL_STATE); i>0; i--)
-			if (IPL_STATE[i] == '/') {
-				c = &IPL_STATE[i+1];
-				break;
-			}
-		if (!c)
-			c = IPL_STATE;
-		ipf_devs[IPL_LOGSTATE] =
-		    make_dev(&ipl_cdevsw, IPL_LOGSTATE, 0, 0, 0600, c);
-
-		c = NULL;
-		for(i=strlen(IPL_AUTH); i>0; i--)
-			if (IPL_AUTH[i] == '/') {
-				c = &IPL_AUTH[i+1];
-				break;
-			}
-		if (!c)
-			c = IPL_AUTH;
-		ipf_devs[IPL_LOGAUTH] =
-		    make_dev(&ipl_cdevsw, IPL_LOGAUTH, 0, 0, 0600, c);
-
+		error = ipf_modload();
 		break;
+
 	case MOD_UNLOAD :
-		destroy_dev(ipf_devs[IPL_LOGIPF]);
-		destroy_dev(ipf_devs[IPL_LOGNAT]);
-		destroy_dev(ipf_devs[IPL_LOGSTATE]);
-		destroy_dev(ipf_devs[IPL_LOGAUTH]);
-		error = ipldetach();
+		error = ipf_modunload();
 		break;
 	default:
 		error = EINVAL;
@@ -193,9 +155,119 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 	return error;
 }
 
+
+static int
+ipf_modload()
+{
+	char *defpass, *c, *str;
+	int i, j, error;
+
+	error = iplattach();
+	if (error)
+		return error;
+
+	for (i = 0; i < IPL_LOGSIZE; i++)
+		ipf_devs[i] = NULL;
+
+	for (i = 0; (str = ipf_devfiles[i]); i++) {
+		c = NULL;
+		for(j = strlen(str); j > 0; j--)
+			if (str[j] == '/') {
+				c = str + j + 1;
+				break;
+			}
+		if (!c)
+			c = str;
+		ipf_devs[i] = make_dev(&ipl_cdevsw, i, 0, 0, 0600, c);
+	}
+
+	if (FR_ISPASS(fr_pass))
+		defpass = "pass";
+	else if (FR_ISBLOCK(fr_pass))
+		defpass = "block";
+	else          
+		defpass = "no-match -> block";
+
+	printf("%s initialized.  Default = %s all, Logging = %s%s\n",
+		ipfilter_version, defpass,                
+#ifdef IPFILTER_LOG
+		"enabled",
+#else
+		"disabled",
+#endif
+#ifdef IPFILTER_COMPILED
+		" (COMPILED)"
+#else
+		""
+#endif
+		);         
+	return 0;
+}
+
+
+static int
+ipf_modunload()
+{
+	int error, i;
+
+	if (fr_refcnt)
+		return EBUSY;
+
+	if (fr_running >= 0) {
+		error = ipldetach();
+		if (error != 0)
+			return error;
+	} else
+		error = 0;
+
+	fr_running = -2;
+
+	for (i = 0; ipf_devfiles[i]; i++) {
+		if (ipf_devs[i] != NULL)
+			destroy_dev(ipf_devs[i]);
+	}
+
+	printf("%s unloaded\n", ipfilter_version);
+
+	return error;
+}
+
+
 static moduledata_t ipfiltermod = {
-	IPL_VERSION,
+	"ipfilter",
 	ipfilter_modevent,
-        0
+	0
 };
+
+
 DECLARE_MODULE(ipfilter, ipfiltermod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
+#ifdef	MODULE_VERSION
+MODULE_VERSION(ipfilter, 1);
+#endif
+
+
+#ifdef SYSCTL_IPF
+int
+sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
+{
+	int error = 0;
+
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(int));
+	else
+		error = SYSCTL_OUT(req, &arg2, sizeof(int));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else {
+		if ((oidp->oid_kind & CTLFLAG_OFF) && (fr_running > 0))
+			error = EBUSY;
+		else
+			error = SYSCTL_IN(req, arg1, sizeof(int));
+	}
+	return (error);
+}
+#endif
