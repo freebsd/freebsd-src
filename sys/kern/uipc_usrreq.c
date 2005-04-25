@@ -687,6 +687,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = ENOPROTOOPT;
 			break;
 		}
+		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
