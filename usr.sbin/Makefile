@@ -59,10 +59,6 @@ SUBDIR=	ac \
 	inetd \
 	iostat \
 	ip6addrctl \
-	${_ipftest} \
-	${_ipresend} \
-	${_ipsend} \
-	${_iptest} \
 	IPXrouted \
 	jail \
 	jexec \
@@ -224,13 +220,6 @@ _mld6query=	mld6query
 _rip6query=	rip6query
 _route6d=	route6d
 _traceroute6=	traceroute6
-.endif
-
-.if !defined(NO_IPFILTER)
-_ipftest=	ipftest
-_ipresend=	ipresend
-_ipsend=	ipsend
-_iptest=	iptest
 .endif
 
 .if !defined(NO_NIS)
