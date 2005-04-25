@@ -38,11 +38,7 @@ SUBDIR=	adjkerntz \
 	init \
 	${_ip6fw} \
 	${_ipf} \
-	${_ipfs} \
-	${_ipfstat} \
 	ipfw \
-	${_ipmon} \
-	${_ipnat} \
 	kldconfig \
 	kldload \
 	kldstat \
@@ -104,10 +100,6 @@ _devd=		devd
 
 .if !defined(NO_IPFILTER)
 _ipf=		ipf
-_ipfs=		ipfs
-_ipfstat=	ipfstat
-_ipmon=		ipmon
-_ipnat=		ipnat
 .endif
 
 .if !defined(NO_PF)
