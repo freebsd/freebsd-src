@@ -1,4 +1,4 @@
-/*	$NetBSD$	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (C) 1999-2001, 2003 by Darren Reed.

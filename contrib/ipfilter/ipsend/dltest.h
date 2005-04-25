@@ -1,4 +1,4 @@
-/*	$NetBSD$	*/
+/*	$FreeBSD$	*/
 
 /*
  * Common DLPI Test Suite header file

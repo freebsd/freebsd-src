@@ -36,8 +36,8 @@ However, the full complement is as follows:
 	ioctl(fd, SIOCFRSYN, u_int *)
 	ioctl(fd, SIOCFRZST, struct friostat **)
 	ioctl(fd, SIOCZRLST, struct frentry **)
-	ioctl(fd, SIOCAUTHW, struct frauth_t **)
-	ioctl(fd, SIOCAUTHR, struct frauth_t **)
+	ioctl(fd, SIOCAUTHW, struct fr_info **)
+	ioctl(fd, SIOCAUTHR, struct fr_info **)
 	ioctl(fd, SIOCATHST, struct fr_authstat **)
 .fi
 .PP
@@ -123,7 +123,7 @@ Flags which are recognised in fr_flags:
      FR_RETRST       0x000080   /* return a TCP RST packet if blocked */
      FR_RETICMP      0x000100   /* return an ICMP packet if blocked */
      FR_FAKEICMP     0x00180    /* Return ICMP unreachable with fake source */
-     FR_NOMATCH      0x000200   /* No match occurred */
+     FR_NOMATCH      0x000200   /* no match occured */
      FR_ACCOUNT      0x000400   /* count packet bytes */
      FR_KEEPFRAG     0x000800   /* keep fragment information */
      FR_KEEPSTATE    0x001000   /* keep `connection' state information */
