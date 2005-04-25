@@ -69,22 +69,21 @@ ata_pccard_match(device_t dev)
     u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
     int error = 0;
 
-    error = pccard_get_function(dev, &fcn);
-    if (error != 0)
-	return (error);
+    if ((error = pccard_get_function(dev, &fcn)))
+	return error;
 
     /* if it says its a disk we should register it */
     if (fcn == PCCARD_FUNCTION_DISK)
-	return (0);
+	return 0;
 
     /* match other devices here, primarily cdrom/dvd rom */
     if ((pp = pccard_product_lookup(dev, ata_pccard_products,
 				    sizeof(ata_pccard_products[0]), NULL))) {
 	if (pp->pp_name)
 	    device_set_desc(dev, pp->pp_name);
-	return (0);
+	return 0;
     }
-    return(ENXIO);
+    return ENXIO;
 }
 
 static int
@@ -96,9 +95,8 @@ ata_pccard_probe(device_t dev)
 
     /* allocate the io range to get start and length */
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			    ATA_IOSIZE, RF_ACTIVE);
-    if (!io)
+    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				  ATA_IOSIZE, RF_ACTIVE)))
 	return ENXIO;
 
     /* setup the resource vectors */
@@ -118,9 +116,8 @@ ata_pccard_probe(device_t dev)
     }
     else {
 	rid = ATA_CTLADDR_RID;
-	ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				   ATA_CTLIOSIZE, RF_ACTIVE);
-	if (!ctlio) {
+	if (!(ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					 ATA_CTLIOSIZE, RF_ACTIVE))) {
 	    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 		ch->r_io[i].res = NULL;

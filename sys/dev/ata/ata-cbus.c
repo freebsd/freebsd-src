@@ -82,9 +82,8 @@ ata_cbus_probe(device_t dev)
 
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			    ATA_PC98_IOSIZE, RF_ACTIVE);
-    if (!io)
+    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				  ATA_PC98_IOSIZE, RF_ACTIVE)))
 	return ENOMEM;
 
     /* calculate & set the altport range */
@@ -113,26 +112,23 @@ ata_cbus_attach(device_t dev)
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
-    ctlr->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				  ATA_PC98_IOSIZE, RF_ACTIVE);
-    if (!ctlr->io)
+    if (!(ctlr->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					ATA_PC98_IOSIZE, RF_ACTIVE)))
        return ENOMEM;
 
     rid = ATA_PC98_CTLADDR_RID;
-    ctlr->ctlio = 
-	bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			   rman_get_start(ctlr->io) + ATA_PC98_CTLOFFSET, ~0,
-			   ATA_CTLIOSIZE, RF_ACTIVE);
-    if (!ctlr->ctlio) {
+    if (!(ctlr->ctlio = 
+	  bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			     rman_get_start(ctlr->io) + ATA_PC98_CTLOFFSET, ~0,
+			     ATA_CTLIOSIZE, RF_ACTIVE))) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	return ENOMEM;
     }
 
     rid = ATA_PC98_BANKADDR_RID;
-    ctlr->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				      ATA_PC98_BANK, ~0,
-				      ATA_PC98_BANKIOSIZE, RF_ACTIVE);
-    if (!ctlr->bankio) {
+    if (!(ctlr->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					    ATA_PC98_BANK, ~0,
+					    ATA_PC98_BANKIOSIZE, RF_ACTIVE))) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlr->ctlio);
 	return ENOMEM;

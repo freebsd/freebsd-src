@@ -73,9 +73,8 @@ ata_isa_probe(device_t dev)
     
     /* allocate the io port range */
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			    ATA_IOSIZE, RF_ACTIVE);
-    if (!io)
+    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				  ATA_IOSIZE, RF_ACTIVE)))
 	return ENXIO;
 
     /* set the altport range */
@@ -86,9 +85,8 @@ ata_isa_probe(device_t dev)
 
     /* allocate the altport range */
     rid = ATA_CTLADDR_RID; 
-    ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-			       ATA_CTLIOSIZE, RF_ACTIVE);
-    if (!ctlio) {
+    if (!(ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				     ATA_CTLIOSIZE, RF_ACTIVE))) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
     }
