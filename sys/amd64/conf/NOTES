@@ -193,8 +193,6 @@ device		tdfx			# Enable 3Dfx Voodoo support
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
 #
-# ACPI_MAX_THREADS sets the number of task threads started.
-#
 # ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
 #
 # ACPICA_PEDANTIC enables strict checking of AML.  Our default is to
@@ -206,7 +204,6 @@ device		tdfx			# Enable 3Dfx Voodoo support
 
 device		acpi
 options 	ACPI_DEBUG
-options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
