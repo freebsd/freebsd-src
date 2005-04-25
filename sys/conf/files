@@ -665,7 +665,6 @@ dev/mpt/mpt.c			optional mpt
 dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_freebsd.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
-dev/musycc/musycc.c		optional musycc
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard

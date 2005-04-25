@@ -554,7 +554,6 @@ options 	NGATM_UNI
 options 	NGATM_CCATM
 
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
-device		musycc	# LMC/SBE LMC1504 quad T1/E1
 
 #
 # Network interfaces:
