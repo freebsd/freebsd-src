@@ -1,8 +1,10 @@
+/*	$NetBSD$	*/
+
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
- * $Id: kmem.h,v 2.2.2.4 2002/01/01 13:43:48 darrenr Exp $
+ * Id: kmem.h,v 2.5 2002/08/21 22:57:36 darrenr Exp
  */
 
 #ifndef	__KMEM_H__
@@ -18,7 +20,6 @@
 extern	int	openkmem __P((char *, char *));
 extern	int	kmemcpy __P((char *, long, int));
 extern	int	kstrncpy __P((char *, long, int));
-extern	char	*getifname __P((void *));
 
 #if defined(__NetBSD__) || defined(__OpenBSD)
 # include <paths.h>

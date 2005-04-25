@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 /*	@(#)in_var.h 1.3 88/08/19 SMI; from UCB 7.1 6/5/86	*/
 
 /*
@@ -173,5 +175,5 @@ struct in_multistep {
 }
 
 struct in_multi *in_addmulti();
-#endif KERNEL
+#endif /* KERNEL */
 #endif /*!_netinet_in_var_h*/

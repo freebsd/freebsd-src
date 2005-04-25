@@ -62,7 +62,7 @@ sub tcpcheck {
 	local($base) = $_[0];
 	local($hl) = $bytes[$base] / 256;
 	return if (($hl >> 4) != 4);
-	return if ($bytes[3] & 0x1fff);
+	return if ($bytes[$base + 3] & 0x1fff);
 	$hl &= 0xf;
 	$hl <<= 1;
 
@@ -79,10 +79,27 @@ sub tcpcheck {
 	local($thl) = $bytes[$base + $hl + 6] >> 8;
 	$thl &= 0xf0;
 	$thl >>= 2;
-	if (($bytes[$base + 1] > ($cnt - $base) * 2) ||
-	    (($cnt - $base) * 2 < $hl + 20) ||
-	    (($cnt - $base) * 2 < $hl + $thl)) {
-		print " TCP: missing data";
+
+	$x = $bytes[$base + 1];
+	$y = ($cnt - $base) * 2;
+	$z = 0;
+	if ($bytes[$base + 1] > ($cnt - $base) * 2) {
+		print "[cnt=$cnt base=$base]";
+		$x = $bytes[$base + 1];
+		$y = ($cnt - $base) * 2;
+		$z = 1;
+	} elsif (($cnt - $base) * 2 < $hl + 20) {
+		$x = ($cnt - $base) * 2;
+		$y = $hl + 20;
+		$z = 2;
+	} elsif (($cnt - $base) * 2 < $hl + $thl) {
+		$x = ($cnt - $base) * 2;
+		$y = $hl + $thl;
+		$z = 3;
+	}
+
+	if ($z) {
+		print " TCP: missing data($x $y $z)";
 		return;
 	}
 
@@ -95,7 +112,7 @@ sub tcpcheck {
 		$bytes[$tcpat + 8] = $osum;
 		printf " TCP: (%x) %x != %x", $hs, $osum, $hs2;
 	} else {
-		print " TCP: ok";
+		print " TCP: ok ($x $y)";
 	}
 }
 
@@ -161,8 +178,15 @@ sub icmpcheck {
 
 	local($len) = $bytes[$base + 1] - ($hl << 1);
 
-	if ($len > $cnt * 2) {
-		print "missing icmp data\n";
+	if ($bytes[$base + 1] > ($cnt - $base) * 2) {
+		print " ICMP: missing data(1)";
+		return;
+	} elsif ($bytes[$base + 1] < ($hl << 1) + 8) {
+		print " ICMP: missing data(2)";
+		return;
+	} elsif (($cnt - $base) * 2 < ($hl << 1) + 8) {
+		print " ICMP: missing data(3)";
+		return;
 	}
 
 	local($osum) = $bytes[$base + $hl + 1];
@@ -240,6 +264,7 @@ $b=$_;
 			$y = hex $x;
 			s/[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F] *(.*)/$1/;
 			$bytes[$cnt] = $y;
+#print "bytes[$cnt] = $x\n";
 			$cnt++;
 		}
 

@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 /*
  * Sample transparent proxy program.
  *
@@ -45,6 +47,7 @@
 #include "netinet/ip_state.h"
 #include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
+#include "netinet/ipl.h"
 
 
 main(argc, argv)
@@ -52,6 +55,7 @@ int argc;
 char *argv[];
 {
 	struct	sockaddr_in	sin, sloc, sout;
+	ipfobj_t	obj;
 	natlookup_t	natlook;
 	natlookup_t	*natlookp = &natlook;
 	char	buffer[512];
@@ -77,21 +81,27 @@ char *argv[];
 		exit(-1);
 	}
 
+	bzero((char *)&obj, sizeof(obj));
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_size = sizeof(natlook);
+	obj.ipfo_ptr = &natlook;
+	obj.ipfo_type = IPFOBJ_NATLOOKUP;
+
 	/*
 	 * Build up the NAT natlookup structure.
 	 */
 	bzero((char *)&natlook, sizeof(natlook));
 	natlook.nl_outip = sin.sin_addr;
 	natlook.nl_inip = sloc.sin_addr;
-	natlook.nl_flags = IPN_TCPUDP;
+	natlook.nl_flags = IPN_TCP;
 	natlook.nl_outport = ntohs(sin.sin_port);
 	natlook.nl_inport = ntohs(sloc.sin_port);
 
 	/*
 	 * Open the NAT device and lookup the mapping pair.
 	 */
-	fd = open(IPL_NAT, O_RDONLY);
-	if (ioctl(fd, SIOCGNATL, &natlookp) == -1) {
+	fd = open(IPNAT_NAME, O_RDONLY);
+	if (ioctl(fd, SIOCGNATL, &obj) == -1) {
 		perror("ioctl(SIOCGNATL)");
 		exit(-1);
 	}
@@ -131,6 +141,7 @@ char *extif;
 	struct sockaddr_in usin;
 	u_32_t sum1, sum2, sumd;
 	int onoff, ofd, slen;
+	ipfobj_t obj;
 	ipnat_t *ipn;
 	nat_t *nat;
 
@@ -140,8 +151,12 @@ char *extif;
 	nat->nat_p = IPPROTO_TCP;
 	nat->nat_dir = NAT_OUTBOUND;
 	if ((extif != NULL) && (*extif != '\0')) {
-		strncpy(nat->nat_ifname, extif, sizeof(nat->nat_ifname));
-		nat->nat_ifname[sizeof(nat->nat_ifname) - 1] = '\0';
+		strncpy(nat->nat_ifnames[0], extif,
+			sizeof(nat->nat_ifnames[0]));
+		strncpy(nat->nat_ifnames[1], extif,
+			sizeof(nat->nat_ifnames[1]));
+		nat->nat_ifnames[0][sizeof(nat->nat_ifnames[0]) - 1] = '\0';
+		nat->nat_ifnames[1][sizeof(nat->nat_ifnames[1]) - 1] = '\0';
 	}
 
 	ofd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -186,9 +201,15 @@ printf("local port# to use: %d\n", ntohs(usin.sin_port));
 
 	nat->nat_flags = IPN_TCPUDP;
 
+	bzero((char *)&obj, sizeof(obj));
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_size = sizeof(*nsp);
+	obj.ipfo_ptr = nsp;
+	obj.ipfo_type = IPFOBJ_NATSAVE;
+
 	onoff = 1;
 	if (ioctl(fd, SIOCSTLCK, &onoff) == 0) {
-		if (ioctl(fd, SIOCSTPUT, &nsp) != 0)
+		if (ioctl(fd, SIOCSTPUT, &obj) != 0)
 			perror("SIOCSTPUT");
 		onoff = 0;
 		if (ioctl(fd, SIOCSTLCK, &onoff) != 0)

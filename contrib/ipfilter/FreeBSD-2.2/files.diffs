@@ -2,7 +2,7 @@
 --- files	Sat Apr  4 10:52:58 1998
 ***************
 *** 222,227 ****
---- 222,236 ----
+--- 222,240 ----
   netinet/tcp_timer.c	optional inet
   netinet/tcp_usrreq.c	optional inet
   netinet/udp_usrreq.c	optional inet
@@ -15,6 +15,10 @@
 + netinet/mlf_ipl.c	optional ipfilter inet
 + netinet/ip_auth.c	optional ipfilter inet
 + netinet/ip_log.c	optional ipfilter inet
++ netinet/ip_scan.c	optional ipfilter inet
++ netinet/ip_sync.c	optional ipfilter inet
++ netinet/ip_pool.c	optional ipfilter_pool inet
++ netinet/ip_rules.c	optional ipfilter_compiled ipfilter inet
   netipx/ipx.c		optional ipx
   netipx/ipx_cksum.c	optional ipx
   netipx/ipx_input.c	optional ipx

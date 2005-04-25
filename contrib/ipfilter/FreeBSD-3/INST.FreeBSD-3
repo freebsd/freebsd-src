@@ -16,6 +16,8 @@ To build a kernel with the IP filter, follow these seven steps:
 		mknod /dev/ipnat c 79 1
 		mknod /dev/ipstate c 79 2
 		mknod /dev/ipauth c 79 3
+		mknod /dev/ipsync c 79 4
+		mknod /dev/ipscan c 79 5
  
 	7. reboot
 

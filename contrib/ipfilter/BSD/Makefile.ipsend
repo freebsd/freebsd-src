@@ -1,16 +1,18 @@
 #
-# $Id: Makefile.ipsend,v 2.2 2000/02/28 08:27:51 darrenr Exp $
+# Id: Makefile.ipsend,v 2.8 2002/05/22 16:15:36 darrenr Exp
 #
 
 BINDEST=/usr/sbin
 SBINDEST=/sbin
 MANDIR=/usr/share/man
 
-OBJS=ipsend.o ip.o ipsopt.o y.tab.o lex.yy.o
+OBJS=ipsend.o ip.o ipsopt.o iplang_y.o iplang_l.o
 IPFTO=ipft_ef.o ipft_hx.o ipft_pc.o ipft_sn.o ipft_td.o ipft_tx.o
-ROBJS=ipresend.o ip.o resend.o $(IPFTO) opt.o
+ROBJS=ipresend.o ip.o resend.o
 TOBJS=iptest.o iptests.o ip.o
 UNIXOBJS=sbpf.o sock.o 44arp.o
+OBJ=.
+LIBS=-L$(OBJ) -lipf
 
 CC=gcc -Wuninitialized -Wstrict-prototypes -O
 CFLAGS=-g -I$(TOP)
@@ -19,14 +21,14 @@ MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
 	'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
-	"CPUDIR=$(CPUDIR)"
+	"CPUDIR=$(CPUDIR)" "LOOKUP=$(LOOKUP)"
 #
 all build bsd-bpf : ipsend ipresend iptest
 
-y.tab.o: $(TOP)/iplang/iplang_y.y
+iplang_y.o: $(TOP)/iplang/iplang_y.y
 	(cd $(TOP)/iplang; $(MAKE) ../BSD/$(CPUDIR)/$@ $(MFLAGS) 'DESTDIR=../BSD/$(CPUDIR)' )
 
-lex.yy.o: $(TOP)/iplang/iplang_l.l
+iplang_l.o: $(TOP)/iplang/iplang_l.l
 	(cd $(TOP)/iplang; $(MAKE) ../BSD/$(CPUDIR)/$@ $(MFLAGS) 'DESTDIR=../BSD/$(CPUDIR)' )
 
 .c.o:
@@ -42,7 +44,7 @@ iptest: $(TOBJS) $(UNIXOBJS)
 	$(CC) $(DEBUG) $(TOBJS) $(UNIXOBJS) -o $@ $(LIBS)
 
 clean:
-	rm -rf *.o core a.out ipsend ipresend iptest
+	rm -rf *.o core a.out ipsend ipresend iptest iplang_y.* iplang_l.*
 
 ipsend.o: $(TOP)/ipsend/ipsend.c
 	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/ipsend.c -o $@
@@ -100,9 +102,6 @@ dlcommon.o: $(TOP)/ipsend/dlcommon.c
 
 sdlpi.o: $(TOP)/ipsend/sdlpi.c
 	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/sdlpi.c -o $@
-
-arp.o: $(TOP)/ipsend/arp.c
-	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/arp.c -o $@
 
 install:  
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipsend ipresend iptest $(BINDEST)

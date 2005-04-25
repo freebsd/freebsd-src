@@ -1,3 +1,4 @@
+#	$FreeBSD$
 #
 # log all inbound packet on le0 which has IP options present
 #

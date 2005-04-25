@@ -16,7 +16,7 @@ echo "$1...";
 
 /bin/cp /dev/null results/$1
 
-../ipftest -br regress/$1 -Hi input/$1 > results/$1
+../ipftest -br regress/$1 -F hex -i input/$1 > results/$1
 if [ $? -ne 0 ] ; then
 	exit 1
 fi

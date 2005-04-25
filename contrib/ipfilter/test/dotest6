@@ -1,4 +1,6 @@
 #!/bin/sh
+format=$2
+mkdir -p results
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch
 else
@@ -19,7 +21,7 @@ if [ $? -ne 0 ] ; then
 	exit 0
 fi
 ( while read rule; do
-	echo "$rule" | ../ipftest -6Hbr - -i input/$1 >> results/$1;
+	echo "$rule" | ../ipftest -F $format -6br - -i input/$1 >> results/$1;
 	if [ $? -ne 0 ] ; then
 		exit 1;
 	fi

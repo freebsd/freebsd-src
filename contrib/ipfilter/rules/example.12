@@ -1,3 +1,4 @@
+#	$FreeBSD$
 #
 # get rid of all short IP fragments (too small for valid comparison)
 #

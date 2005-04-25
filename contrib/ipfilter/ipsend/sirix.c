@@ -1,12 +1,12 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)opyright 1992-1998 Darren Reed.
  * (C)opyright 1997 Marc Boucher.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
-#endif
 #include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
@@ -23,17 +23,15 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 #include "ipsend.h"
+#include <netinet/udp_var.h>
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sirix[] = "@(#)sirix.c	1.0 10/9/97 (C)1997 Marc Boucher";
 #endif
 
 
-int	initdevice(char *device, int sport, int tout)
+int	initdevice(char *device, int tout)
 {
 	int fd;
 	struct sockaddr_raw sr;

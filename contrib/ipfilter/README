@@ -1,5 +1,7 @@
 IP Filter - What's this about ?
 ============================
+Web site: http://coombs.anu.edu.au/~avalon/ip-filter.html
+How-to: http://www.obfuscation.org/ipf/ipf-howto.txt
 
   The idea behind this package is allow those who use Unix workstations as
 routers (a common occurance in Universities it appears) to apply packet
@@ -96,3 +98,4 @@ BNF
 
 Darren Reed
 darrenr@pobox.com
+http://coombs.anu.edu.au/~avalon/ip-filter.html

@@ -2359,8 +2359,8 @@ dpserve		7020/tcp	# DP Serve
 dpserve		7020/udp	# DP Serve
 dpserveadmin	7021/tcp	# DP Serve Admin
 dpserveadmin	7021/udp	# DP Serve Admin
+raudio		7070/tcp	@ Real Audio
 arcp		7070/tcp	# ARCP
-raudio		7070/tcp	# Real Audio
 arcp		7070/udp	# ARCP
 clutild		7174/tcp	# Clutild
 clutild         7174/udp	# Clutild
