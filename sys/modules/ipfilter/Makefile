@@ -4,13 +4,14 @@
 
 KMOD=	ipl
 SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \
-	ip_log.c ip_fil.c fil.c
+	ip_log.c ip_fil_freebsd.c fil.c ip_lookup.c ip_pool.c ip_htable.c \
+	ip_sync.c
 
 .if !defined(NO_INET6)
 CFLAGS+= -DUSE_INET6
 .endif
 CFLAGS+=  -I${.CURDIR}/../../contrib/ipfilter
-CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG
+CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG -DIPFILTER_LOOKUP
 #
 # If you don't want log functionality remove -DIPFILTER_LOG
 #
