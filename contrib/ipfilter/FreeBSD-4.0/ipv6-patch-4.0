@@ -1,4 +1,4 @@
-.\"	$NetBSD$
+.\"	$FreeBSD$
 .\"
 *** ip6_input.c.orig	Sun Feb 13 14:32:01 2000
 --- ip6_input.c	Wed Apr 26 22:31:34 2000
