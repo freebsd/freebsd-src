@@ -1174,7 +1174,7 @@ nfs4_readlinkrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 nfsmout:
 	error = nfs_v4postop(&cp, error);
 
-	if (m_freem != NULL)
+	if (mrep != NULL)
 		m_freem(mrep);
 	return (error);
 }
