@@ -1,7 +1,11 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)opyright 1997-1998 Darren Reed. (from tcplog)
  *
- * See the IPFILTER.LICENCE file for details on licencing.
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
 #include <stdio.h>
 #include <strings.h>

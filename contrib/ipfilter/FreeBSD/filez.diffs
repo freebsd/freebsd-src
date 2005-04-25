@@ -9,11 +9,15 @@
 + file netinet/ip_fil.c		ipfilter
 + file netinet/fil.c		ipfilter
 + file netinet/ip_nat.c		ipfilter
-+ file netinet/ip_frag.c		ipfilter
-+ file netinet/ip_state.c		ipfilter
-+ file netinet/ip_proxy.c		ipfilter
-+ file netinet/ip_auth.c		ipfilter
++ file netinet/ip_frag.c	ipfilter
++ file netinet/ip_state.c	ipfilter
++ file netinet/ip_proxy.c	ipfilter
++ file netinet/ip_auth.c	ipfilter
 + file netinet/ip_log.c		ipfilter
++ file netinet/ip_scan.c	ipfilter
++ file netinet/ip_sync.c	ipfilter
++ file netinet/ip_pool.c	ipfilter_pool
++ file netinet/ip_rules.c	ipfilter_compiled
   file netiso/clnp_debug.c	iso
   file netiso/clnp_er.c	 	iso
   file netiso/clnp_frag.c	 	iso

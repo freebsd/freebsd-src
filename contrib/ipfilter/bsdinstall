@@ -5,8 +5,13 @@
 cmd=/bin/mv
 strip=""
 chmod="chmod 755"
-chown="chown -f root"
-chgrp="chgrp -f bin"
+if [ "`uname -s`" = "HP-UX" ] ; then
+	chown="chown root"
+	chgrp="chgrp bin"
+else
+	chown="chown -f root"
+	chgrp="chgrp -f bin"
+fi
 while true ; do
 	case $1 in
 		-s )	strip="strip"

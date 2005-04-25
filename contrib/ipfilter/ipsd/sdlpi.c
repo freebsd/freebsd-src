@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)opyright 1992-1998 Darren Reed. (from tcplog)
  *
@@ -158,7 +160,7 @@ int	tout;
 	(void) sprintf(devname, "/dev/%s", device);
 
 	s = devname + 5;
-	while (*s && !isdigit(*s))
+	while (*s && !ISDIGIT(*s))
 		s++;
 	if (!*s)
 	    {

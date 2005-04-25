@@ -1,4 +1,6 @@
 #!/bin/sh
+format=$2
+mkdir -p results
 # multiple rules at the same time
 
 if [ -f /usr/ucb/touch ] ; then
@@ -16,7 +18,7 @@ echo "$1...";
 
 /bin/cp /dev/null results/$1
 
-../ipftest -br regress/$1 -i input/$1 > results/$1
+../ipftest -F $format -Rbr regress/$1 -i input/$1 > results/$1
 if [ $? -ne 0 ] ; then
 	exit 1
 fi

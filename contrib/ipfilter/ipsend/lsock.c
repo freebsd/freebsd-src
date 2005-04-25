@@ -1,14 +1,14 @@
+/*	$NetBSD$	*/
+
 /*
  * lsock.c (C) 1995-1998 Darren Reed
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: lsock.c,v 2.1.4.3 2002/12/06 11:40:36 darrenr Exp $";
-#endif
-#if defined(__sgi) && (IRIX > 602)
-# include <sys/ptimers.h>
+static const char rcsid[] = "@(#)Id: lsock.c,v 2.3 2001/06/09 17:09:26 darrenr Exp";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -226,7 +226,7 @@ struct	in_addr	gwip;
 	(void) getsockname(fd, (struct sockaddr *)&lsin, &len);
 	ti->ti_sport = lsin.sin_port;
 	printf("sport %d\n", ntohs(lsin.sin_port));
-	nfd = initdevice(dev, ntohs(lsin.sin_port), 0);
+	nfd = initdevice(dev, 0);
 
 	if (!(s = find_tcp(fd, ti)))
 		return -1;
