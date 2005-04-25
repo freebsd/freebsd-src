@@ -23,3 +23,5 @@ map le0 0/0 -> 0/32 frag age 10
 map le0 192.168.0.0/16 -> range 203.1.1.23-203.1.3.45 frag age 10/20
 map ppp0 192.168.0.0/16 -> 0/32 portmap tcp 10000:19999 frag age 30
 map fxp0 from 192.168.0.0/18 to 0/0 port = 21 -> 1.2.3.4/32 proxy port 21 ftp/tcp
+map thisisalonginte 0/0 -> 0/32 mssclamp 1452 tag freddyliveshere
+map bar0 0/0 -> 0/32 icmpidmap icmp 1000:2000

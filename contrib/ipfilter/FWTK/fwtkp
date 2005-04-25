@@ -482,15 +482,15 @@ diff -c -r ./lib/hnam.c ../../NEW/fwtk/lib/hnam.c
 +  natlookup.nl_outport=rsin.sin_port;
 +  natlookup.nl_inip=sin.sin_addr;
 +  natlookup.nl_outip=rsin.sin_addr;
-+  if((natfd=open("/dev/ipl",O_RDONLY))<0) {
++  if((natfd=open(IPL_NAT,O_RDONLY))<0) {
 +   return(NULL);
 +  }
 +  if(ioctl(natfd,SIOCGNATL,&natlookup)==(-1)) {
 +   return(NULL);
 +  }
 +  close(natfd);
-+  if(ptr) *ptr=ntohs(natlookup.nl_inport);
-+  sprintf(buf,"%s",inet_ntoa(natlookup.nl_inip));
++  if(ptr) *ptr=ntohs(natlookup.nl_realport);
++  sprintf(buf,"%s",inet_ntoa(natlookup.nl_realip));
 + #endif
 + 
 +  /* No transparent proxy support */

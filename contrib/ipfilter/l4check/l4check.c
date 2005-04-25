@@ -1,3 +1,5 @@
+/*	$NetBSD$	*/
+
 /*
  * (C)Copyright March, 2000 - Darren Reed.
  */
@@ -141,8 +143,7 @@ void closel4(l4, dead)
 l4cfg_t *l4;
 int dead;
 {
-	if (l4->l4_fd != -1)
-		close(l4->l4_fd);
+	close(l4->l4_fd);
 	l4->l4_fd = -1;
 	l4->l4_rw = -1;
 	if (dead && l4->l4_alive) {
@@ -308,7 +309,7 @@ int runconfig()
 					if (opts & OPT_VERBOSE)
 						fprintf(stderr, "failed\n");
 					perror("connect");
-					closel4(l4, 1);
+					close(fd);
 					fd = -1;
 				} else {
 					if (opts & OPT_VERBOSE)
@@ -417,10 +418,10 @@ u_short *portp;
 		*port++ = '\0';
 
 #ifdef	HAVE_INET_ATON
-	if (isdigit(*host) && inet_aton(host, &ip))
+	if (ISDIGIT(*host) && inet_aton(host, &ip))
 		*ipp = ip.s_addr;
 #else
-	if (isdigit(*host))
+	if (ISDIGIT(*host))
 		*ipp = inet_addr(host);
 #endif
 	else {
@@ -433,7 +434,7 @@ u_short *portp;
 	}
 
 	if (port) {
-		if (isdigit(*port))
+		if (ISDIGIT(*port))
 			*portp = htons(atoi(port));
 		else {
 			sp = getservbyname(port, "tcp");
@@ -526,7 +527,7 @@ char *filename;
 		/*
 		 * Skip leading whitespace
 		 */
-		for (line = buf; (c = *line) && isspace(c); line++)
+		for (line = buf; (c = *line) && ISSPACE(c); line++)
 			;
 		if (!*line)
 			continue;
@@ -606,14 +607,14 @@ char *filename;
 			}
 			bcopy((char *)&template, (char *)l4, sizeof(*l4));
 			l4->l4_sin.sin_addr = ipn->in_in[0];
-			l4->l4_sin.sin_port = ipn->in_pnext; 
+			l4->l4_sin.sin_port = ipn->in_pnext;
 			l4->l4_next = l4list;
 			l4list = l4;
 		} else if (!strcasecmp(t, "connect")) {
 			s = strtok(NULL, " \t");
 			if (s)
 				t = strtok(NULL, "\t");
-			if (!s || !t) { 
+			if (!s || !t) {
 				errtxt = line;
 				err = -1;
 				break;
@@ -635,7 +636,7 @@ char *filename;
 			}
 		} else if (!strcasecmp(t, "probe")) {
 			s = strtok(NULL, " \t");
-			if (!s) { 
+			if (!s) {
 				errtxt = line;
 				err = -1;
 				break;
@@ -683,13 +684,13 @@ char *filename;
 			}
 		} else if (!strcasecmp(t, "response")) {
 			s = strtok(NULL, " \t");
-			if (!s) { 
+			if (!s) {
 				errtxt = line;
 				err = -1;
 				break;
 			} else if (!strcasecmp(s, "timeout")) {
 				t = strtok(NULL, " \t");
-				if (!t) { 
+				if (!t) {
 					errtxt = line;
 					err = -1;
 					break;
