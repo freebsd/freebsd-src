@@ -1581,14 +1581,14 @@ vge_tick(xsc)
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
 			sc->vge_link = 0;
 			if_link_state_change(&sc->arpcom.ac_if,
-			    LINK_STATE_UP);
+			    LINK_STATE_DOWN);
 		}
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->vge_link = 1;
 			if_link_state_change(&sc->arpcom.ac_if,
-			    LINK_STATE_DOWN);
+			    LINK_STATE_UP);
 #if __FreeBSD_version < 502114
 			if (ifp->if_snd.ifq_head != NULL)
 #else
