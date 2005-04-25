@@ -1,4 +1,4 @@
-/*	$NetBSD$	*/
+/*	$FreeBSD$	*/
 
 #ifndef __IP_HTABLE_H__
 #define __IP_HTABLE_H__
