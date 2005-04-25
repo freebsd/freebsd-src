@@ -478,7 +478,7 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	querybuf *buf;
 	const char *cp;
 	char *bp, *ep;
-	int n, size, type, len;
+	int n, size, type;
 	char abuf[MAXDNAME];
 
 	name = va_arg(ap, const char *);
@@ -571,8 +571,6 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 				}
 				strncpy(hostbuf, name, MAXDNAME);
 				hostbuf[MAXDNAME] = '\0';
-				bp = hostbuf + MAXDNAME;
-				len = sizeof hostbuf - MAXDNAME;
 				host.h_name = hostbuf;
 				host.h_aliases = host_aliases;
 				host_aliases[0] = NULL;
