@@ -367,7 +367,8 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Unknown provider %s.", name);
 			continue;
 		}
-		if (sc->sc_provider->mediasize > pp->mediasize) {
+		if (sc->sc_provider->mediasize >
+		    pp->mediasize - pp->sectorsize) {
 			gctl_error(req, "Provider %s too small.", name);
 			continue;
 		}
