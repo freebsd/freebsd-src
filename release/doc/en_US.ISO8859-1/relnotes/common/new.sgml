@@ -156,6 +156,13 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
       &merged;</para>
 
+    <para>Several programming errors in &man.cvs.1;, which could
+      potentially cause arbitrary code to be executed on CVS servers,
+      have been corrected.  Further information can be found in
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -919,7 +926,7 @@
       directory now include &man.bsdtar.1; instead of GNU tar.</para>
 
     <para>The &man.restore.8; utility has regained the ability to read
-      &os; version 1 dump tapes.</para>
+      &os; version 1 dump tapes. &merged;</para>
 
     <para>A bug of the &man.rexecd.8; utility which results in
       it behaving as if the <option>-i</option> option is always
@@ -979,7 +986,7 @@
     <para>The &man.syslogd.8; utility now allows
       <literal>:</literal> and <literal>%</literal>
       characters in the hostname specifications.
-      These characters are used in IPv6 addresses and scope IDs.</para>
+      These characters are used in IPv6 addresses and scope IDs. &merged;</para>
 
     <para>The &man.systat.1; <option>-netstat</option> display is now
       IPv6-aware. &merged;</para>
