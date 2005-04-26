@@ -1599,8 +1599,6 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if (cmd->len & F_NOT)
 				printf(" not");
 			proto = cmd->arg1;
-			if (proto != 41)	/* XXX: IPv6 is special */
-				pe = getprotobynumber(cmd->arg1);
 			if (flags & HAVE_OPTIONS)
 				printf(" proto");
 			if (pe)
