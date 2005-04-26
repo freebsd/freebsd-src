@@ -24,8 +24,9 @@ DEFS=	tree.def
 DEFSDIR= ${SHAREDIR}/snmp/defs
 
 CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I. -DUSE_LIBBEGEMOT
+CFLAGS+= -DUSE_TCPWRAPPERS
 DPADD=	${LIBBEGEMOT} ${LIBBSNMP}
-LDADD=	-lbegemot -lbsnmp
+LDADD=	-lbegemot -lbsnmp -lwrap
 
 LDFLAGS= -export-dynamic
 
