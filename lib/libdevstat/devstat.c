@@ -432,7 +432,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		 */
 		if ((dinfo->numdevs = devstat_getnumdevs(kd)) == -1)
 			return(-1);
-		if ((dinfo->mem_ptr = get_devstat_kvm(kd)) == NULL)
+		if ((dinfo->mem_ptr = (u_int8_t *)get_devstat_kvm(kd)) == NULL)
 			return(-1);
 	}
 	/*
