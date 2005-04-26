@@ -89,6 +89,9 @@ sysarch(td, uap)
 	register struct sysarch_args *uap;
 {
 	int error;
+	uint32_t base;
+	struct segment_descriptor sd, *sdp;
+
 
 	mtx_lock(&Giant);
 	switch(uap->op) {
@@ -107,6 +110,67 @@ sysarch(td, uap)
 		break;
 	case I386_VM86:
 		error = vm86_sysarch(td, uap->parms);
+		break;
+	case I386_GET_FSBASE:
+		sdp = (struct segment_descriptor *)&td->td_pcb->pcb_fsd;
+		base = sdp->sd_hibase << 24 | sdp->sd_lobase;
+		error = copyout(&base, uap->parms, sizeof(base));
+		break;
+	case I386_SET_FSBASE:
+		error = copyin(uap->parms, &base, sizeof(base));
+		if (!error) {
+			/*
+			 * Construct a descriptor and store it in the pcb for
+			 * the next context switch.  Also store it in the gdt
+			 * so that the load of tf_fs into %fs will activate it
+			 * at return to userland.
+			 */
+			sd.sd_lobase = base & 0xffffff;
+			sd.sd_hibase = (base >> 24) & 0xff;
+			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+			sd.sd_hilimit = 0xf;
+			sd.sd_type  = SDT_MEMRWA;
+			sd.sd_dpl   = SEL_UPL;
+			sd.sd_p     = 1;
+			sd.sd_xx    = 0;
+			sd.sd_def32 = 1;
+			sd.sd_gran  = 1;
+			critical_enter();
+			*(struct segment_descriptor *)&td->td_pcb->pcb_fsd = sd;
+			PCPU_GET(fsgs_gdt)[0] = sd;
+			critical_exit();
+			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
+		}
+		break;
+	case I386_GET_GSBASE:
+		sdp = (struct segment_descriptor *)&td->td_pcb->pcb_gsd;
+		base = sdp->sd_hibase << 24 | sdp->sd_lobase;
+		error = copyout(&base, uap->parms, sizeof(base));
+		break;
+	case I386_SET_GSBASE:
+		error = copyin(uap->parms, &base, sizeof(base));
+		if (!error) {
+			/*
+			 * Construct a descriptor and store it in the pcb for
+			 * the next context switch.  Also store it in the gdt
+			 * because we have to do a load_gs() right now.
+			 */
+			sd.sd_lobase = base & 0xffffff;
+			sd.sd_hibase = (base >> 24) & 0xff;
+			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+			sd.sd_hilimit = 0xf;
+			sd.sd_type  = SDT_MEMRWA;
+			sd.sd_dpl   = SEL_UPL;
+			sd.sd_p     = 1;
+			sd.sd_xx    = 0;
+			sd.sd_def32 = 1;
+			sd.sd_gran  = 1;
+			critical_enter();
+			*(struct segment_descriptor *)&td->td_pcb->pcb_gsd = sd;
+			PCPU_GET(fsgs_gdt)[1] = sd;
+			critical_exit();
+			load_gs(GSEL(GUGS_SEL, SEL_UPL));
+		}
 		break;
 	default:
 		error = EINVAL;

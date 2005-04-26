@@ -71,6 +71,8 @@ struct pcb {
 	int	pcb_psl;	/* process status long */
 	void	(*pcb_switchout)(void);	/* Special switchout function. */
 	u_long	pcb_vm86[2];	/* vm86bios scratch space */
+	u_long	pcb_fsd[2];
+	u_long	pcb_gsd[2];
 };
 
 #ifdef _KERNEL

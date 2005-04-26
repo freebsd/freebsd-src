@@ -207,7 +207,7 @@ struct region_descriptor {
 #define	GPROC0_SEL	4	/* Task state process slot zero and up */
 #define	GLDT_SEL	5	/* LDT - eventually one per process */
 #define	GUSERLDT_SEL	6	/* User LDT */
-#define	GTGATE_SEL	7	/* Process task switch gate */
+#define	GNDIS_SEL	7	/* For the NDIS layer */
 #define	GBIOSLOWMEM_SEL	8	/* BIOS low memory access (must be entry 8) */
 #define	GPANIC_SEL	9	/* Task state to consider panic from */
 #define GBIOSCODE32_SEL	10	/* BIOS interface (32bit Code) */
@@ -215,8 +215,10 @@ struct region_descriptor {
 #define GBIOSDATA_SEL	12	/* BIOS interface (Data) */
 #define GBIOSUTIL_SEL	13	/* BIOS interface (Utility) */
 #define GBIOSARGS_SEL	14	/* BIOS interface (Arguments) */
+#define	GUFS_SEL	15	/* User %fs Descriptor (order critical: 1) */
+#define	GUGS_SEL	16	/* User %gs Descriptor (order critical: 2) */
 
-#define NGDT 		15
+#define NGDT 		17
 
 /*
  * Entries in the Local Descriptor Table (LDT)

@@ -134,6 +134,7 @@ ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
+ASSYM(PCB_FSD, offsetof(struct pcb, pcb_fsd));
 ASSYM(PCB_VM86, offsetof(struct pcb, pcb_vm86));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
@@ -193,6 +194,7 @@ ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_COMMON_TSS, offsetof(struct pcpu, pc_common_tss));
 ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
 ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
+ASSYM(PC_FSGS_GDT, offsetof(struct pcpu, pc_fsgs_gdt));
 ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
