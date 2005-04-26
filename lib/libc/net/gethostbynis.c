@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef YP
 static char *host_aliases[MAXALIASES];
-static char hostaddr[MAXADDRS];
+static uint32_t host_addr[4];		/* IPv4 or IPv6 */
 static char *host_addrs[2];
 
 static struct hostent *
@@ -61,19 +61,19 @@ _gethostbynis(name, map, af)
 {
 	char *cp, **q;
 	char *result;
-	int resultlen,size;
+	int resultlen, size, addrok = 0;
 	static struct hostent h;
 	static char *domain = (char *)NULL;
 	static char ypbuf[YPMAXRECORD + 2];
-	in_addr_t addr;
 
 	switch(af) {
 	case AF_INET:
 		size = NS_INADDRSZ;
 		break;
-	default:
 	case AF_INET6:
 		size = NS_IN6ADDRSZ;
+		break;
+	default:
 		errno = EAFNOSUPPORT;
 		h_errno = NETDB_INTERNAL;
 		return NULL;
@@ -102,11 +102,21 @@ _gethostbynis(name, map, af)
 	cp = strpbrk(result, " \t");
 	*cp++ = '\0';
 	h.h_addr_list = host_addrs;
-	h.h_addr = hostaddr;
-	addr = inet_addr(result);
-	bcopy((char *)&addr, h.h_addr, size);
+	h.h_addr = (char *)host_addr;
+	switch (af) {
+	case AF_INET:
+		addrok = inet_aton(result, (struct in_addr *)host_addr);
+		break;
+	case AF_INET6:
+		addrok = inet_pton(af, result, host_addr);
+		break;
+	}
+	if (addrok != 1) {
+		h_errno = HOST_NOT_FOUND;
+		return NULL;
+	}
 	h.h_length = size;
-	h.h_addrtype = AF_INET;
+	h.h_addrtype = af;
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
 	h.h_name = cp;
@@ -128,14 +138,46 @@ _gethostbynis(name, map, af)
 	*q = NULL;
 	return (&h);
 }
+
+static struct hostent *
+_gethostbynisname_p(const char *name, int af)
+{
+	char *map;
+
+	switch (af) {
+	case AF_INET:
+		map = "hosts.byname";
+		break;
+	default:
+		map = "ipnodes.byname";
+		break;
+	}
+	return _gethostbynis(name, map, af);
+}
+
+static struct hostent *
+_gethostbynisaddr_p(const char *addr, int len, int af)
+{
+	char *map;
+
+	switch (af) {
+	case AF_INET:
+		map = "hosts.byaddr";
+		break;
+	default:
+		map = "ipnodes.byaddr";
+		break;
+	}
+	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), map, af);
+}
 #endif /* YP */
 
-/* XXX _gethostbynisname/_gethostbynisaddr only used by getaddrinfo */
+/* XXX _gethostbynisname/_gethostbynisaddr only used by getipnodeby*() */
 struct hostent *
 _gethostbynisname(const char *name, int af)
 {
 #ifdef YP
-	return _gethostbynis(name, "hosts.byname", af);
+	return _gethostbynisname_p(name, af);
 #else
 	return NULL;
 #endif
@@ -145,8 +187,7 @@ struct hostent *
 _gethostbynisaddr(const char *addr, int len, int af)
 {
 #ifdef YP
-	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), 
-			     "hosts.byaddr", af);
+	return _gethostbynisaddr_p(addr, len, af);
 #else
 	return NULL;
 #endif
@@ -163,7 +204,7 @@ _nis_gethostbyname(void *rval, void *cb_data, va_list ap)
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
 
-	*(struct hostent **)rval = _gethostbynis(name, "hosts.byname", af);
+	*(struct hostent **)rval = _gethostbynisname_p(name, af);
 	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
@@ -181,8 +222,8 @@ _nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	addr = va_arg(ap, const char *);
 	len = va_arg(ap, int);
 	af = va_arg(ap, int);
-	
-	*(struct hostent **)rval =_gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr", af);
+
+	*(struct hostent **)rval =_gethostbynisaddr_p(addr, len, af);
 	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
