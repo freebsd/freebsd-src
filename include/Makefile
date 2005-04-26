@@ -141,9 +141,11 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
+.if !defined(NO_IPFILTER)
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
+.endif
 	cd ${.CURDIR}/../sys/contrib/pf/net; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/net
@@ -211,11 +213,13 @@ symlinks:
 		ln -fs ../../../sys/contrib/altq/altq/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/altq; \
 	done
+.if !defined(NO_IPFILTER)
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
+.endif
 	cd ${.CURDIR}/../sys/contrib/pf/net; \
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/pf/net/$$h \
