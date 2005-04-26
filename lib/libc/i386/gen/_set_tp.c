@@ -54,6 +54,6 @@ _set_tp(void *tp)
 	sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
 	__asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
 #else
-	_amd64_set_gsbase(tp);
+	i386_set_gsbase(tp);
 #endif
 }
