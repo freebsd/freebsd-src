@@ -213,7 +213,7 @@ NgRecvData(int ds, u_char * buf, size_t len, char *hook)
 {
 	u_char frombuf[NG_HOOKSIZ + NGSA_OVERHEAD];
 	struct sockaddr_ng *const from = (struct sockaddr_ng *) frombuf;
-	int fromlen = sizeof(frombuf);
+	socklen_t fromlen = sizeof(frombuf);
 	int rtn, errnosv;
 
 	/* Read packet */
