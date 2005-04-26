@@ -201,6 +201,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     case 0x24df8086:    /* Intel ICH5 SATA150 RAID */
     case 0x25a38086:    /* Intel 6300ESB SATA150 */
     case 0x25b08086:    /* Intel 6300ESB SATA150 RAID */
+    case 0x26518086:	/* Intel ICH6 SATA150 */
     case 0x3318105a:    /* Promise SATA */
     case 0x3319105a:    /* Promise SATA */
     case 0x3371105a:    /* Promise SATA */
@@ -245,6 +246,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     case 0x25a28086:	/* Intel 6300ESB ICH */
     case 0x25a38086:	/* Intel 6300ESB SATA150 */
     case 0x25b08086:	/* Intel 6300ESB SATA150 RAID */
+    case 0x266f8086:	/* Intel ICH6 */
+    case 0x26518086:	/* Intel ICH6 SATA150 */
     case 0x24ca8086:	/* Intel ICH4 mobile */
     case 0x24cb8086:	/* Intel ICH4 */
 	mask54 = 0x1000;
@@ -262,7 +265,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 
 	    if (mask54 >= 0x1000 && !(chiptype == 0x24ca8086 ||
 		chiptype == 0x24cb8086 || chiptype == 0x24db8086 ||
-		chiptype == 0x25a28086))
+		chiptype == 0x25a28086 || chiptype == 0x266f8086))
 		dma_mode = ATA_UDMA5;
 
 	    word54 = pci_read_config(parent, 0x54, 4);

@@ -170,6 +170,18 @@ ata_pci_match(device_t dev)
 		
 	return "Intel 6300ESB SATA150 controller";
 
+    case 0x266f8086:
+	return "Intel ICH6 ATA100 controller";
+
+    case 0x26518086:	/* Intel ICH6 SATA150 */
+	/* Clear SATA error registers */
+	pci_write_config(dev, 0xa0, 0x54, 4);
+	pci_write_config(dev, 0xa4, pci_read_config(dev, 0xa4, 4), 4);
+	pci_write_config(dev, 0xa0, 0x64, 4);
+	pci_write_config(dev, 0xa4, pci_read_config(dev, 0xa4, 4), 4);
+		
+	return "Intel ICH6 SATA150 controller";
+
     case 0x522910b9:
 	if (pci_get_revid(dev) >= 0xc4)
 	    return "AcerLabs Aladdin ATA100 controller";
@@ -435,6 +447,7 @@ ata_pci_attach(device_t dev)
     case 0x24df8086:    /* Intel ICH5 SATA150 RAID */
     case 0x25a38086:    /* Intel 6300ESB SATA150 */
     case 0x25b08086:    /* Intel 6300ESB SATA150 RAID */
+    case 0x26518086:    /* Intel ICH6 SATA150 */
 	break;
 
     case 0x3318105a: /* Promise SATA150 TX4 */  
@@ -719,6 +732,7 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x24df8086:	/* Intel ICH5 SATA150 RAID */
     case 0x25a38086:	/* Intel 6300ESB SATA150 */
     case 0x25b08086:	/* Intel 6300ESB SATA150 RAID */
+    case 0x26518086:	/* Intel ICH6 SATA150 */
 	dmastat = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
 	if ((dmastat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
 		ATA_BMSTAT_INTERRUPT)

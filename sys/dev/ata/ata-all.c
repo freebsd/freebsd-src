@@ -293,6 +293,7 @@ ata_attach(device_t dev)
     case 0x25b08086: /* Intel 6300ESB SATA RAID */
     case 0x24d18086: /* Intel ICH5 SATA */
     case 0x24df8086: /* Intel ICH5 SATA RAID */
+    case 0x26518086: /* Intel ICH6 SATA */
 	if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO,
                                 ata_intr, ch, &ch->ih))) {
 	        ata_printf(ch, -1, "unable to setup interrupt\n");
