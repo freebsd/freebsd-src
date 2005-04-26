@@ -455,7 +455,7 @@ ata_raid_strategy(struct bio *bp)
 				composite->wr_needed |= (1 << this);
 				composite->request[drv] = request;
 				composite->request[this] = mirror;
-				composite = composite;
+				request->composite = composite;
 				mirror->composite = composite;
 				ata_raid_send_request(mirror);
 				rdp->disks[this].last_lba =
