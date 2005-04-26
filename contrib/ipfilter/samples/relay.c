@@ -21,7 +21,7 @@
 #include "ip_compat.h"
 #include "ip_fil.h"
 #include "ip_nat.h"
-#include "ipl.h"
+#include "netinet/ipl.h"
 
 #define	RELAY_BUFSZ	8192
 

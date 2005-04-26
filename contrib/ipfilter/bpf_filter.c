@@ -53,7 +53,7 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include "ip_compat.h"
+#include "netinet/ip_compat.h"
 #include "bpf-ipf.h"
 
 
