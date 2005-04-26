@@ -123,6 +123,7 @@ nfs_setup_diskless(void)
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:
+	setenv("boot.netif.name", ifp->if_xname);
 	strlcpy(nd->myif.ifra_name, ifp->if_xname, sizeof(nd->myif.ifra_name));
 	
 	/* set up gateway */
