@@ -243,7 +243,7 @@ fail:
 fail2:
 	NGLOGX("  cmd    %d", msg->header.cmd);
 	NGLOGX("  args (%d bytes)", msg->header.arglen);
-	_NgDebugBytes(msg->data, msg->header.arglen);
+	_NgDebugBytes((u_char *)msg->data, msg->header.arglen);
 
 done:
 	if (csock != -1)
