@@ -78,10 +78,8 @@ _tcb_dtor(struct tcb *tcb)
 struct kcb *
 _kcb_ctor(struct kse *kse)
 {
-#ifndef COMPAT_32BIT
 	union descriptor ldt;
 	void *base;
-#endif
 	struct kcb *kcb;
 	int error;
 
@@ -90,7 +88,6 @@ _kcb_ctor(struct kse *kse)
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_self = kcb;
 		kcb->kcb_kse = kse;
-#ifndef COMPAT_32BIT
 		switch (_thr_using_setbase) {
 		case 1:	/* use i386_set_gsbase() in _kcb_set */
 			kcb->kcb_ldt = -1;
@@ -121,7 +118,6 @@ _kcb_ctor(struct kse *kse)
 			}
 			break;
 		}
-#endif
 	}
 	return (kcb);
 }
@@ -129,11 +125,9 @@ _kcb_ctor(struct kse *kse)
 void
 _kcb_dtor(struct kcb *kcb)
 {
-#ifndef COMPAT_32BIT
 	if (kcb->kcb_ldt >= 0) {
 		i386_set_ldt(kcb->kcb_ldt, NULL, 1);
 		kcb->kcb_ldt = -1;	/* just in case */
 	}
-#endif
 	free(kcb);
 }
