@@ -76,7 +76,7 @@ NgSendMsg(int cs, const char *path,
 	msg.header.token = gMsgId;
 	msg.header.flags = NGF_ORIG;
 	msg.header.cmd = cmd;
-	snprintf(msg.header.cmdstr, NG_CMDSTRSIZ, "cmd%d", cmd);
+	snprintf((char *)msg.header.cmdstr, NG_CMDSTRSIZ, "cmd%d", cmd);
 
 	/* Deliver message */
 	if (NgDeliverMsg(cs, path, &msg, args, arglen) < 0)
@@ -122,7 +122,8 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 	memset(ascii, 0, sizeof(*ascii));
 
 	/* Build inner header (only need cmdstr, arglen, and data fields) */
-	strncpy(ascii->header.cmdstr, cmd, sizeof(ascii->header.cmdstr) - 1);
+	strncpy((char *)ascii->header.cmdstr, cmd,
+	    sizeof(ascii->header.cmdstr) - 1);
 	strcpy(ascii->data, args);
 	ascii->header.arglen = strlen(ascii->data) + 1;
 	free(buf);
@@ -249,8 +250,8 @@ NgRecvMsg(int cs, struct ng_mesg *rep, size_t replen, char *path)
 {
 	u_char sgbuf[NG_PATHSIZ + NGSA_OVERHEAD];
 	struct sockaddr_ng *const sg = (struct sockaddr_ng *) sgbuf;
-	int len, sglen = sizeof(sgbuf);
-	int errnosv;
+	socklen_t sglen = sizeof(sgbuf);
+	int len, errnosv;
 
 	/* Read reply */
 	len = recvfrom(cs, rep, replen, 0, (struct sockaddr *) sg, &sglen);
