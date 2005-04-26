@@ -375,6 +375,7 @@ patch_fileproc (callerdat, finfo)
     struct utimbuf t;
     char *vers_tag, *vers_head;
     char *rcs = NULL;
+    char *rcs_orig = NULL;
     RCSNode *rcsfile;
     FILE *fp1, *fp2, *fp3;
     int ret = 0;
@@ -404,7 +405,7 @@ patch_fileproc (callerdat, finfo)
     if ((rcsfile->flags & VALID) && (rcsfile->flags & INATTIC))
 	isattic = 1;
 
-    rcs = xmalloc (strlen (finfo->file) + sizeof (RCSEXT) + 5);
+    rcs_orig = rcs = xmalloc (strlen (finfo->file) + sizeof (RCSEXT) + 5);
     (void) sprintf (rcs, "%s%s", finfo->file, RCSEXT);
 
     /* if vers_head is NULL, may have been removed from the release */
@@ -743,8 +744,8 @@ failed to read diff file header %s for %s: end of file", tmpfile3, rcs);
 	free (vers_tag);
     if (vers_head != NULL)
 	free (vers_head);
-    if (rcs != NULL)
-	free (rcs);
+    if (rcs_orig)
+	free (rcs_orig);
     return (ret);
 }
 
