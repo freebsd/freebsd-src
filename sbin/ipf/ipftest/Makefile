@@ -15,7 +15,7 @@ MAN=		ipftest.1
 CFLAGS+=	-DIPFILTER_LOG -DIPFILTER_COMPILED -DIPFILTER_LOOKUP \
 		-DIPFILTER_SCAN -DIPFILTER_SYNC -DIPFILTER_CKSUM -I.
 
-.PATH:		${NETBSDSRCDIR}/sys/netinet
+.PATH:		${.CURDIR}/../../../sys/contrib/ipfilter/netinet
 
 DPSRCS+=	ipnat_l.h ipnat_y.h ippool_l.h ippool_y.h ipf_l.h ipf_y.h
 
