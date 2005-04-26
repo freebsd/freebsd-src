@@ -1773,6 +1773,8 @@ bootpc_init(void)
 
 	if (gctx->gotrootpath != 0) {
 
+		setenv("boot.netif.name", ifctx->ifp->if_xname);
+
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,
 				 &nd->root_args, td);
