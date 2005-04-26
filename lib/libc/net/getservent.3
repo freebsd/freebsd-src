@@ -152,7 +152,7 @@ and
 functions appeared in
 .Bx 4.2 .
 .Sh BUGS
-These functions use static data storage;
+These functions use a thread-specific data storage;
 if the data is needed for future use, it should be
 copied before any subsequent calls overwrite it.
 Expecting port numbers to fit in a 32 bit
