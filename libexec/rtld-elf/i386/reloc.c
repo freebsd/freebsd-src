@@ -327,10 +327,8 @@ void
 allocate_initial_tls(Obj_Entry *objs)
 {
     void* tls;
-#ifndef COMPAT_32BIT
     union descriptor ldt;
     int error, sel;
-#endif
 
     /*
      * Fix the size of the static TLS block by using the maximum
@@ -338,11 +336,9 @@ allocate_initial_tls(Obj_Entry *objs)
      * use.
      */
     tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
-    tls = allocate_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
-
-#ifndef COMPAT_32BIT
+    tls = alloca_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
     error = i386_set_gsbase(tls);
-    if (error) {
+    if (error < 0) {
 	memset(&ldt, 0, sizeof(ldt));
 	ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
 	ldt.sd.sd_lobase = ((Elf_Addr)tls) & 0xffffff;
@@ -356,9 +352,6 @@ allocate_initial_tls(Obj_Entry *objs)
 	sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
 	__asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
     }
-#else
-    _amd64_set_gsbase(tls);
-#endif
 }
 
 /* GNU ABI */
