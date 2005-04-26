@@ -512,7 +512,6 @@ static __inline int ips_morpheus_check_intr(ips_softc_t *sc)
 	PRINTF(9, "interrupt registers out:%x\n", oisr);
 	if(!(oisr & MORPHEUS_BIT_CMD_IRQ)){
 		DEVICE_PRINTF(2,sc->dev, "got a non-command irq\n");
-		mtx_unlock(&sc->queue_mtx);
 		return (0);	
 	}
 	while((status.value = ips_read_4(sc, MORPHEUS_REG_OQPR)) != 0xffffffff){
@@ -540,6 +539,10 @@ void ips_morpheus_poll(ips_command_t *command)
 {
 	uint32_t ts;
 
+	/*
+	 * Locks are not used here because this is only called during
+	 * crashdumps.
+	 */
 	ts = time_second + command->timeout;
 	while ((command->timeout != 0)
 	 && (ips_morpheus_check_intr(command->sc) == 0)
