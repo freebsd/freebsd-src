@@ -154,7 +154,6 @@ void		_kcb_dtor(struct kcb *);
 static __inline void
 _kcb_set(struct kcb *kcb)
 {
-#ifndef COMPAT_32BIT
 	int val;
 
 	if (_thr_using_setbase == 1) {
@@ -163,9 +162,6 @@ _kcb_set(struct kcb *kcb)
 		val = (kcb->kcb_ldt << 3) | 7;
 		__asm __volatile("movl %0, %%gs" : : "r" (val));
 	}
-#else
-	_amd64_set_gsbase(kcb);
-#endif
 
 }
 
