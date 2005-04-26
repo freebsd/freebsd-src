@@ -1,3 +1,8 @@
+1.9
+	tcpwrapper support from glebius@freebsd.org.
+
+	crude interface to NTP: snmp_ntp
+
 1.8
 	many man page fixes from ru@freebsd.org and tobez@freebsd.org
 
@@ -7,6 +12,10 @@
 	snmpd/trans_lsock.c: include stdio.h to get a prototype for remove.
 
 	gensnmptree/gensnmptree.c: fix a compile error
+
+	snmp_mibII: add new field spec_oid to ifmib. This allows ifType
+	specific modules to insert the value to be returned for ifSpecific.
+
 1.7a
 	fix core dump when config file cannot be opened (submitted by
 	Maxim Konovalov)
