@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_NEC		0x1033
 #define PCI_OHCI_VENDORID_NVIDIA	0x12D2
+#define PCI_OHCI_VENDORID_NVIDIA2	0x10DE
 #define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
 
@@ -118,6 +119,44 @@ static const char *ohci_device_generic = "OHCI (generic) USB controller";
 
 static int ohci_pci_attach(device_t self);
 static int ohci_pci_detach(device_t self);
+static int ohci_pci_suspend(device_t self);
+static int ohci_pci_resume(device_t self);
+
+static int
+ohci_pci_suspend(device_t self)
+{
+	ohci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_suspend(self);
+	if (err)
+		return err;
+	ohci_power(PWR_SUSPEND, sc);
+
+	return 0;
+}
+
+static int
+ohci_pci_resume(device_t self)
+{
+	ohci_softc_t *sc = device_get_softc(self);
+	u_int32_t reg, int_line;
+
+	if (pci_get_powerstate(self) != PCI_POWERSTATE_D0) {
+                device_printf(self, "chip is in D%d mode "
+                        "-- setting to D0\n", pci_get_powerstate(self));
+                reg = pci_read_config(self, PCI_CBMEM, 4);
+                int_line = pci_read_config(self, PCIR_INTLINE, 4);
+                pci_set_powerstate(self, PCI_POWERSTATE_D0);
+                pci_write_config(self, PCI_CBMEM, reg, 4);
+                pci_write_config(self, PCIR_INTLINE, int_line, 4);
+	}
+
+	ohci_power(PWR_RESUME, sc);
+	bus_generic_resume(self);
+
+	return 0;
+}
 
 static const char *
 ohci_pci_match(device_t self)
@@ -205,7 +244,7 @@ ohci_pci_attach(device_t self)
 		ohci_pci_detach(self);
 		return ENOMEM;
 	}
-	device_set_ivars(sc->sc_bus.bdev, sc);
+	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	/* ohci_pci_match will never return NULL if ohci_pci_probe succeeded */
 	device_set_desc(sc->sc_bus.bdev, ohci_pci_match(self));
@@ -226,6 +265,7 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "NEC");
 		break;
 	case PCI_OHCI_VENDORID_NVIDIA:
+	case PCI_OHCI_VENDORID_NVIDIA2:
 		sprintf(sc->sc_vendor, "nVidia");
 		break;
 	case PCI_OHCI_VENDORID_OPTI:
@@ -250,8 +290,10 @@ ohci_pci_attach(device_t self)
 		return ENXIO;
 	}
 	err = ohci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= OHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
@@ -266,17 +308,10 @@ ohci_pci_detach(device_t self)
 {
 	ohci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX this code is not yet fit to be used as detach for the OHCI
-	 * controller
-	 */
-
-	/*
-	 * disable interrupts that might have been switched on in ohci_init
-	 */
-	if (sc->iot && sc->ioh)
-		bus_space_write_4(sc->iot, sc->ioh,
-		    OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	if (sc->sc_flags & OHCI_SCFLG_DONEINIT) {
+		ohci_detach(sc, 0);
+		sc->sc_flags &= ~OHCI_SCFLG_DONEINIT;
+	}
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
@@ -308,6 +343,9 @@ static device_method_t ohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ohci_pci_probe),
 	DEVMETHOD(device_attach, ohci_pci_attach),
+	DEVMETHOD(device_detach, ohci_pci_detach),
+	DEVMETHOD(device_suspend, ohci_pci_suspend),
+	DEVMETHOD(device_resume, ohci_pci_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */

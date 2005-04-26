@@ -8,12 +8,14 @@
  *	$NetBSD: ohci.c,v 1.144 2003/11/23 19:18:06 augustss Exp $
  *	$NetBSD: ohci.c,v 1.145 2003/11/23 19:20:25 augustss Exp $
  *	$NetBSD: ohci.c,v 1.146 2003/12/29 08:17:10 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.147 2004/06/22 07:20:35 mycroft Exp $
+ *	$NetBSD: ohci.c,v 1.148 2004/06/22 18:27:46 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -380,17 +382,20 @@ ohci_activate(device_ptr_t self, enum devact act)
 	}
 	return (rv);
 }
+#endif
 
 int
 ohci_detach(struct ohci_softc *sc, int flags)
 {
-	int rv = 0;
+	int i, rv = 0;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_child != NULL)
 		rv = config_detach(sc->sc_child, flags);
 
 	if (rv != 0)
 		return (rv);
+#endif
 
 	usb_uncallout(sc->sc_tmo_rhsc, ohci_rhsc_enable, sc);
 
@@ -399,13 +404,20 @@ ohci_detach(struct ohci_softc *sc, int flags)
 	shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
 
+	OWRITE4(sc, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
+
 	usb_delay_ms(&sc->sc_bus, 300); /* XXX let stray task complete */
 
-	/* free data structures XXX */
+	for (i = 0; i < OHCI_NO_EDS; i++)
+		ohci_free_sed(sc, sc->sc_eds[i]);
+	ohci_free_sed(sc, sc->sc_isoc_head);
+	ohci_free_sed(sc, sc->sc_bulk_head);
+	ohci_free_sed(sc, sc->sc_ctrl_head);
+	usb_freemem(&sc->sc_bus, &sc->sc_hccadma);
 
 	return (rv);
 }
-#endif
 
 ohci_soft_ed_t *
 ohci_alloc_sed(ohci_softc_t *sc)
@@ -537,33 +549,31 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		 *
 		 * If/when dma has multiple segments, this will need to
 		 * properly handle fragmenting TD's.
-		 *
-		 * We can describe the above using maxsegsz = 4k and nsegs = 2
-		 * in the future.
+		 * 
+		 * Note that if we are gathering data from multiple SMALL
+		 * segments, e.g. mbufs, we need to do special gymnastics,
+		 * e.g. bounce buffering or data aggregation,
+		 * BEFORE WE GET HERE because a bulk USB transfer must
+		 * consist of maximally sized packets right up to the end.
+		 * A shorter than maximal packet means that it is the end
+		 * of the transfer. If the data transfer length is a
+		 * multiple of the packet size, then a 0 byte
+		 * packet will be the signal of the end of transfer.
+		 * Since packets can't cross TDs this means that
+		 * each TD except the last one must cover an exact multiple
+		 * of the maximal packet length.
 		 */
-		if (OHCI_PAGE(dataphys) == OHCI_PAGE(DMAADDR(dma, offset +
-		    len - 1)) || len - (OHCI_PAGE_SIZE -
-		    OHCI_PAGE_OFFSET(dataphys)) <= OHCI_PAGE_SIZE) {
-			/* we can handle it in this TD */
+		if (OHCI_PAGE_OFFSET(dataphys) + len <= (2 * OHCI_PAGE_SIZE)) {
+			/* We can handle all that remains in this TD */
 			curlen = len;
 		} else {
-			/* XXX The calculation below is wrong and could
-			 * result in a packet that is not a multiple of the
-			 * MaxPacketSize in the case where the buffer does not
-			 * start on an appropriate address (like for example in
-			 * the case of an mbuf cluster). You'll get an early
-			 * short packet.
-			 */
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = 2 * OHCI_PAGE_SIZE -
 				 OHCI_PAGE_OFFSET(dataphys);
 			/* the length must be a multiple of the max size */
 			curlen -= curlen %
 			    UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize);
-#ifdef DIAGNOSTIC
-			if (curlen == 0)
-				panic("ohci_alloc_std: curlen == 0");
-#endif
+			KASSERT((curlen != 0), ("ohci_alloc_std: curlen == 0"));
 		}
 		DPRINTFN(4,("ohci_alloc_std_chain: dataphys=0x%08x "
 			    "len=%d curlen=%d\n",
@@ -988,6 +998,7 @@ ohci_allocx(struct usbd_bus *bus)
 		memset(xfer, 0, sizeof (struct ohci_xfer));
 		usb_init_task(&OXFER(xfer)->abort_task, ohci_timeout_task,
 		    xfer);
+		OXFER(xfer)->ohci_xfer_flags = 0;
 #ifdef DIAGNOSTIC
 		xfer->busy_free = XFER_BUSY;
 #endif
@@ -1022,7 +1033,6 @@ ohci_freex(struct usbd_bus *bus, usbd_xfer_handle xfer)
 /*
  * Shut down the controller when the system is going down.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 void
 ohci_shutdown(void *v)
 {
@@ -1091,7 +1101,6 @@ ohci_power(int why, void *v)
 	}
 	splx(s);
 }
-#endif
 
 #ifdef USB_DEBUG
 void
@@ -1744,7 +1753,8 @@ ohci_device_request(usbd_xfer_handle xfer)
 	sed = opipe->sed;
 	opipe->u.ctl.length = len;
 
-	/* Update device address and length since they may have changed. */
+	/* Update device address and length since they may have changed
+	   during the setup of the control pipe in usbd_new_device(). */
 	/* XXX This only needs to be done once, but it's too early in open. */
 	/* XXXX Should not touch ED here! */
 	sed->ed.ed_flags = htole32(
@@ -2139,7 +2149,7 @@ ohci_open(usbd_pipe_handle pipe)
 		}
 		sed->ed.ed_flags = htole32(
 			OHCI_ED_SET_FA(addr) |
-			OHCI_ED_SET_EN(ed->bEndpointAddress) |
+			OHCI_ED_SET_EN(UE_GET_ADDR(ed->bEndpointAddress)) |
 			(dev->speed == USB_SPEED_LOW ? OHCI_ED_SPEED : 0) |
 			fmt |
 			OHCI_ED_SET_MAXP(UGETW(ed->wMaxPacketSize)));
@@ -2245,6 +2255,7 @@ ohci_close_pipe(usbd_pipe_handle pipe, ohci_soft_ed_t *head)
 void
 ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 {
+	struct ohci_xfer *oxfer = OXFER(xfer);
 	struct ohci_pipe *opipe = (struct ohci_pipe *)xfer->pipe;
 	ohci_softc_t *sc = (ohci_softc_t *)opipe->pipe.device->bus;
 	ohci_soft_ed_t *sed = opipe->sed;
@@ -2268,9 +2279,28 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		panic("ohci_abort_xfer: not in process context");
 
 	/*
+	 * If an abort is already in progress then just wait for it to
+	 * complete and return.
+	 */
+	if (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTING) {
+		DPRINTFN(2, ("ohci_abort_xfer: already aborting\n"));
+		/* No need to wait if we're aborting from a timeout. */
+		if (status == USBD_TIMEOUT)
+			return;
+		/* Override the status which might be USBD_TIMEOUT. */
+		xfer->status = status;
+		DPRINTFN(2, ("ohci_abort_xfer: waiting for abort to finish\n"));
+		oxfer->ohci_xfer_flags |= OHCI_XFER_ABORTWAIT;
+		while (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTING)
+			tsleep(&oxfer->ohci_xfer_flags, PZERO, "ohciaw", 0);
+		return;
+	}
+
+	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
 	 */
 	s = splusb();
+	oxfer->ohci_xfer_flags |= OHCI_XFER_ABORTING;
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 	usb_rem_task(xfer->pipe->device, &OXFER(xfer)->abort_task);
@@ -2305,6 +2335,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	p = xfer->hcpriv;
 #ifdef DIAGNOSTIC
 	if (p == NULL) {
+		oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTING; /* XXX */
 		splx(s);
 		printf("ohci_abort_xfer: hcpriv is NULL\n");
 		return;
@@ -2341,6 +2372,12 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	/*
 	 * Step 5: Execute callback.
 	 */
+	/* Do the wakeup first to avoid touching the xfer after the callback. */
+	oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTING;
+	if (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTWAIT) {
+		oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTWAIT;
+		wakeup(&oxfer->ohci_xfer_flags);
+	}
 	usb_transfer_complete(xfer);
 
 	splx(s);

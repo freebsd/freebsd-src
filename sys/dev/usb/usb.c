@@ -2,13 +2,15 @@
 
 /* Also already merged from NetBSD:
  *	$NetBSD: usb.c,v 1.70 2002/05/09 21:54:32 augustss Exp $
+ *	$NetBSD: usb.c,v 1.71 2002/06/01 23:51:04 lukem Exp $
  *	$NetBSD: usb.c,v 1.73 2002/09/23 05:51:19 simonb Exp $
+ *	$NetBSD: usb.c,v 1.80 2003/11/07 17:03:25 wiz Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -47,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * USB specifications and other documentation can be found at
- * http://www.usb.org/developers/data/ and
- * http://www.usb.org/developers/index.html .
+ * http://www.usb.org/developers/docs/ and
+ * http://www.usb.org/developers/devclass_docs/
  */
 
 #include <sys/param.h>
@@ -77,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/select.h>
 #endif
-#include <sys/vnode.h>
+#include <sys/vnode.h>		/* IO_NDELAY */
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 
@@ -125,6 +127,10 @@ int	usb_noexplore = 0;
 
 struct usb_softc {
 	USBBASEDEVICE	sc_dev;		/* base device */
+#ifdef __FreeBSD__
+	dev_t		sc_usbdev;	/* /dev/usbN device */
+	TAILQ_ENTRY(usb_softc) sc_coldexplist; /* cold needs-explore list */
+#endif
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
@@ -159,10 +165,22 @@ struct cdevsw usb_cdevsw = {
 #endif
 
 Static void	usb_discover(void *);
+#ifdef __FreeBSD__
+Static bus_child_detached_t usb_child_detached;
+#endif
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
 Static void	usb_task_thread(void *);
 Static struct proc *usb_task_thread_proc = NULL;
+
+#ifdef __FreeBSD__
+Static dev_t usb_dev;			/* The /dev/usb device. */
+Static int usb_ndevs;			/* Number of /dev/usbN devices. */
+Static int usb_taskcreated;		/* USB task thread exists. */
+/* Busses to explore at the end of boot-time device configuration. */
+Static TAILQ_HEAD(, usb_softc) usb_coldexplist =
+    TAILQ_HEAD_INITIALIZER(usb_coldexplist);
+#endif
 
 #define USB_MAX_EVENTS 100
 struct usb_event_q {
@@ -182,6 +200,7 @@ Static int usb_get_next_event(struct usb_event *);
 Static const char *usbrev_str[] = USBREV_STR;
 
 USB_DECLARE_DRIVER_INIT(usb,
+			DEVMETHOD(bus_child_detached, usb_child_detached),
 			DEVMETHOD(device_suspend, bus_generic_suspend),
 			DEVMETHOD(device_resume, bus_generic_resume),
 			DEVMETHOD(device_shutdown, bus_generic_shutdown)
@@ -204,7 +223,6 @@ USB_ATTACH(usb)
 #elif defined(__FreeBSD__)
 	struct usb_softc *sc = device_get_softc(self);
 	void *aux = device_get_ivars(self);
-	static int global_init_done = 0;
 #endif
 	usbd_device_handle dev;
 	usbd_status err;
@@ -281,11 +299,18 @@ USB_ATTACH(usb)
 		 * the keyboard will not work until after cold boot.
 		 */
 #if defined(__FreeBSD__)
-		if (cold)
+		if (cold) {
+			/* Explore high-speed busses before others. */
+			if (speed == USB_SPEED_HIGH)
+				dev->hub->explore(sc->sc_bus->root_hub);
+			else
+				TAILQ_INSERT_TAIL(&usb_coldexplist, sc,
+				    sc_coldexplist);
+		}
 #else
 		if (cold && (sc->sc_dev.dv_cfdata->cf_flags & 1))
-#endif
 			dev->hub->explore(sc->sc_bus->root_hub);
+#endif
 #endif
 	} else {
 		printf("%s: root hub problem, error=%d\n",
@@ -304,13 +329,12 @@ USB_ATTACH(usb)
 	usb_create_event_thread(sc);
 	/* The per controller devices (used for usb_discover) */
 	/* XXX This is redundant now, but old usbd's will want it */
-	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
-		0660, "usb%d", device_get_unit(self));
-	if (!global_init_done) {
+	sc->sc_usbdev = make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT,
+	    GID_OPERATOR, 0660, "usb%d", device_get_unit(self));
+	if (usb_ndevs++ == 0) {
 		/* The device spitting out events */
-		make_dev(&usb_cdevsw, USB_DEV_MINOR, UID_ROOT, GID_OPERATOR,
-			0660, "usb");
-		global_init_done = 1;
+		usb_dev = make_dev(&usb_cdevsw, USB_DEV_MINOR, UID_ROOT,
+		    GID_OPERATOR, 0660, "usb");
 	}
 #endif
 
@@ -321,7 +345,6 @@ void
 usb_create_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
-	static int created = 0;
 
 	if (usb_kthread_create1(usb_event_thread, sc, &sc->sc_event_thread,
 			   "%s", USBDEVNAME(sc->sc_dev))) {
@@ -329,8 +352,8 @@ usb_create_event_thread(void *arg)
 		       USBDEVNAME(sc->sc_dev));
 		panic("usb_create_event_thread");
 	}
-	if (!created) {
-		created = 1;
+	if (usb_taskcreated == 0) {
+		usb_taskcreated = 1;
 		TAILQ_INIT(&usb_all_tasks);
 		if (usb_kthread_create2(usb_task_thread, NULL,
 					&usb_task_thread_proc, "usbtask")) {
@@ -437,7 +460,7 @@ usb_task_thread(void *arg)
 	DPRINTF(("usb_task_thread: start\n"));
 
 	s = splusb();
-	for (;;) {
+	while (usb_ndevs > 0) {
 		task = TAILQ_FIRST(&usb_all_tasks);
 		if (task == NULL) {
 			tsleep(&usb_all_tasks, PWAIT, "usbtsk", 0);
@@ -452,6 +475,13 @@ usb_task_thread(void *arg)
 			s = splusb();
 		}
 	}
+	splx(s);
+
+	usb_taskcreated = 0;
+	wakeup(&usb_taskcreated);
+
+	DPRINTF(("usb_event_thread: exit\n"));
+	kthread_exit(0);
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -862,11 +892,11 @@ usb_activate(device_ptr_t self, enum devact act)
 	}
 	return (rv);
 }
+#endif
 
-int
-usb_detach(device_ptr_t self, int flags)
+USB_DETACH(usb)
 {
-	struct usb_softc *sc = (struct usb_softc *)self;
+	USB_DETACH_START(usb, sc);
 	struct usb_event ue;
 
 	DPRINTF(("usb_detach: start\n"));
@@ -886,6 +916,17 @@ usb_detach(device_ptr_t self, int flags)
 		DPRINTF(("usb_detach: event thread dead\n"));
 	}
 
+#ifdef __FreeBSD__
+	destroy_dev(sc->sc_usbdev);
+	if (--usb_ndevs == 0) {
+		destroy_dev(usb_dev);
+		usb_dev = NULL;
+		wakeup(&usb_all_tasks);
+		if (tsleep(&usb_taskcreated, PWAIT, "usbtdt", hz * 60))
+			printf("usb task thread didn't die\n");
+	}
+#endif
+
 	usbd_finish();
 
 #ifdef USB_USE_SOFTINTR
@@ -904,19 +945,38 @@ usb_detach(device_ptr_t self, int flags)
 
 	return (0);
 }
-#elif defined(__FreeBSD__)
-int
-usb_detach(device_t self)
-{
-	DPRINTF(("%s: unload, prevented\n", USBDEVNAME(self)));
-
-	return (EINVAL);
-}
-#endif
-
 
 #if defined(__FreeBSD__)
+Static void
+usb_child_detached(device_t self, device_t child)
+{
+	struct usb_softc *sc = device_get_softc(self);
+
+	/* XXX, should check it is the right device. */
+	sc->sc_port.device = NULL;
+}
+
+/* Explore USB busses at the end of device configuration. */
+Static void
+usb_cold_explore(void *arg)
+{
+	struct usb_softc *sc;
+
+	KASSERT(cold || TAILQ_EMPTY(&usb_coldexplist),
+	    ("usb_cold_explore: busses to explore when !cold"));
+	while (!TAILQ_EMPTY(&usb_coldexplist)) {
+		sc = TAILQ_FIRST(&usb_coldexplist);
+		TAILQ_REMOVE(&usb_coldexplist, sc, sc_coldexplist);
+
+		sc->sc_bus->use_polling++;
+		sc->sc_port.device->hub->explore(sc->sc_bus->root_hub);
+		sc->sc_bus->use_polling--;
+	}
+}
+
 DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
+SYSINIT(usb_cold_explore, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
+    usb_cold_explore, NULL);
 #endif

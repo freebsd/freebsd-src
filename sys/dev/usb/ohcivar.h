@@ -1,7 +1,7 @@
 /*	$NetBSD: ohcivar.h,v 1.30 2001/12/31 12:20:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -83,8 +83,11 @@ typedef struct ohci_soft_itd {
 
 #define OHCI_HASH_SIZE 128
 
+#define OHCI_SCFLG_DONEINIT	0x0001	/* ohci_init() done. */
+
 typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
+	int sc_flags;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
@@ -144,7 +147,9 @@ typedef struct ohci_softc {
 
 	usb_callout_t sc_tmo_rhsc;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;
+#endif
 	char sc_dying;
 } ohci_softc_t;
 
@@ -154,14 +159,19 @@ struct ohci_xfer {
 	u_int32_t ohci_xfer_flags;
 };
 #define OHCI_ISOC_DIRTY  0x01
+#define OHCI_XFER_ABORTING	0x02	/* xfer is aborting. */
+#define OHCI_XFER_ABORTWAIT	0x04	/* abort completion is being awaited. */
 
 #define OXFER(xfer) ((struct ohci_xfer *)(xfer))
 
 usbd_status	ohci_init(ohci_softc_t *);
 int		ohci_intr(void *);
+int	 	ohci_detach(ohci_softc_t *, int);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ohci_detach(ohci_softc_t *, int);
 int		ohci_activate(device_ptr_t, enum devact);
 #endif
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
+
+void		ohci_shutdown(void *v);
+void		ohci_power(int state, void *priv);

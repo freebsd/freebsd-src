@@ -127,6 +127,18 @@ static const char *uhci_device_ich5_c = "Intel 82801EB (ICH5) USB controller USB
 #define PCI_UHCI_DEVICEID_ICH5_D	0x24de8086
 static const char *uhci_device_ich5_d = "Intel 82801EB (ICH5) USB controller USB-D";
 
+#define PCI_UHCI_DEVICEID_ICH6_A	0x26588086
+static const char *uhci_device_ich6_a = "Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-A";
+
+#define PCI_UHCI_DEVICEID_ICH6_B	0x26598086
+static const char *uhci_device_ich6_b = "Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-B";
+
+#define PCI_UHCI_DEVICEID_ICH6_C	0x265a8086
+static const char *uhci_device_ich6_c = "Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-C";
+
+#define PCI_UHCI_DEVICEID_ICH6_D	0x265b8086
+static const char *uhci_device_ich6_d = "Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-D";
+
 #define PCI_UHCI_DEVICEID_440MX		0x719a8086
 static const char *uhci_device_440mx = "Intel 82443MX USB controller";
 
@@ -165,6 +177,8 @@ static int
 uhci_pci_resume(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
+
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
 	uhci_power(PWR_RESUME, sc);
 	bus_generic_resume(self);
@@ -209,6 +223,14 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich5_c);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH5_D) {
 		return (uhci_device_ich5_d);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH6_A) {
+		return (uhci_device_ich6_a);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH6_B) {
+		return (uhci_device_ich6_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH6_C) {
+		return (uhci_device_ich6_c);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH6_D) {
+		return (uhci_device_ich6_d);
 	} else if (device_id == PCI_UHCI_DEVICEID_440MX) {
 		return (uhci_device_440mx);
 	} else if (device_id == PCI_UHCI_DEVICEID_460GX) {
@@ -276,7 +298,7 @@ uhci_pci_attach(device_t self)
 		uhci_pci_detach(self);
 		return ENOMEM;
 	}
-	device_set_ivars(sc->sc_bus.bdev, sc);
+	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	/* uhci_pci_match must never return NULL if uhci_pci_probe succeeded */
 	device_set_desc(sc->sc_bus.bdev, uhci_pci_match(self));
@@ -328,8 +350,10 @@ uhci_pci_attach(device_t self)
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
 	err = uhci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= UHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
@@ -344,22 +368,11 @@ uhci_pci_detach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX This function is not yet complete and should not be added
-	 * method list.
-	 */
-#if 0
-	if uhci_init
-		was successful
-		    we should call something like uhci_deinit
-#endif
+	if (sc->sc_flags & UHCI_SCFLG_DONEINIT) {
+		uhci_detach(sc, 0);
+		sc->sc_flags &= ~UHCI_SCFLG_DONEINIT;
+	}
 
-	/*
-	 * disable interrupts that might have been switched on in
-	 * uhci_init.
-	 */
-	if (sc->iot && sc->ioh)
-		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
@@ -393,6 +406,7 @@ static device_method_t uhci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uhci_pci_probe),
 	DEVMETHOD(device_attach, uhci_pci_attach),
+	DEVMETHOD(device_detach, uhci_pci_detach),
 	DEVMETHOD(device_suspend, uhci_pci_suspend),
 	DEVMETHOD(device_resume, uhci_pci_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
