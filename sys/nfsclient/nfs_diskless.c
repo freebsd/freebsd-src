@@ -65,6 +65,7 @@ static int decode_nfshandle(char *ev, u_char *fh);
  *
  * The loader is expected to export the following environment variables:
  *
+ * boot.netif.name		name of boot interface
  * boot.netif.ip		IP address on boot interface
  * boot.netif.netmask		netmask on boot interface
  * boot.netif.gateway		default gateway (optional)
