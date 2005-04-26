@@ -144,6 +144,12 @@
       bytes of kernel memory, has been fixed.  More details are in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.</para>
 
+    <para>Several programming errors in &man.cvs.1;, which could
+      potentially cause arbitrary code to be executed on CVS servers,
+      have been corrected.  Further information can be found in
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -504,6 +510,9 @@
       which violates the Microsoft PPP Callback Control Protocol
       section 3.2.</para>
 
+    <para>The &man.restore.8; utility has regained the ability to read
+      &os; version 1 dump tapes.</para>
+
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
       removing directories or if more than 3 files are listed in the
@@ -528,6 +537,11 @@
       programs from locking when the domain sockets
       run out of buffer space due to a
       local denial-of-service attack.</para>
+
+    <para>The &man.syslogd.8; utility now allows
+      <literal>:</literal> and <literal>%</literal>
+      characters in the hostname specifications.
+      These characters are used in IPv6 addresses and scope IDs.</para>
 
     <para>The &man.systat.1; <option>-netstat</option> display is now
       IPv6-aware.<para>
