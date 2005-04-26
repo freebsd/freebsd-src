@@ -125,16 +125,54 @@ call will return the destination
 address for a
 .Tn UDP
 datagram.
-The msg_control field in the msghdr structure points to a buffer
-that contains a cmsghdr structure followed by the
+The
+.Vt msg_control
+field in the
+.Vt msghdr
+structure points to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
 .Tn IP
 address.
-The cmsghdr fields have the following values:
+The
+.Vt cmsghdr
+fields have the following values:
 .Bd -literal
 cmsg_len = sizeof(struct in_addr)
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
+.Pp
+The source address to be used for outgoing
+.Tn UDP
+datagrams on a socket that is not bound to a specific
+.Tn IP
+address can be specified as ancillary data with a type code of
+.Dv IP_SENDSRCADDR .
+The msg_control field in the msghdr structure should point to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
+.Tn IP
+address.
+The cmsghdr fields should have the following values:
+.Bd -literal
+cmsg_len = sizeof(struct in_addr)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_SENDSRCADDR
+.Ed
+.Pp
+For convenience,
+.Dv IP_SENDSRCADDR
+is defined to have the same value as
+.Dv IP_RECVDSTADDR ,
+so the
+.Dv IP_RECVDSTADDR
+control message from
+.Xr recvmsg 2
+can be used directly as a control message for
+.Xr sendmsg 2 .
 .Pp
 If the
 .Dv IP_ONESBCAST
@@ -161,7 +199,7 @@ configured with the broadcast address 192.168.2.255:
 .Bd -literal
 char msg[512];
 struct sockaddr_in sin;
-u_char onesbcast = 1; /* 0 = disable (default), 1 = enable */
+u_char onesbcast = 1;	/* 0 = disable (default), 1 = enable */
 
 setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
 sin.sin_addr.s_addr = inet_addr("192.168.2.255");
@@ -177,6 +215,55 @@ The application must have sufficient credentials to set the
 socket level option, otherwise the
 .Dv IP_ONESBCAST option has no effect.
 .Pp
+If the
+.Dv IP_RECVTTL
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TTL
+(time to live) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TTL .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = sizeof(u_char)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTTL
+.Ed
+.Pp
+If the
+.Dv IP_RECVIF
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call returns a
+.Vt "struct sockaddr_dl"
+corresponding to the interface on which the
+packet was received.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by the
+.Vt "struct sockaddr_dl" .
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVIF
+.Ed
+.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.
@@ -185,36 +272,80 @@ possible values:
 .Bl -tag -width IP_PORTRANGE_DEFAULT
 .It Dv IP_PORTRANGE_DEFAULT
 use the default range of values, normally
-.Dv IPPORT_RESERVED
+.Dv IPPORT_HIFIRSTAUTO
 through
-.Dv IPPORT_USERRESERVED .
+.Dv IPPORT_HILASTAUTO .
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.first
+.Va net.inet.ip.portrange.first
 and
-.Sy net.inet.ip.portrange.last .
+.Va net.inet.ip.portrange.last .
 .It Dv IP_PORTRANGE_HIGH
 use a high range of values, normally
 .Dv IPPORT_HIFIRSTAUTO
 and
 .Dv IPPORT_HILASTAUTO .
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.hifirst
+.Va net.inet.ip.portrange.hifirst
 and
-.Sy net.inet.ip.portrange.hilast .
+.Va net.inet.ip.portrange.hilast .
 .It Dv IP_PORTRANGE_LOW
 use a low range of ports, which are normally restricted to
 privileged processes on
 .Ux
-systems.  The range is normally from
-.Dv IPPORT_RESERVED - 1
-down to
+systems.
+The range is normally from
+.Dv IPPORT_RESERVED
+\- 1 down to
 .Li IPPORT_RESERVEDSTART
 in descending order.
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.lowfirst
+.Va net.inet.ip.portrange.lowfirst
 and
-.Sy net.inet.ip.portrange.lowlast .
+.Va net.inet.ip.portrange.lowlast .
 .El
+.Pp
+The range of privileged ports which only may be opened by
+root-owned processes may be modified by the
+.Va net.inet.ip.portrange.reservedlow
+and
+.Va net.inet.ip.portrange.reservedhigh
+sysctl settings.
+The values default to the traditional range,
+0 through
+.Dv IPPORT_RESERVED
+\- 1
+(0 through 1023), respectively.
+Note that these settings do not affect and are not accounted for in the
+use or calculation of the other
+.Va net.inet.ip.portrange
+values above.
+Changing these values departs from
+.Ux
+tradition and has security
+consequences that the administrator should carefully evaluate before
+modifying these settings.
+.Pp
+Ports are allocated at random within the specified port range in order
+to increase the difficulty of random spoofing attacks.
+In scenarios such as benchmarking, this behavior may be undesirable.
+In these cases,
+.Va net.inet.ip.portrange.randomized
+can be used to toggle randomization off.
+If more than
+.Va net.inet.ip.portrange.randomcps
+ports have been allocated in the last second, then return to sequential
+port allocation.
+Return to random allocation only once the current port allocation rate
+drops below
+.Va net.inet.ip.portrange.randomcps
+for at least
+.Va net.inet.ip.portrange.randomtime
+seconds.
+The default values for
+.Va net.inet.ip.portrange.randomcps
+and
+.Va net.inet.ip.portrange.randomtime
+are 10 port allocations per second and 45 seconds correspondingly.
 .Ss "Multicast Options"
 .Pp
 .Tn IP
@@ -241,7 +372,8 @@ Datagrams with a TTL of 1 are not forwarded beyond the local network.
 Multicast datagrams with a TTL of 0 will not be transmitted on any network,
 but may be delivered locally if the sending host belongs to the destination
 group and if multicast loopback has not been disabled on the sending socket
-(see below).  Multicast datagrams with TTL greater than 1 may be forwarded
+(see below).
+Multicast datagrams with TTL greater than 1 may be forwarded
 to other networks if a multicast router is attached to the local network.
 .Pp
 For hosts with multiple interfaces, each multicast transmission is
@@ -283,18 +415,20 @@ setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 This option
 improves performance for applications that may have no more than one
 instance on a single host (such as a router daemon), by eliminating
-the overhead of receiving their own transmissions.  It should generally not
+the overhead of receiving their own transmissions.
+It should generally not
 be used by applications for which there may be more than one instance on a
 single host (such as a conferencing program) or for which the sender does
 not belong to the destination group (such as a time querying program).
 .Pp
 A multicast datagram sent with an initial TTL greater than 1 may be delivered
 to the sending host on a different interface from that on which it was sent,
-if the host belongs to the destination group on that other interface.  The
-loopback control option has no effect on such delivery.
+if the host belongs to the destination group on that other interface.
+The loopback control option has no effect on such delivery.
 .Pp
 A host must become a member of a multicast group before it can receive
-datagrams sent to the group.  To join a multicast group, use the
+datagrams sent to the group.
+To join a multicast group, use the
 .Dv IP_ADD_MEMBERSHIP
 option:
 .Bd -literal
@@ -312,15 +446,23 @@ struct ip_mreq {
 }
 .Ed
 .Pp
-.Dv imr_interface
-should
-be
+.Va imr_interface
+should be set to
 .Dv INADDR_ANY
 to choose the default multicast interface,
 or the
 .Tn IP
 address of a particular multicast-capable interface if
 the host is multihomed.
+Since
+.Fx 4.4 ,
+if the
+.Va imr_interface
+member is within the network range
+.Li 0.0.0.0/8 ,
+it is treated as an interface index in the system interface MIB,
+as per the RIP Version 2 MIB Extension (RFC-1724).
+.Pp
 Membership is associated with a single interface;
 programs running on multihomed hosts may need to
 join the same group on more than one interface.
@@ -410,6 +552,21 @@ ip->ip_id = 0;  /* 0 means kernel set appropriate value */
 ip->ip_off = offset;
 .Ed
 .Pp
+The
+.Va ip_len
+and
+.Va ip_off
+fields
+.Em must
+be provided in host byte order .
+All other fields must be provided in network byte order.
+See
+.Xr byteorder 3
+for more information on network byte order.
+If the
+.Va ip_id
+field is set to 0 then the kernel will choose an
+appropriate value.
 If the header source address is set to
 .Dv INADDR_ANY ,
 the kernel will choose an appropriate address.
@@ -422,7 +579,7 @@ already has one, or when trying to send a datagram with the destination
 address specified and the socket is already connected;
 .It Bq Er ENOTCONN
 when trying to send a datagram, but
-no destination address is specified, and the socket hasn't been
+no destination address is specified, and the socket has not been
 connected;
 .It Bq Er ENOBUFS
 when the system runs out of memory for
@@ -441,7 +598,7 @@ The following errors specific to
 may occur when setting or getting
 .Tn IP
 options:
-.Bl -tag -width EADDRNOTAVAILxx
+.Bl -tag -width Er
 .It Bq Er EINVAL
 An unknown socket option name was given.
 .It Bq Er EINVAL
@@ -449,10 +606,25 @@ The IP option field was improperly formed;
 an option field was shorter than the minimum value
 or longer than the option buffer provided.
 .El
+.Pp
+The following errors may occur when attempting to send
+.Tn IP
+datagrams via a
+.Dq raw socket
+with the
+.Dv IP_HDRINCL
+option set:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The user-supplied
+.Va ip_len
+field was not equal to the length of the datagram written to the socket.
+.El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
 .Xr send 2 ,
+.Xr byteorder 3 ,
 .Xr icmp 4 ,
 .Xr inet 4 ,
 .Xr intro 4
