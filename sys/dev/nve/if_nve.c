@@ -195,7 +195,7 @@ static device_method_t nve_methods[] = {
 };
 
 static driver_t nve_driver = {
-	"nv",
+	"nve",
 	nve_methods,
 	sizeof(struct nve_softc)
 };
