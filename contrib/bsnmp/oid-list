@@ -1,4 +1,4 @@
-$Begemot: bsnmp/oid-list,v 1.1 2005/02/25 12:21:00 brandt_h Exp $
+$Begemot: bsnmp/oid-list,v 1.2 2005/04/25 11:49:28 brandt_h Exp $
 
 This file documents the OID assignments under BSNMP's private OID.
 
@@ -14,6 +14,7 @@ enterprises
       100	BEGEMOT-ILMID		snmpd ILMID module
       101	BEGEMOT-ATM		snmpd ATM module
       200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
+      201	BEGEMOT-NTP		snmpd NTP module
 
 If you need an OID and don't know where to stuck it in, I can assign you one -
 just drop me a mail.
