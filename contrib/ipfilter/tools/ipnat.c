@@ -51,7 +51,7 @@
 # include <nlist.h>
 #endif
 #include "ipf.h"
-#include "ipl.h"
+#include "netinet/ipl.h"
 #include "kmem.h"
 
 #ifdef	__hpux
