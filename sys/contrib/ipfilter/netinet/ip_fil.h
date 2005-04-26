@@ -13,6 +13,8 @@
 #ifndef	__IP_FIL_H__
 #define	__IP_FIL_H__
 
+#include "netinet/ip_compat.h"
+
 #ifndef	SOLARIS
 # define SOLARIS (defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
