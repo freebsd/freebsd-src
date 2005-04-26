@@ -163,7 +163,6 @@ devstat_getnumdevs(kvm_t *kd)
 {
 	size_t numdevsize;
 	int numdevs;
-	const char *func_name = "devstat_getnumdevs";
 
 	numdevsize = sizeof(int);
 
@@ -175,7 +174,7 @@ devstat_getnumdevs(kvm_t *kd)
 				 &numdevsize, NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 				 "%s: error getting number of devices\n"
-				 "%s: %s", func_name, func_name, 
+				 "%s: %s", __func__, __func__, 
 				 strerror(errno));
 			return(-1);
 		} else
@@ -201,7 +200,6 @@ devstat_getgeneration(kvm_t *kd)
 {
 	size_t gensize;
 	long generation;
-	const char *func_name = "devstat_getgeneration";
 
 	gensize = sizeof(long);
 
@@ -213,7 +211,7 @@ devstat_getgeneration(kvm_t *kd)
 				 &gensize, NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 				 "%s: error getting devstat generation\n%s: %s",
-				 func_name, func_name, strerror(errno));
+				 __func__, __func__, strerror(errno));
 			return(-1);
 		} else
 			return(generation);
@@ -236,7 +234,6 @@ devstat_getversion(kvm_t *kd)
 {
 	size_t versize;
 	int version;
-	const char *func_name = "devstat_getversion";
 
 	versize = sizeof(int);
 
@@ -248,7 +245,7 @@ devstat_getversion(kvm_t *kd)
 				 NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 				 "%s: error getting devstat version\n%s: %s",
-				 func_name, func_name, strerror(errno));
+				 __func__, __func__, strerror(errno));
 			return(-1);
 		} else
 			return(version);
@@ -268,7 +265,6 @@ devstat_getversion(kvm_t *kd)
 int
 devstat_checkversion(kvm_t *kd)
 {
-	const char *func_name = "devstat_checkversion";
 	int buflen, res, retval = 0, version;
 
 	version = devstat_getversion(kd);
@@ -290,7 +286,7 @@ devstat_checkversion(kvm_t *kd)
 			       "%s%s: userland devstat version %d is not "
 			       "the same as the kernel\n%s: devstat "
 			       "version %d\n", version == -1 ? "\n" : "",
-			       func_name, DEVSTAT_VERSION, func_name, version);
+			       __func__, DEVSTAT_VERSION, __func__, version);
 
 		if (res < 0)
 			devstat_errbuf[buflen] = '\0';
@@ -300,12 +296,12 @@ devstat_checkversion(kvm_t *kd)
 			res = snprintf(devstat_errbuf + buflen,
 				       DEVSTAT_ERRBUF_SIZE - buflen,
 				       "%s: libdevstat newer than kernel\n",
-				       func_name);
+				       __func__);
 		else
 			res = snprintf(devstat_errbuf + buflen,
 				       DEVSTAT_ERRBUF_SIZE - buflen,
 				       "%s: kernel newer than libdevstat\n",
-				       func_name);
+				       __func__);
 
 		if (res < 0)
 			devstat_errbuf[buflen] = '\0';
@@ -334,14 +330,13 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
-	const char *func_name = "devstat_getdevs";
 	struct timespec ts;
 
 	dinfo = stats->dinfo;
 
 	if (dinfo == NULL) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			 "%s: stats->dinfo was NULL", func_name);
+			 "%s: stats->dinfo was NULL", __func__);
 		return(-1);
 	}
 
@@ -412,14 +407,14 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 					snprintf(devstat_errbuf,
 						 sizeof(devstat_errbuf),
 					    	 "%s: error getting device "
-					    	 "stats\n%s: %s", func_name,
-					    	 func_name, strerror(errno));
+					    	 "stats\n%s: %s", __func__,
+					    	 __func__, strerror(errno));
 					return(-1);
 				}
 			} else {
 				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 					 "%s: error getting device stats\n"
-					 "%s: %s", func_name, func_name,
+					 "%s: %s", __func__, __func__,
 					 strerror(errno));
 				return(-1);
 			}
@@ -1007,12 +1002,11 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 	char **tempstr;
 	int num_args;
 	int i, j;
-	const char *func_name = "devstat_buildmatch";
 
 	/* We can't do much without a string to parse */
 	if (match_str == NULL) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			 "%s: no match expression", func_name);
+			 "%s: no match expression", __func__);
 		return(-1);
 	}
 
@@ -1029,7 +1023,7 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 	/* The user gave us too many type arguments */
 	if (num_args > 3) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			 "%s: too many type arguments", func_name);
+			 "%s: too many type arguments", __func__);
 		return(-1);
 	}
 
@@ -1098,7 +1092,7 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 						 sizeof(devstat_errbuf),
 						 "%s: cannot have more than "
 						 "one match item in a single "
-						 "category", func_name);
+						 "category", __func__);
 					return(-1);
 				}
 				/*
@@ -1121,7 +1115,7 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 		 */
 		if ((*matches)[*num_matches].num_match_categories != (i + 1)) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				 "%s: unknown match item \"%s\"", func_name,
+				 "%s: unknown match item \"%s\"", __func__,
 				 tstr[i]);
 			return(-1);
 		}
@@ -1198,7 +1192,6 @@ int
 devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			   long double etime, ...)
 {
-	const char *func_name = "devstat_compute_statistics";
 	u_int64_t totalbytes, totalbytesread, totalbyteswrite, totalbytesfree;
 	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
 	u_int64_t totaltransfersother, totalblocks, totalblocksread;
@@ -1216,7 +1209,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 	 */
 	if (current == NULL) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			 "%s: current stats structure was NULL", func_name);
+			 "%s: current stats structure was NULL", __func__);
 		return(-1);
 	}
 
@@ -1258,7 +1251,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 
 		if (metric >= DSM_MAX) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				 "%s: metric %d is out of range", func_name,
+				 "%s: metric %d is out of range", __func__,
 				 metric);
 			retval = -1;
 			goto bailout;
@@ -1538,7 +1531,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			 * the loop.
 			 */
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				 "%s: unknown metric %d", func_name, metric);
+				 "%s: unknown metric %d", __func__, metric);
 			retval = -1;
 			goto bailout;
 			break; /* NOTREACHED */
@@ -1555,11 +1548,10 @@ bailout:
 static int 
 readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
 {
-	const char *func_name = "readkmem";
 
 	if (kvm_read(kd, addr, buf, nbytes) == -1) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			 "%s: error reading value (kvm_read): %s", func_name,
+			 "%s: error reading value (kvm_read): %s", __func__,
 			 kvm_geterr(kd));
 		return(-1);
 	}
@@ -1569,7 +1561,6 @@ readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
 static int
 readkmem_nl(kvm_t *kd, const char *name, void *buf, size_t nbytes)
 {
-	const char *func_name = "readkmem_nl";
 	struct nlist nl[2];
 
 	nl[0].n_name = (char *)name;
@@ -1578,7 +1569,7 @@ readkmem_nl(kvm_t *kd, const char *name, void *buf, size_t nbytes)
 	if (kvm_nlist(kd, nl) == -1) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 			 "%s: error getting name list (kvm_nlist): %s",
-			 func_name, kvm_geterr(kd));
+			 __func__, kvm_geterr(kd));
 		return(-1);
 	}
 	return(readkmem(kd, nl[0].n_value, buf, nbytes));
@@ -1598,7 +1589,6 @@ get_devstat_kvm(kvm_t *kd)
 	struct devstatlist dhead;
 	int num_devs;
 	char *rv = NULL;
-	const char *func_name = "get_devstat_kvm";
 
 	if ((num_devs = devstat_getnumdevs(kd)) <= 0)
 		return(NULL);
@@ -1611,7 +1601,7 @@ get_devstat_kvm(kvm_t *kd)
 	if ((rv = malloc(sizeof(gen))) == NULL) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf), 
 			 "%s: out of memory (initial malloc failed)",
-			 func_name);
+			 __func__);
 		return(NULL);
 	}
 	gen = devstat_getgeneration(kd);
@@ -1632,7 +1622,7 @@ get_devstat_kvm(kvm_t *kd)
 		if (rv == NULL) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf), 
 				 "%s: out of memory (malloc failed)",
-				 func_name);
+				 __func__);
 			return(NULL);
 		}
 		memcpy(rv + wp, &ds, sizeof(ds));
