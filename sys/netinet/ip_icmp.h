@@ -49,6 +49,17 @@ struct icmp_ra_addr {
 /*
  * Structure of an icmp header.
  */
+struct icmphdr {
+	u_char	icmp_type;		/* type of message, see below */
+	u_char	icmp_code;		/* type sub code */
+	u_short	icmp_cksum;		/* ones complement cksum of struct */
+};
+
+/*
+ * Structure of an icmp packet.
+ *
+ * XXX: should start with a struct icmphdr.
+ */
 struct icmp {
 	u_char	icmp_type;		/* type of message, see below */
 	u_char	icmp_code;		/* type sub code */

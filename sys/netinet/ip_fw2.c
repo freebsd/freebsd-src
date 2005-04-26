@@ -328,11 +328,11 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
 #define	L3HDR(T, ip)	((T *)((u_int32_t *)(ip) + (ip)->ip_hl))
 #define	TCP(p)		((struct tcphdr *)(p))
 #define	UDP(p)		((struct udphdr *)(p))
-#define	ICMP(p)		((struct icmp *)(p))
+#define	ICMP(p)		((struct icmphdr *)(p))
 #define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
 static __inline int
-icmptype_match(struct icmp *icmp, ipfw_insn_u32 *cmd)
+icmptype_match(struct icmphdr *icmp, ipfw_insn_u32 *cmd)
 {
 	int type = icmp->icmp_type;
 
@@ -343,7 +343,7 @@ icmptype_match(struct icmp *icmp, ipfw_insn_u32 *cmd)
     (1 << ICMP_TSTAMP) | (1 << ICMP_IREQ) | (1 << ICMP_MASKREQ) )
 
 static int
-is_icmp_query(struct icmp *icmp)
+is_icmp_query(struct icmphdr *icmp)
 {
 	int type = icmp->icmp_type;
 
@@ -760,7 +760,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 	} else {
 		struct ip *ip = mtod(m, struct ip *);
 		/* these three are all aliases to the same thing */
-		struct icmp *const icmp = L3HDR(struct icmp, ip);
+		struct icmphdr *const icmp = L3HDR(struct icmphdr, ip);
 		struct tcphdr *const tcp = (struct tcphdr *)icmp;
 		struct udphdr *const udp = (struct udphdr *)icmp;
 
@@ -2108,11 +2108,7 @@ do {									\
 				break;
 
 			case IPPROTO_ICMP:
-				/*
-				 * we only care for 4 bytes: type, code,
-				 * checksum
-				 */
-				PULLUP_TO(hlen, ulp, struct icmp);
+				PULLUP_TO(hlen, ulp, struct icmphdr);
 				args->f_id.flags = ICMP(ulp)->icmp_type;
 				break;
 
