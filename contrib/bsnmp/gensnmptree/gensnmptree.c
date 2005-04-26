@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.41 2005/02/25 11:51:12 brandt_h Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.42 2005/04/26 16:26:19 brandt_h Exp $
  *
  * Generate OID table from table description.
  *
@@ -163,7 +163,7 @@ xalloc(size_t size)
 	void *ptr;
 
 	if ((ptr = malloc(size)) == NULL)
-		err(1, "allocing %u bytes", size);
+		err(1, "allocing %zu bytes", size);
 
 	return (ptr);
 }

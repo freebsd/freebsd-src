@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.90 2005/02/25 11:50:03 brandt_h Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.91 2005/04/22 12:18:14 brandt_h Exp $
  *
  * SNMPd main stuff.
  */
@@ -45,6 +45,11 @@
 #include <signal.h>
 #include <dlfcn.h>
 #include <inttypes.h>
+
+#ifdef USE_TCPWRAPPERS
+#include <arpa/inet.h>
+#include <tcpd.h>
+#endif
 
 #include "snmpmod.h"
 #include "snmpd.h"
@@ -166,6 +171,11 @@ options:\n\
   -m var=val	define variable\n\
   -p file	specify pid file\n\
 ";
+
+/* hosts_access(3) request */
+#ifdef USE_TCPWRAPPERS
+static struct request_info req;
+#endif
 
 /* transports */
 extern const struct transport_def udp_trans;
@@ -879,6 +889,9 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	int32_t vi;
 	int ret;
 	ssize_t slen;
+#ifdef USE_TCPWRAPPERS
+	char client[16];
+#endif
 
 	/* get input depending on the transport */
 	if (pi->stream) {
@@ -889,6 +902,23 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 
 	if (ret == -1)
 		return (-1);
+
+#ifdef USE_TCPWRAPPERS
+	/*
+	 * In case of AF_INET{6} peer, do hosts_access(5) check.
+	 */
+	if (inet_ntop(pi->peer->sa_family,
+	    &((struct sockaddr_in *)pi->peer)->sin_addr, client,
+	    sizeof(client)) != NULL) {
+		request_set(&req, RQ_CLIENT_ADDR, client, 0);
+		if (hosts_access(&req) == 0) {
+			syslog(LOG_ERR, "refused connection from %.500s",
+			    eval_client(&req));
+			return (-1);
+		}
+	} else
+		syslog(LOG_ERR, "inet_ntop(): %m");
+#endif
 
 	/*
 	 * Handle input
@@ -1405,6 +1435,14 @@ main(int argc, char *argv[])
 	srandomdev();
 
 	snmp_serial_no = random();
+
+#ifdef USE_TCPWRAPPERS
+	/*
+	 * Initialize hosts_access(3) handler.
+	 */
+	request_init(&req, RQ_DAEMON, "snmpd", 0);
+	sock_methods(&req);
+#endif
 
 	/*
 	 * Initialize the tree.
