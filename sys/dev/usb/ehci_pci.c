@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 /* #include <sys/lockmgr.h>*/
 #include <machine/bus.h>
+#include <machine/clock.h>	/* for DELAY() */
 #include <sys/rman.h>
 #include <machine/resource.h>
 
