@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 #include "ipf.h"
-#include "ipl.h"
+#include "netinet/ipl.h"
 #include <sys/ioctl.h>
 
 void ipf_dotuning(fd, tuneargs, iocfn)

@@ -31,8 +31,8 @@ static	int	text_open __P((char *)), text_close __P((void));
 static	int	text_readip __P((char *, int, char **, int *));
 static	int	parseline __P((char *, ip_t *, char **, int *));
 
-static	char	_tcp_flagset[] = "FSRPAUEC";
-static	u_char	_tcp_flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
+static	char	myflagset[] = "FSRPAUEC";
+static	u_char	myflags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
 				TH_ACK, TH_URG, TH_ECN, TH_CWR };
 
 struct	ipread	iptext = { text_open, text_close, text_readip, R_DO_CKSUM };
@@ -280,14 +280,12 @@ int	*out;
 	ip->ip_dst.s_addr = tx_hostnum(*cpp, &r);
 	cpp++;
 	if (*cpp && ip->ip_p == IPPROTO_TCP) {
-		extern	char	_tcp_flagset[];
-		extern	u_char	_tcp_flags[];
 		char	*s, *t;
 
 		tcp->th_flags = 0;
 		for (s = *cpp; *s; s++)
-			if ((t  = strchr(_tcp_flagset, *s)))
-				tcp->th_flags |= _tcp_flags[t - _tcp_flagset];
+			if ((t  = strchr(myflagset, *s)))
+				tcp->th_flags |= myflags[t - myflagset];
 		if (tcp->th_flags)
 			cpp++;
 		if (tcp->th_flags == 0)
