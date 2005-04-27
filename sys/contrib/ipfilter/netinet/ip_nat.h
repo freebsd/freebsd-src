@@ -22,13 +22,13 @@
 #define	SIOCRMNAT	_IOW('r', 61, struct ipfobj)
 #define	SIOCGNATS	_IOWR('r', 62, struct ipfobj)
 #define	SIOCGNATL	_IOWR('r', 63, struct ipfobj)
-#define	SIOCPROXY	_IOWR('r', 64, struct ap_control)
+/*	SIOCPROXY	_IOWR('r', 64, struct ap_control) */
 #else
 #define	SIOCADNAT	_IOW(r, 60, struct ipfobj)
 #define	SIOCRMNAT	_IOW(r, 61, struct ipfobj)
 #define	SIOCGNATS	_IOWR(r, 62, struct ipfobj)
 #define	SIOCGNATL	_IOWR(r, 63, struct ipfobj)
-#define	SIOCPROXY	_IOWR(r, 64, struct ap_control)
+/*	SIOCPROXY	_IOWR(r, 64, struct ap_control) */
 #endif
 
 #undef	LARGE_NAT	/* define	this if you're setting up a system to NAT
