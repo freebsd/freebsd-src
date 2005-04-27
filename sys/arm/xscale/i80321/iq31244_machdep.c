@@ -356,13 +356,6 @@ initarm(void *arg, void *arg2)
 		pmap_map_chunk(l1pagetable, undstack.pv_va, undstack.pv_pa,
 		    UND_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, 
 		    PTE_CACHE);
-	if (freemem_after + KSTACK_PAGES * PAGE_SIZE < afterkern) {
-		alloc_afterkern(kernelstack.pv_va, kernelstack.pv_pa, 
-		    KSTACK_PAGES * PAGE_SIZE);
-	} else
-		pmap_map_chunk(l1pagetable, kernelstack.pv_va, 
-		    kernelstack.pv_pa, KSTACK_PAGES * PAGE_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	if (freemem_after + MSGBUF_SIZE < afterkern) {
 		alloc_afterkern(msgbufpv.pv_va, msgbufpv.pv_pa, 
 		    IRQ_STACK_SIZE * PAGE_SIZE);
