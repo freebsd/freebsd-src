@@ -72,6 +72,7 @@ __KERNEL_RCSID(0, "$NetBSD: uaudio.c,v 1.91 2004/11/05 17:46:14 kent Exp $");
 #include <sys/poll.h>
 #if defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -83,6 +84,7 @@ __KERNEL_RCSID(0, "$NetBSD: uaudio.c,v 1.91 2004/11/05 17:46:14 kent Exp $");
 #elif defined(__FreeBSD__)
 #include <dev/sound/pcm/sound.h>	/* XXXXX */
 #include <dev/sound/chip.h>
+#include "feeder_if.h"
 #endif
 
 #include <dev/usb/usb.h>
@@ -234,6 +236,10 @@ struct uaudio_softc {
 	int		sc_nctls;	/* # of mixer controls */
 	device_ptr_t	sc_audiodev;
 	char		sc_dying;
+#if defined(__FreeBSD__)
+	struct sbuf	uaudio_sndstat;
+	int		uaudio_sndstat_flag;
+#endif
 };
 
 struct terminal_list {
@@ -444,6 +450,7 @@ Static struct audio_device uaudio_device = {
 #elif defined(__FreeBSD__)
 Static int	audio_attach_mi(device_t);
 Static int	uaudio_init_params(struct uaudio_softc * sc, struct chan *ch, int mode);
+static int 	uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose);
 
 /* for NetBSD compatibirity */
 #define	AUMODE_PLAY	0x01
@@ -641,6 +648,9 @@ uaudio_detach(device_ptr_t self, int flags)
 USB_DETACH(uaudio)
 {
 	USB_DETACH_START(uaudio, sc);
+
+	sbuf_delete(&(sc->uaudio_sndstat));
+	sc->uaudio_sndstat_flag = 0;
 
 	sc->sc_dying = 1;
 
@@ -1894,6 +1904,7 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 	const char *format_str;
 
 	asid = (const void *)(buf + offs);
+
 	if (asid->bDescriptorType != UDESC_CS_INTERFACE ||
 	    asid->bDescriptorSubtype != AS_GENERAL)
 		return (USBD_INVAL);
@@ -2068,6 +2079,28 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 		printf("Hz\n");
 	}
 #endif
+#if defined(__FreeBSD__)
+	if (sc->uaudio_sndstat_flag != 0) {
+		sbuf_printf(&(sc->uaudio_sndstat), "\n\t");
+		sbuf_printf(&(sc->uaudio_sndstat), 
+		    "mode %d:(%s) %dch, %d/%dbit, %s,", 
+		    id->bAlternateSetting,
+		    dir == UE_DIR_IN ? "input" : "output",
+		    chan, prec, asf1d->bSubFrameSize * 8, format_str);
+		if (asf1d->bSamFreqType == UA_SAMP_CONTNUOUS) {
+			sbuf_printf(&(sc->uaudio_sndstat), " %d-%dHz", 
+			    UA_SAMP_LO(asf1d), UA_SAMP_HI(asf1d));
+		} else {
+			int r;
+			sbuf_printf(&(sc->uaudio_sndstat), 
+			    " %d", UA_GETSAMP(asf1d, 0));
+			for (r = 1; r < asf1d->bSamFreqType; r++)
+				sbuf_printf(&(sc->uaudio_sndstat), 
+				    ",%d", UA_GETSAMP(asf1d, r));
+			sbuf_printf(&(sc->uaudio_sndstat), "Hz");
+		}
+	}
+#endif
 	ai.alt = id->bAlternateSetting;
 	ai.encoding = enc;
 	ai.attributes = sed->bmAttributes;
@@ -2106,6 +2139,11 @@ uaudio_identify_as(struct uaudio_softc *sc,
 	if (id == NULL)
 		return (USBD_INVAL);
 
+#if defined(__FreeBSD__)
+	sc->uaudio_sndstat_flag = 0;
+	if (sbuf_new(&(sc->uaudio_sndstat), NULL, 4096, SBUF_AUTOEXTEND) != NULL)
+		sc->uaudio_sndstat_flag = 1;
+#endif
 	/* Loop through all the alternate settings. */
 	while (offs <= size) {
 		DPRINTFN(2, ("uaudio_identify: interface=%d offset=%d\n",
@@ -2132,6 +2170,9 @@ uaudio_identify_as(struct uaudio_softc *sc,
 		if (id == NULL)
 			break;
 	}
+#if defined(__FreeBSD__)
+	sbuf_finish(&(sc->uaudio_sndstat));
+#endif
 	if (offs > size)
 		return (USBD_INVAL);
 	DPRINTF(("uaudio_identify_as: %d alts available\n", sc->sc_nalts));
@@ -4171,6 +4212,118 @@ uaudio_mixer_setrecsrc(device_t dev, u_int32_t src)
 	return (1 << mc->slctrtype[mc->minval - 1]);
 }
 
+static int
+uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
+{
+    	struct snddev_info *d;
+    	struct snddev_channel *sce;
+	struct pcm_channel *c;
+	struct pcm_feeder *f;
+    	int pc, rc, vc;
+	device_t pa_dev = device_get_parent(dev);
+	struct uaudio_softc *sc = device_get_softc(pa_dev);
+
+	if (verbose < 1)
+		return 0;
+
+	d = device_get_softc(dev);
+	if (!d)
+		return ENXIO;
+
+	snd_mtxlock(d->lock);
+	if (SLIST_EMPTY(&d->channels)) {
+		sbuf_printf(s, " (mixer only)");
+		snd_mtxunlock(d->lock);
+		return 0;
+	}
+	pc = rc = vc = 0;
+	SLIST_FOREACH(sce, &d->channels, link) {
+		c = sce->channel;
+		if (c->direction == PCMDIR_PLAY) {
+			if (c->flags & CHN_F_VIRTUAL)
+				vc++;
+			else
+				pc++;
+		} else
+			rc++;
+	}
+	sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)", 
+			d->playcount, d->reccount, d->vchancount,
+			(d->flags & SD_F_SIMPLEX)? "" : " duplex",
+#ifdef USING_DEVFS
+			(device_get_unit(dev) == snd_unit)? " default" : ""
+#else
+			""
+#endif
+			);
+
+	if (sc->uaudio_sndstat_flag != 0) {
+		sbuf_cat(s, sbuf_data(&(sc->uaudio_sndstat)));
+	}
+
+	if (verbose <= 1) {
+		snd_mtxunlock(d->lock);
+		return 0;
+	}
+
+	SLIST_FOREACH(sce, &d->channels, link) {
+		c = sce->channel;
+		sbuf_printf(s, "\n\t");
+
+		/* it would be better to indent child channels */
+		sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
+		sbuf_printf(s, "spd %d", c->speed);
+		if (c->speed != sndbuf_getspd(c->bufhard))
+			sbuf_printf(s, "/%d", sndbuf_getspd(c->bufhard));
+		sbuf_printf(s, ", fmt 0x%08x", c->format);
+		if (c->format != sndbuf_getfmt(c->bufhard))
+			sbuf_printf(s, "/0x%08x", sndbuf_getfmt(c->bufhard));
+		sbuf_printf(s, ", flags 0x%08x, 0x%08x", c->flags, c->feederflags);
+		if (c->pid != -1)
+			sbuf_printf(s, ", pid %d", c->pid);
+		sbuf_printf(s, "\n\t");
+
+		if (c->bufhard != NULL && c->bufsoft != NULL) {
+			sbuf_printf(s, "interrupts %d, ", c->interrupts);
+			if (c->direction == PCMDIR_REC)
+				sbuf_printf(s, "overruns %d, hfree %d, sfree %d",
+					c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft));
+			else
+				sbuf_printf(s, "underruns %d, ready %d",
+					c->xruns, sndbuf_getready(c->bufsoft));
+			sbuf_printf(s, "\n\t");
+		}
+
+		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "hardware" : "userland");
+		sbuf_printf(s, " -> ");
+		f = c->feeder;
+		while (f->source != NULL)
+			f = f->source;
+		while (f != NULL) {
+			sbuf_printf(s, "%s", f->class->name);
+			if (f->desc->type == FEEDER_FMT)
+				sbuf_printf(s, "(0x%08x -> 0x%08x)", f->desc->in, f->desc->out);
+			if (f->desc->type == FEEDER_RATE)
+				sbuf_printf(s, "(%d -> %d)", FEEDER_GET(f, FEEDRATE_SRC), FEEDER_GET(f, FEEDRATE_DST));
+			if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER)
+				sbuf_printf(s, "(0x%08x)", f->desc->out);
+			sbuf_printf(s, " -> ");
+			f = f->parent;
+		}
+		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "userland" : "hardware");
+	}
+	snd_mtxunlock(d->lock);
+
+	return 0;
+}
+
+void
+uaudio_sndstat_register(device_t dev)
+{
+	struct snddev_info *d = device_get_softc(dev);
+	sndstat_register(dev, d->status, uaudio_sndstat_prepare_pcm);
+}
+	
 Static int
 audio_attach_mi(device_t dev)
 {

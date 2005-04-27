@@ -50,3 +50,4 @@ u_int32_t uaudio_mixer_setrecsrc(device_t dev, u_int32_t src);
 u_int32_t uaudio_query_mix_info(device_t dev);
 u_int32_t uaudio_query_recsrc_info(device_t dev);
 void	uaudio_query_formats(device_t dev, u_int32_t *pfmt, u_int32_t *rfmt);
+void	uaudio_sndstat_register(device_t dev);
