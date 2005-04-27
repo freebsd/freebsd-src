@@ -143,8 +143,28 @@ void	panic(const char *, ...) __dead2 __printflike(1, 2);
 
 void	cpu_boot(int);
 void	cpu_rootconf(void);
+
 extern uint32_t crc32_tab[];
-uint32_t crc32(const void *buf, size_t size);
+
+static __inline uint32_t
+crc32_raw(const void *buf, size_t size, uint32_t crc)
+{
+	const uint8_t *p = buf;
+
+	while (size--)
+		crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
+	return (crc);
+}
+
+static __inline uint32_t
+crc32(const void *buf, size_t size)
+{
+	uint32_t crc;
+
+	crc = crc32_raw(buf, size, ~0U);
+	return (crc ^ ~0U);
+}
+
 void	critical_enter(void);
 void	critical_exit(void);
 void	init_param1(void);
