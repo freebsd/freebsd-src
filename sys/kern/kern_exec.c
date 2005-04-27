@@ -348,7 +348,7 @@ do_execve(td, args, mac_p)
 	 *	in ni_vp amoung other things.
 	 */
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
+	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME,
 	    UIO_SYSSPACE, args->fname, td);
 
 	mtx_lock(&Giant);

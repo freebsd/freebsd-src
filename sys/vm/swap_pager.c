@@ -2025,7 +2025,7 @@ swapon(struct thread *td, struct swapon_args *uap)
 		goto done;
 	}
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, td);
+	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW, UIO_USERSPACE, uap->name, td);
 	error = namei(&nd);
 	if (error)
 		goto done;

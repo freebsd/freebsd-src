@@ -171,7 +171,8 @@ coff_load_file(struct thread *td, char *name)
   	unsigned long bss_size = 0;
   	int i;
 
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE, name, td);
+	NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME,
+	    UIO_SYSSPACE, name, td);
 
   	error = namei(&nd);
   	if (error)
