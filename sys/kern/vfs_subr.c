@@ -2248,7 +2248,6 @@ vgonel(struct vnode *vp, struct thread *td)
 	 */
 	doomed = (vp->v_iflag & VI_DOOMED);
 	vp->v_iflag |= VI_DOOMED;
-	vp->v_vxthread = curthread;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
 
@@ -2300,7 +2299,6 @@ vgonel(struct vnode *vp, struct thread *td)
 	vp->v_op = &dead_vnodeops;
 	vp->v_tag = "none";
 	vp->v_type = VBAD;
-	vp->v_vxthread = NULL;
 
 	/*
 	 * If it is on the freelist and not already at the head,
