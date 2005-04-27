@@ -12,4 +12,4 @@ __<bsd.init.mk>__:
 .include <bsd.compat.mk>
 .include <bsd.own.mk>
 .MAIN: all
-.endif !target(__<bsd.init.mk>__)
+.endif # !target(__<bsd.init.mk>__)

@@ -73,4 +73,4 @@ SYMLINKS+=	../${file:R}/${NLSNAME}.cat ${NLSDIR}/${dst}/${NLSNAME}.cat
 .endfor
 .endfor
 
-.endif defined(NLS) && !empty(NLS) && !defined(NO_NLS)
+.endif # defined(NLS) && !empty(NLS) && !defined(NO_NLS)

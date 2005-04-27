@@ -166,7 +166,7 @@ ${LINTLIB}: ${LINTOBJS}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.endif !defined(INTERNALLIB)
+.endif # !defined(INTERNALLIB)
 
 all: ${_LIBS}
 
@@ -240,7 +240,7 @@ _libinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
-.endif !defined(INTERNALLIB)
+.endif # !defined(INTERNALLIB)
 
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
@@ -307,7 +307,7 @@ clean:
 .if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 	rm -f ${LINTOBJS}
 .endif
-.endif !defined(INTERNALLIB)
+.endif # !defined(INTERNALLIB)
 .if defined(_LIBS) && !empty(_LIBS)
 	rm -f ${_LIBS}
 .endif

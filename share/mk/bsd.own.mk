@@ -165,4 +165,4 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
-.endif !target(__<bsd.own.mk>__)
+.endif # !target(__<bsd.own.mk>__)

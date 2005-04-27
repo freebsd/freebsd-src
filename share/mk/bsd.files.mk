@@ -60,10 +60,10 @@ _${group}INS: ${_${group}FILES}
 .endif
 .endif
 
-.endif defined(${group}) && !empty(${group})
+.endif # defined(${group}) && !empty(${group})
 .endfor
 
-.endif !target(installfiles)
+.endif # !target(installfiles)
 
 realinstall: installfiles
 .ORDER: beforeinstall installfiles

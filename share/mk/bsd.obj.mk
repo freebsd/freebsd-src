@@ -98,7 +98,7 @@ objlink:
 		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
 	fi
 .endif
-.endif !defined(NOOBJ)
+.endif # !defined(NOOBJ)
 
 #
 # where would that obj directory be?
@@ -130,4 +130,4 @@ cleandir: cleanobj
 
 .include <bsd.subdir.mk>
 
-.endif !target(__<bsd.obj.mk>__)
+.endif # !target(__<bsd.obj.mk>__)

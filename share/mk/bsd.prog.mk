@@ -48,7 +48,7 @@ ${PROG}: ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 
-.else !defined(SRCS)
+.else # !defined(SRCS)
 
 .if !target(${PROG})
 .if defined(PROG_CXX)
@@ -133,7 +133,7 @@ _proginstall:
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
 .endif
 .endif
-.endif !target(realinstall)
+.endif # !target(realinstall)
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
