@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <nsswitch.h>
 #include "un-namespace.h"
+#include "netdb_private.h"
 
 extern int _ht_getnetbyname(void *, void *, va_list);
 extern int _dns_getnetbyname(void *, void *, va_list);
