@@ -79,6 +79,18 @@ struct servdata {
 
 struct protodata *__protodata_init(void);
 struct servdata *__servdata_init(void);
+void _endhostdnsent(void);
+void _endhosthtent(void);
+void _endnetdnsent(void);
+void _endnethtent(void);
+struct hostent *_gethostbynisaddr(const char *, int, int);
+struct hostent *_gethostbynisname(const char *, int);
+void _map_v4v6_address(const char *, char *);
+void _map_v4v6_hostent(struct hostent *, char **, char **);
+void _sethostdnsent(int);
+void _sethosthtent(int);
+void _setnetdnsent(int);
+void _setnethtent(int);
 void endprotoent_r(struct protoent_data *);
 void endservent_r(struct servent_data *);
 int getprotobyname_r(const char *, struct protoent *, struct protoent_data *);

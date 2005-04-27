@@ -120,6 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "netdb_private.h"
 
 #ifndef _PATH_HOSTS
 #define	_PATH_HOSTS	"/etc/hosts"
