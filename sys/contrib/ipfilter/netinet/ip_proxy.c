@@ -93,7 +93,9 @@ struct file;
 #if defined(_KERNEL)
 # include "netinet/ip_irc_pxy.c"
 # include "netinet/ip_raudio_pxy.c"
-# include "netinet/ip_h323_pxy.c"
+# ifdef IPFILTER_H323
+#  include "netinet/ip_h323_pxy.c"
+# endif
 # ifdef	IPFILTER_PRO
 #  include "netinet/ip_msnrpc_pxy.c"
 # endif
