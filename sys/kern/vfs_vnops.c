@@ -796,13 +796,11 @@ debug_vn_lock(vp, flags, td, filename, line)
 {
 	int error;
 
-	KASSERT(vp->v_vxthread != curthread,
-	    ("recursive vn_lock in inactive/reclaim."));
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
 		if ((flags & LK_NOWAIT || (flags & LK_TYPE_MASK) == 0) &&
-		    vp->v_iflag & VI_DOOMED && vp->v_vxthread != td) {
+		    vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
 			return (ENOENT);
 		}
@@ -828,7 +826,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 		 * If RETRY is not set, we return ENOENT instead.
 		 */
 		if (error == 0 && vp->v_iflag & VI_DOOMED &&
-		    vp->v_vxthread != td && (flags & LK_RETRY) == 0) {
+		    (flags & LK_RETRY) == 0) {
 			VOP_UNLOCK(vp, 0, td);
 			error = ENOENT;
 			break;
