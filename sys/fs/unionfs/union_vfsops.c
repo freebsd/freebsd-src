@@ -127,37 +127,18 @@ union_mount(mp, td)
 	 * Obtain lower vnode.  Vnode is stored in mp->mnt_vnodecovered.
 	 * We need to reference it but not lock it.
 	 */
-
 	lowerrootvp = mp->mnt_vnodecovered;
 	VREF(lowerrootvp);
-
-#if 0
-	/*
-	 * Unlock lower node to avoid deadlock.
-	 */
-	if (lowerrootvp->v_op == union_vnodeop_p)
-		VOP_UNLOCK(lowerrootvp, 0, td);
-#endif
-
 	/*
 	 * Obtain upper vnode by calling namei() on the path.  The
-	 * upperrootvp will be turned referenced but not locked.
+	 * upperrootvp will be turned referenced and locked.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT, UIO_SYSSPACE, target, td);
-
+	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, td);
 	error = namei(ndp);
-
-#if 0
-	if (lowerrootvp->v_op == union_vnodeop_p)
-		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, td);
-#endif
 	if (error)
 		goto bad;
-
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	upperrootvp = ndp->ni_vp;
-	vrele(ndp->ni_dvp);
-	ndp->ni_dvp = NULL;
 
 	UDEBUG(("mount_root UPPERVP %p locked = %d\n", upperrootvp,
 	    VOP_ISLOCKED(upperrootvp, NULL)));
@@ -208,6 +189,8 @@ union_mount(mp, td)
 		break;
 
 	case UNMNT_BELOW:
+		VOP_UNLOCK(upperrootvp, 0, td);
+		vn_lock(lowerrootvp, LK_RETRY|LK_EXCLUSIVE, td);
 		um->um_lowervp = upperrootvp;
 		um->um_uppervp = lowerrootvp;
 		upperrootvp = NULL;
@@ -244,6 +227,7 @@ union_mount(mp, td)
 		if (error)
 			goto bad;
 	}
+	VOP_UNLOCK(um->um_uppervp, 0, td);
 
 	um->um_cred = crhold(td->td_ucred);
 	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
@@ -305,14 +289,14 @@ union_mount(mp, td)
 bad:
 	if (um) {
 		if (um->um_uppervp)
-			vrele(um->um_uppervp);
+			vput(um->um_uppervp);
 		if (um->um_lowervp)
 			vrele(um->um_lowervp);
 		/* XXX other fields */
 		free(um, M_UNIONFSMNT);
 	}
 	if (upperrootvp)
-		vrele(upperrootvp);
+		vput(upperrootvp);
 	if (lowerrootvp)
 		vrele(lowerrootvp);
 	return (error);
