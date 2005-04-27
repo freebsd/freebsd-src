@@ -213,7 +213,7 @@ static void
 z8530_putc(struct uart_bas *bas, int c)
 {
 
-	while (!(uart_getmreg(bas, RR_BES) & BES_TXE))
+	while (!(uart_getreg(bas, REG_CTRL) & BES_TXE))
 		;
 	uart_setreg(bas, REG_DATA, c);
 	uart_barrier(bas);
@@ -223,7 +223,7 @@ static int
 z8530_poll(struct uart_bas *bas)
 {
 
-	if (!(uart_getmreg(bas, RR_BES) & BES_RXA))
+	if (!(uart_getreg(bas, REG_CTRL) & BES_RXA))
 		return (-1);
 	return (uart_getreg(bas, REG_DATA));
 }
@@ -232,7 +232,7 @@ static int
 z8530_getc(struct uart_bas *bas)
 {
 
-	while (!(uart_getmreg(bas, RR_BES) & BES_RXA))
+	while (!(uart_getreg(bas, REG_CTRL) & BES_RXA))
 		;
 	return (uart_getreg(bas, REG_DATA));
 }
