@@ -565,7 +565,6 @@ loop:
 	MALLOC((*vpp)->v_data, void *, sizeof(struct union_node),
 		M_TEMP, M_WAITOK);
 
-	ASSERT_VOP_LOCKED(*vpp, "union_allocvp");
 	(*vpp)->v_vflag |= vflag;
 	if (uppervp)
 		(*vpp)->v_type = uppervp->v_type;
@@ -1065,7 +1064,7 @@ union_vn_create(vpp, un, td)
 	cn.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	bcopy(un->un_path, cn.cn_pnbuf, cn.cn_namelen+1);
 	cn.cn_nameiop = CREATE;
-	cn.cn_flags = (LOCKPARENT|LOCKLEAF|HASBUF|SAVENAME|ISLASTCN);
+	cn.cn_flags = ISOPEN|LOCKPARENT|LOCKLEAF|HASBUF|SAVENAME|ISLASTCN;
 	cn.cn_thread = td;
 	cn.cn_cred = td->td_ucred;
 	cn.cn_nameptr = cn.cn_pnbuf;
