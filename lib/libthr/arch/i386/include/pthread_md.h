@@ -86,12 +86,7 @@ void		_tcb_dtor(struct tcb *tcb);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-#ifndef COMPAT_32BIT
  	i386_set_gsbase(tcb);
-#else
-	_amd64_set_gsbase(tcb);
-#endif
-
 }
 
 /* Get the current kcb. */
