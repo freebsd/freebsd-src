@@ -120,7 +120,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 
 #if !defined(lint)
 static const char rcsid[] = "@(#)$FreeBSD$";
-static const char rcsid[] = "@(#)Id: ip_auth.c,v 2.73.2.3 2004/08/26 11:25:21 darrenr Exp";
+/* static const char rcsid[] = "@(#)Id: ip_auth.c,v 2.73.2.3 2004/08/26 11:25:21 darrenr Exp"; */
 #endif
 
 
