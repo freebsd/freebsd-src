@@ -2199,7 +2199,7 @@ vrecycle(struct vnode *vp, struct thread *td)
 
 	ASSERT_VOP_LOCKED(vp, "vrecycle");
 	VI_LOCK(vp);
-	if (vp->v_usecount == 0) {
+	if (vp->v_usecount == 0 && (vp->v_iflag & VI_DOOMED) == 0) {
 		vgonel(vp, td);
 		return (1);
 	}
@@ -2217,7 +2217,14 @@ vgone(struct vnode *vp)
 	struct thread *td = curthread;	/* XXX */
 	ASSERT_VOP_LOCKED(vp, "vgone");
 
+	/*
+	 * Don't vgonel if we're already doomed.
+	 */
 	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		VI_UNLOCK(vp);
+		return;
+	}
 	vgonel(vp, td);
 }
 
