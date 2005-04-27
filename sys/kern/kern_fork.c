@@ -472,6 +472,7 @@ again:
 	    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
 
 	td2->td_sigstk = td->td_sigstk;
+	td2->td_sigmask = td->td_sigmask;
 
 	/*
 	 * Duplicate sub-structures as needed.
