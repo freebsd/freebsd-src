@@ -268,7 +268,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * XXX: This code should make use of vn_open(), rather than doing
 	 * all this stuff itself.
 	 */
-	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, library, td);
+	NDINIT(&ni, LOOKUP, ISOPEN|FOLLOW|LOCKLEAF, UIO_SYSSPACE, library, td);
 	error = namei(&ni);
 	LFREEPATH(library);
 	if (error)
