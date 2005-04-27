@@ -165,7 +165,6 @@ struct vnode {
 #endif
 	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
-	struct thread *v_vxthread;		/* i thread running vgone. */
 	u_long	v_iflag;			/* i vnode flags (see below) */
 	u_long	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
