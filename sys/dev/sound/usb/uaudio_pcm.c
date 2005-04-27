@@ -344,6 +344,9 @@ ua_attach(device_t dev)
 		return(ENXIO);
 	}
 
+	sndstat_unregister(dev);
+	uaudio_sndstat_register(dev);
+
 	pcm_addchan(dev, PCMDIR_PLAY, &ua_chan_class, ua);
 #ifndef NO_RECORDING
 	pcm_addchan(dev, PCMDIR_REC, &ua_chan_class, ua);
