@@ -513,9 +513,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 	int maxio;
 
 	s = splnet();
-	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL))
-		mp->mnt_flag &= ~MNT_RDONLY;
-	else
+	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) == 0)
 		mp->mnt_flag |= MNT_RDONLY;
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
