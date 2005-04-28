@@ -574,6 +574,8 @@ ata_pcichannel_reset(device_t dev)
     /* reset the controller HW */
     if (ctlr->reset)
 	ctlr->reset(ch);
+    else
+	ata_generic_reset(ch);
 }
 
 static void
