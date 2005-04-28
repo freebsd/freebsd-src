@@ -348,7 +348,7 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 					break;
 				}
 				bp += n;
-				_map_v4v6_hostent(he, &bp, &ep);
+				_map_v4v6_hostent(he, &bp, ep);
 			}
 			h_errno = NETDB_SUCCESS;
 			return 0;
@@ -425,7 +425,7 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 			bp += n;
 		}
 		if (_res.options & RES_USE_INET6)
-			_map_v4v6_hostent(he, &bp, &ep);
+			_map_v4v6_hostent(he, &bp, ep);
 		h_errno = NETDB_SUCCESS;
 		return 0;
 	}

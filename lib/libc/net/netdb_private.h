@@ -140,7 +140,7 @@ void _endnethtent(struct netent_data *);
 struct hostent *_gethostbynisaddr(const char *, int, int);
 struct hostent *_gethostbynisname(const char *, int);
 void _map_v4v6_address(const char *, char *);
-void _map_v4v6_hostent(struct hostent *, char **, char **);
+void _map_v4v6_hostent(struct hostent *, char **, char *);
 void _sethostdnsent(int);
 void _sethosthtent(int, struct hostent_data *);
 void _setnetdnsent(int);
