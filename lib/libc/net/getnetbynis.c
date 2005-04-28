@@ -44,22 +44,18 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
-
-#define	MAXALIASES	35
-#define	MAXADDRS	35
+#include "netdb_private.h"
 
 #ifdef YP
-static char *host_aliases[MAXALIASES];
-
-static struct netent *
-_getnetbynis(const char *name, char *map, int af)
+static int
+_getnetbynis(const char *name, char *map, int af, struct netent *ne,
+    struct netent_data *ned)
 {
+	char *p, *bp, *ep;
 	char *cp, **q;
-	static char *result;
-	int resultlen;
-	static struct netent h;
-	static char *domain = (char *)NULL;
-	static char ypbuf[YPMAXRECORD + 2];
+	char *result;
+	int resultlen, len;
+	char ypbuf[YPMAXRECORD + 2];
 
 	switch(af) {
 	case AF_INET:
@@ -67,15 +63,16 @@ _getnetbynis(const char *name, char *map, int af)
 	default:
 	case AF_INET6:
 		errno = EAFNOSUPPORT;
-		return NULL;
+		return -1;
 	}
 
-	if (domain == (char *)NULL)
-		if (yp_get_default_domain (&domain))
-			return (NULL);
+	if (ned->yp_domain == (char *)NULL)
+		if (yp_get_default_domain (&ned->yp_domain))
+			return -1;
 
-	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
-		return (NULL);
+	if (yp_match(ned->yp_domain, map, name, strlen(name), &result,
+	    &resultlen))
+		return -1;
 
 	bcopy((char *)result, (char *)&ypbuf, resultlen);
 	ypbuf[resultlen] = '\0';
@@ -87,15 +84,24 @@ _getnetbynis(const char *name, char *map, int af)
 
 	cp = strpbrk(result, " \t");
 	*cp++ = '\0';
-	h.n_name = result;
+	bp = ned->netbuf;
+	ep = ned->netbuf + sizeof ned->netbuf;
+	len = strlen(result) + 1;
+	if (ep - bp < len) {
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+	strlcpy(bp, result, ep - bp);
+	ne->n_name = bp;
+	bp += len;
 
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
 
-	h.n_net = inet_network(cp);
-	h.n_addrtype = AF_INET;
+	ne->n_net = inet_network(cp);
+	ne->n_addrtype = AF_INET;
 
-	q = h.n_aliases = host_aliases;
+	q = ne->n_aliases = ned->net_aliases;
 	cp = strpbrk(cp, " \t");
 	if (cp != NULL)
 		*cp++ = '\0';
@@ -104,14 +110,21 @@ _getnetbynis(const char *name, char *map, int af)
 			cp++;
 			continue;
 		}
-		if (q < &host_aliases[MAXALIASES - 1])
-			*q++ = cp;
-		cp = strpbrk(cp, " \t");
-		if (cp != NULL)
-			*cp++ = '\0';
+		if (q > &ned->net_aliases[_MAXALIASES - 1])
+			break;
+		p = strpbrk(cp, " \t");
+		if (p != NULL)
+			*p++ = '\0';
+		len = strlen(cp) + 1;
+		if (ep - bp < len)
+			break;
+		strlcpy(bp, cp, ep - bp);
+		*q++ = bp;
+		bp += len;
+		cp = p;
 	}
 	*q = NULL;
-	return (&h);
+	return 0;
 }
 #endif /* YP */
 
@@ -120,11 +133,16 @@ _nis_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 #ifdef YP
 	const char *name;
+	struct netent *ne;
+	struct netent_data *ned;
+	int error;
 
 	name = va_arg(ap, const char *);
-	
-	*(struct netent **)rval = _getnetbynis(name, "networks.byname", AF_INET);
-	return (*(struct netent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
+
+	error = _getnetbynis(name, "networks.byname", AF_INET, ne, ned);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
 #endif
@@ -137,16 +155,19 @@ _nis_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 #ifdef YP
 	unsigned long addr;
 	int af;
+	struct netent *ne;
+	struct netent_data *ned;
 	char *str, *cp;
 	unsigned long net2;
 	int nn;
 	unsigned int netbr[4];
 	char buf[MAXDNAME];
+	int error;
 
 	addr = va_arg(ap, unsigned long);
 	af = va_arg(ap, int);
-
-	*(struct netent **)rval = NULL;
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
 
 	if (af != AF_INET) {
 		errno = EAFNOSUPPORT;
@@ -181,8 +202,8 @@ _nis_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 		cp = str + (strlen(str) - 2);
 	}
 
-	*(struct netent **)rval = _getnetbynis(str, "networks.byaddr", af);
-	return (*(struct netent**)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	error = _getnetbynis(str, "networks.byaddr", af, ne, ned);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
 #endif /* YP */
