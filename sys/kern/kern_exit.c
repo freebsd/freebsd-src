@@ -585,6 +585,11 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options, struct rusage 
 	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
 		return (EINVAL);
 loop:
+	if (q->p_flag & P_STATCHILD) {
+		PROC_LOCK(q);
+		q->p_flag &= ~P_STATCHILD;
+		PROC_UNLOCK(q);
+	}
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
@@ -735,7 +740,11 @@ loop:
 	}
 	PROC_LOCK(q);
 	sx_xunlock(&proctree_lock);
-	error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
+	if (q->p_flag & P_STATCHILD) {
+		q->p_flag &= ~P_STATCHILD;
+		error = 0;
+	} else
+		error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
 	PROC_UNLOCK(q);
 	if (error)
 		return (error);	
