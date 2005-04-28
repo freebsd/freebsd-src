@@ -1387,17 +1387,14 @@ _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 	af = va_arg(ap, int);
 	errp = va_arg(ap, int *);
 
-	if (af == AF_INET) {
-		THREAD_LOCK();
-		hp = _gethostbynisname(name, af);
-		if (hp != NULL)
-			hp = _hpcopy(hp, errp);
-		THREAD_UNLOCK();
-	}
-	
+	THREAD_LOCK();
+	hp = _gethostbynisname(name, af);
+	if (hp != NULL)
+		hp = _hpcopy(hp, errp);
+	THREAD_UNLOCK();
+
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-	
 }
 
 static int
@@ -1413,13 +1410,11 @@ _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	addrlen = va_arg(ap, int);
 	af = va_arg(ap, int);
 
-	if (af == AF_INET) {
-		THREAD_LOCK();
-		hp = _gethostbynisaddr(addr, addrlen, af);
-		if (hp != NULL)
-			hp = _hpcopy(hp, errp);
-		THREAD_UNLOCK();
-	}
+	THREAD_LOCK();
+	hp = _gethostbynisaddr(addr, addrlen, af);
+	if (hp != NULL)
+		hp = _hpcopy(hp, errp);
+	THREAD_UNLOCK();
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
