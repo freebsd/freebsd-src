@@ -193,11 +193,12 @@ static GNode *predecessor;
  * the 'op' field is the operator to apply to the list of targets if the
  * keyword is used as a source ("0" if the keyword isn't special as a source)
  */
-static struct {
+static const struct keyword {
 	const char	*name;	/* Name of keyword */
 	ParseSpecial	spec;	/* Type when used as a target */
 	int		op;	/* Operator when used as a source */
 } parseKeywords[] = {
+	/* KEYWORD-START-TAG */
 	{ ".BEGIN",		Begin,		0 },
 	{ ".DEFAULT",		Default,	0 },
 	{ ".END",		End,		0 },
@@ -230,7 +231,9 @@ static struct {
 	{ ".SUFFIXES",		Suffixes,	0 },
 	{ ".USE",		Attribute,	OP_USE },
 	{ ".WAIT",		Wait,		0 },
+	/* KEYWORD-END-TAG */
 };
+#define	NKEYWORDS	(sizeof(parseKeywords) / sizeof(parseKeywords[0]))
 
 static void parse_include(char *, int, int);
 static void parse_message(char *, int, int);
@@ -268,41 +271,22 @@ static const struct directive {
 #define	NDIRECTS	(sizeof(directives) / sizeof(directives[0]))
 
 /*-
- *----------------------------------------------------------------------
- * ParseFindKeyword --
+ * ParseFindKeyword
  *	Look in the table of keywords for one matching the given string.
  *
  * Results:
- *	The index of the keyword, or -1 if it isn't there.
- *
- * Side Effects:
- *	None
- *----------------------------------------------------------------------
+ *	The pointer to keyword table entry or NULL.
  */
-static int
-ParseFindKeyword(char *str)
+static const struct keyword *
+ParseFindKeyword(const char *str)
 {
-	int	start;
-	int	end;
-	int	cur;
-	int	diff;
+	int kw;
 
-	start = 0;
-	end = (sizeof(parseKeywords) / sizeof(parseKeywords[0])) - 1;
-
-	do {
-		cur = start + (end - start) / 2;
-		diff = strcmp(str, parseKeywords[cur].name);
-		if (diff == 0) {
-			return (cur);
-		} else if (diff < 0) {
-			end = cur - 1;
-		} else {
-			start = cur + 1;
-		}
-	} while (start <= end);
-
-	return (-1);
+	kw = keyword_hash(str, strlen(str));
+	if (kw < 0 || kw >= (int)NKEYWORDS ||
+	    strcmp(str, parseKeywords[kw].name) != 0)
+		return (NULL);
+	return (&parseKeywords[kw]);
 }
 
 /*-
@@ -541,15 +525,15 @@ static void
 ParseDoSrc(int tOp, char *src, Lst *allsrc)
 {
 	GNode	*gn = NULL;
+	const struct keyword *kw;
 
-	if (*src == '.' && isupper ((unsigned char) src[1])) {
-		int keywd = ParseFindKeyword(src);
-		if (keywd != -1) {
-			if(parseKeywords[keywd].op != 0) {
-				ParseDoOp(parseKeywords[keywd].op);
+	if (src[0] == '.' && isupper ((unsigned char)src[1])) {
+		if ((kw = ParseFindKeyword(src)) != NULL) {
+			if (kw->op != 0) {
+				ParseDoOp(kw->op);
 				return;
 			}
-			if (parseKeywords[keywd].spec == Wait) {
+			if (kw->spec == Wait) {
 				waiting++;
 				return;
 			}
@@ -698,6 +682,7 @@ ParseDoDependency(char *line)
 	Lst	paths;	/* Search paths to alter when parsing .PATH targets */
 	int	tOp;	/* operator from special target */
 	LstNode	*ln;
+	const struct keyword *kw;
 
 	tOp = 0;
 
@@ -814,18 +799,15 @@ ParseDoDependency(char *line)
 			 * See if the target is a special target that must have
 			 * it or its sources handled specially.
 			 */
-			int keywd = ParseFindKeyword(line);
-
-			if (keywd != -1) {
-				if (specType == ExPath &&
-				    parseKeywords[keywd].spec != ExPath) {
+			if ((kw = ParseFindKeyword(line)) != NULL) {
+				if (specType == ExPath && kw->spec != ExPath) {
 					Parse_Error(PARSE_FATAL,
 					    "Mismatched special targets");
 					return;
 				}
 
-				specType = parseKeywords[keywd].spec;
-				tOp = parseKeywords[keywd].op;
+				specType = kw->spec;
+				tOp = kw->op;
 
 				/*
 				 * Certain special targets have special
