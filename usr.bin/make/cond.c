@@ -1123,8 +1123,9 @@ Cond_Else(char *line __unused, int code __unused, int lineno __unused)
 	while (isspace((u_char)*line))
 		line++;
 
-	if (*line != '\0') {
-		Parse_Error(PARSE_WARNING, "junk after .else ignored '%s'", line);
+	if (*line != '\0' && (warnflags & WARN_DIRSYNTAX)) {
+		Parse_Error(PARSE_WARNING, "junk after .else ignored '%s'",
+		    line);
 	}
 
 	if (condTop == MAXIF) {
@@ -1163,9 +1164,11 @@ Cond_Endif(char *line __unused, int code __unused, int lineno __unused)
 	while (isspace((u_char)*line))
 		line++;
 
-	if (*line != '\0') {
-		Parse_Error(PARSE_WARNING, "junk after .endif ignored '%s'", line);
+	if (*line != '\0' && (warnflags & WARN_DIRSYNTAX)) {
+		Parse_Error(PARSE_WARNING, "junk after .endif ignored '%s'",
+		    line);
 	}
+
 	/*
 	 * End of a conditional section. If skipIfLevel is non-zero,
 	 * that conditional was skipped, so lines following it should
