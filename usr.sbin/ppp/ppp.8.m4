@@ -446,28 +446,10 @@ you may need to deal with some initial configuration details.
 .It
 Your kernel must {include} a tunnel device (the GENERIC kernel includes
 one by default).
-If it does not, or if you require more than one tun
-interface, you will need to rebuild your kernel with the following line in
-your kernel configuration file:
+If it does not, the kernel will need to be rebuilt with the following
+lines added:
 .Pp
-.Dl pseudo-device tun N
-.Pp
-where
-.Ar N
-is the maximum number of
-.Em PPP
-connections you wish to support.
-.It
-Check your
-.Pa /dev
-directory for the tunnel device entries
-.Pa /dev/tunN ,
-where
-.Sq N
-represents the number of the tun device, starting at zero.
-If they do not exist, you can create them by running "sh ./MAKEDEV tunN".
-This will create tun devices 0 through
-.Ar N .
+.Dl device tun
 .It
 Make sure that your system has a group named
 .Dq network
