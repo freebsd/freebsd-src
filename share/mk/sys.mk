@@ -265,11 +265,6 @@ __MAKE_CONF?=/etc/make.conf
 .include "${__MAKE_CONF}"
 .endif
 
-# XXX Hack until IPFILTER is buildable again.
-.if !defined(WANT_IPFILTER)
-NO_IPFILTER=
-.endif
-
 # Default executable format
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
