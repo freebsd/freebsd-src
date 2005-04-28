@@ -86,7 +86,7 @@ char	*curline;
 int	allocsize = BUFSIZ;
 int	curlen;
 int	irows, icols;
-int	orows, ocols;
+int	orows = 0, ocols = 0;
 int	maxlen;
 int	skip;
 int	propgutter;
@@ -482,9 +482,11 @@ getargs(int ac, char *av[])
 	/*case 3:
 		opages = atoi(av[2]);*/
 	case 2:
-		ocols = atoi(av[1]);
+		if ((ocols = atoi(av[1])) < 0)
+			ocols = 0;
 	case 1:
-		orows = atoi(av[0]);
+		if ((orows = atoi(av[0])) < 0)
+			orows = 0;
 	case 0:
 		break;
 	default:
