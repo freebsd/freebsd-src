@@ -968,9 +968,9 @@ usb_cold_explore(void *arg)
 		sc = TAILQ_FIRST(&usb_coldexplist);
 		TAILQ_REMOVE(&usb_coldexplist, sc, sc_coldexplist);
 
-		sc->sc_bus->use_polling++;
+/* 		sc->sc_bus->use_polling++; */
 		sc->sc_port.device->hub->explore(sc->sc_bus->root_hub);
-		sc->sc_bus->use_polling--;
+/* 		sc->sc_bus->use_polling--; */
 	}
 }
 
