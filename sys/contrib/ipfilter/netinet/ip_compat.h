@@ -1389,10 +1389,10 @@ extern void eMrwlock_downgrade __P((eMrwlock_t *, char *, int));
  * On BSD's use quad_t as a guarantee for getting at least a 64bit sized
  * object.
  */
-#if	BSD > 199306
+#if (BSD > 199306)
 # define	USE_QUAD_T
-# define	U_QUAD_T	u_quad_t
-# define	QUAD_T		quad_t
+# define	U_QUAD_T	unsigned long long
+# define	QUAD_T		long long
 #else /* BSD > 199306 */
 # define	U_QUAD_T	u_long
 # define	QUAD_T		long
