@@ -461,15 +461,6 @@ are documented in
 The implementation first appeared in KAME advanced networking kit.
 .\"
 .Sh BUGS
-Although the current implementation is otherwise thread-safe, using
-it in conjunction with
-.Fn gethostby*
-(see
-.Xr gethostbyname 3 )
-or
-.Xr yp 8
-breaks the thread-safety of both.
-.Pp
 The
 .Fn getipnodebyname
 and
