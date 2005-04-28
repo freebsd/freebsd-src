@@ -332,16 +332,25 @@ p6_cleanup(int cpu)
 }
 
 static int
-p6_switch_in(struct pmc_cpu *pc)
+p6_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
+
+	/* allow the RDPMC instruction if needed */
+	if (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS)
+		load_cr4(rcr4() | CR4_PCE);
 	return 0;
 }
 
 static int
-p6_switch_out(struct pmc_cpu *pc)
+p6_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
+	(void) pp;		/* can be NULL */
+
+	/* always turn off the RDPMC instruction */
+	load_cr4(rcr4() & ~CR4_PCE);
+
 	return 0;
 }
 

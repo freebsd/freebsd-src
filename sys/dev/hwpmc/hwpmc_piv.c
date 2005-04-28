@@ -578,11 +578,19 @@ p4_cleanup(int cpu)
  */
 
 static int
-p4_switch_in(struct pmc_cpu *pc)
+p4_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
+
+	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
+	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) != 0);
+
 	/* enable the RDPMC instruction */
-	load_cr4(rcr4() | CR4_PCE);
+	if (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS)
+		load_cr4(rcr4() | CR4_PCE);
+
+	PMCDBG(MDP,SWI,2, "cr4=0x%x", rcr4());
+
 	return 0;
 }
 
@@ -591,11 +599,18 @@ p4_switch_in(struct pmc_cpu *pc)
  */
 
 static int
-p4_switch_out(struct pmc_cpu *pc)
+p4_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
-	/* disallow RDPMC instruction */
+	(void) pp;		/* can be null */
+
+	PMCDBG(MDP,SWO,1, "pc=%p pp=%p", pc, pp);
+
+	/* always disallow the RDPMC instruction */
 	load_cr4(rcr4() & ~CR4_PCE);
+
+	PMCDBG(MDP,SWO,2, "cr4=0x%x", rcr4());
+
 	return 0;
 }
 
@@ -1419,7 +1434,10 @@ p4_get_msr(int ri, uint32_t *msr)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] ri %d out of range", __LINE__, ri));
 
-	*msr = p4_pmcdesc[ri].pm_pmc_msr;
+	*msr = p4_pmcdesc[ri].pm_pmc_msr - P4_PERFCTR_MSR_FIRST;
+
+	PMCDBG(MDP,OPS, 1, "ri=%d getmsr=0x%x", ri, *msr);
+
 	return 0;
 }
 

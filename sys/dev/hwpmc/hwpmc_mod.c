@@ -739,8 +739,13 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 
 	atomic_store_rel_ptr(&pp->pp_pmcs[ri].pp_pmc, pm);
 
+	if (pm->pm_owner->po_owner == pp->pp_proc)
+		pp->pp_flags |= PMC_FLAG_ENABLE_MSR_ACCESS;
+
 	pp->pp_refcnt++;
 
+	PMCDBG(PRC,TLK,2, "enable-msr %d",
+	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) != 0);
 }
 
 /*
@@ -774,6 +779,9 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 	pp->pp_pmcs[ri].pp_pmc = NULL;
 	pp->pp_pmcs[ri].pp_pmcval = (pmc_value_t) 0;
 
+	if (pm->pm_owner->po_owner == pp->pp_proc)
+		pp->pp_flags &= ~PMC_FLAG_ENABLE_MSR_ACCESS;
+
 	pp->pp_refcnt--;
 
 	/* Remove the target process from the PMC structure */
@@ -784,7 +792,8 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 	KASSERT(ptgt != NULL, ("[pmc,%d] process %p (pp: %p) not found "
 		    "in pmc %p", __LINE__, pp->pp_proc, pp, pm));
 
-	PMCDBG(PRC,TUL,4, "unlink ptgt=%p", ptgt);
+	PMCDBG(PRC,TUL,4, "unlink ptgt=%p, enable-msr=%d", ptgt,
+	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) != 0);
 
 	LIST_REMOVE(ptgt, pt_next);
 	FREE(ptgt, M_PMC);
@@ -1159,10 +1168,10 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 			    "process-exit proc=%p pmc-process=%p", p, pp);
 
 			/*
-			 * This process could the target of some PMCs.
-			 * Such PMCs will thus be running on currently
-			 * executing CPU at this point in the code
-			 * since we've disallowed context switches.
+			 * The exiting process could the target of
+			 * some PMCs which will be running on
+			 * currently executing CPU.
+			 *
 			 * We need to turn these PMCs off like we
 			 * would do at context switch OUT time.
 			 */
@@ -1219,6 +1228,14 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 				atomic_subtract_rel_32(&pm->pm_runcount,1);
 				(void) md->pmd_config_pmc(cpu, ri, NULL);
 			}
+
+			/*
+			 * Inform the MD layer of this pseudo "context switch
+			 * out"
+			 */
+
+			(void) md->pmd_switch_out(pmc_pcpu[cpu], pp);
+
 			critical_exit(); /* ok to be pre-empted now */
 
 			/*
@@ -1475,7 +1492,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 * switch-in actions.
 		 */
 
-		(void) (*md->pmd_switch_in)(pc);
+		(void) (*md->pmd_switch_in)(pc, pp);
 
 		critical_exit();
 
@@ -1614,7 +1631,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 * switch out functions.
 		 */
 
-		(void) (*md->pmd_switch_out)(pc);
+		(void) (*md->pmd_switch_out)(pc, pp);
 
 		critical_exit();
 
