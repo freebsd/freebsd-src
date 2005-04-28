@@ -82,13 +82,13 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <nsswitch.h>
 
+#include "netdb_private.h"
 #include "res_config.h"
 
 extern int h_errno;
 
 #define BYADDR 0
 #define BYNAME 1
-#define	MAXALIASES	35
 
 #define MAXPACKET	(64*1024)
 
@@ -158,11 +158,9 @@ ipreverse(char *in, char *out)
 	*p = '\0';
 }
 
-static struct netent *
-getnetanswer(answer, anslen, net_i)
-	querybuf *answer;
-	int anslen;
-	int net_i;
+static int
+getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
+    struct netent_data *ned)
 {
 
 	HEADER *hp;
@@ -171,10 +169,8 @@ getnetanswer(answer, anslen, net_i)
 	u_char *eom;
 	int type, class, ancount, qdcount, haveanswer;
 	char aux[MAXHOSTNAMELEN];
+	char ans[MAXHOSTNAMELEN];
 	char *in, *bp, *ep, **ap;
-static	struct netent net_entry;
-static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
-static	char ans[MAXHOSTNAMELEN];
 
 	/*
 	 * find first satisfactory answer
@@ -194,21 +190,21 @@ static	char ans[MAXHOSTNAMELEN];
 	hp = &answer->hdr;
 	ancount = ntohs(hp->ancount); /* #/records in the answer section */
 	qdcount = ntohs(hp->qdcount); /* #/entries in the question section */
-	bp = netbuf;
-	ep = netbuf + sizeof(netbuf);
+	bp = ned->netbuf;
+	ep = ned->netbuf + sizeof(ned->netbuf);
 	cp = answer->buf + HFIXEDSZ;
 	if (!qdcount) {
 		if (hp->aa)
 			h_errno = HOST_NOT_FOUND;
 		else
 			h_errno = TRY_AGAIN;
-		return (NULL);
+		return -1;
 	}
 	while (qdcount-- > 0)
 		cp += __dn_skipname(cp, eom) + QFIXEDSZ;
-	ap = net_aliases;
+	ap = ned->net_aliases;
 	*ap = NULL;
-	net_entry.n_aliases = net_aliases;
+	ne->n_aliases = ned->net_aliases;
 	haveanswer = 0;
 	while (--ancount >= 0 && cp < eom) {
 		n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
@@ -226,14 +222,13 @@ static	char ans[MAXHOSTNAMELEN];
 			n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 			if ((n < 0) || !res_hnok(bp)) {
 				cp += n;
-				return (NULL);
+				return -1;
 			}
 			cp += n; 
 			*ap++ = bp;
 			n = strlen(bp) + 1;
 			bp += n;
-			net_entry.n_addrtype =
-				(class == C_IN) ? AF_INET : AF_UNSPEC;
+			ne->n_addrtype = (class == C_IN) ? AF_INET : AF_UNSPEC;
 			haveanswer++;
 		}
 	}
@@ -241,26 +236,33 @@ static	char ans[MAXHOSTNAMELEN];
 		*ap = NULL;
 		switch (net_i) {
 		case BYADDR:
-			net_entry.n_name = *net_entry.n_aliases;
-			net_entry.n_net = 0L;
+			ne->n_name = *ne->n_aliases;
+			ne->n_net = 0L;
 			break;
 		case BYNAME:
-			in = *net_entry.n_aliases;
-			net_entry.n_name = &ans[0];
+			in = *ne->n_aliases;
+			n = strlen(ans) + 1;
+			if (ep - bp < n) {
+				h_errno = NETDB_INTERNAL;
+				errno = ENOBUFS;
+				return -1;
+			}
+			strlcpy(bp, ans, ep - bp);
+			ne->n_name = bp;
 			if (strlen(in) + 1 > sizeof(aux)) {
 				h_errno = NETDB_INTERNAL;
 				errno = ENOBUFS;
-				return (NULL);
+				return -1;
 			}
 			ipreverse(in, aux);
-			net_entry.n_net = inet_network(aux);
+			ne->n_net = inet_network(aux);
 			break;
 		}
-		net_entry.n_aliases++;
-		return (&net_entry);
+		ne->n_aliases++;
+		return 0;
 	}
 	h_errno = TRY_AGAIN;
-	return (NULL);
+	return -1;
 }
 
 int
@@ -268,17 +270,18 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	unsigned long net;
 	int net_type;
+	struct netent *ne;
+	struct netent_data *ned;
 	unsigned int netbr[4];
-	int nn, anslen;
+	int nn, anslen, error;
 	querybuf *buf;
 	char qbuf[MAXDNAME];
 	unsigned long net2;
-	struct netent *net_entry;
 
 	net = va_arg(ap, unsigned long);
 	net_type = va_arg(ap, int);
-
-	*(struct netent **)rval = NULL;
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
 
 	if (net_type != AF_INET)
 		return NS_UNAVAIL;
@@ -321,16 +324,15 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 #endif
 		return NS_UNAVAIL;
 	}
-	net_entry = getnetanswer(buf, anslen, BYADDR);
+	error = getnetanswer(buf, anslen, BYADDR, ne, ned);
 	free(buf);
-	if (net_entry) {
+	if (error == 0) {
 		unsigned u_net = net;	/* maybe net should be unsigned ? */
 
 		/* Strip trailing zeros */
 		while ((u_net & 0xff) == 0 && u_net != 0)
 			u_net >>= 8;
-		net_entry->n_net = u_net;
-		*(struct netent **)rval = net_entry;
+		ne->n_net = u_net;
 		return NS_SUCCESS;
 	}
 	return NS_NOTFOUND;
@@ -340,13 +342,15 @@ int
 _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *net;
-	int anslen;
+	struct netent *ne;
+	struct netent_data *ned;
+	int anslen, error;
 	querybuf *buf;
 	char qbuf[MAXDNAME];
 
 	net = va_arg(ap, const char *);
-
-	*(struct netent**)rval = NULL;
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
@@ -374,9 +378,9 @@ _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 #endif
 		return NS_UNAVAIL;
 	}
-	*(struct netent**)rval = getnetanswer(buf, anslen, BYNAME);
+	error = getnetanswer(buf, anslen, BYNAME, ne, ned);
 	free(buf);
-	return (*(struct netent**)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
 void

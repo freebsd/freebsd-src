@@ -58,68 +58,72 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
-
-#define	MAXALIASES	35
-
-static FILE *netf;
-static char line[BUFSIZ+1];
-static struct netent net;
-static char *net_aliases[MAXALIASES];
-static int _net_stayopen;
+#include "netdb_private.h"
 
 void
-_setnethtent(f)
-	int f;
+_setnethtent(int f, struct netent_data *ned)
 {
 
-	if (netf == NULL)
-		netf = fopen(_PATH_NETWORKS, "r" );
+	if (ned->netf == NULL)
+		ned->netf = fopen(_PATH_NETWORKS, "r");
 	else
-		rewind(netf);
-	_net_stayopen |= f;
+		rewind(ned->netf);
+	ned->stayopen |= f;
 }
 
 void
-_endnethtent()
+_endnethtent(struct netent_data *ned)
 {
 
-	if (netf) {
-		fclose(netf);
-		netf = NULL;
+	if (ned->netf) {
+		fclose(ned->netf);
+		ned->netf = NULL;
 	}
-	_net_stayopen = 0;
+	ned->stayopen = 0;
 }
 
-struct netent *
-getnetent()
+int
+getnetent_r(struct netent *ne, struct netent_data *ned)
 {
-	char *p;
+	char *p, *bp, *ep;
 	char *cp, **q;
+	int len;
+	char line[BUFSIZ + 1];
 
-	if (netf == NULL && (netf = fopen(_PATH_NETWORKS, "r" )) == NULL)
-		return (NULL);
+	if (ned->netf == NULL &&
+	    (ned->netf = fopen(_PATH_NETWORKS, "r")) == NULL)
+		return -1;
 again:
-	p = fgets(line, sizeof line, netf);
+	p = fgets(line, sizeof line, ned->netf);
 	if (p == NULL)
-		return (NULL);
+		return -1;
 	if (*p == '#')
 		goto again;
 	cp = strpbrk(p, "#\n");
 	if (cp != NULL)
 		*cp = '\0';
-	net.n_name = p;
+	bp = ned->netbuf;
+	ep = ned->netbuf + sizeof ned->netbuf;
+	ne->n_name = bp;
 	cp = strpbrk(p, " \t");
 	if (cp == NULL)
 		goto again;
 	*cp++ = '\0';
+	len = strlen(p) + 1;
+	if (ep - bp < len) {
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+	strlcpy(bp, p, ep - bp);
+	bp += len;
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
 	p = strpbrk(cp, " \t");
 	if (p != NULL)
 		*p++ = '\0';
-	net.n_net = inet_network(cp);
-	net.n_addrtype = AF_INET;
-	q = net.n_aliases = net_aliases;
+	ne->n_net = inet_network(cp);
+	ne->n_addrtype = AF_INET;
+	q = ne->n_aliases = ned->net_aliases;
 	if (p != NULL) {
 		cp = p;
 		while (cp && *cp) {
@@ -127,39 +131,61 @@ again:
 				cp++;
 				continue;
 			}
-			if (q < &net_aliases[MAXALIASES - 1])
-				*q++ = cp;
-			cp = strpbrk(cp, " \t");
-			if (cp != NULL)
-				*cp++ = '\0';
+			if (q >= &ned->net_aliases[_MAXALIASES - 1])
+				break;
+			p = strpbrk(cp, " \t");
+			if (p != NULL)
+				*p++ = '\0';
+			len = strlen(cp) + 1;
+			if (ep - bp < len)
+				break;
+			strlcpy(bp, cp, ep - bp);
+			*q++ = bp;
+			bp += len;
+			cp = p;
 		}
 	}
 	*q = NULL;
-	return (&net);
+	return 0;
+}
+
+struct netent *
+getnetent(void)
+{
+	struct netdata *nd;
+
+	if ((nd = __netdata_init()) == NULL)
+		return NULL;
+	if (getnetent_r(&nd->net, &nd->data) != 0)
+		return NULL;
+	return &nd->net;
 }
 
 int
 _ht_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
-	struct netent *p;
+	struct netent *ne;
+	struct netent_data *ned;
 	char **cp;
+	int error;
 
 	name = va_arg(ap, const char *);
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
 
-	setnetent(_net_stayopen);
-	while ( (p = getnetent()) ) {
-		if (strcasecmp(p->n_name, name) == 0)
+	setnetent_r(ned->stayopen, ned);
+	while ((error = getnetent_r(ne, ned)) == 0) {
+		if (strcasecmp(ne->n_name, name) == 0)
 			break;
-		for (cp = p->n_aliases; *cp != 0; cp++)
+		for (cp = ne->n_aliases; *cp != 0; cp++)
 			if (strcasecmp(*cp, name) == 0)
 				goto found;
 	}
 found:
-	if (!_net_stayopen)
-		endnetent();
-	*(struct netent **)rval = p;
-	return (p != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	if (!ned->stayopen)
+		endnetent_r(ned);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
 int
@@ -167,17 +193,20 @@ _ht_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	unsigned long net;
 	int type;
-	struct netent *p;
+	struct netent *ne;
+	struct netent_data *ned;
+	int error;
 
 	net = va_arg(ap, unsigned long);
 	type = va_arg(ap, int);
+	ne = va_arg(ap, struct netent *);
+	ned = va_arg(ap, struct netent_data *);
 
-	setnetent(_net_stayopen);
-	while ( (p = getnetent()) )
-		if (p->n_addrtype == type && p->n_net == net)
+	setnetent_r(ned->stayopen, ned);
+	while ((error = getnetent_r(ne, ned)) == 0)
+		if (ne->n_addrtype == type && ne->n_net == net)
 			break;
-	if (!_net_stayopen)
-		endnetent();
-	*(struct netent **)rval = p;
-	return (p != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	if (!ned->stayopen)
+		endnetent_r(ned);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 }
