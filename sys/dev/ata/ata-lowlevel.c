@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 /* prototypes */
 static int ata_begin_transaction(struct ata_request *);
 static int ata_end_transaction(struct ata_request *);
-static void ata_generic_reset(struct ata_channel *);
 static int ata_wait(struct ata_channel *ch, struct ata_device *, u_int8_t);
 static void ata_pio_read(struct ata_request *, int);
 static void ata_pio_write(struct ata_request *, int);
@@ -158,7 +157,6 @@ ata_generic_hw(struct ata_channel *ch)
 {
     ch->hw.begin_transaction = ata_begin_transaction;
     ch->hw.end_transaction = ata_end_transaction;
-    ch->hw.reset = ata_generic_reset;
     ch->hw.command = ata_generic_command;
 }
 
@@ -623,15 +621,12 @@ end_continue:
 }
 
 /* must be called with ATA channel locked */
-static void
+void
 ata_generic_reset(struct ata_channel *ch)
 {
     u_int8_t ostat0 = 0, stat0 = 0, ostat1 = 0, stat1 = 0;
     u_int8_t err = 0, lsb = 0, msb = 0;
     int mask = 0, timeout;
-
-    /* reset controller (host) */
-    ATA_RESET(ch->dev);
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);

@@ -58,14 +58,14 @@ HEADER {
 #define         ATA_LF_WHICH            0x0004
 };
 
-METHOD void reset {
-    device_t    channel;
-};
-
 METHOD void setmode {
     device_t    channel;
     device_t    dev;
 };
+
+METHOD void reset {
+    device_t    channel;
+} DEFAULT ata_generic_reset;
 
 METHOD int reinit {
     device_t    dev;

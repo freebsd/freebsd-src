@@ -387,7 +387,6 @@ struct ata_dma {
 struct ata_lowlevel {
     int (*begin_transaction)(struct ata_request *request);
     int (*end_transaction)(struct ata_request *request);
-    void (*reset)(struct ata_channel *ch);
     int (*command)(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 };
 
@@ -472,9 +471,10 @@ void ata_fail_requests(struct ata_channel *ch, device_t dev);
 char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
-void ata_generic_hw(struct ata_channel *ch);
-int ata_generic_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 int ata_getparam(device_t parent, struct ata_device *atadev, u_int8_t command);
+void ata_generic_hw(struct ata_channel *ch);
+void ata_generic_reset(struct ata_channel *ch);
+int ata_generic_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 
 /* macros for alloc/free of struct ata_request */
 extern uma_zone_t ata_request_zone;
