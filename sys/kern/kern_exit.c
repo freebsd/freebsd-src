@@ -507,6 +507,15 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 
 	wakeup(p->p_pptr);
+	/*
+	 * XXX hack, swap in parent process, please see TDP_WAKEPROC0
+	 * code, because TDP_WAKEPROC0 is only useful if thread is
+	 * leaving critical region, but here we never leave and
+	 * thread_exit() will call cpu_throw(), TDP_WAKEPROC0 is never
+	 * cleared.
+	 */
+	if (p->p_pptr->p_sflag & PS_SWAPINREQ)
+		wakeup(&proc0);
 	PROC_UNLOCK(p->p_pptr);
 
 	mtx_lock_spin(&sched_lock);
