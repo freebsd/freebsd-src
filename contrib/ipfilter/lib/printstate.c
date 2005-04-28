@@ -64,7 +64,7 @@ u_long now;
 			ips.is_icmp.ici_seq, ips.is_icmp.ici_type);
 
 #ifdef        USE_QUAD_T
-	PRINTF("\tforward: pkts in %qd bytes in %qd pkts out %qd bytes out %qd\n\tbackward: pkts in %qd bytes in %qd pkts out %qd bytes out %qd\n",
+	PRINTF("\tforward: pkts in %lld bytes in %lld pkts out %lld bytes out %lld\n\tbackward: pkts in %lld bytes in %lld pkts out %lld bytes out %lld\n",
 		ips.is_pkts[0], ips.is_bytes[0],
 		ips.is_pkts[1], ips.is_bytes[1],
 		ips.is_pkts[2], ips.is_bytes[2],
