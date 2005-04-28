@@ -1369,7 +1369,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GTGATE_SEL	7 Null Descriptor - Placeholder */
+/* GNDIS_SEL	7 NDIS Descriptor */
 {	0x0,			/* segment base address  */
 	0x0,			/* length - all address space */
 	0,			/* segment type */
@@ -1440,6 +1440,24 @@ struct soft_segment_descriptor gdt_segs[] = {
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUFS_SEL	14 %fs Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUGS_SEL	15 %gs Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
 };
 
@@ -2089,25 +2107,17 @@ init386(first)
 	init_param1();
 
 	/*
-	 * make gdt memory segments, the code segment goes up to end of the
-	 * page with etext in it, the data segment goes to the end of
-	 * the address space
-	 */
-	/*
-	 * XXX text protection is temporarily (?) disabled.  The limit was
-	 * i386_btop(round_page(etext)) - 1.
+	 * Make gdt memory segments.  All segments cover the full 4GB
+	 * of address space and permissions are enforced at page level.
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
 	pc = &SMP_prvspace[0].pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct privatespace) - 1);
 #else
 	pc = &__pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct pcpu) - 1);
 #endif
+	gdt_segs[GPRIV_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
@@ -2136,12 +2146,8 @@ init386(first)
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
 
 	/* make ldt memory segments */
-	/*
-	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  And it
-	 * should be spelled ...MAX_USER...
-	 */
-	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
-	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
+	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
+	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
@@ -2239,6 +2245,9 @@ init386(first)
 	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
 	ltr(gsel_tss);
+
+	/* pointer to selector slot for %fs/%gs */
+	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
