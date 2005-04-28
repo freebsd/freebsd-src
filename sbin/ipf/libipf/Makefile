@@ -1,11 +1,7 @@
 #	$FreeBSD$
 
-MKPRIVATELIB=	yes
-USE_SHLIBDIR=	yes
-
-NOGCCERROR=	# defined
-
 LIB=		ipf
+INTERNALLIB=
 
 SRCS=		addicmp.c addipopt.c addkeep.c bcopywrap.c binprint.c \
 		buildopts.c checkrev.c count6bits.c count4bits.c debug.c \
