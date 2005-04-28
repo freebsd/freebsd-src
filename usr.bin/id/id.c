@@ -243,7 +243,7 @@ id_print(struct passwd *pw, int p_euid, int p_egid)
 	uid = pw->pw_uid;
 	gid = pw->pw_gid;
 
-	ngroups = NGROUPS;
+	ngroups = NGROUPS + 1;
 	getgrouplist(pw->pw_name, gid, groups, &ngroups);
 
 	printf("uid=%u(%s)", uid, pw->pw_name);
