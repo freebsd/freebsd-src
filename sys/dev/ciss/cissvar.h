@@ -237,6 +237,8 @@ struct ciss_softc
     struct cam_devq		*ciss_cam_devq;
     struct cam_sim		**ciss_cam_sim;
 
+    int				ciss_soft_reset;
+
     int				ciss_flags;
 #define CISS_FLAG_NOTIFY_OK	(1<<0)		/* notify command running OK */
 #define CISS_FLAG_CONTROL_OPEN	(1<<1)		/* control device is open */
