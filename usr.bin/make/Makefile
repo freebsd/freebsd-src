@@ -4,8 +4,9 @@
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}
-SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c lst.c main.c \
-	make.c parse.c str.c suff.c targ.c util.c var.c var_modify.c
+SRCS=	arch.c buf.c compat.c cond.c dir.c directive_hash.c for.c	\
+	hash.c job.c lst.c main.c make.c parse.c str.c suff.c targ.c	\
+	util.c var.c var_modify.c
 
 NO_WERROR=
 WARNS?=	3
@@ -20,6 +21,58 @@ CFLAGS+=-D__FBSDID=__RCSID
 # CFLAGS+=-DUSE_KQUEUE
 
 main.o: ${MAKEFILE}
+
+# Directive table. We use a hash table. This hash table has been
+# generated with mph which can be found on the usual GNU mirrors.
+# If you change the directives (adding, deleting, reordering) you
+# need to create a new table and hash function (directive_hash).
+#
+# The following changes have been made to the generated code:
+#
+#	o prefix the names of the g, T0 and T1 arrays with 'directive_'.
+#
+#	o make the type of the tables 'const [un]signed char' (if you change
+#	  anything make sure that the numbers fit into a char).
+#
+#	o make the hash function use the length for termination,
+#	  not the trailing '\0', via the -l flag in emitc and some editing.
+
+LOCALBASE ?= /usr/local
+MPH	?= ${LOCALBASE}/bin/mph
+EMITC	?= ${LOCALBASE}/bin/emitc
+
+.PRECIOUS: hash
+hash:
+	( echo '/*' ;							\
+	  echo ' * DO NOT EDIT' ;					\
+	  echo ' * $$FreeBSD$$' ;					\
+	  echo -n ' * auto-generated from ' ;				\
+	  sed -nEe '/\$$FreeBSD/s/^.*\$$(.*)\$$.*$$/\1/p'		\
+		${.CURDIR}/parse.c ;					\
+	  echo ' * DO NOT EDIT' ;					\
+	  echo ' */' ;							\
+	  echo '#include <sys/types.h>' ;				\
+	  echo ;							\
+	  echo '#include "directive_hash.h"' ;				\
+	  echo ;							\
+	  cat ${.CURDIR}/parse.c | sed					\
+	    -e '1,/DIRECTIVES-START-TAG/d'				\
+	    -e '/DIRECTIVES-END-TAG/,$$d'				\
+	    -e 's/^[^"]*"\([^"]*\)".*$$/\1/' |				\
+	    ${MPH} -d2 -m1 | ${EMITC} -l -s |				\
+	    sed								\
+	    -e 's/^static int g\[\]/static const signed char directive_g[]/' \
+	    -e 's/^static int T0\[\]/static const u_char directive_T0[]/' \
+	    -e 's/^static int T1\[\]/static const u_char directive_T1[]/' \
+	    -e '/^#define uchar unsigned char/d'			\
+	    -e 's/uchar/u_char/g'					\
+	    -e 's/^hash(/directive_hash(/'				\
+	    -e 's/; \*kp;/; kp < key + len;/'				\
+	    -e 's/int len)/size_t len)/'				\
+	    -e 's/= T0\[/= directive_T0\[/'				\
+	    -e 's/= T1\[/= directive_T1\[/'				\
+	    -e 's/g\[f/directive_g[f/g'					\
+	) > ${.CURDIR}/directive_hash.c
 
 # Set the shell which make(1) uses.  Bourne is the default, but a decent
 # Korn shell works fine, and much faster.  Using the C shell for this
