@@ -167,7 +167,7 @@ functions appeared in
 .Bx 4.2 .
 .Sh BUGS
 The data space used by
-these functions is static; if future use requires the data, it should be
+these functions is a thread-specific; if future use requires the data, it should be
 copied before any subsequent calls to these functions overwrite it.
 Only Internet network
 numbers are currently understood.
