@@ -45,7 +45,7 @@ EMITC	?= ${LOCALBASE}/bin/emitc
 hash:
 	( echo '/*' ;							\
 	  echo ' * DO NOT EDIT' ;					\
-	  echo ' * $$FreeBSD$$' ;					\
+	  echo ' * $$''FreeBSD$$' ;					\
 	  echo -n ' * auto-generated from ' ;				\
 	  sed -nEe '/\$$FreeBSD/s/^.*\$$(.*)\$$.*$$/\1/p'		\
 		${.CURDIR}/parse.c ;					\
