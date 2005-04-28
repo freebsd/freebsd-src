@@ -126,7 +126,7 @@ ata_attach(device_t dev)
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&error, PRIBIO, "ataatch", 1);
-    ch->hw.reset(ch);
+    ATA_RESET(dev);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
     /* setup interrupt delivery */
@@ -201,7 +201,7 @@ ata_reinit(device_t dev)
     mtx_unlock(&ch->state_mtx);
 
     /* reset the controller HW, the channel and device(s) */
-    ch->hw.reset(ch);
+    ATA_RESET(dev);
 
     /* reinit the children and delete any that fails */
     if (!device_get_children(dev, &children, &nchildren)) {

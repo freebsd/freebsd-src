@@ -1142,6 +1142,7 @@ ata_intel_reset(struct ata_channel *ch)
 	    break;
 	ata_udelay(10000);
     }
+    ata_generic_reset(ch);
 }
 
 static void
@@ -2039,6 +2040,7 @@ ata_promise_mio_reset(struct ata_channel *ch)
 		 (ATA_INL(ctlr->r_res2, 0xc012c) & ~0x00000f9f));
 	hpktp->busy = 0;
 	mtx_unlock(&hpktp->mtx);
+	ata_generic_reset(ch);
 	break;
 
     case PRCMBO:
@@ -2065,6 +2067,8 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
 	}
+	else
+	    ata_generic_reset(ch);
 	break;
 
     case PRCMBO2:
@@ -2101,7 +2105,10 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	    /* set portmultiplier port */
 	    ATA_OUTL(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x00);
 	}
+	else
+	    ata_generic_reset(ch);
 	break;
+
     }
 }
 
