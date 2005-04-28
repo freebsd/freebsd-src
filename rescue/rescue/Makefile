@@ -124,7 +124,7 @@ CRUNCH_PROGS_sbin+= ping6
 .endif
 
 .if !defined(NO_IPFILTER)
-CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
+CRUNCH_PROGS_sbin+= ipf
 .endif
 
 # crunchgen does not like C++ programs; this should be fixed someday
@@ -166,6 +166,7 @@ CRUNCH_SRCDIR_atmconfig= $(.CURDIR)/../../sbin/atm/atmconfig
 CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
 CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
+CRUNCH_SRCDIR_ipf= $(.CURDIR)/../../sbin/ipf/ipf
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
