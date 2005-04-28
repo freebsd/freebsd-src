@@ -44,27 +44,18 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
-
-#define	MAXALIASES	35
-#define	MAXADDRS	35
+#include "netdb_private.h"
 
 #ifdef YP
-static char *host_aliases[MAXALIASES];
-static uint32_t host_addr[4];		/* IPv4 or IPv6 */
-static char *host_addrs[2];
-
-static struct hostent *
-_gethostbynis(name, map, af)
-	const char *name;
-	char *map;
-	int af;
+static int
+_gethostbynis(const char *name, char *map, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
+	char *p, *bp, *ep;
 	char *cp, **q;
 	char *result;
 	int resultlen, size, addrok = 0;
-	static struct hostent h;
-	static char *domain = (char *)NULL;
-	static char ypbuf[YPMAXRECORD + 2];
+	char ypbuf[YPMAXRECORD + 2];
 
 	switch(af) {
 	case AF_INET:
@@ -76,18 +67,19 @@ _gethostbynis(name, map, af)
 	default:
 		errno = EAFNOSUPPORT;
 		h_errno = NETDB_INTERNAL;
-		return NULL;
+		return -1;
 	}
 
-	if (domain == (char *)NULL)
-		if (yp_get_default_domain (&domain)) {
+	if (hed->yp_domain == (char *)NULL)
+		if (yp_get_default_domain (&hed->yp_domain)) {
 			h_errno = NETDB_INTERNAL;
-			return ((struct hostent *)NULL);
+			return -1;
 		}
 
-	if (yp_match(domain, map, name, strlen(name), &result, &resultlen)) {
+	if (yp_match(hed->yp_domain, map, name, strlen(name), &result,
+	    &resultlen)) {
 		h_errno = HOST_NOT_FOUND;
-		return ((struct hostent *)NULL);
+		return -1;
 	}
 
 	/* avoid potential memory leak */
@@ -101,46 +93,65 @@ _gethostbynis(name, map, af)
 
 	cp = strpbrk(result, " \t");
 	*cp++ = '\0';
-	h.h_addr_list = host_addrs;
-	h.h_addr = (char *)host_addr;
+	he->h_addr_list = hed->h_addr_ptrs;
+	he->h_addr = (char *)hed->host_addr;
 	switch (af) {
 	case AF_INET:
-		addrok = inet_aton(result, (struct in_addr *)host_addr);
+		addrok = inet_aton(result, (struct in_addr *)hed->host_addr);
 		break;
 	case AF_INET6:
-		addrok = inet_pton(af, result, host_addr);
+		addrok = inet_pton(af, result, hed->host_addr);
 		break;
 	}
 	if (addrok != 1) {
 		h_errno = HOST_NOT_FOUND;
-		return NULL;
+		return -1;
 	}
-	h.h_length = size;
-	h.h_addrtype = af;
+	he->h_addr_list[1] = NULL;
+	he->h_length = size;
+	he->h_addrtype = af;
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
-	h.h_name = cp;
-	q = h.h_aliases = host_aliases;
-	cp = strpbrk(cp, " \t");
-	if (cp != NULL)
-		*cp++ = '\0';
+	bp = hed->hostbuf;
+	ep = hed->hostbuf + sizeof hed->hostbuf;
+	he->h_name = bp;
+	q = he->h_aliases = hed->host_aliases;
+	p = strpbrk(cp, " \t");
+	if (p != NULL)
+		*p++ = '\0';
+	size = strlen(cp) + 1;
+	if (ep - bp < size) {
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+	strlcpy(bp, cp, ep - bp);
+	bp += size;
+	cp = p;
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {
 			cp++;
 			continue;
 		}
-		if (q < &host_aliases[MAXALIASES - 1])
-			*q++ = cp;
-		cp = strpbrk(cp, " \t");
-		if (cp != NULL)
-			*cp++ = '\0';
+		if (q >= &hed->host_aliases[_MAXALIASES - 1])
+			break;
+		p = strpbrk(cp, " \t");
+		if (p != NULL)
+			*p++ = '\0';
+		size = strlen(cp) + 1;
+		if (ep - bp < size)
+			break;
+		strlcpy(bp, cp, ep - bp);
+		*q++ = bp;
+		bp += size;
+		cp = p;
 	}
 	*q = NULL;
-	return (&h);
+	return 0;
 }
 
-static struct hostent *
-_gethostbynisname_p(const char *name, int af)
+static int
+_gethostbynisname_r(const char *name, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
 	char *map;
 
@@ -152,11 +163,12 @@ _gethostbynisname_p(const char *name, int af)
 		map = "ipnodes.byname";
 		break;
 	}
-	return _gethostbynis(name, map, af);
+	return _gethostbynis(name, map, af, he, hed);
 }
 
-static struct hostent *
-_gethostbynisaddr_p(const char *addr, int len, int af)
+static int
+_gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
 	char *map;
 
@@ -168,7 +180,8 @@ _gethostbynisaddr_p(const char *addr, int len, int af)
 		map = "ipnodes.byaddr";
 		break;
 	}
-	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), map, af);
+	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), map, af, he,
+	    hed);
 }
 #endif /* YP */
 
@@ -177,7 +190,15 @@ struct hostent *
 _gethostbynisname(const char *name, int af)
 {
 #ifdef YP
-	return _gethostbynisname_p(name, af);
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return NULL;
+	}
+	if (_gethostbynisname_r(name, af, &hd->host, &hd->data) != 0)
+		return NULL;
+	return &hd->host;
 #else
 	return NULL;
 #endif
@@ -187,12 +208,19 @@ struct hostent *
 _gethostbynisaddr(const char *addr, int len, int af)
 {
 #ifdef YP
-	return _gethostbynisaddr_p(addr, len, af);
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return NULL;
+	}
+	if (_gethostbynisaddr_r(addr, len, af, &hd->host, &hd->data) != 0)
+		return NULL;
+	return &hd->host;
 #else
 	return NULL;
 #endif
 }
-
 
 int
 _nis_gethostbyname(void *rval, void *cb_data, va_list ap)
@@ -200,12 +228,17 @@ _nis_gethostbyname(void *rval, void *cb_data, va_list ap)
 #ifdef YP
 	const char *name;
 	int af;
+	struct hostent *he;
+	struct hostent_data *hed;
+	int error;
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
+	he = va_arg(ap, struct hostent *);
+	hed = va_arg(ap, struct hostent_data *);
 
-	*(struct hostent **)rval = _gethostbynisname_p(name, af);
-	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	error = _gethostbynisname_r(name, af, he, hed);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
 #endif
@@ -218,13 +251,18 @@ _nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	const char *addr;
 	int len;
 	int af;
+	struct hostent *he;
+	struct hostent_data *hed;
+	int error;
 
 	addr = va_arg(ap, const char *);
 	len = va_arg(ap, int);
 	af = va_arg(ap, int);
+	he = va_arg(ap, struct hostent *);
+	hed = va_arg(ap, struct hostent_data *);
 
-	*(struct hostent **)rval =_gethostbynisaddr_p(addr, len, af);
-	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	error = _gethostbynisaddr_r(addr, len, af, he, hed);
+	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 #else
 	return NS_UNAVAIL;
 #endif
