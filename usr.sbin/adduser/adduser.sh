@@ -588,7 +588,6 @@ input_from_file() {
 	while read -r fileline ; do
 		case "$fileline" in
 		\#*|'')
-			return 0
 			;;
 		esac
 
@@ -796,7 +795,7 @@ input_interactive() {
 	return 0
 }
 
-#### END SUBROUTINE DEFENITION ####
+#### END SUBROUTINE DEFINITION ####
 
 THISCMD=`/usr/bin/basename $0`
 DEFAULTSHELL=/bin/sh
