@@ -107,6 +107,7 @@ Lst create = Lst_Initializer(create);
 time_t		now;		/* Time at start of make */
 struct GNode	*DEFAULT;	/* .DEFAULT node */
 Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
+uint32_t	warnflags;
 
 static Boolean	noBuiltins;	/* -r flag */
 
@@ -188,7 +189,7 @@ MainParseArgs(int argc, char **argv)
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
-#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
+#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstvx:"
 	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
 
@@ -345,6 +346,13 @@ rearg:
 			beVerbose = TRUE;
 			MFLAGS_append("-v", NULL);
 			break;
+		case 'x':
+			if (strncmp(optarg, "dirsyntax", strlen(optarg)) == 0) {
+				MFLAGS_append("-x", optarg);
+				warnflags |= WARN_DIRSYNTAX;
+			}
+			break;
+				
 		default:
 		case '?':
 			usage();
@@ -1166,9 +1174,10 @@ Cmd_Exec(char *cmd, const char **error)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-BPSXeiknqrstv] [-C directory] [-D variable] [-d flags]",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: make [-ABPSXeiknqrstv] [-C directory] [-D variable] [-d flags]",
 "            [-E variable] [-f makefile] [-I directory] [-j max_jobs]",
-"            [-m directory] [-V variable] [variable=value] [target ...]");
+"            [-m directory] [-V variable] [variable=value] [-x warn_flag]",
+"            [target ...]");
 	exit(2);
 }

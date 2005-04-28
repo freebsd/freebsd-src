@@ -46,6 +46,7 @@
  */
 
 #include <time.h>
+#include <stdint.h>
 
 #include "lst.h"
 #include "sprite.h"
@@ -118,5 +119,8 @@ extern time_t	now;
 extern Boolean	oldVars;	/* Do old-style variable substitution */
 
 extern int debug;
+
+/* warning flags */
+extern uint32_t warnflags;
 
 #endif /* globals_h_1c1edb96 */

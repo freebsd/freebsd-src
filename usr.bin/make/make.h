@@ -134,6 +134,13 @@ struct Lst;
 #define	FPREFIX           "*F"  /* file part of PREFIX */
 #define	DPREFIX           "*D"  /* directory part of PREFIX */
 
+/*
+ * Warning flags
+ */
+enum {
+	WARN_DIRSYNTAX	= 0x0001,	/* syntax errors in directives */
+};
+
 int Make_TimeStamp(struct GNode *, struct GNode *);
 Boolean Make_OODate(struct GNode *);
 int Make_HandleUse(struct GNode *, struct GNode *);
