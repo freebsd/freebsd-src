@@ -443,6 +443,8 @@ amd_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
+	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < AMD_NPMCS,
@@ -451,7 +453,8 @@ amd_config_pmc(int cpu, int ri, struct pmc *pm)
 	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 
 	KASSERT(pm == NULL || phw->phw_pmc == NULL,
-	    ("[amd,%d] hwpmc not unconfigured before re-config", __LINE__));
+	    ("[amd,%d] pm=%p phw->pm=%p hwpmc not unconfigured",
+		__LINE__, pm, phw->phw_pmc));
 
 	phw->phw_pmc = pm;
 	return 0;
@@ -463,12 +466,17 @@ amd_config_pmc(int cpu, int ri, struct pmc *pm)
  */
 
 static int
-amd_switch_in(struct pmc_cpu *pc)
+amd_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
 
-	/* enable the RDPMC instruction */
-	load_cr4(rcr4() | CR4_PCE);
+	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
+	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) != 0);
+
+	/* enable the RDPMC instruction if needed */
+	if (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS)
+		load_cr4(rcr4() | CR4_PCE);
+
 	return 0;
 }
 
@@ -478,12 +486,17 @@ amd_switch_in(struct pmc_cpu *pc)
  */
 
 static int
-amd_switch_out(struct pmc_cpu *pc)
+amd_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
+	(void) pp;		/* can be NULL */
 
-	/* disallow RDPMC instruction */
+	PMCDBG(MDP,SWO,1, "pc=%p pp=%p enable-msr=%d", pc, pp, pp ?
+	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) == 1 : 0);
+
+	/* always turn off the RDPMC instruction */
 	load_cr4(rcr4() & ~CR4_PCE);
+
 	return 0;
 }
 
@@ -818,7 +831,7 @@ amd_get_msr(int ri, uint32_t *msr)
 	KASSERT(ri >= 0 && ri < AMD_NPMCS,
 	    ("[amd,%d] ri %d out of range", __LINE__, ri));
 
-	*msr = amd_pmcdesc[ri].pm_perfctr;
+	*msr = amd_pmcdesc[ri].pm_perfctr - AMD_PMC_PERFCTR_0;
 	return 0;
 }
 
