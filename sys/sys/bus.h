@@ -262,6 +262,7 @@ void	*device_get_softc(device_t dev);
 device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
 int	device_is_alive(device_t dev); /* did probe succeed? */
+int	device_is_attached(device_t dev);
 int	device_is_enabled(device_t dev);
 int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);

@@ -1083,6 +1083,12 @@ device_is_alive(device_t dev)
 }
 
 int
+device_is_attached(device_t dev)
+{
+	return (dev->state >= DS_ATTACHED);
+}
+
+int
 device_set_devclass(device_t dev, const char *classname)
 {
     devclass_t dc;
