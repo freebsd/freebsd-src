@@ -152,15 +152,6 @@ ata_pccard_detach(device_t dev)
     return 0;
 }
 
-static void
-ata_pccard_setmode(device_t parent, device_t dev)
-{
-    struct ata_device *atadev = device_get_softc(dev);
-    int mode = atadev->mode;
-
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
-}
-
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,             pccard_compat_probe),
@@ -172,8 +163,6 @@ static device_method_t ata_pccard_methods[] = {
     DEVMETHOD(card_compat_probe,        ata_pccard_probe),
     DEVMETHOD(card_compat_attach,       ata_attach),
 
-    /* ATA methods */
-    DEVMETHOD(ata_setmode,              ata_pccard_setmode),
     { 0, 0 }
 };
 
