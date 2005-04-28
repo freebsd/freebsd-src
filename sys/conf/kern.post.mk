@@ -192,7 +192,7 @@ kernel-install:
 	fi
 .if exists(${DESTDIR}${KODIR})
 	-thiskernel=`sysctl -n kern.bootfile` ; \
-	if [ "`dirname "$$thiskernel"`" != ${DESTDIR}${KODIR} ] ; then \
+	if [ ! "`dirname "$$thiskernel"`" -ef ${DESTDIR}${KODIR} ] ; then \
 		chflags -R noschg ${DESTDIR}${KODIR} ; \
 		rm -rf ${DESTDIR}${KODIR} ; \
 	else \
