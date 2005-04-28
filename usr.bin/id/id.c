@@ -57,15 +57,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	current(void);
+void	id_print(struct passwd *, int, int);
 void	pline(struct passwd *);
 void	pretty(struct passwd *);
 void	group(struct passwd *, int);
 void	maclabel(void);
 void	usage(void);
-void	user(struct passwd *);
-struct passwd *
-	who(char *);
+struct passwd *who(char *);
 
 int isgroups, iswhoami;
 
@@ -181,10 +179,14 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
-	if (pw)
-		user(pw);
-	else
-		current();
+	if (pw) {
+		id_print(pw, 0, 0);
+	}
+	else {
+		id = getuid();
+		if ((pw = getpwuid(id)) != NULL)
+			id_print(pw, 1, 1);
+	}
 	exit(0);
 }
 
@@ -229,72 +231,46 @@ pretty(struct passwd *pw)
 }
 
 void
-current(void)
+id_print(struct passwd *pw, int p_euid, int p_egid)
 {
 	struct group *gr;
-	struct passwd *pw;
-	int cnt, id, eid, lastid, ngroups;
-	gid_t groups[NGROUPS];
+	gid_t gid, egid, lastgid;
+	uid_t uid, euid;
+	int cnt, ngroups;
+	gid_t groups[NGROUPS + 1];
 	const char *fmt;
 
-	id = getuid();
-	(void)printf("uid=%u", id);
-	if ((pw = getpwuid(id)))
-		(void)printf("(%s)", pw->pw_name);
-	if ((eid = geteuid()) != id) {
-		(void)printf(" euid=%u", eid);
-		if ((pw = getpwuid(eid)))
+	uid = pw->pw_uid;
+	gid = pw->pw_gid;
+
+	ngroups = NGROUPS;
+	getgrouplist(pw->pw_name, gid, groups, &ngroups);
+
+	printf("uid=%u(%s)", uid, pw->pw_name);
+	if (p_euid && (euid = geteuid()) != uid) {
+		(void)printf(" euid=%u", euid);
+		if ((pw = getpwuid(euid)))
 			(void)printf("(%s)", pw->pw_name);
 	}
-	id = getgid();
-	(void)printf(" gid=%u", id);
-	if ((gr = getgrgid(id)))
-		(void)printf("(%s)", gr->gr_name);
-	if ((eid = getegid()) != id) {
-		(void)printf(" egid=%u", eid);
-		if ((gr = getgrgid(eid)))
-			(void)printf("(%s)", gr->gr_name);
-	}
-	if ((ngroups = getgroups(NGROUPS, groups))) {
-		for (fmt = " groups=%u", lastid = -1, cnt = 0; cnt < ngroups;
-		    fmt = ", %u", lastid = id) {
-			id = groups[cnt++];
-			if (lastid == id)
-				continue;
-			(void)printf(fmt, id);
-			if ((gr = getgrgid(id)))
-				(void)printf("(%s)", gr->gr_name);
-		}
-	}
-	(void)printf("\n");
-}
-
-void
-user(struct passwd *pw)
-{
-	struct group *gr;
-	const char *fmt;
-	gid_t gid, lastgid, groups[NGROUPS + 1];
-	int cnt, ngroups;
-
-	(void)printf("uid=%u(%s)", pw->pw_uid, pw->pw_name);
-	gid = pw->pw_gid;
-	(void)printf(" gid=%u", gid);
+	printf(" gid=%u", gid);
 	if ((gr = getgrgid(gid)))
 		(void)printf("(%s)", gr->gr_name);
-	ngroups = NGROUPS + 1;
-	(void) getgrouplist(pw->pw_name, gid, groups, &ngroups);
+	if (p_egid && (egid = getegid()) != gid) {
+		(void)printf(" egid=%u", egid);
+		if ((gr = getgrgid(egid)))
+			(void)printf("(%s)", gr->gr_name);
+	}
 	fmt = " groups=%u";
 	for (lastgid = -1, cnt = 0; cnt < ngroups; ++cnt) {
 		if (lastgid == (gid = groups[cnt]))
 			continue;
-		(void)printf(fmt, gid);
+		printf(fmt, gid);
 		fmt = ", %u";
 		if ((gr = getgrgid(gid)))
-			(void)printf("(%s)", gr->gr_name);
+			printf("(%s)", gr->gr_name);
 		lastgid = gid;
 	}
-	(void)printf("\n");
+	printf("\n");
 }
 
 void
