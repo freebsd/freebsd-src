@@ -342,6 +342,7 @@ IPDIVERT
 DUMMYNET		opt_ipdn.h
 IPFILTER		opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
+IPFILTER_LOOKUP		opt_ipfilter.h
 IPFILTER_DEFAULT_BLOCK	opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
