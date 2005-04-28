@@ -1,0 +1,60 @@
+$FreeBSD$
+
+This directory contains regression tests for make(1).
+
+The tests are invoked via the test.sh script or prove(1) from p5-Test-Harness
+
+	% test.sh [-v] [-m path_to_make_binary] command
+
+	clean	- Remove the results and the other temp files that
+		  are produced by running the test. This brings the
+		  test into its initial state.
+
+	compare	- Check if results of the test match the expected
+		  output from stdout, stderr, and the status.
+
+	desc	- print description of test
+
+	diff	- Output the diffs from the tests and the expected
+		  stdout, stderr, and the status files.
+
+	run	- Invoke test, compare, and clean in sequence.
+
+	test	- Invoke the test code
+
+	update	- Copy the output of the last test run as the expected
+		  output from stdout, stderr, and the status.
+
+	% [MAKE_PROG=path_to_make_binary] prove [options] [files/directories]
+
+Example:
+	% sh test.t -m `pwd`/../obj/make run
+	% MAKE_PROG=/usr/obj/usr/src/usr.bin/make/make prove -r
+
+Variables
+---------
+WORK_BASE	- base directory for working files
+SRC_BASE	- test source base directory
+SUBDIR		- subdirectory below WORK_BASE and SRC_BASE for current test
+WORK_DIR	- ${WORK_BASE}/${SUBDIR}
+SRC_DIR		- ${SRC_BASE}/${SUBDIR}
+MAKE_PROG	- path to the make program to test
+
+WORK_BASE and MAKE_PROG are intented to be set by the user. All other
+variables are set by the script and can be used in scripts.
+
+Directory layout
+----------------
+common.sh		- common code
+all.sh			- recursively call test scripts
+
+basic/
+      t0/test.t	- regression test
+      t1/test.t	- regression test
+      t2/test.t	- regression test
+variables/
+          t0/test.t	- regression test
+          t1/test.t	- regression test
+
+Each test directory should contain at least a test.t script
+and the expected output files.
