@@ -23,7 +23,6 @@ DPSRCS+=	iplang_y.h
 		${NETBSDSRCDIR}/dist/ipf/iplang
 
 iplang_y.c: iplang_y.y
-	${_MKTARGET_CREATE}
 	${YACC} -d ${.ALLSRC}
 	mv y.tab.c ${.TARGET}
 	mv y.tab.h ${.TARGET:.c=.h}

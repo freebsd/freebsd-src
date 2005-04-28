@@ -639,7 +639,7 @@ char *argv[];
 		}
 
 	}
-	printf("%u object%s flushed\n", flush.iplf_count,
+	printf("%zd object%s flushed\n", flush.iplf_count,
 	       (flush.iplf_count == 1) ? "" : "s");
 
 	return 0;

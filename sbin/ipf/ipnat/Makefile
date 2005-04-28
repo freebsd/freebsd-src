@@ -12,7 +12,6 @@ CLEANFILES+=	ipnat_y.c ipnat_y.h
 CLEANFILES+=	ipnat_l.c ipnat_l.h
 
 ipnat_y.c: ipnat_y.y
-	${_MKTARGET_CREATE}
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.c/ipnat_y.c/' \
@@ -25,14 +24,12 @@ ipnat_y.c: ipnat_y.y
 ipnat_y.h: ipnat_y.c
 
 ipnat_l.c: lexer.c
-	${_MKTARGET_CREATE}
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.h/ipnat_y.h/' \
 	    -e 's/lexer.h/ipnat_l.h/' \
 	    ${.ALLSRC} > ${.TARGET}
 
 ipnat_l.h: lexer.h
-	${_MKTARGET_CREATE}
 	sed -e 's/yy/ipnat_yy/g' \
 	    ${.ALLSRC} > ${.TARGET}
 
