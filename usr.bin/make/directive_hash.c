@@ -1,7 +1,7 @@
 /*
  * DO NOT EDIT
  * $FreeBSD$
- * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.96 2005/04/11 07:40:54 harti Exp 
+ * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.97 2005/04/28 07:55:55 harti Exp 
  * DO NOT EDIT
  */
 #include <sys/types.h>
