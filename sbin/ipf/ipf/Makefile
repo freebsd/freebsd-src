@@ -1,7 +1,5 @@
 #	$FreeBSD$
 
-.include <bsd.own.mk>		# for MKDYNAMICROOT definition
-
 PROG=		ipf
 SRCS=		ipf.c ipfcomp.c ipf_y.c ipf_l.c
 MAN=		ipf.8 ipf.4 ipf.5 ipl.4
@@ -14,7 +12,6 @@ CLEANFILES+=	ipf_y.c ipf_y.h
 CLEANFILES+=	ipf_l.c ipf_l.h
 
 ipf_y.c: ipf_y.y
-	${_MKTARGET_CREATE}
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipf_yy/g' \
 	    -e 's/"ipf_y.y"/"..\/tools\/ipf_y.y"/' \
@@ -25,20 +22,18 @@ ipf_y.c: ipf_y.y
 ipf_y.h: ipf_y.c
 
 ipf_l.c: lexer.c
-	${_MKTARGET_CREATE}
 	sed -e 's/yy/ipf_yy/g' \
 	    -e 's/y.tab.h/ipf_y.h/' \
 	    -e 's/lexer.h/ipf_l.h/' \
 	    ${.ALLSRC} > ${.TARGET}
 
 ipf_l.h: lexer.h
-	${_MKTARGET_CREATE}
 	sed -e 's/yy/ipf_yy/g' \
 	    ${.ALLSRC} > ${.TARGET}
 
-BINDIR=		/sbin
-.if defined(NO_DYNAMICROOT)
-LDSTATIC?=	-static
+.if defined(RESCUE)
+LIBIPF_SRCS!=	cd ${.CURDIR}/../libipf && ${MAKE} -V SRCS
+SRCS+=	${LIBIPF_SRCS}
 .endif
 
 .include <bsd.prog.mk>
