@@ -1158,6 +1158,7 @@ struct pmc_targetstate {
 struct pmc_process {
 	LIST_ENTRY(pmc_process) pp_next;	/* hash chain */
 	int		pp_refcnt;		/* reference count */
+	uint32_t	pp_flags; 		/* flags */
 	struct proc	*pp_proc;		/* target thread */
 	struct pmc_targetstate pp_pmcs[];       /* NHWPMCs */
 };
@@ -1183,9 +1184,10 @@ struct pmc_owner  {
 	int		po_logfd;       /* XXX for now */
 };
 
-#define	PMC_FLAG_IS_OWNER	0x01
-#define	PMC_FLAG_HAS_TS_PMC	0x02
-#define	PMC_FLAG_OWNS_LOGFILE	0x04 /* owns system-sampling log file */
+#define	PMC_FLAG_IS_OWNER		0x01
+#define	PMC_FLAG_HAS_TS_PMC		0x02
+#define	PMC_FLAG_OWNS_LOGFILE		0x04
+#define	PMC_FLAG_ENABLE_MSR_ACCESS	0x08
 
 /*
  * struct pmc_hw -- describe the state of the PMC hardware
@@ -1283,11 +1285,9 @@ struct pmc_mdep  {
 	int (*pmd_init)(int _cpu);    /* machine dependent initialization */
 	int (*pmd_cleanup)(int _cpu); /* machine dependent cleanup  */
 
-	/* thread context switch in */
-	int (*pmd_switch_in)(struct pmc_cpu *_p);
-
-	/* thread context switch out  */
-	int (*pmd_switch_out)(struct pmc_cpu *_p);
+	/* thread context switch in/out */
+	int (*pmd_switch_in)(struct pmc_cpu *_p, struct pmc_process *_pp);
+	int (*pmd_switch_out)(struct pmc_cpu *_p, struct pmc_process *_pp);
 
 	/* configuring/reading/writing the hardware PMCs */
 	int (*pmd_config_pmc)(int _cpu, int _ri, struct pmc *_pm);
