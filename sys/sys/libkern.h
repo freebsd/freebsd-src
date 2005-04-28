@@ -108,6 +108,26 @@ char	*strsep(char **, const char *delim);
 size_t	 strspn(const char *, const char *);
 int	 strvalid(const char *, size_t);
 
+extern uint32_t crc32_tab[];
+
+static __inline uint32_t
+crc32_raw(const void *buf, size_t size, uint32_t crc)
+{
+	const uint8_t *p = buf;
+
+	while (size--)
+		crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
+	return (crc);
+}
+
+static __inline uint32_t
+crc32(const void *buf, size_t size)
+{
+	uint32_t crc;
+
+	crc = crc32_raw(buf, size, ~0U);
+	return (crc ^ ~0U);
+}
 
 static __inline int
 memcmp(const void *b1, const void *b2, size_t len)
