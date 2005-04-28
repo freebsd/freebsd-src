@@ -91,7 +91,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#if defined(YP) || defined(ICMPNL)
+#ifdef ICMPNL
 #include "reentrant.h"
 #endif
 #include <sys/param.h>
@@ -234,11 +234,7 @@ static void	 _dns_ehent(void) __unused;
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
-/*
- * XXX: Many dependencies are not thread-safe.  Still, we cannot use
- * getipnodeby*() in conjunction with other functions which call them.
- */
-#if defined(YP) || defined(ICMPNL)
+#ifdef ICMPNL
 static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
 #define THREAD_LOCK()	mutex_lock(&_getipnodeby_thread_lock);
 #define THREAD_UNLOCK()	mutex_unlock(&_getipnodeby_thread_lock);
@@ -1387,11 +1383,9 @@ _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 	af = va_arg(ap, int);
 	errp = va_arg(ap, int *);
 
-	THREAD_LOCK();
 	hp = _gethostbynisname(name, af);
 	if (hp != NULL)
 		hp = _hpcopy(hp, errp);
-	THREAD_UNLOCK();
 
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
@@ -1410,11 +1404,9 @@ _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	addrlen = va_arg(ap, int);
 	af = va_arg(ap, int);
 
-	THREAD_LOCK();
 	hp = _gethostbynisaddr(addr, addrlen, af);
 	if (hp != NULL)
 		hp = _hpcopy(hp, errp);
-	THREAD_UNLOCK();
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
