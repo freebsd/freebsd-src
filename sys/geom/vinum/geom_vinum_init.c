@@ -106,6 +106,10 @@ gv_parityop(struct g_geom *gp, struct gctl_req *req)
 		    p->name);
 		goto out;
 	}
+	if (p->org != GV_PLEX_RAID5) {
+		gctl_error(req, "plex %s is not a RAID5 plex", p->name);
+		goto out;
+	}
 
 	cp = p->consumer;
 	error = g_access(cp, 1, 1, 0);
