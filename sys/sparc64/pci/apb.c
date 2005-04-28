@@ -157,7 +157,7 @@ apb_map_print(u_int8_t map, u_long scale)
 }
 
 static int
-apb_map_checkrange(u_int8_t map, u_long scale, u_long start, u_long end)
+apb_checkrange(u_int8_t map, u_long scale, u_long start, u_long end)
 {
 	int i, ei;
 
@@ -213,60 +213,59 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct apb_softc *sc;
 
 	sc = device_get_softc(dev);
+
 	/*
 	 * If this is a "default" allocation against this rid, we can't work
 	 * out where it's coming from (we should actually never see these) so
 	 * we just have to punt.
 	 */
-	if ((start == 0) && (end == ~0)) {
+	if (start == 0 && end == ~0) {
 		device_printf(dev, "can't decode default resource id %d for "
 		    "%s%d, bypassing\n", *rid, device_get_name(child),
 		    device_get_unit(child));
-	} else {
-		/*
-		 * Fail the allocation for this range if it's not supported.
-		 * XXX we should probably just fix up the bridge decode and
-		 * soldier on.
-		 */
-		switch (type) {
-		case SYS_RES_IOPORT:
-			if (!apb_map_checkrange(sc->sc_iomap, APB_IO_SCALE,
-			    start, end)) {
-				device_printf(dev, "device %s%d requested "
-				    "unsupported I/O range 0x%lx-0x%lx\n",
-				    device_get_name(child),
-				    device_get_unit(child), start, end);
-				return (NULL);
-			}
-			if (bootverbose)
-				device_printf(sc->sc_bsc.ops_pcib_sc.dev,
-				    "device %s%d requested decoded I/O range "
-				    "0x%lx-0x%lx\n", device_get_name(child),
-				    device_get_unit(child), start, end);
-			break;
-
-		case SYS_RES_MEMORY:
-			if (!apb_map_checkrange(sc->sc_memmap, APB_MEM_SCALE,
-			    start, end)) {
-				device_printf(dev, "device %s%d requested "
-				    "unsupported memory range 0x%lx-0x%lx\n",
-				    device_get_name(child),
-				    device_get_unit(child), start, end);
-				return (NULL);
-			}
-			if (bootverbose)
-				device_printf(sc->sc_bsc.ops_pcib_sc.dev,
-				    "device %s%d requested decoded memory "
-				    "range 0x%lx-0x%lx\n",
-				    device_get_name(child),
-				    device_get_unit(child), start, end);
-			break;
-
-		default:
-			break;
-		}
+		goto passup;
 	}
 
+	/*
+	 * Fail the allocation for this range if it's not supported.
+	 * XXX we should probably just fix up the bridge decode and
+	 * soldier on.
+	 */
+	switch (type) {
+	case SYS_RES_IOPORT:
+		if (!apb_checkrange(sc->sc_iomap, APB_IO_SCALE, start, end)) {
+			device_printf(dev, "device %s%d requested unsupported "
+			    "I/O range 0x%lx-0x%lx\n", device_get_name(child),
+			    device_get_unit(child), start, end);
+			return (NULL);
+		}
+		if (bootverbose)
+			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
+			    "%s%d requested decoded I/O range 0x%lx-0x%lx\n",
+			    device_get_name(child), device_get_unit(child),
+			    start, end);
+		break;
+
+	case SYS_RES_MEMORY:
+		if (!apb_checkrange(sc->sc_memmap, APB_MEM_SCALE, start, end)) {
+			device_printf(dev, "device %s%d requested unsupported "
+			    "memory range 0x%lx-0x%lx\n",
+			    device_get_name(child), device_get_unit(child),
+			    start, end);
+			return (NULL);
+		}
+		if (bootverbose)
+			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
+			    "%s%d requested decoded memory range 0x%lx-0x%lx\n",
+			    device_get_name(child), device_get_unit(child),
+			    start, end);
+		break;
+
+	default:
+		break;
+	}
+
+ passup:
 	/*
 	 * Bridge is OK decoding this resource, so pass it up.
 	 */
