@@ -84,7 +84,6 @@ static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
 static int	issignal(struct thread *p);
 static int	sigprop(int sig);
-static void	stop(struct proc *);
 static void	tdsigwakeup(struct thread *td, int sig, sig_t action);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
@@ -2247,21 +2246,6 @@ issignal(td)
 }
 
 /*
- * Put the argument process into the stopped state and notify the parent
- * via wakeup.  Signals are handled elsewhere.  The process must not be
- * on the run queue.  Must be called with the proc p locked.
- */
-static void
-stop(struct proc *p)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag |= P_STOPPED_SIG;
-	p->p_flag &= ~P_WAITED;
-	wakeup(p->p_pptr);
-}
-
-/*
  * MPSAFE
  */
 void
@@ -2278,8 +2262,16 @@ thread_stopped(struct proc *p)
 		n++;
 	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
 		mtx_unlock_spin(&sched_lock);
-		stop(p);
+		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
+		/*
+		 * Wake up parent sleeping in kern_wait(), also send
+		 * SIGCHLD to parent, but SIGCHLD does not guarantee
+		 * that parent will awake, because parent may masked
+		 * the signal.
+		 */
+		p->p_pptr->p_flag |= P_STATCHILD;
+		wakeup(p->p_pptr);
 		ps = p->p_pptr->p_sigacts;
 		mtx_lock(&ps->ps_mtx);
 		if ((ps->ps_flag & PS_NOCLDSTOP) == 0) {
