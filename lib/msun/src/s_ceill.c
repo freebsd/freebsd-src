@@ -50,7 +50,7 @@ static char rcsid[] = "$FreeBSD$";
 } while (0)
 #endif
 
-static const double huge = 1.0e300;
+static const long double huge = 1.0e300;
 
 long double
 ceill(long double x)
@@ -60,7 +60,7 @@ ceill(long double x)
 
 	if (e < MANH_SIZE - 1) {
 		if (e < 0) {			/* raise inexact if x != 0 */
-			if (huge + (double)x > 0.0)
+			if (huge + x > 0.0)
 				if (u.bits.exp > 0 ||
 				    (u.bits.manh | u.bits.manl) != 0)
 					u.e = u.bits.sign ? 0.0 : 1.0;
@@ -76,7 +76,7 @@ ceill(long double x)
 #endif
 				INC_MANH(u, 1llu << (MANH_SIZE - e - 1));
 			}
-			if (huge + (double)x > 0.0) {	/* raise inexact flag */
+			if (huge + x > 0.0) {	/* raise inexact flag */
 				u.bits.manh &= ~m;
 				u.bits.manl = 0;
 			}
@@ -95,7 +95,7 @@ ceill(long double x)
 					INC_MANH(u, 1);
 			}
 		}
-		if (huge + (double)x > 0.0)	/* raise inexact flag */
+		if (huge + x > 0.0)		/* raise inexact flag */
 			u.bits.manl &= ~m;
 	}
 	return (u.e);
