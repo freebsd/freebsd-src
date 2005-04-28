@@ -32,5 +32,6 @@
 #include <sys/types.h>
 
 int directive_hash(const u_char *, size_t);
+int keyword_hash(const u_char *, size_t);
 
 #endif
