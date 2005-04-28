@@ -58,10 +58,18 @@ HEADER {
 #define         ATA_LF_WHICH            0x0004
 };
 
+CODE {
+	static void ata_null_setmode(device_t parent, device_t dev)
+	{
+	    struct ata_device *atadev = device_get_softc(dev);
+
+	    atadev->mode = ata_limit_mode(atadev, atadev->mode, ATA_PIO_MAX);
+	}
+};
 METHOD void setmode {
     device_t    channel;
     device_t    dev;
-};
+}  DEFAULT ata_null_setmode;;
 
 METHOD void reset {
     device_t    channel;
@@ -70,5 +78,3 @@ METHOD void reset {
 METHOD int reinit {
     device_t    dev;
 };
-
-

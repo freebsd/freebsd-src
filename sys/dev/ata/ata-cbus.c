@@ -328,15 +328,6 @@ ata_cbuschannel_banking(device_t dev, int flags)
     return res;
 }
 
-static void
-ata_cbus_setmode(device_t parent, device_t dev)
-{
-    struct ata_device *atadev = device_get_softc(dev);
-    int mode = atadev->mode;
-
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
-}
-
 static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
@@ -347,7 +338,6 @@ static device_method_t ata_cbuschannel_methods[] = {
 
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
-    DEVMETHOD(ata_setmode,      ata_cbus_setmode),
     { 0, 0 }
 };
 
