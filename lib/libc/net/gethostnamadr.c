@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
@@ -51,7 +53,8 @@ extern int _dns_gethostbyaddr(void *, void *, va_list);
 extern int _nis_gethostbyaddr(void *, void *, va_list);
 extern const char *_res_hostalias(const char *, char *, size_t);
 
-static struct hostent *gethostbyname_internal(const char *, int);
+static int gethostbyname_internal(const char *, int, struct hostent *,
+    struct hostent_data *);
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
 static const ns_src default_src[] = {
@@ -60,47 +63,87 @@ static const ns_src default_src[] = {
 	{ 0 }
 };
 
-struct hostent *
-gethostbyname(const char *name)
+static struct hostdata hostdata;
+static thread_key_t hostdata_key;
+static once_t hostdata_init_once = ONCE_INITIALIZER;
+static int hostdata_thr_keycreated = 0;
+
+static void
+hostdata_free(void *ptr)
 {
-	struct hostent *hp;
+	struct hostdata *hd = ptr;
+
+	if (hd == NULL)
+		return;
+	hd->data.stayopen = 0;
+	_endhosthtent(&hd->data);
+	free(hd);
+}
+
+static void
+hostdata_keycreate(void)
+{
+	hostdata_thr_keycreated =
+	    (thr_keycreate(&hostdata_key, hostdata_free) == 0);
+}
+
+struct hostdata *
+__hostdata_init(void)
+{
+	struct hostdata *hd;
+
+	if (thr_main() != 0)
+		return &hostdata;
+	if (thr_once(&hostdata_init_once, hostdata_keycreate) != 0 ||
+	    !hostdata_thr_keycreated)
+		return NULL;
+	if ((hd = thr_getspecific(hostdata_key)) != NULL)
+		return hd;
+	if ((hd = calloc(1, sizeof(*hd))) == NULL)
+		return NULL;
+	if (thr_setspecific(hostdata_key, hd) == 0)
+		return hd;
+	free(hd);
+	return NULL;
+}
+
+int
+gethostbyname_r(const char *name, struct hostent *he, struct hostent_data *hed)
+{
+	int error;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
-		return NULL;
+		return -1;
 	}
 	if (_res.options & RES_USE_INET6) {
-		hp = gethostbyname_internal(name, AF_INET6);
-		if (hp)
-			return hp;
+		error = gethostbyname_internal(name, AF_INET6, he, hed);
+		if (error == 0)
+			return 0;
 	}
-	return gethostbyname_internal(name, AF_INET);
+	return gethostbyname_internal(name, AF_INET, he, hed);
 }
 
-struct hostent *
-gethostbyname2(const char *name, int af)
+int
+gethostbyname2_r(const char *name, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
-		return NULL;
+		return -1;
 	}
-	return gethostbyname_internal(name, af);
+	return gethostbyname_internal(name, af, he, hed);
 }
 
-static struct hostent *
-gethostbyname_internal(const char *name, int af)
+static int
+gethostbyname_internal(const char *name, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
 	const char *cp;
 	char *bp, *ep;
-	struct hostent *hp = 0;
 	int size, rval;
 	char abuf[MAXDNAME];
 
-	static struct hostent host;
-	static char *h_addr_ptrs[2];
-	static char *host_aliases[1];
-	static char hostbuf[MAXDNAME + IN6ADDRSZ + sizeof(uint32_t)];
-	static uint32_t host_addr[4];	/* IPv4 or IPv6 */
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_ht_gethostbyname, NULL)
 		{ NSSRC_DNS, _dns_gethostbyname, NULL },
@@ -118,11 +161,11 @@ gethostbyname_internal(const char *name, int af)
 	default:
 		h_errno = NETDB_INTERNAL;
 		errno = EAFNOSUPPORT;
-		return NULL;
+		return -1;
 	}
 
-	host.h_addrtype = af;
-	host.h_length = size;
+	he->h_addrtype = af;
+	he->h_length = size;
 
 	/*
 	 * if there aren't any dots, it could be a user-level alias.
@@ -147,24 +190,24 @@ gethostbyname_internal(const char *name, int af)
 				 * Fake up a hostent as if we'd actually
 				 * done a lookup.
 				 */
-				if (inet_pton(af, name, host_addr) <= 0) {
+				if (inet_pton(af, name, hed->host_addr) <= 0) {
 					h_errno = HOST_NOT_FOUND;
-					return NULL;
+					return -1;
 				}
-				strncpy(hostbuf, name, MAXDNAME);
-				hostbuf[MAXDNAME] = '\0';
-				bp = hostbuf + MAXDNAME;
-				ep = hostbuf + sizeof hostbuf;
-				host.h_name = hostbuf;
-				host.h_aliases = host_aliases;
-				host_aliases[0] = NULL;
-				h_addr_ptrs[0] = (char *)host_addr;
-				h_addr_ptrs[1] = NULL;
-				host.h_addr_list = h_addr_ptrs;
+				strncpy(hed->hostbuf, name, MAXDNAME);
+				hed->hostbuf[MAXDNAME] = '\0';
+				bp = hed->hostbuf + MAXDNAME + 1;
+				ep = hed->hostbuf + sizeof hed->hostbuf;
+				he->h_name = hed->hostbuf;
+				he->h_aliases = hed->host_aliases;
+				hed->host_aliases[0] = NULL;
+				hed->h_addr_ptrs[0] = (char *)hed->host_addr;
+				hed->h_addr_ptrs[1] = NULL;
+				he->h_addr_list = hed->h_addr_ptrs;
 				if (_res.options & RES_USE_INET6)
-					_map_v4v6_hostent(&host, &bp, &ep);
+					_map_v4v6_hostent(he, &bp, &ep);
 				h_errno = NETDB_SUCCESS;
-				return &host;
+				return 0;
 			}
 			if (!isdigit((u_char)*cp) && *cp != '.')
 				break;
@@ -180,38 +223,35 @@ gethostbyname_internal(const char *name, int af)
 				 * Fake up a hostent as if we'd actually
 				 * done a lookup.
 				 */
-				if (inet_pton(af, name, host_addr) <= 0) {
+				if (inet_pton(af, name, hed->host_addr) <= 0) {
 					h_errno = HOST_NOT_FOUND;
-					return NULL;
+					return -1;
 				}
-				strncpy(hostbuf, name, MAXDNAME);
-				hostbuf[MAXDNAME] = '\0';
-				host.h_name = hostbuf;
-				host.h_aliases = host_aliases;
-				host_aliases[0] = NULL;
-				h_addr_ptrs[0] = (char *)host_addr;
-				h_addr_ptrs[1] = NULL;
-				host.h_addr_list = h_addr_ptrs;
+				strncpy(hed->hostbuf, name, MAXDNAME);
+				hed->hostbuf[MAXDNAME] = '\0';
+				he->h_name = hed->hostbuf;
+				he->h_aliases = hed->host_aliases;
+				hed->host_aliases[0] = NULL;
+				hed->h_addr_ptrs[0] = (char *)hed->host_addr;
+				hed->h_addr_ptrs[1] = NULL;
+				he->h_addr_list = hed->h_addr_ptrs;
 				h_errno = NETDB_SUCCESS;
-				return &host;
+				return 0;
 			}
 			if (!isxdigit((u_char)*cp) && *cp != ':' && *cp != '.')
 				break;
 		}
 
-	rval = _nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyname",
-	    default_src, name, af);
+	rval = _nsdispatch(NULL, dtab, NSDB_HOSTS, "gethostbyname",
+	    default_src, name, af, he, hed);
 
-	if (rval != NS_SUCCESS)
-		return NULL;
-	else
-		return hp;
+	return (rval == NS_SUCCESS) ? 0 : -1;
 }
 
-struct hostent *
-gethostbyaddr(const char *addr, int len, int type)
+int
+gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
+    struct hostent_data *hed)
 {
-	struct hostent *hp = 0;
 	int rval;
 
 	static const ns_dtab dtab[] = {
@@ -219,28 +259,80 @@ gethostbyaddr(const char *addr, int len, int type)
 		{ NSSRC_DNS, _dns_gethostbyaddr, NULL },
 		NS_NIS_CB(_nis_gethostbyaddr, NULL) /* force -DHESIOD */
 		{ 0 }
-	};       
+	};
 
-	rval = _nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyaddr",
-			  default_src, addr, len, type);
+	rval = _nsdispatch(NULL, dtab, NSDB_HOSTS, "gethostbyaddr",
+	    default_src, addr, len, af, he, hed);
 
-	if (rval != NS_SUCCESS)
-		return NULL;
-	else
-		return hp;
+	return (rval == NS_SUCCESS) ? 0 : -1;
 }
 
 void
-sethostent(stayopen)
-	int stayopen;
+sethostent_r(int stayopen, struct hostent_data *hed)
 {
-	_sethosthtent(stayopen);
+	_sethosthtent(stayopen, hed);
 	_sethostdnsent(stayopen);
 }
 
 void
-endhostent()
+endhostent_r(struct hostent_data *hed)
 {
-	_endhosthtent();
+	_endhosthtent(hed);
 	_endhostdnsent();
+}
+
+struct hostent *
+gethostbyname(const char *name)
+{
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL)
+		return NULL;
+	if (gethostbyname_r(name, &hd->host, &hd->data) != 0)
+		return NULL;
+	return &hd->host;
+}
+
+struct hostent *
+gethostbyname2(const char *name, int af)
+{
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL)
+		return NULL;
+	if (gethostbyname2_r(name, af, &hd->host, &hd->data) != 0)
+		return NULL;
+	return &hd->host;
+}
+
+struct hostent *
+gethostbyaddr(const char *addr, int len, int af)
+{
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL)
+		return NULL;
+	if (gethostbyaddr_r(addr, len, af, &hd->host, &hd->data) != 0)
+		return NULL;
+	return &hd->host;
+}
+
+void
+sethostent(int stayopen)
+{
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL)
+		return;
+	sethostent_r(stayopen, &hd->data);
+}
+
+void
+endhostent(void)
+{
+	struct hostdata *hd;
+
+	if ((hd = __hostdata_init()) == NULL)
+		return;
+	endhostent_r(&hd->data);
 }

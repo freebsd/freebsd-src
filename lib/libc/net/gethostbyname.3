@@ -366,14 +366,14 @@ function first appeared in
 .Tn BIND
 version 4.9.4.
 .Sh BUGS
-These functions use static data storage;
+These functions use a thread-specific data storage;
 if the data is needed for future use, it should be
 copied before any subsequent calls overwrite it.
-Threaded applications should never use them, as they will also conflict
-with the
+.Pp
+Though these functions are thread-safe,
+still it is recommended to use the
 .Xr getaddrinfo 3
-and
-.Xr getipnodebyname 3
-families of functions (which should be used instead).
+family of functions, instead.
+.Pp
 Only the Internet
 address format is currently understood.
