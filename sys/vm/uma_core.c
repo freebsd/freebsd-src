@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 2004, 2005,
  *     Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2002, 2003, 2004, 2005,
@@ -118,9 +119,6 @@ static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(&uma_kegs);
 
 /* This mutex protects the keg list */
 static struct mtx uma_mtx;
-
-/* These are the pcpu cache locks */
-static struct mtx uma_pcpu_mtx[MAXCPU];
 
 /* Linked list of boot time pages */
 static LIST_HEAD(,uma_slab) uma_boot_pages =
@@ -384,39 +382,10 @@ static void
 zone_timeout(uma_zone_t zone)
 {
 	uma_keg_t keg;
-	uma_cache_t cache;
 	u_int64_t alloc;
-	int cpu;
 
 	keg = zone->uz_keg;
 	alloc = 0;
-
-	/*
-	 * Aggregate per cpu cache statistics back to the zone.
-	 *
-	 * XXX This should be done in the sysctl handler.
-	 *
-	 * I may rewrite this to set a flag in the per cpu cache instead of
-	 * locking.  If the flag is not cleared on the next round I will have
-	 * to lock and do it here instead so that the statistics don't get too
-	 * far out of sync.
-	 */
-	if (!(keg->uk_flags & UMA_ZFLAG_INTERNAL)) {
-		for (cpu = 0; cpu <= mp_maxid; cpu++) {
-			if (CPU_ABSENT(cpu))
-				continue;
-			CPU_LOCK(cpu);
-			cache = &zone->uz_cpu[cpu];
-			/* Add them up, and reset */
-			alloc += cache->uc_allocs;
-			cache->uc_allocs = 0;
-			CPU_UNLOCK(cpu);
-		}
-	}
-
-	/* Now push these stats back into the zone.. */
-	ZONE_LOCK(zone);
-	zone->uz_allocs += alloc;
 
 	/*
 	 * Expand the zone hash table.
@@ -425,7 +394,7 @@ zone_timeout(uma_zone_t zone)
 	 * What I'm trying to do here is completely reduce collisions.  This
 	 * may be a little aggressive.  Should I allow for two collisions max?
 	 */
-
+	ZONE_LOCK(zone);
 	if (keg->uk_flags & UMA_ZONE_HASH &&
 	    keg->uk_pages / keg->uk_ppera >= keg->uk_hash.uh_hashsize) {
 		struct uma_hash newhash;
@@ -613,6 +582,10 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 /*
  * Drains the per cpu caches for a zone.
  *
+ * NOTE: This may only be called while the zone is being turn down, and not
+ * during normal operation.  This is necessary in order that we do not have
+ * to migrate CPUs to drain the per-CPU caches.
+ *
  * Arguments:
  *	zone     The zone to drain, must be unlocked.
  *
@@ -626,12 +599,20 @@ cache_drain(uma_zone_t zone)
 	int cpu;
 
 	/*
-	 * We have to lock each cpu cache before locking the zone
+	 * XXX: It is safe to not lock the per-CPU caches, because we're
+	 * tearing down the zone anyway.  I.e., there will be no further use
+	 * of the caches at this point.
+	 *
+	 * XXX: It would good to be able to assert that the zone is being
+	 * torn down to prevent improper use of cache_drain().
+	 *
+	 * XXX: We lock the zone before passing into bucket_cache_drain() as
+	 * it is used elsewhere.  Should the tear-down path be made special
+	 * there in some form?
 	 */
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
-		CPU_LOCK(cpu);
 		cache = &zone->uz_cpu[cpu];
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
@@ -644,11 +625,6 @@ cache_drain(uma_zone_t zone)
 	ZONE_LOCK(zone);
 	bucket_cache_drain(zone);
 	ZONE_UNLOCK(zone);
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
-		CPU_UNLOCK(cpu);
-	}
 }
 
 /*
@@ -828,7 +804,8 @@ slab_zalloc(uma_zone_t zone, int wait)
 	    &flags, wait);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
-			uma_zfree_internal(keg->uk_slabzone, slab, NULL, 0);
+			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
+			    SKIP_NONE);
 		ZONE_LOCK(zone);
 		return (NULL);
 	}
@@ -1643,10 +1620,6 @@ uma_startup(void *bootmem)
 #ifdef UMA_DEBUG
 	printf("Initializing pcpu cache locks.\n");
 #endif
-	/* Initialize the pcpu cache lock set once and for all */
-	for (i = 0; i <= mp_maxid; i++)
-		CPU_LOCK_INIT(i);
-
 #ifdef UMA_DEBUG
 	printf("Creating slab and hash zones.\n");
 #endif
@@ -1827,9 +1800,20 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		}
 	}
 
+	/*
+	 * If possible, allocate from the per-CPU cache.  There are two
+	 * requirements for safe access to the per-CPU cache: (1) the thread
+	 * accessing the cache must not be preempted or yield during access,
+	 * and (2) the thread must not migrate CPUs without switching which
+	 * cache it accesses.  We rely on a critical section to prevent
+	 * preemption and migration.  We release the critical section in
+	 * order to acquire the zone mutex if we are unable to allocate from
+	 * the current cache; when we re-acquire the critical section, we
+	 * must detect and handle migration if it has occurred.
+	 */
 zalloc_restart:
-	cpu = PCPU_GET(cpuid);
-	CPU_LOCK(cpu);
+	critical_enter();
+	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
 zalloc_start:
@@ -1845,12 +1829,12 @@ zalloc_start:
 			KASSERT(item != NULL,
 			    ("uma_zalloc: Bucket pointer mangled."));
 			cache->uc_allocs++;
+			critical_exit();
 #ifdef INVARIANTS
 			ZONE_LOCK(zone);
 			uma_dbg_alloc(zone, NULL, item);
 			ZONE_UNLOCK(zone);
 #endif
-			CPU_UNLOCK(cpu);
 			if (zone->uz_ctor != NULL) {
 				if (zone->uz_ctor(item, zone->uz_keg->uk_size,
 				    udata, flags) != 0) {
@@ -1880,7 +1864,33 @@ zalloc_start:
 			}
 		}
 	}
+	/*
+	 * Attempt to retrieve the item from the per-CPU cache has failed, so
+	 * we must go back to the zone.  This requires the zone lock, so we
+	 * must drop the critical section, then re-acquire it when we go back
+	 * to the cache.  Since the critical section is released, we may be
+	 * preempted or migrate.  As such, make sure not to maintain any
+	 * thread-local state specific to the cache from prior to releasing
+	 * the critical section.
+	 */
+	critical_exit();
 	ZONE_LOCK(zone);
+	critical_enter();
+	cpu = curcpu;
+	cache = &zone->uz_cpu[cpu];
+	bucket = cache->uc_allocbucket;
+	if (bucket != NULL) {
+		if (bucket->ub_cnt > 0) {
+			ZONE_UNLOCK(zone);
+			goto zalloc_start;
+		}
+		bucket = cache->uc_freebucket;
+		if (bucket != NULL && bucket->ub_cnt > 0) {
+			ZONE_UNLOCK(zone);
+			goto zalloc_start;
+		}
+	}
+
 	/* Since we have locked the zone we may as well send back our stats */
 	zone->uz_allocs += cache->uc_allocs;
 	cache->uc_allocs = 0;
@@ -1904,8 +1914,8 @@ zalloc_start:
 		ZONE_UNLOCK(zone);
 		goto zalloc_start;
 	}
-	/* We are no longer associated with this cpu!!! */
-	CPU_UNLOCK(cpu);
+	/* We are no longer associated with this CPU. */
+	critical_exit();
 
 	/* Bump up our uz_count so we get here less */
 	if (zone->uz_count < BUCKET_MAX)
@@ -2228,10 +2238,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	uma_bucket_t bucket;
 	int bflags;
 	int cpu;
-	enum zfreeskip skip;
 
-	/* This is the fast path free */
-	skip = SKIP_NONE;
 	keg = zone->uz_keg;
 
 #ifdef UMA_DEBUG_ALLOC_1
@@ -2240,22 +2247,37 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
 
+	if (zone->uz_dtor)
+		zone->uz_dtor(item, keg->uk_size, udata);
+#ifdef INVARIANTS
+	ZONE_LOCK(zone);
+	if (keg->uk_flags & UMA_ZONE_MALLOC)
+		uma_dbg_free(zone, udata, item);
+	else
+		uma_dbg_free(zone, NULL, item);
+	ZONE_UNLOCK(zone);
+#endif
 	/*
 	 * The race here is acceptable.  If we miss it we'll just have to wait
 	 * a little longer for the limits to be reset.
 	 */
-
 	if (keg->uk_flags & UMA_ZFLAG_FULL)
 		goto zfree_internal;
 
-	if (zone->uz_dtor) {
-		zone->uz_dtor(item, keg->uk_size, udata);
-		skip = SKIP_DTOR;
-	}
-
+	/*
+	 * If possible, free to the per-CPU cache.  There are two
+	 * requirements for safe access to the per-CPU cache: (1) the thread
+	 * accessing the cache must not be preempted or yield during access,
+	 * and (2) the thread must not migrate CPUs without switching which
+	 * cache it accesses.  We rely on a critical section to prevent
+	 * preemption and migration.  We release the critical section in
+	 * order to acquire the zone mutex if we are unable to free to the
+	 * current cache; when we re-acquire the critical section, we must
+	 * detect and handle migration if it has occurred.
+	 */
 zfree_restart:
-	cpu = PCPU_GET(cpuid);
-	CPU_LOCK(cpu);
+	critical_enter();
+	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
 zfree_start:
@@ -2272,15 +2294,7 @@ zfree_start:
 			    ("uma_zfree: Freeing to non free bucket index."));
 			bucket->ub_bucket[bucket->ub_cnt] = item;
 			bucket->ub_cnt++;
-#ifdef INVARIANTS
-			ZONE_LOCK(zone);
-			if (keg->uk_flags & UMA_ZONE_MALLOC)
-				uma_dbg_free(zone, udata, item);
-			else
-				uma_dbg_free(zone, NULL, item);
-			ZONE_UNLOCK(zone);
-#endif
-			CPU_UNLOCK(cpu);
+			critical_exit();
 			return;
 		} else if (cache->uc_allocbucket) {
 #ifdef UMA_DEBUG_ALLOC
@@ -2304,9 +2318,32 @@ zfree_start:
 	 *
 	 * 1) The buckets are NULL
 	 * 2) The alloc and free buckets are both somewhat full.
+	 *
+	 * We must go back the zone, which requires acquiring the zone lock,
+	 * which in turn means we must release and re-acquire the critical
+	 * section.  Since the critical section is released, we may be
+	 * preempted or migrate.  As such, make sure not to maintain any
+	 * thread-local state specific to the cache from prior to releasing
+	 * the critical section.
 	 */
-
+	critical_exit();
 	ZONE_LOCK(zone);
+	critical_enter();
+	cpu = curcpu;
+	cache = &zone->uz_cpu[cpu];
+	if (cache->uc_freebucket != NULL) {
+		if (cache->uc_freebucket->ub_cnt <
+		    cache->uc_freebucket->ub_entries) {
+			ZONE_UNLOCK(zone);
+			goto zfree_start;
+		}
+		if (cache->uc_allocbucket != NULL &&
+		    (cache->uc_allocbucket->ub_cnt <
+		    cache->uc_freebucket->ub_cnt)) {
+			ZONE_UNLOCK(zone);
+			goto zfree_start;
+		}
+	}
 
 	bucket = cache->uc_freebucket;
 	cache->uc_freebucket = NULL;
@@ -2328,8 +2365,8 @@ zfree_start:
 		cache->uc_freebucket = bucket;
 		goto zfree_start;
 	}
-	/* We're done with this CPU now */
-	CPU_UNLOCK(cpu);
+	/* We are no longer associated with this CPU. */
+	critical_exit();
 
 	/* And the zone.. */
 	ZONE_UNLOCK(zone);
@@ -2353,26 +2390,8 @@ zfree_start:
 	/*
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
-
 zfree_internal:
-
-#ifdef INVARIANTS
-	/*
-	 * If we need to skip the dtor and the uma_dbg_free in
-	 * uma_zfree_internal because we've already called the dtor
-	 * above, but we ended up here, then we need to make sure
-	 * that we take care of the uma_dbg_free immediately.
-	 */
-	if (skip) {
-		ZONE_LOCK(zone);
-		if (keg->uk_flags & UMA_ZONE_MALLOC)
-			uma_dbg_free(zone, udata, item);
-		else
-			uma_dbg_free(zone, NULL, item);
-		ZONE_UNLOCK(zone);
-	}
-#endif
-	uma_zfree_internal(zone, item, udata, skip);
+	uma_zfree_internal(zone, item, udata, SKIP_DTOR);
 
 	return;
 }
@@ -2655,7 +2674,7 @@ uma_large_malloc(int size, int wait)
 		slab->us_flags = flags | UMA_SLAB_MALLOC;
 		slab->us_size = size;
 	} else {
-		uma_zfree_internal(slabzone, slab, NULL, 0);
+		uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE);
 	}
 
 	return (mem);
@@ -2666,7 +2685,7 @@ uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
-	uma_zfree_internal(slabzone, slab, NULL, 0);
+	uma_zfree_internal(slabzone, slab, NULL, SKIP_NONE);
 }
 
 void
@@ -2743,6 +2762,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	int cachefree;
 	uma_bucket_t bucket;
 	uma_cache_t cache;
+	u_int64_t alloc;
 
 	cnt = 0;
 	mtx_lock(&uma_mtx);
@@ -2766,15 +2786,9 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	  LIST_FOREACH(z, &zk->uk_zones, uz_link) {
 		if (cnt == 0)	/* list may have changed size */
 			break;
-		if (!(zk->uk_flags & UMA_ZFLAG_INTERNAL)) {
-			for (cpu = 0; cpu <= mp_maxid; cpu++) {
-				if (CPU_ABSENT(cpu))
-					continue;
-				CPU_LOCK(cpu);
-			}
-		}
 		ZONE_LOCK(z);
 		cachefree = 0;
+		alloc = 0;
 		if (!(zk->uk_flags & UMA_ZFLAG_INTERNAL)) {
 			for (cpu = 0; cpu <= mp_maxid; cpu++) {
 				if (CPU_ABSENT(cpu))
@@ -2784,9 +2798,12 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 					cachefree += cache->uc_allocbucket->ub_cnt;
 				if (cache->uc_freebucket != NULL)
 					cachefree += cache->uc_freebucket->ub_cnt;
-				CPU_UNLOCK(cpu);
+				alloc += cache->uc_allocs;
+				cache->uc_allocs = 0;
 			}
 		}
+		alloc += z->uz_allocs;
+
 		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
 			cachefree += bucket->ub_cnt;
 		}
@@ -2797,7 +2814,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		    zk->uk_maxpages * zk->uk_ipers,
 		    (zk->uk_ipers * (zk->uk_pages / zk->uk_ppera)) - totalfree,
 		    totalfree,
-		    (unsigned long long)z->uz_allocs);
+		    (unsigned long long)alloc);
 		ZONE_UNLOCK(z);
 		for (p = offset + 12; p > offset && *p == ' '; --p)
 			/* nothing */ ;
