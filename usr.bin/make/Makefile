@@ -4,9 +4,9 @@
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}
-SRCS=	arch.c buf.c compat.c cond.c dir.c directive_hash.c for.c	\
-	hash.c job.c lst.c main.c make.c parse.c str.c suff.c targ.c	\
-	util.c var.c var_modify.c
+SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c hash_tables.c	\
+	job.c lst.c main.c make.c parse.c str.c suff.c targ.c util.c	\
+	var.c var_modify.c
 
 NO_WERROR=
 WARNS?=	3
@@ -56,7 +56,7 @@ hash:
 	  echo ' */' ;							\
 	  echo '#include <sys/types.h>' ;				\
 	  echo ;							\
-	  echo '#include "directive_hash.h"' ;				\
+	  echo '#include "hash_tables.h"' ;				\
 	  echo ;							\
 	  cat ${.CURDIR}/parse.c | sed					\
 	    -e '1,/DIRECTIVES-START-TAG/d'				\
@@ -91,7 +91,7 @@ hash:
 	    -e 's/= T0\[/= keyword_T0\[/'				\
 	    -e 's/= T1\[/= keyword_T1\[/'				\
 	    -e 's/g\[f/keyword_g[f/g'					\
-	) > ${.CURDIR}/directive_hash.c
+	) > ${.CURDIR}/hash_tables.c
 
 # Set the shell which make(1) uses.  Bourne is the default, but a decent
 # Korn shell works fine, and much faster.  Using the C shell for this
