@@ -54,10 +54,8 @@ nodevice	de
 nodevice	txp
 nodevice	vx
 
-nodevice	dc
 nodevice	nve
 nodevice	pcn
-nodevice	rl
 nodevice	sf
 nodevice	sis
 nodevice	ste
