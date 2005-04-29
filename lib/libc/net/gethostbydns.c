@@ -387,7 +387,7 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 				cp += n;
 				continue;
 			}
-			bcopy(cp, *hap++ = bp, n);
+			memcpy(*hap++ = bp, cp, n);
 			bp += n;
 			cp += n;
 			if (cp != erdata) {
@@ -517,14 +517,11 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 int
 _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	const char *addr;	/* XXX should have been def'd as u_char! */
+	const u_char *uaddr;
 	int len, af;
 	struct hostent *he;
 	struct hostent_data *hed;
-	const u_char *uaddr;
-	static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
-	static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
-	int n, size, error;
+	int n, error;
 	querybuf *buf;
 	char qbuf[MAXDNAME+1], *qp;
 #ifdef SUNSECURITY
@@ -535,40 +532,13 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	char hname2[MAXDNAME+1], numaddr[46];
 #endif /*SUNSECURITY*/
 
-	addr = va_arg(ap, const char *);
-	uaddr = (const u_char *)addr;
+	uaddr = va_arg(ap, const u_char *);
 	len = va_arg(ap, int);
 	af = va_arg(ap, int);
 	he = va_arg(ap, struct hostent *);
 	hed = va_arg(ap, struct hostent_data *);
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return NS_UNAVAIL;
-	}
-	if (af == AF_INET6 && len == IN6ADDRSZ &&
-	    (!bcmp(uaddr, mapped, sizeof mapped) ||
-	     !bcmp(uaddr, tunnelled, sizeof tunnelled))) {
-		/* Unmap. */
-		addr += sizeof mapped;
-		uaddr += sizeof mapped;
-		af = AF_INET;
-		len = INADDRSZ;
-	}
-	switch (af) {
-	case AF_INET:
-		size = INADDRSZ;
-		break;
-	case AF_INET6:
-		size = IN6ADDRSZ;
-		break;
-	default:
-		errno = EAFNOSUPPORT;
-		h_errno = NETDB_INTERNAL;
-		return NS_UNAVAIL;
-	}
-	if (size != len) {
-		errno = EINVAL;
 		h_errno = NETDB_INTERNAL;
 		return NS_UNAVAIL;
 	}
@@ -651,7 +621,7 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 #endif /*SUNSECURITY*/
 	he->h_addrtype = af;
 	he->h_length = len;
-	bcopy(addr, hed->host_addr, len);
+	memcpy(hed->host_addr, uaddr, len);
 	hed->h_addr_ptrs[0] = (char *)hed->host_addr;
 	hed->h_addr_ptrs[1] = NULL;
 	if (af == AF_INET && (_res.options & RES_USE_INET6)) {

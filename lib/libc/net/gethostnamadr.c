@@ -252,6 +252,9 @@ int
 gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
     struct hostent_data *hed)
 {
+	const u_char *uaddr = (const u_char *)addr;
+	const struct in6_addr *addr6;
+	socklen_t size;
 	int rval;
 
 	static const ns_dtab dtab[] = {
@@ -261,8 +264,40 @@ gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
 		{ 0 }
 	};
 
+	if (af == AF_INET6 && len == IN6ADDRSZ) {
+		addr6 = (const struct in6_addr *)(const void *)uaddr;
+		if (IN6_IS_ADDR_LINKLOCAL(addr6)) {
+			h_errno = HOST_NOT_FOUND;
+			return -1;
+		}
+		if (IN6_IS_ADDR_V4MAPPED(addr6) ||
+		    IN6_IS_ADDR_V4COMPAT(addr6)) {
+			/* Unmap. */
+			uaddr += IN6ADDRSZ - INADDRSZ;
+			af = AF_INET;
+			len = INADDRSZ;
+		}
+	}
+	switch (af) {
+	case AF_INET:
+		size = INADDRSZ;
+		break;
+	case AF_INET6:
+		size = IN6ADDRSZ;
+		break;
+	default:
+		errno = EAFNOSUPPORT;
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+	if (size != len) {
+		errno = EINVAL;
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+
 	rval = _nsdispatch(NULL, dtab, NSDB_HOSTS, "gethostbyaddr",
-	    default_src, addr, len, af, he, hed);
+	    default_src, uaddr, len, af, he, hed);
 
 	return (rval == NS_SUCCESS) ? 0 : -1;
 }
