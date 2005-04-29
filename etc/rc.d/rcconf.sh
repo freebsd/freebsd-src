@@ -4,7 +4,6 @@
 #
 
 # PROVIDE: rcconf
-# REQUIRE: initdiskless
 # BEFORE:  disks initrandom
 
 . /etc/rc.subr

@@ -12,7 +12,8 @@ BIN1=	amd.map apmd.conf auth.conf \
 	inetd.conf login.access login.conf \
 	mac.conf motd netconfig network.subr networks newsyslog.conf \
 	pf.conf pf.os phones profile protocols \
-	rc rc.bsdextended rc.firewall rc.firewall6 rc.sendmail rc.shutdown \
+	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
+	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
 	snmpd.config sysctl.conf syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/ttys \

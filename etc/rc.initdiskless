@@ -25,12 +25,6 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
-#
-# PROVIDE: initdiskless
-# REQUIRE: preseedrandom
-# BEFORE: rcconf
-# KEYWORD: nojail
-
 
 # On entry to this script the entire system consists of a read-only root
 # mounted via NFS. The kernel has run BOOTP and configured an interface
@@ -125,7 +119,6 @@
 # (end of documentation, now get to the real code)
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
-[ ${dlv:=0} -eq 0 ] && [ ! -f /etc/diskless ] && exit 0
 
 # chkerr:
 #
