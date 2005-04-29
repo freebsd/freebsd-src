@@ -88,7 +88,7 @@ _getnetbynis(const char *name, char *map, int af, struct netent *ne,
 	ep = ned->netbuf + sizeof ned->netbuf;
 	len = strlen(result) + 1;
 	if (ep - bp < len) {
-		h_errno = NETDB_INTERNAL;
+		h_errno = NO_RECOVERY;
 		return -1;
 	}
 	strlcpy(bp, result, ep - bp);
