@@ -1,12 +1,12 @@
 /*
  * DO NOT EDIT
  * $FreeBSD$
- * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.98 2005/04/28 12:05:43 harti Exp 
+ * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.99 2005/04/29 14:37:44 harti Exp 
  * DO NOT EDIT
  */
 #include <sys/types.h>
 
-#include "directive_hash.h"
+#include "hash_tables.h"
 
 /*
  * d=2
