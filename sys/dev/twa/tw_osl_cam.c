@@ -482,8 +482,18 @@ twa_poll(struct cam_sim *sim)
 	struct twa_softc *sc = (struct twa_softc *)(cam_sim_softc(sim));
 
 	tw_osli_dbg_dprintf(3, sc, "entering; sc = %p", sc);
-	if (tw_cl_interrupt(&(sc->ctlr_handle)))
-		tw_cl_deferred_interrupt(&(sc->ctlr_handle));
+	/*
+	 * It's been observed that twa_poll can get called (from
+	 * dashutdown --> xpt_polled_action) even when interrupts are
+	 * active, in which case, the ISR might clear the interrupt,
+	 * leaving the call to tw_cl_interrupt below, no way of determining
+	 * that the response from firmware is ready, resulting in
+	 * tw_cl_deferred_interrupt never getting called.  To cover this case,
+	 * we will make the call to tw_cl_deferred_interrupt not dependent
+	 * on the return value from tw_cl_interrupt.
+	 */
+	tw_cl_interrupt(&(sc->ctlr_handle));
+	tw_cl_deferred_interrupt(&(sc->ctlr_handle));
 	tw_osli_dbg_dprintf(3, sc, "exiting; sc = %p", sc);
 }
 
