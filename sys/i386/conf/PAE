@@ -83,6 +83,7 @@ nodevice	wi
 
 nodevice	uhci
 nodevice	ohci
+nodevice	ehci
 nodevice	usb
 nodevice	ugen
 nodevice	uhid
