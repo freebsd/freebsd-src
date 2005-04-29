@@ -288,6 +288,24 @@ pci_disable_io(device_t dev, int space)
 }
 
 /*
+ * Check if the address range falls within the VGA defined address range(s)
+ */
+static __inline int
+pci_is_vga_ioport_range(u_long start, u_long end)
+{
+ 
+	return (((start >= 0x3b0 && end <= 0x3bb) ||
+	    (start >= 0x3c0 && end <= 0x3df)) ? 1 : 0);
+}
+
+static __inline int
+pci_is_vga_memory_range(u_long start, u_long end)
+{
+
+	return ((start >= 0xa0000 && end <= 0xbffff) ? 1 : 0);
+}
+
+/*
  * PCI power states are as defined by ACPI:
  *
  * D0	State in which device is on and running.  It is receiving full
