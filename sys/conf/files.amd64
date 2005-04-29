@@ -146,6 +146,7 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
+dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -172,7 +173,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
-hwpmc/hwpmc_amd.c		optional	hwpmc
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/psm.c			optional	psm
