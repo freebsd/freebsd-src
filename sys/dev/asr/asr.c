@@ -2582,7 +2582,8 @@ asr_attach(device_t tag)
 	 */
 	sc->ha_devt = make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
 			       "asr%d", unit);
-	(void)make_dev_alias(sc->ha_devt, "rdpti%d", unit);
+	if (sc->ha_devt != NULL)
+		(void)make_dev_alias(sc->ha_devt, "rdpti%d", unit);
 	sc->ha_devt->si_drv1 = sc;
 	return(0);
 } /* asr_attach */
