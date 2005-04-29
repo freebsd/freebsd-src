@@ -96,11 +96,19 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 
 	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
 	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
 	sc = g_mirror_find_device(mp, name);
 	if (sc == NULL) {
 		gctl_error(req, "No such device: %s.", name);
@@ -111,6 +119,10 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	balancep = gctl_get_asciiparam(req, "balance");
+	if (balancep == NULL) {
+		gctl_error(req, "No '%s' argument.", "balance");
+		return;
+	}
 	if (strcmp(balancep, "none") == 0)
 		balance = sc->sc_balance;
 	else {
