@@ -436,7 +436,7 @@ run_command(int argc, char *argv[])
 		gctl_rw_param(req, "output", sizeof(buf), buf);
 		errstr = gctl_issue(req);
 	}
-	if (errstr != NULL && errstr[0] != '\0') {  
+	if (errstr != NULL && errstr[0] != '\0') {
 		fprintf(stderr, "%s\n", errstr);
 		if (strncmp(errstr, "warning: ", strlen("warning: ")) != 0) {
 			gctl_free(req);
