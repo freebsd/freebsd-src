@@ -454,6 +454,7 @@ ata_timeout(struct ata_request *request)
     if (ch->state == ATA_ACTIVE || ch->state == ATA_STALL_QUEUE) {
 	request->flags |= ATA_R_TIMEOUT;
 	ch->state |= ATA_TIMEOUT;
+	ch->running = NULL;
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
