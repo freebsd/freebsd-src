@@ -111,7 +111,7 @@ again:
 	*cp++ = '\0';
 	len = strlen(p) + 1;
 	if (ep - bp < len) {
-		h_errno = NETDB_INTERNAL;
+		h_errno = NO_RECOVERY;
 		return -1;
 	}
 	strlcpy(bp, p, ep - bp);
