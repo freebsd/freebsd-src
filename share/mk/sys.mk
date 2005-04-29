@@ -269,6 +269,9 @@ __MAKE_CONF?=/etc/make.conf
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
 
+# Toggle on warnings
+.WARN: dirsyntax
+
 .endif
 
 .include <bsd.compat.mk>
