@@ -121,7 +121,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		*p++ = '\0';
 	size = strlen(cp) + 1;
 	if (ep - bp < size) {
-		h_errno = NETDB_INTERNAL;
+		h_errno = NO_RECOVERY;
 		return -1;
 	}
 	strlcpy(bp, cp, ep - bp);
