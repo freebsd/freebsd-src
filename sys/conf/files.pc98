@@ -117,6 +117,11 @@ dev/fb/fb.c			optional gdc
 dev/fb/splash.c			optional splash
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/fe/if_fe_pccard.c		optional fe card
+dev/hwpmc/hwpmc_amd.c		optional hwpmc
+dev/hwpmc/hwpmc_intel.c		optional hwpmc
+dev/hwpmc/hwpmc_pentium.c	optional hwpmc
+dev/hwpmc/hwpmc_piv.c		optional hwpmc
+dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/io/iodev.c			optional io
 dev/kbd/kbd.c			optional pckbd
 dev/kbd/kbd.c			optional sc
@@ -154,11 +159,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
-hwpmc/hwpmc_amd.c		optional hwpmc
-hwpmc/hwpmc_intel.c		optional hwpmc
-hwpmc/hwpmc_pentium.c		optional hwpmc
-hwpmc/hwpmc_piv.c		optional hwpmc
-hwpmc/hwpmc_ppro.c		optional hwpmc
 i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard				\
