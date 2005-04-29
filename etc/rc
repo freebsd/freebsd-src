@@ -65,6 +65,11 @@ else
 	_boot="start"
 fi
 
+dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+if [ ${dlv:=0} -ne 0 -o -f /etc/diskless ]; then
+	sh /etc/rc.initdiskless
+fi
+
 skip="-s nostart"
 [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && skip="$skip -s nojail"
 files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`

@@ -13,7 +13,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	gbde gbde_swap \
 	hostname \
 	ike \
-	inetd initdiskless initrandom \
+	inetd initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
@@ -26,7 +26,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	nfslocking nfsserver nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pccard pcvt pf pflog \
-	powerd power_profile ppp-user pppoed preseedrandom pwcheck \
+	powerd power_profile ppp-user pppoed pwcheck \
 	quota \
 	ramdisk ramdisk-own random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
