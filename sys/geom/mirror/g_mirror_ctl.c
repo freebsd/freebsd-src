@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -355,7 +355,8 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Unknown provider %s.", name);
 			continue;
 		}
-		if (sc->sc_provider->mediasize > pp->mediasize) {
+		if (sc->sc_provider->mediasize >
+		    pp->mediasize - pp->sectorsize) {
 			gctl_error(req, "Provider %s too small.", name);
 			continue;
 		}
