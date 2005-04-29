@@ -1634,9 +1634,7 @@ void *
 timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 {
 	struct timer *tp;
-#ifdef USE_LIBBEGEMOT
-	struct timeval due;
-#else
+#ifndef USE_LIBBEGEMOT
 	struct timespec due;
 #endif
 
@@ -1644,15 +1642,8 @@ timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 		syslog(LOG_CRIT, "out of memory for timer");
 		exit(1);
 	}
-#ifdef USE_LIBBEGEMOT
-	(void)gettimeofday(&due, NULL);
-	due.tv_sec += ticks / 100;
-	due.tv_usec += (ticks % 100) * 10000;
-	if (due.tv_usec >= 1000000) {
-		due.tv_sec++;
-		due.tv_usec -= 1000000;
-	}
-#else
+
+#ifndef USE_LIBBEGEMOT
 	due = evAddTime(evNowTime(),
 	    evConsTime(ticks / 100, (ticks % 100) * 10000));
 #endif
@@ -1664,8 +1655,7 @@ timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 	LIST_INSERT_HEAD(&timer_list, tp, link);
 
 #ifdef USE_LIBBEGEMOT
-	if ((tp->id = poll_start_timer(due.tv_sec * 1000 + due.tv_usec / 1000,
-	    0, tfunc, tp)) < 0) {
+	if ((tp->id = poll_start_timer(ticks * 10, 0, tfunc, tp)) < 0) {
 		syslog(LOG_ERR, "cannot set timer: %m");
 		exit(1);
 	}
