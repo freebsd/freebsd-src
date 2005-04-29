@@ -146,7 +146,7 @@ gethostent_r(struct hostent *he, struct hostent_data *hed)
 		*p++ = '\0';
 	len = strlen(cp) + 1;
 	if (ep - bp < len) {
-		h_errno = NETDB_INTERNAL;
+		h_errno = NO_RECOVERY;
 		return -1;
 	}
 	strlcpy(bp, cp, ep - bp);
