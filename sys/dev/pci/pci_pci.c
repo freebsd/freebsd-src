@@ -313,6 +313,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (!pcib_is_io_open(sc))
 			break;
 		ok = (start >= sc->iobase && end <= sc->iolimit);
+
+		/*
+		 * Make sure we allow access to VGA I/O addresses when the
+		 * bridge has the "VGA Enable" bit set.
+		 */
+		if (!ok && pci_is_vga_ioport_range(start, end))
+			ok = (sc->bridgectl & PCIB_BCR_VGA_ENABLE) ? 1 : 0;
+
 		if ((sc->flags & PCIB_SUBTRACTIVE) == 0) {
 			if (!ok) {
 				if (start < sc->iobase)
@@ -357,6 +365,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			ok = ok || (start >= sc->membase && end <= sc->memlimit);
 		if (pcib_is_prefetch_open(sc))
 			ok = ok || (start >= sc->pmembase && end <= sc->pmemlimit);
+
+		/*
+		 * Make sure we allow access to VGA memory addresses when the
+		 * bridge has the "VGA Enable" bit set.
+		 */
+		if (!ok && pci_is_vga_memory_range(start, end))
+			ok = (sc->bridgectl & PCIB_BCR_VGA_ENABLE) ? 1 : 0;
+
 		if ((sc->flags & PCIB_SUBTRACTIVE) == 0) {
 			if (!ok) {
 				ok = 1;
