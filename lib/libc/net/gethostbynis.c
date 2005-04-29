@@ -171,6 +171,7 @@ _gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
     struct hostent_data *hed)
 {
 	char *map;
+	char numaddr[46];
 
 	switch (af) {
 	case AF_INET:
@@ -180,8 +181,9 @@ _gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
 		map = "ipnodes.byaddr";
 		break;
 	}
-	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), map, af, he,
-	    hed);
+	if (inet_ntop(af, addr, numaddr, sizeof(numaddr)) == NULL)
+		return -1;
+	return _gethostbynis(numaddr, map, af, he, hed);
 }
 #endif /* YP */
 
