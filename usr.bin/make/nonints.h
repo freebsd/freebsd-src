@@ -45,7 +45,7 @@
 struct Buffer;
 
 void Main_ParseArgLine(char *, int);
+int Main_ParseWarn(const char *, int);
 Buffer *Cmd_Exec(char *, const char **);
-
 
 #endif /* nonints_h_33c5dafb */

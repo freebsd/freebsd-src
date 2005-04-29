@@ -107,7 +107,9 @@ Lst create = Lst_Initializer(create);
 time_t		now;		/* Time at start of make */
 struct GNode	*DEFAULT;	/* .DEFAULT node */
 Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
-uint32_t	warnflags;
+uint32_t	warn_flags;	/* actual warning flags */
+uint32_t	warn_cmd;	/* command line warning flags */
+uint32_t	warn_nocmd;	/* command line no-warning flags */
 
 static Boolean	noBuiltins;	/* -r flag */
 
@@ -168,6 +170,58 @@ MFLAGS_append(const char *flag, char *arg)
 		Var_Append("MFLAGS", str, VAR_GLOBAL);
 		free(str);
 	}
+}
+
+/**
+ * Main_ParseWarn
+ *
+ *	Handle argument to warning option.
+ */
+int
+Main_ParseWarn(const char *arg, int iscmd)
+{
+	int i, neg;
+
+	static const struct {
+		const char	*option;
+		uint32_t	flag;
+	} options[] = {
+		{ "dirsyntax",	WARN_DIRSYNTAX },
+		{ NULL,		0 }
+	};
+
+	neg = 0;
+	if (arg[0] == 'n' && arg[1] == 'o') {
+		neg = 1;
+		arg += 2;
+	}
+
+	for (i = 0; options[i].option != NULL; i++)
+		if (strcmp(arg, options[i].option) == 0)
+			break;
+
+	if (options[i].option == NULL)
+		/* unknown option */
+		return (-1);
+
+	if (iscmd) {
+		if (!neg) {
+			warn_cmd |= options[i].flag;
+			warn_nocmd &= ~options[i].flag;
+			warn_flags |= options[i].flag;
+		} else {
+			warn_nocmd |= options[i].flag;
+			warn_cmd &= ~options[i].flag;
+			warn_flags &= ~options[i].flag;
+		}
+	} else {
+		if (!neg) {
+			warn_flags |= (options[i].flag & ~warn_nocmd);
+		} else {
+			warn_flags &= ~(options[i].flag | warn_cmd);
+		}
+	}
+	return (0);
 }
 
 /**
@@ -347,10 +401,8 @@ rearg:
 			MFLAGS_append("-v", NULL);
 			break;
 		case 'x':
-			if (strncmp(optarg, "dirsyntax", strlen(optarg)) == 0) {
+			if (Main_ParseWarn(optarg, 1) != -1)
 				MFLAGS_append("-x", optarg);
-				warnflags |= WARN_DIRSYNTAX;
-			}
 			break;
 				
 		default:
