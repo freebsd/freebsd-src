@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,11 +101,19 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 
 	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
 	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
 	sc = g_raid3_find_device(mp, name);
 	if (sc == NULL) {
 		gctl_error(req, "No such device: %s.", name);
