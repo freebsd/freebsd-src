@@ -717,7 +717,7 @@ open_disk(int flag)
 			return -3;
 		for (p = 1; p < 5; p++) {
 			asprintf(&s, "%ss%d", disk, p);
-			fdw = open(s, O_RDONLY);
+			fdw = open(s, rwmode);
 			free(s);
 			if (fdw == -1)
 				continue;
