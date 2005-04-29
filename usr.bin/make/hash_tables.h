@@ -23,11 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $DragonFly$
  * $FreeBSD$
  */
-#ifndef directive_hash_h_
-#define directive_hash_h_
+#ifndef hash_tables_h_
+#define hash_tables_h_
 
 #include <sys/types.h>
 
