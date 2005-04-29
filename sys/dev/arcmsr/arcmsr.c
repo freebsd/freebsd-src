@@ -1836,11 +1836,7 @@ static VOID arcmsr_action(struct cam_sim * psim,union ccb * pccb)
 					} 
 					else 
 					{
-						struct bus_dma_segment seg;
-
-						seg.ds_addr=(bus_addr_t)pccb->csio.data_ptr;
-						seg.ds_len=pccb->csio.dxfer_len;
-						arcmsr_executesrb(pSRB,&seg,1,0);
+						panic("arcmsr: CAM_DATA_PHYS not supported");
 					}
 				} 
 				else 
