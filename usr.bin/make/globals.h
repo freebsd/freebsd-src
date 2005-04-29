@@ -121,6 +121,8 @@ extern Boolean	oldVars;	/* Do old-style variable substitution */
 extern int debug;
 
 /* warning flags */
-extern uint32_t warnflags;
+extern uint32_t warn_cmd;	/* positive warning flags on command line */
+extern uint32_t warn_nocmd;	/* negative warning flags on command line */
+extern uint32_t warn_flags;	/* current warning flags */
 
 #endif /* globals_h_1c1edb96 */
