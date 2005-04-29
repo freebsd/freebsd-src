@@ -583,8 +583,10 @@ ata_pci_attach(device_t dev)
     case 0x74111022: /* AMD 766 default setup */
     case 0x74411022: /* AMD 768 default setup */
     case 0x01bc10de: /* nVIDIA nForce default setup */
-	/* set prefetch, postwrite */
-	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
+	/* set prefetch, postwrite, avoid doing it for VIA chips. */
+	if (type != 0x05711106)
+		pci_write_config(dev, 0x41,
+			pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
 	/* set fifo configuration half'n'half */
 	pci_write_config(dev, 0x43, 
