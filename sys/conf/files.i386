@@ -173,6 +173,11 @@ dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
 dev/hptmv/hptproc.c		optional hptmv
 dev/hptmv/ioctl.c		optional hptmv
+dev/hwpmc/hwpmc_amd.c		optional hwpmc
+dev/hwpmc/hwpmc_intel.c		optional hwpmc
+dev/hwpmc/hwpmc_pentium.c	optional hwpmc
+dev/hwpmc/hwpmc_piv.c		optional hwpmc
+dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
@@ -218,11 +223,6 @@ geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
 dev/acpica/acpi_if.m		standard
-hwpmc/hwpmc_amd.c		optional hwpmc
-hwpmc/hwpmc_intel.c		optional hwpmc
-hwpmc/hwpmc_pentium.c		optional hwpmc
-hwpmc/hwpmc_piv.c		optional hwpmc
-hwpmc/hwpmc_ppro.c		optional hwpmc
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
 i386/acpica/acpi_wakeup.c	optional acpi
