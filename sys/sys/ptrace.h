@@ -100,6 +100,7 @@ struct ptrace_lwpinfo {
 	if ((p)->p_flag & P_TRACED && (p)->p_stops & (flag)) {	\
 		PROC_LOCK(p);					\
 		ptracestop((td), SIGTRAP);			\
+		PROC_UNLOCK(p);					\
 	}
 /*
  * The flags below are used for ptrace(2) tracing and have no relation
