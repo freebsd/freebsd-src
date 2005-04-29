@@ -174,6 +174,7 @@ typedef enum {
 	SingleShell,	/* .SINGLESHELL */
 	Suffixes,	/* .SUFFIXES */
 	Wait,		/* .WAIT */
+	Warn,		/* .WARN */
 	Attribute	/* Generic attribute */
 } ParseSpecial;
 
@@ -231,6 +232,7 @@ static const struct keyword {
 	{ ".SUFFIXES",		Suffixes,	0 },
 	{ ".USE",		Attribute,	OP_USE },
 	{ ".WAIT",		Wait,		0 },
+	{ ".WARN",		Warn,		0 },
 	/* KEYWORD-END-TAG */
 };
 #define	NKEYWORDS	(sizeof(parseKeywords) / sizeof(parseKeywords[0]))
@@ -394,6 +396,23 @@ ParsePopInput(void)
 	free(ifile);
 
 	return (TAILQ_EMPTY(&includes) ? DONE : CONTINUE);
+}
+
+/**
+ * parse_warn
+ *	Parse the .WARN pseudo-target.
+ */
+static void
+parse_warn(char *line)
+{
+	char **argv;
+	int argc;
+	int i;
+
+	argv = brk_string(line, &argc, TRUE);
+
+	for (i = 1; i < argc; i++)
+		Main_ParseWarn(argv[i], 0);
 }
 
 /*-
@@ -1063,6 +1082,10 @@ ParseDoDependency(char *line)
 		 * get sources won't get anything
 		 */
 		Main_ParseArgLine(line, 0);
+		*line = '\0';
+
+	} else if (specType == Warn) {
+		parse_warn(line);
 		*line = '\0';
 
 	} else if (specType == ExShell) {
