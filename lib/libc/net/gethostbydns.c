@@ -532,7 +532,7 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	struct hostent *rhe;
 	char **haddr;
 	u_long old_options;
-	char hname2[MAXDNAME+1];
+	char hname2[MAXDNAME+1], numaddr[46];
 #endif /*SUNSECURITY*/
 
 	addr = va_arg(ap, const char *);
@@ -625,9 +625,11 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	    _res.options |= RES_DEFNAMES;
 	    memset(&rhd, 0, sizeof rhd);
 	    if (!(rhe = gethostbyname_r(hname2, &rhd.host, &rhd.data))) {
+		if (inet_ntop(af, addr, numaddr, sizeof(numaddr)) == NULL)
+		    strlcpy(numaddr, "UNKNOWN", sizeof(numaddr));
 		syslog(LOG_NOTICE|LOG_AUTH,
 		       "gethostbyaddr: No A record for %s (verifying [%s])",
-		       hname2, inet_ntoa(*((struct in_addr *)addr)));
+		       hname2, numaddr);
 		_res.options = old_options;
 		h_errno = HOST_NOT_FOUND;
 		return NS_NOTFOUND;
@@ -637,9 +639,11 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 		if (!memcmp(*haddr, addr, INADDRSZ))
 			break;
 	    if (!*haddr) {
+		if (inet_ntop(af, addr, numaddr, sizeof(numaddr)) == NULL)
+		    strlcpy(numaddr, "UNKNOWN", sizeof(numaddr));
 		syslog(LOG_NOTICE|LOG_AUTH,
 		       "gethostbyaddr: A record of %s != PTR record [%s]",
-		       hname2, inet_ntoa(*((struct in_addr *)addr)));
+		       hname2, numaddr);
 		h_errno = HOST_NOT_FOUND;
 		return NS_NOTFOUND;
 	    }
