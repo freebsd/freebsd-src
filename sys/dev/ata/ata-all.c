@@ -68,7 +68,10 @@ static struct cdevsw ata_cdevsw = {
 /* prototypes */
 static void ata_interrupt(void *);
 static void ata_boot_attach(void);
-static device_t ata_add_child(device_t parent, struct ata_device *atadev, int unit);
+static device_t ata_add_child(device_t, struct ata_device *, int);
+static void bswap(int8_t *, int);
+static void btrim(int8_t *, int);
+static void bpack(int8_t *, int8_t *, int);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
@@ -566,7 +569,6 @@ ata_boot_attach(void)
 static device_t
 ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
-    struct ata_channel *ch = device_get_softc(parent);
     device_t child;
 
     if ((child = device_add_child(parent, NULL, unit))) {
@@ -580,83 +582,146 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 	atadev->dev = child;
 	atadev->max_iosize = DEV_BSIZE;
 	atadev->mode = ATA_PIO_MAX;
+    }
+    return child;
+}
+
+static int
+ata_getparam(device_t parent, struct ata_device *atadev)
+{
+    struct ata_channel *ch = device_get_softc(parent);
+    struct ata_request *request;
+    u_int8_t command = 0;
+    int error = ENOMEM, retries = 2;
+
+    if (ch->devices &
+	(atadev->unit == ATA_MASTER ? ATA_ATA_MASTER : ATA_ATA_SLAVE))
+	command = ATA_ATA_IDENTIFY;
+    if (ch->devices &
+	(atadev->unit == ATA_MASTER ? ATA_ATAPI_MASTER : ATA_ATAPI_SLAVE))
+	command = ATA_ATAPI_IDENTIFY;
+    if (!command)
+	return ENXIO;
+
+    while (retries-- > 0 && error) {
+	if (!(request = ata_alloc_request()))
+	    break;
+	request->dev = atadev->dev;
+	request->timeout = 1;
+	request->retries = 0;
+	request->u.ata.command = command;
+	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_DIRECT|ATA_R_QUIET);
+	request->data = (void *)&atadev->param;
+	request->bytecount = sizeof(struct ata_params);
+	request->donecount = 0;
+	request->transfersize = DEV_BSIZE;
+	ata_queue_request(request);
+	error = request->result;
+	ata_free_request(request);
+    }
+
+    if (!error && (isprint(atadev->param.model[0]) ||
+		   isprint(atadev->param.model[1]))) {
+	struct ata_params *atacap = &atadev->param;
+#if BYTE_ORDER == BIG_ENDIAN
+	int16_t *ptr;
+
+	for (ptr = (int16_t *)atacap;
+	     ptr < (int16_t *)atacap + sizeof(struct ata_params)/2; ptr++) {
+	    *ptr = bswap16(*ptr);
+	}
+#endif
+	if (!(!strncmp(atacap->model, "FX", 2) ||
+	      !strncmp(atacap->model, "NEC", 3) ||
+	      !strncmp(atacap->model, "Pioneer", 7) ||
+	      !strncmp(atacap->model, "SHARP", 5))) {
+	    bswap(atacap->model, sizeof(atacap->model));
+	    bswap(atacap->revision, sizeof(atacap->revision));
+	    bswap(atacap->serial, sizeof(atacap->serial));
+	}
+	btrim(atacap->model, sizeof(atacap->model));
+	bpack(atacap->model, atacap->model, sizeof(atacap->model));
+	btrim(atacap->revision, sizeof(atacap->revision));
+	bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
+	btrim(atacap->serial, sizeof(atacap->serial));
+	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
+	if (bootverbose)
+	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
+		   ch->unit, atadev->unit == ATA_MASTER ? "master":"slave",
+		   ata_mode2str(ata_pmode(atacap)),
+		   ata_mode2str(ata_wmode(atacap)),
+		   ata_mode2str(ata_umode(atacap)),
+		   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
+
 	if (atadev->param.config & ATA_PROTO_ATAPI) {
-	    if (atapi_dma && ch->dma && 
+	    if (atapi_dma && ch->dma &&
 		(atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
-		ata_umode(&atadev->param) >= ATA_UDMA2) 
+		ata_umode(&atadev->param) >= ATA_UDMA2)
 		atadev->mode = ATA_DMA_MAX;
 	}
-	else {
+        else {
 	    if (ata_dma && ch->dma)
 		atadev->mode = ATA_DMA_MAX;
 	}
     }
-    return child;
+    else {
+	if (!error)
+	    error = ENXIO;
+    }
+    return error;
 }
 
 int
 ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_device *master, *slave;
-    int master_res = EIO, slave_res = EIO, master_unit = -1, slave_unit = -1;
+    struct ata_device *master = NULL, *slave = NULL;
+    device_t master_child = NULL, slave_child = NULL;
+    int master_unit = -1, slave_unit = -1;
 
-    if (!(master = malloc(sizeof(struct ata_device),
-			  M_ATA, M_NOWAIT | M_ZERO))) {
-	device_printf(dev, "out of memory\n");
-	return ENOMEM;
+    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) {
+        if (!(master = malloc(sizeof(struct ata_device),
+			      M_ATA, M_NOWAIT | M_ZERO))) {
+	    device_printf(dev, "out of memory\n");
+	    return ENOMEM;
+        }
+        master->unit = ATA_MASTER;
     }
-    master->unit = ATA_MASTER;
-    if (!(slave = malloc(sizeof(struct ata_device),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
-	free(master, M_ATA);
-	device_printf(dev, "out of memory\n");
-	return ENOMEM;
-    }
-    slave->unit = ATA_SLAVE;
-
-    /* wait for the channel to be IDLE then grab it before touching HW */
-    while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
-	tsleep(ch, PRIBIO, "ataidnt1", 1);
-    while (1) {
-	mtx_lock(&ch->state_mtx);
-	if (ch->state == ATA_IDLE) {
-	    ch->state = ATA_ACTIVE;
-	    mtx_unlock(&ch->state_mtx);
-	    break;
-	}
-	mtx_unlock(&ch->state_mtx);
-	tsleep(ch, PRIBIO, "ataidnt2", 1);
+    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) {
+        if (!(slave = malloc(sizeof(struct ata_device),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
+	    free(master, M_ATA);
+	    device_printf(dev, "out of memory\n");
+	    return ENOMEM;
+        }
+        slave->unit = ATA_SLAVE;
     }
 
-    if (ch->devices & ATA_ATA_SLAVE) {
-	slave_res = ata_getparam(dev, slave, ATA_ATA_IDENTIFY);
 #ifdef ATA_STATIC_ID
-	slave_unit = (device_get_unit(dev) << 1) + 1;
-#endif
-    }
-    else if (ch->devices & ATA_ATAPI_SLAVE)
-	slave_res = ata_getparam(dev, slave, ATA_ATAPI_IDENTIFY);
-
-    if (ch->devices & ATA_ATA_MASTER) {
-	master_res = ata_getparam(dev, master, ATA_ATA_IDENTIFY);
-#ifdef ATA_STATIC_ID
+    if (ch->devices & ATA_ATA_MASTER)
 	master_unit = (device_get_unit(dev) << 1);
 #endif
-    }
-    else if (ch->devices & ATA_ATAPI_MASTER)
-	master_res = ata_getparam(dev, master, ATA_ATAPI_IDENTIFY);
-
-    if (master_res || !ata_add_child(dev, master, master_unit))
+    if (master && !(master_child = ata_add_child(dev, master, master_unit))) {
 	free(master, M_ATA);
-    
-    if (slave_res || !ata_add_child(dev, slave, slave_unit))
+	master = NULL;
+    }
+#ifdef ATA_STATIC_ID
+    if (ch->devices & ATA_ATA_SLAVE)
+	slave_unit = (device_get_unit(dev) << 1) + 1;
+#endif
+    if (slave && !(slave_child = ata_add_child(dev, slave, slave_unit))) {
 	free(slave, M_ATA);
+	slave = NULL;
+    }
 
-    mtx_lock(&ch->state_mtx);
-    ch->state = ATA_IDLE;
-    mtx_unlock(&ch->state_mtx);
-    ATA_LOCKING(dev, ATA_LF_UNLOCK);
+    if (slave && ata_getparam(dev, slave)) {
+	device_delete_child(dev, slave_child);
+	free(slave, M_ATA);
+    }
+    if (master && ata_getparam(dev, master)) {
+	device_delete_child(dev, master_child);
+	free(master, M_ATA);
+    }
 
     bus_generic_probe(dev);
     bus_generic_attach(dev);
@@ -790,6 +855,51 @@ ata_limit_mode(struct ata_device *atadev, int mode, int maxmode)
 
     return mode;
 }
+
+static void
+bswap(int8_t *buf, int len)
+{
+    u_int16_t *ptr = (u_int16_t*)(buf + len);
+
+    while (--ptr >= (u_int16_t*)buf)
+	*ptr = ntohs(*ptr);
+}
+
+static void
+btrim(int8_t *buf, int len)
+{
+    int8_t *ptr;
+
+    for (ptr = buf; ptr < buf+len; ++ptr)
+	if (!*ptr || *ptr == '_')
+	    *ptr = ' ';
+    for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
+	*ptr = 0;
+}
+
+static void
+bpack(int8_t *src, int8_t *dst, int len)
+{
+    int i, j, blank;
+
+    for (i = j = blank = 0 ; i < len; i++) {
+	if (blank && src[i] == ' ') continue;
+	if (blank && src[i] != ' ') {
+	    dst[j++] = src[i];
+	    blank = 0;
+	    continue;
+	}
+	if (src[i] == ' ') {
+	    blank = 1;
+	    if (i == 0)
+		continue;
+	}
+	dst[j++] = src[i];
+    }
+    if (j < len)
+	dst[j] = 0x00;
+}
+
 
 /*
  * module handeling
