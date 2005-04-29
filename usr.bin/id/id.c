@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	id_print(struct passwd *, int, int);
+void	id_print(struct passwd *, int, int, int);
 void	pline(struct passwd *);
 void	pretty(struct passwd *);
 void	group(struct passwd *, int);
@@ -180,12 +180,12 @@ main(int argc, char *argv[])
 	}
 
 	if (pw) {
-		id_print(pw, 0, 0);
+		id_print(pw, 1, 0, 0);
 	}
 	else {
 		id = getuid();
 		if ((pw = getpwuid(id)) != NULL)
-			id_print(pw, 1, 1);
+			id_print(pw, 0, 1, 1);
 	}
 	exit(0);
 }
@@ -231,7 +231,7 @@ pretty(struct passwd *pw)
 }
 
 void
-id_print(struct passwd *pw, int p_euid, int p_egid)
+id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 {
 	struct group *gr;
 	gid_t gid, egid, lastgid;
@@ -243,8 +243,13 @@ id_print(struct passwd *pw, int p_euid, int p_egid)
 	uid = pw->pw_uid;
 	gid = pw->pw_gid;
 
-	ngroups = NGROUPS + 1;
-	getgrouplist(pw->pw_name, gid, groups, &ngroups);
+	if (use_ggl) {
+		ngroups = NGROUPS + 1;
+		getgrouplist(pw->pw_name, gid, groups, &ngroups);
+	}
+	else {
+		ngroups = getgroups(NGROUPS + 1, groups);
+	}
 
 	printf("uid=%u(%s)", uid, pw->pw_name);
 	if (p_euid && (euid = geteuid()) != uid) {
