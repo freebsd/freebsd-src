@@ -2149,6 +2149,7 @@ aio_physwakeup(struct buf *bp)
 	struct kaioinfo *ki;
 	struct aio_liojob *lj;
 
+	mtx_lock(&Giant);
 	wakeup(bp);
 
 	aiocbe = (struct aiocblist *)bp->b_caller1;
@@ -2205,6 +2206,7 @@ aio_physwakeup(struct buf *bp)
 			aiocbe->timeouthandle =
 				timeout(process_signal, aiocbe, 0);
 	}
+	mtx_unlock(&Giant);
 }
 
 /* syscall - wait for the next completion of an aio request */
