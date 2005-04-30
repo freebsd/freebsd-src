@@ -7,7 +7,7 @@
 comment		= %%branch%% tinderbox
 
 # Paths
-sandbox		= %%HOME%%/sandbox
+sandbox		= %%HOME%%
 logdir		= %%HOME%%/logs
 
 # Tinderbox options
