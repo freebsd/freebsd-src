@@ -72,9 +72,6 @@ int ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 
 void ffs_rawread_setup(void);
 
-static void ffs_rawreadwakeup(struct buf *bp);
-
-
 SYSCTL_DECL(_vfs_ffs);
 
 static int ffsrawbufcnt = 4;
@@ -207,7 +204,7 @@ ffs_rawread_readahead(struct vnode *vp,
 	}
 	bp->b_flags = 0;	/* XXX necessary ? */
 	bp->b_iocmd = BIO_READ;
-	bp->b_iodone = ffs_rawreadwakeup;
+	bp->b_iodone = bdone;
 	bp->b_data = udata;
 	bp->b_saveaddr = sa;
 	blockno = offset / bsize;
@@ -480,11 +477,4 @@ ffs_rawread(struct vnode *vp,
 	}
 	*workdone = 0;
 	return 0;
-}
-
-
-static void
-ffs_rawreadwakeup(struct buf *bp)
-{
-	bdone(bp);
 }
