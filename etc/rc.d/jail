@@ -163,15 +163,18 @@ jail_start()
 			mount -a -F "${jail_fstab}"
 		fi
 		if checkyesno jail_devfs; then
-			info "Mounting devfs on ${jail_devdir}"
-			devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
-
-			# Transitional symlink for old binaries
-			if [ ! -L "${jail_devdir}/log" ]; then
-				__pwd="`pwd`"
-				cd "${jail_devdir}"
-				ln -sf ../var/run/log log
-				cd "$__pwd"
+			# If devfs is already mounted here, skip it.
+			df -t devfs "${jail_devdir}" >/dev/null
+			if [ $? -ne 0 ]; then
+				info "Mounting devfs on ${jail_devdir}"
+				devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
+				# Transitional symlink for old binaries
+				if [ ! -L "${jail_devdir}/log" ]; then
+					__pwd="`pwd`"
+					cd "${jail_devdir}"
+					ln -sf ../var/run/log log
+					cd "$__pwd"
+				fi
 			fi
 
 			# XXX - It seems symlinks don't work when there
