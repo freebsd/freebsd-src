@@ -158,7 +158,6 @@ ad_attach(device_t dev)
 static int
 ad_detach(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ad_softc *adp = device_get_ivars(dev);
     device_t *children;
     int nchildren, i;
@@ -179,7 +178,7 @@ ad_detach(device_t dev)
     disk_destroy(adp->disk);
 
     /* fail requests on the queue and any thats "in flight" for this device */
-    ata_fail_requests(ch, dev);
+    ata_fail_requests(dev);
 
     /* dont leave anything behind */
     device_set_ivars(dev, NULL);
@@ -193,7 +192,7 @@ ad_shutdown(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	ata_controlcmd(atadev, ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
 }
 
 static int
@@ -335,19 +334,19 @@ ad_init(device_t dev)
     ATA_SETMODE(device_get_parent(dev), dev);
 
     /* enable read caching */
-    ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
+    ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_RCACHE, 0, 0);
 
     /* enable write caching if enabled */
     if (ata_wc)
-	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
+	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_ENAB_WCACHE, 0, 0);
     else
-	ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
+	ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_DIS_WCACHE, 0, 0);
 
     /* use multiple sectors/interrupt if device supports it */
     if (ad_version(atadev->param.version_major)) {
 	int secsperint = max(1, min(atadev->param.sectors_intr, 16));
 
-	if (!ata_controlcmd(atadev, ATA_SET_MULTI, 0, 0, secsperint))
+	if (!ata_controlcmd(dev, ATA_SET_MULTI, 0, 0, secsperint))
 	    atadev->max_iosize = secsperint * DEV_BSIZE;
     }
     else

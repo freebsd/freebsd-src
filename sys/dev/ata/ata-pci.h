@@ -53,10 +53,10 @@ struct ata_pci_controller {
     int                 channels;
     int                 (*chipinit)(device_t);
     int                 (*allocate)(device_t);
-    int                 (*locking)(struct ata_channel *, int);
-    void                (*reset)(struct ata_channel *);
-    void                (*dmainit)(struct ata_channel *);
-    void                (*setmode)(struct ata_device *, int);
+    int                 (*locking)(device_t, int);
+    void                (*reset)(device_t);
+    void                (*dmainit)(device_t);
+    void                (*setmode)(device_t, int);
     struct {
     void                (*function)(void *);
     void                *argument;
@@ -91,9 +91,9 @@ struct ata_connect_task {
 
 #define ATA_ACER_LABS_ID        0x10b9
 #define ATA_ALI_5229            0x522910b9
-#define ATA_ALI_5281		0x528110b9
-#define ATA_ALI_5287		0x528710b9
-#define ATA_ALI_5289		0x528910b9
+#define ATA_ALI_5281            0x528110b9
+#define ATA_ALI_5287            0x528710b9
+#define ATA_ALI_5289            0x528910b9
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -377,4 +377,4 @@ int ata_legacy(device_t);
 struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
 
 /* global prototypes ata-dma.c */
-void ata_dmainit(struct ata_channel *);
+void ata_dmainit(device_t);

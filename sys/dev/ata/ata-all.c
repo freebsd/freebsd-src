@@ -231,7 +231,7 @@ ata_reinit(device_t dev)
     }
 
     /* catch request in ch->running if we havn't already */
-    ata_catch_inflight(ch);
+    ata_catch_inflight(dev);
 
     /* we're done release the channel for new work */
     mtx_lock(&ch->state_mtx);
@@ -659,7 +659,7 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 		ata_umode(&atadev->param) >= ATA_UDMA2)
 		atadev->mode = ATA_DMA_MAX;
 	}
-        else {
+	else {
 	    if (ata_dma && ch->dma)
 		atadev->mode = ATA_DMA_MAX;
 	}
@@ -680,21 +680,21 @@ ata_identify(device_t dev)
     int master_unit = -1, slave_unit = -1;
 
     if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) {
-        if (!(master = malloc(sizeof(struct ata_device),
+	if (!(master = malloc(sizeof(struct ata_device),
 			      M_ATA, M_NOWAIT | M_ZERO))) {
 	    device_printf(dev, "out of memory\n");
 	    return ENOMEM;
-        }
-        master->unit = ATA_MASTER;
+	}
+	master->unit = ATA_MASTER;
     }
     if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) {
-        if (!(slave = malloc(sizeof(struct ata_device),
+	if (!(slave = malloc(sizeof(struct ata_device),
 			     M_ATA, M_NOWAIT | M_ZERO))) {
 	    free(master, M_ATA);
 	    device_printf(dev, "out of memory\n");
 	    return ENOMEM;
-        }
-        slave->unit = ATA_SLAVE;
+	}
+	slave->unit = ATA_SLAVE;
     }
 
 #ifdef ATA_STATIC_ID
@@ -729,8 +729,10 @@ ata_identify(device_t dev)
 }
 
 void
-ata_default_registers(struct ata_channel *ch)
+ata_default_registers(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     /* fill in the defaults from whats setup already */
     ch->r_io[ATA_ERROR].res = ch->r_io[ATA_FEATURE].res;
     ch->r_io[ATA_ERROR].offset = ch->r_io[ATA_FEATURE].offset;
@@ -839,8 +841,10 @@ ata_umode(struct ata_params *ap)
 }
 
 int
-ata_limit_mode(struct ata_device *atadev, int mode, int maxmode)
+ata_limit_mode(device_t dev, int mode, int maxmode)
 {
+    struct ata_device *atadev = device_get_softc(dev);
+
     if (maxmode && mode > maxmode)
 	mode = maxmode;
 
@@ -950,8 +954,8 @@ ata_init(void)
     ata_request_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
 				   NULL, NULL, NULL, NULL, 0, 0);
     ata_composite_zone = uma_zcreate("ata_composite",
-	                             sizeof(struct ata_composite),
-	                             NULL, NULL, NULL, NULL, 0, 0);
+				     sizeof(struct ata_composite),
+				     NULL, NULL, NULL, NULL, 0, 0);
 }
 SYSINIT(ata_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL);
 

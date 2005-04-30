@@ -126,12 +126,12 @@ ata_pccard_probe(device_t dev)
 	ch->r_io[ATA_CONTROL].res = ctlio;
 	ch->r_io[ATA_CONTROL].offset = 0;
     }
-    ata_default_registers(ch);
+    ata_default_registers(dev);
 
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
-    ata_generic_hw(ch);
+    ata_generic_hw(dev);
     return ata_probe(dev);
 }
 
