@@ -13,7 +13,7 @@ logdir		= %%HOME%%/logs
 # Tinderbox options
 tinderbox	= %%HOME%%/bin/tinderbox
 options		= --verbose
-targets		= update, world, generic, lint
+targets		= cleanobj, update, world, generic, lint
 #timeout 	= 7200
 
 # Reporting
