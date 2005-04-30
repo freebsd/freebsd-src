@@ -1399,6 +1399,7 @@ swp_pager_async_iodone(struct buf *bp)
 	int i;
 	vm_object_t object = NULL;
 
+	VM_LOCK_GIANT();
 	bp->b_flags |= B_DONE;
 
 	/*
@@ -1567,6 +1568,7 @@ swp_pager_async_iodone(struct buf *bp)
 		)
 	    )
 	);
+	VM_UNLOCK_GIANT();
 	splx(s);
 }
 
