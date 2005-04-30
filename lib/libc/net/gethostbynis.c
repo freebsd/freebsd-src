@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
+#include <resolv.h>		/* XXX */
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
@@ -98,6 +99,14 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 	switch (af) {
 	case AF_INET:
 		addrok = inet_aton(result, (struct in_addr *)hed->host_addr);
+		if (addrok != 1)
+			break;
+		if (_res.options & RES_USE_INET6) {
+			_map_v4v6_address((char *)hed->host_addr,
+			    (char *)hed->host_addr);
+			af = AF_INET6;
+			size = NS_IN6ADDRSZ;
+		}
 		break;
 	case AF_INET6:
 		addrok = inet_pton(af, result, hed->host_addr);
