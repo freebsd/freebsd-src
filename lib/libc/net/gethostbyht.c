@@ -245,7 +245,7 @@ _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	hed = va_arg(ap, struct hostent_data *);
 
 	sethostent_r(0, hed);
-	while ((error = gethostent_r(he, hed)) == 0)
+	while ((error = gethostent_p(he, hed, 0)) == 0)
 		if (he->h_addrtype == af && !bcmp(he->h_addr, addr, len))
 			break;
 	endhostent_r(hed);
