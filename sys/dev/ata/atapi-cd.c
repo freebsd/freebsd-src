@@ -149,7 +149,7 @@ acd_shutdown(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	ata_controlcmd(atadev, ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
 }
 
 static int
@@ -192,14 +192,13 @@ acd_geom_attach(void *arg, int flag)
 static void
 acd_geom_detach(void *arg, int flag)
 {   
-    struct ata_channel *ch = device_get_softc(device_get_parent(arg));
     struct acd_softc *cdp = device_get_ivars(arg);
 
     /* signal geom so we dont get any further requests */
     g_wither_geom(cdp->gp, ENXIO);
 
     /* fail requests on the queue and any thats "in flight" for this device */
-    ata_fail_requests(ch, arg);
+    ata_fail_requests(arg);
 
     /* dont leave anything behind */
     device_set_ivars(arg, NULL);
@@ -425,7 +424,7 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 
 	    ccb[1] = args->address_format & CD_MSF_FORMAT;
 
-	    if ((error = ata_atapicmd(atadev, ccb, (caddr_t)&cdp->subchan,
+	    if ((error = ata_atapicmd(dev, ccb, (caddr_t)&cdp->subchan,
 				      sizeof(cdp->subchan), ATA_R_READ, 10)))
 		break;
 
@@ -439,7 +438,7 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 		if (format == CD_TRACK_INFO)
 		    ccb[6] = args->track;
 
-		if ((error = ata_atapicmd(atadev, ccb, (caddr_t)&cdp->subchan, 
+		if ((error = ata_atapicmd(dev, ccb, (caddr_t)&cdp->subchan, 
 					  sizeof(cdp->subchan),ATA_R_READ,10))){
 		    break;
 		}
@@ -949,7 +948,7 @@ acd_read_toc(device_t dev)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (ata_atapicmd(atadev, ccb, (caddr_t)&cdp->toc, len,
+    if (ata_atapicmd(dev, ccb, (caddr_t)&cdp->toc, len,
 		     ATA_R_READ | ATA_R_QUIET, 30)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
@@ -965,7 +964,7 @@ acd_read_toc(device_t dev)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (ata_atapicmd(atadev, ccb, (caddr_t)&cdp->toc, len,
+    if (ata_atapicmd(dev, ccb, (caddr_t)&cdp->toc, len,
 		     ATA_R_READ | ATA_R_QUIET, 30)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
@@ -976,7 +975,7 @@ acd_read_toc(device_t dev)
     acd_set_ioparm(dev);
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_READ_CAPACITY;
-    if (ata_atapicmd(atadev, ccb, (caddr_t)sizes, sizeof(sizes),
+    if (ata_atapicmd(dev, ccb, (caddr_t)sizes, sizeof(sizes),
 		     ATA_R_READ | ATA_R_QUIET, 30)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
@@ -1016,14 +1015,13 @@ acd_read_toc(device_t dev)
 static int
 acd_play(device_t dev, int start, int end)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16];
 
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_PLAY_MSF;
     lba2msf(start, &ccb[3], &ccb[4], &ccb[5]);
     lba2msf(end, &ccb[6], &ccb[7], &ccb[8]);
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 10);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
 }
 
 static int 
@@ -1048,22 +1046,20 @@ acd_setchan(device_t dev, u_int8_t c0, u_int8_t c1, u_int8_t c2, u_int8_t c3)
 static int
 acd_init_writer(device_t dev, int test_write)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16];
 
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_REZERO;
-    ata_atapicmd(atadev, ccb, NULL, 0, ATA_R_QUIET, 60);
+    ata_atapicmd(dev, ccb, NULL, 0, ATA_R_QUIET, 60);
     ccb[0] = ATAPI_SEND_OPC_INFO;
     ccb[1] = 0x01;
-    ata_atapicmd(atadev, ccb, NULL, 0, ATA_R_QUIET, 30);
+    ata_atapicmd(dev, ccb, NULL, 0, ATA_R_QUIET, 30);
     return 0;
 }
 
 static int
 acd_fixate(device_t dev, int multisession)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct acd_softc *cdp = device_get_ivars(dev);
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
@@ -1084,7 +1080,7 @@ acd_fixate(device_t dev, int multisession)
     if ((error = acd_mode_select(dev, (caddr_t)&param, param.page_length + 10)))
 	return error;
   
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
     if (error)
 	return error;
 
@@ -1189,24 +1185,22 @@ acd_init_track(device_t dev, struct cdr_track *track)
 static int
 acd_flush(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_SYNCHRONIZE_CACHE, 0, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, ATA_R_QUIET, 60);
+    return ata_atapicmd(dev, ccb, NULL, 0, ATA_R_QUIET, 60);
 }
 
 static int
 acd_read_track_info(device_t dev, int32_t lba, struct acd_track_info *info)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_READ_TRACK_INFO, 1,
 		       lba>>24, lba>>16, lba>>8, lba, 0,
 		       sizeof(*info)>>8, sizeof(*info),
 		       0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    if ((error = ata_atapicmd(atadev, ccb, (caddr_t)info, sizeof(*info),
+    if ((error = ata_atapicmd(dev, ccb, (caddr_t)info, sizeof(*info),
 			      ATA_R_READ, 30)))
 	return error;
     info->track_start_addr = ntohl(info->track_start_addr);
@@ -1248,7 +1242,6 @@ acd_get_progress(device_t dev, int *finished)
 static int
 acd_send_cue(device_t dev, struct cdr_cuesheet *cuesheet)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct acd_softc *cdp = device_get_ivars(dev);
     struct write_param param;
     int8_t ccb[16] = { ATAPI_SEND_CUE_SHEET, 0, 0, 0, 0, 0, 
@@ -1294,7 +1287,7 @@ acd_send_cue(device_t dev, struct cdr_cuesheet *cuesheet)
 		printf("\n%02x", buffer[i]);
 	printf("\n");
 #endif
-	error = ata_atapicmd(atadev, ccb, buffer, cuesheet->len, 0, 30);
+	error = ata_atapicmd(dev, ccb, buffer, cuesheet->len, 0, 30);
     }
     free(buffer, M_ACD);
     return error;
@@ -1303,7 +1296,6 @@ acd_send_cue(device_t dev, struct cdr_cuesheet *cuesheet)
 static int
 acd_report_key(device_t dev, struct dvd_authinfo *ai)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct dvd_miscauth *d = NULL;
     u_int32_t lba = 0;
     int16_t length;
@@ -1349,7 +1341,7 @@ acd_report_key(device_t dev, struct dvd_authinfo *ai)
 	d->length = htons(length - 2);
     }
 
-    error = ata_atapicmd(atadev, ccb, (caddr_t)d, length,
+    error = ata_atapicmd(dev, ccb, (caddr_t)d, length,
 			 ai->format == DVD_INVALIDATE_AGID ? 0 : ATA_R_READ,10);
     if (error) {
 	free(d, M_ACD);
@@ -1401,7 +1393,6 @@ acd_report_key(device_t dev, struct dvd_authinfo *ai)
 static int
 acd_send_key(device_t dev, struct dvd_authinfo *ai)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct dvd_miscauth *d;
     int16_t length;
     int8_t ccb[16];
@@ -1439,7 +1430,7 @@ acd_send_key(device_t dev, struct dvd_authinfo *ai)
     ccb[9] = length & 0xff;
     ccb[10] = (ai->agid << 6) | ai->format;
     d->length = htons(length - 2);
-    error = ata_atapicmd(atadev, ccb, (caddr_t)d, length, 0, 10);
+    error = ata_atapicmd(dev, ccb, (caddr_t)d, length, 0, 10);
     free(d, M_ACD);
     return error;
 }
@@ -1447,7 +1438,6 @@ acd_send_key(device_t dev, struct dvd_authinfo *ai)
 static int
 acd_read_structure(device_t dev, struct dvd_struct *s)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct dvd_miscauth *d;
     u_int16_t length;
     int8_t ccb[16];
@@ -1499,7 +1489,7 @@ acd_read_structure(device_t dev, struct dvd_struct *s)
     ccb[8] = (length >> 8) & 0xff;
     ccb[9] = length & 0xff;
     ccb[10] = s->agid << 6;
-    error = ata_atapicmd(atadev, ccb, (caddr_t)d, length, ATA_R_READ, 30);
+    error = ata_atapicmd(dev, ccb, (caddr_t)d, length, ATA_R_READ, 30);
     if (error) {
 	free(d, M_ACD);
 	return error;
@@ -1585,48 +1575,44 @@ acd_blank(device_t dev, int blanktype)
 		       0, 0, 0, 0, 0, 0, 0, 0 };
 
     atadev->flags |= ATA_D_MEDIA_CHANGED;
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 acd_prevent_allow(device_t dev, int lock)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 acd_start_stop(device_t dev, int start)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 acd_pause_resume(device_t dev, int pause)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_PAUSE, 0, 0, 0, 0, 0, 0, 0, pause,
 		       0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 acd_mode_sense(device_t dev, int page, caddr_t pagebuf, int pagesize)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, page, 0, 0, 0, 0,
 		       pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, pagebuf, pagesize, ATA_R_READ, 10);
+    error = ata_atapicmd(dev, ccb, pagebuf, pagesize, ATA_R_READ, 10);
 #ifdef ACD_DEBUG
     atapi_dump("acd: mode sense ", pagebuf, pagesize);
 #endif
@@ -1636,7 +1622,6 @@ acd_mode_sense(device_t dev, int page, caddr_t pagebuf, int pagesize)
 static int
 acd_mode_select(device_t dev, caddr_t pagebuf, int pagesize)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_MODE_SELECT_BIG, 0x10, 0, 0, 0, 0, 0,
 		     pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -1644,18 +1629,17 @@ acd_mode_select(device_t dev, caddr_t pagebuf, int pagesize)
     device_printf(dev, "modeselect pagesize=%d\n", pagesize);
     atapi_dump("mode select ", pagebuf, pagesize);
 #endif
-    return ata_atapicmd(atadev, ccb, pagebuf, pagesize, 0, 30);
+    return ata_atapicmd(dev, ccb, pagebuf, pagesize, 0, 30);
 }
 
 static int
 acd_set_speed(device_t dev, int rdspeed, int wrspeed)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_SET_SPEED, 0, rdspeed >> 8, rdspeed, 
 		       wrspeed >> 8, wrspeed, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
     if (!error)
 	acd_get_cap(dev);
     return error;
@@ -1685,25 +1669,23 @@ acd_get_cap(device_t dev)
 static int
 acd_read_format_caps(device_t dev, struct cdr_format_capacities *caps)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_READ_FORMAT_CAPACITIES, 0, 0, 0, 0, 0, 0,
 		       (sizeof(struct cdr_format_capacities) >> 8) & 0xff,
 		       sizeof(struct cdr_format_capacities) & 0xff, 
 		       0, 0, 0, 0, 0, 0, 0 };
     
-    return ata_atapicmd(atadev, ccb, (caddr_t)caps,
+    return ata_atapicmd(dev, ccb, (caddr_t)caps,
 			sizeof(struct cdr_format_capacities), ATA_R_READ, 30);
 }
 
 static int
 acd_format(device_t dev, struct cdr_format_params* params)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_FORMAT, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, (u_int8_t *)params, 
+    error = ata_atapicmd(dev, ccb, (u_int8_t *)params, 
 			 sizeof(struct cdr_format_params), 0, 30);
     return error;
 }
@@ -1711,11 +1693,10 @@ acd_format(device_t dev, struct cdr_format_params* params)
 static int
 acd_test_ready(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static void 

@@ -117,14 +117,13 @@ afd_attach(device_t dev)
 static int
 afd_detach(device_t dev)
 {   
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct afd_softc *fdp = device_get_ivars(dev);
     
     /* detroy disk from the system so we dont get any further requests */
     disk_destroy(fdp->disk);
 
     /* fail requests on the queue and any thats "in flight" for this device */
-    ata_fail_requests(ch, dev);
+    ata_fail_requests(dev);
 
     /* dont leave anything behind */
     device_set_ivars(dev, NULL);
@@ -138,7 +137,7 @@ afd_shutdown(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	ata_controlcmd(atadev, ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
 }
 
 static int
@@ -305,7 +304,7 @@ afd_sense(device_t dev)
 
     /* get drive capabilities, some bugridden drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-	if (!ata_atapicmd(atadev, ccb, (caddr_t)&fdp->cap,
+	if (!ata_atapicmd(dev, ccb, (caddr_t)&fdp->cap,
 			  sizeof(struct afd_cappage), ATA_R_READ, 30) &&
 	    fdp->cap.page_code == ATAPI_REWRITEABLE_CAP_PAGE) {
 	    fdp->cap.cylinders = ntohs(fdp->cap.cylinders);
@@ -326,17 +325,16 @@ afd_prevent_allow(device_t dev, int lock)
     
     if (!strncmp(atadev->param.model, "IOMEGA Clik!", 12))
 	return 0;
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 afd_test_ready(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static void 

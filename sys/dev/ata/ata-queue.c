@@ -107,14 +107,14 @@ ata_queue_request(struct ata_request *request)
 }
 
 int
-ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature,
+ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
 {
     struct ata_request *request = ata_alloc_request();
     int error = ENOMEM;
 
     if (request) {
-	request->dev = atadev->dev;
+	request->dev = dev;
 	request->u.ata.command = command;
 	request->u.ata.lba = lba;
 	request->u.ata.count = count;
@@ -130,14 +130,15 @@ ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature,
 }
 
 int
-ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data,
+ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
     struct ata_request *request = ata_alloc_request();
+    struct ata_device *atadev = device_get_softc(dev);
     int error = ENOMEM;
 
     if (request) {
-	request->dev = atadev->dev;
+	request->dev = dev;
 	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
 	    bcopy(ccb, request->u.atapi.ccb, 12);
 	else
@@ -466,13 +467,14 @@ ata_timeout(struct ata_request *request)
 }
 
 void
-ata_catch_inflight(struct ata_channel *ch)
+ata_catch_inflight(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
     struct ata_request *request;
 
     mtx_lock(&ch->state_mtx);
     if ((request = ch->running))
-        callout_stop(&request->callout);
+	callout_stop(&request->callout);
     ch->running = NULL;
     mtx_unlock(&ch->state_mtx);
     if (request) {
@@ -488,8 +490,9 @@ ata_catch_inflight(struct ata_channel *ch)
 }
 
 void
-ata_fail_requests(struct ata_channel *ch, device_t dev)
+ata_fail_requests(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_request *request;
 
     /* fail all requests queued on this channel for device dev if !NULL */
