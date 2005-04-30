@@ -755,7 +755,7 @@ pfs_setattr(struct vop_setattr_args *va)
 }
 
 /*
- * Read from a file
+ * Write to a file
  */
 static int
 pfs_write(struct vop_write_args *va)
