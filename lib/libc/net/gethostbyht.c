@@ -246,8 +246,15 @@ _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 
 	sethostent_r(0, hed);
 	while ((error = gethostent_p(he, hed, 0)) == 0)
-		if (he->h_addrtype == af && !bcmp(he->h_addr, addr, len))
+		if (he->h_addrtype == af && !bcmp(he->h_addr, addr, len)) {
+			if (he->h_addrtype == AF_INET &&
+			    _res.options & RES_USE_INET6) {
+				_map_v4v6_address(he->h_addr, he->h_addr);
+				he->h_length = IN6ADDRSZ;
+				he->h_addrtype = AF_INET6;
+			}
 			break;
+		}
 	endhostent_r(hed);
 
 	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
