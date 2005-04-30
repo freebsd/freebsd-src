@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #ifdef YP
 static int
 _gethostbynis(const char *name, char *map, int af, struct hostent *he,
-    struct hostent_data *hed)
+    struct hostent_data *hed, int mapped)
 {
 	char *p, *bp, *ep;
 	char *cp, **q;
@@ -101,7 +101,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		addrok = inet_aton(result, (struct in_addr *)hed->host_addr);
 		if (addrok != 1)
 			break;
-		if (_res.options & RES_USE_INET6) {
+		if (mapped) {
 			_map_v4v6_address((char *)hed->host_addr,
 			    (char *)hed->host_addr);
 			af = AF_INET6;
@@ -172,7 +172,8 @@ _gethostbynisname_r(const char *name, int af, struct hostent *he,
 		map = "ipnodes.byname";
 		break;
 	}
-	return _gethostbynis(name, map, af, he, hed);
+	return _gethostbynis(name, map, af, he, hed,
+	    _res.options & RES_USE_INET6);
 }
 
 static int
@@ -192,7 +193,7 @@ _gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
 	}
 	if (inet_ntop(af, addr, numaddr, sizeof(numaddr)) == NULL)
 		return -1;
-	return _gethostbynis(numaddr, map, af, he, hed);
+	return _gethostbynis(numaddr, map, af, he, hed, 0);
 }
 #endif /* YP */
 
