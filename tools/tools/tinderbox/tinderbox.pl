@@ -59,6 +59,9 @@ my %userenv;
 
 my %cmds = (
     'clean'	=> 0,
+    'cleansrc'	=> 0,
+    'cleanobj'	=> 0,
+    'cleanroot'	=> 0,
     'update'	=> 0,
     'patch'	=> 0,
     'world'	=> 0,
@@ -413,16 +416,22 @@ MAIN:{
     print($lockfile "$$\n");
 
     # Clean up remains from old runs
-    if ($cmds{'clean'}) {
-	logstage("cleaning the sandbox");
+    if ($cmds{'clean'} || $cmds{'cleansrc'}) {
+	logstage("cleaning the source tree");
 	if (-e "$sandbox/src") {
 	    remove_dir("$sandbox/src")
 		or error("unable to remove old source directory");
 	}
+    }
+    if ($cmds{'clean'} || $cmds{'cleanobj'}) {
+	logstage("cleaning the object tree");
 	if (-e "$sandbox/obj") {
 	    remove_dir("$sandbox/obj")
 		or error("unable to remove old object directory");
 	}
+    }
+    if ($cmds{'clean'} || $cmds{'cleanroot'}) {
+	logstage("cleaning the chroot tree");
 	if (-e "$sandbox/root") {
 	    spawn('/bin/chflags', '-R', '0', "$sandbox/root");
 	    remove_dir("$sandbox/root")
