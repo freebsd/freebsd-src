@@ -3087,14 +3087,8 @@ bufdone(struct buf *bp)
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
 		bp->b_iodone = NULL;
-		/*
-		 * Device drivers may or may not hold giant, hold it here
-		 * if we're calling into unknown code.
-		 */
-		mtx_lock(&Giant);
 		bp->b_flags |= B_DONE;
 		(*biodone) (bp);
-		mtx_unlock(&Giant);
 		if (dropobj)
 			bufobj_wdrop(dropobj);
 		splx(s);
