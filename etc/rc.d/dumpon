@@ -22,6 +22,19 @@ dumpon_start()
 	case ${dumpdev} in
 	[Nn][Oo] | '')
 		;;
+	[Aa][Uu][Tt][Oo])
+		while read dev mp type more ; do
+			[ "${type}" = "swap" ] || continue
+			[ -c "${dev}" ] || continue
+			if /sbin/dumpon -v "${dev}" 2>/dev/null; then
+				# Make a symlink in devfs for savecore
+				ln -s ${dev} /dev/dumpdev
+				return 0
+			fi
+		done </etc/fstab
+		echo "No suitable dump device was found." 1>&2
+		return 1
+		;;
 	*)
 		/sbin/dumpon -v ${dumpdev}
 		;;
@@ -34,6 +47,7 @@ dumpon_stop()
 	[Nn][Oo] | '')
 		;;
 	*)
+		rm -f /dev/dumpdev
 		/sbin/dumpon -v off
 		;;
 	esac
