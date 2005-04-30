@@ -47,18 +47,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 
 /* prototypes */
-static void ata_dmaalloc(struct ata_channel *);
-static void ata_dmafree(struct ata_channel *);
+static void ata_dmaalloc(device_t);
+static void ata_dmafree(device_t);
 static void ata_dmasetprd(void *, bus_dma_segment_t *, int, int);
-static int ata_dmaload(struct ata_device *, caddr_t, int32_t, int);
-static int ata_dmaunload(struct ata_channel *);
+static int ata_dmaload(device_t, caddr_t, int32_t, int);
+static int ata_dmaunload(device_t);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
 
 /* misc defines */
 #define MAXTABSZ        PAGE_SIZE
-#define MAXWSPCSZ       PAGE_SIZE
+#define MAXWSPCSZ       PAGE_SIZE*2
 
 struct ata_dc_cb_args {
     bus_addr_t maddr;
@@ -66,8 +66,10 @@ struct ata_dc_cb_args {
 };
 
 void 
-ata_dmainit(struct ata_channel *ch)
+ata_dmainit(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if ((ch->dma = malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT|M_ZERO))) {
 	ch->dma->alloc = ata_dmaalloc;
 	ch->dma->free = ata_dmafree;
@@ -90,8 +92,9 @@ ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static void
-ata_dmaalloc(struct ata_channel *ch)
+ata_dmaalloc(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
     struct ata_dc_cb_args ccba;
 
     if (bus_dma_tag_create(NULL, ch->dma->alignment, 0,
@@ -128,7 +131,7 @@ ata_dmaalloc(struct ata_channel *ch)
     if (bus_dmamap_create(ch->dma->data_tag, 0, &ch->dma->data_map))
 	goto error;
 
-    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
+    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, 64 * 1024,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
 			   0, NULL, NULL, &ch->dma->work_tag))
@@ -148,15 +151,17 @@ ata_dmaalloc(struct ata_channel *ch)
     return;
 
 error:
-    device_printf(ch->dev, "WARNING - DMA allocation failed, disabling DMA\n");
-    ata_dmafree(ch);
+    device_printf(dev, "WARNING - DMA allocation failed, disabling DMA\n");
+    ata_dmafree(dev);
     free(ch->dma, M_ATADMA);
     ch->dma = NULL;
 }
 
 static void
-ata_dmafree(struct ata_channel *ch)
+ata_dmafree(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ch->dma->work_bus) {
 	bus_dmamap_unload(ch->dma->work_tag, ch->dma->work_map);
 	bus_dmamem_free(ch->dma->work_tag, ch->dma->work, ch->dma->work_map);
@@ -211,30 +216,26 @@ ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
-ata_dmaload(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
+ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_dmasetprd_args cba;
 
     if (ch->dma->flags & ATA_DMA_LOADED) {
-	device_printf(atadev->dev,
-		      "FAILURE - already active DMA on this device\n");
+	device_printf(dev, "FAILURE - already active DMA on this device\n");
 	return -1;
     }
     if (!count) {
-	device_printf(atadev->dev,
-		      "FAILURE - zero length DMA transfer attempted\n");
+	device_printf(dev, "FAILURE - zero length DMA transfer attempted\n");
 	return -1;
     }
     if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
 	(count & (ch->dma->alignment - 1))) {
-	device_printf(atadev->dev,
-		      "FAILURE - non aligned DMA transfer attempted\n");
+	device_printf(dev, "FAILURE - non aligned DMA transfer attempted\n");
 	return -1;
     }
     if (count > ch->dma->max_iosize) {
-	device_printf(atadev->dev,
-		      "FAILURE - oversized DMA transfer attempted %d > %d\n",
+	device_printf(dev, "FAILURE - oversized DMA transfer attempt %d > %d\n",
 		      count, ch->dma->max_iosize);
 	return -1;
     }
@@ -256,8 +257,9 @@ ata_dmaload(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 }
 
 int
-ata_dmaunload(struct ata_channel *ch)
+ata_dmaunload(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_POSTWRITE);
 
     bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,

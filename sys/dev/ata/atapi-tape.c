@@ -167,7 +167,6 @@ ast_attach(device_t dev)
 static int      
 ast_detach(device_t dev)
 {   
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ast_softc *stp = device_get_ivars(dev);
     
     /* detroy devices from the system so we dont get any further requests */
@@ -175,7 +174,7 @@ ast_detach(device_t dev)
     destroy_dev(stp->dev2);
 
     /* fail requests on the queue and any thats "in flight" for this device */
-    ata_fail_requests(ch, dev);
+    ata_fail_requests(dev);
 
     /* dont leave anything behind */
     devstat_remove_entry(stp->stats);
@@ -190,7 +189,7 @@ ast_shutdown(device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	ata_controlcmd(atadev, ATA_FLUSHCACHE, 0, 0, 0);
+	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
 }
 
 static int
@@ -515,29 +514,26 @@ ast_sense(device_t dev)
 static int
 ast_mode_sense(device_t dev, int page, void *pagebuf, int pagesize)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_MODE_SENSE, 0x08, page, pagesize>>8, pagesize,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
  
-    error = ata_atapicmd(atadev, ccb, pagebuf, pagesize, ATA_R_READ, 10);
+    error = ata_atapicmd(dev, ccb, pagebuf, pagesize, ATA_R_READ, 10);
     return error;
 }
 
 static int       
 ast_mode_select(device_t dev, void *pagebuf, int pagesize)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_MODE_SELECT, 0x10, 0, pagesize>>8, pagesize,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
      
-    return ata_atapicmd(atadev, ccb, pagebuf, pagesize, 0, 10);
+    return ata_atapicmd(dev, ccb, pagebuf, pagesize, 0, 10);
 }
 
 static int
 ast_write_filemark(device_t dev, u_int8_t function)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct ast_softc *stp = device_get_ivars(dev);
     int8_t ccb[16] = { ATAPI_WEOF, 0x01, 0, 0, function, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
@@ -553,7 +549,7 @@ ast_write_filemark(device_t dev, u_int8_t function)
 		stp->flags |= F_FM_WRITTEN;
 	}
     }
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 10);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
     if (error)
 	return error;
     return ast_wait_dsc(dev, 10*60);
@@ -562,12 +558,11 @@ ast_write_filemark(device_t dev, u_int8_t function)
 static int
 ast_read_position(device_t dev, int hard, struct ast_readposition *position)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_READ_POSITION, (hard ? 0x01 : 0), 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, (caddr_t)position, 
+    error = ata_atapicmd(dev, ccb, (caddr_t)position, 
 			 sizeof(struct ast_readposition), ATA_R_READ, 10);
     position->tape = ntohl(position->tape);
     position->host = ntohl(position->host);
@@ -577,23 +572,21 @@ ast_read_position(device_t dev, int hard, struct ast_readposition *position)
 static int
 ast_space(device_t dev, u_int8_t function, int32_t count)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_SPACE, function, count>>16, count>>8, count,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 60*60);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 60*60);
 }
 
 static int
 ast_locate(device_t dev, int hard, u_int32_t pos)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_LOCATE, 0x01 | (hard ? 0x4 : 0), 0,
 		       pos>>24, pos>>16, pos>>8, pos,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 10);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
     if (error)
 	return error;
     return ast_wait_dsc(dev, 60*60);
@@ -602,17 +595,15 @@ ast_locate(device_t dev, int hard, u_int32_t pos)
 static int
 ast_prevent_allow(device_t dev, int lock)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 ast_load_unload(device_t dev, u_int8_t function)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     struct ast_softc *stp = device_get_ivars(dev);
     int8_t ccb[16] = { ATAPI_START_STOP, 0x01, 0, 0, function, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
@@ -620,7 +611,7 @@ ast_load_unload(device_t dev, u_int8_t function)
 
     if ((function & ATAPI_SS_EJECT) && !stp->cap.eject)
 	return 0;
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 10);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
     if (error)
 	return error;
     tsleep((caddr_t)&error, PRIBIO, "astlu", 1 * hz);
@@ -632,12 +623,11 @@ ast_load_unload(device_t dev, u_int8_t function)
 static int
 ast_rewind(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_REZERO, 0x01, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 10);
+    error = ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
     if (error)
 	return error;
     return ast_wait_dsc(dev, 60*60);
@@ -646,7 +636,6 @@ ast_rewind(device_t dev)
 static int
 ast_erase(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
     int8_t ccb[16] = { ATAPI_ERASE, 3, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
@@ -654,32 +643,28 @@ ast_erase(device_t dev)
     if ((error = ast_rewind(dev)))
 	return error;
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 60*60);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 60*60);
 }
 
 static int
 ast_test_ready(device_t dev)
 {
-    struct ata_device *atadev = device_get_softc(dev);
-    
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return ata_atapicmd(atadev, ccb, NULL, 0, 0, 30);
+    return ata_atapicmd(dev, ccb, NULL, 0, 0, 30);
 }
 
 static int
 ast_wait_dsc(device_t dev, int timeout)
 {
-    struct ata_device *atadev = device_get_softc(dev);
-
     int error = 0;
     int8_t ccb[16] = { ATAPI_POLL_DSC, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     timeout *= hz;
     while (timeout > 0) {
-	error = ata_atapicmd(atadev, ccb, NULL, 0, 0, 0);
+	error = ata_atapicmd(dev, ccb, NULL, 0, 0, 0);
 	if (error != EBUSY)
 	    break;
 	tsleep(&error, PRIBIO, "atpwt", hz / 2);

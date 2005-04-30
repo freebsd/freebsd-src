@@ -56,34 +56,34 @@ __FBSDID("$FreeBSD$");
 
 /* private data associated with an ATA bus */
 struct atapi_xpt_softc {
-    struct ata_device   atapi_cam_dev;	/* must be first */
-    device_t		dev;
-    device_t		parent;
-    struct ata_channel	*ata_ch;
-    struct cam_path	*path;
-    struct cam_sim	*sim;
-    int			flags;
-#define BUS_REGISTERED		0x01
-#define RESOURCE_SHORTAGE	0x02
-#define DETACHING		0x04
+    struct ata_device   atapi_cam_dev;  /* must be first */
+    device_t            dev;
+    device_t            parent;
+    struct ata_channel  *ata_ch;
+    struct cam_path     *path;
+    struct cam_sim      *sim;
+    int                 flags;
+#define BUS_REGISTERED          0x01
+#define RESOURCE_SHORTAGE       0x02
+#define DETACHING               0x04
 
     TAILQ_HEAD(,atapi_hcb) pending_hcbs;
     struct ata_device   *atadev[2];
-    struct mtx		state_lock;
+    struct mtx          state_lock;
 };
 
 /* hardware command descriptor block */
 struct atapi_hcb {
     struct atapi_xpt_softc *softc;
-    int			unit;
-    int			bus;
-    int			target;
-    int			lun;
-    union ccb		*ccb;
-    int			flags;
-#define QUEUED		0x0001
+    int                 unit;
+    int                 bus;
+    int                 target;
+    int                 lun;
+    union ccb           *ccb;
+    int                 flags;
+#define QUEUED          0x0001
 #define AUTOSENSE       0x0002
-    char		*dxfer_alloc;
+    char                *dxfer_alloc;
     TAILQ_ENTRY(atapi_hcb) chain;
 };
 
@@ -118,11 +118,11 @@ static void free_softc(struct atapi_xpt_softc *scp);
 static MALLOC_DEFINE(M_ATACAM, "ATA CAM transport", "ATA driver CAM-XPT layer");
 
 static device_method_t atapi_cam_methods[] = {
-	DEVMETHOD(device_identify,	atapi_cam_identify),
-	DEVMETHOD(device_probe,		atapi_cam_probe),
-	DEVMETHOD(device_attach,	atapi_cam_attach),
-	DEVMETHOD(device_detach,	atapi_cam_detach),
-	DEVMETHOD(ata_reinit,		atapi_cam_reinit),
+	DEVMETHOD(device_identify,      atapi_cam_identify),
+	DEVMETHOD(device_probe,         atapi_cam_probe),
+	DEVMETHOD(device_attach,        atapi_cam_attach),
+	DEVMETHOD(device_detach,        atapi_cam_detach),
+	DEVMETHOD(ata_reinit,           atapi_cam_reinit),
 	{0, 0}
 };
 
@@ -132,7 +132,7 @@ static driver_t atapi_cam_driver = {
 	sizeof(struct atapi_xpt_softc)
 };
 
-static devclass_t	atapi_cam_devclass;
+static devclass_t       atapi_cam_devclass;
 DRIVER_MODULE(atapicam, ata,
 	atapi_cam_driver,
 	atapi_cam_devclass,
@@ -413,7 +413,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	int tid = ccb_h->target_id;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
-	ata_controlcmd(softc->atadev[tid], ATA_ATAPI_RESET, 0, 0, 0);
+	ata_controlcmd(softc->atadev[tid]->dev, ATA_ATAPI_RESET, 0, 0, 0);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -472,7 +472,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    return;
 	}
 
- 	if (softc->atadev[tid] == NULL) {
+	if (softc->atadev[tid] == NULL) {
 	    ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 	    xpt_done(ccb);
 	    mtx_unlock(&softc->state_lock);
@@ -586,7 +586,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN && (len & 1)) {
 	    /* ATA always transfers an even number of bytes */
 	    if ((buf = hcb->dxfer_alloc
-                 = malloc(++len, M_ATACAM, M_NOWAIT | M_ZERO)) == NULL) {
+		 = malloc(++len, M_ATACAM, M_NOWAIT | M_ZERO)) == NULL) {
 		printf("cannot allocate ATAPI/CAM buffer\n");
 		goto action_oom;
 	    }

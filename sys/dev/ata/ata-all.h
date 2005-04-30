@@ -104,64 +104,64 @@
 #define         ATA_A_HOB               0x80    /* High Order Byte enable */
 
 /* SATA register defines */
-#define ATA_SSTATUS			13
-#define 	ATA_SS_DET_MASK		0x0000000f
-#define		ATA_SS_DET_NO_DEVICE	0x00000000
-#define		ATA_SS_DET_DEV_PRESENT	0x00000001
-#define		ATA_SS_DET_PHY_ONLINE	0x00000003
-#define		ATA_SS_DET_PHY_OFFLINE	0x00000004
+#define ATA_SSTATUS                     13
+#define         ATA_SS_DET_MASK         0x0000000f
+#define         ATA_SS_DET_NO_DEVICE    0x00000000
+#define         ATA_SS_DET_DEV_PRESENT  0x00000001
+#define         ATA_SS_DET_PHY_ONLINE   0x00000003
+#define         ATA_SS_DET_PHY_OFFLINE  0x00000004
 
-#define 	ATA_SS_SPD_MASK		0x000000f0
-#define 	ATA_SS_SPD_NO_SPEED	0x00000000
-#define 	ATA_SS_SPD_GEN1		0x00000010
-#define 	ATA_SS_SPD_GEN2		0x00000020
+#define         ATA_SS_SPD_MASK         0x000000f0
+#define         ATA_SS_SPD_NO_SPEED     0x00000000
+#define         ATA_SS_SPD_GEN1         0x00000010
+#define         ATA_SS_SPD_GEN2         0x00000020
 
-#define 	ATA_SS_IPM_MASK		0x00000f00
-#define 	ATA_SS_IPM_NO_DEVICE	0x00000000
-#define 	ATA_SS_IPM_ACTIVE	0x00000100
-#define 	ATA_SS_IPM_PARTIAL	0x00000200
-#define 	ATA_SS_IPM_SLUMBER	0x00000600
+#define         ATA_SS_IPM_MASK         0x00000f00
+#define         ATA_SS_IPM_NO_DEVICE    0x00000000
+#define         ATA_SS_IPM_ACTIVE       0x00000100
+#define         ATA_SS_IPM_PARTIAL      0x00000200
+#define         ATA_SS_IPM_SLUMBER      0x00000600
 
-#define		ATA_SS_CONWELL_MASK \
+#define         ATA_SS_CONWELL_MASK \
 		    (ATA_SS_DET_MASK|ATA_SS_SPD_MASK|ATA_SS_IPM_MASK)
-#define		ATA_SS_CONWELL_GEN1 \
+#define         ATA_SS_CONWELL_GEN1 \
 		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN1|ATA_SS_IPM_ACTIVE)
-#define		ATA_SS_CONWELL_GEN2 \
+#define         ATA_SS_CONWELL_GEN2 \
 		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN2|ATA_SS_IPM_ACTIVE)
 
-#define ATA_SERROR			14
-#define 	ATA_SE_DATA_CORRECTED	0x00000001
-#define		ATA_SE_COMM_CORRECTED	0x00000002
-#define		ATA_SE_DATA_ERR		0x00000100
-#define		ATA_SE_COMM_ERR		0x00000200
-#define		ATA_SE_PROT_ERR		0x00000400
-#define		ATA_SE_HOST_ERR		0x00000800
-#define		ATA_SE_PHY_CHANGED	0x00010000
-#define		ATA_SE_PHY_IERROR	0x00020000
-#define		ATA_SE_COMM_WAKE	0x00040000
-#define		ATA_SE_DECODE_ERR	0x00080000
-#define		ATA_SE_PARITY_ERR	0x00100000
-#define		ATA_SE_CRC_ERR		0x00200000
-#define		ATA_SE_HANDSHAKE_ERR	0x00400000
-#define		ATA_SE_LINKSEQ_ERR	0x00800000
-#define		ATA_SE_TRANSPORT_ERR	0x01000000
-#define		ATA_SE_UNKNOWN_FIS	0x02000000
+#define ATA_SERROR                      14
+#define         ATA_SE_DATA_CORRECTED   0x00000001
+#define         ATA_SE_COMM_CORRECTED   0x00000002
+#define         ATA_SE_DATA_ERR         0x00000100
+#define         ATA_SE_COMM_ERR         0x00000200
+#define         ATA_SE_PROT_ERR         0x00000400
+#define         ATA_SE_HOST_ERR         0x00000800
+#define         ATA_SE_PHY_CHANGED      0x00010000
+#define         ATA_SE_PHY_IERROR       0x00020000
+#define         ATA_SE_COMM_WAKE        0x00040000
+#define         ATA_SE_DECODE_ERR       0x00080000
+#define         ATA_SE_PARITY_ERR       0x00100000
+#define         ATA_SE_CRC_ERR          0x00200000
+#define         ATA_SE_HANDSHAKE_ERR    0x00400000
+#define         ATA_SE_LINKSEQ_ERR      0x00800000
+#define         ATA_SE_TRANSPORT_ERR    0x01000000
+#define         ATA_SE_UNKNOWN_FIS      0x02000000
 
-#define ATA_SCONTROL			15
-#define 	ATA_SC_DET_MASK		0x0000000f
-#define		ATA_SC_DET_IDLE		0x00000000
-#define		ATA_SC_DET_RESET	0x00000001
-#define		ATA_SC_DET_DISABLE	0x00000004
+#define ATA_SCONTROL                    15
+#define         ATA_SC_DET_MASK         0x0000000f
+#define         ATA_SC_DET_IDLE         0x00000000
+#define         ATA_SC_DET_RESET        0x00000001
+#define         ATA_SC_DET_DISABLE      0x00000004
 
-#define 	ATA_SC_SPD_MASK		0x000000f0
-#define 	ATA_SC_SPD_NO_SPEED	0x00000000
-#define 	ATA_SC_SPD_SPEED_GEN1	0x00000010
-#define 	ATA_SC_SPD_SPEED_GEN2	0x00000020
+#define         ATA_SC_SPD_MASK         0x000000f0
+#define         ATA_SC_SPD_NO_SPEED     0x00000000
+#define         ATA_SC_SPD_SPEED_GEN1   0x00000010
+#define         ATA_SC_SPD_SPEED_GEN2   0x00000020
 
-#define 	ATA_SC_IPM_MASK		0x00000f00
-#define 	ATA_SC_IPM_NONE		0x00000000
-#define 	ATA_SC_IPM_DIS_PARTIAL	0x00000100
-#define 	ATA_SC_IPM_DIS_SLUMBER	0x00000200
+#define         ATA_SC_IPM_MASK         0x00000f00
+#define         ATA_SC_IPM_NONE         0x00000000
+#define         ATA_SC_IPM_DIS_PARTIAL  0x00000100
+#define         ATA_SC_IPM_DIS_SLUMBER  0x00000200
 
 /* DMA register defines */
 #define ATA_DMA_ENTRIES                 256
@@ -204,7 +204,7 @@
 #define ATA_PC98_BANKADDR_RID           9
 #define ATA_IRQ_RID                     0
 #define ATA_DEV(device)                 ((device == ATA_MASTER) ? 0 : 1)
-#define ATA_CFA_MAGIC			0x848A
+#define ATA_CFA_MAGIC                   0x848A
 #define ATAPI_MAGIC_LSB                 0x14
 #define ATAPI_MAGIC_MSB                 0xeb
 #define ATAPI_P_READ                    (ATA_S_DRQ | ATA_I_IN)
@@ -374,20 +374,20 @@ struct ata_dma {
 #define ATA_DMA_LOADED                  0x02    /* DMA tables etc loaded */
 #define ATA_DMA_ACTIVE                  0x04    /* DMA transfer in progress */
 
-    void (*alloc)(struct ata_channel *ch);
-    void (*free)(struct ata_channel *ch);
+    void (*alloc)(device_t);
+    void (*free)(device_t);
     void (*setprd)(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
-    int (*load)(struct ata_device *atadev, caddr_t data, int32_t count,int dir);
-    int (*unload)(struct ata_channel *ch);
-    int (*start)(struct ata_channel *ch);
-    int (*stop)(struct ata_channel *ch);
+    int (*load)(device_t, caddr_t data, int32_t count,int dir);
+    int (*unload)(device_t);
+    int (*start)(device_t);
+    int (*stop)(device_t);
 };
 
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
     int (*begin_transaction)(struct ata_request *request);
     int (*end_transaction)(struct ata_request *request);
-    int (*command)(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
+    int (*command)(device_t dev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 };
 
 /* structure holding resources for an ATA channel */
@@ -451,29 +451,29 @@ int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
 int ata_identify(device_t dev);
-void ata_default_registers(struct ata_channel *ch);
+void ata_default_registers(device_t dev);
 void ata_udelay(int interval);
 char *ata_mode2str(int mode);
 int ata_pmode(struct ata_params *ap);
 int ata_wmode(struct ata_params *ap);
 int ata_umode(struct ata_params *ap);
-int ata_limit_mode(struct ata_device *atadev, int mode, int maxmode);
+int ata_limit_mode(device_t dev, int mode, int maxmode);
 
 /* ata-queue.c: */
-int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
-int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
+int ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
+int ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
 void ata_start(device_t dev);
 void ata_finish(struct ata_request *request);
 void ata_timeout(struct ata_request *);
-void ata_catch_inflight(struct ata_channel *ch);
-void ata_fail_requests(struct ata_channel *ch, device_t dev);
+void ata_catch_inflight(device_t dev);
+void ata_fail_requests(device_t dev);
 char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
-void ata_generic_hw(struct ata_channel *ch);
-void ata_generic_reset(struct ata_channel *ch);
-int ata_generic_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
+void ata_generic_hw(device_t dev);
+void ata_generic_reset(device_t dev);
+int ata_generic_command(device_t dev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 
 /* macros for alloc/free of struct ata_request */
 extern uma_zone_t ata_request_zone;
