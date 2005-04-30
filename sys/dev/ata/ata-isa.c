@@ -99,12 +99,12 @@ ata_isa_probe(device_t dev)
     ch->r_io[ATA_CONTROL].res = ctlio;
     ch->r_io[ATA_CONTROL].offset = 0;
     ch->r_io[ATA_IDX_ADDR].res = io;
-    ata_default_registers(ch);
+    ata_default_registers(dev);
  
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
-    ata_generic_hw(ch);
+    ata_generic_hw(dev);
     return ata_probe(dev);
 }
 

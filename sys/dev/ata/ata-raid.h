@@ -283,7 +283,7 @@ struct hptv3_raid_conf {
 
 struct intel_raid_conf {
     u_int8_t            intel_id[24];
-#define INTEL_MAGIC     	"Intel Raid ISM Cfg Sig. "
+#define INTEL_MAGIC             "Intel Raid ISM Cfg Sig. "
 
     u_int8_t            version[6];
     u_int8_t            dummy_0[2];
@@ -349,7 +349,7 @@ struct ite_raid_conf {
     u_int32_t           filler_2[5];
     u_int16_t           filler_3;
     u_int8_t            ite_id[40];
-#define ITE_MAGIC       	"Integrated Technology Express Inc      "
+#define ITE_MAGIC               "Integrated Technology Express Inc      "
 
     u_int16_t           filler_4;
     u_int32_t           filler_5[6];
@@ -397,7 +397,7 @@ struct ite_raid_conf {
 
 struct lsiv2_raid_conf {
     u_int8_t            lsi_id[6];
-#define LSIV2_MAGIC     	"$XIDE$"
+#define LSIV2_MAGIC             "$XIDE$"
 
     u_int8_t            dummy_0;
     u_int8_t            flags;
@@ -470,7 +470,7 @@ struct lsiv3_raid_conf {
     u_int8_t            checksum_0;
     u_int8_t            filler_5[512*2];
     u_int8_t            lsi_id[6];
-#define LSIV3_MAGIC     	"$_IDE$"
+#define LSIV3_MAGIC             "$_IDE$"
 
     u_int16_t           dummy_2;        /* 0x33de for OK disk */
     u_int16_t           version;        /* 0x0131 for this version */
@@ -526,11 +526,11 @@ struct lsiv3_raid_conf {
 
 struct promise_raid_conf {
     char                promise_id[24];
-#define PR_MAGIC        	"Promise Technology, Inc."
+#define PR_MAGIC                "Promise Technology, Inc."
 
     u_int32_t           dummy_0;
     u_int64_t           magic_0;
-#define PR_MAGIC0(x)    	(((u_int64_t)(x.channel) << 48) | \
+#define PR_MAGIC0(x)            (((u_int64_t)(x.channel) << 48) | \
 				((u_int64_t)(x.device != 0) << 56))
     u_int16_t           magic_1;
     u_int32_t           magic_2;
@@ -644,25 +644,25 @@ struct sii_raid_conf {
 	( ((struct ad_softc *)device_get_ivars(dev))->total_secs - 1)
 
 struct via_raid_conf {
-    u_int16_t	magic;
-#define VIA_MAGIC		0xaa55
+    u_int16_t   magic;
+#define VIA_MAGIC               0xaa55
 
-    u_int8_t	dummy_0;
-    u_int8_t	type;
-#define	VIA_T_MASK		0xfe
-#define	VIA_T_BOOTABLE		0x01
-#define	VIA_T_RAID0		0x04
-#define	VIA_T_RAID1		0x0c
-#define	VIA_T_SPAN		0x44
+    u_int8_t    dummy_0;
+    u_int8_t    type;
+#define VIA_T_MASK              0xfe
+#define VIA_T_BOOTABLE          0x01
+#define VIA_T_RAID0             0x04
+#define VIA_T_RAID1             0x0c
+#define VIA_T_SPAN              0x44
 
-    u_int8_t	disk_index;
-    u_int8_t	stripe_layout;
-#define	VIA_L_MASK		0x07
-#define	VIA_L_SHIFT		4
+    u_int8_t    disk_index;
+    u_int8_t    stripe_layout;
+#define VIA_L_MASK              0x07
+#define VIA_L_SHIFT             4
 
-    u_int64_t	total_sectors;
-    u_int32_t	disk_id;
-    u_int32_t	disks[8];
-    u_int8_t	checksum;
-    u_int8_t	filler_1[461];
+    u_int64_t   total_sectors;
+    u_int32_t   disk_id;
+    u_int32_t   disks[8];
+    u_int8_t    checksum;
+    u_int8_t    filler_1[461];
 } __packed;

@@ -63,7 +63,7 @@ CODE {
 	{
 	    struct ata_device *atadev = device_get_softc(dev);
 
-	    atadev->mode = ata_limit_mode(atadev, atadev->mode, ATA_PIO_MAX);
+	    atadev->mode = ata_limit_mode(dev, atadev->mode, ATA_PIO_MAX);
 	}
 };
 METHOD void setmode {

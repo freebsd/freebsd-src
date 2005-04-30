@@ -60,7 +60,7 @@ static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
 #define IOMASK                  0xfffffffc
 
 /* prototypes */
-static void ata_pci_dmainit(struct ata_channel *);
+static void ata_pci_dmainit(device_t);
 
 int
 ata_legacy(device_t dev)
@@ -404,7 +404,7 @@ ata_pci_allocate(device_t dev)
     ch->r_io[ATA_CONTROL].res = ctlio;
     ch->r_io[ATA_CONTROL].offset = ata_legacy(device_get_parent(dev)) ? 0 : 2;
     ch->r_io[ATA_IDX_ADDR].res = io;
-    ata_default_registers(ch);
+    ata_default_registers(dev);
     if (ctlr->r_res1) {
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
 	    ch->r_io[i].res = ctlr->r_res1;
@@ -412,13 +412,15 @@ ata_pci_allocate(device_t dev)
 	}
     }
 
-    ata_generic_hw(ch);
+    ata_generic_hw(dev);
     return 0;
 }
 
 static int
-ata_pci_dmastart(struct ata_channel *ch)
+ata_pci_dmastart(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->sg_bus);
@@ -431,8 +433,9 @@ ata_pci_dmastart(struct ata_channel *ch)
 }
 
 static int
-ata_pci_dmastop(struct ata_channel *ch)
+ata_pci_dmastop(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     int error;
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
@@ -444,9 +447,11 @@ ata_pci_dmastop(struct ata_channel *ch)
 }
 
 static void
-ata_pci_dmainit(struct ata_channel *ch)
+ata_pci_dmainit(device_t dev)
 {
-    ata_dmainit(ch);
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ata_dmainit(dev);
     if (ch->dma) {
 	ch->dma->start = ata_pci_dmastart;
 	ch->dma->stop = ata_pci_dmastop;
@@ -518,9 +523,9 @@ ata_pcichannel_attach(device_t dev)
     int error;
 
     if (ctlr->r_res1)
-	ctlr->dmainit(ch);
+	ctlr->dmainit(dev);
     if (ch->dma)
-	ch->dma->alloc(ch);
+	ch->dma->alloc(dev);
 
     if ((error = ctlr->allocate(dev)))
 	return error;
@@ -538,7 +543,7 @@ ata_pcichannel_detach(device_t dev)
 	return error;
 
     if (ch->dma)
-	ch->dma->free(ch);
+	ch->dma->free(dev);
 
     /* free resources for io and ctlio XXX SOS */
 
@@ -552,7 +557,7 @@ ata_pcichannel_locking(device_t dev, int mode)
     struct ata_channel *ch = device_get_softc(dev);
 
     if (ctlr->locking)
-	return ctlr->locking(ch, mode);
+	return ctlr->locking(dev, mode);
     else
 	return ch->unit;
 }
@@ -565,17 +570,17 @@ ata_pcichannel_reset(device_t dev)
 
     /* if DMA functionality present stop it  */
     if (ch->dma) {
-        if (ch->dma->stop)
-            ch->dma->stop(ch);
-        if (ch->dma->flags & ATA_DMA_LOADED)
-            ch->dma->unload(ch);
+	if (ch->dma->flags & ATA_DMA_ACTIVE)
+	    ch->dma->stop(dev);
+	if (ch->dma->flags & ATA_DMA_LOADED)
+	    ch->dma->unload(dev);
     }
 
     /* reset the controller HW */
     if (ctlr->reset)
-	ctlr->reset(ch);
+	ctlr->reset(dev);
     else
-	ata_generic_reset(ch);
+	ata_generic_reset(dev);
 }
 
 static void
@@ -585,9 +590,9 @@ ata_pcichannel_setmode(device_t parent, device_t dev)
     struct ata_device *atadev = device_get_softc(dev);
     int mode = atadev->mode;
 
-    ctlr->setmode(atadev, ATA_PIO_MAX);
+    ctlr->setmode(dev, ATA_PIO_MAX);
     if (mode >= ATA_DMA)
-	ctlr->setmode(atadev, mode);
+	ctlr->setmode(dev, mode);
 }
 
 static device_method_t ata_pcichannel_methods[] = {
