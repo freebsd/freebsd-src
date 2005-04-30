@@ -931,8 +931,16 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	ipi_all_but_self(vector);
+	/* 
+	 * Enable interrupts here to workaround Opteron Errata 106.
+	 * The while loop runs entirely out of instruction cache,
+	 * which blocks updates to the cache from other CPUs.
+	 * Interrupts break the lock, allowing the write to post.
+	 */
+	enable_intr();
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	disable_intr();
 }
 
 /*
@@ -1020,8 +1028,16 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		ipi_all_but_self(vector);
 	else
 		ipi_selected(mask, vector);
+	/* 
+	 * Enable interrupts here to workaround Opteron Errata 106.
+	 * The while loop runs entirely out of instruction cache,
+	 * which blocks updates to the cache from other CPUs.
+	 * Interrupts break the lock, allowing the write to post.
+	 */
+	enable_intr();
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	disable_intr();
 }
 
 void
