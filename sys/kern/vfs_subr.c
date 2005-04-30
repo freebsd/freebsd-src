@@ -93,6 +93,7 @@ static void	vdropl(struct vnode *vp);
 static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *, int);
 static void	vfree(struct vnode *);
+static void	vfreehead(struct vnode *);
 static void	vnlru_free(int);
 static void	vdestroy(struct vnode *);
 
@@ -606,31 +607,28 @@ vnlru_free(int count)
 		if (!vp)
 			break;
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 		/*
 		 * Don't recycle if we can't get the interlock.
 		 */
-		if (!VI_TRYLOCK(vp))
-			continue;
-		if (!VCANRECYCLE(vp)) {
-			VI_UNLOCK(vp);
+		if (!VI_TRYLOCK(vp)) {
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			continue;
 		}
-		/*
-		 * We assume success to avoid having to relock the frelist
-		 * in the common case, simply restore counts on failure.
-		 */
+		if (!VCANRECYCLE(vp)) {
+			VI_UNLOCK(vp);
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+			continue;
+		}
 		freevnodes--;
-		numvnodes--;
+		vp->v_iflag &= ~VI_FREE;
 		mtx_unlock(&vnode_free_list_mtx);
 		if (vtryrecycle(vp) != 0) {
 			mtx_lock(&vnode_free_list_mtx);
-			freevnodes++;
-			numvnodes++;
 			continue;
 		}
 		vdestroy(vp);
 		mtx_lock(&vnode_free_list_mtx);
+		numvnodes--;
 	}
 }
 /*
@@ -745,18 +743,26 @@ vtryrecycle(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, "vtryrecycle");
 	error = 0;
+	vnmp = NULL;
 	/*
 	 * This vnode may found and locked via some other list, if so we
 	 * can't recycle it yet.
 	 */
-	if (VOP_LOCK(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
+	if (VOP_LOCK(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_NOWAIT, td) != 0) {
+		VI_LOCK(vp);
+		if (VSHOULDFREE(vp))
+			vfree(vp);
+		VI_UNLOCK(vp);
 		return (EWOULDBLOCK);
+	}
 	/*
 	 * Don't recycle if its filesystem is being suspended.
 	 */
 	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
-		VOP_UNLOCK(vp, 0, td);
-		return (EBUSY);
+		vnmp = NULL;
+		error = EBUSY;
+		VI_LOCK(vp);
+		goto err;
 	}
 	/*
 	 * If we got this far, we need to acquire the interlock and see if
@@ -765,15 +771,10 @@ vtryrecycle(struct vnode *vp)
 	 * will skip over it.
 	 */
 	VI_LOCK(vp);
-	if (!VCANRECYCLE(vp)) {
-		VI_UNLOCK(vp);
+	if (vp->v_holdcnt) {
 		error = EBUSY;
-		goto done;
+		goto err;
 	}
-	mtx_lock(&vnode_free_list_mtx);
-	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-	vp->v_iflag &= ~VI_FREE;
-	mtx_unlock(&vnode_free_list_mtx);
 	if ((vp->v_iflag & VI_DOOMED) == 0) {
 		vp->v_iflag |= VI_DOOMED;
 		vgonel(vp, td);
@@ -783,12 +784,21 @@ vtryrecycle(struct vnode *vp)
 	 * If someone ref'd the vnode while we were cleaning, we have to
 	 * free it once the last ref is dropped.
 	 */
-	if (vp->v_holdcnt)
+	if (vp->v_holdcnt) {
 		error = EBUSY;
+		goto err;
+	}
 	VI_UNLOCK(vp);
-done:
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(vnmp);
+	return (0);
+err:
+	if (VSHOULDFREE(vp))
+		vfree(vp);
+	VI_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, td);
+	if (vnmp != NULL)
+		vn_finished_write(vnmp);
 	return (error);
 }
 
@@ -2311,23 +2321,14 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * If it is on the freelist and not already at the head,
 	 * move it to the head of the list. The test of the
 	 * VDOOMED flag and the reference count of zero is because
-	 * it will be removed from the free list by getnewvnode,
+	 * it will be removed from the free list by vnlru_free,
 	 * but will not have its reference count incremented until
 	 * after calling vgone. If the reference count were
 	 * incremented first, vgone would (incorrectly) try to
 	 * close the previous instance of the underlying object.
 	 */
-	if (vp->v_holdcnt == 0 && !doomed) {
-		mtx_lock(&vnode_free_list_mtx);
-		if (vp->v_iflag & VI_FREE) {
-			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		} else {
-			vp->v_iflag |= VI_FREE;
-			freevnodes++;
-		}
-		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-		mtx_unlock(&vnode_free_list_mtx);
-	}
+	if (vp->v_holdcnt == 0 && !doomed)
+		vfreehead(vp);
 	VI_UNLOCK(vp);
 }
 
@@ -2752,6 +2753,23 @@ vfree(struct vnode *vp)
 	mtx_unlock(&vnode_free_list_mtx);
 	vp->v_iflag &= ~(VI_AGE|VI_DOOMED);
 	vp->v_iflag |= VI_FREE;
+}
+
+/*
+ * Move a vnode to the head of the free list.
+ */
+static void
+vfreehead(struct vnode *vp)
+{
+	mtx_lock(&vnode_free_list_mtx);
+	if (vp->v_iflag & VI_FREE) {
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+	} else {
+		vp->v_iflag |= VI_FREE;
+		freevnodes++;
+	}
+	TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+	mtx_unlock(&vnode_free_list_mtx);
 }
 
 /*
