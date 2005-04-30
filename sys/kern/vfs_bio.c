@@ -612,9 +612,6 @@ bufinit(void)
 /*
  * bfreekva() - free the kva allocation for a buffer.
  *
- *	Must be called at splbio() or higher as this is the only locking for
- *	buffer_map.
- *
  *	Since this call frees up buffer space, we call bufspacewakeup().
  */
 static void
@@ -679,8 +676,6 @@ bremfreef(struct buf *bp)
 static void
 bremfreel(struct buf *bp)
 {
-	int s = splbio();
-
 	CTR3(KTR_BUF, "bremfreel(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(BUF_REFCNT(bp), ("bremfreel: buffer %p not locked.", bp));
@@ -696,7 +691,6 @@ bremfreel(struct buf *bp)
 	 */
 	if (bp->b_flags & B_REMFREE) {
 		bp->b_flags &= ~B_REMFREE;
-		splx(s);
 		return;
 	}
 	/*
@@ -706,7 +700,6 @@ bremfreel(struct buf *bp)
 	 */
 	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
 		atomic_subtract_int(&numfreebuffers, 1);
-	splx(s);
 }
 
 
@@ -800,7 +793,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 int
 bufwrite(struct buf *bp)
 {
-	int oldflags, s;
+	int oldflags;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
@@ -812,8 +805,6 @@ bufwrite(struct buf *bp)
 
 	if (BUF_REFCNT(bp) == 0)
 		panic("bufwrite: buffer is not busy???");
-	s = splbio();
-
 	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
 	    ("FFS background buffer should not get here %p", bp));
 
@@ -836,7 +827,6 @@ bufwrite(struct buf *bp)
 
 	if (curthread != PCPU_GET(idlethread))
 		curthread->td_proc->p_stats->p_ru.ru_oublock++;
-	splx(s);
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -1002,7 +992,6 @@ bdwrite(struct buf *bp)
  *	Since the buffer is not on a queue, we do not update the numfreebuffers
  *	count.
  *
- *	Must be called at splbio().
  *	The buffer must be on QUEUE_NONE.
  */
 void
@@ -1034,7 +1023,6 @@ bdirty(struct buf *bp)
  *	Since the buffer is not on a queue, we do not update the numfreebuffers
  *	count.
  *	
- *	Must be called at splbio().
  *	The buffer must be on QUEUE_NONE.
  */
 
@@ -1092,9 +1080,6 @@ bwillwrite(void)
 {
 
 	if (numdirtybuffers >= hidirtybuffers) {
-		int s;
-
-		s = splbio();
 		mtx_lock(&nblock);
 		while (numdirtybuffers >= hidirtybuffers) {
 			bd_wakeup(1);
@@ -1102,7 +1087,6 @@ bwillwrite(void)
 			msleep(&needsbuffer, &nblock,
 			    (PRIBIO + 4), "flswai", 0);
 		}
-		splx(s);
 		mtx_unlock(&nblock);
 	}
 }
@@ -1127,14 +1111,10 @@ buf_dirty_count_severe(void)
 void
 brelse(struct buf *bp)
 {
-	int s;
-
 	CTR3(KTR_BUF, "brelse(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
-
-	s = splbio();
 
 	if (bp->b_iocmd == BIO_WRITE &&
 	    (bp->b_ioflags & BIO_ERROR) &&
@@ -1309,7 +1289,6 @@ brelse(struct buf *bp)
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
 		BUF_UNLOCK(bp);
-		splx(s);
 		return;
 	}
 
@@ -1389,7 +1368,6 @@ brelse(struct buf *bp)
 		panic("brelse: not dirty");
 	/* unlock */
 	BUF_UNLOCK(bp);
-	splx(s);
 }
 
 /*
@@ -1406,10 +1384,6 @@ brelse(struct buf *bp)
 void
 bqrelse(struct buf *bp)
 {
-	int s;
-
-	s = splbio();
-
 	CTR3(KTR_BUF, "bqrelse(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("bqrelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
@@ -1417,7 +1391,6 @@ bqrelse(struct buf *bp)
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
 		BUF_UNLOCK(bp);
-		splx(s);
 		return;
 	}
 	mtx_lock(&bqlock);
@@ -1450,7 +1423,6 @@ bqrelse(struct buf *bp)
 			 */
 			BO_UNLOCK(bp->b_bufobj);
 			mtx_unlock(&bqlock);
-			splx(s);
 			brelse(bp);
 			return;
 		}
@@ -1471,7 +1443,6 @@ bqrelse(struct buf *bp)
 		panic("bqrelse: not dirty");
 	/* unlock */
 	BUF_UNLOCK(bp);
-	splx(s);
 }
 
 /* Give pages used by the bp back to the VM system (where possible) */
@@ -1584,13 +1555,11 @@ vfs_bio_awrite(struct buf *bp)
 	int j;
 	daddr_t lblkno = bp->b_lblkno;
 	struct vnode *vp = bp->b_vp;
-	int s;
 	int ncl;
 	int nwritten;
 	int size;
 	int maxcl;
 
-	s = splbio();
 	/*
 	 * right now we support clustered writing only to regular files.  If
 	 * we find a clusterable block we could be in the middle of a cluster
@@ -1623,15 +1592,11 @@ vfs_bio_awrite(struct buf *bp)
 		if (ncl != 1) {
 			BUF_UNLOCK(bp);
 			nwritten = cluster_wbuild(vp, size, lblkno - j, ncl);
-			splx(s);
 			return nwritten;
 		}
 	}
-
 	bremfree(bp);
 	bp->b_flags |= B_ASYNC;
-
-	splx(s);
 	/*
 	 * default (old) behavior, writing out only one block
 	 *
@@ -1986,8 +1951,6 @@ SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start, &buf_kp)
 static void
 buf_daemon()
 {
-	int s;
-
 	mtx_lock(&Giant);
 
 	/*
@@ -1999,9 +1962,7 @@ buf_daemon()
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
-	s = splbio();
 	mtx_lock(&bdlock);
-
 	for (;;) {
 		bd_request = 0;
 		mtx_unlock(&bdlock);
@@ -2145,11 +2106,9 @@ incore(struct bufobj *bo, daddr_t blkno)
 {
 	struct buf *bp;
 
-	int s = splbio();
 	BO_LOCK(bo);
 	bp = gbincore(bo, blkno);
 	BO_UNLOCK(bo);
-	splx(s);
 	return (bp);
 }
 
@@ -2337,7 +2296,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 {
 	struct buf *bp;
 	struct bufobj *bo;
-	int s;
 	int error;
 
 	CTR3(KTR_BUF, "getblk(%p, %ld, %d)", vp, (long)blkno, size);
@@ -2346,7 +2304,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
 
 	bo = &vp->v_bufobj;
-	s = splbio();
 loop:
 	/*
 	 * Block if we are low on buffers.   Certain processes are allowed
@@ -2473,8 +2430,6 @@ loop:
 			bwrite(bp);
 			goto loop;
 		}
-
-		splx(s);
 		bp->b_flags &= ~B_DONE;
 	} else {
 		int bsize, maxsize, vmio;
@@ -2490,11 +2445,8 @@ loop:
 		 * If the user does not want us to create the buffer, bail out
 		 * here.
 		 */
-		if (flags & GB_NOCREAT) {
-			splx(s);
+		if (flags & GB_NOCREAT)
 			return NULL;
-		}
-
 		bsize = bo->bo_bsize;
 		offset = blkno * bsize;
 		vmio = vp->v_object != NULL;
@@ -2503,10 +2455,8 @@ loop:
 
 		bp = getnewbuf(slpflag, slptimeo, size, maxsize);
 		if (bp == NULL) {
-			if (slpflag || slptimeo) {
-				splx(s);
+			if (slpflag || slptimeo)
 				return NULL;
-			}
 			goto loop;
 		}
 
@@ -2515,10 +2465,7 @@ loop:
 		 * created while the getnewbuf routine is blocked.
 		 * This can be a problem whether the vnode is locked or not.
 		 * If the buffer is created out from under us, we have to
-		 * throw away the one we just created.  There is now window
-		 * race because we are safely running at splbio() from the
-		 * point of the duplicate buffer creation through to here,
-		 * and we've locked the buffer.
+		 * throw away the one we just created.
 		 *
 		 * Note: this must occur before we associate the buffer
 		 * with the vp especially considering limitations in
@@ -2568,8 +2515,6 @@ loop:
 		}
 
 		allocbuf(bp, size);
-
-		splx(s);
 		bp->b_flags &= ~B_DONE;
 	}
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
@@ -2587,15 +2532,11 @@ struct buf *
 geteblk(int size)
 {
 	struct buf *bp;
-	int s;
 	int maxsize;
 
 	maxsize = (size + BKVAMASK) & ~BKVAMASK;
-
-	s = splbio();
 	while ((bp = getnewbuf(0, 0, size, maxsize)) == 0)
 		continue;
-	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
 	KASSERT(BUF_REFCNT(bp) == 1, ("geteblk: bp %p not locked",bp));
@@ -2971,14 +2912,10 @@ biofinish(struct bio *bp, struct devstat *stat, int error)
 int
 bufwait(struct buf *bp)
 {
-	int s;
-
-	s = splbio();
 	if (bp->b_iocmd == BIO_READ)
 		bwait(bp, PRIBIO, "biord");
 	else
 		bwait(bp, PRIBIO, "biowr");
-	splx(s);
 	if (bp->b_flags & B_EINTR) {
 		bp->b_flags &= ~B_EINTR;
 		return (EINTR);
@@ -3069,12 +3006,10 @@ void
 bufdone(struct buf *bp)
 {
 	struct bufobj *dropobj;
-	int s;
 	void    (*biodone)(struct buf *);
 
 
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
-	s = splbio();
 	dropobj = NULL;
 
 	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp, BUF_REFCNT(bp)));
@@ -3091,7 +3026,6 @@ bufdone(struct buf *bp)
 		(*biodone) (bp);
 		if (dropobj)
 			bufobj_wdrop(dropobj);
-		splx(s);
 		return;
 	}
 	if (LIST_FIRST(&bp->b_dep) != NULL)
@@ -3228,7 +3162,6 @@ bufdone(struct buf *bp)
 		bdone(bp);
 	if (dropobj)
 		bufobj_wdrop(dropobj);
-	splx(s);
 }
 
 /*
