@@ -264,6 +264,11 @@ gethostbyaddr_r(const char *addr, int len, int af, struct hostent *he,
 		{ 0 }
 	};
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return -1;
+	}
+
 	if (af == AF_INET6 && len == IN6ADDRSZ) {
 		addr6 = (const struct in6_addr *)(const void *)uaddr;
 		if (IN6_IS_ADDR_LINKLOCAL(addr6)) {
