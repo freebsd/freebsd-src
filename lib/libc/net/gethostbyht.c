@@ -90,8 +90,8 @@ _endhosthtent(struct hostent_data *hed)
 	}
 }
 
-int
-gethostent_r(struct hostent *he, struct hostent_data *hed)
+static int
+gethostent_p(struct hostent *he, struct hostent_data *hed, int mapped)
 {
 	char *p, *bp, *ep;
 	char *cp, **q;
@@ -119,7 +119,7 @@ gethostent_r(struct hostent *he, struct hostent_data *hed)
 		af = AF_INET6;
 		len = IN6ADDRSZ;
 	} else if (inet_pton(AF_INET, p, hed->host_addr) > 0) {
-		if (_res.options & RES_USE_INET6) {
+		if (mapped) {
 			_map_v4v6_address((char *)hed->host_addr,
 			    (char *)hed->host_addr);
 			af = AF_INET6;
@@ -174,6 +174,12 @@ gethostent_r(struct hostent *he, struct hostent_data *hed)
 	return 0;
 }
 
+int
+gethostent_r(struct hostent *he, struct hostent_data *hed)
+{
+	return gethostent_p(he, hed, _res.options & RES_USE_INET6);
+}
+
 struct hostent *
 gethostent(void)
 {
@@ -187,7 +193,7 @@ gethostent(void)
 }
 
 int
-_ht_gethostbyname(void *rval, void *cb_data, va_list ap) 
+_ht_gethostbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
 	int af;
@@ -202,9 +208,15 @@ _ht_gethostbyname(void *rval, void *cb_data, va_list ap)
 	hed = va_arg(ap, struct hostent_data *);
 
 	sethostent_r(0, hed);
-	while ((error = gethostent_r(he, hed)) == 0) {
+	while ((error = gethostent_p(he, hed, 0)) == 0) {
 		if (he->h_addrtype != af)
 			continue;
+		if (he->h_addrtype == AF_INET &&
+		    _res.options & RES_USE_INET6) {
+			_map_v4v6_address(he->h_addr, he->h_addr);
+			he->h_length = IN6ADDRSZ;
+			he->h_addrtype = AF_INET6;
+		}
 		if (strcasecmp(he->h_name, name) == 0)
 			break;
 		for (cp = he->h_aliases; *cp != 0; cp++)
@@ -217,7 +229,7 @@ found:
 	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
-int 
+int
 _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	const char *addr;
