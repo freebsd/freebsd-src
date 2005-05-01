@@ -80,9 +80,7 @@ double stdf[26] = {
 void printit(char *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, dot, i, nread, winnerdot = 0;
 	char *inbuf;
@@ -153,8 +151,8 @@ main(argc, argv)
 	exit(0);
 }
 
-void printit(arg)
-	char *arg;
+void
+printit(char *arg)
 {
 	int ch, rot;
 
