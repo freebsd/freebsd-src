@@ -522,7 +522,7 @@ struct lsiv3_raid_conf {
 
 /* Promise FastTrak Metadata */
 #define PR_LBA(dev) \
-	(((struct ad_softc *)device_get_ivars(dev))->total_secs - 63)
+	(((((struct ad_softc *)device_get_ivars(dev))->total_secs / (((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors)) * ((struct ad_softc *)device_get_ivars(dev))->heads * ((struct ad_softc *)device_get_ivars(dev))->sectors) - ((struct ad_softc *)device_get_ivars(dev))->sectors)
 
 struct promise_raid_conf {
     char                promise_id[24];
