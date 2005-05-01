@@ -368,8 +368,11 @@ devfs_close(ap)
 		DROP_GIANT();
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();
-	} else
+	} else {
+		mtx_lock(&Giant);
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+		mtx_unlock(&Giant);
+	}
 	dev_relthread(dev);
 	return (error);
 }
@@ -815,10 +818,14 @@ devfs_open(ap)
 		else
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 		PICKUP_GIANT();
-	} else if (dsw->d_fdopen != NULL)
-		error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
-	else
-		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+	} else {
+		mtx_lock(&Giant);
+		if (dsw->d_fdopen != NULL)
+			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
+		else
+			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+		mtx_unlock(&Giant);
+	}
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
