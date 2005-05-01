@@ -179,11 +179,11 @@ ata_kauai_probe(device_t dev)
         }
         ch->r_io[ATA_CONTROL].res = mem;
         ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
-	ata_default_registers(ch);
+	ata_default_registers(dev);
 
         ch->unit = 0;
         ch->flags |= ATA_USE_16BIT|ATA_NO_SLAVE;
-	ata_generic_hw(ch);
+	ata_generic_hw(dev);
 
         return (ata_probe(dev));
 }
