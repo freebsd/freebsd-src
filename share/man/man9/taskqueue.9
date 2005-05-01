@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2000
+.Dd Apr 30, 2005
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -47,14 +47,14 @@ typedef void (*taskqueue_enqueue_fn)(void *context);
 
 struct task {
 	STAILQ_ENTRY(task)	ta_link;	/* link for queue */
-	int			ta_pending;	/* count times queued */
-	int			ta_priority;	/* priority of task in queue */
+	u_short			ta_pending;	/* count times queued */
+	u_short			ta_priority;	/* priority of task in queue */
 	task_fn_t		ta_func;	/* task handler */
 	void			*ta_context;	/* argument for handler */
 };
 .Ed
 .Ft struct taskqueue *
-.Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
+.Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context" "struct proc **"
 .Ft void
 .Fn taskqueue_free "struct taskqueue *queue"
 .Ft struct taskqueue *
@@ -80,25 +80,33 @@ The function
 is used to create new queues.
 The arguments to
 .Fn taskqueue_create
-include a name which should be unique,
+include a name that should be unique,
 a set of
 .Xr malloc 9
-flags which specify whether the call to
+flags that specify whether the call to
 .Fn malloc
-is allowed to sleep
-and a function which is called from
+is allowed to sleep,
+a function that is called from
 .Fn taskqueue_enqueue
-when a task is added to the queue
+when a task is added to the queue,
+and a pointer to the memory location where the identity of the
+thread that services the queue is recorded.
 .\" XXX	The rest of the sentence gets lots in relation to the first part.
-to allow the queue to arrange to be run later
+The function called from
+.Fn taskqueue_enqueue
+must arrange for the queue to be processed
 (for instance by scheduling a software interrupt or waking a kernel
 thread).
+The memory location where the thread identity is recorded is used
+to signal the service thread(s) to terminate--when this value is set to
+zero and the thread is signaled it will terminate.
 .Pp
 The function
 .Fn taskqueue_free
 should be used to remove the queue from the global list of queues
 and free the memory used by the queue.
-Any tasks which are on the queue will be executed at this time.
+Any tasks that are on the queue will be executed at this time after
+which the thread servicing the queue will be signaled that it should exit.
 .Pp
 The system maintains a list of all queues which can be searched using
 .Fn taskqueue_find .
@@ -258,6 +266,12 @@ The thread queue can be used, for instance, by interrupt level routines
 that need to call kernel functions that do things that can only be done
 from a thread context.
 (e.g., call malloc with the M_WAITOK flag.)
+.Pp
+Note that tasks queued on shared taskqueues such as
+.Va taskqueue_swi
+may be delayed an indeterminate amount of time before execution.
+If queueing delays cannot be tolerated then a private taskqueue should
+be created with a dedicated processing thread.
 .Sh SEE ALSO
 .Xr ithread 9 ,
 .Xr kthread 9 ,
