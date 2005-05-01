@@ -202,14 +202,18 @@ _gethostbynisname(const char *name, int af)
 {
 #ifdef YP
 	struct hostdata *hd;
+	u_long oresopt;
+	int error;
 
 	if ((hd = __hostdata_init()) == NULL) {
 		h_errno = NETDB_INTERNAL;
 		return NULL;
 	}
-	if (_gethostbynisname_r(name, af, &hd->host, &hd->data) != 0)
-		return NULL;
-	return &hd->host;
+	oresopt = _res.options;
+	_res.options &= ~RES_USE_INET6;
+	error = _gethostbynisname_r(name, af, &hd->host, &hd->data);
+	_res.options = oresopt;
+	return (error == 0) ? &hd->host : NULL;
 #else
 	return NULL;
 #endif
@@ -220,14 +224,18 @@ _gethostbynisaddr(const char *addr, int len, int af)
 {
 #ifdef YP
 	struct hostdata *hd;
+	u_long oresopt;
+	int error;
 
 	if ((hd = __hostdata_init()) == NULL) {
 		h_errno = NETDB_INTERNAL;
 		return NULL;
 	}
-	if (_gethostbynisaddr_r(addr, len, af, &hd->host, &hd->data) != 0)
-		return NULL;
-	return &hd->host;
+	oresopt = _res.options;
+	_res.options &= ~RES_USE_INET6;
+	error = _gethostbynisaddr_r(addr, len, af, &hd->host, &hd->data);
+	_res.options = oresopt;
+	return (error == 0) ? &hd->host : NULL;
 #else
 	return NULL;
 #endif
