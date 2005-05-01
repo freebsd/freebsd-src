@@ -192,6 +192,10 @@ mp_topology(void)
 }
 
 
+#ifdef KDB_STOP_NMI
+volatile cpumask_t ipi_nmi_pending;
+#endif 
+
 /*
  * Calculate usable address in base memory for AP trampoline code.
  */
@@ -1038,6 +1042,76 @@ ipi_self(u_int ipi)
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_SELF);
 }
+
+#ifdef KDB_STOP_NMI
+/*
+ * send NMI IPI to selected CPUs
+ */
+
+#define	BEFORE_SPIN	1000000
+
+void
+ipi_nmi_selected(u_int32_t cpus)
+{
+
+	int cpu;
+	register_t icrlo;
+
+	icrlo = APIC_DELMODE_NMI | APIC_DESTMODE_PHY | APIC_LEVEL_ASSERT 
+		| APIC_TRIGMOD_EDGE; 
+	
+	CTR2(KTR_SMP, "%s: cpus: %x nmi", __func__, cpus);
+
+
+	atomic_set_int(&ipi_nmi_pending, cpus);
+
+
+	while ((cpu = ffs(cpus)) != 0) {
+		cpu--;
+		cpus &= ~(1 << cpu);
+
+		KASSERT(cpu_apic_ids[cpu] != -1,
+		    ("IPI NMI to non-existent CPU %d", cpu));
+		
+		/* Wait for an earlier IPI to finish. */
+		if (!lapic_ipi_wait(BEFORE_SPIN))
+			panic("ipi_nmi_selected: previous IPI has not cleared");
+
+		lapic_ipi_raw(icrlo,cpu_apic_ids[cpu]);
+	}
+}
+
+
+int
+ipi_nmi_handler()
+{
+	int cpu  = PCPU_GET(cpuid);
+
+	if(!(atomic_load_acq_int(&ipi_nmi_pending) & (1 << cpu)))
+		return 1;
+
+	atomic_clear_int(&ipi_nmi_pending,1 << cpu);
+
+	savectx(&stoppcbs[cpu]);
+
+	/* Indicate that we are stopped */
+	atomic_set_int(&stopped_cpus,1 << cpu);
+
+
+	/* Wait for restart */
+	while(!(atomic_load_acq_int(&started_cpus) & (1 << cpu)))
+	    ia32_pause();
+
+	atomic_clear_int(&started_cpus,1 << cpu);
+	atomic_clear_int(&stopped_cpus,1 << cpu);
+
+	if(cpu == 0 && cpustop_restartfunc != NULL)
+		cpustop_restartfunc();
+
+	return 0;
+}
+     
+#endif /* KDB_STOP_NMI */
 
 /*
  * This is called once the rest of the system is up and running and we're

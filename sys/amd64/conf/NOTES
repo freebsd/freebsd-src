@@ -42,6 +42,12 @@ options 	NO_MIXED_MODE		# Disable use of mixed mode
 #
 options 	MP_WATCHDOG
 
+# 
+# Debugging options.
+#
+options		KDB_STOP_NMI		# Stop CPUS using NMI instead of IPI
+
+
 
 #####################################################################
 # CPU OPTIONS
