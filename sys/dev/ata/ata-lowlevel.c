@@ -129,7 +129,7 @@ ata_begin_transaction(struct ata_request *request)
     /* ATA DMA data transfer commands */
     case ATA_R_DMA:
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(request->dev, request->data, request->bytecount,
+	if (ch->dma->load(ch->dev, request->data, request->bytecount,
 			  request->flags & ATA_R_READ)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
 	    request->result = EIO;
@@ -147,7 +147,7 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* start DMA engine */
-	if (ch->dma->start(request->dev)) {
+	if (ch->dma->start(ch->dev)) {
 	    device_printf(request->dev, "error starting DMA\n");
 	    request->result = EIO;
 	    goto begin_finished;
@@ -218,7 +218,7 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* check sanity, setup SG list and DMA engine */
-	if (ch->dma->load(request->dev, request->data, request->bytecount,
+	if (ch->dma->load(ch->dev, request->data, request->bytecount,
 			  request->flags & ATA_R_READ)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
 	    request->result = EIO;
@@ -261,7 +261,7 @@ ata_begin_transaction(struct ata_request *request)
 			   ATA_PROTO_ATAPI_12 ? 6 : 8);
 
 	/* start DMA engine */
-	if (ch->dma->start(request->dev)) {
+	if (ch->dma->start(ch->dev)) {
 	    request->result = EIO;
 	    goto begin_finished;
 	}
@@ -272,7 +272,7 @@ ata_begin_transaction(struct ata_request *request)
 
 begin_finished:
     if (ch->dma && ch->dma->flags & ATA_DMA_LOADED)
-	ch->dma->unload(request->dev);
+	ch->dma->unload(ch->dev);
     return ATA_OP_FINISHED;
 
 begin_continue:
@@ -390,7 +390,7 @@ ata_end_transaction(struct ata_request *request)
 
 	/* stop DMA engine and get status */
 	if (ch->dma->stop)
-	    request->dmastat = ch->dma->stop(request->dev);
+	    request->dmastat = ch->dma->stop(ch->dev);
 
 	/* did we get error or data */
 	if (request->status & ATA_S_ERROR)
@@ -401,7 +401,7 @@ ata_end_transaction(struct ata_request *request)
 	    request->donecount = request->bytecount;
 
 	/* release SG list etc */
-	ch->dma->unload(request->dev);
+	ch->dma->unload(ch->dev);
 
 	/* done with HW */
 	goto end_finished;
@@ -502,7 +502,7 @@ ata_end_transaction(struct ata_request *request)
 
 	/* stop the engine and get engine status */
 	if (ch->dma->stop)
-	    request->dmastat = ch->dma->stop(request->dev);
+	    request->dmastat = ch->dma->stop(ch->dev);
 
 	/* did we get error or data */
 	if (request->status & (ATA_S_ERROR | ATA_S_DWF))
@@ -513,7 +513,7 @@ ata_end_transaction(struct ata_request *request)
 	    request->donecount = request->bytecount;
  
 	/* release SG list etc */
-	ch->dma->unload(request->dev);
+	ch->dma->unload(ch->dev);
 
 	/* done with HW */
 	goto end_finished;
