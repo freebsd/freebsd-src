@@ -47,9 +47,10 @@ struct taskqueue;
  */
 typedef void (*taskqueue_enqueue_fn)(void *context);
 
+struct proc;
 struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
-				    void *context);
+				    void *context, struct proc **);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_find(const char *name);
@@ -88,8 +89,10 @@ struct taskqueue *taskqueue_##name;					\
 static void								\
 taskqueue_define_##name(void *arg)					\
 {									\
+	static struct proc *taskqueue_##name##_proc;			\
 	taskqueue_##name =						\
-	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context));	\
+	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context),	\
+	    &taskqueue_##name##_proc);					\
 	init;								\
 }									\
 									\
@@ -98,7 +101,6 @@ SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
 									\
 struct __hack
 #define TASKQUEUE_DEFINE_THREAD(name)					\
-static struct proc *taskqueue_##name##_proc;				\
 TASKQUEUE_DEFINE(name, taskqueue_thread_enqueue, &taskqueue_##name,	\
 	kthread_create(taskqueue_thread_loop, &taskqueue_##name,	\
 	&taskqueue_##name##_proc, 0, 0, #name " taskq"))

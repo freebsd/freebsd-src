@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
 
@@ -53,6 +54,7 @@ struct taskqueue {
 	void			*tq_context;
 	struct task		*tq_running;
 	struct mtx		tq_mutex;
+	struct proc		**tq_pproc;
 };
 
 static void	init_taskqueue_list(void *data);
@@ -69,7 +71,8 @@ SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
 
 struct taskqueue *
 taskqueue_create(const char *name, int mflags,
-		 taskqueue_enqueue_fn enqueue, void *context)
+		 taskqueue_enqueue_fn enqueue, void *context,
+		 struct proc **pp)
 {
 	struct taskqueue *queue;
 
@@ -81,6 +84,7 @@ taskqueue_create(const char *name, int mflags,
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
+	queue->tq_pproc = pp;
 	mtx_init(&queue->tq_mutex, "taskqueue", NULL, MTX_DEF);
 
 	mtx_lock(&taskqueue_queues_mutex);
@@ -88,6 +92,26 @@ taskqueue_create(const char *name, int mflags,
 	mtx_unlock(&taskqueue_queues_mutex);
 
 	return queue;
+}
+
+/*
+ * Signal a taskqueue thread to terminate.
+ */
+static void
+taskqueue_terminate(struct proc **pp, struct taskqueue *tq)
+{
+	struct proc *p;
+
+	p = *pp;
+	*pp = NULL;
+	if (p) {
+		wakeup_one(tq);
+		PROC_LOCK(p);		   /* NB: insure we don't miss wakeup */
+		mtx_unlock(&tq->tq_mutex); /* let taskqueue thread run */
+		msleep(p, &p->p_mtx, PWAIT, "taskqueue_destroy", 0);
+		PROC_UNLOCK(p);
+		mtx_lock(&tq->tq_mutex);
+	}
 }
 
 void
@@ -100,6 +124,7 @@ taskqueue_free(struct taskqueue *queue)
 
 	mtx_lock(&queue->tq_mutex);
 	taskqueue_run(queue);
+	taskqueue_terminate(queue->tq_pproc, queue);
 	mtx_destroy(&queue->tq_mutex);
 	free(queue, M_TASKQUEUE);
 }
@@ -161,8 +186,7 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
-	if (queue->tq_enqueue)
-		queue->tq_enqueue(queue->tq_context);
+	queue->tq_enqueue(queue->tq_context);
 
 	mtx_unlock(&queue->tq_mutex);
 
@@ -209,10 +233,10 @@ void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "taskqueue_drain");
+
 	mtx_lock(&queue->tq_mutex);
-	while (task->ta_pending != 0 || task == queue->tq_running) {
+	while (task->ta_pending != 0 || task == queue->tq_running)
 		msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
-	}
 	mtx_unlock(&queue->tq_mutex);
 }
 
@@ -248,10 +272,15 @@ taskqueue_thread_loop(void *arg)
 	tqp = arg;
 	tq = *tqp;
 	mtx_lock(&tq->tq_mutex);
-	for (;;) {
+	do {
 		taskqueue_run(tq);
 		msleep(tq, &tq->tq_mutex, PWAIT, "-", 0); 
-	}
+	} while (*tq->tq_pproc != NULL);
+
+	/* rendezvous with thread that asked us to terminate */
+	wakeup_one(tq);
+	mtx_unlock(&tq->tq_mutex);
+	kthread_exit(0);
 }
 
 void
@@ -263,7 +292,7 @@ taskqueue_thread_enqueue(void *context)
 	tq = *tqp;
 
 	mtx_assert(&tq->tq_mutex, MA_OWNED);
-	wakeup(tq);
+	wakeup_one(tq);
 }
 
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
@@ -313,8 +342,7 @@ taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
-	if (queue->tq_enqueue)
-		queue->tq_enqueue(queue->tq_context);
+	queue->tq_enqueue(queue->tq_context);
 
 	mtx_unlock_spin(&queue->tq_mutex);
 
