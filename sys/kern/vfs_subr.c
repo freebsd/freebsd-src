@@ -1400,6 +1400,8 @@ brelvp(struct buf *bp)
 	BO_LOCK(bo);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
+	else
+		panic("brelvp: Buffer %p not on queue.", bp);
 	if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 		bo->bo_flag &= ~BO_ONWORKLST;
 		mtx_lock(&sync_mtx);
@@ -1721,6 +1723,8 @@ reassignbuf(struct buf *bp)
 	VI_LOCK(vp);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
+	else
+		panic("reassignbuf: Buffer %p not on queue.", bp);
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
