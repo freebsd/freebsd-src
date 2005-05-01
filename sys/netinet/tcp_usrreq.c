@@ -620,6 +620,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
+	int unlocked = 0;
 #ifdef INET6
 	int isipv6;
 #endif
@@ -694,6 +695,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			socantsendmore(so);
 			tp = tcp_usrclosed(tp);
 		}
+		INP_INFO_WUNLOCK(&tcbinfo);
+		unlocked = 1;
 		if (tp != NULL) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
@@ -737,13 +740,21 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
 		}
+		INP_INFO_WUNLOCK(&tcbinfo);
+		unlocked = 1;
 		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
 		tp->t_force = 1;
 		error = tcp_output(tp);
 		tp->t_force = 0;
 	}
-	COMMON_END((flags & PRUS_OOB) ? PRU_SENDOOB :
-		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
+out:
+	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :
+		  ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
+	if (tp)
+		INP_UNLOCK(inp);
+	if (!unlocked)
+		INP_INFO_WUNLOCK(&tcbinfo);
+	return (error):
 }
 
 /*
