@@ -382,7 +382,7 @@ vop_stdfsync(ap)
 	struct buf *bp;
 	struct bufobj *bo;
 	struct buf *nbp;
-	int s, error = 0;
+	int error = 0;
 	int maxretry = 1000;     /* large, arbitrarily chosen */
 
 	VI_LOCK(vp);
@@ -390,18 +390,15 @@ loop1:
 	/*
 	 * MARK/SCAN initialization to avoid infinite loops.
 	 */
-	s = splbio();
         TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
                 bp->b_vflags &= ~BV_SCANNED;
 		bp->b_error = 0;
 	}
-	splx(s);
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
 loop2:
-	s = splbio();
 	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
@@ -413,10 +410,8 @@ loop2:
 			panic("fsync: not dirty");
 		if ((vp->v_object != NULL) && (bp->b_flags & B_CLUSTEROK)) {
 			vfs_bio_awrite(bp);
-			splx(s);
 		} else {
 			bremfree(bp);
-			splx(s);
 			bawrite(bp);
 		}
 		VI_LOCK(vp);
@@ -441,17 +436,14 @@ loop2:
 			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
 				if ((error = bp->b_error) == 0)
 					continue;
-			if (error == 0 && --maxretry >= 0) {
-				splx(s);
+			if (error == 0 && --maxretry >= 0)
 				goto loop1;
-			}
 			error = EAGAIN;
 		}
 	}
 	VI_UNLOCK(vp);
 	if (error == EAGAIN)
 		vprint("fsync: giving up on dirty", vp);
-	splx(s);
 
 	return (error);
 }
