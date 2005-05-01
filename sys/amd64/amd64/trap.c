@@ -165,6 +165,14 @@ trap(frame)
 	atomic_add_int(&cnt.v_trap, 1);
 	type = frame.tf_trapno;
 
+#ifdef KDB_STOP_NMI
+	/* Handler for NMI IPIs used for debugging */
+	if (type == T_NMI) {
+	         if (ipi_nmi_handler() == 0)
+	                   goto out;
+	}
+#endif /* KDB_STOP_NMI */
+
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
