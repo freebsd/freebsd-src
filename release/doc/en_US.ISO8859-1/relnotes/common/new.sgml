@@ -106,6 +106,19 @@
       in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
       </para>
+
+    <para>An information leak vulnerability in the
+      <literal>SIOCGIFCONF</literal> &man.ioctl.2;, which leaked 12
+      bytes of kernel memory, has been fixed.  More details are in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
+      </para>
+
+    <para>Several programming errors in &man.cvs.1;, which could
+      potentially cause arbitrary code to be executed on CVS servers,
+      have been corrected.  Further information can be found in
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.
+      </para>
   </sect2>
 
   <sect2 id="kernel">
