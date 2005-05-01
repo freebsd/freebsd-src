@@ -1981,6 +1981,36 @@ pmc_cpuinfo(const struct pmc_op_getcpuinfo **pci)
 	return 0;
 }
 
+int
+pmc_width(pmc_id_t pmcid, uint32_t *width)
+{
+	unsigned int i;
+	enum pmc_class cl;
+
+	cl = PMC_ID_TO_CLASS(pmcid);
+	for (i = 0; i < cpu_info.pm_nclass; i++)
+		if (cpu_info.pm_classes[i].pm_class == cl) {
+			*width = cpu_info.pm_classes[i].pm_width;
+			return 0;
+		}
+	return EINVAL;
+}
+
+int
+pmc_capabilities(pmc_id_t pmcid, uint32_t *caps)
+{
+	unsigned int i;
+	enum pmc_class cl;
+
+	cl = PMC_ID_TO_CLASS(pmcid);
+	for (i = 0; i < cpu_info.pm_nclass; i++)
+		if (cpu_info.pm_classes[i].pm_class == cl) {
+			*caps = cpu_info.pm_classes[i].pm_caps;
+			return 0;
+		}
+	return EINVAL;
+}
+
 const char *
 pmc_name_of_cputype(enum pmc_cputype cp)
 {

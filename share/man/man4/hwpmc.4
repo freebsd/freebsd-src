@@ -287,7 +287,10 @@ system call.
 Retrieve the MSR (machine specific register) number associated with
 the given PMC handle.
 .Pp
-This operation is only valid for PMCs allocated in process-private modes.
+The PMC needs to be in process-private mode and allocated without the
+.Va PMC_F_DESCENDANTS
+modifier flag, and should be attached only to its owner process at the
+time of the call.
 .El
 .Ss amd64 SPECIFIC API
 AMD64 cpus support the RDPMC instruction which allows a
@@ -303,7 +306,10 @@ system call.
 Retrieve the MSR (machine specific register) number associated with
 the given PMC handle.
 .Pp
-This operation is only valid for PMCs allocated in process-private modes.
+The PMC needs to be in process-private mode and allocated without the
+.Va PMC_F_DESCENDANTS
+modifier flag, and should be attached only to its owner process at the
+time of the call.
 .El
 .Sh SYSCTL TUNABLES
 The behavior of
@@ -515,7 +521,10 @@ request contained illegal flags.
 .It Bq Er EINVAL
 A
 .Ic PMC_OP_PMCX86GETMSR
-operation was requested for a PMC not in process-virtual mode.
+operation was requested for a PMC not in process-virtual mode, or
+for a PMC that is not solely attached to its owner process, or for
+a PMC that was allocated with flag
+.Va PMC_F_DESCENDANTS .
 .It Bq Er EINVAL
 (On Intel Pentium 4 CPUs with HTT support) An allocation request for
 a process-private PMC was issued for an event that does not support
@@ -551,6 +560,12 @@ An
 .Ic PMC_OP_PMCATTACH
 operation was issued for a target process that the current process
 does not have permission to attach to.
+.It Bq Er EPERM
+.Pq "i386 and amd64 architectures"
+An
+.Ic PMC_OP_PMCATTACH
+operation was issued on a PMC whose MSR has been retrieved using
+.Ic PMC_OP_PMCX86GETMSR .
 .It Bq Er ESRCH
 A process issued a PMC operation request without having allocated any PMCs.
 .It Bq Er ESRCH

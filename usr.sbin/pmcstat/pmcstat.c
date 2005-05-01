@@ -572,21 +572,21 @@ main(int argc, char **argv)
 
 	/* compute printout widths */
 	STAILQ_FOREACH(ev, &args.pa_head, ev_next) {
-		int pmc_width;
-		int pmc_display_width;
-		int pmc_header_width;
+		int counter_width;
+		int display_width;
+		int header_width;
 
-		pmc_width = ppmci->pm_pmcs[ev->ev_pmcid].pm_width;
-		pmc_header_width = strlen(ev->ev_name) + 2; /* prefix '%c|' */
-		pmc_display_width = (int) floor(pmc_width / 3.32193) + 1;
+		(void) pmc_width(ev->ev_pmcid, &counter_width);
+		header_width = strlen(ev->ev_name) + 2; /* prefix '%c|' */
+		display_width = (int) floor(counter_width / 3.32193) + 1;
 
-		if (pmc_header_width > pmc_display_width) {
+		if (header_width > display_width) {
 			ev->ev_fieldskip = 0;
-			ev->ev_fieldwidth = pmc_header_width;
+			ev->ev_fieldwidth = header_width;
 		} else {
-			ev->ev_fieldskip = pmc_display_width -
-			    pmc_header_width;
-			ev->ev_fieldwidth = pmc_display_width;
+			ev->ev_fieldskip = display_width -
+			    header_width;
+			ev->ev_fieldwidth = display_width;
 		}
 	}
 

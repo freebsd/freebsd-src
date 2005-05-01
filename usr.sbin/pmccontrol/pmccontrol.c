@@ -288,7 +288,7 @@ pmcc_do_list_events(void)
 	eventnamelist = NULL;
 
 	for (i = 0; i < ci->pm_nclass; i++) {
-		c = ci->pm_classes[i];
+		c = ci->pm_classes[i].pm_class;
 
 		printf("%s\n", pmc_name_of_class(c));
 		if (pmc_event_names_of_class(c, &eventnamelist, &nevents) < 0)
