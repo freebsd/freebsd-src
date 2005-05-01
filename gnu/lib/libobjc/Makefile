@@ -5,14 +5,9 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
-LIB=    objc
+LIB=		objc
+SHLIB_MAJOR=	1
 NO_MAN=
-.if ${MACHINE_ARCH} == "amd64"
-SHLIB_MAJOR= 1
-.else
-# XXX is this still correct?
-NO_PIC=	# works but method lookup slowdown is significant
-.endif
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 	nil_method.c objects.c sarray.c selector.c sendmsg.c \
@@ -22,11 +17,6 @@ SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 INCS=	encoding.h hash.h objc-api.h objc-list.h objc.h runtime.h \
 	sarray.h thr.h typedstream.h NXConstStr.h Object.h Protocol.h
 INCSDIR=${INCLUDEDIR}/objc
-
-# PR ia64/49081
-.if ${MACHINE_ARCH} == "ia64"
-CFLAGS+= -fpic
-.endif
 
 OBJCFLAGS= -fgnu-runtime ${CFLAGS}
 CFLAGS+= -DHAVE_GTHR_DEFAULT -DIN_GCC -DIN_TARGET_LIBS
