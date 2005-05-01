@@ -791,6 +791,8 @@ exec_map_first_page(imgp)
 		exec_unmap_first_page(imgp);
 
 	object = imgp->vp->v_object;
+	if (object == NULL)
+		return (EACCES);
 	VM_OBJECT_LOCK(object);
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
