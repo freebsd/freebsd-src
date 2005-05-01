@@ -222,10 +222,8 @@ static int	 gai_addr2scopetype(struct sockaddr *);
 static FILE	*_files_open(int *errp);
 static int	 _files_ghbyname(void *, void *, va_list);
 static int	 _files_ghbyaddr(void *, void *, va_list);
-#ifdef YP
 static int	 _nis_ghbyname(void *, void *, va_list);
 static int	 _nis_ghbyaddr(void *, void *, va_list);
-#endif
 static int	 _dns_ghbyname(void *, void *, va_list);
 static int	 _dns_ghbyaddr(void *, void *, va_list);
 static void	 _dns_shent(int stayopen) __unused;
@@ -1365,15 +1363,15 @@ _files_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
-#ifdef YP
 /*
  * NIS
  *
- * XXX actually a hack, these are INET4 specific.
+ * XXX actually a hack.
  */
 static int
 _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 {
+#ifdef YP
 	const char *name;
 	int af;
 	int *errp;
@@ -1389,11 +1387,15 @@ _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+#else
+	return NS_UNAVAIL;
+#endif
 }
 
 static int
 _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
+#ifdef YP
 	const void *addr;
 	int addrlen;
 	int af;
@@ -1409,8 +1411,10 @@ _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 		hp = _hpcopy(hp, errp);
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-}
+#else
+	return NS_UNAVAIL;
 #endif
+}
 
 #define	MAXPACKET	(64*1024)
 
