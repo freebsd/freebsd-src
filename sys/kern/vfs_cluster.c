@@ -135,15 +135,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		} else if ((bp->b_flags & B_RAM) == 0) {
 			return 0;
 		} else {
-			int s;
 			bp->b_flags &= ~B_RAM;
-			/*
-			 * We do the spl here so that there is no window
-			 * between the incore and the b_usecount increment
-			 * below.  We opt to keep the spl out of the loop
-			 * for efficiency.
-			 */
-			s = splbio();
 			VI_LOCK(vp);
 			for (i = 1; i < maxra; i++) {
 				/*
@@ -163,7 +155,6 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					rbp->b_flags |= B_RAM;
 			}
 			VI_UNLOCK(vp);
-			splx(s);
 			if (i >= maxra) {
 				return 0;
 			}
@@ -752,12 +743,11 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int len;
 {
 	struct buf *bp, *tbp;
-	int i, j, s;
+	int i, j;
 	int totalwritten = 0;
 	int dbsize = btodb(size);
 
 	while (len > 0) {
-		s = splbio();
 		/*
 		 * If the buffer is not delayed-write (i.e. dirty), or it
 		 * is delayed-write but either locked or inval, it cannot
@@ -769,26 +759,22 @@ cluster_wbuild(vp, size, start_lbn, len)
 			VI_UNLOCK(vp);
 			++start_lbn;
 			--len;
-			splx(s);
 			continue;
 		}
 		if (BUF_LOCK(tbp,
 		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, VI_MTX(vp))) {
 			++start_lbn;
 			--len;
-			splx(s);
 			continue;
 		}
 		if ((tbp->b_flags & (B_INVAL | B_DELWRI)) != B_DELWRI) {
 			BUF_UNLOCK(tbp);
 			++start_lbn;
 			--len;
-			splx(s);
 			continue;
 		}
 		bremfree(tbp);
 		tbp->b_flags &= ~B_DONE;
-		splx(s);
 
 		/*
 		 * Extra memory in the buffer, punt on this buffer.
@@ -845,7 +831,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 */
 		for (i = 0; i < len; ++i, ++start_lbn) {
 			if (i != 0) { /* If not the first buffer */
-				s = splbio();
 				/*
 				 * If the adjacent data is not even in core it
 				 * can't need to be written.
@@ -854,7 +839,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				if ((tbp = gbincore(&vp->v_bufobj, start_lbn)) == NULL ||
 				    (tbp->b_vflags & BV_BKGRDINPROG)) {
 					VI_UNLOCK(vp);
-					splx(s);
 					break;
 				}
 
@@ -867,10 +851,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 */
 				if (BUF_LOCK(tbp,
 				    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-				    VI_MTX(vp))) {
-					splx(s);
+				    VI_MTX(vp)))
 					break;
-				}
 
 				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |
 				    B_INVAL | B_DELWRI | B_NEEDCOMMIT))
@@ -878,7 +860,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
 				    tbp->b_wcred != bp->b_wcred) {
 					BUF_UNLOCK(tbp);
-					splx(s);
 					break;
 				}
 
@@ -893,7 +874,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				  ((tbp->b_npages + bp->b_npages) >
 				    (vp->v_mount->mnt_iosize_max / PAGE_SIZE))) {
 					BUF_UNLOCK(tbp);
-					splx(s);
 					break;
 				}
 				/*
@@ -903,7 +883,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 */
 				bremfree(tbp);
 				tbp->b_flags &= ~B_DONE;
-				splx(s);
 			} /* end of code for non-first buffers only */
 			/* check for latent dependencies to be handled */
 			if ((LIST_FIRST(&tbp->b_dep)) != NULL) {
@@ -947,8 +926,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
-
-			s = splbio();
 			bundirty(tbp);
 			tbp->b_flags &= ~B_DONE;
 			tbp->b_ioflags &= ~BIO_ERROR;
@@ -956,7 +933,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp);		/* put on clean list */
 			bufobj_wref(tbp->b_bufobj);
-			splx(s);
 			BUF_KERNPROC(tbp);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 				tbp, b_cluster.cluster_entry);
