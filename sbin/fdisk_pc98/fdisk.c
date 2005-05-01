@@ -24,10 +24,8 @@
  * the rights to redistribute these changes.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/disk.h>
 #include <sys/disklabel.h>
@@ -810,8 +808,8 @@ static int
 open_disk(int flag)
 {
 	struct stat 	st;
-	int		rwmode, i;
-	char		buf[MAXPATHLEN];
+	int rwmode, p;
+	char *s;
 
 	fdw = -1;
 	if (stat(disk, &st) == -1) {
@@ -824,25 +822,9 @@ open_disk(int flag)
 		warnx("device %s is not character special", disk);
 #ifdef PC98
 	rwmode = a_flag || B_flag || flag ? O_RDWR : O_RDONLY;
-	fd = open(disk, rwmode);
-	if (fd == -1 && errno == ENXIO)
-		return -2;
-	if (fd == -1 && errno == EPERM && rwmode == O_RDWR) {
-		fd = open(disk, O_RDONLY);
-		if (fd == -1)
-			return -3;
-		for (i = 0; i < NDOSPART; i++) {
-			snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
-			fdw = open(buf, rwmode);
-			if (fdw == -1)
-				continue;
-			break;
-		}
-		if (fdw == -1)
-			return -4;
-	}
 #else
 	rwmode = a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY;
+#endif
 	fd = open(disk, rwmode);
 	if (fd == -1 && errno == ENXIO)
 		return -2;
@@ -850,8 +832,8 @@ open_disk(int flag)
 		fd = open(disk, O_RDONLY);
 		if (fd == -1)
 			return -3;
-		for (p = 1; p < 5; p++) {
-			asprintf(&s, "%ss%d", disk, p);
+		for (p = 0; p < NDOSPART; p++) {
+			asprintf(&s, "%ss%d", disk, p + 1);
 			fdw = open(s, rwmode);
 			free(s);
 			if (fdw == -1)
@@ -861,7 +843,6 @@ open_disk(int flag)
 		if (fdw == -1)
 			return -4;
 	}
-#endif
 	if (fd == -1) {
 		warnx("can't open device %s", disk);
 		return -1;
