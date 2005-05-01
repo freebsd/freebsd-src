@@ -833,7 +833,7 @@ open_disk(int flag)
 			return -3;
 		for (i = 0; i < NDOSPART; i++) {
 			snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
-			fdw = open(buf, O_RDONLY);
+			fdw = open(buf, rwmode);
 			if (fdw == -1)
 				continue;
 			break;
@@ -852,7 +852,7 @@ open_disk(int flag)
 			return -3;
 		for (p = 1; p < 5; p++) {
 			asprintf(&s, "%ss%d", disk, p);
-			fdw = open(s, O_RDONLY);
+			fdw = open(s, rwmode);
 			free(s);
 			if (fdw == -1)
 				continue;
