@@ -33,13 +33,13 @@
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		16 /* HW counter name size */
-#define	PMC_CLASS_MAX		4  /* #classes of PMCs in a CPU */
+#define	PMC_CLASS_MAX		4  /* #classes of PMCs in a system */
 
 /* Kernel<->userland API version number [MMmmpppp] */
 
 #define	PMC_VERSION_MAJOR	0x01
 #define	PMC_VERSION_MINOR	0x01
-#define	PMC_VERSION_PATCH	0x0001
+#define	PMC_VERSION_PATCH	0x0002
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
 	PMC_VERSION_MINOR << 16 | PMC_VERSION_PATCH)
@@ -767,15 +767,16 @@ enum pmc_ops {
 
 
 /*
- * Flags used in operations.
+ * Flags used in operations on PMCs.
  */
 
 #define	PMC_F_FORCE		0x00000001 /*OP ADMIN force operation */
 #define	PMC_F_DESCENDANTS	0x00000002 /*OP ALLOCATE track descendants */
-#define	PMC_F_LOG_TC_CSW	0x00000004 /*OP CONFIGURELOG ctx switches */
-#define	PMC_F_LOG_TC_PROCEXIT	0x00000008 /*OP CONFIGURELOG log proc exits */
+#define	PMC_F_LOG_TC_CSW	0x00000004 /*OP ALLOCATE track ctx switches */
+#define	PMC_F_LOG_TC_PROCEXIT	0x00000008 /*OP ALLOCATE log proc exits */
 #define	PMC_F_NEWVALUE		0x00000010 /*OP RW write new value */
 #define	PMC_F_OLDVALUE		0x00000020 /*OP RW get old value */
+#define	PMC_F_ATTACHED_TO_OWNER	0x00010000 /*attached to owner*/
 
 /*
  * Cookies used to denote allocated PMCs, and the values of PMCs.
@@ -784,7 +785,33 @@ enum pmc_ops {
 typedef uint32_t	pmc_id_t;
 typedef uint64_t	pmc_value_t;
 
-#define	PMC_ID_INVALID	(~ (pmc_id_t) 0)
+#define	PMC_ID_INVALID		(~ (pmc_id_t) 0)
+
+/*
+ * PMC IDs have the following format:
+ *
+ * +--------+----------+-----------+-----------+
+ * |   CPU  | PMC MODE | PMC CLASS | ROW INDEX |
+ * +--------+----------+-----------+-----------+
+ *
+ * where each field is 8 bits wide.  Field 'CPU' is set to the
+ * requested CPU for system-wide PMCs or PMC_CPU_ANY for process-mode
+ * PMCs.  Field 'PMC MODE' is the allocated PMC mode.  Field 'PMC
+ * CLASS' is the class of the PMC.  Field 'ROW INDEX' is the row index
+ * for the PMC.
+ *
+ * The 'ROW INDEX' ranges over 0..NWPMCS where NHWPMCS is the total
+ * number of hardware PMCs on this cpu.
+ */
+
+
+#define	PMC_ID_TO_ROWINDEX(ID)	((ID) & 0xFF)
+#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xFF00) >> 8)
+#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF0000) >> 16)
+#define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFF000000) >> 24)
+#define	PMC_ID_MAKE_ID(CPU,MODE,CLASS,ROWINDEX)			\
+	((((CPU) & 0xFF) << 24) | (((MODE) & 0xFF) << 16) |	\
+	(((CLASS) & 0xFF) << 8) | ((ROWINDEX) & 0xFF))
 
 /*
  * Data structures for system calls supported by the pmc driver.
@@ -889,17 +916,15 @@ struct pmc_op_pmcrw {
  */
 
 struct pmc_info {
-	uint32_t	pm_caps;	/* counter capabilities */
+	char		pm_name[PMC_NAME_MAX]; /* pmc name */
 	enum pmc_class	pm_class;	/* enum pmc_class */
 	int		pm_enabled;	/* whether enabled */
-	enum pmc_event	pm_event;	/* current event */
-	uint32_t	pm_flags;	/* counter flags */
-	enum pmc_mode	pm_mode;	/* current mode [enum pmc_mode] */
-	pid_t		pm_ownerpid;	/* owner, or -1 */
-	pmc_value_t	pm_reloadcount;	/* sampling counters only */
 	enum pmc_disp	pm_rowdisp;	/* FREE, THREAD or STANDLONE */
-	uint32_t	pm_width;	/* width of the PMC */
-	char		pm_name[PMC_NAME_MAX]; /* pmc name */
+	pid_t		pm_ownerpid;	/* owner, or -1 */
+	enum pmc_mode	pm_mode;	/* current mode [enum pmc_mode] */
+	enum pmc_event	pm_event;	/* current event */
+	uint32_t	pm_flags;	/* current flags */
+	pmc_value_t	pm_reloadcount;	/* sampling counters only */
 };
 
 struct pmc_op_getpmcinfo {
@@ -914,12 +939,18 @@ struct pmc_op_getpmcinfo {
  * Retrieve system CPU information.
  */
 
+struct pmc_classinfo {
+	enum pmc_class	pm_class; 	/* class id */
+	uint32_t	pm_caps;	/* counter capabilities */
+	uint32_t	pm_width;	/* width of the PMC */
+};
+
 struct pmc_op_getcpuinfo {
 	enum pmc_cputype pm_cputype; /* what kind of CPU */
-	uint32_t	pm_nclass;  /* #classes of PMCs */
 	uint32_t	pm_ncpu;    /* number of CPUs */
 	uint32_t	pm_npmc;    /* #PMCs per CPU */
-	enum pmc_class  pm_classes[PMC_CLASS_MAX];
+	uint32_t	pm_nclass;  /* #classes of PMCs */
+	struct pmc_classinfo  pm_classes[PMC_CLASS_MAX];
 };
 
 /*
@@ -1030,7 +1061,7 @@ struct pmc_target {
  * Each PMC has precisely one owner, namely the process that allocated
  * the PMC.
  *
- * Multiple target process may be being monitored by a PMC.  The
+ * A PMC may be attached to multiple target processes.  The
  * 'pm_targets' field links all the target processes being monitored
  * by this PMC.
  *
@@ -1049,22 +1080,22 @@ struct pmc {
 	LIST_HEAD(,pmc_target) pm_targets;	/* list of target processes */
 
 	/*
-	 * Global PMCs are allocated on a CPU and are not moved around.
-	 * For global PMCs we need to record the CPU the PMC was allocated
-	 * on.
+	 * System-wide PMCs are allocated on a CPU and are not moved
+	 * around.  For system-wide PMCs we record the CPU the PMC was
+	 * allocated on in the 'CPU' field of the pmc ID.
 	 *
 	 * Virtual PMCs run on whichever CPU is currently executing
-	 * their owner threads.  For these PMCs we need to save their
-	 * current PMC counter values when they are taken off CPU.
+	 * their targets' threads.  For these PMCs we need to save
+	 * their current PMC counter values when they are taken off
+	 * CPU.
 	 */
 
 	union {
-		uint32_t	pm_cpu;		/* System-wide PMCs */
 		pmc_value_t	pm_savedvalue;	/* Virtual PMCS */
 	} pm_gv;
 
 	/*
-	 * for sampling modes, we keep track of the PMC's "reload
+	 * For sampling mode PMCs, we keep track of the PMC's "reload
 	 * count", which is the counter value to be loaded in when
 	 * arming the PMC for the next counting session.  For counting
 	 * modes on PMCs that are read-only (e.g., the x86 TSC), we
@@ -1078,14 +1109,18 @@ struct pmc {
 	} pm_sc;
 
 	uint32_t	pm_caps;	/* PMC capabilities */
-	enum pmc_class	pm_class;	/* class of PMC */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */
-	enum pmc_mode	pm_mode;	/* current mode */
 	struct pmc_owner *pm_owner;	/* owner thread state */
-	uint32_t	pm_rowindex;	/* row index */
 	uint32_t	pm_runcount;	/* #cpus currently on */
-	enum pmc_state	pm_state;	/* state (active/inactive only) */
+	enum pmc_state	pm_state;	/* current PMC state */
+
+	/*
+	 * The PMC ID field encodes the row-index for the PMC, its
+	 * mode, class and the CPU# associated with the PMC.
+	 */
+
+	pmc_id_t	pm_id; 		/* allocated PMC id */
 
 	/* md extensions */
 #if	__i386__
@@ -1119,6 +1154,15 @@ struct pmc {
 
 #endif
 };
+
+/*
+ * Accessor macros for 'struct pmc'
+ */
+
+#define	PMC_TO_MODE(P)		PMC_ID_TO_MODE((P)->pm_id)
+#define	PMC_TO_CLASS(P)		PMC_ID_TO_CLASS((P)->pm_id)
+#define	PMC_TO_ROWINDEX(P)	PMC_ID_TO_ROWINDEX((P)->pm_id)
+#define	PMC_TO_CPU(P)		PMC_ID_TO_CPU((P)->pm_id)
 
 /*
  * struct pmc_list
@@ -1158,11 +1202,12 @@ struct pmc_targetstate {
 struct pmc_process {
 	LIST_ENTRY(pmc_process) pp_next;	/* hash chain */
 	int		pp_refcnt;		/* reference count */
-	uint32_t	pp_flags; 		/* flags */
+	uint32_t	pp_flags; 		/* flags PMC_PP_* */
 	struct proc	*pp_proc;		/* target thread */
 	struct pmc_targetstate pp_pmcs[];       /* NHWPMCs */
 };
 
+#define	PMC_PP_ENABLE_MSR_ACCESS	0x00000001
 
 /*
  * struct pmc_owner
@@ -1179,15 +1224,13 @@ struct pmc_process {
 struct pmc_owner  {
 	LIST_ENTRY(pmc_owner) po_next;	/* hash chain */
 	LIST_HEAD(, pmc_list) po_pmcs;	/* list of owned PMCs */
-	uint32_t	po_flags;	/* PMC_FLAG_* */
+	uint32_t	po_flags;	/* flags PMC_PO_* */
 	struct proc	*po_owner;	/* owner proc */
 	int		po_logfd;       /* XXX for now */
 };
 
-#define	PMC_FLAG_IS_OWNER		0x01
-#define	PMC_FLAG_HAS_TS_PMC		0x02
-#define	PMC_FLAG_OWNS_LOGFILE		0x04
-#define	PMC_FLAG_ENABLE_MSR_ACCESS	0x08
+#define	PMC_PO_HAS_TS_PMC		0x00000001
+#define	PMC_PO_OWNS_LOGFILE		0x00000002
 
 /*
  * struct pmc_hw -- describe the state of the PMC hardware
@@ -1271,12 +1314,11 @@ struct pmc_binding {
  */
 
 struct pmc_mdep  {
-	enum pmc_class  pmd_classes[PMC_CLASS_MAX];
-	int		pmd_nclasspmcs[PMC_CLASS_MAX];
-
 	uint32_t	pmd_cputype;    /* from enum pmc_cputype */
-	uint32_t	pmd_nclass;	/* # PMC classes supported */
 	uint32_t	pmd_npmc;	/* max PMCs per CPU */
+	uint32_t	pmd_nclass;	/* # PMC classes supported */
+	struct pmc_classinfo  pmd_classes[PMC_CLASS_MAX];
+	int		pmd_nclasspmcs[PMC_CLASS_MAX];
 
 	/*
 	 * Methods
@@ -1291,6 +1333,7 @@ struct pmc_mdep  {
 
 	/* configuring/reading/writing the hardware PMCs */
 	int (*pmd_config_pmc)(int _cpu, int _ri, struct pmc *_pm);
+	int (*pmd_get_config)(int _cpu, int _ri, struct pmc **_ppm);
 	int (*pmd_read_pmc)(int _cpu, int _ri, pmc_value_t *_value);
 	int (*pmd_write_pmc)(int _cpu, int _ri, pmc_value_t _value);
 
@@ -1392,6 +1435,7 @@ extern unsigned int pmc_debugflags; /* [Maj:12bits] [Min:16bits] [level:4] */
 #define	PMC_DEBUG_MIN_CFG	       10 /* config */
 #define	PMC_DEBUG_MIN_STA	       11 /* start */
 #define	PMC_DEBUG_MIN_STO	       12 /* stop */
+#define	PMC_DEBUG_MIN_INT	       13 /* interrupts */
 
 /* CPU */
 #define	PMC_DEBUG_MIN_BND	       	8 /* bind */

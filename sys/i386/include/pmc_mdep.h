@@ -126,6 +126,9 @@
 #define	P4_CCCR_MSR_FIRST		0x360 /* MSR_BPU_CCCR0 */
 #define	P4_PERFCTR_MSR_FIRST		0x300 /* MSR_BPU_COUNTER0 */
 
+#define	P4_RELOAD_COUNT_TO_PERFCTR_VALUE(V)	(1 - (V))
+#define	P4_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(1 - (P))
+
 /* Intel PPro, Celeron, P-II, P-III, Pentium-M PMCS */
 
 #define	P6_NPMCS	3		/* 1 TSC + 2 PMCs */

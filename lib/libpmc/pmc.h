@@ -38,6 +38,7 @@
 int	pmc_allocate(const char *_ctrspec, enum pmc_mode _mode, uint32_t _flags,
     int _cpu, pmc_id_t *_pmcid);
 int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
+int	pmc_capabilities(pmc_id_t _pmc, uint32_t *_caps);
 int	pmc_configure_logfile(int _fd);
 int	pmc_detach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_disable(int _cpu, int _pmc);
@@ -50,6 +51,7 @@ int	pmc_rw(pmc_id_t _pmc, pmc_value_t _newvalue, pmc_value_t *_oldvalue);
 int	pmc_set(pmc_id_t _pmc, pmc_value_t _value);
 int	pmc_start(pmc_id_t _pmc);
 int	pmc_stop(pmc_id_t _pmc);
+int	pmc_width(pmc_id_t _pmc, uint32_t *_width);
 int	pmc_write(pmc_id_t _pmc, pmc_value_t _value);
 
 int	pmc_ncpu(void);
