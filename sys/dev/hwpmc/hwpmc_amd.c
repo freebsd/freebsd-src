@@ -360,7 +360,7 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 	    ("[amd,%d] No owner for HWPMC [cpu%d,pmc%d]", __LINE__,
 		cpu, ri));
 
-	mode = pm->pm_mode;
+	mode = PMC_TO_MODE(pm);
 
 	PMCDBG(MDP,REA,1,"amd-read id=%d class=%d", ri, pd->pm_descr.pd_class);
 
@@ -413,7 +413,7 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[amd,%d] PMC not owned (cpu%d,pmc%d)", __LINE__,
 		cpu, ri));
 
-	mode = pm->pm_mode;
+	mode = PMC_TO_MODE(pm);
 
 	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
 		return 0;
@@ -461,6 +461,18 @@ amd_config_pmc(int cpu, int ri, struct pmc *pm)
 }
 
 /*
+ * Retrieve a configured PMC pointer from hardware state.
+ */
+
+static int
+amd_get_config(int cpu, int ri, struct pmc **ppm)
+{
+	*ppm = pmc_pcpu[cpu]->pc_hwpmcs[ri]->phw_pmc;
+
+	return 0;
+}
+
+/*
  * Machine dependent actions taken during the context switch in of a
  * thread.
  */
@@ -471,10 +483,10 @@ amd_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 	(void) pc;
 
 	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
-	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) != 0);
+	    (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS) != 0);
 
 	/* enable the RDPMC instruction if needed */
-	if (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS)
+	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
 		load_cr4(rcr4() | CR4_PCE);
 
 	return 0;
@@ -492,7 +504,7 @@ amd_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	(void) pp;		/* can be NULL */
 
 	PMCDBG(MDP,SWO,1, "pc=%p pp=%p enable-msr=%d", pc, pp, pp ?
-	    (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS) == 1 : 0);
+	    (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS) == 1 : 0);
 
 	/* always turn off the RDPMC instruction */
 	load_cr4(rcr4() & ~CR4_PCE);
@@ -523,7 +535,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	pd = &amd_pmcdesc[ri].pm_descr;
 
 	/* check class match */
-	if (pd->pd_class != pm->pm_class)
+	if (pd->pd_class != a->pm_class)
 		return EINVAL;
 
 	caps = pm->pm_caps;
@@ -765,7 +777,7 @@ amd_intr(int cpu, uintptr_t eip)
 			continue;
 		}
 
-		mode = pm->pm_mode;
+		mode = PMC_TO_MODE(pm);
 		if (PMC_IS_SAMPLING_MODE(mode) &&
 		    AMD_PMC_HAS_OVERFLOWED(perfctr)) {
 			atomic_add_int(&pmc_stats.pm_intr_processed, 1);
@@ -803,8 +815,6 @@ amd_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 		return error;
 
 	pi->pm_class = pd->pm_descr.pd_class;
-	pi->pm_caps  = pd->pm_descr.pd_caps;
-	pi->pm_width = pd->pm_descr.pd_width;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
@@ -982,8 +992,17 @@ pmc_amd_initialize(void)
 
 	/* this processor has two classes of usable PMCs */
 	pmc_mdep->pmd_nclass       = 2;
-	pmc_mdep->pmd_classes[0]   = PMC_CLASS_TSC;
-	pmc_mdep->pmd_classes[1]   = AMD_PMC_CLASS;
+
+	/* TSC */
+	pmc_mdep->pmd_classes[0].pm_class   = PMC_CLASS_TSC;
+	pmc_mdep->pmd_classes[0].pm_caps    = PMC_CAP_READ;
+	pmc_mdep->pmd_classes[0].pm_width   = 64;
+
+	/* AMD K7/K8 PMCs */
+	pmc_mdep->pmd_classes[1].pm_class   = AMD_PMC_CLASS;
+	pmc_mdep->pmd_classes[1].pm_caps    = AMD_PMC_CAPS;
+	pmc_mdep->pmd_classes[1].pm_width   = 48;
+
 	pmc_mdep->pmd_nclasspmcs[0] = 1;
 	pmc_mdep->pmd_nclasspmcs[1] = (AMD_NPMCS-1);
 
@@ -994,6 +1013,7 @@ pmc_amd_initialize(void)
 	pmc_mdep->pmd_read_pmc 	   = amd_read_pmc;
 	pmc_mdep->pmd_write_pmc    = amd_write_pmc;
 	pmc_mdep->pmd_config_pmc   = amd_config_pmc;
+	pmc_mdep->pmd_get_config   = amd_get_config;
 	pmc_mdep->pmd_allocate_pmc = amd_allocate_pmc;
 	pmc_mdep->pmd_release_pmc  = amd_release_pmc;
 	pmc_mdep->pmd_start_pmc    = amd_start_pmc;

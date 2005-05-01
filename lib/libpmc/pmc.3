@@ -29,6 +29,7 @@
 .Sh NAME
 .Nm pmc_allocate ,
 .Nm pmc_attach ,
+.Nm pmc_capabilities ,
 .Nm pmc_configure_logfile ,
 .Nm pmc_cpuinfo ,
 .Nm pmc_detach ,
@@ -53,6 +54,7 @@
 .Nm pmc_start ,
 .Nm pmc_stop ,
 .Nm pmc_write ,
+.Nm pmc_width ,
 .Nm pmc_x86_get_msr
 .Nd programming API for using hardware performance monitoring counters
 .Sh LIBRARY
@@ -72,6 +74,8 @@
 .Fa "pmc_id_t pmcid"
 .Fa "pid_t pid"
 .Fc
+.Ft int
+.Fn pmc_capabilities "pmc_id_t pmc" "uint32_t *caps"
 .Ft int
 .Fn pmc_configure_logfile "int fd"
 .Ft int
@@ -129,6 +133,8 @@
 .Fn pmc_stop "pmc_id_t pmc"
 .Ft int
 .Fn pmc_write "pmc_id_t pmc" "pmc_value_t value"
+.Ft int
+.Fn pmc_width "pmc_id_t pmc" "uint32_t *width"
 .Ft int
 .Fn pmc_x86_get_msr "int pmc" "uint32_t *msr"
 .Sh DESCRIPTION
@@ -251,6 +257,20 @@ provided the underlying hardware supports these operations on
 the allocated PMC.
 The read and write operation may be combined using
 .Fn pmc_rw .
+.Pp
+The function
+.Fn pmc_capabilities
+sets argument
+.Fa caps
+to a bitmask of capabilities supported by the PMC denoted by
+argument
+.Fa pmc .
+The function
+.Fn pmc_width
+sets argument
+.Fa width
+to the width of the PMC denoted by argument
+.Fa pmc .
 .Pp
 The
 .Fn pmc_configure_logfile
@@ -3011,13 +3031,15 @@ library.
 .El
 .Pp
 A call to
+.Fn pmc_capabilities ,
 .Fn pmc_name_of_capability ,
 .Fn pmc_name_of_disposition ,
 .Fn pmc_name_of_state ,
 .Fn pmc_name_of_event ,
 .Fn pmc_name_of_mode
-and
 .Fn pmc_name_of_class
+and
+.Fn pmc_width
 may fail with the following error:
 .Bl -tag -width Er
 .It Bq Er EINVAL

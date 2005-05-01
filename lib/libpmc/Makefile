@@ -12,6 +12,7 @@ MAN=	pmc.3
 MLINKS+= \
 	pmc.3 pmc_allocate.3 \
 	pmc.3 pmc_attach.3 \
+	pmc.3 pmc_capabilities.3 \
 	pmc.3 pmc_configure_logfile.3 \
 	pmc.3 pmc_cpuinfo.3 \
 	pmc.3 pmc_detach.3 \
@@ -35,6 +36,7 @@ MLINKS+= \
 	pmc.3 pmc_set.3 \
 	pmc.3 pmc_start.3 \
 	pmc.3 pmc_stop.3 \
+	pmc.3 pmc_width.3 \
 	pmc.3 pmc_write.3 \
 	pmc.3 pmc_x86_get_msr.3
 
