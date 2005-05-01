@@ -228,6 +228,15 @@ If set to
 enable the system power control facility with the
 .Xr powerd 8
 daemon.
+.It Va powerd_flags
+.Pq Vt str
+If
+.Va powerd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr powerd 8
+daemon.
 .It Va removable_interfaces
 .Pq Vt str
 List of removable network interfaces to be supported by
@@ -3255,6 +3264,7 @@ device and the mount point will be changed.
 .Xr ntpd 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
+.Xr powerd 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
 .Xr rc 8 ,
