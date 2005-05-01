@@ -35,7 +35,7 @@ void
 pc98_partition_dec(void const *pp, struct pc98_partition *d)
 {
 	unsigned char const *ptr = pp;
-	int i;
+	u_int i;
 
 	d->dp_mid = ptr[0];
 	d->dp_sid = ptr[1];
@@ -58,7 +58,7 @@ void
 pc98_partition_enc(void *pp, struct pc98_partition *d)
 {
 	unsigned char *ptr = pp;
-	int i;
+	u_int i;
 
 	ptr[0] = d->dp_mid;
 	ptr[1] = d->dp_sid;
