@@ -254,6 +254,35 @@ stop_cpus(cpumask_t map)
 	return 1;
 }
 
+#ifdef KDB_STOP_NMI
+int
+stop_cpus_nmi(cpumask_t map)
+{
+	int i;
+
+	if (!smp_started)
+		return 0;
+
+	CTR1(KTR_SMP, "stop_cpus(%x)", map);
+
+	/* send the stop IPI to all CPUs in map */
+	ipi_nmi_selected(map);
+
+	i = 0;
+	while ((atomic_load_acq_int(&stopped_cpus) & map) != map) {
+		/* spin */
+		i++;
+#ifdef DIAGNOSTIC
+		if (i == 100000) {
+			printf("timeout stopping cpus\n");
+			break;
+		}
+#endif
+	}
+
+	return 1;
+}
+#endif /* KDB_STOP_NMI */
 
 /*
  * Called by a CPU to restart stopped CPUs. 
