@@ -6,6 +6,6 @@ MAN=	pom.6
 DPADD=	${LIBM}
 LDADD=	-lm
 
-WARNS?=	2
+WARNS?=	6
 
 .include <bsd.prog.mk>

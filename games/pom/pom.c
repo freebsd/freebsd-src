@@ -78,7 +78,7 @@ static double	dtor(double);
 static double	potm(double);
 
 int
-main()
+main(void)
 {
 	time_t tt;
 	struct tm *GMT;
@@ -122,8 +122,7 @@ main()
  *	return phase of the moon
  */
 static double
-potm(days)
-	double days;
+potm(double days)
 {
 	double N, Msol, Ec, LambdaSol, l, Mm, Ev, Ac, A3, Mmprime;
 	double A4, lprime, V, ldprime, D, Nm;
@@ -159,8 +158,7 @@ potm(days)
  *	convert degrees to radians
  */
 static double
-dtor(deg)
-	double deg;
+dtor(double deg)
 {
 	return(deg * PI / 180);
 }
@@ -170,8 +168,7 @@ dtor(deg)
  *	adjust value so 0 <= deg <= 360
  */
 static void
-adj360(deg)
-	double *deg;
+adj360(double *deg)
 {
 	for (;;)
 		if (*deg < 0)
