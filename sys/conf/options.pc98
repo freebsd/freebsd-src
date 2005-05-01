@@ -108,3 +108,6 @@ PC98			opt_global.h
 DEV_APIC		opt_apic.h
 DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
+
+# Debugging
+KDB_STOP_NMI		opt_global.h
