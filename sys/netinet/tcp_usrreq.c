@@ -619,7 +619,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	const int inirw = INI_WRITE;
 	int unlocked = 0;
 #ifdef INET6
 	int isipv6;
