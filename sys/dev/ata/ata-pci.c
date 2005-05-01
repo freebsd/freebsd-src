@@ -419,7 +419,7 @@ ata_pci_allocate(device_t dev)
 static int
 ata_pci_dmastart(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
 
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
@@ -435,7 +435,7 @@ ata_pci_dmastart(device_t dev)
 static int
 ata_pci_dmastop(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int error;
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 

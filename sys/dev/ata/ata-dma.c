@@ -218,7 +218,7 @@ ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     struct ata_dmasetprd_args cba;
 
     if (ch->dma->flags & ATA_DMA_LOADED) {
@@ -259,7 +259,7 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir)
 int
 ata_dmaunload(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_POSTWRITE);
 
     bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
