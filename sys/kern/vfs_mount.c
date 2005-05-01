@@ -1278,7 +1278,6 @@ vfs_mountroot_try(const char *mountfrom)
 	char		*vfsname, *path;
 	int		error;
 	char		patt[32];
-	int		s;
 
 	vfsname = NULL;
 	path    = NULL;
@@ -1287,10 +1286,7 @@ vfs_mountroot_try(const char *mountfrom)
 
 	if (mountfrom == NULL)
 		return (error);		/* don't complain */
-
-	s = splcam();			/* Overkill, but annoying without it */
 	printf("Trying to mount root from %s\n", mountfrom);
-	splx(s);
 
 	/* parse vfs name and path */
 	vfsname = malloc(MFSNAMELEN, M_MOUNT, M_WAITOK);
