@@ -37,7 +37,11 @@
 
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	0
+#define	DOSPARTSIZE	32
 #define	NDOSPART	16
+#define	DOSMAGICOFFSET	510
+#define	DOSMAGIC	0xAA55
+
 #define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
 
 struct pc98_partition {
@@ -59,7 +63,7 @@ struct pc98_partition {
 	unsigned char	dp_name[16];
 };
 #ifdef CTASSERT
-CTASSERT(sizeof (struct pc98_partition) == 32);
+CTASSERT(sizeof (struct pc98_partition) == DOSPARTSIZE);
 #endif
 
 void pc98_partition_dec(void const *pp, struct pc98_partition *d);
