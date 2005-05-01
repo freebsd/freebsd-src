@@ -2004,7 +2004,7 @@ ata_promise_sx4_intr(void *data)
 static int
 ata_promise_mio_dmastart(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
 
     ch->flags |= ATA_DMA_ACTIVE;
     return 0;
@@ -2013,7 +2013,7 @@ ata_promise_mio_dmastart(device_t dev)
 static int
 ata_promise_mio_dmastop(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
 
     ch->flags &= ~ATA_DMA_ACTIVE;
     /* get status XXX SOS */
@@ -2428,8 +2428,8 @@ ata_promise_old_intr(void *data)
 static int
 ata_promise_new_dmastart(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
 
     if (ch->flags & ATA_48BIT_ACTIVE) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
@@ -2451,8 +2451,8 @@ ata_promise_new_dmastart(device_t dev)
 static int
 ata_promise_new_dmastop(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     int error;
 
     if (ch->flags & ATA_48BIT_ACTIVE) {
