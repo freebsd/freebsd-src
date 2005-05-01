@@ -336,9 +336,15 @@ p6_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
 
+	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
+	    pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS);
+
 	/* allow the RDPMC instruction if needed */
-	if (pp->pp_flags & PMC_FLAG_ENABLE_MSR_ACCESS)
+	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
 		load_cr4(rcr4() | CR4_PCE);
+
+	PMCDBG(MDP,SWI,1, "cr4=0x%x", rcr4());
+
 	return 0;
 }
 
@@ -348,8 +354,10 @@ p6_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	(void) pc;
 	(void) pp;		/* can be NULL */
 
+	PMCDBG(MDP,SWO,1, "pc=%p pp=%p cr4=0x%x", pc, pp, rcr4());
+
 	/* always turn off the RDPMC instruction */
-	load_cr4(rcr4() & ~CR4_PCE);
+ 	load_cr4(rcr4() & ~CR4_PCE);
 
 	return 0;
 }
@@ -373,7 +381,7 @@ p6_read_pmc(int cpu, int ri, pmc_value_t *v)
 		return 0;
 
 	tmp = rdmsr(pd->pm_pmc_msr) & P6_PERFCTR_MASK;
-	if (PMC_IS_SAMPLING_MODE(pm->pm_mode))
+	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = -tmp;
 	else
 		*v = tmp;
@@ -404,7 +412,7 @@ p6_write_pmc(int cpu, int ri, pmc_value_t v)
 	PMCDBG(MDP,WRI,1, "p6-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    pd->pm_pmc_msr, v);
 
-	if (PMC_IS_SAMPLING_MODE(pm->pm_mode))
+	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = -v;
 
 	wrmsr(pd->pm_pmc_msr, v & P6_PERFCTR_MASK);
@@ -424,6 +432,19 @@ p6_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	return 0;
 }
+
+/*
+ * Retrieve a configured PMC pointer from hardware state.
+ */
+
+static int
+p6_get_config(int cpu, int ri, struct pmc **ppm)
+{
+	*ppm = pmc_pcpu[cpu]->pc_hwpmcs[ri]->phw_pmc;
+
+	return 0;
+}
+
 
 /*
  * A pmc may be allocated to a given row index if:
@@ -454,7 +475,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	    pm->pm_caps);
 
 	/* check class */
-	if (pd->pm_descr.pd_class != pm->pm_class)
+	if (pd->pm_descr.pd_class != a->pm_class)
 		return EINVAL;
 
 	/* check requested capabilities */
@@ -675,8 +696,6 @@ p6_describe(int cpu, int ri, struct pmc_info *pi,
 		return error;
 
 	pi->pm_class = pd->pm_descr.pd_class;
-	pi->pm_caps  = pd->pm_descr.pd_caps;
-	pi->pm_width = pd->pm_descr.pd_width;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
@@ -695,7 +714,7 @@ p6_get_msr(int ri, uint32_t *msr)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d ri %d out of range", __LINE__, ri));
 
-	*msr = p6_pmcdesc[ri].pm_pmc_msr;
+	*msr = p6_pmcdesc[ri].pm_pmc_msr - P6_MSR_PERFCTR0;
 	return 0;
 }
 
@@ -722,7 +741,9 @@ pmc_initialize_p6(struct pmc_mdep *pmc_mdep)
 		p6_cputype = pmc_mdep->pmd_cputype;
 
 		pmc_mdep->pmd_npmc          = P6_NPMCS;
-		pmc_mdep->pmd_classes[1]    = PMC_CLASS_P6;
+		pmc_mdep->pmd_classes[1].pm_class = PMC_CLASS_P6;
+		pmc_mdep->pmd_classes[1].pm_caps  = P6_PMC_CAPS;
+		pmc_mdep->pmd_classes[1].pm_width = 40;
 		pmc_mdep->pmd_nclasspmcs[1] = 2;
 
 		pmc_mdep->pmd_init    	    = p6_init;
@@ -732,6 +753,7 @@ pmc_initialize_p6(struct pmc_mdep *pmc_mdep)
 		pmc_mdep->pmd_read_pmc 	    = p6_read_pmc;
 		pmc_mdep->pmd_write_pmc     = p6_write_pmc;
 		pmc_mdep->pmd_config_pmc    = p6_config_pmc;
+		pmc_mdep->pmd_get_config    = p6_get_config;
 		pmc_mdep->pmd_allocate_pmc  = p6_allocate_pmc;
 		pmc_mdep->pmd_release_pmc   = p6_release_pmc;
 		pmc_mdep->pmd_start_pmc     = p6_start_pmc;

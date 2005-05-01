@@ -92,7 +92,9 @@ pmc_intel_initialize(void)
 
 	pmc_mdep->pmd_cputype 	    = cputype;
 	pmc_mdep->pmd_nclass	    = 2;
-	pmc_mdep->pmd_classes[0]    = PMC_CLASS_TSC;
+	pmc_mdep->pmd_classes[0].pm_class    = PMC_CLASS_TSC;
+	pmc_mdep->pmd_classes[0].pm_caps     = PMC_CAP_READ;
+	pmc_mdep->pmd_classes[0].pm_width    = 64;
 	pmc_mdep->pmd_nclasspmcs[0] = 1;
 
 	error = 0;
