@@ -715,8 +715,8 @@ open_disk(int flag)
 		fd = open(disk, O_RDONLY);
 		if (fd == -1)
 			return -3;
-		for (p = 1; p < 5; p++) {
-			asprintf(&s, "%ss%d", disk, p);
+		for (p = 0; p < NDOSPART; p++) {
+			asprintf(&s, "%ss%d", disk, p + 1);
 			fdw = open(s, rwmode);
 			free(s);
 			if (fdw == -1)
