@@ -51,8 +51,6 @@ int iotest;
 #define LBUF 100
 static char lbuf[LBUF];
 
-#define MBRSIGOFF	510
-
 /*
  *
  * Ported to 386bsd by Julian Elischer  Thu Oct 15 20:26:46 PDT 1992
@@ -76,14 +74,13 @@ static int cyls, sectors, heads, cylsecs, disksecs;
 
 struct mboot {
 	unsigned char padding[2]; /* force the longs to be long aligned */
-  	unsigned char *bootinst;  /* boot code */
-  	off_t bootinst_size;
+	unsigned char *bootinst;  /* boot code */
+	off_t bootinst_size;
 	struct	dos_partition parts[NDOSPART];
 };
 
 static struct mboot mboot;
 static int fd, fdw;
-
 
 #define ACTIVE 0x80
 
@@ -125,7 +122,7 @@ static int v_flag  = 0;		/* Be verbose */
 
 static struct part_type
 {
- unsigned char type;
+	unsigned char type;
 	const char *name;
 } part_types[] = {
 	 {0x00, "unused"}
@@ -401,7 +398,7 @@ main(int argc, char *argv[])
 		if (!t_flag) {
 		    if (ok("Should we write new partition table?"))
 			write_s0();
-			} else {
+		} else {
 		    printf("\n-t flag specified -- partition table not written.\n");
 		}
 	    }
@@ -581,7 +578,7 @@ change_part(int i)
 		print_part(i);
 	} while (!ok("Are we happy with this entry?"));
     }
-    }
+}
 
 static void
 print_params()
@@ -589,7 +586,7 @@ print_params()
 	printf("parameters extracted from in-core disklabel are:\n");
 	printf("cylinders=%d heads=%d sectors/track=%d (%d blks/cyl)\n\n"
 			,cyls,heads,sectors,cylsecs);
-	if((dos_sectors > 63) || (dos_cyls > 1023) || (dos_heads > 255))
+	if (dos_cyls > 1023 || dos_heads > 255 || dos_sectors > 63)
 		printf("Figures below won't work with BIOS for partitions not in cyl 1\n");
 	printf("parameters to be used for BIOS calculations are:\n");
 	printf("cylinders=%d heads=%d sectors/track=%d (%d blks/cyl)\n\n"
@@ -740,18 +737,19 @@ open_disk(int flag)
 static ssize_t
 read_disk(off_t sector, void *buf)
 {
-	lseek(fd,(sector * 512), 0);
-	if( secsize == 0 )
-		for( secsize = MIN_SEC_SIZE; secsize <= MAX_SEC_SIZE; secsize *= 2 )
-			{
+
+	lseek(fd, (sector * 512), 0);
+	if (secsize == 0)
+		for (secsize = MIN_SEC_SIZE; secsize <= MAX_SEC_SIZE;
+		     secsize *= 2) {
 			/* try the read */
 			int size = read(fd, buf, secsize);
-			if( size == secsize )
+			if (size == secsize)
 				/* it worked so return */
 				return secsize;
-			}
+		}
 	else
-		return read( fd, buf, secsize );
+		return read(fd, buf, secsize);
 
 	/* we failed to read at any of the sizes */
 	return -1;
@@ -764,7 +762,7 @@ write_disk(off_t sector, void *buf)
 	if (fdw != -1) {
 		return ioctl(fdw, DIOCSMBR, buf);
 	} else {
-		lseek(fd,(sector * 512), 0);
+		lseek(fd, (sector * 512), 0);
 		/* write out in the size that the read_disk found worked */
 		return write(fd, buf, secsize);
 	}
