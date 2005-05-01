@@ -754,7 +754,7 @@ out:
 		INP_UNLOCK(inp);
 	if (!unlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
-	return (error):
+	return (error);
 }
 
 /*
