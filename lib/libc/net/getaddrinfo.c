@@ -781,7 +781,8 @@ set_source(aio, ph)
 {
 	struct addrinfo ai = *aio->aio_ai;
 	struct sockaddr_storage ss;
-	int s, srclen;
+	socklen_t srclen;
+	int s;
 
 	/* set unspec ("no source is available"), just in case */
 	aio->aio_srcsa.sa_family = AF_UNSPEC;
