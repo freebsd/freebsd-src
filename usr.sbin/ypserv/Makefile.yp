@@ -98,6 +98,7 @@ YPMAPDIR = $(YPDIR)/$(DOMAIN)
 ETHERS    = $(YPSRCDIR)/ethers	   # ethernet addresses (for rarpd)
 BOOTPARAMS= $(YPSRCDIR)/bootparams # for booting Sun boxes (bootparamd)
 HOSTS     = $(YPSRCDIR)/hosts
+IPNODES   = $(YPDIR)/ipnodes
 NETWORKS  = $(YPSRCDIR)/networks
 PROTOCOLS = $(YPSRCDIR)/protocols
 RPC 	  = $(YPSRCDIR)/rpc
@@ -164,6 +165,12 @@ TARGETS+= amd.map
 AMDHOST= /dev/null
 .endif
 
+.if exists($(IPNODES))
+TARGETS+= ipnodes
+.else
+IPNODES= /dev/null
+.endif
+
 target: 
 	@if [ ! -d $(DOMAIN) ]; then mkdir $(DOMAIN); fi; \
 	cd $(DOMAIN) ; echo "NIS Map update started on `date` for domain $(DOMAIN)" ; \
@@ -174,6 +181,7 @@ all: $(TARGETS)
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
 hosts:	   hosts.byname hosts.byaddr
+ipnodes:   ipnodes.byname ipnodes.byaddr
 networks:  networks.byaddr networks.byname
 protocols: protocols.bynumber protocols.byname
 rpc:	   rpc.byname rpc.bynumber
@@ -346,6 +354,36 @@ hosts.byaddr: $(HOSTS)
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 	@$(MAKE) -f ../Makefile netid
+
+
+ipnodes.byname: $(IPNODES)
+	@echo "Updating $@..."
+.if ${IPNODES} == "/dev/null"
+	@echo "Ipnodes source file not found -- skipping"
+.else
+	@$(AWK) '/^[0-9a-fA-F:]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
+		print $$n"\t"$$0 }' $(IPNODES) | $(DBLOAD) ${B} -i $(IPNODES)  \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
+.endif
+
+
+ipnodes.byaddr: $(IPNODES)
+	@echo "Updating $@..."
+.if ${IPNODES} == "/dev/null"
+	@echo "Ipnodes source file not found -- skipping"
+.else
+	@$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$0 }' $(IPNODES) \
+		| $(DBLOAD) ${B} -i $(IPNODES) -o $(YPMAPDIR)/$@ - $(TMP); \
+		$(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
+.endif
 
 
 networks.byname: $(NETWORKS)
