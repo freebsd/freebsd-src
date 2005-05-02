@@ -143,7 +143,7 @@ static	int			logFacility;
 static 	int			dynamicMode;
 static 	int			icmpSock;
 static	int			logIpfwDenied;
-static	char*			pidName;
+static	const char*		pidName;
 static	int			routeSock;
 static	int			globalPort;
 static	int			divertGlobal;
@@ -499,7 +499,7 @@ static void DoGlobal (int fd)
 	char			buf[IP_MAXPACKET];
 	struct sockaddr_in	addr;
 	int			wrote;
-	int			addrSize;
+	socklen_t		addrSize;
 	struct ip*		ip;
 	char			msgBuf[80];
 
@@ -624,7 +624,7 @@ static void DoAliasing (int fd, int direction)
 	struct sockaddr_in	addr;
 	int			wrote;
 	int			status;
-	int			addrSize;
+	socklen_t		addrSize;
 	struct ip*		ip;
 	char			msgBuf[80];
 
@@ -668,7 +668,7 @@ static void DoAliasing (int fd, int direction)
  */
 		printf (direction == OUTPUT ? "Out " : "In  ");
 		if (ninstance > 1)
-			printf ("{%s} %08x", mip->name);
+			printf ("{%s}", mip->name);
 
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -968,13 +968,13 @@ void Warn (const char* msg)
 		warn ("%s", msg);
 }
 
-static void RefreshAddr (int sig)
+static void RefreshAddr (int sig __unused)
 {
 	if (mip->ifName)
 		mip->assignAliasAddr = 1;
 }
 
-static void InitiateShutdown (int sig)
+static void InitiateShutdown (int sig __unused)
 {
 /*
  * Start timer to allow kernel gracefully
@@ -986,7 +986,7 @@ static void InitiateShutdown (int sig)
 	alarm (10);
 }
 
-static void Shutdown (int sig)
+static void Shutdown (int sig __unused)
 {
 	running = 0;
 }
@@ -1580,7 +1580,7 @@ void SetupPortRedirect (const char* parms)
 	char*		protoName;
 	char*		separator;
 	int             i;
-	struct alias_link *link = NULL;
+	struct alias_link *aliaslink = NULL;
 
 	strlcpy (buf, parms, sizeof(buf));
 /*
@@ -1674,7 +1674,7 @@ void SetupPortRedirect (const char* parms)
 	        if (numRemotePorts == 1 && remotePort == 0)
 		        remotePortCopy = 0;
 
-		link = LibAliasRedirectPort (mla, localAddr,
+		aliaslink = LibAliasRedirectPort (mla, localAddr,
 						htons(localPort + i),
 						remoteAddr,
 						htons(remotePortCopy),
@@ -1686,7 +1686,7 @@ void SetupPortRedirect (const char* parms)
 /*
  * Setup LSNAT server pool.
  */
-	if (serverPool != NULL && link != NULL) {
+	if (serverPool != NULL && aliaslink != NULL) {
 		ptr = strtok(serverPool, ",");
 		while (ptr != NULL) {
 			if (StrToAddrAndPortRange(ptr, &localAddr, protoName, &portRange) != 0)
@@ -1695,7 +1695,7 @@ void SetupPortRedirect (const char* parms)
 			localPort = GETLOPORT(portRange);
 			if (GETNUMPORTS(portRange) != 1)
 				errx(1, "redirect_port: local port must be single in this context");
-			LibAliasAddServer(mla, link, localAddr, htons(localPort));
+			LibAliasAddServer(mla, aliaslink, localAddr, htons(localPort));
 			ptr = strtok(NULL, ",");
 		}
 	}
@@ -1765,7 +1765,7 @@ void SetupAddressRedirect (const char* parms)
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
 	char*		serverPool;
-	struct alias_link *link;
+	struct alias_link *aliaslink;
 
 	strlcpy (buf, parms, sizeof(buf));
 /*
@@ -1791,16 +1791,16 @@ void SetupAddressRedirect (const char* parms)
 		errx (1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
-	link = LibAliasRedirectAddr(mla, localAddr, publicAddr);
+	aliaslink = LibAliasRedirectAddr(mla, localAddr, publicAddr);
 
 /*
  * Setup LSNAT server pool.
  */
-	if (serverPool != NULL && link != NULL) {
+	if (serverPool != NULL && aliaslink != NULL) {
 		ptr = strtok(serverPool, ",");
 		while (ptr != NULL) {
 			StrToAddr(ptr, &localAddr);
-			LibAliasAddServer(mla, link, localAddr, htons(~0));
+			LibAliasAddServer(mla, aliaslink, localAddr, htons(~0));
 			ptr = strtok(NULL, ",");
 		}
 	}
