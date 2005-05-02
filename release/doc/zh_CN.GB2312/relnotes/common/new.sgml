@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.41.2.5
+     Original revision: 1.761.2.41.2.7
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -131,6 +131,11 @@
       这一问题可能导致 12 字节的内核内存被泄露。
       要了解更多信息， 请参见安全公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>。</para>
+
+    <para>修正了 &man.cvs.1; 中的多处程序设计问题， 这些问题可能导致在
+      CVS 服务器上执行任意代码。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>。</para>
 
   </sect2>
 
@@ -472,6 +477,9 @@
       这些错误可能会导致不正确的 CBCP 响应，
       而违反了 微软 PPP 回呼控制协议的 3.2 节。</para>
 
+    <para>&man.restore.8; 工具又能够处理
+      &os; 版本 1 的转储磁带了。</para>
+
     <para>现在 &man.rm.1; 工具提供了一个 <option>-I</option>
       选项。 如果选择递归地删除目录，
       或者在命令行上指定一次删除超过 3 个文件，
@@ -488,6 +496,10 @@
       其权限是 <literal>0600</literal>， 作为和特权程序的接口。
       者避免了发生本地的拒绝服务攻击时，
       特权程序由于域 socket 的缓冲区耗尽而死锁。</para>
+
+    <para>&man.syslogd.8; 工具现在允许在主机名标识符中使用
+      <literal>:</literal> 和 <literal>%</literal>
+      这两个字符了。 这些字符被 IPv6 地址和 scope ID 使用。</para>
 
     <para>现在 &man.systat.1; <option>-netstat</option> 的显示也包括了
       IPv6 的数据。</para>
