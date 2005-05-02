@@ -2918,7 +2918,6 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
-	GIANT_REQUIRED;
 	newvmspace = vmspace_alloc(minuser, maxuser);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
 	/*
