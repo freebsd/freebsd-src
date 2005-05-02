@@ -159,8 +159,8 @@ int main(int argc, char **argv)
 	lseek(fdw, offset, SEEK_SET);
 
 	if (verbose != 0)
-		fprintf(stderr, "data size %llu bytes, number of clusters "
-		    "%u, index lengh %u bytes\n", sb.st_size,
+		fprintf(stderr, "data size %ju bytes, number of clusters "
+		    "%u, index lengh %zu bytes\n", sb.st_size,
 		    hdr.nblocks, iov[1].iov_len);
 
 	for(i = 0; i == 0 || ibuf != NULL; i++) {
@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 	close(fdr);
 
 	if (verbose != 0)
-		fprintf(stderr, "compressed data to %llu bytes, saved %lld "
+		fprintf(stderr, "compressed data to %ju bytes, saved %lld "
 		    "bytes, %.2f%% decrease.\n", offset, (long long)(sb.st_size - offset),
 		    100.0 * (long long)(sb.st_size - offset) / (float)sb.st_size);
 
