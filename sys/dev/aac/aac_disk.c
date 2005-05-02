@@ -265,8 +265,8 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		 * is too much required context.
 		 */
 		if (bus_dmamap_load(sc->aac_buffer_dmat, dump_datamap, virtual,
-		    len, aac_dump_map_sg, fib, 0) != 0)
-			return (EIO);
+		    len, aac_dump_map_sg, fib, BUS_DMA_NOWAIT) != 0)
+			return (ENOMEM);
 
 		bus_dmamap_sync(sc->aac_buffer_dmat, dump_datamap,
 		    BUS_DMASYNC_PREWRITE);
@@ -279,6 +279,11 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 			       (uintmax_t)physical);
 			return (EIO);
 		}
+
+		bus_dmamap_sync(sc->aac_buffer_dmat, dump_datamap,
+		    BUS_DMASYNC_POSTWRITE);
+
+		bus_dmamap_unload(sc->aac_buffer_dmat, dump_datamap);
 
 		length -= len;
 		offset += len;
