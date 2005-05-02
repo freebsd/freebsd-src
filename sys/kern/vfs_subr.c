@@ -2657,10 +2657,8 @@ vfs_unmountall()
 	struct thread *td;
 	int error;
 
-	if (curthread != NULL)
-		td = curthread;
-	else
-		td = FIRST_THREAD_IN_PROC(initproc); /* XXX XXX proc0? */
+	KASSERT(curthread != NULL, ("vfs_unmountall: NULL curthread"));
+	td = curthread;
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */
