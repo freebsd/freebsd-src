@@ -166,9 +166,10 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 #ifdef DB_CACHE
 	if (result.stat != YP_TRUE &&
 	    (yp_testflag(argp->map, argp->domain, YP_INTERDOMAIN) ||
-	    (strstr(argp->map, "hosts") && do_dns))) {
+	     ((strstr(argp->map, "hosts") || strstr(argp->map, "ipnode")) && do_dns))) {
 #else
-	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
+	if (do_dns && result.stat != YP_TRUE &&
+	    (strstr(argp->map, "hosts") || strstr(argp->map, "ipnode"))) {
 #endif
 		char			nbuf[YPMAXRECORD];
 
@@ -180,9 +181,17 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 			yp_error("doing DNS lookup of %s", nbuf);
 
 		if (!strcmp(argp->map, "hosts.byname"))
-			result.stat = yp_async_lookup_name(rqstp, nbuf);
+			result.stat = yp_async_lookup_name(rqstp, nbuf,
+			    AF_INET);
 		else if (!strcmp(argp->map, "hosts.byaddr"))
-			result.stat = yp_async_lookup_addr(rqstp, nbuf);
+			result.stat = yp_async_lookup_addr(rqstp, nbuf,
+			    AF_INET);
+		else if (!strcmp(argp->map, "ipnodes.byname"))
+			result.stat = yp_async_lookup_name(rqstp, nbuf,
+			    AF_INET6);
+		else if (!strcmp(argp->map, "ipnodes.byaddr"))
+			result.stat = yp_async_lookup_addr(rqstp, nbuf,
+			    AF_INET6);
 
 		if (result.stat == YP_TRUE)
 			return(NULL);
