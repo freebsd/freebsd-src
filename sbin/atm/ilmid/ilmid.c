@@ -1875,7 +1875,7 @@ static void
 get_local_ip (int s, long *aval)
 {
 	char			intf_name[IFNAMSIZ];
-	int			namelen = IFNAMSIZ;
+	socklen_t		namelen = IFNAMSIZ;
 	struct air_netif_rsp	*net_info = NULL;
 	struct sockaddr_in	*sain;
 
@@ -2468,7 +2468,7 @@ ilmi_do_state(void)
 			close ( ilmi_fd[intf] );
 			ilmi_fd[intf] = -1;
 		    } else {
-			bpp = (caddr_t)&buf[1];
+			bpp = &buf[1];
 			Hdr = asn_get_header(&bpp);
 
 		        if ( Log && Debug_Level > 1 )
