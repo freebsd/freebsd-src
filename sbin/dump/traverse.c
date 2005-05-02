@@ -149,7 +149,7 @@ mapfiles(ino_t maxino, long *tapesize)
 	union dinode *dp;
 	struct cg *cgp;
 	ino_t ino;
-	char *cp;
+	u_char *cp;
 
 	if ((cgp = malloc(sblock->fs_cgsize)) == NULL)
 		quit("mapfiles: cannot allocate memory.\n");
