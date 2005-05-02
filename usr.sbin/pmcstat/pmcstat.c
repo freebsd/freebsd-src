@@ -350,7 +350,7 @@ pmcstat_show_usage(void)
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate process-private counting PMC\n"
 	    "\t -s spec\t allocate system-wide counting PMC\n"
-	    "\t -t pid\t attach to running process with pid \"pid\"\n"
+	    "\t -t pid\t\t attach to running process with pid \"pid\"\n"
 	    "\t -w secs\t set printing time interval"
 	);
 }
