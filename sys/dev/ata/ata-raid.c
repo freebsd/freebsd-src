@@ -3073,7 +3073,8 @@ ata_raid_subdisk_attach(device_t dev)
 
     ars->raid = NULL;
     ars->disk_number = -1;
-    return ata_raid_read_metadata(dev);
+    ata_raid_read_metadata(dev);
+    return 0;
 }
 
 static int
