@@ -6,6 +6,6 @@ MAN=	mkuzip.8
 DPADD=	${LIBZ}
 LDADD=	-lz
 
-WARNS?=	4
+WARNS?=	6
 
 .include <bsd.prog.mk>
