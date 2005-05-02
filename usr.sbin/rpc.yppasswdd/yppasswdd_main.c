@@ -163,7 +163,7 @@ main(int argc, char *argv[])
 	struct rlimit rlim;
 	SVCXPRT *transp = NULL;
 	struct sockaddr_in saddr;
-	int asize = sizeof (saddr);
+	socklen_t asize = sizeof (saddr);
 	struct netconfig *nconf;
 	void *localhandle;
 	int ch;
@@ -253,7 +253,7 @@ the %s domain -- aborting", yppasswd_domain);
 	debug = 0;
 
 	if (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {
-		int ssize = sizeof (int);
+		socklen_t ssize = sizeof (int);
 		if (saddr.sin_family != AF_INET)
 			exit(1);
 		if (getsockopt(0, SOL_SOCKET, SO_TYPE,
