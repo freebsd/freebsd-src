@@ -111,5 +111,5 @@ extern unsigned long	svcudp_get_xid(SVCXPRT *);
 extern int	yp_init_resolver(void);
 extern void	yp_run_dnsq(void);
 extern void	yp_prune_dnsq(void);
-extern ypstat	yp_async_lookup_name(struct svc_req *, char *);
-extern ypstat	yp_async_lookup_addr(struct svc_req *, char *);
+extern ypstat	yp_async_lookup_name(struct svc_req *, char *, int);
+extern ypstat	yp_async_lookup_addr(struct svc_req *, char *, int);
