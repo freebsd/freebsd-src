@@ -30,6 +30,7 @@
 #define	_GGATE_H_
 
 #include <sys/endian.h>
+#include <stdarg.h>
 
 #define	G_GATE_BUFSIZE_START	65536
 #define	G_GATE_PORT		3080
