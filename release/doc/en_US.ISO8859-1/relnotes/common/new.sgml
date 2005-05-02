@@ -444,6 +444,18 @@
 
 	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
 
+	<para>The musycc driver, for the LanMedia LMC1504 T1/E1
+	  network interface card, has been removed due to
+	  disuse.</para>
+
+	<para arch="i386,amd64">Drivers using the &man.ndis.4; device
+	  driver wrapper mechanism are now built and loaded
+	  differently.  The &man.ndis.4; driver can now be pre-built
+	  as module or statically compiled into a kernel.  Individual
+	  drivers can now be built with the &man.ndisgen.8; utility;
+	  the result is a kernel module that can be loaded into a
+	  running kernel using &man.kldload.8;.</para>
+
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
 	  systems. &merged;</para>
@@ -1067,6 +1079,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>BIND</application> has been updated from version
       9.3.0 to version 9.3.1.  &merged;</para>
 
+    <para><application>bsnmp</application> has been updated from 1.7
+      to 1.9.</para>
+
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
 
@@ -1078,6 +1093,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3. &merged;</para>
+
+    <para><application>libz</application> has been updated from 1.2.1
+      to 1.2.2.</para>
 
     <para><application>lukemftp</application> has been updated from a
       26 April 2004 snapshot from OpenBSD's sources to a snapshot as
