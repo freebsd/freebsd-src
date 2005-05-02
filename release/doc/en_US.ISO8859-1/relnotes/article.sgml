@@ -1073,6 +1073,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>GNU readline</application> has been updated from
       version 4.3 to version 5.0.</para>
 
+    <para><application>IPFilter</application> has been updated from
+      3.4.35 to 4.1.18.</para>
+
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3. &merged;</para>
 
@@ -1095,6 +1098,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
+
+    <para><application>tcsh</application> has been updated from
+      6.13.00 to 6.14.00.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2004e</application> release to the
