@@ -45,7 +45,7 @@ struct atmif {
 	TAILQ_ENTRY(atmif) link;
 	uint64_t	found;
 	int32_t		index;
-	u_char		*ifname;
+	char		*ifname;
 	size_t		ifnamelen;
 	uint32_t	pcr;
 	int32_t		media;

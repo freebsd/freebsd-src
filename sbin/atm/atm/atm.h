@@ -191,6 +191,5 @@ size_t		compress_prefix_list(struct in_addr *, size_t);
 void		check_netif_name(const char *);
 void		sock_error(int);
 
-extern const struct proto	protos[];
 extern const struct aal		aals[];
 extern const struct encaps	encaps[];
