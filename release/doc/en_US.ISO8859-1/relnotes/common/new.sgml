@@ -330,7 +330,7 @@
 	in the &man.acpi.4; driver.  These can individually be disabled by setting device
 	hints such as <varname>hint.<replaceable>ichss</replaceable>.0.disabled="1"</varname>.</para>
 
-      <para arch="amd64,i386">The &man.hwpmc.4;, hardware performance
+      <para arch="amd64,i386">The &man.hwpmc.4; hardware performance
 	monitoring counter driver has been added.
 	This driver virtualizes the hardware performance monitoring
 	facilities in modern CPUs and provides support for using
@@ -511,7 +511,7 @@
 	when the <literal>gid</literal>, <literal>jail</literal>,
 	and/or <literal>uid</literal> rule options are used.  &merged;</para>
 
-      <para>The &man.ipfw.4; and &man.dummynet.4; system now
+      <para>The &man.ipfw.4; and &man.dummynet.4; systems now
 	support IPv6.</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
@@ -549,7 +549,7 @@
 
       <para>The new sysctl <varname>net.link.tap.user_open</varname>
 	has been implemented.  This allows unprivileged access to
-	&man.tap.4; device nodes based on the file system permission.</para>
+	&man.tap.4; device nodes based on file system permissions.</para>
 
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
@@ -602,16 +602,16 @@
 	<varname>debug.mpsafenet</varname> sysctl variable may be set
 	to <literal>1</literal>).</para>
 
-      <para>The Unix domain socket now supports
+      <para>Unix domain sockets now support the
 	<literal>LOCAL_CREDS</literal> and
-	<literal>LOCAL_CONNWAIT</literal>.
+	<literal>LOCAL_CONNWAIT</literal> options.
 	The <literal>LOCAL_CREDS</literal> option provides
 	a mechanism for the receiver to receive the credentials
 	of the process as a &man.recvmsg.2; control message.
 	The <literal>LOCAL_CONNWAIT</literal>
 	option causes the &man.connect.2; function to block
 	until &man.accept.2; has been called on the listening socket.
-	For more details, see &man.unix.4; manual page.</para>
+	For more details, see the &man.unix.4; manual page.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -698,7 +698,7 @@
       <command>eject</command>) to take place after fixating a
       disk.</para>
 
-    <para arch="amd64">The machine-specific optimized version of
+    <para arch="amd64">Machine-specific optimized versions of
       &man.bcmp.3;, &man.bcopy.3;, &man.bzero.3;, &man.memcmp.3;,
       &man.memcpy.3;, &man.memmove.3;, &man.memset.3;, &man.strcat.3;
       and &man.strcpy.3; have been implemented.</para>
@@ -758,7 +758,7 @@
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
 
-    <para>The &man.mixer.8; utility now supports <option>-S</option>
+    <para>The &man.mixer.8; utility now supports the <option>-S</option>
       option.  This is the same as the <option>-s</option> option
       but does not output mixing field separators.</para>
 
@@ -975,10 +975,10 @@
       run out of buffer space due to a
       local denial-of-service attack. &merged;</para>
 
-    <para>The &man.syslogd.8; now supports <option>-S</option> option
+    <para>The &man.syslogd.8; now supports the <option>-S</option> option,
       which allows to change the pathname of the privileged
-      socket.  This is useful when you do not want the daemon
-      to receive any messages from the local sockets
+      socket.  This is useful for preventing the daemon
+      from receiving any messages from the local sockets
       (<filename>/var/run/log</filename> and
       <filename>/var/run/logpriv</filename> are used by default).
       &merged;</para>
@@ -1206,8 +1206,8 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <title>Documentation</title>
 
     <para>The &man.sched.4bsd.4; and &man.sched.ule.4; manual pages
-      have been added.  These explain the kernel options SCHED_4BSD
-      and SCHED_ULE and some sysctls applicable.</para>
+      have been added.  These explain the kernel options <literal>SCHED_4BSD</literal>
+      and <literal>SCHED_ULE</literal>, as well as some applicable sysctl variables.</para>
 
     <para>The &man.ataraid.4; manual page
       has been added.  It explains the &man.ata.4; software
