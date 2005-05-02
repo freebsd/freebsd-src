@@ -241,7 +241,7 @@ zwrite(void *cookie, const char *wbp, int num)
 	code_int i;
 	int c, disp;
 	struct s_zstate *zs;
-	const u_char *bp;
+	const char *bp;
 	u_char tmp;
 	int count;
 
