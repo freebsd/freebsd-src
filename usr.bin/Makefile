@@ -298,6 +298,7 @@ _uac=		uac
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+_mkuzip=	mkuzip
 _ncplist=	ncplist
 _ncplogin=	ncplogin
 _smbutil=	smbutil
