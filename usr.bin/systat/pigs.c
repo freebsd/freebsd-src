@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdlib.h>
 
+#include "systat.h"
 #include "extern.h"
 
 int compar(const void *, const void *);
