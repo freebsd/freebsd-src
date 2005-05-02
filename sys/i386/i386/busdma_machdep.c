@@ -284,7 +284,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 			}
 			pages = atop(dmat->maxsize);
 			pages = MIN(maxpages - total_bpages, pages);
-			error = alloc_bounce_pages(dmat, pages);
+			if (alloc_bounce_pages(dmat, pages) < pages)
+				error = ENOMEM;
 
 			if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0) {
 				if (error == 0)
