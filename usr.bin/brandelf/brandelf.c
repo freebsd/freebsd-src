@@ -189,7 +189,7 @@ elftype(const char *elfstrtype)
 	for (elfwalk = 0;
 	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
 	     elfwalk++)
-		if (strcmp(elfstrtype, elftypes[elfwalk].str) == 0)
+		if (strcasecmp(elfstrtype, elftypes[elfwalk].str) == 0)
 			return elftypes[elfwalk].value;
 	return -1;
 }
