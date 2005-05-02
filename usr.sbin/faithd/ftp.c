@@ -971,9 +971,9 @@ eprtparamfail:
 			return n;
 		}
 
-		freeaddrinfo(res);
 		memcpy(&data6, res->ai_addr, res->ai_addrlen);
 
+		freeaddrinfo(res);
 		goto sendport;
 	} else if (strcmp(cmd, "LPSV") == 0 && !param) {
 		/*
