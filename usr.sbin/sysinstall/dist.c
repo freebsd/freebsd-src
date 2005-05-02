@@ -59,9 +59,8 @@ typedef struct _dist {
     } my_data;
 } Distribution;
 
-extern Distribution DistTable[];
-extern Distribution SrcDistTable[];
-extern Distribution XOrgDistTable[];
+static Distribution SrcDistTable[];
+static Distribution XOrgDistTable[];
 
 #define	DTE_TARBALL(name, mask, flag, directory)			\
 	{ name, mask, DIST_ ## flag, DT_TARBALL, { directory } }
