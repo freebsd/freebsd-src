@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-cd.h>
+#include <dev/ata/ata-commands.h>
 #include <ata_if.h>
 
 /* prototypes */
@@ -128,6 +129,7 @@ acd_attach(device_t dev)
     cdp->block_size = 2048;
     device_set_ivars(dev, cdp);
     ATA_SETMODE(device_get_parent(dev), dev);
+    ata_controlcmd(dev, ATA_DEVICE_RESET, 0, 0, 0);
     acd_get_cap(dev);
     g_post_event(acd_geom_attach, dev, M_WAITOK, NULL);
 
@@ -1000,7 +1002,7 @@ acd_read_toc(device_t dev)
 
 #ifdef ACD_DEBUG
     if (cdp->disk_size && cdp->toc.hdr.ending_track) {
-	device_printd(dev, "(%d sectors (%d bytes)), %d tracks ", 
+	device_printf(dev, "(%d sectors (%d bytes)), %d tracks ", 
 		      cdp->disk_size, cdp->block_size,
 		      cdp->toc.hdr.ending_track-cdp->toc.hdr.starting_track+1);
 	if (cdp->toc.tab[0].control & 4)
@@ -1249,9 +1251,6 @@ acd_send_cue(device_t dev, struct cdr_cuesheet *cuesheet)
 		       0, 0, 0, 0, 0, 0, 0 };
     int8_t *buffer;
     int32_t error;
-#ifdef ACD_DEBUG
-    int i;
-#endif
 
     if ((error = acd_mode_sense(dev, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
 				(caddr_t)&param, sizeof(param))))
@@ -1277,18 +1276,8 @@ acd_send_cue(device_t dev, struct cdr_cuesheet *cuesheet)
     if (!(buffer = malloc(cuesheet->len, M_ACD, M_NOWAIT)))
 	return ENOMEM;
 
-    if (!(error = copyin(cuesheet->entries, buffer, cuesheet->len))) {
-#ifdef ACD_DEBUG
-	printf("acd: cuesheet lenght = %d\n", cuesheet->len);
-	for (i=0; i<cuesheet->len; i++)
-	    if (i%8)
-		printf(" %02x", buffer[i]);
-	    else
-		printf("\n%02x", buffer[i]);
-	printf("\n");
-#endif
+    if (!(error = copyin(cuesheet->entries, buffer, cuesheet->len)))
 	error = ata_atapicmd(dev, ccb, buffer, cuesheet->len, 0, 30);
-    }
     free(buffer, M_ACD);
     return error;
 }
@@ -1613,9 +1602,6 @@ acd_mode_sense(device_t dev, int page, caddr_t pagebuf, int pagesize)
     int error;
 
     error = ata_atapicmd(dev, ccb, pagebuf, pagesize, ATA_R_READ, 10);
-#ifdef ACD_DEBUG
-    atapi_dump("acd: mode sense ", pagebuf, pagesize);
-#endif
     return error;
 }
 
@@ -1625,10 +1611,6 @@ acd_mode_select(device_t dev, caddr_t pagebuf, int pagesize)
     int8_t ccb[16] = { ATAPI_MODE_SELECT_BIG, 0x10, 0, 0, 0, 0, 0,
 		     pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
 
-#ifdef ACD_DEBUG
-    device_printf(dev, "modeselect pagesize=%d\n", pagesize);
-    atapi_dump("mode select ", pagebuf, pagesize);
-#endif
     return ata_atapicmd(dev, ccb, pagebuf, pagesize, 0, 30);
 }
 

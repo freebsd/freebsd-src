@@ -419,7 +419,7 @@ ata_pci_allocate(device_t dev)
 static int
 ata_pci_dmastart(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
 
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
@@ -435,7 +435,7 @@ ata_pci_dmastart(device_t dev)
 static int
 ata_pci_dmastop(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     int error;
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
@@ -447,6 +447,18 @@ ata_pci_dmastop(device_t dev)
 }
 
 static void
+ata_pci_dmareset(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
+		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+    ch->dma->flags &= ~ATA_DMA_ACTIVE;
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+    ch->dma->unload(dev);
+}
+
+static void
 ata_pci_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
@@ -455,6 +467,7 @@ ata_pci_dmainit(device_t dev)
     if (ch->dma) {
 	ch->dma->start = ata_pci_dmastart;
 	ch->dma->stop = ata_pci_dmastop;
+	ch->dma->reset = ata_pci_dmareset;
     }
 }
 
@@ -568,12 +581,11 @@ ata_pcichannel_reset(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    /* if DMA functionality present stop it  */
+    /* if DMA engine present reset it  */
     if (ch->dma) {
-	if (ch->dma->flags & ATA_DMA_ACTIVE)
-	    ch->dma->stop(dev);
-	if (ch->dma->flags & ATA_DMA_LOADED)
-	    ch->dma->unload(dev);
+	if (ch->dma->reset)
+	    ch->dma->reset(dev);
+	ch->dma->unload(dev);
     }
 
     /* reset the controller HW */
