@@ -1,4 +1,4 @@
-/*	$OpenBSD: util.h,v 1.3 2002/05/23 10:22:14 deraadt Exp $ */
+/*	$OpenBSD: util.h,v 1.5 2005/02/24 15:49:08 dhartmei Exp $ */
 
 /*
  * Copyright (c) 1996-2001
@@ -46,7 +46,7 @@ struct csiob {
 	int line_buffer_size, io_buffer_size, io_buffer_len, next_byte;
 	unsigned char *io_buffer, *line_buffer;
 	struct sockaddr_in sa, real_sa;
-	char *who;
+	const char *who;
 	char alive, got_eof, data_available;
 	int send_oob_flags;
 };
@@ -55,7 +55,7 @@ extern int telnet_getline(struct csiob *iobp,
     struct csiob *telnet_passthrough);
 
 extern int get_proxy_env(int fd, struct sockaddr_in *server_sa_ptr,
-    struct sockaddr_in *client_sa_ptr);
+    struct sockaddr_in *client_sa_ptr, struct sockaddr_in *proxy_sa_ptr);
 
 extern int get_backchannel_socket(int type, int min_port, int max_port,
     int start_port, int direction, struct sockaddr_in *sap);

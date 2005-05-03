@@ -1,4 +1,4 @@
-/*	$OpenBSD: getline.c,v 1.15 2003/06/28 01:04:57 deraadt Exp $ */
+/*	$OpenBSD: getline.c,v 1.16 2004/09/16 04:50:51 deraadt Exp $ */
 
 /*
  * Copyright (c) 1985, 1988 Regents of the University of California.
@@ -96,7 +96,7 @@ refill_buffer(struct csiob *iobp)
 	/* don't do tiny reads, grow first if we need to */
 	rqlen = iobp->io_buffer_size - iobp->io_buffer_len;
 	if (rqlen <= 128) {
-		char *tmp;
+		unsigned char *tmp;
 
 		iobp->io_buffer_size += 128;
 		tmp = realloc(iobp->io_buffer, iobp->io_buffer_size);
@@ -152,7 +152,7 @@ telnet_getline(struct csiob *iobp, struct csiob *telnet_passthrough)
 {
 	unsigned char ch;
 	int ix;
-	char tbuf[100];
+	unsigned char tbuf[100];
 
 	iobp->line_buffer[0] = '\0';
 
@@ -236,7 +236,7 @@ telnet_getline(struct csiob *iobp, struct csiob *telnet_passthrough)
 		 * nasty.
 		 */
 		if (ix - iobp->next_byte > iobp->line_buffer_size - 5) {
-			char *tmp;
+			unsigned char *tmp;
 
 			iobp->line_buffer_size = 256 + ix - iobp->next_byte;
 			tmp = realloc(iobp->line_buffer,
