@@ -1,4 +1,4 @@
-/*	$OpenBSD: privsep.c,v 1.8 2004/03/14 19:17:05 otto Exp $	*/
+/*	$OpenBSD: privsep.c,v 1.13 2004/12/22 09:21:02 otto Exp $	*/
 
 /*
  * Copyright (c) 2003 Can Erkin Acar
@@ -69,7 +69,7 @@ int
 priv_init(void)
 {
 	int i, fd, socks[2], cmd;
-	int snaplen, ret;
+	int snaplen, ret, olderrno;
 	struct passwd *pw;
 
 #ifdef __FreeBSD__
@@ -118,10 +118,12 @@ priv_init(void)
 	}
 
 	/* Father */
-	/* Pass ALRM/TERM/HUP through to child, and accept CHLD */
+	/* Pass ALRM/TERM/HUP/INT/QUIT through to child, and accept CHLD */
 	signal(SIGALRM, sig_pass_to_chld);
 	signal(SIGTERM, sig_pass_to_chld);
 	signal(SIGHUP,  sig_pass_to_chld);
+	signal(SIGINT,  sig_pass_to_chld);
+	signal(SIGQUIT,  sig_pass_to_chld);
 	signal(SIGCHLD, sig_chld);
 
 	setproctitle("[priv]");
@@ -153,12 +155,14 @@ priv_init(void)
 			fd = open(filename,
 			    O_RDWR|O_CREAT|O_APPEND|O_NONBLOCK|O_NOFOLLOW,
 			    0600);
+			olderrno = errno;
+			send_fd(socks[0], fd);
 			if (fd < 0)
 				logmsg(LOG_NOTICE,
 				    "[priv]: failed to open %s: %s",
-				    filename, strerror(errno));
-			send_fd(socks[0], fd);
-			close(fd);
+				    filename, strerror(olderrno));
+			else
+				close(fd);
 			break;
 
 		default:
@@ -217,7 +221,7 @@ priv_open_log(void)
 	int cmd, fd;
 
 	if (priv_fd < 0)
-		errx(1, "%s: called from privileged portion\n", __func__);
+		errx(1, "%s: called from privileged portion", __func__);
 
 	cmd = PRIV_OPEN_LOG;
 	must_write(priv_fd, &cmd, sizeof(int));
