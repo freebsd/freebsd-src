@@ -788,6 +788,8 @@ vtryrecycle(struct vnode *vp)
 		error = EBUSY;
 		goto err;
 	}
+	if (vp->v_iflag & VI_FREE)
+		vbusy(vp);
 	VI_UNLOCK(vp);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(vnmp);
