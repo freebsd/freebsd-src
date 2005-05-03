@@ -9,18 +9,14 @@ BINOWN=	root
 BINGRP= authpf
 BINMODE= 6555
 
-SRCS=   authpf.c parse.y pfctl_parser.c pf_print_state.c pfctl_altq.c
-SRCS+=  pfctl_radix.c pfctl_osfp.c
+SRCS=   authpf.c
 
 CFLAGS+= -I${.CURDIR}/../../contrib/pf/pfctl -Wall -Werror
 
 # XXX ALTQ:
-#CFLAGS+= -DENABLE_ALTQ
-CFLAGS+= -I${.CURDIR}/../../sbin/pfctl/missing
+CFLAGS+= -DENABLE_ALTQ
 
-LDADD+= -lm -lmd
+LDADD+= -lm -lmd -lutil
 DPADD+= ${LIBM} ${LIBMD}
-
-CLEANFILES+=y.tab.h
 
 .include <bsd.prog.mk>
