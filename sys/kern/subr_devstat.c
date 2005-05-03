@@ -281,8 +281,6 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 {
 	struct bintime dt, lnow;
 
-	mtx_assert(&devstat_mutex, MA_NOTOWNED);
-
 	/* sanity check */
 	if (ds == NULL)
 		return;
@@ -325,8 +323,6 @@ void
 devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 {
 	devstat_trans_flags flg;
-
-	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	/* sanity check */
 	if (ds == NULL)
