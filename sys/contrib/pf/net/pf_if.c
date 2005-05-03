@@ -1,5 +1,4 @@
-/*	$OpenBSD: pf_if.c,v 1.11 2004/03/15 11:38:23 cedric Exp $ */
-/* add	$OpenBSD: pf_if.c,v 1.19 2004/08/11 12:06:44 henning Exp $ */
+/*	$OpenBSD: pf_if.c,v 1.23 2004/12/22 17:17:55 dhartmei Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -43,7 +42,6 @@
 
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -77,10 +75,6 @@ long			  pfi_update = 1;
 struct pfr_addr		 *pfi_buffer;
 int			  pfi_buffer_cnt;
 int			  pfi_buffer_max;
-char			  pfi_reserved_anchor[PF_ANCHOR_NAME_SIZE] =
-				PF_RESERVED_ANCHOR;
-char			  pfi_interface_ruleset[PF_RULESET_NAME_SIZE] =
-				PF_INTERFACE_RULESET;
 
 void		 pfi_dynaddr_update(void *);
 void		 pfi_kifaddr_update(void *);
@@ -91,7 +85,6 @@ void		 pfi_address_add(struct sockaddr *, int, int);
 int		 pfi_if_compare(struct pfi_kif *, struct pfi_kif *);
 struct pfi_kif	*pfi_if_create(const char *, struct pfi_kif *, int);
 void		 pfi_copy_group(char *, const char *, int);
-void		 pfi_dynamic_drivers(void);
 void		 pfi_newgroup(const char *, int);
 int		 pfi_skip_if(const char *, struct pfi_kif *, int);
 int		 pfi_unmask(void *);
@@ -100,7 +93,6 @@ void		 pfi_dohooks(struct pfi_kif *);
 RB_PROTOTYPE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
 RB_GENERATE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
 
-#define PFI_DYNAMIC_BUSES	{ "pcmcia", "cardbus", "uhub" }
 #define PFI_BUFFER_MAX		0x10000
 #define PFI_MTYPE		M_IFADDR
 
@@ -117,7 +109,6 @@ pfi_initialize(void)
 	pfi_buffer = malloc(pfi_buffer_max * sizeof(*pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
 	pfi_self = pfi_if_create("self", NULL, PFI_IFLAG_GROUP);
-	pfi_dynamic_drivers();
 }
 
 void
@@ -230,7 +221,12 @@ pfi_lookup_create(const char *name)
 	if (p == NULL) {
 		pfi_copy_group(key.pfik_name, name, sizeof(key.pfik_name));
 		q = pfi_lookup_if(key.pfik_name);
-		if (q != NULL)
+		if (q == NULL) {
+			pfi_newgroup(key.pfik_name, PFI_IFLAG_DYNAMIC);
+			q = pfi_lookup_if(key.pfik_name);
+		}
+		p = pfi_lookup_if(name);
+		if (p == NULL && q != NULL)
 			p = pfi_if_create(name, q, PFI_IFLAG_INSTANCE);
 	}
 	splx(s);
@@ -316,8 +312,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	if (dyn->pfid_net != 128)
 		snprintf(tblname + strlen(tblname),
 		    sizeof(tblname) - strlen(tblname), "/%d", dyn->pfid_net);
-	ruleset = pf_find_or_create_ruleset(pfi_reserved_anchor,
-	    pfi_interface_ruleset);
+	ruleset = pf_find_or_create_ruleset(PF_RESERVED_ANCHOR);
 	if (ruleset == NULL)
 		senderr(1);
 
@@ -354,11 +349,14 @@ void
 pfi_dynaddr_update(void *p)
 {
 	struct pfi_dynaddr	*dyn = (struct pfi_dynaddr *)p;
-	struct pfi_kif		*kif = dyn->pfid_kif;
-	struct pfr_ktable	*kt = dyn->pfid_kt;
+	struct pfi_kif		*kif;
+	struct pfr_ktable	*kt;
 
-	if (dyn == NULL || kif == NULL || kt == NULL)
+	if (dyn == NULL || dyn->pfid_kif == NULL || dyn->pfid_kt == NULL)
 		panic("pfi_dynaddr_update");
+
+	kif = dyn->pfid_kif;
+	kt = dyn->pfid_kt;
 	if (kt->pfrkt_larg != pfi_update) {
 		/* this table needs to be brought up-to-date */
 		pfi_table_update(kt, kif, dyn->pfid_net, dyn->pfid_iflags);
@@ -412,8 +410,6 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		af = ia->ifa_addr->sa_family;
 		if (af != AF_INET && af != AF_INET6)
 			continue;
-		if (!(ia->ifa_flags & IFA_ROUTE))
-			continue;
 		if ((flags & PFI_AFLAG_BROADCAST) && af == AF_INET6)
 			continue;
 		if ((flags & PFI_AFLAG_BROADCAST) &&
@@ -434,14 +430,14 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		}
 		if (af == AF_INET)
 			got4 = 1;
-		else
+		else if (af == AF_INET6)
 			got6 = 1;
 		net2 = net;
 		if (net2 == 128 && (flags & PFI_AFLAG_NETWORK)) {
 			if (af == AF_INET) {
 				net2 = pfi_unmask(&((struct sockaddr_in *)
 				    ia->ifa_netmask)->sin_addr);
-			} else {
+			} else if (af == AF_INET6) {
 				net2 = pfi_unmask(&((struct sockaddr_in6 *)
 				    ia->ifa_netmask)->sin6_addr);
 			}
@@ -574,7 +570,7 @@ pfi_if_create(const char *name, struct pfi_kif *q, int flags)
 	RB_INIT(&p->pfik_ext_gwy);
 	p->pfik_flags = flags;
 	p->pfik_parent = q;
-	p->pfik_tzero = time.tv_sec;
+	p->pfik_tzero = time_second;
 
 	RB_INSERT(pfi_ifhead, &pfi_ifs, p);
 	if (q != NULL) {
@@ -629,46 +625,6 @@ pfi_copy_group(char *p, const char *q, int m)
 }
 
 void
-pfi_dynamic_drivers(void)
-{
-	char		*buses[] = PFI_DYNAMIC_BUSES;
-	int		 nbuses = sizeof(buses)/sizeof(buses[0]);
-	int		 enabled[sizeof(buses)/sizeof(buses[0])];
-	struct device	*dev;
-	struct cfdata	*cf;
-	struct cfdriver	*drv;
-	short		*p;
-	int		 i;
-
-	bzero(enabled, sizeof(enabled));
-	TAILQ_FOREACH(dev, &alldevs, dv_list) {
-		if (!(dev->dv_flags & DVF_ACTIVE))
-			continue;
-		for (i = 0; i < nbuses; i++)
-			if (!enabled[i] && !strcmp(buses[i],
-			    dev->dv_cfdata->cf_driver->cd_name))
-				enabled[i] = 1;
-	}
-	for (cf = cfdata; cf->cf_driver; cf++) {
-		if (cf->cf_driver->cd_class != DV_IFNET)
-			continue;
-		for (p = cf->cf_parents; p && *p >= 0; p++) {
-			if ((drv = cfdata[*p].cf_driver) == NULL)
-				continue;
-			for (i = 0; i < nbuses; i++)
-				if (enabled[i] &&
-				    !strcmp(drv->cd_name, buses[i]))
-					break;
-			if (i < nbuses) {
-				pfi_newgroup(cf->cf_driver->cd_name,
-				    PFI_IFLAG_DYNAMIC);
-				break;
-			}
-		}
-	}
-}
-
-void
 pfi_newgroup(const char *name, int flags)
 {
 	struct pfi_kif	*p;
@@ -714,10 +670,10 @@ pfi_clr_istats(const char *name, int *nzero, int flags)
 {
 	struct pfi_kif	*p;
 	int		 n = 0, s;
-	long		 tzero = time.tv_sec;
+	long		 tzero = time_second;
 
-	s = splsoftnet();
 	ACCEPT_FLAGS(PFI_FLAG_GROUP|PFI_FLAG_INSTANCE);
+	s = splsoftnet();
 	RB_FOREACH(p, pfi_ifhead, &pfi_ifs) {
 		if (pfi_skip_if(name, p, flags))
 			continue;
@@ -729,6 +685,44 @@ pfi_clr_istats(const char *name, int *nzero, int flags)
 	splx(s);
 	if (nzero != NULL)
 		*nzero = n;
+	return (0);
+}
+
+int
+pfi_set_flags(const char *name, int flags)
+{
+	struct pfi_kif	*p;
+	int		 s;
+
+	if (flags & ~PFI_IFLAG_SETABLE_MASK)
+		return (EINVAL);
+
+	s = splsoftnet();
+	RB_FOREACH(p, pfi_ifhead, &pfi_ifs) {
+		if (pfi_skip_if(name, p, PFI_FLAG_GROUP|PFI_FLAG_INSTANCE))
+			continue;
+		p->pfik_flags |= flags;
+	}
+	splx(s);
+	return (0);
+}
+
+int
+pfi_clear_flags(const char *name, int flags)
+{
+	struct pfi_kif	*p;
+	int		 s;
+
+	if (flags & ~PFI_IFLAG_SETABLE_MASK)
+		return (EINVAL);
+
+	s = splsoftnet();
+	RB_FOREACH(p, pfi_ifhead, &pfi_ifs) {
+		if (pfi_skip_if(name, p, PFI_FLAG_GROUP|PFI_FLAG_INSTANCE))
+			continue;
+		p->pfik_flags &= ~flags;
+	}
+	splx(s);
 	return (0);
 }
 
@@ -745,7 +739,7 @@ pfi_get_ifaces(const char *name, struct pfi_if *buf, int *size, int flags)
 			continue;
 		if (*size > n++) {
 			if (!p->pfik_tzero)
-				p->pfik_tzero = boottime.tv_sec;
+				p->pfik_tzero = time_second;
 			if (copyout(p, buf++, sizeof(*buf))) {
 				splx(s);
 				return (EFAULT);
@@ -820,7 +814,9 @@ pfi_dohooks(struct pfi_kif *p)
 int
 pfi_match_addr(struct pfi_dynaddr *dyn, struct pf_addr *a, sa_family_t af)
 {
-	if (af == AF_INET) {
+	switch (af) {
+#ifdef INET
+	case AF_INET:
 		switch (dyn->pfid_acnt4) {
 		case 0:
 			return (0);
@@ -830,7 +826,10 @@ pfi_match_addr(struct pfi_dynaddr *dyn, struct pf_addr *a, sa_family_t af)
 		default:
 			return (pfr_match_addr(dyn->pfid_kt, a, AF_INET));
 		}
-	} else {
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
 		switch (dyn->pfid_acnt6) {
 		case 0:
 			return (0);
@@ -840,5 +839,9 @@ pfi_match_addr(struct pfi_dynaddr *dyn, struct pf_addr *a, sa_family_t af)
 		default:
 			return (pfr_match_addr(dyn->pfid_kt, a, AF_INET6));
 		}
+		break;
+#endif /* INET6 */
+	default:
+		return (0);
 	}
 }
