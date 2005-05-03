@@ -747,7 +747,8 @@ union_open(ap)
 
 	if (error == 0)
 		error = VOP_OPEN(tvp, mode, cred, td, -1);
-
+	if (error == 0)
+		ap->a_vp->v_object = tvp->v_object;
 	/*
 	 * Release any locks held.
 	 */
