@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_parser.h,v 1.74 2004/02/10 22:26:56 dhartmei Exp $ */
+/*	$OpenBSD: pfctl_parser.h,v 1.80 2005/02/07 18:18:14 david Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -47,6 +47,9 @@
 #define PF_OPT_DUMMYACTION	0x0100
 #define PF_OPT_DEBUG		0x0200
 #define PF_OPT_SHOWALL		0x0400
+#define PF_OPT_OPTIMIZE		0x0800
+#define PF_OPT_OPTIMIZE_PROFILE	0x1000
+#define PF_OPT_MERGE		0x2000
 
 #define PF_TH_ALL		0xFF
 
@@ -59,6 +62,11 @@
 	"removals", \
 	NULL \
 }
+
+struct pfr_buffer;	/* forward definition */
+struct pf_opt_rule;
+TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
+
 
 struct pfctl {
 	int dev;
@@ -73,11 +81,26 @@ struct pfctl {
 	struct pfr_buffer *trans;
 	const char *anchor;
 	const char *ruleset;
+	struct pf_opt_queue opt_queue;
+
+	/* 'set foo' options */
+	u_int32_t	 timeout[PFTM_MAX];
+	u_int32_t	 limit[PF_LIMIT_MAX];
+	u_int32_t	 debug;
+	u_int32_t	 hostid;
+	char		*ifname;
+
+	u_int8_t	 timeout_set[PFTM_MAX];
+	u_int8_t	 limit_set[PF_LIMIT_MAX];
+	u_int8_t	 debug_set;
+	u_int8_t	 hostid_set;
+	u_int8_t	 ifname_set;
 };
 
 struct node_if {
 	char			 ifname[IFNAMSIZ];
 	u_int8_t		 not;
+	u_int8_t		 dynamic; /* antispoof */
 	u_int			 ifa_flags;
 	struct node_if		*next;
 	struct node_if		*tail;
@@ -166,11 +189,33 @@ struct node_tinit {	/* table initializer */
 	char				*file;
 };
 
-struct pfr_buffer;	/* forward definition */
 
-int	pfctl_rules(int, char *, int, char *, char *, struct pfr_buffer *);
+/* optimizer created tables */
+struct pf_opt_tbl {
+	char			 pt_name[PF_TABLE_NAME_SIZE];
+	int			 pt_rulecount;
+	int			 pt_generated;
+	struct node_tinithead	 pt_nodes;
+	struct pfr_buffer	*pt_buf;
+};
+#define PF_OPT_TABLE_PREFIX	"__automatic_"
 
-int	pfctl_add_rule(struct pfctl *, struct pf_rule *);
+/* optimizer pf_rule container */
+struct pf_opt_rule {
+	struct pf_rule		 por_rule;
+	struct pf_opt_tbl	*por_src_tbl;
+	struct pf_opt_tbl	*por_dst_tbl;
+	char			 por_anchor[MAXPATHLEN];
+	u_int64_t		 por_profile_count;
+	TAILQ_ENTRY(pf_opt_rule) por_entry;
+	TAILQ_ENTRY(pf_opt_rule) por_skip_entry[PF_SKIP_COUNT];
+};
+
+
+int	pfctl_rules(int, char *, int, char *, struct pfr_buffer *);
+int	pfctl_optimize_rules(struct pfctl *);
+
+int	pfctl_add_rule(struct pfctl *, struct pf_rule *, const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
 int	pfctl_add_pool(struct pfctl *, struct pf_pool *, sa_family_t);
 void	pfctl_clear_pool(struct pf_pool *);
@@ -181,6 +226,7 @@ int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);
 int	pfctl_set_hostid(struct pfctl *, u_int32_t);
 int	pfctl_set_debug(struct pfctl *, char *);
+int	pfctl_set_interface_flags(struct pfctl *, char *, int, int);
 
 int	parse_rules(FILE *, struct pfctl *);
 int	parse_flags(char *);
@@ -188,7 +234,7 @@ int	pfctl_load_anchors(int, int, struct pfr_buffer *);
 
 void	print_pool(struct pf_pool *, u_int16_t, u_int16_t, sa_family_t, int);
 void	print_src_node(struct pf_src_node *, int);
-void	print_rule(struct pf_rule *, int);
+void	print_rule(struct pf_rule *, const char *, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
 
@@ -202,8 +248,8 @@ void	 print_altq(const struct pf_altq *, unsigned, struct node_queue_bw *,
 void	 print_queue(const struct pf_altq *, unsigned, struct node_queue_bw *,
 	    int, struct node_queue_opt *);
 
-int	pfctl_define_table(char *, int, int, const char *, const char *,
-	    struct pfr_buffer *, u_int32_t);
+int	pfctl_define_table(char *, int, int, const char *, struct pfr_buffer *,
+	    u_int32_t);
 
 void		 pfctl_clear_fingerprints(int, int);
 int		 pfctl_file_fingerprints(int, int, const char *);
@@ -244,6 +290,7 @@ extern const struct pf_timeout pf_timeouts[];
 
 void			 set_ipmask(struct node_host *, u_int8_t);
 int			 check_netmask(struct node_host *, sa_family_t);
+int			 unmask(struct pf_addr *, sa_family_t);
 void			 ifa_load(void);
 struct node_host	*ifa_exists(const char *, int);
 struct node_host	*ifa_lookup(const char *, int);
