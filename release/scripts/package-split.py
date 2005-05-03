@@ -42,9 +42,13 @@ def disc1_packages():
 # For architectures that use a separate livefs, this is actually disc3.
 def disc2_packages():
             # X Desktops
-    pkgs = ['x11/kde3',
-            'x11/gnome2',
-            'x11-wm/afterstep',
+    if arch == 'ia64':
+	pkgs = ['x11/gnome2-lite',
+		'x11/kde-lite']
+    else:
+	pkgs = ['x11/gnome2',
+		'x11/kde3']
+    pkgs.extend(['x11-wm/afterstep',
             'x11-wm/windowmaker',
             'x11-wm/fvwm2',
             # "Nice to have"
@@ -94,7 +98,7 @@ def disc2_packages():
             'security/portaudit',
             'www/apache13',
             'www/apache13-modssl',
-            'www/apache2']
+            'www/apache2'])
     if arch == 'i386':
         pkgs.extend(['comms/ltmdm',
                      'www/opera'])
