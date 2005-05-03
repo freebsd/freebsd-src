@@ -1,6 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: pf_norm.c,v 1.80.2.1 2004/04/30 21:46:33 brad Exp $ */
-/* add	$OpenBSD: pf_norm.c,v 1.87 2004/05/11 07:34:11 dhartmei Exp $ */
+/*	$OpenBSD: pf_norm.c,v 1.97 2004/09/21 16:59:12 aaron Exp $ */
 
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
@@ -179,8 +178,12 @@ struct mbuf		*pf_fragcache(struct mbuf **, struct ip*,
 int			 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
 			    struct tcphdr *, int);
 
-#define	DPFPRINTF(x)	if (pf_status.debug >= PF_DEBUG_MISC) \
-			    { printf("%s: ", __func__); printf x ;}
+#define	DPFPRINTF(x) do {				\
+	if (pf_status.debug >= PF_DEBUG_MISC) {		\
+		printf("%s: ", __func__);		\
+		printf x ;				\
+	}						\
+} while(0)
 
 /* Globals */
 #ifdef __FreeBSD__
@@ -254,13 +257,8 @@ void
 pf_purge_expired_fragments(void)
 {
 	struct pf_fragment	*frag;
-#ifdef __FreeBSD__
-	u_int32_t		 expire = time_second - 
+	u_int32_t		 expire = time_second -
 				    pf_default_rule.timeout[PFTM_FRAG];
-#else
-	u_int32_t		 expire = time.tv_sec -
-				    pf_default_rule.timeout[PFTM_FRAG];
-#endif
 
 	while ((frag = TAILQ_LAST(&pf_fragqueue, pf_fragqueue)) != NULL) {
 #ifdef __FreeBSD__
@@ -395,11 +393,7 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 	frag = RB_FIND(pf_frag_tree, tree, &key);
 	if (frag != NULL) {
 		/* XXX Are we sure we want to update the timeout? */
-#ifdef __FreeBSD__
 		frag->fr_timeout = time_second;
-#else
-		frag->fr_timeout = time.tv_sec;
-#endif
 		if (BUFFER_FRAGMENTS(frag)) {
 			TAILQ_REMOVE(&pf_fragqueue, frag, frag_next);
 			TAILQ_INSERT_HEAD(&pf_fragqueue, frag, frag_next);
@@ -469,11 +463,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		(*frag)->fr_dst = frent->fr_ip->ip_dst;
 		(*frag)->fr_p = frent->fr_ip->ip_p;
 		(*frag)->fr_id = frent->fr_ip->ip_id;
-#ifdef __FreeBSD__
 		(*frag)->fr_timeout = time_second;
-#else
-		(*frag)->fr_timeout = time.tv_sec;
-#endif
 		LIST_INIT(&(*frag)->fr_queue);
 
 		RB_INSERT(pf_frag_tree, &pf_frag_tree, *frag);
@@ -689,11 +679,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		(*frag)->fr_dst = h->ip_dst;
 		(*frag)->fr_p = h->ip_p;
 		(*frag)->fr_id = h->ip_id;
-#ifdef __FreeBSD__
 		(*frag)->fr_timeout = time_second;
-#else
-		(*frag)->fr_timeout = time.tv_sec;
-#endif
 
 		cur->fr_off = off;
 		cur->fr_end = max;
@@ -987,7 +973,8 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 }
 
 int
-pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
+pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
+    struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
 	struct pf_rule		*r;
@@ -1014,10 +1001,10 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
 		else if (r->proto && r->proto != h->ip_p)
 			r = r->skip[PF_SKIP_PROTO].ptr;
 		else if (PF_MISMATCHAW(&r->src.addr,
-		    (struct pf_addr *)&h->ip_src.s_addr, AF_INET, r->src.not))
+		    (struct pf_addr *)&h->ip_src.s_addr, AF_INET, r->src.neg))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (PF_MISMATCHAW(&r->dst.addr,
-		    (struct pf_addr *)&h->ip_dst.s_addr, AF_INET, r->dst.not))
+		    (struct pf_addr *)&h->ip_dst.s_addr, AF_INET, r->dst.neg))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else
 			break;
@@ -1159,6 +1146,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
 		h->ip_id = ip_randomid();
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
+	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0)
+		pd->flags |= PFDESC_IP_REAS;
 
 	return (PF_PASS);
 
@@ -1166,7 +1155,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
 	/* Enforce a minimum ttl, may cause endless packet loops */
 	if (r->min_ttl && h->ip_ttl < r->min_ttl)
 		h->ip_ttl = r->min_ttl;
-
+	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0)
+		pd->flags |= PFDESC_IP_REAS;
 	return (PF_PASS);
 
  no_mem:
@@ -1198,7 +1188,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
 #ifdef INET6
 int
 pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
-    u_short *reason)
+    u_short *reason, struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
 	struct pf_rule		*r;
@@ -1230,10 +1220,10 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 			r = r->skip[PF_SKIP_PROTO].ptr;
 #endif
 		else if (PF_MISMATCHAW(&r->src.addr,
-		    (struct pf_addr *)&h->ip6_src, AF_INET6, r->src.not))
+		    (struct pf_addr *)&h->ip6_src, AF_INET6, r->src.neg))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (PF_MISMATCHAW(&r->dst.addr,
-		    (struct pf_addr *)&h->ip6_dst, AF_INET6, r->dst.not))
+		    (struct pf_addr *)&h->ip6_dst, AF_INET6, r->dst.neg))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else
 			break;
@@ -1348,6 +1338,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 		goto badfrag;
 
 	/* do something about it */
+	/* remember to set pd->flags |= PFDESC_IP_REAS */
 	return (PF_PASS);
 
  shortpkt:
@@ -1368,7 +1359,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 }
-#endif
+#endif /* INET6 */
 
 int
 pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
@@ -1393,12 +1384,12 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 			r = r->skip[PF_SKIP_AF].ptr;
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
-		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af, r->src.not))
+		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af, r->src.neg))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 			    r->src.port[0], r->src.port[1], th->th_sport))
 			r = r->skip[PF_SKIP_SRC_PORT].ptr;
-		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af, r->dst.not))
+		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af, r->dst.neg))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
 			    r->dst.port[0], r->dst.port[1], th->th_dport))
@@ -1413,7 +1404,7 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 		}
 	}
 
-	if (rm == NULL)
+	if (rm == NULL || rm->action == PF_NOSCRUB)
 		return (PF_PASS);
 	else
 		r->packets++;
@@ -1486,6 +1477,7 @@ int
 pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
     struct tcphdr *th, struct pf_state_peer *src, struct pf_state_peer *dst)
 {
+	u_int32_t tsval, tsecr;
 	u_int8_t hdr[60];
 	u_int8_t *opt;
 
@@ -1544,7 +1536,18 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 				if (opt[1] >= TCPOLEN_TIMESTAMP) {
 					src->scrub->pfss_flags |=
 					    PFSS_TIMESTAMP;
-					src->scrub->pfss_ts_mod = arc4random();
+					src->scrub->pfss_ts_mod =
+					    htonl(arc4random());
+
+					/* note PFSS_PAWS not set yet */
+					memcpy(&tsval, &opt[2],
+					    sizeof(u_int32_t));
+					memcpy(&tsecr, &opt[6],
+					    sizeof(u_int32_t));
+					src->scrub->pfss_tsval0 = ntohl(tsval);
+					src->scrub->pfss_tsval = ntohl(tsval);
+					src->scrub->pfss_tsecr = ntohl(tsecr);
+					getmicrouptime(&src->scrub->pfss_last);
 				}
 				/* FALLTHROUGH */
 			default:
@@ -1571,12 +1574,16 @@ pf_normalize_tcp_cleanup(struct pf_state *state)
 
 int
 pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
-    u_short *reason, struct tcphdr *th, struct pf_state_peer *src,
-    struct pf_state_peer *dst, int *writeback)
+    u_short *reason, struct tcphdr *th, struct pf_state *state,
+    struct pf_state_peer *src, struct pf_state_peer *dst, int *writeback)
 {
+	struct timeval uptime;
+	u_int32_t tsval, tsecr;
+	u_int tsval_from_last;
 	u_int8_t hdr[60];
 	u_int8_t *opt;
 	int copyback = 0;
+	int got_ts = 0;
 
 #ifdef __FreeBSD__
 	KASSERT((src->scrub || dst->scrub), 
@@ -1635,32 +1642,46 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 				 * NAT detection, OS uptime determination or
 				 * reboot detection.
 				 */
+
+				if (got_ts) {
+					/* Huh?  Multiple timestamps!? */
+					if (pf_status.debug >= PF_DEBUG_MISC) {
+						DPFPRINTF(("multiple TS??"));
+						pf_print_state(state);
+						printf("\n");
+					}
+					REASON_SET(reason, PFRES_TS);
+					return (PF_DROP);
+				}
 				if (opt[1] >= TCPOLEN_TIMESTAMP) {
-					u_int32_t ts_value;
-					if (src->scrub &&
+					memcpy(&tsval, &opt[2],
+					    sizeof(u_int32_t));
+					if (tsval && src->scrub &&
 					    (src->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
-						memcpy(&ts_value, &opt[2],
-						    sizeof(u_int32_t));
-						ts_value = htonl(ntohl(ts_value)
-						    + src->scrub->pfss_ts_mod);
+						tsval = ntohl(tsval);
 						pf_change_a(&opt[2],
-						    &th->th_sum, ts_value, 0);
+						    &th->th_sum,
+						    htonl(tsval +
+						    src->scrub->pfss_ts_mod),
+						    0);
 						copyback = 1;
 					}
 
 					/* Modulate TS reply iff valid (!0) */
-					memcpy(&ts_value, &opt[6],
+					memcpy(&tsecr, &opt[6],
 					    sizeof(u_int32_t));
-					if (ts_value && dst->scrub &&
+					if (tsecr && dst->scrub &&
 					    (dst->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
-						ts_value = htonl(ntohl(ts_value)
-						    - dst->scrub->pfss_ts_mod);
+						tsecr = ntohl(tsecr)
+						    - dst->scrub->pfss_ts_mod;
 						pf_change_a(&opt[6],
-						    &th->th_sum, ts_value, 0);
+						    &th->th_sum, htonl(tsecr),
+						    0);
 						copyback = 1;
 					}
+					got_ts = 1;
 				}
 				/* FALLTHROUGH */
 			default:
@@ -1679,9 +1700,299 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	}
 
 
+	/*
+	 * Must invalidate PAWS checks on connections idle for too long.
+	 * The fastest allowed timestamp clock is 1ms.  That turns out to
+	 * be about 24 days before it wraps.  XXX Right now our lowerbound
+	 * TS echo check only works for the first 12 days of a connection
+	 * when the TS has exhausted half its 32bit space
+	 */
+#define TS_MAX_IDLE	(24*24*60*60)
+#define TS_MAX_CONN	(12*24*60*60)	/* XXX remove when better tsecr check */
+
+	getmicrouptime(&uptime);
+	if (src->scrub && (src->scrub->pfss_flags & PFSS_PAWS) &&
+	    (uptime.tv_sec - src->scrub->pfss_last.tv_sec > TS_MAX_IDLE ||
+	    time_second - state->creation > TS_MAX_CONN))  {
+		if (pf_status.debug >= PF_DEBUG_MISC) {
+			DPFPRINTF(("src idled out of PAWS\n"));
+			pf_print_state(state);
+			printf("\n");
+		}
+		src->scrub->pfss_flags = (src->scrub->pfss_flags & ~PFSS_PAWS)
+		    | PFSS_PAWS_IDLED;
+	}
+	if (dst->scrub && (dst->scrub->pfss_flags & PFSS_PAWS) &&
+	    uptime.tv_sec - dst->scrub->pfss_last.tv_sec > TS_MAX_IDLE) {
+		if (pf_status.debug >= PF_DEBUG_MISC) {
+			DPFPRINTF(("dst idled out of PAWS\n"));
+			pf_print_state(state);
+			printf("\n");
+		}
+		dst->scrub->pfss_flags = (dst->scrub->pfss_flags & ~PFSS_PAWS)
+		    | PFSS_PAWS_IDLED;
+	}
+
+	if (got_ts && src->scrub && dst->scrub &&
+	    (src->scrub->pfss_flags & PFSS_PAWS) &&
+	    (dst->scrub->pfss_flags & PFSS_PAWS)) {
+		/* Validate that the timestamps are "in-window".
+		 * RFC1323 describes TCP Timestamp options that allow
+		 * measurement of RTT (round trip time) and PAWS
+		 * (protection against wrapped sequence numbers).  PAWS
+		 * gives us a set of rules for rejecting packets on
+		 * long fat pipes (packets that were somehow delayed 
+		 * in transit longer than the time it took to send the
+		 * full TCP sequence space of 4Gb).  We can use these
+		 * rules and infer a few others that will let us treat
+		 * the 32bit timestamp and the 32bit echoed timestamp
+		 * as sequence numbers to prevent a blind attacker from
+		 * inserting packets into a connection.
+		 *
+		 * RFC1323 tells us:
+		 *  - The timestamp on this packet must be greater than
+		 *    or equal to the last value echoed by the other
+		 *    endpoint.  The RFC says those will be discarded
+		 *    since it is a dup that has already been acked.
+		 *    This gives us a lowerbound on the timestamp.
+		 *        timestamp >= other last echoed timestamp
+		 *  - The timestamp will be less than or equal to
+		 *    the last timestamp plus the time between the
+		 *    last packet and now.  The RFC defines the max
+		 *    clock rate as 1ms.  We will allow clocks to be
+		 *    up to 10% fast and will allow a total difference
+		 *    or 30 seconds due to a route change.  And this
+		 *    gives us an upperbound on the timestamp.
+		 *        timestamp <= last timestamp + max ticks
+		 *    We have to be careful here.  Windows will send an
+		 *    initial timestamp of zero and then initialize it
+		 *    to a random value after the 3whs; presumably to
+		 *    avoid a DoS by having to call an expensive RNG
+		 *    during a SYN flood.  Proof MS has at least one
+		 *    good security geek.
+		 *
+		 *  - The TCP timestamp option must also echo the other
+		 *    endpoints timestamp.  The timestamp echoed is the
+		 *    one carried on the earliest unacknowledged segment
+		 *    on the left edge of the sequence window.  The RFC
+		 *    states that the host will reject any echoed
+		 *    timestamps that were larger than any ever sent.
+		 *    This gives us an upperbound on the TS echo.
+		 *        tescr <= largest_tsval
+		 *  - The lowerbound on the TS echo is a little more
+		 *    tricky to determine.  The other endpoint's echoed
+		 *    values will not decrease.  But there may be
+		 *    network conditions that re-order packets and
+		 *    cause our view of them to decrease.  For now the
+		 *    only lowerbound we can safely determine is that
+		 *    the TS echo will never be less than the orginal
+		 *    TS.  XXX There is probably a better lowerbound.
+		 *    Remove TS_MAX_CONN with better lowerbound check.
+		 *        tescr >= other original TS
+		 *
+		 * It is also important to note that the fastest
+		 * timestamp clock of 1ms will wrap its 32bit space in
+		 * 24 days.  So we just disable TS checking after 24
+		 * days of idle time.  We actually must use a 12d
+		 * connection limit until we can come up with a better
+		 * lowerbound to the TS echo check.
+		 */
+		struct timeval delta_ts;
+		int ts_fudge;
+
+
+		/*
+		 * PFTM_TS_DIFF is how many seconds of leeway to allow
+		 * a host's timestamp.  This can happen if the previous
+		 * packet got delayed in transit for much longer than
+		 * this packet.
+		 */
+		if ((ts_fudge = state->rule.ptr->timeout[PFTM_TS_DIFF]) == 0)
+			ts_fudge = pf_default_rule.timeout[PFTM_TS_DIFF];
+
+
+		/* Calculate max ticks since the last timestamp */
+#define TS_MAXFREQ	1100		/* RFC max TS freq of 1Khz + 10% skew */
+#define TS_MICROSECS	1000000		/* microseconds per second */
+#ifdef __FreeBSD__
+#ifndef timersub
+#define timersub(tvp, uvp, vvp)						\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
+		if ((vvp)->tv_usec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_usec += 1000000;			\
+		}							\
+	} while (0)
+#endif
+#endif
+		timersub(&uptime, &src->scrub->pfss_last, &delta_ts);
+		tsval_from_last = (delta_ts.tv_sec + ts_fudge) * TS_MAXFREQ;
+		tsval_from_last += delta_ts.tv_usec / (TS_MICROSECS/TS_MAXFREQ);
+
+
+		if ((src->state >= TCPS_ESTABLISHED &&
+		    dst->state >= TCPS_ESTABLISHED) &&
+		    (SEQ_LT(tsval, dst->scrub->pfss_tsecr) ||
+		    SEQ_GT(tsval, src->scrub->pfss_tsval + tsval_from_last) ||
+		    (tsecr && (SEQ_GT(tsecr, dst->scrub->pfss_tsval) ||
+		    SEQ_LT(tsecr, dst->scrub->pfss_tsval0))))) {
+			/* Bad RFC1323 implementation or an insertion attack.
+			 *
+			 * - Solaris 2.6 and 2.7 are known to send another ACK
+			 *   after the FIN,FIN|ACK,ACK closing that carries
+			 *   an old timestamp.
+			 */
+
+			DPFPRINTF(("Timestamp failed %c%c%c%c\n",
+			    SEQ_LT(tsval, dst->scrub->pfss_tsecr) ? '0' : ' ',
+			    SEQ_GT(tsval, src->scrub->pfss_tsval +
+			    tsval_from_last) ? '1' : ' ',
+			    SEQ_GT(tsecr, dst->scrub->pfss_tsval) ? '2' : ' ',
+			    SEQ_LT(tsecr, dst->scrub->pfss_tsval0)? '3' : ' '));
+#ifdef __FreeBSD__
+			DPFPRINTF((" tsval: %u  tsecr: %u  +ticks: %u  "
+			    "idle: %lus %lums\n",
+			    tsval, tsecr, tsval_from_last, delta_ts.tv_sec,
+			    delta_ts.tv_usec / 1000));
+			DPFPRINTF((" src->tsval: %u  tsecr: %u\n",
+			    src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
+			DPFPRINTF((" dst->tsval: %u  tsecr: %u  tsval0: %u"
+			    "\n", dst->scrub->pfss_tsval,
+			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
+#else
+			DPFPRINTF((" tsval: %lu  tsecr: %lu  +ticks: %lu  "
+			    "idle: %lus %lums\n",
+			    tsval, tsecr, tsval_from_last, delta_ts.tv_sec,
+			    delta_ts.tv_usec / 1000));
+			DPFPRINTF((" src->tsval: %lu  tsecr: %lu\n",
+			    src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
+			DPFPRINTF((" dst->tsval: %lu  tsecr: %lu  tsval0: %lu"
+			    "\n", dst->scrub->pfss_tsval,
+			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
+#endif
+			if (pf_status.debug >= PF_DEBUG_MISC) {
+				pf_print_state(state);
+				pf_print_flags(th->th_flags);
+				printf("\n");
+			}
+			REASON_SET(reason, PFRES_TS);
+			return (PF_DROP);
+		}
+
+		/* XXX I'd really like to require tsecr but it's optional */
+
+	} else if (!got_ts && (th->th_flags & TH_RST) == 0 &&
+	    ((src->state == TCPS_ESTABLISHED && dst->state == TCPS_ESTABLISHED)
+	    || pd->p_len > 0 || (th->th_flags & TH_SYN)) &&
+	    src->scrub && dst->scrub &&
+	    (src->scrub->pfss_flags & PFSS_PAWS) &&
+	    (dst->scrub->pfss_flags & PFSS_PAWS)) {
+		/* Didn't send a timestamp.  Timestamps aren't really useful
+		 * when:
+		 *  - connection opening or closing (often not even sent).
+		 *    but we must not let an attacker to put a FIN on a
+		 *    data packet to sneak it through our ESTABLISHED check.
+		 *  - on a TCP reset.  RFC suggests not even looking at TS.
+		 *  - on an empty ACK.  The TS will not be echoed so it will
+		 *    probably not help keep the RTT calculation in sync and
+		 *    there isn't as much danger when the sequence numbers
+		 *    got wrapped.  So some stacks don't include TS on empty
+		 *    ACKs :-(
+		 *
+		 * To minimize the disruption to mostly RFC1323 conformant
+		 * stacks, we will only require timestamps on data packets.
+		 *
+		 * And what do ya know, we cannot require timestamps on data
+		 * packets.  There appear to be devices that do legitimate
+		 * TCP connection hijacking.  There are HTTP devices that allow
+		 * a 3whs (with timestamps) and then buffer the HTTP request.
+		 * If the intermediate device has the HTTP response cache, it
+		 * will spoof the response but not bother timestamping its
+		 * packets.  So we can look for the presence of a timestamp in
+		 * the first data packet and if there, require it in all future
+		 * packets.
+		 */
+
+		if (pd->p_len > 0 && (src->scrub->pfss_flags & PFSS_DATA_TS)) {
+			/*
+			 * Hey!  Someone tried to sneak a packet in.  Or the
+			 * stack changed its RFC1323 behavior?!?!
+			 */
+			if (pf_status.debug >= PF_DEBUG_MISC) {
+				DPFPRINTF(("Did not receive expected RFC1323 "
+				    "timestamp\n"));
+				pf_print_state(state);
+				pf_print_flags(th->th_flags);
+				printf("\n");
+			}
+			REASON_SET(reason, PFRES_TS);
+			return (PF_DROP);
+		}
+	}
+
+
+	/*
+	 * We will note if a host sends his data packets with or without
+	 * timestamps.  And require all data packets to contain a timestamp
+	 * if the first does.  PAWS implicitly requires that all data packets be
+	 * timestamped.  But I think there are middle-man devices that hijack
+	 * TCP streams immedietly after the 3whs and don't timestamp their
+	 * packets (seen in a WWW accelerator or cache).
+	 */
+	if (pd->p_len > 0 && src->scrub && (src->scrub->pfss_flags &
+	    (PFSS_TIMESTAMP|PFSS_DATA_TS|PFSS_DATA_NOTS)) == PFSS_TIMESTAMP) {
+		if (got_ts)
+			src->scrub->pfss_flags |= PFSS_DATA_TS;
+		else {
+			src->scrub->pfss_flags |= PFSS_DATA_NOTS;
+			if (pf_status.debug >= PF_DEBUG_MISC && dst->scrub &&
+			    (dst->scrub->pfss_flags & PFSS_TIMESTAMP)) {
+				/* Don't warn if other host rejected RFC1323 */
+				DPFPRINTF(("Broken RFC1323 stack did not "
+				    "timestamp data packet. Disabled PAWS "
+				    "security.\n"));
+				pf_print_state(state);
+				pf_print_flags(th->th_flags);
+				printf("\n");
+			}
+		}
+	}
+
+
+	/*
+	 * Update PAWS values
+	 */
+	if (got_ts && src->scrub && PFSS_TIMESTAMP == (src->scrub->pfss_flags &
+	    (PFSS_PAWS_IDLED|PFSS_TIMESTAMP))) {
+		getmicrouptime(&src->scrub->pfss_last);
+		if (SEQ_GEQ(tsval, src->scrub->pfss_tsval) ||
+		    (src->scrub->pfss_flags & PFSS_PAWS) == 0)
+			src->scrub->pfss_tsval = tsval;
+
+		if (tsecr) {
+			if (SEQ_GEQ(tsecr, src->scrub->pfss_tsecr) ||
+			    (src->scrub->pfss_flags & PFSS_PAWS) == 0)
+				src->scrub->pfss_tsecr = tsecr;
+
+			if ((src->scrub->pfss_flags & PFSS_PAWS) == 0 &&
+			    (SEQ_LT(tsval, src->scrub->pfss_tsval0) ||
+			    src->scrub->pfss_tsval0 == 0)) {
+				/* tsval0 MUST be the lowest timestamp */
+				src->scrub->pfss_tsval0 = tsval;
+			}
+
+			/* Only fully initialized after a TS gets echoed */
+			if ((src->scrub->pfss_flags & PFSS_PAWS) == 0)
+				src->scrub->pfss_flags |= PFSS_PAWS;
+		}
+	}
+
 	/* I have a dream....  TCP segment reassembly.... */
 	return (0);
 }
+
 int
 pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
     int off)
