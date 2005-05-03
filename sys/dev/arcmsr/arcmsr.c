@@ -1497,7 +1497,7 @@ static VOID arcmsr_executesrb(VOID *arg,bus_dma_segment_t *dm_segs,LONG nseg,LON
 		return;
 	}
     arcmsr_build_srb(pSRB,dm_segs,nseg);
-	if(pccb->ccb_h.status != CAM_REQ_INPROG)
+	if((pccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
 	{
 		if(nseg != 0)
 		{
