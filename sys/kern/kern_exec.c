@@ -301,6 +301,7 @@ do_execve(td, args, mac_p)
 	int will_transition;
 #endif
 
+	vfslocked = 0;
 	imgp = &image_params;
 
 	/*
@@ -336,10 +337,8 @@ do_execve(td, args, mac_p)
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
-	if (error) {
-		mtx_lock(&Giant);
+	if (error)
 		goto exec_fail;
-	}
 #endif
 
 	imgp->image_header = NULL;
@@ -353,7 +352,6 @@ do_execve(td, args, mac_p)
 	    UIO_SYSSPACE, args->fname, td);
 
 interpret:
-	vfslocked = 0;
 	error = namei(ndp);
 	if (error)
 		goto exec_fail;
@@ -440,6 +438,7 @@ interpret:
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
 		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = 0;
 		/* set new name to that of the interpreter */
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
@@ -763,7 +762,7 @@ exec_fail:
 		if (interplabel != NULL)
 			mac_vnode_label_free(interplabel);
 #endif
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
