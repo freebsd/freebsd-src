@@ -108,8 +108,6 @@ exec_aout_imgact(imgp)
 	unsigned long bss_size;
 	int error;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Linux and *BSD binaries look very much alike,
 	 * only the machine id is different:
