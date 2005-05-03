@@ -1,4 +1,4 @@
-/* $OpenBSD: if_pflog.h,v 1.10 2004/03/19 04:52:04 frantzen Exp $ */
+/* $OpenBSD: if_pflog.h,v 1.11 2004/05/19 17:50:51 dhartmei Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -31,10 +31,7 @@ struct pflog_softc {
 	struct ifnet	sc_if;  /* the interface */
 };
 
-/* XXX keep in sync with pfvar.h */
-#ifndef PF_RULESET_NAME_SIZE
-#define PF_RULESET_NAME_SIZE	 16
-#endif
+#define PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
 	u_int8_t	length;
@@ -42,7 +39,7 @@ struct pfloghdr {
 	u_int8_t	action;
 	u_int8_t	reason;
 	char		ifname[IFNAMSIZ];
-	char		ruleset[PF_RULESET_NAME_SIZE];
+	char		ruleset[PFLOG_RULESET_NAME_SIZE];
 	u_int32_t	rulenr;
 	u_int32_t	subrulenr;
 	u_int8_t	dir;
