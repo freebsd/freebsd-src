@@ -290,14 +290,17 @@ RetryFault:;
 	 *
 	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
-	if (!fs.map->system_map)
+	if (fs.first_object->flags & OBJ_NEEDGIANT)
 		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
 	KASSERT(fs.vp == NULL || !fs.map->system_map,
 	    ("vm_fault: vnode-backed object mapped by system map"));
-	if (debug_mpsafevm && !fs.map->system_map)
+	KASSERT((fs.first_object->flags & OBJ_NEEDGIANT) == 0 ||
+	    !fs.map->system_map,
+	    ("vm_fault: Object requiring giant mapped by system map"));
+	if (fs.first_object->flags & OBJ_NEEDGIANT && debug_mpsafevm)
 		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -378,10 +381,12 @@ RetryFault:;
 				}
 				unlock_map(&fs);
 				if (fs.vp != NULL) {
-					mtx_lock(&Giant);
+					int vfslck;
+
+					vfslck = VFS_LOCK_GIANT(fs.vp->v_mount);
 					vput(fs.vp);
-					mtx_unlock(&Giant);
 					fs.vp = NULL;
+					VFS_UNLOCK_GIANT(vfslck);
 				}
 				VM_OBJECT_LOCK(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,

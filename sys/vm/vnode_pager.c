@@ -231,6 +231,8 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object->un_pager.vnp.vnp_size = size;
 
 		object->handle = handle;
+		if (VFS_NEEDSGIANT(vp->v_mount))
+			vm_object_set_flag(object, OBJ_NEEDGIANT);
 		vp->v_object = object;
 	} else {
 		object->ref_count++;
@@ -1188,6 +1190,7 @@ vnode_pager_lock(vm_object_t first_object)
 		VM_OBJECT_UNLOCK(object);
 		if (first_object != object)
 			VM_OBJECT_UNLOCK(first_object);
+		VFS_ASSERT_GIANT(vp->v_mount);
 		if (vget(vp, LK_CANRECURSE | LK_INTERLOCK |
 		    LK_RETRY | LK_SHARED, curthread)) {
 			VM_OBJECT_LOCK(first_object);
