@@ -1230,6 +1230,7 @@ vm_object_shadow(
 			length = PQ_L2_SIZE / 3 + PQ_PRIME1;
 		result->pg_color = (source->pg_color +
 		    length * source->generation) & PQ_L2_MASK;
+		result->flags |= source->flags & OBJ_NEEDGIANT;
 		VM_OBJECT_UNLOCK(source);
 		next_index = (result->pg_color + PQ_L2_SIZE / 3 + PQ_PRIME1) &
 		    PQ_L2_MASK;
