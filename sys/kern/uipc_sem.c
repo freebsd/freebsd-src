@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 
+#include <posix4/ksem.h>
 #include <posix4/posix4.h>
 #include <posix4/semaphore.h>
 #include <posix4/_semaphore.h>
@@ -85,25 +86,6 @@ static int kern_sem_unlink(struct thread *td, const char *name);
 
 #define SEM_TO_ID(x)	((intptr_t)(x))
 #define ID_TO_SEM(x)	id_to_sem(x)
-
-struct kuser {
-	pid_t ku_pid;
-	LIST_ENTRY(kuser) ku_next;
-};
-
-struct ksem {
-	LIST_ENTRY(ksem) ks_entry;	/* global list entry */
-	int ks_onlist;			/* boolean if on a list (ks_entry) */
-	char *ks_name;			/* if named, this is the name */
-	int ks_ref;			/* number of references */
-	mode_t ks_mode;			/* protection bits */
-	uid_t ks_uid;			/* creator uid */
-	gid_t ks_gid;			/* creator gid */
-	unsigned int ks_value;		/* current value */
-	struct cv ks_cv;		/* waiters sleep here */
-	int ks_waiters;			/* number of waiters */
-	LIST_HEAD(, kuser) ks_users;	/* pids using this sem */
-};
 
 /*
  * available semaphores go here, this includes sem_init and any semaphores
