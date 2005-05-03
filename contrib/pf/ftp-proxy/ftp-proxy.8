@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ftp-proxy.8,v 1.40 2004/03/16 08:50:07 jmc Exp $
+.\"	$OpenBSD: ftp-proxy.8,v 1.42 2004/11/19 00:47:23 jmc Exp $
 .\"
 .\" Copyright (c) 1996-2001
 .\"	Obtuse Systems Corporation, All rights reserved.
@@ -37,14 +37,18 @@
 .Nd Internet File Transfer Protocol proxy server
 .Sh SYNOPSIS
 .Nm ftp-proxy
+.Bk -words
 .Op Fl AnrVw
 .Op Fl a Ar address
 .Op Fl D Ar debuglevel
 .Op Fl g Ar group
 .Op Fl M Ar maxport
 .Op Fl m Ar minport
+.Op Fl R Ar address[:port]
+.Op Fl S Ar address
 .Op Fl t Ar timeout
 .Op Fl u Ar user
+.Ek
 .Sh DESCRIPTION
 .Nm
 is a proxy for the Internet File Transfer Protocol.
@@ -139,12 +143,27 @@ Without this flag,
 does not require any IP forwarding or NAT beyond the
 .Em rdr
 necessary to capture the FTP control connection.
+.It Fl R Ar address:[port]
+Reverse proxy mode for FTP servers running behind a NAT gateway.
+In this mode, no redirection is needed.
+The proxy is run from
+.Xr inetd 8
+on the port that external clients connect to (usually 21).
+Control connections and passive data connections are forwarded
+to the server.
 .It Fl r
 Use reverse host
 .Pq reverse DNS
 lookups for logging and libwrap use.
 By default,
 the proxy does not look up hostnames for libwrap or logging purposes.
+.It Fl S Ar address
+Source address to use for data connections made by the proxy.
+Useful when there are multiple addresses (aliases) available
+to the proxy.
+Clients may expect data connections to have the same source
+address as the control connections, and reject or drop other
+connections.
 .It Fl t Ar timeout
 Specifies a timeout, in seconds.
 The proxy will exit and close open connections if it sees no data

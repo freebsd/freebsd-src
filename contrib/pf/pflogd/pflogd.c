@@ -1,4 +1,4 @@
-/*	$OpenBSD: pflogd.c,v 1.27 2004/02/13 19:01:57 otto Exp $	*/
+/*	$OpenBSD: pflogd.c,v 1.33 2005/02/09 12:09:30 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Theo de Raadt
@@ -271,16 +271,19 @@ reset_dump(void)
 	fp = fdopen(fd, "a+");
 
 	if (fp == NULL) {
+		close(fd);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
 		return (1);
 	}
 	if (fstat(fileno(fp), &st) == -1) {
+		fclose(fp);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
 		return (1);
 	}
 
 	/* set FILE unbuffered, we do our own buffering */
 	if (setvbuf(fp, NULL, _IONBF, 0)) {
+		fclose(fp);
 		logmsg(LOG_ERR, "Failed to set output buffers");
 		return (1);
 	}
@@ -291,6 +294,7 @@ reset_dump(void)
 		if (snaplen != cur_snaplen) {
 			logmsg(LOG_NOTICE, "Using snaplen %d", snaplen);
 			if (set_snaplen(snaplen)) {
+				fclose(fp);
 				logmsg(LOG_WARNING,
 				    "Failed, using old settings");
 			}
@@ -418,8 +422,9 @@ dump_packet_nobuf(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 #else
 	if (fwrite((char *)h, sizeof(*h), 1, f) != 1) {
 #endif
-		/* try to undo header to prevent corruption */
 		off_t pos = ftello(f);
+
+		/* try to undo header to prevent corruption */
 #ifdef __FreeBSD__
 		if (pos < sizeof(sh) ||
 		    ftruncate(fileno(f), pos - sizeof(sh))) {
@@ -554,6 +559,7 @@ main(int argc, char **argv)
 	struct pcap_stat pstat;
 	int ch, np, Xflag = 0;
 	pcap_handler phandler = dump_packet;
+	char *errstr = NULL;
 
 #ifdef __FreeBSD__
 	/* another ?paranoid? safety measure we do not have */
@@ -567,19 +573,35 @@ main(int argc, char **argv)
 			Debug = 1;
 			break;
 		case 'd':
-			delay = atoi(optarg);
-			if (delay < 5 || delay > 60*60)
+#ifdef __OpenBSD__
+			delay = strtonum(optarg, 5, 60*60, &errstr);
+			if (errstr)
+#else
+			delay = strtol(optarg, &errstr, 10);
+			if ((delay < 5) || (delay > 60*60) ||
+			    ((errstr != NULL) && (*errstr != '\0')))
+#endif
 				usage();
 			break;
 		case 'f':
 			filename = optarg;
 			break;
 		case 's':
-			snaplen = atoi(optarg);
+#ifdef __OpenBSD__
+			snaplen = strtonum(optarg, 0, PFLOGD_MAXSNAPLEN,
+			    &errstr);
 			if (snaplen <= 0)
 				snaplen = DEF_SNAPLEN;
-			if (snaplen > PFLOGD_MAXSNAPLEN)
+			if (errstr)
 				snaplen = PFLOGD_MAXSNAPLEN;
+#else
+			snaplen = strtol(optarg, &errstr, 10);
+			if (snaplen <= 0)
+				snaplen = DEF_SNAPLEN;
+			if ((snaplen > PFLOGD_MAXSNAPLEN) ||
+			    ((errstr != NULL) && (*errstr != '\0')))
+				snaplen = PFLOGD_MAXSNAPLEN;
+#endif
 			break;
 		case 'x':
 			Xflag++;
@@ -603,6 +625,7 @@ main(int argc, char **argv)
 		pidfile(NULL);
 	}
 
+	tzset();
 	(void)umask(S_IRWXG | S_IRWXO);
 
 	/* filter will be used by the privileged process */
@@ -655,7 +678,7 @@ main(int argc, char **argv)
 
 	while (1) {
 		np = pcap_dispatch(hpcap, PCAP_NUM_PKTS,
-		    dump_packet, (u_char *)dpcap);
+		    phandler, (u_char *)dpcap);
 		if (np < 0) {
 #ifdef __FreeBSD__
 			if (errno == ENXIO) {
