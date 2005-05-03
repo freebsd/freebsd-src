@@ -1,4 +1,4 @@
-.\" $OpenBSD: authpf.8,v 1.31 2003/12/10 04:10:37 beck Exp $
+.\" $OpenBSD: authpf.8,v 1.38 2005/01/04 09:57:04 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Bob Beck (beck@openbsd.org>.  All rights reserved.
 .\"
@@ -60,6 +60,10 @@ can add filter and translation rules using the syntax described in
 requires that the
 .Xr pf 4
 system be enabled before use.
+.Nm
+can also maintain the list of IP address of connected users
+in the "authpf_users"
+.Pa table .
 .Pp
 .Nm
 is meant to be used with users who can connect via
@@ -93,11 +97,16 @@ in order to cause evaluation of any
 .Nm
 rules:
 .Bd -literal -offset indent
-nat-anchor authpf
-rdr-anchor authpf
-binat-anchor authpf
-anchor authpf
+nat-anchor "authpf/*"
+rdr-anchor "authpf/*"
+binat-anchor "authpf/*"
+anchor "authpf/*"
 .Ed
+.Pp
+The "/*" at the end of the anchor name is required for
+.Xr pf 4
+to process the rulesets attached to the anchor by
+.Nm authpf .
 .Sh FILTER AND TRANSLATION RULES
 Filter and translation rules for
 .Nm
@@ -113,10 +122,14 @@ Additionally, the macro
 .Em user_id
 is assigned the user name.
 .Pp
-Filter and nat rules will first be searched for in
+Filter and translation rules are stored in a file called
+.Pa authpf.rules .
+This file will first be searched for in
 .Pa /etc/authpf/users/$USER/
 and then in
 .Pa /etc/authpf/ .
+Only one of these files will be used if both are present.
+.Pp
 Per-user rules from the
 .Pa /etc/authpf/users/$USER/
 directory are intended to be used when non-default rules
@@ -124,21 +137,11 @@ are needed on an individual user basis.
 It is important to ensure that a user can not write or change
 these configuration files.
 .Pp
-Filter and translation rules are loaded from the file
-.Pa /etc/authpf/users/$USER/authpf.rules .
-If this file does not exist the file
-.Pa /etc/authpf/authpf.rules
-is used.
 The
 .Pa authpf.rules
 file must exist in one of the above locations for
 .Nm
 to run.
-.Pp
-Translation rules are also loaded from this file.
-The use of translation rules in an
-.Pa authpf.rules
-file is optional.
 .Sh CONFIGURATION
 Options are controlled by the
 .Pa /etc/authpf/authpf.conf
@@ -154,6 +157,10 @@ Currently, the allowed values are as follows:
 Use the specified
 .Pa anchor
 name instead of "authpf".
+.It table=name
+Use the specified
+.Pa table
+name instead of "authpf_users".
 .El
 .Sh USER MESSAGES
 On successful invocation,
@@ -218,9 +225,15 @@ it becomes unresponsive, or if arp or address spoofing is used to
 hijack the session.
 Note that TCP keepalives are not sufficient for
 this, since they are not secure.
+Also note that
+.Ar AllowTcpForwarding
+should be disabled for
+.Nm
+users to prevent them from circumventing restrictions imposed by the
+packet filter ruleset.
 .Pp
 .Nm
-will remove statetable entries that were created during a user's
+will remove state table entries that were created during a user's
 session.
 This ensures that there will be no unauthenticated traffic
 allowed to pass after the controlling
@@ -391,15 +404,15 @@ Example
 # ssh and use us as a dns server.
 internal_if="fxp1"
 gateway_addr="10.0.1.1"
-nat-anchor authpf
-rdr-anchor authpf
-binat-anchor authpf
+nat-anchor "authpf/*"
+rdr-anchor "authpf/*"
+binat-anchor "authpf/*"
 block in on $internal_if from any to any
 pass in quick on $internal_if proto tcp from any to $gateway_addr \e
       port = ssh
 pass in quick on $internal_if proto udp from any to $gateway_addr \e
       port = domain
-anchor authpf
+anchor "authpf/*"
 .Ed
 .Pp
 .Sy For a switched, wired net
@@ -464,6 +477,33 @@ from the ruleset name.
 Oct 31 19:42:30.296553 rule 0.bbeck(20267).1/0(match): pass out on fxp1: \e
 129.128.11.10.60539 > 198.137.240.92.22: S 2131494121:2131494121(0) win \e
 16384 <mss 1460,nop,nop,sackOK> (DF)
+.Ed
+.Pp
+.Sy Using the authpf_users table
+\- Simple
+.Nm
+settings can be implemented without an anchor by just using the "authpf_users"
+.Pa table .
+For example, the following
+.Xr pf.conf 5
+lines will give SMTP and IMAP access to logged in users:
+.Bd -literal
+table <authpf_users> persist
+pass in on $ext_if proto tcp from <authpf_users> \e
+        to port { smtp imap } keep state
+.Ed
+.Pp
+It is also possible to use the "authpf_users"
+.Pa table
+in combination with anchors.
+For example,
+.Xr pf 4
+processing can be sped up by looking up the anchor
+only for packets coming from logged in users:
+.Bd -literal
+table <authpf_users> persist
+anchor "authpf/*" from <authpf_users>
+rdr-anchor "authpf/*" from <authpf_users>
 .Ed
 .Sh FILES
 .Bl -tag -width "/etc/authpf/authpf.conf" -compact

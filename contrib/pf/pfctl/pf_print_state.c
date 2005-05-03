@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.39 2004/02/10 17:48:08 henning Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.40 2004/12/10 22:13:26 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -95,6 +95,9 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		break;
 	case PF_ADDR_NOROUTE:
 		printf("no-route");
+		return;
+	case PF_ADDR_RTLABEL:
+		printf("route \"%s\"", addr->v.rtlabelname);
 		return;
 	default:
 		printf("?");

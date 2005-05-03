@@ -1,5 +1,4 @@
-/*	$OpenBSD: pfctl_table.c,v 1.59 2004/03/15 15:25:44 dhartmei Exp $ */
-/* add	$OpenBSD: pfctl_table.c,v 1.61 2004/06/12 22:22:44 cedric Exp $ */
+/*	$OpenBSD: pfctl_table.c,v 1.62 2004/12/22 17:17:55 dhartmei Exp $ */
 
 /*
  * Copyright (c) 2002 Cedric Berger
@@ -54,7 +53,7 @@
 
 extern void	usage(void);
 static int	pfctl_table(int, char *[], char *, const char *, char *,
-		    const char *, const char *, int);
+		    const char *, int);
 static void	print_table(struct pfr_table *, int, int);
 static void	print_tstats(struct pfr_tstats *, int);
 static int	load_addr(struct pfr_buffer *, int, char *[], char *, int);
@@ -103,31 +102,29 @@ static const char	*istats_text[2][2][2] = {
 	} while(0)
 
 int
-pfctl_clear_tables(const char *anchor, const char *ruleset, int opts)
+pfctl_clear_tables(const char *anchor, int opts)
 {
-	return pfctl_table(0, NULL, NULL, "-F", NULL, anchor, ruleset, opts);
+	return pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts);
 }
 
 int
-pfctl_show_tables(const char *anchor, const char *ruleset, int opts)
+pfctl_show_tables(const char *anchor, int opts)
 {
-	return pfctl_table(0, NULL, NULL, "-s", NULL, anchor, ruleset, opts);
+	return pfctl_table(0, NULL, NULL, "-s", NULL, anchor, opts);
 }
 
 int
 pfctl_command_tables(int argc, char *argv[], char *tname,
-    const char *command, char *file, const char *anchor, const char *ruleset,
-    int opts)
+    const char *command, char *file, const char *anchor, int opts)
 {
 	if (tname == NULL || command == NULL)
 		usage();
-	return pfctl_table(argc, argv, tname, command, file, anchor, ruleset,
-	    opts);
+	return pfctl_table(argc, argv, tname, command, file, anchor, opts);
 }
 
 int
 pfctl_table(int argc, char *argv[], char *tname, const char *command,
-    char *file, const char *anchor, const char *ruleset, int opts)
+    char *file, const char *anchor, int opts)
 {
 	struct pfr_table	 table;
 	struct pfr_buffer	 b, b2;
@@ -152,9 +149,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 			errx(1, "pfctl_table: strlcpy");
 	}
 	if (strlcpy(table.pfrt_anchor, anchor,
-	    sizeof(table.pfrt_anchor)) >= sizeof(table.pfrt_anchor) ||
-	    strlcpy(table.pfrt_ruleset, ruleset,
-	    sizeof(table.pfrt_ruleset)) >= sizeof(table.pfrt_ruleset))
+	    sizeof(table.pfrt_anchor)) >= sizeof(table.pfrt_anchor))
 		errx(1, "pfctl_table: strlcpy");
 
 	if (!strcmp(command, "-F")) {
@@ -344,8 +339,6 @@ print_table(struct pfr_table *ta, int verbose, int debug)
 		    ta->pfrt_name);
 		if (ta->pfrt_anchor[0])
 			printf("\t%s", ta->pfrt_anchor);
-		if (ta->pfrt_ruleset[0])
-			printf(":%s", ta->pfrt_ruleset);
 		puts("");
 	} else
 		puts(ta->pfrt_name);
@@ -463,16 +456,14 @@ radix_perror(void)
 
 int
 pfctl_define_table(char *name, int flags, int addrs, const char *anchor,
-    const char *ruleset, struct pfr_buffer *ab, u_int32_t ticket)
+    struct pfr_buffer *ab, u_int32_t ticket)
 {
 	struct pfr_table tbl;
 
 	bzero(&tbl, sizeof(tbl));
 	if (strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name)) >=
 	    sizeof(tbl.pfrt_name) || strlcpy(tbl.pfrt_anchor, anchor,
-	    sizeof(tbl.pfrt_anchor)) >= sizeof(tbl.pfrt_anchor) ||
-	    strlcpy(tbl.pfrt_ruleset, ruleset, sizeof(tbl.pfrt_ruleset)) >=
-	    sizeof(tbl.pfrt_ruleset))
+	    sizeof(tbl.pfrt_anchor)) >= sizeof(tbl.pfrt_anchor))
 		errx(1, "pfctl_define_table: strlcpy");
 	tbl.pfrt_flags = flags;
 
@@ -586,7 +577,8 @@ print_iface(struct pfi_if *p, int opts)
 	oprintf(flags, PFI_IFLAG_GROUP, "group", &first, 0);
 	oprintf(flags, PFI_IFLAG_CLONABLE, "clonable", &first, 0);
 	oprintf(flags, PFI_IFLAG_DYNAMIC, "dynamic", &first, 0);
-	oprintf(flags, PFI_IFLAG_ATTACHED, "attached", &first, 1);
+	oprintf(flags, PFI_IFLAG_ATTACHED, "attached", &first, 0);
+	oprintf(flags, PFI_IFLAG_SKIP, "skipped", &first, 1);
 	printf("\n");
 
 	if (!(opts & PF_OPT_VERBOSE2))
