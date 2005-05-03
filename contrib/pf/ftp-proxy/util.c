@@ -1,4 +1,4 @@
-/*	$OpenBSD: util.c,v 1.18 2004/01/22 16:10:30 beck Exp $ */
+/*	$OpenBSD: util.c,v 1.19 2004/07/06 19:49:11 dhartmei Exp $ */
 
 /*
  * Copyright (c) 1996-2001
@@ -56,6 +56,8 @@
 
 #include "util.h"
 
+extern int ReverseMode;
+
 int Debug_Level;
 int Use_Rdns;
 in_addr_t Bind_Addr = INADDR_NONE;
@@ -75,14 +77,14 @@ debuglog(int debug_level, const char *fmt, ...)
 
 int
 get_proxy_env(int connected_fd, struct sockaddr_in *real_server_sa_ptr,
-    struct sockaddr_in *client_sa_ptr)
+    struct sockaddr_in *client_sa_ptr, struct sockaddr_in *proxy_sa_ptr)
 {
 	struct pfioc_natlook natlook;
 	socklen_t slen;
 	int fd;
 
-	slen = sizeof(*real_server_sa_ptr);
-	if (getsockname(connected_fd, (struct sockaddr *)real_server_sa_ptr,
+	slen = sizeof(*proxy_sa_ptr);
+	if (getsockname(connected_fd, (struct sockaddr *)proxy_sa_ptr,
 	    &slen) != 0) {
 		syslog(LOG_ERR, "getsockname() failed (%m)");
 		return(-1);
@@ -94,6 +96,9 @@ get_proxy_env(int connected_fd, struct sockaddr_in *real_server_sa_ptr,
 		return(-1);
 	}
 
+	if (ReverseMode)
+		return(0);
+
 	/*
 	 * Build up the pf natlook structure.
 	 * Just for IPv4 right now
@@ -101,10 +106,10 @@ get_proxy_env(int connected_fd, struct sockaddr_in *real_server_sa_ptr,
 	memset((void *)&natlook, 0, sizeof(natlook));
 	natlook.af = AF_INET;
 	natlook.saddr.addr32[0] = client_sa_ptr->sin_addr.s_addr;
-	natlook.daddr.addr32[0] = real_server_sa_ptr->sin_addr.s_addr;
+	natlook.daddr.addr32[0] = proxy_sa_ptr->sin_addr.s_addr;
 	natlook.proto = IPPROTO_TCP;
 	natlook.sport = client_sa_ptr->sin_port;
-	natlook.dport = real_server_sa_ptr->sin_port;
+	natlook.dport = proxy_sa_ptr->sin_port;
 	natlook.direction = PF_OUT;
 
 	/*

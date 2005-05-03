@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflogd.8,v 1.24 2004/01/16 10:45:49 jmc Exp $
+.\"	$OpenBSD: pflogd.8,v 1.25 2005/01/02 18:15:02 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Can Erkin Acar.  All rights reserved.
 .\"
@@ -161,7 +161,8 @@ Interface name equals "kue0".
 Rule number equals 10.
 .It reason match
 Reason equals match.
-Also accepts "bad-offset", "fragment", "short", "normalize" and "memory".
+Also accepts "bad-offset", "fragment", "bad-timestamp", "short",
+"normalize" and "memory".
 .It action pass
 Action equals pass.
 Also accepts "block".
