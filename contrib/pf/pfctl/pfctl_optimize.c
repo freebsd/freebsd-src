@@ -16,6 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -815,7 +818,11 @@ block_feedback(struct pfctl *pf, struct superblock *block)
 				break;
 			}
 		}
+#ifdef __FreeBSD__
+		if (por2 == NULL)
+#else
 		if (por2 == TAILQ_END(&block->sb_rules))
+#endif
 			TAILQ_INSERT_TAIL(&block->sb_rules, por1, por_entry);
 	}
 
