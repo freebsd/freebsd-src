@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 
 static const struct afd {
 	int a_af;
-	int a_addrlen;
-	int a_socklen;
+	size_t a_addrlen;
+	socklen_t a_socklen;
 	int a_off;
 } afdl [] = {
 #ifdef INET6
@@ -195,7 +195,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		 * hostlen == 0 means that the caller does not want the result.
 		 */
 	} else if (flags & NI_NUMERICHOST) {
-		int numaddrlen;
+		size_t numaddrlen;
 
 		/* NUMERICHOST and NAMEREQD conflicts with each other */
 		if (flags & NI_NAMEREQD)
@@ -281,7 +281,7 @@ ip6_parsenumeric(sa, addr, host, hostlen, flags)
 	size_t hostlen;
 	int flags;
 {
-	int numaddrlen;
+	size_t numaddrlen;
 	char numaddr[512];
 
 	if (inet_ntop(AF_INET6, addr, numaddr, sizeof(numaddr)) == NULL)
@@ -350,7 +350,7 @@ ip6_sa2str(sa6, buf, bufsiz, flags)
 
 	/* last resort */
 	n = snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id);
-	if (n < 0 || n >= bufsiz)
+	if (n < 0 || (size_t)n >= bufsiz)
 		return -1;
 	else
 		return n;
