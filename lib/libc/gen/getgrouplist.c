@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -41,17 +41,15 @@ __FBSDID("$FreeBSD$");
  * get credential
  */
 #include <sys/types.h>
-#include <string.h>
+
 #include <grp.h>
+#include <string.h>
+#include <unistd.h>
 
 int
-getgrouplist(uname, agroup, groups, grpcnt)
-	const char *uname;
-	gid_t agroup;
-	gid_t *groups;
-	int *grpcnt;
+getgrouplist(const char *uname, gid_t agroup, gid_t *groups, int *grpcnt)
 {
-	struct group *grp;
+	const struct group *grp;
 	int i, maxgroups, ngroups, ret;
 
 	ret = 0;
