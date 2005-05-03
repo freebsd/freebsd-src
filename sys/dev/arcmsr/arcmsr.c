@@ -2196,7 +2196,7 @@ static LONG arcmsr_initialize(device_t dev)
 	if (bus_dma_tag_create( /*parent*/NULL, 
 		                    /*alignemnt*/1, 
 				   			/*boundary*/0,
-			       			/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+			       			/*lowaddr*/BUS_SPACE_MAXADDR,
 			       			/*highaddr*/BUS_SPACE_MAXADDR,
 			       			/*filter*/NULL, 
 							/*filterarg*/NULL,
@@ -2211,7 +2211,7 @@ static LONG arcmsr_initialize(device_t dev)
 	if (bus_dma_tag_create( /*parent*/NULL, 
 		                    /*alignemnt*/1, 
 				   			/*boundary*/0,
-			       			/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+			       			/*lowaddr*/BUS_SPACE_MAXADDR,
 			       			/*highaddr*/BUS_SPACE_MAXADDR,
 			       			/*filter*/NULL, 
 							/*filterarg*/NULL,
@@ -2272,7 +2272,7 @@ static LONG arcmsr_initialize(device_t dev)
 			       			/*maxsize*/((sizeof(struct _SRB) * ARCMSR_MAX_FREESRB_NUM)+0x20),
 			       			/*nsegments*/1,
 			       			/*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       			/*flags*/BUS_DMA_ALLOCNOW,
+			       			/*flags*/0,
 							/*lockfunc*/NULL,
 							/*lockarg*/NULL,
 							&pACB->srb_dmat) != 0) 
@@ -2287,7 +2287,7 @@ static LONG arcmsr_initialize(device_t dev)
 			       			/*maxsize*/((sizeof(struct _SRB) * ARCMSR_MAX_FREESRB_NUM)+0x20),
 			       			/*nsegments*/1,
 			       			/*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       			/*flags*/BUS_DMA_ALLOCNOW,
+			       			/*flags*/0,
 							&pACB->srb_dmat) != 0) 
 #endif
 	{
