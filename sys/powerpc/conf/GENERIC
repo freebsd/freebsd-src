@@ -32,7 +32,8 @@ makeoptions	WERROR=-Wno-error	#XXX: We don't want -Werror just now
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 
-options 	SCHED_ULE		#ULE scheduler
+#options 	SCHED_ULE		#ULE scheduler
+options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -43,7 +44,7 @@ options 	MD_ROOT			#MD is a potential root device
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as root device
-#options 	MSDOSFS			#MSDOS Filesystem
+options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
@@ -122,6 +123,7 @@ device		bpf		#Berkeley packet filter
 # USB support
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
+device		ehci		# EHCI PCI->USB interface
 device		usb		# USB Bus (required)
 device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
@@ -142,9 +144,6 @@ device		kue		# Kawasaki LSI USB Ethernet
 device		firewire	# FireWire bus code
 device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
-
-# Temporary defs until things are farther along.
-makeoptions	NO_MODULES=true
 
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
