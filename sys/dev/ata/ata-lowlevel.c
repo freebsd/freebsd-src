@@ -74,6 +74,7 @@ ata_begin_transaction(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_device *atadev = device_get_softc(request->dev);
+    int dummy;
 
     ATA_DEBUG_RQ(request, "begin transaction");
 
@@ -92,9 +93,7 @@ ata_begin_transaction(struct ata_request *request)
 	int write = (request->flags & ATA_R_WRITE);
 
 	    /* issue command */
-	    if (ch->hw.command(request->dev, request->u.ata.command,
-			       request->u.ata.lba, request->u.ata.count,
-			       request->u.ata.feature)) {
+	    if (ch->hw.command(request)) {
 		device_printf(request->dev, "error issueing %s command\n",
 			   ata_cmd2str(request));
 		request->result = EIO;
@@ -115,8 +114,7 @@ ata_begin_transaction(struct ata_request *request)
 
 	    /* if write command output the data */
 	    if (write) {
-		if (ata_wait(ch, atadev,
-			     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
+		if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
 		    device_printf(request->dev,"timeout waiting for write DRQ");
 		    request->result = EIO;
 		    goto begin_finished;
@@ -130,16 +128,14 @@ ata_begin_transaction(struct ata_request *request)
     case ATA_R_DMA:
 	/* check sanity, setup SG list and DMA engine */
 	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ)) {
+			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
 	    request->result = EIO;
 	    goto begin_finished;
 	}
 
 	/* issue command */
-	if (ch->hw.command(request->dev, request->u.ata.command,
-			   request->u.ata.lba, request->u.ata.count,
-			   request->u.ata.feature)) {
+	if (ch->hw.command(request)) {
 	    device_printf(request->dev, "error issueing %s command\n",
 		       ata_cmd2str(request));
 	    request->result = EIO;
@@ -147,7 +143,7 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* start DMA engine */
-	if (ch->dma->start(ch->dev)) {
+	if (ch->dma->start && ch->dma->start(request->dev)) {
 	    device_printf(request->dev, "error starting DMA\n");
 	    request->result = EIO;
 	    goto begin_finished;
@@ -166,44 +162,11 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* start ATAPI operation */
-	if (ch->hw.command(request->dev, ATA_PACKET_CMD,
-			   request->transfersize << 8, 0, 0)) {
+	if (ch->hw.command(request)) {
 	    device_printf(request->dev, "error issuing ATA PACKET command\n");
 	    request->result = EIO;
 	    goto begin_finished;
 	}
-
-	/* command interrupt device ? just return and wait for interrupt */
-	if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
-	    goto begin_continue;
-
-	/* wait for ready to write ATAPI command block */
-	{
-	    int timeout = 5000; /* might be less for fast devices */
-	    while (timeout--) {
-		int reason = ATA_IDX_INB(ch, ATA_IREASON);
-		int status = ATA_IDX_INB(ch, ATA_STATUS);
-
-		if (((reason & (ATA_I_CMD | ATA_I_IN)) |
-		     (status & (ATA_S_DRQ | ATA_S_BUSY))) == ATAPI_P_CMDOUT)
-		    break;
-		DELAY(20);
-	    }
-	    if (timeout <= 0) {
-		device_printf(request->dev,"timeout waiting for ATAPI ready\n");
-		request->result = EIO;
-		goto begin_finished;
-	    }
-	}
-
-	/* this seems to be needed for some (slow) devices */
-	DELAY(10);
-
-	/* output actual command block */
-	ATA_IDX_OUTSW_STRM(ch, ATA_DATA, 
-			   (int16_t *)request->u.atapi.ccb,
-			   (atadev->param.config & ATA_PROTO_MASK) ==
-			   ATA_PROTO_ATAPI_12 ? 6 : 8);
 	goto begin_continue;
 
    /* ATAPI DMA commands */
@@ -219,49 +182,21 @@ ata_begin_transaction(struct ata_request *request)
 
 	/* check sanity, setup SG list and DMA engine */
 	if (ch->dma->load(ch->dev, request->data, request->bytecount,
-			  request->flags & ATA_R_READ)) {
+			  request->flags & ATA_R_READ, ch->dma->sg, &dummy)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
 	    request->result = EIO;
 	    goto begin_finished;
 	}
 
 	/* start ATAPI operation */
-	if (ch->hw.command(request->dev, ATA_PACKET_CMD, 0, 0, ATA_F_DMA)) {
-	    device_printf(request->dev, "error issuing ATAPI packet command\n");
+	if (ch->hw.command(request)) {
+	    device_printf(request->dev, "error issuing ATA PACKET command\n");
 	    request->result = EIO;
 	    goto begin_finished;
 	}
 
-	/* wait for ready to write ATAPI command block */
-	{
-	    int timeout = 5000; /* might be less for fast devices */
-	    while (timeout--) {
-		int reason = ATA_IDX_INB(ch, ATA_IREASON);
-		int status = ATA_IDX_INB(ch, ATA_STATUS);
-
-		if (((reason & (ATA_I_CMD | ATA_I_IN)) |
-		     (status & (ATA_S_DRQ | ATA_S_BUSY))) == ATAPI_P_CMDOUT)
-		    break;
-		DELAY(20);
-	    }
-	    if (timeout <= 0) {
-		device_printf(request->dev,"timeout waiting for ATAPI ready\n");
-		request->result = EIO;
-		goto begin_finished;
-	    }
-	}
-
-	/* this seems to be needed for some (slow) devices */
-	DELAY(10);
-
-	/* output actual command block */
-	ATA_IDX_OUTSW_STRM(ch, ATA_DATA, 
-			   (int16_t *)request->u.atapi.ccb,
-			   (atadev->param.config & ATA_PROTO_MASK) ==
-			   ATA_PROTO_ATAPI_12 ? 6 : 8);
-
 	/* start DMA engine */
-	if (ch->dma->start(ch->dev)) {
+	if (ch->dma->start && ch->dma->start(request->dev)) {
 	    request->result = EIO;
 	    goto begin_finished;
 	}
@@ -305,7 +240,7 @@ ata_end_transaction(struct ata_request *request)
 
 	/* on control commands read back registers to the request struct */
 	if (request->flags & ATA_R_CONTROL) {
-	    if (ch->flags & ATA_48BIT_ACTIVE) {
+	    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
 		ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT | ATA_A_HOB);
 		request->u.ata.count = (ATA_IDX_INB(ch, ATA_COUNT) << 8);
 		request->u.ata.lba =
@@ -340,8 +275,7 @@ ata_end_transaction(struct ata_request *request)
 
 	    /* if read data get it */
 	    if (request->flags & ATA_R_READ) {
-		if (ata_wait(ch, atadev,
-			     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
+		if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
 		    device_printf(request->dev, "timeout waiting for read DRQ");
 		    request->result = EIO;
 		    goto end_finished;
@@ -364,8 +298,7 @@ ata_end_transaction(struct ata_request *request)
 		if (request->flags & ATA_R_WRITE) {
 
 		    /* if we get an error here we are done with the HW */
-		    if (ata_wait(ch, atadev,
-				 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
+		    if (ata_wait(ch, atadev, (ATA_S_READY | ATA_S_DRQ)) < 0) {
 			device_printf(request->dev,
 				      "timeout waiting for write DRQ");
 			request->status = ATA_IDX_INB(ch, ATA_STATUS);
@@ -390,7 +323,7 @@ ata_end_transaction(struct ata_request *request)
 
 	/* stop DMA engine and get status */
 	if (ch->dma->stop)
-	    request->dmastat = ch->dma->stop(ch->dev);
+	    request->dmastat = ch->dma->stop(request->dev);
 
 	/* did we get error or data */
 	if (request->status & ATA_S_ERROR)
@@ -500,9 +433,9 @@ ata_end_transaction(struct ata_request *request)
     /* ATAPI DMA commands */
     case ATA_R_ATAPI|ATA_R_DMA:
 
-	/* stop the engine and get engine status */
+	/* stop DMA engine and get status */
 	if (ch->dma->stop)
-	    request->dmastat = ch->dma->stop(ch->dev);
+	    request->dmastat = ch->dma->stop(request->dev);
 
 	/* did we get error or data */
 	if (request->status & (ATA_S_ERROR | ATA_S_DWF))
@@ -716,97 +649,112 @@ ata_wait(struct ata_channel *ch, struct ata_device *atadev, u_int8_t mask)
 }   
 
 int
-ata_generic_command(device_t dev, u_int8_t command,
-		    u_int64_t lba, u_int16_t count, u_int16_t feature)
+ata_generic_command(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_device *atadev = device_get_softc(request->dev);
 
     /* select device */
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | atadev->unit);
 
     /* ready to issue command ? */
     if (ata_wait(ch, atadev, 0) < 0) { 
-	device_printf(dev, "timeout sending command=%02x\n", command);
+	device_printf(request->dev, "timeout waiting to issue command\n");
 	return -1;
     }
 
     /* enable interrupt */
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT);
 
-    /* only use 48bit addressing if needed (avoid bugs and overhead) */
-    if ((lba >= ATA_MAX_28BIT_LBA || count > 256) &&
-	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
+    if (request->flags & ATA_R_ATAPI) {
+        int timeout = 5000;
 
-	/* translate command into 48bit version */
-	switch (command) {
-	case ATA_READ:
-	    command = ATA_READ48; break;
-	case ATA_READ_MUL:
-	    command = ATA_READ_MUL48; break;
-	case ATA_READ_DMA:
-	    command = ATA_READ_DMA48; break;
-	case ATA_READ_DMA_QUEUED:
-	    command = ATA_READ_DMA_QUEUED48; break;
-	case ATA_WRITE:
-	    command = ATA_WRITE48; break;
-	case ATA_WRITE_MUL:
-	    command = ATA_WRITE_MUL48; break;
-	case ATA_WRITE_DMA:
-	    command = ATA_WRITE_DMA48; break;
-	case ATA_WRITE_DMA_QUEUED:
-	    command = ATA_WRITE_DMA_QUEUED48; break;
-	case ATA_FLUSHCACHE:
-	    command = ATA_FLUSHCACHE48; break;
-	default:
-	    device_printf(dev,"can't translate cmd to 48bit version\n");
-	    return -1;
-	}
-	ATA_IDX_OUTB(ch, ATA_FEATURE, (feature>>8) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_FEATURE, feature & 0xff);
-	ATA_IDX_OUTB(ch, ATA_COUNT, (count>>8) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_COUNT, count & 0xff);
-	ATA_IDX_OUTB(ch, ATA_SECTOR, (lba>>24) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_SECTOR, lba & 0xff);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, (lba>>32) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, (lba>>8) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_CYL_MSB, (lba>>40) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_CYL_MSB, (lba>>16) & 0xff);
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_LBA | atadev->unit);
-	ch->flags |= ATA_48BIT_ACTIVE;
+        /* issue packet command to controller */
+	ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->transfersize);
+	ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->transfersize >> 8);
+        ATA_IDX_OUTB(ch, ATA_COMMAND, ATA_PACKET_CMD);
+
+	/* command interrupt device ? just return and wait for interrupt */
+        if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	    return 0;
+
+	/* wait for ready to write ATAPI command block */
+        while (timeout--) {
+            int reason = ATA_IDX_INB(ch, ATA_IREASON);
+            int status = ATA_IDX_INB(ch, ATA_STATUS);
+
+            if (((reason & (ATA_I_CMD | ATA_I_IN)) |
+                 (status & (ATA_S_DRQ | ATA_S_BUSY))) == ATAPI_P_CMDOUT)
+                break;
+            DELAY(20);
+        }
+        if (timeout <= 0) {
+            device_printf(request->dev,"timeout waiting for ATAPI ready\n");
+            request->result = EIO;
+            return -1;
+        }
+
+        /* this seems to be needed for some (slow) devices */
+        DELAY(10);
+                    
+        /* output command block */
+        ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (int16_t *)request->u.atapi.ccb,
+                           (atadev->param.config & ATA_PROTO_MASK) ==
+                           ATA_PROTO_ATAPI_12 ? 6 : 8);
     }
     else {
-	ATA_IDX_OUTB(ch, ATA_FEATURE, feature);
-	ATA_IDX_OUTB(ch, ATA_COUNT, count);
-	if (atadev->flags & ATA_D_USE_CHS) {
-	    int heads, sectors;
+	u_int8_t command = ata_modify_if_48bit(request);
 
-	    if (atadev->param.atavalid & ATA_FLAG_54_58) {
-		heads = atadev->param.current_heads;
-		sectors = atadev->param.current_sectors;
+	if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature >> 8);
+	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
+	    ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count >> 8);
+	    ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
+	    ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba >> 24);
+	    ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 32);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 40);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_LBA | atadev->unit);
+	}
+        else {
+	    command = request->u.ata.command;
+	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
+	    ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
+	    if (atadev->flags & ATA_D_USE_CHS) {
+	        int heads, sectors;
+    
+	        if (atadev->param.atavalid & ATA_FLAG_54_58) {
+		    heads = atadev->param.current_heads;
+		    sectors = atadev->param.current_sectors;
+	        }
+	        else {
+		    heads = atadev->param.heads;
+		    sectors = atadev->param.sectors;
+	        }
+	        ATA_IDX_OUTB(ch, ATA_SECTOR, (request->u.ata.lba % sectors)+1);
+	        ATA_IDX_OUTB(ch, ATA_CYL_LSB,
+			     (request->u.ata.lba / (sectors * heads)));
+	        ATA_IDX_OUTB(ch, ATA_CYL_MSB,
+			     (request->u.ata.lba / (sectors * heads)) >> 8);
+	        ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit | 
+			     (((request->u.ata.lba% (sectors * heads)) /
+			       sectors) & 0xf));
 	    }
 	    else {
-		heads = atadev->param.heads;
-		sectors = atadev->param.sectors;
+	        ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
+	        ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
+	        ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
+	        ATA_IDX_OUTB(ch, ATA_DRIVE,
+			     ATA_D_IBM | ATA_D_LBA | atadev->unit |
+			     ((request->u.ata.lba >> 24) & 0x0f));
 	    }
-	    ATA_IDX_OUTB(ch, ATA_SECTOR, (lba % sectors) + 1);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, (lba / (sectors * heads)));
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, (lba / (sectors * heads)) >> 8);
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit | 
-			 (((lba % (sectors * heads)) / sectors) & 0xf));
 	}
-	else {
-	    ATA_IDX_OUTB(ch, ATA_SECTOR, lba & 0xff);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, (lba>>8) & 0xff);
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, (lba>>16) & 0xff);
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | atadev->unit |
-					((lba>>24) & 0x0f));
-	}
-	ch->flags &= ~ATA_48BIT_ACTIVE;
-    }
 
-    /* issue command to controller */
-    ATA_IDX_OUTB(ch, ATA_COMMAND, command);
+        /* issue command to controller */
+        ATA_IDX_OUTB(ch, ATA_COMMAND, command);
+    }
 
     return 0;
 }

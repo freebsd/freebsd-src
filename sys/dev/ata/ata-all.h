@@ -336,6 +336,7 @@ struct ata_device {
 #define         ATA_D_USE_CHS           0x0001
 #define         ATA_D_MEDIA_CHANGED     0x0002
 #define         ATA_D_ENC_PRESENT       0x0004
+#define         ATA_D_48BIT_ACTIVE      0x0008
 };
 
 /* structure for holding DMA Physical Region Descriptors (PRD) entries */
@@ -347,6 +348,7 @@ struct ata_dma_prdentry {
 /* structure used by the setprd function */
 struct ata_dmasetprd_args {
     void *dmatab;
+    int nsegs;
     int error;
 };
 
@@ -374,20 +376,21 @@ struct ata_dma {
 #define ATA_DMA_LOADED                  0x02    /* DMA tables etc loaded */
 #define ATA_DMA_ACTIVE                  0x04    /* DMA transfer in progress */
 
-    void (*alloc)(device_t);
-    void (*free)(device_t);
+    void (*alloc)(device_t dev);
+    void (*free)(device_t dev);
     void (*setprd)(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
-    int (*load)(device_t, caddr_t data, int32_t count,int dir);
-    int (*unload)(device_t);
-    int (*start)(device_t);
-    int (*stop)(device_t);
+    int (*load)(device_t dev, caddr_t data, int32_t count, int dir, void *addr, int *nsegs);
+    int (*unload)(device_t dev);
+    int (*start)(device_t dev);
+    int (*stop)(device_t dev);
+    void (*reset)(device_t dev);
 };
 
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
     int (*begin_transaction)(struct ata_request *request);
     int (*end_transaction)(struct ata_request *request);
-    int (*command)(device_t dev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
+    int (*command)(struct ata_request *request);
 };
 
 /* structure holding resources for an ATA channel */
@@ -409,7 +412,6 @@ struct ata_channel {
 #define         ATA_NO_SLAVE            0x01
 #define         ATA_USE_16BIT           0x02
 #define         ATA_ATAPI_DMA_RO        0x04
-#define         ATA_48BIT_ACTIVE        0x08
 
     int                         devices;        /* what is present */
 #define         ATA_ATA_MASTER          0x01
@@ -422,7 +424,6 @@ struct ata_channel {
 #define         ATA_IDLE                0x0000
 #define         ATA_ACTIVE              0x0001
 #define         ATA_STALL_QUEUE         0x0002
-#define         ATA_TIMEOUT             0x0004
 
     struct mtx                  queue_mtx;      /* queue lock */
     TAILQ_HEAD(, ata_request)   ata_queue;      /* head of ATA queue */
@@ -452,6 +453,7 @@ int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
 int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
+u_int8_t ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 char *ata_mode2str(int mode);
 int ata_pmode(struct ata_params *ap);
@@ -473,7 +475,7 @@ char *ata_cmd2str(struct ata_request *request);
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);
 void ata_generic_reset(device_t dev);
-int ata_generic_command(device_t dev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
+int ata_generic_command(struct ata_request *request);
 
 /* macros for alloc/free of struct ata_request */
 extern uma_zone_t ata_request_zone;

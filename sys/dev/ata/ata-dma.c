@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 static void ata_dmaalloc(device_t);
 static void ata_dmafree(device_t);
 static void ata_dmasetprd(void *, bus_dma_segment_t *, int, int);
-static int ata_dmaload(device_t, caddr_t, int32_t, int);
+static int ata_dmaload(device_t, caddr_t, int32_t, int, void *, int *);
 static int ata_dmaunload(device_t);
 
 /* local vars */
@@ -213,10 +213,12 @@ ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	prd[i].count = htole32(segs[i].ds_len);
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
+    args->nsegs = nsegs;
 }
 
 static int
-ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir)
+ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
+	    void *addr, int *entries)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dmasetprd_args cba;
@@ -240,11 +242,13 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir)
 	return -1;
     }
 
-    cba.dmatab = ch->dma->sg;
+    cba.dmatab = addr;
 
     if (bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map, data, count,
 			ch->dma->setprd, &cba, 0) || cba.error)
 	return -1;
+
+    *entries = cba.nsegs;
 
     bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_PREWRITE);
 
@@ -260,14 +264,18 @@ int
 ata_dmaunload(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_POSTWRITE);
 
-    bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
-		    (ch->dma->flags & ATA_DMA_READ) != 0 ?
-		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
-    bus_dmamap_unload(ch->dma->data_tag, ch->dma->data_map);
+    if (ch->dma->flags & ATA_DMA_LOADED) {
+	bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map,
+			BUS_DMASYNC_POSTWRITE);
 
-    ch->dma->cur_iosize = 0;
-    ch->dma->flags &= ~ATA_DMA_LOADED;
+	bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
+			(ch->dma->flags & ATA_DMA_READ) != 0 ?
+			BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(ch->dma->data_tag, ch->dma->data_map);
+
+	ch->dma->cur_iosize = 0;
+	ch->dma->flags &= ~ATA_DMA_LOADED;
+    }
     return 0;
 }

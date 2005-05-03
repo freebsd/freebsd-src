@@ -298,7 +298,7 @@ ata_interrupt(void *data)
     mtx_lock(&ch->state_mtx);
     do {
 	/* do we have a running request */
-	if (ch->state & ATA_TIMEOUT || !(request = ch->running))
+	if (!(request = ch->running) || (request->flags & ATA_R_TIMEOUT))
 	    break;
 
 	ATA_DEBUG_RQ(request, "interrupt");
@@ -742,6 +742,46 @@ ata_default_registers(device_t dev)
     ch->r_io[ATA_STATUS].offset = ch->r_io[ATA_COMMAND].offset;
     ch->r_io[ATA_ALTSTAT].res = ch->r_io[ATA_CONTROL].res;
     ch->r_io[ATA_ALTSTAT].offset = ch->r_io[ATA_CONTROL].offset;
+}
+
+u_int8_t
+ata_modify_if_48bit(struct ata_request *request)
+{
+    struct ata_device *atadev = device_get_softc(request->dev);
+    u_int8_t command = request->u.ata.command;
+
+    if ((request->u.ata.lba >= ATA_MAX_28BIT_LBA ||
+	 request->u.ata.count > 256) &&
+	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
+
+        /* translate command into 48bit version */
+        switch (command) {
+        case ATA_READ:
+            command = ATA_READ48; break;
+        case ATA_READ_MUL:
+            command = ATA_READ_MUL48; break;
+        case ATA_READ_DMA:
+            command = ATA_READ_DMA48; break;
+        case ATA_READ_DMA_QUEUED:
+            command = ATA_READ_DMA_QUEUED48; break;
+        case ATA_WRITE:
+            command = ATA_WRITE48; break;
+        case ATA_WRITE_MUL:
+            command = ATA_WRITE_MUL48; break;
+        case ATA_WRITE_DMA:
+            command = ATA_WRITE_DMA48; break;
+        case ATA_WRITE_DMA_QUEUED:
+            command = ATA_WRITE_DMA_QUEUED48; break;
+        case ATA_FLUSHCACHE:
+            command = ATA_FLUSHCACHE48; break;
+	default:
+	    return command;
+	}
+	atadev->flags |= ATA_D_48BIT_ACTIVE;
+    }
+    else
+	atadev->flags &= ~ATA_D_48BIT_ACTIVE;
+    return command;
 }
 
 void
