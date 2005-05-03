@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050503:
+	The packet filter (pf) code has been updated to OpenBSD 3.7
+	Please note the changed anchor syntax and the fact that
+	authpf(8) now needs a mounted fdescfs(5) to function.
+
 20050415:
 	The NO_MIXED_MODE kernel option has been removed from the i386
 	amd64 platforms as its use has been superceded by the new local
