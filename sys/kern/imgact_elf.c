@@ -650,8 +650,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	struct thread *td = curthread;
 	struct sysentvec *sv;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Do we have a valid ELF header ?
 	 */
