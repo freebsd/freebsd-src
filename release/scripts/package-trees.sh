@@ -27,7 +27,7 @@ echo "Generating trees for ${high_disc} discs"
 
 # Second, initialize the trees for each disc
 for disc in `jot $high_disc`; do
-    rm -rf ${DESTDIR}/disc${disc}
+    rm -rf ${DESTDIR}/disc${disc}/packages
     mkdir -p ${DESTDIR}/disc${disc}/packages/All
     cp ${INDEX} ${DESTDIR}/disc${disc}/packages/INDEX
 done
