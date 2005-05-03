@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_radix.c,v 1.24 2004/02/10 18:29:30 henning Exp $ */
+/*	$OpenBSD: pfctl_radix.c,v 1.26 2004/06/14 20:44:22 cedric Exp $ */
 
 /*
  * Copyright (c) 2002 Cedric Berger
@@ -393,44 +393,6 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 }
 
 int
-pfr_ina_begin(struct pfr_table *trs, int *ticket, int *ndel, int flags)
-{
-	struct pfioc_table io;
-
-	bzero(&io, sizeof io);
-	if (trs != NULL)
-		io.pfrio_table = *trs;
-	io.pfrio_flags = flags;
-	if (ioctl(dev, DIOCRINABEGIN, &io))
-		return (-1);
-	if (ndel != NULL)
-		*ndel = io.pfrio_ndel;
-	if (ticket != NULL)
-		*ticket = io.pfrio_ticket;
-	return (0);
-}
-
-int
-pfr_ina_commit(struct pfr_table *trs, int ticket, int *nadd, int *nchange,
-    int flags)
-{
-	struct pfioc_table io;
-
-	bzero(&io, sizeof io);
-	if (trs != NULL)
-		io.pfrio_table = *trs;
-	io.pfrio_flags = flags;
-	io.pfrio_ticket = ticket;
-	if (ioctl(dev, DIOCRINACOMMIT, &io))
-		return (-1);
-	if (nadd != NULL)
-		*nadd = io.pfrio_nadd;
-	if (nchange != NULL)
-		*nchange = io.pfrio_nchange;
-	return (0);
-}
-
-int
 pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nadd, int *naddr, int ticket, int flags)
 {
@@ -605,7 +567,7 @@ pfr_buf_load(struct pfr_buffer *b, char *file, int nonetwork,
 	if (!strcmp(file, "-"))
 		fp = stdin;
 	else {
-		fp = fopen(file, "r");
+		fp = pfctl_fopen(file, "r");
 		if (fp == NULL)
 			return (-1);
 	}

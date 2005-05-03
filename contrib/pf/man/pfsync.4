@@ -1,6 +1,7 @@
-.\"	$OpenBSD: pfsync.4,v 1.16 2004/03/22 21:04:36 jmc Exp $
+.\"	$OpenBSD: pfsync.4,v 1.22 2005/02/24 15:53:17 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Michael Shalayeff
+.\" Copyright (c) 2003-2004 Ryan McBride
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm pfsync
-.Nd packet filter states table logging interface
+.Nd packet filter state table logging interface
 .Sh SYNOPSIS
 .Cd "pseudo-device pfsync"
 .Sh DESCRIPTION
@@ -68,20 +69,20 @@ state into one message where possible.
 The maximum number of times this can be done before the update is sent out
 is controlled by the
 .Ar maxupd
-to ifconfig.
+parameter to ifconfig
 (see
 .Xr ifconfig 8
-and the example below for more details)
+and the example below for more details).
 .Pp
 Each packet retrieved on this interface has a header associated
 with it of length
 .Dv PFSYNC_HDRLEN .
 The header indicates the version of the protocol, address family,
-action taken on the following states and the number of state
+action taken on the following states, and the number of state
 table entries attached in this packet.
-This structure, defined in
+This structure is defined in
 .Aq Pa net/if_pfsync.h
-looks like:
+as:
 .Bd -literal -offset indent
 struct pfsync_header {
 	u_int8_t version;
@@ -95,21 +96,35 @@ States can be synchronised between two or more firewalls using this
 interface, by specifying a synchronisation interface using
 .Xr ifconfig 8 .
 For example, the following command sets fxp0 as the synchronisation
-interface.
+interface:
 .Bd -literal -offset indent
-# ifconfig pfsync0 syncif fxp0
+# ifconfig pfsync0 syncdev fxp0
 .Ed
 .Pp
-State change messages are sent out on the synchronisation
+By default, state change messages are sent out on the synchronisation
 interface using IP multicast packets.
 The protocol is IP protocol 240, PFSYNC, and the multicast group
 used is 224.0.0.240.
+When a peer address is specified using the
+.Ic syncpeer
+keyword, the peer address is used as a destination for the pfsync traffic,
+and the traffic can then be protected using
+.Xr ipsec 4 .
+In such a configuration, the syncdev should be set to the
+.Xr enc 4
+interface, as this is where the traffic arrives when it is decapsulated,
+e.g.:
+.Bd -literal -offset indent
+# ifconfig pfsync0 syncpeer 10.0.0.2 syncdev enc0
+.Ed
 .Pp
-It is important that the synchronisation interface be on a trusted
-network as there is no authentication on the protocol and it would
+It is important that the pfsync traffic be well secured
+as there is no authentication on the protocol and it would
 be trivial to spoof packets which create states, bypassing the pf ruleset.
-Ideally, this is a network dedicated to pfsync messages,
-i.e. a crossover cable between two firewalls.
+Either run the pfsync protocol on a trusted network \- ideally  a network
+dedicated to pfsync messages such as a crossover cable between two firewalls,
+or specify a peer address and protect the traffic with
+.Xr ipsec 4 .
 .Pp
 There is a one-to-one correspondence between packets seen by
 .Xr bpf 4
@@ -135,8 +150,8 @@ is shut down, the second firewall takes over automatically.
 Both firewalls in this example have three
 .Xr sis 4
 interfaces.
-sis0 is the external interface, on the 10.0.0.0/24 subnet, sis1 is the
-internal interface, on the 192.168.0.0/24 subnet, and sis2 is the
+sis0 is the external interface, on the 10.0.0.0/24 subnet; sis1 is the
+internal interface, on the 192.168.0.0/24 subnet; and sis2 is the
 .Nm
 interface, using the 192.168.254.0/24 subnet.
 A crossover cable connects the two firewalls via their sis2 interfaces.
@@ -172,7 +187,7 @@ inet 192.168.0.1 255.255.255.0 192.168.0.255 vhid 2 pass bar
 .Pp
 .Pa /etc/hostname.pfsync0 :
 .Bd -literal -offset indent
-up syncif sis2
+up syncdev sis2
 .Ed
 .Pp
 .Xr pf 4
@@ -210,8 +225,11 @@ net.inet.carp.preempt=1
 .Ed
 .Sh SEE ALSO
 .Xr bpf 4 ,
+.Xr carp 4 ,
+.Xr enc 4 ,
 .Xr inet 4 ,
 .Xr inet6 4 ,
+.Xr ipsec 4 ,
 .Xr netintro 4 ,
 .Xr pf 4 ,
 .Xr hostname.if 5 ,

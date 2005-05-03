@@ -1,4 +1,4 @@
-/*	$OpenBSD: pflogd.c,v 1.27 2004/02/13 19:01:57 otto Exp $	*/
+/*	$OpenBSD: pflogd.c,v 1.33 2005/02/09 12:09:30 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Theo de Raadt
@@ -255,16 +255,19 @@ reset_dump(void)
 	fp = fdopen(fd, "a+");
 
 	if (fp == NULL) {
+		close(fd);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
 		return (1);
 	}
 	if (fstat(fileno(fp), &st) == -1) {
+		fclose(fp);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
 		return (1);
 	}
 
 	/* set FILE unbuffered, we do our own buffering */
 	if (setvbuf(fp, NULL, _IONBF, 0)) {
+		fclose(fp);
 		logmsg(LOG_ERR, "Failed to set output buffers");
 		return (1);
 	}
@@ -275,6 +278,7 @@ reset_dump(void)
 		if (snaplen != cur_snaplen) {
 			logmsg(LOG_NOTICE, "Using snaplen %d", snaplen);
 			if (set_snaplen(snaplen)) {
+				fclose(fp);
 				logmsg(LOG_WARNING,
 				    "Failed, using old settings");
 			}
@@ -386,8 +390,9 @@ dump_packet_nobuf(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	}
 
 	if (fwrite((char *)h, sizeof(*h), 1, f) != 1) {
-		/* try to undo header to prevent corruption */
 		off_t pos = ftello(f);
+
+		/* try to undo header to prevent corruption */
 		if (pos < sizeof(*h) ||
 		    ftruncate(fileno(f), pos - sizeof(*h))) {
 			logmsg(LOG_ERR, "Write failed, corrupted logfile!");
@@ -485,7 +490,7 @@ dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 		return;
 	}
 
- append:	
+ append:
 	memcpy(bufpos, h, sizeof(*h));
 	memcpy(bufpos + sizeof(*h), sp, h->caplen);
 
@@ -502,6 +507,7 @@ main(int argc, char **argv)
 	struct pcap_stat pstat;
 	int ch, np, Xflag = 0;
 	pcap_handler phandler = dump_packet;
+	const char *errstr = NULL;
 
 	closefrom(STDERR_FILENO + 1);
 
@@ -511,18 +517,19 @@ main(int argc, char **argv)
 			Debug = 1;
 			break;
 		case 'd':
-			delay = atoi(optarg);
-			if (delay < 5 || delay > 60*60)
+			delay = strtonum(optarg, 5, 60*60, &errstr);
+			if (errstr)
 				usage();
 			break;
 		case 'f':
 			filename = optarg;
 			break;
 		case 's':
-			snaplen = atoi(optarg);
+			snaplen = strtonum(optarg, 0, PFLOGD_MAXSNAPLEN,
+			    &errstr);
 			if (snaplen <= 0)
 				snaplen = DEF_SNAPLEN;
-			if (snaplen > PFLOGD_MAXSNAPLEN)
+			if (errstr)
 				snaplen = PFLOGD_MAXSNAPLEN;
 			break;
 		case 'x':
@@ -547,6 +554,7 @@ main(int argc, char **argv)
 		pidfile(NULL);
 	}
 
+	tzset();
 	(void)umask(S_IRWXG | S_IRWXO);
 
 	/* filter will be used by the privileged process */
@@ -599,7 +607,7 @@ main(int argc, char **argv)
 
 	while (1) {
 		np = pcap_dispatch(hpcap, PCAP_NUM_PKTS,
-		    dump_packet, (u_char *)dpcap);
+		    phandler, (u_char *)dpcap);
 		if (np < 0)
 			logmsg(LOG_NOTICE, "%s", pcap_geterr(hpcap));
 
