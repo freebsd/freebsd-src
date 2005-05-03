@@ -2594,8 +2594,10 @@ static VOID arcmsr_shutdown(device_t dev)
 		}
 	}
 	splx(s);
+#if 0
 	pACB->acb_flags |= ACB_F_STOP_THREAD;
 	wakeup(pACB->kthread_proc);/* signal to kernel thread do_dpcQ: "stop thread" */
+#endif
     return;
 }
 /*
