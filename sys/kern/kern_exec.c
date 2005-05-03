@@ -294,6 +294,7 @@ do_execve(td, args, mac_p)
 #endif
 	struct vnode *textvp = NULL;
 	int credential_changing;
+	int vfslocked;
 	int textset;
 #ifdef MAC
 	struct label *interplabel = NULL;
@@ -348,16 +349,16 @@ do_execve(td, args, mac_p)
 	 *	in ni_vp amoung other things.
 	 */
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME,
+	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 	    UIO_SYSSPACE, args->fname, td);
 
-	mtx_lock(&Giant);
 interpret:
-
+	vfslocked = 0;
 	error = namei(ndp);
 	if (error)
 		goto exec_fail;
 
+	vfslocked = NDHASGIANT(ndp);
 	imgp->vp = ndp->ni_vp;
 
 	/*
@@ -438,8 +439,9 @@ interpret:
 		vput(ndp->ni_vp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
+		VFS_UNLOCK_GIANT(vfslocked);
 		/* set new name to that of the interpreter */
-		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
+		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
@@ -772,7 +774,7 @@ done2:
 	if (interplabel != NULL)
 		mac_vnode_label_free(interplabel);
 #endif
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -784,8 +786,6 @@ exec_map_first_page(imgp)
 	int initial_pagein;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	vm_object_t object;
-
-	GIANT_REQUIRED;
 
 	if (imgp->firstpage != NULL)
 		exec_unmap_first_page(imgp);
@@ -875,8 +875,6 @@ exec_new_vmspace(imgp, sv)
 	struct vmspace *vmspace = p->p_vmspace;
 	vm_offset_t stack_addr;
 	vm_map_t map;
-
-	GIANT_REQUIRED;
 
 	imgp->vmspace_destroyed = 1;
 
