@@ -49,15 +49,20 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-disk.h>
+
+/* device structures */
+struct ata_pci_controller {
+    struct resource *bmio;
+    int bmaddr;
+    struct resource *irq;
+    int irqcnt;
+};
 
 /* misc defines */
 #define IOMASK			0xfffffffc
 #define GRANDPARENT(dev)	device_get_parent(device_get_parent(dev))
 #define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
 				 (pci_get_progif(dev) & 0x05) != 0x05)
-
-static void ata_promise_plug_scan_intr(void *data, int plug_only);
 
 int
 ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
@@ -339,15 +344,6 @@ ata_pci_match(device_t dev)
     case 0x7275105a: 
 	return "Promise TX2 ATA133 controller";
 
-    case 0x3371105a:
-    case 0x3373105a:   /* Promise SATA */
-    case 0x3376105a:   /* Promise SATA */
-	return "Promise SATA150 TX2 controller";
-
-    case 0x3318105a:   
-    case 0x3319105a:   
-	return "Promise SATA150 TX4 controller";
-
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
 	case 0x00:
@@ -434,57 +430,13 @@ ata_pci_attach(device_t dev)
     struct ata_pci_controller *controller = device_get_softc(dev);
     u_int8_t class, subclass;
     u_int32_t type, cmd;
-    int rid, i, result = 0;
+    int rid;
 
     /* set up vendor-specific stuff */
     type = pci_get_devid(dev);
     class = pci_get_class(dev);
     subclass = pci_get_subclass(dev);
     cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-
-    switch (type) { 
-    case 0x24d18086:    /* Intel ICH5 SATA150 */
-    case 0x24df8086:    /* Intel ICH5 SATA150 RAID */
-    case 0x25a38086:    /* Intel 6300ESB SATA150 */
-    case 0x25b08086:    /* Intel 6300ESB SATA150 RAID */
-    case 0x26518086:    /* Intel ICH6 SATA150 */
-	break;
-
-    case 0x3318105a: /* Promise SATA150 TX4 */  
-    case 0x3319105a: /* Promise SATA150 TX4 */  
-    case 0x3371105a: /* Promise SATA150 TX4 */
-    case 0x3373105a: /* Promise SATA */
-    case 0x3376105a: /* Promise SATA */
-        /* is there a valid port range to connect to ? */
-        rid = 0x1c;
-	controller->bmio[ATA_IDX_DATA].res = bus_alloc_resource(dev,
-		SYS_RES_MEMORY, &rid,
-		0, ~0, 1, RF_ACTIVE);
-	if (!controller->bmio[ATA_IDX_DATA].res) {
-	    device_printf(dev, "Busmastering DMA not configured\n");
-	    return ENXIO;
-        }
-
-	for (i = 0; i < ATA_MAX_RES; i++) {
-	    controller->bmio[i].res = controller->bmio[ATA_IDX_DATA].res;
-	    controller->bmio[i].offset = i;
-        }
- 
-	/* SATA mode */
-	_ATA_OUTL(controller->bmio[ATA_IDX_DATA].res, 0x06c, 0x000000ff);
-	controller->child_count
-	   = ((_ATA_INL(controller->bmio[ATA_IDX_DATA].res, 0x48) & 0x02) > 0)
-	   + 3;
-	device_printf(dev, "channels %d\n",controller->child_count);
-
-	for (i = 0; i < controller->child_count; i++) { /* DJA */
-	    ata_pci_add_child(dev, 0);
-	    result = bus_generic_attach(dev);
-	}
-
-	/* DONE */
-        return result;
-    }
 
     if (!(cmd & PCIM_CMD_PORTEN)) {
 	device_printf(dev, "ATA channel disabled by BIOS\n");
@@ -497,19 +449,13 @@ ata_pci_attach(device_t dev)
 
 	/* is there a valid port range to connect to ? */
 	rid = 0x20;
-	controller->bmio[ATA_IDX_DATA].res
-	    = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	controller->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					      0, ~0, 1, RF_ACTIVE);
-	if (!controller->bmio[ATA_IDX_DATA].res)
+	if (!controller->bmio)
 	    device_printf(dev, "Busmastering DMA not configured\n");
     }
     else
 	device_printf(dev, "Busmastering DMA not supported\n");
-
-    for (i = 0; i < ATA_MAX_RES; i++) {
-	controller->bmio[i].res = controller->bmio[ATA_IDX_DATA].res;
-	controller->bmio[i].offset = i;
-    }
 
     /* do extra chipset specific setups */
     switch (type) {
@@ -583,10 +529,8 @@ ata_pci_attach(device_t dev)
     case 0x74111022: /* AMD 766 default setup */
     case 0x74411022: /* AMD 768 default setup */
     case 0x01bc10de: /* nVIDIA nForce default setup */
-	/* set prefetch, postwrite, avoid doing it for VIA chips. */
-	if (type != 0x05711106)
-		pci_write_config(dev, 0x41,
-			pci_read_config(dev, 0x41, 1) | 0xf0, 1);
+	/* set prefetch, postwrite */
+	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
 	/* set fifo configuration half'n'half */
 	pci_write_config(dev, 0x43, 
@@ -633,22 +577,15 @@ ata_pci_attach(device_t dev)
     case 0x10001042:   /* RZ 100? known bad, no DMA */
     case 0x10011042:
     case 0x06401095:   /* CMD 640 known bad, no DMA */
-	controller->bmio[ATA_IDX_DATA].res = NULL;
-	for (i = 0; i < ATA_MAX_RES; i++) {
-	    controller->bmio[i].res = controller->bmio[ATA_IDX_DATA].res;
-	}
+	controller->bmio = NULL;
 	device_printf(dev, "Busmastering DMA disabled\n");
     }
 
-    if (controller->bmio[ATA_IDX_DATA].res) {
-	controller->bmaddr = rman_get_start(controller->bmio[ATA_IDX_DATA].res);
+    if (controller->bmio) {
+	controller->bmaddr = rman_get_start(controller->bmio);
 	BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-			     SYS_RES_IOPORT, rid, 
-			     controller->bmio[ATA_IDX_DATA].res);
-	controller->bmio[ATA_IDX_DATA].res = NULL;
-	for (i = 0; i < ATA_MAX_RES; i++) {
-	    controller->bmio[i].res = controller->bmio[ATA_IDX_DATA].res;
-	}
+			     SYS_RES_IOPORT, rid, controller->bmio);
+	controller->bmio = NULL;
     }
 
     /*
@@ -672,9 +609,6 @@ ata_pci_attach(device_t dev)
 static int
 ata_pci_intr(struct ata_channel *ch)
 {
-    device_t parent;
-    struct ata_pci_controller *ctlr;
-    u_int32_t irq_vector;
     u_int8_t dmastat;
 
     /* 
@@ -743,21 +677,6 @@ ata_pci_intr(struct ata_channel *ch)
 	    ~(ATA_BMSTAT_DMA_SIMPLEX | ATA_BMSTAT_ERROR));
 	DELAY(1);
 	return 0;
-
-    case 0x3318105a:	/* Promise SATA */
-    case 0x3319105a:	/* Promise SATA */
-    case 0x3371105a:	/* Promise SATA */
-    case 0x3373105a:   /* Promise SATA */
-    case 0x3376105a:   /* Promise SATA */
-	parent = device_get_parent(ch->dev);  
-	ctlr = device_get_softc(parent);
-
-	ata_promise_plug_scan_intr(ch, 1);
-	irq_vector = ctlr->irq_vector;
-	if (irq_vector  & (1 << (ch->unit + 1))) {
-	    ATA_OUTL(ch->r_bmio, ATA_BMDEVSPEC_0, 0x00000001);
-	}
-	return 0;
     }
 
     if (ch->flags & ATA_DMA_ACTIVE) {
@@ -769,52 +688,6 @@ ata_pci_intr(struct ata_channel *ch)
     return 0;
 }
 
-static void
-ata_promise_plug_scan_intr(void *data, int plug_only)
-{
-    struct ata_channel *ch;
-    device_t parent;
-    struct ata_pci_controller *ctlr;
-    int control;
-
-    ch = (struct ata_channel *)data;
-    parent = device_get_parent(ch->dev);
-    ctlr = device_get_softc(parent);
-
-    if (!plug_only) {
-	if (ctlr->irq_vector  & (1 << (ch->unit + 1))) {
-	    control = ATA_INL(ch->r_bmio, ATA_BMDEVSPEC_0);
-	    if (control & (1 << (ch->unit + 16))) {
-		ata_promise_init(ch);
-	    }
-	    ata_intr(ch);
-	} else {
-	    ata_pci_intr(ch);
-	}
-    }
-}
-
-void
-ata_promise_intr(void *data)
-{
-    struct ata_channel *ch = data;
-    device_t parent;
-    struct ata_pci_controller *ctlr;
-    u_int32_t irq_vector;
-
-    parent = device_get_parent(ch->dev);
-    ctlr = device_get_softc(parent);
-
-    if (ch->unit == 0) {
-	irq_vector = _ATA_INL(ctlr->bmio[ATA_IDX_DATA].res, 0x0040);
-	ctlr->irq_vector = irq_vector;
-    } else {
-	irq_vector = ctlr->irq_vector;
-    }
-
-    ata_promise_plug_scan_intr(data, 0);
-}
-
 static int
 ata_pci_print_child(device_t dev, device_t child)
 {
@@ -822,7 +695,7 @@ ata_pci_print_child(device_t dev, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(ch->r_io[ATA_IDX_DATA].res));
+    retval += printf(": at 0x%lx", rman_get_start(ch->r_io));
 
     if (ATA_MASTERDEV(dev))
 	retval += printf(" irq %d", 14 + ch->unit);
