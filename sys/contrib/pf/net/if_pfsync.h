@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_pfsync.h,v 1.13 2004/03/22 04:54:17 mcbride Exp $	*/
+/*	$OpenBSD: if_pfsync.h,v 1.19 2005/01/20 17:47:38 mcbride Exp $	*/
 
 /*
  * Copyright (c) 2001 Michael Shalayeff
@@ -86,6 +86,9 @@ struct pfsync_state {
 	u_int8_t	 updates;
 } __packed;
 
+#define PFSYNC_FLAG_COMPRESS 	0x01
+#define PFSYNC_FLAG_STALE	0x02
+
 struct pfsync_state_upd {
 	u_int32_t		id[2];
 	struct pfsync_state_peer	src;
@@ -157,9 +160,10 @@ struct pfsync_softc {
 	struct timeout		 sc_bulk_tmo;
 	struct timeout		 sc_bulkfail_tmo;
 #endif
+	struct in_addr		 sc_sync_peer;
 	struct in_addr		 sc_sendaddr;
-	struct mbuf		*sc_mbuf;	/* current cummulative mbuf */
-	struct mbuf		*sc_mbuf_net;	/* current cummulative mbuf */
+	struct mbuf		*sc_mbuf;	/* current cumulative mbuf */
+	struct mbuf		*sc_mbuf_net;	/* current cumulative mbuf */
 	union sc_statep		 sc_statep;
 	union sc_statep		 sc_statep_net;
 	u_int32_t		 sc_ureq_received;
@@ -194,7 +198,7 @@ struct pfsync_header {
 } __packed;
 
 #define PFSYNC_BULKPACKETS	1	/* # of packets per timeout */
-#define PFSYNC_MAX_BULKTRIES	12	
+#define PFSYNC_MAX_BULKTRIES	12
 #define PFSYNC_HDRLEN	sizeof(struct pfsync_header)
 #define	PFSYNC_ACTIONS \
 	"CLR ST", "INS ST", "UPD ST", "DEL ST", \
@@ -204,34 +208,39 @@ struct pfsync_header {
 #define PFSYNC_DFLTTL		255
 
 struct pfsyncstats {
-	u_long	pfsyncs_ipackets;	/* total input packets, IPv4 */
-	u_long	pfsyncs_ipackets6;	/* total input packets, IPv6 */
-	u_long	pfsyncs_badif;		/* not the right interface */
-	u_long	pfsyncs_badttl;		/* TTL is not PFSYNC_DFLTTL */
-	u_long	pfsyncs_hdrops;		/* packets shorter than header */
-	u_long	pfsyncs_badver;		/* bad (incl unsupp) version */
-	u_long	pfsyncs_badact;		/* bad action */
-	u_long	pfsyncs_badlen;		/* data length does not match */
-	u_long	pfsyncs_badauth;	/* bad authentication */
-	u_long	pfsyncs_badstate;	/* insert/lookup failed */
+	u_int64_t	pfsyncs_ipackets;	/* total input packets, IPv4 */
+	u_int64_t	pfsyncs_ipackets6;	/* total input packets, IPv6 */
+	u_int64_t	pfsyncs_badif;		/* not the right interface */
+	u_int64_t	pfsyncs_badttl;		/* TTL is not PFSYNC_DFLTTL */
+	u_int64_t	pfsyncs_hdrops;		/* packets shorter than hdr */
+	u_int64_t	pfsyncs_badver;		/* bad (incl unsupp) version */
+	u_int64_t	pfsyncs_badact;		/* bad action */
+	u_int64_t	pfsyncs_badlen;		/* data length does not match */
+	u_int64_t	pfsyncs_badauth;	/* bad authentication */
+	u_int64_t	pfsyncs_stale;		/* stale state */
+	u_int64_t	pfsyncs_badval;		/* bad values */
+	u_int64_t	pfsyncs_badstate;	/* insert/lookup failed */
 
-	u_long	pfsyncs_opackets;	/* total output packets, IPv4 */
-	u_long	pfsyncs_opackets6;	/* total output packets, IPv6 */
-	u_long	pfsyncs_onomem;		/* no memory for an mbuf for a send */
-	u_long	pfsyncs_oerrors;	/* ip output error */
+	u_int64_t	pfsyncs_opackets;	/* total output packets, IPv4 */
+	u_int64_t	pfsyncs_opackets6;	/* total output packets, IPv6 */
+	u_int64_t	pfsyncs_onomem;		/* no memory for an mbuf */
+	u_int64_t	pfsyncs_oerrors;	/* ip output error */
 };
 
 /*
  * Configuration structure for SIOCSETPFSYNC SIOCGETPFSYNC
  */
 struct pfsyncreq {
-	char	pfsyncr_syncif[IFNAMSIZ];
-	int	pfsyncr_maxupdates;
-	int	pfsyncr_authlevel;
+	char		 pfsyncr_syncdev[IFNAMSIZ];
+	struct in_addr	 pfsyncr_syncpeer;
+	int		 pfsyncr_maxupdates;
+	int		 pfsyncr_authlevel;
 };
-#define SIOCSETPFSYNC	_IOW('i', 247, struct ifreq)
-#define SIOCGETPFSYNC	_IOWR('i', 248, struct ifreq)
 
+#ifdef __FreeBSD__
+#define	SIOCSETPFSYNC	_IOW('i', 247, struct ifreq)
+#define	SIOCGETPFSYNC	_IOWR('i', 248, struct ifreq)
+#endif
 
 #define pf_state_peer_hton(s,d) do {		\
 	(d)->seqlo = htonl((s)->seqlo);		\
@@ -281,12 +290,14 @@ int pfsync_pack_state(u_int8_t, struct pf_state *, int);
 } while (0)
 #define pfsync_update_state(st) do {				\
 	if (!st->sync_flags)					\
-		pfsync_pack_state(PFSYNC_ACT_UPD, (st), 1);	\
+		pfsync_pack_state(PFSYNC_ACT_UPD, (st), 	\
+		    PFSYNC_FLAG_COMPRESS);			\
 	st->sync_flags &= ~PFSTATE_FROMSYNC;			\
 } while (0)
 #define pfsync_delete_state(st) do {				\
 	if (!st->sync_flags)					\
-		pfsync_pack_state(PFSYNC_ACT_DEL, (st), 1);	\
+		pfsync_pack_state(PFSYNC_ACT_DEL, (st),		\
+		    PFSYNC_FLAG_COMPRESS);			\
 	st->sync_flags &= ~PFSTATE_FROMSYNC;			\
 } while (0)
 #endif
