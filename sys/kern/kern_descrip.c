@@ -1784,8 +1784,6 @@ fdcheckstd(struct thread *td)
 	register_t retval;
 	int fd, i, error, flags, devnull;
 
-	GIANT_REQUIRED;		/* VFS */
-
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
 		return (0);
@@ -1796,13 +1794,14 @@ fdcheckstd(struct thread *td)
 		if (fdp->fd_ofiles[i] != NULL)
 			continue;
 		if (devnull < 0) {
+			int vfslocked;
 			error = falloc(td, &fp, &fd);
 			if (error != 0)
 				break;
 			/* Note extra ref on `fp' held for us by falloc(). */
 			KASSERT(fd == i, ("oof, we didn't get our fd"));
-			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
-			    td);
+			NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
+			    "/dev/null", td);
 			flags = FREAD | FWRITE;
 			error = vn_open(&nd, &flags, 0, -1);
 			if (error != 0) {
@@ -1821,6 +1820,7 @@ fdcheckstd(struct thread *td)
 				fdrop(fp, td);
 				break;
 			}
+			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			fp->f_flag = flags;
 			fp->f_vnode = nd.ni_vp;
@@ -1830,6 +1830,7 @@ fdcheckstd(struct thread *td)
 				fp->f_ops = &vnops;
 			fp->f_type = DTYPE_VNODE;
 			VOP_UNLOCK(nd.ni_vp, 0, td);
+			VFS_UNLOCK_GIANT(vfslocked);
 			devnull = fd;
 			fdrop(fp, td);
 		} else {
