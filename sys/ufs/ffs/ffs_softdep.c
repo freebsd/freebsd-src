@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
@@ -75,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/softdep.h>
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ufs/ufs_extern.h>
+
+#include <vm/vm.h>
 
 #include "opt_ffs.h"
 
@@ -593,9 +596,7 @@ static int stat_indir_blk_ptrs;	/* bufs redirtied as indir ptrs not written */
 static int stat_inode_bitmap;	/* bufs redirtied as inode bitmap not written */
 static int stat_direct_blk_ptrs;/* bufs redirtied as direct ptrs not written */
 static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
-#ifdef DEBUG
-#include <vm/vm.h>
-#include <sys/sysctl.h>
+
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, maxindirdeps, CTLFLAG_RW, &maxindirdeps, 0, "");
@@ -609,7 +610,7 @@ SYSCTL_INT(_debug, OID_AUTO, indir_blk_ptrs, CTLFLAG_RW, &stat_indir_blk_ptrs, 0
 SYSCTL_INT(_debug, OID_AUTO, inode_bitmap, CTLFLAG_RW, &stat_inode_bitmap, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW, &stat_direct_blk_ptrs, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, dir_entry, CTLFLAG_RW, &stat_dir_entry, 0, "");
-#endif /* DEBUG */
+SYSCTL_INT(_debug, OID_AUTO, worklist_num, CTLFLAG_RD, &num_on_worklist, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -4906,6 +4907,7 @@ softdep_fsync_mountdev(vp)
 
 	if (!vn_isdisk(vp, NULL))
 		panic("softdep_fsync_mountdev: vnode not a disk");
+restart:
 	ACQUIRE_LOCK(&lk);
 	VI_LOCK(vp);
 	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
@@ -4931,13 +4933,7 @@ softdep_fsync_mountdev(vp)
 		FREE_LOCK(&lk);
 		bremfree(bp);
 		(void) bawrite(bp);
-		ACQUIRE_LOCK(&lk);
-		/*
-		 * Since we may have slept during the I/O, we need 
-		 * to start from a known point.
-		 */
-		VI_LOCK(vp);
-		nbp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
+		goto restart;
 	}
 	FREE_LOCK(&lk);
 	drain_output(vp);
