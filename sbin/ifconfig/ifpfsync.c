@@ -35,8 +35,10 @@
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 #include <net/route.h>
+#include <arpa/inet.h>
 
 #include <err.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,13 +46,16 @@
 
 #include "ifconfig.h"
 
-void setpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
-void unsetpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
-void setpfsync_maxupd(const char *, int, int, const struct afswtch *rafp);
+void setpfsync_syncdev(const char *, int, int, const struct afswtch *);
+void unsetpfsync_syncdev(const char *, int, int, const struct afswtch *);
+void setpfsync_syncpeer(const char *, int, int, const struct afswtch *);
+void unsetpfsync_syncpeer(const char *, int, int, const struct afswtch *);
+void setpfsync_syncpeer(const char *, int, int, const struct afswtch *);
+void setpfsync_maxupd(const char *, int, int, const struct afswtch *);
 void pfsync_status(int);
 
 void
-setpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
+setpfsync_syncdev(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct pfsyncreq preq;
 
@@ -60,14 +65,15 @@ setpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
 	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCGETPFSYNC");
 
-	strlcpy(preq.pfsyncr_syncif, val, sizeof(preq.pfsyncr_syncif));
+	strlcpy(preq.pfsyncr_syncdev, val, sizeof(preq.pfsyncr_syncdev));
 
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
 }
 
+/* ARGSUSED */
 void
-unsetpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
+unsetpfsync_syncdev(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct pfsyncreq preq;
 
@@ -77,19 +83,72 @@ unsetpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
 	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCGETPFSYNC");
 
-	bzero((char *)&preq.pfsyncr_syncif, sizeof(preq.pfsyncr_syncif));
+	bzero((char *)&preq.pfsyncr_syncdev, sizeof(preq.pfsyncr_syncdev));
 
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
 }
 
+/* ARGSUSED */
+void
+setpfsync_syncpeer(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	struct pfsyncreq preq;
+	struct addrinfo hints, *peerres;
+	int ecode;
+
+	bzero((char *)&preq, sizeof(struct pfsyncreq));
+	ifr.ifr_data = (caddr_t)&preq;
+
+	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
+		err(1, "SIOCGETPFSYNC");
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+
+	if ((ecode = getaddrinfo(val, NULL, &hints, &peerres)) != 0)
+		errx(1, "error in parsing address string: %s",
+		    gai_strerror(ecode));
+
+	if (peerres->ai_addr->sa_family != AF_INET)
+		errx(1, "only IPv4 addresses supported for the syncpeer");
+
+	preq.pfsyncr_syncpeer.s_addr = ((struct sockaddr_in *)
+	    peerres->ai_addr)->sin_addr.s_addr;
+
+	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSETPFSYNC");
+}
+
+/* ARGSUSED */
+void
+unsetpfsync_syncpeer(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	struct pfsyncreq preq;
+
+	bzero((char *)&preq, sizeof(struct pfsyncreq));
+	ifr.ifr_data = (caddr_t)&preq;
+
+	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
+		err(1, "SIOCGETPFSYNC");
+
+	preq.pfsyncr_syncpeer.s_addr = 0;
+
+	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSETPFSYNC");
+}
+
+/* ARGSUSED */
 void
 setpfsync_maxupd(const char *val, int d, int s, const struct afswtch *rafp)
 {
-	int maxupdates;
 	struct pfsyncreq preq;
+	int maxupdates;
 
 	maxupdates = atoi(val);
+	if ((maxupdates < 0) || (maxupdates > 255))
+		errx(1, "maxupd %s: out of range", val);
 
 	memset((char *)&preq, 0, sizeof(struct pfsyncreq));
 	ifr.ifr_data = (caddr_t)&preq;
@@ -114,16 +173,23 @@ pfsync_status(int s)
 	if (ioctl(s, SIOCGETPFSYNC, (caddr_t)&ifr) == -1)
 		return;
 
-	if (preq.pfsyncr_syncif[0] != '\0') {
-		printf("\tpfsync: syncif: %s maxupd: %d\n",
-		    preq.pfsyncr_syncif, preq.pfsyncr_maxupdates);
+	if (preq.pfsyncr_syncdev[0] != '\0') {
+		printf("\tpfsync: syncdev: %s ", preq.pfsyncr_syncdev);
+		if (preq.pfsyncr_syncpeer.s_addr != INADDR_PFSYNC_GROUP)
+			printf("syncpeer: %s ",
+			    inet_ntoa(preq.pfsyncr_syncpeer));
+		printf("maxupd: %d\n", preq.pfsyncr_maxupdates);
 	}
 }
 
 static struct cmd pfsync_cmds[] = {
-	DEF_CMD_ARG("syncif",		setpfsync_syncif),
-	DEF_CMD_ARG("maxupd",		setpfsync_maxupd),
-	DEF_CMD("-syncif",	1,	unsetpfsync_syncif),
+	DEF_CMD_ARG("syncdev",		setpfsync_syncdev),
+	DEF_CMD("-syncdev",	1,	unsetpfsync_syncdev),
+	DEF_CMD_ARG("syncif",		setpfsync_syncdev),
+	DEF_CMD("-syncif",	1,	unsetpfsync_syncdev),
+	DEF_CMD_ARG("syncpeer",		setpfsync_syncpeer),
+	DEF_CMD("-syncpeer",	1,	unsetpfsync_syncpeer),
+	DEF_CMD_ARG("maxupd",		setpfsync_maxupd)
 };
 static struct afswtch af_pfsync = {
 	.af_name	= "af_pfsync",
