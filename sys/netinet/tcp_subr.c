@@ -1127,17 +1127,20 @@ tcp_ctlinput(cmd, sa, vip)
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
 		return;
 
-	if (cmd == PRC_QUENCH)
-		notify = tcp_quench;
+	if (cmd == PRC_MSGSIZE)
+		notify = tcp_mtudisc;
 	else if (icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
-	else if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc;
 	/*
 	 * Redirects don't need to be handled up here.
 	 */
 	else if (PRC_IS_REDIRECT(cmd))
+		return;
+	/*
+	 * Source quench is depreciated.
+	 */
+	else if (cmd == PRC_QUENCH)
 		return;
 	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
@@ -1207,12 +1210,13 @@ tcp6_ctlinput(cmd, sa, d)
 	    sa->sa_len != sizeof(struct sockaddr_in6))
 		return;
 
-	if (cmd == PRC_QUENCH)
-		notify = tcp_quench;
-	else if (cmd == PRC_MSGSIZE)
+	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
+		return;
+	/* Source quench is depreciated. */
+	else if (cmd == PRC_QUENCH)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */
@@ -1380,23 +1384,6 @@ tcp_isn_tick(xtp)
 	isn_offset_old = isn_offset;
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 	INP_INFO_WUNLOCK(&tcbinfo);
-}
-
-/*
- * When a source quench is received, close congestion window
- * to one segment.  We will gradually open it again as we proceed.
- */
-struct inpcb *
-tcp_quench(inp, errno)
-	struct inpcb *inp;
-	int errno;
-{
-	struct tcpcb *tp = intotcpcb(inp);
-
-	INP_LOCK_ASSERT(inp);
-	if (tp != NULL)
-		tp->snd_cwnd = tp->t_maxseg;
-	return (inp);
 }
 
 /*
