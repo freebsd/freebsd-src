@@ -160,13 +160,17 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				(flags & NI_DGRAM) ? "udp" : "tcp");
 		}
 		if (sp) {
-			if (strlen(sp->s_name) + 1 > servlen)
+			if (strlen(sp->s_name) + 1 > servlen) {
+				THREAD_UNLOCK();
 				return EAI_MEMORY;
+			}
 			strlcpy(serv, sp->s_name, servlen);
 		} else {
 			snprintf(numserv, sizeof(numserv), "%u", ntohs(port));
-			if (strlen(numserv) + 1 > servlen)
+			if (strlen(numserv) + 1 > servlen) {
+				THREAD_UNLOCK();
 				return EAI_MEMORY;
+			}
 			strlcpy(serv, numserv, servlen);
 		}
 		THREAD_UNLOCK();
