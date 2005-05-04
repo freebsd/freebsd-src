@@ -33,6 +33,9 @@
 #error "no user-servicable parts inside"
 #endif
 
+#include <sys/condvar.h>
+#include <sys/queue.h>
+
 struct kuser {
 	pid_t ku_pid;
 	LIST_ENTRY(kuser) ku_next;
@@ -50,6 +53,7 @@ struct ksem {
 	struct cv ks_cv;		/* waiters sleep here */
 	int ks_waiters;			/* number of waiters */
 	LIST_HEAD(, kuser) ks_users;	/* pids using this sem */
+	struct label *ks_label;		/* MAC label */
 };
 
 #endif /* !_POSIX4_KSEM_H_ */

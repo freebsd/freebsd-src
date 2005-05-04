@@ -59,6 +59,7 @@ struct ifnet;
 struct image_params;
 struct inpcb;
 struct ipq;
+struct ksem;
 struct label;
 struct mac_policy_conf;
 struct mbuf;
@@ -114,6 +115,7 @@ struct mac_policy_ops {
 	int	(*mpo_init_socket_label)(struct label *label, int flag);
 	int	(*mpo_init_socket_peer_label)(struct label *label, int flag);
 	void	(*mpo_init_pipe_label)(struct label *label);
+	void    (*mpo_init_posix_sem_label)(struct label *label);
 	void	(*mpo_init_proc_label)(struct label *label);
 	void	(*mpo_init_vnode_label)(struct label *label);
 	void	(*mpo_destroy_bpfdesc_label)(struct label *label);
@@ -132,6 +134,7 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_socket_label)(struct label *label);
 	void	(*mpo_destroy_socket_peer_label)(struct label *label);
 	void	(*mpo_destroy_pipe_label)(struct label *label);
+	void    (*mpo_destroy_posix_sem_label)(struct label *label);
 	void	(*mpo_destroy_proc_label)(struct label *label);
 	void	(*mpo_destroy_vnode_label)(struct label *label);
 	void	(*mpo_cleanup_sysv_msgmsg)(struct label *msglabel);
@@ -251,6 +254,12 @@ struct mac_policy_ops {
 		    struct semid_kernel *semakptr, struct label *semalabel);
 	void	(*mpo_create_sysv_shm)(struct ucred *cred,
 		    struct shmid_kernel *shmsegptr, struct label *shmlabel);
+
+	/*
+	 * Labeling event operations: POSIX (global/inter-process) semaphores.
+	 */
+	void	(*mpo_create_posix_sem)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
 
 	/*
 	 * Labeling event operations: network objects.
@@ -404,6 +413,18 @@ struct mac_policy_ops {
 		    struct pipepair *pp, struct label *pipelabel);
 	int	(*mpo_check_pipe_write)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel);
+	int	(*mpo_check_posix_sem_destroy)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
+	int	(*mpo_check_posix_sem_getvalue)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
+	int	(*mpo_check_posix_sem_open)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
+	int	(*mpo_check_posix_sem_post)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
+	int	(*mpo_check_posix_sem_unlink)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
+	int	(*mpo_check_posix_sem_wait)(struct ucred *cred,
+		    struct ksem *ksemptr, struct label *ks_label);
 	int	(*mpo_check_proc_debug)(struct ucred *cred,
 		    struct proc *proc);
 	int	(*mpo_check_proc_sched)(struct ucred *cred,

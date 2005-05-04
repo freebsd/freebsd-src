@@ -62,6 +62,8 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 
+#include <posix4/ksem.h>
+
 #include <fs/devfs/devfs.h>
 
 #include <net/bpfdesc.h>
@@ -130,6 +132,8 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 	SLOT(x) == 0, ("%s: Bad SYSVIPCSHM label", __func__ ))
 #define	ASSERT_PIPE_LABEL(x)	KASSERT(SLOT(x) == PIPEMAGIC ||		\
 	SLOT(x) == 0, ("%s: Bad PIPE label", __func__ ))
+#define	ASSERT_POSIX_LABEL(x)	KASSERT(SLOT(x) == POSIXSEMMAGIC ||	\
+	SLOT(x) == 0, ("%s: Bad POSIX ksem label", __func__ ))
 #define	ASSERT_PROC_LABEL(x)	KASSERT(SLOT(x) == PROCMAGIC ||		\
 	SLOT(x) == 0, ("%s: Bad PROC label", __func__ ))
 #define	ASSERT_CRED_LABEL(x)	KASSERT(SLOT(x) == CREDMAGIC ||		\
@@ -190,6 +194,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_socket_peerlabel,
 static int	init_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_pipe, CTLFLAG_RD,
     &init_count_pipe, 0, "pipe init calls");
+static int	init_count_posixsems;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_posixsems, CTLFLAG_RD,
+    &init_count_posixsems, 0, "posix sems init calls");
 static int	init_count_proc;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_proc, CTLFLAG_RD,
     &init_count_proc, 0, "proc init calls");
@@ -247,6 +254,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_socket_peerlabel,
 static int      destroy_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_pipe, CTLFLAG_RD,
     &destroy_count_pipe, 0, "pipe destroy calls");
+static int	destroy_count_posixsems;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_posixsems, CTLFLAG_RD,
+    &destroy_count_posixsems, 0, "posix sems destroy calls");
 static int      destroy_count_proc;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_proc, CTLFLAG_RD,
     &destroy_count_proc, 0, "proc destroy calls");
@@ -444,6 +454,14 @@ mac_test_init_pipe_label(struct label *label)
 
 	SLOT(label) = PIPEMAGIC;
 	atomic_add_int(&init_count_pipe, 1);
+}
+
+static void
+mac_test_init_posix_sem_label(struct label *label)
+{
+
+	SLOT(label) = POSIXSEMMAGIC;
+	atomic_add_int(&init_count_posixsems, 1);
 }
 
 static void
@@ -693,6 +711,20 @@ mac_test_destroy_pipe_label(struct label *label)
 		DEBUGGER("mac_test_destroy_pipe: dup destroy");
 	} else {
 		DEBUGGER("mac_test_destroy_pipe: corrupted label");
+	}
+}
+
+static void
+mac_test_destroy_posix_sem_label(struct label *label)
+{
+
+	if ((SLOT(label) == POSIXSEMMAGIC || SLOT(label) == 0)) {
+		atomic_add_int(&destroy_count_posixsems, 1);
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
+		DEBUGGER("mac_test_destroy_posix_sem: dup destroy");
+	} else {
+		DEBUGGER("mac_test_destroy_posix_sem: corrupted label");
 	}
 }
 
@@ -951,6 +983,15 @@ mac_test_create_pipe(struct ucred *cred, struct pipepair *pp,
 
 	ASSERT_CRED_LABEL(cred->cr_label);
 	ASSERT_PIPE_LABEL(pipelabel);
+}
+
+static void
+mac_test_create_posix_sem(struct ucred *cred, struct ksem *ksem,
+   struct label *posixlabel)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_POSIX_LABEL(posixlabel);
 }
 
 static void
@@ -1677,6 +1718,17 @@ mac_test_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
+mac_test_check_posix_sem(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	ASSERT_CRED_LABEL(cred->cr_label);
+	ASSERT_POSIX_LABEL(ks_label);
+
+	return (0);
+}
+
+static int
 mac_test_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 
@@ -2377,6 +2429,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_init_mount_label = mac_test_init_mount_label,
 	.mpo_init_mount_fs_label = mac_test_init_mount_fs_label,
 	.mpo_init_pipe_label = mac_test_init_pipe_label,
+	.mpo_init_posix_sem_label = mac_test_init_posix_sem_label,
 	.mpo_init_proc_label = mac_test_init_proc_label,
 	.mpo_init_socket_label = mac_test_init_socket_label,
 	.mpo_init_socket_peer_label = mac_test_init_socket_peer_label,
@@ -2396,6 +2449,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_mount_label = mac_test_destroy_mount_label,
 	.mpo_destroy_mount_fs_label = mac_test_destroy_mount_fs_label,
 	.mpo_destroy_pipe_label = mac_test_destroy_pipe_label,
+	.mpo_destroy_posix_sem_label = mac_test_destroy_posix_sem_label,
 	.mpo_destroy_proc_label = mac_test_destroy_proc_label,
 	.mpo_destroy_socket_label = mac_test_destroy_socket_label,
 	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
@@ -2431,6 +2485,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_update_devfsdirent = mac_test_update_devfsdirent,
 	.mpo_create_mbuf_from_socket = mac_test_create_mbuf_from_socket,
 	.mpo_create_pipe = mac_test_create_pipe,
+	.mpo_create_posix_sem = mac_test_create_posix_sem,
 	.mpo_create_socket = mac_test_create_socket,
 	.mpo_create_socket_from_socket = mac_test_create_socket_from_socket,
 	.mpo_relabel_pipe = mac_test_relabel_pipe,
@@ -2504,6 +2559,12 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_pipe_relabel = mac_test_check_pipe_relabel,
 	.mpo_check_pipe_stat = mac_test_check_pipe_stat,
 	.mpo_check_pipe_write = mac_test_check_pipe_write,
+	.mpo_check_posix_sem_destroy = mac_test_check_posix_sem,
+	.mpo_check_posix_sem_getvalue = mac_test_check_posix_sem,
+	.mpo_check_posix_sem_open = mac_test_check_posix_sem,
+	.mpo_check_posix_sem_post = mac_test_check_posix_sem,
+	.mpo_check_posix_sem_unlink = mac_test_check_posix_sem,
+	.mpo_check_posix_sem_wait = mac_test_check_posix_sem,
 	.mpo_check_proc_debug = mac_test_check_proc_debug,
 	.mpo_check_proc_sched = mac_test_check_proc_sched,
 	.mpo_check_proc_setuid = mac_test_check_proc_setuid,
