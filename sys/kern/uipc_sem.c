@@ -1,7 +1,13 @@
 /*-
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
+ * Copyright (c) 2003-2005 SPARTA, Inc.
  * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project in part by Network
+ * Associates Laboratories, the Security Research Division of Network
+ * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+ * as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mac.h"
 #include "opt_posix.h"
 
 #include <sys/param.h>
@@ -47,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 
@@ -210,6 +218,10 @@ sem_create(td, name, ksret, mode, value)
 	ret->ks_onlist = 0;
 	cv_init(&ret->ks_cv, "sem");
 	LIST_INIT(&ret->ks_users);
+#ifdef MAC
+	mac_init_posix_sem(ret);
+	mac_create_posix_sem(uc, ret);
+#endif
 	if (name != NULL)
 		sem_enter(td->td_proc, ret);
 	*ksret = ret;
@@ -385,17 +397,20 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 			ksnew->ks_onlist = 1;
 			DP(("sem_create: done, about to unlock...\n"));
 		}
-		mtx_unlock(&sem_lock);
 	} else {
+#ifdef MAC
+		error = mac_check_posix_sem_open(td->td_ucred, ks);
+		if (error)
+			goto err_open;
+#endif
 		/*
 		 * if we aren't the creator, then enforce permissions.
 		 */
 		error = sem_perm(td, ks);
-		if (!error)
-			sem_ref(ks);
-		mtx_unlock(&sem_lock);
 		if (error)
-			return (error);
+			goto err_open;
+		sem_ref(ks);
+		mtx_unlock(&sem_lock);
 		id = SEM_TO_ID(ks);
 		if (dir == UIO_USERSPACE) {
 			error = copyout(&id, idp, sizeof(id));
@@ -411,8 +426,9 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 		sem_enter(td->td_proc, ks);
 		mtx_lock(&sem_lock);
 		sem_rel(ks);
-		mtx_unlock(&sem_lock);
 	}
+err_open:
+	mtx_unlock(&sem_lock);
 	return (error);
 }
 
@@ -545,10 +561,17 @@ kern_sem_unlink(td, name)
 
 	mtx_lock(&sem_lock);
 	ks = sem_lookup_byname(name);
-	if (ks == NULL)
-		error = ENOENT;
-	else
+	if (ks != NULL) {
+#ifdef MAC
+		error = mac_check_posix_sem_unlink(td->td_ucred, ks);
+		if (error) {
+			mtx_unlock(&sem_lock);
+			return (error);
+		}
+#endif
 		error = sem_perm(td, ks);
+	} else
+		error = ENOENT;
 	DP(("sem_unlink: '%s' ks = %p, error = %d\n", name, ks, error));
 	if (error == 0) {
 		LIST_REMOVE(ks, ks_entry);
@@ -620,6 +643,11 @@ kern_sem_post(td, id)
 		error = EINVAL;
 		goto err;
 	}
+#ifdef MAC
+	error = mac_check_posix_sem_post(td->td_ucred, ks);
+	if (error)
+		goto err;
+#endif
 	if (ks->ks_value == SEM_VALUE_MAX) {
 		error = EOVERFLOW;
 		goto err;
@@ -720,6 +748,13 @@ kern_sem_wait(td, id, tryflag, abstime)
 		error = EINVAL;
 		goto err;
 	}
+#ifdef MAC
+	error = mac_check_posix_sem_wait(td->td_ucred, ks);
+	if (error) {
+		DP(("kern_sem_wait mac failed\n"));
+		goto err;
+	}
+#endif
 	DP(("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag));
 	if (ks->ks_value == 0) {
 		ks->ks_waiters++;
@@ -778,6 +813,13 @@ ksem_getvalue(td, uap)
 		mtx_unlock(&sem_lock);
 		return (EINVAL);
 	}
+#ifdef MAC
+	error = mac_check_posix_sem_getvalue(td->td_ucred, ks);
+	if (error) {
+		mtx_unlock(&sem_lock);
+		return (error);
+	}
+#endif
 	val = ks->ks_value;
 	mtx_unlock(&sem_lock);
 	error = copyout(&val, uap->val, sizeof(val));
@@ -805,6 +847,11 @@ ksem_destroy(td, uap)
 		error = EINVAL;
 		goto err;
 	}
+#ifdef MAC
+	error = mac_check_posix_sem_destroy(td->td_ucred, ks);
+	if (error)
+		goto err;
+#endif
 	if (ks->ks_waiters != 0) {
 		error = EBUSY;
 		goto err;

@@ -116,6 +116,7 @@ struct inpcb;
 struct image_params;
 struct inpcb;
 struct ipq;
+struct ksem;
 struct m_tag;
 struct mbuf;
 struct mount;
@@ -155,6 +156,7 @@ void	mac_init_sysv_shm(struct shmid_kernel*);
 int	mac_init_ipq(struct ipq *, int flag);
 int	mac_init_socket(struct socket *, int flag);
 void	mac_init_pipe(struct pipepair *);
+void	mac_init_posix_sem(struct ksem *);
 int	mac_init_mbuf(struct mbuf *mbuf, int flag);
 int	mac_init_mbuf_tag(struct m_tag *, int flag);
 void	mac_init_mount(struct mount *);
@@ -174,6 +176,7 @@ void	mac_destroy_sysv_shm(struct shmid_kernel *);
 void	mac_destroy_ipq(struct ipq *);
 void	mac_destroy_socket(struct socket *);
 void	mac_destroy_pipe(struct pipepair *);
+void	mac_destroy_posix_sem(struct ksem *);
 void	mac_destroy_proc(struct proc *);
 void	mac_destroy_mbuf_tag(struct m_tag *);
 void	mac_destroy_mount(struct mount *);
@@ -231,6 +234,12 @@ void	mac_create_sysv_sema(struct ucred *cred,
 	    struct semid_kernel *semakptr);
 void	mac_create_sysv_shm(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr);
+
+/*
+ * Labeling event operations: POSIX (global/inter-process) semaphores.
+ */
+void 	mac_create_posix_sem(struct ucred *cred, struct ksem *ksemptr);
+
 
 /*
  * Labeling event operations: network objects.
@@ -329,6 +338,12 @@ int	mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_read(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_write(struct ucred *cred, struct pipepair *pp);
+int	mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr);
+int	mac_check_posix_sem_getvalue(struct ucred *cred,struct ksem *ksemptr);
+int	mac_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr);
+int	mac_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr);
+int	mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr);
+int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_setuid(struct proc *proc,  struct ucred *cred,

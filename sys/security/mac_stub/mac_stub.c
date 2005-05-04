@@ -63,6 +63,8 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 
+#include <posix4/ksem.h>
+
 #include <fs/devfs/devfs.h>
 
 #include <net/bpfdesc.h>
@@ -268,6 +270,13 @@ stub_create_socket(struct ucred *cred, struct socket *socket,
 static void
 stub_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
+{
+
+}
+
+static void
+stub_create_posix_sem(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
 {
 
 }
@@ -821,6 +830,54 @@ stub_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
+stub_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
+stub_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
+stub_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
+stub_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
+stub_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
+stub_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+
+	return (0);
+}
+
+static int
 stub_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 
@@ -1326,6 +1383,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_mount_label = stub_init_label,
 	.mpo_init_mount_fs_label = stub_init_label,
 	.mpo_init_pipe_label = stub_init_label,
+	.mpo_init_posix_sem_label = stub_init_label,
 	.mpo_init_socket_label = stub_init_label_waitcheck,
 	.mpo_init_socket_peer_label = stub_init_label_waitcheck,
 	.mpo_init_vnode_label = stub_init_label,
@@ -1343,6 +1401,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_mount_label = stub_destroy_label,
 	.mpo_destroy_mount_fs_label = stub_destroy_label,
 	.mpo_destroy_pipe_label = stub_destroy_label,
+	.mpo_destroy_posix_sem_label = stub_destroy_label,
 	.mpo_destroy_socket_label = stub_destroy_label,
 	.mpo_destroy_socket_peer_label = stub_destroy_label,
 	.mpo_destroy_vnode_label = stub_destroy_label,
@@ -1381,6 +1440,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_update_devfsdirent = stub_update_devfsdirent,
 	.mpo_create_mbuf_from_socket = stub_create_mbuf_from_socket,
 	.mpo_create_pipe = stub_create_pipe,
+	.mpo_create_posix_sem = stub_create_posix_sem,
 	.mpo_create_socket = stub_create_socket,
 	.mpo_create_socket_from_socket = stub_create_socket_from_socket,
 	.mpo_relabel_pipe = stub_relabel_pipe,
@@ -1451,6 +1511,12 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_pipe_relabel = stub_check_pipe_relabel,
 	.mpo_check_pipe_stat = stub_check_pipe_stat,
 	.mpo_check_pipe_write = stub_check_pipe_write,
+	.mpo_check_posix_sem_destroy = stub_check_posix_sem_destroy,
+	.mpo_check_posix_sem_getvalue = stub_check_posix_sem_getvalue,
+	.mpo_check_posix_sem_open = stub_check_posix_sem_open,
+	.mpo_check_posix_sem_post = stub_check_posix_sem_post,
+	.mpo_check_posix_sem_unlink = stub_check_posix_sem_unlink,
+	.mpo_check_posix_sem_wait = stub_check_posix_sem_wait,
 	.mpo_check_proc_debug = stub_check_proc_debug,
 	.mpo_check_proc_sched = stub_check_proc_sched,
 	.mpo_check_proc_setuid = stub_check_proc_setuid,

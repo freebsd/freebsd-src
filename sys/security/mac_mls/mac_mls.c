@@ -65,6 +65,8 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 
+#include <posix4/ksem.h>
+
 #include <fs/devfs/devfs.h>
 
 #include <net/bpfdesc.h>
@@ -999,6 +1001,18 @@ mac_mls_create_pipe(struct ucred *cred, struct pipepair *pp,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(pipelabel);
+
+	mac_mls_copy_effective(source, dest);
+}
+
+static void
+mac_mls_create_posix_sem(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(ks_label);
 
 	mac_mls_copy_effective(source, dest);
 }
@@ -1975,6 +1989,42 @@ mac_mls_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
+mac_mls_check_posix_sem_write(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(ks_label);
+
+	if (!mac_mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_mls_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ksemptr,
+    struct label *ks_label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(ks_label);
+
+	if (!mac_mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_mls_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 	struct mac_mls *subj, *obj;
@@ -2788,6 +2838,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_init_mount_label = mac_mls_init_label,
 	.mpo_init_mount_fs_label = mac_mls_init_label,
 	.mpo_init_pipe_label = mac_mls_init_label,
+	.mpo_init_posix_sem_label = mac_mls_init_label,
 	.mpo_init_socket_label = mac_mls_init_label_waitcheck,
 	.mpo_init_socket_peer_label = mac_mls_init_label_waitcheck,
 	.mpo_init_vnode_label = mac_mls_init_label,
@@ -2805,6 +2856,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_mount_label = mac_mls_destroy_label,
 	.mpo_destroy_mount_fs_label = mac_mls_destroy_label,
 	.mpo_destroy_pipe_label = mac_mls_destroy_label,
+	.mpo_destroy_posix_sem_label = mac_mls_destroy_label,
 	.mpo_destroy_socket_label = mac_mls_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_mls_destroy_label,
 	.mpo_destroy_vnode_label = mac_mls_destroy_label,
@@ -2839,6 +2891,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_setlabel_vnode_extattr = mac_mls_setlabel_vnode_extattr,
 	.mpo_create_mbuf_from_socket = mac_mls_create_mbuf_from_socket,
 	.mpo_create_pipe = mac_mls_create_pipe,
+	.mpo_create_posix_sem = mac_mls_create_posix_sem,
 	.mpo_create_socket = mac_mls_create_socket,
 	.mpo_create_socket_from_socket = mac_mls_create_socket_from_socket,
 	.mpo_relabel_pipe = mac_mls_relabel_pipe,
@@ -2898,6 +2951,12 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_pipe_relabel = mac_mls_check_pipe_relabel,
 	.mpo_check_pipe_stat = mac_mls_check_pipe_stat,
 	.mpo_check_pipe_write = mac_mls_check_pipe_write,
+	.mpo_check_posix_sem_destroy = mac_mls_check_posix_sem_write,
+	.mpo_check_posix_sem_getvalue = mac_mls_check_posix_sem_rdonly,
+	.mpo_check_posix_sem_open = mac_mls_check_posix_sem_write,
+	.mpo_check_posix_sem_post = mac_mls_check_posix_sem_write,
+	.mpo_check_posix_sem_unlink = mac_mls_check_posix_sem_write,
+	.mpo_check_posix_sem_wait = mac_mls_check_posix_sem_write,
 	.mpo_check_proc_debug = mac_mls_check_proc_debug,
 	.mpo_check_proc_sched = mac_mls_check_proc_sched,
 	.mpo_check_proc_signal = mac_mls_check_proc_signal,
