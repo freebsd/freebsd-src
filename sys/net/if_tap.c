@@ -827,7 +827,7 @@ tapwrite(dev, uio, flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0)) == NULL) {
+	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, ETHER_ALIGN)) == NULL) {
 		ifp->if_ierrors ++;
 		return (error);
 	}
