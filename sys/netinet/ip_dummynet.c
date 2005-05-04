@@ -33,8 +33,6 @@
 #include "opt_inet6.h"
 #endif
 
-#define IPFW2	1
-
 /*
  * This module implements IP dummynet, a bandwidth limiter/delay emulator
  * used in conjunction with the ipfw package.
@@ -1125,7 +1123,6 @@ static __inline
 struct dn_flow_set *
 locate_flowset(int pipe_nr, struct ip_fw *rule)
 {
-#if IPFW2
     struct dn_flow_set *fs;
     ipfw_insn *cmd = ACTION_PTR(rule);
 
@@ -1141,11 +1138,6 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 	return fs;
 
     if (cmd->opcode == O_QUEUE)
-#else /* !IPFW2 */
-    struct dn_flow_set *fs = NULL ;
-
-    if ( (rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_QUEUE )
-#endif /* !IPFW2 */
 	for (fs=all_flow_sets; fs && fs->fs_nr != pipe_nr; fs=fs->next)
 	    ;
     else {
@@ -1156,15 +1148,10 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 	    fs = &(p1->fs) ;
     }
     /* record for the future */
-#if IPFW2
 #ifdef __i386__
     ((ipfw_insn_pipe *)cmd)->pipe_ptr = fs;
 #else
     bcopy(&fs, & ((ipfw_insn_pipe *)cmd)->pipe_ptr, sizeof(fs));
-#endif
-#else
-    if (fs != NULL)
-	rule->pipe_ptr = fs;
 #endif
     return fs ;
 }
@@ -1193,20 +1180,14 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
     u_int64_t len = m->m_pkthdr.len ;
     struct dn_flow_queue *q = NULL ;
     int is_pipe;
-#if IPFW2
     ipfw_insn *cmd = ACTION_PTR(fwa->rule);
-#endif
 
     KASSERT(m->m_nextpkt == NULL,
 	("dummynet_io: mbuf queue passed to dummynet"));
 
-#if IPFW2
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
     is_pipe = (cmd->opcode == O_PIPE);
-#else
-    is_pipe = (fwa->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE;
-#endif
 
     DUMMYNET_LOCK();
     /*
