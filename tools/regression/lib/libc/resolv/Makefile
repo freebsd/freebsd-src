@@ -1,4 +1,5 @@
 #	$NetBSD: Makefile,v 1.1 2004/05/13 19:17:12 christos Exp $
+# $FreeBSD$
 
 NOMAN=		# defined
 
@@ -10,6 +11,6 @@ DPADD+=		${LIBPTHREAD}
 LDADD+=		-lpthread
 
 regress: ${PROG}
-	./${PROG} ${.CURDIR}/mach
+	./${PROG} -r ${.CURDIR}/mach
 
 .include <bsd.prog.mk>
