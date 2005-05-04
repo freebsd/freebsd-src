@@ -27,6 +27,9 @@
 LIB=	pam_krb5
 SRCS=	pam_krb5.c
 MAN=	pam_krb5.8
+.if defined(_FREEFALL_CONFIG)
+WARNS=	0
+.endif
 
 DPADD=	${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
 LDADD=	-lkrb5 -lasn1 -lroken -lcom_err -lcrypt -lcrypto

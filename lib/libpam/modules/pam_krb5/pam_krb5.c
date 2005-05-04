@@ -333,6 +333,9 @@ PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
+#ifdef _FREEFALL_CONFIG
+	return (PAM_SUCCESS);
+#else
 
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -570,6 +573,7 @@ cleanup3:
 		free(cache_name_buf);
 
 	return (retval);
+#endif
 }
 
 /*
