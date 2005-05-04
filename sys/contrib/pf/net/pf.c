@@ -1800,6 +1800,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 		PF_UNLOCK();
 		icmp_error(m0, type, code, 0, 0);
 		PF_LOCK();
+#else
+		icmp_error(m0, type, code, 0, (void *)NULL);
 #endif
 		break;
 #endif /* INET */
@@ -5788,8 +5790,11 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			NTOHS(ip->ip_off);
 			PF_UNLOCK();
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
-			    ifp);
+			    ifp->ifp_mtu);
 			PF_LOCK();
+#else
+			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
+			    ifp);
 #endif
 			goto done;
 		} else
