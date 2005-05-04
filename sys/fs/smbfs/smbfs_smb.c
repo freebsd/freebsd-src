@@ -1449,8 +1449,8 @@ smbfs_findnext(struct smbfs_fctx *ctx, int limit, struct smb_cred *scred)
 			continue;
 		break;
 	}
-	smbfs_fname_tolocal(SSTOVC(ctx->f_ssp), ctx->f_name, ctx->f_nmlen,
-	    ctx->f_dnp->n_mount->sm_caseopt);
+	smbfs_fname_tolocal(SSTOVC(ctx->f_ssp), ctx->f_name, &ctx->f_nmlen,
+			    ctx->f_dnp->n_mount->sm_caseopt);
 	ctx->f_attr.fa_ino = smbfs_getino(ctx->f_dnp, ctx->f_name, ctx->f_nmlen);
 	return 0;
 }

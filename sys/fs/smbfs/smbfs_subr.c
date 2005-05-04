@@ -316,13 +316,33 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 }
 
 int
-smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int nmlen, int caseopt)
+smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 {
-/*	if (caseopt & SMB_CS_UPPER)
-		iconv_convmem(vcp->vc_toupper, name, name, nmlen);
-	else if (caseopt & SMB_CS_LOWER)
-		iconv_convmem(vcp->vc_tolower, name, name, nmlen);*/
-	if (vcp->vc_tolocal)
-		iconv_convmem(vcp->vc_tolocal, name, name, nmlen);
-	return 0;
+	int copt = (caseopt == SMB_CS_LOWER ? KICONV_FROM_LOWER : 
+		    (caseopt == SMB_CS_UPPER ? KICONV_FROM_UPPER : 0));
+	int error = 0;
+	int ilen = *nmlen;
+	int olen;
+	char *ibuf = name;
+	char outbuf[SMB_MAXFNAMELEN];
+	char *obuf = outbuf;
+
+	if (vcp->vc_tolocal) {
+		olen = sizeof(outbuf);
+		bzero(outbuf, sizeof(outbuf));
+
+		/*
+		error = iconv_conv_case
+			(vcp->vc_tolocal, NULL, NULL, &obuf, &olen, copt);
+		if (error) return error;
+		*/
+
+		error = iconv_conv_case
+			(vcp->vc_tolocal, (const char **)&ibuf, &ilen, &obuf, &olen, copt);
+		if (!error) {
+			*nmlen = sizeof(outbuf) - olen;
+			memcpy(name, outbuf, *nmlen);
+		}
+	}
+	return error;
 }
