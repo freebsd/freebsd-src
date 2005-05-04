@@ -4364,9 +4364,9 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			(*state)->dst.seqdiff = (*state)->src.seqhi -
 			    (*state)->dst.seqlo;
 			(*state)->src.seqhi = (*state)->src.seqlo +
-			    (*state)->src.max_win;
-			(*state)->dst.seqhi = (*state)->dst.seqlo +
 			    (*state)->dst.max_win;
+			(*state)->dst.seqhi = (*state)->dst.seqlo +
+			    (*state)->src.max_win;
 			(*state)->src.wscale = (*state)->dst.wscale = 0;
 			(*state)->src.state = (*state)->dst.state =
 			    TCPS_ESTABLISHED;
