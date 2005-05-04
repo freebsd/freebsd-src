@@ -1714,10 +1714,9 @@ ip_forward(struct mbuf *m, int srcrt)
 {
 	struct ip *ip = mtod(m, struct ip *);
 	struct in_ifaddr *ia = NULL;
-	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
 	struct in_addr dest;
-	struct ifnet *destifp, dummyifp;
+	int error, type = 0, code = 0, mtu = 0;
 
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
@@ -1853,7 +1852,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	}
 	if (mcopy == NULL)
 		return;
-	destifp = NULL;
 
 	switch (error) {
 
@@ -1906,24 +1904,17 @@ ip_forward(struct mbuf *m, int srcrt)
 				/*
 				 * find the correct route for outer IPv4
 				 * header, compute tunnel MTU.
-				 *
-				 * XXX BUG ALERT
-				 * The "dummyifp" code relies upon the fact
-				 * that icmp_error() touches only ifp->if_mtu.
 				 */
-				/*XXX*/
-				destifp = NULL;
 				if (sp->req != NULL
 				 && sp->req->sav != NULL
 				 && sp->req->sav->sah != NULL) {
 					ro = &sp->req->sav->sah->sa_route;
 					if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-						dummyifp.if_mtu =
+						mtu =
 						    ro->ro_rt->rt_rmx.rmx_mtu ?
 						    ro->ro_rt->rt_rmx.rmx_mtu :
 						    ro->ro_rt->rt_ifp->if_mtu;
-						dummyifp.if_mtu -= ipsechdr;
-						destifp = &dummyifp;
+						mtu -= ipsechdr;
 					}
 				}
 
@@ -1941,11 +1932,10 @@ ip_forward(struct mbuf *m, int srcrt)
 		 * to the minimum guaranteed routeable packet size and use
 		 * the same hack as IPSEC to setup a dummyifp for icmp.
 		 */
-		if (ia == NULL) {
-			dummyifp.if_mtu = IP_MSS;
-			destifp = &dummyifp;
-		} else
-			destifp = ia->ia_ifp;
+		if (ia == NULL)
+			mtu = IP_MSS;
+		else
+			mtu = ia->ia_ifp->if_mtu;
 #if defined(IPSEC) || defined(FAST_IPSEC)
 		}
 #endif /*IPSEC || FAST_IPSEC*/
@@ -1974,7 +1964,7 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(mcopy);
 		return;
 	}
-	icmp_error(mcopy, type, code, dest.s_addr, destifp);
+	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 
 void
