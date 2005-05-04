@@ -1168,22 +1168,33 @@ tcp_ctlinput(cmd, sa, vip)
 					     * If we got a needfrag set the MTU
 					     * in the route to the suggested new
 					     * value (if given) and then notify.
-					     * If no new MTU was suggested, then
-					     * we guess a new one less than the
-					     * current value.
-					     * If the new MTU is unreasonably
-					     * small (defined by sysctl tcp_minmss),
-					     * then we up the MTU value to minimum.
 					     */
 					    bzero(&inc, sizeof(inc));
 					    inc.inc_flags = 0;	/* IPv4 */
 					    inc.inc_faddr = faddr;
 
 					    mtu = ntohs(icp->icmp_nextmtu);
+					    /*
+					     * If no alternative MTU was
+					     * proposed, try the next smaller
+					     * one.
+					     */
 					    if (!mtu)
-						mtu = ip_next_mtu(mtu, 1);
-					    if (mtu >= max(296, (tcp_minmss
-						 + sizeof(struct tcpiphdr))))
+						mtu = ip_next_mtu(ntohs(ip->ip_len),
+						 1);
+					    if (mtu < max(296, (tcp_minmss)
+						 + sizeof(struct tcpiphdr)))
+						mtu = 0;
+					    if (!mtu)
+						mtu = tcp_mssdflt
+						 + sizeof(struct tcpiphdr);
+					    /*
+					     * Only cache the the MTU if it
+					     * is smaller than the interface
+					     * or route MTU.  tcp_mtudisc()
+					     * will do right thing by itself.
+					     */
+					    if (mtu <= tcp_maxmtu(&inc))
 						tcp_hc_updatemtu(&inc, mtu);
 					}
 
