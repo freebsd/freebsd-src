@@ -17,6 +17,6 @@ CFLAGS+= -I${.CURDIR}/../../contrib/pf/pfctl -Wall -Werror
 CFLAGS+= -DENABLE_ALTQ
 
 LDADD+= -lm -lmd -lutil
-DPADD+= ${LIBM} ${LIBMD}
+DPADD+= ${LIBM} ${LIBMD} ${LIBUTIL}
 
 .include <bsd.prog.mk>
