@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.41.2.5
+     Original revision: 1.761.2.41.2.7
 -->
 
 <articleinfo>
@@ -153,6 +153,12 @@
       За дальнейшей информацией обращайтесь к сообщению безопасности
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
       </para>
+
+    <para>Было исправлено несколько программных ошибок в &man.cvs.1;,
+      которые потенциально позволяли выполнение произвольного кода
+      на серверах CVS.  Дополнительная информация может быть получена
+      из сообщения безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.</para>
 
   </sect2>
 
@@ -513,6 +519,9 @@
       нарушающему Microsoft PPP Callback Control Protocol
       section 3.2.</para>
 
+    <para>Утилита &man.restore.8; теперь снова может читать
+      дампы &os; версии 1.</para>
+
     <para>Утилита &man.rm.1; теперь поддерживает параметр
       <option>-I</option>, с которым (однократно) запрашивается
       подтверждение при рекурсивном удалении каталогов или
@@ -537,6 +546,11 @@
       привилегированными программами.  Это предотвращает блокировку
       привилегированных программ, когда буфер сокета переполняется
       вследствие локальной DoS атаки.</para>
+
+    <para>Утилита &man.syslogd.8; теперь позволяет использовать символы
+      <literal>:</literal> и <literal>%</literal> в спецификации
+      имени хоста.  Эти символы используются в адресах и scope ID
+      IPv6.</para>
 
     <para>&man.systat.1; <option>-netstat</option> теперь приспособлен
       для IPv6.</para>
