@@ -81,12 +81,13 @@ static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 /*
  * The default read buffer size is patchable.
  */
+SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
 static int bpf_bufsize = 4096;
-SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW,
-	&bpf_bufsize, 0, "");
+SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
+    &bpf_bufsize, 0, "");
 static int bpf_maxbufsize = BPF_MAXBUFSIZE;
-SYSCTL_INT(_debug, OID_AUTO, bpf_maxbufsize, CTLFLAG_RW,
-	&bpf_maxbufsize, 0, "");
+SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
+    &bpf_maxbufsize, 0, "");
 
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
@@ -116,6 +117,8 @@ static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
 static int	filt_bpfread(struct knote *, long);
+static void	bpf_drvinit(void *);
+static void	bpf_clone(void *, char *, int, struct cdev **);
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -523,6 +526,8 @@ static __inline void
 bpf_wakeup(d)
 	struct bpf_d *d;
 {
+
+	BPFD_LOCK_ASSERT(d);
 	if (d->bd_state == BPF_WAITING) {
 		callout_stop(&d->bd_callout);
 		d->bd_state = BPF_IDLE;
@@ -1313,6 +1318,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	int hdrlen = d->bd_bif->bif_hdrlen;
 	int do_wakeup = 0;
 
+	BPFD_LOCK_ASSERT(d);
 	/*
 	 * Figure out how many bytes to move.  If the packet is
 	 * greater or equal to the snapshot length, transfer that
@@ -1585,10 +1591,6 @@ bpf_setdlt(d, dlt)
 	}
 	return (bp == NULL ? EINVAL : 0);
 }
-
-static void bpf_drvinit(void *unused);
-
-static void bpf_clone(void *arg, char *name, int namelen, struct cdev **dev);
 
 static void
 bpf_clone(arg, name, namelen, dev)
