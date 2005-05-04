@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ksu
-.if defined(ENABLE_SUID_K5SU)
+.if defined(ENABLE_SUID_K5SU) || defined(_FREEFALL_CONFIG)
 BINMODE=4555
 INSTALLFLAGS=-fschg
 .endif
