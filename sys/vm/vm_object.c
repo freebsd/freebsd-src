@@ -1292,6 +1292,7 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
+	new_object->flags |= orig_object->flags & OBJ_NEEDGIANT;
 	vm_page_lock_queues();
 	for (idx = 0; idx < size; idx++) {
 	retry:
