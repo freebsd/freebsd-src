@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.PATH:	${.CURDIR}/../../sys/netinet/libalias
+
 LIB=	alias
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	4
