@@ -1405,7 +1405,6 @@ fill_regs(struct thread *td, struct reg *regs)
 int
 set_regs(struct thread *td, struct reg *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 	register_t rflags;
 
@@ -1433,7 +1432,7 @@ set_regs(struct thread *td, struct reg *regs)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = regs->r_rsp;
 	tp->tf_ss = regs->r_ss;
-	pcb = td->td_pcb;
+	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
