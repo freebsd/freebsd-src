@@ -193,12 +193,20 @@ krb5_verify(const struct passwd *login_info,
 				  NULL);
     else
 	ret = krb5_make_principal(context, &p, NULL, 
+#ifdef _FREEFALL_CONFIG
+				  login_name,
+#else
 				  su_info->pw_name,
+#endif
 				  NULL);
     if(ret)
 	return 1;
 	
-    if(su_info->pw_uid != 0 || krb5_kuserok(context, p, su_info->pw_name)) {
+    if(
+#ifndef _FREEFALL_CONFIG
+	su_info->pw_uid != 0 ||
+#endif
+				krb5_kuserok(context, p, su_info->pw_name)) {
 	ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &ccache);
 	if(ret) {
 #if 1
@@ -432,7 +440,11 @@ main(int argc, char **argv)
 	ok = 4;
 #endif
 
-    if(ok == 0 && login_info->pw_uid && verify_unix(su_info) != 0) {
+    if(ok == 0 && login_info->pw_uid
+#ifndef _FREEFALL_CONFIG
+					&& verify_unix(su_info) != 0
+#endif
+									) {
 	printf("Sorry!\n");
 	exit(1);
     }
