@@ -35,9 +35,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <netdb.h>
@@ -51,8 +54,16 @@ __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 #define NHOSTS		100
 #define WS		" \t\n\r"
 
+enum method {
+	METHOD_GETADDRINFO,
+	METHOD_GETHOSTBY,
+	METHOD_GETIPNODEBY
+};
+
 static StringList *hosts = NULL;
 static int debug = 0;
+static enum method method = METHOD_GETADDRINFO;
+static int reverse = 0;
 static int *ask = NULL;
 static int *got = NULL;
 
@@ -68,7 +79,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "Usage: %s [-d] [-h <nhosts>] [-n <nthreads>] <file> ...\n",
+	    "Usage: %s [-AdHIr] [-h <nhosts>] [-n <nthreads>] <file> ...\n",
 	    getprogname());
 	exit(1);
 }
@@ -94,6 +105,95 @@ load(const char *fname)
 	(void)fclose(fp);
 }
 
+static int
+resolv_getaddrinfo(pthread_t self, char *host, int port)
+{
+	char portstr[6], buf[1024], hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
+	struct addrinfo hints, *res;
+	int error, len;
+
+	snprintf(portstr, sizeof(portstr), "%d", port);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(host, portstr, &hints, &res);
+	if (debug) {
+		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+		    self, host, error ? "not found" : "ok");
+		(void)write(STDOUT_FILENO, buf, len);
+	}
+	if (error == 0 && reverse) {
+		memset(hbuf, 0, sizeof(hbuf));
+		memset(pbuf, 0, sizeof(pbuf));
+		getnameinfo(res->ai_addr, res->ai_addrlen, hbuf, sizeof(hbuf),
+			    pbuf, sizeof(pbuf), 0);
+		if (debug) {
+			len = snprintf(buf, sizeof(buf),
+			    "%p: reverse %s %s\n", self, hbuf, pbuf);
+			(void)write(STDOUT_FILENO, buf, len);
+		}
+	}
+	if (error == 0)
+		freeaddrinfo(res);
+	return error;
+}
+
+static int
+resolv_gethostby(pthread_t self, char *host)
+{
+	char buf[1024];
+	struct hostent *hp, *hp2;
+	int len;
+
+	hp = gethostbyname(host);
+	if (debug) {
+		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+		    self, host, (hp == NULL) ? "not found" : "ok");
+		(void)write(STDOUT_FILENO, buf, len);
+	}
+	if (hp && reverse) {
+		memcpy(buf, hp->h_addr, hp->h_length);
+		hp2 = gethostbyaddr(buf, hp->h_length, hp->h_addrtype);
+		if (hp2 && debug) {
+			len = snprintf(buf, sizeof(buf),
+			    "%p: reverse %s\n", self, hp2->h_name);
+			(void)write(STDOUT_FILENO, buf, len);
+		}
+	}
+	return hp ? 0 : -1;
+}
+
+static int
+resolv_getipnodeby(pthread_t self, char *host)
+{
+	char buf[1024];
+	struct hostent *hp, *hp2;
+	int len, h_error;
+
+	hp = getipnodebyname(host, AF_INET, 0, &h_error);
+	if (debug) {
+		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+		    self, host, (hp == NULL) ? "not found" : "ok");
+		(void)write(STDOUT_FILENO, buf, len);
+	}
+	if (hp && reverse) {
+		memcpy(buf, hp->h_addr, hp->h_length);
+		hp2 = getipnodebyaddr(buf, hp->h_length, hp->h_addrtype,
+		    &h_error);
+		if (hp2 && debug) {
+			len = snprintf(buf, sizeof(buf),
+			    "%p: reverse %s\n", self, hp2->h_name);
+			(void)write(STDOUT_FILENO, buf, len);
+		}
+		if (hp2)
+			freehostent(hp2);
+	}
+	if (hp)
+		freehostent(hp);
+	return hp ? 0 : -1;
+}
+
 static void
 resolvone(int n)
 {
@@ -101,25 +201,31 @@ resolvone(int n)
 	pthread_t self = pthread_self();
 	size_t i = (random() & 0x0fffffff) % hosts->sl_cur;
 	char *host = hosts->sl_str[i];
-	struct addrinfo *res;
+	struct addrinfo hints, *res;
 	int error, len;
+
 	if (debug) {
 		len = snprintf(buf, sizeof(buf), "%p: %d resolving %s %d\n",
 		    self, n, host, (int)i);
 		(void)write(STDOUT_FILENO, buf, len);
 	}
-	error = getaddrinfo(host, NULL, NULL, &res);
-	if (debug) {
-		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
-		    self, host, error ? "not found" : "ok");
-		(void)write(STDOUT_FILENO, buf, len);
+	switch (method) {
+	case METHOD_GETADDRINFO:
+		error = resolv_getaddrinfo(self, host, i);
+		break;
+	case METHOD_GETHOSTBY:
+		error = resolv_gethostby(self, host);
+		break;
+	case METHOD_GETIPNODEBY:
+		error = resolv_getipnodeby(self, host);
+		break;
+	default:
+		break;
 	}
 	pthread_mutex_lock(&stats);
 	ask[i]++;
 	got[i] += error == 0;
 	pthread_mutex_unlock(&stats);
-	if (error == 0)
-		freeaddrinfo(res);
 }
 
 static void *
@@ -152,16 +258,28 @@ main(int argc, char *argv[])
 
 	srandom(1234);
 
-	while ((c = getopt(argc, argv, "dh:n:")) != -1)
+	while ((c = getopt(argc, argv, "Adh:HIn:r")) != -1)
 		switch (c) {
+		case 'A':
+			method = METHOD_GETADDRINFO;
+			break;
 		case 'd':
 			debug++;
 			break;
 		case 'h':
 			nhosts = atoi(optarg);
 			break;
+		case 'H':
+			method = METHOD_GETHOSTBY;
+			break;
+		case 'I':
+			method = METHOD_GETIPNODEBY;
+			break;
 		case 'n':
 			nthreads = atoi(optarg);
+			break;
+		case 'r':
+			reverse++;
 			break;
 		default:
 			usage();
