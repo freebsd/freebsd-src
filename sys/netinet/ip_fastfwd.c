@@ -137,7 +137,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 		ipstat.ips_cantforward++;
 		if (rt)
 			RTFREE(rt);
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, NULL);
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return NULL;
 	}
 	return dst;
@@ -297,7 +297,7 @@ ip_fastforward(struct mbuf *m)
 			return 0;
 		else if (ip_doopts == 2) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
-				0, NULL);
+				0, 0);
 			return 1;
 		}
 		/* else ignore IP options and continue */
@@ -407,7 +407,7 @@ passin:
 	if (!ipstealth) {
 #endif
 	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, NULL);
+		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
 		return 1;
 	}
 
@@ -512,7 +512,7 @@ passout:
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
 	    ro.ro_rt->rt_rmx.rmx_expire >= time_second) {
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, NULL);
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
 
@@ -532,7 +532,7 @@ passout:
 	 * Check if media link state of interface is not down
 	 */
 	if (ifp->if_link_state == LINK_STATE_DOWN) {
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, NULL);
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
 
@@ -563,7 +563,7 @@ passout:
 		if (ip->ip_off & IP_DF) {
 			ipstat.ips_cantfrag++;
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
-				0, ifp);
+				0, mtu);
 			goto consumed;
 		} else {
 			/*

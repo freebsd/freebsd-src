@@ -133,11 +133,11 @@ extern	struct protosw inetsw[];
  * in response to bad packet ip.
  */
 void
-icmp_error(n, type, code, dest, destifp)
+icmp_error(n, type, code, dest, mtu)
 	struct mbuf *n;
 	int type, code;
 	n_long dest;
-	struct ifnet *destifp;
+	int mtu;
 {
 	register struct ip *oip = mtod(n, struct ip *), *nip;
 	register unsigned oiplen = oip->ip_hl << 2;
@@ -201,8 +201,8 @@ icmp_error(n, type, code, dest, destifp)
 			icp->icmp_pptr = code;
 			code = 0;
 		} else if (type == ICMP_UNREACH &&
-			code == ICMP_UNREACH_NEEDFRAG && destifp) {
-			icp->icmp_nextmtu = htons(destifp->if_mtu);
+			code == ICMP_UNREACH_NEEDFRAG && mtu) {
+			icp->icmp_nextmtu = htons(mtu);
 		}
 	}
 

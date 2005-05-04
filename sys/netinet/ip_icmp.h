@@ -202,7 +202,7 @@ struct icmp {
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
 #ifdef _KERNEL
-void	icmp_error(struct mbuf *, int, int, n_long, struct ifnet *);
+void	icmp_error(struct mbuf *, int, int, n_long, int);
 void	icmp_input(struct mbuf *, int);
 int	ip_next_mtu(int, int);
 #endif
