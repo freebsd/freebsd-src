@@ -1733,6 +1733,7 @@ security/mac/mac_inet.c		optional mac inet
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
 security/mac/mac_pipe.c		optional mac
+security/mac/mac_posix_sem.c	optional mac
 security/mac/mac_process.c	optional mac
 security/mac/mac_socket.c	optional mac
 security/mac/mac_system.c	optional mac
