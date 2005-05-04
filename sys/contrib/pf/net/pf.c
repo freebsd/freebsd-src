@@ -5790,7 +5790,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			NTOHS(ip->ip_off);
 			PF_UNLOCK();
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
-			    ifp->ifp_mtu);
+			    ifp->if_mtu);
 			PF_LOCK();
 #else
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
