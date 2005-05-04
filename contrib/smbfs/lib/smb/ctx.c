@@ -473,8 +473,6 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 	struct sockaddr *sap;
 	struct sockaddr_nb *salocal, *saserver;
 	char *cp;
-	u_char cstbl[256];
-	u_int i;
 	int error = 0;
 	
 	ctx->ct_flags &= ~SMBCF_RESOLVED;
@@ -496,7 +494,7 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 	if (error)
 		return error;
 	if (ssn->ioc_localcs[0] == 0)
-		strcpy(ssn->ioc_localcs, "default");	/* XXX: locale name ? */
+		strcpy(ssn->ioc_localcs, "ISO8859-1");
 	error = smb_addiconvtbl("tolower", ssn->ioc_localcs, nls_lower);
 	if (error)
 		return error;
@@ -504,18 +502,9 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 	if (error)
 		return error;
 	if (ssn->ioc_servercs[0] != 0) {
-		for(i = 0; i < sizeof(cstbl); i++)
-			cstbl[i] = i;
-		nls_mem_toext(cstbl, cstbl, sizeof(cstbl));
-		error = smb_addiconvtbl(ssn->ioc_servercs, ssn->ioc_localcs, cstbl);
-		if (error)
-			return error;
-		for(i = 0; i < sizeof(cstbl); i++)
-			cstbl[i] = i;
-		nls_mem_toloc(cstbl, cstbl, sizeof(cstbl));
-		error = smb_addiconvtbl(ssn->ioc_localcs, ssn->ioc_servercs, cstbl);
-		if (error)
-			return error;
+		error = kiconv_add_xlat16_cspairs
+			(ssn->ioc_localcs, ssn->ioc_servercs);
+		if (error) return error;
 	}
 	if (ctx->ct_srvaddr) {
 		error = nb_resolvehost_in(ctx->ct_srvaddr, &sap);
