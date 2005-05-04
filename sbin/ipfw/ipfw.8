@@ -81,30 +81,6 @@ firewall and the
 traffic shaper in
 .Fx .
 .Pp
-.Bd -ragged -offset XXXX
-.Em NOTE:
-this manual page documents the newer version of
-.Nm
-introduced in
-.Fx 5.0
-in July 2002, also known as
-.Nm ipfw2 .
-.Nm ipfw2
-is a superset of the old firewall,
-.Nm ipfw1 .
-The differences between the two are listed in Section
-.Sx IPFW2 ENHANCEMENTS ,
-which you are encouraged to read to revise older rulesets and possibly
-write them more efficiently.
-See Section
-.Sx USING IPFW2 IN FreeBSD 4.x
-for instructions on how to run
-.Nm ipfw2
-on
-.Fx
-4.x.
-.Ed
-.Pp
 An
 .Nm
 configuration, or
@@ -2036,27 +2012,6 @@ Controls whether bridged packets are passed to
 .Nm .
 Default is no.
 .El
-.Sh USING IPFW2 IN FreeBSD 4.x
-.Nm ipfw2
-is standard in
-.Fx
-5.x and 6.0, whereas
-.Fx
-4.x still uses
-.Nm ipfw1
-unless the kernel is compiled with
-.Cm options IPFW2 ,
-and
-.Nm /sbin/ipfw
-and
-.Nm /usr/lib/libalias
-are recompiled with
-.Cm -DIPFW2
-and reinstalled (the same effect can be achieved by adding
-.Cm IPFW2=TRUE
-to
-.Nm /etc/make.conf
-before a buildworld).
 .Pp
 .Sh IPFW2 ENHANCEMENTS
 This Section lists the features that have been introduced in
