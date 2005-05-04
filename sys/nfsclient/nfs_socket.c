@@ -582,7 +582,8 @@ tryagain:
 	if (rep->r_nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
 	mtx_lock(&nfs_reply_mtx);
-	while ((rep->r_mrep == NULL) && (error == 0))
+	while ((rep->r_mrep == NULL) && (error == 0) &&
+	       ((sotype == SOCK_DGRAM) || ((rep->r_flags & R_MUSTRESEND) == 0)))
 		error = msleep((caddr_t)rep, &nfs_reply_mtx, 
 			       slpflag | (PZERO - 1), "nfsreq", 0);
 	mtx_unlock(&nfs_reply_mtx);
@@ -1226,11 +1227,18 @@ nfs_timer(void *arg)
 		if (nmp->nm_sotype != SOCK_DGRAM) {
 			if (++rep->r_rexmit > NFS_MAXREXMIT)
 				rep->r_rexmit = NFS_MAXREXMIT;
-			continue;
+			/*
+			 * For NFS/TCP, setting R_MUSTRESEND and waking up 
+			 * the requester will cause the request to be   
+			 * retransmitted (in nfs_reply()), re-connecting
+			 * if necessary.
+			 */
+			rep->r_flags |= R_MUSTRESEND;
+			wakeup_nfsreq(rep);
+                        continue;
 		}
 		if ((so = nmp->nm_so) == NULL)
 			continue;
-
 		/*
 		 * If there is enough space and the window allows..
 		 *	Resend it
