@@ -373,6 +373,11 @@ static struct witness_order_list_entry order_lists[] = {
 #if defined(__i386__) || defined(__amd64__)
 	{ "pcicfg", &lock_class_mtx_spin },
 #endif
+	{ "tw_osl_io_lock", &lock_class_mtx_spin },
+	{ "tw_osl_q_lock", &lock_class_mtx_spin },
+	{ "tw_cl_io_lock", &lock_class_mtx_spin },
+	{ "tw_cl_intr_lock", &lock_class_mtx_spin },
+	{ "tw_cl_gen_lock", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
 };

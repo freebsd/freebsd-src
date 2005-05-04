@@ -66,6 +66,9 @@ INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
+# ... and the same for twa
+INCLUDES+= -I$S/dev/twa
+
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -include opt_global.h
 .if ${CC} != "icc"

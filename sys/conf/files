@@ -767,11 +767,13 @@ dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c	optional tdfx pci
 dev/trm/trm.c		optional trm
-dev/twa/twa.c		optional twa
-dev/twa/twa_cam.c	optional twa
-dev/twa/twa_freebsd.c	optional twa
-dev/twa/twa_fwimg.c	optional twa
-dev/twa/twa_globals.c	optional twa
+dev/twa/tw_cl_fwimg.c		optional twa
+dev/twa/tw_cl_init.c		optional twa
+dev/twa/tw_cl_intr.c		optional twa
+dev/twa/tw_cl_io.c		optional twa
+dev/twa/tw_cl_misc.c		optional twa
+dev/twa/tw_osl_cam.c		optional twa
+dev/twa/tw_osl_freebsd.c	optional twa
 dev/twe/twe.c		optional twe
 dev/twe/twe_freebsd.c	optional twe
 dev/tx/if_tx.c		optional tx
