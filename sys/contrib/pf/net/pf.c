@@ -1798,9 +1798,7 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 		NTOHS(ip->ip_len);
 		NTOHS(ip->ip_off);
 		PF_UNLOCK();
-#endif
-		icmp_error(m0, type, code, 0, (void *)NULL);
-#ifdef __FreeBSD__
+		icmp_error(m0, type, code, 0, 0);
 		PF_LOCK();
 #endif
 		break;
@@ -5789,10 +5787,8 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			NTOHS(ip->ip_len);
 			NTOHS(ip->ip_off);
 			PF_UNLOCK();
-#endif
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
-			    ifp);
-#ifdef __FreeBSD__
+			    ifp->if_mtu);
 			PF_LOCK();
 #endif
 			goto done;
