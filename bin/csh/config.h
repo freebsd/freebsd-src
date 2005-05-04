@@ -99,7 +99,7 @@
 #define HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY 1
 
 /* Define to 1 if `ut_host' is member of `struct utmp'. */
-/* #undef HAVE_STRUCT_UTMP_UT_HOST */
+#define HAVE_STRUCT_UTMP_UT_HOST 1
 
 /* Define to 1 if `ut_tv' is member of `struct utmp'. */
 /* #undef HAVE_STRUCT_UTMP_UT_TV */
