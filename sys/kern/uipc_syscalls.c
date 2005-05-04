@@ -1796,7 +1796,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			hdr_uio->uio_td = td;
 			hdr_uio->uio_rw = UIO_WRITE;
 			if (hdr_uio->uio_resid > 0) {
-				m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0);
+				m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0, 0);
 				if (m_header == NULL)
 					goto done;
 				headersize = m_header->m_pkthdr.len;

@@ -466,7 +466,7 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 	if (uio->uio_resid < 0 || uio->uio_resid > IP_MAXPACKET)
 		return (EIO);
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0)) == NULL)
+	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0)) == NULL)
 		return (ENOBUFS);
 
 	NG_SEND_DATA_ONLY(error, priv->hook, m);
