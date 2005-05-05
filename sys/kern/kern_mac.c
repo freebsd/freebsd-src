@@ -37,8 +37,8 @@
 /*-
  * Framework for extensible kernel access control.  This file contains
  * Kernel and userland interface to the framework, policy registration
- * and composition.  Per-object interfaces, controls, and labeling may be
- * found in src/sys/mac/.  Sample policies may be found in src/sys/mac*.
+ * found in src/sys/security/mac/.  Sample policies may be found in
+ * src/sys/security/mac_*.
  */
 
 #include <sys/cdefs.h>
