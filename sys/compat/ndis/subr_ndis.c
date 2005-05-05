@@ -1706,7 +1706,7 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 
 	if (sh == NULL) {
 		printf("NDIS: buggy driver tried to free "
-		    "invalid shared memory: vaddr: %p paddr: 0x%qx\n",
+		    "invalid shared memory: vaddr: %p paddr: 0x%jx\n",
 		    vaddr, paddr.np_quad);
 		return;
 	}
