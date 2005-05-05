@@ -1374,7 +1374,6 @@ ptrace_clear_single_step(struct thread *td)
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = td->td_frame;
@@ -1398,7 +1397,6 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_rflags = tp->tf_rflags;
 	regs->r_rsp = tp->tf_rsp;
 	regs->r_ss = tp->tf_ss;
-	pcb = td->td_pcb;
 	return (0);
 }
 
