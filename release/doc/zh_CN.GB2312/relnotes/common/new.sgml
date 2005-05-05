@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.41.2.7
+     Original revision: 1.761.2.41.2.9
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -271,7 +271,7 @@
 	和/或 <literal>uid</literal> 规则选项时正常工作了。</para>
 
       <para>&man.ipfw.8; <literal>ipfw fwd</literal> 规则现在支持完整的包目的地管理了，
-	其前提是启用了内核选项 <literal>options IPFIRWALL_FORWARD</literal>
+	其前提是启用了内核选项 <literal>options IPFIREWALL_FORWARD</literal>
 	的基础上打开了
 	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal>。
 	这个内核选项将禁用所有的限制， 以保证本地生成的包，
@@ -496,6 +496,11 @@
       其权限是 <literal>0600</literal>， 作为和特权程序的接口。
       者避免了发生本地的拒绝服务攻击时，
       特权程序由于域 socket 的缓冲区耗尽而死锁。</para>
+
+    <para>&man.syslogd.8; 新增了 <option>-S</option> 选项，
+      用以改变特权 socket 的路径名。 如果您不希望服务接受来自本地 socket
+      的消息 (默认使用的是 <filename>/var/run/log</filename> 和
+      <filename>/var/run/logpriv</filename>) 时， 这个选项就很有用了。</para>
 
     <para>&man.syslogd.8; 工具现在允许在主机名标识符中使用
       <literal>:</literal> 和 <literal>%</literal>
