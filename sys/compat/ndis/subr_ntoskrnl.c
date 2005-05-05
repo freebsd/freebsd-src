@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/module.h>
+#include <sys/smp.h>
+#include <sys/sched.h>
 
 #include <machine/atomic.h>
 #include <machine/clock.h>
@@ -66,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -73,6 +77,22 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
+
+struct kdpc_queue {
+	list_entry		kq_high;
+	list_entry		kq_low;
+	list_entry		kq_med;
+	struct thread		*kq_td;
+	int			kq_state;
+	int			kq_cpu;
+	int			kq_exit;
+	struct mtx		kq_lock;
+	nt_kevent		kq_proc;
+	nt_kevent		kq_done;
+	nt_kevent		kq_dead;
+};
+
+typedef struct kdpc_queue kdpc_queue;
 
 static uint8_t RtlEqualUnicodeString(ndis_unicode_string *,
 	ndis_unicode_string *, uint8_t);
@@ -100,6 +120,11 @@ static uint32_t KeWaitForMultipleObjects(uint32_t,
 static void ntoskrnl_wakeup(void *);
 static void ntoskrnl_timercall(void *);
 static void ntoskrnl_run_dpc(void *);
+static void ntoskrnl_dpc_thread(void *);
+static void ntoskrnl_destroy_dpc_threads(void);
+static void ntoskrnl_workitem_thread(void *);
+static void ntoskrnl_workitem(device_object *, void *);
+static uint8_t ntoskrnl_insert_dpc(list_entry *, kdpc *);
 static void WRITE_REGISTER_USHORT(uint16_t *, uint16_t);
 static uint16_t READ_REGISTER_USHORT(uint16_t *);
 static void WRITE_REGISTER_ULONG(uint32_t *, uint32_t);
@@ -144,6 +169,7 @@ static void *MmMapLockedPages(mdl *, uint8_t);
 static void *MmMapLockedPagesSpecifyCache(mdl *,
 	uint8_t, uint32_t, void *, uint32_t, uint32_t);
 static void MmUnmapLockedPages(void *, mdl *);
+static uint8_t MmIsAddressValid(void *);
 static size_t RtlCompareMemory(const void *, const void *, size_t);
 static void RtlInitAnsiString(ndis_ansi_string *, char *);
 static void RtlInitUnicodeString(ndis_unicode_string *,
@@ -172,6 +198,7 @@ static ndis_status ObReferenceObjectByHandle(ndis_handle,
 static void ObfDereferenceObject(void *);
 static uint32_t ZwClose(ndis_handle);
 static void *ntoskrnl_memset(void *, int, size_t);
+static char *ntoskrnl_strstr(char *, char *);
 static funcptr ntoskrnl_findwrap(funcptr);
 static uint32_t DbgPrint(char *, ...);
 static void DbgBreakPoint(void);
@@ -183,17 +210,59 @@ static kspin_lock ntoskrnl_cancellock;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
 static uma_zone_t mdl_zone;
+static uma_zone_t iw_zone;
+static struct kdpc_queue *kq_queues;
+static struct kdpc_queue *wq_queue;
 
 int
 ntoskrnl_libinit()
 {
 	image_patch_table	*patch;
+	int			error;
+	struct proc		*p;
+	kdpc_queue		*kq;
+	int			i;
+	char			name[64];
 
 	mtx_init(&ntoskrnl_dispatchlock,
-	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
+	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF|MTX_RECURSE);
 	KeInitializeSpinLock(&ntoskrnl_global);
 	KeInitializeSpinLock(&ntoskrnl_cancellock);
 	TAILQ_INIT(&ntoskrnl_reflist);
+
+	kq_queues = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(kdpc_queue) * mp_ncpus, 0);
+
+	if (kq_queues == NULL)
+		return(ENOMEM);
+
+	wq_queue = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(kdpc_queue), 0);
+
+	if (wq_queue == NULL)
+		return(ENOMEM);
+
+	bzero((char *)kq_queues, sizeof(kdpc_queue) * mp_ncpus);
+	bzero((char *)wq_queue, sizeof(kdpc_queue));
+
+        for (i = 0; i < mp_ncpus; i++) {
+		kq = kq_queues + i;
+		kq->kq_cpu = i;
+		sprintf(name, "Windows DPC %d", i);
+		error = kthread_create(ntoskrnl_dpc_thread, kq, &p,
+		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
+		if (error)
+			panic("failed to launch DPC thread");
+        }
+
+	/*
+	 * Launch the workitem thread.
+	 */
+
+	error = kthread_create(ntoskrnl_workitem_thread, wq_queue, &p,
+                    RFHIGHPID, NDIS_KSTACK_PAGES, "Windows WorkItem");
+	if (error)
+		panic("failed to launch workitem thread");
 
 	patch = ntoskrnl_functbl;
 	while (patch->ipt_func != NULL) {
@@ -219,6 +288,9 @@ ntoskrnl_libinit()
 	mdl_zone = uma_zcreate("Windows MDL", MDL_ZONE_SIZE,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
+	iw_zone = uma_zcreate("Windows WorkItem", sizeof(io_workitem),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+
 	return(0);
 }
 
@@ -233,7 +305,20 @@ ntoskrnl_libfini()
 		patch++;
 	}
 
+	/* Stop the DPC queues. */
+	ntoskrnl_destroy_dpc_threads();
+
+	/* Stop the workitem queue. */
+	wq_queue->kq_exit = 1;
+	KeSetEvent(&wq_queue->kq_proc, 0, FALSE);	
+	KeWaitForSingleObject((nt_dispatch_header *)&wq_queue->kq_dead,
+	    0, 0, TRUE, NULL);
+
+	ExFreePool(kq_queues);
+	ExFreePool(wq_queue);
+
 	uma_zdestroy(mdl_zone);
+	uma_zdestroy(iw_zone);
 
 	mtx_destroy(&ntoskrnl_dispatchlock);
 
@@ -252,6 +337,27 @@ ntoskrnl_memset(buf, ch, size)
 {
 	return(memset(buf, ch, size));
 }
+
+static char *
+ntoskrnl_strstr(s, find)
+	char *s, *find;
+{
+	char c, sc;
+	size_t len;
+
+	if ((c = *find++) != 0) {
+		len = strlen(find);
+		do {
+			do {
+				if ((sc = *s++) == 0)
+					return (NULL);
+			} while (sc != c);
+		} while (strncmp(s, find, len) != 0);
+		s--;
+	}
+	return ((char *)s);
+}
+
 
 static uint8_t 
 RtlEqualUnicodeString(str1, str2, caseinsensitive)
@@ -1009,8 +1115,25 @@ ntoskrnl_wakeup(arg)
 
 	obj = arg;
 
-	obj->dh_sigstate = TRUE;
 	e = obj->dh_waitlisthead.nle_flink;
+
+	/*
+	 * What happens if someone tells us to wake up
+	 * threads waiting on an object, but nobody's
+	 * waiting on it at the moment? For sync events,
+	 * the signal state is supposed to be automatically
+	 * reset, but this only happens in the KeWaitXXX()
+	 * functions. If nobody is waiting, the state never
+	 * gets cleared.
+	 */
+
+	if (e == &obj->dh_waitlisthead) {
+		if (obj->dh_type == EVENT_TYPE_SYNC)
+			obj->dh_sigstate = FALSE;
+		return;
+	}
+
+	obj->dh_sigstate = TRUE;
 	while (e != &obj->dh_waitlisthead) {
 		w = (wait_block *)e;
 		td = w->wb_kthread;
@@ -1968,6 +2091,172 @@ MmUnmapLockedPages(vaddr, buf)
 	return;
 }
 
+/*
+ * This function has a problem in that it will break if you
+ * compile this module without PAE and try to use it on a PAE
+ * kernel. Unfortunately, there's no way around this at the
+ * moment. It's slightly less broken that using pmap_kextract().
+ * You'd think the virtual memory subsystem would help us out
+ * here, but it doesn't.
+ */
+
+static uint8_t
+MmIsAddressValid(vaddr)
+	void			*vaddr;
+{
+	if (pmap_extract(kernel_map->pmap, (vm_offset_t)vaddr))
+		return(TRUE);
+
+	return(FALSE);
+}
+
+/*
+ * Workitems are unlike DPCs, in that they run in a user-mode thread
+ * context rather than at DISPATCH_LEVEL in kernel context. In our
+ * case we run them in kernel context anyway.
+ */
+static void
+ntoskrnl_workitem_thread(arg)
+	void			*arg;
+{
+	kdpc_queue		*kq;
+	list_entry		*l;
+	io_workitem		*iw;
+
+	kq = arg;
+
+	INIT_LIST_HEAD(&kq->kq_med);
+	kq->kq_td = curthread;
+	kq->kq_exit = 0;
+	kq->kq_state = NDIS_PSTATE_SLEEPING;
+	mtx_init(&kq->kq_lock, "NDIS thread lock", NULL, MTX_SPIN);
+	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
+	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
+
+	while (1) {
+
+		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_proc,
+		    0, 0, TRUE, NULL);
+
+		mtx_lock_spin(&kq->kq_lock);
+
+		if (kq->kq_exit) {
+			mtx_unlock_spin(&kq->kq_lock);
+			KeSetEvent(&kq->kq_dead, 0, FALSE);
+			break;
+		}
+
+		kq->kq_state = NDIS_PSTATE_RUNNING;
+
+		l = kq->kq_med.nle_flink;
+		while (l != & kq->kq_med) {
+			iw = CONTAINING_RECORD(l,
+			    io_workitem, iw_listentry);
+			REMOVE_LIST_HEAD((&kq->kq_med));
+			if (iw->iw_func == NULL) {
+				l = kq->kq_med.nle_flink;
+				continue;
+			}
+			mtx_unlock_spin(&kq->kq_lock);
+			MSCALL2(iw->iw_func, iw->iw_dobj, iw->iw_ctx);
+			mtx_lock_spin(&kq->kq_lock);
+			l = kq->kq_med.nle_flink;
+		}
+
+		kq->kq_state = NDIS_PSTATE_SLEEPING;
+
+		mtx_unlock_spin(&kq->kq_lock);
+	}
+
+	mtx_destroy(&kq->kq_lock);
+#if __FreeBSD_version < 502113
+        mtx_lock(&Giant);
+#endif
+        kthread_exit(0);
+        return; /* notreached */
+}
+
+io_workitem *
+IoAllocateWorkItem(dobj)
+	device_object		*dobj;
+{
+	io_workitem		*iw;
+
+	iw = uma_zalloc(iw_zone, M_NOWAIT);
+	if (iw == NULL)
+		return(NULL);
+
+	INIT_LIST_HEAD(&iw->iw_listentry);
+	iw->iw_dobj = dobj;
+
+	return(iw);
+}
+
+void
+IoFreeWorkItem(iw)
+	io_workitem		*iw;
+{
+	uma_zfree(iw_zone, iw);
+	return;
+}
+
+void
+IoQueueWorkItem(iw, iw_func, qtype, ctx)
+	io_workitem		*iw;
+	io_workitem_func	iw_func;
+	uint32_t		qtype;
+	void			*ctx;
+{
+	int			state;
+
+	iw->iw_func = iw_func;
+	iw->iw_ctx = ctx;
+
+	mtx_lock_spin(&wq_queue->kq_lock);
+	INSERT_LIST_TAIL((&wq_queue->kq_med), (&iw->iw_listentry));
+	state = wq_queue->kq_state;
+	mtx_unlock_spin(&wq_queue->kq_lock);
+	if (state == NDIS_PSTATE_SLEEPING)
+		KeSetEvent(&wq_queue->kq_proc, 0, FALSE);
+	return;
+}
+
+static void
+ntoskrnl_workitem(dobj, arg)
+	device_object		*dobj;
+	void			*arg;
+{
+	io_workitem		*iw;
+	work_queue_item		*w;
+	work_item_func		f;
+
+	iw = arg;
+	w = (work_queue_item *)dobj;
+	f = (work_item_func)w->wqi_func;
+	uma_zfree(iw_zone, iw);
+	MSCALL2(f, w, w->wqi_ctx);
+
+	return;
+}
+
+void
+ExQueueWorkItem(w, qtype)
+	work_queue_item		*w;
+	uint32_t		qtype;
+{
+	io_workitem		*iw;
+	io_workitem_func	iwf;
+
+	iw = IoAllocateWorkItem((device_object *)w);
+	if (iw == NULL)
+		return;
+
+	iwf = (io_workitem_func)ntoskrnl_findwrap((funcptr)ntoskrnl_workitem);
+	IoQueueWorkItem(iw, iwf, qtype, iw);
+
+	return;
+}
+
 static size_t
 RtlCompareMemory(s1, s2, len)
 	const void		*s1;
@@ -2500,6 +2789,7 @@ KeInitializeTimerEx(timer, type)
 	if (timer == NULL)
 		return;
 
+	bzero((char *)timer, sizeof(ktimer));
 	INIT_LIST_HEAD((&timer->k_header.dh_waitlisthead));
 	timer->k_header.dh_sigstate = FALSE;
 	timer->k_header.dh_inserted = FALSE;
@@ -2511,6 +2801,114 @@ KeInitializeTimerEx(timer, type)
 }
 
 /*
+ * DPC subsystem. A Windows Defered Procedure Call has the following
+ * properties:
+ * - It runs at DISPATCH_LEVEL.
+ * - It can have one of 3 importance values that control when it
+ *   runs relative to other DPCs in the queue.
+ * - On SMP systems, it can be set to run on a specific processor.
+ * In order to satisfy the last property, we create a DPC thread for
+ * each CPU in the system and bind it to that CPU. Each thread
+ * maintains three queues with different importance levels, which
+ * will be processed in order from lowest to highest.
+ *
+ * In Windows, interrupt handlers run as DPCs. (Not to be confused
+ * with ISRs, which run in interrupt context and can preempt DPCs.)
+ * ISRs are given the highest importance so that they'll take
+ * precedence over timers and other things.
+ */
+
+static void
+ntoskrnl_dpc_thread(arg)
+	void			*arg;
+{
+	kdpc_queue		*kq;
+	kdpc			*d;
+	list_entry		*l;
+
+	kq = arg;
+
+	INIT_LIST_HEAD(&kq->kq_high);
+	INIT_LIST_HEAD(&kq->kq_low);
+	INIT_LIST_HEAD(&kq->kq_med);
+	kq->kq_td = curthread;
+	kq->kq_exit = 0;
+	kq->kq_state = NDIS_PSTATE_SLEEPING;
+	mtx_init(&kq->kq_lock, "NDIS thread lock", NULL, MTX_SPIN);
+	KeInitializeEvent(&kq->kq_proc, EVENT_TYPE_SYNC, FALSE);
+	KeInitializeEvent(&kq->kq_done, EVENT_TYPE_SYNC, FALSE);
+	KeInitializeEvent(&kq->kq_dead, EVENT_TYPE_SYNC, FALSE);
+
+	sched_pin();
+
+	while (1) {
+		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_proc,
+		    0, 0, TRUE, NULL);
+
+		mtx_lock_spin(&kq->kq_lock);
+
+		if (kq->kq_exit) {
+			mtx_unlock_spin(&kq->kq_lock);
+			KeSetEvent(&kq->kq_dead, 0, FALSE);
+			break;
+		}
+
+		kq->kq_state = NDIS_PSTATE_RUNNING;
+
+		/* Process high importance list first. */
+
+		l = kq->kq_high.nle_flink;
+		while (l != &kq->kq_high) {
+			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
+			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			mtx_unlock_spin(&kq->kq_lock);
+			ntoskrnl_run_dpc(d);
+			mtx_lock_spin(&kq->kq_lock);
+			l = kq->kq_high.nle_flink;
+		}
+
+		/* Now the medium importance list. */
+
+		l = kq->kq_med.nle_flink;
+		while (l != &kq->kq_med) {
+			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
+			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			mtx_unlock_spin(&kq->kq_lock);
+			ntoskrnl_run_dpc(d);
+			mtx_lock_spin(&kq->kq_lock);
+			l = kq->kq_med.nle_flink;
+		}
+
+		/* And finally the low importance list. */
+
+		l = kq->kq_low.nle_flink;
+		while (l != &kq->kq_low) {
+			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
+			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			mtx_unlock_spin(&kq->kq_lock);
+			ntoskrnl_run_dpc(d);
+			mtx_lock_spin(&kq->kq_lock);
+			l = kq->kq_low.nle_flink;
+		}
+
+		kq->kq_state = NDIS_PSTATE_SLEEPING;
+
+		mtx_unlock_spin(&kq->kq_lock);
+
+		KeSetEvent(&kq->kq_done, 0, FALSE);
+
+	}
+
+	mtx_destroy(&kq->kq_lock);
+#if __FreeBSD_version < 502113
+        mtx_lock(&Giant);
+#endif
+        kthread_exit(0);
+        return; /* notreached */
+}
+
+
+/*
  * This is a wrapper for Windows deferred procedure calls that
  * have been placed on an NDIS thread work queue. We need it
  * since the DPC could be a _stdcall function. Also, as far as
@@ -2520,18 +2918,63 @@ static void
 ntoskrnl_run_dpc(arg)
 	void			*arg;
 {
-	kdpc_func	dpcfunc;
+	kdpc_func		dpcfunc;
 	kdpc			*dpc;
 	uint8_t			irql;
 
 	dpc = arg;
 	dpcfunc = dpc->k_deferedfunc;
+	if (dpcfunc == NULL)
+		return;
 	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	MSCALL4(dpcfunc, dpc, dpc->k_deferredctx,
 	    dpc->k_sysarg1, dpc->k_sysarg2);
 	KeLowerIrql(irql);
 
 	return;
+}
+
+static void
+ntoskrnl_destroy_dpc_threads(void)
+{
+	kdpc_queue		*kq;
+	kdpc			dpc;
+	int			i;
+
+	kq = kq_queues;
+	for (i = 0; i < mp_ncpus; i++) {
+		kq += i;
+
+		kq->kq_exit = 1;
+		KeInitializeDpc(&dpc, NULL, NULL);
+		KeSetTargetProcessorDpc(&dpc, i);
+		KeInsertQueueDpc(&dpc, NULL, NULL);
+
+		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_dead,
+		    0, 0, TRUE, NULL);
+	}
+
+	return;
+}
+
+static uint8_t
+ntoskrnl_insert_dpc(head, dpc)
+	list_entry		*head;
+	kdpc			*dpc;
+{
+	list_entry		*l;
+	kdpc			*d;
+
+	l = head->nle_flink;
+	while (l != head) {
+		d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
+		if (d == dpc)
+			return(FALSE);
+		l = l->nle_flink;
+	}
+
+	INSERT_LIST_TAIL((head), (&dpc->k_dpclistentry));
+	return (TRUE);
 }
 
 void
@@ -2546,6 +2989,15 @@ KeInitializeDpc(dpc, dpcfunc, dpcctx)
 
 	dpc->k_deferedfunc = dpcfunc;
 	dpc->k_deferredctx = dpcctx;
+	dpc->k_num = KDPC_CPU_DEFAULT;
+	dpc->k_importance = KDPC_IMPORTANCE_MEDIUM;
+	dpc->k_num = KeGetCurrentProcessorNumber();
+	/*
+	 * In case someone tries to dequeue a DPC that
+	 * hasn't been queued yet.
+	 */
+	dpc->k_lock = NULL /*&ntoskrnl_dispatchlock*/;
+	INIT_LIST_HEAD((&dpc->k_dpclistentry));
 
 	return;
 }
@@ -2556,23 +3008,121 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	void			*sysarg1;
 	void			*sysarg2;
 {
+	kdpc_queue		*kq;
+	uint8_t			r;
+	int			state;
+
+	if (dpc == NULL)
+		return(FALSE);
+
 	dpc->k_sysarg1 = sysarg1;
 	dpc->k_sysarg2 = sysarg2;
 
-	if (ndis_sched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
-		return(FALSE);
+	/*
+	 * By default, the DPC is queued to run on the same CPU
+	 * that scheduled it.
+	 */
 
-	return(TRUE);
+	kq = kq_queues;
+	if (dpc->k_num == KDPC_CPU_DEFAULT)
+		kq += curthread->td_oncpu;
+	else
+		kq += dpc->k_num;
+
+	/*
+	 * Also by default, we put the DPC on the medium
+	 * priority queue.
+	 */
+
+	mtx_lock_spin(&kq->kq_lock);
+	if (dpc->k_importance == KDPC_IMPORTANCE_HIGH)
+		r = ntoskrnl_insert_dpc(&kq->kq_high, dpc);
+	else if (dpc->k_importance == KDPC_IMPORTANCE_LOW)
+		r = ntoskrnl_insert_dpc(&kq->kq_low, dpc);
+	else
+		r = ntoskrnl_insert_dpc(&kq->kq_med, dpc);
+	dpc->k_lock = &kq->kq_lock;
+	state = kq->kq_state;
+	mtx_unlock_spin(&kq->kq_lock);
+	if (r == TRUE && state == NDIS_PSTATE_SLEEPING)
+		KeSetEvent(&kq->kq_proc, 0, FALSE);
+
+	return(r);
 }
 
 uint8_t
 KeRemoveQueueDpc(dpc)
 	kdpc			*dpc;
 {
-	if (ndis_unsched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
+	if (dpc == NULL)
 		return(FALSE);
 
+	if (dpc->k_lock == NULL)
+		return(FALSE);
+	mtx_lock_spin(dpc->k_lock);
+	if (dpc->k_dpclistentry.nle_flink == &dpc->k_dpclistentry) {
+		mtx_unlock_spin(dpc->k_lock);
+		return(FALSE);
+	}
+
+	REMOVE_LIST_ENTRY((&dpc->k_dpclistentry));
+	mtx_unlock_spin(dpc->k_lock);
+
 	return(TRUE);
+}
+
+void
+KeSetImportanceDpc(dpc, imp)
+	kdpc			*dpc;
+	uint32_t		imp;
+{
+	if (imp != KDPC_IMPORTANCE_LOW &&
+	    imp != KDPC_IMPORTANCE_MEDIUM &&
+	    imp != KDPC_IMPORTANCE_HIGH)
+		return;
+
+	dpc->k_importance = (uint8_t)imp;
+	return;
+}
+
+void
+KeSetTargetProcessorDpc(dpc, cpu)
+	kdpc			*dpc;
+	uint8_t			cpu;
+{
+	if (cpu > mp_ncpus)
+		return;
+
+	dpc->k_num = cpu;
+	return;
+}
+
+void
+KeFlushQueuedDpcs(void)
+{
+	kdpc_queue		*kq;
+	int			i;
+
+	/*
+	 * Poke each DPC queue and wait
+	 * for them to drain.
+	 */
+
+	kq = kq_queues;
+	for (i = 0; i < mp_ncpus; i++) {
+		kq += i;
+		KeSetEvent(&kq->kq_proc, 0, FALSE);
+		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_done,
+		    0, 0, TRUE, NULL);
+	}
+
+	return;
+}
+
+uint32_t
+KeGetCurrentProcessorNumber(void)
+{
+	return((uint32_t)curthread->td_oncpu);
 }
 
 uint8_t
@@ -2648,6 +3198,8 @@ KeCancelTimer(timer)
 
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+		if (timer->k_dpc != NULL)
+			KeRemoveQueueDpc(timer->k_dpc);
 		pending = TRUE;
 	} else
 		pending = KeRemoveQueueDpc(timer->k_dpc);
@@ -2695,6 +3247,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC(strncpy, 0),
 	IMPORT_CFUNC(strcpy, 0),
 	IMPORT_CFUNC(strlen, 0),
+	IMPORT_CFUNC_MAP(strstr, ntoskrnl_strstr, 0),
+	IMPORT_CFUNC_MAP(strchr, index, 0),
 	IMPORT_CFUNC(memcpy, 0),
 	IMPORT_CFUNC_MAP(memmove, ntoskrnl_memset, 0),
 	IMPORT_CFUNC_MAP(memset, ntoskrnl_memset, 0),
@@ -2783,9 +3337,15 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmMapLockedPagesSpecifyCache, 6),
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
+	IMPORT_SFUNC(MmIsAddressValid, 1),
 	IMPORT_SFUNC(KeInitializeSpinLock, 1),
 	IMPORT_SFUNC(IoIsWdmVersionAvailable, 2),
 	IMPORT_SFUNC(IoGetDeviceProperty, 5),
+	IMPORT_SFUNC(IoAllocateWorkItem, 1),
+	IMPORT_SFUNC(IoFreeWorkItem, 1),
+	IMPORT_SFUNC(IoQueueWorkItem, 4),
+	IMPORT_SFUNC(ExQueueWorkItem, 2),
+	IMPORT_SFUNC(ntoskrnl_workitem, 2),
 	IMPORT_SFUNC(KeInitializeMutex, 2),
 	IMPORT_SFUNC(KeReleaseMutex, 2),
 	IMPORT_SFUNC(KeReadStateMutex, 1),
@@ -2803,6 +3363,10 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(KeInitializeDpc, 3),
 	IMPORT_SFUNC(KeInsertQueueDpc, 3),
 	IMPORT_SFUNC(KeRemoveQueueDpc, 1),
+	IMPORT_SFUNC(KeSetImportanceDpc, 2),
+	IMPORT_SFUNC(KeSetTargetProcessorDpc, 2),
+	IMPORT_SFUNC(KeFlushQueuedDpcs, 0),
+	IMPORT_SFUNC(KeGetCurrentProcessorNumber, 1),
 	IMPORT_SFUNC(ObReferenceObjectByHandle, 6),
 	IMPORT_FFUNC(ObfDereferenceObject, 1),
 	IMPORT_SFUNC(ZwClose, 1),
@@ -2816,7 +3380,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_CDECL },
+	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
 
