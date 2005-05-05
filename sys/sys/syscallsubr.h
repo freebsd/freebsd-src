@@ -85,8 +85,7 @@ int	kern_mkfifo(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
 int	kern_mknod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode, int dev);
-int	kern_msgctl(struct thread *, int, int, struct msqid_ds *,
-	    struct msqid_ds **);
+int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
 int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,

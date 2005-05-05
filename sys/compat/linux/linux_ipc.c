@@ -638,7 +638,6 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     int error, bsd_cmd;
     struct l_msqid_ds linux_msqid;
     struct msqid_ds bsd_msqid;
-    struct msqid_ds *bsd_msqptr;
 
     error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
       &linux_msqid, (caddr_t)PTRIN(args->buf));
@@ -648,13 +647,13 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     if (bsd_cmd == LINUX_IPC_SET)
 	linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
 
-    error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid, &bsd_msqptr);
+    error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid);
     if (error != 0)
 	if (bsd_cmd != LINUX_IPC_RMID || error != EINVAL)
 	    return (error);
 
     if (bsd_cmd == LINUX_IPC_STAT) {
-	bsd_to_linux_msqid_ds(bsd_msqptr, &linux_msqid);
+	bsd_to_linux_msqid_ds(&bsd_msqid, &linux_msqid);
 	return (linux_msqid_pushdown(args->cmd & LINUX_IPC_64,
 	  &linux_msqid, (caddr_t)PTRIN(args->buf)));
     }
