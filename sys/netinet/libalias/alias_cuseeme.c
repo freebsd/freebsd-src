@@ -29,14 +29,24 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
 #include <sys/types.h>
+#include <stdio.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias.h>
+#else
 #include "alias_local.h"
+#endif
 
 /* CU-SeeMe Data Header */
 struct cu_header {

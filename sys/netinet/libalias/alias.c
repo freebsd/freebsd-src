@@ -111,7 +111,12 @@ __FBSDID("$FreeBSD$");
     See HISTORY file for additional revisions.
 */
 
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
 #include <sys/types.h>
+#include <stdio.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -120,10 +125,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-#include <stdio.h>
-
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias.h>
+#else
 #include "alias_local.h"
 #include "alias.h"
+#endif
 
 #define NETBIOS_NS_PORT_NUMBER 137
 #define NETBIOS_DGM_PORT_NUMBER 138

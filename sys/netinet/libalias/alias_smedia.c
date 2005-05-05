@@ -98,16 +98,27 @@ __FBSDID("$FreeBSD$");
    Initial version:  May, 2000 (eds)
 */
 
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/libkern.h>
+#else
+#include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias.h>
+#else
 #include "alias_local.h"
+#endif
 
 #define RTSP_CONTROL_PORT_NUMBER_1 554
 #define RTSP_CONTROL_PORT_NUMBER_2 7070
