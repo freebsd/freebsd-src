@@ -52,6 +52,7 @@ struct ndis_shmem {
 	bus_dma_tag_t		ndis_stag;
 	bus_dmamap_t		ndis_smap;
 	void			*ndis_saddr;
+	ndis_physaddr		ndis_paddr;
 	struct ndis_shmem	*ndis_next;
 };
 
@@ -123,7 +124,9 @@ struct ndis_softc {
 	int			ndis_devidx;
 	interface_type		ndis_iftype;
 	driver_object		*ndis_dobj;
-
+	ndis_work_item		ndis_tickitem;
+	ndis_work_item		ndis_startitem;
+	ndis_work_item		ndis_resetitem;
 	bus_dma_tag_t		ndis_parent_tag;
 	struct ndis_shmem	*ndis_shlist;
 	bus_dma_tag_t		ndis_mtag;

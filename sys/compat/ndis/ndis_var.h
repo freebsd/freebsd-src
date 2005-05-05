@@ -898,6 +898,26 @@ struct ndis_spin_lock {
 
 typedef struct ndis_spin_lock ndis_spin_lock;
 
+struct ndis_rw_lock {
+	union {
+		kspin_lock		nrl_spinlock;
+		void			*nrl_ctx;
+	} u;
+	uint8_t				nrl_rsvd[16];
+};
+
+#define nrl_spinlock		u.nrl_spinlock
+#define nrl_ctx			u.nrl_ctx;
+
+typedef struct ndis_rw_lock ndis_rw_lock;
+
+struct ndis_lock_state {
+	uint16_t			nls_lockstate;
+	ndis_kirql			nls_oldirql;
+};
+
+typedef struct ndis_lock_state ndis_lock_state;
+
 struct ndis_request {
 	uint8_t			nr_macreserved[4*sizeof(void *)];
 	uint32_t		nr_requesttype;
@@ -955,17 +975,11 @@ enum ndis_interrupt_mode {
 
 typedef enum ndis_interrupt_mode ndis_interrupt_mode;
 
-struct ndis_work_item;
+#define NUMBER_OF_SINGLE_WORK_ITEMS 6
 
-typedef void (*ndis_proc)(struct ndis_work_item *, void *);
-
-struct ndis_work_item {
-	void			*nwi_ctx;
-	void			*nwi_func;
-	uint8_t			nwi_wraprsvd[sizeof(void *) * 8];
-};
-
-typedef struct ndis_work_item ndis_work_item;
+typedef work_queue_item ndis_work_item;
+typedef work_item_func ndis_proc;
+#define NdisInitializeWorkItem(w, f, c)	ExInitializeWorkItem(w, f, c)
 
 #ifdef notdef
 struct ndis_buffer {
@@ -1130,6 +1144,8 @@ struct ndis_packet_oob {
 
 typedef struct ndis_packet_oob ndis_packet_oob;
 
+#define PROTOCOL_RESERVED_SIZE_IN_PACKET	(4 * sizeof(void *))
+
 struct ndis_packet {
 	ndis_packet_private	np_private;
 	union {
@@ -1148,7 +1164,7 @@ struct ndis_packet {
 		} np_macrsvd;
 	} u;
 	uint32_t		*np_rsvd[2];
-	uint8_t			nm_protocolreserved[1];
+	uint8_t			nm_protocolreserved[PROTOCOL_RESERVED_SIZE_IN_PACKET];
 
 	/*
 	 * This next part is probably wrong, but we need some place
@@ -1164,12 +1180,11 @@ struct ndis_packet {
 	void			*np_softc;
 	void			*np_m0;
 	int			np_txidx;
+	kdpc			np_dpc;
 	kspin_lock		np_lock;
 };
 
 typedef struct ndis_packet ndis_packet;
-
-#define PROTOCOL_RESERVED_SIZE_IN_PACKET	(4 * sizeof(void *))
 
 /* mbuf ext type for NDIS */
 #define EXT_NDIS		0x999
@@ -1339,6 +1354,7 @@ TAILQ_HEAD(nte_head, ndis_timer_entry);
 
 struct ndis_fh {
 	int			nf_type;
+	char			*nf_name;
 	void			*nf_vp;
 	void			*nf_map;
 	uint32_t		nf_maplen; 
@@ -1470,6 +1486,9 @@ struct ndis_miniport_block {
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
 	vm_offset_t		nmb_img;
+	ndis_miniport_timer	*nmb_timerlist;
+	io_workitem		*nmb_workitems[NUMBER_OF_SINGLE_WORK_ITEMS];
+	int			nmb_item_idx;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
 
@@ -1586,8 +1605,6 @@ extern int ndis_destroy_dma(void *);
 extern int ndis_create_sysctls(void *);
 extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
-extern int ndis_sched(void (*)(void *), void *, int);
-extern int ndis_unsched(void (*)(void *), void *, int);
 extern int ndis_thsuspend(struct proc *, struct mtx *, int);
 extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
@@ -1603,6 +1620,7 @@ extern void NdisFreePacketPool(ndis_handle);
 extern void NdisAllocatePacket(ndis_status *,
 	ndis_packet **, ndis_handle);
 extern void NdisFreePacket(ndis_packet *);
+extern ndis_status NdisScheduleWorkItem(ndis_work_item *);
 
 __END_DECLS
 
