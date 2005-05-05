@@ -321,8 +321,8 @@ smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 	int copt = (caseopt == SMB_CS_LOWER ? KICONV_FROM_LOWER : 
 		    (caseopt == SMB_CS_UPPER ? KICONV_FROM_UPPER : 0));
 	int error = 0;
-	int ilen = *nmlen;
-	int olen;
+	size_t ilen = *nmlen;
+	size_t olen;
 	char *ibuf = name;
 	char outbuf[SMB_MAXFNAMELEN];
 	char *obuf = outbuf;
