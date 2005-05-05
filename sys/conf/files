@@ -1529,6 +1529,7 @@ netgraph/ng_l2tp.c		optional netgraph_l2tp
 netgraph/ng_lmi.c		optional netgraph_lmi
 netgraph/ng_mppc.c		optional netgraph_mppc_compression
 netgraph/ng_mppc.c		optional netgraph_mppc_encryption
+netgraph/ng_nat.c		optional netgraph_nat
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
 netgraph/ng_ppp.c		optional netgraph_ppp
