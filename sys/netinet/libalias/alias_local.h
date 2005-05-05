@@ -48,6 +48,19 @@
 
 #include <sys/queue.h>
 
+/* Use kernel allocator. */
+#if defined(_KERNEL) && defined(_SYS_MALLOC_H_)
+MALLOC_DECLARE(M_ALIAS);
+#define	malloc(x)	malloc(x, M_ALIAS, M_NOWAIT|M_ZERO)
+#define	calloc(x, n)	malloc(x*n)
+#define	free(x)		free(x, M_ALIAS)
+#endif
+
+/* XXX: LibAliasSetTarget() uses this constant. */
+#ifdef _KERNEL
+#define	INADDR_NONE	0xffffffff
+#endif
+
 /* Sizes of input and output link tables */
 #define LINK_TABLE_OUT_SIZE         101
 #define LINK_TABLE_IN_SIZE         4001
