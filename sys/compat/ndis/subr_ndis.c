@@ -144,6 +144,10 @@ static void NdisAcquireSpinLock(ndis_spin_lock *);
 static void NdisReleaseSpinLock(ndis_spin_lock *);
 static void NdisDprAcquireSpinLock(ndis_spin_lock *);
 static void NdisDprReleaseSpinLock(ndis_spin_lock *);
+static void NdisInitializeReadWriteLock(ndis_rw_lock *);
+static void NdisAcquireReadWriteLock(ndis_rw_lock *,
+	uint8_t, ndis_lock_state *);
+static void NdisReleaseReadWriteLock(ndis_rw_lock *, ndis_lock_state *);
 static uint32_t NdisReadPciSlotInformation(ndis_handle, uint32_t,
 	uint32_t, void *, uint32_t);
 static uint32_t NdisWritePciSlotInformation(ndis_handle, uint32_t,
@@ -178,7 +182,7 @@ static void NdisMFreeMapRegisters(ndis_handle);
 static void ndis_mapshared_cb(void *, bus_dma_segment_t *, int, int);
 static void NdisMAllocateSharedMemory(ndis_handle, uint32_t,
 	uint8_t, void **, ndis_physaddr *);
-static void ndis_asyncmem_complete(void *);
+static void ndis_asyncmem_complete(device_object *, void *);
 static ndis_status NdisMAllocateSharedMemoryAsync(ndis_handle,
 	uint32_t, uint8_t, void *);
 static void NdisMFreeSharedMemory(ndis_handle, uint32_t,
@@ -270,9 +274,7 @@ static uint8_t NdisSystemProcessorCount(void);
 static void NdisMIndicateStatusComplete(ndis_handle);
 static void NdisMIndicateStatus(ndis_handle, ndis_status,
         void *, uint32_t);
-static void ndis_workfunc(void *);
 static funcptr ndis_findwrap(funcptr);
-static ndis_status NdisScheduleWorkItem(ndis_work_item *);
 static void NdisCopyFromPacketToPacket(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *);
 static void NdisCopyFromPacketToPacketSafe(ndis_packet *,
@@ -558,7 +560,6 @@ NdisOpenConfiguration(status, cfg, wrapctx)
 	ndis_handle		*cfg;
 	ndis_handle		wrapctx;
 {
-
 	*cfg = wrapctx;
 	*status = NDIS_STATUS_SUCCESS;
 
@@ -574,6 +575,7 @@ NdisOpenConfigurationKeyByName(status, cfg, subkey, subhandle)
 {
 	*subhandle = cfg;
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 
@@ -586,6 +588,7 @@ NdisOpenConfigurationKeyByIndex(status, cfg, idx, subkey, subhandle)
 	ndis_handle		*subhandle;
 {
 	*status = NDIS_STATUS_FAILURE;
+
 	return;
 }
 
@@ -754,6 +757,7 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 
 	free(keystr, M_DEVBUF);
 	*status = NDIS_STATUS_FAILURE;
+
 	return;
 }
 
@@ -923,6 +927,44 @@ NdisDprReleaseSpinLock(lock)
 	return;
 }
 
+static void
+NdisInitializeReadWriteLock(lock)
+	ndis_rw_lock		*lock;
+{
+	KeInitializeSpinLock(&lock->nrl_spinlock);
+	bzero((char *)&lock->nrl_rsvd, sizeof(lock->nrl_rsvd));
+	return;
+}
+
+static void
+NdisAcquireReadWriteLock(lock, writeacc, state)
+	ndis_rw_lock		*lock;
+	uint8_t			writeacc;
+	ndis_lock_state		*state;
+{
+	if (writeacc == TRUE) {
+		KeAcquireSpinLock(&lock->nrl_spinlock, &state->nls_oldirql);
+		lock->nrl_rsvd[0]++;
+	} else
+		lock->nrl_rsvd[1]++;
+
+	return;
+}
+
+static void
+NdisReleaseReadWriteLock(lock, state)
+	ndis_rw_lock		*lock;
+	ndis_lock_state		*state;
+{
+	if (lock->nrl_rsvd[0]) {
+		lock->nrl_rsvd[0]--;
+		KeReleaseSpinLock(&lock->nrl_spinlock, state->nls_oldirql);
+	} else
+		lock->nrl_rsvd[1]--;
+
+	return;
+}
+
 static uint32_t
 NdisReadPciSlotInformation(adapter, slot, offset, buf, len)
 	ndis_handle		adapter;
@@ -1011,28 +1053,36 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	char			msgbuf[ERRMSGLEN];
 	device_t		dev;
 	driver_object		*drv;
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
 
 	block = (ndis_miniport_block *)adapter;
 	dev = block->nmb_physdeviceobj->do_devext;
 	drv = block->nmb_deviceobj->do_drvobj;
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
 
 	error = pe_get_message((vm_offset_t)drv->dro_driverstart,
 	    code, &str, &i, &flags);
-	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE) {
+	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE &&
+	    ifp->if_flags & IFF_DEBUG) {
 		ustr = msgbuf;
 		ndis_unicode_to_ascii((uint16_t *)str,
 		    ((i / 2)) > (ERRMSGLEN - 1) ? ERRMSGLEN : i, &ustr);
 		str = ustr;
 	}
+
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
-	device_printf (dev, "NDIS NUMERRORS: %x\n", numerrors);
 
-	va_start(ap, numerrors);
-	for (i = 0; i < numerrors; i++)
-		device_printf (dev, "argptr: %p\n",
-		    va_arg(ap, void *));
-	va_end(ap);
+	if (ifp->if_flags & IFF_DEBUG) {
+		device_printf (dev, "NDIS NUMERRORS: %x\n", numerrors);
+		va_start(ap, numerrors);
+		for (i = 0; i < numerrors; i++)
+			device_printf (dev, "argptr: %p\n",
+			    va_arg(ap, void *));
+		va_end(ap);
+	}
 
 	return;
 }
@@ -1147,6 +1197,7 @@ NdisInitializeTimer(timer, func, ctx)
 {
 	KeInitializeTimer(&timer->nt_ktimer);
 	KeInitializeDpc(&timer->nt_kdpc, func, ctx);
+	KeSetImportanceDpc(&timer->nt_kdpc, KDPC_IMPORTANCE_LOW);
 
 	return;
 }
@@ -1200,6 +1251,8 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	ndis_timer_function	func;
 	void			*ctx;
 {
+	uint8_t			irql;
+
 	/* Save the driver's funcptr and context */
 
 	timer->nmt_timerfunc = func;
@@ -1215,6 +1268,14 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	KeInitializeTimer(&timer->nmt_ktimer);
 	KeInitializeDpc(&timer->nmt_kdpc,
 	    ndis_findwrap((funcptr)ndis_timercall), timer);
+	timer->nmt_ktimer.k_dpc = &timer->nmt_kdpc;
+
+	KeAcquireSpinLock(&timer->nmt_block->nmb_lock, &irql);
+
+	timer->nmt_nexttimer = timer->nmt_block->nmb_timerlist;
+	timer->nmt_block->nmb_timerlist = timer;
+
+	KeReleaseSpinLock(&timer->nmt_block->nmb_lock, irql);
 
 	return;
 }
@@ -1447,6 +1508,7 @@ ndis_mapshared_cb(arg, segs, nseg, error)
 /*
  * This maps to bus_dmamem_alloc().
  */
+
 static void
 NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 	ndis_handle		adapter;
@@ -1513,6 +1575,16 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 		return;
 	}
 
+	/*
+	 * Save the physical address along with the source address.
+	 * The AirGo MIMO driver will call NdisMFreeSharedMemory()
+	 * with a bogus virtual address sometimes, but with a valid
+	 * physical address. To keep this from causing trouble, we
+	 * use the physical address to as a sanity check in case
+	 * searching based on the virtual address fails.
+	 */
+
+	sh->ndis_paddr.np_quad = paddr->np_quad;
 	sh->ndis_saddr = *vaddr;
 	sh->ndis_next = sc->ndis_shlist;
 	sc->ndis_shlist = sh;
@@ -1521,14 +1593,15 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 }
 
 struct ndis_allocwork {
-	ndis_handle		na_adapter;
 	uint32_t		na_len;
 	uint8_t			na_cached;
 	void			*na_ctx;
+	io_workitem		*na_iw;
 };
 
 static void
-ndis_asyncmem_complete(arg)
+ndis_asyncmem_complete(dobj, arg)
+	device_object		*dobj;
 	void			*arg;
 {
 	ndis_miniport_block	*block;
@@ -1539,18 +1612,19 @@ ndis_asyncmem_complete(arg)
 	ndis_allocdone_handler	donefunc;
 
 	w = arg;
-	block = (ndis_miniport_block *)w->na_adapter;
+	block = (ndis_miniport_block *)dobj->do_devext;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	vaddr = NULL;
 	paddr.np_quad = 0;
 
 	donefunc = sc->ndis_chars->nmc_allocate_complete_func;
-	NdisMAllocateSharedMemory(w->na_adapter, w->na_len,
+	NdisMAllocateSharedMemory(block, w->na_len,
 	    w->na_cached, &vaddr, &paddr);
-	MSCALL5(donefunc, w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
+	MSCALL5(donefunc, block, vaddr, &paddr, w->na_len, w->na_ctx);
 
-	free(arg, M_DEVBUF);
+	IoFreeWorkItem(w->na_iw);
+	free(w, M_DEVBUF);
 
 	return;
 }
@@ -1562,9 +1636,18 @@ NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
 	uint8_t			cached;
 	void			*ctx;
 {
+	ndis_miniport_block	*block;
 	struct ndis_allocwork	*w;
+	io_workitem		*iw;
+	io_workitem_func	ifw;
 
 	if (adapter == NULL)
+		return(NDIS_STATUS_FAILURE);
+
+	block = adapter;
+
+	iw = IoAllocateWorkItem(block->nmb_deviceobj);
+	if (iw == NULL)
 		return(NDIS_STATUS_FAILURE);
 
 	w = malloc(sizeof(struct ndis_allocwork), M_TEMP, M_NOWAIT);
@@ -1572,19 +1655,12 @@ NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
 	if (w == NULL)
 		return(NDIS_STATUS_FAILURE);
 
-	w->na_adapter = adapter;
 	w->na_cached = cached;
 	w->na_len = len;
 	w->na_ctx = ctx;
 
-	/*
-	 * Pawn this work off on the SWI thread instead of the
-	 * taskqueue thread, because sometimes drivers will queue
-	 * up work items on the taskqueue thread that will block,
-	 * which would prevent the memory allocation from completing
-	 * when we need it.
-	 */
-	ndis_sched(ndis_asyncmem_complete, w, NDIS_SWI);
+	ifw = (io_workitem_func)ndis_findwrap((funcptr)ndis_asyncmem_complete);
+	IoQueueWorkItem(iw, ifw, WORKQUEUE_DELAYED, w);
 
 	return(NDIS_STATUS_PENDING);
 }
@@ -1600,6 +1676,7 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
 	struct ndis_shmem	*sh, *prev;
+	int			checks = 0;
 
 	if (vaddr == NULL || adapter == NULL)
 		return;
@@ -1614,14 +1691,28 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 		return;
 
 	while (sh) {
+		checks++;
 		if (sh->ndis_saddr == vaddr)
+			break;
+		/*
+	 	 * Check the physaddr too, just in case the driver lied
+		 * about the virtual address.
+		 */
+		if (sh->ndis_paddr.np_quad == paddr.np_quad)
 			break;
 		prev = sh;
 		sh = sh->ndis_next;
 	}
 
+	if (sh == NULL) {
+		printf("NDIS: buggy driver tried to free "
+		    "invalid shared memory: vaddr: %p paddr: 0x%qx\n",
+		    vaddr, paddr.np_quad);
+		return;
+	}
+
 	bus_dmamap_unload(sh->ndis_stag, sh->ndis_smap);
-	bus_dmamem_free(sh->ndis_stag, vaddr, sh->ndis_smap);
+	bus_dmamem_free(sh->ndis_stag, sh->ndis_saddr, sh->ndis_smap);
 	bus_dma_tag_destroy(sh->ndis_stag);
 
 	if (sh == sc->ndis_shlist)
@@ -1684,7 +1775,7 @@ static uint32_t
 NdisMGetDmaAlignment(handle)
 	ndis_handle		handle;
 {
-	return(128);
+	return(16);
 }
 
 /*
@@ -2132,7 +2223,6 @@ NdisInitializeEvent(event)
 	 * events, and should be initialized to the
 	 * not signaled state.
 	 */
- 
 	KeInitializeEvent(&event->ne_event, EVENT_TYPE_NOTIFY, FALSE);
 	return;
 }
@@ -2162,9 +2252,8 @@ NdisWaitEvent(event, msecs)
 	uint32_t		rval;
 
 	duetime = ((int64_t)msecs * -10000);
-
 	rval = KeWaitForSingleObject((nt_dispatch_header *)event,
-	    0, 0, TRUE, msecs ? &duetime : NULL);
+	    0, 0, TRUE, msecs ? & duetime : NULL);
 
 	if (rval == STATUS_TIMEOUT)
 		return(FALSE);
@@ -2354,6 +2443,8 @@ NdisMSleep(usecs)
 	 * period does not in fact elapse. As a workaround, if the
 	 * attempt to sleep delay fails, we do a hard DELAY() instead.
 	 */
+	tv.tv_sec = 0;
+	tv.tv_usec = usecs;
 
 	if (ndis_thsuspend(curthread->td_proc, NULL, tvtohz(&tv)) == 0)
 		DELAY(usecs);
@@ -2737,9 +2828,12 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	fh = ExAllocatePoolWithTag(NonPagedPool, sizeof(ndis_fh), 0);
 	if (fh == NULL) {
+		free(afilename, M_DEVBUF);
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
+
+	fh->nf_name = afilename;
 
 	/*
 	 * During system bootstrap, it's impossible to load files
@@ -2778,7 +2872,6 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 		fh->nf_type = NDIS_FH_TYPE_MODULE;
 		*filelength = fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
 		*filehandle = fh;
-		free(afilename, M_DEVBUF);
 		*status = NDIS_STATUS_SUCCESS;
 		return;
 	}
@@ -2797,6 +2890,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	path = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
 	if (path == NULL) {
 		ExFreePool(fh);
+		free(afilename, M_DEVBUF);
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
@@ -2823,6 +2917,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 		ExFreePool(fh);
 		printf("NDIS: open file %s failed: %d\n", path, error);
 		ExFreePool(path);
+		free(afilename, M_DEVBUF);
 		return;
 	}
 
@@ -2876,7 +2971,7 @@ NdisMapFile(status, mappedbuffer, filehandle)
 
 	if (fh->nf_type == NDIS_FH_TYPE_MODULE) {
 		lf = fh->nf_vp;
-		if (ndis_find_sym(lf, lf->filename, "_start", &kldstart)) {
+		if (ndis_find_sym(lf, fh->nf_name, "_start", &kldstart)) {
 			*status = NDIS_STATUS_FAILURE;
 			return;
 		}
@@ -2952,6 +3047,7 @@ NdisCloseFile(filehandle)
 	}
 
 	fh->nf_vp = NULL;
+	free(fh->nf_name, M_DEVBUF);
 	ExFreePool(fh);
 
 	return;
@@ -2998,24 +3094,20 @@ NdisMIndicateStatus(adapter, status, sbuf, slen)
 	return;
 }
 
-static void
-ndis_workfunc(ctx)
-	void			*ctx;
-{
-	ndis_work_item		*work;
-	ndis_proc	workfunc;
+/*
+ * The DDK documentation says that you should use IoQueueWorkItem()
+ * instead of ExQueueWorkItem(). The problem is, IoQueueWorkItem()
+ * is fundamentally incompatible with NdisScheduleWorkItem(), which
+ * depends on the API semantics of ExQueueWorkItem(). In our world,
+ * ExQueueWorkItem() is implemented on top of IoAllocateQueueItem()
+ * anyway.
+ */
 
-	work = ctx;
-	workfunc = work->nwi_func;
-	MSCALL2(workfunc, work, work->nwi_ctx);
-	return;
-}
-
-static ndis_status
+ndis_status
 NdisScheduleWorkItem(work)
 	ndis_work_item		*work;
 {
-	ndis_sched(ndis_workfunc, work, NDIS_TASKQUEUE);
+	ExQueueWorkItem(work, WORKQUEUE_DELAYED);
 	return(NDIS_STATUS_SUCCESS);
 }
 
@@ -3232,6 +3324,9 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisDprAcquireSpinLock, 1),
 	IMPORT_SFUNC(NdisDprReleaseSpinLock, 1),
 	IMPORT_SFUNC(NdisAllocateSpinLock, 1),
+	IMPORT_SFUNC(NdisInitializeReadWriteLock, 1),
+	IMPORT_SFUNC(NdisAcquireReadWriteLock, 3),
+	IMPORT_SFUNC(NdisReleaseReadWriteLock, 2),
 	IMPORT_SFUNC(NdisFreeSpinLock, 1),
 	IMPORT_SFUNC(NdisFreeMemory, 3),
 	IMPORT_SFUNC(NdisReadPciSlotInformation, 5),
@@ -3308,6 +3403,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisMQueryAdapterInstanceName, 2),
 	IMPORT_SFUNC(NdisMRegisterUnloadHandler, 2),
 	IMPORT_SFUNC(ndis_timercall, 4),
+	IMPORT_SFUNC(ndis_asyncmem_complete, 2),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
@@ -3316,7 +3412,7 @@ image_patch_table ndis_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_CDECL },
+	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
 
