@@ -2896,7 +2896,6 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	}
 
 	snprintf(path, MAXPATHLEN, "%s/%s", ndis_filepath, afilename);
-	free(afilename, M_DEVBUF);
 
 	mtx_lock(&Giant);
 
