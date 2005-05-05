@@ -538,6 +538,13 @@
       run out of buffer space due to a
       local denial-of-service attack.</para>
 
+    <para>The &man.syslogd.8; now supports <option>-S</option> option
+      which allows to change the pathname of the privileged
+      socket.  This is useful when you do not want the daemon
+      to receive any messages from the local sockets
+      (<filename>/var/run/log</filename> and
+      <filename>/var/run/logpriv</filename> are used by default).</para>
+
     <para>The &man.syslogd.8; utility now allows
       <literal>:</literal> and <literal>%</literal>
       characters in the hostname specifications.
