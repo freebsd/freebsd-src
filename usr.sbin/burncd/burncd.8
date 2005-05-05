@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2002
+.Dd May 2, 2005
 .Os
 .Dt BURNCD 8
 .Sh NAME
@@ -153,6 +153,15 @@ quietly zero padded to fit the blocksize requirement.
 The conventional filename
 .Fl
 refers to stdin, and can only be used once.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/acd0"
+.It Pa /dev/acd0
+The default device, if not overridden by the
+.Ev CDROM
+environment variable or the
+.Fl f
+option.
+.El
 .Sh EXAMPLES
 The typical usage for burning a data CD-R:
 .Pp
