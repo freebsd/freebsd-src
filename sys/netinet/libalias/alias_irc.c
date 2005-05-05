@@ -48,17 +48,30 @@ __FBSDID("$FreeBSD$");
 */
 
 /* Includes */
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/libkern.h>
+#include <sys/ctype.h>
+#include <sys/limits.h>
+#else
+#include <sys/types.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
+#include <limits.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <limits.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias.h>
+#else
 #include "alias_local.h"
+#endif
 
 /* Local defines */
 #define DBprintf(a)

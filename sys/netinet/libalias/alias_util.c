@@ -50,15 +50,25 @@ then these routines will give a result of zero (useful for testing
 purposes);
 */
 
-#include <stdio.h>
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
 #include <sys/types.h>
+#include <stdio.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
+#else
 #include "alias.h"
 #include "alias_local.h"
+#endif
 
 u_short
 LibAliasInternetChecksum(struct libalias *la, u_short * ptr, int nbytes)
