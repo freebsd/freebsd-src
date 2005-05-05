@@ -120,6 +120,20 @@ struct msginfo {
 };
 extern struct msginfo	msginfo;
 
+/*
+ * Kernel wrapper for the user-level structure.
+ */
+struct msqid_kernel {
+	/*
+	 * Data structure exposed to user space.
+	 */
+	struct	msqid_ds u;
+
+	/*
+	 * Kernel-private components of the message queue.
+	 */
+};
+
 #else /* !_KERNEL */
 
 __BEGIN_DECLS
