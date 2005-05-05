@@ -1246,13 +1246,14 @@ buildBootFloppy:
 # PKG_TREE is the path to the package tree to be split
 # PKG_DEST is the path to the destination tree to create the split in
 # PKG_VERBOSE asks for verbose output of the layout process
+# PKG_INDEX is the path to the INDEX file. By default ${PKG_TREE}/INDEX.
 
 .if defined(PKG_COPY)
 PKG_DO_COPY=	cp
 .else
 PKG_DO_COPY=	ln
 .endif
-PKG_INDEX=	${PKG_DEST}/INDEX.master
+PKG_WRKIDX=	${PKG_DEST}/INDEX.master
 PKG_ENV?=
 .if defined(TARGET_ARCH)
 PKG_ENV+=	PKG_ARCH=${TARGET_ARCH}
@@ -1260,6 +1261,7 @@ PKG_ENV+=	PKG_ARCH=${TARGET_ARCH}
 .if defined(PKG_VERBOSE)
 PKG_ENV+=	PKG_VERBOSE=1
 .endif
+PKG_INDEX?=	${PKG_TREE}/INDEX
 
 package-split:
 .if !defined(PKG_TREE)
@@ -1269,9 +1271,9 @@ package-split:
 	@echo "PKG_DEST must be defined" && exit 1
 .endif
 	@env ${PKG_ENV} python ${.CURDIR}/scripts/package-split.py \
-	    ${PKG_TREE}/INDEX ${PKG_INDEX}
+	    ${PKG_INDEX} ${PKG_WRKIDX}
 	@env ${PKG_ENV} sh ${.CURDIR}/scripts/package-trees.sh ${PKG_DO_COPY} \
-	    ${PKG_INDEX} ${PKG_TREE} ${PKG_DEST}
+	    ${PKG_WRKIDX} ${PKG_TREE} ${PKG_DEST}
 .endif
 
 .include <bsd.obj.mk>
