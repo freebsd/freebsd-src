@@ -359,6 +359,7 @@ IPX
 IPXIP			opt_ipx.h
 LIBMBPOOL
 LIBMCHAIN
+LIBALIAS
 MBUF_STRESS_TEST	opt_mbuf_stress_test.h
 NCP
 NETATALK		opt_atalk.h
