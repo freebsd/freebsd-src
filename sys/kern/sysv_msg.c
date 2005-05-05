@@ -57,16 +57,6 @@ static sy_call_t *msgcalls[] = {
 	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
 
-struct msg {
-	struct	msg *msg_next;	/* next msg in the chain */
-	long	msg_type;	/* type of this message */
-    				/* >0 -> type of this message */
-    				/* 0 -> free header */
-	u_short	msg_ts;		/* size of this message */
-	short	msg_spot;	/* location of start of msg in buffer */
-};
-
-
 #ifndef MSGSSZ
 #define MSGSSZ	8		/* Each segment must be 2^N long */
 #endif
@@ -130,7 +120,7 @@ static struct msg *free_msghdrs;/* list of free msg headers */
 static char *msgpool;		/* MSGMAX byte long msg buffer pool */
 static struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
 static struct msg *msghdrs;	/* MSGTQL msg headers */
-static struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
+static struct msqid_kernel *msqids;	/* MSGMNI msqid_kernel struct's */
 static struct mtx msq_mtx;	/* global mutex for message queues. */
 
 static void
@@ -154,7 +144,8 @@ msginit()
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
 	if (msghdrs == NULL)
 		panic("msghdrs is NULL");
-	msqids = malloc(sizeof(struct msqid_ds) * msginfo.msgmni, M_MSG, M_WAITOK);
+	msqids = malloc(sizeof(struct msqid_kernel) * msginfo.msgmni, M_MSG,
+	    M_WAITOK);
 	if (msqids == NULL)
 		panic("msqids is NULL");
 
@@ -204,9 +195,9 @@ msginit()
 		panic("msqids is NULL");
 
 	for (i = 0; i < msginfo.msgmni; i++) {
-		msqids[i].msg_qbytes = 0;	/* implies entry is available */
-		msqids[i].msg_perm.seq = 0;	/* reset to a known value */
-		msqids[i].msg_perm.mode = 0;
+		msqids[i].u.msg_qbytes = 0;	/* implies entry is available */
+		msqids[i].u.msg_perm.seq = 0;	/* reset to a known value */
+		msqids[i].u.msg_perm.mode = 0;
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 }
@@ -214,7 +205,7 @@ msginit()
 static int
 msgunload()
 {
-	struct msqid_ds *msqptr;
+	struct msqid_kernel *msqkptr;
 	int msqid;
 
 	for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
@@ -224,9 +215,9 @@ msgunload()
 		 * they are copying the message in/out.  We can't
 		 * re-use the entry until they release it.
 		 */
-		msqptr = &msqids[msqid];
-		if (msqptr->msg_qbytes != 0 ||
-		    (msqptr->msg_perm.mode & MSG_LOCKED) != 0)
+		msqkptr = &msqids[msqid];
+		if (msqkptr->u.msg_qbytes != 0 ||
+		    (msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0)
 			break;
 	}
 	if (msqid != msginfo.msgmni)
@@ -352,7 +343,7 @@ msgctl(td, uap)
 	struct msqid_ds *user_msqptr = uap->buf;
 	int rval, error;
 	struct msqid_ds msqbuf;
-	register struct msqid_ds *msqptr;
+	register struct msqid_kernel *msqkptr;
 
 	DPRINTF(("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
@@ -369,15 +360,15 @@ msgctl(td, uap)
 	    (error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 		return (error);
 
-	msqptr = &msqids[msqid];
+	msqkptr = &msqids[msqid];
 
 	mtx_lock(&msq_mtx);
-	if (msqptr->msg_qbytes == 0) {
+	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such msqid\n"));
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
@@ -391,37 +382,38 @@ msgctl(td, uap)
 	case IPC_RMID:
 	{
 		struct msg *msghdr;
-		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_M)))
+		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
+
 		/* Free the message headers */
-		msghdr = msqptr->msg_first;
+		msghdr = msqkptr->u.msg_first;
 		while (msghdr != NULL) {
 			struct msg *msghdr_tmp;
 
 			/* Free the segments of each message */
-			msqptr->msg_cbytes -= msghdr->msg_ts;
-			msqptr->msg_qnum--;
+			msqkptr->u.msg_cbytes -= msghdr->msg_ts;
+			msqkptr->u.msg_qnum--;
 			msghdr_tmp = msghdr;
 			msghdr = msghdr->msg_next;
 			msg_freehdr(msghdr_tmp);
 		}
 
-		if (msqptr->msg_cbytes != 0)
+		if (msqkptr->u.msg_cbytes != 0)
 			panic("msg_cbytes is screwed up");
-		if (msqptr->msg_qnum != 0)
+		if (msqkptr->u.msg_qnum != 0)
 			panic("msg_qnum is screwed up");
 
-		msqptr->msg_qbytes = 0;	/* Mark it as free */
+		msqkptr->u.msg_qbytes = 0;	/* Mark it as free */
 
-		wakeup(msqptr);
+		wakeup(msqkptr);
 	}
 
 		break;
 
 	case IPC_SET:
-		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_M)))
+		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
-		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
+		if (msqbuf.msg_qbytes > msqkptr->u.msg_qbytes) {
 			error = suser(td);
 			if (error)
 				goto done2;
@@ -436,16 +428,16 @@ msgctl(td, uap)
 			error = EINVAL;		/* non-standard errno! */
 			goto done2;
 		}
-		msqptr->msg_perm.uid = msqbuf.msg_perm.uid;	/* change the owner */
-		msqptr->msg_perm.gid = msqbuf.msg_perm.gid;	/* change the owner */
-		msqptr->msg_perm.mode = (msqptr->msg_perm.mode & ~0777) |
+		msqkptr->u.msg_perm.uid = msqbuf.msg_perm.uid;	/* change the owner */
+		msqkptr->u.msg_perm.gid = msqbuf.msg_perm.gid;	/* change the owner */
+		msqkptr->u.msg_perm.mode = (msqkptr->u.msg_perm.mode & ~0777) |
 		    (msqbuf.msg_perm.mode & 0777);
-		msqptr->msg_qbytes = msqbuf.msg_qbytes;
-		msqptr->msg_ctime = time_second;
+		msqkptr->u.msg_qbytes = msqbuf.msg_qbytes;
+		msqkptr->u.msg_ctime = time_second;
 		break;
 
 	case IPC_STAT:
-		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_R))) {
+		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_R))) {
 			DPRINTF(("requester doesn't have read access\n"));
 			goto done2;
 		}
@@ -462,7 +454,7 @@ msgctl(td, uap)
 done2:
 	mtx_unlock(&msq_mtx);
 	if (cmd == IPC_STAT && error == 0)
-		error = copyout(msqptr, user_msqptr, sizeof(struct msqid_ds));
+		error = copyout(&(msqkptr->u), user_msqptr, sizeof(struct msqid_ds));
 	return(error);
 }
 
@@ -485,7 +477,7 @@ msgget(td, uap)
 	int key = uap->key;
 	int msgflg = uap->msgflg;
 	struct ucred *cred = td->td_ucred;
-	register struct msqid_ds *msqptr = NULL;
+	register struct msqid_kernel *msqkptr = NULL;
 
 	DPRINTF(("msgget(0x%x, 0%o)\n", key, msgflg));
 
@@ -495,9 +487,9 @@ msgget(td, uap)
 	mtx_lock(&msq_mtx);
 	if (key != IPC_PRIVATE) {
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
-			msqptr = &msqids[msqid];
-			if (msqptr->msg_qbytes != 0 &&
-			    msqptr->msg_perm.key == key)
+			msqkptr = &msqids[msqid];
+			if (msqkptr->u.msg_qbytes != 0 &&
+			    msqkptr->u.msg_perm.key == key)
 				break;
 		}
 		if (msqid < msginfo.msgmni) {
@@ -507,7 +499,8 @@ msgget(td, uap)
 				error = EEXIST;
 				goto done2;
 			}
-			if ((error = ipcperm(td, &msqptr->msg_perm, msgflg & 0700))) {
+			if ((error = ipcperm(td, &msqkptr->u.msg_perm,
+			    msgflg & 0700))) {
 				DPRINTF(("requester doesn't have 0%o access\n",
 				    msgflg & 0700));
 				goto done2;
@@ -525,9 +518,9 @@ msgget(td, uap)
 			 * they are copying the message in/out.  We can't
 			 * re-use the entry until they release it.
 			 */
-			msqptr = &msqids[msqid];
-			if (msqptr->msg_qbytes == 0 &&
-			    (msqptr->msg_perm.mode & MSG_LOCKED) == 0)
+			msqkptr = &msqids[msqid];
+			if (msqkptr->u.msg_qbytes == 0 &&
+			    (msqkptr->u.msg_perm.mode & MSG_LOCKED) == 0)
 				break;
 		}
 		if (msqid == msginfo.msgmni) {
@@ -536,24 +529,24 @@ msgget(td, uap)
 			goto done2;
 		}
 		DPRINTF(("msqid %d is available\n", msqid));
-		msqptr->msg_perm.key = key;
-		msqptr->msg_perm.cuid = cred->cr_uid;
-		msqptr->msg_perm.uid = cred->cr_uid;
-		msqptr->msg_perm.cgid = cred->cr_gid;
-		msqptr->msg_perm.gid = cred->cr_gid;
-		msqptr->msg_perm.mode = (msgflg & 0777);
+		msqkptr->u.msg_perm.key = key;
+		msqkptr->u.msg_perm.cuid = cred->cr_uid;
+		msqkptr->u.msg_perm.uid = cred->cr_uid;
+		msqkptr->u.msg_perm.cgid = cred->cr_gid;
+		msqkptr->u.msg_perm.gid = cred->cr_gid;
+		msqkptr->u.msg_perm.mode = (msgflg & 0777);
 		/* Make sure that the returned msqid is unique */
-		msqptr->msg_perm.seq = (msqptr->msg_perm.seq + 1) & 0x7fff;
-		msqptr->msg_first = NULL;
-		msqptr->msg_last = NULL;
-		msqptr->msg_cbytes = 0;
-		msqptr->msg_qnum = 0;
-		msqptr->msg_qbytes = msginfo.msgmnb;
-		msqptr->msg_lspid = 0;
-		msqptr->msg_lrpid = 0;
-		msqptr->msg_stime = 0;
-		msqptr->msg_rtime = 0;
-		msqptr->msg_ctime = time_second;
+		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
+		msqkptr->u.msg_first = NULL;
+		msqkptr->u.msg_last = NULL;
+		msqkptr->u.msg_cbytes = 0;
+		msqkptr->u.msg_qnum = 0;
+		msqkptr->u.msg_qbytes = msginfo.msgmnb;
+		msqkptr->u.msg_lspid = 0;
+		msqkptr->u.msg_lrpid = 0;
+		msqkptr->u.msg_stime = 0;
+		msqkptr->u.msg_rtime = 0;
+		msqkptr->u.msg_ctime = time_second;
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
@@ -562,7 +555,7 @@ msgget(td, uap)
 
 found:
 	/* Construct the unique msqid */
-	td->td_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
+	td->td_retval[0] = IXSEQ_TO_IPCID(msqid, msqkptr->u.msg_perm);
 done2:
 	mtx_unlock(&msq_mtx);
 	return (error);
@@ -590,7 +583,7 @@ msgsnd(td, uap)
 	size_t msgsz = uap->msgsz;
 	int msgflg = uap->msgflg;
 	int segs_needed, error = 0;
-	register struct msqid_ds *msqptr;
+	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	short next;
 
@@ -609,19 +602,19 @@ msgsnd(td, uap)
 		goto done2;
 	}
 
-	msqptr = &msqids[msqid];
-	if (msqptr->msg_qbytes == 0) {
+	msqkptr = &msqids[msqid];
+	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
 	}
 
-	if ((error = ipcperm(td, &msqptr->msg_perm, IPC_W))) {
+	if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_W))) {
 		DPRINTF(("requester doesn't have write access\n"));
 		goto done2;
 	}
@@ -637,17 +630,17 @@ msgsnd(td, uap)
 		 * (inside this loop in case msg_qbytes changes while we sleep)
 		 */
 
-		if (msgsz > msqptr->msg_qbytes) {
-			DPRINTF(("msgsz > msqptr->msg_qbytes\n"));
+		if (msgsz > msqkptr->u.msg_qbytes) {
+			DPRINTF(("msgsz > msqkptr->u.msg_qbytes\n"));
 			error = EINVAL;
 			goto done2;
 		}
 
-		if (msqptr->msg_perm.mode & MSG_LOCKED) {
+		if (msqkptr->u.msg_perm.mode & MSG_LOCKED) {
 			DPRINTF(("msqid is locked\n"));
 			need_more_resources = 1;
 		}
-		if (msgsz + msqptr->msg_cbytes > msqptr->msg_qbytes) {
+		if (msgsz + msqkptr->u.msg_cbytes > msqkptr->u.msg_qbytes) {
 			DPRINTF(("msgsz + msg_cbytes > msg_qbytes\n"));
 			need_more_resources = 1;
 		}
@@ -670,22 +663,22 @@ msgsnd(td, uap)
 				goto done2;
 			}
 
-			if ((msqptr->msg_perm.mode & MSG_LOCKED) != 0) {
+			if ((msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0) {
 				DPRINTF(("we don't own the msqid_ds\n"));
 				we_own_it = 0;
 			} else {
 				/* Force later arrivals to wait for our
 				   request */
 				DPRINTF(("we own the msqid_ds\n"));
-				msqptr->msg_perm.mode |= MSG_LOCKED;
+				msqkptr->u.msg_perm.mode |= MSG_LOCKED;
 				we_own_it = 1;
 			}
 			DPRINTF(("goodnight\n"));
-			error = msleep(msqptr, &msq_mtx, (PZERO - 4) | PCATCH,
+			error = msleep(msqkptr, &msq_mtx, (PZERO - 4) | PCATCH,
 			    "msgwait", 0);
 			DPRINTF(("good morning, error=%d\n", error));
 			if (we_own_it)
-				msqptr->msg_perm.mode &= ~MSG_LOCKED;
+				msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
 				error = EINTR;
@@ -696,7 +689,7 @@ msgsnd(td, uap)
 			 * Make sure that the msq queue still exists
 			 */
 
-			if (msqptr->msg_qbytes == 0) {
+			if (msqkptr->u.msg_qbytes == 0) {
 				DPRINTF(("msqid deleted\n"));
 				error = EIDRM;
 				goto done2;
@@ -713,11 +706,11 @@ msgsnd(td, uap)
 	 * Make sure!
 	 */
 
-	if (msqptr->msg_perm.mode & MSG_LOCKED)
+	if (msqkptr->u.msg_perm.mode & MSG_LOCKED)
 		panic("msg_perm.mode & MSG_LOCKED");
 	if (segs_needed > nfree_msgmaps)
 		panic("segs_needed > nfree_msgmaps");
-	if (msgsz + msqptr->msg_cbytes > msqptr->msg_qbytes)
+	if (msgsz + msqkptr->u.msg_cbytes > msqkptr->u.msg_qbytes)
 		panic("msgsz + msg_cbytes > msg_qbytes");
 	if (free_msghdrs == NULL)
 		panic("no more msghdrs");
@@ -727,9 +720,9 @@ msgsnd(td, uap)
 	 * message
 	 */
 
-	if ((msqptr->msg_perm.mode & MSG_LOCKED) != 0)
+	if ((msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0)
 		panic("msqid_ds is already locked");
-	msqptr->msg_perm.mode |= MSG_LOCKED;
+	msqkptr->u.msg_perm.mode |= MSG_LOCKED;
 
 	/*
 	 * Allocate a message header
@@ -772,8 +765,8 @@ msgsnd(td, uap)
 		mtx_lock(&msq_mtx);
 		DPRINTF(("error %d copying the message type\n", error));
 		msg_freehdr(msghdr);
-		msqptr->msg_perm.mode &= ~MSG_LOCKED;
-		wakeup(msqptr);
+		msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
+		wakeup(msqkptr);
 		goto done2;
 	}
 	mtx_lock(&msq_mtx);
@@ -785,8 +778,8 @@ msgsnd(td, uap)
 
 	if (msghdr->msg_type < 1) {
 		msg_freehdr(msghdr);
-		msqptr->msg_perm.mode &= ~MSG_LOCKED;
-		wakeup(msqptr);
+		msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
+		wakeup(msqkptr);
 		DPRINTF(("mtype (%d) < 1\n", msghdr->msg_type));
 		error = EINVAL;
 		goto done2;
@@ -814,8 +807,8 @@ msgsnd(td, uap)
 			DPRINTF(("error %d copying in message segment\n",
 			    error));
 			msg_freehdr(msghdr);
-			msqptr->msg_perm.mode &= ~MSG_LOCKED;
-			wakeup(msqptr);
+			msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
+			wakeup(msqkptr);
 			goto done2;
 		}
 		mtx_lock(&msq_mtx);
@@ -830,15 +823,15 @@ msgsnd(td, uap)
 	 * We've got the message.  Unlock the msqid_ds.
 	 */
 
-	msqptr->msg_perm.mode &= ~MSG_LOCKED;
+	msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
 
 	/*
 	 * Make sure that the msqid_ds is still allocated.
 	 */
 
-	if (msqptr->msg_qbytes == 0) {
+	if (msqkptr->u.msg_qbytes == 0) {
 		msg_freehdr(msghdr);
-		wakeup(msqptr);
+		wakeup(msqkptr);
 		error = EIDRM;
 		goto done2;
 	}
@@ -846,22 +839,21 @@ msgsnd(td, uap)
 	/*
 	 * Put the message into the queue
 	 */
-
-	if (msqptr->msg_first == NULL) {
-		msqptr->msg_first = msghdr;
-		msqptr->msg_last = msghdr;
+	if (msqkptr->u.msg_first == NULL) {
+		msqkptr->u.msg_first = msghdr;
+		msqkptr->u.msg_last = msghdr;
 	} else {
-		msqptr->msg_last->msg_next = msghdr;
-		msqptr->msg_last = msghdr;
+		msqkptr->u.msg_last->msg_next = msghdr;
+		msqkptr->u.msg_last = msghdr;
 	}
-	msqptr->msg_last->msg_next = NULL;
+	msqkptr->u.msg_last->msg_next = NULL;
 
-	msqptr->msg_cbytes += msghdr->msg_ts;
-	msqptr->msg_qnum++;
-	msqptr->msg_lspid = td->td_proc->p_pid;
-	msqptr->msg_stime = time_second;
+	msqkptr->u.msg_cbytes += msghdr->msg_ts;
+	msqkptr->u.msg_qnum++;
+	msqkptr->u.msg_lspid = td->td_proc->p_pid;
+	msqkptr->u.msg_stime = time_second;
 
-	wakeup(msqptr);
+	wakeup(msqkptr);
 	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(&msq_mtx);
@@ -892,7 +884,7 @@ msgrcv(td, uap)
 	long msgtyp = uap->msgtyp;
 	int msgflg = uap->msgflg;
 	size_t len;
-	register struct msqid_ds *msqptr;
+	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	int error = 0;
 	short next;
@@ -911,20 +903,20 @@ msgrcv(td, uap)
 		return (EINVAL);
 	}
 
-	msqptr = &msqids[msqid];
+	msqkptr = &msqids[msqid];
 	mtx_lock(&msq_mtx);
-	if (msqptr->msg_qbytes == 0) {
+	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
 	}
 
-	if ((error = ipcperm(td, &msqptr->msg_perm, IPC_R))) {
+	if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_R))) {
 		DPRINTF(("requester doesn't have read access\n"));
 		goto done2;
 	}
@@ -932,7 +924,7 @@ msgrcv(td, uap)
 	msghdr = NULL;
 	while (msghdr == NULL) {
 		if (msgtyp == 0) {
-			msghdr = msqptr->msg_first;
+			msghdr = msqkptr->u.msg_first;
 			if (msghdr != NULL) {
 				if (msgsz < msghdr->msg_ts &&
 				    (msgflg & MSG_NOERROR) == 0) {
@@ -942,12 +934,12 @@ msgrcv(td, uap)
 					error = E2BIG;
 					goto done2;
 				}
-				if (msqptr->msg_first == msqptr->msg_last) {
-					msqptr->msg_first = NULL;
-					msqptr->msg_last = NULL;
+				if (msqkptr->u.msg_first == msqkptr->u.msg_last) {
+					msqkptr->u.msg_first = NULL;
+					msqkptr->u.msg_last = NULL;
 				} else {
-					msqptr->msg_first = msghdr->msg_next;
-					if (msqptr->msg_first == NULL)
+					msqkptr->u.msg_first = msghdr->msg_next;
+					if (msqkptr->u.msg_first == NULL)
 						panic("msg_first/last screwed up #1");
 				}
 			}
@@ -956,7 +948,7 @@ msgrcv(td, uap)
 			struct msg **prev;
 
 			previous = NULL;
-			prev = &(msqptr->msg_first);
+			prev = &(msqkptr->u.msg_first);
 			while ((msghdr = *prev) != NULL) {
 				/*
 				 * Is this message's type an exact match or is
@@ -982,20 +974,20 @@ msgrcv(td, uap)
 						goto done2;
 					}
 					*prev = msghdr->msg_next;
-					if (msghdr == msqptr->msg_last) {
+					if (msghdr == msqkptr->u.msg_last) {
 						if (previous == NULL) {
 							if (prev !=
-							    &msqptr->msg_first)
+							    &msqkptr->u.msg_first)
 								panic("msg_first/last screwed up #2");
-							msqptr->msg_first =
+							msqkptr->u.msg_first =
 							    NULL;
-							msqptr->msg_last =
+							msqkptr->u.msg_last =
 							    NULL;
 						} else {
 							if (prev ==
-							    &msqptr->msg_first)
+							    &msqkptr->u.msg_first)
 								panic("msg_first/last screwed up #3");
-							msqptr->msg_last =
+							msqkptr->u.msg_last =
 							    previous;
 						}
 					}
@@ -1032,7 +1024,7 @@ msgrcv(td, uap)
 		 */
 
 		DPRINTF(("msgrcv:  goodnight\n"));
-		error = msleep(msqptr, &msq_mtx, (PZERO - 4) | PCATCH,
+		error = msleep(msqkptr, &msq_mtx, (PZERO - 4) | PCATCH,
 		    "msgwait", 0);
 		DPRINTF(("msgrcv:  good morning (error=%d)\n", error));
 
@@ -1046,8 +1038,8 @@ msgrcv(td, uap)
 		 * Make sure that the msq queue still exists
 		 */
 
-		if (msqptr->msg_qbytes == 0 ||
-		    msqptr->msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+		if (msqkptr->u.msg_qbytes == 0 ||
+		    msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
 			DPRINTF(("msqid deleted\n"));
 			error = EIDRM;
 			goto done2;
@@ -1060,10 +1052,10 @@ msgrcv(td, uap)
 	 * First, do the bookkeeping (before we risk being interrupted).
 	 */
 
-	msqptr->msg_cbytes -= msghdr->msg_ts;
-	msqptr->msg_qnum--;
-	msqptr->msg_lrpid = td->td_proc->p_pid;
-	msqptr->msg_rtime = time_second;
+	msqkptr->u.msg_cbytes -= msghdr->msg_ts;
+	msqkptr->u.msg_qnum--;
+	msqkptr->u.msg_lrpid = td->td_proc->p_pid;
+	msqkptr->u.msg_rtime = time_second;
 
 	/*
 	 * Make msgsz the actual amount that we'll be returning.
@@ -1087,7 +1079,7 @@ msgrcv(td, uap)
 	if (error != 0) {
 		DPRINTF(("error (%d) copying out message type\n", error));
 		msg_freehdr(msghdr);
-		wakeup(msqptr);
+		wakeup(msqkptr);
 		goto done2;
 	}
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
@@ -1116,7 +1108,7 @@ msgrcv(td, uap)
 			DPRINTF(("error (%d) copying out message segment\n",
 			    error));
 			msg_freehdr(msghdr);
-			wakeup(msqptr);
+			wakeup(msqkptr);
 			goto done2;
 		}
 		user_msgp = (char *)user_msgp + tlen;
@@ -1128,7 +1120,7 @@ msgrcv(td, uap)
 	 */
 
 	msg_freehdr(msghdr);
-	wakeup(msqptr);
+	wakeup(msqkptr);
 	td->td_retval[0] = msgsz;
 done2:
 	mtx_unlock(&msq_mtx);
@@ -1140,7 +1132,7 @@ sysctl_msqids(SYSCTL_HANDLER_ARGS)
 {
 
 	return (SYSCTL_OUT(req, msqids,
-	    sizeof(struct msqid_ds) * msginfo.msgmni));
+	    sizeof(struct msqid_kernel) * msginfo.msgmni));
 }
 
 SYSCTL_DECL(_kern_ipc);
