@@ -838,8 +838,6 @@ ndis_set_info(arg, oid, buf, buflen)
 
 	sc = arg;
 
-	mtx_lock(&ndis_req_mtx);
-
 	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 
 	if (sc->ndis_block->nmb_pendingreq != NULL)
@@ -847,15 +845,19 @@ ndis_set_info(arg, oid, buf, buflen)
 	else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
+	NDIS_LOCK(sc);
 	setfunc = sc->ndis_chars->nmc_setinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
-	if (adapter == NULL || setfunc == NULL) {
+	if (adapter == NULL || setfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
+		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
-		mtx_unlock(&ndis_req_mtx);
 		return(ENXIO);
 	}
+
+	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(setfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -865,13 +867,13 @@ ndis_set_info(arg, oid, buf, buflen)
 	KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
+		mtx_lock(&ndis_req_mtx);
 		error = msleep(&sc->ndis_block->nmb_setstat,
 		    &ndis_req_mtx,
 		    curthread->td_priority|PDROP,
 		    "ndisset", 5 * hz);
 		rval = sc->ndis_block->nmb_setstat;
-	} else
-		mtx_unlock(&ndis_req_mtx);
+	}
 
 
 	if (byteswritten)
@@ -1044,20 +1046,22 @@ ndis_reset_nic(arg)
 	ndis_handle		adapter;
 	ndis_reset_handler	resetfunc;
 	uint8_t			addressing_reset;
-	struct ifnet		*ifp;
 	int			rval;
 	uint8_t			irql;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
 
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	resetfunc = sc->ndis_chars->nmc_reset_func;
 
-	if (adapter == NULL || resetfunc == NULL)
+	if (adapter == NULL || resetfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
+		NDIS_UNLOCK(sc);
 		return(EIO);
+	}
 
-	mtx_lock(&ndis_req_mtx);
+	NDIS_UNLOCK(sc);
 
 	if (NDIS_SERIALIZED(sc->ndis_block))
 		KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
@@ -1068,10 +1072,10 @@ ndis_reset_nic(arg)
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
+		mtx_lock(&ndis_req_mtx);
 		msleep(sc, &ndis_req_mtx,
 		    curthread->td_priority|PDROP, "ndisrst", 0);
-	} else
-		mtx_unlock(&ndis_req_mtx);
+	}
 
 	return(0);
 }
@@ -1085,14 +1089,11 @@ ndis_halt_nic(arg)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_halt_handler	haltfunc;
-	struct ifnet		*ifp;
 #ifdef NDIS_REAP_TIMERS
 	ndis_miniport_timer	*t, *n;
-	uint8_t			irql;
 #endif
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
 
 	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1100,6 +1101,8 @@ ndis_halt_nic(arg)
 		NDIS_UNLOCK(sc);
 		return(EIO);
 	}
+
+	sc->ndis_block->nmb_devicectx = NULL;
 
 #ifdef NDIS_REAP_TIMERS
 	/*
@@ -1110,7 +1113,6 @@ ndis_halt_nic(arg)
 	 * the timers reside will no longer be valid.
 	 */
 
-	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 	t = sc->ndis_block->nmb_timerlist;
 	while (t != NULL) {
 		KeCancelTimer(&t->nmt_ktimer);
@@ -1119,7 +1121,6 @@ ndis_halt_nic(arg)
 		n->nmt_nexttimer = NULL;
 	}
 	sc->ndis_block->nmb_timerlist = NULL;
-	KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 	KeFlushQueuedDpcs();
 #endif
 
@@ -1132,9 +1133,7 @@ ndis_halt_nic(arg)
 	haltfunc = sc->ndis_chars->nmc_halt_func;
 	NDIS_UNLOCK(sc);
 
-	mtx_lock(&ndis_req_mtx);
 	MSCALL1(haltfunc, adapter);
-	mtx_unlock(&ndis_req_mtx);
 
 	NDIS_LOCK(sc);
 	sc->ndis_block->nmb_miniportadapterctx = NULL;
@@ -1194,10 +1193,8 @@ ndis_init_nic(arg)
 	for (i = 0; i < NdisMediumMax; i++)
 		mediumarray[i] = i;
 
-	mtx_lock(&ndis_req_mtx);
         status = MSCALL6(initfunc, &openstatus, &chosenmedium,
             mediumarray, NdisMediumMax, block, block);
-	mtx_unlock(&ndis_req_mtx);
 
 	/*
 	 * If the init fails, blow away the other exported routines
@@ -1222,6 +1219,10 @@ ndis_init_nic(arg)
 	 */
 
 	ndis_thsuspend(curthread->td_proc, NULL, hz);
+
+	NDIS_LOCK(sc);
+	sc->ndis_block->nmb_devicectx = sc;
+	NDIS_UNLOCK(sc);
 
 	return(0);
 }
@@ -1340,7 +1341,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	uint8_t			irql;
 
 	sc = arg;
-	mtx_lock(&ndis_req_mtx);
+
 	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 
 	if (sc->ndis_block->nmb_pendingreq != NULL)
@@ -1348,15 +1349,19 @@ ndis_get_info(arg, oid, buf, buflen)
 	else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
+	NDIS_LOCK(sc);
 	queryfunc = sc->ndis_chars->nmc_queryinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
-	if (adapter == NULL || queryfunc == NULL) {
+	if (adapter == NULL || queryfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
+		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
-		mtx_unlock(&ndis_req_mtx);
 		return(ENXIO);
 	}
+
+	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(queryfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -1368,13 +1373,13 @@ ndis_get_info(arg, oid, buf, buflen)
 	/* Wait for requests that block. */
 
 	if (rval == NDIS_STATUS_PENDING) {
+		mtx_lock(&ndis_req_mtx);
 		error = msleep(&sc->ndis_block->nmb_getstat,
 		    &ndis_req_mtx,
 		    curthread->td_priority|PDROP,
 		    "ndisget", 5 * hz);
 		rval = sc->ndis_block->nmb_getstat;
-	} else
-		mtx_unlock(&ndis_req_mtx);
+	}
 
 	if (byteswritten)
 		*buflen = byteswritten;

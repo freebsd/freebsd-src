@@ -1476,19 +1476,12 @@ struct ndis_miniport_block {
 	 * End of windows-specific portion of miniport block. Everything
 	 * below is BSD-specific.
 	 */
-	struct ifnet		*nmb_ifp;
 	uint8_t			nmb_dummybuf[128];
-	device_object		nmb_devobj;
 	ndis_config_parm	nmb_replyparm;
-	int			nmb_pciidx;
-	device_t		nmb_dev;
 	ndis_resource_list	*nmb_rlist;
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
-	vm_offset_t		nmb_img;
 	ndis_miniport_timer	*nmb_timerlist;
-	io_workitem		*nmb_workitems[NUMBER_OF_SINGLE_WORK_ITEMS];
-	int			nmb_item_idx;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
 

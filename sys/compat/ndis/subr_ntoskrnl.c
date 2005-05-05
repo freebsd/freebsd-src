@@ -3108,9 +3108,8 @@ KeFlushQueuedDpcs(void)
 	 * for them to drain.
 	 */
 
-	kq = kq_queues;
 	for (i = 0; i < mp_ncpus; i++) {
-		kq += i;
+		kq = kq_queues + i;
 		KeSetEvent(&kq->kq_proc, 0, FALSE);
 		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_done,
 		    0, 0, TRUE, NULL);
