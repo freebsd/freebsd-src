@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
+     $FreeBSDru$
 
-     Original revision: 1.761.2.41.2.7
+     Original revision: 1.761.2.41.2.8
 -->
 
 <articleinfo>
@@ -306,7 +306,7 @@
 	поддерживает полное управление назначением пакета при
 	установке параметра ядра
 	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> в дополнение
-	к параметру <literal>options IPFIRWALL_FORWARD</literal>.
+	к параметру <literal>options IPFIREWALL_FORWARD</literal>.
 	Этот параметр ядра устраняет все ограничения для локально созданных
 	пакетов и позволяет перенаправление пакетов, предназначенных для
 	локально сконфигурированного IP адреса.
@@ -376,7 +376,7 @@
 	</para>
 
       <para>Информация о вновь смонтированных файловых системах cd9660
-	(например, информация о наличии расширений Rockridge) теперь
+	(например, информация о наличии расширений RockRidge) теперь
 	печатается только если ядро было собрано в режиме verbose.
 	Это изменение было сделано для уменьшения количества
 	(зачастую ненужных) протоколируемых сообщений ядра.</para>
