@@ -606,7 +606,8 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	memset(&key, 0, sizeof(key));
 	key.wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
 	key.wk_cipher = &ieee80211_cipher_none;
-	if (!ieee80211_crypto_newkey(ic, t->cipher, &key)) {
+	if (!ieee80211_crypto_newkey(ic, t->cipher,
+	    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, &key)) {
 		printf("FAIL: ieee80211_crypto_newkey failed\n");
 		goto bad;
 	}
