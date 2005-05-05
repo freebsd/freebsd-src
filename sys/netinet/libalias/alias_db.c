@@ -326,9 +326,9 @@ struct alias_link {		/* Main data structure */
 
 	int		timestamp;	/* Time link was last accessed         */
 	int		expire_time;	/* Expire time for link                */
-
+#ifndef	NO_USE_SOCKETS
 	int		sockfd;	/* socket descriptor                   */
-
+#endif
 			LIST_ENTRY    (alias_link) list_out;	/* Linked list of
 								 * pointers for     */
 			LIST_ENTRY    (alias_link) list_in;	/* input and output
@@ -480,9 +480,9 @@ Port search:
 
 /* Local prototypes */
 static int	GetNewPort(struct libalias *, struct alias_link *, int);
-
+#ifndef	NO_USE_SOCKETS
 static u_short	GetSocket(struct libalias *, u_short, int *, int);
-
+#endif
 static void	CleanupAliasData(struct libalias *);
 
 static void	IncrementalCleanup(struct libalias *);
@@ -590,6 +590,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 			go_ahead = 0;
 
 		if (go_ahead) {
+#ifndef	NO_USE_SOCKETS
 			if ((la->packetAliasMode & PKT_ALIAS_USE_SOCKETS)
 			    && (lnk->flags & LINK_PARTIALLY_SPECIFIED)
 			    && ((lnk->link_type == LINK_TCP) ||
@@ -599,9 +600,12 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 					return (0);
 				}
 			} else {
+#endif
 				lnk->alias_port = port_net;
 				return (0);
+#ifndef	NO_USE_SOCKETS
 			}
+#endif
 		}
 		port_sys = random() & ALIAS_PORT_MASK;
 		port_sys += ALIAS_PORT_BASE;
@@ -616,7 +620,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 	return (-1);
 }
 
-
+#ifndef	NO_USE_SOCKETS
 static		u_short
 GetSocket(struct libalias *la, u_short port_net, int *sockfd, int link_type)
 {
@@ -659,7 +663,7 @@ GetSocket(struct libalias *la, u_short port_net, int *sockfd, int link_type)
 		return (0);
 	}
 }
-
+#endif
 
 /* FindNewPortGroup() returns a base port number for an available
    range of contiguous port numbers. Note that if a port number
@@ -848,12 +852,13 @@ DeleteLink(struct alias_link *lnk)
 
 /* Adjust input table pointers */
 	LIST_REMOVE(lnk, list_in);
-
+#ifndef	NO_USE_SOCKETS
 /* Close socket, if one has been allocated */
 	if (lnk->sockfd != -1) {
 		la->sockCount--;
 		close(lnk->sockfd);
 	}
+#endif
 /* Link-type dependent cleanup */
 	switch (lnk->link_type) {
 	case LINK_ICMP:
@@ -922,7 +927,9 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 		lnk->proxy_port = 0;
 		lnk->server = NULL;
 		lnk->link_type = link_type;
+#ifndef	NO_USE_SOCKETS
 		lnk->sockfd = -1;
+#endif
 		lnk->flags = 0;
 		lnk->pflags = 0;
 		lnk->timestamp = la->timeStamp;
@@ -2414,7 +2421,9 @@ LibAliasInit(struct libalias *la)
 	la->cleanupIndex = 0;
 
 	la->packetAliasMode = PKT_ALIAS_SAME_PORTS
+#ifndef	NO_USE_SOCKETS
 	    | PKT_ALIAS_USE_SOCKETS
+#endif
 	    | PKT_ALIAS_RESET_ON_ADDR_CHANGE;
 #ifndef NO_FW_PUNCH
 	la->fireWallFD = -1;

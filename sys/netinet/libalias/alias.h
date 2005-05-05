@@ -210,8 +210,9 @@ int		LibAliasProxyRule(struct libalias *, const char *_cmd);
  * require this.  This bit is set after a call to PacketAliasInit(), so it is
  * a default mode of operation.
  */
+#ifndef	NO_USE_SOCKETS
 #define	PKT_ALIAS_USE_SOCKETS		0x08
-
+#endif
 /*-
  * If PKT_ALIAS_UNREGISTERED_ONLY is set, then only packets with
  * unregistered source addresses will be aliased.  Private
