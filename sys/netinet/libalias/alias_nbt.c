@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #ifdef _KERNEL
+#include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
 #else
 #include "alias_local.h"
