@@ -103,8 +103,9 @@ struct libalias {
 
 	int		deleteAllLinks;	/* If equal to zero, DeleteLink()  */
 	/* will not remove permanent links */
-
+#ifndef	NO_LOGGING
 	FILE           *monitorFile;	/* File descriptor for link        */
+#endif
 	/* statistics monitoring file      */
 
 	int		newDefaultLink;	/* Indicates if a new aliasing     */
