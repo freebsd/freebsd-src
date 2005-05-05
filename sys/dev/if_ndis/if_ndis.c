@@ -108,12 +108,16 @@ static funcptr ndis_txeof_wrap;
 static funcptr ndis_rxeof_wrap;
 static funcptr ndis_linksts_wrap;
 static funcptr ndis_linksts_done_wrap;
+static funcptr ndis_ticktask_wrap;
+static funcptr ndis_starttask_wrap;
+static funcptr ndis_resettask_wrap;
 
 static void ndis_intr		(void *);
 static void ndis_tick		(void *);
-static void ndis_ticktask	(void *);
+static void ndis_ticktask	(ndis_work_item *, void *);
 static void ndis_start		(struct ifnet *);
-static void ndis_starttask	(void *);
+static void ndis_starttask	(ndis_work_item *, void *);
+static void ndis_resettask	(ndis_work_item *, void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
@@ -167,21 +171,26 @@ ndisdrv_modevent(mod, cmd, arg)
 		    4, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_linksts_done,
 		    &ndis_linksts_done_wrap, 1, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_ticktask, &ndis_ticktask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_starttask, &ndis_starttask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_resettask, &ndis_resettask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
 		break;
 	case MOD_UNLOAD:
 		ndisdrv_loaded--;
 		if (ndisdrv_loaded > 0)
 			break;
-		windrv_unwrap(ndis_rxeof_wrap);
-		windrv_unwrap(ndis_txeof_wrap);
-		windrv_unwrap(ndis_linksts_wrap);
-		windrv_unwrap(ndis_linksts_done_wrap);
-		break;
+		/* fallthrough */
 	case MOD_SHUTDOWN:
 		windrv_unwrap(ndis_rxeof_wrap);
 		windrv_unwrap(ndis_txeof_wrap);
 		windrv_unwrap(ndis_linksts_wrap);
 		windrv_unwrap(ndis_linksts_done_wrap);
+		windrv_unwrap(ndis_ticktask_wrap);
+		windrv_unwrap(ndis_starttask_wrap);
+		windrv_unwrap(ndis_resettask_wrap);
 		break;
 	default:
 		error = EINVAL;
@@ -795,6 +804,15 @@ nonettypes:
 	/* Override the status handler so we can detect link changes. */
 	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
 	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
+
+	/* Set up work item handlers. */
+	NdisInitializeWorkItem(&sc->ndis_tickitem,
+	    (work_item_func)ndis_ticktask_wrap, sc);
+	NdisInitializeWorkItem(&sc->ndis_startitem,
+	    (work_item_func)ndis_starttask_wrap, ifp);
+	NdisInitializeWorkItem(&sc->ndis_resetitem,
+	    (work_item_func)ndis_resettask_wrap, sc);
+
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -1062,9 +1080,10 @@ ndis_txeof(adapter, packet, status)
 		ifp->if_oerrors++;
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
 	NDIS_UNLOCK(sc);
 
-	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_startitem);
 
 	return;
 }
@@ -1104,12 +1123,12 @@ ndis_linksts_done(adapter)
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
-		ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
-		ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+		NdisScheduleWorkItem(&sc->ndis_tickitem);
+		NdisScheduleWorkItem(&sc->ndis_startitem);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_link)
-			ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+			NdisScheduleWorkItem(&sc->ndis_tickitem);
 		break;
 	default:
 		break;
@@ -1161,7 +1180,7 @@ ndis_tick(xsc)
 
 	sc = xsc;
 
-	ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_tickitem);
 	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
 	    sc->ndis_block->nmb_checkforhangsecs);
 
@@ -1171,7 +1190,8 @@ ndis_tick(xsc)
 }
 
 static void
-ndis_ticktask(xsc)
+ndis_ticktask(w, xsc)
+	ndis_work_item		*w;
 	void			*xsc;
 {
 	struct ndis_softc	*sc;
@@ -1254,12 +1274,14 @@ ndis_map_sclist(arg, segs, nseg, mapsize, error)
 }
 
 static void
-ndis_starttask(arg)
+ndis_starttask(w, arg)
+	ndis_work_item		*w;
 	void			*arg;
 {
 	struct ifnet		*ifp;
 
 	ifp = arg;
+
 #if __FreeBSD_version < 502114
 	if (ifp->if_snd.ifq_head != NULL)
 #else
@@ -2703,6 +2725,18 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
+ndis_resettask(w, arg)
+	ndis_work_item		*w;
+	void			*arg;
+{
+	struct ndis_softc		*sc;
+
+	sc = arg;
+	ndis_reset_nic(sc);
+	return;
+}
+
+static void
 ndis_watchdog(ifp)
 	struct ifnet		*ifp;
 {
@@ -2715,8 +2749,8 @@ ndis_watchdog(ifp)
 	device_printf(sc->ndis_dev, "watchdog timeout\n");
 	NDIS_UNLOCK(sc);
 
-	ndis_sched((void(*)(void *))ndis_reset_nic, sc, NDIS_TASKQUEUE);
-	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_resetitem);
+	NdisScheduleWorkItem(&sc->ndis_startitem);
 
 	return;
 }

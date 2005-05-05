@@ -255,6 +255,9 @@ typedef struct list_entry list_entry;
 		l->nle_flink = e;		\
 	} while (0)
 
+#define CONTAINING_RECORD(addr, type, field)	\
+	((type *)((vm_offset_t)(addr) - (vm_offset_t)(&((type *)0)->field)))
+
 struct nt_dispatch_header {
 	uint8_t			dh_type;
 	uint8_t			dh_abs;
@@ -355,15 +358,21 @@ typedef void (*kdpc_func)(struct kdpc *, void *, void *, void *);
 
 struct kdpc {
 	uint16_t		k_type;
-	uint8_t			k_num;
-	uint8_t			k_importance;
+	uint8_t			k_num;		/* CPU number */
+	uint8_t			k_importance;	/* priority */
 	list_entry		k_dpclistentry;
 	void			*k_deferedfunc;
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;
-	register_t		k_lock;
+	void			*k_lock;
 };
+
+#define KDPC_IMPORTANCE_LOW	0
+#define KDPC_IMPORTANCE_MEDIUM	1
+#define KDPC_IMPORTANCE_HIGH	2
+
+#define KDPC_CPU_DEFAULT	255
 
 typedef struct kdpc kdpc;
 
@@ -1146,6 +1155,50 @@ typedef struct driver_object driver_object;
 #define MaxPoolType			0x00000007
 
 /*
+ * IO_WORKITEM is an opaque structures that must be allocated
+ * via IoAllocateWorkItem() and released via IoFreeWorkItem().
+ * Consequently, we can define it any way we want.
+ */
+typedef void (*io_workitem_func)(device_object *, void *);
+
+struct io_workitem {
+	io_workitem_func	iw_func;
+	void			*iw_ctx;
+	list_entry		iw_listentry;
+	device_object		*iw_dobj;
+};
+
+typedef struct io_workitem io_workitem;
+
+#define WORKQUEUE_CRITICAL	0
+#define WORKQUEUE_DELAYED	1
+#define WORKQUEUE_HUPERCRITICAL	2
+
+/*
+ * Older, deprecated work item API, needed to support NdisQueueWorkItem().
+ */
+
+struct work_queue_item;
+
+typedef void (*work_item_func)(struct work_queue_item *, void *);
+
+struct work_queue_item {
+	list_entry		wqi_entry;
+	work_item_func		wqi_func;
+	void			*wqi_ctx;
+};
+
+typedef struct work_queue_item work_queue_item;
+
+#define ExInitializeWorkItem(w, func, ctx)		\
+	do {						\
+		(w)->wqi_func = (func);			\
+		(w)->wqi_ctx = (ctx);			\
+		INIT_LIST_HEAD(&((w)->wqi_entry));	\
+	} while (0);					\
+
+
+/*
  * FreeBSD's kernel stack is 2 pages in size by default. The
  * Windows stack is larger, so we need to give our threads more
  * stack pages. 4 should be enough, we use 8 just to extra safe.
@@ -1196,6 +1249,10 @@ extern int ntoskrnl_libfini(void);
 extern void KeInitializeDpc(kdpc *, void *, void *);
 extern uint8_t KeInsertQueueDpc(kdpc *, void *, void *);
 extern uint8_t KeRemoveQueueDpc(kdpc *);
+extern void KeSetImportanceDpc(kdpc *, uint32_t);
+extern void KeSetTargetProcessorDpc(kdpc *, uint8_t);
+extern void KeFlushQueuedDpcs(void);
+extern uint32_t KeGetCurrentProcessorNumber(void);
 extern void KeInitializeTimer(ktimer *);
 extern void KeInitializeTimerEx(ktimer *, uint32_t);
 extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
@@ -1237,8 +1294,13 @@ extern uint8_t IoCancelIrp(irp *);
 extern void IoDetachDevice(device_object *);
 extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 	device_object *);
-mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
-void IoFreeMdl(mdl *);
+extern mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
+extern void IoFreeMdl(mdl *);
+extern io_workitem *IoAllocateWorkItem(device_object *);
+extern void ExQueueWorkItem(work_queue_item *, u_int32_t);
+extern void IoFreeWorkItem(io_workitem *);
+extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
+	uint32_t, void *);
 
 #define IoCallDriver(a, b)		IofCallDriver(a, b)
 #define IoCompleteRequest(a, b)		IofCompleteRequest(a, b)
