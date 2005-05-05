@@ -721,7 +721,8 @@ loop:
 			return (0);
 		}
 		mtx_lock_spin(&sched_lock);
-		if (P_SHOULDSTOP(p) && p->p_suspcount == p->p_numthreads &&
+		if ((p->p_flag & P_STOPPED_SIG) &&
+		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || options & WUNTRACED)) {
 			mtx_unlock_spin(&sched_lock);
