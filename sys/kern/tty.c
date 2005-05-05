@@ -2752,7 +2752,7 @@ ttyrel(struct tty *tp)
 	    ("ttyrel(): tty refcnt is %d (%s)",
 	    tp->t_refcnt, tp->t_dev != NULL ? devtoname(tp->t_dev) : "??"));
 	i = --tp->t_refcnt;
-	if (i != 0) {
+	if (i > 0) {
 		mtx_unlock(&tp->t_mtx);
 		mtx_unlock(&tty_list_mutex);
 		return (i);
@@ -2787,7 +2787,17 @@ ttymalloc(struct tty *tp)
 		 * XXX: require it and do a ttyrel(tp) here and allocate
 		 * XXX: a new tty.  For now do nothing.
 		 */
-		return(tp);
+		/* 
+		 * If ttyrel() will recycle the tty, go ahead
+		 * and let it. Otherwise conform to the old behavior.
+		 * The console device in particular ends up here with
+		 * positive refcounts, and destroying it really messes
+		 * up init.
+		 */
+		if(tp->t_refcnt <= 1) 
+			ttyrel(tp);
+		else
+			return(tp);
 	}
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	tp->t_timeout = -1;
