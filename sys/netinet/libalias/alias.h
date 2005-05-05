@@ -183,7 +183,9 @@ int		LibAliasProxyRule(struct libalias *, const char *_cmd);
  * If PKT_ALIAS_LOG is set, a message will be printed to /var/log/alias.log
  * every time a link is created or deleted.  This is useful for debugging.
  */
+#ifndef	NO_LOGGING
 #define	PKT_ALIAS_LOG			0x01
+#endif
 
 /*
  * If PKT_ALIAS_DENY_INCOMING is set, then incoming connections (e.g. to ftp,
