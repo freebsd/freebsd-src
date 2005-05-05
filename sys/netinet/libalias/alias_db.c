@@ -341,6 +341,43 @@ struct alias_link {		/* Main data structure */
 	}		data;
 };
 
+/* Clean up procedure. */
+static void finishoff(void);
+
+/* Kernel module definition. */
+#ifdef	_KERNEL
+MALLOC_DEFINE(M_ALIAS, "libalias", "packet aliasing");
+
+MODULE_VERSION(libalias, 1);
+
+static int
+alias_mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		break;
+	case MOD_QUIESCE:
+	case MOD_UNLOAD:
+		finishoff();
+		error = 0;
+		break;
+	default:
+		error = EINVAL;
+	}
+
+	return (error);
+}
+
+static moduledata_t alias_mod = {
+       "alias", alias_mod_handler, NULL
+};
+
+DECLARE_MODULE(alias, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+#endif
+
 /* Internal utility routines (used only in alias_db.c)
 
 Lookup table starting points:
@@ -1766,7 +1803,11 @@ SetStateIn(struct alias_link *lnk, int state)
 			lnk->expire_time = TCP_EXPIRE_CONNECTED;
 		break;
 	default:
+#ifdef	_KERNEL
+		panic("libalias:SetStateIn() unknown state");
+#else
 		abort();
+#endif
 	}
 	lnk->data.tcp->state.in = state;
 }
@@ -1788,7 +1829,11 @@ SetStateOut(struct alias_link *lnk, int state)
 			lnk->expire_time = TCP_EXPIRE_CONNECTED;
 		break;
 	default:
+#ifdef	_KERNEL
+		panic("libalias:SetStateOut() unknown state");
+#else
 		abort();
+#endif
 	}
 	lnk->data.tcp->state.out = state;
 }
@@ -2110,16 +2155,22 @@ void
 HouseKeeping(struct libalias *la)
 {
 	int i, n, n100;
+#ifndef	_KERNEL
 	struct timeval tv;
 	struct timezone tz;
+#endif
 
 	/*
 	 * Save system time (seconds) in global variable timeStamp for use
 	 * by other functions. This is done so as not to unnecessarily
 	 * waste timeline by making system calls.
 	 */
+#ifdef	_KERNEL
+	la->timeStamp = time_second;
+#else
 	gettimeofday(&tv, &tz);
 	la->timeStamp = tv.tv_sec;
+#endif
 
 	/* Compute number of spokes (output table link chains) to cover */
 	n100 = LINK_TABLE_OUT_SIZE * 100 + la->houseKeepingResidual;
@@ -2379,20 +2430,30 @@ struct libalias *
 LibAliasInit(struct libalias *la)
 {
 	int i;
+#ifndef	_KERNEL
 	struct timeval tv;
 	struct timezone tz;
+#endif
 
 	if (la == NULL) {
 		la = calloc(sizeof *la, 1);
 		if (la == NULL)
 			return (la);
+
+#ifndef	_KERNEL		/* kernel cleans up on module unload */
 		if (LIST_EMPTY(&instancehead))
 			atexit(finishoff);
+#endif
 		LIST_INSERT_HEAD(&instancehead, la, instancelist);
 
+#ifdef	_KERNEL
+		la->timeStamp = time_second;
+		la->lastCleanupTime = time_second;
+#else
 		gettimeofday(&tv, &tz);
 		la->timeStamp = tv.tv_sec;
 		la->lastCleanupTime = tv.tv_sec;
+#endif
 		la->houseKeepingResidual = 0;
 
 		for (i = 0; i < LINK_TABLE_OUT_SIZE; i++)
