@@ -41,18 +41,29 @@ __FBSDID("$FreeBSD$");
 */
 
 /* Includes */
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/ctype.h>
+#include <sys/libkern.h>
+#else
+#include <sys/types.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
+#include <arpa/inet.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#else
 #include "alias_local.h"
+#endif
 
 typedef struct {
 	struct in_addr	oldaddr;

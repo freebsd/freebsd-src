@@ -142,28 +142,42 @@ __FBSDID("$FreeBSD$");
     See HISTORY file for additional revisions.
 */
 
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
+#include <sys/types.h>
+#endif
 
-/* System include files */
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
+#include <sys/errno.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/types.h>
+
+#ifdef _KERNEL
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#else 
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h> 
+#include <arpa/inet.h>
+#endif
 
 /* BSD network include files */
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
 
+#ifdef _KERNEL  
+#include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
+#else
 #include "alias.h"
 #include "alias_local.h"
-
+#endif
 
 static		LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
 

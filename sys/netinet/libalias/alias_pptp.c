@@ -66,15 +66,23 @@ __FBSDID("$FreeBSD$");
 */
 
 /* Includes */
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
 #include <sys/types.h>
+#include <stdio.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-#include <stdio.h>
-
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#else
 #include "alias_local.h"
+#endif
 
 /*
  * PPTP definitions
