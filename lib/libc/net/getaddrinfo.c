@@ -266,20 +266,26 @@ static struct _hostconf _hostconf[MAXHOSTCONF] = {
 static int	_hostconf_init_done;
 static void	_hostconf_init(void);
 
-/* Make getaddrinfo() thread-safe in libc for use with kernel threads. */
-#include "libc_private.h"
-#include "spinlock.h"
 /*
  * XXX: Our res_*() is not thread-safe.  So, we share lock between
  * getaddrinfo() and getipnodeby*().  Still, we cannot use
  * getaddrinfo() and getipnodeby*() in conjunction with other
  * functions which call res_*().
  */
-spinlock_t __getaddrinfo_thread_lock = _SPINLOCK_INITIALIZER;
+#ifndef _THREAD_SAFE
+#define THREAD_LOCK()
+#define THREAD_UNLOCK()
+#else
+#include <pthread.h>
+#include "pthread_private.h"
+static struct pthread_mutex getaddrinfo_thread_mutex =
+    PTHREAD_MUTEX_STATIC_INITIALIZER;
+pthread_mutex_t __getaddrinfo_thread_lock = &getaddrinfo_thread_mutex;
 #define THREAD_LOCK() \
-	if (__isthreaded) _SPINLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) pthread_mutex_lock(&__getaddrinfo_thread_lock);
 #define THREAD_UNLOCK() \
-	if (__isthreaded) _SPINUNLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) pthread_mutex_unlock(&__getaddrinfo_thread_lock);
+#endif /* _THREAD_SAFE */
 
 /* XXX macros that make external reference is BAD. */
 
@@ -678,15 +684,13 @@ explore_fqdn(pai, hostname, servname, res)
 	result = NULL;
 	*res = NULL;
 
-	THREAD_LOCK();
-
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
 	 */
-	if (get_portmatch(pai, servname) != 0) {
-		THREAD_UNLOCK();
+	if (get_portmatch(pai, servname) != 0)
 		return 0;
-	}
+
+	THREAD_LOCK();
 
 	if (!_hostconf_init_done)
 		_hostconf_init();
@@ -697,11 +701,11 @@ explore_fqdn(pai, hostname, servname, res)
 		error = (*_hostconf[i].byname)(pai, hostname, &result);
 		if (error != 0)
 			continue;
+		THREAD_UNLOCK();
 		for (cur = result; cur; cur = cur->ai_next) {
 			GET_PORT(cur, servname);
 			/* canonname should be filled already */
 		}
-		THREAD_UNLOCK();
 		*res = result;
 		return 0;
 	}
@@ -1071,9 +1075,13 @@ get_port(ai, servname, matchonly)
 			break;
 		}
 
-		if ((sp = getservbyname(servname, proto)) == NULL)
+		THREAD_LOCK();
+		if ((sp = getservbyname(servname, proto)) == NULL) {
+			THREAD_UNLOCK();
 			return EAI_SERVICE;
+		}
 		port = sp->s_port;
+		THREAD_UNLOCK();
 	}
 
 	if (!matchonly) {

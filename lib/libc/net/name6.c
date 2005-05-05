@@ -185,20 +185,24 @@ static void	 _dns_ehent(void);
 static struct	 hostent *_icmp_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 #endif /* ICMPNL */
 
-/* Make getipnodeby*() thread-safe in libc for use with kernel threads. */
-#include "libc_private.h"
-#include "spinlock.h"
 /*
  * XXX: Our res_*() is not thread-safe.  So, we share lock between
  * getaddrinfo() and getipnodeby*().  Still, we cannot use
  * getaddrinfo() and getipnodeby*() in conjunction with other
  * functions which call res_*().
  */
-extern spinlock_t __getaddrinfo_thread_lock;
+#ifndef _THREAD_SAFE
+#define THREAD_LOCK()
+#define THREAD_UNLOCK()
+#else
+#include <pthread.h>
+#include "pthread_private.h"
+extern pthread_mutex_t __getaddrinfo_thread_lock;
 #define THREAD_LOCK() \
-	if (__isthreaded) _SPINLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) pthread_mutex_lock(&__getaddrinfo_thread_lock);
 #define THREAD_UNLOCK() \
-	if (__isthreaded) _SPINUNLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) pthread_mutex_unlock(&__getaddrinfo_thread_lock);
+#endif /* _THREAD_SAFE */
 
 /*
  * Select order host function.
@@ -357,15 +361,12 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 
-	THREAD_LOCK();
 	for (i = 0; i < MAXHOSTCONF; i++) {
 		if (_hostconf[i].byname
 		    && (hp = (*_hostconf[i].byname)(name, af, errp)) != NULL) {
-			THREAD_UNLOCK();
 			return hp;
 		}
 	}
-	THREAD_UNLOCK();
 
 	return NULL;
 }
@@ -411,6 +412,7 @@ _getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 		return _hpaddr(af, name, &addrbuf, errp);
 	}
 
+	THREAD_LOCK();
 	if (!_hostconf_init_done)
 		_hostconf_init();
 
@@ -433,6 +435,7 @@ _getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 		}
 	}
 #endif
+	THREAD_UNLOCK();
 	return _hpsort(hp);
 }
 
@@ -503,9 +506,9 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 		return NULL;
 	}
 
+	THREAD_LOCK();
 	if (!_hostconf_init_done)
 		_hostconf_init();
-	THREAD_LOCK();
 	for (i = 0; i < MAXHOSTCONF; i++) {
 		if (_hostconf[i].byaddr
 		&& (hp = (*_hostconf[i].byaddr)(src, len, af, errp)) != NULL) {

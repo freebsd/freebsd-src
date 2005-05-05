@@ -83,6 +83,25 @@ static int ip6_parsenumeric __P((const struct sockaddr *, const char *, char *,
 static int ip6_sa2str __P((const struct sockaddr_in6 *, char *, size_t, int));
 #endif
 
+/*
+ * XXX: Our res_*() is not thread-safe.  So, we share lock between
+ * getaddrinfo() and getipnodeby*().  Still, we cannot use
+ * getaddrinfo() and getipnodeby*() in conjunction with other
+ * functions which call res_*().
+ */
+#ifndef _THREAD_SAFE
+#define THREAD_LOCK()
+#define THREAD_UNLOCK()
+#else
+#include <pthread.h>
+#include "pthread_private.h"
+extern pthread_mutex_t __getaddrinfo_thread_lock;
+#define THREAD_LOCK() \
+	if (__isthreaded) pthread_mutex_lock(&__getaddrinfo_thread_lock);
+#define THREAD_UNLOCK() \
+	if (__isthreaded) pthread_mutex_unlock(&__getaddrinfo_thread_lock);
+#endif /* _THREAD_SAFE */
+
 int
 getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	const struct sockaddr *sa;
@@ -134,6 +153,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		 * servlen == 0 means that the caller does not want the result.
 		 */
 	} else {
+		THREAD_LOCK();
 		if (flags & NI_NUMERICSERV)
 			sp = NULL;
 		else {
@@ -141,15 +161,20 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				(flags & NI_DGRAM) ? "udp" : "tcp");
 		}
 		if (sp) {
-			if (strlen(sp->s_name) + 1 > servlen)
+			if (strlen(sp->s_name) + 1 > servlen) {
+				THREAD_UNLOCK();
 				return EAI_MEMORY;
+			}
 			strlcpy(serv, sp->s_name, servlen);
 		} else {
 			snprintf(numserv, sizeof(numserv), "%u", ntohs(port));
-			if (strlen(numserv) + 1 > servlen)
+			if (strlen(numserv) + 1 > servlen) {
+				THREAD_UNLOCK();
 				return EAI_MEMORY;
+			}
 			strlcpy(serv, numserv, servlen);
 		}
+		THREAD_UNLOCK();
 	}
 
 	switch (sa->sa_family) {
