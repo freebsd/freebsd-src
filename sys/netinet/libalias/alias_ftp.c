@@ -69,16 +69,28 @@ __FBSDID("$FreeBSD$");
 */
 
 /* Includes */
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/ctype.h>
+#include <sys/libkern.h>
+#else
+#include <sys/types.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
+#endif
+
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+#ifdef _KERNEL
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias.h>
+#else
 #include "alias_local.h"
+#endif
 
 #define FTP_CONTROL_PORT_NUMBER 21
 #define MAX_MESSAGE_SIZE	128

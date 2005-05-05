@@ -27,10 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdlib.h>
+#ifdef _KERNEL
+#include <sys/param.h>
+#else
 #include <sys/types.h>
+#include <stdlib.h>
+#endif
+
 #include <netinet/in.h>
+
+#ifdef _KERNEL
+#include <netinet/libalias/alias.h>
+#else
 #include "alias.h"
+#endif
 
 /*
  * These functions are for backwards compatibility and because apps may
