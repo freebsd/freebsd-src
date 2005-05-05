@@ -117,9 +117,9 @@
 	<!-- Convert " ... " to `` ... '' in the HTML output. -->
 	(element quote
 	  (make sequence
-	    (literal "``")
+	    (literal "&#8220;")
 	    (process-children)
-	    (literal "''")))
+	    (literal "&#8221;")))
 
         <!-- Specify how to generate the man page link HREF -->
         (define ($create-refentry-xref-link$ #!optional (n (current-node)))
