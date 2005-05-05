@@ -62,12 +62,12 @@ struct scgs_vector {
 };
 
 int	use_sysctl = 1;
-struct semid_ds	*sema;
+struct semid_kernel	*sema;
 struct seminfo	seminfo;
 struct msginfo	msginfo;
-struct msqid_ds	*msqids;
+struct msqid_kernel	*msqids;
 struct shminfo	shminfo;
-struct shmid_ds	*shmsegs;
+struct shmid_kernel	*shmsegs;
 
 char   *fmt_perm(u_short);
 void	cvt_time(time_t, char *);
@@ -299,13 +299,13 @@ main(argc, argv)
 			    msginfo.msgseg);
 		}
 		if (display & MSGINFO) {
-			struct msqid_ds *xmsqids;
-			size_t xmsqids_len;
+			struct msqid_kernel *kxmsqids;
+			size_t kxmsqids_len;
 
 
-			xmsqids_len = sizeof(struct msqid_ds) * msginfo.msgmni;
-			xmsqids = malloc(xmsqids_len);
-			kget(X_MSQIDS, xmsqids, xmsqids_len);
+			kxmsqids_len = sizeof(struct msqid_kernel) * msginfo.msgmni;
+			kxmsqids = malloc(kxmsqids_len);
+			kget(X_MSQIDS, kxmsqids, kxmsqids_len);
 
 			printf("Message Queues:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -321,43 +321,43 @@ main(argc, argv)
 				printf("    STIME    RTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < msginfo.msgmni; i += 1) {
-				if (xmsqids[i].msg_qbytes != 0) {
+				if (kxmsqids[i].u.msg_qbytes != 0) {
 					char    stime_buf[100], rtime_buf[100],
 					        ctime_buf[100];
-					struct msqid_ds *msqptr = &xmsqids[i];
+					struct msqid_kernel *kmsqptr = &kxmsqids[i];
 
 					if (user)
-						if (uid != msqptr->msg_perm.uid)
+						if (uid != kmsqptr->u.msg_perm.uid)
 							continue;
-					cvt_time(msqptr->msg_stime, stime_buf);
-					cvt_time(msqptr->msg_rtime, rtime_buf);
-					cvt_time(msqptr->msg_ctime, ctime_buf);
+					cvt_time(kmsqptr->u.msg_stime, stime_buf);
+					cvt_time(kmsqptr->u.msg_rtime, rtime_buf);
+					cvt_time(kmsqptr->u.msg_ctime, ctime_buf);
 
 					printf("q %6d %10d %s %8s %8s",
-					    IXSEQ_TO_IPCID(i, msqptr->msg_perm),
-					    (int)msqptr->msg_perm.key,
-					    fmt_perm(msqptr->msg_perm.mode),
-					    user_from_uid(msqptr->msg_perm.uid, 0),
-					    group_from_gid(msqptr->msg_perm.gid, 0));
+					    IXSEQ_TO_IPCID(i, kmsqptr->u.msg_perm),
+					    (int)kmsqptr->u.msg_perm.key,
+					    fmt_perm(kmsqptr->u.msg_perm.mode),
+					    user_from_uid(kmsqptr->u.msg_perm.uid, 0),
+					    group_from_gid(kmsqptr->u.msg_perm.gid, 0));
 
 					if (option & CREATOR)
 						printf(" %8s %8s",
-						    user_from_uid(msqptr->msg_perm.cuid, 0),
-						    group_from_gid(msqptr->msg_perm.cgid, 0));
+						    user_from_uid(kmsqptr->u.msg_perm.cuid, 0),
+						    group_from_gid(kmsqptr->u.msg_perm.cgid, 0));
 
 					if (option & OUTSTANDING)
 						printf(" %6lu %6lu",
-						    msqptr->msg_cbytes,
-						    msqptr->msg_qnum);
+						    kmsqptr->u.msg_cbytes,
+						    kmsqptr->u.msg_qnum);
 
 					if (option & BIGGEST)
 						printf(" %6lu",
-						    msqptr->msg_qbytes);
+						    kmsqptr->u.msg_qbytes);
 
 					if (option & PID)
 						printf(" %6d %6d",
-						    msqptr->msg_lspid,
-						    msqptr->msg_lrpid);
+						    kmsqptr->u.msg_lspid,
+						    kmsqptr->u.msg_lrpid);
 
 					if (option & TIME)
 						printf(" %s %s %s",
@@ -392,12 +392,12 @@ main(argc, argv)
 			    shminfo.shmall);
 		}
 		if (display & SHMINFO) {
-			struct shmid_ds *xshmids;
-			size_t xshmids_len;
+			struct shmid_kernel *kxshmids;
+			size_t kxshmids_len;
 
-			xshmids_len = sizeof(struct shmid_ds) * shminfo.shmmni;
-			xshmids = malloc(xshmids_len);
-			kget(X_SHMSEGS, xshmids, xshmids_len);
+			kxshmids_len = sizeof(struct shmid_kernel) * shminfo.shmmni;
+			kxshmids = malloc(kxshmids_len);
+			kget(X_SHMSEGS, kxshmids, kxshmids_len);
 
 			printf("Shared Memory:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -413,42 +413,42 @@ main(argc, argv)
 				printf("    ATIME    DTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < shminfo.shmmni; i += 1) {
-				if (xshmids[i].shm_perm.mode & 0x0800) {
+				if (kxshmids[i].u.shm_perm.mode & 0x0800) {
 					char    atime_buf[100], dtime_buf[100],
 					        ctime_buf[100];
-					struct shmid_ds *shmptr = &xshmids[i];
+					struct shmid_kernel *kshmptr = &kxshmids[i];
 
 					if (user)
-						if (uid != shmptr->shm_perm.uid)
+						if (uid != kshmptr->u.shm_perm.uid)
 							continue;
-					cvt_time(shmptr->shm_atime, atime_buf);
-					cvt_time(shmptr->shm_dtime, dtime_buf);
-					cvt_time(shmptr->shm_ctime, ctime_buf);
+					cvt_time(kshmptr->u.shm_atime, atime_buf);
+					cvt_time(kshmptr->u.shm_dtime, dtime_buf);
+					cvt_time(kshmptr->u.shm_ctime, ctime_buf);
 
 					printf("m %6d %10d %s %8s %8s",
-					    IXSEQ_TO_IPCID(i, shmptr->shm_perm),
-					    (int)shmptr->shm_perm.key,
-					    fmt_perm(shmptr->shm_perm.mode),
-					    user_from_uid(shmptr->shm_perm.uid, 0),
-					    group_from_gid(shmptr->shm_perm.gid, 0));
+					    IXSEQ_TO_IPCID(i, kshmptr->u.shm_perm),
+					    (int)kshmptr->u.shm_perm.key,
+					    fmt_perm(kshmptr->u.shm_perm.mode),
+					    user_from_uid(kshmptr->u.shm_perm.uid, 0),
+					    group_from_gid(kshmptr->u.shm_perm.gid, 0));
 
 					if (option & CREATOR)
 						printf(" %8s %8s",
-						    user_from_uid(shmptr->shm_perm.cuid, 0),
-						    group_from_gid(shmptr->shm_perm.cgid, 0));
+						    user_from_uid(kshmptr->u.shm_perm.cuid, 0),
+						    group_from_gid(kshmptr->u.shm_perm.cgid, 0));
 
 					if (option & OUTSTANDING)
 						printf(" %6d",
-						    shmptr->shm_nattch);
+						    kshmptr->u.shm_nattch);
 
 					if (option & BIGGEST)
 						printf(" %6d",
-						    shmptr->shm_segsz);
+						    kshmptr->u.shm_segsz);
 
 					if (option & PID)
 						printf(" %6d %6d",
-						    shmptr->shm_cpid,
-						    shmptr->shm_lpid);
+						    kshmptr->u.shm_cpid,
+						    kshmptr->u.shm_lpid);
 
 					if (option & TIME)
 						printf(" %s %s %s",
@@ -469,8 +469,8 @@ main(argc, argv)
 
 	kget(X_SEMINFO, &seminfo, sizeof(seminfo));
 	if ((display & (SEMINFO | SEMTOTAL))) {
-		struct semid_ds *xsema;
-		size_t xsema_len;
+		struct semid_kernel *kxsema;
+		size_t kxsema_len;
 
 		if (display & SEMTOTAL) {
 			printf("seminfo:\n");
@@ -496,9 +496,9 @@ main(argc, argv)
 			    seminfo.semaem);
 		}
 		if (display & SEMINFO) {
-			xsema_len = sizeof(struct semid_ds) * seminfo.semmni;
-			xsema = malloc(xsema_len);
-			kget(X_SEMA, xsema, xsema_len);
+			kxsema_len = sizeof(struct semid_kernel) * seminfo.semmni;
+			kxsema = malloc(kxsema_len);
+			kget(X_SEMA, kxsema, kxsema_len);
 
 			printf("Semaphores:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -510,31 +510,31 @@ main(argc, argv)
 				printf("    OTIME    CTIME");
 			printf("\n");
 			for (i = 0; i < seminfo.semmni; i += 1) {
-				if ((xsema[i].sem_perm.mode & SEM_ALLOC) != 0) {
+				if ((kxsema[i].u.sem_perm.mode & SEM_ALLOC) != 0) {
 					char    ctime_buf[100], otime_buf[100];
-					struct semid_ds *semaptr = &xsema[i];
+					struct semid_kernel *ksemaptr = &kxsema[i];
 
 					if (user)
-						if (uid != semaptr->sem_perm.uid)
+						if (uid != ksemaptr->u.sem_perm.uid)
 							continue;
-					cvt_time(semaptr->sem_otime, otime_buf);
-					cvt_time(semaptr->sem_ctime, ctime_buf);
+					cvt_time(ksemaptr->u.sem_otime, otime_buf);
+					cvt_time(ksemaptr->u.sem_ctime, ctime_buf);
 
 					printf("s %6d %10d %s %8s %8s",
-					    IXSEQ_TO_IPCID(i, semaptr->sem_perm),
-					    (int)semaptr->sem_perm.key,
-					    fmt_perm(semaptr->sem_perm.mode),
-					    user_from_uid(semaptr->sem_perm.uid, 0),
-					    group_from_gid(semaptr->sem_perm.gid, 0));
+					    IXSEQ_TO_IPCID(i, ksemaptr->u.sem_perm),
+					    (int)ksemaptr->u.sem_perm.key,
+					    fmt_perm(ksemaptr->u.sem_perm.mode),
+					    user_from_uid(ksemaptr->u.sem_perm.uid, 0),
+					    group_from_gid(ksemaptr->u.sem_perm.gid, 0));
 
 					if (option & CREATOR)
 						printf(" %8s %8s",
-						    user_from_uid(semaptr->sem_perm.cuid, 0),
-						    group_from_gid(semaptr->sem_perm.cgid, 0));
+						    user_from_uid(ksemaptr->u.sem_perm.cuid, 0),
+						    group_from_gid(ksemaptr->u.sem_perm.cgid, 0));
 
 					if (option & BIGGEST)
 						printf(" %6d",
-						    semaptr->sem_nsems);
+						    ksemaptr->u.sem_nsems);
 
 					if (option & TIME)
 						printf(" %s %s",
