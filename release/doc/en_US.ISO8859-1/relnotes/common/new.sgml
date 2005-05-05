@@ -294,7 +294,7 @@
       <para>The &man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
 	the full packet destination manipulation when the kernel option
 	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> is specified
-	in addition to <literal>options IPFIRWALL_FORWARD</literal>.
+	in addition to <literal>options IPFIREWALL_FORWARD</literal>.
 	This kernel option disables all restrictions to ensure proper
 	behavior for locally generated packets and allows redirection of
 	packets destined to locally configured IP addresses.
@@ -363,7 +363,7 @@
 	utility.</para>
 
       <para>Information about newly-mounted cd9660 file systems (such
-	as the presence of Rockridge extensions) is now only printed
+	as the presence of RockRidge extensions) is now only printed
 	if the kernel was booted in verbose mode.  This change was
 	made to reduce the amount of (generally unnecessary) kernel
 	log messages.</para>
