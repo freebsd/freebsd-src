@@ -39,6 +39,15 @@
 #ifndef _ALIAS_H_
 #define	_ALIAS_H_
 
+#ifdef	_KERNEL
+/*
+ * The kernel version of libalias does not support these features.
+ */
+#define	NO_FW_PUNCH
+#define	NO_LOGGING
+#define	NO_USE_SOCKETS
+#endif
+
 /*
  * The external interface to libalias, the packet aliasing engine.
  *
