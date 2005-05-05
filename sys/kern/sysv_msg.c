@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/msg.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -340,27 +341,43 @@ msgctl(td, uap)
 {
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
-	struct msqid_ds *user_msqptr = uap->buf;
-	int rval, error;
 	struct msqid_ds msqbuf;
+	struct msqid_ds *msqptr;
+	int error;
+
+	DPRINTF(("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, uap->buf));
+	if (cmd == IPC_SET &&
+	    (error = copyin(uap->buf, &msqbuf, sizeof(msqbuf))) != 0)
+		return (error);
+	error = kern_msgctl(td, msqid, cmd, &msqbuf, &msqptr);
+	if (cmd == IPC_STAT && error == 0)
+		error = copyout(msqptr, uap->buf, sizeof(struct msqid_ds));
+	return (error);
+}
+
+int
+kern_msgctl(td, msqid, cmd, msqbuf, msqptr)
+	struct thread *td;
+	int msqid;
+	int cmd;
+	struct msqid_ds *msqbuf;
+	struct msqid_ds **msqptr;
+{
+	int rval, error, msqix;
 	register struct msqid_kernel *msqkptr;
 
-	DPRINTF(("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	msqid = IPCID_TO_IX(msqid);
+	msqix = IPCID_TO_IX(msqid);
 
-	if (msqid < 0 || msqid >= msginfo.msgmni) {
-		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
+	if (msqix < 0 || msqix >= msginfo.msgmni) {
+		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqix,
 		    msginfo.msgmni));
 		return (EINVAL);
 	}
-	if (cmd == IPC_SET &&
-	    (error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
-		return (error);
 
-	msqkptr = &msqids[msqid];
+	msqkptr = &msqids[msqix];
 
 	mtx_lock(&msq_mtx);
 	if (msqkptr->u.msg_qbytes == 0) {
@@ -368,7 +385,7 @@ msgctl(td, uap)
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
@@ -413,26 +430,26 @@ msgctl(td, uap)
 	case IPC_SET:
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
-		if (msqbuf.msg_qbytes > msqkptr->u.msg_qbytes) {
+		if (msqbuf->msg_qbytes > msqkptr->u.msg_qbytes) {
 			error = suser(td);
 			if (error)
 				goto done2;
 		}
-		if (msqbuf.msg_qbytes > msginfo.msgmnb) {
+		if (msqbuf->msg_qbytes > msginfo.msgmnb) {
 			DPRINTF(("can't increase msg_qbytes beyond %d"
 			    "(truncating)\n", msginfo.msgmnb));
-			msqbuf.msg_qbytes = msginfo.msgmnb;	/* silently restrict qbytes to system limit */
+			msqbuf->msg_qbytes = msginfo.msgmnb;	/* silently restrict qbytes to system limit */
 		}
-		if (msqbuf.msg_qbytes == 0) {
+		if (msqbuf->msg_qbytes == 0) {
 			DPRINTF(("can't reduce msg_qbytes to 0\n"));
 			error = EINVAL;		/* non-standard errno! */
 			goto done2;
 		}
-		msqkptr->u.msg_perm.uid = msqbuf.msg_perm.uid;	/* change the owner */
-		msqkptr->u.msg_perm.gid = msqbuf.msg_perm.gid;	/* change the owner */
+		msqkptr->u.msg_perm.uid = msqbuf->msg_perm.uid;	/* change the owner */
+		msqkptr->u.msg_perm.gid = msqbuf->msg_perm.gid;	/* change the owner */
 		msqkptr->u.msg_perm.mode = (msqkptr->u.msg_perm.mode & ~0777) |
-		    (msqbuf.msg_perm.mode & 0777);
-		msqkptr->u.msg_qbytes = msqbuf.msg_qbytes;
+		    (msqbuf->msg_perm.mode & 0777);
+		msqkptr->u.msg_qbytes = msqbuf->msg_qbytes;
 		msqkptr->u.msg_ctime = time_second;
 		break;
 
@@ -441,6 +458,7 @@ msgctl(td, uap)
 			DPRINTF(("requester doesn't have read access\n"));
 			goto done2;
 		}
+		*msqptr = &(msqkptr->u);
 		break;
 
 	default:
@@ -453,8 +471,6 @@ msgctl(td, uap)
 		td->td_retval[0] = rval;
 done2:
 	mtx_unlock(&msq_mtx);
-	if (cmd == IPC_STAT && error == 0)
-		error = copyout(&(msqkptr->u), user_msqptr, sizeof(struct msqid_ds));
 	return(error);
 }
 

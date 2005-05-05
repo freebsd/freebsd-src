@@ -635,33 +635,26 @@ linux_msgget(struct thread *td, struct linux_msgget_args *args)
 int
 linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 {
-    struct msgctl_args /* {
-	int     msqid;
-	int     cmd;
-	struct	msqid_ds *buf;
-    } */ bsd_args;
-    int error;
+    int error, bsd_cmd;
     struct l_msqid_ds linux_msqid;
-    caddr_t sg = stackgap_init();
+    struct msqid_ds bsd_msqid;
+    struct msqid_ds *bsd_msqptr;
 
     error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
       &linux_msqid, (caddr_t)PTRIN(args->buf));
     if (error != 0)
 	return (error);
-    bsd_args.buf = (struct msqid_ds*)stackgap_alloc(&sg,
-      sizeof(struct l_msqid_ds));
-    bsd_args.msqid = args->msqid;
-    bsd_args.cmd = args->cmd & ~LINUX_IPC_64;
-    if (bsd_args.cmd == LINUX_IPC_SET)
-	linux_to_bsd_msqid_ds(&linux_msqid, bsd_args.buf);
+    bsd_cmd = args->cmd & ~LINUX_IPC_64;
+    if (bsd_cmd == LINUX_IPC_SET)
+	linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
 
-    error = msgctl(td, &bsd_args);
+    error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid, &bsd_msqptr);
     if (error != 0)
-	if (bsd_args.cmd != LINUX_IPC_RMID || error != EINVAL)
+	if (bsd_cmd != LINUX_IPC_RMID || error != EINVAL)
 	    return (error);
 
-    if (bsd_args.cmd == LINUX_IPC_STAT) {
-	bsd_to_linux_msqid_ds(bsd_args.buf, &linux_msqid);
+    if (bsd_cmd == LINUX_IPC_STAT) {
+	bsd_to_linux_msqid_ds(bsd_msqptr, &linux_msqid);
 	return (linux_msqid_pushdown(args->cmd & LINUX_IPC_64,
 	  &linux_msqid, (caddr_t)PTRIN(args->buf)));
     }
