@@ -2768,13 +2768,13 @@ ndis_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
 
-	ndis_halt_nic(sc);
-
 	NDIS_LOCK(sc);
 	ifp->if_timer = 0;
 	sc->ndis_link = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	NDIS_UNLOCK(sc);
+
+	ndis_halt_nic(sc);
 
 	return;
 }
