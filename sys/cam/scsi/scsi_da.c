@@ -339,6 +339,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ACTIONS*" , "USB DISK*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * TEAC USB floppy mechanisms
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TEAC" , "FD-05*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
