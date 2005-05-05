@@ -188,8 +188,8 @@ AliasHandleName(u_char * p, char *pmax)
 		}
 #ifdef DEBUG
 		printf(":");
-#endif
 		fflush(stdout);
+#endif
 	}
 
 	/* Set up to out of Name field */
@@ -630,12 +630,12 @@ AliasHandleResource(
 			    "\nUnknown Type of Resource %0x\n",
 			    ntohs(q->type)
 			    );
+			fflush(stdout);
 #endif
 			break;
 		}
 		count--;
 	}
-	fflush(stdout);
 	return ((u_char *) q);
 }
 
