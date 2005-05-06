@@ -342,10 +342,6 @@ i386_get_ldt(p, args)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	/* verify range of LDTs exist */
-	if ((uap->start < 0) || (uap->num <= 0))
-		return(EINVAL);
-
 	s = splhigh();
 
 	if (pcb_ldt) {
@@ -357,7 +353,10 @@ i386_get_ldt(p, args)
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
 	}
-	if (uap->start + num > nldt) {
+
+	if ((uap->start > (unsigned int)nldt) ||
+	    ((unsigned int)num > (unsigned int)nldt) ||
+	    ((unsigned int)(uap->start + num) > (unsigned int)nldt)) {
 		splx(s);
 		return(EINVAL);
 	}
