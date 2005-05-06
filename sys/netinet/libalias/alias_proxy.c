@@ -175,11 +175,14 @@ inet_aton(cp, addr)
 	 */
 	gotend = 0;
 	while (!gotend) {
-		val = strtoul(c, &endptr, 0);
+		unsigned long l;
 
-		if (val == ULONG_MAX || val == 0)
+		l = strtoul(c, &endptr, 0);
+
+		if (l == ULONG_MAX || l == 0)
 			return (0);
-		
+
+		val = (in_addr_t)l;	
 		/* 
 		 * If the whole string is invalid, endptr will equal
 		 * c.. this way we can make sure someone hasn't
