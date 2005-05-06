@@ -558,7 +558,11 @@ amr_cam_complete(struct amr_command *ac)
     free(ap, M_DEVBUF);
     if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 	debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr, " ");
+    mtx_unlock(&ac->ac_sc->amr_io_lock);
+    mtx_lock(&Giant);
     xpt_done((union ccb *)csio);
+    mtx_unlock(&Giant);
+    mtx_lock(&ac->ac_sc->amr_io_lock);
     amr_releasecmd(ac);
 }
 
@@ -621,6 +625,10 @@ amr_cam_complete_extcdb(struct amr_command *ac)
     free(aep, M_DEVBUF);
     if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 	debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr, " ");
+    mtx_unlock(&ac->ac_sc->amr_io_lock);
+    mtx_lock(&Giant);
     xpt_done((union ccb *)csio);
+    mtx_unlock(&Giant);
+    mtx_lock(&ac->ac_sc->amr_io_lock);
     amr_releasecmd(ac);
 }
