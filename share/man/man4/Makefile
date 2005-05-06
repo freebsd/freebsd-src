@@ -194,6 +194,7 @@ MAN=	aac.4 \
 	ng_l2tp.4 \
 	ng_lmi.4 \
 	ng_mppc.4 \
+	ng_nat.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
 	ng_ppp.4 \
