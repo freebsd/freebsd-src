@@ -125,6 +125,7 @@ SUBDIR=	${_3dfx} \
 	joy \
 	kue \
 	lge \
+	libalias \
 	libiconv \
 	libmbpool \
 	libmchain \
