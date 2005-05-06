@@ -26,6 +26,7 @@ SUBDIR=	async \
 	l2tp \
 	lmi \
 	${_mppc} \
+	nat \
 	netflow \
 	netgraph \
 	one2many \
