@@ -1153,7 +1153,7 @@ ntfs_ntreaddir(
 	blsize = fp->f_dirblsz;
 	rdbuf = fp->f_dirblbuf;
 
-	dprintf(("ntfs_ntreaddir: rdbuf: 0x%p, blsize: %d\n", rdbuf, blsize));
+	dprintf(("ntfs_ntreaddir: rdbuf: %p, blsize: %d\n", rdbuf, blsize));
 
 	if (vap->va_a_iroot->ir_flag & NTFS_IRFLAG_INDXALLOC) {
 		error = ntfs_ntvattrget(ntmp, ip, NTFS_A_INDXBITMAP, "$I30",
@@ -1921,7 +1921,7 @@ ntfs_runtocn(
 
 #if NTFS_DEBUG
 	int             i;
-	printf("ntfs_runtocn: run: 0x%p, %ld bytes, vcn:%ld\n",
+	printf("ntfs_runtocn: run: %p, %ld bytes, vcn:%ld\n",
 		run, len, (u_long) vcn);
 	printf("ntfs_runtocn: run: ");
 	for (i = 0; i < len; i++)
