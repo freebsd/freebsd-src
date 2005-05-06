@@ -444,13 +444,6 @@ When you first run
 you may need to deal with some initial configuration details.
 .Bl -bullet
 .It
-Your kernel must {include} a tunnel device (the GENERIC kernel includes
-one by default).
-If it does not, the kernel will need to be rebuilt with the following
-lines added:
-.Pp
-.Dl device tun
-.It
 Make sure that your system has a group named
 .Dq network
 in the
