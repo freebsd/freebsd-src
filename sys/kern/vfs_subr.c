@@ -2895,6 +2895,7 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 
 	error = 0;
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+		bzero(&xvfsp, sizeof(xvfsp));
 		vfsconf2x(vfsp, &xvfsp);
 		error = SYSCTL_OUT(req, &xvfsp, sizeof xvfsp);
 		if (error)
@@ -2939,6 +2940,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
+		bzero(&xvfsp, sizeof(xvfsp));
 		vfsconf2x(vfsp, &xvfsp);
 		return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 	}
@@ -2958,6 +2960,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 	struct ovfsconf ovfs;
 
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+		bzero(&ovfs, sizeof(ovfs));
 		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
 		strcpy(ovfs.vfc_name, vfsp->vfc_name);
 		ovfs.vfc_index = vfsp->vfc_typenum;

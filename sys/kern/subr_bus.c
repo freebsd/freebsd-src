@@ -3741,6 +3741,7 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Populate the return array.
 	 */
+	bzero(&udev, sizeof(udev));
 	udev.dv_handle = (uintptr_t)dev;
 	udev.dv_parent = (uintptr_t)dev->parent;
 	if (dev->nameunit == NULL)
@@ -3812,6 +3813,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	 * resource manager.
 	 */
 	if (res_idx == -1) {
+		bzero(&urm, sizeof(urm));
 		urm.rm_handle = (uintptr_t)rm;
 		strlcpy(urm.rm_descr, rm->rm_descr, RM_TEXTLEN);
 		urm.rm_start = rm->rm_start;
@@ -3827,6 +3829,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	 */
 	TAILQ_FOREACH(res, &rm->rm_list, r_link) {
 		if (res_idx-- == 0) {
+			bzero(&ures, sizeof(ures));
 			ures.r_handle = (uintptr_t)res;
 			ures.r_parent = (uintptr_t)res->r_rm;
 			ures.r_device = (uintptr_t)res->r_dev;
