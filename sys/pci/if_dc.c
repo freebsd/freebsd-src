@@ -2148,7 +2148,7 @@ dc_attach(device_t dev)
 
 	/* Allocate a busdma tag for mbufs. */
 	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES DC_TX_LIST_CNT, MCLBYTES,
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, DC_TX_LIST_CNT, MCLBYTES,
 	    0, NULL, NULL, &sc->dc_mtag);
 	if (error) {
 		printf("dc%d: failed to allocate busdma tag\n", unit);
