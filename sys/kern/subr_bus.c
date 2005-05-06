@@ -3954,6 +3954,7 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Populate the return array.
 	 */
+	bzero(&udev, sizeof(udev));
 	udev.dv_handle = (uintptr_t)dev;
 	udev.dv_parent = (uintptr_t)dev->parent;
 	if (dev->nameunit == NULL)
