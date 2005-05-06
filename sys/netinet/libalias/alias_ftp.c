@@ -679,7 +679,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		tc->th_sum = 0;
 		tc->th_sum = TcpChecksum(pip);
 	} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr,
 		    "PacketAlias/HandleFtpOut: Cannot allocate FTP data port\n");
 #endif

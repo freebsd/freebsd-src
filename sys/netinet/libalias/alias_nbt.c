@@ -107,7 +107,7 @@ typedef struct {
 #define CFT_ERR		0x7
 
 
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 static void
 PrintRcode(u_char rcode)
 {
@@ -167,13 +167,13 @@ AliasHandleName(u_char * p, char *pmax)
 			p = NULL;
 			break;
 		}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		printf(":");
 #endif
 		while (s < p) {
 			if (compress == 1) {
 				c = (u_char) (((((*s & 0x0f) << 4) | (*(s + 1) & 0x0f)) - 0x11));
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				if (isprint(c))
 					printf("%c", c);
 				else
@@ -181,13 +181,13 @@ AliasHandleName(u_char * p, char *pmax)
 #endif
 				s += 2;
 			} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				printf("%c", *s);
 #endif
 				s++;
 			}
 		}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		printf(":");
 		fflush(stdout);
 #endif
@@ -236,7 +236,7 @@ AliasHandleUdpNbt(
 	ndh = (NbtDataHeader *)udp_next(uh);
 	if ((char *)(ndh + 1) > pmax)
 		return (-1);
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf("\nType=%02x,", ndh->type);
 #endif
 	switch (ndh->type) {
@@ -259,7 +259,7 @@ AliasHandleUdpNbt(
 	}
 	if (p == NULL || (char *)p > pmax)
 		p = NULL;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf("%s:%d-->", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port));
 #endif
 	/* Doing an IP address and Port number Translation */
@@ -279,7 +279,7 @@ AliasHandleUdpNbt(
 	}
 	ndh->source_ip = *alias_address;
 	ndh->source_port = alias_port;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf("%s:%d\n", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port));
 	fflush(stdout);
 #endif
@@ -320,7 +320,7 @@ AliasHandleQuestion(
 			q = q + 1;
 			break;
 		default:
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			printf("\nUnknown Type on Question %0x\n", ntohs(q->type));
 #endif
 			break;
@@ -371,7 +371,7 @@ AliasHandleResourceNB(
 	nb = (NBTNsRNB *) ((u_char *) q + SizeOfNsResource);
 
 	/* Processing all in_addr array */
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf("NB rec[%s", inet_ntoa(nbtarg->oldaddr));
 	printf("->%s, %dbytes] ", inet_ntoa(nbtarg->newaddr), bcount);
 #endif
@@ -380,7 +380,7 @@ AliasHandleResourceNB(
 			nb = NULL;
 			break;
 		}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		printf("<%s>", inet_ntoa(nb->addr));
 #endif
 		if (!bcmp(&nbtarg->oldaddr, &nb->addr, sizeof(struct in_addr))) {
@@ -397,11 +397,11 @@ AliasHandleResourceNB(
 				ADJUST_CHECKSUM(acc, *nbtarg->uh_sum);
 			}
 			nb->addr = nbtarg->newaddr;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			printf("O");
 #endif
 		}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		else {
 			printf(".");
 		}
@@ -439,14 +439,14 @@ AliasHandleResourceA(
 	bcount = ntohs(q->rdlen);
 
 	/* Processing all in_addr array */
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf("Arec [%s", inet_ntoa(nbtarg->oldaddr));
 	printf("->%s]", inet_ntoa(nbtarg->newaddr));
 #endif
 	while (bcount != 0) {
 		if (a == NULL || (char *)(a + 1) > pmax)
 			return (NULL);
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		printf("..%s", inet_ntoa(a->addr));
 #endif
 		if (!bcmp(&nbtarg->oldaddr, &a->addr, sizeof(struct in_addr))) {
@@ -584,7 +584,7 @@ AliasHandleResource(
 
 		if (q == NULL || (char *)(q + 1) > pmax)
 			break;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		printf("type=%02x, count=%d\n", ntohs(q->type), count);
 #endif
 
@@ -626,7 +626,7 @@ AliasHandleResource(
 			    );
 			break;
 		default:
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			printf(
 			    "\nUnknown Type of Resource %0x\n",
 			    ntohs(q->type)
@@ -675,7 +675,7 @@ AliasHandleUdpNbtNS(
 	if ((char *)(nsh + 1) > pmax)
 		return (-1);
 
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	printf(" [%s] ID=%02x, op=%01x, flag=%02x, rcode=%01x, qd=%04x"
 	    ", an=%04x, ns=%04x, ar=%04x, [%d]-->",
 	    nsh->dir ? "Response" : "Request",
@@ -727,7 +727,7 @@ AliasHandleUdpNbtNS(
 		    &nbtarg
 		    );
 	}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	PrintRcode(nsh->rcode);
 #endif
 	return ((p == NULL) ? -1 : 0);
