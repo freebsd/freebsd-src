@@ -49,6 +49,7 @@ void	btrap(void);
 void	eintr(void);
 void	user(void);
 #endif
+#include <machine/atomic.h>
 
 /*
  * mcount is called on entry to each function compiled with the profiling
@@ -92,7 +93,8 @@ _MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)
 #ifdef _KERNEL
 	MCOUNT_ENTER(s);
 #else
-	p->state = GMON_PROF_BUSY;
+	if (!atomic_cmpset_acq_int(&p->state, GMON_PROF_ON, GMON_PROF_BUSY))
+		return;
 #endif
 	frompci = frompc - p->lowpc;
 
@@ -260,11 +262,11 @@ done:
 #ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #else
-	p->state = GMON_PROF_ON;
+	atomic_store_rel_int(&p->state, GMON_PROF_ON);
 #endif
 	return;
 overflow:
-	p->state = GMON_PROF_ERROR;
+	atomic_store_rel_int(&p->state, GMON_PROF_ERROR);
 #ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #endif
