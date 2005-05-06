@@ -141,6 +141,7 @@ static char	varNoError[] = "";
  * The four contexts are searched in the reverse order from which they are
  * listed.
  */
+GNode	*VAR_ENV;	/* variables from the environment */
 GNode	*VAR_GLOBAL;	/* variables from the makefile */
 GNode	*VAR_CMD;	/* variables defined on the command-line */
 
@@ -283,19 +284,14 @@ static Var *
 VarFindEnv(const char name[], GNode *ctxt)
 {
 	Var	*var;
-	char	*env;
 
 	name = VarLocal(name);
 
-	/* First look for the variable in the given context. */
 	if ((var = VarLookup(&ctxt->context, name)) != NULL)
 		return (var);
 
-	/* Look for the variable in the environment. */
-	if ((env = getenv(name)) != NULL) {
-		/* craft this variable from the environment value */
-		return (VarCreate(name, env, VAR_FROM_ENV));
-	}
+	if ((var = VarLookup(&VAR_ENV->context, name)) != NULL)
+		return (var);
 
 	return (NULL);
 }
@@ -325,7 +321,6 @@ VarFindAny(const char name[], GNode *ctxt)
 	Boolean	localCheckEnvFirst;
 	LstNode	*ln;
 	Var	*var;
-	char	*env;
 
 	name = VarLocal(name);
 
@@ -361,11 +356,8 @@ VarFindAny(const char name[], GNode *ctxt)
 			return (var);
 	}
 
-	/* look in the environment */
-	if ((env = getenv(name)) != NULL) {
-		/* craft this variable from the environment value */
-		return (VarCreate(name, env, VAR_FROM_ENV));
-	}
+	if ((var = VarLookup(&VAR_ENV->context, name)) != NULL)
+		return (var);
 
 	/* deferred check for the environment (in case of -e/-E) */
 	if ((ctxt != VAR_GLOBAL) && (checkEnvFirst || localCheckEnvFirst)) {
@@ -376,10 +368,8 @@ VarFindAny(const char name[], GNode *ctxt)
 	return (NULL);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * VarAdd  --
- *	Add a new variable of name name and value val to the given context.
+/**
+ * Add a new variable of name name and value val to the given context.
  *
  * Results:
  *	None
@@ -388,7 +378,6 @@ VarFindAny(const char name[], GNode *ctxt)
  *	The new variable is placed at the front of the given context
  *	The name and val arguments are duplicated so they may
  *	safely be freed.
- *-----------------------------------------------------------------------
  */
 static void
 VarAdd(const char *name, const char *val, GNode *ctxt)
@@ -462,20 +451,66 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
 	v = VarFindOnly(n, ctxt);
 	if (v == NULL) {
 		VarAdd(n, val, ctxt);
+		if (ctxt == VAR_CMD) {
+			/*
+			 * Any variables given on the command line
+			 * are automatically exported to the
+			 * environment (as per POSIX standard)
+			 */
+			setenv(n, val, 1);
+		}
 	} else {
 		Buf_Clear(v->val);
 		Buf_Append(v->val, val);
 
-		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
+		if (ctxt == VAR_CMD || (v->flags & VAR_TO_ENV)) {
+			/*
+			 * Any variables given on the command line
+			 * are automatically exported to the
+			 * environment (as per POSIX standard)
+			 */
+			setenv(n, val, 1);
+		}
+
 	}
-	/*
-	 * Any variables given on the command line are automatically exported
-	 * to the environment (as per POSIX standard)
-	 */
-	if (ctxt == VAR_CMD) {
-		setenv(n, val, 1);
-	}
+
+	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
 	free(n);
+}
+
+/*
+ * Var_SetEnv --
+ *	Set the VAR_TO_ENV flag on a variable
+ */
+void
+Var_SetEnv(const char *name, GNode *ctxt)
+{
+	Var    *v;
+
+	v = VarFindOnly(name, VAR_CMD);
+	if (v != NULL) {
+		/*
+		 * Do not allow .EXPORT: to be set on variables
+		 * from the comand line or MAKEFLAGS.
+		 */
+		Error(
+		    "Warning: Did not set .EXPORTVAR: on %s because it "
+		    "is from the comand line or MAKEFLAGS", name);
+		return;
+	}
+
+	v = VarFindAny(name, ctxt);
+	if (v == NULL) {
+		Lst_AtFront(&VAR_ENV->context,
+		    VarCreate(name, NULL, VAR_TO_ENV));
+		setenv(name, "", 1);
+		Error("Warning: .EXPORTVAR: set on undefined variable %s", name);
+	} else {
+		if ((v->flags & VAR_TO_ENV) == 0) {
+			v->flags |= VAR_TO_ENV;
+			setenv(v->name, Buf_Data(v->val), 1);
+		}
+	}
 }
 
 /*-
@@ -514,21 +549,6 @@ Var_Append(const char *name, const char *val, GNode *ctxt)
 	}
 	if (v == NULL) {
 		VarAdd(n, val, ctxt);
-
-	} else if (v->flags & VAR_FROM_ENV) {
-		Buf_AddByte(v->val, (Byte)' ');
-		Buf_Append(v->val, val);
-		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, Buf_Data(v->val)));
-		/*
-		 * If the original variable came from the
-		 * environment, we have to install it in the global
-		 * context (we could place it in the environment, but
-		 * then we should provide a way to export other
-		 * variables...)
-		 */
-		v->flags &= ~VAR_FROM_ENV;
-		Lst_AtFront(&ctxt->context, v);
-
 	} else {
 		Buf_AddByte(v->val, (Byte)' ');
 		Buf_Append(v->val, val);
@@ -561,10 +581,6 @@ Var_Exists(const char *name, GNode *ctxt)
 	if (v == NULL) {
 		free(n);
 		return (FALSE);
-	} else if (v->flags & VAR_FROM_ENV) {
-		VarDestroy(v, TRUE);
-		free(n);
-		return (TRUE);
 	} else {
 		free(n);
 		return (TRUE);
@@ -595,10 +611,6 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 	if (v == NULL) {
 		p = NULL;
 		*frp = NULL;
-	} else if (v->flags & VAR_FROM_ENV) {
-		p = Buf_Data(v->val);
-		*frp = p;
-		VarDestroy(v, FALSE);
 	} else {
 		p = Buf_Data(v->val);
 		*frp = NULL;
@@ -1320,10 +1332,6 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 	v = VarFindAny(vname, vp->ctxt);
 	if (v != NULL) {
 		value = ParseModifier(vp, startc, v, freeResult);
-
-		if (v->flags & VAR_FROM_ENV) {
-			VarDestroy(v, TRUE);
-		}
 		return (value);
 	}
 
@@ -1430,11 +1438,6 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freeResult)
 	v = VarFindAny(vname, vp->ctxt);
 	if (v != NULL) {
 		value = VarExpand(v, vp);
-
-		if (v->flags & VAR_FROM_ENV) {
-			VarDestroy(v, TRUE);
-		}
-
 		*freeResult = TRUE;
 		return (value);
 	}
@@ -1600,11 +1603,6 @@ VarParseShort(VarParser *vp, Boolean *freeResult)
 	v = VarFindAny(vname, vp->ctxt);
 	if (v != NULL) {
 		value = VarExpand(v, vp);
-
-		if (v->flags & VAR_FROM_ENV) {
-			VarDestroy(v, TRUE);
-		}
-
 		*freeResult = TRUE;
 		return (value);
 	}
@@ -1950,11 +1948,29 @@ Var_GetHead(char *file)
  *-----------------------------------------------------------------------
  */
 void
-Var_Init(void)
+Var_Init(char **env)
 {
+	char	**ptr;
 
-	VAR_GLOBAL = Targ_NewGN("Global");
 	VAR_CMD = Targ_NewGN("Command");
+	VAR_ENV = Targ_NewGN("Environment");
+	VAR_GLOBAL = Targ_NewGN("Global");
+
+	/*
+	 * Copy user environment variables into ENV context.
+	 */
+	for (ptr = env; *ptr != NULL; ++ptr) {
+		char		*tmp = estrdup(*ptr);
+		const char	*name = tmp;
+		char		*sep = strchr(name, '=');
+		const char	*value = sep + 1;
+
+		if (sep != NULL) {
+			*sep = '\0';
+			VarAdd(name, value, VAR_ENV);
+		}
+		free(tmp);
+	}
 }
 
 /*-
