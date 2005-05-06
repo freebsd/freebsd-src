@@ -101,6 +101,8 @@ __FBSDID("$FreeBSD$");
 
 #define	MAKEFLAGS	".MAKEFLAGS"
 
+extern char **environ;	/* XXX what header declares this variable? */
+
 /* Targets to be made */
 Lst create = Lst_Initializer(create);
 
@@ -695,7 +697,7 @@ main(int argc, char **argv)
 	 */
 	Dir_Init();		/* Initialize directory structures so -I flags
 				 * can be processed correctly */
-	Var_Init();		/* As well as the lists of variables for
+	Var_Init(environ);	/* As well as the lists of variables for
 				 * parsing arguments */
         str_init();
 
@@ -781,6 +783,7 @@ main(int argc, char **argv)
 	Dir_InitDot();		/* Initialize the "." directory */
 	if (objdir != curdir)
 		Path_AddDir(&dirSearchPath, curdir);
+	Var_Set(".ST_EXPORTVAR", "YES", VAR_GLOBAL);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
