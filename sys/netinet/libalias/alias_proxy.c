@@ -483,7 +483,7 @@ ProxyEncodeIpHeader(struct ip *pip,
 #define OPTION_LEN_INT32  2
 	u_char option[OPTION_LEN_BYTES];
 
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	fprintf(stdout, " ip cksum 1 = %x\n", (u_int) IpChecksum(pip));
 	fprintf(stdout, "tcp cksum 1 = %x\n", (u_int) TcpChecksum(pip));
 #endif
@@ -539,7 +539,7 @@ ProxyEncodeIpHeader(struct ip *pip,
 #undef OPTION_LEN_BYTES
 #undef OPTION_LEN_INT16
 #undef OPTION_LEN_INT32
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	fprintf(stdout, " ip cksum 2 = %x\n", (u_int) IpChecksum(pip));
 	fprintf(stdout, "tcp cksum 2 = %x\n", (u_int) TcpChecksum(pip));
 #endif

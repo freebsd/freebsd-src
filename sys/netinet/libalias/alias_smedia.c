@@ -240,7 +240,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 					    sport, 0,
 					    RTSP_PORT_GROUP,
 					    IPPROTO_UDP, 1))) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 						fprintf(stderr,
 						    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
 #endif
@@ -266,7 +266,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 								PunchFWHole(rtsp_lnk);
 #endif
 							} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 								fprintf(stderr,
 								    "PacketAlias/RTSP: Cannot allocate RTSP data ports\n");
 #endif
