@@ -577,6 +577,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		inp = inp_list[i];
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
+			bzero(&xi, sizeof(xi));
 			xi.xi_len = sizeof xi;
 			/* XXX should avoid extra copy */
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
