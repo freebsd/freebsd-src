@@ -1125,7 +1125,7 @@ ntfs_ntreaddir(
 	struct ntvattr *bmvap = NULL;	/* BitMap attribute */
 	struct ntvattr *iavap = NULL;	/* IndexAllocation attribute */
 	caddr_t         rdbuf;		/* Buffer to read directory's blocks  */
-	u_char         *bmp = NULL;	/* Bitmap */
+	u_int8_t       *bmp = NULL;	/* Bitmap */
 	u_int32_t       blsize;		/* Index allocation size (2048) */
 	u_int32_t       rdsize;		/* Length of data to read */
 	u_int32_t       attrnum;	/* Current attribute type */
@@ -1162,7 +1162,7 @@ ntfs_ntreaddir(
 			error = ENOTDIR;
 			goto fail;
 		}
-		MALLOC(bmp, u_char *, bmvap->va_datalen, M_TEMP, M_WAITOK);
+		MALLOC(bmp, u_int8_t *, bmvap->va_datalen, M_TEMP, M_WAITOK);
 		error = ntfs_readattr(ntmp, ip, NTFS_A_INDXBITMAP, "$I30", 0,
 				       bmvap->va_datalen, bmp, NULL);
 		if (error)
@@ -1244,7 +1244,7 @@ ntfs_ntreaddir(
 				blnum++;
 
 			while (ntfs_cntob(blnum * cpbl) < iavap->va_datalen) {
-				if (bmp[blnum >> 3] & (1 << (blnum & 3)))
+				if (bmp[blnum >> 3] & (1 << (blnum & 7)))
 					break;
 				blnum++;
 			}
