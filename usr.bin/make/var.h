@@ -57,12 +57,12 @@ typedef struct Var {
 #define	VAR_IN_USE	1	/* Variable's value currently being used.
 				 * Used to avoid recursion */
 
-#define	VAR_FROM_ENV	2	/* Variable comes from the environment */
-
 #define	VAR_JUNK	4	/* Variable is a junk variable that
 				 * should be destroyed when done with
 				 * it. Used by Var_Parse for undefined,
 				 * modified variables */
+
+#define	VAR_TO_ENV	8	/* Place variable in environment */
 } Var;
 
 /* Var*Pattern flags */
@@ -95,10 +95,11 @@ void Var_Dump(const struct GNode *);
 Boolean Var_Exists(const char *, struct GNode *);
 char *Var_GetHead(char *);
 char *Var_GetTail(char *);
-void Var_Init(void);
+void Var_Init(char **);
 char *Var_Parse(const char *, struct GNode *, Boolean, size_t *, Boolean *);
 char *Var_Quote(const char *);
 void Var_Set(const char *, const char *, struct GNode *);
+void Var_SetEnv(const char *, struct GNode *);
 struct Buffer *Var_Subst(const char *, const char *, struct GNode *, Boolean);
 char *Var_Value(const char *, struct GNode *, char **);
 

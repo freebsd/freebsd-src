@@ -153,13 +153,13 @@ typedef enum {
 	Begin,		/* .BEGIN */
 	Default,	/* .DEFAULT */
 	End,		/* .END */
+	ExportVar,	/* .EXPORTVAR */
 	Ignore,		/* .IGNORE */
 	Includes,	/* .INCLUDES */
 	Interrupt,	/* .INTERRUPT */
 	Libs,		/* .LIBS */
 	MFlags,		/* .MFLAGS or .MAKEFLAGS */
 	Main,		/* .MAIN and we don't have anyth. user-spec. to make */
-	NoExport,	/* .NOEXPORT */
 	Not,		/* Not special */
 	NotParallel,	/* .NOTPARALELL */
 	Null,		/* .NULL */
@@ -204,6 +204,7 @@ static const struct keyword {
 	{ ".DEFAULT",		Default,	0 },
 	{ ".END",		End,		0 },
 	{ ".EXEC",		Attribute,	OP_EXEC },
+	{ ".EXPORTVAR",		ExportVar,	0 },
 	{ ".IGNORE",		Ignore,		OP_IGNORE },
 	{ ".INCLUDES",		Includes,	0 },
 	{ ".INTERRUPT",		Interrupt,	0 },
@@ -1169,6 +1170,9 @@ ParseDoDependency(char *line)
 			line = cp;
 		}
 		Lst_Destroy(&paths, NOFREE);
+
+	} else if (specType == ExportVar) {
+		Var_SetEnv(line, VAR_GLOBAL);
 
 	} else {
 		/* list of sources in order */
