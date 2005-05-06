@@ -446,10 +446,6 @@ i386_get_ldt(td, args)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	/* verify range of LDTs exist */
-	if ((uap->start < 0) || (uap->num <= 0))
-		return(EINVAL);
-
 	if (pldt) {
 		nldt = pldt->ldt_len;
 		num = min(uap->num, nldt);
@@ -459,7 +455,10 @@ i386_get_ldt(td, args)
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
 	}
-	if (uap->start + num > nldt)
+
+	if ((uap->start > (unsigned int)nldt) ||
+	    ((unsigned int)num > (unsigned int)nldt) ||
+	    ((unsigned int)(uap->start + num) > (unsigned int)nldt))
 		return(EINVAL);
 
 	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
