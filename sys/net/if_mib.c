@@ -91,6 +91,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		return ENOENT;
 
 	case IFDATA_GENERAL:
+		bzero(&ifmd, sizeof(ifmd));
 		ifnlen = snprintf(workbuf, sizeof(workbuf),
 		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifmd.ifmd_name) {
