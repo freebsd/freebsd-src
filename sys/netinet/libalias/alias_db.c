@@ -601,7 +601,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 		lnk->alias_port = (u_short) alias_port_param;
 		return (0);
 	} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/GetNewPort(): ");
 		fprintf(stderr, "input parameter error\n");
 #endif
@@ -649,7 +649,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 		port_net = htons(port_sys);
 	}
 
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	fprintf(stderr, "PacketAlias/GetnewPort(): ");
 	fprintf(stderr, "could not find free port\n");
 #endif
@@ -670,7 +670,7 @@ GetSocket(struct libalias *la, u_short port_net, int *sockfd, int link_type)
 	else if (link_type == LINK_UDP)
 		sock = socket(AF_INET, SOCK_DGRAM, 0);
 	else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/GetSocket(): ");
 		fprintf(stderr, "incorrect link type\n");
 #endif
@@ -678,7 +678,7 @@ GetSocket(struct libalias *la, u_short port_net, int *sockfd, int link_type)
 	}
 
 	if (sock < 0) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/GetSocket(): ");
 		fprintf(stderr, "socket() error %d\n", *sockfd);
 #endif
@@ -788,7 +788,7 @@ FindNewPortGroup(struct libalias *la,
 		port_sys += ALIAS_PORT_BASE;
 	}
 
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	fprintf(stderr, "PacketAlias/FindNewPortGroup(): ");
 	fprintf(stderr, "could not find free port(s)\n");
 #endif
@@ -1034,7 +1034,7 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 				aux_tcp->fwhole = -1;
 				lnk->data.tcp = aux_tcp;
 			} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				fprintf(stderr, "PacketAlias/AddLink: ");
 				fprintf(stderr, " cannot allocate auxiliary TCP data\n");
 #endif
@@ -1067,7 +1067,7 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 		start_point = StartPointIn(alias_addr, lnk->alias_port, link_type);
 		LIST_INSERT_HEAD(&la->linkTableIn[start_point], lnk, list_in);
 	} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/AddLink(): ");
 		fprintf(stderr, "malloc() call failed.\n");
 #endif
@@ -2096,7 +2096,7 @@ SetExpire(struct alias_link *lnk, int expire)
 	} else if (expire > 0) {
 		lnk->expire_time = expire;
 	} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/SetExpire(): ");
 		fprintf(stderr, "error in expire parameter\n");
 #endif
@@ -2194,7 +2194,7 @@ HouseKeeping(struct libalias *la)
 		for (i = 0; i < n; i++)
 			IncrementalCleanup(la);
 	} else if (n < 0) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/HouseKeeping(): ");
 		fprintf(stderr, "something unexpected in time values\n");
 #endif
@@ -2265,7 +2265,7 @@ LibAliasRedirectPort(struct libalias *la, struct in_addr src_addr, u_short src_p
 		link_type = LINK_TCP;
 		break;
 	default:
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAliasRedirectPort(): ");
 		fprintf(stderr, "only TCP and UDP protocols allowed\n");
 #endif
@@ -2279,7 +2279,7 @@ LibAliasRedirectPort(struct libalias *la, struct in_addr src_addr, u_short src_p
 	if (lnk != NULL) {
 		lnk->flags |= LINK_PERMANENT;
 	}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	else {
 		fprintf(stderr, "PacketAliasRedirectPort(): "
 		    "call to AddLink() failed\n");
@@ -2338,7 +2338,7 @@ LibAliasRedirectProto(struct libalias *la, struct in_addr src_addr,
 	if (lnk != NULL) {
 		lnk->flags |= LINK_PERMANENT;
 	}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	else {
 		fprintf(stderr, "PacketAliasRedirectProto(): "
 		    "call to AddLink() failed\n");
@@ -2362,7 +2362,7 @@ LibAliasRedirectAddr(struct libalias *la, struct in_addr src_addr,
 	if (lnk != NULL) {
 		lnk->flags |= LINK_PERMANENT;
 	}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 	else {
 		fprintf(stderr, "PacketAliasRedirectAddr(): "
 		    "call to AddLink() failed\n");
@@ -2711,7 +2711,7 @@ PunchFWHole(struct alias_link *lnk)
 		if (fwhole == la->fireWallActiveNum) {
 			/* No rule point empty - we can't punch more holes. */
 			la->fireWallActiveNum = la->fireWallBaseNum;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr, "libalias: Unable to create firewall hole!\n");
 #endif
 			return;

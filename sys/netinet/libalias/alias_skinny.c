@@ -82,7 +82,7 @@
  * Inc.  All rights reserved.
 */
 
-/* #define DEBUG 1 */
+/* #define LIBALIAS_DEBUG 1 */
 
 /* Message types that need translating */
 #define REG_MSG         0x00000001
@@ -250,7 +250,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	} else if (ntohs(tc->th_sport) == la->skinnyPort) {
 		direction = ServerToClient;
 	} else {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 		fprintf(stderr,
 		    "PacketAlias/Skinny: Invalid port number, not a Skinny packet\n");
 #endif
@@ -271,7 +271,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 		t = len;
 
 		if (t > orig_len || t > dlen) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Not a skinny packet, invalid length \n");
 #endif
@@ -282,14 +282,14 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			struct RegisterMessage *reg_mesg;
 
 			if (len < (int)sizeof(struct RegisterMessage)) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				fprintf(stderr,
 				    "PacketAlias/Skinny: Not a skinny packet, bad registration message\n");
 #endif
 				return;
 			}
 			reg_mesg = (struct RegisterMessage *)&sd->msgId;
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received a register message");
 #endif
@@ -300,13 +300,13 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			struct IpPortMessage *port_mesg;
 
 			if (len < (int)sizeof(struct IpPortMessage)) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				fprintf(stderr,
 				    "PacketAlias/Skinny: Not a skinny packet, port message\n");
 #endif
 				return;
 			}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received ipport message\n");
 #endif
@@ -318,13 +318,13 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			struct OpenReceiveChannelAck *opnrcvchn_ack;
 
 			if (len < (int)sizeof(struct OpenReceiveChannelAck)) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				fprintf(stderr,
 				    "PacketAlias/Skinny: Not a skinny packet, packet,OpnRcvChnAckMsg\n");
 #endif
 				return;
 			}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received open rcv channel msg\n");
 #endif
@@ -336,13 +336,13 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			struct StartMediaTransmission *startmedia_tx;
 
 			if (len < (int)sizeof(struct StartMediaTransmission)) {
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 				fprintf(stderr,
 				    "PacketAlias/Skinny: Not a skinny packet,StartMediaTx Message\n");
 #endif
 				return;
 			}
-#ifdef DEBUG
+#ifdef LIBALIAS_DEBUG
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received start media trans msg\n");
 #endif
