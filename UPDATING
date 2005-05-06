@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050506:		FreeBSD-SA-05:08.kmem
+	Correct several local kernel memory disclosure bugs.
+
 20050506:		FreeBSD-SA-05:07.ldt
 	Correctly validate inputs to the i386_get_ldt syscall.
 
