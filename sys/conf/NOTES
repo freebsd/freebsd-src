@@ -478,6 +478,9 @@ options 	NETSMBCRYPTO		#encrypted password support for SMB
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
 
+# libalias library, performing NAT
+options		LIBALIAS
+
 # altq(9). Enable the base part of the hooks with the ALTQ option.
 # Individual disciplines must be built into the base system and can not be
 # loaded as modules at this point. In order to build a SMP kernel you must
@@ -532,6 +535,7 @@ options 	NETGRAPH_LMI
 #options 	NETGRAPH_MPPC_COMPRESSION
 options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
+options		NETGRAPH_NAT
 options 	NETGRAPH_ONE2MANY
 options 	NETGRAPH_PPP
 options 	NETGRAPH_PPPOE
