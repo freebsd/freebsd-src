@@ -660,6 +660,8 @@ attach_thread (ptid_t ptid, const td_thrhandle_t *th_p,
 
   if (! IS_THREAD(ptid))
     return;
+  if (fbsd_thread_core != 0)
+    return;
   /* Enable thread event reporting for this thread. */
   err = td_thr_event_enable_p (th_p, 1);
   if (err != TD_OK)
