@@ -90,6 +90,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		return ENOENT;
 
 	case IFDATA_GENERAL:
+		bzero(&ifmd, sizeof(ifmd));
 		strlcpy(ifmd.ifmd_name, ifp->if_xname, sizeof(ifmd.ifmd_name));
 
 #define COPY(fld) ifmd.ifmd_##fld = ifp->if_##fld
