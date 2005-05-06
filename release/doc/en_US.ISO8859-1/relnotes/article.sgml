@@ -175,7 +175,7 @@
      input arguments, which may allow kernel memory may be disclosed
      to the user process, has been fixed.  For more information, see
       security advisory
-     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt.asc</ulink>.
+     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
      &merged;</para>
 
     <para>Several information disclosure vulnerabilities in various
