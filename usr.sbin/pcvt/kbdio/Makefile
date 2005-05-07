@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/kbdio/Makefile,v 1.11.8.1 2005/02/13 07:23:45 obrien Exp $
 
 PROG=	kbdio
 NOMAN=

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: profile.c,v 1.6 2004/01/13 19:31:54 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/profile.c,v 1.2 2004/07/28 07:15:44 kan Exp $
  */
 
 #include <sys/queue.h>

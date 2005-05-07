@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pccard/cardinfo.h,v 1.29.6.1 2005/01/31 23:26:49 imp Exp $ */
 
 #ifndef	_PCCARD_CARDINFO_H_
 #define	_PCCARD_CARDINFO_H_

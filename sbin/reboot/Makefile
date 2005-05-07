@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/reboot/Makefile,v 1.13 2004/03/22 00:52:27 obrien Exp $
 
 PROG=	reboot
 DPADD=	${LIBUTIL}

@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getnameinfo.c,v 1.14.10.1 2005/05/06 04:10:44 kensmith Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

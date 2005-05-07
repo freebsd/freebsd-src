@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/e_j1.c,v 1.7 2002/05/28 18:15:04 alfred Exp $";
 #endif
 
 /* __ieee754_j1(x), __ieee754_y1(x)

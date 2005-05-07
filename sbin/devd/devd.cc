@@ -34,7 +34,7 @@
 //	  - devd.conf needs more details on the supported statements.
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/devd/devd.cc,v 1.18.6.1 2005/04/22 03:44:07 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

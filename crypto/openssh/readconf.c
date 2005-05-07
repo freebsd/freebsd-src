@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/readconf.c,v 1.23 2004/04/20 09:47:13 des Exp $");
 RCSID("$OpenBSD: readconf.c,v 1.127 2003/12/16 15:49:51 markus Exp $");
 
 #include "ssh.h"

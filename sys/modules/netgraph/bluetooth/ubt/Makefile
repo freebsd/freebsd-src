@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2003/03/22 23:44:34 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/bluetooth/ubt/Makefile,v 1.6 2004/06/28 19:06:30 imp Exp $
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/ubt
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh-agent/Makefile,v 1.12 2004/01/07 11:17:23 des Exp $
 
 PROG=	ssh-agent
 CFLAGS+=-I${SSHDIR}

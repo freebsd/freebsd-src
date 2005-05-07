@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_dummynet.h,v 1.32.2.1 2005/01/31 23:26:35 imp Exp $
  */
 
 #ifndef _IP_DUMMYNET_H

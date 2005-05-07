@@ -37,7 +37,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_sample.c,v 1.24.2.2 2005/01/31 23:26:29 imp Exp $
  * $Whistle: ng_sample.c,v 1.13 1999/11/01 09:24:52 julian Exp $
  */
 

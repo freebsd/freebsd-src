@@ -4,7 +4,7 @@
  * Copyright (c) 2000 Adaptec Corporation.
  * All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/i2odpt.h,v 1.5.8.1 2005/01/30 00:59:28 imp Exp $
  *
  ****************************************************************/
 

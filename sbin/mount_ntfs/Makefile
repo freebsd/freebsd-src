@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_ntfs/Makefile,v 1.9 2004/02/23 20:13:54 johan Exp $
 #
 
 PROG=	mount_ntfs

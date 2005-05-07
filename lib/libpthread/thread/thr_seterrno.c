@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_seterrno.c,v 1.7 2003/04/18 05:04:16 deischen Exp $
  */
 #include <pthread.h>
 #include "thr_private.h"

@@ -21,7 +21,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/crypto.c,v 1.15.2.1 2005/01/31 23:26:48 imp Exp $");
 
 #define	CRYPTO_TIMING				/* enable timing support */
 

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/scvtb.c,v 1.12 2003/08/24 18:17:24 obrien Exp $");
 
 #include "opt_syscons.h"
 

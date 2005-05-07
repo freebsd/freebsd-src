@@ -158,7 +158,7 @@
 #include "log.h"
 #include "atomicio.h"
 
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/loginrec.c,v 1.7 2004/04/20 09:46:39 des Exp $");
 RCSID("$Id: loginrec.c,v 1.54 2004/02/10 05:49:35 dtucker Exp $");
 
 #ifdef HAVE_UTIL_H

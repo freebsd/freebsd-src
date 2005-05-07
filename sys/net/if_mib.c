@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_mib.c,v 1.13.4.1.2.1 2005/05/06 02:51:10 cperciva Exp $
  */
 
 #include <sys/param.h>

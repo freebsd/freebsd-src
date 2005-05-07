@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp.c,v 1.111.2.2 2005/01/30 00:59:47 imp Exp $ */
 /*-
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.

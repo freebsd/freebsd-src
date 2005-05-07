@@ -54,7 +54,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sym/README.sym,v 1.5.8.1 2005/01/30 01:00:07 imp Exp $
  */
 
 README.sym

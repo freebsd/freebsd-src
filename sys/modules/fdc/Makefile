@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fdc/Makefile,v 1.12 2004/07/16 18:37:00 njl Exp $
 
 KMOD=	fdc
 WARNS?=	2

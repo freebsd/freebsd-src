@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/if_ixgb.h,v 1.2.4.1 2005/03/30 23:08:46 mux Exp $*/
 
 #ifndef _IXGB_H_DEFINED_
 #define _IXGB_H_DEFINED_

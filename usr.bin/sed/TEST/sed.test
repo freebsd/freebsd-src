@@ -30,7 +30,7 @@
 #
 #	@(#)sed.test	8.1 (Berkeley) 6/6/93
 #
-#	$FreeBSD$
+#	$FreeBSD: src/usr.bin/sed/TEST/sed.test,v 1.4 2004/08/09 15:29:41 dds Exp $
 #
 
 # sed Regression Tests

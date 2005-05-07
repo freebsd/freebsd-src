@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/ccdconfig/ccdconfig.c,v 1.34 2003/08/07 19:10:35 johan Exp $");
 
 #include <sys/param.h>
 #include <sys/linker.h>

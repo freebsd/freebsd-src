@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_setschedparam.c,v 1.8 2004/07/30 17:13:00 mtm Exp $
  */
 #include <errno.h>
 #include <sys/param.h>

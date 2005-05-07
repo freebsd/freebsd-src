@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntp-keygen/Makefile,v 1.2.2.1 2005/02/13 07:23:43 obrien Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/util \
        ${.CURDIR}/../../../contrib/ntp/ntpd

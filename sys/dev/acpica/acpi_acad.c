@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/acpica/acpi_acad.c,v 1.31.2.1 2004/12/19 04:17:49 marks Exp $
  */
 
 #include "opt_acpi.h"

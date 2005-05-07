@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/m4/extern.h,v 1.12 2004/08/16 14:18:22 tjr Exp $
  */
 
 /* eval.c */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/table.c,v 1.20 2004/06/15 00:23:26 bms Exp $
  */
 
 #include "defs.h"
@@ -34,12 +34,12 @@
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/table.c,v 1.20 2004/06/15 00:23:26 bms Exp $");
 #else
 __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/table.c,v 1.20 2004/06/15 00:23:26 bms Exp $"
 
 static struct rt_spare *rts_better(struct rt_entry *);
 static struct rt_spare rts_empty = {0,0,0,HOPCNT_INFINITY,0,0,0};

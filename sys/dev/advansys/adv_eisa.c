@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/advansys/adv_eisa.c,v 1.16.2.1 2005/01/30 00:59:23 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

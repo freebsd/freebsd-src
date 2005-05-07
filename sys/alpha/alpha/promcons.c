@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/promcons.c,v 1.40.2.1 2005/01/30 00:59:10 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

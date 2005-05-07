@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/pccard/card_if.m,v 1.24.2.2 2005/02/03 00:30:02 imp Exp $
 #
 
 #include <sys/bus.h>

@@ -41,7 +41,7 @@ static const char rcsid[] =
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/systat/tcp.c,v 1.9 2004/02/25 13:26:53 bde Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

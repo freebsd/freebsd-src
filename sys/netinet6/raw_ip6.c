@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/raw_ip6.c,v 1.45.2.3 2005/02/12 15:23:57 rwatson Exp $
  */
 
 /*-

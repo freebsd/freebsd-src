@@ -31,7 +31,7 @@
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/isc-dhcp/includes/dhcpd.h,v 1.10 2004/07/06 15:15:14 des Exp $
  */
 
 #ifndef __CYGWIN32__

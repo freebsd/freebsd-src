@@ -21,6 +21,6 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/usr.sbin/atm/Makefile.inc,v 1.4 2001/07/20 06:19:37 obrien Exp $
 
 .include "../Makefile.inc"

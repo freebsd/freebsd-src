@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_vnops.c,v 1.6.2.1 2005/01/31 23:26:45 imp Exp $ */
 /* $Id: nfs_vnops.c,v 1.45 2003/11/05 14:59:02 rees Exp $ */
 
 /*-
@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfs4client/nfs4_vnops.c,v 1.6.2.1 2005/01/31 23:26:45 imp Exp $");
 
 /*
  * vnode op calls for Sun NFS version 2 and 3

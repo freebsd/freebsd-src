@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usbdi_util.c,v 1.32.2.2 2005/03/02 10:56:52 sobomax Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

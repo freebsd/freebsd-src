@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_node.c,v 1.20.2.3 2005/03/01 11:32:31 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

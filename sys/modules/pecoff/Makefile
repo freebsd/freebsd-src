@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pecoff/Makefile,v 1.6 2004/02/13 10:11:01 ru Exp $
 
 MAINTAINER=	takawata@FreeBSD.org
 

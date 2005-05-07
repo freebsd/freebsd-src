@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_asus/Makefile,v 1.4 2004/08/03 21:27:42 njl Exp $
 
 .PATH:	${.CURDIR}/../../../i386/acpica
 

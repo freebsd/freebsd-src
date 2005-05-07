@@ -25,7 +25,7 @@ changecom(,)dnl
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.sbin/ppp/ppp.8.m4,v 1.312.2.1 2005/02/03 10:49:17 brian Exp $
 .\"
 .Dd July 20, 2004
 .Dt PPP 8

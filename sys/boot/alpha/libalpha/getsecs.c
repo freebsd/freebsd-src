@@ -3,7 +3,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/libalpha/getsecs.c,v 1.3 2004/01/04 23:21:01 obrien Exp $");
 
 #include <sys/param.h>
 #include <machine/prom.h>

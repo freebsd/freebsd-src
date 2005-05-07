@@ -18,7 +18,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wl/if_wl.h,v 1.6.6.1 2005/01/30 01:00:13 imp Exp $
  */
 /* Definitions for WaveLAN driver */
 

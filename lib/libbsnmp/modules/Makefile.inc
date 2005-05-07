@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/Makefile.inc,v 1.7 2004/08/09 16:37:25 harti Exp $
 
 SHLIB_NAME=	snmp_${MOD}.so.${SHLIB_MAJOR}
 SRCS+=		${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h

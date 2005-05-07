@@ -49,7 +49,7 @@
 /* These routines are the device entry points for Venus. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/coda/coda_psdev.c,v 1.30.2.1 2005/01/30 00:59:17 imp Exp $");
 
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */

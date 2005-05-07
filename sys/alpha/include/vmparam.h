@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/vmparam.h,v 1.9.2.1 2005/01/30 00:59:10 imp Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_ALPHA_VMPARAM_H
 #define	_ALPHA_VMPARAM_H

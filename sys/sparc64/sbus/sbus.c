@@ -96,7 +96,7 @@
  *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: sbus.c,v 1.46 2001/10/07 20:30:41 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sbus/sbus.c,v 1.31.2.1 2005/01/31 23:26:54 imp Exp $
  */
 
 /*

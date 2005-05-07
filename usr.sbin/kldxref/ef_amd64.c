@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kldxref/ef_amd64.c,v 1.2.2.1 2004/09/03 18:38:47 iedowse Exp $
  */
 
 #include <sys/types.h>

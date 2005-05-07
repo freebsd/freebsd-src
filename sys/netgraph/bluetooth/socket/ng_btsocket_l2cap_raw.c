@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_btsocket_l2cap_raw.c,v 1.12 2003/09/14 23:29:06 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/socket/ng_btsocket_l2cap_raw.c,v 1.12.2.2 2005/01/31 23:26:34 imp Exp $
  */
 
 #include <sys/param.h>

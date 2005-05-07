@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumrequest.c,v 1.73 2004/03/19 10:28:34 le Exp $");
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>

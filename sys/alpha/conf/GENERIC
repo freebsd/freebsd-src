@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/GENERIC,v 1.174.2.8 2005/04/01 12:46:25 sobomax Exp $
 
 machine		alpha
 cpu		EV4

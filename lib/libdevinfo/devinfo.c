@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdevinfo/devinfo.c,v 1.4 2002/09/20 02:16:33 imp Exp $");
 
 /*
  * An interface to the FreeBSD kernel's bus/devce information interface.

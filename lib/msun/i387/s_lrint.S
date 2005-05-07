@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
+__FBSDID("$FreeBSD: src/lib/msun/i387/s_lrint.S,v 1.1.2.1 2005/01/15 22:57:16 das Exp $"); 
 	
 ENTRY(lrint)
 	fldl	4(%esp)

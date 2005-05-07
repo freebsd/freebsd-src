@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkiconv/Makefile,v 1.2 2003/12/08 08:32:19 fjoe Exp $
 
 LIB=		kiconv
 SHLIBDIR?=	/lib

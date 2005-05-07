@@ -1,5 +1,5 @@
 /*	$NetBSD: usbhid.c,v 1.14 2000/07/03 02:51:37 matt Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/usr.bin/usbhidctl/usbhid.c,v 1.9 2003/05/26 04:58:26 mdodd Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

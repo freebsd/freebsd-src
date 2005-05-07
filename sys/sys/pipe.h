@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/pipe.h,v 1.28.2.1 2005/01/31 23:26:56 imp Exp $
  */
 
 #ifndef _SYS_PIPE_H_

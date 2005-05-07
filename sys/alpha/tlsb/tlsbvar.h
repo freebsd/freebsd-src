@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/tlsbvar.h,v 1.4.26.1 2005/01/30 00:59:12 imp Exp $ */
 /* $NetBSD: tlsbvar.h,v 1.5 1998/05/13 23:23:23 thorpej Exp $ */
 
 /*-

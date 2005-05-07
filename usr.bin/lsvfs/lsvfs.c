@@ -6,7 +6,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lsvfs/lsvfs.c,v 1.17 2002/08/11 02:07:43 mux Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

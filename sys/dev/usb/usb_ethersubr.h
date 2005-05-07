@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/usb_ethersubr.h,v 1.6.6.2 2005/04/01 12:46:26 sobomax Exp $
  */
 
 #ifndef _USB_ETHERSUBR_H_

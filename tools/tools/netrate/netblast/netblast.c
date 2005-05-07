@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/netrate/netblast/netblast.c,v 1.2.2.1 2005/02/25 17:46:49 rwatson Exp $
  */
 
 #include <sys/types.h>

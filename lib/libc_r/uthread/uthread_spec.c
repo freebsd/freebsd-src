@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_spec.c,v 1.17 2002/03/19 22:58:56 deischen Exp $
  */
 #include <signal.h>
 #include <stdlib.h>

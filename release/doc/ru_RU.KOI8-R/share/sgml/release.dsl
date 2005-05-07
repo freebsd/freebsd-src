@@ -2,7 +2,7 @@
   The FreeBSD Russian Documentation Project
 
   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.5 2004/09/13 08:00:12 den Exp $
-  $FreeBSD$
+  $FreeBSD: src/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.2.2.2 2005/04/01 13:11:04 den Exp $
   
   Original revision: 1.8.2.1
 -->

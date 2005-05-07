@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/extern.h,v 1.2 2001/05/17 10:12:45 sobomax Exp $ */
 /* $OpenBSD: extern.h,v 1.3 1999/10/07 16:30:32 espie Exp $ */
 /*-
  * Copyright (c) 1999 Marc Espie.

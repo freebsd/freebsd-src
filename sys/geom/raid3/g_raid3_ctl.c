@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/raid3/g_raid3_ctl.c,v 1.1.2.3 2005/01/08 16:29:05 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/posix1e/acl_support.c,v 1.13 2003/11/03 21:00:16 rwatson Exp $");
 
 #include <sys/types.h>
 #include "namespace.h"

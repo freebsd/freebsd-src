@@ -37,7 +37,7 @@
  *
  *	@(#)dumprestore.h	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/protocols/dumprestore.h,v 1.10 2002/07/17 02:03:19 mckusick Exp $
  */
 
 #ifndef _PROTOCOLS_DUMPRESTORE_H_

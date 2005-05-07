@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_disk.h,v 1.3 2004/02/18 21:36:53 phk Exp $
  */
 
 #ifndef _GEOM_GEOM_DISK_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/Makefile,v 1.28 2004/08/06 07:27:07 cperciva Exp $
 
 # I once used this extensively, but no longer have a modem.  Feel free
 # to ask me questions about it, but I disclaim ownership now.  -Peter

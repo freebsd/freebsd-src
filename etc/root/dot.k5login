@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.k5login,v 1.1 2003/04/30 20:58:49 markm Exp $
 #
 # user1/root@YOUR.REALM.WHEREVER
 # user2/root@YOUR.REALM.WHEREVER

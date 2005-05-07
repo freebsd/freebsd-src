@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libfetch/Makefile,v 1.43 2004/08/06 07:27:03 cperciva Exp $
 
 LIB=		fetch
 CFLAGS+=	-I.

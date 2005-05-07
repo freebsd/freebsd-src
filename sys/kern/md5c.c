@@ -30,7 +30,7 @@
  * This file should be kept in sync with src/lib/libmd/md5c.c
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/md5c.c,v 1.23.4.1 2005/01/31 23:26:17 imp Exp $");
 
 #include <sys/types.h>
 

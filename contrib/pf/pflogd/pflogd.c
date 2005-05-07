@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pflogd/pflogd.c,v 1.5.2.2 2004/10/08 15:53:34 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

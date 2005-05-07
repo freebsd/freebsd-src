@@ -34,6 +34,6 @@
  * advised of the possibility of such damage.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/gvinum/gvinum.h,v 1.1 2004/06/12 21:22:47 le Exp $ */
 
 #define GVINUMMOD	"geom_vinum"

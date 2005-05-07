@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_bufs.h,v 1.10.2.1 2005/01/30 00:59:35 imp Exp $
  */
 
 #include "dev/drm/drmP.h"

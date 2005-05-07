@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/property.c,v 1.13 2003/06/14 18:42:37 markm Exp $");
 
 #include <sys/types.h>
 #include <ctype.h>

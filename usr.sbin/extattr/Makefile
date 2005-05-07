@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/extattr/Makefile,v 1.1 2002/08/30 08:53:03 phk Exp $
 
 PROG=	rmextattr
 MAN=	rmextattr.8

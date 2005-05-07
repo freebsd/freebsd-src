@@ -31,7 +31,7 @@
  *
  *	@(#)umap.h	8.4 (Berkeley) 8/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/umapfs/umap.h,v 1.17.2.1 2005/01/31 23:25:59 imp Exp $
  */
 
 #define MAPFILEENTRIES 64

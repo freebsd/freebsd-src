@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pccbb/pccbbdevid.h,v 1.16.2.2 2005/02/03 00:32:01 imp Exp $
  */
 
 /* Vendor/Device IDs */

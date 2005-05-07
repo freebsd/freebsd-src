@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sysent.h,v 1.44 2004/04/07 04:19:49 imp Exp $
  */
 
 #ifndef _SYS_SYSENT_H_

@@ -21,7 +21,7 @@
  * Format and print Novell IPX packets.
  * Contributed by Brad Parker (brad@fcr.com).
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-ipx.c,v 1.7 2004/03/31 14:57:24 bms Exp $
  */
 
 #ifndef lint

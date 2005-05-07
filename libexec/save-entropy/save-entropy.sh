@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/libexec/save-entropy/save-entropy.sh,v 1.2.12.1 2005/04/14 21:49:13 dougb Exp $
 
 # This script is called by cron to store bits of randomness which are
 # then used to seed /dev/random on boot.

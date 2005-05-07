@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netkey/keysock.c,v 1.27.2.2 2005/02/12 19:41:02 rwatson Exp $");
 
 #include "opt_ipsec.h"
 

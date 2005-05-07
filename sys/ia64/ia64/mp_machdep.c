@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/ia64/mp_machdep.c,v 1.53 2004/02/22 02:10:48 marcel Exp $
  */
 
 #include "opt_kstack_pages.h"

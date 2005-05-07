@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vi/Makefile,v 1.42 2004/02/05 22:44:25 ru Exp $
 #
 
 SRCDIR=		${.CURDIR}/../../contrib/nvi

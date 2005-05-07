@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/libgdb/Makefile,v 1.2.2.4 2005/03/02 04:02:21 obrien Exp $
 
 LIB=	gdb
 INTERNALLIB=

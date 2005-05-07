@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/if_pflog.c,v 1.9.2.1 2004/09/20 15:25:57 mlaier Exp $	*/
 /*	$OpenBSD: if_pflog.c,v 1.11 2003/12/31 11:18:25 cedric Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),

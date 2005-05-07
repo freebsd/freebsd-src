@@ -26,7 +26,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_state.c,v 1.10.2.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #include "dev/drm/r128.h"

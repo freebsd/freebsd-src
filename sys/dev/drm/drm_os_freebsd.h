@@ -28,7 +28,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_os_freebsd.h,v 1.20.2.3 2005/03/02 10:51:06 obrien Exp $
  */
 
 #include <sys/param.h>

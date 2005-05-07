@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pc98/i386/busiosubr.c,v 1.4.4.1 2005/01/31 23:26:48 imp Exp $ */
 /*	$NecBSD: busiosubr.c,v 1.30.4.4 1999/08/28 02:25:35 honda Exp $	*/
 /*	$NetBSD$	*/
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libdevinfo/devinfo.h,v 1.4 2002/09/20 02:16:33 imp Exp $
  */
 
 #include <sys/cdefs.h>

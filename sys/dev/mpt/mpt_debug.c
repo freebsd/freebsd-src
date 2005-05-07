@@ -1,7 +1,7 @@
 /*
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mpt/mpt_debug.c,v 1.5 2004/07/13 16:06:19 stefanf Exp $");
  * Debug routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *

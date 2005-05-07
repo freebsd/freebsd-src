@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/bind9/FREEBSD-Xlist,v 1.2.2.2 2005/03/23 18:16:23 dougb Exp $
 
 # Misc. stuff
 .cvsignore

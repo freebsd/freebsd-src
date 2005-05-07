@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/profile.h,v 1.6.2.2 2005/01/30 00:59:10 imp Exp $ */
 /* From: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp */
 
 /*-

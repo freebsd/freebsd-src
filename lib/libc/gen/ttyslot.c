@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)ttyslot.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/ttyslot.c,v 1.4 2002/02/01 01:08:48 obrien Exp $");
 
 #include <ttyent.h>
 #include <stdio.h>

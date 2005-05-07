@@ -25,7 +25,7 @@
 
 /* capi/iavc/iavc.h	The AVM ISDN controllers' common declarations.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/iavc/iavc.h,v 1.2.4.1 2005/01/31 23:26:07 imp Exp $
  */
 
 #ifndef _CAPI_IAVC_H_

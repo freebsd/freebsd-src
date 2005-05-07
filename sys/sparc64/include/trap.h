@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/trap.h,v 1.11 2003/04/29 21:30:59 jake Exp $
  */
 
 #ifndef	_MACHINE_TRAP_H_

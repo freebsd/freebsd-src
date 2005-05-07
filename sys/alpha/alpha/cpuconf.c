@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/cpuconf.c,v 1.16.4.2 2005/01/30 00:59:09 imp Exp $");
 
 #include "opt_cpu.h"
 

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/si/si.h,v 1.18.2.1 2005/01/30 01:00:01 imp Exp $
  */
 
 #include <sys/callout.h>

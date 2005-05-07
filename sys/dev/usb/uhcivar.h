@@ -1,5 +1,5 @@
 /*	$NetBSD: uhcivar.h,v 1.33 2002/02/11 11:41:30 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uhcivar.h,v 1.37.2.2 2005/03/22 00:56:54 iedowse Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

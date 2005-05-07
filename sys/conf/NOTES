@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/NOTES,v 1.1261.2.19 2005/04/01 12:46:25 sobomax Exp $
 #
 # NOTES -- Lines that can be cut/pasted into kernel and hints configs.
 #

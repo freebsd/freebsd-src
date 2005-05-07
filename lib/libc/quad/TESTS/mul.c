@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mul.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/quad/TESTS/mul.c,v 1.2 2002/03/22 21:52:44 obrien Exp $");
 
 #include <stdio.h>
 

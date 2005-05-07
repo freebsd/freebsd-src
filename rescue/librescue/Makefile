@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/rescue/librescue/Makefile,v 1.4.4.2 2005/02/13 07:23:17 obrien Exp $
 #
 
 # Certain library entries have hard-coded references to

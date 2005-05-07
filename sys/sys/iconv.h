@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/iconv.h,v 1.8.2.1 2005/01/31 23:26:56 imp Exp $
  */
 #ifndef _SYS_ICONV_H_
 #define _SYS_ICONV_H_

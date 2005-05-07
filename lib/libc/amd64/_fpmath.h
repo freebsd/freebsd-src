@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/amd64/_fpmath.h,v 1.4 2004/01/18 07:57:01 das Exp $
  */
 
 union IEEEl2bits {

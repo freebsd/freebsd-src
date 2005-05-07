@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.33.2.3 2004/12/22 00:01:55 kientzle Exp $");
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_ACL_H

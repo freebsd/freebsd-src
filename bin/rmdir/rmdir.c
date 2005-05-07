@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.17.2.1 2005/01/09 14:35:46 ru Exp $");
 
 #include <err.h>
 #include <errno.h>

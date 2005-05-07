@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_input.c,v 1.252.2.14 2005/02/27 21:43:54 ps Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/

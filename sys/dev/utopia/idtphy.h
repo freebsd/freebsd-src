@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/utopia/idtphy.h,v 1.2.4.1 2005/01/30 01:00:11 imp Exp $
  *
  * Register definitions for the following chips:
  *	IDT 77105

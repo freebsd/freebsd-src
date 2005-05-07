@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_rq.h,v 1.3.2.1 2005/01/31 23:26:44 imp Exp $
  */
 #ifndef _NETSMB_SMB_RQ_H_
 #define	_NETSMB_SMB_RQ_H_

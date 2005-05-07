@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * $Begemot: libunimsg/netnatm/api/unisap.h,v 1.5 2004/07/08 08:22:01 brandt Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ngatm/netnatm/api/unisap.h,v 1.1.1.1 2004/07/08 16:39:03 harti Exp $
  */
 #ifndef _NETNATM_API_UNISAP_H_
 #define _NETNATM_API_UNISAP_H_

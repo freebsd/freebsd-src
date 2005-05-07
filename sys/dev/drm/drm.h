@@ -32,7 +32,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm.h,v 1.7.2.1 2005/01/30 00:59:35 imp Exp $
  */
 
 

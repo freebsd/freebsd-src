@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libcrypto/Makefile,v 1.69.2.2 2005/03/01 16:47:38 nectar Exp $
 
 LIB=		crypto
 SHLIBDIR?=	/lib

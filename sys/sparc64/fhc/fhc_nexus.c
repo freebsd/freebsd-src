@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/fhc/fhc_nexus.c,v 1.4 2004/08/12 17:41:32 marius Exp $
  */
 
 #include <sys/param.h>

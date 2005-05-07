@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcompat/regexp/regexp.c,v 1.7 2002/03/21 23:37:30 obrien Exp $");
 
 #include <limits.h>
 #include <regexp.h>

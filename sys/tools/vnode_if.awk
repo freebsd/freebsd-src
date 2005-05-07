@@ -29,7 +29,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/vnode_if.awk,v 1.40.2.1 2005/01/31 23:26:59 imp Exp $
 #
 # Script to produce VFS front-end sugar.
 #
@@ -139,7 +139,7 @@ common_head = \
     " * This file is produced automatically.\n" \
     " * Do not modify anything in here by hand.\n" \
     " *\n" \
-    " * Created from $FreeBSD$\n" \
+    " * Created from $FreeBSD: src/sys/tools/vnode_if.awk,v 1.40.2.1 2005/01/31 23:26:59 imp Exp $\n" \
     " */\n" \
     "\n";
 

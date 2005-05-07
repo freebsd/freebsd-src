@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/apicreg.h,v 1.26.2.1 2005/01/31 23:26:04 imp Exp $
  */
 
 #ifndef _MACHINE_APICREG_H_

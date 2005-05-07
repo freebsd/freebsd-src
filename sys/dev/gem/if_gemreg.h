@@ -26,7 +26,7 @@
  *
  *	from: NetBSD: gemreg.h,v 1.15 2002/05/11 00:36:02 matt Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/gem/if_gemreg.h,v 1.2.8.1 2005/01/30 00:59:42 imp Exp $
  */
 
 #ifndef	_IF_GEMREG_H

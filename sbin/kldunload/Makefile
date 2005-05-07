@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/kldunload/Makefile,v 1.9 2003/04/23 20:26:21 johan Exp $
 #
 
 PROG=	kldunload

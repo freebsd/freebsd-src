@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cdce/Makefile,v 1.1.2.1 2005/04/01 12:46:27 sobomax Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

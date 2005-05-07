@@ -18,7 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/osd_defs.h,v 1.6.8.1 2005/01/30 00:59:28 imp Exp $
  */
 
 #ifndef		_OSD_DEFS_H

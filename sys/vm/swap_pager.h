@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/swap_pager.h,v 1.49.2.1 2005/01/31 23:27:02 imp Exp $
  */
 
 #ifndef	_VM_SWAP_PAGER_H_

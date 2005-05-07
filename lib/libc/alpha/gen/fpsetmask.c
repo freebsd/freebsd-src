@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/fpsetmask.c,v 1.5 2004/01/09 16:52:08 nectar Exp $");
 
 #include <sys/types.h>
 #include <ieeefp.h>

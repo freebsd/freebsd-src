@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/isc-dhcp/FREEBSD-upgrade,v 1.23 2004/08/16 21:31:34 mbr Exp $
 
 ISC DHCP client 3.0.1
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/

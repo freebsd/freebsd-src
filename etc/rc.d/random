@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/random,v 1.6.2.1.4.1 2005/04/14 21:57:33 dougb Exp $
 #
 
 # PROVIDE: random

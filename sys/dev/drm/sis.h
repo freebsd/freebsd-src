@@ -23,7 +23,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis.h,v 1.3.2.1 2005/01/30 00:59:36 imp Exp $
  */
 /* $XFree86: xc/programs/Xserver/hw/xfree86/os-support/linux/drm/kernel/sis.h,v 1.3 2002/10/30 12:52:38 alanh Exp $ */
 

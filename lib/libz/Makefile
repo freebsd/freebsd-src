@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libz/Makefile,v 1.16 2004/06/30 23:58:22 tjr Exp $
 #
 
 MAINTAINER=peter@FreeBSD.org

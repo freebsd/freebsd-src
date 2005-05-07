@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_btsocket_l2cap.h,v 1.4 2003/03/25 23:53:33 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/include/ng_btsocket_l2cap.h,v 1.3.4.1 2005/01/31 23:26:33 imp Exp $
  */
 
 #ifndef _NETGRAPH_BTSOCKET_L2CAP_H_

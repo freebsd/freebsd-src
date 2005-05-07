@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.bin/ksu/Makefile,v 1.13 2004/02/05 18:51:52 ru Exp $
 
 PROG=	ksu
 .if defined(ENABLE_SUID_K5SU)

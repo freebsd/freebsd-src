@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/imgact_svr4.c,v 1.23 2004/06/24 02:21:17 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/tar.c,v 1.1.1.1.32.1 2004/09/02 04:18:17 kientzle Exp $ */
 
 #include <stdio.h>
 #include <sys/types.h>

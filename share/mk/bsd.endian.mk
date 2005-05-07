@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.endian.mk,v 1.2.2.1 2005/02/27 22:00:47 obrien Exp $
 
 .if ${MACHINE_ARCH} == "alpha" || \
     ${MACHINE_ARCH} == "amd64" || \

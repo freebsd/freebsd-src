@@ -30,13 +30,13 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ccatm/ng_ccatm.c,v 1.1.2.1 2005/01/31 23:26:31 imp Exp $
  *
  * ATM call control and API
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netgraph/atm/ccatm/ng_ccatm.c,v 1.1.2.1 2005/01/31 23:26:31 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

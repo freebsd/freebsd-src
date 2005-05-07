@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_softdep_stub.c,v 1.27.4.1 2005/01/31 23:27:00 imp Exp $");
 
 /* 
  * Use this file as ffs_softdep.c if you do not wish the real ffs_softdep.c

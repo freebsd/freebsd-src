@@ -45,7 +45,7 @@ EXEMPLARY,
  *
  * Author: Dave Chapeskie <dchapeskie@sandvine.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_source.h,v 1.3.2.1 2005/01/31 23:26:29 imp Exp $
  */
 
 #ifndef _NETGRAPH_NG_SOURCE_H_

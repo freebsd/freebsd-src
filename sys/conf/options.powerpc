@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.powerpc,v 1.9 2004/06/25 13:44:34 grehan Exp $
 # Options specific to the powerpc platform kernels
 
 OEA			opt_global.h

@@ -29,7 +29,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/opencrypto/crypto_if.m,v 1.1.10.1 2005/01/31 23:26:48 imp Exp $
 #
 
 #include <crypto/cryptodev.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locale.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/locale.h,v 1.8 2003/12/07 21:10:06 marcel Exp $
  */
 
 #ifndef _LOCALE_H_

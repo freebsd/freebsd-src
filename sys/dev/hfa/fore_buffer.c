@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hfa/fore_buffer.c,v 1.15 2004/02/21 19:08:23 harti Exp $");
 
 /*
  * FORE Systems 200-Series Adapter Support
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_buffer.c,v 1.15 2004/02/21 19:08:23 harti Exp $");
 #endif
 
 

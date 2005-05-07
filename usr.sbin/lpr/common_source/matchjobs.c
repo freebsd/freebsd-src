@@ -33,7 +33,7 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/common_source/matchjobs.c,v 1.4.4.1 2005/01/14 22:25:49 gad Exp $");
 
 /*
  * movejobs.c - The lpc commands which move jobs around.

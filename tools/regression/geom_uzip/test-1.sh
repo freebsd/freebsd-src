@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_uzip/test-1.sh,v 1.1 2004/08/13 09:53:52 fjoe Exp $
 #
 
 mntpoint="/mnt/test-1"

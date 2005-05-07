@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/pathnames.h,v 1.4 2001/01/13 01:33:59 ache Exp $
  */
 
 #include <paths.h>

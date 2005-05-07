@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/isc/isc/platform.h,v 1.1.2.1 2004/09/26 03:10:12 des Exp $ */
 
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")

@@ -18,7 +18,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/freebsd-spec.h,v 1.17.2.1 2004/08/23 03:28:01 obrien Exp $ */
 
 /* Common FreeBSD configuration. 
    All FreeBSD architectures should include this file, which will specify

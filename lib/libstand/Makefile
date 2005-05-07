@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libstand/Makefile,v 1.43.2.1 2005/02/13 07:23:14 obrien Exp $
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
 # Notes:

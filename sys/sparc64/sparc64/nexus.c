@@ -30,7 +30,7 @@
  *
  * 	from: FreeBSD: src/sys/i386/i386/nexus.c,v 1.43 2001/02/09
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/nexus.c,v 1.15.2.1 2005/01/31 23:26:55 imp Exp $
  */
 
 #include <sys/param.h>

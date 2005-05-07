@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ipcomp_output.c,v 1.7.6.1 2005/01/31 23:26:39 imp Exp $	*/
 /*	$KAME: ipcomp_output.c,v 1.25 2002/06/09 14:44:00 itojun Exp $	*/
 
 /*-

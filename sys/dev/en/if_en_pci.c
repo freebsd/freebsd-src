@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/en/if_en_pci.c,v 1.33.2.1 2005/01/30 00:59:39 imp Exp $");
 
 /*
  * i f _ e n _ p c i . c  
@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/en/if_en_pci.c,v 1.33.2.1 2005/01/30 00:59:39 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getobjformat.c,v 1.7 2002/09/17 01:48:50 peter Exp $");
 
 #include <sys/param.h>
 #include <objformat.h>

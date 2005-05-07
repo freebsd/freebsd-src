@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.    
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/arch/alpha/_atomic_lock.S,v 1.4 2003/07/02 13:27:54 ru Exp $
  *
  */
 

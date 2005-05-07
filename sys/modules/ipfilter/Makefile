@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ipfilter/Makefile,v 1.14.2.1 2005/03/13 19:07:37 rwatson Exp $ 
 
 .PATH: ${.CURDIR}/../../contrib/ipfilter/netinet
 

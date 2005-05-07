@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/pathnames.h,v 1.4 2001/05/27 20:26:22 mikeh Exp $
  */
 
 #define	_PATH_EX	"/usr/bin/ex"

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/doc/share/misc/dev.archlist.txt,v 1.5.2.28.2.2 2005/04/14 08:41:34 brueffer Exp $
 #
 
 #

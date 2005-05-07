@@ -81,7 +81,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/inflate.c,v 1.4.2.1 2004/09/02 14:34:28 nectar Exp $");
 
 #include "zutil.h"
 #include "inftrees.h"

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/string/Makefile.inc,v 1.34 2004/01/13 16:05:47 des Exp $
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/string ${.CURDIR}/string
 

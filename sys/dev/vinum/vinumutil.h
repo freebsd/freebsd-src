@@ -36,7 +36,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumutil.h,v 1.1 2001/05/22 04:07:22 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumutil.h,v 1.1 2001/05/22 22:29:35 grog Exp $
  */
 
 /*

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/job.c,v 1.50 2004/07/29 14:29:23 harti Exp $");
 
 #ifndef OLD_JOKE
 #define	OLD_JOKE 0

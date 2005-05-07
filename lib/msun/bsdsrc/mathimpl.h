@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mathimpl.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/bsdsrc/mathimpl.h,v 1.4 2004/05/17 01:04:37 das Exp $
  */
 
 #include <sys/cdefs.h>

@@ -89,7 +89,7 @@
 __KERNEL_RCSID(0, "$NetBSD: awi.c,v 1.62 2004/01/16 14:13:15 onoe Exp $");
 #endif
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/awi.c,v 1.34 2004/08/13 22:55:25 rwatson Exp $");
 #endif
 
 #include "opt_inet.h"

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/stdio/test-perror.c,v 1.1 2002/12/19 09:46:10 tjr Exp $");
 
 #include <assert.h>
 #include <err.h>

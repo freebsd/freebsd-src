@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)assert.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/include/assert.h,v 1.4 2002/03/23 17:24:53 imp Exp $
  */
 
 #include <sys/cdefs.h>

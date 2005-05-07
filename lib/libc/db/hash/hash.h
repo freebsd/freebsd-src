@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hash.h	8.3 (Berkeley) 5/31/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/hash/hash.h,v 1.6 2002/03/21 22:46:26 obrien Exp $
  */
 
 /* Operations */

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: provider.h,v 1.6 2004/01/13 01:54:39 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/provider.h,v 1.1 2004/01/20 20:48:26 emax Exp $
  */
 
 #ifndef _PROVIDER_H_

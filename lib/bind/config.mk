@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/config.mk,v 1.9.2.2 2005/03/23 18:16:32 dougb Exp $
 
 # BIND version number
 .if defined(BIND_DIR) && exists(${BIND_DIR}/version)

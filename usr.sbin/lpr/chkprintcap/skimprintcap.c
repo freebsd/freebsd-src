@@ -32,7 +32,7 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/chkprintcap/skimprintcap.c,v 1.3 2003/07/15 08:48:30 gad Exp $");
 
 #include <sys/types.h>
 

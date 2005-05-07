@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/cheetah.c,v 1.5 2003/11/11 06:41:54 jake Exp $
  */
 
 #include "opt_pmap.h"

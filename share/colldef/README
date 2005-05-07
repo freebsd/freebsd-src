@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/colldef/README,v 1.2 2002/04/08 09:28:22 ache Exp $
 
 WARNING: For the compatibility sake try to keep collating table backward 
 compatible with ASCII, i.e.  add other symbols to the existent ASCII order.

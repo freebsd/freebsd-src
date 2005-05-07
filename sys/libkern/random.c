@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/random.c,v 1.13 2004/04/07 20:46:10 imp Exp $");
 
 #include <sys/libkern.h>
 

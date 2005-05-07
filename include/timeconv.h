@@ -39,7 +39,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/include/timeconv.h,v 1.2 2002/08/21 16:19:55 mike Exp $
  */
 
 #ifndef _TIMECONV_H_

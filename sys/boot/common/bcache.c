@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/bcache.c,v 1.12 2003/08/25 23:30:41 obrien Exp $");
 
 /*
  * Simple LRU block cache

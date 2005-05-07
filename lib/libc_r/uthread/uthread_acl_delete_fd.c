@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_acl_delete_fd.c,v 1.2 2001/04/10 04:19:19 deischen Exp $
  */
 
 #include <sys/types.h>

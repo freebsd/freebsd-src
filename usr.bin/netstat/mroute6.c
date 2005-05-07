@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/mroute6.c,v 1.15 2004/07/26 20:18:11 charnier Exp $");
 
 #ifdef INET6
 #include <sys/param.h>

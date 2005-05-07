@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/s_isfinite.c,v 1.1 2004/07/09 03:32:39 das Exp $
  */
 
 #include <math.h>

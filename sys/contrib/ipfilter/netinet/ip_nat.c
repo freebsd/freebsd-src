@@ -111,7 +111,7 @@ extern struct ifnet vpnif;
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
 /* static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.44 2001/07/21 07:17:22 darrenr Exp $"; */
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_nat.c,v 1.34.2.4 2005/03/13 18:08:56 rwatson Exp $";
 #endif
 
 nat_t	**nat_table[2] = { NULL, NULL },

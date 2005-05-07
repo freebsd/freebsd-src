@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drmP.h,v 1.11.2.1 2005/01/30 00:59:35 imp Exp $
  */
 
 #ifndef _DRM_P_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/umass/Makefile,v 1.13 2004/06/27 12:33:18 imp Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

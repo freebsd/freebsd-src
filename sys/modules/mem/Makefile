@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mem/Makefile,v 1.2.2.1 2004/10/20 11:05:27 markm Exp $
 
 .PATH: ${.CURDIR}/../../dev/mem
 .PATH: ${.CURDIR}/../../${MACHINE_ARCH}/${MACHINE_ARCH}

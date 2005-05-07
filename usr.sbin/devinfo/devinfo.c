@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/devinfo/devinfo.c,v 1.5 2004/01/04 15:51:32 charnier Exp $");
 
 #include <sys/types.h>
 #include <err.h>

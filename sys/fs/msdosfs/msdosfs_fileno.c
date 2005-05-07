@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/msdosfs/msdosfs_fileno.c,v 1.1 2004/07/03 13:22:38 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

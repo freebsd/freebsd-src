@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/link_elf_obj.c,v 1.86.2.1 2004/09/03 20:06:24 iedowse Exp $");
 
 #include "opt_ddb.h"
 #include "opt_mac.h"

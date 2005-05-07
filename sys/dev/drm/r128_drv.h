@@ -30,7 +30,7 @@
  *    Gareth Hughes <gareth@valinux.com>
  *    Michel Dänzer <daenzerm@student.ethz.ch>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_drv.h,v 1.8.2.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #ifndef __R128_DRV_H__

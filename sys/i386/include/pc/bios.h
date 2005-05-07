@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/pc/bios.h,v 1.17 2004/06/10 20:43:04 jhb Exp $
  */
 
 #ifndef _MACHINE_PC_BIOS_H_

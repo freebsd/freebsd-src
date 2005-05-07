@@ -21,7 +21,7 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/atm/Makefile,v 1.12 2004/05/14 13:31:20 cognet Exp $
 
 PROG=	atm
 SRCS=	atm.c atm_fore200.c atm_inet.c atm_print.c \

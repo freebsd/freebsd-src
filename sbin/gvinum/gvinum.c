@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/gvinum/gvinum.c,v 1.2.2.2 2004/12/08 20:47:56 le Exp $
  */
 
 #include <sys/param.h>

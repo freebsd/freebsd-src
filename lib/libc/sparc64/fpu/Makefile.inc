@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/sparc64/fpu/Makefile.inc,v 1.5 2002/11/18 09:50:56 ru Exp $
 
 .PATH: ${.CURDIR}/sparc64/fpu
 

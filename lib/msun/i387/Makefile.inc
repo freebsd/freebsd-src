@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/msun/i387/Makefile.inc,v 1.4.2.1 2005/03/01 03:56:52 das Exp $
 
 ARCH_SRCS = e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_ceil.S s_copysign.S \

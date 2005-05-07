@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/auth_time.c,v 1.10 2004/01/06 18:45:58 nectar Exp $");
 
 #include "namespace.h"
 #include <stdio.h>

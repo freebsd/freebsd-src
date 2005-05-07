@@ -37,7 +37,7 @@ static const char sccsid[] = "@(#)ring.c	8.2 (Berkeley) 5/30/95";
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/telnet/telnet/ring.c,v 1.7 2003/05/04 02:54:48 obrien Exp $");
 
 /*
  * This defines a structure for a ring buffer.

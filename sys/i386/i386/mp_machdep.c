@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/mp_machdep.c,v 1.235.2.6.2.2 2005/05/01 05:38:13 dwhite Exp $");
 
 #include "opt_apic.h"
 #include "opt_cpu.h"

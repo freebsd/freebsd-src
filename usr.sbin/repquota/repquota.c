@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/repquota/repquota.c,v 1.18.2.1 2004/12/27 13:21:31 maxim Exp $");
 
 /*
  * Quota report

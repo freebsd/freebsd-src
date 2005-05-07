@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/lib/Makefile,v 1.17.2.1 2005/02/13 07:23:45 obrien Exp $
 
 LIB=	install
 INTERNALLIB=

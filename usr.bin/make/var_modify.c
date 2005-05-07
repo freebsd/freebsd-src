@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/var_modify.c,v 1.2 2002/10/29 12:11:56 jmallett Exp $");
 
 #include    <ctype.h>
 #include    <sys/types.h>

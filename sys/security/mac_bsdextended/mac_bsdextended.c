@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_bsdextended/mac_bsdextended.c,v 1.18.2.4 2005/01/29 20:36:30 rwatson Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

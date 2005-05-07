@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/amr/amr_cam.c,v 1.9.4.3.2.1 2005/05/06 00:54:02 scottl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

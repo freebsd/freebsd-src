@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_thread.c,v 1.1.2.3 2005/01/30 00:59:22 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

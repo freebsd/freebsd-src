@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/i386/Makefile,v 1.1 2004/06/25 06:48:53 marcel Exp $
 
 GENSRCS+= xm.h
 LIBSRCS+= fbsd-proc.c gcore.c

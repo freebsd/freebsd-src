@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sbin/ifconfig/ifcarp.c,v 1.2.2.1 2005/03/21 16:05:33 glebius Exp $ */
 /*	from $OpenBSD: ifconfig.c,v 1.82 2003/10/19 05:43:35 mcbride Exp $ */
 
 /*

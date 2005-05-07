@@ -35,7 +35,7 @@
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/zh_CN.GB2312/hardware/common/dev.sgml,v 1.1.2.2.2.1 2005/04/03 17:13:26 delphij Exp $</pubdate>
   </sect1info>
 
   <title>支持的硬件</title>

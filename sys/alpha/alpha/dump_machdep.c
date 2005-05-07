@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/dump_machdep.c,v 1.6 2003/12/23 02:36:41 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

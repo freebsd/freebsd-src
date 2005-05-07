@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/bootinfo.h,v 1.6.8.1 2005/01/30 00:59:10 imp Exp $ */
 /*-
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia32/ia32_signal.c,v 1.7 2003/12/18 06:59:18 peter Exp $
  */
 
 #include "opt_compat.h"

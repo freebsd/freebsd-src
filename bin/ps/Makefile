@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/ps/Makefile,v 1.25.2.1 2005/02/22 06:50:54 delphij Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 PROG=	ps

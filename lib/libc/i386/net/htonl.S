@@ -38,7 +38,7 @@
 	.asciz "@(#)htonl.s	5.3 (Berkeley) 12/17/90"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/net/htonl.S,v 1.9.8.1 2005/02/27 22:07:49 obrien Exp $");
 
 /* netorder = htonl(hostorder) */
 

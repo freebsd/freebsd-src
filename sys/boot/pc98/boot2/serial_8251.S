@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/serial_8251.S,v 1.4 2004/05/20 20:52:04 markm Exp $
  */
 
 /*

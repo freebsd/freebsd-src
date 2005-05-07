@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/help/Makefile,v 1.2.26.1 2005/02/13 07:23:16 obrien Exp $
 #
 PROG=help
 SRCS+=help.c

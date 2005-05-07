@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libalias/alias_pptp.c,v 1.12 2004/08/04 15:17:08 marcus Exp $");
 
 /*
    Alias_pptp.c performs special processing for PPTP sessions under TCP.

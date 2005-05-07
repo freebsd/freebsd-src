@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/isa/isa_dma.c,v 1.11.2.1 2005/03/07 13:10:47 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

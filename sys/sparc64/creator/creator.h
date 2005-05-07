@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/creator/creator.h,v 1.2 2004/06/16 09:47:23 phk Exp $
  */
 
 #ifndef _DEV_FB_CREATOR_H_

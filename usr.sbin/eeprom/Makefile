@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/eeprom/Makefile,v 1.3 2004/05/22 16:56:04 marius Exp $
 
 .PATH: ${.CURDIR}/../ofwdump
 

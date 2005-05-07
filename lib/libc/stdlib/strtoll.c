@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)strtoq.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strtoll.c,v 1.19.8.1 2005/01/29 03:44:54 ache Exp $");
 
 #include <limits.h>
 #include <errno.h>

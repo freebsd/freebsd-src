@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/msun/alpha/Makefile.inc,v 1.1.2.1 2005/03/01 03:56:46 das Exp $
 
 ARCH_SRCS = s_copysign.S s_copysignf.S
 

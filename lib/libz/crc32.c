@@ -10,7 +10,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/crc32.c,v 1.8 2004/06/30 23:54:46 tjr Exp $");
 
 #ifdef MAKECRCH
 #  include <stdio.h>

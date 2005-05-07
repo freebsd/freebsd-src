@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tftpsubs.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tftp/tftpsubs.h,v 1.2 2002/03/22 01:42:34 imp Exp $
  */
 
 /*

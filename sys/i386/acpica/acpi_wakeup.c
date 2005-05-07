@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/acpica/acpi_wakeup.c,v 1.37.2.1 2004/08/23 05:14:18 njl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

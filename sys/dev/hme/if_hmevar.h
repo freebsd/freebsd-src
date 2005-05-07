@@ -35,7 +35,7 @@
  *
  *	from: NetBSD: hmevar.h,v 1.5 2000/06/25 01:10:04 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hme/if_hmevar.h,v 1.6.2.1 2005/02/21 07:28:19 yongari Exp $
  */
 
 #include <sys/callout.h>

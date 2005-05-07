@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/net/ppp_deflate.c,v 1.20.6.1 2005/01/31 23:26:23 imp Exp $	*/
 
 /*-
  * ppp_deflate.c - interface the zlib procedures for Deflate compression

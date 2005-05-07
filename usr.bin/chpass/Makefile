@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chpass/Makefile,v 1.28.6.1 2004/11/28 14:10:18 bz Exp $
 
 .PATH: ${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../lib/libc/gen
 

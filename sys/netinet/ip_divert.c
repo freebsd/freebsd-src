@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_divert.c,v 1.98.2.2.2.1 2005/05/06 02:51:10 cperciva Exp $
  */
 
 #include "opt_inet.h"

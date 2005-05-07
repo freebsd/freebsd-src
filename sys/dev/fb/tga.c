@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/tga.c,v 1.5 2004/06/03 06:09:58 phk Exp $");
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/tga.c,v 1.5 2004/06/03 06:09:58 phk Exp $");
 
 #include <machine/stdarg.h>
 

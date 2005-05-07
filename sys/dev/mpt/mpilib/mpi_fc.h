@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi_fc.h,v 1.3.8.1 2005/01/30 00:59:54 imp Exp $ */
 /*-
  * Copyright (c) 2000, 2001 by LSI Logic Corporation
  *

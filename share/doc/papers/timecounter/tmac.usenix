@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/timecounter/tmac.usenix,v 1.1 2003/06/15 18:49:46 phk Exp $
 .ds CC "
 .nr PS 10
 .nr FU 0.0i	\" priniter prints this much too low

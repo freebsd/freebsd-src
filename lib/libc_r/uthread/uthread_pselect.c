@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc_r/uthread/uthread_pselect.c,v 1.2 2002/11/13 18:13:26 deischen Exp $");
 
 #include <sys/select.h>
 #include <sys/time.h>

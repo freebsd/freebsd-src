@@ -42,7 +42,7 @@
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 /*__KERNEL_RCSID(0, "$NetBSD: db_trace.c,v 1.9 2000/12/13 03:16:36 mycroft Exp $");*/
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/db_trace.c,v 1.20.2.2 2005/02/05 01:02:47 das Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

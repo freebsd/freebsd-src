@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/vinum/Makefile,v 1.26 2004/02/23 20:13:57 johan Exp $
 
 PROG=	vinum
 SRCS=	v.c list.c vinumparser.c vinumutil.c vext.h commands.c

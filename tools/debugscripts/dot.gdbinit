@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/debugscripts/dot.gdbinit,v 1.6 2003/12/29 06:35:14 grog Exp $
 # .gdbinit file for remote serial debugging.
 # see gdbinit(9) for further details.
 #

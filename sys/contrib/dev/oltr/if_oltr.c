@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/dev/oltr/if_oltr.c,v 1.35 2004/08/14 00:19:07 rwatson Exp $
  */
 
 #include <sys/param.h>

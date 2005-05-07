@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 /* __KERNEL_RCSID(0, "$NetBSD: prom.c,v 1.22 1998/02/27 04:03:00 thorpej Exp $"); */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/prom.c,v 1.28.4.2 2005/02/05 01:02:47 das Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

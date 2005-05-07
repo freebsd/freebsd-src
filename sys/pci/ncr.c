@@ -40,7 +40,7 @@
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/ncr.c,v 1.182.2.3 2005/03/01 08:11:52 imp Exp $");
 
 
 #define NCR_DATE "pl30 98/1/1"

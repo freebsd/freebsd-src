@@ -38,7 +38,7 @@
 	.asciz "@(#)setlogin.s	5.2 (Berkeley) 4/12/91"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/sys/setlogin.S,v 1.12 2004/02/22 02:11:39 peter Exp $");
 
 #include "SYS.h"
 

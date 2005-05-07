@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/pcpu.h,v 1.13.2.1 2005/01/31 23:26:56 imp Exp $
  */
 
 #ifndef _SYS_PCPU_H_

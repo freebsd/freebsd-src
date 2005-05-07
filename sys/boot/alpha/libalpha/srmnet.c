@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/libalpha/srmnet.c,v 1.5 2004/01/04 23:21:01 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

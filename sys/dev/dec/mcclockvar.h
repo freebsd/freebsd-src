@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/dec/mcclockvar.h,v 1.4.8.1 2005/01/30 00:59:35 imp Exp $ */
 /* $NetBSD: mcclockvar.h,v 1.4 1997/06/22 08:02:19 jonathan Exp $ */
 
 /*-

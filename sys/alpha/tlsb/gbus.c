@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/tlsb/gbus.c,v 1.12.4.1 2005/01/30 00:59:12 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

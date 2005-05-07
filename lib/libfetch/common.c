@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libfetch/common.c,v 1.48.4.1 2005/02/23 09:47:35 des Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

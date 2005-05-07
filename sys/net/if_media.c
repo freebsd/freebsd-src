@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/if_media.c,v 1.20.4.1 2005/01/31 23:26:23 imp Exp $ */
 
 /*-
  * Copyright (c) 1997

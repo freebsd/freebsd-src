@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lnc/if_lnc_pci.c,v 1.34.2.1 2004/08/25 17:30:36 mux Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

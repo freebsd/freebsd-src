@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/crypto/rijndael/Makefile,v 1.1.4.1 2005/02/13 07:23:32 obrien Exp $
 
 PROG=test00
 NOMAN=

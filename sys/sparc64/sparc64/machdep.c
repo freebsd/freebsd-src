@@ -33,7 +33,7 @@
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
  * 	from: FreeBSD: src/sys/i386/i386/machdep.c,v 1.477 2001/08/27
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/machdep.c,v 1.112.2.7 2005/03/03 00:46:32 wes Exp $
  */
 
 #include "opt_compat.h"

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/ia64/db_trace.c,v 1.20.2.1 2004/11/23 21:08:14 jhb Exp $
  */
 
 #include <sys/param.h>

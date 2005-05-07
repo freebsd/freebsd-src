@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/ldpart.c,v 1.15 2004/04/25 19:56:50 ache Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

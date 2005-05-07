@@ -29,7 +29,7 @@
  *
  *	$Id: display.c,v 1.9 2000/07/19 08:56:24 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/display.c,v 1.7 2000/10/09 14:22:44 hm Exp $
  *
  *      last edit-date: [Wed Jul 19 10:08:06 2000]
  *

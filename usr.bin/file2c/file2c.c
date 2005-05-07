@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/file2c/file2c.c,v 1.7 2002/06/30 05:21:18 obrien Exp $");
 
 #include <stdio.h>
 

@@ -71,7 +71,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/libski/elf_freebsd.c,v 1.10 2004/04/05 23:41:28 imp Exp $");
 
 #include <stand.h>
 #include <string.h>

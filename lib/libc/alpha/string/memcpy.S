@@ -2,7 +2,7 @@
 
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/string/memcpy.S,v 1.2 2003/01/19 00:17:03 obrien Exp $");
 
 #define MEMCOPY
 #include "bcopy.S"

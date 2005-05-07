@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libthr/thread/Makefile.inc,v 1.8 2004/06/27 10:01:35 mtm Exp $
 
 # thr sources
 .PATH: ${.CURDIR}/thread

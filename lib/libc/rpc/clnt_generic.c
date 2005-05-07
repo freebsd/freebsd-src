@@ -53,7 +53,7 @@
 /*static char *sccsid = "from: @(#)clnt_generic.c	2.2 88/08/01 4.0 RPCSRC";*/
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/clnt_generic.c,v 1.14 2002/07/11 16:23:04 alfred Exp $");
 
 /*
  * Copyright (c) 1986-1996,1998 by Sun Microsystems, Inc.

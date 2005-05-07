@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BIND.chroot.dist,v 1.5.2.2 2004/11/11 04:08:16 gshapiro Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

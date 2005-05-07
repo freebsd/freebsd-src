@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/wcschr.S,v 1.1 2003/04/05 04:17:05 tjr Exp $");
 
 /*
  * wchar_t *

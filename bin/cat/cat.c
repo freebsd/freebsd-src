@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.31 2004/07/20 05:47:06 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

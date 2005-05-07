@@ -28,7 +28,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_fmt.c,v 1.13.4.1 2005/01/30 01:00:05 imp Exp $");
 
 MALLOC_DEFINE(M_FMTFEEDER, "fmtfeed", "pcm format feeder");
 

@@ -25,7 +25,7 @@
  *
  *	from: NetBSD: gemvar.h,v 1.8 2002/05/15 02:36:12 matt Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/gem/if_gemvar.h,v 1.8.6.1 2005/01/30 00:59:42 imp Exp $
  */
 
 #ifndef	_IF_GEMVAR_H

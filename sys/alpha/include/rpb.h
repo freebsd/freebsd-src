@@ -1,5 +1,5 @@
 /* $NetBSD: rpb.h,v 1.20 1998/04/15 00:47:33 mjacob Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/rpb.h,v 1.9.8.2 2005/01/30 00:59:10 imp Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.

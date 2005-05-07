@@ -27,7 +27,7 @@
  *
  * Author: Joe Marcus Clarke <marcus@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_skinny.c,v 1.7.2.1 2005/03/06 08:00:03 marcus Exp $
  */
 
 #include <stdio.h>

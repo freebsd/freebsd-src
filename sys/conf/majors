@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/majors,v 1.201.2.1 2005/01/30 02:32:17 rwatson Exp $
 #
 # Major numbers are now assigned in RELENG_4.  This file is left to
 # rot in peace in 5.x/6.x.

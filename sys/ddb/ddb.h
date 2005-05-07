@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/ddb.h,v 1.36.2.2 2005/01/30 00:59:22 imp Exp $
  */
 
 /*

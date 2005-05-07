@@ -173,7 +173,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/wl/if_wl.c,v 1.63.2.1 2005/01/30 01:00:13 imp Exp $");
 
 
 /*

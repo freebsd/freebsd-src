@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/apm_segments.h,v 1.8.26.1 2005/01/31 23:26:04 imp Exp $
  */
 
 #ifndef _MACHINE_APM_SEGMENTS_H

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sched_ule.c,v 1.121.2.14 2005/02/04 20:13:21 jeff Exp $");
 
 #include <opt_sched.h>
 

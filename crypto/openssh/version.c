@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/crypto/openssh/version.c,v 1.4 2002/10/29 10:16:02 des Exp $
  */
 
 #include "includes.h"

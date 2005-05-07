@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/channel.h,v 1.30.2.1 2005/01/30 01:00:04 imp Exp $
  */
 
 struct pcmchan_children {

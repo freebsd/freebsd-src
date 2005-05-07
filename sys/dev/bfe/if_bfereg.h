@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bfe/if_bfereg.h,v 1.3.2.2 2005/01/30 00:59:30 imp Exp $ */
 
 #ifndef _BFE_H
 #define _BFE_H

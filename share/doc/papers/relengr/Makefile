@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.6 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/relengr/Makefile,v 1.9.8.1 2005/02/13 07:23:22 obrien Exp $
 
 VOLUME=		papers
 DOC=		releng

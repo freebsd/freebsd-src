@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/select.h,v 1.19 2004/04/07 04:19:49 imp Exp $
  */
 
 #ifndef _SYS_SELECT_H_

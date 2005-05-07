@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/monitor.c,v 1.12 2002/03/26 15:12:59 hm Exp $
  *
  *      last edit-date: [Tue Mar 26 14:37:03 2002]
  *

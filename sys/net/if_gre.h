@@ -1,5 +1,5 @@
 /*	$NetBSD: if_gre.h,v 1.13 2003/11/10 08:51:52 wiz Exp $ */
-/*	 $FreeBSD$ */
+/*	 $FreeBSD: src/sys/net/if_gre.h,v 1.11.2.1 2005/01/31 23:26:22 imp Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

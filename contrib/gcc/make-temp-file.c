@@ -17,7 +17,7 @@ License along with libiberty; see the file COPYING.LIB.  If not,
 write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/make-temp-file.c,v 1.2 2002/05/14 00:33:44 obrien Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

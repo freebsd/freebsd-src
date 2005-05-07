@@ -41,7 +41,7 @@
       <corpauthor>Das &os; Projekt</corpauthor>
     </authorgroup>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/de_DE.ISO8859-1/errata/article.sgml,v 1.11 2003/05/27 16:11:08 alex Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

@@ -13,7 +13,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/mse.c,v 1.68 2004/06/16 09:47:08 phk Exp $");
 
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and

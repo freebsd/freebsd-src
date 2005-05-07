@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $FreeBSD$
+ *     $FreeBSD: src/share/examples/kld/dyn_sysctl/dyn_sysctl.c,v 1.2.8.1 2004/09/28 18:27:28 pjd Exp $
  */
 
 #include <sys/types.h>

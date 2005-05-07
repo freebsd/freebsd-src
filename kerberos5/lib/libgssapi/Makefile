@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libgssapi/Makefile,v 1.10 2004/04/04 03:31:05 nectar Exp $
 
 LIB=	gssapi
 INCS=	gssapi.h

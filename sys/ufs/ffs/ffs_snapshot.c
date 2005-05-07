@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_snapshot.c,v 1.84.2.3 2005/03/16 13:39:47 pb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

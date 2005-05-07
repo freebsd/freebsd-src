@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/metadata.h,v 1.4.6.1 2005/01/31 23:26:53 imp Exp $
  */
 
 #ifndef _MACHINE_METADATA_H_

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/newfs/newfs.h,v 1.16.2.1 2005/03/01 05:30:30 wes Exp $
  */
 
 #include <libufs.h>

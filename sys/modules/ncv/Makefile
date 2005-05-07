@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ncv/Makefile,v 1.2 2004/05/26 00:53:05 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/ncv
 

@@ -1,5 +1,5 @@
 /* $Id: acconfig.h,v 1.177 2004/04/15 23:22:40 dtucker Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/acconfig.h,v 1.9 2004/04/20 09:46:39 des Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.

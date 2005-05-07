@@ -17,7 +17,7 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tar/src/misc.c,v 1.3 2002/10/19 09:32:03 sobomax Exp $ */
 
 #include "system.h"
 #include "rmt.h"

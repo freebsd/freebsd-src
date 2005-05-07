@@ -1,7 +1,7 @@
 /*
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mpt/mpt_freebsd.c,v 1.15.4.1 2004/08/29 04:56:38 dwhite Exp $");
  * FreeBSD/CAM specific routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/owi/if_wireg.h,v 1.1.4.1 2005/01/30 00:59:56 imp Exp $
  */
 
 #define WI_DELAY	5

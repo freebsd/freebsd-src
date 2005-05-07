@@ -1,7 +1,7 @@
 /*
  * MD header for contrib/gdtoa
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/amd64/arith.h,v 1.3 2003/05/08 13:50:43 das Exp $
  */
 
 /*

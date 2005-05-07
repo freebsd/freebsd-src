@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/cam.c,v 1.8.4.1 2005/01/30 00:59:15 imp Exp $");
 
 #include <sys/param.h>
 #ifdef _KERNEL

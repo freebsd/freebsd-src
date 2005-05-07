@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/collate.c,v 1.32 2002/10/29 09:03:57 tjr Exp $");
 
 #include "namespace.h"
 #include <arpa/inet.h>

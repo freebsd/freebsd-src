@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/c89/c89.c,v 1.4 2001/12/10 21:13:02 dwmalone Exp $");
 
 #include <err.h>
 #include <stdio.h>

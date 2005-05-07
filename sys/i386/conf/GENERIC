@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/GENERIC,v 1.413.2.13 2005/04/02 16:37:58 scottl Exp $
 
 machine		i386
 cpu		I486_CPU

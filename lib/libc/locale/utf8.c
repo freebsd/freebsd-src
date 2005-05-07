@@ -25,7 +25,7 @@
  */
 
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/utf8.c,v 1.11 2004/07/27 06:29:48 tjr Exp $");
 
 #include <errno.h>
 #include <limits.h>

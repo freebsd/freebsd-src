@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw.h,v 1.89.2.3 2005/01/31 23:26:35 imp Exp $
  */
 
 #ifndef _IPFW2_H

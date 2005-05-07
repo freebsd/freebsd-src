@@ -27,7 +27,7 @@ static const char rcsid[] = "$OpenBSD: ftw.c,v 1.4 2004/07/07 16:05:23 millert E
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/ftw.c,v 1.3.2.1 2004/08/29 06:10:53 tjr Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

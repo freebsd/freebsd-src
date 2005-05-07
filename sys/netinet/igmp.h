@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/igmp.h,v 1.12.2.1 2005/01/31 23:26:35 imp Exp $
  */
 
 #ifndef _NETINET_IGMP_H_

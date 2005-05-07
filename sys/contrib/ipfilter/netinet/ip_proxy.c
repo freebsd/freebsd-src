@@ -77,7 +77,7 @@
 
 #if !defined(lint)
 /* static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.9.2.6 2001/07/15 22:06:15 darrenr Exp $"; */
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_proxy.c,v 1.22.6.1 2005/03/13 18:08:56 rwatson Exp $";
 #endif
 
 #ifdef USE_MUTEX

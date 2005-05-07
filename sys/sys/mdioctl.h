@@ -37,7 +37,7 @@
  *
  * From: src/sys/sys/vnioctl.h,v 1.4
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mdioctl.h,v 1.16.2.1 2005/01/31 23:26:56 imp Exp $
  */
 
 #ifndef _SYS_MDIOCTL_H_

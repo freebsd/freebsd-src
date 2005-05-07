@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/init_main.c,v 1.246.2.8 2005/03/07 17:03:17 des Exp $");
 
 #include "opt_init_path.h"
 #include "opt_mac.h"

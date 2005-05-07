@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/ipatm/ipatm_load.c,v 1.19.4.2 2005/03/07 13:08:04 rwatson Exp $");
 
 #ifndef ATM_IP_MODULE
 #include "opt_atm.h"

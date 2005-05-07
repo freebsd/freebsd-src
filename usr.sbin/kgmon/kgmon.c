@@ -38,7 +38,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kgmon.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/kgmon/kgmon.c,v 1.13.2.1 2004/11/09 03:47:41 marcel Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

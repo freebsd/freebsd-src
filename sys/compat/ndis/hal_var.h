@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/hal_var.h,v 1.4.2.2 2005/02/18 16:30:09 wpaul Exp $
  */
 
 #ifndef _HAL_VAR_H_

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ispfw/ispfw.c,v 1.13.2.1 2005/01/29 02:42:14 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

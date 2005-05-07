@@ -32,7 +32,7 @@
 /* Based on $xFreeBSD: src/crypto/openssh/auth2-pam-freebsd.c,v 1.11 2003/03/31 13:48:18 des Exp $ */
 #include "includes.h"
 RCSID("$Id: auth-pam.c,v 1.100 2004/04/18 01:00:26 dtucker Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/auth-pam.c,v 1.14 2004/04/20 09:46:39 des Exp $");
 
 #ifdef USE_PAM
 #if defined(HAVE_SECURITY_PAM_APPL_H)

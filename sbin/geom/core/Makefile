@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/geom/core/Makefile,v 1.9 2004/08/12 13:15:52 pjd Exp $
 
 .PATH: ${.CURDIR}/../misc
 

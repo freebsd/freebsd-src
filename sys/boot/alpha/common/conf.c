@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/common/conf.c,v 1.6 2004/03/25 20:36:57 jhb Exp $");
 
 #include <stand.h>
 #include "libalpha/libalpha.h"

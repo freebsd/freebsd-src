@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/sys/lock.c,v 1.8 2003/11/04 20:01:38 deischen Exp $
  */
 
 #include <sys/types.h>

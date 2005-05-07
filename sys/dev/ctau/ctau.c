@@ -17,7 +17,7 @@
  * Cronyx Id: ctau.c,v 1.1.2.4 2003/12/11 17:33:43 rik Exp $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ctau/ctau.c,v 1.2.4.1 2005/01/30 00:59:33 imp Exp $");
 
 #include <dev/cx/machdep.h>
 #include <dev/ctau/ctddk.h>

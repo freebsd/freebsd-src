@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/param.h,v 1.13.2.4 2005/02/14 08:20:27 obrien Exp $
  */
 
 /*

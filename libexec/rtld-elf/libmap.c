@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/libmap.c,v 1.12.2.1 2005/02/27 20:47:20 mdodd Exp $
  */
 
 #include <stdio.h>

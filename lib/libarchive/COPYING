@@ -33,5 +33,5 @@ contain Makefiles and/or shell scripts that are generated
 automatically by GNU autoconf and GNU automake.  Those generated files
 are controlled by the relevant licenses.
 
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/COPYING,v 1.1 2004/08/07 03:09:28 kientzle Exp $
 

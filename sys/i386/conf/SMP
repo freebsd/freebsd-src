@@ -2,7 +2,7 @@
 # SMP -- Generic kernel configuration file for FreeBSD/i386 SMP
 #	 Use this for multi-processor machines
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/SMP,v 1.5.2.3 2005/02/06 12:56:27 obrien Exp $
 
 include GENERIC
 

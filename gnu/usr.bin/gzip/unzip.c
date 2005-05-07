@@ -17,7 +17,7 @@
 static char rcsid[] = "$Id: unzip.c,v 0.13 1993/06/10 13:29:00 jloup Exp $";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/gzip/unzip.c,v 1.8 2004/05/03 10:33:27 obrien Exp $");
 
 #include "tailor.h"
 #include "gzip.h"

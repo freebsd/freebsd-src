@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)alias.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/alias.h,v 1.2 2000/10/26 10:07:19 obrien Exp $
  */
 
 #define alias var

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/cron/lib/Makefile,v 1.6.8.1 2005/02/13 07:23:40 obrien Exp $
 
 LIB=	cron
 INTERNALLIB=

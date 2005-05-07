@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/Makefile,v 1.44 2004/04/21 15:28:23 tjr Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

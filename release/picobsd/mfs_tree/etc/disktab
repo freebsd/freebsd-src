@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/disktab,v 1.2 2001/04/24 07:46:27 joe Exp $
 # Floppy formats:
 #
 # To make a filesystem on a floppy:

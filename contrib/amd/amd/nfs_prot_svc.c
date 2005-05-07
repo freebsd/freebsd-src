@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: nfs_prot_svc.c,v 1.5.2.6 2004/01/21 04:04:58 ib42 Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/nfs_prot_svc.c,v 1.2 2004/07/06 13:16:44 mbr Exp $
  *
  */
 

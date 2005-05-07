@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/contrib/ipfilter/test/logtest,v 1.3 2002/04/25 03:36:26 darrenr Exp $
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch
 else

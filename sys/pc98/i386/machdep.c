@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/i386/machdep.c,v 1.342.2.7 2005/03/07 13:53:39 nyan Exp $
  */
 
 #include "opt_atalk.h"

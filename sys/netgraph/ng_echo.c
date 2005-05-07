@@ -37,7 +37,7 @@
  *
  * Author: Julian Elisher <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_echo.c,v 1.11.2.1 2005/01/31 23:26:28 imp Exp $
  * $Whistle: ng_echo.c,v 1.13 1999/11/01 09:24:51 julian Exp $
  */
 

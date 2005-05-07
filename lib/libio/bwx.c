@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libio/bwx.c,v 1.6 2001/09/30 21:41:46 dillon Exp $");
 
 #include <sys/param.h>
 #include <sys/mman.h>

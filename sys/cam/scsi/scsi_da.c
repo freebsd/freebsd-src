@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_da.c,v 1.171.2.1 2005/01/30 00:59:16 imp Exp $");
 
 #ifdef _KERNEL
 #include "opt_hw_wdog.h"

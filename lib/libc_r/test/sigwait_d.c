@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/sigwait_d.c,v 1.2 2001/05/20 23:10:30 jasone Exp $
  */
 #include <stdlib.h>
 #include <unistd.h>

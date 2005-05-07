@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ntpdate,v 1.8 2002/03/22 04:16:39 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ntpdate,v 1.9.2.2 2005/01/30 13:23:44 ceri Exp $
 #
 
 # PROVIDE: ntpdate

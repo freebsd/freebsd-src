@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sysctl.h,v 1.132.2.2 2005/03/03 00:46:32 wes Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_

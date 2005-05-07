@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/umapfs/umap_vnops.c,v 1.40.2.1 2005/01/31 23:25:59 imp Exp $
  */
 
 /*

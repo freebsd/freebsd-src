@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: wire-test.c,v 1.5.2.4 2004/01/06 03:15:25 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/wire-test/wire-test.c,v 1.8 2004/07/06 13:16:49 mbr Exp $
  *
  */
 

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/330.catman,v 1.9 2002/03/05 19:13:05 cjc Exp $
 #
 
 # If there is a global system configuration file, suck it in.

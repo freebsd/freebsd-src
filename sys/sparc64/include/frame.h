@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/frame.h,v 1.15 2004/07/10 23:05:38 marcel Exp $
  */
 
 #ifndef	_MACHINE_FRAME_H_

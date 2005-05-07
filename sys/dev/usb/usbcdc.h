@@ -1,5 +1,5 @@
 /*	$NetBSD: usbcdc.h,v 1.6 2000/04/27 15:26:50 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usbcdc.h,v 1.10.6.2 2005/03/02 10:56:52 sobomax Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -102,4 +102,4 @@ C) Commit when everything builds cleanly and works properly.
 					-- des@FreeBSD.org
 					-- dougb@FreeBSD.org
 
-$FreeBSD$
+$FreeBSD: src/contrib/bind9/FREEBSD-Upgrade,v 1.1.2.3 2005/03/23 18:16:23 dougb Exp $

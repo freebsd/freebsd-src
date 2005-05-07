@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/nc/Makefile,v 1.3.2.1 2005/02/13 07:35:07 delphij Exp $
 
 .PATH: ${.CURDIR}/../../contrib/netcat
 

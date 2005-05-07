@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/sparc64/gen/_set_tp.c,v 1.1 2004/08/15 16:18:03 dfr Exp $
  */
 
 void

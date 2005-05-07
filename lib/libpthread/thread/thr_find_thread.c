@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_find_thread.c,v 1.13.4.1 2004/10/31 04:21:43 julian Exp $
  */
 #include <errno.h>
 #include <pthread.h>

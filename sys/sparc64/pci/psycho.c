@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: psycho.c,v 1.39 2001/10/07 20:30:41 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/psycho.c,v 1.52.2.1 2005/01/31 23:26:54 imp Exp $
  */
 
 /*

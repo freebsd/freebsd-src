@@ -1,6 +1,6 @@
 /*-
  * This file is in the public domain.
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_iu.h,v 1.2.6.1 2005/01/30 00:59:16 imp Exp $
  */
 #ifndef	_SCSI_SCSI_IU_H
 #define _SCSI_SCSI_IU_H 1

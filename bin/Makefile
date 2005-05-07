@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/Makefile,v 1.24 2004/01/16 15:23:18 ru Exp $
 
 SUBDIR= cat \
 	chflags \

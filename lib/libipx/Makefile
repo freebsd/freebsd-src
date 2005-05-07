@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libipx/Makefile,v 1.7 2003/08/18 15:25:38 obrien Exp $
 
 LIB=	ipx
 SHLIBDIR?= /lib

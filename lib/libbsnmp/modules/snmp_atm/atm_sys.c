@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libbsnmp/modules/snmp_atm/atm_sys.c,v 1.1 2004/08/09 16:36:04 harti Exp $
  *
  * SNMP module for ATM hardware interfaces - FreeBSD/Ng specific part.
  */

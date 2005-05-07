@@ -30,7 +30,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumkw.h,v 1.20 2003/05/07 03:32:09 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumkw.h,v 1.23 2003/06/12 05:45:19 grog Exp $
  */
 
 /*

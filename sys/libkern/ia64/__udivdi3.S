@@ -1,6 +1,6 @@
 .file "__udivdi3.s"
 
-// $FreeBSD$
+// $FreeBSD: src/sys/libkern/ia64/__udivdi3.S,v 1.1.8.1 2005/01/31 23:26:21 imp Exp $
 
 //-
 // Copyright (c) 2000, Intel Corporation

@@ -33,7 +33,7 @@
  *	related support functions residing
  *	in <arch>/<arch>/critical.c	- prototyped
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/critical.h,v 1.5 2004/07/27 16:41:01 rwatson Exp $
  */
 
 #ifndef _MACHINE_CRITICAL_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/crunch/examples/Makefile,v 1.5.8.1 2005/02/13 07:23:40 obrien Exp $
 
 CRUNCHED=	fixit
 

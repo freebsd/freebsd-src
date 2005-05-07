@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/radius.h,v 1.20.2.1 2005/02/03 10:49:18 brian Exp $
  */
 
 #define	MPPE_POLICY_ALLOWED	1

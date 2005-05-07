@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/netgraph.c,v 1.10 2004/07/26 20:18:11 charnier Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

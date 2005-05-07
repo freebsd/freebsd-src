@@ -28,7 +28,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_jmp.c,v 1.9.8.1 2005/02/05 01:02:47 das Exp $
  */
 
 #include <unistd.h>

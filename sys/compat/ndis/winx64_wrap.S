@@ -32,7 +32,7 @@
  * The x86_64 callback routines were written and graciously submitted
  * by Ville-Pertti Keinonen <will@exomi.com>.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/winx64_wrap.S,v 1.3.2.1 2005/02/18 16:30:09 wpaul Exp $
  */
 
 #include <machine/asmacros.h>

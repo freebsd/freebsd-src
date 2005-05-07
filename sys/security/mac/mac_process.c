@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/mac/mac_process.c,v 1.106 2004/02/22 00:33:10 rwatson Exp $");
 
 #include "opt_mac.h"
 

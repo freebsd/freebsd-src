@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/crypto/heimdal/FREEBSD-Xlist,v 1.1.4.1 2005/03/01 16:42:00 nectar Exp $
 TODO*
 *.info*
 *.cat[0-9]

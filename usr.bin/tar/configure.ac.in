@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/configure.ac.in,v 1.4.2.1 2005/02/25 05:14:43 kientzle Exp $
 
 # Process this file with autoconf to produce a configure script.
 AC_INIT(bsdtar, @VERSION@, kientzle@freebsd.org)

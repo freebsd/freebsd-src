@@ -1,7 +1,7 @@
 /*
  * Intel 8237 DMA Controller
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ic/i8237.h,v 1.8.8.1 2005/03/07 13:10:47 phk Exp $
  */
 
 #define	DMA37MD_SINGLE	0x40	/* single pass mode */
