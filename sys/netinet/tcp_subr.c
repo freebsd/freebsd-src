@@ -941,6 +941,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			caddr_t inp_ppcb;
+
+			bzero(&xt, sizeof(xt));
 			xt.xt_len = sizeof xt;
 			/* XXX should avoid extra copy */
 			bcopy(inp, &xt.xt_inp, sizeof *inp);
