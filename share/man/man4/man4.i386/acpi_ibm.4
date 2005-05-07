@@ -1,0 +1,87 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 7, 2005
+.Dt ACPI_IBM 4 i386
+.Os
+.Sh NAME
+.Nm acpi_ibm
+.Nd "ACPI hotkey driver for IBM laptops"
+.Sh SYNOPSIS
+.Cd "device acpi_ibm"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the hotkeys of IBM laptops.
+The main purpose of this driver is to provide an interface,
+accessible via
+.Xr sysctl 8 ,
+through which applications can determine the status of
+various laptop components.
+.Sh SYSCTLS
+The following sysctls are currently implemented:
+.Bl -tag -width indent
+.It Va dev.acpi_ibm.0.key_mask
+Current key mask.
+.It Va dev.acpi_ibm.0.version
+(read-only) Interface version of the
+.Nm
+driver.
+.It Va dev.acpi_ibm.0.avail_mask
+(read-only) Available key mask.
+.It Va dev.acpi_ibm.0.enable
+Toggle
+.Nm
+driver activity.
+.It Va dev.acpi_ibm.0.misckey
+(read-only) Status of the misc button.
+.It Va dev.acpi_ibm.0.brightness
+(read-only) Current brightness level of the display.
+.It Va dev.acpi_ibm.0.volume
+(read-only) Speaker volume.
+.It Va dev.acpi_ibm.0.mute
+(read-only) Indicates, whether the speakers are muted or not.
+.It Va dev.acpi_ibm.0.keylight
+(read-only) Indicates, whether the ThinkLight keyboard light is activated or not.
+.It Va dev.acpi_ibm.0.bluetooth
+Toggle Bluetooth chip activity.
+.It Va dev.acpi_ibm.0.wlan
+Toggle WLAN chip activity.
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 5.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Takanori Watanabe Aq takawata@FreeBSD.org .
+This manual page was written by
+.An Christian Brueffer Aq brueffer@FreeBSD.org .
