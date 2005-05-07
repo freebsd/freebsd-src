@@ -324,7 +324,7 @@
 	setting the <varname>debug.acpi.do_powerstate</varname> and
 	<varname>hw.pci.do_powerstate</varname> sysctls to <literal>0</literal>.</para>
 
-      <para arch="i386,amd64">The acpi_ibm driver for IBM laptops
+      <para arch="i386,amd64">The &man.acpi.ibm.4; driver for IBM laptops
 	has been added.</para>
 
       <para arch="i386,amd64">The &man.acpi.fujitsu.4; driver for handling
