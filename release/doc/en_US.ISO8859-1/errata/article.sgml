@@ -106,7 +106,32 @@
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>No news.</para>
+    <para>(6 May 2005) An error in the default permissions on the
+      <filename class="devicefile">/dev/iir</filename> device node,
+      which allowed unprivileged local users to send commands to the
+      hardware supported by the &man.iir.4; driver.  Although the
+      error was fixed prior to &release.prev;, it was applied too late
+      in the release cycle to be mentioned in the release notes.  For
+      more information, see security advisory
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>.
+      </para>
+
+    <para>(6 May 2005) A bug in the validation of &man.i386.get.ldt.2;
+      system call input arguments, which may allow kernel memory may
+      be disclosed to the user process, has been fixed.  This bug was
+      fixed prior to &release.prev;, although not in time to be
+      mentioned in the release notes.  For more information, see
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
+      </para>
+
+    <para>(6 May 2005) Several information disclosure vulnerabilities
+      in various parts of the kernel have been fixed in
+      &release.prev;, although too late to be mentioned in the release
+      notes.  For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
+      </para>
+
   </sect1>
 
 </article>
