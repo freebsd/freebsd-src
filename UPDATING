@@ -11,6 +11,9 @@ portupgrade.  Important recent entries: 20040724 (default X changes).
 20050509:
 	FreeBSD 5.4-RELEASE.
 
+20050507:		FreeBSD-SA-05:08.kmem
+	Correct two issues which missed from the earlier commit.
+
 20050506:		FreeBSD-SA-05:08.kmem
 	Correct several local kernel memory disclosure bugs.
 
