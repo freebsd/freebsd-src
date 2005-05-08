@@ -81,24 +81,16 @@ static void readfile(char *path, char *buf, size_t nbytes);
 void
 boot(int drive)
 {
-	int ret;
-#ifdef PC98
-	int i;
+	int i, ret;
 	unsigned char disk_equips;
-#endif
 
 	/* Pick up the story from the Bios on geometry of disks */
 
-#ifdef PC98
 	for(ret = 0; ret < 2; ret ++) {
 		if (*(unsigned char*)V(0xA155d) & (1 << ret)) {
 			bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
 		}
 	}
-#else /* IBM-PC */
-	for(ret = 0; ret < N_BIOS_GEOM; ret ++)
-		bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
-#endif /* PC98 */
 
 	bootinfo.bi_basemem = memsize(0);
 	bootinfo.bi_extmem = memsize(1);
@@ -106,17 +98,14 @@ boot(int drive)
 
 	gateA20();
 
-#ifdef PC98
 	/* set machine type to PC98_SYSTEM_PARAMETER */
 	machine_check();
-#endif /* PC98 */
 
 	/*
 	 * The default boot device is the first partition in the
 	 * compatibility slice on the boot drive.
 	 */
 	dosdev = drive;
-#ifdef PC98
 	maj = (drive&0x70) >> 3;		/* a good first bet */
 	if (maj == 4) {	/* da */
 		disk_equips = *(unsigned char *)V(0xA1482);
@@ -132,29 +121,6 @@ boot(int drive)
 	} else {
 		unit = drive & 0x0f;
 	}
-#else /* IBM-PC */
-	maj = 2;
-	unit = drive & 0x7f;
-#ifdef dontneed
-	slice = 0;
-	part = 0;
-#endif
-	if (drive & 0x80) {
-		/* Hard drive.  Adjust. */
-		maj = 0;
-#if BOOT_HD_BIAS > 0
-		if (unit >= BOOT_HD_BIAS) {
-			/*
-			 * The drive is probably a SCSI drive with a unit
-			 * number BOOT_HD_BIAS less than the BIOS drive
-			 * number.
-			 */
-			maj = 4;
-			unit -= BOOT_HD_BIAS;
-		}
-#endif
-	}
-#endif /* PC98 */
 	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
 		name = "/boot/loader";
 	if (boot_config[0] != '\0') {
@@ -173,11 +139,7 @@ loadstart:
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       (loadflags & RB_SERIAL) ? "serial" : "internal",
 	       (loadflags & RB_DUAL) ? "/dual" : "",
-#ifdef PC98
 	       dosdev & 0x0f, devs[maj], unit, 'a' + part,
-#else
-	       dosdev & 0x7f, devs[maj], unit, 'a' + part,
-#endif
 	       name ? name : "*specify_a_kernel_name*",
 	       boot_help);
 
@@ -242,11 +204,7 @@ loadprog(void)
 	startaddr = head.a_entry & 0x00FFFFFF;
 	addr =  startaddr;
 	printf("Booting %d:%s(%d,%c)%s @ 0x%x\n"
-#ifdef PC98
 			, dosdev & 0x0f
-#else
-			, dosdev & 0x7f
-#endif
 			, devs[maj]
 			, unit
 			, 'a'+part

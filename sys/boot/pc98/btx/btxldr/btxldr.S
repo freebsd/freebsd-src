@@ -43,24 +43,14 @@
 /*
  * Screen constants.
  */
-#ifdef PC98
 		.set SCR_MAT,0xe1		# Mode/attribute
-#else
-		.set SCR_MAT,0x7		# Mode/attribute
-#endif
 		.set SCR_COL,0x50		# Columns per row
 		.set SCR_ROW,0x19		# Rows per screen
 /*
  * BIOS Data Area locations.
  */
-#ifdef PC98
 		.set BDA_MEM,0xa1501		# Free memory
 		.set BDA_POS,0xa153e		# Cursor position
-#else
-		.set BDA_MEM,0x413		# Free memory
-		.set BDA_SCR,0x449		# Video mode
-		.set BDA_POS,0x450		# Cursor position
-#endif
 /*
  * Required by aout gas inadequacy.
  */
@@ -73,7 +63,6 @@
  * BTX program loader for ELF clients.
  */
 start:		cld				# String ops inc
-#ifdef PC98
 		cli
 gdcwait.1:	inb $0x60,%al
 		testb $0x04,%al
@@ -94,17 +83,12 @@ gdcwait.2:	inb $0x60,%al
 		shlw $1,%dx
 		movl $BDA_POS,%ebx
 		movw %dx,(%ebx)
-#endif
 		movl $m_logo,%esi		# Identify
 		call putstr			#  ourselves
 		movzwl BDA_MEM,%eax		# Get base memory
-#ifdef PC98
 		andl $0x7,%eax
 		incl %eax
 		shll $0x11,%eax			#  in bytes
-#else
-		shll $0xa,%eax			#  in bytes
-#endif
 		movl %eax,%ebp			# Base of user stack
 #ifdef BTXLDR_VERBOSE
 		movl $m_mem,%esi		# Display
@@ -330,17 +314,9 @@ putchr: 	pusha				# Save
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
 		movw (%ebx),%dx 		# Cursor position
-#ifdef PC98
 		movl $0xa0000,%edi		# Regen buffer (color)
-#else
-		movl $0xb8000,%edi		# Regen buffer (color)
-		cmpb %ah,BDA_SCR-BDA_POS(%ebx)	# Mono mode?
-		jne putchr.1			# No
-		xorw %di,%di			# Regen buffer (mono)
-#endif
 putchr.1:	cmpb $0xa,%al			# New line?
 		je putchr.2			# Yes
-#ifdef PC98
 		movw %dx,%cx
 		movb %al,(%edi,%ecx,1)		# Write char
 		addl $0x2000,%ecx
@@ -354,35 +330,16 @@ putchr.2:	movw %dx,%ax
 		mul %dl
 		movw %ax,%dx
 putchr.3:	cmpw $SCR_COL*SCR_ROW*2,%dx
-#else
-		xchgl %eax,%ecx 		# Save char
-		movb $SCR_COL,%al		# Columns per row
-		mulb %dh			#  * row position
-		addb %dl,%al			#  + column
-		adcb $0x0,%ah			#  position
-		shll %eax			#  * 2
-		xchgl %eax,%ecx 		# Swap char, offset
-		movw %ax,(%edi,%ecx,1)		# Write attr:char
-		incl %edx			# Bump cursor
-		cmpb $SCR_COL,%dl		# Beyond row?
-		jb putchr.3			# No
-putchr.2:	xorb %dl,%dl			# Zero column
-		incb %dh			# Bump row
-putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
-#endif
 		jb putchr.4			# No
 		leal 2*SCR_COL(%edi),%esi	# New top line
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
 		movb $' ',%al			# Space
-#ifdef PC98
 		xorb %ah,%ah
-#endif
 		movb $SCR_COL,%cl		# Columns to clear
 		rep				# Clear
 		stosw				#  line
-#ifdef PC98
 		movw $(SCR_ROW-1)*SCR_COL*2,%dx
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		shrw $1,%dx
@@ -395,10 +352,6 @@ gdcwait.3:	inb $0x60,%al
 		outb %al,$0x60
 		movb %dh,%al
 		outb %al,$0x60
-#else
-		movb $SCR_ROW-1,%dh		# Bottom line
-putchr.4:	movw %dx,(%ebx) 		# Update position
-#endif
 		popa				# Restore
 		ret				# To caller
 /*

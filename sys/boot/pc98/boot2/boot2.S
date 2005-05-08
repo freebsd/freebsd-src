@@ -173,9 +173,7 @@ ENTRY(boot2)
 	movl	%esp, EXT(dflt_name)
 #endif
 
-#ifdef PC98
 	movb	0xA1584 - BOOTSEG * 0x10, %dl
-#endif
 	movzbl	%dl, %edx	/* discard head (%dh) and random high bits */
 	pushl	%edx
 	call	EXT(boot)
