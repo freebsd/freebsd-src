@@ -575,7 +575,8 @@ archive_entry_set_link(struct archive_entry *entry, const char *target)
 	if (entry->ae_symlink.aes_mbs != NULL ||
 	    entry->ae_symlink.aes_wcs != NULL)
 		aes_set_mbs(&entry->ae_symlink, target);
-	aes_set_mbs(&entry->ae_hardlink, target);
+	else
+		aes_set_mbs(&entry->ae_hardlink, target);
 }
 
 void
