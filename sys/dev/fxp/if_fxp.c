@@ -140,7 +140,7 @@ static u_char fxp_cb_config_template[] = {
 };
 
 struct fxp_ident {
-	u_int16_t	devid;
+	uint16_t	devid;
 	int16_t		revid;		/* -1 matches anything */
 	char 		*name;
 };
@@ -208,7 +208,7 @@ static int		fxp_resume(device_t dev);
 
 static void		fxp_intr(void *xsc);
 static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
-			    u_int8_t statack, int count);
+			    uint8_t statack, int count);
 static void 		fxp_init(void *xsc);
 static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
@@ -223,10 +223,10 @@ static int		fxp_add_rfabuf(struct fxp_softc *sc,
     			    struct fxp_rx *rxp);
 static int		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
-static u_int16_t	fxp_eeprom_getword(struct fxp_softc *sc, int offset,
+static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 			    int autosize);
 static void 		fxp_eeprom_putword(struct fxp_softc *sc, int offset,
-			    u_int16_t data);
+			    uint16_t data);
 static void		fxp_autosize_eeprom(struct fxp_softc *sc);
 static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
@@ -249,7 +249,7 @@ static int		sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS);
 static void 		fxp_scb_wait(struct fxp_softc *sc);
 static void		fxp_scb_cmd(struct fxp_softc *sc, int cmd);
 static void		fxp_dma_wait(struct fxp_softc *sc,
-    			    volatile u_int16_t *status, bus_dma_tag_t dmat,
+    			    volatile uint16_t *status, bus_dma_tag_t dmat,
 			    bus_dmamap_t map);
 
 static device_method_t fxp_methods[] = {
@@ -311,7 +311,7 @@ fxp_scb_cmd(struct fxp_softc *sc, int cmd)
 }
 
 static void
-fxp_dma_wait(struct fxp_softc *sc, volatile u_int16_t *status,
+fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
     bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	int i = 10000;
@@ -331,8 +331,8 @@ fxp_dma_wait(struct fxp_softc *sc, volatile u_int16_t *status,
 static int
 fxp_probe(device_t dev)
 {
-	u_int16_t devid;
-	u_int8_t revid;
+	uint16_t devid;
+	uint8_t revid;
 	struct fxp_ident *ident;
 
 	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
@@ -352,7 +352,7 @@ fxp_probe(device_t dev)
 static void
 fxp_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	u_int32_t *addr;
+	uint32_t *addr;
 
 	if (error)
 		return;
@@ -370,8 +370,8 @@ fxp_attach(device_t dev)
 	struct fxp_tx *txp;
 	struct fxp_rx *rxp;
 	struct ifnet *ifp;
-	u_int32_t val;
-	u_int16_t data, myea[ETHER_ADDR_LEN / 2];
+	uint32_t val;
+	uint16_t data, myea[ETHER_ADDR_LEN / 2];
 	int i, rid, m1, m2, prefer_iomap, maxtxseg;
 	int error, s;
 
@@ -519,7 +519,7 @@ fxp_attach(device_t dev)
 	    sc->revision >= FXP_REV_82559_A0) {
 		fxp_read_eeprom(sc, &data, 10, 1);
 		if (data & 0x02) {			/* STB enable */
-			u_int16_t cksum;
+			uint16_t cksum;
 			int i;
 
 			device_printf(dev,
@@ -972,7 +972,7 @@ fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->sc_if;
-	u_int16_t pci_command;
+	uint16_t pci_command;
 	int i, s;
 
 	FXP_LOCK(sc);
@@ -1008,7 +1008,7 @@ fxp_resume(device_t dev)
 static void 
 fxp_eeprom_shiftin(struct fxp_softc *sc, int data, int length)
 {
-	u_int16_t reg;
+	uint16_t reg;
 	int x;
 
 	/*
@@ -1035,10 +1035,10 @@ fxp_eeprom_shiftin(struct fxp_softc *sc, int data, int length)
  * The word size is 16 bits, so you have to provide the address for
  * every 16 bits of data.
  */
-static u_int16_t
+static uint16_t
 fxp_eeprom_getword(struct fxp_softc *sc, int offset, int autosize)
 {
-	u_int16_t reg, data;
+	uint16_t reg, data;
 	int x;
 
 	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
@@ -1088,7 +1088,7 @@ fxp_eeprom_getword(struct fxp_softc *sc, int offset, int autosize)
 }
 
 static void
-fxp_eeprom_putword(struct fxp_softc *sc, int offset, u_int16_t data)
+fxp_eeprom_putword(struct fxp_softc *sc, int offset, uint16_t data)
 {
 	int i;
 
@@ -1472,7 +1472,7 @@ static void
 fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct fxp_softc *sc = ifp->if_softc;
-	u_int8_t statack;
+	uint8_t statack;
 
 	FXP_LOCK(sc);
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
@@ -1487,7 +1487,7 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
 	    FXP_SCB_STATACK_FR;
 	if (cmd == POLL_AND_CHECK_STATUS) {
-		u_int8_t tmp;
+		uint8_t tmp;
 
 		tmp = CSR_READ_1(sc, FXP_CSR_SCB_STATACK);
 		if (tmp == 0xff || tmp == 0) {
@@ -1513,7 +1513,7 @@ fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
 	struct ifnet *ifp = &sc->sc_if;
-	u_int8_t statack;
+	uint8_t statack;
 
 	FXP_LOCK(sc);
 	if (sc->suspended) {
@@ -1581,7 +1581,7 @@ fxp_txeof(struct fxp_softc *sc)
 }
 
 static void
-fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
+fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
     int count)
 {
 	struct mbuf *m;
@@ -2622,18 +2622,18 @@ fxp_mc_setup(struct fxp_softc *sc)
 	return;
 }
 
-static u_int32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;
-static u_int32_t fxp_ucode_d101b0[] = D101_B0_RCVBUNDLE_UCODE;
-static u_int32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
-static u_int32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
-static u_int32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
-static u_int32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d101b0[] = D101_B0_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
+static uint32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
 
-#define UCODE(x)	x, sizeof(x)/sizeof(u_int32_t)
+#define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
 
 struct ucode {
-	u_int32_t	revision;
-	u_int32_t	*ucode;
+	uint32_t	revision;
+	uint32_t	*ucode;
 	int		length;
 	u_short		int_delay_offset;
 	u_short		bundle_max_offset;
@@ -2670,10 +2670,10 @@ fxp_load_ucode(struct fxp_softc *sc)
 	for (i = 0; i < uc->length; i++)
 		cbp->ucode[i] = htole32(uc->ucode[i]);
 	if (uc->int_delay_offset)
-		*(u_int16_t *)&cbp->ucode[uc->int_delay_offset] =
+		*(uint16_t *)&cbp->ucode[uc->int_delay_offset] =
 		    htole16(sc->tunable_int_delay + sc->tunable_int_delay / 2);
 	if (uc->bundle_max_offset)
-		*(u_int16_t *)&cbp->ucode[uc->bundle_max_offset] =
+		*(uint16_t *)&cbp->ucode[uc->bundle_max_offset] =
 		    htole16(sc->tunable_bundle_max);
 	/*
 	 * Download the ucode to the chip.
