@@ -89,9 +89,7 @@ int strcasecmp(const char *s1, const char *s2);
 #endif /* !CDBOOT */
 void memcpy(const void *from, void *to, size_t len);
 void twiddle(void);
-#ifdef PC98
 void machine_check(void);
-#endif
 
 /* probe_keyboard.c */
 int probe_keyboard(void);
@@ -107,7 +105,4 @@ void xread(char *addr, int size);
 void read(char *buffer, int count);
 int openrd(void);
 
-#ifdef PC98
 #define V(ra)	(ra - BOOTSEG * 0x10)
-#endif
-

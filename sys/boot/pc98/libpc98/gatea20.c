@@ -2,10 +2,10 @@
  * $NetBSD: gatea20.c,v 1.2 1997/10/29 00:32:49 fvdl Exp $
  */
 
+/* extracted from freebsd:sys/i386/boot/biosboot/io.c */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-/* extracted from freebsd:sys/i386/boot/biosboot/io.c */
 
 #include <stand.h>
 #include <machine/cpufunc.h>
@@ -36,24 +36,7 @@ static unsigned char	x_20 = KB_A20;
 void gateA20()
 {
 	__asm("pushfl ; cli");
-#ifdef PC98
         outb(0xf2, 0x00);
         outb(0xf6, 0x02);
-#else   /* IBM PC */
-#ifdef	IBM_L40
-	outb(0x92, 0x2);
-#else	/* !IBM_L40 */
-	while (inb(K_STATUS) & K_IBUF_FUL);
-	while (inb(K_STATUS) & K_OBUF_FUL)
-		(void)inb(K_RDWR);
-
-	outb(K_CMD, KC_CMD_WOUT);
-	delay(100);
-	while (inb(K_STATUS) & K_IBUF_FUL);
-	outb(K_RDWR, x_20);
-	delay(100);
-	while (inb(K_STATUS) & K_IBUF_FUL);
-#endif	/* IBM_L40 */
-#endif  /* IBM PC */
 	__asm("popfl");
 }

@@ -15,8 +15,6 @@ LDFLAGS=-Wl,-r
 .PATH:	${.CURDIR}/../../i386/kgzldr
 
 BOOT_COMCONSOLE_PORT?=	0x238
-
-AFLAGS+=--defsym PC98=1
 AFLAGS+=--defsym SIO_PRT=${BOOT_COMCONSOLE_PORT}
 
 .include <bsd.prog.mk>

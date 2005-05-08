@@ -137,11 +137,6 @@ main(void)
 	initial_bootinfo->bi_extmem = bios_extmem / 1024;
     }
 
-#ifndef PC98
-    /* detect ACPI for future reference */
-    biosacpi_detect();
-#endif
-
     printf("\n");
     printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
@@ -212,17 +207,12 @@ extract_currdev(void)
 	 * and we are not booting from the lowest-numbered disk type 
 	 * (ie. SCSI when IDE also exists).
 	 */
-#ifdef PC98 
 	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2)) {	/* biosdev doesn't match major */
 	    if (B_TYPE(initial_bootdev) == 6)
 		biosdev = 0x30 + B_UNIT(initial_bootdev);
 	    else
 		biosdev = (major << 3) + 0x80 + B_UNIT(initial_bootdev);
 	}
-#else
-	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
-	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
-#endif
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
     

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Michael Smith (msmith@freebsd.org)
  * Copyright (c) 1997 Kazutaka YOKOTA (yokota@zodiac.mech.utsunomiya-u.ac.jp)
  * All rights reserved.
@@ -34,9 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <btxv86.h>
 #include <machine/psl.h>
-#ifdef PC98
 #include <machine/cpufunc.h>
-#endif
 #include "libi386.h"
 
 #if KEYBOARD_PROBE
@@ -73,7 +71,6 @@ static int	fg_c, bg_c, curx, cury;
 static int	esc;
 #endif
 
-#ifdef PC98
 static unsigned short *crtat, *Crtat;
 static int row = 25, col = 80;
 #ifdef TERM_EMU
@@ -114,7 +111,6 @@ static u_int8_t	ibmpc_to_pc98[256] = {
 };
 #define	at2pc98(fg_at, bg_at)	ibmpc_to_pc98[((bg_at) << 4) | (fg_at)]
 #endif /* TERM_EMU */
-#endif /* PC98 */
 
 struct console vidconsole = {
     "vidconsole",
@@ -147,15 +143,11 @@ vidc_probe(struct console *cp)
 static int
 vidc_init(int arg)
 {
-    int		i;
-#ifdef PC98
-    int		hw_cursor;
-#endif
+    int		i, hw_cursor;
 
     if (vidc_started && arg == 0)
 	return (0);
     vidc_started = 1;
-#ifdef PC98
     Crtat = (unsigned short *)PTOV(0xA0000);
     while ((inb(0x60) & 0x04) == 0)
 	;
@@ -168,7 +160,6 @@ vidc_init(int arg)
     inb(0x62);
     inb(0x62);
     crtat = Crtat + hw_cursor;
-#endif
 #ifdef TERM_EMU
     /* Init terminal emulator */
     end_term();
@@ -182,7 +173,6 @@ vidc_init(int arg)
     return (0);	/* XXX reinit? */
 }
 
-#ifdef PC98
 static void
 beep(void)
 {
@@ -191,13 +181,11 @@ beep(void)
 	delay(40000);
 	outb(0x37, 7);
 }
-#endif
 
 #if 0
 static void
 vidc_biosputchar(int c)
 {
-#ifdef PC98
     unsigned short *cp;
     int i, pos;
 
@@ -238,14 +226,6 @@ vidc_biosputchar(int c)
     outb(0x60, pos & 0xff);
     outb(0x60, pos >> 8);
 #endif
-#else
-
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0xe00 | (c & 0xff);
-    v86.ebx = 0x7;
-    v86int();
-#endif
 }
 #endif
 
@@ -259,17 +239,10 @@ vidc_rawputchar(int c)
 	for (i = 0; i < 8; i++)
 	    vidc_rawputchar(' ');
     else {
-#if !defined(TERM_EMU) && !defined(PC98)
-        vidc_biosputchar(c);
-#else
 	/* Emulate AH=0eh (teletype output) */
 	switch(c) {
 	case '\a':
-#ifdef PC98
 	    beep();
-#else
-	    vidc_biosputchar(c);
-#endif
 	    return;
 	case '\r':
 	    curx = 0;
@@ -306,7 +279,6 @@ vidc_rawputchar(int c)
 	    }
 	}
 	curs_move(curx, cury);
-#endif
     }
 }
 
@@ -318,28 +290,16 @@ vidc_rawputchar(int c)
 void
 get_pos(void)
 {
-#ifdef PC98
     int pos = crtat - Crtat;
 
     curx = pos % col;
     cury = pos / col;
-#else
-
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0300;
-    v86.ebx = 0x0;
-    v86int();
-    curx = v86.edx & 0x00ff;
-    cury = (v86.edx & 0xff00) >> 8;
-#endif
 }
 
 /* Move cursor to x rows and y cols (0-based). */
 void
 curs_move(int x, int y)
 {
-#ifdef PC98
     int pos;
 
     pos = x + y * col;
@@ -355,29 +315,6 @@ curs_move(int x, int y)
     if (!isvisible(*crtat & 0x00ff)) {
 	write_char(' ', fg_c, bg_c);
     }
-#else
-
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0200;
-    v86.ebx = 0x0;
-    v86.edx = ((0x00ff & y) << 8) + (0x00ff & x);
-    v86int();
-    curx = x;
-    cury = y;
-    /* If there is ctrl char at this position, cursor would be invisible.
-     * Make it a space instead.
-     */
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0800;
-    v86.ebx = 0x0;
-    v86int();
-#define isvisible(c)	(((c) >= 32) && ((c) < 255))
-    if (!isvisible(v86.eax & 0x00ff)) {
-	write_char(' ', fg_c, bg_c);
-    }
-#endif
 }
 
 /* Scroll up the whole window by a number of rows. If rows==0,
@@ -387,7 +324,6 @@ curs_move(int x, int y)
 void
 scroll_up(int rows, int fgcol, int bgcol)
 {
-#ifdef PC98
     unsigned short *cp;
     int i;
 
@@ -402,18 +338,6 @@ scroll_up(int rows, int fgcol, int bgcol)
 	*(cp + 0x1000) = at2pc98(fgcol, bgcol);
 	*cp++ = ' ';
     }
-#else
-
-    if (rows == 0)
-	rows = 25;
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0600 + (0x00ff & rows);
-    v86.ebx = (bgcol << 12) + (fgcol << 8);
-    v86.ecx = 0x0;
-    v86.edx = 0x184f;
-    v86int();
-#endif
 }
 
 /* Write character and attribute at cursor position. */
@@ -421,17 +345,8 @@ void
 write_char(int c, int fgcol, int bgcol)
 {
 
-#ifdef PC98
     *crtat = (c == 0x5c ? 0xfc : (c & 0xff));
     *(crtat + 0x1000) = at2pc98(fgcol, bgcol);
-#else
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0900 + (0x00ff & c);
-    v86.ebx = (bgcol << 4) + fgcol;
-    v86.ecx = 0x1;
-    v86int();
-#endif
 }
 
 /**************************************************************/
@@ -445,7 +360,6 @@ write_char(int c, int fgcol, int bgcol)
 void
 CD(void)
 {
-#ifdef PC98
     int pos;
 
     get_pos();
@@ -454,31 +368,6 @@ CD(void)
 	*(crtat + pos + 0x1000) = at2pc98(fg_c, bg_c);
     }
     end_term();
-#else
-
-    get_pos();
-    if (curx > 0) {
-	v86.ctl = 0;
-	v86.addr = 0x10;
-	v86.eax = 0x0600;
-	v86.ebx = (bg_c << 4) + fg_c;
-	v86.ecx = (cury << 8) + curx;
-	v86.edx = (cury << 8) + 79;
-	v86int();
-	if (++cury > 24) {
-	    end_term();
-	    return;
-	}
-    }
-    v86.ctl = 0;
-    v86.addr = 0x10;
-    v86.eax = 0x0600;
-    v86.ebx = (bg_c << 4) + fg_c;
-    v86.ecx = (cury << 8) + 0;
-    v86.edx = (24 << 8) + 79;
-    v86int();
-    end_term();
-#endif
 }
 
 /* Absolute cursor move to args[0] rows and args[1] columns
@@ -679,11 +568,7 @@ vidc_getchar(void)
 
     if (vidc_ischar()) {
 	v86.ctl = 0;
-#ifdef PC98
 	v86.addr = 0x18;
-#else
-	v86.addr = 0x16;
-#endif
 	v86.eax = 0x0;
 	v86int();
 	return (v86.eax & 0xff);
@@ -696,137 +581,17 @@ static int
 vidc_ischar(void)
 {
 
-#ifdef PC98
     v86.ctl = 0;
     v86.addr = 0x18;
     v86.eax = 0x100;
     v86int();
     return ((v86.ebx >> 8) & 0x1);
-#else
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x16;
-    v86.eax = 0x100;
-    v86int();
-    return (!(v86.efl & PSL_Z));
-#endif
 }
 
 #if KEYBOARD_PROBE
-
-#ifdef PC98
 static int
 probe_keyboard(void)
 {
     return (*(u_char *)PTOV(0xA1481) & 0x48);
 }
-#else   /* PC98 */
-#define PROBE_MAXRETRY	5
-#define PROBE_MAXWAIT	400
-#define IO_DUMMY	0x84
-#define IO_KBD		0x060		/* 8042 Keyboard */
-
-/* selected defines from kbdio.h */
-#define KBD_STATUS_PORT 	4	/* status port, read */
-#define KBD_DATA_PORT		0	/* data port, read/write 
-					 * also used as keyboard command
-					 * and mouse command port 
-					 */
-#define KBDC_ECHO		0x00ee
-#define KBDS_ANY_BUFFER_FULL	0x0001
-#define KBDS_INPUT_BUFFER_FULL	0x0002
-#define KBD_ECHO		0x00ee
-
-/* 7 microsec delay necessary for some keyboard controllers */
-static void
-delay7(void)
-{
-    /* 
-     * I know this is broken, but no timer is available yet at this stage...
-     * See also comments in `delay1ms()'.
-     */
-    inb(IO_DUMMY); inb(IO_DUMMY);
-    inb(IO_DUMMY); inb(IO_DUMMY);
-    inb(IO_DUMMY); inb(IO_DUMMY);
-}
-
-/*
- * This routine uses an inb to an unused port, the time to execute that
- * inb is approximately 1.25uS.  This value is pretty constant across
- * all CPU's and all buses, with the exception of some PCI implentations
- * that do not forward this I/O address to the ISA bus as they know it
- * is not a valid ISA bus address, those machines execute this inb in
- * 60 nS :-(.
- *
- */
-static void
-delay1ms(void)
-{
-    int i = 800;
-    while (--i >= 0)
-	(void)inb(0x84);
-}
-
-/* 
- * We use the presence/absence of a keyboard to determine whether the internal
- * console can be used for input.
- *
- * Perform a simple test on the keyboard; issue the ECHO command and see
- * if the right answer is returned. We don't do anything as drastic as
- * full keyboard reset; it will be too troublesome and take too much time.
- */
-static int
-probe_keyboard(void)
-{
-    int retry = PROBE_MAXRETRY;
-    int wait;
-    int i;
-
-    while (--retry >= 0) {
-	/* flush any noise */
-	while (inb(IO_KBD + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) {
-	    delay7();
-	    inb(IO_KBD + KBD_DATA_PORT);
-	    delay1ms();
-	}
-
-	/* wait until the controller can accept a command */
-	for (wait = PROBE_MAXWAIT; wait > 0; --wait) {
-	    if (((i = inb(IO_KBD + KBD_STATUS_PORT)) 
-                & (KBDS_INPUT_BUFFER_FULL | KBDS_ANY_BUFFER_FULL)) == 0)
-		break;
-	    if (i & KBDS_ANY_BUFFER_FULL) {
-		delay7();
-	        inb(IO_KBD + KBD_DATA_PORT);
-	    }
-	    delay1ms();
-	}
-	if (wait <= 0)
-	    continue;
-
-	/* send the ECHO command */
-	outb(IO_KBD + KBD_DATA_PORT, KBDC_ECHO);
-
-	/* wait for a response */
-	for (wait = PROBE_MAXWAIT; wait > 0; --wait) {
-	     if (inb(IO_KBD + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL)
-		 break;
-	     delay1ms();
-	}
-	if (wait <= 0)
-	    continue;
-
-	delay7();
-	i = inb(IO_KBD + KBD_DATA_PORT);
-#ifdef PROBE_KBD_BEBUG
-        printf("probe_keyboard: got 0x%x.\n", i);
-#endif
-	if (i == KBD_ECHO) {
-	    /* got the right answer */
-	    return (0);
-	}
-    }
-
-    return (1);
-}
-#endif /* PC98 */
 #endif /* KEYBOARD_PROBE */
