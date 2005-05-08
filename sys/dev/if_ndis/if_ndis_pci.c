@@ -317,7 +317,7 @@ ndis_attach_pci(dev)
 		devidx++;
 	}
 
-	if (t[devidx].ndis_name == NULL)
+	if (t->ndis_name == NULL)
 		sc->ndis_devidx = defidx;
 	else
 		sc->ndis_devidx = devidx;
