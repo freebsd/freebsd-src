@@ -68,7 +68,7 @@ void tree_close(struct tree *);
 #define	TREE_REGULAR	1
 #define	TREE_POSTDESCENT	2
 #define	TREE_POSTASCENT	3
-#define	TREE_ERROR	-1
+#define	TREE_ERROR_DIR	-1
 int tree_next(struct tree *);
 
 int tree_errno(struct tree *);

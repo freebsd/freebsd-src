@@ -537,14 +537,14 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		const struct stat *st = NULL, *lst = NULL;
 		int descend;
 
-		if (tree_ret == TREE_ERROR)
-			bsdtar_warnc(bsdtar, errno, "%s", name);
+		if (tree_ret == TREE_ERROR_DIR)
+			bsdtar_warnc(bsdtar, errno, "%s: Couldn't visit directory", name);
 		if (tree_ret != TREE_REGULAR)
 			continue;
 		lst = tree_current_lstat(tree);
 		if (lst == NULL) {
 			/* Couldn't lstat(); must not exist. */
-			bsdtar_warnc(bsdtar, errno, "%s: Cannot open", path);
+			bsdtar_warnc(bsdtar, errno, "%s: Cannot stat", path);
 			bsdtar->return_value = 1;
 			continue;
 		}
@@ -744,7 +744,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 		fd = open(accpath, O_RDONLY);
 		if (fd < 0) {
 			if (!bsdtar->verbose)
-				bsdtar_warnc(bsdtar, errno, "%s", pathname);
+				bsdtar_warnc(bsdtar, errno, "%s: could not open file", pathname);
 			else
 				fprintf(stderr, ": %s", strerror(errno));
 			goto cleanup;
