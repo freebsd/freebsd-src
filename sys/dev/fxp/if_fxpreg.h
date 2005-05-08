@@ -468,3 +468,6 @@ struct fxp_stats {
 #define FXP_REV_82559S_A	9	/* 82559S A stepping */
 #define FXP_REV_82550		12
 #define FXP_REV_82550_C		13	/* 82550 C stepping */
+#define FXP_REV_82551_E		14	/* 82551 */
+#define FXP_REV_82551_F		15	/* 82551 */
+#define FXP_REV_82551_10	16	/* 82551 */
