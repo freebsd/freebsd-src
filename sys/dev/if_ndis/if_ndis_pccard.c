@@ -185,7 +185,8 @@ ndis_attach_pccard(dev)
 	db = windrv_match((matchfuncptr)ndis_devcompare, dev);
 	if (db == NULL)
 		return (ENXIO);
-
+	sc->ndis_dobj = db->windrv_object;
+	sc->ndis_regvals = db->windrv_regvals;
 	resource_list_init(&sc->ndis_rl);
 
 	sc->ndis_io_rid = 0;

@@ -307,6 +307,8 @@ windrv_unload(mod, img, len)
 	return(0);
 }
 
+#define WINDRV_LOADED		htonl(0x42534F44)
+
 /*
  * Loader routine for actual Windows driver modules, ultimately
  * calls the driver's DriverEntry() routine.
@@ -327,11 +329,16 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 	struct drvdb_ent	*new;
 	struct driver_object	*drv;
 	int			status;
+	uint32_t		*ptr;
 
 	/*
 	 * First step: try to relocate and dynalink the executable
 	 * driver image.
 	 */
+
+	ptr = (uint32_t *)(img + 8);
+        if (*ptr == WINDRV_LOADED)
+		goto skipreloc;
 
 	/* Perform text relocation */
 	if (pe_relocate(img))
@@ -356,6 +363,10 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 		if (pe_patch_imports(img, "USBD", usbd_functbl))
 			return(ENOEXEC);
 	}
+
+	*ptr = WINDRV_LOADED;
+
+skipreloc:
 
 	/* Next step: find the driver entry point. */
 
