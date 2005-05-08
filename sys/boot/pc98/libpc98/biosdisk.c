@@ -81,9 +81,7 @@ struct open_disk {
 #define BD_FLOPPY		0x0004
 #define BD_LABELOK		0x0008
 #define BD_PARTTABOK		0x0010
-#ifdef PC98
 #define BD_OPTICAL		0x0020
-#endif
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
     struct pc98_partition	od_slicetab[NDOSPART];
@@ -98,9 +96,7 @@ static struct bdinfo
     int		bd_unit;		/* BIOS unit number */
     int		bd_flags;
     int		bd_type;		/* BIOS 'drive type' (floppy only) */
-#ifdef PC98
     int		bd_da_unit;		/* kernel unit number for da */
-#endif
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
@@ -174,7 +170,6 @@ bd_unit2bios(int unit)
 static int
 bd_init(void) 
 {
-#ifdef PC98
     int		base, unit;
     int		da_drive=0, n=-0x10;
 
@@ -210,32 +205,6 @@ bd_init(void)
 	    nbdinfo++;
 	}
     }
-#else
-    int		base, unit, nfd = 0;
-
-    /* sequence 0, 0x80 */
-    for (base = 0; base <= 0x80; base += 0x80) {
-	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
-	    /* check the BIOS equipment list for number of fixed disks */
-	    if((base == 0x80) &&
-	       (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
-	        break;
-
-	    bdinfo[nbdinfo].bd_unit = unit;
-	    bdinfo[nbdinfo].bd_flags = (unit < 0x80) ? BD_FLOPPY : 0;
-
-	    if (!bd_int13probe(&bdinfo[nbdinfo]))
-		break;
-
-	    /* XXX we need "disk aliases" to make this simpler */
-	    printf("BIOS drive %c: is disk%d\n", 
-		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
-	    nbdinfo++;
-	    if (base == 0x80)
-	        nfd++;
-	}
-    }
-#endif
     return(0);
 }
 
@@ -245,7 +214,6 @@ bd_init(void)
 static int
 bd_int13probe(struct bdinfo *bd)
 {
-#ifdef PC98
     int addr;
 
     if (bd->bd_flags & BD_FLOPPY) {
@@ -269,34 +237,6 @@ bd_int13probe(struct bdinfo *bd)
 	}
     }
     return(0);
-#else
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = bd->bd_unit;
-    v86int();
-    
-    if (!(v86.efl & 0x1) &&				/* carry clear */
-	((v86.edx & 0xff) > ((unsigned)bd->bd_unit & 0x7f))) {	/* unit # OK */
-	bd->bd_flags |= BD_MODEINT13;
-	bd->bd_type = v86.ebx & 0xff;
-
-	/* Determine if we can use EDD with this device. */
-	v86.eax = 0x4100;
-	v86.edx = bd->bd_unit;
-	v86.ebx = 0x55aa;
-	v86int();
-	if (!(v86.efl & 0x1) &&				/* carry clear */
-	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
-	    (v86.ecx & 0x1)) {				/* packets mode ok */
-	    bd->bd_flags |= BD_MODEEDD1;
-	    if((v86.eax & 0xff00) > 0x300)
-	        bd->bd_flags |= BD_MODEEDD3;
-	}
-	return(1);
-    }
-    return(0);
-#endif
 }
 
 /*
@@ -312,12 +252,7 @@ bd_print(int verbose)
     struct pc98_partition	*dptr;
     
     for (i = 0; i < nbdinfo; i++) {
-#ifdef PC98
 	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 'A' + i);
-#else
-	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 
-		(bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit) : ('C' + bdinfo[i].bd_unit - 0x80));
-#endif
 	pager_output(line);
 
 	/* try to open the whole disk */
@@ -332,7 +267,6 @@ bd_print(int verbose)
 		dptr = &od->od_slicetab[0];
 
 		/* Check for a "dedicated" disk */
-#ifdef PC98
 		for (j = 0; j < od->od_nslices; j++) {
 		    switch(dptr[j].dp_mid) {
 		    case DOSMID_386BSD:
@@ -346,102 +280,11 @@ bd_print(int verbose)
 			break;
 		    }
 		}
-#else
-		if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
-		    (dptr[3].dp_start == 0) &&
-		    (dptr[3].dp_size == 50000)) {
-		    sprintf(line, "      disk%d", i);
-		    bd_printbsdslice(od, 0, line, verbose);
-		} else {
-		    for (j = 0; j < od->od_nslices; j++) {
-		        sprintf(line, "      disk%ds%d", i, j + 1);
-			bd_printslice(od, &dptr[j], line, verbose);
-                    }
-                }
-#endif
 	    }
 	    bd_closedisk(od);
 	}
     }
 }
-
-#ifndef PC98
-/*
- * Print information about slices on a disk.  For the size calculations we
- * assume a 512 byte sector.
- */
-static void
-bd_printslice(struct open_disk *od, struct dos_partition *dp, char *prefix,
-	int verbose)
-{
-	char line[80];
-
-	switch (dp->dp_typ) {
-	case DOSPTYP_386BSD:
-		bd_printbsdslice(od, (daddr_t)dp->dp_start, prefix, verbose);
-		return;
-	case DOSPTYP_LINSWP:
-		if (verbose)
-			sprintf(line, "%s: Linux swap %.6dMB (%d - %d)\n",
-			    prefix, dp->dp_size / 2048,
-			    dp->dp_start, dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: Linux swap\n", prefix);
-		break;
-	case DOSPTYP_LINUX:
-		/*
-		 * XXX
-		 * read the superblock to confirm this is an ext2fs partition?
-		 */
-		if (verbose)
-			sprintf(line, "%s: ext2fs  %.6dMB (%d - %d)\n", prefix,
-			    dp->dp_size / 2048, dp->dp_start,
-			    dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: ext2fs\n", prefix);
-		break;
-	case 0x00:				/* unused partition */
-	case DOSPTYP_EXT:
-		return;
-	case 0x01:
-		if (verbose)
-			sprintf(line, "%s: FAT-12  %.6dMB (%d - %d)\n", prefix,
-			    dp->dp_size / 2048, dp->dp_start,
-			    dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: FAT-12\n", prefix);
-		break;
-	case 0x04:
-	case 0x06:
-	case 0x0e:
-		if (verbose)
-			sprintf(line, "%s: FAT-16  %.6dMB (%d - %d)\n", prefix,
-			    dp->dp_size / 2048, dp->dp_start,
-			    dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: FAT-16\n", prefix);
-		break;
-	case 0x0b:
-	case 0x0c:
-		if (verbose)
-			sprintf(line, "%s: FAT-32  %.6dMB (%d - %d)\n", prefix,
-			    dp->dp_size / 2048, dp->dp_start,
-			    dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: FAT-32\n", prefix);
-		break;
-	default:
-		if (verbose)
-			sprintf(line, "%s: Unknown fs: 0x%x  %.6dMB (%d - %d)\n",
-			    prefix, dp->dp_typ, dp->dp_size / 2048,
-			    dp->dp_start, dp->dp_start + dp->dp_size);
-		else
-			sprintf(line, "%s: Unknown fs: 0x%x\n", prefix,
-			    dp->dp_typ);
-	}
-	pager_output(line);
-}
-#endif
 
 /*
  * Print out each valid partition in the disklabel of a FreeBSD slice.
@@ -580,12 +423,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     /*
      * Find the slice in the DOS slice table.
      */
-#ifdef PC98
     if (od->od_flags & BD_FLOPPY) {
 	sector = 0;
 	goto unsliced;
     }
-#endif
     if (bd_read(od, 0, 1, buf)) {
 	DEBUG("error reading MBR");
 	error = EIO;
@@ -605,26 +446,18 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	sector = 0;
 	goto unsliced;		/* may be a floppy */
     }
-#ifdef PC98
     if (bd_read(od, 1, 1, buf)) {
 	DEBUG("error reading MBR");
 	error = EIO;
 	goto out;
     }
-#endif
 
     /*
      * copy the partition table, then pick up any extended partitions.
      */
     bcopy(buf + DOSPARTOFF, &od->od_slicetab,
       sizeof(struct pc98_partition) * NDOSPART);
-#ifdef PC98
     od->od_nslices = NDOSPART;		/* extended slices start here */
-#else
-    od->od_nslices = 4;			/* extended slices start here */
-    for (i = 0; i < NDOSPART; i++)
-        bd_checkextended(od, i);
-#endif
     od->od_flags |= BD_PARTTABOK;
     dptr = &od->od_slicetab[0];
 
@@ -646,18 +479,6 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
         }
     }
 
-#ifndef PC98
-    /*
-     * Check for the historically bogus MBR found on true dedicated disks
-     */
-    if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
-      (dptr[3].dp_start == 0) &&
-      (dptr[3].dp_size == 50000)) {
-        sector = 0;
-        goto unsliced;
-    }
-#endif
-
     /* Try to auto-detect the best slice; this should always give a slice number */
     if (dev->d_kind.biosdisk.slice == 0) {
 	slice = bd_bestslice(od);
@@ -674,7 +495,6 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
      * at a DOS partition).
      */
     dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
-#ifdef PC98
     sector = dptr->dp_scyl * od->od_hds * od->od_sec +
 	dptr->dp_shd * od->od_sec + dptr->dp_ssect;
     {
@@ -683,19 +503,11 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	DEBUG("slice entry %d at %d, %d sectors",
 	      dev->d_kind.biosdisk.slice - 1, sector, end-sector);
     }
-#else
-    sector = dptr->dp_start;
-    DEBUG("slice entry %d at %d, %d sectors", dev->d_kind.biosdisk.slice - 1, sector, dptr->dp_size);
-#endif
 
     /*
      * If we are looking at a BSD slice, and the partition is < 0, assume the 'a' partition
      */
-#ifdef PC98
     if ((dptr->dp_mid == DOSMID_386BSD) && (dev->d_kind.biosdisk.partition < 0))
-#else
-    if ((dptr->dp_typ == DOSPTYP_386BSD) && (dev->d_kind.biosdisk.partition < 0))
-#endif
 	dev->d_kind.biosdisk.partition = 0;
 
  unsliced:
@@ -755,51 +567,6 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     return(error);
 }
 
-#ifndef PC98
-static void
-bd_checkextended(struct open_disk *od, int slicenum)
-{
-	char	buf[BIOSDISK_SECSIZE];
-	struct dos_partition *dp;
-	u_int base;
-	int i, start, end;
-
-	dp = &od->od_slicetab[slicenum];
-	start = od->od_nslices;
-
-	if (dp->dp_size == 0)
-		goto done;
-	if (dp->dp_typ != DOSPTYP_EXT)
-		goto done;
-	if (bd_read(od, (daddr_t)dp->dp_start, 1, buf))
-		goto done;
-	if (((u_char)buf[0x1fe] != 0x55) || ((u_char)buf[0x1ff] != 0xaa)) {
-		DEBUG("no magic in extended table");
-		goto done;
-	}
-	base = dp->dp_start;
-	dp = (struct dos_partition *)(&buf[DOSPARTOFF]);
-	for (i = 0; i < NDOSPART; i++, dp++) {
-		if (dp->dp_size == 0)
-			continue;
-		if (od->od_nslices == NDOSPART)
-			goto done;
-		dp->dp_start += base;
-		bcopy(dp, &od->od_slicetab[od->od_nslices], sizeof(*dp));
-		od->od_nslices++;
-	}
-	end = od->od_nslices;
-
-	/*
-	 * now, recursively check the slices we just added
-	 */
-	for (i = start; i < end; i++)
-		bd_checkextended(od, i);
-done:
-	return;
-}
-#endif
-
 /*
  * Search for a slice with the following preferences:
  *
@@ -834,8 +601,6 @@ bd_bestslice(struct open_disk *od)
 
 	dp = &od->od_slicetab[0];
 	for (i = 0; i < od->od_nslices; i++, dp++) {
-
-#ifdef PC98
 		switch(dp->dp_mid & 0x7f) {
 		case DOSMID_386BSD & 0x7f:		/* FreeBSD */
 			if ((dp->dp_mid & 0x80) &&
@@ -864,33 +629,6 @@ bd_bestslice(struct open_disk *od)
 			}
 			break;
 		}
-#else
-		switch (dp->dp_typ) {
-		case DOSPTYP_386BSD:		/* FreeBSD */
-			pref = dp->dp_flag & 0x80 ? PREF_FBSD_ACT : PREF_FBSD;
-			break;
-
-		case DOSPTYP_LINUX:
-			pref = dp->dp_flag & 0x80 ? PREF_LINUX_ACT : PREF_LINUX;
-			break;
-    
-		case 0x01:		/* DOS/Windows */
-		case 0x04:
-		case 0x06:
-		case 0x0b:
-		case 0x0c:
-		case 0x0e:
-			pref = dp->dp_flag & 0x80 ? PREF_DOS_ACT : PREF_DOS;
-			break;
-
-		default:
-		        pref = PREF_NONE;
-		}
-		if (pref < preflevel) {
-			preflevel = pref;
-			prefslice = i + 1;
-		}
-#endif
 	}
 	return (prefslice);
 }
@@ -1016,12 +754,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     p = dest;
 
     /* Decide whether we have to bounce */
-#ifdef PC98
-    if (
-#else
-    if ((od->od_unit < 0x80) && 
-#endif
-	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
+    if (((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
 
 	/* 
 	 * There is a 64k physical boundary somewhere in the destination buffer, so we have
@@ -1029,11 +762,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	 * need to.  Use the bottom half unless there is a break there, in which case we
 	 * use the top half.
 	 */
-#ifdef PC98
 	x = min(od->od_sec, (unsigned)blks);
-#else
-	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
-#endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
@@ -1062,31 +791,19 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	xp = bbuf == NULL ? p : breg;
 
 	/* correct sector number for 1-based BIOS numbering */
-#ifdef PC98
 	if ((od->od_unit & 0xf0) == 0x30 || (od->od_unit & 0xf0) == 0x90)
 	    sec++;
-#else
-	sec++;
-#endif
 
 	/* Loop retrying the operation a couple of times.  The BIOS may also retry. */
 	for (retry = 0; retry < 3; retry++) {
 	    /* if retrying, reset the drive */
 	    if (retry > 0) {
-#ifdef PC98
 		v86.ctl = V86_FLAGS;
 		v86.addr = 0x1b;
 		v86.eax = 0x0300 | od->od_unit;
-#else
-		v86.ctl = V86_FLAGS;
-		v86.addr = 0x13;
-		v86.eax = 0;
-		v86.edx = od->od_unit;
-#endif
 		v86int();
 	    }
 	    
-#ifdef PC98
 	    v86.ctl = V86_FLAGS;
 	    v86.addr = 0x1b;
 	    if (od->od_flags & BD_FLOPPY) {
@@ -1111,64 +828,14 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	    result = (v86.efl & 0x1);
 	    if (result == 0)
 		break;
-#else
-	    if(cyl > 1023) {
-	        /* use EDD if the disk supports it, otherwise, return error */
-	        if(od->od_flags & BD_MODEEDD1) {
-		    static unsigned short packet[8];
-
-		    packet[0] = 0x10;
-		    packet[1] = x;
-		    packet[2] = VTOPOFF(xp);
-		    packet[3] = VTOPSEG(xp);
-		    packet[4] = dblk & 0xffff;
-		    packet[5] = dblk >> 16;
-		    packet[6] = 0;
-		    packet[7] = 0;
-		    v86.ctl = V86_FLAGS;
-		    v86.addr = 0x13;
-		    v86.eax = 0x4200;
-		    v86.edx = od->od_unit;
-		    v86.ds = VTOPSEG(packet);
-		    v86.esi = VTOPOFF(packet);
-		    v86int();
-		    result = (v86.efl & 0x1);
-		    if(result == 0)
-		      break;
-		} else {
-		    result = 1;
-		    break;
-		}
-	    } else {
-	        /* Use normal CHS addressing */
-	        v86.ctl = V86_FLAGS;
-		v86.addr = 0x13;
-		v86.eax = 0x200 | x;
-		v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
-		v86.edx = (hd << 8) | od->od_unit;
-		v86.es = VTOPSEG(xp);
-		v86.ebx = VTOPOFF(xp);
-		v86int();
-		result = (v86.efl & 0x1);
-		if (result == 0)
-		  break;
-	    }
-#endif
 	}
 	
-#ifdef PC98
  	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, od->od_flags & BD_FLOPPY ? sec - 1 : sec, p, VTOP(p), result ? "failed" : "ok");
 	/* BUG here, cannot use v86 in printf because putchar uses it too */
 	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
 	      od->od_flags & BD_FLOPPY ? 0xd600 | od->od_unit : 0x0600 | od->od_unit,
 	      od->od_flags & BD_FLOPPY ? 0x0200 | cyl : cyl, (hd << 8) | sec,
 	      (v86.eax >> 8) & 0xff);
-#else
- 	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, sec - 1, p, VTOP(p), result ? "failed" : "ok");
-	/* BUG here, cannot use v86 in printf because putchar uses it too */
-	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
-	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
-#endif
 	if (result) {
 	    if (bbuf != NULL)
 		free(bbuf);
@@ -1203,12 +870,7 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
     p = dest;
 
     /* Decide whether we have to bounce */
-#ifdef PC98
-    if (
-#else
-    if ((od->od_unit < 0x80) && 
-#endif
-	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
+    if (((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16))) {
 
 	/* 
 	 * There is a 64k physical boundary somewhere in the destination buffer, so we have
@@ -1217,11 +879,7 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	 * use the top half.
 	 */
 
-#ifdef PC98
 	x = min(od->od_sec, (unsigned)blks);
-#else
-	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
-#endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
@@ -1250,13 +908,8 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	xp = bbuf == NULL ? p : breg;
 
 	/* correct sector number for 1-based BIOS numbering */
-#ifdef PC98
 	if ((od->od_unit & 0xf0) == 0x30 || (od->od_unit & 0xf0) == 0x90)
 	    sec++;
-#else
-	sec++;
-#endif
-
 
 	/* Put your Data In, Put your Data out,
 	   Put your Data In, and shake it all about 
@@ -1271,20 +924,12 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	for (retry = 0; retry < 3; retry++) {
 	    /* if retrying, reset the drive */
 	    if (retry > 0) {
-#ifdef PC98
 		v86.ctl = V86_FLAGS;
 		v86.addr = 0x1b;
 		v86.eax = 0x0300 | od->od_unit;
-#else
-		v86.ctl = V86_FLAGS;
-		v86.addr = 0x13;
-		v86.eax = 0;
-		v86.edx = od->od_unit;
-#endif
 		v86int();
 	    }
 	    
-#ifdef PC98
 	    v86.ctl = V86_FLAGS;
 	    v86.addr = 0x1b;
 	    if (od->od_flags & BD_FLOPPY) {
@@ -1302,53 +947,8 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	    result = (v86.efl & 0x1);
 	    if (result == 0)
 		break;
-#else
-	    if(cyl > 1023) {
-	        /* use EDD if the disk supports it, otherwise, return error */
-	        if(od->od_flags & BD_MODEEDD1) {
-		    static unsigned short packet[8];
-
-		    packet[0] = 0x10;
-		    packet[1] = x;
-		    packet[2] = VTOPOFF(xp);
-		    packet[3] = VTOPSEG(xp);
-		    packet[4] = dblk & 0xffff;
-		    packet[5] = dblk >> 16;
-		    packet[6] = 0;
-		    packet[7] = 0;
-		    v86.ctl = V86_FLAGS;
-		    v86.addr = 0x13;
-			/* Should we Write with verify ?? 0x4302 ? */
-		    v86.eax = 0x4300;
-		    v86.edx = od->od_unit;
-		    v86.ds = VTOPSEG(packet);
-		    v86.esi = VTOPOFF(packet);
-		    v86int();
-		    result = (v86.efl & 0x1);
-		    if(result == 0)
-		      break;
-		} else {
-		    result = 1;
-		    break;
-		}
-	    } else {
-	        /* Use normal CHS addressing */
-	        v86.ctl = V86_FLAGS;
-		v86.addr = 0x13;
-		v86.eax = 0x300 | x;
-		v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
-		v86.edx = (hd << 8) | od->od_unit;
-		v86.es = VTOPSEG(xp);
-		v86.ebx = VTOPOFF(xp);
-		v86int();
-		result = (v86.efl & 0x1);
-		if (result == 0)
-		  break;
-	    }
-#endif
 	}
 	
-#ifdef PC98
 	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd,
 	    od->od_flags & BD_FLOPPY ? sec - 1 : sec, p, VTOP(p),
 	    result ? "failed" : "ok");
@@ -1357,12 +957,7 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	    od->od_flags & BD_FLOPPY ? 0xd600 | od->od_unit : 0x0600 | od->od_unit,
 	    od->od_flags & BD_FLOPPY ? 0x0200 | cyl : cyl, (hd << 8) | sec,
 	    (v86.eax >> 8) & 0xff);
-#else
- 	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, sec - 1, p, VTOP(p), result ? "failed" : "ok");
-	/* BUG here, cannot use v86 in printf because putchar uses it too */
-	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
-	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
-#endif
+
 	if (result) {
 	    if (bbuf != NULL)
 		free(bbuf);
@@ -1379,7 +974,6 @@ static int
 bd_getgeom(struct open_disk *od)
 {
 
-#ifdef PC98
     if (od->od_flags & BD_FLOPPY) {
 	od->od_cyl = 79;
 	od->od_hds = 2;
@@ -1400,23 +994,6 @@ bd_getgeom(struct open_disk *od)
 	if (v86.efl & 0x1)
 	    return(1);
     }
-#else
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = od->od_unit;
-    v86int();
-
-    if ((v86.efl & 0x1) ||				/* carry set */
-	((v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f)))	/* unit # bad */
-	return(1);
-    
-    /* convert max cyl # -> # of cylinders */
-    od->od_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
-    /* convert max head # -> # of heads */
-    od->od_hds = ((v86.edx & 0xff00) >> 8) + 1;
-    od->od_sec = v86.ecx & 0x3f;
-#endif
 
     DEBUG("unit 0x%x geometry %d/%d/%d", od->od_unit, od->od_cyl, od->od_hds, od->od_sec);
     return(0);
@@ -1439,8 +1016,6 @@ bd_getgeom(struct open_disk *od)
 u_int32_t
 bd_getbigeom(int bunit)
 {
-
-#ifdef PC98
     int hds = 0;
     int unit = 0x80;		/* IDE HDD */
     u_int addr = 0xA155d;
@@ -1470,17 +1045,6 @@ bd_getbigeom(int bunit)
     if (v86.efl & 0x1)
 	return 0x4F020F;	/* 1200KB FD C:80 H:2 S:15 */
     return ((v86.ecx & 0xffff) << 16) | (v86.edx & 0xffff);
-#else
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = 0x80 + bunit;
-    v86int();
-    if (v86.efl & 0x1)
-	return 0x4f010f;
-    return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
-	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
-#endif
 }
 
 /*
@@ -1506,11 +1070,7 @@ bd_getdev(struct i386_devdesc *dev)
     if (bd_opendisk(&od, dev) != 0)		/* oops, not a viable device */
 	return(-1);
 
-#ifdef PC98
     if ((biosdev & 0xf0) == 0x90 || (biosdev & 0xf0) == 0x30) {
-#else
-    if (biosdev < 0x80) {
-#endif
 	/* floppy (or emulated floppy) or ATAPI device */
 	if (bdinfo[dev->d_kind.biosdisk.unit].bd_type == DT_ATAPI) {
 	    /* is an ATAPI disk */
@@ -1537,14 +1097,10 @@ bd_getdev(struct i386_devdesc *dev)
 	}
     }
     /* default root disk unit number */
-#ifdef PC98
     if ((biosdev & 0xf0) == 0xa0)
 	unit = bdinfo[dev->d_kind.biosdisk.unit].bd_da_unit;
     else
 	unit = biosdev & 0xf;
-#else
-    unit = (biosdev & 0x7f) - unitofs;
-#endif
 
     /* XXX a better kludge to set the root disk unit number */
     if ((nip = getenv("root_disk_unit")) != NULL) {

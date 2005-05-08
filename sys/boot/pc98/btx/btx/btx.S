@@ -71,27 +71,15 @@
 /*
  * Screen defaults and assumptions.
  */
-#ifdef PC98
 		.set SCR_MAT,0xe1		# Mode/attribute
-#else
-		.set SCR_MAT,0x7		# Mode/attribute
-#endif
 		.set SCR_COL,0x50		# Columns per row
 		.set SCR_ROW,0x19		# Rows per screen
 /*
  * BIOS Data Area locations.
  */
-#ifdef PC98
 		.set BDA_MEM,0x501		# Free memory
 		.set BDA_KEYFLAGS,0x53a		# Keyboard shift-state flags
 		.set BDA_POS,0x53e		# Cursor position
-#else
-		.set BDA_MEM,0x413		# Free memory
-		.set BDA_KEYFLAGS,0x417		# Keyboard shift-state flags
-		.set BDA_SCR,0x449		# Video mode
-		.set BDA_POS,0x450		# Cursor position
-		.set BDA_BOOT,0x472		# Boot howto flag
-#endif
 /*
  * Derivations, for brevity.
  */
@@ -233,13 +221,9 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		ltr %cx				#  register
 		movl $MEM_USR,%edx		# User base address
 		movzwl %ss:BDA_MEM,%eax 	# Get free memory
-#ifdef PC98
 		andl $0x7,%eax
 		incl %eax
 		shll $0x11,%eax			# To bytes
-#else
-		shll $0xa,%eax			# To bytes
-#endif
 		subl $0x1000,%eax		# Less arg space
 		subl %edx,%eax			# Less base
 		movb $SEL_UDATA,%cl		# User data selector
@@ -302,11 +286,7 @@ exit.1: 	mov $SEL_RDATA,%cl		# 16-bit selector
 exit.2: 	xor %ax,%ax			# Real mode segment
 		mov %ax,%ss			# Reload SS
 		mov %ax,%ds			# Address data
-#ifdef PC98
 		mov $0x1008,%bx			# Set real mode
-#else
-		mov $0x7008,%bx			# Set real mode
-#endif
 		callw setpic			#  IRQ offsets
 		lidt ivtdesc	 		# Set IVT
 /*
@@ -315,20 +295,14 @@ exit.2: 	xor %ax,%ax			# Real mode segment
 		sti				# Enable interrupts
 		testb $0x1,btx_hdr+0x7		# Reboot?
 exit.3:		jz exit.3			# No
-#ifdef PC98
 		movb $0xa0,%al
 		outb %al,$0x35
 		movb 0,%al
 		outb %al,$0xf0
 exit.4:		jmp exit.4
-#else
-		movw $0x1234, BDA_BOOT		# Do a warm boot
-		ljmp $0xf000,$0xfff0		# reboot the machine
-#endif
 /*
  * Set IRQ offsets by reprogramming 8259A PICs.
  */
-#ifdef PC98
 setpic: 	in $0x02,%al			# Save master
 		push %ax			#  IMR
 		in $0x0a,%al			# Save slave
@@ -352,30 +326,6 @@ setpic: 	in $0x02,%al			# Save master
 		outb %al,$0x0a			#  IMR
 		pop %ax				# Restore master
 		outb %al,$0x02			#  IMR
-#else
-setpic: 	in $0x21,%al			# Save master
-		push %ax			#  IMR
-		in $0xa1,%al			# Save slave
-		push %ax			#  IMR
-		movb $0x11,%al			# ICW1 to
-		outb %al,$0x20			#  master,
-		outb %al,$0xa0			#  slave
-		movb %bl,%al			# ICW2 to
-		outb %al,$0x21			#  master
-		movb %bh,%al			# ICW2 to
-		outb %al,$0xa1			#  slave
-		movb $0x4,%al			# ICW3 to
-		outb %al,$0x21			#  master
-		movb $0x2,%al			# ICW3 to
-		outb %al,$0xa1			#  slave
-		movb $0x1,%al			# ICW4 to
-		outb %al,$0x21			#  master,
-		outb %al,$0xa1			#  slave
-		pop %ax				# Restore slave
-		outb %al,$0xa1			#  IMR
-		pop %ax				# Restore master
-		outb %al,$0x21			#  IMR
-#endif
 		retw				# To caller
 		.code32
 /*
@@ -455,7 +405,6 @@ except.2:	push $SEL_SDATA			# Set up
 		movl %esp,%ebx			# Stack frame
 		movl $dmpfmt,%esi		# Dump format string
 		movl $MEM_BUF,%edi		# Buffer
-#ifdef PC98
 		pushl %eax
 		pushl %edx
 wait.1:
@@ -482,7 +431,6 @@ wait.2:
 		movw %ax,(%edx)
 		popl  %edx
 		popl  %eax
-#endif
 		pushl %edi			# Dump to
 		call dump			#  buffer
 		popl %esi			#  and
@@ -751,13 +699,8 @@ v86intn:	lodsb				# Get int no
 v86intn.1:	cmpw $0x4f53,%ax		# is it the delete key callout?
 		jne v86intn.2			#  no, handle the int normally
 		movb BDA_KEYFLAGS,%al		# get the shift key state
-#ifdef PC98
 		andb $0x18,%al			# mask off just Ctrl and Alt
 		cmpb $0x18,%al			# are both Ctrl and Alt down?
-#else
-		andb $0xc,%al			# mask off just Ctrl and Alt
-		cmpb $0xc,%al			# are both Ctrl and Alt down?
-#endif
 		jne v86intn.2			#  no, handle the int normally
 		popl %eax			# restore EAX
 		jmp reboot			# reboot the machine
@@ -794,7 +737,6 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0xe
 		push $0xf			# Int 0x27: IRQ7
 		jmp int_hw			# V86 int 0xf
-#ifdef PC98
 		push $0x10			# Int 0x28: IRQ8
 		jmp int_hw			# V86 int 0x10
 		push $0x11			# Int 0x29: IRQ9
@@ -811,24 +753,6 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x16
 		push $0x17			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x17
-#else
-		push $0x70			# Int 0x28: IRQ8
-		jmp int_hw			# V86 int 0x70
-		push $0x71			# Int 0x29: IRQ9
-		jmp int_hw			# V86 int 0x71
-		push $0x72			# Int 0x2a: IRQ10
-		jmp int_hw			# V86 int 0x72
-		push $0x73			# Int 0x2b: IRQ11
-		jmp int_hw			# V86 int 0x73
-		push $0x74			# Int 0x2c: IRQ12
-		jmp int_hw			# V86 int 0x74
-		push $0x75			# Int 0x2d: IRQ13
-		jmp int_hw			# V86 int 0x75
-		push $0x76			# Int 0x2e: IRQ14
-		jmp int_hw			# V86 int 0x76
-		push $0x77			# Int 0x2f: IRQ15
-		jmp int_hw			# V86 int 0x77
-#endif
 /*
  * Reflect hardware interrupts.
  */
@@ -1163,17 +1087,9 @@ putchr: 	pusha				# Save
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
 		movw (%ebx),%dx 		# Cursor position
-#ifdef PC98
 		movl $0xa0000,%edi
-#else
-		movl $0xb8000,%edi		# Regen buffer (color)
-		cmpb %ah,BDA_SCR-BDA_POS(%ebx)	# Mono mode?
-		jne putchr.1			# No
-		xorw %di,%di			# Regen buffer (mono)
-#endif
 putchr.1:	cmpb $0xa,%al			# New line?
 		je putchr.2			# Yes
-#ifdef PC98
 		movw %dx,%cx
 		movb %al,(%edi,%ecx,1)		# Write char
 		addl $0x2000,%ecx
@@ -1187,39 +1103,17 @@ putchr.2:	movw %dx,%ax
 		mul %dl
 		movw %ax,%dx
 putchr.3:	cmpw $SCR_ROW*SCR_COL*2,%dx
-#else
-		xchgl %eax,%ecx 		# Save char
-		movb $SCR_COL,%al		# Columns per row
-		mulb %dh			#  * row position
-		addb %dl,%al			#  + column
-		adcb $0x0,%ah			#  position
-		shll %eax			#  * 2
-		xchgl %eax,%ecx 		# Swap char, offset
-		movw %ax,(%edi,%ecx,1)		# Write attr:char
-		incl %edx			# Bump cursor
-		cmpb $SCR_COL,%dl		# Beyond row?
-		jb putchr.3			# No
-putchr.2:	xorb %dl,%dl			# Zero column
-		incb %dh			# Bump row
-putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
-#endif
 		jb putchr.4			# No
 		leal 2*SCR_COL(%edi),%esi	# New top line
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
 		movb $0x20,%al			# Space
-#ifdef PC98
 		xorb %ah,%ah
-#endif
 		movb $SCR_COL,%cl		# Columns to clear
 		rep				# Clear
 		stosw				#  line
-#ifdef PC98
 		movw $(SCR_ROW-1)*SCR_COL*2,%dx
-#else
-		movb $SCR_ROW-1,%dh		# Bottom line
-#endif
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller

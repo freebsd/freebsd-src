@@ -32,10 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "boot.h"
 #include <machine/cpufunc.h>
 #include <sys/reboot.h>
-#ifdef PC98
 #include <pc98/pc98/pc98.h>
-#endif
-
 
 static int getchar(int in_buf);
 
@@ -159,15 +156,10 @@ loop:
 void
 delay1ms(void)
 {
-#ifdef PC98
 	int i = 800;
+
 	while (--i >= 0)
 	    (void)outb(0x5f,0);		/* about 600ns */
-#else
-	int i = 800;
-	while (--i >= 0)
-		(void)inb(0x84);
-#endif
 }
 
 static __inline int
@@ -193,7 +185,6 @@ isch(void)
 static __inline unsigned
 pword(unsigned physaddr)
 {
-#ifdef PC98
 	static int counter = 0;
 	int i;
 
@@ -201,28 +192,13 @@ pword(unsigned physaddr)
 		(void)outb(0x5f, 0);
 
 	return (counter++);
-#else
-	unsigned result;
-
-	/*
-	 * Give the fs prefix separately because gas omits it for
-	 * "movl %fs:0x46c, %eax".
-	 */
-	__asm __volatile("fs; movl %1, %0" : "=r" (result)
-			 : "m" (*(unsigned *)physaddr));
-	return (result);
-#endif
 }
 
 int
 gets(char *buf)
 {
 #define bios_tick		pword(0x46c)
-#ifdef PC98
 #define BIOS_TICK_MS		1
-#else
-#define BIOS_TICK_MS		55
-#endif
 	unsigned initial_bios_tick;
 	char *ptr=buf;
 

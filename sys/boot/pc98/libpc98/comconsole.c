@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Michael Smith (msmith@freebsd.org)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,7 @@ __FBSDID("$FreeBSD$");
 #define COMC_BPS(x)	(115200 / (x))	/* speed to DLAB divisor */
 
 #ifndef	COMPORT
-#ifdef PC98
 #define COMPORT		0x238
-#else
-#define COMPORT		0x3f8
-#endif
 #endif
 #ifndef	COMSPEED
 #define COMSPEED	9600

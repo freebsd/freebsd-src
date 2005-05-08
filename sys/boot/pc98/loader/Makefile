@@ -6,7 +6,6 @@ NEWVERSWHAT=	"bootstrap loader" pc98
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
-CFLAGS+=	-DPC98
 .PATH:		${.CURDIR}/../../i386/loader
 
 # Enable PXE TFTP or NFS support, not both.
