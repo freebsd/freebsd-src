@@ -1152,7 +1152,7 @@ ndis_intr(arg)
 	ifp = &sc->arpcom.ac_if;
 	intr = sc->ndis_block->nmb_interrupt;
 
-	if (sc->ndis_block->nmb_miniportadapterctx == NULL)
+	if (intr == NULL || sc->ndis_block->nmb_miniportadapterctx == NULL)
 		return;
 
 	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
