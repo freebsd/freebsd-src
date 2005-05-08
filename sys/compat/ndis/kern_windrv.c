@@ -204,7 +204,7 @@ windrv_match(matchfunc, ctx)
 	STAILQ_FOREACH(d, &drvdb_head, link) {
 		if (d->windrv_devlist == NULL)
 			continue;
-		match = matchfunc(d->windrv_devlist, ctx);
+		match = matchfunc(d->windrv_bustype, d->windrv_devlist, ctx);
 		if (match == TRUE) {
 			mtx_unlock(&drvdb_mtx);
 			return(d);
