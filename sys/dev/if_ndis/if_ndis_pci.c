@@ -68,7 +68,8 @@ static int ndis_probe_pci	(device_t);
 static int ndis_attach_pci	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
-static int ndis_devcompare	(struct ndis_pci_type *, device_t);
+static int ndis_devcompare	(interface_type,
+				 struct ndis_pci_type *, device_t);
 extern int ndisdrv_modevent	(module_t, int, void *);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
@@ -103,10 +104,14 @@ DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 
 static int
-ndis_devcompare(t, dev)
+ndis_devcompare(bustype, t, dev)
+	interface_type		bustype;
 	struct ndis_pci_type	*t;
 	device_t		dev;
 {
+	if (bustype != PCIBus)
+		return(FALSE);
+
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
 		    (pci_get_device(dev) == t->ndis_did) &&

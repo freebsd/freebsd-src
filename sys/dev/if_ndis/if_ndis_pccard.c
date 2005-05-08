@@ -69,7 +69,8 @@ static int ndis_probe_pccard	(device_t);
 static int ndis_attach_pccard	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
-static int ndis_devcompare	(struct ndis_pccard_type *, device_t);
+static int ndis_devcompare	(interface_type,
+				 struct ndis_pccard_type *, device_t);
 extern int ndisdrv_modevent	(module_t, int, void *);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
@@ -111,12 +112,16 @@ static devclass_t ndis_devclass;
 DRIVER_MODULE(ndis, pccard, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 
 static int
-ndis_devcompare(t, dev)
+ndis_devcompare(bustype, t, dev)
+	interface_type		bustype;
 	struct ndis_pccard_type	*t;
 	device_t		dev;
 {
 	const char		*prodstr, *vendstr;
 	int			error;
+
+	if (bustype != PCMCIABus)
+		return(FALSE);
 
 	error = pccard_get_product_str(dev, &prodstr);
 	if (error)
