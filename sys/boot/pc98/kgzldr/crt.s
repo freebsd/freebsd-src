@@ -29,22 +29,13 @@
 
 # Screen defaults and assumptions.
 
-.ifdef PC98
 		.set SCR_MAT,0xe1		# Mode/attribute
-.else
-		.set SCR_MAT,0x7		# Mode/attribute
-.endif
 		.set SCR_COL,0x50		# Columns per row
 		.set SCR_ROW,0x19		# Rows per screen
 
 # BIOS Data Area locations.
 
-.ifdef PC98
 		.set BDA_POS,0x53e		# Cursor position
-.else
-		.set BDA_SCR,0x449		# Video mode
-		.set BDA_POS,0x450		# Cursor position
-.endif
 
 		.globl crt_putchr
 
@@ -56,17 +47,9 @@ crt_putchr: 	movb 0x4(%esp,1),%al		# Get character
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
 		movw (%ebx),%dx 		# Cursor position
-.ifdef PC98
 		movl $0xa0000,%edi
-.else
-		movl $0xb8000,%edi		# Regen buffer (color)
-		cmpb %ah,BDA_SCR-BDA_POS(%ebx)	# Mono mode?
-		jne crt_putchr.1		# No
-		xorw %di,%di			# Regen buffer (mono)
-.endif
 crt_putchr.1:	cmpb $0xa,%al			# New line?
 		je crt_putchr.2			# Yes
-.ifdef PC98
 		movw %dx,%cx
 		movb %al,(%edi,%ecx,1)		# Write char
 		addl $0x2000,%ecx
@@ -80,39 +63,17 @@ crt_putchr.2:	movw %dx,%ax
 		mul %dl
 		movw %ax,%dx
 crt_putchr.3:	cmpw $SCR_ROW*SCR_COL*2,%dx
-.else
-		xchgl %eax,%ecx 		# Save char
-		movb $SCR_COL,%al		# Columns per row
-		mulb %dh			#  * row position
-		addb %dl,%al			#  + column
-		adcb $0x0,%ah			#  position
-		shll %eax			#  * 2
-		xchgl %eax,%ecx 		# Swap char, offset
-		movw %ax,(%edi,%ecx,1)		# Write attr:char
-		incl %edx			# Bump cursor
-		cmpb $SCR_COL,%dl		# Beyond row?
-		jb crt_putchr.3			# No
-crt_putchr.2:	xorb %dl,%dl			# Zero column
-		incb %dh			# Bump row
-crt_putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
-.endif
 		jb crt_putchr.4			# No
 		leal 2*SCR_COL(%edi),%esi	# New top line
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
 		movb $' ',%al			# Space
-.ifdef PC98
 		xorb %ah,%ah
-.endif
 		movb $SCR_COL,%cl		# Columns to clear
 		rep				# Clear
 		stosw				#  line
-.ifdef PC98
 		movw $(SCR_ROW-1)*SCR_COL*2,%dx
-.else
-		movb $SCR_ROW-1,%dh		# Bottom line
-.endif
 crt_putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller

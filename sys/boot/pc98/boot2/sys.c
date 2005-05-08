@@ -262,11 +262,7 @@ openrd(void)
 	}
 	biosdrive = biosdrivedigit - '0';
 	if (biosdrivedigit == '\0') {
-#ifdef PC98
 		biosdrive = dosdev & 0x0f;
-#else
-		biosdrive = unit;
-#endif
 #if BOOT_HD_BIAS > 0
 		/* XXX */
 		if (maj == 4)
@@ -275,29 +271,16 @@ openrd(void)
 	}
 	switch(maj)
 	{
-#ifdef PC98
 	case 4:	/* da */
 		dosdev_copy = biosdrive | 0xA0; /* SCSI HD or MO */
-#else	/* IBM-PC */
-	case 0:
-	case 4:
-		dosdev_copy = biosdrive | 0x80;
-#endif
 		break;
-#ifdef PC98
 	case 0:	/* wd */
 	case 2:	/* 1200KB fd */
 		dosdev_copy = (maj << 3) | unit | 0x80;
-#else
-	case 2:
-		dosdev_copy = biosdrive;
-#endif
 		break;
-#ifdef PC98
 	case 6:	/* 1440KB fd */
 		dosdev_copy = (maj << 3) | unit;
 		break;
-#endif
 	default:
 		printf("Unknown device\n");
 		return 1;

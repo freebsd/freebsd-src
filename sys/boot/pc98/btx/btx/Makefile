@@ -5,8 +5,6 @@ INTERNALPROG=
 NO_MAN=
 SRCS=	btx.S
 
-CFLAGS+=-DPC98
-
 .if defined(PAGING)
 CFLAGS+=-DPAGING
 .endif

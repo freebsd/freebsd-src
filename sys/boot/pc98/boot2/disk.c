@@ -98,7 +98,6 @@ devopen(void)
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
 #else	/* EMBEDDED_DISKLABEL */
-#ifdef PC98
 		p = Bread(dosdev_copy, 1);
 		dptr = (struct pc98_partition *)p;
 		slice = WHOLE_DISK_SLICE;
@@ -111,20 +110,6 @@ devopen(void)
 		p = Bread(dosdev, sector + LABELSECTOR);
 		dl=((struct disklabel *)p);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
-#else
-		p = Bread(dosdev_copy, 0);
-		dptr = (struct dos_partition *)(p+DOSPARTOFF);
-		slice = WHOLE_DISK_SLICE;
-		for (i = 0; i < NDOSPART; i++, dptr++)
-			if (dptr->dp_typ == DOSPTYP_386BSD) {
-				slice = BASE_SLICE + i;
-				sector = dptr->dp_start;
-				break;
-			}
-		p = Bread(dosdev_copy, sector + LABELSECTOR);
-		dl=((struct disklabel *)p);
-		disklabel = *dl;	/* structure copy (maybe useful later)*/
-#endif /* PC98 */
 #endif /* EMBEDDED_DISKLABEL */
 		if (dl->d_magic != DISKMAGIC) {
 			printf("bad disklabel\n");
@@ -133,16 +118,6 @@ devopen(void)
 		/* This little trick is for OnTrack DiskManager disks */
 		boff = dl->d_partitions[part].p_offset -
 			dl->d_partitions[2].p_offset + sector;
-
-#ifndef PC98
-		bsize = dl->d_partitions[part].p_size;
-		if (bsize == 0) {
-			printf("empty partition\n");
-			return 1;
-		}
-
-#endif
-
 	}
 #endif /* RAWBOOT */
 	return 0;
@@ -176,12 +151,6 @@ Bread(int dosdev, int sector)
 		int cyl, head, sec, nsec;
 
 		cyl = sector/spc;
-#ifndef PC98
-		if (cyl > 1023) {
-			printf("Error: C:%d > 1023 (BIOS limit)\n", cyl);
-			for(;;);        /* loop forever */
-		}
-#endif
 		head = (sector % spc) / spt;
 		sec = sector % spt;
 		nsec = spt - sec;
