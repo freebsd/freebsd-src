@@ -42,13 +42,13 @@
 #define	DOSMAGICOFFSET	510
 #define	DOSMAGIC	0xAA55
 
-#define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
+#define	DOSMID_386BSD	(0x14|0x80)	/* 386BSD | bootable */
+#define	DOSSID_386BSD	(0x44|0x80)	/* 386BSD | active */
+#define	DOSPTYP_386BSD	(DOSSID_386BSD << 8 | DOSMID_386BSD)
 
 struct pc98_partition {
     	unsigned char	dp_mid;
-#define	DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
 	unsigned char	dp_sid;
-#define	DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
 	unsigned char	dp_dum1;
 	unsigned char	dp_dum2;
 	unsigned char	dp_ipl_sct;
