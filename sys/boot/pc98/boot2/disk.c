@@ -103,7 +103,7 @@ devopen(void)
 		dptr = (struct pc98_partition *)p;
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
-			if (dptr->dp_mid == DOSPTYP_386BSD) {
+			if (dptr->dp_mid == DOSMID_386BSD) {
 				slice = BASE_SLICE + i;
 				sector = dptr->dp_scyl * spc;
 				break;
