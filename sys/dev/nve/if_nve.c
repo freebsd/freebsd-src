@@ -56,7 +56,7 @@
  * amount of hardware centric code, it's hopefully no more buggy than its
  * linux counterpart.
  *
- * NVIDIA now suppport the nForce3 AMD64 platform, however I have been
+ * NVIDIA now support the nForce3 AMD64 platform, however I have been
  * unable to access such a system to verify support. However, the code is
  * reported to work with little modification when compiled with the AMD64
  * version of the NVIDIA Linux library. All that should be necessary to make
