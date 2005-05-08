@@ -1119,7 +1119,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = i;			/* in case we lost some during malloc */
 
 	error = 0;
-	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK);
+	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK | M_ZERO);
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
 		if (unp->unp_gencnt <= gencnt) {
