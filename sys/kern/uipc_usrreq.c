@@ -849,6 +849,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		unp = unp_list[i];
 		if (unp->unp_gencnt <= gencnt) {
 			struct xunpcb xu;
+			bzero(&xu, sizeof(xu));
 			xu.xu_len = sizeof xu;
 			xu.xu_unpp = unp;
 			/*
