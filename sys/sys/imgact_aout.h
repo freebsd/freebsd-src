@@ -106,7 +106,7 @@
 /*
  * Header prepended to each a.out file.
  * only manipulate the a_midmag field via the
- * N_SETMAGIC/N_GET{MAGIC,MID,FLAG} macros in a.out.h
+ * N_SETMAGIC/N_GET{MAGIC,MID,FLAG} macros.
  */
 
 struct exec {
