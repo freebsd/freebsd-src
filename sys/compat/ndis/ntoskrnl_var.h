@@ -1225,7 +1225,7 @@ struct drvdb_ent {
 
 extern image_patch_table ntoskrnl_functbl[];
 typedef void (*funcptr)(void);
-typedef int (*matchfuncptr)(void *, void *);
+typedef int (*matchfuncptr)(interface_type, void *, void *);
 
 __BEGIN_DECLS
 extern int windrv_libinit(void);
