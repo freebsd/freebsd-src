@@ -740,7 +740,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	    DEBUG("warning, partition marked as unused");
 #endif
 	
-	od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
+	od->od_boff = 
+		lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset -
+		lp->d_partitions[RAW_PART].p_offset +
+		sector;
     }
     
  out:
@@ -1032,7 +1035,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
 #endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
-	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(dest + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
+	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
 	} else {
 	    breg = bbuf + x * BIOSDISK_SECSIZE;
@@ -1220,7 +1223,7 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
 #endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
-	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(dest + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
+	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
 	} else {
 	    breg = bbuf + x * BIOSDISK_SECSIZE;
