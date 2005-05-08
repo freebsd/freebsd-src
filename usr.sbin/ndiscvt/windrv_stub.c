@@ -71,14 +71,14 @@ struct ndis_pccard_type {
 
 
 #ifdef NDIS_PCI_DEV_TABLE
-static struct ndis_pci_type ndis_devs[] = {
+static struct ndis_pci_type ndis_devs_pci[] = {
         NDIS_PCI_DEV_TABLE
         { 0, 0, 0, NULL }
 };
 #endif
 
 #ifdef NDIS_PCMCIA_DEV_TABLE
-static struct ndis_pccard_type ndis_devs[] = {
+static struct ndis_pccard_type ndis_devs_pccard[] = {
         NDIS_PCMCIA_DEV_TABLE
         { NULL, NULL, NULL }
 };
@@ -206,15 +206,6 @@ windrv_modevent(mod, cmd, arg)
 	int			error = 0;
 	vm_offset_t		drv_data_start;
 	vm_offset_t		drv_data_end;
-	interface_type		drv_type;
-
-#ifdef NDIS_PCI_DEV_TABLE
-	drv_type = PCIBus;
-#endif
-
-#ifdef NDIS_PCMCIA_DEV_TABLE
-	drv_type = PCMCIABus;
-#endif
 
 	drv_data_start = (vm_offset_t)&DRV_DATA_START;
 	drv_data_end = (vm_offset_t)&DRV_DATA_END;
@@ -225,14 +216,25 @@ windrv_modevent(mod, cmd, arg)
 		windrv_loaded++;
 		if (windrv_loaded > 1)
 			break;
-		windrv_load(mod, drv_data_start, drv_data_len, drv_type,
-		    ndis_devs, &ndis_regvals);
+#ifdef NDIS_PCI_DEV_TABLE
+		windrv_load(mod, drv_data_start, drv_data_len, PCIBus,
+		    ndis_devs_pci, &ndis_regvals);
+#endif
+#ifdef NDIS_PCMCIA_DEV_TABLE
+		windrv_load(mod, drv_data_start, drv_data_len, PCMCIABus,
+		    ndis_devs_pccard, &ndis_regvals);
+#endif
 		break;
 	case MOD_UNLOAD:
 		windrv_loaded--;
 		if (windrv_loaded > 0)
 			break;
+#ifdef NDIS_PCI_DEV_TABLE
 		windrv_unload(mod, drv_data_start, drv_data_len);
+#endif
+#ifdef NDIS_PCMCIA_DEV_TABLE
+		windrv_unload(mod, drv_data_start, drv_data_len);
+#endif
 		break;
 	case MOD_SHUTDOWN:
 		break;
