@@ -309,13 +309,13 @@ tree_next(struct tree *t)
 				/* chdir() failed; return error */
 				tree_pop(t);
 				t->tree_errno = errno;
-				return (t->visit_type = TREE_ERROR);
+				return (t->visit_type = TREE_ERROR_DIR);
 			}
 			t->d = opendir(".");
 			if (t->d == NULL) {
 				tree_pop(t);
 				t->tree_errno = errno;
-				return (t->visit_type = TREE_ERROR);
+				return (t->visit_type = TREE_ERROR_DIR);
 			}
 			t->depth++;
 			t->flags &= ~hasLstat;
