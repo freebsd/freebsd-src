@@ -76,6 +76,7 @@ uart_cnprobe(struct consdev *cp)
 	if (uart_probe(&uart_console))
 		return;
 
+	strlcpy(cp->cn_name, uart_driver_name, sizeof(cp->cn_name));
 	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
 	cp->cn_arg = &uart_console;
 }
