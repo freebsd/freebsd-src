@@ -221,10 +221,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <isa/isavar.h>
-#include <i386/isa/ic/if_wl_i82586.h>	/* Definitions for the Intel chip */
 
 /* was 1000 in original, fed to DELAY(x) */
 #define DELAYCONST	1000
+#include <dev/wl/if_wl_i82586.h>	/* Definitions for the Intel chip */
 #include <dev/wl/if_wl.h>
 #include <machine/if_wl_wavelan.h>
 
