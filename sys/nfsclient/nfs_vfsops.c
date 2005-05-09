@@ -263,7 +263,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		goto nfsmout;
 	}
 	sfp = nfsm_dissect(struct nfs_statfs *, NFSX_STATFS(v3));
-	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
 		sbp->f_bsize = NFS_FABLKSIZE;
