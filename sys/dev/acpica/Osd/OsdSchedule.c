@@ -56,104 +56,63 @@ ACPI_MODULE_NAME("SCHEDULE")
 static int acpi_max_threads = ACPI_MAX_THREADS;
 TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
 
-/*
- * This is a little complicated due to the fact that we need to build and then
- * free a 'struct task' for each task we enqueue.
- */
-
 MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
-static void	AcpiOsExecuteQueue(void *arg, int pending);
-
-struct acpi_task {
+struct acpi_task_ctx {
     struct task			at_task;
     ACPI_OSD_EXEC_CALLBACK	at_function;
-    void			*at_context;
-};
-
-struct acpi_task_queue {
-    STAILQ_ENTRY(acpi_task_queue) at_q;
-    struct acpi_task		*at;
+    void 			*at_context;
 };
 
 /*
  * Private task queue definition for ACPI
  */
-TASKQUEUE_DECLARE(acpi);
-static void	*taskqueue_acpi_ih;
-
-static void
-taskqueue_acpi_enqueue(void *context)
-{  
-    swi_sched(taskqueue_acpi_ih, 0);
-}
-
-static void
-taskqueue_acpi_run(void *dummy)
+static struct proc *
+acpi_task_start_threads(struct taskqueue **tqp)
 {
-    taskqueue_run(taskqueue_acpi);
-}
-
-TASKQUEUE_DEFINE(acpi, taskqueue_acpi_enqueue, 0,
-		 swi_add(NULL, "acpitaskq", taskqueue_acpi_run, NULL,
-		     SWI_TQ, 0, &taskqueue_acpi_ih));
-
-static STAILQ_HEAD(, acpi_task_queue) acpi_task_queue;
-ACPI_LOCK_DECL(taskq, "ACPI task queue");
-
-static void
-acpi_task_thread(void *arg)
-{
-    struct acpi_task_queue	*atq;
-    ACPI_OSD_EXEC_CALLBACK	Function;
-    void			*Context;
-
-    ACPI_LOCK(taskq);
-    for (;;) {
-	while ((atq = STAILQ_FIRST(&acpi_task_queue)) == NULL)
-	    msleep(&acpi_task_queue, &taskq_mutex, PCATCH, "actask", 0);
-	STAILQ_REMOVE_HEAD(&acpi_task_queue, at_q);
-	ACPI_UNLOCK(taskq);
-
-	Function = (ACPI_OSD_EXEC_CALLBACK)atq->at->at_function;
-	Context = atq->at->at_context;
-
-	Function(Context);
-
-	free(atq->at, M_ACPITASK);
-	free(atq, M_ACPITASK);
-	ACPI_LOCK(taskq);
-    }
-
-    kthread_exit(0);
-}
-
-int
-acpi_task_thread_init(void)
-{
-    int		i, err;
     struct proc	*acpi_kthread_proc;
+    int	err, i;
 
-    err = 0;
-    STAILQ_INIT(&acpi_task_queue);
+    KASSERT(*tqp != NULL, ("acpi taskqueue not created before threads"));
 
+    /* Start one or more threads to service our taskqueue. */
     for (i = 0; i < acpi_max_threads; i++) {
-	err = kthread_create(acpi_task_thread, NULL, &acpi_kthread_proc,
-			     0, 0, "acpi_task%d", i);
-	if (err != 0) {
-	    printf("%s: kthread_create failed(%d)\n", __func__, err);
+	err = kthread_create(taskqueue_thread_loop, tqp, &acpi_kthread_proc,
+	    0, 0, "acpi_task%d", i);
+	if (err) {
+	    printf("%s: kthread_create failed (%d)\n", __func__, err);
 	    break;
 	}
     }
-    return (err);
+    return (acpi_kthread_proc);
 }
 
-/* This function is called in interrupt context. */
+TASKQUEUE_DEFINE(acpi, taskqueue_thread_enqueue, &taskqueue_acpi,
+    taskqueue_acpi_proc = acpi_task_start_threads(&taskqueue_acpi));
+
+/*
+ * Bounce through this wrapper function since ACPI-CA doesn't understand
+ * the pending argument for its callbacks.
+ */
+static void
+acpi_task_execute(void *context, int pending)
+{
+    struct acpi_task_ctx *at;
+
+    at = (struct acpi_task_ctx *)context;
+    at->at_function(at->at_context);
+    free(at, M_ACPITASK);
+}
+
+/*
+ * This function may be called in interrupt context, i.e. when a GPE fires.
+ * We allocate and queue a task for one of our taskqueue threads to process.
+ */
 ACPI_STATUS
 AcpiOsQueueForExecution(UINT32 Priority, ACPI_OSD_EXEC_CALLBACK Function,
     void *Context)
 {
-    struct acpi_task	*at;
+    struct acpi_task_ctx *at;
     int pri;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -161,7 +120,7 @@ AcpiOsQueueForExecution(UINT32 Priority, ACPI_OSD_EXEC_CALLBACK Function,
     if (Function == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
 
-    at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT | M_ZERO);
+    at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT);
     if (at == NULL)
 	return_ACPI_STATUS (AE_NO_MEMORY);
 
@@ -184,39 +143,11 @@ AcpiOsQueueForExecution(UINT32 Priority, ACPI_OSD_EXEC_CALLBACK Function,
 	free(at, M_ACPITASK);
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
-    TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
-    taskqueue_enqueue(taskqueue_acpi, (struct task *)at);
+    TASK_INIT(&at->at_task, pri, acpi_task_execute, at);
+    taskqueue_enqueue(taskqueue_acpi, &at->at_task);
 
     return_ACPI_STATUS (AE_OK);
-}
-
-static void
-AcpiOsExecuteQueue(void *arg, int pending)
-{
-    struct acpi_task_queue	*atq;
-    ACPI_OSD_EXEC_CALLBACK	Function;
-    void			*Context;
-
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    atq = NULL;
-    Function = NULL;
-    Context = NULL;
-
-    atq = malloc(sizeof(*atq), M_ACPITASK, M_NOWAIT);
-    if (atq == NULL) {
-	printf("%s: no memory\n", __func__);
-	return;
-    }
-    atq->at = (struct acpi_task *)arg;
-
-    ACPI_LOCK(taskq);
-    STAILQ_INSERT_TAIL(&acpi_task_queue, atq, at_q);
-    wakeup_one(&acpi_task_queue);
-    ACPI_UNLOCK(taskq);
-
-    return_VOID;
 }
 
 void
@@ -229,7 +160,7 @@ AcpiOsSleep(ACPI_INTEGER Milliseconds)
 
     timo = Milliseconds * hz / 1000;
 
-    /* 
+    /*
      * If requested sleep time is less than our hz resolution, use
      * DELAY instead for better granularity.
      */

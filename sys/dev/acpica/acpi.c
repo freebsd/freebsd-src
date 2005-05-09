@@ -584,9 +584,6 @@ acpi_attach(device_t dev)
 			      "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
-    if ((error = acpi_task_thread_init()))
-	goto out;
-
     if ((error = acpi_machdep_init(dev)))
 	goto out;
 
