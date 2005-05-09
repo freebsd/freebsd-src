@@ -249,7 +249,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 	*cp++ = '\0';
 	if (subLibName) {
-		libName = Buf_Peel(Var_Subst(NULL, libName, ctxt, TRUE));
+		libName = Buf_Peel(Var_Subst(libName, ctxt, TRUE));
 	}
 
 	for (;;) {
@@ -346,7 +346,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 			 * The results are just placed at the end of the
 			 * nodeLst we're returning.
 			 */
-			buf1 = Var_Subst(NULL, memName, ctxt, TRUE);
+			buf1 = Var_Subst(memName, ctxt, TRUE);
 			memName = Buf_Data(buf1);
 
 			sz = strlen(memName) + strlen(libName) + 3;

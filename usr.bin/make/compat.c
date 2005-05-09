@@ -252,7 +252,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	doit = FALSE;
 
 	cmdNode = Lst_Member(&gn->commands, cmd);
-	cmdStart = Buf_Peel(Var_Subst(NULL, cmd, gn, FALSE));
+	cmdStart = Buf_Peel(Var_Subst(cmd, gn, FALSE));
 
 	/*
 	 * brk_string will return an argv with a NULL in av[0], thus causing

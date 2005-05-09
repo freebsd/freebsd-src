@@ -1155,7 +1155,7 @@ SuffExpandVariables(GNode *parent, GNode *child, Lst *members)
 	Lst_Init(members);
 
 	DEBUGF(SUFF, ("Expanding \"%s\"...", child->name));
-	buf = Var_Subst(NULL, child->name, parent, TRUE);
+	buf = Var_Subst(child->name, parent, TRUE);
 	cp = Buf_Data(buf);
 
 	if (child->type & OP_ARCHV) {
