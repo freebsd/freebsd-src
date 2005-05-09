@@ -125,9 +125,6 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	if (sa == NULL)
 		return EAI_FAIL;
 
-	if (sa->sa_len != salen)
-		return EAI_FAIL;
-
 	family = sa->sa_family;
 	for (i = 0; afdl[i].a_af; i++)
 		if (afdl[i].a_af == family) {
