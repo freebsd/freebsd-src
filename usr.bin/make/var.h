@@ -93,14 +93,13 @@ void Var_Append(const char *, const char *, struct GNode *);
 void Var_Delete(const char *, struct GNode *);
 void Var_Dump(const struct GNode *);
 Boolean Var_Exists(const char *, struct GNode *);
-char *Var_GetHead(char *);
-char *Var_GetTail(char *);
 void Var_Init(char **);
 char *Var_Parse(const char *, struct GNode *, Boolean, size_t *, Boolean *);
 char *Var_Quote(const char *);
 void Var_Set(const char *, const char *, struct GNode *);
 void Var_SetEnv(const char *, struct GNode *);
-struct Buffer *Var_Subst(const char *, const char *, struct GNode *, Boolean);
+struct Buffer *Var_Subst(const char *, struct GNode *, Boolean);
+struct Buffer *Var_SubstOnly(const char *, const char *, struct GNode *, Boolean);
 char *Var_Value(const char *, struct GNode *, char **);
 
 /*

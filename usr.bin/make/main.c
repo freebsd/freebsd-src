@@ -901,7 +901,7 @@ main(int argc, char **argv)
 		char	*ptr;
 		char	savec;
 
-		buf = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
+		buf = Var_Subst(VPATH, VAR_CMD, FALSE);
 
 		vpath = Buf_Data(buf);
 		do {
@@ -992,7 +992,7 @@ main(int argc, char **argv)
 				v = emalloc(strlen(name) + 1 + 3);
 				sprintf(v, "${%s}", name);
 
-				value = Buf_Peel(Var_Subst(NULL, v,
+				value = Buf_Peel(Var_Subst(v,
 				    VAR_GLOBAL, FALSE));
 				printf("%s\n", value);
 
