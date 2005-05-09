@@ -609,7 +609,7 @@ JobPrintCommand(char *cmd, Job *job)
 	 */
 	cmdNode = Lst_Member(&job->node->commands, cmd);
 
-	cmd = Buf_Peel(Var_Subst(NULL, cmd, job->node, FALSE));
+	cmd = Buf_Peel(Var_Subst(cmd, job->node, FALSE));
 	cmdStart = cmd;
 
 	Lst_Replace(cmdNode, cmdStart);
@@ -972,8 +972,8 @@ JobFinish(Job *job, int *status)
 		 */
 		for (ln = job->tailCmds; ln != NULL; ln = LST_NEXT(ln)) {
 			Lst_AtEnd(&postCommands->commands,
-			    Buf_Peel(Var_Subst(NULL, Lst_Datum(ln),
-			    job->node, FALSE)));
+			    Buf_Peel(
+				Var_Subst(Lst_Datum(ln), job->node, FALSE)));
 		}
 
 		job->node->made = MADE;
@@ -1655,8 +1655,8 @@ JobStart(GNode *gn, int flags, Job *previous)
 				for (ln = job->tailCmds; ln != NULL;
 				    ln = LST_NEXT(ln)) {
 					Lst_AtEnd(&postCommands->commands,
-					    Buf_Peel(Var_Subst(NULL,
-					    Lst_Datum(ln), job->node, FALSE)));
+					    Buf_Peel(Var_Subst(Lst_Datum(ln),
+					    job->node, FALSE)));
 				}
 				job->node->made = MADE;
 				Make_Update(job->node);
