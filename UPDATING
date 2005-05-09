@@ -203,7 +203,6 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
-	src/etc/rc.d/preseedrandom			[10]
 	mergemaster -p					[5]
 	make installworld
 	mergemaster					[4]
