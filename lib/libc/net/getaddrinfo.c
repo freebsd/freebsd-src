@@ -2336,7 +2336,7 @@ _yp_getaddrinfo(rv, cb_data, ap)
 
 /* resolver logic */
 
-extern const char *__hostalias(const char *);
+extern const char *_res_hostalias(const char *, char *, size_t);
 
 /*
  * Formulate a normal query, send, and await answer.
@@ -2476,6 +2476,7 @@ res_searchN(name, target)
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
+	char abuf[MAXDNAME];
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
@@ -2494,7 +2495,7 @@ res_searchN(name, target)
 	/*
 	 * if there aren't any dots, it could be a user-level alias
 	 */
-	if (!dots && (cp = __hostalias(name)) != NULL)
+	if (!dots && (cp = _res_hostalias(name, abuf, sizeof(abuf))) != NULL)
 		return (res_queryN(cp, target));
 
 	/*

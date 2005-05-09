@@ -96,6 +96,8 @@ static char *host_aliases[MAXALIASES];
 static char hostbuf[8*1024];
 static u_char host_addr[16];	/* IPv4 or IPv6 */
 
+extern const char *_res_hostalias(const char *, char *, size_t);
+
 #ifdef RESOLVSORT
 static void addrsort(char **, int);
 #endif
@@ -477,6 +479,7 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	const char *cp;
 	char *bp, *ep;
 	int n, size, type, len;
+	char abuf[MAXDNAME];
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
@@ -510,7 +513,8 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	 * this is also done in res_query() since we are not the only
 	 * function that looks up host names.
 	 */
-	if (!strchr(name, '.') && (cp = __hostalias(name)))
+	if (!strchr(name, '.') &&
+	    (cp = _res_hostalias(name, abuf, sizeof abuf)))
 		name = cp;
 
 	/*
