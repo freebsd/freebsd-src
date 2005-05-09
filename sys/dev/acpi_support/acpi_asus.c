@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Philip Paeps <philip@FreeBSD.org>
+ * Copyright (c) 2004, 2005 Philip Paeps <philip@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,6 +116,46 @@ struct acpi_asus_softc {
  */
 static struct acpi_asus_model acpi_asus_models[] = {
 	{
+		.name		= "xxN",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= "\\BKLT",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\ADVG",
+		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "A1x",
+		.mled_set	= "MLED",
+		.lcd_get	= "\\BKLI",
+		.lcd_set	= "\\_SB.PCI0.ISA.EC0._Q10",
+		.brn_up		= "\\_SB.PCI0.ISA.EC0._Q0E",
+		.brn_dn		= "\\_SB.PCI0.ISA.EC0._Q0F"
+	},
+	{
+		.name		= "A2x",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= "\\BAOF",
+		.lcd_set	= "\\Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\INFB",
+		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "D1x",
+		.mled_set	= "MLED",
+		.lcd_get	= "\\GP11",
+		.lcd_set	= "\\Q0D",
+		.brn_up		= "\\Q0C",
+		.brn_dn		= "\\Q0B",
+		.disp_get	= "\\INFB",
+		.disp_set	= "SDSP"
+	},
+	{
 		.name		= "L2D",
 		.mled_set	= "MLED",
 		.wled_set	= "WLED",
@@ -165,6 +205,17 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name		= "L5x",
+		.mled_set	= "MLED",
+		.tled_set	= "TLED",
+		.lcd_get	= "\\BAOF",
+		.lcd_set	= "\\Q0D",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\INFB",
+		.disp_set	= "SDSP"
+	},
+	{
 		.name		= "L8L"
 		/* Only has hotkeys, apparantly */
 	},
@@ -208,6 +259,23 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name		= "S1x",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= "\\PNOF",
+		.lcd_set	= "\\_SB.PCI0.PX40.Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV"
+	},
+	{
+		.name		= "S2x",
+		.mled_set	= "MLED",
+		.lcd_get	= "\\BKLI",
+		.lcd_set	= "\\_SB.PCI0.ISA.EC0._Q10",
+		.brn_up		= "\\_SB.PCI0.ISA.EC0._Q0B",
+		.brn_dn		= "\\_SB.PCI0.ISA.EC0._Q0A"
+	},
+	{
 		.name		= "V6V",
 		.bled_set	= "BLED",
 		.tled_set	= "TLED",
@@ -217,17 +285,6 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.brn_get	= "GPLV",
 		.brn_set	= "SPLV",
 		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
-		.disp_set	= "SDSP"
-	},
-	{
-		.name		= "W1N",
-		.mled_set	= "MLED",
-		.wled_set	= "WLED",
-		.lcd_get	= "\\BKLT",
-		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
-		.brn_get	= "GPLV",
-		.brn_set	= "SPLV",
-		.disp_get	= "\\ADVG",
 		.disp_set	= "SDSP"
 	},
 
@@ -374,9 +431,12 @@ acpi_asus_probe(device_t dev)
 	/*
 	 * Asus laptops are simply identified by name, easy!
 	 */
-	for (model = acpi_asus_models; model->name != NULL; model++)
+	for (model = acpi_asus_models; model->name != NULL; model++) {
 		if (strncmp(Obj->String.Pointer, model->name, 3) == 0) {
-			sbuf_printf(sb, "Asus %s Laptop Extras", model->name);
+
+good:
+			sbuf_printf(sb, "Asus %s Laptop Extras",
+			    Obj->String.Pointer);
 			sbuf_finish(sb);
 
 			sc->model = model;
@@ -386,6 +446,77 @@ acpi_asus_probe(device_t dev)
 			AcpiOsFree(Buf.Pointer);
 			return (0);
 		}
+		
+		/*
+		 * Some models look exactly the same as other models, but have
+		 * their own ids.  If we spot these, set them up with the same
+		 * details as the models they're like, possibly dealing with
+		 * small differences.
+		 *
+		 * XXX: there must be a prettier way to do this!
+		 */
+		else if (strncmp(model->name, "xxN", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "M3N", 3) == 0 ||
+		     strncmp(Obj->String.Pointer, "S1N", 3) == 0))
+			goto good;
+		else if (strncmp(model->name, "A1x", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "A1", 2) == 0)
+			goto good;
+		else if (strncmp(model->name, "A2x", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "A2", 2) == 0)
+			goto good;
+		else if (strncmp(model->name, "D1x", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "D1", 2) == 0)
+			goto good;
+		else if (strncmp(model->name, "L3H", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "L2E", 3) == 0)
+			goto good;
+		else if (strncmp(model->name, "L5x", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "L5", 2) == 0)
+			goto good;
+		else if (strncmp(model->name, "M2E", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "M2", 2) == 0 ||
+		     strncmp(Obj->String.Pointer, "L4E", 3) == 0))
+			goto good;
+		else if (strncmp(model->name, "S1x", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "L8", 2) == 0 ||
+		     strncmp(Obj->String.Pointer, "S1", 2) == 0))
+			goto good;
+		else if (strncmp(model->name, "S2x", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "J1", 2) == 0 ||
+		     strncmp(Obj->String.Pointer, "S2", 2) == 0))
+			goto good;
+
+		/* L2B is like L3C but has no lcd_get method */
+		else if (strncmp(model->name, "L3C", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "L2B", 3) == 0) {
+			model->lcd_get = NULL;
+			goto good;
+		}
+
+		/* A3G is like M6R but with a different lcd_get method */
+		else if (strncmp(model->name, "M6R", 3) == 0 &&
+		    strncmp(Obj->String.Pointer, "A3G", 3) == 0) {
+			model->lcd_get = "\\BLFG";
+			goto good;
+		}
+
+		/* M2N and W1N are like xxN with added WLED */
+		else if (strncmp(model->name, "xxN", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "M2N", 3) == 0 ||
+		     strncmp(Obj->String.Pointer, "W1N", 3) == 0)) {
+			model->wled_set = "WLED";
+			goto good;
+		}
+
+		/* M5N and S5N are like xxN without MLED */
+		else if (strncmp(model->name, "xxN", 3) == 0 &&
+		    (strncmp(Obj->String.Pointer, "M5N", 3) == 0 ||
+		     strncmp(Obj->String.Pointer, "S5N", 3) == 0)) {
+			model->mled_set = NULL;
+			goto good;
+		}
+	}
 
 	sbuf_printf(sb, "Unsupported Asus laptop: %s\n", Obj->String.Pointer);
 	sbuf_finish(sb);
