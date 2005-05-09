@@ -52,6 +52,11 @@ SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
 SRCS+=	acpi_if.h acpi_quirks.h bus_if.h cpufreq_if.h device_if.h
 SRCS+=	isa_if.h pci_if.h pcib_if.h
 
+# XXX ACPI should not depend on the following headers but this is currently
+# needed for the build of assym.s.
+# This obviously needs a better and more structural fix.
+SRCS+=	opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h
+
 # Debugging support
 DBSRC=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
 DBSRC+=	dbinput.c dbstats.c dbutils.c dbxface.c
