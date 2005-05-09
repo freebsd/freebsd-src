@@ -150,7 +150,7 @@ For_For(char *line)
 	 * Make a list with the remaining words
 	 * XXX should use brk_string here.
 	 */
-	sub = Buf_Peel(Var_Subst(NULL, ptr, VAR_CMD, FALSE));
+	sub = Buf_Peel(Var_Subst(ptr, VAR_CMD, FALSE));
 	for (ptr = sub; *ptr != '\0' && isspace((u_char)*ptr); ptr++)
 		;
 
@@ -271,7 +271,7 @@ For_Run(int lineno)
 		Var_Set(var, val, VAR_GLOBAL);
 
 		DEBUGF(FOR, ("--- %s = %s\n", var, val));
-		str = Buf_Peel(Var_Subst(var, Buf_Data(buf),
+		str = Buf_Peel(Var_SubstOnly(var, Buf_Data(buf),
 		    VAR_GLOBAL, FALSE));
 
 		Parse_FromString(str, lineno);

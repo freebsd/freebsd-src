@@ -1493,7 +1493,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 		if (!Var_Exists(line, ctxt))
 			Var_Set(line, "", ctxt);
 
-		cp = Buf_Peel(Var_Subst(NULL, cp, ctxt, FALSE));
+		cp = Buf_Peel(Var_Subst(cp, ctxt, FALSE));
 
 		oldVars = oldOldVars;
 
@@ -1516,7 +1516,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 			 * resulting string will need freeing when we're done,
 			 * so set freeCmd to TRUE.
 			 */
-			cp = Buf_Peel(Var_Subst(NULL, cp, VAR_CMD, TRUE));
+			cp = Buf_Peel(Var_Subst(cp, VAR_CMD, TRUE));
 			freeCmd = TRUE;
 		}
 
@@ -1655,7 +1655,7 @@ ParseTraditionalInclude(char *file)
 	 * Substitute for any variables in the file name before trying to
 	 * find the thing.
 	 */
-	file = Buf_Peel(Var_Subst(NULL, file, VAR_CMD, FALSE));
+	file = Buf_Peel(Var_Subst(file, VAR_CMD, FALSE));
 
 	/*
 	 * Now we know the file's name, we attempt to find the durn thing.
@@ -2127,7 +2127,7 @@ parse_include(char *file, int code __unused, int lineno __unused)
 	 * Substitute for any variables in the file name before trying to
 	 * find the thing.
 	 */
-	file = Buf_Peel(Var_Subst(NULL, file, VAR_CMD, FALSE));
+	file = Buf_Peel(Var_Subst(file, VAR_CMD, FALSE));
 
 	/*
 	 * Now we know the file's name and its search path, we attempt to
@@ -2227,7 +2227,7 @@ parse_message(char *line, int iserror, int lineno __unused)
 	while (isspace((u_char)*line))
 		line++;
 
-	line = Buf_Peel(Var_Subst(NULL, line, VAR_GLOBAL, FALSE));
+	line = Buf_Peel(Var_Subst(line, VAR_GLOBAL, FALSE));
 	Parse_Error(iserror ? PARSE_FATAL : PARSE_WARNING, "%s", line);
 	free(line);
 
@@ -2254,7 +2254,7 @@ parse_undef(char *line, int code __unused, int lineno __unused)
 	}
 	*cp = '\0';
 
-	cp = Buf_Peel(Var_Subst(NULL, line, VAR_CMD, FALSE));
+	cp = Buf_Peel(Var_Subst(line, VAR_CMD, FALSE));
 	Var_Delete(cp, VAR_GLOBAL);
 	free(cp);
 }
@@ -2468,7 +2468,7 @@ Parse_File(const char *name, FILE *stream)
 
 			ParseFinishLine();
 
-			cp = Buf_Peel(Var_Subst(NULL, line, VAR_CMD, TRUE));
+			cp = Buf_Peel(Var_Subst(line, VAR_CMD, TRUE));
 
 			free(line);
 			line = cp;

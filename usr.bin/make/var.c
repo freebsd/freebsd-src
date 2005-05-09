@@ -222,7 +222,7 @@ VarPossiblyExpand(const char *name, GNode *ctxt)
 	Buffer	*buf;
 
 	if (strchr(name, '$') != NULL) {
-		buf = Var_Subst(NULL, name, ctxt, 0);
+		buf = Var_Subst(name, ctxt, 0);
 		return (Buf_Peel(buf));
 	} else {
 		return estrdup(name);
@@ -882,7 +882,7 @@ VarExpand(Var *v, VarParser *vp)
 	} else {
 		Buffer	*buf;
 
-		buf = Var_Subst(NULL, value, vp->ctxt, vp->err);
+		buf = Var_Subst(value, vp->ctxt, vp->err);
 		result = Buf_Peel(buf);
 	}
 
@@ -1715,9 +1715,9 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
  *-----------------------------------------------------------------------
  */
 Buffer *
-Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
+Var_Subst(const char *str, GNode *ctxt, Boolean err)
 {
-	Boolean errorReported;
+	Boolean	errorReported;
 	Buffer *buf;		/* Buffer for forming things */
 
 	/*
@@ -1728,89 +1728,21 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 	errorReported = FALSE;
 
 	buf = Buf_Init(0);
-	while (*str) {
-		if (var == NULL && (str[0] == '$') && (str[1] == '$')) {
+	while (str[0] != '\0') {
+		if ((str[0] == '$') && (str[1] == '$')) {
 			/*
-			 * A dollar sign may be escaped either with another
-			 * dollar sign. In such a case, we skip over the
-			 * escape character and store the dollar sign into
-			 * the buffer directly.
+			 * A dollar sign may be escaped with another dollar
+			 * sign.  In such a case, we skip over the escape
+			 * character and store the dollar sign into the
+			 * buffer directly.
 			 */
+			str++;
 			Buf_AddByte(buf, (Byte)str[0]);
-			str += 2;
+			str++;
 
 		} else if (str[0] == '$') {
-			/*
-			 * Variable invocation.
-			 */
-			if (var != NULL) {
-				int     expand;
-				for (;;) {
-					if (str[1] == OPEN_PAREN || str[1] == OPEN_BRACE) {
-						size_t  ln;
-						const char *p = str + 2;
-
-						/*
-						 * Scan up to the end of the
-						 * variable name.
-						 */
-						while (*p != '\0' &&
-						       *p != ':' &&
-						       *p != CLOSE_PAREN &&
-						       *p != CLOSE_BRACE &&
-						       *p != '$') {
-							++p;
-						}
-
-						/*
-						 * A variable inside the
-						 * variable. We cannot expand
-						 * the external variable yet,
-						 * so we try again with the
-						 * nested one
-						 */
-						if (*p == '$') {
-							Buf_AppendRange(buf, str, p);
-							str = p;
-							continue;
-						}
-						ln = p - (str + 2);
-						if (var[ln] == '\0' && strncmp(var, str + 2, ln) == 0) {
-							expand = TRUE;
-						} else {
-							/*
-							 * Not the variable
-							 * we want to expand,
-							 * scan until the
-							 * next variable
-							 */
-							while (*p != '$' && *p != '\0')
-								p++;
-
-							Buf_AppendRange(buf, str, p);
-							str = p;
-							expand = FALSE;
-						}
-					} else {
-						/*
-						 * Single letter variable
-						 * name
-						 */
-						if (var[1] == '\0' && var[0] == str[1]) {
-							expand = TRUE;
-						} else {
-							Buf_AddBytes(buf, 2, (const Byte *) str);
-							str += 2;
-							expand = FALSE;
-						}
-					}
-					break;
-				}
-				if (!expand)
-					continue;
-			}
-		    {
-			VarParser	subvp = {
+			/* Variable invocation. */
+			VarParser subvp = {
 				str,
 				str,
 				ctxt,
@@ -1849,20 +1781,13 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 						Parse_Error(PARSE_FATAL,
 							    "Undefined variable \"%.*s\"", subvp.ptr - subvp.input, str);
 					}
-					str = subvp.ptr;
 					errorReported = TRUE;
+					str = subvp.ptr;
 				} else {
-					Buf_AddByte(buf, (Byte)*str);
-					str += 1;
+					Buf_AddByte(buf, (Byte)str[0]);
+					str++;
 				}
 			} else {
-				/*
-				 * We've now got a variable structure to
-				 * store in. But first, advance the string
-				 * pointer.
-				 */
-				str = subvp.ptr;
-
 				/*
 				 * Copy all the characters from the variable
 				 * value straight into the new string.
@@ -1871,68 +1796,155 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean err)
 				if (rfree) {
 					free(rval);
 				}
+				str = subvp.ptr;
 			}
-		    }
 		} else {
-			/*
-			 * Skip as many characters as possible -- either to
-			 * the end of the string or to the next dollar sign
-			 * (variable invocation).
-			 */
-			const char *cp = str;
-
-			do {
-				str++;
-			} while (str[0] != '$' && str[0] != '\0');
-
-			Buf_AppendRange(buf, cp, str);
+			Buf_AddByte(buf, (Byte)str[0]);
+			str++;
 		}
 	}
 
 	return (buf);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Var_GetTail --
- *	Return the tail from each of a list of words. Used to set the
- *	System V local variables.
- *
- * Results:
- *	The resulting string.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-char *
-Var_GetTail(char *file)
+static int
+match_var(const char str[], const char var[])
 {
+	const char	*start = str;
+	size_t		len;
 
-	return (VarModify(file, VarTail, (void *)NULL));
+	str++;			/* consume '$' */
+
+	if (str[0] == OPEN_PAREN || str[0] == OPEN_BRACE) {
+		str++;		/* consume opening paren or brace */
+
+		while (str[0] != '\0') {
+			if (str[0] == '$') {
+				/*
+				 * A variable inside the variable. We cannot
+				 * expand the external variable yet.
+				 */
+				return (str - start);
+			} else if (str[0] == ':' ||
+				   str[0] == CLOSE_PAREN ||
+				   str[0] == CLOSE_BRACE) {
+				len = str - (start + 2);
+
+				if (var[len] == '\0' && strncmp(var, start + 2, len) == 0) {
+					return (0);	/* match */
+				} else {
+					/*
+					 * Not the variable we want to
+					 * expand.
+					 */
+					return (str - start);
+				}
+			} else {
+				++str;
+			}
+		}
+		return (str - start);
+	} else {
+		/* Single letter variable name */
+		if (var[1] == '\0' && var[0] == str[0]) {
+			return (0);	/* match */
+		} else {
+			str++;	/* consume variable name */
+			return (str - start);
+		}
+	}
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Var_GetHead --
- *	Find the leading components of a (list of) filename(s).
- *	XXX: VarHead does not replace foo by ., as (sun) System V make
- *	does.
- *
- * Results:
- *	The leading components.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-char *
-Var_GetHead(char *file)
+Buffer *
+Var_SubstOnly(const char *var, const char *str, GNode *ctxt, Boolean err)
 {
+	Boolean	errorReported;
+	Buffer	*buf;		/* Buffer for forming things */
 
-	return (VarModify(file, VarHead, (void *)NULL));
+	/*
+	 * Set TRUE if an error has already been reported to prevent a
+	 * plethora of messages when recursing. XXXHB this comment sounds
+	 * wrong.
+	 */
+	errorReported = FALSE;
+
+	buf = Buf_Init(0);
+	while (str[0] != '\0') {
+		if (str[0] == '$') {
+			int	skip;
+
+			skip = match_var(str, var);
+			if (skip > 0) {
+				Buf_AddBytes(buf, skip, str);
+				str += skip;
+			} else {
+				/* Variable invocation. */
+				VarParser	subvp = {
+					str,
+					str,
+					ctxt,
+					err
+				};
+				char	*rval;
+				Boolean	rfree;
+
+				rval = VarParse(&subvp, &rfree);
+
+				/*
+				 * When we get down here, rval should either
+				 * point to the value of this variable, or be
+				 * NULL.
+				 */
+				if (rval == var_Error || rval == varNoError) {
+					/*
+					 * If performing old-time variable
+					 * substitution, skip over the
+					 * variable and continue with the
+					 * substitution. Otherwise, store the
+					 * dollar sign and advance str so we
+					 * continue with the string...
+					 */
+					if (oldVars) {
+						str = subvp.ptr;
+					} else if (err) {
+						/*
+						 * If variable is undefined,
+						 * complain and skip the
+						 * variable. The complaint
+						 * will stop us from doing
+						 * anything when the file is
+						 * parsed.
+						 */
+						if (!errorReported) {
+							Parse_Error(PARSE_FATAL,
+								    "Undefined variable \"%.*s\"", subvp.ptr - subvp.input, str);
+						}
+						errorReported = TRUE;
+						str = subvp.ptr;
+					} else {
+						Buf_AddByte(buf, (Byte)str[0]);
+						str++;
+					}
+				} else {
+					/*
+					 * Copy all the characters from the
+					 * variable value straight into the
+					 * new string.
+					 */
+					Buf_Append(buf, rval);
+					if (rfree) {
+						free(rval);
+					}
+					str = subvp.ptr;
+				}
+			}
+		} else {
+			Buf_AddByte(buf, (Byte)str[0]);
+			str++;
+		}
+	}
+
+	return (buf);
 }
 
 /*-
