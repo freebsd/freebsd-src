@@ -62,6 +62,7 @@ ACPI_MODULE_NAME("ASUS")
 struct acpi_asus_model {
 	char	*name;
 
+	char	*bled_set;
 	char	*mled_set;
 	char	*tled_set;
 	char	*wled_set;
@@ -84,6 +85,7 @@ struct acpi_asus_led {
 	int		busy;
 	int		state;
 	enum {
+		ACPI_ASUS_LED_BLED,
 		ACPI_ASUS_LED_MLED,
 		ACPI_ASUS_LED_TLED,
 		ACPI_ASUS_LED_WLED,
@@ -98,6 +100,7 @@ struct acpi_asus_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 
+	struct acpi_asus_led	s_bled;
 	struct acpi_asus_led	s_mled;
 	struct acpi_asus_led	s_tled;
 	struct acpi_asus_led	s_wled;
@@ -202,6 +205,29 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.lcd_get	= "\\_SB.PCI0.SBSM.SEO4",
 		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
 		.disp_get	= "\\SSTE",
+		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "V6V",
+		.bled_set	= "BLED",
+		.tled_set	= "TLED",
+		.wled_set	= "WLED",
+		.lcd_get	= "\\BKLT",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
+		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "W1N",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= "\\BKLT",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\ADVG",
 		.disp_set	= "SDSP"
 	},
 
@@ -403,6 +429,14 @@ acpi_asus_attach(device_t dev)
 	}
 
 	/* Attach leds */
+	if (sc->model->bled_set) {
+		sc->s_bled.busy = 0;
+		sc->s_bled.sc = sc;
+		sc->s_bled.type = ACPI_ASUS_LED_BLED;
+		sc->s_bled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_bled, "bled");
+	}
+
 	if (sc->model->mled_set) {
 		sc->s_mled.busy = 0;
 		sc->s_mled.sc = sc;
@@ -447,6 +481,9 @@ acpi_asus_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Turn the lights off */
+	if (sc->model->bled_set)
+		led_destroy(sc->s_bled.cdev);
+
 	if (sc->model->mled_set)
 		led_destroy(sc->s_mled.cdev);
 
@@ -478,6 +515,10 @@ acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused)
 	sc = led->sc;
 
 	switch (led->type) {
+	case ACPI_ASUS_LED_BLED:
+		method = sc->model->bled_set;
+		state = led->state;
+		break;
 	case ACPI_ASUS_LED_MLED:
 		method = sc->model->mled_set;
 
