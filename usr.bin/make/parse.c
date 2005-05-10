@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include "hash_tables.h"
 #include "job.h"
 #include "make.h"
-#include "nonints.h"
 #include "parse.h"
 #include "pathnames.h"
 #include "str.h"
