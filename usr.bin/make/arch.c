@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include "GNode.h"
 #include "hash.h"
 #include "make.h"
+#include "parse.h"
 #include "targ.h"
 #include "util.h"
 #include "var.h"
