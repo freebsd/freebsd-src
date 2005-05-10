@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 #include "globals.h"
 #include "GNode.h"
+#include "job.h"
 #include "make.h"
 #include "nonints.h"
 #include "parse.h"
