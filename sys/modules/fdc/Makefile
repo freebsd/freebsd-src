@@ -4,8 +4,8 @@ KMOD=	fdc
 WARNS?=	2
 
 .if ${MACHINE} == "pc98"
-.PATH:  ${.CURDIR}/../../pc98/pc98
-SRCS=	fd.c fdc_cbus.c
+.PATH:  ${.CURDIR}/../../pc98/cbus
+SRCS=	fdc.c fdc_cbus.c
 .else
 .PATH:  ${.CURDIR}/../../dev/fdc
 SRCS=	fdc.c fdc_isa.c fdc_pccard.c

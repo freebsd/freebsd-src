@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .if ${MACHINE} == "pc98"
-.PATH: ${.CURDIR}/../../pc98/pc98
+.PATH: ${.CURDIR}/../../pc98/cbus
 .endif
 .PATH: ${.CURDIR}/../../dev/sio
 

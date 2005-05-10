@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <pc98/pc98/fdcvar.h>
-#include <pc98/pc98/fdreg.h>
+#include <pc98/cbus/cbus.h>
+#include <pc98/cbus/fdcreg.h>
+#include <pc98/cbus/fdcvar.h>
 
 #include <isa/isavar.h>
-#include <pc98/pc98/pc98.h>
 
 static bus_addr_t fdc_iat[] = {0, 2, 4};
 

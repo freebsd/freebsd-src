@@ -347,29 +347,29 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pc98/apm/apm_bioscall.S		optional apm
-pc98/i386/busio.s		standard
-pc98/i386/busiosubr.c		standard
-pc98/i386/machdep.c		standard
+pc98/cbus/cbus_dma.c		optional isa
+pc98/cbus/clock.c		standard
+pc98/cbus/fdc.c			optional fdc
+pc98/cbus/fdc_cbus.c		optional fdc isa
+pc98/cbus/gdc.c			optional gdc
+pc98/cbus/nmi.c			standard
+pc98/cbus/olpt.c		optional olpt
+pc98/cbus/pckbd.c		optional pckbd
+pc98/cbus/pmc.c			optional pmc
+pc98/cbus/ppc.c			optional ppc
+pc98/cbus/scgdcrndr.c		optional sc gdc
+pc98/cbus/scterm-sck.c		optional sc
+pc98/cbus/scvtb.c		optional sc
+pc98/cbus/sio.c			optional sio
+pc98/cbus/sio_cbus.c		optional sio isa
+pc98/cbus/syscons_cbus.c	optional sc
+pc98/pc98/busio.s		standard
+pc98/pc98/busiosubr.c		standard
 pc98/pc98/canbepm.c		optional canbepm
 pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
-pc98/pc98/clock.c		standard
-pc98/pc98/fd.c			optional fdc
-pc98/pc98/fdc_cbus.c		optional fdc isa
-pc98/pc98/isa_dma.c		optional isa
-pc98/pc98/nmi.c			standard
-pc98/pc98/olpt.c		optional olpt
+pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
-pc98/pc98/pc98gdc.c		optional gdc
-pc98/pc98/pc98kbd.c		optional pckbd
-pc98/pc98/pmc.c			optional pmc
-pc98/pc98/ppc.c			optional ppc
-pc98/pc98/scgdcrndr.c		optional sc gdc
-pc98/pc98/scterm-sck.c		optional sc
-pc98/pc98/scvtbpc98.c		optional sc
-pc98/pc98/sio.c			optional sio
-pc98/pc98/sio_cbus.c		optional sio isa
-pc98/pc98/syscons_pc98.c	optional sc
 pccard/pccard.c			optional card
 pccard/pccard_beep.c		optional card
 pccard/pccard_nbk.c		optional card

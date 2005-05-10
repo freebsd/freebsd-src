@@ -39,7 +39,7 @@
 
 #include <machine/clock.h>
 
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #include <pc98/pc98/pc98_machdep.h>
 
 #include <dev/syscons/syscons.h>
