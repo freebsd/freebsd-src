@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include "globals.h"
 #include "job.h"
 #include "make.h"
-#include "nonints.h"
 #include "parse.h"
 #include "pathnames.h"
 #include "str.h"
