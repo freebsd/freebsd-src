@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../pc98/pc98
+.PATH: ${.CURDIR}/../../pc98/cbus
 
 KMOD=	pmc
 SRCS=	pmc.c

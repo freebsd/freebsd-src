@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "boot.h"
 #include <machine/cpufunc.h>
 #include <sys/reboot.h>
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 
 static int getchar(int in_buf);
 
