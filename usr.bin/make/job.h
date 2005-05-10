@@ -53,6 +53,7 @@
 #include "sprite.h"
 
 struct GNode;
+struct Buffer;
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
@@ -83,5 +84,7 @@ ReturnStatus Job_ParseShell(char *);
 int Job_Finish(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
+
+struct Buffer *Cmd_Exec(const char *, const char **);
 
 #endif /* job_h_4678dfd1 */
