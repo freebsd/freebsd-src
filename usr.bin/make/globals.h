@@ -103,12 +103,6 @@ extern Lst envFirstVars;
 
 extern struct GNode	*DEFAULT;	/* .DEFAULT rule */
 
-/* Variables defined in a global context, e.g in the Makefile itself */
-extern struct GNode	*VAR_GLOBAL;
-
-/* Variables defined on the command line */
-extern struct GNode	*VAR_CMD;
-
 /* Value returned by Var_Parse when an error is encountered.  It actually
  * points to an empty string, so naive callers needn't worry about it. */
 extern char	var_Error[];
