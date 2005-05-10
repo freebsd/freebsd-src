@@ -48,6 +48,14 @@
 struct GNode;
 struct Lst;
 
+/*
+ * Error levels for parsing. PARSE_FATAL means the process cannot continue
+ * once the makefile has been parsed. PARSE_WARNING means it can. Passed
+ * as the first argument to Parse_Error.
+ */
+#define	PARSE_WARNING	2
+#define	PARSE_FATAL	1
+
 void Parse_Error(int, const char *, ...);
 Boolean Parse_AnyExport(void);
 Boolean Parse_IsVar(char *);
