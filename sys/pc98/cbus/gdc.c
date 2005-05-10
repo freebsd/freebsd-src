@@ -55,7 +55,7 @@
 #include <dev/fb/fbreg.h>
 
 #ifdef LINE30
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #endif
 #include <pc98/pc98/pc98_machdep.h>
 #include <isa/isavar.h>
@@ -423,7 +423,7 @@ DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
 /* LOW-LEVEL */
 
 
-#include <pc98/pc98/30line.h>
+#include <pc98/cbus/30line.h>
 
 #define TEXT_BUF_BASE		0x000a0000
 #define TEXT_BUF_SIZE		0x00008000

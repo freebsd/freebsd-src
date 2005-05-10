@@ -43,8 +43,7 @@
 
 #include <dev/kbd/kbdreg.h>
 
-#include <pc98/pc98/pc98.h>
-
+#include <pc98/cbus/cbus.h>
 #include <isa/isavar.h>
 
 #define DRIVER_NAME		"pckbd"

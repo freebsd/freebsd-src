@@ -60,9 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <pc98/pc98/pc98.h>
 #include <dev/ic/i8237.h>
 #include <isa/isavar.h>
+#include <pc98/cbus/cbus.h>
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):

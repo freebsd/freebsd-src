@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #else
 #include <i386/isa/isa.h>
 #endif

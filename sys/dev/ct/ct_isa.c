@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/md_var.h>
 
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #include <isa/isavar.h>
 
 #include <compat/netbsd/dvcfg.h>

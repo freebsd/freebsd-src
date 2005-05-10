@@ -111,7 +111,7 @@
 #include <dev/sio/siovar.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #include <pc98/pc98/pc98_machdep.h>
 #endif
 

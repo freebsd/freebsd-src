@@ -81,7 +81,7 @@
 #include <machine/specialreg.h>
 
 #include <i386/isa/icu.h>
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #include <pc98/pc98/pc98_machdep.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>
