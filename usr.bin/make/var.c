@@ -182,8 +182,8 @@ VarCreate(const char name[], const char value[], int flags)
  * Destroy a Var object.
  *
  * Params:
- * 	v	Object to destroy.
- * 	f	True if internal buffer in Buffer object is to be removed.
+ *	v	Object to destroy.
+ *	f	True if internal buffer in Buffer object is to be removed.
  */
 static void
 VarDestroy(Var *v, Boolean f)
@@ -2029,13 +2029,21 @@ Var_Init(char **env)
  *-----------------------------------------------------------------------
  */
 void
-Var_Dump(const GNode *ctxt)
+Var_Dump(void)
 {
 	const LstNode	*ln;
 	const Var	*v;
 
-	LST_FOREACH(ln, &ctxt->context) {
+	printf("#*** Global Variables:\n");
+	LST_FOREACH(ln, &VAR_GLOBAL->context) {
+		v = Lst_Datum(ln);
+		printf("%-16s = %s\n", v->name, Buf_Data(v->val));
+	}
+
+	printf("#*** Command-line Variables:\n");
+	LST_FOREACH(ln, &VAR_CMD->context) {
 		v = Lst_Datum(ln);
 		printf("%-16s = %s\n", v->name, Buf_Data(v->val));
 	}
 }
+
