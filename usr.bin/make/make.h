@@ -51,6 +51,7 @@
 
 struct GNode;
 struct Lst;
+struct Buffer;
 
 /*
  * The OP_ constants are used when parsing a dependency line as a way of
@@ -139,5 +140,7 @@ int Make_HandleUse(struct GNode *, struct GNode *);
 void Make_Update(struct GNode *);
 void Make_DoAllVar(struct GNode *);
 Boolean Make_Run(struct Lst *);
+void Main_ParseArgLine(char *, int);
+int Main_ParseWarn(const char *, int);
 
 #endif /* make_h_a91074b9 */
