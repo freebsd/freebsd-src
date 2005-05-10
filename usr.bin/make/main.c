@@ -862,8 +862,9 @@ main(int argc, char **argv)
 		/* Path of sys.mk */
 		Lst sysMkPath = Lst_Initializer(sysMkPath);
 		LstNode *ln;
+		char	defsysmk[] = PATH_DEFSYSMK;
 
-		Path_Expand(PATH_DEFSYSMK, &sysIncPath, &sysMkPath);
+		Path_Expand(defsysmk, &sysIncPath, &sysMkPath);
 		if (Lst_IsEmpty(&sysMkPath))
 			Fatal("make: no system rules (%s).", PATH_DEFSYSMK);
 		LST_FOREACH(ln, &sysMkPath) {
