@@ -51,6 +51,15 @@ extern struct GNode	*VAR_GLOBAL;
 /* Variables defined on the command line */
 extern struct GNode	*VAR_CMD;
 
+/*
+ * Value returned by Var_Parse when an error is encountered.  It actually
+ * points to an empty string, so naive callers needn't worry about it.
+ */
+extern char		var_Error[];
+
+/* Do old-style variable substitution */
+extern Boolean		oldVars;
+
 void Var_Append(const char *, const char *, struct GNode *);
 void Var_Delete(const char *, struct GNode *);
 void Var_Dump(void);
