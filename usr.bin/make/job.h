@@ -56,8 +56,6 @@ struct Buffer;
 struct GNode;
 struct Lst;
 
-extern char *shellPath;
-extern char *shellName;
 extern int	maxJobs;	/* Number of jobs that may run */
 
 void Shell_Init(void);

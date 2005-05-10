@@ -109,14 +109,6 @@ struct Lst;
 #define	OP_NOP(t)	(((t) & OP_OPMASK) == 0x00000000)
 
 /*
- * Error levels for parsing. PARSE_FATAL means the process cannot continue
- * once the makefile has been parsed. PARSE_WARNING means it can. Passed
- * as the first argument to Parse_Error.
- */
-#define	PARSE_WARNING	2
-#define	PARSE_FATAL	1
-
-/*
  * Definitions for the "local" variables. Used only for clarity.
  */
 #define	TARGET	  	  "@" 	/* Target of dependency */
