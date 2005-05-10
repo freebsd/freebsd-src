@@ -2380,8 +2380,9 @@ Var_Subst(const char *str, GNode *ctxt, Boolean err)
  *	None. The old string must be freed by the caller
  */
 Buffer *
-Var_SubstOnly(const char *var, const char *str, GNode *ctxt, Boolean err)
+Var_SubstOnly(const char *var, const char *str, Boolean err)
 {
+	GNode *ctxt = VAR_GLOBAL;
 	Boolean	errorReported;
 	Buffer	*buf;		/* Buffer for forming things */
 

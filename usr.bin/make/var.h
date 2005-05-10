@@ -61,7 +61,7 @@ char *Var_Parse(const char *, struct GNode *, Boolean, size_t *, Boolean *);
 void Var_Set(const char *, const char *, struct GNode *);
 void Var_SetEnv(const char *, struct GNode *);
 struct Buffer *Var_Subst(const char *, struct GNode *, Boolean);
-struct Buffer *Var_SubstOnly(const char *, const char *, struct GNode *, Boolean);
+struct Buffer *Var_SubstOnly(const char *, const char *, Boolean);
 char *Var_Value(const char *, struct GNode *, char **);
 
 #endif /* var_h_9cccafce */
