@@ -386,8 +386,8 @@ static const struct CShell shells[] = {
  * It is set by the Job_ParseShell function.
  */
 static struct Shell *commandShell = NULL;
-char		*shellPath = NULL;	/* full pathname of executable image */
-char		*shellName = NULL;	/* last component of shell */
+static char	*shellPath = NULL;	/* full pathname of executable image */
+static char	*shellName = NULL;	/* last component of shell */
 
 int		maxJobs;	/* The most children we can run at once */
 static int	nJobs;		/* The number of children currently running */
