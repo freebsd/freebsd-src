@@ -204,7 +204,7 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct mbuf	*m;
-	int plen;
+	struct ip	*ip;
 	int rval, error = 0;
 	char *c;
 
@@ -221,26 +221,31 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		return (ENOBUFS);
 	}
 
-	plen = m->m_pkthdr.len;
-
 	NGI_M(item) = m;
 
+	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
+	    ("ng_nat: ip_len != m_pkthdr.len"));
+
 	c = mtod(m, char *);
+	ip = mtod(m, struct ip *);
+
 	if (hook == priv->in) {
-		rval = LibAliasIn(priv->lib, c, plen);
+		rval = LibAliasIn(priv->lib, c, MCLBYTES);
 		if (rval != PKT_ALIAS_OK) {
 			printf("in %u\n", rval);
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
+		m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
 		NG_FWD_ITEM_HOOK(error, item, priv->out);
 	} else if (hook == priv->out) {
-		rval = LibAliasOut(priv->lib, c, plen);
+		rval = LibAliasOut(priv->lib, c, MCLBYTES);
 		if (rval != PKT_ALIAS_OK) {
 			printf("out %u\n", rval);
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
+		m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
 		NG_FWD_ITEM_HOOK(error, item, priv->in);
 	} else
 		panic("ng_nat: unknown hook!\n");
