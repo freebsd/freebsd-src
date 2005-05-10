@@ -5,8 +5,7 @@
 PROG=	make
 CFLAGS+=-I${.CURDIR}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c hash_tables.c	\
-	job.c lst.c main.c make.c parse.c str.c suff.c targ.c util.c	\
-	var.c var_modify.c
+	job.c lst.c main.c make.c parse.c str.c suff.c targ.c util.c var.c
 
 NO_WERROR=
 WARNS?=	3
