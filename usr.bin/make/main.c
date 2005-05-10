@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include "arch.h"
 #include "buf.h"
-#include "compat.h"
 #include "config.h"
 #include "dir.h"
 #include "globals.h"
