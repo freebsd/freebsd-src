@@ -14,7 +14,7 @@ WRINCS=		gnuregex.h
 PXINCS=		posix/regex.h
 PXINCSDIR=	${INCSDIR}/posix
 
-CFLAGS+=-D_REGEX_RE_COMP -DSTDC_HEADERS
+CFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR}
 
 CLEANFILES=	regex.h.patched gnuregex.c
 regex.h.patched: regex.h
