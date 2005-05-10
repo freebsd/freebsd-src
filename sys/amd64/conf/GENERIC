@@ -143,6 +143,8 @@ device		splash		# Splash screen and screen saver support
 # syscons is the default console driver, resembling an SCO console
 device		sc
 
+device		agp		# support several AGP chipsets
+
 # PCCARD (PCMCIA) support
 # PCMCIA and cardbus bridge support
 device		cbb		# cardbus (yenta) bridge
