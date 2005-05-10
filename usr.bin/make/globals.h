@@ -103,14 +103,8 @@ extern Lst envFirstVars;
 
 extern struct GNode	*DEFAULT;	/* .DEFAULT rule */
 
-/* Value returned by Var_Parse when an error is encountered.  It actually
- * points to an empty string, so naive callers needn't worry about it. */
-extern char	var_Error[];
-
 /* The time at the start of this whole process */
 extern time_t	now;
-
-extern Boolean	oldVars;	/* Do old-style variable substitution */
 
 extern int debug;
 
