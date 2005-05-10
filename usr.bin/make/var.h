@@ -94,6 +94,7 @@ void Var_Delete(const char *, struct GNode *);
 void Var_Dump(const struct GNode *);
 Boolean Var_Exists(const char *, struct GNode *);
 void Var_Init(char **);
+size_t Var_Match(const char [], struct GNode *);
 char *Var_Parse(const char *, struct GNode *, Boolean, size_t *, Boolean *);
 char *Var_Quote(const char *);
 void Var_Set(const char *, const char *, struct GNode *);

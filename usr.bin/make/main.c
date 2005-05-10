@@ -241,12 +241,19 @@ static void
 MainParseArgs(int argc, char **argv)
 {
 	int c;
+	Boolean	found_dd = FALSE;
 
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
 #define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstvx:"
-	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
+	for (;;) {
+		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
+			found_dd = TRUE;
+		}
+		if ((c = getopt(argc, argv, OPTFLAGS)) == -1) {
+			break;
+		}
 		switch(c) {
 
 		case 'A':
@@ -438,11 +445,18 @@ rearg:
 				 * (*argv) is a single dash, so we
 				 * just ignore it.
 				 */
+			} else if (found_dd) {
+				/*
+				 * Double dash has been found, ignore
+				 * any more options.  But what do we do
+				 * with it?  For now treat it like a target.
+				 */
+				Lst_AtEnd(&create, estrdup(*argv));
 			} else {
 				/*
-				 * (*argv) is a -flag, so backup argv
-				 *  and argc, since getopt() expects
-				 * options to start in the 2nd position.
+				 * (*argv) is a -flag, so backup argv and
+				 * argc.  getopt() expects options to start
+				 * in the 2nd position.
 				 */
 				argc++;
 				argv--;

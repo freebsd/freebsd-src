@@ -108,6 +108,7 @@ typedef struct VarParser {
 	const char	*ptr;		/* current parser pos in input str */
 	GNode		*ctxt;
 	Boolean		err;
+	Boolean		execute;
 } VarParser;
 static char *VarParse(VarParser *, Boolean *);
 
@@ -764,7 +765,8 @@ VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 					vp->ptr,
 					vp->ptr,
 					vp->ctxt,
-					vp->err
+					vp->err,
+					vp->execute
 				};
 				char   *rval;
 				Boolean rfree;
@@ -1229,10 +1231,13 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				    (vp->ptr[1] == 'h') &&
 				    (vp->ptr[2] == endc || vp->ptr[2] == ':')) {
 					const char	*error;
-					Buffer		*buf;
 
-					buf = Cmd_Exec(value, &error);
-					newStr = Buf_Peel(buf);
+					if (vp->execute) {
+						newStr = Buf_Peel(
+						    Cmd_Exec(value, &error));
+					} else {
+						newStr = estrdup("");
+					}
 
 					if (error)
 						Error(error, value);
@@ -1560,7 +1565,8 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 				vp->ptr,
 				vp->ptr,
 				vp->ctxt,
-				vp->err
+				vp->err,
+				vp->execute
 			};
 			char	*rval;
 			Boolean	rfree;
@@ -1691,13 +1697,42 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
 		input,
 		input,
 		ctxt,
-		err
+		err,
+		TRUE
 	};
 	char		*value;
 
 	value = VarParse(&vp, freeResult);
 	*consumed += vp.ptr - vp.input;
 	return (value);
+}
+
+/*
+ *
+ * Results:
+ *	The number of characters in the specification.  For invalid
+ *	specifications, this is just 2 to skip the '$' and the
+ *	following letter, or 1 if '$' was the last character in the
+ *	string.
+ */
+size_t
+Var_Match(const char input[], GNode *ctxt)
+{
+	VarParser	vp = {
+		input,
+		input,
+		ctxt,
+		FALSE,
+		FALSE
+	};
+	char		*value;
+	Boolean		freeResult;
+
+	value = VarParse(&vp, &freeResult);
+	if (freeResult) {
+		free(value);
+	}
+	return (vp.ptr - vp.input);
 }
 
 /*-
@@ -1746,7 +1781,8 @@ Var_Subst(const char *str, GNode *ctxt, Boolean err)
 				str,
 				str,
 				ctxt,
-				err
+				err,
+				TRUE
 			};
 			char	*rval;
 			Boolean	rfree;
@@ -1883,7 +1919,8 @@ Var_SubstOnly(const char *var, const char *str, GNode *ctxt, Boolean err)
 					str,
 					str,
 					ctxt,
-					err
+					err,
+					TRUE
 				};
 				char	*rval;
 				Boolean	rfree;
