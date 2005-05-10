@@ -78,11 +78,11 @@
 
 #ifdef PC98
 #include <isa/isavar.h>
-#include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
+#include <pc98/cbus/cbus.h>
+#include <pc98/cbus/fdcreg.h>
+#include <pc98/cbus/fdcvar.h>
 #include <pc98/pc98/epsonio.h>
-#include <pc98/pc98/fdreg.h>
-#include <pc98/pc98/fdcvar.h>
+#include <pc98/pc98/pc98_machdep.h>
 #else
 #include <isa/isavar.h>
 #include <isa/isareg.h>

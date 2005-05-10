@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #else
 #include <i386/isa/isa.h>
 #endif

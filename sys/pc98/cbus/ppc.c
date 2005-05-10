@@ -44,7 +44,7 @@
 #include <sys/rman.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
+#include <pc98/cbus/cbus.h>
 #else
 #include <isa/isareg.h>
 #endif
@@ -55,7 +55,7 @@
 
 #include <dev/ppc/ppcvar.h>
 #ifdef PC98
-#include <pc98/pc98/ppcreg.h>
+#include <pc98/cbus/ppcreg.h>
 #else
 #include <dev/ppc/ppcreg.h>
 #endif

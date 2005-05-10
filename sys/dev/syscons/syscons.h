@@ -34,7 +34,7 @@
 /* machine-dependent part of the header */
 
 #ifdef PC98
-#include <pc98/pc98/sc_machdep.h>
+#include <pc98/cbus/sc_machdep.h>
 #elif defined(__i386__)
 /* nothing for the moment */
 #elif defined(__alpha__)
