@@ -182,7 +182,7 @@ typedef struct Job {
 #define	JOB_SILENT	0x002	/* no output */
 #define	JOB_SPECIAL	0x004	/* Target is a special one. i.e. run it locally
 				 * if we can't export it and maxLocal is 0 */
-#define	JOB_IGNDOTS	0x008  	/* Ignore "..." lines when processing
+#define	JOB_IGNDOTS	0x008	/* Ignore "..." lines when processing
 				 * commands */
 #define	JOB_FIRST	0x020	/* Job is first job for the node */
 #define	JOB_RESTART	0x080	/* Job needs to be completely restarted */
@@ -196,7 +196,7 @@ typedef struct Job {
 	union {
 		/*
 		 * This part is used when usePipes is true.
- 		 * The output is being caught via a pipe and the descriptors
+		 * The output is being caught via a pipe and the descriptors
 		 * of our pipe, an array in which output is line buffered and
 		 * the current position in that buffer are all maintained for
 		 * each job.
@@ -246,12 +246,12 @@ typedef struct Job {
 	TAILQ_ENTRY(Job) link;	/* list link */
 } Job;
 
-#define	outPipe	  	output.o_pipe.op_outPipe
-#define	inPipe	  	output.o_pipe.op_inPipe
+#define	outPipe		output.o_pipe.op_outPipe
+#define	inPipe		output.o_pipe.op_inPipe
 #define	outBuf		output.o_pipe.op_outBuf
 #define	curPos		output.o_pipe.op_curPos
 #define	outFile		output.o_file.of_outFile
-#define	outFd	  	output.o_file.of_outFd
+#define	outFd		output.o_file.of_outFd
 
 TAILQ_HEAD(JobList, Job);
 
@@ -337,7 +337,7 @@ static int	numCommands;
  * Return values from JobStart.
  */
 #define	JOB_RUNNING	0	/* Job is running */
-#define	JOB_ERROR 	1	/* Error in starting the job */
+#define	JOB_ERROR	1	/* Error in starting the job */
 #define	JOB_FINISHED	2	/* The job is already finished */
 #define	JOB_STOPPED	3	/* The job is stopped */
 
@@ -395,19 +395,19 @@ static int	nJobs;		/* The number of children currently running */
 /* The structures that describe them */
 static struct JobList jobs = TAILQ_HEAD_INITIALIZER(jobs);
 
-static Boolean	jobFull;    	/* Flag to tell when the job table is full. It
+static Boolean	jobFull;	/* Flag to tell when the job table is full. It
 				 * is set TRUE when (1) the total number of
 				 * running jobs equals the maximum allowed */
 #ifdef USE_KQUEUE
 static int	kqfd;		/* File descriptor obtained by kqueue() */
 #else
-static fd_set  	outputs;    	/* Set of descriptors of pipes connected to
+static fd_set	outputs;	/* Set of descriptors of pipes connected to
 				 * the output channels of children */
 #endif
 
-static GNode   	*lastNode;	/* The node for which output was most recently
+static GNode	*lastNode;	/* The node for which output was most recently
 				 * produced. */
-static const char *targFmt;   	/* Format string to use to head output from a
+static const char *targFmt;	/* Format string to use to head output from a
 				 * job when it's not the most-recent job heard
 				 * from */
 
@@ -1170,10 +1170,10 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 static void
 JobExec(Job *job, char **argv)
 {
-	pid_t	    	  cpid;	    	/* ID of new child */
+	pid_t		  cpid;		/* ID of new child */
 
 	if (DEBUG(JOB)) {
-		int 	  i;
+		int	  i;
 
 		DEBUGF(JOB, ("Running %s\n", job->node->name));
 		DEBUGF(JOB, ("\tCommand: "));
@@ -2539,23 +2539,23 @@ JobMatchShell(const char *name)
  *	provides the functionality it does in C. Each word consists of
  *	keyword and value separated by an equal sign. There should be no
  *	unnecessary spaces in the word. The keywords are as follows:
- *	    name  	    Name of shell.
- *	    path  	    Location of shell. Overrides "name" if given
- *	    quiet 	    Command to turn off echoing.
- *	    echo  	    Command to turn echoing on
+ *	    name	    Name of shell.
+ *	    path	    Location of shell. Overrides "name" if given
+ *	    quiet	    Command to turn off echoing.
+ *	    echo	    Command to turn echoing on
  *	    filter	    Result of turning off echoing that shouldn't be
- *	    	  	    printed.
+ *			    printed.
  *	    echoFlag	    Flag to turn echoing on at the start
  *	    errFlag	    Flag to turn error checking on at the start
  *	    hasErrCtl	    True if shell has error checking control
- *	    check 	    Command to turn on error checking if hasErrCtl
- *	    	  	    is TRUE or template of command to echo a command
- *	    	  	    for which error checking is off if hasErrCtl is
- *	    	  	    FALSE.
+ *	    check	    Command to turn on error checking if hasErrCtl
+ *			    is TRUE or template of command to echo a command
+ *			    for which error checking is off if hasErrCtl is
+ *			    FALSE.
  *	    ignore	    Command to turn off error checking if hasErrCtl
- *	    	  	    is TRUE or template of command to execute a
- *	    	  	    command so as to ignore any errors it returns if
- *	    	  	    hasErrCtl is FALSE.
+ *			    is TRUE or template of command to execute a
+ *			    command so as to ignore any errors it returns if
+ *			    hasErrCtl is FALSE.
  */
 ReturnStatus
 Job_ParseShell(char *line)
@@ -2981,7 +2981,7 @@ Cmd_Exec(const char *cmd, const char **error)
  *
  * Interface:
  *	Compat_Run	    Initialize things for this module and recreate
- *	    	  	    thems as need creatin'
+ *			    thems as need creatin'
  */
 
 /*
@@ -2997,7 +2997,7 @@ static const char *sh_builtin[] = {
 	":", NULL
 };
 
-static char 	    meta[256];
+static char	    meta[256];
 
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
@@ -3060,7 +3060,7 @@ CompatInterrupt(int signo)
 
 	if (curTarg != NULL && !Targ_Precious(curTarg)) {
 		char	  *p1;
-		char 	  *file = Var_Value(TARGET, curTarg, &p1);
+		char	  *file = Var_Value(TARGET, curTarg, &p1);
 
 		if (!noExecute && eunlink(file) != -1) {
 			printf("*** %s removed\n", file);
@@ -3481,10 +3481,10 @@ CompatMake(GNode *gn, GNode *pgn)
 			 * parse.h : parse.o
 			 *
 			 * parse.o : parse.y
-			 *  	yacc -d parse.y
-			 *  	cc -c y.tab.c
-			 *  	mv y.tab.o parse.o
-			 *  	cmp -s y.tab.h parse.h || mv y.tab.h parse.h
+			 *	yacc -d parse.y
+			 *	cc -c y.tab.c
+			 *	mv y.tab.o parse.o
+			 *	cmp -s y.tab.h parse.h || mv y.tab.h parse.h
 			 *
 			 * In this case, if the definitions produced by yacc
 			 * haven't changed from before, parse.h won't have been
