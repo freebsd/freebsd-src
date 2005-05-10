@@ -91,7 +91,7 @@ typedef Boolean VarModifyProc(const char *, Boolean, struct Buffer *, void *);
 void VarREError(int, regex_t *, const char *);
 void Var_Append(const char *, const char *, struct GNode *);
 void Var_Delete(const char *, struct GNode *);
-void Var_Dump(const struct GNode *);
+void Var_Dump(void);
 Boolean Var_Exists(const char *, struct GNode *);
 void Var_Init(char **);
 size_t Var_Match(const char [], struct GNode *);
