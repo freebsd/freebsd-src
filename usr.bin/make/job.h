@@ -52,8 +52,9 @@
 
 #include "sprite.h"
 
-struct GNode;
 struct Buffer;
+struct GNode;
+struct Lst;
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
@@ -86,5 +87,8 @@ void Job_Wait(void);
 void Job_AbortAll(void);
 
 struct Buffer *Cmd_Exec(const char *, const char **);
+
+void Compat_Run(struct Lst *);
+int Compat_RunCommand(char *, struct GNode *);
 
 #endif /* job_h_4678dfd1 */
