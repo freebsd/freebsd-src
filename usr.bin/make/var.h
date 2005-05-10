@@ -45,6 +45,12 @@
 struct GNode;
 struct Buffer;
 
+/* Variables defined in a global context, e.g in the Makefile itself */
+extern struct GNode	*VAR_GLOBAL;
+
+/* Variables defined on the command line */
+extern struct GNode	*VAR_CMD;
+
 void Var_Append(const char *, const char *, struct GNode *);
 void Var_Delete(const char *, struct GNode *);
 void Var_Dump(void);
