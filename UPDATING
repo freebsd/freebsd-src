@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20050509:
+	FreeBSD 5.4-RELEASE
+
 20050302:
 	The full packet destination manipulation for 'ipfw fwd' is
 	back with the kernel compile time option:
