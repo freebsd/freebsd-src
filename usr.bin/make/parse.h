@@ -56,6 +56,24 @@ struct Lst;
 #define	PARSE_WARNING	2
 #define	PARSE_FATAL	1
 
+/*
+ * Definitions for the "local" variables. Used only for clarity.
+ */
+#define	TARGET		"@"	/* Target of dependency */
+#define	OODATE		"?"	/* All out-of-date sources */
+#define	ALLSRC		">"	/* All sources */
+#define	IMPSRC		"<"	/* Source implied by transformation */
+#define	PREFIX		"*"	/* Common prefix */
+#define	ARCHIVE		"!"	/* Archive in "archive(member)" syntax */
+#define	MEMBER		"%"	/* Member in "archive(member)" syntax */
+
+#define	FTARGET		"@F"	/* file part of TARGET */
+#define	DTARGET		"@D"	/* directory part of TARGET */
+#define	FIMPSRC		"<F"	/* file part of IMPSRC */
+#define	DIMPSRC		"<D"	/* directory part of IMPSRC */
+#define	FPREFIX		"*F"	/* file part of PREFIX */
+#define	DPREFIX		"*D"	/* directory part of PREFIX */
+
 void Parse_Error(int, const char *, ...);
 Boolean Parse_AnyExport(void);
 Boolean Parse_IsVar(char *);
