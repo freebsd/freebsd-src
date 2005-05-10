@@ -118,7 +118,7 @@
 
 #include <isa/isavar.h>
 
-#include <i386/isa/lptreg.h>
+#include <pc98/cbus/olptreg.h>
 #include <dev/ppbus/lptio.h>
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
