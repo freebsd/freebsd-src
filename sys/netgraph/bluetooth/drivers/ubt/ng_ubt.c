@@ -274,10 +274,10 @@ USB_MATCH(ubt)
 	 * If device violates Bluetooth specification and has bDeviceClass,
 	 * bDeviceSubClass and bDeviceProtocol set to wrong values then you
 	 * could try to put VendorID/ProductID pair into the list below. 
-	 * Currently I do not know of any such devices.
 	 */
 
 	Static struct usb_devno const	ubt_broken_devices[] = {
+		{ USB_VENDOR_AVM, 0x3800 }, /* AVM USB Bluetooth-Adapter BlueFritz! */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
 
