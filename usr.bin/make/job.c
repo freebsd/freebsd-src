@@ -1195,8 +1195,9 @@ JobExec(Job *job, char **argv)
 		lastNode = job->node;
 	}
 
-	if ((cpid = vfork()) == -1)
+	if ((cpid = vfork()) == -1) {
 		Punt("Cannot fork");
+	}
 
 	if (cpid == 0) {
 		/*
@@ -1261,7 +1262,6 @@ JobExec(Job *job, char **argv)
 		    sizeof("Could not execute shell"));
 		_exit(1);
 	}
-
 	/*
 	 * Parent
 	 */
@@ -2903,8 +2903,13 @@ Cmd_Exec(const char *cmd, const char **error)
 	/*
 	 * Fork
 	 */
-	switch (cpid = vfork()) {
-	  case 0:
+	if ((cpid = vfork()) == -1) {
+		*error = "Couldn't exec \"%s\"";
+		return (buf);
+	}
+
+	if (cpid == 0) {
+		char	*args[4];
 		/*
 		 * Close input side of pipe
 		 */
@@ -2918,59 +2923,50 @@ Cmd_Exec(const char *cmd, const char **error)
 		dup2(fds[1], 1);
 		close(fds[1]);
 
-		{
-			char	*args[4];
 
-			/* Set up arguments for shell */
-			args[0] = shellName;
-			args[1] = "-c";
-			args[2] = cmd;
-			args[3] = NULL;
+		/* Set up arguments for shell */
+		args[0] = shellName;
+		args[1] = "-c";
+		args[2] = cmd;
+		args[3] = NULL;
 
-			execv(shellPath, args);
-			_exit(1);
-			/*NOTREACHED*/
-		}
+		execv(shellPath, args);
+		_exit(1);
+		/* NOTREACHED */
 
-	  case -1:
-		*error = "Couldn't exec \"%s\"";
-		return (buf);
-
-	  default:
-		/*
-		 * No need for the writing half
-		 */
-		close(fds[1]);
-
-		do {
-			char	result[BUFSIZ];
-
-			rcnt = read(fds[0], result, sizeof(result));
-			if (rcnt != -1)
-				Buf_AddBytes(buf, (size_t)rcnt, (Byte *)result);
-		} while (rcnt > 0 || (rcnt == -1 && errno == EINTR));
-
-		if (rcnt == -1)
-			*error = "Error reading shell's output for \"%s\"";
-
-		/*
-		 * Close the input side of the pipe.
-		 */
-		close(fds[0]);
-
-		/*
-		 * Wait for the process to exit.
-		 */
-		while (((pid = wait(&status)) != cpid) && (pid >= 0))
-			continue;
-
-		if (status)
-			*error = "\"%s\" returned non-zero status";
-
-		Buf_StripNewlines(buf);
-
-		break;
 	}
+	/*
+	 * No need for the writing half
+	 */
+	close(fds[1]);
+
+	do {
+		char	result[BUFSIZ];
+
+		rcnt = read(fds[0], result, sizeof(result));
+		if (rcnt != -1)
+			Buf_AddBytes(buf, (size_t)rcnt, (Byte *)result);
+	} while (rcnt > 0 || (rcnt == -1 && errno == EINTR));
+
+	if (rcnt == -1)
+		*error = "Error reading shell's output for \"%s\"";
+
+	/*
+	 * Close the input side of the pipe.
+	 */
+	close(fds[0]);
+
+	/*
+	 * Wait for the process to exit.
+	 */
+	while (((pid = wait(&status)) != cpid) && (pid >= 0))
+		continue;
+
+	if (status)
+		*error = "\"%s\" returned non-zero status";
+
+	Buf_StripNewlines(buf);
+
 	return (buf);
 }
 
@@ -3278,10 +3274,10 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	/*
 	 * Fork and execute the single command. If the fork fails, we abort.
 	 */
-	cpid = vfork();
-	if (cpid < 0) {
+	if ((cpid = vfork()) == -1) {
 		Fatal("Could not fork");
 	}
+
 	if (cpid == 0) {
 		execvp(av[0], av);
 		write(STDERR_FILENO, av[0], strlen(av[0]));
@@ -3290,18 +3286,16 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		write(STDERR_FILENO, "\n", 1);
 		_exit(1);
 	}
-
 	/*
-	 * we need to print out the command associated with this Gnode in
-	 * Targ_PrintCmd from Targ_PrintGraph when debugging at level g2,
-	 * in main(), Fatal() and DieHorribly(), therefore do not free it
-	 * when debugging.
+	 * we need to print out the command associated with this
+	 * Gnode in Targ_PrintCmd from Targ_PrintGraph when debugging
+	 * at level g2, in main(), Fatal() and DieHorribly(),
+	 * therefore do not free it when debugging.
 	 */
 	if (!DEBUG(GRAPH2)) {
 		free(cmdStart);
 		Lst_Replace(cmdNode, cmd_save);
 	}
-
 	/*
 	 * The child is off and running. Now all we can do is wait...
 	 */
@@ -3316,14 +3310,18 @@ Compat_RunCommand(char *cmd, GNode *gn)
 
 		if (rstat > -1) {
 			if (WIFSTOPPED(reason)) {
-				status = WSTOPSIG(reason);	/* stopped */
+				/* stopped */
+				status = WSTOPSIG(reason);
 			} else if (WIFEXITED(reason)) {
-				status = WEXITSTATUS(reason);	/* exited */
+				/* exited */
+				status = WEXITSTATUS(reason);
 				if (status != 0) {
-					printf("*** Error code %d", status);
+					printf("*** Error code %d",
+					    status);
 				}
 			} else {
-				status = WTERMSIG(reason);	/* signaled */
+				/* signaled */
+				status = WTERMSIG(reason);
 				printf("*** Signal %d", status);
 			}
 
@@ -3332,15 +3330,17 @@ Compat_RunCommand(char *cmd, GNode *gn)
 					gn->made = ERROR;
 					if (keepgoing) {
 						/*
-						 * Abort the current target,
-						 * but let others continue.
+						 * Abort the current
+						 * target, but let
+						 * others continue.
 						 */
 						printf(" (continuing)\n");
 					}
 				} else {
 					/*
-					 * Continue executing commands for this
-					 * target. If we return 0, this will
+					 * Continue executing
+					 * commands for this target.
+					 * If we return 0, this will
 					 * happen...
 					 */
 					printf(" (ignored)\n");
@@ -3350,7 +3350,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 			break;
 		} else {
 			Fatal("error in wait: %d", rstat);
-			/*NOTREACHED*/
+			/* NOTREACHED */
 		}
 	}
 
