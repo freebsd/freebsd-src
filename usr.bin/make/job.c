@@ -132,6 +132,18 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "var.h"
 
+#define	TMPPAT	"/tmp/makeXXXXXXXXXX"
+
+#ifndef USE_KQUEUE
+/*
+ * The SEL_ constants determine the maximum amount of time spent in select
+ * before coming out to see if a child has finished. SEL_SEC is the number of
+ * seconds and SEL_USEC is the number of micro-seconds
+ */
+#define	SEL_SEC		2
+#define	SEL_USEC	0
+#endif /* !USE_KQUEUE */
+
 /*
  * Job Table definitions.
  *
