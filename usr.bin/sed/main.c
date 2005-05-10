@@ -128,7 +128,7 @@ main(int argc, char *argv[])
 	fflag = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "Eae:f:i:n")) != -1)
+	while ((c = getopt(argc, argv, "Eae:f:i:ln")) != -1)
 		switch (c) {
 		case 'E':
 			rflags = REG_EXTENDED;
@@ -150,6 +150,10 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			inplace = optarg;
+			break;
+		case 'l':
+			if(setlinebuf(stdout) != 0)
+				warnx("setlinebuf() failed");
 			break;
 		case 'n':
 			nflag = 1;
@@ -186,8 +190,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: sed script [-Ean] [-i extension] [file ...]",
-		"       sed [-an] [-i extension] [-e script] ... [-f script_file] ... [file ...]");
+		"usage: sed script [-Ealn] [-i extension] [file ...]",
+		"       sed [-Ealn] [-i extension] [-e script] ... [-f script_file] ... [file ...]");
 	exit(1);
 }
 

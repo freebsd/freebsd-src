@@ -39,11 +39,11 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ean
+.Op Fl Ealn
 .Ar command
 .Op Ar
 .Nm
-.Op Fl Ean
+.Op Fl Ealn
 .Op Fl e Ar command
 .Op Fl f Ar command_file
 .Op Fl i Ar extension
@@ -105,6 +105,8 @@ It is not recommended to give a zero-length
 .Ar extension
 when in-place editing files, as you risk corruption or partial content
 in situations where disk space is exhausted, etc.
+.It Fl l
+Make output line buffered.
 .It Fl n
 By default, each line of input is echoed to the standard output after
 all of the commands have been applied to it.
