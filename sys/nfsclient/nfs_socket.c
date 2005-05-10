@@ -521,8 +521,6 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	return (error);
 }
 
-int nfs_mrep_before_tsleep = 0;
-
 int
 nfs_reply(struct nfsreq *rep)
 {
@@ -740,8 +738,10 @@ nfs_mark_for_reconnect(struct nfsmount *nmp)
 	 */
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
-		if (rp->r_nmp == nmp)
+		if (rp->r_nmp == nmp) {
+			rp->r_flags |= R_MUSTRESEND;
 			wakeup_nfsreq(rp);
+		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
 }
@@ -805,10 +805,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			 * connection.
 			 */
 			if (error || auio.uio_resid > 0) {
-				if (auio.uio_resid > 0) {
-					log(LOG_INFO, 
-					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
-				} else {
+				if (error != ECONNRESET) {
 					log(LOG_ERR, 
 					    "nfs/tcp clnt: Error %d reading socket, tearing down TCP connection\n",
 					    error);
@@ -851,10 +848,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 				(so, (struct sockaddr **)0,
 				 &auio, &mp, (struct mbuf **)0, &rcvflg);
 			if (error || auio.uio_resid > 0) {
-				if (auio.uio_resid > 0) {
-					log(LOG_INFO, 
-					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
-				} else {
+				if (error != ECONNRESET) {
 					log(LOG_ERR, 
 					    "nfs/tcp clnt: Error %d reading socket, tearing down TCP connection\n",
 					    error);
@@ -1235,7 +1229,7 @@ nfs_timer(void *arg)
 			 */
 			rep->r_flags |= R_MUSTRESEND;
 			wakeup_nfsreq(rep);
-                        continue;
+			continue;
 		}
 		if ((so = nmp->nm_so) == NULL)
 			continue;
