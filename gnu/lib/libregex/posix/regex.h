@@ -1,27 +1,28 @@
 /* Definitions for data structures and routines for the regular
-   expression library, version 0.12.
-   Copyright (C) 1985,1989-1993,1995-1998, 2000 Free Software Foundation, Inc.
-
-   This file is part of the GNU C Library.  Its master source is NOT part of
-   the C library, however.  The master source lives in /gd/gnu/lib.
+   expression library.
+   Copyright (C) 1985,1989-93,1995-98,2000,2001,2002,2003
+   Free Software Foundation, Inc.
+   This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    The GNU C Library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+   02111-1307 USA.  */
 
 #ifndef _REGEX_H
 #define _REGEX_H 1
+
+#include <sys/types.h>
 
 /* Allow the use in C++ code.  */
 #ifdef __cplusplus
@@ -165,6 +166,23 @@ typedef unsigned long int reg_syntax_t;
    treated as 'a\{1'.  */
 #define RE_INVALID_INTERVAL_ORD (RE_DEBUG << 1)
 
+/* If this bit is set, then ignore case when matching.
+   If not set, then case is significant.  */
+#define RE_ICASE (RE_INVALID_INTERVAL_ORD << 1)
+
+/* This bit is used internally like RE_CONTEXT_INDEP_ANCHORS but only
+   for ^, because it is difficult to scan the regex backwards to find
+   whether ^ should be special.  */
+#define RE_CARET_ANCHORS_HERE (RE_ICASE << 1)
+
+/* If this bit is set, then \{ cannot be first in an bre or
+   immediately after an alternation or begin-group operator.  */
+#define RE_CONTEXT_INVALID_DUP (RE_CARET_ANCHORS_HERE << 1)
+
+/* If this bit is set, then no_sub will be set to 1 during
+   re_compile_pattern.  */
+#define RE_NO_SUB (RE_CONTEXT_INVALID_DUP << 1)
+
 /* This global variable defines the particular regexp syntax to use (for
    some interfaces).  When a regexp is compiled, the syntax used is
    stored in the pattern buffer, so changing this does not affect
@@ -186,7 +204,8 @@ extern reg_syntax_t re_syntax_options;
 
 #define RE_SYNTAX_GNU_AWK						\
   ((RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DEBUG)	\
-   & ~(RE_DOT_NOT_NULL | RE_INTERVALS | RE_CONTEXT_INDEP_OPS))
+   & ~(RE_DOT_NOT_NULL | RE_INTERVALS | RE_CONTEXT_INDEP_OPS		\
+       | RE_CONTEXT_INVALID_OPS ))
 
 #define RE_SYNTAX_POSIX_AWK 						\
   (RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS		\
@@ -218,7 +237,7 @@ extern reg_syntax_t re_syntax_options;
    | RE_INTERVALS  | RE_NO_EMPTY_RANGES)
 
 #define RE_SYNTAX_POSIX_BASIC						\
-  (_RE_SYNTAX_POSIX_COMMON | RE_BK_PLUS_QM)
+  (_RE_SYNTAX_POSIX_COMMON | RE_BK_PLUS_QM | RE_CONTEXT_INVALID_DUP)
 
 /* Differs from ..._POSIX_BASIC only in that RE_BK_PLUS_QM becomes
    RE_LIMITED_OPS, i.e., \? \+ \| are not recognized.  Actually, this
@@ -283,6 +302,10 @@ extern reg_syntax_t re_syntax_options;
 /* Like REG_NOTBOL, except for the end-of-line.  */
 #define REG_NOTEOL (1 << 1)
 
+/* Use PMATCH[0] to delimit the start and end of the search in the
+   buffer.  */
+#define REG_STARTEND (1 << 2)
+
 
 /* If any error codes are removed, changed, or added, update the
    `re_error_msg' table in regex.c.  */
@@ -298,7 +321,7 @@ typedef enum
   /* POSIX regcomp return error codes.  (In the order listed in the
      standard.)  */
   REG_BADPAT,		/* Invalid pattern.  */
-  REG_ECOLLATE,		/* Not implemented.  */
+  REG_ECOLLATE,		/* Inalid collating element.  */
   REG_ECTYPE,		/* Invalid character class name.  */
   REG_EESCAPE,		/* Trailing backslash.  */
   REG_ESUBREG,		/* Invalid back reference.  */
@@ -530,10 +553,14 @@ extern int re_exec _RE_ARGS ((const char *));
 #  endif
 # endif
 #endif
-/* For now unconditionally define __restrict_arr to expand to nothing.
-   Ideally we would have a test for the compiler which allows defining
-   it to restrict.  */
-#define __restrict_arr
+/* gcc 3.1 and up support the [restrict] syntax.  */
+#ifndef __restrict_arr
+# if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
+#  define __restrict_arr __restrict
+# else
+#  define __restrict_arr
+# endif
+#endif
 
 /* POSIX compatibility.  */
 extern int regcomp _RE_ARGS ((regex_t *__restrict __preg,
