@@ -480,11 +480,7 @@ Targ_PrintGraph(int pass)
 			printf("#\t%s [%s]\n", gn->name,
 			    gn->path ? gn->path : gn->name);
 	}
-
-	printf("#*** Global Variables:\n");
-	Var_Dump(VAR_GLOBAL);
-	printf("#*** Command-line Variables:\n");
-	Var_Dump(VAR_CMD);
+	Var_Dump();
 	printf("\n");
 	Dir_PrintDirectories();
 	printf("\n");
