@@ -352,6 +352,8 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 			cur->rxmit = cur->start;
 			tp->snd_numholes = 1;
 			tcp_sack_globalholes++;
+			/* Update the sack scoreboard "cache" */
+			tp->sackhint.nexthole = cur;
 			tp->rcv_lastsack = sack.end;
 			TAILQ_INSERT_HEAD(&tp->snd_holes, cur, scblink);
 			continue; /* with next sack block */
@@ -367,10 +369,17 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 				cur = TAILQ_NEXT(cur, scblink);
 				continue;
 			}
+			tp->sackhint.sack_bytes_rexmit -=
+				(cur->rxmit - cur->start);
+			KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
+				("sackhint bytes rtx >= 0"));
 			if (SEQ_LEQ(sack.start, cur->start)) {
 				/* Data acks at least the beginning of hole */
 				if (SEQ_GEQ(sack.end, cur->end)) {
 					/* Acks entire hole, so delete hole */
+					if (tp->sackhint.nexthole == cur)
+						tp->sackhint.nexthole =
+						    TAILQ_NEXT(cur, scblink);
 					temp = cur;
 					cur = TAILQ_NEXT(cur, scblink);
 					TAILQ_REMOVE(&tp->snd_holes,
@@ -379,22 +388,16 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 					tp->snd_numholes--;
 					tcp_sack_globalholes--;
 					continue;
+				} else {
+					/* Move start of hole forward */
+					cur->start = sack.end;
+					cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
 				}
-				/* otherwise, move start of hole forward */
-				cur->start = sack.end;
-				cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
-				cur = TAILQ_NEXT(cur, scblink);
-				continue;
-			}
-			/* move end of hole backward */
-			if (SEQ_GEQ(sack.end, cur->end)) {
+			} else if (SEQ_GEQ(sack.end, cur->end)) {
+				/* Move end of hole backward */
 				cur->end = sack.start;
 				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
-				cur = TAILQ_NEXT(cur, scblink);
-				continue;
-			}
-			if (SEQ_LT(cur->start, sack.start) &&
-			    SEQ_GT(cur->end, sack.end)) {
+			} else {
 				/*
 				 * ACKs some data in middle of a hole; need to
 				 * split current hole
@@ -403,25 +406,34 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 					tcp_sack_globalholes >= 
 					 tcp_sack_globalmaxholes) {
 					tcpstat.tcps_sack_sboverflow++;
-					continue;
+					temp = NULL;
+				} else {
+					temp = (struct sackhole *)
+						uma_zalloc(sack_hole_zone,
+							M_NOWAIT);
 				}
-				temp = (struct sackhole *)
-					uma_zalloc(sack_hole_zone,M_NOWAIT);
-				if (temp == NULL)
-					continue; /* ENOBUFS */
-				temp->start = sack.end;
-				temp->end = cur->end;
-				temp->rxmit = SEQ_MAX(cur->rxmit, temp->start);
-				cur->end = sack.start;
-				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
-				TAILQ_INSERT_AFTER(&tp->snd_holes,
-					cur, temp, scblink);
-				cur = TAILQ_NEXT(temp, scblink);
-				tp->snd_numholes++;
-				tcp_sack_globalholes++;
+				if (temp != NULL) {
+					temp->start = sack.end;
+					temp->end = cur->end;
+					temp->rxmit = SEQ_MAX(cur->rxmit,
+						temp->start);
+					cur->end = sack.start;
+					cur->rxmit = SEQ_MIN(cur->rxmit,
+						cur->end);
+					tp->sackhint.sack_bytes_rexmit +=
+						(cur->rxmit - cur->start);
+					TAILQ_INSERT_AFTER(&tp->snd_holes,
+						cur, temp, scblink);
+					cur = temp;
+					tp->snd_numholes++;
+					tcp_sack_globalholes++;
+				}
 			}
+			tp->sackhint.sack_bytes_rexmit +=
+			    (cur->rxmit - cur->start);
+			cur = TAILQ_NEXT(cur, scblink);
 		}
-		/* At this point, we are at the tail of the scoreboard. */
+		/* At this point, we have iterated the whole scoreboard. */
 		if (SEQ_LT(tp->rcv_lastsack, sack.start)) {
 			/* Need to append new hole at end. */
 			if (tp->snd_numholes >= tcp_sack_maxholes ||
@@ -467,15 +479,25 @@ tcp_del_sackholes(tp, th)
 		while (cur)
 			if (SEQ_LEQ(cur->end, lastack)) {
 				prev = cur;
+				tp->sackhint.sack_bytes_rexmit -=
+					(cur->rxmit - cur->start);
+				if (tp->sackhint.nexthole == cur)
+					tp->sackhint.nexthole =
+					    TAILQ_NEXT(cur, scblink);
 				cur = TAILQ_NEXT(cur, scblink);
 				TAILQ_REMOVE(&tp->snd_holes, prev, scblink);
 				uma_zfree(sack_hole_zone, prev);
 				tp->snd_numholes--;
 				tcp_sack_globalholes--;
 			} else if (SEQ_LT(cur->start, lastack)) {
+				if (SEQ_LT(cur->rxmit, lastack)) {
+					tp->sackhint.sack_bytes_rexmit -=
+					    (cur->rxmit - cur->start);
+					cur->rxmit = lastack;
+				} else
+					tp->sackhint.sack_bytes_rexmit -=
+					    (lastack - cur->start);
 				cur->start = lastack;
-				if (SEQ_LT(cur->rxmit, cur->start))
-					cur->rxmit = cur->start;
 				break;
 			} else
 				break;
@@ -494,6 +516,8 @@ tcp_free_sackholes(struct tcpcb *tp)
 		tcp_sack_globalholes--;
 	}
 	tp->snd_numholes = 0;
+	tp->sackhint.nexthole = NULL;
+	tp->sackhint.sack_bytes_rexmit = 0;
 }
 
 /*
@@ -512,7 +536,6 @@ tcp_sack_partialack(tp, th)
 	struct tcphdr *th;
 {
 	int num_segs = 1;
-	int sack_bytes_rxmt = 0;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	callout_stop(tp->tt_rexmt);
@@ -520,9 +543,9 @@ tcp_sack_partialack(tp, th)
 	/* send one or 2 segments based on how much new data was acked */
 	if (((th->th_ack - tp->snd_una) / tp->t_maxseg) > 2)
 		num_segs = 2;
-	(void)tcp_sack_output(tp, &sack_bytes_rxmt);
-	tp->snd_cwnd = sack_bytes_rxmt + (tp->snd_nxt - tp->sack_newdata) +
-		num_segs * tp->t_maxseg;
+	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
+		(tp->snd_nxt - tp->sack_newdata) +
+		num_segs * tp->t_maxseg);
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
@@ -530,17 +553,15 @@ tcp_sack_partialack(tp, th)
 }
 
 /*
- * Returns pointer to a sackhole if there are any pending retransmissions;
- * NULL otherwise.
+ * Debug version of tcp_sack_output() that walks the scoreboard. Used for
+ * now to sanity check the hint.
  */
-struct sackhole *
-tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
+static struct sackhole *
+tcp_sack_output_debug(struct tcpcb *tp, int *sack_bytes_rexmt)
 {
 	struct sackhole *p;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	if (!tp->sack_enable)
-		return (NULL);
 	*sack_bytes_rexmt = 0;
 	TAILQ_FOREACH(p, &tp->snd_holes, scblink) {
 		if (SEQ_LT(p->rxmit, p->end)) {
@@ -553,6 +574,55 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 		*sack_bytes_rexmt += (p->rxmit - p->start);
 	}
 	return (p);
+}
+
+/*
+ * Returns the next hole to retransmit and the number of retransmitted bytes
+ * from the scoreboard. We store both the next hole and the number of
+ * retransmitted bytes as hints (and recompute these on the fly upon SACK/ACK
+ * reception). This avoids scoreboard traversals completely.
+ *
+ * The loop here will traverse *at most* one link. Here's the argument.
+ * For the loop to traverse more than 1 link before finding the next hole to
+ * retransmit, we would need to have at least 1 node following the current hint
+ * with (rxmit == end). But, for all holes following the current hint,
+ * (start == rxmit), since we have not yet retransmitted from them. Therefore,
+ * in order to traverse more 1 link in the loop below, we need to have at least
+ * one node following the current hint with (start == rxmit == end).
+ * But that can't happen, (start == end) means that all the data in that hole
+ * has been sacked, in which case, the hole would have been removed from the
+ * scoreboard.
+ */
+struct sackhole *
+tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
+{
+	struct sackhole *hole = NULL, *dbg_hole = NULL;
+	int dbg_bytes_rexmt;
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
+	dbg_hole = tcp_sack_output_debug(tp, &dbg_bytes_rexmt);
+	*sack_bytes_rexmt = tp->sackhint.sack_bytes_rexmit;
+	hole = tp->sackhint.nexthole;
+	if (hole == NULL || SEQ_LT(hole->rxmit, hole->end))
+		goto out;
+	while ((hole = TAILQ_NEXT(hole, scblink)) != NULL) {
+		if (SEQ_LT(hole->rxmit, hole->end)) {
+			tp->sackhint.nexthole = hole;
+			break;
+		}
+	}
+out:
+	if (dbg_hole != hole) {
+		printf("%s: Computed sack hole not the same as cached value\n", __func__);
+		hole = dbg_hole;
+	}
+	if (*sack_bytes_rexmt != dbg_bytes_rexmt) {
+		printf("%s: Computed sack_bytes_retransmitted (%d) not"
+		       "the same as cached value (%d)\n",
+		       __func__, dbg_bytes_rexmt, *sack_bytes_rexmt);
+		*sack_bytes_rexmt = dbg_bytes_rexmt;
+	}
+	return (hole);
 }
 
 /*
@@ -589,34 +659,4 @@ tcp_sack_adjust(struct tcpcb *tp)
 		return;
 	tp->snd_nxt = tp->rcv_lastsack;
 	return;
-}
-
-/*
- * Calculate the number of SACKed bytes in the scoreboard by
- * subtracting the amount of data accounted for in sackholes
- * from the total span of the scoreboard. Also returns the 
- * amount of data that is "lost" and has not yet been retransmitted.
- */
-int
-tcp_sacked_bytes(struct tcpcb *tp, int *lost_not_rexmitted)
-{
-	INP_LOCK_ASSERT(tp->t_inpcb);
-	struct sackhole *cur = TAILQ_FIRST(&tp->snd_holes);
-	int sacked = 0;
-	int lost = 0;
-
-	if (cur == NULL) /* Scoreboard empty. */
-		goto out;
-	if (SEQ_GEQ(tp->snd_una, tp->rcv_lastsack)) /* Scoreboard is stale. */
-		goto out;
-	sacked = tp->rcv_lastsack - cur->start;
-	while (cur) {
-		lost += (cur->end - cur->rxmit);
-		sacked -= (cur->end - cur->start);
-		cur = TAILQ_NEXT(cur, scblink);
-	}
-out:
-	if (lost_not_rexmitted)
-		*lost_not_rexmitted = lost;
-	return (sacked);
 }

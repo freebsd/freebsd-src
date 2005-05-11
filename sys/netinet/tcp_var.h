@@ -63,6 +63,11 @@ struct sackhole {
 	TAILQ_ENTRY(sackhole) scblink;	/* scoreboard linkage */
 };
 
+struct sackhint {
+	struct sackhole	*nexthole;
+	int		sack_bytes_rexmit;
+};
+
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
@@ -192,6 +197,7 @@ struct tcpcb {
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	tcp_seq sack_newdata;		/* New data xmitted in this recovery
 					   episode starts at this seq number */
+	struct sackhint	sackhint;	/* SACK scoreboard hint */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
@@ -577,7 +583,6 @@ void	 tcp_del_sackholes(struct tcpcb *, struct tcphdr *);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
-int      tcp_sacked_bytes(struct tcpcb *tp, int *lost_not_rexmitted);
 void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
