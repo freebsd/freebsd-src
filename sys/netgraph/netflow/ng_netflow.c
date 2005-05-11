@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
  *
@@ -46,6 +46,8 @@ static const char rcs_id[] =
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -233,6 +235,31 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		 */
 		iface->info.ifinfo_dlt = DLT_EN10MB;
 
+	} else if (strncmp(name, NG_NETFLOW_HOOK_OUT,
+	    strlen(NG_NETFLOW_HOOK_OUT)) == 0) {
+		iface_p iface;
+		int ifnum = -1;
+		const char *cp;
+		char *eptr;
+
+		cp = name + strlen(NG_NETFLOW_HOOK_OUT);
+		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
+			return (EINVAL);
+
+		ifnum = (int)strtoul(cp, &eptr, 10);
+		if (*eptr != '\0' || ifnum < 0 || ifnum >= NG_NETFLOW_MAXIFACES)
+			return (EINVAL);
+
+		/* See if hook is already connected */
+		if (priv->ifaces[ifnum].out != NULL)
+			return (EISCONN);
+
+		iface = &priv->ifaces[ifnum];
+
+		/* Link private info and hook together */
+		NG_HOOK_SET_PRIVATE(hook, iface);
+		iface->out = hook;
+
 	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT) == 0) {
 
 		if (priv->export != NULL)
@@ -409,10 +436,11 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	const iface_p iface = NG_HOOK_PRIVATE(hook);
-	struct mbuf *m;
+	struct mbuf *m = NULL;
+	struct ip *ip;
+	int pullup_len = 0;
 	int error = 0;
 
-	NGI_GET_M(item, m);
 	if (hook == priv->export) {
 		/*
 		 * Data arrived on export hook.
@@ -422,50 +450,118 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		ERROUT(EINVAL);
 	};
 
-	/* increase counters */
+	if (hook == iface->out) {
+		/*
+		 * Data arrived on out hook. Bypass it.
+		 */
+		if (iface->hook == NULL)
+			ERROUT(ENOTCONN);
+
+		NG_FWD_ITEM_HOOK(error, item, iface->hook);
+		return (error);
+	}
+
+	NGI_GET_M(item, m);
+
+	/* Increase counters. */
 	iface->info.ifinfo_packets++;
+
+	/*
+	 * Depending on interface data link type and packet contents
+	 * we pullup enough data, so that ng_netflow_flow_add() does not
+	 * need to know about mbuf at all. We keep current length of data
+	 * needed to be contiguous in pullup_len. mtod() is done at the
+	 * very end one more time, since m can had changed after pulluping.
+	 *
+	 * In case of unrecognized data we don't return error, but just
+	 * pass data to downstream hook, if it is available.
+	 */
+
+#define	M_CHECK(length)	do {					\
+	pullup_len += length;					\
+	if ((m)->m_pkthdr.len < (pullup_len)) {			\
+		error = EINVAL;					\
+		goto bypass;					\
+	} 							\
+	if ((m)->m_len < (pullup_len) &&			\
+	   (((m) = m_pullup((m),(pullup_len))) == NULL)) {	\
+		error = ENOBUFS;				\
+		goto done;					\
+	}							\
+} while (0)
 
 	switch (iface->info.ifinfo_dlt) {
 	case DLT_EN10MB:	/* Ethernet */
-	{
+	    {
 		struct ether_header *eh;
 		uint16_t etype;
 
-		if (CHECK_MLEN(m, (sizeof(struct ether_header))))
-			ERROUT(EINVAL);
-
-		if (CHECK_PULLUP(m, (sizeof(struct ether_header))))
-			ERROUT(ENOBUFS);
-
+		M_CHECK(sizeof(struct ether_header));
 		eh = mtod(m, struct ether_header *);
 
-		/* make sure this is IP frame */
+		/* Make sure this is IP frame. */
 		etype = ntohs(eh->ether_type);
 		switch (etype) {
 		case ETHERTYPE_IP:
-			m_adj(m, sizeof(struct ether_header));
+			M_CHECK(sizeof(struct ip));
+			eh = mtod(m, struct ether_header *);
+			ip = (struct ip *)(eh + 1);
 			break;
 		default:
-			ERROUT(EINVAL);	/* ignore this frame */
+			goto bypass;	/* pass this frame */
 		}
-
 		break;
-	}
-	case DLT_RAW:
+	    }
+	case DLT_RAW:		/* IP packets */
+		M_CHECK(sizeof(struct ip));
+		ip = mtod(m, struct ip *);
 		break;
 	default:
-		ERROUT(EINVAL);
+		goto bypass;
 		break;
 	}
 
-	if (CHECK_MLEN(m, sizeof(struct ip)))
-		ERROUT(EINVAL);
+	/*
+	 * In case of IP header with options, we haven't pulled
+	 * up enough, yet.
+	 */
+	pullup_len += (ip->ip_hl << 2) - sizeof(struct ip);
 
-	if (CHECK_PULLUP(m, sizeof(struct ip)))
-		ERROUT(ENOBUFS);
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		M_CHECK(sizeof(struct tcphdr));
+		break;
+	case IPPROTO_UDP:
+		M_CHECK(sizeof(struct udphdr));
+		break;
+	}
 
-	error = ng_netflow_flow_add(priv, &m, iface);
+	switch (iface->info.ifinfo_dlt) {
+	case DLT_EN10MB:
+	    {
+		struct ether_header *eh;
 
+		eh = mtod(m, struct ether_header *);
+		ip = (struct ip *)(eh + 1);
+		break;
+	     }
+	case DLT_RAW:
+		ip = mtod(m, struct ip *);
+		break;
+	default:
+		panic("ng_netflow entered deadcode");
+	}
+
+#undef	M_CHECK
+
+	error = ng_netflow_flow_add(priv, ip, iface, m->m_pkthdr.rcvif);
+
+bypass:
+	if (iface->out != NULL) {
+		/* XXX: error gets overwritten here */
+		NG_FWD_NEW_DATA(error, item, iface->out, m);
+		return (error);
+	}
 done:
 	if (item)
 		NG_FREE_ITEM(item);
