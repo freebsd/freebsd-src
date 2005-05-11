@@ -1213,6 +1213,7 @@ g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
 			disk = dp;
 		}
 	}
+	KASSERT(disk != NULL, ("NULL disk for %s.", sc->sc_name));
 	cbp = g_clone_bio(bp);
 	if (cbp == NULL) {
 		if (bp->bio_error == 0)
