@@ -2248,8 +2248,10 @@ umass_cam_rescan(void *addr)
 		return;
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->umass_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
-	    != CAM_REQ_CMP)
+	    != CAM_REQ_CMP) {
+		free(ccb, M_USBDEV);
 		return;
+	}
 
 	xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
 	ccb->ccb_h.func_code = XPT_SCAN_BUS;
