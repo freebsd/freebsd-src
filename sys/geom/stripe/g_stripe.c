@@ -1037,6 +1037,10 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 	for (attached = 0, no = 1; no < *nargs; no++) {
 		snprintf(param, sizeof(param), "arg%u", no);
 		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_error(req, "No 'arg%u' argument.", no);
+			continue;
+		}
 		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
 			name += strlen("/dev/");
 		pp = g_provider_by_name(name);
