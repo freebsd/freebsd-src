@@ -360,6 +360,8 @@ default:							\
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
 
+void isp_prt(struct ispsoftc *, int level, const char *, ...)
+	__printflike(3, 4);
 /*
  * isp_osinfo definiitions && shorthand
  */
