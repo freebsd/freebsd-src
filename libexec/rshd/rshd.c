@@ -267,7 +267,7 @@ doit(struct sockaddr *fromp)
 		if ((cc = read(STDIN_FILENO, &c, 1)) != 1) {
 			if (cc < 0)
 				syslog(LOG_NOTICE, "read: %m");
-			shutdown(0, 1+1);
+			shutdown(0, SHUT_RDWR);
 			exit(1);
 		}
 		if (c == 0)
@@ -442,7 +442,7 @@ doit(struct sockaddr *fromp)
 					errno = 0;
 					cc = read(pv[0], buf, sizeof(buf));
 					if (cc <= 0) {
-						shutdown(s, 1+1);
+						shutdown(s, SHUT_RDWR);
 						FD_CLR(pv[0], &readfrom);
 					} else {
 						(void)write(s, buf, cc);
