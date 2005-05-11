@@ -459,13 +459,11 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	if (error != 0)
 		gctl_error(req, "Cannot store metadata on %s.", pp->name);
 end:
-	if (cp != NULL) {
-		if (cp->acw > 0)
-			g_access(cp, 0, -1, -1);
-		if (cp->provider != NULL)
-			g_detach(cp);
-		g_destroy_consumer(cp);
-	}
+	if (cp->acw > 0)
+		g_access(cp, 0, -1, -1);
+	if (cp->provider != NULL)
+		g_detach(cp);
+	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 }
 
