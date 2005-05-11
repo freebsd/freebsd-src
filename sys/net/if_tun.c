@@ -758,7 +758,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0)) == NULL) {
+	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0)) == NULL) {
 		ifp->if_ierrors++;
 		return (error);
 	}

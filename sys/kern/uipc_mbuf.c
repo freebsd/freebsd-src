@@ -1241,7 +1241,7 @@ nospace:
 #endif
 
 struct mbuf *
-m_uiotombuf(struct uio *uio, int how, int len)
+m_uiotombuf(struct uio *uio, int how, int len, int align)
 {
 	struct mbuf *m_new = NULL, *m_final = NULL;
 	int progress = 0, error = 0, length, total;
@@ -1250,12 +1250,15 @@ m_uiotombuf(struct uio *uio, int how, int len)
 		total = min(uio->uio_resid, len);
 	else
 		total = uio->uio_resid;
-	if (total > MHLEN)
+	if (align >= MHLEN)
+		goto nospace;
+	if (total + align > MHLEN)
 		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
 	else
 		m_final = m_gethdr(how, MT_DATA);
 	if (m_final == NULL)
 		goto nospace;
+	m_final->m_data += align;
 	m_new = m_final;
 	while (progress < total) {
 		length = total - progress;

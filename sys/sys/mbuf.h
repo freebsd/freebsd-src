@@ -578,7 +578,7 @@ void		 m_print(const struct mbuf *, int);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf	*m_pullup(struct mbuf *, int);
 struct	mbuf	*m_split(struct mbuf *, int, int);
-struct	mbuf	*m_uiotombuf(struct uio *, int, int);
+struct	mbuf	*m_uiotombuf(struct uio *, int, int, int);
 
 /*-
  * Network packets may have annotations attached by affixing a list
