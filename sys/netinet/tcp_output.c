@@ -863,6 +863,7 @@ send:
 	} else {
 		th->th_seq = htonl(p->rxmit);
 		p->rxmit += len;
+		tp->sackhint.sack_bytes_rexmit += len;
 	}
 	th->th_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
@@ -1091,9 +1092,13 @@ timer:
 			 * the TF_SENTFIN flag handles that case.
 			 */
 			if ((flags & TH_SYN) == 0) {
-				if (sack_rxmit)
+				if (sack_rxmit) {
 					p->rxmit -= len;
-				else
+					tp->sackhint.sack_bytes_rexmit -= len;
+					KASSERT(tp->sackhint.sack_bytes_rexmit
+						>= 0,
+						("sackhint bytes rtx >= 0"));
+				} else
 					tp->snd_nxt -= len;
 			}
 		}

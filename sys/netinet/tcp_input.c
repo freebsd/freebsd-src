@@ -1843,7 +1843,6 @@ trimthenstep6:
 
                                         if (tp->sack_enable && IN_FASTRECOVERY(tp)) {
 						int data_in_pipe;
-						int sacked, lost_not_rexmitted;
 						
 						/*
 						 * Compute the amount of data in flight first.
@@ -1851,9 +1850,8 @@ trimthenstep6:
 						 * we have less than 1/2 the original window's 	
 						 * worth of data in flight.
 						 */
-						sacked = tcp_sacked_bytes(tp, &lost_not_rexmitted);
-						data_in_pipe = (tp->snd_nxt - tp->snd_una) -
-							(sacked + lost_not_rexmitted);
+						data_in_pipe = (tp->snd_nxt - tp->rcv_lastsack) +
+							tp->sackhint.sack_bytes_rexmit;
 						if (data_in_pipe < tp->snd_ssthresh) {
 							tp->snd_cwnd += tp->t_maxseg;
 							if (tp->snd_cwnd > tp->snd_ssthresh)
@@ -1896,6 +1894,9 @@ trimthenstep6:
 					callout_stop(tp->tt_rexmt);
 					tp->t_rtttime = 0;
 					if (tp->sack_enable) {
+						KASSERT(tp->sackhint.
+							sack_bytes_rexmit == 0,
+							("sackhint rexmit == 0"));
 						tcpstat.tcps_sack_recovery_episode++;
 						tp->sack_newdata = tp->snd_nxt;
 						tp->snd_cwnd = tp->t_maxseg;
