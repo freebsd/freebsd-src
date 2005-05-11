@@ -474,11 +474,9 @@ struct pthread_attr {
 /*
  * Miscellaneous definitions.
  */
-#if !defined(__ia64__)
-#define PTHREAD_STACK_DEFAULT			65536
-#else
-#define PTHREAD_STACK_DEFAULT			0x40000
-#endif
+#define PTHREAD_STACK32_DEFAULT			(1 * 1024 * 1024)
+#define PTHREAD_STACK64_DEFAULT			(2 * 1024 * 1024)
+
 /*
  * Size of default red zone at the end of each stack.  In actuality, this "red
  * zone" is merely an unmapped region, except in the case of the initial stack.
@@ -491,16 +489,17 @@ extern int _pthread_guard_default;
 
 extern int _pthread_page_size;
 
+extern int _pthread_stack_default;
+
+extern int _pthread_stack_initial;
+
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
  * than the stacks of other threads, since many applications are likely to run
  * almost entirely on this stack.
  */
-#if !defined(__ia64__)
-#define PTHREAD_STACK_INITIAL			0x100000
-#else
-#define PTHREAD_STACK_INITIAL			0x400000
-#endif
+#define PTHREAD_STACK32_INITIAL			(2 * 1024 * 1024)
+#define PTHREAD_STACK64_INITIAL			(4 * 1024 * 1024)
 
 /*
  * Define the different priority ranges.  All applications have thread
@@ -1030,7 +1029,7 @@ SCLASS struct pthread_attr _pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY,
 	PTHREAD_CREATE_RUNNING, PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL,
-	PTHREAD_STACK_DEFAULT, -1 };
+	-1, -1 };
 #else
 ;
 #endif
