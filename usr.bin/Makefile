@@ -116,7 +116,7 @@ SUBDIR=	alias \
 	mklocale \
 	mkstr \
 	mktemp \
-	${_mkuzip} \
+	mkuzip \
 	msgs \
 	mt \
 	${_nc} \
@@ -287,7 +287,6 @@ _usbhidctl=	usbhidctl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-_mkuzip=	mkuzip
 _ncplist=	ncplist
 _ncplogin=	ncplogin
 _smbutil=	smbutil
@@ -298,7 +297,6 @@ _uac=		uac
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-_mkuzip=	mkuzip
 _ncplist=	ncplist
 _ncplogin=	ncplogin
 _smbutil=	smbutil
