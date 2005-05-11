@@ -223,11 +223,11 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	NGI_M(item) = m;
 
-	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
-	    ("ng_nat: ip_len != m_pkthdr.len"));
-
 	c = mtod(m, char *);
 	ip = mtod(m, struct ip *);
+
+	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
+	    ("ng_nat: ip_len != m_pkthdr.len"));
 
 	if (hook == priv->in) {
 		rval = LibAliasIn(priv->lib, c, MCLBYTES);
