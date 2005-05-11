@@ -162,7 +162,7 @@ NETGRAPH_INIT(netflow, &ng_netflow_typestruct);
 
 /* Called at node creation */
 static int
-ng_netflow_constructor (node_p node)
+ng_netflow_constructor(node_p node)
 {
 	priv_p priv;
 	int error = 0;
@@ -187,8 +187,6 @@ ng_netflow_constructor (node_p node)
 	/* Allocate memory and set up flow cache */
 	if ((error = ng_netflow_cache_init(priv)))
 		return (error);
-
-	priv->dgram.header.version = htons(NETFLOW_V5);
 
 	return (0);
 }
@@ -266,6 +264,15 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 			return (EISCONN);
 
 		priv->export = hook;
+
+#if 0	/* TODO: profile & test first */
+		/*
+		 * We send export dgrams in interrupt handlers and in
+		 * callout threads. We'd better queue data for later
+		 * netgraph ISR processing.
+		 */
+		NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
+#endif
 
 		/* Exporter is ready. Let's schedule expiry. */
 		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
