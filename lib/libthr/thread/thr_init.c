@@ -154,6 +154,8 @@ static void *libgcc_references[] = {
 
 int _pthread_guard_default;
 int _pthread_page_size;
+int _pthread_stack_default;
+int _pthread_stack_initial;
 
 /*
  * Initialize the current thread.
@@ -252,9 +254,17 @@ _thread_init(void)
 
 	_pthread_page_size = getpagesize();
 	_pthread_guard_default = getpagesize();
-    	
-	pthread_attr_default.guardsize_attr = _pthread_guard_default;
+	if (sizeof(void *) == 8) {
+		_pthread_stack_default = PTHREAD_STACK64_DEFAULT;
+		_pthread_stack_initial = PTHREAD_STACK64_INITIAL;
+	}
+	else {
+		_pthread_stack_default = PTHREAD_STACK32_DEFAULT;
+		_pthread_stack_initial = PTHREAD_STACK32_INITIAL;
+	}
 
+	pthread_attr_default.guardsize_attr = _pthread_guard_default;
+	pthread_attr_default.stacksize_attr = _pthread_stack_default;
 
 	/*
 	 * Make gcc quiescent about {,libgcc_}references not being
@@ -317,22 +327,22 @@ _thread_init(void)
 	 * this stack needs an explicitly mapped red zone to protect the
 	 * thread stack that is just beyond.
 	 */
-	if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
+	if (mmap(_usrstack - _pthread_stack_initial -
 	    _pthread_guard_default, _pthread_guard_default, 0,
 	    MAP_ANON, -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
 
 	/* Set the main thread stack pointer. */
-	pthread->stack = _usrstack - PTHREAD_STACK_INITIAL;
+	pthread->stack = _usrstack - _pthread_stack_initial;
 
 	/* Set the stack attributes. */
 	pthread->attr.stackaddr_attr = pthread->stack;
-	pthread->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
+	pthread->attr.stacksize_attr = _pthread_stack_initial;
 
 	/* Setup the context for initial thread. */
 	getcontext(&pthread->ctx);
 	pthread->ctx.uc_stack.ss_sp = pthread->stack;
-	pthread->ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
+	pthread->ctx.uc_stack.ss_size = _pthread_stack_initial;
 
 	/* Initialize the atfork list and mutex */
 	TAILQ_INIT(&_atfork_list);
