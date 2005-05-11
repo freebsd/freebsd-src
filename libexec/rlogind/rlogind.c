@@ -496,7 +496,7 @@ cleanup(int signo)
 	(void)chflags(line, 0);
 	(void)chmod(line, 0666);
 	(void)chown(line, 0, 0);
-	shutdown(netf, 2);
+	shutdown(netf, SHUT_RDWR);
 	exit(1);
 }
 
