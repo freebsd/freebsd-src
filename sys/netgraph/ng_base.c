@@ -3631,18 +3631,13 @@ ng_uncallout(struct callout *c, node_p node)
 {
 	item_p item;
 	int rval;
-	void *c_func;
 	
 	if (c == NULL)
 		return (0);
-	/* there must be an official way to do this */
-	mtx_lock_spin(&callout_lock);
-	c_func = c->c_func;
 	rval = callout_stop(c);
-	mtx_unlock_spin(&callout_lock);
 	item = c->c_arg;
 	/* Do an extra check */
-	if ((rval > 0) && (c_func == &ng_callout_trapoline) &&
+	if ((rval > 0) && (c->c_func == &ng_callout_trapoline) &&
 	    (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
