@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2005
+.Dd May 11, 2005
 .Os
 .Dt NG_NETFLOW 4
 .Sh NAME
@@ -168,6 +168,9 @@ It is called from
 .Xr flowctl 8 ,
 not directly from
 .Xr ngctl 8 .
+See also
+.Sx BUGS
+section.
 .El
 .Sh ASCII CONTROL MESSAGES
 Most binary control messages have an
@@ -258,6 +261,10 @@ based on
 written by
 .An Roman V. Palagin Aq romanp@unshadow.net .
 .Sh BUGS
+Cache snapshot obtained via
+.Dv NGM_NETFLOW_SHOW
+command may lack some percentage of entries under severe load.
+.Pp
 The
 .Nm
 node type does not fill in AS numbers.
