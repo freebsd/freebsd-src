@@ -44,9 +44,6 @@
 #include <dev/isp/isp_target.h>
 #include <dev/isp/isp_tpublic.h>
 #endif
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
 #endif
 #ifdef	__linux__
 #include "ispmbox.h"
@@ -762,9 +759,14 @@ int isp_async(struct ispsoftc *, ispasync_t, void *);
 
 /*
  * Platform Dependent Error and Debug Printout
+ *
+ * Generally this is:
+ *
+ *    void isp_prt(struct ispsoftc *, int level, const char *, ...)
+ *
+ * but due to compiler differences on different platforms this won't be
+ * formally done here. Instead, it goes in each platform definition file.
  */
-void isp_prt(struct ispsoftc *, int level, const char *, ...)
-	__printflike(3, 4);
 
 #define	ISP_LOGALL	0x0	/* log always */
 #define	ISP_LOGCONFIG	0x1	/* log configuration messages */
