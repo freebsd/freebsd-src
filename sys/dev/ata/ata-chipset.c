@@ -1378,7 +1378,12 @@ ata_intel_ident(device_t dev)
      { ATA_I82801FB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
      { ATA_I82801FB_S1, 0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { ATA_I82801FB_R1, 0, 0, 0x00, ATA_SA150, "Intel ICH6" },
-     { ATA_I82801FBM,   0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FB_M,  0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801GB,    0, 0, 0x00, ATA_UDMA5, "Intel ICH7" },
+     { ATA_I82801GB_S1, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
+     { ATA_I82801GB_R1, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
+     { ATA_I82801GB_M,  0, 0, 0x00, ATA_SA150, "Intel ICH7" },
+     { ATA_I82801GB_AH, 0, 0, 0x00, ATA_SA150, "Intel ICH7" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
