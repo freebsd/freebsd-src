@@ -222,7 +222,7 @@ main(int argc, char *argv[])
 			err(1, "fork");
 	}
 	else
-		(void)shutdown(rem, 1);
+		(void)shutdown(rem, SHUT_WR);
 
 	(void)ioctl(rfd2, FIONBIO, &one);
 	(void)ioctl(rem, FIONBIO, &one);
@@ -277,7 +277,7 @@ rewrite:
 			goto reread;
 		goto rewrite;
 done:
-		(void)shutdown(rem, 1);
+		(void)shutdown(rem, SHUT_WR);
 		exit(0);
 	}
 
