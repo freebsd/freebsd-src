@@ -5363,7 +5363,6 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			struct cam_path *path;
 			cam_status status;
 
-			path = request_ccb->ccb_h.path;
 			status = xpt_create_path(&path, xpt_periph,
 						 path_id, target_id, lun_id);
 			if (status != CAM_REQ_CMP) {
