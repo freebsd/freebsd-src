@@ -426,7 +426,7 @@ isp_pci_attach(device_t dev)
 	irq = regs = NULL;
 	rgd = rtp = iqd = 0;
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 1);
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (cmd & m1) {
 		rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
@@ -576,7 +576,7 @@ isp_pci_attach(device_t dev)
 		isp->isp_touched = 1;
 		
 	}
-	pci_write_config(dev, PCIR_COMMAND, cmd, 1);
+	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
 	/*
 	 * Make sure the Cache Line Size register is set sensibly.
