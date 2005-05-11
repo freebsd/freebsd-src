@@ -365,6 +365,7 @@ long	 sysconf(int);
 pid_t	 tcgetpgrp(int);
 int	 tcsetpgrp(int, pid_t);
 char	*ttyname(int);
+char	*ttyname_r(int, char *, size_t);
 int	 unlink(const char *);
 ssize_t	 write(int, const void *, size_t);
 
