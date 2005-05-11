@@ -149,7 +149,7 @@ int error;
 #endif
 	sleep(1);	/*XXX*/
 #ifdef notdef
-	if (shutdown(so, 2) < 0)
+	if (shutdown(so, SHUT_RDWR) < 0)
 		syslog(LOG_ERR, "shutdown: %s", strerror(errno));
 #endif
 	/*
