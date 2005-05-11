@@ -134,6 +134,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release sched_lock in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = 0;
+	td2->td_md.md_tp = *(uint32_t **)ARM_TP_ADDRESS;
 }
 				
 void
