@@ -652,23 +652,35 @@ static INLINE void
 isp_put_icb(struct ispsoftc *isp, isp_icb_t *Is, isp_icb_t *Id)
 {
 	int i;
-	ISP_SWAP8(Is->icb_version, Is->_reserved0);
-	ISP_IOXPUT_8(isp, Is->icb_version, &Id->icb_version);
-	ISP_IOXPUT_8(isp, Is->_reserved0, &Id->_reserved0);
+	if (ISP_IS_SBUS(isp)) {
+		ISP_IOXPUT_8(isp, Is->icb_version, &Id->_reserved0);
+		ISP_IOXPUT_8(isp, Is->_reserved0, &Id->icb_version);
+	} else {
+		ISP_IOXPUT_8(isp, Is->icb_version, &Id->icb_version);
+		ISP_IOXPUT_8(isp, Is->_reserved0, &Id->_reserved0);
+	}
 	ISP_IOXPUT_16(isp, Is->icb_fwoptions, &Id->icb_fwoptions);
 	ISP_IOXPUT_16(isp, Is->icb_maxfrmlen, &Id->icb_maxfrmlen);
 	ISP_IOXPUT_16(isp, Is->icb_maxalloc, &Id->icb_maxalloc);
 	ISP_IOXPUT_16(isp, Is->icb_execthrottle, &Id->icb_execthrottle);
-	ISP_SWAP8(Is->icb_retry_count, Is->icb_retry_delay);
-	ISP_IOXPUT_8(isp, Is->icb_retry_count, &Id->icb_retry_count);
-	ISP_IOXPUT_8(isp, Is->icb_retry_delay, &Id->icb_retry_delay);
+	if (ISP_IS_SBUS(isp)) {
+		ISP_IOXPUT_8(isp, Is->icb_retry_count, &Id->icb_retry_delay);
+		ISP_IOXPUT_8(isp, Is->icb_retry_delay, &Id->icb_retry_count);
+	} else {
+		ISP_IOXPUT_8(isp, Is->icb_retry_count, &Id->icb_retry_count);
+		ISP_IOXPUT_8(isp, Is->icb_retry_delay, &Id->icb_retry_delay);
+	}
 	for (i = 0; i < 8; i++) {
 		ISP_IOXPUT_8(isp, Is->icb_portname[i], &Id->icb_portname[i]);
 	}
 	ISP_IOXPUT_16(isp, Is->icb_hardaddr, &Id->icb_hardaddr);
-	ISP_SWAP8(Is->icb_iqdevtype, Is->icb_logintime);
-	ISP_IOXPUT_8(isp, Is->icb_iqdevtype, &Id->icb_iqdevtype);
-	ISP_IOXPUT_8(isp, Is->icb_logintime, &Id->icb_logintime);
+	if (ISP_IS_SBUS(isp)) {
+		ISP_IOXPUT_8(isp, Is->icb_iqdevtype, &Id->icb_logintime);
+		ISP_IOXPUT_8(isp, Is->icb_logintime, &Id->icb_iqdevtype);
+	} else {
+		ISP_IOXPUT_8(isp, Is->icb_iqdevtype, &Id->icb_iqdevtype);
+		ISP_IOXPUT_8(isp, Is->icb_logintime, &Id->icb_logintime);
+	}
 	for (i = 0; i < 8; i++) {
 		ISP_IOXPUT_8(isp, Is->icb_nodename[i], &Id->icb_nodename[i]);
 	}
@@ -683,14 +695,22 @@ isp_put_icb(struct ispsoftc *isp, isp_icb_t *Is, isp_icb_t *Id)
 		ISP_IOXPUT_16(isp, Is->icb_respaddr[i], &Id->icb_respaddr[i]);
 	}
 	ISP_IOXPUT_16(isp, Is->icb_lunenables, &Id->icb_lunenables);
-	ISP_SWAP8(Is->icb_ccnt, Is->icb_icnt);
-	ISP_IOXPUT_8(isp, Is->icb_ccnt, &Id->icb_ccnt);
-	ISP_IOXPUT_8(isp, Is->icb_icnt, &Id->icb_icnt);
+	if (ISP_IS_SBUS(isp)) {
+		ISP_IOXPUT_8(isp, Is->icb_ccnt, &Id->icb_icnt);
+		ISP_IOXPUT_8(isp, Is->icb_icnt, &Id->icb_ccnt);
+	} else {
+		ISP_IOXPUT_8(isp, Is->icb_ccnt, &Id->icb_ccnt);
+		ISP_IOXPUT_8(isp, Is->icb_icnt, &Id->icb_icnt);
+	}
 	ISP_IOXPUT_16(isp, Is->icb_lunetimeout, &Id->icb_lunetimeout);
 	ISP_IOXPUT_16(isp, Is->icb_xfwoptions, &Id->icb_xfwoptions);
-	ISP_SWAP8(Is->icb_racctimer, Is->icb_idelaytimer);
-	ISP_IOXPUT_8(isp, Is->icb_racctimer, &Id->icb_racctimer);
-	ISP_IOXPUT_8(isp, Is->icb_idelaytimer, &Id->icb_idelaytimer);
+	if (ISP_IS_SBUS(isp)) {
+		ISP_IOXPUT_8(isp, Is->icb_racctimer, &Id->icb_idelaytimer);
+		ISP_IOXPUT_8(isp, Is->icb_idelaytimer, &Id->icb_racctimer);
+	} else {
+		ISP_IOXPUT_8(isp, Is->icb_racctimer, &Id->icb_racctimer);
+		ISP_IOXPUT_8(isp, Is->icb_idelaytimer, &Id->icb_idelaytimer);
+	}
 	ISP_IOXPUT_16(isp, Is->icb_zfwoptions, &Id->icb_zfwoptions);
 }
 
