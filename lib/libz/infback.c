@@ -434,8 +434,8 @@ void FAR *out_desc;
                 }
             }
 
-            if (state->mode == BAD)
-                break;
+            /* handle error breaks in while */
+            if (state->mode == BAD) break;
 
             /* build code tables */
             state->next = state->codes;
