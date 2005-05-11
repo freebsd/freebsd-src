@@ -444,13 +444,6 @@ When you first run
 you may need to deal with some initial configuration details.
 .Bl -bullet
 .It
-Your kernel must {include} a tunnel device (the GENERIC kernel includes
-one by default).
-If it does not, the kernel will need to be rebuilt with the following
-lines added:
-.Pp
-.Dl device tun
-.It
 Make sure that your system has a group named
 .Dq network
 in the
@@ -554,7 +547,7 @@ and have not authenticated yourself using the correct password.
 .Pp
 You can start by specifying the device name and speed:
 .Bd -literal -offset indent
-ppp ON awfulhak> set device /dev/cuad0
+ppp ON awfulhak> set device /dev/cuaa0
 ppp ON awfulhak> set speed 38400
 .Ed
 .Pp
@@ -613,7 +606,7 @@ Name: deflink
  Phone Number:    N/A
 
 Defaults:
- Device List:     /dev/cuad0
+ Device List:     /dev/cuaa0
  Characteristics: 38400bps, cs8, even parity, CTS/RTS on
 
 Connect time: 0 secs
@@ -1221,10 +1214,10 @@ It is usually also necessary to train your modem to the same DTR speed
 as the getty:
 .Bd -literal -offset indent
 # ppp
-ppp ON awfulhak> set device /dev/cuad1
+ppp ON awfulhak> set device /dev/cuaa1
 ppp ON awfulhak> set speed 38400
 ppp ON awfulhak> term
-deflink: Entering terminal mode on /dev/cuad1
+deflink: Entering terminal mode on /dev/cuaa1
 Type `~?' for help
 at
 OK
@@ -2172,7 +2165,7 @@ and
 .Dq set speed
 to specify your serial line and speed, for example:
 .Bd -literal -offset indent
-set device /dev/cuad0
+set device /dev/cuaa0
 set speed 115200
 .Ed
 .Pp
@@ -2538,7 +2531,7 @@ Armed with this information, the following configuration might be used:
 mp:
  set timeout 0
  set log phase chat
- set device /dev/cuad0 /dev/cuad1 /dev/cuad2
+ set device /dev/cuaa0 /dev/cuaa1 /dev/cuaa2
  set phone "123456789"
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \\"\\" ATZ \e
            OK-AT-OK \\\\dATDT\\\\T TIMEOUT 45 CONNECT"
@@ -2575,9 +2568,9 @@ line above, and specifying the following after the
 command:
 .Pp
 .Bd -literal -offset indent
- link 1 set device /dev/cuad0
- link 2 set device /dev/cuad1
- link 3 set device /dev/cuad2
+ link 1 set device /dev/cuaa0
+ link 2 set device /dev/cuaa1
+ link 3 set device /dev/cuaa2
 .Ed
 .Pp
 Use the
@@ -4079,7 +4072,7 @@ The default link name is
 .Sq deflink .
 Renaming it to
 .Sq modem ,
-.Sq cuad0
+.Sq cuaa0
 or
 .Sq USR
 may make the log file more readable.
