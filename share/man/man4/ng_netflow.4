@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2004
+.Dd March 23, 2005
 .Os
 .Dt NG_NETFLOW 4
 .Sh NAME
@@ -66,11 +66,23 @@ This node type supports up to
 hooks named
 .Va iface0 , iface1 ,
 etc.,
+and the same number of hooks named
+.Va out0 , out1 ,
+etc.,
 plus a single hook named
 .Va export .
-The node reads data on
+The node does NetFlow accounting of data received on
 .Va iface*
-hooks, and sends export datagrams to the
+hooks.
+If corresponding
+.Va out
+hook is connected, unmodified data is bypassed to it, otherwise data is freed.
+If data is received on
+.Va out
+hook, it is bypassed to corresponding
+.Va iface
+hook without any processing.
+When full export datagram is built it is sent to the
 .Va export
 hook.
 In normal operation, the
@@ -186,10 +198,9 @@ The simplest possible configuration is one Ethernet interface, where
 flow collecting is enabled.
 .Bd -literal -offset indent
 /usr/sbin/ngctl -f- <<-SEQ
-	mkpeer fxp0: tee lower right
-	connect fxp0: fxp0:lower upper left
-	mkpeer fxp0:lower netflow right2left iface0
-	name fxp0:lower.right2left netflow
+	mkpeer fxp0: netflow lower iface0
+	name fxp0:lower netflow
+	connect fxp0: netflow: upper out0
 	mkpeer netflow: ksocket export inet/dgram/udp
 	msg netflow:export connect inet/10.0.0.1:4444
 SEQ
@@ -204,6 +215,10 @@ Note that the
 .Va ng0:
 node in this example is connected to
 .Xr ng_tee 4 .
+The latter sends us a copy of IP packets, which we analyze and free.
+On
+.Va fxp0:
+we do not use tee, but send packets back to ether node.
 .Bd -literal -offset indent
 /usr/sbin/ngctl -f- <<-SEQ
 	# connect ng0's tee to iface0 hook
@@ -214,11 +229,9 @@ node in this example is connected to
 	# set interface index (5 in this example)
 	msg netflow: setifindex { iface=0 index=5 }
 
-	# Create tee on fxp0, and connect it to iface1 hook
-	mkpeer fxp0: tee lower right
-	connect fxp0: fxp0:lower upper left
-	name fxp0:lower fxp0_tee
-	connect fxp0_tee: netflow: right2left iface1
+	# Connect fxp0: to iface1 and out1 hook
+	connect fxp0: netflow: lower iface1
+	connect fxp0: netflow: upper out1
 
 	# Create ksocket node on export hook, and configure it
 	# to send exports to proper destination
@@ -227,7 +240,7 @@ node in this example is connected to
 SEQ
 .Ed
 .Sh SEE ALSO
-.Xr flowctl 4 ,
+.Xr flowctl 8 ,
 .Xr netgraph 4 ,
 .Xr ng_ksocket 4 ,
 .Xr ng_tee 4 ,
