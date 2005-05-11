@@ -32,7 +32,7 @@
 #define	_NG_NETFLOW_H_
 
 #define NG_NETFLOW_NODE_TYPE	"netflow"
-#define NGM_NETFLOW_COOKIE	1101814790
+#define NGM_NETFLOW_COOKIE	1115810374
 
 #define	NG_NETFLOW_MAXIFACES	512
 
@@ -57,7 +57,9 @@ struct ng_netflow_info {
 	uint64_t	nfinfo_bytes;	/* total number of accounted bytes */
 	uint32_t	nfinfo_packets;	/* total number of accounted packets */
 	uint32_t	nfinfo_used;	/* number of used cache records */
-	uint32_t	nfinfo_free;	/* number of free records */
+	uint32_t	nfinfo_failed;	/* number of failed allocations */
+	uint32_t	nfinfo_act_exp;
+	uint32_t	nfinfo_inact_exp;
 	uint32_t	nfinfo_inact_t;	/* flow inactive timeout */
 	uint32_t	nfinfo_act_t;	/* flow active timeout */
 };
@@ -155,10 +157,7 @@ struct ngnf_flows {
 
 struct flow_entry {
 	struct flow_entry_data	f;
-
-	LIST_ENTRY(flow_entry)	fle_hash;	/* entries in one hash item */
-	TAILQ_ENTRY(flow_entry)	fle_work;	/* entries in work queue*/
-	SLIST_ENTRY(flow_entry)	fle_free;	/* entries in free stack */
+	TAILQ_ENTRY(flow_entry)	fle_hash;	/* entries in hash slot */
 };
 
 /* Parsing declarations */
@@ -168,7 +167,9 @@ struct flow_entry {
 	{ "Bytes",	&ng_parse_uint64_type },	\
 	{ "Packets",	&ng_parse_uint32_type },	\
 	{ "Records used",	&ng_parse_uint32_type },\
-	{ "Records free",	&ng_parse_uint32_type },\
+	{ "Failed allocations",	&ng_parse_uint32_type },\
+	{ "Active expiries",	&ng_parse_uint32_type },\
+	{ "Inactive expiries",	&ng_parse_uint32_type },\
 	{ "Inactive timeout",	&ng_parse_uint32_type },\
 	{ "Active timeout",	&ng_parse_uint32_type },\
 	{ NULL }					\
@@ -223,39 +224,40 @@ struct netflow {
 	struct ng_netflow_info	info;
 	uint32_t		flow_seq;	/* current flow sequence */
 
-	struct callout		exp_callout;
+	struct callout		exp_callout;	/* expiry periodic job */
 
-	/* Flow cache is a big chunk of memory referenced by 'cache'.
-	 * Accounting engine searches for its record using hashing index
-	 * 'hash'. Expiry engine searches for its record from begining of
-	 * tail queue 'expire_q'. Allocation is performed using last free
-	 * stack held in singly linked list 'free_l' */
-#define	CACHESIZE			65536
+	/*
+	 * Flow entries are allocated in uma(9) zone zone. They are
+	 * indexed by hash hash. Each hash element consist of tailqueue
+	 * head and mutex to protect this element.
+	 */
+#define	CACHESIZE			(65536*4)
 #define	CACHELOWAT			(CACHESIZE * 3/4)
 #define	CACHEHIGHWAT			(CACHESIZE * 9/10)
-	struct flow_entry		*cache;
+	uma_zone_t			zone;
 	struct flow_hash_entry		*hash;
-	TAILQ_HEAD( , flow_entry)	work_queue;
-	SLIST_HEAD( , flow_entry)	free_list;
-	SLIST_HEAD( , flow_entry)	expire_list;
 
-	/* Mutexes to protect above lists */
-	struct mtx			work_mtx;
-	struct mtx			free_mtx;
-	struct mtx			expire_mtx;
-
-	/* ng_netflow_export_send() forms its datagram here. */
-	struct netflow_export_dgram {
-		struct netflow_v5_header	header;
-		struct netflow_v5_record	r[NETFLOW_V5_MAX_RECORDS];
-	} __attribute__((__packed__)) dgram;
+	/*
+	 * NetFlow data export
+	 *
+	 * export_item is a data item, it has an mbuf with cluster
+	 * attached to it. A thread detaches export_item from priv
+	 * and works with it. If the export is full it is sent, and
+	 * a new one is allocated. Before exiting thread re-attaches
+	 * its current item back to priv. If there is item already,
+	 * current incomplete datagram is sent. 
+	 * export_mtx is used for attaching/detaching.
+	 */
+	item_p				export_item;
+	struct mtx			export_mtx;
 };
 
 typedef struct netflow *priv_p;
 
 /* Header of a small list in hash cell */
 struct flow_hash_entry {
-	LIST_HEAD( ,flow_entry) head;
+	struct mtx		mtx;
+	TAILQ_HEAD(fhead, flow_entry) head;
 };
 
 #define	ERROUT(x)	{ error = (x); goto done; }

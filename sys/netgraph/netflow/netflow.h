@@ -116,3 +116,8 @@ struct netflow_v5_record
 			     sizeof(netflow_v1_record)*NETFLOW_V1_MAX_RECORDS)
 #define NETFLOW_V5_MAX_SIZE (sizeof(netflow_v5_header)+ \
 			     sizeof(netflow_v5_record)*NETFLOW_V5_MAX_RECORDS)
+
+struct netflow_v5_export_dgram {
+	struct netflow_v5_header	header;
+	struct netflow_v5_record	r[NETFLOW_V5_MAX_RECORDS];
+} __attribute__((__packed__));
