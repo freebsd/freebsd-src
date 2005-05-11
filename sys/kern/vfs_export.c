@@ -240,6 +240,7 @@ vfs_export(mp, argp)
 		vfs_free_addrlist(nep);
 		mp->mnt_export = NULL;
 		free(nep, M_MOUNT);
+		nep = NULL;
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
