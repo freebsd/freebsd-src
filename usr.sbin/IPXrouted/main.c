@@ -174,7 +174,7 @@ main(argc, argv)
 	r = socket(AF_ROUTE, SOCK_RAW, 0);
 	/* later, get smart about lookingforinterfaces */
 	if (r)
-		shutdown(r, 0); /* for now, don't want reponses */
+		shutdown(r, SHUT_RD); /* for now, don't want reponses */
 	else {
 		fprintf(stderr, "IPXrouted: no routing socket\n");
 		exit(1);
