@@ -128,6 +128,8 @@ u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 struct mtx clock_lock;
+#define	RTC_LOCK	mtx_lock_spin(&clock_lock)
+#define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
@@ -563,30 +565,28 @@ int
 rtcin(reg)
 	int reg;
 {
-	int s;
 	u_char val;
 
-	s = splhigh();
+	RTC_LOCK;
 	outb(IO_RTC, reg);
 	inb(0x84);
 	val = inb(IO_RTC + 1);
 	inb(0x84);
-	splx(s);
+	RTC_UNLOCK;
 	return (val);
 }
 
 static __inline void
 writertc(u_char reg, u_char val)
 {
-	int s;
 
-	s = splhigh();
+	RTC_LOCK;
 	inb(0x84);
 	outb(IO_RTC, reg);
 	inb(0x84);
 	outb(IO_RTC + 1, val);
 	inb(0x84);		/* XXX work around wrong order in rtcin() */
-	splx(s);
+	RTC_UNLOCK;
 }
 
 static __inline int
