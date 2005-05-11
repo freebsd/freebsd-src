@@ -1193,11 +1193,8 @@ vfs_mountroot(void)
 {
 	char *cp;
 	int error, i, asked = 0;
-	struct mount *mp;
 
 	root_mount_wait();
-
-	mp = devfs_first();
 
 	/*
 	 * We are booted with instructions to prompt for the root filesystem.
