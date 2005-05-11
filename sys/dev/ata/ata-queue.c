@@ -450,11 +450,13 @@ ata_timeout(struct ata_request *request)
     ATA_DEBUG_RQ(request, "timeout");
 
     /*
-     * set the state to TIMEOUT so we wont loose the race with 
-     * an eventual interrupt arriving late
+     * flag the request ATA_R_TIMEOUT and NULL out the running request
+     * so we wont loose the race with an eventual interrupt arriving late
+     * and dont reissue the command in ata_catch_inflight()
      */
     if (ch->state == ATA_ACTIVE || ch->state == ATA_STALL_QUEUE) {
 	request->flags |= ATA_R_TIMEOUT;
+	ch->running = NULL;
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
