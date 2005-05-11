@@ -163,16 +163,98 @@
 #define         ATA_SC_IPM_DIS_PARTIAL  0x00000100
 #define         ATA_SC_IPM_DIS_SLUMBER  0x00000200
 
+#define ATA_SACTIVE			16
+
+/* SATA AHCI v1.0 register defines */
+#define ATA_AHCI_CAP			0x00
+#define		ATA_AHCI_NPMASK		0x1f
+
+#define ATA_AHCI_GHC			0x04
+#define		ATA_AHCI_GHC_AE		0x80000000
+#define		ATA_AHCI_GHC_IE		0x00000002
+#define		ATA_AHCI_GHC_HR		0x80000001
+
+#define ATA_AHCI_IS			0x08
+#define ATA_AHCI_PI			0x0c
+#define ATA_AHCI_VS			0x10
+
+#define ATA_AHCI_OFFSET			0x80
+
+#define ATA_AHCI_P_CLB			0x100
+#define ATA_AHCI_P_CLBU			0x104
+#define ATA_AHCI_P_FB			0x108
+#define ATA_AHCI_P_FBU			0x10c
+#define ATA_AHCI_P_IS			0x110
+#define ATA_AHCI_P_IE			0x114
+#define		ATA_AHCI_P_IX_DHR	0x00000001
+#define		ATA_AHCI_P_IX_PS	0x00000002
+#define		ATA_AHCI_P_IX_DS	0x00000004
+#define		ATA_AHCI_P_IX_SDB	0x00000008
+#define		ATA_AHCI_P_IX_UF	0x00000010
+#define		ATA_AHCI_P_IX_DP	0x00000020
+#define		ATA_AHCI_P_IX_PC	0x00000040
+#define		ATA_AHCI_P_IX_DI	0x00000080
+
+#define		ATA_AHCI_P_IX_PRC	0x00400000
+#define		ATA_AHCI_P_IX_IPM	0x00800000
+#define		ATA_AHCI_P_IX_OF	0x01000000
+#define		ATA_AHCI_P_IX_INF	0x04000000
+#define		ATA_AHCI_P_IX_IF	0x08000000
+#define		ATA_AHCI_P_IX_HBD	0x10000000
+#define		ATA_AHCI_P_IX_HBF	0x20000000
+#define		ATA_AHCI_P_IX_TFE	0x40000000
+#define		ATA_AHCI_P_IX_CPD	0x80000000
+
+#define ATA_AHCI_P_CMD			0x118
+#define 	ATA_AHCI_P_CMD_ST	0x00000001
+#define		ATA_AHCI_P_CMD_SUD	0x00000002
+#define		ATA_AHCI_P_CMD_POD	0x00000004
+#define		ATA_AHCI_P_CMD_CLO	0x00000008
+#define		ATA_AHCI_P_CMD_FRE	0x00000010
+#define		ATA_AHCI_P_CMD_CCS_MASK	0x00001f00
+#define		ATA_AHCI_P_CMD_ISS	0x00002000
+#define		ATA_AHCI_P_CMD_FR	0x00004000
+#define		ATA_AHCI_P_CMD_CR	0x00008000
+#define		ATA_AHCI_P_CMD_CPS	0x00010000
+#define		ATA_AHCI_P_CMD_PMA	0x00020000
+#define		ATA_AHCI_P_CMD_HPCP	0x00040000
+#define		ATA_AHCI_P_CMD_ISP	0x00080000
+#define		ATA_AHCI_P_CMD_CPD	0x00100000
+#define		ATA_AHCI_P_CMD_ATAPI	0x01000000
+#define		ATA_AHCI_P_CMD_DLAE	0x02000000
+#define		ATA_AHCI_P_CMD_ALPE	0x04000000
+#define		ATA_AHCI_P_CMD_ASP	0x08000000
+#define		ATA_AHCI_P_CMD_ICC_MASK	0xf0000000
+#define		ATA_AHCI_P_CMD_NOOP	0x00000000
+#define		ATA_AHCI_P_CMD_ACTIVE	0x10000000
+#define		ATA_AHCI_P_CMD_PARTIAL	0x20000000
+#define		ATA_AHCI_P_CMD_SLUMPER	0x60000000
+
+#define ATA_AHCI_P_TFD			0x120
+#define ATA_AHCI_P_SIG			0x124
+#define ATA_AHCI_P_SSTS			0x128
+#define ATA_AHCI_P_SCTL			0x12c
+#define ATA_AHCI_P_SERR			0x130
+#define ATA_AHCI_P_SACT			0x134
+#define ATA_AHCI_P_CI			0x138
+
+#define ATA_AHCI_CL_SIZE		32
+#define ATA_AHCI_CL_OFFSET		0
+#define ATA_AHCI_FB_OFFSET		1024
+#define ATA_AHCI_CT_OFFSET		1024+256
+#define ATA_AHCI_CT_SG_OFFSET		128
+#define	ATA_AHCI_CT_SIZE		256
+
 /* DMA register defines */
 #define ATA_DMA_ENTRIES                 256
 #define ATA_DMA_EOT                     0x80000000
 
-#define ATA_BMCMD_PORT                  16
+#define ATA_BMCMD_PORT                  17
 #define         ATA_BMCMD_START_STOP    0x01
 #define         ATA_BMCMD_WRITE_READ    0x08
 
-#define ATA_BMDEVSPEC_0                 17
-#define ATA_BMSTAT_PORT                 18
+#define ATA_BMDEVSPEC_0                 18
+#define ATA_BMSTAT_PORT                 19
 #define         ATA_BMSTAT_ACTIVE       0x01
 #define         ATA_BMSTAT_ERROR        0x02
 #define         ATA_BMSTAT_INTERRUPT    0x04
@@ -181,12 +263,12 @@
 #define         ATA_BMSTAT_DMA_SLAVE    0x40
 #define         ATA_BMSTAT_DMA_SIMPLEX  0x80
 
-#define ATA_BMDEVSPEC_1                 19
-#define ATA_BMDTP_PORT                  20
+#define ATA_BMDEVSPEC_1                 20
+#define ATA_BMDTP_PORT                  21
 
-#define ATA_IDX_ADDR                    21
-#define ATA_IDX_DATA                    22
-#define ATA_MAX_RES                     23
+#define ATA_IDX_ADDR                    22
+#define ATA_IDX_DATA                    23
+#define ATA_MAX_RES                     24
 
 /* misc defines */
 #define ATA_PRIMARY                     0x1f0
