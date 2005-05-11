@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #endif
 #include <sys/sysctl.h>
 
@@ -632,12 +634,21 @@ uhub_child_location_str(device_t cbdev, device_t child, char *buf,
 	int port;
 	int i;
 
+	mtx_lock(&Giant);
 	nports = devhub->hub->hubdesc.bNbrPorts;
 	for (port = 0; port < nports; port++) {
 		dev = devhub->hub->ports[port].device;
 		if (dev && dev->subdevs) {
 			for (i = 0; dev->subdevs[i]; i++) {
 				if (dev->subdevs[i] == child) {
+					if (dev->ifacenums == NULL) {
+						snprintf(buf, buflen,
+						    "port=%i", port);
+					} else {
+						snprintf(buf, buflen,
+						    "port=%i interface=%i",
+						    port, dev->ifacenums[i]);
+					}
 					goto found_dev;
 				}
 			}
@@ -645,15 +656,8 @@ uhub_child_location_str(device_t cbdev, device_t child, char *buf,
 	}
 	DPRINTFN(0,("uhub_child_location_str: device not on hub\n"));
 	buf[0] = '\0';
-	return (0);
-
 found_dev:
-	if (dev->ifacenums == NULL) {
-		snprintf(buf, buflen, "port=%i", port);
-	} else {
-		snprintf(buf, buflen, "port=%i interface=%i",
-		    port, dev->ifacenums[i]);
-	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -670,6 +674,7 @@ uhub_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 	int port;
 	int i;
 
+	mtx_lock(&Giant);
 	nports = devhub->hub->hubdesc.bNbrPorts;
 	for (port = 0; port < nports; port++) {
 		dev = devhub->hub->ports[port].device;
@@ -683,10 +688,11 @@ uhub_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 	}
 	DPRINTFN(0,("uhub_child_pnpinfo_str: device not on hub\n"));
 	buf[0] = '\0';
+	mtx_unlock(&Giant);
 	return (0);
 
 found_dev:
-	serial[0] = '\0';
+	/* XXX can sleep */
 	(void)usbd_get_string(dev, dev->ddesc.iSerialNumber, &serial[0]);
 	if (dev->ifacenums == NULL) {
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
@@ -707,6 +713,7 @@ found_dev:
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 #endif
