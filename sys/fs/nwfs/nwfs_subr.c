@@ -177,7 +177,7 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 		struct thread *td,struct ucred *cred)
 {
 	struct nwmount *nmp;
-	struct nwnode *dnp = VTONW(dvp);
+	struct nwnode *dnp;
 	struct ncp_conn *conn;
 	int error;
 
@@ -185,6 +185,7 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 		nwfs_printf("dvp is NULL or not a directory.\n");
 		return (ENOENT);
 	}
+	dnp = VTONW(dvp);
 	nmp = VTONWFS(dvp);
 	conn = NWFSTOCONN(nmp);
 
