@@ -466,14 +466,16 @@ struct pthread_attr {
 /*
  * Miscellaneous definitions.
  */
-#define THR_STACK_DEFAULT			65536
+#define THR_STACK32_DEFAULT		(1 * 1024 * 1024)
+#define THR_STACK64_DEFAULT		(2 * 1024 * 1024)
 
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
  * than the stacks of other threads, since many applications are likely to run
  * almost entirely on this stack.
  */
-#define THR_STACK_INITIAL			0x100000
+#define THR_STACK32_INITIAL		(2 * 1024 * 1024)
+#define THR_STACK64_INITIAL		(4 * 1024 * 1024)
 
 /*
  * Define the different priority ranges.  All applications have thread
@@ -1034,7 +1036,7 @@ SCLASS struct pthread_attr _pthread_attr_default
     SCLASS_PRESET({
 	SCHED_RR, 0, TIMESLICE_USEC, THR_DEFAULT_PRIORITY,
 	THR_CREATE_RUNNING,	PTHREAD_CREATE_JOINABLE, NULL,
-	NULL, NULL, THR_STACK_DEFAULT, /* guardsize */0
+	NULL, NULL, /* stacksize */0, /* guardsize */0
     });
 
 /* Default mutex attributes: */
@@ -1073,6 +1075,8 @@ SCLASS struct lock	_rwlock_static_lock;
 SCLASS struct lock	_keytable_lock;
 SCLASS struct lock	_thread_list_lock;
 SCLASS int		_thr_guard_default;
+SCLASS int		_thr_stack_default;
+SCLASS int		_thr_stack_initial;
 SCLASS int		_thr_page_size;
 SCLASS pthread_t	_thr_sig_daemon;
 SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);

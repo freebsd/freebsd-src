@@ -337,7 +337,7 @@ init_main_thread(struct pthread *thread)
 	 * resource limits, so this stack needs an explicitly mapped
 	 * red zone to protect the thread stack that is just beyond.
 	 */
-	if (mmap((void *)_usrstack - THR_STACK_INITIAL -
+	if (mmap((void *)_usrstack - _thr_stack_initial -
 	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
@@ -351,8 +351,8 @@ init_main_thread(struct pthread *thread)
 	 *       actually free() it; it just puts it in the free
 	 *       stack queue for later reuse.
 	 */
-	thread->attr.stackaddr_attr = (void *)_usrstack - THR_STACK_INITIAL;
-	thread->attr.stacksize_attr = THR_STACK_INITIAL;
+	thread->attr.stackaddr_attr = (void *)_usrstack - _thr_stack_initial;
+	thread->attr.stacksize_attr = _thr_stack_initial;
 	thread->attr.guardsize_attr = _thr_guard_default;
 	thread->attr.flags |= THR_STACK_USER;
 
@@ -427,6 +427,16 @@ init_private(void)
 
 		_thr_page_size = getpagesize();
 		_thr_guard_default = _thr_page_size;
+		if (sizeof(void *) == 8) {
+			_thr_stack_default = THR_STACK64_DEFAULT;
+			_thr_stack_initial = THR_STACK64_INITIAL;
+		}
+		else {
+			_thr_stack_default = THR_STACK32_DEFAULT;
+			_thr_stack_initial = THR_STACK32_INITIAL;
+		}
+		_pthread_attr_default.guardsize_attr = _thr_guard_default;
+		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 		init_once = 1;	/* Don't do this again. */
 	} else {
 		/*
