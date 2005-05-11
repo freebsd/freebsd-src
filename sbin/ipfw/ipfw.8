@@ -735,7 +735,9 @@ accepted or continues with the next rule, depending on
 sysctl variable.
 .It Cm ngtee Ar cookie
 A copy of packet is diverted into netgraph, original
-packet continues with next rule.
+packet is either accepted or continues with the next rule, depending on
+.Em net.inet.ip.fw.one_pass
+sysctl variable.
 See
 .Xr ng_ipfw 4
 for more information on
