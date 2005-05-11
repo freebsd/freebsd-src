@@ -208,7 +208,7 @@ flushroutes(argc, argv)
 	if (uid && !debugonly) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
-	shutdown(s, 0); /* Don't want to read back our messages */
+	shutdown(s, SHUT_RD); /* Don't want to read back our messages */
 	if (argc > 1) {
 		argv++;
 		if (argc == 2 && **argv == '-')
@@ -577,7 +577,7 @@ newroute(argc, argv)
 	}
 	cmd = argv[0];
 	if (*cmd != 'g')
-		shutdown(s, 0); /* Don't want to read back our messages */
+		shutdown(s, SHUT_RD); /* Don't want to read back our messages */
 	while (--argc > 0) {
 		if (**(++argv)== '-') {
 			switch (key = keyword(1 + *argv)) {
