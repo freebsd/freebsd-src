@@ -2302,6 +2302,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 	struct ovfsconf ovfs;
 
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		bzero(&ovfs, sizeof(ovfs));
 		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
 		strcpy(ovfs.vfc_name, vfsp->vfc_name);
 		ovfs.vfc_index = vfsp->vfc_typenum;
