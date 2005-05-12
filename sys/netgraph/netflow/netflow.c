@@ -204,8 +204,7 @@ expire_flow(priv_p priv, item_p *item, struct flow_entry *fle)
 	if (*item == NULL)
 		*item = get_export_dgram(priv);
 	if (*item == NULL) {
-		/* XXX: do stats! */
-		log(LOG_DEBUG, "get_export_dgram failed\n");
+		atomic_add_32(&priv->info.nfinfo_export_failed, 1);
 		uma_zfree_arg(priv->zone, fle, priv);
 		return;
 	}
@@ -259,7 +258,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 
 	fle = uma_zalloc_arg(priv->zone, priv, M_NOWAIT);
 	if (fle == NULL) {
-		atomic_add_32(&priv->info.nfinfo_failed, 1);
+		atomic_add_32(&priv->info.nfinfo_alloc_failed, 1);
 		return (ENOMEM);
 	}
 
