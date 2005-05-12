@@ -93,10 +93,6 @@ extern Boolean	usePipes;
  * targets are out-of-date */
 extern Boolean	queryFlag;
 
-/* TRUE if environment should be searched for all variables before
- * the global context */
-extern Boolean	checkEnvFirst;
-
 /* List of specific variables for which the environment should be
  * searched before the global context */
 extern Lst envFirstVars;
