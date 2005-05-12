@@ -57,6 +57,12 @@ extern struct GNode	*VAR_CMD;
  */
 extern char		var_Error[];
 
+/*
+ * TRUE if environment should be searched for all variables before
+ * the global context
+ */
+extern Boolean		checkEnvFirst;
+
 /* Do old-style variable substitution */
 extern Boolean		oldVars;
 
