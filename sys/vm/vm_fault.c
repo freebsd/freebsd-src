@@ -174,7 +174,7 @@ unlock_and_deallocate(struct faultstate *fs)
 		fs->vp = NULL;
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
-	if (!fs->map->system_map)
+	if (fs->first_object->flags & OBJ_NEEDGIANT)
 		VM_UNLOCK_GIANT();
 }
 
