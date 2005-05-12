@@ -502,6 +502,7 @@ static struct Shell *JobMatchShell(const char *);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
 static void ProcExec(const ProcStuff *) __dead2;
+static int Compat_RunCommand(char *, struct GNode *);
 
 /*
  * The following array is used to make a fast determination of which
@@ -3299,7 +3300,7 @@ shellneed(char *cmd)
  *
  *-----------------------------------------------------------------------
  */
-int
+static int
 Compat_RunCommand(char *cmd, GNode *gn)
 {
 	char	*cmdStart;	/* Start of expanded command */
