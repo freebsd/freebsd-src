@@ -882,7 +882,7 @@ ParseDoDependency(char *line)
 					DEFAULT = gn;
 					break;
 				  case NotParallel:
-					maxJobs = 1;
+					jobLimit = 1;
 					break;
 				  case SingleShell:
 					compatMake = 1;

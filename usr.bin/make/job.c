@@ -400,7 +400,12 @@ static struct Shell *commandShell = NULL;
 static char	*shellPath = NULL;	/* full pathname of executable image */
 static char	*shellName = NULL;	/* last component of shell */
 
-int		maxJobs;	/* The most children we can run at once */
+/*
+ * The maximum number of jobs that may run. This is initialize from the
+ * -j argument for the leading make and from the FIFO for sub-makes.
+ */
+static int	maxJobs;
+
 static int	nJobs;		/* The number of children currently running */
 
 /* The structures that describe them */
