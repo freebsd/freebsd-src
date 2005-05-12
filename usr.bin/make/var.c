@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include "globals.h"
 #include "GNode.h"
 #include "job.h"
+#include "lst.h"
 #include "make.h"
 #include "parse.h"
 #include "str.h"
@@ -2527,6 +2528,39 @@ Var_Dump(void)
 	LST_FOREACH(ln, &VAR_CMD->context) {
 		v = Lst_Datum(ln);
 		printf("%-16s = %s\n", v->name, Buf_Data(v->val));
+	}
+}
+
+/**
+ * Print the values of any variables requested by
+ * the user.
+ */
+void
+Var_Print(Lst *vlist, Boolean expandVars)
+{
+	LstNode		*n;
+	const char	*name;
+	char		*v;
+	char		*value;
+
+	LST_FOREACH(n, vlist) {
+		name = Lst_Datum(n);
+		if (expandVars) {
+			v = emalloc(strlen(name) + 1 + 3);
+			sprintf(v, "${%s}", name);
+
+			value = Buf_Peel(Var_Subst(v,
+			    VAR_GLOBAL, FALSE));
+			printf("%s\n", value);
+
+			free(v);
+			free(value);
+		} else {
+			value = Var_Value(name, VAR_GLOBAL, &v);
+			printf("%s\n", value != NULL ? value : "");
+			if (v != NULL)
+				free(v);
+		}
 	}
 }
 

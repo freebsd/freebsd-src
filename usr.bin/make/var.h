@@ -42,8 +42,9 @@
 #ifndef var_h_9cccafce
 #define	var_h_9cccafce
 
-struct GNode;
 struct Buffer;
+struct GNode;
+struct List;
 
 /* Variables defined in a global context, e.g in the Makefile itself */
 extern struct GNode	*VAR_GLOBAL;
@@ -73,6 +74,7 @@ Boolean Var_Exists(const char *, struct GNode *);
 void Var_Init(char **);
 size_t Var_Match(const char [], struct GNode *);
 char *Var_Parse(const char *, struct GNode *, Boolean, size_t *, Boolean *);
+void Var_Print(struct Lst *, Boolean);
 void Var_Set(const char *, const char *, struct GNode *);
 void Var_SetEnv(const char *, struct GNode *);
 struct Buffer *Var_Subst(const char *, struct GNode *, Boolean);
