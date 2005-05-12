@@ -2822,7 +2822,6 @@ Job_ParseShell(char *line)
 	while (isspace((unsigned char)*line)) {
 		line++;
 	}
-	words = brk_string(line, &wordCount, TRUE);
 
 	memset(&newShell, 0, sizeof(newShell));
 	path = NULL;
@@ -2831,8 +2830,9 @@ Job_ParseShell(char *line)
 	 * Parse the specification by keyword but skip the first word - it
 	 * is not set by brk_string.
 	 */
-	wordCount--;
+	words = brk_string(line, &wordCount, TRUE);
 	words++;
+	wordCount--;
 
 	for (argc = wordCount, argv = words; argc != 0; argc--, argv++) {
 		/*
@@ -3310,6 +3310,11 @@ shellneed(char *cmd)
 	if (strpbrk(cmd, sh_meta) != NULL)
 		return (NULL);
 
+	/*
+	 * Break the command into words to form an argument
+	 * vector we can execute. brk_string sticks NULL
+	 * in av[0], so we have to skip over it...
+	 */
 	av = brk_string(cmd, NULL, TRUE);
 	for (p = sh_builtin; *p != 0; p++)
 		if (strcmp(av[1], *p) == 0)
