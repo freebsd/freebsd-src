@@ -475,6 +475,8 @@ typedef struct ProcStuff {
 	int	searchpath;	/* true if binary should be found via $PATH */
 
 	char	**argv;
+
+	pid_t	child_pid;
 } ProcStuff;
 
 static void JobRestart(Job *);
@@ -575,6 +577,24 @@ ProcExec(const ProcStuff *ps)
 	 */
 	_exit(1);
 	/* NOTREACHED */
+}
+
+/**
+ */
+static int
+ProcWait(ProcStuff *ps)
+{
+	pid_t	pid;
+	int	status;
+
+	/*
+	 * Wait for the process to exit.
+	 */
+	while (((pid = wait(&status)) != ps->child_pid) && (pid >= 0)) {
+		continue;
+	}
+
+	return (status);
 }
 
 /**
@@ -1279,7 +1299,6 @@ static void
 JobExec(Job *job, char **argv)
 {
 	ProcStuff	ps;
-	pid_t		cpid;	/* ID of new child */
 
 	if (DEBUG(JOB)) {
 		int	  i;
@@ -1331,11 +1350,11 @@ JobExec(Job *job, char **argv)
 	 * Fork.  Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
 	 */
-	if ((cpid = vfork()) == -1) {
+	if ((ps.child_pid = vfork()) == -1) {
 		Punt("Cannot fork");
-	}
 
-	if (cpid == 0) {
+
+	} else if (ps.child_pid == 0) {
 		/*
 		 * Child
 		 */
@@ -1345,10 +1364,11 @@ JobExec(Job *job, char **argv)
 		ProcExec(&ps);
 		/* NOTREACHED */
 	}
+
 	/*
 	 * Parent
 	 */
-	job->pid = cpid;
+	job->pid = ps.child_pid;
 
 	if (usePipes && (job->flags & JOB_FIRST)) {
 		/*
@@ -2966,8 +2986,6 @@ Buffer *
 Cmd_Exec(const char *cmd, const char **error)
 {
 	int	fds[2];	/* Pipe streams */
-	int	cpid;	/* Child PID */
-	int	pid;	/* PID from wait() */
 	int	status;	/* command exit status */
 	Buffer	*buf;	/* buffer to store the result */
 	ssize_t	rcnt;
@@ -3008,12 +3026,11 @@ Cmd_Exec(const char *cmd, const char **error)
 	 * Fork.  Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
 	 */
-	if ((cpid = vfork()) == -1) {
+	if ((ps.child_pid = vfork()) == -1) {
 		*error = "Couldn't exec \"%s\"";
 		return (buf);
-	}
 
-	if (cpid == 0) {
+	} else if (ps.child_pid == 0) {
   		/*
 		 * Child
   		 */
@@ -3044,11 +3061,7 @@ Cmd_Exec(const char *cmd, const char **error)
 	 */
 	close(fds[0]);
 
-	/*
-	 * Wait for the process to exit.
-	 */
-	while (((pid = wait(&status)) != cpid) && (pid >= 0))
-		continue;
+	status = ProcWait(&ps);
 
 	if (status)
 		*error = "\"%s\" returned non-zero status";
@@ -3212,7 +3225,6 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	Boolean	errCheck;	/* Check errors */
 	int	reason;		/* Reason for child's death */
 	int	status;		/* Description of child's death */
-	int	cpid;		/* Child actually found */
 	ReturnStatus rstat;	/* Status of fork */
 	LstNode	*cmdNode;	/* Node where current command is located */
 	char	**av;		/* Argument vector for thing to exec */
@@ -3322,11 +3334,10 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	 * Warning since we are doing vfork() instead of fork(),
 	 * do not allocate memory in the child process!
 	 */
-	if ((cpid = vfork()) == -1) {
+	if ((ps.child_pid = vfork()) == -1) {
 		Fatal("Could not fork");
-	}
 
-	if (cpid == 0) {
+	} else if (ps.child_pid == 0) {
 		/*
 		 * Child
 		 */
@@ -3356,7 +3367,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	 * The child is off and running. Now all we can do is wait...
 	 */
 	while (1) {
-		while ((rstat = wait(&reason)) != cpid) {
+		while ((rstat = wait(&reason)) != ps.child_pid) {
 			if (interrupted || (rstat == -1 && errno != EINTR)) {
 				break;
 			}
