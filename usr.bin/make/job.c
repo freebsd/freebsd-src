@@ -580,6 +580,7 @@ ProcExec(const ProcStuff *ps)
 }
 
 /**
+ * Wait for child process to terminate.
  */
 static int
 ProcWait(ProcStuff *ps)
@@ -590,8 +591,18 @@ ProcWait(ProcStuff *ps)
 	/*
 	 * Wait for the process to exit.
 	 */
-	while (((pid = wait(&status)) != ps->child_pid) && (pid >= 0)) {
-		continue;
+	for (;;) {
+		pid = wait(&status);
+		if (pid == -1 && errno != EINTR) {
+			Fatal("error in wait: %d", pid);
+			/* NOTREACHED */
+		}
+		if (pid == ps->child_pid) {
+			break;
+		}
+		if (interrupted) {
+			break;
+		}
 	}
 
 	return (status);
@@ -3225,7 +3236,6 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	Boolean	errCheck;	/* Check errors */
 	int	reason;		/* Reason for child's death */
 	int	status;		/* Description of child's death */
-	ReturnStatus rstat;	/* Status of fork */
 	LstNode	*cmdNode;	/* Node where current command is located */
 	char	**av;		/* Argument vector for thing to exec */
 	char	*cmd_save;	/* saved cmd */
@@ -3343,85 +3353,70 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		 */
 		ProcExec(&ps);
   		/* NOTREACHED */
-	}
 
-	if (av == NULL) {
-		free(ps.argv[2]);
-		free(ps.argv[1]);
-		free(ps.argv[0]);
-		free(ps.argv);
-	}
-
-	/*
-	 * we need to print out the command associated with this
-	 * Gnode in Targ_PrintCmd from Targ_PrintGraph when debugging
-	 * at level g2, in main(), Fatal() and DieHorribly(),
-	 * therefore do not free it when debugging.
-	 */
-	if (!DEBUG(GRAPH2)) {
-		free(cmdStart);
-		Lst_Replace(cmdNode, cmd_save);
-	}
-
-	/*
-	 * The child is off and running. Now all we can do is wait...
-	 */
-	while (1) {
-		while ((rstat = wait(&reason)) != ps.child_pid) {
-			if (interrupted || (rstat == -1 && errno != EINTR)) {
-				break;
-			}
+	} else {
+		if (av == NULL) {
+			free(ps.argv[2]);
+			free(ps.argv[1]);
+			free(ps.argv[0]);
+			free(ps.argv);
 		}
+
+		/*
+		 * we need to print out the command associated with this
+		 * Gnode in Targ_PrintCmd from Targ_PrintGraph when debugging
+		 * at level g2, in main(), Fatal() and DieHorribly(),
+		 * therefore do not free it when debugging.
+		 */
+		if (!DEBUG(GRAPH2)) {
+			free(cmdStart);
+			Lst_Replace(cmdNode, cmd_save);
+		}
+
+		/*
+		 * The child is off and running. Now all we can do is wait...
+		 */
+		reason = ProcWait(&ps);
 		if (interrupted)
 			CompatInterrupt(interrupted);
-
-		if (rstat > -1) {
-			if (WIFSTOPPED(reason)) {
-				/* stopped */
-				status = WSTOPSIG(reason);
-			} else if (WIFEXITED(reason)) {
-				/* exited */
-				status = WEXITSTATUS(reason);
-				if (status != 0) {
-					printf("*** Error code %d",
-					    status);
-				}
-			} else {
-				/* signaled */
-				status = WTERMSIG(reason);
-				printf("*** Signal %d", status);
-			}
-
-			if (!WIFEXITED(reason) || status != 0) {
-				if (errCheck) {
-					gn->made = ERROR;
-					if (keepgoing) {
-						/*
-						 * Abort the current
-						 * target, but let
-						 * others continue.
-						 */
-						printf(" (continuing)\n");
-					}
-				} else {
-					/*
-					 * Continue executing
-					 * commands for this target.
-					 * If we return 0, this will
-					 * happen...
-					 */
-					printf(" (ignored)\n");
-					status = 0;
-				}
-			}
-			break;
+  
+		if (WIFEXITED(reason)) {
+			/* exited */
+			status = WEXITSTATUS(reason);
+			if (status == 0) {
+				return (0);
+  			} else {
+				printf("*** Error code %d", status);
+  			}
+		} else if (WIFSTOPPED(reason)) {
+			status = WSTOPSIG(reason);
 		} else {
-			Fatal("error in wait: %d", rstat);
-			/* NOTREACHED */
+			status = WTERMSIG(reason);
+			printf("*** Signal %d", status);
+  		}
+  
+		if (errCheck) {
+			gn->made = ERROR;
+			if (keepgoing) {
+				/*
+				 * Abort the current
+				 * target, but let
+				 * others continue.
+				 */
+				printf(" (continuing)\n");
+			}
+			return (status);
+		} else {
+			/*
+			 * Continue executing
+			 * commands for this target.
+			 * If we return 0, this will
+			 * happen...
+			 */
+			printf(" (ignored)\n");
+			return (0);
 		}
 	}
-
-	return (status);
 }
 
 /*-
