@@ -56,8 +56,6 @@ struct Buffer;
 struct GNode;
 struct Lst;
 
-extern int	maxJobs;	/* Number of jobs that may run */
-
 void Shell_Init(void);
 void Job_Touch(struct GNode *, Boolean);
 Boolean Job_CheckCommands(struct GNode *, void (*abortProc)(const char *, ...));
