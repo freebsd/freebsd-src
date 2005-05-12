@@ -41,7 +41,7 @@
 .Nd "show what versions of object modules were used to construct a file"
 .Sh SYNOPSIS
 .Nm
-.Op Fl s
+.Op Fl qs
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -59,6 +59,8 @@ character, or backslash.
 .Pp
 The following option is available:
 .Bl -tag -width Ds
+.It Fl q
+Only output the match text, rather than formatting it.
 .It Fl s
 Stop searching each file after the first match.
 .El
@@ -72,6 +74,11 @@ The
 .Nm
 utility conforms to
 .St -p1003.1-2001 .
+The
+.Fl q
+option is a non-standard
+.Fx
+extension which may not be available on other operating systems.
 .Sh HISTORY
 The
 .Nm
