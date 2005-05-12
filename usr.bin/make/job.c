@@ -522,6 +522,38 @@ static const char *sh_meta = "#=|^(){};&<>*?[]:$`\\\n";
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 
+static void
+catch_child(int sig __unused)
+{
+}
+
+/**
+ */
+void
+Proc_Init()
+{
+	/*
+	 * Catch SIGCHLD so that we get kicked out of select() when we
+	 * need to look at a child.  This is only known to matter for the
+	 * -j case (perhaps without -P).
+	 *
+	 * XXX this is intentionally misplaced.
+	 */
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	sa.sa_handler = catch_child;
+	sigaction(SIGCHLD, &sa, NULL);
+
+#if DEFSHELL == 2
+	/*
+	 * Turn off ENV to make ksh happier.
+	 */
+	unsetenv("ENV");
+#endif
+}
+
 /**
  * Replace the current process.
  */
