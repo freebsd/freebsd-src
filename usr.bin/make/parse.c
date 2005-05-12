@@ -1385,15 +1385,6 @@ Parse_DoVar(char *line, GNode *ctxt)
 			 * null-terminate the variable name */
 
 	/*
-	 * Avoid clobbered variable warnings by forcing the compiler
-	 * to ``unregister'' variables
-	 */
-#if __GNUC__
-	(void)&cp;
-	(void)&line;
-#endif
-
-	/*
 	 * Skip to variable name
 	 */
 	while (*line == ' ' || *line == '\t') {
