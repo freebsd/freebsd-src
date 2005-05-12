@@ -46,75 +46,96 @@ static const char sccsid[] = "@(#)what.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <err.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-static int sflag;
-static int found;
-
-void search(void);
 static void usage(void);
+static bool search(bool, bool, FILE *);
 
-/*
- * what
- */
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
+	const char *file;
+	FILE *in;
+	bool found, qflag, sflag;
 	int c;
 
-	while ((c = getopt(argc, argv, "s")) != -1)
+	qflag = sflag = false;
+
+	while ((c = getopt(argc, argv, "qs")) != -1) {
 		switch (c) {
+		case 'q':
+			qflag = true;
+			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		default:
 			usage();
 		}
+	}
+	argc -= optind;
 	argv += optind;
 
-	if (!*argv)
-		search();
-	else do {
-		if (!freopen(*argv, "r", stdin))
-			warn("%s", *argv);
-		else {
-			printf("%s:\n", *argv);
-			search();
+	found = false;
+
+	if (argc == 0) {
+		if (search(sflag, qflag, stdin))
+			found = true;
+	} else {
+		while (argc--) {
+			file = *argv++;
+			in = fopen(file, "r");
+			if (in == NULL) {
+				if (!qflag)
+					warn("%s", file);
+				continue;
+			}
+			if (!qflag)
+				printf("%s:\n", file);
+			if (search(sflag, qflag, in))
+				found = true;
+			fclose(in);
 		}
-	} while(*++argv);
-	exit(!found);
+	}
+	exit(found ? 0 : 1);
 }
 
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: what [-s] [file ...]\n");
+	fprintf(stderr, "usage: what [-qs] [file ...]\n");
 	exit(1);
 }
 
-void
-search(void)
+bool
+search(bool one, bool quiet, FILE *in)
 {
+	bool found;
 	int c;
 
-	while ((c = getchar()) != EOF) {
+	found = false;
+
+	while ((c = getc(in)) != EOF) {
 loop:		if (c != '@')
 			continue;
-		if ((c = getchar()) != '(')
+		if ((c = getc(in)) != '(')
 			goto loop;
-		if ((c = getchar()) != '#')
+		if ((c = getc(in)) != '#')
 			goto loop;
-		if ((c = getchar()) != ')')
+		if ((c = getc(in)) != ')')
 			goto loop;
-		putchar('\t');
-		while ((c = getchar()) != EOF && c && c != '"' &&
+		if (!quiet)
+			putchar('\t');
+		while ((c = getc(in)) != EOF && c && c != '"' &&
 		    c != '>' && c != '\\' && c != '\n')
 			putchar(c);
 		putchar('\n');
-		found = 1;
-		if (sflag)
-			return;
+		found = true;
+		if (one)
+			break;
 	}
+	return (found);
 }
