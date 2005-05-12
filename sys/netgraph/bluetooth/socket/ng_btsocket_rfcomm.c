@@ -3325,9 +3325,6 @@ ng_btsocket_rfcomm_pcb_kill(ng_btsocket_rfcomm_pcb_p pcb, int error)
 {
 	ng_btsocket_rfcomm_session_p	s = pcb->session;
 
-	mtx_assert(&pcb->session->session_mtx, MA_OWNED);
-	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
-
 	NG_BTSOCKET_RFCOMM_INFO(
 "%s: Killing DLC, so=%p, dlci=%d, state=%d, flags=%#x, error=%d\n",
 		__func__, pcb->so, pcb->dlci, pcb->state, pcb->flags, error);
@@ -3335,6 +3332,9 @@ ng_btsocket_rfcomm_pcb_kill(ng_btsocket_rfcomm_pcb_p pcb, int error)
 	if (pcb->session == NULL)
 		panic("%s: DLC without session, pcb=%p, state=%d, flags=%#x\n",
 			__func__, pcb, pcb->state, pcb->flags);
+
+	mtx_assert(&pcb->session->session_mtx, MA_OWNED);
+	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	if (pcb->flags & NG_BTSOCKET_RFCOMM_DLC_TIMO)
 		ng_btsocket_rfcomm_untimeout(pcb);
