@@ -27,6 +27,7 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <sys/queue.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -43,8 +44,11 @@
 #include <timeconv.h>	/* XXX do we need this ? */
 #include <unistd.h>
 #include <sysexits.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <net/if.h>
+#include <net/pfvar.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -202,6 +206,9 @@ enum tokens {
 	TOK_UNREACH,
 	TOK_CHECKSTATE,
 
+	TOK_ALTQ,
+	TOK_LOG,
+
 	TOK_UID,
 	TOK_GID,
 	TOK_JAIL,
@@ -210,6 +217,9 @@ enum tokens {
 	TOK_KEEPSTATE,
 	TOK_LAYER2,
 	TOK_OUT,
+	TOK_DIVERTED,
+	TOK_DIVERTEDLOOPBACK,
+	TOK_DIVERTEDOUTPUT,
 	TOK_XMIT,
 	TOK_RECV,
 	TOK_VIA,
@@ -223,6 +233,7 @@ enum tokens {
 	TOK_IPVER,
 	TOK_ESTAB,
 	TOK_SETUP,
+	TOK_TCPDATALEN,
 	TOK_TCPFLAGS,
 	TOK_TCPOPTS,
 	TOK_TCPSEQ,
@@ -302,6 +313,12 @@ struct _s_x rule_actions[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
+struct _s_x rule_action_params[] = {
+	{ "altq",		TOK_ALTQ },
+	{ "log",		TOK_LOG },
+	{ NULL, 0 }	/* terminator */
+};
+
 struct _s_x rule_options[] = {
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
@@ -312,6 +329,9 @@ struct _s_x rule_options[] = {
 	{ "bridged",		TOK_LAYER2 },
 	{ "layer2",		TOK_LAYER2 },
 	{ "out",		TOK_OUT },
+	{ "diverted",		TOK_DIVERTED },
+	{ "diverted-loopback",	TOK_DIVERTEDLOOPBACK },
+	{ "diverted-output",	TOK_DIVERTEDOUTPUT },
 	{ "xmit",		TOK_XMIT },
 	{ "recv",		TOK_RECV },
 	{ "via",		TOK_VIA },
@@ -329,6 +349,7 @@ struct _s_x rule_options[] = {
 	{ "estab",		TOK_ESTAB },
 	{ "established",	TOK_ESTAB },
 	{ "setup",		TOK_SETUP },
+	{ "tcpdatalen",		TOK_TCPDATALEN },
 	{ "tcpflags",		TOK_TCPFLAGS },
 	{ "tcpflgs",		TOK_TCPFLAGS },
 	{ "tcpoptions",		TOK_TCPOPTS },
@@ -462,6 +483,7 @@ struct _s_x _port_name[] = {
 	{"iplen",	O_IPLEN},
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
+	{"tcpdatalen",	O_TCPDATALEN},
 	{NULL,		0}
 };
 
@@ -560,6 +582,107 @@ strtoport(char *s, char **end, int base, int proto)
 		}
 	}
 	return 0;	/* not found */
+}
+
+/*
+ * Map between current altq queue id numbers and names.
+ */
+static int altq_fetched = 0;
+static TAILQ_HEAD(, pf_altq) altq_entries = 
+	TAILQ_HEAD_INITIALIZER(altq_entries);
+
+static void
+altq_set_enabled(int enabled)
+{
+	int pffd;
+
+	pffd = open("/dev/pf", O_RDWR);
+	if (pffd == -1)
+		err(EX_UNAVAILABLE,
+		    "altq support opening pf(4) control device");
+	if (enabled) {
+		if (ioctl(pffd, DIOCSTARTALTQ) != 0 && errno != EEXIST)
+			err(EX_UNAVAILABLE, "enabling altq");
+	} else {
+		if (ioctl(pffd, DIOCSTOPALTQ) != 0 && errno != ENOENT)
+			err(EX_UNAVAILABLE, "disabling altq");
+	}
+	close(pffd);
+}
+
+static void
+altq_fetch()
+{
+	struct pfioc_altq pfioc;
+	struct pf_altq *altq;
+	int pffd, mnr;
+
+	if (altq_fetched)
+		return;
+	altq_fetched = 1;
+	pffd = open("/dev/pf", O_RDONLY);
+	if (pffd == -1) {
+		warn("altq support opening pf(4) control device");
+		return;
+	}
+	bzero(&pfioc, sizeof(pfioc));
+	if (ioctl(pffd, DIOCGETALTQS, &pfioc) != 0) {
+		warn("altq support getting queue list");
+		close(pffd);
+		return;
+	}
+	mnr = pfioc.nr;
+	for (pfioc.nr = 0; pfioc.nr < mnr; pfioc.nr++) {
+		if (ioctl(pffd, DIOCGETALTQ, &pfioc) != 0) {
+			if (errno == EBUSY)
+				break;
+			warn("altq support getting queue list");
+			close(pffd);
+			return;
+		}
+		if (pfioc.altq.qid == 0)
+			continue;
+		altq = malloc(sizeof(*altq));
+		if (altq == NULL)
+			err(EX_OSERR, "malloc");
+		*altq = pfioc.altq;
+		TAILQ_INSERT_TAIL(&altq_entries, altq, entries);
+	}
+	close(pffd);
+}
+
+static u_int32_t
+altq_name_to_qid(const char *name)
+{
+	struct pf_altq *altq;
+
+	altq_fetch();
+	TAILQ_FOREACH(altq, &altq_entries, entries)
+		if (strcmp(name, altq->qname) == 0)
+			break;
+	if (altq == NULL)
+		errx(EX_DATAERR, "altq has no queue named `%s'", name);
+	return altq->qid;
+}
+
+static const char *
+altq_qid_to_name(u_int32_t qid)
+{
+	struct pf_altq *altq;
+
+	altq_fetch();
+	TAILQ_FOREACH(altq, &altq_entries, entries)
+		if (qid == altq->qid)
+			break;
+	if (altq == NULL)
+		return NULL;
+	return altq->qname;
+}
+
+static void
+fill_altq_qid(u_int32_t *qid, const char *av)
+{
+	*qid = altq_name_to_qid(av);
 }
 
 /*
@@ -908,6 +1031,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
+	ipfw_insn_altq *altqptr = NULL; /* set if we find an O_ALTQ */
 	int or_block = 0;	/* we are in an or block */
 	uint32_t set_disable;
 
@@ -1033,8 +1157,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			logptr = (ipfw_insn_log *)cmd;
 			break;
 
+		case O_ALTQ: /* O_ALTQ is printed after O_LOG */
+			altqptr = (ipfw_insn_altq *)cmd;
+			break;
+
 		default:
-			printf("** unrecognized action %d len %d",
+			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
 		}
 	}
@@ -1043,6 +1171,15 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			printf(" log logamount %d", logptr->max_log);
 		else
 			printf(" log");
+	}
+	if (altqptr) {
+		const char *qname;
+
+		qname = altq_qid_to_name(altqptr->qid);
+		if (qname == NULL)
+			printf(" altq ?<%u>", altqptr->qid);
+		else
+			printf(" altq %s", qname);
 	}
 
 	/*
@@ -1174,6 +1311,23 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(cmd->len & F_NOT ? " out" : " in");
 				break;
 
+			case O_DIVERTED:
+				switch (cmd->arg1) {
+				case 3:
+					printf(" diverted");
+					break;
+				case 1:
+					printf(" diverted-loopback");
+					break;
+				case 2:
+					printf(" diverted-output");
+					break;
+				default:
+					printf(" diverted-?<%u>", cmd->arg1);
+					break;
+				}
+				break;
+
 			case O_LAYER2:
 				printf(" layer2");
 				break;
@@ -1244,6 +1398,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_ESTAB:
 				printf(" established");
+				break;
+
+			case O_TCPDATALEN:
+				if (F_LEN(cmd) == 1)
+				    printf(" tcpdatalen %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_TCPDATALEN);
 				break;
 
 			case O_TCPFLAGS:
@@ -1711,6 +1873,8 @@ sysctl_handler(int ac, char *av[], int which)
 	} else if (strncmp(*av, "dyn_keepalive", strlen(*av)) == 0) {
 		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0,
 		    &which, sizeof(which));
+	} else if (strncmp(*av, "altq", strlen(*av)) == 0) {
+		altq_set_enabled(which);
 	} else {
 		warnx("unrecognize enable/disable keyword: %s\n", *av);
 	}
@@ -1903,21 +2067,23 @@ help(void)
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
-"RULE-BODY:	check-state [LOG] | ACTION [LOG] ADDR [OPTION_LIST]\n"
+"RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | reject | skipto N |\n"
 "		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
+"PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
 "IPADDR:	[not] { any | me | ip/bits{x,y,z} | table(t[,v]) | IPLIST }\n"
 "IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
 "OPTION_LIST:	OPTION [OPTION_LIST]\n"
-"OPTION:	bridged | {dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
+"OPTION:	bridged | diverted | diverted-loopback | diverted-output |\n"
+"	{dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
 "	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
 "	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
-"	verrevpath | versrcreach | antispoof\n"
+"	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
 );
 exit(0);
 }
@@ -2756,11 +2922,11 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
  * Rules are added into the 'rulebuf' and then copied in the correct order
  * into the actual rule.
  *
- * The syntax for a rule starts with the action, followed by an
- * optional log action, and the various match patterns.
+ * The syntax for a rule starts with the action, followed by
+ * optional action parameters, and the various match patterns.
  * In the assembled microcode, the first opcode must be an O_PROBE_STATE
  * (generated if the rule includes a keep-state option), then the
- * various match patterns, the "log" action, and the actual action.
+ * various match patterns, log/altq actions, and the actual action.
  *
  */
 static void
@@ -2783,6 +2949,7 @@ add(int ac, char *av[])
 	 * various flags used to record that we entered some fields.
 	 */
 	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
+	ipfw_insn *have_log = NULL, *have_altq = NULL;
 	size_t len;
 
 	int i;
@@ -2945,32 +3112,63 @@ add(int ac, char *av[])
 	action = next_cmd(action);
 
 	/*
+	 * [altq queuename] -- altq tag, optional
 	 * [log [logamount N]]	-- log, optional
 	 *
-	 * If exists, it goes first in the cmdbuf, but then it is
+	 * If they exist, it go first in the cmdbuf, but then it is
 	 * skipped in the copy section to the end of the buffer.
 	 */
-	if (ac && !strncmp(*av, "log", strlen(*av))) {
-		ipfw_insn_log *c = (ipfw_insn_log *)cmd;
-		int l;
+	while (ac != 0 && (i = match_token(rule_action_params, *av)) != -1) {
+		ac--; av++;
+		switch (i) {
+		case TOK_LOG:
+		    {
+			ipfw_insn_log *c = (ipfw_insn_log *)cmd;
+			int l;
 
-		cmd->len = F_INSN_SIZE(ipfw_insn_log);
-		cmd->opcode = O_LOG;
-		av++; ac--;
-		if (ac && !strncmp(*av, "logamount", strlen(*av))) {
+			if (have_log)
+				errx(EX_DATAERR,
+				    "log cannot be specified more than once");
+			have_log = (ipfw_insn *)c;
+			cmd->len = F_INSN_SIZE(ipfw_insn_log);
+			cmd->opcode = O_LOG;
+			if (ac && !strncmp(*av, "logamount", strlen(*av))) {
+				ac--; av++;
+				NEED1("logamount requires argument");
+				l = atoi(*av);
+				if (l < 0)
+					errx(EX_DATAERR,
+					    "logamount must be positive");
+				c->max_log = l;
+				ac--; av++;
+			} else {
+				len = sizeof(c->max_log);
+				if (sysctlbyname("net.inet.ip.fw.verbose_limit",
+				    &c->max_log, &len, NULL, 0) == -1)
+					errx(1, "sysctlbyname(\"%s\")",
+					    "net.inet.ip.fw.verbose_limit");
+			}
+		    }
+			break;
+
+		case TOK_ALTQ:
+		    {
+			ipfw_insn_altq *a = (ipfw_insn_altq *)cmd;
+
+			NEED1("missing altq queue name");
+			if (have_altq)
+				errx(EX_DATAERR,
+				    "altq cannot be specified more than once");
+			have_altq = (ipfw_insn *)a;
+			cmd->len = F_INSN_SIZE(ipfw_insn_altq);
+			cmd->opcode = O_ALTQ;
+			fill_altq_qid(&a->qid, *av);
 			ac--; av++;
-			NEED1("logamount requires argument");
-			l = atoi(*av);
-			if (l < 0)
-				errx(EX_DATAERR, "logamount must be positive");
-			c->max_log = l;
-			ac--; av++;
-		} else {
-			len = sizeof(c->max_log);
-			if (sysctlbyname("net.inet.ip.fw.verbose_limit",
-			    &c->max_log, &len, NULL, 0) == -1)
-				errx(1, "sysctlbyname(\"%s\")",
-				    "net.inet.ip.fw.verbose_limit");
+		    }
+			break;
+
+		default:
+			abort();
 		}
 		cmd = next_cmd(cmd);
 	}
@@ -3197,6 +3395,18 @@ read_options:
 			fill_cmd(cmd, O_IN, 0, 0);
 			break;
 
+		case TOK_DIVERTED:
+			fill_cmd(cmd, O_DIVERTED, 0, 3);
+			break;
+
+		case TOK_DIVERTEDLOOPBACK:
+			fill_cmd(cmd, O_DIVERTED, 0, 1);
+			break;
+
+		case TOK_DIVERTEDOUTPUT:
+			fill_cmd(cmd, O_DIVERTED, 0, 2);
+			break;
+
 		case TOK_FRAG:
 			fill_cmd(cmd, O_FRAG, 0, 0);
 			break;
@@ -3342,6 +3552,17 @@ read_options:
 		case TOK_SETUP:
 			fill_cmd(cmd, O_TCPFLAGS, 0,
 				(TH_SYN) | ( (TH_ACK) & 0xff) <<8 );
+			break;
+
+		case TOK_TCPDATALEN:
+			NEED1("tcpdatalen requires length");
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_TCPDATALEN))
+				errx(EX_DATAERR, "invalid tcpdata len %s", *av);
+			} else
+			    fill_cmd(cmd, O_TCPDATALEN, 0,
+				    strtoul(*av, NULL, 0));
+			ac--; av++;
 			break;
 
 		case TOK_TCPOPTS:
@@ -3533,7 +3754,7 @@ done:
 		dst = next_cmd(dst);
 	}
 	/*
-	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT
+	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ
 	 */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
@@ -3542,6 +3763,7 @@ done:
 		case O_LOG:
 		case O_KEEP_STATE:
 		case O_LIMIT:
+		case O_ALTQ:
 			break;
 		default:
 			bcopy(src, dst, i * sizeof(uint32_t));
@@ -3563,12 +3785,16 @@ done:
 	rule->act_ofs = dst - rule->cmd;
 
 	/*
-	 * put back O_LOG if necessary
+	 * put back O_LOG, O_ALTQ if necessary
 	 */
-	src = (ipfw_insn *)cmdbuf;
-	if (src->opcode == O_LOG) {
-		i = F_LEN(src);
-		bcopy(src, dst, i * sizeof(uint32_t));
+	if (have_log) {
+		i = F_LEN(have_log);
+		bcopy(have_log, dst, i * sizeof(uint32_t));
+		dst += i;
+	}
+	if (have_altq) {
+		i = F_LEN(have_altq);
+		bcopy(have_altq, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	/*

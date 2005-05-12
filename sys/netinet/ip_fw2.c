@@ -78,6 +78,7 @@
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <altq/if_altq.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
@@ -591,6 +592,13 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 		if (l->log_left == 0)
 			limit_reached = l->max_log;
 		cmd += F_LEN(cmd);	/* point to first action */
+		if (cmd->opcode == O_ALTQ) {
+			ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
+
+			snprintf(SNPARGS(action2, 0), "Altq %d",
+				altq->qid);
+			cmd += F_LEN(cmd);
+		}
 		if (cmd->opcode == O_PROB)
 			cmd += F_LEN(cmd);
 
@@ -1362,6 +1370,8 @@ lookup_next_rule(struct ip_fw *me)
 	cmd = ACTION_PTR(me);
 	if (cmd->opcode == O_LOG)
 		cmd += F_LEN(cmd);
+	if (cmd->opcode == O_ALTQ)
+		cmd += F_LEN(cmd);
 	if ( cmd->opcode == O_SKIPTO )
 		for (rule = me->next; rule ; rule = rule->next)
 			if (rule->rulenum >= cmd->arg1)
@@ -1746,6 +1756,14 @@ ipfw_chk(struct ip_fw_args *args)
 	int ugid_lookup = 0;
 
 	/*
+	 * divinput_flags	If non-zero, set to the IP_FW_DIVERT_*_FLAG
+	 *	associated with a packet input on a divert socket.  This
+	 *	will allow to distinguish traffic and its direction when
+	 *	it originates from a divert socket.
+	 */
+	u_int divinput_flags = 0;
+
+	/*
 	 * oif | args->oif	If NULL, ipfw_chk has been called on the
 	 *	inbound path (ether_input, bdg_forward, ip_input).
 	 *	If non-NULL, ipfw_chk has been called on the outbound path
@@ -1921,8 +1939,11 @@ after_ip_checks:
 		}
 	}
 	/* reset divert rule to avoid confusion later */
-	if (mtag)
+	if (mtag) {
+		divinput_flags = divert_info(mtag) &
+		    (IP_FW_DIVERT_OUTPUT_FLAG | IP_FW_DIVERT_LOOPBACK_FLAG);
 		m_tag_delete(m, mtag);
+	}
 
 	/*
 	 * Now scan the rules, and parse microinstructions for each rule.
@@ -2053,6 +2074,13 @@ check_body:
 
 			case O_LAYER2:
 				match = (args->eh != NULL);
+				break;
+
+			case O_DIVERTED:
+				match = (cmd->arg1 & 1 && divinput_flags &
+				    IP_FW_DIVERT_LOOPBACK_FLAG) ||
+					(cmd->arg1 & 2 && divinput_flags &
+				    IP_FW_DIVERT_OUTPUT_FLAG);
 				break;
 
 			case O_PROTO:
@@ -2213,6 +2241,28 @@ check_body:
 				    flags_match(cmd, ip->ip_tos));
 				break;
 
+			case O_TCPDATALEN:
+				if (proto == IPPROTO_TCP && offset == 0) {
+				    struct tcphdr *tcp;
+				    uint16_t x;
+				    uint16_t *p;
+				    int i;
+
+				    tcp = L3HDR(struct tcphdr,ip);
+				    x = ip_len -
+					((ip->ip_hl + tcp->th_off) << 2);
+				    if (cmdlen == 1) {
+					match = (cmd->arg1 == x);
+					break;
+				    }
+				    /* otherwise we have ranges */
+				    p = ((ipfw_insn_u16 *)cmd)->ports;
+				    i = cmdlen - 1;
+				    for (; !match && i>0; i--, p += 2)
+					match = (x >= p[0] && x <= p[1]);
+				}
+				break;
+
 			case O_TCPFLAGS:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    flags_match(cmd,
@@ -2249,6 +2299,32 @@ check_body:
 				    (L3HDR(struct tcphdr,ip)->th_flags &
 				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
 				break;
+
+			case O_ALTQ: {
+				struct altq_tag *at;
+				ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
+
+				match = 1;
+				mtag = m_tag_get(PACKET_TAG_PF_QID,
+						sizeof(struct altq_tag),
+						M_NOWAIT);
+				if (mtag == NULL) {
+					/*
+					 * Let the packet fall back to the
+					 * default ALTQ.
+					 */
+					break;
+				}
+				at = (struct altq_tag *)(mtag+1);
+				at->qid = altq->qid;
+				if (hlen != 0)
+					at->af = AF_INET;
+				else
+					at->af = AF_LINK;
+				at->hdr = ip;
+				m_tag_prepend(m, mtag);
+				break;
+			}
 
 			case O_LOG:
 				if (fw_verbose)
@@ -2312,6 +2388,9 @@ check_body:
 			 *   ('goto next_rule', equivalent to a 'break 2'),
 			 *   or to the SKIPTO target ('goto again' after
 			 *   having set f, cmd and l), respectively.
+			 *
+			 * O_LOG and O_ALTQ action parameters:
+			 *   perform some action and set match = 1;
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
 			 *   not real 'actions', and are stored right
@@ -2889,6 +2968,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		    rule->act_ofs, rule->cmd_len - 1);
 		return (EINVAL);
 	}
+	if (rule->act_ofs >= rule->cmd_len) {
+		printf("ipfw: bogus action offset (%u > %u)\n",
+		    rule->act_ofs, rule->cmd_len - 1);
+		return (EINVAL);
+	}
 	/*
 	 * Now go for the individual checks. Very simple ones, basically only
 	 * instruction sizes.
@@ -2911,6 +2995,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_LAYER2:
 		case O_IN:
 		case O_FRAG:
+		case O_DIVERTED:
 		case O_IPOPT:
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
@@ -2994,6 +3079,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
+		case O_TCPDATALEN:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;
@@ -3009,6 +3095,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_XMIT:
 		case O_VIA:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
+				goto bad_size;
+			break;
+
+		case O_ALTQ:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_altq))
 				goto bad_size;
 			break;
 

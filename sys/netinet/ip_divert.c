@@ -66,6 +66,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_fw.h>
 
 /*
  * Divert sockets
@@ -268,6 +269,8 @@ static int
 div_output(struct socket *so, struct mbuf *m,
 	struct sockaddr_in *sin, struct mbuf *control)
 {
+	struct m_tag *mtag;
+	struct divert_tag *dt;
 	int error = 0;
 
 	m->m_pkthdr.rcvif = NULL;
@@ -275,23 +278,22 @@ div_output(struct socket *so, struct mbuf *m,
 	if (control)
 		m_freem(control);		/* XXX */
 
+	mtag = m_tag_get(PACKET_TAG_DIVERT,
+			sizeof(struct divert_tag), M_NOWAIT);
+	if (mtag == NULL) {
+		error = ENOBUFS;
+		goto cantsend;
+	}
+	dt = (struct divert_tag *)(mtag+1);
+	dt->info = 0;
+	dt->cookie = 0;
+	m_tag_prepend(m, mtag);
+
 	/* Loopback avoidance and state recovery */
 	if (sin) {
-		struct m_tag *mtag;
-		struct divert_tag *dt;
 		int i;
 
-		mtag = m_tag_get(PACKET_TAG_DIVERT,
-				sizeof(struct divert_tag), M_NOWAIT);
-		if (mtag == NULL) {
-			error = ENOBUFS;
-			goto cantsend;
-		}
-		dt = (struct divert_tag *)(mtag+1);
-		dt->info = 0;
 		dt->cookie = sin->sin_port;
-		m_tag_prepend(m, mtag);
-
 		/*
 		 * Find receive interface with the given name, stuffed
 		 * (if it exists) in the sin_zero[] field.
@@ -309,6 +311,7 @@ div_output(struct socket *so, struct mbuf *m,
 		struct ip *const ip = mtod(m, struct ip *);
 		struct inpcb *inp;
 
+		dt->info |= IP_FW_DIVERT_OUTPUT_FLAG;
 		INP_INFO_WLOCK(&divcbinfo);
 		inp = sotoinpcb(so);
 		INP_LOCK(inp);
@@ -340,6 +343,7 @@ div_output(struct socket *so, struct mbuf *m,
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&divcbinfo);
 	} else {
+		dt->info |= IP_FW_DIVERT_LOOPBACK_FLAG;
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*
 			 * No luck with the name, check by IP address.

@@ -134,6 +134,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_IP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
 	O_ANTISPOOF,		/* none				*/
 	O_JAIL,			/* u32 = id			*/
+	O_ALTQ,			/* u32 = altq classif. qid	*/
+	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
+	O_TCPDATALEN,		/* arg1 = tcp data len		*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -251,6 +254,14 @@ typedef struct	_ipfw_insn_pipe {
 } ipfw_insn_pipe;
 
 /*
+ * This is used for storing an altq queue id number.
+ */
+typedef struct _ipfw_insn_altq {
+	ipfw_insn	o;
+	u_int32_t	qid;
+} ipfw_insn_altq;
+
+/*
  * This is used for limit rules.
  */
 typedef struct	_ipfw_insn_limit {
@@ -293,6 +304,7 @@ typedef struct  _ipfw_insn_log {
  *	first instruction (at r->cmd) MUST BE an O_PROBE_STATE
  *  + if a rule has a "log" option, then the first action
  *	(at ACTION_PTR(r)) MUST be O_LOG
+ *  + if a rule has an "altq" option, it comes after "log"
  *
  * NOTE: we use a simple linked list of rules because we never need
  * 	to delete a rule without scanning the list. We do not use
@@ -405,9 +417,11 @@ typedef struct	_ipfw_table {
  */
 #ifdef _KERNEL
 
-#define	IP_FW_PORT_DYNT_FLAG	0x10000
-#define	IP_FW_PORT_TEE_FLAG	0x20000
-#define	IP_FW_PORT_DENY_FLAG	0x40000
+#define	IP_FW_PORT_DYNT_FLAG		0x00010000
+#define	IP_FW_PORT_TEE_FLAG		0x00020000
+#define	IP_FW_PORT_DENY_FLAG		0x00040000
+#define	IP_FW_DIVERT_LOOPBACK_FLAG	0x00080000
+#define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
 
 /*
  * Arguments for calling ipfw_chk() and dummynet_io(). We put them
