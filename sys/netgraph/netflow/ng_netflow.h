@@ -54,14 +54,15 @@ enum {
 
 /* This structure is returned by the NGM_NETFLOW_INFO message */
 struct ng_netflow_info {
-	uint64_t	nfinfo_bytes;	/* total number of accounted bytes */
-	uint32_t	nfinfo_packets;	/* total number of accounted packets */
-	uint32_t	nfinfo_used;	/* number of used cache records */
-	uint32_t	nfinfo_failed;	/* number of failed allocations */
-	uint32_t	nfinfo_act_exp;
-	uint32_t	nfinfo_inact_exp;
-	uint32_t	nfinfo_inact_t;	/* flow inactive timeout */
-	uint32_t	nfinfo_act_t;	/* flow active timeout */
+	uint64_t	nfinfo_bytes;		/* accounted bytes */
+	uint32_t	nfinfo_packets;		/* accounted packets */
+	uint32_t	nfinfo_used;		/* used cache records */
+	uint32_t	nfinfo_alloc_failed;	/* failed allocations */
+	uint32_t	nfinfo_export_failed;	/* failed exports */
+	uint32_t	nfinfo_act_exp;		/* active expiries */
+	uint32_t	nfinfo_inact_exp;	/* inactive expiries */
+	uint32_t	nfinfo_inact_t;		/* flow inactive timeout */
+	uint32_t	nfinfo_act_t;		/* flow active timeout */
 };
 
 /* This structure is returned by the NGM_NETFLOW_IFINFO message */
@@ -168,6 +169,7 @@ struct flow_entry {
 	{ "Packets",	&ng_parse_uint32_type },	\
 	{ "Records used",	&ng_parse_uint32_type },\
 	{ "Failed allocations",	&ng_parse_uint32_type },\
+	{ "Failed exports",	&ng_parse_uint32_type },\
 	{ "Active expiries",	&ng_parse_uint32_type },\
 	{ "Inactive expiries",	&ng_parse_uint32_type },\
 	{ "Inactive timeout",	&ng_parse_uint32_type },\
