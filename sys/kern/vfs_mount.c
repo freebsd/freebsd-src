@@ -1196,6 +1196,8 @@ vfs_mountroot(void)
 
 	root_mount_wait();
 
+	devfs_first();
+
 	/*
 	 * We are booted with instructions to prompt for the root filesystem.
 	 */
