@@ -988,34 +988,7 @@ main(int argc, char **argv)
 		Lst_Destroy(&targs, NOFREE);
 
 	} else {
-		/*
-		 * Print the values of any variables requested by
-		 * the user.
-		 */
-		LstNode		*n;
-		const char	*name;
-		char		*v;
-		char		*value;
-
-		LST_FOREACH(n, &variables) {
-			name = Lst_Datum(n);
-			if (expandVars) {
-				v = emalloc(strlen(name) + 1 + 3);
-				sprintf(v, "${%s}", name);
-
-				value = Buf_Peel(Var_Subst(v,
-				    VAR_GLOBAL, FALSE));
-				printf("%s\n", value);
-
-				free(v);
-				free(value);
-			} else {
-				value = Var_Value(name, VAR_GLOBAL, &v);
-				printf("%s\n", value != NULL ? value : "");
-				if (v != NULL)
-					free(v);
-			}
-		}
+		Var_Print(&variables, expandVars);
 	}
 
 	Lst_Destroy(&variables, free);
