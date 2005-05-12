@@ -137,6 +137,15 @@ union	savefpu {
 #define	__INITIAL_MXCSR__	0x1F80
 
 #ifdef _KERNEL
+
+#define	IO_NPX		0x0F0		/* Numeric Coprocessor */
+#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
+
+#define	IRQ_NPX		13
+
+/* full reset on some systems, NOP on others */
+#define npx_full_reset() outb(IO_NPX + 1, 0)
+
 int	npxdna(void);
 void	npxdrop(void);
 void	npxexit(struct thread *td);

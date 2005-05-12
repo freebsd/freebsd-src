@@ -63,7 +63,6 @@
 #define	IO_COM2		0x0B1		/* 8251A RS232C serial I/O (ext) */
 #define	IO_COM3		0x0B9		/* 8251A RS232C serial I/O (ext) */
 #define	IO_FDPORT	0x0BE		/* FD I/F port (1M<->640K,EMTON) */
-#define	IO_NPX		0x0F8		/* Numeric Coprocessor */
 #define	IO_WD1_EPSON	0x80		/* 386note Hard disk controller */
 #define	IO_ISAEND	0xFFFF		/* - 0x3FF End of I/O Registers */
 #endif /* !IO_ISABEGIN */
@@ -80,7 +79,6 @@
 #define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
 #define	IO_LPTSIZE_EXTENDED	8	/* "Extended" LPT controllers */
 #define	IO_LPTSIZE_NORMAL	4	/* "Normal" LPT controllers */
-#define	IO_NPXSIZE	8		/* 80387/80487 NPX registers */
 
 #endif /* !IO_ISASIZES */
 
@@ -105,17 +103,6 @@
 #endif
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
-
-/*
- * IRQs
- */
-#define IRQ_NPX		8
-
-/*
- * Npx MD defines
- */
-/* full reset of npx: not needed on pc98 */
-#define npx_full_reset()
 
 #define	M_NEC_PC98	0x0001
 #define	M_EPSON_PC98	0x0002

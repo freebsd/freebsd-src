@@ -34,7 +34,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
-#include "opt_debug_npx.h"
 #include "opt_isa.h"
 #include "opt_npx.h"
 
@@ -69,11 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/ucontext.h>
 
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
-#include <i386/isa/isa.h>
-#endif
 #include <machine/intr_machdep.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>

@@ -163,3 +163,4 @@ ASR_COMPAT		opt_asr.h
 
 # Debugging
 KDB_STOP_NMI		opt_global.h
+NPX_DEBUG		opt_npx.h
