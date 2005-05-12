@@ -964,38 +964,63 @@ JobFinish(Job *job, int *status)
 	Boolean	done;
 	LstNode	*ln;
 
-	if ((WIFEXITED(*status) && WEXITSTATUS(*status) != 0 &&
-	    !(job->flags & JOB_IGNERR)) ||
-	    (WIFSIGNALED(*status) && WTERMSIG(*status) != SIGCONT)) {
-		/*
-		 * If it exited non-zero and either we're doing things our
-		 * way or we're not ignoring errors, the job is finished.
-		 * Similarly, if the shell died because of a signal
-		 * the job is also finished. In these cases, finish out the
-		 * job's output before printing the exit status...
-		 */
+	if (WIFEXITED(*status)) {
+		int	job_status = WEXITSTATUS(*status);
+
 		JobClose(job);
-		if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
-			fclose(job->cmdFILE);
+		/*
+		 * Deal with ignored errors in -B mode. We need to
+		 * print a message telling of the ignored error as
+		 * well as setting status.w_status to 0 so the next
+		 * command gets run. To do this, we set done to be
+		 * TRUE if in -B mode and the job exited non-zero.
+		 */
+		if (job_status == 0) {
+			done = FALSE;
+		} else {
+			if (job->flags & JOB_IGNERR) {
+				done = TRUE;
+			} else {
+				/*
+				 * If it exited non-zero and either we're
+				 * doing things our way or we're not ignoring
+				 * errors, the job is finished. Similarly, if
+				 * the shell died because of a signal the job
+				 * is also finished. In these cases, finish
+				 * out the job's output before printing the
+				 * exit status...
+				 */
+				done = TRUE;
+				if (job->cmdFILE != NULL &&
+				    job->cmdFILE != stdout) {
+					fclose(job->cmdFILE);
+				}
+
+			}
 		}
-		done = TRUE;
-
-	} else if (WIFEXITED(*status)) {
-		/*
-		 * Deal with ignored errors in -B mode. We need to print a
-		 * message telling of the ignored error as well as setting
-		 * status.w_status to 0 so the next command gets run. To do
-		 * this, we set done to be TRUE if in -B mode and the job
-		 * exited non-zero.
-		 */
-		done = WEXITSTATUS(*status) != 0;
-
-		/*
-		 * Old comment said: "Note we don't want to close down any of
-		 * the streams until we know we're at the end." But we do.
-		 * Otherwise when are we going to print the rest of the stuff?
-		 */
-		JobClose(job);
+	} else if (WIFSIGNALED(*status)) {
+		if (WTERMSIG(*status) == SIGCONT) {
+			/*
+			 * No need to close things down or anything.
+			 */
+			done = FALSE;
+		} else {
+			/*
+			 * If it exited non-zero and either we're
+			 * doing things our way or we're not ignoring
+			 * errors, the job is finished. Similarly, if
+			 * the shell died because of a signal the job
+			 * is also finished. In these cases, finish
+			 * out the job's output before printing the
+			 * exit status...
+			 */
+			JobClose(job);
+			if (job->cmdFILE != NULL &&
+			    job->cmdFILE != stdout) {
+				fclose(job->cmdFILE);
+			}
+			done = TRUE;
+		}
 	} else {
 		/*
 		 * No need to close things down or anything.
@@ -1003,16 +1028,136 @@ JobFinish(Job *job, int *status)
 		done = FALSE;
 	}
 
-	if (done || WIFSTOPPED(*status) ||
-	    (WIFSIGNALED(*status) && WTERMSIG(*status) == SIGCONT) ||
-	    DEBUG(JOB)) {
-		FILE	*out;
+	if (WIFEXITED(*status)) {
+		if (done || DEBUG(JOB)) {
+			FILE   *out;
+
+			if (compatMake &&
+			    !usePipes &&
+			    (job->flags & JOB_IGNERR)) {
+				/*
+				 * If output is going to a file and this job
+				 * is ignoring errors, arrange to have the
+				 * exit status sent to the output file as
+				 * well.
+				 */
+				out = fdopen(job->outFd, "w");
+				if (out == NULL)
+					Punt("Cannot fdopen");
+			} else {
+				out = stdout;
+			}
+
+			DEBUGF(JOB, ("Process %jd exited.\n",
+			    (intmax_t)job->pid));
+
+			if (WEXITSTATUS(*status) == 0) {
+				if (DEBUG(JOB)) {
+					if (usePipes && job->node != lastNode) {
+						MESSAGE(out, job->node);
+						lastNode = job->node;
+					}
+					fprintf(out,
+					    "*** Completed successfully\n");
+				}
+			} else {
+				if (usePipes && job->node != lastNode) {
+					MESSAGE(out, job->node);
+					lastNode = job->node;
+				}
+				fprintf(out, "*** Error code %d%s\n",
+					WEXITSTATUS(*status),
+					(job->flags & JOB_IGNERR) ?
+					"(ignored)" : "");
+
+				if (job->flags & JOB_IGNERR) {
+					*status = 0;
+				}
+			}
+
+			fflush(out);
+		}
+	} else if (WIFSIGNALED(*status)) {
+		if (done || DEBUG(JOB) || (WTERMSIG(*status) == SIGCONT)) {
+			FILE   *out;
+
+			if (compatMake &&
+			    !usePipes &&
+			    (job->flags & JOB_IGNERR)) {
+				/*
+				 * If output is going to a file and this job
+				 * is ignoring errors, arrange to have the
+				 * exit status sent to the output file as
+				 * well.
+				 */
+				out = fdopen(job->outFd, "w");
+				if (out == NULL)
+					Punt("Cannot fdopen");
+			} else {
+				out = stdout;
+			}
+
+			if (WTERMSIG(*status) == SIGCONT) {
+				/*
+				 * If the beastie has continued, shift the
+				 * Job from the stopped list to the running
+				 * one (or re-stop it if concurrency is
+				 * exceeded) and go and get another child.
+				 */
+				if (job->flags & (JOB_RESUME | JOB_RESTART)) {
+					if (usePipes && job->node != lastNode) {
+						MESSAGE(out, job->node);
+						lastNode = job->node;
+					}
+					fprintf(out, "*** Continued\n");
+				}
+				if (!(job->flags & JOB_CONTINUING)) {
+					DEBUGF(JOB, ("Warning: process %jd was not "
+						     "continuing.\n", (intmax_t) job->pid));
+#ifdef notdef
+					/*
+					 * We don't really want to restart a
+					 * job from scratch just because it
+					 * continued, especially not without
+					 * killing the continuing process!
+					 * That's why this is ifdef'ed out.
+					 * FD - 9/17/90
+					 */
+					JobRestart(job);
+#endif
+				}
+				job->flags &= ~JOB_CONTINUING;
+				TAILQ_INSERT_TAIL(&jobs, job, link);
+				nJobs += 1;
+				DEBUGF(JOB, ("Process %jd is continuing locally.\n",
+					     (intmax_t) job->pid));
+				if (nJobs == maxJobs) {
+					jobFull = TRUE;
+					DEBUGF(JOB, ("Job queue is full.\n"));
+				}
+				fflush(out);
+				return;
+
+			} else {
+				if (usePipes && job->node != lastNode) {
+					MESSAGE(out, job->node);
+					lastNode = job->node;
+				}
+				fprintf(out,
+				    "*** Signal %d\n", WTERMSIG(*status));
+				fflush(out);
+			}
+		}
+	} else {
+		/* STOPPED */
+		FILE   *out;
 
 		if (compatMake && !usePipes && (job->flags & JOB_IGNERR)) {
 			/*
-			 * If output is going to a file and this job is ignoring
-			 * errors, arrange to have the exit status sent to the
-			 * output file as well.
+			 * If output is going to a file and this job
+			 * is ignoring errors, arrange to have the
+			 * exit status sent to the output file as
+			 * well.
 			 */
 			out = fdopen(job->outFd, "w");
 			if (out == NULL)
@@ -1021,93 +1166,16 @@ JobFinish(Job *job, int *status)
 			out = stdout;
 		}
 
-		if (WIFEXITED(*status)) {
-			DEBUGF(JOB, ("Process %jd exited.\n",
-			    (intmax_t)job->pid));
-			if (WEXITSTATUS(*status) != 0) {
-				if (usePipes && job->node != lastNode) {
-					MESSAGE(out, job->node);
-					lastNode = job->node;
-				}
-				fprintf(out, "*** Error code %d%s\n",
-				    WEXITSTATUS(*status),
-				    (job->flags & JOB_IGNERR) ?
-				    "(ignored)" : "");
-
-				if (job->flags & JOB_IGNERR) {
-					*status = 0;
-				}
-			} else if (DEBUG(JOB)) {
-				if (usePipes && job->node != lastNode) {
-					MESSAGE(out, job->node);
-					lastNode = job->node;
-				}
-				fprintf(out, "*** Completed successfully\n");
-			}
-
-		} else if (WIFSTOPPED(*status)) {
-			DEBUGF(JOB, ("Process %jd stopped.\n",
-			    (intmax_t)job->pid));
-			if (usePipes && job->node != lastNode) {
-				MESSAGE(out, job->node);
-				lastNode = job->node;
-			}
-			fprintf(out, "*** Stopped -- signal %d\n",
-			WSTOPSIG(*status));
-			job->flags |= JOB_RESUME;
-			TAILQ_INSERT_TAIL(&stoppedJobs, job, link);
-			fflush(out);
-			return;
-
-		} else if (WTERMSIG(*status) == SIGCONT) {
-			/*
-			 * If the beastie has continued, shift the Job from
-			 * the stopped list to the running one (or re-stop it
-			 * if concurrency is exceeded) and go and get another
-			 * child.
-			 */
-			if (job->flags & (JOB_RESUME | JOB_RESTART)) {
-				if (usePipes && job->node != lastNode) {
-					MESSAGE(out, job->node);
-					lastNode = job->node;
-				}
-				fprintf(out, "*** Continued\n");
-			}
-			if (!(job->flags & JOB_CONTINUING)) {
-				DEBUGF(JOB, ("Warning: process %jd was not "
-				    "continuing.\n", (intmax_t)job->pid));
-#ifdef notdef
-				/*
-				 * We don't really want to restart a job from
-				 * scratch just because it continued, especially
-				 * not without killing the continuing process!
-				 *  That's why this is ifdef'ed out.
-				 * FD - 9/17/90
-				 */
-				JobRestart(job);
-#endif
-			}
-			job->flags &= ~JOB_CONTINUING;
-			TAILQ_INSERT_TAIL(&jobs, job, link);
-			nJobs += 1;
-			DEBUGF(JOB, ("Process %jd is continuing locally.\n",
-			    (intmax_t)job->pid));
-			if (nJobs == maxJobs) {
-				jobFull = TRUE;
-				DEBUGF(JOB, ("Job queue is full.\n"));
-			}
-			fflush(out);
-			return;
-
-		} else {
-			if (usePipes && job->node != lastNode) {
-				MESSAGE(out, job->node);
-				lastNode = job->node;
-			}
-			fprintf(out, "*** Signal %d\n", WTERMSIG(*status));
+		DEBUGF(JOB, ("Process %jd stopped.\n", (intmax_t) job->pid));
+		if (usePipes && job->node != lastNode) {
+			MESSAGE(out, job->node);
+			lastNode = job->node;
 		}
-
+		fprintf(out, "*** Stopped -- signal %d\n", WSTOPSIG(*status));
+		job->flags |= JOB_RESUME;
+		TAILQ_INSERT_TAIL(&stoppedJobs, job, link);
 		fflush(out);
+		return;
 	}
 
 	/*
