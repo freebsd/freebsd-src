@@ -180,9 +180,12 @@ static char	varNoError[] = "";
  * The four contexts are searched in the reverse order from which they are
  * listed.
  */
-GNode	*VAR_ENV;	/* variables from the environment */
-GNode	*VAR_GLOBAL;	/* variables from the makefile */
-GNode	*VAR_CMD;	/* variables defined on the command-line */
+static GNode	*VAR_ENV;	/* variables from the environment */
+GNode		*VAR_GLOBAL;	/* variables from the makefile */
+GNode		*VAR_CMD;	/* variables defined on the command-line */
+
+Boolean		oldVars;	/* variable substitution style */
+Boolean		checkEnvFirst;	/* -e flag */
 
 #define	OPEN_PAREN		'('
 #define	CLOSE_PAREN		')'
