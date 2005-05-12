@@ -662,8 +662,9 @@ main(int argc, char **argv)
 	const char *machine_arch;
 	const char *machine_cpu;
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	char *p, *p1, *pathp;
-	char *path;
+	char *p, *p1;
+	const char *pathp;
+	const char *path;
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
@@ -721,7 +722,7 @@ main(int argc, char **argv)
 	 * __FreeBSD_version was defined as 300003. So, this check can
 	 * safely be done with any kernel with version > 300003.
 	 */
-	if (!machine) {
+	if ((machine = getenv("MACHINE")) == NULL) {
 		int	ispc98;
 		size_t	len;
 
@@ -740,7 +741,7 @@ main(int argc, char **argv)
 	 * Note that while MACHINE is decided at run-time,
 	 * MACHINE_ARCH is always known at compile time.
 	 */
-	if ((machine = getenv("MACHINE")) == NULL) {
+	if (machine == NULL) {
 #ifdef MACHINE
 		machine = MACHINE;
 #else
