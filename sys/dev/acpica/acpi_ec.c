@@ -489,11 +489,11 @@ acpi_ec_probe(device_t dev)
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "can't evaluate _GPE - %s\n",
 			  AcpiFormatException(status));
-	    return (ENXIO);
+	    goto out;
 	}
 	obj = (ACPI_OBJECT *)buf.Pointer;
 	if (obj == NULL)
-	    return (ENXIO);
+	    goto out;
 
 	switch (obj->Type) {
 	case ACPI_TYPE_INTEGER:
