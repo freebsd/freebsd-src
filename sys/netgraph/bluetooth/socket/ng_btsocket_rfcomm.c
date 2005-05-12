@@ -1843,7 +1843,7 @@ ng_btsocket_rfcomm_receive_frame(ng_btsocket_rfcomm_session_p s,
 	/* Test EA bit in length. If not set then we have 2 bytes of length */
 	if (!RFCOMM_EA(hdr->length)) {
 		bcopy(&hdr->length, &length, sizeof(length));
-		length = le16toh(length);
+		length = le16toh(length) >> 1;
 		m_adj(m0, sizeof(*hdr) + 1);
 	} else {
 		length = hdr->length >> 1;
