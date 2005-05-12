@@ -1503,15 +1503,15 @@ SuffFindArchiveDeps(GNode *gn, Lst *slst)
 {
 	char	*eoarch;	/* End of archive portion */
 	char	*eoname;	/* End of member portion */
+	char	*name;		/* Start of member's name */
+	char	*p1;
 	GNode	*mem;		/* Node for member */
-	/* Variables to be copied from the member node */
-	static char *const copy[] = {
+	Suff	*ms;		/* Suffix descriptor for member */
+
+	static const char *copy[] = {
 		TARGET,		/* Must be first */
 		PREFIX,		/* Must be second */
 	};
-	int	i;		/* Index into copy and vals */
-	Suff	*ms;		/* Suffix descriptor for member */
-	char	*name;		/* Start of member's name */
 
 	/*
 	 * The node is an archive(member) pair. so we must find a
@@ -1547,11 +1547,10 @@ SuffFindArchiveDeps(GNode *gn, Lst *slst)
 	/*
 	 * Copy in the variables from the member node to this one.
 	 */
-	for (i = (sizeof(copy) / sizeof(copy[0]))-1; i >= 0; i--) {
-		char *p1;
-		Var_Set(copy[i], Var_Value(copy[i], mem, &p1), gn);
-		free(p1);
-	}
+	Var_Set(copy[1], Var_Value(copy[1], mem, &p1), gn);
+	free(p1);
+	Var_Set(copy[0], Var_Value(copy[0], mem, &p1), gn);
+	free(p1);
 
 	ms = mem->suffix;
 	if (ms == NULL) {
@@ -1562,7 +1561,6 @@ SuffFindArchiveDeps(GNode *gn, Lst *slst)
 		DEBUGF(SUFF, ("using null suffix\n"));
 		ms = suffNull;
 	}
-
 
 	/*
 	* Set the other two local variables required for this target.
