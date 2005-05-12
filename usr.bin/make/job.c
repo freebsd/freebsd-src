@@ -462,12 +462,120 @@ static sig_atomic_t interrupted;
 #define	W_SETTERMSIG(st, val) W_SETMASKED(st, val, WTERMSIG)
 #define	W_SETEXITSTATUS(st, val) W_SETMASKED(st, val, WEXITSTATUS)
 
+/**
+ * Information used to create a new process.
+ */
+typedef struct ProcStuff {
+	int	in;	/* stdin for new process */
+	int	out;	/* stdout for new process */
+	int	err;	/* stderr for new process */
+
+	int	merge_errors;	/* true if stderr is redirected to stdin */
+	int	pgroup;		/* true if new process a process leader */
+	int	searchpath;	/* true if binary should be found via $PATH */
+
+	char	**argv;
+} ProcStuff;
+
 static void JobRestart(Job *);
 static int JobStart(GNode *, int, Job *);
 static void JobDoOutput(Job *, Boolean);
 static struct Shell *JobMatchShell(const char *);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
+static void ProcExec(const ProcStuff *) __dead2;
+
+/**
+ * Replace the current process.
+ */
+static void
+ProcExec(const ProcStuff *ps)
+{
+
+	if (ps->in != STDIN_FILENO) {
+		/*
+		 * Redirect the child's stdin to the input fd
+		 * and reset it to the beginning (again).
+		 */
+		if (dup2(ps->in, STDIN_FILENO) == -1)
+			Punt("Cannot dup2: %s", strerror(errno));
+		lseek(STDIN_FILENO, (off_t)0, SEEK_SET);
+	}
+
+	if (ps->out != STDOUT_FILENO) {
+		/*
+		 * Redirect the child's stdout to the output fd.
+		 */
+		if (dup2(ps->out, STDOUT_FILENO) == -1)
+			Punt("Cannot dup2: %s", strerror(errno));
+		close(ps->out);
+	}
+
+	if (ps->err != STDERR_FILENO) {
+		/*
+		 * Redirect the child's stderr to the err fd.
+		 */
+		if (dup2(ps->err, STDERR_FILENO) == -1)
+			Punt("Cannot dup2: %s", strerror(errno));
+		close(ps->err);
+	}
+
+	if (ps->merge_errors) {
+		/*
+		 * Send stderr to parent process too. 
+		 */
+		if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
+			Punt("Cannot dup2: %s", strerror(errno));
+	}
+
+	/*
+	 * The file descriptors for stdin, stdout, or stderr might
+	 * have been marked close-on-exec.  Clear the flag on all
+	 * of them.
+	 */
+	fcntl(STDIN_FILENO, F_SETFD,
+	    fcntl(STDIN_FILENO, F_GETFD) & (~FD_CLOEXEC));
+	fcntl(STDOUT_FILENO, F_SETFD,
+	    fcntl(STDOUT_FILENO, F_GETFD) & (~FD_CLOEXEC));
+	fcntl(STDERR_FILENO, F_SETFD,
+	    fcntl(STDERR_FILENO, F_GETFD) & (~FD_CLOEXEC));
+
+	if (ps->pgroup) {
+#ifdef USE_PGRP
+		/*
+		 * Become a process group leader, so we can kill it and all
+		 * its descendants in one fell swoop, by killing its process
+		 * family, but not commit suicide.
+		 */
+#if defined(SYSV)
+		setsid();
+#else
+		setpgid(0, getpid());
+#endif
+#endif /* USE_PGRP */
+	}
+
+	if (ps->searchpath) {
+		execvp(ps->argv[0], ps->argv);
+
+		write(STDERR_FILENO, ps->argv[0], strlen(ps->argv[0]));
+		write(STDERR_FILENO, ":", 1);
+		write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
+		write(STDERR_FILENO, "\n", 1);
+	} else {
+		execv(shellPath, ps->argv);
+
+		write(STDERR_FILENO,
+		      "Could not execute shell\n",
+		      sizeof("Could not execute shell"));
+	}
+
+	/*
+	 * Since we are the child process, exit without flushing buffers.
+	 */
+	_exit(1);
+	/* NOTREACHED */
+}
 
 /**
  * JobCatchSignal
@@ -1170,7 +1278,8 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 static void
 JobExec(Job *job, char **argv)
 {
-	pid_t		  cpid;		/* ID of new child */
+	ProcStuff	ps;
+	pid_t		cpid;	/* ID of new child */
 
 	if (DEBUG(JOB)) {
 		int	  i;
@@ -1195,6 +1304,33 @@ JobExec(Job *job, char **argv)
 		lastNode = job->node;
 	}
 
+	ps.in = FILENO(job->cmdFILE);
+	if (usePipes) {
+		/*
+		 * Set up the child's output to be routed through the
+		 * pipe we've created for it.
+		 */
+		ps.out = job->outPipe;
+	} else {
+		/*
+		 * We're capturing output in a file, so we duplicate
+		 * the descriptor to the temporary file into the
+		 * standard output.
+		 */
+		ps.out = job->outFd;
+	}
+	ps.err = STDERR_FILENO;
+
+	ps.merge_errors = 1;
+	ps.pgroup = 1;
+	ps.searchpath = 0;
+
+	ps.argv = argv;
+
+	/*
+	 * Fork.  Warning since we are doing vfork() instead of fork(),
+	 * do not allocate memory in the child process!
+	 */
 	if ((cpid = vfork()) == -1) {
 		Punt("Cannot fork");
 	}
@@ -1206,61 +1342,8 @@ JobExec(Job *job, char **argv)
 		if (fifoFd >= 0)
 			close(fifoFd);
 
-		/*
-		 * Must duplicate the input stream down to the child's input and
-		 * reset it to the beginning (again). Since the stream was
-		 * marked close-on-exec, we must clear that bit in the new
-		 * input.
-		 */
-		if (dup2(FILENO(job->cmdFILE), 0) == -1)
-			Punt("Cannot dup2: %s", strerror(errno));
-		fcntl(0, F_SETFD, 0);
-		lseek(0, (off_t)0, SEEK_SET);
-
-		if (usePipes) {
-			/*
-			 * Set up the child's output to be routed through the
-			 * pipe we've created for it.
-			 */
-			if (dup2(job->outPipe, 1) == -1)
-				Punt("Cannot dup2: %s", strerror(errno));
-		} else {
-			/*
-			 * We're capturing output in a file, so we duplicate the
-			 * descriptor to the temporary file into the standard
-			 * output.
-			 */
-			if (dup2(job->outFd, 1) == -1)
-				Punt("Cannot dup2: %s", strerror(errno));
-		}
-		/*
-		 * The output channels are marked close on exec. This bit was
-		 * duplicated by the dup2 (on some systems), so we have to clear
-		 * it before routing the shell's error output to the same place
-		 * as its standard output.
-		 */
-		fcntl(1, F_SETFD, 0);
-		if (dup2(1, 2) == -1)
-			Punt("Cannot dup2: %s", strerror(errno));
-
-#ifdef USE_PGRP
-		/*
-		 * We want to switch the child into a different process family
-		 * so we can kill it and all its descendants in one fell swoop,
-		 * by killing its process family, but not commit suicide.
-		 */
-# if defined(SYSV)
-		setsid();
-# else
-		setpgid(0, getpid());
-# endif
-#endif /* USE_PGRP */
-
-		execv(shellPath, argv);
-
-		write(STDERR_FILENO, "Could not execute shell\n",
-		    sizeof("Could not execute shell"));
-		_exit(1);
+		ProcExec(&ps);
+		/* NOTREACHED */
 	}
 	/*
 	 * Parent
@@ -2873,6 +2956,8 @@ JobRestartJobs(void)
  * Results:
  *	A string containing the output of the command, or the empty string
  *	If error is not NULL, it contains the reason for the command failure
+ *	Any output sent to stderr in the child process is passed to stderr,
+ *	and not captured in the string.
  *
  * Side Effects:
  *	The string must be freed by the caller.
@@ -2886,6 +2971,7 @@ Cmd_Exec(const char *cmd, const char **error)
 	int	status;	/* command exit status */
 	Buffer	*buf;	/* buffer to store the result */
 	ssize_t	rcnt;
+	ProcStuff	ps;
 
 	*error = NULL;
 	buf = Buf_Init(0);
@@ -2900,8 +2986,27 @@ Cmd_Exec(const char *cmd, const char **error)
 		return (buf);
 	}
 
+	/* Set close-on-exec on read side of pipe. */
+	fcntl(fds[0], F_SETFD, fcntl(fds[0], F_GETFD) | FD_CLOEXEC);
+
+	ps.in = STDIN_FILENO;
+	ps.out = fds[1];
+	ps.err = STDERR_FILENO;
+
+	ps.merge_errors = 0;
+	ps.pgroup = 0;
+	ps.searchpath = 0;
+
+	/* Set up arguments for shell */
+	ps.argv = emalloc(4 * sizeof(char *));
+	ps.argv[0] = strdup(shellName);
+	ps.argv[1] = strdup("-c");
+	ps.argv[2] = strdup(cmd);
+	ps.argv[3] = NULL;
+
 	/*
-	 * Fork
+	 * Fork.  Warning since we are doing vfork() instead of fork(),
+	 * do not allocate memory in the child process!
 	 */
 	if ((cpid = vfork()) == -1) {
 		*error = "Couldn't exec \"%s\"";
@@ -2909,36 +3014,19 @@ Cmd_Exec(const char *cmd, const char **error)
 	}
 
 	if (cpid == 0) {
-		char	*args[4];
-		/*
-		 * Close input side of pipe
-		 */
-		close(fds[0]);
-
-		/*
-		 * Duplicate the output stream to the shell's output, then
-		 * shut the extra thing down. Note we don't fetch the error
-		 * stream...why not? Why?
-		 */
-		dup2(fds[1], 1);
-		close(fds[1]);
-
-
-		/* Set up arguments for shell */
-		args[0] = shellName;
-		args[1] = "-c";
-		args[2] = cmd;
-		args[3] = NULL;
-
-		execv(shellPath, args);
-		_exit(1);
+  		/*
+		 * Child
+  		 */
+		ProcExec(&ps);
 		/* NOTREACHED */
-
 	}
-	/*
-	 * No need for the writing half
-	 */
-	close(fds[1]);
+
+	free(ps.argv[2]);
+	free(ps.argv[1]);
+	free(ps.argv[0]);
+	free(ps.argv);
+
+	close(fds[1]); /* No need for the writing half of the pipe. */
 
 	do {
 		char	result[BUFSIZ];
@@ -2990,31 +3078,16 @@ Cmd_Exec(const char *cmd, const char **error)
  * contains any of these characters, it is executed by the shell, not
  * directly by us.
  */
-static const char *sh_builtin[] = {
+static const char const* sh_builtin[] = {
 	"alias", "cd", "eval", "exec",
 	"exit", "read", "set", "ulimit",
 	"unalias", "umask", "unset", "wait",
 	":", NULL
 };
-
-static char	    meta[256];
+static const char *sh_meta = "#=|^(){};&<>*?[]:$`\\\n";
 
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
-
-static void
-CompatInit(void)
-{
-	const char	*cp;	/* Pointer to string of shell meta-characters */
-
-	for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
-		meta[(unsigned char)*cp] = 1;
-	}
-	/*
-	 * The null character serves as a sentinel in the string.
-	 */
-	meta[0] = 1;
-}
 
 /*
  * Interrupt handler - set flag and defer handling to the main code
@@ -3089,30 +3162,30 @@ CompatInterrupt(int signo)
 	kill(getpid(), signo);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * shellneed --
+/**
+ * shellneed
  *
  * Results:
- *	Returns 1 if a specified line must be executed by the shell,
- *	and 0 if it can be run via execve.
+ *	Returns NULL if a specified line must be executed by the shell,
+ *	and an argument vector if it can be run via execvp().
  *
  * Side Effects:
  *	Uses brk_string so destroys the contents of argv.
- *
- *-----------------------------------------------------------------------
  */
-static int
+static char **
 shellneed(char *cmd)
 {
 	char		**av;
 	const char	**p;
 
+	if (strpbrk(cmd, sh_meta) != NULL)
+		return (NULL);
+
 	av = brk_string(cmd, NULL, TRUE);
 	for (p = sh_builtin; *p != 0; p++)
 		if (strcmp(av[1], *p) == 0)
-			return (1);
-	return (0);
+			return (NULL);
+	return (av + 1);
 }
 
 /*-
@@ -3134,7 +3207,6 @@ int
 Compat_RunCommand(char *cmd, GNode *gn)
 {
 	char	*cmdStart;	/* Start of expanded command */
-	char	*cp;
 	Boolean	silent;		/* Don't print command */
 	Boolean	doit;		/* Execute even in -n */
 	Boolean	errCheck;	/* Check errors */
@@ -3145,6 +3217,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	LstNode	*cmdNode;	/* Node where current command is located */
 	char	**av;		/* Argument vector for thing to exec */
 	char	*cmd_save;	/* saved cmd */
+	ProcStuff	ps;
 
 	/*
 	 * Avoid clobbered variable warnings by forcing the compiler
@@ -3163,9 +3236,9 @@ Compat_RunCommand(char *cmd, GNode *gn)
 
 	/*
 	 * brk_string will return an argv with a NULL in av[0], thus causing
-	 * execvp to choke and die horribly. Besides, how can we execute a null
-	 * command? In any case, we warn the user that the command expanded to
-	 * nothing (is this the right thing to do?).
+	 * execvp() to choke and die horribly. Besides, how can we execute a
+	 * null command? In any case, we warn the user that the command
+	 * expanded to nothing (is this the right thing to do?).
 	 */
 	if (*cmdStart == '\0') {
 		free(cmdStart);
@@ -3195,10 +3268,8 @@ Compat_RunCommand(char *cmd, GNode *gn)
 			errCheck = FALSE;
 			break;
 
-		case '+':
+		  case '+':
 			doit = TRUE;
-			if (!meta[0])		/* we came here from jobs */
-				CompatInit();
 			break;
 		}
 		cmd++;
@@ -3206,14 +3277,6 @@ Compat_RunCommand(char *cmd, GNode *gn)
 
 	while (isspace((unsigned char)*cmd))
 		cmd++;
-
-	/*
-	 * Search for meta characters in the command. If there are no meta
-	 * characters, there's no need to execute a shell to execute the
-	 * command.
-	 */
-	for (cp = cmd; !meta[(unsigned char)*cp]; cp++)
-		continue;
 
 	/*
 	 * Print the command before echoing if we're not supposed to be quiet
@@ -3232,60 +3295,52 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		return (0);
 	}
 
-	if (*cp != '\0') {
+	ps.in = STDIN_FILENO;
+	ps.out = STDOUT_FILENO;
+	ps.err = STDERR_FILENO;
+
+	ps.merge_errors = 0;
+	ps.pgroup = 0;
+	ps.searchpath = 1;
+
+	if ((av = shellneed(cmd)) == NULL) {
 		/*
-		 * If *cp isn't the null character, we hit a "meta" character
-		 * and need to pass the command off to the shell. We give the
-		 * shell the -e flag as well as -c if it's supposed to exit
-		 * when it hits an error.
+		 * Shell meta character or shell builtin found - pass
+		 * command to shell. We give the shell the -e flag as
+		 * well as -c if it is supposed to exit when it hits an error.
 		 */
-		static char	*shargv[4];
-
-		shargv[0] = shellPath;
-		shargv[1] = (errCheck ? "-ec" : "-c");
-		shargv[2] = cmd;
-		shargv[3] = NULL;
-		av = shargv;
-
-	} else if (shellneed(cmd)) {
-		/*
-		 * This command must be passed by the shell for other reasons..
-		 * or.. possibly not at all.
-		 */
-		static char	*shargv[4];
-
-		shargv[0] = shellPath;
-		shargv[1] = (errCheck ? "-ec" : "-c");
-		shargv[2] = cmd;
-		shargv[3] = NULL;
-		av = shargv;
-
+		ps.argv = emalloc(4 * sizeof(char *));
+		ps.argv[0] = strdup(shellName);
+		ps.argv[1] = strdup(errCheck ? "-ec" : "-c");
+		ps.argv[2] = strdup(cmd);
+		ps.argv[3] = NULL;
 	} else {
-		/*
-		 * No meta-characters, so no need to exec a shell. Break the
-		 * command into words to form an argument vector we can execute.
-		 * brk_string sticks our name in av[0], so we have to
-		 * skip over it...
-		 */
-		av = brk_string(cmd, NULL, TRUE);
-		av += 1;
+		ps.argv = av;
 	}
 
 	/*
-	 * Fork and execute the single command. If the fork fails, we abort.
+	 * Warning since we are doing vfork() instead of fork(),
+	 * do not allocate memory in the child process!
 	 */
 	if ((cpid = vfork()) == -1) {
 		Fatal("Could not fork");
 	}
 
 	if (cpid == 0) {
-		execvp(av[0], av);
-		write(STDERR_FILENO, av[0], strlen(av[0]));
-		write(STDERR_FILENO, ":", 1);
-		write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
-		write(STDERR_FILENO, "\n", 1);
-		_exit(1);
+		/*
+		 * Child
+		 */
+		ProcExec(&ps);
+  		/* NOTREACHED */
 	}
+
+	if (av == NULL) {
+		free(ps.argv[2]);
+		free(ps.argv[1]);
+		free(ps.argv[0]);
+		free(ps.argv);
+	}
+
 	/*
 	 * we need to print out the command associated with this
 	 * Gnode in Targ_PrintCmd from Targ_PrintGraph when debugging
@@ -3296,6 +3351,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		free(cmdStart);
 		Lst_Replace(cmdNode, cmd_save);
 	}
+
 	/*
 	 * The child is off and running. Now all we can do is wait...
 	 */
@@ -3605,7 +3661,6 @@ Compat_Run(Lst *targs)
 	int	error_cnt;		/* Number of targets not remade due to errors */
 	LstNode	*ln;
 
-	CompatInit();
 	Shell_Init();		/* Set up shell. */
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
