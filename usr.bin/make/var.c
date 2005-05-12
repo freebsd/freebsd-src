@@ -1033,6 +1033,17 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
 }
 
 /**
+ * Set the a global name variable to the value.
+ */
+void
+Var_SetGlobal(const char name[], const char value[])
+{
+
+	Var_Set(name, value, VAR_GLOBAL);
+}
+
+
+/**
  * Set the VAR_TO_ENV flag on a variable
  */
 void
