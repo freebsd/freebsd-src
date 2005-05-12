@@ -340,7 +340,7 @@ static int		wait_for_kbd_data(struct kbdc_softc *kbdc);
 /* local variables */
 
 /* the initial key map, accent map and fkey strings */
-#include <dev/kbd/kbdtables.h>
+#include <pc98/cbus/pckbdtables.h>
 
 /* structures for the default keyboard */
 static keyboard_t	default_kbd;
