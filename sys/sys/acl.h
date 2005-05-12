@@ -87,10 +87,6 @@ typedef struct acl_t_struct *acl_t;
  */
 #define	ACL_TYPE_ACCESS		0x00000000
 #define	ACL_TYPE_DEFAULT	0x00000001
-#define	ACL_TYPE_AFS		0x00000002
-#define	ACL_TYPE_CODA		0x00000003
-#define	ACL_TYPE_NTFS		0x00000004
-#define	ACL_TYPE_NWFS		0x00000005
 
 /*
  * Possible flags in ae_perm field.
