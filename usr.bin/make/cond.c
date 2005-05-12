@@ -544,23 +544,22 @@ CondToken(Boolean doEval)
 			} else {
 				condExpr += 1;
 			}
+			while (isspace((unsigned char)*condExpr)) {
+				condExpr++;
+			}
+			if (*condExpr == '\0') {
+				Parse_Error(PARSE_WARNING,
+				    "Missing right-hand-side of operator");
+				goto error;
+			}
+			rhs = condExpr;
 			break;
+
 		  default:
 			op = "!=";
 			rhs = "0";
-
-			goto do_compare;
+			break;
 		}
-		while (isspace((unsigned char)*condExpr)) {
-			condExpr++;
-		}
-		if (*condExpr == '\0') {
-			Parse_Error(PARSE_WARNING,
-			    "Missing right-hand-side of operator");
-			goto error;
-		}
-		rhs = condExpr;
-  do_compare:
 		if (*rhs == '"') {
 			/*
 			 * Doing a string comparison. Only allow == and
