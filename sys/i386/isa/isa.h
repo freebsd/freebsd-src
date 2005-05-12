@@ -65,7 +65,6 @@
 #define	IO_DMAPG	0x080		/* DMA Page Registers */
 #define	IO_ICU2		0x0A0		/* 8259A Interrupt Controller #2 */
 #define	IO_DMA2		0x0C0		/* 8237A DMA Controller #2 */
-#define	IO_NPX		0x0F0		/* Numeric Coprocessor */
 
 		/* Cards */
 #define	IO_VGA		0x3C0		/* E/VGA Ports */
@@ -84,7 +83,6 @@
 
 #define	IO_CGASIZE	12		/* CGA controllers */
 #define	IO_MDASIZE	12		/* Monochrome display controllers */
-#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_VGASIZE	16		/* VGA controllers */
 
 #endif /* !IO_ISASIZES */
@@ -106,16 +104,5 @@
 #define	RAM_END		0x1000000	/* End of RAM Memory */
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
-
-/*
- * IRQs
- */
-#define IRQ_NPX		13
-
-/*
- * Npx MD defines
- */
-/* full reset on some systems, NOP on others */
-#define npx_full_reset() outb(IO_NPX + 1, 0)
 
 #endif /* !_I386_ISA_ISA_H_ */
