@@ -65,7 +65,6 @@
 #define	IO_DMAPG	0x080		/* DMA Page Registers */
 #define	IO_ICU2		0x0A0		/* 8259A Interrupt Controller #2 */
 #define	IO_DMA2		0x0C0		/* 8237A DMA Controller #2 */
-#define	IO_NPX		0x0F0		/* Numeric Coprocessor */
 
 		/* Cards */
 					/* 0x100 - 0x16F Open */
@@ -163,7 +162,6 @@
 #define IO_LPTSIZE_NORMAL	4	/* "Normal" LPT controllers */
 
 #define	IO_MDASIZE	12		/* Monochrome display controllers */
-#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 #define	IO_PSMSIZE	5		/* 8042 Keyboard controllers */
 #define	IO_RTCSIZE	16		/* CMOS real time clock, NMI control */
