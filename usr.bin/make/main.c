@@ -122,6 +122,7 @@ static Boolean	expandVars;	/* fully expand printed variables */
 static Lst variables = Lst_Initializer(variables);
 
 static Boolean	forceJobs;      /* -j argument given */
+int		jobLimit;	/* -j argument: maximum number of jobs */
 Boolean		compatMake;	/* -B argument */
 Boolean		debug;		/* -d flag */
 Boolean		noExecute;	/* -n flag */
@@ -362,8 +363,8 @@ rearg:
 			char *endptr;
 
 			forceJobs = TRUE;
-			maxJobs = strtol(optarg, &endptr, 10);
-			if (maxJobs <= 0 || *endptr != '\0') {
+			jobLimit = strtol(optarg, &endptr, 10);
+			if (jobLimit <= 0 || *endptr != '\0') {
 				warnx("illegal number, -j argument -- %s",
 				    optarg);
 				usage();
@@ -695,7 +696,7 @@ main(int argc, char **argv)
 	debug = 0;			/* No debug verbosity, please. */
 	jobsRunning = FALSE;
 
-	maxJobs = DEFMAXJOBS;
+	jobLimit = DEFMAXJOBS;
 	forceJobs = FALSE;              /* No -j flag */
 	compatMake = FALSE;		/* No compat mode */
 
@@ -977,7 +978,7 @@ main(int argc, char **argv)
 			 * should it exist).
 			 */
 			if (!queryFlag) {
-				Job_Init(maxJobs);
+				Job_Init(jobLimit);
 				jobsRunning = TRUE;
 			}
 
