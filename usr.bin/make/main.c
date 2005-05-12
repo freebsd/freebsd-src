@@ -121,7 +121,6 @@ static Boolean	expandVars;	/* fully expand printed variables */
 /* list of variables to print */
 static Lst variables = Lst_Initializer(variables);
 
-int		maxJobs;	/* -j argument */
 static Boolean	forceJobs;      /* -j argument given */
 Boolean		compatMake;	/* -B argument */
 Boolean		debug;		/* -d flag */
@@ -133,8 +132,6 @@ Boolean		usePipes;	/* !-P flag */
 Boolean		ignoreErrors;	/* -i flag */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
-Boolean		oldVars;	/* variable substitution style */
-Boolean		checkEnvFirst;	/* -e flag */
 
 /* (-E) vars to override from env */
 Lst envFirstVars = Lst_Initializer(envFirstVars);
