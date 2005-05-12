@@ -476,11 +476,12 @@ CondToken(Boolean doEval)
 		t = EndOfFile;
 		break;
 	  case '$': {
-		char	*lhs;
-		char	*rhs;
-		const char *op;
-		size_t	varSpecLen = 0;
-		Boolean	doFree;
+		char		*lhs;
+		const char	*op;
+		char		*rhs;
+		char		zero[] = "0";
+		size_t		varSpecLen = 0;
+		Boolean		doFree;
 
 		/*
 		 * Parse the variable spec and skip over it, saving its
@@ -557,7 +558,7 @@ CondToken(Boolean doEval)
 
 		  default:
 			op = "!=";
-			rhs = "0";
+			rhs = zero;
 			break;
 		}
 		if (*rhs == '"') {
