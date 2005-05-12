@@ -92,56 +92,49 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "var.h"
 
+extern char **environ;	/* XXX what header declares this variable? */
+
 #define WANT_ENV_MKLVL	1
 #define	MKLVL_MAXVAL	500
 #define	MKLVL_ENVVAR	"__MKLVL__"
 
-#define	MAKEFLAGS	".MAKEFLAGS"
-
-extern char **environ;	/* XXX what header declares this variable? */
-
-/* Targets to be made */
-Lst create = Lst_Initializer(create);
-
-time_t		now;		/* Time at start of make */
-struct GNode	*DEFAULT;	/* .DEFAULT node */
-Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
-uint32_t	warn_flags;	/* actual warning flags */
-uint32_t	warn_cmd;	/* command line warning flags */
-uint32_t	warn_nocmd;	/* command line no-warning flags */
-
-static Boolean	noBuiltins;	/* -r flag */
-
 /* ordered list of makefiles to read */
 static Lst makefiles = Lst_Initializer(makefiles);
-
-static Boolean	expandVars;	/* fully expand printed variables */
 
 /* list of variables to print */
 static Lst variables = Lst_Initializer(variables);
 
+static Boolean	expandVars;	/* fully expand printed variables */
+static Boolean	noBuiltins;	/* -r flag */
 static Boolean	forceJobs;      /* -j argument given */
-int		jobLimit;	/* -j argument: maximum number of jobs */
-Boolean		compatMake;	/* -B argument */
-Boolean		debug;		/* -d flag */
-Boolean		noExecute;	/* -n flag */
-Boolean		keepgoing;	/* -k flag */
-Boolean		queryFlag;	/* -q flag */
-Boolean		touchFlag;	/* -t flag */
-Boolean		usePipes;	/* !-P flag */
-Boolean		ignoreErrors;	/* -i flag */
-Boolean		beSilent;	/* -s flag */
-Boolean		beVerbose;	/* -v flag */
+static char	*curdir;	/* startup directory */
+static char	*objdir;	/* where we chdir'ed to */
 
 /* (-E) vars to override from env */
 Lst envFirstVars = Lst_Initializer(envFirstVars);
 
+/* Targets to be made */
+Lst create = Lst_Initializer(create);
+
+Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
+Boolean		beSilent;	/* -s flag */
+Boolean		beVerbose;	/* -v flag */
+Boolean		compatMake;	/* -B argument */
+Boolean		debug;		/* -d flag */
+Boolean		ignoreErrors;	/* -i flag */
+int		jobLimit;	/* -j argument */
 Boolean		jobsRunning;	/* TRUE if the jobs might be running */
+Boolean		keepgoing;	/* -k flag */
+Boolean		noExecute;	/* -n flag */
+Boolean		queryFlag;	/* -q flag */
+Boolean		touchFlag;	/* -t flag */
+Boolean		usePipes;	/* !-P flag */
+uint32_t	warn_cmd;	/* command line warning flags */
+uint32_t	warn_flags;	/* actual warning flags */
+uint32_t	warn_nocmd;	/* command line no-warning flags */
 
-char		*chdir_verify_path(const char *, char *);
-
-static char	*curdir;	/* startup directory */
-static char	*objdir;	/* where we chdir'ed to */
+time_t		now;		/* Time at start of make */
+struct GNode	*DEFAULT;	/* .DEFAULT node */
 
 /**
  * Exit with usage message.
@@ -166,10 +159,10 @@ MFLAGS_append(const char *flag, char *arg)
 {
 	char *str;
 
-	Var_Append(MAKEFLAGS, flag, VAR_GLOBAL);
+	Var_Append(".MAKEFLAGS", flag, VAR_GLOBAL);
 	if (arg != NULL) {
 		str = MAKEFLAGS_quote(arg);
-		Var_Append(MAKEFLAGS, str, VAR_GLOBAL);
+		Var_Append(".MAKEFLAGS", str, VAR_GLOBAL);
 		free(str);
 	}
 
@@ -530,7 +523,7 @@ rearg:
 		if (Parse_IsVar(*argv)) {
 			char *ptr = MAKEFLAGS_quote(*argv);
 
-			Var_Append(MAKEFLAGS, ptr, VAR_GLOBAL);
+			Var_Append(".MAKEFLAGS", ptr, VAR_GLOBAL);
 			Parse_DoVar(*argv, VAR_CMD);
 			free(ptr);
 
@@ -600,7 +593,7 @@ Main_ParseArgLine(char *line, int mflags)
 	MainParseArgs(argc, argv);
 }
 
-char *
+static char *
 chdir_verify_path(const char *path, char *obpath)
 {
 	struct stat sb;
@@ -675,6 +668,31 @@ main(int argc, char **argv)
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
 	char *cp = NULL, *start;
+
+	/*
+	 * Initialize file global variables.
+	 */
+	expandVars = TRUE;
+	noBuiltins = FALSE;		/* Read the built-in rules */
+	forceJobs = FALSE;              /* No -j flag */
+	curdir = cdpath;
+
+	/*
+	 * Initialize program global variables.
+	 */
+	beSilent = FALSE;		/* Print commands as executed */
+	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
+	noExecute = FALSE;		/* Execute all commands */
+	keepgoing = FALSE;		/* Stop on error */
+	allPrecious = FALSE;		/* Remove targets when interrupted */
+	queryFlag = FALSE;		/* This is not just a check-run */
+	touchFlag = FALSE;		/* Actually update targets */
+	usePipes = TRUE;		/* Catch child output in pipes */
+	debug = 0;			/* No debug verbosity, please. */
+	jobsRunning = FALSE;
+
+	jobLimit = DEFMAXJOBS;
+	compatMake = FALSE;		/* No compat mode */
 
 	check_make_level();
 
@@ -755,23 +773,6 @@ main(int argc, char **argv)
 			machine_cpu = "unknown";
 	}
 
-	expandVars = TRUE;
-	beSilent = FALSE;		/* Print commands as executed */
-	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
-	noExecute = FALSE;		/* Execute all commands */
-	keepgoing = FALSE;		/* Stop on error */
-	allPrecious = FALSE;		/* Remove targets when interrupted */
-	queryFlag = FALSE;		/* This is not just a check-run */
-	noBuiltins = FALSE;		/* Read the built-in rules */
-	touchFlag = FALSE;		/* Actually update targets */
-	usePipes = TRUE;		/* Catch child output in pipes */
-	debug = 0;			/* No debug verbosity, please. */
-	jobsRunning = FALSE;
-
-	jobLimit = DEFMAXJOBS;
-	forceJobs = FALSE;              /* No -j flag */
-	compatMake = FALSE;		/* No compat mode */
-
 	/*
 	 * Initialize the parsing, directory and variable modules to prepare
 	 * for the reading of inclusion paths and variable settings on the
@@ -792,7 +793,7 @@ main(int argc, char **argv)
 	 *	MFLAGS also gets initialized empty, for compatibility.
 	 */
 	Var_SetGlobal("MAKE", argv[0]);
-	Var_SetGlobal(MAKEFLAGS, "");
+	Var_SetGlobal(".MAKEFLAGS", "");
 	Var_SetGlobal("MFLAGS", "");
 	Var_SetGlobal("MACHINE", machine);
 	Var_SetGlobal("MACHINE_ARCH", machine_arch);
@@ -812,7 +813,6 @@ main(int argc, char **argv)
 	/*
 	 * Find where we are...
 	 */
-	curdir = cdpath;
 	if (getcwd(curdir, MAXPATHLEN) == NULL)
 		err(2, NULL);
 
@@ -966,7 +966,7 @@ main(int argc, char **argv)
 	ReadMakefile(".depend");
 
 	/* Install all the flags into the MAKE envariable. */
-	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
+	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL, &p1)) != NULL) && *p)
 		setenv("MAKEFLAGS", p, 1);
 	free(p1);
 
