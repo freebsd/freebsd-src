@@ -103,6 +103,14 @@ do_cpuid(u_int ax, u_int *p)
 }
 
 static __inline void
+cpuid_count(u_int ax, u_int cx, u_int *p)
+{
+	__asm __volatile("cpuid"
+			 : "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
+			 :  "0" (ax), "c" (cx));
+}
+
+static __inline void
 enable_intr(void)
 {
 #ifdef SMP
