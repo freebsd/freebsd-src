@@ -670,10 +670,16 @@ ata_generic_command(struct ata_request *request)
         int timeout = 5000;
 
         /* issue packet command to controller */
-	if (request->flags & ATA_R_DMA)
+	if (request->flags & ATA_R_DMA) {
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, ATA_F_DMA);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->transfersize);
-	ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->transfersize >> 8);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0);
+	}
+	else {
+	    ATA_IDX_OUTB(ch, ATA_FEATURE, 0);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->transfersize);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->transfersize >> 8);
+	}
 	ATA_IDX_OUTB(ch, ATA_COMMAND, ATA_PACKET_CMD);
 
 	/* command interrupt device ? just return and wait for interrupt */
