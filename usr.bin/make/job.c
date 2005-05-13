@@ -2596,7 +2596,7 @@ JobFreeShell(struct Shell *sh)
 	}
 }
 
-void
+static void
 Shell_Init(void)
 {
 
@@ -3007,28 +3007,28 @@ Job_ParseShell(char *line)
 		 * word and copy it to a new location. In either case, we need
 		 * to record the path the user gave for the shell.
 		 */
-		free(shellPath);
-		shellPath = estrdup(path);
+		path = estrdup(path);
 		if (newShell.name == NULL) {
 			/* get the base name as the name */
-			path = strrchr(path, '/');
-			if (path == NULL) {
-				path = shellPath;
+			if ((newShell.name = strrchr(path, '/')) == NULL) {
+				newShell.name = path;
 			} else {
-				path += 1;
+				newShell.name += 1;
 			}
-			newShell.name = path;
 		}
 
 		if (!fullSpec) {
 			if ((sh = JobMatchShell(newShell.name)) == NULL) {
 				Parse_Error(PARSE_FATAL,
 				    "%s: no matching shell", newShell.name);
+				free(path);
 				return (FAILURE);
 			}
 		} else {
 			sh = JobCopyShell(&newShell);
 		}
+		free(shellPath);
+		shellPath = path;
 	}
 
 	/* set the new shell */
@@ -3522,7 +3522,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		 * well as -c if it is supposed to exit when it hits an error.
 		 */
 		ps.argv = emalloc(4 * sizeof(char *));
-		ps.argv[0] = strdup(shellName);
+		ps.argv[0] = strdup(shellPath);
 		ps.argv[1] = strdup(errCheck ? "-ec" : "-c");
 		ps.argv[2] = strdup(cmd);
 		ps.argv[3] = NULL;
