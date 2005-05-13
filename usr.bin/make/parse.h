@@ -43,7 +43,7 @@
 
 #include <stdio.h>
 
-#include "sprite.h"
+#include "util.h"
 
 struct GNode;
 struct Lst;

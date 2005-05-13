@@ -49,7 +49,7 @@
 #include <stdint.h>
 
 #include "lst.h"
-#include "sprite.h"
+#include "util.h"
 
 struct GNode;
 struct Path;

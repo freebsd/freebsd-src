@@ -48,7 +48,7 @@
  *	Header for using the list library
  */
 
-#include "sprite.h"
+#include "util.h"
 
 /*
  * Structure of a list node.
