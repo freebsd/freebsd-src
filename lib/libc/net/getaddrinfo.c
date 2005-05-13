@@ -2246,8 +2246,8 @@ _yp_getaddrinfo(rv, cb_data, ap)
 				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			}
+			free(ypbuf);
 		}
-		free(ypbuf);
 	}
 
 	/* ipnodes.byname can hold both IPv4/v6 */
