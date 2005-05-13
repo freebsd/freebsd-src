@@ -278,16 +278,17 @@ div_output(struct socket *so, struct mbuf *m,
 	if (control)
 		m_freem(control);		/* XXX */
 
-	mtag = m_tag_get(PACKET_TAG_DIVERT,
-			sizeof(struct divert_tag), M_NOWAIT);
-	if (mtag == NULL) {
-		error = ENOBUFS;
-		goto cantsend;
-	}
-	dt = (struct divert_tag *)(mtag+1);
-	dt->info = 0;
-	dt->cookie = 0;
-	m_tag_prepend(m, mtag);
+	if ((mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL)) == NULL) {
+		mtag = m_tag_get(PACKET_TAG_DIVERT, sizeof(struct divert_tag),
+		    M_NOWAIT | M_ZERO);
+		if (mtag == NULL) {
+			error = ENOBUFS;
+			goto cantsend;
+		}
+		dt = (struct divert_tag *)(mtag+1);
+		m_tag_prepend(m, mtag);
+	} else
+		dt = (struct divert_tag *)(mtag+1);
 
 	/* Loopback avoidance and state recovery */
 	if (sin) {
