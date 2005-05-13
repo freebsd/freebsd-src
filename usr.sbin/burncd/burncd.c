@@ -630,8 +630,11 @@ write_file(int fd, struct track_info *track_info)
 				track_info->block_size;
 		}
 		if ((res = write(fd, buf, count)) != count) {
-			fprintf(stderr, "\nonly wrote %d of %jd bytes: %s\n",
-				res, (intmax_t)count, strerror(errno));
+			if (res == -1)
+				fprintf(stderr, "\n%s\n", strerror(errno));
+			else
+				fprintf(stderr, "\nonly wrote %d of %jd"
+				    " bytes\n", res, (intmax_t)count);
 			break;
 		}
 		size += count;
