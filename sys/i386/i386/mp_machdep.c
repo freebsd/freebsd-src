@@ -216,7 +216,7 @@ static void	release_aps(void *dummy);
 static int	hlt_logical_cpus;
 static u_int	hyperthreading_cpus;
 static cpumask_t	hyperthreading_cpus_mask;
-static int	hyperthreading_allowed;
+static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
 
 static void
