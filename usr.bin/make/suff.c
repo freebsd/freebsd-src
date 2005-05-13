@@ -2177,7 +2177,7 @@ Suff_PrintAll(void)
 
 		if (s->flags != 0) {
 			printf(" ");
-			print_flags(stdout, suff_flags, s->flags);
+			print_flags(stdout, suff_flags, s->flags, 1);
 		}
 
 		printf("\n#\tTo: ");

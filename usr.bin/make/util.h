@@ -116,6 +116,6 @@ char *estrdup(const char *);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
 int eunlink(const char *);
-void print_flags(FILE *, const struct flag2str *, u_int);
+void print_flags(FILE *, const struct flag2str *, u_int, int);
 
 #endif /* util_h_b7020fdb */
