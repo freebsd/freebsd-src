@@ -142,6 +142,9 @@ static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_logical_cpus;
+static u_int	hyperthreading_cpus;
+static cpumask_t	hyperthreading_cpus_mask;
+static int	hyperthreading_allowed;
 static struct	sysctl_ctx_list logical_cpu_clist;
 static u_int	bootMP_size;
 
@@ -301,6 +304,7 @@ void
 cpu_mp_start(void)
 {
 	int i;
+	u_int threads_per_cache, p[4];
 
 	/* Initialize the logical ID to APIC ID table. */
 	for (i = 0; i < MAXCPU; i++) {
@@ -339,6 +343,48 @@ cpu_mp_start(void)
 	logical_cpus = logical_cpus_mask = 0;
 	if (cpu_feature & CPUID_HTT)
 		logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
+
+	/*
+	 * Work out if hyperthreading is *really* enabled.  This
+	 * is made really ugly by the fact that processors lie: Dual
+	 * core processors claim to be hyperthreaded even when they're
+	 * not, presumably because they want to be treated the same
+	 * way as HTT with respect to per-cpu software licensing.
+	 * At the time of writing (May 12, 2005) the only hyperthreaded
+	 * cpus are from Intel, and Intel's dual-core processors can be
+	 * identified via the "deterministic cache parameters" cpuid
+	 * calls.
+	 */
+	/*
+	 * First determine if this is an Intel processor which claims
+	 * to have hyperthreading support.
+	 */
+	if ((cpu_feature & CPUID_HTT) &&
+	    (strcmp(cpu_vendor, "GenuineIntel") == 0)) {
+		/*
+		 * If the "deterministic cache parameters" cpuid calls
+		 * are available, use them.
+		 */
+		if (cpu_high >= 4) {
+			/* Ask the processor about up to 32 caches. */
+			for (i = 0; i < 32; i++) {
+				cpuid_count(4, i, p);
+				threads_per_cache = ((p[0] & 0x3ffc000) >> 14) + 1;
+				if (hyperthreading_cpus < threads_per_cache)
+					hyperthreading_cpus = threads_per_cache;
+				if ((p[0] & 0x1f) == 0)
+					break;
+			}
+		}
+
+		/*
+		 * If the deterministic cache parameters are not
+		 * available, or if no caches were reported to exist,
+		 * just accept what the HTT flag indicated.
+		 */
+		if (hyperthreading_cpus == 0)
+			hyperthreading_cpus = logical_cpus;
+	}
 
 	set_logical_apic_ids();
 }
@@ -478,6 +524,11 @@ init_secondary(void)
 	if (logical_cpus > 1 && PCPU_GET(apic_id) % logical_cpus != 0)
 		logical_cpus_mask |= PCPU_GET(cpumask);
 	
+	/* Determine if we are a hyperthread. */
+	if (hyperthreading_cpus > 1 &&
+	    PCPU_GET(apic_id) % hyperthreading_cpus != 0)
+		hyperthreading_cpus_mask |= PCPU_GET(cpumask);
+
 	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
@@ -1081,6 +1132,9 @@ sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
 	else
 		hlt_logical_cpus = 0;
 
+	if (! hyperthreading_allowed)
+		mask |= hyperthreading_cpus_mask;
+
 	if ((mask & all_cpus) == all_cpus)
 		mask &= ~(1<<0);
 	hlt_cpus_mask = mask;
@@ -1105,10 +1159,41 @@ sysctl_hlt_logical_cpus(SYSCTL_HANDLER_ARGS)
 	else
 		hlt_cpus_mask &= ~logical_cpus_mask;
 
+	if (! hyperthreading_allowed)
+		hlt_cpus_mask |= hyperthreading_cpus_mask;
+
 	if ((hlt_cpus_mask & all_cpus) == all_cpus)
 		hlt_cpus_mask &= ~(1<<0);
 
 	hlt_logical_cpus = disable;
+	return (error);
+}
+
+static int
+sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
+{
+	int allowed, error;
+
+	allowed = hyperthreading_allowed;
+	error = sysctl_handle_int(oidp, &allowed, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (allowed)
+		hlt_cpus_mask &= ~hyperthreading_cpus_mask;
+	else
+		hlt_cpus_mask |= hyperthreading_cpus_mask;
+
+	if (logical_cpus_mask != 0 &&
+	    (hlt_cpus_mask & logical_cpus_mask) == logical_cpus_mask)
+		hlt_logical_cpus = 1;
+	else
+		hlt_logical_cpus = 0;
+
+	if ((hlt_cpus_mask & all_cpus) == all_cpus)
+		hlt_cpus_mask &= ~(1<<0);
+
+	hyperthreading_allowed = allowed;
 	return (error);
 }
 
@@ -1131,6 +1216,22 @@ cpu_hlt_setup(void *dummy __unused)
 
 		if (hlt_logical_cpus)
 			hlt_cpus_mask |= logical_cpus_mask;
+
+		/*
+		 * If necessary for security purposes, force
+		 * hyperthreading off, regardless of the value
+		 * of hlt_logical_cpus.
+		 */
+		if (hyperthreading_cpus_mask) {
+			TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
+			    &hyperthreading_allowed);
+			SYSCTL_ADD_PROC(&logical_cpu_clist,
+			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
+			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,
+			    0, 0, sysctl_hyperthreading_allowed, "IU", "");
+			if (! hyperthreading_allowed)
+				hlt_cpus_mask |= hyperthreading_cpus_mask;
+		}
 	}
 }
 SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
