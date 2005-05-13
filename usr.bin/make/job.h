@@ -56,7 +56,6 @@ struct Buffer;
 struct GNode;
 struct Lst;
 
-void Shell_Init(void);
 void Job_Touch(struct GNode *, Boolean);
 Boolean Job_CheckCommands(struct GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);
