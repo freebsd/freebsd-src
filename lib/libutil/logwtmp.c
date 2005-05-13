@@ -54,11 +54,6 @@ static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <utmp.h>
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 
 void
 logwtmp(const char *line, const char *name, const char *host)
@@ -86,7 +81,7 @@ logwtmp(const char *line, const char *name, const char *host)
 		else {
 			error = getnameinfo(res->ai_addr, res->ai_addrlen,
 					  fullhost, strlen(fullhost), NULL, 0,
-					  NI_NUMERICHOST|NI_WITHSCOPEID);
+					  NI_NUMERICHOST);
 			if (error != 0) {
 			  fprintf(stderr, "%d", error);
 				host = "invalid hostname";

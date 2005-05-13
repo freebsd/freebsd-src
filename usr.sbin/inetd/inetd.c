@@ -150,11 +150,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define NI_WITHSCOPEID	0
-#endif
-
 #ifndef LIBWRAP_ALLOW_FACILITY
 # define LIBWRAP_ALLOW_FACILITY LOG_AUTH
 #endif
@@ -663,17 +658,13 @@ main(int argc, char **argv)
 				      getnameinfo((struct sockaddr *)&peermax,
 						  peer.sa_len,
 						  pname, sizeof(pname),
-						  NULL, 0, 
-						  NI_NUMERICHOST|
-						  NI_WITHSCOPEID);
+						  NULL, 0, NI_NUMERICHOST);
 				    }
 			    } else {
 			            getnameinfo((struct sockaddr *)&peermax,
 						peer.sa_len,
 						pname, sizeof(pname),
-						NULL, 0, 
-						NI_NUMERICHOST|
-						NI_WITHSCOPEID);
+						NULL, 0, NI_NUMERICHOST);
 			    }
 			    syslog(LOG_INFO,"%s from %s", sep->se_service, pname);
 		    }
@@ -2117,7 +2108,7 @@ inetd_setproctitle(const char *a, int s)
 	size = sizeof(ss);
 	if (getpeername(s, (struct sockaddr *)&ss, &size) == 0) {
 		getnameinfo((struct sockaddr *)&ss, size, pbuf, sizeof(pbuf),
-			    NULL, 0, NI_NUMERICHOST|NI_WITHSCOPEID);
+			    NULL, 0, NI_NUMERICHOST);
 		(void) sprintf(buf, "%s [%s]", a, pbuf);
 	} else
 		(void) sprintf(buf, "%s", a);
@@ -2152,7 +2143,7 @@ check_loop(const struct sockaddr *sa, const struct servtab *sep)
 		}
 	isloop:
 		getnameinfo(sa, sa->sa_len, pname, sizeof(pname), NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
+			    NI_NUMERICHOST);
 		syslog(LOG_WARNING, "%s/%s:%s/%s loop request REFUSED from %s",
 		       sep->se_service, sep->se_proto,
 		       se2->se_service, se2->se_proto,
@@ -2346,7 +2337,7 @@ cpmip(const struct servtab *sep, int ctrl)
 			getnameinfo((struct sockaddr *)&rss,
 				    ((struct sockaddr *)&rss)->sa_len,
 				    pname, sizeof(pname), NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 			r = -1;
 			syslog(LOG_ERR,
 			    "%s from %s exceeded counts/min (limit %d/min)",
@@ -2396,13 +2387,13 @@ search_conn(struct servtab *sep, int ctrl)
 	}
 
 	if (getnameinfo((struct sockaddr *)&ss, sslen, pname, sizeof(pname),
-	    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+	    NULL, 0, NI_NUMERICHOST) != 0)
 		return NULL;
 
 	LIST_FOREACH(conn, &sep->se_conn[hv], co_link) {
 		if (getnameinfo((struct sockaddr *)&conn->co_addr,
 		    conn->co_addr.ss_len, pname2, sizeof(pname2), NULL, 0,
-		    NI_NUMERICHOST | NI_WITHSCOPEID) == 0 &&
+		    NI_NUMERICHOST) == 0 &&
 		    strcmp(pname, pname2) == 0)
 			break;
 	}
@@ -2439,7 +2430,7 @@ room_conn(struct servtab *sep, struct conninfo *conn)
 	if (conn->co_numchild >= sep->se_maxperip) {
 		getnameinfo((struct sockaddr *)&conn->co_addr,
 		    conn->co_addr.ss_len, pname, sizeof(pname), NULL, 0,
-		    NI_NUMERICHOST | NI_WITHSCOPEID);
+		    NI_NUMERICHOST);
 		syslog(LOG_ERR, "%s from %s exceeded counts (limit %d)",
 		    sep->se_service, pname, sep->se_maxperip);
 		return 0;

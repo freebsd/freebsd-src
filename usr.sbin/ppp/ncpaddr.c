@@ -388,13 +388,8 @@ ncpaddr_ntowa(const struct ncpaddr *addr)
 #if 0
     adjust_linklocal(&sin6);
 #endif
-#ifdef NI_WITHSCOPEID
-    if (getnameinfo((struct sockaddr *)&sin6, sizeof sin6, res, sizeof(res),
-                    NULL, 0, NI_WITHSCOPEID | NI_NUMERICHOST) != 0)
-#else
     if (getnameinfo((struct sockaddr *)&sin6, sizeof sin6, res, sizeof(res),
                     NULL, 0, NI_NUMERICHOST) != 0)
-#endif
       break;
 
     return res;
