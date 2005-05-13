@@ -41,7 +41,7 @@
 #ifndef str_h_44db59e6
 #define	str_h_44db59e6
 
-#include "sprite.h"
+#include "util.h"
 
 struct Buffer;
 

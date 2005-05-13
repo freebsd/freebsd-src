@@ -41,7 +41,7 @@
 #ifndef arch_h_488adf7a
 #define	arch_h_488adf7a
 
-#include "sprite.h"
+#include "util.h"
 
 struct GNode;
 struct Lst;

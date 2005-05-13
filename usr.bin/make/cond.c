@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "GNode.h"
 #include "make.h"
 #include "parse.h"
-#include "sprite.h"
 #include "str.h"
 #include "targ.h"
 #include "util.h"
