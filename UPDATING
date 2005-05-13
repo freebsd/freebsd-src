@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050513:	p15	FreeBSD-SA-05:09.htt
+	Add a knob for disabling/enabling HTT.  Default off due to information
+	disclosure on multi-user systems.
+
 20050508:	p14	FreeBSD-SA-05:08.kmem
 	Correct two issues which were missed from the earlier commit.
 
