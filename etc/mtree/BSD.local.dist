@@ -20,6 +20,8 @@
     lib
     ..
     libdata
+        pkgconfig
+        ..
     ..
     libexec
     ..
