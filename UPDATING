@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050513:	p9	FreeBSD-SA-05:09.htt
+	Add a knob for disabling/enabling HTT.  Default off due to information
+	disclosure on multi-user systems.
+
 20050508:	p8	FreeBSD-SA-05:08.kmem
 	Correct two issues which were missed from the earlier commit.
 
