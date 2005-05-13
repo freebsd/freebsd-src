@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <paths.h>
 #include <pthread.h>
+#include <errno.h>
 #include "un-namespace.h"
 
 #include "libc_private.h"
@@ -60,34 +61,32 @@ static pthread_mutex_t	ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_key_t	ttyname_key;
 static int		ttyname_init = 0;
 
-char *
+int
 ttyname_r(int fd, char *buf, size_t len)
 {
 	struct stat	sb;
-	char		*rval;
 	struct fiodgname_arg fgn;
 
-	rval = NULL;
 	*buf = '\0';
 
 	/* Must be a terminal. */
 	if (!isatty(fd))
-		return (rval);
+		return (ENOTTY);
 	/* Must be a character device. */
 	if (_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
-		return (rval);
+		return (ENOTTY);
 	/* Must have enough room */
 	if (len <= sizeof(_PATH_DEV))
-		return (rval);
+		return (ERANGE);
 
 	strcpy(buf, _PATH_DEV);
 	fgn.len = len - strlen(buf);
 	fgn.buf = buf + strlen(buf);
 	if (!_ioctl(fd, FIODGNAME, &fgn))
-		return(buf);
+		return (EINVAL);
 	devname_r(sb.st_rdev, S_IFCHR,
 	    buf + strlen(buf), sizeof(buf) - strlen(buf));
-	return (buf);
+	return (0);
 }
 
 char *
@@ -95,8 +94,12 @@ ttyname(int fd)
 {
 	char	*buf;
 
-	if (__isthreaded == 0)
-		return (ttyname_r(fd, ttyname_buf, sizeof ttyname_buf));
+	if (__isthreaded == 0) {
+		if (ttyname_r(fd, ttyname_buf, sizeof ttyname_buf) != 0)
+			return (NULL);
+		else
+			return (ttyname_buf);
+	}
 
 	if (ttyname_init == 0) {
 		_pthread_mutex_lock(&ttyname_lock);
@@ -121,6 +124,7 @@ ttyname(int fd)
 			return (NULL);
 		}
 	}
-	return (ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN));
+	ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN);
+	return (buf);
 }
 
