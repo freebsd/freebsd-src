@@ -162,7 +162,6 @@ ata_generic_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -537,7 +536,6 @@ ata_ahci_intr(void *data)
 
     port = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (port & (1 << unit)) {
 	    if ((ch = ctlr->interrupt[unit].argument)) {
@@ -606,7 +604,7 @@ ata_ahci_reset(device_t dev)
 	     cmd & ~(ATA_AHCI_P_CMD_CR | ATA_AHCI_P_CMD_FR |
 		     ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
 
-    DELAY(500000);	/* XXX SOS */
+    DELAY(500000);	/* XXX SOS this is not entirely wrong */
 
     /* spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SUD);
@@ -712,7 +710,6 @@ ata_acard_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -1148,7 +1145,7 @@ ata_cypress_setmode(device_t dev, int mode)
 
     mode = ata_limit_mode(dev, mode, ATA_WDMA2);
 
-    /* XXX missing WDMA0+1 + PIO modes */
+    /* XXX SOS missing WDMA0+1 + PIO modes */
     if (mode == ATA_WDMA2) { 
 	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 	if (bootverbose)
@@ -1249,7 +1246,6 @@ ata_highpoint_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -1470,7 +1466,6 @@ ata_intel_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -1902,7 +1897,6 @@ ata_nvidia_intr(void *data)
     u_int8_t status;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -2400,7 +2394,7 @@ ata_promise_mio_reset(device_t dev)
 		 (ATA_INL(ctlr->r_res2, 0xc0260 + (ch->unit << 7)) &
 		  ~0x00003f9f) | (ch->unit + 1));
 
-	/* softreset HOST module XXX SOS what about other outstandings */
+	/* softreset HOST module */ /* XXX SOS what about other outstandings */
 	mtx_lock(&hpktp->mtx);
 	ATA_OUTL(ctlr->r_res2, 0xc012c,
 		 (ATA_INL(ctlr->r_res2, 0xc012c) & ~0x00000f9f) | (1 << 11));
@@ -2706,7 +2700,6 @@ ata_promise_tx2_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -2733,7 +2726,6 @@ ata_promise_old_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -3186,7 +3178,6 @@ ata_sii_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -3246,7 +3237,6 @@ ata_cmd_intr(void *data)
     u_int8_t reg71;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
@@ -3275,7 +3265,6 @@ ata_cmd_old_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    /* implement this as a toggle instead to balance load XXX */
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
