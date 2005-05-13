@@ -63,11 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <arpa/nameser.h>
 #include "un-namespace.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define NI_WITHSCOPEID	0
-#endif
-
 extern int innetgr( const char *, const char *, const char *, const char * );
 
 #define max(a, b)	((a > b) ? a : b)
@@ -197,10 +192,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		if (nres > 1) {
 			int oerrno = errno;
 
-			getnameinfo(ai->ai_addr, ai->ai_addrlen,
-				    paddr, sizeof(paddr),
-				    NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+			getnameinfo(ai->ai_addr, ai->ai_addrlen, paddr,
+			    sizeof(paddr), NULL, 0, NI_NUMERICHOST);
 			(void)fprintf(stderr, "connect to address %s: ",
 				      paddr);
 			errno = oerrno;
@@ -218,10 +211,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			refused = 0;
 		}
 		if (nres > 1) {
-			getnameinfo(ai->ai_addr, ai->ai_addrlen,
-				    paddr, sizeof(paddr),
-				    NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+			getnameinfo(ai->ai_addr, ai->ai_addrlen, paddr,
+			    sizeof(paddr), NULL, 0, NI_NUMERICHOST);
 			fprintf(stderr, "Trying %s...\n", paddr);
 		}
 	}
@@ -717,9 +708,6 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 
 /*
  * Returns "true" if match, 0 if no match.
- *
- * NI_WITHSCOPEID is useful for comparing sin6_scope_id portion
- * if af == AF_INET6.
  */
 static int
 __icheckhost(raddr, salen, lhost)
@@ -748,7 +736,7 @@ __icheckhost(raddr, salen, lhost)
 
 	h1[0] = '\0';
 	if (getnameinfo(raddr, salen, h1, sizeof(h1), NULL, 0,
-			NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+			NI_NUMERICHOST) != 0)
 		return (0);
 
 	/* Resolve laddr into sockaddr */
@@ -763,7 +751,7 @@ __icheckhost(raddr, salen, lhost)
 	for (r = res; r ; r = r->ai_next) {
 		h2[0] = '\0';
 		if (getnameinfo(r->ai_addr, r->ai_addrlen, h2, sizeof(h2),
-				NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+				NULL, 0, NI_NUMERICHOST) != 0)
 			continue;
 		if (strcmp(h1, h2) == 0) {
 			freeaddrinfo(res);

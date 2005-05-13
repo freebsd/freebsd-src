@@ -94,11 +94,6 @@ __FBSDID("$FreeBSD$");
 
 #define		ARGSTR			"Daln"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 char	*env[2];
 #define	NMAX 30
 char	lusername[NMAX+1], rusername[NMAX+1];
@@ -233,7 +228,7 @@ doit(int f, union sockunion *fromp)
 			getnameinfo((struct sockaddr *)fromp,
 				    fromp->su_len,
 				    nameinfo, sizeof(nameinfo), NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    NI_NUMERICHOST);
 			/* error check ? */
 			syslog(LOG_NOTICE, "Connection from %s on illegal port",
 			       nameinfo);

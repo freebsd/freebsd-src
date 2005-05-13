@@ -366,11 +366,9 @@ char   *string;
 		return NO;
 	    memcpy(&addr, res->ai_addr, sizeof(addr));
 	    freeaddrinfo(res);
-#ifdef NI_WITHSCOPEID
 	    if (pat.sin6_scope_id != 0 &&
 		addr.sin6_scope_id != pat.sin6_scope_id)
 		return NO;
-#endif
 	    return (!memcmp(&pat.sin6_addr, &addr.sin6_addr,
 			    sizeof(struct in6_addr)));
 	    return (ret);
@@ -472,10 +470,8 @@ char   *string;
     if ((mask_len = atoi(mask_tok)) < 0 || mask_len > 128)
 	return NO;
 
-#ifdef NI_WITHSCOPEID
     if (net.sin6_scope_id != 0 && addr.sin6_scope_id != net.sin6_scope_id)
 	return NO;
-#endif
     while (mask_len > 0) {
 	if (mask_len < 32) {
 	    mask = htonl(~(0xffffffff >> mask_len));

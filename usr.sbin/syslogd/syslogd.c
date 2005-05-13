@@ -113,12 +113,6 @@ __FBSDID("$FreeBSD$");
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
 
-#ifdef NI_WITHSCOPEID
-static const int withscopeid = NI_WITHSCOPEID;
-#else
-static const int withscopeid;
-#endif
-
 const char	*ConfFile = _PATH_LOGCONF;
 const char	*PidFile = _PATH_LOGPID;
 const char	ctty[] = _PATH_CONSOLE;
@@ -1386,8 +1380,7 @@ cvthname(struct sockaddr *f)
 
 	error = getnameinfo((struct sockaddr *)f,
 			    ((struct sockaddr *)f)->sa_len,
-			    ip, sizeof ip, NULL, 0,
-			    NI_NUMERICHOST | withscopeid);
+			    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 	dprintf("cvthname(%s)\n", ip);
 
 	if (error) {
@@ -1402,8 +1395,7 @@ cvthname(struct sockaddr *f)
 	sigprocmask(SIG_BLOCK, &nmask, &omask);
 	error = getnameinfo((struct sockaddr *)f,
 			    ((struct sockaddr *)f)->sa_len,
-			    hname, sizeof hname, NULL, 0,
-			    NI_NAMEREQD | withscopeid);
+			    hname, sizeof hname, NULL, 0, NI_NAMEREQD);
 	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (error) {
 		dprintf("Host name for your address (%s) unknown\n", ip);
@@ -2236,13 +2228,11 @@ allowaddr(char *s)
 			printf("numeric, ");
 			getnameinfo((struct sockaddr *)&ap.a_addr,
 				    ((struct sockaddr *)&ap.a_addr)->sa_len,
-				    ip, sizeof ip, NULL, 0,
-				    NI_NUMERICHOST | withscopeid);
+				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("addr = %s, ", ip);
 			getnameinfo((struct sockaddr *)&ap.a_mask,
 				    ((struct sockaddr *)&ap.a_mask)->sa_len,
-				    ip, sizeof ip, NULL, 0,
-				    NI_NUMERICHOST | withscopeid);
+				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("mask = %s; ", ip);
 		} else {
 			printf("domainname = %s; ", ap.a_name);
@@ -2291,7 +2281,7 @@ validate(struct sockaddr *sa, const char *hname)
 		strlcat(name, LocalDomain, sizeof name);
 	}
 	if (getnameinfo(sa, sa->sa_len, ip, sizeof ip, port, sizeof port,
-			NI_NUMERICHOST | withscopeid | NI_NUMERICSERV) != 0)
+			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
 		return (0);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
 		ip, port, name);
@@ -2324,13 +2314,11 @@ validate(struct sockaddr *sa, const char *hname)
 				sin6 = (struct sockaddr_in6 *)sa;
 				a6p = (struct sockaddr_in6 *)&ap->a_addr;
 				m6p = (struct sockaddr_in6 *)&ap->a_mask;
-#ifdef NI_WITHSCOPEID
 				if (a6p->sin6_scope_id != 0 &&
 				    sin6->sin6_scope_id != a6p->sin6_scope_id) {
 					dprintf("rejected in rule %d due to scope mismatch.\n", i);
 					continue;
 				}
-#endif
 				reject = 0;
 				for (j = 0; j < 16; j += 4) {
 					if ((*(u_int32_t *)&sin6->sin6_addr.s6_addr[j] & *(u_int32_t *)&m6p->sin6_addr.s6_addr[j])
