@@ -47,7 +47,7 @@
  *	The global definitions for make
  */
 
-#include "sprite.h"
+#include "util.h"
 
 struct GNode;
 struct Lst;

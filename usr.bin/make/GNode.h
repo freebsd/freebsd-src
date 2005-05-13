@@ -41,8 +41,8 @@
 #ifndef GNode_h_39503bf2
 #define	GNode_h_39503bf2
 
-#include "sprite.h"
 #include "lst.h"
+#include "util.h"
 
 struct Suff;
 

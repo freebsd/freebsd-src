@@ -41,7 +41,7 @@
 #ifndef for_h_9d770f33
 #define	for_h_9d770f33
 
-#include "sprite.h"
+#include "util.h"
 
 Boolean For_For(char *);
 Boolean For_Eval(char *);

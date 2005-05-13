@@ -50,7 +50,7 @@
 
 #include <sys/types.h>
 
-#include "sprite.h"
+#include "util.h"
 
 /*
  * There are several places where expandable buffers are used (parse.c and

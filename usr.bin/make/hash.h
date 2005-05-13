@@ -49,7 +49,7 @@
  * 	which maintains hash tables.
  */
 
-#include "sprite.h"
+#include "util.h"
 
 /*
  * The following defines one entry in the hash table.
