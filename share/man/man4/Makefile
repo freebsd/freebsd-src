@@ -146,6 +146,7 @@ MAN=	aac.4 \
 	miibus.4 \
 	mlx.4 \
 	mly.4 \
+	mn.4 \
 	mouse.4 \
 	mpt.4 \
 	mtio.4 \
@@ -407,6 +408,7 @@ MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
+MLINKS+=mn.4 if_mn.4
 MLINKS+=my.4 if_my.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
