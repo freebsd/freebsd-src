@@ -323,12 +323,13 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	struct hostent *hp;
 	union inx_addr addrbuf;
 
-	if (af != AF_INET
+	switch (af) {
+	case AF_INET:
 #ifdef INET6
-	    && af != AF_INET6
+	case AF_INET6:
 #endif
-		)
-	{
+		break;
+	default:
 		*errp = NO_RECOVERY;
 		return NULL;
 	}
@@ -359,9 +360,8 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	hp = _ghbyname(name, af, flags, errp);
 
 #ifdef INET6
-	if (af == AF_INET6
-	&&  ((flags & AI_ALL) || hp == NULL)
-	&&  (MAPADDRENABLED(flags))) {
+	if (af == AF_INET6 && ((flags & AI_ALL) || hp == NULL) &&
+	    MAPADDRENABLED(flags)) {
 		struct hostent *hp2 = _ghbyname(name, AF_INET, flags, errp);
 		if (hp == NULL)
 			hp = _hpmapv6(hp2, errp);
