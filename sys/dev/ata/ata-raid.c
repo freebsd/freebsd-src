@@ -1082,7 +1082,7 @@ ata_raid_delete(int array)
 	    rdp->disks[disk].flags = 0;
 	}
     }
-    ata_raid_write_metadata(rdp);       /* wipe the metadata instead? XXX SOS */
+    ata_raid_write_metadata(rdp);       /* XXX SOS wipe metadata instead? */
     ata_raid_arrays[array] = NULL;
     free(rdp, M_AR);
     return 0;
@@ -1117,7 +1117,7 @@ ata_raid_addspare(int array, int spare)
 		if (ars->raid) 
 		    return EBUSY;
     
-		/* validate size etc etc XXX SOS */
+		/* XXX SOS validate size etc etc */
 		ars->raid = rdp;
 		ars->disk_number = disk;
 		rdp->disks[disk].dev = device_get_parent(subdisk);
@@ -1867,7 +1867,7 @@ device_printf(parent, "Intel calc=%08x meta=%08x\n", checksum, meta->checksum);
 	/*
 	 * update our knowledge about the array config based on generation
 	 * we only grap the first volume description (yet) since the
-	 * BIOS'n I have access to puts crap into the following XXX SOS
+	 * BIOS'n I have access to puts crap into the following ones
 	 */
 	if (!meta->generation || meta->generation > raid->generation) {
 	    struct intel_raid_mapping *map = 
@@ -2906,7 +2906,7 @@ ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp)
 	    raidp[array] = NULL;
 	    goto via_out;
 	}
-	raid->magic_0 = meta->disks[0]; /* XXX SOS hackish */
+	raid->magic_0 = meta->disks[0];
 	raid->format = AR_F_VIA_RAID;
 	raid->generation = 0;
 	raid->interleave = 0x08 << (meta->stripe_layout >> VIA_L_SHIFT);
