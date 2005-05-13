@@ -39,11 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "libutil.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 struct sockinet {
 	u_char	si_len;
 	u_char	si_family;
@@ -119,7 +114,7 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 #endif
 
 	error = getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
-			    NI_WITHSCOPEID | NI_NAMEREQD);
+			    NI_NAMEREQD);
 	if (error == 0) {
 		struct addrinfo hints, *res, *ores;
 		struct sockaddr *sa;
@@ -181,7 +176,7 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 	} else {
     numeric:
 		if (getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
-				NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
+				NI_NUMERICHOST) == 0)
 			strncpy(host, buf, hsize);
 	}
 

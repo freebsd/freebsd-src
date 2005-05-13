@@ -57,11 +57,6 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 static	struct in6_ifreq in6_ridreq;
 static	struct in6_aliasreq in6_addreq = 
   { { 0 }, 
@@ -236,8 +231,7 @@ in6_status(int s __unused, const struct rt_addrinfo * info)
 	scopeid = sin->sin6_scope_id;
 
 	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
-			    sizeof(addr_buf), NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
+			    sizeof(addr_buf), NULL, 0, NI_NUMERICHOST);
 	if (error != 0)
 		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 			  sizeof(addr_buf));
@@ -267,7 +261,7 @@ in6_status(int s __unused, const struct rt_addrinfo * info)
 			error = getnameinfo((struct sockaddr *)sin,
 					    sin->sin6_len, addr_buf,
 					    sizeof(addr_buf), NULL, 0,
-					    NI_NUMERICHOST|NI_WITHSCOPEID);
+					    NI_NUMERICHOST);
 			if (error != 0)
 				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 					  sizeof(addr_buf));
@@ -454,11 +448,6 @@ in6_status_tunnel(int s)
 {
 	char src[NI_MAXHOST];
 	char dst[NI_MAXHOST];
-#ifdef NI_WITHSCOPEID
-	const int niflag = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
-	const int niflag = NI_NUMERICHOST;
-#endif
 	struct in6_ifreq in6_ifr;
 	const struct sockaddr *sa = (const struct sockaddr *) &in6_ifr.ifr_addr;
 
@@ -469,14 +458,16 @@ in6_status_tunnel(int s)
 		return;
 	if (sa->sa_family == AF_INET6)
 		in6_fillscopeid(&in6_ifr.ifr_addr);
-	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0, niflag) != 0)
+	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0,
+	    NI_NUMERICHOST) != 0)
 		src[0] = '\0';
 
 	if (ioctl(s, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
 	if (sa->sa_family == AF_INET6)
 		in6_fillscopeid(&in6_ifr.ifr_addr);
-	if (getnameinfo(sa, sa->sa_len, dst, sizeof(dst), 0, 0, niflag) != 0)
+	if (getnameinfo(sa, sa->sa_len, dst, sizeof(dst), 0, 0,
+	    NI_NUMERICHOST) != 0)
 		dst[0] = '\0';
 
 	printf("\ttunnel inet6 %s --> %s\n", src, dst);
