@@ -335,43 +335,28 @@ Targ_FmtTime(time_t modtime)
 void
 Targ_PrintType(int type)
 {
-	int	tbit;
-
-#define	PRINTBIT(attr)				\
-	case CONCAT(OP_,attr):			\
-		printf("." #attr " ");		\
-		break
-
-#define	PRINTDBIT(attr)				\
-	case CONCAT(OP_,attr):			\
-		DEBUGF(TARG, ("." #attr " "));	\
-		break
+	static const struct flag2str type2str[] = {
+		{ OP_OPTIONAL,	".OPTIONAL" },
+		{ OP_USE,	".USE" },
+		{ OP_EXEC,	".EXEC" },
+		{ OP_IGNORE,	".IGNORE" },
+		{ OP_PRECIOUS,	".PRECIOUS" },
+		{ OP_SILENT,	".SILENT" },
+		{ OP_MAKE,	".MAKE" },
+		{ OP_JOIN,	".JOIN" },
+		{ OP_INVISIBLE,	".INVISIBLE" },
+		{ OP_NOTMAIN,	".NOTMAIN" },
+		{ OP_PHONY,	".PHONY" },
+		{ OP_LIB,	".LIB" },
+		{ OP_MEMBER,	".MEMBER" },
+		{ OP_ARCHV,	".ARCHV" },
+		{ 0,		NULL }
+	};
 
 	type &= ~OP_OPMASK;
-
-	while (type) {
-		tbit = 1 << (ffs(type) - 1);
-		type &= ~tbit;
-
-		switch(tbit) {
-		PRINTBIT(OPTIONAL);
-		PRINTBIT(USE);
-		PRINTBIT(EXEC);
-		PRINTBIT(IGNORE);
-		PRINTBIT(PRECIOUS);
-		PRINTBIT(SILENT);
-		PRINTBIT(MAKE);
-		PRINTBIT(JOIN);
-		PRINTBIT(INVISIBLE);
-		PRINTBIT(NOTMAIN);
-		PRINTDBIT(LIB);
-		/*XXX: MEMBER is defined, so CONCAT(OP_,MEMBER) gives OP_"%" */
-		case OP_MEMBER:
-			DEBUGF(TARG, (".MEMBER "));
-			break;
-		PRINTDBIT(ARCHV);
-		}
-	}
+	if (!DEBUG(TARG))
+		type &= ~(OP_ARCHV | OP_LIB | OP_MEMBER);
+	print_flags(stdout, type2str, type, 0);
 }
 
 /**
