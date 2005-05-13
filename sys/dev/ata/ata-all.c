@@ -525,13 +525,13 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 	break;
 
     case ATAATTACH:
-	/* SOS should enable channel HW on controller XXX */
+	/* XXX SOS should enable channel HW on controller */
 	error = ata_attach(device);
 	break;
 
     case ATADETACH:
 	error = ata_detach(device);
-	/* SOS should disable channel HW on controller XXX */
+	/* XXX SOS should disable channel HW on controller */
 	break;
 
     default:

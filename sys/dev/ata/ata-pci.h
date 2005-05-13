@@ -60,7 +60,7 @@ struct ata_pci_controller {
     struct {
     void                (*function)(void *);
     void                *argument;
-    } interrupt[8];     /* SOS max ch# for now XXX */
+    } interrupt[8];     /* XXX SOS max ch# for now */
 };
 
 /* structure for SATA connection update hotplug/hotswap support */

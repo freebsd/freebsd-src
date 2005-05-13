@@ -558,7 +558,7 @@ ata_pcichannel_detach(device_t dev)
     if (ch->dma)
 	ch->dma->free(dev);
 
-    /* free resources for io and ctlio XXX SOS */
+    /* XXX SOS free resources for io and ctlio ?? */
 
     return 0;
 }
