@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 #include "buf.h"
-#include "sprite.h"
 #include "util.h"
 
 /**

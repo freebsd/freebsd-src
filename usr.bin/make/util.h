@@ -44,6 +44,22 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+/*
+ * A boolean type is defined as an integer, not an enum. This allows a
+ * boolean argument to be an expression that isn't strictly 0 or 1 valued.
+ */
+
+typedef int Boolean;
+#ifndef TRUE
+#define	TRUE	1
+#define	FALSE	0
+#endif /* TRUE */
+
+typedef int  ReturnStatus;
+
+#define	SUCCESS		0
+#define	FAILURE		1
+
 #define	CONCAT(a,b)	a##b
 
 struct flag2str {
