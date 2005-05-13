@@ -95,6 +95,7 @@ smb_sm_done(void)
 		SMBERROR("%d connections still active\n", smb_vclist.co_usecount - 1);
 		return EBUSY;
 	}
+	lockmgr(&smb_vclist.co_lock, LK_DRAIN, 0, curthread);
 	smb_co_done(&smb_vclist);
 	return 0;
 }
@@ -239,6 +240,7 @@ static void
 smb_co_done(struct smb_connobj *cp)
 {
 	smb_sl_destroy(&cp->co_interlock);
+	lockmgr(&cp->co_lock, LK_RELEASE, 0, curthread);
 	lockdestroy(&cp->co_lock);
 }
 
@@ -313,16 +315,13 @@ void
 smb_co_put(struct smb_connobj *cp, struct smb_cred *scred)
 {
 	struct thread *td = scred->scr_td;
-	int flags;
 
-	flags = LK_RELEASE;
 	SMB_CO_LOCK(cp);
 	if (cp->co_usecount > 1) {
 		cp->co_usecount--;
 	} else if (cp->co_usecount == 1) {
 		cp->co_usecount--;
 		cp->co_flags |= SMBO_GONE;
-		flags = LK_DRAIN;
 	} else {
 		SMBERROR("negative usecount");
 	}
