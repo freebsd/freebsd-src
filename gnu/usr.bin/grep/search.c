@@ -73,22 +73,17 @@ static kwset_t kwset;
 static int kwset_exact_matches;
 
 #if defined(MBS_SUPPORT)
-static char* check_multibyte_string PARAMS ((char const *buf, size_t size,
-					     struct mb_cache *,
-					     char const *orig_buf));
+static char* check_multibyte_string PARAMS ((char const *buf, size_t size));
 #endif
 static void kwsinit PARAMS ((void));
 static void kwsmusts PARAMS ((void));
 static void Gcompile PARAMS ((char const *, size_t));
 static void Ecompile PARAMS ((char const *, size_t));
-static size_t EGexecute PARAMS ((char const *, size_t, struct mb_cache *,
-				 size_t *, int ));
+static size_t EGexecute PARAMS ((char const *, size_t, size_t *, int ));
 static void Fcompile PARAMS ((char const *, size_t));
-static size_t Fexecute PARAMS ((char const *, size_t, struct mb_cache *,
-				size_t *, int));
+static size_t Fexecute PARAMS ((char const *, size_t, size_t *, int));
 static void Pcompile PARAMS ((char const *, size_t ));
-static size_t Pexecute PARAMS ((char const *, size_t, struct mb_cache *,
-				size_t *, int));
+static size_t Pexecute PARAMS ((char const *, size_t, size_t *, int));
 
 void
 dfaerror (char const *mesg)
@@ -154,66 +149,35 @@ kwsmusts (void)
    are not singlebyte character nor the first byte of a multibyte
    character.  Caller must free the array.  */
 static char*
-check_multibyte_string(char const *buf, size_t size, struct mb_cache *mb_cache,
-		       char const *orig_buf)
+check_multibyte_string(char const *buf, size_t size)
 {
   char *mb_properties = xmalloc(size);
   mbstate_t cur_state;
   wchar_t wc;
   int i;
   memset(&cur_state, 0, sizeof(mbstate_t));
-
-  if (mb_cache && mb_cache->mblen_buf &&
-      orig_buf > mb_cache->orig_buf &&
-      (orig_buf + size) <= (mb_cache->orig_buf + mb_cache->len))
+  memset(mb_properties, 0, sizeof(char)*size);
+  for (i = 0; i < size ;)
     {
-      /* The cache can help us. */
-      memcpy (mb_properties,
-	      mb_cache->mblen_buf + (orig_buf - mb_cache->orig_buf),
-	      size);
-    
-    }
-  else
-    {
-      memset(mb_properties, 0, sizeof(char)*size);
-      for (i = 0; i < size ;)
-	{
-	  size_t mbclen;
-	  mbclen = mbrtowc(&wc, buf + i, size - i, &cur_state);
+      size_t mbclen;
+      mbclen = mbrtowc(&wc, buf + i, size - i, &cur_state);
 
-	  if (mbclen == (size_t) -1 || mbclen == (size_t) -2 || mbclen == 0)
-	    {
-	      /* An invalid sequence, or a truncated multibyte character.
-		 We treat it as a singlebyte character.  */
-	      mbclen = 1;
-	    }
-	  else if (match_icase)
-	    {
-	      if (iswupper((wint_t)wc))
-		{
-		  wc = towlower((wint_t)wc);
-		  wcrtomb(buf + i, wc, &cur_state);
-		}
-	    }
-	  mb_properties[i] = mbclen;
-	  i += mbclen;
-	}
-
-      /* Now populate the cache. */
-      if (mb_cache)
+      if (mbclen == (size_t) -1 || mbclen == (size_t) -2 || mbclen == 0)
 	{
-	  if (mb_cache->wcs_buf)
-	    {
-	      free (mb_cache->wcs_buf);
-	      mb_cache->wcs_buf = NULL;
-	    }
-	  if (mb_cache->mblen_buf)
-	    free (mb_cache->mblen_buf);
-	  mb_cache->len = size;
-	  mb_cache->orig_buf = orig_buf;
-	  mb_cache->mblen_buf = xmalloc (size);
-	  memcpy (mb_cache->mblen_buf, mb_properties, size);
+	  /* An invalid sequence, or a truncated multibyte character.
+	     We treat it as a singlebyte character.  */
+	  mbclen = 1;
 	}
+      else if (match_icase)
+	{
+	  if (iswupper((wint_t)wc))
+	    {
+	      wc = towlower((wint_t)wc);
+	      wcrtomb(buf + i, wc, &cur_state);
+	    }
+	}
+      mb_properties[i] = mbclen;
+      i += mbclen;
     }
 
   return mb_properties;
@@ -380,11 +344,9 @@ Ecompile (char const *pattern, size_t size)
 }
 
 static size_t
-EGexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
-	   size_t *match_size, int exact)
+EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 {
   register char const *buflim, *beg, *end;
-  char const *orig_buf = buf;
   char eol = eolbyte;
   int backref, start, len;
   struct kwsmatch kwsm;
@@ -400,7 +362,7 @@ EGexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
           buf = case_buf;
         }
       if (kwset)
-        mb_properties = check_multibyte_string(buf, size, mb_cache, orig_buf);
+        mb_properties = check_multibyte_string(buf, size);
     }
 #endif /* MBS_SUPPORT */
 
@@ -429,13 +391,13 @@ EGexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
 		--beg;
 	      if (kwsm.index < kwset_exact_matches)
 		goto success_in_beg_and_end;
-	      if (dfaexec (&dfa, beg, end - beg, &backref, mb_cache) == (size_t) -1)
+	      if (dfaexec (&dfa, beg, end - beg, &backref) == (size_t) -1)
 		continue;
 	    }
 	  else
 	    {
 	      /* No good fixed strings; start with DFA. */
-	      size_t offset = dfaexec (&dfa, beg, buflim - beg, &backref, mb_cache);
+	      size_t offset = dfaexec (&dfa, beg, buflim - beg, &backref);
 	      if (offset == (size_t) -1)
 		break;
 	      /* Narrow down to the line we've found. */
@@ -563,11 +525,9 @@ Fcompile (char const *pattern, size_t size)
 }
 
 static size_t
-Fexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
-	  size_t *match_size, int exact)
+Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 {
   register char const *beg, *try, *end;
-  char const *orig_buf = buf;
   register size_t len;
   char eol = eolbyte;
   struct kwsmatch kwsmatch;
@@ -582,7 +542,7 @@ Fexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
           memcpy(case_buf, buf, size);
           buf = case_buf;
         }
-      mb_properties = check_multibyte_string(buf, size, mb_cache, orig_buf);
+      mb_properties = check_multibyte_string(buf, size);
     }
 #endif /* MBS_SUPPORT */
 
@@ -747,8 +707,7 @@ Pcompile (char const *pattern, size_t size)
 }
 
 static size_t
-Pexecute (char const *buf, size_t size, struct mb_cache *mb_cache,
-	  size_t *match_size, int exact)
+Pexecute (char const *buf, size_t size, size_t *match_size, int exact)
 {
 #if !HAVE_LIBPCRE
   abort ();
