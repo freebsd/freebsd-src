@@ -515,9 +515,7 @@ cluster_callback(bp)
 	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;
 
-	VM_LOCK_GIANT();
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
-	VM_UNLOCK_GIANT();
 	/*
 	 * Move memory from the large cluster buffer into the component
 	 * buffers and mark IO as done on these.
