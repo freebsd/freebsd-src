@@ -24,8 +24,6 @@
    In addition to clobbering modularity, we eat up valuable
    name space. */
 
-#include "mbcache.h"
-
 #ifdef __STDC__
 # ifndef _PTR_T
 # define _PTR_T
@@ -407,8 +405,7 @@ extern void dfacomp PARAMS ((char const *, size_t, struct dfa *, int));
    order to verify backreferencing; otherwise the flag will be cleared.
    Returns (size_t) -1 if no match is found, or the offset of the first
    character after the first & shortest matching string in the buffer. */
-extern size_t dfaexec PARAMS ((struct dfa *, char const *, size_t, int *,
-			       struct mb_cache *));
+extern size_t dfaexec PARAMS ((struct dfa *, char const *, size_t, int *));
 
 /* Free the storage held by the components of a struct dfa. */
 extern void dfafree PARAMS ((struct dfa *));

@@ -2747,8 +2747,7 @@ transit_state (struct dfa *d, int s, unsigned char const **pp)
    match needs to be verified by a backtracking matcher.  Otherwise
    we store a 0 in *backref. */
 size_t
-dfaexec (struct dfa *d, char const *begin, size_t size, int *backref,
-	 struct mb_cache *mb_cache)
+dfaexec (struct dfa *d, char const *begin, size_t size, int *backref)
 {
   register int s;	/* Current state. */
   register unsigned char const *p; /* Current input character. */
@@ -2780,79 +2779,43 @@ dfaexec (struct dfa *d, char const *begin, size_t size, int *backref,
 #ifdef MBS_SUPPORT
   if (MB_CUR_MAX > 1)
     {
+      int remain_bytes, i;
       buf_begin = begin;
       buf_end = end;
-      if (mb_cache && mb_cache->mblen_buf && mb_cache->wcs_buf &&
-	  begin > mb_cache->orig_buf &&
-	  (begin + size) <= (mb_cache->orig_buf + mb_cache->len))
-	{
-	  /* The cache can help us. */
-	  MALLOC(mblen_buf, unsigned char, size + 2);
-	  MALLOC(inputwcs, wchar_t, size + 2);
-	  memcpy (mblen_buf,
-		  mb_cache->mblen_buf + (begin - mb_cache->orig_buf),
-		  (size + 2) * sizeof (unsigned char));
-	  memcpy (inputwcs,
-		  mb_cache->wcs_buf + (begin - mb_cache->orig_buf),
-		  (size + 2) * sizeof (wchar_t));
-	  mblen_buf[size + 1] = 0;
-	  inputwcs[size + 1] = 0;
-	}
-      else
-	{
-	  int remain_bytes, i;
 
-	  /* initialize mblen_buf, and inputwcs.  */
-	  MALLOC(mblen_buf, unsigned char, end - (unsigned char const *)begin + 2);
-	  MALLOC(inputwcs, wchar_t, end - (unsigned char const *)begin + 2);
-	  memset(&mbs, 0, sizeof(mbstate_t));
-	  remain_bytes = 0;
-	  for (i = 0; i < end - (unsigned char const *)begin + 1; i++)
+      /* initialize mblen_buf, and inputwcs.  */
+      MALLOC(mblen_buf, unsigned char, end - (unsigned char const *)begin + 2);
+      MALLOC(inputwcs, wchar_t, end - (unsigned char const *)begin + 2);
+      memset(&mbs, 0, sizeof(mbstate_t));
+      remain_bytes = 0;
+      for (i = 0; i < end - (unsigned char const *)begin + 1; i++)
+	{
+	  if (remain_bytes == 0)
 	    {
-	      if (remain_bytes == 0)
+	      remain_bytes
+		= mbrtowc(inputwcs + i, begin + i,
+			  end - (unsigned char const *)begin - i + 1, &mbs);
+	      if (remain_bytes <= 1)
 		{
-		  remain_bytes
-		    = mbrtowc(inputwcs + i, begin + i,
-			      end - (unsigned char const *)begin - i + 1, &mbs);
-		  if (remain_bytes <= 1)
-		    {
-		      remain_bytes = 0;
-		      inputwcs[i] = (wchar_t)begin[i];
-		      mblen_buf[i] = 0;
-		    }
-		  else
-		    {
-		      mblen_buf[i] = remain_bytes;
-		      remain_bytes--;
-		    }
+		  remain_bytes = 0;
+		  inputwcs[i] = (wchar_t)begin[i];
+		  mblen_buf[i] = 0;
 		}
 	      else
 		{
 		  mblen_buf[i] = remain_bytes;
-		  inputwcs[i] = 0;
 		  remain_bytes--;
 		}
 	    }
-	  mblen_buf[i] = 0;
-	  inputwcs[i] = 0; /* sentinel */
-
-	  if (mb_cache)
+	  else
 	    {
-	      /* Populate the cache. */
-	      mb_cache->len = size;
-	      mb_cache->orig_buf = begin;
-	      if (mb_cache->mblen_buf)
-		      free (mb_cache->mblen_buf);
-	      if (mb_cache->wcs_buf)
-		      free (mb_cache->wcs_buf);
-	      MALLOC(mb_cache->mblen_buf, unsigned char, size + 2);
-	      MALLOC(mb_cache->wcs_buf, wchar_t, size + 2);
-	      memcpy (mb_cache->mblen_buf, mblen_buf,
-		      (size + 2) * sizeof (unsigned char));
-	      memcpy (mb_cache->wcs_buf, inputwcs,
-		      (size + 2) * sizeof (wchar_t));
+	      mblen_buf[i] = remain_bytes;
+	      inputwcs[i] = 0;
+	      remain_bytes--;
 	    }
 	}
+      mblen_buf[i] = 0;
+      inputwcs[i] = 0; /* sentinel */
     }
 #endif /* MBS_SUPPORT */
 
