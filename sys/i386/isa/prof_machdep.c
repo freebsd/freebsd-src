@@ -44,13 +44,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/asmacros.h>
-
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/timerreg.h>
+#include <machine/timerreg.h>
 
 #ifdef GUPROF
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
