@@ -106,6 +106,10 @@ gv_parityop(struct g_geom *gp, struct gctl_req *req)
 		    p->name);
 		goto out;
 	}
+	if (p->org != GV_PLEX_RAID5) {
+		gctl_error(req, "plex %s is not a RAID5 plex", p->name);
+		goto out;
+	}
 
 	cp = p->consumer;
 	error = g_access(cp, 1, 1, 0);
@@ -473,6 +477,13 @@ gv_sync_td(void *arg)
 	to = sync->to->consumer;
 
 	p = sync->to;
+
+	if (p->flags & GV_PLEX_SYNCING) {
+		printf("GEOM_VINUM: plex '%s' is already syncing.\n", p->name);
+		g_free(sync);
+		kthread_exit(0);
+	}
+
 	p->synced = 0;
 	p->flags |= GV_PLEX_SYNCING;
 
@@ -482,16 +493,18 @@ gv_sync_td(void *arg)
 	error = g_access(from, 1, 0, 0);
 	if (error) {
 		g_topology_unlock();
-		printf("gvinum: sync from '%s' failed to access consumer: %d\n",
-		    sync->from->name, error);
+		printf("GEOM_VINUM: sync from '%s' failed to access "
+		    "consumer: %d\n", sync->from->name, error);
+		g_free(sync);
 		kthread_exit(error);
 	}
 	error = g_access(to, 0, 1, 0);
 	if (error) {
 		g_access(from, -1, 0, 0);
 		g_topology_unlock();
-		printf("gvinum: sync to '%s' failed to access consumer: %d\n",
-		    p->name, error);
+		printf("GEOM_VINUM: sync to '%s' failed to access "
+		    "consumer: %d\n", p->name, error);
+		g_free(sync);
 		kthread_exit(error);
 	}
 	g_topology_unlock();
@@ -502,8 +515,9 @@ gv_sync_td(void *arg)
 		/* Read some bits from the good plex. */
 		buf = g_read_data(from, i, sync->syncsize, &error);
 		if (buf == NULL) {
-			printf("gvinum: sync read from '%s' failed at offset "
-			    "%jd, errno: %d\n", sync->from->name, i, error);
+			printf("GEOM_VINUM: sync read from '%s' failed at "
+			    "offset %jd; errno: %d\n", sync->from->name, i,
+			    error);
 			break;
 		}
 
@@ -515,8 +529,8 @@ gv_sync_td(void *arg)
 		 */
 		bp = g_new_bio();
 		if (bp == NULL) {
-			printf("gvinum: sync write to '%s' failed at offset "
-			    "%jd, out of memory\n", p->name, i);
+			printf("GEOM_VINUM: sync write to '%s' failed at "
+			    "offset %jd; out of memory\n", p->name, i);
 			g_free(buf);
 			break;
 		}
@@ -540,8 +554,8 @@ gv_sync_td(void *arg)
 		g_destroy_bio(bp);
 		g_free(buf);
 		if (error) {
-			printf("gvinum: sync write to '%s' failed at offset "
-			    "%jd, errno: %d\n", p->name, i, error);
+			printf("GEOM_VINUM: sync write to '%s' failed at "
+			    "offset %jd; errno: %d\n", p->name, i, error);
 			break;
 		}
 
@@ -556,11 +570,12 @@ gv_sync_td(void *arg)
 	g_topology_unlock();
 
 	/* Successful initialization. */
-	if (!error) {
-		p->flags &= ~GV_PLEX_SYNCING;
+	if (!error)
 		printf("GEOM_VINUM: plex sync %s -> %s finished\n",
 		    sync->from->name, sync->to->name);
-	}
+
+	p->flags &= ~GV_PLEX_SYNCING;
+	p->synced = 0;
 
 	g_free(sync);
 	kthread_exit(error);
