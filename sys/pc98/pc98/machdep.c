@@ -2235,6 +2235,7 @@ fill_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
+	pcb = td->td_pcb;
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -2250,7 +2251,6 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	pcb = td->td_pcb;
 	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
@@ -2265,6 +2265,7 @@ set_regs(struct thread *td, struct reg *regs)
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_eflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);
+	pcb = td->td_pcb;
 	tp->tf_fs = regs->r_fs;
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
@@ -2280,7 +2281,6 @@ set_regs(struct thread *td, struct reg *regs)
 	tp->tf_eflags = regs->r_eflags;
 	tp->tf_esp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
-	pcb = td->td_pcb;
 	pcb->pcb_gs = regs->r_gs;
 	return (0);
 }
