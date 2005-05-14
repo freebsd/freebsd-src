@@ -329,11 +329,33 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
   int backref, start, len;
   struct kwsmatch kwsm;
   size_t i, ret_val;
+  static int use_dfa;
+  static int use_dfa_checked = 0;
 #ifdef MBS_SUPPORT
   int mb_cur_max = MB_CUR_MAX;
   mbstate_t mbs;
   memset (&mbs, '\0', sizeof (mbstate_t));
 #endif /* MBS_SUPPORT */
+
+  if (!use_dfa_checked)
+    {
+      char *grep_use_dfa = getenv ("GREP_USE_DFA");
+      if (!grep_use_dfa)
+	{
+#ifdef MBS_SUPPORT
+	  /* Turn off DFA when processing multibyte input. */
+	  use_dfa = (MB_CUR_MAX == 1);
+#else
+	  use_dfa = 1;
+#endif /* MBS_SUPPORT */
+	}
+      else
+	{
+	  use_dfa = atoi (grep_use_dfa);
+	}
+
+      use_dfa_checked = 1;
+    }
 
   buflim = buf + size;
 
@@ -402,7 +424,8 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 #endif /* MBS_SUPPORT */
 		  (kwsm.index < kwset_exact_matches))
 		goto success_in_beg_and_end;
-	      if (dfaexec (&dfa, beg, end - beg, &backref) == (size_t) -1)
+	      if (use_dfa &&
+		  dfaexec (&dfa, beg, end - beg, &backref) == (size_t) -1)
 		continue;
 	    }
 	  else
@@ -411,7 +434,9 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 #ifdef MBS_SUPPORT
 	      size_t bytes_left = 0;
 #endif /* MBS_SUPPORT */
-	      size_t offset = dfaexec (&dfa, beg, buflim - beg, &backref);
+	      size_t offset = 0;
+	      if (use_dfa)
+		offset = dfaexec (&dfa, beg, buflim - beg, &backref);
 	      if (offset == (size_t) -1)
 		break;
 	      /* Narrow down to the line we've found. */
@@ -453,7 +478,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		--beg;
 	    }
 	  /* Successful, no backreferences encountered! */
-	  if (!backref)
+	  if (use_dfa && !backref)
 	    goto success_in_beg_and_end;
 	}
       else
