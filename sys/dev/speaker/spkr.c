@@ -19,14 +19,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>
 #include <sys/malloc.h>
 #include <isa/isavar.h>
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 
 static	d_open_t	spkropen;
 static	d_close_t	spkrclose;
@@ -58,34 +54,10 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
  * used to generate clicks (a square wave) of whatever frequency is desired.
  */
 
-/*
- * XXX PPI control values should be in a header and used in clock.c.
- */
 #ifdef PC98
 #define	SPKR_DESC	"PC98 speaker"
-#define	PPI_SPKR	0x08	/* turn these PPI bits on to pass sound */
-#define	PIT_COUNT	0x3fdb	/* PIT count address */
-
-#define	SPEAKER_ON	outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR)
-#define	SPEAKER_OFF	outb(IO_PPI, inb(IO_PPI) | PPI_SPKR)
-#define	TIMER_ACQUIRE	acquire_timer1(TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT)
-#define	TIMER_RELEASE	release_timer1()
-#define	SPEAKER_WRITE(val)	{ \
-					outb(PIT_COUNT, (val & 0xff)); \
-					outb(PIT_COUNT, (val >> 8)); \
-				}
 #else
 #define	SPKR_DESC	"PC speaker"
-#define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
-
-#define	SPEAKER_ON	outb(IO_PPI, inb(IO_PPI) | PPI_SPKR)
-#define	SPEAKER_OFF	outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR)
-#define	TIMER_ACQUIRE	acquire_timer2(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT)
-#define	TIMER_RELEASE	release_timer2()
-#define	SPEAKER_WRITE(val)	{ \
-					outb(TIMER_CNTR2, (val & 0xff)); \
-    					outb(TIMER_CNTR2, (val >> 8)); \
-				}
 #endif
 
 #define SPKRPRI PSOCK
@@ -117,18 +89,18 @@ tone(thz, ticks)
     /* set timer to generate clicks at given frequency in Hertz */
     sps = splclock();
 
-    if (TIMER_ACQUIRE) {
+    if (timer_spkr_acquire()) {
 	/* enter list of waiting procs ??? */
 	splx(sps);
 	return;
     }
     splx(sps);
     disable_intr();
-    SPEAKER_WRITE(divisor);
+    spkr_set_pitch(divisor);
     enable_intr();
 
     /* turn the speaker on */
-    SPEAKER_ON;
+    ppi_spkr_on();
 
     /*
      * Set timeout to endtone function, then give up the timeslice.
@@ -137,9 +109,9 @@ tone(thz, ticks)
      */
     if (ticks > 0)
 	tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
-    SPEAKER_OFF;
+    ppi_spkr_off();
     sps = splclock();
-    TIMER_RELEASE;
+    timer_spkr_release();
     splx(sps);
 }
 

@@ -79,6 +79,8 @@
 #include <machine/apicvar.h>
 #endif
 #include <machine/specialreg.h>
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 
 #include <i386/isa/icu.h>
 #include <pc98/cbus/cbus.h>
@@ -86,7 +88,6 @@
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
-#include <i386/isa/timerreg.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -357,8 +358,8 @@ DELAY(int n)
 static void
 sysbeepstop(void *chan)
 {
-	outb(IO_PPI, inb(IO_PPI)|0x08);	/* disable counter1 output to speaker */
-	release_timer1();
+	ppi_spkr_off();		/* disable counter1 output to speaker */
+	timer_spkr_release();
 	beeping = 0;
 }
 
@@ -367,19 +368,18 @@ sysbeep(int pitch, int period)
 {
 	int x = splclock();
 
-	if (acquire_timer1(TIMER_SQWAVE|TIMER_16BIT))
+	if (timer_spkr_acquire())
 		if (!beeping) {
 			/* Something else owns it. */
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
 	disable_intr();
-	outb(0x3fdb, pitch);
-	outb(0x3fdb, (pitch>>8));
+	spkr_set_pitch(pitch);
 	enable_intr();
 	if (!beeping) {
 		/* enable counter1 output to speaker */
-		outb(IO_PPI, (inb(IO_PPI) & 0xf7));
+		ppi_spkr_on();
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}

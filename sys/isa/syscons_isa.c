@@ -43,13 +43,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 #include <machine/pc/bios.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
-
-#include <i386/isa/timerreg.h>
 
 #define BIOS_CLKED	(1 << 6)
 #define BIOS_NLKED	(1 << 5)
@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/syscons/syscons.h>
 
-#include <isa/isareg.h>
 #include <isa/isavar.h>
 
 static devclass_t	sc_devclass;
@@ -256,22 +255,18 @@ int
 sc_tone(int herz)
 {
 #if defined(__i386__) || defined(__amd64__)
-	int pitch;
-
 	if (herz) {
 		/* set command for counter 2, 2 byte write */
-		if (acquire_timer2(TIMER_16BIT | TIMER_SQWAVE))
+		if (timer_spkr_acquire())
 			return EBUSY;
 		/* set pitch */
-		pitch = timer_freq/herz;
-		outb(TIMER_CNTR2, pitch);
-		outb(TIMER_CNTR2, pitch >> 8);
+		spkr_set_pitch(timer_freq / herz);
 		/* enable counter 2 output to speaker */
-		outb(IO_PPI, inb(IO_PPI) | 3);
+		ppi_spkr_on();
 	} else {
 		/* disable counter 2 output to speaker */
-		outb(IO_PPI, inb(IO_PPI) & 0xFC);
-		release_timer2();
+		ppi_spkr_off();
+		timer_spkr_release();
 	}
 #endif
 

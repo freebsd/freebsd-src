@@ -60,9 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/md_var.h>
 #include <machine/rpb.h>	/* for CPU definitions, etc */
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 
 #include <isa/isareg.h>
-#include <alpha/alpha/timerreg.h>
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */
@@ -704,8 +705,8 @@ release_timer2(void)
 static void
 sysbeepstop(void *chan)
 {
-	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
-	release_timer2();
+	ppi_spkr_off();		/* disable counter2 output to speaker */
+	timer_spkr_release();
 	beeping = 0;
 }
 
@@ -723,7 +724,7 @@ sysbeep(int pitch, int period)
 
 	mtx_lock_spin(&clock_lock);
 
-	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
+	if (timer_spkr_acquire())
 		if (!beeping) {
 			/* Something else owns it. */
 			mtx_unlock_spin(&clock_lock);
@@ -732,12 +733,11 @@ sysbeep(int pitch, int period)
 
 	if (pitch) pitch = TIMER_DIV(pitch);
 
-	outb(TIMER_CNTR2, pitch);
-	outb(TIMER_CNTR2, (pitch>>8));
+	spkr_set_pitch(pitch);
 	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
-		if (pitch) outb(IO_PPI, inb(IO_PPI) | 3);
+		if (pitch) ppi_spkr_on();
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}

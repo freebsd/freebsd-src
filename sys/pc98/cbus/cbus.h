@@ -57,9 +57,7 @@
 #define	IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
 #define	IO_RTC		0x020		/* 4990A RTC */
 #define	IO_SYSPORT	0x031		/* 8255A System Port */
-#define	IO_PPI		0x035		/* Programmable Peripheral Interface */
 #define	IO_KBD		0x041		/* 8251A Keyboard */
-#define	IO_TIMER1	0x071		/* 8253C Timer */
 #define	IO_COM2		0x0B1		/* 8251A RS232C serial I/O (ext) */
 #define	IO_COM3		0x0B9		/* 8251A RS232C serial I/O (ext) */
 #define	IO_FDPORT	0x0BE		/* FD I/F port (1M<->640K,EMTON) */
