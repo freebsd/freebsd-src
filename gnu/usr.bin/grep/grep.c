@@ -674,6 +674,7 @@ prline (char const *beg, char const *lim, int sep)
 	  fputs ("\33[00m", stdout);
 	  beg = b + match_size;
 	}
+      fputs ("\33[K", stdout);
     }
   fwrite (beg, 1, lim - beg, stdout);
   if (ferror (stdout))
