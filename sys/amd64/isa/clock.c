@@ -72,13 +72,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/apicvar.h>
 #include <machine/specialreg.h>
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 
-#include <amd64/isa/isa.h>
 #include <isa/rtc.h>
 #ifdef DEV_ISA
+#include <isa/isareg.h>
 #include <isa/isavar.h>
 #endif
-#include <amd64/isa/timerreg.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -365,8 +366,8 @@ DELAY(int n)
 static void
 sysbeepstop(void *chan)
 {
-	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
-	release_timer2();
+	ppi_spkr_off();		/* disable counter2 output to speaker */
+	timer_spkr_release();
 	beeping = 0;
 }
 
@@ -375,19 +376,18 @@ sysbeep(int pitch, int period)
 {
 	int x = splclock();
 
-	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
+	if (timer_spkr_acquire())
 		if (!beeping) {
 			/* Something else owns it. */
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
 	mtx_lock_spin(&clock_lock);
-	outb(TIMER_CNTR2, pitch);
-	outb(TIMER_CNTR2, (pitch>>8));
+	spkr_set_pitch(pitch);
 	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
-		outb(IO_PPI, inb(IO_PPI) | 3);
+		ppi_spkr_on();
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}

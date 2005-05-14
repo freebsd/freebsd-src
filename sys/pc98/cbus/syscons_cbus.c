@@ -38,13 +38,13 @@
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
+#include <machine/ppireg.h>
+#include <machine/timerreg.h>
 
 #include <pc98/cbus/cbus.h>
 #include <pc98/pc98/pc98_machdep.h>
 
 #include <dev/syscons/syscons.h>
-
-#include <i386/isa/timerreg.h>
 
 #include <isa/isavar.h>
 
@@ -227,22 +227,19 @@ sc_get_bios_values(bios_values_t *values)
 int
 sc_tone(int herz)
 {
-	int pitch;
 
 	if (herz) {
 		/* enable counter 1 */
-		outb(0x35, inb(0x35) & 0xf7);
+		ppi_spkr_on();
 		/* set command for counter 1, 2 byte write */
-		if (acquire_timer1(TIMER_16BIT | TIMER_SQWAVE))
+		if (timer_spkr_acquire())
 			return EBUSY;
 		/* set pitch */
-		pitch = timer_freq/herz;
-		outb(TIMER_CNTR1, pitch);
-		outb(TIMER_CNTR1, pitch >> 8);
+		spkr_set_pitch(timer_freq / herz);
 	} else {
 		/* disable counter 1 */
-		outb(0x35, inb(0x35) | 0x08);
-		release_timer1();
+		ppi_spkr_off();
+		timer_spkr_release();
 	}
 	return 0;
 }

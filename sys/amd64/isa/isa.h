@@ -52,10 +52,7 @@
 #define	IO_DMA1		0x000		/* 8237A DMA Controller #1 */
 #define	IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
 #define	IO_PMP1		0x026		/* 82347 Power Management Peripheral */
-#define	IO_TIMER1	0x040		/* 8253 Timer #1 */
-#define	IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define	IO_KBD		0x060		/* 8042 Keyboard */
-#define	IO_PPI		0x061		/* Programmable Peripheral Interface */
 #define	IO_RTC		0x070		/* RTC */
 #define	IO_NMI		IO_RTC		/* NMI Control */
 #define	IO_DMAPG	0x080		/* DMA Page Registers */
