@@ -277,7 +277,7 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 	t->tv_sec += time->hour * 3600;
 	t->tv_sec += time->day * 3600 * 24;
 
-	/* Calclulate the month */
+	/* Calculate the month */
 	lpyear = udf_isaleapyear(year);
 	for (i = 1; i < time->month; i++)
 		t->tv_sec += mon_lens[lpyear][i] * 3600 * 24;
@@ -296,7 +296,7 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 
 	/*
 	 * Calculate the time zone.  The timezone is 12 bit signed 2's
-	 * compliment, so we gotta do some extra magic to handle it right.
+	 * complement, so we gotta do some extra magic to handle it right.
 	 */
 	tz.u_tz_offset = le16toh(time->type_tz);
 	tz.u_tz_offset &= 0x0fff;
@@ -496,7 +496,7 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 
 /*
  * Compare a CS0 dstring with a name passed in from the VFS layer.  Return
- * 0 on a successful match, nonzero therwise.  Unicode work may need to be done
+ * 0 on a successful match, nonzero otherwise.  Unicode work may need to be done
  * here also.
  */
 static int
