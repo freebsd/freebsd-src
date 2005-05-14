@@ -20,9 +20,13 @@
 
 /* $FreeBSD$ */
 
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE 1
+#endif
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+#include <assert.h>
 #include <sys/types.h>
 #if defined HAVE_WCTYPE_H && defined HAVE_WCHAR_H && defined HAVE_MBRTOWC
 /* We can handle multibyte string.  */
@@ -40,6 +44,9 @@
 #include "xalloc.h"
 #ifdef HAVE_LIBPCRE
 # include <pcre.h>
+#endif
+#ifdef HAVE_LANGINFO_CODESET
+# include <langinfo.h>
 #endif
 
 #define NCHAR (UCHAR_MAX + 1)
@@ -72,9 +79,10 @@ static kwset_t kwset;
    call the regexp matcher at all. */
 static int kwset_exact_matches;
 
-#if defined(MBS_SUPPORT)
-static char* check_multibyte_string PARAMS ((char const *buf, size_t size));
-#endif
+/* UTF-8 encoding allows some optimizations that we can't otherwise
+   assume in a multibyte encoding. */
+static int using_utf8;
+
 static void kwsinit PARAMS ((void));
 static void kwsmusts PARAMS ((void));
 static void Gcompile PARAMS ((char const *, size_t));
@@ -84,6 +92,15 @@ static void Fcompile PARAMS ((char const *, size_t));
 static size_t Fexecute PARAMS ((char const *, size_t, size_t *, int));
 static void Pcompile PARAMS ((char const *, size_t ));
 static size_t Pexecute PARAMS ((char const *, size_t, size_t *, int));
+
+void
+check_utf8 (void)
+{
+#ifdef HAVE_LANGINFO_CODESET
+  if (strcmp (nl_langinfo (CODESET), "UTF-8") == 0)
+    using_utf8 = 1;
+#endif
+}
 
 void
 dfaerror (char const *mesg)
@@ -143,47 +160,6 @@ kwsmusts (void)
     }
 }
 
-#ifdef MBS_SUPPORT
-/* This function allocate the array which correspond to "buf".
-   Then this check multibyte string and mark on the positions which
-   are not singlebyte character nor the first byte of a multibyte
-   character.  Caller must free the array.  */
-static char*
-check_multibyte_string(char const *buf, size_t size)
-{
-  char *mb_properties = xmalloc(size);
-  mbstate_t cur_state;
-  wchar_t wc;
-  int i;
-  memset(&cur_state, 0, sizeof(mbstate_t));
-  memset(mb_properties, 0, sizeof(char)*size);
-  for (i = 0; i < size ;)
-    {
-      size_t mbclen;
-      mbclen = mbrtowc(&wc, buf + i, size - i, &cur_state);
-
-      if (mbclen == (size_t) -1 || mbclen == (size_t) -2 || mbclen == 0)
-	{
-	  /* An invalid sequence, or a truncated multibyte character.
-	     We treat it as a singlebyte character.  */
-	  mbclen = 1;
-	}
-      else if (match_icase)
-	{
-	  if (iswupper((wint_t)wc))
-	    {
-	      wc = towlower((wint_t)wc);
-	      wcrtomb(buf + i, wc, &cur_state);
-	    }
-	}
-      mb_properties[i] = mbclen;
-      i += mbclen;
-    }
-
-  return mb_properties;
-}
-#endif
-
 static void
 Gcompile (char const *pattern, size_t size)
 {
@@ -192,6 +168,7 @@ Gcompile (char const *pattern, size_t size)
   size_t total = size;
   char const *motif = pattern;
 
+  check_utf8 ();
   re_set_syntax (RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE);
   dfasyntax (RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE, match_icase, eolbyte);
 
@@ -268,6 +245,7 @@ Ecompile (char const *pattern, size_t size)
   size_t total = size;
   char const *motif = pattern;
 
+  check_utf8 ();
   if (strcmp (matcher, "awk") == 0)
     {
       re_set_syntax (RE_SYNTAX_AWK);
@@ -352,18 +330,9 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
   struct kwsmatch kwsm;
   size_t i, ret_val;
 #ifdef MBS_SUPPORT
-  char *mb_properties = NULL;
-  if (MB_CUR_MAX > 1)
-    {
-      if (match_icase)
-        {
-          char *case_buf = xmalloc(size);
-          memcpy(case_buf, buf, size);
-          buf = case_buf;
-        }
-      if (kwset)
-        mb_properties = check_multibyte_string(buf, size);
-    }
+  int mb_cur_max = MB_CUR_MAX;
+  mbstate_t mbs;
+  memset (&mbs, '\0', sizeof (mbstate_t));
 #endif /* MBS_SUPPORT */
 
   buflim = buf + size;
@@ -375,21 +344,63 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	  if (kwset)
 	    {
 	      /* Find a possible match using the KWset matcher. */
-	      size_t offset = kwsexec (kwset, beg, buflim - beg, &kwsm);
+#ifdef MBS_SUPPORT
+	      size_t bytes_left = 0;
+#endif /* MBS_SUPPORT */
+	      size_t offset;
+#ifdef MBS_SUPPORT
+	      /* kwsexec doesn't work with match_icase and multibyte input. */
+	      if (match_icase && mb_cur_max > 1)
+		/* Avoid kwset */
+		offset = 0;
+	      else
+#endif /* MBS_SUPPORT */
+	      offset = kwsexec (kwset, beg, buflim - beg, &kwsm);
 	      if (offset == (size_t) -1)
 	        goto failure;
+#ifdef MBS_SUPPORT
+	      if (mb_cur_max > 1 && !using_utf8)
+		{
+		  bytes_left = offset;
+		  while (bytes_left)
+		    {
+		      size_t mlen = mbrlen (beg, bytes_left, &mbs);
+		      if (mlen == (size_t) -1 || mlen == 0)
+			{
+			  /* Incomplete character: treat as single-byte. */
+			  memset (&mbs, '\0', sizeof (mbstate_t));
+			  beg++;
+			  bytes_left--;
+			  continue;
+			}
+
+		      if (mlen == (size_t) -2)
+			/* Offset points inside multibyte character:
+			 * no good. */
+			break;
+
+		      beg += mlen;
+		      bytes_left -= mlen;
+		    }
+		}
+	      else
+#endif /* MBS_SUPPORT */
 	      beg += offset;
 	      /* Narrow down to the line containing the candidate, and
 		 run it through DFA. */
 	      end = memchr(beg, eol, buflim - beg);
 	      end++;
 #ifdef MBS_SUPPORT
-	      if (MB_CUR_MAX > 1 && mb_properties[beg - buf] == 0)
+	      if (mb_cur_max > 1 && bytes_left)
 		continue;
-#endif
+#endif /* MBS_SUPPORT */
 	      while (beg > buf && beg[-1] != eol)
 		--beg;
-	      if (kwsm.index < kwset_exact_matches)
+	      if (
+#ifdef MBS_SUPPORT
+		  !(match_icase && mb_cur_max > 1) &&
+#endif /* MBS_SUPPORT */
+		  (kwsm.index < kwset_exact_matches))
 		goto success_in_beg_and_end;
 	      if (dfaexec (&dfa, beg, end - beg, &backref) == (size_t) -1)
 		continue;
@@ -397,13 +408,47 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	  else
 	    {
 	      /* No good fixed strings; start with DFA. */
+#ifdef MBS_SUPPORT
+	      size_t bytes_left = 0;
+#endif /* MBS_SUPPORT */
 	      size_t offset = dfaexec (&dfa, beg, buflim - beg, &backref);
 	      if (offset == (size_t) -1)
 		break;
 	      /* Narrow down to the line we've found. */
+#ifdef MBS_SUPPORT
+	      if (mb_cur_max > 1 && !using_utf8)
+		{
+		  bytes_left = offset;
+		  while (bytes_left)
+		    {
+		      size_t mlen = mbrlen (beg, bytes_left, &mbs);
+		      if (mlen == (size_t) -1 || mlen == 0)
+			{
+			  /* Incomplete character: treat as single-byte. */
+			  memset (&mbs, '\0', sizeof (mbstate_t));
+			  beg++;
+			  bytes_left--;
+			  continue;
+			}
+
+		      if (mlen == (size_t) -2)
+			/* Offset points inside multibyte character:
+			 * no good. */
+			break;
+
+		      beg += mlen;
+		      bytes_left -= mlen;
+		    }
+		}
+	      else
+#endif /* MBS_SUPPORT */
 	      beg += offset;
 	      end = memchr (beg, eol, buflim - beg);
 	      end++;
+#ifdef MBS_SUPPORT
+	      if (mb_cur_max > 1 && bytes_left)
+		continue;
+#endif /* MBS_SUPPORT */
 	      while (beg > buf && beg[-1] != eol)
 		--beg;
 	    }
@@ -471,15 +516,6 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
     } /* for (beg = end ..) */
 
  failure:
-#ifdef MBS_SUPPORT
-  if (MB_CUR_MAX > 1)
-    {
-      if (mb_properties)
-	free (mb_properties);
-      if (match_icase)
-	free ((char *) buf);
-    }
-#endif /* MBS_SUPPORT */
   return (size_t) -1;
 
  success_in_beg_and_end:
@@ -488,23 +524,143 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
   /* FALLTHROUGH */
 
  success_in_start_and_len:
-#ifdef MBS_SUPPORT
-  if (MB_CUR_MAX > 1)
-    {
-      if (mb_properties)
-	free (mb_properties);
-      if (match_icase)
-	free ((char *) buf);
-    }
-#endif /* MBS_SUPPORT */
   *match_size = len;
   return start;
 }
 
+#ifdef MBS_SUPPORT
+static int f_i_multibyte; /* whether we're using the new -Fi MB method */
+static struct
+{
+  wchar_t **patterns;
+  size_t count, maxlen;
+  unsigned char *match;
+} Fimb;
+#endif
+
 static void
 Fcompile (char const *pattern, size_t size)
 {
+  int mb_cur_max = MB_CUR_MAX;
   char const *beg, *lim, *err;
+
+  check_utf8 ();
+#ifdef MBS_SUPPORT
+  /* Support -F -i for UTF-8 input. */
+  if (match_icase && mb_cur_max > 1)
+    {
+      mbstate_t mbs;
+      wchar_t *wcpattern = xmalloc ((size + 1) * sizeof (wchar_t));
+      const char *patternend = pattern;
+      size_t wcsize;
+      kwset_t fimb_kwset = NULL;
+      char *starts = NULL;
+      wchar_t *wcbeg, *wclim;
+      size_t allocated = 0;
+
+      memset (&mbs, '\0', sizeof (mbs));
+# ifdef __GNU_LIBRARY__
+      wcsize = mbsnrtowcs (wcpattern, &patternend, size, size, &mbs);
+      if (patternend != pattern + size)
+	wcsize = (size_t) -1;
+# else
+      {
+	char *patterncopy = xmalloc (size + 1);
+
+	memcpy (patterncopy, pattern, size);
+	patterncopy[size] = '\0';
+	patternend = patterncopy;
+	wcsize = mbsrtowcs (wcpattern, &patternend, size, &mbs);
+	if (patternend != patterncopy + size)
+	  wcsize = (size_t) -1;
+	free (patterncopy);
+      }
+# endif
+      if (wcsize + 2 <= 2)
+	{
+fimb_fail:
+	  free (wcpattern);
+	  free (starts);
+	  if (fimb_kwset)
+	    kwsfree (fimb_kwset);
+	  free (Fimb.patterns);
+	  Fimb.patterns = NULL;
+	}
+      else
+	{
+	  if (!(fimb_kwset = kwsalloc (NULL)))
+	    error (2, 0, _("memory exhausted"));
+
+	  starts = xmalloc (mb_cur_max * 3);
+	  wcbeg = wcpattern;
+	  do
+	    {
+	      int i;
+	      size_t wclen;
+
+	      if (Fimb.count >= allocated)
+		{
+		  if (allocated == 0)
+		    allocated = 128;
+		  else
+		    allocated *= 2;
+		  Fimb.patterns = xrealloc (Fimb.patterns,
+					    sizeof (wchar_t *) * allocated);
+		}
+	      Fimb.patterns[Fimb.count++] = wcbeg;
+	      for (wclim = wcbeg;
+		   wclim < wcpattern + wcsize && *wclim != L'\n'; ++wclim)
+		*wclim = towlower (*wclim);
+	      *wclim = L'\0';
+	      wclen = wclim - wcbeg;
+	      if (wclen > Fimb.maxlen)
+		Fimb.maxlen = wclen;
+	      if (wclen > 3)
+		wclen = 3;
+	      if (wclen == 0)
+		{
+		  if ((err = kwsincr (fimb_kwset, "", 0)) != 0)
+		    error (2, 0, err);
+		}
+	      else
+		for (i = 0; i < (1 << wclen); i++)
+		  {
+		    char *p = starts;
+		    int j, k;
+
+		    for (j = 0; j < wclen; ++j)
+		      {
+			wchar_t wc = wcbeg[j];
+			if (i & (1 << j))
+			  {
+			    wc = towupper (wc);
+			    if (wc == wcbeg[j])
+			      continue;
+			  }
+			k = wctomb (p, wc);
+			if (k <= 0)
+			  goto fimb_fail;
+			p += k;
+		      }
+		    if ((err = kwsincr (fimb_kwset, starts, p - starts)) != 0)
+		      error (2, 0, err);
+		  }
+	      if (wclim < wcpattern + wcsize)
+		++wclim;
+	      wcbeg = wclim;
+	    }
+	  while (wcbeg < wcpattern + wcsize);
+	  f_i_multibyte = 1;
+	  kwset = fimb_kwset;
+	  free (starts);
+	  Fimb.match = xmalloc (Fimb.count);
+	  if ((err = kwsprep (kwset)) != 0)
+	    error (2, 0, err);
+	  return;
+	}
+    }
+#endif /* MBS_SUPPORT */
+
 
   kwsinit ();
   beg = pattern;
@@ -524,6 +680,76 @@ Fcompile (char const *pattern, size_t size)
     error (2, 0, err);
 }
 
+#ifdef MBS_SUPPORT
+static int
+Fimbexec (const char *buf, size_t size, size_t *plen, int exact)
+{
+  size_t len, letter, i;
+  int ret = -1;
+  mbstate_t mbs;
+  wchar_t wc;
+  int patterns_left;
+
+  assert (match_icase && f_i_multibyte == 1);
+  assert (MB_CUR_MAX > 1);
+
+  memset (&mbs, '\0', sizeof (mbs));
+  memset (Fimb.match, '\1', Fimb.count);
+  letter = len = 0;
+  patterns_left = 1;
+  while (patterns_left && len <= size)
+    {
+      size_t c;
+
+      patterns_left = 0;
+      if (len < size)
+	{
+	  c = mbrtowc (&wc, buf + len, size - len, &mbs);
+	  if (c + 2 <= 2)
+	    return ret;
+
+	  wc = towlower (wc);
+	}
+      else
+	{
+	  c = 1;
+	  wc = L'\0';
+	}
+
+      for (i = 0; i < Fimb.count; i++)
+	{
+	  if (Fimb.match[i])
+	    {
+	      if (Fimb.patterns[i][letter] == L'\0')
+		{
+		  /* Found a match. */
+		  *plen = len;
+		  if (!exact && !match_words)
+		    return 0;
+		  else
+		    {
+		      /* For -w or exact look for longest match.  */
+		      ret = 0;
+		      Fimb.match[i] = '\0';
+		      continue;
+		    }
+		}
+
+	      if (Fimb.patterns[i][letter] == wc)
+		patterns_left = 1;
+	      else
+		Fimb.match[i] = '\0';
+	    }
+	}
+
+      len += c;
+      letter++;
+    }
+
+  return ret;
+}
+#endif /* MBS_SUPPORT */
+
 static size_t
 Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 {
@@ -533,81 +759,258 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
   struct kwsmatch kwsmatch;
   size_t ret_val;
 #ifdef MBS_SUPPORT
-  char *mb_properties = NULL;
-  if (MB_CUR_MAX > 1)
-    {
-      if (match_icase)
-        {
-          char *case_buf = xmalloc(size);
-          memcpy(case_buf, buf, size);
-          buf = case_buf;
-        }
-      mb_properties = check_multibyte_string(buf, size);
-    }
+  int mb_cur_max = MB_CUR_MAX;
+  mbstate_t mbs;
+  memset (&mbs, '\0', sizeof (mbstate_t));
+  const char *last_char = NULL;
 #endif /* MBS_SUPPORT */
 
   for (beg = buf; beg <= buf + size; ++beg)
     {
-      size_t offset = kwsexec (kwset, beg, buf + size - beg, &kwsmatch);
+      size_t offset;
+      offset = kwsexec (kwset, beg, buf + size - beg, &kwsmatch);
+
       if (offset == (size_t) -1)
 	goto failure;
 #ifdef MBS_SUPPORT
-      if (MB_CUR_MAX > 1 && offset + beg - buf < size
-          && mb_properties[offset+beg-buf] == 0)
-	continue; /* It is a part of multibyte character.  */
+      if (mb_cur_max > 1 && !using_utf8)
+	{
+	  size_t bytes_left = offset;
+	  while (bytes_left)
+	    {
+	      size_t mlen = mbrlen (beg, bytes_left, &mbs);
+
+	      last_char = beg;
+	      if (mlen == (size_t) -1 || mlen == 0)
+		{
+		  /* Incomplete character: treat as single-byte. */
+		  memset (&mbs, '\0', sizeof (mbstate_t));
+		  beg++;
+		  bytes_left--;
+		  continue;
+		}
+
+	      if (mlen == (size_t) -2)
+		/* Offset points inside multibyte character: no good. */
+		break;
+
+	      beg += mlen;
+	      bytes_left -= mlen;
+	    }
+
+	  if (bytes_left)
+	    continue;
+	}
+      else
 #endif /* MBS_SUPPORT */
       beg += offset;
+#ifdef MBS_SUPPORT
+      /* For f_i_multibyte, the string at beg now matches first 3 chars of
+	 one of the search strings (less if there are shorter search strings).
+	 See if this is a real match.  */
+      if (f_i_multibyte
+	  && Fimbexec (beg, buf + size - beg, &kwsmatch.size[0], exact))
+	goto next_char;
+#endif /* MBS_SUPPORT */
       len = kwsmatch.size[0];
       if (exact && !match_words)
 	goto success_in_beg_and_len;
       if (match_lines)
 	{
 	  if (beg > buf && beg[-1] != eol)
-	    continue;
+	    goto next_char;
 	  if (beg + len < buf + size && beg[len] != eol)
-	    continue;
+	    goto next_char;
 	  goto success;
 	}
       else if (match_words)
-	for (try = beg; len; )
-	  {
-	    if (try > buf && WCHAR((unsigned char) try[-1]))
-	      break;
-	    if (try + len < buf + size && WCHAR((unsigned char) try[len]))
-	      {
-		offset = kwsexec (kwset, beg, --len, &kwsmatch);
-		if (offset == (size_t) -1)
-		  {
+	{
+	  while (1)
+	    {
+	      int word_match = 0;
+	      if (beg > buf)
+		{
 #ifdef MBS_SUPPORT
-		    if (MB_CUR_MAX > 1)
-		      free (mb_properties);
+		  if (mb_cur_max > 1)
+		    {
+		      const char *s;
+		      int mr;
+		      wchar_t pwc;
+
+		      if (using_utf8)
+			{
+			  s = beg - 1;
+			  while (s > buf
+				 && (unsigned char) *s >= 0x80
+				 && (unsigned char) *s <= 0xbf)
+			    --s;
+			}
+		      else
+			s = last_char;
+		      mr = mbtowc (&pwc, s, beg - s);
+		      if (mr <= 0)
+			memset (&mbs, '\0', sizeof (mbstate_t));
+		      else if ((iswalnum (pwc) || pwc == L'_')
+			       && mr == (int) (beg - s))
+			goto next_char;
+		    }
+		  else
 #endif /* MBS_SUPPORT */
-		    return offset;
-		  }
-		try = beg + offset;
-		len = kwsmatch.size[0];
-	      }
-	    else
-	      goto success;
-	  }
+		  if (!WCHAR ((unsigned char) beg[-1]))
+		    goto next_char;
+		}
+#ifdef MBS_SUPPORT
+	      if (mb_cur_max > 1)
+		{
+		  wchar_t nwc;
+		  int mr;
+
+		  mr = mbtowc (&nwc, beg + len, buf + size - beg - len);
+		  if (mr <= 0)
+		    {
+		      memset (&mbs, '\0', sizeof (mbstate_t));
+		      word_match = 1;
+		    }
+		  else if (!iswalnum (nwc) && nwc != L'_')
+		    word_match = 1;
+		}
+	      else
+#endif /* MBS_SUPPORT */
+		if (beg + len >= buf + size && !WCHAR ((unsigned char) beg[len]))
+		  word_match = 1;
+	      if (word_match)
+		{
+		  if (!exact)
+		    /* Returns the whole line now we know there's a word match. */
+		    goto success;
+		  else
+		    /* Returns just this word match. */
+		    goto success_in_beg_and_len;
+		}
+	      if (len > 0)
+		{
+		  /* Try a shorter length anchored at the same place. */
+		  --len;
+		  offset = kwsexec (kwset, beg, len, &kwsmatch);
+
+		  if (offset == -1)
+		    goto next_char; /* Try a different anchor. */
+#ifdef MBS_SUPPORT
+		  if (mb_cur_max > 1 && !using_utf8)
+		    {
+		      size_t bytes_left = offset;
+		      while (bytes_left)
+			{
+			  size_t mlen = mbrlen (beg, bytes_left, &mbs);
+
+			  last_char = beg;
+			  if (mlen == (size_t) -1 || mlen == 0)
+			    {
+			      /* Incomplete character: treat as single-byte. */
+			      memset (&mbs, '\0', sizeof (mbstate_t));
+			      beg++;
+			      bytes_left--;
+			      continue;
+			    }
+
+			  if (mlen == (size_t) -2)
+			    {
+			      /* Offset points inside multibyte character:
+			       * no good. */
+			      break;
+			    }
+
+			  beg += mlen;
+			  bytes_left -= mlen;
+			}
+
+		      if (bytes_left)
+			{
+			  memset (&mbs, '\0', sizeof (mbstate_t));
+			  goto next_char; /* Try a different anchor. */
+			}
+		    }
+		  else
+#endif /* MBS_SUPPORT */
+		  beg += offset;
+#ifdef MBS_SUPPORT
+		  /* The string at beg now matches first 3 chars of one of
+		     the search strings (less if there are shorter search
+		     strings).  See if this is a real match.  */
+		  if (f_i_multibyte
+		      && Fimbexec (beg, len - offset, &kwsmatch.size[0],
+				   exact))
+		    goto next_char;
+#endif /* MBS_SUPPORT */
+		  len = kwsmatch.size[0];
+		}
+	    }
+	}
       else
 	goto success;
+next_char:;
+#ifdef MBS_SUPPORT
+      /* Advance to next character.  For MB_CUR_MAX == 1 case this is handled
+	 by ++beg above.  */
+      if (mb_cur_max > 1)
+	{
+	  if (using_utf8)
+	    {
+	      unsigned char c = *beg;
+	      if (c >= 0xc2)
+		{
+		  if (c < 0xe0)
+		    ++beg;
+		  else if (c < 0xf0)
+		    beg += 2;
+		  else if (c < 0xf8)
+		    beg += 3;
+		  else if (c < 0xfc)
+		    beg += 4;
+		  else if (c < 0xfe)
+		    beg += 5;
+		}
+	    }
+	  else
+	    {
+	      size_t l = mbrlen (beg, buf + size - beg, &mbs);
+
+	      last_char = beg;
+	      if (l + 2 >= 2)
+		beg += l - 1;
+	      else
+		memset (&mbs, '\0', sizeof (mbstate_t));
+	    }
+	}
+#endif /* MBS_SUPPORT */
     }
 
  failure:
-#ifdef MBS_SUPPORT
-  if (MB_CUR_MAX > 1)
-    {
-      if (match_icase)
-        free((char *) buf);
-      if (mb_properties)
-        free(mb_properties);
-    }
-#endif /* MBS_SUPPORT */
   return -1;
 
  success:
+#ifdef MBS_SUPPORT
+  if (mb_cur_max > 1 && !using_utf8)
+    {
+      end = beg + len;
+      while (end < buf + size)
+	{
+	  size_t mlen = mbrlen (end, buf + size - end, &mbs);
+	  if (mlen == (size_t) -1 || mlen == (size_t) -2 || mlen == 0)
+	    {
+	      memset (&mbs, '\0', sizeof (mbstate_t));
+	      mlen = 1;
+	    }
+	  if (mlen == 1 && *end == eol)
+	    break;
+
+	  end += mlen;
+	}
+    }
+  else
+#endif /* MBS_SUPPORT */
   end = memchr (beg + len, eol, (buf + size) - (beg + len));
+
   end++;
   while (buf < beg && beg[-1] != eol)
     --beg;
@@ -616,15 +1019,6 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 
  success_in_beg_and_len:
   *match_size = len;
-#ifdef MBS_SUPPORT
-  if (MB_CUR_MAX > 1)
-    {
-      if (mb_properties)
-	free (mb_properties);
-      if (match_icase)
-	free ((char *) buf);
-    }
-#endif /* MBS_SUPPORT */
   return beg - buf;
 }
 
