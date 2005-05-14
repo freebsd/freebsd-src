@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003 OGAWA Takaya <t-ogawa@triaez.kaisei.org>
- * Copyright (c) 2004 Yoshihiro TAKAHASHI <nyan@FreeBSD.org>
+ * Copyright (c) 2004 TAKAHASHI Yoshihiro <nyan@FreeBSD.org>
  * All rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
