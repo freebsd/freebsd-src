@@ -71,9 +71,6 @@ MODULE_VERSION(netgraph, NG_ABI_VERSION);
 static LIST_HEAD(, ng_node) ng_nodelist;
 static struct mtx	ng_nodelist_mtx;
 
-uma_zone_t			ng_qzone;
-static int			maxalloc = 512;	/* limit the damage of a leak */
-
 #ifdef	NETGRAPH_DEBUG
 static struct mtx		ngq_mtx;	/* protects the queue item list */
 
@@ -2882,6 +2879,91 @@ out:
 }
 
 /************************************************************************
+			Queue element get/free routines
+************************************************************************/
+
+uma_zone_t			ng_qzone;
+static int			maxalloc = 512;	/* limit the damage of a leak */
+
+TUNABLE_INT("net.graph.maxalloc", &maxalloc);
+SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
+    0, "Maximum number of queue items to allocate");
+
+#ifdef	NETGRAPH_DEBUG
+static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
+static int			allocated;	/* number of items malloc'd */
+#endif
+
+/*
+ * Get a queue entry.
+ * This is usually called when a packet first enters netgraph.
+ * By definition, this is usually from an interrupt, or from a user.
+ * Users are not so important, but try be quick for the times that it's
+ * an interrupt.
+ */
+static __inline item_p
+ng_getqblk(void)
+{
+	item_p item = NULL;
+
+	item = uma_zalloc(ng_qzone, M_NOWAIT | M_ZERO);
+
+#ifdef	NETGRAPH_DEBUG
+	if (item) {
+			mtx_lock(&ngq_mtx);
+			TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
+			allocated++;
+			mtx_unlock(&ngq_mtx);
+	}
+#endif
+
+	return (item);
+}
+
+/*
+ * Release a queue entry
+ */
+void
+ng_free_item(item_p item)
+{
+	/*
+	 * The item may hold resources on it's own. We need to free
+	 * these before we can free the item. What they are depends upon
+	 * what kind of item it is. it is important that nodes zero
+	 * out pointers to resources that they remove from the item
+	 * or we release them again here.
+	 */
+	switch (item->el_flags & NGQF_TYPE) {
+	case NGQF_DATA:
+		/* If we have an mbuf still attached.. */
+		NG_FREE_M(_NGI_M(item));
+		break;
+	case NGQF_MESG:
+		_NGI_RETADDR(item) = 0;
+		NG_FREE_MSG(_NGI_MSG(item));
+		break;
+	case NGQF_FN:
+		/* nothing to free really, */
+		_NGI_FN(item) = NULL;
+		_NGI_ARG1(item) = NULL;
+		_NGI_ARG2(item) = 0;
+	case NGQF_UNDEF:
+		break;
+	}
+	/* If we still have a node or hook referenced... */
+	_NGI_CLR_NODE(item);
+	_NGI_CLR_HOOK(item);
+
+#ifdef	NETGRAPH_DEBUG
+	mtx_lock(&ngq_mtx);
+	TAILQ_REMOVE(&ng_itemlist, item, all);
+	allocated--;
+	mtx_unlock(&ngq_mtx);
+#endif
+	uma_zfree(ng_qzone, item);
+}
+
+/************************************************************************
 			Module routines
 ************************************************************************/
 
@@ -2998,88 +3080,6 @@ DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_MIDDLE);
 SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
 SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, 0, NG_ABI_VERSION,"");
 SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
-
-/************************************************************************
-			Queue element get/free routines
-************************************************************************/
-
-TUNABLE_INT("net.graph.maxalloc", &maxalloc);
-SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
-    0, "Maximum number of queue items to allocate");
-
-#ifdef	NETGRAPH_DEBUG
-static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
-static int			allocated;	/* number of items malloc'd */
-#endif
-
-/*
- * Get a queue entry.
- * This is usually called when a packet first enters netgraph.
- * By definition, this is usually from an interrupt, or from a user.
- * Users are not so important, but try be quick for the times that it's
- * an interrupt.
- */
-static __inline item_p
-ng_getqblk(void)
-{
-	item_p item = NULL;
-
-	item = uma_zalloc(ng_qzone, M_NOWAIT | M_ZERO);
-
-#ifdef	NETGRAPH_DEBUG
-	if (item) {
-			mtx_lock(&ngq_mtx);
-			TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
-			allocated++;
-			mtx_unlock(&ngq_mtx);
-	}
-#endif
-
-	return (item);
-}
-
-/*
- * Release a queue entry
- */
-void
-ng_free_item(item_p item)
-{
-	/*
-	 * The item may hold resources on it's own. We need to free
-	 * these before we can free the item. What they are depends upon
-	 * what kind of item it is. it is important that nodes zero
-	 * out pointers to resources that they remove from the item
-	 * or we release them again here.
-	 */
-	switch (item->el_flags & NGQF_TYPE) {
-	case NGQF_DATA:
-		/* If we have an mbuf still attached.. */
-		NG_FREE_M(_NGI_M(item));
-		break;
-	case NGQF_MESG:
-		_NGI_RETADDR(item) = 0;
-		NG_FREE_MSG(_NGI_MSG(item));
-		break;
-	case NGQF_FN:
-		/* nothing to free really, */
-		_NGI_FN(item) = NULL;
-		_NGI_ARG1(item) = NULL;
-		_NGI_ARG2(item) = 0;
-	case NGQF_UNDEF:
-		break;
-	}
-	/* If we still have a node or hook referenced... */
-	_NGI_CLR_NODE(item);
-	_NGI_CLR_HOOK(item);
-
-#ifdef	NETGRAPH_DEBUG
-	mtx_lock(&ngq_mtx);
-	TAILQ_REMOVE(&ng_itemlist, item, all);
-	allocated--;
-	mtx_unlock(&ngq_mtx);
-#endif
-	uma_zfree(ng_qzone, item);
-}
 
 #ifdef	NETGRAPH_DEBUG
 void
