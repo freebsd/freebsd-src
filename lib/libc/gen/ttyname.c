@@ -83,7 +83,7 @@ ttyname_r(int fd, char *buf, size_t len)
 	fgn.len = len - strlen(buf);
 	fgn.buf = buf + strlen(buf);
 	if (!_ioctl(fd, FIODGNAME, &fgn))
-		return (EINVAL);
+		return (0);
 	devname_r(sb.st_rdev, S_IFCHR,
 	    buf + strlen(buf), sizeof(buf) - strlen(buf));
 	return (0);
