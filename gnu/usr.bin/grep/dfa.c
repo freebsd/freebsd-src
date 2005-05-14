@@ -2552,6 +2552,8 @@ match_mb_charset (struct dfa *d, int s, position pos, int index)
     }
 
   /* match with a character?  */
+  if (case_fold)
+    wc = towlower (wc);
   for (i = 0; i<work_mbc->nchars; i++)
     {
       if (wc == work_mbc->chars[i])
