@@ -61,7 +61,7 @@
 #define	TIMER_REG_CNTR0	0	/* timer 0 counter port */
 #define	TIMER_REG_CNTR1	1	/* timer 1 counter port */
 #define	TIMER_REG_CNTR2	2	/* timer 2 counter port */
-#define	TIMER_REG_MODE		3	/* timer mode port */
+#define	TIMER_REG_MODE	3	/* timer mode port */
 #define		TIMER_SEL0	0x00	/* select counter 0 */
 #define		TIMER_SEL1	0x40	/* select counter 1 */
 #define		TIMER_SEL2	0x80	/* select counter 2 */
