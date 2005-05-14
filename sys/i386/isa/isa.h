@@ -53,15 +53,12 @@
 #define	IO_ISABEGIN	0x000		/* 0x000 - Beginning of I/O Registers */
 
 		/* CPU Board */
-#define	IO_DMA1		0x000		/* 8237A DMA Controller #1 */
 #define	IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
 #define	IO_PMP1		0x026		/* 82347 Power Management Peripheral */
 #define	IO_KBD		0x060		/* 8042 Keyboard */
 #define	IO_RTC		0x070		/* RTC */
 #define	IO_NMI		IO_RTC		/* NMI Control */
-#define	IO_DMAPG	0x080		/* DMA Page Registers */
 #define	IO_ICU2		0x0A0		/* 8259A Interrupt Controller #2 */
-#define	IO_DMA2		0x0C0		/* 8237A DMA Controller #2 */
 
 		/* Cards */
 #define	IO_VGA		0x3C0		/* E/VGA Ports */
