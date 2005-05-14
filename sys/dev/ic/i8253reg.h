@@ -31,7 +31,6 @@
  */
 
 /*
- *
  * Register definitions for the Intel 8253 Programmable Interval Timer.
  *
  * This chip has three independent 16-bit down counters that can be
@@ -54,41 +53,15 @@
  * after doing this, a write operation to the I/O port would result
  * in undefined behavior (but hopefully not fry the chip).
  * Reading in this manner has no side effects.
- *
- * [IBM-PC]
- * The outputs of the three timers are connected as follows:
- *
- *	 timer 0 -> irq 0
- *	 timer 1 -> dma chan 0 (for dram refresh)
- * 	 timer 2 -> speaker (via keyboard controller)
- *
- * Timer 0 is used to call hardclock.
- * Timer 2 is used to generate console beeps.
- *
- * [PC-9801]
- * The outputs of the three timers are connected as follows:
- *
- *	 timer 0 -> irq 0
- *	 timer 1 -> speaker (via keyboard controller)
- * 	 timer 2 -> RS232C
- *
- * Timer 0 is used to call hardclock.
- * Timer 1 is used to generate console beeps.
  */
 
 /*
  * Macros for specifying values to be written into a mode register.
  */
-#define	TIMER_CNTR0	(IO_TIMER1 + 0)	/* timer 0 counter port */
-#ifdef PC98
-#define	TIMER_CNTR1	0x3fdb		/* timer 1 counter port */
-#define	TIMER_CNTR2	(IO_TIMER1 + 4)	/* timer 2 counter port */
-#define	TIMER_MODE	(IO_TIMER1 + 6)	/* timer mode port */
-#else
-#define	TIMER_CNTR1	(IO_TIMER1 + 1)	/* timer 1 counter port */
-#define	TIMER_CNTR2	(IO_TIMER1 + 2)	/* timer 2 counter port */
-#define	TIMER_MODE	(IO_TIMER1 + 3)	/* timer mode port */
-#endif
+#define	TIMER_REG_CNTR0	0	/* timer 0 counter port */
+#define	TIMER_REG_CNTR1	1	/* timer 1 counter port */
+#define	TIMER_REG_CNTR2	2	/* timer 2 counter port */
+#define	TIMER_REG_MODE		3	/* timer mode port */
 #define		TIMER_SEL0	0x00	/* select counter 0 */
 #define		TIMER_SEL1	0x40	/* select counter 1 */
 #define		TIMER_SEL2	0x80	/* select counter 2 */
@@ -103,4 +76,3 @@
 #define		TIMER_MSB	0x20	/* r/w counter MSB */
 #define		TIMER_16BIT	0x30	/* r/w counter 16 bits, LSB first */
 #define		TIMER_BCD	0x01	/* count in BCD */
-
