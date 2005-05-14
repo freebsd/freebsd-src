@@ -332,6 +332,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
   static int use_dfa;
   static int use_dfa_checked = 0;
 #ifdef MBS_SUPPORT
+  const char *last_char = NULL;
   int mb_cur_max = MB_CUR_MAX;
   mbstate_t mbs;
   memset (&mbs, '\0', sizeof (mbstate_t));
@@ -387,6 +388,8 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		  while (bytes_left)
 		    {
 		      size_t mlen = mbrlen (beg, bytes_left, &mbs);
+
+		      last_char = beg;
 		      if (mlen == (size_t) -1 || mlen == 0)
 			{
 			  /* Incomplete character: treat as single-byte. */
@@ -447,6 +450,8 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		  while (bytes_left)
 		    {
 		      size_t mlen = mbrlen (beg, bytes_left, &mbs);
+
+		      last_char = beg;
 		      if (mlen == (size_t) -1 || mlen == 0)
 			{
 			  /* Incomplete character: treat as single-byte. */
@@ -509,10 +514,84 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	      if (match_words)
 		while (start >= 0)
 		  {
-		    if ((start == 0 || !WCHAR ((unsigned char) beg[start - 1]))
-			&& (len == end - beg - 1
-			    || !WCHAR ((unsigned char) beg[start + len])))
-		      goto success_in_beg_and_end;
+		    int lword_match = 0;
+		    if (start == 0)
+		      lword_match = 1;
+		    else
+		      {
+			assert (start > 0);
+#ifdef MBS_SUPPORT
+			if (mb_cur_max > 1)
+			  {
+			    const char *s;
+			    int mr;
+			    wchar_t pwc;
+
+			    if (using_utf8)
+			      {
+				s = beg + start - 1;
+				while (s > buf
+				       && (unsigned char) *s >= 0x80
+				       && (unsigned char) *s <= 0xbf)
+				  --s;
+			      }
+			    else
+			      s = last_char;
+			    mr = mbtowc (&pwc, s, beg + start - s);
+			    if (mr <= 0)
+			      {
+				memset (&mbs, '\0', sizeof (mbstate_t));
+				lword_match = 1;
+			      }
+			    else if (!(iswalnum (pwc) || pwc == L'_')
+				     && mr == (int) (beg + start - s))
+			      lword_match = 1;
+			  }
+			else
+#endif /* MBS_SUPPORT */
+			if (!WCHAR ((unsigned char) beg[start - 1]))
+			  lword_match = 1;
+		      }
+
+		    if (lword_match)
+		      {
+			int rword_match = 0;
+			if (start + len == end - beg - 1)
+			  rword_match = 1;
+			else
+			  {
+#ifdef MBS_SUPPORT
+			    if (mb_cur_max > 1)
+			      {
+				wchar_t nwc;
+				int mr;
+
+				mr = mbtowc (&nwc, beg + start + len,
+					     end - beg - start - len - 1);
+				if (mr <= 0)
+				  {
+				    memset (&mbs, '\0', sizeof (mbstate_t));
+				    rword_match = 1;
+				  }
+				else if (!iswalnum (nwc) && nwc != L'_')
+				  rword_match = 1;
+			      }
+			    else
+#endif /* MBS_SUPPORT */
+			    if (!WCHAR ((unsigned char) beg[start + len]))
+			      rword_match = 1;
+			  }
+
+			if (rword_match)
+			  {
+			    if (!exact)
+			      /* Returns the whole line. */
+			      goto success_in_beg_and_end;
+			    else
+			      /* Returns just this word match. */
+			      goto success_in_start_and_len;
+			  }
+		      }
 		    if (len > 0)
 		      {
 			/* Try a shorter length anchored at the same place. */
