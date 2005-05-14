@@ -71,10 +71,11 @@ MODULE_VERSION(netgraph, NG_ABI_VERSION);
 static LIST_HEAD(, ng_node) ng_nodelist;
 static struct mtx	ng_nodelist_mtx;
 
-/* Mutex that protects the free queue item list */
-static struct mtx	ngq_mtx;
+uma_zone_t			ng_qzone;
+static int			maxalloc = 512;	/* limit the damage of a leak */
 
 #ifdef	NETGRAPH_DEBUG
+static struct mtx		ngq_mtx;	/* protects the queue item list */
 
 static SLIST_HEAD(, ng_node) ng_allnodes;
 static LIST_HEAD(, ng_node) ng_freenodes; /* in debug, we never free() them */
@@ -317,10 +318,6 @@ ng_alloc_node(void)
 #define NG_FREE_NODE(node) do { FREE((node), M_NETGRAPH_NODE); } while (0)
 
 #endif /* NETGRAPH_DEBUG */ /*----------------------------------------------*/
-
-/* Warning: Generally use NG_FREE_ITEM() instead */
-#define NG_FREE_ITEM_REAL(item) do { FREE((item), M_NETGRAPH_ITEM); } while (0)
-
 
 /* Set this to kdb_enter("X") to catch all errors as they occur */
 #ifndef TRAP_ERROR
@@ -2959,11 +2956,11 @@ ng_mod_event(module_t mod, int event, void *data)
 static int
 ngb_mod_event(module_t mod, int event, void *data)
 {
-	int s, error = 0;
+	int error = 0;
 
 	switch (event) {
 	case MOD_LOAD:
-		/* Register line discipline */
+		/* Initialize everything. */
 		mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN);
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
@@ -2971,12 +2968,15 @@ ngb_mod_event(module_t mod, int event, void *data)
 		    MTX_DEF);
 		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL,
 		    MTX_DEF);
-		mtx_init(&ngq_mtx, "netgraph free item list mutex", NULL,
+#ifdef	NETGRAPH_DEBUG
+		mtx_init(&ngq_mtx, "netgraph item list mutex", NULL,
 		    MTX_DEF);
-		s = splimp();
+#endif
+		ng_qzone = uma_zcreate("NetGraph items", sizeof(struct ng_item),
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
+		uma_zone_set_max(ng_qzone, maxalloc);
 		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL,
 		    NETISR_MPSAFE);
-		splx(s);
 		break;
 	case MOD_UNLOAD:
 		/* You cant unload it because an interface may be using it.  */
@@ -3003,77 +3003,38 @@ SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
 			Queue element get/free routines
 ************************************************************************/
 
-
-static int			allocated;	/* number of items malloc'd */
-
-static int			maxalloc = 128;	/* limit the damage of a leak */
-static int			ngqfreemax = 64;/* cache at most this many */
-
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of queue items to allocate");
 
-TUNABLE_INT("net.graph.ngqfreemax", &ngqfreemax);
-SYSCTL_INT(_net_graph, OID_AUTO, ngqfreemax, CTLFLAG_RDTUN, &ngqfreemax,
-    0, "Maximum number of free queue items to cache");
-
-static const int		ngqfreelow = 4; /* try malloc if free < this */
-static volatile int		ngqfreesize;	/* number of cached entries */
-static volatile item_p		ngqfree;	/* free ones */
-
 #ifdef	NETGRAPH_DEBUG
 static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
+static int			allocated;	/* number of items malloc'd */
 #endif
+
 /*
- * Get a queue entry
+ * Get a queue entry.
  * This is usually called when a packet first enters netgraph.
  * By definition, this is usually from an interrupt, or from a user.
  * Users are not so important, but try be quick for the times that it's
  * an interrupt.
- * XXX If reserve is low, we should try to get 2 from malloc as this
- * would indicate it often fails.
  */
-static item_p
+static __inline item_p
 ng_getqblk(void)
 {
 	item_p item = NULL;
 
-	/*
-	 * Try get a cached queue block, or else allocate a new one
-	 * If we are less than our reserve, try malloc. If malloc
-	 * fails, then that's what the reserve is for...
-	 * We have our little reserve
-	 * because we use M_NOWAIT for malloc. This just helps us
-	 * avoid dropping packets while not increasing the time
-	 * we take to service the interrupt (on average) (I hope).
-	 */
-	mtx_lock(&ngq_mtx);
+	item = uma_zalloc(ng_qzone, M_NOWAIT | M_ZERO);
 
-	if ((ngqfreesize < ngqfreelow) || (ngqfree == NULL)) {
-		if (allocated < maxalloc) {  /* don't leak forever */
-			MALLOC(item, item_p ,
-			    sizeof(*item), M_NETGRAPH_ITEM,
-			    (M_NOWAIT | M_ZERO));
-			if (item) {
 #ifdef	NETGRAPH_DEBUG
-				TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
-#endif	/* NETGRAPH_DEBUG */
-				allocated++;
-			}
-		}
+	if (item) {
+			mtx_lock(&ngq_mtx);
+			TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
+			allocated++;
+			mtx_unlock(&ngq_mtx);
 	}
+#endif
 
-	/*
-	 * We didn't or couldn't malloc.
-	 * try get one from our cache.
-	 */
-	if (item == NULL && (item = ngqfree) != NULL) {
-		ngqfree = item->el_next;
-		ngqfreesize--;
-		item->el_flags &= ~NGQF_FREE;
-	}
-
-	mtx_unlock(&ngq_mtx);
 	return (item);
 }
 
@@ -3083,7 +3044,6 @@ ng_getqblk(void)
 void
 ng_free_item(item_p item)
 {
-
 	/*
 	 * The item may hold resources on it's own. We need to free
 	 * these before we can free the item. What they are depends upon
@@ -3091,9 +3051,6 @@ ng_free_item(item_p item)
 	 * out pointers to resources that they remove from the item
 	 * or we release them again here.
 	 */
-	if (item->el_flags & NGQF_FREE) {
-		panic(" Freeing free queue item");
-	}
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/* If we have an mbuf still attached.. */
@@ -3114,21 +3071,14 @@ ng_free_item(item_p item)
 	/* If we still have a node or hook referenced... */
 	_NGI_CLR_NODE(item);
 	_NGI_CLR_HOOK(item);
-	item->el_flags |= NGQF_FREE;
 
-	mtx_lock(&ngq_mtx);
-	if (ngqfreesize < ngqfreemax) {
-		ngqfreesize++;
-		item->el_next = ngqfree;
-		ngqfree = item;
-	} else {
 #ifdef	NETGRAPH_DEBUG
-		TAILQ_REMOVE(&ng_itemlist, item, all);
-#endif	/* NETGRAPH_DEBUG */
-		NG_FREE_ITEM_REAL(item);
-		allocated--;
-	}
+	mtx_lock(&ngq_mtx);
+	TAILQ_REMOVE(&ng_itemlist, item, all);
+	allocated--;
 	mtx_unlock(&ngq_mtx);
+#endif
+	uma_zfree(ng_qzone, item);
 }
 
 #ifdef	NETGRAPH_DEBUG
@@ -3161,31 +3111,26 @@ dumpnode(node_p node, char *file, int line)
 void
 dumpitem(item_p item, char *file, int line)
 {
-	if (item->el_flags & NGQF_FREE) {
-		printf(" Free item, freed at %s, line %d\n",
-			item->lastfile, item->lastline);
-	} else {
-		printf(" ACTIVE item, last used at %s, line %d",
-			item->lastfile, item->lastline);
-		switch(item->el_flags & NGQF_TYPE) {
-		case NGQF_DATA:
-			printf(" - [data]\n");
-			break;
-		case NGQF_MESG:
-			printf(" - retaddr[%d]:\n", _NGI_RETADDR(item));
-			break;
-		case NGQF_FN:
-			printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
-				item->body.fn.fn_fn,
-				NGI_NODE(item),
-				NGI_HOOK(item),
-				item->body.fn.fn_arg1,
-				item->body.fn.fn_arg2,
-				item->body.fn.fn_arg2);
-			break;
-		case NGQF_UNDEF:
-			printf(" - UNDEFINED!\n");
-		}
+	printf(" ACTIVE item, last used at %s, line %d",
+		item->lastfile, item->lastline);
+	switch(item->el_flags & NGQF_TYPE) {
+	case NGQF_DATA:
+		printf(" - [data]\n");
+		break;
+	case NGQF_MESG:
+		printf(" - retaddr[%d]:\n", _NGI_RETADDR(item));
+		break;
+	case NGQF_FN:
+		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
+			item->body.fn.fn_fn,
+			NGI_NODE(item),
+			NGI_HOOK(item),
+			item->body.fn.fn_arg1,
+			item->body.fn.fn_arg2,
+			item->body.fn.fn_arg2);
+		break;
+	case NGQF_UNDEF:
+		printf(" - UNDEFINED!\n");
 	}
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
