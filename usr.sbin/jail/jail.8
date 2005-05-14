@@ -121,8 +121,6 @@ mkdir -p $D
 make world DESTDIR=$D
 make distribution DESTDIR=$D
 mount_devfs devfs $D/dev
-cd $D
-ln -sf dev/null kernel
 .Ed
 .Pp
 NOTE: It is important that only appropriate device nodes in devfs be
