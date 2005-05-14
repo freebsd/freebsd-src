@@ -60,18 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 #include <pc98/cbus/cbus.h>
-
-/*
-**  Register definitions for DMA controller 1 (channels 0..3):
-*/
-#define	DMA1_CHN(c)	(IO_DMA + (4*(c)))	/* addr reg for channel c */
-#define	DMA1_STATUS	(IO_DMA + 0x10)		/* status register */
-#define	DMA1_SMSK	(IO_DMA + 0x14)		/* single mask register */
-#define	DMA1_MODE	(IO_DMA + 0x16)		/* mode register */
-#define	DMA1_FFC	(IO_DMA + 0x18)		/* clear first/last FF */
+#include <pc98/cbus/cbus_dmareg.h>
 
 static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 

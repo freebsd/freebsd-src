@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <amd64/isa/isa.h>
-#include <dev/ic/i8237.h>
+#include <isa/isareg.h>
 #include <isa/isavar.h>
+#include <isa/isa_dmareg.h>
 
 #define ISARAM_END	0x1000000
 
