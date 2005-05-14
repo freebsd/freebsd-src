@@ -1227,6 +1227,7 @@ product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
 
 /* Sitecom products */
 product SITECOM LN029		0x182d	USB 2.0 Ethernet
+product SITECOM SERIAL		0x2068	USB to serial cable (v2)
 
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
