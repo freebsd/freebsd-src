@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2005
+.Dd May 14, 2005
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd change file flags
 .Sh SYNOPSIS
 .Nm
+.Op Fl h
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -61,6 +62,11 @@ If the
 .Fl R
 option is specified, symbolic links on the command line are followed.
 (Symbolic links encountered in the tree traversal are not followed.)
+.It Fl h
+If the
+.Ar file
+is a symbolic link,
+change the mode of the link itself rather than the file to which it points.
 .It Fl L
 If the
 .Fl R
@@ -114,11 +120,12 @@ clear the user immutable flag (owner or super-user only)
 clear the nodump flag (owner or super-user only)
 .El
 .Pp
-Symbolic links do not have flags, so unless the
-.Fl H
+Unless the
+.Fl H ,
+.Fl L ,
 or
-.Fl L
-option is set,
+.Fl h
+options are given,
 .Nm
 on a symbolic link always succeeds and has no effect.
 The
