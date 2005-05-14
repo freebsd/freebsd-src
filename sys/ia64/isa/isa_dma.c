@@ -55,7 +55,7 @@
 #include <vm/pmap.h>
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#include <dev/ic/i8237.h>
+#include <isa/isa_dmareg.h>
 #include <machine/bus.h>
 
 static bus_dma_tag_t dma_tag[8];

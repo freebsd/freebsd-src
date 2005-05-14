@@ -53,7 +53,6 @@
 /* PC98 IO address ... very dirty (^_^; */
 
 #define	IO_ICU1		0x000		/* 8259A Interrupt Controller #1 */
-#define	IO_DMA		0x001		/* 8237A DMA Controller */
 #define	IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
 #define	IO_RTC		0x020		/* 4990A RTC */
 #define	IO_SYSPORT	0x031		/* 8255A System Port */
