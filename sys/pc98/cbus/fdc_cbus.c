@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Yoshihiro TAKAHASHI
+ * Copyright (c) 2004 TAKAHASHI Yoshihiro
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
