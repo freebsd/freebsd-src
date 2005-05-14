@@ -40,6 +40,8 @@
         ..
     ..
     libdata
+        pkgconfig
+        ..
     ..
     libexec
     ..
