@@ -442,7 +442,7 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		    if ((start == 0 || !WCHAR ((unsigned char) beg[start - 1]))
 			&& (len == end - beg - 1
 			    || !WCHAR ((unsigned char) beg[start + len])))
-		      goto success_in_start_and_len;
+		      goto success_in_beg_and_end;
 		    if (len > 0)
 		      {
 			/* Try a shorter length anchored at the same place. */
@@ -569,32 +569,27 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 	  goto success;
 	}
       else if (match_words)
-	{
-	  while (offset >= 0)
-	    {
-	      if ((offset == 0 || !WCHAR ((unsigned char) beg[-1]))
-	          && (len == end - beg - 1 || !WCHAR ((unsigned char) beg[len])))
-	        {
-	          if (!exact)
-	            /* Returns the whole line now we know there's a word match. */
-	            goto success;
-	          else
-	            /* Returns just this word match. */
-	            goto success_in_beg_and_len;
-	        }
-	      if (len > 0)
-	        {
-	          /* Try a shorter length anchored at the same place. */
-	          --len;
-	          offset = kwsexec (kwset, beg, len, &kwsmatch);
-	          if (offset == -1) {
-	            break; /* Try a different anchor. */
-	          }
-	          beg += offset;
-	          len = kwsmatch.size[0];
-	        }
-	    }
-	}
+	for (try = beg; len; )
+	  {
+	    if (try > buf && WCHAR((unsigned char) try[-1]))
+	      break;
+	    if (try + len < buf + size && WCHAR((unsigned char) try[len]))
+	      {
+		offset = kwsexec (kwset, beg, --len, &kwsmatch);
+		if (offset == (size_t) -1)
+		  {
+#ifdef MBS_SUPPORT
+		    if (MB_CUR_MAX > 1)
+		      free (mb_properties);
+#endif /* MBS_SUPPORT */
+		    return offset;
+		  }
+		try = beg + offset;
+		len = kwsmatch.size[0];
+	      }
+	    else
+	      goto success;
+	  }
       else
 	goto success;
     }
