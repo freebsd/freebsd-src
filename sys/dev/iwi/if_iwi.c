@@ -2096,6 +2096,9 @@ iwi_init(void *priv)
 
 	/* exit immediately if firmware has not been ioctl'd */
 	if (!(sc->flags & IWI_FLAG_FW_CACHED)) {
+		if (!(sc->flags & IWI_FLAG_FW_WARNED))
+			device_printf(sc->sc_dev, "Please load firmware\n");
+		sc->flags |= IWI_FLAG_FW_WARNED;
 		ifp->if_flags &= ~IFF_UP;
 		return;
 	}
