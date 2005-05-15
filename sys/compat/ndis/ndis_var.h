@@ -1144,6 +1144,20 @@ struct ndis_packet_oob {
 
 typedef struct ndis_packet_oob ndis_packet_oob;
 
+/*
+ * Our protocol private region for handling ethernet.
+ * We need this to stash some of the things returned
+ * by NdisMEthIndicateReceive().
+ */
+
+struct ndis_ethpriv {
+	void			*nep_ctx;	/* packet context */
+	long			nep_offset;	/* residual data to transfer */
+	void			*nep_pad[2];
+};
+
+typedef struct ndis_ethpriv ndis_ethpriv;
+
 #define PROTOCOL_RESERVED_SIZE_IN_PACKET	(4 * sizeof(void *))
 
 struct ndis_packet {
@@ -1164,7 +1178,7 @@ struct ndis_packet {
 		} np_macrsvd;
 	} u;
 	uint32_t		*np_rsvd[2];
-	uint8_t			nm_protocolreserved[PROTOCOL_RESERVED_SIZE_IN_PACKET];
+	uint8_t			np_protocolreserved[PROTOCOL_RESERVED_SIZE_IN_PACKET];
 
 	/*
 	 * This next part is probably wrong, but we need some place
@@ -1203,6 +1217,8 @@ struct ndis_filterdbs {
 };
 
 typedef struct ndis_filterdbs ndis_filterdbs;
+
+#define nf_ethdb u.nf_ethdb
 
 enum ndis_medium {
     NdisMedium802_3,
@@ -1482,6 +1498,7 @@ struct ndis_miniport_block {
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
 	ndis_miniport_timer	*nmb_timerlist;
+	ndis_handle		nmb_rxpool;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
 
