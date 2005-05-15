@@ -1,4 +1,3 @@
 # $FreeBSD$
 
-MDSRCS+= bcmp.S bcopy.S bzero.S memcmp.S memcpy.S memmove.S memset.S \
-	strcat.S strcmp.S strcpy.S
+MDSRCS+= bcmp.S bcopy.S bzero.S memcmp.S memcpy.S memmove.S memset.S
