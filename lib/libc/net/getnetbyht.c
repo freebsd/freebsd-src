@@ -122,6 +122,9 @@ again:
 	if (p != NULL)
 		*p++ = '\0';
 	ne->n_net = inet_network(cp);
+#if __LONG_BIT == 64
+	ne->__n_pad0 = 0;	/* ABI compatibility */
+#endif
 	ne->n_addrtype = AF_INET;
 	q = ne->n_aliases = ned->net_aliases;
 	if (p != NULL) {
@@ -191,13 +194,13 @@ found:
 int
 _ht_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	unsigned long net;
+	uint32_t net;
 	int type;
 	struct netent *ne;
 	struct netent_data *ned;
 	int error;
 
-	net = va_arg(ap, unsigned long);
+	net = va_arg(ap, uint32_t);
 	type = va_arg(ap, int);
 	ne = va_arg(ap, struct netent *);
 	ned = va_arg(ap, struct netent_data *);

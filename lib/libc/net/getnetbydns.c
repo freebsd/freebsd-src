@@ -259,6 +259,9 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			break;
 		}
 		ne->n_aliases++;
+#if __LONG_BIT == 64
+		ne->__n_pad0 = 0;	/* ABI compatibility */
+#endif
 		return 0;
 	}
 	h_errno = TRY_AGAIN;
@@ -268,7 +271,7 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 int
 _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	unsigned long net;
+	uint32_t net;
 	int net_type;
 	struct netent *ne;
 	struct netent_data *ned;
@@ -276,9 +279,9 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	int nn, anslen, error;
 	querybuf *buf;
 	char qbuf[MAXDNAME];
-	unsigned long net2;
+	uint32_t net2;
 
-	net = va_arg(ap, unsigned long);
+	net = va_arg(ap, uint32_t);
 	net_type = va_arg(ap, int);
 	ne = va_arg(ap, struct netent *);
 	ned = va_arg(ap, struct netent_data *);
@@ -327,12 +330,13 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	error = getnetanswer(buf, anslen, BYADDR, ne, ned);
 	free(buf);
 	if (error == 0) {
-		unsigned u_net = net;	/* maybe net should be unsigned ? */
-
 		/* Strip trailing zeros */
-		while ((u_net & 0xff) == 0 && u_net != 0)
-			u_net >>= 8;
-		ne->n_net = u_net;
+		while ((net & 0xff) == 0 && net != 0)
+			net >>= 8;
+		ne->n_net = net;
+#if __LONG_BIT == 64
+		ne->__n_pad0 = 0;	/* ABI compatibility */
+#endif
 		return NS_SUCCESS;
 	}
 	return NS_NOTFOUND;
