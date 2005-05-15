@@ -43,10 +43,6 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>
-#endif
-
 static u_char	*message;
 static int	*messagep;
 static int	messagelen;
@@ -73,13 +69,6 @@ snake_saver(video_adapter_t *adp, int blank)
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (blanked <= 0) {
-#ifdef PC98
-			if (epson_machine_id == 0x20) {
-				outb(0x43f, 0x42);
-				outb(0x0c17, inb(0xc17) & ~0x08);
-				outb(0x43f, 0x40);
-			}
-#endif /* PC98 */
 			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
 				     (FG_LIGHTGREY | BG_BLACK) << 8);
 			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
@@ -113,17 +102,9 @@ snake_saver(video_adapter_t *adp, int blank)
 		for (f=messagelen-1; f>=0; f--)
 			sc_vtb_putc(&scp->scr, savs[f], sc->scr_map[save[f]],
 				    (FG_LIGHTGREY | BG_BLACK) << 8);
-	}
-	else {
-#ifdef PC98
-		if (epson_machine_id == 0x20) {
-			outb(0x43f, 0x42);
-			outb(0x0c17, inb(0xc17) | 0x08);
-			outb(0x43f, 0x40);
-		}
-#endif /* PC98 */
+	} else
 		blanked = 0;
-	}
+
 	return 0;
 }
 
