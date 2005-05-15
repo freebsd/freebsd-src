@@ -769,7 +769,7 @@ typedef	u_int32_t	u_32_t;
 /*                                F R E E B S D                            */
 /* ----------------------------------------------------------------------- */
 #ifdef __FreeBSD__
-# if defined(_KERNEL) && !defined(IPFILTER_LKM) && !defined(KLD_MODULE)
+# if defined(_KERNEL)
 #  if (__FreeBSD_version >= 500000)                          
 #   include "opt_bpf.h"
 #  else
@@ -1222,7 +1222,7 @@ typedef u_int32_t 	u_32_t;
  * For BSD kernels, if bpf is in the kernel, enable ipfilter to use bpf in
  * filter rules.
  */
-#if !defined(IPFILTER_BPF) && ((NBPF > 0) || (NBPFILTER > 0))
+#if !defined(IPFILTER_BPF) && ((NBPF > 0) || (NBPFILTER > 0) || (DEV_BPF >0))
 # define IPFILTER_BPF
 #endif
 
