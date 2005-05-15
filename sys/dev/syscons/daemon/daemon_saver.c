@@ -43,16 +43,15 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>
-#endif
-
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
 static u_char *message;
 static int messagelen;
 static int blanked;
+static int attr_mask;
+
+#define	ATTR(attr)	(((attr) & attr_mask) << 8)
 
 /* Who is the author of this ASCII pic? */
 
@@ -133,7 +132,7 @@ clear_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 		sc_vtb_erase(&sc->cur_scp->scr,
 			     (ypos + y)*sc->cur_scp->xsize + xpos + xoff,
 			     xlen - xoff,
-			     sc->scr_map[0x20], (FG_LIGHTGREY | BG_BLACK) << 8);
+			     sc->scr_map[0x20], ATTR(FG_LIGHTGREY | BG_BLACK));
 	}
 }
 
@@ -154,35 +153,26 @@ draw_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 			continue;
 		for (x = xoff; (x < xlen) && (daemon_pic[y][px] != '\0'); x++, px++) {
 			switch (daemon_attr[y][px]) {
-#ifndef PC98
-			case 'R': attr = (FG_LIGHTRED|BG_BLACK)<<8; break;
-			case 'Y': attr = (FG_YELLOW|BG_BLACK)<<8; break;
-			case 'B': attr = (FG_LIGHTBLUE|BG_BLACK)<<8; break;
-			case 'W': attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
-			case 'C': attr = (FG_CYAN|BG_BLACK)<<8; break;
-			default: attr = (FG_WHITE|BG_BLACK)<<8; break;
-#else /* PC98 */
-			case 'R': attr = (FG_RED|BG_BLACK)<<8; break;
-			case 'Y': attr = (FG_BROWN|BG_BLACK)<<8; break;
-			case 'B': attr = (FG_BLUE|BG_BLACK)<<8; break;
-			case 'W': attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
-			case 'C': attr = (FG_CYAN|BG_BLACK)<<8; break;
-			default: attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
-#endif /* PC98 */
+			case 'R': attr = FG_LIGHTRED | BG_BLACK; break;
+			case 'Y': attr = FG_YELLOW | BG_BLACK; break;
+			case 'B': attr = FG_LIGHTBLUE | BG_BLACK; break;
+			case 'W': attr = FG_LIGHTGREY | BG_BLACK; break;
+			case 'C': attr = FG_CYAN | BG_BLACK; break;
+			default: attr = FG_WHITE | BG_BLACK; break;
 			}
 			if (dxdir < 0) {	/* Moving left */
 				sc_vtb_putc(&sc->cur_scp->scr,
 					    (ypos + y)*sc->cur_scp->xsize
 						 + xpos + x,
 					    sc->scr_map[daemon_pic[y][px]],
-					    attr);
+					    ATTR(attr));
 			} else {		/* Moving right */
 				sc_vtb_putc(&sc->cur_scp->scr,
 					    (ypos + y)*sc->cur_scp->xsize
 						+ xpos + DAEMON_MAX_WIDTH 
 						- px - 1,
 					    sc->scr_map[xflip_symbol(daemon_pic[y][px])], 
-					    attr);
+					    ATTR(attr));
 			}
 		}
 	}
@@ -195,7 +185,7 @@ clear_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
 		return;
 	sc_vtb_erase(&sc->cur_scp->scr,
 		     ypos*sc->cur_scp->xsize + xpos + xoff, len - xoff,
-		     sc->scr_map[0x20], (FG_LIGHTGREY | BG_BLACK) << 8);
+		     sc->scr_map[0x20], ATTR(FG_LIGHTGREY | BG_BLACK));
 }
 
 static void
@@ -203,17 +193,10 @@ draw_string(sc_softc_t *sc, int xpos, int ypos, int xoff, u_char *s, int len)
 {
 	int x;
 
-	for (x = xoff; x < len; x++) {
-#ifdef PC98
+	for (x = xoff; x < len; x++)
 		sc_vtb_putc(&sc->cur_scp->scr,
 			    ypos*sc->cur_scp->xsize + xpos + x,
-			    sc->scr_map[s[x]], (FG_GREEN | BG_BLACK) << 8);
-#else
-		sc_vtb_putc(&sc->cur_scp->scr,
-			    ypos*sc->cur_scp->xsize + xpos + x,
-			    sc->scr_map[s[x]], (FG_LIGHTGREEN | BG_BLACK) << 8);
-#endif
-	}
+			    sc->scr_map[s[x]], ATTR(FG_LIGHTGREEN | BG_BLACK));
 }
 
 static int
@@ -239,16 +222,9 @@ daemon_saver(video_adapter_t *adp, int blank)
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (blanked == 0) {
-#ifdef PC98
-			if (epson_machine_id == 0x20) {
-				outb(0x43f, 0x42);
-				outb(0x0c17, inb(0xc17) & ~0x08);
-				outb(0x43f, 0x40);
-			}
-#endif /* PC98 */
 			/* clear the screen and set the border color */
 			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
-				     (FG_LIGHTGREY | BG_BLACK) << 8);
+				     ATTR(FG_LIGHTGREY | BG_BLACK));
 			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 			sc_set_border(scp, 0);
 			xlen = ylen = tlen = 0;
@@ -365,16 +341,9 @@ daemon_saver(video_adapter_t *adp, int blank)
 
  		draw_daemon(sc, dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
 		draw_string(sc, txpos, typos, toff, message, tlen);
-	} else {
-#ifdef PC98
-		if (epson_machine_id == 0x20) {
-			outb(0x43f, 0x42);
-			outb(0x0c17, inb(0xc17) | 0x08);
-			outb(0x43f, 0x40);
-		}
-#endif /* PC98 */
+	} else
 		blanked = 0;
-	}
+
 	return 0;
 }
 
@@ -386,6 +355,16 @@ daemon_init(video_adapter_t *adp)
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
 	sprintf(message, "%s - %s %s", hostname, ostype, osrelease);
 	blanked = 0;
+	switch (adp->va_mode) {
+	case M_PC98_80x25:
+	case M_PC98_80x30:
+		attr_mask = ~FG_UNDERLINE;
+		break;
+	default:
+		attr_mask = ~0;
+		break;
+	}
+
 	return 0;
 }
 
