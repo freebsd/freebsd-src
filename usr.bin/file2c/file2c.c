@@ -10,36 +10,70 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: %s [-n count] [-x] [prefix [suffix]]\n",
+	    getprogname());
+	exit(1);
+}
 
 int
 main(int argc, char *argv[])
 {
-	int i, j, k;
+	int c, count, linepos, maxcount, radix;
 
-	if (argc > 1)
-		printf("%s\n", argv[1]);
-	k = 0;
-	j = 0;
-	while((i = getchar()) != EOF) {
-		if (k++) {
+	maxcount = 0;
+	radix = 10;
+	while ((c = getopt(argc, argv, "n:x")) != -1) {
+		switch (c) {
+		case 'n':	/* Max. number of bytes per line. */
+			maxcount = strtol(optarg, NULL, 10);
+			break;
+		case 'x':	/* Print hexadecimal numbers. */
+			radix = 16;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0)
+		printf("%s\n", argv[0]);
+	count = linepos = 0;
+	while((c = getchar()) != EOF) {
+		if (count) {
 			putchar(',');
-			j++;
+			linepos++;
 		}
-		if (j > 70) {
+		if ((maxcount == 0 && linepos > 70) ||
+		    (maxcount > 0 && count >= maxcount)) {
 			putchar('\n');
-			j = 0;
+			count = linepos = 0;
 		}
-		printf("%d", i);
-		if (i > 99)
-			j += 3;
-		else if (i > 9)
-			j += 2;
-		else
-			j++;
+		switch (radix) {
+		case 10:
+			linepos += printf("%d", c);
+			break;
+		case 16:
+			linepos += printf("0x%02x", c);
+			break;
+		default:
+			abort();
+		}
+		count++;
 	}
 	putchar('\n');
-	if (argc > 2)
-		printf("%s\n", argv[2]);
+	if (argc > 1)
+		printf("%s\n", argv[1]);
 	return (0);
 }
