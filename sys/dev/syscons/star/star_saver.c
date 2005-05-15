@@ -41,10 +41,6 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>
-#endif
-
 #define NUM_STARS	50
 
 static int blanked;
@@ -60,13 +56,11 @@ star_saver(video_adapter_t *adp, int blank)
 	scr_stat	*scp;
 	int		cell, i;
 	static u_char	pattern[] = {"...........++++***   "};
-#ifndef PC98
-	static char	colors[] = {FG_DARKGREY, FG_LIGHTGREY,
-				    FG_WHITE, FG_LIGHTCYAN};
-#else
-	static char	colors[] = {FG_BLUE, FG_LIGHTGREY,
+	static char	color16[] = {FG_DARKGREY, FG_LIGHTGREY,
+				     FG_WHITE, FG_LIGHTCYAN};
+	static char	color8[] = {FG_BLUE, FG_BROWN,
 				    FG_LIGHTGREY, FG_CYAN};
-#endif /* PC98 */
+	static char	*colors;
 	static u_short 	stars[NUM_STARS][2];
 
 	sc = sc_find_softc(adp, NULL);
@@ -78,13 +72,16 @@ star_saver(video_adapter_t *adp, int blank)
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (!blanked) {
-#ifdef PC98
-			if (epson_machine_id == 0x20) {
-				outb(0x43f, 0x42);
-				outb(0x0c17, inb(0xc17) & ~0x08);
-				outb(0x43f, 0x40);
+			switch (adp->va_mode) {
+			case M_PC98_80x25:
+			case M_PC98_80x30:
+				colors = color8;
+				break;
+			default:
+				colors = color16;
+				break;
 			}
-#endif /* PC98 */
+
 			/* clear the screen and set the border color */
 			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
 				     (FG_LIGHTGREY | BG_BLACK) << 8);
@@ -100,22 +97,14 @@ star_saver(video_adapter_t *adp, int blank)
 		cell = random() % NUM_STARS;
 		sc_vtb_putc(&scp->scr, stars[cell][0], 
 			    sc->scr_map[pattern[stars[cell][1]]],
-			    colors[random()%sizeof(colors)] << 8);
+			    colors[random()%sizeof(color16)] << 8);
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {
 			stars[cell][0] = random() % (scp->xsize*scp->ysize);
 			stars[cell][1] = 0;
 		}
-	}
-	else {
-#ifdef PC98
-		if (epson_machine_id == 0x20) {
-			outb(0x43f, 0x42);
-			outb(0x0c17, inb(0xc17) | 0x08);
-			outb(0x43f, 0x40);
-		}
-#endif /* PC98 */
+	} else
 		blanked = FALSE;
-	}
+
 	return 0;
 }
 
