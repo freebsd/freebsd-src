@@ -1095,15 +1095,6 @@ ndis_halt_nic(arg)
 
 	sc = arg;
 
-	NDIS_LOCK(sc);
-	adapter = sc->ndis_block->nmb_miniportadapterctx;
-	if (adapter == NULL) {
-		NDIS_UNLOCK(sc);
-		return(EIO);
-	}
-
-	sc->ndis_block->nmb_devicectx = NULL;
-
 #ifdef NDIS_REAP_TIMERS
 	/*
 	 * Drivers are sometimes very lax about cancelling all
@@ -1123,6 +1114,15 @@ ndis_halt_nic(arg)
 	sc->ndis_block->nmb_timerlist = NULL;
 	KeFlushQueuedDpcs();
 #endif
+
+	NDIS_LOCK(sc);
+	adapter = sc->ndis_block->nmb_miniportadapterctx;
+	if (adapter == NULL) {
+		NDIS_UNLOCK(sc);
+		return(EIO);
+	}
+
+	sc->ndis_block->nmb_devicectx = NULL;
 
 	/*
 	 * The adapter context is only valid after the init
@@ -1420,6 +1420,8 @@ NdisAddDevice(drv, pdo)
 		return(status);
 
 	block = fdo->do_devext;
+
+	block->nmb_filterdbs.nf_ethdb = block;
 	block->nmb_deviceobj = fdo;
 	block->nmb_physdeviceobj = pdo;
 	block->nmb_nextdeviceobj = IoAttachDeviceToDeviceStack(fdo, pdo);
@@ -1433,6 +1435,22 @@ NdisAddDevice(drv, pdo)
 	sc = device_get_softc(pdo->do_devext);
 	sc->ndis_block = block;
 	sc->ndis_chars = IoGetDriverObjectExtension(drv, (void *)1);
+
+	/*
+	 * If the driver has a MiniportTransferData() function,
+	 * we should allocate a private RX packet pool.
+	 */
+
+	if (sc->ndis_chars->nmc_transferdata_func != NULL) {
+		NdisAllocatePacketPool(&status, &block->nmb_rxpool,
+		    32, PROTOCOL_RESERVED_SIZE_IN_PACKET);
+		if (status != NDIS_STATUS_SUCCESS) {
+			IoDetachDevice(block->nmb_nextdeviceobj);
+			IoDeleteDevice(fdo);
+			return(status);
+		}
+		INIT_LIST_HEAD((&block->nmb_packetlist));
+	}
 
 	/* Give interrupt handling priority over timers. */
 	IoInitializeDpcRequest(fdo, kernndis_functbl[6].ipt_wrap);
@@ -1470,6 +1488,8 @@ ndis_unload_driver(arg)
 
 	TAILQ_REMOVE(&ndis_devhead, sc->ndis_block, link);
 
+	if (sc->ndis_chars->nmc_transferdata_func != NULL)
+		NdisFreePacketPool(sc->ndis_block->nmb_rxpool);
 	fdo = sc->ndis_block->nmb_deviceobj;
 	IoDetachDevice(sc->ndis_block->nmb_nextdeviceobj);
 	IoDeleteDevice(fdo);
