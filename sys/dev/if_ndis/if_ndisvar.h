@@ -127,6 +127,7 @@ struct ndis_softc {
 	ndis_work_item		ndis_tickitem;
 	ndis_work_item		ndis_startitem;
 	ndis_work_item		ndis_resetitem;
+	kdpc			ndis_rxdpc;
 	bus_dma_tag_t		ndis_parent_tag;
 	struct ndis_shmem	*ndis_shlist;
 	bus_dma_tag_t		ndis_mtag;
