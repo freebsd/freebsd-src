@@ -28,13 +28,7 @@
 #ifndef _NETDB_PRIVATE_H_
 #define _NETDB_PRIVATE_H_
 
-#include <sys/_types.h>
 #include <stdio.h>				/* XXX: for FILE */
-
-#ifndef _UINT32_T_DECLARED
-typedef	__uint32_t	uint32_t;
-#define	_UINT32_T_DECLARED
-#endif
 
 #define	_MAXALIASES	35
 #define	_MAXLINELEN	1024
@@ -155,7 +149,7 @@ int gethostbyname_r(const char *, struct hostent *, struct hostent_data *);
 int gethostbyname2_r(const char *, int, struct hostent *,
 	struct hostent_data *);
 int gethostent_r(struct hostent *, struct hostent_data *);
-int getnetbyaddr_r(unsigned long addr, int af, struct netent *,
+int getnetbyaddr_r(uint32_t addr, int af, struct netent *,
 	struct netent_data *);
 int getnetbyname_r(const char *, struct netent *, struct netent_data *);
 int getnetent_r(struct netent *, struct netent_data *);
