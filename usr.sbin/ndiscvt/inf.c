@@ -55,6 +55,9 @@ static struct assign_head ah;
 static char	*sstrdup	(const char *);
 static struct assign
 		*find_assign	(const char *, const char *);
+static struct assign
+		*find_next_assign
+				(struct assign *);
 static struct section
 		*find_section	(const char *);
 static void	dump_deviceids_pci	(void);
@@ -124,6 +127,24 @@ find_assign (const char *s, const char *k)
 		}
 	}
 	return(NULL);
+}
+
+static struct assign *
+find_next_assign (struct assign *a)
+{
+	struct assign *assign;
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign == a)
+			break;
+	}
+
+	assign = assign->link.tqe_next;
+
+	if (assign == NULL || assign->section != a->section)
+		return(NULL);
+
+	return (assign);
 }
 
 static const char *
@@ -239,8 +260,13 @@ dump_deviceids_pci()
 	char xpsec[256];
 	int found = 0;
 
+	/* Emit start of PCI device table */
+	fprintf (ofp, "#define NDIS_PCI_DEV_TABLE");
+
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
+
+nextmanf:
 
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
@@ -268,12 +294,9 @@ dump_deviceids_pci()
 	}
 
 	if (found == 0)
-		return;
+		goto done;
 
 	found = 0;
-
-	/* Emit start of PCI device table */
-	fprintf (ofp, "#define NDIS_PCI_DEV_TABLE");
 
 retry:
 
@@ -304,10 +327,18 @@ retry:
 		goto retry;
 	}
 
+	/* Handle Manufacturer sections with multiple entries. */
+	manf = find_next_assign(manf);
+
+	if (manf != NULL)
+		goto nextmanf;
+
+done:
 	/* Emit end of table */
 
 	fprintf(ofp, "\n\n");
 
+	return;
 }
 
 static void
@@ -321,6 +352,8 @@ dump_deviceids_pcmcia()
 
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
+
+nextmanf:
 
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
@@ -348,7 +381,7 @@ dump_deviceids_pcmcia()
 	}
 
 	if (found == 0)
-		return;
+		goto done;
 
 	found = 0;
 
@@ -384,10 +417,18 @@ retry:
 		goto retry;
 	}
 
+	/* Handle Manufacturer sections with multiple entries. */
+	manf = find_next_assign(manf);
+
+	if (manf != NULL)
+		goto nextmanf;
+
+done:
 	/* Emit end of table */
 
 	fprintf(ofp, "\n\n");
 
+	return;
 }
 
 static void
@@ -573,8 +614,13 @@ dump_regvals(void)
 	if (strcasecmp(assign->vals[0], "$windows nt$") == 0)
 		is_winnt++;
 
+	/* Emit start of block */
+	fprintf (ofp, "ndis_cfg ndis_regvals[] = {");
+
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
+
+nextmanf:
 
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
@@ -589,9 +635,6 @@ dump_regvals(void)
 		sec = find_section(sname);
 	} else
 		sec = find_section(manf->vals[0]);
-
-	/* Emit start of block */
-	fprintf (ofp, "ndis_cfg ndis_regvals[] = {");
 
 retry:
 
@@ -639,6 +682,11 @@ retry:
 		found++;
 		goto retry;
 	}
+
+	manf = find_next_assign(manf);
+
+	if (manf != NULL)
+		goto nextmanf;
 
 	fprintf(ofp, "\n\t{ NULL, NULL, { 0 }, 0 }\n};\n\n");
 
