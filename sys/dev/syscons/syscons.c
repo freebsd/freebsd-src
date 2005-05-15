@@ -1340,12 +1340,6 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 #endif /* SC_NO_FONT_LOADING */
 
-#ifdef PC98
-    case ADJUST_CLOCK:	/* /dev/rtc for 98note resume */
-	inittodr(0);
-	return 0;
-#endif
-
     default:
 	break;
     }
