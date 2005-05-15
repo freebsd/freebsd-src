@@ -769,7 +769,7 @@ got_match:
 	 * - The packet is not an ICMP packet, or is an ICMP query packet
 	 * - The packet is not a multicast or broadcast packet
 	 */
-	if ((rule->fw_flg & IPV6_FW_F_COMMAND) == IPV6_FW_F_REJECT
+	if (rule && (rule->fw_flg & IPV6_FW_F_COMMAND) == IPV6_FW_F_REJECT
 	    && (nxt != IPPROTO_ICMPV6 || is_icmp6_query(ip6, off))
 	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
 	    && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
