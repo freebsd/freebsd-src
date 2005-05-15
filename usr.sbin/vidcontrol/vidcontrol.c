@@ -439,12 +439,12 @@ set_normal_colors(int argc, char **argv, int *_index)
 
 	if (*_index < argc && (color = get_color_number(argv[*_index])) != -1) {
 		(*_index)++;
-		fprintf(stderr, "\e[=%dF", color);
+		fprintf(stderr, "\033[=%dF", color);
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1
 		    && color < 8) {
 			(*_index)++;
-			fprintf(stderr, "\e[=%dG", color);
+			fprintf(stderr, "\033[=%dG", color);
 		}
 	}
 }
@@ -455,12 +455,12 @@ set_reverse_colors(int argc, char **argv, int *_index)
 	int color;
 
 	if ((color = get_color_number(argv[*(_index)-1])) != -1) {
-		fprintf(stderr, "\e[=%dH", color);
+		fprintf(stderr, "\033[=%dH", color);
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1
 		    && color < 8) {
 			(*_index)++;
-			fprintf(stderr, "\e[=%dI", color);
+			fprintf(stderr, "\033[=%dI", color);
 		}
 	}
 }
@@ -488,7 +488,7 @@ set_border_color(char *arg)
 	int color;
 
 	if ((color = get_color_number(arg)) != -1) {
-		fprintf(stderr, "\e[=%dA", color);
+		fprintf(stderr, "\033[=%dA", color);
 	}
 	else
 		usage();
@@ -666,16 +666,16 @@ test_frame(void)
 		break;
 	}
 
-	fprintf(stdout, "\e[=0G\n\n");
+	fprintf(stdout, "\033[=0G\n\n");
 	for (i=0; i<8; i++) {
-		fprintf(stdout, "\e[=%dF\e[=0G        %2d \e[=%dF%-16s"
-				"\e[=%dF\e[=0G        %2d \e[=%dF%-16s        "
-				"\e[=%dF %2d \e[=%dGBACKGROUND\e[=0G\n",
+		fprintf(stdout, "\033[=%dF\033[=0G        %2d \033[=%dF%-16s"
+				"\033[=%dF\033[=0G        %2d \033[=%dF%-16s        "
+				"\033[=%dF %2d \033[=%dGBACKGROUND\033[=0G\n",
 			fore, i, i, legal_colors[i],
 			fore, i+8, i+8, legal_colors[i+8],
 			fore, i, i);
 	}
-	fprintf(stdout, "\e[=%dF\e[=%dG\e[=%dH\e[=%dI\n",
+	fprintf(stdout, "\033[=%dF\033[=%dG\033[=%dH\033[=%dI\n",
 		info.mv_norm.fore, info.mv_norm.back,
 		info.mv_rev.fore, info.mv_rev.back);
 }
