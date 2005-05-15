@@ -7,7 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 1995
+.Dd May 14, 2005
 .Dt FILE2C 1
 .Os
 .Sh NAME
@@ -15,22 +15,47 @@
 .Nd convert file to c-source
 .Sh SYNOPSIS
 .Nm
-.Op "string"
-.Op "string"
+.Op Fl n Ar count
+.Op Fl x
+.Op Ar prefix Op Ar suffix
 .Sh DESCRIPTION
 The
 .Nm
 utility reads a file from stdin and writes it to stdout, converting each
-byte to its decimal representation on the fly.
+byte to its decimal or hexadecimal representation on the fly.
+The byte values are seperated by a comma.
+This also means that the last byte value is not followed by a comma.
+By default the byte values are printed in decimal, but when the
+.Fl x
+option is given, the values will be printed in hexadecimal.
 .Pp
-If the first
-.Op string
-is present, it is printed before the data; if the second
-.Op string
-is present, it is printed after the data.
+If more than 70 characters are printed on the same line, that line is
+ended and the output continues on the next line.
+With the
+.Fl n
+option this can be made to happen after the specified number of
+byte values have been printed.
+The length of the line will not be considered anymore.
+To have all the byte values printed on the same line, give the
+.Fl n
+option a negative number.
 .Pp
-This program is used to embed binary or other files into C source files,
-for instance as a char[].
+A prefix and suffix strings can be printed before and after the byte values
+(resp.)
+If a suffix is to be printed, a prefix must also be specified.
+The first non-option word is the prefix, which may optionally be followed
+by a word that is to be used as the suffix.
+.Pp
+This program is typically used to embed binary files into C source files.
+The prefix is used to define an array type and the suffix is used to end
+the C statement.
+The
+.Fl x
+and
+.Fl n
+options are useful when the binary data represents a bitmap and the output
+needs to remain readable and/or editable.
+Fonts, for example, are a good example of this.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
