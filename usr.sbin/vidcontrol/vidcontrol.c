@@ -653,15 +653,27 @@ show_info(char *arg)
 static void
 test_frame(void)
 {
-	int i;
+	int i, cur_mode, fore;
+
+	fore = 15;
+
+	if (ioctl(0, CONS_GET, &cur_mode) < 0)
+		err(1, "must be on a virtual console");
+	switch (cur_mode) {
+	case M_PC98_80x25:
+	case M_PC98_80x30:
+		fore = 7;
+		break;
+	}
 
 	fprintf(stdout, "\e[=0G\n\n");
 	for (i=0; i<8; i++) {
-		fprintf(stdout, "\e[=15F\e[=0G        %2d \e[=%dF%-16s"
-				"\e[=15F\e[=0G        %2d \e[=%dF%-16s        "
-				"\e[=15F %2d \e[=%dGBACKGROUND\e[=0G\n",
-			i, i, legal_colors[i], i+8, i+8,
-			legal_colors[i+8], i, i);
+		fprintf(stdout, "\e[=%dF\e[=0G        %2d \e[=%dF%-16s"
+				"\e[=%dF\e[=0G        %2d \e[=%dF%-16s        "
+				"\e[=%dF %2d \e[=%dGBACKGROUND\e[=0G\n",
+			fore, i, i, legal_colors[i],
+			fore, i+8, i+8, legal_colors[i+8],
+			fore, i, i);
 	}
 	fprintf(stdout, "\e[=%dF\e[=%dG\e[=%dH\e[=%dI\n",
 		info.mv_norm.fore, info.mv_norm.back,
