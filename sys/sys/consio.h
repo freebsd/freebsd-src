@@ -290,10 +290,6 @@ typedef struct term_info term_info_t;
 #define CONS_GETTERM	_IOWR('c', 112, term_info_t)
 #define CONS_SETTERM	_IOW('c', 113, term_info_t)
 
-#ifdef PC98
-#define ADJUST_CLOCK	_IO('t',100)		/* for 98note resume */
-#endif
-
 /*
  * Vty switching ioctl commands.
  */
