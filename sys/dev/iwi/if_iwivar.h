@@ -121,6 +121,7 @@ struct iwi_softc {
 	uint32_t		flags;
 #define IWI_FLAG_FW_CACHED	(1 << 0)
 #define IWI_FLAG_FW_INITED	(1 << 1)
+#define IWI_FLAG_FW_WARNED	(1 << 2)
 
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq;
