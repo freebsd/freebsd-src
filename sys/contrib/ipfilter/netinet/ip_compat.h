@@ -2293,4 +2293,8 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 # define	DPRINT(x)
 #endif
 
+#ifdef RESCUE
+# undef IPFILTER_BPF
+#endif
+
 #endif	/* __IP_COMPAT_H__ */
