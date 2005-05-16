@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <nsswitch.h>
 
+#include "netdb_private.h"
 #include "res_config.h"
 
 #define SPRINTF(x) ((size_t)sprintf x)

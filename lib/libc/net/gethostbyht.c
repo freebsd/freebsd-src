@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include <arpa/nameser.h>	/* XXX */
 #include <resolv.h>		/* XXX */
+#include "netdb_private.h"
 
 #define	MAXALIASES	35
 

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/nameser.h>		/* XXX hack for _res */
 #include <resolv.h>			/* XXX hack for _res */
 #include "un-namespace.h"
+#include "netdb_private.h"
 
 extern int _ht_gethostbyname(void *, void *, va_list);
 extern int _dns_gethostbyname(void *, void *, va_list);

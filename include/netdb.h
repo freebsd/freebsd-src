@@ -257,18 +257,6 @@ void		setservent(int);
 
 /* DO NOT USE THESE, THEY ARE SUBJECT TO CHANGE AND ARE NOT PORTABLE!!! */
 int	* __h_error(void);
-void	_sethosthtent(int);
-void	_endhosthtent(void);
-void	_sethostdnsent(int);
-void	_endhostdnsent(void);
-void	_setnethtent(int);
-void	_endnethtent(void);
-void	_setnetdnsent(int);
-void	_endnetdnsent(void);
-struct hostent * _gethostbynisname(const char *, int);
-struct hostent * _gethostbynisaddr(const char *, int, int);
-void _map_v4v6_address(const char *, char *);
-void _map_v4v6_hostent(struct hostent *, char **, char **);
 __END_DECLS
 
 #endif /* !_NETDB_H_ */
