@@ -1319,7 +1319,8 @@ ng_ppp_frag_process(node_p node)
 	/* Deliver any deliverable packets */
 	while (ng_ppp_check_packet(node)) {
 		ng_ppp_get_packet(node, &m);
-		item = ng_package_data(m, NULL);
+		if ((item = ng_package_data(m, NG_NOFLAGS)) == NULL)
+			return (ENOMEM);
 		ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
 	}
 
@@ -1327,7 +1328,8 @@ ng_ppp_frag_process(node_p node)
 	if (ng_ppp_frag_trim(node)) {
 		while (ng_ppp_check_packet(node)) {
 			ng_ppp_get_packet(node, &m);
-			item = ng_package_data(m, NULL);
+			if ((item = ng_package_data(m, NG_NOFLAGS)) == NULL)
+				return (ENOMEM);
 			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
 		}
 	}
@@ -1461,8 +1463,8 @@ ng_ppp_frag_checkstale(node_p node)
 		}
 
 		/* Deliver packet */
-		item = ng_package_data(m, NULL);
-		ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
+		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
+			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
 	}
 }
 
@@ -1598,7 +1600,8 @@ deliver:
 			}
 
 			/* Send fragment */
-			item = ng_package_data(m2, NULL);
+			if ((item = ng_package_data(m2, NG_NOFLAGS)) == NULL)
+				return (ENOMEM);
 			error = ng_ppp_output(node, 0, PROT_MP, linkNum, item);
 			if (error != 0) {
 				if (!lastFragment)
