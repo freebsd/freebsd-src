@@ -977,9 +977,23 @@ typedef enum ndis_interrupt_mode ndis_interrupt_mode;
 
 #define NUMBER_OF_SINGLE_WORK_ITEMS 6
 
-typedef work_queue_item ndis_work_item;
-typedef work_item_func ndis_proc;
-#define NdisInitializeWorkItem(w, f, c)	ExInitializeWorkItem(w, f, c)
+struct ndis_work_item;
+
+typedef void (*ndis_proc)(struct ndis_work_item *, void *);
+
+struct ndis_work_item {
+	void			*nwi_ctx;
+	ndis_proc		nwi_func;
+	uint8_t			nwi_wraprsvd[sizeof(void *) * 8];
+};
+
+typedef struct ndis_work_item ndis_work_item;
+
+#define NdisInitializeWorkItem(w, f, c)	\
+	do {				\
+		(w)->nwi_ctx = c;	\
+		(w)->nwi_func = f;	\
+	} while (0)
 
 #ifdef notdef
 struct ndis_buffer {
