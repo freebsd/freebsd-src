@@ -1677,7 +1677,6 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
 	struct ndis_shmem	*sh, *prev;
-	int			checks = 0;
 
 	if (vaddr == NULL || adapter == NULL)
 		return;
@@ -1692,7 +1691,6 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 		return;
 
 	while (sh) {
-		checks++;
 		if (sh->ndis_saddr == vaddr)
 			break;
 		/*
