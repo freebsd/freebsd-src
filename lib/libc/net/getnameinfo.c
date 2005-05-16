@@ -46,7 +46,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -54,12 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <resolv.h>
 #include <string.h>
 #include <stddef.h>
 #include <errno.h>
-#include "un-namespace.h"
 
 static const struct afd {
 	int a_af;
@@ -87,19 +84,6 @@ static int ip6_parsenumeric(const struct sockaddr *, const char *, char *,
     size_t, int);
 static int ip6_sa2str(const struct sockaddr_in6 *, char *, size_t, int);
 #endif
-
-/*
- * XXX: Many dependencies are not thread-safe.  So, we share lock between
- * getaddrinfo() and getipnodeby*().  Still, we cannot use
- * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call them.
- */
-#include "libc_private.h"
-extern pthread_mutex_t __getaddrinfo_thread_lock;
-#define THREAD_LOCK() \
-	if (__isthreaded) _pthread_mutex_lock(&__getaddrinfo_thread_lock);
-#define THREAD_UNLOCK() \
-	if (__isthreaded) _pthread_mutex_unlock(&__getaddrinfo_thread_lock);
 
 int
 getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
@@ -149,7 +133,6 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		 * servlen == 0 means that the caller does not want the result.
 		 */
 	} else {
-		THREAD_LOCK();
 		if (flags & NI_NUMERICSERV)
 			sp = NULL;
 		else {
@@ -157,20 +140,15 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				(flags & NI_DGRAM) ? "udp" : "tcp");
 		}
 		if (sp) {
-			if (strlen(sp->s_name) + 1 > servlen) {
-				THREAD_UNLOCK();
+			if (strlen(sp->s_name) + 1 > servlen)
 				return EAI_MEMORY;
-			}
 			strlcpy(serv, sp->s_name, servlen);
 		} else {
 			snprintf(numserv, sizeof(numserv), "%u", ntohs(port));
-			if (strlen(numserv) + 1 > servlen) {
-				THREAD_UNLOCK();
+			if (strlen(numserv) + 1 > servlen)
 				return EAI_MEMORY;
-			}
 			strlcpy(serv, numserv, servlen);
 		}
-		THREAD_UNLOCK();
 	}
 
 	switch (sa->sa_family) {

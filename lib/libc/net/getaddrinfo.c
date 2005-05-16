@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <resolv.h>
 #include <string.h>
 #include <stdlib.h>
@@ -307,18 +306,6 @@ static struct ai_errlist {
 	{ "No address associated with hostname", 	7, },
 	{ NULL,						-1, },
 };
-
-/*
- * XXX: Many dependencies are not thread-safe.  So, we share lock between
- * getaddrinfo() and getipnodeby*().  Still, we cannot use
- * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call them.
- */
-pthread_mutex_t __getaddrinfo_thread_lock = PTHREAD_MUTEX_INITIALIZER;
-#define THREAD_LOCK() \
-	if (__isthreaded) _pthread_mutex_lock(&__getaddrinfo_thread_lock);
-#define THREAD_UNLOCK() \
-	if (__isthreaded) _pthread_mutex_unlock(&__getaddrinfo_thread_lock);
 
 /* XXX macros that make external reference is BAD. */
 
@@ -1481,13 +1468,9 @@ get_port(ai, servname, matchonly)
 			break;
 		}
 
-		THREAD_LOCK();
-		if ((sp = getservbyname(servname, proto)) == NULL) {
-			THREAD_UNLOCK();
+		if ((sp = getservbyname(servname, proto)) == NULL)
 			return EAI_SERVICE;
-		}
 		port = sp->s_port;
-		THREAD_UNLOCK();
 	}
 
 	if (!matchonly) {

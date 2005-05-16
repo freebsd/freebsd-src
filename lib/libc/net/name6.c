@@ -87,16 +87,13 @@
  *	Atsushi Onoe <onoe@sm.sony.co.jp>
  */
 
-/*
- * TODO for thread safe
- *	use mutex for _hostconf, _hostconf_init.
- *	rewrite resolvers to be thread safe
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#if defined(YP) || defined(ICMPNL)
+#include "reentrant.h"
+#endif
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -121,7 +118,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
-#include <pthread.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
@@ -238,17 +234,14 @@ static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
 /*
- * XXX: Many dependencies are not thread-safe.  So, we share lock between
- * getaddrinfo() and getipnodeby*().  Still, we cannot use
- * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call them.
+ * XXX: Many dependencies are not thread-safe.  Still, we cannot use
+ * getipnodeby*() in conjunction with other functions which call them.
  */
-#include "libc_private.h"
-extern pthread_mutex_t __getaddrinfo_thread_lock;
-#define THREAD_LOCK() \
-	if (__isthreaded) _pthread_mutex_lock(&__getaddrinfo_thread_lock);
-#define THREAD_UNLOCK() \
-	if (__isthreaded) _pthread_mutex_unlock(&__getaddrinfo_thread_lock);
+#if defined(YP) || defined(ICMPNL)
+static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
+#define THREAD_LOCK()	mutex_lock(&_getipnodeby_thread_lock);
+#define THREAD_UNLOCK()	mutex_unlock(&_getipnodeby_thread_lock);
+#endif
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
 static const ns_src default_src[] = { 
