@@ -138,7 +138,7 @@ optschanged(void)
 STATIC void
 options(int cmdline)
 {
-	char *p;
+	char *kp, *p;
 	int val;
 	int c;
 
@@ -153,6 +153,25 @@ options(int cmdline)
 				goto end_options1;
 			if (p[0] == '-' && p[1] == '\0')
 				goto end_options2;
+			/**
+			 * For the benefit of `#!' lines in shell scripts,
+			 * treat a string of '-- *#.*' the same as '--'.
+			 * This is needed so that a script starting with:
+			 *	#!/bin/sh -- # -*- perl -*-
+			 * will continue to work after a change is made to
+			 * kern/imgact_shell.c to NOT token-ize the options
+			 * specified on a '#!' line.  A bit of a kludge,
+			 * but that trick is recommended in documentation
+			 * for some scripting languages, and we might as
+			 * well continue to support it.
+			 */
+			if (p[0] == '-') {
+				kp = p + 1;
+				while (*kp == ' ' || *kp == '\t')
+					kp++;
+				if (*kp == '#' || *kp == '\0')
+					goto end_options2;
+			}
 		} else if (c == '+') {
 			val = 0;
 		} else {
