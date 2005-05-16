@@ -1,9 +1,9 @@
-/*	$NetBSD: usbdi.c,v 1.106 2004/10/24 12:52:40 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $	*/
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*-
+/*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/kernel.h>
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
@@ -63,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_mem.h>
-#include <dev/usb/usb_quirks.h>
 
 #if defined(__FreeBSD__)
 #include "usb_if.h"
@@ -243,7 +241,7 @@ usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 	ipipe->repeat = 1;
 	err = usbd_transfer(xfer);
 	*pipe = ipipe;
-	if (err != USBD_IN_PROGRESS && err)
+	if (err != USBD_IN_PROGRESS)
 		goto bad2;
 	return (USBD_NORMAL_COMPLETION);
 
@@ -529,12 +527,6 @@ usbd_get_config_descriptor(usbd_device_handle dev)
 	return (dev->cdesc);
 }
 
-int
-usbd_get_speed(usbd_device_handle dev)
-{
-	return (dev->speed);
-}
-
 usb_interface_descriptor_t *
 usbd_get_interface_descriptor(usbd_interface_handle iface)
 {
@@ -577,12 +569,6 @@ usbd_abort_pipe(usbd_pipe_handle pipe)
 	err = usbd_ar_pipe(pipe);
 	splx(s);
 	return (err);
-}
-
-usbd_status
-usbd_abort_default_pipe(usbd_device_handle dev)
-{
-	return (usbd_abort_pipe(dev->default_pipe));
 }
 
 usbd_status
@@ -793,9 +779,6 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 {
 	usbd_pipe_handle pipe = xfer->pipe;
 	usb_dma_t *dmap = &xfer->dmabuf;
-	int sync = xfer->flags & USBD_SYNCHRONOUS;
-	int erred = xfer->status == USBD_CANCELLED ||
-	    xfer->status == USBD_TIMEOUT;
 	int repeat = pipe->repeat;
 	int polling;
 
@@ -880,12 +863,14 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 	pipe->methods->done(xfer);
 #endif
 
-	if (sync && !polling)
+	if ((xfer->flags & USBD_SYNCHRONOUS) && !polling)
 		wakeup(xfer);
 
 	if (!repeat) {
 		/* XXX should we stop the queue on all errors? */
-		if (erred && pipe->iface != NULL)	/* not control pipe */
+		if ((xfer->status == USBD_CANCELLED ||
+		     xfer->status == USBD_TIMEOUT) &&
+		    pipe->iface != NULL)		/* not control pipe */
 			pipe->running = 0;
 		else
 			usbd_start_next(pipe);
@@ -1083,7 +1068,7 @@ usbd_do_request_async(usbd_device_handle dev, usb_device_request_t *req,
 	usbd_setup_default_xfer(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
 	    data, UGETW(req->wLength), 0, usbd_do_request_async_cb);
 	err = usbd_transfer(xfer);
-	if (err != USBD_IN_PROGRESS && err) {
+	if (err != USBD_IN_PROGRESS) {
 		usbd_free_xfer(xfer);
 		return (err);
 	}
@@ -1171,86 +1156,6 @@ usb_match_device(const struct usb_devno *tbl, u_int nentries, u_int sz,
 		tbl = (const struct usb_devno *)((const char *)tbl + sz);
 	}
 	return (NULL);
-}
-
-
-void
-usb_desc_iter_init(usbd_device_handle dev, usbd_desc_iter_t *iter)
-{
-	const usb_config_descriptor_t *cd = usbd_get_config_descriptor(dev);
-
-        iter->cur = (const uByte *)cd;
-        iter->end = (const uByte *)cd + UGETW(cd->wTotalLength);
-}
-
-const usb_descriptor_t *
-usb_desc_iter_next(usbd_desc_iter_t *iter)
-{
-	const usb_descriptor_t *desc;
-
-	if (iter->cur + sizeof(usb_descriptor_t) >= iter->end) {
-		if (iter->cur != iter->end)
-			printf("usb_desc_iter_next: bad descriptor\n");
-		return NULL;
-	}
-	desc = (const usb_descriptor_t *)iter->cur;
-	if (desc->bLength == 0) {
-		printf("usb_desc_iter_next: descriptor length = 0\n");
-		return NULL;
-	}
-	iter->cur += desc->bLength;
-	if (iter->cur > iter->end) {
-		printf("usb_desc_iter_next: descriptor length too large\n");
-		return NULL;
-	}
-	return desc;
-}
-
-usbd_status
-usbd_get_string(usbd_device_handle dev, int si, char *buf)
-{
-	int swap = dev->quirks->uq_flags & UQ_SWAP_UNICODE;
-	usb_string_descriptor_t us;
-	char *s;
-	int i, n;
-	u_int16_t c;
-	usbd_status err;
-	int size;
-
-	buf[0] = '\0';
-	if (si == 0)
-		return (USBD_INVAL);
-	if (dev->quirks->uq_flags & UQ_NO_STRINGS)
-		return (USBD_STALLED);
-	if (dev->langid == USBD_NOLANG) {
-		/* Set up default language */
-		err = usbd_get_string_desc(dev, USB_LANGUAGE_TABLE, 0, &us,
-		    &size);
-		if (err || size < 4) {
-			DPRINTFN(-1,("usbd_get_string: getting lang failed, using 0\n"));
-			dev->langid = 0; /* Well, just pick something then */
-		} else {
-			/* Pick the first language as the default. */
-			dev->langid = UGETW(us.bString[0]);
-		}
-	}
-	err = usbd_get_string_desc(dev, si, dev->langid, &us, &size);
-	if (err)
-		return (err);
-	s = buf;
-	n = size / 2 - 1;
-	for (i = 0; i < n; i++) {
-		c = UGETW(us.bString[i]);
-		/* Convert from Unicode, handle buggy strings. */
-		if ((c & 0xff00) == 0)
-			*s++ = c;
-		else if ((c & 0x00ff) == 0 && swap)
-			*s++ = c >> 8;
-		else
-			*s++ = '?';
-	}
-	*s++ = 0;
-	return (USBD_NORMAL_COMPLETION);
 }
 
 #if defined(__FreeBSD__)

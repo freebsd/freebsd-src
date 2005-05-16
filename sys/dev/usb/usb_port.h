@@ -7,7 +7,7 @@
  *	$NetBSD: usb_port.h,v 1.58 2002/10/01 01:25:26 thorpej Exp $
  */
 
-/*-
+/*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -134,8 +134,7 @@ void __CONCAT(dname,_attach)(struct device *parent, struct device *self, void *a
 #define USB_ATTACH_ERROR_RETURN	return
 #define USB_ATTACH_SUCCESS_RETURN	return
 
-#define USB_ATTACH_SETUP
-	printf("\n%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
+#define USB_ATTACH_SETUP printf("\n")
 
 #define USB_DETACH(dname) \
 int __CONCAT(dname,_detach)(struct device *self, int flags)
@@ -302,8 +301,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define USB_ATTACH_ERROR_RETURN	return
 #define USB_ATTACH_SUCCESS_RETURN	return
 
-#define USB_ATTACH_SETUP
-	printf("\n%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
+#define USB_ATTACH_SETUP printf("\n")
 
 #define USB_DETACH(dname) \
 int \
@@ -388,7 +386,6 @@ typedef struct callout usb_callout_t;
 #define usb_callout_init(h)     callout_init(&(h), 0)
 #define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
-#define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
 #else
 typedef struct proc *usb_proc_ptr;
 
@@ -420,12 +417,7 @@ typedef struct callout usb_callout_t;
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
-#define config_detach(dev, flag) \
-	do { \
-		device_detach(dev); \
-		free(device_get_ivars(dev), M_USB); \
-		device_delete_child(device_get_parent(dev), dev); \
-	} while (0);
+#define config_detach(dev, flag) device_delete_child(device_get_parent(dev), dev)
 
 typedef struct malloc_type *usb_malloc_type;
 
@@ -478,11 +470,8 @@ __CONCAT(dname,_attach)(device_t self)
 #define USB_ATTACH_SUCCESS_RETURN	return 0
 
 #define USB_ATTACH_SETUP \
-	do { \
-		sc->sc_dev = self; \
-		device_set_desc_copy(self, devinfo); \
-		device_printf(self, "%s\n", devinfo); \
-	} while (0);
+	sc->sc_dev = self; \
+	device_set_desc_copy(self, devinfo)
 
 #define USB_DETACH(dname) \
 Static int \
