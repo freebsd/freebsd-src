@@ -99,8 +99,11 @@ file_open(struct archive *a, void *client_data)
 		/* Remember mode so close can decide whether to flush. */
 		mine->st_mode = st.st_mode;
 	} else {
-		archive_set_error(a, errno, "Can't stat '%s'",
-		    mine->filename);
+		if (mine->filename[0] == '\0')
+			archive_set_error(a, errno, "Can't stat stdin");
+		else
+			archive_set_error(a, errno, "Can't stat '%s'",
+			    mine->filename);
 		return (ARCHIVE_FATAL);
 	}
 	return (0);
@@ -110,10 +113,19 @@ static ssize_t
 file_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_file_data *mine = client_data;
+	ssize_t bytes_read;
 
 	(void)a; /* UNUSED */
 	*buff = mine->buffer;
-	return (read(mine->fd, mine->buffer, mine->block_size));
+	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
+	if (bytes_read < 0) {
+		if (mine->filename[0] == '\0')
+			archive_set_error(a, errno, "Error reading stdin");
+		else
+			archive_set_error(a, errno, "Error reading '%s'",
+			    mine->filename);
+	}
+	return (bytes_read);
 }
 
 static int
