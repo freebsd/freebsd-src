@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-cd.h>
-#include <dev/ata/ata-commands.h>
 #include <ata_if.h>
 
 /* prototypes */
@@ -676,7 +675,7 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 	break;
 
     default:
-	error = ENOTTY;
+	error = ata_device_ioctl(dev, cmd, addr);
     }
     return error;
 }
