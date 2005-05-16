@@ -143,7 +143,7 @@ and
 functions appeared in
 .Bx 4.2 .
 .Sh BUGS
-These functions use a static data space;
+These functions use a thread-specific data space;
 if the data is needed for future use, it should be
 copied before any subsequent calls overwrite it.
 Only the Internet
