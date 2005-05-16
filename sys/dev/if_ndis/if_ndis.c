@@ -832,11 +832,11 @@ nonettypes:
 
 	/* Set up work item handlers. */
 	NdisInitializeWorkItem(&sc->ndis_tickitem,
-	    (work_item_func)ndis_ticktask_wrap, sc);
+	    (ndis_proc)ndis_ticktask_wrap, sc);
 	NdisInitializeWorkItem(&sc->ndis_startitem,
-	    (work_item_func)ndis_starttask_wrap, ifp);
+	    (ndis_proc)ndis_starttask_wrap, ifp);
 	NdisInitializeWorkItem(&sc->ndis_resetitem,
-	    (work_item_func)ndis_resettask_wrap, sc);
+	    (ndis_proc)ndis_resettask_wrap, sc);
 	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
 
 
