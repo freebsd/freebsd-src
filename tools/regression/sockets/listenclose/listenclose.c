@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 
 	if (connect(connect_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		errx(-1, "connect() for connect socket: %s", strerror(errno));
-
+	close(connect_sock);
 	close(listen_sock);
 
 	return (0);
