@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2001
+.Dd May 16, 2005
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -119,10 +119,10 @@ The type can be
 (stripe),
 .Cm RAID1
 (mirror),
-.Cm RAID0+1,
+.Cm RAID0+1 ,
 .Cm SPAN
 or
-.Cm JBOD.
+.Cm JBOD .
 In case the RAID has a
 .Cm RAID0
 component,
@@ -159,7 +159,7 @@ Rebuild a RAID1 array on a RAID capable ATA controller.
 Get the status of an ATA RAID.
 .It Ic mode
 Without the mode argument, the current transfer modes of the
-device is printed.
+device are printed.
 If the mode argument is given, the ATA driver
 is asked to change the transfer mode to the one given.
 The ATA driver
@@ -189,7 +189,7 @@ and
 The device name and manufacture/version strings are shown.
 .It Ic cap
 Show detailed info about the device on
-.Ar device
+.Ar device .
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
@@ -203,9 +203,8 @@ To see the devices' current access modes, use the command line:
 .Pp
 which results in the modes of the devices being displayed as a string
 like this:
-.Bd -literal -offset indent
-.Ed
-current mode = UDMA100
+.Pp
+.Dl "current mode = UDMA100"
 .Pp
 You can set the mode with
 .Nm
