@@ -56,7 +56,7 @@ conflicts: 43 shift/reduce, 85 reduce/reduce
 This produces an executable a.out; you will eventually want to
 move this to some place like /usr/bin/awk.
 
-If your system is does not have yacc or bison (the GNU
+If your system does not have yacc or bison (the GNU
 equivalent), you must compile the pieces manually.  We have
 included yacc output in ytab.c and ytab.h, and backup copies in
 case you overwrite them.  We have also included a copy of

@@ -465,6 +465,7 @@ int match(fa *f, const char *p0)	/* shortest match ? */
 	if (f->out[s])
 		return(1);
 	do {
+		assert(*p < NCHARS);
 		if ((ns = f->gototab[s][*p]) != 0)
 			s = ns;
 		else
@@ -495,6 +496,7 @@ int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 		do {
 			if (f->out[s])		/* final state */
 				patlen = q-p;
+			assert(*q < NCHARS);
 			if ((ns = f->gototab[s][*q]) != 0)
 				s = ns;
 			else
@@ -552,6 +554,7 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 		do {
 			if (f->out[s])		/* final state */
 				patlen = q-p;
+			assert(*q < NCHARS);
 			if ((ns = f->gototab[s][*q]) != 0)
 				s = ns;
 			else
@@ -834,6 +837,7 @@ int cgoto(fa *f, int s, int c)
 	int i, j, k;
 	int *p, *q;
 
+	assert(c == HAT || c < NCHARS);
 	while (f->accept >= maxsetvec) {	/* guessing here! */
 		maxsetvec *= 4;
 		setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
