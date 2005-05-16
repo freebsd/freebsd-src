@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-Import of the 2004/02/07 version of the "one true awk", as described
+Import of the 2005/04/24 version of the "one true awk", as described
 in "The AWK Programming Language", by Al Aho, Brian Kernighan, and
 Peter Weinberger (Addison-Wesley, 1988, ISBN 0-201-07981-X).
 
 Original sources were taken from the Brian Kernighan's home page
 (http://cm.bell-labs.com/who/bwk/) and include bug fixes up thru
-November 22, 2003.
+April 24, 2005.
 
 The following files were removed for this import:
 
@@ -21,4 +21,4 @@ The following files were removed for this import:
 
 The vendor import was done by:
 
-	cvs import src/contrib/one-true-awk BELL_LABS bwk_20040207
+	cvs import src/contrib/one-true-awk BELL_LABS bwk_20050424
