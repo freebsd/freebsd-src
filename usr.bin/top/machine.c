@@ -54,13 +54,15 @@
 static void getsysctl(char *, void *, size_t);
 
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
+#define	SMPUNAMELEN	13
+#define	UPUNAMELEN	15
 
 extern struct process_select ps;
 extern char* printable(char *);
 int swapmode(int *retavail, int *retfree);
 static int smpmode;
 enum displaymodes displaymode;
-static int namelength;
+static int namelength = 8;
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
@@ -237,12 +239,10 @@ machine_init(struct statics *statics)
 		if (strlen(pw->pw_name) > namelength)
 			namelength = strlen(pw->pw_name);
 	}
-	if (namelength < 8)
-		namelength = 8;
-	if (smpmode && namelength > 13)
-		namelength = 13;
-	else if (namelength > 15)
-		namelength = 15;
+	if (smpmode && namelength > SMPUNAMELEN)
+		namelength = SMPUNAMELEN;
+	else if (namelength > UPUNAMELEN)
+		namelength = UPUNAMELEN;
 
 	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
 	if (kd == NULL)
