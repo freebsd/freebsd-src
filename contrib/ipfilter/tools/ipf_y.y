@@ -5,7 +5,8 @@
 #include <sys/ioctl.h>
 #include <syslog.h>
 #ifdef IPFILTER_BPF
-# include <pcap-bpf.h>
+# include "pcap-bpf.h"
+# define _NET_BPF_H_
 # include <pcap.h>
 #endif
 #include "netinet/ip_pool.h"
