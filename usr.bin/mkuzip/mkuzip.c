@@ -30,7 +30,7 @@
 
 #define CLOOP_MAGIC_LEN 128
 static char CLOOP_MAGIC_START[] = "#!/bin/sh\n#V2.0 Format\n"
-    "m=geom_uzip\n(kldstat -n $m 2>&-||kldload $m)>&-&&"
+    "m=geom_uzip\n(kldstat -m $m 2>&-||kldload $m)>&-&&"
     "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n";
 
 static char *readblock(int, char *, u_int32_t);
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 	fdw = open(oname, O_WRONLY | O_TRUNC | O_CREAT,
-		   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 	if (fdw < 0) {
 		err(1, "%s", oname);
 		/* Not reached */
@@ -159,8 +159,8 @@ int main(int argc, char **argv)
 	lseek(fdw, offset, SEEK_SET);
 
 	if (verbose != 0)
-		fprintf(stderr, "data size %llu bytes, number of clusters "
-		    "%u, index lengh %u bytes\n", sb.st_size,
+		fprintf(stderr, "data size %ju bytes, number of clusters "
+		    "%u, index length %zu bytes\n", sb.st_size,
 		    hdr.nblocks, iov[1].iov_len);
 
 	for(i = 0; i == 0 || ibuf != NULL; i++) {
@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 	close(fdr);
 
 	if (verbose != 0)
-		fprintf(stderr, "compressed data to %llu bytes, saved %lld "
+		fprintf(stderr, "compressed data to %ju bytes, saved %lld "
 		    "bytes, %.2f%% decrease.\n", offset, (long long)(sb.st_size - offset),
 		    100.0 * (long long)(sb.st_size - offset) / (float)sb.st_size);
 
