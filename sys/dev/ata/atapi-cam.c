@@ -413,7 +413,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	int tid = ccb_h->target_id;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
-	ata_controlcmd(softc->atadev[tid]->dev, ATA_ATAPI_RESET, 0, 0, 0);
+	ata_controlcmd(softc->atadev[tid]->dev, ATA_DEVICE_RESET, 0, 0, 0);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;

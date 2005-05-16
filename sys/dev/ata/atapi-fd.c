@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 static disk_open_t afd_open;
 static disk_close_t afd_close;
 static disk_strategy_t afd_strategy;
+static disk_ioctl_t afd_ioctl;
 static int afd_sense(device_t);
 static void afd_describe(device_t);
 static void afd_done(struct ata_request *);
@@ -103,6 +104,7 @@ afd_attach(device_t dev)
     fdp->disk->d_open = afd_open;
     fdp->disk->d_close = afd_close;
     fdp->disk->d_strategy = afd_strategy;
+    fdp->disk->d_ioctl = afd_ioctl;
     fdp->disk->d_name = "afd";
     fdp->disk->d_drv1 = dev;
     if (ch->dma)
@@ -279,6 +281,12 @@ afd_done(struct ata_request *request)
     bp->bio_resid = bp->bio_bcount - request->donecount;
     biodone(bp);
     ata_free_request(request);
+}
+
+static int
+afd_ioctl(struct disk *disk, u_long cmd, void *data, int flag,struct thread *td)
+{
+    return ata_device_ioctl(disk->d_drv1, cmd, data);
 }
 
 static int 

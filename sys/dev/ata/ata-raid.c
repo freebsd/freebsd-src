@@ -58,10 +58,10 @@ __FBSDID("$FreeBSD$");
 /* prototypes */
 static void ata_raid_done(struct ata_request *request);
 static void ata_raid_config_changed(struct ar_softc *rdp, int writeback);
-static int ata_raid_status(int array, struct raid_status *status);
-static int ata_raid_create(struct raid_setup *setup);
+static int ata_raid_status(struct ata_ioc_raid_config *config);
+static int ata_raid_create(struct ata_ioc_raid_config *config);
 static int ata_raid_delete(int array);
-static int ata_raid_addspare(int array, int spare);
+static int ata_raid_addspare(struct ata_ioc_raid_config *config);
 static int ata_raid_rebuild(int array);
 static int ata_raid_read_metadata(device_t subdisk);
 static int ata_raid_write_metadata(struct ar_softc *rdp);
@@ -184,29 +184,31 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 }
 
 static int
-ata_raid_ioctl(struct ata_cmd *iocmd)
+ata_raid_ioctl(u_long cmd, caddr_t data)
 {
+    struct ata_ioc_raid_config *config = (struct ata_ioc_raid_config *)data;
+    int *lun = (int *)data;
     int error = EOPNOTSUPP;
 
-    switch (iocmd->cmd) {
-    case ATARAIDSTATUS:
-	error = ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
+    switch (cmd) {
+    case IOCATARAIDSTATUS:
+	error = ata_raid_status(config);
 	break;
 			
-    case ATARAIDCREATE:
-	error = ata_raid_create(&iocmd->u.raid_setup);
+    case IOCATARAIDCREATE:
+	error = ata_raid_create(config);
 	break;
 	 
-    case ATARAIDDELETE:
-	error = ata_raid_delete(iocmd->channel);
+    case IOCATARAIDDELETE:
+	error = ata_raid_delete(*lun);
 	break;
      
-    case ATARAIDADDSPARE:
-	error = ata_raid_addspare(iocmd->channel, iocmd->u.raid_spare.disk);
+    case IOCATARAIDADDSPARE:
+	error = ata_raid_addspare(config);
 	break;
 			    
-    case ATARAIDREBUILD:
-	error = ata_raid_rebuild(iocmd->channel);
+    case IOCATARAIDREBUILD:
+	error = ata_raid_rebuild(*lun);
 	break;
     }
     return error;
@@ -806,30 +808,30 @@ ata_raid_config_changed(struct ar_softc *rdp, int writeback)
 }
 
 static int
-ata_raid_status(int array, struct raid_status *status)
+ata_raid_status(struct ata_ioc_raid_config *config)
 {
     struct ar_softc *rdp;
     int i;
 	
-    if (!(rdp = ata_raid_arrays[array]))
+    if (!(rdp = ata_raid_arrays[config->lun]))
 	return ENXIO;
 	
-    status->type = rdp->type;
-    status->total_disks = rdp->total_disks;
+    config->type = rdp->type;
+    config->total_disks = rdp->total_disks;
     for (i = 0; i < rdp->total_disks; i++ ) {
 	if ((rdp->disks[i].flags & AR_DF_PRESENT) && rdp->disks[i].dev)  
-	    status->disks[i] = device_get_unit(rdp->disks[i].dev);
+	    config->disks[i] = device_get_unit(rdp->disks[i].dev);
 	else
-	    status->disks[i] = -1;
+	    config->disks[i] = -1;
     }
-    status->interleave = rdp->interleave;
-    status->status = rdp->status;
-    status->progress = 100 * rdp->rebuild_lba / rdp->total_sectors;
+    config->interleave = rdp->interleave;
+    config->status = rdp->status;
+    config->progress = 100 * rdp->rebuild_lba / rdp->total_sectors;
     return 0;
 }
 
 static int
-ata_raid_create(struct raid_setup *setup)
+ata_raid_create(struct ata_ioc_raid_config *config)
 {
     struct ar_softc *rdp;
     device_t subdisk;
@@ -849,14 +851,14 @@ ata_raid_create(struct raid_setup *setup)
 	return ENOMEM;
     }
 
-    for (disk = 0; disk < setup->total_disks; disk++) {
+    for (disk = 0; disk < config->total_disks; disk++) {
 	if ((subdisk = devclass_get_device(ata_raid_sub_devclass,
-					   setup->disks[disk]))) {
+					   config->disks[disk]))) {
 	    struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
 	    /* is device already assigned to another array ? */
 	    if (ars->raid) {
-		setup->disks[disk] = -1;
+		config->disks[disk] = -1;
 		free(rdp, M_AR);
 		return EBUSY;
 	    }
@@ -930,18 +932,18 @@ ata_raid_create(struct raid_setup *setup)
 	    total_disks++;
 	}
 	else {
-	    setup->disks[disk] = -1;
+	    config->disks[disk] = -1;
 	    free(rdp, M_AR);
 	    return ENXIO;
 	}
     }
 
-    if (total_disks != setup->total_disks) {
+    if (total_disks != config->total_disks) {
 	free(rdp, M_AR);
 	return ENODEV;
     }
 
-    switch (setup->type) {
+    switch (config->type) {
     case AR_T_JBOD:
     case AR_T_SPAN:
     case AR_T_RAID0:
@@ -972,13 +974,13 @@ ata_raid_create(struct raid_setup *setup)
 	free(rdp, M_AR);
 	return EOPNOTSUPP;
     }
-    rdp->type = setup->type;
+    rdp->type = config->type;
     rdp->lun = array;
     if (rdp->type == AR_T_RAID0 || rdp->type == AR_T_RAID01 ||
 	rdp->type == AR_T_RAID5) {
 	int bit = 0;
 
-	while (setup->interleave >>= 1)
+	while (config->interleave >>= 1)
 	    bit++;
 	rdp->interleave = 1 << bit;
     }
@@ -1038,9 +1040,9 @@ ata_raid_create(struct raid_setup *setup)
     rdp->status |= AR_S_READY;
 
     /* we are committed to this array, grap the subdisks */
-    for (disk = 0; disk < setup->total_disks; disk++) {
+    for (disk = 0; disk < config->total_disks; disk++) {
 	if ((subdisk = devclass_get_device(ata_raid_sub_devclass,
-					   setup->disks[disk]))) {
+					   config->disks[disk]))) {
 	    struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
 	    ars->raid = rdp;
@@ -1049,7 +1051,7 @@ ata_raid_create(struct raid_setup *setup)
     }
     ata_raid_attach(rdp, 1);
     ata_raid_arrays[array] = rdp;
-    setup->unit = array;
+    config->lun = array;
     return 0;
 }
 
@@ -1089,13 +1091,13 @@ ata_raid_delete(int array)
 }
 
 static int
-ata_raid_addspare(int array, int spare)
+ata_raid_addspare(struct ata_ioc_raid_config *config)
 {
     struct ar_softc *rdp;    
     device_t subdisk;
     int disk;
 
-    if (!(rdp = ata_raid_arrays[array]))
+    if (!(rdp = ata_raid_arrays[config->lun]))
 	return ENXIO;
     if (!(rdp->status & AR_S_DEGRADED) || !(rdp->status & AR_S_READY))
 	return ENXIO;
@@ -1111,7 +1113,8 @@ ata_raid_addspare(int array, int spare)
 		 (AR_DF_PRESENT | AR_DF_ONLINE)) && rdp->disks[disk].dev)
 		continue;
 
-	    if ((subdisk = devclass_get_device(ata_raid_sub_devclass, spare ))){
+	    if ((subdisk = devclass_get_device(ata_raid_sub_devclass,
+					       config->disks[0] ))) {
 		struct ata_raid_subdisk *ars = device_get_softc(subdisk);
 
 		if (ars->raid) 
@@ -3136,7 +3139,7 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 		ata_raid_print_meta(rdp);
 	    ata_raid_attach(rdp, 0);
 	}   
-	ata_ioctl_func = ata_raid_ioctl;
+	ata_raid_ioctl_func = ata_raid_ioctl;
 	return 0;
 
     case MOD_UNLOAD:
@@ -3152,7 +3155,7 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 #if 0
 	free(ata_raid_arrays, M_AR);
 #endif
-	ata_ioctl_func = NULL;
+	ata_raid_ioctl_func = NULL;
 	return 0;
 	
     default:

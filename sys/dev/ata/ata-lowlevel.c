@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-commands.h>
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
@@ -667,9 +666,9 @@ ata_generic_command(struct ata_request *request)
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_4BIT);
 
     if (request->flags & ATA_R_ATAPI) {
-        int timeout = 5000;
+	int timeout = 5000;
 
-        /* issue packet command to controller */
+	/* issue packet command to controller */
 	if (request->flags & ATA_R_DMA) {
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, ATA_F_DMA);
 	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0);
@@ -683,32 +682,32 @@ ata_generic_command(struct ata_request *request)
 	ATA_IDX_OUTB(ch, ATA_COMMAND, ATA_PACKET_CMD);
 
 	/* command interrupt device ? just return and wait for interrupt */
-        if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
 	    return 0;
 
 	/* wait for ready to write ATAPI command block */
-        while (timeout--) {
-            int reason = ATA_IDX_INB(ch, ATA_IREASON);
-            int status = ATA_IDX_INB(ch, ATA_STATUS);
+	while (timeout--) {
+	    int reason = ATA_IDX_INB(ch, ATA_IREASON);
+	    int status = ATA_IDX_INB(ch, ATA_STATUS);
 
-            if (((reason & (ATA_I_CMD | ATA_I_IN)) |
-                 (status & (ATA_S_DRQ | ATA_S_BUSY))) == ATAPI_P_CMDOUT)
-                break;
-            DELAY(20);
-        }
-        if (timeout <= 0) {
-            device_printf(request->dev,"timeout waiting for ATAPI ready\n");
-            request->result = EIO;
-            return -1;
-        }
+	    if (((reason & (ATA_I_CMD | ATA_I_IN)) |
+		 (status & (ATA_S_DRQ | ATA_S_BUSY))) == ATAPI_P_CMDOUT)
+		break;
+	    DELAY(20);
+	}
+	if (timeout <= 0) {
+	    device_printf(request->dev,"timeout waiting for ATAPI ready\n");
+	    request->result = EIO;
+	    return -1;
+	}
 
-        /* this seems to be needed for some (slow) devices */
-        DELAY(10);
-                    
-        /* output command block */
-        ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (int16_t *)request->u.atapi.ccb,
-                           (atadev->param.config & ATA_PROTO_MASK) ==
-                           ATA_PROTO_ATAPI_12 ? 6 : 8);
+	/* this seems to be needed for some (slow) devices */
+	DELAY(10);
+		    
+	/* output command block */
+	ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (int16_t *)request->u.atapi.ccb,
+			   (atadev->param.config & ATA_PROTO_MASK) ==
+			   ATA_PROTO_ATAPI_12 ? 6 : 8);
     }
     else {
 	u_int8_t command = ata_modify_if_48bit(request);
@@ -726,42 +725,42 @@ ata_generic_command(struct ata_request *request)
 	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_LBA | atadev->unit);
 	}
-        else {
+	else {
 	    command = request->u.ata.command;
 	    ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
 	    ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
 	    if (atadev->flags & ATA_D_USE_CHS) {
-	        int heads, sectors;
+		int heads, sectors;
     
-	        if (atadev->param.atavalid & ATA_FLAG_54_58) {
+		if (atadev->param.atavalid & ATA_FLAG_54_58) {
 		    heads = atadev->param.current_heads;
 		    sectors = atadev->param.current_sectors;
-	        }
-	        else {
+		}
+		else {
 		    heads = atadev->param.heads;
 		    sectors = atadev->param.sectors;
-	        }
-	        ATA_IDX_OUTB(ch, ATA_SECTOR, (request->u.ata.lba % sectors)+1);
-	        ATA_IDX_OUTB(ch, ATA_CYL_LSB,
+		}
+		ATA_IDX_OUTB(ch, ATA_SECTOR, (request->u.ata.lba % sectors)+1);
+		ATA_IDX_OUTB(ch, ATA_CYL_LSB,
 			     (request->u.ata.lba / (sectors * heads)));
-	        ATA_IDX_OUTB(ch, ATA_CYL_MSB,
+		ATA_IDX_OUTB(ch, ATA_CYL_MSB,
 			     (request->u.ata.lba / (sectors * heads)) >> 8);
-	        ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit | 
+		ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | atadev->unit | 
 			     (((request->u.ata.lba% (sectors * heads)) /
 			       sectors) & 0xf));
 	    }
 	    else {
-	        ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
-	        ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
-	        ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
-	        ATA_IDX_OUTB(ch, ATA_DRIVE,
+		ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
+		ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
+		ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
+		ATA_IDX_OUTB(ch, ATA_DRIVE,
 			     ATA_D_IBM | ATA_D_LBA | atadev->unit |
 			     ((request->u.ata.lba >> 24) & 0x0f));
 	    }
 	}
 
-        /* issue command to controller */
-        ATA_IDX_OUTB(ch, ATA_COMMAND, command);
+	/* issue command to controller */
+	ATA_IDX_OUTB(ch, ATA_COMMAND, command);
     }
 
     return 0;
