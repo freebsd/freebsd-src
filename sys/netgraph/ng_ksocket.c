@@ -1009,8 +1009,11 @@ static void
 ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
+	int wait;
 
-	ng_queue_fn(node, NULL, &ng_ksocket_incoming2, so, waitflag);
+	wait = (waitflag & M_WAITOK) ? NG_WAITOK : 0;
+	ng_send_fn1(node, NULL, &ng_ksocket_incoming2, so, waitflag,
+	    wait | NG_QUEUE);
 }
 
 
