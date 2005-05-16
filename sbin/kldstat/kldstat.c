@@ -76,7 +76,7 @@ static void printfile(int fileid, int verbose)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstat [-v] [-i id] [-n name]\n");
+    fprintf(stderr, "usage: kldstat [-v] [-i id] [-n name] [-m name]\n");
     exit(1);
 }
 
@@ -87,14 +87,18 @@ main(int argc, char** argv)
     int verbose = 0;
     int fileid = 0;
     char* filename = NULL;
+    char* modname = NULL;
     char* p;
 
-    while ((c = getopt(argc, argv, "i:n:v")) != -1)
+    while ((c = getopt(argc, argv, "i:m:n:v")) != -1)
 	switch (c) {
 	case 'i':
 	    fileid = (int)strtoul(optarg, &p, 10);
 	    if (*p != '\0')
 		usage();
+	    break;
+	case 'm':
+	    modname = optarg;
 	    break;
 	case 'n':
 	    filename = optarg;
@@ -110,6 +114,24 @@ main(int argc, char** argv)
 
     if (argc != 0)
 	usage();
+
+    if (modname != NULL) {
+	int modid;
+	struct module_stat stat;
+
+	if ((modid = modfind(modname)) < 0)
+	    err(1, "can't find module %s", modname);
+
+	stat.version = sizeof(struct module_stat);
+	if (modstat(modid, &stat) < 0)
+	    warn("can't stat module id %d", modid);
+	else {
+	    printf("Id  Refs Name\n");
+	    printf("%3d %4d %s\n", stat.id, stat.refs, stat.name);
+	}
+
+	return 0;
+    }
 
     if (filename != NULL) {
 	if ((fileid = kldfind(filename)) < 0)
