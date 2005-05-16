@@ -482,9 +482,9 @@ extract_file(struct archive *a, struct archive_entry *entry, int flags)
 		return (ARCHIVE_WARN);
 	}
 	r = archive_read_data_into_fd(a, fd);
+	close(fd);
 	extract->pst = NULL; /* Cached stat data no longer valid. */
 	r2 = restore_metadata(a, entry, flags);
-	close(fd);
 	return (err_combine(r, r2));
 }
 
