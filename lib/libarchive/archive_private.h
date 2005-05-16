@@ -156,6 +156,7 @@ struct archive {
 		int	(*bid)(struct archive *);
 		int	(*read_header)(struct archive *, struct archive_entry *);
 		int	(*read_data)(struct archive *, const void **, size_t *, off_t *);
+		int	(*read_data_skip)(struct archive *);
 		int	(*cleanup)(struct archive *);
 		void	 *format_data;	/* Format-specific data for readers. */
 	}	formats[4];
@@ -229,6 +230,7 @@ int	__archive_read_register_format(struct archive *a,
 	    int (*bid)(struct archive *),
 	    int (*read_header)(struct archive *, struct archive_entry *),
 	    int (*read_data)(struct archive *, const void **, size_t *, off_t *),
+	    int (*read_data_skip)(struct archive *),
 	    int (*cleanup)(struct archive *));
 
 int	__archive_read_register_compression(struct archive *a,

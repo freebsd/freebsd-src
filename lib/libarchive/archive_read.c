@@ -226,6 +226,8 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 			a->state = ARCHIVE_STATE_FATAL;
 			return (ARCHIVE_FATAL);
 		}
+		if (ret != ARCHIVE_OK)
+			return (ret);
 	}
 
 	/* Record start-of-header. */
@@ -405,9 +407,13 @@ archive_read_data_skip(struct archive *a)
 
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
 
-	while ((r = archive_read_data_block(a, &buff, &size, &offset)) ==
-	    ARCHIVE_OK)
-		;
+	if (a->format->read_data_skip != NULL)
+		r = (a->format->read_data_skip)(a);
+	else {
+		while ((r = archive_read_data_block(a, &buff, &size, &offset))
+		    == ARCHIVE_OK)
+			;
+	}
 
 	if (r == ARCHIVE_EOF)
 		r = ARCHIVE_OK;
@@ -505,6 +511,7 @@ __archive_read_register_format(struct archive *a,
     int (*bid)(struct archive *),
     int (*read_header)(struct archive *, struct archive_entry *),
     int (*read_data)(struct archive *, const void **, size_t *, off_t *),
+    int (*read_data_skip)(struct archive *),
     int (*cleanup)(struct archive *))
 {
 	int i, number_slots;
@@ -520,6 +527,7 @@ __archive_read_register_format(struct archive *a,
 			a->formats[i].bid = bid;
 			a->formats[i].read_header = read_header;
 			a->formats[i].read_data = read_data;
+			a->formats[i].read_data_skip = read_data_skip;
 			a->formats[i].cleanup = cleanup;
 			a->formats[i].format_data = format_data;
 			return (ARCHIVE_OK);
