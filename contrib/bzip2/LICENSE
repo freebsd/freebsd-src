@@ -1,6 +1,7 @@
 
-This program, "bzip2" and associated library "libbzip2", are
-copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+This program, "bzip2", the associated library "libbzip2", and all
+documentation, are copyright (C) 1996-2005 Julian R Seward.  All
+rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -35,5 +36,5 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Julian Seward, Cambridge, UK.
 jseward@acm.org
-bzip2/libbzip2 version 1.0.2 of 30 December 2001
+bzip2/libbzip2 version 1.0.3 of 15 February 2005
 
