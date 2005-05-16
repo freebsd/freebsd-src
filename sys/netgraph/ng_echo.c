@@ -100,10 +100,10 @@ nge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 nge_rcvdata(hook_p hook, item_p item)
 {
-	int error = 0;
+	int error;
 
 	NG_FWD_ITEM_HOOK(error, item, hook);
-	return (0);
+	return (error);
 }
 
 /*
