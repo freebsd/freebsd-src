@@ -1,15 +1,15 @@
 
 This is the README for bzip2, a block-sorting file compressor, version
-1.0.2.  This version is fully compatible with the previous public
-releases, versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0 and 1.0.1.
+1.0.3.  This version is fully compatible with the previous public
+releases, versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1 and 1.0.2.
 
-bzip2-1.0.2 is distributed under a BSD-style license.  For details,
+bzip2-1.0.3 is distributed under a BSD-style license.  For details,
 see the file LICENSE.
 
 Complete documentation is available in Postscript form (manual.ps),
-PDF (manual.pdf, amazingly enough) or html (manual_toc.html).  A
-plain-text version of the manual page is available as bzip2.txt.  
-A statement about Y2K issues is now included in the file Y2K_INFO.
+PDF (manual.pdf) or html (manual.html).  A plain-text version of the
+manual page is available as bzip2.txt.  A statement about Y2K issues
+is now included in the file Y2K_INFO.
 
 
 HOW TO BUILD -- UNIX
@@ -78,8 +78,7 @@ importance.  To validate bzip2, I used a modified version of Mark
 Nelson's churn program.  Churn is an automated test driver which
 recursively traverses a directory structure, using bzip2 to compress
 and then decompress each file it encounters, and checking that the
-decompressed data is the same as the original.  There are more details
-in Section 4 of the user guide.
+decompressed data is the same as the original.
 
 
 
@@ -119,9 +118,9 @@ DISCLAIMER:
 PATENTS:
 
    To the best of my knowledge, bzip2 does not use any patented
-   algorithms.  However, I do not have the resources available to
-   carry out a full patent search.  Therefore I cannot give any
-   guarantee of the above statement.
+   algorithms.  However, I do not have the resources to carry out
+   a patent search.  Therefore I cannot give any guarantee of the
+   above statement.
 
 End of legalities.
 
@@ -153,22 +152,26 @@ WHAT'S NEW IN 1.0.2 ?
 
    See the CHANGES file.
 
+WHAT'S NEW IN 1.0.3 ?
+
+   See the CHANGES file.
+
 
 I hope you find bzip2 useful.  Feel free to contact me at
-   jseward@acm.org
+   jseward@bzip.org
 if you have any suggestions or queries.  Many people mailed me with
 comments, suggestions and patches after the releases of bzip-0.15,
-bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0 and 1.0.1,
-and the changes in bzip2 are largely a result of this feedback.
+bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1 and
+1.0.2, and the changes in bzip2 are largely a result of this feedback.
 I thank you for your comments.
 
 At least for the time being, bzip2's "home" is (or can be reached via)
-http://sources.redhat.com/bzip2.
+http://www.bzip.org
 
 Julian Seward
-jseward@acm.org
+jseward@bzip.org
 
-Cambridge, UK (and what a great town this is!)
+Cambridge, UK.
 
 18     July 1996 (version 0.15)
 25   August 1996 (version 0.21)
@@ -179,3 +182,4 @@ Cambridge, UK (and what a great town this is!)
  4     Sept 1999 (bzip2, version 0.9.5d)
  5      May 2000 (bzip2, version 1.0pre8)
 30 December 2001 (bzip2, version 1.0.2pre1)
+15 February 2005 (bzip2, version 1.0.3)
