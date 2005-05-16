@@ -379,6 +379,7 @@ XBONEHACK
 # or loaded dynamically. To get the former, include the corresponding
 # option below. Each type has its own man page, e.g. ng_async(4).
 NETGRAPH
+NETGRAPH_DEBUG		opt_netgraph.h
 NETGRAPH_ASYNC		opt_netgraph.h
 NETGRAPH_ATMLLC		opt_netgraph.h
 NETGRAPH_ATM_ATMPIF	opt_netgraph.h

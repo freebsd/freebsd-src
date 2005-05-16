@@ -3,4 +3,6 @@
 
 .PATH:		${.CURDIR}/../../../netgraph
 
+SRCS+=	opt_netgraph.h
+
 .include "../Makefile.inc"
