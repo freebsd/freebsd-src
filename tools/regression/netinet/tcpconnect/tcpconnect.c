@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,8 +116,17 @@ tcpconnect_client(int argc, char *argv[])
 		if (sock == -1)
 			errx(-1, "socket: %s", strerror(errno));
 
+#ifdef NONBLOCK
+		if (fcntl(sock, F_SETFL, O_NONBLOCK) != 0)
+			errx(-1, "fcntl(F_SETFL): %s", strerror(errno));
+
+		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1
+		    && errno != EINPROGRESS)
+			errx(-1, "connect: %s", strerror(errno));
+#else
 		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 			errx(-1, "connect: %s", strerror(errno));
+#endif
 
 		close(sock);
 	}
