@@ -681,6 +681,7 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	movl	%eax,R(cpu_id)			# store cpu_id
 	movl	%ebx,R(cpu_procinfo)		# store cpu_procinfo
 	movl	%edx,R(cpu_feature)		# store cpu_feature
+	movl	%ecx,R(cpu_feature2)		# store cpu_feature2
 	rorl	$8,%eax				# extract family type
 	andl	$15,%eax
 	cmpl	$5,%eax

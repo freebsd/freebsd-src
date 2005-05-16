@@ -688,6 +688,43 @@ printcpuinfo(void)
 			"\040PBE"	/* Pending Break Enable */
 			);
 
+			if (cpu_feature2 != 0)
+			printf("\n  Features2=0x%b", cpu_feature2,
+			"\020"
+			"\001SSE3"	/* SSE3 */
+			"\002<b1>"
+			"\003RSVD2>"	/* "Reserved" bit 2 */
+			"\004MON"	/* MONITOR/MWAIT Instructions */
+			"\005DS_CPL"	/* CPL Qualified Debug Store */
+			"\006<b5>"	/* Machine specific registers */
+			"\007<b6>"	/* Physical address extension */
+			"\010EST"	/* Enhanced SpeedStep */
+			"\011TM2"	/* Thermal Monitor 2 */
+			"\012<b9>"
+			"\013CNTX-ID"	/* L1 context ID available */
+			"\014<b11>"
+			"\015<b12>"
+			"\016CX16"	/* CMPXCHG16B Instruction */
+			"\017<b14>"
+			"\020<b15>"
+			"\021<b16>"
+			"\022<b17>"
+			"\023<b18>"
+			"\024<b19>"
+			"\025<b20>"
+			"\026<b21>"
+			"\027<b22>"
+			"\030<b23>"
+			"\031<b24>"
+			"\032<b25>"
+			"\033<b26>"
+			"\034<b27>"
+			"\035<b28>"
+			"\036<b29>"
+			"\037<b30>"
+			"\040<b31>"
+			);
+
 			/*
 			 * If this CPU supports hyperthreading then mention
 			 * the number of logical CPU's it contains.
