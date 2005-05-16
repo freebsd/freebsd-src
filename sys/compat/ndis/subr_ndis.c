@@ -1658,6 +1658,7 @@ NdisMAllocateSharedMemoryAsync(adapter, len, cached, ctx)
 	w->na_cached = cached;
 	w->na_len = len;
 	w->na_ctx = ctx;
+	w->na_iw = iw;
 
 	ifw = (io_workitem_func)ndis_findwrap((funcptr)ndis_asyncmem_complete);
 	IoQueueWorkItem(iw, ifw, WORKQUEUE_DELAYED, w);
@@ -3100,13 +3101,29 @@ NdisMIndicateStatus(adapter, status, sbuf, slen)
  * depends on the API semantics of ExQueueWorkItem(). In our world,
  * ExQueueWorkItem() is implemented on top of IoAllocateQueueItem()
  * anyway.
+ *
+ * There are actually three distinct APIs here. NdisScheduleWorkItem()
+ * takes a pointer to an NDIS_WORK_ITEM. ExQueueWorkItem() takes a pointer
+ * to a WORK_QUEUE_ITEM. And finally, IoQueueWorkItem() takes a pointer
+ * to an opaque work item thingie which you get from IoAllocateWorkItem().
+ * An NDIS_WORK_ITEM is not the same as a WORK_QUEUE_ITEM. However,
+ * the NDIS_WORK_ITEM has some opaque storage at the end of it, and we
+ * (ab)use this storage as a WORK_QUEUE_ITEM, which is what we submit
+ * to ExQueueWorkItem().
+ *
+ * Got all that? (Sheesh.)
  */
 
 ndis_status
 NdisScheduleWorkItem(work)
 	ndis_work_item		*work;
 {
-	ExQueueWorkItem(work, WORKQUEUE_DELAYED);
+	work_queue_item		*wqi;
+
+	wqi = (work_queue_item *)work->nwi_wraprsvd;
+	ExInitializeWorkItem(wqi,
+	    (work_item_func)work->nwi_func, work->nwi_ctx);
+	ExQueueWorkItem(wqi, WORKQUEUE_DELAYED);
 	return(NDIS_STATUS_SUCCESS);
 }
 
