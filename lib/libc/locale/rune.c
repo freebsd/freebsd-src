@@ -44,13 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <errno.h>
 #include <runetype.h>
-#include <runefile.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "un-namespace.h"
+
+#include "runefile.h"
 
 _RuneLocale *_Read_RuneMagi(FILE *);
 

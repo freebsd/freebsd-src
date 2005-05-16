@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
-#include <runefile.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ldef.h"
 #include "extern.h"
+#include "runefile.h"
 
 static void *xmalloc(unsigned int sz);
 static uint32_t *xlalloc(unsigned int sz);
