@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2005 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -42,7 +42,7 @@
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   Julian Seward, Cambridge, UK.
-  jseward@acm.org
+  jseward@bzip.org
   bzip2/libbzip2 version 1.0 of 21 March 2000
 
   This program is based on (at least) the work of:
@@ -88,12 +88,12 @@ void BZ2_bz__AssertH__fail ( int errcode )
    fprintf(stderr, 
       "\n\nbzip2/libbzip2: internal error number %d.\n"
       "This is a bug in bzip2/libbzip2, %s.\n"
-      "Please report it to me at: jseward@acm.org.  If this happened\n"
+      "Please report it to me at: jseward@bzip.org.  If this happened\n"
       "when you were using some program which uses libbzip2 as a\n"
       "component, you should also report this bug to the author(s)\n"
       "of that program.  Please make an effort to report this bug;\n"
       "timely and accurate bug reports eventually lead to higher\n"
-      "quality software.  Thanks.  Julian Seward, 30 December 2001.\n\n",
+      "quality software.  Thanks.  Julian Seward, 15 February 2005.\n\n",
       errcode,
       BZ2_bzlibVersion()
    );
@@ -574,8 +574,11 @@ int BZ_API(BZ2_bzDecompressInit)
 
 
 /*---------------------------------------------------*/
+/* Return  True iff data corruption is discovered.
+   Returns False if there is no problem.
+*/
 static
-void unRLE_obuf_to_output_FAST ( DState* s )
+Bool unRLE_obuf_to_output_FAST ( DState* s )
 {
    UChar k1;
 
@@ -584,7 +587,7 @@ void unRLE_obuf_to_output_FAST ( DState* s )
       while (True) {
          /* try to finish existing run */
          while (True) {
-            if (s->strm->avail_out == 0) return;
+            if (s->strm->avail_out == 0) return False;
             if (s->state_out_len == 0) break;
             *( (UChar*)(s->strm->next_out) ) = s->state_out_ch;
             BZ_UPDATE_CRC ( s->calculatedBlockCRC, s->state_out_ch );
@@ -594,10 +597,13 @@ void unRLE_obuf_to_output_FAST ( DState* s )
             s->strm->total_out_lo32++;
             if (s->strm->total_out_lo32 == 0) s->strm->total_out_hi32++;
          }
-   
+
          /* can a new run be started? */
-         if (s->nblock_used == s->save_nblock+1) return;
+         if (s->nblock_used == s->save_nblock+1) return False;
                
+         /* Only caused by corrupt data stream? */
+         if (s->nblock_used > s->save_nblock+1)
+            return True;
    
          s->state_out_len = 1;
          s->state_out_ch = s->k0;
@@ -667,6 +673,10 @@ void unRLE_obuf_to_output_FAST ( DState* s )
                cs_avail_out--;
             }
          }   
+         /* Only caused by corrupt data stream? */
+         if (c_nblock_used > s_save_nblockPP)
+            return True;
+
          /* can a new run be started? */
          if (c_nblock_used == s_save_nblockPP) {
             c_state_out_len = 0; goto return_notr;
@@ -712,6 +722,7 @@ void unRLE_obuf_to_output_FAST ( DState* s )
       s->strm->avail_out    = cs_avail_out;
       /* end save */
    }
+   return False;
 }
 
 
@@ -732,8 +743,11 @@ __inline__ Int32 BZ2_indexIntoF ( Int32 indx, Int32 *cftab )
 
 
 /*---------------------------------------------------*/
+/* Return  True iff data corruption is discovered.
+   Returns False if there is no problem.
+*/
 static
-void unRLE_obuf_to_output_SMALL ( DState* s )
+Bool unRLE_obuf_to_output_SMALL ( DState* s )
 {
    UChar k1;
 
@@ -742,7 +756,7 @@ void unRLE_obuf_to_output_SMALL ( DState* s )
       while (True) {
          /* try to finish existing run */
          while (True) {
-            if (s->strm->avail_out == 0) return;
+            if (s->strm->avail_out == 0) return False;
             if (s->state_out_len == 0) break;
             *( (UChar*)(s->strm->next_out) ) = s->state_out_ch;
             BZ_UPDATE_CRC ( s->calculatedBlockCRC, s->state_out_ch );
@@ -754,8 +768,11 @@ void unRLE_obuf_to_output_SMALL ( DState* s )
          }
    
          /* can a new run be started? */
-         if (s->nblock_used == s->save_nblock+1) return;
-               
+         if (s->nblock_used == s->save_nblock+1) return False;
+
+         /* Only caused by corrupt data stream? */
+         if (s->nblock_used > s->save_nblock+1)
+            return True;
    
          s->state_out_len = 1;
          s->state_out_ch = s->k0;
@@ -788,7 +805,7 @@ void unRLE_obuf_to_output_SMALL ( DState* s )
       while (True) {
          /* try to finish existing run */
          while (True) {
-            if (s->strm->avail_out == 0) return;
+            if (s->strm->avail_out == 0) return False;
             if (s->state_out_len == 0) break;
             *( (UChar*)(s->strm->next_out) ) = s->state_out_ch;
             BZ_UPDATE_CRC ( s->calculatedBlockCRC, s->state_out_ch );
@@ -800,7 +817,11 @@ void unRLE_obuf_to_output_SMALL ( DState* s )
          }
    
          /* can a new run be started? */
-         if (s->nblock_used == s->save_nblock+1) return;
+         if (s->nblock_used == s->save_nblock+1) return False;
+
+         /* Only caused by corrupt data stream? */
+         if (s->nblock_used > s->save_nblock+1)
+            return True;
    
          s->state_out_len = 1;
          s->state_out_ch = s->k0;
@@ -830,6 +851,7 @@ void unRLE_obuf_to_output_SMALL ( DState* s )
 /*---------------------------------------------------*/
 int BZ_API(BZ2_bzDecompress) ( bz_stream *strm )
 {
+   Bool    corrupt;
    DState* s;
    if (strm == NULL) return BZ_PARAM_ERROR;
    s = strm->state;
@@ -840,12 +862,13 @@ int BZ_API(BZ2_bzDecompress) ( bz_stream *strm )
       if (s->state == BZ_X_IDLE) return BZ_SEQUENCE_ERROR;
       if (s->state == BZ_X_OUTPUT) {
          if (s->smallDecompress)
-            unRLE_obuf_to_output_SMALL ( s ); else
-            unRLE_obuf_to_output_FAST  ( s );
+            corrupt = unRLE_obuf_to_output_SMALL ( s ); else
+            corrupt = unRLE_obuf_to_output_FAST  ( s );
+         if (corrupt) return BZ_DATA_ERROR;
          if (s->nblock_used == s->save_nblock+1 && s->state_out_len == 0) {
             BZ_FINALISE_CRC ( s->calculatedBlockCRC );
             if (s->verbosity >= 3) 
-               VPrintf2 ( " {0x%x, 0x%x}", s->storedBlockCRC, 
+               VPrintf2 ( " {0x%08x, 0x%08x}", s->storedBlockCRC, 
                           s->calculatedBlockCRC );
             if (s->verbosity >= 2) VPrintf0 ( "]" );
             if (s->calculatedBlockCRC != s->storedBlockCRC)
@@ -863,7 +886,7 @@ int BZ_API(BZ2_bzDecompress) ( bz_stream *strm )
          Int32 r = BZ2_decompress ( s );
          if (r == BZ_STREAM_END) {
             if (s->verbosity >= 3)
-               VPrintf2 ( "\n    combined CRCs: stored = 0x%x, computed = 0x%x", 
+               VPrintf2 ( "\n    combined CRCs: stored = 0x%08x, computed = 0x%08x", 
                           s->storedCombinedCRC, s->calculatedCombinedCRC );
             if (s->calculatedCombinedCRC != s->storedCombinedCRC)
                return BZ_DATA_ERROR;
