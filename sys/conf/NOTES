@@ -501,8 +501,8 @@ options 	ALTQ_DEBUG
 # will automatically load the corresponding KLD module if the node type
 # is not already compiled into the kernel. Each type below has a
 # corresponding man page, e.g., ng_async(8).
-options		NETGRAPH		# netgraph(4) system
-options		NETGRAPH_DEBUG		# enable extra debugging, this
+options 	NETGRAPH		# netgraph(4) system
+options 	NETGRAPH_DEBUG		# enable extra debugging, this
 					# affects netgraph(4) and nodes
 # Node types
 options 	NETGRAPH_ASYNC
@@ -538,7 +538,7 @@ options 	NETGRAPH_LMI
 #options 	NETGRAPH_MPPC_COMPRESSION
 options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
-options		NETGRAPH_NAT
+options 	NETGRAPH_NAT
 options 	NETGRAPH_ONE2MANY
 options 	NETGRAPH_PPP
 options 	NETGRAPH_PPPOE
