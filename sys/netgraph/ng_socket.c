@@ -122,7 +122,7 @@ static ng_disconnect_t	ngs_disconnect;
 static int	ng_attach_data(struct socket *so);
 static int	ng_attach_cntl(struct socket *so);
 static int	ng_attach_common(struct socket *so, int type);
-static void	ng_detach_common(struct ngpcb *pcbp, int type);
+static void	ng_detach_common(node_p node, hook_p hook, void *arg1, int which);
 /*static int	ng_internalize(struct mbuf *m, struct thread *p); */
 
 static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
@@ -190,7 +190,16 @@ ngc_detach(struct socket *so)
 
 	if (pcbp == NULL)
 		return (EINVAL);
-	ng_detach_common(pcbp, NG_CONTROL);
+
+	/*
+	 * If there is a node, then obtain netgraph locking first.
+	 */
+	if (pcbp->sockdata != NULL)
+		ng_send_fn1(pcbp->sockdata->node, NULL, &ng_detach_common,
+		    pcbp, NG_CONTROL, NG_WAITOK);
+	else
+		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
+
 	return (0);
 }
 
@@ -379,7 +388,16 @@ ngd_detach(struct socket *so)
 
 	if (pcbp == NULL)
 		return (EINVAL);
-	ng_detach_common(pcbp, NG_DATA);
+
+	/*
+	 * If there is a node, then obtain netgraph locking first.
+	 */
+	if (pcbp->sockdata != NULL)
+		ng_send_fn1(pcbp->sockdata->node, NULL, &ng_detach_common,
+		    pcbp, NG_DATA, NG_WAITOK);
+	else
+		ng_detach_common(NULL, NULL, pcbp, NG_DATA);
+
 	return (0);
 }
 
@@ -521,14 +539,14 @@ ng_attach_cntl(struct socket *so)
 	MALLOC(privdata, struct ngsock *,
 	    sizeof(*privdata), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
 	if (privdata == NULL) {
-		ng_detach_common(pcbp, NG_CONTROL);
+		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
 		return (ENOMEM);
 	}
 
 	/* Make the generic node components */
 	if ((error = ng_make_node_common(&typestruct, &privdata->node)) != 0) {
 		FREE(privdata, M_NETGRAPH_SOCK);
-		ng_detach_common(pcbp, NG_CONTROL);
+		ng_detach_common(NULL, NULL, pcbp, NG_CONTROL);
 		return (error);
 	}
 	NG_NODE_SET_PRIVATE(privdata->node, privdata);
@@ -585,11 +603,13 @@ ng_attach_common(struct socket *so, int type)
  * then shut down the entire node. Shared code for control and data sockets.
  */
 static void
-ng_detach_common(struct ngpcb *pcbp, int which)
+ng_detach_common(node_p node, hook_p hook, void *arg1, int which)
 {
-	struct ngsock *priv;
+	struct ngpcb *pcbp = arg1;
 
 	if (pcbp->sockdata) {
+		struct ngsock *priv;
+
 		priv = pcbp->sockdata;
 		pcbp->sockdata = NULL;
 		switch (which) {
