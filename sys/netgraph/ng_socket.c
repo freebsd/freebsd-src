@@ -268,35 +268,6 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 	}
 
-#ifdef TRACE_MESSAGES
-	do {								
-		item_p item;						
-		if ((item = ng_package_msg(msg)) == NULL) {		
-			(msg) = NULL;				
-			(error) = ENOMEM;				
-printf("err=%d\n",error);
-			break;						
-		}							
-		if ((error = ng_address_path((pcbp->sockdata->node), (item),		
-					(path), 0)) == 0) {	
-printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
-item->el_dest->nd_ID,
-msg->header.typecookie,
-msg->header.cmd,
-msg->header.cmdstr,
-msg->header.flags,
-msg->header.token,
-item->el_dest->nd_type->name); 
-			SAVE_LINE(item);			
-			(error) = ng_snd_item((item), 0);		
-		}							
-else {
-printf("errx=%d\n",error);
-}
-		(msg) = NULL;						
-	} while (0);
-
-#else
 	/*
 	 * Hack alert!
 	 * We look into the message and if it mkpeers a node of unknown type, we
@@ -313,10 +284,12 @@ printf("errx=%d\n",error);
 			linker_file_t lf;
 			int error;
 
-			/* Not found, try to load it as a loadable module */
-			snprintf(filename, sizeof(filename), "ng_%s", mkp->type);
+			/* Not found, try to load it as a loadable module. */
+			snprintf(filename, sizeof(filename), "ng_%s",
+			    mkp->type);
 			mtx_lock(&Giant);
-			error = linker_load_module(NULL, filename, NULL, NULL, &lf);
+			error = linker_load_module(NULL, filename, NULL, NULL,
+			    &lf);
 			mtx_unlock(&Giant);
 			if (error != 0) {
 				FREE(msg, M_NETGRAPH_MSG);
@@ -324,7 +297,7 @@ printf("errx=%d\n",error);
 			}
 			lf->userrefs++;
 
-			/* Try again, as now the type should have linked itself in */
+			/* See if type has been loaded successfully. */
 			if ((type = ng_findtype(mkp->type)) == NULL) {
 				FREE(msg, M_NETGRAPH_MSG);
 				error =  ENXIO;
@@ -333,9 +306,37 @@ printf("errx=%d\n",error);
 		}
 	}
 
+#ifdef TRACE_MESSAGES
+	do {
+		item_p item;						
+		if ((item = ng_package_msg(msg, M_WAITOK)) == NULL) {
+			(msg) = NULL;
+			(error) = ENOMEM;
+			printf("ng_package_msg: err=%d\n", error);
+			break;
+		}
+		if ((error = ng_address_path((pcbp->sockdata->node), (item),
+		    (path), 0)) == 0) {	
+			printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
+			item->el_dest->nd_ID,
+			msg->header.typecookie,
+			msg->header.cmd,
+			msg->header.cmdstr,
+			msg->header.flags,
+			msg->header.token,
+			item->el_dest->nd_type->name);
+
+			SAVE_LINE(item);
+			(error) = ng_snd_item((item), 0);		
+		} else
+			printf("ng_address_path: errx=%d\n", error);
+		(msg) = NULL;
+	} while (0);
+#else
 	/* The callee will free the msg when done. The path is our business. */
 	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, 0);
 #endif
+
 release:
 	if (path != NULL)
 		FREE(path, M_NETGRAPH_PATH);
@@ -876,15 +877,15 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-#ifdef TRACE_MESSAGES
-printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
-retaddr,
-msg->header.typecookie,
-msg->header.cmd,
-msg->header.cmdstr,
-msg->header.flags,
-msg->header.token);
 
+#ifdef TRACE_MESSAGES
+	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
+		retaddr,
+		msg->header.typecookie,
+		msg->header.cmd,
+		msg->header.cmdstr,
+		msg->header.flags,
+		msg->header.token);
 #endif
 
 	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
