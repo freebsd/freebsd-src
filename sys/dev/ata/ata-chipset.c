@@ -250,15 +250,15 @@ ata_sata_connect(struct ata_channel *ch)
     if (bootverbose)
 	device_printf(ch->dev, "SATA connect ready time=%dms\n", timeout * 10);
     if (timeout < 1000) {
-        if ((ATA_IDX_INB(ch, ATA_CYL_LSB) == ATAPI_MAGIC_LSB) &&
+	if ((ATA_IDX_INB(ch, ATA_CYL_LSB) == ATAPI_MAGIC_LSB) &&
 	    (ATA_IDX_INB(ch, ATA_CYL_MSB) == ATAPI_MAGIC_MSB))
 	    ch->devices = ATA_ATAPI_MASTER;
-        else 
+	else 
 	    ch->devices = ATA_ATA_MASTER;
     }
     if (bootverbose)
-        device_printf(ch->dev, "sata_connect devices=0x%b\n",
-                      ch->devices, "\20\3ATAPI_MASTER\1ATA_MASTER");
+	device_printf(ch->dev, "sata_connect devices=0x%b\n",
+		      ch->devices, "\20\3ATAPI_MASTER\1ATA_MASTER");
     return 1;
 }
 
@@ -325,25 +325,25 @@ ata_sata_phy_event(void *context, int dummy)
  * AHCI v1.0 compliant SATA chipset support functions
  */
 struct ata_ahci_dma_prd {
-    u_int64_t			dba;
-    u_int32_t			reserved;
-    u_int32_t			dbc;		/* 0 based */
-#define	ATA_AHCI_PRD_MASK	0x003fffff	/* max 4MB */
-#define	ATA_AHCI_PRD_IPC	(1<<31)
+    u_int64_t                   dba;
+    u_int32_t                   reserved;
+    u_int32_t                   dbc;            /* 0 based */
+#define ATA_AHCI_PRD_MASK       0x003fffff      /* max 4MB */
+#define ATA_AHCI_PRD_IPC        (1<<31)
 } __packed;
 
 struct ata_ahci_cmd_tab {
-    u_int8_t			cfis[64];
-    u_int8_t			acmd[32];
-    u_int8_t			reserved[32];
-    struct ata_ahci_dma_prd	prd_tab[16];
+    u_int8_t                    cfis[64];
+    u_int8_t                    acmd[32];
+    u_int8_t                    reserved[32];
+    struct ata_ahci_dma_prd     prd_tab[16];
 } __packed;
 
 struct ata_ahci_cmd_list {
-    u_int16_t			cmd_flags;
-    u_int16_t			prd_length;	/* PRD entries */
-    u_int32_t			bytecount;
-    u_int64_t			cmd_table_phys;	/* 128byte aligned */
+    u_int16_t                   cmd_flags;
+    u_int16_t                   prd_length;     /* PRD entries */
+    u_int32_t                   bytecount;
+    u_int64_t                   cmd_table_phys; /* 128byte aligned */
 } __packed;
 
 
@@ -376,7 +376,7 @@ ata_ahci_allocate(device_t dev)
 
     ch->hw.begin_transaction = ata_ahci_begin_transaction;
     ch->hw.end_transaction = ata_ahci_end_transaction;
-    ch->hw.command = NULL;	/* not used here */
+    ch->hw.command = NULL;      /* not used here */
 
     /* setup the work areas */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset,
@@ -409,8 +409,8 @@ ata_ahci_setup_fis(u_int8_t *fis, struct ata_request *request)
     int idx = 0;
 
     /* XXX SOS add ATAPI commands support later */
-    fis[idx++] = 0x27;	/* host to device */
-    fis[idx++] = 0x80;	/* command FIS (note PM goes here) */
+    fis[idx++] = 0x27;  /* host to device */
+    fis[idx++] = 0x80;  /* command FIS (note PM goes here) */
     fis[idx++] = ata_modify_if_48bit(request);
     fis[idx++] = request->u.ata.feature;
 
@@ -460,13 +460,13 @@ ata_ahci_begin_transaction(struct ata_request *request)
 
     /* if request moves data setup and load SG list */
     if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
-        if (ch->dma->load(ch->dev, request->data, request->bytecount,
-		          request->flags & ATA_R_READ,
+	if (ch->dma->load(ch->dev, request->data, request->bytecount,
+			  request->flags & ATA_R_READ,
 			  ctp->prd_tab, &entries)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
 	    request->result = EIO;
 	    return ATA_OP_FINISHED;
-        }
+	}
     }
 
     /* setup the command list entry */
@@ -475,11 +475,11 @@ ata_ahci_begin_transaction(struct ata_request *request)
 
     clp->prd_length = entries;
     clp->cmd_flags = (request->flags & ATA_R_WRITE ? (1<<6) : 0) |
-                     (request->flags & ATA_R_ATAPI ? (1<<5) : 0) |
-                     (fis_size / sizeof(u_int32_t));
+		     (request->flags & ATA_R_ATAPI ? (1<<5) : 0) |
+		     (fis_size / sizeof(u_int32_t));
     clp->bytecount = 0;
     clp->cmd_table_phys = htole64(ch->dma->work_bus + ATA_AHCI_CT_OFFSET +
-                                  (ATA_AHCI_CT_SIZE * tag));
+				  (ATA_AHCI_CT_SIZE * tag));
 
     /* clear eventual ACTIVE bit */
     ATA_IDX_OUTL(ch, ATA_SACTIVE, ATA_IDX_INL(ch, ATA_SACTIVE) & (1 << tag));
@@ -516,7 +516,7 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* record how much data we actually moved */
     clp = (struct ata_ahci_cmd_list *)
-   	  (ch->dma->work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE * tag));
+	  (ch->dma->work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE * tag));
     request->donecount = clp->bytecount;
 
     /* release SG list etc */
@@ -542,11 +542,11 @@ ata_ahci_intr(void *data)
 		struct ata_connect_task *tp;
 		int offset = (ch->unit << 7);
 
-	        error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
-    		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
-	        status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
-	        ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, status);
-	        issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
+		error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
+		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
+		status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
+		ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, status);
+		issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 
 		/* do we have cold connect surprise */
 		if (status & ATA_AHCI_P_IX_CPD) {
@@ -554,24 +554,24 @@ ata_ahci_intr(void *data)
 			   status, error, issued);
 		}
 
-	        /* check for and handle connect events */
-	        if ((status & ATA_AHCI_P_IX_PC) &&
+		/* check for and handle connect events */
+		if ((status & ATA_AHCI_P_IX_PC) &&
 		    (tp = (struct ata_connect_task *)
-		          malloc(sizeof(struct ata_connect_task),
-			         M_ATA, M_NOWAIT | M_ZERO))) {
+			  malloc(sizeof(struct ata_connect_task),
+				 M_ATA, M_NOWAIT | M_ZERO))) {
     
 		    device_printf(ch->dev, "CONNECT requested\n");
 		    tp->action = ATA_C_ATTACH;
 		    tp->dev = ch->dev;
 		    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	        }
+		}
 
-	        /* check for and handle disconnect events */
-	        if (((status & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC)) ==
+		/* check for and handle disconnect events */
+		if (((status & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC)) ==
 		     ATA_AHCI_P_IX_PRC) &&
 		    (tp = (struct ata_connect_task *)
-		          malloc(sizeof(struct ata_connect_task),
+			  malloc(sizeof(struct ata_connect_task),
 			       M_ATA, M_NOWAIT | M_ZERO))) {
     
 		    device_printf(ch->dev, "DISCONNECT requested\n");
@@ -579,11 +579,11 @@ ata_ahci_intr(void *data)
 		    tp->dev = ch->dev;
 		    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 		    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	        }
+		}
 
-	        /* any drive action to take care of ? */
-	        if (!(issued & (1<<tag)))
-	            ctlr->interrupt[unit].function(ch);
+		/* any drive action to take care of ? */
+		if (!(issued & (1<<tag)))
+		    ctlr->interrupt[unit].function(ch);
 	    }
 	}
     }
@@ -604,7 +604,7 @@ ata_ahci_reset(device_t dev)
 	     cmd & ~(ATA_AHCI_P_CMD_CR | ATA_AHCI_P_CMD_FR |
 		     ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
 
-    DELAY(500000);	/* XXX SOS this is not entirely wrong */
+    DELAY(500000);      /* XXX SOS this is not entirely wrong */
 
     /* spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SUD);
@@ -1426,10 +1426,10 @@ ata_intel_chipinit(device_t dev)
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
 		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-			        ata_ahci_intr, ctlr, &ctlr->handle)) {
-	        device_printf(dev, "unable to setup interrupt\n");
-	        return ENXIO;
-            }
+				ata_ahci_intr, ctlr, &ctlr->handle)) {
+		device_printf(dev, "unable to setup interrupt\n");
+		return ENXIO;
+	    }
 
 	    /* force all ports active "the legacy way" */
 	    pci_write_config(dev, 0x92, pci_read_config(dev, 0x92, 2) | 0x0f,2);

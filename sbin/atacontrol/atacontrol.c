@@ -46,7 +46,7 @@ void usage(void);
 int version(int ver);
 void param_print(struct ata_params *parm);
 void cap_print(struct ata_params *parm);
-int ata_cap_print(int fd, int channel, int device);
+int ata_cap_print(int fd);
 int info_print(int fd, int channel, int prchan);
 
 const char *
@@ -95,7 +95,21 @@ str2mode(char *str)
 void
 usage()
 {
-	fprintf(stderr, "usage: atacontrol <command> channel [args]\n");
+	fprintf(stderr,
+		"usage:  atacontrol <command> args:\n"
+		"        atacontrol list\n"
+		"        atacontrol info channel\n"
+		"        atacontrol attach channel\n"
+		"        atacontrol detach channel\n"
+		"        atacontrol reinit channel\n"
+		"        atacontrol create type [interleave] disk0 ... diskN\n"
+		"        atacontrol delete channel\n"
+		"        atacontrol addspare array disk\n"
+		"        atacontrol rebuild array\n"
+		"        atacontrol status array\n"
+		"        atacontrol mode device [mode]\n"
+		"        atacontrol cap device\n"
+	);
 	exit(EX_USAGE);
 }
 
@@ -176,7 +190,7 @@ cap_print(struct ata_params *parm)
 		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
 
 	printf("\nFeature                      "
-		"Support  Enable    Value   Vendor\n");
+		"Support  Enable    Value           Vendor\n");
 
 	printf("write cache                    %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no",
@@ -187,7 +201,8 @@ cap_print(struct ata_params *parm)
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
 
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	%s	%d/0x%02X\n",
+		printf("Native Command Queuing (NCQ)   %s	%s"
+			"	%d/0x%02X\n",
 			parm->satacapabilities & ATA_SUPPORT_NCQ ?
 				"yes" : "no", " -",
 			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
@@ -232,57 +247,39 @@ cap_print(struct ata_params *parm)
 }
 
 int
-ata_cap_print(int fd, int channel, int device)
+ata_cap_print(int fd)
 {
-	struct ata_cmd iocmd;
+	struct ata_params params;
 
-	if (device < 0 || device > 1)
-		return ENXIO;
-
-	bzero(&iocmd, sizeof(struct ata_cmd));
-
-	iocmd.channel = channel;
-	iocmd.device = device;
-	iocmd.cmd = ATAGPARM;
-
-	if (ioctl(fd, IOCATA, &iocmd) < 0)
+	if (ioctl(fd, IOCATAGPARM, &params) < 0)
 		return errno;
-
-	printf("ATA channel %d, %s", channel, device==0 ? "Master" : "Slave");
-
-	if (iocmd.u.param.type[device]) {
-		printf(", device %s:\n", iocmd.u.param.name[device]);
-		cap_print(&iocmd.u.param.params[device]);
-	}
-	else
-		printf(": no device present\n");
+	cap_print(&params);
 	return 0;
 }
 
 int
 info_print(int fd, int channel, int prchan)
 {
-	struct ata_cmd iocmd;
+	struct ata_ioc_devices devices;
 
-	bzero(&iocmd, sizeof(struct ata_cmd));
-	iocmd.channel = channel;
-	iocmd.device = -1;
-	iocmd.cmd = ATAGPARM;
-	if (ioctl(fd, IOCATA, &iocmd) < 0)
+	devices.channel = channel;
+
+	if (ioctl(fd, IOCATADEVICES, &devices) < 0)
 		return errno;
+
 	if (prchan)
 		printf("ATA channel %d:\n", channel);
 	printf("%sMaster: ", prchan ? "    " : "");
-	if (iocmd.u.param.type[0]) {
-		printf("%4.4s ", iocmd.u.param.name[0]);
-		param_print(&iocmd.u.param.params[0]);
+	if (*devices.name[0]) {
+		printf("%4.4s ", devices.name[0]);
+		param_print(&devices.params[0]);
 	}
 	else
 		printf("     no device present\n");
 	printf("%sSlave:  ", prchan ? "    " : "");
-	if (iocmd.u.param.type[1]) {
-		printf("%4.4s ", iocmd.u.param.name[1]);
-		param_print(&iocmd.u.param.params[1]);
+	if (*devices.name[1]) {
+		printf("%4.4s ", devices.name[1]);
+		param_print(&devices.params[1]);
 	}
 	else
 		printf("     no device present\n");
@@ -292,118 +289,158 @@ info_print(int fd, int channel, int prchan)
 int
 main(int argc, char **argv)
 {
-	struct ata_cmd iocmd;
-	int fd, maxunit, unit;
-
-	if ((fd = open("/dev/ata", O_RDWR)) < 0)
-		err(1, "control device not found");
+	int fd;
 
 	if (argc < 2)
 		usage();
 
-	bzero(&iocmd, sizeof(struct ata_cmd));
+	if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 4)) {
+		int disk, mode;
+		char device[64];
 
-	if (argc > 2 && strcmp(argv[1], "create")) {
-		int chan;
-
-		if (!strcmp(argv[1], "addspare") ||
-		    !strcmp(argv[1], "delete") ||
-		    !strcmp(argv[1], "rebuild") ||
-		    !strcmp(argv[1], "status")) {
-			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
-			      sscanf(argv[2], "ar%d", &chan) == 1)) {
-				fprintf(stderr, "atacontrol: Invalid RAID device\n");
-				exit(EX_USAGE);
-			}
+		if (!(sscanf(argv[2], "ad%d", &disk) == 1 ||
+		      sscanf(argv[2], "acd%d", &disk) == 1 ||
+		      sscanf(argv[2], "afd%d", &disk) == 1 ||
+		      sscanf(argv[2], "ast%d", &disk) == 1)) {
+			fprintf(stderr, "atacontrol: Invalid device %s\n",
+				argv[2]);
+			exit(EX_USAGE);
 		}
-		else {
-			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
-			      sscanf(argv[2], "ata%d", &chan) == 1)) {
-				fprintf(stderr, "atacontrol: Invalid ATA channel\n");
-				exit(EX_USAGE);
-			}
+		sprintf(device, "/dev/%s", argv[2]);
+		if ((fd = open(device, O_RDWR)) < 0)
+			err(1, "device not found");
+		if (argc == 4) {
+			mode = str2mode(argv[3]);
+			if (ioctl(fd, IOCATASMODE, &mode) < 0)
+				warn("ioctl(IOCATASMODE)");
 		}
-		iocmd.channel = chan;
+		if (argc == 3 || argc == 4) {
+			if (ioctl(fd, IOCATAGMODE, &mode) < 0)
+				err(1, "ioctl(IOCATAGMODE)");
+			printf("current mode = %s\n", mode2str(mode));
+		}
+		exit(EX_OK);
 	}
+	if (!strcmp(argv[1], "cap") && argc == 3) {
+		int disk;
+		char device[64];
+
+		if (!(sscanf(argv[2], "ad%d", &disk) == 1 ||
+		      sscanf(argv[2], "acd%d", &disk) == 1 ||
+		      sscanf(argv[2], "afd%d", &disk) == 1 ||
+		      sscanf(argv[2], "ast%d", &disk) == 1)) {
+			fprintf(stderr, "atacontrol: Invalid device %s\n",
+				argv[2]);
+			exit(EX_USAGE);
+		}
+		sprintf(device, "/dev/%s", argv[2]);
+		if ((fd = open(device, O_RDWR)) < 0)
+			err(1, "device not found");
+		ata_cap_print(fd);
+		exit(EX_OK);
+	}
+
+	if ((fd = open("/dev/ata", O_RDWR)) < 0)
+		err(1, "control device not found");
 
 	if (!strcmp(argv[1], "list") && argc == 2) {
-		iocmd.cmd = ATAGMAXCHANNEL;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATAGMAXCHANNEL)");
-		maxunit = iocmd.u.maxchan;
-		for (unit = 0; unit < maxunit; unit++)
-			info_print(fd, unit, 1);
-	}
-	else if (!strcmp(argv[1], "info") && argc == 3) {
-		info_print(fd, iocmd.channel, 0);
-	}
-	else if (!strcmp(argv[1], "cap") && argc == 4) {
-		ata_cap_print(fd, iocmd.channel, atoi(argv[3]));
-	}
-	else if (!strcmp(argv[1], "enclosure") && argc == 4) {
-		iocmd.device = atoi(argv[3]);
-		iocmd.cmd = ATAENCSTAT;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATAENCSTAT)");
-		printf("fan RPM: %d temp: %.1f 5V: %.2f 12V: %.2f\n",
-			iocmd.u.enclosure.fan,
-			(double)iocmd.u.enclosure.temp / 10,
-			(double)iocmd.u.enclosure.v05 / 1000,
-			(double)iocmd.u.enclosure.v12 / 1000);
-	}
-	else if (!strcmp(argv[1], "detach") && argc == 3) {
-		iocmd.cmd = ATADETACH;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATADETACH)");
-	}
-	else if (!strcmp(argv[1], "attach") && argc == 3) {
-		iocmd.cmd = ATAATTACH;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATAATTACH)");
-		info_print(fd, iocmd.channel, 0);
-	}
-	else if (!strcmp(argv[1], "reinit") && argc == 3) {
-		iocmd.cmd = ATAREINIT;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATAREINIT)");
-		info_print(fd, iocmd.channel, 0);
-	}
-	else if (!strcmp(argv[1], "create")) {
-		int disk, dev, offset;
+		int maxchannel, channel;
 
-		iocmd.cmd = ATARAIDCREATE;
+		if (ioctl(fd, IOCATAGMAXCHANNEL, &maxchannel) < 0)
+			err(1, "ioctl(IOCATAGMAXCHANNEL)");
+		for (channel = 0; channel < maxchannel; channel++)
+			info_print(fd, channel, 1);
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "info") && argc == 3) {
+		int channel;
+
+		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid channel %s\n", argv[3]);
+                        exit(EX_USAGE);
+		}
+		info_print(fd, channel, 0);
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "detach") && argc == 3) {
+		int channel;
+
+		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid channel %s\n", argv[3]);
+                        exit(EX_USAGE);
+		}
+		if (ioctl(fd, IOCATADETACH, &channel) < 0)
+			err(1, "ioctl(IOCATADETACH)");
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "attach") && argc == 3) {
+		int channel;
+
+		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid channel %s\n", argv[3]);
+                        exit(EX_USAGE);
+		}
+		if (ioctl(fd, IOCATAATTACH, &channel) < 0)
+			err(1, "ioctl(IOCATAATTACH)");
+		info_print(fd, channel, 0);
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "reinit") && argc == 3) {
+		int channel;
+
+		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid channel %s\n", argv[3]);
+                        exit(EX_USAGE);
+		}
+		if (ioctl(fd, IOCATAREINIT, &channel) < 0)
+			warn("ioctl(IOCATAREINIT)");
+		info_print(fd, channel, 0);
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "create")) {
+		int disk, dev, offset;
+		struct ata_ioc_raid_config config;
+
+		bzero(&config, sizeof(config));
 		if (argc > 2) {
 			if (!strcasecmp(argv[2], "RAID0") ||
 			    !strcasecmp(argv[2], "stripe"))
-				iocmd.u.raid_setup.type = AR_RAID0;
+				config.type = AR_RAID0;
 			if (!strcasecmp(argv[2], "RAID1") ||
 			    !strcasecmp(argv[2],"mirror"))
-				iocmd.u.raid_setup.type = AR_RAID1;
+				config.type = AR_RAID1;
 			if (!strcasecmp(argv[2], "RAID0+1") ||
 			    !strcasecmp(argv[2],"RAID10"))
-				iocmd.u.raid_setup.type = AR_RAID01;
+				config.type = AR_RAID01;
 			if (!strcasecmp(argv[2], "RAID5"))
-				iocmd.u.raid_setup.type = AR_RAID5;
+				config.type = AR_RAID5;
 			if (!strcasecmp(argv[2], "SPAN"))
-				iocmd.u.raid_setup.type = AR_SPAN;
+				config.type = AR_SPAN;
 			if (!strcasecmp(argv[2], "JBOD"))
-				iocmd.u.raid_setup.type = AR_JBOD;
+				config.type = AR_JBOD;
 		}
-		if (!iocmd.u.raid_setup.type) {
-			fprintf(stderr, "atacontrol: Invalid RAID type\n");
-			fprintf(stderr, "atacontrol: Valid RAID types : \n");
-			fprintf(stderr, "            RAID0 | stripe | RAID1 | mirror "
-						    "| RAID0+1 | SPAN | JBOD\n");
+		if (!config.type) {
+			fprintf(stderr, "atacontrol: Invalid RAID type %s\n",
+				argv[2]);
+			fprintf(stderr, "atacontrol: Valid RAID types: \n");
+			fprintf(stderr, "            stripe | mirror | "
+					"RAID0 | RAID1 | RAID0+1 | RAID5 | "
+					"SPAN | JBOD\n");
 			exit(EX_USAGE);
 		}
 
-		if (iocmd.u.raid_setup.type == AR_RAID0 ||
-		    iocmd.u.raid_setup.type == AR_RAID01 ||
-		    iocmd.u.raid_setup.type == AR_RAID5) {
+		if (config.type == AR_RAID0 ||
+		    config.type == AR_RAID01 ||
+		    config.type == AR_RAID5) {
 			if (argc < 4 ||
-			    !sscanf(argv[3], "%d",
-				    &iocmd.u.raid_setup.interleave) == 1) {
-				fprintf(stderr, "atacontrol: Invalid interleave\n");
+			    !sscanf(argv[3], "%d", &config.interleave) == 1) {
+				fprintf(stderr,
+					"atacontrol: Invalid interleave %s\n",
+					argv[3]);
 				exit(EX_USAGE);
 			}
 			offset = 4;
@@ -412,82 +449,98 @@ main(int argc, char **argv)
 			offset = 3;
 
 		for (disk = 0; disk < 16 && (offset + disk) < argc; disk++) {
-			if (!(sscanf(argv[offset + disk], "%d", &dev) == 1 ||
-			      sscanf(argv[offset + disk], "ad%d", &dev) == 1)) {
+			if (!(sscanf(argv[offset + disk], "ad%d", &dev) == 1)) {
 				fprintf(stderr,
-					"atacontrol: Invalid device %s\n",
+					"atacontrol: Invalid disk %s\n",
 					argv[offset + disk]);
 				exit(EX_USAGE);
 			}
-			iocmd.u.raid_setup.disks[disk] = dev;
+			config.disks[disk] = dev;
 		}
 
-		if(disk < 2) {
+		if ((config.type == AR_RAID1 || config.type == AR_RAID01) &&
+		    disk < 2) {
 			fprintf(stderr, "atacontrol: At least 2 disks must be "
-				"specified to create RAID\n");
+				"specified\n");
 			exit(EX_USAGE);
 		}
 
-		iocmd.u.raid_setup.total_disks = disk;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATARAIDCREATE)");
+		config.total_disks = disk;
+		if (ioctl(fd, IOCATARAIDCREATE, &config) < 0)
+			err(1, "ioctl(IOCATARAIDCREATE)");
 		else
-			printf("ar%d created\n", iocmd.u.raid_setup.unit);
+			printf("ar%d created\n", config.lun);
+		exit(EX_OK);
 	}
-	else if (!strcmp(argv[1], "delete") && argc == 3) {
-		iocmd.cmd = ATARAIDDELETE;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDDELETE)");
-	}
-	else if (!strcmp(argv[1], "addspare") && argc == 4) {
-		int dev;
+	if (!strcmp(argv[1], "delete") && argc == 3) {
+		int array;
 
-		iocmd.cmd = ATARAIDADDSPARE;
-		if (!(sscanf(argv[3], "%d", &dev) == 1 ||
-		      sscanf(argv[3], "ad%d", &dev) == 1)) {
+		if (!(sscanf(argv[2], "ar%d", &array) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid device %s\n", argv[3]);
+				"atacontrol: Invalid array %s\n", argv[3]);
+                        exit(EX_USAGE);
+		}
+		if (ioctl(fd, IOCATARAIDDELETE, &array) < 0)
+			warn("ioctl(IOCATARAIDDELETE)");
+		exit(EX_OK);
+	}
+	if (!strcmp(argv[1], "addspare") && argc == 4) {
+		struct ata_ioc_raid_config config;
+
+		if (!(sscanf(argv[2], "ar%d", &config.lun) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid array %s\n", argv[3]);
 			usage();
 		}
-		iocmd.u.raid_spare.disk = dev;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDADDSPARE)");
+		if (!(sscanf(argv[3], "ad%d", &config.disks[0]) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid disk %s\n", argv[3]);
+			usage();
+		}
+		if (ioctl(fd, IOCATARAIDADDSPARE, &config) < 0)
+			warn("ioctl(IOCATARAIDADDSPARE)");
+		exit(EX_OK);
 	}
-	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
-		iocmd.cmd = ATARAIDREBUILD;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDREBUILD)");
+	if (!strcmp(argv[1], "rebuild") && argc == 3) {
+		int array;
+
+		if (!(sscanf(argv[2], "ar%d", &array) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid array %s\n", argv[3]);
+			usage();
+		}
+		if (ioctl(fd, IOCATARAIDREBUILD, &array) < 0)
+			warn("ioctl(IOCATARAIDREBUILD)");
 		else {
 			char buffer[128];
 			sprintf(buffer, "/usr/bin/nice -n 20 /bin/dd "
 				"if=/dev/ar%d of=/dev/null bs=1m &",
-				iocmd.channel);
+				array);
 			if (system(buffer))
 				warn("background dd");
 		}
+		exit(EX_OK);
 	}
-	else if (!strcmp(argv[1], "status") && argc == 3) {
+	if (!strcmp(argv[1], "status") && argc == 3) {
+		struct ata_ioc_raid_config config;
 		int i;
 
-		iocmd.cmd = ATARAIDSTATUS;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			err(1, "ioctl(ATARAIDSTATUS)");
-		printf("ar%d: ATA ", iocmd.channel);
-		switch (iocmd.u.raid_status.type) {
+		if (ioctl(fd, IOCATARAIDSTATUS, &config) < 0)
+			err(1, "ioctl(IOCATARAIDSTATUS)");
+
+		printf("ar%d: ATA ", config.lun);
+		switch (config.type) {
 		case AR_RAID0:
-			printf("RAID0 stripesize=%d",
-				iocmd.u.raid_status.interleave);
+			printf("RAID0 stripesize=%d", config.interleave);
 			break;
 		case AR_RAID1:
 			printf("RAID1");
 			break;
 		case AR_RAID01:
-			printf("RAID0+1 stripesize=%d",
-				iocmd.u.raid_status.interleave);
+			printf("RAID0+1 stripesize=%d", config.interleave);
 			break;
 		case AR_RAID5:
-			printf("RAID5 stripesize=%d",
-				iocmd.u.raid_status.interleave);
+			printf("RAID5 stripesize=%d", config.interleave);
 			break;
 		case AR_JBOD:
 			printf("JBOD");
@@ -496,14 +549,14 @@ main(int argc, char **argv)
 			break;
 		}
 		printf(" subdisks: ");
-		for (i = 0; i < iocmd.u.raid_status.total_disks; i++) {
-			if (iocmd.u.raid_status.disks[i] >= 0)
-				printf("ad%d ", iocmd.u.raid_status.disks[i]);
+		for (i = 0; i < config.total_disks; i++) {
+			if (config.disks[i] >= 0)
+				printf("ad%d ", config.disks[i]);
 			else
 				printf("DOWN ");
 		}
 		printf("status: ");
-		switch (iocmd.u.raid_status.status) {
+		switch (config.status) {
 		case AR_READY:
 			printf("READY\n");
 			break;
@@ -512,32 +565,13 @@ main(int argc, char **argv)
 			break;
 		case AR_READY | AR_DEGRADED | AR_REBUILDING:
 			printf("REBUILDING %d%% completed\n",
-				iocmd.u.raid_status.progress);
+				config.progress);
 			break;
 		default:
 			printf("BROKEN\n");
 		}
+		exit(EX_OK);
 	}
-	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
-		if (argc == 5) {
-			iocmd.cmd = ATASMODE;
-			iocmd.device = -1;
-			iocmd.u.mode.mode[0] = str2mode(argv[3]);
-			iocmd.u.mode.mode[1] = str2mode(argv[4]);
-			if (ioctl(fd, IOCATA, &iocmd) < 0)
-				warn("ioctl(ATASMODE)");
-		}
-		if (argc == 3 || argc == 5) {
-			iocmd.cmd = ATAGMODE;
-			iocmd.device = -1;
-			if (ioctl(fd, IOCATA, &iocmd) < 0)
-				err(1, "ioctl(ATAGMODE)");
-			printf("Master = %s \nSlave  = %s\n",
-				mode2str(iocmd.u.mode.mode[0]),
-				mode2str(iocmd.u.mode.mode[1]));
-		}
-	}
-	else
-		usage();
+	usage();
 	exit(EX_OK);
 }
