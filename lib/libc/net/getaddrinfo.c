@@ -2181,8 +2181,6 @@ _files_getaddrinfo(rv, cb_data, ap)
 }
 
 #ifdef YP
-static char *__ypdomain;
-
 /*ARGSUSED*/
 static struct addrinfo *
 _yphostent(line, pai)
@@ -2270,10 +2268,14 @@ _yp_getaddrinfo(rv, cb_data, ap)
 {
 	struct addrinfo sentinel, *cur;
 	struct addrinfo *ai = NULL;
-	static char *__ypcurrent;
-	int __ypcurrentlen, r;
+	char *ypbuf;
+	int ypbuflen, r;
 	const char *name;
 	const struct addrinfo *pai;
+	char *ypdomain;
+
+	if (_yp_check(&ypdomain) == 0)
+		return NS_UNAVAIL;
 
 	name = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
@@ -2281,47 +2283,34 @@ _yp_getaddrinfo(rv, cb_data, ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
-	THREAD_LOCK();
-	if (!__ypdomain) {
-		if (_yp_check(&__ypdomain) == 0) {
-			THREAD_UNLOCK();
-			return NS_UNAVAIL;
-		}
-	}
-	if (__ypcurrent)
-		free(__ypcurrent);
-	__ypcurrent = NULL;
-
 	/* hosts.byname is only for IPv4 (Solaris8) */
 	if (pai->ai_family == PF_UNSPEC || pai->ai_family == PF_INET) {
-		r = yp_match(__ypdomain, "hosts.byname", name,
-			(int)strlen(name), &__ypcurrent, &__ypcurrentlen);
+		r = yp_match(ypdomain, "hosts.byname", name,
+			(int)strlen(name), &ypbuf, &ypbuflen);
 		if (r == 0) {
 			struct addrinfo ai4;
 
 			ai4 = *pai;
 			ai4.ai_family = AF_INET;
-			ai = _yphostent(__ypcurrent, &ai4);
+			ai = _yphostent(ypbuf, &ai4);
 			if (ai) {
 				cur->ai_next = ai;
 				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			}
+			free(ypbuf);
 		}
 	}
 
 	/* ipnodes.byname can hold both IPv4/v6 */
-	r = yp_match(__ypdomain, "ipnodes.byname", name,
-		(int)strlen(name), &__ypcurrent, &__ypcurrentlen);
+	r = yp_match(ypdomain, "ipnodes.byname", name,
+		(int)strlen(name), &ypbuf, &ypbuflen);
 	if (r == 0) {
-		ai = _yphostent(__ypcurrent, pai);
-		if (ai) {
+		ai = _yphostent(ypbuf, pai);
+		if (ai)
 			cur->ai_next = ai;
-			while (cur && cur->ai_next)
-				cur = cur->ai_next;
-		}
+		free(ypbuf);
 	}
-	THREAD_UNLOCK();
 
 	if (sentinel.ai_next == NULL) {
 		h_errno = HOST_NOT_FOUND;
