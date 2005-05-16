@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20040207";
+const char	*version = "version 20050424";
 
 #define DEBUG
 #include <stdio.h>
@@ -45,7 +45,9 @@ extern	int errorflag;	/* non-zero if any syntax errors; set by yyerror */
 int	compile_time = 2;	/* for error printing: */
 				/* 2 = cmdline, 1 = compile, 0 = running */
 
-char	*pfile[20];	/* program filenames from -f's */
+#define	MAX_PFILE	20	/* max number of -f's */
+
+char	*pfile[MAX_PFILE];	/* program filenames from -f's */
 int	npfile = 0;	/* number of filenames */
 int	curpfile = 0;	/* current filename */
 
@@ -81,6 +83,8 @@ int main(int argc, char *argv[])
 			argv++;
 			if (argc <= 1)
 				FATAL("no program filename");
+			if (npfile >= MAX_PFILE - 1)
+				FATAL("too many -f options"); 
 			pfile[npfile++] = argv[1];
 			break;
 		case 'F':	/* set field separator */

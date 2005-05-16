@@ -25,6 +25,37 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Apr 24, 2005:
+	modified lib.c so that values of $0 et al are preserved in the END
+	block, apparently as required by posix.  thanks to havard eidnes
+	for the report and code.
+
+Jan 14, 2005:
+	fixed infinite loop in parsing, originally found by brian tsang.
+	thanks to arnold robbins for a suggestion that started me
+	rethinking it.
+
+Dec 31, 2004:
+	prevent overflow of -f array in main, head off potential error in 
+	call of SYNTAX(), test malloc return in lib.c, all with thanks to 
+	todd miller.
+
+Dec 22, 2004:
+	cranked up size of NCHARS; coverity thinks it can be overrun with
+	smaller size, and i think that's right.  added some assertions to b.c
+	to catch places where it might overrun.  the RE code is still fragile.
+
+Dec 5, 2004:
+	fixed a couple of overflow problems with ridiculous field numbers:
+	e.g., print $(2^32-1).  thanks to ruslan ermilov, giorgos keramidas
+	and david o'brien at freebsd.org for patches.  this really should
+	be re-done from scratch.
+
+Nov 21, 2004:
+	fixed another 25-year-old RE bug, in split.  it's another failure
+	to (re-)initialize.  thanks to steve fisher for spotting this and
+	providing a good test case.
+
 Nov 22, 2003:
 	fixed a bug in regular expressions that dates (so help me) from 1977;
 	it's been there from the beginning.  an anchored longest match that
@@ -222,7 +253,7 @@ Apr 21, 2000:
 	jon bentley for the test case that found it.
 
 	added test in envinit to catch environment "variables" with
-	names begining with '='; thanks to Berend Hasselman.
+	names beginning with '='; thanks to Berend Hasselman.
 
 Jul 28, 1999:
 	added test in defn() to catch function foo(foo), which
@@ -459,7 +490,7 @@ May 2, 1996:
 	some awful behaviors.)
 
 Apr 29, 1996:
-	replaced uchar by uschar everwhere; apparently some compilers
+	replaced uchar by uschar everywhere; apparently some compilers
 	usurp this name and this causes conflicts.
 
 	fixed call to time in run.c (bltin); arg is time_t *.
