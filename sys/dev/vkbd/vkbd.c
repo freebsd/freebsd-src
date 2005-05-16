@@ -1189,7 +1189,7 @@ vkbd_clear_state_locked(vkbd_state_t *state)
 {
 	VKBD_LOCK_ASSERT(state, MA_OWNED);
 
-	state->ks_flags = 0;
+	state->ks_flags &= ~COMPOSE;
 	state->ks_polling = 0;
 	state->ks_state &= LOCK_MASK;	/* preserve locking key state */
 	state->ks_accents = 0;
