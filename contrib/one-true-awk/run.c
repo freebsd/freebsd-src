@@ -26,6 +26,7 @@ THIS SOFTWARE.
 #include <stdio.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -705,12 +706,16 @@ Cell *gettemp(void)	/* get a tempcell */
 
 Cell *indirect(Node **a, int n)	/* $( a[0] ) */
 {
+	Awkfloat val;
 	Cell *x;
 	int m;
 	char *s;
 
 	x = execute(a[0]);
-	m = (int) getfval(x);
+	val = getfval(x);	/* freebsd: defend against super large field numbers */
+	if ((Awkfloat)INT_MAX < val)
+		FATAL("trying to access out of range field %s", x->nval);
+	m = (int) val;
 	if (m == 0 && !is_number(s = getsval(x)))	/* suspicion! */
 		FATAL("illegal field $(%s), name \"%s\"", s, x->nval);
 		/* BUG: can x->nval ever be null??? */
@@ -1257,6 +1262,8 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 					goto spdone;
 				}
 			} while (nematch(pfa,s));
+			pfa->initstat = tempstat; 	/* bwk: has to be here to reset */
+							/* cf gsub and refldbld */
 		}
 		n++;
 		sprintf(num, "%d", n);
