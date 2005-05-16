@@ -134,7 +134,7 @@ int gettok(char **pbuf, int *psz)	/* get next input token */
 		}
 		*bp = 0;
 		retc = 'a';	/* alphanumeric */
-	} else {	/* it's a number */
+	} else {	/* maybe it's a number, but could be . */
 		char *rem;
 		/* read input until can't be a number */
 		for ( ; (c = input()) != 0; ) {
@@ -151,13 +151,14 @@ int gettok(char **pbuf, int *psz)	/* get next input token */
 		}
 		*bp = 0;
 		strtod(buf, &rem);	/* parse the number */
-		unputstr(rem);		/* put rest back for later */
 		if (rem == buf) {	/* it wasn't a valid number at all */
-			buf[1] = 0;	/* so return one character as token */
+			buf[1] = 0;	/* return one character as token */
 			retc = buf[0];	/* character is its own type */
+			unputstr(rem+1); /* put rest back for later */
 		} else {	/* some prefix was a number */
-			rem[0] = 0;	/* so truncate where failure started */
-			retc = '0';	/* number */
+			unputstr(rem);	/* put rest back for later */
+			rem[0] = 0;	/* truncate buf after number part */
+			retc = '0';	/* type is number */
 		}
 	}
 	*pbuf = buf;
@@ -187,8 +188,10 @@ int yylex(void)
 		reg = 0;
 		return regexpr();
 	}
+/* printf("top\n"); */
 	for (;;) {
 		c = gettok(&buf, &bufsize);
+/* printf("gettok [%s]\n", buf); */
 		if (c == 0)
 			return 0;
 		if (isalpha(c) || c == '_')
