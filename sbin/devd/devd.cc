@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <regex.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -848,6 +849,7 @@ main(int argc, char **argv)
 		daemon(0, 0);
 		cfg.drop_pidfile();
 	}
+	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, gensighand);
 	signal(SIGINT, gensighand);
 	signal(SIGTERM, gensighand);
