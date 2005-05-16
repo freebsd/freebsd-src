@@ -275,6 +275,21 @@ struct usb_attach_arg {
 
 #if defined(__FreeBSD__)
 int usbd_driver_load(module_t mod, int what, void *arg);
+
+static inline int
+usb_get_port(device_t dev)
+{
+	struct usb_attach_arg *uap = device_get_ivars(dev);
+	return (uap->port);
+}
+
+static inline struct usbd_interface *
+usb_get_iface(device_t dev)
+{
+	struct usb_attach_arg *uap = device_get_ivars(dev);
+	return (uap->iface);
+}
+
 #endif
 
 /* XXX Perhaps USB should have its own levels? */
