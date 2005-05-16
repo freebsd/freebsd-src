@@ -286,6 +286,49 @@ tcp_clean_sackreport(tp)
 }
 
 /*
+ * Allocate struct sackhole.
+ */
+static struct sackhole *
+tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
+{
+	struct sackhole *hole;
+
+	if (tp->snd_numholes >= tcp_sack_maxholes ||
+	    tcp_sack_globalholes >= tcp_sack_globalmaxholes) {
+		tcpstat.tcps_sack_sboverflow++;
+		return NULL;
+	}
+
+	hole = (struct sackhole *)uma_zalloc(sack_hole_zone, M_NOWAIT);
+	if (hole == NULL)
+		return NULL;
+
+	hole->start = start;
+	hole->end = end;
+	hole->rxmit = start;
+
+	tp->snd_numholes++;
+	tcp_sack_globalholes++;
+
+	return hole;
+}
+
+/*
+ * Free struct sackhole.
+ */
+static void
+tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
+{
+	uma_zfree(sack_hole_zone, hole);
+
+	tp->snd_numholes--;
+	tcp_sack_globalholes--;
+
+	KASSERT(tp->snd_numholes >= 0, ("tp->snd_numholes >= 0"));
+	KASSERT(tcp_sack_globalholes >= 0, ("tcp_sack_globalholes >= 0"));
+}
+
+/*
  * Process the TCP SACK option.  Returns 1 if tcp_dooptions() should continue,
  * and 0 otherwise, if the option was fine.  tp->snd_holes is an ordered list
  * of holes (oldest to newest, in terms of the sequence space).
@@ -311,8 +354,6 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 	tmp_cp = cp + 2;
 	tmp_olen = optlen - 2;
 	tcpstat.tcps_sack_rcv_blocks++;
-	if (tp->snd_numholes < 0) /* XXX panic? */
-		tp->snd_numholes = 0;
 	if (tp->t_maxseg == 0)
 		panic("tcp_sack_option"); /* Should never happen */
 	while (tmp_olen > 0) {
@@ -336,26 +377,15 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		if (SEQ_GT(sack.end, tp->snd_max))
 			continue;
 		if (TAILQ_EMPTY(&tp->snd_holes)) { /* first hole */
-			if (tcp_sack_globalholes >= tcp_sack_globalmaxholes ||
-			    tcp_sack_maxholes == 0) {
-				tcpstat.tcps_sack_sboverflow++;
-				continue;
-			}
-			cur = (struct sackhole *)
-				uma_zalloc(sack_hole_zone,M_NOWAIT);
+			cur = tcp_sackhole_alloc(tp, th->th_ack, sack.start);
 			if (cur == NULL) {
 				/* ENOBUFS, so ignore SACKed block for now*/
 				continue;
 			}
-			cur->start = th->th_ack;
-			cur->end = sack.start;
-			cur->rxmit = cur->start;
-			tp->snd_numholes = 1;
-			tcp_sack_globalholes++;
+			TAILQ_INSERT_HEAD(&tp->snd_holes, cur, scblink);
+			tp->rcv_lastsack = sack.end;
 			/* Update the sack scoreboard "cache" */
 			tp->sackhint.nexthole = cur;
-			tp->rcv_lastsack = sack.end;
-			TAILQ_INSERT_HEAD(&tp->snd_holes, cur, scblink);
 			continue; /* with next sack block */
 		}
 		/* Go thru list of holes. */
@@ -384,9 +414,7 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 					cur = TAILQ_NEXT(cur, scblink);
 					TAILQ_REMOVE(&tp->snd_holes,
 						temp, scblink);
-					uma_zfree(sack_hole_zone, temp);
-					tp->snd_numholes--;
-					tcp_sack_globalholes--;
+					tcp_sackhole_free(tp, temp);
 					continue;
 				} else {
 					/* Move start of hole forward */
@@ -402,31 +430,19 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 				 * ACKs some data in middle of a hole; need to
 				 * split current hole
 				 */
-				if (tp->snd_numholes >= tcp_sack_maxholes ||
-					tcp_sack_globalholes >= 
-					 tcp_sack_globalmaxholes) {
-					tcpstat.tcps_sack_sboverflow++;
-					temp = NULL;
-				} else {
-					temp = (struct sackhole *)
-						uma_zalloc(sack_hole_zone,
-							M_NOWAIT);
-				}
+				temp = tcp_sackhole_alloc(tp, sack.end,
+							  cur->end);
 				if (temp != NULL) {
-					temp->start = sack.end;
-					temp->end = cur->end;
-					temp->rxmit = SEQ_MAX(cur->rxmit,
-						temp->start);
+					if (SEQ_GT(cur->rxmit, temp->rxmit))
+						temp->rxmit = cur->rxmit;
+					TAILQ_INSERT_AFTER(&tp->snd_holes,
+							   cur, temp, scblink);
 					cur->end = sack.start;
 					cur->rxmit = SEQ_MIN(cur->rxmit,
 						cur->end);
 					tp->sackhint.sack_bytes_rexmit +=
 						(cur->rxmit - cur->start);
-					TAILQ_INSERT_AFTER(&tp->snd_holes,
-						cur, temp, scblink);
 					cur = temp;
-					tp->snd_numholes++;
-					tcp_sack_globalholes++;
 				}
 			}
 			tp->sackhint.sack_bytes_rexmit +=
@@ -436,22 +452,12 @@ tcp_sack_option(struct tcpcb *tp, struct tcphdr *th, u_char *cp, int optlen)
 		/* At this point, we have iterated the whole scoreboard. */
 		if (SEQ_LT(tp->rcv_lastsack, sack.start)) {
 			/* Need to append new hole at end. */
-			if (tp->snd_numholes >= tcp_sack_maxholes ||
-			    tcp_sack_globalholes >= tcp_sack_globalmaxholes) {
-				tcpstat.tcps_sack_sboverflow++;
-				continue;
-			}
-			temp = (struct sackhole *)
-				uma_zalloc(sack_hole_zone,M_NOWAIT);
+			temp = tcp_sackhole_alloc(tp, tp->rcv_lastsack,
+						  sack.start);
 			if (temp == NULL)
 				continue; /* ENOBUFS */
-			temp->start = tp->rcv_lastsack;
-			temp->end = sack.start;
-			temp->rxmit = temp->start;
-			tp->rcv_lastsack = sack.end;
-			tp->snd_numholes++;
-			tcp_sack_globalholes++;
 			TAILQ_INSERT_TAIL(&tp->snd_holes, temp, scblink);
+			tp->rcv_lastsack = sack.end;
 			if (tp->sackhint.nexthole == NULL)
 				tp->sackhint.nexthole = temp;
 		}
@@ -488,9 +494,7 @@ tcp_del_sackholes(tp, th)
 					    TAILQ_NEXT(cur, scblink);
 				cur = TAILQ_NEXT(cur, scblink);
 				TAILQ_REMOVE(&tp->snd_holes, prev, scblink);
-				uma_zfree(sack_hole_zone, prev);
-				tp->snd_numholes--;
-				tcp_sack_globalholes--;
+				tcp_sackhole_free(tp, prev);
 			} else if (SEQ_LT(cur->start, lastack)) {
 				if (SEQ_LT(cur->rxmit, lastack)) {
 					tp->sackhint.sack_bytes_rexmit -=
@@ -514,12 +518,12 @@ tcp_free_sackholes(struct tcpcb *tp)
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	while ((q = TAILQ_FIRST(&tp->snd_holes)) != NULL) {
 		TAILQ_REMOVE(&tp->snd_holes, q, scblink);
-		uma_zfree(sack_hole_zone, q);
-		tcp_sack_globalholes--;
+		tcp_sackhole_free(tp, q);
 	}
-	tp->snd_numholes = 0;
 	tp->sackhint.nexthole = NULL;
 	tp->sackhint.sack_bytes_rexmit = 0;
+
+	KASSERT(tp->snd_numholes == 0, ("tp->snd_numholes == 0"));
 }
 
 /*
