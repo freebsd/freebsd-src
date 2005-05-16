@@ -261,8 +261,7 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			char *arg;
 			int pos;
 
-			NG_MKRESPONSE(resp, msg, sizeof(struct ng_mesg)
-			    + NG_TEXTRESPONSE, M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
