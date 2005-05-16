@@ -251,3 +251,25 @@ of bzip2:
 
 * added --fast and --best aliases for -1 -9 for gzip compatibility.
 
+
+1.0.3 (15 Feb 05)
+~~~~~~~~~~~~~~~~~
+Fixes some minor bugs since the last version, 1.0.2.
+
+* Further robustification against corrupted compressed data.
+  There are currently no known bitstreams which can cause the
+  decompressor to crash, loop or access memory which does not
+  belong to it.  If you are using bzip2 or the library to 
+  decompress bitstreams from untrusted sources, an upgrade
+  to 1.0.3 is recommended.
+
+* The documentation has been converted to XML, from which html
+  and pdf can be derived.
+
+* Various minor bugs in the documentation have been fixed.
+
+* Fixes for various compilation warnings with newer versions of
+  gcc, and on 64-bit platforms.
+
+* The BZ_NO_STDIO cpp symbol was not properly observed in 1.0.2.
+  This has been fixed.
