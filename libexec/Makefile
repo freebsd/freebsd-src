@@ -8,7 +8,7 @@ SUBDIR=	atrun \
 	ftpd \
 	${_ftp-proxy} \
 	getty \
-	${_lukemftpd} \
+	lukemftpd \
 	${_mail.local} \
 	makekey \
 	${_mknetid} \
@@ -55,10 +55,6 @@ _rshd=		rshd
 .if !defined(NO_SENDMAIL)
 _mail.local=	mail.local
 _smrsh=	smrsh
-.endif
-
-.if defined(WANT_LUKEMFTPD)
-_lukemftpd=	lukemftpd
 .endif
 
 .include <bsd.subdir.mk>
