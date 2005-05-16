@@ -942,7 +942,7 @@ _ngi_hook(item_p item, char *file, int line)
 			if ((ng_address_ID((here), (item),		\
 					_dest, 0)) == 0) {		\
 				SAVE_LINE(item);			\
-				(error) = ng_snd_item((item), 1);	\
+				(error) = ng_snd_item((item), NG_QUEUE);\
 			} else {					\
 				NG_FREE_ITEM(item);			\
 				(error) = EINVAL;			\
