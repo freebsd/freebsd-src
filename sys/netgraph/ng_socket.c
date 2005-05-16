@@ -699,7 +699,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 
 	sap = (struct sockaddr_ng *) nam;
 	/* The item will hold the node reference */
-	item = ng_package_data(NULL, NULL);
+	item = ng_package_data(NULL, NG_WAITOK);
 	if (item == NULL) {
 		return (ENOMEM);
 	}
