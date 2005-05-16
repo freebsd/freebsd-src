@@ -39,26 +39,37 @@ __FBSDID("$FreeBSD$");
 
 #include <netdb.h>
 #include <string.h>
+#include "netdb_private.h"
 
-extern int _proto_stayopen;
-
-struct protoent *
-getprotobyname(name)
-	const char *name;
+int
+getprotobyname_r(const char *name, struct protoent *pe,
+    struct protoent_data *ped)
 {
-	struct protoent *p;
 	char **cp;
+	int error;
 
-	setprotoent(_proto_stayopen);
-	while ( (p = getprotoent()) ) {
-		if (strcmp(p->p_name, name) == 0)
+	setprotoent_r(ped->stayopen, ped);
+	while ((error = getprotoent_r(pe, ped)) == 0) {
+		if (strcmp(pe->p_name, name) == 0)
 			break;
-		for (cp = p->p_aliases; *cp != 0; cp++)
+		for (cp = pe->p_aliases; *cp != 0; cp++)
 			if (strcmp(*cp, name) == 0)
 				goto found;
 	}
 found:
-	if (!_proto_stayopen)
-		endprotoent();
-	return (p);
+	if (!ped->stayopen)
+		endprotoent_r(ped);
+	return (error);
+}
+
+struct protoent *
+getprotobyname(const char *name)
+{
+	struct protodata *pd;
+
+	if ((pd = __protodata_init()) == NULL)
+		return (NULL);
+	if (getprotobyname_r(name, &pd->proto, &pd->data) != 0)
+		return (NULL);
+	return (&pd->proto);
 }
