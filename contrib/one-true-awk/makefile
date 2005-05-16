@@ -27,9 +27,9 @@ CFLAGS = -O2
 CFLAGS =
 
 CC = gcc -Wall -g -Wwrite-strings
+CC = gcc -fprofile-arcs -ftest-coverage
+		# followed by gcov onefile.c; cat onefile.c.gcov
 CC = gcc -Wall -g
-CC = /opt/SUNWspro/bin/cc
-CC = /opt/pure/purify/purify cc
 CC = cc
 
 YACC = bison -y
@@ -83,4 +83,4 @@ names:
 	@echo $(LISTING)
 
 clean:
-	rm -f a.out *.o *.obj maketab maketab.exe # proctab.c
+	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov # proctab.c
