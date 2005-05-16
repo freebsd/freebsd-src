@@ -2095,11 +2095,11 @@ ng_flush_input_queue(struct ng_queue * ngq)
  */
 
 int
-ng_snd_item(item_p item, int queue)
+ng_snd_item(item_p item, int flags)
 {
 	hook_p hook = NGI_HOOK(item);
 	node_p node = NGI_NODE(item);
-	int rw;
+	int queue, rw;
 	int error = 0, ierror;
 	item_p	oitem;
 	struct ng_queue * ngq = &node->nd_input_queue;
@@ -2107,6 +2107,8 @@ ng_snd_item(item_p item, int queue)
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
 #endif
+
+	queue = (flags & NG_QUEUE) ? 1 : 0;
 
 	if (item == NULL) {
 		TRAP_ERROR();
@@ -2902,11 +2904,14 @@ static int			allocated;	/* number of items malloc'd */
  * an interrupt.
  */
 static __inline item_p
-ng_getqblk(void)
+ng_getqblk(int flags)
 {
 	item_p item = NULL;
+	int wait;
 
-	item = uma_zalloc(ng_qzone, M_NOWAIT | M_ZERO);
+	wait = (flags & NG_WAITOK) ? M_WAITOK : M_NOWAIT;
+
+	item = uma_zalloc(ng_qzone, wait | M_ZERO);
 
 #ifdef	NETGRAPH_DEBUG
 	if (item) {
@@ -3331,11 +3336,11 @@ ng_setisr(node_p node)
  * This is possibly in the critical path for new data.
  */
 item_p
-ng_package_data(struct mbuf *m, void *dummy)
+ng_package_data(struct mbuf *m, int flags)
 {
 	item_p item;
 
-	if ((item = ng_getqblk()) == NULL) {
+	if ((item = ng_getqblk(flags)) == NULL) {
 		NG_FREE_M(m);
 		return (NULL);
 	}
@@ -3354,11 +3359,11 @@ ng_package_data(struct mbuf *m, void *dummy)
  * (or equivalent)
  */
 item_p
-ng_package_msg(struct ng_mesg *msg)
+ng_package_msg(struct ng_mesg *msg, int flags)
 {
 	item_p item;
 
-	if ((item = ng_getqblk()) == NULL) {
+	if ((item = ng_getqblk(flags)) == NULL) {
 		NG_FREE_MSG(msg);
 		return (NULL);
 	}
@@ -3494,7 +3499,7 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	 * If there is a HOOK argument, then use that in preference
 	 * to the address.
 	 */
-	if ((item = ng_getqblk()) == NULL) {
+	if ((item = ng_getqblk(NG_NOFLAGS)) == NULL) {
 		NG_FREE_MSG(msg);
 		return (NULL);
 	}
@@ -3513,13 +3518,13 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	return (item);
 }
 
-static __inline int
+int
 ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
-	int queue)
+	int flags)
 {
 	item_p item;
 
-	if ((item = ng_getqblk()) == NULL) {
+	if ((item = ng_getqblk(flags)) == NULL) {
 		return (ENOMEM);
 	}
 	item->el_flags = NGQF_FN | NGQF_WRITER;
@@ -3532,19 +3537,7 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return(ng_snd_item(item, queue));
-}
-
-int
-ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
-{
-	return (ng_send_fn1(node, hook, fn, arg1, arg2, 0));
-}
-
-int
-ng_queue_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
-{
-	return (ng_send_fn1(node, hook, fn, arg1, arg2, 1));
+	return(ng_snd_item(item, flags));
 }
 
 /* 
@@ -3565,7 +3558,7 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 {
 	item_p item;
 
-	if ((item = ng_getqblk()) == NULL)
+	if ((item = ng_getqblk(NG_NOFLAGS)) == NULL)
 		return (ENOMEM);
 
 	item->el_flags = NGQF_FN | NGQF_WRITER;

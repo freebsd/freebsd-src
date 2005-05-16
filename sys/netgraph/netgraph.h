@@ -836,7 +836,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_SEND_DATA_ONLY(error, hook, m)				\
 	do {								\
 		item_p _item;						\
-		if ((_item = ng_package_data((m), NULL))) {		\
+		if ((_item = ng_package_data((m), NG_NOFLAGS))) {	\
 			NG_FWD_ITEM_HOOK(error, _item, hook);		\
 		} else {						\
 			(error) = ENOMEM;				\
@@ -869,7 +869,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_SEND_MSG_HOOK(error, here, msg, hook, retaddr)		\
 	do {								\
 		item_p _item;						\
-		if ((_item = ng_package_msg(msg)) == NULL) {		\
+		if ((_item = ng_package_msg(msg, NG_NOFLAGS)) == NULL) {\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
@@ -885,7 +885,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_SEND_MSG_PATH(error, here, msg, path, retaddr)		\
 	do {								\
 		item_p _item;						\
-		if ((_item = ng_package_msg(msg)) == NULL) {		\
+		if ((_item = ng_package_msg(msg, NG_NOFLAGS)) == NULL) {\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
@@ -901,7 +901,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_SEND_MSG_ID(error, here, msg, ID, retaddr)			\
 	do {								\
 		item_p _item;						\
-		if ((_item = ng_package_msg(msg)) == NULL) {		\
+		if ((_item = ng_package_msg(msg, NG_NOFLAGS)) == NULL) {\
 			(msg) = NULL;					\
 			(error) = ENOMEM;				\
 			break;						\
@@ -1063,22 +1063,27 @@ int	ng_make_node_common(struct ng_type *typep, node_p *nodep);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
-item_p	ng_package_data(struct mbuf *m, void *dummy);
-item_p	ng_package_msg(struct ng_mesg *msg);
+item_p	ng_package_data(struct mbuf *m, int flags);
+item_p	ng_package_msg(struct ng_mesg *msg, int flags);
 item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
 void	ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr);
 int	ng_rmhook_self(hook_p hook);	/* if a node wants to kill a hook */
 int	ng_rmnode_self(node_p here);	/* if a node wants to suicide */
 int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
-int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
-	void *arg1, int arg2);
-int 	ng_queue_fn(node_p node, hook_p hook, ng_item_fn *fn,
-	void *arg1, int arg2);
+int 	ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn,
+	void *arg1, int arg2, int flags);
+#define	ng_send_fn(node, hook, fn, arg1, arg2) \
+	ng_send_fn1(node, hook, fn, arg1, arg2, NG_NOFLAGS)
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
 #define	ng_callout_init(c)	callout_init(c, CALLOUT_MPSAFE)
+
+/* Flags for netgraph functions. */
+#define	NG_NOFLAGS	0x00000000	/* no special options */
+#define	NG_QUEUE	0x00000001	/* enqueue item, don't dispatch */
+#define	NG_WAITOK	0x00000002	/* use M_WAITOK, etc. */
 
 /*
  * prototypes the user should DEFINITELY not use directly
