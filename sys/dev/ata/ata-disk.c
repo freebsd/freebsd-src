@@ -61,6 +61,7 @@ static void ad_done(struct ata_request *);
 static void ad_describe(device_t dev);
 static int ad_version(u_int16_t);
 static disk_strategy_t ad_strategy;
+static disk_ioctl_t ad_ioctl;
 static dumper_t ad_dump;
 
 /* local vars */
@@ -137,6 +138,7 @@ ad_attach(device_t dev)
     /* create the disk device */
     adp->disk = disk_alloc();
     adp->disk->d_strategy = ad_strategy;
+    adp->disk->d_ioctl = ad_ioctl;
     adp->disk->d_dump = ad_dump;
     adp->disk->d_name = "ad";
     adp->disk->d_drv1 = dev;
@@ -280,6 +282,12 @@ ad_done(struct ata_request *request)
     bp->bio_resid = bp->bio_bcount - request->donecount;
     biodone(bp);
     ata_free_request(request);
+}
+
+static int
+ad_ioctl(struct disk *disk, u_long cmd, void *data, int flag, struct thread *td)
+{
+    return ata_device_ioctl(disk->d_drv1, cmd, data);
 }
 
 static int

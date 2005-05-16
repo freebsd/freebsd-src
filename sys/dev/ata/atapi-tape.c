@@ -263,7 +263,7 @@ ast_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
 }
 
 static int 
-ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     device_t dev = cdev->si_drv1;
     struct ast_softc *stp = device_get_ivars(dev);
@@ -272,7 +272,7 @@ ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
     switch (cmd) {
     case MTIOCGET:
 	{
-	    struct mtget *g = (struct mtget *) addr;
+	    struct mtget *g = (struct mtget *) data;
 
 	    bzero(g, sizeof(struct mtget));
 	    g->mt_type = 7;
@@ -291,7 +291,7 @@ ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
     case MTIOCTOP:
 	{       
 	    int i;
-	    struct mtop *mt = (struct mtop *)addr;
+	    struct mtop *mt = (struct mtop *)data;
 
 	    switch ((int16_t) (mt->mt_op)) {
 
@@ -353,7 +353,7 @@ ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 
 	    if ((error = ast_read_position(dev, 0, &position)))
 		break;
-	    *(u_int32_t *)addr = position.tape;
+	    *(u_int32_t *)data = position.tape;
 	}
 	break;
 
@@ -363,20 +363,20 @@ ast_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 
 	    if ((error = ast_read_position(dev, 1, &position)))
 		break;
-	    *(u_int32_t *)addr = position.tape;
+	    *(u_int32_t *)data = position.tape;
 	}
 	break;
 
     case MTIOCSLOCATE:
-	error = ast_locate(dev, 0, *(u_int32_t *)addr);
+	error = ast_locate(dev, 0, *(u_int32_t *)data);
 	break;
 
     case MTIOCHLOCATE:
-	error = ast_locate(dev, 1, *(u_int32_t *)addr);
+	error = ast_locate(dev, 1, *(u_int32_t *)data);
 	break;
 
     default:
-	error = ENOTTY;
+	error = ata_device_ioctl(dev, cmd, data);
     }
     return error;
 }

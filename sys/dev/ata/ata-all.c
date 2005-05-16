@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #endif
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-commands.h>
 #include <ata_if.h>
 
 /* device structure */
@@ -75,7 +74,7 @@ static void bpack(int8_t *, int8_t *, int);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
-int (*ata_ioctl_func)(struct ata_cmd *iocmd) = NULL;
+int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
@@ -338,207 +337,165 @@ ata_interrupt(void *data)
  * device related interfaces
  */
 static int
-ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
+ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	  int32_t flag, struct thread *td)
 {
-    struct ata_cmd *iocmd = (struct ata_cmd *)addr;
-    device_t *children, device = NULL;
-    struct ata_request *request;
-    caddr_t buf;
-    int nchildren, i;
-    int error = ENOTTY;
+    device_t device, *children;
+    struct ata_ioc_devices *devices = (struct ata_ioc_devices *)data;
+    int *value = (int *)data;
+    int i, nchildren, error = ENOTTY;
 
-    if (cmd != IOCATA)
-	return ENOTSUP;
-    if (iocmd->cmd == ATAGMAXCHANNEL) {
-	iocmd->u.maxchan = devclass_get_maxunit(ata_devclass);
-	return 0;
-    }
-    if (iocmd->channel < 0 || 
-	iocmd->channel >= devclass_get_maxunit(ata_devclass)) {
-	return ENXIO;
-    }
-    if (!(device = devclass_get_device(ata_devclass, iocmd->channel)))
-	return ENXIO;
-
-    switch (iocmd->cmd) {
-    case ATAGPARM:
-	if (!device_get_children(device, &children, &nchildren)) {
-	    struct ata_channel *ch;
-
-	    if (!(ch = device_get_softc(device)))
-		return ENXIO;
-	    iocmd->u.param.type[0] =
-		ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
-	    iocmd->u.param.type[1] =
-		ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
-	    for (i = 0; i < nchildren; i++) {
-		if (children[i] && device_is_attached(children[i])) {   
-		    struct ata_device *atadev = device_get_softc(children[i]);
-
-		    if (atadev->unit == ATA_MASTER) {
-			strcpy(iocmd->u.param.name[0],
-				device_get_nameunit(children[i]));
-			bcopy(&atadev->param, &iocmd->u.param.params[0],
-			      sizeof(struct ata_params));
-		    }
-		    if (atadev->unit == ATA_SLAVE) {
-			strcpy(iocmd->u.param.name[1],
-				device_get_nameunit(children[i]));
-			bcopy(&atadev->param, &iocmd->u.param.params[1],
-			      sizeof(struct ata_params));
-		    }
-		}
-	    }
-	    free(children, M_TEMP);
-	    error = 0;
-	}
-	else
-	    error = ENXIO;
+    switch (cmd) {
+    case IOCATAGMAXCHANNEL:
+	*value = devclass_get_maxunit(ata_devclass);
+	error = 0;
 	break;
 
-    case ATAGMODE:
-	if (!device_get_children(device, &children, &nchildren)) {
-	    for (i = 0; i < nchildren; i++) {
-		if (children[i] && device_is_attached(children[i])) {   
-		    struct ata_device *atadev = device_get_softc(children[i]);
-
-		    atadev = device_get_softc(children[i]);
-		    if (atadev->unit == ATA_MASTER)
-			iocmd->u.mode.mode[0] = atadev->mode;
-		    if (atadev->unit == ATA_SLAVE)
-			iocmd->u.mode.mode[1] = atadev->mode;
-		}
-		free(children, M_TEMP);
-	    }
-	    error = 0;
-	}
-	else
-	    error = ENXIO;
-	break;
-
-    case ATASMODE:
-	if (!device_get_children(device, &children, &nchildren)) {
-	    for (i = 0; i < nchildren; i++) {
-		if (children[i] && device_is_attached(children[i])) {   
-		    struct ata_device *atadev = device_get_softc(children[i]);
-
-		    if (atadev->unit == ATA_MASTER) {
-			atadev->mode = iocmd->u.mode.mode[0];
-			ATA_SETMODE(device, children[i]);
-			iocmd->u.mode.mode[0] = atadev->mode;
-		    }
-		    if (atadev->unit == ATA_SLAVE) {
-			atadev->mode = iocmd->u.mode.mode[1];
-			ATA_SETMODE(device, children[i]);
-			iocmd->u.mode.mode[1] = atadev->mode;
-		    }
-		}
-	    }
-	    free(children, M_TEMP);
-	    error = 0;
-	}
-	else
-	    error = ENXIO;
-	break;
-
-   case ATAREQUEST:
-	if (!device_get_children(device, &children, &nchildren)) {
-	    for (i = 0; i < nchildren; i++) {
-		if (children[i] && device_is_attached(children[i])) {   
-		    struct ata_device *atadev = device_get_softc(children[i]);
-
-		    if (ATA_DEV(atadev->unit) == iocmd->device) {
-			if (!(buf = malloc(iocmd->u.request.count,
-					   M_ATA, M_NOWAIT))) {
-			    error = ENOMEM;
-			    break;
-			}
-			if (!(request = ata_alloc_request())) {
-			    error = ENOMEM;
-			    free(buf, M_ATA);
-			    break;
-			}
-			if (iocmd->u.request.flags & ATA_CMD_WRITE) {
-			    error = copyin(iocmd->u.request.data, buf,
-					   iocmd->u.request.count);
-			    if (error) {
-				free(buf, M_ATA);
-				ata_free_request(request);
-				break;
-			    }
-			}
-			request->dev = atadev->dev;
-			if (iocmd->u.request.flags & ATA_CMD_ATAPI) {
-			    request->flags = ATA_R_ATAPI;
-			    bcopy(iocmd->u.request.u.atapi.ccb,
-				  request->u.atapi.ccb, 16);
-			}
-			else {
-			    request->u.ata.command =
-				iocmd->u.request.u.ata.command;
-			    request->u.ata.feature =
-				iocmd->u.request.u.ata.feature;
-			    request->u.ata.lba = iocmd->u.request.u.ata.lba;
-			    request->u.ata.count = iocmd->u.request.u.ata.count;
-			}
-			request->timeout = iocmd->u.request.timeout;
-			request->data = buf;
-			request->bytecount = iocmd->u.request.count;
-			request->transfersize = request->bytecount;
-			if (iocmd->u.request.flags & ATA_CMD_CONTROL)
-			    request->flags |= ATA_R_CONTROL;
-			if (iocmd->u.request.flags & ATA_CMD_READ)
-			    request->flags |= ATA_R_READ;
-			if (iocmd->u.request.flags & ATA_CMD_WRITE)
-			    request->flags |= ATA_R_WRITE;
-			ata_queue_request(request);
-			if (!(request->flags & ATA_R_ATAPI)) {
-			    iocmd->u.request.u.ata.command =
-				request->u.ata.command;
-			    iocmd->u.request.u.ata.feature = 
-				request->u.ata.feature;
-			    iocmd->u.request.u.ata.lba = request->u.ata.lba;
-			    iocmd->u.request.u.ata.count = request->u.ata.count;
-			}
-			iocmd->u.request.error = request->result;
-			if (iocmd->u.request.flags & ATA_CMD_READ)
-			    error = copyout(buf, iocmd->u.request.data,
-					    iocmd->u.request.count);
-			else
-			    error = 0;
-			free(buf, M_ATA);
-			ata_free_request(request);
-			break;
-		    }
-		}
-	    }
-	    free(children, M_TEMP);
-	}
-	else
-	    error = ENXIO;
-	break;
-
-    case ATAREINIT:
+    case IOCATAREINIT:
+	if (*value > devclass_get_maxunit(ata_devclass) ||
+	    !(device = devclass_get_device(ata_devclass, *value)))
+	    return ENXIO;
 	error = ata_reinit(device);
 	ata_start(device);
 	break;
 
-    case ATAATTACH:
+    case IOCATAATTACH:
+	if (*value > devclass_get_maxunit(ata_devclass) ||
+	    !(device = devclass_get_device(ata_devclass, *value)))
+	    return ENXIO;
 	/* XXX SOS should enable channel HW on controller */
 	error = ata_attach(device);
 	break;
 
-    case ATADETACH:
+    case IOCATADETACH:
+	if (*value > devclass_get_maxunit(ata_devclass) ||
+	    !(device = devclass_get_device(ata_devclass, *value)))
+	    return ENXIO;
 	error = ata_detach(device);
 	/* XXX SOS should disable channel HW on controller */
 	break;
 
+    case IOCATADEVICES:
+	if (devices->channel > devclass_get_maxunit(ata_devclass) ||
+	    !(device = devclass_get_device(ata_devclass, devices->channel)))
+	    return ENXIO;
+	bzero(devices->name[0], 32);
+	bzero(&devices->params[0], sizeof(struct ata_params));
+	bzero(devices->name[1], 32);
+	bzero(&devices->params[1], sizeof(struct ata_params));
+	if (!device_get_children(device, &children, &nchildren)) {
+	    for (i = 0; i < nchildren; i++) {
+		if (children[i] && device_is_attached(children[i])) {
+		    struct ata_device *atadev = device_get_softc(children[i]);
+
+		    if (atadev->unit == ATA_MASTER) {
+			strncpy(devices->name[0],
+				device_get_nameunit(children[i]), 32);
+			bcopy(&atadev->param, &devices->params[0],
+			      sizeof(struct ata_params));
+		    }
+		    if (atadev->unit == ATA_SLAVE) {
+			strncpy(devices->name[1],
+				device_get_nameunit(children[i]), 32);
+			bcopy(&atadev->param, &devices->params[1],
+			      sizeof(struct ata_params));
+		    }
+		}
+	    }
+	    free(children, M_TEMP);
+	    error = 0;
+	}
+	else
+	    error = ENODEV;
+	break;
+
     default:
-	if (ata_ioctl_func)
-	    error = ata_ioctl_func(iocmd);
+	if (ata_raid_ioctl_func)
+	    error = ata_raid_ioctl_func(cmd, data);
     }
     return error;
+}
+
+int
+ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
+{
+    struct ata_device *atadev = device_get_softc(dev);
+    struct ata_ioc_request *ioc_request = (struct ata_ioc_request *)data;
+    struct ata_params *params = (struct ata_params *)data;
+    int *mode = (int *)data;
+    struct ata_request *request;
+    caddr_t buf;
+    int error;
+
+    switch (cmd) {
+    case IOCATAREQUEST:
+	if (!(buf = malloc(ioc_request->count, M_ATA, M_NOWAIT))) {
+	    return ENOMEM;
+	}
+	if (!(request = ata_alloc_request())) {
+	    free(buf, M_ATA);
+	    return  ENOMEM;
+	}
+	if (ioc_request->flags & ATA_CMD_WRITE) {
+	    error = copyin(ioc_request->data, buf, ioc_request->count);
+	    if (error) {
+		free(buf, M_ATA);
+		ata_free_request(request);
+		return error;
+	    }
+	}
+	request->dev = dev;
+	if (ioc_request->flags & ATA_CMD_ATAPI) {
+	    request->flags = ATA_R_ATAPI;
+	    bcopy(ioc_request->u.atapi.ccb, request->u.atapi.ccb, 16);
+	}
+	else {
+	    request->u.ata.command = ioc_request->u.ata.command;
+	    request->u.ata.feature = ioc_request->u.ata.feature;
+	    request->u.ata.lba = ioc_request->u.ata.lba;
+	    request->u.ata.count = ioc_request->u.ata.count;
+	}
+	request->timeout = ioc_request->timeout;
+	request->data = buf;
+	request->bytecount = ioc_request->count;
+	request->transfersize = request->bytecount;
+	if (ioc_request->flags & ATA_CMD_CONTROL)
+	    request->flags |= ATA_R_CONTROL;
+	if (ioc_request->flags & ATA_CMD_READ)
+	    request->flags |= ATA_R_READ;
+	if (ioc_request->flags & ATA_CMD_WRITE)
+	    request->flags |= ATA_R_WRITE;
+	ata_queue_request(request);
+	if (!(request->flags & ATA_R_ATAPI)) {
+	    ioc_request->u.ata.command = request->u.ata.command;
+	    ioc_request->u.ata.feature = request->u.ata.feature;
+	    ioc_request->u.ata.lba = request->u.ata.lba;
+	    ioc_request->u.ata.count = request->u.ata.count;
+	}
+	ioc_request->error = request->result;
+	if (ioc_request->flags & ATA_CMD_READ)
+	    error = copyout(buf, ioc_request->data, ioc_request->count);
+	else
+	    error = 0;
+	free(buf, M_ATA);
+	ata_free_request(request);
+	return error;
+   
+    case IOCATAGPARM:
+	bcopy(&atadev->param, params, sizeof(struct ata_params));
+	return 0;
+	
+    case IOCATASMODE:
+	atadev->mode = *mode;
+	ATA_SETMODE(device_get_parent(dev), dev);
+	return 0;
+
+    case IOCATAGMODE:
+	*mode = atadev->mode;
+	return 0;
+    default:
+	return ENOTTY;
+    }
 }
 
 static void
@@ -572,12 +529,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
     device_t child;
 
     if ((child = device_add_child(parent, NULL, unit))) {
-	char buffer[64];
-
 	device_set_softc(child, atadev);
-	sprintf(buffer, "%.40s/%.8s",
-		atadev->param.model, atadev->param.revision);
-	device_set_desc_copy(child, buffer);
 	device_quiet(child);
 	atadev->dev = child;
 	atadev->max_iosize = DEV_BSIZE;
@@ -623,6 +575,7 @@ ata_getparam(device_t parent, struct ata_device *atadev)
     if (!error && (isprint(atadev->param.model[0]) ||
 		   isprint(atadev->param.model[1]))) {
 	struct ata_params *atacap = &atadev->param;
+	char buffer[64];
 #if BYTE_ORDER == BIG_ENDIAN
 	int16_t *ptr;
 
@@ -645,6 +598,8 @@ ata_getparam(device_t parent, struct ata_device *atadev)
 	bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
 	btrim(atacap->serial, sizeof(atacap->serial));
 	bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
+	sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
+	device_set_desc_copy(atadev->dev, buffer);
 	if (bootverbose)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   ch->unit, atadev->unit == ATA_MASTER ? "master":"slave",
@@ -754,26 +709,26 @@ ata_modify_if_48bit(struct ata_request *request)
 	 request->u.ata.count > 256) &&
 	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
 
-        /* translate command into 48bit version */
-        switch (command) {
-        case ATA_READ:
-            command = ATA_READ48; break;
-        case ATA_READ_MUL:
-            command = ATA_READ_MUL48; break;
-        case ATA_READ_DMA:
-            command = ATA_READ_DMA48; break;
-        case ATA_READ_DMA_QUEUED:
-            command = ATA_READ_DMA_QUEUED48; break;
-        case ATA_WRITE:
-            command = ATA_WRITE48; break;
-        case ATA_WRITE_MUL:
-            command = ATA_WRITE_MUL48; break;
-        case ATA_WRITE_DMA:
-            command = ATA_WRITE_DMA48; break;
-        case ATA_WRITE_DMA_QUEUED:
-            command = ATA_WRITE_DMA_QUEUED48; break;
-        case ATA_FLUSHCACHE:
-            command = ATA_FLUSHCACHE48; break;
+	/* translate command into 48bit version */
+	switch (command) {
+	case ATA_READ:
+	    command = ATA_READ48; break;
+	case ATA_READ_MUL:
+	    command = ATA_READ_MUL48; break;
+	case ATA_READ_DMA:
+	    command = ATA_READ_DMA48; break;
+	case ATA_READ_DMA_QUEUED:
+	    command = ATA_READ_DMA_QUEUED48; break;
+	case ATA_WRITE:
+	    command = ATA_WRITE48; break;
+	case ATA_WRITE_MUL:
+	    command = ATA_WRITE_MUL48; break;
+	case ATA_WRITE_DMA:
+	    command = ATA_WRITE_DMA48; break;
+	case ATA_WRITE_DMA_QUEUED:
+	    command = ATA_WRITE_DMA_QUEUED48; break;
+	case ATA_FLUSHCACHE:
+	    command = ATA_FLUSHCACHE48; break;
 	default:
 	    return command;
 	}
