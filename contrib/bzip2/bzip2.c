@@ -7,7 +7,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2005 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -41,7 +41,7 @@
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   Julian Seward, Cambridge, UK.
-  jseward@acm.org
+  jseward@bzip.org
   bzip2/libbzip2 version 1.0 of 21 March 2000
 
   This program is based on (at least) the work of:
@@ -525,6 +525,7 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
    UChar   obuf[5000];
    UChar   unused[BZ_MAX_UNUSED];
    Int32   nUnused;
+   void*   unusedTmpV;
    UChar*  unusedTmp;
 
    nUnused = 0;
@@ -554,9 +555,10 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
       }
       if (bzerr != BZ_STREAM_END) goto errhandler;
 
-      BZ2_bzReadGetUnused ( &bzerr, bzf, (void**)(&unusedTmp), &nUnused );
+      BZ2_bzReadGetUnused ( &bzerr, bzf, &unusedTmpV, &nUnused );
       if (bzerr != BZ_OK) panic ( "decompress:bzReadGetUnused" );
 
+      unusedTmp = (UChar*)unusedTmpV;
       for (i = 0; i < nUnused; i++) unused[i] = unusedTmp[i];
 
       BZ2_bzReadClose ( &bzerr, bzf );
@@ -639,6 +641,7 @@ Bool testStream ( FILE *zStream )
    UChar   obuf[5000];
    UChar   unused[BZ_MAX_UNUSED];
    Int32   nUnused;
+   void*   unusedTmpV;
    UChar*  unusedTmp;
 
    nUnused = 0;
@@ -662,9 +665,10 @@ Bool testStream ( FILE *zStream )
       }
       if (bzerr != BZ_STREAM_END) goto errhandler;
 
-      BZ2_bzReadGetUnused ( &bzerr, bzf, (void**)(&unusedTmp), &nUnused );
+      BZ2_bzReadGetUnused ( &bzerr, bzf, &unusedTmpV, &nUnused );
       if (bzerr != BZ_OK) panic ( "test:bzReadGetUnused" );
 
+      unusedTmp = (UChar*)unusedTmpV;
       for (i = 0; i < nUnused; i++) unused[i] = unusedTmp[i];
 
       BZ2_bzReadClose ( &bzerr, bzf );
@@ -828,7 +832,7 @@ void panic ( Char* s )
              "\n%s: PANIC -- internal consistency error:\n"
              "\t%s\n"
              "\tThis is a BUG.  Please report it to me at:\n"
-             "\tjseward@acm.org\n",
+             "\tjseward@bzip.org\n",
              progName, s );
    showFileNames();
    cleanUpAndFail( 3 );
@@ -908,7 +912,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (1) and (2).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (1)\n"
-      "   or (2), feel free to report it to me at: jseward@acm.org.\n"
+      "   or (2), feel free to report it to me at: jseward@bzip.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -931,7 +935,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (2) and (3).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (2)\n"
-      "   or (3), feel free to report it to me at: jseward@acm.org.\n"
+      "   or (3), feel free to report it to me at: jseward@bzip.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -1674,7 +1678,7 @@ void license ( void )
     "bzip2, a block-sorting file compressor.  "
     "Version %s.\n"
     "   \n"
-    "   Copyright (C) 1996-2002 by Julian Seward.\n"
+    "   Copyright (C) 1996-2005 by Julian Seward.\n"
     "   \n"
     "   This program is free software; you can redistribute it and/or modify\n"
     "   it under the terms set out in the LICENSE file, which is included\n"

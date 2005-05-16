@@ -7,9 +7,8 @@ AR=ar
 RANLIB=ranlib
 LDFLAGS=
 
-# Suitably paranoid flags to avoid bugs in gcc-2.7
 BIGFILES=-D_FILE_OFFSET_BITS=64
-CFLAGS=-Wall -Winline -O2 -fomit-frame-pointer -fno-strength-reduce $(BIGFILES)
+CFLAGS=-Wall -Winline -O -g $(BIGFILES)
 
 # Where you want it installed when you do 'make install'
 PREFIX=/usr
@@ -96,7 +95,6 @@ install: bzip2 bzip2recover
 	echo ".so man1/bzmore.1" > $(PREFIX)/man/man1/bzless.1
 	echo ".so man1/bzdiff.1" > $(PREFIX)/man/man1/bzcmp.1
 
-distclean: clean
 clean: 
 	rm -f *.o libbz2.a bzip2 bzip2recover \
 	sample1.rb2 sample2.rb2 sample3.rb2 \
@@ -122,8 +120,12 @@ bzip2.o: bzip2.c
 bzip2recover.o: bzip2recover.c
 	$(CC) $(CFLAGS) -c bzip2recover.c
 
-DISTNAME=bzip2-1.0.2
-tarfile:
+
+distclean: clean
+	rm -f manual.ps manual.html manual.pdf
+
+DISTNAME=bzip2-1.0.3
+dist: check manual
 	rm -f $(DISTNAME)
 	ln -sf . $(DISTNAME)
 	tar cvf $(DISTNAME).tar \
@@ -139,9 +141,6 @@ tarfile:
 	   $(DISTNAME)/bzlib.h \
 	   $(DISTNAME)/bzlib_private.h \
 	   $(DISTNAME)/Makefile \
-	   $(DISTNAME)/manual.texi \
-	   $(DISTNAME)/manual.ps \
-	   $(DISTNAME)/manual.pdf \
 	   $(DISTNAME)/LICENSE \
 	   $(DISTNAME)/bzip2.1 \
 	   $(DISTNAME)/bzip2.1.preformatted \
@@ -157,9 +156,12 @@ tarfile:
 	   $(DISTNAME)/sample2.bz2 \
 	   $(DISTNAME)/sample3.bz2 \
 	   $(DISTNAME)/dlltest.c \
-	   $(DISTNAME)/*.html \
+	   $(DISTNAME)/manual.html \
+	   $(DISTNAME)/manual.pdf \
+	   $(DISTNAME)/manual.ps \
 	   $(DISTNAME)/README \
 	   $(DISTNAME)/README.COMPILATION.PROBLEMS \
+	   $(DISTNAME)/README.XML.STUFF \
 	   $(DISTNAME)/CHANGES \
 	   $(DISTNAME)/libbz2.def \
 	   $(DISTNAME)/libbz2.dsp \
@@ -175,18 +177,29 @@ tarfile:
 	   $(DISTNAME)/bzmore.1 \
 	   $(DISTNAME)/bzgrep \
 	   $(DISTNAME)/bzgrep.1 \
-	   $(DISTNAME)/Makefile-libbz2_so
+	   $(DISTNAME)/Makefile-libbz2_so \
+	   $(DISTNAME)/bz-common.xsl \
+	   $(DISTNAME)/bz-fo.xsl \
+	   $(DISTNAME)/bz-html.xsl \
+	   $(DISTNAME)/bzip.css \
+	   $(DISTNAME)/entities.xml \
+	   $(DISTNAME)/manual.xml \
+	   $(DISTNAME)/format.pl \
+	   $(DISTNAME)/xmlproc.sh
 	gzip -v $(DISTNAME).tar
 
-# For rebuilding the manual from sources on my RedHat 7.2 box
-manual: manual.ps manual.pdf manual.html
+# For rebuilding the manual from sources on my SuSE 9.1 box
 
-manual.ps: manual.texi
-	tex manual.texi
-	dvips -o manual.ps manual.dvi
+MANUAL_SRCS= 	bz-common.xsl bz-fo.xsl bz-html.xsl bzip.css \
+		entities.xml manual.xml 
 
-manual.pdf: manual.ps
-	ps2pdf manual.ps
+manual: manual.html manual.ps manual.pdf
 
-manual.html: manual.texi
-	texi2html -split_chapter manual.texi
+manual.ps: $(MANUAL_SRCS)
+	./xmlproc.sh -ps manual.xml
+
+manual.pdf: $(MANUAL_SRCS)
+	./xmlproc.sh -pdf manual.xml
+
+manual.html: $(MANUAL_SRCS)
+	./xmlproc.sh -html manual.xml
