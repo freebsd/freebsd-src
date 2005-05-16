@@ -198,7 +198,6 @@ COMMON ITEMS:
 	# is listed here if you are upgrading from a really old current.
 
 	<make sure you have good level 0 dumps>
-	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
