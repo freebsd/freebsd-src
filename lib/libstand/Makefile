@@ -146,6 +146,7 @@ _${file}: ${file}
 .endfor
 
 # depend on stand.h being able to be included multiple times
+CLEANFILES+= libstand_zutil.h
 libstand_zutil.h: ${.CURDIR}/../libz/zutil.h
 	sed -e 's|<stddef.h>|"stand.h"|' \
 	    -e 's|<string.h>|"stand.h"|' \
