@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.90 2004/07/21 00:09:14 lukem Exp $	*/
+/*	$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2004 The NetBSD Foundation, Inc.
@@ -68,7 +68,7 @@
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -80,7 +80,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -104,7 +104,7 @@ __COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.90 2004/07/21 00:09:14 lukem Exp $");
+__RCSID("$NetBSD: main.c,v 1.94 2005/05/13 05:03:49 lukem Exp $");
 #endif
 #endif /* not lint */
 
@@ -144,6 +144,7 @@ main(int argc, char *argv[])
 	struct passwd *pw;
 	char *cp, *ep, *anonuser, *anonpass, *upload_path;
 	int dumbterm, s, len, isupload;
+	socklen_t slen;
 
 	setlocale(LC_ALL, "");
 	setprogname(argv[0]);
@@ -206,13 +207,13 @@ main(int argc, char *argv[])
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s == -1)
 		err(1, "can't create socket");
-	len = sizeof(rcvbuf_size);
-	if (getsockopt(s, SOL_SOCKET, SO_RCVBUF, (void *) &rcvbuf_size, &len)
-	    < 0)
+	slen = sizeof(rcvbuf_size);
+	if (getsockopt(s, SOL_SOCKET, SO_RCVBUF,
+	    (void *)&rcvbuf_size, &slen) == -1)
 		err(1, "unable to get default rcvbuf size");
-	len = sizeof(sndbuf_size);
-	if (getsockopt(s, SOL_SOCKET, SO_SNDBUF, (void *) &sndbuf_size, &len)
-	    < 0)
+	slen = sizeof(sndbuf_size);
+	if (getsockopt(s, SOL_SOCKET, SO_SNDBUF,
+	    (void *)&sndbuf_size, &slen) == -1)
 		err(1, "unable to get default sndbuf size");
 	(void)close(s);
 					/* sanity check returned buffer sizes */
@@ -457,7 +458,7 @@ main(int argc, char *argv[])
 	}
 	if (netrc[0] == '\0' && localhome != NULL) {
 		if (strlcpy(netrc, localhome, sizeof(netrc)) >= sizeof(netrc) ||
-	    	    strlcat(netrc, "/.netrc", sizeof(netrc)) >= sizeof(netrc)) {
+		    strlcat(netrc, "/.netrc", sizeof(netrc)) >= sizeof(netrc)) {
 			warnx("%s/.netrc: %s", localhome,
 			    strerror(ENAMETOOLONG));
 			netrc[0] = '\0';
@@ -655,7 +656,8 @@ cmdscanner(void)
 					break;
 				line[num] = '\0';
 			} else if (num == sizeof(line) - 2) {
-				fputs("sorry, input line too long.\n", ttyout);
+				fputs("Sorry, input line is too long.\n",
+				    ttyout);
 				while ((num = getchar()) != '\n' && num != EOF)
 					/* void */;
 				break;
@@ -666,20 +668,23 @@ cmdscanner(void)
 			HistEvent ev;
 			cursor_pos = NULL;
 
-			if ((buf = el_gets(el, &num)) == NULL || num == 0) {
+			buf = el_gets(el, &num);
+			if (buf == NULL || num == 0) {
 				if (fromatty)
 					putc('\n', ttyout);
 				quit(0, NULL);
 			}
-			if (buf[--num] == '\n') {
-				if (num == 0)
-					break;
-			} else if (num >= sizeof(line)) {
-				fputs("sorry, input line too long.\n", ttyout);
+			if (num >= sizeof(line)) {
+				fputs("Sorry, input line is too long.\n",
+				    ttyout);
 				break;
 			}
 			memcpy(line, buf, num);
-			line[num] = '\0';
+			if (line[--num] == '\n') {
+				line[num] = '\0';
+				if (num == 0)
+					break;
+			}
 			history(hist, &ev, H_ENTER, buf);
 		}
 #endif /* !NO_EDITCOMPLETE */

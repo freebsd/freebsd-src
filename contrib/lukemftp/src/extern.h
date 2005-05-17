@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.64 2005/02/09 23:17:27 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.67 2005/05/14 15:26:43 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2005 The NetBSD Foundation, Inc.
@@ -70,7 +70,7 @@
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -82,7 +82,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -248,8 +248,9 @@ void	updatelocalcwd(void);
 void	updateremotecwd(void);
 void	usage(void);
 void	user(int, char **);
-int	xconnect(int, const struct sockaddr *, int);
+int	xconnect(int, const struct sockaddr *, socklen_t);
 int	xlisten(int, int);
+int	xpoll(struct pollfd *, int, int);
 void   *xmalloc(size_t);
 StringList *xsl_init(void);
 void	xsl_add(StringList *, char *);
