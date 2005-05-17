@@ -91,9 +91,11 @@ static int      ixgb_detach(device_t);
 static int      ixgb_shutdown(device_t);
 static void     ixgb_intr(void *);
 static void     ixgb_start(struct ifnet *);
+static void     ixgb_start_locked(struct ifnet *);
 static int      ixgb_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
 static void     ixgb_watchdog(struct ifnet *);
 static void     ixgb_init(void *);
+static void     ixgb_init_locked(struct adapter *);
 static void     ixgb_stop(void *);
 static void     ixgb_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgb_media_change(struct ifnet *);
@@ -237,24 +239,22 @@ static int
 ixgb_attach(device_t dev)
 {
 	struct adapter *adapter;
-	int             s;
 	int             tsize, rsize;
 	int             error = 0;
 
 	printf("ixgb%d: %s\n", device_get_unit(dev), ixgb_copyright);
 	INIT_DEBUGOUT("ixgb_attach: begin");
-	s = splimp();
 
 	/* Allocate, clear, and link in our adapter structure */
 	if (!(adapter = device_get_softc(dev))) {
 		printf("ixgb: adapter structure allocation failed\n");
-		splx(s);
 		return (ENOMEM);
 	}
 	bzero(adapter, sizeof(struct adapter));
 	adapter->dev = dev;
 	adapter->osdep.dev = dev;
 	adapter->unit = device_get_unit(dev);
+	IXGB_LOCK_INIT(adapter, device_get_nameunit(dev));
 
 	if (ixgb_adapter_list != NULL)
 		ixgb_adapter_list->prev = adapter;
@@ -268,7 +268,7 @@ ixgb_attach(device_t dev)
 			(void *)adapter, 0,
 			ixgb_sysctl_stats, "I", "Statistics");
 
-	callout_handle_init(&adapter->timer_handle);
+	callout_init(&adapter->timer, CALLOUT_MPSAFE);
 
 	/* Determine hardware revision */
 	ixgb_identify_hardware(adapter);
@@ -336,7 +336,6 @@ ixgb_attach(device_t dev)
 	ixgb_update_stats_counters(adapter);
 
 	INIT_DEBUGOUT("ixgb_attach: end");
-	splx(s);
 	return (0);
 
 err_hw_init:
@@ -347,7 +346,6 @@ err_tx_desc:
 err_pci:
 	ixgb_free_pci_resources(adapter);
 	sysctl_ctx_free(&adapter->sysctl_ctx);
-	splx(s);
 	return (error);
 
 }
@@ -367,14 +365,14 @@ ixgb_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
-	int             s;
 
 	INIT_DEBUGOUT("ixgb_detach: begin");
-	s = splimp();
 
+	IXGB_LOCK(adapter);
 	adapter->in_detach = 1;
 
 	ixgb_stop(adapter);
+	IXGB_UNLOCK(adapter);
 
 #if __FreeBSD_version < 500000
 	ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
@@ -405,7 +403,7 @@ ixgb_detach(device_t dev)
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
 
-	splx(s);
+	IXGB_LOCK_DESTROY(adapter);
 	return (0);
 }
 
@@ -419,7 +417,9 @@ static int
 ixgb_shutdown(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
+	IXGB_LOCK(adapter);
 	ixgb_stop(adapter);
+	IXGB_UNLOCK(adapter);
 	return (0);
 }
 
@@ -435,17 +435,16 @@ ixgb_shutdown(device_t dev)
  **********************************************************************/
 
 static void
-ixgb_start(struct ifnet * ifp)
+ixgb_start_locked(struct ifnet * ifp)
 {
-	int             s;
 	struct mbuf    *m_head;
 	struct adapter *adapter = ifp->if_softc;
 
+	IXGB_LOCK_ASSERT(adapter);
 
 	if (!adapter->link_active)
 		return;
 
-	s = splimp();
 	while (ifp->if_snd.ifq_head != NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 
@@ -468,7 +467,17 @@ ixgb_start(struct ifnet * ifp)
 		ifp->if_timer = IXGB_TX_TIMEOUT;
 
 	}
-	splx(s);
+	return;
+}
+
+static void
+ixgb_start(struct ifnet *ifp)
+{
+	struct adapter *adapter = ifp->if_softc;
+
+	IXGB_LOCK(adapter);
+	ixgb_start_locked(ifp);
+	IXGB_UNLOCK(adapter);
 	return;
 }
 
@@ -484,12 +493,9 @@ ixgb_start(struct ifnet * ifp)
 static int
 ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 {
-	int             s, mask, error = 0;
+	int             mask, error = 0;
 	struct ifreq   *ifr = (struct ifreq *) data;
 	struct adapter *adapter = ifp->if_softc;
-
-
-	s = splimp();
 
 	if (adapter->in_detach)
 		goto out;
@@ -505,18 +511,21 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		if (ifr->ifr_mtu > IXGB_MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN) {
 			error = EINVAL;
 		} else {
+			IXGB_LOCK(adapter);
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->hw.max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-			ixgb_init(adapter);
+			ixgb_init_locked(adapter);
+			IXGB_UNLOCK(adapter);
 		}
 		break;
 	case SIOCSIFFLAGS:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
+		IXGB_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING)) {
-				ixgb_init(adapter);
+				ixgb_init_locked(adapter);
 			}
 			ixgb_disable_promisc(adapter);
 			ixgb_set_promisc(adapter);
@@ -525,14 +534,17 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 				ixgb_stop(adapter);
 			}
 		}
+		IXGB_UNLOCK(adapter);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOC(ADD|DEL)MULTI");
 		if (ifp->if_flags & IFF_RUNNING) {
+			IXGB_LOCK(adapter);
 			ixgb_disable_intr(adapter);
 			ixgb_set_multi(adapter);
 			ixgb_enable_intr(adapter);
+			IXGB_UNLOCK(adapter);
 		}
 		break;
 	case SIOCSIFMEDIA:
@@ -558,7 +570,6 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	}
 
 out:
-	splx(s);
 	return (error);
 }
 
@@ -609,15 +620,13 @@ ixgb_watchdog(struct ifnet * ifp)
  **********************************************************************/
 
 static void
-ixgb_init(void *arg)
+ixgb_init_locked(struct adapter *adapter)
 {
-	int             s;
 	struct ifnet   *ifp;
-	struct adapter *adapter = arg;
 
 	INIT_DEBUGOUT("ixgb_init: begin");
 
-	s = splimp();
+	IXGB_LOCK_ASSERT(adapter);
 
 	ixgb_stop(adapter);
 
@@ -629,7 +638,6 @@ ixgb_init(void *arg)
 	if (ixgb_hardware_init(adapter)) {
 		printf("ixgb%d: Unable to initialize the hardware\n",
 		       adapter->unit);
-		splx(s);
 		return;
 	}
 	ixgb_enable_vlans(adapter);
@@ -639,7 +647,6 @@ ixgb_init(void *arg)
 		printf("ixgb%d: Could not setup transmit structures\n",
 		       adapter->unit);
 		ixgb_stop(adapter);
-		splx(s);
 		return;
 	}
 	ixgb_initialize_transmit_unit(adapter);
@@ -652,7 +659,6 @@ ixgb_init(void *arg)
 		printf("ixgb%d: Could not setup receive structures\n",
 		       adapter->unit);
 		ixgb_stop(adapter);
-		splx(s);
 		return;
 	}
 	ixgb_initialize_receive_unit(adapter);
@@ -680,7 +686,7 @@ ixgb_init(void *arg)
 		temp_reg |= IXGB_CTRL0_JFE;
 		IXGB_WRITE_REG(&adapter->hw, CTRL0, temp_reg);
 	}
-	adapter->timer_handle = timeout(ixgb_local_timer, adapter, 2 * hz);
+	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
 	ixgb_clear_hw_cntrs(&adapter->hw);
 #ifdef DEVICE_POLLING
 	/*
@@ -693,19 +699,30 @@ ixgb_init(void *arg)
 #endif				/* DEVICE_POLLING */
 		ixgb_enable_intr(adapter);
 
-	splx(s);
 	return;
 }
 
+static void
+ixgb_init(void *arg)
+{
+	struct adapter *adapter = arg;
+
+	IXGB_LOCK(adapter);
+	ixgb_init_locked(adapter);
+	IXGB_UNLOCK(adapter);
+	return;
+}
 
 #ifdef DEVICE_POLLING
 static poll_handler_t ixgb_poll;
 
 static void
-ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
+ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
 	u_int32_t       reg_icr;
+
+	IXGB_LOCK_ASSERT(adapter);
 
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		ixgb_enable_intr(adapter);
@@ -714,10 +731,11 @@ ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
 		if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-			untimeout(ixgb_local_timer, adapter, adapter->timer_handle);
+			callout_stop(&adapter->timer);
 			ixgb_check_for_link(&adapter->hw);
 			ixgb_print_link_status(adapter);
-			adapter->timer_handle = timeout(ixgb_local_timer, adapter, 2 * hz);
+			callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
+			    adapter);
 		}
 	}
 	if (ifp->if_flags & IFF_RUNNING) {
@@ -725,7 +743,17 @@ ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
 		ixgb_clean_transmit_interrupts(adapter);
 	}
 	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-		ixgb_start(ifp);
+		ixgb_start_locked(ifp);
+}
+
+static void
+ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
+{
+	struct adapter *adapter = ifp->if_softc;
+
+	IXGB_LOCK(adapter);
+	ixgb_poll_locked(ifp, cmd, count);
+	IXGB_UNLOCK(adapter);
 }
 #endif				/* DEVICE_POLLING */
 
@@ -744,21 +772,29 @@ ixgb_intr(void *arg)
 	struct adapter *adapter = arg;
 	boolean_t       rxdmt0 = FALSE;
 
+	IXGB_LOCK(adapter);
+
 	ifp = &adapter->interface_data.ac_if;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING) {
+		IXGB_UNLOCK(adapter);
 		return;
+	}
 
 	if (ether_poll_register(ixgb_poll, ifp)) {
 		ixgb_disable_intr(adapter);
-		ixgb_poll(ifp, 0, 1);
+		ixgb_poll_locked(ifp, 0, 1);
+		IXGB_UNLOCK(adapter);
 		return;
 	}
 #endif				/* DEVICE_POLLING */
 
-	if ((reg_icr = IXGB_READ_REG(&adapter->hw, ICR)) == 0)
+	reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
+	if (reg_icr == 0) {
+		IXGB_UNLOCK(adapter);
 		return;
+	}
 
 	if (reg_icr & IXGB_INT_RXDMT0)
 		rxdmt0 = TRUE;
@@ -776,12 +812,11 @@ ixgb_intr(void *arg)
 
 	/* Link status change */
 	if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-		untimeout(ixgb_local_timer, adapter,
-			  adapter->timer_handle);
+		callout_stop(&adapter->timer);
 		ixgb_check_for_link(&adapter->hw);
 		ixgb_print_link_status(adapter);
-		adapter->timer_handle =
-			timeout(ixgb_local_timer, adapter, 2 * hz);
+		callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
+		    adapter);
 	}
 	while (loop_cnt > 0) {
 		if (ifp->if_flags & IFF_RUNNING) {
@@ -796,8 +831,9 @@ ixgb_intr(void *arg)
 		IXGB_WRITE_REG(&adapter->hw, IMS, IXGB_INT_RXDMT0);
 	}
 	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-		ixgb_start(ifp);
+		ixgb_start_locked(ifp);
 
+	IXGB_UNLOCK(adapter);
 	return;
 }
 
@@ -1074,13 +1110,11 @@ ixgb_set_multi(struct adapter * adapter)
 static void
 ixgb_local_timer(void *arg)
 {
-	int             s;
 	struct ifnet   *ifp;
 	struct adapter *adapter = arg;
 	ifp = &adapter->interface_data.ac_if;
 
-	s = splimp();
-
+	IXGB_LOCK(adapter);
 
 	ixgb_check_for_link(&adapter->hw);
 	ixgb_print_link_status(adapter);
@@ -1088,9 +1122,9 @@ ixgb_local_timer(void *arg)
 	if (ixgb_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
 		ixgb_print_hw_stats(adapter);
 	}
-	adapter->timer_handle = timeout(ixgb_local_timer, adapter, 2 * hz);
+	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
 
-	splx(s);
+	IXGB_UNLOCK(adapter);
 	return;
 }
 
@@ -1131,11 +1165,13 @@ ixgb_stop(void *arg)
 	struct adapter *adapter = arg;
 	ifp = &adapter->interface_data.ac_if;
 
+	IXGB_LOCK_ASSERT(adapter);
+
 	INIT_DEBUGOUT("ixgb_stop: begin\n");
 	ixgb_disable_intr(adapter);
 	adapter->hw.adapter_stopped = FALSE;
 	ixgb_adapter_stop(&adapter->hw);
-	untimeout(ixgb_local_timer, adapter, adapter->timer_handle);
+	callout_stop(&adapter->timer);
 	ixgb_free_transmit_structures(adapter);
 	ixgb_free_receive_structures(adapter);
 
@@ -1218,7 +1254,8 @@ ixgb_allocate_pci_resources(struct adapter * adapter)
 		       adapter->unit);
 		return (ENXIO);
 	}
-	if (bus_setup_intr(dev, adapter->res_interrupt, INTR_TYPE_NET,
+	if (bus_setup_intr(dev, adapter->res_interrupt,
+			   INTR_TYPE_NET | INTR_MPSAFE,
 			   (void (*) (void *))ixgb_intr, adapter,
 			   &adapter->int_handler_tag)) {
 		printf("ixgb%d: Error registering interrupt handler!\n",
@@ -1306,8 +1343,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgb_init;
 	ifp->if_softc = adapter;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
 	ifp->if_watchdog = ixgb_watchdog;
@@ -1654,16 +1690,15 @@ ixgb_transmit_checksum_setup(struct adapter * adapter,
 static void
 ixgb_clean_transmit_interrupts(struct adapter * adapter)
 {
-	int             s;
 	int             i, num_avail;
 	struct ixgb_buffer *tx_buffer;
 	struct ixgb_tx_desc *tx_desc;
 
+	IXGB_LOCK_ASSERT(adapter);
 
 	if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
 		return;
 
-	s = splimp();
 #ifdef _SV_
 	adapter->clean_tx_interrupts++;
 #endif
@@ -1711,7 +1746,6 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 			ifp->if_timer = IXGB_TX_TIMEOUT;
 	}
 	adapter->num_tx_desc_avail = num_avail;
-	splx(s);
 	return;
 }
 
@@ -2030,6 +2064,8 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 	/* Pointer to the receive descriptor being examined. */
 	struct ixgb_rx_desc *current_desc;
 
+	IXGB_LOCK_ASSERT(adapter);
+
 	ifp = &adapter->interface_data.ac_if;
 	i = adapter->next_rx_desc_to_check;
 	next_to_use = adapter->next_rx_desc_to_use;
@@ -2103,8 +2139,11 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 						       current_desc->special,
 						       adapter->fmp = NULL);
 
-				if (adapter->fmp != NULL)
+				if (adapter->fmp != NULL) {
+					IXGB_UNLOCK(adapter);
 					(*ifp->if_input) (ifp, adapter->fmp);
+					IXGB_LOCK(adapter);
+				}
 #endif
 				adapter->fmp = NULL;
 				adapter->lmp = NULL;

@@ -289,9 +289,10 @@ struct adapter {
 	struct resource *res_interrupt;
 	void           *int_handler_tag;
 	struct ifmedia  media;
-	struct callout_handle timer_handle;
+	struct callout 	timer;
 	int             io_rid;
 	u_int8_t        unit;
+	struct mtx	mtx;
 
 	/* Info about the board itself */
 	u_int32_t       part_num;
@@ -375,5 +376,12 @@ struct adapter {
 
 	struct ixgb_hw_stats stats;
 };
+
+#define IXGB_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define IXGB_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
+#define IXGB_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
+#define IXGB_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
+#define IXGB_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #endif				/* _IXGB_H_DEFINED_ */
