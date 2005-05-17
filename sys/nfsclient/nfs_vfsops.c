@@ -512,8 +512,18 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 	int maxio;
 
 	s = splnet();
-	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) == 0)
+
+	/*
+	 * Set read-only flag if requested; otherwise, clear it if this is
+	 * an update.  If this is not an update, then either the read-only
+	 * flag is already clear, or this is a root mount and it was set
+	 * intentionally at some previous point.
+	 */
+	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) != 0)
 		mp->mnt_flag |= MNT_RDONLY;
+	else if (!(mp->mnt_flag & MNT_UPDATE))
+		mp->mnt_flag &= ~MNT_RDONLY;
+
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
 	 * no sense in that context.
