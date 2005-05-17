@@ -1,4 +1,4 @@
-.\" 	$NetBSD: ftp.1,v 1.108 2005/01/15 21:28:16 lukem Exp $
+.\" 	$NetBSD: ftp.1,v 1.109 2005/02/20 20:54:01 wiz Exp $
 .\"
 .\" Copyright (c) 1996-2004 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -952,7 +952,7 @@ traffic.
 servers are required to support the
 .Dv PASV
 command by
-.Cm RFC 1123 ,
+.Li RFC 1123 ,
 some do not.)
 .It Ic pdir Op Ar remote-path
 Perform
@@ -1565,7 +1565,7 @@ ascii or binary (respectively).
 The default transfer type is binary.
 .Pp
 In order to be compliant with
-.Cm RFC 1738 ,
+.Li RFC 1738 ,
 .Nm
 interprets the
 .Ar path
@@ -1618,7 +1618,7 @@ Any
 .Sq Li \&% Ns Ar XX
 codes
 (per
-.Cm RFC 1738 )
+.Li RFC 1738 )
 within the path components are decoded, with
 .Ar XX
 representing a character code in hexadecimal.
@@ -2248,7 +2248,7 @@ URL characters are required in the username or password
 or
 .Sq / ) ,
 encode them with
-.Cm RFC 1738
+.Li RFC 1738
 .Sq Li \&% Ns Ar XX
 encoding.
 .Pp
@@ -2292,13 +2292,13 @@ for an example of how to make this automatic.
 .Sh STANDARDS
 .Nm
 attempts to be compliant with
-.Cm RFC 959 ,
-.Cm RFC 1123 ,
-.Cm RFC 1738 ,
-.Cm RFC 2068 ,
-.Cm RFC 2389 ,
-.Cm RFC 2428 ,
-.Cm RFC 2732 ,
+.Li RFC 959 ,
+.Li RFC 1123 ,
+.Li RFC 1738 ,
+.Li RFC 2068 ,
+.Li RFC 2389 ,
+.Li RFC 2428 ,
+.Li RFC 2732 ,
 and
 .Cm draft-ietf-ftpext-mlst-11 .
 .Sh HISTORY
