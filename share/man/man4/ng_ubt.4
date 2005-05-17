@@ -105,10 +105,6 @@ Reset all statistic counters to zero.
 .El
 .Sh SHUTDOWN
 This node shuts down when the corresponding USB device is un-plugged.
-.Sh BUGS
-Isochronous USB transfers are broken.
-This means that the USB device will not be able to transfer SCO data (voice).
-USB interrupt transfers are implemented as bulk-in transfers (not really a bug).
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ugen 4 ,
@@ -121,3 +117,7 @@ node type was implemented in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh BUGS
+Isochronous USB transfers are broken.
+This means that the USB device will not be able to transfer SCO data (voice).
+USB interrupt transfers are implemented as bulk-in transfers (not really a bug).
