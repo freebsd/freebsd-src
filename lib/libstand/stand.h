@@ -62,6 +62,9 @@
  *	@(#)stand.h	8.1 (Berkeley) 6/11/93
  */
 
+#ifndef	STAND_H
+#define	STAND_H
+
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/stat.h>
@@ -408,3 +411,5 @@ void Free(void *, const char *, int);
 #define free(x)		Free(x, NULL, 0)
 #define realloc(x, y)	Realloc(x, y, NULL, 0)
 #endif
+
+#endif	/* STAND_H */
