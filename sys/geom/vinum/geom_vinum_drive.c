@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
+static void	gv_drive_dead(void *, int);
 static void	gv_drive_worker(void *);
 void	gv_drive_modify(struct gv_drive *);
 
@@ -112,6 +113,9 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 	KASSERT(d != NULL, ("gv_save_config: null d"));
 	KASSERT(sc != NULL, ("gv_save_config: null sc"));
 
+	if (d->state != GV_DRIVE_UP)
+		return;
+
 	if (cp == NULL) {
 		gp = d->geom;
 		KASSERT(gp != NULL, ("gv_save_config: null gp"));
@@ -126,7 +130,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 
 	hdr = d->hdr;
 	if (hdr == NULL) {
-		printf("NULL hdr!!!\n");
+		printf("GEOM_VINUM: drive %s has NULL hdr\n", d->name);
 		g_free(vhdr);
 		return;
 	}
@@ -139,8 +143,10 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 
 	error = g_access(cp2, 0, 1, 0);
 	if (error) {
-		printf("g_access failed: %d\n", error);
+		printf("GEOM_VINUM: g_access failed on drive %s, errno %d\n",
+		    d->name, error);
 		sbuf_delete(sb);
+		g_free(vhdr);
 		return;
 	}
 	g_topology_unlock();
@@ -148,21 +154,24 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 	do {
 		error = g_write_data(cp2, GV_HDR_OFFSET, vhdr, GV_HDR_LEN);
 		if (error) {
-			printf("writing vhdr failed: %d", error);
+			printf("GEOM_VINUM: writing vhdr failed on drive %s, "
+			    "errno %d", d->name, error);
 			break;
 		}
 
 		error = g_write_data(cp2, GV_CFG_OFFSET, sbuf_data(sb),
 		    GV_CFG_LEN);
 		if (error) {
-			printf("writing first config copy failed: %d", error);
+			printf("GEOM_VINUM: writing first config copy failed "
+			    "on drive %s, errno %d", d->name, error);
 			break;
 		}
 		
 		error = g_write_data(cp2, GV_CFG_OFFSET + GV_CFG_LEN,
 		    sbuf_data(sb), GV_CFG_LEN);
 		if (error)
-			printf("writing second config copy failed: %d", error);
+			printf("GEOM_VINUM: writing second config copy failed "
+			    "on drive %s, errno %d", d->name, error);
 	} while (0);
 
 	g_topology_lock();
@@ -191,6 +200,8 @@ gv_drive_access(struct g_provider *pp, int dr, int dw, int de)
 		return (0);
 
 	d = gp->softc;
+	if (d == NULL)
+		return (0);
 
 	s = pp->private;
 	KASSERT(s != NULL, ("gv_drive_access: NULL s"));
@@ -206,28 +217,13 @@ gv_drive_access(struct g_provider *pp, int dr, int dw, int de)
 		/* Overlap. */
 		pp2 = s2->provider;
 		KASSERT(s2 != NULL, ("gv_drive_access: NULL s2"));
-		if ((pp->acw + dw) > 0 && pp2->ace > 0) {
-			printf("FOOO: permission denied - e\n");
+		if ((pp->acw + dw) > 0 && pp2->ace > 0)
 			return (EPERM);
-		}
-		if ((pp->ace + de) > 0 && pp2->acw > 0) {
-			printf("FOOO: permission denied - w\n");
+		if ((pp->ace + de) > 0 && pp2->acw > 0)
 			return (EPERM);
-		}
 	}
 
-#if 0
-	/* On first open, grab an extra "exclusive" bit */
-	if (cp->acr == 0 && cp->acw == 0 && cp->ace == 0)
-		de++;
-	/* ... and let go of it on last close */
-	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
-		de--;
-#endif
 	error = g_access(cp, dr, dw, de);
-	if (error) {
-		printf("FOOO: g_access failed: %d\n", error);
-	}
 	return (error);
 }
 
@@ -333,8 +329,9 @@ gv_drive_worker(void *arg)
 				g_topology_lock();
 				gv_set_drive_state(d, GV_DRIVE_DOWN,
 				    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
-				g_wither_geom(d->geom, ENXIO);
 				g_topology_unlock();
+				g_post_event(gv_drive_dead, d, M_WAITOK, d,
+				    NULL);
 			}
 
 		/* New request, needs to be sent downwards. */
@@ -393,35 +390,17 @@ gv_drive_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct gv_drive *d;
-	struct gv_sd *s;
-	int error;
 
 	g_topology_assert();
 	gp = cp->geom;
 	g_trace(G_T_TOPOLOGY, "gv_drive_orphan(%s)", gp->name);
-	if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	error = cp->provider->error;
-	if (error == 0)
-		error = ENXIO;
-	g_detach(cp);
-	g_destroy_consumer(cp);	
-	if (!LIST_EMPTY(&gp->consumer))
-		return;
 	d = gp->softc;
 	if (d != NULL) {
-		printf("gvinum: lost drive '%s'\n", d->name);
-		d->geom = NULL;
-		LIST_FOREACH(s, &d->subdisks, from_drive) {
-			s->provider = NULL;
-			s->consumer = NULL;
-		}
-		gv_kill_drive_thread(d);
 		gv_set_drive_state(d, GV_DRIVE_DOWN,
 		    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
-	}
-	gp->softc = NULL;
-	g_wither_geom(gp, error);
+		g_post_event(gv_drive_dead, d, M_WAITOK, d, NULL);
+	} else
+		g_wither_geom(gp, ENXIO);
 }
 
 static struct g_geom *
@@ -593,7 +572,6 @@ gv_drive_modify(struct gv_drive *d)
 	struct g_consumer *cp;
 	struct g_provider *pp, *pp2;
 	struct gv_sd *s;
-	int nsd;
 
 	KASSERT(d != NULL, ("gv_drive_modify: null d"));
 	gp = d->geom;
@@ -605,7 +583,6 @@ gv_drive_modify(struct gv_drive *d)
 
 	g_topology_assert();
 
-	nsd = 0;
 	LIST_FOREACH(s, &d->subdisks, from_drive) {
 		/* This subdisk already has a provider. */
 		if (s->provider != NULL)
@@ -617,6 +594,54 @@ gv_drive_modify(struct gv_drive *d)
 		s->provider = pp2;
 		pp2->private = s;
 	}
+}
+
+static void
+gv_drive_dead(void *arg, int flag)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct gv_drive *d;
+	struct gv_sd *s;
+
+	g_topology_assert();
+	KASSERT(arg != NULL, ("gv_drive_dead: NULL arg"));
+
+	if (flag == EV_CANCEL)
+		return;
+
+	d = arg;
+	if (d->state != GV_DRIVE_DOWN)
+		return;
+
+	g_trace(G_T_TOPOLOGY, "gv_drive_dead(%s)", d->name);
+
+	gp = d->geom;
+	if (gp == NULL)
+		return;
+
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->nstart != cp->nend) {
+			printf("GEOM_VINUM: dead drive '%s' has still "
+			    "active requests, can't detach consumer\n",
+			    d->name);
+			g_post_event(gv_drive_dead, d, M_WAITOK, d,
+			    NULL);
+			return;
+		}
+		if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
+			g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+	}
+
+	printf("GEOM_VINUM: lost drive '%s'\n", d->name);
+	d->geom = NULL;
+	LIST_FOREACH(s, &d->subdisks, from_drive) {
+		s->provider = NULL;
+		s->consumer = NULL;
+	}
+	gv_kill_drive_thread(d);
+	gp->softc = NULL;
+	g_wither_geom(gp, ENXIO);
 }
 
 static int
