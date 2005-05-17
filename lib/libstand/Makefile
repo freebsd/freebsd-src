@@ -45,7 +45,7 @@ SRCS+=	strcasecmp.c
 SRCS+= htons.S ntohs.S htonl.S ntohl.S
 
 # string functions from libc
-.PATH:	${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
 	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
@@ -121,14 +121,19 @@ SRCS+=	syncicache.c
 
 # _setjmp/_longjmp
 .if ${MACHINE_ARCH} == "amd64"
-.PATH:	${.CURDIR}/i386
+.PATH: ${.CURDIR}/i386
 .else
-.PATH:	${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/${MACHINE_ARCH}
 .endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libz
-.PATH:	${.CURDIR}/../libz
+.PATH: ${.CURDIR}/../../contrib/bzip2
+CFLAGS+= -DBZ_NO_STDIO
+SRCS+=	bzlib.c crctable.c decompress.c huffman.c randtable.c
+
+# decompression functionality from libz
+.PATH: ${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
 SRCS+=	adler32.c crc32.c _infback.c _inffast.c _inflate.c \
 	_inftrees.c _zutil.c _zutil.h
@@ -159,7 +164,7 @@ SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 SRCS+=	bootp.c rarp.c bootparam.c
 
 # boot filesystems
-SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c # bzipfs.c
+SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
