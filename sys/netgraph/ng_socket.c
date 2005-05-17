@@ -211,6 +211,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	struct ng_mesg *msg;
 	struct mbuf *m0;
+	item_p item;
 	char *path = NULL;
 	int len, error = 0;
 
@@ -306,36 +307,33 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 
+	if ((item = ng_package_msg(msg, M_WAITOK)) == NULL) {
+		error = ENOMEM;
 #ifdef TRACE_MESSAGES
-	do {
-		item_p item;						
-		if ((item = ng_package_msg(msg, M_WAITOK)) == NULL) {
-			(msg) = NULL;
-			(error) = ENOMEM;
-			printf("ng_package_msg: err=%d\n", error);
-			break;
-		}
-		if ((error = ng_address_path((pcbp->sockdata->node), (item),
-		    (path), 0)) == 0) {	
-			printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
-			item->el_dest->nd_ID,
-			msg->header.typecookie,
-			msg->header.cmd,
-			msg->header.cmdstr,
-			msg->header.flags,
-			msg->header.token,
-			item->el_dest->nd_type->name);
-
-			SAVE_LINE(item);
-			(error) = ng_snd_item((item), 0);		
-		} else
-			printf("ng_address_path: errx=%d\n", error);
-		(msg) = NULL;
-	} while (0);
-#else
-	/* The callee will free the msg when done. The path is our business. */
-	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, 0);
+		printf("ng_package_msg: err=%d\n", error);
 #endif
+		goto release;
+	}
+	if ((error = ng_address_path((pcbp->sockdata->node), item,
+	    path, 0)) != 0) {
+#ifdef TRACE_MESSAGES
+		printf("ng_address_path: errx=%d\n", error);
+#endif
+		goto release;
+	}
+
+#ifdef TRACE_MESSAGES
+	printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
+		item->el_dest->nd_ID,
+		msg->header.typecookie,
+		msg->header.cmd,
+		msg->header.cmdstr,
+		msg->header.flags,
+		msg->header.token,
+		item->el_dest->nd_type->name);
+#endif
+	SAVE_LINE(item);
+	error = ng_snd_item(item, NG_NOFLAGS);
 
 release:
 	if (path != NULL)
