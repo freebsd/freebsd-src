@@ -1,4 +1,4 @@
-/*	$NetBSD: ftp_var.h,v 1.69 2005/01/03 09:50:09 lukem Exp $	*/
+/*	$NetBSD: ftp_var.h,v 1.71 2005/04/11 01:49:31 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2005 The NetBSD Foundation, Inc.
@@ -70,7 +70,7 @@
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -82,7 +82,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -112,6 +112,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <poll.h>
+
 #include <setjmp.h>
 #include <stringlist.h>
 
@@ -128,9 +130,9 @@
 struct cmd {
 	char		*c_name;	/* name of command */
 	const char	*c_help;	/* help string */
-	char	 	c_bell;		/* give bell when command completes */
-	char	 	c_conn;		/* must be connected to use command */
-	char	 	c_proxy;	/* proxy server may execute */
+	char		c_bell;		/* give bell when command completes */
+	char		c_conn;		/* must be connected to use command */
+	char		c_proxy;	/* proxy server may execute */
 #ifndef NO_EDITCOMPLETE
 	const char	*c_complete;	/* context sensitive completion list */
 #endif /* !NO_EDITCOMPLETE */
