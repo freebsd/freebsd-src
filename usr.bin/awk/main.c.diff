@@ -1,0 +1,26 @@
+$FreeBSD$
+
+Index: main.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/one-true-awk/main.c,v
+retrieving revision 1.1.1.10
+diff -u -p -r1.1.1.10 main.c
+--- main.c	16 May 2005 19:11:31 -0000	1.1.1.10
++++ main.c	17 May 2005 14:41:20 -0000
+@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE
+ THIS SOFTWARE.
+ ****************************************************************/
+ 
+-const char	*version = "version 20050424";
++const char	*version = "version 20050424 (FreeBSD)";
+ 
+ #define DEBUG
+ #include <stdio.h>
+@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
+ 	const char *fs = NULL;
+ 
+ 	setlocale(LC_CTYPE, "");
++	setlocale(LC_COLLATE, "");
+ 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
+ 	cmdname = argv[0];
+ 	if (argc == 1) {
