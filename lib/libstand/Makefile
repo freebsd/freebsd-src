@@ -135,23 +135,22 @@ SRCS+=	bzlib.c crctable.c decompress.c huffman.c randtable.c
 # decompression functionality from libz
 .PATH: ${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
-SRCS+=	adler32.c crc32.c _infback.c _inffast.c _inflate.c \
-	_inftrees.c _zutil.c _zutil.h
-
-# aargh
-.for file in zutil.h
-CLEANFILES+=	_${file} _${file}.orig
-
-_${file}: ${file} ${file}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
-.endfor
+SRCS+=	adler32.c crc32.c libstand_zutil.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
+SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|zutil\.h|_zutil.h|" ${.ALLSRC} > ${.TARGET}
+	sed "s|zutil\.h|libstand_zutil.h|" ${.ALLSRC} > ${.TARGET}
 .endfor
+
+# depend on stand.h being able to be included multiple times
+libstand_zutil.h: ${.CURDIR}/../libz/zutil.h
+	sed -e 's|<stddef.h>|"stand.h"|' \
+	    -e 's|<string.h>|"stand.h"|' \
+	    -e 's|<stdlib.h>|"stand.h"|' \
+	    ${.ALLSRC} > ${.TARGET}
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
