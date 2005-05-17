@@ -705,6 +705,8 @@ ata_modify_if_48bit(struct ata_request *request)
     struct ata_device *atadev = device_get_softc(request->dev);
     u_int8_t command = request->u.ata.command;
 
+    atadev->flags &= ~ATA_D_48BIT_ACTIVE;
+
     if ((request->u.ata.lba >= ATA_MAX_28BIT_LBA ||
 	 request->u.ata.count > 256) &&
 	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
@@ -734,8 +736,6 @@ ata_modify_if_48bit(struct ata_request *request)
 	}
 	atadev->flags |= ATA_D_48BIT_ACTIVE;
     }
-    else
-	atadev->flags &= ~ATA_D_48BIT_ACTIVE;
     return command;
 }
 
