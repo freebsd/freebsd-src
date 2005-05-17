@@ -185,13 +185,6 @@ Static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
         NULL,
 	NULL
 },
-{
-	NGM_UBT_COOKIE,
-	NGM_UBT_NODE_DEV_NODES,
-	"dev_nodes",
-        &ng_parse_uint16_type,
-	NULL
-},
 { 0, }
 };
 
@@ -207,36 +200,6 @@ Static struct ng_type	typestruct = {
 	.rcvdata =	ng_ubt_rcvdata,
 	.disconnect =	ng_ubt_disconnect,
 	.cmdlist =	ng_ubt_cmdlist	
-};
-
-/*
- * Device methods
- */
-
-#define UBT_UNIT(n)	((minor(n) >> 4) & 0xf)
-#define UBT_ENDPOINT(n)	(minor(n) & 0xf)
-#define UBT_MINOR(u, e)	(((u) << 4) | (e))
-#define UBT_BSIZE	1024
-
-Static d_open_t		ubt_open;
-Static d_close_t	ubt_close;
-Static d_read_t		ubt_read;
-Static d_write_t	ubt_write;
-Static d_ioctl_t	ubt_ioctl;
-Static d_poll_t		ubt_poll;
-Static void		ubt_create_device_nodes  (ubt_softc_p);
-Static void		ubt_destroy_device_nodes (ubt_softc_p);
-
-Static struct cdevsw	ubt_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	ubt_open,
-	.d_close =	ubt_close,
-	.d_read =	ubt_read,
-	.d_write =	ubt_write,
-	.d_ioctl =	ubt_ioctl,
-	.d_poll =	ubt_poll,
-	.d_name =	"ubt",
 };
 
 /*
@@ -347,7 +310,7 @@ USB_ATTACH(ubt)
 	usb_config_descriptor_t		*cd = NULL;
 	usb_interface_descriptor_t	*id = NULL;
 	usb_endpoint_descriptor_t	*ed = NULL;
-	char				 devinfo[UBT_BSIZE];
+	char				 devinfo[1024];
 	usbd_status			 error;
 	int				 i, ai, alt_no, isoc_in, isoc_out,
 					 isoc_isize, isoc_osize;
@@ -409,10 +372,6 @@ USB_ATTACH(ubt)
 	/* Netgraph part */
 	sc->sc_node = NULL;
 	sc->sc_hook = NULL;
-
-	/* Device part */
-	sc->sc_ctrl_dev = sc->sc_intr_dev = sc->sc_bulk_dev = NULL;
-	sc->sc_refcnt = sc->sc_dying = 0;
 
 	/*
 	 * XXX set configuration?
@@ -805,10 +764,6 @@ bad:
 USB_DETACH(ubt)
 {
 	USB_DETACH_START(ubt, sc);
-
-	sc->sc_dying = 1;
-
-	ubt_destroy_device_nodes(sc); /* XXX FIXME locking? */
 
 	/* Destroy Netgraph node */
 	if (sc->sc_node != NULL) {
@@ -1905,11 +1860,6 @@ ng_ubt_newhook(node_p node, hook_p hook, char const *name)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
 
-	/* Refuse to create new hook if device interface is active */
-	if (sc->sc_ctrl_dev != NULL || sc->sc_intr_dev != NULL ||
-	    sc->sc_bulk_dev != NULL)
-		return (EBUSY);
-
 	if (strcmp(name, NG_UBT_HOOK) != 0)
 		return (EINVAL);
 
@@ -1930,11 +1880,6 @@ ng_ubt_connect(hook_p hook)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	usbd_status	status;
-
-	/* Refuse to connect hook if device interface is active */
-	if (sc->sc_ctrl_dev != NULL || sc->sc_intr_dev != NULL ||
-	    sc->sc_bulk_dev != NULL)
-		return (EBUSY);
 
 	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
@@ -2162,25 +2107,6 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			NG_UBT_STAT_RESET(sc->sc_stat);
 			break;
 
-		case NGM_UBT_NODE_DEV_NODES:
-			if (msg->header.arglen !=
-					sizeof(ng_ubt_node_dev_nodes_ep)) {
-				error = EMSGSIZE;
-				break;
-			}
-
-			if ((sc->sc_flags & UBT_ANY_DEV) || 
-			    sc->sc_hook != NULL) {
-				error = EBUSY;
-				break;
-			}
-
-			if (*((ng_ubt_node_dev_nodes_ep *)(msg->data)))
-				ubt_create_device_nodes(sc);
-			else
-				ubt_destroy_device_nodes(sc);
-			break;
-
 		default:
 			error = EINVAL;
 			break;
@@ -2281,453 +2207,4 @@ done:
 
 	return (error);
 } /* ng_ubt_rcvdata */
-
-/****************************************************************************
- ****************************************************************************
- **                              Device specific
- ****************************************************************************
- ****************************************************************************/
-
-/*
- * Open endpoint device
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
-{
-	ubt_softc_p	sc = NULL;
-	int		ep = UBT_ENDPOINT(dev);
-
-	USB_GET_SC_OPEN(ubt, UBT_UNIT(dev), sc); /* check for sc != NULL */
-	if (sc->sc_dying)
-		return (ENXIO);
-
-	if (ep == USB_CONTROL_ENDPOINT) {
-		if (sc->sc_flags & UBT_CTRL_DEV)
-			return (EBUSY);
-
-		sc->sc_flags |= UBT_CTRL_DEV;
-	} else if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
-		if (sc->sc_flags & UBT_INTR_DEV)
-			return (EBUSY);
-		if (sc->sc_intr_pipe == NULL)
-			return (ENXIO);
-
-		sc->sc_flags |= UBT_INTR_DEV;
-	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
-		if (sc->sc_flags & UBT_BULK_DEV)
-			return (EBUSY);
-		if (sc->sc_bulk_in_pipe == NULL || sc->sc_bulk_out_pipe == NULL)
-			return (ENXIO);
-
-		sc->sc_flags |= UBT_BULK_DEV;
-	} else
-		return (EINVAL);
-
-	return (0);
-} /* ubt_open */
-
-/*
- * Close endpoint device
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
-{
-	ubt_softc_p	sc = NULL;
-	int		ep = UBT_ENDPOINT(dev);
-
-	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
-	if (sc == NULL)
-		return (ENXIO);
-
-	if (ep == USB_CONTROL_ENDPOINT)
-		sc->sc_flags &= ~UBT_CTRL_DEV;
-	else if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
-		if (sc->sc_intr_pipe != NULL)
-			usbd_abort_pipe(sc->sc_intr_pipe);
-
-		sc->sc_flags &= ~UBT_INTR_DEV;
-	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
-		/* Close both in and out bulk pipes */
-		if (sc->sc_bulk_in_pipe != NULL)
-			usbd_abort_pipe(sc->sc_bulk_in_pipe);
-
-		if (sc->sc_bulk_out_pipe != NULL)
-			usbd_abort_pipe(sc->sc_bulk_out_pipe);
-
-		sc->sc_flags &= ~UBT_BULK_DEV;
-	} else
-		return (EINVAL);
-
-	return (0);
-} /* ubt_close */
-
-/*
- * Read from the endpoint device
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_read(struct cdev *dev, struct uio *uio, int flag)
-{
-	ubt_softc_p		sc = NULL;
-	int			error = 0, n, tn, ep = UBT_ENDPOINT(dev);
-	usbd_status		status;
-	usbd_pipe_handle	pipe = NULL;
-	usbd_xfer_handle	xfer = NULL;
-	u_int8_t		buf[UBT_BSIZE];
-
-	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (ep == USB_CONTROL_ENDPOINT)
-		return (EOPNOTSUPP);
-
-	if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
-		pipe = sc->sc_intr_pipe;
-		xfer = sc->sc_intr_xfer;
-	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
-		pipe = sc->sc_bulk_in_pipe;
-		xfer = sc->sc_bulk_in_xfer;
-	} else
-		return (EINVAL);
-
-	if (pipe == NULL || xfer == NULL)
-		return (ENXIO);
-
-	sc->sc_refcnt ++;
-
-	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
-		tn = n;
-		status = usbd_bulk_transfer(xfer, pipe, USBD_SHORT_XFER_OK,
-				USBD_DEFAULT_TIMEOUT, buf, &tn, "ubtrd");
-		switch (status) {
-		case USBD_NORMAL_COMPLETION:
-			error = uiomove(buf, tn, uio);
-			break;
-
-		case USBD_INTERRUPTED:
-			error = EINTR;
-			break;
-
-		case USBD_TIMEOUT:
-			error = ETIMEDOUT;
-			break;
-
-		default:
-			error = EIO;
-			break;
-		}
-
-		if (error != 0 || tn < n)
-			break;
-	}
-
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
-
-	return (error);
-} /* ubt_read */
-
-/*
- * Write into the endpoint device
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_write(struct cdev *dev, struct uio *uio, int flag)
-{
-	ubt_softc_p	sc = NULL;
-	int		error = 0, n, ep = UBT_ENDPOINT(dev);
-	usbd_status	status;
-	u_int8_t	buf[UBT_BSIZE];
-
-	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (ep == USB_CONTROL_ENDPOINT || ep == UE_GET_ADDR(sc->sc_intr_ep))
-		return (EOPNOTSUPP);
-	if (ep != UE_GET_ADDR(sc->sc_bulk_in_ep))
-		return (EINVAL);
-
-	sc->sc_refcnt ++;
-
-	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
-		error = uiomove(buf, n, uio);
-		if (error != 0)
-			break;
-
-		status = usbd_bulk_transfer(sc->sc_bulk_out_xfer,
-				sc->sc_bulk_out_pipe, 0, USBD_DEFAULT_TIMEOUT,
-				buf, &n,"ubtwr");
-		switch (status) {
-		case USBD_NORMAL_COMPLETION:
-			break;
-
-		case USBD_INTERRUPTED:
-			error = EINTR;
-			break;
-
-		case USBD_TIMEOUT:
-			error = ETIMEDOUT;
-			break;
-
-		default:
-			error = EIO;
-			break;
-		}
-
-		if (error != 0)
-			break;
-	}
-
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
-
-	return (error);
-} /* ubt_write */
-
-/*
- * Process ioctl on the endpoint device. Mostly stolen from ugen(4)
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
-{
-	ubt_softc_p		 sc = NULL;
-	int			 len, error = 0, ep = UBT_ENDPOINT(dev);
-	usbd_status		 status;
-	struct usb_string_desc	*si = NULL;
-	struct usb_ctl_request	*ur = NULL;
-	void			*ptr = NULL;
-	struct iovec		 iov;
-	struct uio		 uio;
-
-	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (ep != USB_CONTROL_ENDPOINT)
-		return (EOPNOTSUPP);
-
-	sc->sc_refcnt ++;
-
-	switch (cmd) {
-	case USB_GET_DEVICE_DESC:
-		*(usb_device_descriptor_t *) data =
-				*usbd_get_device_descriptor(sc->sc_udev);
-		break;
-
-	case USB_GET_STRING_DESC:
-		si = (struct usb_string_desc *) data;
-		status = usbd_get_string_desc(sc->sc_udev, si->usd_string_index,
-				si->usd_language_id, &si->usd_desc, &len);
-		if (status != USBD_NORMAL_COMPLETION)
-			error = EINVAL;
-		break;
-
-	case USB_DO_REQUEST:
-		ur = (void *) data;
-		len = UGETW(ur->ucr_request.wLength);
-
-		if (!(flag & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-
-		/* Avoid requests that would damage the bus integrity. */
-		if ((ur->ucr_request.bmRequestType == UT_WRITE_DEVICE &&
-		     ur->ucr_request.bRequest == UR_SET_ADDRESS) ||
-		    (ur->ucr_request.bmRequestType == UT_WRITE_DEVICE &&
-		     ur->ucr_request.bRequest == UR_SET_CONFIG) ||
-		    (ur->ucr_request.bmRequestType == UT_WRITE_INTERFACE &&
-		     ur->ucr_request.bRequest == UR_SET_INTERFACE) ||
-		    len < 0 || len > 32767) {
-			error = EINVAL;
-			break;
-		}
-
-		if (len != 0) {
-			iov.iov_base = (caddr_t) ur->ucr_data;
-			iov.iov_len = len;
-
-			uio.uio_iov = &iov;
-			uio.uio_iovcnt = 1;
-			uio.uio_resid = len;
-			uio.uio_offset = 0;
-			uio.uio_segflg = UIO_USERSPACE;
-			uio.uio_rw = ur->ucr_request.bmRequestType & UT_READ ?
-						UIO_READ : UIO_WRITE;
-			uio.uio_procp = p;
-
-			ptr = malloc(len, M_TEMP, M_WAITOK);
-			if (uio.uio_rw == UIO_WRITE) {
-				error = uiomove(ptr, len, &uio);
-				if (error != 0)
-					goto ret;
-			}
-		}
-
-		status = usbd_do_request_flags(sc->sc_udev, &ur->ucr_request,
-				ptr, ur->ucr_flags, &ur->ucr_actlen,
-				USBD_DEFAULT_TIMEOUT);
-		if (status != USBD_NORMAL_COMPLETION) {
-			error = EIO;
-			goto ret;
-		}
-
-		if (len != 0) {
-			if (uio.uio_rw == UIO_READ) {
-				error = uiomove(ptr, len, &uio);
-				if (error != 0)
-					goto ret;
-			}
-		}
-ret:
-		if (ptr != NULL)
-			free(ptr, M_TEMP);
-		break;
-
-	case USB_GET_DEVICEINFO:
-		usbd_fill_deviceinfo(sc->sc_udev,
-			(struct usb_device_info *) data, 1);
-		break;
-
-	default:
-		error = EINVAL;
-		break;
-	}
-
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
-
-	return (error);
-} /* ubt_ioctl */
-
-/*
- * Poll the endpoint device
- * XXX FIXME softc locking
- */
-
-Static int
-ubt_poll(struct cdev *dev, int events, usb_proc_ptr p)
-{
-	ubt_softc_p	sc = NULL;
-	int		revents = 0, ep = UBT_ENDPOINT(dev);
-
-	USB_GET_SC(ubt, UBT_UNIT(dev), sc);
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (ep == USB_CONTROL_ENDPOINT)
-		return (EOPNOTSUPP);
-
-	if (ep == UE_GET_ADDR(sc->sc_intr_ep)) {
-		if (sc->sc_intr_pipe != NULL)
-			revents |= events & (POLLIN | POLLRDNORM);
-		else
-			revents = EIO;
-	} else if (ep == UE_GET_ADDR(sc->sc_bulk_in_ep)) {
-		if (sc->sc_bulk_in_pipe != NULL) 
-			revents |= events & (POLLIN | POLLRDNORM);
-
-		if (sc->sc_bulk_out_pipe != NULL)
-			revents |= events & (POLLOUT | POLLWRNORM);
-
-		if (revents == 0)
-			revents = EIO; /* both pipes closed */
-	} else
-		revents = EINVAL;
-
-	return (revents);
-} /* ubt_poll */
-
-/*
- * Create device nodes for all endpoints. Must be called with node locked.
- */
-
-Static void
-ubt_create_device_nodes(ubt_softc_p sc)
-{
-	int	ep;
-
-	KASSERT((sc->sc_hook == NULL), (
-"%s: %s - hook != NULL!\n", __func__, USBDEVNAME(sc->sc_dev)));
-
-	/* Control device */
-	if (sc->sc_ctrl_dev == NULL)
-		sc->sc_ctrl_dev = make_dev(&ubt_cdevsw,
-					UBT_MINOR(USBDEVUNIT(sc->sc_dev), 0),
-					UID_ROOT, GID_OPERATOR, 0644,
-					"%s", USBDEVNAME(sc->sc_dev));
-
-	/* Interrupt device */
-	if (sc->sc_intr_dev == NULL && sc->sc_intr_ep != -1) {
-		ep = UE_GET_ADDR(sc->sc_intr_ep);
-		sc->sc_intr_dev = make_dev(&ubt_cdevsw,
-					UBT_MINOR(USBDEVUNIT(sc->sc_dev), ep),
-					UID_ROOT, GID_OPERATOR, 0644,
-					"%s.%d", USBDEVNAME(sc->sc_dev), ep);
-	}
-
-	/* 
-	 * Bulk-in and bulk-out device
-	 * XXX will create one device for both in and out endpoints.
-	 * XXX note that address of the in and out endpoint should be the same
-	 */
-
-	if (sc->sc_bulk_dev == NULL && 
-	    sc->sc_bulk_in_ep != -1 && sc->sc_bulk_out_ep != -1 &&
-	    UE_GET_ADDR(sc->sc_bulk_in_ep) == UE_GET_ADDR(sc->sc_bulk_out_ep)) {
-		ep = UE_GET_ADDR(sc->sc_bulk_in_ep);
-		sc->sc_bulk_dev = make_dev(&ubt_cdevsw,
-					UBT_MINOR(USBDEVUNIT(sc->sc_dev), ep),
-					UID_ROOT, GID_OPERATOR, 0644,
-					"%s.%d", USBDEVNAME(sc->sc_dev), ep);
-	}
-} /* ubt_create_device_nodes */
-
-/*
- * Destroy device nodes for all endpoints
- * XXX FIXME locking
- */
-
-Static void
-ubt_destroy_device_nodes(ubt_softc_p sc)
-{
-	/*
-	 * Wait for processes to go away. This should be safe as we will not
-	 * call ubt_destroy_device_nodes() from Netgraph unless all devices
-	 * were closed (and thus no active processes).
-	 */
-
-	if (-- sc->sc_refcnt >= 0) {
-		ubt_reset(sc);
-		usb_detach_wait(USBDEV(sc->sc_dev));
-	}
-
-	sc->sc_refcnt = 0;
-
-	/* Destroy device nodes */
-	if (sc->sc_bulk_dev != NULL) {
-		destroy_dev(sc->sc_bulk_dev);
-		sc->sc_bulk_dev = NULL;
-	}
-
-	if (sc->sc_intr_dev != NULL) {
-		destroy_dev(sc->sc_intr_dev);
-		sc->sc_intr_dev = NULL;
-	}
-
-	if (sc->sc_ctrl_dev != NULL) {
-		destroy_dev(sc->sc_ctrl_dev);
-		sc->sc_ctrl_dev = NULL;
-	}
-} /* ubt_destroy_device_nodes */
 

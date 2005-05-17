@@ -139,14 +139,6 @@ struct ubt_softc {
 	/* Netgraph specific */
 	node_p			 sc_node;	/* pointer back to node */
 	hook_p			 sc_hook;	/* upstream hook */
-
-	/* Device specific */
-	struct cdev *sc_ctrl_dev;	/* control device */
-	struct cdev *sc_intr_dev;	/* interrupt device */
-	struct cdev *sc_bulk_dev;	/* bulk device */
-
-	int			 sc_refcnt;	/* device ref. count */
-	int			 sc_dying;
 };
 typedef struct ubt_softc	ubt_softc_t;
 typedef struct ubt_softc *	ubt_softc_p;
