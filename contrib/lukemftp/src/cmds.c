@@ -1,4 +1,4 @@
-/*	$NetBSD: cmds.c,v 1.111 2005/02/11 06:21:22 simonb Exp $	*/
+/*	$NetBSD: cmds.c,v 1.112 2005/04/11 01:49:31 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2005 The NetBSD Foundation, Inc.
@@ -72,7 +72,7 @@
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -84,7 +84,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -103,7 +103,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: cmds.c,v 1.111 2005/02/11 06:21:22 simonb Exp $");
+__RCSID("$NetBSD: cmds.c,v 1.112 2005/04/11 01:49:31 lukem Exp $");
 #endif
 #endif /* not lint */
 
@@ -571,10 +571,10 @@ get(int argc, char *argv[])
 int
 getit(int argc, char *argv[], int restartit, const char *mode)
 {
-	int	 loc, rval;
+	int	loc, rval;
 	char	*remfile, *olocfile;
 	const char *locfile;
-	char 	buf[MAXPATHLEN];
+	char	buf[MAXPATHLEN];
 
 	loc = rval = 0;
 	if (argc == 2) {
@@ -1690,7 +1690,7 @@ do_chmod(int argc, char *argv[])
 	(void)command("SITE CHMOD %s %s", argv[1], argv[2]);
 }
 
-#define COMMAND_1ARG(argc, argv, cmd) 			\
+#define COMMAND_1ARG(argc, argv, cmd)			\
 	if (argc == 1)					\
 		command(cmd);				\
 	else						\

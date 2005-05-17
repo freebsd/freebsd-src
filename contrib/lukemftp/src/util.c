@@ -1,4 +1,4 @@
-/*	$NetBSD: util.c,v 1.117 2005/01/03 09:50:09 lukem Exp $	*/
+/*	$NetBSD: util.c,v 1.123 2005/05/14 18:56:45 dsl Exp $	*/
 
 /*-
  * Copyright (c) 1997-2005 The NetBSD Foundation, Inc.
@@ -71,7 +71,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: util.c,v 1.117 2005/01/03 09:50:09 lukem Exp $");
+__RCSID("$NetBSD: util.c,v 1.123 2005/05/14 18:56:45 dsl Exp $");
 #endif /* not lint */
 
 /*
@@ -749,7 +749,7 @@ remotemodtime(const char *file, int noisy)
 		timebuf.tm_hour = hour;
 		timebuf.tm_mday = day;
 		timebuf.tm_mon = mo - 1;
-		timebuf.tm_year = yy - TM_YEAR_BASE; 
+		timebuf.tm_year = yy - TM_YEAR_BASE;
 		timebuf.tm_isdst = -1;
 		rtime = timegm(&timebuf);
 		if (rtime == -1) {
@@ -1029,12 +1029,12 @@ void
 setupsockbufsize(int sock)
 {
 
-	if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (void *) &sndbuf_size,
-	    sizeof(rcvbuf_size)) < 0)
+	if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+	    (void *)&sndbuf_size, sizeof(sndbuf_size)) == -1)
 		warn("unable to set sndbuf size %d", sndbuf_size);
 
-	if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (void *) &rcvbuf_size,
-	    sizeof(rcvbuf_size)) < 0)
+	if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+	    (void *)&rcvbuf_size, sizeof(rcvbuf_size)) == -1)
 		warn("unable to set rcvbuf size %d", rcvbuf_size);
 }
 
@@ -1244,28 +1244,83 @@ isipv6addr(const char *addr)
 
 /*
  * Internal version of connect(2); sets socket buffer sizes first and
- * handles the syscall being interrupted.
+ * supports a connection timeout using a non-blocking connect(2) with
+ * a poll(2).
+ * Socket fcntl flags are temporarily updated to include O_NONBLOCK;
+ * these will not be reverted on connection failure.
  * Returns -1 upon failure (with errno set to the problem), or 0 on success.
  */
 int
-xconnect(int sock, const struct sockaddr *name, int namelen)
+xconnect(int sock, const struct sockaddr *name, socklen_t namelen)
 {
-	int	rv;
+	int		flags, rv, timeout, error;
+	socklen_t	slen;
+	struct timeval	endtime, now, td;
+	struct pollfd	pfd[1];
 
 	setupsockbufsize(sock);
-	rv = connect(sock, name, namelen);
-	if (rv == -1 && errno == EINTR) {
-		fd_set	connfd;
 
-		FD_ZERO(&connfd);
-		FD_SET(sock, &connfd);
-		do {
-			rv = select(sock + 1, NULL, &connfd, NULL, NULL);
-		} while (rv == -1 && errno == EINTR);
-		if (rv > 0)
-			rv = 0;
+	if ((flags = fcntl(sock, F_GETFL, 0)) == -1)
+		return -1;			/* get current socket flags  */
+	if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+		return -1;			/* set non-blocking connect */
+
+	/* NOTE: we now must restore socket flags on successful exit */
+
+	pfd[0].fd = sock;
+	pfd[0].events = POLLIN|POLLOUT;
+
+	if (quit_time > 0) {			/* want a non default timeout */
+		(void)gettimeofday(&endtime, NULL);
+		endtime.tv_sec += quit_time;	/* determine end time */
 	}
-	return (rv);
+
+	rv = connect(sock, name, namelen);	/* inititate the connection */
+	if (rv == -1) {				/* connection error */
+		if (errno != EINPROGRESS)	/* error isn't "please wait" */
+			return -1;
+
+						/* connect EINPROGRESS; wait */
+		do {
+			if (quit_time > 0) {	/* determine timeout */
+				(void)gettimeofday(&now, NULL);
+				timersub(&endtime, &now, &td);
+				timeout = td.tv_sec * 1000 + td.tv_usec/1000;
+				if (timeout < 0)
+					timeout = 0;
+			} else {
+				timeout = INFTIM;
+			}
+			pfd[0].revents = 0;
+			rv = xpoll(pfd, 1, timeout);
+						/* loop until poll ! EINTR */
+		} while (rv == -1 && errno == EINTR);
+
+		if (rv == 0) {			/* poll (connect) timed out */
+			errno = ETIMEDOUT;
+			return -1;
+		}
+
+		if (rv == -1) {			/* poll error */
+			return -1;
+		} else if (pfd[0].revents & (POLLIN|POLLOUT)) {
+			slen = sizeof(error);	/* OK, or pending error */
+			if (getsockopt(sock, SOL_SOCKET, SO_ERROR,
+			    &error, &slen) == -1)
+				return -1;	/* Solaris pending error */
+			if (error != 0) {
+				errno = error;	/* BSD pending error */
+				return -1;
+			}
+		} else {
+			errno = EBADF;		/* this shouldn't happen ... */
+			return -1;
+		}
+	}
+
+	if (fcntl(sock, F_SETFL, flags) == -1)	/* restore socket flags */
+		return -1;
+	return 0;
 }
 
 /*
@@ -1277,6 +1332,16 @@ xlisten(int sock, int backlog)
 
 	setupsockbufsize(sock);
 	return (listen(sock, backlog));
+}
+
+/*
+ * Internal version of poll(2), to allow reimplementation by select(2)
+ * on platforms without the former.
+ */
+int
+xpoll(struct pollfd *fds, int nfds, int timeout)
+{
+	return poll(fds, nfds, timeout);
 }
 
 /*
