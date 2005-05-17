@@ -127,27 +127,6 @@ SRCS+=	syncicache.c
 .endif
 SRCS+=	_setjmp.S
 
-# decompression functionality from libbz2
-.PATH:	${.CURDIR}/../../contrib/bzip2
-CFLAGS+=-I. -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-SRCS+=	_bzlib.c _crctable.c _decompress.c _huffman.c _randtable.c _bzlib.h \
-	_bzlib_private.h
-
-# check your belt - ugly bzip2 stuff ahead
-.for file in bzlib.c bzlib.h bzlib_private.h
-CLEANFILES+=   _${file} _${file}.orig
-
-_${file}: ${file} ${file}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
-.endfor
-
-.for file in crctable.c decompress.c huffman.c randtable.c
-CLEANFILES+=    _${file}
-
-_${file}: ${file}
-	sed "s|bzlib_private\.h|_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
-.endfor
-
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
@@ -180,7 +159,7 @@ SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 SRCS+=	bootp.c rarp.c bootparam.c
 
 # boot filesystems
-SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
+SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c # bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
