@@ -519,9 +519,9 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 	 * flag is already clear, or this is a root mount and it was set
 	 * intentionally at some previous point.
 	 */
-	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) != 0)
+	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) == 0)
 		mp->mnt_flag |= MNT_RDONLY;
-	else if (!(mp->mnt_flag & MNT_UPDATE))
+	else if (mp->mnt_flag & MNT_UPDATE)
 		mp->mnt_flag &= ~MNT_RDONLY;
 
 	/*
