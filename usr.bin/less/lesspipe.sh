@@ -4,10 +4,16 @@
 # $FreeBSD$
 
 case "$1" in
-	*.Z)	uncompress -c $1	2>/dev/null
+	*.Z)
+		exec uncompress -c $1	2>/dev/null
 		;;
-	*.gz)	gzip -d -c $1		2>/dev/null
+	*.gz)
+		exec gzip -d -c $1	2>/dev/null
 		;;
-	*.bz2)	bzip2 -d -c $1		2>/dev/null
+	*.bz2)
+		exec bzip2 -d -c $1	2>/dev/null
+		;;
+	*)
+		exec cat $1		2>/dev/null
 		;;
 esac
