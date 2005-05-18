@@ -1178,21 +1178,23 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 static char *
 VarModify(const char *str, VarModifyProc *modProc, void *datum)
 {
-	char	**av;		/* word list [first word does not count] */
-	int	ac;
-	Buffer	*buf;		/* Buffer for the new string */
-	Boolean	addSpace;	/* TRUE if need to add a space to the buffer
-				 * before adding the trimmed word */
-	int	i;
+	ArgArray	aa;
+	Buffer		*buf;		/* Buffer for the new string */
+	int		i;
+	Boolean		addSpace;	/*
+					 * TRUE if need to add a space to
+					 * the buffer before adding the
+					 * trimmed word
+					 */
 
-	av = brk_string(str, &ac, FALSE);
-
-	buf = Buf_Init(0);
+	brk_string(&aa, str, FALSE);
 
 	addSpace = FALSE;
-	for (i = 1; i < ac; i++)
-		addSpace = (*modProc)(av[i], addSpace, buf, datum);
+	buf = Buf_Init(0);
+	for (i = 1; i < aa.argc; i++)
+		addSpace = (*modProc)(aa.argv[i], addSpace, buf, datum);
 
+	ArgArray_Done(&aa);
 	return (Buf_Peel(buf));
 }
 
@@ -1205,28 +1207,24 @@ VarModify(const char *str, VarModifyProc *modProc, void *datum)
  *
  * Results:
  *	A string containing the words sorted
- *
- * Side Effects:
- *	Uses brk_string() so it invalidates any previous call to
- *	brk_string().
  */
 static char *
 VarSortWords(const char *str, int (*cmp)(const void *, const void *))
 {
-	char	**av;
-	int	ac;
-	Buffer	*buf;
-	int	i;
+	ArgArray	aa;
+	Buffer		*buf;
+	int		i;
 
-	av = brk_string(str, &ac, FALSE);
-	qsort(av + 1, ac - 1, sizeof(char *), cmp);
+	brk_string(&aa, str, FALSE);
+	qsort(aa.argv + 1, aa.argc - 1, sizeof(char *), cmp);
 
 	buf = Buf_Init(0);
-	for (i = 1; i < ac; i++) {
-		Buf_Append(buf, av[i]);
-		Buf_AddByte(buf, (Byte)((i < ac - 1) ? ' ' : '\0'));
+	for (i = 1; i < aa.argc; i++) {
+		Buf_Append(buf, aa.argv[i]);
+		Buf_AddByte(buf, (Byte)((i < aa.argc - 1) ? ' ' : '\0'));
 	}
 
+	ArgArray_Done(&aa);
 	return (Buf_Peel(buf));
 }
 
