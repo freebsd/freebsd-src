@@ -241,7 +241,7 @@ zwrite(void *cookie, const char *wbp, int num)
 	code_int i;
 	int c, disp;
 	struct s_zstate *zs;
-	const char *bp;
+	const u_char *bp;
 	u_char tmp;
 	int count;
 
@@ -250,7 +250,7 @@ zwrite(void *cookie, const char *wbp, int num)
 
 	zs = cookie;
 	count = num;
-	bp = wbp;
+	bp = (const u_char *)wbp;
 	if (state == S_MIDDLE)
 		goto middle;
 	state = S_MIDDLE;
