@@ -318,10 +318,8 @@ initpbuf(struct buf *bp)
 struct buf *
 getpbuf(int *pfreecnt)
 {
-	int s;
 	struct buf *bp;
 
-	s = splvm();
 	mtx_lock(&pbuf_mtx);
 
 	for (;;) {
@@ -343,7 +341,6 @@ getpbuf(int *pfreecnt)
 	if (pfreecnt)
 		--*pfreecnt;
 	mtx_unlock(&pbuf_mtx);
-	splx(s);
 
 	initpbuf(bp);
 	return bp;
@@ -358,14 +355,11 @@ getpbuf(int *pfreecnt)
 struct buf *
 trypbuf(int *pfreecnt)
 {
-	int s;
 	struct buf *bp;
 
-	s = splvm();
 	mtx_lock(&pbuf_mtx);
 	if (*pfreecnt == 0 || (bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		mtx_unlock(&pbuf_mtx);
-		splx(s);
 		return NULL;
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
@@ -373,7 +367,6 @@ trypbuf(int *pfreecnt)
 	--*pfreecnt;
 
 	mtx_unlock(&pbuf_mtx);
-	splx(s);
 
 	initpbuf(bp);
 
@@ -389,9 +382,6 @@ trypbuf(int *pfreecnt)
 void
 relpbuf(struct buf *bp, int *pfreecnt)
 {
-	int s;
-
-	s = splvm();
 
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);
@@ -419,7 +409,6 @@ relpbuf(struct buf *bp, int *pfreecnt)
 			wakeup(pfreecnt);
 	}
 	mtx_unlock(&pbuf_mtx);
-	splx(s);
 }
 
 /*
