@@ -7,6 +7,6 @@ MAN=	ftp-proxy.8
 
 SRCS=   ftp-proxy.c getline.c util.c
 
-CFLAGS+= -Wall -Werror
+WARNS?=	2
 
 .include <bsd.prog.mk>
