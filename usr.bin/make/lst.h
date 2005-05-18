@@ -113,8 +113,7 @@ void		Lst_Append(Lst *, LstNode *, void *);
 /* Remove an element */
 void		Lst_Remove(Lst *, LstNode *);
 /* Replace a node with a new value */
-#define	Lst_Replace(NODE, D)	(((NODE) == NULL) ? FAILURE : \
-				    (((NODE)->datum = (D)), SUCCESS))
+#define	Lst_Replace(NODE, D)	((void)((NODE)->datum = (D)))
 /* Concatenate two lists */
 void	Lst_Concat(Lst *, Lst *, int);
 
