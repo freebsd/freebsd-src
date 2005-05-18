@@ -184,6 +184,16 @@ typedef struct {
     u_int8_t		*buf;		/* 4 */
 } __packed IOCTL_Command_struct;
 
+#ifdef __amd64__
+typedef struct {
+    LUNAddr_struct	LUN_info;	/* 8 */
+    RequestBlock_struct	Request;	/* 20 */
+    ErrorInfo_struct	error_info;	/* 48 */
+    u_int16_t		buf_size;	/* 2 */
+    u_int32_t		buf;		/* 4 */
+} __packed IOCTL_Command_struct32;
+#endif
+
 /*
  * Note that we'd normally pass the struct in directly, but
  * this code is trying to be compatible with other drivers.
@@ -199,5 +209,8 @@ typedef struct {
 #define CCISS_GETDRIVERVER	_IOR ('C', 208, DriverVer_type)
 #define CCISS_REVALIDVOLS	_IO  ('C', 209)
 #define CCISS_PASSTHRU		_IOWR ('C', 210, IOCTL_Command_struct)
+#ifdef __amd64
+#define CCISS_PASSTHRU32	_IOWR ('C', 210, IOCTL_Command_struct32)
+#endif
 
 #pragma pack()
