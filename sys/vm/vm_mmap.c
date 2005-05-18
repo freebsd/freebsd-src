@@ -1123,6 +1123,11 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
 		goto done;
 	}
+#ifdef MAC
+	error = mac_check_vnode_mmap(td->td_ucred, vp, prot, flags);
+	if (error != 0)
+		goto done;
+#endif
 	if ((flags & MAP_SHARED) != 0) {
 		if ((va.va_flags & (SF_SNAPSHOT|IMMUTABLE|APPEND)) != 0) {
 			if (prot & PROT_WRITE) {
@@ -1131,11 +1136,6 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			}
 			*maxprotp &= ~VM_PROT_WRITE;
 		}
-#ifdef MAC
-		error = mac_check_vnode_mmap(td->td_ucred, vp, prot);
-		if (error != 0)
-			goto done;
-#endif
 	}
 	/*
 	 * If it is a regular file without any references

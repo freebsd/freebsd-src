@@ -414,7 +414,7 @@ struct mac_policy_ops {
 		    struct vnode *dvp, struct label *dlabel,
 		    struct componentname *cnp);
 	int	(*mpo_check_vnode_mmap)(struct ucred *cred, struct vnode *vp,
-		    struct label *label, int prot);
+		    struct label *label, int prot, int flags);
 	void	(*mpo_check_vnode_mmap_downgrade)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int *prot);
 	int	(*mpo_check_vnode_mprotect)(struct ucred *cred,

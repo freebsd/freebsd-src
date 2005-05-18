@@ -311,7 +311,7 @@ int	mac_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
 int	mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
-	    int prot);
+	    int prot, int flags);
 int	mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
 int	mac_check_vnode_open(struct ucred *cred, struct vnode *vp,
