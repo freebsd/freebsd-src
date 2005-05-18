@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  * The interface to this module is:
  *	Arch_ParseArchive	Given an archive specification, return a list
  *				of GNode's, one for each member in the spec.
- *				FAILURE is returned if the specification is
+ *				FALSE is returned if the specification is
  *				invalid for some reason.
  *
  *	Arch_Touch		Alter the modification time of the archive
@@ -200,7 +200,7 @@ Boolean arch_fatal = TRUE;
  *	in which to expand variables.
  *
  * Results:
- *	SUCCESS if it was a valid specification. The linePtr is updated
+ *	TRUE if it was a valid specification. The linePtr is updated
  *	to point to the first non-space after the archive spec. The
  *	nodes for the members are placed on the given list.
  *
@@ -209,7 +209,7 @@ Boolean arch_fatal = TRUE;
  *
  *-----------------------------------------------------------------------
  */
-ReturnStatus
+Boolean
 Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 {
 	char	*cp;		/* Pointer into line */
@@ -237,7 +237,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 			result = Var_Parse(cp, ctxt, TRUE, &length, &freeIt);
 			if (result == var_Error) {
-				return (FAILURE);
+				return (FALSE);
 			}
 			subLibName = TRUE;
 
@@ -286,7 +286,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 				result = Var_Parse(cp, ctxt, TRUE,
 				    &length, &freeIt);
 				if (result == var_Error) {
-					return (FAILURE);
+					return (FALSE);
 				}
 				doSubst = TRUE;
 
@@ -308,7 +308,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 		if (*cp == '\0') {
 			printf("No closing parenthesis in archive "
 			    "specification\n");
-			return (FAILURE);
+			return (FALSE);
 		}
 
 		/*
@@ -370,19 +370,19 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 				if (gn == NULL) {
 					free(buf);
 					Buf_Destroy(buf1, FALSE);
-					return (FAILURE);
+					return (FALSE);
 				}
 				gn->type |= OP_ARCHV;
 				Lst_AtEnd(nodeLst, (void *)gn);
-			} else if (Arch_ParseArchive(&sacrifice, nodeLst,
-			    ctxt) != SUCCESS) {
+			} else if (!Arch_ParseArchive(&sacrifice, nodeLst,
+			    ctxt)) {
 				/*
 				 * Error in nested call -- free buffer and
-				 * return FAILURE ourselves.
+				 * return FALSE ourselves.
 				 */
 				free(buf);
 				Buf_Destroy(buf1, FALSE);
-				return (FAILURE);
+				return (FALSE);
 			}
 
 			/* Free buffer and continue with our work. */
@@ -413,7 +413,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 				if (gn == NULL) {
 					free(nameBuf);
 					/* XXXHB Lst_Destroy(&members) */
-					return (FAILURE);
+					return (FALSE);
 				}
 				/*
 				 * We've found the node, but have to make sure
@@ -435,7 +435,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 			gn = Targ_FindNode(nameBuf, TARG_CREATE);
 			free(nameBuf);
 			if (gn == NULL) {
-				return (FAILURE);
+				return (FALSE);
 			}
 			/*
 			 * We've found the node, but have to make sure the
@@ -471,7 +471,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 	} while (*cp != '\0' && isspace((unsigned char)*cp));
 
 	*linePtr = cp;
-	return (SUCCESS);
+	return (TRUE);
 }
 
 /*

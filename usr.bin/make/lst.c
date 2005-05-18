@@ -92,9 +92,6 @@ Lst_Append(Lst *list, LstNode *ln, void *d)
  *	If the elements should be duplicated to avoid confusion with another
  *	list, the Lst_Duplicate function should be called first.
  *
- * Results:
- *	SUCCESS if all went well. FAILURE otherwise.
- *
  * Arguments:
  *	list1	The list to which list2 is to be appended
  *	list2	The list to append to list1
@@ -314,9 +311,6 @@ Lst_Member(Lst *list, void *d)
 /**
  * Lst_Remove
  *	Remove the given node from the given list.
- *
- * Results:
- *	SUCCESS or FAILURE.
  *
  * Side Effects:
  *	The list's firstPtr will be set to NULL if ln is the last

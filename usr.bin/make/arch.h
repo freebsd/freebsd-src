@@ -50,7 +50,7 @@ struct Path;
 /* archive errors are fatal */
 extern Boolean arch_fatal;
 
-ReturnStatus Arch_ParseArchive(char **, struct Lst *, struct GNode *);
+Boolean Arch_ParseArchive(char **, struct Lst *, struct GNode *);
 void Arch_Touch(struct GNode *);
 void Arch_TouchLib(struct GNode *);
 int Arch_MTime(struct GNode *);

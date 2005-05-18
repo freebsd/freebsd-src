@@ -55,11 +55,6 @@ typedef int Boolean;
 #define	FALSE	0
 #endif /* TRUE */
 
-typedef int  ReturnStatus;
-
-#define	SUCCESS		0
-#define	FAILURE		1
-
 #define	CONCAT(a,b)	a##b
 
 struct flag2str {
