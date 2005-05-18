@@ -4055,6 +4055,11 @@ static int
 ciss_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *p)
 {
     struct ciss_softc		*sc;
+    IOCTL_Command_struct	*ioc	= (IOCTL_Command_struct *)addr;
+#ifdef __amd64__
+    IOCTL_Command_struct32	*ioc32	= (IOCTL_Command_struct32 *)addr;
+    IOCTL_Command_struct	ioc_swab;
+#endif
     int				error;
 
     debug_called(1);
@@ -4146,8 +4151,19 @@ ciss_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t 
 	 */
 	break;
 
+#ifdef __amd64__
+    case CCISS_PASSTHRU32:
+	ioc_swab.LUN_info	= ioc32->LUN_info;
+	ioc_swab.Request	= ioc32->Request;
+	ioc_swab.error_info	= ioc32->error_info;
+	ioc_swab.buf_size	= ioc32->buf_size;
+	ioc_swab.buf		= (u_int8_t *)(uintptr_t)ioc32->buf;
+	ioc			= &ioc_swab;
+	/* FALLTHROUGH */
+#endif
+
     case CCISS_PASSTHRU:
-	error = ciss_user_command(sc, (IOCTL_Command_struct *)addr);
+	error = ciss_user_command(sc, ioc);
 	break;
 
     default:
