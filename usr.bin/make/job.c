@@ -2895,40 +2895,34 @@ JobMatchShell(const char *name)
  *			    hasErrCtl is FALSE.
  */
 Boolean
-Job_ParseShell(char *line)
+Job_ParseShell(const char line[])
 {
-	char	**words;
-	int	wordCount;
-	char	**argv;
-	int	argc;
-	char	*path;
-	char	*eq;
-	Boolean	fullSpec = FALSE;
+	ArgArray	aa;
+	char		**argv;
+	int		argc;
+	char		*path;
+	char		*eq;
+	Boolean		fullSpec = FALSE;
 	struct Shell	newShell;
 	struct Shell	*sh;
-
-	while (isspace((unsigned char)*line)) {
-		line++;
-	}
 
 	memset(&newShell, 0, sizeof(newShell));
 	path = NULL;
 
 	/*
-	 * Parse the specification by keyword but skip the first word - it
-	 * is not set by brk_string.
+	 * Parse the specification by keyword but skip the first word
 	 */
-	words = brk_string(line, &wordCount, TRUE);
-	words++;
-	wordCount--;
+	brk_string(&aa, line, TRUE);
 
-	for (argc = wordCount, argv = words; argc != 0; argc--, argv++) {
+	for (argc = aa.argc - 1, argv = aa.argv + 1; argc != 0;
+	    argc--, argv++) {
 		/*
 		 * Split keyword and value
 		 */
 		if ((eq = strchr(*argv, '=')) == NULL) {
 			Parse_Error(PARSE_FATAL, "missing '=' in shell "
 			    "specification keyword '%s'", *argv);
+			ArgArray_Done(&aa);
 			return (FALSE);
 		}
 		*eq++ = '\0';
@@ -2965,6 +2959,7 @@ Job_ParseShell(char *line)
 		} else {
 			Parse_Error(PARSE_FATAL, "unknown keyword in shell "
 			    "specification '%s'", *argv);
+			ArgArray_Done(&aa);
 			return (FALSE);
 		}
 	}
@@ -2991,11 +2986,13 @@ Job_ParseShell(char *line)
 		if (newShell.name == NULL) {
 			Parse_Error(PARSE_FATAL,
 			    "Neither path nor name specified");
+			ArgArray_Done(&aa);
 			return (FALSE);
 		}
 		if ((sh = JobMatchShell(newShell.name)) == NULL) {
 			Parse_Error(PARSE_FATAL, "%s: no matching shell",
 			    newShell.name);
+			ArgArray_Done(&aa);
 			return (FALSE);
 		}
 
@@ -3022,6 +3019,7 @@ Job_ParseShell(char *line)
 				Parse_Error(PARSE_FATAL,
 				    "%s: no matching shell", newShell.name);
 				free(path);
+				ArgArray_Done(&aa);
 				return (FALSE);
 			}
 		} else {
@@ -3037,6 +3035,7 @@ Job_ParseShell(char *line)
 
 	shellName = commandShell->name;
 
+	ArgArray_Done(&aa);
 	return (TRUE);
 }
 
@@ -3391,9 +3390,8 @@ CompatInterrupt(int signo)
  *	Uses brk_string so destroys the contents of argv.
  */
 static char **
-shellneed(char *cmd)
+shellneed(ArgArray *aa, char *cmd)
 {
-	char		**av;
 	const char	**p;
 
 	if (strpbrk(cmd, sh_meta) != NULL)
@@ -3401,14 +3399,16 @@ shellneed(char *cmd)
 
 	/*
 	 * Break the command into words to form an argument
-	 * vector we can execute. brk_string sticks NULL
-	 * in av[0], so we have to skip over it...
+	 * vector we can execute.
 	 */
-	av = brk_string(cmd, NULL, TRUE);
-	for (p = sh_builtin; *p != 0; p++)
-		if (strcmp(av[1], *p) == 0)
+	brk_string(aa, cmd, TRUE);
+	for (p = sh_builtin; *p != 0; p++) {
+		if (strcmp(aa->argv[1], *p) == 0) {
+			ArgArray_Done(aa);
 			return (NULL);
-	return (av + 1);
+		}
+	}
+	return (aa->argv + 1);
 }
 
 /*-
@@ -3429,14 +3429,15 @@ shellneed(char *cmd)
 static int
 Compat_RunCommand(char *cmd, GNode *gn)
 {
-	char	*cmdStart;	/* Start of expanded command */
-	Boolean	silent;		/* Don't print command */
-	Boolean	doit;		/* Execute even in -n */
-	Boolean	errCheck;	/* Check errors */
-	int	reason;		/* Reason for child's death */
-	int	status;		/* Description of child's death */
-	LstNode	*cmdNode;	/* Node where current command is located */
-	char	**av;		/* Argument vector for thing to exec */
+	ArgArray	aa;
+	char		*cmdStart;	/* Start of expanded command */
+	Boolean		silent;		/* Don't print command */
+	Boolean		doit;		/* Execute even in -n */
+	Boolean		errCheck;	/* Check errors */
+	int		reason;		/* Reason for child's death */
+	int		status;		/* Description of child's death */
+	LstNode		*cmdNode;	/* Node where current cmd is located */
+	char		**av;		/* Argument vector for thing to exec */
 	ProcStuff	ps;
 
 	silent = gn->type & OP_SILENT;
@@ -3515,7 +3516,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	ps.pgroup = 0;
 	ps.searchpath = 1;
 
-	if ((av = shellneed(cmd)) == NULL) {
+	if ((av = shellneed(&aa, cmd)) == NULL) {
 		/*
 		 * Shell meta character or shell builtin found - pass
 		 * command to shell. We give the shell the -e flag as
@@ -3553,6 +3554,8 @@ Compat_RunCommand(char *cmd, GNode *gn)
 			free(ps.argv[1]);
 			free(ps.argv[0]);
 			free(ps.argv);
+		} else {
+			ArgArray_Done(&aa);
 		}
 
 		/*
