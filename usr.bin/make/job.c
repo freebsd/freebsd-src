@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  *	Job_Empty	Return TRUE if the job table is completely empty.
  *
  *	Job_ParseShell	Given the line following a .SHELL target, parse the
- *			line as a shell specification. Returns FAILURE if the
+ *			line as a shell specification. Returns FALSE if the
  *			spec was incorrect.
  *
  *	Job_Finish	Perform any final processing which needs doing. This
@@ -2860,7 +2860,7 @@ JobMatchShell(const char *name)
  *	and shellName appropriately.
  *
  * Results:
- *	FAILURE if the specification was incorrect.
+ *	TRUE if the specification was correct. FALSE otherwise.
  *
  * Side Effects:
  *	commandShell points to a Shell structure (either predefined or
@@ -2894,7 +2894,7 @@ JobMatchShell(const char *name)
  *			    command so as to ignore any errors it returns if
  *			    hasErrCtl is FALSE.
  */
-ReturnStatus
+Boolean
 Job_ParseShell(char *line)
 {
 	char	**words;
@@ -2929,7 +2929,7 @@ Job_ParseShell(char *line)
 		if ((eq = strchr(*argv, '=')) == NULL) {
 			Parse_Error(PARSE_FATAL, "missing '=' in shell "
 			    "specification keyword '%s'", *argv);
-			return (FAILURE);
+			return (FALSE);
 		}
 		*eq++ = '\0';
 
@@ -2965,7 +2965,7 @@ Job_ParseShell(char *line)
 		} else {
 			Parse_Error(PARSE_FATAL, "unknown keyword in shell "
 			    "specification '%s'", *argv);
-			return (FAILURE);
+			return (FALSE);
 		}
 	}
 
@@ -2991,12 +2991,12 @@ Job_ParseShell(char *line)
 		if (newShell.name == NULL) {
 			Parse_Error(PARSE_FATAL,
 			    "Neither path nor name specified");
-			return (FAILURE);
+			return (FALSE);
 		}
 		if ((sh = JobMatchShell(newShell.name)) == NULL) {
 			Parse_Error(PARSE_FATAL, "%s: no matching shell",
 			    newShell.name);
-			return (FAILURE);
+			return (FALSE);
 		}
 
 	} else {
@@ -3022,7 +3022,7 @@ Job_ParseShell(char *line)
 				Parse_Error(PARSE_FATAL,
 				    "%s: no matching shell", newShell.name);
 				free(path);
-				return (FAILURE);
+				return (FALSE);
 			}
 		} else {
 			sh = JobCopyShell(&newShell);
@@ -3037,7 +3037,7 @@ Job_ParseShell(char *line)
 
 	shellName = commandShell->name;
 
-	return (SUCCESS);
+	return (TRUE);
 }
 
 /**
