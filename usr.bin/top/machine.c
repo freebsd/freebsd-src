@@ -105,20 +105,20 @@ static char io_header[] =
 	"%5d %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
-	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+ 	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
 static char smp_header[] =
-	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
+ 	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
 
 #define smp_Proc_format \
-	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %5.2f%% %.*s"
+ 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %.*s"
 
 static char up_header_thr[] =
-	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+ 	"  PID %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
 static char up_header[] =
-	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
+ 	"  PID %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
 
 #define up_Proc_format \
-	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.*s"
+ 	"%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -298,17 +298,17 @@ format_header(char *uname_field)
 		prehead = smpmode ?
 		    (ps.thread ? smp_header : smp_header_thr) :
 		    (ps.thread ? up_header : up_header_thr);
+		snprintf(Header, sizeof(Header), prehead,
+		    namelength, namelength, uname_field,
+		    ps.wcpu ? "WCPU" : "CPU");
 		break;
 	case DISP_IO:
 		prehead = io_header;
+		snprintf(Header, sizeof(Header), prehead,
+		    namelength, namelength, uname_field);
 		break;
 	}
-
-	snprintf(Header, sizeof(Header), prehead,
-	    namelength, namelength, uname_field);
-
 	cmdlengthdelta = strlen(Header) - 7;
-
 	return (Header);
 }
 
@@ -780,8 +780,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	    status,
 	    smpmode ? pp->ki_lastcpu : 0,
 	    format_time(cputime),
-	    100.0 * weighted_cpu(pct, pp),
-	    100.0 * pct,
+	    ps.wcpu ? 100.0 * weighted_cpu(pct, pp) : 100.0 * pct,
 	    screen_width > cmdlengthdelta ?
 	    screen_width - cmdlengthdelta :
 	    0,
@@ -845,10 +844,17 @@ static int sorted_state[] =
 };
 
 
-#define ORDERKEY_PCTCPU(a, b) do { \
-	long diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu; \
-	if (diff != 0) \
-		return (diff > 0 ? 1 : -1); \
+#define ORDERKEY_PCTCPU(a, b) do {									\
+	long diff;											\
+	if (ps.wcpu)											\
+		diff = floor(1.0E6 * weighted_cpu(pctdouble((b)->ki_pctcpu), (b))) -			\
+		    floor(1.0E6 * weighted_cpu(pctdouble((a)->ki_pctcpu), (a)));			\
+	else												\
+		diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu;					\
+	/* fprintf(stderr, "XXX: wcpu %d a %p (%s) b %p (%s) foo %lf\n",				\
+	    ps.wcpu, (a), (a)->ki_comm, (b), (b)->ki_comm, foo); */					\
+	if (diff != 0)											\
+		return (diff > 0 ? 1 : -1);								\
 } while (0)
 
 #define ORDERKEY_CPTICKS(a, b) do { \
