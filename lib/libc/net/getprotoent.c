@@ -130,7 +130,7 @@ getprotoent_r(struct protoent *pe, struct protoent_data *ped)
 	if (ped->fp == NULL && (ped->fp = fopen(_PATH_PROTOCOLS, "r")) == NULL)
 		return (-1);
 again:
-	if ((p = fgets(ped->line, BUFSIZ, ped->fp)) == NULL)
+	if ((p = fgets(ped->line, sizeof ped->line, ped->fp)) == NULL)
 		return (-1);
 	if (*p == '#')
 		goto again;
@@ -159,7 +159,7 @@ again:
 				cp++;
 				continue;
 			}
-			if (q < &ped->aliases[PROTOENT_MAXALIASES - 1])
+			if (q < &ped->aliases[_MAXALIASES - 1])
 				*q++ = cp;
 			cp = strpbrk(cp, " \t");
 			if (cp != NULL)

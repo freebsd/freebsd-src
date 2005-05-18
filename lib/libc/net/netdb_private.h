@@ -28,28 +28,35 @@
 #ifndef _NETDB_PRIVATE_H_
 #define _NETDB_PRIVATE_H_
 
-#include <stdio.h>				/* XXX: for BUFSIZ */
+#include <stdio.h>				/* XXX: for FILE */
 
-#define	PROTOENT_MAXALIASES	35
-#define	SERVENT_MAXALIASES	35
+#define	_MAXALIASES	35
+#define	_MAXLINELEN	1024
+#define	_MAXADDRS	35
+#define	_NETBUFSIZE	1025
+
+struct netent_data {
+	char *net_aliases[_MAXALIASES];
+	char netbuf[_NETBUFSIZE];
+	FILE *netf;
+	int stayopen;
+#ifdef YP
+	char *yp_domain;
+#endif
+};
 
 struct protoent_data {
 	FILE *fp;
-	char *aliases[PROTOENT_MAXALIASES];
+	char *aliases[_MAXALIASES];
 	int stayopen;
-	char line[BUFSIZ + 1];
-};
-
-struct protodata {
-	struct protoent proto;
-	struct protoent_data data;
+	char line[_MAXLINELEN + 1];
 };
 
 struct servent_data {
 	FILE *fp;
-	char *aliases[SERVENT_MAXALIASES];
+	char *aliases[_MAXALIASES];
 	int stayopen;
-	char line[BUFSIZ + 1];
+	char line[_MAXLINELEN + 1];
 #ifdef YP
 	int yp_stepping;
 	char *yp_name;
@@ -61,28 +68,44 @@ struct servent_data {
 #endif
 };
 
+struct netdata {
+	struct netent net;
+	struct netent_data data;
+};
+
+struct protodata {
+	struct protoent proto;
+	struct protoent_data data;
+};
+
 struct servdata {
 	struct servent serv;
 	struct servent_data data;
 };
 
+#define	endnetent_r		__endnetent_r
 #define	endprotoent_r		__endprotoent_r
 #define	endservent_r		__endservent_r
+#define	getnetbyaddr_r		__getnetbyaddr_r
+#define	getnetbyname_r		__getnetbyname_r
+#define	getnetent_r		__getnetent_r
 #define	getprotobyname_r	__getprotobyname_r
 #define	getprotobynumber_r	__getprotobynumber_r
 #define	getprotoent_r		__getprotoent_r
 #define	getservbyname_r		__getservbyname_r
 #define	getservbyport_r		__getservbyport_r
 #define	getservent_r		__getservent_r
+#define	setnetent_r		__setnetent_r
 #define	setprotoent_r		__setprotoent_r
 #define	setservent_r		__setservent_r
 
+struct netdata *__netdata_init(void);
 struct protodata *__protodata_init(void);
 struct servdata *__servdata_init(void);
 void _endhostdnsent(void);
 void _endhosthtent(void);
 void _endnetdnsent(void);
-void _endnethtent(void);
+void _endnethtent(struct netent_data *);
 struct hostent *_gethostbynisaddr(const char *, int, int);
 struct hostent *_gethostbynisname(const char *, int);
 void _map_v4v6_address(const char *, char *);
@@ -90,9 +113,14 @@ void _map_v4v6_hostent(struct hostent *, char **, char **);
 void _sethostdnsent(int);
 void _sethosthtent(int);
 void _setnetdnsent(int);
-void _setnethtent(int);
+void _setnethtent(int, struct netent_data *);
+void endnetent_r(struct netent_data *);
 void endprotoent_r(struct protoent_data *);
 void endservent_r(struct servent_data *);
+int getnetbyaddr_r(unsigned long addr, int af, struct netent *,
+	struct netent_data *);
+int getnetbyname_r(const char *, struct netent *, struct netent_data *);
+int getnetent_r(struct netent *, struct netent_data *);
 int getprotobyname_r(const char *, struct protoent *, struct protoent_data *);
 int getprotobynumber_r(int, struct protoent *, struct protoent_data *);
 int getprotoent_r(struct protoent *, struct protoent_data *);
@@ -101,6 +129,7 @@ int getservbyname_r(const char *, const char *, struct servent *,
 int getservbyport_r(int, const char *, struct servent *,
 	struct servent_data *);
 int getservent_r(struct servent *, struct servent_data *);
+void setnetent_r(int, struct netent_data *);
 void setprotoent_r(int, struct protoent_data *);
 void setservent_r(int, struct servent_data *);
 

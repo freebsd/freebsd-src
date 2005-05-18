@@ -150,7 +150,7 @@ _getservbyport_yp(struct servent_data *sed)
 	}
 		
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
 
 	free(result);
 	return(1);
@@ -179,7 +179,7 @@ _getservbyname_yp(struct servent_data *sed)
 	}
 		
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
 
 	free(result);
 	return(1);
@@ -219,7 +219,7 @@ _getservent_yp(struct servent_data *sed)
 	}
 
 	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, BUFSIZ, "%.*s\n", resultlen, result);
+	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
 
 	free(result);
 
@@ -265,7 +265,7 @@ tryagain:
 	if (sed->fp == NULL && (sed->fp = fopen(_PATH_SERVICES, "r")) == NULL)
 		return (-1);
 again:
-	if ((p = fgets(sed->line, BUFSIZ, sed->fp)) == NULL)
+	if ((p = fgets(sed->line, sizeof sed->line, sed->fp)) == NULL)
 		return (-1);
 #ifdef YP
 	if (*p == '+' && _yp_check(NULL)) {
@@ -312,7 +312,7 @@ unpack:
 			cp++;
 			continue;
 		}
-		if (q < &sed->aliases[SERVENT_MAXALIASES - 1])
+		if (q < &sed->aliases[_MAXALIASES - 1])
 			*q++ = cp;
 		cp = strpbrk(cp, " \t");
 		if (cp != NULL)
