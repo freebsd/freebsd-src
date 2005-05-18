@@ -142,6 +142,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 
 .if !defined(NO_LIBC_R) || !defined(NO_LIBPTHREAD) || !defined(NO_LIBTHR)
 PTHREAD_MAN=	pthread.3 \
+		pthread_atfork.3 \
 		pthread_attr.3 \
 		pthread_attr_get_np.3 \
 		pthread_attr_setcreatesuspend_np.3 \
