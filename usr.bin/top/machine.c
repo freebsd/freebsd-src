@@ -844,17 +844,15 @@ static int sorted_state[] =
 };
 
 
-#define ORDERKEY_PCTCPU(a, b) do {									\
-	long diff;											\
-	if (ps.wcpu)											\
-		diff = floor(1.0E6 * weighted_cpu(pctdouble((b)->ki_pctcpu), (b))) -			\
-		    floor(1.0E6 * weighted_cpu(pctdouble((a)->ki_pctcpu), (a)));			\
-	else												\
-		diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu;					\
-	/* fprintf(stderr, "XXX: wcpu %d a %p (%s) b %p (%s) foo %lf\n",				\
-	    ps.wcpu, (a), (a)->ki_comm, (b), (b)->ki_comm, foo); */					\
-	if (diff != 0)											\
-		return (diff > 0 ? 1 : -1);								\
+#define ORDERKEY_PCTCPU(a, b) do { \
+	long diff; \
+	if (ps.wcpu) \
+		diff = floor(1.0E6 * weighted_cpu(pctdouble((b)->ki_pctcpu), (b))) - \
+		    floor(1.0E6 * weighted_cpu(pctdouble((a)->ki_pctcpu), (a))); \
+	else \
+		diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu; \
+	if (diff != 0) \
+		return (diff > 0 ? 1 : -1); \
 } while (0)
 
 #define ORDERKEY_CPTICKS(a, b) do { \
