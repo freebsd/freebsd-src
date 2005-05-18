@@ -1090,7 +1090,7 @@ set_rootvnode(struct thread *td)
  * yet.  Create a /dev -> / symlink so that absolute pathnames will lookup.
  */
 
-static struct mount *
+static void
 devfs_first(void)
 {
 	struct thread *td = curthread;
@@ -1101,17 +1101,17 @@ devfs_first(void)
 	vfsp = vfs_byname("devfs");
 	KASSERT(vfsp != NULL, ("Could not find devfs by name"));
 	if (vfsp == NULL) 
-		return(NULL);
+		return;
 
 	error = vfs_mount_alloc(NULLVP, vfsp, "/dev", td, &mp);
 	KASSERT(error == 0, ("vfs_mount_alloc failed %d", error));
 	if (error)
-		return (NULL);
+		return;
 
 	error = VFS_MOUNT(mp, curthread);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
-		return (NULL);
+		return;
 
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
@@ -1122,8 +1122,6 @@ devfs_first(void)
 	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
 	if (error)
 		printf("kern_symlink /dev -> / returns %d\n", error);
-
-	return (mp);
 }
 
 /*
