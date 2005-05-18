@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.7.35";
+char em_driver_version[] = "2.1.7";
 
 
 /*********************************************************************
@@ -67,40 +67,52 @@ char em_driver_version[] = "1.7.35";
 static em_vendor_info_t em_vendor_info_array[] =
 {
         /* Intel(R) PRO/1000 Network Connection */
-        { 0x8086, 0x1000, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1001, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1004, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1008, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1009, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x100C, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x100D, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x100E, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x100F, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1010, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1013, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82540EM,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82540EM_LOM,         PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82540EP,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82540EP_LOM,         PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82540EP_LP,          PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82541EI,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82541ER,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82541EI_MOBILE,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82541GI,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82541GI_LF,          PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82541GI_MOBILE,      PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82542,               PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82543GC_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82543GC_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82544EI_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82544EI_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82544GC_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82544GC_LOM,         PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82545EM_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82545EM_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82545GM_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82545GM_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82545GM_SERDES,      PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82546EB_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546EB_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546EB_QUAD_COPPER, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546GB_COPPER,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546GB_FIBER,       PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546GB_SERDES,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546GB_PCIE,        PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82546GB_QUAD_COPPER, PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82547EI,             PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82547EI_MOBILE,      PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82547GI,             PCI_ANY_ID, PCI_ANY_ID, 0},
+
+        { 0x8086, E1000_DEV_ID_82573E,              PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, E1000_DEV_ID_82573E_IAMT,         PCI_ANY_ID, PCI_ANY_ID, 0},
+
         { 0x8086, 0x1014, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1018, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1019, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x101A, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x101D, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x101E, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1026, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1027, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1028, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1075, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1076, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1077, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1078, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x1079, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x107A, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x107B, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x107C, PCI_ANY_ID, PCI_ANY_ID, 0},
-        { 0x8086, 0x108A, PCI_ANY_ID, PCI_ANY_ID, 0},
         /* required last entry */
         { 0, 0, 0, 0, 0}
 };
@@ -685,7 +697,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
-		if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN) {
+		if (ifr->ifr_mtu > MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN || \
+			/* 82573 does not support jumbo frames */
+			(adapter->hw.mac_type == em_82573 && ifr->ifr_mtu > ETHERMTU) ) {
 			error = EINVAL;
 		} else {
 			ifp->if_mtu = ifr->ifr_mtu;
@@ -818,14 +832,11 @@ em_init(void *arg)
 	 *   Default allocation: PBA=30K for Rx, leaving 10K for Tx.
 	 *   Note: default does not leave enough room for Jumbo Frame >10k.
 	 */
-	if(adapter->hw.mac_type < em_82547) {
-		/* Total FIFO is 64K */
-		if(adapter->rx_buffer_len > EM_RXBUFFER_8192)
-			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
-		else
-			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
-	} else {
-		/* Total FIFO is 40K */
+
+	switch (adapter->hw.mac_type) {
+	case em_82547: 
+	case em_82547_rev_2: 
+		/* Total Packet Buffer is 40K */
 		if(adapter->hw.max_frame_size > EM_RXBUFFER_8192) {
 			pba = E1000_PBA_22K; /* 22K for Rx, 18K for Tx */
 		} else {
@@ -834,7 +845,19 @@ em_init(void *arg)
 		adapter->tx_fifo_head = 0;
 		adapter->tx_head_addr = pba << EM_TX_HEAD_ADDR_SHIFT;
 		adapter->tx_fifo_size = (E1000_PBA_40K - pba) << EM_PBA_BYTES_SHIFT;
+	case em_82573:
+		/* Total Packet Buffer is 32K */
+		/* Jumbo frames not supported */
+		pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
+		break;
+	default:
+		/* Devices before 82547 had a Packet Buffer of 64K.   */
+		if(adapter->hw.max_frame_size > EM_RXBUFFER_8192)
+			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
+		else
+			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
 	}
+
 	INIT_DEBUGOUT1("em_init: pba=%dK",pba);
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 	
@@ -1119,7 +1142,7 @@ em_media_change(struct ifnet *ifp)
 		printf("em%d: Unsupported media type\n", adapter->unit);
 	}
 
-	/* As the speed/duplex settings my have changed we nee to
+	/* As the speed/duplex settings my have changed we need to
 	 * reset the PHY.
 	 */
 	adapter->hw.phy_reset_disable = FALSE;
@@ -1175,8 +1198,7 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	if (ifp->if_hwassist > 0) {
 		em_transmit_checksum_setup(adapter,  m_head,
 					   &txd_upper, &txd_lower);
-	}
-	else 
+	} else
 		txd_upper = txd_lower = 0;
 
 
@@ -1228,8 +1250,7 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
                 		tx_buffer->m_head = NULL;
                 		txd_used++;
 			}
-        	}
-		else {
+        	} else {
 			if (txd_used == adapter->num_tx_desc_avail) {
                        		 adapter->next_avail_tx_desc = txd_saved;
                        		 adapter->no_tx_desc_avail2++;
@@ -1648,13 +1669,14 @@ em_identify_hardware(struct adapter * adapter)
 	adapter->hw.subsystem_id = pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
 	/* Identify the MAC */
-   if (em_set_mac_type(&adapter->hw))
-           printf("em%d: Unknown MAC Type\n", adapter->unit);
+	if (em_set_mac_type(&adapter->hw))
+	    printf("em%d: Unknown MAC Type\n", adapter->unit);
 
-   if(adapter->hw.mac_type == em_82541 || adapter->hw.mac_type == em_82541_rev_2 ||
-      adapter->hw.mac_type == em_82547 || adapter->hw.mac_type == em_82547_rev_2)
-		   adapter->hw.phy_init_script = TRUE;
-
+	if(adapter->hw.mac_type == em_82541 || 
+	   adapter->hw.mac_type == em_82541_rev_2 ||
+	   adapter->hw.mac_type == em_82547 || 
+	   adapter->hw.mac_type == em_82547_rev_2)
+	       adapter->hw.phy_init_script = TRUE;
 
         return;
 }
@@ -2058,6 +2080,8 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	/* Program the Transmit Control Register */
 	reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
+	if (adapter->hw.mac_type >= em_82573)
+		reg_tctl |= E1000_TCTL_MULR;
 	if (adapter->link_duplex == 1) {
 		reg_tctl |= E1000_FDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
 	} else {
@@ -2208,16 +2232,13 @@ em_clean_transmit_interrupts(struct adapter * adapter)
                 return;
 
         s = splimp();
-#ifdef DBG_STATS
-        adapter->clean_tx_interrupts++;
-#endif
         num_avail = adapter->num_tx_desc_avail;	
 	i = adapter->oldest_used_tx_desc;
 
 	tx_buffer = &adapter->tx_buffer_area[i];
 	tx_desc = &adapter->tx_desc_base[i];
 
-	while(tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
+	while (tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
 
 		tx_desc->upper.data = 0;
 		num_avail++;                        
@@ -2501,9 +2522,6 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
         current_desc = &adapter->rx_desc_base[i];
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
-#ifdef DBG_STATS
-		adapter->no_pkts_avail++;
-#endif
 		return;
 	}
 
@@ -2845,9 +2863,6 @@ em_fill_descriptors (u_int64_t address,
 	return desc_array->elements;
 }
 
-
-
-		
 /**********************************************************************
  *
  *  Update the board statistics counters. 
@@ -2980,12 +2995,6 @@ em_print_debug_info(struct adapter *adapter)
 	printf("em%d:rx_int_delay = %d, rx_abs_int_delay = %d\n", unit, 
 	       E1000_READ_REG(&adapter->hw, RDTR),
 	       E1000_READ_REG(&adapter->hw, RADV));
-#ifdef DBG_STATS
-	printf("em%d: Packets not Avail = %ld\n", unit, 
-	       adapter->no_pkts_avail);
-	printf("em%d: CleanTxInterrupts = %ld\n", unit, 
-	       adapter->clean_tx_interrupts);
-#endif
 	printf("em%d: fifo workaround = %lld, fifo_reset = %lld\n", unit, 
 	       (long long)adapter->tx_fifo_wrk_cnt, 
 	       (long long)adapter->tx_fifo_reset_cnt);
