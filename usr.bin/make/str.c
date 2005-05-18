@@ -50,23 +50,50 @@ __FBSDID("$FreeBSD$");
 #include "str.h"
 #include "util.h"
 
-static char **argv;
-static char *buffer;
-static int argmax;
-static int curlen;
-
-/*
- * str_init --
- *	Initialize the strings package
- *
+/**
+ * Initialize the argument array object.  The array is initially
+ * eight positions, and will be expaned as neccessary.  The first
+ * position is set to NULL since everything ignores it.  We allocate
+ * (size + 1) since we need space for the terminating NULL.  The
+ * buffer is set to NULL, since no common buffer is alloated yet.
  */
-void
-str_init(void)
+static void
+ArgArray_Init(ArgArray *aa)
 {
 
-	argmax = 50;
-	argv = emalloc((argmax + 1) * sizeof(char *));
-	argv[0] = NULL;
+	aa->size = 8;
+	aa->argv = emalloc((aa->size + 1) * sizeof(char *));
+	aa->argc = 0;
+	aa->argv[aa->argc++] = NULL;
+	aa->len = 0;
+	aa->buffer = NULL;
+}
+
+/**
+ * Cleanup the memory allocated for in the argument array object. 
+ */
+void
+ArgArray_Done(ArgArray *aa)
+{
+
+	if (aa->buffer == NULL) {
+		int	i;
+		/* args are individually allocated */
+		for (i = 0; i < aa->argc; ++i) {
+			if (aa->argv[i]) {
+				free(aa->argv[i]);
+				aa->argv[i] = NULL;
+			}
+		}
+	} else {
+		/* args are part of a single allocation */
+		free(aa->buffer);
+		aa->buffer = NULL;
+	}
+	free(aa->argv);
+	aa->argv = NULL;
+	aa->argc = 0;
+	aa->size = 0;
 }
 
 /*-
@@ -107,130 +134,144 @@ str_concat(const char *s1, const char *s2, int flags)
 	return (result);
 }
 
-/*-
- * brk_string --
- *	Fracture a string into an array of words (as delineated by tabs or
- *	spaces) taking quotation marks into account.  Leading tabs/spaces
- *	are ignored.
- *
- * returns --
- *	Pointer to the array of pointers to the words.
+/**
+ * Fracture a string into an array of words (as delineated by tabs or
+ * spaces) taking quotation marks into account.  Leading tabs/spaces
+ * are ignored.
  */
-char **
-brk_string(const char *str, int *store_argc, Boolean expand)
+void
+brk_string(ArgArray *aa, const char str[], Boolean expand)
 {
-	int argc, ch;
-	char inquote;
-	const char *p;
-	char *start, *t;
-	int len;
+	char	inquote;
+	char	*start;
+	char	*arg;
 
 	/* skip leading space chars. */
 	for (; *str == ' ' || *str == '\t'; ++str)
 		continue;
 
-	/* allocate room for a copy of the string */
-	if ((len = strlen(str) + 1) > curlen) {
-		if (buffer)
-		    free(buffer);
-		buffer = emalloc(curlen = len);
-	}
+	ArgArray_Init(aa);
+
+	aa->buffer = estrdup(str);;
+
+	arg = aa->buffer;
+	start = arg;
+	inquote = '\0';
 
 	/*
 	 * copy the string; at the same time, parse backslashes,
 	 * quotes and build the argument list.
 	 */
-	argc = 1;
-	inquote = '\0';
-	for (p = str, start = t = buffer;; ++p) {
-		switch(ch = *p) {
+	for (;;) {
+		switch (str[0]) {
 		case '"':
 		case '\'':
-			if (inquote) {
-				if (ch != inquote)
+			if (inquote == '\0') {
+				inquote = str[0];
+				if (expand)
 					break;
+				if (start == NULL)
+					start = arg;
+			} else if (inquote == str[0]) {
 				inquote = '\0';
 				/* Don't miss "" or '' */
-				if (!start)
-					start = t;
-			} else
-				inquote = (char)ch;
-			if (expand)
-				continue;
+				if (start == NULL)
+					start = arg;
+				if (expand)
+					break;
+			} else {
+				/* other type of quote found */
+				if (start == NULL)
+					start = arg;
+			}
+			*arg++ = str[0];
 			break;
 		case ' ':
 		case '\t':
 		case '\n':
-			if (inquote)
+			if (inquote) {
+				if (start == NULL)
+					start = arg;
+				*arg++ = str[0];
 				break;
-			if (!start)
-				continue;
+			}
+			if (start == NULL)
+				break;
 			/* FALLTHROUGH */
 		case '\0':
 			/*
 			 * end of a token -- make sure there's enough argv
 			 * space and save off a pointer.
 			 */
-			if (!start)
-			    goto done;
-
-			*t++ = '\0';
-			if (argc == argmax) {
-				argmax *= 2;		/* ramp up fast */
-				argv = erealloc(argv,
-				    (argmax + 1) * sizeof(char *));
+			if (aa->argc == aa->size) {
+				aa->size *= 2;		/* ramp up fast */
+				aa->argv = erealloc(aa->argv,
+				    (aa->size + 1) * sizeof(char *));
 			}
-			argv[argc++] = start;
-			start = NULL;
-			if (ch == '\n' || ch == '\0')
-				goto done;
-			continue;
+
+			*arg++ = '\0';
+			if (start == NULL) {
+				aa->argv[aa->argc] = start;
+				return;
+			}
+			if (str[0] == '\n' || str[0] == '\0') {
+				aa->argv[aa->argc++] = start;
+				aa->argv[aa->argc] = NULL;
+				return;
+			} else {
+				aa->argv[aa->argc++] = start;
+				start = NULL;
+				break;
+			}
 		case '\\':
-			if (!expand) {
-				if (!start)
-					start = t;
-				*t++ = '\\';
-				ch = *++p;
-				break;
-			}
-
-			switch (ch = *++p) {
-			case '\0':
-			case '\n':
-				/* hmmm; fix it up as best we can */
-				ch = '\\';
-				--p;
-				break;
-			case 'b':
-				ch = '\b';
-				break;
-			case 'f':
-				ch = '\f';
-				break;
-			case 'n':
-				ch = '\n';
-				break;
-			case 'r':
-				ch = '\r';
-				break;
-			case 't':
-				ch = '\t';
-				break;
-			default:
-				break;
+			if (start == NULL)
+				start = arg;
+			if (expand) {
+				switch (str[1]) {
+				case '\0':
+				case '\n':
+					/* hmmm; fix it up as best we can */
+					*arg++ = '\\';
+					break;
+				case 'b':
+					*arg++ = '\b';
+					++str;
+					break;
+				case 'f':
+					*arg++ = '\f';
+					++str;
+					break;
+				case 'n':
+					*arg++ = '\n';
+					++str;
+					break;
+				case 'r':
+					*arg++ = '\r';
+					++str;
+					break;
+				case 't':
+					*arg++ = '\t';
+					++str;
+					break;
+				default:
+					*arg++ = str[1];
+					++str;
+					break;
+				}
+			} else {
+				*arg++ = str[0];
+				++str;
+				*arg++ = str[0];
 			}
 			break;
 		default:
+			if (start == NULL)
+				start = arg;
+			*arg++ = str[0];
 			break;
 		}
-		if (!start)
-			start = t;
-		*t++ = (char)ch;
+		++str;
 	}
-done:	argv[argc] = NULL;
-	if (store_argc != NULL)
-		*store_argc = argc;
-	return (argv);
 }
 
 /*
@@ -271,23 +312,23 @@ MAKEFLAGS_quote(const char *str)
 	return (ret);
 }
 
-char **
-MAKEFLAGS_break(const char *str, int *pargc)
+void
+MAKEFLAGS_break(ArgArray *aa, const char str[])
 {
-	char *q, *start;
-	int len;
+	char	*arg;
+	char	*start;
 
-	/* allocate room for a copy of the string */
-	if ((len = strlen(str) + 1) > curlen)
-		buffer = erealloc(buffer, curlen = len);
+	ArgArray_Init(aa);
 
+	aa->buffer = strdup(str);
+
+	arg = aa->buffer;
 	start = NULL;
-	*pargc = 1;
 
-	for (q = buffer;;) {
-		switch (*str) {
-		  case ' ':
-		  case '\t':
+	for (;;) {
+		switch (str[0]) {
+		case ' ':
+		case '\t':
 			/* word separator */
 			if (start == NULL) {
 				/* not in a word */
@@ -295,41 +336,41 @@ MAKEFLAGS_break(const char *str, int *pargc)
 				continue;
 			}
 			/* FALLTHRU */
-		  case '\0':
-			if (start == NULL)
-				goto done;
-
-			/* finish word */
-			*q++ = '\0';
-			if (argmax == *pargc) {
-				argmax *= 2;
-				argv = erealloc(argv,
-				    sizeof(*argv) * (argmax + 1));
+		case '\0':
+			if (aa->argc == aa->size) {
+				aa->size *= 2;
+				aa->argv = erealloc(aa->argv,
+ 				    (aa->size + 1) * sizeof(char *));
 			}
-			argv[(*pargc)++] = start;
-			start = NULL;
 
-			if (*str++ == '\0')
-				goto done;
-			continue;
+			*arg++ = '\0';
+			if (start == NULL) {
+				aa->argv[aa->argc] = start;
+				return;
+			}
+			if (str[0] == '\0') {
+				aa->argv[aa->argc++] = start;
+				aa->argv[aa->argc] = NULL;
+				return;
+			} else {
+				aa->argv[aa->argc++] = start;
+				start = NULL;
+				str++;
+				continue;
+			}
 
-		  case '\\':
+		case '\\':
 			if (str[1] == ' ' || str[1] == '\t')
-				/* was a quote */
 				str++;
 			break;
 
-		  default:
+		default:
 			break;
 		}
 		if (start == NULL)
-			/* start of new word */
-			start = q;
-		*q++ = *str++;
+			start = arg;
+		*arg++ = *str++;
 	}
-  done:
-	argv[(*pargc)] = NULL;
-	return (argv);
 }
 
 /*

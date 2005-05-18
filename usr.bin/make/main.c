@@ -575,8 +575,7 @@ rearg:
 void
 Main_ParseArgLine(char *line, int mflags)
 {
-	char **argv;			/* Manufactured argument vector */
-	int argc;			/* Number of arguments in argv */
+	ArgArray	aa;
 
 	if (line == NULL)
 		return;
@@ -586,11 +585,12 @@ Main_ParseArgLine(char *line, int mflags)
 		return;
 
 	if (mflags)
-		argv = MAKEFLAGS_break(line, &argc);
+		MAKEFLAGS_break(&aa, line);
 	else
-		argv = brk_string(line, &argc, TRUE);
+		brk_string(&aa, line, TRUE);
 
-	MainParseArgs(argc, argv);
+	MainParseArgs(aa.argc, aa.argv);
+	ArgArray_Done(&aa);
 }
 
 static char *
@@ -785,8 +785,6 @@ main(int argc, char **argv)
 				 * can be processed correctly */
 	Var_Init(environ);	/* As well as the lists of variables for
 				 * parsing arguments */
-        str_init();
-
 	/*
 	 * Initialize various variables.
 	 *	MAKE also gets this name, for compatibility
