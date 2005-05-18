@@ -890,19 +890,6 @@ ixgb_media_change(struct ifnet * ifp)
 	return (0);
 }
 
-static void
-ixgb_tx_cb(void *arg, bus_dma_segment_t * seg, int nsegs, bus_size_t mapsize, int error)
-{
-	struct ixgb_q  *q = arg;
-
-	if (error)
-		return;
-	KASSERT(nsegs <= IXGB_MAX_SCATTER,
-		("ixgb_tx_cb: Too many DMA segments returned when mapping tx packet"));
-	q->nsegs = nsegs;
-	bcopy(seg, q->segs, nsegs * sizeof(seg[0]));
-}
-
 /*********************************************************************
  *
  *  This routine maps the mbufs to tx descriptors.
@@ -914,14 +901,15 @@ static int
 ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 {
 	u_int8_t        txd_popts;
-	int             i, j, error;
+	int             i, j, error, nsegs;
 
 #if __FreeBSD_version < 500000
 	struct ifvlan  *ifv = NULL;
 #else
 	struct m_tag   *mtag;
 #endif
-	struct ixgb_q   q;
+	bus_dma_segment_t segs[IXGB_MAX_SCATTER];
+	bus_dmamap_t	map;
 	struct ixgb_buffer *tx_buffer = NULL;
 	struct ixgb_tx_desc *current_tx_desc = NULL;
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
@@ -940,24 +928,24 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 	/*
 	 * Map the packet for DMA.
 	 */
-	if (bus_dmamap_create(adapter->txtag, BUS_DMA_NOWAIT, &q.map)) {
+	if (bus_dmamap_create(adapter->txtag, BUS_DMA_NOWAIT, &map)) {
 		adapter->no_tx_map_avail++;
 		return (ENOMEM);
 	}
-	error = bus_dmamap_load_mbuf(adapter->txtag, q.map,
-				     m_head, ixgb_tx_cb, &q, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, m_head, segs,
+					&nsegs, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		adapter->no_tx_dma_setup++;
 		printf("ixgb%d: ixgb_encap: bus_dmamap_load_mbuf failed; "
 		       "error %u\n", adapter->unit, error);
-		bus_dmamap_destroy(adapter->txtag, q.map);
+		bus_dmamap_destroy(adapter->txtag, map);
 		return (error);
 	}
-	KASSERT(q.nsegs != 0, ("ixgb_encap: empty packet"));
+	KASSERT(nsegs != 0, ("ixgb_encap: empty packet"));
 
-	if (q.nsegs > adapter->num_tx_desc_avail) {
+	if (nsegs > adapter->num_tx_desc_avail) {
 		adapter->no_tx_desc_avail2++;
-		bus_dmamap_destroy(adapter->txtag, q.map);
+		bus_dmamap_destroy(adapter->txtag, map);
 		return (ENOBUFS);
 	}
 	if (ifp->if_hwassist > 0) {
@@ -976,12 +964,12 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
 #endif
 	i = adapter->next_avail_tx_desc;
-	for (j = 0; j < q.nsegs; j++) {
+	for (j = 0; j < nsegs; j++) {
 		tx_buffer = &adapter->tx_buffer_area[i];
 		current_tx_desc = &adapter->tx_desc_base[i];
 
-		current_tx_desc->buff_addr = htole64(q.segs[j].ds_addr);
-		current_tx_desc->cmd_type_len = (adapter->txd_cmd | q.segs[j].ds_len);
+		current_tx_desc->buff_addr = htole64(segs[j].ds_addr);
+		current_tx_desc->cmd_type_len = (adapter->txd_cmd | segs[j].ds_len);
 		current_tx_desc->popts = txd_popts;
 		if (++i == adapter->num_tx_desc)
 			i = 0;
@@ -989,7 +977,7 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 		tx_buffer->m_head = NULL;
 	}
 
-	adapter->num_tx_desc_avail -= q.nsegs;
+	adapter->num_tx_desc_avail -= nsegs;
 	adapter->next_avail_tx_desc = i;
 
 #if __FreeBSD_version < 500000
@@ -1006,8 +994,8 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 		current_tx_desc->cmd_type_len |= IXGB_TX_DESC_CMD_VLE;
 	}
 	tx_buffer->m_head = m_head;
-	tx_buffer->map = q.map;
-	bus_dmamap_sync(adapter->txtag, q.map, BUS_DMASYNC_PREWRITE);
+	tx_buffer->map = map;
+	bus_dmamap_sync(adapter->txtag, map, BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Last Descriptor of Packet needs End Of Packet (EOP)
