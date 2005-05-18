@@ -156,7 +156,7 @@ vm_pager_put_pages(
  *	some idea of the number of pages before and after the requested
  *	page can be I/O'd efficiently.
  *
- *	This routine does not have to be called at any particular spl.
+ *	The object must be locked.
  */
 static __inline boolean_t
 vm_pager_has_page(
@@ -176,8 +176,9 @@ vm_pager_has_page(
 /* 
  *      vm_pager_page_unswapped
  * 
- *      called at splvm() to destroy swap associated with the page.
+ *	Destroy swap associated with the page.
  * 
+ *	The object containing the page must be locked.
  *      This function may not block.
  *
  *	XXX: A much better name would be "vm_pager_page_dirtied()"
