@@ -193,9 +193,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmS";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSC";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -218,8 +218,9 @@ char *argv[];
 #define CMD_thrtog	16
 #define CMD_viewtog	17
 #define CMD_viewsys	18
+#define	CMD_wcputog	19
 #ifdef ORDER
-#define CMD_order       19
+#define CMD_order       20
 #endif
 
     /* set the buffer for stdout */
@@ -250,6 +251,7 @@ char *argv[];
     ps.system  = No;
     ps.uid     = -1;
     ps.thread  = No;
+    ps.wcpu    = 1;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -275,7 +277,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "SIHbinquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHbinquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -383,15 +385,19 @@ char *argv[];
 	      case 't':
 		ps.self = (ps.self == -1) ? getpid() : -1;
 		break;
-		
+
+	      case 'C':
+		ps.wcpu = !ps.wcpu;
+		break;
+
 	      case 'H':
 		ps.thread = !ps.thread;
 		break;
-		
+
 	      default:
 		fprintf(stderr, "\
 Top version %s\n\
-Usage: %s [-HISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
+Usage: %s [-CHISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
 	    }
@@ -989,6 +995,15 @@ restart:
 				new_message(MT_standout | MT_delayed,
 				    "Displaying threads %s",
 				    ps.thread ? "separately" : "as a count");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
+			    case CMD_wcputog:
+				ps.wcpu = !ps.wcpu;
+				new_message(MT_standout | MT_delayed,
+				    "Displaying %sCPU",
+				    ps.wcpu ? "W" : "");
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');

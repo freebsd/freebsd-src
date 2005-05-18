@@ -61,6 +61,7 @@ struct process_select
     int system;		/* show system processes */
     int thread;		/* show threads */
     int uid;		/* only this uid (unless uid == -1) */
+    int wcpu;		/* show weighted cpu */
     char *command;	/* only this command (unless == NULL) */
 };
 
