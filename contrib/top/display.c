@@ -626,6 +626,33 @@ u_message()
 static int header_length;
 
 /*
+ * Trim a header string to the current display width and return a newly
+ * allocated area with the trimmed header.
+ */
+
+char *
+trim_header(text)
+
+char *text;
+
+{
+	char *s;
+	int width;
+
+	s = NULL;
+	width = display_width;
+	header_length = strlen(text);
+	if (header_length >= width) {
+		s = malloc((width + 1) * sizeof(char));
+		if (s == NULL)
+			return (NULL);
+		strncpy(s, text, width);
+		s[width] = '\0';
+	}
+	return (s);
+}
+
+/*
  *  *_header(text) - print the header for the process area
  *
  *  Assumptions:  cursor is on the previous line and lastline is consistent
@@ -636,7 +663,12 @@ i_header(text)
 char *text;
 
 {
-    header_length = strlen(text);
+    char *s;
+
+    s = trim_header(text);
+    if (s != NULL)
+	text = s;
+
     if (header_status == ON)
     {
 	putchar('\n');
@@ -647,6 +679,7 @@ char *text;
     {
 	header_status = OFF;
     }
+    free(s);
 }
 
 /*ARGSUSED*/
@@ -655,6 +688,12 @@ u_header(text)
 char *text;		/* ignored */
 
 {
+    char *s;
+
+    s = trim_header(text);
+    if (s != NULL)
+	text = s;
+
     if (header_status == ERASE)
     {
 	putchar('\n');
@@ -662,6 +701,7 @@ char *text;		/* ignored */
 	clear_eol(header_length);
 	header_status = OFF;
     }
+    free(s);
 }
 
 /*
