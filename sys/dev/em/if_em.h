@@ -410,11 +410,6 @@ struct adapter {
 	boolean_t pcix_82544;
 	boolean_t in_detach;
 
-#ifdef DBG_STATS
-	unsigned long   no_pkts_avail;
-	unsigned long   clean_tx_interrupts;
-
-#endif
 	struct em_hw_stats stats;
 };
 
