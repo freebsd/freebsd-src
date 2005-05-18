@@ -405,14 +405,13 @@ ParsePopInput(void)
 static void
 parse_warn(char *line)
 {
-	char **argv;
-	int argc;
-	int i;
+	ArgArray	aa;
+	int		i;
 
-	argv = brk_string(line, &argc, TRUE);
+	brk_string(&aa, line, TRUE);
 
-	for (i = 1; i < argc; i++)
-		Main_ParseWarn(argv[i], 0);
+	for (i = 1; i < aa.argc; i++)
+		Main_ParseWarn(aa.argv[i], 0);
 }
 
 /*-
