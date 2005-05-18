@@ -273,7 +273,7 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	u_int n;
 
 	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)",
-	    func, arg, flag, wakeup);
+	    func, arg, flag, wuflag);
 	KASSERT(wuflag == 0 || wuflag == EV_WAKEUP,
 	    ("Wrong wuflag in g_post_event_x(0x%x)", wuflag));
 	ep = g_malloc(sizeof *ep, flag | M_ZERO);
