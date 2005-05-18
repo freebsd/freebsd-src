@@ -249,12 +249,6 @@ struct ixgb_buffer {
 	bus_dmamap_t    map;	/* bus_dma map for packet */
 };
 
-struct ixgb_q {
-	bus_dmamap_t    map;	/* bus_dma map for packet */
-	int             nsegs;	/* # of segments/descriptors */
-	bus_dma_segment_t segs[IXGB_MAX_SCATTER];
-};
-
 /*
  * Bus dma allocation structure used by ixgb_dma_malloc and ixgb_dma_free.
  */
