@@ -184,7 +184,7 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
       &merged;</para>
 
-    <para>Because of an information disclosure vulnerability on
+    <para arch="i386,amd64">Because of an information disclosure vulnerability on
       processors using Hyper-Threading Technology (HTT), the
       <varname>machdep.hyperthreading_allowed</varname> sysctl
       variable has been added.  It defaults to <literal>1</literal>
