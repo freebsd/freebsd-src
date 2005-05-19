@@ -78,6 +78,9 @@ _start(char *ap, ...)
 	char **env;
 	const char *s;
 
+#ifdef __GNUC__
+	__asm__("and $0xfffffff0,%esp");
+#endif
 	cleanup = get_rtld_cleanup();
 	argv = &ap;
 	argc = *(long *)(void *)(argv - 1);
