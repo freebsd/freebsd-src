@@ -125,7 +125,6 @@ struct cs4231_softc {
 	struct cs4231_channel	sc_pch;
 	struct cs4231_channel	sc_rch;
 	int			sc_enabled;
-	int			sc_rtype;
 	int			sc_nmres;
 	int			sc_nires;
 	int			sc_codecv;
@@ -345,7 +344,6 @@ cs4231_sbus_attach(device_t dev)
 	else
 		sc->sc_burst = 0;
 	sc->sc_flags = CS4231_SBUS;
-	sc->sc_rtype = SYS_RES_MEMORY;
 	sc->sc_nmres = 1;
 	sc->sc_nires = 1;
 	return cs4231_attach_common(sc);
@@ -365,7 +363,6 @@ cs4231_ebus_attach(device_t dev)
 	}
 	sc->sc_dev = dev;
 	sc->sc_burst = EBDCSR_BURST_1;
-	sc->sc_rtype = SYS_RES_IOPORT;
 	sc->sc_nmres = CS4231_RES_MEM_MAX;
 	sc->sc_nires = CS4231_RES_IRQ_MAX;
 	sc->sc_flags = CS4231_EBUS;
@@ -390,7 +387,7 @@ cs4231_attach_common(struct cs4231_softc *sc)
 	for (i = 0; i < sc->sc_nmres; i++) {
 		sc->sc_rid[i] = i;
 		if ((sc->sc_res[i] = bus_alloc_resource_any(sc->sc_dev,
-		    sc->sc_rtype, &sc->sc_rid[i], RF_ACTIVE)) == NULL) {
+		    SYS_RES_MEMORY, &sc->sc_rid[i], RF_ACTIVE)) == NULL) {
 			device_printf(sc->sc_dev,
 			    "cannot map register %d\n", i);
 			goto fail;
@@ -718,7 +715,7 @@ cs4231_free_resource(struct cs4231_softc *sc)
 	}
 	for (i = 0; i < sc->sc_nmres; i++) {
 		if (sc->sc_res[i])
-			bus_release_resource(sc->sc_dev, sc->sc_rtype,
+			bus_release_resource(sc->sc_dev, SYS_RES_MEMORY,
 			    sc->sc_rid[i], sc->sc_res[i]);
 	}
 	snd_mtxfree(sc->sc_lock);
