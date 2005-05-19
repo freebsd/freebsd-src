@@ -688,11 +688,6 @@ u_header(text)
 char *text;		/* ignored */
 
 {
-    char *s;
-
-    s = trim_header(text);
-    if (s != NULL)
-	text = s;
 
     if (header_status == ERASE)
     {
@@ -701,7 +696,6 @@ char *text;		/* ignored */
 	clear_eol(header_length);
 	header_status = OFF;
     }
-    free(s);
 }
 
 /*
