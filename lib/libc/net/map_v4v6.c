@@ -79,31 +79,25 @@ typedef union {
 } align;
 
 void
-_map_v4v6_address(src, dst)
-	const char *src;
-	char *dst;
+_map_v4v6_address(const char *src, char *dst)
 {
 	u_char *p = (u_char *)dst;
-	char tmp[INADDRSZ];
+	char tmp[NS_INADDRSZ];
 	int i;
 
 	/* Stash a temporary copy so our caller can update in place. */
-	bcopy(src, tmp, INADDRSZ);
+	memcpy(tmp, src, NS_INADDRSZ);
 	/* Mark this ipv6 addr as a mapped ipv4. */
 	for (i = 0; i < 10; i++)
 		*p++ = 0x00;
 	*p++ = 0xff;
 	*p++ = 0xff;
 	/* Retrieve the saved copy and we're done. */
-	bcopy(tmp, (void*)p, INADDRSZ);
+	memcpy((void*)p, tmp, NS_INADDRSZ);
 }
 
 void
-_map_v4v6_hostent(hp, bpp, epp)
-	struct hostent *hp;
-	char **bpp;
-	char **epp;
-{
+_map_v4v6_hostent(struct hostent *hp, char **bpp, char *ep) {
 	char **ap;
 
 	if (hp->h_addrtype != AF_INET || hp->h_length != INADDRSZ)
@@ -111,10 +105,13 @@ _map_v4v6_hostent(hp, bpp, epp)
 	hp->h_addrtype = AF_INET6;
 	hp->h_length = IN6ADDRSZ;
 	for (ap = hp->h_addr_list; *ap; ap++) {
-		int i = sizeof(align) - ((u_long)*bpp % sizeof(align));
+		int i = (u_long)*bpp % sizeof(align);
 
-		if (*epp - *bpp < (i + IN6ADDRSZ)) {
-			/* Out of memory.  Truncate address list here.  XXX */
+		if (i != 0)
+			i = sizeof(align) - i;
+
+		if ((ep - *bpp) < (i + IN6ADDRSZ)) {
+			/* Out of memory.  Truncate address list here. */
 			*ap = NULL;
 			return;
 		}

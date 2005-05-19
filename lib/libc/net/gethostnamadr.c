@@ -205,7 +205,7 @@ gethostbyname_internal(const char *name, int af, struct hostent *he,
 				hed->h_addr_ptrs[1] = NULL;
 				he->h_addr_list = hed->h_addr_ptrs;
 				if (_res.options & RES_USE_INET6)
-					_map_v4v6_hostent(he, &bp, &ep);
+					_map_v4v6_hostent(he, &bp, ep);
 				h_errno = NETDB_SUCCESS;
 				return 0;
 			}
