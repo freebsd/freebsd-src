@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Install whatever files are in ${.CURDIR}/Files
+#
+# Copyright (c) 2004 Poul-Henning Kamp
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+#
+# Usage:
+# ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR} [ ${LOCAL_FILES_LIST} ]
+
+cd $3/Files
+find . -print | cpio -dumpv $1
