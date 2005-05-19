@@ -58,8 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -126,11 +129,14 @@ eeprom_attach(device_t dev)
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct mk48txx_softc));
 
+	mtx_init(&sc->sc_mtx, "eeprom_mtx", NULL, MTX_DEF);
+
 	rid = 0;
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "cannot allocate resources\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto fail_mtx;
 	}
 	sc->sc_bst = rman_get_bustag(res);
 	sc->sc_bsh = rman_get_bushandle(res);
@@ -158,6 +164,7 @@ eeprom_attach(device_t dev)
 	 * on the latter models. A generic way to retrieve the hostid is to
 	 * use the `idprom' node.
 	 */
+	mtx_lock(&sc->sc_mtx);
 	h = bus_space_read_1(sc->sc_bst, sc->sc_bsh, sc->sc_nvramsz -
 	    IDPROM_OFFSET + offsetof(struct idprom, id_machine)) << 24;
 	for (i = 0; i < 3; i++) {
@@ -165,6 +172,7 @@ eeprom_attach(device_t dev)
 		    IDPROM_OFFSET + offsetof(struct idprom, id_hostid[i])) <<
 		    ((2 - i) * 8);
 	}
+	mtx_unlock(&sc->sc_mtx);
 	if (h != 0)
 		device_printf(dev, "hostid %x\n", (u_int)h);
 
@@ -178,6 +186,8 @@ eeprom_attach(device_t dev)
 
  fail_res:
 	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+ fail_mtx:
+	mtx_destroy(&sc->sc_mtx);
 
 	return (error);
 }
