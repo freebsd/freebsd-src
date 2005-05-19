@@ -82,7 +82,7 @@ newfs ${PRIROOTLABEL} -O1 -U ${MD}s1a
 mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
 make_fstab ${PRIROOTSLICE} ${TMPMNT}
-df ${TMPMNT}
+df -i ${TMPMNT}
 umount ${TMPMNT}
 
 # Prepare alternative root slice
