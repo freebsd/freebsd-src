@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# Install whatever packages are in ${.CURDIR}/Pkg
+#
+# Copyright (c) 2004 Poul-Henning Kamp
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+#
+# Usage:
+# ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR} [ ${LOCAL_FILES_LIST} ]
+
+rm -rf $1/tmp/Pkg $1/var/db/pkg/* $1/usr/local/*
+mkdir $1/tmp/Pkg
+ln $3/Pkg/* $1/tmp/Pkg
+( chroot $1 sh -c "cd /tmp/Pkg && pkg_add -v *" )
+rm -rf $1/tmp/Pkg
