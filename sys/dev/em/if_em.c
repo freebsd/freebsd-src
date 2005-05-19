@@ -893,7 +893,7 @@ em_init_locked(struct adapter * adapter)
 			ifp->if_hwassist = 0;
 	}
 
-	callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
+	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	em_clear_hw_cntrs(&adapter->hw);
 #ifdef DEVICE_POLLING
         /*
@@ -950,7 +950,7 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
                         adapter->hw.get_link_status = 1;
                         em_check_for_link(&adapter->hw);
                         em_print_link_status(adapter);
-			callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
+			callout_reset(&adapter->timer, hz, em_local_timer, adapter);
                 }
         }
         if (ifp->if_flags & IFF_RUNNING) {
@@ -1017,7 +1017,7 @@ em_intr(void *arg)
                 adapter->hw.get_link_status = 1;
                 em_check_for_link(&adapter->hw);
                 em_print_link_status(adapter);
-		callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
+		callout_reset(&adapter->timer, hz, em_local_timer, adapter);
         }
 
         while (loop_cnt > 0) { 
@@ -1660,7 +1660,7 @@ em_local_timer(void *arg)
 	}
 	em_smartspeed(adapter);
 
-	callout_reset(&adapter->timer, 2*hz, em_local_timer, adapter);
+	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 
 	EM_UNLOCK(adapter);
 	return;
