@@ -42,35 +42,79 @@ __FBSDID("$FreeBSD$");
 
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
 
+static int
+ofw_mapmem(vm_offset_t dest, const size_t len)
+{
+        void    *destp, *addr;
+        size_t  dlen;
+        size_t  resid;
+	size_t  nlen;
+        static vm_offset_t last_dest = 0;
+        static size_t last_len = 0;
+
+	nlen = len;
+        /*
+         * Check to see if this region fits in a prior mapping.
+         * Allocations are generally sequential, so only check
+         * the last one.
+         */
+        if (dest >= last_dest &&
+            (dest + len) <= (last_dest + last_len)) {
+                return (0);
+	}
+
+	/*
+	 * Trim area covered by existing mapping, if any
+	 */
+	if (dest < (last_dest + last_len)) {
+		nlen -= (last_dest + last_len) - dest;
+		dest = last_dest + last_len;
+	}
+
+        destp = (void *)(dest & ~PAGE_MASK);
+        resid = dest & PAGE_MASK;
+
+	/*
+	 * To avoid repeated mappings on small allocations,
+	 * never map anything less than 16 pages at a time
+	 */
+	if ((nlen + resid) < PAGE_SIZE*8) {
+		dlen = PAGE_SIZE*8;
+	} else
+		dlen = roundup(nlen + resid, PAGE_SIZE);
+
+        if (OF_call_method("claim", memory, 3, 1, destp, dlen, 0, &addr)
+            == -1) {
+                printf("ofw_mapmem: physical claim failed\n");
+                return (ENOMEM);
+        }
+
+        if (OF_call_method("claim", mmu, 3, 1, destp, dlen, 0, &addr) == -1) {
+                printf("ofw_mapmem: virtual claim failed\n");
+                return (ENOMEM);
+        }
+
+        if (OF_call_method("map", mmu, 4, 0, destp, destp, dlen, 0) == -1) {
+                printf("ofw_mapmem: map failed\n");
+                return (ENOMEM);
+        }
+
+        last_dest = (vm_offset_t) destp;
+        last_len  = dlen;
+
+        return (0);
+}
+
 ssize_t
 ofw_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
-	void	*destp, *addr;
-	size_t	dlen;
-	size_t  resid;
+        if (ofw_mapmem(dest, len)) {
+                printf("ofw_copyin: map error\n");
+                return (0);
+        }
 
-	destp = (void *)(dest & ~PAGE_MASK);
-	resid = dest & PAGE_MASK;
-	dlen = roundup(len + resid, PAGE_SIZE);
-
-	if (OF_call_method("claim", memory, 3, 1, destp, dlen, 0, &addr)
-	    == -1) {
-		printf("ofw_copyin: physical claim failed\n");
-		return (0);
-	}
-
-	if (OF_call_method("claim", mmu, 3, 1, destp, dlen, 0, &addr) == -1) {
-		printf("ofw_copyin: virtual claim failed\n");
-		return (0);
-	}
-
-	if (OF_call_method("map", mmu, 4, 0, destp, destp, dlen, 0) == -1) {
-		printf("ofw_copyin: map failed\n");
-		return (0);
-	}
-
-	bcopy(src, (void *)dest, len);
-	return(len);
+        bcopy(src, (void *)dest, len);
+        return(len);
 }
 
 ssize_t
@@ -97,6 +141,12 @@ ofw_readin(const int fd, vm_offset_t dest, const size_t len)
 		return(0);
 	}
 
+        if (ofw_mapmem(dest, len)) {
+                printf("ofw_readin: map error\n");
+                free(buf);
+                return (0);
+        }
+
 	for (resid = len; resid > 0; resid -= got, p += got) {
 		get = min(chunk, resid);
 		got = read(fd, buf, get);
@@ -107,7 +157,7 @@ ofw_readin(const int fd, vm_offset_t dest, const size_t len)
 			break;
 		}
 
-		ofw_copyin(buf, p, got);
+		bcopy(buf, (void *)p, got);
 	}
 
 	free(buf);
