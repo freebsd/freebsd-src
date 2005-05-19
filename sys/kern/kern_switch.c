@@ -353,7 +353,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	if (running_thread->td_ksegrp != td->td_ksegrp)
 		return;
 
-	if (td->td_priority > running_thread->td_priority)
+	if (td->td_priority >= running_thread->td_priority)
 		return;
 #ifdef PREEMPTION
 	if (running_thread->td_critnest > 1) 
@@ -442,7 +442,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	}	
 #endif
 
-	if (td->td_priority > running_thread->td_priority)
+	if (td->td_priority >= running_thread->td_priority)
 		return;
 #ifdef PREEMPTION
 	if (running_thread->td_critnest > 1) 
