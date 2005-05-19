@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# Copyright (c) 2004 Poul-Henning Kamp
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+
+set -ex
+
+mount /dev/ad0s3 /mnt
+mkdir -p /mnt/ssh
+(
+cd /etc/ssh
+cp ssh_host_* /mnt/ssh
+)
+umount /mnt
