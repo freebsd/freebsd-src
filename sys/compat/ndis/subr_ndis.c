@@ -3238,19 +3238,25 @@ NdisMRegisterDevice(handle, devname, symname, majorfuncs, devobj, devhandle)
 	void			**devobj;
 	ndis_handle		*devhandle;
 {
-	ndis_miniport_block	*block;
+	uint32_t		status;
+	device_object		*dobj;
 
-	block = (ndis_miniport_block *)handle;
-	*devobj = block->nmb_deviceobj;
-	*devhandle = handle;
+	status = IoCreateDevice(handle, 0, devname,
+	    FILE_DEVICE_UNKNOWN, 0, FALSE, &dobj);
 
-	return(NDIS_STATUS_SUCCESS);
+	if (status == STATUS_SUCCESS) {
+		*devobj = dobj;
+		*devhandle = dobj;
+	}
+
+	return(status);
 }
 
 static ndis_status
 NdisMDeregisterDevice(handle)
 	ndis_handle		handle;
 {
+	IoDeleteDevice(handle);
 	return(NDIS_STATUS_SUCCESS);
 }
 
