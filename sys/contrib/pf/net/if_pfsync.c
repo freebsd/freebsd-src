@@ -83,6 +83,18 @@
 #include <netinet6/nd6.h>
 #endif /* INET6 */
 
+#ifdef __FreeBSD__
+#include "opt_carp.h"
+#ifdef DEV_CARP
+#define NCARP   1 
+#endif
+#else
+#include "carp.h"
+#endif
+#if NCARP > 0
+extern int carp_suppress_preempt;
+#endif
+
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 
@@ -803,6 +815,10 @@ pfsync_input(struct mbuf *m, ...)
 #else
 				timeout_del(&sc->sc_bulkfail_tmo);
 #endif
+#if NCARP > 0
+				if (!pfsync_sync_ok)
+					carp_suppress_preempt--;
+#endif
 				pfsync_sync_ok = 1;
 				if (pf_status.debug >= PF_DEBUG_MISC)
 					printf("pfsync: received valid "
@@ -969,6 +985,10 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_ureq_sent = time_uptime;
 #else
 			sc->sc_ureq_sent = mono_time.tv_sec;
+#endif
+#if NCARP > 0
+			if (pfsync_sync_ok)
+				carp_suppress_preempt++;
 #endif
 			pfsync_sync_ok = 0;
 			if (pf_status.debug >= PF_DEBUG_MISC)
@@ -1510,6 +1530,10 @@ pfsync_bulkfail(void *v)
 		/* Pretend like the transfer was ok */
 		sc->sc_ureq_sent = 0;
 		sc->sc_bulk_tries = 0;
+#if NCARP > 0
+		if (!pfsync_sync_ok)
+			carp_suppress_preempt--;
+#endif
 		pfsync_sync_ok = 1;
 		if (pf_status.debug >= PF_DEBUG_MISC)
 			printf("pfsync: failed to receive "
