@@ -27,12 +27,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/systm.h>
+
+#include <machine/asmacros.h>
+#include <machine/timerreg.h>
+
 #ifdef GUPROF
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"
 
-#include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/gmon.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -41,12 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/perfmon.h>
 #include <machine/profile.h>
 #undef MCOUNT
-#endif
 
-#include <machine/asmacros.h>
-#include <machine/timerreg.h>
-
-#ifdef GUPROF
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
 #define	CPUTIME_CLOCK_TSC		2
