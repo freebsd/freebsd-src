@@ -101,6 +101,7 @@ openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	char *buf;
 	int error;
 
+	prop = buf = NULL;
 	error = 0;
 	oprom = *(void **)data;
 	switch (cmd) {
@@ -142,10 +143,18 @@ openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			break;
 		}
 		prop = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
+		if (prop == NULL) {
+			error = ENOMEM;
+			break;
+		}
 		error = copyinstr(&oprom->oprom_array, prop, len, &done);
 		if (error != 0)
 			break;
 		buf = malloc(OPROMMAXPARAM, M_TEMP, M_WAITOK | M_ZERO);
+		if (buf == NULL) {
+			error = ENOMEM;
+			break;
+		}
 		node = openprom_node;
 		switch (cmd) {
 		case OPROMGETPROP:
@@ -169,13 +178,17 @@ openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 				    proplen + 1);
 		} else
 			error = EINVAL;
-		free(prop, M_TEMP);
-		free(buf, M_TEMP);
 		break;
 	default:
 		error = ENOIOCTL;
 		break;
 	}
+
+	if (prop != NULL)
+		free(prop, M_TEMP);
+	if (buf != NULL)
+		free(buf, M_TEMP);
+
 	return (error);
 }
 
