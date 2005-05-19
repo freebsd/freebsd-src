@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/bus.h>
 
@@ -57,6 +59,11 @@ mc146818_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if (mtx_initialized(&sc->sc_mtx) == 0) {
+		device_printf(dev, "%s: mutex not initialized\n", __func__);
+		return (ENXIO);
+	}
+
 	if (sc->sc_mcread == NULL)
 		sc->sc_mcread = mc146818_def_read;
 	if (sc->sc_mcwrite == NULL)
@@ -73,8 +80,10 @@ mc146818_attach(device_t dev)
 			sc->sc_setcent = mc146818_def_setcent;
 	}
 
+	mtx_lock(&sc->sc_mtx);
 	if (!(*sc->sc_mcread)(dev, MC_REGD) & MC_REGD_VRT) {
-		device_printf(dev, "mc146818_attach: battery low\n");
+		mtx_unlock(&sc->sc_mtx);
+		device_printf(dev, "%s: battery low\n", __func__);
 		return (ENXIO);
 	}
 
@@ -85,6 +94,7 @@ mc146818_attach(device_t dev)
 	sc->sc_regb |= (sc->sc_flag & MC146818_BCD) ? 0 : MC_REGB_BINARY;
 	sc->sc_regb |= (sc->sc_flag & MC146818_12HR) ? 0 : MC_REGB_24HR;
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
+	mtx_unlock(&sc->sc_mtx);
 
 	clock_register(dev, 1000000);	/* 1 second resolution. */
 
@@ -106,12 +116,7 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 
 	timeout = 1000000;	/* XXX how long should we wait? */
 
-	/*
-	 * XXX:	Use a spinlock to mutex register access and increase the
-	 *	likelihood that all registers are read before an update
-	 *	occurs.
-	 */
-
+	mtx_lock(&sc->sc_mtx);
 	/*
 	 * If MC_REGA_UIP is 0 we have at least 244us before the next
 	 * update. If it's 1 an update is imminent.
@@ -120,7 +125,8 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP))
 			break;
 		if (--timeout < 0) {
-			device_printf(dev, "mc146818_gettime: timeout\n");
+			mtx_unlock(&sc->sc_mtx);
+			device_printf(dev, "%s: timeout\n", __func__);
 			return (EBUSY);
 		}
 	}
@@ -131,18 +137,19 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 	ct.sec = FROMREG((*sc->sc_mcread)(dev, MC_SEC));
 	ct.min = FROMREG((*sc->sc_mcread)(dev, MC_MIN));
 	ct.hour = FROMREG((*sc->sc_mcread)(dev, MC_HOUR));
+	/* Map dow from 1 - 7 to 0 - 6. */
 	ct.dow = FROMREG((*sc->sc_mcread)(dev, MC_DOW)) - 1;
 	ct.day = FROMREG((*sc->sc_mcread)(dev, MC_DOM));
 	ct.mon = FROMREG((*sc->sc_mcread)(dev, MC_MONTH));
 	year = FROMREG((*sc->sc_mcread)(dev, MC_YEAR));
-	if (sc->sc_getcent) {
+	year += sc->sc_year0;
+	if (sc->sc_flag & MC146818_NO_CENT_ADJUST) {
 		cent = (*sc->sc_getcent)(dev);
 		year += cent * 100;
-	}
-
-	year += sc->sc_year0;
-	if (year < POSIX_BASE_YEAR && !(sc->sc_flag & MC146818_NO_CENT_ADJUST))
+	} else if (year < POSIX_BASE_YEAR)
 		year += 100;
+	mtx_unlock(&sc->sc_mtx);
+
 	ct.year = year;
 
 	return (clock_ct_to_ts(&ct, ts));
@@ -159,16 +166,19 @@ mc146818_getsecs(device_t dev, int *secp)
 
 	timeout = 1000000;	/* XXX how long should we wait? */
 
+	mtx_lock(&sc->sc_mtx);
 	for (;;) {
 		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP)) {
 			sec = FROMREG((*sc->sc_mcread)(dev, MC_SEC));
 			break;
 		}
 		if (--timeout == 0) {
-			device_printf(dev, "mc146818_getsecs: timeout\n");
+			mtx_unlock(&sc->sc_mtx);
+			device_printf(dev, "%s: timeout\n", __func__);
 			return (EBUSY);
 		}
 	}
+	mtx_unlock(&sc->sc_mtx);
 
 #undef FROMREG
 
@@ -196,6 +206,7 @@ mc146818_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
 
+	mtx_lock(&sc->sc_mtx);
 	/* Disable RTC updates and interrupts (if enabled). */
 	(*sc->sc_mcwrite)(dev, MC_REGB,
 	    ((sc->sc_regb & (MC_REGB_BINARY | MC_REGB_24HR)) | MC_REGB_SET));
@@ -205,22 +216,23 @@ mc146818_settime(device_t dev, struct timespec *ts)
 	(*sc->sc_mcwrite)(dev, MC_SEC, TOREG(ct.sec));
 	(*sc->sc_mcwrite)(dev, MC_MIN, TOREG(ct.min));
 	(*sc->sc_mcwrite)(dev, MC_HOUR, TOREG(ct.hour));
+	/* Map dow from 0 - 6 to 1 - 7. */
 	(*sc->sc_mcwrite)(dev, MC_DOW, TOREG(ct.dow + 1));
 	(*sc->sc_mcwrite)(dev, MC_DOM, TOREG(ct.day));
 	(*sc->sc_mcwrite)(dev, MC_MONTH, TOREG(ct.mon));
 
 	year = ct.year - sc->sc_year0;
-	if (sc->sc_setcent) {
+	if (sc->sc_flag & MC146818_NO_CENT_ADJUST) {
 		cent = year / 100;
 		(*sc->sc_setcent)(dev, cent);
 		year -= cent * 100;
-	}
-	if (year > 99 && (sc->sc_flag & MC146818_NO_CENT_ADJUST) == 0)
+	} else if (year > 99)
 		year -= 100;
 	(*sc->sc_mcwrite)(dev, MC_YEAR, TOREG(year));
 
 	/* Reenable RTC updates and interrupts. */
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
+	mtx_unlock(&sc->sc_mtx);
 
 #undef TOREG
 
