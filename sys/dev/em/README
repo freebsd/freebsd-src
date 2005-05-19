@@ -2,14 +2,14 @@ $FreeBSD$
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-July 24, 2003
+March 18, 2005
 
 
 Contents
 ========
 
 - Overview
-- Supported Adapters
+- Identifying Your Adapter
 - Building and Installation
 - Speed and Duplex Configuration
 - Additional Configurations
@@ -21,82 +21,42 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver, version 1.7.x, for the Intel(R)
-PRO/1000 Family of Adapters. This driver has been developed for use with 
-FreeBSD, version 4.7. 
+This file describes the FreeBSD* driver, version 2.1.x, for the Intel(R)
+PRO/1000 Family of Adapters.
 
-For questions related to hardware requirements, refer to the documentation 
-supplied with your Intel PRO/1000 adapter. All hardware requirements listed 
+For questions related to hardware requirements, refer to the documentation
+supplied with your Intel PRO/1000 adapter. All hardware requirements listed
 apply to use with FreeBSD.
 
 
-Supported Adapters
-==================
+Identifying Your Adapter
+========================
 
-The following Intel network adapters are compatible with the drivers in this 
-release:
-
-   Controller  Adapter Name                         Board IDs
-   ----------  ------------                         ---------
-
-   82542       PRO/1000 Gigabit Server Adapter      700262-xxx, 717037-xxx
-
-   82543       PRO/1000 F Server Adapter            738640-xxx, A38888-xxx,
-                                                    A06512-xxx
-
-   82543       PRO/1000 T Server Adapter            A19845-xxx, A33948-xxx
-
-   82544       PRO/1000 XT Server Adapter           A51580-xxx
-
-   82544       PRO/1000 XF Server Adapter           A50484-xxx
-
-   82544       PRO/1000 T Desktop Adapter           A62947-xxx
-
-   82540       PRO/1000 MT Desktop Adapter          A78408-xxx
-
-   82541       PRO/1000 MT Desktop Adapter          C91016-xxx
-
-   82545       PRO/1000 MT Server Adapter           A92165-xxx
-
-   82545       PRO/1000 MF Server Adapter           A91622-xxx
-
-   82545       PRO/1000 MF Server Adapter(LX)       A91624-xxx
-
-   82546       PRO/1000 MT Dual Port Server Adapter A92111-xxx
-
-   82546       PRO/1000 MF Dual Port Server Adapter A91620-xxx
-
-   82546EB     PRO/1000 MT Quad Port Server Adapter C11227-xxx 
-
-   82547       PRO/1000 CT Network Connection
-
-
-To verify your Intel adapter is supported, find the board ID number on the
-adapter. Look for a label that has a barcode and a number in the format of
-123456-001 (six digits hyphen three digits). Match this to the list of 
-numbers above.
-
-For more information on how to identify your adapter, go to the Adapter &
+For information on how to identify your adapter, go to the Adapter &
 Driver ID Guide at:
 
-    http://support.intel.com/support/network/adapter/pro100/21397.htm
+http://support.intel.com/support/network/adapter/pro100/21397.htm
+
 
 For the latest Intel network drivers for FreeBSD, see:
 
-    http://appsr.intel.com/scripts-df/support_intel.asp
+http://appsr.intel.com/scripts-df/support_intel.asp
+
+
+NOTE: Mobile adapters are not fully supported.
 
 
 Building and Installation
 =========================
 
-NOTE: The driver can be installed as a dynamic loadable kernel module or 
-      compiled into the kernel. You must have kernel sources installed in 
+NOTE: The driver can be installed as a dynamic loadable kernel module or
+      compiled into the kernel. You must have kernel sources installed in
       order to compile the driver module.
 
-In the instructions below, x.x.x is the driver version as indicated in the 
+In the instructions below, x.x.x is the driver version as indicated in the
 name of the driver tar file.
 
-1. Move the base driver tar file to the directory of your choice. For 
+1. Move the base driver tar file to the directory of your choice. For
    example, use /home/username/em or /usr/local/src/em.
 
 2. Untar/unzip the archive:
@@ -105,24 +65,23 @@ name of the driver tar file.
 
    This will create an em-x.x.x directory.
 
-3. To create a loadable module, perform the following steps. 
+3. To create a loadable module, perform the following steps.
    NOTE: To compile the driver into the kernel, go directly to step 4.
 
-	a. To compile the module
+        a. To compile the module
 
-	          cd em-x.x.x
-      	          make
+                  cd em-x.x.x
+                  make
 
-   	b. To install the compiled module in system directory:
-	 
-		  make install
-		
-   	c. If you want the driver to load automatically when the system is booted:
+        b. To install the compiled module in system directory:
 
-      	      1. Follow steps a, and b above to compile and install the module
-	      2. Edit /boot/loader.conf, and add the following line:
+                  make install
 
-      	          if_em_load="YES"
+        c. If you want the driver to load automatically when the system is booted:
+
+              1. Edit /boot/loader.conf, and add the following line:
+
+                  if_em_load="YES"
 
 4. To compile the driver into the kernel:
 
@@ -132,25 +91,26 @@ name of the driver tar file.
 
         cp Makefile.kernel /usr/src/sys/modules/em/Makefile
 
-   Edit the /usr/src/sys/conf/files.i386 file, and add the following lines:
+   Edit the /usr/src/sys/conf/files.i386 file, and add the following lines only if
+   they don't already exist:
 
         dev/em/if_em.c optional em
 
-        dev/em/if_em_hw.c optional em 
+        dev/em/if_em_hw.c optional em
 
-   Remove the following lines from the /usr/src/sys/conf/files.i386 file, 
+   Remove the following lines from the /usr/src/sys/conf/files.i386 file,
    if they exist:
 
         dev/em/if_em_fxhw.c optional em
         dev/em/if_em_phy.c optional em
 
-   Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in 
+   Edit the kernel configuration file (i.e., GENERIC or MYKERNEL) in
    /usr/src/sys/i386/conf, and ensure the following line is present:
 
         device em
 
    Compile and install the kernel. The system must be rebooted for the kernel
-   updates to take effect. For additional information on compiling the 
+   updates to take effect. For additional information on compiling the
    kernel, consult the FreeBSD operating system documentation.
 
 5. To assign an IP address to the interface, enter the following:
@@ -163,8 +123,8 @@ name of the driver tar file.
 
         ping <IP_address>
 
-7. To configure the IP address to remain after reboot, edit /etc/rc.conf, 
-   and create the appropriate ifconfig_em<interface_num> entry:
+7. To configure the IP address to remain after reboot, edit /etc/rc.conf,
+   and create the appropriate ifconfig_em<interface_num>entry:
 
         ifconfig_em<interface_num>="<ifconfig_settings>"
 
@@ -178,15 +138,15 @@ name of the driver tar file.
 Speed and Duplex Configuration
 ==============================
 
-By default, the adapter auto-negotiates the speed and duplex of the 
-connection. If there is a specific need, the ifconfig utility can be used to 
+By default, the adapter auto-negotiates the speed and duplex of the
+connection. If there is a specific need, the ifconfig utility can be used to
 configure the speed and duplex settings on the adapter. Example usage:
 
-        ifconfig em<interface_num> <IP_address> media 100baseTX mediaopt 
+        ifconfig em<interface_num> <IP_address> media 100baseTX mediaopt
             full-duplex
 
-   NOTE: Only use mediaopt to set the driver to full-duplex. If mediaopt is 
-         not specified and you are not running at gigabit speed, the driver 
+   NOTE: Only use mediaopt to set the driver to full-duplex. If mediaopt is
+         not specified and you are not running at gigabit speed, the driver
          defaults to half-duplex.
 
 
@@ -194,7 +154,7 @@ This driver supports the following media type options:
 
    autoselect      -  Enables auto-negotiation for speed and duplex.
 
-   10baseT/UTP     -  Sets speed to 10 Mbps. Use the ifconfig mediaopt 
+   10baseT/UTP     -  Sets speed to 10 Mbps. Use the ifconfig mediaopt
                       option to select full-duplex mode.
 
    100baseTX       -  Sets speed to 100 Mbps. Use the ifconfig mediaopt
@@ -212,117 +172,139 @@ For more information on the ifconfig utility, see the ifconfig man page.
 Additional Configurations
 =========================
 
-The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on 
-all but the 82542-based adapters. For specific adapters, refer to the 
-Supported Adapters section.
+The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
+all but the 82542-based adapters. For specific adapters, refer to the
+Identifying Your Adapter section.
 
   Jumbo Frames
   ------------
-  To enable Jumbo Frames, use the ifconfig utility to increase the MTU 
-  beyond 1500 bytes. 
+  To enable Jumbo Frames, use the ifconfig utility to increase the MTU
+  beyond 1500 bytes.
 
-  NOTES: Only enable Jumbo Frames if your network infrastructure supports 
+  NOTES: Only enable Jumbo Frames if your network infrastructure supports
          them.
-   
-         The Jumbo Frames setting on the switch must be set to at least 
-         22 bytes larger than that of the adapter.
 
-  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default 
+         The Jumbo Frames setting on the switch must be set to at least
+         22 bytes larger than that of the MTU.
+
+         The Intel PRO/1000 PM Network Connection does not support jumbo
+         frames.
+
+
+  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default
   MTU range is 1500. To modify the setting, enter the following:
 
         ifconfig em<interface_num> <hostname or IP address> mtu 9000
 
-  To confirm an interface's MTU value, use the ifconfig command. To confirm
-  the MTU used between two specific devices, use:
+ To confirm the MTU used between two specific devices, use:
 
         route get <destination_IP_address>
 
   VLANs
   -----
-  To create a new VLAN pseudo-interface:
+  To create a new VLAN interface:
 
         ifconfig <vlan_name> create
 
-  To associate the VLAN pseudo-interface with a physical interface and 
+  To associate the VLAN interface with a physical interface and
   assign a VLAN ID, IP address, and netmask:
 
-        ifconfig <vlan_name> <ip_address> netmask <subnet_mask> vlan 
+        ifconfig <vlan_name> <ip_address> netmask <subnet_mask> vlan
            <vlan_id> vlandev <physical_interface>
 
   Example:
 
         ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan10 vlandev em0
 
-  In this example, all packets will be marked on egress with  802.1Q VLAN 
+  In this example, all packets will be marked on egress with  802.1Q VLAN
   tags, specifying a VLAN ID of 10.
 
-  To remove a VLAN pseudo-interface:
+  To remove a VLAN interface:
 
         ifconfig <vlan_name> destroy
 
   Polling
   -------
-  To enable polling in the driver, add the following options to the kernel 
+  NOTES: DEVICE POLLING is only valid for non-SMP kernels.
+
+        The driver has to be compiled into the kernel for DEVICE POLLING to be
+        enabled in the driver.
+
+  To enable polling in the driver, add the following options to the kernel
   configuration, and then recompile the kernel:
 
         options DEVICE_POLLING
         options HZ=1000
 
-  At runtime, use the following command to turn on polling mode. Similarly,
-  turn off polling mode by setting the variable to 0:
+  At runtime use:
+        sysctl kern.polling.enable=1 to turn polling on
+  Use:
+        sysctl ker.polling.enable=0 to turn polling off
 
-        sysctl kern.polling.enable=1
+  Checksum Offload
+  ----------------
+  Checksum offloading is not supported on 82542 Gigabit adapters.
 
+  Checksum offloading supports both TCP and UDP packets and is
+  supported for both transmit and receive.
 
-  NOTES: DEVICE POLLING is only valid for non-SMP kernels.
+  Checksum offloading can be enabled or disabled using ifconfig.
+  Both transmit and receive offloading will be either enabled or
+  disabled together. You cannot enable/disable one without the other.
 
-         The driver has to be built into the kernel for DEVICE POLLING to be
-         enabled in the driver.
+  To enable checksum offloading:
 
+         ifconfig <interface_num> rxcsum
+
+  To disable checksum offloading:
+
+         ifconfig <interface_num> -rxcsum
+
+  To confirm the current setting:
+
+         ifconfig <interface_num>
+
+  Look for the presence or absence of the following line:
+
+         options=3 <RXCSUM,TXCSUM>
+
+  See the ifconfig man page for further information.
 
 Known Limitations
 =================
- 
+
   There are known performance issues with this driver when running UDP traffic
-  with Jumbo Frames. Intel recommends not using Jumbo Frames for UDP traffic.
+  with Jumbo Frames.
 
-
-  82541/82547 can't link or is slow to link with some link partners
-  -----------------------------------------------------------------
-
-  There is a known compatibility issue with 82541/82547 and some switches 
-  where link will not be established, or will be slow to establish.  In 
-  particular, these switches are known to be incompatible with 82541/82547:
-
+  There is a known compatibility issue where time to link is slow or link is not
+  established between 82541/82547 controllers and some switches.  Known switches
+  include:
         Planex FXG-08TE
         I-O Data ETG-SH8
 
-  To workaround the issue, the driver can be compiled with an override of the 
-  PHY's master/slave setting.  Forcing master or forcing slave mode will 
-  improve time-to-link.
+  The driver can be compiled with the following changes:
 
-  Edit ./em.x.x.x/src/if_em.h to remove the #define EM_MASTER_SLAVE 
-  from within the comments.  
+  Edit ./em.x.x.x/src/if_em.h to uncomment the #define EM_MASTER_SLAVE
+  from within the comments.  For example, change from:
 
       /* #define EM_MASTER_SLAVE  2 */
-      #define EM_MASTER_SLAVE  2 
+  to:
+      #define EM_MASTER_SLAVE  2
 
-  Use one of the following options.
-      0 = Hardware default
+  Use one of the following options:
       1 = Master mode
       2 = Slave mode
       3 = Auto master/slave
+  Setting 2 is recommended.
 
-  Recompile the module (refer to step 3 above)
-  a. To compile the module
-
-          cd em-x.x.x
-          make clean
-          make
+  Recompile the module:
+          a. To compile the module
+                cd em-x.x.x
+                make clean
+                make
 
    b. To install the compiled module in system directory:
- 
-          make install
+                make install
 
 
 Support
@@ -332,20 +314,18 @@ For general information and support, go to the Intel support website at:
 
         http://support.intel.com
 
-If an issue is identified with the released source code on the supported
-kernel with a supported adapter, email the specific information related to 
-the issue to freebsdnic@mailbox.intel.com.
-
+If an issue is identified, support is through email only at:
+freebsdnic@mailbox.intel.com
 
 License
 =======
 
-This software program is released under the terms of a license agreement 
-between you ('Licensee') and Intel. Do not use or load this software or any 
-associated materials (collectively, the 'Software') until you have carefully 
-read the full terms and conditions of the LICENSE located in this software 
-package. By loading or using the Software, you agree to the terms of this 
-Agreement. If you do not agree with the terms of this Agreement, do not 
+This software program is released under the terms of a license agreement
+between you ('Licensee') and Intel. Do not use or load this software or any
+associated materials (collectively, the 'Software') until you have carefully
+read the full terms and conditions of the LICENSE located in this software
+package. By loading or using the Software, you agree to the terms of this
+Agreement. If you do not agree with the terms of this Agreement, do not
 install or use the Software.
 
 * Other names and brands may be claimed as the property of others.
