@@ -52,8 +52,6 @@ ACPI_MODULE_NAME("AC_ADAPTER")
 /* Number of times to retry initialization before giving up. */
 #define ACPI_ACAD_RETRY_MAX		6
 
-#define ACPI_DEVICE_CHECK_PNP		0x00
-#define ACPI_DEVICE_CHECK_EXISTENCE	0x01
 #define ACPI_POWERSOURCE_STAT_CHANGE	0x80
 
 struct	acpi_acad_softc {
@@ -122,8 +120,8 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     dev = (device_t)context;
     switch (notify) {
-    case ACPI_DEVICE_CHECK_PNP:
-    case ACPI_DEVICE_CHECK_EXISTENCE:
+    case ACPI_NOTIFY_BUS_CHECK:
+    case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_POWERSOURCE_STAT_CHANGE:
 	/* Temporarily.  It is better to notify policy manager */
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, context);
