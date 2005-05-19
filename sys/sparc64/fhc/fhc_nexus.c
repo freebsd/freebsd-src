@@ -65,6 +65,7 @@ static device_method_t fhc_nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list, fhc_get_resource_list),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
         /* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	fhc_get_compat),
