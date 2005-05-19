@@ -140,6 +140,8 @@ SYSCTL_INT(_net_inet_carp, CARPCTL_LOG, log, CTLFLAG_RW,
     &carp_opts[CARPCTL_LOG], 0, "log bad carp packets");
 SYSCTL_INT(_net_inet_carp, CARPCTL_ARPBALANCE, arpbalance, CTLFLAG_RW,
     &carp_opts[CARPCTL_ARPBALANCE], 0, "balance arp responses");
+SYSCTL_INT(_net_inet_carp, OID_AUTO, suppress_preempt, CTLFLAG_RD,
+    &carp_suppress_preempt, 0, "Preemption is suppressed");
 
 struct carpstats carpstats;
 SYSCTL_STRUCT(_net_inet_carp, CARPCTL_STATS, stats, CTLFLAG_RW,
@@ -402,7 +404,16 @@ carp_clone_destroy(struct ifnet *ifp)
 #endif
 	
 /*	carpdetach(sc); */
-	
+
+	/*
+	 * If an interface is destroyed which is suppressing the preemption,
+	 * decrease the global counter, otherwise the host will never get
+	 * out of the carp supressing state.
+	 */
+	if (sc->sc_suppress)
+		carp_suppress_preempt--;
+	sc->sc_suppress = 0;
+
 	callout_stop(&sc->sc_ad_tmo);
 	callout_stop(&sc->sc_md_tmo);
 	callout_stop(&sc->sc_md6_tmo);
