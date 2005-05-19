@@ -114,6 +114,7 @@
 #define MK48TXX_WDOG_RB_1	0x02	/* watchdog resolution 1 second */
 #define MK48TXX_WDOG_RB_4	0x03	/* watchdog resolution 4 seconds */
 #define MK48TXX_WDOG_BMB_MASK	0x7c	/* mask for watchdog multiplier */
+#define MK48TXX_WDOG_BMB_SHIFT	2	/* shift for watchdog multiplier */
 #define MK48TXX_WDOG_WDS	0x80	/* watchdog steering bit */
 
 /* Bits in the control register */
@@ -135,6 +136,7 @@
 /* Bits in the century/weekday register */
 #define MK48TXX_WDAY_MASK	0x07	/* mask for weekday */
 #define MK48TXX_WDAY_CB		0x10	/* century bit (extended only) */
+#define MK48TXX_WDAY_CB_SHIFT	4	/* shift for century bit */
 #define MK48TXX_WDAY_CEB	0x20	/* century enable bit (extended only) */
 #define MK48TXX_WDAY_FT		0x40	/* frequency test */
 

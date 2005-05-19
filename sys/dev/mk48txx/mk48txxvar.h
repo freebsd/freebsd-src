@@ -38,19 +38,24 @@
  * $FreeBSD$
  */
 
-typedef u_int8_t (*mk48txx_nvrd_t)(device_t, int);
-typedef void (*mk48txx_nvwr_t)(device_t, int, u_int8_t);
+typedef uint8_t (*mk48txx_nvrd_t)(device_t, int);
+typedef void (*mk48txx_nvwr_t)(device_t, int, uint8_t);
 
 struct mk48txx_softc {
 	bus_space_tag_t		sc_bst;	/* bus space tag */
 	bus_space_handle_t	sc_bsh;	/* bus space handle */
+
+	struct mtx		sc_mtx;	/* hardware mutex */
+	eventhandler_tag	sc_wet;	/* watchdog event handler tag */
 
 	const char	*sc_model;	/* chip model name */
 	bus_size_t	sc_nvramsz;	/* Size of NVRAM on the chip */
 	bus_size_t	sc_clkoffset;	/* Offset in NVRAM to clock bits */
 	u_int		sc_year0;	/* year counter offset */
 	u_int		sc_flag;	/* MD flags */
-#define MK48TXX_NO_CENT_ADJUST	0x0001
+#define MK48TXX_NO_CENT_ADJUST	0x0001	/* don't manually adjust century */
+#define MK48TXX_WDOG_REGISTER	0x0002	/* register watchdog */
+#define MK48TXX_WDOG_ENABLE_WDS	0x0004	/* enable watchdog steering bit */
 
 	mk48txx_nvrd_t	sc_nvrd;	/* NVRAM/RTC read function */
 	mk48txx_nvwr_t	sc_nvwr;	/* NVRAM/RTC write function */
