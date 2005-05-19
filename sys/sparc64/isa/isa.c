@@ -153,12 +153,10 @@ isa_init(device_t dev)
 	}
 }
 
-struct ofw_isa_pnp_map {
+static struct {
 	const char	*name;
 	uint32_t	id;
-};
-
-static struct ofw_isa_pnp_map pnp_map[] = {
+} ofw_isa_pnp_map[] = {
 	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
 	{ "dma",	0x0002d041 }, /* PNP0200 */
 	{ "floppy",	0x0007d041 }, /* PNP0700 */
@@ -176,12 +174,13 @@ static void
 isa_setup_children(device_t dev, phandle_t parent)
 {
 	struct isa_regs *regs;
+	struct resource_list *rl;
 	device_t cdev;
 	u_int64_t end, start;
 	ofw_isa_intr_t *intrs, rintr;
 	phandle_t node;
 	uint32_t *drqs, *regidx;
-	int i, ndrq, nintr, nreg, nregidx, rtype;
+	int i, ndrq, nintr, nreg, nregidx, rid, rtype;
 	char *name;
 
 	/*
@@ -208,10 +207,10 @@ isa_setup_children(device_t dev, phandle_t parent)
 			continue;
 		}
 
-		for (i = 0; pnp_map[i].name != NULL; i++)
-			if (strcmp(pnp_map[i].name, name) == 0)
+		for (i = 0; ofw_isa_pnp_map[i].name != NULL; i++)
+			if (strcmp(ofw_isa_pnp_map[i].name, name) == 0)
 				break;
-		if (i == (sizeof(pnp_map) / sizeof(*pnp_map)) - 1) {
+		if (ofw_isa_pnp_map[i].name == NULL) {
 			printf("isa_setup_children: no PnP map entry for node "
 			    "0x%lx: %s\n", (unsigned long)node, name);
 			continue;
@@ -220,9 +219,10 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if ((cdev = BUS_ADD_CHILD(dev, ISA_ORDER_PNPBIOS, NULL, -1)) ==
 		    NULL)
 			panic("isa_setup_children: BUS_ADD_CHILD failed");
-		isa_set_logicalid(cdev, pnp_map[i].id);
-		isa_set_vendorid(cdev, pnp_map[i].id);
+		isa_set_logicalid(cdev, ofw_isa_pnp_map[i].id);
+		isa_set_vendorid(cdev, ofw_isa_pnp_map[i].id);
 
+		rl = BUS_GET_RESOURCE_LIST(dev, cdev);
 		nreg = OF_getprop_alloc(node, "reg", sizeof(*regs),
 		    (void **)&regs);
 		for (i = 0; i < nreg; i++) {
@@ -230,7 +230,10 @@ isa_setup_children(device_t dev, phandle_t parent)
 			end = start + regs[i].size - 1;
 			rtype = ofw_isa_range_map(isab_ranges, isab_nrange,
 			    &start, &end, NULL);
-			bus_set_resource(cdev, rtype, i, start,
+			rid = 0;
+			while (resource_list_find(rl, rtype, rid) != NULL)
+				rid++;
+			bus_set_resource(cdev, rtype, rid, start,
 			    end - start + 1);
 		}
 		if (nreg == -1 && parent != isab_node) {
@@ -251,8 +254,12 @@ isa_setup_children(device_t dev, phandle_t parent)
 					end = start + regs[regidx[i]].size - 1;
 					rtype = ofw_isa_range_map(isab_ranges,
 					    isab_nrange, &start, &end, NULL);
-					bus_set_resource(cdev, rtype, i, start,
-					    end - start + 1);
+					rid = 0;
+					while (resource_list_find(rl, rtype,
+					    rid) != NULL)
+						rid++;
+					bus_set_resource(cdev, rtype, rid,
+					    start, end - start + 1);
 				}
 			}
 			if (regidx != NULL)
@@ -304,35 +311,35 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
-	struct isa_device* idev = DEVTOISA(child);
-	struct resource_list *rl = &idev->id_resources;
+	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	u_long base, limit;
 
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
 			if (*rid < 0)
-				return 0;
+				return (NULL);
 			switch (type) {
 			case SYS_RES_IRQ:
 				if (*rid >= ISA_NIRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_DRQ:
 				if (*rid >= ISA_NDRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_MEMORY:
 				if (*rid >= ISA_NMEM)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_IOPORT:
 				if (*rid >= ISA_NPORT)
-					return 0;
+					return (NULL);
 				break;
 			default:
-				return 0;
+				return (NULL);
 			}
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
@@ -384,10 +391,8 @@ int
 isa_release_resource(device_t bus, device_t child, int type, int rid,
 		     struct resource *res)
 {
-	struct isa_device* idev = DEVTOISA(child);
-	struct resource_list *rl = &idev->id_resources;
 
-	return (resource_list_release(rl, bus, child, type, rid, res));
+	return (bus_generic_rl_release_resource(bus, child, type, rid, res));
 }
 
 int
@@ -397,9 +402,10 @@ isa_setup_intr(device_t dev, device_t child,
 {
 
 	/*
-	 * Just pass through. This is going to be handled by either one of
-	 * the parent PCI buses or the nexus device.
-	 * The interrupt was routed at allocation time.
+	 * Just pass through. This is going to be handled by either
+	 * one of the parent PCI buses or the nexus device.
+	 * The interrupt had been routed before it was added to the
+	 * resource list of the child.
 	 */
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags, intr,
 	    arg, cookiep));
