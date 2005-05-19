@@ -155,6 +155,8 @@ static struct bge_type bge_devs[] = {
 		"Broadcom BCM5705M Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5705M_ALT,
 		"Broadcom BCM5705M Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5714C,
+		"Broadcom BCM5714C Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5721,
 		"Broadcom BCM5721 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5750,
@@ -2295,6 +2297,13 @@ bge_attach(dev)
 	    BGE_PCIMISCCTL_ASICREV;
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
+
+	/*
+	 * Treat the 5714 like the 5750 until we have more info
+	 * on this chip.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5714)
+		sc->bge_asicrev = BGE_ASICREV_BCM5750;
 
 	/*
 	 * XXX: Broadcom Linux driver.  Not in specs or eratta.
