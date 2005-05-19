@@ -5,7 +5,9 @@
 #
 # $FreeBSD$
 
-.include "${.CURDIR}/make.conf"
+MAKE_CONF?=	${.CURDIR}/make.conf
+
+.include "${MAKE_CONF}"
 
 # parallism flag for make.
 MAKEJ?="-j3"
@@ -95,7 +97,7 @@ _.cs:	_.iw _.di _.ik _.di
 buildworld:	_.bw
 _.bw:
 	(cd ${WORLDDIR} && \
-		make ${MAKEJ} -s buildworld __MAKE_CONF=${.CURDIR}/make.conf \
+		make ${MAKEJ} -s buildworld __MAKE_CONF=${MAKE_CONF} \
 		) > _.bw.tmp 2>&1
 	mv _.bw.tmp _.bw
 
@@ -109,7 +111,7 @@ _.iw:	_.bw
 	(cd ${WORLDDIR} && \
 		make ${MAKEJ} -s installworld \
 		DESTDIR=${WD} \
-		__MAKE_CONF=${.CURDIR}/make.conf \
+		__MAKE_CONF=${MAKE_CONF} \
 		) > _.iw.tmp 2>&1
 	mv _.iw.tmp _.iw
 
@@ -119,7 +121,7 @@ _.di:	_.iw
 	(cd ${WORLDDIR}/etc && \
 		make ${MAKEJ} -s distribution \
 		DESTDIR=${WD} \
-		__MAKE_CONF=${.CURDIR}/make.conf \
+		__MAKE_CONF=${MAKE_CONF} \
 		) > _.di.tmp 2>&1
 	mv _.di.tmp _.di
 
@@ -127,7 +129,7 @@ _.di:	_.iw
 _.bk:
 	(cd ${WORLDDIR} && \
 		make ${MAKEJ} -s buildkernel \
-		__MAKE_CONF=${.CURDIR}/make.conf \
+		__MAKE_CONF=${MAKE_CONF} \
 		) > _.bk.tmp 2>&1
 	mv _.bk.tmp _.bk
 
@@ -137,7 +139,7 @@ _.ik:	_.bk _.di
 	(cd ${WORLDDIR} && \
 		make ${MAKEJ} installkernel \
 		DESTDIR=${WD} \
-		__MAKE_CONF=${.CURDIR}/make.conf \
+		__MAKE_CONF=${MAKE_CONF} \
 		) > _.ik.tmp 2>&1
 	mv _.ik.tmp _.ik
 
