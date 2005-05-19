@@ -494,7 +494,7 @@
 	  supports &windows;/x86-64 binaries on amd64
 	  systems. &merged;</para>
 
-	<para arch="i386,amd64">The nve driver, which supports the
+	<para arch="i386,amd64">The &man.nve.4; driver, which supports the
 	  nVidia nForce MCP Networking Adapter, has been added.</para>
 
 	<para>The &man.re.4; driver now supports the &man.altq.4;
