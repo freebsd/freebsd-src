@@ -102,7 +102,16 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para arch="i386,amd64">Because of an information disclosure vulnerability on
+      processors using Hyper-Threading Technology (HTT), the
+      <varname>machdep.hyperthreading_allowed</varname> sysctl
+      variable has been added.  It defaults to <literal>1</literal>
+      (HTT enabled) on &os; CURRENT, and <literal>0</literal> (HTT
+      disabled) on the 4-STABLE and 5-STABLE development branches and
+      supported security fix branches.  More information can be found
+      in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
+      </para>
 
   </sect2>
 
