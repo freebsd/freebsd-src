@@ -99,7 +99,9 @@
 #define	NCR_VARIANT_AM53C974		8
 #define	NCR_VARIANT_FAS366		9
 #define	NCR_VARIANT_NCR53C90_86C01	10
-#define	NCR_VARIANT_MAX			11
+#define	NCR_VARIANT_FAS100A		11
+#define	NCR_VARIANT_FAS236		12
+#define	NCR_VARIANT_MAX			13
 
 /* XXX Max tag depth.  Should this be defined in the register header? */
 #define NCR_TAG_DEPTH			256
@@ -333,9 +335,11 @@ struct ncr53c9x_softc {
 	u_short	sc_msgoutq;	/* What messages have been sent so far? */
 
 	u_char	*sc_omess;	/* MSGOUT buffer */
+	int	sc_omess_self;	/* MSGOUT buffer is self-allocated */
 	caddr_t	sc_omp;		/* Message pointer (for multibyte messages) */
 	size_t	sc_omlen;
 	u_char	*sc_imess;	/* MSGIN buffer */
+	int	sc_imess_self;	/* MSGIN buffer is self-allocated */
 	caddr_t	sc_imp;		/* Message pointer (for multibyte messages) */
 	size_t	sc_imlen;
 
@@ -459,7 +463,7 @@ struct ncr53c9x_softc {
 	((250 * (cpb)) / (sc)->sc_freq)
 
 int	ncr53c9x_attach(struct ncr53c9x_softc *);
-int	ncr53c9x_detach(struct ncr53c9x_softc *, int);
+int	ncr53c9x_detach(struct ncr53c9x_softc *);
 void	ncr53c9x_action(struct cam_sim *, union ccb *);
 void	ncr53c9x_reset(struct ncr53c9x_softc *);
 void	ncr53c9x_intr(void *);
