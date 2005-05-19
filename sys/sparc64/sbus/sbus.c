@@ -212,6 +212,7 @@ static ofw_bus_get_name_t sbus_get_name;
 static ofw_bus_get_node_t sbus_get_node;
 static ofw_bus_get_type_t sbus_get_type;
 
+static int sbus_inlist(const char *, const char **);
 static struct sbus_devinfo * sbus_setup_dinfo(struct sbus_softc *sc,
     phandle_t node, char *name);
 static void sbus_destroy_dinfo(struct sbus_devinfo *dinfo);
@@ -260,6 +261,26 @@ DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 
 #define	OFW_SBUS_TYPE	"sbus"
 #define	OFW_SBUS_NAME	"sbus"
+
+static const char *sbus_order_first[] = {
+	"auxio",
+	"dma",
+	NULL
+};
+
+static int
+sbus_inlist(const char *name, const char **list)
+{
+	int i;
+
+	if (name == NULL)
+		return (0);
+	for (i = 0; list[i] != NULL; i++) {
+		if (strcmp(name, list[i]) == 0)
+			return (1);
+	}
+	return (0);
+}
 
 static int
 sbus_probe(device_t dev)
@@ -311,7 +332,7 @@ sbus_attach(device_t dev)
 
 	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
 		panic("%s: cannot get IGN", __func__);
-	sc->sc_ign = intr & INTMAP_IGN_MASK;	/* Find interrupt group no */
+	sc->sc_ign = (intr & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT;
 	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
 	/*
@@ -433,8 +454,6 @@ sbus_attach(device_t dev)
 	/*
 	 * Loop through ROM children, fixing any relative addresses
 	 * and then configuring each device.
-	 * `specials' is an array of device names that are treated
-	 * specially:
 	 */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		if ((OF_getprop_alloc(child, "name", 1, (void **)&cname)) == -1)
@@ -445,8 +464,22 @@ sbus_attach(device_t dev)
 			free(cname, M_OFWPROP);
 			continue;
 		}
-		if ((cdev = device_add_child(dev, NULL, -1)) == NULL)
-			panic("%s: device_add_child failed", __func__);
+		/*
+		 * For devices where there are variants that are actually
+		 * split into two SBus devices (as opposed to the first
+		 * half of the device being a SBus device and the second
+		 * half hanging off of the first one) like 'auxio' and
+		 * 'SUNW,fdtwo' or 'dma' and 'esp' probe the SBus device
+		 * which is a prerequisite to the driver attaching to the
+		 * second one with a lower order. Saves us from dealing
+		 * with different probe orders in the respective device
+		 * drivers which generally is more hackish.
+		 */
+		cdev = device_add_child_ordered(dev, (OF_child(child) == 0 &&
+		    sbus_inlist(cname, sbus_order_first)) ? SBUS_ORDER_FIRST :
+		    SBUS_ORDER_NORMAL, NULL, -1);
+		if (cdev == NULL)
+			panic("%s: device_add_child_ordered failed", __func__);
 		device_set_ivars(cdev, sdi);
 	}
 	return (bus_generic_attach(dev));
@@ -511,7 +544,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 			if ((iv & INTMAP_OBIO_MASK) == 0)
 				iv |= slot << 3;
 			/* Set the ign as appropriate. */
-			iv |= sc->sc_ign;
+			iv |= sc->sc_ign << INTMAP_IGN_SHIFT;
 			resource_list_add(&sdi->sdi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
@@ -578,8 +611,10 @@ sbus_probe_nomatch(device_t dev, device_t child)
 static int
 sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
+	struct sbus_softc *sc;
 	struct sbus_devinfo *dinfo;
 
+	sc = device_get_softc(dev);
 	if ((dinfo = device_get_ivars(child)) == NULL)
 		return (ENOENT);
 	switch (which) {
@@ -589,13 +624,16 @@ sbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case SBUS_IVAR_CLOCKFREQ:
 		*result = dinfo->sdi_clockfreq;
 		break;
+	case SBUS_IVAR_IGN:
+		*result = sc->sc_ign;
+		break;
 	case SBUS_IVAR_SLOT:
 		*result = dinfo->sdi_slot;
 		break;
 	default:
 		return (ENOENT);
 	}
-	return 0;
+	return (0);
 }
 
 static struct resource_list *
@@ -647,11 +685,11 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 		intrclrptr = SBR_SLOT0_INT_CLR +
 		    (slot * 8 * 8) + (INTPRI(vec) * 8);
 		/* Enable the interrupt, insert IGN. */
-		intrmap = inr | sc->sc_ign;
+		intrmap = inr | (sc->sc_ign << INTMAP_IGN_SHIFT);
 	} else {
 		intrptr = SBR_SCSI_INT_MAP;
 		/* Insert IGN */
-		inr |= sc->sc_ign;
+		inr |= sc->sc_ign << INTMAP_IGN_SHIFT;
 		for (i = 0; intrptr <= SBR_RESERVED_INT_MAP &&
 			 INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) !=
 			 INTVEC(inr); intrptr += 8, i++)

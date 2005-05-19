@@ -80,6 +80,12 @@
 #define _SPARC64_SBUS_SBUSVAR_H_
 
 /*
+ * Macros for probe order
+ */
+#define	SBUS_ORDER_FIRST	10
+#define	SBUS_ORDER_NORMAL	20
+
+/*
  * PROM-reported DMA burst sizes for the SBus
  */
 #define SBUS_BURST_1	0x1
@@ -98,6 +104,7 @@
 enum sbus_device_ivars {
 	SBUS_IVAR_BURSTSZ,
 	SBUS_IVAR_CLOCKFREQ,
+	SBUS_IVAR_IGN,
 	SBUS_IVAR_SLOT,
 };
 
@@ -109,6 +116,7 @@ enum sbus_device_ivars {
 
 SBUS_ACCESSOR(burstsz,		BURSTSZ,	int)
 SBUS_ACCESSOR(clockfreq,	CLOCKFREQ,	int)
+SBUS_ACCESSOR(ign,		IGN,		int)
 SBUS_ACCESSOR(slot,		SLOT,		int)
 
 #undef SBUS_ACCESSOR
