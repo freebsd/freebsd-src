@@ -32,6 +32,8 @@ struct mc146818_softc {
 	bus_space_tag_t	sc_bst;			/* bus space tag */
 	bus_space_handle_t sc_bsh;		/* bus space handle */
 
+	struct mtx sc_mtx;			/* hardware mutex */
+
 	u_char sc_rega;				/* register A */
 	u_char sc_regb;				/* register B */
 
