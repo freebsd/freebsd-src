@@ -113,10 +113,11 @@ int lsi64854debug = 0;
  *	sc_channel (one of SCSI, ENET, PP)
  *	sc_client (one of SCSI, ENET, PP `soft_c' pointers)
  */
-void
+int
 lsi64854_attach(struct lsi64854_softc *sc)
 {
 	uint32_t csr;
+	int error;
 
 	/* Indirect functions */
 	switch (sc->sc_channel) {
@@ -136,7 +137,7 @@ lsi64854_attach(struct lsi64854_softc *sc)
 	sc->reset = lsi64854_reset;
 
 	/* Allocate a dmamap */
-	if (bus_dma_tag_create(
+	error = bus_dma_tag_create(
 	    sc->sc_parent_dmat,		/* parent */
 	    1, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
@@ -147,27 +148,30 @@ lsi64854_attach(struct lsi64854_softc *sc)
 	    MAX_DMA_SZ,			/* maxsegsize */
 	    BUS_DMA_ALLOCNOW,		/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->sc_buffer_dmat)) {
+	    &sc->sc_buffer_dmat);
+	if (error != 0) {
 		device_printf(sc->sc_dev, "cannot allocate buffer DMA tag\n");
-		return;
+		return (error);
 	}
 
-	if (bus_dmamap_create(sc->sc_buffer_dmat, 0, &sc->sc_dmamap) != 0) {
+	error = bus_dmamap_create(sc->sc_buffer_dmat, 0, &sc->sc_dmamap);
+	if (error != 0) {
 		device_printf(sc->sc_dev, "DMA map create failed\n");
-		return;
+		bus_dma_tag_destroy(sc->sc_buffer_dmat);
+		return (error);
 	}
 
 	csr = L64854_GCSR(sc);
 	sc->sc_rev = csr & L64854_DEVID;
 	if (sc->sc_rev == DMAREV_HME)
-		return;
+		return (0);
 	device_printf(sc->sc_dev, "DMA rev. ");
 	switch (sc->sc_rev) {
 	case DMAREV_0:
 		printf("0");
 		break;
 	case DMAREV_ESC:
-		printf("esc");
+		printf("ESC");
 		break;
 	case DMAREV_1:
 		printf("1");
@@ -184,6 +188,20 @@ lsi64854_attach(struct lsi64854_softc *sc)
 
 	DPRINTF(LDB_ANY, (", burst 0x%x, csr 0x%x", sc->sc_burst, csr));
 	printf("\n");
+
+	return (0);
+}
+
+int
+lsi64854_detach(struct lsi64854_softc *sc)
+{
+
+	if (sc->setup)
+		bus_dmamap_unload(sc->sc_buffer_dmat, sc->sc_dmamap);
+	bus_dmamap_destroy(sc->sc_buffer_dmat, sc->sc_dmamap);
+	bus_dma_tag_destroy(sc->sc_buffer_dmat);
+
+	return (0);
 }
 
 /*
@@ -264,7 +282,6 @@ lsi64854_reset(struct lsi64854_softc *sc)
 
 	if (sc->sc_rev == DMAREV_HME)
 		L64854_SCSR(sc, csr | D_HW_RESET_FAS366);
-
 
 	csr |= L64854_RESET;		/* reset DMA */
 	L64854_SCSR(sc, csr);
@@ -490,7 +507,7 @@ lsi64854_scsi_intr(void *arg)
 	}
 
 	trans = sc->sc_dmasize - resid;
-	if (trans < 0) {			/* transferred < 0 ? */
+	if (trans < 0) {			/* transfered < 0? */
 #if 0
 		/*
 		 * This situation can happen in perfectly normal operation
@@ -566,7 +583,9 @@ lsi64854_enet_intr(void *arg)
 			DELAY(1);
 	}
 
-	return (rv | (*sc->sc_intrchain)(sc->sc_intrchainarg));
+	(*sc->sc_intrchain)(sc->sc_intrchainarg);
+
+	return (rv);
 }
 
 static void

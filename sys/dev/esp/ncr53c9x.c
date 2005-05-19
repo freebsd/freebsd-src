@@ -25,7 +25,7 @@
  *
  */
 
-/*	$NetBSD: ncr53c9x.c,v 1.110 2003/11/02 11:07:45 wiz Exp $	*/
+/*	$NetBSD: ncr53c9x.c,v 1.114 2005/02/27 00:27:02 perry Exp $	*/
 
 /*-
  * Copyright (c) 1998, 2002 The NetBSD Foundation, Inc.
@@ -200,6 +200,8 @@ static const char *ncr53c9x_variant_names[] = {
 	"AM53C974",
 	"FAS366/HME",
 	"NCR53C90 (86C01)",
+	"FAS100A",
+	"FAS236",
 };
 
 /*
@@ -225,7 +227,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	struct cam_sim *sim;
 	struct cam_path *path;
 	struct ncr53c9x_ecb *ecb;
-	int i;
+	int error, i;
 
 	mtx_init(&sc->sc_lock, "ncr", "ncr53c9x lock", MTX_DEF);
 
@@ -249,18 +251,36 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	 * handling in the DMA engines. Note that that ncr53c9x_msgout()
 	 * can request a 1 byte DMA transfer.
 	 */
-	if (sc->sc_omess == NULL)
+	if (sc->sc_omess == NULL) {
+		sc->sc_omess_self = 1;
 		sc->sc_omess = malloc(NCR_MAX_MSG_LEN, M_DEVBUF, M_NOWAIT);
+		if (sc->sc_omess == NULL) {
+			device_printf(sc->sc_dev,
+			    "cannot allocate MSGOUT buffer\n");
+			return (ENOMEM);
+		}
+	} else
+		sc->sc_omess_self = 0;
 
-	if (sc->sc_imess == NULL)
+	if (sc->sc_imess == NULL) {
+		sc->sc_imess_self = 1;
 		sc->sc_imess = malloc(NCR_MAX_MSG_LEN + 1, M_DEVBUF, M_NOWAIT);
+		if (sc->sc_imess == NULL) {
+			device_printf(sc->sc_dev,
+			    "cannot allocate MSGIN buffer\n");
+			error = ENOMEM;
+			goto fail_omess;
+		}
+	} else
+		sc->sc_imess_self = 0;
 
 	sc->sc_tinfo = malloc(sc->sc_ntarg * sizeof(sc->sc_tinfo[0]),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-
-	if (!sc->sc_omess || !sc->sc_imess || !sc->sc_tinfo) {
-		printf("out of memory\n");
-		return (ENOMEM);
+	if (sc->sc_tinfo == NULL) {
+		device_printf(sc->sc_dev,
+		    "cannot allocate target info buffer\n");
+		error = ENOMEM;
+		goto fail_imess;
 	}
 
 	callout_init(&sc->sc_watchdog, 0);
@@ -298,27 +318,32 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	 * Register with CAM
 	 */
 	devq = cam_simq_alloc(sc->sc_ntarg);
-	if (devq == NULL)
-		return (ENOMEM);
+	if (devq == NULL) {
+		device_printf(sc->sc_dev, "cannot allocate device queue\n");
+		error = ENOMEM;
+		goto fail_tinfo;
+	}
 
 	sim = cam_sim_alloc(ncr53c9x_action, ncr53c9x_poll, "esp", sc,
 			    device_get_unit(sc->sc_dev), 1,
 			    NCR_TAG_DEPTH, devq);
 	if (sim == NULL) {
-		cam_simq_free(devq);
-		return (ENOMEM);
+		device_printf(sc->sc_dev, "cannot allocate SIM entry\n");
+		error = ENOMEM;
+		goto fail_devq;
 	}
 	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
-		cam_sim_free(sim, TRUE);
-		return (EIO);
+		device_printf(sc->sc_dev, "cannot register bus\n");
+		error = EIO;
+		goto fail_sim;
 	}
 
 	if (xpt_create_path(&path, NULL, cam_sim_path(sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
 			    != CAM_REQ_CMP) {
-		xpt_bus_deregister(cam_sim_path(sim));
-		cam_sim_free(sim, TRUE);
-		return (EIO);
+		device_printf(sc->sc_dev, "cannot create path\n");
+		error = EIO;
+		goto fail_bus;
 	}
 
 	sc->sc_sim = sim;
@@ -335,7 +360,8 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	if ((sc->ecb_array = malloc(sizeof(struct ncr53c9x_ecb) * NCR_TAG_DEPTH,
 				    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL) {
 		device_printf(sc->sc_dev, "cannot allocate ECB array\n");
-		return (ENOMEM);
+		error = ENOMEM;
+		goto fail_path;
 	}
 	for (i = 0; i < NCR_TAG_DEPTH; i++) {
 		ecb = &sc->ecb_array[i];
@@ -347,18 +373,46 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	callout_reset(&sc->sc_watchdog, 60*hz, ncr53c9x_watch, sc);
 
 	return (0);
+
+fail_path:
+	xpt_free_path(path);
+fail_bus:
+	xpt_bus_deregister(cam_sim_path(sim));
+fail_sim:
+	cam_sim_free(sim, TRUE);
+fail_devq:
+	cam_simq_free(devq);
+fail_tinfo:
+	free(sc->sc_tinfo, M_DEVBUF);
+fail_imess:
+	if (sc->sc_imess_self)
+		free(sc->sc_imess, M_DEVBUF);
+fail_omess:
+	if (sc->sc_omess_self)
+		free(sc->sc_omess, M_DEVBUF);
+	return (error);
 }
 
 int
-ncr53c9x_detach(struct ncr53c9x_softc *sc, int flags)
+ncr53c9x_detach(struct ncr53c9x_softc *sc)
 {
 
-#if 0	/* don't allow detach for now */
-	free(sc->sc_imess, M_DEVBUF);
-	free(sc->sc_omess, M_DEVBUF);
-#endif
+	callout_drain(&sc->sc_watchdog);
+	mtx_lock(&sc->sc_lock);
+	ncr53c9x_init(sc, 1);
+	mtx_unlock(&sc->sc_lock);
+	xpt_free_path(sc->sc_path);
+	xpt_bus_deregister(cam_sim_path(sc->sc_sim));
+	cam_sim_free(sc->sc_sim, TRUE);
+	free(sc->ecb_array, M_DEVBUF);
+	free(sc->sc_tinfo, M_DEVBUF);
+	if (sc->sc_imess_self)
+		free(sc->sc_imess, M_DEVBUF);
+	if (sc->sc_omess_self)
+		free(sc->sc_omess, M_DEVBUF);
+	mtx_destroy(&sc->sc_lock);
 
-	return (EINVAL);
+	return (0);
 }
 
 /*
@@ -388,7 +442,9 @@ ncr53c9x_reset(struct ncr53c9x_softc *sc)
 		NCR_WRITE_REG(sc, NCR_CFG5, sc->sc_cfg5 | NCRCFG5_SINT);
 		NCR_WRITE_REG(sc, NCR_CFG4, sc->sc_cfg4);
 	case NCR_VARIANT_AM53C974:
+	case NCR_VARIANT_FAS100A:
 	case NCR_VARIANT_FAS216:
+	case NCR_VARIANT_FAS236:
 	case NCR_VARIANT_NCR53C94:
 	case NCR_VARIANT_NCR53C96:
 	case NCR_VARIANT_ESP200:
@@ -515,7 +571,10 @@ ncr53c9x_init(struct ncr53c9x_softc *sc, int doreset)
 	 */
 	ncr53c9x_reset(sc);
 
+	sc->sc_flags = 0;
+	sc->sc_msgpriq = sc->sc_msgout = sc->sc_msgoutq = 0;
 	sc->sc_phase = sc->sc_prevphase = INVALID_PHASE;
+
 	for (r = 0; r < sc->sc_ntarg; r++) {
 		struct ncr53c9x_tinfo *ti = &sc->sc_tinfo[r];
 /* XXX - config flags per target: low bits: no reselect; high bits: no synch */
@@ -1793,8 +1852,7 @@ gotit:
 						/*
 						 * target initiated negotiation
 						 */
-						if (ti->period <
-						    sc->sc_minsync)
+						if (ti->period < sc->sc_minsync)
 							ti->period =
 							    sc->sc_minsync;
 						if (ti->offset > 15)
@@ -2494,9 +2552,17 @@ again:
 			 * Arbitration won; examine the `step' register
 			 * to determine how far the selection could progress.
 			 */
-			ecb = sc->sc_nexus;
-			if (ecb == NULL)
+			if (ecb == NULL) {
+				/*
+				 * When doing path inquiry during boot
+				 * FAS100A trigger a stray interrupt which
+				 * we just ignore instead of panicing.
+				 */
+				if (sc->sc_state == NCR_IDLE &&
+				    sc->sc_espstep == 0)
+					goto out;
 				panic("ncr53c9x: no nexus");
+			}
 
 			ti = &sc->sc_tinfo[ecb->ccb->ccb_h.target_id];
 
@@ -2613,8 +2679,7 @@ again:
 		}
 		if (sc->sc_state == NCR_IDLE) {
 			device_printf(sc->sc_dev, "stray interrupt\n");
-			mtx_unlock(&sc->sc_lock);
-			return;
+			goto out;
 		}
 		break;
 
