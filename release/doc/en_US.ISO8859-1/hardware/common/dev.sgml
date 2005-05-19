@@ -345,6 +345,8 @@
 
     &hwlist.vge;
 
+    &hwlist.nve;
+
   </sect2>
 
   <sect2 id="tokenring">
