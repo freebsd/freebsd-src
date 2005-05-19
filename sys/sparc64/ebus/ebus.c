@@ -27,12 +27,13 @@
  * SUCH DAMAGE.
  *
  *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- * UltraSPARC 5 and beyond ebus support.
+ * UltraSPARC 5 and beyond Ebus support.
  *
  * note that this driver is not complete:
  *	- ebus2 dma code is completely unwritten
@@ -109,6 +110,7 @@ static bus_probe_nomatch_t ebus_probe_nomatch;
 static bus_alloc_resource_t ebus_alloc_resource;
 static bus_release_resource_t ebus_release_resource;
 static bus_get_resource_list_t ebus_get_resource_list;
+static bus_get_resource_t ebus_get_resource;
 static ofw_bus_get_compat_t ebus_get_compat;
 static ofw_bus_get_model_t ebus_get_model;
 static ofw_bus_get_name_t ebus_get_name;
@@ -135,7 +137,7 @@ static device_method_t ebus_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	ebus_release_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_resource,	ebus_get_resource),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	ebus_get_compat),
@@ -160,16 +162,10 @@ DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0);
 static int
 ebus_probe(device_t dev)
 {
-	char name[10];
-	phandle_t node;
 
-	if ((node = ofw_bus_get_node(dev)) == 0)
-		return (ENXIO);
-
-	OF_getprop(node, "name", &name, sizeof(name));
 	if (pci_get_class(dev) != PCIC_BRIDGE ||
 	    pci_get_vendor(dev) != 0x108e ||
-	    strcmp(name, "ebus") != 0)
+	    strcmp(ofw_bus_get_name(dev), "ebus") != 0)
 		return (ENXIO);
 
 	if (pci_get_device(dev) == 0x1000)
@@ -304,7 +300,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bus_space_handle_t bh;
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
-	int ptype, ridx, rv;
+	int ridx, rv;
 
 	sc = (struct ebus_softc *)device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
@@ -314,10 +310,11 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
 		KASSERT(!(isdefault && passthrough),
 		    ("ebus_alloc_resource: passthrough of default alloc"));
 		if (!passthrough) {
-			rle = resource_list_find(rl, type, *rid);
+			rle = resource_list_find(rl, SYS_RES_MEMORY, *rid);
 			if (rle == NULL)
 				return (NULL);
 			KASSERT(rle->res == NULL,
@@ -329,7 +326,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			}
 		}
 
-		ptype = ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
+		(void)ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
 		    &start, &end, &ridx);
 
 		ri = &sc->sc_rinfo[ridx];
@@ -362,20 +359,19 @@ int
 ebus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
-	struct ebus_softc *sc;
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	int passthrough = (device_get_parent(child) != bus);
 	int rv;
 
-	sc = (struct ebus_softc *)device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	switch (type) {
  	case SYS_RES_IOPORT:
+ 	case SYS_RES_MEMORY:
 		if ((rv = rman_release_resource(res)) != 0)
 			return (rv);
 		if (!passthrough) {
-			rle = resource_list_find(rl, type, rid);
+			rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
 			KASSERT(rle != NULL, ("ebus_release_resource: "
 			    "resource entry not found!"));
 			KASSERT(rle->res != NULL, ("ebus_alloc_resource: "
@@ -399,6 +395,34 @@ ebus_get_resource_list(device_t dev, device_t child)
 
 	edi = device_get_ivars(child);
 	return (&edi->edi_rl);
+}
+
+static int
+ebus_get_resource(device_t dev, device_t child, int type, int rid,
+    u_long *startp, u_long *countp)
+{
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+
+	switch (type) {
+ 	case SYS_RES_IOPORT:
+ 	case SYS_RES_MEMORY:
+		rl = BUS_GET_RESOURCE_LIST(dev, child);
+		if (!rl)
+			return (EINVAL);
+		rle = resource_list_find(rl, SYS_RES_MEMORY, rid);
+		if (!rle)
+			return (ENOENT);
+		if (startp)
+			*startp = rle->start;
+		if (countp)
+			*countp = rle->count;
+		return (0);
+	case SYS_RES_IRQ:
+		return (bus_generic_rl_get_resource(dev, child, type, rid,
+		    startp, countp));
+	}
+	return (EINVAL);
 }
 
 static struct ebus_devinfo *
@@ -429,12 +453,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 	}
 	for (i = 0; i < nreg; i++) {
 		start = ISA_REG_PHYS(reg + i);
-		/*
-		 * XXX: use SYS_RES_IOPORT for compatability with ISA drivers -
-		 * probably, SYS_RES_MEMORY would be more apporpriate, although
-		 * that does not really matter.
-		 */
-		resource_list_add(&edi->edi_rl, SYS_RES_IOPORT, i,
+		resource_list_add(&edi->edi_rl, SYS_RES_MEMORY, i,
 		    start, start + reg[i].size - 1, reg[i].size);
 	}
 	free(reg, M_OFWPROP);
@@ -478,7 +497,7 @@ ebus_print_res(struct ebus_devinfo *edi)
 	int retval;
 
 	retval = 0;
-	retval += resource_list_print_type(&edi->edi_rl, "addr", SYS_RES_IOPORT,
+	retval += resource_list_print_type(&edi->edi_rl, "addr", SYS_RES_MEMORY,
 	    "%#lx");
 	retval += resource_list_print_type(&edi->edi_rl, "irq", SYS_RES_IRQ,
 	    "%ld");
