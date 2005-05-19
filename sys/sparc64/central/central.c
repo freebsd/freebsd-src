@@ -88,6 +88,7 @@ static device_method_t central_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list, central_get_resource_list),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	central_get_compat),
@@ -234,7 +235,6 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		return (resource_list_alloc(rl, bus, child, type, rid, start,
 		    end, count, flags));
-		break;
 	case SYS_RES_MEMORY:
 		if (!passthrough) {
 			rle = resource_list_find(rl, type, *rid);
@@ -264,8 +264,6 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				break;
 			}
 		}
-		break;
-	default:
 		break;
 	}
 	return (res);
