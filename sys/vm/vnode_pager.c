@@ -552,8 +552,6 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_iooffset = dbtob(bp->b_blkno);
 			bstrategy(bp);
 
-			/* we definitely need to be at splvm here */
-
 			bwait(bp, PVM, "vnsrd");
 
 			if ((bp->b_ioflags & BIO_ERROR) != 0)
