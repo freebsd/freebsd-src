@@ -1166,13 +1166,18 @@ struct io_workitem {
 	void			*iw_ctx;
 	list_entry		iw_listentry;
 	device_object		*iw_dobj;
+	int			iw_idx;
 };
 
 typedef struct io_workitem io_workitem;
 
 #define WORKQUEUE_CRITICAL	0
 #define WORKQUEUE_DELAYED	1
-#define WORKQUEUE_HUPERCRITICAL	2
+#define WORKQUEUE_HYPERCRITICAL	2
+
+#define WORKITEM_THREADS	4
+#define WORKITEM_LEGACY_THREAD	3
+#define WORKIDX_INC(x)		(x) = (x + 1) % WORKITEM_LEGACY_THREAD
 
 /*
  * Older, deprecated work item API, needed to support NdisQueueWorkItem().
