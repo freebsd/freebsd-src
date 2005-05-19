@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Apr 30, 2005
+.Dd May 19, 2005
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -67,6 +67,8 @@ struct task {
 .Fn taskqueue_run "struct taskqueue *queue"
 .Ft void
 .Fn taskqueue_run_fast "struct taskqueue *queue"
+.Ft void
+.Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -158,6 +160,13 @@ as its first argument
 and the value of
 .Va ta_pending
 as its second argument.
+.Pp
+The 
+.Fn taskqueue_drain
+function is used to wait for the task to finish.
+There is no guarantee that the task will not be
+enqueued after call to
+.Fn taskqueue_drain .
 .Pp
 A convenience macro,
 .Fn TASK_INIT "task" "priority" "func" "context"
