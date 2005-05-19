@@ -183,6 +183,18 @@
       security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
       &merged;</para>
+
+    <para>Because of an information disclosure vulnerability on
+      processors using Hyper-Threading Technology (HTT), the
+      <varname>machdep.hyperthreading_allowed</varname> sysctl
+      variable has been added.  It defaults to <literal>1</literal>
+      (HTT enabled) on &os; CURRENT, and <literal>0</literal> (HTT
+      disabled) on the 4-STABLE and 5-STABLE development branches and
+      supported security fix branches.  More information can be found
+      in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
+      &merged;</para>
+
    <para>
 
   </sect2>
@@ -1098,11 +1110,17 @@ moused_ums0_port="/dev/ums0"</programlisting>
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>awk</application> has been updated from the 7
+      February 2004 release to the 24 April 2005 release.</para>
+
     <para><application>BIND</application> has been updated from version
       9.3.0 to version 9.3.1.  &merged;</para>
 
     <para><application>bsnmp</application> has been updated from 1.7
       to 1.9.</para>
+
+    <para><application>bzip2</application> has been updated from 1.0.2
+      to 1.0.3.</para>
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
@@ -1116,12 +1134,17 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>Heimdal</application> has been updated from
       0.6.1 to 0.6.3. &merged;</para>
 
+    <para><application>libregex</application> has been updated from a
+      snapshot from <application>GNU grep</application> 2.5.1 to a
+      snapshot from the <literal>fedora-glibc-2_3_4-21</literal> tag
+      in the <application>glibc</application> CVS repository.</para>
+
     <para><application>libz</application> has been updated from 1.2.1
       to 1.2.2.</para>
 
     <para><application>lukemftp</application> has been updated from a
       26 April 2004 snapshot from OpenBSD's sources to a snapshot as
-      of 19 February 2005.</para>
+      of 16 May 2005.</para>
 
     <para>A snapshot of <application>netcat</application> from OpenBSD
       as of 4 February 2005 has been added.  More information can be
@@ -1135,6 +1158,11 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>OpenSSL</application> has been updated from
       0.9.7d to 0.9.7e. &merged;</para>
+
+    <para><application>pf</application> has been updated from the
+      version included with <application>OpenBSD</application> 3.5 to
+      the version included with <application>OpenBSD</application>
+      3.7.</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
