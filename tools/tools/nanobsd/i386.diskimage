@@ -27,6 +27,8 @@ WD=$8
 IMG=$9
 CFGMASTER=${10}
 
+NEWFSPARAM="-b 4096 -f 512 -i 8192"
+
 TMPFILE0=`mktemp -t nanobsd`
 TMPFILE1=`mktemp -t nanobsd`
 TMPMNT=`mktemp -d -t nanobsd`
@@ -84,7 +86,7 @@ bsdlabel -w -B ${MD}s1
 
 # Prepare primary root slice
 
-newfs ${PRIROOTLABEL} -O1 -U ${MD}s1a
+newfs ${NEWFSPARAM} ${PRIROOTLABEL} -O1 -U ${MD}s1a
 mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
 make_fstab ${PRIROOTSLICE} ${TMPMNT}
@@ -103,7 +105,7 @@ umount ${TMPMNT}
 
 # Prepare configuration slice
 
-newfs ${CFGLABEL}  -O1 -U ${MD}s3
+newfs ${NEWFSPARAM} ${CFGLABEL}  -O1 -U ${MD}s3
 if [ -d "${CFGMASTER}" ]; then
   mount /dev/${MD}s3 ${TMPMNT}
   ( cd ${CFGMASTER} && find . -print | cpio -dumpl ${TMPMNT} )
