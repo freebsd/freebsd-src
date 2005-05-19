@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_OHCI_VENDORID_NVIDIA2	0x10DE
 #define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
+#define PCI_OHCI_VENDORID_SUN		0x108e
 
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
 static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB controller";
@@ -111,6 +112,9 @@ static const char *ohci_device_sis5571 = "SiS 5571 USB controller";
 
 #define PCI_OHCI_DEVICEID_KEYLARGO	0x0019106b
 static const char *ohci_device_keylargo = "Apple KeyLargo USB controller";
+
+#define PCI_OHCI_DEVICEID_PCIO2USB	0x1103108e
+static const char *ohci_device_pcio2usb = "Sun PCIO-2 USB controller";
 
 static const char *ohci_device_generic = "OHCI (generic) USB controller";
 
@@ -184,6 +188,8 @@ ohci_pci_match(device_t self)
 		return (ohci_device_sis5571);
 	case PCI_OHCI_DEVICEID_KEYLARGO:
 		return (ohci_device_keylargo);
+	case PCI_OHCI_DEVICEID_PCIO2USB:
+		return (ohci_device_pcio2usb);
 	default:
 		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
@@ -219,6 +225,14 @@ ohci_pci_attach(device_t self)
 	sc->sc_bus.usbrev = USBREV_1_0;
 
 	pci_enable_busmaster(self);
+
+	/*
+	 * Some Sun PCIO-2 USB controllers have their intpin register
+	 * bogusly set to 0, although it should be 4. Correct that.
+	 */
+	if (pci_get_devid(self) == PCI_OHCI_DEVICEID_PCIO2USB &&
+	    pci_get_intpin(self) == 0)
+		pci_set_intpin(self, 4);
 
 	rid = PCI_CBMEM;
 	sc->io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
