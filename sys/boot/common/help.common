@@ -133,6 +133,8 @@
 	set autoboot_delay=<value>
 
 	Sets the default delay for the autoboot command to <value> seconds.
+	Set value to -1 if you don't want to allow user to interrupt autoboot
+	process and escape to the loader prompt.
 
 ################################################################################
 # Tset Sbootfile DSet the default boot file set

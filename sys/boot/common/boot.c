@@ -166,15 +166,14 @@ autoboot(int timeout, char *prompt)
     autoboot_tried = 1;
 
     if (timeout == -1) {
+        timeout = 10;
 	/* try to get a delay from the environment */
 	if ((cp = getenv("autoboot_delay"))) {
 	    timeout = strtol(cp, &ep, 0);
 	    if (cp == ep)
-		timeout = -1;
+		timeout = 10;		/* Unparseable? Set default! */
 	}
     }
-    if (timeout == -1)		/* all else fails */
-	timeout = 10;
 
     kernelname = getenv("kernelname");
     if (kernelname == NULL) {
@@ -187,32 +186,38 @@ autoboot(int timeout, char *prompt)
 	}
     }
 
-    otime = time(NULL);
-    when = otime + timeout;	/* when to boot */
-    yes = 0;
+    if (timeout >= 0) {
+        otime = time(NULL);
+        when = otime + timeout;	/* when to boot */
 
-    printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
+        yes = 0;
 
-    for (;;) {
-	if (ischar()) {
-	    c = getchar();
-	    if ((c == '\r') || (c == '\n'))
-		yes = 1;
-	    break;
-	}
-	ntime = time(NULL);
-	if (ntime >= when) {
-	    yes = 1;
-	    break;
-	}
+        printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
 
-	if (ntime != otime) {
-	    printf("\rBooting [%s] in %d second%s... ",
-	    		kernelname, (int)(when - ntime),
-			(when-ntime)==1?"":"s");
-	    otime = ntime;
-	}
+        for (;;) {
+	    if (ischar()) {
+	        c = getchar();
+	        if ((c == '\r') || (c == '\n'))
+		    yes = 1;
+	        break;
+	    }
+	    ntime = time(NULL);
+	    if (ntime >= when) {
+	        yes = 1;
+	        break;
+	    }
+
+	    if (ntime != otime) {
+	        printf("\rBooting [%s] in %d second%s... ",
+	    		    kernelname, (int)(when - ntime),
+			    (when-ntime)==1?"":"s");
+	        otime = ntime;
+	    }
+        }
+    } else {
+        yes = 1;
     }
+
     if (yes)
 	printf("\rBooting [%s]...               ", kernelname);
     putchar('\n');
