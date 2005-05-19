@@ -39,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -71,9 +73,6 @@ static device_method_t rtc_ebus_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
-#ifdef notyet
-	DEVMETHOD(clock_getsecs,	mc146818_getsecs),
-#endif
 
 	{ 0, 0 }
 };
@@ -95,9 +94,6 @@ static device_method_t rtc_isa_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
-#ifdef notyet
-	DEVMETHOD(clock_getsecs,	mc146818_getsecs),
-#endif
 
 	{ 0, 0 }
 };
@@ -148,16 +144,24 @@ rtc_attach(device_t dev)
 	struct timespec ts;
 	struct mc146818_softc *sc;
 	struct resource *res;
-	int error, rid;
+	int error, rid, rtype;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct mc146818_softc));
 
+	mtx_init(&sc->sc_mtx, "rtc_mtx", NULL, MTX_DEF);
+
+	if (strcmp(device_get_name(device_get_parent(dev)), "isa") == 0)
+		rtype = SYS_RES_IOPORT;
+	else
+		rtype = SYS_RES_MEMORY;
+
 	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
 	if (res == NULL) {
-		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+		device_printf(dev, "cannot allocate resources\n");
+		error = ENXIO;
+		goto fail_mtx;
 	}
 	sc->sc_bst = rman_get_bustag(res);
 	sc->sc_bsh = rman_get_bushandle(res);
@@ -168,7 +172,7 @@ rtc_attach(device_t dev)
 	sc->sc_flag = MC146818_NO_CENT_ADJUST;
 	if ((error = mc146818_attach(dev)) != 0) {
 		device_printf(dev, "cannot attach time of day clock\n");
-		return (error);
+		goto fail_res;
 	}
 
 	if (bootverbose) {
@@ -178,4 +182,11 @@ rtc_attach(device_t dev)
         }
 
 	return (0);
+
+ fail_res:
+	bus_release_resource(dev, rtype, rid, res);
+ fail_mtx:
+	mtx_destroy(&sc->sc_mtx);
+
+	return (error);
 }
