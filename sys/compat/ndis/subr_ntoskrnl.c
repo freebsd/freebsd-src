@@ -122,6 +122,7 @@ static void ntoskrnl_timercall(void *);
 static void ntoskrnl_run_dpc(void *);
 static void ntoskrnl_dpc_thread(void *);
 static void ntoskrnl_destroy_dpc_threads(void);
+static void ntoskrnl_destroy_workitem_threads(void);
 static void ntoskrnl_workitem_thread(void *);
 static void ntoskrnl_workitem(device_object *, void *);
 static uint8_t ntoskrnl_insert_dpc(list_entry *, kdpc *);
@@ -212,7 +213,8 @@ static struct nt_objref_head ntoskrnl_reflist;
 static uma_zone_t mdl_zone;
 static uma_zone_t iw_zone;
 static struct kdpc_queue *kq_queues;
-static struct kdpc_queue *wq_queue;
+static struct kdpc_queue *wq_queues;
+static int wq_idx = 0;
 
 int
 ntoskrnl_libinit()
@@ -236,14 +238,18 @@ ntoskrnl_libinit()
 	if (kq_queues == NULL)
 		return(ENOMEM);
 
-	wq_queue = ExAllocatePoolWithTag(NonPagedPool,
-	    sizeof(kdpc_queue), 0);
+	wq_queues = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(kdpc_queue) * WORKITEM_THREADS, 0);
 
-	if (wq_queue == NULL)
+	if (wq_queues == NULL)
 		return(ENOMEM);
 
 	bzero((char *)kq_queues, sizeof(kdpc_queue) * mp_ncpus);
-	bzero((char *)wq_queue, sizeof(kdpc_queue));
+	bzero((char *)wq_queues, sizeof(kdpc_queue) * WORKITEM_THREADS);
+
+	/*
+	 * Launch the DPC threads.
+	 */
 
         for (i = 0; i < mp_ncpus; i++) {
 		kq = kq_queues + i;
@@ -256,13 +262,17 @@ ntoskrnl_libinit()
         }
 
 	/*
-	 * Launch the workitem thread.
+	 * Launch the workitem threads.
 	 */
 
-	error = kthread_create(ntoskrnl_workitem_thread, wq_queue, &p,
-                    RFHIGHPID, NDIS_KSTACK_PAGES, "Windows WorkItem");
-	if (error)
-		panic("failed to launch workitem thread");
+        for (i = 0; i < WORKITEM_THREADS; i++) {
+		kq = wq_queues + i;
+		sprintf(name, "Windows Workitem %d", i);
+		error = kthread_create(ntoskrnl_workitem_thread, kq, &p,
+                    RFHIGHPID, NDIS_KSTACK_PAGES, name);
+		if (error)
+			panic("failed to launch workitem thread");
+	}
 
 	patch = ntoskrnl_functbl;
 	while (patch->ipt_func != NULL) {
@@ -307,15 +317,11 @@ ntoskrnl_libfini()
 
 	/* Stop the DPC queues. */
 	ntoskrnl_destroy_dpc_threads();
-
-	/* Stop the workitem queue. */
-	wq_queue->kq_exit = 1;
-	KeSetEvent(&wq_queue->kq_proc, 0, FALSE);	
-	KeWaitForSingleObject((nt_dispatch_header *)&wq_queue->kq_dead,
-	    0, 0, TRUE, NULL);
+	/* Stop the workitem queues. */
+	ntoskrnl_destroy_workitem_threads();
 
 	ExFreePool(kq_queues);
-	ExFreePool(wq_queue);
+	ExFreePool(wq_queues);
 
 	uma_zdestroy(mdl_zone);
 	uma_zdestroy(iw_zone);
@@ -1117,6 +1123,8 @@ ntoskrnl_wakeup(arg)
 
 	e = obj->dh_waitlisthead.nle_flink;
 
+	obj->dh_sigstate = TRUE;
+
 	/*
 	 * What happens if someone tells us to wake up
 	 * threads waiting on an object, but nobody's
@@ -1133,7 +1141,6 @@ ntoskrnl_wakeup(arg)
 		return;
 	}
 
-	obj->dh_sigstate = TRUE;
 	while (e != &obj->dh_waitlisthead) {
 		w = (wait_block *)e;
 		td = w->wb_kthread;
@@ -1300,6 +1307,7 @@ KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 
 	if (error == EWOULDBLOCK) {
 		REMOVE_LIST_ENTRY((&w.wb_waitlist));
+		INIT_LIST_HEAD((&w.wb_waitlist));
 		mtx_unlock(&ntoskrnl_dispatchlock);
 		return(STATUS_TIMEOUT);
 	}
@@ -1322,6 +1330,7 @@ KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 	if (obj->dh_type == EVENT_TYPE_SYNC)
 		obj->dh_sigstate = FALSE;
 	REMOVE_LIST_ENTRY((&w.wb_waitlist));
+	INIT_LIST_HEAD((&w.wb_waitlist));
 
 	mtx_unlock(&ntoskrnl_dispatchlock);
 
@@ -1440,6 +1449,7 @@ KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
 				if (obj[i]->dh_type == EVENT_TYPE_SYNC)
 					obj[i]->dh_sigstate = FALSE;
 				REMOVE_LIST_ENTRY((&w[i].wb_waitlist));
+				INIT_LIST_HEAD((&w[i].wb_waitlist));
 				wcnt--;
 			}
 		}
@@ -1454,8 +1464,10 @@ KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
 	}
 
 	if (wcnt) {
-		for (i = 0; i < cnt; i++)
+		for (i = 0; i < cnt; i++) {
 			REMOVE_LIST_ENTRY((&w[i].wb_waitlist));
+			INIT_LIST_HEAD((&w[i].wb_waitlist));
+		}
 	}
 
 	if (error == EWOULDBLOCK) {
@@ -2153,6 +2165,7 @@ ntoskrnl_workitem_thread(arg)
 			iw = CONTAINING_RECORD(l,
 			    io_workitem, iw_listentry);
 			REMOVE_LIST_HEAD((&kq->kq_med));
+			INIT_LIST_HEAD(l);
 			if (iw->iw_func == NULL) {
 				l = kq->kq_med.nle_flink;
 				continue;
@@ -2176,6 +2189,24 @@ ntoskrnl_workitem_thread(arg)
         return; /* notreached */
 }
 
+static void
+ntoskrnl_destroy_workitem_threads(void)
+{
+	kdpc_queue		*kq;
+	int			i;
+
+	for (i = 0; i < WORKITEM_THREADS; i++) {
+		kq = wq_queues + i;
+
+		kq->kq_exit = 1;
+		KeSetEvent(&kq->kq_proc, 0, FALSE);	
+		KeWaitForSingleObject((nt_dispatch_header *)&kq->kq_dead,
+	    	    0, 0, TRUE, NULL);
+	}
+
+	return;
+}
+
 io_workitem *
 IoAllocateWorkItem(dobj)
 	device_object		*dobj;
@@ -2188,6 +2219,11 @@ IoAllocateWorkItem(dobj)
 
 	INIT_LIST_HEAD(&iw->iw_listentry);
 	iw->iw_dobj = dobj;
+
+	mtx_lock(&ntoskrnl_dispatchlock);
+	iw->iw_idx = wq_idx;
+	WORKIDX_INC(wq_idx);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(iw);
 }
@@ -2208,16 +2244,21 @@ IoQueueWorkItem(iw, iw_func, qtype, ctx)
 	void			*ctx;
 {
 	int			state;
+	kdpc_queue		*kq;
 
 	iw->iw_func = iw_func;
 	iw->iw_ctx = ctx;
 
-	mtx_lock_spin(&wq_queue->kq_lock);
-	INSERT_LIST_TAIL((&wq_queue->kq_med), (&iw->iw_listentry));
-	state = wq_queue->kq_state;
-	mtx_unlock_spin(&wq_queue->kq_lock);
+
+	kq = wq_queues + iw->iw_idx;
+
+	mtx_lock_spin(&kq->kq_lock);
+	INSERT_LIST_TAIL((&kq->kq_med), (&iw->iw_listentry));
+	state = kq->kq_state;
+	mtx_unlock_spin(&kq->kq_lock);
 	if (state == NDIS_PSTATE_SLEEPING)
-		KeSetEvent(&wq_queue->kq_proc, 0, FALSE);
+		KeSetEvent(&kq->kq_proc, 0, FALSE);
+
 	return;
 }
 
@@ -2251,6 +2292,7 @@ ExQueueWorkItem(w, qtype)
 	if (iw == NULL)
 		return;
 
+	iw->iw_idx = WORKITEM_LEGACY_THREAD;
 	iwf = (io_workitem_func)ntoskrnl_findwrap((funcptr)ntoskrnl_workitem);
 	IoQueueWorkItem(iw, iwf, qtype, iw);
 
@@ -2861,6 +2903,8 @@ ntoskrnl_dpc_thread(arg)
 		while (l != &kq->kq_high) {
 			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
 			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			INIT_LIST_HEAD((&d->k_dpclistentry));
+			d->k_lock = NULL;
 			mtx_unlock_spin(&kq->kq_lock);
 			ntoskrnl_run_dpc(d);
 			mtx_lock_spin(&kq->kq_lock);
@@ -2873,6 +2917,8 @@ ntoskrnl_dpc_thread(arg)
 		while (l != &kq->kq_med) {
 			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
 			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			INIT_LIST_HEAD((&d->k_dpclistentry));
+			d->k_lock = NULL;
 			mtx_unlock_spin(&kq->kq_lock);
 			ntoskrnl_run_dpc(d);
 			mtx_lock_spin(&kq->kq_lock);
@@ -2885,6 +2931,8 @@ ntoskrnl_dpc_thread(arg)
 		while (l != &kq->kq_low) {
 			d = CONTAINING_RECORD(l, kdpc, k_dpclistentry);
 			REMOVE_LIST_ENTRY((&d->k_dpclistentry));
+			INIT_LIST_HEAD((&d->k_dpclistentry));
+			d->k_lock = NULL;
 			mtx_unlock_spin(&kq->kq_lock);
 			ntoskrnl_run_dpc(d);
 			mtx_lock_spin(&kq->kq_lock);
@@ -3041,10 +3089,14 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 		r = ntoskrnl_insert_dpc(&kq->kq_low, dpc);
 	else
 		r = ntoskrnl_insert_dpc(&kq->kq_med, dpc);
-	dpc->k_lock = &kq->kq_lock;
+	if (r == TRUE)
+		dpc->k_lock = &kq->kq_lock;
 	state = kq->kq_state;
 	mtx_unlock_spin(&kq->kq_lock);
-	if (r == TRUE && state == NDIS_PSTATE_SLEEPING)
+	if (r == FALSE)
+		return(r);
+
+	if (state == NDIS_PSTATE_SLEEPING)
 		KeSetEvent(&kq->kq_proc, 0, FALSE);
 
 	return(r);
@@ -3059,6 +3111,7 @@ KeRemoveQueueDpc(dpc)
 
 	if (dpc->k_lock == NULL)
 		return(FALSE);
+
 	mtx_lock_spin(dpc->k_lock);
 	if (dpc->k_dpclistentry.nle_flink == &dpc->k_dpclistentry) {
 		mtx_unlock_spin(dpc->k_lock);
@@ -3066,6 +3119,7 @@ KeRemoveQueueDpc(dpc)
 	}
 
 	REMOVE_LIST_ENTRY((&dpc->k_dpclistentry));
+	INIT_LIST_HEAD((&dpc->k_dpclistentry));
 	mtx_unlock_spin(dpc->k_lock);
 
 	return(TRUE);
@@ -3199,6 +3253,7 @@ KeCancelTimer(timer)
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 		if (timer->k_dpc != NULL)
 			KeRemoveQueueDpc(timer->k_dpc);
+		timer->k_header.dh_inserted = FALSE;
 		pending = TRUE;
 	} else
 		pending = KeRemoveQueueDpc(timer->k_dpc);
