@@ -218,6 +218,7 @@ MAN=	aac.4 \
 	nmdm.4 \
 	nsp.4 \
 	null.4 \
+	${_nve.4} \
 	ohci.4 \
 	oldcard.4 \
 	orm.4 \
@@ -375,8 +376,8 @@ MAN=	aac.4 \
 	zero.4
 
 MLINKS=	agp.4 agpgart.4
-MLINKS+=an.4 if_an.4
 MLINKS+=altq.4 ALTQ.4
+MLINKS+=an.4 if_an.4
 MLINKS+=ata.4 acd.4 \
 	ata.4 ad.4 \
 	ata.4 afd.4 \
@@ -430,6 +431,7 @@ MLINKS+=my.4 if_my.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=nge.4 if_nge.4
+MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
@@ -474,6 +476,11 @@ MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_nve.4=		nve.4
+_if_nve.4=	if_nve.4
+.endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
 SUBDIR=	man4.${MACHINE_ARCH}
