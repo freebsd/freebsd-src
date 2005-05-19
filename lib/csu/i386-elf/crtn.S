@@ -24,9 +24,11 @@
  */
 
 	.section .init,"ax",@progbits
+	add	$12,%esp
 	ret
 
 	.section .fini,"ax",@progbits
+	add	$12,%esp
 	ret
 
 	.section .rodata
