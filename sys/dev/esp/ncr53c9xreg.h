@@ -173,7 +173,7 @@
 #define	 NCRESPCFG3_ADMA	0x02	/*	Alternate DMA Mode	*/
 #define	 NCRESPCFG3_T8M		0x01	/*	Threshold 8 Mode	*/
 
-/* Config #3 also different on NCR53CF9x/FAS216 */
+/* Config #3 also different on NCR53CF9x/FAS100A/FAS216/FAS236 */
 #define	NCR_F9XCFG3		0x0c	/* RW - Configuration #3	*/
 #define  NCRF9XCFG3_IDM		0x80	/*	ID Message Res Check	*/
 #define  NCRF9XCFG3_QTE		0x40	/*	Queue Tag Enable	*/
