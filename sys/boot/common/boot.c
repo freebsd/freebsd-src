@@ -53,18 +53,18 @@ static int
 command_boot(int argc, char *argv[])
 {
     struct preloaded_file	*fp;
-    
+
     /*
      * See if the user has specified an explicit kernel to boot.
      */
     if ((argc > 1) && (argv[1][0] != '-')) {
-	
+
 	/* XXX maybe we should discard everything and start again? */
 	if (file_findfile(NULL, NULL) != NULL) {
 	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[1]);
 	    return(CMD_ERROR);
 	}
-	
+
 	/* find/load the kernel module */
 	if (mod_loadkld(argv[1], argc - 2, argv + 2) != 0)
 	    return(CMD_ERROR);
@@ -93,7 +93,7 @@ command_boot(int argc, char *argv[])
      * XXX should we merge arguments?  Hard to DWIM.
      */
     if (argc > 1) {
-	if (fp->f_args != NULL)	
+	if (fp->f_args != NULL)
 	    free(fp->f_args);
 	fp->f_args = unargv(argc - 1, argv + 1);
     }
@@ -136,7 +136,7 @@ command_autoboot(int argc, char *argv[])
     case 1:
 	return(autoboot(howlong, prompt));
     }
-	
+
     command_errmsg = "too many arguments";
     return(CMD_ERROR);
 }
@@ -149,7 +149,7 @@ void
 autoboot_maybe()
 {
     char	*cp;
-    
+
     cp = getenv("autoboot_delay");
     if ((autoboot_tried == 0) && ((cp == NULL) || strcasecmp(cp, "NO")))
 	autoboot(-1, NULL);		/* try to boot automatically */
@@ -205,7 +205,7 @@ autoboot(int timeout, char *prompt)
 	    yes = 1;
 	    break;
 	}
-	
+
 	if (ntime != otime) {
 	    printf("\rBooting [%s] in %d second%s... ",
 	    		kernelname, (int)(when - ntime),
@@ -228,19 +228,19 @@ autoboot(int timeout, char *prompt)
  * Scrounge for the name of the (try)'th file we will try to boot.
  */
 static char *
-getbootfile(int try) 
+getbootfile(int try)
 {
     static char *name = NULL;
     const char	*spec, *ep;
     size_t	len;
-    
+
     /* we use dynamic storage */
     if (name != NULL) {
 	free(name);
 	name = NULL;
     }
-    
-    /* 
+
+    /*
      * Try $bootfile, then try our builtin default
      */
     if ((spec = getenv("bootfile")) == NULL)
@@ -271,7 +271,7 @@ getbootfile(int try)
 
 /*
  * Try to find the /etc/fstab file on the filesystem (rootdev),
- * which should be be the root filesystem, and parse it to find 
+ * which should be be the root filesystem, and parse it to find
  * out what the kernel ought to think the root filesystem is.
  *
  * If we're successful, set vfs.root.mountfrom to <vfstype>:<path>
@@ -297,7 +297,7 @@ getrootmount(char *rootdev)
     while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
 	if ((lbuf[0] == 0) || (lbuf[0] == '#'))
 	    continue;
-	
+
 	/* skip device name */
 	for (cp = lbuf; (*cp != 0) && !isspace(*cp); cp++)
 	    ;
@@ -306,7 +306,7 @@ getrootmount(char *rootdev)
 	/* delimit and save */
 	*cp++ = 0;
 	dev = strdup(lbuf);
-    
+
 	/* skip whitespace up to mountpoint */
 	while ((*cp != 0) && isspace(*cp))
 	    cp++;
@@ -350,4 +350,3 @@ loadakernel(int try, int argc, char* argv[])
 		return 1;
 	return 0;
 }
-
