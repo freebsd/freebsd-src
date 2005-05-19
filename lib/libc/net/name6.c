@@ -91,7 +91,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#if defined(YP) || defined(ICMPNL)
+#ifdef ICMPNL
 #include "reentrant.h"
 #endif
 #include <sys/param.h>
@@ -234,11 +234,7 @@ static void	 _dns_ehent(void) __unused;
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
-/*
- * XXX: Many dependencies are not thread-safe.  Still, we cannot use
- * getipnodeby*() in conjunction with other functions which call them.
- */
-#if defined(YP) || defined(ICMPNL)
+#ifdef ICMPNL
 static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
 #define THREAD_LOCK()	mutex_lock(&_getipnodeby_thread_lock);
 #define THREAD_UNLOCK()	mutex_unlock(&_getipnodeby_thread_lock);
@@ -327,12 +323,13 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	struct hostent *hp;
 	union inx_addr addrbuf;
 
-	if (af != AF_INET
+	switch (af) {
+	case AF_INET:
 #ifdef INET6
-	    && af != AF_INET6
+	case AF_INET6:
 #endif
-		)
-	{
+		break;
+	default:
 		*errp = NO_RECOVERY;
 		return NULL;
 	}
@@ -363,9 +360,8 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	hp = _ghbyname(name, af, flags, errp);
 
 #ifdef INET6
-	if (af == AF_INET6
-	&&  ((flags & AI_ALL) || hp == NULL)
-	&&  (MAPADDRENABLED(flags))) {
+	if (af == AF_INET6 && ((flags & AI_ALL) || hp == NULL) &&
+	    MAPADDRENABLED(flags)) {
 		struct hostent *hp2 = _ghbyname(name, AF_INET, flags, errp);
 		if (hp == NULL)
 			hp = _hpmapv6(hp2, errp);
@@ -1374,7 +1370,7 @@ _files_ghbyaddr(void *rval, void *cb_data, va_list ap)
 /*
  * NIS
  *
- * XXX actually a hack, these are INET4 specific.
+ * XXX actually a hack.
  */
 static int
 _nis_ghbyname(void *rval, void *cb_data, va_list ap)
@@ -1388,17 +1384,12 @@ _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 	af = va_arg(ap, int);
 	errp = va_arg(ap, int *);
 
-	if (af == AF_INET) {
-		THREAD_LOCK();
-		hp = _gethostbynisname(name, af);
-		if (hp != NULL)
-			hp = _hpcopy(hp, errp);
-		THREAD_UNLOCK();
-	}
-	
+	hp = _gethostbynisname(name, af);
+	if (hp != NULL)
+		hp = _hpcopy(hp, errp);
+
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-	
 }
 
 static int
@@ -1414,13 +1405,9 @@ _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	addrlen = va_arg(ap, int);
 	af = va_arg(ap, int);
 
-	if (af == AF_INET) {
-		THREAD_LOCK();
-		hp = _gethostbynisaddr(addr, addrlen, af);
-		if (hp != NULL)
-			hp = _hpcopy(hp, errp);
-		THREAD_UNLOCK();
-	}
+	hp = _gethostbynisaddr(addr, addrlen, af);
+	if (hp != NULL)
+		hp = _hpcopy(hp, errp);
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }

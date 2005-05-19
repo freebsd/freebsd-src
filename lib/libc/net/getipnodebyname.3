@@ -461,15 +461,6 @@ are documented in
 (RFC2553).
 .\"
 .Sh BUGS
-Although the current implementation is otherwise thread-safe, using
-it in conjunction with
-.Fn gethostby*
-(see
-.Xr gethostbyname 3 )
-or
-.Xr yp 8
-breaks the thread-safety of both.
-.Pp
 The
 .Fn getipnodebyname
 and
