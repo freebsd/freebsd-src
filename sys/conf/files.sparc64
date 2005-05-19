@@ -81,10 +81,9 @@ sparc64/sparc64/db_hwwatch.c	optional	ddb
 sparc64/sparc64/dump_machdep.c	standard
 sparc64/sparc64/elf_machdep.c	standard
 sparc64/sparc64/exception.S	standard	no-obj
-sparc64/sparc64/eeprom.c	optional	eeprom
-sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
-sparc64/sparc64/eeprom_sbus.c	optional	eeprom fhc
-sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
+sparc64/sparc64/eeprom.c	optional	eeprom ebus
+sparc64/sparc64/eeprom.c	optional	eeprom fhc
+sparc64/sparc64/eeprom.c	optional	eeprom sbus
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
