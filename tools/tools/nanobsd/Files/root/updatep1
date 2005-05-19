@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Copyright (c) 2004 Poul-Henning Kamp
+#
+# See /usr/share/examples/etc/bsd-style-copyright for license terms.
+#
+# $FreeBSD$
+#
+# Script to update partition 1 on a NanoBSD system.
+#
+# usage:
+#	ssh somewhere cat image.s1 | sh updatep1
+#
+
+set -e
+
+if mount | grep ad0s1 > /dev/null ; then
+	echo "You are running partition 1 already"
+	echo "you probably want to use 'updatep2' instead"
+	exit 1
+fi
+
+dd of=/dev/ad0s1 obs=64k
+boot0cfg -s 1 -v ad0
