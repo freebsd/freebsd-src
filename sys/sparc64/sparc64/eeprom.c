@@ -46,14 +46,20 @@
  *
  *	from: @(#)clock.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: clock.c,v 1.41 2001/07/24 19:29:25 eeh Exp
- *
- * $FreeBSD$
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * clock (eeprom) attaches at EBus, FireHose or SBus
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -64,17 +70,40 @@
 
 #include <sys/rman.h>
 
-#include <machine/eeprom.h>
-
 #include <dev/mk48txx/mk48txxvar.h>
 
 #include "clock_if.h"
 
-devclass_t eeprom_devclass;
-
 #define	IDPROM_OFFSET	40
 
-int
+static devclass_t eeprom_devclass;
+
+static device_probe_t eeprom_probe;
+static device_attach_t eeprom_attach;
+
+static device_method_t eeprom_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		eeprom_probe),
+	DEVMETHOD(device_attach,	eeprom_attach),
+
+	/* clock interface */
+	DEVMETHOD(clock_gettime,	mk48txx_gettime),
+	DEVMETHOD(clock_settime,	mk48txx_settime),
+
+	{ 0, 0 }
+};
+
+static driver_t eeprom_driver = {
+	"eeprom",
+	eeprom_methods,
+	sizeof(struct mk48txx_softc),
+};
+
+DRIVER_MODULE(eeprom, ebus, eeprom_driver, eeprom_devclass, 0, 0);
+DRIVER_MODULE(eeprom, fhc, eeprom_driver, eeprom_devclass, 0, 0);
+DRIVER_MODULE(eeprom, sbus, eeprom_driver, eeprom_devclass, 0, 0);
+
+static int
 eeprom_probe(device_t dev)
 {
  
@@ -85,26 +114,40 @@ eeprom_probe(device_t dev)
 	return (ENXIO);
 }
 
-int
+static int
 eeprom_attach(device_t dev)
 {
 	struct mk48txx_softc *sc;
+	struct resource *res;
 	struct timespec ts;
-	u_int32_t h;
-	int error, i;
+	uint32_t h;
+	int error, i, rid;
 
 	sc = device_get_softc(dev);
+	bzero(sc, sizeof(struct mk48txx_softc));
 
-	if ((sc->sc_model = ofw_bus_get_model(dev)) == NULL)
-		panic("eeprom_attach: no model property");
+	rid = 0;
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "cannot allocate resources\n");
+		return (ENXIO);
+	}
+	sc->sc_bst = rman_get_bustag(res);
+	sc->sc_bsh = rman_get_bushandle(res);
+
+	if ((sc->sc_model = ofw_bus_get_model(dev)) == NULL) {
+		device_printf(dev, "cannot determine model\n");
+		error = ENXIO;
+		goto fail_res;
+	}
 
 	/* Our TOD clock year 0 is 1968 */
 	sc->sc_year0 = 1968;
+	/* Use default register read/write functions. */
 	sc->sc_flag = 0;
-	/* Default register read/write functions are used. */
 	if ((error = mk48txx_attach(dev)) != 0) {
 		device_printf(dev, "cannot attach time of day clock\n");
-		return (error);
+		goto fail_res;
 	}
 
 	/*
@@ -132,4 +175,9 @@ eeprom_attach(device_t dev)
 	}
 
 	return (0);
+
+ fail_res:
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+
+	return (error);
 }
