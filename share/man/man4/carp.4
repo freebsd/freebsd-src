@@ -25,7 +25,7 @@
 .\"
 .\"	$FreeBSD$
 .\"
-.Dd April 7, 2005
+.Dd May 15, 2005
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -124,6 +124,15 @@ Enabled by default.
 .It Va net.inet.carp.arpbalance
 Balance local traffic using ARP.
 Disabled by default.
+.It Va net.inet.carp.suppress_preempt
+A read only value showing the status of preemption suppression.
+Preemption can be suppressed if link on an interface is down
+or when
+.Xr pfsync 4
+interface is not synchronized.
+Value of 0 means that preemption is not suppressed, since no
+problems are detected.
+Every problem increments suppression counter.
 .El
 .Sh EXAMPLES
 For firewalls and routers with multiple interfaces, it is desirable to
@@ -212,8 +221,9 @@ It cannot balance traffic that crosses a router, because the router
 itself will always be balanced to the same virtual host.
 .Sh SEE ALSO
 .Xr inet 4 ,
-.Xr rc.conf 5 ,
 .Xr ifconfig 8 ,
+.Xr pfsync 4 ,
+.Xr rc.conf 5 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
