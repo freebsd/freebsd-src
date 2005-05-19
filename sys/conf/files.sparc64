@@ -7,7 +7,12 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
+#
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
@@ -19,6 +24,7 @@ dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
 dev/fb/splash.c			optional	splash
 dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	ukbd
 dev/ofw/ofw_bus_if.m		standard
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
@@ -115,9 +121,3 @@ sparc64/sparc64/trap.c		standard
 sparc64/sparc64/tsb.c		standard
 sparc64/sparc64/uio_machdep.c	standard
 sparc64/sparc64/vm_machdep.c	standard
-#
-ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
-	no-obj no-implicit-rule before-depend				\
-	clean		"ukbdmap.h"
-#
