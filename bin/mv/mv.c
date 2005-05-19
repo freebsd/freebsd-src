@@ -351,11 +351,11 @@ copy(char *from, char *to)
 		return (1);
 	}
 	if (!WIFEXITED(status)) {
-		warn("%s: did not terminate normally", _PATH_CP);
+		warnx("%s: did not terminate normally", _PATH_CP);
 		return (1);
 	}
 	if (WEXITSTATUS(status)) {
-		warn("%s: terminated with %d (non-zero) status",
+		warnx("%s: terminated with %d (non-zero) status",
 		    _PATH_CP, WEXITSTATUS(status));
 		return (1);
 	}
@@ -369,11 +369,11 @@ copy(char *from, char *to)
 		return (1);
 	}
 	if (!WIFEXITED(status)) {
-		warn("%s: did not terminate normally", _PATH_RM);
+		warnx("%s: did not terminate normally", _PATH_RM);
 		return (1);
 	}
 	if (WEXITSTATUS(status)) {
-		warn("%s: terminated with %d (non-zero) status",
+		warnx("%s: terminated with %d (non-zero) status",
 		    _PATH_RM, WEXITSTATUS(status));
 		return (1);
 	}
