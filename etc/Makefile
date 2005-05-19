@@ -13,8 +13,8 @@ BIN1=	amd.map apmd.conf auth.conf \
 	mac.conf motd netconfig network.subr networks newsyslog.conf \
 	pf.conf pf.os phones profile protocols \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.sendmail rc.shutdown \
-	rc.subr remote rpc services \
-	shells sysctl.conf syslog.conf usbd.conf \
+	rc.subr remote rpc services shells \
+	snmpd.config sysctl.conf syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
