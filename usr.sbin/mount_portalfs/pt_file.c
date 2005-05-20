@@ -57,7 +57,6 @@ int *fdp;
 	char pbuf[MAXPATHLEN];
 	int error;
 	struct portal_cred save_area;
-	int i;
 
 	pbuf[0] = '/';
 	strcpy(pbuf+1, key + (v[1] ? strlen(v[1]) : 0));
