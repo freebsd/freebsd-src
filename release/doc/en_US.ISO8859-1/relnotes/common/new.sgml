@@ -581,12 +581,21 @@
 	network protocol stack and improving the locking
 	strategies.</para>
 
+      <para>The <filename>libalias</filename> library can now be built
+        as a kernel module.</para>
+
       <para>A new &man.ng.ipfw.4; NetGraph node provides
 	a simple interface between the &man.ipfw.4; and &man.netgraph.4;
 	facilities.</para>
 
+      <para>A new &man.ng.nat.4; NetGraph node has been added to
+	perform NAT functions.</para>
+
       <para>A new &man.ng.netflow.4; NetGraph node allows a router
 	running &os; to do NetFlow version 5 exports. &merged;</para>
+
+      <para>&man.sed.1; now supports a <option>-l</option> option to
+	make its output line-buffered.</para>
 
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
@@ -671,6 +680,20 @@
 	ARC-12<replaceable>xx</replaceable> series of SATA RAID
 	controllers.  &merged;</para>
 
+      <para>The &man.ata.4; family of drivers has been overhauled and
+	updated.  It has been split into modules that can be loaded
+	and unloaded independently (the <filename>atapci</filename>
+	and <filename>ata</filename> modules are prerequesites for the
+	device subdrivers, which are <filename>atadisk</filename>,
+	<filename>atapicd</filename>, <filename>atapifd</filename>,
+	<filename>atapist</filename>, and
+	<filename>ataraid</filename>).  On supported SATA controllers,
+	devices can be hot inserted/removed.  ATA RAID support has
+	been rewritten and supports a number of new metadata formats.
+	The <filename>atapicd</filename> driver no longer supports CD
+	changers.  This update has been referred to as <quote>ATA
+	mkIII</quote>.</para>
+
       <para>The SHSEC GEOM class has been added.  It provides for the
 	sharing of a secret between multiple GEOM providers.  All of
 	these providers must be present in order to reveal the
@@ -749,6 +772,10 @@
       &man.memcpy.3;, &man.memmove.3;, &man.memset.3;, &man.strcat.3;
       and &man.strcpy.3; have been implemented.</para>
 
+    <para>The &man.chflags.1; utility now supports the
+      <option>-h</option> flag, which supports changing flags on
+      symbolic links.</para>
+
     <para>The &man.ftpd.8; program now uses the <literal>212</literal>
       and <literal>213</literal> status codes for directory
       and file status correctly (<literal>211</literal> was used in
@@ -800,6 +827,10 @@
       options has been deprecated.  Warnings are printed to stderr
       indicating the correct full form when one of these abbreviations
       is detected.</para>
+
+    <para>The &man.kldstat.8; utility now supports a
+      <option>-m</option> option to return the status of a specific
+      kernel module.</para>
 
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
@@ -1054,6 +1085,9 @@
       connection, has been added.  It was obtained from
       OpenBSD. &merged;</para>
 
+    <para>&man.what.1; now support a <option>-q</option> flag, which
+      causes it to print matching text, but not format it.</para>
+
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
       for querying <hostid role="fqdn">whois.krnic.net</hostid>
@@ -1124,6 +1158,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
+
+    <para>A number of bug fixes and performance enhancements have been
+      added to <application>GNU grep</application> in the form of
+      patches from Fedora's grep-2.5.1-48 source RPM.</para>
 
     <para><application>GNU readline</application> has been updated from
       version 4.3 to version 5.0.</para>
