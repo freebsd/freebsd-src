@@ -47,6 +47,7 @@
 #define		FW_VENDORID_LUCENT	0x11c1
 #define		FW_VENDORID_INTEL	0x8086
 #define		FW_VENDORID_ADAPTEC	0x9004
+#define		FW_VENDORID_SUN		0x108e
 
 #define		FW_DEVICE_CS4210	(0x000f << 16)
 #define		FW_DEVICE_UPD861	(0x0063 << 16)
@@ -76,6 +77,7 @@
 #define		FW_DEVICE_FW322		(0x5811 << 16)
 #define		FW_DEVICE_7007		(0x7007 << 16)
 #define		FW_DEVICE_82372FB	(0x7605 << 16)
+#define		FW_DEVICE_PCIO2FW	(0x1102 << 16)
 
 #define PCI_INTERFACE_OHCI	0x10
 
