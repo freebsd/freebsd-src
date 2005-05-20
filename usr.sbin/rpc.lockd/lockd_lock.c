@@ -1,5 +1,4 @@
 /*	$NetBSD: lockd_lock.c,v 1.5 2000/11/21 03:47:41 enami Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 2001 Andrew P. Lentvorski, Jr.
@@ -34,6 +33,9 @@
  * SUCH DAMAGE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define LOCKD_DEBUG
 
@@ -212,7 +214,7 @@ enum nlm_stats	do_test(struct file_lock *fl,
 enum nlm_stats	do_unlock(struct file_lock *fl);
 enum nlm_stats	do_lock(struct file_lock *fl);
 void	do_clear(const char *hostname);
-
+size_t	strnlen(const char *, size_t);
 
 void
 debuglog(char const *fmt, ...)
@@ -520,12 +522,11 @@ region_compare(starte, lene, startu, lenu,
 
 	if (lene == 0 && lenu == 0) {
 		/* Examine left edge of locker */
+		lflags = LEDGE_INSIDE;
 		if (startu < starte) {
 			lflags = LEDGE_LEFT;
 		} else if (startu == starte) {
 			lflags = LEDGE_LBOUNDARY;
-		} else {
-			lflags = LEDGE_INSIDE;
 		}
 
 		rflags = REDGE_RBOUNDARY; /* Both are infiinite */
@@ -543,12 +544,11 @@ region_compare(starte, lene, startu, lenu,
 	} else if (lene == 0 && lenu != 0) {
 		/* Established lock is infinite */
 		/* Examine left edge of unlocker */
+		lflags = LEDGE_INSIDE;
 		if (startu < starte) {
 			lflags = LEDGE_LEFT;
 		} else if (startu == starte) {
 			lflags = LEDGE_LBOUNDARY;
-		} else if (startu > starte) {
-			lflags = LEDGE_INSIDE;
 		}
 
 		/* Examine right edge of unlocker */
@@ -580,6 +580,7 @@ region_compare(starte, lene, startu, lenu,
 	} else if (lene != 0 && lenu == 0) {
 		/* Unlocker is infinite */
 		/* Examine left edge of unlocker */
+		lflags = LEDGE_RIGHT;
 		if (startu < starte) {
 			lflags = LEDGE_LEFT;
 			retval = SPL_CONTAINED;
@@ -605,11 +606,11 @@ region_compare(starte, lene, startu, lenu,
 			retval |= SPL_LOCK1;
 			return retval;
 		}
-
 	} else {
 		/* Both locks are finite */
 
 		/* Examine left edge of unlocker */
+		lflags = LEDGE_RIGHT;
 		if (startu < starte) {
 			lflags = LEDGE_LEFT;
 		} else if (startu == starte) {
@@ -662,7 +663,6 @@ region_compare(starte, lene, startu, lenu,
 			retval = SPL_CONTAINED;
 		}
 	}
-
 	return retval;
 }
 
