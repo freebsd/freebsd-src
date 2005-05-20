@@ -66,6 +66,7 @@ ttyname_r(int fd, char *buf, size_t len)
 {
 	struct stat	sb;
 	struct fiodgname_arg fgn;
+	size_t used;
 
 	*buf = '\0';
 
@@ -80,12 +81,13 @@ ttyname_r(int fd, char *buf, size_t len)
 		return (ERANGE);
 
 	strcpy(buf, _PATH_DEV);
-	fgn.len = len - strlen(buf);
-	fgn.buf = buf + strlen(buf);
+	used = strlen(buf);
+	fgn.len = len - used;
+	fgn.buf = buf + used;
 	if (!_ioctl(fd, FIODGNAME, &fgn))
 		return (0);
-	devname_r(sb.st_rdev, S_IFCHR,
-	    buf + strlen(buf), len - strlen(buf));
+	used = strlen(buf);
+	devname_r(sb.st_rdev, S_IFCHR, buf + used, len - used);
 	return (0);
 }
 
