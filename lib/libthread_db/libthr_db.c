@@ -200,7 +200,6 @@ pt_ta_delete(td_thragent_t *ta)
 static td_err_e
 pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 {
-	prgregset_t gregs;
 	TAILQ_HEAD(, pthread) thread_list;
 	psaddr_t pt;
 	long lwp;
@@ -681,7 +680,7 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 {
 	char *obj_entry;
 	const td_thragent_t *ta = th->th_ta;
-	psaddr_t tcb_addr, *dtv_addr, tcb_tp;
+	psaddr_t tcb_addr, *dtv_addr;
 	int tls_index, ret;
 
 	/* linkmap is a member of Obj_Entry */
