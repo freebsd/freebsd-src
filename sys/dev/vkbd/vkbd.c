@@ -673,7 +673,7 @@ bad:
 		if (fkeymap != NULL)
 			free(fkeymap, M_VKBD);
 		if (kbd != NULL) {
-			free(kbd, M_DEVBUF);
+			free(kbd, M_VKBD);
 			*kbdp = NULL;	/* insure ref doesn't leak to caller */
 		}
 	}
