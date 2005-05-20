@@ -33,6 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/asmacros.h>
 #include <machine/timerreg.h>
 
+/*
+ * There are 2 definitions of MCOUNT to have a C version and an asm version
+ * with the same name and not have LOCORE #ifdefs to distinguish them.
+ * <machine/profile.h> provides a C version, and <machine/asmacros.h>
+ * provides an asm version.  To avoid conflicts, #undef the asm version.
+ */
+#undef MCOUNT
+
 #ifdef GUPROF
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"
@@ -44,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/perfmon.h>
 #include <machine/profile.h>
-#undef MCOUNT
 
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
