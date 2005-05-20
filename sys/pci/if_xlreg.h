@@ -607,6 +607,7 @@ struct xl_softc {
 	bus_space_handle_t	xl_fhandle;
 	bus_space_tag_t		xl_ftag;
 	struct mtx		xl_mtx;
+	struct task		xl_task;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
