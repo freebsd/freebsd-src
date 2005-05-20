@@ -164,13 +164,13 @@ devinfo_init_devices(int generation)
 {
 	struct u_device		udev;
 	struct devinfo_i_dev	*dd;
-	int				dev_idx;
-	int				dev_ptr;
-	int				name2oid[2];
-	int				oid[CTL_MAXNAME + 12];
+	int			dev_idx;
+	int			dev_ptr;
+	int			name2oid[2];
+	int			oid[CTL_MAXNAME + 12];
 	size_t			oidlen, rlen;
-	char			*name, *np, *fmt;
-	int				error, hexmode;
+	char			*name;
+	int			error;
 
 	/* 
 	 * Find the OID for the rman interface node.
@@ -245,15 +245,15 @@ devinfo_init_resources(int generation)
 {
 	struct u_rman		urman;
 	struct devinfo_i_rman	*dm;
-	struct u_resource		ures;
+	struct u_resource	ures;
 	struct devinfo_i_res	*dr;
-	int				rman_idx, res_idx;
-	int				rman_ptr, res_ptr;
-	int				name2oid[2];
-	int				oid[CTL_MAXNAME + 12];
+	int			rman_idx, res_idx;
+	int			rman_ptr, res_ptr;
+	int			name2oid[2];
+	int			oid[CTL_MAXNAME + 12];
 	size_t			oidlen, rlen;
-	char			*name, *np, *fmt;
-	int				error, hexmode;
+	char			*name;
+	int			error;
 
 	/* 
 	 * Find the OID for the rman interface node.
