@@ -3013,7 +3013,7 @@ ndis_shutdown(dev)
 	struct ndis_softc		*sc;
 
 	sc = device_get_softc(dev);
-	ndis_shutdown_nic(sc);
+	ndis_stop(sc);
 
 	return;
 }
