@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *      from BSDI kern.c,v 1.2 1998/11/25 22:38:27 don Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -69,14 +71,15 @@ typedef struct __owner {
 static OWNER owner;
 
 static char hostname[MAXHOSTNAMELEN + 1];	/* Hostname. */
+static int devfd;
 
 static void	client_cleanup(void);
-static void	set_auth(CLIENT *cl, struct xucred *ucred);
+static const char *from_addr(struct sockaddr *);
 int	lock_request(LOCKD_MSG *);
-int	test_request(LOCKD_MSG *);
+static void	set_auth(CLIENT *cl, struct xucred *ucred);
 void	show(LOCKD_MSG *);
+int	test_request(LOCKD_MSG *);
 int	unlock_request(LOCKD_MSG *);
-static	int	devfd;
 
 static int
 nfslockdans(int vers, struct lockd_ans *ansp)
@@ -122,11 +125,9 @@ pid_t
 client_request(void)
 {
 	LOCKD_MSG msg;
-	fd_set rdset;
 	int nr, ret;
 	pid_t child;
 	uid_t daemon_uid;
-	mode_t old_umask;
 	struct passwd *pw;
 
 	/* Open the dev . */
