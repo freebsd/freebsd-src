@@ -27,6 +27,8 @@ WD=$8
 IMG=$9
 CFGMASTER=${10}
 
+NEWFSPARAM="-b 4096 -f 512 -i 8192"
+
 TMPFILE0=`mktemp -t nanobsd`
 TMPFILE1=`mktemp -t nanobsd`
 TMPMNT=`mktemp -d -t nanobsd`
@@ -58,11 +60,17 @@ MD=`mdconfig -a -t vnode -f ${TMPFILE0} -x ${SC} -y ${HD}`
 rm -f ${TMPFILE0}
 echo ${SECTS} ${SC} ${HD} ${DATASIZE} | awk '
 	{
+	# size of cylinder in sectors
 	cs = $2 * $3
+	# number of full cylinders
 	cyl = $1 / cs
 	print "g c" cyl " h" $3 " s" $2
+	# Size of data/conf patition, round up to full cylinder
 	dsl = int (($4 + cs - 1) / cs)
+	# Size of code partition cylinder = half the remainder
 	csl = int ((cyl - dsl) / 2)
+	# ... But that could round down, so make the data/conf
+	# use whatever the code partitions do not use.
 	dsl = cyl - csl * 2
 	print "p 1 165 " $2, csl * cs - $2
 	print "p 2 165 " $2 + csl * cs, csl * cs - $2
@@ -78,7 +86,7 @@ bsdlabel -w -B ${MD}s1
 
 # Prepare primary root slice
 
-newfs ${PRIROOTLABEL} -O1 -U ${MD}s1a
+newfs ${NEWFSPARAM} ${PRIROOTLABEL} -O1 -U ${MD}s1a
 mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
 make_fstab ${PRIROOTSLICE} ${TMPMNT}
@@ -97,7 +105,7 @@ umount ${TMPMNT}
 
 # Prepare configuration slice
 
-newfs ${CFGLABEL}  -O1 -U ${MD}s3
+newfs ${NEWFSPARAM} ${CFGLABEL}  -O1 -U ${MD}s3
 if [ -d "${CFGMASTER}" ]; then
   mount /dev/${MD}s3 ${TMPMNT}
   ( cd ${CFGMASTER} && find . -print | cpio -dumpl ${TMPMNT} )
