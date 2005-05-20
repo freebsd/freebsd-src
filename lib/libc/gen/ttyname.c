@@ -124,7 +124,8 @@ ttyname(int fd)
 			return (NULL);
 		}
 	}
-	ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN);
+	if (ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN) != 0)
+		return (NULL);
 	return (buf);
 }
 
