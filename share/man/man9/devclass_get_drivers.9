@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2005
+.Dd May 19, 2005
 .Dt DEVCLASS_GET_DRIVERS 9
 .Os
 .Sh NAME
@@ -47,6 +47,9 @@ and the number of drivers in the list in
 .Fa *countp .
 The memory allocated for the list should be freed using
 .Fn free "*listp" "M_TEMP" .
+even if    
+.Fa *countp
+is 0.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
