@@ -664,6 +664,20 @@ ctxsw_utow(void)
 	struct tid		*t;
 
 	t = &my_tids[curthread->td_oncpu];
+
+	/*
+	 * Ugly hack. During system bootstrap (cold == 1), only CPU 0
+	 * is running. So if we were loaded at bootstrap, only CPU 0
+	 * will have our special GDT entry. This is a problem for SMP
+	 * systems, so to deal with this, we check here to make sure
+	 * the TID for this processor has been initialized, and if it
+	 * hasn't, we need to do it right now or else things will
+	 * explode.
+	 */
+ 
+	if (t->tid_self != t)
+		x86_newldt(NULL);
+
 	t->tid_oldfs = x86_getfs();
 	t->tid_cpu = curthread->td_oncpu;
 
