@@ -1112,7 +1112,8 @@ ndis_halt_nic(arg)
 		n->nmt_nexttimer = NULL;
 	}
 	sc->ndis_block->nmb_timerlist = NULL;
-	KeFlushQueuedDpcs();
+	if (!cold)
+		KeFlushQueuedDpcs();
 #endif
 
 	NDIS_LOCK(sc);
