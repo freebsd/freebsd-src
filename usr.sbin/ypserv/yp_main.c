@@ -106,7 +106,6 @@ yp_svc_run(void)
 #else
 	int readfds;
 #endif /* def FD_SETSIZE */
-	extern int forked;
 	int fd_setsize = _rpc_dtablesize();
 	struct timeval timeout;
 

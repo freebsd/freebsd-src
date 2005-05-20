@@ -68,7 +68,8 @@ static char *
 parse(struct hostent *hp)
 {
 	static char result[MAXHOSTNAMELEN * 2];
-	int len,i;
+	int i;
+	size_t len;
 	char addr[46];
 
 	if (hp == NULL)
@@ -346,7 +347,6 @@ yp_run_dnsq(void)
 {
 	register struct circleq_dnsentry *q;
 	char buf[sizeof(HEADER) + MAXPACKET];
-	char retrybuf[MAXHOSTNAMELEN];
 	struct sockaddr_in sin;
 	socklen_t len;
 	int rval;
