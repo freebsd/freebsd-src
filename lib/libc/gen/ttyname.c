@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 #include <paths.h>
-#include <pthread.h>
 #include <errno.h>
+#include "reentrant.h"
 #include "un-namespace.h"
 
 #include "libc_private.h"
 
 static char ttyname_buf[sizeof(_PATH_DEV) + MAXNAMLEN];
 
-static pthread_mutex_t	ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_key_t	ttyname_key;
-static int		ttyname_init = 0;
+static once_t		ttyname_init_once = ONCE_INITIALIZER;
+static thread_key_t	ttyname_key;
+static int		ttyname_keycreated = 0;
 
 int
 ttyname_r(int fd, char *buf, size_t len)
@@ -89,43 +89,34 @@ ttyname_r(int fd, char *buf, size_t len)
 	return (0);
 }
 
+static void
+ttyname_keycreate(void)
+{
+	ttyname_keycreated = (thr_keycreate(&ttyname_key, free) == 0);
+}
+
 char *
 ttyname(int fd)
 {
 	char	*buf;
 
-	if (__isthreaded == 0) {
-		if (ttyname_r(fd, ttyname_buf, sizeof ttyname_buf) != 0)
+	if (thr_main() != 0)
+		buf = ttyname_buf;
+	else {
+		if (thr_once(&ttyname_init_once, ttyname_keycreate) != 0 ||
+		    !ttyname_keycreated)
 			return (NULL);
-		else
-			return (ttyname_buf);
-	}
-
-	if (ttyname_init == 0) {
-		_pthread_mutex_lock(&ttyname_lock);
-		if (ttyname_init == 0) {
-			if (_pthread_key_create(&ttyname_key, free)) {
-				_pthread_mutex_unlock(&ttyname_lock);
+		if ((buf = thr_getspecific(ttyname_key)) == NULL) {
+			if ((buf = malloc(sizeof ttyname_buf)) == NULL)
 				return (NULL);
-			}
-			ttyname_init = 1;
-		}
-		_pthread_mutex_unlock(&ttyname_lock);
-	}
-
-	/* Must have thread specific data field to put data */
-	if ((buf = _pthread_getspecific(ttyname_key)) == NULL) {
-		if ((buf = malloc(sizeof(_PATH_DEV) + MAXNAMLEN)) != NULL) {
-			if (_pthread_setspecific(ttyname_key, buf) != 0) {
+			if (thr_setspecific(ttyname_key, buf) != 0) {
 				free(buf);
 				return (NULL);
 			}
-		} else {
-			return (NULL);
 		}
 	}
-	if (ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN) != 0)
+
+	if (ttyname_r(fd, buf, sizeof ttyname_buf) != 0)
 		return (NULL);
 	return (buf);
 }
-
