@@ -781,7 +781,7 @@ start_ap(int apic_id)
 	for (ms = 0; ms < 5000; ms++) {
 		if (mp_naps > cpus)
 			return 1;	/* return SUCCESS */
-		DELAY(100000);
+		DELAY(1000);
 	}
 	return 0;		/* return FAILURE */
 }
