@@ -333,8 +333,7 @@ main(int argc, char *argv[])
 	struct arl_stats	stb;
 	struct arl_sigcache	qlt[MAXARLCACHE];
 	int			sd, argind, val = -1;
-	long			val2;
-	char			*param, *value, *value2;
+	char			*param, *value;
 
 	if (argc < 2)
 		usage();
