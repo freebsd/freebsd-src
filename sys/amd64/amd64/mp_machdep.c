@@ -778,7 +778,7 @@ start_ap(int apic_id)
 	DELAY(200);		/* wait ~200uS */
 
 	/* Wait up to 5 seconds for it to start. */
-	for (ms = 0; ms < 50; ms++) {
+	for (ms = 0; ms < 5000; ms++) {
 		if (mp_naps > cpus)
 			return 1;	/* return SUCCESS */
 		DELAY(100000);
