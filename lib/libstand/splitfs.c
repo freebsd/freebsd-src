@@ -192,7 +192,8 @@ splitfs_close(struct open_file *f)
 static int 
 splitfs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
-    int i, nread, totread;
+    ssize_t nread;
+    size_t totread;
     struct split_file *sf;
 
     sf = (struct split_file *)f->f_fsdata;
