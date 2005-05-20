@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -228,6 +229,7 @@ static void xl_stats_update(void *);
 static void xl_stats_update_locked(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf *);
 static void xl_rxeof(struct xl_softc *);
+static void xl_rxeof_task(void *, int);
 static int xl_rx_resync(struct xl_softc *);
 static void xl_txeof(struct xl_softc *);
 static void xl_txeof_90xB(struct xl_softc *);
@@ -1368,6 +1370,7 @@ xl_attach(device_t dev)
 
 	sc->xl_unit = unit;
 	callout_handle_init(&sc->xl_stat_ch);
+	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
@@ -2085,6 +2088,19 @@ again:
 }
 
 /*
+ * Taskqueue wrapper for xl_rxeof().
+ */
+static void
+xl_rxeof_task(void *arg, int pending)
+{
+	struct xl_softc *sc = (struct xl_softc *)arg;
+
+	XL_LOCK(sc);
+	xl_rxeof(sc);
+	XL_UNLOCK(sc);
+}
+
+/*
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
@@ -2683,7 +2699,7 @@ xl_start_locked(struct ifnet *ifp)
 	 * nature of their chips in all their marketing literature;
 	 * we may as well take advantage of it. :)
 	 */
-	xl_rxeof(sc);
+	taskqueue_enqueue(taskqueue_swi, &sc->xl_task);
 }
 
 static void
@@ -3253,6 +3269,8 @@ xl_stop(struct xl_softc *sc)
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif /* DEVICE_POLLING */
+
+	taskqueue_drain(taskqueue_swi, &sc->xl_task);
 
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
