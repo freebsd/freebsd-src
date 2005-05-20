@@ -2886,8 +2886,6 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 		error = copyin(ireq->i_data, &(ssid.ns_ssid), ireq->i_len);
 		if (error)
 			break;
-		device_printf(sc->ndis_dev,
-		    "setting SSID to %s\n", ssid.ns_ssid);
 		error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
 		if (error) {
 			device_printf(sc->ndis_dev,
