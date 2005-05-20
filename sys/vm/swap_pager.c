@@ -1012,16 +1012,16 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * free pages outside our collection range.   Note: we never free
 	 * mreq, it must remain busy throughout.
 	 */
-	vm_page_lock_queues();
-	{
+	if (0 < i || j < count) {
 		int k;
 
+		vm_page_lock_queues();
 		for (k = 0; k < i; ++k)
 			vm_page_free(m[k]);
 		for (k = j; k < count; ++k)
 			vm_page_free(m[k]);
+		vm_page_unlock_queues();
 	}
-	vm_page_unlock_queues();
 
 	/*
 	 * Return VM_PAGER_FAIL if we have nothing to do.  Return mreq 
@@ -1065,7 +1065,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		}
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(object);
 	bp->b_npages = j - i;
 
 	cnt.v_swapin++;
@@ -1075,9 +1074,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * We still hold the lock on mreq, and our automatic completion routine
 	 * does not remove it.
 	 */
-	VM_OBJECT_LOCK(mreq->object);
-	vm_object_pip_add(mreq->object, bp->b_npages);
-	VM_OBJECT_UNLOCK(mreq->object);
+	vm_object_pip_add(object, bp->b_npages);
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
@@ -1110,7 +1108,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	}
 	vm_page_unlock_queues();
 
-	VM_OBJECT_LOCK(mreq->object);
+	VM_OBJECT_LOCK(object);
 	/*
 	 * mreq is left busied after completion, but all the other pages
 	 * are freed.  If we had an unrecoverable read error the page will
