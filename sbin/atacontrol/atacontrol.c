@@ -357,7 +357,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid channel %s\n", argv[3]);
+				"atacontrol: Invalid channel %s\n", argv[2]);
                         exit(EX_USAGE);
 		}
 		info_print(fd, channel, 0);
@@ -368,7 +368,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid channel %s\n", argv[3]);
+				"atacontrol: Invalid channel %s\n", argv[2]);
                         exit(EX_USAGE);
 		}
 		if (ioctl(fd, IOCATADETACH, &channel) < 0)
@@ -380,7 +380,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid channel %s\n", argv[3]);
+				"atacontrol: Invalid channel %s\n", argv[2]);
                         exit(EX_USAGE);
 		}
 		if (ioctl(fd, IOCATAATTACH, &channel) < 0)
@@ -393,7 +393,7 @@ main(int argc, char **argv)
 
 		if (!(sscanf(argv[2], "ata%d", &channel) == 1)) {
 			fprintf(stderr,
-				"atacontrol: Invalid channel %s\n", argv[3]);
+				"atacontrol: Invalid channel %s\n", argv[2]);
                         exit(EX_USAGE);
 		}
 		if (ioctl(fd, IOCATAREINIT, &channel) < 0)
