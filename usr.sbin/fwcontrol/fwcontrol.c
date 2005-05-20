@@ -30,12 +30,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
@@ -54,6 +57,8 @@
 
 extern int dvrecv(int, char *, char, int);
 extern int dvsend(int, char *, char, int);
+
+int sysctl_set_int(const char *, int);
 
 static void
 usage(void)
@@ -168,7 +173,7 @@ list_dev(int fd)
 }
 
 static u_int32_t
-read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int32_t data)
+read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_int32_t data)
 {
         struct fw_asyreq *asyreq;
 	u_int32_t *qld, res;
@@ -183,7 +188,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	asyreq->req.dst.eui = eui;
 #endif
 	asyreq->pkt.mode.rreqq.tlrt = 0;
-	if (read)
+	if (readmode)
 		asyreq->pkt.mode.rreqq.tcode = FWTCODE_RREQQ;
 	else
 		asyreq->pkt.mode.rreqq.tcode = FWTCODE_WREQQ;
@@ -192,7 +197,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	asyreq->pkt.mode.rreqq.dest_lo = addr_lo;
 
 	qld = (u_int32_t *)&asyreq->pkt;
-	if (!read)
+	if (!readmode)
 		asyreq->pkt.mode.wreqq.data = data;
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
@@ -200,7 +205,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	}
 	res = qld[3];
 	free(asyreq);
-	if (read)
+	if (readmode)
 		return ntohl(res);
 	else
 		return 0;
@@ -308,7 +313,6 @@ set_pri_req(int fd, int pri_req)
 static void
 parse_bus_info_block(u_int32_t *p, int info_len)
 {
-	int i;
 	char addr[EUI64_SIZ];
 	struct bus_info *bi;
 	struct eui64 eui;
@@ -363,7 +367,7 @@ show_crom(u_int32_t *crom_buf)
 	int i;
 	struct crom_context cc;
 	char *desc, info[256];
-	static char *key_types = "ICLD";
+	static const char *key_types = "ICLD";
 	struct csrreg *reg;
 	struct csrdirectory *dir;
 	struct csrhdr *hdr;
@@ -377,7 +381,6 @@ show_crom(u_int32_t *crom_buf)
 	hdr = (struct csrhdr *)crom_buf;
 	if (hdr->info_len == 1) {
 		/* minimum ROM */
-		struct csrreg *reg;
 		reg = (struct csrreg *)hdr;
 		printf("verndor ID: 0x%06x\n",  reg->val);
 		return;
@@ -455,10 +458,10 @@ show_topology_map(int fd)
 	struct fw_topology_map *tmap;
 	union fw_self_id sid;
 	int i;
-	static char *port_status[] = {" ", "-", "P", "C"};
-	static char *pwr_class[] = {" 0W", "15W", "30W", "45W",
+	static const char *port_status[] = {" ", "-", "P", "C"};
+	static const char *pwr_class[] = {" 0W", "15W", "30W", "45W",
 					"-1W", "-2W", "-5W", "-9W"};
-	static char *speed[] = {"S100", "S200", "S400", "S800"};
+	static const char *speed[] = {"S100", "S200", "S400", "S800"};
 	tmap = malloc(sizeof(struct fw_topology_map));
 	if (tmap == NULL)
 		return;
@@ -585,13 +588,13 @@ dump_phy_registers(int fd)
 static void
 open_dev(int *fd, char *devbase)
 {
-	char devname[256];
+	char name[256];
 	int i;
 
 	if (*fd < 0) {
 		for (i = 0; i < 4; i++) {
-			snprintf(devname, sizeof(devname), "%s.%d", devbase, i);
-			if ((*fd = open(devname, O_RDWR)) >= 0)
+			snprintf(name, sizeof(name), "%s.%d", devbase, i);
+			if ((*fd = open(name, O_RDWR)) >= 0)
 				break;
 		}
 		if (*fd < 0)
@@ -601,7 +604,7 @@ open_dev(int *fd, char *devbase)
 }
 
 int
-sysctl_set_int(char *name, int val)
+sysctl_set_int(const char *name, int val)
 {
 	if (sysctlbyname(name, NULL, NULL, &val, sizeof(int)) < 0)
 		err(1, "sysctl %s failed.", name);
@@ -612,7 +615,7 @@ main(int argc, char **argv)
 {
 	u_int32_t crom_buf[1024/4];
 	char devbase[1024] = "/dev/fw0";
-	int fd, i, tmp, ch, len=1024;
+	int fd, tmp, ch, len=1024;
 	struct fw_eui64 eui;
 	struct eui64 target;
 
