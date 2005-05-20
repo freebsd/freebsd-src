@@ -869,7 +869,7 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 		if (allfamilies) {
 			const struct afswtch *p;
 			p = af_getbyfamily(info.rti_info[RTAX_IFA]->sa_family);
-			if (p != NULL)
+			if (p != NULL && p->af_status != NULL)
 				p->af_status(s, &info);
 		} else if (afp->af_af == info.rti_info[RTAX_IFA]->sa_family)
 			afp->af_status(s, &info);
