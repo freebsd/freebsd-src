@@ -2357,8 +2357,11 @@ acpi_wake_sysctl_walk(device_t dev)
     ACPI_STATUS status;
 
     error = device_get_children(dev, &devlist, &numdevs);
-    if (error != 0 || numdevs == 0)
+    if (error != 0 || numdevs == 0) {
+	if (numdevs == 0)
+	    free(devlist, M_TEMP);
 	return (error);
+    }
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
 	acpi_wake_sysctl_walk(child);
