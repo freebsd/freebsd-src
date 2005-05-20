@@ -25,7 +25,7 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-m32
+CFLAGS+=	-m32 -I.
 .endif
 
 # standalone components and stuff we have modified locally
