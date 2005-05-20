@@ -1122,6 +1122,7 @@ ndis_halt_nic(arg)
 		return(EIO);
 	}
 
+	sc->ndis_block->nmb_miniportadapterctx = NULL;
 	sc->ndis_block->nmb_devicectx = NULL;
 
 	/*
@@ -1134,10 +1135,6 @@ ndis_halt_nic(arg)
 	NDIS_UNLOCK(sc);
 
 	MSCALL1(haltfunc, adapter);
-
-	NDIS_LOCK(sc);
-	sc->ndis_block->nmb_miniportadapterctx = NULL;
-	NDIS_UNLOCK(sc);
 
 	return(0);
 }
