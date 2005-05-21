@@ -119,7 +119,8 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # syscons is the default console driver, resembling an SCO console
 #device		sc
-#device		creator		# Creator, Creator3D and Elite3D graphics cards
+#device		creator		# Creator, Creator3D and Elite3D framebuffers
+#device		machfb		# ATI Mach64 framebuffers
 #device		splash		# Splash screen and screen saver support
 #options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
