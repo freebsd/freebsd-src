@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: xstr [-v] [-c] [-] [name ...]\n");
+	fprintf(stderr, "usage: xstr [-cv] [-] [file ...]\n");
 	exit (1);
 }
 
