@@ -76,7 +76,8 @@ static void printfile(int fileid, int verbose)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstat [-v] [-i id] [-n name] [-m name]\n");
+    fprintf(stderr, "usage: kldstat [-v] [-i id] [-n filename]\n");
+    fprintf(stderr, "       kldstat [-m modname]\n");
     exit(1);
 }
 
