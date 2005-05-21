@@ -113,7 +113,7 @@ struct tcpcb {
 #define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
 #define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
 #define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
-	int	t_force;		/* 1 if forcing out a byte */
+#define	TF_FORCEDATA	0x800000	/* force out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
