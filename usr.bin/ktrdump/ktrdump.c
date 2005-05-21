@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-c] [-f] [-q] [-r] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
+	"usage: ktrdump [-cfqrt] [-e execfile] [-i ktrfile] [-m corefile] [-o outfile]"
 
 extern char *optarg;
 extern int optind;
@@ -285,5 +285,7 @@ main(int ac, char **av)
 static void
 usage(void)
 {
-	errx(1, USAGE);
+
+	fprintf(stderr, USAGE);
+	exit(1);
 }

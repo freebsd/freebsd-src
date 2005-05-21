@@ -741,7 +741,8 @@ determine_locale(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-fLnrv] [directories...]\n", getprogname());
+	fprintf(stderr, "usage: %s [-fLnrv] [directories ...]\n",
+	    getprogname());
 	exit(1);
 }
 

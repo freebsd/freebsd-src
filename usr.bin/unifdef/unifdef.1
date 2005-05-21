@@ -41,7 +41,7 @@
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl ceklnst
+.Op Fl cdeklnst
 .Op Fl I Ns Ar path
 .Op Fl D Ns Ar sym Ns Op = Ns Ar val
 .Op Fl U Ns Ar sym
@@ -152,6 +152,9 @@ then the operation of
 is complemented,
 i.e., the lines that would have been removed or blanked
 are retained and vice versa.
+.Pp
+.It Fl d
+Turn on printing of degugging messages.
 .Pp
 .It Fl e
 Because

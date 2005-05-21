@@ -170,8 +170,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: newkey [-u username]",
-		"       newkey [-h hostname]");
+		"usage: newkey -h hostname",
+		"       newkey -u username");
 	exit(1);
 }
 

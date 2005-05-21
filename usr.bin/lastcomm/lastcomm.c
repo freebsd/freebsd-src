@@ -279,6 +279,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: lastcomm [-EScesu] [ -f file ] [command ...] [user ...] [tty ...]\n");
+"usage: lastcomm [-EScesu] [-f file] [command ...] [user ...] [terminal ...]\n");
 	exit(1);
 }

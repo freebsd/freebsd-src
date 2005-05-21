@@ -165,7 +165,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ul [-i] [-t terminal] file...\n");
+	fprintf(stderr, "usage: ul [-i] [-t terminal] [file ...]\n");
 	exit(1);
 }
 
