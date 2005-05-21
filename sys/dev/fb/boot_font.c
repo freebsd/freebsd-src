@@ -33,11 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-/*
+/*-
  * This font lives in the public domain. It it a PC font, IBM encoding,
  * which was designed for use with syscons.
  *
