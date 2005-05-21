@@ -233,7 +233,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: time [-al] [-h|-p] [-o file] utility [argument ...]\n");
+	    "usage: time [-al] [-h | -p] [-o file] utility [argument ...]\n");
 	exit(1);
 }
 

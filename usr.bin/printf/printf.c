@@ -552,5 +552,5 @@ asciicode(void)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: printf format [arg ...]\n");
+	(void)fprintf(stderr, "usage: printf format [arguments ...]\n");
 }

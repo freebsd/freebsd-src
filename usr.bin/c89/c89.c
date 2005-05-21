@@ -102,8 +102,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: c89 [-c] [-D name[=value]] [...] [-E] [-g] [-I directory ...]\n"
-"       [-L directory ...] [-o outfile] [-O] [-s] [-U name ...] operand ...\n"
+"usage: c89 [-cEgOs] [-D name[=value]] ... [-I directory] ... [-L directory] ...\n"
+"           [-o outfile] [-U name] ... operand ...\n"
 "\n"
 "       where operand is one or more of file.c, file.o, file.a\n"
 "       or -llibrary\n");

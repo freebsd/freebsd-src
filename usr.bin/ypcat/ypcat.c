@@ -67,7 +67,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: ypcat [-k] [-d domainname] [-t] mapname",
+		"usage: ypcat [-kt] [-d domainname] mapname",
 		"       ypcat -x");
 	exit(1);
 }

@@ -86,7 +86,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: asa [file...]\n");
+	fprintf(stderr, "usage: asa [file ...]\n");
 	exit(1);
 }
 

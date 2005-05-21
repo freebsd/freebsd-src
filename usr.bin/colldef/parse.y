@@ -342,7 +342,7 @@ main(int ac, char **av)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: colldef [-o out_file] [-I map_dir] [filename]\n");
+	fprintf(stderr, "usage: colldef [-I map_dir] [-o out_file] [filename]\n");
 	exit(EX_USAGE);
 }
 

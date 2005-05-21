@@ -1033,7 +1033,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-aimsz] [-c count] [-M core [-N system]] [-w wait]\n",
-		"              [-n devs] [disks]\n");
+		"usage: vmstat [-afimsz] [-c count] [-M core [-N system]] [-w wait]\n",
+		"              [-n devs] [-p type,if,pass] [disks]\n");
 	exit(1);
 }
