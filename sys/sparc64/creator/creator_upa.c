@@ -22,15 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/consio.h>
 #include <sys/conf.h>
+#include <sys/consio.h>
+#include <sys/eventhandler.h>
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -68,7 +70,7 @@ static device_method_t creator_upa_methods[] = {
 };
 
 static driver_t creator_upa_driver = {
-	"creator",
+	CREATOR_DRIVER_NAME,
 	creator_upa_methods,
 	sizeof(struct creator_softc),
 };
@@ -141,7 +143,7 @@ creator_upa_probe(device_t dev)
 			device_set_desc(dev, "Creator");
 			break;
 		case 0x3:
-			device_set_desc(dev, "Creator3d");
+			device_set_desc(dev, "Creator3D");
 			break;
 		default:
 			return (ENXIO);
@@ -150,7 +152,7 @@ creator_upa_probe(device_t dev)
 		device_set_desc(dev, "Elite3D");
 	else
 		return (ENXIO);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -159,69 +161,106 @@ creator_upa_attach(device_t dev)
 	struct creator_softc *sc;
 	struct upa_regs *reg;
 	video_switch_t *sw;
-	phandle_t chosen;
-	ihandle_t stdout;
+	phandle_t node;
 	bus_addr_t phys;
 	bus_size_t size;
-	phandle_t node;
+	int error;
 	int nreg;
 	int unit;
-	int rid;
 	int i;
 
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
 	node = nexus_get_node(dev);
-	unit = device_get_unit(dev);
-	if (unit == 0 /*node == OF_instance_to_package(stdout)*/) {
-		sc = (struct creator_softc *)vid_get_adapter(0);
-		device_set_softc(dev, sc);
+	if ((sc = (struct creator_softc *)vid_get_adapter(vid_find_adapter(
+	    CREATOR_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
+	    	device_printf(dev, "console\n");
+	    	device_set_softc(dev, sc);
 	} else {
 		sc = device_get_softc(dev);
+		bzero(sc, sizeof(struct creator_softc));
+		sc->sc_node = node;
 		nreg = nexus_get_nreg(dev);
 		reg = nexus_get_reg(dev);
 		for (i = 0; i < nreg; i++) {
 			phys = UPA_REG_PHYS(reg + i);
 			size = UPA_REG_SIZE(reg + i);
-			rid = 0;
+			sc->sc_rid[i] = 0;
 			sc->sc_reg[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
-			    &rid, phys, phys + size - 1, size, RF_ACTIVE);
-			if (sc->sc_reg[i] == NULL)
-				panic("creator_upa_attach");
+			    &sc->sc_rid[i], phys, phys + size - 1, size,
+			    RF_ACTIVE);
+			if (sc->sc_reg[i] == NULL) {
+				device_printf(dev,
+				    "cannot allocate resources\n");
+				error = ENXIO;
+				goto fail;
+			}
 			sc->sc_bt[i] = rman_get_bustag(sc->sc_reg[i]);
 			sc->sc_bh[i] = rman_get_bushandle(sc->sc_reg[i]);
 		}
-		OF_getprop(node, "height", &sc->sc_height,
-		    sizeof(sc->sc_height));
-		OF_getprop(node, "width", &sc->sc_width,
-		    sizeof(sc->sc_width));
-		sw = vid_get_switch("creator");
-		sw->init(unit, &sc->sc_va, 0);
+		if (strcmp(nexus_get_name(dev), "SUNW,afb") == 0)
+			sc->sc_flags |= CREATOR_AFB;
+		if ((sw = vid_get_switch(CREATOR_DRIVER_NAME)) == NULL) {
+			device_printf(dev, "cannot get video switch\n");
+			error = ENODEV;
+			goto fail;
+		}
+		/*
+		 * During device configuration we don't necessarily probe
+		 * the adapter which is the console first so we can't use
+		 * the device unit number for the video adapter unit. The
+		 * worst case would be that we use the video adapter unit
+		 * 0 twice. As it doesn't really matter which unit number
+		 * the corresponding video adapter has just use the next
+		 * unused one.
+		 */
+		for (i = 0; i < devclass_get_maxunit(creator_upa_devclass); i++)
+			if (vid_find_adapter(CREATOR_DRIVER_NAME, i) < 0)
+				break;
+		if ((error = sw->init(i, &sc->sc_va, 0)) != 0) {
+			device_printf(dev, "cannot initialize adapter\n");
+		    	goto fail;
+		}
 	}
 
+	if (bootverbose) {
+		if (sc->sc_flags & CREATOR_PAC1)
+			device_printf(dev,
+			    "BT9068/PAC1 RAMDAC (%s cursor control)\n",
+			    sc->sc_flags & CREATOR_CURINV ? "inverted" :
+			    "normal");
+		else
+			device_printf(dev, "BT498/PAC2 RAMDAC\n");
+	}
+	device_printf(dev, "resolution %dx%d\n", sc->sc_width, sc->sc_height);
+
+	unit = device_get_unit(dev);
 	sc->sc_si = make_dev(&creator_devsw, unit, UID_ROOT, GID_WHEEL,
 	    0600, "fb%d", unit);
 	sc->sc_si->si_drv1 = sc;
-
-	/* XXX */
-	if (unit == 0)
-		sc_attach_unit(unit, 0);
 
 	EVENTHANDLER_REGISTER(shutdown_final, creator_shutdown, sc,
 	    SHUTDOWN_PRI_DEFAULT);
 
 	return (0);
+
+ fail:
+	for (i = 0; i < FFB_NREG; i++)
+		if (sc->sc_reg[i] != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid[i],
+			    sc->sc_reg[i]);
+ 	return (error);
 }
 
 static int
 creator_open(struct cdev *dev, int flags, int mode, struct thread *td)
 {
+
 	return (0);
 }
 
 static int
 creator_close(struct cdev *dev, int flags, int mode, struct thread *td)
 {
+
 	return (0);
 }
 
@@ -230,37 +269,9 @@ creator_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct creator_softc *sc;
-	struct fbcursor *fbc;
-	struct fbtype *fb;
 
 	sc = dev->si_drv1;
-	switch (cmd) {
-	case FBIOGTYPE:
-		fb = (struct fbtype *)data;
-		fb->fb_type = FBTYPE_CREATOR;
-		fb->fb_height = sc->sc_height;
-		fb->fb_width = sc->sc_width;
-		break;
-	case FBIOSCURSOR:
-		fbc = (struct fbcursor *)data;
-		switch (fbc->set) {
-		case FB_CUR_SETALL:
-			printf("creator_dev_ioctl: FB_CUR_SETALL\n");
-			break;
-		case FB_CUR_SETCMAP:
-			printf("creator_dev_ioctl: FB_CUR_SETCMAP\n");
-			break;
-		default:
-			printf("creator_dev_ioctl: FBIOSCURSOR %#x\n",
-			    fbc->set);
-			break;
-		}
-		break;
-	default:
-		printf("creator_dev_ioctl: %#lx\n", cmd);
-		return (ENODEV);
-	}
-	return (0);
+	return ((*vidsw[sc->sc_va.va_index]->ioctl)(&sc->sc_va, cmd, data));
 }
 
 static int
@@ -286,6 +297,8 @@ creator_shutdown(void *v)
 {
 	struct creator_softc *sc = v;
 
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, 0x100);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0x3);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, FFB_DAC_CUR_CTRL);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
+	    sc->sc_flags & CREATOR_CURINV ? 0 :
+	    FFB_DAC_CUR_CTRL_P0 | FFB_DAC_CUR_CTRL_P1);
 }
