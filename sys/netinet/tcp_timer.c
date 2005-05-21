@@ -436,9 +436,9 @@ tcp_timer_persist(xtp)
 		goto out;
 	}
 	tcp_setpersist(tp);
-	tp->t_force = 1;
+	tp->t_flags |= TF_FORCEDATA;
 	(void) tcp_output(tp);
-	tp->t_force = 0;
+	tp->t_flags &= ~TF_FORCEDATA;
 
 out:
 #ifdef TCPDEBUG
