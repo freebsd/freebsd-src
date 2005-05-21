@@ -3511,7 +3511,7 @@ add_proto(ipfw_insn *cmd, char *av, u_char *proto)
 		; /* all done! */
 	else if ((pe = getprotobyname(av)) != NULL)
 		*proto = pe->p_proto;
-	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6"))
+	else if (strcmp(av, "ipv6") == 0 || strcmp(av, "ip6") == 0)
 		*proto = IPPROTO_IPV6;
 	else
 		return NULL;
@@ -4433,7 +4433,6 @@ read_options:
 
 		case TOK_IPV6:
 			fill_cmd(cmd, O_IP6, 0, 0);
-			ac--; av++;
 			break;
 
 		case TOK_EXT6HDR:
