@@ -695,7 +695,7 @@ doit(struct sockaddr *who)
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
 		err_ = getnameinfo(who, who->sa_len, remote_hostname,
 				  sizeof(remote_hostname), NULL, 0,
-				  NI_NUMERICHOST|NI_WITHSCOPEID);
+				  NI_NUMERICHOST);
 		/* XXX: do 'err_' check */
 
 	(void) gethostname(host_name, sizeof(host_name) - 1);
