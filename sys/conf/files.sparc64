@@ -22,6 +22,7 @@ dev/auxio/auxio.c		optional	auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
+dev/fb/machfb.c			optional	machfb sc
 dev/fb/splash.c			optional	splash
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
