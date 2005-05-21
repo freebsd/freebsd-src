@@ -22,22 +22,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <machine/bus.h>
 #include <machine/ofw_upa.h>
-
-#include <sys/rman.h>
+#include <machine/sc_machdep.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/gallant12x22.h>
@@ -85,6 +85,8 @@ static void creator_ras_fifo_wait(struct creator_softc *sc, int n);
 static void creator_ras_setbg(struct creator_softc *sc, int bg);
 static void creator_ras_setfg(struct creator_softc *sc, int fg);
 static void creator_ras_wait(struct creator_softc *sc);
+static void creator_cursor_enable(struct creator_softc *, int);
+static void creator_cursor_install(struct creator_softc *);
 
 static video_switch_t creatorvidsw = {
 	.probe			= creator_probe,
@@ -151,57 +153,6 @@ static int cmap[] = {
 	C(0xff, 0xff, 0xff),		/* white */
 };
 
-#define	TODO	printf("%s: unimplemented\n", __func__)
-
-static struct creator_softc creator_softc;
-
-static int
-creator_configure(int flags)
-{
-	struct upa_regs reg[FFB_NREG];
-	struct creator_softc *sc;
-	phandle_t chosen;
-	ihandle_t stdout;
-	phandle_t child;
-	char buf[32];
-	int i;
-
-	sc = &creator_softc;
-	for (child = OF_child(OF_peer(0)); child != 0;
-	    child = OF_peer(child)) {
-		OF_getprop(child, "name", buf, sizeof(buf));
-		if  (strcmp(buf, "SUNW,ffb") == 0 ||
-		     strcmp(buf, "SUNW,afb") == 0)
-			break;
-	}
-	if (child == 0)
-		return (0);
-
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	if (child == OF_instance_to_package(stdout))
-		sc->sc_console = 1;
-
-	OF_getprop(child, "reg", reg, sizeof(reg));
-	for (i = 0; i < FFB_NREG; i++) {
-		sc->sc_bt[i] = &nexus_bustag;
-		sc->sc_bh[i] = UPA_REG_PHYS(reg + i);
-	}
-	OF_getprop(child, "height", &sc->sc_height, sizeof(sc->sc_height));
-	OF_getprop(child, "width", &sc->sc_width, sizeof(sc->sc_width));
-
-	creator_init(0, &sc->sc_va, 0);
-
-	return (0);
-}
-
-static int
-creator_probe(int unit, video_adapter_t **adp, void *arg, int flags)
-{
-	TODO;
-	return (0);
-}
-
 static u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
@@ -227,6 +178,65 @@ static u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 };
 
+static struct creator_softc creator_softc;
+
+static int
+creator_configure(int flags)
+{
+	struct upa_regs reg[FFB_NREG];
+	struct creator_softc *sc;
+	phandle_t chosen;
+	phandle_t output;
+	ihandle_t stdout;
+	char buf[32];
+	int i;
+
+	sc = &creator_softc;
+	if ((chosen = OF_finddevice("/chosen")) == -1)
+		return (0);
+	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+		return (0);
+	if ((output = OF_instance_to_package(stdout)) == -1)
+		return (0);
+	if (OF_getprop(output, "name", buf, sizeof(buf)) == -1)
+		return (0);
+	if (strcmp(buf, "SUNW,ffb") == 0 || strcmp(buf, "SUNW,afb") == 0) {
+		/*
+		 * When being called a second time, i.e. during
+		 * sc_probe_unit(), just return at this point.
+		 * Note that the polarity of the VIO_PROBE_ONLY
+		 * flag is somewhat non-intuitive.
+		 */
+		if (!(flags & VIO_PROBE_ONLY))
+			goto found;
+		if (strcmp(buf, "SUNW,afb") == 0)
+			sc->sc_flags |= CREATOR_AFB;
+		sc->sc_node = output;
+	} else
+		return (0);
+
+	if (OF_getprop(output, "reg", reg, sizeof(reg)) == -1)
+		return (0);
+	for (i = 0; i < FFB_NREG; i++) {
+		sc->sc_bt[i] = &nexus_bustag;
+		sc->sc_bh[i] = UPA_REG_PHYS(reg + i);
+	}
+
+	if (creator_init(0, &sc->sc_va, 0) < 0)
+		return (0);
+
+ found:
+	/* Return number of found adapters. */
+	return (1);
+}
+
+static int
+creator_probe(int unit, video_adapter_t **adpp, void *arg, int flags)
+{
+
+	return (0);
+}
+
 static int
 creator_init(int unit, video_adapter_t *adp, int flags)
 {
@@ -234,22 +244,30 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	phandle_t options;
 	video_info_t *vi;
 	char buf[32];
-	cell_t col;
-	cell_t row;
-	int i, j;
 
 	sc = (struct creator_softc *)adp;
 	vi = &adp->va_info;
 
-	vid_init_struct(adp, "creator", -1, unit);
+	vid_init_struct(adp, CREATOR_DRIVER_NAME, -1, unit);
 
-	options = OF_finddevice("/options");
-	OF_getprop(options, "screen-#rows", buf, sizeof(buf));
+ 	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
+	    sizeof(sc->sc_height)) == -1)
+		return (ENXIO);
+	if (OF_getprop(sc->sc_node, "width", &sc->sc_width,
+	    sizeof(sc->sc_width)) == -1)
+		return (ENXIO);
+	if ((options = OF_finddevice("/options")) == -1)
+		return (ENXIO);
+	if (OF_getprop(options, "screen-#rows", buf, sizeof(buf)) == -1)
+		return (ENXIO);
 	vi->vi_height = strtol(buf, NULL, 10);
-	OF_getprop(options, "screen-#columns", buf, sizeof(buf));
+	if (OF_getprop(options, "screen-#columns", buf, sizeof(buf)) == -1)
+		return (ENXIO);
 	vi->vi_width = strtol(buf, NULL, 10);
 	vi->vi_cwidth = 12;
 	vi->vi_cheight = 22;
+	vi->vi_flags = V_INFO_COLOR;
+	vi->vi_mem_model = V_INFO_MM_OTHER;
 
 	sc->sc_font = gallant12x22_data;
 	sc->sc_xmargin = (sc->sc_width - (vi->vi_width * vi->vi_cwidth)) / 2;
@@ -267,42 +285,30 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FBC, FFB_FBC_WB_A | FFB_FBC_RB_A |
 	    FFB_FBC_SB_BOTH | FFB_FBC_XE_OFF | FFB_FBC_RGBE_MASK);
 
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, 0x8000);
-	sc->sc_dac = (FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) >> 0x1c);
-
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, 0x102);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0xffffff);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0x0);
-
-	for (i = 0; i < 2; i++) {
-		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, i ? 0x0 : 0x80);
-		for (j = 0; j < 64; j++) {
-			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
-			    *(uint32_t *)(&creator_mouse_pointer[j][0]));
-			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 
-			    *(uint32_t *)(&creator_mouse_pointer[j][4]));
+	if (!(sc->sc_flags & CREATOR_AFB)) {
+		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_DID);
+		if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
+		    FFB_DAC_CFG_DID_PNUM) >> 12) != 0x236e) {
+		    	sc->sc_flags |= CREATOR_PAC1;
+			FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_UCTRL);
+			if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
+			    FFB_DAC_UCTRL_MANREV) >> 8) <= 2)
+				sc->sc_flags |= CREATOR_CURINV;
 		}
 	}
 
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, 0x100);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0x0);
+	/*
+	 * FFB_DAC_CFG_TGEN_VIDE must be turned on for creator_set_mode()
+	 * to take effect.
+	 */
+	creator_blank_display(adp, V_DISPLAY_ON);
+	creator_set_mode(adp, 0);
+	creator_blank_display(adp, V_DISPLAY_BLANK);
 
-	if (sc->sc_console) {
-		col = 0;
-		row = 0;
-		OF_interpret("stdout @ is my-self addr line# addr column# ",
-		    2, &col, &row);
-		if (col != 0 && row != 0) {
-			sc->sc_colp = (int *)(col + 4);
-			sc->sc_rowp = (int *)(row + 4);
-		}
-	} else {
-		creator_blank_display(&sc->sc_va, V_DISPLAY_ON);
-	}
-
-	creator_set_mode(&sc->sc_va, 0);
-
-	vid_register(&sc->sc_va);
+	adp->va_flags |= V_ADP_COLOR | V_ADP_BORDER | V_ADP_INITIALIZED;
+	if (vid_register(adp) < 0)
+		return (ENXIO);
+	adp->va_flags |= V_ADP_REGISTERED;
 
 	return (0);
 }
@@ -310,6 +316,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 static int
 creator_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 {
+
 	bcopy(&adp->va_info, info, sizeof(*info));
 	return (0);
 }
@@ -317,8 +324,8 @@ creator_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 static int
 creator_query_mode(video_adapter_t *adp, video_info_t *info)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
@@ -335,13 +342,6 @@ creator_set_mode(video_adapter_t *adp, int mode)
 
 	creator_ras_setbg(sc, 0x0);
 	creator_ras_setfg(sc, 0xffffff);
-
-	creator_ras_fifo_wait(sc, 4);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BX, 0);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BY, 0);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BH, sc->sc_height);
-	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BW, sc->sc_width);
-
 	creator_ras_wait(sc);
 
 	return (0);
@@ -351,101 +351,97 @@ static int
 creator_save_font(video_adapter_t *adp, int page, int size, u_char *data,
     int c, int count)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_load_font(video_adapter_t *adp, int page, int size, u_char *data,
     int c, int count)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_show_font(video_adapter_t *adp, int page)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_save_palette(video_adapter_t *adp, u_char *palette)
 {
-	/* TODO; */
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_load_palette(video_adapter_t *adp, u_char *palette)
 {
-	/* TODO; */
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_set_border(video_adapter_t *adp, int border)
 {
-	/* TODO; */
+	struct creator_softc *sc;
+
+	sc = (struct creator_softc *)adp;
+	creator_fill_rect(adp, border, 0, 0, sc->sc_width, sc->sc_ymargin);
+	creator_fill_rect(adp, border, 0, sc->sc_height - sc->sc_ymargin,
+	    sc->sc_width, sc->sc_ymargin);
+	creator_fill_rect(adp, border, 0, 0, sc->sc_xmargin, sc->sc_height);
+	creator_fill_rect(adp, border, sc->sc_width - sc->sc_xmargin, 0,
+	    sc->sc_xmargin, sc->sc_height);
 	return (0);
 }
 
 static int
 creator_save_state(video_adapter_t *adp, void *p, size_t size)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_load_state(video_adapter_t *adp, void *p)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_set_win_org(video_adapter_t *adp, off_t offset)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
-	struct creator_softc *sc;
 
-	sc = (struct creator_softc *)adp;
-	if (sc->sc_colp != NULL && sc->sc_rowp != NULL) {
-		*col = *sc->sc_colp;
-		*row = *sc->sc_rowp;
-	} else {
-		*col = 0;
-		*row = 0;
-	}
+	*col = 0;
+	*row = 0;
 	return (0);
 }
 
 static int
 creator_set_hw_cursor(video_adapter_t *adp, int col, int row)
 {
-	struct creator_softc *sc;
 
-	sc = (struct creator_softc *)adp;
-	if (sc->sc_colp != NULL && sc->sc_rowp != NULL) {
-		*sc->sc_colp = col;
-		*sc->sc_rowp = row;
-	}
-	return (0);
+	return (ENODEV);
 }
 
 static int
 creator_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
     int celsize, int blink)
 {
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
@@ -455,14 +451,17 @@ creator_blank_display(video_adapter_t *adp, int mode)
 	int v;
 
 	sc = (struct creator_softc *)adp;
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, 0x6000);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
 	v = FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE);
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, 0x6000);
-	if (mode == V_DISPLAY_ON)
-		v |= 0x1;
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_TGEN);
+	if (mode == V_DISPLAY_ON || mode == V_DISPLAY_BLANK)
+		v |= FFB_DAC_CFG_TGEN_VIDE;
 	else
-		v &= ~0x1;
+		v &= ~FFB_DAC_CFG_TGEN_VIDE;
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE, v);
+	if (mode == V_DISPLAY_BLANK)
+		creator_fill_rect(adp, (SC_NORM_ATTR >> 4) & 0xf, 0, 0,
+		    sc->sc_width, sc->sc_height);
 	return (0);
 }
 
@@ -470,72 +469,113 @@ static int
 creator_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
     int prot)
 {
-	TODO;
-	return (0);
+
+	return (EINVAL);
 }
 
 static int
 creator_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 {
-	TODO;
+	struct creator_softc *sc;
+	struct fbcursor *fbc;
+	struct fbtype *fb;
+
+	sc = (struct creator_softc *)adp;
+	switch (cmd) {
+	case FBIOGTYPE:
+		fb = (struct fbtype *)data;
+		fb->fb_type = FBTYPE_CREATOR;
+		fb->fb_height = sc->sc_height;
+		fb->fb_width = sc->sc_width;
+		fb->fb_depth = fb->fb_cmsize = fb->fb_size = 0;
+		break;
+	case FBIOSCURSOR:
+		fbc = (struct fbcursor *)data;
+		if (fbc->set & FB_CUR_SETCUR) {
+			if (fbc->enable == 0) {
+				creator_cursor_enable(sc, 0);
+				sc->sc_flags &= ~CREATOR_CUREN;
+			} else
+				return (ENODEV);
+		}
+		break;
+	default:
+		return (fb_commonioctl(adp, cmd, data));
+	}
 	return (0);
 }
 
 static int
 creator_clear(video_adapter_t *adp)
 {
-	TODO;
+
 	return (0);
 }
 
 static int
 creator_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 {
-	TODO;
+	struct creator_softc *sc;
+
+	sc = (struct creator_softc *)adp;
+	creator_ras_fifo_wait(sc, 2);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_ROP, FBC_ROP_NEW);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_DRAWOP, FBC_DRAWOP_RECTANGLE);
+	creator_ras_setfg(sc, cmap[val & 0xf]);
+	creator_ras_fifo_wait(sc, 4);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BX, x);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BY, y);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BW, cx);
+	FFB_WRITE(sc, FFB_FBC, FFB_FBC_BH, cy);
+	creator_ras_wait(sc);
 	return (0);
 }
 
 static int
 creator_bitblt(video_adapter_t *adp, ...)
 {
-	TODO;
+
 	return (0);
 }
 
 static int
 creator_diag(video_adapter_t *adp, int level)
 {
-	TODO;
+	video_info_t info;
+
+	fb_dump_adp_info(adp->va_name, adp, level);
+	creator_get_info(adp, 0, &info);
+	fb_dump_mode_info(adp->va_name, adp, &info, level);
 	return (0);
 }
 
 static int
 creator_save_cursor_palette(video_adapter_t *adp, u_char *palette)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_load_cursor_palette(video_adapter_t *adp, u_char *palette)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_copy(video_adapter_t *adp, vm_offset_t src, vm_offset_t dst, int n)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
 creator_putp(video_adapter_t *adp, vm_offset_t off, u_int32_t p, u_int32_t a,
     int size, int bpp, int bit_ltor, int byte_ltor)
 {
-	TODO;
-	return (0);
+
+	return (ENODEV);
 }
 
 static int
@@ -582,7 +622,12 @@ creator_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
 	struct creator_softc *sc;
 
 	sc = (struct creator_softc *)adp;
-	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, 0x104);
+	if (!(sc->sc_flags & CREATOR_CUREN)) {
+		creator_cursor_install(sc);
+		creator_cursor_enable(sc, 1);
+		sc->sc_flags |= CREATOR_CUREN;
+	}
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, FFB_DAC_CUR_POS);
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
 	    ((y + sc->sc_ymargin) << 16) | (x + sc->sc_xmargin));
 	return (0);
@@ -633,11 +678,45 @@ creator_ras_wait(struct creator_softc *sc)
 
 	for (;;) {
 		ucsr = FFB_READ(sc, FFB_FBC, FFB_FBC_UCSR);
-		if ((ucsr & (FBC_UCSR_FB_BUSY|FBC_UCSR_RP_BUSY)) == 0)
+		if ((ucsr & (FBC_UCSR_FB_BUSY | FBC_UCSR_RP_BUSY)) == 0)
 			break;
 		r = ucsr & (FBC_UCSR_READ_ERR | FBC_UCSR_FIFO_OVFL);
 		if (r != 0) {
 			FFB_WRITE(sc, FFB_FBC, FFB_FBC_UCSR, r);
+		}
+	}
+}
+
+static void
+creator_cursor_enable(struct creator_softc *sc, int onoff)
+{
+	int v;
+
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, FFB_DAC_CUR_CTRL);
+	if (sc->sc_flags & CREATOR_CURINV)
+		v = onoff ? FFB_DAC_CUR_CTRL_P0 | FFB_DAC_CUR_CTRL_P1 : 0;
+	else
+		v = onoff ? 0 : FFB_DAC_CUR_CTRL_P0 | FFB_DAC_CUR_CTRL_P1;
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, v);
+}
+
+static void
+creator_cursor_install(struct creator_softc *sc)
+{
+	int i, j;
+
+	creator_cursor_enable(sc, 0);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2, FFB_DAC_CUR_COLOR1);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0xffffff);
+	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0x0);
+	for (i = 0; i < 2; i++) {
+		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE2,
+		    i ? FFB_DAC_CUR_BITMAP_P0 : FFB_DAC_CUR_BITMAP_P1);
+		for (j = 0; j < 64; j++) {
+			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
+			    *(uint32_t *)(&creator_mouse_pointer[j][0]));
+			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 
+			    *(uint32_t *)(&creator_mouse_pointer[j][4]));
 		}
 	}
 }
