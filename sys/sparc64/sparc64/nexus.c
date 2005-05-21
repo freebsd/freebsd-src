@@ -29,9 +29,10 @@
  * SUCH DAMAGE.
  *
  * 	from: FreeBSD: src/sys/i386/i386/nexus.c,v 1.43 2001/02/09
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,6 +88,7 @@ struct nexus_softc {
 
 static device_probe_t nexus_probe;
 static device_attach_t nexus_attach;
+static bus_add_child_t nexus_add_child;
 static bus_probe_nomatch_t nexus_probe_nomatch;
 static bus_read_ivar_t nexus_read_ivar;
 static bus_setup_intr_t nexus_setup_intr;
@@ -106,6 +108,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface. */
+	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
@@ -196,6 +199,15 @@ nexus_attach(device_t dev)
 	    rman_manage_region(&sc->sc_intr_rman, 0, IV_MAX - 1) != 0 ||
 	    rman_manage_region(&sc->sc_mem_rman, UPA_MEMSTART, UPA_MEMEND) != 0)
 		panic("nexus_attach(): failed to set up rmans");
+
+	/*
+	 * Allow devices to identify.
+	 */
+	bus_generic_probe(dev);
+
+	/*
+	 * Now walk the OFW tree and attach top-level devices.
+	 */
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (child == -1)
 			panic("nexus_attach(): OF_child() failed.");
@@ -224,6 +236,27 @@ nexus_attach(device_t dev)
 		device_set_ivars(cdev, dinfo);
 	}
 	return (bus_generic_attach(dev));
+}
+
+static device_t
+nexus_add_child(device_t dev, int order, const char *name, int unit)
+{
+	device_t cdev;
+	struct nexus_devinfo *dinfo;
+
+	cdev = device_add_child_ordered(dev, order, name, unit);
+	if (cdev == NULL)
+		return (NULL);
+
+	dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_NOWAIT | M_ZERO);
+	if (dinfo == NULL)
+		return (NULL);
+
+	dinfo->ndi_node = -1;
+	dinfo->ndi_name = strdup(name, M_OFWPROP);
+	device_set_ivars(cdev, dinfo);
+
+	return (cdev);
 }
 
 static void
@@ -304,6 +337,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
+
 	inthand_remove(rman_get_start(r), ih);
 	return (0);
 }
