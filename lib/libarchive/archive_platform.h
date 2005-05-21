@@ -46,6 +46,8 @@
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
 #define	HAVE_ACL_INIT 1
+#define	HAVE_ACL_SET_FD 1
+#define	HAVE_ACL_SET_FD_NP 1
 #define	HAVE_ACL_SET_FILE 1
 #endif
 #define	HAVE_BZLIB_H 1
@@ -55,7 +57,10 @@
 #define	HAVE_EILSEQ 1
 #define	HAVE_ERRNO_H 1
 #define	HAVE_FCHDIR 1
+#define	HAVE_FCHMOD 1
+#define	HAVE_FCHOWN 1
 #define	HAVE_FCNTL_H 1
+#define	HAVE_FUTIMES 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHMOD 1
 #define	HAVE_LCHOWN 1
@@ -121,6 +126,14 @@
  */
 #if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE
 #define	HAVE_POSIX_ACL	1
+#endif
+
+/*
+ * If we can't restore metadata using a file descriptor, then
+ * for compatibility's sake, close files before trying to restore metadata.
+ */
+#if defined(HAVE_FCHMOD) || defined(HAVE_FUTIMES) || defined(HAVE_ACL_SET_FD) || defined(HAVE_ACL_SET_FD_NP) || defined(HAVE_FCHOWN)
+#define CAN_RESTORE_METADATA_FD
 #endif
 
 /* Set up defaults for internal error codes. */
