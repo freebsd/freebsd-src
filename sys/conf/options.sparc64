@@ -13,5 +13,3 @@ OFWCONS_POLL_HZ		opt_ofw.h
 # Debug IOMMU inserts/removes using diagnostic accesses. Very loud.
 IOMMU_DIAG		opt_iommu.h
 PMAP_STATS		opt_pmap.h
-
-DEV_CREATOR		opt_creator.h

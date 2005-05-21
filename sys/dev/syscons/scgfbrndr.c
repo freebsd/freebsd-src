@@ -31,9 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 #include "opt_gfb.h"
-#ifdef __sparc64__
-#include "opt_creator.h"
-#endif
 #ifdef __powerpc__
 #include "opt_ofwfb.h"
 #endif
@@ -213,7 +210,7 @@ gfb_cursor_shape(scr_stat *scp, int base, int height, int blink)
 
 static int pxlblinkrate = 0;
 
-#if defined(DEV_CREATOR) || defined(SC_OFWFB)
+#if defined(__sparc64__) || defined(SC_OFWFB)
 static void
 gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
