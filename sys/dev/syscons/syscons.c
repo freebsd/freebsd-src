@@ -229,7 +229,7 @@ sc_probe_unit(int unit, int flags)
 {
     if (!scvidprobe(unit, flags, FALSE)) {
 	if (bootverbose)
-	    printf("sc%d: no video adapter found.\n", unit);
+	    printf("%s%d: no video adapter found.\n", SC_DRIVER_NAME, unit);
 	return ENXIO;
     }
 
@@ -376,10 +376,10 @@ sc_attach_unit(int unit, int flags)
     kbd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
-    printf("sc%d: %s <%d virtual consoles, flags=0x%x>\n",
-	   unit, adapter_name(sc->adp), sc->vtys, sc->config);
+    printf("%s%d: %s <%d virtual consoles, flags=0x%x>\n",
+	   SC_DRIVER_NAME, unit, adapter_name(sc->adp), sc->vtys, sc->config);
     if (bootverbose) {
-	printf("sc%d:", unit);
+	printf("%s%d:", SC_DRIVER_NAME, unit);
     	if (sc->adapter >= 0)
 	    printf(" fb%d", sc->adapter);
 	if (sc->keyboard >= 0)
@@ -914,7 +914,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	struct proc *p1;
 
 	mode = (struct vt_mode *)data;
-	DPRINTF(5, ("sc%d: VT_SETMODE ", sc->unit));
+	DPRINTF(5, ("%s%d: VT_SETMODE ", SC_DRIVER_NAME, sc->unit));
 	if (scp->smode.mode == VT_PROCESS) {
 	    p1 = pfind(scp->pid);
     	    if (scp->proc == p1 && scp->proc != td->td_proc) {
@@ -981,15 +981,15 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	switch(*(intptr_t *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
 	    if ((error = finish_vt_rel(scp, FALSE, &s)) == 0)
-		DPRINTF(5, ("sc%d: VT_FALSE\n", sc->unit));
+		DPRINTF(5, ("%s%d: VT_FALSE\n", SC_DRIVER_NAME, sc->unit));
 	    break;
 	case VT_TRUE:   	/* user has released screen, go on */
 	    if ((error = finish_vt_rel(scp, TRUE, &s)) == 0)
-		DPRINTF(5, ("sc%d: VT_TRUE\n", sc->unit));
+		DPRINTF(5, ("%s%d: VT_TRUE\n", SC_DRIVER_NAME, sc->unit));
 	    break;
 	case VT_ACKACQ: 	/* acquire acknowledged, switch completed */
 	    if ((error = finish_vt_acq(scp)) == 0)
-		DPRINTF(5, ("sc%d: VT_ACKACQ\n", sc->unit));
+		DPRINTF(5, ("%s%d: VT_ACKACQ\n", SC_DRIVER_NAME, sc->unit));
 	    break;
 	default:
 	    break;
@@ -2992,7 +2992,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->tsw = NULL;
     scp->ts = NULL;
     scp->rndr = NULL;
-    scp->border = BG_BLACK;
+    scp->border = (SC_NORM_ATTR >> 4) & 0x0f;
     scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
     scp->mouse_cut_start = scp->xsize*scp->ysize;
     scp->mouse_cut_end = -1;
