@@ -89,7 +89,15 @@
 
 #define DPRINTF(l, p)	if (SC_DEBUG_LEVEL >= (l)) printf p
 
+#ifndef __sparc64__
 #define SC_DRIVER_NAME	"sc"
+#else
+/*
+ * Use a different driver name on sparc64 so it does not get confused
+ * with the system controller devices which are also termed 'sc' in OFW.
+ */
+#define SC_DRIVER_NAME	"syscons"
+#endif
 #define SC_VTY(dev)	minor(dev)
 #define SC_DEV(sc, vty)	((sc)->dev[(vty) - (sc)->first_vty])
 #define SC_STAT(dev)	(*((scr_stat **)&(dev)->si_drv1))
