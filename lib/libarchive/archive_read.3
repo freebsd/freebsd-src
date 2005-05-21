@@ -389,7 +389,7 @@ myopen(struct archive *a, void *client_data)
   struct mydata *mydata = client_data;
 
   mydata->fd = open(mydata->name, O_RDONLY);
-  return (mydata->fd >= 0);
+  return (mydata->fd >= 0 ? ARCHIVE_OK : ARCHIVE_FATAL);
 }
 
 int
@@ -399,7 +399,7 @@ myclose(struct archive *a, void *client_data)
 
   if (mydata->fd > 0)
     close(mydata->fd);
-  return (0);
+  return (ARCHIVE_OK);
 }
 .Ed
 .Sh RETURN VALUES
