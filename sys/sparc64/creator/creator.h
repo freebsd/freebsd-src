@@ -1,4 +1,26 @@
 /*-
+ * Copyright (C) 2000 David S. Miller (davem@redhat.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * DAVID MILLER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *	from: XFree86: ffb_dac.h,v 1.1 2000/05/23 04:47:44 dawes Exp
+ */
+/*-
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
  *
@@ -36,6 +58,51 @@
 #define	FFB_DAC_VALUE		0x4
 #define	FFB_DAC_TYPE2		0x8
 #define	FFB_DAC_VALUE2		0xc
+
+/* FFB_DAC_TYPE configuration and palette register addresses */
+#define	FFB_DAC_CFG_UCTRL	0x1001		/* User Control */
+#define	FFB_DAC_CFG_TGEN	0x6000		/* Timing Generator Control */
+#define	FFB_DAC_CFG_DID		0x8000		/* Device Identification */
+
+/* FFB_DAC_CFG_UCTRL register */
+#define	FFB_DAC_UCTRL_IPDISAB	0x0001		/* Input Pullup Resistor Dis. */
+#define	FFB_DAC_UCTRL_ABLANK	0x0002		/* Asynchronous Blank */
+#define	FFB_DAC_UCTRL_DBENAB	0x0004		/* Double-Buffer Enable */
+#define	FFB_DAC_UCTRL_OVENAB	0x0008		/* Overlay Enable */
+#define	FFB_DAC_UCTRL_WMODE	0x0030		/* Window Mode */
+#define	FFB_DAC_UCTRL_WM_COMB	0x0000		/* Window Mode Combined */
+#define	FFB_DAC_UCTRL_WM_S4	0x0010		/* Window Mode Separate 4 */
+#define	FFB_DAC_UCTRL_WM_S8	0x0020		/* Window Mode Separate 8 */
+#define	FFB_DAC_UCTRL_WM_RESV	0x0030		/* Window Mode Reserved */
+#define	FFB_DAC_UCTRL_MANREV	0x0f00		/* Manufacturing Revision */
+
+/* FFB_DAC_CFG_TGEN register */
+#define	FFB_DAC_CFG_TGEN_VIDE	0x01		/* Video Enable */
+#define	FFB_DAC_CFG_TGEN_TGE	0x02		/* Timing Generator Enable */
+#define	FFB_DAC_CFG_TGEN_HSD	0x04		/* HSYNC* Disable */
+#define	FFB_DAC_CFG_TGEN_VSD	0x08		/* VSYNC* Disable */
+#define	FFB_DAC_CFG_TGEN_EQD	0x10		/* Equalization Disable */
+#define	FFB_DAC_CFG_TGEN_MM	0x20		/* 0 = Slave, 1 = Master */
+#define	FFB_DAC_CFG_TGEN_IM	0x40		/* 1 = Interlaced Mode */
+
+/* FFB_DAC_CFG_DID register */
+#define	FFB_DAC_CFG_DID_ONE	0x00000001	/* Always Set */
+#define	FFB_DAC_CFG_DID_MANUF	0x00000ffe	/* DAC Manufacturer ID */
+#define	FFB_DAC_CFG_DID_PNUM	0x0ffff000	/* DAC Part Number */
+#define	FFB_DAC_CFG_DID_REV	0xf0000000	/* DAC Revision */
+
+/* FFB_DAC_TYPE2 cursor register addresses */
+#define	FFB_DAC_CUR_BITMAP_P0	0x0		/* Plane 0 Cursor Bitmap */
+#define	FFB_DAC_CUR_BITMAP_P1	0x80		/* Plane 1 Cursor Bitmap */
+#define	FFB_DAC_CUR_CTRL	0x100		/* Cursor Control */
+#define	FFB_DAC_CUR_COLOR0	0x101		/* Cursor Color 0 */
+#define	FFB_DAC_CUR_COLOR1	0x102		/* Cursor Color 1 (bg) */
+#define	FFB_DAC_CUR_COLOR2	0x103		/* Cursor Color 2 (fg) */
+#define	FFB_DAC_CUR_POS		0x104		/* Active Cursor Position */
+
+/* FFB_DAC_CUR_CTRL register (might be inverted on PAC1 DACs) */
+#define	FFB_DAC_CUR_CTRL_P0	0x1		/* Plane0 Display Disable */
+#define	FFB_DAC_CUR_CTRL_P1	0x2		/* Plane1 Display Disable */
 
 #define	FFB_FBC			2
 #define	FFB_FBC_BY		0x60
@@ -139,33 +206,37 @@
 #define	FFB_WRITE(sc, reg, off, val) \
 	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
 
+#define	CREATOR_DRIVER_NAME	"creator"
+
 struct creator_softc {
 	video_adapter_t		sc_va;			/* XXX must be first */
 
-	struct cdev *sc_si;
+	phandle_t		sc_node;
 
+	struct cdev		*sc_si;
+
+	int			sc_rid[FFB_NREG];
 	struct resource		*sc_reg[FFB_NREG];
 	bus_space_tag_t		sc_bt[FFB_NREG];
 	bus_space_handle_t	sc_bh[FFB_NREG];
-	char			sc_model[32];
-	int			sc_console;
-	int			sc_dac;
 
 	int			sc_height;
 	int			sc_width;
-	int			sc_ncol;
-	int			sc_nrow;
 
 	int			sc_xmargin;
 	int			sc_ymargin;
 
 	u_char			*sc_font;
-	int			*sc_rowp;
-	int			*sc_colp;
 
 	int			sc_bg_cache;
 	int			sc_fg_cache;
 	int			sc_fifo_cache;
+
+	int			sc_flags;
+#define	CREATOR_AFB		(1 << 0)
+#define	CREATOR_CUREN		(1 << 1)
+#define	CREATOR_CURINV		(1 << 2)
+#define	CREATOR_PAC1		(1 << 3)
 };
 
-#endif
+#endif /* !_DEV_FB_CREATOR_H_ */
