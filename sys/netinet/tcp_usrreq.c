@@ -742,9 +742,9 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		INP_INFO_WUNLOCK(&tcbinfo);
 		unlocked = 1;
 		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
-		tp->t_force = 1;
+		tp->t_flags |= TF_FORCEDATA;
 		error = tcp_output(tp);
-		tp->t_force = 0;
+		tp->t_flags &= ~TF_FORCEDATA;
 	}
 out:
 	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :

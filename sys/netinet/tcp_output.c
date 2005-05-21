@@ -257,7 +257,7 @@ after_sack_rexmit:
 	 * and timer expired, we will send what we can
 	 * and go to transmit state.
 	 */
-	if (tp->t_force) {
+	if (tp->t_flags & TF_FORCEDATA) {
 		if (sendwin == 0) {
 			/*
 			 * If we still have some data to send, then
@@ -419,7 +419,7 @@ after_sack_rexmit:
 		    (tp->t_flags & TF_NOPUSH) == 0) {
 			goto send;
 		}
-		if (tp->t_force)			/* typ. timeout case */
+		if (tp->t_flags & TF_FORCEDATA)		/* typ. timeout case */
 			goto send;
 		if (len >= tp->max_sndwnd / 2 && tp->max_sndwnd > 0)
 			goto send;
@@ -492,7 +492,7 @@ after_sack_rexmit:
 	 *
 	 * callout_active(tp->tt_persist)
 	 *	is true when we are in persist state.
-	 * tp->t_force
+	 * (tp->t_flags & TF_FORCEDATA)
 	 *	is set when we are called to send a persist packet.
 	 * callout_active(tp->tt_rexmt)
 	 *	is set when we are retransmitting
@@ -725,7 +725,7 @@ send:
 	 * the template for sends on this connection.
 	 */
 	if (len) {
-		if (tp->t_force && len == 1)
+		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
 			tcpstat.tcps_sndprobe++;
 		else if (SEQ_LT(tp->snd_nxt, tp->snd_max)) {
 			tcpstat.tcps_sndrexmitpack++;
@@ -948,7 +948,8 @@ send:
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
 	 */
-	if (tp->t_force == 0 || !callout_active(tp->tt_persist)) {
+	if ((tp->t_flags & TF_FORCEDATA) == 0 || 
+	    !callout_active(tp->tt_persist)) {
 		tcp_seq startseq = tp->snd_nxt;
 
 		/*
@@ -1086,7 +1087,8 @@ timer:
 		 * We know that the packet was lost, so back out the
 		 * sequence number advance, if any.
 		 */
-		if (tp->t_force == 0 || !callout_active(tp->tt_persist)) {
+		if ((tp->t_flags & TF_FORCEDATA) == 0 || 
+		    !callout_active(tp->tt_persist)) {
 			/*
 			 * No need to check for TH_FIN here because
 			 * the TF_SENTFIN flag handles that case.
