@@ -165,8 +165,9 @@ alltraps_pushregs_no_rdi:
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
-alltraps_with_regs_pushed:
 	FAKE_MCOUNT(TF_RIP(%rsp))
+	.globl	calltrap
+	.type	calltrap,@function
 calltrap:
 	call	trap
 	MEXITCOUNT
@@ -434,4 +435,5 @@ doreti_iret_fault:
 	movq	%r15,TF_R15(%rsp)
 	movq	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
-	jmp	alltraps_with_regs_pushed
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	jmp	calltrap
