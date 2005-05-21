@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/ofw/ofw_syscons.h>
 #include <machine/nexusvar.h>
 
+static int ofwfb_ignore_mmap_checks;
+SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
+SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
+    &ofwfb_ignore_mmap_checks, 0, "relax mmap bounds checking");
+
 extern u_char dflt_font_16[];
 extern u_char dflt_font_14[];
 extern u_char dflt_font_8[];
@@ -601,6 +606,14 @@ ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 
 	if (sc->sc_num_pciaddrs == 0)
 		return (ENOMEM);
+
+	/*
+	 * Hack for Radeon...
+	 */
+	if (ofwfb_ignore_mmap_checks) {
+		*paddr = offset;
+		return (0);
+	}
 
 	/*
 	 * Make sure the requested address lies within the PCI device's assigned addrs
