@@ -62,7 +62,7 @@
 
 #define	FBTYPE_NOTSUN1		9	/* reserved for customer */
 #define	FBTYPE_NOTSUN2		10	/* reserved for customer */
-#define	FBTYPE_NOTSUN3		11	/* reserved for customer */
+#define	FBTYPE_PCIMISC		11	/* (generic) PCI misc. disp. */
 
 #define	FBTYPE_SUNFAST_COLOR	12	/* accelerated 8bit */
 #define	FBTYPE_SUNROP_COLOR	13	/* MEMCOLOR with rop h/w */
