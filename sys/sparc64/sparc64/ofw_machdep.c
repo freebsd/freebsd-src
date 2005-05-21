@@ -22,9 +22,10 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+ 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Some Open Firmware helper functions that are likely machine dependent.
@@ -133,7 +134,7 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 		addrc = 2;
 	if (OF_getprop(bus, "#size-cells", &szc, sizeof(szc)) == -1)
 		szc = 1;
-	if (szc > 2)
+	if (addrc < 2 || addrc > 3 || szc < 1 || szc > 2)
 		return (ENXIO);
 	if (strcmp(name, "pci") == 0) {
 		if (addrc > 3)
@@ -178,7 +179,7 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 		if (OF_getprop(pbus, "#address-cells", &paddrc,
 		    sizeof(paddrc)) == -1)
 			paddrc = 2;
-		if (paddrc > 3)
+		if (paddrc < 2 || paddrc > 3)
 			return (ENXIO);
 		nbank = OF_getprop(bus, "ranges", &banks, sizeof(banks));
 		if (nbank == -1) {
@@ -191,7 +192,7 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 			if (OF_getprop(bus, "#size-cells", &szc,
 			    sizeof(szc)) == -1)
 				szc = 1;
-			if (szc > 2)
+			if (szc < 1 || szc > 2)
 				return (ENXIO);
 		}
 		nbank /= sizeof(banks[0]) * (addrc + paddrc + szc);
