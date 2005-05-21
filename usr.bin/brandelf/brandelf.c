@@ -164,7 +164,8 @@ fail:
 static void
 usage(void)
 {
-fprintf(stderr, "usage: brandelf [-f ELF ABI number] [-v] [-l] [-t string] file ...\n");
+	(void)fprintf(stderr,
+	    "usage: brandelf [-lv] [-f ELF_ABI_number] [-t string] file ...\n");
 	exit(1);
 }
 

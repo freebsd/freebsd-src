@@ -927,6 +927,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
- "usage: fstat [-fmnv] [-p pid] [-u user] [-N system] [-M core] [file ...]\n");
+ "usage: fstat [-fmnv] [-M core] [-N system] [-p pid] [-u user] [file ...]\n");
 	exit(1);
 }

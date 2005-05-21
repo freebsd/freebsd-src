@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: unifdef [-cdeklnst]"
+	fprintf(stderr, "usage: unifdef [-cdeklnst] [-Ipath]"
 	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
 	exit(2);
 }

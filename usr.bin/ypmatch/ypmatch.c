@@ -65,7 +65,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: ypmatch [-d domain] [-t] [-k] key [key ...] mname",
+		"usage: ypmatch [-kt] [-d domainname] key ... mapname",
 		"       ypmatch -x");
 	exit(1);
 }

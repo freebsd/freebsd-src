@@ -117,7 +117,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: rwall hostname [file]\n");
+	fprintf(stderr, "usage: rwall host [file]\n");
 	exit(1);
 }
 

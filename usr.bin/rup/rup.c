@@ -213,7 +213,7 @@ allhosts(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: rup [hosts ...]\n");
+	fprintf(stderr, "usage: rup [host ...]\n");
 	exit(1);
 }
 

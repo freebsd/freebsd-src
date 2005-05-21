@@ -126,9 +126,8 @@ addlib(const char *lib)
 void
 usage(void)
 {
-	fprintf(stderr,
-"usage: c99 [-cEgs] [-D name[=value]] [-I directory] ... [-L directory] ...\n");
-	fprintf(stderr,
-"       [-o outfile] [-O optlevel] [-U name]... operand ...\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+"usage: c99 [-cEgs] [-D name[=value]] ... [-I directory] ... [-L directory] ...",
+"       [-o outfile] [-O optlevel] [-U name] ... operand ...");
 	exit(1);
 }

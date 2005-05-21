@@ -218,7 +218,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: rusers [-la] [hosts ...]\n");
+	fprintf(stderr, "usage: rusers [-al] [host ...]\n");
 	exit(1);
 }
 
