@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_kbd.h"
 
@@ -189,15 +190,21 @@ sunkbd_configure(int flags)
 {
 	struct sunkbd_softc *sc;
 
-	if (uart_cpu_getdev(UART_DEV_KEYBOARD, &uart_keyboard))
-		return (0);
-	if (uart_probe(&uart_keyboard))
-		return (0);
-	uart_init(&uart_keyboard);
+	if (KBD_IS_CONFIGURED(&sunkbd_softc.sc_kbd))
+		goto found;
 
-	uart_keyboard.type = UART_DEV_KEYBOARD;
-	uart_keyboard.attach = sunkbd_attach;
-	uart_add_sysdev(&uart_keyboard);
+	if (!KBD_IS_INITIALIZED(&sunkbd_softc.sc_kbd)) {
+		if (uart_cpu_getdev(UART_DEV_KEYBOARD, &uart_keyboard))
+			return (0);
+		if (uart_probe(&uart_keyboard))
+			return (0);
+		uart_init(&uart_keyboard);
+
+		uart_keyboard.type = UART_DEV_KEYBOARD;
+		uart_keyboard.attach = sunkbd_attach;
+		uart_add_sysdev(&uart_keyboard);
+		KBD_INIT_DONE(&sunkbd_softc.sc_kbd);
+	}
 
 	if (sunkbd_probe_keyboard(&uart_keyboard) == -1)
 		return (0);
@@ -215,8 +222,11 @@ sunkbd_configure(int flags)
 	kbd_register(&sc->sc_kbd);
 
 	sc->sc_sysdev = &uart_keyboard;
+	KBD_CONFIG_DONE(&sc->sc_kbd);
 
-	return (0);
+ found:
+	/* Return number of found keyboards. */
+	return (1);
 }
 
 static int
