@@ -371,6 +371,6 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: rsh [-46dn] [-l login] [-t timeout] host [command]\n");
+	    "usage: rsh [-46dn] [-l username] [-t timeout] host [command]\n");
 	exit(1);
 }

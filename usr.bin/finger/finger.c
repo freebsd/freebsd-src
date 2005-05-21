@@ -154,7 +154,8 @@ option(int argc, char **argv)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: finger [-46klmpshoT] [login ...]\n");
+	(void)fprintf(stderr,
+	    "usage: finger [-46gklmpshoT] [user ...] [user@host ...]\n");
 	exit(1);
 }
 

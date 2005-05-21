@@ -180,7 +180,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-"usage: renice priority     [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]",
+"usage: renice priority [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]",
 "       renice -n increment [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]");
 	exit(1);
 }

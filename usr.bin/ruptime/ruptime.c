@@ -298,6 +298,6 @@ tcmp(const void *a1, const void *a2)
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: ruptime [-alrut]\n");
+	(void)fprintf(stderr, "usage: ruptime [-alrtu] [host ...]\n");
 	exit(1);
 }

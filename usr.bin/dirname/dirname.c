@@ -79,6 +79,6 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: dirname path\n");
+	(void)fprintf(stderr, "usage: dirname string\n");
 	exit(1);
 }

@@ -111,6 +111,6 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: mesg [y | n]\n");
+	(void)fprintf(stderr, "usage: mesg [n | y]\n");
 	exit(2);
 }
