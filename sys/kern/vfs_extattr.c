@@ -516,7 +516,7 @@ freebsd4_getfsstat(td, uap)
 	} */ *uap;
 {
 	struct mount *mp, *nmp;
-	struct statfs *sp;
+	struct statfs *sp, sb;
 	struct ostatfs osb;
 	caddr_t sfsp;
 	long count, maxcount, error;
@@ -556,9 +556,12 @@ freebsd4_getfsstat(td, uap)
 				continue;
 			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+			if (suser(td)) {
+				bcopy(sp, &sb, sizeof(sb));
+				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+				sp = &sb;
+			}
 			cvtstatfs(td, sp, &osb);
-			if (suser(td))
-				osb.f_fsid.val[0] = osb.f_fsid.val[1] = 0;
 			error = copyout(&osb, sfsp, sizeof(osb));
 			if (error) {
 				vfs_unbusy(mp, td);
