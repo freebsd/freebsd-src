@@ -145,7 +145,13 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para arch="i386,amd64">Drivers using the &man.ndis.4; device
+	  driver wrapper mechanism are now built and loaded
+	  differently.  The &man.ndis.4; driver can now be pre-built
+	  as module or statically compiled into a kernel.  Individual
+	  drivers can now be built with the &man.ndisgen.8; utility;
+	  the result is a kernel module that can be loaded into a
+	  running kernel using &man.kldload.8;.</para>
 
       </sect4>
     </sect3>
@@ -182,7 +188,23 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>The &man.getprotoent.3;, &man.getprotobyname.3;, and
+      &man.getprotobynumber.3; functions are now thread-safe.</para>
+
+    <para>The &man.getservent.3;, &man.getservbyname.3;, and
+      &man.getservbyport.3; functions are now thread-safe.</para>
+
+    <para>The &man.kldstat.8; utility now supports a
+      <option>-m</option> option to return the status of a specific
+      kernel module.</para>
+
+    <para>The default stack sizes in <filename>libpthread</filename>,
+      <filename>libthr</filename>,
+      and <filename>libc_r</filename> have been increased.  On 32-bit
+      platforms, the main thread receives a 2MB stack size by default,
+      with other threads receiving a 1MB stack size by default.  On
+      64-bit platforms, the default stack sizes are 4MB and 2MB
+      respectively.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
