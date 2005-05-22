@@ -122,9 +122,6 @@
 #define	AMD64_BUS_SPACE_IO	0	/* space is i/o space */
 #define AMD64_BUS_SPACE_MEM	1	/* space is mem space */
 
-/*
- * Bus address and size types
- */
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE	0xFFFFFFFF
