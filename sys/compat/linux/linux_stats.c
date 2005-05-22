@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -330,6 +331,8 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	dev = findcdev(makedev(args->dev >> 8, args->dev & 0xFF));
 	if (dev != NULL && vfinddev(dev, &vp)) {
 		if (vp->v_mount == NULL)
+			return (EINVAL);
+		if (!prison_check_mount(td->td_ucred, vp->v_mount))
 			return (EINVAL);
 #ifdef MAC
 		error = mac_check_mount_stat(td->td_ucred, vp->v_mount);
