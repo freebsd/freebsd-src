@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2004
+.Dd May 22, 2005
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -266,37 +266,32 @@ See
 for a complete list of the supported
 .Fn ioctl
 functions.
-.Ss Supported Cards
-Below we include a list of supported codecs/cards.
-If your sound card
-is not listed here, it may be supported by a bridge driver.
-.Bl -tag -width 2m
-.It CS4237, CS4236, CS4232, CS4231 (ISA)
-All these cards work perfectly in full duplex using the MSS mode.
-This chipset is used, among others, on the A/Open AW35 and AW32, on
-some Intel motherboards, and (the CS4231) on some non-PnP cards.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following sound cards:
 .Pp
-The CS4232 is reported as buggy in the Voxware documentation but
-I am not sure if this is true.
-On one of my Intel motherboards,
-capture does not work simply because the capture DMA channel is
-not wired to the ISA DMA controller.
-.It Yamaha OPL-SAx (ISA)
-Works perfectly in all modes.
-This chip is used in several PnP cards,
-but also (in non-PnP mode) on motherboards and laptops (e.g., the
-Toshiba Libretto).
-.It OPTi931 (ISA)
-The chip is buggy, but the driver has many workarounds to make it work
-in full duplex because for some time these were the only full duplex
-cards I could find.
-U-law format uses U8 format internally because of
-a bug in the chip.
-.It Trident 4DWave DX/NX (PCI)
-.It ENSONIQ AudioPCI ES1370/1371 (PCI)
-Creative Labs SoundBlaster PCI is supported as well.
-.It ESS Solo-1/1E (PCI)
-.It NeoMagic 256AV/ZX (PCI)
+.Bl -bullet -compact
+.It
+CS4231, CS4232, CS4236, CS4237 (ISA)
+.It
+Creative Labs SoundBlaster PCI
+.It
+ENSONIQ AudioPCI ES1370/1371
+.It
+ESS Solo-1/1E (PCI)
+.It
+Intel 443MX, 810, 815, and 815E integrated sound devices
+.It
+MSS/WSS Compatible DSPs
+.It
+NeoMagic 256AV/ZK (PCI)
+.It
+OPTi931/82C931 (ISA)
+.It
+Trident 4DWave DX/NX (PCI)
+.It
+Yamaha OPL-SAx (ISA)
 .El
 .Sh FILES
 The
@@ -342,9 +337,28 @@ AC97 codec is not likely to be accompanied with the sound card.
 A device node is not created properly.
 .El
 .Sh SEE ALSO
+.Xr snd_ad1816 4 ,
+.Xr snd_als4000 4 ,
+.Xr snd_audiocs 4 ,
+.Xr snd_cmi 4 ,
+.Xr snd_cs4281 4 ,
 .Xr snd_csa 4 ,
+.Xr snd_ds1 4 ,
+.Xr snd_emu10k1 4 ,
+.Xr snd_es137x 4 ,
+.Xr snd_ess 4 ,
+.Xr snd_fm801 4 ,
 .Xr snd_gusc 4 ,
+.Xr snd_ich 4 ,
+.Xr snd_maestro 4 ,
+.Xr snd_maestro3 4 ,
+.Xr snd_neomagic 4 ,
 .Xr snd_sbc 4 ,
+.Xr snd_solo 4 ,
+.Xr snd_uaudio 4 ,
+.Xr snd_via8233 4 ,
+.Xr snd_via82c686 4 ,
+.Xr snd_vibes 4 ,
 .Xr devfs 5 ,
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,
