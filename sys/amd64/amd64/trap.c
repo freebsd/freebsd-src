@@ -363,7 +363,7 @@ trap(frame)
 
 			/*
 			 * Invalid segment selectors and out of bounds
-			 * %eip's and %esp's can be set up in user mode.
+			 * %rip's and %rsp's can be set up in user mode.
 			 * This causes a fault in kernel mode when the
 			 * kernel tries to return to user mode.  We want
 			 * to get this fault so that we can fix the
