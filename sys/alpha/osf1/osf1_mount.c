@@ -158,7 +158,7 @@ osf1_getfsstat(td, uap)
 	long count, error, maxcount;
 	caddr_t osf_sfsp;
 	struct mount *mp, *nmp;
-	struct statfs *sp;
+	struct statfs *sp, sb;
 	struct osf1_statfs osfs;
 
 	if (uap->flags & ~OSF1_GETFSSTAT_FLAGS)
@@ -169,9 +169,10 @@ osf1_getfsstat(td, uap)
 	for (count = 0, mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		if (osf_sfsp && count < maxcount) {
+			if (!prison_check_mount(td->td_ucred, mp))
+	                        continue;
 #ifdef MAC
-			error = mac_check_mount_stat(td->td_ucred, mp);
-			if (error)
+			if (mac_check_mount_stat(td->td_ucred, mp) != 0)
 				continue;
 #endif
 			sp = &mp->mnt_stat;
@@ -185,6 +186,11 @@ osf1_getfsstat(td, uap)
 			    (error = VFS_STATFS(mp, sp, td)))
 				continue;
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+			if (suser(td)) {
+				bcopy(sp, &sb, sizeof(sb));
+				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+				sp = &sb;
+			}
 			bsd2osf_statfs(sp, &osfs);
 			if ((error = copyout(&osfs, osf_sfsp,
 			    sizeof (struct osf1_statfs))))
