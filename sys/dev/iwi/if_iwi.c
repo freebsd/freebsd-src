@@ -116,6 +116,8 @@ static int	iwi_alloc_rx_ring(struct iwi_softc *, struct iwi_rx_ring *,
 		    int);
 static void	iwi_reset_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
 static void	iwi_free_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
+static int	iwi_key_alloc(struct ieee80211com *,
+		    const struct ieee80211_key *);
 static int	iwi_media_change(struct ifnet *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211com *, enum ieee80211_state, int);
@@ -140,6 +142,7 @@ static int	iwi_load_firmware(struct iwi_softc *, void *, int);
 static int	iwi_cache_firmware(struct iwi_softc *, void *);
 static void	iwi_free_firmware(struct iwi_softc *);
 static int	iwi_config(struct iwi_softc *);
+static int	iwi_set_chan(struct iwi_softc *, struct ieee80211_channel *);
 static int	iwi_scan(struct iwi_softc *);
 static int	iwi_auth_and_assoc(struct iwi_softc *);
 static void	iwi_init(void *);
@@ -242,6 +245,8 @@ iwi_attach(device_t dev)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 
+	pci_write_config(dev, 0x41, 0, 1);
+
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
@@ -304,8 +309,8 @@ iwi_attach(device_t dev)
 	ic->ic_state = IEEE80211_S_INIT;
 
 	/* set device capabilities */
-	ic->ic_caps = IEEE80211_C_WEP | IEEE80211_C_PMGT | IEEE80211_C_TXPMGT |
-	    IEEE80211_C_SHPREAMBLE;
+	ic->ic_caps = IEEE80211_C_WPA | IEEE80211_C_PMGT | IEEE80211_C_TXPMGT |
+	    IEEE80211_C_SHPREAMBLE | IEEE80211_C_MONITOR;
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
@@ -318,6 +323,7 @@ iwi_attach(device_t dev)
 	ic->ic_myaddr[4] = val >> 8;
 	ic->ic_myaddr[5] = val & 0xff;
 
+#if 0
 	if (pci_get_device(dev) >= 0x4223) {
 		/* set supported .11a rates (2915ABG only) */
 		ic->ic_sup_rates[IEEE80211_MODE_11A] = iwi_rateset_11a;
@@ -334,6 +340,7 @@ iwi_attach(device_t dev)
 			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_A;
 		}
 	}
+#endif
 
 	/* set supported .11b and .11g rates */
 	ic->ic_sup_rates[IEEE80211_MODE_11B] = iwi_rateset_11b;
@@ -352,6 +359,7 @@ iwi_attach(device_t dev)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = iwi_newstate;
+	ic->ic_crypto.cs_key_alloc = iwi_key_alloc;
 	ieee80211_media_init(ic, iwi_media_change, iwi_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -370,6 +378,7 @@ iwi_attach(device_t dev)
 	 */
 	sc->dwelltime = 100;
 	sc->bluetooth = 1;
+	sc->antenna = 0;
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "radio",
@@ -391,6 +400,10 @@ iwi_attach(device_t dev)
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "bluetooth",
 	    CTLFLAG_RW, &sc->bluetooth, 0, "bluetooth coexistence");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "antenna",
+	    CTLFLAG_RW, &sc->antenna, 0, "antenna (0=auto)");
 
 	/*
 	 * Hook our interrupt after all initialization is complete.
@@ -763,6 +776,8 @@ iwi_resume(device_t dev)
 
 	IWI_LOCK(sc);
 
+	pci_write_config(dev, 0x41, 0, 1);
+
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_init(ifp->if_softc);
 		if (ifp->if_flags & IFF_RUNNING)
@@ -772,6 +787,15 @@ iwi_resume(device_t dev)
 	IWI_UNLOCK(sc);
 
 	return 0;
+}
+
+static int
+iwi_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
+{
+	if (k >= ic->ic_nw_keys && k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])
+		return k - ic->ic_nw_keys;
+
+	return IEEE80211_KEYIX_NONE;
 }
 
 static int
@@ -867,6 +891,12 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
+		if (sc->flags & IWI_FLAG_SCANNING)
+			break;
+
+		ieee80211_node_table_reset(&ic->ic_scan);
+		ic->ic_flags |= IEEE80211_F_SCAN | IEEE80211_F_ASCAN;
+		sc->flags |= IWI_FLAG_SCANNING;
 		iwi_scan(sc);
 		break;
 
@@ -877,10 +907,17 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_RUN:
 		if (ic->ic_opmode == IEEE80211_M_IBSS)
 			ieee80211_new_state(ic, IEEE80211_S_AUTH, -1);
-		break;
+		else if (ic->ic_opmode == IEEE80211_M_MONITOR)
+			iwi_set_chan(sc, ic->ic_ibss_chan);
+
+		return sc->sc_newstate(ic, nstate,
+		    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 
 	case IEEE80211_S_ASSOC:
+		break;
+
 	case IEEE80211_S_INIT:
+		sc->flags &= ~IWI_FLAG_SCANNING;
 		break;
 	}
 
@@ -994,6 +1031,9 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	DPRINTFN(5, ("received frame len=%u chan=%u rssi=%u\n",
 	    le16toh(frame->len), frame->chan, frame->rssi_dbm));
 
+	if (le16toh(frame->len) < sizeof (struct ieee80211_frame))
+		return;
+
 	bus_dmamap_unload(sc->rxq.data_dmat, data->map);
 
 	/* finalize mbuf */
@@ -1026,7 +1066,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 
 	/* send the frame to the 802.11 layer */
-	ieee80211_input(ic, m, ni, IWI_RSSIDBM2RAW(frame->rssi_dbm), 0);
+	ieee80211_input(ic, m, ni, frame->rssi_dbm, 0);
 
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
@@ -1072,7 +1112,12 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		DPRINTFN(2, ("Scan completed (%u, %u)\n", scan->nchan,
 		    scan->status));
 
-		ieee80211_end_scan(ic);
+		/* monitor mode uses scan to set the channel ... */
+		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+			sc->flags &= ~IWI_FLAG_SCANNING;
+			ieee80211_end_scan(ic);
+		} else
+			iwi_set_chan(sc, ic->ic_ibss_chan);
 		break;
 
 	case IWI_NOTIF_TYPE_AUTHENTICATION:
@@ -1291,26 +1336,35 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
+	struct ieee80211_key *k;
 	struct iwi_tx_data *data;
 	struct iwi_tx_desc *desc;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[IWI_MAX_NSEG];
 	int nsegs, error, i;
 
+	wh = mtod(m0, struct ieee80211_frame *);
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		k = ieee80211_crypto_encap(ic, ni, m0);
+		if (k == NULL)
+			return ENOBUFS;
+
+		/* packet header may have moved, reset our local pointer */
+		wh = mtod(m0, struct ieee80211_frame *);
+	}
+
 	if (sc->sc_drvbpf != NULL) {
 		struct iwi_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_bss->ni_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_bss->ni_chan->ic_flags);
+		tap->wt_chan_freq = htole16(ic->ic_ibss_chan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_ibss_chan->ic_flags);
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
 	}
 
 	data = &sc->txq.data[sc->txq.cur];
 	desc = &sc->txq.desc[sc->txq.cur];
-
-	wh = mtod(m0, struct ieee80211_frame *);
 
 	/* trim IEEE802.11 header */
 	m_adj(m0, sizeof (struct ieee80211_frame));
@@ -1356,10 +1410,12 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
 		desc->flags |= IWI_DATA_FLAG_NEED_ACK;
 
+#if 0
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
 		wh->i_fc[1] |= IEEE80211_FC1_WEP;
 		desc->wep_txkey = ic->ic_crypto.cs_def_txkey;
 	} else
+#endif
 		desc->flags |= IWI_DATA_FLAG_NO_WEP;
 
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
@@ -1888,7 +1944,11 @@ iwi_config(struct iwi_softc *sc)
 
 	memset(&config, 0, sizeof config);
 	config.bluetooth_coexistence = sc->bluetooth;
+	config.antenna = sc->antenna;
 	config.multicast_enabled = 1;
+	config.answer_pbreq = (ic->ic_opmode == IEEE80211_M_IBSS) ? 1 : 0;
+	config.disable_unicast_decryption = 1;
+	config.disable_multicast_decryption = 1;
 	DPRINTF(("Configuring adapter\n"));
 	error = iwi_cmd(sc, IWI_CMD_SET_CONFIG, &config, sizeof config, 0);
 	if (error != 0)
@@ -1903,6 +1963,12 @@ iwi_config(struct iwi_softc *sc)
 	data = htole32(ic->ic_rtsthreshold);
 	DPRINTF(("Setting RTS threshold to %u\n", le32toh(data)));
 	error = iwi_cmd(sc, IWI_CMD_SET_RTS_THRESHOLD, &data, sizeof data, 0);
+	if (error != 0)
+		return error;
+
+	data = htole32(ic->ic_fragthreshold);
+	DPRINTF(("Setting fragmentation threshold to %u\n", le32toh(data)));
+	error = iwi_cmd(sc, IWI_CMD_SET_FRAG_THRESHOLD, &data, sizeof data, 0);
 	if (error != 0)
 		return error;
 
@@ -1975,6 +2041,23 @@ iwi_config(struct iwi_softc *sc)
 }
 
 static int
+iwi_set_chan(struct iwi_softc *sc, struct ieee80211_channel *chan)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct iwi_scan scan;
+
+	memset(&scan, 0, sizeof scan);
+	scan.type = IWI_SCAN_TYPE_PASSIVE;
+	scan.dwelltime = htole16(2000);
+	scan.channels[0] = 1 | (IEEE80211_IS_CHAN_5GHZ(chan) ? IWI_CHAN_5GHZ :
+	    IWI_CHAN_2GHZ);
+	scan.channels[1] = ieee80211_chan2ieee(ic, chan);
+
+	DPRINTF(("Setting channel to %u\n", ieee80211_chan2ieee(ic, chan)));
+	return iwi_cmd(sc, IWI_CMD_SCAN, &scan, sizeof scan, 1);
+}
+
+static int
 iwi_scan(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1984,7 +2067,7 @@ iwi_scan(struct iwi_softc *sc)
 
 	memset(&scan, 0, sizeof scan);
 	scan.type = IWI_SCAN_TYPE_BROADCAST;
-	scan.intval = htole16(sc->dwelltime);
+	scan.dwelltime = htole16(sc->dwelltime);
 
 	p = scan.channels;
 	count = 0;
@@ -2020,14 +2103,20 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	struct iwi_configuration config;
 	struct iwi_associate assoc;
 	struct iwi_rateset rs;
+	uint16_t capinfo;
 	uint32_t data;
 	int error;
 
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 		memset(&config, 0, sizeof config);
 		config.bluetooth_coexistence = sc->bluetooth;
+		config.antenna = sc->antenna;
 		config.multicast_enabled = 1;
 		config.use_protection = 1;
+		config.answer_pbreq =
+		    (ic->ic_opmode == IEEE80211_M_IBSS) ? 1 : 0;
+		config.disable_unicast_decryption = 1;
+		config.disable_multicast_decryption = 1;
 		DPRINTF(("Configuring adapter\n"));
 		error = iwi_cmd(sc, IWI_CMD_SET_CONFIG, &config, sizeof config,
 		    1);
@@ -2057,6 +2146,14 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	if (error != 0)
 		return error;
 
+	if (ic->ic_opt_ie != NULL) {
+		DPRINTF(("Setting optional IE (len=%u)\n", ic->ic_opt_ie_len));
+		error = iwi_cmd(sc, IWI_CMD_SET_OPTIE, ic->ic_opt_ie,
+		    ic->ic_opt_ie_len, 1);
+		if (error != 0)
+			return error;
+	}
+
 	data = htole32(ni->ni_rssi);
 	DPRINTF(("Setting sensitivity to %d\n", (int8_t)ni->ni_rssi));
 	error = iwi_cmd(sc, IWI_CMD_SET_SENSITIVITY, &data, sizeof data, 1);
@@ -2069,8 +2166,23 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	assoc.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
 	if (ni->ni_authmode == IEEE80211_AUTH_SHARED)
 		assoc.auth = ic->ic_crypto.cs_def_txkey << 4 | IWI_AUTH_SHARED;
+	if (ic->ic_opt_ie != NULL)
+		assoc.policy |= htole16(IWI_POLICY_OPTIE);
 	memcpy(assoc.tstamp, ni->ni_tstamp.data, 8);
-	assoc.capinfo = htole16(ni->ni_capinfo);
+
+	if (ic->ic_opmode == IEEE80211_M_IBSS)
+		capinfo = IEEE80211_CAPINFO_IBSS;
+	else
+		capinfo = IEEE80211_CAPINFO_ESS;
+	if (ic->ic_flags & IEEE80211_F_PRIVACY)
+		capinfo |= IEEE80211_CAPINFO_PRIVACY;
+	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
+	if (ic->ic_flags & IEEE80211_F_SHSLOT)
+		capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+	assoc.capinfo = htole16(capinfo);
+
 	assoc.lintval = htole16(ic->ic_lintval);
 	assoc.intval = htole16(ni->ni_intval);
 	IEEE80211_ADDR_COPY(assoc.bssid, ni->ni_bssid);
@@ -2161,7 +2273,10 @@ iwi_init(void *priv)
 		goto fail;
 	}
 
-	ieee80211_begin_scan(ic, 1);
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+	else
+		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 
 	ifp->if_flags &= ~IFF_OACTIVE;
 	ifp->if_flags |= IFF_RUNNING;

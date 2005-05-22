@@ -247,11 +247,14 @@ struct iwi_cmd_desc {
 #define IWI_CMD_SET_ESSID			8
 #define IWI_CMD_SET_MAC_ADDRESS			11
 #define IWI_CMD_SET_RTS_THRESHOLD		15
+#define IWI_CMD_SET_FRAG_THRESHOLD		16
 #define IWI_CMD_SET_POWER_MODE			17
 #define IWI_CMD_SET_WEP_KEY			18
 #define IWI_CMD_SCAN				20
 #define IWI_CMD_ASSOCIATE			21
 #define IWI_CMD_SET_RATES			22
+#define IWI_CMD_ABORT_SCAN			23
+#define IWI_CMD_SET_OPTIE			31
 #define IWI_CMD_DISABLE				33
 #define IWI_CMD_SET_IV				34
 #define IWI_CMD_SET_TX_POWER			35
@@ -266,9 +269,6 @@ struct iwi_cmd_desc {
 #define IWI_MODE_11A	0
 #define IWI_MODE_11B	1
 #define IWI_MODE_11G	2
-
-/* macro for command IWI_CMD_SET_SENSITIVITY */
-#define IWI_RSSIDBM2RAW(rssi)	((rssi) - 112)
 
 /* possible values for command IWI_CMD_SET_POWER_MODE */
 #define IWI_POWER_MODE_CAM	0
@@ -307,7 +307,9 @@ struct iwi_associate {
 
 	uint8_t		type;
 	uint8_t		reserved1;
-	uint16_t	reserved2;
+	uint16_t	policy;
+#define IWI_POLICY_OPTIE	2
+
 	uint8_t		plen;
 	uint8_t		mode;
 	uint8_t		bssid[IEEE80211_ADDR_LEN];
@@ -323,9 +325,10 @@ struct iwi_associate {
 /* structure for command IWI_CMD_SCAN */
 struct iwi_scan {
 	uint8_t		type;
+#define IWI_SCAN_TYPE_PASSIVE	1
 #define IWI_SCAN_TYPE_BROADCAST	3
 
-	uint16_t	intval;
+	uint16_t	dwelltime;
 	uint8_t		channels[54];
 #define IWI_CHAN_5GHZ	(0 << 6)
 #define IWI_CHAN_2GHZ	(1 << 6)
@@ -337,12 +340,12 @@ struct iwi_scan {
 struct iwi_configuration {
 	uint8_t	bluetooth_coexistence;
 	uint8_t	reserved1;
-	uint8_t	answer_broadcast_probe_req;
+	uint8_t	answer_pbreq;
 	uint8_t	allow_invalid_frames;
 	uint8_t	multicast_enabled;
-	uint8_t	exclude_unicast_unencrypted;
+	uint8_t	drop_unicast_unencrypted;
 	uint8_t	disable_unicast_decryption;
-	uint8_t	exclude_multicast_unencrypted;
+	uint8_t	drop_multicast_unencrypted;
 	uint8_t	disable_multicast_decryption;
 	uint8_t	antenna;
 	uint8_t	reserved2;
