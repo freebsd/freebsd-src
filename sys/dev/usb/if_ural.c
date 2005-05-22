@@ -99,6 +99,8 @@ Static int		ural_alloc_tx_list(struct ural_softc *);
 Static void		ural_free_tx_list(struct ural_softc *);
 Static int		ural_alloc_rx_list(struct ural_softc *);
 Static void		ural_free_rx_list(struct ural_softc *);
+Static int		ural_key_alloc(struct ieee80211com *,
+			    const struct ieee80211_key *);
 Static int		ural_media_change(struct ifnet *);
 Static void		ural_next_scan(void *);
 Static void		ural_task(void *);
@@ -470,6 +472,7 @@ USB_ATTACH(ural)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = ural_newstate;
+	ic->ic_crypto.cs_key_alloc = ural_key_alloc;
 	ieee80211_media_init(ic, ural_media_change, ieee80211_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -639,6 +642,15 @@ ural_free_rx_list(struct ural_softc *sc)
 			data->m = NULL;
 		}
 	}
+}
+
+Static int
+ural_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
+{
+	if (k >= ic->ic_nw_keys && k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])
+		return k - ic->ic_nw_keys;
+
+	return IEEE80211_KEYIX_NONE;
 }
 
 Static int
