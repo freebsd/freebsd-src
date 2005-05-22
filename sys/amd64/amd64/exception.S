@@ -402,9 +402,9 @@ doreti_iret:
 	iretq
 
 	/*
-	 * doreti_iret_fault and friends.  Alternative return code for
+	 * doreti_iret_fault.  Alternative return code for
 	 * the case where we get a fault in the doreti_exit code
-	 * above.  trap() (i386/i386/trap.c) catches this specific
+	 * above.  trap() (amd64/amd64/trap.c) catches this specific
 	 * case, sends the process a signal and continues in the
 	 * corresponding place in the code below.
 	 */
@@ -435,5 +435,6 @@ doreti_iret_fault:
 	movq	%r15,TF_R15(%rsp)
 	movq	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
+	movq	$0,TF_ADDR(%rsp)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	jmp	calltrap
