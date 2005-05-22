@@ -707,8 +707,6 @@ int action;
 	struct ksegrp *kg;
 	int didswap = 0;
 
-	GIANT_REQUIRED;
-
 retry:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
