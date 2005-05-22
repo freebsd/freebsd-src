@@ -110,7 +110,7 @@ force_depend()
 	_depend="$1"
 
 	info "${name} depends on ${_depend}, which will be forced to start."
-	if ! /etc/rc.d/${_depend} forcestart ; then
+	if ! /etc/rc.d/${_depend} forcestart; then
 		warn "Unable to force ${_depend}. It may already be running."
 		return 1
 	fi
@@ -274,10 +274,10 @@ _find_processes()
 		ps 2>/dev/null -o "pid,command" '"$_psargs"' |
 		while read _npid '"$_fp_args"'; do
 			case "$_npid" in
-			    PID)
-				continue ;;
-			esac ; '"$_fp_match"'
-				echo -n "$_pref$_npid" ;
+			PID)
+				continue;;
+			esac; '"$_fp_match"'
+				echo -n "$_pref$_npid";
 				_pref=" "
 				;;
 			esac
@@ -832,7 +832,7 @@ run_rc_script()
 
 	case "$_file" in
 	*.sh)				# run in current shell
-		set $_arg ; . $_file
+		set $_arg; . $_file
 		;;
 	*[~#]|*.OLD|*.orig|*,v)		# scratch file; skip
 		warn "Ignoring scratch file $_file"
@@ -840,11 +840,11 @@ run_rc_script()
 	*)				# run in subshell
 		if [ -x $_file ]; then
 			if [ -n "$rc_fast_and_loose" ]; then
-				set $_arg ; . $_file
+				set $_arg; . $_file
 			else
 				( trap "echo Script $_file interrupted; kill -QUIT $$" 3
 				  trap "echo Script $_file interrupted; exit 1" 2
-				  set $_arg ; . $_file )
+				  set $_arg; . $_file )
 			fi
 		fi
 		;;
@@ -884,18 +884,17 @@ load_rc_config()
 	#
 	case ${OSTYPE} in
 	FreeBSD)
-        	[ -n "$portmap_enable" ] && rpcbind_enable="$portmap_enable"
-        	[ -n "$portmap_program" ] && rpcbind_program="$portmap_program"
-        	[ -n "$portmap_flags" ] && rpcbind_flags="$portmap_flags"
-        	[ -n "$single_mountd_enable" ] && mountd_enable="$single_mountd_enable"
-        	[ -n "$xntpd_enable" ] && ntpd_enable="$xntpd_enable"
-        	[ -n "$xntpd_program" ] && ntpd_program="$xntpd_program"
-        	[ -n "$xntpd_flags" ] && ntpd_flags="$xntpd_flags"
+		[ -n "$portmap_enable" ] && rpcbind_enable="$portmap_enable"
+		[ -n "$portmap_program" ] && rpcbind_program="$portmap_program"
+		[ -n "$portmap_flags" ] && rpcbind_flags="$portmap_flags"
+		[ -n "$single_mountd_enable" ] && mountd_enable="$single_mountd_enable"
+		[ -n "$xntpd_enable" ] && ntpd_enable="$xntpd_enable"
+		[ -n "$xntpd_program" ] && ntpd_program="$xntpd_program"
+		[ -n "$xntpd_flags" ] && ntpd_flags="$xntpd_flags"
 		[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
 		[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
-        	;;
+		;;
 	esac
-
 }
 
 #
@@ -973,7 +972,7 @@ debug()
 		if [ -x /usr/bin/logger ]; then
 			logger "$0: INFO: $*"
 		fi
-        	echo 1>&2 "$0: DEBUG: $*"
+		echo 1>&2 "$0: DEBUG: $*"
 		;;
 	esac
 }
@@ -1086,7 +1085,7 @@ make_symlink()
 		warn "$_me: the directory $linkdir does not exist"
 		return 1
 	fi
-	if ! ln -sf $src $link ; then
+	if ! ln -sf $src $link; then
 		warn "$_me: unable to make a symbolic link from $link to $src"
 		return 1
 	fi
@@ -1135,7 +1134,7 @@ devfs_rulesets_from_file()
 			fi
 			eval $rulename=\$rulenum
 			debug "found ruleset: $rulename=$rulenum"
-			if ! /sbin/devfs rule -s $rulenum delset ; then
+			if ! /sbin/devfs rule -s $rulenum delset; then
 				_err=1
 				break
 			fi
@@ -1176,7 +1175,7 @@ devfs_init_rulesets()
 		debug "$_me: devfs rulesets already initialized"
 		return
 	fi
-	for file in $devfs_rulesets ; do
+	for file in $devfs_rulesets; do
 		devfs_rulesets_from_file $file || return 1
 	done
 	devfs_rulesets_init=1
@@ -1201,7 +1200,7 @@ devfs_set_ruleset()
 		return 1
 	fi
 	debug "$_me: setting ruleset ($rs) on mount-point (${devdir#-m })"
-	if ! /sbin/devfs $devdir ruleset $rs ; then
+	if ! /sbin/devfs $devdir ruleset $rs; then
 		warn "$_me: unable to set ruleset $rs to ${devdir#-m }"
 		return 1
 	fi
@@ -1226,7 +1225,7 @@ devfs_apply_ruleset()
 		return 1
 	fi
 	debug "$_me: applying ruleset ($rs) to mount-point (${devdir#-m })"
-	if ! /sbin/devfs $devdir rule -s $rs applyset ; then
+	if ! /sbin/devfs $devdir rule -s $rs applyset; then
 		warn "$_me: unable to apply ruleset $rs to ${devdir#-m }"
 		return 1
 	fi
@@ -1250,7 +1249,7 @@ devfs_domount()
 		return 1
 	fi
 	debug "$_me: mount-point is ($devdir), ruleset is ($rs)"
-	if ! mount -t devfs dev "$devdir" ; then
+	if ! mount -t devfs dev "$devdir"; then
 		warn "$_me: Unable to mount devfs on $devdir"
 		return 1
 	fi
@@ -1277,7 +1276,7 @@ devfs_mount_jail()
 	_me="devfs_mount_jail"
 
 	devfs_init_rulesets
-	if ! devfs_domount "$jdev" $rs ; then
+	if ! devfs_domount "$jdev" $rs; then
 		warn "$_me: devfs was not mounted on $jdev"
 		return 1
 	fi
@@ -1290,7 +1289,8 @@ devfs_mount_jail()
 #   $1 = size
 #   $2 = mount point
 #   $3 = (optional) extra mdmfs flags
-mount_md() {
+mount_md()
+{
 	if [ -n "$3" ]; then
 		flags="$3"
 	fi
