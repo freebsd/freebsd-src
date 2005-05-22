@@ -237,13 +237,8 @@ bsd_to_linux_statfs(struct thread *td, struct statfs *bsd_statfs,
 	linux_statfs->f_bavail = bsd_statfs->f_bavail;
 	linux_statfs->f_ffree = bsd_statfs->f_ffree;
 	linux_statfs->f_files = bsd_statfs->f_files;
-	if (suser(td)) {
-		linux_statfs->f_fsid.val[0] = 0;
-		linux_statfs->f_fsid.val[1] = 0;
-	} else {
-		linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
-		linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
-	}
+	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
 }
 
