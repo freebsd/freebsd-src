@@ -109,7 +109,7 @@ static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, 0 },	/* PMC */
+	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
 
@@ -302,6 +302,11 @@ lapic_setup(void)
 	/* Program LINT[01] LVT entries. */
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+#ifdef	HWPMC_HOOKS
+	/* Program the PMC LVT entry if present. */
+	if (maxlvt >= LVT_PMC)
+		lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
+#endif
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
