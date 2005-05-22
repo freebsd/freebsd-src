@@ -122,6 +122,7 @@ struct iwi_softc {
 #define IWI_FLAG_FW_CACHED	(1 << 0)
 #define IWI_FLAG_FW_INITED	(1 << 1)
 #define IWI_FLAG_FW_WARNED	(1 << 2)
+#define IWI_FLAG_SCANNING	(1 << 3)
 
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq;
@@ -135,6 +136,7 @@ struct iwi_softc {
 	int			mem_rid;
 	int			irq_rid;
 
+	int			antenna;
 	int			dwelltime;
 	int			bluetooth;
 
