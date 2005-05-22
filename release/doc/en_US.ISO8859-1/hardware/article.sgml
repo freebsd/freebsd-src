@@ -716,44 +716,46 @@
     &hwlist.sound;
 
     &hwlist.snd.ad1816;
-    &hwlist.snd.cs4281;
-    &hwlist.snd.solo;
 
-    &hwlist.snd.sbc;
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.audiocs;
 
     &hwlist.snd.cmi;
 
+    &hwlist.snd.cs4281;
+
     &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
 
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
 
-    &hwlist.snd.maestro;
-
-    &hwlist.snd.maestro3;
-
-    &hwlist.snd.als4000;
-
     &hwlist.snd.fm801;
 
     &hwlist.snd.gusc;
 
+    &hwlist.snd.ich;
+
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
+
     &hwlist.snd.neomagic;
 
-    &hwlist.snd.vibes;
+    &hwlist.snd.sbc;
 
-    &hwlist.snd.emu10k1;
+    &hwlist.snd.solo;
 
     &hwlist.snd.via8233;
 
     &hwlist.snd.via82c686;
 
-    &hwlist.snd.ds1;
-
-    &hwlist.snd.ich;
-
-    &hwlist.snd.audiocs;
+    &hwlist.snd.vibes;
 
     <para arch="pc98">NEC PC-9801-73, 86 and compatibles (nss driver)
       <itemizedlist>
