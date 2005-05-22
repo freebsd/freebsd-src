@@ -55,30 +55,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/resource_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 
-__stdcall static void KeStallExecutionProcessor(uint32_t);
-__stdcall static void WRITE_PORT_BUFFER_ULONG(uint32_t *,
+static void KeStallExecutionProcessor(uint32_t);
+static void WRITE_PORT_BUFFER_ULONG(uint32_t *,
 	uint32_t *, uint32_t);
-__stdcall static void WRITE_PORT_BUFFER_USHORT(uint16_t *,
+static void WRITE_PORT_BUFFER_USHORT(uint16_t *,
 	uint16_t *, uint32_t);
-__stdcall static void WRITE_PORT_BUFFER_UCHAR(uint8_t *,
+static void WRITE_PORT_BUFFER_UCHAR(uint8_t *,
 	uint8_t *, uint32_t);
-__stdcall static void WRITE_PORT_ULONG(uint32_t *, uint32_t);
-__stdcall static void WRITE_PORT_USHORT(uint16_t *, uint16_t);
-__stdcall static void WRITE_PORT_UCHAR(uint8_t *, uint8_t);
-__stdcall static uint32_t READ_PORT_ULONG(uint32_t *);
-__stdcall static uint16_t READ_PORT_USHORT(uint16_t *);
-__stdcall static uint8_t READ_PORT_UCHAR(uint8_t *);
-__stdcall static void READ_PORT_BUFFER_ULONG(uint32_t *,
+static void WRITE_PORT_ULONG(uint32_t *, uint32_t);
+static void WRITE_PORT_USHORT(uint16_t *, uint16_t);
+static void WRITE_PORT_UCHAR(uint8_t *, uint8_t);
+static uint32_t READ_PORT_ULONG(uint32_t *);
+static uint16_t READ_PORT_USHORT(uint16_t *);
+static uint8_t READ_PORT_UCHAR(uint8_t *);
+static void READ_PORT_BUFFER_ULONG(uint32_t *,
 	uint32_t *, uint32_t);
-__stdcall static void READ_PORT_BUFFER_USHORT(uint16_t *,
+static void READ_PORT_BUFFER_USHORT(uint16_t *,
 	uint16_t *, uint32_t);
-__stdcall static void READ_PORT_BUFFER_UCHAR(uint8_t *,
+static void READ_PORT_BUFFER_UCHAR(uint8_t *,
 	uint8_t *, uint32_t);
-__stdcall static uint64_t KeQueryPerformanceCounter(uint64_t *);
-__stdcall static void dummy (void);
+static uint64_t KeQueryPerformanceCounter(uint64_t *);
+static void dummy (void);
 
 extern struct mtx_pool *ndis_mtxpool;
 
@@ -90,7 +92,8 @@ hal_libinit()
 	patch = hal_functbl;
 	while (patch->ipt_func != NULL) {
 		windrv_wrap((funcptr)patch->ipt_func,
-		    (funcptr *)&patch->ipt_wrap);
+		    (funcptr *)&patch->ipt_wrap,
+		    patch->ipt_argcnt, patch->ipt_ftype);
 		patch++;
 	}
 
@@ -111,7 +114,7 @@ hal_libfini()
 	return(0);
 }
 
-__stdcall static void
+static void
 KeStallExecutionProcessor(usecs)
 	uint32_t		usecs;
 {
@@ -119,7 +122,7 @@ KeStallExecutionProcessor(usecs)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_ULONG(port, val)
 	uint32_t		*port;
 	uint32_t		val;
@@ -128,7 +131,7 @@ WRITE_PORT_ULONG(port, val)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_USHORT(port, val)
 	uint16_t		*port;
 	uint16_t		val;
@@ -137,7 +140,7 @@ WRITE_PORT_USHORT(port, val)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_UCHAR(port, val)
 	uint8_t			*port;
 	uint8_t			val;
@@ -146,7 +149,7 @@ WRITE_PORT_UCHAR(port, val)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_BUFFER_ULONG(port, val, cnt)
 	uint32_t		*port;
 	uint32_t		*val;
@@ -157,7 +160,7 @@ WRITE_PORT_BUFFER_ULONG(port, val, cnt)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_BUFFER_USHORT(port, val, cnt)
 	uint16_t		*port;
 	uint16_t		*val;
@@ -168,7 +171,7 @@ WRITE_PORT_BUFFER_USHORT(port, val, cnt)
 	return;
 }
 
-__stdcall static void
+static void
 WRITE_PORT_BUFFER_UCHAR(port, val, cnt)
 	uint8_t			*port;
 	uint8_t			*val;
@@ -179,28 +182,28 @@ WRITE_PORT_BUFFER_UCHAR(port, val, cnt)
 	return;
 }
 
-__stdcall static uint16_t
+static uint16_t
 READ_PORT_USHORT(port)
 	uint16_t		*port;
 {
 	return(bus_space_read_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
-__stdcall static uint32_t
+static uint32_t
 READ_PORT_ULONG(port)
 	uint32_t		*port;
 {
 	return(bus_space_read_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
-__stdcall static uint8_t
+static uint8_t
 READ_PORT_UCHAR(port)
 	uint8_t			*port;
 {
 	return(bus_space_read_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
-__stdcall static void
+static void
 READ_PORT_BUFFER_ULONG(port, val, cnt)
 	uint32_t		*port;
 	uint32_t		*val;
@@ -211,7 +214,7 @@ READ_PORT_BUFFER_ULONG(port, val, cnt)
 	return;
 }
 
-__stdcall static void
+static void
 READ_PORT_BUFFER_USHORT(port, val, cnt)
 	uint16_t		*port;
 	uint16_t		*val;
@@ -222,7 +225,7 @@ READ_PORT_BUFFER_USHORT(port, val, cnt)
 	return;
 }
 
-__stdcall static void
+static void
 READ_PORT_BUFFER_UCHAR(port, val, cnt)
 	uint8_t			*port;
 	uint8_t			*val;
@@ -286,8 +289,9 @@ READ_PORT_BUFFER_UCHAR(port, val, cnt)
  * or HIGH_LEVEL, we panic.
  */
 
-__fastcall uint8_t
-KfAcquireSpinLock(REGARGS1(kspin_lock *lock))
+uint8_t
+KfAcquireSpinLock(lock)
+	kspin_lock		*lock;
 {
 	uint8_t			oldirql;
 
@@ -301,8 +305,10 @@ KfAcquireSpinLock(REGARGS1(kspin_lock *lock))
 	return(oldirql);
 }
 
-__fastcall void
-KfReleaseSpinLock(REGARGS2(kspin_lock *lock, uint8_t newirql))
+void
+KfReleaseSpinLock(lock, newirql)
+	kspin_lock		*lock;
+	uint8_t			newirql;
 {
 	KeReleaseSpinLockFromDpcLevel(lock);
 	KeLowerIrql(newirql);
@@ -310,15 +316,15 @@ KfReleaseSpinLock(REGARGS2(kspin_lock *lock, uint8_t newirql))
 	return;
 }
 
-__stdcall uint8_t
-KeGetCurrentIrql(void)
+ uint8_t
+KeGetCurrentIrql()
 {
 	if (AT_DISPATCH_LEVEL(curthread))
 		return(DISPATCH_LEVEL);
 	return(PASSIVE_LEVEL);
 }
 
-__stdcall static uint64_t
+static uint64_t
 KeQueryPerformanceCounter(freq)
 	uint64_t		*freq;
 {
@@ -328,8 +334,9 @@ KeQueryPerformanceCounter(freq)
 	return((uint64_t)ticks);
 }
 
-__fastcall uint8_t
-KfRaiseIrql(REGARGS1(uint8_t irql))
+uint8_t
+KfRaiseIrql(irql)
+	uint8_t			irql;
 {
 	uint8_t			oldirql;
 
@@ -350,8 +357,9 @@ KfRaiseIrql(REGARGS1(uint8_t irql))
 	return(oldirql);
 }
 
-__fastcall void 
-KfLowerIrql(REGARGS1(uint8_t oldirql))
+void 
+KfLowerIrql(oldirql)
+	uint8_t			oldirql;
 {
 	if (oldirql == DISPATCH_LEVEL)
 		return;
@@ -369,7 +377,6 @@ KfLowerIrql(REGARGS1(uint8_t oldirql))
 	return;
 }
 
-__stdcall
 static void dummy()
 {
 	printf ("hal dummy called...\n");
@@ -377,25 +384,25 @@ static void dummy()
 }
 
 image_patch_table hal_functbl[] = {
-	IMPORT_FUNC(KeStallExecutionProcessor),
-	IMPORT_FUNC(WRITE_PORT_ULONG),
-	IMPORT_FUNC(WRITE_PORT_USHORT),
-	IMPORT_FUNC(WRITE_PORT_UCHAR),
-	IMPORT_FUNC(WRITE_PORT_BUFFER_ULONG),
-	IMPORT_FUNC(WRITE_PORT_BUFFER_USHORT),
-	IMPORT_FUNC(WRITE_PORT_BUFFER_UCHAR),
-	IMPORT_FUNC(READ_PORT_ULONG),
-	IMPORT_FUNC(READ_PORT_USHORT),
-	IMPORT_FUNC(READ_PORT_UCHAR),
-	IMPORT_FUNC(READ_PORT_BUFFER_ULONG),
-	IMPORT_FUNC(READ_PORT_BUFFER_USHORT),
-	IMPORT_FUNC(READ_PORT_BUFFER_UCHAR),
-	IMPORT_FUNC(KfAcquireSpinLock),
-	IMPORT_FUNC(KfReleaseSpinLock),
-	IMPORT_FUNC(KeGetCurrentIrql),
-	IMPORT_FUNC(KeQueryPerformanceCounter),
-	IMPORT_FUNC(KfLowerIrql),
-	IMPORT_FUNC(KfRaiseIrql),
+	IMPORT_SFUNC(KeStallExecutionProcessor, 1),
+	IMPORT_SFUNC(WRITE_PORT_ULONG, 2),
+	IMPORT_SFUNC(WRITE_PORT_USHORT, 2),
+	IMPORT_SFUNC(WRITE_PORT_UCHAR, 2),
+	IMPORT_SFUNC(WRITE_PORT_BUFFER_ULONG, 3),
+	IMPORT_SFUNC(WRITE_PORT_BUFFER_USHORT, 3),
+	IMPORT_SFUNC(WRITE_PORT_BUFFER_UCHAR, 3),
+	IMPORT_SFUNC(READ_PORT_ULONG, 1),
+	IMPORT_SFUNC(READ_PORT_USHORT, 1),
+	IMPORT_SFUNC(READ_PORT_UCHAR, 1),
+	IMPORT_SFUNC(READ_PORT_BUFFER_ULONG, 3),
+	IMPORT_SFUNC(READ_PORT_BUFFER_USHORT, 3),
+	IMPORT_SFUNC(READ_PORT_BUFFER_UCHAR, 3),
+	IMPORT_FFUNC(KfAcquireSpinLock, 1),
+	IMPORT_FFUNC(KfReleaseSpinLock, 1),
+	IMPORT_SFUNC(KeGetCurrentIrql, 0),
+	IMPORT_SFUNC(KeQueryPerformanceCounter, 1),
+	IMPORT_FFUNC(KfLowerIrql, 1),
+	IMPORT_FFUNC(KfRaiseIrql, 1),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
@@ -404,7 +411,7 @@ image_patch_table hal_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy, NULL },
+	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
 

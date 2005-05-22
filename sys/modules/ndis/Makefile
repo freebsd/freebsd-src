@@ -11,4 +11,8 @@ SRCS+=	opt_bdg.h device_if.h bus_if.h pci_if.h vnode_if.h
 SRCS+=	winx64_wrap.S
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	winx32_wrap.S
+.endif
+
 .include <bsd.kmod.mk>

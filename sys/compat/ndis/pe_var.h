@@ -407,78 +407,11 @@ struct image_patch_table {
 	char		*ipt_name;
 	void		(*ipt_func)(void);
 	void		(*ipt_wrap)(void);
+	int		ipt_argcnt;
+	int		ipt_ftype;
 };
 
 typedef struct image_patch_table image_patch_table;
-
-/*
- * Note: Windows uses the _stdcall calling convention. This means
- * that the callback functions provided in the function table must
- * be declared using __attribute__((__stdcall__)), otherwise the
- * Windows code will likely screw up the %esp register and cause
- * us to jump to an invalid address when it returns.
- */
-
-#ifdef __amd64__
-#define	__stdcall
-#define __regcall
-#define __fastcall
-#define REGARGS1(decl1)		decl1
-#define REGARGS2(decl1, decl2)	decl1, decl2
-#define REGCALL1(arg1)		arg1
-#define REGCALL2(arg1, arg2)	arg1, arg2
-#else
-#define	__stdcall __attribute__((__stdcall__))
-#define __regcall __attribute__((__regparm__(3)))
-#define __fastcall __stdcall __regcall
-#define REGARGS1(decl1)		int dummy1, int dummy2, decl1
-#define REGARGS2(decl1, decl2)	int dummy1, decl2, decl1
-#define REGCALL1(arg1)		0, 0, arg1
-#define REGCALL2(arg1, arg2)	0, arg2, arg1
-#endif
-
-
-/*
- * This mess allows us to call a _fastcall style routine with our
- * version of gcc, which lacks __attribute__((__fastcall__)). Only
- * has meaning on x86; everywhere else, it's a no-op.
- */
-
-#ifdef __i386__
-typedef __fastcall int (*fcall1)(REGARGS1(uint32_t));
-typedef __fastcall int (*fcall2)(REGARGS2(uint32_t, uint32_t));
-typedef __fastcall int (*fcall3)(REGARGS2(uint32_t, uint32_t), uint32_t);
-
-static __inline uint32_t 
-fastcall1(fcall1 f, uint32_t a)
-{
-	return(f(REGCALL1(a)));
-}
-
-static __inline uint32_t 
-fastcall2(fcall2 f, uint32_t a, uint32_t b)
-{
-	return(f(REGCALL2(a, b)));
-}
-
-static __inline uint32_t 
-fastcall3(fcall3 f, uint32_t a, uint32_t b, uint32_t c)
-{
-	return(f(REGCALL2(a, b), c));
-}
-
-#define FASTCALL1(f, a)		\
-	fastcall1((fcall1)(f), (uint32_t)(a))
-#define FASTCALL2(f, a, b)	\
-	fastcall2((fcall2)(f), (uint32_t)(a), (uint32_t)(b))
-#define FASTCALL3(f, a, b, c)	\
-	fastcall3((fcall3)(f), (uint32_t)(a), (uint32_t)(b), (uint32_t)(c))
-#else
-#define FASTCALL1(f, a) (f)((a))
-#define FASTCALL2(f, a, b) (f)((a), (b))
-#define FASTCALL3(f, a, b, c) (f)((a), (b), (c))
-#endif /* __i386__ */
-
 
 /*
  * AMD64 support. Microsoft uses a different calling convention
@@ -536,21 +469,55 @@ extern uint64_t x86_64_call6(void *, uint64_t, uint64_t, uint64_t, uint64_t,
 	x86_64_call6((fn), (uint64_t)(a), (uint64_t)(b),		\
 	(uint64_t)(c), (uint64_t)(d), (uint64_t)(e), (uint64_t)(f))
 
-#else /* __amd64__ */
-
-#define MSCALL1(fn, a)			(fn)((a))
-#define MSCALL2(fn, a, b)		(fn)((a), (b))
-#define MSCALL3(fn, a, b, c)		(fn)((a), (b), (c))
-#define MSCALL4(fn, a, b, c, d)		(fn)((a), (b), (c), (d))
-#define MSCALL5(fn, a, b, c, d, e)	(fn)((a), (b), (c), (d), (e))
-#define MSCALL6(fn, a, b, c, d, e, f)	(fn)((a), (b), (c), (d), (e), (f))
-
 #endif /* __amd64__ */
+
+#ifdef __i386__
+
+extern uint32_t x86_stdcall_call(void *, int, ...);
+
+#define MSCALL1(fn, a)		x86_stdcall_call(fn, 1, (a))
+#define MSCALL2(fn, a, b)	x86_stdcall_call(fn, 2, (a), (b))
+#define MSCALL3(fn, a, b, c)	x86_stdcall_call(fn, 3, (a), (b), (c))
+#define MSCALL4(fn, a, b, c, d)	x86_stdcall_call(fn, 4, (a), (b), (c), (d))
+#define MSCALL5(fn, a, b, c, d, e)	\
+		x86_stdcall_call(fn, 5, (a), (b), (c), (d), (e))
+#define MSCALL6(fn, a, b, c, d, e, f)	\
+		x86_stdcall_call(fn, 6, (a), (b), (c), (d), (e), (f))
+
+#endif /* __i386__ */
 
 
 #define FUNC void(*)(void)
-#define IMPORT_FUNC(x)		{ #x, (FUNC)x, NULL }
-#define IMPORT_FUNC_MAP(x, y)	{ #x, (FUNC)y, NULL }
+
+#ifdef __i386__
+#define IMPORT_SFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_STDCALL }
+#define IMPORT_SFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_STDCALL }
+#define IMPORT_FFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_FASTCALL }
+#define IMPORT_FFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_FASTCALL }
+#define IMPORT_RFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_REGPARM }
+#define IMPORT_RFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_REGPARM }
+#define IMPORT_CFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_CDECL }
+#define IMPORT_CFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_CDECL }
+#endif /* __i386__ */
+
+#ifdef __amd64__
+#define IMPORT_SFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_AMD64 }
+#define IMPORT_SFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_AMD64 }
+#define IMPORT_FFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_AMD64 }
+#define IMPORT_FFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_AMD64 }
+#define IMPORT_RFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_AMD64 }
+#define IMPORT_RFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_AMD64 }
+#define IMPORT_CFUNC(x, y)	{ #x, (FUNC)x, NULL, y, WINDRV_WRAP_AMD64 }
+#define IMPORT_CFUNC_MAP(x, y, z)	\
+				{ #x, (FUNC)y, NULL, z, WINDRV_WRAP_AMD64 }
+#endif /* __amd64__ */
 
 __BEGIN_DECLS
 extern int pe_get_dos_header(vm_offset_t, image_dos_header *);

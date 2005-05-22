@@ -74,17 +74,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-#define NDIS_IMAGE
-#define NDIS_REGVALS
+MODULE_DEPEND(ndis, ether, 1, 1, 1);
+MODULE_DEPEND(ndis, wlan, 1, 1, 1);
+MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
 
-#include "ndis_driver_data.h"
+MODULE_VERSION(ndis, 1);
 
 int ndis_attach			(device_t);
 int ndis_detach			(device_t);
@@ -94,26 +95,37 @@ void ndis_shutdown		(device_t);
 
 int ndisdrv_modevent		(module_t, int, void *);
 
-static __stdcall void ndis_txeof	(ndis_handle,
-	ndis_packet *, ndis_status);
-static __stdcall void ndis_rxeof	(ndis_handle,
-	ndis_packet **, uint32_t);
-static __stdcall void ndis_linksts	(ndis_handle,
-	ndis_status, void *, uint32_t);
-static __stdcall void ndis_linksts_done	(ndis_handle);
+static void ndis_txeof		(ndis_handle, ndis_packet *, ndis_status);
+static void ndis_rxeof		(ndis_handle, ndis_packet **, uint32_t);
+static void ndis_rxeof_eth	(ndis_handle, ndis_handle, char *, void *,
+				 uint32_t, void *, uint32_t, uint32_t);
+static void ndis_rxeof_done	(ndis_handle);
+static void ndis_rxeof_xfr	(kdpc *, ndis_handle, void *, void *);
+static void ndis_rxeof_xfr_done	(ndis_handle, ndis_packet *,
+				 uint32_t, uint32_t);
+static void ndis_linksts	(ndis_handle, ndis_status, void *, uint32_t);
+static void ndis_linksts_done	(ndis_handle);
 
 /* We need to wrap these functions for amd64. */
 
 static funcptr ndis_txeof_wrap;
 static funcptr ndis_rxeof_wrap;
+static funcptr ndis_rxeof_eth_wrap;
+static funcptr ndis_rxeof_done_wrap;
+static funcptr ndis_rxeof_xfr_wrap;
+static funcptr ndis_rxeof_xfr_done_wrap;
 static funcptr ndis_linksts_wrap;
 static funcptr ndis_linksts_done_wrap;
+static funcptr ndis_ticktask_wrap;
+static funcptr ndis_starttask_wrap;
+static funcptr ndis_resettask_wrap;
 
 static void ndis_intr		(void *);
 static void ndis_tick		(void *);
-static void ndis_ticktask	(void *);
+static void ndis_ticktask	(ndis_work_item *, void *);
 static void ndis_start		(struct ifnet *);
-static void ndis_starttask	(void *);
+static void ndis_starttask	(ndis_work_item *, void *);
+static void ndis_resettask	(ndis_work_item *, void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
@@ -155,28 +167,46 @@ ndisdrv_modevent(mod, cmd, arg)
 		ndisdrv_loaded++;
                 if (ndisdrv_loaded > 1)
 			break;
-		windrv_load(mod, (vm_offset_t)drv_data, 0);
-		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap);
-		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap);
-		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap);
+		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap,
+		    3, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_rxeof_eth, &ndis_rxeof_eth_wrap,
+		    8, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_rxeof_done, &ndis_rxeof_done_wrap,
+		    1, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_rxeof_xfr, &ndis_rxeof_xfr_wrap,
+		    4, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_rxeof_xfr_done,
+		    &ndis_rxeof_xfr_done_wrap, 4, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap,
+		    3, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap,
+		    4, WINDRV_WRAP_STDCALL);
 		windrv_wrap((funcptr)ndis_linksts_done,
-		    &ndis_linksts_done_wrap);
+		    &ndis_linksts_done_wrap, 1, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_ticktask, &ndis_ticktask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_starttask, &ndis_starttask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
+		windrv_wrap((funcptr)ndis_resettask, &ndis_resettask_wrap,
+		    2, WINDRV_WRAP_STDCALL);
 		break;
 	case MOD_UNLOAD:
 		ndisdrv_loaded--;
 		if (ndisdrv_loaded > 0)
 			break;
-		windrv_unload(mod, (vm_offset_t)drv_data, 0);
-		windrv_unwrap(ndis_rxeof_wrap);
-		windrv_unwrap(ndis_txeof_wrap);
-		windrv_unwrap(ndis_linksts_wrap);
-		windrv_unwrap(ndis_linksts_done_wrap);
-		break;
+		/* fallthrough */
 	case MOD_SHUTDOWN:
 		windrv_unwrap(ndis_rxeof_wrap);
+		windrv_unwrap(ndis_rxeof_eth_wrap);
+		windrv_unwrap(ndis_rxeof_done_wrap);
+		windrv_unwrap(ndis_rxeof_xfr_wrap);
+		windrv_unwrap(ndis_rxeof_xfr_done_wrap);
 		windrv_unwrap(ndis_txeof_wrap);
 		windrv_unwrap(ndis_linksts_wrap);
 		windrv_unwrap(ndis_linksts_done_wrap);
+		windrv_unwrap(ndis_ticktask_wrap);
+		windrv_unwrap(ndis_starttask_wrap);
+		windrv_unwrap(ndis_resettask_wrap);
 		break;
 	default:
 		error = EINVAL;
@@ -425,11 +455,9 @@ ndis_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc	*sc;
-	driver_object		*drv;
 	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
-	void			*img;
 	int			error = 0, len;
 	int			i;
 
@@ -465,12 +493,10 @@ ndis_attach(dev)
 		}
 	}
 
-	sc->ndis_regvals = ndis_regvals;
-
 #if __FreeBSD_version < 502113
 	sysctl_ctx_init(&sc->ndis_ctx);
-
 #endif
+
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
@@ -490,9 +516,7 @@ ndis_attach(dev)
 	 * for this device instance.
 	 */
 
-	img = drv_data;
-	drv = windrv_lookup((vm_offset_t)img, NULL);
-	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
+	if (NdisAddDevice(sc->ndis_dobj, pdo) != STATUS_SUCCESS) {
 		device_printf(dev, "failed to create FDO!\n");
 		error = ENXIO;
 		goto fail;
@@ -512,6 +536,9 @@ ndis_attach(dev)
 	/* Install our RX and TX interrupt handlers. */
 	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
 	sc->ndis_block->nmb_pktind_func = ndis_rxeof_wrap;
+	sc->ndis_block->nmb_ethrxindicate_func = ndis_rxeof_eth_wrap;
+	sc->ndis_block->nmb_ethrxdone_func = ndis_rxeof_done_wrap;
+	sc->ndis_block->nmb_tdcond_func = ndis_rxeof_xfr_done_wrap;
 
 	/* Call driver's init routine. */
 	if (ndis_init_nic(sc)) {
@@ -795,6 +822,17 @@ nonettypes:
 	/* Override the status handler so we can detect link changes. */
 	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
 	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
+
+	/* Set up work item handlers. */
+	NdisInitializeWorkItem(&sc->ndis_tickitem,
+	    (ndis_proc)ndis_ticktask_wrap, sc);
+	NdisInitializeWorkItem(&sc->ndis_startitem,
+	    (ndis_proc)ndis_starttask_wrap, ifp);
+	NdisInitializeWorkItem(&sc->ndis_resetitem,
+	    (ndis_proc)ndis_resettask_wrap, sc);
+	KeInitializeDpc(&sc->ndis_rxdpc, ndis_rxeof_xfr_wrap, sc->ndis_block);
+
+
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -865,10 +903,10 @@ ndis_detach(dev)
 	if (!sc->ndis_80211)
 		ifmedia_removeall(&sc->ifmedia);
 
-	ndis_unload_driver((void *)ifp);
-
 	if (sc->ndis_txpool != NULL)
 		NdisFreePacketPool(sc->ndis_txpool);
+
+	ndis_unload_driver(sc);
 
 	/* Destroy the PDO for this device. */
 	
@@ -929,6 +967,204 @@ ndis_resume(dev)
 }
 
 /*
+ * The following bunch of routines are here to support drivers that
+ * use the NdisMEthIndicateReceive()/MiniportTransferData() mechanism.
+ */
+ 
+static void
+ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
+	ndis_handle		adapter;
+	ndis_handle		ctx;
+	char			*addr;
+	void			*hdr;
+	uint32_t		hdrlen;
+	void			*lookahead;
+	uint32_t		lookaheadlen;
+	uint32_t		pktlen;
+{
+	ndis_miniport_block	*block;
+	uint8_t			irql;
+	uint32_t		status;
+	ndis_buffer		*b;
+	ndis_packet		*p;
+	struct mbuf		*m;
+	ndis_ethpriv		*priv;
+
+	block = adapter;
+
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+
+	if (m == NULL) {
+		NdisFreePacket(p);
+		return;
+	}
+
+	/* Save the data provided to us so far. */
+
+	m->m_len = lookaheadlen + hdrlen;
+	m->m_pkthdr.len = pktlen + hdrlen;
+	m->m_next = NULL;
+	m_copyback(m, 0, hdrlen, hdr);
+	m_copyback(m, hdrlen, lookaheadlen, lookahead);
+
+	/* Now create a fake NDIS_PACKET to hold the data */
+
+	NdisAllocatePacket(&status, &p, block->nmb_rxpool);
+
+	if (status != NDIS_STATUS_SUCCESS) {
+		m_freem(m);
+		return;
+	}
+
+	p->np_m0 = m;
+
+	b = IoAllocateMdl(m->m_data, m->m_pkthdr.len, FALSE, FALSE, NULL);
+
+	if (b == NULL) {
+		NdisFreePacket(p);
+		m_freem(m);
+		return;
+	}
+
+	p->np_private.npp_head = p->np_private.npp_tail = b;
+	p->np_private.npp_totlen = m->m_pkthdr.len;
+
+	/* Save the packet RX context somewhere. */
+	priv = (ndis_ethpriv *)&p->np_protocolreserved;
+	priv->nep_ctx = ctx;
+
+	KeAcquireSpinLock(&block->nmb_lock, &irql);
+
+	INSERT_LIST_TAIL((&block->nmb_packetlist),
+		((list_entry *)&p->u.np_clrsvd.np_miniport_rsvd));
+
+	KeReleaseSpinLock(&block->nmb_lock, irql);
+
+	return;
+}
+
+static void
+ndis_rxeof_done(adapter)
+	ndis_handle		adapter;
+{
+	struct ndis_softc	*sc;
+	ndis_miniport_block	*block;
+
+	block = adapter;
+
+	/* Schedule transfer/RX of queued packets. */
+
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+
+	KeInsertQueueDpc(&sc->ndis_rxdpc, NULL, NULL);
+
+	return;
+}
+
+/*
+ * Runs at DISPATCH_LEVEL.
+ */
+static void
+ndis_rxeof_xfr(dpc, adapter, sysarg1, sysarg2)
+	kdpc			*dpc;
+	ndis_handle		adapter;
+	void			*sysarg1;
+	void			*sysarg2;
+{
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
+	ndis_packet		*p;
+	list_entry		*l;
+	uint32_t		status;
+	ndis_ethpriv		*priv;
+	struct ifnet		*ifp;
+	struct mbuf		*m;
+
+	block = adapter;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ifp = &sc->arpcom.ac_if;
+
+	KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
+
+	l = block->nmb_packetlist.nle_flink;
+	while(l != &block->nmb_packetlist) {
+		REMOVE_LIST_HEAD((&block->nmb_packetlist));
+		p = CONTAINING_RECORD(l, ndis_packet,
+		    u.np_clrsvd.np_miniport_rsvd);
+
+		priv = (ndis_ethpriv *)&p->np_protocolreserved;
+		m = p->np_m0;
+		p->np_softc = sc;
+		p->np_m0 = NULL;
+
+		KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
+
+		status = MSCALL6(sc->ndis_chars->nmc_transferdata_func,
+		    p, &p->np_private.npp_totlen, block, priv->nep_ctx,
+		    m->m_len, m->m_pkthdr.len - m->m_len);
+
+		KeAcquireSpinLockAtDpcLevel(&block->nmb_lock);
+
+		/*
+		 * If status is NDIS_STATUS_PENDING, do nothing and
+		 * wait for a callback to the ndis_rxeof_xfr_done()
+		 * handler.
+	 	 */
+
+		m->m_len = m->m_pkthdr.len;
+		m->m_pkthdr.rcvif = ifp;
+
+		if (status == NDIS_STATUS_SUCCESS) {
+			IoFreeMdl(p->np_private.npp_head);
+			NdisFreePacket(p);
+			ifp->if_ipackets++;
+			(*ifp->if_input)(ifp, m);
+		}
+
+		if (status == NDIS_STATUS_FAILURE)
+			m_freem(m);
+
+		/* Advance to next packet */
+		l = block->nmb_packetlist.nle_flink;
+	}
+
+	KeReleaseSpinLockFromDpcLevel(&block->nmb_lock);
+
+	return;
+}
+
+static void
+ndis_rxeof_xfr_done(adapter, packet, status, len)
+	ndis_handle		adapter;
+	ndis_packet		*packet;
+	uint32_t		status;
+	uint32_t		len;
+{
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
+	struct mbuf		*m;
+
+	block = adapter;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ifp = &sc->arpcom.ac_if;
+
+	m = packet->np_m0;
+	IoFreeMdl(packet->np_private.npp_head);
+	NdisFreePacket(packet);
+
+	if (status != NDIS_STATUS_SUCCESS) {
+		m_freem(m);
+		return;
+	}
+
+	m->m_len = m->m_pkthdr.len;
+	m->m_pkthdr.rcvif = ifp;
+	ifp->if_ipackets++;
+	(*ifp->if_input)(ifp, m);
+	return;
+}
+/*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  *
@@ -947,7 +1183,7 @@ ndis_resume(dev)
  * copy the packet data into local storage and let the driver keep the
  * packet.
  */
-__stdcall static void
+static void
 ndis_rxeof(adapter, packets, pktcnt)
 	ndis_handle		adapter;
 	ndis_packet		**packets;
@@ -1027,7 +1263,7 @@ ndis_rxeof(adapter, packets, pktcnt)
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
-__stdcall static void
+static void
 ndis_txeof(adapter, packet, status)
 	ndis_handle		adapter;
 	ndis_packet		*packet;
@@ -1062,14 +1298,15 @@ ndis_txeof(adapter, packet, status)
 		ifp->if_oerrors++;
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
 	NDIS_UNLOCK(sc);
 
-	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_startitem);
 
 	return;
 }
 
-__stdcall static void
+static void
 ndis_linksts(adapter, status, sbuf, slen)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -1087,7 +1324,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_linksts_done(adapter)
 	ndis_handle		adapter;
 {
@@ -1104,12 +1341,12 @@ ndis_linksts_done(adapter)
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
-		ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
-		ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+		NdisScheduleWorkItem(&sc->ndis_tickitem);
+		NdisScheduleWorkItem(&sc->ndis_startitem);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_link)
-			ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+			NdisScheduleWorkItem(&sc->ndis_tickitem);
 		break;
 	default:
 		break;
@@ -1133,7 +1370,7 @@ ndis_intr(arg)
 	ifp = &sc->arpcom.ac_if;
 	intr = sc->ndis_block->nmb_interrupt;
 
-	if (sc->ndis_block->nmb_miniportadapterctx == NULL)
+	if (intr == NULL || sc->ndis_block->nmb_miniportadapterctx == NULL)
 		return;
 
 	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
@@ -1161,7 +1398,7 @@ ndis_tick(xsc)
 
 	sc = xsc;
 
-	ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_tickitem);
 	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
 	    sc->ndis_block->nmb_checkforhangsecs);
 
@@ -1171,11 +1408,12 @@ ndis_tick(xsc)
 }
 
 static void
-ndis_ticktask(xsc)
+ndis_ticktask(w, xsc)
+	ndis_work_item		*w;
 	void			*xsc;
 {
 	struct ndis_softc	*sc;
-	__stdcall ndis_checkforhang_handler hangfunc;
+	ndis_checkforhang_handler hangfunc;
 	uint8_t			rval;
 	ndis_media_state	linkstate;
 	int			error, len;
@@ -1254,12 +1492,14 @@ ndis_map_sclist(arg, segs, nseg, mapsize, error)
 }
 
 static void
-ndis_starttask(arg)
+ndis_starttask(w, arg)
+	ndis_work_item		*w;
 	void			*arg;
 {
 	struct ifnet		*ifp;
 
 	ifp = arg;
+
 #if __FreeBSD_version < 502114
 	if (ifp->if_snd.ifq_head != NULL)
 #else
@@ -2219,6 +2459,18 @@ ndis_wi_ioctl_set(ifp, command, data)
 }
 
 static void
+ndis_resettask(w, arg)
+	ndis_work_item		*w;
+	void			*arg;
+{
+	struct ndis_softc	*sc;
+
+	sc = arg;
+	ndis_reset_nic(sc);
+	return;
+}
+
+static void
 ndis_watchdog(ifp)
 	struct ifnet		*ifp;
 {
@@ -2231,8 +2483,8 @@ ndis_watchdog(ifp)
 	device_printf(sc->ndis_dev, "watchdog timeout\n");
 	NDIS_UNLOCK(sc);
 
-	ndis_sched((void(*)(void *))ndis_reset_nic, sc, NDIS_TASKQUEUE);
-	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
+	NdisScheduleWorkItem(&sc->ndis_resetitem);
+	NdisScheduleWorkItem(&sc->ndis_startitem);
 
 	return;
 }
@@ -2250,13 +2502,13 @@ ndis_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
 
-	ndis_halt_nic(sc);
-
 	NDIS_LOCK(sc);
 	ifp->if_timer = 0;
 	sc->ndis_link = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	NDIS_UNLOCK(sc);
+
+	ndis_halt_nic(sc);
 
 	return;
 }
@@ -2272,7 +2524,7 @@ ndis_shutdown(dev)
 	struct ndis_softc		*sc;
 
 	sc = device_get_softc(dev);
-	ndis_shutdown_nic(sc);
+	ndis_stop(sc);
 
 	return;
 }

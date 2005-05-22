@@ -48,11 +48,11 @@ extern image_patch_table hal_functbl[];
 __BEGIN_DECLS
 extern int hal_libinit(void);
 extern int hal_libfini(void);
-__fastcall extern uint8_t KfAcquireSpinLock(REGARGS1(kspin_lock *lock));
-__fastcall void KfReleaseSpinLock(REGARGS2(kspin_lock *lock, uint8_t newirql));
-__fastcall extern uint8_t KfRaiseIrql(REGARGS1(uint8_t irql));
-__fastcall extern void KfLowerIrql(REGARGS1(uint8_t oldirql));
-__stdcall extern uint8_t KeGetCurrentIrql(void);
+extern uint8_t KfAcquireSpinLock(kspin_lock *);
+extern void KfReleaseSpinLock(kspin_lock *, uint8_t);
+extern uint8_t KfRaiseIrql(uint8_t);
+extern void KfLowerIrql(uint8_t);
+extern uint8_t KeGetCurrentIrql(void);
 __END_DECLS
 
 #endif /* _HAL_VAR_H_ */

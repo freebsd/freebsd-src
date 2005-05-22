@@ -255,6 +255,9 @@ typedef struct list_entry list_entry;
 		l->nle_flink = e;		\
 	} while (0)
 
+#define CONTAINING_RECORD(addr, type, field)	\
+	((type *)((vm_offset_t)(addr) - (vm_offset_t)(&((type *)0)->field)))
+
 struct nt_dispatch_header {
 	uint8_t			dh_type;
 	uint8_t			dh_abs;
@@ -351,19 +354,25 @@ typedef struct nt_kevent nt_kevent;
 /* Kernel defered procedure call (i.e. timer callback) */
 
 struct kdpc;
-typedef __stdcall void (*kdpc_func)(struct kdpc *, void *, void *, void *);
+typedef void (*kdpc_func)(struct kdpc *, void *, void *, void *);
 
 struct kdpc {
 	uint16_t		k_type;
-	uint8_t			k_num;
-	uint8_t			k_importance;
+	uint8_t			k_num;		/* CPU number */
+	uint8_t			k_importance;	/* priority */
 	list_entry		k_dpclistentry;
 	void			*k_deferedfunc;
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;
-	register_t		k_lock;
+	void			*k_lock;
 };
+
+#define KDPC_IMPORTANCE_LOW	0
+#define KDPC_IMPORTANCE_MEDIUM	1
+#define KDPC_IMPORTANCE_HIGH	2
+
+#define KDPC_CPU_DEFAULT	255
 
 typedef struct kdpc kdpc;
 
@@ -808,9 +817,9 @@ struct kapc {
 
 typedef struct kapc kapc;
 
-typedef __stdcall uint32_t (*completion_func)(device_object *,
+typedef uint32_t (*completion_func)(device_object *,
 	struct irp *, void *);
-typedef __stdcall uint32_t (*cancel_func)(device_object *,
+typedef uint32_t (*cancel_func)(device_object *,
 	struct irp *);
 
 struct io_stack_location {
@@ -933,8 +942,7 @@ struct irp {
 typedef struct irp irp;
 
 #define InterlockedExchangePointer(dst, val)				\
-	(void *)FASTCALL2(InterlockedExchange, (uint32_t *)(dst),	\
-	(uintptr_t)(val))
+	(void *)InterlockedExchange((uint32_t *)(dst), (uintptr_t)(val))
 
 #define IoSizeOfIrp(ssize)						\
 	((uint16_t) (sizeof(irp) + ((ssize) * (sizeof(io_stack_location)))))
@@ -991,7 +999,7 @@ typedef struct irp irp;
 #define IoRequestDpc(dobj, irp, ctx)					\
 	KeInsertQueueDpc(&(dobj)->do_dpc, irp, ctx)
 
-typedef __stdcall uint32_t (*driver_dispatch)(device_object *, irp *);
+typedef uint32_t (*driver_dispatch)(device_object *, irp *);
 
 /*
  * The driver_object is allocated once for each driver that's loaded
@@ -1147,93 +1155,172 @@ typedef struct driver_object driver_object;
 #define MaxPoolType			0x00000007
 
 /*
+ * IO_WORKITEM is an opaque structures that must be allocated
+ * via IoAllocateWorkItem() and released via IoFreeWorkItem().
+ * Consequently, we can define it any way we want.
+ */
+typedef void (*io_workitem_func)(device_object *, void *);
+
+struct io_workitem {
+	io_workitem_func	iw_func;
+	void			*iw_ctx;
+	list_entry		iw_listentry;
+	device_object		*iw_dobj;
+	int			iw_idx;
+};
+
+typedef struct io_workitem io_workitem;
+
+#define WORKQUEUE_CRITICAL	0
+#define WORKQUEUE_DELAYED	1
+#define WORKQUEUE_HYPERCRITICAL	2
+
+#define WORKITEM_THREADS	4
+#define WORKITEM_LEGACY_THREAD	3
+#define WORKIDX_INC(x)		(x) = (x + 1) % WORKITEM_LEGACY_THREAD
+
+/*
+ * Older, deprecated work item API, needed to support NdisQueueWorkItem().
+ */
+
+struct work_queue_item;
+
+typedef void (*work_item_func)(struct work_queue_item *, void *);
+
+struct work_queue_item {
+	list_entry		wqi_entry;
+	work_item_func		wqi_func;
+	void			*wqi_ctx;
+};
+
+typedef struct work_queue_item work_queue_item;
+
+#define ExInitializeWorkItem(w, func, ctx)		\
+	do {						\
+		(w)->wqi_func = (func);			\
+		(w)->wqi_ctx = (ctx);			\
+		INIT_LIST_HEAD(&((w)->wqi_entry));	\
+	} while (0);					\
+
+
+/*
  * FreeBSD's kernel stack is 2 pages in size by default. The
  * Windows stack is larger, so we need to give our threads more
  * stack pages. 4 should be enough, we use 8 just to extra safe.
  */
 #define NDIS_KSTACK_PAGES	8
 
+/*
+ * Different kinds of function wrapping we can do.
+ */
+
+#define WINDRV_WRAP_STDCALL	1
+#define WINDRV_WRAP_FASTCALL	2
+#define WINDRV_WRAP_REGPARM	3
+#define WINDRV_WRAP_CDECL	4
+#define WINDRV_WRAP_AMD64	5
+
+struct drvdb_ent {
+	driver_object		*windrv_object;
+	void			*windrv_devlist;
+	ndis_cfg		*windrv_regvals;
+	interface_type		windrv_bustype;
+	STAILQ_ENTRY(drvdb_ent) link;
+};
+
 extern image_patch_table ntoskrnl_functbl[];
 typedef void (*funcptr)(void);
+typedef int (*matchfuncptr)(interface_type, void *, void *);
 
 __BEGIN_DECLS
 extern int windrv_libinit(void);
 extern int windrv_libfini(void);
 extern driver_object *windrv_lookup(vm_offset_t, char *);
-extern int windrv_load(module_t, vm_offset_t, int);
+extern struct drvdb_ent *windrv_match(matchfuncptr, void *);
+extern int windrv_load(module_t, vm_offset_t, int, interface_type,
+	void *, ndis_cfg *);
 extern int windrv_unload(module_t, vm_offset_t, int);
 extern int windrv_create_pdo(driver_object *, device_t);
 extern void windrv_destroy_pdo(driver_object *, device_t);
 extern device_object *windrv_find_pdo(driver_object *, device_t);
 extern int windrv_bus_attach(driver_object *, char *);
-extern int windrv_wrap(funcptr, funcptr *);
+extern int windrv_wrap(funcptr, funcptr *, int, int);
 extern int windrv_unwrap(funcptr);
+extern void ctxsw_utow(void);
+extern void ctxsw_wtou(void);
 
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
-__stdcall extern void KeInitializeDpc(kdpc *, void *, void *);
-__stdcall extern uint8_t KeInsertQueueDpc(kdpc *, void *, void *);
-__stdcall extern uint8_t KeRemoveQueueDpc(kdpc *);
-__stdcall extern void KeInitializeTimer(ktimer *);
-__stdcall extern void KeInitializeTimerEx(ktimer *, uint32_t);
-__stdcall extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
-__stdcall extern uint8_t KeSetTimerEx(ktimer *, int64_t, uint32_t, kdpc *);
-__stdcall extern uint8_t KeCancelTimer(ktimer *);
-__stdcall extern uint8_t KeReadStateTimer(ktimer *);
-__stdcall extern uint32_t KeWaitForSingleObject(nt_dispatch_header *, uint32_t,
+extern void KeInitializeDpc(kdpc *, void *, void *);
+extern uint8_t KeInsertQueueDpc(kdpc *, void *, void *);
+extern uint8_t KeRemoveQueueDpc(kdpc *);
+extern void KeSetImportanceDpc(kdpc *, uint32_t);
+extern void KeSetTargetProcessorDpc(kdpc *, uint8_t);
+extern void KeFlushQueuedDpcs(void);
+extern uint32_t KeGetCurrentProcessorNumber(void);
+extern void KeInitializeTimer(ktimer *);
+extern void KeInitializeTimerEx(ktimer *, uint32_t);
+extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
+extern uint8_t KeSetTimerEx(ktimer *, int64_t, uint32_t, kdpc *);
+extern uint8_t KeCancelTimer(ktimer *);
+extern uint8_t KeReadStateTimer(ktimer *);
+extern uint32_t KeWaitForSingleObject(nt_dispatch_header *, uint32_t,
 	uint32_t, uint8_t, int64_t *);
-__stdcall extern void KeInitializeEvent(nt_kevent *, uint32_t, uint8_t);
-__stdcall extern void KeClearEvent(nt_kevent *);
-__stdcall extern uint32_t KeReadStateEvent(nt_kevent *);
-__stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
-__stdcall extern uint32_t KeResetEvent(nt_kevent *);
+extern void KeInitializeEvent(nt_kevent *, uint32_t, uint8_t);
+extern void KeClearEvent(nt_kevent *);
+extern uint32_t KeReadStateEvent(nt_kevent *);
+extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
+extern uint32_t KeResetEvent(nt_kevent *);
 #ifdef __i386__
-__fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
-__fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
-__stdcall extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
+extern void KefAcquireSpinLockAtDpcLevel(kspin_lock *);
+extern void KefReleaseSpinLockFromDpcLevel(kspin_lock *);
+extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
 #else
-__stdcall extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
-__stdcall extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
+extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
+extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
 #endif
-__stdcall extern void KeInitializeSpinLock(kspin_lock *);
-__fastcall extern uintptr_t InterlockedExchange(REGARGS2(volatile uint32_t *,
-	uintptr_t));
-__stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
-__stdcall extern void ExFreePool(void *);
-__stdcall extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
+extern void KeInitializeSpinLock(kspin_lock *);
+extern uintptr_t InterlockedExchange(volatile uint32_t *,
+	uintptr_t);
+extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
+extern void ExFreePool(void *);
+extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
 	void *, uint32_t, void **);
-__stdcall extern void *IoGetDriverObjectExtension(driver_object *, void *);
-__stdcall extern uint32_t IoCreateDevice(driver_object *, uint32_t,
+extern void *IoGetDriverObjectExtension(driver_object *, void *);
+extern uint32_t IoCreateDevice(driver_object *, uint32_t,
 	unicode_string *, uint32_t, uint32_t, uint8_t, device_object **);
-__stdcall extern void IoDeleteDevice(device_object *);
-__stdcall extern device_object *IoGetAttachedDevice(device_object *);
-__fastcall extern uint32_t IofCallDriver(REGARGS2(device_object *, irp *));
-__fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
-__stdcall extern void IoAcquireCancelSpinLock(uint8_t *);
-__stdcall extern void IoReleaseCancelSpinLock(uint8_t);
-__stdcall extern uint8_t IoCancelIrp(irp *);
-__stdcall extern void IoDetachDevice(device_object *);
-__stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
+extern void IoDeleteDevice(device_object *);
+extern device_object *IoGetAttachedDevice(device_object *);
+extern uint32_t IofCallDriver(device_object *, irp *);
+extern void IofCompleteRequest(irp *, uint8_t);
+extern void IoAcquireCancelSpinLock(uint8_t *);
+extern void IoReleaseCancelSpinLock(uint8_t);
+extern uint8_t IoCancelIrp(irp *);
+extern void IoDetachDevice(device_object *);
+extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 	device_object *);
-__stdcall mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
-__stdcall void IoFreeMdl(mdl *);
+extern mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
+extern void IoFreeMdl(mdl *);
+extern io_workitem *IoAllocateWorkItem(device_object *);
+extern void ExQueueWorkItem(work_queue_item *, u_int32_t);
+extern void IoFreeWorkItem(io_workitem *);
+extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
+	uint32_t, void *);
 
-#define IoCallDriver(a, b)		FASTCALL2(IofCallDriver, a, b)
-#define IoCompleteRequest(a, b)		FASTCALL2(IofCompleteRequest, a, b)
+#define IoCallDriver(a, b)		IofCallDriver(a, b)
+#define IoCompleteRequest(a, b)		IofCompleteRequest(a, b)
 
 /*
  * On the Windows x86 arch, KeAcquireSpinLock() and KeReleaseSpinLock()
  * routines live in the HAL. We try to imitate this behavior.
  */
 #ifdef __i386__
-#define KeAcquireSpinLock(a, b)	*(b) = FASTCALL1(KfAcquireSpinLock, a)
-#define KeReleaseSpinLock(a, b)	FASTCALL2(KfReleaseSpinLock, a, b)
-#define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
-#define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
-#define KeAcquireSpinLockAtDpcLevel(a)		\
-				FASTCALL1(KefAcquireSpinLockAtDpcLevel, a)
-#define KeReleaseSpinLockFromDpcLevel(a)	\
-				FASTCALL1(KefReleaseSpinLockFromDpcLevel, a)
+#define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
+#define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
+#define KeRaiseIrql(a)		KfRaiseIrql(a)
+#define KeLowerIrql(a)		KfLowerIrql(a)
+#define KeAcquireSpinLockAtDpcLevel(a)	KefAcquireSpinLockAtDpcLevel(a)
+#define KeReleaseSpinLockFromDpcLevel(a)  KefReleaseSpinLockFromDpcLevel(a)
 #endif /* __i386__ */
 
 #ifdef __amd64__

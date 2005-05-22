@@ -66,70 +66,42 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ioctl.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/hal_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/usbd_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 #define NDIS_DUMMY_PATH "\\\\some\\bogus\\path"
 
-__stdcall static void ndis_status_func(ndis_handle, ndis_status,
-	void *, uint32_t);
-__stdcall static void ndis_statusdone_func(ndis_handle);
-__stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
-__stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
-__stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
-__stdcall static void ndis_sendrsrcavail_func(ndis_handle);
-__stdcall static void ndis_intrhand(kdpc *, device_object *,
+static void ndis_status_func(ndis_handle, ndis_status, void *, uint32_t);
+static void ndis_statusdone_func(ndis_handle);
+static void ndis_setdone_func(ndis_handle, ndis_status);
+static void ndis_getdone_func(ndis_handle, ndis_status);
+static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
+static void ndis_sendrsrcavail_func(ndis_handle);
+static void ndis_intrhand(kdpc *, device_object *,
 	irp *, struct ndis_softc *);
+static void ndis_return(kdpc *, void *, void *, void *);
 
 static image_patch_table kernndis_functbl[] = {
-	IMPORT_FUNC(ndis_status_func),
-	IMPORT_FUNC(ndis_statusdone_func),
-	IMPORT_FUNC(ndis_setdone_func),
-	IMPORT_FUNC(ndis_getdone_func),
-	IMPORT_FUNC(ndis_resetdone_func),
-	IMPORT_FUNC(ndis_sendrsrcavail_func),
-	IMPORT_FUNC(ndis_intrhand),
+	IMPORT_SFUNC(ndis_status_func, 4),
+	IMPORT_SFUNC(ndis_statusdone_func, 1),
+	IMPORT_SFUNC(ndis_setdone_func, 2),
+	IMPORT_SFUNC(ndis_getdone_func, 2),
+	IMPORT_SFUNC(ndis_resetdone_func, 3),
+	IMPORT_SFUNC(ndis_sendrsrcavail_func, 1),
+	IMPORT_SFUNC(ndis_intrhand, 4),
+	IMPORT_SFUNC(ndis_return, 1),
 
 	{ NULL, NULL, NULL }
 };
 
 struct nd_head ndis_devhead;
 
-struct ndis_req {
-	void			(*nr_func)(void *);
-	void			*nr_arg;
-	int			nr_exit;
-	STAILQ_ENTRY(ndis_req)	link;
-};
-
-struct ndisproc {
-	struct ndisqhead	*np_q;
-	struct proc		*np_p;
-	int			np_state;
-};
-
-static void ndis_return(void *);
-static int ndis_create_kthreads(void);
-static void ndis_destroy_kthreads(void);
-static void ndis_stop_thread(int);
-static int ndis_enlarge_thrqueue(int);
-static int ndis_shrink_thrqueue(int);
-static void ndis_runq(void *);
-
-static struct mtx ndis_thr_mtx;
 static struct mtx ndis_req_mtx;
-static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
-static struct ndisqhead ndis_itodo;
-static struct ndisqhead ndis_free;
-static int ndis_jobs = 32;
-
-static struct ndisproc ndis_tproc;
-static struct ndisproc ndis_iproc;
 
 /*
  * This allows us to export our symbols to other modules.
@@ -156,18 +128,18 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		patch = kernndis_functbl;
 		while (patch->ipt_func != NULL) {
 			windrv_wrap((funcptr)patch->ipt_func,
-			    (funcptr *)&patch->ipt_wrap);
+			    (funcptr *)&patch->ipt_wrap,
+			    patch->ipt_argcnt, patch->ipt_ftype);
 			patch++;
 		}
 
-		ndis_create_kthreads();
-
 		TAILQ_INIT(&ndis_devhead);
+
+		mtx_init(&ndis_req_mtx, "NDIS request lock",
+		    MTX_NDIS_LOCK, MTX_DEF);
 
 		break;
 	case MOD_SHUTDOWN:
-		/* stop kthreads */
-		ndis_destroy_kthreads();
 		if (TAILQ_FIRST(&ndis_devhead) == NULL) {
 			/* Shut down subsystems */
 			hal_libfini();
@@ -181,12 +153,10 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 				windrv_unwrap(patch->ipt_wrap);
 				patch++;
 			}
+			mtx_destroy(&ndis_req_mtx);
 		}
 		break;
 	case MOD_UNLOAD:
-		/* stop kthreads */
-		ndis_destroy_kthreads();
-
 		/* Shut down subsystems */
 		hal_libfini();
 		ndis_libfini();
@@ -200,6 +170,8 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 			patch++;
 		}
 
+		mtx_destroy(&ndis_req_mtx);
+
 		break;
 	default:
 		error = EINVAL;
@@ -210,326 +182,6 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 }
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
-
-/*
- * We create two kthreads for the NDIS subsystem. One of them is a task
- * queue for performing various odd jobs. The other is an swi thread
- * reserved exclusively for running interrupt handlers. The reason we
- * have our own task queue is that there are some cases where we may
- * need to sleep for a significant amount of time, and if we were to
- * use one of the taskqueue threads, we might delay the processing
- * of other pending tasks which might need to run right away. We have
- * a separate swi thread because we don't want our interrupt handling
- * to be delayed either.
- *
- * By default there are 32 jobs available to start, and another 8
- * are added to the free list each time a new device is created.
- */
-
-static void
-ndis_runq(arg)
-	void			*arg;
-{
-	struct ndis_req		*r = NULL, *die = NULL;
-	struct ndisproc		*p;
-
-	p = arg;
-
-	while (1) {
-
-		/* Sleep, but preserve our original priority. */
-		ndis_thsuspend(p->np_p, NULL, 0);
-
-		/* Look for any jobs on the work queue. */
-
-		mtx_lock_spin(&ndis_thr_mtx);
-		p->np_state = NDIS_PSTATE_RUNNING;
-		while(STAILQ_FIRST(p->np_q) != NULL) {
-			r = STAILQ_FIRST(p->np_q);
-			STAILQ_REMOVE_HEAD(p->np_q, link);
-			mtx_unlock_spin(&ndis_thr_mtx);
-
-			/* Do the work. */
-
-			if (r->nr_func != NULL)
-				(*r->nr_func)(r->nr_arg);
-
-			mtx_lock_spin(&ndis_thr_mtx);
-			STAILQ_INSERT_HEAD(&ndis_free, r, link);
-
-			/* Check for a shutdown request */
-
-			if (r->nr_exit == TRUE)
-				die = r;
-		}
-		p->np_state = NDIS_PSTATE_SLEEPING;
-		mtx_unlock_spin(&ndis_thr_mtx);
-
-		/* Bail if we were told to shut down. */
-
-		if (die != NULL)
-			break;
-	}
-
-	wakeup(die);
-#if __FreeBSD_version < 502113
-	mtx_lock(&Giant);
-#endif
-	kthread_exit(0);
-	return; /* notreached */
-}
-
-static int
-ndis_create_kthreads()
-{
-	struct ndis_req		*r;
-	int			i, error = 0;
-
-	mtx_init(&ndis_thr_mtx, "NDIS thread lock", NULL, MTX_SPIN);
-	mtx_init(&ndis_req_mtx, "NDIS request lock", MTX_NDIS_LOCK, MTX_DEF);
-
-	STAILQ_INIT(&ndis_ttodo);
-	STAILQ_INIT(&ndis_itodo);
-	STAILQ_INIT(&ndis_free);
-
-	for (i = 0; i < ndis_jobs; i++) {
-		r = malloc(sizeof(struct ndis_req), M_DEVBUF, M_WAITOK);
-		if (r == NULL) {
-			error = ENOMEM;
-			break;
-		}
-		STAILQ_INSERT_HEAD(&ndis_free, r, link);
-	}
-
-	if (error == 0) {
-		ndis_tproc.np_q = &ndis_ttodo;
-		ndis_tproc.np_state = NDIS_PSTATE_SLEEPING;
-		error = kthread_create(ndis_runq, &ndis_tproc,
-		    &ndis_tproc.np_p, RFHIGHPID,
-		    NDIS_KSTACK_PAGES, "ndis taskqueue");
-	}
-
-	if (error == 0) {
-		ndis_iproc.np_q = &ndis_itodo;
-		ndis_iproc.np_state = NDIS_PSTATE_SLEEPING;
-		error = kthread_create(ndis_runq, &ndis_iproc,
-		    &ndis_iproc.np_p, RFHIGHPID,
-		    NDIS_KSTACK_PAGES, "ndis swi");
-	}
-
-	if (error) {
-		while ((r = STAILQ_FIRST(&ndis_free)) != NULL) {
-			STAILQ_REMOVE_HEAD(&ndis_free, link);
-			free(r, M_DEVBUF);
-		}
-		return(error);
-	}
-
-	return(0);
-}
-
-static void
-ndis_destroy_kthreads()
-{
-	struct ndis_req		*r;
-
-	/* Stop the threads. */
-
-	ndis_stop_thread(NDIS_TASKQUEUE);
-	ndis_stop_thread(NDIS_SWI);
-
-	/* Destroy request structures. */
-
-	while ((r = STAILQ_FIRST(&ndis_free)) != NULL) {
-		STAILQ_REMOVE_HEAD(&ndis_free, link);
-		free(r, M_DEVBUF);
-	}
-
-	mtx_destroy(&ndis_req_mtx);
-	mtx_destroy(&ndis_thr_mtx);
-
-	return;
-}
-
-static void
-ndis_stop_thread(t)
-	int			t;
-{
-	struct ndis_req		*r;
-	struct ndisqhead	*q;
-	struct proc		*p;
-
-	if (t == NDIS_TASKQUEUE) {
-		q = &ndis_ttodo;
-		p = ndis_tproc.np_p;
-	} else {
-		q = &ndis_itodo;
-		p = ndis_iproc.np_p;
-	}
-
-	/* Create and post a special 'exit' job. */
-
-	mtx_lock_spin(&ndis_thr_mtx);
-	r = STAILQ_FIRST(&ndis_free);
-	STAILQ_REMOVE_HEAD(&ndis_free, link);
-	r->nr_func = NULL;
-	r->nr_arg = NULL;
-	r->nr_exit = TRUE;
-	STAILQ_INSERT_TAIL(q, r, link);
-	mtx_unlock_spin(&ndis_thr_mtx);
-
-	ndis_thresume(p);
-
-	/* wait for thread exit */
-
-	tsleep(r, curthread->td_priority|PCATCH, "ndisthexit", hz * 60);
-
-	/* Now empty the job list. */
-
-	mtx_lock_spin(&ndis_thr_mtx);
-	while ((r = STAILQ_FIRST(q)) != NULL) {
-		STAILQ_REMOVE_HEAD(q, link);
-		STAILQ_INSERT_HEAD(&ndis_free, r, link);
-	}
-	mtx_unlock_spin(&ndis_thr_mtx);
-
-	return;
-}
-
-static int
-ndis_enlarge_thrqueue(cnt)
-	int			cnt;
-{
-	struct ndis_req		*r;
-	int			i;
-
-	for (i = 0; i < cnt; i++) {
-		r = malloc(sizeof(struct ndis_req), M_DEVBUF, M_WAITOK);
-		if (r == NULL)
-			return(ENOMEM);
-		mtx_lock_spin(&ndis_thr_mtx);
-		STAILQ_INSERT_HEAD(&ndis_free, r, link);
-		ndis_jobs++;
-		mtx_unlock_spin(&ndis_thr_mtx);
-	}
-
-	return(0);
-}
-
-static int
-ndis_shrink_thrqueue(cnt)
-	int			cnt;
-{
-	struct ndis_req		*r;
-	int			i;
-
-	for (i = 0; i < cnt; i++) {
-		mtx_lock_spin(&ndis_thr_mtx);
-		r = STAILQ_FIRST(&ndis_free);
-		if (r == NULL) {
-			mtx_unlock_spin(&ndis_thr_mtx);
-			return(ENOMEM);
-		}
-		STAILQ_REMOVE_HEAD(&ndis_free, link);
-		ndis_jobs--;
-		mtx_unlock_spin(&ndis_thr_mtx);
-		free(r, M_DEVBUF);
-	}
-
-	return(0);
-}
-
-int
-ndis_unsched(func, arg, t)
-	void			(*func)(void *);
-	void			*arg;
-	int			t;
-{
-	struct ndis_req		*r;
-	struct ndisqhead	*q;
-	struct proc		*p;
-
-	if (t == NDIS_TASKQUEUE) {
-		q = &ndis_ttodo;
-		p = ndis_tproc.np_p;
-	} else {
-		q = &ndis_itodo;
-		p = ndis_iproc.np_p;
-	}
-
-	mtx_lock_spin(&ndis_thr_mtx);
-	STAILQ_FOREACH(r, q, link) {
-		if (r->nr_func == func && r->nr_arg == arg) {
-			STAILQ_REMOVE(q, r, ndis_req, link);
-			STAILQ_INSERT_HEAD(&ndis_free, r, link);
-			mtx_unlock_spin(&ndis_thr_mtx);
-			return(0);
-		}
-	}
-
-	mtx_unlock_spin(&ndis_thr_mtx);
-
-	return(ENOENT);
-}
-
-int
-ndis_sched(func, arg, t)
-	void			(*func)(void *);
-	void			*arg;
-	int			t;
-{
-	struct ndis_req		*r;
-	struct ndisqhead	*q;
-	struct proc		*p;
-	int			s;
-
-	if (t == NDIS_TASKQUEUE) {
-		q = &ndis_ttodo;
-		p = ndis_tproc.np_p;
-	} else {
-		q = &ndis_itodo;
-		p = ndis_iproc.np_p;
-	}
-
-	mtx_lock_spin(&ndis_thr_mtx);
-	/*
-	 * Check to see if an instance of this job is already
-	 * pending. If so, don't bother queuing it again.
-	 */
-	STAILQ_FOREACH(r, q, link) {
-		if (r->nr_func == func && r->nr_arg == arg) {
-			mtx_unlock_spin(&ndis_thr_mtx);
-			return(0);
-		}
-	}
-	r = STAILQ_FIRST(&ndis_free);
-	if (r == NULL) {
-		mtx_unlock_spin(&ndis_thr_mtx);
-		return(EAGAIN);
-	}
-	STAILQ_REMOVE_HEAD(&ndis_free, link);
-	r->nr_func = func;
-	r->nr_arg = arg;
-	r->nr_exit = FALSE;
-	STAILQ_INSERT_TAIL(q, r, link);
-	if (t == NDIS_TASKQUEUE)
-		s = ndis_tproc.np_state;
-	else
-		s = ndis_iproc.np_state;
-	mtx_unlock_spin(&ndis_thr_mtx);
-
-	/*
-	 * Post the job, but only if the thread is actually blocked
-	 * on its own suspend call. If a driver queues up a job with
-	 * NdisScheduleWorkItem() which happens to do a KeWaitForObject(),
-	 * it may suspend there, and in that case we don't want to wake
-	 * it up until KeWaitForObject() gets woken up on its own.
-	 */
-	if (s == NDIS_PSTATE_SLEEPING)
-		ndis_thresume(p);
-
-	return(0);
-}
 
 int
 ndis_thsuspend(p, m, timo)
@@ -559,14 +211,14 @@ ndis_thresume(p)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_sendrsrcavail_func(adapter)
 	ndis_handle		adapter;
 {
 	return;
 }
 
-__stdcall static void
+static void
 ndis_status_func(adapter, status, sbuf, slen)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -585,7 +237,7 @@ ndis_status_func(adapter, status, sbuf, slen)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_statusdone_func(adapter)
 	ndis_handle		adapter;
 {
@@ -601,7 +253,7 @@ ndis_statusdone_func(adapter)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_setdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -614,7 +266,7 @@ ndis_setdone_func(adapter, status)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_getdone_func(adapter, status)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -627,7 +279,7 @@ ndis_getdone_func(adapter, status)
 	return;
 }
 
-__stdcall static void
+static void
 ndis_resetdone_func(adapter, status, addressingreset)
 	ndis_handle		adapter;
 	ndis_status		status;
@@ -680,6 +332,7 @@ ndis_create_sysctls(arg)
 	while(1) {
 		if (vals->nc_cfgkey == NULL)
 			break;
+
 		if (vals->nc_idx != sc->ndis_devidx) {
 			vals++;
 			continue;
@@ -814,11 +467,14 @@ ndis_flush_sysctls(arg)
 }
 
 static void
-ndis_return(arg)
+ndis_return(dpc, arg, sysarg1, sysarg2)
+	kdpc			*dpc;
 	void			*arg;
+	void			*sysarg1;
+	void			*sysarg2;
 {
 	struct ndis_softc	*sc;
-	__stdcall ndis_return_handler	returnfunc;
+	ndis_return_handler	returnfunc;
 	ndis_handle		adapter;
 	ndis_packet		*p;
 	uint8_t			irql;
@@ -858,7 +514,8 @@ ndis_return_packet(buf, arg)
 	if (p->np_refcnt)
 		return;
 
-	ndis_sched(ndis_return, p, NDIS_TASKQUEUE);
+	KeInitializeDpc(&p->np_dpc, kernndis_functbl[7].ipt_wrap, p);
+	KeInsertQueueDpc(&p->np_dpc, NULL, NULL);
 
 	return;
 }
@@ -948,6 +605,7 @@ ndis_convert_res(arg)
 		 * in order to fix this, we have to create our own
 		 * temporary list with the entries in reverse order.
 		 */
+
 		SLIST_FOREACH(brle, brl, link) {
 			n = malloc(sizeof(struct resource_list_entry),
 			    M_TEMP, M_NOWAIT);
@@ -1166,7 +824,7 @@ ndis_set_info(arg, oid, buf, buflen)
 	struct ndis_softc	*sc;
 	ndis_status		rval;
 	ndis_handle		adapter;
-	__stdcall ndis_setinfo_handler	setfunc;
+	ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
 	uint8_t			irql;
@@ -1187,14 +845,19 @@ ndis_set_info(arg, oid, buf, buflen)
 	else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
+	NDIS_LOCK(sc);
 	setfunc = sc->ndis_chars->nmc_setinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
-	if (adapter == NULL || setfunc == NULL) {
+	if (adapter == NULL || setfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
+		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
+
+	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(setfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -1244,8 +907,8 @@ ndis_send_packets(arg, packets, cnt)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_sendmulti_handler	sendfunc;
-	__stdcall ndis_senddone_func		senddonefunc;
+	ndis_sendmulti_handler	sendfunc;
+	ndis_senddone_func		senddonefunc;
 	int			i;
 	ndis_packet		*p;
 	uint8_t			irql;
@@ -1289,8 +952,8 @@ ndis_send_packet(arg, packet)
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
 	ndis_status		status;
-	__stdcall ndis_sendsingle_handler	sendfunc;
-	__stdcall ndis_senddone_func		senddonefunc;
+	ndis_sendsingle_handler	sendfunc;
+	ndis_senddone_func		senddonefunc;
 	uint8_t			irql;
 
 	sc = arg;
@@ -1381,20 +1044,24 @@ ndis_reset_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_reset_handler	resetfunc;
+	ndis_reset_handler	resetfunc;
 	uint8_t			addressing_reset;
-	struct ifnet		*ifp;
 	int			rval;
 	uint8_t			irql;
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
 
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	resetfunc = sc->ndis_chars->nmc_reset_func;
 
-	if (adapter == NULL || resetfunc == NULL)
+	if (adapter == NULL || resetfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
+		NDIS_UNLOCK(sc);
 		return(EIO);
+	}
+
+	NDIS_UNLOCK(sc);
 
 	if (NDIS_SERIALIZED(sc->ndis_block))
 		KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
@@ -1413,17 +1080,41 @@ ndis_reset_nic(arg)
 	return(0);
 }
 
+#define NDIS_REAP_TIMERS
+
 int
 ndis_halt_nic(arg)
 	void			*arg;
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_halt_handler	haltfunc;
-	struct ifnet		*ifp;
+	ndis_halt_handler	haltfunc;
+#ifdef NDIS_REAP_TIMERS
+	ndis_miniport_timer	*t, *n;
+#endif
 
 	sc = arg;
-	ifp = &sc->arpcom.ac_if;
+
+#ifdef NDIS_REAP_TIMERS
+	/*
+	 * Drivers are sometimes very lax about cancelling all
+	 * their timers. Cancel them all ourselves, just to be
+	 * safe. We must do this before invoking MiniportHalt(),
+	 * since if we wait until after, the memory in which
+	 * the timers reside will no longer be valid.
+	 */
+
+	t = sc->ndis_block->nmb_timerlist;
+	while (t != NULL) {
+		KeCancelTimer(&t->nmt_ktimer);
+		n = t;
+		t = t->nmt_nexttimer;
+		n->nmt_nexttimer = NULL;
+	}
+	sc->ndis_block->nmb_timerlist = NULL;
+	if (!cold)
+		KeFlushQueuedDpcs();
+#endif
 
 	NDIS_LOCK(sc);
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1431,6 +1122,9 @@ ndis_halt_nic(arg)
 		NDIS_UNLOCK(sc);
 		return(EIO);
 	}
+
+	sc->ndis_block->nmb_miniportadapterctx = NULL;
+	sc->ndis_block->nmb_devicectx = NULL;
 
 	/*
 	 * The adapter context is only valid after the init
@@ -1443,10 +1137,6 @@ ndis_halt_nic(arg)
 
 	MSCALL1(haltfunc, adapter);
 
-	NDIS_LOCK(sc);
-	sc->ndis_block->nmb_miniportadapterctx = NULL;
-	NDIS_UNLOCK(sc);
-
 	return(0);
 }
 
@@ -1456,7 +1146,7 @@ ndis_shutdown_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_shutdown_handler	shutdownfunc;
+	ndis_shutdown_handler	shutdownfunc;
 
 	sc = arg;
 	NDIS_LOCK(sc);
@@ -1471,7 +1161,6 @@ ndis_shutdown_nic(arg)
 	else
 		MSCALL1(shutdownfunc, sc->ndis_chars->nmc_rsvd0);
 
-	ndis_shrink_thrqueue(8);
 	TAILQ_REMOVE(&ndis_devhead, sc->ndis_block, link);
 
 	return(0);
@@ -1483,7 +1172,7 @@ ndis_init_nic(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
-        __stdcall ndis_init_handler	initfunc;
+        ndis_init_handler	initfunc;
 	ndis_status		status, openstatus = 0;
 	ndis_medium		mediumarray[NdisMediumMax];
 	uint32_t		chosenmedium, i;
@@ -1496,6 +1185,8 @@ ndis_init_nic(arg)
 	block = sc->ndis_block;
 	initfunc = sc->ndis_chars->nmc_init_func;
 	NDIS_UNLOCK(sc);
+
+	sc->ndis_block->nmb_timerlist = NULL;
 
 	for (i = 0; i < NdisMediumMax; i++)
 		mediumarray[i] = i;
@@ -1515,6 +1206,22 @@ ndis_init_nic(arg)
 		return(ENXIO);
 	}
 
+	/*
+	 * This may look really goofy, but apparently it is possible
+	 * to halt a miniport too soon after it's been initialized.
+	 * After MiniportInitialize() finishes, pause for 1 second
+	 * to give the chip a chance to handle any short-lived timers
+	 * that were set in motion. If we call MiniportHalt() too soon,
+	 * some of the timers may not be cancelled, because the driver
+	 * expects them to fire before the halt is called.
+	 */
+
+	ndis_thsuspend(curthread->td_proc, NULL, hz);
+
+	NDIS_LOCK(sc);
+	sc->ndis_block->nmb_devicectx = sc;
+	NDIS_UNLOCK(sc);
+
 	return(0);
 }
 
@@ -1524,7 +1231,7 @@ ndis_enable_intr(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_enable_interrupts_handler	intrenbfunc;
+	ndis_enable_interrupts_handler	intrenbfunc;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1542,7 +1249,7 @@ ndis_disable_intr(arg)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_disable_interrupts_handler	intrdisfunc;
+	ndis_disable_interrupts_handler	intrdisfunc;
 
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1563,7 +1270,7 @@ ndis_isr(arg, ourintr, callhandler)
 {
 	struct ndis_softc	*sc;
 	ndis_handle		adapter;
-	__stdcall ndis_isr_handler	isrfunc;
+	ndis_isr_handler	isrfunc;
 	uint8_t			accepted, queue;
 
 	if (arg == NULL || ourintr == NULL || callhandler == NULL)
@@ -1584,7 +1291,7 @@ ndis_isr(arg, ourintr, callhandler)
 	return(0);
 }
 
-__stdcall static void
+static void
 ndis_intrhand(dpc, dobj, ip, sc)
 	kdpc			*dpc;
 	device_object		*dobj;
@@ -1592,7 +1299,7 @@ ndis_intrhand(dpc, dobj, ip, sc)
 	struct ndis_softc	*sc;
 {
 	ndis_handle		adapter;
-	__stdcall ndis_interrupt_handler	intrfunc;
+	ndis_interrupt_handler	intrfunc;
 	uint8_t			irql;
 
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
@@ -1626,12 +1333,13 @@ ndis_get_info(arg, oid, buf, buflen)
 	struct ndis_softc	*sc;
 	ndis_status		rval;
 	ndis_handle		adapter;
-	__stdcall ndis_queryinfo_handler	queryfunc;
+	ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
 	int			error;
 	uint8_t			irql;
-	
+
 	sc = arg;
+
 	KeAcquireSpinLock(&sc->ndis_block->nmb_lock, &irql);
 
 	if (sc->ndis_block->nmb_pendingreq != NULL)
@@ -1639,14 +1347,19 @@ ndis_get_info(arg, oid, buf, buflen)
 	else
 		sc->ndis_block->nmb_pendingreq = (ndis_request *)sc;
 
+	NDIS_LOCK(sc);
 	queryfunc = sc->ndis_chars->nmc_queryinfo_func;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
-	if (adapter == NULL || queryfunc == NULL) {
+	if (adapter == NULL || queryfunc == NULL ||
+	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
+		NDIS_UNLOCK(sc);
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
+
+	NDIS_UNLOCK(sc);
 
 	rval = MSCALL6(queryfunc, adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
@@ -1688,7 +1401,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	return(0);
 }
 
-__stdcall uint32_t
+uint32_t
 NdisAddDevice(drv, pdo)
 	driver_object		*drv;
 	device_object		*pdo;
@@ -1705,6 +1418,8 @@ NdisAddDevice(drv, pdo)
 		return(status);
 
 	block = fdo->do_devext;
+
+	block->nmb_filterdbs.nf_ethdb = block;
 	block->nmb_deviceobj = fdo;
 	block->nmb_physdeviceobj = pdo;
 	block->nmb_nextdeviceobj = IoAttachDeviceToDeviceStack(fdo, pdo);
@@ -1719,7 +1434,25 @@ NdisAddDevice(drv, pdo)
 	sc->ndis_block = block;
 	sc->ndis_chars = IoGetDriverObjectExtension(drv, (void *)1);
 
+	/*
+	 * If the driver has a MiniportTransferData() function,
+	 * we should allocate a private RX packet pool.
+	 */
+
+	if (sc->ndis_chars->nmc_transferdata_func != NULL) {
+		NdisAllocatePacketPool(&status, &block->nmb_rxpool,
+		    32, PROTOCOL_RESERVED_SIZE_IN_PACKET);
+		if (status != NDIS_STATUS_SUCCESS) {
+			IoDetachDevice(block->nmb_nextdeviceobj);
+			IoDeleteDevice(fdo);
+			return(status);
+		}
+		INIT_LIST_HEAD((&block->nmb_packetlist));
+	}
+
+	/* Give interrupt handling priority over timers. */
 	IoInitializeDpcRequest(fdo, kernndis_functbl[6].ipt_wrap);
+	KeSetImportanceDpc(&fdo->do_dpc, KDPC_IMPORTANCE_HIGH);
 
 	/* Finish up BSD-specific setup. */
 
@@ -1731,8 +1464,6 @@ NdisAddDevice(drv, pdo)
 	block->nmb_resetdone_func = kernndis_functbl[4].ipt_wrap;
 	block->nmb_sendrsrc_func = kernndis_functbl[5].ipt_wrap;
 	block->nmb_pendingreq = NULL;
-
-	ndis_enlarge_thrqueue(8);
 
 	TAILQ_INSERT_TAIL(&ndis_devhead, block, link);
 
@@ -1753,9 +1484,10 @@ ndis_unload_driver(arg)
 
 	ndis_flush_sysctls(sc);
 
-	ndis_shrink_thrqueue(8);
 	TAILQ_REMOVE(&ndis_devhead, sc->ndis_block, link);
 
+	if (sc->ndis_chars->nmc_transferdata_func != NULL)
+		NdisFreePacketPool(sc->ndis_block->nmb_rxpool);
 	fdo = sc->ndis_block->nmb_deviceobj;
 	IoDetachDevice(sc->ndis_block->nmb_nextdeviceobj);
 	IoDeleteDevice(fdo);

@@ -99,6 +99,7 @@ SUBDIR=	${_3dfx} \
 	if_faith \
 	if_gif \
 	if_gre \
+	${_if_ndis} \
 	if_ppp \
 	if_sl \
 	if_stf \
@@ -308,6 +309,7 @@ _hfa=		hfa
 _i2c=		i2c
 _ibcs2=		ibcs2
 _ie=		ie
+_if_ndis=	if_ndis
 _io=		io
 _linprocfs=	linprocfs
 _linux=		linux
@@ -386,6 +388,7 @@ _sppp=		sppp
 _agp=		agp
 _arcmsr=	arcmsr
 _drm=		drm
+_if_ndis=	if_ndis
 _io=		io
 _ndis=		ndis
 _sound=		sound

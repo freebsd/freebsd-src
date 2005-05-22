@@ -54,39 +54,23 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/cfg_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
-#include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
-#include "ndis_driver_data.h"
-
-#ifdef NDIS_PCMCIA_DEV_TABLE 
-
 MODULE_DEPEND(ndis, pccard, 1, 1, 1);
-MODULE_DEPEND(ndis, ether, 1, 1, 1);
-MODULE_DEPEND(ndis, wlan, 1, 1, 1);
-MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
-
-/*
- * Various supported device vendors/types and their names.
- * These are defined in the ndis_driver_data.h file.
- */
-static struct ndis_pccard_type ndis_devs[] = {
-#ifdef NDIS_PCMCIA_DEV_TABLE
-	NDIS_PCMCIA_DEV_TABLE
-#endif
-	{ NULL, NULL, NULL }
-};
 
 static int ndis_probe_pccard	(device_t);
 static int ndis_attach_pccard	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
+static int ndis_devcompare	(interface_type,
+				 struct ndis_pccard_type *, device_t);
 extern int ndisdrv_modevent	(module_t, int, void *);
 extern int ndis_attach		(device_t);
 extern int ndis_shutdown	(device_t);
@@ -118,25 +102,45 @@ static device_method_t ndis_methods[] = {
 };
 
 static driver_t ndis_driver = {
-#ifdef NDIS_DEVNAME
-	NDIS_DEVNAME,
-#else
 	"ndis",
-#endif
 	ndis_methods,
 	sizeof(struct ndis_softc)
 };
 
 static devclass_t ndis_devclass;
 
-#ifdef NDIS_MODNAME
-#define NDIS_MODNAME_OVERRIDE_PCMCIA(x)					\
-	DRIVER_MODULE(x, pccard, ndis_driver, ndis_devclass,		\
-		ndisdrv_modevent, 0)
-NDIS_MODNAME_OVERRIDE_PCMCIA(NDIS_MODNAME);
-#else
 DRIVER_MODULE(ndis, pccard, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
-#endif
+
+static int
+ndis_devcompare(bustype, t, dev)
+	interface_type		bustype;
+	struct ndis_pccard_type	*t;
+	device_t		dev;
+{
+	const char		*prodstr, *vendstr;
+	int			error;
+
+	if (bustype != PCMCIABus)
+		return(FALSE);
+
+	error = pccard_get_product_str(dev, &prodstr);
+	if (error)
+		return(FALSE);
+	error = pccard_get_vendor_str(dev, &vendstr);
+	if (error)
+		return(FALSE);
+
+	while(t->ndis_name != NULL) {
+		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
+		    ndis_strcasecmp(prodstr, t->ndis_did) == 0) {
+			device_set_desc(dev, t->ndis_name);
+			return(TRUE);
+		}
+		t++;
+	}
+
+	return(FALSE);
+}
 
 /*
  * Probe for an NDIS device. Check the PCI vendor and device
@@ -146,33 +150,19 @@ static int
 ndis_probe_pccard(dev)
 	device_t		dev;
 {
-	struct ndis_pccard_type	*t;
-	const char		*prodstr, *vendstr;
-	int			error;
 	driver_object		*drv;
+	struct drvdb_ent	*db;
 
 	drv = windrv_lookup(0, "PCCARD Bus"); 
 	if (drv == NULL)
 		return(ENXIO);
 
-	t = ndis_devs;
+	db = windrv_match((matchfuncptr)ndis_devcompare, dev);
 
-	error = pccard_get_product_str(dev, &prodstr);
-	if (error)
-		return(error);
-	error = pccard_get_vendor_str(dev, &vendstr);
-	if (error)
-		return(error);
-
-	while(t->ndis_name != NULL) {
-		if (ndis_strcasecmp(vendstr, t->ndis_vid) == 0 &&
-		    ndis_strcasecmp(prodstr, t->ndis_did) == 0) {
-			device_set_desc(dev, t->ndis_name);
-			/* Create PDO for this device instance */
-			windrv_create_pdo(drv, dev);
-			return(0);
-		}
-		t++;
+	if (db != NULL) {
+		/* Create PDO for this device instance */
+		windrv_create_pdo(drv, dev);
+		return(0);
 	}
 
 	return(ENXIO);
@@ -191,10 +181,17 @@ ndis_attach_pccard(dev)
 	struct ndis_pccard_type	*t;
 	int			devidx = 0;
 	const char		*prodstr, *vendstr;
+	struct drvdb_ent	*db;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	sc->ndis_dev = dev;
+
+	db = windrv_match((matchfuncptr)ndis_devcompare, dev);
+	if (db == NULL)
+		return (ENXIO);
+	sc->ndis_dobj = db->windrv_object;
+	sc->ndis_regvals = db->windrv_regvals;
 	resource_list_init(&sc->ndis_rl);
 
 	sc->ndis_io_rid = 0;
@@ -230,7 +227,7 @@ ndis_attach_pccard(dev)
 
 	/* Figure out exactly which device we matched. */
 
-	t = ndis_devs;
+	t = db->windrv_devlist;
 
 	error = pccard_get_product_str(dev, &prodstr);
 	if (error)
@@ -265,8 +262,6 @@ ndis_get_resource_list(dev, child)
 	sc = device_get_softc(dev);
 	return (&sc->ndis_rl);
 }
-
-#endif /* NDIS_PCI_DEV_TABLE */
 
 #define NDIS_AM_RID 3
 
