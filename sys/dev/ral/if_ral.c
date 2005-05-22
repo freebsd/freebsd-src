@@ -90,6 +90,8 @@ static void		ral_free_rx_ring(struct ral_softc *,
 			    struct ral_rx_ring *);
 static struct		ieee80211_node *ral_node_alloc(
 			    struct ieee80211_node_table *);
+static int		ral_key_alloc(struct ieee80211com *,
+			    const struct ieee80211_key *);
 static int		ral_media_change(struct ifnet *);
 static void		ral_next_scan(void *);
 static void		ral_iter_func(void *, struct ieee80211_node *);
@@ -456,6 +458,7 @@ ral_attach(device_t dev)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = ral_newstate;
+	ic->ic_crypto.cs_key_alloc = ral_key_alloc;
 	ieee80211_media_init(ic, ral_media_change, ieee80211_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -897,6 +900,15 @@ ral_node_alloc(struct ieee80211_node_table *nt)
 	rn = malloc(sizeof (struct ral_node), M_80211_NODE, M_NOWAIT | M_ZERO);
 
 	return (rn != NULL) ? &rn->ni : NULL;
+}
+
+static int
+ral_key_alloc(struct ieee80211com *ic, const struct ieee80211_key *k)
+{
+	if (k >= ic->ic_nw_keys && k < &ic->ic_nw_keys[IEEE80211_WEP_NKID])
+		return k - ic->ic_nw_keys;
+
+	return IEEE80211_KEYIX_NONE;
 }
 
 static int
