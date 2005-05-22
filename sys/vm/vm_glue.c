@@ -530,7 +530,6 @@ faultin(p)
 #else /* !NO_SWAPPING */
 	struct thread *td;
 
-	GIANT_REQUIRED;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * If another process is swapping in this process,
@@ -578,7 +577,7 @@ faultin(p)
  *
  *  XXXKSE - process with the thread with highest priority counts..
  *
- * Giant is still held at this point, to be released in tsleep.
+ * Giant is held on entry.
  */
 /* ARGSUSED*/
 static void
@@ -592,7 +591,7 @@ scheduler(dummy)
 	int ppri;
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
-	/* GIANT_REQUIRED */
+	mtx_unlock(&Giant);
 
 loop:
 	if (vm_page_count_min()) {
