@@ -488,7 +488,7 @@
 	  as module or statically compiled into a kernel.  Individual
 	  drivers can now be built with the &man.ndisgen.8; utility;
 	  the result is a kernel module that can be loaded into a
-	  running kernel using &man.kldload.8;.</para>
+	  running kernel using &man.kldload.8;. &merged;</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
@@ -806,10 +806,10 @@
       <literal>AF_INET</literal> records.  &merged;</para>
 
     <para>The &man.getprotoent.3;, &man.getprotobyname.3;, and
-      &man.getprotobynumber.3; functions are now thread-safe.</para>
+      &man.getprotobynumber.3; functions are now thread-safe. &merged;</para>
 
     <para>The &man.getservent.3;, &man.getservbyname.3;, and
-      &man.getservbyport.3; functions are now thread-safe.</para>
+      &man.getservbyport.3; functions are now thread-safe. &merged;</para>
 
     <para>The gvinum(8) utility now supports
       <command>checkparity</command>,
@@ -830,7 +830,7 @@
 
     <para>The &man.kldstat.8; utility now supports a
       <option>-m</option> option to return the status of a specific
-      kernel module.</para>
+      kernel module. &merged;</para>
 
     <para>The on-disk format of <literal>LC_CTYPE</literal> files has
       been changed to be machine-independent.</para>
@@ -865,7 +865,7 @@
       platforms, the main thread receives a 2MB stack size by default,
       with other threads receiving a 1MB stack size by default.  On
       64-bit platforms, the default stack sizes are 4MB and 2MB
-      respectively.</para>
+      respectively. &merged;</para>
 
     <para>The <filename>libxpg4</filename> library has been removed
       because all of its functionality was long ago merged into
