@@ -230,6 +230,8 @@ ipw_attach(device_t dev)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 
+	pci_write_config(dev, 0x41, 0, 1);
+
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
@@ -717,6 +719,8 @@ ipw_resume(device_t dev)
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
 
 	IPW_LOCK(sc);
+
+	pci_write_config(dev, 0x41, 0, 1);
 
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_init(ifp->if_softc);
