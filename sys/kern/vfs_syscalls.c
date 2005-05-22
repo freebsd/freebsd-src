@@ -557,6 +557,8 @@ freebsd4_getfsstat(td, uap)
 			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			cvtstatfs(td, sp, &osb);
+			if (suser(td))
+				osb.f_fsid.val[0] = osb.f_fsid.val[1] = 0;
 			error = copyout(&osb, sfsp, sizeof(osb));
 			if (error) {
 				vfs_unbusy(mp, td);
@@ -639,11 +641,7 @@ cvtstatfs(td, nsp, osp)
 	    MIN(MFSNAMELEN, OMNAMELEN));
 	bcopy(nsp->f_mntfromname, osp->f_mntfromname,
 	    MIN(MFSNAMELEN, OMNAMELEN));
-	if (suser(td)) {
-		osp->f_fsid.val[0] = osp->f_fsid.val[1] = 0;
-	} else {
-		osp->f_fsid = nsp->f_fsid;
-	}
+	osp->f_fsid = nsp->f_fsid;
 }
 #endif /* COMPAT_FREEBSD4 */
 
