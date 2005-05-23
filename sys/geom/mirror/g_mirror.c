@@ -1891,6 +1891,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 * Disks went down in starting phase, so destroy
 			 * device.
 			 */
+			G_MIRROR_DEBUG(1, "root_mount_rel[1] %p", sc->sc_rootmount);
 			root_mount_rel(sc->sc_rootmount);
 			sc->sc_rootmount = NULL;
 			callout_drain(&sc->sc_callout);
@@ -1900,6 +1901,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			return;
 		}
 
+		G_MIRROR_DEBUG(1, "root_mount_rel[2] %p", sc->sc_rootmount);
 		root_mount_rel(sc->sc_rootmount);
 		sc->sc_rootmount = NULL;
 
@@ -2574,6 +2576,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	G_MIRROR_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
 
 	sc->sc_rootmount = root_mount_hold("GMIRROR");
+	G_MIRROR_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 	/*
 	 * Run timeout.
 	 */
